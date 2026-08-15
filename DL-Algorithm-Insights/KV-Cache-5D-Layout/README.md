@@ -44,6 +44,22 @@ Reading the wrong layout raises no exception, the shapes still line up, and the 
 
 ---
 
+## Terms Used Throughout
+
+A few words appear on every page below, so here is what they mean:
+
+| Term | What it refers to |
+|---|---|
+| **kernel** | The program that actually runs on the GPU. One Attention computation ends up as one or a few kernels |
+| **KV** | Key and Value, the two sets of vectors the model computes per token and keeps for later lookup |
+| **layout** | How data is ordered in memory (the subject of this article) |
+| **page** | A fixed-size block of memory holding a fixed number of tokens |
+| **Prefill** | The phase that processes your entire input prompt at once |
+| **Decode** | The phase that emits one token at a time |
+| **backend** | Which implementation the framework hands a given step to |
+
+---
+
 ## What Problem Does KV Cache Solve First
 
 Start with an analogy. You are in a long meeting, and before every remark you need to account for everything said so far. Replaying the entire meeting from memory each time gets slower and slower. The sensible approach is to take minutes as you go and look them up when needed.
@@ -108,14 +124,14 @@ At this point memory is carved into standard rooms and the registry records who 
 The most naive arrangement for freshly computed K/V is to store them the way they came out:
 
 ```text
-[T, H, D]
+[N, H, D]
 ```
 
-- `T`: number of tokens
-- `H`: number of KV heads
-- `D`: dimension of each head
+- `N`: number of tokens (called `size` in the source — how many tokens this cache can hold)
+- `H`: number of KV heads (`head_num`)
+- `D`: dimension of each head (`head_dim`)
 
-Many codebases call this token-major arrangement **NHD**: token, head, head dimension. Its rule is "write all dimensions of one token, then move to the next token".
+Those three letters spell **NHD**, which is also the name the source gives this layout. Its rule is a single sentence: **write every dimension of one token, then move to the next token.**
 
 NHD is not the only option. The same data can be arranged in a different order — not one element is added or removed, only what comes first changes. The 5D layout examined here is one such alternative.
 
@@ -247,7 +263,7 @@ The two steps access K and V differently. Based on the shapes and index formulas
 
 The 16 bytes here is this implementation's storage vector contract; it should not be generalized into a universal vector width across all GPUs and all kernels.
 
-The writing kernel in the source scatters ordinary `[T,H,D]` K/V into these two physical layouts. If a downstream consumer only accepts a linear layout, the data has to be gathered back using the same index formula; a kernel that consumes 5D natively skips that restoration entirely.
+The writing kernel in the source scatters ordinary `[N,H,D]` K/V into these two physical layouts. If a downstream consumer only accepts a linear layout, the data has to be gathered back using the same index formula; a kernel that consumes 5D natively skips that restoration entirely.
 
 Neither scatter nor gather is free. Switching layouts frequently eats the gains the layout was supposed to deliver.
 

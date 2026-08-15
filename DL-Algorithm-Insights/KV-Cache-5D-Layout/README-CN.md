@@ -44,6 +44,22 @@ AITER / FlyDSL
 
 ---
 
+## 先把几个词说清楚
+
+全文绕不开几个英文词，先一次讲明白：
+
+| 词 | 说的是什么 |
+|---|---|
+| **kernel** | GPU 上真正跑起来的那段程序。一次 Attention 计算，最终就是一个或几个 kernel 在跑 |
+| **KV** | Key 和 Value，模型为每个 token 算出来、存起来备查的两组向量 |
+| **layout** | 布局：数据在显存里按什么顺序摆（本文主题） |
+| **page** | 页：把显存切成的固定大小的块，每块装固定数量的 token |
+| **Prefill** | 预填充阶段：把输入的整段话一次性算完 |
+| **Decode** | 解码阶段：一个字一个字往外生成 |
+| **backend** | 后端：框架把某一步交给谁去算 |
+
+---
+
 ## KV Cache 先解决什么问题
 
 先打个比方。你参加一场长会议，每次发言前都要参考前面所有人说过的话。如果每次都靠回忆把整场会重新推演一遍，越往后越慢。正常做法是边听边记纪要，需要时直接翻。
@@ -108,14 +124,14 @@ PagedAttention 就是这套房间管理制度：把 KV 拆成固定大小的 pag
 Attention 刚算出的 K/V，最朴素的摆法是照着它算出来的样子摆：
 
 ```text
-[T, H, D]
+[N, H, D]
 ```
 
-- `T`：token 数
-- `H`：KV head 数
-- `D`：每个 head 的维度
+- `N`：token 数（源码里叫 `size`，即这块缓存能放多少个 token）
+- `H`：KV head 数（`head_num`）
+- `D`：每个 head 的维度（`head_dim`）
 
-很多源码把这种 token-major 摆法简称为 **NHD**：token、head、head dimension。它的规则是"先把一个 token 的所有维度写完，再写下一个 token"。
+这三个字母连起来就是 **NHD**，也是源码里给这种布局起的名字。它的规则只有一句：**先把一个 token 的所有维度写完，再写下一个 token**。
 
 NHD 不是唯一选择。同一批数据完全可以按别的顺序摆，元素一个不少，只是谁在前谁在后变了。本文要拆的 5D 就是另一种摆法。
 
@@ -247,9 +263,9 @@ Attention 包含两次主要矩阵运算：
 
 这里的 16 字节是该实现的存储向量合同，不应外推成所有 GPU、所有 kernel 统一的向量宽度。
 
-源码中的写入 kernel 会把普通 `[T,H,D]` K/V scatter 到这两种物理布局。如果后续 consumer 只接受线性布局，还需要按同一索引公式 gather 回来；能原生消费 5D 的 kernel 则可以省掉这次还原。
+源码中的写入 kernel 会把普通 `[N,H,D]` 的 K/V 按索引**打散写入**（scatter）到这两种物理布局。如果后续的读取方只接受线性布局，还得按同一套索引公式**再取回来**（gather）；能直接读 5D 的 kernel 则可以省掉这次还原。
 
-scatter 和 gather 都不是零成本操作。频繁切换 layout，会吃掉布局优化带来的收益。
+打散写入和取回都不是零成本操作。频繁切换布局，会吃掉布局优化带来的收益。
 
 这正是"layout 是数据合同"的含义：**shape 相同不代表物理含义相同，`view()` 也不能把 NHD 变成 SHUFFLE 5D。**
 
@@ -266,15 +282,15 @@ scatter 和 gather 都不是零成本操作。频繁切换 layout，会吃掉布
 1. 最内层固定为 16 字节向量，便于 kernel 做向量化 load/store。
 2. K 和 V 分别按消费方向排布，减少跨步读取。
 3. 在这条 SGLang 实现中，5D pool 被交给 AITER CK `mha_batch_prefill_func` 和 `pa_decode_gluon` 原生消费。
-4. 数据已经按 kernel 需要的形状保存，运行时不必反复 permute 或 transpose。
+4. 数据已经按 kernel 需要的形状保存，运行时不必反复重排（permute）或转置。
 
-公开 SGLang 源码对这条集成路径的描述很直接：SHUFFLE 5D 让对应的 AITER Prefill 与 Paged Decode consumer 读取物理缓存，并避免运行时 permute。这里引用的是 SGLang 侧的数据合同，不代表所有 AITER 版本和所有 Attention 变体都具备相同支持。
+公开 SGLang 源码对这条集成路径的描述很直接：SHUFFLE 5D 让对应的 AITER Prefill 与 Paged Decode 读取方直接读物理缓存，并避免运行时重排。这里引用的是 SGLang 侧的数据合同，不代表所有 AITER 版本和所有 Attention 变体都具备相同支持。
 
 这与 FlashAttention 强调的 IO-aware 原则是一致的：GPU Attention 的瓶颈不只在计算量，还在 HBM 显存与片上存储之间搬了多少数据、按什么顺序搬。
 
-但"可能更快"不等于"在任何模型和硬件上都更快"。5D 是 backend-specific 优化，收益取决于 GPU 架构、KV dtype、page size、head_dim、Attention backend，以及是否存在匹配的 consumer kernel。
+但“可能更快”不等于“在任何模型和硬件上都更快”。5D 是绑定后端的优化，收益取决于 GPU 架构、KV 数据类型、page size、head_dim、Attention 后端，以及是否存在能直接读它的 kernel。
 
-没有匹配 kernel 时，结果取决于具体实现：非 AITER backend 会忽略该环境变量并保持 NHD；部分不兼容组合会在启动校验时失败；是否存在其他 fallback 必须以运行日志为准。
+没有匹配 kernel 时，结果取决于具体实现：非 AITER 后端会忽略该环境变量并保持 NHD；部分不兼容组合会在启动校验时失败；是否存在其他回退路径（fallback）必须以运行日志为准。
 
 ---
 
@@ -366,7 +382,7 @@ Speculative draft worker：NHD
 
 | 层级 | 要确认什么 |
 |---|---|
-| 启动参数 | KV dtype、page size、Attention backend |
+| 启动参数 | KV 数据类型、page size、Attention 后端 |
 | 进程环境 | `SGLANG_AITER_KV_CACHE_LAYOUT` 的实际值 |
 | 分配日志 | KV Cache 实际 dtype 和容量 |
 | kernel 日志 | Target/Draft 布局与实际加载的 Prefill/Decode kernel |
@@ -381,7 +397,7 @@ grep -E \
 
 如果只看到 `vectorized_5d` 环境变量，却没有匹配的 kernel 或 layout 日志，最多只能说明"请求了 5D"，不能证明"5D 路径已生效"。常见情况有两类：
 
-- backend 不是 AITER，配置被忽略，内存池仍采用 NHD。
+- 后端不是 AITER，配置被忽略，内存池仍采用 NHD。
 - dtype、page size 或 head_dim 不满足约束，服务在启动校验阶段失败。
 
 服务能启动，也不代表一定命中了预期 kernel。最终仍要核对 kernel 加载日志和性能数据。
@@ -394,7 +410,7 @@ grep -E \
 
 **Why**：它让特定 Attention kernel 按原生向量宽度连续读取 K/V，减少运行时重排和低效显存访问。
 
-**Boundary**：它不等于 FP8、不天然节省容量，也不是跨 GPU、跨 backend 通用的标准格式。
+**Boundary**：它不等于 FP8、不天然节省容量，也不是跨 GPU、跨后端通用的标准格式。
 
 ---
 
