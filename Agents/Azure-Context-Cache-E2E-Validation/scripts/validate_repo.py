@@ -117,6 +117,9 @@ def validate_customer_architecture(path: Path) -> None:
         "hit: reuse processed prefix",
         "cached_tokens",
         "contextCacheContainerId",
+        "Microsoft.Storage/contextCaches",
+        "default-container",
+        "not Blob Storage",
     ):
         require(marker in text, f"customer architecture missing: {marker}")
     require("M1106 306 H1242" in paths, "miss population must flow deployment to cache")
@@ -215,10 +218,25 @@ def main() -> int:
         warm = calls[1:]
         warm_mean = round(sum(row["latencyMs"] for row in warm) / len(warm), 3)
         speedup = round(calls[0]["latencyMs"] / warm_mean, 6)
+        warm_input_tokens = sum(row["inputTokens"] for row in warm)
+        warm_cached_tokens = sum(row["cachedTokens"] for row in warm)
+        warm_cached_share = round(100 * warm_cached_tokens / warm_input_tokens, 1)
+        per_call_cached_shares = [
+            100 * row["cachedTokens"] / row["inputTokens"] for row in warm
+        ]
+        latency_delta = round(calls[0]["latencyMs"] - warm_mean, 1)
+        latency_reduction = round(100 * latency_delta / calls[0]["latencyMs"], 1)
         require(warm_mean == evidence["recomputed"]["warmMeanLatencyMs"], "warm mean mismatch")
         require(speedup == evidence["recomputed"]["firstToWarmSpeedup"], "speedup mismatch")
         require(sum(row["cachedTokens"] > 0 for row in warm) == 5, "warm hit count mismatch")
         require({row["cachedTokens"] for row in warm} == {2304}, "cached tokens changed")
+        require(warm_input_tokens == 13037, "warm input token total changed")
+        require(warm_cached_tokens == 11520, "warm cached token total changed")
+        require(warm_cached_share == 88.4, "warm cached share changed")
+        require(round(min(per_call_cached_shares), 1) == 85.9, "minimum cached share changed")
+        require(round(max(per_call_cached_shares), 1) == 90.7, "maximum cached share changed")
+        require(latency_delta == 2177.6, "latency delta changed")
+        require(latency_reduction == 37.4, "latency reduction changed")
 
         evidence_paths = (
             ROOT / "evidence" / "validation-history.json",
@@ -242,8 +260,19 @@ def main() -> int:
         customer_markers = {
             "README.md": (
                 "Customer Problem and Business Value",
+                "cross-request prompt-processing reuse",
                 "Workload Fit",
                 "Customer Architecture",
+                "Where the Data Starts and Where the Cache Lives",
+                "Microsoft.Storage/contextCaches/<name-prefix>-cache",
+                "application never uploads the prompt to Blob Storage",
+                "prompt_cache_retention",
+                "11,520 / 13,037",
+                "88.4%",
+                "37.4%",
+                "Does This Require RAG?",
+                "Context Cache does not replace document ingestion",
+                "official non-RAG Code Reviewer workload",
                 "Test Information, Procedure, and Evidence",
                 "Test Scripts",
                 "Sanitized Test Log",
@@ -262,8 +291,19 @@ def main() -> int:
             ),
             "README-CN.md": (
                 "客户问题与业务价值",
+                "跨请求的 prompt 处理复用",
                 "工作负载适配",
                 "客户业务架构",
+                "数据从哪里来，缓存实际存在哪里",
+                "Microsoft.Storage/contextCaches/<name-prefix>-cache",
+                "应用不会把 prompt 预先上传到 Blob Storage",
+                "prompt_cache_retention",
+                "11,520 / 13,037",
+                "88.4%",
+                "37.4%",
+                "是否必须使用 RAG",
+                "Context Cache 不能替代文档摄取",
+                "官方非 RAG Code Reviewer workload",
                 "测试信息、步骤与证据",
                 "测试脚本",
                 "脱敏测试日志",

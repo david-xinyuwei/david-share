@@ -14,11 +14,14 @@
 
 企业 AI 应用通常会在每次请求中重复发送大段稳定上下文，只有用户任务或当前案例数据发生变化。Azure Context Cache 将 Azure OpenAI 部署与具名缓存容器关联，使前缀匹配的后续请求能够复用已经处理过的稳定内容。
 
+> **客户一句话结论：** 在客户订阅中部署具名、区域化的 Context Cache container，并把它绑定到 Azure OpenAI deployment。第一次匹配请求填充可复用的稳定前缀处理结果；后续请求可以在配置的生命周期内复用。应用仍然正常发送前缀并调用 Azure OpenAI，由 deployment 自动查询缓存。这是跨请求的 prompt 处理复用，不是永久文档存储，也不是语义检索。
+
 | 业务价值杠杆 | 为什么重要 | 客户应如何验证 |
 |---|---|---|
 | 请求延迟 | 缓存命中可以避免重复处理稳定前缀 | 使用客户自己的提示词组合与并发测试延迟分布 |
 | 输入 token 经济性 | 缓存读取可以使用折扣后的输入 token 价格 | 结合 `cached_tokens`、实际命中率和当前 Azure 定价计算 |
 | 容量效率 | 复用重复前缀计算可以释放模型计算能力 | 在目标负载下执行受控吞吐测试 |
+| 跨请求复用 | 具名缓存容器可以在配置的生命周期内跨调用复用符合条件的前缀处理结果 | 通过已绑定 deployment 重复发送字节一致的前缀，并监控 `cached_tokens` |
 | 治理 | 具名缓存资源部署在客户订阅、区域和 RBAC 边界内，并配置 TTL | 核对目标区域、访问控制、生命周期和数据要求 |
 
 > [固定版本的官方 Quickstart](https://github.com/Azure/AzureContextCache/tree/7d1029a5e8b59b1805e70992c85ffe6798d2f47a) 将延迟、成本和吞吐列为产品价值杠杆。本仓库只证明在一个已获准环境中实际使用了缓存，不量化客户的成本节省或生产性能。
@@ -45,22 +48,192 @@
 
 Context Cache 容器是客户订阅中的 Azure 资源。锁定的 Private Preview Quickstart 配置缓存账户、模型专属容器、TTL 和 `contextCacheContainerId` 绑定。
 
-## 本仓库实际证明了什么
+## 数据从哪里来，缓存实际存在哪里
 
-已在获得 Private Preview 准入的 Azure 订阅中，对锁定至 commit `7d1029a5e8b59b1805e70992c85ffe6798d2f47a` 的官方 Quickstart 完成端到端验证。
+### 已验证路径的资源拓扑
 
-| 验证信号 | 实际结果 | 证据含义 |
-|---|---:|---|
-| 真实 Responses API 调用 | `6/6` 完成 | 官方部署链路和数据面调用成功完成 |
-| 预热后缓存调用 | `5/5` 命中 | 已关联的 Context Cache 为预热后调用提供缓存 |
-| 缓存输入 token | 每次均为 `2304` | 观测到一致的非零缓存信号 |
-| 证据处理 | 后续 2 次不完整运行被拒绝 | 传输错误没有被转换为通过结果 |
+这里的 `Microsoft.Storage` **不是**普通 Azure Storage account（存储账户）或 Blob container（Blob 容器）。固定版本的 Private Preview 会创建专用的 `Microsoft.Storage/contextCaches` 资源及其模型专属子容器。应用不会把 prompt 预先上传到 Blob Storage，也不会直接调用缓存资源。
+
+| 对象 | 已验证路径中的位置 | 精确合同 | 存放或执行的内容 |
+|---|---|---|---|
+| 请求前的稳定来源 | 官方 Quickstart 的私有物化副本 | `demo/system_prompt.md` | 约 2.4K token 的代码审查指令；每次调用保持字节完全一致 |
+| 请求前的变化来源 | 同一个 Quickstart 私有副本 | `demo/diffs/*.diff` | 每次调用在稳定 system prompt 之后追加一个不同的 PR diff |
+| Azure OpenAI 账户 | 获准的私有订阅、新建验证资源组、`centralus` | `Microsoft.CognitiveServices/accounts/<name-prefix>-aoai` | 承载 Azure OpenAI endpoint |
+| Azure OpenAI 部署 | Azure OpenAI 账户的子资源 | `deployments/context-cache-deployment`，模型 `gpt-5.4`，版本 `2026-03-05-contextcache` | 接收 Responses API 请求，并配置 `properties.contextCacheContainerId` |
+| Context Cache 账户 | 同一订阅、资源组和区域 | `Microsoft.Storage/contextCaches/<name-prefix>-cache`，`accountKind = Regional` | 客户通过 Azure RBAC 管理的缓存命名空间 |
+| Context Cache 容器 | Context Cache 账户的子资源 | `contextCacheContainers/default-container`，provider `OpenAI`，模型 `gpt-5.4`，`timeToLive = 7` 天 | Azure 托管的稳定前缀处理结果存储单元 |
+
+可检查的 ARM resource ID（资源 ID）为：
+
+```text
+/subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.Storage/contextCaches/<name-prefix>-cache/contextCacheContainers/default-container
+```
+
+按 README 示例使用 `-NamePrefix ccvalidate` 时，缓存资源是 `ccvalidate-cache/default-container`，与它绑定的 Azure OpenAI 部署是 `ccvalidate-aoai/context-cache-deployment`。公共 Repo 有意隐去实际验证订阅、资源组和 prefix；本次运行已确认资源位于私有订阅中一个新建的 `centralus` 资源组。
+
+官方源码将缓存内容描述为稳定前缀经过 tokenization 和 pre-attention 后的表示。它不是客户可寻址的文件、Blob URL 或 Blob object。上面的 resource ID 是客户可以检查和治理的 control-plane（控制面）边界；本次验证没有、也不能声称服务内部的物理文件布局。
+
+### 端到端数据流
+
+| 步骤 | 所在位置 | 实际发生的动作 | 可观察结果 |
+|---:|---|---|---|
+| 1 | 本地 Quickstart 私有副本 | Python 读取 `system_prompt.md` 和一个 `.diff` 文件 | 客户端没有执行预上传，因此此时 Azure 中还没有由客户端写入的缓存内容 |
+| 2 | 客户应用 → Azure OpenAI | 把稳定 system prompt 放在请求前部，把变化的 diff 放在末尾，组成一次 Responses API 请求 | 普通的 `POST /openai/v1/responses` 调用 |
+| 3 | 已绑定缓存的 Azure OpenAI 部署 | `contextCacheContainerId` 让 deployment 透明查询 `default-container` | 应用始终只调用 Azure OpenAI，不需要单独的缓存 SDK 调用 |
+| 4 | 第一次请求：cache miss | Azure OpenAI 完整处理请求，服务把可复用的稳定前缀处理结果写入已绑定容器 | 第 1 次调用返回 `cached_tokens = 0` |
+| 5 | 后续请求：cache hit | 字节完全一致的前缀直接复用；末尾不同的 PR diff 仍按本次请求处理 | 第 2–6 次调用均返回 `cached_tokens = 2304` |
+| 6 | Azure OpenAI → 客户应用 | 正常返回模型结果和 usage telemetry（用量遥测） | `usage.input_tokens_details.cached_tokens`、输出 token、延迟和状态 |
+
+固定样例同时使用两个不同的保留设置：Context Cache 容器配置 `timeToLive = 7` 天，而每个 gpt-5.4 请求设置 `prompt_cache_retention = "24h"`。两者都来自官方样例，但不是同一个设置。本仓库验证了它们的配置值，不从这两个值推断服务内部的存储分层。
+
+### 应用如何调用
+
+下面保留了固定官方 Demo 的核心调用路径。请求中不需要出现 cache account 或 container，因为 Azure OpenAI deployment 已经预先与它们绑定。
+
+```python
+from pathlib import Path
+
+import httpx
+from azure.identity import DefaultAzureCredential
+
+endpoint = "https://YOUR-AOAI-ACCOUNT.openai.azure.com"
+deployment = "context-cache-deployment"
+stable_prefix = Path("demo/system_prompt.md").read_text(encoding="utf-8")
+diff_name = "01-sql-injection.diff"
+dynamic_suffix = Path(f"demo/diffs/{diff_name}").read_text(encoding="utf-8")
+
+token = DefaultAzureCredential(
+  exclude_interactive_browser_credential=False
+).get_token("https://cognitiveservices.azure.com/.default").token
+
+payload = {
+  "model": deployment,
+  "input": [
+    {
+      "type": "message",
+      "role": "system",
+      "content": [{"type": "input_text", "text": stable_prefix}],
+    },
+    {
+      "type": "message",
+      "role": "user",
+      "content": [{
+        "type": "input_text",
+        "text": f"Review this PR diff:\n\nFile: {diff_name}\n\n{dynamic_suffix}",
+      }],
+    },
+  ],
+  "max_output_tokens": 200,
+  "prompt_cache_retention": "24h",
+}
+
+response = httpx.post(
+  f"{endpoint}/openai/v1/responses?api-version=preview",
+  headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+  json=payload,
+  timeout=240,
+)
+response.raise_for_status()
+result = response.json()
+print(result.get("output_text") or result.get("output"))
+print(result["usage"]["input_tokens_details"]["cached_tokens"])
+```
+
+生产应用沿用同一个原则：把长期复用的指令、工具、政策、示例或参考资料放在前部，把当前用户输入或案例数据追加到末尾，并持续监控每次响应中的 `cached_tokens`。
+
+### 在客户环境中找到这些资源
+
+使用运行器接收的同一个资源组和 `-NamePrefix`。以下命令可以找到逻辑缓存资源并证明 deployment 绑定，不会输出任何秘密：
+
+```powershell
+$subscriptionId = "YOUR-SUBSCRIPTION-ID"
+$resourceGroup = "YOUR-RESOURCE-GROUP"
+$namePrefix = "YOUR-NAME-PREFIX"
+
+az resource list --subscription $subscriptionId --resource-group $resourceGroup `
+  --query "[?contains(type, 'contextCaches') || type=='Microsoft.CognitiveServices/accounts/deployments'].{name:name,type:type,location:location}" `
+  -o table
+
+$containerId = az resource show --subscription $subscriptionId `
+  --resource-group $resourceGroup `
+  --resource-type "Microsoft.Storage/contextCaches/contextCacheContainers" `
+  --name "${namePrefix}-cache/default-container" `
+  --api-version "2026-01-01-preview" --query id -o tsv
+
+az resource show --subscription $subscriptionId `
+  --resource-group $resourceGroup `
+  --resource-type "Microsoft.CognitiveServices/accounts/deployments" `
+  --name "${namePrefix}-aoai/context-cache-deployment" `
+  --api-version "2026-03-15-preview" `
+  --query "{deployment:name,model:properties.model,contextCacheContainerId:properties.contextCacheContainerId}" `
+  -o json
+
+Write-Output "Expected container: $containerId"
+```
+
+返回的 `properties.contextCacheContainerId` 必须与 `$containerId` 完全相同。在 Azure Portal 中，同一批资源位于验证资源组内，分别属于 Azure OpenAI 账户和 `Microsoft.Storage/contextCaches` 资源类型；这里没有可供浏览的普通 Blob container。
+
+### 本次验证实际观察到的效果
+
+| 信号 | 根据 6 次入库调用重新计算 | 实际观察 | 对客户意味着什么 |
+|---|---:|---:|---|
+| 缓存已启用 | 预热后 `cached_tokens > 0` 的调用数 | `5/5` 次预热后调用命中 | deployment 与 container 的绑定确实为重复前缀提供了缓存 |
+| 输入处理复用 | 预热后 `11,520 / 13,037` 个输入 token | 预热后总输入的 `88.4%` 被报告为 cached；单次为 `85.9%–90.7%` | 大部分重复输入处理转为 cache read；这不等于账单降低 88.4% |
+| 方向性延迟 | 第 1 次 `5820 ms`；预热后均值 `3642.4 ms` | 本次运行低 `2177.6 ms`（`37.4%`） | 支撑进一步验证延迟收益，但一次并行 warm burst 不是性能 benchmark 或 SLA |
+| 输入 token 经济性 | 5 次预热后调用每次 `2304` cached tokens | 合计 `11,520` 次 cached-token reads | 应结合客户命中率和当前模型/区域定价计算；本仓库不声称具体金额 |
+| 输出行为 | `6/6` 次 Responses API 调用全部完成 | 正常模型输出和 usage telemetry | Prompt caching 改变的是处理复用，不改变应用预期的响应合同 |
+
+已在获得 Private Preview 准入的 Azure 订阅中，对锁定至 commit `7d1029a5e8b59b1805e70992c85ffe6798d2f47a` 的官方 Quickstart 完成端到端验证。后续两次不完整运行被拒绝，没有被转换为通过结果。
+
+> **证据边界：** 这是一次运行的能力观测，不代表生产就绪、可用性、成本节省、吞吐或延迟保证。通用 Azure OpenAI prompt caching 指南可能因模型家族和 API 接口形态不同而采用其他机制；本仓库专门验证 Private Preview 的 `Microsoft.Storage/contextCaches` 和 `contextCacheContainerId` 路径。
 
 **建议下一步：** 完成 Preview 准入、权限、配额和区域可用性确认后，在客户自有 Azure 环境中使用具有代表性的提示词运行同一套验证。
 
-> **证据边界：** 这是一次运行的能力观测，不代表生产就绪、可用性、成本节省、吞吐或延迟保证。
+## 是否必须使用 RAG
 
-本仓库评估的是基于 `Microsoft.Storage/contextCaches` 和 `contextCacheContainerId` 的固定 Private Preview 资源路径。通用 Azure OpenAI prompt caching 指南可能因模型家族和 API 接口形态不同而采用其他机制；目标模型与当前能力边界应另行对照最新官方文档确认。
+**不需要。** Azure Context Cache 和 RAG 解决的是两个不同问题：
+
+| 能力 | 首要问题 | 存储内容 | 应用如何使用 |
+|---|---|---|---|
+| 基于 Azure AI Search 的 RAG | “这次问题需要哪些客户知识？” | Search index 或 knowledge source 中的原始文档、chunks、metadata 和 embeddings | 应用或 Agent 针对每个问题显式检索 top results，再把结果加入 prompt |
+| Azure Context Cache | “已经提供过的哪些 prompt 前缀不必从头处理？” | 具名 Context Cache 容器中由服务管理的稳定前缀 tokenized、pre-attended 表示 | 应用发送正常模型请求；已绑定的 deployment 自动匹配并复用前缀 |
+
+Context Cache 不能替代文档摄取、chunking、embedding、vector/hybrid search、relevance ranking、引用、内容新鲜度或文档级授权。它不是 vector database，也不会检索语义相似内容。
+
+### 如何与客户 RAG 应用组合
+
+```mermaid
+flowchart LR
+  Docs[企业文档] --> Ingest[切分 + 富化 + 向量化]
+  Ingest --> Index[Azure AI Search index<br/>chunks + metadata + vectors]
+  Query[本次用户问题] --> Retrieve[向量 / 关键词 / Hybrid retrieval]
+  Index --> Retrieve
+  Retrieve --> Dynamic[动态后缀<br/>top-N chunks + 本次问题]
+  Stable[稳定前缀<br/>system 指令 + tool schemas<br/>guardrails + 输出合同] --> Prompt[组装 Prompt]
+  Dynamic --> Prompt
+  Prompt --> AOAI[已绑定缓存的 Azure OpenAI deployment]
+  AOAI <--> Cache[Context Cache container<br/>已处理的稳定前缀]
+  AOAI --> Answer[Grounded answer + citations<br/>cached_tokens telemetry]
+```
+
+高价值的 RAG 组合方式是：
+
+1. 企业内容仍存放在权威数据源和 RAG index 中，并沿用原有治理方式。
+2. 针对本次用户问题检索相关 chunks；这些结果通常每次都不同。
+3. 把稳定的应用指令、tool schemas、安全政策、输出格式和真正固定的参考内容放在模型请求的**最前部**。
+4. 把检索得到的 top-N chunks 和本次用户问题追加到**末尾**。
+5. 把完整请求发送给已绑定缓存的 Azure OpenAI deployment，并监控 `cached_tokens`。
+
+| RAG prompt 组成 | 缓存预期 | 原因 |
+|---|---|---|
+| System/developer 指令、工具定义、guardrails、响应 schema | **强候选** | 内容较长，并在大量请求中保持一致 |
+| 每次请求都附带的固定产品手册或政策 | **字节一致且未超过 TTL 时可作为候选** | 相同的大段参考前缀会重复出现 |
+| Vector/hybrid search 针对本次问题返回的 top-N chunks | **通常是动态内容** | 不同问题会返回不同 chunks 或排序 |
+| 用户问题、对话尾部、当前案例数据 | **动态后缀** | 每次请求都会变化 |
+
+因此，当 RAG 应用在每次检索调用外围都包含很长的稳定编排前缀时，Context Cache 会让业务价值更明显；但这不代表所有 RAG 检索结果都可以自动复用。只要 chunk 内容、顺序、security trimming 结果或前部个性化内容发生变化，就可能无法命中相同前缀。
+
+> **验证状态：** 当前发布的实时 E2E 验证的是官方非 RAG Code Reviewer workload。上面的 RAG 组合是依据 Microsoft RAG 指南和官方 Context Cache 前缀合同形成的架构模式；本仓库尚未使用客户 Search index 对其进行 benchmark。
 
 ## 测试信息、步骤与证据
 
@@ -226,6 +399,9 @@ python scripts\verify_upstream.py `
 - [Azure/AzureContextCache](https://github.com/Azure/AzureContextCache)
 - [固定的上游 commit](https://github.com/Azure/AzureContextCache/commit/7d1029a5e8b59b1805e70992c85ffe6798d2f47a)
 - [Azure OpenAI prompt caching](https://learn.microsoft.com/azure/ai-foundry/openai/how-to/prompt-caching)
+- [OpenAI Prompt Caching](https://developers.openai.com/api/docs/guides/prompt-caching)
+- [Microsoft RAG 架构指南](https://learn.microsoft.com/azure/architecture/ai-ml/guide/rag/rag-solution-design-and-evaluation-guide)
+- [Azure AI Search 的 RAG 说明](https://learn.microsoft.com/azure/search/retrieval-augmented-generation-overview)
 - [Azure CLI configuration isolation](https://learn.microsoft.com/cli/azure/azure-cli-configuration)
 - [ATTRIBUTION.md](ATTRIBUTION.md)
 

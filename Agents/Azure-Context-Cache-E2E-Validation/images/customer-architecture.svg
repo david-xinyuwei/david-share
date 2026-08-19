@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
   <title id="title">Azure Context Cache customer application architecture</title>
-  <desc id="desc">Enterprise channels send requests to a customer AI application that places stable reusable context before dynamic request data. A cache-linked Azure OpenAI deployment consults an Azure Context Cache container in the customer subscription and returns responses with cache usage telemetry.</desc>
+  <desc id="desc">Enterprise channels send requests to a customer AI application that places stable reusable context before dynamic request data. A cache-linked Azure OpenAI deployment consults the Microsoft.Storage contextCaches child container named default-container in the customer subscription and returns responses with cache usage telemetry.</desc>
   <defs>
     <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="5" orient="auto">
       <path d="M0 0 L10 5 L0 10 Z" fill="#5d6b76"/>
@@ -41,18 +41,23 @@
   <text x="1165" y="174" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="24" font-weight="700" fill="#344b3a">CUSTOMER AZURE SUBSCRIPTION · REGION · RBAC</text>
   <text x="1165" y="203" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="18" fill="#526b58">客户订阅、区域与访问控制边界</text>
 
-  <rect x="820" y="246" width="286" height="180" rx="8" fill="#ddf1e3" stroke="#247a45" stroke-width="3"/>
-  <text x="963" y="292" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="25" font-weight="700" fill="#123a24">AZURE OPENAI</text>
-  <text x="963" y="325" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="22" font-weight="700" fill="#123a24">DEPLOYMENT</text>
-  <text x="963" y="359" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="18" fill="#2c5c3d">Responses API</text>
-  <text x="963" y="389" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="16" fill="#2c5c3d">Linked through</text>
-  <text x="963" y="412" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="15" fill="#2c5c3d">contextCacheContainerId</text>
+  <rect x="820" y="226" width="286" height="220" rx="8" fill="#ddf1e3" stroke="#247a45" stroke-width="3"/>
+  <text x="963" y="266" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="23" font-weight="700" fill="#123a24">AZURE OPENAI</text>
+  <text x="963" y="296" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="21" font-weight="700" fill="#123a24">DEPLOYMENT</text>
+  <text x="963" y="328" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="13" fill="#2c5c3d">Microsoft.CognitiveServices/accounts</text>
+  <text x="963" y="356" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="15" fill="#2c5c3d">&lt;prefix&gt;-aoai</text>
+  <text x="963" y="383" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="14" fill="#2c5c3d">context-cache-deployment</text>
+  <text x="963" y="410" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="14" fill="#2c5c3d">gpt-5.4 · Responses API</text>
+  <text x="963" y="433" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="13" fill="#2c5c3d">binding: contextCacheContainerId</text>
 
-  <rect x="1242" y="246" width="264" height="180" rx="8" fill="#e9e2f5" stroke="#7650a6" stroke-width="3"/>
-  <text x="1374" y="292" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="24" font-weight="700" fill="#3f2760">AZURE CONTEXT</text>
-  <text x="1374" y="325" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="25" font-weight="700" fill="#3f2760">CACHE</text>
-  <text x="1374" y="362" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="18" fill="#574171">Named cache container</text>
-  <text x="1374" y="393" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="17" fill="#574171">Model · TTL · lifecycle</text>
+  <rect x="1242" y="226" width="264" height="220" rx="8" fill="#e9e2f5" stroke="#7650a6" stroke-width="3"/>
+  <text x="1374" y="266" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="22" font-weight="700" fill="#3f2760">AZURE CONTEXT</text>
+  <text x="1374" y="296" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="23" font-weight="700" fill="#3f2760">CACHE</text>
+  <text x="1374" y="328" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="12" fill="#574171">Microsoft.Storage/contextCaches</text>
+  <text x="1374" y="356" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="15" fill="#574171">&lt;prefix&gt;-cache</text>
+  <text x="1374" y="383" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="14" fill="#574171">child: default-container</text>
+  <text x="1374" y="410" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="13" fill="#574171">OpenAI · gpt-5.4 · TTL 7d</text>
+  <text x="1374" y="433" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="13" font-weight="700" fill="#574171">not Blob Storage</text>
 
   <rect x="952" y="476" width="416" height="92" rx="6" fill="#ffffff" stroke="#5d8068" stroke-width="2"/>
   <text x="1160" y="511" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="21" font-weight="700" fill="#294834">RESPONSE + USAGE TELEMETRY</text>
@@ -61,7 +66,7 @@
   <g fill="none" stroke="#5d6b76" stroke-width="5" marker-end="url(#arrow)">
     <path d="M282 351 H344"/>
     <path d="M734 351 H820"/>
-    <path d="M963 426 V476"/>
+    <path d="M963 446 V476"/>
     <path d="M952 522 H742 V490 H704"/>
   </g>
   <g fill="none" stroke="#18794e" stroke-width="5" marker-end="url(#arrowGreen)">
