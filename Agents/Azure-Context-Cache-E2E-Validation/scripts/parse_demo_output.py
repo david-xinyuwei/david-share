@@ -69,9 +69,11 @@ def summarize(
         raise ValidationError(f"expected {expected_runs} call rows, found {len(rows)}")
     if [row.call for row in rows] != list(range(1, expected_runs + 1)):
         raise ValidationError("call numbers are missing, duplicated, or out of order")
-    if not 0.0 <= min_warm_hit_ratio <= 1.0:
-        raise ValidationError("minimum warm hit ratio must be between 0 and 1")
+    if not 0.0 < min_warm_hit_ratio <= 1.0:
+        raise ValidationError("minimum warm hit ratio must be greater than 0 and at most 1")
     for row in rows:
+        if row.latency_ms <= 0:
+            raise ValidationError(f"call {row.call} has no measurable latency")
         if row.input_tokens <= 0:
             raise ValidationError(f"call {row.call} has no input tokens")
         if row.output_tokens <= 0:
@@ -93,11 +95,14 @@ def summarize(
         )
 
     warm_mean_latency = statistics.mean(row.latency_ms for row in warm_rows)
-    first_to_warm_speedup = rows[0].latency_ms / warm_mean_latency
+    first_call_cold_observed = rows[0].cached_tokens == 0
+    first_to_warm_speedup = (
+        rows[0].latency_ms / warm_mean_latency if first_call_cold_observed else None
+    )
     return {
         "schemaVersion": 1,
         "runCount": len(rows),
-        "firstCallColdObserved": rows[0].cached_tokens == 0,
+        "firstCallColdObserved": first_call_cold_observed,
         "warm": {
             "calls": len(warm_rows),
             "hits": len(warm_hits),
@@ -110,7 +115,11 @@ def summarize(
             },
         },
         "firstCallLatencyMs": rows[0].latency_ms,
-        "firstToWarmSpeedup": round(first_to_warm_speedup, 6),
+        "firstToWarmSpeedup": (
+            round(first_to_warm_speedup, 6)
+            if first_to_warm_speedup is not None
+            else None
+        ),
         "calls": [asdict(row) for row in rows],
     }
 

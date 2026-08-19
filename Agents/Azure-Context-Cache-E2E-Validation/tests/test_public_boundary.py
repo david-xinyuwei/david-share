@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import importlib.util
+import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -42,6 +44,42 @@ class PublicBoundaryTests(unittest.TestCase):
         for sample in samples:
             with self.subTest(sample=sample):
                 self.assertTrue(self.scan(sample))
+
+    def test_common_token_and_azure_secret_formats_are_rejected(self) -> None:
+        samples = (
+            "github_pat_" + "x" * 40,
+            "eyJ" + "a" * 20 + "." + "b" * 20 + "." + "c" * 20,
+            "AccountKey=" + "A" * 64,
+            "https://example.invalid/?sv=1&sig=" + "A" * 40,
+        )
+        for sample in samples:
+            with self.subTest(sample=sample[:20]):
+                self.assertTrue(self.scan(sample))
+
+    def test_symlink_or_reparse_point_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            root = base / "public"
+            target = base / "outside"
+            root.mkdir()
+            target.mkdir()
+            (target / "sample.md").write_text("safe", encoding="utf-8")
+            link = root / "linked"
+            if os.name == "nt":
+                created = subprocess.run(
+                    ["cmd.exe", "/d", "/c", "mklink", "/J", str(link), str(target)],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                if created.returncode:
+                    self.fail(f"unable to create test junction: {created.stderr}")
+            else:
+                link.symlink_to(target, target_is_directory=True)
+
+            self.assertTrue(
+                any("symlink or reparse point" in item for item in MODULE.findings(root))
+            )
 
 
 if __name__ == "__main__":

@@ -11,7 +11,7 @@
       "id": "official-quickstart-deploy-and-demo",
       "classification": "dynamic-runtime",
       "entrypoint": "Azure/AzureContextCache scripts/quickstart.ps1 at the pinned commit",
-      "proof": "ARM deployment state plus six Responses API rows"
+      "proof": "ARM deployment and model/cache binding plus six Responses API rows"
     },
     {
       "id": "transcript-validation",

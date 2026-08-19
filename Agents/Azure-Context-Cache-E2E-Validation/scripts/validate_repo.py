@@ -41,11 +41,13 @@ REQUIRED = (
     "images/architecture.svg",
     "images/verified-observation.svg",
     "requirements.txt",
+    "requirements-live-win-py311.lock",
     "scenario-manifest.json",
     "scripts/audit_public_content.py",
     "scripts/demo_code_validator.py",
     "scripts/parse_demo_output.py",
     "scripts/run_official_e2e.ps1",
+    "scripts/validate_arm_summary.py",
     "scripts/validate_repo.py",
     "scripts/verify_upstream.py",
 )
@@ -134,10 +136,26 @@ def main() -> int:
             "upstream hash mode changed",
         )
         require(re.fullmatch(r"[0-9a-f]{40}", lock["commit"]) is not None, "invalid commit")
-        require(len(lock["files"]) == 11, "upstream file set changed")
+        require(len(lock["files"]) == 25, "upstream file set changed")
+        require(
+            len([path for path in lock["files"] if path.startswith("demo/diffs/")]) == 20,
+            "all demo diff inputs must be pinned",
+        )
         require(
             all(re.fullmatch(r"[0-9a-f]{64}", value) for value in lock["files"].values()),
             "invalid upstream SHA-256",
+        )
+        python_lock = (ROOT / "requirements-live-win-py311.lock").read_text(encoding="utf-8")
+        locked_packages = re.findall(
+            r"^([A-Za-z0-9_-]+)==([^\s]+) --hash=sha256:([0-9a-f]{64})$",
+            python_lock,
+            re.MULTILINE,
+        )
+        require(len(locked_packages) == 18, "Python artifact lock must contain 18 hashes")
+        require(
+            {name.casefold() for name, _, _ in locked_packages}
+            >= {"httpx", "azure-identity"},
+            "Python artifact lock is missing upstream direct dependencies",
         )
 
         scenario = load_json("scenario-manifest.json")

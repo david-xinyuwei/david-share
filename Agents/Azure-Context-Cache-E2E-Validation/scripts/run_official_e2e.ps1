@@ -6,7 +6,7 @@ param(
     [string] $SubscriptionId,
 
     [Parameter(Mandatory)]
-    [ValidatePattern('^[A-Za-z0-9._()\-]{1,90}$')]
+    [ValidatePattern('^[\p{L}\p{Nd}_().-]{1,90}(?<!\.)$')]
     [string] $ResourceGroup,
 
     [ValidateSet('centralus', 'eastus2', 'swedencentral')]
@@ -19,7 +19,7 @@ param(
     [ValidateRange(2, 20)]
     [int] $Runs = 6,
 
-    [ValidateRange(0.0, 1.0)]
+    [ValidateScript({ $_ -gt 0.0 -and $_ -le 1.0 })]
     [double] $MinimumWarmHitRatio = 0.6,
 
     [string] $PythonExecutable = 'python',
@@ -28,7 +28,8 @@ param(
 
     [string] $ExistingUpstreamDirectory,
 
-    [switch] $AllowExistingResourceGroup,
+    [ValidateRange(1, 300)]
+    [int] $AzureReadTimeoutSeconds = 120,
 
     [ValidateRange(5, 60)]
     [int] $TimeoutMinutes = 30
@@ -37,6 +38,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $ProjectRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $LockPath = Join-Path $ProjectRoot 'UPSTREAM_LOCK.json'
+$PythonLockPath = Join-Path $ProjectRoot 'requirements-live-win-py311.lock'
 $Lock = Get-Content -LiteralPath $LockPath -Raw | ConvertFrom-Json
 $Utf8NoBom = [Text.UTF8Encoding]::new($false)
 $PathComparison = if ($IsWindows) {
@@ -56,6 +58,35 @@ function Test-IsSameOrChildPath {
     $parentPrefix = $parentPath + [IO.Path]::DirectorySeparatorChar
     return $candidatePath.Equals($parentPath, $PathComparison) -or
         $candidatePath.StartsWith($parentPrefix, $PathComparison)
+}
+
+function Get-NonReparseFullPath {
+    param(
+        [Parameter(Mandatory)][string] $Path,
+        [Parameter(Mandatory)][string] $Label
+    )
+
+    $fullPath = [IO.Path]::GetFullPath($Path)
+    $probe = $fullPath
+    while (-not (Test-Path -LiteralPath $probe)) {
+        $parent = [IO.Path]::GetDirectoryName($probe)
+        if ([string]::IsNullOrEmpty($parent) -or $parent -eq $probe) {
+            break
+        }
+        $probe = $parent
+    }
+    while (-not [string]::IsNullOrEmpty($probe)) {
+        $item = Get-Item -LiteralPath $probe -Force
+        if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw "$Label cannot traverse a reparse point: $($item.FullName)"
+        }
+        $parent = [IO.Directory]::GetParent($probe)
+        if ($null -eq $parent) {
+            break
+        }
+        $probe = $parent.FullName
+    }
+    return $fullPath
 }
 
 function Get-FileSha256 {
@@ -102,7 +133,9 @@ function Invoke-BoundedProcess {
         $timedOut = -not $process.WaitForExit($TimeoutSeconds * 1000)
         if ($timedOut) {
             $process.Kill($true)
-            $process.WaitForExit()
+            if (-not $process.WaitForExit(5000)) {
+                throw "$Operation exceeded $TimeoutSeconds seconds and did not terminate within 5 seconds."
+            }
         }
         $stdout = $stdoutTask.GetAwaiter().GetResult()
         $stderr = $stderrTask.GetAwaiter().GetResult()
@@ -146,13 +179,45 @@ function Invoke-BoundedProcess {
 }
 
 function Get-AzJson {
-    param([Parameter(Mandatory)][string[]] $Arguments)
+    param(
+        [Parameter(Mandatory)][string[]] $Arguments,
+        [string] $Operation = 'az-read'
+    )
 
-    $lines = & az @Arguments
-    if ($LASTEXITCODE -ne 0) {
-        throw "az exited with $LASTEXITCODE"
+    $safeOperation = $Operation -replace '[^A-Za-z0-9-]', '-'
+    $temporaryPrefix = Join-Path (
+        [IO.Path]::GetTempPath()
+    ) "azure-context-cache-$safeOperation-$([guid]::NewGuid().ToString('N'))"
+    $temporaryStdout = "$temporaryPrefix.stdout.log"
+    $temporaryStderr = "$temporaryPrefix.stderr.log"
+    $succeeded = $false
+    try {
+        $result = Invoke-BoundedProcess `
+            -Operation $safeOperation `
+            -FilePath $AzPath `
+            -Arguments $Arguments `
+            -WorkingDirectory $ProjectRoot `
+            -TimeoutSeconds $AzureReadTimeoutSeconds `
+            -StdoutPath $temporaryStdout `
+            -StderrPath $temporaryStderr
+        if ([string]::IsNullOrWhiteSpace($result.Stdout)) {
+            throw "$Operation returned empty JSON."
+        }
+        $parsed = $result.Stdout | ConvertFrom-Json -NoEnumerate
+        if ($null -eq $parsed) {
+            throw "$Operation returned JSON null."
+        }
+        $succeeded = $true
+        return $parsed
+    } finally {
+        if ($succeeded) {
+            foreach ($temporaryPath in ($temporaryStdout, $temporaryStderr)) {
+                if ([IO.File]::Exists($temporaryPath)) {
+                    [IO.File]::Delete($temporaryPath)
+                }
+            }
+        }
     }
-    return (($lines -join [Environment]::NewLine) | ConvertFrom-Json)
 }
 
 if (-not $IsWindows) {
@@ -168,12 +233,57 @@ foreach ($command in ('az', 'git', 'pwsh', $PythonExecutable)) {
     }
 }
 
+$AzPath = (Get-Command az).Source
 $PythonPath = (Get-Command $PythonExecutable).Source
 $GitPath = (Get-Command git).Source
 $PwshPath = (Get-Command pwsh).Source
-$WorkspaceRoot = [IO.Path]::GetFullPath($Workspace)
+$RuntimeProbeDirectory = Join-Path (
+    [IO.Path]::GetTempPath()
+) "azure-context-cache-python-$([guid]::NewGuid().ToString('N'))"
+[IO.Directory]::CreateDirectory($RuntimeProbeDirectory) | Out-Null
+try {
+    $RuntimeProbe = Invoke-BoundedProcess `
+        -Operation 'python-runtime' `
+        -FilePath $PythonPath `
+        -Arguments @(
+            '-c',
+            'import json, platform, struct, sys; print(json.dumps({"major": sys.version_info.major, "minor": sys.version_info.minor, "bits": struct.calcsize("P") * 8, "machine": platform.machine()}))'
+        ) `
+        -WorkingDirectory $RuntimeProbeDirectory `
+        -TimeoutSeconds 30 `
+        -StdoutPath (Join-Path $RuntimeProbeDirectory 'stdout.log') `
+        -StderrPath (Join-Path $RuntimeProbeDirectory 'stderr.log')
+    $RuntimeInfo = $RuntimeProbe.Stdout | ConvertFrom-Json
+} finally {
+    if ([IO.Directory]::Exists($RuntimeProbeDirectory)) {
+        [IO.Directory]::Delete($RuntimeProbeDirectory, $true)
+    }
+}
+if ($RuntimeInfo.major -ne 3 -or $RuntimeInfo.minor -ne 11 -or
+    $RuntimeInfo.bits -ne 64 -or $RuntimeInfo.machine -notin @('AMD64', 'x86_64')) {
+    throw 'The live runner requires 64-bit CPython 3.11 on AMD64 Windows.'
+}
+$AzureConfigRoot = Get-NonReparseFullPath `
+    -Path $env:AZURE_CONFIG_DIR `
+    -Label 'AZURE_CONFIG_DIR'
+if (-not (Test-Path -LiteralPath $AzureConfigRoot -PathType Container)) {
+    throw 'AZURE_CONFIG_DIR must identify an existing dedicated directory.'
+}
+$DefaultAzureConfigRoot = [IO.Path]::GetFullPath((Join-Path $HOME '.azure'))
+if ($AzureConfigRoot.Equals($DefaultAzureConfigRoot, $PathComparison)) {
+    throw 'AZURE_CONFIG_DIR must not use the default shared Azure CLI profile.'
+}
+if (Test-IsSameOrChildPath -Candidate $AzureConfigRoot -Parent $ProjectRoot) {
+    throw 'AZURE_CONFIG_DIR must be outside the public source tree.'
+}
+
+$WorkspaceRoot = Get-NonReparseFullPath -Path $Workspace -Label 'Workspace'
 if (Test-IsSameOrChildPath -Candidate $WorkspaceRoot -Parent $ProjectRoot) {
     throw 'Workspace must be outside the public source tree.'
+}
+if ((Test-IsSameOrChildPath -Candidate $AzureConfigRoot -Parent $WorkspaceRoot) -or
+    (Test-IsSameOrChildPath -Candidate $WorkspaceRoot -Parent $AzureConfigRoot)) {
+    throw 'Workspace and AZURE_CONFIG_DIR must be separate directory trees.'
 }
 if ($ExistingUpstreamDirectory) {
     $ExistingUpstreamDirectory = [IO.Path]::GetFullPath($ExistingUpstreamDirectory)
@@ -182,44 +292,67 @@ if ($ExistingUpstreamDirectory) {
     }
 }
 
-$Account = Get-AzJson @('account', 'show', '--only-show-errors', '-o', 'json')
+$LeasePath = Join-Path $AzureConfigRoot 'azure-context-cache-e2e.lock'
+try {
+    $RunLease = [IO.File]::Open(
+        $LeasePath,
+        [IO.FileMode]::OpenOrCreate,
+        [IO.FileAccess]::ReadWrite,
+        [IO.FileShare]::None
+    )
+} catch {
+    throw 'Another validation run is already using this AZURE_CONFIG_DIR.'
+}
+
+try {
+$Account = Get-AzJson `
+    -Operation 'az-account-show' `
+    -Arguments @('account', 'show', '--only-show-errors', '-o', 'json')
 if ($Account.id -ne $SubscriptionId -or $Account.state -ne 'Enabled') {
     throw 'The active Azure CLI subscription does not match the requested enabled subscription.'
 }
 
-$ResourceProvider = Get-AzJson @(
-    'provider', 'show', '--namespace', 'Microsoft.Resources', '--subscription', $SubscriptionId,
-    '--only-show-errors', '-o', 'json'
-)
+$ResourceProvider = Get-AzJson `
+    -Operation 'az-provider-microsoft-resources' `
+    -Arguments @(
+        'provider', 'show', '--namespace', 'Microsoft.Resources',
+        '--subscription', $SubscriptionId, '--only-show-errors', '-o', 'json'
+    )
 if ($ResourceProvider.registrationState -ne 'Registered') {
     throw 'Microsoft.Resources live read did not return Registered.'
 }
 
 foreach ($provider in ('Microsoft.Storage', 'Microsoft.CognitiveServices')) {
-    $state = Get-AzJson @(
-        'provider', 'show', '--namespace', $provider, '--subscription', $SubscriptionId,
-        '--only-show-errors', '-o', 'json'
-    )
+    $state = Get-AzJson `
+        -Operation "az-provider-$($provider -replace '[^A-Za-z0-9]', '-')" `
+        -Arguments @(
+            'provider', 'show', '--namespace', $provider,
+            '--subscription', $SubscriptionId, '--only-show-errors', '-o', 'json'
+        )
     if ($state.registrationState -ne 'Registered') {
         throw "$provider must be Registered before this runner starts."
     }
 }
 
-$Feature = Get-AzJson @(
-    'feature', 'show', '--namespace', 'Microsoft.CognitiveServices',
-    '--name', 'OpenAI.ContextCacheAllowed', '--subscription', $SubscriptionId,
-    '--only-show-errors', '-o', 'json'
-)
+$Feature = Get-AzJson `
+    -Operation 'az-feature-context-cache' `
+    -Arguments @(
+        'feature', 'show', '--namespace', 'Microsoft.CognitiveServices',
+        '--name', 'OpenAI.ContextCacheAllowed', '--subscription', $SubscriptionId,
+        '--only-show-errors', '-o', 'json'
+    )
 if ($Feature.properties.state -ne 'Registered') {
     throw 'OpenAI.ContextCacheAllowed is not Registered. Complete preview onboarding first.'
 }
 
-$ResourceGroupExists = Get-AzJson @(
-    'group', 'exists', '--name', $ResourceGroup, '--subscription', $SubscriptionId,
-    '--only-show-errors', '-o', 'json'
-)
-if ($ResourceGroupExists -and -not $AllowExistingResourceGroup) {
-    throw 'The resource group already exists. Pass -AllowExistingResourceGroup only after reviewing ownership and collision risk.'
+$ResourceGroupExists = Get-AzJson `
+    -Operation 'az-resource-group-exists' `
+    -Arguments @(
+        'group', 'exists', '--name', $ResourceGroup, '--subscription', $SubscriptionId,
+        '--only-show-errors', '-o', 'json'
+    )
+if ($ResourceGroupExists) {
+    throw 'The resource group already exists. Use a new unique resource group for each validation run.'
 }
 
 if (-not $PSCmdlet.ShouldProcess(
@@ -240,14 +373,14 @@ $EvidenceDirectory = Join-Path $RunDirectory 'evidence'
 $ProcessTimeoutSeconds = $TimeoutMinutes * 60
 
 if ($ExistingUpstreamDirectory) {
-    $UpstreamDirectory = $ExistingUpstreamDirectory
-    $UpstreamMode = 'explicit-existing-clean-checkout'
-    if (-not (Test-Path -LiteralPath (Join-Path $UpstreamDirectory '.git'))) {
+    $UpstreamSourceDirectory = $ExistingUpstreamDirectory
+    $UpstreamMode = 'explicit-existing-object-source'
+    if (-not (Test-Path -LiteralPath (Join-Path $UpstreamSourceDirectory '.git'))) {
         throw 'ExistingUpstreamDirectory is not a Git checkout.'
     }
 } else {
-    $UpstreamDirectory = Join-Path $RunDirectory 'upstream'
-    $UpstreamMode = 'fresh-official-clone'
+    $UpstreamSourceDirectory = Join-Path $RunDirectory 'upstream-source'
+    $UpstreamMode = 'fresh-official-clone-object-source'
     $EmptyHooks = Join-Path $RunDirectory 'empty-hooks'
     [IO.Directory]::CreateDirectory($EmptyHooks) | Out-Null
     [void](Invoke-BoundedProcess `
@@ -255,7 +388,7 @@ if ($ExistingUpstreamDirectory) {
         -FilePath $GitPath `
         -Arguments @(
             'clone', '--filter=blob:none', '--no-tags', '--no-checkout',
-            '--config', "core.hooksPath=$EmptyHooks", $Lock.repository, $UpstreamDirectory
+            '--config', "core.hooksPath=$EmptyHooks", $Lock.repository, $UpstreamSourceDirectory
         ) `
         -WorkingDirectory $RunDirectory `
         -TimeoutSeconds $ProcessTimeoutSeconds `
@@ -266,7 +399,7 @@ if ($ExistingUpstreamDirectory) {
         -Operation 'git-checkout' `
         -FilePath $GitPath `
         -Arguments @(
-            '-c', "core.hooksPath=$EmptyHooks", '-C', $UpstreamDirectory,
+            '-c', "core.hooksPath=$EmptyHooks", '-C', $UpstreamSourceDirectory,
             'checkout', '--detach', $Lock.commit
         ) `
         -WorkingDirectory $RunDirectory `
@@ -276,13 +409,16 @@ if ($ExistingUpstreamDirectory) {
     )
 }
 
+$UpstreamDirectory = Join-Path $RunDirectory 'verified-upstream'
 [void](Invoke-BoundedProcess `
     -Operation 'verify-upstream' `
     -FilePath $PythonPath `
     -Arguments @(
         (Join-Path $PSScriptRoot 'verify_upstream.py'),
-        '--upstream-dir', $UpstreamDirectory,
-        '--lock', $LockPath
+        '--upstream-dir', $UpstreamSourceDirectory,
+        '--lock', $LockPath,
+        '--output', $UpstreamDirectory,
+        '--git-executable', $GitPath
     ) `
     -WorkingDirectory $ProjectRoot `
     -TimeoutSeconds 120 `
@@ -306,8 +442,8 @@ $VenvPython = Join-Path $VenvDirectory 'Scripts/python.exe'
     -FilePath $VenvPython `
     -Arguments @(
         '-m', 'pip', 'install', '--disable-pip-version-check', '--no-input',
-        '--timeout', '60', '--retries', '2',
-        '-r', (Join-Path $UpstreamDirectory 'demo/requirements.txt')
+        '--timeout', '60', '--retries', '2', '--require-hashes', '--only-binary=:all:',
+        '-r', $PythonLockPath
     ) `
     -WorkingDirectory $RunDirectory `
     -TimeoutSeconds $ProcessTimeoutSeconds `
@@ -330,9 +466,10 @@ $QuickstartPath = Join-Path $UpstreamDirectory 'scripts/quickstart.ps1'
 $QuickstartEnvironment = @{
     AZURE_CONFIG_DIR = $env:AZURE_CONFIG_DIR
     PYTHONIOENCODING = 'utf-8'
-    PATH = "{0}{1}{2}" -f (
+    PATH = "{0}{1}{2}{1}{3}" -f (
         [IO.Path]::GetDirectoryName($VenvPython),
         [IO.Path]::PathSeparator,
+        [IO.Path]::GetDirectoryName($AzPath),
         $env:PATH
     )
 }
@@ -387,20 +524,55 @@ if (-not $DeploymentMatch.Success) {
     throw 'The Quickstart output did not identify the successful ARM deployment.'
 }
 $DeploymentName = $DeploymentMatch.Groups[1].Value
-$ArmSummaryLines = & az deployment group show `
-    --resource-group $ResourceGroup `
-    --name $DeploymentName `
-    --subscription $SubscriptionId `
-    --query '{name:name,state:properties.provisioningState,correlationId:properties.correlationId,modelName:properties.outputs.modelName.value,modelVersion:properties.outputs.modelVersion.value,aoaiDeploymentName:properties.outputs.aoaiDeploymentName.value,contextCacheAccountName:properties.outputs.contextCacheAccountName.value}' `
-    --only-show-errors -o json
-if ($LASTEXITCODE -ne 0) {
-    throw 'Unable to read the completed ARM deployment.'
-}
-$ArmSummaryPath = Join-Path $EvidenceDirectory 'arm-summary.json'
+$ArmDeployment = Get-AzJson `
+    -Operation 'az-arm-deployment-summary' `
+    -Arguments @(
+        'deployment', 'group', 'show', '--resource-group', $ResourceGroup,
+        '--name', $DeploymentName, '--subscription', $SubscriptionId,
+        '--query', '{name:name,state:properties.provisioningState,correlationId:properties.correlationId,azureOpenAIAccountName:properties.outputs.azureOpenAIAccountName.value,aoaiDeploymentName:properties.outputs.aoaiDeploymentName.value,contextCacheAccountName:properties.outputs.contextCacheAccountName.value,contextCacheContainerId:properties.outputs.contextCacheContainerId.value,modelName:properties.outputs.modelName.value,modelVersion:properties.outputs.modelVersion.value}',
+        '--only-show-errors', '-o', 'json'
+    )
+$ResourceRoot = "/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroup"
+$AoaiDeploymentId = "$ResourceRoot/providers/Microsoft.CognitiveServices/accounts/$NamePrefix-aoai/deployments/context-cache-deployment"
+$CacheContainerId = "$ResourceRoot/providers/Microsoft.Storage/contextCaches/$NamePrefix-cache/contextCacheContainers/default-container"
+$AoaiDeployment = Get-AzJson `
+    -Operation 'az-aoai-deployment-binding' `
+    -Arguments @(
+        'resource', 'show', '--ids', $AoaiDeploymentId,
+        '--api-version', '2026-03-15-preview', '--only-show-errors', '-o', 'json'
+    )
+$CacheContainer = Get-AzJson `
+    -Operation 'az-context-cache-container' `
+    -Arguments @(
+        'resource', 'show', '--ids', $CacheContainerId,
+        '--api-version', '2026-01-01-preview', '--only-show-errors', '-o', 'json'
+    )
+$ArmRawPath = Join-Path $EvidenceDirectory 'arm-summary.raw.json'
 [IO.File]::WriteAllText(
-    $ArmSummaryPath,
-    ($ArmSummaryLines -join [Environment]::NewLine),
+    $ArmRawPath,
+    ([ordered]@{
+        deployment = $ArmDeployment
+        aoaiDeployment = $AoaiDeployment
+        cacheContainer = $CacheContainer
+    } | ConvertTo-Json -Depth 20),
     $Utf8NoBom
+)
+$ArmSummaryPath = Join-Path $EvidenceDirectory 'arm-summary.json'
+[void](Invoke-BoundedProcess `
+    -Operation 'validate-arm-binding' `
+    -FilePath $VenvPython `
+    -Arguments @(
+        (Join-Path $PSScriptRoot 'validate_arm_summary.py'),
+        $ArmRawPath,
+        '--output', $ArmSummaryPath,
+        '--subscription-id', $SubscriptionId,
+        '--resource-group', $ResourceGroup,
+        '--name-prefix', $NamePrefix
+    ) `
+    -WorkingDirectory $ProjectRoot `
+    -TimeoutSeconds 120 `
+    -StdoutPath (Join-Path $EvidenceDirectory 'validate-arm-binding.stdout.log') `
+    -StderrPath (Join-Path $EvidenceDirectory 'validate-arm-binding.stderr.log')
 )
 
 $RunContract = [ordered]@{
@@ -430,10 +602,18 @@ $ManifestInputs = [ordered]@{
     upstreamLock = [ordered]@{
         sha256 = Get-FileSha256 $LockPath
         upstreamQuickstartGitBlobContentSha256 = $Lock.files.'scripts/quickstart.ps1'
+        upstreamRequirementsGitBlobContentSha256 = $Lock.files.'demo/requirements.txt'
+    }
+    pythonArtifactLock = [ordered]@{
+        sha256 = Get-FileSha256 $PythonLockPath
+        runtime = 'CPython 3.11 AMD64 Windows'
     }
     publicRunner = [ordered]@{ sha256 = Get-FileSha256 $PSCommandPath }
     publicParser = [ordered]@{
         sha256 = Get-FileSha256 (Join-Path $PSScriptRoot 'parse_demo_output.py')
+    }
+    publicArmValidator = [ordered]@{
+        sha256 = Get-FileSha256 (Join-Path $PSScriptRoot 'validate_arm_summary.py')
     }
     publicVerifier = [ordered]@{
         sha256 = Get-FileSha256 (Join-Path $PSScriptRoot 'verify_upstream.py')
@@ -465,3 +645,6 @@ $ManifestPath = Join-Path $EvidenceDirectory 'manifest.json'
 )
 
 Write-Host "OFFICIAL_E2E_PASS evidence=$EvidenceDirectory" -ForegroundColor Green
+} finally {
+    $RunLease.Dispose()
+}

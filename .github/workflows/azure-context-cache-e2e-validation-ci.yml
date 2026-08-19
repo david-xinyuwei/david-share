@@ -43,6 +43,11 @@ jobs:
           --extra ../../Agents/README.md
           --extra ../../.gitattributes
       - run: python scripts/validate_repo.py
+      - if: runner.os == 'Windows' && matrix.python-version == '3.11'
+        run: >-
+          python -m pip install --dry-run --ignore-installed
+          --disable-pip-version-check --no-input --require-hashes
+          --only-binary=:all: -r requirements-live-win-py311.lock
       - run: python -m pip check
       - shell: pwsh
         run: |

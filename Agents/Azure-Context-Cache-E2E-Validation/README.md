@@ -1,7 +1,7 @@
 # Azure Context Cache E2E Validation
 
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/azure-context-cache-e2e-validation-ci.yml/badge.svg)](https://github.com/david-xinyuwei/david-share/actions/workflows/azure-context-cache-e2e-validation-ci.yml)
-[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB)](https://www.python.org/)
+[![CPython 3.11 AMD64](https://img.shields.io/badge/CPython-3.11%20AMD64-3776AB)](https://www.python.org/)
 [![PowerShell 7+](https://img.shields.io/badge/PowerShell-7%2B-5391FE)](https://learn.microsoft.com/powershell/)
 [![Upstream pin](https://img.shields.io/badge/AzureContextCache-7d1029a5-247A45)](https://github.com/Azure/AzureContextCache/commit/7d1029a5e8b59b1805e70992c85ffe6798d2f47a)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../../LICENSE)
@@ -17,8 +17,9 @@ A fail-closed harness that verifies the official Azure Context Cache Private Pre
 | Surface | What actually happens | Boundary |
 |---|---|---|
 | `scripts/run_official_e2e.ps1` | Reads live Azure state, invokes the hash-verified official Quickstart, creates real Azure resources, and sends real Responses API requests | Requires preview onboarding and an authenticated, isolated Azure CLI profile |
-| `scripts/verify_upstream.py` | Verifies the official Git commit, origin, clean tree, and 11 Git blob content SHA-256 values | Does not replace or vendor upstream code |
-| `scripts/parse_demo_output.py` | Recomputes run count, cache hits, cached tokens, latency, and speedup from captured rows | A transcript with errors, missing rows, or too few warm hits fails closed |
+| `scripts/verify_upstream.py` | Verifies the official Git commit, origin, and all 25 executable-input hashes, then materializes those exact Git blob bytes into the private run directory | The external worktree is never executed; no upstream source is checked into this public subtree |
+| `scripts/parse_demo_output.py` | Recomputes run count, cache hits, cached tokens, latency, and cold-to-warm ratio from captured rows | Errors, missing rows, a zero threshold, zero latency, or too few warm hits fail closed; a pre-warmed first call has no cold-to-warm ratio |
+| `scripts/validate_arm_summary.py` | Verifies deployment success and the model/cache binding across the ARM outputs, AOAI deployment, and Context Cache container | Missing, failed, or mismatched control-plane evidence fails closed |
 | `tests/fixtures/` | Synthetic transcripts exercise parser success and failure paths | Fixtures never enter the live runtime path |
 | `evidence/verified-run-summary.json` | Sanitized single-run observation from the official live path | Not production certification, an SLA, a pricing claim, or a model-quality benchmark |
 
@@ -28,8 +29,8 @@ The harness proves one bounded chain:
 
 1. The target Azure subscription is enabled and reachable through the selected `AZURE_CONFIG_DIR`.
 2. `Microsoft.Storage`, `Microsoft.CognitiveServices`, and `OpenAI.ContextCacheAllowed` are already registered.
-3. The official upstream checkout exactly matches commit `7d1029a5e8b59b1805e70992c85ffe6798d2f47a` and its pinned Git blobs.
-4. The official `scripts/quickstart.ps1` deploys the Context Cache account, container, linked Azure OpenAI deployment, and data-plane role.
+3. The official upstream checkout exactly matches commit `7d1029a5e8b59b1805e70992c85ffe6798d2f47a`; all 25 local execution inputs are hash-verified and materialized from the verified Git blobs.
+4. The official `scripts/quickstart.ps1` deploys the Context Cache account, container, linked Azure OpenAI deployment, and data-plane role; the runner independently verifies the resulting deployment state, model version, container ID, provider, and TTL.
 5. Six real Responses API calls complete and enough warm calls report nonzero `cached_tokens`.
 6. The parser independently recomputes the evidence instead of trusting a success banner.
 
@@ -55,7 +56,7 @@ Subsequent hardened-wrapper probes also exposed transport variability in the off
 
 ### Prerequisites
 
-- PowerShell 7 (`pwsh`) on Windows, Git, Azure CLI, and Python 3.11 or newer
+- PowerShell 7 (`pwsh`) on Windows, Git, Azure CLI, and 64-bit CPython 3.11 on AMD64 Windows
 - An Azure subscription approved for the Azure Context Cache Private Preview
 - `OpenAI.ContextCacheAllowed` already in `Registered` state
 - An isolated `AZURE_CONFIG_DIR` authenticated with the tenant-approved user flow
@@ -81,7 +82,7 @@ pwsh -NoProfile -File .\scripts\run_official_e2e.ps1 `
   -Runs 6
 ```
 
-Use `-WhatIf` first to perform read-only Azure preflight without cloning, deploying, or sending requests. The runner creates a unique run directory and a fresh virtual environment outside the source tree, then prints the exact evidence directory. Reusing an existing resource group requires the explicit `-AllowExistingResourceGroup` acknowledgement. A network-restricted environment may pass a separately verified clean checkout through `-ExistingUpstreamDirectory`; the default remains a fresh official clone.
+Use `-WhatIf` first to perform bounded, read-only Azure preflight without cloning, deploying, or sending requests. A live run requires a new unique resource group, creates a unique private run directory and fresh virtual environment outside the source tree, and prints the exact evidence directory. A network-restricted environment may pass a checkout at the pinned commit as a Git object source through `-ExistingUpstreamDirectory`; uncommitted worktree bytes are ignored, and the runner exports and executes only the 25 hash-verified Git blobs. The default remains a fresh official clone.
 
 ### Validate Locally
 
@@ -92,12 +93,13 @@ python scripts\audit_public_content.py
 python scripts\validate_repo.py
 ```
 
-These offline gates require no Azure access. The official upstream lock can also be checked against an existing clean checkout:
+These offline gates require no Azure access. The official upstream lock can also be checked against an existing checkout at the pinned commit:
 
 ```powershell
 python scripts\verify_upstream.py `
   --upstream-dir "PATH-TO-AzureContextCache" `
-  --lock .\UPSTREAM_LOCK.json
+  --lock .\UPSTREAM_LOCK.json `
+  --output "EMPTY-PRIVATE-OUTPUT-DIRECTORY"
 ```
 
 ## Evidence and Method
@@ -106,8 +108,8 @@ The method has three independent proof layers:
 
 | Layer | Authority | Proof |
 |---|---|---|
-| Source identity | Official Azure Git repository | Commit, origin, clean tree, and Git blob content SHA-256 |
-| Azure control plane | Azure Resource Manager | Provider/feature preflight and successful deployment summary |
+| Source identity | Official Azure Git repository | Commit, origin, and Git blob content SHA-256; external worktree bytes are ignored |
+| Azure control plane | Azure Resource Manager | Provider/feature preflight plus deployment, AOAI model, cache-container ID, provider, and TTL binding |
 | Azure data plane | Official Responses API demo | Six parsed call rows, cached token counts, and fail-closed thresholds |
 
 See [Method and lineage](docs/METHOD.md), [public evidence boundary](evidence/README.md), and [scenario manifest](scenario-manifest.json). Public evidence omits cloud identifiers and private raw logs.
@@ -116,10 +118,12 @@ See [Method and lineage](docs/METHOD.md), [public evidence boundary](evidence/RE
 
 | Path | Purpose |
 |---|---|
-| `UPSTREAM_LOCK.json` | Pinned official commit and 11 Git blob content SHA-256 values |
+| `UPSTREAM_LOCK.json` | Pinned official commit and all 25 executable-input Git blob content SHA-256 values |
+| `requirements-live-win-py311.lock` | Exact Windows AMD64 CPython 3.11 wheels and artifact SHA-256 values |
 | `scripts/run_official_e2e.ps1` | Live orchestration around the unchanged official Quickstart |
 | `scripts/verify_upstream.py` | Cross-platform source identity verifier |
 | `scripts/parse_demo_output.py` | Independent transcript parser and cache gate |
+| `scripts/validate_arm_summary.py` | Independent ARM deployment and resource-binding gate |
 | `scripts/demo_code_validator.py` | Static authenticity checks for the live path |
 | `scripts/audit_public_content.py` | Value-aware public-boundary scanner |
 | `scripts/validate_repo.py` | Deterministic repository quality gate |
@@ -129,10 +133,10 @@ See [Method and lineage](docs/METHOD.md), [public evidence boundary](evidence/RE
 
 ## Security and Cleanup
 
-- Never put credentials, Azure CLI caches, endpoints, resource IDs, or raw live logs in this repository.
+- Never put credentials, Azure CLI caches, endpoints, resource IDs, or raw live logs in this repository. The scanner also rejects symlinks, reparse points, unsupported public file formats, and common token/SAS/connection-string forms.
 - Keep each project in a dedicated `AZURE_CONFIG_DIR`; the runner refuses the shared implicit default and any workspace inside the public source tree.
 - The runner uses Azure CLI user authentication only for local validation. Long-running services should use an appropriate managed identity or service principal.
-- The runner intentionally does not clean up. Review the upstream `scripts/cleanup.ps1`, the generated `run-contract.json`, private `manifest.json`, and the target resource group before any deletion.
+- The runner requires a new resource group and intentionally does not clean up. Review the upstream `scripts/cleanup.ps1`, the generated `run-contract.json`, private `manifest.json`, and the target resource group before any deletion.
 - Deletion is a separate, explicit operation. Do not run cleanup against an existing Azure OpenAI account unless its ownership is understood.
 
 See [SECURITY.md](SECURITY.md) for reporting and operational guidance.
@@ -142,9 +146,10 @@ See [SECURITY.md](SECURITY.md) for reporting and operational guidance.
 - This is a Private Preview validation harness, not an availability or production-readiness guarantee.
 - The upstream API version, model version, regions, quota requirements, and onboarding flow can change.
 - A single run cannot establish latency distributions, concurrency guarantees, or savings.
-- Cache hits may vary between runs. The default gate requires at least three of five warm calls to hit; adjust only with an explicit acceptance contract.
+- Cache hits may vary between runs. The default gate requires at least three of five warm calls to hit, and the threshold cannot be zero; adjust only with an explicit acceptance contract.
 - The harness currently targets the upstream Windows PowerShell Quickstart.
-- Upstream does not publish a license file at the pinned commit, so no upstream source is copied into this subtree.
+- The live dependency lock is intentionally limited to the verified Windows AMD64 CPython 3.11 runtime.
+- Upstream does not publish a license file at the pinned commit. No upstream source is checked into this subtree; the runner creates a temporary private execution copy from verified Git blobs.
 
 ## References
 

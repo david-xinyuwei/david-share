@@ -37,10 +37,24 @@ class ParseDemoOutputTests(unittest.TestCase):
         self.assertFalse(summary["firstCallColdObserved"])
         self.assertEqual(summary["warm"]["hits"], 3)
         self.assertEqual(summary["warm"]["hitRatio"], 0.6)
+        self.assertIsNone(summary["firstToWarmSpeedup"])
 
     def test_zero_cache_hits_fail_closed(self) -> None:
         with self.assertRaisesRegex(MODULE.ValidationError, "below"):
             MODULE.summarize(MODULE.parse_rows(self.fixture("demo-no-cache.txt")))
+
+    def test_zero_hit_threshold_is_rejected(self) -> None:
+        with self.assertRaisesRegex(MODULE.ValidationError, "greater than 0"):
+            MODULE.summarize(
+                MODULE.parse_rows(self.fixture("demo-no-cache.txt")),
+                min_warm_hit_ratio=0,
+            )
+
+    def test_zero_latency_is_rejected(self) -> None:
+        rows = MODULE.parse_rows(self.fixture("demo-success.txt"))
+        rows[1] = MODULE.CallResult(2, "bad.diff", 0, 3000, 2304, 10, 77)
+        with self.assertRaisesRegex(MODULE.ValidationError, "measurable latency"):
+            MODULE.summarize(rows)
 
     def test_http_error_fails_before_row_scoring(self) -> None:
         with self.assertRaisesRegex(MODULE.ValidationError, "HTTP or transport"):

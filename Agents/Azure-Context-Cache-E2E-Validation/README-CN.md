@@ -1,7 +1,7 @@
 # Azure Context Cache 端到端验证
 
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/azure-context-cache-e2e-validation-ci.yml/badge.svg)](https://github.com/david-xinyuwei/david-share/actions/workflows/azure-context-cache-e2e-validation-ci.yml)
-[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB)](https://www.python.org/)
+[![CPython 3.11 AMD64](https://img.shields.io/badge/CPython-3.11%20AMD64-3776AB)](https://www.python.org/)
 [![PowerShell 7+](https://img.shields.io/badge/PowerShell-7%2B-5391FE)](https://learn.microsoft.com/powershell/)
 [![Upstream pin](https://img.shields.io/badge/AzureContextCache-7d1029a5-247A45)](https://github.com/Azure/AzureContextCache/commit/7d1029a5e8b59b1805e70992c85ffe6798d2f47a)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../../LICENSE)
@@ -17,8 +17,9 @@
 | 范围 | 真实发生的行为 | 边界 |
 |---|---|---|
 | `scripts/run_official_e2e.ps1` | 读取 Azure 实时状态，调用经过 hash 验证的官方 Quickstart，创建真实 Azure 资源并发送真实 Responses API 请求 | 需要先完成 Preview 准入，并使用已认证、相互隔离的 Azure CLI profile |
-| `scripts/verify_upstream.py` | 核对官方 Git commit、origin、clean tree 和 11 个 Git blob content SHA-256 | 不替代、也不复制 upstream 源码 |
-| `scripts/parse_demo_output.py` | 从输出行重新计算请求数、缓存命中、cached tokens、延迟和加速比 | 出现错误、缺行或预热请求命中不足时立即失败 |
+| `scripts/verify_upstream.py` | 核对官方 Git commit、origin 和全部 25 个执行输入 hash，再把这些精确 Git blob 字节 materialize 到私有 run directory | 外部工作树不会被执行；公共 subtree 不签入 upstream 源码 |
+| `scripts/parse_demo_output.py` | 从输出行重新计算请求数、缓存命中、cached tokens、延迟和 cold-to-warm 比值 | 错误、缺行、零阈值、零延迟或 warm hit 不足均立即失败；首调用已 warm 时不生成 cold-to-warm 比值 |
+| `scripts/validate_arm_summary.py` | 跨 ARM outputs、AOAI deployment 和 Context Cache container 核对部署状态及 model/cache binding | 缺字段、失败状态或绑定不一致均立即失败 |
 | `tests/fixtures/` | 合成 transcript 只覆盖 parser（解析器）的成功与失败分支 | Fixture 不会进入实时运行路径 |
 | `evidence/verified-run-summary.json` | 官方实时路径的一次脱敏观测 | 不是生产认证、SLA、价格声明或模型质量 benchmark |
 
@@ -28,8 +29,8 @@
 
 1. 目标 Azure subscription 已启用，并能通过指定的 `AZURE_CONFIG_DIR` 访问。
 2. `Microsoft.Storage`、`Microsoft.CognitiveServices` 和 `OpenAI.ContextCacheAllowed` 已处于 Registered 状态。
-3. 官方 checkout 精确对应 commit `7d1029a5e8b59b1805e70992c85ffe6798d2f47a`，且 pinned Git blob 全部一致。
-4. 官方 `scripts/quickstart.ps1` 成功部署 Context Cache account、container、已关联 Context Cache container 的 Azure OpenAI deployment 和 data-plane role。
+3. 官方 checkout 精确对应 commit `7d1029a5e8b59b1805e70992c85ffe6798d2f47a`；全部 25 个本地执行输入均经过 hash 验证，并从已验证 Git blob materialize。
+4. 官方 `scripts/quickstart.ps1` 成功部署 Context Cache account、container、已关联 Context Cache container 的 Azure OpenAI deployment 和 data-plane role；runner 再独立核对 deployment state、model version、container ID、provider 和 TTL。
 5. 六次真实 Responses API 请求完成，并且足够多的预热后请求（warm call）返回非零 `cached_tokens`。
 6. Parser 从原始输出重新验算结果，而不是相信成功提示文本。
 
@@ -55,7 +56,7 @@ Runner 不负责登录、不注册 Preview feature、不回退到 API key、不�
 
 ### 前提条件
 
-- Windows 上的 PowerShell 7（`pwsh`）、Git、Azure CLI，以及 Python 3.11 或更高版本
+- Windows 上的 PowerShell 7（`pwsh`）、Git、Azure CLI，以及 AMD64 Windows 上的 64 位 CPython 3.11
 - 已获得 Azure Context Cache Private Preview 权限的 Azure subscription
 - `OpenAI.ContextCacheAllowed` 已达到 `Registered`
 - 已通过租户允许的用户认证流登录独立 `AZURE_CONFIG_DIR`
@@ -81,7 +82,7 @@ pwsh -NoProfile -File .\scripts\run_official_e2e.ps1 `
   -Runs 6
 ```
 
-第一次可加 `-WhatIf`：它只执行 Azure 只读 preflight，不 clone、不部署、也不发送请求。Runner 会在源码树之外创建唯一 run directory 和全新 virtual environment，并输出精确 evidence 路径。复用已有 resource group 必须显式传入 `-AllowExistingResourceGroup`。网络受限时可以通过 `-ExistingUpstreamDirectory` 指定另行验证过的 clean checkout；默认路径仍是 fresh official clone。
+第一次可加 `-WhatIf`：它只执行有 timeout 上限的 Azure 只读 preflight，不 clone、不部署、也不发送请求。Live run 必须使用全新的唯一 resource group；runner 会在源码树之外创建唯一的私有 run directory 和全新 virtual environment，并输出精确 evidence 路径。网络受限时可用 `-ExistingUpstreamDirectory` 提供位于 pinned commit 的 checkout 作为 Git object source；未提交的工作树字节会被忽略，runner 仍只导出并执行 25 个通过 hash 验证的 Git blob。默认路径仍是 fresh official clone。
 
 ### 本地验证
 
@@ -92,12 +93,13 @@ python scripts\audit_public_content.py
 python scripts\validate_repo.py
 ```
 
-这些 offline gate 不需要 Azure。也可以针对已有 clean checkout 核对官方 upstream lock：
+这些 offline gate 不需要 Azure。也可以针对位于 pinned commit 的已有 checkout 核对官方 upstream lock：
 
 ```powershell
 python scripts\verify_upstream.py `
   --upstream-dir "PATH-TO-AzureContextCache" `
-  --lock .\UPSTREAM_LOCK.json
+  --lock .\UPSTREAM_LOCK.json `
+  --output "EMPTY-PRIVATE-OUTPUT-DIRECTORY"
 ```
 
 ## 证据与方法
@@ -106,8 +108,8 @@ python scripts\verify_upstream.py `
 
 | 层 | 权威来源 | 证据 |
 |---|---|---|
-| 源码身份 | Azure 官方 Git repository | Commit、origin、clean tree 和 Git blob content SHA-256 |
-| Azure control plane | Azure Resource Manager | Provider/feature preflight 和成功 deployment summary |
+| 源码身份 | Azure 官方 Git repository | Commit、origin 和 Git blob content SHA-256；忽略外部工作树字节 |
+| Azure control plane | Azure Resource Manager | Provider/feature preflight，以及 deployment、AOAI model、cache-container ID、provider 和 TTL 绑定 |
 | Azure data plane | 官方 Responses API demo | 六条请求记录、cached token 和 fail-closed threshold |
 
 详见 [方法与 lineage](docs/METHOD-CN.md)、[公共证据边界](evidence/README.md) 和 [scenario manifest](scenario-manifest.json)。公共 evidence 不包含云资源标识和私有 raw log。
@@ -116,10 +118,12 @@ python scripts\verify_upstream.py `
 
 | 路径 | 用途 |
 |---|---|
-| `UPSTREAM_LOCK.json` | 固定官方 commit 和 11 个 Git blob content SHA-256 |
+| `UPSTREAM_LOCK.json` | 固定官方 commit 和全部 25 个执行输入的 Git blob content SHA-256 |
+| `requirements-live-win-py311.lock` | 固定 Windows AMD64 CPython 3.11 wheel 版本及 artifact SHA-256 |
 | `scripts/run_official_e2e.ps1` | 围绕未修改官方 Quickstart 的实时编排 |
 | `scripts/verify_upstream.py` | 跨平台源码身份校验器 |
 | `scripts/parse_demo_output.py` | 独立 transcript parser 和 cache gate |
+| `scripts/validate_arm_summary.py` | 独立 ARM deployment 和资源绑定 gate |
 | `scripts/demo_code_validator.py` | Live 路径的静态真实性检查 |
 | `scripts/audit_public_content.py` | 按实际值识别的公共边界扫描器 |
 | `scripts/validate_repo.py` | 确定性仓库质量门 |
@@ -129,10 +133,10 @@ python scripts\verify_upstream.py `
 
 ## 安全与清理
 
-- 禁止把凭据、Azure CLI cache、endpoint、resource ID 或 live raw log 写入本仓库。
+- 禁止把凭据、Azure CLI cache、endpoint、resource ID 或 live raw log 写入本仓库。Scanner 同时拒绝 symlink、reparse point、不支持的公共文件格式，以及常见 token、SAS 和 connection string 形式。
 - 每个项目使用独立 `AZURE_CONFIG_DIR`；runner 拒绝隐式共享 profile，也拒绝把 workspace 放入公共源码树。
 - 本地验证使用 Azure CLI user authentication。长期运行的服务应选择合适的 managed identity 或 service principal。
-- Runner 故意不自动清理。执行任何删除前，应先检查 upstream `scripts/cleanup.ps1`、生成的 `run-contract.json`、私有 `manifest.json` 和目标 resource group。
+- Runner 要求使用全新 resource group，并故意不自动清理。执行任何删除前，应先检查 upstream `scripts/cleanup.ps1`、生成的 `run-contract.json`、私有 `manifest.json` 和目标 resource group。
 - 删除是独立的显式操作。如果使用已有 Azure OpenAI account，在确认其所有权之前不得运行 cleanup。
 
 安全问题和运维说明见 [SECURITY.md](SECURITY.md)。
@@ -142,9 +146,10 @@ python scripts\verify_upstream.py `
 - 这是 Private Preview 验证工具，不是可用性或生产就绪保证。
 - Upstream API version、model version、region、quota 和 onboarding flow 都可能变化。
 - 单次运行无法证明延迟分布、并发保证或成本节省。
-- Cache hit 可能随运行变化。默认 gate 要求 5 次 warm call 至少命中 3 次；只有明确修改验收合同后才应调整。
+- Cache hit 可能随运行变化。默认 gate 要求 5 次 warm call 至少命中 3 次，且阈值不能为零；只有明确修改验收合同后才应调整。
 - 当前 harness 面向 upstream 的 Windows PowerShell Quickstart。
-- Pinned commit 未提供 license file，因此本项目不复制 upstream 源码。
+- Live dependency lock 明确限定为已实测的 Windows AMD64 CPython 3.11 runtime。
+- Pinned commit 未提供 license file。公共 subtree 不签入 upstream 源码；runner 会从已验证 Git blob 创建临时私有执行副本。
 
 ## 参考资料
 

@@ -14,6 +14,20 @@
     "demo/diffs/03-n-plus-one.diff": "91f0855994d4d4a5f6fdde8c8d83432a40441d1a428b8f148069fb95f3ee9db2",
     "demo/diffs/04-clean-refactor.diff": "1769c1e6deb3e0282ab93af1a85e1f1f6df6604bda3dda45de3f576c28a41ae8",
     "demo/diffs/05-logged-token.diff": "8a8ddb5f95c0bf4ac8cc6f44246ac83bd0cda9ca55b702067458514b83ef55e7",
-    "demo/diffs/06-mutable-default.diff": "40f6c2628f742d9ea75daf5e89abb686373477f079acba2566169732f8e9b99b"
+    "demo/diffs/06-mutable-default.diff": "40f6c2628f742d9ea75daf5e89abb686373477f079acba2566169732f8e9b99b",
+    "demo/diffs/07-invoke-expression.diff": "5eac39c580808ee00e5dd9cbd7e277fc8499612cd0fbb84aa86e99f8b523b156",
+    "demo/diffs/08-tolist-eager.diff": "c4063cdf56715c9c96692f51a793406d89f8bf8a93d0d043acf99445e23d12ee",
+    "demo/diffs/09-result-deadlock.diff": "5a75a8477ecdd1866556dbbfde12727e64cc1a025425de43363690d6ce365b68",
+    "demo/diffs/10-cpp-raw-new.diff": "538bbc653e003f0ec61d96ea9f2e6799e86e27fd629e439b0b248da3acd2b1e1",
+    "demo/diffs/11-pickle-untrusted.diff": "8d5f37e954105f7b4f622f4b639c8a23634b6baa94185d970236bfccd3e7bf01",
+    "demo/diffs/12-magic-numbers.diff": "c6dc06775c62a0dc795fe9b281bda6cb2b08b989238d1b9e2e12286b45646d14",
+    "demo/diffs/13-anonymous-admin.diff": "03045bcde78bfb298d218a8b27d5b701c9c123daaac34db9251db0d717372d01",
+    "demo/diffs/14-cors-star.diff": "30e1acfd89ffa44e94b150bbdaa656f1b21499ff1d35edb95d84e46c95ceea4f",
+    "demo/diffs/15-ts-any.diff": "d1d3966f4728a0c9aa3ed3368ec802b8d20ac5cb12da8971114e13718c8ebc3b",
+    "demo/diffs/16-thread-sleep-test.diff": "ad2b16b2bd8958851fe464509b046c13fb8ace5de6738f31a4c0c478f4043ddf",
+    "demo/diffs/17-path-traversal.diff": "3dfc05c32af4d83c381dcf3149a03165491221f6aae27503e8add27b58699f7e",
+    "demo/diffs/18-yaml-load.diff": "da9acc476012ce90ac12d3e550c9617c4e260ce70057501a4fed37b937bab74f",
+    "demo/diffs/19-clean-python.diff": "f06e57fe0926e2ce06bc2b6ff40c0a3b3f0a304699f07e29ca19c6688ad05cea",
+    "demo/diffs/20-md5-password.diff": "7f9b99ac499bc59822b9d23e34f65a2ad176557205159503be59f06838339980"
   }
 }

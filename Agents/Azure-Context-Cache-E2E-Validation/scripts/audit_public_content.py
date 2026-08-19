@@ -3,20 +3,37 @@
 from __future__ import annotations
 
 import argparse
+import os
 import re
+import stat
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
 SKIP_PARTS = {".git", ".venv", "__pycache__", "live-evidence", "runtime", "upstream"}
-TEXT_SUFFIXES = {"", ".json", ".md", ".ps1", ".py", ".svg", ".txt", ".yml"}
+TEXT_SUFFIXES = {
+    "",
+    ".json",
+    ".lock",
+    ".md",
+    ".ps1",
+    ".py",
+    ".svg",
+    ".txt",
+    ".yml",
+    ".yaml",
+}
 SELF = Path(__file__).name
 
 PATTERNS = {
     "OpenAI-style key": re.compile(r"\bsk-[A-Za-z0-9_-]{20,}\b"),
     "GitHub token": re.compile(r"\bgh[opsu]_[A-Za-z0-9]{30,}\b"),
+    "GitHub fine-grained token": re.compile(r"\bgithub_pat_[A-Za-z0-9_]{20,}\b"),
     "bearer token": re.compile(r"\bBearer\s+[A-Za-z0-9._-]{30,}\b", re.IGNORECASE),
+    "JWT": re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b"),
     "private key": re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
+    "Azure storage key": re.compile(r"\bAccountKey=[A-Za-z0-9+/]{40,}={0,2}", re.IGNORECASE),
+    "Azure SAS": re.compile(r"(?:^|[?&])sig=[A-Za-z0-9%+/]{20,}", re.IGNORECASE),
     "Azure UUID": re.compile(
         r"\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b",
         re.IGNORECASE,
@@ -36,19 +53,45 @@ PRIVATE_TERMS = (
 )
 
 
-def public_files(root: Path):
-    for path in root.rglob("*"):
-        if not path.is_file() or path.name == SELF:
-            continue
-        if any(part in SKIP_PARTS for part in path.parts):
-            continue
-        if path.suffix.casefold() in TEXT_SUFFIXES:
-            yield path
+def is_reparse(path: Path) -> bool:
+    metadata = path.lstat()
+    attributes = getattr(metadata, "st_file_attributes", 0)
+    return path.is_symlink() or bool(
+        attributes & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
+    )
+
+
+def public_files(root: Path) -> tuple[list[Path], list[str]]:
+    paths: list[Path] = []
+    errors: list[str] = []
+    for current, directories, files in os.walk(root, topdown=True, followlinks=False):
+        current_path = Path(current)
+        retained: list[str] = []
+        for directory in directories:
+            path = current_path / directory
+            if directory in SKIP_PARTS:
+                continue
+            if is_reparse(path):
+                errors.append(f"{path.relative_to(root)}: symlink or reparse point")
+                continue
+            retained.append(directory)
+        directories[:] = retained
+        for filename in files:
+            path = current_path / filename
+            if filename == SELF:
+                continue
+            if is_reparse(path):
+                errors.append(f"{path.relative_to(root)}: symlink or reparse point")
+                continue
+            if path.suffix.casefold() not in TEXT_SUFFIXES:
+                errors.append(f"{path.relative_to(root)}: unsupported public file format")
+                continue
+            paths.append(path)
+    return paths, errors
 
 
 def findings(root: Path = ROOT, extra_files: tuple[Path, ...] = ()) -> list[str]:
-    errors: list[str] = []
-    paths = list(public_files(root))
+    paths, errors = public_files(root)
     for extra in extra_files:
         resolved = extra.resolve()
         if not resolved.is_file():
