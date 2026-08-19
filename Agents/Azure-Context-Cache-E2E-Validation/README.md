@@ -8,49 +8,22 @@
 
 [中文](README-CN.md) | [Source](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Azure-Context-Cache-E2E-Validation) | [Official upstream](https://github.com/Azure/AzureContextCache)
 
-> Author: Xinyu Wei
+Official Azure Context Cache Private Preview Quickstart validated end to end: `6/6` real Responses API calls completed, and all `5/5` warm calls reported `2304` cached tokens.
 
-A fail-closed harness that verifies the official Azure Context Cache Private Preview Quickstart, then independently scores the real Responses API transcript.
+## Validated Result
 
-## What's Real vs Test Infrastructure
+The official Quickstart pinned to commit `7d1029a5e8b59b1805e70992c85ffe6798d2f47a` was validated end to end in an approved Private Preview subscription.
 
-| Surface | What actually happens | Boundary |
-|---|---|---|
-| `scripts/run_official_e2e.ps1` | Reads live Azure state, invokes the hash-verified official Quickstart, creates real Azure resources, and sends real Responses API requests | Requires preview onboarding and an authenticated, isolated Azure CLI profile |
-| `scripts/verify_upstream.py` | Verifies the official Git commit, origin, and all 25 executable-input hashes, then materializes those exact Git blob bytes into the private run directory | The external worktree is never executed; no upstream source is checked into this public subtree |
-| `scripts/parse_demo_output.py` | Recomputes run count, cache hits, cached tokens, latency, and cold-to-warm ratio from captured rows | Errors, missing rows, a zero threshold, zero latency, or too few warm hits fail closed; a pre-warmed first call has no cold-to-warm ratio |
-| `scripts/validate_arm_summary.py` | Verifies deployment success and the model/cache binding across the ARM outputs, AOAI deployment, and Context Cache container | Missing, failed, or mismatched control-plane evidence fails closed |
-| `tests/fixtures/` | Synthetic transcripts exercise parser success and failure paths | Fixtures never enter the live runtime path |
-| `evidence/verified-run-summary.json` | Sanitized single-run observation from the official live path | Not production certification, an SLA, a pricing claim, or a model-quality benchmark |
+| Validation signal | Observed result | What it establishes |
+|---|---:|---|
+| Real Responses API calls | `6/6` completed | The official deployment and data-plane path completed |
+| Warm cache calls | `5/5` reported cache hits | The linked Context Cache served the warm calls |
+| Cached input tokens | `2304` on every warm call | A consistent nonzero cache signal was observed |
+| Evidence handling | 2 later incomplete runs rejected | Transport failures were not converted into passes |
 
-## What This Repository Validates
+**Recommended next step:** after confirming Preview onboarding, permissions, quota, and regional availability, run the same validation in the customer-owned Azure environment.
 
-The harness proves one bounded chain:
-
-1. The target Azure subscription is enabled and reachable through the selected `AZURE_CONFIG_DIR`.
-2. `Microsoft.Storage`, `Microsoft.CognitiveServices`, and `OpenAI.ContextCacheAllowed` are already registered.
-3. The official upstream checkout exactly matches commit `7d1029a5e8b59b1805e70992c85ffe6798d2f47a`; all 25 local execution inputs are hash-verified and materialized from the verified Git blobs.
-4. The official `scripts/quickstart.ps1` deploys the Context Cache account, container, linked Azure OpenAI deployment, and data-plane role; the runner independently verifies the resulting deployment state, model version, container ID, provider, and TTL.
-5. Six real Responses API calls complete and enough warm calls report nonzero `cached_tokens`.
-6. The parser independently recomputes the evidence instead of trusting a success banner.
-
-The runner does not log in, register the preview feature, use API-key fallback, invent cache results, or delete Azure resources.
-
-## Architecture
-
-![Official execution path](images/architecture.svg)
-
-The public harness owns preflight, provenance, evidence capture, and validation. Azure owns the Private Preview resources. The upstream repository owns deployment and demo behavior.
-
-## Verified Observation
-
-![Sanitized verified observation](images/verified-observation.svg)
-
-The sanitized canary captured six successful calls. Call 1 had `cached_tokens = 0`; calls 2 through 6 each reported `2304` cached tokens. The recomputed warm mean was `3642.4 ms`, compared with `5820 ms` for the first call, an observed `1.597848x` ratio in this one environment.
-
-Those latency values are evidence for that run only. The durable capability signal is the real deployment binding plus nonzero `cached_tokens`; do not generalize the latency ratio or infer cost savings without a separate controlled benchmark and current pricing source.
-
-Subsequent hardened-wrapper probes also exposed transport variability in the official five-request parallel burst. Two complete runs passed; two later runs were rejected after three and four transport errors respectively. They remain visible in [`evidence/validation-history.json`](evidence/validation-history.json) and are not converted into cache scores. This is evidence that the fail-closed gate works, not a production reliability claim.
+> **Boundary:** this is a single-run capability observation, not a production-readiness, availability, cost-saving, or latency guarantee. Two later incomplete runs were rejected by the fail-closed gate and excluded from the cache result.
 
 ## Quick Start
 
@@ -82,7 +55,7 @@ pwsh -NoProfile -File .\scripts\run_official_e2e.ps1 `
   -Runs 6
 ```
 
-Use `-WhatIf` first to perform bounded, read-only Azure preflight without cloning, deploying, or sending requests. A live run requires a new unique resource group, creates a unique private run directory and fresh virtual environment outside the source tree, and prints the exact evidence directory. A network-restricted environment may pass a checkout at the pinned commit as a Git object source through `-ExistingUpstreamDirectory`; uncommitted worktree bytes are ignored, and the runner exports and executes only the 25 hash-verified Git blobs. The default remains a fresh official clone.
+Use `-WhatIf` first to perform time-bounded, read-only Azure preflight without cloning, deploying, or sending requests. A live run requires a new unique resource group, creates a unique private run directory and fresh virtual environment outside the source tree, and prints the exact evidence directory. A network-restricted environment may pass a checkout at the pinned commit as a Git object source through `-ExistingUpstreamDirectory`; uncommitted worktree bytes are ignored, and the runner exports and executes only the 25 hash-verified Git blobs. The default remains a fresh official clone.
 
 ### Validate Locally
 
@@ -102,7 +75,23 @@ python scripts\verify_upstream.py `
   --output "EMPTY-PRIVATE-OUTPUT-DIRECTORY"
 ```
 
-## Evidence and Method
+## What Was Validated
+
+1. The selected Azure subscription was enabled, and the required providers and `OpenAI.ContextCacheAllowed` feature were registered.
+2. The official source matched the pinned commit, origin, and all 25 executable-input SHA-256 values.
+3. The byte-identical official Quickstart deployed the Context Cache account, container, linked Azure OpenAI deployment, and data-plane role.
+4. The runner independently verified deployment state, model version, container binding, provider, and TTL.
+5. Six Responses API call rows were captured and independently recomputed; missing rows, errors, zero thresholds, and weak cache evidence fail closed.
+
+The runner does not log in, register the preview feature, use API-key fallback, invent cache results, or delete Azure resources.
+
+## Architecture
+
+![Official execution path](images/architecture.svg)
+
+Azure owns the Private Preview resources. The official upstream owns deployment and demo behavior. This repository owns source verification, bounded orchestration, evidence capture, and independent validation.
+
+## Evidence and Audit Trail
 
 The method has three independent proof layers:
 
@@ -112,7 +101,27 @@ The method has three independent proof layers:
 | Azure control plane | Azure Resource Manager | Provider/feature preflight plus deployment, AOAI model, cache-container ID, provider, and TTL binding |
 | Azure data plane | Official Responses API demo | Six parsed call rows, cached token counts, and fail-closed thresholds |
 
-See [Method and lineage](docs/METHOD.md), [public evidence boundary](evidence/README.md), and [scenario manifest](scenario-manifest.json). Public evidence omits cloud identifiers and private raw logs.
+See [Method and lineage](docs/METHOD.md), [public evidence boundary](evidence/README.md), [sanitized run summary](evidence/verified-run-summary.json), and [validation history](evidence/validation-history.json). Public evidence omits cloud identifiers and private raw logs.
+
+## Observed Run Details
+
+![Sanitized verified observation](images/verified-observation.svg)
+
+Call 1 reported `cached_tokens = 0`; calls 2 through 6 each reported `2304` cached tokens. The recomputed warm mean was `3642.4 ms`, compared with `5820 ms` for the first call, an observed ratio of `1.597848x` in this one environment.
+
+The latency values describe that run only. The durable capability signal is the verified deployment binding plus nonzero `cached_tokens`. Do not generalize the ratio or infer cost savings without a separate controlled benchmark and current pricing source.
+
+Two complete runs passed. Two later runs were rejected after three and four transport errors respectively. Rejected runs remain visible in the validation history and are not scored as cache results.
+
+## Validation Design and Boundaries
+
+| Surface | What actually happens | Boundary |
+|---|---|---|
+| `scripts/run_official_e2e.ps1` | Reads live Azure state, invokes the verified official Quickstart, creates real Azure resources, and sends real Responses API requests | Requires preview onboarding and an authenticated, isolated Azure CLI profile |
+| `scripts/verify_upstream.py` | Verifies the commit, origin, and all 25 executable inputs, then materializes the exact Git blob bytes privately | The external worktree is never executed |
+| `scripts/parse_demo_output.py` | Recomputes call count, cache hits, cached tokens, and latency fields | Errors, missing rows, zero thresholds, zero latency, or too few warm hits fail closed |
+| `scripts/validate_arm_summary.py` | Verifies deployment success and the model/cache binding across three ARM resources | Missing, failed, or mismatched control-plane evidence fails closed |
+| `tests/fixtures/` | Exercises deterministic success and failure branches | Synthetic fixtures never enter the live runtime path |
 
 ## Repository Layout
 
@@ -158,3 +167,5 @@ See [SECURITY.md](SECURITY.md) for reporting and operational guidance.
 - [Azure OpenAI prompt caching](https://learn.microsoft.com/azure/ai-foundry/openai/how-to/prompt-caching)
 - [Azure CLI configuration isolation](https://learn.microsoft.com/cli/azure/azure-cli-configuration)
 - [ATTRIBUTION.md](ATTRIBUTION.md)
+
+Maintainer: Xinyu Wei
