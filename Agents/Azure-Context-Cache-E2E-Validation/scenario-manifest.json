@@ -26,10 +26,10 @@
       "proof": "Deterministic parser success and failure branches only"
     },
     {
-      "id": "architecture-and-boundaries",
+      "id": "customer-architecture-and-value-boundaries",
       "classification": "architecture-explainer",
-      "entrypoint": "README.md and README-CN.md",
-      "proof": "No cloud capability claim"
+      "entrypoint": "README.md, README-CN.md, and images/customer-architecture.svg",
+      "proof": "Official-source product architecture and value levers; quantified customer savings remain unverified"
     }
   ],
   "forbiddenFallbacks": [

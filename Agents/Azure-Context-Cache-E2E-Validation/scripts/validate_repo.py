@@ -38,7 +38,7 @@ REQUIRED = (
     "evidence/manifest.json",
     "evidence/validation-history.json",
     "evidence/verified-run-summary.json",
-    "images/architecture.svg",
+    "images/customer-architecture.svg",
     "images/verified-observation.svg",
     "requirements.txt",
     "requirements-live-win-py311.lock",
@@ -104,6 +104,27 @@ def validate_svg(path: Path) -> None:
     require(root.find("{http://www.w3.org/2000/svg}desc") is not None, f"missing desc: {path.name}")
 
 
+def validate_customer_architecture(path: Path) -> None:
+    root = ElementTree.parse(path).getroot()
+    text = " ".join(value.strip() for value in root.itertext() if value.strip())
+    paths = {element.attrib.get("d") for element in root.iter() if element.tag.endswith("path")}
+    for marker in (
+        "STABLE PREFIX",
+        "DYNAMIC SUFFIX",
+        "CUSTOMER RESPONSIBILITY",
+        "AZURE-MANAGED SERVICE",
+        "lookup / miss: populate",
+        "hit: reuse processed prefix",
+        "cached_tokens",
+        "contextCacheContainerId",
+    ):
+        require(marker in text, f"customer architecture missing: {marker}")
+    require("M1106 306 H1242" in paths, "miss population must flow deployment to cache")
+    require("M1242 376 H1106" in paths, "cache hit must flow cache to deployment")
+    for marker in ("PUBLIC RUNNER", "AZURE PREFLIGHT", "PINNED UPSTREAM", "RAW TRANSCRIPT"):
+        require(marker not in text, f"internal validation architecture leaked: {marker}")
+
+
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -116,9 +137,20 @@ def main() -> int:
 
         english = READMES[0].read_text(encoding="utf-8")
         chinese = READMES[1].read_text(encoding="utf-8")
-        require(english.startswith("# Azure Context Cache E2E Validation"), "English H1 changed")
-        require(chinese.startswith("# Azure Context Cache 端到端验证"), "Chinese H1 changed")
+        require(english.startswith("# Azure Context Cache Customer Evaluation"), "English H1 changed")
+        require(chinese.startswith("# Azure Context Cache 客户评估"), "Chinese H1 changed")
         require(markdown_shape(english) == markdown_shape(chinese), "bilingual README shape differs")
+        require(
+            markdown_shape(english)["images"] == [
+                "badge.svg",
+                "CPython-3.11%20AMD64-3776AB",
+                "PowerShell-7%2B-5391FE",
+                "AzureContextCache-7d1029a5-247A45",
+                "License-MIT-yellow.svg",
+                "customer-architecture.svg",
+            ],
+            "customer README image contract changed",
+        )
         links = sum(validate_links(path, text) for path, text in zip(READMES, (english, chinese)))
 
         method_en = METHODS[0].read_text(encoding="utf-8")
@@ -129,6 +161,7 @@ def main() -> int:
         for image in (ROOT / "images").glob("*.svg"):
             validate_svg(image)
         require(len(list((ROOT / "images").glob("*.svg"))) == 2, "expected exactly two SVGs")
+        validate_customer_architecture(ROOT / "images" / "customer-architecture.svg")
 
         lock = load_json("UPSTREAM_LOCK.json")
         require(
@@ -160,6 +193,20 @@ def main() -> int:
 
         scenario = load_json("scenario-manifest.json")
         require(len(scenario["scenarios"]) == 5, "scenario count changed")
+        customer_architecture = next(
+            row
+            for row in scenario["scenarios"]
+            if row["id"] == "customer-architecture-and-value-boundaries"
+        )
+        require(
+            customer_architecture["classification"] == "architecture-explainer",
+            "customer architecture scenario classification changed",
+        )
+        require(
+            "quantified customer savings remain unverified"
+            in customer_architecture["proof"],
+            "customer value boundary changed",
+        )
         evidence = load_json("evidence/verified-run-summary.json")
         evidence_manifest = load_json("evidence/manifest.json")
         history = load_json("evidence/validation-history.json")
@@ -192,9 +239,46 @@ def main() -> int:
             parse_rows((ROOT / "tests/fixtures/demo-success.txt").read_text(encoding="utf-8"))
         )
         require(fixture_summary["warm"]["hits"] == 5, "fixture differential changed")
+        customer_markers = {
+            "README.md": (
+                "Customer Problem and Business Value",
+                "Workload Fit",
+                "Customer Architecture",
+                "**GO**",
+                "**CONDITIONAL**",
+                "**LOW PRIORITY**",
+                "6/6",
+                "5/5",
+                "2304",
+                "current Azure pricing",
+                "Microsoft.Storage/contextCaches",
+                "contextCacheContainerId",
+                "general Azure OpenAI prompt-caching guidance",
+            ),
+            "README-CN.md": (
+                "客户问题与业务价值",
+                "工作负载适配",
+                "客户业务架构",
+                "**GO**",
+                "**CONDITIONAL**",
+                "**LOW PRIORITY**",
+                "6/6",
+                "5/5",
+                "2304",
+                "当前 Azure 定价",
+                "Microsoft.Storage/contextCaches",
+                "contextCacheContainerId",
+                "通用 Azure OpenAI prompt caching 指南",
+            ),
+        }
         for text, name in ((english, "README.md"), (chinese, "README-CN.md")):
-            for marker in ("6", "5", "2304", "3642.4", "5820", "1.597848"):
-                require(marker in text, f"{name} missing evidence marker: {marker}")
+            for marker in customer_markers[name]:
+                require(marker in text, f"{name} missing customer marker: {marker}")
+            require(
+                re.search(r"\b\d+(?:\.\d+)?x\b", text, re.IGNORECASE) is None,
+                f"{name} exposes an unsupported latency ratio",
+            )
+            require("images/architecture.svg" not in text, f"{name} references internal validation architecture")
 
         require(
             not findings(ROOT, (AGENTS_INDEX, ROOT_ATTRIBUTES)),
