@@ -62,6 +62,83 @@ Context Cache 容器是客户订阅中的 Azure 资源。锁定的 Private Previ
 
 本仓库评估的是基于 `Microsoft.Storage/contextCaches` 和 `contextCacheContainerId` 的固定 Private Preview 资源路径。通用 Azure OpenAI prompt caching 指南可能因模型家族和 API 接口形态不同而采用其他机制；目标模型与当前能力边界应另行对照最新官方文档确认。
 
+## 测试信息、步骤与证据
+
+### 测试信息
+
+| 项目 | 已验证值 |
+|---|---|
+| 观测日期 | `2026-08-18` |
+| 执行面 | `LOCAL_WINDOWS` |
+| Azure 区域 | `centralus` |
+| 官方源码 | commit `7d1029a5e8b59b1805e70992c85ffe6798d2f47a` 对应的 `Azure/AzureContextCache` |
+| 运行时 | CPython `3.11.9 AMD64`；通过 PowerShell 7 编排，并使用 Azure CLI 用户身份认证 |
+| 部署 | `gpt-5.4`，模型版本 `2026-03-05-contextcache`，Responses API `preview` |
+| 缓存合同 | 模型专属 Context Cache 容器、7 天 TTL，以及显式 `contextCacheContainerId` 绑定 |
+| 请求模式 | 1 次预热请求，随后并行发送 5 次请求 |
+
+本表描述的是经过脱敏的验证环境，不代表区域支持或生产容量建议。
+
+### 测试步骤
+
+1. **验证官方源码。** `scripts/verify_upstream.py` 解析固定 Git 对象，核对全部 25 个执行输入的 SHA-256，并且只在公共源码树之外物化这些已验证字节。
+2. **执行 Azure 只读前置检查。** `scripts/run_official_e2e.ps1 -WhatIf` 检查当前订阅、实时 ARM 读取、必要资源提供程序、受控 Preview 功能、运行时架构和目标区域前提条件；此步骤不部署资源，也不发送模型请求。
+3. **部署官方 Quickstart。** 实时运行器安装具有精确 hash 的 Windows AMD64 CPython 3.11 依赖，然后在私有运行目录中调用字节完全一致的官方 `scripts/quickstart.ps1 -SkipPython`。
+4. **验证数据面。** 官方 Demo 先发送 1 次预热请求，再使用相同的稳定前缀并行发送 5 次 Responses API 请求。
+5. **独立验证结果。** `scripts/parse_demo_output.py` 解析全部 6 条调用记录；缺行、传输错误、零阈值、零延迟或预热后命中不足都会失败。`scripts/validate_arm_summary.py` 独立核对部署成功状态、模型身份、缓存容器 ID、提供程序、TTL 和部署绑定。
+6. **执行离线回归门。** 在发布 commit 上运行单元测试、真实性检查、公共内容审计、Repo gate、依赖检查、PowerShell 语法检查、CI 矩阵和 CodeQL。
+
+### 测试脚本
+
+| 脚本或测试集 | 在测试中的职责 | 失败即拒绝条件 |
+|---|---|---|
+| [`scripts/run_official_e2e.ps1`](scripts/run_official_e2e.ps1) | Azure 前置检查、已验证源码物化、官方 Quickstart 执行、日志捕获和证据编排 | 配置目录复用、运行时不符、资源组已存在、Azure 超时/报错、官方进程非零退出或证据验证失败时立即停止 |
+| [`scripts/verify_upstream.py`](scripts/verify_upstream.py) | 核对固定 Repo、commit 和 25 个 Git blob 的 SHA-256 | blob 缺失、不匹配或输出目录非空时拒绝执行 |
+| [`scripts/parse_demo_output.py`](scripts/parse_demo_output.py) | 解析调用级延迟和 token 字段并计算缓存判定 | 传输错误、调用缺失/格式错误、零阈值/延迟或预热后命中不足时拒绝结果 |
+| [`scripts/validate_arm_summary.py`](scripts/validate_arm_summary.py) | 交叉核对 ARM 部署状态以及 AOAI 与缓存的绑定 | 部署失败、字段缺失、模型/提供程序/TTL 错误或资源 ID 不一致时拒绝结果 |
+| [`scripts/demo_code_validator.py`](scripts/demo_code_validator.py) | 确认验证器使用真实官方路径，而不是硬编码或 mock 结果 | 模拟产品行为或源码/运行时合同漂移时失败 |
+| [`scripts/audit_public_content.py`](scripts/audit_public_content.py) | 扫描秘密、具体云标识、不安全链接、重解析点和不支持的公开格式 | 发现任何 Public boundary（公开边界）问题时发布门失败 |
+| [`scripts/validate_repo.py`](scripts/validate_repo.py) 和 [`tests/`](tests/) | 重新计算证据算术/hash，并测试解析器、ARM、源码锁、编排和 Public boundary 分支 | 任一不变量或回归测试失败均返回非零退出码 |
+
+### 脱敏测试日志
+
+下面是根据 [`evidence/verified-run-summary.json`](evidence/verified-run-summary.json) 渲染的可读摘录。它**不是**私有原始 stdout/stderr；云资源标识、endpoint、身份和部署记录均未公开。
+
+```text
+[run] observed_at=2026-08-18 upstream_commit=7d1029a5e8b59b1805e70992c85ffe6798d2f47a
+[environment] execution_plane=LOCAL_WINDOWS region=centralus python="3.11.9 AMD64"
+[deployment] model=gpt-5.4 model_version=2026-03-05-contextcache api_version=preview cache_ttl_days=7
+[call 1] latency_ms=5820 input_tokens=2607 cached_tokens=0    output_tokens=200
+[call 2] latency_ms=3791 input_tokens=2571 cached_tokens=2304 output_tokens=126
+[call 3] latency_ms=3751 input_tokens=2681 cached_tokens=2304 output_tokens=200
+[call 4] latency_ms=3671 input_tokens=2675 cached_tokens=2304 output_tokens=200
+[call 5] latency_ms=3215 input_tokens=2570 cached_tokens=2304 output_tokens=133
+[call 6] latency_ms=3784 input_tokens=2540 cached_tokens=2304 output_tokens=200
+[summary] successful_calls=6 warm_hits=5/5 warm_cached_tokens=2304 verdict=PASS
+```
+
+这些延迟值仅用于审计追溯。一次运行无法建立延迟分布，也不能支撑生产性能声明。
+
+### 测试结果
+
+已入库的 [`validation-history.json`](evidence/validation-history.json) 同时保留完整运行和被拒绝的运行：
+
+| 日期 | 执行路径 | 完成调用数 | 传输错误数 | 缓存结果 | 判定 |
+|---|---|---:|---:|---:|---|
+| `2026-08-18` | `official-baseline` | 6 | 0 | 5/5 次预热后命中 | **PASS** |
+| `2026-08-19` | `public-wrapper-reference` | 6 | 0 | 4/5 次预热后命中 | **PASS** |
+| `2026-08-19` | `hardened-wrapper-probe-1` | 3 | 3 | 不计分 | **REJECTED — INCOMPLETE** |
+| `2026-08-19` | `hardened-wrapper-probe-2` | 2 | 4 | 不计分 | **REJECTED — INCOMPLETE** |
+
+| 发布 commit 质量门 | 结果 | 证据 |
+|---|---:|---|
+| 确定性单元测试 | `38/38` 通过 | `python -m unittest discover -s tests -v` |
+| 真实性、公开边界与 Repo gate | `3/3` 通过 | `demo_code_validator.py`、`audit_public_content.py`、`validate_repo.py` |
+| Windows/Ubuntu × Python 3.11/3.13 CI 矩阵 | `4/4` 个 job 通过 | [GitHub Actions run 32270323872](https://github.com/david-xinyuwei/david-share/actions/runs/32270323872) |
+| CodeQL 分析器 | `7/7` 个 job 通过 | [CodeQL run 32270323901](https://github.com/david-xinyuwei/david-share/actions/runs/32270323901) |
+
+实时结果和离线质量门回答的是不同问题：实时运行证明有边界的 Azure 产品路径；离线测试证明证据解析器、源码锁、编排控制和公开发布合同仍按预期工作。
+
 ## 客户评估路径
 
 ### 前提条件

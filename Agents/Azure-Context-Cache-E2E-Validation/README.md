@@ -62,6 +62,83 @@ The official Quickstart pinned to commit `7d1029a5e8b59b1805e70992c85ffe6798d2f4
 
 This repository evaluates the pinned Private Preview resource path based on `Microsoft.Storage/contextCaches` and `contextCacheContainerId`. The general Azure OpenAI prompt-caching guidance can differ by model family and API surface; confirm the target model and current official documentation separately.
 
+## Test Information, Procedure, and Evidence
+
+### Test Information
+
+| Item | Verified value |
+|---|---|
+| Observation date | `2026-08-18` |
+| Execution plane | `LOCAL_WINDOWS` |
+| Azure region | `centralus` |
+| Official source | `Azure/AzureContextCache` at commit `7d1029a5e8b59b1805e70992c85ffe6798d2f47a` |
+| Runtime | CPython `3.11.9 AMD64`; orchestration through PowerShell 7 and Azure CLI user authentication |
+| Deployment | `gpt-5.4`, model version `2026-03-05-contextcache`, Responses API `preview` |
+| Cache contract | Model-specific Context Cache container, 7-day TTL, explicit `contextCacheContainerId` binding |
+| Request pattern | 1 warm-up request followed by 5 parallel requests |
+
+This table describes the sanitized validation environment, not a supported-region or production-sizing recommendation.
+
+### Test Procedure
+
+1. **Verify the official source.** `scripts/verify_upstream.py` resolves the pinned Git object, verifies the SHA-256 of all 25 executable inputs, and materializes only those verified bytes outside the public source tree.
+2. **Run the read-only Azure preflight.** `scripts/run_official_e2e.ps1 -WhatIf` checks the active subscription, a live ARM read, required resource providers, the gated feature, runtime architecture, and target-region prerequisites without deploying resources or sending model requests.
+3. **Deploy the official Quickstart.** The live runner installs the exact hashed Windows AMD64 CPython 3.11 dependencies and invokes the byte-identical official `scripts/quickstart.ps1` with `-SkipPython` in a private run directory.
+4. **Exercise the data plane.** The official demo sends one warm-up request and five parallel Responses API requests with a shared stable prefix.
+5. **Validate independently.** `scripts/parse_demo_output.py` parses all six call rows and rejects missing rows, transport errors, zero thresholds, zero latency, or insufficient warm hits. `scripts/validate_arm_summary.py` separately verifies deployment success, model identity, cache-container ID, provider, TTL, and deployment binding.
+6. **Run offline regression gates.** The unit suite, authenticity validator, public-content audit, repository gate, dependency check, PowerShell parse check, CI matrix, and CodeQL run against the published commit.
+
+### Test Scripts
+
+| Script or suite | Role in the test | Fail-closed behavior |
+|---|---|---|
+| [`scripts/run_official_e2e.ps1`](scripts/run_official_e2e.ps1) | Azure preflight, verified-source materialization, official Quickstart execution, transcript capture, and evidence orchestration | Stops on profile reuse, wrong runtime, pre-existing resource group, Azure timeout/error, nonzero official exit, or failed evidence validation |
+| [`scripts/verify_upstream.py`](scripts/verify_upstream.py) | Verifies the pinned repository, commit, and 25 Git-blob SHA-256 values | Refuses a missing/mismatched blob or nonempty output directory |
+| [`scripts/parse_demo_output.py`](scripts/parse_demo_output.py) | Parses call-level latency and token fields and computes the cache verdict | Rejects transport errors, malformed/missing calls, zero thresholds/latency, and insufficient warm hits |
+| [`scripts/validate_arm_summary.py`](scripts/validate_arm_summary.py) | Cross-checks ARM deployment state and the AOAI-to-cache binding | Rejects failed deployment, missing fields, wrong model/provider/TTL, or inconsistent resource IDs |
+| [`scripts/demo_code_validator.py`](scripts/demo_code_validator.py) | Checks that the harness uses the real official path rather than hardcoded or mock outcomes | Rejects simulated product behavior and source/runtime contract drift |
+| [`scripts/audit_public_content.py`](scripts/audit_public_content.py) | Scans the public subtree for secrets, concrete cloud identifiers, unsafe links, reparse points, and unsupported formats | Any public-boundary finding fails the release gate |
+| [`scripts/validate_repo.py`](scripts/validate_repo.py) and [`tests/`](tests/) | Recomputes evidence arithmetic/hashes and tests parser, ARM, source-lock, orchestration, and public-boundary branches | Any invariant or regression failure returns a nonzero exit code |
+
+### Sanitized Test Log
+
+The following human-readable excerpt is rendered from [`evidence/verified-run-summary.json`](evidence/verified-run-summary.json). It is **not** the private raw stdout/stderr; cloud identifiers, endpoints, identities, and deployment records remain excluded.
+
+```text
+[run] observed_at=2026-08-18 upstream_commit=7d1029a5e8b59b1805e70992c85ffe6798d2f47a
+[environment] execution_plane=LOCAL_WINDOWS region=centralus python="3.11.9 AMD64"
+[deployment] model=gpt-5.4 model_version=2026-03-05-contextcache api_version=preview cache_ttl_days=7
+[call 1] latency_ms=5820 input_tokens=2607 cached_tokens=0    output_tokens=200
+[call 2] latency_ms=3791 input_tokens=2571 cached_tokens=2304 output_tokens=126
+[call 3] latency_ms=3751 input_tokens=2681 cached_tokens=2304 output_tokens=200
+[call 4] latency_ms=3671 input_tokens=2675 cached_tokens=2304 output_tokens=200
+[call 5] latency_ms=3215 input_tokens=2570 cached_tokens=2304 output_tokens=133
+[call 6] latency_ms=3784 input_tokens=2540 cached_tokens=2304 output_tokens=200
+[summary] successful_calls=6 warm_hits=5/5 warm_cached_tokens=2304 verdict=PASS
+```
+
+These latency values are retained for auditability only. One run cannot establish a latency distribution or a production performance claim.
+
+### Test Results
+
+The checked-in [`validation-history.json`](evidence/validation-history.json) preserves both complete and rejected runs:
+
+| Date | Execution path | Completed calls | Transport errors | Cache result | Verdict |
+|---|---|---:|---:|---:|---|
+| `2026-08-18` | `official-baseline` | 6 | 0 | 5/5 warm hits | **PASS** |
+| `2026-08-19` | `public-wrapper-reference` | 6 | 0 | 4/5 warm hits | **PASS** |
+| `2026-08-19` | `hardened-wrapper-probe-1` | 3 | 3 | Not scored | **REJECTED — INCOMPLETE** |
+| `2026-08-19` | `hardened-wrapper-probe-2` | 2 | 4 | Not scored | **REJECTED — INCOMPLETE** |
+
+| Published-commit quality gate | Result | Evidence |
+|---|---:|---|
+| Deterministic unit tests | `38/38` passed | `python -m unittest discover -s tests -v` |
+| Authenticity, public boundary, and repository gates | `3/3` passed | `demo_code_validator.py`, `audit_public_content.py`, `validate_repo.py` |
+| Windows/Ubuntu × Python 3.11/3.13 CI matrix | `4/4` jobs passed | [GitHub Actions run 32270323872](https://github.com/david-xinyuwei/david-share/actions/runs/32270323872) |
+| CodeQL analyzers | `7/7` jobs passed | [CodeQL run 32270323901](https://github.com/david-xinyuwei/david-share/actions/runs/32270323901) |
+
+The live result and the offline gates answer different questions: the live run proves the bounded Azure product path, while the offline suite proves that the evidence parser, source lock, orchestration controls, and public release contract continue to behave as specified.
+
 ## Customer Evaluation Path
 
 ### Prerequisites
