@@ -1,0 +1,19 @@
+{
+  "repository": "https://github.com/Azure/AzureContextCache.git",
+  "commit": "7d1029a5e8b59b1805e70992c85ffe6798d2f47a",
+  "verifiedAt": "2026-08-18",
+  "hashMode": "git-blob-content-sha256",
+  "files": {
+    "azuredeploy.json": "22801881a3f7c3023d2af2ec02d0e37a2c8a18e4b7114fc81d917cbe71132370",
+    "scripts/quickstart.ps1": "365427f5f1ff047947009fac9be56b8bd4aa40146f5b562dab44179924b4ccff",
+    "demo/code_reviewer_demo.py": "afeb8647a06d5779e871ae9cda815630475ca5fbc62899f7dbf4e17d72573f45",
+    "demo/requirements.txt": "7997539a0b5553f6fb463f34ff9db0f896441242135482b33c2c4dd3eb2fb764",
+    "demo/system_prompt.md": "20324e6c5fc0b043ca54d03906b49288040b3536441262d663902c3d1814f386",
+    "demo/diffs/01-sql-injection.diff": "16330a5b361ad1992dc53be3448eeb755e68c8b261393572941d3305adb4f67e",
+    "demo/diffs/02-disabled-tls.diff": "29852a2a0430552c47240184446e0b19c315f303137964f226b2eeba9a16c3cd",
+    "demo/diffs/03-n-plus-one.diff": "91f0855994d4d4a5f6fdde8c8d83432a40441d1a428b8f148069fb95f3ee9db2",
+    "demo/diffs/04-clean-refactor.diff": "1769c1e6deb3e0282ab93af1a85e1f1f6df6604bda3dda45de3f576c28a41ae8",
+    "demo/diffs/05-logged-token.diff": "8a8ddb5f95c0bf4ac8cc6f44246ac83bd0cda9ca55b702067458514b83ef55e7",
+    "demo/diffs/06-mutable-default.diff": "40f6c2628f742d9ea75daf5e89abb686373477f079acba2566169732f8e9b99b"
+  }
+}

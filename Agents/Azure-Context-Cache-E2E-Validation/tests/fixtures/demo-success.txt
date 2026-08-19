@@ -1,0 +1,11 @@
+Azure Context Cache demo - endpoint = https://example.openai.azure.com/
+deployment = context-cache-deployment - runs = 6 - api = preview
+
+ #  diff                         lat(ms)      in   cached    out   hit%
+------------------------------------------------------------------------
+ 1  01-sql-injection.diff           5820    2607        0    200     0%
+ 2  02-disabled-tls.diff            3791    2571     2304    126    90%
+ 3  03-n-plus-one.diff              3751    2681     2304    200    86%
+ 4  04-clean-refactor.diff          3671    2675     2304    200    86%
+ 5  05-logged-token.diff            3215    2570     2304    133    90%
+ 6  06-mutable-default.diff         3784    2540     2304    200    91%

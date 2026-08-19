@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Azure Context Cache official E2E validation architecture</title>
+  <desc id="desc">A public runner verifies Azure preflight and pinned upstream source, invokes the official Quickstart, then independently parses the real transcript.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#667784"/></marker>
+  </defs>
+  <rect width="1600" height="900" fill="#f7f9fb"/>
+  <text x="800" y="72" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="42" font-weight="700" fill="#101828">Official E2E Validation Path</text>
+  <text x="800" y="118" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="24" fill="#475467">Public harness around the unchanged Azure Quickstart</text>
+  <g fill="none" stroke="#667784" stroke-width="5" marker-end="url(#arrow)">
+    <path d="M330 315 H440"/><path d="M720 315 H830"/><path d="M1110 315 H1220"/>
+    <path d="M1360 440 V575"/><path d="M1220 700 H1035"/>
+  </g>
+  <g font-family="Segoe UI, sans-serif" text-anchor="middle">
+    <g><rect x="70" y="210" width="260" height="210" rx="8" fill="#174666" stroke="#0b2f49" stroke-width="3"/><text x="200" y="265" font-size="29" font-weight="700" fill="white">PUBLIC RUNNER</text><text x="200" y="320" font-size="24" fill="white">Isolated Azure profile</text><text x="200" y="360" font-size="24" fill="white">Fail-closed gates</text></g>
+    <g><rect x="440" y="210" width="280" height="210" rx="8" fill="#fff0c7" stroke="#a66b00" stroke-width="3"/><text x="580" y="255" font-size="29" font-weight="700" fill="#513400">AZURE PREFLIGHT</text><text x="580" y="310" font-size="24" fill="#513400">Providers registered</text><text x="580" y="350" font-size="24" fill="#513400">Preview feature</text><text x="580" y="386" font-size="24" fill="#513400">registered</text></g>
+    <g><rect x="830" y="210" width="280" height="210" rx="8" fill="#e8eef2" stroke="#667784" stroke-width="3"/><text x="970" y="260" font-size="29" font-weight="700" fill="#1e2a32">PINNED</text><text x="970" y="298" font-size="29" font-weight="700" fill="#1e2a32">UPSTREAM</text><text x="970" y="347" font-size="24" fill="#1e2a32">Commit + clean tree</text><text x="970" y="387" font-size="24" fill="#1e2a32">11 content hashes</text></g>
+    <g><rect x="1220" y="210" width="280" height="210" rx="8" fill="#ddf1e3" stroke="#247a45" stroke-width="3"/><text x="1360" y="260" font-size="29" font-weight="700" fill="#123a24">OFFICIAL</text><text x="1360" y="298" font-size="29" font-weight="700" fill="#123a24">QUICKSTART</text><text x="1360" y="347" font-size="24" fill="#123a24">ARM deployment</text><text x="1360" y="387" font-size="24" fill="#123a24">Six real API calls</text></g>
+    <g><rect x="1220" y="575" width="280" height="190" rx="8" fill="#ddf1e3" stroke="#247a45" stroke-width="3"/><text x="1360" y="630" font-size="29" font-weight="700" fill="#123a24">RAW TRANSCRIPT</text><text x="1360" y="682" font-size="24" fill="#123a24">Outside source tree</text><text x="1360" y="722" font-size="24" fill="#123a24">No secret echo</text></g>
+    <g><rect x="735" y="575" width="300" height="190" rx="8" fill="#dceafe" stroke="#2463a7" stroke-width="3"/><text x="885" y="623" font-size="29" font-weight="700" fill="#123b5d">INDEPENDENT</text><text x="885" y="660" font-size="29" font-weight="700" fill="#123b5d">PARSER</text><text x="885" y="705" font-size="24" fill="#123b5d">Recompute every metric</text><text x="885" y="742" font-size="24" fill="#123b5d">Reject weak evidence</text></g>
+  </g>
+  <text x="80" y="842" font-family="Segoe UI, sans-serif" font-size="23" fill="#667784">Runtime resources and requests are real. Offline fixtures test only the parser.</text>
+</svg>

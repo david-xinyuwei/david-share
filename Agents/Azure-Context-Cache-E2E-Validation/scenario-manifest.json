@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "scenarios": [
+    {
+      "id": "official-preview-preflight",
+      "classification": "dynamic-runtime",
+      "entrypoint": "scripts/run_official_e2e.ps1",
+      "proof": "Live Azure provider and feature reads"
+    },
+    {
+      "id": "official-quickstart-deploy-and-demo",
+      "classification": "dynamic-runtime",
+      "entrypoint": "Azure/AzureContextCache scripts/quickstart.ps1 at the pinned commit",
+      "proof": "ARM deployment state plus six Responses API rows"
+    },
+    {
+      "id": "transcript-validation",
+      "classification": "dynamic-runtime",
+      "entrypoint": "scripts/parse_demo_output.py",
+      "proof": "Metrics recomputed from the captured official transcript"
+    },
+    {
+      "id": "offline-parser-tests",
+      "classification": "test-fixture",
+      "entrypoint": "tests/fixtures/*.txt",
+      "proof": "Deterministic parser success and failure branches only"
+    },
+    {
+      "id": "architecture-and-boundaries",
+      "classification": "architecture-explainer",
+      "entrypoint": "README.md and README-CN.md",
+      "proof": "No cloud capability claim"
+    }
+  ],
+  "forbiddenFallbacks": [
+    "mock Azure responses",
+    "hard-coded cache-hit results",
+    "silent API-key fallback",
+    "automatic preview registration",
+    "automatic Azure login"
+  ]
+}

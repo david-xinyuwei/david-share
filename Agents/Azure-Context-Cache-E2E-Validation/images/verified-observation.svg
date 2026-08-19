@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Sanitized single-run Azure Context Cache observation</title>
+  <desc id="desc">Call one had zero cached tokens. Calls two through six each had 2304 cached tokens.</desc>
+  <rect width="1600" height="900" fill="#f7f9fb"/>
+  <text x="800" y="72" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="42" font-weight="700" fill="#101828">Sanitized Single-Run Observation</text>
+  <text x="800" y="118" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="24" fill="#475467">Cached input tokens reported by the official Responses API demo</text>
+  <line x1="160" y1="700" x2="1450" y2="700" stroke="#667784" stroke-width="3"/>
+  <line x1="160" y1="210" x2="160" y2="700" stroke="#667784" stroke-width="3"/>
+  <g font-family="Segoe UI, sans-serif" text-anchor="middle">
+    <g fill="#e8eef2" stroke="#667784" stroke-width="2"><rect x="235" y="700" width="140" height="1"/><text x="305" y="745" font-size="24" fill="#344054">Call 1</text><text x="305" y="665" font-size="25" fill="#344054">0</text></g>
+    <g fill="#247a45"><rect x="435" y="260" width="140" height="440"/><rect x="635" y="260" width="140" height="440"/><rect x="835" y="260" width="140" height="440"/><rect x="1035" y="260" width="140" height="440"/><rect x="1235" y="260" width="140" height="440"/></g>
+    <g font-size="24" fill="#344054"><text x="505" y="745">Call 2</text><text x="705" y="745">Call 3</text><text x="905" y="745">Call 4</text><text x="1105" y="745">Call 5</text><text x="1305" y="745">Call 6</text></g>
+    <g font-size="25" font-weight="700" fill="#123a24"><text x="505" y="240">2304</text><text x="705" y="240">2304</text><text x="905" y="240">2304</text><text x="1105" y="240">2304</text><text x="1305" y="240">2304</text></g>
+  </g>
+  <text x="85" y="465" text-anchor="middle" transform="rotate(-90 85 465)" font-family="Segoe UI, sans-serif" font-size="25" fill="#344054">cached_tokens</text>
+  <rect x="205" y="800" width="1190" height="58" rx="6" fill="#fff0c7" stroke="#a66b00" stroke-width="2"/>
+  <text x="800" y="838" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="24" fill="#513400">One bounded run, not a production latency, savings, or concurrency benchmark</text>
+</svg>

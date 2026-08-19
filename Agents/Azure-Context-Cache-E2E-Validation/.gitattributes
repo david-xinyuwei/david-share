@@ -1,0 +1,7 @@
+*.json !filter !diff !merge text eol=lf
+*.md text eol=lf
+*.py text eol=lf
+*.ps1 text eol=lf
+*.txt text eol=lf
+*.svg text eol=lf
+*.png binary

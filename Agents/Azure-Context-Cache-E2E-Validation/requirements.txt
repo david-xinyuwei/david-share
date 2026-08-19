@@ -1,0 +1,2 @@
+# This harness has no direct third-party runtime dependencies.
+# Live demo dependencies are installed from the hash-verified upstream requirements file.

@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "evidenceType": "sanitized-single-run-observation",
+  "observedAt": "2026-08-18",
+  "upstream": {
+    "repository": "https://github.com/Azure/AzureContextCache.git",
+    "commit": "7d1029a5e8b59b1805e70992c85ffe6798d2f47a"
+  },
+  "environment": {
+    "executionPlane": "LOCAL_WINDOWS",
+    "region": "centralus",
+    "python": "3.11.9 AMD64",
+    "authentication": "Azure CLI user credential",
+    "runs": 6,
+    "requestPattern": "one warm-up request followed by five parallel requests"
+  },
+  "deployment": {
+    "model": "gpt-5.4",
+    "modelVersion": "2026-03-05-contextcache",
+    "apiVersion": "preview",
+    "cacheTtlDays": 7
+  },
+  "calls": [
+    {"call": 1, "latencyMs": 5820, "inputTokens": 2607, "cachedTokens": 0, "outputTokens": 200},
+    {"call": 2, "latencyMs": 3791, "inputTokens": 2571, "cachedTokens": 2304, "outputTokens": 126},
+    {"call": 3, "latencyMs": 3751, "inputTokens": 2681, "cachedTokens": 2304, "outputTokens": 200},
+    {"call": 4, "latencyMs": 3671, "inputTokens": 2675, "cachedTokens": 2304, "outputTokens": 200},
+    {"call": 5, "latencyMs": 3215, "inputTokens": 2570, "cachedTokens": 2304, "outputTokens": 133},
+    {"call": 6, "latencyMs": 3784, "inputTokens": 2540, "cachedTokens": 2304, "outputTokens": 200}
+  ],
+  "recomputed": {
+    "successfulCalls": 6,
+    "warmHits": 5,
+    "warmCalls": 5,
+    "warmMeanLatencyMs": 3642.4,
+    "firstToWarmSpeedup": 1.597848,
+    "warmCachedTokens": 2304
+  },
+  "boundaries": [
+    "Single-run capability validation, not a production performance benchmark",
+    "No price or cost-savings claim",
+    "Cloud identifiers, endpoint names, identities, and private raw logs are omitted",
+    "Latency is environment-specific and must not be generalized"
+  ]
+}

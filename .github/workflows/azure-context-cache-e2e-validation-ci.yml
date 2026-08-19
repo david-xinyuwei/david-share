@@ -1,0 +1,54 @@
+name: Azure Context Cache E2E Validation CI
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "Agents/Azure-Context-Cache-E2E-Validation/**"
+      - "Agents/README.md"
+      - ".gitattributes"
+      - ".github/workflows/azure-context-cache-e2e-validation-ci.yml"
+  pull_request:
+    branches: [master]
+    paths:
+      - "Agents/Azure-Context-Cache-E2E-Validation/**"
+      - "Agents/README.md"
+      - ".gitattributes"
+      - ".github/workflows/azure-context-cache-e2e-validation-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  offline-gates:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.13"]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: Agents/Azure-Context-Cache-E2E-Validation
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m compileall -q scripts tests
+      - run: python -m unittest discover -s tests -v
+      - run: python scripts/demo_code_validator.py
+      - run: >-
+          python scripts/audit_public_content.py
+          --extra ../../Agents/README.md
+          --extra ../../.gitattributes
+      - run: python scripts/validate_repo.py
+      - run: python -m pip check
+      - shell: pwsh
+        run: |
+          [void][ScriptBlock]::Create(
+            [IO.File]::ReadAllText(
+              (Resolve-Path ./scripts/run_official_e2e.ps1),
+              [Text.Encoding]::UTF8
+            )
+          )

@@ -1,6 +1,6 @@
 # Agents
 
-A collection of 29 projects covering AI agents, RAG (Retrieval-Augmented Generation), prompt engineering, LLM evaluation, and related topics.
+A collection of 30 projects covering AI agents, RAG (Retrieval-Augmented Generation), prompt engineering, LLM evaluation, and related topics.
 
 ---
 
@@ -12,6 +12,7 @@ A collection of 29 projects covering AI agents, RAG (Retrieval-Augmented Generat
 | [AI-Agent-Private-Endpoint](AI-Agent-Private-Endpoint/) | Step-by-step network hardening workflow for AI agents with private endpoints |
 | [AI-Content-Safety](AI-Content-Safety/) | Azure AI Content Safety API for text, image, and video moderation |
 | [AOAI-GPT5-ResponseAPI](AOAI-GPT5-ResponseAPI/) | Azure OpenAI GPT-5 Responses API with chain-of-thought reuse and cost analysis |
+| [Azure-Context-Cache-E2E-Validation](Azure-Context-Cache-E2E-Validation/) | Fail-closed validation harness for the pinned official Azure Context Cache Quickstart and real cached-token evidence |
 | [Azure-MCP-Solution](Azure-MCP-Solution/) | Practical guide to using and integrating MCP (Model-Context Protocol) Servers |
 | [AzureOpenAI-HA](AzureOpenAI-HA/) | Azure OpenAI high-availability failover architecture using custom scripts |
 | [Best-practices-for-MaaS-and-SLM](Best-practices-for-MaaS-and-SLM/) | Running Phi-3 SLM on mobile devices with MaaS best practices |

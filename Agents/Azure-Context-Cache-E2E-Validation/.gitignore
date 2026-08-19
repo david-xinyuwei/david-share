@@ -1,0 +1,7 @@
+.azure/
+.venv/
+runtime/
+upstream/
+live-evidence/
+*.log
+__pycache__/

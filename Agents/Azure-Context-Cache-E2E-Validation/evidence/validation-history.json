@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "evidenceType": "sanitized-run-history",
+  "upstreamCommit": "7d1029a5e8b59b1805e70992c85ffe6798d2f47a",
+  "runs": [
+    {
+      "date": "2026-08-18",
+      "path": "official-baseline",
+      "successfulCalls": 6,
+      "transportErrors": 0,
+      "warmHits": 5,
+      "warmCalls": 5,
+      "verdict": "pass"
+    },
+    {
+      "date": "2026-08-19",
+      "path": "public-wrapper-reference",
+      "successfulCalls": 6,
+      "transportErrors": 0,
+      "warmHits": 4,
+      "warmCalls": 5,
+      "verdict": "pass"
+    },
+    {
+      "date": "2026-08-19",
+      "path": "hardened-wrapper-probe-1",
+      "successfulCalls": 3,
+      "transportErrors": 3,
+      "warmHits": null,
+      "warmCalls": 5,
+      "verdict": "rejected-incomplete"
+    },
+    {
+      "date": "2026-08-19",
+      "path": "hardened-wrapper-probe-2",
+      "successfulCalls": 2,
+      "transportErrors": 4,
+      "warmHits": null,
+      "warmCalls": 5,
+      "verdict": "rejected-incomplete"
+    }
+  ],
+  "interpretation": [
+    "Successful runs establish the bounded product path.",
+    "Incomplete runs are infrastructure or transport observations, not cache scores.",
+    "Rejected runs are not removed or converted into passes.",
+    "This history is not a statistical performance benchmark."
+  ]
+}
