@@ -1,0 +1,30 @@
+# --- 运行时产物 ---
+.venv/
+__pycache__/
+*.pyc
+build/
+dist/
+logs/
+artifacts/
+
+# --- 机密：绝不入库 ---
+.env
+.msal_token_cache.json
+password
+password.txt
+*.pem
+*.key
+
+# Azure CLI 配置目录被误当相对路径创建出的畸形目录，内含凭据缓存
+/C:*
+.azure/
+
+# --- 与本项目无关的残留 ---
+node_modules/
+package.json
+package-lock.json
+
+# --- 临时调试文件（仅根目录，勿误伤 __init__.py）---
+/_*.txt
+/_*.png
+/_*.py

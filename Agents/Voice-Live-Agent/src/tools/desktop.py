@@ -1,0 +1,187 @@
+"""桌面设备控制：系统音量与常用应用启动。
+
+音量走 pycaw 的 IAudioEndpointVolume（Core Audio API），比模拟音量键可靠：
+能读到精确百分比，也不受焦点窗口影响。工具经 asyncio.to_thread 在线程池执行，
+每次调用都要自己初始化 COM 套间。
+"""
+
+from __future__ import annotations
+
+import logging
+import os
+import subprocess
+import sys
+from typing import Any
+
+from . import tool
+
+logger = logging.getLogger(__name__)
+
+
+class _CoInit:
+    """pycaw 依赖 COM，线程池线程默认没有套间。"""
+
+    def __enter__(self) -> None:
+        from comtypes import CoInitialize
+
+        CoInitialize()
+
+    def __exit__(self, *_exc: Any) -> None:
+        from comtypes import CoUninitialize
+
+        CoUninitialize()
+
+
+def _require_windows() -> None:
+    if not sys.platform.startswith("win"):
+        raise RuntimeError("音量与桌面控制仅支持 Windows")
+
+
+def _endpoint_volume():
+    _require_windows()
+    from ctypes import POINTER, cast
+
+    from comtypes import CLSCTX_ALL
+    from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
+
+    devices = AudioUtilities.GetSpeakers()
+    # 新版 pycaw 直接暴露 EndpointVolume，旧版需要自己 Activate
+    endpoint = getattr(devices, "EndpointVolume", None)
+    if endpoint is not None:
+        return endpoint
+    interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+    return cast(interface, POINTER(IAudioEndpointVolume))
+
+
+def _read_state() -> dict:
+    ev = _endpoint_volume()
+    scalar = float(ev.GetMasterVolumeLevelScalar())
+    return {
+        "level": int(round(max(0.0, min(1.0, scalar)) * 100)),
+        "muted": bool(ev.GetMute()),
+    }
+
+
+@tool(
+    name="get_system_volume",
+    description="查询本机当前的系统音量百分比和静音状态。用户问「现在音量多少」「是不是静音了」时调用。",
+    parameters={"type": "object", "properties": {}, "required": []},
+)
+def get_system_volume() -> dict:
+    with _CoInit():
+        state = _read_state()
+    logger.info("当前音量 %s%% muted=%s", state["level"], state["muted"])
+    return {"message": f"当前音量 {state['level']}%", **state}
+
+
+@tool(
+    name="set_system_volume",
+    description=(
+        "设置本机系统音量。用户说「音量调到 30」「声音大一点」「把声音关小」时调用。"
+        "相对调节请先查询当前音量再换算成目标百分比。"
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "level": {
+                "type": "integer",
+                "description": "目标音量百分比，0 到 100。",
+                "minimum": 0,
+                "maximum": 100,
+            }
+        },
+        "required": ["level"],
+    },
+)
+def set_system_volume(level: int) -> dict:
+    with _CoInit():
+        ev = _endpoint_volume()
+        before = _read_state()
+        clamped = max(0, min(100, int(level)))
+        ev.SetMasterVolumeLevelScalar(clamped / 100.0, None)
+        after = _read_state()
+    logger.info("音量 %s%% -> %s%%", before["level"], after["level"])
+    return {
+        "message": f"音量已调到 {after['level']}%",
+        "previous_level": before["level"],
+        **after,
+    }
+
+
+@tool(
+    name="set_system_mute",
+    description="静音或取消静音。用户说「静音」「把声音关掉」「取消静音」时调用。",
+    parameters={
+        "type": "object",
+        "properties": {
+            "muted": {"type": "boolean", "description": "true 为静音，false 为取消静音。"}
+        },
+        "required": ["muted"],
+    },
+)
+def set_system_mute(muted: bool) -> dict:
+    with _CoInit():
+        ev = _endpoint_volume()
+        ev.SetMute(bool(muted), None)
+        state = _read_state()
+    logger.info("静音状态 -> %s", state["muted"])
+    return {"message": "已静音" if state["muted"] else "已取消静音", **state}
+
+
+_APPS: dict[str, tuple[str, str]] = {
+    "calculator": ("calc.exe", "计算器"),
+    "notepad": ("notepad.exe", "记事本"),
+    "explorer": ("explorer.exe", "文件资源管理器"),
+    "taskmgr": ("taskmgr.exe", "任务管理器"),
+    "mspaint": ("mspaint.exe", "画图"),
+}
+
+
+@tool(
+    name="open_windows_app",
+    description=(
+        "打开 Windows 内置程序或显示桌面。用户说「打开计算器」「打开记事本」「打开资源管理器」"
+        "「打开任务管理器」「打开画图」「打开设置」「显示桌面」时调用。"
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "app": {
+                "type": "string",
+                "description": "要打开的程序。",
+                "enum": ["calculator", "notepad", "explorer", "taskmgr",
+                         "mspaint", "settings", "show_desktop"],
+            }
+        },
+        "required": ["app"],
+    },
+)
+def open_windows_app(app: str) -> dict:
+    _require_windows()
+    key = (app or "").strip().lower()
+
+    if key == "settings":
+        os.startfile("ms-settings:")  # type: ignore[attr-defined]
+        logger.info("已打开 Windows 设置")
+        return {"message": "已打开 Windows 设置", "app": "settings"}
+
+    if key == "show_desktop":
+        import ctypes
+
+        user32 = ctypes.windll.user32
+        vk_lwin, vk_d, key_up = 0x5B, 0x44, 0x0002
+        user32.keybd_event(vk_lwin, 0, 0, 0)
+        user32.keybd_event(vk_d, 0, 0, 0)
+        user32.keybd_event(vk_d, 0, key_up, 0)
+        user32.keybd_event(vk_lwin, 0, key_up, 0)
+        logger.info("已显示桌面")
+        return {"message": "已显示桌面", "app": "show_desktop"}
+
+    entry = _APPS.get(key)
+    if entry is None:
+        raise RuntimeError(f"不支持的程序: {app}")
+
+    executable, label = entry
+    subprocess.Popen([executable], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    logger.info("已打开 %s", label)
+    return {"message": f"已打开{label}", "app": key}

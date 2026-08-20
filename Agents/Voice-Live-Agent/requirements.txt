@@ -1,0 +1,14 @@
+azure-ai-voicelive[aiohttp]
+azure-identity
+azure-core
+openai[realtime]
+httpx
+webiq
+python-dotenv
+pyaudio
+tzdata
+opencv-python-headless
+msal
+# 系统音量控制（Core Audio API），仅 Windows
+pycaw
+comtypes
