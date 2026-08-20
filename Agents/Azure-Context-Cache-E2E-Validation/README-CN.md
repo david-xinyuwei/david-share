@@ -8,14 +8,54 @@
 
 [英文版](README.md) | [源码](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Azure-Context-Cache-E2E-Validation) | [官方上游](https://github.com/Azure/AzureContextCache)
 
-评估 Azure OpenAI 应用的显式上下文缓存：适用于反复发送相同长指令、工具定义、示例或参考资料的业务请求。
+本仓库用于评估 Azure OpenAI 的显式上下文缓存能力，面向需要重复使用系统指令、工具定义、示例或参考资料的应用。
 
-**本仓库证明了什么：** 固定版本的官方 Quickstart 部署成功，并且一个绑定了缓存的 Azure OpenAI deployment 在一个已开通的订阅中，对真实 Azure 数据面返回了真实的 cached tokens。
-**本仓库没有证明什么：** 生产就绪、延迟或成本保证，以及观测到的命中率中有多少属于相对模型自带默认 prompt caching 的增量。
+**已经证明：** 在获准使用 Private Preview 的订阅中，固定版本的官方 Quickstart 可以成功部署。已绑定缓存的 Azure OpenAI deployment 成功调用 Azure 数据面，并返回非零 `cached_tokens`。
+**尚未证明：** 该方案已经生产就绪，或能够保证延迟和成本收益。现有数据也无法判断命中来自 Context Cache，还是模型默认的 prompt caching。
+
+## 先看结论
+
+| 客户要回答的问题 | 当前答案 |
+|---|---|
+| 是否值得评估？ | 如果应用会重复发送较长且稳定的前缀，并需要明确控制缓存生命周期、资源所有权和访问权限，值得评估 |
+| 实测看到了什么？ | 6 次官方 Demo 调用全部完成；首次调用后，`5/5` 次请求命中，每次报告 `2304` 个 cached tokens |
+| 哪些收益还不能承诺？ | 不能把本次结果解释为生产 SLA、确定的成本节省，或 Context Cache 相比默认 prompt caching 的增量命中率 |
+| 下一步做什么？ | 先确认订阅已获 Preview 准入，再检查权限、配额和区域支持；条件满足后，按本仓库脚本在客户环境中运行官方 E2E，并用真实 prompt 验证命中率 |
+
+## 适用场景
+
+| 评估结论 | 工作负载模式 | 建议 |
+|---|---|---|
+| **建议评估** | 长系统/开发者指令、稳定工具目录、少样本示例或共享政策 | 把可复用内容放在前部，把变化的任务数据放在末尾 |
+| **建议评估** | 客户支持、代码/合规审查、文档密集型助手和受控智能体工作流 | 规则、工具或参考资料会跨请求重复使用时进入评估 |
+| **满足条件后评估** | 早期对话历史保持稳定、后续内容仅追加的多轮对话 | 验证早期前缀能否保持字节完全一致 |
+| **暂不优先** | 短提示词，或请求前部频繁变化 | 可复用前缀有限，通常不应优先投入 |
+| **暂不优先** | 一次性请求，或每次请求开头都是高度个性化内容 | 缓存命中率通常较低 |
+| **满足条件后评估** | 需要承诺精确成本节省或吞吐提升的业务场景 | 使用客户数据单独做基准测试，并按当前价格建模 |
+
+## 实测结果
+
+![官方 demo 六次调用的输入处理复用占比与延迟变化](images/verified-observation.svg)
+
+| 信号 | 计算口径 | 实测结果 | 客户应如何理解 |
+|---|---:|---:|---|
+| 缓存命中 | 首次调用后的 5 次请求 | `5/5` 次命中 | deployment 与 container 的绑定确实为重复前缀提供了缓存 |
+| 输入处理复用 | 预热后 `11,520 / 13,037` 个输入 token | 总输入的 `88.4%` 被报告为 cached；单次为 `85.9%–90.7%` | 大部分重复输入处理转为 cache read；这不等于账单降低 88.4% |
+| 延迟变化 | 首次调用 `5820 ms`；预热后均值 `3642.4 ms` | 本次运行降低 `2177.6 ms`（`37.4%`） | 只说明值得继续验证；单次运行无法反映性能分布，也不构成 SLA |
+| 输入 token 成本 | 5 次预热后调用每次 `2304` cached tokens | 合计读取 `11,520` 个 cached token | 需要结合客户命中率和当前模型、区域定价计算；本仓库不声称具体金额 |
+| 输出行为 | `6/6` 次 Responses API 调用 | 全部返回正常模型输出和 usage telemetry | Prompt caching 复用输入处理，不改变应用预期的响应契约 |
+
+本次 E2E 使用已获 Private Preview 准入的 Azure 订阅，并将官方 Quickstart 固定到 commit `7d1029a5e8b59b1805e70992c85ffe6798d2f47a`。后续两次不完整运行均被拒绝，没有折算成通过。
+
+> **证据边界：** 这是单次运行的能力观测，不代表生产就绪，也不保证可用性、成本、吞吐或延迟。通用 Azure OpenAI prompt caching 指南会因模型家族和 API 接口而不同；本仓库验证的是 Private Preview 的 `Microsoft.Storage/contextCaches` 和 `contextCacheContainerId` 路径。
 
 ## 客户问题与业务价值
 
-这类请求里，稳定前缀每次都要重新 tokenize 和 prefill。Azure Context Cache 让客户在自己的订阅中部署具名、区域化的缓存容器并绑定到 Azure OpenAI deployment：第一次匹配请求填充处理结果，后续请求在配置的生命周期内复用，应用照常发送完整前缀，由 deployment 自动查缓存。这是**跨请求的 prompt 处理复用**，不是文档存储，也不是语义检索。
+这类应用会在每次请求中重复发送同一段稳定前缀。没有缓存时，服务需要反复执行 tokenization 和 prefill。
+
+Azure Context Cache 允许客户在自己的订阅和区域中部署具名缓存容器，再将其绑定到 Azure OpenAI deployment。第一次匹配请求会写入前缀处理结果；后续请求可以在设定的生命周期内复用。应用仍然发送完整前缀，缓存查询由 deployment 自动完成。
+
+因此，它提供的是**跨请求的 prompt 处理复用**，不是文档存储，也不是语义检索。
 
 | 收益维度 | 官方资料给出的机制 | 客户可以怎么验证 |
 |---|---|---|
@@ -25,21 +65,23 @@
 | 跨请求复用 | 具名缓存容器可以在配置的生命周期内跨调用复用符合条件的前缀处理结果 | 通过已绑定 deployment 重复发送字节一致的前缀，并监控 `cached_tokens` |
 | 治理 | 具名缓存资源部署在客户订阅、区域和 RBAC 边界内，并配置 TTL | 核对目标区域是否受支持，以及访问控制、生命周期和数据要求 |
 
-> [固定版本的官方 Quickstart](https://github.com/Azure/AzureContextCache/tree/7d1029a5e8b59b1805e70992c85ffe6798d2f47a) 把这些列为产品的价值点。本仓库只证明缓存在一个已开通的环境中被真实使用，不量化其中任何一项。
+> [固定版本的官方 Quickstart](https://github.com/Azure/AzureContextCache/tree/7d1029a5e8b59b1805e70992c85ffe6798d2f47a) 将这些列为产品价值。本仓库只证明缓存已在一个获准环境中实际生效，不对上述收益做量化承诺。
 
 ## 收益到底是什么
 
 ### 省的是什么
 
-应用每次仍然完整发送前缀，被省掉的是对这段前缀的**重复处理**：固定版本的官方资料说明，服务会保存稳定前缀经过 tokenization 和 pre-attention（即预先完成注意力计算）之后的中间表示，后续以相同内容开头的请求直接复用它。这也解释了为什么上表列出的收益维度是延迟、输入 token 成本和容量，而不是客户端发送量的减少。
+应用仍会在每次请求中发送完整前缀。Context Cache 节省的是服务端对这段前缀的**重复处理**，并不会减少客户端发送的数据量。
 
-官方的表述是：前缀越长、越稳定，节省越大。这就是全部的前提——如果一个工作负载的可复用前缀很短，或者前部字节每次都在变，那么无论缓存怎么配置，可拿到的收益都很有限。
+固定版本的官方资料说明，服务会保存稳定前缀经过 tokenization 和 pre-attention（预先完成注意力计算）后的中间表示。后续请求只要以相同内容开头，就可以复用这份结果。因此，可能改善的是延迟、输入 token 成本和容量效率。
+
+收益取决于两个条件：前缀足够长，而且足够稳定。可复用前缀很短，或前部字节频繁变化时，即使启用缓存，收益也会很有限。
 
 ### 已经有默认 prompt caching，为什么还要它
 
-Azure OpenAI 对支持的模型**默认就开启** [prompt caching](https://learn.microsoft.com/azure/ai-foundry/openai/how-to/prompt-caching)，所以客户第一个会问的问题是：多部署一个具名 Context Cache 资源，究竟多给了什么。固定版本的官方资料用一句话回答：
+Azure OpenAI 对支持的模型**默认启用** [prompt caching](https://learn.microsoft.com/azure/ai-foundry/openai/how-to/prompt-caching)。因此，客户自然会问：既然已有默认缓存，为什么还要部署 Context Cache？
 
-> Unlike implicit (best-effort) caching that some endpoints do opportunistically, explicit caching is contractual: you create a named cache container, you tell the deployment to use it, and your application controls the lifetime.
+固定版本的官方资料给出的核心区别是：默认缓存由服务隐式管理，是否命中不由客户控制；Context Cache 则由客户显式配置。客户创建具名容器，将其绑定到 deployment，并控制缓存生命周期。
 
 | 维度 | 默认 prompt caching（隐式） | Azure Context Cache（显式） |
 |---|---|---|
@@ -50,13 +92,20 @@ Azure OpenAI 对支持的模型**默认就开启** [prompt caching](https://lear
 | 治理能力 | 不是可检查的资源 | 一个可审计、可改绑、可轮换、可解绑的 ARM 资源 |
 | 客户端改造 | 无需 | 无需；只在 deployment 上设置 `properties.contextCacheContainerId` |
 
-这张表要当作**生命周期与控制权的论证，而不是命中率的论证**来读。对于持续重复出现的前缀，默认缓存本身可能已经能够命中并满足该请求。Context Cache 的差异化价值出现在这样的场景：复用窗口、数据驻留和生命周期必须成为客户自己订阅里可拥有、可检查、可治理的属性，而不是服务的机会性行为。
+这张表说明的是**生命周期和控制权**，不是命中率。对于持续重复出现的前缀，默认缓存可能已经足够。
 
-公开的默认缓存保留行为给出了客户应当对照的参照点：内存态保留通常在空闲 5 到 10 分钟内被清除，并且总是在最后一次使用后一小时内释放；在支持的模型家族上，扩展保留把上限提高到最长 24 小时。相比之下，以天为单位的容器生命周期是完全不同量级的复用窗口，而且这个窗口由客户显式声明，不需要靠观察服务行为去推测。
+当客户需要自己拥有、检查和治理缓存资源，并明确控制复用窗口、数据驻留和生命周期时，Context Cache 才体现出差异。
+
+公开文档给出的默认缓存保留时间可以作为参照：
+
+- 内存态缓存通常在空闲 5 到 10 分钟后清除，最晚在最后一次使用后一小时内释放。
+- 对于支持的模型，扩展保留最长可到 24 小时。
+
+Context Cache 的容器生命周期可以按天设置，而且由客户显式声明，无需根据服务行为猜测。
 
 ### 容器生命周期最长能设多久
 
-有三个事实很容易被混成一个，本仓库把它们分开陈述：
+这里需要区分三个事实：
 
 | 陈述 | 状态 | 依据 |
 |---|---|---|
@@ -64,11 +113,11 @@ Azure OpenAI 对支持的模型**默认就开启** [prompt caching](https://lear
 | 这个值本来就是让客户改的 | **已验证** | 官方自定义指引把客户直接指向同一个 variables 块修改 TTL，模板既没有 allowed-value 列表也没有最大值约束 |
 | 某个具体天数是资源提供程序接受的上限 | **未验证** | 固定版本仓库、ARM 模板和 Bicep 模块都没有公布上限，本次验证也没有做这方面的测试 |
 
-所以 `7` 天是**默认值，不是天花板**。任何需要更长保留窗口的客户讨论，都应当向产品组确认可接受范围，或者用一次显式部署测试确定，而不能把 `7` 天当作产品限制引用。
+因此，`7` 天只是**默认值，不是上限**。如果客户需要更长的保留时间，应向 Microsoft 产品团队确认支持范围，或通过一次显式部署测试验证。不能把 `7` 天写成产品限制。
 
 ### 客户可以自己算的收益模型
 
-本仓库不给出金额，因为模型、区域、部署类型和流量形态决定了结果。但可以给出算式和变量：
+本仓库不直接给出金额，因为结果取决于模型、区域、部署类型和流量形态。客户可以用下面的公式估算：
 
 ```text
 每次命中省下的全价输入 token = cached_tokens
@@ -77,13 +126,15 @@ Azure OpenAI 对支持的模型**默认就开启** [prompt caching](https://lear
                            + 缓存读取 token   × 折扣后输入单价
 ```
 
-把本次观测值代入，仅作为示例计算：每次预热后调用报告 `2304` 个 cached tokens。一个每月对同一前缀发起 `100,000` 次请求、且命中率相同的工作负载，每月大约有 2.3 亿（`230` million）个输入 token 从全价处理转为折扣缓存读取。换算成金额需要套用目标模型、区域和部署类型的当前公开价格；Standard 与 Provisioned 部署类型对缓存读取的折扣方式不同，因此这里不存在单一换算系数。
+以本次观测为例，每次预热后调用报告 `2304` 个 cached tokens。假设某个工作负载每月对同一前缀发起 `100,000` 次请求，并保持相同命中率，那么每月约有 2.3 亿（`230` million）个输入 token 从全价处理转为折扣缓存读取。
 
-| 变量 | 为什么它决定收益 | 承诺之前如何测量 |
+金额还需要根据目标模型、区域和部署类型的当前公开价格计算。Standard 与 Provisioned 的缓存读取折扣不同，因此不能使用统一换算系数。
+
+| 变量 | 对收益的影响 | 验证方法 |
 |---|---|---|
 | 稳定前缀长度 | 低于生效门槛就没有任何可复用内容，而官方指引把更大的节省与更长的稳定前缀直接关联 | 对真实的系统提示词、工具目录、护栏规则和固定参考资料做 tokenize |
 | 前缀字节稳定性 | 前部只要有一个字符变化就会 miss | 在真实生产流量样本上 diff 拼装后的前缀，包括序列化方式和字段顺序 |
-| 请求间隔与缓存生命周期的关系 | 决定下一次匹配请求到达时前缀是否还在 | 按**前缀族**统计请求到达间隔分布，而不是看全局请求速率 |
+| 请求间隔与缓存生命周期的关系 | 决定下一次匹配请求到达时，前缀是否仍在缓存中 | 按相同前缀分组统计请求间隔，而不是只看全局请求速率 |
 
 把这三个变量组合起来，就得到实际的决策矩阵：
 
@@ -93,48 +144,7 @@ Azure OpenAI 对支持的模型**默认就开启** [prompt caching](https://lear
 | 匹配前缀之间存在几十分钟到数小时的间隔 | 内存态保留会在空闲后被释放 | 一个由客户设定而非推测的复用窗口 |
 | 匹配前缀按天、按周或按计划批次复用 | 超出扩展保留的上限 | 增量收益最强的场景：以天为单位的容器生命周期 |
 
-后两行才是值得用客户真实流量去测量的部分。前缀始终达不到生效门槛属于提示词布局问题，已在下文**工作负载适配**中覆盖。
-
-### 本次验证没有归因的部分
-
-本次实测证明：绑定了 `properties.contextCacheContainerId` 的部署确实服务了重复前缀，并在真实 Azure 数据面上报告了非零 `cached_tokens`。但它**没有**分离出这些命中中有多少属于相对模型自带默认 prompt caching 的增量，原因很具体：固定版本的官方 demo 在每次请求上同时设置了 `prompt_cache_retention`，而所部署的模型家族本身就支持默认 prompt caching，与是否绑定 Context Cache 无关。两套控制在被验证的路径上是同时存在的。
-
-直说结论：现有证据支持的是"这条显式缓存路径可用、绑定在客户自有资源上、并且可观测"，不支持"Context Cache 相比默认缓存带来了可测量的更高命中率"。
-
-要把两者分开，需要一次受控对照实验。该实验目前正在一个私有环境中进行，其第一阶段已经返回了一个足以推翻原始设计的观测：
-
-| 本环境中的观测 | 实测到的内容 |
-|---|---|
-| 同一账户下新建的第二个部署，未绑定容器且此前从未被调用过，却在其生命周期的第一次请求上就返回了非零 `cached_tokens` | 紧邻的上一次调用中，绑定部署刚以完全字节一致的前缀完成冷启动，两次请求的发起时间相差 3.759 秒 |
-| 此后每一轮交替调用中，两个部署的命中表现完全一致 | 绑定组始终排在前面调用，因此在未绑定组被测量之前就已经预热了共享前缀 |
-
-限定在本环境的最窄读法是：**前缀缓存状态在同一个 Azure OpenAI 账户内的两个部署之间发生了复用。** 这是单一环境下的观测，不是有文档保证的产品行为，也不作为对服务内部机制的陈述。
-
-由此有两个推论。其一，凡是始终先调用绑定组的对照实验，都无法把命中归因于未绑定组自身的缓存状态，因此本次对照实验的前几个阶段在增量命中率上不构成任何结论。其二，与 Context Cache 是否存在增量收益无关：**不能默认同一账户下的不同部署会构成缓存隔离边界**；隔离一旦成为需求，就必须显式验证，而不能从部署拓扑上推断。
-
-修正后的对照实验在决定结论的那一档间隔上先调用未绑定组，使其首次请求在绑定组预热共享前缀之前就被测量：
-
-| 要素 | 设计 |
-|---|---|
-| 对照组 | 同一账户、同一区域下，一个设置了 `contextCacheContainerId` 的部署与一个未设置的部署，模型与版本完全相同 |
-| 提示词 | 两组使用完全字节一致的同一稳定前缀，以及同一组变化后缀 |
-| 间隔档位 | 至少三档请求间隔：位于内存态窗口内、超出内存态但仍在扩展保留内、以及超出扩展保留 |
-| 调用顺序 | 在决定结论的那一档间隔上先调用未绑定组，使其自身缓存状态在绑定组预热共享前缀之前被观测 |
-| 指标 | 每组、每个间隔档位的命中率与 `cached_tokens`，重复足够次数以区分真实差异与运行间波动 |
-| 报告方式 | 按组、按档位公布结果，包括两组无法区分的档位 |
-
-在修正后的对照实验越过扩展保留边界并完成之前，可以作为差异化依据的仍然是生命周期、数据驻留和治理这几行；任何关于增量命中率或成本节省的说法都应视为未经证明。
-
-## 工作负载适配
-
-| 决策 | 工作负载模式 | 评估建议 |
-|---|---|---|
-| **GO** | 长系统/开发者指令、稳定工具目录、少样本示例或共享政策 | 把可复用内容放在前部，把变化的任务数据放在末尾 |
-| **GO** | 客户支持、代码/合规审查、文档密集型助手和受控智能体工作流 | 规则、工具或参考资料会跨请求重复使用时进入评估 |
-| **CONDITIONAL** | 早期对话历史保持稳定、后续内容仅追加的多轮对话 | 验证早期前缀能否保持字节完全一致 |
-| **LOW PRIORITY** | 短提示词，或请求前部频繁变化 | 可复用前缀有限，通常不应优先投入 |
-| **LOW PRIORITY** | 一次性请求，或每次请求开头都是高度个性化内容 | 缓存复用概率较低 |
-| **CONDITIONAL** | 需要承诺精确成本节省或吞吐提升的业务场景 | 另做客户数据基准测试和当前定价模型 |
+应优先用客户真实流量验证后两类场景。如果前缀始终达不到生效门槛，问题在提示词布局，而不在缓存配置。下文的**工作负载适配**给出了对应建议。
 
 ## 客户业务架构
 
@@ -146,6 +156,58 @@ Azure OpenAI 对支持的模型**默认就开启** [prompt caching](https://lear
 4. 应用通过 `cached_tokens`、延迟和请求结果验证真实业务流量是否适配。
 
 Context Cache 容器是客户订阅中的 Azure 资源。锁定的 Private Preview Quickstart 配置缓存账户、模型专属容器、TTL 和 `contextCacheContainerId` 绑定。
+
+## 客户评估路径
+
+### 前提条件
+
+- Windows 上的 PowerShell 7（`pwsh`）、Git、Azure CLI，以及 AMD64 Windows 上的 64 位 CPython 3.11
+- 已获得 Azure Context Cache Private Preview 权限的 Azure 订阅
+- `OpenAI.ContextCacheAllowed` 已达到 `Registered`
+- 已通过租户允许的用户认证流登录独立 `AZURE_CONFIG_DIR`
+- 具备部署资源和分配 `Cognitive Services OpenAI User` 的权限
+- 在受支持的区域具备可用模型配额
+
+正式运行会创建计费 Azure 资源并发送模型请求。请使用全新的资源组和唯一名称前缀。检查生成的证据后，再单独决定是否清理资源。
+
+### 运行官方 E2E
+
+```powershell
+$env:AZURE_CONFIG_DIR = "$HOME\.azure-context-cache-validation"
+$subscriptionId = "YOUR-SUBSCRIPTION-ID"
+
+az account set --subscription $subscriptionId
+az account show --query '{name:name,id:id,tenantId:tenantId,user:user.name}' -o json
+
+pwsh -NoProfile -File .\scripts\run_official_e2e.ps1 `
+  -SubscriptionId $subscriptionId `
+  -ResourceGroup "rg-context-cache-validation" `
+  -Location "centralus" `
+  -NamePrefix "ccvalidate" `
+  -Runs 6
+```
+
+先使用 `-WhatIf`。它只执行有超时上限的 Azure 只读前置检查，不克隆源码、不部署资源，也不发送模型请求。
+
+正式运行要求使用全新的资源组。运行器会在源码树之外创建私有证据目录，但不会自动清理 Azure 资源。网络受限时，可以用 `-ExistingUpstreamDirectory` 指向固定 commit 的本地检出副本。来源控制详见[方法与证据链](docs/METHOD-CN.md)。
+
+### 本地验证
+
+```powershell
+python -m unittest discover -s tests -v
+python scripts\demo_code_validator.py
+python scripts\audit_public_content.py
+python scripts\validate_repo.py
+```
+
+这些检查不需要访问 Azure。还可以用现有的固定 commit 检出副本核对上游源码锁：
+
+```powershell
+python scripts\verify_upstream.py `
+  --upstream-dir "PATH-TO-AzureContextCache" `
+  --lock .\UPSTREAM_LOCK.json `
+  --output "EMPTY-PRIVATE-OUTPUT-DIRECTORY"
+```
 
 ## 数据从哪里来，缓存实际存在哪里
 
@@ -272,24 +334,6 @@ Write-Output "Expected container: $containerId"
 
 返回的 `properties.contextCacheContainerId` 必须与 `$containerId` 完全相同。在 Azure Portal 中，同一批资源位于验证资源组内，分别属于 Azure OpenAI 账户和 `Microsoft.Storage/contextCaches` 资源类型；这里没有可供浏览的普通 Blob container。
 
-### 本次验证实际观察到的效果
-
-![官方 demo 六次调用的输入处理复用占比与延迟变化](images/verified-observation.svg)
-
-| 信号 | 根据已签入的 6 次调用记录重新计算 | 实际观察 | 对客户意味着什么 |
-|---|---:|---:|---|
-| 缓存已启用 | 预热后 `cached_tokens > 0` 的调用数 | `5/5` 次预热后调用命中 | deployment 与 container 的绑定确实为重复前缀提供了缓存 |
-| 输入处理复用 | 预热后 `11,520 / 13,037` 个输入 token | 预热后总输入的 `88.4%` 被报告为 cached；单次为 `85.9%–90.7%` | 大部分重复输入处理转为 cache read；这不等于账单降低 88.4% |
-| 方向性延迟 | 第 1 次 `5820 ms`；预热后均值 `3642.4 ms` | 本次运行较第 1 次低 `2177.6 ms`（`37.4%`） | 支撑进一步验证延迟收益，但仅凭一次并发突发调用不构成性能 benchmark 或 SLA |
-| 输入 token 成本 | 5 次预热后调用每次 `2304` cached tokens | 合计读取 `11,520` 个 cached token | 应结合客户命中率和当前模型/区域定价计算；本仓库不声称具体金额 |
-| 输出行为 | `6/6` 次 Responses API 调用全部完成 | 正常模型输出和 usage telemetry | Prompt caching 改变的是处理复用，不改变应用预期的响应契约 |
-
-已在获得 Private Preview 准入的 Azure 订阅中，对锁定至 commit `7d1029a5e8b59b1805e70992c85ffe6798d2f47a` 的官方 Quickstart 完成端到端验证。后续两次不完整运行被拒绝，没有被转换为通过结果。
-
-> **证据边界：** 这是一次运行的能力观测，不代表生产就绪、可用性、成本节省、吞吐或延迟保证。通用 Azure OpenAI prompt caching 指南的内容可能因模型家族和 API 接口形态而不同；本仓库专门验证 Private Preview 的 `Microsoft.Storage/contextCaches` 和 `contextCacheContainerId` 路径。
-
-**建议下一步：** 完成 Preview 准入、权限、配额和区域可用性确认后，在客户自有 Azure 环境中使用具有代表性的提示词运行同一套验证。
-
 ## 是否必须使用 RAG
 
 **不需要。** Azure Context Cache 和 RAG 解决的是两个不同问题：
@@ -406,57 +450,47 @@ flowchart LR
 
 被拒绝的运行保留在证据里，不删除，也不折算成通过。传输错误发生在调用完成之前，因此不产生缓存分数。
 
-## 客户评估路径
-
-### 前提条件
-
-- Windows 上的 PowerShell 7（`pwsh`）、Git、Azure CLI，以及 AMD64 Windows 上的 64 位 CPython 3.11
-- 已获得 Azure Context Cache Private Preview 权限的 Azure 订阅
-- `OpenAI.ContextCacheAllowed` 已达到 `Registered`
-- 已通过租户允许的用户认证流登录独立 `AZURE_CONFIG_DIR`
-- 具备部署资源和分配 `Cognitive Services OpenAI User` 的权限
-- 在受支持的区域具备可用模型配额
-
-实跑会创建计费 Azure 资源并发送模型请求。请使用唯一的资源组和名称前缀；检查生成的证据后，再单独决定是否清理。
-
-### 运行官方 E2E
-
-```powershell
-$env:AZURE_CONFIG_DIR = "$HOME\.azure-context-cache-validation"
-$subscriptionId = "YOUR-SUBSCRIPTION-ID"
-
-az account set --subscription $subscriptionId
-az account show --query '{name:name,id:id,tenantId:tenantId,user:user.name}' -o json
-
-pwsh -NoProfile -File .\scripts\run_official_e2e.ps1 `
-  -SubscriptionId $subscriptionId `
-  -ResourceGroup "rg-context-cache-validation" `
-  -Location "centralus" `
-  -NamePrefix "ccvalidate" `
-  -Runs 6
-```
-
-建议先加 `-WhatIf`：它只执行有超时上限的 Azure 只读前置检查，不克隆、不部署、也不发送请求。实跑必须使用全新的唯一资源组；运行器会在源码树之外创建唯一的私有证据目录，并且不会自动清理 Azure 资源。网络受限时，可用 `-ExistingUpstreamDirectory` 指向固定 commit 的检出副本；来源控制细节见 [方法与证据链](docs/METHOD-CN.md)。
-
-### 本地验证
-
-```powershell
-python -m unittest discover -s tests -v
-python scripts\demo_code_validator.py
-python scripts\audit_public_content.py
-python scripts\validate_repo.py
-```
-
-这些离线验证门不需要 Azure。也可以针对位于固定 commit 的已有检出副本核对官方上游版本锁定：
-
-```powershell
-python scripts\verify_upstream.py `
-  --upstream-dir "PATH-TO-AzureContextCache" `
-  --lock .\UPSTREAM_LOCK.json `
-  --output "EMPTY-PRIVATE-OUTPUT-DIRECTORY"
-```
-
 ## 证据边界与验证方法
+
+### 本次验证没有归因的部分
+
+本次实测证明了两件事：绑定 `properties.contextCacheContainerId` 的 deployment 可以处理重复前缀；真实 Azure 数据面会返回非零 `cached_tokens`。
+
+但现有数据**不能证明 Context Cache 相比默认 prompt caching 增加了多少命中**。原因是官方 demo 同时满足两个条件：
+
+- 每次请求都设置了 `prompt_cache_retention`。
+- 所用模型本身支持默认 prompt caching，与是否绑定 Context Cache 无关。
+
+因此，两种缓存机制在本次验证中同时存在，无法拆分各自贡献。
+
+准确的结论是：**显式缓存路径可用，资源归客户所有，命中结果可观测。** 现有证据不支持“Context Cache 比默认缓存带来更高命中率”。
+
+要区分两者，需要受控对照实验。私有环境中的第一阶段实验发现，原始调用顺序会污染结果：
+
+| 本环境中的观测 | 实测到的内容 |
+|---|---|
+| 同一账户中新建的第二个 deployment 未绑定容器，也从未调用过，但第一次请求就返回非零 `cached_tokens` | 3.759 秒前，绑定组刚用完全相同的前缀完成冷启动 |
+| 随后每轮交替调用中，两个 deployment 的命中表现完全一致 | 绑定组始终先调用，在未绑定组测量前已经预热共享前缀 |
+
+本次观测能支持的最窄结论是：**在这个环境中，同一 Azure OpenAI 账户下的两个 deployment 复用了前缀缓存状态。** 这只是单一环境的实测现象，不代表文档承诺的产品行为，也不能据此判断服务内部机制。
+
+这带来两个直接影响：
+
+1. 如果每轮都先调用绑定组，未绑定组会在测量前被预热。这样的实验无法判断未绑定组自身的缓存状态，因此前几个阶段不能用于计算增量命中率。
+2. **不能假设同一账户下的不同 deployment 天然构成缓存隔离边界。** 如果业务需要隔离，必须单独验证，不能只根据部署拓扑推断。
+
+修正后的实验会在决定结论的间隔档位先调用未绑定组，确保它在绑定组预热共享前缀之前完成首次测量：
+
+| 要素 | 设计 |
+|---|---|
+| 对照组 | 同一账户、同一区域下，一个设置了 `contextCacheContainerId` 的部署与一个未设置的部署，模型与版本完全相同 |
+| 提示词 | 两组使用完全字节一致的同一稳定前缀，以及同一组变化后缀 |
+| 间隔档位 | 至少三档请求间隔：位于内存态窗口内、超出内存态但仍在扩展保留内、以及超出扩展保留 |
+| 调用顺序 | 在决定结论的那一档间隔上先调用未绑定组，使其自身缓存状态在绑定组预热共享前缀之前被观测 |
+| 指标 | 每组、每个间隔档位的命中率与 `cached_tokens`，重复足够次数以区分真实差异与运行间波动 |
+| 报告方式 | 按组、按档位公布结果，包括两组无法区分的档位 |
+
+在修正后的实验跨过扩展保留边界并完成之前，能够确认的差异仍只有生命周期、数据驻留和治理能力。增量命中率和成本节省均未得到证明。
 
 方法由三层相互独立的证据组成：
 
