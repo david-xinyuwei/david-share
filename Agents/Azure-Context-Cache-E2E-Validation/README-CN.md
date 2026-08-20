@@ -404,14 +404,7 @@ flowchart LR
 | `2026-08-19` | `hardened-wrapper-probe-1` | 3 | 3 | 不计分 | **REJECTED — INCOMPLETE** |
 | `2026-08-19` | `hardened-wrapper-probe-2` | 2 | 4 | 不计分 | **REJECTED — INCOMPLETE** |
 
-| 发布 commit 质量门 | 结果 | 证据 |
-|---|---:|---|
-| 确定性单元测试 | `38/38` 通过 | `python -m unittest discover -s tests -v` |
-| 真实性、公开边界与 Repo gate | `3/3` 通过 | `demo_code_validator.py`、`audit_public_content.py`、`validate_repo.py` |
-| Windows/Ubuntu × Python 3.11/3.13 CI 矩阵 | `4/4` 个 job 通过 | [GitHub Actions run 32270323872](https://github.com/david-xinyuwei/david-share/actions/runs/32270323872) |
-| CodeQL 分析器 | `7/7` 个 job 通过 | [CodeQL run 32270323901](https://github.com/david-xinyuwei/david-share/actions/runs/32270323901) |
-
-实跑结果和离线质量门回答的是不同问题：实跑证明有边界的 Azure 产品路径；离线测试证明证据解析器、源码锁、编排控制和公开发布契约仍按预期工作。
+被拒绝的运行保留在证据里，不删除，也不折算成通过。传输错误发生在调用完成之前，因此不产生缓存分数。
 
 ## 客户评估路径
 

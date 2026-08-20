@@ -404,14 +404,7 @@ The checked-in [`validation-history.json`](evidence/validation-history.json) pre
 | `2026-08-19` | `hardened-wrapper-probe-1` | 3 | 3 | Not scored | **REJECTED — INCOMPLETE** |
 | `2026-08-19` | `hardened-wrapper-probe-2` | 2 | 4 | Not scored | **REJECTED — INCOMPLETE** |
 
-| Published-commit quality gate | Result | Evidence |
-|---|---:|---|
-| Deterministic unit tests | `38/38` passed | `python -m unittest discover -s tests -v` |
-| Authenticity, public boundary, and repository gates | `3/3` passed | `demo_code_validator.py`, `audit_public_content.py`, `validate_repo.py` |
-| Windows/Ubuntu × Python 3.11/3.13 CI matrix | `4/4` jobs passed | [GitHub Actions run 32270323872](https://github.com/david-xinyuwei/david-share/actions/runs/32270323872) |
-| CodeQL analyzers | `7/7` jobs passed | [CodeQL run 32270323901](https://github.com/david-xinyuwei/david-share/actions/runs/32270323901) |
-
-The live result and the offline gates answer different questions: the live run proves the bounded Azure product path, while the offline suite proves that the evidence parser, source lock, orchestration controls, and public release contract continue to behave as specified.
+Rejected runs stay in the evidence set. They are neither deleted nor converted into passes. Transport errors occur before a call completes, so no cache score is derived from them.
 
 ## Customer Evaluation Path
 
