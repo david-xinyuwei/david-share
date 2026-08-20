@@ -9,7 +9,7 @@ param(
     [ValidatePattern('^[\p{L}\p{Nd}_().-]{1,90}(?<!\.)$')]
     [string] $ResourceGroup,
 
-    [ValidateSet('centralus', 'eastus2', 'swedencentral')]
+    [ValidateSet('centralus', 'swedencentral')]
     [string] $Location = 'centralus',
 
     [Parameter(Mandatory)]
@@ -472,6 +472,15 @@ $QuickstartEnvironment = @{
         [IO.Path]::GetDirectoryName($AzPath),
         $env:PATH
     )
+}
+$ResourceGroupExistsBeforeDeploy = Get-AzJson `
+    -Operation 'az-resource-group-recheck' `
+    -Arguments @(
+        'group', 'exists', '--name', $ResourceGroup, '--subscription', $SubscriptionId,
+        '--only-show-errors', '-o', 'json'
+    )
+if ($ResourceGroupExistsBeforeDeploy) {
+    throw 'The resource group was created after preflight. Use a new unique resource group.'
 }
 $QuickstartResult = Invoke-BoundedProcess `
     -Operation 'official-quickstart' `

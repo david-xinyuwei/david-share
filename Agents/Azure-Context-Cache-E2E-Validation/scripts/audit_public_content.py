@@ -23,7 +23,6 @@ TEXT_SUFFIXES = {
     ".yml",
     ".yaml",
 }
-SELF = Path(__file__).name
 
 PATTERNS = {
     "OpenAI-style key": re.compile(r"\bsk-[A-Za-z0-9_-]{20,}\b"),
@@ -78,8 +77,6 @@ def public_files(root: Path) -> tuple[list[Path], list[str]]:
         directories[:] = retained
         for filename in files:
             path = current_path / filename
-            if filename == SELF:
-                continue
             if is_reparse(path):
                 errors.append(f"{path.relative_to(root)}: symlink or reparse point")
                 continue
@@ -99,11 +96,15 @@ def findings(root: Path = ROOT, extra_files: tuple[Path, ...] = ()) -> list[str]
         elif resolved not in paths:
             paths.append(resolved)
     for path in paths:
-        text = path.read_text(encoding="utf-8", errors="replace")
         try:
             relative = path.relative_to(root)
         except ValueError:
             relative = path
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            errors.append(f"{relative}: text file is not valid UTF-8")
+            continue
         for name, pattern in PATTERNS.items():
             for match in pattern.finditer(text):
                 if name == "work email" and match.group(0).casefold().endswith("@example.invalid"):

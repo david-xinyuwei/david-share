@@ -8,8 +8,10 @@
 - [x] Six real Responses API calls completed
 - [x] Cache result independently recomputed from call rows
 - [x] No-cache, zero-threshold, zero-latency, missing-row, HTTP-error, partial-hit, failed-ARM, and wrong-binding branches tested
-- [x] PowerShell runner behavior tested with process-level Azure CLI doubles, bounded timeout, and junction rejection
+- [x] PowerShell runner behavior tested with process-level Azure CLI doubles, bounded timeout, junction rejection, Preview/provider rejection, unsupported-region rejection, and lease release
+- [x] Resource-group absence is checked both during preflight and immediately before the official deployment path
 - [x] Public evidence stripped of cloud and identity identifiers
+- [x] Public scanning rejects invalid UTF-8 and scans nested files even when their basename matches the scanner
 - [x] Runtime has no mock, API-key fallback, automatic login, or automatic cleanup
 - [x] English and Chinese documentation share structure, commands, images, and boundaries
 - [x] Static validators and cross-platform CI included

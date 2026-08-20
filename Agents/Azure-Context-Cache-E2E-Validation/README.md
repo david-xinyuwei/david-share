@@ -6,7 +6,7 @@
 [![Upstream pin](https://img.shields.io/badge/AzureContextCache-7d1029a5-247A45)](https://github.com/Azure/AzureContextCache/commit/7d1029a5e8b59b1805e70992c85ffe6798d2f47a)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../../LICENSE)
 
-[中文](README-CN.md) | [Source](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Azure-Context-Cache-E2E-Validation) | [Official upstream](https://github.com/Azure/AzureContextCache)
+[中文](README-CN.md) | [Source](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Azure-Context-Cache-E2E-Validation) | [Official source](https://github.com/Azure/AzureContextCache)
 
 Evaluate explicit context caching for Azure OpenAI applications that repeatedly send the same long instructions, tool definitions, examples, or reference content.
 
@@ -19,7 +19,7 @@ Evaluate explicit context caching for Azure OpenAI applications that repeatedly 
 |---|---|
 | Is this worth evaluating? | Yes, when the application repeatedly sends a long, stable prefix and needs explicit control over cache lifetime, resource ownership, and governance boundaries |
 | What was observed? | All six official Demo calls completed; after the first call, `5/5` requests hit with `2304` cached tokens reported on each call |
-| What cannot be promised yet? | This result is not a production SLA, a guaranteed cost saving, or an incremental hit-rate measurement over default prompt caching |
+| What cannot be promised yet? | This result is not a production SLA or guaranteed cost saving. The official run enabled both the model's default prompt caching and Azure Context Cache, so it cannot isolate each cache's contribution |
 | What should the customer do next? | After confirming Preview onboarding, permissions, quota, and regional support, run the same validation with representative prompts in the customer-owned Azure environment |
 
 ## Workload Fit
@@ -107,10 +107,11 @@ So `7` days is a **default, not a ceiling**. Any customer discussion that needs 
 This repository does not publish a currency figure, because model, region, deployment type, and traffic shape decide it. It can publish the arithmetic and the variables:
 
 ```text
-input tokens avoided per hit     = cached_tokens
-input tokens avoided per month   = cached_tokens × hit_rate × monthly_requests
-monthly input-token cost         = uncached_input_tokens × input_rate
-                                 + cached_token_reads    × discounted_input_rate
+full-price input tokens shifted per hit   = cached_tokens
+monthly cached-token reads                = cached_tokens × hit_rate × monthly_requests
+monthly input-token savings               = monthly_cached_token_reads × (input_rate - discounted_input_rate)
+monthly input-token cost                  = uncached_input_tokens × input_rate
+                                          + cached_token_reads    × discounted_input_rate
 ```
 
 Substituting the observed run purely as illustrative arithmetic: each warm call reported `2304` cached tokens. A workload issuing `100,000` requests per month against the same prefix and the same hit rate would move on the order of `230` million input tokens per month from full-price processing to discounted cache reads. Convert that with the current published rate for the target model, region, and deployment type. Standard and Provisioned deployment types discount cache reads differently, so the conversion is not a single constant.
@@ -151,7 +152,7 @@ The Context Cache container is an Azure resource in the customer subscription. T
 - `OpenAI.ContextCacheAllowed` already in `Registered` state
 - An isolated `AZURE_CONFIG_DIR` authenticated with the tenant-approved user flow
 - Permission to deploy resources and assign `Cognitive Services OpenAI User`
-- Available model quota in a supported region
+- Available model quota in `centralus` or `swedencentral`, the regions documented by the pinned official README
 
 The live run creates billable Azure resources and sends model requests. Choose a new resource group and unique name prefix. Inspect the generated evidence before deciding whether to clean up.
 
@@ -363,7 +364,7 @@ The high-value RAG pattern is:
 
 This means RAG can make the business case stronger when the application has a large stable orchestration prefix around every retrieval call. It does **not** mean all RAG results are automatically reusable. A changed chunk, ordering change, security trimming result, or personalization near the front can invalidate the prefix match.
 
-> **Validation status:** the published live E2E validates the official non-RAG Code Reviewer workload. The RAG composition above is an architecture pattern grounded in Microsoft RAG guidance and the official Context Cache prefix contract; it has not yet been benchmarked with a customer search index in this repository.
+> **Validation status:** the published live E2E validates the official non-RAG Code Reviewer workload. The RAG composition above is this repository's derived pattern, grounded in Microsoft RAG guidance and the official Context Cache prefix contract; it is not an official combined-product reference architecture and has not been benchmarked with a customer search index here.
 
 ## Test Information, Procedure, and Evidence
 
@@ -439,33 +440,9 @@ Rejected runs stay in the evidence set. They are neither deleted nor converted i
 
 ### What This Validation Does Not Attribute
 
-The live run proves that the deployment bound to `properties.contextCacheContainerId` served repeated prefixes and reported nonzero `cached_tokens` against a real Azure data plane. It does **not** isolate how much of that hit rate is incremental over the model's own default prompt caching, for one concrete reason: the pinned official demo also sets `prompt_cache_retention` on every request, and the deployed model family supports default prompt caching independently of the Context Cache binding. Both controls were present in the validated path at the same time.
+The live run proves that the deployment bound to `properties.contextCacheContainerId` served repeated prefixes and reported nonzero `cached_tokens` against a real Azure data plane. Because the request also enabled the model's default prompt caching, it does **not** isolate the incremental hit rate or savings produced by Context Cache.
 
-Stated plainly: the evidence supports *"this explicit cache path works, is bound to a customer-owned resource, and is observable"*. It does not support *"Context Cache produced a measurably higher hit rate than the default cache would have"*.
-
-Separating the two requires a controlled comparison. That comparison is now running in a private environment, and its first phase already returned an observation that invalidates the naive version of the design:
-
-| Observation in this environment | What was measured |
-|---|---|
-| A second deployment in the same account, created without a container binding and never called before, returned nonzero `cached_tokens` on the very first request of its lifetime | The bound deployment had cold-started the byte-identical prefix as the immediately preceding call, 3.759 seconds earlier measured request start to request start |
-| Every later alternating round showed both deployments hitting identically | The bound arm was always called first, so it warmed the shared prefix before the unbound arm was ever measured |
-
-The narrow reading, limited to this environment: **prefix cache state was reused across two deployments inside one Azure OpenAI account.** This is a single-environment observation, not a documented product guarantee, and it is not offered as a statement about internal service behavior.
-
-Two consequences follow. First, any comparison that always calls the bound arm first cannot attribute a hit to the unbound arm's own cache state, so the early phases of this comparison establish nothing about incremental hit rate. Second, and independent of any Context Cache question, **separate deployments in one account cannot be assumed to form a cache isolation boundary**; where isolation matters, verify it explicitly instead of inferring it from the deployment topology.
-
-The corrected comparison calls the unbound arm first at the interval that decides the outcome, so its first request is measured before the bound arm can warm the shared prefix:
-
-| Element | Design |
-|---|---|
-| Arms | One deployment with `contextCacheContainerId` set, and one deployment in the same account and region without it, identical model and version |
-| Prompt | The same byte-identical stable prefix and the same variable suffix set on both arms |
-| Intervals | At least three inter-request gaps: inside the in-memory window, past it but inside extended retention, and past extended retention |
-| Call order | At the deciding interval the unbound arm is called first, so its own cache state is observed before the bound arm warms the shared prefix |
-| Metric | Hit rate and `cached_tokens` per arm per interval, repeated enough times to separate a real difference from run-to-run variation |
-| Reporting | Publish per-arm and per-interval results, including the intervals where the two arms are indistinguishable |
-
-Until the corrected comparison completes past the extended-retention boundary, treat the lifetime, residency, and governance rows as the defensible differentiators, and treat any incremental hit-rate or savings claim as unproven.
+The defensible differentiators remain explicit lifetime, residency, and governance. Separate deployments in one Azure OpenAI account must not be assumed to form a cache isolation boundary. See [Attribution Boundary and Comparison Design](docs/METHOD.md#attribution-boundary-and-comparison-design) for the observed cross-deployment reuse and the corrected controlled comparison.
 
 The method has three independent proof layers:
 

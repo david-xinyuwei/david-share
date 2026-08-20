@@ -42,6 +42,9 @@ class RunnerContractTests(unittest.TestCase):
             "azure-context-cache-e2e.lock",
             "--git-executable",
             "[AllowEmptyString()][AllowEmptyCollection()][string[]] $Arguments",
+            "[ValidateSet('centralus', 'swedencentral')]",
+            "az-resource-group-recheck",
+            "The resource group was created after preflight",
         )
         for marker in required:
             self.assertIn(marker, self.source)

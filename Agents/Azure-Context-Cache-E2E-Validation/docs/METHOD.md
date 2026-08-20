@@ -53,6 +53,32 @@ recomputation. The export removes subscription, tenant, resource, endpoint, user
 identifiers. It also omits raw Azure JSON and private logs. This makes the public evidence a
 sanitized derivative, not a replacement for private operational records.
 
+## Attribution Boundary and Comparison Design
+
+The bounded run proves that the deployment bound to `properties.contextCacheContainerId` served repeated prefixes and reported nonzero `cached_tokens`. It does not isolate how much of that hit rate is incremental over the model's default prompt caching: the official demo sets `prompt_cache_retention` on every request, and the model family supports default caching independently of the Context Cache binding.
+
+A private controlled comparison also exposed an ordering confound:
+
+| Observation in this environment | What was measured |
+|---|---|
+| A new deployment in the same account had no container binding and had never been called, yet its first request returned nonzero `cached_tokens` | The bound deployment had cold-started the byte-identical prefix 3.759 seconds earlier |
+| Later alternating rounds showed identical hit behavior on both deployments | The bound deployment was always called first and warmed the shared prefix before the unbound deployment was measured |
+
+The narrow conclusion is limited to this environment: **prefix cache state was reused across two deployments in one Azure OpenAI account.** This is not a documented product guarantee or a statement about internal service behavior. It means that separate deployments in one account cannot be assumed to form a cache isolation boundary.
+
+The corrected comparison uses the following design:
+
+| Element | Design |
+|---|---|
+| Arms | One deployment with `contextCacheContainerId` and one deployment in the same account and region without it; model and version are identical |
+| Prompt | The same byte-identical stable prefix and variable suffix set on both arms |
+| Intervals | Inside the in-memory window, past it but inside extended retention, and past extended retention |
+| Call order | At the deciding interval, call the unbound arm first so it is measured before the bound arm can warm the shared prefix |
+| Metrics | Hit rate and `cached_tokens` per arm and interval, repeated enough to separate a real difference from run-to-run variation |
+| Reporting | Publish every interval, including intervals where the two arms are indistinguishable |
+
+Until that comparison completes past the extended-retention boundary, incremental hit-rate and savings claims remain unproven. The defensible differentiators are explicit lifetime, residency, and governance.
+
 ## Claim Boundary
 
 The completed path proves that the deployment binding was present and explicit Context Cache served cached tokens in one bounded

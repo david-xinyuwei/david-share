@@ -56,6 +56,29 @@ class PublicBoundaryTests(unittest.TestCase):
             with self.subTest(sample=sample[:20]):
                 self.assertTrue(self.scan(sample))
 
+    def test_non_utf8_text_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "sample.md").write_bytes(b"github_pat_" + b"x" * 10 + b"\xff" + b"x" * 30)
+
+            self.assertTrue(
+                any("not valid UTF-8" in item for item in MODULE.findings(root))
+            )
+
+    def test_same_named_audit_script_is_scanned(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            nested = root / "nested"
+            nested.mkdir()
+            (nested / "audit_public_content.py").write_text(
+                "token = 'github_pat_" + "x" * 40 + "'\n",
+                encoding="utf-8",
+            )
+
+            self.assertTrue(
+                any("GitHub fine-grained token" in item for item in MODULE.findings(root))
+            )
+
     def test_symlink_or_reparse_point_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)

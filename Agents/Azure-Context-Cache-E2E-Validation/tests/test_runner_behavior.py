@@ -34,9 +34,9 @@ time.sleep(float(os.environ.get("FAKE_AZ_DELAY", "0")))
 if args[:2] == ["account", "show"]:
     payload = {"id": os.environ["FAKE_SUBSCRIPTION_ID"], "state": "Enabled"}
 elif args[:2] == ["provider", "show"]:
-    payload = {"registrationState": "Registered"}
+    payload = {"registrationState": os.environ.get("FAKE_PROVIDER_STATE", "Registered")}
 elif args[:2] == ["feature", "show"]:
-    payload = {"properties": {"state": "Registered"}}
+    payload = {"properties": {"state": os.environ.get("FAKE_FEATURE_STATE", "Registered")}}
 elif args[:2] == ["group", "exists"]:
     payload = os.environ.get("FAKE_RG_EXISTS", "false").casefold() == "true"
 else:
@@ -80,9 +80,12 @@ class RunnerBehaviorTests(unittest.TestCase):
         self,
         *,
         resource_group: str = "rg_context_cache",
+        location: str = "centralus",
         extra: tuple[str, ...] = (),
         delay: int = 0,
         resource_group_exists: bool = False,
+        provider_state: str = "Registered",
+        feature_state: str = "Registered",
     ) -> subprocess.CompletedProcess[str]:
         environment = os.environ.copy()
         environment.update(
@@ -91,6 +94,8 @@ class RunnerBehaviorTests(unittest.TestCase):
                 "FAKE_AZ_LOG": str(self.log),
                 "FAKE_AZ_DELAY": str(delay),
                 "FAKE_RG_EXISTS": str(resource_group_exists),
+                "FAKE_PROVIDER_STATE": provider_state,
+                "FAKE_FEATURE_STATE": feature_state,
                 "FAKE_SUBSCRIPTION_ID": SUBSCRIPTION_ID,
                 "TEMP": str(self.temp),
                 "TMP": str(self.temp),
@@ -108,7 +113,7 @@ class RunnerBehaviorTests(unittest.TestCase):
                 "-ResourceGroup",
                 resource_group,
                 "-Location",
-                "centralus",
+                location,
                 "-NamePrefix",
                 "cache123",
                 "-Workspace",
@@ -135,6 +140,13 @@ class RunnerBehaviorTests(unittest.TestCase):
         self.assertIn(["group", "exists"], [call[:2] for call in calls])
         self.assertEqual(list(self.temp.glob("azure-context-cache-*.log")), [])
 
+    def test_whatif_releases_profile_lease(self) -> None:
+        first = self.run_runner()
+        second = self.run_runner()
+
+        self.assertEqual(first.returncode, 0, first.stderr)
+        self.assertEqual(second.returncode, 0, second.stderr)
+
     def test_zero_hit_threshold_is_rejected_before_preflight(self) -> None:
         completed = self.run_runner(extra=("-MinimumWarmHitRatio", "0"))
 
@@ -147,8 +159,29 @@ class RunnerBehaviorTests(unittest.TestCase):
         self.assertNotEqual(completed.returncode, 0)
         self.assertIn("new unique resource group", completed.stderr + completed.stdout)
 
+    def test_unregistered_provider_is_rejected(self) -> None:
+        completed = self.run_runner(provider_state="NotRegistered")
+
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("Registered", completed.stderr + completed.stdout)
+
+    def test_preview_feature_not_registered_is_rejected(self) -> None:
+        completed = self.run_runner(feature_state="Pending")
+
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn(
+            "Complete preview onboarding first",
+            completed.stderr + completed.stdout,
+        )
+
     def test_resource_group_trailing_period_is_rejected(self) -> None:
         completed = self.run_runner(resource_group="rg-invalid.")
+
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertFalse(self.log.exists())
+
+    def test_undocumented_region_is_rejected_before_preflight(self) -> None:
+        completed = self.run_runner(location="eastus2")
 
         self.assertNotEqual(completed.returncode, 0)
         self.assertFalse(self.log.exists())
