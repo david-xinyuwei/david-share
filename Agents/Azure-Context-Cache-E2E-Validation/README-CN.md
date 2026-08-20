@@ -15,9 +15,7 @@
 
 ## 客户问题与业务价值
 
-企业 AI 应用通常会在每次请求中重复发送大段稳定上下文，只有用户任务或当前案例数据发生变化。Azure Context Cache 将 Azure OpenAI 部署与具名缓存容器关联，使前缀匹配的后续请求能够复用已经处理过的稳定内容。
-
-> **客户一句话结论：** 在客户订阅中部署具名、区域化的 Context Cache container，并把它绑定到 Azure OpenAI deployment。第一次匹配请求填充可复用的稳定前缀处理结果；后续请求可以在配置的生命周期内复用。应用仍然正常发送前缀并调用 Azure OpenAI，由 deployment 自动查询缓存。这是跨请求的 prompt 处理复用，不是永久文档存储，也不是语义检索。
+这类请求里，稳定前缀每次都要重新 tokenize 和 prefill。Azure Context Cache 让客户在自己的订阅中部署具名、区域化的缓存容器并绑定到 Azure OpenAI deployment：第一次匹配请求填充处理结果，后续请求在配置的生命周期内复用，应用照常发送完整前缀，由 deployment 自动查缓存。这是**跨请求的 prompt 处理复用**，不是文档存储，也不是语义检索。
 
 | 业务价值杠杆 | 官方资料给出的机制 | 客户应如何验证 |
 |---|---|---|
@@ -27,7 +25,7 @@
 | 跨请求复用 | 具名缓存容器可以在配置的生命周期内跨调用复用符合条件的前缀处理结果 | 通过已绑定 deployment 重复发送字节一致的前缀，并监控 `cached_tokens` |
 | 治理 | 具名缓存资源部署在客户订阅、区域和 RBAC 边界内，并配置 TTL | 核对目标区域是否受支持，以及访问控制、生命周期和数据要求 |
 
-> [固定版本的官方 Quickstart](https://github.com/Azure/AzureContextCache/tree/7d1029a5e8b59b1805e70992c85ffe6798d2f47a) 将延迟、成本和吞吐列为产品价值杠杆。本仓库只证明在一个已获准环境中实际使用了缓存，不量化客户的成本节省或生产性能。
+> [固定版本的官方 Quickstart](https://github.com/Azure/AzureContextCache/tree/7d1029a5e8b59b1805e70992c85ffe6798d2f47a) 把这些列为产品价值杆杆。本仓库只证明缓存在一个已获准环境中被真实使用，不量化其中任何一项。
 
 ## 收益到底是什么
 

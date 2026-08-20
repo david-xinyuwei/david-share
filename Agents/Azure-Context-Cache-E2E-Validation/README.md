@@ -15,9 +15,7 @@ Evaluate explicit context caching for Azure OpenAI applications that repeatedly 
 
 ## Customer Problem and Business Value
 
-Enterprise AI applications often resend a large, stable prompt prefix on every request while only the user task or case data changes. Azure Context Cache links an Azure OpenAI deployment to a named cache container so matching requests can reuse the processed stable prefix.
-
-> **Customer takeaway:** deploy a named, regional Context Cache container in your subscription and link it to an Azure OpenAI deployment. The first matching request populates the reusable processed prefix; later requests can reuse it within the configured lifetime. Your application still sends the prefix and calls Azure OpenAI normally—the deployment performs the lookup automatically. This is cross-request prompt-processing reuse, not permanent document storage and not semantic retrieval.
+In those requests the stable prefix is re-tokenized and prefilled every time. Azure Context Cache lets you deploy a named, regional cache container in your own subscription and link it to an Azure OpenAI deployment: the first matching request populates the processed prefix, later requests reuse it within the configured lifetime, and the application still sends the full prefix while the deployment performs the lookup. This is **cross-request prompt-processing reuse**, not document storage and not semantic retrieval.
 
 | Business value lever | Mechanism stated by the official source | How the customer should validate it |
 |---|---|---|
@@ -27,7 +25,7 @@ Enterprise AI applications often resend a large, stable prompt prefix on every r
 | Cross-request reuse | A named cache container keeps an eligible processed prefix reusable across calls for its configured lifetime | Verify repeated byte-identical prefixes through the linked deployment and monitor `cached_tokens` |
 | Governance | The named cache resource is deployed in the customer's subscription, region, and RBAC boundary with a configured TTL | Confirm target-region support, access controls, lifecycle, and data requirements |
 
-> The [pinned official Quickstart](https://github.com/Azure/AzureContextCache/tree/7d1029a5e8b59b1805e70992c85ffe6798d2f47a) describes latency, cost, and throughput as product value levers. This repository proves cache use in one approved environment; it does not quantify the customer's savings or production performance.
+> The [pinned official Quickstart](https://github.com/Azure/AzureContextCache/tree/7d1029a5e8b59b1805e70992c85ffe6798d2f47a) lists these as product value levers. This repository proves cache use in one approved environment; it does not quantify them.
 
 ## What the Benefit Actually Is
 
