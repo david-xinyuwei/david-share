@@ -103,17 +103,29 @@ The live run proves that the deployment bound to `properties.contextCacheContain
 
 Stated plainly: the evidence supports *"this explicit cache path works, is bound to a customer-owned resource, and is observable"*. It does not support *"Context Cache produced a measurably higher hit rate than the default cache would have"*.
 
-Separating the two requires a controlled comparison, which this repository specifies but has not run:
+Separating the two requires a controlled comparison. That comparison is now running in a private environment, and its first phase already returned an observation that invalidates the naive version of the design:
+
+| Observation in this environment | What was measured |
+|---|---|
+| A second deployment in the same account, created without a container binding and never called before, returned nonzero `cached_tokens` on the very first request of its lifetime | The bound deployment had cold-started the byte-identical prefix as the immediately preceding call, 3.759 seconds earlier measured request start to request start |
+| Every later alternating round showed both deployments hitting identically | The bound arm was always called first, so it warmed the shared prefix before the unbound arm was ever measured |
+
+The narrow reading, limited to this environment: **prefix cache state was reused across two deployments inside one Azure OpenAI account.** This is a single-environment observation, not a documented product guarantee, and it is not offered as a statement about internal service behavior.
+
+Two consequences follow. First, any comparison that always calls the bound arm first cannot attribute a hit to the unbound arm's own cache state, so the early phases of this comparison establish nothing about incremental hit rate. Second, and independent of any Context Cache question, **separate deployments in one account cannot be assumed to form a cache isolation boundary**; where isolation matters, verify it explicitly instead of inferring it from the deployment topology.
+
+The corrected comparison calls the unbound arm first at the interval that decides the outcome, so its first request is measured before the bound arm can warm the shared prefix:
 
 | Element | Design |
 |---|---|
 | Arms | One deployment with `contextCacheContainerId` set, and one deployment in the same account and region without it, identical model and version |
 | Prompt | The same byte-identical stable prefix and the same variable suffix set on both arms |
 | Intervals | At least three inter-request gaps: inside the in-memory window, past it but inside extended retention, and past extended retention |
+| Call order | At the deciding interval the unbound arm is called first, so its own cache state is observed before the bound arm warms the shared prefix |
 | Metric | Hit rate and `cached_tokens` per arm per interval, repeated enough times to separate a real difference from run-to-run variation |
 | Reporting | Publish per-arm and per-interval results, including the intervals where the two arms are indistinguishable |
 
-Until that comparison runs, treat the lifetime, residency, and governance rows as the defensible differentiators, and treat any incremental hit-rate or savings claim as unproven.
+Until the corrected comparison completes past the extended-retention boundary, treat the lifetime, residency, and governance rows as the defensible differentiators, and treat any incremental hit-rate or savings claim as unproven.
 
 ## Workload Fit
 
