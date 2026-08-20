@@ -29,7 +29,7 @@
       "id": "customer-architecture-and-value-boundaries",
       "classification": "architecture-explainer",
       "entrypoint": "README.md, README-CN.md, and images/customer-architecture.svg",
-      "proof": "Official-source product architecture and value levers; quantified customer savings remain unverified"
+      "proof": "Official-source product architecture and value levers; quantified customer savings remain unverified, the incremental hit rate over default prompt caching remains unattributed, and no container time-to-live ceiling is claimed"
     }
   ],
   "forbiddenFallbacks": [

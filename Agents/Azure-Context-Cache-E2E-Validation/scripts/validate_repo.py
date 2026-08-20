@@ -151,6 +151,7 @@ def main() -> int:
                 "AzureContextCache-7d1029a5-247A45",
                 "License-MIT-yellow.svg",
                 "customer-architecture.svg",
+                "verified-observation.svg",
             ],
             "customer README image contract changed",
         )
@@ -261,6 +262,9 @@ def main() -> int:
             "README.md": (
                 "Customer Problem and Business Value",
                 "cross-request prompt-processing reuse",
+                "What the Benefit Actually Is",
+                "default, not a ceiling",
+                "What This Validation Does Not Attribute",
                 "Workload Fit",
                 "Customer Architecture",
                 "Where the Data Starts and Where the Cache Lives",
@@ -292,6 +296,9 @@ def main() -> int:
             "README-CN.md": (
                 "客户问题与业务价值",
                 "跨请求的 prompt 处理复用",
+                "收益到底是什么",
+                "默认值，不是天花板",
+                "本次验证没有归因的部分",
                 "工作负载适配",
                 "客户业务架构",
                 "数据从哪里来，缓存实际存在哪里",
