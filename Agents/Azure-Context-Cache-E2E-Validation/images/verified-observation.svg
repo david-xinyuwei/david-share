@@ -1,18 +1,36 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
   <title id="title">Sanitized single-run Azure Context Cache observation</title>
-  <desc id="desc">Call one had zero cached tokens. Calls two through six each had 2304 cached tokens.</desc>
+  <desc id="desc">After warm-up, 11520 of 13037 input tokens were reported as cache reads, which is 88.4 percent. The first call took 5820 ms and the warm calls averaged 3642.4 ms, a reduction of 2177.6 ms or 37.4 percent. One bounded run, not a benchmark.</desc>
   <rect width="1600" height="900" fill="#f7f9fb"/>
-  <text x="800" y="72" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="42" font-weight="700" fill="#101828">Sanitized Single-Run Observation</text>
-  <text x="800" y="118" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="24" fill="#475467">Cached input tokens reported by the official Responses API demo</text>
-  <line x1="160" y1="700" x2="1450" y2="700" stroke="#667784" stroke-width="3"/>
-  <line x1="160" y1="210" x2="160" y2="700" stroke="#667784" stroke-width="3"/>
-  <g font-family="Segoe UI, sans-serif" text-anchor="middle">
-    <g fill="#e8eef2" stroke="#667784" stroke-width="2"><rect x="235" y="700" width="140" height="1"/><text x="305" y="745" font-size="24" fill="#344054">Call 1</text><text x="305" y="665" font-size="25" fill="#344054">0</text></g>
-    <g fill="#247a45"><rect x="435" y="260" width="140" height="440"/><rect x="635" y="260" width="140" height="440"/><rect x="835" y="260" width="140" height="440"/><rect x="1035" y="260" width="140" height="440"/><rect x="1235" y="260" width="140" height="440"/></g>
-    <g font-size="24" fill="#344054"><text x="505" y="745">Call 2</text><text x="705" y="745">Call 3</text><text x="905" y="745">Call 4</text><text x="1105" y="745">Call 5</text><text x="1305" y="745">Call 6</text></g>
-    <g font-size="25" font-weight="700" fill="#123a24"><text x="505" y="240">2304</text><text x="705" y="240">2304</text><text x="905" y="240">2304</text><text x="1105" y="240">2304</text><text x="1305" y="240">2304</text></g>
-  </g>
-  <text x="85" y="465" text-anchor="middle" transform="rotate(-90 85 465)" font-family="Segoe UI, sans-serif" font-size="25" fill="#344054">cached_tokens</text>
-  <rect x="205" y="800" width="1190" height="58" rx="6" fill="#fff0c7" stroke="#a66b00" stroke-width="2"/>
-  <text x="800" y="838" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="24" fill="#513400">One bounded run, not a production latency, savings, or concurrency benchmark</text>
+  <text x="800" y="76" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="42" font-weight="700" fill="#101828">Sanitized Single-Run Observation</text>
+  <text x="800" y="124" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="24" fill="#475467">Recomputed from the six checked-in calls of the official Responses API demo</text>
+
+  <line x1="800" y1="170" x2="800" y2="700" stroke="#d0d5dd" stroke-width="2"/>
+
+  <text x="400" y="212" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="27" font-weight="600" fill="#101828">Input processing reuse</text>
+  <text x="400" y="248" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="20" fill="#475467">Input tokens after warm-up</text>
+  <rect x="100" y="290" width="600" height="88" fill="#e4e7ec"/>
+  <rect x="100" y="290" width="530" height="88" fill="#107c41"/>
+  <text x="365" y="345" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="27" font-weight="700" fill="#ffffff">11,520 cache reads</text>
+  <text x="665" y="345" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="18" font-weight="600" fill="#475467">1,517</text>
+  <text x="100" y="412" font-family="Segoe UI, sans-serif" font-size="18" fill="#667085">Reused</text>
+  <text x="700" y="412" text-anchor="end" font-family="Segoe UI, sans-serif" font-size="18" fill="#667085">Full price</text>
+  <text x="400" y="500" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="66" font-weight="700" fill="#107c41">88.4%</text>
+  <text x="400" y="546" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="21" fill="#475467">of 13,037 input tokens billed as cache reads</text>
+  <text x="400" y="580" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="19" fill="#667085">per call 85.9% to 90.7%; not an 88.4% bill reduction</text>
+
+  <text x="1200" y="212" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="27" font-weight="600" fill="#101828">Directional latency</text>
+  <text x="1200" y="248" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="20" fill="#475467">First call vs warm-call mean</text>
+  <line x1="960" y1="600" x2="1460" y2="600" stroke="#d0d5dd" stroke-width="2"/>
+  <rect x="1000" y="300" width="120" height="300" fill="#98a2b3"/>
+  <rect x="1250" y="412" width="120" height="188" fill="#107c41"/>
+  <text x="1060" y="286" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="25" font-weight="700" fill="#101828">5,820 ms</text>
+  <text x="1310" y="398" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="25" font-weight="700" fill="#107c41">3,642.4 ms</text>
+  <text x="1060" y="632" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="20" fill="#475467">Call 1 (cold)</text>
+  <text x="1310" y="632" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="20" fill="#475467">Calls 2-6 (mean)</text>
+  <text x="1200" y="690" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="24" font-weight="600" fill="#107c41">lower by 2,177.6 ms (37.4%)</text>
+
+  <rect x="200" y="752" width="1200" height="84" rx="10" fill="#fff8e6" stroke="#f0c36d" stroke-width="2"/>
+  <text x="800" y="784" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="21" font-weight="600" fill="#7a4f01">One bounded run in one approved subscription</text>
+  <text x="800" y="814" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="19" fill="#7a4f01">Not a production latency, savings, or concurrency benchmark</text>
 </svg>

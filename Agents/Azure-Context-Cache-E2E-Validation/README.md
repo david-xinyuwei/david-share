@@ -274,7 +274,7 @@ The returned `properties.contextCacheContainerId` must exactly equal `$container
 
 ### Effect Observed in This Validation
 
-![Cached input tokens reported by the six official demo calls](images/verified-observation.svg)
+![Input processing reuse and directional latency across the six official demo calls](images/verified-observation.svg)
 
 | Signal | Calculation from the checked-in six calls | Observed effect | Customer meaning |
 |---|---:|---:|---|

@@ -274,7 +274,7 @@ Write-Output "Expected container: $containerId"
 
 ### 本次验证实际观察到的效果
 
-![官方 demo 六次调用报告的 cached input tokens](images/verified-observation.svg)
+![官方 demo 六次调用的输入处理复用占比与延迟变化](images/verified-observation.svg)
 
 | 信号 | 根据已签入的 6 次调用记录重新计算 | 实际观察 | 对客户意味着什么 |
 |---|---:|---:|---|

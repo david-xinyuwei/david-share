@@ -11,13 +11,12 @@
   </defs>
 
   <rect width="1600" height="900" fill="#f7f9fb"/>
-  <text x="800" y="60" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="38" font-weight="700" fill="#16202a">Customer Application Architecture / 客户应用业务架构</text>
+  <text x="800" y="60" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="38" font-weight="700" fill="#16202a">Customer Application Architecture</text>
   <text x="800" y="100" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="21" fill="#52616d">Reuse stable context across requests; keep changing task data at the end of the prompt</text>
 
   <rect x="52" y="196" width="230" height="310" rx="8" fill="#174666" stroke="#0b2f49" stroke-width="3"/>
   <text x="167" y="244" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="25" font-weight="700" fill="#ffffff">ENTERPRISE</text>
   <text x="167" y="278" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="25" font-weight="700" fill="#ffffff">CHANNELS</text>
-  <text x="167" y="315" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="20" fill="#dcecf5">企业业务入口</text>
   <text x="167" y="365" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="18" fill="#ffffff">Customer support</text>
   <text x="167" y="397" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="18" fill="#ffffff">Agent workflows</text>
   <text x="167" y="429" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="18" fill="#ffffff">Code / compliance review</text>
@@ -25,21 +24,19 @@
 
   <rect x="344" y="150" width="390" height="408" rx="8" fill="#ffffff" stroke="#2463a7" stroke-width="3"/>
   <text x="539" y="198" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="27" font-weight="700" fill="#123b5d">CUSTOMER AI APPLICATION</text>
-  <text x="539" y="230" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="19" fill="#395c76">客户 AI 应用</text>
 
   <rect x="378" y="262" width="322" height="140" rx="6" fill="#e8f1fb" stroke="#4f86c6" stroke-width="2"/>
-  <text x="539" y="298" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="22" font-weight="700" fill="#123b5d">STABLE PREFIX / 稳定前缀</text>
+  <text x="539" y="298" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="22" font-weight="700" fill="#123b5d">STABLE PREFIX</text>
   <text x="539" y="333" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="17" fill="#274f70">Instructions · tool catalog · policies</text>
   <text x="539" y="362" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="17" fill="#274f70">Few-shot examples · shared reference</text>
   <text x="539" y="389" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="16" fill="#526b7e">Keep byte-identical across related requests</text>
 
   <rect x="378" y="426" width="322" height="100" rx="6" fill="#fff2cc" stroke="#b77900" stroke-width="2"/>
-  <text x="539" y="462" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="21" font-weight="700" fill="#5a3a00">DYNAMIC SUFFIX / 动态后缀</text>
+  <text x="539" y="462" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="21" font-weight="700" fill="#5a3a00">DYNAMIC SUFFIX</text>
   <text x="539" y="497" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="17" fill="#684b14">User task · current case data · new turn</text>
 
   <rect x="790" y="132" width="750" height="474" rx="10" fill="#f3f7f4" stroke="#7b9182" stroke-width="3" stroke-dasharray="10 7"/>
   <text x="1165" y="174" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="24" font-weight="700" fill="#344b3a">CUSTOMER AZURE SUBSCRIPTION · REGION · RBAC</text>
-  <text x="1165" y="203" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="18" fill="#526b58">客户订阅、区域与访问控制边界</text>
 
   <rect x="820" y="226" width="286" height="220" rx="8" fill="#ddf1e3" stroke="#247a45" stroke-width="3"/>
   <text x="963" y="266" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="23" font-weight="700" fill="#123a24">AZURE OPENAI</text>
@@ -77,16 +74,16 @@
   <text x="1174" y="407" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="15" font-weight="700" fill="#18794e">← hit: reuse processed prefix</text>
 
   <rect x="60" y="608" width="684" height="118" rx="6" fill="#e8f1fb" stroke="#4f86c6" stroke-width="2"/>
-  <text x="402" y="640" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="19" font-weight="700" fill="#123b5d">CUSTOMER RESPONSIBILITY / 客户责任</text>
+  <text x="402" y="640" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="19" font-weight="700" fill="#123b5d">CUSTOMER RESPONSIBILITY</text>
   <text x="402" y="672" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="16" fill="#274f70">Prompt structure · case data · subscription and region</text>
   <text x="402" y="701" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="16" fill="#274f70">RBAC and TTL policy · telemetry analysis</text>
 
   <rect x="820" y="608" width="690" height="118" rx="6" fill="#e9e2f5" stroke="#7650a6" stroke-width="2"/>
-  <text x="1165" y="640" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="19" font-weight="700" fill="#3f2760">AZURE-MANAGED SERVICE / AZURE 托管服务</text>
+  <text x="1165" y="640" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="19" font-weight="700" fill="#3f2760">AZURE-MANAGED SERVICE</text>
   <text x="1165" y="672" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="16" fill="#574171">Model execution · prefix matching</text>
   <text x="1165" y="701" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="16" fill="#574171">Cache serving and population</text>
 
   <rect x="250" y="774" width="1100" height="70" rx="6" fill="#fffaf0" stroke="#c58b22" stroke-width="2"/>
-  <text x="800" y="805" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="19" font-weight="700" fill="#5a3a00">CUSTOMER EVALUATION / 客户评估</text>
+  <text x="800" y="805" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="19" font-weight="700" fill="#5a3a00">CUSTOMER EVALUATION</text>
   <text x="800" y="831" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei, sans-serif" font-size="16" fill="#6c5940">Measure latency, cached-token economics, and throughput with representative traffic and current pricing.</text>
 </svg>
