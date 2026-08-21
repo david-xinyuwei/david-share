@@ -9,6 +9,7 @@ pyaudio
 tzdata
 opencv-python-headless
 msal
-# 系统音量控制（Core Audio API），仅 Windows
+# System volume control via Core Audio API (Windows only).
+# Keep this file ASCII-only: pip decodes it with cp1252 on Windows and non-ASCII breaks install.
 pycaw
 comtypes

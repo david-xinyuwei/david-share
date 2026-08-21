@@ -1,229 +1,240 @@
 # Voice Live Agent
 
-基于 **Azure AI Foundry Voice Live API** 的中文桌面语音代理。跑在 Windows 本机，用语音完成实时问答、查数据、看摄像头识物、控制系统设置、整理简报、发邮件、换桌面壁纸——**所有工具都在用户自己的电脑上执行**。
+English | [中文](README-CN.md)
 
-同一套代码内置三种语音接入方式，可在界面上现场切换，用于向客户演示 Voice Live 的架构取舍。
+A Chinese-language desktop voice agent built on the **Azure AI Foundry Voice Live API**. It runs on a Windows machine and handles real-time Q&A, live data lookup, camera-based object recognition, system control, news briefings, email delivery, and wallpaper changes — **every tool executes on the user's own PC**.
+
+One codebase ships three voice connection modes, switchable at runtime from the UI, so customers can see the Voice Live architecture trade-offs side by side.
+
+## What's Real vs What's Demo
+
+| | Detail |
+|---|---|
+| ✅ **Real** | All voice paths hit live Azure Voice Live / Azure OpenAI Realtime services. No local simulation. |
+| ✅ **Real** | All 19 tools genuinely execute: volume via Core Audio API, wallpaper via Win32, timezone via PowerShell, weather/stocks/news via live public APIs, email actually delivered. |
+| ✅ **Real** | Foundry Agent mode connects to a real hosted Agent; tool definitions live in the cloud and are verifiable in the Foundry portal. |
+| ⚠️ **Bring your own** | WebIQ search needs a valid key; image generation needs an image model deployed in your Foundry resource. |
+| ⚠️ **Platform bound** | Volume, wallpaper, timezone, and app launching depend on Windows APIs. Windows only. |
+| ❌ **Never** | No tool returns simulated data. When a dependency is unavailable the tool returns an explicit failure and the model tells the user the truth — **no silent fallback**. |
 
 ---
 
-## 一、三种运行模式
+## 1. Three Runtime Modes
 
-微软官方把 Voice Live 的部署方式分为三种 pattern。本项目把它们做成了下拉框里可现场切换的选项，**外加一个非 Voice Live 的对照组**。
+Microsoft documents three Voice Live deployment patterns. This project exposes them as runtime-switchable options, **plus one non-Voice-Live control group**.
 
-| 界面选项 | 服务 | 大脑 | 语音链路 |
+| UI option | Service | Brain | Voice path |
 |---|---|---|---|
-| `voicelive` | Azure Voice Live | 模型直连 | 端到端 / 混合 / 级联（由配置决定） |
-| `voicelive-agent` | Azure Voice Live | Foundry Agent 托管 | 级联（STT → Agent → TTS） |
-| `realtime` | Azure OpenAI Realtime | 模型部署直连 | 端到端（**非 Voice Live**） |
+| `voicelive` | Azure Voice Live | Model direct | S2S / Hybrid / Cascaded, driven by config |
+| `voicelive-agent` | Azure Voice Live | Foundry Agent hosted | Cascaded (STT → Agent → TTS) |
+| `realtime` | Azure OpenAI Realtime | Model deployment | End-to-end (**not Voice Live**) |
 
-### 1.1 pattern 与配置的对应关系（实测）
+### 1.1 Pattern selection is configuration, not code (measured)
 
-Voice Live 落在哪种 pattern，由 **模型** 和 **音色** 两个配置决定，**不需要改代码**：
+Which pattern Voice Live lands in is decided by two settings — **model** and **voice**. No code change required:
 
-| Pattern | `AZURE_VOICELIVE_MODEL` | `AZURE_VOICELIVE_VOICE` | 实测 |
+| Pattern | `AZURE_VOICELIVE_MODEL` | `AZURE_VOICELIVE_VOICE` | Measured |
 |---|---|---|---|
-| **(a) Integrated S2S**<br>一个模型包办 STT·LLM·TTS，延迟最低 | `gpt-realtime` | `alloy`（模型原生音色） | ✅ PASS |
-| **(b) Hybrid**<br>Realtime 做 STT+LLM，Azure 做 TTS，可用品牌音色 | `gpt-realtime` | `zh-CN-XiaoxiaoMultilingualNeural` | ✅ PASS |
-| **(c) Cascaded**<br>Azure STT → 文本模型 → Azure TTS，可换任意强模型 | `gpt-4.1` | `zh-CN-XiaoxiaoMultilingualNeural` | ✅ PASS |
+| **(a) Integrated S2S**<br>One model does STT·LLM·TTS, lowest latency | `gpt-realtime` | `alloy` (model-native voice) | ✅ PASS |
+| **(b) Hybrid**<br>Realtime handles STT+LLM, Azure does TTS, brand voice available | `gpt-realtime` | `zh-CN-XiaoxiaoMultilingualNeural` | ✅ PASS |
+| **(c) Cascaded**<br>Azure STT → text model → Azure TTS, any strong model | `gpt-4.1` | `zh-CN-XiaoxiaoMultilingualNeural` | ✅ PASS |
 
-三档均实测通过（`status=COMPLETED` 且成功触发 `function_call`）。
+All three verified end to end (`status=COMPLETED` with a successful `function_call`).
 
-> **中文场景注意**：`alloy` 等模型原生音色的中文表现不佳，商用中文场景建议走 (b) 或 (c) 的 Azure 神经音色。
+> **Chinese-language note**: model-native voices such as `alloy` perform poorly in Mandarin. Production Chinese scenarios should use (b) or (c) with an Azure neural voice.
 
-代码里的判断只有一行——音色名带 `-` 视为 Azure 音色，否则直接交给模型：
+The entire branch is one line — a voice name containing `-` is treated as an Azure voice, otherwise it is passed straight to the model:
 
 ```python
 voice=AzureStandardVoice(name=voice) if "-" in voice else voice
 ```
 
-### 1.2 Foundry Agent 模式解决什么问题
+### 1.2 What Foundry Agent mode actually changes
 
-`voicelive-agent` **不是第四种 pattern**，它落在 (c) Cascaded 那一行。它改变的不是语音链路，而是**人设与工具定义存放的位置**：
+`voicelive-agent` is **not a fourth pattern**. It sits on the (c) Cascaded row. What it changes is not the voice path but **where the persona and tool definitions live**:
 
 ```python
-# 模型直连：instructions 和工具由客户端每次 session.update 下发
+# Model direct: instructions and tools pushed by the client on every session.update
 connect(endpoint=..., credential=..., model="gpt-realtime")
 
-# Agent 托管：instructions 和工具写在云端 Agent 定义里
+# Agent hosted: instructions and tools stored in the cloud Agent definition
 connect(endpoint=..., credential=..., agent_name="...", project_name="...")
 ```
 
-**价值只在多端场景**：手机 App、车机、PC 连同一个 Agent，改人设不用逐端发版。**单客户端场景下它是净成本**，实测限制如下（均为服务端返回原文）：
+**The value is multi-client only**: a phone app, a car head unit, and a PC all connect to the same Agent, so changing the persona does not require shipping each client. **For a single client it is a net cost.** Measured constraints, all quoted verbatim from the service:
 
-| 限制 | 服务端返回 |
+| Constraint | Server response |
 |---|---|
-| 不能用 API Key | `Key authentication is not supported in Foundry Agent mode.` |
-| 不能运行时下发工具 | `Configuring tools at runtime in Foundry Agent mode is not supported.`<br>`Please configure tools in the agent definition.` |
-| 不能挂多模态实时模型 | 配 `gpt-realtime` 时返回 `status=FAILED` 且 output 为空 |
-| 转写模型受限 | `Only 'azure-speech', 'azure-mrs', 'mai-transcribe-1', 'mai-transcribe-1.5', and 'mai-transcribe' are supported in cascaded pipelines` |
+| API keys rejected | `Key authentication is not supported in Foundry Agent mode.` |
+| Runtime tool config rejected | `Configuring tools at runtime in Foundry Agent mode is not supported.`<br>`Please configure tools in the agent definition.` |
+| Multimodal realtime models unusable | Configuring `gpt-realtime` yields `status=FAILED` with empty output |
+| Transcription models restricted | `Only 'azure-speech', 'azure-mrs', 'mai-transcribe-1', 'mai-transcribe-1.5', and 'mai-transcribe' are supported in cascaded pipelines` |
 
-最后一条是服务端自己把 Agent 模式称为 **cascaded pipeline**，也是"Agent 模式必然级联"最直接的证据。
+That last message is the service itself calling Agent mode a **cascaded pipeline** — the most direct evidence that Agent mode is necessarily cascaded.
 
-> **工具仍在本机执行。** Agent 只存放工具的 *定义*；模型决定调用哪个工具后，参数回传到客户端，由本机代码真正执行。云端 Agent 一行设备操作代码都没有。
+> **Tools still execute locally.** The Agent stores only the tool *definitions*. Once the model picks a tool, the arguments come back to the client and local code does the actual work. The cloud Agent contains zero device-control code.
 
-### 1.3 与 Azure OpenAI Realtime 的差异
+### 1.3 How this differs from Azure OpenAI Realtime
 
-`realtime` 模式走的是 `/openai/v1/realtime`，**不是 Voice Live**，因此拿不到 Voice Live 的语音增强层：
+The `realtime` mode talks to `/openai/v1/realtime`, which is **not Voice Live**, so it gets none of the Voice Live speech enhancement layer:
 
 | | Voice Live | Azure OpenAI Realtime |
 |---|---|---|
-| 语义 VAD（中文） | ✅ `azure_semantic_vad_multilingual`，可去填充词 | ❌ 仅 `semantic_vad` |
-| 降噪 | ✅ `azure_deep_noise_suppression` | ❌ |
-| 服务端回声消除 | ✅ 含 Live-Reference AEC | ❌ 需自己在客户端实现 |
-| 音色 | 600+ Azure 神经音色 / HD / 自定义 | 仅模型原生音色 |
+| Semantic VAD (Chinese) | ✅ `azure_semantic_vad_multilingual`, filler-word removal | ❌ `semantic_vad` only |
+| Noise suppression | ✅ `azure_deep_noise_suppression` | ❌ |
+| Server-side echo cancellation | ✅ including Live-Reference AEC | ❌ must be built client-side |
+| Voices | 600+ Azure neural / HD / custom | model-native only |
 | Avatar | ✅ | ❌ |
-| 模型部署 | 服务端托管，无需自行部署 | 需自行部署 |
+| Model deployment | service-managed, none required | must deploy yourself |
 
-保留这个模式是为了让客户直观看到"不用 Voice Live 会少掉什么"。
-
----
-
-## 二、能力清单
-
-19 个工具全部注册在本机，由模型按语音意图触发。
-
-### 桌面与设备控制
-
-| 语音指令 | 后台真实发生 | 可查证 |
-|---|---|---|
-| 「现在音量多少」 | Core Audio `IAudioEndpointVolume.GetMasterVolumeLevelScalar` | ✅ 与系统音量条一致 |
-| 「音量调到 30」「声音大一点」 | `SetMasterVolumeLevelScalar` | ✅ 系统音量条实时变化 |
-| 「静音」「取消静音」 | `SetMute` | ✅ 托盘图标同步变化 |
-| 「打开计算器 / 记事本 / 资源管理器 / 任务管理器 / 画图」 | `subprocess.Popen` 启动进程 | ✅ 窗口弹出 |
-| 「打开设置」 | `os.startfile("ms-settings:")` | ✅ 设置应用打开 |
-| 「显示桌面」 | Win32 `keybd_event` 模拟 Win+D | ✅ 所有窗口最小化 |
-| 「把时区改成西雅图」 | PowerShell `Set-TimeZone` | ✅ 系统时钟立即变化 |
-| 「换成桌面背景」 | Win32 `SystemParametersInfoW` | ✅ 桌面立即变化 |
-
-### 感知与信息
-
-| 语音指令 | 后台真实发生 | 可查证 |
-|---|---|---|
-| 「打开摄像头」 | OpenCV 常开实时流，界面同步预览 | ✅ 画面实时刷新 |
-| 「这是什么」（举起物品） | 抓当前帧 → 多模态模型识别 | ✅ 返回物品描述 |
-| 「哪里有卖」 | 识别结果 → 网页搜索 | ✅ 返回购买链接 |
-| 「北京天气怎么样」 | `GET api.open-meteo.com` 实时气象 | ✅ 带观测时间的真实温湿度 |
-| 「微软股价多少」 | `GET query1.finance.yahoo.com` 实时报价 | ✅ 与 Yahoo Finance 一致 |
-| 「有什么新闻」 | 拉取真实 RSS（Google News / BBC） | ✅ 可点击原文链接 |
-| 「搜一下 XXX」 | WebIQ `client.web.search` | 需有效 key |
-| 「纽约现在几点」 | 本机 IANA tzdata 计算 | ✅ 含 UTC offset |
-
-### 内容生成与投递
-
-| 语音指令 | 后台真实发生 | 可查证 |
-|---|---|---|
-| 「整理一份新闻简报」 | 真实 RSS + Azure OpenAI 整理 | ✅ 每条标注来源媒体 |
-| 「发到我邮箱」 | 真实 SMTP 投递（收件人白名单） | ✅ 收件箱可收到 |
-| 「网上找一张壁纸」 | 图片搜索 + https 下载校验 | 需有效 key |
-| 「生成一张壁纸」 | Azure OpenAI 图像生成，落盘本地 | 需图像模型部署 |
-
-**没有任何一个工具返回模拟数据。** 外部依赖不可用时工具显式返回失败原因，模型如实告知用户，不做静默兜底。
-
-### 图像识别不经过 Voice Live
-
-摄像头识物是 **function call 内部单独调用 Chat Completions API**，与语音链路完全解耦：
-
-```
-用户：「这是什么」
-  → Voice Live 识别意图，触发 function call
-  → 本机抓取当前帧 → 单独调用多模态模型 → 返回文字描述
-  → Voice Live 将描述合成语音播报
-```
-
-Voice Live 全程只处理语音，**不接触图像**。因此不需要为了图像能力切换模型或引入 Agent。
+This mode is kept so customers can see concretely what they lose by not using Voice Live.
 
 ---
 
-## 三、架构
+## 2. Capabilities
+
+19 tools, all registered locally, triggered by the model from voice intent.
+
+### Desktop and device control
+
+| Voice command | What actually happens | Verifiable |
+|---|---|---|
+| "What's the volume?" | Core Audio `IAudioEndpointVolume.GetMasterVolumeLevelScalar` | ✅ matches the system volume slider |
+| "Set volume to 30" / "louder" | `SetMasterVolumeLevelScalar` | ✅ system slider moves live |
+| "Mute" / "unmute" | `SetMute` | ✅ tray icon changes |
+| "Open calculator / notepad / explorer / task manager / paint" | `subprocess.Popen` | ✅ window appears |
+| "Open settings" | `os.startfile("ms-settings:")` | ✅ Settings app opens |
+| "Show desktop" | Win32 `keybd_event` simulating Win+D | ✅ windows minimize |
+| "Change the timezone to Seattle" | PowerShell `Set-TimeZone` | ✅ system clock changes immediately |
+| "Set it as my wallpaper" | Win32 `SystemParametersInfoW` | ✅ desktop changes immediately |
+
+### Perception and information
+
+| Voice command | What actually happens | Verifiable |
+|---|---|---|
+| "Open the camera" | OpenCV always-on stream, mirrored in the UI | ✅ live frame updates |
+| "What is this?" (holding an object) | Grab current frame → multimodal model | ✅ returns an object description |
+| "Where can I buy it?" | Recognition result → web search | ✅ returns purchase links |
+| "What's the weather in Beijing?" | `GET api.open-meteo.com` | ✅ real readings with observation time |
+| "What's Microsoft's stock price?" | `GET query1.finance.yahoo.com` | ✅ matches Yahoo Finance |
+| "Any news?" | Live RSS (Google News / BBC) | ✅ clickable source links |
+| "Search for X" | WebIQ `client.web.search` | needs a valid key |
+| "What time is it in New York?" | Local IANA tzdata | ✅ includes UTC offset |
+
+### Content generation and delivery
+
+| Voice command | What actually happens | Verifiable |
+|---|---|---|
+| "Put together a news briefing" | Live RSS + Azure OpenAI | ✅ every item cites its source |
+| "Email it to me" | Real SMTP delivery (recipient allowlist) | ✅ arrives in the inbox |
+| "Find a wallpaper online" | Image search + https download validation | needs a valid key |
+| "Generate a wallpaper" | Azure OpenAI image generation, saved locally | needs an image deployment |
+
+### Image recognition does not go through Voice Live
+
+Camera recognition is a **Chat Completions call made inside a function call**, fully decoupled from the voice path:
+
+```
+User: "What is this?"
+  → Voice Live recognizes intent, emits a function call
+  → local code grabs the current frame → calls a multimodal model → gets text back
+  → Voice Live speaks that description
+```
+
+Voice Live only ever handles audio and **never sees an image**. No model switch or Agent is needed to add vision.
+
+---
+
+## 3. Architecture
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  Windows 本机                                             │
+│  Windows host                                             │
 │                                                           │
-│  麦克风 ──PCM16/24kHz──┐                                  │
-│  扬声器 ◀──audio delta─┤  语音后端（三选一）                │
-│  摄像头 ──实时流──┐     └──── function call ────┐          │
-│                  │                              │          │
-│                  ▼                              ▼          │
-│           帧缓存（常开）            本地工具注册表（19 个）   │
-│                  │                              │          │
-│                  └──► 多模态模型识别 ◀───────────┘          │
+│  Microphone ──PCM16/24kHz──┐                              │
+│  Speaker    ◀──audio delta─┤  voice backend (one of three)│
+│  Camera     ──live stream──┐└──── function call ────┐     │
+│                            │                        │     │
+│                            ▼                        ▼     │
+│                   frame buffer (always on)   tool registry│
+│                            │                   (19 tools) │
+│                            └─► multimodal ◀────────┘      │
 │                                                            │
-│  音量控制 / 应用启动 / 时区 / 壁纸  ← 均由本机代码执行        │
+│  volume / app launch / timezone / wallpaper ← all local     │
 └──────────────────────────────────────────────────────────┘
                             │
                             ▼
               Azure Voice Live / Azure OpenAI Realtime
 ```
 
-- 三个后端共享同一套音频管线与工具编排代码（[src/agent_core.py](src/agent_core.py)）
-- 同步工具经 `asyncio.to_thread` 执行，不阻塞音频事件循环
-- 一轮内多个 function call 用 `asyncio.gather` 并发执行
-- `VoiceLiveFoundryAgent` 继承 `VoiceLiveAgent`，只覆写连接参数
+- All three backends share one audio pipeline and one tool orchestration layer ([src/agent_core.py](src/agent_core.py))
+- Synchronous tools run via `asyncio.to_thread` so the audio event loop is never blocked
+- Multiple function calls in one turn execute concurrently via `asyncio.gather`
+- `VoiceLiveFoundryAgent` extends `VoiceLiveAgent`, overriding only the connection parameters
 
-详细调用链见 [docs/architecture.png](docs/architecture.png) 与 [docs/sequence.png](docs/sequence.png)。
+See [docs/architecture.png](docs/architecture.png) and [docs/sequence.png](docs/sequence.png) for the full call chain.
 
 ---
 
-## 四、工程要点
+## 4. Engineering Notes
 
-### 4.1 回声与打断
+### 4.1 Echo and barge-in
 
-远程桌面、外放扬声器场景下，麦克风会拾取到助手自己的声音，导致"自己打断自己"。本项目采用两层防护：
+Over remote desktop or with open speakers, the microphone picks up the assistant's own voice and it interrupts itself. Two layers of defense:
 
-**服务端 Live-Reference AEC**（Voice Live 官方方案，API 版本 `2026-07-15+`）
+**Server-side Live-Reference AEC** (official Voice Live feature, API version `2026-07-15+`)
 
-默认情况下服务端用它自己发出的音频作为回声参考，并**假设客户端收到即播放**。远程桌面下播放延迟常超过 2 秒，该假设失效。Live-Reference AEC 改由客户端上报**实际播放的音频**：
+By default the service uses its own outbound audio as the echo reference and **assumes the client plays it the moment it arrives**. Over remote desktop, playback often lags by more than two seconds and that assumption breaks. Live-Reference AEC makes the client report **what it actually played**:
 
 ```python
 AudioEchoCancellation(type="server_echo_cancellation",
                       reference_source="client", channels=2)
 ```
 
-音频以双声道交错上行：channel 0 为麦克风，channel 1 为播放参考。启用后客户端不再静音上行，抢话完全交由服务端判定。
+Audio is uploaded as interleaved stereo: channel 0 is the microphone, channel 1 is the playback reference. With this enabled the client stops muting its uplink and lets the service decide what is a real interruption.
 
-可通过 `AUDIO_LIVE_REFERENCE_AEC=false` 回退到客户端门限方案。
+Set `AUDIO_LIVE_REFERENCE_AEC=false` to fall back to the client-side gate.
 
-**客户端 barge-in 状态机**（回退方案）
+**Client-side barge-in state machine** (fallback)
 
-单帧电平判断会被音频尖峰误触发。实现采用连续帧确认 + 迟滞释放 + 预缓冲补发：
+Single-frame level checks fire on any audio spike. The implementation uses consecutive-frame confirmation, hysteresis release, and prebuffer replay:
 
-| 参数 | 值 | 作用 |
+| Parameter | Value | Purpose |
 |---|---|---|
-| 连续确认帧数 | 3 | 避免单帧尖峰误判为抢话 |
-| 释放帧数 | 6 | 说话中途停顿不会被判定为结束 |
-| 迟滞系数 | 0.65 | 防止在门限附近反复进出 |
-| 预缓冲帧数 | 4 | 确认期被静音的字头补发，避免吞字 |
+| Confirmation frames | 3 | A single spike is not an interruption |
+| Release frames | 6 | A pause mid-sentence is not the end of a turn |
+| Hysteresis ratio | 0.65 | Prevents oscillation around the threshold |
+| Prebuffer frames | 4 | Replays frames muted during confirmation so the leading syllable survives |
 
-### 4.2 摄像头
+### 4.2 Camera
 
-- 常开实时流，后台线程持续抓帧；识别工具直接取当前帧，用户举起物品即可提问，无需重新打开设备
-- 后端按实测可用性排序（DirectShow 优先，Media Foundation 次之），并记住上次成功的组合
-- 打开失败自动重试一次——设备刚被释放时会短暂不可用
+- Always-on stream with a background capture thread; the recognition tool reads the current frame, so the user can just hold something up and ask
+- Backends ordered by measured availability (DirectShow first, Media Foundation second), and the last working combination is remembered
+- One automatic retry on open failure — a just-released device is briefly unavailable
 
-### 4.3 音量控制
+### 4.3 Volume control
 
-使用 Core Audio 的 `IAudioEndpointVolume` 而非模拟音量键：能读到精确百分比，不受焦点窗口影响。工具在线程池执行，**每次调用自行初始化 COM 套间**（`CoInitialize` / `CoUninitialize`），并兼容新旧两版 pycaw 的接口差异。
+Uses Core Audio's `IAudioEndpointVolume` rather than simulating volume keys: it reads an exact percentage and is unaffected by window focus. The tool runs in a thread pool, so **it initializes its own COM apartment** (`CoInitialize` / `CoUninitialize`) on every call and handles the interface differences between pycaw versions.
 
-相对调节（"声音大一点"）由模型先查询当前值再换算目标百分比，提示词中已约定该流程。
+Relative adjustments ("a bit louder") are handled by the model querying the current value first, a flow the system prompt makes explicit.
 
-### 4.4 转写模型
+### 4.4 Transcription model
 
-Agent 模式使用 `mai-transcribe`。Agent 走文本推理，**转写质量直接决定意图判断**，中文识别错误会导致完全错误的工具调用。
+Agent mode uses `mai-transcribe`. Agent mode reasons over text, so **transcription quality directly determines intent**; a Chinese mis-transcription produces an entirely wrong tool call.
 
 ---
 
-## 五、环境要求
+## 5. Requirements
 
-- Windows 10/11（音量、壁纸、时区、应用启动依赖 Win32 / PowerShell / Core Audio）
+- Windows 10/11 (volume, wallpaper, timezone, and app launching depend on Win32 / PowerShell / Core Audio)
 - Python 3.10+
-- 麦克风与扬声器（演示建议佩戴耳机，物理断开回声通路）
-- Azure AI Foundry 资源（Voice Live 无需单独部署模型）
-- 账号需要 `Cognitive Services User` 与 `Foundry User` 角色
+- Microphone and speaker (headphones recommended for demos — they physically break the echo loop)
+- An Azure AI Foundry resource (Voice Live needs no model deployment)
+- The account needs the `Cognitive Services User` and `Foundry User` roles
 
 ---
 
-## 六、安装
+## 6. Setup
 
 ```powershell
 git clone <this-repo>
@@ -233,7 +244,7 @@ py -3 -m venv .venv
 copy .env.example .env
 ```
 
-编辑 `.env` 填入 Foundry endpoint。推荐 Entra 认证（`AZURE_VOICELIVE_API_KEY` 留空），并为本项目单独隔离 Azure CLI 配置目录：
+Edit `.env` and fill in your Foundry endpoint. Entra authentication is recommended (leave `AZURE_VOICELIVE_API_KEY` empty). Isolate the Azure CLI config directory for this project:
 
 ```powershell
 $env:AZURE_CONFIG_DIR = "$HOME\.azure-voice-live-agent"
@@ -242,11 +253,11 @@ az account set --subscription <your-subscription-id>
 az account show -o table
 ```
 
-> **Foundry Agent 模式必须使用 Entra**，服务端拒绝 API Key。若只用 `voicelive` / `realtime` 模式，可使用 Key。
+> **Foundry Agent mode requires Entra.** The service rejects API keys. The `voicelive` and `realtime` modes accept keys.
 
-### 使用 Foundry Agent 模式（可选）
+### Optional: Foundry Agent mode
 
-需先在 Foundry 项目下创建 Agent，把 instructions 和工具定义写入 Agent，然后配置：
+Create an Agent in your Foundry project with the instructions and tool definitions, then configure:
 
 ```ini
 AZURE_VOICELIVE_AGENT_NAME=<agent-name>
@@ -254,141 +265,141 @@ AZURE_VOICELIVE_PROJECT_NAME=<project-name>
 AZURE_VOICELIVE_AGENT_VERSION=<version>
 ```
 
-创建 Agent 的 REST 端点（`api-version=2025-11-15-preview`）：
+REST endpoints for Agent creation (`api-version=2025-11-15-preview`):
 
 ```
-POST {project_endpoint}/agents                     # 新建
-POST {project_endpoint}/agents/{name}/versions     # 已存在时追加版本
+POST {project_endpoint}/agents                     # create
+POST {project_endpoint}/agents/{name}/versions     # add a version to an existing agent
 ```
 
-`definition.model` **必须是文本模型**（如 `gpt-4.1`、`gpt-5` 系列）。配置多模态实时模型会导致响应为空且不报错。
+`definition.model` **must be a text model** (for example `gpt-4.1` or a `gpt-5` variant). Configuring a multimodal realtime model produces an empty response with no error.
 
-**本机新增工具后必须同步创建 Agent 新版本**，否则云端仍是旧的工具清单。
+**After adding tools locally you must publish a new Agent version**, otherwise the cloud still holds the old tool list.
 
 ---
 
-## 七、验证
+## 7. Validation
 
-四层验证，逐层加深，任何一层失败都不要往下走：
+Four layers, increasing in depth. Do not proceed past a failing layer:
 
 ```powershell
-# 1. 不联网：会话配置与工具 schema 能否正确序列化
+# 1. Offline: can the session config and tool schemas serialize correctly
 .venv\Scripts\python.exe -m scripts.preflight --mode voicelive --dry-run
 .venv\Scripts\python.exe -m scripts.preflight --mode realtime  --dry-run
 
-# 2. 真实调用外部数据源（天气/股票/新闻/时区/搜索），不需要 Azure 凭据
+# 2. Live external data sources (weather/stocks/news/timezone/search), no Azure credentials needed
 .venv\Scripts\python.exe -m scripts.smoke_tools
 
-# 3. 真实连接语音后端：验证认证、模型、音色、工具 schema 被服务端接受，不开麦
+# 3. Real backend connection: auth, model, voice, and tool schema accepted by the service, mic stays off
 .venv\Scripts\python.exe -m scripts.preflight --mode voicelive
 .venv\Scripts\python.exe -m scripts.preflight --mode realtime
 
-# 4. 加验简报、生图与换壁纸（会真的改桌面）
+# 4. Adds briefing, image generation, and wallpaper (this really changes your desktop)
 .venv\Scripts\python.exe -m scripts.smoke_tools --all
 ```
 
-### 已验证项
+### Verified
 
-| 环节 | 状态 | 证据 |
+| Item | Status | Evidence |
 |---|---|---|
-| 工具注册与 schema 序列化 | ✅ | 三个后端均输出 19 个工具 |
-| Voice Live 端到端语音 | ✅ | 真实中英文对话，STT/TTS 双向通 |
-| Voice Live 三种 pattern | ✅ | (a)(b)(c) 均 `COMPLETED` 且触发 `function_call` |
-| Foundry Agent 模式 | ✅ | `COMPLETED`，22 个音频块，触发 `function_call` |
-| Agent 工具同步 | ✅ | v3 含 19 工具，「把音量调到 30」触发 `set_system_volume` |
-| Azure OpenAI Realtime | ✅ | `wss://…/openai/v1/realtime` GA 格式 |
-| 系统音量控制 | ✅ | 100%→30%→55%→静音→恢复，10 项断言全通过 |
-| 应用启动 / 显示桌面 | ✅ | 进程实际启动，非法应用名正确报错 |
-| 天气 / 股票 / 新闻 / 时区 | ✅ | 返回真实实时数据 |
-| 邮件投递 | ✅ | HTTP 202 + 收件箱实际收到 |
-| 摄像头实时流 | ✅ | 连续帧亮度变化，界面同步刷新 |
-| Win32 换壁纸 | ✅ | 注册表 `WallPaper` 与 `WallpaperStyle` 已写入并生效 |
-| 系统时区修改 | ✅ | 系统时钟实际变化，无需提权 |
-| barge-in 状态机 | ✅ | 8 项状态机单元测试全通过 |
-| Live-Reference AEC | ✅ | 交错格式 7 项单测通过；服务端 `session.updated` 无错误 |
-| SSRF / 路径穿越 / 收件人白名单 | ✅ | http、localhost、127.0.0.1、169.254.169.254 均被拒 |
+| Tool registration and schema serialization | ✅ | All three backends emit 19 tools |
+| Voice Live end-to-end speech | ✅ | Real Chinese/English conversation, STT and TTS both working |
+| Voice Live three patterns | ✅ | (a)(b)(c) all `COMPLETED` with a `function_call` |
+| Foundry Agent mode | ✅ | `COMPLETED`, 22 audio chunks, `function_call` triggered |
+| Agent tool sync | ✅ | v3 carries 19 tools; "set volume to 30" triggers `set_system_volume` |
+| Azure OpenAI Realtime | ✅ | `wss://…/openai/v1/realtime` GA format |
+| System volume control | ✅ | 100%→30%→55%→mute→restored, 10 assertions passed |
+| App launch / show desktop | ✅ | Processes actually start; invalid app names raise correctly |
+| Weather / stocks / news / timezone | ✅ | Live data returned |
+| Email delivery | ✅ | HTTP 202 plus actual inbox receipt |
+| Camera live stream | ✅ | Frame brightness changes across frames, UI mirrors it |
+| Win32 wallpaper | ✅ | Registry `WallPaper` and `WallpaperStyle` written and applied |
+| System timezone change | ✅ | System clock actually changes, no elevation needed |
+| barge-in state machine | ✅ | 8 state-machine unit assertions passed |
+| Live-Reference AEC | ✅ | 7 interleaving assertions passed; service returns `session.updated` with no error |
+| SSRF / path traversal / recipient allowlist | ✅ | http, localhost, 127.0.0.1, 169.254.169.254 all rejected |
 
 ---
 
-## 八、运行
+## 8. Running
 
 ```powershell
 .venv\Scripts\python.exe app.py
 ```
 
-界面右上角下拉框切换三种模式。日志写入 `logs\<时间戳>_voiceagent.log`。
+The dropdown in the top-right switches modes. Logs are written to `logs\<timestamp>_voiceagent.log`.
 
-打包为独立 exe：
+Build a standalone exe:
 
 ```powershell
-.venv\Scripts\python.exe -m PyInstaller --noconfirm --clean LenovoVoiceAgent.spec
+.venv\Scripts\python.exe -m PyInstaller --noconfirm --clean VoiceLiveAgent.spec
 ```
 
-产物在 `dist\`，需与 `.env` 放在同一目录。
+Output lands in `dist\` and needs `.env` alongside it.
 
 ---
 
-## 九、演示话术
+## 9. Demo Script
 
-1. 「把音量调到 30」→「现在音量多少」→「静音」→「取消静音」
-2. 「打开计算器」→「显示桌面」
-3. 「北京今天天气怎么样，需要带伞吗」
-4. 「把系统时区改成西雅图」→ 再问「现在几点」
-5. 「打开摄像头」→ 举起物品 →「这是什么」→「哪里有卖」
-6. 「帮我整理一份人工智能的新闻简报」→「发到我邮箱」
-7. 「网上找一张雪山日出的壁纸，换成我的桌面」
+1. "Set the volume to 30" → "What's the volume now?" → "Mute" → "Unmute"
+2. "Open the calculator" → "Show the desktop"
+3. "What's the weather in Beijing, do I need an umbrella?"
+4. "Change the system timezone to Seattle" → then "What time is it now?"
+5. "Open the camera" → hold up an object → "What is this?" → "Where can I buy it?"
+6. "Put together a news briefing on AI" → "Email it to me"
+7. "Find a snowy sunrise wallpaper online and set it as my desktop"
 
-第 5、6、7 条会连续触发多个工具调用，是展示编排能力的重点场景。
-演示架构取舍时，可在同一句话下切换三种模式，直观对比延迟与音色差异。
+Items 5, 6, and 7 chain multiple tool calls and are the strongest orchestration moments.
+To discuss architecture trade-offs, switch modes on the same sentence and let the audience hear the latency and voice differences.
 
 ---
 
-## 十、配置说明
+## 10. Configuration
 
-| 变量 | 用途 | 缺失时的行为 |
+| Variable | Purpose | Behavior if missing |
 |---|---|---|
-| `AZURE_VOICELIVE_ENDPOINT` | Voice Live 接入点 | `voicelive` 模式启动即报错 |
-| `AZURE_VOICELIVE_MODEL` | 默认 `gpt-realtime`；改文本模型即切 Cascaded | 使用默认值 |
-| `AZURE_VOICELIVE_VOICE` | 默认中文神经音色；改 `alloy` 即切 Integrated S2S | 使用默认值 |
-| `AZURE_VOICELIVE_API_KEY` | 留空则用 Entra 令牌 | 使用 Entra |
-| `AZURE_VOICELIVE_AGENT_NAME` | Foundry Agent 名 | `voicelive-agent` 模式启动即报错 |
-| `AZURE_VOICELIVE_PROJECT_NAME` | Foundry 项目名 | 同上 |
-| `AZURE_VOICELIVE_AGENT_VERSION` | Agent 版本号 | 使用服务端默认 |
-| `AUDIO_LIVE_REFERENCE_AEC` | 默认 `true`；`false` 回退客户端门限 | 启用 |
-| `AUDIO_HALF_DUPLEX` | 客户端回声保护；启用 AEC 时自动关闭 | 启用 |
-| `AZURE_OPENAI_ENDPOINT` | Realtime 后端 + 简报 + 生图 + 图像识别 | 相关功能报错 |
-| `AZURE_OPENAI_CHAT_DEPLOYMENT` | 简报整理与图像识别 | 相关工具返回失败 |
-| `AZURE_OPENAI_IMAGE_DEPLOYMENT` | 壁纸生图 | 生图工具返回失败 |
-| `SMTP_*` | 邮件投递 | 发邮件工具返回失败 |
-| `MAIL_ALLOWED_RECIPIENTS` | 收件人白名单 | **为空则拒绝一切发送** |
-| `NEWS_FEEDS` | RSS 源列表 | 用内置的 Google News + BBC |
-| `WALLPAPER_DIR` | 壁纸落盘目录 | 默认 `artifacts\wallpapers` |
+| `AZURE_VOICELIVE_ENDPOINT` | Voice Live endpoint | `voicelive` mode fails at startup |
+| `AZURE_VOICELIVE_MODEL` | Defaults to `gpt-realtime`; a text model switches to Cascaded | uses default |
+| `AZURE_VOICELIVE_VOICE` | Defaults to a Chinese neural voice; `alloy` switches to Integrated S2S | uses default |
+| `AZURE_VOICELIVE_API_KEY` | Empty means Entra token | uses Entra |
+| `AZURE_VOICELIVE_AGENT_NAME` | Foundry Agent name | `voicelive-agent` fails at startup |
+| `AZURE_VOICELIVE_PROJECT_NAME` | Foundry project name | same as above |
+| `AZURE_VOICELIVE_AGENT_VERSION` | Agent version | service default |
+| `AUDIO_LIVE_REFERENCE_AEC` | Defaults to `true`; `false` falls back to the client gate | enabled |
+| `AUDIO_HALF_DUPLEX` | Client echo guard; auto-disabled when Live-Reference AEC is on | enabled |
+| `AZURE_OPENAI_ENDPOINT` | Realtime backend + briefing + image generation + vision | related features fail |
+| `AZURE_OPENAI_CHAT_DEPLOYMENT` | Briefing and image recognition | those tools return failure |
+| `AZURE_OPENAI_IMAGE_DEPLOYMENT` | Wallpaper generation | that tool returns failure |
+| `SMTP_*` | Email delivery | email tool returns failure |
+| `MAIL_ALLOWED_RECIPIENTS` | Recipient allowlist | **empty rejects all sending** |
+| `NEWS_FEEDS` | RSS source list | falls back to Google News + BBC |
+| `WALLPAPER_DIR` | Wallpaper output directory | defaults to `artifacts\wallpapers` |
 
 ---
 
-## 十一、安全边界
+## 11. Security Boundaries
 
-- 邮件收件人必须命中 `MAIL_ALLOWED_RECIPIENTS` 白名单，防止语音指令被诱导发往任意地址
-- 收件人与主题拒绝含换行符，阻断邮件头注入
-- 换壁纸只接受 `WALLPAPER_DIR` 目录内的文件，路径解析后校验，阻断路径穿越
-- 图片下载强制 https，拒绝内网地址与云元数据端点（`localhost`、`127.0.0.1`、`169.254.169.254`）
-- 应用启动限定在固定白名单内，不接受任意可执行文件路径
-- 音量参数在服务端夹紧到 0–100，越界值不会抛错也不会溢出
-- 所有凭据从 `.env` 读取，`.env` 与令牌缓存均不入库
-
----
-
-## 十二、已知限制
-
-- 摄像头识物依赖多模态模型部署；实时语音模型不适合稳定的画面理解，视觉分析须单独指向支持图像输入的部署
-- Foundry Agent 模式不支持 API Key、不支持运行时下发工具、不能挂多模态实时模型
-- `alloy` 等模型原生音色中文表现不佳，中文商用场景建议使用 Azure 神经音色
-- 远程桌面下摄像头依赖客户端勾选「视频捕获设备」重定向
-- 音量控制依赖 `pycaw` + `comtypes`，仅 Windows 可用
-- 图像生成需要 Foundry 资源中存在图像模型部署
+- Email recipients must match `MAIL_ALLOWED_RECIPIENTS`, so a voice command cannot be coaxed into mailing an arbitrary address
+- Recipients and subjects reject newline characters, blocking header injection
+- Wallpaper changes accept only files inside `WALLPAPER_DIR`, validated after path resolution, blocking traversal
+- Image downloads require https and reject internal addresses and cloud metadata endpoints (`localhost`, `127.0.0.1`, `169.254.169.254`)
+- App launching is restricted to a fixed allowlist; arbitrary executable paths are not accepted
+- Volume values are clamped to 0–100 server-side; out-of-range input neither throws nor overflows
+- All credentials come from `.env`; neither `.env` nor the token cache is committed
 
 ---
 
-## 许可
+## 12. Known Limitations
+
+- Camera recognition needs a multimodal deployment; realtime speech models are unreliable for scene understanding, so vision must point at an image-capable deployment
+- Foundry Agent mode rejects API keys, rejects runtime tool configuration, and cannot host multimodal realtime models
+- Model-native voices such as `alloy` are weak in Mandarin; use Azure neural voices for Chinese production scenarios
+- Over remote desktop the camera requires the client to enable video capture redirection
+- Volume control depends on `pycaw` + `comtypes` and is Windows-only
+- Image generation requires an image model deployment in the Foundry resource
+
+---
+
+## License
 
 MIT

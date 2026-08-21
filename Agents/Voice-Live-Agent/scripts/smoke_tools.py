@@ -22,7 +22,7 @@ FREE_CASES: list[tuple[str, dict]] = [
     ("get_weather", {"location": "北京"}),
     ("get_stock_quote", {"symbol": "微软"}),
     ("get_news_headlines", {"limit": 3}),
-    ("web_search", {"query": "Lenovo AI PC", "max_results": 3}),
+    ("web_search", {"query": "Azure Voice Live API", "max_results": 3}),
     ("search_wallpaper_image", {"query": "snow mountain sunrise"}),
 ]
 

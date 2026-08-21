@@ -58,7 +58,7 @@ async def fetch_headlines(topic: str | None = None, limit: int = 8) -> list[dict
     async with httpx.AsyncClient(timeout=_TIMEOUT, follow_redirects=True) as client:
         for url in urls:
             try:
-                resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0 (compatible; LenovoVoiceAgent/1.0)"})
+                resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0 (compatible; VoiceLiveAgent/1.0)"})
                 resp.raise_for_status()
                 root = ElementTree.fromstring(resp.content)
             except (httpx.HTTPError, ElementTree.ParseError) as exc:
@@ -90,7 +90,7 @@ async def fetch_headlines(topic: str | None = None, limit: int = 8) -> list[dict
     parameters={
         "type": "object",
         "properties": {
-            "topic": {"type": "string", "description": "新闻主题关键词，例如 人工智能、联想。留空表示综合头条。"},
+            "topic": {"type": "string", "description": "新闻主题关键词，例如 人工智能、半导体。留空表示综合头条。"},
             "limit": {"type": "integer", "description": "返回条数，默认 8，最多 20"},
         },
         "required": [],

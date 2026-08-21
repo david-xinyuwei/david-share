@@ -12,9 +12,14 @@ from dotenv import load_dotenv
 # .env / logs / token 缓存必须落在 exe 所在目录，否则读不到配置且每次都要重新登录。
 if getattr(sys, "frozen", False):
     _PROJECT_ROOT = Path(sys.executable).resolve().parent
+    # 随 exe 一起打包的默认配置，让单个 exe 免带 .env 即可运行
+    _bundled_env = Path(getattr(sys, "_MEIPASS", "")) / ".env"
+    if _bundled_env.is_file():
+        load_dotenv(_bundled_env, override=True)
 else:
     _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
+# exe 同目录的 .env 后加载，因此始终可以覆盖内嵌配置
 load_dotenv(_PROJECT_ROOT / ".env", override=True)
 
 

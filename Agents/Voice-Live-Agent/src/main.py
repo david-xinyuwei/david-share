@@ -1,4 +1,4 @@
-"""联想桌面语音助手入口。
+"""Voice Live Agent 入口。
 
 两种语音后端：
     --mode voicelive   Azure AI Foundry Voice Live（托管 speech-to-speech，带 Azure 语音增强）
@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="联想桌面语音助手")
+    parser = argparse.ArgumentParser(description="Voice Live Agent")
     parser.add_argument(
         "--mode",
         choices=["voicelive", "realtime"],

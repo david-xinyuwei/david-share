@@ -1,6 +1,6 @@
-"""联想桌面语音助手 — 本地 GUI。
+"""Voice Live Agent — 本地 GUI。
 
-双击 run.cmd 或 LenovoVoiceAgent.exe 启动。
+双击 run.cmd 或 VoiceLiveAgent.exe 启动。
 UI 在主线程，语音会话在后台线程跑 asyncio，两者通过队列通信（tkinter 非线程安全）。
 """
 
@@ -48,7 +48,7 @@ FG_MAIN = "#2f3345"
 FG_DIM = "#8b91a8"
 ACCENT = "#6c5ce7"
 ACCENT_SOFT = "#c9c2ff"
-LENOVO_RED = "#e2231a"
+BRAND_RED = "#e2231a"
 GREEN = "#16a34a"
 GREEN_SOFT = "#86efac"
 YELLOW = "#e08c00"
@@ -62,13 +62,15 @@ STAGE_HEIGHT = 132
 ROBOT_ZONE = 210
 EYE_IDLE = "#b6aeff"
 
+ASSISTANT_NAME = "Aria"
+
 STATES = {
     "idle": ("待命中", FG_DIM),
     "connecting": ("连接中", YELLOW),
     "ready": ("我在听", ACCENT),
     "listening": ("你在说", GREEN),
     "thinking": ("思考中", YELLOW),
-    "speaking": ("小联在说", ACCENT),
+    "speaking": (f"{ASSISTANT_NAME} 在说", ACCENT),
 }
 
 
@@ -131,21 +133,26 @@ class VoiceAgentApp:
         self.root.after(40, self._animate)
 
     def _announce_config(self) -> None:
-        env_path = config.PROJECT_ROOT / ".env"
-        if not env_path.exists():
+        # 配置可能来自 exe 内嵌的 .env，因此判据是「关键项有没有值」，不是「文件在不在」
+        if not config.get("AZURE_VOICELIVE_ENDPOINT"):
             self.events.put(
-                ("error", f"未找到配置文件 {env_path}\n请把 .env 放在本程序所在目录后重新启动", {})
+                (
+                    "error",
+                    f"未找到可用配置。请把 .env 放在 {config.PROJECT_ROOT} 后重新启动",
+                    {},
+                )
             )
             return
+        source = "外部 .env" if (config.PROJECT_ROOT / ".env").exists() else "内嵌配置"
         self.events.put(
-            ("status", f"配置已加载 · {len(tools.registered_names())} 个工具就绪", {})
+            ("status", f"配置已加载（{source}）· {len(tools.registered_names())} 个工具就绪", {})
         )
 
     # ---------- UI ----------
 
     def _build_ui(self) -> None:
         self.root = tk.Tk()
-        self.root.title("联想桌面语音助手")
+        self.root.title("Voice Live Agent")
         self.root.geometry("1120x700")
         self.root.minsize(900, 560)
         self.root.configure(bg=BG_APP)
@@ -192,12 +199,12 @@ class VoiceAgentApp:
 
         left = tk.Frame(header, bg=BG_APP)
         left.pack(side="left")
-        tk.Frame(left, bg=LENOVO_RED, width=4, height=38).pack(side="left", padx=(0, 12))
+        tk.Frame(left, bg=BRAND_RED, width=4, height=38).pack(side="left", padx=(0, 12))
 
         titles = tk.Frame(left, bg=BG_APP)
         titles.pack(side="left")
         tk.Label(
-            titles, text="联想桌面语音助手", bg=BG_APP, fg=FG_MAIN, font=(FONT_UI, 15, "bold")
+            titles, text="Voice Live Agent", bg=BG_APP, fg=FG_MAIN, font=(FONT_UI, 15, "bold")
         ).pack(anchor="w")
         tk.Label(
             titles, text="Azure Voice Live · GPT Realtime · Function Calling",
@@ -441,7 +448,7 @@ class VoiceAgentApp:
                              4, fill=eye_color, outline="")
 
         # \u54c1\u724c\u7ea2\u80f8\u7ae0
-        c.create_rectangle(cx - 2, cy + r + 14, cx + 2, cy + r + 24, fill=LENOVO_RED, outline="")
+        c.create_rectangle(cx - 2, cy + r + 14, cx + 2, cy + r + 24, fill=BRAND_RED, outline="")
 
     def _draw_wave(self, x0: float, level: float, color: str, soft: str) -> None:
         width = self.wave.winfo_width()
@@ -501,7 +508,7 @@ class VoiceAgentApp:
     def _say(self, who: str, text: str) -> None:
         self.chat.configure(state="normal")
         if who in ("user", "assistant"):
-            label = "你" if who == "user" else "小联"
+            label = "你" if who == "user" else ASSISTANT_NAME
             self.chat.insert("end", f"{label}\n", f"{who}_label")
             self.chat.insert("end", f"  {text}  \n", f"{who}_body")
         else:
@@ -541,7 +548,7 @@ class VoiceAgentApp:
         self._typing = True
         text = self._type_queue.pop(0)
         self.chat.configure(state="normal")
-        self.chat.insert("end", "小联\n", "assistant_label")
+        self.chat.insert("end", f"{ASSISTANT_NAME}\n", "assistant_label")
         self.chat.insert("end", "  ", "assistant_body")
         self.chat.configure(state="disabled")
         self._type_step(text, 0)
