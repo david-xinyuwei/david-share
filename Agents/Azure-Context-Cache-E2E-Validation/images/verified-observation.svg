@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
-  <title id="title">Sanitized single-run Azure Context Cache observation</title>
-  <desc id="desc">After warm-up, 11520 of 13037 input tokens were reported as cache reads, which is 88.4 percent. The first call took 5820 ms and the warm calls averaged 3642.4 ms, a reduction of 2177.6 ms or 37.4 percent. One bounded run, not a benchmark.</desc>
+  <title id="title">Sanitized non-attributed prompt-cache observation</title>
+  <desc id="desc">After warm-up, 11520 of 13037 input tokens were reported as cache reads, which is 88.4 percent. The first call took 5820 ms and the warm calls averaged 3642.4 ms, a reduction of 2177.6 ms or 37.4 percent. Both default prompt caching and Azure Context Cache were active, so these values cannot be attributed to Context Cache.</desc>
   <rect width="1600" height="900" fill="#f7f9fb"/>
-  <text x="800" y="76" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="42" font-weight="700" fill="#101828">Sanitized Single-Run Observation</text>
+  <text x="800" y="76" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="42" font-weight="700" fill="#101828">Non-Attributed Single-Run Observation</text>
   <text x="800" y="124" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="24" fill="#475467">Recomputed from the six checked-in calls of the official Responses API demo</text>
 
   <line x1="800" y1="170" x2="800" y2="700" stroke="#d0d5dd" stroke-width="2"/>
@@ -31,6 +31,6 @@
   <text x="1200" y="690" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="24" font-weight="600" fill="#107c41">lower by 2,177.6 ms (37.4%)</text>
 
   <rect x="200" y="752" width="1200" height="84" rx="10" fill="#fff8e6" stroke="#f0c36d" stroke-width="2"/>
-  <text x="800" y="784" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="21" font-weight="600" fill="#7a4f01">One bounded run in one approved subscription</text>
-  <text x="800" y="814" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="19" fill="#7a4f01">Not a production latency, savings, or concurrency benchmark</text>
+  <text x="800" y="784" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="21" font-weight="600" fill="#7a4f01">Default prompt caching and Azure Context Cache were both active</text>
+  <text x="800" y="814" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="19" fill="#7a4f01">Not evidence of incremental Context Cache hit rate, latency, or savings</text>
 </svg>

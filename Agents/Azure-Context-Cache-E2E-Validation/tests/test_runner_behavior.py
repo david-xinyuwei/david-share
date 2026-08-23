@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -15,6 +16,25 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 RUNNER = ROOT / "scripts" / "run_official_e2e.ps1"
 SUBSCRIPTION_ID = "11111111-1111-" + "4111-8111-" + "111111111111"
+
+_ANSI = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def runner_message(completed: subprocess.CompletedProcess[str]) -> str:
+    """Flatten runner output so message assertions survive PowerShell formatting.
+
+    PowerShell renders a terminating error inside a bordered "Line |" block. That
+    block adds ANSI colour codes, hard-wraps the message at the console width, and
+    prefixes each continuation row with a "|" gutter. A single sentence can therefore
+    arrive as "Complete preview | onboarding first.", which defeats a plain substring
+    assertion even though the runner behaved correctly.
+
+    Remove the colour codes, drop the gutter characters, and collapse whitespace so
+    the assertions test the runner's message rather than the terminal geometry.
+    """
+    combined = _ANSI.sub("", completed.stderr + completed.stdout)
+    without_gutter = combined.replace("|", " ")
+    return re.sub(r"\s+", " ", without_gutter)
 
 
 FAKE_AZ = r'''from __future__ import annotations
@@ -102,6 +122,12 @@ class RunnerBehaviorTests(unittest.TestCase):
                 "PATH": f"{self.bin}{os.pathsep}{environment['PATH']}",
             }
         )
+        # The class-level skipUnless already established that THIS interpreter is
+        # CPython 3.11 on AMD64, which is what the runner's runtime guard requires.
+        # Pass it explicitly: the runner defaults to resolving "python" from PATH,
+        # and on a host whose PATH python is a different version or architecture
+        # (for example CPython 3.13 on ARM64) every behavior test would fail on the
+        # runtime guard rather than on the behavior under test.
         return subprocess.run(
             [
                 self.pwsh,
@@ -118,6 +144,8 @@ class RunnerBehaviorTests(unittest.TestCase):
                 "cache123",
                 "-Workspace",
                 str(self.workspace),
+                "-PythonExecutable",
+                sys.executable,
                 *extra,
                 "-WhatIf",
             ],
@@ -157,13 +185,13 @@ class RunnerBehaviorTests(unittest.TestCase):
         completed = self.run_runner(resource_group_exists=True)
 
         self.assertNotEqual(completed.returncode, 0)
-        self.assertIn("new unique resource group", completed.stderr + completed.stdout)
+        self.assertIn("new unique resource group", runner_message(completed))
 
     def test_unregistered_provider_is_rejected(self) -> None:
         completed = self.run_runner(provider_state="NotRegistered")
 
         self.assertNotEqual(completed.returncode, 0)
-        self.assertIn("Registered", completed.stderr + completed.stdout)
+        self.assertIn("Registered", runner_message(completed))
 
     def test_preview_feature_not_registered_is_rejected(self) -> None:
         completed = self.run_runner(feature_state="Pending")
@@ -171,7 +199,7 @@ class RunnerBehaviorTests(unittest.TestCase):
         self.assertNotEqual(completed.returncode, 0)
         self.assertIn(
             "Complete preview onboarding first",
-            completed.stderr + completed.stdout,
+            runner_message(completed),
         )
 
     def test_resource_group_trailing_period_is_rejected(self) -> None:
@@ -196,7 +224,7 @@ class RunnerBehaviorTests(unittest.TestCase):
 
         self.assertNotEqual(completed.returncode, 0)
         self.assertLess(elapsed, 10)
-        self.assertIn("exceeded 1 seconds", completed.stderr + completed.stdout)
+        self.assertIn("exceeded 1 seconds", runner_message(completed))
 
     def test_concurrent_profile_use_is_rejected(self) -> None:
         environment = os.environ.copy()
@@ -227,6 +255,10 @@ class RunnerBehaviorTests(unittest.TestCase):
             "cache123",
             "-Workspace",
             str(self.workspace),
+            # Same reason as run_runner: pin the interpreter the skipUnless already
+            # validated, instead of whatever "python" PATH happens to resolve to.
+            "-PythonExecutable",
+            sys.executable,
             "-WhatIf",
         ]
         first = subprocess.Popen(
@@ -257,7 +289,7 @@ class RunnerBehaviorTests(unittest.TestCase):
             self.assertNotEqual(second.returncode, 0)
             self.assertIn(
                 "already using this AZURE_CONFIG_DIR",
-                second.stderr + second.stdout,
+                runner_message(second),
             )
             stdout, stderr = first.communicate(timeout=15)
             self.assertEqual(first.returncode, 0, stderr + stdout)
@@ -281,7 +313,7 @@ class RunnerBehaviorTests(unittest.TestCase):
         completed = self.run_runner()
 
         self.assertNotEqual(completed.returncode, 0)
-        self.assertIn("reparse point", completed.stderr + completed.stdout)
+        self.assertIn("reparse point", runner_message(completed))
         self.assertFalse(self.log.exists())
 
     def test_object_source_junction_is_allowed_in_whatif(self) -> None:

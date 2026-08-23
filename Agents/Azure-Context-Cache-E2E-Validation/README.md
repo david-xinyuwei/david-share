@@ -10,17 +10,17 @@
 
 Evaluate explicit context caching for Azure OpenAI applications that repeatedly send the same long instructions, tool definitions, examples, or reference content.
 
-**Proven here:** the pinned official Quickstart deployed successfully, and a cache-linked Azure OpenAI deployment returned real cached tokens against a live Azure data plane in one approved subscription.
-**Not proven here:** production readiness, a latency or cost guarantee, or how much of the observed hit rate is incremental over the model's own default prompt caching.
+**If you read one paragraph, read this one.** Context Cache is a **governance and ownership** feature, not a faster cache. It gives you a named Azure resource in your own subscription, region, and RBAC boundary, with a lifetime you declare. This repository verified all of that against a real Azure control plane. It also ran a controlled cross-day experiment to test whether the container's 7-day lifetime delivers cache reuse that the model's own default prompt caching cannot — and **in this environment it did not**. If your reason for adopting Context Cache is a higher hit rate, lower cost, or lower latency than default prompt caching, this repository does not support that reason, and you should measure it in your own environment before committing.
 
 ## Decision Summary
 
 | Customer question | Current answer |
 |---|---|
-| Is this worth evaluating? | Yes, when the application repeatedly sends a long, stable prefix and needs explicit control over cache lifetime, resource ownership, and governance boundaries |
-| What was observed? | All six official Demo calls completed; after the first call, `5/5` requests hit with `2304` cached tokens reported on each call |
-| What cannot be promised yet? | This result is not a production SLA or guaranteed cost saving. The official run enabled both the model's default prompt caching and Azure Context Cache, so it cannot isolate each cache's contribution |
-| What should the customer do next? | After confirming Preview onboarding, permissions, quota, and regional support, run the same validation with representative prompts in the customer-owned Azure environment |
+| What is the defensible reason to adopt this? | Governance: a named, auditable, RBAC-scoped cache resource in your subscription and region, with a lifetime you declare. Verified here by ARM reads |
+| Does it cache better than the free default prompt caching? | **Not established, and one decisive test pointed the other way.** After a sealed `43.83`-hour idle window, the bound deployment cold-missed (`cached_tokens=0`) while an unbound deployment hit `3.2` s later. See [Cross-Day Reuse: The Decisive Test](#cross-day-reuse-the-decisive-test) |
+| Is it faster than default prompt caching? | **No supportable claim.** Hit-vs-hit latency differed by `170 ms`, smaller than either arm's own standard deviation, and the sign flipped between phases |
+| Is separate-deployment isolation safe to assume? | **No.** Prefix cache state was observed being reused bidirectionally between two deployments in the same Azure OpenAI account |
+| What should the customer do next? | Adopt for governance if governance is the requirement. If cross-day reuse is the requirement, reproduce the cross-day test with your own prefix and interval before committing |
 
 ## Workload Fit
 
@@ -33,47 +33,101 @@ Evaluate explicit context caching for Azure OpenAI applications that repeatedly 
 | **LOW PRIORITY** | One-off requests or highly personalized content at the beginning of every prompt | Cache reuse is unlikely |
 | **CONDITIONAL** | A business case requiring an exact savings or throughput commitment | Build a separate customer-data benchmark and current pricing model |
 
-## Observed Result
+## Context Cache-Specific Validation
 
-![Input processing reuse and directional latency across the six official demo calls](images/verified-observation.svg)
+| Validation target | Method | Result | What it establishes |
+|---|---|---|---|
+| Named cache resource | Read back ARM resources | `Microsoft.Storage/contextCaches/<name-prefix>-cache` and `default-container` both reported `Succeeded`; TTL was 7 days | A manageable, auditable explicit-cache resource exists in the customer subscription |
+| Deployment binding | Cross-check ARM output, deployment property, and container resource ID | All three `contextCacheContainerId` values matched exactly | The Azure OpenAI deployment is explicitly linked to the named container |
+| Data-plane path | Call the Responses API while the binding remains present | `6/6` calls completed | The bound official product path operates end to end |
+| Cross-day reuse beyond the default ceiling | Linked-first controlled call after a sealed `43.83` h idle window | **Not observed** — bound deployment returned `cached_tokens=0` | The container's 7-day TTL did not yield a cross-day data-plane hit in this environment |
+| Deployment cache isolation | Compare arms within one Azure OpenAI account | **Not present** — reuse observed in both directions | Separate deployments in one account are not a cache isolation boundary |
+| Incremental hit rate / cost / latency benefit | Controlled comparison against model-default prompt caching | **Not established** | No supportable claim in either direction |
 
-| Signal | Calculation | Observed result | Customer meaning |
-|---|---:|---:|---|
-| Cache hit | Five requests after the first call | `5/5` hit | The deployment-to-container binding served the repeated prefix |
-| Reused input processing | `11,520 / 13,037` warm input tokens | `88.4%` of aggregate input was reported as cached; `85.9%–90.7%` per call | Most repeated input processing moved to cache reads; this is not the same as an 88.4% bill reduction |
-| Latency change | First call `5820 ms`; warm mean `3642.4 ms` | `2177.6 ms` (`37.4%`) lower in this run | Worth further validation; one parallel warm burst is not a performance benchmark or SLA |
-| Input-token cost | `2304` cached tokens on each of five warm calls | `11,520` cached input tokens read in total | Apply current model and region pricing to the customer's hit rate; this repository does not claim a dollar saving |
-| Output behavior | `6/6` Responses API calls | All returned normal model output and usage telemetry | Prompt caching reuses input processing without changing the expected response contract |
+This E2E used an Azure subscription approved for the Private Preview and pinned the official Quickstart to commit `7d1029a5e8b59b1805e70992c85ffe6798d2f47a`. The single-run generic cache telemetry remains in the [public evidence notes](evidence/README.md) for audit only; it is not evidence of incremental Context Cache value.
 
-This E2E used an Azure subscription approved for the Private Preview and pinned the official Quickstart to commit `7d1029a5e8b59b1805e70992c85ffe6798d2f47a`. Two later incomplete runs were rejected rather than converted into passes.
+## Cross-Day Reuse: The Decisive Test
 
-> **Evidence boundary:** this is a single-run capability observation, not a production-readiness, availability, cost-saving, throughput, or latency guarantee. The general Azure OpenAI prompt-caching guidance can differ by model family and API surface; this repository evaluates the Private Preview `Microsoft.Storage/contextCaches` and `contextCacheContainerId` path.
+This is the one question a customer cannot answer from documentation alone, so this repository tested it directly.
+
+**The hypothesis.** Model-default prompt caching is documented to clear within 5–10 minutes of inactivity, always within one hour for in-memory retention, and to top out at a **maximum of 24 hours** with extended retention. The Context Cache container declares `timeToLive = 7` days. If the container genuinely backs a longer reuse window, then after more than 24 idle hours a bound deployment should still hit while an unbound one cannot.
+
+**Why it is hard to test honestly.** A cache test contaminates itself. Whichever arm is called first processes the prefix and can warm shared state for the second. An earlier phase of this work called the unbound arm first, which removed one contamination but destroyed attribution: the unbound arm's own cold miss warmed the prefix, so a later hit on the bound arm proved nothing.
+
+**The controlled design.** Call the **bound** deployment first, as the very first request after a long idle window, and gate the run on machine-checked preconditions.
+
+| Precondition | Verified value |
+|---|---|
+| No inference traffic on the account since the previous phase | Azure Monitor `AzureOpenAIRequests`, hourly buckets: exactly one non-zero bucket, and it is the previous phase |
+| Idle duration exceeds the documented default-cache ceiling | `43.83` h idle versus a `24` h ceiling |
+| Container lifetime still open | `124.17` h remaining of the 7-day TTL, `provisioningState=Succeeded` |
+| Bound arm actually bound | `contextCacheContainerId` present |
+| Control arm actually unbound | `contextCacheContainerId` is `null` |
+| Arms otherwise identical | Both `gpt-5.4` / `2026-03-05-contextcache`, capacity `100`, byte-identical prefix |
+
+The sealing script fails closed: if any precondition is unmet it refuses to run rather than produce a misleading pass.
+
+**The result.**
+
+| Order | Arm | `cached_tokens` | Latency | Reading |
+|---:|---|---:|---:|---|
+| 1st | **bound** to the container | **`0`** | `3182 ms` | Cold start. The 7-day container lifetime did not serve this request |
+| 2nd, `+3.2` s | **unbound** control | **`2304`** | `1678 ms` | Hit, warmed by the bound arm's cold processing moments earlier |
+
+Both calls returned `HTTP 200` with identical `input_tokens=2467` and the same prefix SHA-256.
+
+**What this establishes.** Two findings, both attributable:
+
+1. **The declared 7-day container lifetime did not produce a cross-day cache hit in this environment.** The binding is a verified control-plane fact, but it did not translate into a data-plane cache read after 43.83 idle hours. This falsifies the reuse-window hypothesis for this environment; it is not a defect report, and a Private Preview may change.
+2. **Prefix cache state crosses deployment boundaries within one account, in both directions.** The unbound deployment read `2304` cached tokens from a prefix that only the bound deployment had processed. Combined with the reverse observation in an earlier phase, this means **separate deployments in one Azure OpenAI account must not be assumed to form a cache isolation boundary** — a security- and design-relevant fact that needs no baseline comparison to be valid.
+
+**What this does not establish.** Nothing about the service's internal storage mechanism, and nothing generalizable beyond this account, region, model, prefix, interval, and Preview build. One decisive run in one environment is a bounded observation.
+
+Full method, gates, integrity checks, and raw rows: [`docs/METHOD.md`](docs/METHOD.md#cross-day-attribution-test).
+
+## Is It Faster Than Default Prompt Caching?
+
+No — and the data says so clearly enough that the claim should not be made.
+
+Comparing **hit against hit** (cold and missed calls excluded, so this is a like-for-like comparison of cache reads):
+
+| Arm | n | Mean | Std. dev. |
+|---|---:|---:|---:|
+| Bound to container | 11 | `1877.8 ms` | `365.3 ms` |
+| Unbound control | 11 | `2047.9 ms` | `766.8 ms` |
+
+The `170 ms` gap is **smaller than either arm's own standard deviation**, and its sign **flips** across phases (`−14.9`, `−672.2`, `+230.0` ms). A difference that changes direction and is swamped by its own noise is not an effect.
+
+There is also an architectural reason not to expect one. Official documentation describes extended prompt-cache retention as offloading key/value tensors to **GPU-local storage**, whereas the Context Cache container is a resource under the **`Microsoft.Storage`** provider. A storage tier further from the accelerator would not be expected to return faster.
+
+**What the data does support:** a hit beats a miss. Across all phases, misses averaged `3368.5 ms` and hits `1962.9 ms` — hits were `1405.6 ms` (`41.7%`) faster. The speed benefit comes from **turning a miss into a hit**, not from one cache being intrinsically quicker. Any latency argument must therefore be anchored to a specific moment when one path would miss and the other would hit, and this repository did not find such a moment in the cross-day test.
 
 ## Customer Problem and Business Value
 
-In those requests the stable prefix is re-tokenized and prefilled every time. Azure Context Cache lets you deploy a named, regional cache container in your own subscription and link it to an Azure OpenAI deployment: the first matching request populates the processed prefix, later requests reuse it within the configured lifetime, and the application still sends the full prefix while the deployment performs the lookup. This is **cross-request prompt-processing reuse**, not document storage and not semantic retrieval.
+A long, stable prompt prefix can reduce repeated tokenization and prefill through caching, but that processing reuse is **not unique to Context Cache**. Model-default prompt caching can also return `cached_tokens` and affect latency, input-token cost, and capacity.
 
-| Business value lever | Mechanism stated by the official source | How the customer should validate it |
+The customer decision is therefore not merely whether a cache can hit. It is whether the cache must become an explicit resource that the customer can own, bind, inspect, and govern in their subscription.
+
+| Context Cache-specific capability | What it adds over default prompt caching | How the customer should validate it |
 |---|---|---|
-| Request latency | The cached prefix skips re-tokenization and prefill | Measure latency distributions with the customer's prompt mix and concurrency |
-| Input-token economics | Cache reads are billed at a discounted input-token rate | Combine `cached_tokens`, actual hit rate, and current Azure pricing |
-| Capacity efficiency | Freed prefill compute allows more concurrent requests at the same capacity | Run a controlled throughput test at the target load |
-| Cross-request reuse | A named cache container keeps an eligible processed prefix reusable across calls for its configured lifetime | Verify repeated byte-identical prefixes through the linked deployment and monitor `cached_tokens` |
-| Governance | The named cache resource is deployed in the customer's subscription, region, and RBAC boundary with a configured TTL | Confirm target-region support, access controls, lifecycle, and data requirements |
+| Named Azure resource | A cache account and container exist in the customer's subscription and region | Read back the `Microsoft.Storage/contextCaches` resource and RBAC boundary |
+| Explicit deployment binding | The deployment points to a selected container through `contextCacheContainerId` | Compare the deployment property with the container resource ID |
+| Customer-declared lifetime | The container exposes configurable `timeToLive` | Read back the TTL and test across customer request intervals |
+| Auditable lifecycle operations | The resource can be inspected, re-targeted, rotated, or unlinked | Verify ARM resource and binding-state changes |
 
-> The [pinned official Quickstart](https://github.com/Azure/AzureContextCache/tree/7d1029a5e8b59b1805e70992c85ffe6798d2f47a) lists these as product value levers. This repository proves cache use in one approved environment; it does not quantify them.
+Latency, hit rate, and cost become Context Cache value only after a controlled comparison against model-default prompt caching.
 
 ## What the Benefit Actually Is
 
-### Where the Saving Comes From
+### What Prompt Caching Saves
 
-The application still sends the full prefix on every call. What is avoided is the repeated *processing* of that prefix: the pinned official source states that the provider stores the tokenized, pre-attended representation of a stable prefix and reuses it on later requests that begin with the same content. That is why the levers above are latency, input-token economics, and capacity rather than a reduction in what the client transmits.
+The application still sends the full prefix on every call. Prompt caching can avoid repeated *processing* of that prefix: the pinned official source states that the provider stores the tokenized, pre-attended representation of a stable prefix and reuses it on later requests that begin with the same content.
 
-The official guidance is that the longer and more stable the prefix, the larger the saving. That is the whole economic thesis: a workload whose reusable prefix is short, or whose leading bytes change per request, has little to gain regardless of how the cache is configured.
+That is a generic prompt-caching mechanism, not an incremental Context Cache benefit established by this repository. The official guidance is that the longer and more stable the prefix, the larger the saving. A workload whose reusable prefix is short, or whose leading bytes change per request, has little to gain regardless of how the cache is configured.
 
 ### Why Not Simply Rely on the Default Prompt Cache?
 
-Azure OpenAI already performs [prompt caching](https://learn.microsoft.com/azure/ai-foundry/openai/how-to/prompt-caching) by default on supported models, so the first honest customer question is what a named Context Cache resource adds. The pinned official source answers it in one sentence:
+The [general Azure OpenAI prompt-caching guidance](https://learn.microsoft.com/azure/ai-foundry/openai/how-to/prompt-caching) confirms that supported models cache by default, so the first honest customer question is what a named Context Cache resource adds. The pinned official source answers it in one sentence:
 
 > Unlike implicit (best-effort) caching that some endpoints do opportunistically, explicit caching is contractual: you create a named cache container, you tell the deployment to use it, and your application controls the lifetime.
 
@@ -86,9 +140,9 @@ Azure OpenAI already performs [prompt caching](https://learn.microsoft.com/azure
 | Governance surface | Not an inspectable resource | An ARM resource that can be audited, re-targeted, rotated, or unlinked |
 | Client change required | None | None; only `properties.contextCacheContainerId` on the deployment |
 
-Read that table as a **lifetime-and-control argument, not a hit-rate argument**. For prefixes that repeat continuously, the default cache may already serve the request. The differentiated value of Context Cache appears when the reuse window, residency, and lifecycle must be an owned, inspectable, governable property of the customer's own subscription instead of an opportunistic service behavior.
+Read that table as an **ownership-and-control argument, not a hit-rate argument**. Every row describes who declares and who can inspect the cache, not how well it caches. For prefixes that repeat continuously, the default cache already serves the request. The differentiated value of Context Cache appears when residency, lifetime declaration, and lifecycle must be an owned, inspectable, governable property of the customer's own subscription instead of an opportunistic service behavior.
 
-Published default-cache retention behavior sets the reference points a customer should reason against: in-memory retention is typically cleared within 5 to 10 minutes of inactivity and always released within one hour of last use, while extended retention raises the ceiling to a maximum of 24 hours on the model families that support it. A container lifetime measured in days is therefore a different order of reuse window, and it is stated by the customer rather than inferred from service behavior.
+One row deserves an explicit caution. **A declared lifetime is a configuration property, not a measured guarantee of reuse.** Published default-cache retention behavior is the reference point: in-memory retention is typically cleared within 5 to 10 minutes of inactivity and always released within one hour of last use, while extended retention raises the ceiling to a maximum of 24 hours on the model families that support it. The container's `timeToLive` of 7 days is a longer *declared* window — but this repository's [decisive cross-day test](#cross-day-reuse-the-decisive-test) called the bound deployment first after `43.83` idle hours and got `cached_tokens=0`. So do not read "7 days" as "reuse for 7 days". Read it as "the lifetime you declared on a resource you own", and verify reuse separately in your own environment if reuse across days is what you are buying.
 
 ### How Long Can the Container Lifetime Be?
 
@@ -102,35 +156,45 @@ Three separate facts are easy to collapse into one, so this repository keeps the
 
 So `7` days is a **default, not a ceiling**. Any customer discussion that needs a longer retention window should confirm the accepted range with the product team or establish it with an explicit deployment test, and should not quote `7` days as a product limit.
 
-### The Benefit Model a Customer Can Compute
+### How to Calculate Incremental Context Cache Value in Your Own Environment
 
-This repository does not publish a currency figure, because model, region, deployment type, and traffic shape decide it. It can publish the arithmetic and the variables:
+This repository already ran this comparison and got a negative result: see [Cross-Day Reuse: The Decisive Test](#cross-day-reuse-the-decisive-test). The procedure below is therefore not a template for confirming a benefit — it is the method to reproduce, and potentially refute, that negative result with your own prefix, model, region, and interval. If your measurement disagrees with ours, your measurement governs your decision.
+
+Do not count the `cached_tokens` observed in any single run directly as Context Cache value. Under matched model, version, prompt, call order, and interval conditions, measure a model-default prompt-caching arm and a Context Cache arm, then compare their actual costs:
 
 ```text
-full-price input tokens shifted per hit   = cached_tokens
-monthly cached-token reads                = cached_tokens × hit_rate × monthly_requests
-monthly input-token savings               = monthly_cached_token_reads × (input_rate - discounted_input_rate)
-monthly input-token cost                  = uncached_input_tokens × input_rate
-                                          + cached_token_reads    × discounted_input_rate
+default-cache monthly cost = default_uncached_tokens × input_rate
+                           + default_cached_tokens   × cache_read_rate
+
+Context Cache monthly cost = context_uncached_tokens × input_rate
+                           + context_cached_tokens   × cache_read_rate
+
+incremental Context Cache savings = default-cache monthly cost
+                                  - Context Cache monthly cost
 ```
 
-Substituting the observed run purely as illustrative arithmetic: each warm call reported `2304` cached tokens. A workload issuing `100,000` requests per month against the same prefix and the same hit rate would move on the order of `230` million input tokens per month from full-price processing to discounted cache reads. Convert that with the current published rate for the target model, region, and deployment type. Standard and Provisioned deployment types discount cache reads differently, so the conversion is not a single constant.
+Only a positive result establishes incremental cost value. Apply current pricing for the target model, region, and deployment type. Standard and Provisioned deployment types discount cache reads differently, so the conversion is not a single constant.
 
 | Variable | Why it decides the benefit | How to measure it before committing |
 |---|---|---|
 | Stable prefix length | Below the eligibility floor there is nothing to reuse, and the official guidance ties a larger saving to a longer stable prefix | Tokenize the real system prompt, tool catalog, guardrails, and fixed reference content |
 | Prefix byte stability | A single character change in the leading tokens produces a miss | Diff the assembled prefix across a real production traffic sample, including serialization and ordering |
 | Request interval versus cache lifetime | Decides whether the prefix is still resident when the next matching request arrives | Histogram inter-arrival time **per prefix family**, not the global request rate |
+| Matched comparison conditions | Decide whether the difference can be attributed to Context Cache | Hold model, version, prompt, call order, concurrency, and intervals constant |
+| Call order within each window | The arm called first warms shared state for the second, which silently destroys attribution | Call the **bound** arm first, and treat only the first call of an idle window as uncontaminated |
+| Verified idle window before the test | Without it, a hit may come from the default cache rather than the container | Confirm zero account traffic with Azure Monitor `AzureOpenAIRequests`, and require idle time above the documented 24 h ceiling |
 
 Combining those variables gives the practical decision grid:
 
-| Traffic pattern | What the default prompt cache does | What Context Cache adds |
+| Your traffic pattern | What default prompt caching already gives you, for free | Should you add Context Cache for caching reasons? |
 |---|---|---|
-| Matching prefix arriving continuously, seconds to a few minutes apart | Likely already served | Ownership, residency, an explicit TTL, and an auditable resource |
-| Matching prefix with gaps of tens of minutes to hours | In-memory retention is released after inactivity | A reuse window the customer sets instead of infers |
-| Matching prefix reused daily, weekly, or in scheduled bursts | Beyond the extended-retention ceiling | The strongest incremental case: a container lifetime measured in days |
+| Matching prefix arriving continuously, seconds to a few minutes apart | Already served by in-memory retention | **No.** You would pay for a resource that adds no measured caching benefit. Adopt only if you need governance |
+| Matching prefix with gaps up to one hour | In-memory retention is released after 5–10 minutes of inactivity; set `prompt_cache_retention="24h"` to extend | **No.** One request parameter covers this, at no extra cost and with no extra resource |
+| Matching prefix with gaps between one and 24 hours | Extended retention covers this window on supported model families | **No.** Still a single request parameter |
+| Matching prefix reused daily, weekly, or in scheduled bursts (beyond 24 hours) | Documented to be beyond the extended-retention ceiling | **Measure it yourself first.** This is the only window where a caching argument could exist, and this repository's decisive test did **not** observe the container filling it |
+| You must name the cache resource, pin its region, scope its RBAC, declare its lifetime, or delete it on demand | Not available: the default cache is not an inspectable resource | **Yes.** This is the verified differentiator and it does not depend on any hit-rate claim |
 
-The last two rows are the ones worth measuring with customer traffic. A prefix that never reaches the eligibility floor is a prompt-layout problem first, and is covered under **Workload Fit** below.
+Read this grid as a **selection guide, not a benefit ladder**. Four of the five rows say "no" for caching reasons. That is the honest reading of the measurements, and it is what makes the fifth row credible. A prefix that never reaches the eligibility floor is a prompt-layout problem first, and is covered under **Workload Fit** below.
 
 ## Customer Architecture
 
@@ -139,7 +203,7 @@ The last two rows are the ones worth measuring with customer traffic. A prefix t
 1. The customer application places reusable instructions, tools, examples, and shared references in a stable prefix.
 2. Per-request user tasks and case data are appended as the dynamic suffix.
 3. The application continues to call the Azure OpenAI Responses API; the linked deployment consults the Context Cache container for a matching prefix.
-4. The application observes `cached_tokens`, latency, and request outcomes to validate fit with the customer's traffic.
+4. The application monitors `cached_tokens`, latency, and request outcomes; it attributes incremental value to Context Cache only after a matched comparison with the default-cache baseline.
 
 The Context Cache container is an Azure resource in the customer subscription. The pinned Private Preview Quickstart configures the cache account, model-specific container, TTL, and `contextCacheContainerId` binding.
 
@@ -224,11 +288,11 @@ The official source describes the cached value as the tokenized, pre-attended re
 
 | Step | Where | What happens | What is observable |
 |---:|---|---|---|
-| 1 | Local Quickstart copy | Python reads `system_prompt.md` and one `.diff` file | No Azure cache content exists because the client does not pre-upload anything |
+| 1 | Local Quickstart copy | Python reads `system_prompt.md` and one `.diff` file | The client does not pre-upload the prompt to the Context Cache resource |
 | 2 | Customer application → Azure OpenAI | The stable system prompt is placed first and the changing diff is placed last in one Responses API request | A normal `POST /openai/v1/responses` call |
 | 3 | Cache-linked Azure OpenAI deployment | `contextCacheContainerId` makes the deployment consult `default-container` transparently | The application still calls only Azure OpenAI; there is no separate cache SDK call |
-| 4 | First request: cache miss | Azure OpenAI processes the full request and the service populates the linked container with the reusable processed prefix | Call 1 reported `cached_tokens = 0` |
-| 5 | Later request: cache hit | The byte-identical prefix is reused; the different trailing PR diff is processed for that request | Calls 2–6 each reported `cached_tokens = 2304` |
+| 4 | First-request observation | Azure OpenAI processes the request containing the stable prefix and dynamic suffix | Call 1 reported `cached_tokens = 0`; client telemetry cannot prove which server-side cache layer was populated |
+| 5 | Later-request observation | The byte-identical prefix is sent again with different PR diffs | Calls 2–6 each reported `cached_tokens = 2304`; because default prompt caching was also enabled, these hits cannot be attributed to the named container |
 | 6 | Azure OpenAI → application | The model response and usage telemetry are returned normally | `usage.input_tokens_details.cached_tokens`, output tokens, latency, and status |
 
 The pinned sample uses two different retention controls: the Context Cache container has `timeToLive = 7` days, while each gpt-5.4 request sets `prompt_cache_retention = "24h"`. Both are present in the official sample, but they are not the same setting. This repository verifies their configured values; it does not infer the service's internal tiering from them.
@@ -433,16 +497,21 @@ The checked-in [`validation-history.json`](evidence/validation-history.json) pre
 | `2026-08-19` | `public-wrapper-reference` | 6 | 0 | 4/5 warm hits | **PASS** |
 | `2026-08-19` | `hardened-wrapper-probe-1` | 3 | 3 | Not scored | **REJECTED — INCOMPLETE** |
 | `2026-08-19` | `hardened-wrapper-probe-2` | 2 | 4 | Not scored | **REJECTED — INCOMPLETE** |
+| `2026-08-23` | `cross-day-attribution` | 2 | 0 | Bound arm `cached_tokens=0` after `43.83` h idle | **COMPLETE — HYPOTHESIS FALSIFIED** |
 
 Rejected runs stay in the evidence set. They are neither deleted nor converted into passes. Transport errors occur before a call completes, so no cache score is derived from them.
+
+The final row is a completed run whose result contradicted the hypothesis it was designed to test. It is reported as-is. A controlled test that returns a negative result is evidence, not a failure, and suppressing it would invalidate every other claim in this repository.
 
 ## Evidence Boundary and Validation Method
 
 ### What This Validation Does Not Attribute
 
-The live run proves that the deployment bound to `properties.contextCacheContainerId` served repeated prefixes and reported nonzero `cached_tokens` against a real Azure data plane. Because the request also enabled the model's default prompt caching, it does **not** isolate the incremental hit rate or savings produced by Context Cache.
+The live run proves that a deployment bound to `properties.contextCacheContainerId` completes Responses API calls end to end and that the data plane reports nonzero `cached_tokens` on repeated prefixes. It does **not** attribute those cached tokens to Context Cache: the same requests also enabled the model's default prompt caching, so the two mechanisms cannot be separated from that run alone.
 
-The defensible differentiators remain explicit lifetime, residency, and governance. Separate deployments in one Azure OpenAI account must not be assumed to form a cache isolation boundary. See [Attribution Boundary and Comparison Design](docs/METHOD.md#attribution-boundary-and-comparison-design) for the observed cross-deployment reuse and the corrected controlled comparison.
+The controlled cross-day test went further and returned a negative result: after a sealed `43.83`-hour idle window the bound deployment cold-missed. So this repository does not claim an incremental hit rate, cost saving, or latency advantage over default prompt caching — and one decisive measurement points against it in this environment.
+
+The defensible differentiators remain explicit lifetime declaration, residency, ownership, and governance, all verified through ARM reads. Separate deployments in one Azure OpenAI account must not be assumed to form a cache isolation boundary; reuse was observed crossing that boundary in both directions. See [Attribution Boundary and Comparison Design](docs/METHOD.md#attribution-boundary-and-comparison-design).
 
 The method has three independent proof layers:
 

@@ -55,7 +55,7 @@ sanitized derivative, not a replacement for private operational records.
 
 ## Attribution Boundary and Comparison Design
 
-The bounded run proves that the deployment bound to `properties.contextCacheContainerId` served repeated prefixes and reported nonzero `cached_tokens`. It does not isolate how much of that hit rate is incremental over the model's default prompt caching: the official demo sets `prompt_cache_retention` on every request, and the model family supports default caching independently of the Context Cache binding.
+The bounded run proves that a deployment bound to `properties.contextCacheContainerId` completed repeated-prefix requests end to end and that the data plane reported nonzero `cached_tokens`. It does not attribute those cached tokens to the binding: the official demo sets `prompt_cache_retention` on every request, and the model family supports default caching independently of the Context Cache binding.
 
 A private controlled comparison also exposed an ordering confound:
 
@@ -73,15 +73,48 @@ The corrected comparison uses the following design:
 | Arms | One deployment with `contextCacheContainerId` and one deployment in the same account and region without it; model and version are identical |
 | Prompt | The same byte-identical stable prefix and variable suffix set on both arms |
 | Intervals | Inside the in-memory window, past it but inside extended retention, and past extended retention |
-| Call order | At the deciding interval, call the unbound arm first so it is measured before the bound arm can warm the shared prefix |
-| Metrics | Hit rate and `cached_tokens` per arm and interval, repeated enough to separate a real difference from run-to-run variation |
-| Reporting | Publish every interval, including intervals where the two arms are indistinguishable |
+| Call order | Call the **bound** arm first at the deciding interval, so its first request is measured before anything can warm the shared prefix |
+| Metrics | Hit rate and `cached_tokens` per arm and interval |
+| Reporting | Publish every interval, including intervals where the two arms are indistinguishable, and including negative results |
 
-Until that comparison completes past the extended-retention boundary, incremental hit-rate and savings claims remain unproven. The defensible differentiators are explicit lifetime, residency, and governance.
+An earlier iteration of this design called the *unbound* arm first at the deciding interval. That removed the pre-warm contamination but destroyed attribution in the opposite direction: the unbound arm's own cold miss warmed the shared prefix, so a hit on the bound arm moments later had an ambiguous source. **Only the first call of an idle window is uncontaminated, and it must be the arm whose capability is under test.**
+
+## Cross-Day Attribution Test
+
+The deciding interval is the one past the documented extended-retention ceiling. This test was executed on `2026-08-23`.
+
+### Preconditions, machine-verified and fail-closed
+
+| Gate | Verified value |
+|---|---|
+| No inference traffic on the account since the previous phase | Azure Monitor `AzureOpenAIRequests`, hourly buckets: exactly one non-zero bucket, and it is the previous phase itself |
+| Idle duration above the documented default-cache ceiling | `43.83` h idle versus a documented `24` h maximum for extended retention |
+| Container lifetime still open | `124.17` h remaining of the 7-day `timeToLive`; `provisioningState=Succeeded` |
+| Bound arm actually bound | `contextCacheContainerId` present |
+| Control arm actually unbound | `contextCacheContainerId` is `null` |
+| Arms otherwise identical | Both `gpt-5.4` / `2026-03-05-contextcache`, capacity `100`; byte-identical prefix |
+
+The sealing step refuses to proceed if any gate fails, so a contaminated window cannot silently produce a result.
+
+### Observation
+
+| Order | Arm | `cached_tokens` | Latency |
+|---:|---|---:|---:|
+| 1st | bound to container | `0` | `3182 ms` |
+| 2nd, `+3.185` s | unbound control | `2304` | `1678 ms` |
+
+Integrity: single `prefix_sha256`, identical `input_tokens=2467`, both `HTTP 200`, bound arm confirmed first.
+
+### Adjudicated findings
+
+1. **The declared 7-day container lifetime did not produce a cross-day data-plane hit in this environment.** The reuse-window hypothesis is falsified for this environment, interval, model, and Preview build. This is a bounded negative result, not a defect report.
+2. **Prefix cache state crossed the deployment boundary in both directions.** Combined with the earlier reverse observation, separate deployments in one Azure OpenAI account must not be assumed to form a cache isolation boundary.
+3. **No latency claim is supportable.** Hit-versus-hit means were `1877.8 ms` (bound, sd `365.3`, n=11) and `2047.9 ms` (unbound, sd `766.8`, n=11). The `170 ms` gap is smaller than either standard deviation and its sign flips across phases (`−14.9`, `−672.2`, `+230.0` ms). What is supportable is that a hit beats a miss: `1962.9 ms` versus `3368.5 ms`, a `41.7%` reduction.
+
+Incremental hit-rate, cost, and latency claims therefore remain unproven, and one decisive measurement points against the hit-rate hypothesis. The defensible differentiators are explicit lifetime declaration, residency, ownership, and governance — all verified through control-plane reads and none dependent on a cache-hit comparison.
+
+Reproducing this test requires re-establishing an idle window longer than 24 hours on the account. Any inference traffic in between invalidates the precondition.
 
 ## Claim Boundary
 
-The completed path proves that the deployment binding was present and explicit Context Cache served cached tokens in one bounded
-run. It does not prove a latency distribution, pricing outcome, concurrency guarantee,
-regional availability, or production readiness. Effect is reported; server-side mechanism
-is not inferred from client-side timing.
+The completed path proves that the deployment binding was present and that the bound path completed Responses API calls with nonzero cached tokens in one bounded run. It does not prove a latency distribution, pricing outcome, concurrency guarantee, regional availability, or production readiness. The cross-day test additionally establishes a bounded negative result for cross-day reuse in this environment; it does not generalise to other regions, models, prefixes, intervals, or Preview builds. Effect is reported; server-side mechanism is not inferred from client-side timing.

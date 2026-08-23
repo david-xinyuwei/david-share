@@ -128,6 +128,17 @@ def validate_customer_architecture(path: Path) -> None:
         require(marker not in text, f"internal validation architecture leaked: {marker}")
 
 
+def validate_non_attributed_observation(path: Path) -> None:
+    root = ElementTree.parse(path).getroot()
+    text = " ".join(value.strip() for value in root.itertext() if value.strip())
+    for marker in (
+        "Non-Attributed Single-Run Observation",
+        "Default prompt caching and Azure Context Cache were both active",
+        "Not evidence of incremental Context Cache hit rate, latency, or savings",
+    ):
+        require(marker in text, f"observation attribution boundary missing: {marker}")
+
+
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -150,7 +161,6 @@ def main() -> int:
                 "PowerShell-7%2B-5391FE",
                 "AzureContextCache-7d1029a5-247A45",
                 "License-MIT-yellow.svg",
-                "verified-observation.svg",
                 "customer-architecture.svg",
             ],
             "customer README image contract changed",
@@ -166,6 +176,7 @@ def main() -> int:
             validate_svg(image)
         require(len(list((ROOT / "images").glob("*.svg"))) == 2, "expected exactly two SVGs")
         validate_customer_architecture(ROOT / "images" / "customer-architecture.svg")
+        validate_non_attributed_observation(ROOT / "images" / "verified-observation.svg")
 
         lock = load_json("UPSTREAM_LOCK.json")
         require(
@@ -250,9 +261,29 @@ def main() -> int:
             require(manifest_entry["bytes"] == evidence_path.stat().st_size, "evidence byte count mismatch")
             require(manifest_entry["sha256"] == sha256(evidence_path), "evidence hash mismatch")
         require([row["verdict"] for row in history["runs"]] == [
-            "pass", "pass", "rejected-incomplete", "rejected-incomplete"
+            "pass", "pass", "rejected-incomplete", "rejected-incomplete",
+            "complete-hypothesis-falsified",
         ], "validation history verdicts changed")
-        require([row["transportErrors"] for row in history["runs"]] == [0, 0, 3, 4], "validation history transport counts changed")
+        require([row["transportErrors"] for row in history["runs"]] == [0, 0, 3, 4, 0], "validation history transport counts changed")
+
+        # The cross-day attribution run is the only phase that can speak to
+        # incremental Context Cache value, and it returned a negative result.
+        # Pin its decisive numbers so a later edit cannot quietly turn the
+        # falsified hypothesis into a benefit claim.
+        cross_day = history["runs"][-1]
+        require(cross_day["path"] == "cross-day-attribution", "cross-day run path changed")
+        require(
+            cross_day["idleHoursBeforeFirstCall"] > cross_day["documentedDefaultCacheCeilingHours"],
+            "cross-day idle window no longer clears the documented default-cache ceiling",
+        )
+        require(
+            cross_day["observed"]["boundArmFirstCallCachedTokens"] == 0,
+            "cross-day bound-arm result changed",
+        )
+        require(
+            cross_day["observed"]["unboundControlCachedTokens"] > 0,
+            "cross-day cross-deployment reuse observation changed",
+        )
 
         fixture_summary = summarize(
             parse_rows((ROOT / "tests/fixtures/demo-success.txt").read_text(encoding="utf-8"))
@@ -261,7 +292,7 @@ def main() -> int:
         customer_markers = {
             "README.md": (
                 "Customer Problem and Business Value",
-                "cross-request prompt-processing reuse",
+                "not unique to Context Cache",
                 "What the Benefit Actually Is",
                 "default, not a ceiling",
                 "What This Validation Does Not Attribute",
@@ -272,9 +303,8 @@ def main() -> int:
                 "Microsoft.Storage/contextCaches/<name-prefix>-cache",
                 "application never uploads the prompt to Blob Storage",
                 "prompt_cache_retention",
-                "11,520 / 13,037",
-                "88.4%",
-                "37.4%",
+                "Context Cache-Specific Validation",
+                "Not established",
                 "Does This Require RAG?",
                 "Context Cache does not replace document ingestion",
                 "official non-RAG Code Reviewer workload",
@@ -285,16 +315,14 @@ def main() -> int:
                 "**CONDITIONAL**",
                 "**LOW PRIORITY**",
                 "6/6",
-                "5/5",
-                "2304",
-                "current Azure pricing",
+                "current pricing",
                 "Microsoft.Storage/contextCaches",
                 "contextCacheContainerId",
                 "general Azure OpenAI prompt-caching guidance",
             ),
             "README-CN.md": (
                 "客户问题与业务价值",
-                "跨请求的 prompt 处理复用",
+                "不是 Context Cache 独有",
                 "收益到底是什么",
                 "默认值，不是上限",
                 "本次验证没有归因的部分",
@@ -305,9 +333,8 @@ def main() -> int:
                 "Microsoft.Storage/contextCaches/<name-prefix>-cache",
                 "应用不会把 prompt 预先上传到 Blob Storage",
                 "prompt_cache_retention",
-                "11,520 / 13,037",
-                "88.4%",
-                "37.4%",
+                "Context Cache 专属验证",
+                "尚未建立",
                 "是否必须使用 RAG",
                 "Context Cache 不能替代文档摄取",
                 "官方非 RAG Code Reviewer workload",
@@ -318,9 +345,7 @@ def main() -> int:
                 "**满足条件后评估**",
                 "**暂不优先**",
                 "6/6",
-                "5/5",
-                "2304",
-                "当前 Azure 定价",
+                "当前价格",
                 "Microsoft.Storage/contextCaches",
                 "contextCacheContainerId",
                 "通用 Azure OpenAI prompt caching 指南",

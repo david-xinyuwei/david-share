@@ -38,12 +38,39 @@
       "warmHits": null,
       "warmCalls": 5,
       "verdict": "rejected-incomplete"
+    },
+    {
+      "date": "2026-08-23",
+      "path": "cross-day-attribution",
+      "successfulCalls": 2,
+      "transportErrors": 0,
+      "warmHits": null,
+      "warmCalls": null,
+      "verdict": "complete-hypothesis-falsified",
+      "design": "bound arm called first, as the first request after a verified idle window longer than the documented default-cache ceiling",
+      "idleHoursBeforeFirstCall": 43.83,
+      "documentedDefaultCacheCeilingHours": 24,
+      "containerTimeToLiveDays": 7,
+      "observed": {
+        "boundArmFirstCallCachedTokens": 0,
+        "boundArmFirstCallLatencyMs": 3182,
+        "unboundControlCachedTokens": 2304,
+        "unboundControlLatencyMs": 1678,
+        "secondsBetweenArms": 3.185,
+        "inputTokensBothCalls": 2467
+      },
+      "findings": [
+        "The declared 7-day container lifetime did not produce a cross-day data-plane cache hit in this environment.",
+        "Prefix cache state was reused across two deployments in one Azure OpenAI account, in both directions across phases."
+      ]
     }
   ],
   "interpretation": [
     "Successful runs establish the bounded product path.",
     "Incomplete runs are infrastructure or transport observations, not cache scores.",
     "Rejected runs are not removed or converted into passes.",
+    "A completed run whose result contradicts its hypothesis is reported as-is and is not suppressed.",
+    "The cross-day result is bounded to this account, region, model, prefix, interval, and Preview build.",
     "This history is not a statistical performance benchmark."
   ]
 }

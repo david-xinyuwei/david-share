@@ -12,6 +12,8 @@
 - [x] Resource-group absence is checked both during preflight and immediately before the official deployment path
 - [x] Public evidence stripped of cloud and identity identifiers
 - [x] Public scanning rejects invalid UTF-8 and scans nested files even when their basename matches the scanner
+- [x] Customer README separates Context Cache-specific ARM/binding evidence from non-attributed prompt-cache telemetry
+- [x] The retained telemetry figure states that default prompt caching and Context Cache were both active
 - [x] Runtime has no mock, API-key fallback, automatic login, or automatic cleanup
 - [x] English and Chinese documentation share structure, commands, images, and boundaries
 - [x] Static validators and cross-platform CI included
