@@ -196,6 +196,44 @@ Combining those variables gives the practical decision grid:
 
 Read this grid as a **selection guide, not a benefit ladder**. Four of the five rows say "no" for caching reasons. That is the honest reading of the measurements, and it is what makes the fifth row credible. A prefix that never reaches the eligibility floor is a prompt-layout problem first, and is covered under **Workload Fit** below.
 
+## Can I Inspect What Is in the Container?
+
+There are three different questions, with three different answers.
+
+| Question | Answer |
+|---|---|
+| Can I look up the named Azure resource? | **Yes.** ARM can read the cache account and container by resource ID and return `provisioningState`, `modelName`, configured `timeToLive`, creation time, and binding state |
+| Can I observe container-level cache activity? | **Microsoft documents yes.** The Azure Monitor reference published on `2026-08-21` defines six metrics for `Microsoft.Storage/contextCaches/contextCacheContainers` |
+| Can I list the prompt prefixes or entries currently stored inside the container? | **No public operation was found.** Neither the ARM resource schema, Microsoft sample, Azure Monitor dimensions, nor OpenAI's official caching material exposes entry names, contents, entry count, write time, expiry time, or remaining TTL per prefix |
+
+The [official Azure Monitor metric reference](https://learn.microsoft.com/azure/azure-monitor/reference/supported-metrics/microsoft-storage-contextcaches-contextcachecontainers-metrics) documents:
+
+| Metric | What it can establish |
+|---|---|
+| `CacheHitRate` | Token-weighted percentage served from cache over successful lookups |
+| `ReadTpm` / `WriteTpm` | Aggregate tokens read from or written to the container per minute |
+| `LookupLatency` / `ReadLatency` / `WriteLatency` | Aggregate operation latency |
+
+The only documented dimensions are `providerName` and `modelName`. These metrics can answer **"did this container report reads, writes, or hits during this time window?"** They cannot answer **"is prefix X still stored right now?"** or reveal cached content.
+
+When the namespace is available, query it with:
+
+```powershell
+$containerId = '<full contextCacheContainers resource ID>'
+
+az monitor metrics list `
+  --resource $containerId `
+  --namespace 'Microsoft.Storage/contextCaches/contextCacheContainers' `
+  --metrics CacheHitRate ReadTpm WriteTpm `
+  --start-time '2026-08-23T00:00:00Z' `
+  --interval PT1M `
+  --aggregation Average
+```
+
+**Private Preview rollout finding:** the documentation exists, but this validated `centralus` environment did not expose the namespace on `2026-08-23`. Azure CLI and a direct Azure Monitor `2023-10-01` REST call both returned `BadRequest: ... is not a supported platform metric namespace`; Diagnostic Settings returned `ResourceTypeNotSupported`. This is a bounded rollout/registration gap, not evidence that the documented metrics do not exist product-wide.
+
+The official [Azure Context Cache repository](https://github.com/Azure/AzureContextCache) currently configures the container and observes each response's `cached_tokens`; it does not contain a cache-entry browser or a script that lists internal prefixes. OpenAI's official [Prompt Caching 101](https://github.com/openai/openai-cookbook/blob/main/examples/Prompt_Caching101.ipynb) uses the same request-level observation model: `cached_tokens > 0` proves a cache hit, but does not expose a cache entry as a first-class object.
+
 ## Customer Architecture
 
 ![Azure Context Cache customer application architecture](images/customer-architecture.svg)
@@ -548,7 +586,9 @@ See [SECURITY.md](SECURITY.md) for reporting and operational guidance.
 - [Azure/AzureContextCache](https://github.com/Azure/AzureContextCache)
 - [Pinned upstream commit](https://github.com/Azure/AzureContextCache/commit/7d1029a5e8b59b1805e70992c85ffe6798d2f47a)
 - [Azure OpenAI prompt caching](https://learn.microsoft.com/azure/ai-foundry/openai/how-to/prompt-caching)
+- [Context Cache container metrics in Azure Monitor](https://learn.microsoft.com/azure/azure-monitor/reference/supported-metrics/microsoft-storage-contextcaches-contextcachecontainers-metrics)
 - [OpenAI Prompt Caching](https://developers.openai.com/api/docs/guides/prompt-caching)
+- [OpenAI Prompt Caching 101](https://github.com/openai/openai-cookbook/blob/main/examples/Prompt_Caching101.ipynb)
 - [Microsoft RAG architecture guide](https://learn.microsoft.com/azure/architecture/ai-ml/guide/rag/rag-solution-design-and-evaluation-guide)
 - [Azure AI Search for RAG](https://learn.microsoft.com/azure/search/retrieval-augmented-generation-overview)
 - [Azure CLI configuration isolation](https://learn.microsoft.com/cli/azure/azure-cli-configuration)

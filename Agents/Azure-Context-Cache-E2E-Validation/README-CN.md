@@ -204,6 +204,44 @@ Context Cache 增量节省 = 默认缓存组月成本 - Context Cache 组月成�
 
 请把这张表当作**选型指南，而不是收益阶梯**。五行里有四行在缓存维度上的答案是「不该」。这是对实测结果的诚实解读，也正因为如此，第五行才可信。如果前缀始终达不到生效门槛，问题在提示词布局，而不在缓存配置。下文的**适用场景**给出了对应建议。
 
+## 能不能查看容器里有什么
+
+这是三个不同的问题，答案也不同。
+
+| 问题 | 答案 |
+|---|---|
+| 能不能按名字找到 Azure 资源？ | **能。** ARM 可以按资源 ID 回读 cache account 和 container，并看到 `provisioningState`、`modelName`、配置的 `timeToLive`、资源创建时间和绑定状态 |
+| 能不能观察容器级缓存活动？ | **微软文档说明可以。** Azure Monitor 于 `2026-08-21` 发布了 `Microsoft.Storage/contextCaches/contextCacheContainers` 的 6 个指标 |
+| 能不能列出容器里当前保存的 prompt prefix 或 entry？ | **没有找到公开操作。** ARM 资源 schema、微软官方样例、Azure Monitor 维度和 OpenAI 官方缓存资料均未暴露 entry 名称、内容、条目数、写入时间、过期时间或单个前缀的剩余 TTL |
+
+[Azure Monitor 官方指标页](https://learn.microsoft.com/azure/azure-monitor/reference/supported-metrics/microsoft-storage-contextcaches-contextcachecontainers-metrics)记录了：
+
+| 指标 | 能证明什么 |
+|---|---|
+| `CacheHitRate` | 成功 lookup 中按 token 加权的缓存命中比例 |
+| `ReadTpm` / `WriteTpm` | 容器每分钟汇总读取／写入的 token 数 |
+| `LookupLatency` / `ReadLatency` / `WriteLatency` | 汇总操作延迟 |
+
+指标只有 `providerName` 和 `modelName` 两个维度。因此它们能回答**「这个容器在某个时间窗口是否报告了读取、写入或命中」**，不能回答**「前缀 X 此刻是否仍保存在里面」**，也不能查看缓存内容。
+
+当指标 namespace 已在目标环境接通时，可以这样查：
+
+```powershell
+$containerId = '<contextCacheContainers 的完整资源 ID>'
+
+az monitor metrics list `
+  --resource $containerId `
+  --namespace 'Microsoft.Storage/contextCaches/contextCacheContainers' `
+  --metrics CacheHitRate ReadTpm WriteTpm `
+  --start-time '2026-08-23T00:00:00Z' `
+  --interval PT1M `
+  --aggregation Average
+```
+
+**Private Preview rollout 实测：** 文档已经发布，但本次验证使用的 `centralus` 环境在 `2026-08-23` 尚未暴露该 namespace。Azure CLI 和直接调用 Azure Monitor `2023-10-01` REST API 都返回 `BadRequest: ... is not a supported platform metric namespace`；Diagnostic Settings 返回 `ResourceTypeNotSupported`。这是本环境的 rollout／注册缺口，不能据此否定这些指标在产品范围内已经发布。
+
+当前 [Azure Context Cache 官方仓库](https://github.com/Azure/AzureContextCache)只负责配置容器，并通过每次响应的 `cached_tokens` 观察命中；它没有缓存条目浏览器，也没有列出内部 prefix 的脚本。OpenAI 官方 [Prompt Caching 101](https://github.com/openai/openai-cookbook/blob/main/examples/Prompt_Caching101.ipynb)采用同一种请求级观测：`cached_tokens > 0` 证明发生了缓存命中，但不会把某条缓存暴露成可列举的一等对象。
+
 ## 客户业务架构
 
 ![Azure Context Cache 客户应用业务架构](images/customer-architecture.svg)
@@ -556,7 +594,9 @@ flowchart LR
 - [Azure/AzureContextCache](https://github.com/Azure/AzureContextCache)
 - [固定的上游 commit](https://github.com/Azure/AzureContextCache/commit/7d1029a5e8b59b1805e70992c85ffe6798d2f47a)
 - [Azure OpenAI prompt caching](https://learn.microsoft.com/azure/ai-foundry/openai/how-to/prompt-caching)
+- [Azure Monitor 中的 Context Cache 容器指标](https://learn.microsoft.com/azure/azure-monitor/reference/supported-metrics/microsoft-storage-contextcaches-contextcachecontainers-metrics)
 - [OpenAI Prompt Caching](https://developers.openai.com/api/docs/guides/prompt-caching)
+- [OpenAI Prompt Caching 101](https://github.com/openai/openai-cookbook/blob/main/examples/Prompt_Caching101.ipynb)
 - [Microsoft RAG 架构指南](https://learn.microsoft.com/azure/architecture/ai-ml/guide/rag/rag-solution-design-and-evaluation-guide)
 - [Azure AI Search 的 RAG 说明](https://learn.microsoft.com/azure/search/retrieval-augmented-generation-overview)
 - [Azure CLI configuration isolation](https://learn.microsoft.com/cli/azure/azure-cli-configuration)
