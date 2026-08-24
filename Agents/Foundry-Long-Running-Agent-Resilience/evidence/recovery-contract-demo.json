@@ -1,3 +1,54 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:62a65052b2420ce87e226ad7b987a8702a10a6cf56e89e9b9d87bc846304a5ac
-size 1601
+{
+  "checkpoint": 5,
+  "checks": {
+    "checkpoint_complete": true,
+    "fresh_then_recovered": true,
+    "generation_advanced": true,
+    "no_duplicate_phase_commit": true,
+    "original_worker_stopped_at_injected_phase": true,
+    "payload_affected_every_result": true,
+    "phase_domain_complete": true,
+    "same_work_recovered": true,
+    "worker_a_hard_exit_observed": true,
+    "worker_b_completed": true
+  },
+  "claim_scope": "Executable local reference model; not Foundry service source and not live-service recovery evidence.",
+  "committed_phases": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "configuration": {
+    "crash_after": 1,
+    "lease_seconds": 0.5,
+    "phases": 5
+  },
+  "entry_modes": [
+    "fresh",
+    "recovered"
+  ],
+  "lease_generation": 2,
+  "passed": true,
+  "payload_sha256": "37c4deadacda0a6a669e42943e54a235333f9ea569cad02368f33bd186ca2edd",
+  "phase_result_sha256s": [
+    "bb7150f6c608f5a8b6ed26f638515dc74b58446d6cc7126956c683101a0e8543",
+    "2548231855c550fda8fcbb27415bef6eb985719f59f06e70529a72e935fee87a",
+    "2a6a8808c167a64cc680fd4d58f24aa2e6979f3fee0f3ba671e8ebec6bb3d14d",
+    "a9ad3052909340e8d7832fb8fca0ea9cffccf9619446385afca049b30a18ba7a",
+    "8726232784f4fdc08bba982f664bbfdb43a40ca219386bcbc80c877dfcb7e488"
+  ],
+  "phase_workers": {
+    "1": "worker-a",
+    "2": "worker-b",
+    "3": "worker-b",
+    "4": "worker-b",
+    "5": "worker-b"
+  },
+  "scenario_type": "test-fixture",
+  "schema_version": 1,
+  "work_id": "public-reference-001",
+  "worker_a_exit_code": 9,
+  "worker_b_exit_code": 0
+}

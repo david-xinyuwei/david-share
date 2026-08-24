@@ -1,3 +1,67 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:90681d97d2bd9eaa2dbad1694218086934f0d6be5b6531e179e458a3cfa4dd80
-size 2389
+{
+  "schema_version": 1,
+  "scenarios": [
+    {
+      "id": "public-sdk-contract",
+      "type": "dynamic-runtime",
+      "entrypoint": "scripts/verify_public_resilience_api.py",
+      "real": [
+        "Imports the installed public AgentServer packages",
+        "Checks runtime types, members, decorator validation, and exact package versions",
+        "Fails when dependencies are absent or a contract assertion fails"
+      ],
+      "not_claimed": [
+        "Live Hosted Agent recovery",
+        "Private service implementation"
+      ],
+      "evidence": "evidence/public-sdk-contract.json"
+    },
+    {
+      "id": "local-recovery-contract",
+      "type": "test-fixture",
+      "entrypoint": "scripts/recovery_contract_demo.py demo",
+      "real": [
+        "Two separate operating-system processes",
+        "SQLite durable state and atomic transactions",
+        "os._exit(9) hard process loss",
+        "Lease expiry, generation fencing, checkpointing, and idempotency"
+      ],
+      "not_claimed": [
+        "Microsoft Foundry service code",
+        "Live Hosted Agent recovery"
+      ],
+      "evidence": "evidence/recovery-contract-demo.json"
+    },
+    {
+      "id": "observation-validator",
+      "type": "dynamic-runtime",
+      "entrypoint": "scripts/validate_observations.py evaluate",
+      "real": [
+        "Evaluates caller-supplied JSON",
+        "Rejects sequence gaps, output gaps or duplicates, and incomplete terminal evidence",
+        "Fails closed for unclassified 424 and 403 signals"
+      ],
+      "not_claimed": [
+        "Universal protocol semantics",
+        "Service-generated responses in self-test mode"
+      ],
+      "evidence": "evidence/observation-validation.json"
+    },
+    {
+      "id": "historical-live-observations",
+      "type": "architecture-explainer",
+      "evidence_kind": "measured-aggregate",
+      "entrypoint": "evidence/historical-observations.json",
+      "real": [
+        "Public-safe aggregates derived from captured July and August runs",
+        "Dated runtime, protocol, interruption, count, duration, and terminal-state fields"
+      ],
+      "not_claimed": [
+        "Raw telemetry",
+        "A reproducible live deployment recipe",
+        "Reliability benchmark or SLA"
+      ],
+      "evidence": "evidence/historical-observations.json"
+    }
+  ]
+}

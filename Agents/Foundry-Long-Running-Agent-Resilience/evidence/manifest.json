@@ -1,3 +1,50 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:04d5c9a673caea5099faa1e4533d8743f7d2b65786c1cb0d17429b7ebefd007a
-size 2268
+{
+  "algorithm": "sha256",
+  "files": [
+    {
+      "bytes": 3223,
+      "path": "evidence/README.md",
+      "provenance": "Maintained evidence index and reproduction boundary.",
+      "sha256": "ab8fd3726343bb66db18de2975fbeb79a3eacba725ca3aa703834c27172997a5"
+    },
+    {
+      "bytes": 6900,
+      "path": "evidence/historical-observations.json",
+      "provenance": "Public-safe aggregate derived from the dated July campaign and August re-test captures.",
+      "sha256": "6b9e75cb383a2c406b1deadf92a4cb8f45d375d628a908ac51294c0299045458"
+    },
+    {
+      "bytes": 3567,
+      "path": "evidence/observation-validation.json",
+      "provenance": "python scripts/validate_observations.py self-test --output evidence/observation-validation.json",
+      "sha256": "3240679a41dfa04a4285f9c340780b0fdbe59aeff8f26a781a976c13eec48b84"
+    },
+    {
+      "bytes": 2992,
+      "path": "evidence/public-sdk-contract.json",
+      "provenance": "python scripts/verify_public_resilience_api.py --format json --output evidence/public-sdk-contract.json",
+      "sha256": "457ddd5ddea37c1a3d24992009885ae95270ddc433480307f8d6e26c54f2b7e5"
+    },
+    {
+      "bytes": 1547,
+      "path": "evidence/recovery-contract-demo.json",
+      "provenance": "python scripts/recovery_contract_demo.py demo --work-id public-reference-001 --payload \"public-safe resilience contract payload\" --phases 5 --crash-after 1 --lease-seconds 0.5 --summary-file evidence/recovery-contract-demo.json --events-file evidence/recovery-contract-events.jsonl",
+      "sha256": "e7353e0f6c414f63951f48bd7c469c22718473769a4e5a944ae1b712feb5cb29"
+    },
+    {
+      "bytes": 3732,
+      "path": "evidence/recovery-contract-events.jsonl",
+      "provenance": "Structured JSONL emitted by the recovery-contract-demo command recorded in this manifest.",
+      "sha256": "b627bad435819899ecc982a01ac55157d10656d97ebc6e99f87af8251d7fa4a0"
+    },
+    {
+      "bytes": 2322,
+      "path": "evidence/scenario-manifest.json",
+      "provenance": "Maintained Scenario Manifest for user-visible repository surfaces.",
+      "sha256": "53727e455389c765c8dc6d2e275b00ce75d854a256fa590bab9433ab483f5d1c"
+    }
+  ],
+  "generated_at_utc": "2026-08-24T22:57:34+00:00",
+  "normalization": "utf-8-lf",
+  "schema_version": 1
+}

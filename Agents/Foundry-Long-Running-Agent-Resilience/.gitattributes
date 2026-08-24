@@ -1,6 +1,6 @@
 * text=auto
-*.json text eol=lf
-*.jsonl text eol=lf
+*.json -filter diff merge text eol=lf
+*.jsonl -filter diff merge text eol=lf
 *.md text eol=lf
 *.py text eol=lf
 *.txt text eol=lf

@@ -1,3 +1,115 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:fda3f0e00107c2499f91fcb8d80071465e8f02f4702dd22ff3011b6946fffcbe
-size 3107
+{
+  "checks": [
+    {
+      "detail": "installed=2.0.0; expected=2.0.0",
+      "name": "azure-ai-agentserver-core version",
+      "passed": true
+    },
+    {
+      "detail": "installed=1.0.0; expected=1.0.0",
+      "name": "azure-ai-agentserver-invocations version",
+      "passed": true
+    },
+    {
+      "detail": "installed=2.0.0; expected=2.0.0",
+      "name": "azure-ai-agentserver-responses version",
+      "passed": true
+    },
+    {
+      "detail": "['fresh', 'recovered', 'resumed']",
+      "name": "EntryMode exposes recovered re-entry",
+      "passed": true
+    },
+    {
+      "detail": "",
+      "name": "entry_mode and retry_attempt are separate fields",
+      "passed": true
+    },
+    {
+      "detail": "",
+      "name": "recovery_count is separate from retry_attempt",
+      "passed": true
+    },
+    {
+      "detail": "",
+      "name": "task_id (work identity) is exposed",
+      "passed": true
+    },
+    {
+      "detail": "",
+      "name": "input_id (input identity) is exposed",
+      "passed": true
+    },
+    {
+      "detail": "",
+      "name": "metadata supports a durable checkpoint index",
+      "passed": true
+    },
+    {
+      "detail": "",
+      "name": "cooperative shutdown is exposed",
+      "passed": true
+    },
+    {
+      "detail": "",
+      "name": "exit-for-recovery is exposed",
+      "passed": true
+    },
+    {
+      "detail": "",
+      "name": "steering is exposed",
+      "passed": true
+    },
+    {
+      "detail": "",
+      "name": "RetryPolicy is public",
+      "passed": true
+    },
+    {
+      "detail": "enabled=False",
+      "name": "resilient-task enablement is queryable",
+      "passed": true
+    },
+    {
+      "detail": "",
+      "name": "Responses recovery signals are public",
+      "passed": true
+    },
+    {
+      "detail": "",
+      "name": "@task accepts name, timeout, and retry",
+      "passed": true
+    },
+    {
+      "detail": "@task handler first argument must be named `ctx` (found 'context' in 'collect_report.<locals>.wrong_name_handler')",
+      "name": "handler first argument must be named ctx",
+      "passed": true
+    },
+    {
+      "detail": "Resilient task function 'collect_report.<locals>.bare_handler' must accept a TaskContext[Input] parameter",
+      "name": "handler requires TaskContext[Input]",
+      "passed": true
+    }
+  ],
+  "claim_scope": "Offline installed-package probe; not live Hosted Agent recovery evidence.",
+  "evidence_type": "public-sdk-contract",
+  "expected_versions": {
+    "azure-ai-agentserver-core": "2.0.0",
+    "azure-ai-agentserver-invocations": "1.0.0",
+    "azure-ai-agentserver-responses": "2.0.0"
+  },
+  "generated_at_utc": "2026-08-24T16:07:51.337+00:00",
+  "installed_versions": {
+    "azure-ai-agentserver-core": "2.0.0",
+    "azure-ai-agentserver-invocations": "1.0.0",
+    "azure-ai-agentserver-responses": "2.0.0"
+  },
+  "passed": true,
+  "scenario_type": "dynamic-runtime",
+  "schema_version": 1,
+  "summary": {
+    "failed": 0,
+    "passed": 18,
+    "total": 18
+  }
+}

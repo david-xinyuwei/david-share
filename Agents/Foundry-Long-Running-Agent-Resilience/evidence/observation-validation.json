@@ -1,3 +1,128 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:c4a9aa2b0a2709521934f6a7e4b93f078c2ffc0ac48c0df4834340738d559f8d
-size 3695
+{
+  "checks": {
+    "materially_different_inputs_change_hash": true,
+    "observation_cases_match": true,
+    "recovery_actions_match": true
+  },
+  "claim_scope": "Executable validator self-test; fixtures are not service responses.",
+  "observation_cases": [
+    {
+      "actual": true,
+      "checks": {
+        "output_coverage_complete": true,
+        "sequence_gap_free": true,
+        "terminal_state_proven": true
+      },
+      "expected": true,
+      "input_sha256": "1c885a7953d93a62213f930a6f848f037c6ede8edfebb0ac02a233856a200eb1",
+      "matched": true,
+      "name": "clean"
+    },
+    {
+      "actual": false,
+      "checks": {
+        "output_coverage_complete": true,
+        "sequence_gap_free": false,
+        "terminal_state_proven": true
+      },
+      "expected": false,
+      "input_sha256": "52bb35c6eed2cb5f1b574207218fa14e608a032cb42ed95e9b3d22cc6da941a2",
+      "matched": true,
+      "name": "sequence_gap"
+    },
+    {
+      "actual": false,
+      "checks": {
+        "output_coverage_complete": false,
+        "sequence_gap_free": true,
+        "terminal_state_proven": true
+      },
+      "expected": false,
+      "input_sha256": "583f49a42635ba27b3d116eeaccd2546aaa54d70786da50071d405cfc648b280",
+      "matched": true,
+      "name": "duplicate_output"
+    },
+    {
+      "actual": false,
+      "checks": {
+        "output_coverage_complete": true,
+        "sequence_gap_free": true,
+        "terminal_state_proven": false
+      },
+      "expected": false,
+      "input_sha256": "e063df3d235a9a220f41fac35af3e2076318b330fdabc44650a24e115c8b540a",
+      "matched": true,
+      "name": "bare_done"
+    }
+  ],
+  "passed": true,
+  "recovery_action_cases": [
+    {
+      "actual": "poll_same_work_with_bounded_backoff",
+      "expected": "poll_same_work_with_bounded_backoff",
+      "matched": true,
+      "name": "confirmed_424",
+      "signals": {
+        "deadline_expired": false,
+        "host_replacement_confirmed": true,
+        "observer_auth_expired": false,
+        "same_work_addressable": true,
+        "status_code": 424
+      }
+    },
+    {
+      "actual": "fail_closed",
+      "expected": "fail_closed",
+      "matched": true,
+      "name": "unclassified_424",
+      "signals": {
+        "deadline_expired": false,
+        "host_replacement_confirmed": false,
+        "observer_auth_expired": false,
+        "same_work_addressable": false,
+        "status_code": 424
+      }
+    },
+    {
+      "actual": "refresh_observer_auth_then_read_again",
+      "expected": "refresh_observer_auth_then_read_again",
+      "matched": true,
+      "name": "expired_observer_403",
+      "signals": {
+        "deadline_expired": false,
+        "host_replacement_confirmed": false,
+        "observer_auth_expired": true,
+        "same_work_addressable": false,
+        "status_code": 403
+      }
+    },
+    {
+      "actual": "fail_closed",
+      "expected": "fail_closed",
+      "matched": true,
+      "name": "unclassified_403",
+      "signals": {
+        "deadline_expired": false,
+        "host_replacement_confirmed": false,
+        "observer_auth_expired": false,
+        "same_work_addressable": false,
+        "status_code": 403
+      }
+    },
+    {
+      "actual": "timeout",
+      "expected": "timeout",
+      "matched": true,
+      "name": "deadline",
+      "signals": {
+        "deadline_expired": true,
+        "host_replacement_confirmed": true,
+        "observer_auth_expired": false,
+        "same_work_addressable": true,
+        "status_code": 424
+      }
+    }
+  ],
+  "scenario_type": "test-fixture",
+  "schema_version": 1
+}

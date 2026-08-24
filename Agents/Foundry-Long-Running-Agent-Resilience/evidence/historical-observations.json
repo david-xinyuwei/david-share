@@ -1,3 +1,196 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:fe90de7c383b10d15a6336e9c7f4c2c2dad92c02bfd5236169da410e9f6dbfca
-size 7096
+{
+  "schema_version": 1,
+  "evidence_type": "public-safe-measured-aggregate",
+  "source_boundary": {
+    "raw_artifacts": "private",
+    "reason": "Captured service artifacts contain endpoints, work identifiers, environment metadata, and generated payload text.",
+    "public_content": "Only aggregate values already disclosed in the bilingual article are included here."
+  },
+  "campaigns": [
+    {
+      "id": "july-private-preview",
+      "window_utc": "2026-07-22/2026-07-23",
+      "region": "Canada Central",
+      "product_status_at_run": "private preview",
+      "accepted_main_scenarios": 8,
+      "accepted_runs_per_scenario": 1,
+      "benchmark": false,
+      "observations": [
+        {
+          "id": "python-invocations-research",
+          "runtime": "Python",
+          "protocol": "Invocations",
+          "interruption": "injected runtime-instance loss",
+          "pre_loss_seconds": 15,
+          "pre_loss_events": 599,
+          "pre_loss_phases": 1,
+          "post_recovery_seconds": 1237,
+          "post_recovery_events": 11649,
+          "post_recovery_status_events": 192,
+          "post_recovery_phase_events": 17,
+          "post_loss_elapsed_percent": 95,
+          "post_loss_event_percent": 95,
+          "total_seconds": 1301,
+          "total_minutes_rounded": 21.7,
+          "total_events": 12248,
+          "total_phases": 18,
+          "sequence_start": 1,
+          "sequence_end": 12248,
+          "terminal_status": "completed"
+        },
+        {
+          "id": "python-responses-research",
+          "runtime": "Python",
+          "protocol": "Responses",
+          "interruption": "injected runtime-instance loss",
+          "pre_loss_seconds": 13,
+          "pre_loss_events": 577,
+          "pre_loss_output_indexes": [0],
+          "pre_loss_text_deltas": 570,
+          "reconnect_gap_seconds": 47,
+          "post_recovery_sequence_start": 578,
+          "post_recovery_seconds": 1140,
+          "post_recovery_events": 11005,
+          "post_recovery_output_index_start": 1,
+          "post_recovery_output_index_end": 17,
+          "post_recovery_text_deltas": 10918,
+          "total_events": 11584,
+          "terminal_status": "completed"
+        },
+        {
+          "id": "dotnet-invocations-research",
+          "runtime": ".NET",
+          "protocol": "Invocations",
+          "interruption": "injected runtime-instance loss",
+          "pre_loss_sequence_start": 1,
+          "pre_loss_sequence_end": 738,
+          "post_recovery_sequence_start": 739,
+          "post_recovery_sequence_end": 12073,
+          "terminal_status": "completed"
+        },
+        {
+          "id": "dotnet-responses-research",
+          "runtime": ".NET",
+          "protocol": "Responses",
+          "interruption": "injected runtime-instance loss",
+          "pre_loss_output_indexes": [0],
+          "post_recovery_output_index_start": 1,
+          "post_recovery_output_index_end": 17,
+          "post_recovery_sequence_restart": 5,
+          "terminal_status": "completed"
+        },
+        {
+          "id": "python-invocations-approval",
+          "runtime": "Python",
+          "protocol": "Invocations",
+          "interruption": "injected runtime-instance loss while suspended",
+          "loss_to_decision_accepted_seconds": 56,
+          "confirmation": "TRIP-182336",
+          "terminal_status": "completed"
+        },
+        {
+          "id": "python-responses-approval",
+          "runtime": "Python",
+          "protocol": "Responses",
+          "interruption": "injected runtime-instance loss while suspended",
+          "confirmation": "TRIP-749637",
+          "terminal_status": "completed"
+        },
+        {
+          "id": "python-responses-workflow",
+          "runtime": "Python",
+          "protocol": "Responses",
+          "interruption": "host replacement",
+          "consecutive_http_424": 29,
+          "outputs": [
+            "French",
+            "Spanish",
+            "round-trip English"
+          ],
+          "terminal_status": "completed"
+        },
+        {
+          "id": "python-responses-steering",
+          "runtime": "Python",
+          "protocol": "Responses",
+          "interruption": "deliberate steering input",
+          "replacement_turn_in_progress_polls": 7,
+          "first_turn_terminal_status": "completed",
+          "replacement_turn_terminal_status": "completed"
+        }
+      ]
+    },
+    {
+      "id": "august-public-preview-retest",
+      "date_utc": "2026-08-24",
+      "product_status_at_run": "public preview",
+      "benchmark": false,
+      "observations": [
+        {
+          "id": "local-two-process-sdk-runtime",
+          "surface": "local SDK/runtime",
+          "live_service": false,
+          "total_phases": 18,
+          "pre_loss_phases": 1,
+          "post_recovery_phases": 17,
+          "entry_mode": "recovered",
+          "recovery_count": 1,
+          "retry_attempt": 0,
+          "reclaim_gap_seconds": 1.93
+        },
+        {
+          "id": "hosted-resilient-streaming",
+          "surface": "deployed Hosted Agent",
+          "interrupted_after_seconds": 22.6,
+          "same_response_id": true,
+          "output_items": 3,
+          "terminal_status": "completed"
+        },
+        {
+          "id": "hosted-resilient-steering",
+          "surface": "deployed Hosted Agent",
+          "interrupted_after_seconds": 23.3,
+          "same_response_id": true,
+          "terminal_result": "coherent answer"
+        },
+        {
+          "id": "hosted-resilient-research",
+          "surface": "deployed Hosted Agent",
+          "interrupted_after_seconds": 28.4,
+          "same_invocation_id": true,
+          "terminal_status": "completed"
+        },
+        {
+          "id": "hosted-resilient-approval",
+          "surface": "deployed Hosted Agent",
+          "interrupted_after_seconds": 25.3,
+          "decision_http_status": 202,
+          "decision_sent_after_replacement": true,
+          "terminal_status": "completed"
+        },
+        {
+          "id": "previously-enabled-subscription-deploy",
+          "subscription_history": "enabled during earlier preview",
+          "deployment_seconds": 243,
+          "agent_status": "active"
+        },
+        {
+          "id": "never-enabled-subscription-deploy",
+          "subscription_history": "not enabled during earlier preview",
+          "deployment_seconds": 209,
+          "output_items": 3,
+          "terminal_status": "completed",
+          "scope_limit": "One tested subscription; not tenant-, region-, or subscription-wide availability evidence."
+        },
+        {
+          "id": "forced-replacement-424-probe",
+          "poll_interval_seconds": 0.4,
+          "polls": 26,
+          "http_200": 26,
+          "transient_errors": 0,
+          "scope_limit": "Different interruption path from the July 424 observation; not a refutation."
+        }
+      ]
+    }
+  ]
+}
