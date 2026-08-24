@@ -419,9 +419,20 @@ The official public sample catalogue now ships `resilient-streaming` and `resili
 
 A stored background response was created on the live endpoint and, while it was still `in_progress`, the runtime instance was replaced by redeploying the agent. Polling the **same response id** afterwards returned `completed` with all three stage items present, no gap and no repeated stage. The container log shows the runtime driving the task store with real leases — `lease_owner`, `lease_instance_id`, `lease_duration_seconds=60`, and ETag-guarded `PATCH` updates — which is the lease and compare-and-set model described in Section 2.4.
 
-One defect is worth passing on. The first deployment failed at runtime with `HTTP 500`, and the container log showed `resilient_task_handler_failure ... exc_type=AttributeError` under `ai-agentserver-core/2.1.0b2`. The sample pins `responses==2.0.0b1` but only requires `core>=2.0.0b10`, so the container resolved a newer beta than the handler was written against. Pinning both packages to their 2.0.0 releases fixed it. On a preview surface, pin the whole set rather than a floor.
+The same interruption was then applied to all four official resilient samples, which between them cover the scenario families the July campaign measured:
 
-This interruption was produced by forcing a runtime-instance replacement, which is a genuine platform-level event but not an unplanned host crash, and the sample's stages remain simulated. It is capability validation on the current build, not a new reliability benchmark.
+| Re-tested scenario | Sample | Interrupted after | Result |
+|---|---|---|---|
+| Responses, streaming recovery | `resilient-streaming` | 22.6 s | **PASS** — same response id, 3 items, no gap or duplicate |
+| Responses, steering | `resilient-steering` | 23.3 s | **PASS** — same response id reached a coherent answer |
+| Invocations, research recovery | `resilient-research` | 28.4 s | **PASS** — same `invocation_id` reached `completed` |
+| Invocations, approval outliving instance loss | `resilient-approval-gate` | 25.3 s | **PASS** — decision sent *after* the replacement was accepted (`202`), work completed |
+
+The fourth row is the one worth pausing on, because it repeats the July finding that surprises people most: the instance was replaced **while the agent was parked on an approval gate and nothing was executing**. The decision was then submitted against work whose original host no longer existed, and it was accepted.
+
+One defect is worth passing on. The first deployment failed at runtime with `HTTP 500`, and the container log showed `resilient_task_handler_failure ... exc_type=AttributeError` under `ai-agentserver-core/2.1.0b2`. The sample pins `responses==2.0.0b1` but only requires `core>=2.0.0b10`, so the container resolved a newer beta than the handler was written against. Pinning both packages to their 2.0.0 releases fixed it, and the same pin was needed for all four samples. On a preview surface, pin the whole set rather than a floor.
+
+These interruptions were produced by forcing a runtime-instance replacement, which is a genuine platform-level event but not an unplanned host crash, and the samples' stages remain simulated. Four scenario families were covered with one accepted run each — capability validation on the current build, not a new reliability benchmark, and not a repeat of the full July matrix, which also spanned .NET.
 
 | Dimension | Fixed condition | Why it matters |
 |---|---|---|
@@ -710,7 +721,7 @@ Raw artifacts stay private because they contain endpoints, work identifiers, env
 
 - All numbers are **observed values from the evaluation each one names** — the July campaign or the August re-test — not benchmarks, guarantees, or SLAs.
 - The capability was in **private preview** when the campaign ran and has since moved to **public preview** with an [official concept page](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience). This repository now publishes a current public-API mapping and offline contract smoke, but not Microsoft SDK source, a complete deployment recipe, or live-service credentials.
-- Results cover **eight documented main scenarios**, each run once. Cancel, delete, and deny branches were not counted.
+- Results cover the July campaign's **eight documented main scenarios**, one accepted run each, plus the August re-test's **four scenario families**, one accepted run each. Cancel, delete, and deny branches were not counted.
 - Recovery behavior was validated. Business-domain correctness and model quality were not.
 - Verify current capabilities against the [official documentation](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents) before designing against anything described here.
 

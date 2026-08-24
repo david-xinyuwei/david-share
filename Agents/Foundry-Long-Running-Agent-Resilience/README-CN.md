@@ -419,9 +419,20 @@ python -m venv .venv
 
 在这个真实 endpoint 上创建一个 stored background response，并**趁它仍处于 `in_progress` 时**，通过重新部署替换掉运行实例。之后再用**同一个 response id** 轮询，得到的是 `completed`，三个阶段的 output item 全部齐备，无缺口、无重复阶段。容器日志显示 runtime 正以真实租约驱动 task store——`lease_owner`、`lease_instance_id`、`lease_duration_seconds=60`，以及带 ETag 保护的 `PATCH` 更新——这正是第 2.4 节描述的租约与 compare-and-set 模型。
 
-有一个缺陷值得转告。首次部署在运行时返回 `HTTP 500`，容器日志显示 `resilient_task_handler_failure ... exc_type=AttributeError`，运行的是 `ai-agentserver-core/2.1.0b2`。样例把 `responses` 钉在 `2.0.0b1`，却只对 `core` 要求 `>=2.0.0b10`，于是容器解析到了比 handler 编写时更新的 beta。把两个包都钉到各自的 2.0.0 版本后即恢复正常。在 preview 面上，要钉住整组版本，而不是只给一个下限。
+随后对四个官方 resilient 样例做了同样的中断。它们合起来覆盖了 7 月战役测过的那几类场景：
 
-这次中断是通过强制替换运行实例造成的——它是真实的平台级事件，但不等同于一次计划外的主机崩溃；样例的各阶段也仍然是模拟的。它属于当前构件上的能力验证，不是一次新的可靠性 benchmark。
+| 复测场景 | 样例 | 中断于 | 结果 |
+|---|---|---|---|
+| Responses，流式恢复 | `resilient-streaming` | 22.6 秒 | **PASS**——同一 response id，3 个 item，无缺口无重复 |
+| Responses，steering | `resilient-steering` | 23.3 秒 | **PASS**——同一 response id 给出完整答案 |
+| Invocations，research 恢复 | `resilient-research` | 28.4 秒 | **PASS**——同一 `invocation_id` 走到 `completed` |
+| Invocations，审批比实例活得久 | `resilient-approval-gate` | 25.3 秒 | **PASS**——替换**之后**发送的决定被接收（`202`），任务完成 |
+
+最后一行值得停下来看，因为它重现了 7 月最让人意外的那个结论：实例是**在 Agent 停在审批门、什么都没有执行的时候**被替换掉的。随后针对这个「原宿主已经不存在」的任务提交决定，它仍然被接收了。
+
+有一个缺陷值得转告。首次部署在运行时返回 `HTTP 500`，容器日志显示 `resilient_task_handler_failure ... exc_type=AttributeError`，运行的是 `ai-agentserver-core/2.1.0b2`。样例把 `responses` 钉在 `2.0.0b1`，却只对 `core` 要求 `>=2.0.0b10`，于是容器解析到了比 handler 编写时更新的 beta。把两个包都钉到各自的 2.0.0 版本后即恢复正常，四个样例都需要这样处理。在 preview 面上，要钉住整组版本，而不是只给一个下限。
+
+这些中断都是通过强制替换运行实例造成的——它是真实的平台级事件，但不等同于一次计划外的主机崩溃；样例的各阶段也仍然是模拟的。本轮覆盖四类场景、每类一次被接受的运行——属于当前构件上的能力验证，不是一次新的可靠性 benchmark，也不是把 7 月那套完整矩阵（还包含 .NET）重跑一遍。
 
 | 维度 | 固定条件 | 为什么重要 |
 |---|---|---|
@@ -710,7 +721,7 @@ def apply_approval(ledger, logical_work: str, checkpoint: str, requested: str):
 
 - 文中所有数字都是**其各自所属评估的观测值**——7 月战役或 8 月复测——不是 benchmark、保证或 SLA。
 - 本次战役进行时，该能力处于 **private preview**；此后已进入 **public preview** 并有[官方概念文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)。本仓库现在公开当前 API 映射与离线契约 smoke，但不包含 Microsoft SDK 源码、完整部署配方或 live service 凭据。
-- 结果覆盖**八个文档定义的主场景**，每个只跑一次。cancel、delete、deny 分支不计入。
+- 结果覆盖 7 月战役的**八个文档定义的主场景**，每个一次被接受的运行；以及 8 月复测的**四类场景**，每类一次被接受的运行。cancel、delete、deny 分支不计入。
 - 验证的是恢复行为，不包括业务领域正确性和模型质量。
 - 在依据本文做设计之前，请以[官方文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents)核对当前能力。
 
