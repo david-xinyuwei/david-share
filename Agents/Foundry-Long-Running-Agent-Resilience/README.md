@@ -430,9 +430,15 @@ The same interruption was then applied to all four official resilient samples, w
 
 The fourth row is the one worth pausing on, because it repeats the July finding that surprises people most: the instance was replaced **while the agent was parked on an approval gate and nothing was executing**. The decision was then submitted against work whose original host no longer existed, and it was accepted.
 
+Two further checks are worth reporting, including the one that did not go as expected.
+
+**A subscription that was never enabled works too.** The deployment above ran on a subscription the product group had enabled during the preview. Repeating it on a *different* subscription that was never enabled — a plain 2026 work subscription — produced the same outcome: `azd up` succeeded in 3 minutes 29 seconds, and the same interruption left the response `completed` with all three items. Two subscriptions are not a survey, so this is not proof that every subscription is ready; it does show that the July allowlist is no longer a precondition on a subscription nobody special-cased.
+
+**The `424` storm did not reproduce.** Section 4.4 rests on 29 consecutive `424` responses observed in July while a host was being replaced. Polling the same response every 0.4 s across a forced replacement produced **26 polls, all `200`, and no transient error at all**. That is not a refutation: a redeploy-driven replacement is a graceful, orchestrated path, and the July sequence arose from a different interruption. The engineering advice stands — classify `424` before treating it as terminal — but the number 29 remains a July observation that the current build did not reproduce, and it is labelled that way rather than quietly restated as current behavior.
+
 One defect is worth passing on. The first deployment failed at runtime with `HTTP 500`, and the container log showed `resilient_task_handler_failure ... exc_type=AttributeError` under `ai-agentserver-core/2.1.0b2`. The sample pins `responses==2.0.0b1` but only requires `core>=2.0.0b10`, so the container resolved a newer beta than the handler was written against. Pinning both packages to their 2.0.0 releases fixed it, and the same pin was needed for all four samples. On a preview surface, pin the whole set rather than a floor.
 
-These interruptions were produced by forcing a runtime-instance replacement, which is a genuine platform-level event but not an unplanned host crash, and the samples' stages remain simulated. Four scenario families were covered with one accepted run each — capability validation on the current build, not a new reliability benchmark, and not a repeat of the full July matrix, which also spanned .NET.
+These interruptions were produced by forcing a runtime-instance replacement, which is a genuine platform-level event but not an unplanned host crash, and the samples' stages remain simulated. Four scenario families were covered with one accepted run each — capability validation on the current build, not a new reliability benchmark, and not a repeat of the full July matrix. The July .NET runs were **not** repeated: the public C# samples ship hosted agents but none of them exercise resilient tasks, so those rows remain July observations.
 
 | Dimension | Fixed condition | Why it matters |
 |---|---|---|
