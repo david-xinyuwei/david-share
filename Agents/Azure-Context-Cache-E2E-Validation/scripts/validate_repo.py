@@ -151,7 +151,11 @@ def validate_non_attributed_observation(path: Path) -> None:
 
 
 def sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    return hashlib.sha256(canonical_text_bytes(path)).hexdigest()
+
+
+def canonical_text_bytes(path: Path) -> bytes:
+    return path.read_bytes().replace(b"\r\n", b"\n")
 
 
 def main() -> int:
@@ -297,7 +301,10 @@ def main() -> int:
         require(set(manifest_entries) == {path.name for path in evidence_paths}, "evidence manifest set changed")
         for evidence_path in evidence_paths:
             manifest_entry = manifest_entries[evidence_path.name]
-            require(manifest_entry["bytes"] == evidence_path.stat().st_size, "evidence byte count mismatch")
+            require(
+                manifest_entry["bytes"] == len(canonical_text_bytes(evidence_path)),
+                "evidence byte count mismatch",
+            )
             require(manifest_entry["sha256"] == sha256(evidence_path), "evidence hash mismatch")
         require([row["verdict"] for row in history["runs"]] == [
             "pass", "pass", "rejected-incomplete", "rejected-incomplete",

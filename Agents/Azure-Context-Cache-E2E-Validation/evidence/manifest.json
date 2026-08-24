@@ -5,8 +5,8 @@
   "files": [
     {
       "path": "paired-prefix-follow-up.json",
-      "bytes": 2204,
-      "sha256": "7d094d4a203537153b4afeb1c03604f5512d9c574fcbfddccad3718c314c16ee"
+      "bytes": 2154,
+      "sha256": "4589eee11b05d2cbc481d9c80afd16ce93edb9ac33c138894a494cc2010f9e77"
     },
     {
       "path": "validation-history.json",

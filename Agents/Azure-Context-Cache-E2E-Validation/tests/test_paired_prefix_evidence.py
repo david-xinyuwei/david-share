@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -61,6 +62,16 @@ class PairedPrefixEvidenceTests(unittest.TestCase):
             VALIDATOR.markdown_shape(matched),
             VALIDATOR.markdown_shape(drifted),
         )
+
+    def test_manifest_hashes_canonical_lf_bytes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "evidence.json"
+            path.write_bytes(b'{\r\n  "status": "pending"\r\n}\r\n')
+
+            self.assertEqual(
+                VALIDATOR.canonical_text_bytes(path),
+                b'{\n  "status": "pending"\n}\n',
+            )
 
 
 if __name__ == "__main__":
