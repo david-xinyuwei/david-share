@@ -11,10 +11,12 @@
 
 这篇文章讲清楚三件事：它为什么能成立、什么信号能证明它、以及哪些看起来非常合理的下意识反应反而会毁掉它。
 
-> **这是什么。** 一次 private preview 评估的实测行为，针对 Microsoft Foundry Hosted Agent 上的长任务执行能力。
+> **这是什么。** 一次 private preview（受限预览阶段）评估的实测行为，针对 Microsoft Foundry Hosted Agent 上的长任务执行能力。
 > **不是什么。** 这里**不包含 preview SDK 源码、完整 Agent 实现、端到端部署配方、API schema，也不包含原始 telemetry**——恢复扩展当时仍处于 private preview。第 2.4 节只展示定位这项能力所必需的最小配置与调用链。文中每个数字都是那次评估的观测值，不是服务级承诺。
 
-> **Author:** 魏新宇 (Xinyu Wei)
+> **Author:** 魏新宇（Xinyu Wei）
+
+> **更新（2026 年 8 月）。** 本次评估进行时，该恢复能力仍处于 private preview。此后微软已发布官方文档 [Resilience for long-running hosted agents](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)，该能力现已进入 **public preview**。官方模型——持久化的 work identity 与 input identity、基于租约的进程丢失检测、**不是**确定性重放的 handler 重入、把 recovery 与 retry 区分开、以及基于游标的流重放——与本次评估从实测中独立推导出的模型一致。AgentServer SDK 也已在公共 PyPI 上进入正式版（`azure-ai-agentserver-core` 2.0.0 于 8 月 6 日、`azure-ai-agentserver-invocations` 1.0.0 于 8 月 10 日、`azure-ai-agentserver-responses` 2.0.0 于 8 月 11 日，其后还有 2.1.0 系列 beta），因此下文中关于「仅预览版包」的说法描述的是评估当时的状态——在据此做设计之前，请以当前的包和官方文档为准。官方同时仍然声明没有 SLA、不建议用于生产，这与第 9.4 节的立场完全相同。
 
 [English](README.md) | 中文 | [Hosted agents 概览](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents) | [Hosted agent 快速入门](https://learn.microsoft.com/en-us/azure/foundry/agents/quickstarts/quickstart-hosted-agent)
 
@@ -63,6 +65,16 @@ Hosted Agent 是客户自己的 Agent 代码，以 container image 的形式交�
 | Session 状态 | 空闲计算恢复时还原 `$HOME` 与 `/files` | 活跃任务在注入运行实例丢失后继续 | 空闲还原与实测一致，但不能代替活跃任务恢复的证据 |
 | Responses | 平台托管对话历史、streaming lifecycle 和后台轮询 | 同一 response 跨恢复交付 output index 0-17 | 证明的是这一次 response，不是所有 workload 的 SLA |
 | Invocations | 应用自行负责 payload、session 语义、task tracking 与轮询 | 观察到显式恢复事件和 phase 1-18 | 应用仍须自己保证 checkpoint 和外部副作用正确 |
+
+### 为什么这件事只能发生在 Hosted Agent 上
+
+Foundry 有两类 agent。Prompt-based agent 由配置定义，不承载你自己的容器或代码包；Hosted agent 则是在托管沙箱里跑**你自己的**代码。
+
+这个区别直接决定了整件事能不能成立。恢复的动作是用同一个 work identity 和同一份输入**重新进入你的 handler**——那就必须先有一个属于你的 handler 可供进入。Prompt-based agent 没有应用运行时可供 checkpoint，没有地方记录“第 7 个 phase 已提交”，也没有任何持久任务记录可供恢复机制重新获取 lease。
+
+微软官方文档现在也把这个结论写明了：**“Run long-lived work resiliently——跨进程中断保留执行中的 agent 任务，并向重连客户端重放流式结果”**被列为选择 Hosted agent 而非 prompt-based agent 的理由之一（[来源](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents)）。
+
+对生产设计的实际含义：如果一个 workload 要跑上几分钟，而且副作用不允许重复，那么 agent 类型这一步其实已经替你定了——它发生在架构选型阶段，远早于你去配置任何恢复选项。
 
 ---
 
@@ -323,7 +335,7 @@ def observe(reader: ResponseReader, *, work_key: str):
 	return response
 ```
 
-`claim_dispatch` 必须是原子、唯一的 insert，在远端调用前先把逻辑任务置为 `dispatching`，从根上关闭并发 dispatcher 竞态。`attach_response` 则通过 compare-and-set 把状态推进到 `dispatched`。`durable_state` 代表能够跨观察进程存在的数据库或其他持久化存储，不是内存 dictionary。传给 observer 的应该是 `ResponseReader(client.responses)`，而不是完整 client。这个 wrapper 的公开应用接口只有 `retrieve`，但它仍然只是可维护性边界，**不是**安全沙箱或底层服务的 RBAC 边界。如果 observer 代码不可信，应把它隔离到独立服务和身份中。进程重启后，它只能读取已经进入 `dispatched` 的映射；映射不存在就 fail closed。Recovery objective 是 workload 配置，不是固定的小重试预算；它必须覆盖健康运行的预期耗时和主机替换余量。`validate_workload_output` 是应用代码；在本次 Research 实测中，它检查 finalized output index 和预期 phase 数量。平台终态与 workload 完整性是两道独立检查。
+`claim_dispatch` 必须是原子、唯一的 insert，在远端调用前先把逻辑任务置为 `dispatching`，从根上关闭并发 dispatcher 竞态。`attach_response` 则通过 compare-and-set 把状态推进到 `dispatched`。`durable_state` 代表能够跨观察进程存在的数据库或其他持久化存储，不是内存 dictionary。传给 observer 的应该是 `ResponseReader(client.responses)`，而不是完整 client。这个 wrapper 的公开应用接口只有 `retrieve`，但它仍然只是可维护性边界，**不是**安全沙箱或底层服务的 RBAC 边界。如果 observer 代码不可信，应把它隔离到独立服务和身份中。进程重启后，它只能读取已经进入 `dispatched` 的映射；映射不存在就按 fail closed（中止而非新建）处理。Recovery objective 是 workload 配置，不是固定的小重试预算；它必须覆盖健康运行的预期耗时和主机替换余量。`validate_workload_output` 是应用代码；在本次 Research 实测中，它检查 finalized output index 和预期 phase 数量。平台终态与 workload 完整性是两道独立检查。
 
 这个最小 pattern 仍有一个绕不开的公共 API 边界：远端 create 与 `attach_response` 不是一个原子事务，公开 create 调用也不支持按应用的 `work_key` 找回 response。进程在取得 claim 之后，可能死在远端 create 之前，也可能死在远端 create 成功、response ID 尚未 attach 之前。此时记录必须停在 `dispatching`，不能自动再创建。普通 transactional outbox 无法判断一次结果未知的远端 create 是否成功。生产 dispatcher 需要产品支持的 idempotency / deduplication contract，或者针对 `dispatching` 记录与 orphan response 的运维对账路径。本次评估是在 response ID 已经持久化之后才开始观察。
 
@@ -384,7 +396,7 @@ Python Invocations 的 Research Agent 在头 15 秒里产出了 599 条事件，
 
 语言和 protocol 都变了，结论没变。
 
-Python Responses 的 Research 运行共记录 11,584 条事件。中断之前：13 秒内 577 条事件，output index 0，570 个文本增量。崩溃流上报告了一个 failed response。经过 **47 秒**的重连间隔，观察到 lifecycle 重放，sequence 从 578 继续，此后 1,140 秒内又来了 11,005 条事件，带着 output index 1 到 17 和 10,918 个文本增量，完成信号在重连后的流上收到。
+Python Responses 的 Research 运行共记录 11,584 条事件。中断之前：13 秒内 577 条事件，output index 0，570 个文本增量。崩溃流上的 response 处于 `failed` 状态。经过 **47 秒**的重连间隔，观察到 lifecycle 重放，sequence 从 578 继续，此后 1,140 秒内又来了 11,005 条事件，带着 output index 1 到 17 和 10,918 个文本增量，完成信号在重连后的流上收到。
 
 output index 0 是中断前产出的，1 到 17 是中断后产出的。**没有任何 index 重复，也没有任何 index 缺失。** 对一个 Responses workload 来说，这是能拿到的最强证据，说明它确实还是同一个逻辑 response，而不是一次逼真的新运行——而这恰恰是重新提交的任务过不了的一关。
 
@@ -392,13 +404,13 @@ output index 0 是中断前产出的，1 到 17 是中断后产出的。**没有
 
 <div align="center"><img src="images/approval-recovery-cn.png" width="820" alt="审批场景实测时间线：从运行实例丢失到决定被接收共 56 秒"></div>
 
-这是最容易被低估的一类情况，因为它发生的时候，**根本没有任何东西在执行**。Graph 停在审批点上，在等一个人。
+这是最容易被低估的一类情况，因为它发生的时候，**根本没有任何东西在执行**。Graph（工作流图）停在审批点上，在等一个人。
 
 任务在 12:22:54 启动，7 秒后调用航班和酒店工具。12:23:07 针对一个三晚东京行程请求审批，然后停下。等待到第 80 秒、也就是 12:24:27 时，运行实例被销毁。重启之后发送的审批决定在 12:25:23 被接收——距离丢失 **56 秒**。两秒后，Agent 恢复，给出的是**和崩溃前完全相同**的航班与酒店选择；12:25:30 返回确认号 `TRIP-182336`。
 
 待审批状态、工具调用结果，以及当初摆在用户面前的那几个具体选项，全都比那个已经不存在的进程活得更久。同一模式在 Responses protocol 上的第二次运行，也拿到了自己的确认号 `TRIP-749637`。
 
-> 这些是确定性的示例工具。确认号证明的是持久化 graph 状态和“决定只生效一次”，不是真实的航班或酒店预订。
+> 这些是确定性的示例工具。确认号证明的是持久化 Graph 状态和“决定只生效一次”，不是真实的航班或酒店预订。
 
 ### 4.4 29 次“失败”，其实一次都不是失败
 
@@ -592,7 +604,7 @@ def apply_approval(ledger, logical_work: str, checkpoint: str, requested: str):
 5. **先分类状态码，再决定动作。** 判定业务失败之前，先对照持久化状态确认。
 6. **让终态显式化。** 流“结束了”并不等于有结果。
 7. **明确审批决定归谁负责。** 被执行两次，比晚一点执行更糟。
-8. **区分挂起任务和活跃任务。** 停在审批点的 graph 没有活跃执行，其计算资源可能被回收；这是预期行为，不是故障。
+8. **区分挂起任务和活跃任务。** 停在审批点的 Graph 没有活跃执行，其计算资源可能被回收；这是预期行为，不是故障。
 
 ---
 
@@ -627,7 +639,7 @@ def apply_approval(ledger, logical_work: str, checkpoint: str, requested: str):
 ### 9.3 边界
 
 - 文中数字是**一次评估的观测值**，不是 benchmark、保证或 SLA。
-- 该能力当时处于 **private preview**，其实现、包、API 和部署配方不在此公开。
+- 该能力在本次评估时处于 **private preview**，此后已进入 **public preview** 并有[官方概念文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)；其实现、包、API 和部署配方仍不在此公开。
 - 结果覆盖**八个文档定义的主场景**，每个只跑一次。cancel、delete、deny 分支不计入。
 - 验证的是恢复行为，不包括业务领域正确性和模型质量。
 - 在依据本文做设计之前，请以[官方文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents)核对当前能力。

@@ -16,6 +16,8 @@ This page explains why that worked, which signals proved it, and which perfectly
 
 > **Author:** Xinyu Wei (魏新宇)
 
+> **Update (August 2026).** This evaluation was run while the recovery capability was in private preview. Microsoft has since published [Resilience for long-running hosted agents](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience), and the capability is now in **public preview**. The official model — durable work and input identity, lease-based process-loss detection, handler re-entry that is *not* deterministic replay, recovery as distinct from retry, and cursor-based stream replay — matches what this evaluation derived independently from measurements. The AgentServer SDKs have also reached general availability on public PyPI (`azure-ai-agentserver-core` 2.0.0 on August 6, `azure-ai-agentserver-invocations` 1.0.0 on August 10, `azure-ai-agentserver-responses` 2.0.0 on August 11, with 2.1.0 betas following), so statements below about preview-only packages describe the state at evaluation time — check the current packages and official documentation before designing against them. Official guidance still carries no SLA and still does not recommend preview for production, which is exactly the position taken in Section 9.4.
+
 [中文](README-CN.md) | English | [Hosted agents overview](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents) | [Hosted agent quickstart](https://learn.microsoft.com/en-us/azure/foundry/agents/quickstarts/quickstart-hosted-agent)
 
 ---
@@ -63,6 +65,16 @@ What that documentation does not tell you is whether *your* workload resumes cor
 | Session state | `$HOME` and `/files` are restored when idle compute resumes | Active work continued after injected runtime loss | Idle restoration is consistent with, but does not prove, active-work recovery |
 | Responses | Conversation history, streaming lifecycle, and background polling are platform-managed | The same response delivered output indexes 0-17 across recovery | Proves this response, not an SLA for every workload |
 | Invocations | The application owns payload, session semantics, task tracking, and polling | Explicit recovery events and phases 1-18 were observed | The application still owns correct checkpoint and side-effect semantics |
+
+### Why this has to be a Hosted Agent
+
+Foundry offers two kinds of agents. A prompt-based agent is defined by configuration and ships no container or package of yours. A hosted agent runs **your** code in a managed sandbox.
+
+That distinction decides the whole question. Recovery re-enters *your handler* with the same work identity and the same input — so there has to be a handler of yours to re-enter. A prompt-based agent has no application runtime to checkpoint, no place to record "phase 7 of 18 committed", and nothing to reclaim a lease on.
+
+Microsoft's documentation now states the same conclusion directly: **"Run long-lived work resiliently — preserve in-progress agent work across process interruptions and replay streamed results to reconnecting clients"** is listed as a reason to choose hosted agents over prompt-based agents ([source](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents)).
+
+The practical consequence for production design: if a workload runs for minutes and has side effects that must not repeat, the agent-type decision is already made for you — at architecture time, long before any recovery option is configured.
 
 ---
 
@@ -627,7 +639,7 @@ Raw artifacts stay private because they contain endpoints, work identifiers, env
 ### 9.3 Boundaries
 
 - Numbers are **observed values from one evaluation**, not benchmarks, guarantees, or SLAs.
-- The capability was in **private preview**, so its implementation, packages, APIs, and deployment recipes are not published here.
+- The capability was in **private preview** when this ran and has since moved to **public preview** with an [official concept page](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience); its implementation, packages, APIs, and deployment recipes are still not published here.
 - Results cover **eight documented main scenarios**, each run once. Cancel, delete, and deny branches were not counted.
 - Recovery behavior was validated. Business-domain correctness and model quality were not.
 - Verify current capabilities against the [official documentation](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents) before designing against anything described here.
