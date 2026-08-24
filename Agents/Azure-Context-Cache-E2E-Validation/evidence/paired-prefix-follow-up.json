@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "evidenceType": "sanitized-paired-prefix-follow-up",
+  "capturedDate": "2026-08-24",
+  "status": "warm-pass-verify-pending",
+  "lineage": "paired-prefix-context-cache-attribution",
+  "authority": {
+    "azurePromptCaching": "https://learn.microsoft.com/azure/ai-foundry/openai/how-to/prompt-caching",
+    "azureContextCacheCommit": "7d1029a5e8b59b1805e70992c85ffe6798d2f47a"
+  },
+  "contract": {
+    "model": "gpt-5.4",
+    "modelVersion": "2026-03-05-contextcache",
+    "capacityPerArm": 100,
+    "contextCacheTimeToLiveDays": 7,
+    "promptCacheRetention": "24h",
+    "minimumVerifyHours": 26,
+    "linkedArmHasContainerBinding": true,
+    "controlArmHasContainerBinding": false
+  },
+  "isolation": {
+    "strategy": "Each arm uses its own equal-length cohort marker at the beginning of the stable prefix, before the original prompt content.",
+    "prefixesAreDistinct": true,
+    "markersHaveEqualLength": true,
+    "firstDifferenceIsWithinTheLeadingMarker": true,
+    "markersPrecedeTheOriginalPrompt": true,
+    "inputTokensPerCallBothArms": 2513
+  },
+  "warm": {
+    "callsPerArm": 2,
+    "allHttp200": true,
+    "linkedCachedTokensByCall": [0, 2304],
+    "controlCachedTokensByCall": [0, 2304],
+    "interpretation": "Both isolated prefix families independently demonstrated a cold miss followed by a warm hit. This validates the baseline but does not establish retention beyond 24 hours."
+  },
+  "verify": {
+    "status": "pending",
+    "notBeforeUtc": "2026-08-24T14:18:04Z",
+    "callsPerArm": 1,
+    "linkedCachedTokens": null,
+    "controlCachedTokens": null
+  },
+  "verdictMatrix": {
+    "linkedHitControlMiss": "context-cache-incremental-retention-observed",
+    "linkedMissControlMiss": "context-cache-incremental-retention-not-observed",
+    "linkedHitControlHit": "attribution-ambiguous-both-retained",
+    "linkedMissControlHit": "unexpected-control-only-hit"
+  },
+  "claimBoundary": "This is an in-progress, single-environment Private Preview follow-up. Warm results prove only that both isolated prefixes were cacheable. No post-24-hour retention conclusion is available until the verify stage completes."
+}

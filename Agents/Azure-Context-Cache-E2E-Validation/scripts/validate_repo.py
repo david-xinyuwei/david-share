@@ -36,6 +36,7 @@ REQUIRED = (
     "docs/METHOD-CN.md",
     "evidence/README.md",
     "evidence/manifest.json",
+    "evidence/paired-prefix-follow-up.json",
     "evidence/validation-history.json",
     "evidence/verified-run-summary.json",
     "images/customer-architecture.svg",
@@ -45,11 +46,14 @@ REQUIRED = (
     "scenario-manifest.json",
     "scripts/audit_public_content.py",
     "scripts/demo_code_validator.py",
+    "scripts/paired_prefix_probe.py",
     "scripts/parse_demo_output.py",
     "scripts/run_official_e2e.ps1",
     "scripts/validate_arm_summary.py",
     "scripts/validate_repo.py",
     "scripts/verify_upstream.py",
+    "tests/test_paired_prefix_evidence.py",
+    "tests/test_paired_prefix_probe.py",
 )
 LOCAL_LINK = re.compile(r"\[[^]]*\]\((?!https?://|mailto:|#)([^)]+)\)")
 IMAGE_LINK = re.compile(r"!\[[^]]*\]\(([^)]+)\)")
@@ -78,6 +82,13 @@ def markdown_shape(text: str) -> dict[str, object]:
     return {
         "headings": [len(match.group(1)) for match in HEADING.finditer(text)],
         "fences": [match.group(1) for match in FENCE.finditer(text)],
+        "tableRows": [
+            line.count("|") - 1
+            for line in text.splitlines()
+            if line.startswith("|")
+            and line.endswith("|")
+            and not re.fullmatch(r"\|(?:\s*:?-+:?\s*\|)+", line)
+        ],
         "tableSeparators": [
             line.count("|") - 1
             for line in text.splitlines()
@@ -170,6 +181,23 @@ def main() -> int:
         method_en = METHODS[0].read_text(encoding="utf-8")
         method_cn = METHODS[1].read_text(encoding="utf-8")
         require(markdown_shape(method_en) == markdown_shape(method_cn), "bilingual method shape differs")
+        method_markers = {
+            "METHOD.md": (
+                "Paired-Prefix Follow-Up (In Progress)",
+                "WARM PASS / VERIFY PENDING",
+                "scripts\\paired_prefix_probe.py",
+                "at least 26 hours",
+            ),
+            "METHOD-CN.md": (
+                "Paired-Prefix 后续实验（进行中）",
+                "WARM PASS / VERIFY PENDING",
+                "scripts\\paired_prefix_probe.py",
+                "至少等待 26 小时",
+            ),
+        }
+        for text, name in ((method_en, "METHOD.md"), (method_cn, "METHOD-CN.md")):
+            for marker in method_markers[name]:
+                require(marker in text, f"{name} missing paired-prefix marker: {marker}")
         links += sum(validate_links(path, text) for path, text in zip(METHODS, (method_en, method_cn)))
 
         for image in (ROOT / "images").glob("*.svg"):
@@ -207,7 +235,16 @@ def main() -> int:
         )
 
         scenario = load_json("scenario-manifest.json")
-        require(len(scenario["scenarios"]) == 5, "scenario count changed")
+        require(len(scenario["scenarios"]) == 6, "scenario count changed")
+        paired_scenario = next(
+            row
+            for row in scenario["scenarios"]
+            if row["id"] == "paired-prefix-retention-follow-up"
+        )
+        require(
+            paired_scenario["classification"] == "dynamic-runtime",
+            "paired-prefix scenario classification changed",
+        )
         customer_architecture = next(
             row
             for row in scenario["scenarios"]
@@ -223,6 +260,7 @@ def main() -> int:
             "customer value boundary changed",
         )
         evidence = load_json("evidence/verified-run-summary.json")
+        paired = load_json("evidence/paired-prefix-follow-up.json")
         evidence_manifest = load_json("evidence/manifest.json")
         history = load_json("evidence/validation-history.json")
         calls = evidence["calls"]
@@ -251,6 +289,7 @@ def main() -> int:
         require(latency_reduction == 37.4, "latency reduction changed")
 
         evidence_paths = (
+            ROOT / "evidence" / "paired-prefix-follow-up.json",
             ROOT / "evidence" / "validation-history.json",
             ROOT / "evidence" / "verified-run-summary.json",
         )
@@ -262,15 +301,15 @@ def main() -> int:
             require(manifest_entry["sha256"] == sha256(evidence_path), "evidence hash mismatch")
         require([row["verdict"] for row in history["runs"]] == [
             "pass", "pass", "rejected-incomplete", "rejected-incomplete",
-            "complete-hypothesis-falsified",
+            "complete-hypothesis-falsified", "warm-pass-verify-pending",
         ], "validation history verdicts changed")
-        require([row["transportErrors"] for row in history["runs"]] == [0, 0, 3, 4, 0], "validation history transport counts changed")
+        require([row["transportErrors"] for row in history["runs"]] == [0, 0, 3, 4, 0, 0], "validation history transport counts changed")
 
         # The cross-day attribution run is the only phase that can speak to
         # incremental Context Cache value, and it returned a negative result.
         # Pin its decisive numbers so a later edit cannot quietly turn the
         # falsified hypothesis into a benefit claim.
-        cross_day = history["runs"][-1]
+        cross_day = next(row for row in history["runs"] if row["path"] == "cross-day-attribution")
         require(cross_day["path"] == "cross-day-attribution", "cross-day run path changed")
         require(
             cross_day["idleHoursBeforeFirstCall"] > cross_day["documentedDefaultCacheCeilingHours"],
@@ -284,6 +323,27 @@ def main() -> int:
             cross_day["observed"]["unboundControlCachedTokens"] > 0,
             "cross-day cross-deployment reuse observation changed",
         )
+        paired_history = next(row for row in history["runs"] if row["path"] == "paired-prefix-follow-up")
+        require(paired["status"] == "warm-pass-verify-pending", "paired-prefix status changed")
+        require(paired_history["verdict"] == paired["status"], "paired-prefix history status mismatch")
+        require(paired["contract"]["minimumVerifyHours"] >= 26, "paired-prefix verify window is too short")
+        require(paired["contract"]["linkedArmHasContainerBinding"] is True, "linked arm lost its binding")
+        require(paired["contract"]["controlArmHasContainerBinding"] is False, "control arm gained a binding")
+        require(paired["isolation"]["prefixesAreDistinct"] is True, "paired prefixes are not isolated")
+        require(paired["isolation"]["markersHaveEqualLength"] is True, "paired markers differ in length")
+        require(
+            paired["isolation"]["firstDifferenceIsWithinTheLeadingMarker"] is True,
+            "paired prefix difference is outside the leading marker",
+        )
+        require(
+            paired["isolation"]["markersPrecedeTheOriginalPrompt"] is True,
+            "paired markers do not precede the original prompt",
+        )
+        require(paired["warm"]["linkedCachedTokensByCall"] == [0, 2304], "linked warm evidence changed")
+        require(paired["warm"]["controlCachedTokensByCall"] == [0, 2304], "control warm evidence changed")
+        require(paired["verify"]["status"] == "pending", "paired-prefix verify status changed")
+        require(paired["verify"]["linkedCachedTokens"] is None, "pending linked verify contains a result")
+        require(paired["verify"]["controlCachedTokens"] is None, "pending control verify contains a result")
 
         fixture_summary = summarize(
             parse_rows((ROOT / "tests/fixtures/demo-success.txt").read_text(encoding="utf-8"))
@@ -319,6 +379,9 @@ def main() -> int:
                 "Microsoft.Storage/contextCaches",
                 "contextCacheContainerId",
                 "general Azure OpenAI prompt-caching guidance",
+                "WARM PASS — VERIFY PENDING",
+                "Cache-key isolation",
+                "paired-prefix-follow-up.json",
             ),
             "README-CN.md": (
                 "客户问题与业务价值",
@@ -349,6 +412,9 @@ def main() -> int:
                 "Microsoft.Storage/contextCaches",
                 "contextCacheContainerId",
                 "通用 Azure OpenAI prompt caching 指南",
+                "WARM 通过 — VERIFY PENDING",
+                "Cache key 隔离",
+                "paired-prefix-follow-up.json",
             ),
         }
         for text, name in ((english, "README.md"), (chinese, "README-CN.md")):

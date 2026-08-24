@@ -20,6 +20,12 @@
       "proof": "Metrics recomputed from the captured official transcript"
     },
     {
+      "id": "paired-prefix-retention-follow-up",
+      "classification": "dynamic-runtime",
+      "entrypoint": "scripts/paired_prefix_probe.py",
+      "proof": "Two equal-token but content-isolated prefix families; warm phase passed and the post-24-hour verify stage remains pending"
+    },
+    {
       "id": "offline-parser-tests",
       "classification": "test-fixture",
       "entrypoint": "tests/fixtures/*.txt",
@@ -29,7 +35,7 @@
       "id": "customer-architecture-and-value-boundaries",
       "classification": "architecture-explainer",
       "entrypoint": "README.md, README-CN.md, and images/customer-architecture.svg",
-      "proof": "Official-source product architecture and value levers; quantified customer savings remain unverified, the incremental hit rate over default prompt caching remains unattributed, and no container time-to-live ceiling is claimed"
+      "proof": "Official-source product architecture and value levers; quantified customer savings remain unverified, the paired-prefix retention follow-up remains pending, and no container time-to-live ceiling is claimed"
     }
   ],
   "forbiddenFallbacks": [

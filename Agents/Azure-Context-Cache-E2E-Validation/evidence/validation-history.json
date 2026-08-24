@@ -63,6 +63,23 @@
         "The declared 7-day container lifetime did not produce a cross-day data-plane cache hit in this environment.",
         "Prefix cache state was reused across two deployments in one Azure OpenAI account, in both directions across phases."
       ]
+    },
+    {
+      "date": "2026-08-23",
+      "path": "paired-prefix-follow-up",
+      "successfulCalls": 4,
+      "transportErrors": 0,
+      "warmHits": 2,
+      "warmCalls": 2,
+      "verdict": "warm-pass-verify-pending",
+      "design": "Each arm uses an equal-length but distinct prefix marker before the original stable content, preventing one arm from warming the other arm's prompt-cache key.",
+      "minimumVerifyHours": 26,
+      "observed": {
+        "linkedCachedTokensByCall": [0, 2304],
+        "controlCachedTokensByCall": [0, 2304],
+        "inputTokensPerCallBothArms": 2513
+      },
+      "finding": "The warm phase established two independently cacheable prefix families. The post-24-hour retention result is pending and no verdict is claimed."
     }
   ],
   "interpretation": [
@@ -70,6 +87,7 @@
     "Incomplete runs are infrastructure or transport observations, not cache scores.",
     "Rejected runs are not removed or converted into passes.",
     "A completed run whose result contradicts its hypothesis is reported as-is and is not suppressed.",
+    "An in-progress run is labeled pending and cannot contain a completed retention verdict.",
     "The cross-day result is bounded to this account, region, model, prefix, interval, and Preview build.",
     "This history is not a statistical performance benchmark."
   ]

@@ -69,13 +69,13 @@ flowchart LR
 | 要素 | 设计 |
 |---|---|
 | 对照组 | 同一账户和区域内，一个 deployment 设置 `contextCacheContainerId`，另一个不设置；模型和版本完全相同 |
-| Prompt | 两组使用字节完全一致的稳定前缀和同一组变化后缀 |
+| Prompt | 两组使用相同的基础 prompt 和后缀合同，但在原始内容之前分别加入等长的 `ARM=A` 或 `ARM=B` 标记，使 cache key 相互独立 |
 | 间隔档位 | 位于内存态窗口内、超出内存态但仍在扩展保留内，以及超出扩展保留 |
-| 调用顺序 | 在决定结论的档位**先调用绑定组**，让它的第一次请求在任何东西预热共享前缀之前被测量 |
+| 调用顺序 | 固定为绑定组后接对照组，便于复现；由于两臂无法预热同一个内容型前缀，归因不再依赖顺序 |
 | 指标 | 按组、按档位记录命中率和 `cached_tokens` |
 | 报告方式 | 公布所有档位，包括两组无法区分的档位，也包括否定结果 |
 
-本设计的早期版本在决定结论的档位先调用了**未绑定**组。这消除了预热污染，却在相反方向毁掉了归因：未绑定组自身的冷启动预热了共享前缀，于是几秒后绑定组的命中来源变得不明。**只有空闲窗口的第一次调用是未受污染的，而它必须是被检验能力所属的那一组。**
+本设计的早期版本在决定结论的档位先调用了**未绑定**组。这消除了一种预热方向，却在相反方向毁掉了归因：未绑定组自身的冷启动预热了共享前缀，于是几秒后绑定组的命中来源变得不明。绑定组优先让第一条绑定请求可以解读，但仍然只有一条未受污染的观测。更强的设计直接隔离 cache key，使每一臂都能独立评估。
 
 ## 跨天归因实验
 
@@ -109,10 +109,64 @@ flowchart LR
 2. **前缀缓存状态双向跨越了 deployment 边界。** 结合早期反方向的观测，同一 Azure OpenAI 账户下的不同 deployment 不能被假定为缓存隔离边界。
 3. **任何延迟结论都不成立。** 命中对命中的均值为 `1877.8 ms`（绑定组，标准差 `365.3`，n=11）与 `2047.9 ms`（未绑定组，标准差 `766.8`，n=11）。`170 ms` 的差值小于任一标准差，且符号在阶段之间翻转（`−14.9`、`−672.2`、`+230.0` ms）。能成立的是命中快于未命中：`1962.9 ms` vs `3368.5 ms`，降低 `41.7%`。
 
-因此增量命中率、成本和延迟结论仍未得到证明，并且有一次决定性测量指向命中率假设的反面。目前站得住的差异是显式生命周期声明、数据驻留、所有权和治理能力——全部通过控制面回读验证，且都不依赖缓存命中对比。
+因此增量命中率、成本和延迟结论仍未得到证明。已完成观测在本环境中指向命中率假设的反面，而下面更严格的 paired-prefix 后续实验仍为 pending。目前站得住的差异是显式生命周期声明、数据驻留、所有权和治理能力——全部通过控制面回读验证，且都不依赖缓存命中对比。
 
 复现本实验需要在账户上重新建立超过 24 小时的空闲窗口。期间任何推理流量都会使前置条件失效。
 
+## Paired-Prefix 后续实验（进行中）
+
+这是一个新的实验 lineage，不会改写已经完成的跨天结果。它为每一臂分配独立的前缀 family，从根本上移除共享 cache key 干扰，同时保持基础 prompt、后缀合同、模型、版本、capacity、请求结构和保留设置一致。
+
+| 合同要素 | 冻结值 |
+|---|---|
+| 两臂 | 一个 deployment 绑定 Context Cache 容器，一个未绑定作为对照 |
+| Cache key 隔离 | 在原始稳定内容之前加入等长的 `ARM=A` 与 `ARM=B` 标记 |
+| 运行时一致性 | 两臂必须返回相同且可测量的 input token 数 |
+| Warm 门 | 每一臂两次调用必须独立产生 `cached_tokens: 0 -> >0` |
+| Verify 门 | 至少等待 `26` 小时后每臂只调用一次；脚本拒绝提前或重复 Verify |
+| 当前状态 | `WARM PASS / VERIFY PENDING` |
+
+Warm 观测：
+
+| 臂 | 第 1 次 | 第 2 次 | 每次 input token |
+|---|---:|---:|---:|
+| 已绑定 Context Cache | `0` | `2304` | `2513` |
+| 未绑定对照 | `0` | `2304` | `2513` |
+
+公共探针已参数化，不包含 endpoint、资源 ID 或凭据。发请求前，它使用调用者已隔离的 Azure CLI profile，通过 ARM 校验两个 deployment 定义以及容器的模型/TTL；随后再获取数据面 token，并把请求记录写入 public source tree 之外、由调用者指定的路径。
+
+```powershell
+$env:AZURE_CONFIG_DIR = "$HOME\.azure-context-cache-validation"
+
+$common = @(
+    '--endpoint', 'https://YOUR-AOAI-ACCOUNT.openai.azure.com',
+    '--subscription-id', 'YOUR-SUBSCRIPTION-ID',
+    '--resource-group', 'YOUR-RESOURCE-GROUP',
+    '--account-name', 'YOUR-AOAI-ACCOUNT',
+    '--linked-deployment', 'YOUR-LINKED-DEPLOYMENT',
+    '--control-deployment', 'YOUR-CONTROL-DEPLOYMENT',
+    '--expected-container-id', '/subscriptions/YOUR-SUBSCRIPTION-ID/resourceGroups/YOUR-RESOURCE-GROUP/providers/Microsoft.Storage/contextCaches/YOUR-CACHE/contextCacheContainers/YOUR-CONTAINER',
+    '--prefix-file', 'PATH-TO-STABLE-PREFIX',
+    '--run-id', 'customer-eval-001',
+    '--output', 'PATH-TO-PRIVATE-RESULTS.jsonl'
+)
+
+python .\scripts\paired_prefix_probe.py @common --phase WARM
+# 至少等待 26 小时，期间不要复用这两个隔离前缀。
+python .\scripts\paired_prefix_probe.py @common --phase VERIFY
+```
+
+Verify 前已经冻结裁决矩阵：
+
+| 26+ 小时后绑定臂 | 26+ 小时后对照臂 | 裁决 |
+|---:|---:|---|
+| 命中 | 未命中 | 本环境观测到 Context Cache 增量保留 |
+| 未命中 | 未命中 | 本环境未观测到 Context Cache 增量保留 |
+| 命中 | 命中 | 归因不明确：两条路径都保留了前缀 |
+| 未命中 | 命中 | 对照臂单独命中的异常结果；形成产品结论前必须调查 |
+
+在 Verify 完成前，Warm 行只能证明两个隔离前缀 family 都可以独立缓存，不能建立跨天保留结论。脱敏状态记录在 [`../evidence/paired-prefix-follow-up.json`](../evidence/paired-prefix-follow-up.json)。
+
 ## 声明边界
 
-已完成路径只证明 deployment binding 确实存在，且绑定后的路径在一次有边界的运行中完成了 Responses API 调用并返回了非零 cached tokens。它不证明延迟分布、价格收益、并发保证、区域可用性或生产就绪。跨天实验额外建立了本环境下跨天复用的有界否定结果；该结果不推广到其他区域、模型、前缀、间隔或 Preview 版本。本文只报告实际观测，不根据客户端耗时推断服务端机制。
+已完成路径只证明 deployment binding 确实存在，且绑定后的路径在一次有边界的运行中完成了 Responses API 调用并返回了非零 cached tokens。它不证明延迟分布、价格收益、并发保证、区域可用性或生产就绪。已完成的跨天观测为一个前缀和间隔建立了有界否定结果；paired-prefix 后续实验在 Verify 完成前没有保留结果。两者都不能推广到其他区域、模型、前缀、间隔或 Preview 版本。本文只报告实际观测，不根据客户端耗时推断服务端机制。

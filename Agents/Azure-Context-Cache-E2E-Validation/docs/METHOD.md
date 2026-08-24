@@ -71,13 +71,13 @@ The corrected comparison uses the following design:
 | Element | Design |
 |---|---|
 | Arms | One deployment with `contextCacheContainerId` and one deployment in the same account and region without it; model and version are identical |
-| Prompt | The same byte-identical stable prefix and variable suffix set on both arms |
+| Prompt | The same base prompt and suffix contract on both arms, with an equal-length `ARM=A` or `ARM=B` marker before the original content so the cache keys are distinct |
 | Intervals | Inside the in-memory window, past it but inside extended retention, and past extended retention |
-| Call order | Call the **bound** arm first at the deciding interval, so its first request is measured before anything can warm the shared prefix |
+| Call order | Fixed linked-then-control order for repeatability; attribution no longer depends on order because the two arms cannot warm the same content-keyed prefix |
 | Metrics | Hit rate and `cached_tokens` per arm and interval |
 | Reporting | Publish every interval, including intervals where the two arms are indistinguishable, and including negative results |
 
-An earlier iteration of this design called the *unbound* arm first at the deciding interval. That removed the pre-warm contamination but destroyed attribution in the opposite direction: the unbound arm's own cold miss warmed the shared prefix, so a hit on the bound arm moments later had an ambiguous source. **Only the first call of an idle window is uncontaminated, and it must be the arm whose capability is under test.**
+An earlier iteration called the *unbound* arm first at the deciding interval. That removed one pre-warm direction but destroyed attribution in the opposite direction: the unbound arm's own cold miss warmed the shared prefix, so a hit on the bound arm moments later had an ambiguous source. Bound-first ordering made the first linked call interpretable, but still left only one uncontaminated observation. The stronger design isolates the cache keys themselves, so each arm can be evaluated independently.
 
 ## Cross-Day Attribution Test
 
@@ -111,10 +111,64 @@ Integrity: single `prefix_sha256`, identical `input_tokens=2467`, both `HTTP 200
 2. **Prefix cache state crossed the deployment boundary in both directions.** Combined with the earlier reverse observation, separate deployments in one Azure OpenAI account must not be assumed to form a cache isolation boundary.
 3. **No latency claim is supportable.** Hit-versus-hit means were `1877.8 ms` (bound, sd `365.3`, n=11) and `2047.9 ms` (unbound, sd `766.8`, n=11). The `170 ms` gap is smaller than either standard deviation and its sign flips across phases (`−14.9`, `−672.2`, `+230.0` ms). What is supportable is that a hit beats a miss: `1962.9 ms` versus `3368.5 ms`, a `41.7%` reduction.
 
-Incremental hit-rate, cost, and latency claims therefore remain unproven, and one decisive measurement points against the hit-rate hypothesis. The defensible differentiators are explicit lifetime declaration, residency, ownership, and governance — all verified through control-plane reads and none dependent on a cache-hit comparison.
+Incremental hit-rate, cost, and latency claims therefore remain unproven. The completed observation points against the hit-rate hypothesis in this environment, while the stronger paired-prefix follow-up below is still pending. The defensible differentiators are explicit lifetime declaration, residency, ownership, and governance — all verified through control-plane reads and none dependent on a cache-hit comparison.
 
 Reproducing this test requires re-establishing an idle window longer than 24 hours on the account. Any inference traffic in between invalidates the precondition.
 
+## Paired-Prefix Follow-Up (In Progress)
+
+This is a new experimental lineage, not a rewrite of the completed cross-day result. It removes the shared-key confound by giving each arm its own prefix family while preserving the same base prompt, suffix contract, model, version, capacity, request shape, and retention setting.
+
+| Contract element | Frozen value |
+|---|---|
+| Arms | One deployment bound to the Context Cache container and one unbound control deployment |
+| Cache-key isolation | Equal-length `ARM=A` and `ARM=B` markers appear before the original stable content |
+| Runtime parity | Both arms must report the same measurable input-token count |
+| Warm gate | Each arm must independently produce `cached_tokens: 0 -> >0` across two calls |
+| Verify gate | One call per arm only after at least `26` hours; the script rejects an early or duplicate Verify |
+| Current state | `WARM PASS / VERIFY PENDING` |
+
+Warm observations:
+
+| Arm | Call 1 | Call 2 | Input tokens per call |
+|---|---:|---:|---:|
+| Linked Context Cache arm | `0` | `2304` | `2513` |
+| Unbound control arm | `0` | `2304` | `2513` |
+
+The public probe is parameterized and contains no endpoint, resource ID, or credential. Before sending requests, it uses the caller's isolated Azure CLI profile to verify both deployment definitions and the container model/TTL through ARM. It then obtains a data-plane token and writes request rows to a caller-selected path outside the public source tree.
+
+```powershell
+$env:AZURE_CONFIG_DIR = "$HOME\.azure-context-cache-validation"
+
+$common = @(
+    '--endpoint', 'https://YOUR-AOAI-ACCOUNT.openai.azure.com',
+    '--subscription-id', 'YOUR-SUBSCRIPTION-ID',
+    '--resource-group', 'YOUR-RESOURCE-GROUP',
+    '--account-name', 'YOUR-AOAI-ACCOUNT',
+    '--linked-deployment', 'YOUR-LINKED-DEPLOYMENT',
+    '--control-deployment', 'YOUR-CONTROL-DEPLOYMENT',
+    '--expected-container-id', '/subscriptions/YOUR-SUBSCRIPTION-ID/resourceGroups/YOUR-RESOURCE-GROUP/providers/Microsoft.Storage/contextCaches/YOUR-CACHE/contextCacheContainers/YOUR-CONTAINER',
+    '--prefix-file', 'PATH-TO-STABLE-PREFIX',
+    '--run-id', 'customer-eval-001',
+    '--output', 'PATH-TO-PRIVATE-RESULTS.jsonl'
+)
+
+python .\scripts\paired_prefix_probe.py @common --phase WARM
+# Wait at least 26 hours without reusing either isolated prefix.
+python .\scripts\paired_prefix_probe.py @common --phase VERIFY
+```
+
+The verdict matrix was frozen before Verify:
+
+| Linked after 26+ h | Control after 26+ h | Adjudication |
+|---:|---:|---|
+| hit | miss | Incremental Context Cache retention observed in this environment |
+| miss | miss | Incremental Context Cache retention not observed in this environment |
+| hit | hit | Ambiguous: both paths retained the prefixes |
+| miss | hit | Unexpected control-only hit; investigate before making a product claim |
+
+Until Verify completes, the warm rows prove only that both isolated prefix families were independently cacheable. They do not establish cross-day retention. The sanitized state is recorded in [`../evidence/paired-prefix-follow-up.json`](../evidence/paired-prefix-follow-up.json).
+
 ## Claim Boundary
 
-The completed path proves that the deployment binding was present and that the bound path completed Responses API calls with nonzero cached tokens in one bounded run. It does not prove a latency distribution, pricing outcome, concurrency guarantee, regional availability, or production readiness. The cross-day test additionally establishes a bounded negative result for cross-day reuse in this environment; it does not generalise to other regions, models, prefixes, intervals, or Preview builds. Effect is reported; server-side mechanism is not inferred from client-side timing.
+The completed path proves that the deployment binding was present and that the bound path completed Responses API calls with nonzero cached tokens in one bounded run. It does not prove a latency distribution, pricing outcome, concurrency guarantee, regional availability, or production readiness. The completed cross-day observation establishes a bounded negative result for one prefix and interval; the paired-prefix follow-up has no retention result until Verify completes. Neither result generalises to other regions, models, prefixes, intervals, or Preview builds. Effect is reported; server-side mechanism is not inferred from client-side timing.

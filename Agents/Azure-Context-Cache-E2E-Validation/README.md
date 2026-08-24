@@ -10,17 +10,17 @@
 
 Evaluate explicit context caching for Azure OpenAI applications that repeatedly send the same long instructions, tool definitions, examples, or reference content.
 
-**If you read one paragraph, read this one.** Context Cache is a **governance and ownership** feature, not a faster cache. It gives you a named Azure resource in your own subscription, region, and RBAC boundary, with a lifetime you declare. This repository verified all of that against a real Azure control plane. It also ran a controlled cross-day experiment to test whether the container's 7-day lifetime delivers cache reuse that the model's own default prompt caching cannot — and **in this environment it did not**. If your reason for adopting Context Cache is a higher hit rate, lower cost, or lower latency than default prompt caching, this repository does not support that reason, and you should measure it in your own environment before committing.
+**If you read one paragraph, read this one.** Context Cache is a **governance and ownership** feature, not a faster cache. It gives you a named Azure resource in your own subscription, region, and RBAC boundary, with a lifetime you declare. This repository verified all of that against a real Azure control plane. A completed linked-first observation found no cache hit after `43.83` idle hours. Because a shared cache key can contaminate a two-arm comparison, a stronger paired-prefix follow-up is now in progress: both isolated arms independently passed warm validation (`0 -> 2304` cached tokens), while the post-24-hour verification remains pending. No incremental hit-rate, cost, or latency benefit is claimed.
 
 ## Decision Summary
 
 | Customer question | Current answer |
 |---|---|
 | What is the defensible reason to adopt this? | Governance: a named, auditable, RBAC-scoped cache resource in your subscription and region, with a lifetime you declare. Verified here by ARM reads |
-| Does it cache better than the free default prompt caching? | **Not established, and one decisive test pointed the other way.** After a sealed `43.83`-hour idle window, the bound deployment cold-missed (`cached_tokens=0`) while an unbound deployment hit `3.2` s later. See [Cross-Day Reuse: The Decisive Test](#cross-day-reuse-the-decisive-test) |
+| Does it cache better than the free default prompt caching? | **Not established.** A completed linked-first observation cold-missed after `43.83` idle hours. A stronger paired-prefix follow-up has passed its warm gate on both arms, but its post-24-hour verification is still pending. See [Cross-Day Reuse: Completed Observation and Paired-Prefix Follow-Up](#cross-day-reuse-completed-observation-and-paired-prefix-follow-up) |
 | Is it faster than default prompt caching? | **No supportable claim.** Hit-vs-hit latency differed by `170 ms`, smaller than either arm's own standard deviation, and the sign flipped between phases |
 | Is separate-deployment isolation safe to assume? | **No.** Prefix cache state was observed being reused bidirectionally between two deployments in the same Azure OpenAI account |
-| What should the customer do next? | Adopt for governance if governance is the requirement. If cross-day reuse is the requirement, reproduce the cross-day test with your own prefix and interval before committing |
+| What should the customer do next? | Adopt for governance if governance is the requirement. If cross-day reuse is the requirement, wait for or reproduce the isolated paired-prefix verification before committing |
 
 ## Workload Fit
 
@@ -41,20 +41,23 @@ Evaluate explicit context caching for Azure OpenAI applications that repeatedly 
 | Deployment binding | Cross-check ARM output, deployment property, and container resource ID | All three `contextCacheContainerId` values matched exactly | The Azure OpenAI deployment is explicitly linked to the named container |
 | Data-plane path | Call the Responses API while the binding remains present | `6/6` calls completed | The bound official product path operates end to end |
 | Cross-day reuse beyond the default ceiling | Linked-first controlled call after a sealed `43.83` h idle window | **Not observed** — bound deployment returned `cached_tokens=0` | The container's 7-day TTL did not yield a cross-day data-plane hit in this environment |
+| Isolated cross-day differential | Equal-token, distinct prefix family per arm; warm both, then wait at least `26` h | **Warm gate passed; verification pending** — both arms produced `0 -> 2304` | The baseline is valid, but no post-24-hour retention verdict exists yet |
 | Deployment cache isolation | Compare arms within one Azure OpenAI account | **Not present** — reuse observed in both directions | Separate deployments in one account are not a cache isolation boundary |
 | Incremental hit rate / cost / latency benefit | Controlled comparison against model-default prompt caching | **Not established** | No supportable claim in either direction |
 
 This E2E used an Azure subscription approved for the Private Preview and pinned the official Quickstart to commit `7d1029a5e8b59b1805e70992c85ffe6798d2f47a`. The single-run generic cache telemetry remains in the [public evidence notes](evidence/README.md) for audit only; it is not evidence of incremental Context Cache value.
 
-## Cross-Day Reuse: The Decisive Test
+## Cross-Day Reuse: Completed Observation and Paired-Prefix Follow-Up
 
 This is the one question a customer cannot answer from documentation alone, so this repository tested it directly.
+
+**Current evidence status (`2026-08-24`).** The `43.83`-hour linked-first run below is a completed historical observation and remains published unchanged. It is not the final matched two-arm comparison because both deployments used the same content-keyed prefix. The stronger follow-up assigns each arm an equal-length but distinct marker before the original stable prompt. Its warm phase passed on both arms (`linked: 0 -> 2304`, `control: 0 -> 2304`, `input_tokens=2513` throughout). The one-call-per-arm verification after at least `26` hours is `pending`; therefore this follow-up currently carries **no retention verdict**. See [`paired-prefix-follow-up.json`](evidence/paired-prefix-follow-up.json).
 
 **The hypothesis.** Model-default prompt caching is documented to clear within 5–10 minutes of inactivity, always within one hour for in-memory retention, and to top out at a **maximum of 24 hours** with extended retention. The Context Cache container declares `timeToLive = 7` days. If the container genuinely backs a longer reuse window, then after more than 24 idle hours a bound deployment should still hit while an unbound one cannot.
 
 **Why it is hard to test honestly.** A cache test contaminates itself. Whichever arm is called first processes the prefix and can warm shared state for the second. An earlier phase of this work called the unbound arm first, which removed one contamination but destroyed attribution: the unbound arm's own cold miss warmed the prefix, so a later hit on the bound arm proved nothing.
 
-**The controlled design.** Call the **bound** deployment first, as the very first request after a long idle window, and gate the run on machine-checked preconditions.
+**The completed order-controlled design.** Call the **bound** deployment first, as the very first request after a long idle window, and gate the run on machine-checked preconditions.
 
 | Precondition | Verified value |
 |---|---|
@@ -81,7 +84,7 @@ Both calls returned `HTTP 200` with identical `input_tokens=2467` and the same p
 1. **The declared 7-day container lifetime did not produce a cross-day cache hit in this environment.** The binding is a verified control-plane fact, but it did not translate into a data-plane cache read after 43.83 idle hours. This falsifies the reuse-window hypothesis for this environment; it is not a defect report, and a Private Preview may change.
 2. **Prefix cache state crosses deployment boundaries within one account, in both directions.** The unbound deployment read `2304` cached tokens from a prefix that only the bound deployment had processed. Combined with the reverse observation in an earlier phase, this means **separate deployments in one Azure OpenAI account must not be assumed to form a cache isolation boundary** — a security- and design-relevant fact that needs no baseline comparison to be valid.
 
-**What this does not establish.** Nothing about the service's internal storage mechanism, and nothing generalizable beyond this account, region, model, prefix, interval, and Preview build. One decisive run in one environment is a bounded observation.
+**What this does not establish.** Nothing about the service's internal storage mechanism, and nothing generalizable beyond this account, region, model, prefix, interval, and Preview build. One completed run in one environment is a bounded observation. The paired-prefix follow-up remains pending and may confirm, contradict, or leave ambiguous the incremental-retention hypothesis.
 
 Full method, gates, integrity checks, and raw rows: [`docs/METHOD.md`](docs/METHOD.md#cross-day-attribution-test).
 
@@ -142,7 +145,7 @@ The [general Azure OpenAI prompt-caching guidance](https://learn.microsoft.com/a
 
 Read that table as an **ownership-and-control argument, not a hit-rate argument**. Every row describes who declares and who can inspect the cache, not how well it caches. For prefixes that repeat continuously, the default cache already serves the request. The differentiated value of Context Cache appears when residency, lifetime declaration, and lifecycle must be an owned, inspectable, governable property of the customer's own subscription instead of an opportunistic service behavior.
 
-One row deserves an explicit caution. **A declared lifetime is a configuration property, not a measured guarantee of reuse.** Published default-cache retention behavior is the reference point: in-memory retention is typically cleared within 5 to 10 minutes of inactivity and always released within one hour of last use, while extended retention raises the ceiling to a maximum of 24 hours on the model families that support it. The container's `timeToLive` of 7 days is a longer *declared* window — but this repository's [decisive cross-day test](#cross-day-reuse-the-decisive-test) called the bound deployment first after `43.83` idle hours and got `cached_tokens=0`. So do not read "7 days" as "reuse for 7 days". Read it as "the lifetime you declared on a resource you own", and verify reuse separately in your own environment if reuse across days is what you are buying.
+One row deserves an explicit caution. **A declared lifetime is a configuration property, not a measured guarantee of reuse.** Published default-cache retention behavior is the reference point: in-memory retention is typically cleared within 5 to 10 minutes of inactivity and always released within one hour of last use, while extended retention raises the ceiling to a maximum of 24 hours on the model families that support it. The container's `timeToLive` of 7 days is a longer *declared* window — but this repository's [completed cross-day observation](#cross-day-reuse-completed-observation-and-paired-prefix-follow-up) called the bound deployment first after `43.83` idle hours and got `cached_tokens=0`. The stronger isolated-prefix verification is still pending. So do not read "7 days" as "reuse for 7 days". Read it as "the lifetime you declared on a resource you own", and verify reuse separately in your own environment if reuse across days is what you are buying.
 
 ### How Long Can the Container Lifetime Be?
 
@@ -158,7 +161,7 @@ So `7` days is a **default, not a ceiling**. Any customer discussion that needs 
 
 ### How to Calculate Incremental Context Cache Value in Your Own Environment
 
-This repository already ran this comparison and got a negative result: see [Cross-Day Reuse: The Decisive Test](#cross-day-reuse-the-decisive-test). The procedure below is therefore not a template for confirming a benefit — it is the method to reproduce, and potentially refute, that negative result with your own prefix, model, region, and interval. If your measurement disagrees with ours, your measurement governs your decision.
+This repository has one completed negative cross-day observation and one stronger paired-prefix follow-up in progress: see [Cross-Day Reuse: Completed Observation and Paired-Prefix Follow-Up](#cross-day-reuse-completed-observation-and-paired-prefix-follow-up). The procedure below is not a template for confirming a benefit — it is the method to test the hypothesis with your own prefix, model, region, and interval. If your measurement disagrees with ours, your measurement governs your decision.
 
 Do not count the `cached_tokens` observed in any single run directly as Context Cache value. Under matched model, version, prompt, call order, and interval conditions, measure a model-default prompt-caching arm and a Context Cache arm, then compare their actual costs:
 
@@ -180,8 +183,8 @@ Only a positive result establishes incremental cost value. Apply current pricing
 | Stable prefix length | Below the eligibility floor there is nothing to reuse, and the official guidance ties a larger saving to a longer stable prefix | Tokenize the real system prompt, tool catalog, guardrails, and fixed reference content |
 | Prefix byte stability | A single character change in the leading tokens produces a miss | Diff the assembled prefix across a real production traffic sample, including serialization and ordering |
 | Request interval versus cache lifetime | Decides whether the prefix is still resident when the next matching request arrives | Histogram inter-arrival time **per prefix family**, not the global request rate |
-| Matched comparison conditions | Decide whether the difference can be attributed to Context Cache | Hold model, version, prompt, call order, concurrency, and intervals constant |
-| Call order within each window | The arm called first warms shared state for the second, which silently destroys attribution | Call the **bound** arm first, and treat only the first call of an idle window as uncontaminated |
+| Matched comparison conditions | Decide whether the difference can be attributed to Context Cache | Hold model, version, base prompt, suffix, token count, concurrency, and intervals constant; vary only binding and the equal-length cohort marker |
+| Cache-key isolation | A shared prefix lets the first arm warm the second and silently destroys attribution | Give each arm a distinct marker before the original prompt content. Only fall back to bound-first ordering when the cache key cannot be isolated |
 | Verified idle window before the test | Without it, a hit may come from the default cache rather than the container | Confirm zero account traffic with Azure Monitor `AzureOpenAIRequests`, and require idle time above the documented 24 h ceiling |
 
 Combining those variables gives the practical decision grid:
@@ -191,7 +194,7 @@ Combining those variables gives the practical decision grid:
 | Matching prefix arriving continuously, seconds to a few minutes apart | Already served by in-memory retention | **No.** You would pay for a resource that adds no measured caching benefit. Adopt only if you need governance |
 | Matching prefix with gaps up to one hour | In-memory retention is released after 5–10 minutes of inactivity; set `prompt_cache_retention="24h"` to extend | **No.** One request parameter covers this, at no extra cost and with no extra resource |
 | Matching prefix with gaps between one and 24 hours | Extended retention covers this window on supported model families | **No.** Still a single request parameter |
-| Matching prefix reused daily, weekly, or in scheduled bursts (beyond 24 hours) | Documented to be beyond the extended-retention ceiling | **Measure it yourself first.** This is the only window where a caching argument could exist, and this repository's decisive test did **not** observe the container filling it |
+| Matching prefix reused daily, weekly, or in scheduled bursts (beyond 24 hours) | Documented to be beyond the extended-retention ceiling | **Measure it yourself first.** The completed linked-first observation did not see the container fill this gap; the stronger isolated-prefix verification is pending |
 | You must name the cache resource, pin its region, scope its RBAC, declare its lifetime, or delete it on demand | Not available: the default cache is not an inspectable resource | **Yes.** This is the verified differentiator and it does not depend on any hit-rate claim |
 
 Read this grid as a **selection guide, not a benefit ladder**. Four of the five rows say "no" for caching reasons. That is the honest reading of the measurements, and it is what makes the fifth row credible. A prefix that never reaches the eligibility floor is a prompt-layout problem first, and is covered under **Workload Fit** below.
@@ -499,6 +502,7 @@ This table describes the sanitized validation environment, not a supported-regio
 | Script or suite | Role in the test | Fail-closed behavior |
 |---|---|---|
 | [`scripts/run_official_e2e.ps1`](scripts/run_official_e2e.ps1) | Azure preflight, verified-source materialization, official Quickstart execution, transcript capture, and evidence orchestration | Stops on profile reuse, wrong runtime, pre-existing resource group, Azure timeout/error, nonzero official exit, or failed evidence validation |
+| [`scripts/paired_prefix_probe.py`](scripts/paired_prefix_probe.py) | Runs the cache-key-isolated Warm and Verify requests against caller-supplied linked and control deployments | Rejects duplicate phases, invalid Warm transitions, unequal token counts, changed prefix hashes, and Verify before the minimum interval |
 | [`scripts/verify_upstream.py`](scripts/verify_upstream.py) | Verifies the pinned repository, commit, and 25 Git-blob SHA-256 values | Refuses a missing/mismatched blob or nonempty output directory |
 | [`scripts/parse_demo_output.py`](scripts/parse_demo_output.py) | Parses call-level latency and token fields and computes the cache verdict | Rejects transport errors, malformed/missing calls, zero thresholds/latency, and insufficient warm hits |
 | [`scripts/validate_arm_summary.py`](scripts/validate_arm_summary.py) | Cross-checks ARM deployment state and the AOAI-to-cache binding | Rejects failed deployment, missing fields, wrong model/provider/TTL, or inconsistent resource IDs |
@@ -536,10 +540,11 @@ The checked-in [`validation-history.json`](evidence/validation-history.json) pre
 | `2026-08-19` | `hardened-wrapper-probe-1` | 3 | 3 | Not scored | **REJECTED — INCOMPLETE** |
 | `2026-08-19` | `hardened-wrapper-probe-2` | 2 | 4 | Not scored | **REJECTED — INCOMPLETE** |
 | `2026-08-23` | `cross-day-attribution` | 2 | 0 | Bound arm `cached_tokens=0` after `43.83` h idle | **COMPLETE — HYPOTHESIS FALSIFIED** |
+| `2026-08-23` | `paired-prefix-follow-up` | 4 | 0 | Both isolated arms `0 -> 2304` | **WARM PASS — VERIFY PENDING** |
 
 Rejected runs stay in the evidence set. They are neither deleted nor converted into passes. Transport errors occur before a call completes, so no cache score is derived from them.
 
-The final row is a completed run whose result contradicted the hypothesis it was designed to test. It is reported as-is. A controlled test that returns a negative result is evidence, not a failure, and suppressing it would invalidate every other claim in this repository.
+The cross-day attribution row is a completed run whose result contradicted the hypothesis it was designed to test. It is reported as-is. The paired-prefix row is deliberately incomplete: it records a valid warm gate but no retention verdict. A negative result is evidence, and a pending result must remain pending; changing either would invalidate the evidence set.
 
 ## Evidence Boundary and Validation Method
 
@@ -547,7 +552,7 @@ The final row is a completed run whose result contradicted the hypothesis it was
 
 The live run proves that a deployment bound to `properties.contextCacheContainerId` completes Responses API calls end to end and that the data plane reports nonzero `cached_tokens` on repeated prefixes. It does **not** attribute those cached tokens to Context Cache: the same requests also enabled the model's default prompt caching, so the two mechanisms cannot be separated from that run alone.
 
-The controlled cross-day test went further and returned a negative result: after a sealed `43.83`-hour idle window the bound deployment cold-missed. So this repository does not claim an incremental hit rate, cost saving, or latency advantage over default prompt caching — and one decisive measurement points against it in this environment.
+The completed cross-day observation returned a negative result: after a sealed `43.83`-hour idle window the bound deployment cold-missed. The stronger paired-prefix comparison has completed only its warm stage, so it cannot yet change that historical result or produce a new retention verdict. This repository therefore does not claim an incremental hit rate, cost saving, or latency advantage over default prompt caching.
 
 The defensible differentiators remain explicit lifetime declaration, residency, ownership, and governance, all verified through ARM reads. Separate deployments in one Azure OpenAI account must not be assumed to form a cache isolation boundary; reuse was observed crossing that boundary in both directions. See [Attribution Boundary and Comparison Design](docs/METHOD.md#attribution-boundary-and-comparison-design).
 
@@ -559,7 +564,7 @@ The method has three independent proof layers:
 | Azure control plane | Azure Resource Manager | Provider/feature preflight plus deployment, AOAI model, cache-container ID, provider, and TTL binding |
 | Azure data plane | Official Responses API demo | Six parsed call rows, cached token counts, and fail-closed thresholds |
 
-See [Method and lineage](docs/METHOD.md), [public evidence boundary](evidence/README.md), [sanitized run summary](evidence/verified-run-summary.json), and [validation history](evidence/validation-history.json). Public evidence omits cloud identifiers and private raw logs.
+See [Method and lineage](docs/METHOD.md), [public evidence boundary](evidence/README.md), [sanitized run summary](evidence/verified-run-summary.json), [paired-prefix follow-up](evidence/paired-prefix-follow-up.json), and [validation history](evidence/validation-history.json). Public evidence omits cloud identifiers and private raw logs.
 
 ## Security and Operations
 
