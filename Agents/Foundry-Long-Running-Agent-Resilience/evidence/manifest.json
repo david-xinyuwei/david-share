@@ -2,10 +2,10 @@
   "algorithm": "sha256",
   "files": [
     {
-      "bytes": 3223,
+      "bytes": 3306,
       "path": "evidence/README.md",
       "provenance": "Maintained evidence index and reproduction boundary.",
-      "sha256": "ab8fd3726343bb66db18de2975fbeb79a3eacba725ca3aa703834c27172997a5"
+      "sha256": "a3a9c336b9f26478ec1430ff661ffdfb06b25a0cc41405d648c47c6480107f38"
     },
     {
       "bytes": 6900,
@@ -44,7 +44,7 @@
       "sha256": "53727e455389c765c8dc6d2e275b00ce75d854a256fa590bab9433ab483f5d1c"
     }
   ],
-  "generated_at_utc": "2026-08-24T22:57:34+00:00",
+  "generated_at_utc": "2026-08-24T23:27:32+00:00",
   "normalization": "utf-8-lf",
   "schema_version": 1
 }

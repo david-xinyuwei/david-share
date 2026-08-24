@@ -35,6 +35,8 @@ python -m venv .venv
 .\.venv\Scripts\python scripts\validate_repo.py
 ```
 
+On Windows systems without long-path support, clone the monorepo into a short directory before creating `.venv`; the Azure SDK dependency tree can otherwise exceed the legacy path limit.
+
 | Surface | Scenario type | What the command proves | What it does not prove |
 |---|---|---|---|
 | Public SDK contract probe | dynamic-runtime | The installed pinned packages expose the 18 checked public symbols and validation rules | Live Hosted Agent recovery |

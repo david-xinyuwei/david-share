@@ -18,6 +18,8 @@ telemetry.
 
 From this directory's parent:
 
+On Windows without long-path support, run these commands from a short clone path.
+
 ```powershell
 New-Item -ItemType Directory -Force .demo-state | Out-Null
 

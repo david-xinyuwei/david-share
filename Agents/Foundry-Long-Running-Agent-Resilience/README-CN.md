@@ -35,6 +35,8 @@ python -m venv .venv
 .\.venv\Scripts\python scripts\validate_repo.py
 ```
 
+如果 Windows 尚未启用 long-path support，请先把 monorepo clone 到较短的目录，再创建 `.venv`；否则 Azure SDK 的依赖路径可能超过旧版路径长度限制。
+
 | Surface | 场景类型 | 这条命令能证明什么 | 不能证明什么 |
 |---|---|---|---|
 | 公共 SDK contract probe | dynamic-runtime | 已安装的固定版本 package 暴露 18 项受检公开符号与校验规则 | Live Hosted Agent 恢复 |
