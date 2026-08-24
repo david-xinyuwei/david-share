@@ -389,6 +389,28 @@ The pinned check passed **18 of 18** assertions against `azure-ai-agentserver-co
 
 This is a **real public-SDK contract smoke**, not a mock and not a live-service recovery claim. A mock is appropriate for testing application checkpoints, idempotency, and side-effect watermarks; it cannot prove that Foundry replaced a host or reclaimed a lease. Live production-readiness still requires a deployed Hosted Agent and repeated fault injection as listed in Section 9.4.
 
+### Re-verified on the current build (August 2026)
+
+Two things were re-checked on the public build, on an ordinary work subscription with no allowlisting of any kind.
+
+**The barrier that blocked this work in July is gone.** In July the campaign stalled because `/tasks` returned `404`: the subscription was not on the private-preview allowlist, and a scan of 6,253 subscription features found no self-service switch. Today the same call returns `200` with an empty task list, alongside `200` on `/agents` and `/assistants`. The capability now reaches an ordinary subscription.
+
+**Crash recovery still behaves as described.** An 18-phase durable job was run and its worker was hard-killed with `os._exit(9)` right after phase 1 committed, abandoning the lease with no cleanup. A separate OS process then reclaimed the work:
+
+| Re-test observation | Value |
+|---|---|
+| Phases committed before the injected process loss | 1 of 18 |
+| Phases committed after recovery, by a different process | 17 of 18 |
+| Sequence continuity | 1-18, no gap, no repeated phase |
+| Work identity and input identity across processes | Identical |
+| `entry_mode` reported by the second process | `recovered` |
+| `recovery_count` / `retry_attempt` at recovery | `1` / `0` |
+| Reclaim gap | 1.93 s |
+
+The last row is the interesting one. Section 5 argued from behavior that recovery is not a retry; the current public-preview API now exposes the two as independent counters, and the recovered entry reported exactly the predicted split.
+
+**What this re-test is not.** Phase durations are synthetic sleeps, there is no model inference in the loop, and no Hosted Agent was deployed, so its elapsed times carry no performance meaning. It confirms the durable-work, lease-abandonment, reclaim and re-entry machinery on the current build; it does not re-measure the eight July scenarios. Those numbers stay labelled as July observations.
+
 | Dimension | Fixed condition | Why it matters |
 |---|---|---|
 | Execution window | July 22-23, 2026 | Keeps earlier blocked or partial attempts out of the final campaign |
