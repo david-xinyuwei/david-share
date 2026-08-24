@@ -13,12 +13,10 @@
 
 这篇文章讲清楚三件事：它为什么能成立、什么信号能证明它、以及哪些看起来非常合理的下意识反应反而会毁掉它。
 
-> **这是什么。** 一次 private preview（受限预览阶段）评估的实测行为，针对 Microsoft Foundry Hosted Agent 上的长任务执行能力。
-> **不是什么。** 这里**不包含 Microsoft SDK 源码、完整 Agent 实现、端到端部署配方、私有 API schema，也不包含原始 telemetry**。本次评估进行时能力仍处于 private preview；第 2.5 节现已把实测结论映射到 public-preview SDK，第 3 节也加入了可复现的公共 SDK 契约检查。战役中的每个数字仍然是那次评估的观测值，不是服务级承诺。
+> **这是什么。** Microsoft Foundry Hosted Agent 上长任务执行的恢复行为实测。该能力现已进入 **public preview**，并有[官方概念文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)；第 3 节会对当前公共 SDK 契约做验证。文中八个场景是 7 月在更早的 private preview 构件上跑的——所以这里的每个数字都是有日期的证据，而不是对今天这版构件的断言。
+> **不是什么。** 这里**不包含 Microsoft SDK 源码、完整 Agent 实现、端到端部署配方、私有 API schema，也不包含原始 telemetry**。官方声明没有 SLA、不建议用于生产——这与第 9.4 节的立场一致。文中每个数字都是观测值，不是服务级承诺。
 
 > **Author:** 魏新宇（Xinyu Wei）
-
-> **更新（2026 年 8 月）。** 本次评估进行时，该恢复能力仍处于 private preview。此后微软已发布官方文档 [Resilience for long-running hosted agents](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)，该能力现已进入 **public preview**。官方模型——持久化的 work identity 与 input identity、基于租约的进程丢失检测、**不是**确定性重放的 handler 重入、把 recovery 与 retry 区分开、以及基于游标的流重放——与本次评估从实测中独立推导出的模型一致。AgentServer SDK 也已在公共 PyPI 上进入正式版（`azure-ai-agentserver-core` 2.0.0 于 8 月 6 日、`azure-ai-agentserver-invocations` 1.0.0 于 8 月 10 日、`azure-ai-agentserver-responses` 2.0.0 于 8 月 11 日，其后还有 2.1.0 系列 beta），因此下文中关于「仅预览版包」的说法描述的是评估当时的状态——在据此做设计之前，请以当前的包和官方文档为准。官方同时仍然声明没有 SLA、不建议用于生产，这与第 9.4 节的立场完全相同。
 
 [English](README.md) | 中文 | [Hosted agents 概览](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents) | [Hosted agent 快速入门](https://learn.microsoft.com/en-us/azure/foundry/agents/quickstarts/quickstart-hosted-agent)
 
