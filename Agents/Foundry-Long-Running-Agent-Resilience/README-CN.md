@@ -1,5 +1,6 @@
 # Microsoft Foundry 长任务 Agent：进程死了之后，任务怎么活下来
 
+[![Status](https://img.shields.io/badge/Foundry_capability-public_preview-B3541E)](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
 [![Scope](https://img.shields.io/badge/scope-8_measured_scenarios-1363DF)](#3-评估方法到底跑了什么)
 [![Runtimes](https://img.shields.io/badge/runtimes-Python_%2B_.NET-0F8B6D)](#4-实测结果)
 [![Protocols](https://img.shields.io/badge/protocols-Responses_%2B_Invocations-5F4BB6)](#23-三种集成层级)
@@ -9,11 +10,11 @@
 
 其中 95% 的工作，是由一个已经不存在的进程完成的。
 
-**本文中的每一次中断都是我们主动注入的，没有一次是线上事故。** 任何让工作负载连续跑二十分钟的平台，早晚都会遇到重启、崩溃、OOM 终止或重新部署——微软官方文档列举的，正是这几种需要靠 resilience 扛过去的事件。所以真正有价值的问题从来不是「进程会不会丢」，而是「进程丢了之后，**任务**还在不在」。这正是这八个场景要测的东西。
+**本文中的每一次中断都是我们主动注入的，没有一次是线上事故。** 任何让工作负载连续跑二十分钟的平台，早晚都会遇到重启、崩溃、OOM 终止或重新部署——微软官方文档列举的，正是这几种需要靠韧性（resilience）扛过去的事件。所以真正有价值的问题从来不是「进程会不会丢」，而是「进程丢了之后，**任务**还在不在」。这正是这八个场景要测的东西。
 
 这篇文章讲清楚三件事：它为什么能成立、什么信号能证明它、以及哪些看起来非常合理的下意识反应反而会毁掉它。
 
-> **这是什么。** Microsoft Foundry Hosted Agent 上长任务执行的恢复行为实测。该能力现已进入 **public preview**，并有[官方概念文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)；第 3 节会对当前公共 SDK 契约做验证。文中八个场景是 7 月在更早的 private preview 构件上跑的——所以这里的每个数字都是有日期的证据，而不是对今天这版构件的断言。
+> **这是什么。** Microsoft Foundry Hosted Agent 上长任务执行的恢复行为实测。该能力现已进入 **公共预览（public preview）**，并有[官方概念文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)；第 3 节会对当前公共 SDK 契约做验证。文中八个场景是 7 月在更早的 private preview 构件上跑的——所以这里的每个数字都是有日期的证据，而不是对今天这版构件的断言。
 > **不是什么。** 这里**不包含 Microsoft SDK 源码、完整 Agent 实现、端到端部署配方、私有 API schema，也不包含原始 telemetry**。官方声明没有 SLA、不建议用于生产——这与第 9.4 节的立场一致。文中每个数字都是观测值，不是服务级承诺。
 
 > **Author:** 魏新宇（Xinyu Wei）
@@ -26,7 +27,7 @@
 
 长任务 Agent 的失败方式和短调用不一样：**进程没了，但任务本身仍然有效。** 客户端如果把这种情况当成错误、直接重新提交，等于亲手放弃了还活着的任务，为两次运行付费，还可能把同一个外部动作提交两遍。
 
-本次评估的能力，把**逻辑任务**和**执行它的进程**拆开：任务拥有持久身份，输入和进度不随进程消失，替代计算资源从最后一个 checkpoint 重新进入。八个场景覆盖两种语言、两种 protocol、四类中断，全部在被打断之后走到了各自既定的终态。
+本次评估的能力，把**逻辑任务**和**执行它的进程**拆开：任务拥有持久身份，输入和进度不随进程消失；替代计算资源会从最后一个 checkpoint 重新进入该任务。八个场景覆盖两种语言、两种 protocol、四类中断，全部在被打断之后走到了各自既定的终态。
 
 | 实测项 | 数值 | 意义 |
 |---|---|---|
@@ -34,7 +35,7 @@
 | 从运行实例丢失到审批决定被接收 | **56 秒**，且原有选项保持不变 | 待决策的人工审批能比持有它的进程活得更久 |
 | 正常完成前连续收到的 `HTTP 424` | **29 次** | 重试上限设成 10 次，就会丢掉一次健康的运行 |
 | 走到既定终态的场景数 | **8 / 8**，每个场景一次被接受的运行 | 属于能力验证，不是可靠性 benchmark |
-| 传输层 sequence 能证明连续性的运行数 | **3 / 4** | 有一个 runtime 重置了计数器；workload output 四次全部成立 |
+| 传输层 sequence 能证明连续性的运行数 | **3 / 4** | 有一个 runtime 重置了计数器；workload output 四次全部保持连续 |
 
 **这些证据还不能说明什么：** 生产可用性、SLA、负载与并发下的表现、多区域恢复、成本，以及业务正确性。每个场景只跑了一次。它足以支撑立项做受控评估，但不足以作为生产放行依据。
 
@@ -70,9 +71,9 @@ Hosted Agent 是客户自己的 Agent 代码，以 container image 的形式交�
 
 Foundry 有两类 agent。Prompt-based agent 由配置定义，不承载你自己的容器或代码包；Hosted agent 则是在托管沙箱里跑**你自己的**代码。
 
-这个区别直接决定了整件事能不能成立。恢复的动作是用同一个 work identity 和同一份输入**重新进入你的 handler**——那就必须先有一个属于你的 handler 可供进入。Prompt-based agent 没有应用运行时可供 checkpoint，没有地方记录“第 7 个 phase 已提交”，也没有任何持久任务记录可供恢复机制重新获取 lease。
+这个区别直接决定了整件事能不能成立。恢复的动作是用同一个 work identity 和同一份输入**重新进入你的 handler**——那就必须先有一个属于你的 handler 可供进入。Prompt-based agent 没有应用运行时可供 checkpoint，没有地方记录“18 个 phase 里的第 7 个已提交”，也没有任何持久任务记录可供恢复机制重新获取 lease。
 
-微软官方文档现在也把这个结论写明了：**“Run long-lived work resiliently——跨进程中断保留执行中的 agent 任务，并向重连客户端重放流式结果”**被列为选择 Hosted agent 而非 prompt-based agent 的理由之一（[来源](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents)）。
+微软官方文档现在也把这个结论写明了：**“Run long-lived work resiliently — preserve in-progress agent work across process interruptions and replay streamed results to reconnecting clients”**（有韧性地运行长任务——在进程中断后仍保留执行中的 agent 任务，并向重新连接的客户端重放流式结果）被列为选择 Hosted agent 而非 prompt-based agent 的理由之一（[来源](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents)）。
 
 对生产设计的实际含义：如果一个 workload 要跑上几分钟，而且副作用不允许重复，那么 agent 类型这一步其实已经替你定了——它发生在架构选型阶段，远早于你去配置任何恢复选项。
 
@@ -216,7 +217,7 @@ def run_handler(context):
 	)
 ```
 
-真正重要的不是函数名，而是五个 invariant：
+真正重要的不是函数名，而是五个不变式（invariant）：
 
 1. **Reclaim 必须带条件。** 过期 lease generation 仍然匹配时才能接管，否则说明已有其他 worker 取得所有权。
 2. **Heartbeat 归 runtime 所有。** 用户代码运行期间 lease 持续续期；每个持久化写入都由当前 lease generation 做 fence，旧 worker 不能提交。
@@ -239,7 +240,7 @@ LRA runtime 负责把同一个任务重新送进 handler，却无法判断支付
 
 #### 2.5.1 用 Responses protocol 声明 Hosted Agent
 
-这是给**已经完成 scaffold 的 azd project** 使用的公开 `services` 片段，字段遵循当前 Foundry `azure.yaml` 结构。这里省略了必需的顶层 project metadata、模型部署与 provisioning block，因为它们和恢复机制是两个独立问题。实际使用时应从[官方 Hosted Agent sample](https://github.com/microsoft-foundry/foundry-samples/tree/main/samples/python/hosted-agents)开始，不要把这个片段当成完整文件。
+这是给**已经用 azd 生成好脚手架的项目**使用的公开 `services` 片段，字段遵循当前 Foundry `azure.yaml` 结构。这里省略了必需的顶层 project metadata、模型部署与 provisioning block，因为它们和恢复机制是两个独立问题。实际使用时应从[官方 Hosted Agent sample](https://github.com/microsoft-foundry/foundry-samples/tree/main/samples/python/hosted-agents)开始，不要把这个片段当成完整文件。
 
 ```yaml
 services:
@@ -387,7 +388,7 @@ python -m venv .venv
 
 固定版本检查对 `azure-ai-agentserver-core` 2.0.0、`azure-ai-agentserver-invocations` 1.0.0 和 `azure-ai-agentserver-responses` 2.0.0 的 **18 项断言全部通过**。检查覆盖 package 版本、recovered entry mode、相互独立的 recovery/retry 计数、work/input identity、metadata checkpoint 操作、协作式 shutdown、exit-for-recovery、steering、Responses recovery signal、retry policy、enablement，以及当前 handler 契约：第一个参数必须命名为 `ctx`，并声明为 `TaskContext[Input]`。
 
-这是**真实公共 SDK 契约 smoke**，不是 mock，也不冒充 live service 恢复。Mock 适合验证应用 checkpoint、幂等与 side-effect watermark；它不能证明 Foundry 已经替换 host 或重新取得 lease。要宣称可以上生产，仍须按第 9.4 节部署 Hosted Agent 并做多轮故障注入。
+这是**对公共 SDK 契约的真实冒烟测试（smoke test）**，不是 mock，也不等于验证了线上服务的恢复能力。Mock 适合验证应用 checkpoint、幂等与 side-effect watermark；它不能证明 Foundry 已经替换 host 或重新取得 lease。要宣称可以上生产，仍须按第 9.4 节部署 Hosted Agent 并做多轮故障注入。
 
 ### 在当前构件上复测（2026 年 8 月）
 
@@ -411,7 +412,7 @@ python -m venv .venv
 
 **这次复测不是什么。** 各 phase 的耗时是人为 sleep，链路中也没有模型推理，因此其耗时数据没有任何性能含义。它确认的是当前构件上持久任务、租约遗弃、回收与重入这套机制；它**没有**重新测量 7 月那八个场景，那些数字仍然标注为 7 月的观测值。
 
-### 在真实部署的 Agent 上，用普通订阅
+### 在普通订阅上，验证真实部署的 Agent
 
 上面那项检查跑的是 SDK。这一项跑在真实 Hosted Agent 上，因为两者回答的是不同的问题。
 
@@ -426,7 +427,7 @@ python -m venv .venv
 | Responses，流式恢复 | `resilient-streaming` | 22.6 秒 | **PASS**——同一 response id，3 个 item，无缺口无重复 |
 | Responses，steering | `resilient-steering` | 23.3 秒 | **PASS**——同一 response id 给出完整答案 |
 | Invocations，research 恢复 | `resilient-research` | 28.4 秒 | **PASS**——同一 `invocation_id` 走到 `completed` |
-| Invocations，审批比实例活得久 | `resilient-approval-gate` | 25.3 秒 | **PASS**——替换**之后**发送的决定被接收（`202`），任务完成 |
+| Invocations，审批比实例活得久 | `resilient-approval-gate` | 25.3 秒 | **PASS**——决定虽然是在替换**之后**才发送的，仍然被接收（`202`），任务完成 |
 
 最后一行值得停下来看，因为它重现了 7 月最让人意外的那个结论：实例是**在 Agent 停在审批门、什么都没有执行的时候**被替换掉的。随后针对这个「原宿主已经不存在」的任务提交决定，它仍然被接收了。
 
@@ -436,7 +437,7 @@ python -m venv .venv
 
 **`424` 风暴没有复现。** 第 4.4 节依据的是 7 月主机被替换期间观测到的 29 次连续 `424`。这次在强制替换的窗口内每 0.4 秒轮询同一个 response，得到的是 **26 次轮询、全部 `200`、一次瞬时错误都没有**。这并不构成反驳：重新部署触发的替换是一条优雅、受编排的路径，而 7 月那串 `424` 来自另一种中断。工程建议依然成立——`424` 必须先分类，不能直接当成终态——但「29 次」这个数字仍然是 7 月的观测值，当前构件没有复现它，因此文中如实标注，而不是把它悄悄当作当前行为重述一遍。
 
-有一个缺陷值得转告。首次部署在运行时返回 `HTTP 500`，容器日志显示 `resilient_task_handler_failure ... exc_type=AttributeError`，运行的是 `ai-agentserver-core/2.1.0b2`。样例把 `responses` 钉在 `2.0.0b1`，却只对 `core` 要求 `>=2.0.0b10`，于是容器解析到了比 handler 编写时更新的 beta。把两个包都钉到各自的 2.0.0 版本后即恢复正常，四个样例都需要这样处理。在 preview 面上，要钉住整组版本，而不是只给一个下限。
+有一个缺陷值得转告。首次部署在运行时返回 `HTTP 500`，容器日志显示 `resilient_task_handler_failure ... exc_type=AttributeError`，运行的是 `ai-agentserver-core/2.1.0b2`。样例把 `responses` 钉在 `2.0.0b1`，却只对 `core` 要求 `>=2.0.0b10`，于是容器解析到了比 handler 编写时更新的 beta。把两个包都钉到各自的 2.0.0 版本后即恢复正常，四个样例都需要这样处理。面对预览版接口，要钉住整组版本，而不是只给一个下限。
 
 这些中断都是通过强制替换运行实例造成的——它是真实的平台级事件，但不等同于一次计划外的主机崩溃；样例的各阶段也仍然是模拟的。本轮覆盖四类场景、每类一次被接受的运行——属于当前构件上的能力验证，不是一次新的可靠性 benchmark，也不是把 7 月那套完整矩阵重跑一遍。7 月的 .NET 运行**没有**复测：公开 C# 样例虽然提供 hosted agent，但没有任何一个用到 resilient task，因此那几行仍然是 7 月的观测值。
 
@@ -610,7 +611,7 @@ Response status: completed
 PASS: The original response completed.
 ```
 
-修复方式不是“所有错误都重试”，而是保留同一个任务引用，先判断失败发生在哪一层，再受调用方 deadline 约束地恢复。
+修复方式不是“所有错误都重试”，而是保留同一个任务引用，先判断失败发生在哪一层，并在调用方设定的 deadline 处停下来。
 
 ```python
 def recovery_action(
@@ -630,7 +631,7 @@ def recovery_action(
 	return "fail_closed"
 ```
 
-deadline 应由 workload 的恢复目标决定，而不是随手设一个很小的重试次数。`403` 必须走另一条路径：刷新观察者授权，再做只读查询，比重放业务任务安全得多。
+决定何时停止的应该是 workload 恢复目标所定义的 deadline，而不是一个随手设定的很小的重试次数。`403` 必须走另一条路径：刷新观察者授权，再做只读查询，比重放业务任务安全得多。
 
 ### 6.4 人工审批：决定与副作用都必须幂等
 
@@ -709,7 +710,7 @@ def apply_approval(ledger, logical_work: str, checkpoint: str, requested: str):
 | 反证 | 如果 sequence 连续是必要条件，有效恢复是否都该满足？ | .NET Responses 正常恢复，却把计数器从 5 重启 | “必须依赖 sequence”的通用规则被推翻 |
 | 逆推 | 只有终态结果，能否证明发生过恢复？ | 还必须有 checkpoint、注入实例丢失、连接中断和重启后继续 | 仅有终态的证据被判定不足 |
 | 类比 | 观测是否与公开平台概念一致？ | 公开的 session 持久化与 protocol 责任边界 | 一致，但始终没有用空闲恢复代替活跃恢复的证据 |
-| 一致性 | 结论能否跨 runtime 与 protocol 成立？ | Python / .NET 与 Responses / Invocations 配对 | workload output 连续性成立；传输事件形态不成立 |
+| 一致性 | 结论能否跨 runtime 与 protocol 成立？ | Python / .NET 与 Responses / Invocations 配对 | workload output 连续性成立；传输事件形态不一致 |
 
 ### 9.2 数字能追溯到哪里
 
@@ -725,9 +726,9 @@ def apply_approval(ledger, logical_work: str, checkpoint: str, requested: str):
 
 ### 9.3 边界
 
-- 文中所有数字都是**其各自所属评估的观测值**——7 月战役或 8 月复测——不是 benchmark、保证或 SLA。
-- 本次战役进行时，该能力处于 **private preview**；此后已进入 **public preview** 并有[官方概念文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)。本仓库现在公开当前 API 映射与离线契约 smoke，但不包含 Microsoft SDK 源码、完整部署配方或 live service 凭据。
-- 结果覆盖 7 月战役的**八个文档定义的主场景**，每个一次被接受的运行；以及 8 月复测的**四类场景**，每类一次被接受的运行。cancel、delete、deny 分支不计入。
+- 文中所有数字都是**对应评估**（7 月战役或 8 月复测）**的观测值**，不是 benchmark、保证或 SLA。
+- 本次战役进行时，该能力处于 **private preview**；此后已进入 **public preview** 并有[官方概念文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)。本仓库现在公开当前 API 映射与离线契约冒烟测试，但不包含 Microsoft SDK 源码、完整部署配方或线上服务凭据。
+- 结果覆盖 7 月战役的**八个文档定义的主场景**，每个场景各有一次被接受的运行；以及 8 月复测的**四类场景**，每类场景各有一次被接受的运行。cancel、delete、deny 分支不计入。
 - 验证的是恢复行为，不包括业务领域正确性和模型质量。
 - 在依据本文做设计之前，请以[官方文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents)核对当前能力。
 
@@ -735,7 +736,7 @@ def apply_approval(ledger, logical_work: str, checkpoint: str, requested: str):
 
 针对某个具体 workload，至少还要完成这些：
 
-- 多轮故障注入，并明确 recovery-time objective 与失败预算；
+- 多轮故障注入，并明确恢复时间目标（recovery-time objective）与失败预算；
 - 对每个外部写入、审批、支付、预订和 tool side effect 做幂等测试；
 - 覆盖并发轮次与替代计算资源的负载与并发测试；
 - 明确 timeout、cancel、retention、delete 和 dead-letter policy；

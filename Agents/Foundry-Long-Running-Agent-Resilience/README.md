@@ -1,5 +1,6 @@
 # Long-Running Agents on Microsoft Foundry: What Happens After the Process Dies
 
+[![Status](https://img.shields.io/badge/Foundry_capability-public_preview-B3541E)](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
 [![Scope](https://img.shields.io/badge/scope-8_measured_scenarios-1363DF)](#3-method-what-was-actually-run)
 [![Runtimes](https://img.shields.io/badge/runtimes-Python_%2B_.NET-0F8B6D)](#4-results)
 [![Protocols](https://img.shields.io/badge/protocols-Responses_%2B_Invocations-5F4BB6)](#23-where-you-plug-in)
@@ -426,7 +427,7 @@ The same interruption was then applied to all four official resilient samples, w
 | Responses, streaming recovery | `resilient-streaming` | 22.6 s | **PASS** — same response id, 3 items, no gap or duplicate |
 | Responses, steering | `resilient-steering` | 23.3 s | **PASS** — same response id reached a coherent answer |
 | Invocations, research recovery | `resilient-research` | 28.4 s | **PASS** — same `invocation_id` reached `completed` |
-| Invocations, approval outliving instance loss | `resilient-approval-gate` | 25.3 s | **PASS** — decision sent *after* the replacement was accepted (`202`), work completed |
+| Invocations, approval outliving instance loss | `resilient-approval-gate` | 25.3 s | **PASS** — the decision was accepted (`202`) even though it was sent *after* the replacement, work completed |
 
 The fourth row is the one worth pausing on, because it repeats the July finding that surprises people most: the instance was replaced **while the agent was parked on an approval gate and nothing was executing**. The decision was then submitted against work whose original host no longer existed, and it was accepted.
 
