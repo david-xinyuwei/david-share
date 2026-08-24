@@ -4,10 +4,40 @@ This offline check verifies the installed public API surface. It does not claim
 that a live Hosted Agent survived a process interruption.
 """
 
-from importlib.metadata import version
+import argparse
 import inspect
+from importlib.metadata import version
 
-from azure.ai.agentserver.core.tasks import (
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        prog="verify_public_resilience_api.py",
+        description=(
+            "Check that the installed public Azure AI AgentServer packages expose the "
+            "long-running recovery contract described in this repository's article: "
+            "durable work and input identity, recovery re-entry that is distinct from "
+            "retry, a durable metadata checkpoint index, cooperative shutdown, "
+            "exit-for-recovery, and steering."
+        ),
+        epilog=(
+            "This is an offline API-contract check, not a live-service test. It cannot "
+            "prove that Foundry replaced a host or reclaimed a lease. "
+            "Exit codes: 0 = every check passed, 1 = at least one check failed."
+        ),
+    )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="drop the per-check result lines and print only the summary",
+    )
+    return parser.parse_args()
+
+
+# Arguments are parsed before the SDK imports so that --help works on a machine
+# where the packages are not installed yet.
+args = parse_args()
+
+from azure.ai.agentserver.core.tasks import (  # noqa: E402
     EntryMode,
     RetryPolicy,
     TaskContext,
@@ -15,7 +45,10 @@ from azure.ai.agentserver.core.tasks import (
     resilient_tasks_enabled,
     task,
 )
-from azure.ai.agentserver.responses import ExitForRecoverySignal, ResponseExitForRecovery
+from azure.ai.agentserver.responses import (  # noqa: E402
+    ExitForRecoverySignal,
+    ResponseExitForRecovery,
+)
 
 
 EXPECTED_VERSIONS = {
@@ -120,9 +153,11 @@ failures = 0
 for name, passed, detail in results:
     status = "PASS" if passed else "FAIL"
     failures += not passed
-    suffix = f"  <- {detail}" if detail else ""
-    print(f"  [{status}] {name.ljust(width)}{suffix}")
+    if not args.quiet:
+        suffix = f"  <- {detail}" if detail else ""
+        print(f"  [{status}] {name.ljust(width)}{suffix}")
 
-print()
+if not args.quiet:
+    print()
 print(f"{len(results) - failures}/{len(results)} checks passed against the public SDK")
 raise SystemExit(1 if failures else 0)

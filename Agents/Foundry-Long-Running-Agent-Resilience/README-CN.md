@@ -383,6 +383,8 @@ python -m venv .venv
 .\.venv\Scripts\python scripts\verify_public_resilience_api.py
 ```
 
+运行 `scripts\verify_public_resilience_api.py --help` 可以看到检查范围与退出码含义；`--quiet` 会略去逐项结果、只保留汇总行，而 SDK 自身的 experimental 提示仍会输出到 stderr。任何一项断言失败时脚本都会以非零码退出，因此可以直接接进 CI。
+
 固定版本检查对 `azure-ai-agentserver-core` 2.0.0、`azure-ai-agentserver-invocations` 1.0.0 和 `azure-ai-agentserver-responses` 2.0.0 的 **18 项断言全部通过**。检查覆盖 package 版本、recovered entry mode、相互独立的 recovery/retry 计数、work/input identity、metadata checkpoint 操作、协作式 shutdown、exit-for-recovery、steering、Responses recovery signal、retry policy、enablement，以及当前 handler 契约：第一个参数必须命名为 `ctx`，并声明为 `TaskContext[Input]`。
 
 这是**真实公共 SDK 契约 smoke**，不是 mock，也不冒充 live service 恢复。Mock 适合验证应用 checkpoint、幂等与 side-effect watermark；它不能证明 Foundry 已经替换 host 或重新取得 lease。要宣称可以上生产，仍须按第 9.4 节部署 Hosted Agent 并做多轮故障注入。

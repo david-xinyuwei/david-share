@@ -383,6 +383,8 @@ python -m venv .venv
 .\.venv\Scripts\python scripts\verify_public_resilience_api.py
 ```
 
+Run `scripts\verify_public_resilience_api.py --help` for what the check covers and what its exit codes mean; `--quiet` drops the per-check lines and keeps the summary, while the SDK still writes its own experimental notices to stderr. The script exits non-zero when any assertion fails, so it is safe to wire into CI.
+
 The pinned check passed **18 of 18** assertions against `azure-ai-agentserver-core` 2.0.0, `azure-ai-agentserver-invocations` 1.0.0, and `azure-ai-agentserver-responses` 2.0.0. It verifies package versions, recovered entry mode, separate recovery/retry counters, work and input identities, metadata checkpoint operations, cooperative shutdown, exit-for-recovery, steering, Responses recovery signals, retry policy, enablement, and the current handler contract: the first argument must be named `ctx` and typed as `TaskContext[Input]`.
 
 This is a **real public-SDK contract smoke**, not a mock and not a live-service recovery claim. A mock is appropriate for testing application checkpoints, idempotency, and side-effect watermarks; it cannot prove that Foundry replaced a host or reclaimed a lease. Live production-readiness still requires a deployed Hosted Agent and repeated fault injection as listed in Section 9.4.
