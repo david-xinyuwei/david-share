@@ -14,12 +14,34 @@ Ninety-five percent of the job's measured time and events came after its origina
 
 This page explains why these observed runs completed, which signals supported that conclusion, and which seemingly reasonable responses could have abandoned or duplicated the work.
 
-> **What this is.** Measured recovery behavior for long-running agent execution on Microsoft Foundry Hosted Agents. The capability is now in **public preview** with an [official concept page](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience), and Section 3 checks the current public SDK surface used here. The eight measured scenarios were run in July on the earlier private-preview build, which is why every number here is dated evidence rather than a claim about today's build.
-> **What it is not.** It ships **no Microsoft SDK source, complete agent implementation, end-to-end deployment recipe, private API schema, or raw telemetry**. Official guidance carries no SLA and does not recommend preview for production — the same position taken in Section 9.4. Every number is an observation, not a service-level commitment.
+> **What this is.** Measured recovery behavior for long-running agent execution on Microsoft Foundry Hosted Agents, plus public-safe executable checks and evidence. The capability is now in **public preview** with an [official concept page](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience). The eight measured scenarios were run in July on the earlier private-preview build, so each number remains dated evidence rather than a claim about today's build.
+> **What it is not.** It ships **no Microsoft SDK source, complete agent implementation, end-to-end deployment recipe, private API schema, or raw live telemetry**. The local recovery program is a real two-process test fixture, not Foundry service code or live-service proof. Official guidance carries no SLA and does not recommend preview for production — the same position taken in Section 9.4.
 
 > **Author:** Xinyu Wei (魏新宇)
 
 [中文](README-CN.md) | English | [Hosted agents overview](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents) | [Hosted agent quickstart](https://learn.microsoft.com/en-us/azure/foundry/agents/quickstarts/quickstart-hosted-agent)
+
+---
+
+## Quick Start
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python -m pip install -r requirements-validation.txt
+.\.venv\Scripts\python scripts\verify_public_resilience_api.py --quiet
+.\.venv\Scripts\python scripts\recovery_contract_demo.py demo
+.\.venv\Scripts\python scripts\validate_observations.py self-test
+.\.venv\Scripts\python -m unittest discover -s tests -v
+.\.venv\Scripts\python scripts\validate_repo.py
+```
+
+| Surface | Scenario type | What the command proves | What it does not prove |
+|---|---|---|---|
+| Public SDK contract probe | dynamic-runtime | The installed pinned packages expose the 18 checked public symbols and validation rules | Live Hosted Agent recovery |
+| SQLite recovery program | test-fixture | Real OS process loss, lease expiry/reclaim, generation fencing, checkpoint and idempotency behavior in the executable reference | Microsoft Foundry private implementation |
+| Historical observations | measured aggregate / architecture-explainer | Dated public-safe values derived from the July and August captures | Reliability benchmark, SLA, or a reproducible live deployment |
+
+Machine-readable data, structured logs, hashes, reproduction commands, and the full truth contract are in the [evidence index](evidence/README.md).
 
 ---
 
@@ -81,7 +103,7 @@ The practical consequence for production design: when a workload needs an applic
 
 ## 2. How it works: address the work, not the process
 
-<div align="center"><img src="images/resilience-architecture.png" width="820" alt="Six-step model showing how logical work survives loss of a Hosted Agent runtime instance"></div>
+<div align="center"><img src="images/resilience-architecture.png" width="820" alt="Conceptual recovery flow showing how logical work survives loss of a Hosted Agent runtime instance"></div>
 
 Recovery rests on a single idea: **give the work an identity that outlives the process, and re-enter that work rather than resurrecting the process.**
 
@@ -161,69 +183,18 @@ sequenceDiagram
 
 A hard-dead process cannot run cleanup. In the conceptual loop above, lease renewal stops, a later scanner observes expiry, and a new worker conditionally reclaims the same record. Generation fencing is included to prevent a stale worker from committing after a later generation has taken ownership.
 
-#### 2.4.1 Conceptual runtime loop
+#### 2.4.1 Executable recovery-contract reference
 
-This pseudocode describes the runtime contract, not the private SDK or its database implementation:
+The earlier non-runnable sketch has been removed. [`recovery_contract_demo.py`](scripts/recovery_contract_demo.py) is executable standard-library code: SQLite persists the work and input, Worker A commits phase 1 and exits through `os._exit(9)`, its lease expires, and a separate Worker B conditionally reclaims generation 2 and commits phases 2-5. The program writes a derived [JSON summary](evidence/recovery-contract-demo.json) and [JSONL event log](evidence/recovery-contract-events.jsonl); six unit tests cover lease-clock timing, existing-state protection, hard loss, stale-generation fencing, idempotent/conflicting replay, and input-differential behavior.
 
-```python
-def recover_expired_work(now):
-	for work in task_store.list_expired_running(now):
-		claim = task_store.reclaim_if_lease_matches(
-			work_id=work.id,
-			expected_generation=work.lease_generation,
-			new_owner=worker_id,
-		)
-		if not claim.acquired:
-			continue
+This program is a **test fixture**. It proves that the repository's reference algorithm executes as documented; it is not Microsoft Foundry service code or live Hosted Agent evidence.
 
-		run_claimed_work(work, claim, entry_mode="recovered")
+Four invariants are implemented and tested:
 
-
-def run_claimed_work(work, claim, *, entry_mode):
-	# The runtime renews and generation-fences the lease while user code runs.
-	with task_store.renew_lease_while_running(work.id, claim.generation):
-		invoke_handler(
-			work_id=work.id,
-			persisted_input=work.input,
-			metadata=work.metadata,
-			checkpoint=progress_store.load_checkpoint(work.id),
-			entry_mode=entry_mode,
-			lease_generation=claim.generation,
-		)
-
-
-def run_handler(context):
-	for phase in plan.remaining_after(context.checkpoint):
-		phase_key = f"{context.work_id}:{phase}"
-		result = execute_phase(
-			context.persisted_input,
-			phase,
-			idempotency_key=phase_key,
-		)
-		commit = progress_store.commit_phase_once(
-			work_id=context.work_id,
-			expected_checkpoint=context.checkpoint,
-			phase=phase,
-			result=result,
-			side_effect_ids=result.side_effect_ids,
-			lease_generation=context.lease_generation,
-		)
-		output_store.project_snapshot(commit)  # Idempotent, rebuildable projection.
-		context.checkpoint = commit.checkpoint
-
-	task_store.mark_completed(
-		context.work_id,
-		generation=context.lease_generation,
-	)
-```
-
-Five design invariants matter in this conceptual model:
-
-1. **Reclaim is conditional.** The expired lease generation must still match, otherwise another worker already owns the work.
-2. **The runtime owns the heartbeat.** Lease renewal continues while user code runs, and every durable write is fenced by the current lease generation so a stale worker cannot commit.
-3. **Recovery is at-least-once.** A crash after an external action but before its phase commit can re-run that phase. The same `phase_key` must deduplicate that action.
-4. **One store is the progress authority.** `commit_phase_once` advances the business checkpoint and records result/side-effect identity together. The client-facing output snapshot is an idempotent projection that can be rebuilt from that commit; it is not a second source of truth.
-5. **Do not reset the original deadline.** Recovery should change the worker and lease generation, not the application-owned identity, input, or wall-clock recovery objective of the logical work.
+1. **Reclaim is conditional.** Only pending work or a running record with an expired lease can be claimed.
+2. **Every durable write is generation-fenced.** The store verifies owner, generation, status, and lease expiry; each phase commit renews the reference lease.
+3. **Phase replay is idempotent.** The same phase key and result are deduplicated; conflicting content fails closed.
+4. **One transaction owns progress.** SQLite records the phase result, idempotency key, worker generation, and checkpoint atomically.
 
 The LRA runtime gets the same work back into a handler. It cannot infer whether a payment, booking, tool call, or workflow node was already committed. That is why the application checkpoint and side-effect ledger are part of the recovery contract even though they are not the lease engine itself.
 
@@ -240,28 +211,9 @@ The feature is not enabled by one magic switch in the portal. Four layers must l
 
 #### 2.5.1 Declare a Hosted Agent with the Responses protocol
 
-This is a public `services` fragment for an **existing, scaffolded azd project**. It follows the current Foundry `azure.yaml` shape; the required top-level project metadata, model deployment, and provisioning blocks are omitted because they are independent of recovery. Start from the [official Hosted Agent sample](https://github.com/microsoft-foundry/foundry-samples/tree/main/samples/python/hosted-agents) rather than treating this fragment as a complete file.
+This repository does not ship an incomplete `azure.yaml` with invented project, model, identity, or resource values. Start from the deployable [`azure.yaml` and application source in the official Hosted Agent samples](https://github.com/microsoft-foundry/foundry-samples/tree/main/samples/python/hosted-agents), then apply the public-preview recovery configuration supported by the current sample and SDK version.
 
-```yaml
-services:
-  research-agent:
-    host: azure.ai.agent
-    project: src/research-agent
-    language: python
-    kind: hosted
-    codeConfiguration:
-      runtime: python_3_13
-      entryPoint: app.py
-    protocols:
-      - protocol: responses
-        version: 2.0.0
-    container:
-      resources:
-        cpu: "0.5"
-        memory: 1Gi
-```
-
-In a complete azd project, `azd deploy` reads this service block, creates an immutable Hosted Agent version, and routes the declared protocol endpoint. CPU, memory, image or source packaging, model selection, and identity belong to the version definition; they are not the recovery checkpoint.
+In a complete azd project, `azd deploy` reads the real service definition, creates a Hosted Agent version, and routes the declared protocol endpoint. CPU, memory, image or source packaging, model selection, and identity belong to that version definition; they are not recovery checkpoints.
 
 #### 2.5.2 Opt the agent process into recovery
 
@@ -305,68 +257,21 @@ Any payment, booking, write, or tool action inside the replay window still needs
 
 #### 2.5.4 Keep dispatch separate from observation
 
-The standard Hosted Agent client surface comes from the Foundry project client. Keep the code that creates work separate from every process that observes it:
+The standard Hosted Agent client surface comes from the Foundry project client, but a runnable production client also needs the application's real durable store, identity, endpoint, and workload schema. The earlier block referenced undefined dependencies and has been removed rather than presented as working code.
 
-```python
-import time
+This repository now exercises the parts it can own end to end: [`recovery_contract_demo.py`](scripts/recovery_contract_demo.py) implements and tests an atomic durable ledger, while [`validate_observations.py`](scripts/validate_observations.py) validates caller-supplied workload evidence and fails closed on unclassified status codes. Use the [official Hosted Agent quickstart](https://learn.microsoft.com/en-us/azure/foundry/agents/quickstarts/quickstart-hosted-agent) and samples for the actual authenticated client call. This repository does not ship an environment-specific dispatch client with invented endpoint, identity, or persistence values.
 
+Separating observation behind a read-only application adapter is a maintainability and least-privilege pattern, **not** a security sandbox or RBAC boundary. Untrusted observer code still requires a separate service and identity. Recovery objectives are workload configuration rather than a fixed retry count; size them from healthy runtime and workload-specific replacement allowance. Platform terminal state and workload completion remain separate checks.
 
-class ResponseReader:
-	def __init__(self, responses_api):
-		self._responses_api = responses_api
+This application pattern has one public-API boundary: remote create and the application's durable recording of the returned response ID are not one atomic transaction, and the tested public create call did not expose lookup by an application work key. A process can therefore stop before the remote call, or after it succeeds but before the application records the response ID. Preserve that unresolved application state; do not automatically create again. A normal transactional outbox cannot determine whether an unknown remote create succeeded. Production dispatch needs a product-supported idempotency/deduplication contract or an operational reconciliation path for unresolved records and orphaned responses. The evaluation started observation only after the response ID had been durably captured.
 
-	def retrieve(self, response_id: str):
-		return self._responses_api.retrieve(response_id)
-
-
-def dispatch(client, *, work_key: str, prompt: str) -> None:
-	# Atomic unique insert: exactly one concurrent dispatcher can claim this key.
-	claim = durable_state.claim_dispatch(
-		work_key,
-		deadline_at=time.time() + settings.recovery_objective_seconds,
-	)
-	if not claim.acquired:
-		raise RuntimeError(f"work already claimed: {work_key}")
-
-	response = client.responses.create(
-		input=prompt,
-		store=True,
-		background=True,
-	)
-	durable_state.attach_response(
-		work_key,
-		response_id=response.id,
-		expected_state="dispatching",
-	)
-
-
-def observe(reader: ResponseReader, *, work_key: str):
-	work = durable_state.require_dispatched(work_key)
-	response = reader.retrieve(work.response_id)
-
-	while response.status in {"queued", "in_progress"}:
-		if time.time() >= work.deadline_at:
-			raise TimeoutError(f"response {work.response_id} exceeded its deadline")
-		time.sleep(2)
-		response = reader.retrieve(work.response_id)
-
-	if response.status != "completed":
-		raise RuntimeError(f"terminal response status: {response.status}")
-	validate_workload_output(response)
-	return response
-```
-
-`claim_dispatch` must be a unique, atomic insert that moves the logical work to `dispatching`; it closes the concurrent-dispatcher race before the remote call. `attach_response` is a compare-and-set transition to `dispatched`. `durable_state` represents a database or other store that survives the observer process, not an in-memory dictionary. Pass `ResponseReader(client.responses)` to the observer rather than the full client. Its public application interface exposes only `retrieve`, but this is still a maintainability boundary, **not** a security sandbox or RBAC boundary. If observer code is untrusted, isolate it behind a separate service and identity. After a restart it must load a dispatched mapping or fail closed. The recovery objective is workload configuration, not a fixed small retry budget. Size it from the expected healthy runtime plus a workload-specific replacement allowance; this evaluation does not establish a universal value. `validate_workload_output` is application code: for the measured research run it checked the finalized output indexes and expected phase count. Platform status and workload completion are separate checks.
-
-There is one public-API boundary in the surface tested here: remote create and `attach_response` are not one atomic transaction, and the tested public create call did not expose lookup by your `work_key`. A process can therefore die after the claim, either before remote creation or after remote creation but before the response ID is attached. Leave that record in `dispatching`; do not automatically create again. A normal transactional outbox cannot decide whether an unknown remote create succeeded. Production dispatch needs a product-supported idempotency/deduplication contract or an operational reconciliation path for `dispatching` records and orphaned responses. The evaluation started observation only after the response ID had been durably captured.
-
-If the polling process disappears after the mapping exists, a new observer reads `response_id` and `deadline_at` from `durable_state` and retrieves **that same response**. Streaming is a public Responses mode; active-handler crash replay is now the separate **public-preview resilient-execution** opt-in. The evaluation persisted transport cursors when available, accepted a new `response.in_progress` snapshot as a reset point, and rebuilt observer output from finalized items.
+If the polling process disappears after the application has durably recorded the response ID and deadline, a new observer retrieves **that same response** from those application-owned values. Streaming is a public Responses mode; active-handler crash replay is now the separate **public-preview resilient-execution** opt-in. The evaluation persisted transport cursors when available, accepted a new `response.in_progress` snapshot as a reset point, and rebuilt observer output from finalized items.
 
 Most importantly, it did **not** make a high transport sequence cursor the sole recovery key: one measured runtime restarted sequence numbering at 5. A sequence number can optimize replay within a compatible stream lifetime, but the durable `response_id` plus workload state are the recovery authority. Continue to validate finalized output indexes, phases, and durable business state as described in Section 5.
 
 A later sequential turn can use `previous_response_id=response_id`. Concurrent queuing and cooperative steering use the public-preview resilient-task surface; `previous_response_id` by itself only establishes response-chain continuity.
 
-A concise operational route after deployment is `azd ai agent invoke`; it manages the Hosted Agent session and Responses conversation for ordinary calls. Use the explicit client pattern above when your application must own the background response ID, polling deadline, dispatch/observe separation, and workload-level completion checks.
+A concise operational route after deployment is `azd ai agent invoke`; it manages the Hosted Agent session and Responses conversation for ordinary calls. Use an application-owned, tested client when your system must persist the background response ID, polling deadline, dispatch/observe separation, and workload-level completion checks.
 
 ---
 
@@ -376,15 +281,7 @@ Everything above is a design claim until it survives a deliberate interruption. 
 
 ### Current public-preview contract check
 
-The historical campaign below used the private-preview build available in July. To avoid treating that old package surface as current, the present public packages were installed in a clean Python 3.13 environment and checked directly:
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\python -m pip install -r requirements-validation.txt
-.\.venv\Scripts\python scripts\verify_public_resilience_api.py
-```
-
-Run `scripts\verify_public_resilience_api.py --help` for what the check covers and what its exit codes mean; `--quiet` drops the per-check lines and keeps the summary, while the SDK still writes its own experimental notices to stderr. The script exits non-zero when any assertion fails, so it is safe to wire into CI.
+The historical campaign below used the private-preview build available in July. To avoid treating that package surface as current, the Quick Start installs and checks the pinned public packages in a clean Python 3.13 environment. `--help` documents the scope and exit codes. The committed [18-check evidence](evidence/public-sdk-contract.json) was generated with `--format json --output`; local reruns should write under the ignored `.demo-state` directory unless a maintainer intentionally refreshes the committed evidence and its manifest. Any failed assertion returns a nonzero exit code.
 
 The pinned check passed **18 of 18** assertions against `azure-ai-agentserver-core` 2.0.0, `azure-ai-agentserver-invocations` 1.0.0, and `azure-ai-agentserver-responses` 2.0.0. It verifies package versions, recovered entry mode, separate recovery/retry counters, work and input identities, metadata checkpoint operations, cooperative shutdown, exit-for-recovery, steering, Responses recovery signals, retry policy, enablement, and the current handler contract: the first argument must be named `ctx` and typed as `TaskContext[Input]`.
 
@@ -554,25 +451,13 @@ And while you are there, note a second trap in the same family: a monotonic sequ
 
 ---
 
-## 6. Client implementation: code, logs, and fixes
+## 6. Executable validators, evidence, and fixes
 
-This is where the platform boundary becomes client engineering. The continuity helper below corrects the private evaluation extractor; its companion coverage helper makes the workload-level acceptance rule explicit. Executable counterexamples proved that the original sorted-order check accepted both gaps and duplicates. The other snippets are public-safe patterns distilled from the evaluation harness, not preview SDK source. Log excerpts are sanitized and retain only the behavior needed to explain the failure and fix.
+This is where the platform boundary becomes client engineering. [`validate_observations.py`](scripts/validate_observations.py) contains the executable checks discussed below, and its [JSON self-test report](evidence/observation-validation.json) records both passing and failing paths. The historical service values remain in the public-safe [aggregate evidence](evidence/historical-observations.json); raw logs remain private for the reasons in Section 9.2.
 
 ### 6.1 Continuity: reject gaps and duplicates
 
-The broken check was effectively `sequence == sorted(sequence)`. That proves ordering, not continuity. The replacement checks every adjacent step and validates workload output against the complete expected domain.
-
-```python
-def sequence_has_no_gap(sequence: list[int]) -> bool:
-	return all(
-		current - previous == 1
-		for previous, current in zip(sequence, sequence[1:])
-	)
-
-
-def output_coverage_complete(indexes: list[int], expected_last: int) -> bool:
-	return sorted(indexes) == list(range(expected_last + 1))
-```
+The broken check was effectively `sequence == sorted(sequence)`. That proves ordering, not continuity. The real `sequence_has_no_gap` and `output_coverage_complete` functions in [`validate_observations.py`](scripts/validate_observations.py) check every adjacent step and the complete expected output domain.
 
 | Counterexample | Original sorted-order check | Corrected check |
 |---|---:|---:|
@@ -584,82 +469,21 @@ The same executable check rejected a finalized output-item list with a missing i
 
 ### 6.2 Terminal state: a `done` frame is not proof of success
 
-The local evaluation evidence included streams with a bare `done` frame, but the harness pass criteria came from explicit invocation status and workload assertions. A closed stream can mean success, cancellation, failure, or observer loss. Map the protocol-specific terminal event to a workload invariant before declaring success.
-
-```python
-def completion_is_proven(snapshot: dict, *, expected_phases: int) -> bool:
-	return (
-		snapshot.get("status") == "completed"
-		and snapshot.get("terminal_event") == "run_complete"
-		and snapshot.get("phases_completed") == expected_phases
-	)
-```
+The local evaluation evidence included streams with a bare `done` frame, but the harness pass criteria came from explicit invocation status and workload assertions. A closed stream can mean success, cancellation, failure, or observer loss. The executable `completion_is_proven` check requires service status, explicit terminal event, and expected phase count.
 
 This is the distilled phase-based pattern used by the harness, not a universal adapter. A Responses client should substitute its own explicit terminal event and output-coverage rule; a bare `{"type": "done"}` still does not prove the business result.
 
 ### 6.3 Bounded retry: classify `424` separately from `403`
 
-The sanitized failure trace below came from the real workflow client. It kept the same response reference throughout host replacement.
-
-```text
-Created durable background response: <response-id>
-Redeploy or replace the host while this client continues polling.
-Host temporarily unavailable; retrying: Client error '424 Failed Dependency'
-Response status: in_progress
-... the same response returned 424 a total of 29 times ...
-Response status: completed
-PASS: The original response completed.
-```
-
-The repair was not "retry every error." It was to preserve the same work reference, classify the layer that failed, and stop at a caller-owned deadline.
-
-```python
-def recovery_action(
-	status_code: int,
-	*,
-	host_replacement_confirmed: bool,
-	same_work_addressable: bool,
-	observer_auth_expired: bool,
-	deadline_expired: bool,
-) -> str:
-	if deadline_expired:
-		return "timeout"
-	if status_code == 424 and host_replacement_confirmed and same_work_addressable:
-		return "retry_same_work_with_bounded_backoff"
-	if status_code in {401, 403} and observer_auth_expired:
-		return "refresh_observer_auth_then_read_again"
-	return "fail_closed"
-```
+The July aggregate records 29 consecutive `424` responses before completion; it does not expose the response identifier. The real `recovery_action` function in [`validate_observations.py`](scripts/validate_observations.py) preserves the same-work requirement, distinguishes confirmed host replacement from observer-auth expiry, honors the caller deadline, and fails closed when signals are insufficient. Its committed JSON report includes confirmed and unclassified `424`/`403` cases.
 
 The deadline should come from the workload's recovery objective, not an arbitrary small retry count. Classify `403` independently: verify observer identity, scope, and durable workload state first; refresh credentials only when expiry is confirmed. A read-only recheck is safer than replaying business work.
 
 ### 6.4 Human approval: make the decision and the side effect idempotent
 
-The real approval run crossed the pause once and produced one confirmation:
+The measured approval run crossed the pause once and produced confirmation `TRIP-182336`; the structured public aggregate records the 56-second loss-to-decision interval and terminal result without publishing the private session log.
 
-```text
-[12:25:23Z] lifecycle: running
-[12:25:23Z] -> human_approval
-[12:25:25Z] agent: selected flight and hotel
-[12:25:30Z] -> agent    Confirmation: TRIP-182336
-done
-```
-
-After recovery, the same approval message may be delivered again. Persist the decision under a stable logical-work checkpoint, reject conflicting replays, and pass the same key to the external side effect.
-
-```python
-def apply_approval(ledger, logical_work: str, checkpoint: str, requested: str):
-	key = (logical_work, checkpoint, "approval")
-	recorded = ledger.put_if_absent(key, requested)
-	if recorded != requested:
-		raise RuntimeError("conflicting approval replay")
-	return ledger.run_once(
-		(*key, "booking"),
-		lambda: book_trip(recorded, idempotency_key=key),
-	)
-```
-
-`put_if_absent` and `run_once` are interface sketches, not library calls. Their implementation must atomically claim the operation, persist its terminal result, and return that result on replay; the downstream operation must also honor its idempotency key. Otherwise, durable recovery can correctly replay the step while the client incorrectly books twice.
+After recovery, the same approval message may be delivered again. The executable SQLite ledger in [`recovery_contract_demo.py`](scripts/recovery_contract_demo.py) atomically records phase result, idempotency key, generation, and checkpoint; its tests prove identical replay is deduplicated and conflicting replay fails closed. It intentionally does not invent a booking API. A production downstream operation must honor the same idempotency identity or it can still execute twice.
 
 ---
 
@@ -714,20 +538,21 @@ Eight passing runs are easy to over-read, so each conclusion was attacked before
 
 ### 9.2 What the numbers trace to
 
-| Claim | Source artifact |
-|---|---|
-| Event counts, sequence ranges, elapsed times | Per-scenario captured event streams |
-| Phase and output index coverage | Stream analysis over those captures |
-| Approval timeline and confirmation numbers | Client session logs |
-| 424 retry behavior and stage output | Workflow client log |
-| Steering queue behavior and terminal answers | Steering client log |
+| Claim surface | Public evidence | Source boundary |
+|---|---|---|
+| July and August counts, ranges, durations, confirmations, 424 and steering values | [`historical-observations.json`](evidence/historical-observations.json) | Public-safe aggregates derived from captured runs; N and product status are explicit |
+| Current public SDK symbols and handler rules | [`public-sdk-contract.json`](evidence/public-sdk-contract.json) | Real installed-package probe; not live recovery |
+| Lease, process loss, generation fence, checkpoint, idempotency | [`recovery-contract-demo.json`](evidence/recovery-contract-demo.json) + [JSONL events](evidence/recovery-contract-events.jsonl) | Real local test fixture; not Foundry service code |
+| Gap, duplicate, terminal-state and 424/403 error paths | [`observation-validation.json`](evidence/observation-validation.json) | Executable positive and negative fixtures |
+| Scenario truth labels | [`scenario-manifest.json`](evidence/scenario-manifest.json) | Separates dynamic runtime, test fixture, and measured architecture explainer |
+| File integrity and reproduction commands | [`manifest.json`](evidence/manifest.json) + [evidence index](evidence/README.md) | SHA-256 covers the public evidence files |
 
-Raw artifacts stay private because they contain endpoints, work identifiers, environment metadata, and generated payload text. Every chart on this page is rendered from the aggregate values above and contains no identifiers.
+Raw live artifacts stay private because they contain endpoints, work identifiers, environment metadata, and generated payload text. The public aggregate contains only values already disclosed here; the local JSONL contains a synthetic workload and no service identifiers.
 
 ### 9.3 Boundaries
 
 - All numbers are **observed values from the evaluation each one names** — the July campaign or the August re-test — not benchmarks, guarantees, or SLAs.
-- The capability was in **private preview** when the campaign ran and has since moved to **public preview** with an [official concept page](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience). This repository now publishes a current public-API mapping and offline contract smoke, but not Microsoft SDK source, a complete deployment recipe, or live-service credentials.
+- The capability was in **private preview** when the campaign ran and has since moved to **public preview** with an [official concept page](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience). This repository now publishes a current public-API probe, executable local test fixture, tests, and public-safe evidence, but not Microsoft SDK source, a complete deployment recipe, live-service credentials, or private raw telemetry.
 - Results cover the July campaign's **eight documented main scenarios**, one accepted run each, plus the August re-test's **four scenario families**, one accepted run each. Cancel, delete, and deny branches were not counted.
 - The listed recovery paths were observed under the stated conditions. Business-domain correctness and model quality were not evaluated.
 - Verify current capabilities against the [official documentation](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents) before designing against anything described here.

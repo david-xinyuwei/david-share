@@ -14,12 +14,34 @@
 
 这篇文章讲清楚三件事：这些实测运行为什么能完成、哪些信号支持这一结论，以及哪些看似合理的处理方式可能导致任务被放弃或重复执行。
 
-> **这是什么。** Microsoft Foundry Hosted Agent 上长任务执行的恢复行为实测。该能力现已进入 **公共预览（public preview）**，并有[官方概念文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)；第 3 节会检查本文使用的当前公共 SDK surface。文中八个场景是 7 月在更早的 private preview 构件上跑的——所以这里的每个数字都是有日期的证据，而不是对今天这版构件的断言。
-> **不是什么。** 这里**不包含 Microsoft SDK 源码、完整 Agent 实现、端到端部署配方、私有 API schema，也不包含原始 telemetry**。官方声明没有 SLA、不建议用于生产——这与第 9.4 节的立场一致。文中每个数字都是观测值，不是服务级承诺。
+> **这是什么。** Microsoft Foundry Hosted Agent 长任务恢复行为的实测，以及公开安全的可执行检查与证据。该能力现已进入 **公共预览（public preview）**，并有[官方概念文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)。文中八个场景是 7 月在更早的 private preview 构件上运行的，因此每个数字仍是有日期的证据，不是对今天构件的断言。
+> **不是什么。** 这里**不包含 Microsoft SDK 源码、完整 Agent 实现、端到端部署配方、私有 API schema 或原始 live telemetry**。本地恢复程序是真实双进程 test fixture，不是 Foundry 服务代码或 live service 证明。官方声明没有 SLA、不建议用于生产——这与第 9.4 节立场一致。
 
 > **Author:** 魏新宇（Xinyu Wei）
 
 [English](README.md) | 中文 | [Hosted agents 概览](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents) | [Hosted agent 快速入门](https://learn.microsoft.com/en-us/azure/foundry/agents/quickstarts/quickstart-hosted-agent)
+
+---
+
+## Quick Start
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python -m pip install -r requirements-validation.txt
+.\.venv\Scripts\python scripts\verify_public_resilience_api.py --quiet
+.\.venv\Scripts\python scripts\recovery_contract_demo.py demo
+.\.venv\Scripts\python scripts\validate_observations.py self-test
+.\.venv\Scripts\python -m unittest discover -s tests -v
+.\.venv\Scripts\python scripts\validate_repo.py
+```
+
+| Surface | 场景类型 | 这条命令能证明什么 | 不能证明什么 |
+|---|---|---|---|
+| 公共 SDK contract probe | dynamic-runtime | 已安装的固定版本 package 暴露 18 项受检公开符号与校验规则 | Live Hosted Agent 恢复 |
+| SQLite 恢复程序 | test-fixture | 可执行参考模型中的真实 OS 进程丢失、lease 过期/接管、generation fence、checkpoint 与幂等行为 | Microsoft Foundry 私有实现 |
+| 历史观测 | measured aggregate / architecture-explainer | 从 7 月和 8 月捕获结果中提取的、带日期的公开安全数值 | 可靠性 benchmark、SLA 或可复现 live 部署 |
+
+机器可读数据、结构化日志、hash、复现命令和完整 truth contract 均在[证据索引](evidence/README.md)。
 
 ---
 
@@ -81,7 +103,7 @@ Hosted Agent 是客户自己的 Agent 代码，以 container image 的形式交�
 
 ## 2. 原理：寻址任务，而不是抢救进程
 
-<div align="center"><img src="images/resilience-architecture-cn.png" width="820" alt="六步模型：逻辑任务如何跨越 Hosted Agent 运行实例丢失"></div>
+<div align="center"><img src="images/resilience-architecture-cn.png" width="820" alt="概念恢复流程：逻辑任务如何跨越 Hosted Agent 运行实例丢失"></div>
 
 整套机制只建立在一个想法上：**给任务一个比进程活得更久的身份，然后重新进入这个任务，而不是去抢救那个进程。**
 
@@ -161,69 +183,18 @@ sequenceDiagram
 
 硬崩溃的进程无法执行清理。在上面的概念模型中，lease 停止续期，后续 scanner 发现它已过期，再由新 worker 带条件地接管同一条记录。模型中的 generation fencing 用于阻止旧 worker 在后续 generation 取得所有权后继续提交。
 
-#### 2.4.1 概念级 runtime loop
+#### 2.4.1 可执行的 recovery contract 参考实现
 
-下面的伪代码描述 runtime contract，不是 private SDK 或其数据库实现：
+原来不可运行的示意代码已删除。[`recovery_contract_demo.py`](scripts/recovery_contract_demo.py) 是只使用 Python 标准库的可执行代码：SQLite 持久化任务与输入；Worker A 提交 phase 1 后通过 `os._exit(9)` 退出；lease 过期后，独立的 Worker B 带条件地接管 generation 2，并提交 phase 2-5。程序生成 [JSON summary](evidence/recovery-contract-demo.json) 和 [JSONL 事件日志](evidence/recovery-contract-events.jsonl)；六项单元测试覆盖 lease 计时、既有状态保护、硬退出、旧 generation fence、幂等/冲突 replay 和输入差异行为。
 
-```python
-def recover_expired_work(now):
-	for work in task_store.list_expired_running(now):
-		claim = task_store.reclaim_if_lease_matches(
-			work_id=work.id,
-			expected_generation=work.lease_generation,
-			new_owner=worker_id,
-		)
-		if not claim.acquired:
-			continue
+这个程序属于 **test fixture**。它能证明仓库里的参考算法按文档执行；它不是 Microsoft Foundry 服务代码，也不是 live Hosted Agent 证据。
 
-		run_claimed_work(work, claim, entry_mode="recovered")
+代码实际实现并测试了四个 invariant：
 
-
-def run_claimed_work(work, claim, *, entry_mode):
-	# Runtime 在用户代码执行期间持续续租，并使用 generation 防止旧 owner 提交。
-	with task_store.renew_lease_while_running(work.id, claim.generation):
-		invoke_handler(
-			work_id=work.id,
-			persisted_input=work.input,
-			metadata=work.metadata,
-			checkpoint=progress_store.load_checkpoint(work.id),
-			entry_mode=entry_mode,
-			lease_generation=claim.generation,
-		)
-
-
-def run_handler(context):
-	for phase in plan.remaining_after(context.checkpoint):
-		phase_key = f"{context.work_id}:{phase}"
-		result = execute_phase(
-			context.persisted_input,
-			phase,
-			idempotency_key=phase_key,
-		)
-		commit = progress_store.commit_phase_once(
-			work_id=context.work_id,
-			expected_checkpoint=context.checkpoint,
-			phase=phase,
-			result=result,
-			side_effect_ids=result.side_effect_ids,
-			lease_generation=context.lease_generation,
-		)
-		output_store.project_snapshot(commit)  # 幂等、可重建的 projection。
-		context.checkpoint = commit.checkpoint
-
-	task_store.mark_completed(
-		context.work_id,
-		generation=context.lease_generation,
-	)
-```
-
-这个概念模型包含五个设计不变式（invariant）：
-
-1. **Reclaim 必须带条件。** 过期 lease generation 仍然匹配时才能接管，否则说明已有其他 worker 取得所有权。
-2. **Heartbeat 归 runtime 所有。** 用户代码运行期间 lease 持续续期；每个持久化写入都由当前 lease generation 做 fence，旧 worker 不能提交。
-3. **恢复是 at-least-once。** 外部动作完成、phase commit 尚未落盘时崩溃，这个 phase 可能再次执行；相同 `phase_key` 必须能去重该动作。
-4. **进度只能有一个权威存储。** `commit_phase_once` 同时推进业务 checkpoint，并记录 result / side-effect identity。面向客户端的 output snapshot 是幂等、可从 commit 重建的 projection，不是第二个 source of truth。
-5. **不要重置原始 deadline。** 恢复应改变 worker 与 lease generation，而不应重置应用拥有的任务身份、输入或 wall-clock recovery objective。
+1. **Reclaim 带条件。** 只有 pending 任务，或 lease 已过期的 running 记录才能被接管。
+2. **每个持久化写入都受 generation fence 保护。** Store 会核实 owner、generation、status 和 lease 过期时间；每次 phase commit 都会续期参考 lease。
+3. **Phase replay 幂等。** 相同 phase key 与结果会被去重；内容冲突时 fail closed。
+4. **一个事务负责推进进度。** SQLite 原子记录 phase result、idempotency key、worker generation 与 checkpoint。
 
 LRA runtime 负责把同一个任务重新送进 handler，却无法判断支付、预订、tool call 或 workflow node 是否已经提交。这就是为什么 application checkpoint 与 side-effect ledger 属于恢复契约，但不属于 lease engine 本身。
 
@@ -240,28 +211,9 @@ LRA runtime 负责把同一个任务重新送进 handler，却无法判断支付
 
 #### 2.5.1 用 Responses protocol 声明 Hosted Agent
 
-这是给**已经用 azd 生成好脚手架的项目**使用的公开 `services` 片段，字段遵循当前 Foundry `azure.yaml` 结构。这里省略了必需的顶层 project metadata、模型部署与 provisioning block，因为它们和恢复机制是两个独立问题。实际使用时应从[官方 Hosted Agent sample](https://github.com/microsoft-foundry/foundry-samples/tree/main/samples/python/hosted-agents)开始，不要把这个片段当成完整文件。
+本仓库不提供省略 project、模型、身份和资源值的不完整 `azure.yaml`。应从[官方 Hosted Agent samples 中可部署的 `azure.yaml` 与应用源码](https://github.com/microsoft-foundry/foundry-samples/tree/main/samples/python/hosted-agents)开始，再按当前 sample 与 SDK 版本支持的方式应用 public-preview recovery 配置。
 
-```yaml
-services:
-  research-agent:
-    host: azure.ai.agent
-    project: src/research-agent
-    language: python
-    kind: hosted
-    codeConfiguration:
-      runtime: python_3_13
-      entryPoint: app.py
-    protocols:
-      - protocol: responses
-        version: 2.0.0
-    container:
-      resources:
-        cpu: "0.5"
-        memory: 1Gi
-```
-
-在完整的 azd project 中，`azd deploy` 会读取这个 service block，创建不可变的 Hosted Agent version，并把 endpoint 路由到声明的 protocol。CPU、内存、镜像或源码打包、模型选择、身份都属于 version definition；它们不是恢复 checkpoint。
+在完整 azd project 中，`azd deploy` 读取真实 service definition，创建 Hosted Agent version，并把 endpoint 路由到声明的 protocol。CPU、内存、镜像或源码打包、模型选择与身份属于 version definition；它们不是 recovery checkpoint。
 
 #### 2.5.2 让 Agent 进程进入恢复模式
 
@@ -305,68 +257,21 @@ Replay 窗口内的支付、预订、写入或 tool action，仍然必须采用�
 
 #### 2.5.4 把任务下发和状态观察分开
 
-标准 Hosted Agent client surface 从 Foundry project client 获取。负责创建任务的代码，必须和所有观察任务的进程彻底分开：
+标准 Hosted Agent client surface 来自 Foundry project client，但可运行的生产 client 还需要应用自己的真实持久化存储、身份、endpoint 和 workload schema。原代码块引用了未定义依赖，因此已删除，不再把它包装成可运行代码。
 
-```python
-import time
+本仓库现在只对自己能完整负责的部分做端到端执行：[`recovery_contract_demo.py`](scripts/recovery_contract_demo.py) 实现并测试原子 durable ledger；[`validate_observations.py`](scripts/validate_observations.py) 校验调用方提供的 workload 证据，并对未分类状态码 fail closed。真实认证 client 调用应使用[官方 Hosted Agent quickstart](https://learn.microsoft.com/en-us/azure/foundry/agents/quickstarts/quickstart-hosted-agent)与 samples。本仓库不提供虚构 endpoint、身份或持久化参数的环境专用 dispatch client。
 
+把观察能力放到只读应用 adapter 后面，是可维护性和 least-privilege pattern，**不是**安全沙箱或 RBAC 边界。不可信 observer 仍需独立服务与身份。Recovery objective 是 workload 配置，不是固定重试次数；应按健康运行时间和 workload 自己的替换余量设置。平台终态与 workload 完整性仍是两道独立检查。
 
-class ResponseReader:
-	def __init__(self, responses_api):
-		self._responses_api = responses_api
+这个应用模式存在一个公共 API 边界：远端 create 调用与应用持久化记录返回的 response ID 不是一个原子事务；本轮测试的公开 create 调用也不支持按应用自己的 work key 找回 response。进程可能停在远端调用之前，也可能停在远端调用成功、应用尚未记录 response ID 之后。此时应保留这条结果未知的应用状态，不能自动再次 create。普通 transactional outbox 无法判断一次结果未知的远端调用是否成功。生产 dispatcher 需要产品支持的 idempotency / deduplication contract，或针对未决记录与 orphan response 的运维对账路径。本次评估只在 response ID 已持久化后开始观察。
 
-	def retrieve(self, response_id: str):
-		return self._responses_api.retrieve(response_id)
-
-
-def dispatch(client, *, work_key: str, prompt: str) -> None:
-	# 原子唯一插入：并发 dispatcher 中只有一个能取得这个 key。
-	claim = durable_state.claim_dispatch(
-		work_key,
-		deadline_at=time.time() + settings.recovery_objective_seconds,
-	)
-	if not claim.acquired:
-		raise RuntimeError(f"work already claimed: {work_key}")
-
-	response = client.responses.create(
-		input=prompt,
-		store=True,
-		background=True,
-	)
-	durable_state.attach_response(
-		work_key,
-		response_id=response.id,
-		expected_state="dispatching",
-	)
-
-
-def observe(reader: ResponseReader, *, work_key: str):
-	work = durable_state.require_dispatched(work_key)
-	response = reader.retrieve(work.response_id)
-
-	while response.status in {"queued", "in_progress"}:
-		if time.time() >= work.deadline_at:
-			raise TimeoutError(f"response {work.response_id} exceeded its deadline")
-		time.sleep(2)
-		response = reader.retrieve(work.response_id)
-
-	if response.status != "completed":
-		raise RuntimeError(f"terminal response status: {response.status}")
-	validate_workload_output(response)
-	return response
-```
-
-`claim_dispatch` 必须是原子、唯一的 insert，在远端调用前先把逻辑任务置为 `dispatching`，从根上关闭并发 dispatcher 竞态。`attach_response` 则通过 compare-and-set 把状态推进到 `dispatched`。`durable_state` 代表能够跨观察进程存在的数据库或其他持久化存储，不是内存 dictionary。传给 observer 的应该是 `ResponseReader(client.responses)`，而不是完整 client。这个 wrapper 的公开应用接口只有 `retrieve`，但它仍然只是可维护性边界，**不是**安全沙箱或底层服务的 RBAC 边界。如果 observer 代码不可信，应把它隔离到独立服务和身份中。进程重启后，它只能读取已经进入 `dispatched` 的映射；映射不存在就按 fail closed（中止而非新建）处理。Recovery objective 是 workload 配置，不是固定的小重试预算。其取值应基于健康运行的预期耗时，再加上该 workload 自己的替换余量；本次评估没有给出通用数值。`validate_workload_output` 是应用代码；在本次 Research 实测中，它检查 finalized output index 和预期 phase 数量。平台终态与 workload 完整性是两道独立检查。
-
-本轮受测的公共 API surface 存在一个边界：远端 create 与 `attach_response` 不是一个原子事务，本轮测试的公开 create 调用也不支持按应用的 `work_key` 找回 response。进程在取得 claim 之后，可能死在远端 create 之前，也可能死在远端 create 成功、response ID 尚未 attach 之前。此时记录必须停在 `dispatching`，不能自动再创建。普通 transactional outbox 无法判断一次结果未知的远端 create 是否成功。生产 dispatcher 需要产品支持的 idempotency / deduplication contract，或者针对 `dispatching` 记录与 orphan response 的运维对账路径。本次评估是在 response ID 已经持久化之后才开始观察。
-
-如果映射已经存在，轮询进程消失后，新 observer 从 `durable_state` 读取 `response_id` 和 `deadline_at`，再 retrieve **同一个 response**。Streaming 本身是公开的 Responses 模式；active-handler crash replay 现在属于单独启用的 **public-preview resilient execution**。本次评估会在可用时持久化传输游标，把新的 `response.in_progress` snapshot 当作 reset point，并根据 finalized item 重建观察者输出。
+应用已持久化 response ID 与 deadline 后，如果轮询进程消失，新 observer 会从这些应用自有数据 retrieve **同一个 response**。Streaming 本身是公开的 Responses 模式；active-handler crash replay 现在属于单独启用的 **public-preview resilient execution**。本次评估会在可用时持久化传输游标，把新的 `response.in_progress` snapshot 当作 reset point，并根据 finalized item 重建观察者输出。
 
 最重要的是，它**没有**把高位 transport sequence cursor 当成唯一恢复 key：有一次实测的 runtime 在恢复后把 sequence 从 5 重新计数。Sequence number 可以在兼容的 stream lifetime 内优化 replay，但真正的恢复权威是持久化 `response_id` 与 workload state。仍然要按第 5 节验证 finalized output index、phase 和持久化业务状态。
 
 后续的顺序轮次可以设置 `previous_response_id=response_id`。并发排队和协作式 steering 使用 public-preview resilient task surface；`previous_response_id` 本身只负责建立 response chain 连续性。
 
-部署后，一条简洁的操作路径是 `azd ai agent invoke`，它会替普通调用管理 Hosted Agent session 与 Responses conversation。如果应用必须自行掌握 background response ID、轮询 deadline、dispatch / observe 分离和 workload 终态检查，就使用上面的显式 client pattern。
+部署后，一条简洁的操作路径是 `azd ai agent invoke`，它会替普通调用管理 Hosted Agent session 与 Responses conversation。如果系统必须持久化 background response ID、轮询 deadline、dispatch / observe 分离和 workload 终态检查，应使用应用自己实现并测试过的 client。
 
 ---
 
@@ -376,15 +281,7 @@ def observe(reader: ResponseReader, *, work_key: str):
 
 ### 当前 public-preview 契约检查
 
-下面的历史战役使用的是 7 月可用的 private-preview 构件。为了避免继续把旧 package surface 当作当前状态，本轮在干净的 Python 3.13 环境中直接安装并检查当前公共 package：
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\python -m pip install -r requirements-validation.txt
-.\.venv\Scripts\python scripts\verify_public_resilience_api.py
-```
-
-运行 `scripts\verify_public_resilience_api.py --help` 可以看到检查范围与退出码含义；`--quiet` 会略去逐项结果、只保留汇总行，而 SDK 自身的 experimental 提示仍会输出到 stderr。任何一项断言失败时脚本都会以非零码退出，因此可以直接接进 CI。
+下面的历史战役使用的是 7 月可用的 private-preview 构件。为避免把旧 package surface 当作当前状态，Quick Start 会在干净的 Python 3.13 环境中安装并检查固定版本的公共 packages。`--help` 说明检查范围与退出码。已提交的 [18 项检查证据](evidence/public-sdk-contract.json) 由 `--format json --output` 生成；本地复测应写入已忽略的 `.demo-state` 目录，除非维护者明确刷新 committed evidence 与 manifest。任何断言失败都会返回非零退出码。
 
 固定版本检查对 `azure-ai-agentserver-core` 2.0.0、`azure-ai-agentserver-invocations` 1.0.0 和 `azure-ai-agentserver-responses` 2.0.0 的 **18 项断言全部通过**。检查覆盖 package 版本、recovered entry mode、相互独立的 recovery/retry 计数、work/input identity、metadata checkpoint 操作、协作式 shutdown、exit-for-recovery、steering、Responses recovery signal、retry policy、enablement，以及当前 handler 契约：第一个参数必须命名为 `ctx`，并声明为 `TaskContext[Input]`。
 
@@ -554,25 +451,13 @@ The quick brown fox jumps over the lazy dog.
 
 ---
 
-## 6. 客户端实现：关键代码、失败日志与修复方式
+## 6. 可执行 validator、证据与修复
 
-从这里开始，平台能力要靠客户端工程来接住。下面的连续性 helper 修复了私有评估指标提取器，配套的覆盖度 helper 则明确了 workload 层的验收规则。可执行反例证明，原来的排序检查会同时放过缺口和重复。其余代码是从评估 harness 提炼出的可公开模式，不是 preview SDK 源码。日志已经脱敏，只保留解释故障与修复所需的行为。
+从这里开始，平台能力要靠客户端工程来接住。[`validate_observations.py`](scripts/validate_observations.py) 包含下面讨论的真实可执行检查，其 [JSON self-test report](evidence/observation-validation.json) 同时记录通过与失败路径。历史服务数值保留在公开安全的[聚合证据](evidence/historical-observations.json)中；原始日志因第 9.2 节说明的原因继续留在私有边界。
 
 ### 6.1 连续性：同时拒绝缺口和重复
 
-原检查实质上是 `sequence == sorted(sequence)`。它只能证明顺序，不能证明连续。修复后逐项检查相邻差值，并用完整预期区间验证 workload output。
-
-```python
-def sequence_has_no_gap(sequence: list[int]) -> bool:
-	return all(
-		current - previous == 1
-		for previous, current in zip(sequence, sequence[1:])
-	)
-
-
-def output_coverage_complete(indexes: list[int], expected_last: int) -> bool:
-	return sorted(indexes) == list(range(expected_last + 1))
-```
+原检查实质上是 `sequence == sorted(sequence)`。它只能证明顺序，不能证明连续。[`validate_observations.py`](scripts/validate_observations.py) 中真实的 `sequence_has_no_gap` 与 `output_coverage_complete` 函数，会逐项检查相邻差值和完整预期 output 区间。
 
 | 反例 | 原排序检查 | 修复后的检查 |
 |---|---:|---:|
@@ -584,82 +469,21 @@ def output_coverage_complete(indexes: list[int], expected_last: int) -> bool:
 
 ### 6.2 终态：一个 `done` 帧不能证明成功
 
-本地评估证据中确实有只带 `done` 帧的事件流，但 harness 的通过条件来自显式 invocation 状态与 workload 断言。流关闭可能代表成功、取消、失败，也可能只是观察连接断了。只有把 protocol 对应的终态事件与 workload invariant 对上，才能宣布成功。
-
-```python
-def completion_is_proven(snapshot: dict, *, expected_phases: int) -> bool:
-	return (
-		snapshot.get("status") == "completed"
-		and snapshot.get("terminal_event") == "run_complete"
-		and snapshot.get("phases_completed") == expected_phases
-	)
-```
+本地评估证据中确实有只带 `done` 帧的事件流，但 harness 的通过条件来自显式 invocation 状态与 workload 断言。流关闭可能代表成功、取消、失败，也可能只是观察连接断了。可执行的 `completion_is_proven` 检查同时要求服务状态、显式终态事件和预期 phase 数量。
 
 这是从 harness 的 phase-based run 中提炼出的实现模式，不是通用适配器。Responses 客户端应替换成自己的显式终态事件与 output coverage 规则；单独一个 `{"type": "done"}` 仍然不能证明业务结果成立。
 
 ### 6.3 有界重试：把 `424` 和 `403` 分开处理
 
-下面是来自真实 workflow 客户端的脱敏故障日志。主机替换期间，客户端始终保留同一个 response 引用。
-
-```text
-Created durable background response: <response-id>
-Redeploy or replace the host while this client continues polling.
-Host temporarily unavailable; retrying: Client error '424 Failed Dependency'
-Response status: in_progress
-... the same response returned 424 a total of 29 times ...
-Response status: completed
-PASS: The original response completed.
-```
-
-修复方式不是“所有错误都重试”，而是保留同一个任务引用，先判断失败发生在哪一层，并在调用方设定的 deadline 处停下来。
-
-```python
-def recovery_action(
-	status_code: int,
-	*,
-	host_replacement_confirmed: bool,
-	same_work_addressable: bool,
-	observer_auth_expired: bool,
-	deadline_expired: bool,
-) -> str:
-	if deadline_expired:
-		return "timeout"
-	if status_code == 424 and host_replacement_confirmed and same_work_addressable:
-		return "retry_same_work_with_bounded_backoff"
-	if status_code in {401, 403} and observer_auth_expired:
-		return "refresh_observer_auth_then_read_again"
-	return "fail_closed"
-```
+7 月聚合数据记录了完成前连续 29 次 `424`，但不公开 response identifier。[`validate_observations.py`](scripts/validate_observations.py) 中真实的 `recovery_action` 函数保留 same-work 条件，区分已确认的 host replacement 与 observer auth 过期，遵守调用方 deadline，并在信号不足时 fail closed。已提交的 JSON report 包含已分类和未分类的 `424`/`403` 用例。
 
 决定何时停止的应该是 workload 恢复目标所定义的 deadline，而不是一个随手设定的很小的重试次数。`403` 需要独立分类：先核实观察者身份、scope 和持久化 workload 状态；只有确认凭据过期时才刷新。重新执行只读查询，比重放业务任务更安全。
 
 ### 6.4 人工审批：决定与副作用都必须幂等
 
-真实审批运行只跨过一次暂停点，并且只产生一个确认号：
+实测审批运行只跨过一次暂停点，并产生确认号 `TRIP-182336`；结构化公开 aggregate 记录了从实例丢失到决定被接收的 56 秒和终态结果，但不公开私有 session log。
 
-```text
-[12:25:23Z] lifecycle: running
-[12:25:23Z] -> human_approval
-[12:25:25Z] agent: selected flight and hotel
-[12:25:30Z] -> agent    Confirmation: TRIP-182336
-done
-```
-
-恢复后，同一条审批消息可能再次送达。客户端要把决定写入稳定的“逻辑任务 + checkpoint”，拒绝内容冲突的 replay，并把同一个 key 传给外部副作用。
-
-```python
-def apply_approval(ledger, logical_work: str, checkpoint: str, requested: str):
-	key = (logical_work, checkpoint, "approval")
-	recorded = ledger.put_if_absent(key, requested)
-	if recorded != requested:
-		raise RuntimeError("conflicting approval replay")
-	return ledger.run_once(
-		(*key, "booking"),
-		lambda: book_trip(recorded, idempotency_key=key),
-	)
-```
-
-`put_if_absent` 与 `run_once` 是接口示意，不是现成库函数。实现时必须原子地取得执行权、持久化终态结果，并在 replay 时返回该结果；下游也必须真正遵守 idempotency key。否则，持久化恢复机制可以正确 replay 该步骤，客户端却会把一次审批执行成两次预订。
+恢复后，同一条审批消息可能再次送达。[`recovery_contract_demo.py`](scripts/recovery_contract_demo.py) 中可执行的 SQLite ledger 会原子记录 phase result、idempotency key、generation 与 checkpoint；测试证明相同 replay 被去重，内容冲突时 fail closed。它不会虚构 booking API。生产下游操作仍须遵守同一个 idempotency identity，否则仍可能执行两次。
 
 ---
 
@@ -714,20 +538,21 @@ def apply_approval(ledger, logical_work: str, checkpoint: str, requested: str):
 
 ### 9.2 数字能追溯到哪里
 
-| 声明 | 来源产物 |
-|---|---|
-| 事件数量、sequence 区间、耗时 | 逐场景捕获的事件流 |
-| Phase 与 output index 覆盖度 | 对这些捕获流的分析 |
-| 审批时间线与确认号 | 客户端会话日志 |
-| 424 重试行为与阶段输出 | Workflow 客户端日志 |
-| Steering 排队行为与终态答案 | Steering 客户端日志 |
+| 声明范围 | 公开证据 | 来源边界 |
+|---|---|---|
+| 7 月与 8 月的数量、区间、耗时、确认号、424 与 steering 数值 | [`historical-observations.json`](evidence/historical-observations.json) | 从捕获运行中提取的公开安全 aggregate；明确 N 和产品状态 |
+| 当前公共 SDK 符号与 handler 规则 | [`public-sdk-contract.json`](evidence/public-sdk-contract.json) | 真实 installed-package probe；不是 live recovery |
+| Lease、进程丢失、generation fence、checkpoint、幂等 | [`recovery-contract-demo.json`](evidence/recovery-contract-demo.json) + [JSONL events](evidence/recovery-contract-events.jsonl) | 真实本地 test fixture；不是 Foundry 服务代码 |
+| 缺口、重复、终态与 424/403 错误路径 | [`observation-validation.json`](evidence/observation-validation.json) | 可执行正向与负向 fixtures |
+| 场景 truth label | [`scenario-manifest.json`](evidence/scenario-manifest.json) | 区分 dynamic runtime、test fixture 与 measured architecture explainer |
+| 文件完整性与复现命令 | [`manifest.json`](evidence/manifest.json) + [证据索引](evidence/README.md) | SHA-256 覆盖公开 evidence files |
 
-原始产物保留在私有边界内，因为其中包含 endpoint、任务标识、环境 metadata 和生成的 payload 文本。本文所有图表都由上述聚合值绘制，不含任何标识信息。
+原始 live 产物继续留在私有边界，因为其中包含 endpoint、任务标识、环境 metadata 和生成的 payload 文本。公开 aggregate 只含本文已披露数值；本地 JSONL 使用 synthetic workload，不含服务标识。
 
 ### 9.3 边界
 
 - 文中所有数字都是**对应评估**（7 月战役或 8 月复测）**的观测值**，不是 benchmark、保证或 SLA。
-- 本次战役进行时，该能力处于 **private preview**；此后已进入 **public preview** 并有[官方概念文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)。本仓库现在公开当前 API 映射与离线契约冒烟测试，但不包含 Microsoft SDK 源码、完整部署配方或线上服务凭据。
+- 本次战役进行时，该能力处于 **private preview**；此后已进入 **public preview** 并有[官方概念文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)。本仓库现在公开当前公共 API probe、可执行本地 test fixture、测试和公开安全证据，但不包含 Microsoft SDK 源码、完整部署配方、live service 凭据或私有 raw telemetry。
 - 结果覆盖 7 月战役的**八个文档定义的主场景**，每个场景各有一次被接受的运行；以及 8 月复测的**四类场景**，每类场景各有一次被接受的运行。cancel、delete、deny 分支不计入。
 - 文中列出的恢复路径只在所述条件下得到观测；没有评估业务领域正确性和模型质量。
 - 在依据本文做设计之前，请以[官方文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents)核对当前能力。
