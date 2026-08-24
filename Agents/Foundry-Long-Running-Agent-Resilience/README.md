@@ -409,7 +409,19 @@ Two things were re-checked on the public build, on an ordinary work subscription
 
 The last row is the interesting one. Section 5 argued from behavior that recovery is not a retry; the current public-preview API now exposes the two as independent counters, and the recovered entry reported exactly the predicted split.
 
-**What this re-test is not.** Phase durations are synthetic sleeps, there is no model inference in the loop, and no Hosted Agent was deployed, so its elapsed times carry no performance meaning. It confirms the durable-work, lease-abandonment, reclaim and re-entry machinery on the current build; it does not re-measure the eight July scenarios. Those numbers stay labelled as July observations.
+**What this re-test is not.** Phase durations are synthetic sleeps and there is no model inference in the loop, so its elapsed times carry no performance meaning. It confirms the durable-work, lease-abandonment, reclaim and re-entry machinery on the current build; it does not re-measure the eight July scenarios. Those numbers stay labelled as July observations.
+
+### On a deployed agent, on an ordinary subscription
+
+The check above runs against the SDK. This one ran against a real Hosted Agent, because the two answer different questions.
+
+The official public sample catalogue now ships `resilient-streaming` and `resilient-steering` under `bring-your-own/responses`; their own description names `stream.checkpoint()` and `context.persisted_response`. Deploying `resilient-streaming` unchanged, on a normal work subscription with **no allowlist request and no feature registration**, took 4 minutes 3 seconds and the agent reported `active`. In July the same capability was unreachable: `/tasks` returned `404` because the subscription was not on the private-preview allowlist.
+
+A stored background response was created on the live endpoint and, while it was still `in_progress`, the runtime instance was replaced by redeploying the agent. Polling the **same response id** afterwards returned `completed` with all three stage items present, no gap and no repeated stage. The container log shows the runtime driving the task store with real leases — `lease_owner`, `lease_instance_id`, `lease_duration_seconds=60`, and ETag-guarded `PATCH` updates — which is the lease and compare-and-set model described in Section 2.4.
+
+One defect is worth passing on. The first deployment failed at runtime with `HTTP 500`, and the container log showed `resilient_task_handler_failure ... exc_type=AttributeError` under `ai-agentserver-core/2.1.0b2`. The sample pins `responses==2.0.0b1` but only requires `core>=2.0.0b10`, so the container resolved a newer beta than the handler was written against. Pinning both packages to their 2.0.0 releases fixed it. On a preview surface, pin the whole set rather than a floor.
+
+This interruption was produced by forcing a runtime-instance replacement, which is a genuine platform-level event but not an unplanned host crash, and the sample's stages remain simulated. It is capability validation on the current build, not a new reliability benchmark.
 
 | Dimension | Fixed condition | Why it matters |
 |---|---|---|
@@ -696,7 +708,7 @@ Raw artifacts stay private because they contain endpoints, work identifiers, env
 
 ### 9.3 Boundaries
 
-- Numbers are **observed values from one evaluation**, not benchmarks, guarantees, or SLAs.
+- All numbers are **observed values from the evaluation each one names** — the July campaign or the August re-test — not benchmarks, guarantees, or SLAs.
 - The capability was in **private preview** when the campaign ran and has since moved to **public preview** with an [official concept page](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience). This repository now publishes a current public-API mapping and offline contract smoke, but not Microsoft SDK source, a complete deployment recipe, or live-service credentials.
 - Results cover **eight documented main scenarios**, each run once. Cancel, delete, and deny branches were not counted.
 - Recovery behavior was validated. Business-domain correctness and model quality were not.

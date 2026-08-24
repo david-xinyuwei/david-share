@@ -409,7 +409,19 @@ python -m venv .venv
 
 最后一行才是关键。第 5 节当初只能从行为上论证「恢复不是重试」；当前 public-preview API 现在把两者公开为相互独立的计数器，而恢复重入报告的正是预测中的那组数值。
 
-**这次复测不是什么。** 各 phase 的耗时是人为 sleep，链路中没有模型推理，也没有部署 Hosted Agent，因此其耗时数据没有任何性能含义。它确认的是当前构件上持久任务、租约遗弃、回收与重入这套机制；它**没有**重新测量 7 月那八个场景，那些数字仍然标注为 7 月的观测值。
+**这次复测不是什么。** 各 phase 的耗时是人为 sleep，链路中也没有模型推理，因此其耗时数据没有任何性能含义。它确认的是当前构件上持久任务、租约遗弃、回收与重入这套机制；它**没有**重新测量 7 月那八个场景，那些数字仍然标注为 7 月的观测值。
+
+### 在真实部署的 Agent 上，用普通订阅
+
+上面那项检查跑的是 SDK。这一项跑在真实 Hosted Agent 上，因为两者回答的是不同的问题。
+
+官方公开样例库现在已经提供 `bring-your-own/responses/resilient-streaming` 与 `resilient-steering`，其描述里直接写明使用 `stream.checkpoint()` 与 `context.persisted_response`。把 `resilient-streaming` 原样部署到一个普通工作订阅上——**没有提交任何白名单申请，也没有注册任何 feature**——耗时 4 分 03 秒，Agent 状态为 `active`。而在 7 月，同一项能力根本够不着：`/tasks` 返回 `404`，因为订阅不在 private preview 白名单里。
+
+在这个真实 endpoint 上创建一个 stored background response，并**趁它仍处于 `in_progress` 时**，通过重新部署替换掉运行实例。之后再用**同一个 response id** 轮询，得到的是 `completed`，三个阶段的 output item 全部齐备，无缺口、无重复阶段。容器日志显示 runtime 正以真实租约驱动 task store——`lease_owner`、`lease_instance_id`、`lease_duration_seconds=60`，以及带 ETag 保护的 `PATCH` 更新——这正是第 2.4 节描述的租约与 compare-and-set 模型。
+
+有一个缺陷值得转告。首次部署在运行时返回 `HTTP 500`，容器日志显示 `resilient_task_handler_failure ... exc_type=AttributeError`，运行的是 `ai-agentserver-core/2.1.0b2`。样例把 `responses` 钉在 `2.0.0b1`，却只对 `core` 要求 `>=2.0.0b10`，于是容器解析到了比 handler 编写时更新的 beta。把两个包都钉到各自的 2.0.0 版本后即恢复正常。在 preview 面上，要钉住整组版本，而不是只给一个下限。
+
+这次中断是通过强制替换运行实例造成的——它是真实的平台级事件，但不等同于一次计划外的主机崩溃；样例的各阶段也仍然是模拟的。它属于当前构件上的能力验证，不是一次新的可靠性 benchmark。
 
 | 维度 | 固定条件 | 为什么重要 |
 |---|---|---|
@@ -696,7 +708,7 @@ def apply_approval(ledger, logical_work: str, checkpoint: str, requested: str):
 
 ### 9.3 边界
 
-- 文中数字是**一次评估的观测值**，不是 benchmark、保证或 SLA。
+- 文中所有数字都是**其各自所属评估的观测值**——7 月战役或 8 月复测——不是 benchmark、保证或 SLA。
 - 本次战役进行时，该能力处于 **private preview**；此后已进入 **public preview** 并有[官方概念文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)。本仓库现在公开当前 API 映射与离线契约 smoke，但不包含 Microsoft SDK 源码、完整部署配方或 live service 凭据。
 - 结果覆盖**八个文档定义的主场景**，每个只跑一次。cancel、delete、deny 分支不计入。
 - 验证的是恢复行为，不包括业务领域正确性和模型质量。
