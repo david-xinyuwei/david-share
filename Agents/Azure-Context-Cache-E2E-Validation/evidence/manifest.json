@@ -5,13 +5,13 @@
   "files": [
     {
       "path": "paired-prefix-follow-up.json",
-      "bytes": 2154,
-      "sha256": "4589eee11b05d2cbc481d9c80afd16ce93edb9ac33c138894a494cc2010f9e77"
+      "bytes": 2663,
+      "sha256": "8445ea66edf89d5243e0a46b715cb6f10c92f6f799a941ae470a770c8c27880f"
     },
     {
       "path": "validation-history.json",
-      "bytes": 3423,
-      "sha256": "033b8464f5189be7a8dd822aed14a3f3440ad518f390e44d6451e6fa299ac444"
+      "bytes": 3809,
+      "sha256": "0cd54fe8942eb484565bcb97ee3f8122e99d56b5904f7a4db66bef08e4b5acc5"
     },
     {
       "path": "verified-run-summary.json",

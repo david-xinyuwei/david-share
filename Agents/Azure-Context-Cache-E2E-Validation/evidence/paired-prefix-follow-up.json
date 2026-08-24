@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "evidenceType": "sanitized-paired-prefix-follow-up",
   "capturedDate": "2026-08-24",
-  "status": "warm-pass-verify-pending",
+  "status": "complete-incremental-retention-not-observed",
   "lineage": "paired-prefix-context-cache-attribution",
   "authority": {
     "azurePromptCaching": "https://learn.microsoft.com/azure/ai-foundry/openai/how-to/prompt-caching",
@@ -34,11 +34,19 @@
     "interpretation": "Both isolated prefix families independently demonstrated a cold miss followed by a warm hit. This validates the baseline but does not establish retention beyond 24 hours."
   },
   "verify": {
-    "status": "pending",
+    "status": "complete",
     "notBeforeUtc": "2026-08-24T14:18:04Z",
+    "completedUtc": "2026-08-24T14:18:47Z",
+    "idleHours": 26.012,
     "callsPerArm": 1,
-    "linkedCachedTokens": null,
-    "controlCachedTokens": null
+    "allHttp200": true,
+    "inputTokensPerCallBothArms": 2512,
+    "linkedCachedTokens": 0,
+    "controlCachedTokens": 0,
+    "linkedLatencyMs": 3235,
+    "controlLatencyMs": 1846,
+    "verdict": "context-cache-incremental-retention-not-observed",
+    "interpretation": "After 26.012 idle hours, neither isolated prefix family produced a cache hit. This completed run did not observe incremental retention from the linked Context Cache arm in this environment."
   },
   "verdictMatrix": {
     "linkedHitControlMiss": "context-cache-incremental-retention-observed",
@@ -46,5 +54,5 @@
     "linkedHitControlHit": "attribution-ambiguous-both-retained",
     "linkedMissControlHit": "unexpected-control-only-hit"
   },
-  "claimBoundary": "This is an in-progress, single-environment Private Preview follow-up. Warm results prove only that both isolated prefixes were cacheable. No post-24-hour retention conclusion is available until the verify stage completes."
+  "claimBoundary": "This is one completed paired-prefix observation in one Private Preview environment. It did not observe incremental retention after 26.012 idle hours, but it does not establish product-wide behavior or the service's internal storage mechanism."
 }

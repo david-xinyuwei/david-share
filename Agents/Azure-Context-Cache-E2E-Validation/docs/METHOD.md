@@ -111,11 +111,11 @@ Integrity: single `prefix_sha256`, identical `input_tokens=2467`, both `HTTP 200
 2. **Prefix cache state crossed the deployment boundary in both directions.** Combined with the earlier reverse observation, separate deployments in one Azure OpenAI account must not be assumed to form a cache isolation boundary.
 3. **No latency claim is supportable.** Hit-versus-hit means were `1877.8 ms` (bound, sd `365.3`, n=11) and `2047.9 ms` (unbound, sd `766.8`, n=11). The `170 ms` gap is smaller than either standard deviation and its sign flips across phases (`−14.9`, `−672.2`, `+230.0` ms). What is supportable is that a hit beats a miss: `1962.9 ms` versus `3368.5 ms`, a `41.7%` reduction.
 
-Incremental hit-rate, cost, and latency claims therefore remain unproven. The completed observation points against the hit-rate hypothesis in this environment, while the stronger paired-prefix follow-up below is still pending. The defensible differentiators are explicit lifetime declaration, residency, ownership, and governance — all verified through control-plane reads and none dependent on a cache-hit comparison.
+Incremental hit-rate, cost, and latency claims therefore remain unproven. The completed observation points against the hit-rate hypothesis in this environment, and the stronger paired-prefix follow-up below independently reached the same negative direction. The defensible differentiators are explicit lifetime declaration, residency, ownership, and governance — all verified through control-plane reads and none dependent on a cache-hit comparison.
 
 Reproducing this test requires re-establishing an idle window longer than 24 hours on the account. Any inference traffic in between invalidates the precondition.
 
-## Paired-Prefix Follow-Up (In Progress)
+## Paired-Prefix Follow-Up (Completed)
 
 This is a new experimental lineage, not a rewrite of the completed cross-day result. It removes the shared-key confound by giving each arm its own prefix family while preserving the same base prompt, suffix contract, model, version, capacity, request shape, and retention setting.
 
@@ -126,7 +126,7 @@ This is a new experimental lineage, not a rewrite of the completed cross-day res
 | Runtime parity | Both arms must report the same measurable input-token count |
 | Warm gate | Each arm must independently produce `cached_tokens: 0 -> >0` across two calls |
 | Verify gate | One call per arm only after at least `26` hours; the script rejects an early or duplicate Verify |
-| Current state | `WARM PASS / VERIFY PENDING` |
+| Current state | `COMPLETE / INCREMENTAL RETENTION NOT OBSERVED` |
 
 Warm observations:
 
@@ -134,6 +134,15 @@ Warm observations:
 |---|---:|---:|---:|
 | Linked Context Cache arm | `0` | `2304` | `2513` |
 | Unbound control arm | `0` | `2304` | `2513` |
+
+Verify observations after `26.012` idle hours:
+
+| Arm | Cached tokens | Input tokens | Latency |
+|---|---:|---:|---:|
+| Linked Context Cache arm | `0` | `2512` | `3235 ms` |
+| Unbound control arm | `0` | `2512` | `1846 ms` |
+
+Both Verify calls returned `HTTP 200`. The verdict matrix was frozen before Verify; the linked-miss/control-miss cell maps to `context-cache-incremental-retention-not-observed`. This is a bounded result for one Private Preview environment, not a product-wide guarantee or defect report.
 
 The public probe is parameterized and contains no endpoint, resource ID, or credential. Before sending requests, it uses the caller's isolated Azure CLI profile to verify both deployment definitions and the container model/TTL through ARM. It then obtains a data-plane token and writes request rows to a caller-selected path outside the public source tree.
 

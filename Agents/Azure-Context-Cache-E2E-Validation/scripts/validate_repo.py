@@ -187,14 +187,14 @@ def main() -> int:
         require(markdown_shape(method_en) == markdown_shape(method_cn), "bilingual method shape differs")
         method_markers = {
             "METHOD.md": (
-                "Paired-Prefix Follow-Up (In Progress)",
-                "WARM PASS / VERIFY PENDING",
+                "Paired-Prefix Follow-Up (Completed)",
+                "COMPLETE / INCREMENTAL RETENTION NOT OBSERVED",
                 "scripts\\paired_prefix_probe.py",
                 "at least 26 hours",
             ),
             "METHOD-CN.md": (
-                "Paired-Prefix 后续实验（进行中）",
-                "WARM PASS / VERIFY PENDING",
+                "Paired-Prefix 后续实验（已完成）",
+                "COMPLETE / 未观测到增量保留",
                 "scripts\\paired_prefix_probe.py",
                 "至少等待 26 小时",
             ),
@@ -308,7 +308,7 @@ def main() -> int:
             require(manifest_entry["sha256"] == sha256(evidence_path), "evidence hash mismatch")
         require([row["verdict"] for row in history["runs"]] == [
             "pass", "pass", "rejected-incomplete", "rejected-incomplete",
-            "complete-hypothesis-falsified", "warm-pass-verify-pending",
+            "complete-hypothesis-falsified", "complete-incremental-retention-not-observed",
         ], "validation history verdicts changed")
         require([row["transportErrors"] for row in history["runs"]] == [0, 0, 3, 4, 0, 0], "validation history transport counts changed")
 
@@ -331,7 +331,10 @@ def main() -> int:
             "cross-day cross-deployment reuse observation changed",
         )
         paired_history = next(row for row in history["runs"] if row["path"] == "paired-prefix-follow-up")
-        require(paired["status"] == "warm-pass-verify-pending", "paired-prefix status changed")
+        require(
+            paired["status"] == "complete-incremental-retention-not-observed",
+            "paired-prefix status changed",
+        )
         require(paired_history["verdict"] == paired["status"], "paired-prefix history status mismatch")
         require(paired["contract"]["minimumVerifyHours"] >= 26, "paired-prefix verify window is too short")
         require(paired["contract"]["linkedArmHasContainerBinding"] is True, "linked arm lost its binding")
@@ -348,9 +351,19 @@ def main() -> int:
         )
         require(paired["warm"]["linkedCachedTokensByCall"] == [0, 2304], "linked warm evidence changed")
         require(paired["warm"]["controlCachedTokensByCall"] == [0, 2304], "control warm evidence changed")
-        require(paired["verify"]["status"] == "pending", "paired-prefix verify status changed")
-        require(paired["verify"]["linkedCachedTokens"] is None, "pending linked verify contains a result")
-        require(paired["verify"]["controlCachedTokens"] is None, "pending control verify contains a result")
+        require(paired["verify"]["status"] == "complete", "paired-prefix verify status changed")
+        require(paired["verify"]["idleHours"] == 26.012, "paired-prefix idle window changed")
+        require(paired["verify"]["allHttp200"] is True, "paired-prefix Verify HTTP status changed")
+        require(
+            paired["verify"]["inputTokensPerCallBothArms"] == 2512,
+            "paired-prefix Verify token parity changed",
+        )
+        require(paired["verify"]["linkedCachedTokens"] == 0, "linked Verify result changed")
+        require(paired["verify"]["controlCachedTokens"] == 0, "control Verify result changed")
+        require(
+            paired["verify"]["verdict"] == paired["verdictMatrix"]["linkedMissControlMiss"],
+            "paired-prefix verdict no longer matches the frozen matrix",
+        )
 
         fixture_summary = summarize(
             parse_rows((ROOT / "tests/fixtures/demo-success.txt").read_text(encoding="utf-8"))
@@ -386,7 +399,7 @@ def main() -> int:
                 "Microsoft.Storage/contextCaches",
                 "contextCacheContainerId",
                 "general Azure OpenAI prompt-caching guidance",
-                "WARM PASS — VERIFY PENDING",
+                "COMPLETE — INCREMENTAL RETENTION NOT OBSERVED",
                 "Cache-key isolation",
                 "paired-prefix-follow-up.json",
             ),
@@ -419,7 +432,7 @@ def main() -> int:
                 "Microsoft.Storage/contextCaches",
                 "contextCacheContainerId",
                 "通用 Azure OpenAI prompt caching 指南",
-                "WARM 通过 — VERIFY PENDING",
+                "COMPLETE — 未观测到增量保留",
                 "Cache key 隔离",
                 "paired-prefix-follow-up.json",
             ),

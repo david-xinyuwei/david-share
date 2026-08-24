@@ -16,11 +16,12 @@
 - [x] The retained telemetry figure states that default prompt caching and Context Cache were both active
 - [x] Paired-prefix probe isolates the two arms before the original prompt content and asserts equal-length markers
 - [x] Warm evidence records an independent `0 -> 2304` transition on each arm with equal input-token counts
-- [ ] Post-24-hour paired-prefix verification is pending; no completed retention verdict is published
+- [x] Post-24-hour paired-prefix verification completed after `26.012` idle hours; both isolated arms returned `cached_tokens=0`, so incremental retention was not observed in this environment
 - [x] Runtime has no mock, API-key fallback, automatic login, or automatic cleanup
 - [x] English and Chinese documentation share structure, commands, images, and boundaries
 - [x] Static validators and cross-platform CI included
 
-The completed live capability result remains a bounded observation. The paired-prefix warm
-stage is real runtime evidence, but its retention verification is pending. CI validates code,
-contracts, and sanitized evidence offline; CI does not deploy Azure resources.
+The completed live capability result remains a bounded observation. The paired-prefix Warm and
+Verify stages are real runtime evidence, and the negative retention verdict is scoped to this
+environment. CI validates code, contracts, and sanitized evidence offline; CI does not deploy
+Azure resources.

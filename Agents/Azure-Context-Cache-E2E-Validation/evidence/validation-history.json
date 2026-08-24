@@ -65,21 +65,27 @@
       ]
     },
     {
-      "date": "2026-08-23",
+      "date": "2026-08-23/24",
       "path": "paired-prefix-follow-up",
-      "successfulCalls": 4,
+      "successfulCalls": 6,
       "transportErrors": 0,
       "warmHits": 2,
       "warmCalls": 2,
-      "verdict": "warm-pass-verify-pending",
+      "verdict": "complete-incremental-retention-not-observed",
       "design": "Each arm uses an equal-length but distinct prefix marker before the original stable content, preventing one arm from warming the other arm's prompt-cache key.",
       "minimumVerifyHours": 26,
       "observed": {
         "linkedCachedTokensByCall": [0, 2304],
         "controlCachedTokensByCall": [0, 2304],
-        "inputTokensPerCallBothArms": 2513
+        "warmInputTokensPerCallBothArms": 2513,
+        "verifyIdleHours": 26.012,
+        "verifyInputTokensPerCallBothArms": 2512,
+        "verifyLinkedCachedTokens": 0,
+        "verifyControlCachedTokens": 0,
+        "verifyLinkedLatencyMs": 3235,
+        "verifyControlLatencyMs": 1846
       },
-      "finding": "The warm phase established two independently cacheable prefix families. The post-24-hour retention result is pending and no verdict is claimed."
+      "finding": "Both isolated prefix families warmed independently, then both missed after 26.012 idle hours. Incremental retention from the linked Context Cache arm was not observed in this environment."
     }
   ],
   "interpretation": [
@@ -87,7 +93,7 @@
     "Incomplete runs are infrastructure or transport observations, not cache scores.",
     "Rejected runs are not removed or converted into passes.",
     "A completed run whose result contradicts its hypothesis is reported as-is and is not suppressed.",
-    "An in-progress run is labeled pending and cannot contain a completed retention verdict.",
+    "A completed paired-prefix run publishes the verdict selected by its predeclared matrix rather than choosing a favorable interpretation after observing the data.",
     "The cross-day result is bounded to this account, region, model, prefix, interval, and Preview build.",
     "This history is not a statistical performance benchmark."
   ]
