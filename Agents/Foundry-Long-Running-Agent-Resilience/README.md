@@ -5,9 +5,11 @@
 [![Protocols](https://img.shields.io/badge/protocols-Responses_%2B_Invocations-5F4BB6)](#23-where-you-plug-in)
 [![License](https://img.shields.io/badge/license-MIT-D98E04)](LICENSE)
 
-Fifteen seconds into a twenty-two minute job, a research agent had just finished the first of eighteen phases when the process running it was destroyed. Nothing was resubmitted. Twenty-one minutes later the same job reported completion — all eighteen phases delivered, 12,248 stream events, no gap and no repeated phase.
+Fifteen seconds into a twenty-two minute job, a research agent had just finished the first of eighteen phases when we deliberately destroyed the process running it. Nothing was resubmitted. Twenty-one minutes later the same job reported completion — all eighteen phases delivered, 12,248 stream events, no gap and no repeated phase.
 
 Ninety-five percent of that work was performed by a process that no longer existed.
+
+**Every interruption on this page was injected on purpose; none of them is an observed outage.** Any platform that keeps a workload running for twenty minutes eventually meets a restart, a crash, an out-of-memory termination, or a redeployment — Microsoft's own documentation names exactly those events as the ones resilience exists to survive. The useful question is therefore never whether a process can be lost. It is whether the *work* survives when one is. That is what these eight scenarios measured.
 
 This page explains why that worked, which signals proved it, and which perfectly reasonable instincts would have destroyed it.
 
@@ -30,7 +32,7 @@ The capability under evaluation separates the **logical work** from the **proces
 
 | Measured | Value | Why it matters |
 |---|---|---|
-| Work performed after the process was destroyed | **95%** of 1,301 s and 95% of 12,248 events | A destroyed process does not imply lost work |
+| Work completed after the injected process loss | **95%** of 1,301 s and 95% of 12,248 events | Losing the process does not mean losing the work |
 | Runtime loss to approval decision accepted | **56 s**, with the original selections intact | A pending human decision can outlive the process holding it |
 | Consecutive `HTTP 424` before normal completion | **29** | A retry budget of 10 would have discarded a healthy run |
 | Scenarios reaching their documented terminal result | **8 of 8**, one accepted run each | Capability validation, not a reliability benchmark |
@@ -420,9 +422,9 @@ Optional cancel, delete, and deny branches were outside this matrix and remain u
 
 ### 4.1 A 21.7-minute run that outlived its process
 
-<div align="center"><img src="images/work-distribution.png" width="820" alt="Proportional chart showing 95 percent of elapsed time and events occurred after the runtime instance was destroyed"></div>
+<div align="center"><img src="images/work-distribution.png" width="820" alt="Proportional chart showing 95 percent of elapsed time and events occurred after the injected runtime-instance loss"></div>
 
-The Python Invocations research agent produced 599 events in its first 15 seconds and reached phase 1. Then the runtime instance was destroyed and the stream went dead.
+The Python Invocations research agent produced 599 events in its first 15 seconds and reached phase 1. We then destroyed the runtime instance, and the stream went dead.
 
 No resubmission followed. The client reattached, received an explicit recovery event, and the sequence counter picked up at **600** — exactly where it had stopped. Over the next 1,237 seconds the reattached stream delivered 11,649 more events covering phases 2 through 18, including 192 status events and 17 phase events, and ended in a completed terminal state.
 
@@ -442,7 +444,7 @@ Output index 0 was produced before the interruption and indexes 1 through 17 aft
 
 This is the case teams underestimate, because when it happens **nothing is executing at all**. The graph had parked at an approval and was waiting on a person.
 
-The run started at 12:22:54 and called its flight and hotel tools seven seconds later. At 12:23:07 it requested approval for a three-night Tokyo booking and stopped. Eighty seconds into that wait, at 12:24:27, the runtime instance was destroyed. The approval decision was sent after restart and accepted at 12:25:23 — **56 seconds** after the loss. Two seconds later the agent resumed with the *same* flight and hotel selection it had offered before, and at 12:25:30 it returned confirmation `TRIP-182336`.
+The run started at 12:22:54 and called its flight and hotel tools seven seconds later. At 12:23:07 it requested approval for a three-night Tokyo booking and stopped. Eighty seconds into that wait, at 12:24:27, we destroyed the runtime instance. The approval decision was sent after restart and accepted at 12:25:23 — **56 seconds** after the loss. Two seconds later the agent resumed with the *same* flight and hotel selection it had offered before, and at 12:25:30 it returned confirmation `TRIP-182336`.
 
 The pending approval, the tool results, and the exact options shown to the user all outlived a process that no longer existed. A second run of the same pattern on the Responses protocol reached its own confirmation, `TRIP-749637`.
 
