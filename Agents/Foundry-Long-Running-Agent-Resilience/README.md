@@ -12,7 +12,7 @@ Ninety-five percent of that work was performed by a process that no longer exist
 This page explains why that worked, which signals proved it, and which perfectly reasonable instincts would have destroyed it.
 
 > **What this is.** Measured behavior from a private-preview evaluation of long-running agent execution on Microsoft Foundry Hosted Agents.
-> **What it is not.** It ships **no preview SDK source, complete agent implementation, end-to-end deployment recipe, API schema, or raw telemetry**, because the recovery extension was in private preview at the time. Section 2.4 shows only the minimum configuration and call path needed to locate the feature. Every number is an observation from that evaluation, not a service-level commitment.
+> **What it is not.** It ships **no Microsoft SDK source, complete agent implementation, end-to-end deployment recipe, private API schema, or raw telemetry**. The evaluation ran during private preview; Section 2.5 now maps its findings to the public-preview SDK, and Section 3 includes a reproducible public-SDK contract check. Every campaign number remains an observation from that evaluation, not a service-level commitment.
 
 > **Author:** Xinyu Wei (魏新宇)
 
@@ -123,7 +123,7 @@ LangGraph, Microsoft Agent Framework, and hand-written orchestration can all par
 
 ### 2.4 The LRA core: durable work, leases, and recovery re-entry
 
-The client code later in this section is **not** the LRA core. The core is a runtime state machine that keeps the identity and input of logical work alive after the worker process disappears. The following model shows the contract without publishing private-preview SDK symbols, storage schemas, or service-internal implementation.
+The client code later in this section is **not** the LRA core. The core is a runtime state machine that keeps the identity and input of logical work alive after the worker process disappears. The following model stays independent of method names and storage schemas; Section 2.5.3 maps it to the current public API.
 
 | Core primitive | Durable responsibility | Failure rule |
 |---|---|---|
@@ -228,13 +228,13 @@ The LRA runtime gets the same work back into a handler. It cannot infer whether 
 
 ### 2.5 From Hosted Agent configuration to a recoverable call
 
-The feature is not enabled by one magic switch in the portal. Four layers must line up. The first and fourth use the public Hosted Agents and Responses surfaces. The recovery options and checkpoint hooks in the middle are from the **private-preview build evaluated here**; as of July 26, 2026, they are not available in the public PyPI interface. Treat those lines as preview-specific usage evidence, not a promise about the current public SDK.
+The feature is not enabled by one magic switch in the portal. Four layers must line up. All four now have public surfaces, but the middle two remain **public-preview / experimental** APIs and still require application-owned checkpoint and side-effect design.
 
 | Layer | Configuration | What it enables | What it does not do alone |
 |---|---|---|---|
 | Hosted Agent version | `host: azure.ai.agent` + Responses protocol | Deploys your code and exposes a managed Responses endpoint | Does not make an active handler crash-recoverable |
-| Agent process *(private preview)* | Preview recovery opt-in | Re-invokes a stored background response after process loss | Does not know which business step was committed |
-| Handler *(private preview)* | Recovery context + framework checkpoint hook | Defines the last durable output boundary | Does not make external side effects idempotent |
+| Agent process *(public preview)* | Resilient-task enablement | Re-invokes durable work after process loss | Does not know which business step was committed |
+| Handler *(public preview)* | `TaskContext` + framework checkpoint hook | Defines the last durable output boundary | Does not make external side effects idempotent |
 | Client | `store=True`, `background=True`, same `response.id` | Creates addressable work and lets the caller poll or reattach | Must not replace recovery with a new create call |
 
 #### 2.5.1 Declare a Hosted Agent with the Responses protocol
@@ -262,17 +262,37 @@ services:
 
 In a complete azd project, `azd deploy` reads this service block, creates an immutable Hosted Agent version, and routes the declared protocol endpoint. CPU, memory, image or source packaging, model selection, and identity belong to the version definition; they are not the recovery checkpoint.
 
-#### 2.5.2 Opt the agent process into recovery *(private preview)*
+#### 2.5.2 Opt the agent process into recovery
 
 The evaluated build added a **preview recovery opt-in** to the Responses host. That option changed a stored background response from “mark failed after a crash” to “re-invoke the handler in the next process lifetime.” A separate preview steering option allowed an overlapping follow-up turn to queue and cooperatively stop the current turn.
 
-The exact constructor fields are intentionally not reproduced here: they are absent from the public PyPI interface and form part of the private-preview API surface. With public packages, you still get the Hosted Agent and background Responses baseline shown in Sections 2.5.1 and 2.5.4, but you must not infer active-handler crash recovery from that baseline. Preview participants should use the package and enablement instructions supplied with their preview build.
+The exact constructor fields were absent from the public PyPI interface at evaluation time. **They are public now.** Verified against `azure-ai-agentserver-core` 2.0.0, the resilient-task surface exports `task`, `multi_turn_task`, `Task`, `MultiTurnTask`, `TaskContext`, `TaskMetadata`, `RetryPolicy`, `resilient_tasks_enabled`, and `set_resilient_tasks_enabled`; the Responses package adds `ExitForRecoverySignal` and `ResponseExitForRecovery`. The SDK still marks these as experimental at import time, which matches the public-preview status. Check the current package before designing against any specific field.
 
-#### 2.5.3 Resume from a business checkpoint *(private preview)*
+#### 2.5.3 Resume from a business checkpoint
 
-Re-invocation alone starts the handler again. The private-preview handler received recovery context, loaded the last framework snapshot, and committed a framework checkpoint only after a complete business unit was durable. The evaluated sample made one completed phase equal one finalized output item. A process loss before the checkpoint repeated that phase; a loss after it skipped the phase on recovery.
+Re-invocation alone starts the handler again. The handler received recovery context, loaded the last framework snapshot, and committed a framework checkpoint only after a complete business unit was durable. The evaluated sample made one completed phase equal one finalized output item. A process loss before the checkpoint repeated that phase; a loss after it skipped the phase on recovery.
 
-Those recovery-context members and checkpoint hooks are also private-preview API surface, so this public article describes their contract rather than reproducing their names. The application pattern is still concrete:
+The public SDK now names this contract directly, and it lines up with the model above:
+
+| Contract described here | Public API (verified, `azure-ai-agentserver-core` 2.0.0) |
+|---|---|
+| Durable work identity | `TaskContext.task_id` |
+| Input identity | `TaskContext.input_id` |
+| Recovered re-entry, not a retry | `TaskContext.entry_mode` is `Literal["fresh", "resumed", "recovered"]`, and `recovery_count` is a **separate** field from `retry_attempt` |
+| Small durable checkpoint index | `TaskContext.metadata` (`TaskMetadata`, with `get` / `set` / `increment` / `append` / `flush`) |
+| Cooperative stop and deferral | `TaskContext.shutdown`, `TaskContext.exit_for_recovery()` |
+| Steering | `TaskContext.is_steered_turn`, `TaskContext.pending_input_count` |
+| Bounded retry budget, separate from recovery | `RetryPolicy` passed to `@task(retry=...)` |
+
+That `entry_mode` and `retry_attempt` are distinct fields is the same distinction Section 4.4 had to make from measurements alone: a host replacement is not a failed attempt. A handler's first argument must be named `ctx` and declare a parameterized `TaskContext[Input]`; the decorator rejects a different argument name or a bare `TaskContext`.
+
+Microsoft's own diagram of this model is reproduced below. It is the same loop this article derived from measurements a month earlier, and the same one drawn in the sequence diagram in Section 2.4.
+
+<div align="center"><img src="images/official-lease-recovery-model.png" width="820" alt="Official Microsoft diagram of lease-based recovery: work and input identity, runtime persists input and acquires a lease, handler runs while the runtime renews the lease, the process stops and abandons the lease, a later process reclaims the work record, and the handler re-enters from the start to either rerun or resume from the durable boundary"></div>
+
+<p align="center"><sub><i>"Lease-based recovery of a resilient work item"</i> from <a href="https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience">Resilience for long-running Microsoft Foundry hosted agents</a> © Microsoft, used under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. Unmodified. This image is <b>not</b> covered by this repository's MIT license.</sub></p>
+
+The application pattern is unchanged:
 
 1. Read the stable logical-work identity and last committed business watermark.
 2. Reconstruct application state from the framework snapshot or an external store.
@@ -339,11 +359,11 @@ def observe(reader: ResponseReader, *, work_key: str):
 
 There is one unavoidable public-API boundary in this minimal pattern: remote create and `attach_response` are not one atomic transaction, and the public create call does not expose lookup by your `work_key`. A process can therefore die after the claim, either before remote creation or after remote creation but before the response ID is attached. Leave that record in `dispatching`; do not automatically create again. A normal transactional outbox cannot decide whether an unknown remote create succeeded. Production dispatch needs a product-supported idempotency/deduplication contract or an operational reconciliation path for `dispatching` records and orphaned responses. The evaluation started observation only after the response ID had been durably captured.
 
-If the polling process disappears after the mapping exists, a new observer reads `response_id` and `deadline_at` from `durable_state` and retrieves **that same response**. Streaming is also a public Responses mode, but active-handler crash replay is part of the private-preview recovery contract. The evaluation persisted transport cursors when available, accepted a new `response.in_progress` snapshot as a reset point, and rebuilt observer output from finalized items.
+If the polling process disappears after the mapping exists, a new observer reads `response_id` and `deadline_at` from `durable_state` and retrieves **that same response**. Streaming is a public Responses mode; active-handler crash replay is now the separate **public-preview resilient-execution** opt-in. The evaluation persisted transport cursors when available, accepted a new `response.in_progress` snapshot as a reset point, and rebuilt observer output from finalized items.
 
 Most importantly, it did **not** make a high transport sequence cursor the sole recovery key: one measured runtime restarted sequence numbering at 5. A sequence number can optimize replay within a compatible stream lifetime, but the durable `response_id` plus workload state are the recovery authority. Continue to validate finalized output indexes, phases, and durable business state as described in Section 5.
 
-A later sequential turn can use `previous_response_id=response_id`. Concurrent queuing and cooperative steering require the preview option shown above; the public `previous_response_id` field by itself only establishes response-chain continuity.
+A later sequential turn can use `previous_response_id=response_id`. Concurrent queuing and cooperative steering use the public-preview resilient-task surface; `previous_response_id` by itself only establishes response-chain continuity.
 
 The shortest operational route after deployment is `azd ai agent invoke`; it manages the Hosted Agent session and Responses conversation for ordinary calls. Use the explicit client pattern above when your application must own the background response ID, polling deadline, dispatch/observe separation, and workload-level completion checks.
 
@@ -352,6 +372,20 @@ The shortest operational route after deployment is `azd ai agent invoke`; it man
 ## 3. Method: what was actually run
 
 Everything above is a design claim until it survives a deliberate interruption. This is how that was tested.
+
+### Current public-preview contract check
+
+The historical campaign below used the private-preview build available in July. To avoid treating that old package surface as current, the present public packages were installed in a clean Python 3.13 environment and checked directly:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python -m pip install -r requirements-validation.txt
+.\.venv\Scripts\python scripts\verify_public_resilience_api.py
+```
+
+The pinned check passed **18 of 18** assertions against `azure-ai-agentserver-core` 2.0.0, `azure-ai-agentserver-invocations` 1.0.0, and `azure-ai-agentserver-responses` 2.0.0. It verifies package versions, recovered entry mode, separate recovery/retry counters, work and input identities, metadata checkpoint operations, cooperative shutdown, exit-for-recovery, steering, Responses recovery signals, retry policy, enablement, and the current handler contract: the first argument must be named `ctx` and typed as `TaskContext[Input]`.
+
+This is a **real public-SDK contract smoke**, not a mock and not a live-service recovery claim. A mock is appropriate for testing application checkpoints, idempotency, and side-effect watermarks; it cannot prove that Foundry replaced a host or reclaimed a lease. Live production-readiness still requires a deployed Hosted Agent and repeated fault injection as listed in Section 9.4.
 
 | Dimension | Fixed condition | Why it matters |
 |---|---|---|
@@ -639,7 +673,7 @@ Raw artifacts stay private because they contain endpoints, work identifiers, env
 ### 9.3 Boundaries
 
 - Numbers are **observed values from one evaluation**, not benchmarks, guarantees, or SLAs.
-- The capability was in **private preview** when this ran and has since moved to **public preview** with an [official concept page](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience); its implementation, packages, APIs, and deployment recipes are still not published here.
+- The capability was in **private preview** when the campaign ran and has since moved to **public preview** with an [official concept page](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience). This repository now publishes a current public-API mapping and offline contract smoke, but not Microsoft SDK source, a complete deployment recipe, or live-service credentials.
 - Results cover **eight documented main scenarios**, each run once. Cancel, delete, and deny branches were not counted.
 - Recovery behavior was validated. Business-domain correctness and model quality were not.
 - Verify current capabilities against the [official documentation](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents) before designing against anything described here.
@@ -667,4 +701,4 @@ For a specific workload, require all of the following:
 
 ## License
 
-[MIT](LICENSE)
+Project-authored content is licensed under [MIT](LICENSE). The official Microsoft diagram is used under CC BY 4.0 and is excluded from the MIT license; see [Third-party notices](THIRD-PARTY-NOTICES.md).
