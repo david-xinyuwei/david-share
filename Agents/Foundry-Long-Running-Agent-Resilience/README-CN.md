@@ -1,4 +1,4 @@
-# Microsoft Foundry 长任务 Agent：进程死了之后，任务怎么活下来
+# Microsoft Foundry 长任务 Agent 韧性：主动注入进程丢失的实测证据
 
 [![Status](https://img.shields.io/badge/Foundry_capability-public_preview-B3541E)](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
 [![Scope](https://img.shields.io/badge/scope-8_measured_scenarios-1363DF)](#3-评估方法到底跑了什么)
@@ -8,13 +8,13 @@
 
 一个需要跑二十二分钟的 Research 任务，刚跑到第 15 秒、刚完成 18 个阶段里的第 1 个，我们主动销毁了执行它的进程。没有任何人重新提交。二十一分钟后，同一个任务报告完成——18 个阶段全部产出，12,248 条事件，没有缺口，也没有重复阶段。
 
-其中 95% 的工作，是由一个已经不存在的进程完成的。
+这项任务 95% 的实测耗时和事件，都发生在原进程被销毁之后。
 
-**本文中的每一次中断都是我们主动注入的，没有一次是线上事故。** 任何让工作负载连续跑二十分钟的平台，早晚都会遇到重启、崩溃、OOM 终止或重新部署——微软官方文档列举的，正是这几种需要靠韧性（resilience）扛过去的事件。所以真正有价值的问题从来不是「进程会不会丢」，而是「进程丢了之后，**任务**还在不在」。这正是这八个场景要测的东西。
+**本文中的每一次中断都是我们主动注入的，没有一次是线上事故。** 在连续性有要求的场景里，长任务设计应考虑可能发生的重启、崩溃、OOM 终止或重新部署等进程中断——微软官方文档将这些事件列为韧性（resilience）机制要应对的情形。这不意味着每次运行都会丢失进程；工程上真正要回答的是：如果进程丢失，**任务**能否继续。这正是这八个主动注入场景要测的东西。
 
-这篇文章讲清楚三件事：它为什么能成立、什么信号能证明它、以及哪些看起来非常合理的下意识反应反而会毁掉它。
+这篇文章讲清楚三件事：这些实测运行为什么能完成、哪些信号支持这一结论，以及哪些看似合理的处理方式可能导致任务被放弃或重复执行。
 
-> **这是什么。** Microsoft Foundry Hosted Agent 上长任务执行的恢复行为实测。该能力现已进入 **公共预览（public preview）**，并有[官方概念文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)；第 3 节会对当前公共 SDK 契约做验证。文中八个场景是 7 月在更早的 private preview 构件上跑的——所以这里的每个数字都是有日期的证据，而不是对今天这版构件的断言。
+> **这是什么。** Microsoft Foundry Hosted Agent 上长任务执行的恢复行为实测。该能力现已进入 **公共预览（public preview）**，并有[官方概念文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)；第 3 节会检查本文使用的当前公共 SDK surface。文中八个场景是 7 月在更早的 private preview 构件上跑的——所以这里的每个数字都是有日期的证据，而不是对今天这版构件的断言。
 > **不是什么。** 这里**不包含 Microsoft SDK 源码、完整 Agent 实现、端到端部署配方、私有 API schema，也不包含原始 telemetry**。官方声明没有 SLA、不建议用于生产——这与第 9.4 节的立场一致。文中每个数字都是观测值，不是服务级承诺。
 
 > **Author:** 魏新宇（Xinyu Wei）
@@ -25,17 +25,17 @@
 
 ## 摘要
 
-长任务 Agent 的失败方式和短调用不一样：**进程没了，但任务本身仍然有效。** 客户端如果把这种情况当成错误、直接重新提交，等于亲手放弃了还活着的任务，为两次运行付费，还可能把同一个外部动作提交两遍。
+长任务暴露在进程生命周期变化中的时间通常比短调用更长。其中一种可能的故障形态是：**执行进程消失了，但逻辑任务仍然有效。** 客户端如果把每次这类中断都当成终态并直接重新提交，就可能放弃仍可寻址的任务、启动第二次运行，并重复执行外部动作。
 
-本次评估的能力，把**逻辑任务**和**执行它的进程**拆开：任务拥有持久身份，输入和进度不随进程消失；替代计算资源会从最后一个 checkpoint 重新进入该任务。八个场景覆盖两种语言、两种 protocol、四类中断，全部在被打断之后走到了各自既定的终态。
+本文评估的模型，把**逻辑任务**和**执行它的进程**拆开。在八次被接受的运行中，持久任务身份、已持久化输入和已 checkpoint 的进度跨越了注入的进程丢失；替代计算资源从记录的 checkpoint 重新进入任务。八次运行覆盖两种语言、两种 protocol 和四类中断，均走到了各自既定的终态。
 
 | 实测项 | 数值 | 意义 |
 |---|---|---|
-| 注入进程丢失之后完成的工作占比 | 1,301 秒中的 **95%**，12,248 条事件中的 95% | 丢掉进程，不等于丢掉任务 |
-| 从运行实例丢失到审批决定被接收 | **56 秒**，且原有选项保持不变 | 待决策的人工审批能比持有它的进程活得更久 |
-| 正常完成前连续收到的 `HTTP 424` | **29 次** | 重试上限设成 10 次，就会丢掉一次健康的运行 |
+| 注入进程丢失之后完成的工作占比 | 1,301 秒中的 **95%**，12,248 条事件中的 95% | 在这次运行中，进程丢失没有抹掉已记录的任务 |
+| 从运行实例丢失到审批决定被接收 | **56 秒**，且原有选项保持不变 | 在这次运行中，待审批状态跨越了进程替换 |
+| 正常完成前连续收到的 `HTTP 424` | **29 次** | 在这次运行中，重试上限 10 次会在任务完成前停止 |
 | 走到既定终态的场景数 | **8 / 8**，每个场景一次被接受的运行 | 属于能力验证，不是可靠性 benchmark |
-| 传输层 sequence 能证明连续性的运行数 | **3 / 4** | 有一个 runtime 重置了计数器；workload output 四次全部保持连续 |
+| 重新接回时传输层 sequence 无缺口的运行数 | **3 / 4** | 有一个 runtime 重置了计数器；四次 workload output 均通过验收 |
 
 **这些证据还不能说明什么：** 生产可用性、SLA、负载与并发下的表现、多区域恢复、成本，以及业务正确性。每个场景只跑了一次。它足以支撑立项做受控评估，但不足以作为生产放行依据。
 
@@ -43,39 +43,39 @@
 
 ## 1. 背景：长任务的第三种结局
 
-短调用只有两种结局，要么返回，要么抛错。跑二十分钟的 Agent 多了第三种：进程消失了，任务却仍然有效。
+短调用通常会在同一个进程生命周期内返回或抛错。更长的运行还可能遇到另一种情况：进程消失了，逻辑任务却仍然有效。
 
 这个窗口期里有三件事可能发生。运行实例可能停止——崩溃、重新部署、主机替换，或者某个生命周期动作。客户端的流可能中断，而且始终没收到终态事件。用户也可能跑到一半改主意。
 
-这三件事都不是“重试一次请求”能解决的。重试会开启一个**新**任务，同时丢下那个还活着的旧任务。于是你有了两个任务，要为两个付费，第一个已经提交过的外部动作还可能再来一遍。这是这个领域代价最高的一个下意识反应，也是本文后面通篇讲**重新接回**而不是讲重试的原因。
+不加判断地重新提交 create 请求，并不能恢复这几种情况。它会在原任务可能仍可寻址时启动另一个逻辑任务，从而可能带来重叠工作和重复外部动作。本文后面的模式会先判断现有任务的状态；任务仍然有效时重新接回，而 steering、取消或新建任务是另外的决策。
 
 ### 这里说的“运行实例”是什么
 
 Hosted Agent 是客户自己的 Agent 代码，以 container image 的形式交付。Foundry 把它跑在按 session 隔离的 VM 沙箱里，并负责它的生命周期。本文所说的**运行实例**，指的就是当时正在运行的那份代码。
 
-它不是需要客户自己运维的 Docker 容器。实例丢失，带走的是进程、内存和已有连接；它不会删掉 Hosted Agent 定义，不会删掉 session，也不会删掉任何记录在进程之外的任务——这个区别，正是整件事成立的前提。
+它不是需要客户自己运维的 Docker 容器。实例丢失，带走的是进程、内存和已有连接。按照公开文档描述的模型，实例丢失本身不会删除 Hosted Agent 定义、session，或已持久化在进程之外的任务。
 
 ### 平台本身已经提供了什么
 
 公开平台提供的是托管基线：按 session 隔离、跨空闲回收仍然保留的 `$HOME` 和 `/files`、持久化的对话历史、独立的 Microsoft Entra 身份，以及托管的生命周期与可观测性（[来源](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents)）。
 
-但这些文档回答不了一个问题：**你自己的 workload，在活跃执行被打断之后能否正确恢复。** 空闲状态还原和活跃任务恢复，是两个不同的命题。本次评估针对的是后者。
+公开文档现在同时描述了空闲状态持久化和韧性执行；但它仍不能替你的应用证明 checkpoint、副作用和 output 验收是否正确。本次评估针对的正是这条应用侧边界。
 
 | 层次 | 公开文档（2026 年 7 月 21 日） | 本次实测 | 结论边界 |
 |---|---|---|---|
 | Session 状态 | 空闲计算恢复时还原 `$HOME` 与 `/files` | 活跃任务在注入运行实例丢失后继续 | 空闲还原与实测一致，但不能代替活跃任务恢复的证据 |
-| Responses | 平台托管对话历史、streaming lifecycle 和后台轮询 | 同一 response 跨恢复交付 output index 0-17 | 证明的是这一次 response，不是所有 workload 的 SLA |
+| Responses | 平台托管对话历史、streaming lifecycle 和后台轮询 | 同一 response 跨恢复交付 output index 0-17 | 支持这一次 response 的连续性结论；不是所有 workload 的 SLA |
 | Invocations | 应用自行负责 payload、session 语义、task tracking 与轮询 | 观察到显式恢复事件和 phase 1-18 | 应用仍须自己保证 checkpoint 和外部副作用正确 |
 
-### 为什么这件事只能发生在 Hosted Agent 上
+### 为什么本文的恢复模型使用 Hosted Agent
 
-Foundry 有两类 agent。Prompt-based agent 由配置定义，不承载你自己的容器或代码包；Hosted agent 则是在托管沙箱里跑**你自己的**代码。
+针对这里的选型，Foundry 文档区分 Prompt-based agent 与 Hosted Agent。Prompt-based agent 由配置定义，不承载你自己的容器或代码包；Hosted Agent 则是在托管沙箱里跑**你自己的**代码。
 
-这个区别直接决定了整件事能不能成立。恢复的动作是用同一个 work identity 和同一份输入**重新进入你的 handler**——那就必须先有一个属于你的 handler 可供进入。Prompt-based agent 没有应用运行时可供 checkpoint，没有地方记录“18 个 phase 里的第 7 个已提交”，也没有任何持久任务记录可供恢复机制重新获取 lease。
+这个区别决定了能否使用应用自行拥有的 handler 重入。本文描述的恢复模型，会用同一个 work identity 和输入**重新进入你的 handler**。Prompt-based agent 不暴露客户自己的应用运行时与 handler，因而无法在其中记录“18 个 phase 里的第 7 个已提交”这类进度，也无法按本文模型重新进入 handler。
 
 微软官方文档现在也把这个结论写明了：**“Run long-lived work resiliently — preserve in-progress agent work across process interruptions and replay streamed results to reconnecting clients”**（有韧性地运行长任务——在进程中断后仍保留执行中的 agent 任务，并向重新连接的客户端重放流式结果）被列为选择 Hosted agent 而非 prompt-based agent 的理由之一（[来源](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents)）。
 
-对生产设计的实际含义：如果一个 workload 要跑上几分钟，而且副作用不允许重复，那么 agent 类型这一步其实已经替你定了——它发生在架构选型阶段，远早于你去配置任何恢复选项。
+对生产设计的实际含义是：如果 workload 需要应用自行拥有 handler、定制 checkpoint 和副作用控制，那么在这两种选项中应使用 Hosted Agent。这项选择应在架构阶段完成，再配置恢复行为。
 
 ---
 
@@ -85,9 +85,9 @@ Foundry 有两类 agent。Prompt-based agent 由配置定义，不承载你自�
 
 整套机制只建立在一个想法上：**给任务一个比进程活得更久的身份，然后重新进入这个任务，而不是去抢救那个进程。**
 
-落到执行上是七步。客户端启动一个逻辑任务，并保留它的稳定引用。执行开始之前，长任务层先把任务身份、输入，以及后续重新定位所需的租约 metadata 持久化下来。Agent 运行过程中，不断记录有业务含义的进度——phase 编号、watermark、审批状态，或者一个指向外部状态的引用。接着运行实例丢失：进程、内存、socket 全都消失，但那条持久化记录还在。Foundry 提供替代计算资源，同一个逻辑任务带着恢复上下文被重新调用，应用加载自己的 checkpoint 并从一个明确的边界继续，最后客户端重新接回、确认连续性。
+下面的概念流程分为七步。客户端启动一个逻辑任务，并保留它的稳定引用。执行开始之前，长任务层先把任务身份、输入，以及后续重新定位所需的租约 metadata 持久化下来。Agent 运行过程中，不断记录有业务含义的进度——phase 编号、watermark、审批状态，或者一个指向外部状态的引用。接着运行实例丢失：进程、内存、socket 全都消失，但那条持久化记录还在。Foundry 提供替代计算资源，同一个逻辑任务带着恢复上下文被重新调用，应用加载自己的 checkpoint 并从一个明确的边界继续，最后客户端重新接回、确认连续性。
 
-把那次 18 阶段的实测运行套进这七步，顺序就变得很具体：第一到第三步覆盖 phase 1，第四步销毁进程，第五、六步跑完 phase 2 到 18，客户端在第七步才重新接回。注意这个**时间点**——任务的恢复，与有没有人在旁边看着无关。重新接回恢复的是观察，不是执行。正因为如此，客户端断流才只是一次断流，而不是一次事故。
+把那次 18 阶段的实测运行套进这七步，顺序就变得很具体：第一到第三步覆盖 phase 1，第四步销毁进程，第五、六步跑完 phase 2 到 18，客户端到第七步才重新接回。**在这次运行中，恢复先于客户端重新接回继续推进。** 重新接回恢复的是观察，不是执行。因此，这次客户端断流本身不足以判定任务失败；判断依据来自持久化状态与 workload output。
 
 ### 2.1 四层责任必须分开
 
@@ -102,13 +102,13 @@ Foundry 有两类 agent。Prompt-based agent 由配置定义，不承载你自�
 
 一句话原则：**运行实例状态、业务任务状态、观察者状态，是三个不同的故障域。** 其中一层出问题，绝不能自动升级成另外两层也失败。第 6 章本质上就是把这条原则做成了一张速查表。
 
-### 2.2 恢复是 at-least-once，这部分责任在你
+### 2.2 恢复是 at-least-once；应用必须保证 replay 安全
 
 被恢复的 handler 会带着同样的任务身份和输入重新进入。它**不会**重放你代码的执行过程，也不会从中断处续跑某一次模型调用或 tool call。
 
-由此带来一个躲不掉的后果：最后一个持久化 checkpoint 之后做过的工作，可能会再做一遍。Checkpoint 的粒度决定了这个重做窗口有多大，而 idempotency key、compare-and-set 写入、持久化的外部操作 ID，才是阻止“重做”变成“重复下单、重复付款、重复写入”的东西。
+这里有一个无法由 runtime 单独消除的设计影响：最后一个持久化 checkpoint 之后做过的工作，可能会再做一遍。Checkpoint 的粒度决定了这个重做窗口有多大，而 idempotency key、compare-and-set 写入、持久化的外部操作 ID，才是阻止“重做”变成“重复下单、重复付款、重复写入”的东西。
 
-所以有必要把话说明白，恢复**不是**这些：不是复活旧 socket；不是确定性重放；不是把原始请求当作新任务重新提交；不能因为 Agent version 显示 `active` 就认为它成立——那只说明控制面接受了一个部署；如果重新进入时无法识别并跳过已经提交的外部副作用，它甚至谈不上安全。
+所以有必要把话说明白，恢复**不是**这些：不是复活旧 socket；不是确定性重放；不是把原始请求当作新任务重新提交；不能因为 Agent version 显示 `active` 就认为它成立——那只说明控制面接受了一个部署；对于会提交外部副作用的 workload，如果重新进入时无法识别并跳过已提交的副作用，重入就不安全。
 
 ### 2.3 三种集成层级
 
@@ -116,7 +116,7 @@ Foundry 有两类 agent。Prompt-based agent 由配置定义，不承载你自�
 
 | 层级 | 平台负责 | 你仍然要负责 | 适用场景 |
 |---|---|---|---|
-| Foundry hosting 上的 Microsoft Agent Framework | 基于 Responses 的最高层集成，大部分生命周期行为已经接好 | 配置、framework checkpoint、安全的外部副作用 | 希望尽量少写恢复代码的团队 |
+| Foundry hosting 上的 Microsoft Agent Framework | 基于 Responses 的较高层集成，已接入更多生命周期行为 | 配置、framework checkpoint、安全的外部副作用 | 希望使用更多生命周期集成的团队 |
 | Responses protocol | OpenAI 兼容协议、对话历史、streaming lifecycle、后台执行、轮询、取消 | 开启恢复能力、保留业务 checkpoint、验证 output 连续性 | 对话型和工具型 Agent |
 | Invocations protocol | 只提供传输和底层原语 | session 与 task 语义、事件 schema、checkpoint 映射、轮询、恢复行为 | 结构化 workflow 与自定义协议 |
 
@@ -124,7 +124,7 @@ LangGraph、Microsoft Agent Framework、手写 orchestration 都能接进来。�
 
 ### 2.4 LRA 核心：持久任务、租约与恢复重入
 
-本节后面的客户端代码**不是** LRA 核心。真正的核心，是一个 runtime state machine：即使 worker 进程已经消失，它仍然保留逻辑任务的身份与输入。下面的模型不绑定具体方法名或存储 schema；第 2.5.3 节再把它映射到当前公开 API。
+本节后面的客户端代码**不是** LRA 核心。本文把核心建模为一个 runtime state machine：即使 worker 进程已经消失，它仍然保留逻辑任务的身份与输入。下面的模型不绑定具体方法名或存储 schema；第 2.5.3 节再把这些概念映射到本轮测试的公开 API。
 
 | 核心原语 | 持久化职责 | 故障规则 |
 |---|---|---|
@@ -159,7 +159,7 @@ sequenceDiagram
 	C->>P: Retrieve 或重新接回同一逻辑 output
 ```
 
-旧进程无法捕获自己的硬崩溃。恢复之所以发生，是因为 lease 不再续期；后续 scanner 发现它已过期，再由一个新 worker 原子接管同一条记录。Lease generation 用来阻止 split-brain：generation $n+1$ 已经取得所有权后，generation $n$ 的旧 worker 不能再提交结果。
+硬崩溃的进程无法执行清理。在上面的概念模型中，lease 停止续期，后续 scanner 发现它已过期，再由新 worker 带条件地接管同一条记录。模型中的 generation fencing 用于阻止旧 worker 在后续 generation 取得所有权后继续提交。
 
 #### 2.4.1 概念级 runtime loop
 
@@ -217,13 +217,13 @@ def run_handler(context):
 	)
 ```
 
-真正重要的不是函数名，而是五个不变式（invariant）：
+这个概念模型包含五个设计不变式（invariant）：
 
 1. **Reclaim 必须带条件。** 过期 lease generation 仍然匹配时才能接管，否则说明已有其他 worker 取得所有权。
 2. **Heartbeat 归 runtime 所有。** 用户代码运行期间 lease 持续续期；每个持久化写入都由当前 lease generation 做 fence，旧 worker 不能提交。
 3. **恢复是 at-least-once。** 外部动作完成、phase commit 尚未落盘时崩溃，这个 phase 可能再次执行；相同 `phase_key` 必须能去重该动作。
 4. **进度只能有一个权威存储。** `commit_phase_once` 同时推进业务 checkpoint，并记录 result / side-effect identity。面向客户端的 output snapshot 是幂等、可从 commit 重建的 projection，不是第二个 source of truth。
-5. **原始 deadline 不会重置。** 恢复改变的是 worker 与 lease generation，不是逻辑任务的身份、输入或 wall-clock recovery objective。
+5. **不要重置原始 deadline。** 恢复应改变 worker 与 lease generation，而不应重置应用拥有的任务身份、输入或 wall-clock recovery objective。
 
 LRA runtime 负责把同一个任务重新送进 handler，却无法判断支付、预订、tool call 或 workflow node 是否已经提交。这就是为什么 application checkpoint 与 side-effect ledger 属于恢复契约，但不属于 lease engine 本身。
 
@@ -267,13 +267,13 @@ services:
 
 本次评估使用的构件，在 Responses host 上增加了一个 **preview recovery opt-in**。对于已存储的 background response，这个开关会把行为从“进程崩溃后标记失败”改成“在下一个进程生命周期重新调用 handler”。另一个 preview steering 开关则允许重叠的新一轮进入队列，并让当前轮次协作式停止。
 
-评估当时，这些构造参数确实不在公共 PyPI 接口中。**现在它们已经公开。** 对 `azure-ai-agentserver-core` 2.0.0 实测确认，resilient task 的公开导出包括 `task`、`multi_turn_task`、`Task`、`MultiTurnTask`、`TaskContext`、`TaskMetadata`、`RetryPolicy`、`resilient_tasks_enabled`、`set_resilient_tasks_enabled`；Responses 包另外提供 `ExitForRecoverySignal` 与 `ResponseExitForRecovery`。SDK 在导入时仍会把它们标记为 experimental，这与 public preview 的状态一致。在依赖任何具体字段之前，请以当前 package 为准。
+评估当时，这些构造参数确实不在公共 PyPI 接口中。**本轮测试的公开 package 已提供相关符号。** 对 `azure-ai-agentserver-core` 2.0.0 实测时，resilient task surface 导出了 `task`、`multi_turn_task`、`Task`、`MultiTurnTask`、`TaskContext`、`TaskMetadata`、`RetryPolicy`、`resilient_tasks_enabled`、`set_resilient_tasks_enabled`；Responses package 另外导出了 `ExitForRecoverySignal` 与 `ResponseExitForRecovery`。SDK 在导入时将这些符号标记为 experimental，这与 public preview 状态一致。在依赖任何具体字段之前，请以当前 package 为准。
 
 #### 2.5.3 从业务 checkpoint 恢复
 
-重新调用 handler 只代表“重新进入”，并不代表“从正确位置继续”。Handler 会收到恢复上下文、加载最后一个 framework snapshot，并且只在一个完整业务单元持久化之后提交 framework checkpoint。实测 sample 把“一个完成 phase”映射成“一个 finalized output item”：进程死在 checkpoint 之前，phase 再跑一次；死在 checkpoint 之后，恢复后的 handler 跳过它。
+重新调用 handler 只代表“重新进入”，并不代表“从正确位置继续”。在受测 sample 中，handler 收到恢复上下文、加载最后一个 framework snapshot，并且只在完整业务单元已持久化后提交 framework checkpoint。该 sample 把“一个完成 phase”映射成“一个 finalized output item”：进程死在 checkpoint 之前时 phase 再跑一次；死在 checkpoint 之后时，恢复后的 handler 跳过它。
 
-公开 SDK 现在已经直接给这套契约命名，并且与上文模型一一对应：
+公开 SDK 现在提供了与这些概念对应的字段和方法，并与上文模型相符：
 
 | 本文描述的契约 | 公开 API（实测确认，`azure-ai-agentserver-core` 2.0.0） |
 |---|---|
@@ -285,9 +285,9 @@ services:
 | Steering | `TaskContext.is_steered_turn`、`TaskContext.pending_input_count` |
 | 与恢复分开的有界重试预算 | 通过 `@task(retry=...)` 传入的 `RetryPolicy` |
 
-`entry_mode` 与 `retry_attempt` 是两个独立字段——这正是第 4.4 节仅凭实测就必须做出的那个区分：主机被替换不等于一次失败的尝试。另外，handler 的第一个参数必须命名为 `ctx`，并声明参数化的 `TaskContext[Input]`；参数名不同或裸写 `TaskContext`，都会在装饰阶段被拒绝。
+本次恢复重入把两个字段的差异具体呈现出来：替换之后报告的是 `recovery_count=1`、`retry_attempt=0`。这个结果支持把恢复与 handler retry 分开处理；具体计数仍然只是这次运行的观测值。另外，在本轮测试的 package 中，handler 的第一个参数必须命名为 `ctx`，并声明参数化的 `TaskContext[Input]`；参数名不同或裸写 `TaskContext`，都会在装饰阶段被拒绝。
 
-微软官方对这套模型的图示如下。它与本文提前一个月从实测中推导出的循环一致，也与第 2.4 节的时序图一致。
+微软官方对这套模型的图示如下。它与本文提前一个月从实测中推导出的循环，以及第 2.4 节的时序图高度一致。
 
 <div align="center"><img src="images/official-lease-recovery-model.png" width="820" alt="微软官方的租约恢复图：work identity 与 input identity，runtime 持久化输入并取得 lease，handler 运行期间 runtime 续租，进程停止后 lease 被放弃，后续进程重新取得任务记录，handler 从头重入后选择重跑或从持久化边界继续"></div>
 
@@ -303,7 +303,7 @@ services:
 
 Replay 窗口内的支付、预订、写入或 tool action，仍然必须采用第 6.4 节的幂等设计。
 
-#### 2.5.4 把任务下发和状态观察彻底分开
+#### 2.5.4 把任务下发和状态观察分开
 
 标准 Hosted Agent client surface 从 Foundry project client 获取。负责创建任务的代码，必须和所有观察任务的进程彻底分开：
 
@@ -356,9 +356,9 @@ def observe(reader: ResponseReader, *, work_key: str):
 	return response
 ```
 
-`claim_dispatch` 必须是原子、唯一的 insert，在远端调用前先把逻辑任务置为 `dispatching`，从根上关闭并发 dispatcher 竞态。`attach_response` 则通过 compare-and-set 把状态推进到 `dispatched`。`durable_state` 代表能够跨观察进程存在的数据库或其他持久化存储，不是内存 dictionary。传给 observer 的应该是 `ResponseReader(client.responses)`，而不是完整 client。这个 wrapper 的公开应用接口只有 `retrieve`，但它仍然只是可维护性边界，**不是**安全沙箱或底层服务的 RBAC 边界。如果 observer 代码不可信，应把它隔离到独立服务和身份中。进程重启后，它只能读取已经进入 `dispatched` 的映射；映射不存在就按 fail closed（中止而非新建）处理。Recovery objective 是 workload 配置，不是固定的小重试预算；它必须覆盖健康运行的预期耗时和主机替换余量。`validate_workload_output` 是应用代码；在本次 Research 实测中，它检查 finalized output index 和预期 phase 数量。平台终态与 workload 完整性是两道独立检查。
+`claim_dispatch` 必须是原子、唯一的 insert，在远端调用前先把逻辑任务置为 `dispatching`，从根上关闭并发 dispatcher 竞态。`attach_response` 则通过 compare-and-set 把状态推进到 `dispatched`。`durable_state` 代表能够跨观察进程存在的数据库或其他持久化存储，不是内存 dictionary。传给 observer 的应该是 `ResponseReader(client.responses)`，而不是完整 client。这个 wrapper 的公开应用接口只有 `retrieve`，但它仍然只是可维护性边界，**不是**安全沙箱或底层服务的 RBAC 边界。如果 observer 代码不可信，应把它隔离到独立服务和身份中。进程重启后，它只能读取已经进入 `dispatched` 的映射；映射不存在就按 fail closed（中止而非新建）处理。Recovery objective 是 workload 配置，不是固定的小重试预算。其取值应基于健康运行的预期耗时，再加上该 workload 自己的替换余量；本次评估没有给出通用数值。`validate_workload_output` 是应用代码；在本次 Research 实测中，它检查 finalized output index 和预期 phase 数量。平台终态与 workload 完整性是两道独立检查。
 
-这个最小 pattern 仍有一个绕不开的公共 API 边界：远端 create 与 `attach_response` 不是一个原子事务，公开 create 调用也不支持按应用的 `work_key` 找回 response。进程在取得 claim 之后，可能死在远端 create 之前，也可能死在远端 create 成功、response ID 尚未 attach 之前。此时记录必须停在 `dispatching`，不能自动再创建。普通 transactional outbox 无法判断一次结果未知的远端 create 是否成功。生产 dispatcher 需要产品支持的 idempotency / deduplication contract，或者针对 `dispatching` 记录与 orphan response 的运维对账路径。本次评估是在 response ID 已经持久化之后才开始观察。
+本轮受测的公共 API surface 存在一个边界：远端 create 与 `attach_response` 不是一个原子事务，本轮测试的公开 create 调用也不支持按应用的 `work_key` 找回 response。进程在取得 claim 之后，可能死在远端 create 之前，也可能死在远端 create 成功、response ID 尚未 attach 之前。此时记录必须停在 `dispatching`，不能自动再创建。普通 transactional outbox 无法判断一次结果未知的远端 create 是否成功。生产 dispatcher 需要产品支持的 idempotency / deduplication contract，或者针对 `dispatching` 记录与 orphan response 的运维对账路径。本次评估是在 response ID 已经持久化之后才开始观察。
 
 如果映射已经存在，轮询进程消失后，新 observer 从 `durable_state` 读取 `response_id` 和 `deadline_at`，再 retrieve **同一个 response**。Streaming 本身是公开的 Responses 模式；active-handler crash replay 现在属于单独启用的 **public-preview resilient execution**。本次评估会在可用时持久化传输游标，把新的 `response.in_progress` snapshot 当作 reset point，并根据 finalized item 重建观察者输出。
 
@@ -366,7 +366,7 @@ def observe(reader: ResponseReader, *, work_key: str):
 
 后续的顺序轮次可以设置 `previous_response_id=response_id`。并发排队和协作式 steering 使用 public-preview resilient task surface；`previous_response_id` 本身只负责建立 response chain 连续性。
 
-部署后，最短操作路径是 `azd ai agent invoke`，它会替普通调用管理 Hosted Agent session 与 Responses conversation。如果应用必须自行掌握 background response ID、轮询 deadline、dispatch / observe 分离和 workload 终态检查，就使用上面的显式 client pattern。
+部署后，一条简洁的操作路径是 `azd ai agent invoke`，它会替普通调用管理 Hosted Agent session 与 Responses conversation。如果应用必须自行掌握 background response ID、轮询 deadline、dispatch / observe 分离和 workload 终态检查，就使用上面的显式 client pattern。
 
 ---
 
@@ -392,11 +392,11 @@ python -m venv .venv
 
 ### 在当前构件上复测（2026 年 8 月）
 
-在一个**普通工作订阅、没有任何白名单**的环境里，复测了两件事。
+本轮先在 2022 工作订阅上复测两件事；这个订阅曾在更早的预览期由产品组开通过。后文还会在另一个**从未开通过预览**的订阅上重复已部署场景。
 
-**7 月挡住这项工作的那道门槛已经没有了。** 当时战役卡住，是因为 `/tasks` 返回 `404`：订阅不在 private preview 白名单里，而扫描 6,253 个订阅 feature 也找不到可自助开启的开关。今天同一个调用返回 `200`，任务列表为空，`/agents` 与 `/assistants` 同样是 `200`。这项能力已经能落到普通订阅上。
+**7 月的阻断在这个订阅上没有再次出现。** 当时战役卡住，是因为 `/tasks` 返回 `404`：该订阅当时不在 private preview 白名单里，而扫描 6,253 个订阅 feature 也找不到可自助开启的开关。8 月复测时，同一个调用返回 `200`，任务列表为空，`/agents` 与 `/assistants` 同样是 `200`。由于这个订阅以前被开通过，后文那个从未开通过的订阅才是更强的可用性检查。
 
-**崩溃恢复的行为仍然成立。** 跑一个 18 阶段的持久化任务，在 phase 1 提交后用 `os._exit(9)` 硬杀 worker，租约在没有任何清理的情况下被遗弃。随后由一个**独立的操作系统进程**接管：
+**当前 SDK/runtime 构件复现了这条受测恢复路径。** 跑一个 18 阶段的持久化任务，在 phase 1 提交后用 `os._exit(9)` 硬杀 worker，租约在没有任何清理的情况下被遗弃。随后由一个**独立的操作系统进程**接管：
 
 | 复测观测项 | 数值 |
 |---|---|
@@ -410,15 +410,15 @@ python -m venv .venv
 
 最后一行才是关键。第 5 节当初只能从行为上论证「恢复不是重试」；当前 public-preview API 现在把两者公开为相互独立的计数器，而恢复重入报告的正是预测中的那组数值。
 
-**这次复测不是什么。** 各 phase 的耗时是人为 sleep，链路中也没有模型推理，因此其耗时数据没有任何性能含义。它确认的是当前构件上持久任务、租约遗弃、回收与重入这套机制；它**没有**重新测量 7 月那八个场景，那些数字仍然标注为 7 月的观测值。
+**这次复测不是什么。** 各 phase 的耗时是人为 sleep，链路中也没有模型推理，因此其耗时数据没有任何性能含义。它是在本地双进程测试中，对当前 SDK/runtime 构件的持久任务、租约遗弃、回收与重入路径做演练；它不是线上 Hosted Agent 证据，也**没有**重新测量 7 月那八个场景。那些数字仍然标注为 7 月观测值。
 
 ### 在普通订阅上，验证真实部署的 Agent
 
 上面那项检查跑的是 SDK。这一项跑在真实 Hosted Agent 上，因为两者回答的是不同的问题。
 
-官方公开样例库现在已经提供 `bring-your-own/responses/resilient-streaming` 与 `resilient-steering`，其描述里直接写明使用 `stream.checkpoint()` 与 `context.persisted_response`。把 `resilient-streaming` 原样部署到一个普通工作订阅上——**没有提交任何白名单申请，也没有注册任何 feature**——耗时 4 分 03 秒，Agent 状态为 `active`。而在 7 月，同一项能力根本够不着：`/tasks` 返回 `404`，因为订阅不在 private preview 白名单里。
+官方公开样例库现在提供 `bring-your-own/responses/resilient-streaming` 与 `resilient-steering`，其描述里写明使用 `stream.checkpoint()` 与 `context.persisted_response`。保留 sample handler 逻辑，并采用下文说明的兼容 package pins 后，在曾被开通过的 2022 工作订阅上部署；本次复测**没有新提交白名单申请，也没有注册 feature**。部署耗时 4 分 03 秒，Agent 状态为 `active`。7 月开通前，`/tasks` 曾返回 `404`。
 
-在这个真实 endpoint 上创建一个 stored background response，并**趁它仍处于 `in_progress` 时**，通过重新部署替换掉运行实例。之后再用**同一个 response id** 轮询，得到的是 `completed`，三个阶段的 output item 全部齐备，无缺口、无重复阶段。容器日志显示 runtime 正以真实租约驱动 task store——`lease_owner`、`lease_instance_id`、`lease_duration_seconds=60`，以及带 ETag 保护的 `PATCH` 更新——这正是第 2.4 节描述的租约与 compare-and-set 模型。
+在这个真实 endpoint 上创建一个 stored background response，并**趁它仍处于 `in_progress` 时**，通过重新部署替换掉运行实例。之后再用**同一个 response id** 轮询，得到的是 `completed`，三个阶段的 output item 全部齐备，无缺口、无重复阶段。容器日志显示 runtime 通过 `lease_owner`、`lease_instance_id`、`lease_duration_seconds=60` 等租约字段和带 ETag 保护的 `PATCH` 更新驱动 task store；这些信号与第 2.4 节描述的租约和 compare-and-set 模型一致。
 
 随后对四个官方 resilient 样例做了同样的中断。它们合起来覆盖了 7 月战役测过的那几类场景：
 
@@ -429,17 +429,17 @@ python -m venv .venv
 | Invocations，research 恢复 | `resilient-research` | 28.4 秒 | **PASS**——同一 `invocation_id` 走到 `completed` |
 | Invocations，审批比实例活得久 | `resilient-approval-gate` | 25.3 秒 | **PASS**——决定虽然是在替换**之后**才发送的，仍然被接收（`202`），任务完成 |
 
-最后一行值得停下来看，因为它重现了 7 月最让人意外的那个结论：实例是**在 Agent 停在审批门、什么都没有执行的时候**被替换掉的。随后针对这个「原宿主已经不存在」的任务提交决定，它仍然被接收了。
+最后一行重现了 7 月的一项观测：实例是在 Agent 停在审批门、**没有应用步骤正在执行**时被替换掉的。随后针对这个「原宿主已经不存在」的任务提交决定，它仍然被接收了。
 
 还有两项检查值得报告，包括那个**没有按预期发生**的。
 
-**一个从未被开通过的订阅同样可用。** 上面那次部署用的订阅，是产品组在预览期为我开通过的。换到一个**从未被开通过**的订阅——一个普通的 2026 工作订阅——结果完全一样：`azd up` 用时 3 分 29 秒成功，同样的中断之后 response 仍然 `completed`、三个 item 齐全。两个订阅算不上抽样，因此这不能证明所有订阅都已就绪；它能说明的是：在一个没有被特殊处理过的订阅上，7 月那道白名单已经不再是前置条件。
+**同一场景也在一个从未开通过预览的订阅上通过。** 上面那次部署使用的是产品组曾在预览期帮忙开通过的订阅。换到一个**从未开通过**的 2026 工作订阅后，得到相同的验收结果：`azd up` 用时 3 分 29 秒成功，同样的中断之后 response 仍然 `completed`、三个 item 齐全。两个订阅算不上抽样，也不能说明所有 tenant、region 或订阅都已就绪；它只能说明，在这个受测订阅上，使用该场景不要求事先开通过预览。
 
-**`424` 风暴没有复现。** 第 4.4 节依据的是 7 月主机被替换期间观测到的 29 次连续 `424`。这次在强制替换的窗口内每 0.4 秒轮询同一个 response，得到的是 **26 次轮询、全部 `200`、一次瞬时错误都没有**。这并不构成反驳：重新部署触发的替换是一条优雅、受编排的路径，而 7 月那串 `424` 来自另一种中断。工程建议依然成立——`424` 必须先分类，不能直接当成终态——但「29 次」这个数字仍然是 7 月的观测值，当前构件没有复现它，因此文中如实标注，而不是把它悄悄当作当前行为重述一遍。
+**这次没有复现那串 `424`。** 第 4.4 节依据的是 7 月主机被替换期间观测到的 29 次连续 `424`。这次在强制替换的窗口内每 0.4 秒轮询同一个 response，得到的是 **26 次轮询、全部 `200`、没有瞬时错误**。由于两次中断路径不同，这个结果不能反驳 7 月的观测。工程建议也继续保持限定：先分类 `424`，再决定是否把它视为终态。数字 29 仍然只是 7 月观测，本次当前构件测试没有复现。
 
-有一个缺陷值得转告。首次部署在运行时返回 `HTTP 500`，容器日志显示 `resilient_task_handler_failure ... exc_type=AttributeError`，运行的是 `ai-agentserver-core/2.1.0b2`。样例把 `responses` 钉在 `2.0.0b1`，却只对 `core` 要求 `>=2.0.0b10`，于是容器解析到了比 handler 编写时更新的 beta。把两个包都钉到各自的 2.0.0 版本后即恢复正常，四个样例都需要这样处理。面对预览版接口，要钉住整组版本，而不是只给一个下限。
+这里还出现了一个 package 版本兼容问题。首次部署在运行时返回 `HTTP 500`，容器日志显示 `resilient_task_handler_failure ... exc_type=AttributeError`，运行的是 `ai-agentserver-core/2.1.0b2`。样例把 `responses` 钉在 `2.0.0b1`，却只对 `core` 要求 `>=2.0.0b10`，于是容器解析到了比 handler 编写时更新的 beta。把版本钉为 `core==2.0.0`、`responses==2.0.0` 和 `invocations==1.0.0` 后，相关 samples 中的已观测故障消失；四个 sample 都使用了这组兼容版本。对于这些 preview sample deployments，精确的兼容版本 pins 避免了原下限允许的 beta 版本偏移。
 
-这些中断都是通过强制替换运行实例造成的——它是真实的平台级事件，但不等同于一次计划外的主机崩溃；样例的各阶段也仍然是模拟的。本轮覆盖四类场景、每类一次被接受的运行——属于当前构件上的能力验证，不是一次新的可靠性 benchmark，也不是把 7 月那套完整矩阵重跑一遍。7 月的 .NET 运行**没有**复测：公开 C# 样例虽然提供 hosted agent，但没有任何一个用到 resilient task，因此那几行仍然是 7 月的观测值。
+这些中断都是通过强制替换运行实例造成的——它是平台级事件，但不等同于一次计划外的主机崩溃；样例的各阶段也仍然是模拟的。本轮覆盖四类场景、每类一次被接受的运行——属于当前构件上的能力验证，不是一次新的可靠性 benchmark，也不是把 7 月那套完整矩阵重跑一遍。7 月的 .NET 运行**没有**复测：在本次复测时，公开 C# samples 虽然提供 Hosted Agent，但没有任何一个使用 resilient task，因此那些结果仍然只是 7 月观测值。
 
 | 维度 | 固定条件 | 为什么重要 |
 |---|---|---|
@@ -470,7 +470,7 @@ python -m venv .venv
 
 ## 4. 实测结果
 
-### 4.1 一次比自己进程活得更久的 21.7 分钟运行
+### 4.1 一次跨越主动注入进程丢失的 21.7 分钟运行
 
 <div align="center"><img src="images/work-distribution-cn.png" width="820" alt="按比例绘制：95% 的耗时和事件发生在注入运行实例丢失之后"></div>
 
@@ -478,29 +478,29 @@ Python Invocations 的 Research Agent 在头 15 秒里产出了 599 条事件，
 
 没有任何重新提交。客户端重新接回，收到一个显式的恢复事件，sequence 从 **600** 继续——正好是它停下的位置。接下来的 1,237 秒里，重连后的流又送来 11,649 条事件，覆盖 phase 2 到 18，其中包含 192 条 status 事件和 17 条 phase 事件，最后停在 completed 终态。
 
-汇总起来：1,301 秒，sequence 从 1 到 12,248，没有缺口，也没有重复阶段。换个说法，耗时和事件数在“进程死亡”这一刻，都是按 5 / 95 分开的。上面那张图就是这个比例的等比绘制——它也是反对“直接重新提交”最直观的一个论据。
+汇总起来：1,301 秒，sequence 从 1 到 12,248，没有缺口，也没有重复阶段。换个说法，耗时和事件数在“进程死亡”这一刻，都是按 5 / 95 分开的。上面那张图按比例画出了这个结果，也说明为什么在这次运行中直接重新提交会是错误选择。
 
 ### 4.2 换一种 protocol，同样的中断
 
-语言和 protocol 都变了，结论没变。
+语言和 protocol 都变了，这次受测的连续性结果仍然成立。
 
 Python Responses 的 Research 运行共记录 11,584 条事件。中断之前：13 秒内 577 条事件，output index 0，570 个文本增量。崩溃流上的 response 处于 `failed` 状态。经过 **47 秒**的重连间隔，观察到 lifecycle 重放，sequence 从 578 继续，此后 1,140 秒内又来了 11,005 条事件，带着 output index 1 到 17 和 10,918 个文本增量，完成信号在重连后的流上收到。
 
-output index 0 是中断前产出的，1 到 17 是中断后产出的。**没有任何 index 重复，也没有任何 index 缺失。** 对一个 Responses workload 来说，这是能拿到的最强证据，说明它确实还是同一个逻辑 response，而不是一次逼真的新运行——而这恰恰是重新提交的任务过不了的一关。
+output index 0 是中断前产出的，1 到 17 是中断后产出的。**没有任何 index 重复，也没有任何 index 缺失。** 结合未变化的 response identity，这是支持本次运行继续同一个 stored response、而不是创建新 response 的强证据；它不是对所有 Responses workload 的通用证明。
 
-### 4.3 人还在思考的时候，运行实例死了
+### 4.3 人工审批等待期间注入运行实例丢失
 
 <div align="center"><img src="images/approval-recovery-cn.png" width="820" alt="审批场景实测时间线：从运行实例丢失到决定被接收共 56 秒"></div>
 
-这是最容易被低估的一类情况，因为它发生的时候，**根本没有任何东西在执行**。Graph（工作流图）停在审批点上，在等一个人。
+这类情况容易被忽略，因为当时**没有应用步骤正在执行**。Graph（工作流图）停在审批点上，在等一个人。
 
 任务在 12:22:54 启动，7 秒后调用航班和酒店工具。12:23:07 针对一个三晚东京行程请求审批，然后停下。等待到第 80 秒、也就是 12:24:27 时，我们销毁了运行实例。重启之后发送的审批决定在 12:25:23 被接收——距离丢失 **56 秒**。两秒后，Agent 恢复，给出的是**和中断前完全相同**的航班与酒店选择；12:25:30 返回确认号 `TRIP-182336`。
 
 待审批状态、工具调用结果，以及当初摆在用户面前的那几个具体选项，全都比那个已经不存在的进程活得更久。同一模式在 Responses protocol 上的第二次运行，也拿到了自己的确认号 `TRIP-749637`。
 
-> 这些是确定性的示例工具。确认号证明的是持久化 Graph 状态和“决定只生效一次”，不是真实的航班或酒店预订。
+> 这些是确定性的示例工具。确认号支持以下结论：在这些运行中，持久化 Graph 状态与一次审批应用跨越了进程替换；它们不能证明通用的 exactly-once 保证，也不代表真实的航班或酒店预订。
 
-### 4.4 29 次“失败”，其实一次都不是失败
+### 4.4 完成前收到的 29 次 `424`
 
 <div align="center"><img src="images/retry-pattern-cn.png" width="820" alt="连续 29 次 HTTP 424 之后正常完成"></div>
 
@@ -521,7 +521,7 @@ El rápido zorro marrón salta por encima del perro perezoso.
 The quick brown fox jumps over the lazy dog.
 ```
 
-如果客户端把第一个 424 当成终态错误，就会丢掉一次马上就要成功的运行。把重试上限设成看起来很合理的 10 次，结果也一样。这个 response 自始至终都是完好的，被替换的只是它的宿主。
+如果客户端把第一个 424 当成终态错误，就会在这次运行完成之前放弃它；重试上限设成 10 次也会如此。在这个观测场景中，同一个 response 最终带着全部预期 output 完成，因此这串 `424` 不是终态。
 
 这也是最容易被过度推广的一条结论，所以必须说准确：**这不代表所有 424 都可以重试。** 它只说明，“主机替换、且这个 response 仍然可寻址”这一种情况，值得先分类、再决定要不要放弃。
 
@@ -529,17 +529,17 @@ The quick brown fox jumps over the lazy dog.
 
 不是所有中断都是故障。第一轮还在生成时，第二轮请求就发过来了。
 
-新输入被接收为 `queued`，而不是被拒绝。第一轮在一个安全边界上协作式收尾，标记为已完成，而不是在生成到一半时被强杀。随后新的一轮经过 7 次 `in_progress` 轮询完成，并正确回答了新问题。也就是说，steering 是一条一等公民路径，而不是“取消 vs 重启”之间的一场竞速。
+新输入被接收为 `queued`，而不是被拒绝。第一轮在一个安全边界上协作式收尾，标记为已完成，而不是在生成到一半时被强杀。随后新的一轮经过 7 次 `in_progress` 轮询完成，并给出预期答案。在这次运行中，steering 走的是排队与协作式停止路径，而不是“取消 vs 重启”之间的竞速。
 
 ---
 
-## 5. 最值得迁移的一条结论：别信 sequence 编号
+## 5. 在受测模型中，传输 sequence 是诊断信号，不是唯一恢复依据
 
 <div align="center"><img src="images/continuity-signals-cn.png" width="820" alt="四次运行对比：传输层 sequence 三次续上，workload output 四次全部成立"></div>
 
 如果这篇文章只能带走一条工程结论，就带走这条。
 
-四次 Research 运行里，有三次在重新接回后 sequence 编号干净地续上了。第四次没有：.NET Responses 的流在重连后**把计数器从 5 重新开始**——但它仍然在同一个 response 上交付了 output index 1 到 17。按 workload 的标准衡量，这次运行恢复得完美无缺；按 sequence 连续性检查衡量，它会被判定为断了。
+四次 Research 运行里，有三次在重新接回后 sequence 编号干净地续上了。第四次没有：.NET Responses 的流在重连后**把计数器从 5 重新开始**——但它仍然在同一个 response 上交付了 output index 1 到 17。按照本次评估的 workload 验收标准，这次运行通过；如果只看 sequence 连续性，它会被误判为中断。
 
 | 运行 | 中断之前 | 重新接回之后 | 信号 |
 |---|---|---|---|
@@ -548,7 +548,7 @@ The quick brown fox jumps over the lazy dog.
 | Invocations / .NET | seq 1-738 | seq 739-12,073 | sequence 续上 |
 | Responses / .NET | output index 0 | output index 1-17 | index 续上，但 **sequence 从 5 重新计数** |
 
-所以，判断连续性要看 *workload 产出了什么*——output index、phase 编号、持久化状态，而不是看 *传输层怎么给帧编号*。
+因此，这几次运行主要根据 *workload 产出了什么*——output index、phase 编号和持久化状态——做验收。传输层编号只作诊断；其他 protocol 应按自身语义定义验收标准。
 
 顺带说一个同类陷阱：单调递增不等于没有缺口。`10, 12` 是单调的，中间却少了一个事件。只断言“递增”的连续性检查，会放过一条悄悄丢了数据的流。
 
@@ -580,7 +580,7 @@ def output_coverage_complete(indexes: list[int], expected_last: int) -> bool:
 | 重复事件：`[10, 10, 11]` | `True` | `False` |
 | 干净事件流：`[10, 11, 12]` | `True` | `True` |
 
-同一组可执行检查也能拒绝缺少 index 或重复 index 的“已完成 output item 清单”。输入时必须保证每个已完成 item 只出现一次，不能把每个 streaming delta 都直接喂进去，因为同一个 item 的多个 delta 会合法复用同一个 `output_index`。传输层 sequence 适合诊断，不适合作为验收标准；真正的验收标准应该是 workload index、phase 和持久化状态。
+同一组可执行检查也能拒绝缺少 index 或重复 index 的“已完成 output item 清单”。输入时必须保证每个已完成 item 只出现一次，不能把每个 streaming delta 都直接喂进去，因为同一个 item 的多个 delta 会合法复用同一个 `output_index`。在这个 helper 中，传输层 sequence 只作诊断证据；验收还会检查 workload index、phase 和持久化业务状态。其他 protocol 应按自身语义定义验收标准。
 
 ### 6.2 终态：一个 `done` 帧不能证明成功
 
@@ -631,7 +631,7 @@ def recovery_action(
 	return "fail_closed"
 ```
 
-决定何时停止的应该是 workload 恢复目标所定义的 deadline，而不是一个随手设定的很小的重试次数。`403` 必须走另一条路径：刷新观察者授权，再做只读查询，比重放业务任务安全得多。
+决定何时停止的应该是 workload 恢复目标所定义的 deadline，而不是一个随手设定的很小的重试次数。`403` 需要独立分类：先核实观察者身份、scope 和持久化 workload 状态；只有确认凭据过期时才刷新。重新执行只读查询，比重放业务任务更安全。
 
 ### 6.4 人工审批：决定与副作用都必须幂等
 
@@ -667,32 +667,32 @@ def apply_approval(ledger, logical_work: str, checkpoint: str, requested: str):
 
 <div align="center"><img src="images/recovery-decision-guide-cn.png" width="560" alt="恢复前的判断流程：区分运行实例、客户端、主机替换和观察者故障"></div>
 
-下面每一行都遵循同一条纪律：**先读取同一个逻辑任务，判断真正失败的是哪一层，在状态查清之前不创建任何新东西。**
+下面每一行只是诊断起点，不是“现象必然对应某个根因”的通用映射。**先读取同一个逻辑任务，用持久化证据判断可能出问题的层次，在状态查清之前不创建新任务。**
 
-| 现象 | 真正失败的是什么 | 错误反应 | 正确恢复 | 确认方式 |
+| 现象 | 可能的层次 / 需要核实什么 | 不安全的反应 | 更安全的下一步 | 确认方式 |
 |---|---|---|---|---|
-| 流停止，没有终态事件 | 一个执行进程，不一定是任务本身 | 重新提交任务 | 等平台重新进入，再用同一任务引用和最后持久位置接回 | 恢复标记或 workload output 继续，最后读到显式终态 |
-| Workflow 停在审批上，什么都没在跑 | 运行实例；挂起的 workflow 完好 | 从头重建审批请求 | 重启后把决定发给同一个逻辑任务 | 审批后路径以相同选项走到终态 |
-| 客户端失去 SSE 或 HTTP 连接 | 只是观察通道 | 认为 Agent 已停止并重新提交 | 从持久化 output 位置重新接回同一任务 | output 与 phase 覆盖继续推进，且无重复业务结果 |
-| 同一 response 反复返回 `424` | 暂时什么都没失败，主机正在被替换 | 把第一个 424 当作终态 | 确认属于这种情况后，对同一 response 有界退避轮询 | Response 完成，且所有预期阶段齐全 |
-| 终态读取返回 `403` | 你自己的授权，不是 workload | 重跑整个任务 | 刷新观察者认证，重新执行只读查询 | 返回 `200`，状态为 completed |
-| 日志在字节或时间上限处停止 | 证据采集 | 用最后一行日志推断任务失败 | 直接查询持久化状态，或重新完整采集 | 终态来自服务端读取，不是日志尾部 |
-| 运行中收到新指令 | 什么都没失败，这是 steering 路径 | 强杀当前轮次并让新任务竞速 | 新输入排队，当前轮次在安全边界停止 | 旧轮次协作式结束，新输入走到终态答案 |
+| 流停止，没有终态事件 | 观察者、网络或 runtime；仅凭断流无法区分 | 重新提交任务 | 查询同一任务；它仍可寻址时，从持久化 output 位置重新接回 | 恢复标记或 workload output 继续，最后读到显式终态 |
+| Workflow 停在审批上 | 本次实测中是 runtime 被替换；应先核实挂起任务仍可寻址 | 从头重建审批请求 | 恢复后找到同一任务，再把决定发给它 | 审批后路径以预期选项走到终态 |
+| 客户端失去 SSE 或 HTTP 连接 | 可能只是观察通道；应核实持久化服务状态 | 认为 Agent 已停止并重新提交 | 从持久化 output 位置重新接回同一任务 | output 与 phase 覆盖继续推进，且无重复业务结果 |
+| 同一 response 反复返回 `424` | 本次实测中是主机替换期间的临时依赖；其他根因仍有可能 | 把所有 424 都当终态或都当可重试 | 先分类；确认 response 仍可寻址后，再对同一 response 做有界退避轮询 | Response 完成，且所有预期阶段齐全 |
+| 终态读取返回 `403` | 可能是观察者 authentication 或 authorization；不能据此推断 workload 状态 | 重跑整个任务 | 核实身份与 scope；凭据过期时刷新，再执行只读查询 | 已获授权的读取返回持久化终态 |
+| 日志在字节或时间上限处停止 | 证据采集可能不完整；workload 状态仍未知 | 用最后一行日志推断任务失败 | 直接查询持久化状态，或重新完整采集 | 终态来自服务端读取，不是日志尾部 |
+| 运行中收到新指令 | 如果启用了 steering，这可能是 steering 路径；应核实 protocol 状态 | 强杀当前轮次并让新任务竞速 | 通过 steering 路径排队，或执行应用已定义的取消策略 | 旧轮次按设计结束，新输入到达预期终态 |
 
 ---
 
 ## 8. 设计建议
 
-这几条可以迁移到本次 preview 之外。
+下面是从受测故障形态中提炼的工程建议，不是产品保证。只有在相同假设成立时，才应迁移到本次 preview 之外。
 
-1. **在能叫得出名字的边界上做 checkpoint。** “18 个阶段完成了 7 个”是可恢复的，“跑到中间某处”不是。
+1. **在有持久化记录、可验证的边界上做 checkpoint。** “18 个阶段中的第 7 个已完成”这类持久化标记可以作为恢复点；如果只有“跑到中间某处”而没有可验证 checkpoint，就不足以安全恢复。
 2. **给任务一个比进程活得更久的身份。** 恢复是去寻址一个逻辑任务，不是接上一个 socket。
 3. **默认按 at-least-once 设计。** 每个外部副作用都要保证：checkpoint 之后重做一次是无害的。
-4. **把观察者故障和任务故障分开。** Token 过期是你自己的问题，不是任务的问题。
+4. **把观察者故障和任务故障分开。** 观察者 token 过期本身不能证明 workload 已经失败。
 5. **先分类状态码，再决定动作。** 判定业务失败之前，先对照持久化状态确认。
 6. **让终态显式化。** 流“结束了”并不等于有结果。
 7. **明确审批决定归谁负责。** 被执行两次，比晚一点执行更糟。
-8. **区分挂起任务和活跃任务。** 停在审批点的 Graph 没有活跃执行，其计算资源可能被回收；这是预期行为，不是故障。
+8. **区分挂起任务和活跃任务。** 停在审批点的 Graph 没有活跃应用步骤，其计算资源可能被回收。这可能是正常生命周期行为；判定为故障前应先核实持久化状态。
 
 ---
 
@@ -707,7 +707,7 @@ def apply_approval(ledger, logical_work: str, checkpoint: str, requested: str):
 | 证真 | 同一个逻辑任务是否到达终态？ | 同一任务引用、服务端终态、完整 phase 与 output 覆盖 | 八个场景均得到支持 |
 | 证伪 | 会不会只是重跑一次，看起来像恢复？ | 同一 response 上，中断前 output index 0、中断后 1-17 | Responses 场景排除了“新任务重跑”的解释 |
 | 穷举 | 是不是只挑了好看的样例？ | 固定八个主场景作为分母 | 8/8 通过；辅助分支明确排除 |
-| 反证 | 如果 sequence 连续是必要条件，有效恢复是否都该满足？ | .NET Responses 正常恢复，却把计数器从 5 重启 | “必须依赖 sequence”的通用规则被推翻 |
+| 反证 | 如果这次 Responses 恢复必须依赖 sequence 连续，被接受的运行是否应满足它？ | .NET Responses 通过 workload 验收，却把计数器从 5 重启 | sequence 连续假设不适用于这次受观测运行 |
 | 逆推 | 只有终态结果，能否证明发生过恢复？ | 还必须有 checkpoint、注入实例丢失、连接中断和重启后继续 | 仅有终态的证据被判定不足 |
 | 类比 | 观测是否与公开平台概念一致？ | 公开的 session 持久化与 protocol 责任边界 | 一致，但始终没有用空闲恢复代替活跃恢复的证据 |
 | 一致性 | 结论能否跨 runtime 与 protocol 成立？ | Python / .NET 与 Responses / Invocations 配对 | workload output 连续性成立；传输事件形态不一致 |
@@ -729,7 +729,7 @@ def apply_approval(ledger, logical_work: str, checkpoint: str, requested: str):
 - 文中所有数字都是**对应评估**（7 月战役或 8 月复测）**的观测值**，不是 benchmark、保证或 SLA。
 - 本次战役进行时，该能力处于 **private preview**；此后已进入 **public preview** 并有[官方概念文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)。本仓库现在公开当前 API 映射与离线契约冒烟测试，但不包含 Microsoft SDK 源码、完整部署配方或线上服务凭据。
 - 结果覆盖 7 月战役的**八个文档定义的主场景**，每个场景各有一次被接受的运行；以及 8 月复测的**四类场景**，每类场景各有一次被接受的运行。cancel、delete、deny 分支不计入。
-- 验证的是恢复行为，不包括业务领域正确性和模型质量。
+- 文中列出的恢复路径只在所述条件下得到观测；没有评估业务领域正确性和模型质量。
 - 在依据本文做设计之前，请以[官方文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents)核对当前能力。
 
 ### 9.4 宣称“可以上生产”之前

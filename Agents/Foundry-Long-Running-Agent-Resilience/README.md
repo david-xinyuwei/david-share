@@ -1,4 +1,4 @@
-# Long-Running Agents on Microsoft Foundry: What Happens After the Process Dies
+# Resilience for Long-Running Agents on Microsoft Foundry: Evidence from Injected Process Loss
 
 [![Status](https://img.shields.io/badge/Foundry_capability-public_preview-B3541E)](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
 [![Scope](https://img.shields.io/badge/scope-8_measured_scenarios-1363DF)](#3-method-what-was-actually-run)
@@ -8,13 +8,13 @@
 
 Fifteen seconds into a twenty-two minute job, a research agent had just finished the first of eighteen phases when we deliberately destroyed the process running it. Nothing was resubmitted. Twenty-one minutes later the same job reported completion — all eighteen phases delivered, 12,248 stream events, no gap and no repeated phase.
 
-Ninety-five percent of that work was performed by a process that no longer existed.
+Ninety-five percent of the job's measured time and events came after its original process had been destroyed.
 
-**Every interruption on this page was injected on purpose; none of them is an observed outage.** Any platform that keeps a workload running for twenty minutes eventually meets a restart, a crash, an out-of-memory termination, or a redeployment — Microsoft's own documentation names exactly those events as the ones resilience exists to survive. The useful question is therefore never whether a process can be lost. It is whether the *work* survives when one is. That is what these eight scenarios measured.
+**Every interruption on this page was injected on purpose; none of them is an observed outage.** When continuity matters, designs for long-running workloads should account for possible process interruptions such as restarts, crashes, out-of-memory terminations, or redeployments — the cases Microsoft's documentation says resilient execution is designed to recover from. This does not mean that every run will lose its process. The engineering question is whether the *work* survives if one does. That is what these eight deliberately injected scenarios measured.
 
-This page explains why that worked, which signals proved it, and which perfectly reasonable instincts would have destroyed it.
+This page explains why these observed runs completed, which signals supported that conclusion, and which seemingly reasonable responses could have abandoned or duplicated the work.
 
-> **What this is.** Measured recovery behavior for long-running agent execution on Microsoft Foundry Hosted Agents. The capability is now in **public preview** with an [official concept page](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience), and Section 3 verifies the current public SDK contract. The eight measured scenarios were run in July on the earlier private-preview build, which is why every number here is dated evidence rather than a claim about today's build.
+> **What this is.** Measured recovery behavior for long-running agent execution on Microsoft Foundry Hosted Agents. The capability is now in **public preview** with an [official concept page](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience), and Section 3 checks the current public SDK surface used here. The eight measured scenarios were run in July on the earlier private-preview build, which is why every number here is dated evidence rather than a claim about today's build.
 > **What it is not.** It ships **no Microsoft SDK source, complete agent implementation, end-to-end deployment recipe, private API schema, or raw telemetry**. Official guidance carries no SLA and does not recommend preview for production — the same position taken in Section 9.4. Every number is an observation, not a service-level commitment.
 
 > **Author:** Xinyu Wei (魏新宇)
@@ -25,17 +25,17 @@ This page explains why that worked, which signals proved it, and which perfectly
 
 ## Executive Summary
 
-Long-running agents fail in a way that short calls do not: **the process disappears while the work is still valid.** A client that treats this as an error and resubmits abandons live work, pays for two runs, and risks committing the same external action twice.
+Long-running agent work remains exposed to process-lifetime changes for longer than a short call. One possible failure mode is that **the execution process disappears while the logical work remains valid.** If a client treats every such interruption as terminal and resubmits, it can abandon addressable work, start a second run, and duplicate an external action.
 
-The capability under evaluation separates the **logical work** from the **process that executes it**. The work carries a durable identity, its input and progress outlive the process, and replacement compute re-enters from the last checkpoint. Across eight scenarios — two languages, two protocols, four kinds of interruption — every run reached its documented terminal result after being interrupted.
+The model evaluated here separates the **logical work** from the **process that executes it**. In the eight accepted runs, durable work identity, persisted input, and checkpointed progress remained available across the injected process loss; replacement compute re-entered from the recorded checkpoint. Across two languages, two protocols, and four kinds of interruption, all eight runs reached their documented terminal result.
 
 | Measured | Value | Why it matters |
 |---|---|---|
-| Work completed after the injected process loss | **95%** of 1,301 s and 95% of 12,248 events | Losing the process does not mean losing the work |
-| Runtime loss to approval decision accepted | **56 s**, with the original selections intact | A pending human decision can outlive the process holding it |
-| Consecutive `HTTP 424` before normal completion | **29** | A retry budget of 10 would have discarded a healthy run |
+| Work completed after the injected process loss | **95%** of 1,301 s and 95% of 12,248 events | In this run, process loss did not erase the recorded work |
+| Runtime loss to approval decision accepted | **56 s**, with the original selections intact | In this run, pending approval state survived process replacement |
+| Consecutive `HTTP 424` before normal completion | **29** | In this run, a retry budget of 10 would have stopped before completion |
 | Scenarios reaching their documented terminal result | **8 of 8**, one accepted run each | Capability validation, not a reliability benchmark |
-| Runs where transport sequence numbering proved continuity | **3 of 4** | One runtime restarted its counter; workload output held in all four |
+| Runs with gap-free transport sequence across reattachment | **3 of 4** | One runtime restarted its counter; workload-output acceptance passed in all four |
 
 **What this evidence does not establish:** production availability, SLA, behavior under load or concurrency, multi-region recovery, cost, and business correctness. Each scenario ran once. This is a reason to fund a controlled evaluation, not a production sign-off.
 
@@ -43,39 +43,39 @@ The capability under evaluation separates the **logical work** from the **proces
 
 ## 1. Background: the third outcome
 
-A short agent call has two outcomes — it returns, or it throws. A twenty-minute agent run has a third: the process disappears while the work is still valid.
+A short agent call usually returns or throws within one process lifetime. A longer run can also lose that process while the logical work remains valid.
 
 Three things can happen inside that window. The runtime instance can stop, whether from a crash, a redeploy, host replacement, or a lifecycle action. The client's stream can end without ever delivering a terminal event. And the user can change their mind halfway through.
 
-None of these are solved by retrying the request. A retry starts a *new* run and walks away from work that is still alive. You now have two runs, you pay for both, and any external action the first one already committed may happen a second time. That reflex is the most expensive mistake in this space, which is why everything below is about **reattaching to existing work** rather than resubmitting it.
+Blindly resubmitting the create request does not recover any of these conditions. It starts another logical run while the original may still be addressable, which can create overlapping work and duplicate external actions. The patterns below first classify the existing work and reattach when it remains valid; steering, cancellation, or a new run are separate decisions.
 
 ### What "runtime instance" means here
 
 A Hosted Agent is your own agent code, packaged as a container image. Foundry runs that code inside a per-session, VM-isolated sandbox and manages its lifecycle for you. Throughout this page, **runtime instance** means the currently running copy of that code.
 
-It is not a Docker container you operate. Losing it removes the process, its memory, and its open connections. It does not delete the agent definition, the session, or any work that was recorded outside the process — and that distinction is the whole point.
+It is not a Docker container you operate. Losing it removes the process, its memory, and its open connections. In the documented model, instance loss does not by itself delete the agent definition, the session, or work persisted outside the process.
 
 ### What the platform already gives you
 
 The public platform provides the hosting baseline: per-session isolation, a persisted `$HOME` and `/files` that survive idle deprovisioning, durable conversation history, a dedicated Microsoft Entra identity, and managed lifecycle and observability ([source](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents)).
 
-What that documentation does not tell you is whether *your* workload resumes correctly when active work is interrupted. Idle-state restoration and active-work recovery are different claims. The evaluation deliberately targeted the second one.
+Public documentation now describes both idle-state persistence and resilient execution. It still cannot establish whether *your application's* checkpoints, side effects, and output checks recover correctly. The evaluation deliberately tested that application-specific boundary.
 
 | Layer | Public documentation (July 21, 2026) | What was measured | Boundary |
 |---|---|---|---|
 | Session state | `$HOME` and `/files` are restored when idle compute resumes | Active work continued after injected runtime loss | Idle restoration is consistent with, but does not prove, active-work recovery |
-| Responses | Conversation history, streaming lifecycle, and background polling are platform-managed | The same response delivered output indexes 0-17 across recovery | Proves this response, not an SLA for every workload |
+| Responses | Conversation history, streaming lifecycle, and background polling are platform-managed | The same response delivered output indexes 0-17 across recovery | Supports continuity for this response; it is not an SLA for every workload |
 | Invocations | The application owns payload, session semantics, task tracking, and polling | Explicit recovery events and phases 1-18 were observed | The application still owns correct checkpoint and side-effect semantics |
 
-### Why this has to be a Hosted Agent
+### Why this recovery model uses a Hosted Agent
 
-Foundry offers two kinds of agents. A prompt-based agent is defined by configuration and ships no container or package of yours. A hosted agent runs **your** code in a managed sandbox.
+For this design choice, Foundry documents prompt-based agents and Hosted Agents. A prompt-based agent is defined by configuration and ships no container or package of yours. A Hosted Agent runs **your** code in a managed sandbox.
 
-That distinction decides the whole question. Recovery re-enters *your handler* with the same work identity and the same input — so there has to be a handler of yours to re-enter. A prompt-based agent has no application runtime to checkpoint, no place to record "phase 7 of 18 committed", and nothing to reclaim a lease on.
+That distinction determines whether application-owned handler re-entry is available. The recovery model described here re-enters *your handler* with the same work identity and input. A prompt-based agent does not expose your own application runtime and handler in which to record progress such as "phase 7 of 18 committed" or re-enter under this recovery model.
 
 Microsoft's documentation now states the same conclusion directly: **"Run long-lived work resiliently — preserve in-progress agent work across process interruptions and replay streamed results to reconnecting clients"** is listed as a reason to choose hosted agents over prompt-based agents ([source](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents)).
 
-The practical consequence for production design: if a workload runs for minutes and has side effects that must not repeat, the agent-type decision is already made for you — at architecture time, long before any recovery option is configured.
+The practical consequence for production design: when a workload needs an application-owned handler, custom checkpoints, and side-effect controls, a Hosted Agent is the applicable option of these two. Make that choice at architecture time, before configuring recovery.
 
 ---
 
@@ -85,9 +85,9 @@ The practical consequence for production design: if a workload runs for minutes 
 
 Recovery rests on a single idea: **give the work an identity that outlives the process, and re-enter that work rather than resurrecting the process.**
 
-In practice it runs in seven steps. The client starts one logical work item and keeps its stable reference. Before execution begins, the long-running layer persists that identity, the input, and the lease metadata needed to find the work again. As the agent runs, it records business progress — a phase number, a watermark, an approval state, or a pointer to external state. Then the runtime instance is lost: the process, its memory, and the socket vanish, but the durable record does not. Foundry provides replacement compute, the same logical work is re-entered with recovery context, the application loads its checkpoint and continues from a known boundary, and the client reattaches to confirm continuity.
+The conceptual flow below has seven steps. The client starts one logical work item and keeps its stable reference. Before execution begins, the long-running layer persists that identity, the input, and the lease metadata needed to find the work again. As the agent runs, it records business progress — a phase number, a watermark, an approval state, or a pointer to external state. Then the runtime instance is lost: the process, its memory, and the socket vanish, but the durable record does not. Foundry provides replacement compute, the same logical work is re-entered with recovery context, the application loads its checkpoint and continues from a known boundary, and the client reattaches to confirm continuity.
 
-Walk the measured 18-phase run through those steps and the ordering becomes concrete. Steps one through three covered phase 1. Step four destroyed the process. Steps five and six carried phases 2 through 18. The client reattached at step seven — but note *when*: **the workload recovered whether or not anyone was watching.** Reattachment resumes observation, not execution. That single fact is what makes a dropped client stream a non-event instead of an incident.
+Walk the measured 18-phase run through those steps and the ordering becomes concrete. Steps one through three covered phase 1. Step four destroyed the process. Steps five and six carried phases 2 through 18. The client reattached only at step seven: **in this run, recovery progressed before the client reattached.** Reattachment resumed observation, not execution. A dropped client stream therefore did not establish workload failure in this run; durable state and workload output did.
 
 ### 2.1 Four responsibilities that must stay separate
 
@@ -102,13 +102,13 @@ Keeping these apart is most of the design work, because it determines what you a
 
 The practical rule: **runtime state, workload state, and observer state are three different failure domains.** A failure in one must never be promoted automatically into a failure of the others. Section 6 is essentially this rule turned into a lookup table.
 
-### 2.2 Recovery is at-least-once, and that is your problem to handle
+### 2.2 Recovery is at-least-once; applications must make replay safe
 
 A recovered handler re-enters with the same identity and input. It does **not** replay your code's execution, and it does not re-run individual model or tool calls from where they stopped.
 
-The consequence is unavoidable: work performed after the last durable checkpoint can run again. Checkpoint granularity defines the replay window, and idempotency keys, compare-and-set writes, and durable external operation IDs are what stop that replay from becoming a duplicate booking, payment, or write.
+The unavoidable design implication is that work performed after the last durable checkpoint can run again. Checkpoint granularity defines the replay window, and idempotency keys, compare-and-set writes, and durable external operation IDs are what stop that replay from becoming a duplicate booking, payment, or write.
 
-So it is worth being explicit about what recovery is *not*. It is not resurrection of the old socket. It is not deterministic replay. It is not resubmitting the original request as a new job. It is not proven by an agent version showing `active`, which only means the control plane accepted a deployment. And it is not safe at all unless committed side effects can be recognized and skipped on re-entry.
+So it is worth being explicit about what recovery is *not*. It is not resurrection of the old socket. It is not deterministic replay. It is not resubmitting the original request as a new job. It is not proven by an agent version showing `active`, which only means the control plane accepted a deployment. For workloads that can commit external side effects, re-entry is not safe unless those committed effects can be recognized and skipped.
 
 ### 2.3 Where you plug in
 
@@ -116,7 +116,7 @@ The model is framework-agnostic. What changes between tiers is how much of it yo
 
 | Tier | What the platform handles | What you still own | Best fit |
 |---|---|---|---|
-| Microsoft Agent Framework on Foundry hosting | The highest-level integration over Responses; most lifecycle behavior is wired for you | Configuration, framework checkpoints, safe side effects | Teams that want the least recovery plumbing |
+| Microsoft Agent Framework on Foundry hosting | A higher-level integration over Responses; more lifecycle behavior is wired for you | Configuration, framework checkpoints, safe side effects | Teams that prefer more lifecycle integration |
 | Responses protocol | OpenAI-compatible contract, conversation history, streaming lifecycle, background execution, polling, cancellation | Opting into resilient behavior, preserving checkpoints, validating output continuity | Conversational and tool-using agents |
 | Invocations protocol | Transport and primitives only | Session and task semantics, event schema, checkpoint mapping, polling, recovery behavior | Structured workflows and custom protocols |
 
@@ -124,7 +124,7 @@ LangGraph, Microsoft Agent Framework, and hand-written orchestration can all par
 
 ### 2.4 The LRA core: durable work, leases, and recovery re-entry
 
-The client code later in this section is **not** the LRA core. The core is a runtime state machine that keeps the identity and input of logical work alive after the worker process disappears. The following model stays independent of method names and storage schemas; Section 2.5.3 maps it to the current public API.
+The client code later in this section is **not** the LRA core. For this article, the core is modeled as a runtime state machine that keeps the identity and input of logical work alive after the worker process disappears. The model stays independent of method names and storage schemas; Section 2.5.3 maps its concepts to the public API tested here.
 
 | Core primitive | Durable responsibility | Failure rule |
 |---|---|---|
@@ -159,7 +159,7 @@ sequenceDiagram
 	C->>P: Retrieve or reattach to the same logical output
 ```
 
-The old process cannot catch its own hard death. Recovery starts because lease renewal stops, a later scanner observes expiry, and one new worker atomically reclaims the same record. The lease generation prevents split-brain execution: a stale worker from generation $n$ must not commit after generation $n+1$ has taken ownership.
+A hard-dead process cannot run cleanup. In the conceptual loop above, lease renewal stops, a later scanner observes expiry, and a new worker conditionally reclaims the same record. Generation fencing is included to prevent a stale worker from committing after a later generation has taken ownership.
 
 #### 2.4.1 Conceptual runtime loop
 
@@ -217,13 +217,13 @@ def run_handler(context):
 	)
 ```
 
-Five invariants matter more than the method names:
+Five design invariants matter in this conceptual model:
 
 1. **Reclaim is conditional.** The expired lease generation must still match, otherwise another worker already owns the work.
 2. **The runtime owns the heartbeat.** Lease renewal continues while user code runs, and every durable write is fenced by the current lease generation so a stale worker cannot commit.
 3. **Recovery is at-least-once.** A crash after an external action but before its phase commit can re-run that phase. The same `phase_key` must deduplicate that action.
 4. **One store is the progress authority.** `commit_phase_once` advances the business checkpoint and records result/side-effect identity together. The client-facing output snapshot is an idempotent projection that can be rebuilt from that commit; it is not a second source of truth.
-5. **The original deadline does not reset.** Recovery changes the worker and lease generation, not the identity, input, or wall-clock recovery objective of the logical work.
+5. **Do not reset the original deadline.** Recovery should change the worker and lease generation, not the application-owned identity, input, or wall-clock recovery objective of the logical work.
 
 The LRA runtime gets the same work back into a handler. It cannot infer whether a payment, booking, tool call, or workflow node was already committed. That is why the application checkpoint and side-effect ledger are part of the recovery contract even though they are not the lease engine itself.
 
@@ -267,13 +267,13 @@ In a complete azd project, `azd deploy` reads this service block, creates an imm
 
 The evaluated build added a **preview recovery opt-in** to the Responses host. That option changed a stored background response from “mark failed after a crash” to “re-invoke the handler in the next process lifetime.” A separate preview steering option allowed an overlapping follow-up turn to queue and cooperatively stop the current turn.
 
-The exact constructor fields were absent from the public PyPI interface at evaluation time. **They are public now.** Verified against `azure-ai-agentserver-core` 2.0.0, the resilient-task surface exports `task`, `multi_turn_task`, `Task`, `MultiTurnTask`, `TaskContext`, `TaskMetadata`, `RetryPolicy`, `resilient_tasks_enabled`, and `set_resilient_tasks_enabled`; the Responses package adds `ExitForRecoverySignal` and `ResponseExitForRecovery`. The SDK still marks these as experimental at import time, which matches the public-preview status. Check the current package before designing against any specific field.
+The exact constructor fields were absent from the public PyPI interface at evaluation time. **The public packages tested here now expose the relevant symbols.** Against `azure-ai-agentserver-core` 2.0.0, the resilient-task surface exported `task`, `multi_turn_task`, `Task`, `MultiTurnTask`, `TaskContext`, `TaskMetadata`, `RetryPolicy`, `resilient_tasks_enabled`, and `set_resilient_tasks_enabled`; the Responses package exported `ExitForRecoverySignal` and `ResponseExitForRecovery`. The SDK marked these as experimental at import time, consistent with public-preview status. Check the current package before designing against any specific field.
 
 #### 2.5.3 Resume from a business checkpoint
 
-Re-invocation alone starts the handler again. The handler received recovery context, loaded the last framework snapshot, and committed a framework checkpoint only after a complete business unit was durable. The evaluated sample made one completed phase equal one finalized output item. A process loss before the checkpoint repeated that phase; a loss after it skipped the phase on recovery.
+Re-invocation alone starts the handler again. In the evaluated sample, the handler received recovery context, loaded the last framework snapshot, and committed a framework checkpoint only after a complete business unit was durable. The evaluated sample made one completed phase equal one finalized output item. In that sample, a process loss before the checkpoint repeated the phase; a loss after the checkpoint caused recovery to skip it.
 
-The public SDK now names this contract directly, and it lines up with the model above:
+The public SDK now exposes fields and methods corresponding to these concepts, consistent with the model above:
 
 | Contract described here | Public API (verified, `azure-ai-agentserver-core` 2.0.0) |
 |---|---|
@@ -285,9 +285,9 @@ The public SDK now names this contract directly, and it lines up with the model 
 | Steering | `TaskContext.is_steered_turn`, `TaskContext.pending_input_count` |
 | Bounded retry budget, separate from recovery | `RetryPolicy` passed to `@task(retry=...)` |
 
-That `entry_mode` and `retry_attempt` are distinct fields is the same distinction Section 4.4 had to make from measurements alone: a host replacement is not a failed attempt. A handler's first argument must be named `ctx` and declare a parameterized `TaskContext[Input]`; the decorator rejects a different argument name or a bare `TaskContext`.
+The tested recovered entry made that distinction concrete: after replacement it reported `recovery_count=1` and `retry_attempt=0`. This supports treating recovery separately from handler retry; exact counter values remain observations from that run. A handler's first argument must be named `ctx` and declare a parameterized `TaskContext[Input]`; in the tested package, the decorator rejected a different argument name or a bare `TaskContext`.
 
-Microsoft's own diagram of this model is reproduced below. It is the same loop this article derived from measurements a month earlier, and the same one drawn in the sequence diagram in Section 2.4.
+Microsoft's own diagram of this model is reproduced below. It closely matches the loop this article derived from measurements a month earlier and the sequence diagram in Section 2.4.
 
 <div align="center"><img src="images/official-lease-recovery-model.png" width="820" alt="Official Microsoft diagram of lease-based recovery: work and input identity, runtime persists input and acquires a lease, handler runs while the runtime renews the lease, the process stops and abandons the lease, a later process reclaims the work record, and the handler re-enters from the start to either rerun or resume from the durable boundary"></div>
 
@@ -303,7 +303,7 @@ The application pattern is unchanged:
 
 Any payment, booking, write, or tool action inside the replay window still needs the idempotency discipline from Section 6.4.
 
-#### 2.5.4 Separate dispatch from observation
+#### 2.5.4 Keep dispatch separate from observation
 
 The standard Hosted Agent client surface comes from the Foundry project client. Keep the code that creates work separate from every process that observes it:
 
@@ -356,9 +356,9 @@ def observe(reader: ResponseReader, *, work_key: str):
 	return response
 ```
 
-`claim_dispatch` must be a unique, atomic insert that moves the logical work to `dispatching`; it closes the concurrent-dispatcher race before the remote call. `attach_response` is a compare-and-set transition to `dispatched`. `durable_state` represents a database or other store that survives the observer process, not an in-memory dictionary. Pass `ResponseReader(client.responses)` to the observer rather than the full client. Its public application interface exposes only `retrieve`, but this is still a maintainability boundary, **not** a security sandbox or RBAC boundary. If observer code is untrusted, isolate it behind a separate service and identity. After a restart it must load a dispatched mapping or fail closed. The recovery objective is workload configuration, not a fixed small retry budget; it must exceed the expected healthy runtime and host-replacement allowance. `validate_workload_output` is application code: for the measured research run it checked the finalized output indexes and expected phase count. Platform status and workload completion are separate checks.
+`claim_dispatch` must be a unique, atomic insert that moves the logical work to `dispatching`; it closes the concurrent-dispatcher race before the remote call. `attach_response` is a compare-and-set transition to `dispatched`. `durable_state` represents a database or other store that survives the observer process, not an in-memory dictionary. Pass `ResponseReader(client.responses)` to the observer rather than the full client. Its public application interface exposes only `retrieve`, but this is still a maintainability boundary, **not** a security sandbox or RBAC boundary. If observer code is untrusted, isolate it behind a separate service and identity. After a restart it must load a dispatched mapping or fail closed. The recovery objective is workload configuration, not a fixed small retry budget. Size it from the expected healthy runtime plus a workload-specific replacement allowance; this evaluation does not establish a universal value. `validate_workload_output` is application code: for the measured research run it checked the finalized output indexes and expected phase count. Platform status and workload completion are separate checks.
 
-There is one unavoidable public-API boundary in this minimal pattern: remote create and `attach_response` are not one atomic transaction, and the public create call does not expose lookup by your `work_key`. A process can therefore die after the claim, either before remote creation or after remote creation but before the response ID is attached. Leave that record in `dispatching`; do not automatically create again. A normal transactional outbox cannot decide whether an unknown remote create succeeded. Production dispatch needs a product-supported idempotency/deduplication contract or an operational reconciliation path for `dispatching` records and orphaned responses. The evaluation started observation only after the response ID had been durably captured.
+There is one public-API boundary in the surface tested here: remote create and `attach_response` are not one atomic transaction, and the tested public create call did not expose lookup by your `work_key`. A process can therefore die after the claim, either before remote creation or after remote creation but before the response ID is attached. Leave that record in `dispatching`; do not automatically create again. A normal transactional outbox cannot decide whether an unknown remote create succeeded. Production dispatch needs a product-supported idempotency/deduplication contract or an operational reconciliation path for `dispatching` records and orphaned responses. The evaluation started observation only after the response ID had been durably captured.
 
 If the polling process disappears after the mapping exists, a new observer reads `response_id` and `deadline_at` from `durable_state` and retrieves **that same response**. Streaming is a public Responses mode; active-handler crash replay is now the separate **public-preview resilient-execution** opt-in. The evaluation persisted transport cursors when available, accepted a new `response.in_progress` snapshot as a reset point, and rebuilt observer output from finalized items.
 
@@ -366,7 +366,7 @@ Most importantly, it did **not** make a high transport sequence cursor the sole 
 
 A later sequential turn can use `previous_response_id=response_id`. Concurrent queuing and cooperative steering use the public-preview resilient-task surface; `previous_response_id` by itself only establishes response-chain continuity.
 
-The shortest operational route after deployment is `azd ai agent invoke`; it manages the Hosted Agent session and Responses conversation for ordinary calls. Use the explicit client pattern above when your application must own the background response ID, polling deadline, dispatch/observe separation, and workload-level completion checks.
+A concise operational route after deployment is `azd ai agent invoke`; it manages the Hosted Agent session and Responses conversation for ordinary calls. Use the explicit client pattern above when your application must own the background response ID, polling deadline, dispatch/observe separation, and workload-level completion checks.
 
 ---
 
@@ -390,13 +390,13 @@ The pinned check passed **18 of 18** assertions against `azure-ai-agentserver-co
 
 This is a **real public-SDK contract smoke**, not a mock and not a live-service recovery claim. A mock is appropriate for testing application checkpoints, idempotency, and side-effect watermarks; it cannot prove that Foundry replaced a host or reclaimed a lease. Live production-readiness still requires a deployed Hosted Agent and repeated fault injection as listed in Section 9.4.
 
-### Re-verified on the current build (August 2026)
+### Re-checked on the current build (August 2026)
 
-Two things were re-checked on the public build, on an ordinary work subscription with no allowlisting of any kind.
+Two things were re-checked on the public build using the 2022 work subscription that had been enabled during the earlier preview. A later check below repeats the deployed scenario on a different subscription that had never been preview-enabled.
 
-**The barrier that blocked this work in July is gone.** In July the campaign stalled because `/tasks` returned `404`: the subscription was not on the private-preview allowlist, and a scan of 6,253 subscription features found no self-service switch. Today the same call returns `200` with an empty task list, alongside `200` on `/agents` and `/assistants`. The capability now reaches an ordinary subscription.
+**The July block did not recur on this subscription.** In July the campaign stalled because `/tasks` returned `404`: the subscription was not then on the private-preview allowlist, and a scan of 6,253 subscription features found no self-service switch. In this August re-test the same call returned `200` with an empty task list, alongside `200` on `/agents` and `/assistants`. Because this subscription had previously been enabled, the never-enabled subscription test below provides the stronger availability check.
 
-**Crash recovery still behaves as described.** An 18-phase durable job was run and its worker was hard-killed with `os._exit(9)` right after phase 1 committed, abandoning the lease with no cleanup. A separate OS process then reclaimed the work:
+**The current SDK/runtime build reproduced the tested recovery path.** An 18-phase durable job was run and its worker was hard-killed with `os._exit(9)` right after phase 1 committed, abandoning the lease with no cleanup. A separate OS process then reclaimed the work:
 
 | Re-test observation | Value |
 |---|---|
@@ -410,15 +410,15 @@ Two things were re-checked on the public build, on an ordinary work subscription
 
 The last row is the interesting one. Section 5 argued from behavior that recovery is not a retry; the current public-preview API now exposes the two as independent counters, and the recovered entry reported exactly the predicted split.
 
-**What this re-test is not.** Phase durations are synthetic sleeps and there is no model inference in the loop, so its elapsed times carry no performance meaning. It confirms the durable-work, lease-abandonment, reclaim and re-entry machinery on the current build; it does not re-measure the eight July scenarios. Those numbers stay labelled as July observations.
+**What this re-test is not.** Phase durations are synthetic sleeps and there is no model inference in the loop, so its elapsed times carry no performance meaning. It exercises durable work, lease abandonment, reclaim, and re-entry in a local two-process test against the current SDK/runtime build; it is not live Hosted Agent evidence and does not re-measure the eight July scenarios. Those numbers stay labelled as July observations.
 
 ### On a deployed agent, on an ordinary subscription
 
 The check above runs against the SDK. This one ran against a real Hosted Agent, because the two answer different questions.
 
-The official public sample catalogue now ships `resilient-streaming` and `resilient-steering` under `bring-your-own/responses`; their own description names `stream.checkpoint()` and `context.persisted_response`. Deploying `resilient-streaming` unchanged, on a normal work subscription with **no allowlist request and no feature registration**, took 4 minutes 3 seconds and the agent reported `active`. In July the same capability was unreachable: `/tasks` returned `404` because the subscription was not on the private-preview allowlist.
+The official public sample catalogue now ships `resilient-streaming` and `resilient-steering` under `bring-your-own/responses`; their description names `stream.checkpoint()` and `context.persisted_response`. Deploying the sample logic on the previously enabled 2022 work subscription, with the compatible package pins described below and **no new allowlist request or feature registration for this re-test**, took 4 minutes 3 seconds and the agent reported `active`. In July, before preview enablement, `/tasks` had returned `404`.
 
-A stored background response was created on the live endpoint and, while it was still `in_progress`, the runtime instance was replaced by redeploying the agent. Polling the **same response id** afterwards returned `completed` with all three stage items present, no gap and no repeated stage. The container log shows the runtime driving the task store with real leases — `lease_owner`, `lease_instance_id`, `lease_duration_seconds=60`, and ETag-guarded `PATCH` updates — which is the lease and compare-and-set model described in Section 2.4.
+A stored background response was created on the live endpoint and, while it was still `in_progress`, the runtime instance was replaced by redeploying the agent. Polling the **same response id** afterwards returned `completed` with all three stage items present, no gap and no repeated stage. The container log shows the runtime driving the task store with lease fields — `lease_owner`, `lease_instance_id`, `lease_duration_seconds=60` — and ETag-guarded `PATCH` updates, consistent with the lease and compare-and-set model described in Section 2.4.
 
 The same interruption was then applied to all four official resilient samples, which between them cover the scenario families the July campaign measured:
 
@@ -429,17 +429,17 @@ The same interruption was then applied to all four official resilient samples, w
 | Invocations, research recovery | `resilient-research` | 28.4 s | **PASS** — same `invocation_id` reached `completed` |
 | Invocations, approval outliving instance loss | `resilient-approval-gate` | 25.3 s | **PASS** — the decision was accepted (`202`) even though it was sent *after* the replacement, work completed |
 
-The fourth row is the one worth pausing on, because it repeats the July finding that surprises people most: the instance was replaced **while the agent was parked on an approval gate and nothing was executing**. The decision was then submitted against work whose original host no longer existed, and it was accepted.
+The fourth row repeats a July finding: the instance was replaced **while the agent was parked on an approval gate and no application step was executing**. The decision was then submitted against work whose original host no longer existed, and it was accepted.
 
 Two further checks are worth reporting, including the one that did not go as expected.
 
-**A subscription that was never enabled works too.** The deployment above ran on a subscription the product group had enabled during the preview. Repeating it on a *different* subscription that was never enabled — a plain 2026 work subscription — produced the same outcome: `azd up` succeeded in 3 minutes 29 seconds, and the same interruption left the response `completed` with all three items. Two subscriptions are not a survey, so this is not proof that every subscription is ready; it does show that the July allowlist is no longer a precondition on a subscription nobody special-cased.
+**The same scenario also passed on a subscription that had not been preview-enabled.** The deployment above ran on a subscription the product group had enabled during the preview. Repeating it on a *different* subscription that had never been enabled — a 2026 work subscription — produced the same acceptance result: `azd up` succeeded in 3 minutes 29 seconds, and the same interruption left the response `completed` with all three items. Two subscriptions are not a survey and do not establish tenant-, region-, or subscription-wide availability; this result shows only that prior preview enablement was not required on that tested subscription.
 
-**The `424` storm did not reproduce.** Section 4.4 rests on 29 consecutive `424` responses observed in July while a host was being replaced. Polling the same response every 0.4 s across a forced replacement produced **26 polls, all `200`, and no transient error at all**. That is not a refutation: a redeploy-driven replacement is a graceful, orchestrated path, and the July sequence arose from a different interruption. The engineering advice stands — classify `424` before treating it as terminal — but the number 29 remains a July observation that the current build did not reproduce, and it is labelled that way rather than quietly restated as current behavior.
+**The `424` sequence did not reproduce.** Section 4.4 rests on 29 consecutive `424` responses observed in July while a host was being replaced. Polling the same response every 0.4 s across a forced replacement produced **26 polls, all `200`, and no transient error**. This does not refute the July observation because the interruption paths differed. The engineering advice remains scoped: classify `424` before treating it as terminal. The number 29 remains a July observation that this current-build test did not reproduce.
 
-One defect is worth passing on. The first deployment failed at runtime with `HTTP 500`, and the container log showed `resilient_task_handler_failure ... exc_type=AttributeError` under `ai-agentserver-core/2.1.0b2`. The sample pins `responses==2.0.0b1` but only requires `core>=2.0.0b10`, so the container resolved a newer beta than the handler was written against. Pinning both packages to their 2.0.0 releases fixed it, and the same pin was needed for all four samples. On a preview surface, pin the whole set rather than a floor.
+A package-version compatibility issue is worth documenting. The first deployment failed at runtime with `HTTP 500`, and the container log showed `resilient_task_handler_failure ... exc_type=AttributeError` under `ai-agentserver-core/2.1.0b2`. The sample pins `responses==2.0.0b1` but only requires `core>=2.0.0b10`, so the container resolved a newer beta than the handler was written against. Pinning `core==2.0.0`, `responses==2.0.0`, and `invocations==1.0.0` resolved the observed failure for the relevant samples; the compatible set was used across all four. For these preview sample deployments, exact compatible pins avoided the beta-version skew that the original lower bound allowed.
 
-These interruptions were produced by forcing a runtime-instance replacement, which is a genuine platform-level event but not an unplanned host crash, and the samples' stages remain simulated. Four scenario families were covered with one accepted run each — capability validation on the current build, not a new reliability benchmark, and not a repeat of the full July matrix. The July .NET runs were **not** repeated: the public C# samples ship hosted agents but none of them exercise resilient tasks, so those rows remain July observations.
+These interruptions were produced by forcing a runtime-instance replacement, which is a platform-level event but not an unplanned host crash, and the samples' stages remain simulated. Four scenario families were covered with one accepted run each — capability validation on the current build, not a new reliability benchmark, and not a repeat of the full July matrix. The July .NET runs were **not** repeated: at the time of this re-test, the public C# samples shipped Hosted Agents but none exercised resilient tasks, so those rows remain July observations.
 
 | Dimension | Fixed condition | Why it matters |
 |---|---|---|
@@ -470,7 +470,7 @@ Optional cancel, delete, and deny branches were outside this matrix and remain u
 
 ## 4. Results
 
-### 4.1 A 21.7-minute run that outlived its process
+### 4.1 A 21.7-minute run across injected process loss
 
 <div align="center"><img src="images/work-distribution.png" width="820" alt="Proportional chart showing 95 percent of elapsed time and events occurred after the injected runtime-instance loss"></div>
 
@@ -478,29 +478,29 @@ The Python Invocations research agent produced 599 events in its first 15 second
 
 No resubmission followed. The client reattached, received an explicit recovery event, and the sequence counter picked up at **600** — exactly where it had stopped. Over the next 1,237 seconds the reattached stream delivered 11,649 more events covering phases 2 through 18, including 192 status events and 17 phase events, and ended in a completed terminal state.
 
-The totals: 1,301 seconds, sequence 1 through 12,248, no gap and no repeated phase. Put another way, both the elapsed time and the event count split 5/95 across the moment the process died. The chart above is that ratio drawn to scale, and it is the single clearest argument against resubmitting.
+The totals: 1,301 seconds, sequence 1 through 12,248, no gap and no repeated phase. Put another way, both the elapsed time and the event count split 5/95 across the moment the process died. The chart above draws that ratio to scale and illustrates why resubmission would have been wrong for this run.
 
 ### 4.2 The same interruption, a different protocol
 
-Language and protocol changed; the conclusion did not.
+With language and protocol changed, the tested continuity result still held.
 
 The Python Responses research run recorded 11,584 events. Before the interruption: 577 events over 13 seconds, output index 0, 570 text deltas. The crash stream reported a failed response. After a **47-second** reconnect gap, lifecycle replay was observed, the sequence resumed at 578, and 11,005 further events arrived over 1,140 seconds carrying output indexes 1 through 17 and 10,918 text deltas. Completion was delivered on the reattached stream.
 
-Output index 0 was produced before the interruption and indexes 1 through 17 after it. **No index was repeated and none was skipped.** For a Responses workload that is the strongest evidence available that this was the same logical response rather than a convincing new one — and it is exactly the check a resubmitted run would fail.
+Output index 0 was produced before the interruption and indexes 1 through 17 after it. **No index was repeated and none was skipped.** Together with the unchanged response identity, that is strong evidence that this observed run continued the same stored response rather than creating a new one; it is not a general proof for every Responses workload.
 
-### 4.3 A runtime instance died while a human was thinking
+### 4.3 Injected runtime loss during a pending human approval
 
 <div align="center"><img src="images/approval-recovery.png" width="820" alt="Measured approval timeline showing 56 seconds from runtime loss to the decision being accepted"></div>
 
-This is the case teams underestimate, because when it happens **nothing is executing at all**. The graph had parked at an approval and was waiting on a person.
+This case is easy to overlook because **no application step was executing**. The graph had parked at an approval and was waiting on a person.
 
 The run started at 12:22:54 and called its flight and hotel tools seven seconds later. At 12:23:07 it requested approval for a three-night Tokyo booking and stopped. Eighty seconds into that wait, at 12:24:27, we destroyed the runtime instance. The approval decision was sent after restart and accepted at 12:25:23 — **56 seconds** after the loss. Two seconds later the agent resumed with the *same* flight and hotel selection it had offered before, and at 12:25:30 it returned confirmation `TRIP-182336`.
 
 The pending approval, the tool results, and the exact options shown to the user all outlived a process that no longer existed. A second run of the same pattern on the Responses protocol reached its own confirmation, `TRIP-749637`.
 
-> These are deterministic sample tools. The confirmation numbers prove durable graph state and exactly-once decision handling — not a real airline or hotel booking.
+> These are deterministic sample tools. The confirmation numbers support that persisted graph state and one approval application survived these runs; they do not establish a general exactly-once guarantee or represent a real airline or hotel booking.
 
-### 4.4 Twenty-nine failures that were not failures
+### 4.4 Twenty-nine `424` responses before completion
 
 <div align="center"><img src="images/retry-pattern.png" width="820" alt="Twenty-nine consecutive HTTP 424 responses followed by successful completion"></div>
 
@@ -521,7 +521,7 @@ El rápido zorro marrón salta por encima del perro perezoso.
 The quick brown fox jumps over the lazy dog.
 ```
 
-A client that treated the first 424 as terminal would have thrown away a run that was about to succeed. So would a client with a sensible-looking retry budget of ten. The response was intact the entire time; only its host was being replaced.
+A client that treated the first 424 as terminal would have abandoned this run before it completed. So would a client with a retry budget of ten. In this observed case, the same response ultimately completed with all expected output; the `424` sequence was not terminal.
 
 This is also the finding most easily over-generalized, so to be precise: **this does not make every 424 retryable.** It makes *this* condition — host replacement on a response you can still address — worth classifying before you give up on it.
 
@@ -529,17 +529,17 @@ This is also the finding most easily over-generalized, so to be precise: **this 
 
 Not every interruption is a failure. A second turn was sent while the first was still generating.
 
-The new input was accepted as `queued` rather than rejected. The first turn wound down cooperatively at a safe boundary and was marked completed instead of being killed mid-token. The replacement turn then polled `in_progress` seven times and completed with a correct answer to the new question. Steering, in other words, is a first-class path rather than a race between cancel and restart.
+The new input was accepted as `queued` rather than rejected. The first turn wound down cooperatively at a safe boundary and was marked completed instead of being killed mid-token. The replacement turn then polled `in_progress` seven times and completed with the expected answer to the new question. In this run, steering followed a queued, cooperative path rather than a cancel/restart race.
 
 ---
 
-## 5. The finding that transfers: don't trust the sequence number
+## 5. In the tested model, transport sequence is diagnostic, not the sole recovery authority
 
 <div align="center"><img src="images/continuity-signals.png" width="820" alt="Four runs compared: transport sequence continued in three, workload output coverage held in all four"></div>
 
 If you take one engineering rule away from this page, take this one.
 
-Three of the four research runs continued their transport sequence numbers cleanly across reattachment. The fourth did not: the .NET Responses stream **restarted its counter at 5** after reconnecting — while still delivering output indexes 1 through 17 on the same response. By any workload measure that run recovered perfectly. By a sequence-continuity check it would have been flagged as broken.
+Three of the four research runs continued their transport sequence numbers cleanly across reattachment. The fourth did not: the .NET Responses stream **restarted its counter at 5** after reconnecting — while still delivering output indexes 1 through 17 on the same response. By this evaluation's workload acceptance criteria, that run passed. A sequence-continuity-only check would have flagged it as broken.
 
 | Run | Before interruption | After reattachment | Signal |
 |---|---|---|---|
@@ -548,7 +548,7 @@ Three of the four research runs continued their transport sequence numbers clean
 | Invocations / .NET | seq 1-738 | seq 739-12,073 | Sequence continued |
 | Responses / .NET | output index 0 | output indexes 1-17 | Index continued, **sequence restarted at 5** |
 
-So validate continuity on *what the workload produced* — output indexes, phase numbers, durable state — not on *how the transport numbered its frames*.
+For these runs, the primary acceptance signals were *what the workload produced* — output indexes, phase numbers, and durable state. Transport numbering remained diagnostic; other protocols should define acceptance according to their own semantics.
 
 And while you are there, note a second trap in the same family: a monotonic sequence is not a gap-free sequence. `10, 12` is monotonic and still missing an event. A continuity check that only asserts "increasing" will pass a stream that silently lost data.
 
@@ -580,7 +580,7 @@ def output_coverage_complete(indexes: list[int], expected_last: int) -> bool:
 | Duplicate event: `[10, 10, 11]` | `True` | `False` |
 | Clean stream: `[10, 11, 12]` | `True` | `True` |
 
-The same executable check rejected a finalized output-item list with a missing index and with a duplicated index. Feed it one index per completed output item, not every streaming delta: multiple deltas for one item legitimately reuse that item's `output_index`. Use transport sequence only as diagnostic evidence; make workload indexes, phases, and durable state the acceptance criteria.
+The same executable check rejected a finalized output-item list with a missing index and with a duplicated index. Feed it one index per completed output item, not every streaming delta: multiple deltas for one item legitimately reuse that item's `output_index`. In this helper, transport sequence is diagnostic evidence; acceptance also checks workload indexes, phases, and durable state. Other protocols should use their own semantics.
 
 ### 6.2 Terminal state: a `done` frame is not proof of success
 
@@ -631,7 +631,7 @@ def recovery_action(
 	return "fail_closed"
 ```
 
-The deadline should come from the workload's recovery objective, not an arbitrary small retry count. `403` takes a different path because refreshing observer authorization is safer than replaying business work.
+The deadline should come from the workload's recovery objective, not an arbitrary small retry count. Classify `403` independently: verify observer identity, scope, and durable workload state first; refresh credentials only when expiry is confirmed. A read-only recheck is safer than replaying business work.
 
 ### 6.4 Human approval: make the decision and the side effect idempotent
 
@@ -667,32 +667,32 @@ def apply_approval(ledger, logical_work: str, checkpoint: str, requested: str):
 
 <div align="center"><img src="images/recovery-decision-guide.png" width="560" alt="Decision guide for classifying runtime, client, host-replacement, and observer failures before recovering"></div>
 
-Every row below follows the same discipline: **read the same logical work first, decide which layer actually failed, and create nothing new until the existing state is known.**
+Each row below is a diagnostic starting point, not a universal mapping from symptom to cause. **Read the same logical work first, identify the likely layer from durable evidence, and create nothing new until the existing state is known.**
 
-| Symptom | What actually failed | Wrong reflex | Correct recovery | Confirmation |
+| Symptom | Likely layer / what to verify | Unsafe reflex | Safer next step | Confirmation |
 |---|---|---|---|---|
-| Stream stops with no terminal event | One execution process, not necessarily the work | Resubmit the job | Let the platform re-enter, then reattach with the same work reference and last durable position | Recovery marker or continued workload output, then explicit terminal state |
-| Workflow parked on an approval, nothing running | The runtime instance; the suspended workflow is intact | Rebuild the approval request | Send the decision to the same logical work after restart | Post-approval path reaches terminal state with identical selections |
-| Client loses SSE or HTTP connectivity | The observation channel only | Assume the agent stopped and resubmit | Reconnect to the same work from its durable output position | Output and phase coverage continue with no duplicate business result |
-| Repeated `424` on the same response | Nothing yet — the host is being replaced | Treat the first 424 as terminal | After classifying this condition, poll the same response with bounded backoff | Response completes with all expected stages present |
-| `403` on a final read | Your authorization, not the workload | Rerun the workload | Refresh observer auth and repeat the read-only query | `200` with completed terminal state |
-| Captured log stops at a byte or time limit | Evidence capture | Infer failure from the last captured line | Query durable state directly, or recapture the full stream | Terminal state read from the service, not the log tail |
-| New instruction arrives mid-turn | Nothing — this is a steering path | Hard-kill the turn and race a new run | Queue the input and let the current turn stop at a safe boundary | Old turn ends cooperatively; new input reaches a terminal answer |
+| Stream stops with no terminal event | Observer, network, or runtime; stream loss alone does not identify which | Resubmit the job | Query the same work and reattach from its durable output position when it remains addressable | Recovery marker or continued workload output, then explicit terminal state |
+| Workflow parked on an approval | In the measured case, the runtime was replaced; verify that suspended work remains addressable | Rebuild the approval request | After recovery exposes the same work, send the decision to that work | Post-approval path reaches terminal state with the expected selections |
+| Client loses SSE or HTTP connectivity | Possibly the observation channel; verify durable service state | Assume the agent stopped and resubmit | Reconnect to the same work from its durable output position | Output and phase coverage continue with no duplicate business result |
+| Repeated `424` on the same response | In the measured case, a temporary dependency during host replacement; other causes remain possible | Treat every 424 as terminal or retryable | Classify the condition; only then poll the same response with bounded backoff when it remains addressable | Response completes with all expected stages present |
+| `403` on a final read | Possibly observer authentication or authorization; do not infer workload state from this alone | Rerun the workload | Verify identity and scope, refresh credentials if expired, then repeat the read-only query | Authorized read returns the durable terminal state |
+| Captured log stops at a byte or time limit | Evidence capture may be truncated; workload state remains unknown | Infer failure from the last captured line | Query durable state directly, or recapture the full stream | Terminal state read from the service, not the log tail |
+| New instruction arrives mid-turn | If steering is enabled, this may be a steering path; verify protocol state | Hard-kill the turn and race a new run | Queue through the steering path, or apply the application's documented cancellation policy | Old turn ends as designed; new input reaches its expected terminal state |
 
 ---
 
 ## 8. Design guidance
 
-These generalize well beyond the preview that produced them.
+These are engineering recommendations derived from the evaluated failure modes, not product guarantees. Apply them beyond this preview only where the same assumptions hold.
 
-1. **Checkpoint at a boundary you can name.** "Phase 7 of 18 complete" is recoverable. "Somewhere in the middle" is not.
+1. **Checkpoint at a recorded boundary you can verify.** A persisted marker such as "phase 7 of 18 complete" can serve as a recovery point. "Somewhere in the middle" is insufficient for safe recovery without a verifiable checkpoint.
 2. **Give the work an identity that outlives the process.** Recovery means addressing a logical work item, not resuming a socket.
 3. **Assume at-least-once execution.** Design every external side effect so that repeating it after a checkpoint is harmless.
-4. **Separate observer failures from workload failures.** Your token expiring is your problem, not the run's.
+4. **Separate observer failures from workload failures.** An observer token expiry does not by itself establish that the workload failed.
 5. **Classify status codes before acting on them.** Confirm against durable state before declaring a business failure.
 6. **Make terminal state explicit.** A stream that merely ends is not a result.
 7. **Decide who owns an approval decision.** Applying it twice is worse than applying it late.
-8. **Distinguish suspended work from active work.** A parked graph has no active execution and its compute may be reclaimed. That is expected behavior, not a fault.
+8. **Distinguish suspended work from active work.** A parked graph has no active application step and its compute may be reclaimed. That can be normal lifecycle behavior; verify durable state before classifying it as a fault.
 
 ---
 
@@ -707,7 +707,7 @@ Eight passing runs are easy to over-read, so each conclusion was attacked before
 | Confirmation | Did the same logical work reach terminal state? | Same work reference, terminal service state, full phase and output coverage | Supported in all eight scenarios |
 | Falsification | Could a fresh rerun look like recovery? | Output index 0 before, 1-17 after, on the same response | Fresh-run explanation rejected for the Responses runs |
 | Enumeration | Were only flattering examples selected? | Fixed denominator of eight main scenarios | 8/8 passed; auxiliary branches excluded explicitly |
-| Contradiction | If sequence continuity were necessary, would every valid recovery satisfy it? | .NET Responses recovered while restarting its counter at 5 | Universal sequence rule disproved |
+| Contradiction | If sequence continuity were necessary for this Responses recovery, would the accepted run satisfy it? | .NET Responses met the workload acceptance criteria while restarting its counter at 5 | The sequence-continuity assumption did not hold for this observed run |
 | Reverse inference | Does a terminal result alone prove recovery? | Checkpoint, injected loss, connection break, and post-restart continuation were also required | Terminal-only evidence rejected as insufficient |
 | Analogy | Do observations align with public platform concepts? | Public session persistence and protocol ownership documentation | Consistent, but idle resume was never used as proof of active recovery |
 | Consistency | Does the conclusion survive runtime and protocol changes? | Python/.NET and Responses/Invocations pairs | Workload-output continuity held; transport event shape did not |
@@ -729,7 +729,7 @@ Raw artifacts stay private because they contain endpoints, work identifiers, env
 - All numbers are **observed values from the evaluation each one names** — the July campaign or the August re-test — not benchmarks, guarantees, or SLAs.
 - The capability was in **private preview** when the campaign ran and has since moved to **public preview** with an [official concept page](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience). This repository now publishes a current public-API mapping and offline contract smoke, but not Microsoft SDK source, a complete deployment recipe, or live-service credentials.
 - Results cover the July campaign's **eight documented main scenarios**, one accepted run each, plus the August re-test's **four scenario families**, one accepted run each. Cancel, delete, and deny branches were not counted.
-- Recovery behavior was validated. Business-domain correctness and model quality were not.
+- The listed recovery paths were observed under the stated conditions. Business-domain correctness and model quality were not evaluated.
 - Verify current capabilities against the [official documentation](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents) before designing against anything described here.
 
 ### 9.4 Before you call this production-ready
