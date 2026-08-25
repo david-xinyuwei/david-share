@@ -306,15 +306,11 @@ Optional cancel, delete, and deny branches were outside this matrix and remain u
 
 ### A 21.7-minute run across injected process loss
 
-<div align="center"><img src="images/work-distribution.png" width="820" alt="Work-distribution chart, not a success score: 95 percent of elapsed time and events occurred after the injected runtime-instance loss"></div>
-
-The **95% is a work-distribution ratio, not a success or completeness score**. Acceptance was 18 of 18 phases with no missing or repeated phase; the ratio only shows how much measured time and event volume occurred after the injected loss.
-
 The Python Invocations research agent produced 599 events in its first 15 seconds and reached phase 1. We then destroyed the runtime instance, and the stream went dead.
 
 No resubmission followed. The client reattached, received an explicit recovery event, and the sequence counter picked up at **600** — exactly where it had stopped. Over the next 1,237 seconds the reattached stream delivered 11,649 more events covering phases 2 through 18, including 192 status events and 17 phase events, and ended in a completed terminal state.
 
-The totals: 1,301 seconds, sequence 1 through 12,248, no gap and no repeated phase. Put another way, both the elapsed time and the event count split 5/95 across the moment the process died. The chart above draws that ratio to scale and illustrates why resubmission would have been wrong for this run.
+The totals: 1,301 seconds, sequence 1 through 12,248, no gap and no repeated phase. Both elapsed time and event count split roughly 5/95 across the moment the process died — a **work-distribution ratio, not a success score**. Acceptance was 18 of 18 phases; the ratio only shows how much measured time and event volume fell after the injected loss, and why resubmission would have been wrong for this run.
 
 ### The same interruption, a different protocol
 
@@ -337,8 +333,6 @@ The pending approval, the tool results, and the exact options shown to the user 
 > These are deterministic sample tools. The confirmation numbers support that persisted graph state and one approval application survived these runs; they do not establish a general exactly-once guarantee or represent a real airline or hotel booking.
 
 ### Twenty-nine `424` responses before completion
-
-<div align="center"><img src="images/retry-pattern.png" width="820" alt="Twenty-nine consecutive HTTP 424 responses followed by successful completion"></div>
 
 While its host was being replaced, the durable workflow run received `HTTP 424 Failed Dependency` **29 consecutive times** on the same response. The client kept polling instead of resubmitting, and the run completed with every stage intact:
 
@@ -370,8 +364,6 @@ The new input was accepted as `queued` rather than rejected. The first turn woun
 ---
 
 ## Continuity: workload output over transport sequence
-
-<div align="center"><img src="images/continuity-signals.png" width="820" alt="Four runs compared: transport sequence continued in three, workload output coverage held in all four"></div>
 
 If you take one engineering rule away from this page, take this one.
 

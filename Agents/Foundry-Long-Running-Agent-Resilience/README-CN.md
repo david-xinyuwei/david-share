@@ -306,15 +306,11 @@ Replay 窗口内的支付、预订、写入或 tool action，仍然必须采用�
 
 ### 一次跨越主动注入进程丢失的 21.7 分钟运行
 
-<div align="center"><img src="images/work-distribution-cn.png" width="820" alt="工作分布图，不是成功率评分：95% 的耗时和事件发生在注入运行实例丢失之后"></div>
-
-这里的 **95% 是工作分布比例，不是成功率或完整度评分**。验收结果是 18 / 18 个 phase，且没有缺失或重复；95% 只表示注入进程丢失之后发生的实测耗时和事件量占比。
-
 Python Invocations 的 Research Agent 在头 15 秒里产出了 599 条事件，跑到 phase 1。随后我们销毁了运行实例，流断了。
 
 没有任何重新提交。客户端重新接回，收到一个显式的恢复事件，sequence 从 **600** 继续——正好是它停下的位置。接下来的 1,237 秒里，重连后的流又送来 11,649 条事件，覆盖 phase 2 到 18，其中包含 192 条 status 事件和 17 条 phase 事件，最后停在 completed 终态。
 
-汇总起来：1,301 秒，sequence 从 1 到 12,248，没有缺口，也没有重复阶段。换个说法，耗时和事件数在“进程死亡”这一刻，都是按 5 / 95 分开的。上面那张图按比例画出了这个结果，也说明为什么在这次运行中直接重新提交会是错误选择。
+汇总起来：1,301 秒，sequence 从 1 到 12,248，没有缺口，也没有重复阶段。耗时和事件数在“进程死亡”这一刻大致按 5 / 95 分开——这是**工作分布比例，不是成功率评分**。验收结果是 18 / 18 个 phase；这个比例只表示注入进程丢失之后发生的实测耗时和事件量占比，也说明为什么在这次运行中直接重新提交会是错误选择。
 
 ### 换一种 protocol，同样的中断
 
@@ -337,8 +333,6 @@ output index 0 是中断前产出的，1 到 17 是中断后产出的。**没有
 > 这些是确定性的示例工具。确认号支持以下结论：在这些运行中，持久化 Graph 状态与一次审批应用跨越了进程替换；它们不能证明通用的 exactly-once 保证，也不代表真实的航班或酒店预订。
 
 ### 完成前收到的 29 次 `424`
-
-<div align="center"><img src="images/retry-pattern-cn.png" width="820" alt="连续 29 次 HTTP 424 之后正常完成"></div>
 
 主机替换期间，那次持久化 workflow 运行在同一个 response 上**连续 29 次**收到 `HTTP 424 Failed Dependency`。客户端没有重新提交，而是继续轮询，最后所有阶段完整产出：
 
@@ -370,8 +364,6 @@ The quick brown fox jumps over the lazy dog.
 ---
 
 ## 连续性：以 workload output 为准，而不是只看传输 sequence
-
-<div align="center"><img src="images/continuity-signals-cn.png" width="820" alt="四次运行对比：传输层 sequence 三次续上，workload output 四次全部成立"></div>
 
 如果这篇文章只能带走一条工程结论，就带走这条。
 

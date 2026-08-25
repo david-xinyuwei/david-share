@@ -63,15 +63,9 @@ ALLOWED_FILES = {
     "evidence/scenario-manifest.json",
     "images/approval-recovery.png",
     "images/approval-recovery-cn.png",
-    "images/continuity-signals.png",
-    "images/continuity-signals-cn.png",
     "images/official-lease-recovery-model.png",
     "images/recovery-decision-guide.png",
     "images/recovery-decision-guide-cn.png",
-    "images/retry-pattern.png",
-    "images/retry-pattern-cn.png",
-    "images/work-distribution.png",
-    "images/work-distribution-cn.png",
 }
 
 FORBIDDEN_LITERALS = [
@@ -417,29 +411,29 @@ def main() -> int:
     require(abs(len(en_lines) - len(cn_lines)) <= 15,
             f"line-count drift too large: {len(en_lines)} vs {len(cn_lines)}")
 
-    # Image parity: five project charts are localized; the official CC BY image is shared.
+    # Image parity: two project charts are localized; the official CC BY image is shared.
     en_images = images(en_text)
     cn_images = images(cn_text)
     shared_image = "images/official-lease-recovery-model.png"
-    require(len(en_images) == len(cn_images) == 6,
-            f"each README must embed 6 images, got {len(en_images)}/{len(cn_images)}")
+    require(len(en_images) == len(cn_images) == 3,
+            f"each README must embed 3 images, got {len(en_images)}/{len(cn_images)}")
     require(en_images.count(shared_image) == cn_images.count(shared_image) == 1,
             "both READMEs must embed the official lease-recovery diagram once")
     en_localized = [path for path in en_images if path != shared_image]
     cn_localized = [path for path in cn_images if path != shared_image]
     expected_cn = [path.replace(".png", "-cn.png") for path in en_localized]
     require(cn_localized == expected_cn,
-            "Chinese README must reference the five localized project charts")
+            "Chinese README must reference the two localized project charts")
 
     # Every chart must be centred, width-capped, and carry alt text (CL-006)
     for readme, text in ((EN, en_text), (CN, cn_text)):
         centred = len(re.findall(r"<div align=\"center\"><img ", text))
-        require(centred == 6, f"{readme.name}: expected 6 centred image embeds, got {centred}")
+        require(centred == 3, f"{readme.name}: expected 3 centred image embeds, got {centred}")
         widths = re.findall(r"<img\s[^>]*width=\"(\d+)\"", text)
-        require(len(widths) == 6 and all(int(w) <= 820 for w in widths),
+        require(len(widths) == 3 and all(int(w) <= 820 for w in widths),
                 f"{readme.name}: every image needs a width attribute of at most 820")
         alts = image_alt_texts(text)
-        require(len(alts) == 6 and all(alt.strip() for alt in alts),
+        require(len(alts) == 3 and all(alt.strip() for alt in alts),
                 f"{readme.name}: every image needs non-empty alt text")
 
     # Link and image targets exist
