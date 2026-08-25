@@ -8,10 +8,10 @@
       "sha256": "a3a9c336b9f26478ec1430ff661ffdfb06b25a0cc41405d648c47c6480107f38"
     },
     {
-      "bytes": 6900,
+      "bytes": 8319,
       "path": "evidence/historical-observations.json",
       "provenance": "Public-safe aggregate derived from the dated July campaign and August re-test captures.",
-      "sha256": "6b9e75cb383a2c406b1deadf92a4cb8f45d375d628a908ac51294c0299045458"
+      "sha256": "4c369b4be0c8c6ba6f8ccc3f5dce64d64fd3495ddf0a763af95a04a7ebb97905"
     },
     {
       "bytes": 3567,
@@ -44,7 +44,7 @@
       "sha256": "53727e455389c765c8dc6d2e275b00ce75d854a256fa590bab9433ab483f5d1c"
     }
   ],
-  "generated_at_utc": "2026-08-24T23:27:32+00:00",
+  "generated_at_utc": "2026-08-25T09:35:00+00:00",
   "normalization": "utf-8-lf",
   "schema_version": 1
 }

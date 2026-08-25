@@ -484,6 +484,28 @@ def main() -> int:
         require(concept in en_text, f"English README missing recovery concept: {concept}")
     for concept in REQUIRED_CONCEPTS["Chinese"]:
         require(concept in cn_text, f"Chinese README missing recovery concept: {concept}")
+    for snippet in (
+        "Microsoft private-preview `resilient-research` sample",
+        "generic deep-research briefing task",
+        "phases 1-4",
+        "phases 16-18",
+        "caller supplied a topic",
+        "18 is a property of the July sample run, not a current product requirement",
+        "not the only public resilience example",
+    ):
+        require(snippet in en_text,
+                f"English README missing research workload context: {snippet}")
+    for snippet in (
+        "微软在 **2026 年 7 月 private preview 期间提供的 `resilient-research` 样例",
+        "通用的深度研究简报任务",
+        "第 1-4 阶段",
+        "第 16-18 阶段",
+        "调用方提供一个研究主题",
+        "18 是 7 月那次样例运行的阶段数，不是当前产品要求",
+        "不是 public preview 唯一的韧性样例",
+    ):
+        require(snippet in cn_text,
+                f"Chinese README missing research workload context: {snippet}")
 
     # The Hosted Agent recovery path must keep official contract and local
     # reference-implementation choices separate.
@@ -954,6 +976,26 @@ def main() -> int:
         and july.get("benchmark") is False
         and len(july.get("observations", [])) == 8,
         "July evidence must retain N=1 across eight main scenarios",
+    )
+    research_workload = july.get("research_workload", {})
+    phase_groups = research_workload.get("phase_groups", [])
+    require(
+        research_workload.get("type") == "generic multi-phase deep-research briefing"
+        and research_workload.get("source")
+        == "Microsoft July 2026 private-preview resilient-research sample"
+        and "caller-supplied topic" in research_workload.get("input", "")
+        and "18-phase plan is not a current product requirement"
+        in research_workload.get("current_public_relation", "")
+        and "not the only public resilience example"
+        in research_workload.get("current_public_relation", "")
+        and [item.get("phases") for item in phase_groups]
+        == ["1-4", "5-9", "10-15", "16-18"]
+        and research_workload.get("execution")
+        == (
+            "one streaming model call per phase; completed-phase count "
+            "checkpointed after each phase"
+        ),
+        "July evidence must retain the public-safe 18-phase workload structure",
     )
     require(
         august.get("benchmark") is False

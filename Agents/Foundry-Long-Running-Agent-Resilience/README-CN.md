@@ -33,6 +33,17 @@
 
 ## 本仓库验证了什么
 
+本次 18 阶段实测来自微软在 **2026 年 7 月 private preview 期间提供的 `resilient-research` 样例**，不是本仓库自造的任务。它是一个通用的深度研究简报任务：调用方提供一个研究主题，当次测试的具体主题和模型生成正文不公开。这个样例按固定计划分 18 个阶段完成研究：
+
+- 第 1-4 阶段：拆解研究问题，梳理基础文献、关键研究者和历史背景；
+- 第 5-9 阶段：分析最新进展、方法争议、证据质量、相关领域和未解决问题；
+- 第 10-15 阶段：评估应用与采用情况、资金趋势、伦理、替代方案、风险和发展前景；
+- 第 16-18 阶段：汇总结论，提出具体建议，并给出下一步路线图。
+
+每个阶段都会调用一次模型生成该部分内容；阶段完成后，应用保存“已经完成到第几个阶段”。[当前公开的 `resilient-research` 样例](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/invocations/resilient-research) 仍属于同一类多阶段深度研究任务，但计划和默认配置已经变化。**18 是 7 月那次样例运行的阶段数，不是当前产品要求。**
+
+它也不是 public preview 唯一的韧性样例。微软当前公开目录还提供 Invocations 的 [`resilient-approval-gate`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/invocations/resilient-approval-gate)，以及 Responses 的 [`resilient-streaming`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming) 和 [`resilient-steering`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-steering)。
+
 一个研究任务预先划分为 18 个阶段，预计运行约 22 分钟。第 15 秒，第 1 个阶段完成后，我们强制结束进程 A。任务没有重新提交。进程 B 找到同一条任务记录，读取已经保存的第 1 阶段进度，继续完成第 2-18 阶段。最终，**计划中的 18 个阶段全部完成**。整次运行共记录 12,248 条事件，事件序号从 1 连续到 12,248，没有缺号，也没有重复编号。
 
 测试的问题只有一个：进程消失后，**同一个任务**能否继续并产出完整结果。下表中的数字是观测值，不是产品评分。

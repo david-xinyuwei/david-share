@@ -33,6 +33,17 @@ The public documentation defines the platform contract. This repository tests th
 
 ## What this repo validates
 
+The measured 18-phase workload came from a **Microsoft private-preview `resilient-research` sample used in July 2026**; it was not invented by this repository. It was a generic deep-research briefing task: the caller supplied a topic, while the measured topic and generated text remain private. The sample processed that topic through 18 fixed phases:
+
+- phases 1-4 framed the research questions, background literature, key researchers, and history;
+- phases 5-9 reviewed recent work, debates, evidence quality, related fields, and open problems;
+- phases 10-15 covered applications and adoption, funding, ethics, alternatives, risks, and outlook;
+- phases 16-18 synthesized the briefing, recommendations, and next steps.
+
+Each phase made one streaming model call and saved the completed-phase count before moving on. The [current public `resilient-research` sample](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/invocations/resilient-research) demonstrates the same workload family, but its configurable plan and defaults have evolved. **The number 18 is a property of the July sample run, not a current product requirement.**
+
+It is also not the only public resilience example. The current official catalog includes [`resilient-approval-gate`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/invocations/resilient-approval-gate) for Invocations and [`resilient-streaming`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming) plus [`resilient-steering`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-steering) for Responses.
+
 A research job had 18 planned phases and an expected runtime of about 22 minutes. Fifteen seconds into the run, phase 1 finished, and we terminated Process A. We did not submit a new job. Process B found the same task record, loaded the saved phase-1 progress, and completed phases 2-18. All **18 planned phases completed**. The run recorded 12,248 events with sequence numbers from 1 through 12,248; no sequence number was missing or repeated.
 
 The test is simple: after process loss, can the **same work item** continue and produce complete output? These are observations, not product scores.

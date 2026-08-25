@@ -15,6 +15,31 @@
       "accepted_main_scenarios": 8,
       "accepted_runs_per_scenario": 1,
       "benchmark": false,
+      "research_workload": {
+        "type": "generic multi-phase deep-research briefing",
+        "source": "Microsoft July 2026 private-preview resilient-research sample",
+        "input": "caller-supplied topic; the measured topic and generated text remain private",
+        "current_public_relation": "A related public resilient-research sample exists, but its configurable plan and defaults have evolved. The 18-phase plan is not a current product requirement, and resilient-research is not the only public resilience example.",
+        "phase_groups": [
+          {
+            "phases": "1-4",
+            "purpose": "frame the topic through focused questions, foundational literature, leading researchers and institutions, and historical context"
+          },
+          {
+            "phases": "5-9",
+            "purpose": "review recent breakthroughs, methodological debates, evidence quality, adjacent fields, and open problems"
+          },
+          {
+            "phases": "10-15",
+            "purpose": "assess applications and adoption, funding trends, ethics, alternative approaches, risks, and outlook"
+          },
+          {
+            "phases": "16-18",
+            "purpose": "synthesize the briefing, produce recommendations, and outline next steps"
+          }
+        ],
+        "execution": "one streaming model call per phase; completed-phase count checkpointed after each phase"
+      },
       "observations": [
         {
           "id": "python-invocations-research",
