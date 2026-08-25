@@ -14,192 +14,22 @@ The capability is in **public preview**. Every interruption was deliberate, not 
 
 [中文](README-CN.md) | English
 
-[Use this in your own agent](#use-this-in-your-own-agent) · [Measured scenarios](#evaluation-what-was-actually-run) · [Recovery model](#deep-dive-how-recovery-works) · [Quick start](#quick-start) · [Evidence](#evidence-and-boundaries) · [Official product documentation](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
-
----
-
-## Use this in your own agent
-
-Pick your goal first:
-
-| Your goal | Where to go | Azure subscription needed? |
-|---|---|---|
-| Watch a process die and the same task continue on my machine | [Run the local recovery experiment](#run-the-local-recovery-experiment) — one command, about a minute | No |
-| Add recovery to my own Hosted Agent | Complete configuration below | Only for the Azure deployment |
-| Reproduce the measured Foundry behavior | [Reproduce on a live Hosted Agent](#reproduce-on-a-live-hosted-agent) | Yes, use a non-production subscription |
-
-There is no package named `Resilience`, and installing an SDK does not enable recovery by itself. The current Microsoft Responses sample uses `azure-ai-agentserver-core` and `azure-ai-agentserver-responses`; install its exact pins:
-
-`pip install azure-ai-agentserver-core==2.1.0b2 azure-ai-agentserver-responses==2.1.0b2`
-
-### Choose where progress lives
-
-An external database is **not always required**. Choose one strategy before writing the handler:
-
-| Strategy | Separate progress store? | Exact configuration | Use it when |
-|---|---|---|---|
-| Safe rerun | No | Re-enter the handler from the beginning; every operation must be cheap and safe to repeat | No meaningful intermediate state or non-repeatable side effect exists |
-| Responses checkpoint | No separate database for completed response output | Start the server with `resilient_background=True`; create stored background responses; call `stream.checkpoint()` after each complete output stage; recover from `context.persisted_response` | Progress is the staged text/items in one Responses result |
-| Application/framework checkpoint | Yes | Save business state in SQL/Cosmos DB or a framework checkpointer; keep only a phase, idempotency key, or state pointer in task metadata | Tool state, approval state, large artifacts, payments, bookings, writes, or cross-system workflows must survive |
-
-Foundry persists the work identity, input, lease and stored response events. It does not automatically turn arbitrary business state into a checkpoint. Blob storage is suitable for large artifacts; use a database/checkpointer with transactions or optimistic concurrency for workflow state.
-
-These three choices come from Microsoft's current [long-running agent resilience contract](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience), not from this repository's local implementation.
-
-### Configure the server and handler
-
-The following block is synchronized with [`examples/resilient_responses_agent.py`](examples/resilient_responses_agent.py). It contains all four Responses recovery hooks: server opt-in, recovery seeding, a checkpoint after each completed stage, and graceful handoff on shutdown. Replace only `run_stage()` with your work:
-
-```python
-import asyncio
-
-from azure.ai.agentserver.core.tasks import set_resilient_tasks_enabled
-from azure.ai.agentserver.responses import (
-    CreateResponse,
-    ResponseContext,
-    ResponseEventStream,
-    ResponsesAgentServerHost,
-    ResponsesServerOptions,
-)
-
-STAGES = ("analyze", "generate", "refine")
-
-app = ResponsesAgentServerHost(
-    options=ResponsesServerOptions(resilient_background=True)
-)
-set_resilient_tasks_enabled(True)
+[Customer Start Here](CUSTOMER-START-HERE.md) · [Measured results](#measured-results) · [Recovery model](#deep-dive-how-recovery-works) · [Reproduce](#quick-start) · [Evidence](#evidence-and-boundaries) · [Official documentation](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
 
 
-async def run_stage(stage: str, prompt: str) -> str:
-    """Replace this body with one completed, safely repeatable stage."""
-    await asyncio.sleep(0)
-    return f"[{stage}] result for: {prompt}"
+## Start here
 
+Do not read the whole repository first. Choose the path that matches your goal:
 
-@app.response_handler
-async def handler(
-    request: CreateResponse,
-    context: ResponseContext,
-    cancellation_signal: asyncio.Event,
-):
-    if context.is_recovery and context.persisted_response is not None:
-        stream = ResponseEventStream(
-            response_id=context.response_id,
-            response=context.persisted_response,
-        )
-        start = len(stream.response.get("output") or [])
-    else:
-        stream = ResponseEventStream(
-            response_id=context.response_id,
-            request=request,
-        )
-        start = 0
-
-    yield stream.emit_created()
-    if context.shutdown.is_set():
-        await context.exit_for_recovery()
-    if cancellation_signal.is_set():
-        return
-
-    yield stream.emit_in_progress()
-    prompt = await context.get_input_text() or ""
-
-    for index, stage in enumerate(STAGES):
-        if index < start:
-            continue
-
-        result = await run_stage(stage, prompt)
-        if context.shutdown.is_set():
-            await context.exit_for_recovery()
-        if cancellation_signal.is_set():
-            return
-
-        message = stream.add_output_item_message()
-        yield message.emit_added()
-        text = message.add_text_content()
-        yield text.emit_added()
-        yield text.emit_text_done(result)
-        yield text.emit_done()
-        yield message.emit_done()
-        yield stream.checkpoint()
-
-    yield stream.emit_completed()
-
-
-if __name__ == "__main__":
-    app.run()
-```
-
-This contract maps one completed output item to one stage. If a stage changes an external system, the response checkpoint is not enough: configure application storage and idempotency as described below.
-
-### Prepare and deploy
-
-This path is pinned to Microsoft's deployable [`resilient-streaming`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming) sample at commit `b9b2cdd`:
-
-| Requirement | Configuration |
+| What you want to do | Go here |
 |---|---|
-| Azure | Non-production subscription; a Foundry project and model deployment. Use `Foundry Project Manager` at project scope; creating a project also requires `Owner` at resource-group scope. |
-| Local tools | Python 3.13, Azure CLI 2.80 or later, Azure Developer CLI (`azd`) 1.27.1 or later, and Git |
-| Authentication | Run `az login`, `azd ext install microsoft.foundry`, then `azd auth login` |
-| Agent definition | Keep the pinned sample's [`azure.yaml`](https://github.com/microsoft-foundry/foundry-samples/blob/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming/azure.yaml): `host: azure.ai.agent`, Responses protocol `2.0.0`, Python `3.13`, project/model dependency and hosted resources |
+| Add recovery to your Hosted Agent | [Customer Start Here](CUSTOMER-START-HERE.md) — complete packages, server settings, deployment, state, identity, caller and fault test |
+| Watch two local processes recover one task | [Run the local recovery experiment](#run-the-local-recovery-experiment) — no Azure subscription |
+| Inspect the measured claim | [Measured results](#measured-results), then [evidence and boundaries](#evidence-and-boundaries) |
 
-The tool versions, roles and identity behavior above follow the current [Hosted Agent quickstart](https://learn.microsoft.com/en-us/azure/foundry/agents/quickstarts/quickstart-hosted-agent) and [deployment guide](https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/deploy-hosted-agent).
+The shortest accurate answer is: enable resilient stored background work on the server and request; choose safe rerun, a Responses snapshot, or application-owned state; then keep the same response/work ID in the caller. An external database is required only when meaningful progress lives outside the stored response or a side effect must be reconciled.
 
-Run these steps in order:
-
-1. Clone and pin the source: `git clone https://github.com/microsoft-foundry/foundry-samples.git`, then `git -C foundry-samples checkout b9b2cdd67efee6287e4b263f83ed45f18fe892be`.
-2. Enter `foundry-samples/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming`.
-3. Run locally with `azd ai agent run`; the endpoint is `http://localhost:8088`.
-4. Create recoverable work with `store=true` **and** `background=true`; save the returned `response.id`.
-5. Provision the project, model and hosted resources with `azd provision`.
-6. Deploy with `azd deploy`; use the agent endpoint printed by the command.
-7. Invoke with `azd ai agent invoke '{"input":"test recovery","store":true,"background":true}'`.
-8. Read logs with `azd ai agent monitor --follow`.
-
-The sample simulates its three stages, so local recovery needs no model credential. To call a real model, replace its `_stage_tokens` / this repository's `run_stage()` and use the hosted container's injected `FOUNDRY_PROJECT_ENDPOINT`; do not put credentials in source code.
-
-### Configure external storage when your workload needs it
-
-For the third strategy, create one durable record per logical job. This is the minimum useful schema:
-
-| Field | Purpose |
-|---|---|
-| `work_id` | Stable application job ID; primary key |
-| `response_id` or `input_id` | Maps the business job to Foundry work |
-| `completed_phase` | Last phase whose output was committed |
-| `state_ref` | JSON state or a pointer to a large artifact |
-| `idempotency_key` | Stable key passed to the downstream operation |
-| `status` | `running`, `completed`, `failed`, or `needs_reconciliation` |
-| `version` / ETag | Rejects writes from a stale process after another process takes over |
-| `updated_at` | Audit and timeout decisions |
-
-Configure it as follows:
-
-1. Set non-secret values with `azd env set CHECKPOINT_ENDPOINT <resource-endpoint>` and `azd env set CHECKPOINT_DATABASE <database-name>`. Under the agent service in `azure.yaml`, add `environmentVariables` entries that map `CHECKPOINT_ENDPOINT` to `${CHECKPOINT_ENDPOINT}` and `CHECKPOINT_DATABASE` to `${CHECKPOINT_DATABASE}`.
-2. Authenticate with the Hosted Agent's Entra identity or managed identity through the identity method supported by the selected SDK (commonly `DefaultAzureCredential`); do not embed connection strings.
-3. After `azd deploy`, run `azd ai agent show` to confirm the active version, open the deployed Hosted Agent's **Identity** in the Foundry portal, and grant that identity least privilege on the external resource—for example, `Storage Blob Data Contributor` for one Blob scope, a Cosmos DB data-plane role for one database/container, or a contained Azure SQL user with only the required statements.
-4. At the start of each stage, read the record and skip a phase already committed.
-5. Use a transaction or ETag condition to save the phase result and advance `completed_phase` together.
-6. Generate the downstream idempotency key from the stable work ID and phase, and pass it to payments, bookings, writes, or tools. If the downstream system has no idempotency or lookup API, a crash can leave an unknown result; mark it `needs_reconciliation` instead of guessing.
-7. Keep `TaskContext.metadata` small: phase number, idempotency key or external-state pointer—not conversation history, model output, tool results or large artifacts. In the core 2.0.0 package inspected offline here, `metadata.flush()` returning is not a durable-write acknowledgement.
-
-For executable storage logic rather than another sketch, see [`recovery_contract_demo.py`](scripts/recovery_contract_demo.py): its SQLite implementation includes the task row, lease/generation fencing, atomic phase-result plus checkpoint commit, idempotency and conflicting-replay rejection. Replace SQLite with your chosen durable service while preserving those invariants.
-
-### Configure the caller
-
-| Caller action | Required behavior |
-|---|---|
-| Create | Send `store=true` and `background=true`; `stream=true` is optional |
-| Persist | Save `response.id`, your `work_id` and a deadline before acknowledging the request to your own caller |
-| Reconnect | Use `GET /responses/{response_id}` or `GET /responses/{response_id}?stream=true` |
-| Finish | Accept only an explicit terminal state plus complete expected output |
-| Unknown create result | Do not automatically create a second response; remote create and local ID persistence are not atomic, so use application deduplication or reconciliation |
-
-### Verify recovery
-
-On Linux, WSL2 or a container, run the pinned sample with `SIMULATE_CRASH_AFTER_STAGE=0 azd ai agent run`, create a stored background response, restart with the same `AGENTSERVER_STATE_ROOT`, and query the same response ID. Pass only when all three stages appear once and the response has an explicit terminal state. For application-owned storage, repeat the test once before and once after every phase commit; the recovered run must either safely rerun the uncommitted phase or continue after the committed phase without duplicating a side effect.
-
----
+**Done-when:** after injected process loss, the same work identity reaches an explicit terminal state with complete expected output, and committed side effects are not duplicated.
 
 ## What Foundry provides, and what your application owns
 
@@ -266,6 +96,7 @@ The figure below is the **official Microsoft diagram**, reproduced unmodified. I
 
 | Path | Contract |
 |---|---|
+| [`CUSTOMER-START-HERE.md`](CUSTOMER-START-HERE.md) | Single customer runbook for packages, deployment, state strategy, identity, caller behavior and fault acceptance |
 | [`examples/resilient_responses_agent.py`](examples/resilient_responses_agent.py) | Complete Responses recovery wiring: server opt-in, persisted-response restore, per-stage checkpoint and shutdown handoff |
 | [`examples/resilience_handler.py`](examples/resilience_handler.py) | The actual typed `@task` handler that imports and reads the public recovery context |
 | [`examples/resilience_sdk_usage.py`](examples/resilience_sdk_usage.py) | Loads that handler through the real decorator and emits dynamic JSON evidence; `--check` runs without an Azure endpoint |
@@ -291,7 +122,20 @@ Each file below uses the public SDK, or deliberately does not:
 
 **Pinned SDK limitation:** in core 2.0.0, returning from `await ctx.metadata.flush()` is not a durable-write acknowledgement because storage callback failures are logged rather than propagated to the handler. The lower-level `@task` example therefore reads metadata but does not present `flush()` as a confirmed checkpoint. The current Responses sample instead calls `stream.checkpoint()` to persist response snapshots; business state still needs a checkpointer that can confirm the write or a reconciliation path.
 
----
+
+## Measured results
+
+| Scenario | Interruption and recovery | Measured result | Boundary |
+|---|---|---|---|
+| 21.7-minute Python / Invocations | Killed after phase 1 and event 599 at 15 seconds; the same work resumed at event 600 and completed phases 2-18 | 1,301 seconds; 18/18 phases; 12,248 consecutive events with no gap or duplicate; about 95% of time and events occurred after loss | The 95% value describes work distribution, not success probability |
+| Python / Responses | Interrupted after output 0; the same response continued after a 47-second reconnect gap | Outputs 1-17 completed; 11,584 events; no missing or repeated output index | One observed response; this is not a guarantee for every Responses workload |
+| Pending approval | Replaced the runtime while no application step was running | Decision accepted after 56 seconds; original options remained; results `TRIP-182336` and `TRIP-749637` | Deterministic sample tools; these do not establish a general exactly-once guarantee or represent real bookings |
+| Host replacement | The same response returned `HTTP 424 Failed Dependency` 29 times | It later completed the expected French, Spanish, and round-trip output | Not every `424` is retryable; classify confirmed replacement before bounded polling |
+| Steering | A second turn arrived while the first was generating | Second turn was `queued`; first stopped after its saved step; second completed after 7 `in_progress` polls | Cooperative steering, not a cancel/restart race |
+
+<div align="center"><img src="images/approval-recovery.png" width="820" alt="Measured approval timeline showing 56 seconds from runtime loss to the decision being accepted"></div>
+
+The table answers whether recovery worked under the tested conditions. It is not an SLA or reliability percentage; the [evaluation method](#evaluation-what-was-actually-run) explains scope and sample count.
 
 ## Deep dive: how recovery works
 
@@ -341,7 +185,7 @@ The official contract covers saved work and input, lease expiry, later-process r
 | Replay safety | The application remains responsible for preventing duplicate side effects | Idempotency key; matching replay is deduplicated, conflicting replay fails closed |
 | Output observation | Stream replay reconnects clients; an explicit Responses `stream.checkpoint()` also persists a completed response snapshot | Validator checks sequence, output coverage, and terminal evidence; it does not simulate a service stream |
 
-#### Executable local recovery demo
+**Executable local recovery demo.**
 
 [`recovery_contract_demo.py`](scripts/recovery_contract_demo.py) uses only the Python standard library. Worker A commits phase 1 and exits through `os._exit(9)`; after lease expiry, Worker B reclaims the same work and completes phases 2-5. It writes a [JSON result](evidence/recovery-contract-demo.json) and [JSONL event log](evidence/recovery-contract-events.jsonl).
 
@@ -360,15 +204,15 @@ Four layers must line up; the process and handler layers remain **public-preview
 | Handler *(public preview)* | `context.persisted_response` + `stream.checkpoint()`, or an application/framework checkpoint | Restores completed output or business state | Does not make external side effects idempotent |
 | Client | `store=True`, `background=True`, same `response.id` | Creates addressable work and lets the caller poll or reattach | Must not replace recovery with a new create call |
 
-#### Start from the official Responses samples
+**Official sample.**
 
-Use the pinned deployable [`resilient-streaming`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming) sample, not an incomplete file with invented project, model, or identity values. The complete prerequisites, commands and storage choices are in [Use this in your own agent](#use-this-in-your-own-agent).
+Use the pinned deployable [`resilient-streaming`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming) sample, not an incomplete file with invented project, model, or identity values. The complete prerequisites, commands and storage choices are in [Customer Start Here](CUSTOMER-START-HERE.md).
 
-#### Enable process recovery
+**Process recovery.**
 
 Set `ResponsesServerOptions(resilient_background=True)`; the official sample also calls `set_resilient_tasks_enabled(True)` to make its opt-in explicit. Then send `store=True` and `background=True`. A foreground response or a background response without storage is not crash-reinvoked. The interfaces remain experimental; see the [SDK report](evidence/public-sdk-contract.json) for the lower-level symbol list.
 
-#### Continue from saved business progress
+**Saved progress.**
 
 After re-entry, the handler reads its Responses snapshot, framework checkpoint or application record. A phase may repeat if the process died before that boundary; a committed phase must be skipped.
 
@@ -383,7 +227,7 @@ The observed recovered entry reported `recovery_count=1` and `retry_attempt=0`.
 
 The pattern is: read identity and progress, rebuild state, run one replay-safe phase, persist its output and external-operation IDs, then advance the checkpoint. Payments, bookings, writes, and tools still require [idempotency](#prevent-duplicate-approvals-and-side-effects).
 
-#### Separate task creation from status observation
+**Creation and observation.**
 
 This repo tests local progress storage and result validation. Use the [official quickstart](https://learn.microsoft.com/en-us/azure/foundry/agents/quickstarts/quickstart-hosted-agent) for authenticated calls; the repo does not invent your endpoint, identity, store, or workload schema.
 
@@ -397,7 +241,6 @@ This repo tests local progress storage and result validation. Use the [official 
 
 Use `azd ai agent invoke` for ordinary calls. Use a tested application client when you must persist IDs and deadlines, restart polling, or enforce workload completion.
 
----
 
 ## Evaluation: what was actually run
 
@@ -459,43 +302,8 @@ The July campaign ran July 22-23 in one Canada Central project across Python/.NE
 
 Optional cancel, delete, and deny branches were outside this matrix and remain unverified here.
 
----
 
-## Measured results
-
-### A 21.7-minute run across injected process loss
-
-The Python Invocations run reached phase 1 and event 599 in 15 seconds; we then killed its process. Nothing was resubmitted. After reattachment, event 600 arrived on the same work item and phases 2-18 completed.
-
-The run ended after 1,301 seconds. All **18 planned phases completed**. It recorded 12,248 events with consecutive sequence numbers 1-12,248; no number was missing or repeated. Roughly 95% of elapsed time and events came after process loss; that is a work-distribution ratio, not a success score.
-
-### The same interruption, a different protocol
-
-The Python Responses run produced output index 0 before interruption. After a **47-second** reconnect gap, the same response produced indexes 1-17 and completed.
-
-Across 11,584 events, no output index was missing or repeated. This supports continuation of that stored response; it is not a guarantee for every Responses workload.
-
-### Injected runtime loss during a pending human approval
-
-<div align="center"><img src="images/approval-recovery.png" width="820" alt="Measured approval timeline showing 56 seconds from runtime loss to the decision being accepted"></div>
-
-The workflow was waiting for a person; no application step was running. We replaced the runtime at 12:24:27. The decision was accepted **56 seconds** later, and the agent resumed with the same options, returning `TRIP-182336`. A Responses run of the same pattern returned `TRIP-749637`.
-
-> These are deterministic sample tools. The confirmation numbers support that persisted graph state and one approval application survived these runs; they do not establish a general exactly-once guarantee or represent a real airline or hotel booking.
-
-### Twenty-nine `424` responses before completion
-
-During host replacement, the same response returned `HTTP 424 Failed Dependency` **29 times**, then completed with the expected French, Spanish, and round-trip output. A fixed retry budget of ten would have abandoned it too early.
-
-This does **not** make every `424` retryable. It means a still-addressable response under confirmed host replacement should be classified before it is abandoned.
-
-### Interrupting on purpose
-
-A second turn sent during generation was accepted as `queued`. The first turn stopped after its latest completed step had been saved; after seven `in_progress` polls, the second completed with the expected answer. This was cooperative steering, not a cancel/restart race.
-
----
-
-## Judge recovery by workload output, not transport sequence
+## Acceptance rules
 
 Three research runs continued their transport sequence after reattachment. One .NET Responses run **restarted at 5** but still delivered complete output indexes 1-17 on the same response.
 
@@ -508,11 +316,7 @@ Three research runs continued their transport sequence after reattachment. One .
 
 Check output indexes, phases, and durable state. Transport numbering is diagnostic only; and monotonic is not gap-free—`10, 12` still misses 11.
 
----
-
-## Executable checks and client rules
-
-[`validate_observations.py`](scripts/validate_observations.py) implements the rules below; its [JSON report](evidence/observation-validation.json) records both passing and failing cases.
+[`validate_observations.py`](scripts/validate_observations.py) implements the remaining rules below; its [JSON report](evidence/observation-validation.json) records both passing and failing cases.
 
 ### Reject gaps and duplicates
 
@@ -538,7 +342,6 @@ Continue bounded polling on `424` only when the same work remains addressable an
 
 The same approval may arrive again after recovery. The SQLite ledger skips identical replay and rejects conflicting content. Real payment, booking, and write APIs must honor the same idempotency identity or they may still execute twice.
 
----
 
 ## Quick start
 
@@ -588,11 +391,10 @@ Done-when is `PASS: imported azure.ai.agentserver.core.tasks`, `18/18 checks pas
 
 ### Reproduce on a live Hosted Agent
 
-The local commands prove this repository's executable recovery algorithm, **not** the Foundry service. Follow the complete [Prepare and deploy](#prepare-and-deploy) path above. It pins Microsoft's current deployable sample at [`b9b2cdd`](https://github.com/microsoft-foundry/foundry-samples/blob/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming/src/resilient-streaming/requirements.txt), where `core` and `responses` are both `2.1.0b2`; do **not** replace them with this repository's historical 2.0.0 offline-probe pins. While the stored background response is `in_progress`, replace the runtime instance, then poll the same response ID and validate every expected output item.
+The local commands prove this repository's executable recovery algorithm, **not** the Foundry service. Follow [Customer Start Here](CUSTOMER-START-HERE.md), which pins Microsoft's deployable sample at [`b9b2cdd`](https://github.com/microsoft-foundry/foundry-samples/blob/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming/src/resilient-streaming/requirements.txt), where `core` and `responses` are both `2.1.0b2`; do **not** replace them with this repository's historical 2.0.0 offline-probe pins. While the stored background response is `in_progress`, replace the runtime instance, then poll the same response ID and validate every expected output item.
 
 This repository intentionally does not invent your Foundry project, model deployment, identity, or endpoint. Live done-when is recovery of the same work identity plus complete workload output and explicit terminal state—not a portal chart or a bare `completed` string.
 
----
 
 ## Failure and recovery playbook
 
@@ -609,7 +411,6 @@ Each row below is a diagnostic starting point, not a universal mapping from symp
 | Captured log stops | Query durable service state | Infer failure from the last line | Recapture or read the terminal state directly |
 | New instruction arrives mid-turn | Check whether steering is enabled | Hard-kill and race a new run | Queue through steering or use the documented cancellation policy |
 
----
 
 ## Design guidance
 
@@ -622,7 +423,6 @@ These are engineering recommendations, not product guarantees:
 5. **Classify status codes against durable state before acting.**
 6. **Distinguish suspended from active work.** Waiting for approval may release compute without losing the task.
 
----
 
 ## Evidence and boundaries
 
@@ -666,7 +466,6 @@ For a specific workload, require all of the following:
 - monitoring that separates runtime, workload, observer, and authentication failures;
 - revalidation against current product documentation for your target region, runtime, and protocol.
 
----
 
 ## Related work
 

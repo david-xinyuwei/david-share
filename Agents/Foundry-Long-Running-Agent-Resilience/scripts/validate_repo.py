@@ -40,6 +40,8 @@ def parse_root() -> Path:
 ROOT = parse_root()
 EN = ROOT / "README.md"
 CN = ROOT / "README-CN.md"
+START_EN = ROOT / "CUSTOMER-START-HERE.md"
+START_CN = ROOT / "CUSTOMER-START-HERE-CN.md"
 
 ALLOWED_FILES = {
     ".gitattributes",
@@ -47,6 +49,8 @@ ALLOWED_FILES = {
     "LICENSE",
     "README.md",
     "README-CN.md",
+    "CUSTOMER-START-HERE.md",
+    "CUSTOMER-START-HERE-CN.md",
     "THIRD-PARTY-NOTICES.md",
     "requirements-validation.txt",
     "examples/resilience_handler.py",
@@ -103,34 +107,22 @@ CRITICAL_NUMBERS = [
 ]
 
 REQUIRED_EN_SECTIONS = [
-    "## Use this in your own agent",
-    "### Choose where progress lives",
-    "### Configure the server and handler",
-    "### Prepare and deploy",
-    "### Configure external storage when your workload needs it",
-    "### Configure the caller",
-    "### Verify recovery",
+    "## Start here",
     "## What Foundry provides, and what your application owns",
     "## What this repo validates",
     "### Recovery model at a glance",
     "### The repository is executable, not just a write-up",
+    "## Measured results",
     "## Deep dive: how recovery works",
     "### Three concepts used below",
     "### Recovery can repeat work after the last checkpoint",
     "### Three integration options",
     "### Official recovery contract and local example",
-    "#### Executable local recovery demo",
     "### Four layers required for recovery",
-    "#### Start from the official Responses samples",
-    "#### Enable process recovery",
-    "#### Continue from saved business progress",
-    "#### Separate task creation from status observation",
     "## Evaluation: what was actually run",
     "### Current public-preview contract check",
     "### On a deployed agent, on an ordinary subscription",
-    "## Measured results",
-    "## Judge recovery by workload output, not transport sequence",
-    "## Executable checks and client rules",
+    "## Acceptance rules",
     "### Reject gaps and duplicates",
     "### A `done` frame is not proof of success",
     "### Classify `424` separately from `403`",
@@ -146,34 +138,22 @@ REQUIRED_EN_SECTIONS = [
 ]
 
 REQUIRED_CN_SECTIONS = [
-    "## 在你自己的 Agent 里使用",
-    "### 先选进度放在哪里",
-    "### 配置服务端和 Handler",
-    "### 准备和部署",
-    "### 业务需要外部存储时怎么配",
-    "### 配置调用方",
-    "### 验收恢复",
+    "## 从这里开始",
     "## Foundry 提供什么，应用负责什么",
     "## 本仓库验证了什么",
     "### 恢复模型速览",
     "### 本仓库可直接运行，不只是说明文档",
+    "## 实测结果",
     "## 深入理解：恢复如何工作",
     "### 先说明三个概念",
     "### 恢复后，最后一个进度点之后的工作可能重做",
     "### 三种接入方式",
     "### 官方恢复机制与本地示例",
-    "#### 本地恢复演示程序",
     "### 启用恢复需要配置四层",
-    "#### 从官方 Responses 样例开始",
-    "#### 开启进程恢复",
-    "#### 从已保存的业务进度继续",
-    "#### 分开处理任务创建与状态查询",
     "## 评估：到底跑了什么",
     "### 当前 public-preview 契约检查",
     "### 在普通订阅上，验证真实部署的 Agent",
-    "## 实测结果",
-    "## 验收看任务结果，不只看传输编号",
-    "## 自动检查与客户端规则",
+    "## 验收规则",
     "### 同时拒绝缺口和重复",
     "### 一个 `done` 帧不能证明成功",
     "### 把 `424` 和 `403` 分开处理",
@@ -186,6 +166,28 @@ REQUIRED_CN_SECTIONS = [
     "## 设计建议",
     "## 证据与边界",
     "### 宣称“可以上生产”之前",
+]
+
+REQUIRED_START_EN_SECTIONS = [
+    "## Supported path",
+    "### Choose the progress strategy",
+    "### Prerequisites",
+    "### Configure the agent",
+    "### Run and deploy",
+    "### Configure external state only when needed",
+    "### Configure the caller",
+    "### Accept the recovery",
+]
+
+REQUIRED_START_CN_SECTIONS = [
+    "## 支持的路径",
+    "### 先选进度策略",
+    "### 前置条件",
+    "### 配置 Agent",
+    "### 运行和部署",
+    "### 仅在需要时配置外部状态",
+    "### 配置调用方",
+    "### 验收恢复",
 ]
 
 REQUIRED_CONCEPTS = {
@@ -413,14 +415,18 @@ def count_unittest_cases(suite: unittest.TestSuite) -> int:
 def main() -> int:
     errors: list[str] = []
 
-    if not EN.is_file() or not CN.is_file():
-        print("ERROR: both READMEs must exist")
+    if not all(path.is_file() for path in (EN, CN, START_EN, START_CN)):
+        print("ERROR: both READMEs and both customer-start guides must exist")
         return 1
 
     en_text = EN.read_text(encoding="utf-8")
     cn_text = CN.read_text(encoding="utf-8")
+    start_en_text = START_EN.read_text(encoding="utf-8")
+    start_cn_text = START_CN.read_text(encoding="utf-8")
     en_lines = en_text.splitlines()
     cn_lines = cn_text.splitlines()
+    start_en_lines = start_en_text.splitlines()
+    start_cn_lines = start_cn_text.splitlines()
 
     def require(condition: bool, message: str) -> None:
         if not condition:
@@ -431,6 +437,34 @@ def main() -> int:
     require(tables(en_lines) == tables(cn_lines), "table shapes differ")
     require(abs(len(en_lines) - len(cn_lines)) <= 15,
             f"line-count drift too large: {len(en_lines)} vs {len(cn_lines)}")
+    require(
+        len(headings(en_text)) <= 36,
+        f"English main narrative re-fragmented into {len(headings(en_text))} headings",
+    )
+    require(
+        len(headings(cn_text)) <= 36,
+        f"Chinese main narrative re-fragmented into {len(headings(cn_text))} headings",
+    )
+    require(
+        headings(start_en_text) == headings(start_cn_text),
+        "customer-start heading level sequence differs",
+    )
+    require(
+        tables(start_en_lines) == tables(start_cn_lines),
+        "customer-start table shapes differ",
+    )
+    require(
+        abs(len(start_en_lines) - len(start_cn_lines)) <= 12,
+        (
+            "customer-start line-count drift too large: "
+            f"{len(start_en_lines)} vs {len(start_cn_lines)}"
+        ),
+    )
+    require(
+        len(headings(start_en_text)) <= 10
+        and len(headings(start_cn_text)) <= 10,
+        "customer-start guides must remain one compact runbook",
+    )
 
     # Image parity: two project charts are localized; the official CC BY image is shared.
     en_images = images(en_text)
@@ -456,9 +490,23 @@ def main() -> int:
         alts = image_alt_texts(text)
         require(len(alts) == 3 and all(alt.strip() for alt in alts),
                 f"{readme.name}: every image needs non-empty alt text")
+        require(
+            not re.search(r"^####\s+", text, flags=re.MULTILINE),
+            f"{readme.name}: one-paragraph H4 fragments must stay merged",
+        )
+        require(
+            not re.search(r"^---\s*$", text, flags=re.MULTILINE),
+            f"{readme.name}: decorative horizontal separators must not return",
+        )
 
     # Link and image targets exist
-    for readme, text in ((EN, en_text), (CN, cn_text)):
+    documents = (
+        (EN, en_text),
+        (CN, cn_text),
+        (START_EN, start_en_text),
+        (START_CN, start_cn_text),
+    )
+    for readme, text in documents:
         for target in local_links(text) + images(text):
             if target.startswith("../"):
                 continue
@@ -483,19 +531,52 @@ def main() -> int:
     for number in CRITICAL_NUMBERS:
         require(number in en_text, f"English README missing measured value {number}")
         require(number in cn_text, f"Chinese README missing measured value {number}")
+    for number in ("3.13", "2.80", "1.27.1", "2.1.0b2", "2.0.0"):
+        require(number in start_en_text,
+                f"English customer-start guide missing version {number}")
+        require(number in start_cn_text,
+                f"Chinese customer-start guide missing version {number}")
 
     # Customer-first narrative and recovery semantics
     for section in REQUIRED_EN_SECTIONS:
         require(section in en_text, f"English README missing customer-first section: {section}")
     for section in REQUIRED_CN_SECTIONS:
         require(section in cn_text, f"Chinese README missing customer-first section: {section}")
+    for section in REQUIRED_START_EN_SECTIONS:
+        require(
+            section in start_en_text,
+            f"English customer-start guide missing section: {section}",
+        )
+    for section in REQUIRED_START_CN_SECTIONS:
+        require(
+            section in start_cn_text,
+            f"Chinese customer-start guide missing section: {section}",
+        )
     en_section_positions = [en_text.index(section) for section in REQUIRED_EN_SECTIONS if section in en_text]
     cn_section_positions = [cn_text.index(section) for section in REQUIRED_CN_SECTIONS if section in cn_text]
+    start_en_positions = [
+        start_en_text.index(section)
+        for section in REQUIRED_START_EN_SECTIONS
+        if section in start_en_text
+    ]
+    start_cn_positions = [
+        start_cn_text.index(section)
+        for section in REQUIRED_START_CN_SECTIONS
+        if section in start_cn_text
+    ]
     require(en_section_positions == sorted(en_section_positions),
             "English README does not follow the required reader flow")
     require(cn_section_positions == sorted(cn_section_positions),
             "Chinese README does not follow the required reader flow")
-    for readme, text in ((EN, en_text), (CN, cn_text)):
+    require(
+        start_en_positions == sorted(start_en_positions),
+        "English customer-start guide does not follow the required flow",
+    )
+    require(
+        start_cn_positions == sorted(start_cn_positions),
+        "Chinese customer-start guide does not follow the required flow",
+    )
+    for readme, text in documents:
         require(not re.search(r"^#{2,4}\s+\d+(?:\.\d+)*\.", text, flags=re.MULTILINE),
                 f"{readme.name}: numbered manual-style headings must not replace reader-flow headings")
         require(not re.search(r"\bPath [ABC]\b|路径 [ABC]", text),
@@ -507,12 +588,24 @@ def main() -> int:
     for snippet in (
         "not active-active redundancy",
         "task-level recovery",
-        "azure.ai.agentserver.core.tasks",
         "flush()` is not a durable-write acknowledgement",
-        "| Your goal | Where to go | Azure subscription needed? |",
+        "[Customer Start Here](CUSTOMER-START-HERE.md)",
+        "| What you want to do | Go here |",
+    ):
+        require(snippet in en_text,
+                f"English README missing main reader route: {snippet}")
+    for snippet in (
+        "不是让两个 Agent 同时执行同一任务的 active-active 双活",
+        "任务级恢复",
+        "不等于“持久化已经确认成功”",
+        "[客户快速入口](CUSTOMER-START-HERE-CN.md)",
+        "| 你想做什么 | 去哪里 |",
+    ):
+        require(snippet in cn_text,
+                f"Chinese README missing main reader route: {snippet}")
+    for snippet in (
+        "| Strategy | External progress store? | Use when |",
         "pip install azure-ai-agentserver-core==2.1.0b2 azure-ai-agentserver-responses==2.1.0b2",
-        "An external database is **not always required**",
-        "| Strategy | Separate progress store? | Exact configuration | Use it when |",
         "ResponsesServerOptions(resilient_background=True)",
         "stream.checkpoint()",
         "context.persisted_response",
@@ -525,17 +618,11 @@ def main() -> int:
         "azd ai agent show",
         "remote create and local ID persistence are not atomic",
     ):
-        require(snippet in en_text,
-                f"English README missing customer adoption guidance: {snippet}")
+        require(snippet in start_en_text,
+                f"English customer-start guide missing adoption guidance: {snippet}")
     for snippet in (
-        "不是让两个 Agent 同时执行同一任务的 active-active 双活",
-        "任务级恢复",
-        "azure.ai.agentserver.core.tasks",
-        "不等于“持久化已经确认成功”",
-        "| 你的目标 | 去哪里 | 需要 Azure 订阅吗 |",
+        "| 策略 | 要另配进度存储吗 | 适用场景 |",
         "pip install azure-ai-agentserver-core==2.1.0b2 azure-ai-agentserver-responses==2.1.0b2",
-        "**不是所有任务都要另建数据库。**",
-        "| 策略 | 要另配进度存储吗 | 具体配置 | 适用场景 |",
         "ResponsesServerOptions(resilient_background=True)",
         "stream.checkpoint()",
         "context.persisted_response",
@@ -548,8 +635,8 @@ def main() -> int:
         "azd ai agent show",
         "远端 create 与本地保存 ID 不是一个原子事务",
     ):
-        require(snippet in cn_text,
-                f"Chinese README missing customer adoption guidance: {snippet}")
+        require(snippet in start_cn_text,
+                f"Chinese customer-start guide missing adoption guidance: {snippet}")
     for snippet in (
         "Microsoft private-preview `resilient-research` sample",
         "generic deep-research briefing task",
@@ -683,13 +770,10 @@ def main() -> int:
 
     for readme, text in ((EN, en_text), (CN, cn_text)):
         python_blocks = fenced_blocks(text, "python")
-        require(len(python_blocks) == 1,
-                f"{readme.name}: expected one source-synchronized Python block")
-        if len(python_blocks) == 1:
-            require(
-                python_blocks[0].strip() == expected_python_snippet,
-                f"{readme.name}: Python block drifted from resilient_responses_agent.py",
-            )
+        require(
+            not python_blocks,
+            f"{readme.name}: full handler code belongs in examples/, not the main narrative",
+        )
         require(not fenced_blocks(text, "yaml"),
                 f"{readme.name}: incomplete YAML fragments are forbidden")
         console_blocks = fenced_blocks(text, "console")
@@ -764,6 +848,15 @@ def main() -> int:
         for retired in ("pseudocode", "伪代码", "interface sketches", "接口示意"):
             require(retired not in text,
                     f"{readme.name}: retired non-executable content returned: {retired}")
+    for guide, text in ((START_EN, start_en_text), (START_CN, start_cn_text)):
+        require(
+            not fenced_blocks(text, "python"),
+            f"{guide.name}: link the executable handler instead of duplicating it",
+        )
+        require(
+            not fenced_blocks(text, "yaml"),
+            f"{guide.name}: use the pinned complete azure.yaml instead of fragments",
+        )
 
     # Confirmation identifiers must appear in both
     for token in ("TRIP-182336", "TRIP-749637", "424", "403"):
@@ -1436,8 +1529,10 @@ def main() -> int:
         return 1
 
     print(
-        f"PASS: bilingual parity ({len(headings(en_text))} headings, "
-        f"{len(tables(en_lines))} tables), "
+        f"PASS: bilingual parity ({len(headings(en_text))} main headings, "
+        f"{len(headings(start_en_text))} customer-start headings, "
+        f"{len(tables(en_lines))} main tables, "
+        f"{len(tables(start_en_lines))} customer-start tables), "
         f"Data/Log Rich ({len(manifest_map)} hashed evidence files, "
         f"{len(events)} structured events), "
         f"Code/Test Rich ({len(python_files)} Python files, {test_count} tests), "

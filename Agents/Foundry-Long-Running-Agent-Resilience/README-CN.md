@@ -14,192 +14,22 @@
 
 [English](README.md) | 中文
 
-[在你自己的 Agent 里使用](#在你自己的-agent-里使用) · [实测场景](#评估到底跑了什么) · [恢复模型](#深入理解恢复如何工作) · [快速开始](#快速开始) · [证据](#证据与边界) · [官方产品文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
-
----
-
-## 在你自己的 Agent 里使用
-
-先确定你想做哪件事：
-
-| 你的目标 | 去哪里 | 需要 Azure 订阅吗 |
-|---|---|---|
-| 在自己电脑上亲眼看到进程被杀掉、同一个任务继续跑完 | [运行本地恢复实验](#运行本地恢复实验)，一条命令，约一分钟 | 不需要 |
-| 给自己的 Hosted Agent 加恢复能力 | 按本节完整配置 | 只有部署到 Azure 时需要 |
-| 复现文中实测的 Foundry 行为 | [在真实 Hosted Agent 上复现](#在真实-hosted-agent-上复现) | 需要，请用非生产订阅 |
-
-没有名字叫 `Resilience` 的包，安装 SDK 也不会自动开启恢复。微软当前 Responses 样例使用 `azure-ai-agentserver-core` 和 `azure-ai-agentserver-responses`；请安装样例固定的版本：
-
-`pip install azure-ai-agentserver-core==2.1.0b2 azure-ai-agentserver-responses==2.1.0b2`
-
-### 先选进度放在哪里
-
-**不是所有任务都要另建数据库。** 写 Handler 之前先选一种策略：
-
-| 策略 | 要另配进度存储吗 | 具体配置 | 适用场景 |
-|---|---|---|---|
-| 安全重跑 | 不需要 | Handler 从头重入；所有操作都必须便宜且可安全重复 | 没有重要的中间状态，也没有不可重复的外部操作 |
-| Responses checkpoint | 已完成的 response 输出不需要另建数据库 | 服务端设置 `resilient_background=True`；请求使用 stored background response；每个完整输出阶段后调用 `stream.checkpoint()`；恢复时读取 `context.persisted_response` | 进度就是一个 Responses 结果里的分段文本或 output item |
-| 应用或 framework checkpoint | 需要 | 用 SQL、Cosmos DB 或框架 checkpointer 保存业务状态；任务 metadata 只放阶段、幂等键或状态指针 | 工具状态、审批、较大文件、付款、预订、写入或跨系统流程必须保留 |
-
-Foundry 负责持久化任务身份、输入、租约和 stored response 事件，但不会自动把任意业务状态变成 checkpoint。大文件适合放 Blob；流程状态应放在支持事务或乐观并发控制的数据库/checkpointer 中。
-
-这三种选择来自微软当前公开的[长任务 Agent 韧性契约](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)，不是本仓库本地示例自己定义的。
-
-### 配置服务端和 Handler
-
-下面代码与 [`examples/resilient_responses_agent.py`](examples/resilient_responses_agent.py) 逐字同步，包含 Responses 恢复所需的四个位置：服务端开启恢复、恢复时载入快照、每个完整阶段后写 checkpoint、关闭时交给下一进程。你只需要把 `run_stage()` 换成自己的业务逻辑：
-
-```python
-import asyncio
-
-from azure.ai.agentserver.core.tasks import set_resilient_tasks_enabled
-from azure.ai.agentserver.responses import (
-    CreateResponse,
-    ResponseContext,
-    ResponseEventStream,
-    ResponsesAgentServerHost,
-    ResponsesServerOptions,
-)
-
-STAGES = ("analyze", "generate", "refine")
-
-app = ResponsesAgentServerHost(
-    options=ResponsesServerOptions(resilient_background=True)
-)
-set_resilient_tasks_enabled(True)
+[客户快速入口](CUSTOMER-START-HERE-CN.md) · [实测结果](#实测结果) · [恢复模型](#深入理解恢复如何工作) · [复现](#快速开始) · [证据](#证据与边界) · [官方文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
 
 
-async def run_stage(stage: str, prompt: str) -> str:
-    """Replace this body with one completed, safely repeatable stage."""
-    await asyncio.sleep(0)
-    return f"[{stage}] result for: {prompt}"
+## 从这里开始
 
+不用先读全文，按你的目标选择入口：
 
-@app.response_handler
-async def handler(
-    request: CreateResponse,
-    context: ResponseContext,
-    cancellation_signal: asyncio.Event,
-):
-    if context.is_recovery and context.persisted_response is not None:
-        stream = ResponseEventStream(
-            response_id=context.response_id,
-            response=context.persisted_response,
-        )
-        start = len(stream.response.get("output") or [])
-    else:
-        stream = ResponseEventStream(
-            response_id=context.response_id,
-            request=request,
-        )
-        start = 0
-
-    yield stream.emit_created()
-    if context.shutdown.is_set():
-        await context.exit_for_recovery()
-    if cancellation_signal.is_set():
-        return
-
-    yield stream.emit_in_progress()
-    prompt = await context.get_input_text() or ""
-
-    for index, stage in enumerate(STAGES):
-        if index < start:
-            continue
-
-        result = await run_stage(stage, prompt)
-        if context.shutdown.is_set():
-            await context.exit_for_recovery()
-        if cancellation_signal.is_set():
-            return
-
-        message = stream.add_output_item_message()
-        yield message.emit_added()
-        text = message.add_text_content()
-        yield text.emit_added()
-        yield text.emit_text_done(result)
-        yield text.emit_done()
-        yield message.emit_done()
-        yield stream.checkpoint()
-
-    yield stream.emit_completed()
-
-
-if __name__ == "__main__":
-    app.run()
-```
-
-这里约定一个已完成的 output item 对应一个阶段。如果某个阶段会修改外部系统，仅有 response checkpoint 不够，还必须按下文配置应用存储和幂等。
-
-### 准备和部署
-
-下面步骤固定到微软可部署的 [`resilient-streaming`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming) 样例 commit `b9b2cdd`：
-
-| 前置项 | 配置 |
+| 你想做什么 | 去哪里 |
 |---|---|
-| Azure | 非生产订阅；Foundry project 和模型部署。已有 project 时需要 project 范围的 `Foundry Project Manager`；新建 project 还需要资源组范围的 `Owner`。 |
-| 本机工具 | Python 3.13、Azure CLI 2.80 或更高版本、Azure Developer CLI（`azd`）1.27.1 或更高版本、Git |
-| 登录 | 依次运行 `az login`、`azd ext install microsoft.foundry`、`azd auth login` |
-| Agent 定义 | 保留固定样例中的 [`azure.yaml`](https://github.com/microsoft-foundry/foundry-samples/blob/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming/azure.yaml)：`host: azure.ai.agent`、Responses protocol `2.0.0`、Python `3.13`、project/model 依赖和托管资源 |
+| 给自己的 Hosted Agent 加恢复能力 | [客户快速入口](CUSTOMER-START-HERE-CN.md)：软件包、服务端、部署、状态、身份、调用方和故障验收都在一处 |
+| 在本机看两个进程接力同一任务 | [运行本地恢复实验](#运行本地恢复实验)，不需要 Azure 订阅 |
+| 核对实测结论 | 先看[实测结果](#实测结果)，再看[证据与边界](#证据与边界) |
 
-上表的工具版本、角色和 identity 行为来自当前 [Hosted Agent quickstart](https://learn.microsoft.com/en-us/azure/foundry/agents/quickstarts/quickstart-hosted-agent) 与[部署指南](https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/deploy-hosted-agent)。
+最短且准确的答案是：服务端和请求都启用可恢复的 stored background work；再根据任务选择安全重跑、Responses 快照或应用自有状态；调用方始终保存同一个 response/work ID。只有当重要进度不在 stored response 中，或外部操作需要对账时，才必须另配数据库。
 
-按顺序执行：
-
-1. 下载并固定源码：运行 `git clone https://github.com/microsoft-foundry/foundry-samples.git`，再运行 `git -C foundry-samples checkout b9b2cdd67efee6287e4b263f83ed45f18fe892be`。
-2. 进入 `foundry-samples/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming`。
-3. 运行 `azd ai agent run` 做本地测试；endpoint 是 `http://localhost:8088`。
-4. 创建任务时同时设置 `store=true` 和 `background=true`，并保存返回的 `response.id`。
-5. 运行 `azd provision`，创建 project、模型和 Hosted Agent 所需资源。
-6. 运行 `azd deploy`；部署结束后使用命令输出的 agent endpoint。
-7. 运行 `azd ai agent invoke '{"input":"test recovery","store":true,"background":true}'` 发起任务。
-8. 运行 `azd ai agent monitor --follow` 查看日志。
-
-该样例默认模拟三个阶段，因此本地恢复不需要模型凭据。接入真实模型时，替换样例的 `_stage_tokens` 或本仓库的 `run_stage()`，读取 Hosted Agent 自动注入的 `FOUNDRY_PROJECT_ENDPOINT`；不要把凭据写入源码。
-
-### 业务需要外部存储时怎么配
-
-使用第三种策略时，每个业务任务至少要有一条持久化记录：
-
-| 字段 | 用途 |
-|---|---|
-| `work_id` | 应用自己的稳定任务 ID；主键 |
-| `response_id` 或 `input_id` | 把业务任务映射到 Foundry 任务 |
-| `completed_phase` | 最后一个已经提交结果的阶段 |
-| `state_ref` | JSON 状态，或大文件所在位置 |
-| `idempotency_key` | 传给下游操作的稳定幂等键 |
-| `status` | `running`、`completed`、`failed` 或 `needs_reconciliation` |
-| `version` / ETag | 新进程接管后，拒绝旧进程继续写入 |
-| `updated_at` | 用于审计和超时判断 |
-
-配置方法：
-
-1. 用 `azd env set CHECKPOINT_ENDPOINT <resource-endpoint>` 和 `azd env set CHECKPOINT_DATABASE <database-name>` 设置非敏感值。在 `azure.yaml` 的 agent service 下增加 `environmentVariables`，把 `CHECKPOINT_ENDPOINT` 映射到 `${CHECKPOINT_ENDPOINT}`，把 `CHECKPOINT_DATABASE` 映射到 `${CHECKPOINT_DATABASE}`。
-2. 通过所选 SDK 支持的 identity 方式（通常是 `DefaultAzureCredential`），使用 Hosted Agent 的 Entra identity 或 managed identity 登录；不要写 connection string。
-3. 执行 `azd deploy` 后，运行 `azd ai agent show` 确认当前版本，再到 Foundry portal 打开这个 Hosted Agent 的 **Identity**。在外部资源上给这个 identity 分配最小权限，例如：Blob 的单个 scope 使用 `Storage Blob Data Contributor`；Cosmos DB 使用单个 database/container 的数据面角色；Azure SQL 创建 contained user，并且只授予所需语句。
-4. 每个阶段开始时读取记录；已经提交的阶段直接跳过。
-5. 用事务或 ETag 条件把阶段结果与 `completed_phase` 一起提交。
-6. 用稳定的 `work_id + phase` 生成下游幂等键，并传给付款、预订、写入或工具。如果下游既不支持幂等键，也不能查询结果，崩溃后可能无法判断操作是否成功；此时标记 `needs_reconciliation`，不要猜测并重做。
-7. `TaskContext.metadata` 只放阶段号、幂等键或外部状态指针，不放对话历史、模型输出、工具结果和大文件。本仓库离线检查的 core 2.0.0 中，`metadata.flush()` 返回并不等于持久化已经确认成功。
-
-需要可运行的存储代码，而不是另一段示意时，直接看 [`recovery_contract_demo.py`](scripts/recovery_contract_demo.py)：SQLite 实现已经包含任务记录、租约/版本隔离、阶段结果与 checkpoint 原子提交、幂等和冲突重放拒绝。生产环境把 SQLite 换成所选持久化服务，但保留这些约束。
-
-### 配置调用方
-
-| 调用方动作 | 必须做到 |
-|---|---|
-| 创建 | 同时发送 `store=true` 和 `background=true`；`stream=true` 可选 |
-| 保存 | 在向自己的调用方确认成功之前，保存 `response.id`、自己的 `work_id` 和 deadline |
-| 重连 | 使用 `GET /responses/{response_id}` 或 `GET /responses/{response_id}?stream=true` |
-| 完成 | 只有明确终态和完整预期输出同时出现，才接受为成功 |
-| 创建结果未知 | 不要自动创建第二条 response；远端 create 与本地保存 ID 不是一个原子事务，需要应用去重或人工/自动对账 |
-
-### 验收恢复
-
-在 Linux、WSL2 或 container 中，用 `SIMULATE_CRASH_AFTER_STAGE=0 azd ai agent run` 启动固定样例，创建 stored background response；进程退出后，用相同的 `AGENTSERVER_STATE_ROOT` 重启，再查询同一个 response ID。三个阶段都只出现一次，并且 response 有明确终态，才算通过。使用应用自有存储时，要分别在每个阶段提交前和提交后各杀一次进程：未提交阶段必须可以安全重跑，已提交阶段必须直接跳过，外部操作不能重复。
-
----
+**完成标准：** 主动注入进程丢失后，同一条任务到达明确终态、预期输出完整，而且已提交的外部操作没有重复。
 
 ## Foundry 提供什么，应用负责什么
 
@@ -266,6 +96,7 @@ if __name__ == "__main__":
 
 | 文件或目录 | 作用 |
 |---|---|
+| [`CUSTOMER-START-HERE-CN.md`](CUSTOMER-START-HERE-CN.md) | 软件包、部署、状态策略、身份、调用方和故障验收的唯一客户 Runbook。 |
 | [`examples/resilient_responses_agent.py`](examples/resilient_responses_agent.py) | 完整的 Responses 恢复接线：服务端开启恢复、载入已保存 response、逐阶段 checkpoint、关闭时交接。 |
 | [`examples/resilience_handler.py`](examples/resilience_handler.py) | 真实的 typed `@task` 处理函数，直接 import 并读取公共恢复上下文。 |
 | [`examples/resilience_sdk_usage.py`](examples/resilience_sdk_usage.py) | 通过真实 decorator 加载该 handler，并生成动态 JSON 证据；执行 `--check` 不需要 Azure endpoint。 |
@@ -291,7 +122,20 @@ if __name__ == "__main__":
 
 **固定版本 SDK 的限制：** 在 core 2.0.0 中，`await ctx.metadata.flush()` 返回并不等于“持久化已经确认成功”，因为底层存储回调失败时只记录日志，不会把异常抛回处理函数。因此，底层 `@task` 示例只读取 `metadata`，不把 `flush()` 写成已确认进度点。当前 Responses 样例改用 `stream.checkpoint()` 保存 response 快照；业务状态仍需要能确认写入的 checkpointer，或准备对账。
 
----
+
+## 实测结果
+
+| 场景 | 中断与恢复 | 实测结果 | 边界 |
+|---|---|---|---|
+| 21.7 分钟 Python / Invocations | 15 秒时完成第 1 阶段和第 599 条事件后杀进程；同一任务从第 600 条继续，完成第 2-18 阶段 | 1,301 秒；18/18 阶段；12,248 条连续事件，无缺口或重复；约 95% 的时间和事件发生在进程丢失后 | 95% 表示工作分布，不是成功概率 |
+| Python / Responses | output 0 后中断；同一个 response 经过 47 秒重连间隔后继续 | output 1-17 完成；11,584 条事件；output index 无缺失或重复 | 只代表一次实测，不代表所有 Responses 任务都有相同行为 |
+| 等待审批 | 没有应用步骤运行时替换运行实例 | 56 秒后决定被接收；原选项保留；结果为 `TRIP-182336` 和 `TRIP-749637` | 确定性示例工具，不是真实预订，也不能证明通用的 exactly-once 保证 |
+| 主机替换 | 同一个 response 连续 29 次返回 `HTTP 424 Failed Dependency` | 最终完成预期的法语、西班牙语和回译结果 | 不是所有 `424` 都能重试；确认主机替换后才能有界轮询 |
+| Steering | 第一轮生成时收到第二轮 | 第二轮进入 `queued`；第一轮停在已保存步骤后；第二轮经过 7 次 `in_progress` 轮询完成 | 协作式 steering，不是取消/重启竞速 |
+
+<div align="center"><img src="images/approval-recovery-cn.png" width="820" alt="审批场景实测时间线：从运行实例丢失到决定被接收共 56 秒"></div>
+
+这张表回答受测条件下恢复是否成立，不是 SLA 或可靠性百分比；范围和样本数见[评估方法](#评估到底跑了什么)。
 
 ## 深入理解：恢复如何工作
 
@@ -323,7 +167,7 @@ if __name__ == "__main__":
 
 | 层级 | 平台负责 | 你仍然要负责 | 适用场景 |
 |---|---|---|---|
-| Foundry 上的 Microsoft Agent Framework | 在 Responses 之上的更高层封装，生命周期大多已代为处理 | 配置、保存进度、防止外部操作重复 | 希望少写生命周期代码的团队 |
+| Foundry 上的 Microsoft Agent Framework | 在 Responses 之上的更高层封装，生命周期大多已代为处理 | 配置、`framework checkpoint`、防止外部操作重复 | 希望少写生命周期代码的团队 |
 | Responses protocol | 对话历史、流式输出、后台执行、轮询和取消 | 开启恢复、保存进度、检查输出完整 | 对话型和工具型 Agent |
 | Invocations protocol | 传输和基础接口 | 自己定义任务、事件、进度、轮询和恢复 | 结构化流程和自定义协议 |
 
@@ -341,7 +185,7 @@ if __name__ == "__main__":
 | 防止重复 | 应用负责避免外部操作重复 | 相同结果自动去重；内容冲突立即报错 |
 | 查看输出 | stream replay 让客户端重连；显式调用 Responses `stream.checkpoint()` 还会保存完整阶段的 response 快照 | 检查事件是否连续、输出是否齐全、终态是否明确 |
 
-#### 本地恢复演示程序
+**本地恢复演示程序。**
 
 [`recovery_contract_demo.py`](scripts/recovery_contract_demo.py) 只使用 Python 标准库。进程 A 完成第 1 阶段后通过 `os._exit(9)` 退出；租约过期后，进程 B 接管并完成第 2-5 阶段。程序生成 [JSON 结果](evidence/recovery-contract-demo.json) 和 [JSONL 事件日志](evidence/recovery-contract-events.jsonl)。
 
@@ -360,15 +204,15 @@ if __name__ == "__main__":
 | Handler | `context.persisted_response` + `stream.checkpoint()`，或应用/框架 checkpoint | 恢复已完成输出或业务状态 | 不能自动防止外部操作重复 |
 | 客户端 | `store=True`、`background=True`、保存同一 `response.id` | 后台运行、轮询和重连 | 不能新建 response 来冒充恢复 |
 
-#### 从官方 Responses 样例开始
+**官方样例。**
 
-使用固定版本的官方 [`resilient-streaming`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming) 可部署样例，不要自己编一个缺 project、模型或身份的文件。完整前置条件、命令和存储选择见[在你自己的 Agent 里使用](#在你自己的-agent-里使用)。
+使用固定版本的官方 [`resilient-streaming`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming) 可部署样例，不要自己编一个缺 project、模型或身份的文件。完整前置条件、命令和存储选择见[客户快速入口](CUSTOMER-START-HERE-CN.md)。
 
-#### 开启进程恢复
+**进程恢复。**
 
 设置 `ResponsesServerOptions(resilient_background=True)`；官方样例还调用 `set_resilient_tasks_enabled(True)`，明确表示选择启用。然后让请求带 `store=True` 和 `background=True`。前台 response 或未保存的后台 response 不会在崩溃后重新调用。接口仍属实验性；底层符号清单见 [SDK 检查报告](evidence/public-sdk-contract.json)。
 
-#### 从已保存的业务进度继续
+**已保存进度。**
 
 重新进入 Handler 后，读取 Responses 快照、框架 checkpoint 或应用记录。进程死在持久化边界之前，该阶段可能重做；已经提交的阶段必须跳过。
 
@@ -383,7 +227,7 @@ if __name__ == "__main__":
 
 处理顺序是：读取任务身份和进度；重建状态；执行一个可安全重复的阶段；保存结果和外部操作标识后，再推进 checkpoint。支付、预订、写入和工具调用仍须[防止重复](#审批决定和外部操作都要防重复)。
 
-#### 分开处理任务创建与状态查询
+**创建与查询。**
 
 本仓库测试本地进度存储和结果校验。真实认证调用使用[官方 Hosted Agent quickstart](https://learn.microsoft.com/en-us/azure/foundry/agents/quickstarts/quickstart-hosted-agent)；本仓库不虚构你的 endpoint、身份、存储或业务格式。
 
@@ -397,7 +241,6 @@ if __name__ == "__main__":
 
 普通调用可用 `azd ai agent invoke`。需要保存后台任务 ID、重启轮询或检查业务终态时，使用应用自己测试过的 client。
 
----
 
 ## 评估：到底跑了什么
 
@@ -459,43 +302,8 @@ if __name__ == "__main__":
 
 可选的 cancel、delete、deny 分支不在这个矩阵里，本文也没有验证它们。
 
----
 
-## 实测结果
-
-### 一次跨越主动注入进程丢失的 21.7 分钟运行
-
-Python Invocations 运行在 15 秒内完成第 1 阶段并产生 599 条事件，随后进程被强制终止。没有重新提交；重连后，同一任务从第 600 条事件继续，并完成第 2-18 阶段。
-
-整次运行用时 1,301 秒，**计划中的 18 个阶段全部完成**。共记录 12,248 条事件，事件序号从 1 连续到 12,248，没有缺号或重复编号。约 95% 的耗时和事件发生在进程丢失之后；这是工作分布，不是成功率。
-
-### 换一种 protocol，同样的中断
-
-`Python / Responses` 运行在中断前产出第 0 项结果。经过 **47 秒**重连，同一个 response 继续产出第 1-17 项并完成。
-
-全程共 11,584 条事件，没有缺失或重复的 output index。这支持“本次运行继续了同一个 response”，但不代表所有 Responses 任务都有相同行为。
-
-### 人工审批等待期间注入运行实例丢失
-
-<div align="center"><img src="images/approval-recovery-cn.png" width="820" alt="审批场景实测时间线：从运行实例丢失到决定被接收共 56 秒"></div>
-
-工作流当时停在审批点，**没有应用步骤正在运行**。12:24:27 替换运行实例后，审批决定在 **56 秒**后被接收；Agent 保留了原来的选项并返回 `TRIP-182336`。同一模式的 Responses 运行返回 `TRIP-749637`。
-
-> 这些是确定性的示例工具。确认号支持以下结论：在这些运行中，持久化 Graph 状态与一次审批应用跨越了进程替换；它们不能证明通用的 exactly-once 保证，也不代表真实的航班或酒店预订。
-
-### 完成前收到的 29 次 `424`
-
-主机替换期间，同一个 response **连续 29 次**返回 `HTTP 424 Failed Dependency`，之后仍完成了预期的法语、西班牙语和回译结果。固定重试 10 次会过早放弃。
-
-这**不代表所有 `424` 都能重试**。只有确认正在替换主机、且原 response 仍可查询时，才应先判断状态，再决定是否停止。
-
-### 主动打断
-
-第一轮仍在生成时，第二轮请求被接收为 `queued`。第一轮在最近一个已保存的完整步骤之后停止；第二轮经过 7 次 `in_progress` 轮询后完成。这是协作式 steering，不是取消和重启之间的竞速。
-
----
-
-## 验收看任务结果，不只看传输编号
+## 验收规则
 
 四次研究任务中，三次传输编号在重连后继续递增；一次 `.NET / Responses` 运行**从 5 重新编号**，但同一个 response 仍交付了第 1-17 项完整输出。
 
@@ -508,11 +316,7 @@ Python Invocations 运行在 15 秒内完成第 1 阶段并产生 599 条事件�
 
 验收应检查 output index、阶段编号和已保存状态。传输编号只用于诊断；而且“递增”也不等于“无缺口”——`10, 12` 仍然缺少 11。
 
----
-
-## 自动检查与客户端规则
-
-[`validate_observations.py`](scripts/validate_observations.py) 把下面的规则做成了可执行检查；[JSON 报告](evidence/observation-validation.json) 同时记录通过与失败用例。
+[`validate_observations.py`](scripts/validate_observations.py) 把下面的其余规则做成了可执行检查；[JSON 报告](evidence/observation-validation.json) 同时记录通过与失败用例。
 
 ### 同时拒绝缺口和重复
 
@@ -538,7 +342,6 @@ Python Invocations 运行在 15 秒内完成第 1 阶段并产生 599 条事件�
 
 恢复后，同一条审批消息可能再次送达。本地 SQLite 记录阶段结果、去重标识和进度：相同消息再次到达时跳过，内容冲突时立即报错。真实支付、预订或写入接口也必须识别同一个去重标识，否则仍可能执行两次。
 
----
 
 ## 快速开始
 
@@ -588,11 +391,10 @@ PYTHON=.venv/bin/python
 
 ### 在真实 Hosted Agent 上复现
 
-本地命令只证明本仓库的恢复逻辑可运行，**不能证明 Foundry 线上服务**。请按上文完整的[准备和部署](#准备和部署)路径操作。该路径把微软当前可部署样例固定到 [`b9b2cdd`](https://github.com/microsoft-foundry/foundry-samples/blob/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming/src/resilient-streaming/requirements.txt)，其中 `core` 和 `responses` 都是 `2.1.0b2`；**不要**改成本仓库历史离线检查使用的 2.0.0。在 stored background response 仍为 `in_progress` 时替换运行实例，再查询同一个 response ID，并检查全部预期输出。
+本地命令只证明本仓库的恢复逻辑可运行，**不能证明 Foundry 线上服务**。请按[客户快速入口](CUSTOMER-START-HERE-CN.md)操作；其中把微软可部署样例固定到 [`b9b2cdd`](https://github.com/microsoft-foundry/foundry-samples/blob/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming/src/resilient-streaming/requirements.txt)，`core` 和 `responses` 都是 `2.1.0b2`；**不要**改成本仓库历史离线检查使用的 2.0.0。在 stored background response 仍为 `in_progress` 时替换运行实例，再查询同一个 response ID，并检查全部预期输出。
 
 **完成标准：** 同一个 response ID 恢复，预期输出完整，并有明确终态。只有 Portal 图表或一个 `completed` 字符串不够。
 
----
 
 ## 故障判断与恢复速查表
 
@@ -609,7 +411,6 @@ PYTHON=.venv/bin/python
 | 日志突然结束 | 直接查询服务端保存的状态 | 用最后一行判断失败 | 重新采集，或直接读取终态 |
 | 运行中收到新指令 | 检查是否启用了 steering | 强杀当前轮次并启动新任务 | 通过 steering 排队，或使用已定义的取消策略 |
 
----
 
 ## 设计建议
 
@@ -622,7 +423,6 @@ PYTHON=.venv/bin/python
 5. **先对照已保存状态判断错误码，再决定动作。**
 6. **区分挂起和运行中任务。** 等待审批时释放计算资源，不等于任务丢失。
 
----
 
 ## 证据与边界
 
@@ -666,7 +466,6 @@ PYTHON=.venv/bin/python
 - 监控能够区分运行实例、任务、读取端和身份故障；
 - 按目标区域、运行时和协议核对最新官方文档。
 
----
 
 ## 相关工作
 
