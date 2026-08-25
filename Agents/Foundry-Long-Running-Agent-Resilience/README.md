@@ -1,119 +1,35 @@
 # Resilience for Long-Running Agents on Microsoft Foundry: Evidence from Injected Process Loss
 
 [![Status](https://img.shields.io/badge/Foundry_capability-public_preview-B3541E)](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
-[![Scope](https://img.shields.io/badge/scope-8_measured_scenarios-1363DF)](#3-method-what-was-actually-run)
-[![Runtimes](https://img.shields.io/badge/runtimes-Python_%2B_.NET-0F8B6D)](#4-results)
-[![Protocols](https://img.shields.io/badge/protocols-Responses_%2B_Invocations-5F4BB6)](#23-where-you-plug-in)
+[![Scope](https://img.shields.io/badge/scope-8_measured_scenarios-1363DF)](#evaluation-what-was-actually-run)
+[![Runtimes](https://img.shields.io/badge/runtimes-Python_%2B_.NET-0F8B6D)](#measured-results)
+[![Protocols](https://img.shields.io/badge/protocols-Responses_%2B_Invocations-5F4BB6)](#where-you-plug-in)
 [![License](https://img.shields.io/badge/license-MIT-D98E04)](LICENSE)
 
-This repository is a **bilingual technical article and executable validation kit** for long-running Microsoft Foundry Hosted Agent resilience. It is for architects and engineers who need to:
+This repository validates process-loss resilience for long-running Microsoft Foundry Hosted Agents. It combines eight dated fault-injection observations, a current public-SDK contract probe, an executable two-process recovery reference, and fail-closed validators so architects and engineers can separate platform recovery from application-owned checkpoints, idempotency, and output acceptance.
 
-1. understand what Foundry preserves after a process interruption and what the application still owns;
-2. reproduce the recovery contract locally without Azure credentials;
-3. inspect dated Azure fault-injection observations and their machine-readable evidence.
-
-Start with the clone-to-run path below. Read the later sections only when you need the product model, measured results, client rules, or adoption boundary.
-
-> **What this is.** Measured recovery behavior for long-running agent execution on Microsoft Foundry Hosted Agents, plus public-safe executable checks and evidence. The capability is now in **public preview** with an [official concept page](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience). The eight measured scenarios were run in July on the earlier private-preview build, so each number remains dated evidence rather than a claim about today's build.
-> **What it is not.** It ships **no Microsoft SDK source, complete agent implementation, end-to-end deployment recipe, private API schema, or raw live telemetry**. The local recovery program is a real two-process test fixture, not Foundry service code or live-service proof. Official guidance carries no SLA and does not recommend preview for production — the same position taken in Section 9.4.
+The capability is in **public preview**. The evidence establishes capability under the stated July and August 2026 conditions; it is not a reliability benchmark, SLA, or production-readiness claim. Every interruption described here was injected deliberately, not observed as a service outage.
 
 > **Author:** Xinyu Wei (魏新宇)
 
-[中文](README-CN.md) | English | [Hosted agents overview](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents) | [Hosted agent quickstart](https://learn.microsoft.com/en-us/azure/foundry/agents/quickstarts/quickstart-hosted-agent)
+[中文](README-CN.md) | English
 
-[Start here](#start-here-reproduce-it-in-your-own-environment) · [What this repo validates](#what-this-repo-validates) · [Measured results](#4-results) · [Evidence](#92-what-the-numbers-trace-to) · [Production gate](#94-before-you-call-this-production-ready)
-
----
-
-## Start here: reproduce it in your own environment
-
-**Prerequisites:** Git and Python 3.13. Path A needs no Azure subscription, credentials, endpoint, or network call after cloning.
-
-### Path A — local recovery in about three minutes
-
-```powershell
-# Keep the clone outside a long OneDrive/project path on Windows.
-$work = Join-Path $HOME "lra-work"
-New-Item -ItemType Directory -Force $work | Out-Null
-Set-Location $work
-
-git clone --depth 1 --filter=blob:none --sparse `
-  https://github.com/david-xinyuwei/david-share.git lra-demo
-Set-Location lra-demo
-git sparse-checkout set Agents/Foundry-Long-Running-Agent-Resilience
-Set-Location Agents\Foundry-Long-Running-Agent-Resilience
-
-# No Azure packages or credentials are required for this path.
-python scripts\recovery_contract_demo.py demo `
-  --summary-file .demo-state\summary.json `
-  --events-file .demo-state\events.jsonl
-Get-Content .demo-state\summary.json
-
-# Path B — optional full SDK, test, and L5 validation.
-python -m venv .venv
-.\.venv\Scripts\python -m pip install -r requirements-validation.txt
-.\.venv\Scripts\python scripts\verify_public_resilience_api.py --quiet
-.\.venv\Scripts\python scripts\validate_observations.py self-test
-.\.venv\Scripts\python -m unittest discover -s tests -v
-.\.venv\Scripts\python scripts\validate_repo.py
-```
-
-Linux / macOS:
-
-```bash
-mkdir -p "$HOME/lra-work" && cd "$HOME/lra-work"
-git clone --depth 1 --filter=blob:none --sparse \
-  https://github.com/david-xinyuwei/david-share.git lra-demo
-cd lra-demo
-git sparse-checkout set Agents/Foundry-Long-Running-Agent-Resilience
-cd Agents/Foundry-Long-Running-Agent-Resilience
-
-python3 scripts/recovery_contract_demo.py demo \
-  --summary-file .demo-state/summary.json \
-  --events-file .demo-state/events.jsonl
-cat .demo-state/summary.json
-
-# Path B — optional: full SDK, tests, and L5 validation.
-python3 -m venv .venv
-./.venv/bin/python -m pip install -r requirements-validation.txt
-./.venv/bin/python scripts/verify_public_resilience_api.py --quiet
-./.venv/bin/python scripts/validate_observations.py self-test
-./.venv/bin/python -m unittest discover -s tests -v
-./.venv/bin/python scripts/validate_repo.py
-```
-
-**Expected local result:**
-
-- recovery JSON: `"passed": true`, `worker_a_exit_code: 9`, `entry_modes: ["fresh", "recovered"]`, phases `1-5`;
-- SDK probe: `18/18 checks passed`;
-- tests: `Ran 12 tests ... OK`;
-- repository gate: `PASS: bilingual parity ... Data/Log Rich ... Code/Test Rich`.
-
-**Path A done-when:** the recovery command exits `0`; the JSON says `"passed": true`, exit code `9`, `fresh → recovered`, and phases `1-5`.
-
-**Path B done-when:** Path A passes, then the SDK probe reports `18/18`, all 12 tests pass, and the repository gate exits `0`. A rendered chart or a bare `completed` string without workload checks does not count.
-
-### Path C — reproduce on a live Hosted Agent
-
-The local program proves this repository's executable recovery algorithm, **not** the Foundry service. For a live Azure run:
-
-1. install Azure CLI and `azd`, then authenticate to your test subscription;
-2. start from the official [`resilient-streaming` Hosted Agent sample](https://github.com/microsoft-foundry/foundry-samples/tree/main/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming);
-3. use that sample's current pins — at sample commit [`3d734b9`](https://github.com/microsoft-foundry/foundry-samples/blob/3d734b93b66f163bea9886d73c6808adc32e68fc/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming/src/resilient-streaming/requirements.txt), `core` and `responses` are `2.1.0b2`; do **not** replace them with this repo's 2.0.0 offline-probe pins;
-4. follow that sample's own `azd up` and invoke instructions;
-5. inject runtime replacement only in a non-production test environment, then poll the same response ID and validate its output items.
-
-This repository intentionally does not invent your Foundry project, model deployment, identity, or endpoint.
-
-| Surface | Scenario type | What it proves | What it does not prove |
-|---|---|---|---|
-| Local SQLite recovery | test-fixture | Real OS process loss, lease expiry/reclaim, generation fencing, checkpoint and idempotency in this executable reference | Microsoft Foundry private implementation |
-| Public SDK contract probe | dynamic-runtime | Installed pinned packages expose the 18 checked public symbols and validation rules | Live Hosted Agent recovery |
-| Historical observations | measured aggregate / architecture-explainer | Dated public-safe values derived from July and August captures | Reliability benchmark, SLA, or a reusable deployment recipe |
-
-If your goal is only to reproduce the behavior, you can stop here. Machine-readable data, logs, hashes, and the truth contract are in the [evidence index](evidence/README.md); the remaining sections explain the design and measured Azure observations.
+[Measured scenarios](#evaluation-what-was-actually-run) · [Recovery model](#deep-dive-how-recovery-works) · [Quick start](#quick-start) · [Evidence](#evidence-and-boundaries) · [Official product documentation](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
 
 ---
+
+## What Foundry provides, and what your application owns
+
+| Foundry / AgentServer provides | Your application still owns |
+|---|---|
+| Hosted sandbox, endpoint, identity, session lifecycle and observability | Workload-specific schema, deadlines and terminal acceptance |
+| Durable work/input identity, persisted input, lease-based process-loss recovery and handler re-entry | Business checkpoint or watermark that says what is already complete |
+| Responses history, background polling and stream replay | Idempotency for payments, bookings, writes and tool side effects |
+| Replacement compute after process interruption | Stable work reference, reconnect behavior and observer authentication |
+
+A **runtime instance** is only the currently running copy of your Hosted Agent code; losing it removes process memory and connections, not work persisted outside that process. Microsoft lists **"Run long-lived work resiliently"** as a reason to choose Hosted Agents ([source](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents)).
+
+The public documentation defines the platform contract. This repository tests the application side: checkpointing, replay safety, reconnect behavior, and output acceptance after an injected interruption.
 
 ## What this repo validates
 
@@ -137,36 +53,38 @@ The table mixes acceptance results, durations, and event counts; **it is not a p
 
 **What this evidence does not establish:** production availability, SLA, behavior under load or concurrency, multi-region recovery, cost, and business correctness. Each scenario ran once. This is a reason to fund a controlled evaluation, not a production sign-off.
 
----
+The repository publishes no Microsoft SDK source, complete agent implementation, private API schema, raw live telemetry, or reusable end-to-end deployment recipe.
 
-## 1. What Foundry provides, and what your application owns
+### Recovery model at a glance
 
-| Foundry / AgentServer provides | Your application still owns |
+The figure below is the **official Microsoft diagram**, reproduced unmodified. It shows the published lease-based recovery contract; it is not a disclosure of private service components.
+
+<div align="center"><img src="images/official-lease-recovery-model.png" width="820" alt="Official Microsoft diagram of lease-based recovery: work and input identity, runtime persists input and acquires a lease, handler runs while the runtime renews the lease, the process stops and abandons the lease, a later process reclaims the work record, and the handler re-enters from the start to either rerun or resume from the durable boundary"></div>
+
+<p align="center"><sub><i>"Lease-based recovery of a resilient work item"</i> from <a href="https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience">Resilience for long-running Microsoft Foundry hosted agents</a> © Microsoft, used under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. Unmodified. This image is <b>not</b> covered by this repository's MIT license.</sub></p>
+
+### The repository is executable, not just a write-up
+
+| Path | Contract |
 |---|---|
-| Hosted sandbox, endpoint, identity, session lifecycle and observability | Workload-specific schema, deadlines and terminal acceptance |
-| Durable work/input identity, persisted input, lease-based process-loss recovery and handler re-entry | Business checkpoint or watermark that says what is already complete |
-| Responses history, background polling and stream replay | Idempotency for payments, bookings, writes and tool side effects |
-| Replacement compute after process interruption | Stable work reference, reconnect behavior and observer authentication |
-
-A **runtime instance** is only the currently running copy of your Hosted Agent code; losing it removes process memory and connections, not work persisted outside that process. This recovery model uses a Hosted Agent because it re-enters application-owned code. Microsoft lists **"Run long-lived work resiliently"** as a reason to choose Hosted Agents ([source](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents)).
-
-Public documentation describes the platform contract. This repo tests the remaining application question: whether its checkpoint, replay safety and output acceptance behave correctly after an injected interruption.
+| [`scripts/recovery_contract_demo.py`](scripts/recovery_contract_demo.py) | Standard-library SQLite recovery reference with two real OS processes, hard process loss, lease reclaim, generation fencing, checkpointing and idempotency |
+| [`scripts/verify_public_resilience_api.py`](scripts/verify_public_resilience_api.py) | Checks 18 public symbols and handler rules against the pinned installed SDK packages |
+| [`scripts/validate_observations.py`](scripts/validate_observations.py) | Rejects sequence gaps, duplicate/missing output, insufficient terminal proof, and unclassified `424` / `403` conditions |
+| [`scripts/validate_repo.py`](scripts/validate_repo.py) | Fail-closed bilingual, evidence-integrity, Data/Log Rich and Code/Test Rich repository gate |
+| [`tests/`](tests/) | Twelve tests covering positive, negative, timing, replay, input-integrity and validator refusal paths |
+| [`evidence/`](evidence/) | Structured summaries, JSONL events, truth labels, normalized SHA-256 hashes and reproduction index |
 
 ---
 
-## 2. How it works: address the work, not the process
-
-<div align="center"><img src="images/resilience-architecture.png" width="820" alt="Conceptual recovery flow showing how logical work survives loss of a Hosted Agent runtime instance"></div>
-
-<p align="center"><sub>Project-authored conceptual overview — not an official Microsoft architecture diagram. The official unmodified Microsoft model appears in Section 2.4.</sub></p>
+## Deep dive: how recovery works
 
 Recovery rests on a single idea: **give the work an identity that outlives the process, and re-enter that work rather than resurrecting the process.**
 
-The conceptual flow below has seven steps. The client starts one logical work item and keeps its stable reference. Before execution begins, the long-running layer persists that identity, the input, and the lease metadata needed to find the work again. As the agent runs, it records business progress — a phase number, a watermark, an approval state, or a pointer to external state. Then the runtime instance is lost: the process, its memory, and the socket vanish, but the durable record does not. Foundry provides replacement compute, the same logical work is re-entered with recovery context, the application loads its checkpoint and continues from a known boundary, and the client reattaches to confirm continuity.
+The published flow above has seven steps. The client starts one logical work item and keeps its stable reference. Before execution begins, the long-running layer persists that identity, the input, and the lease metadata needed to find the work again. As the agent runs, it records business progress — a phase number, a watermark, an approval state, or a pointer to external state. Then the runtime instance is lost: the process, its memory, and the socket vanish, but the durable record does not. Foundry provides replacement compute, the same logical work is re-entered with recovery context, the application loads its checkpoint and continues from a known boundary, and the client reattaches to confirm continuity.
 
 Walk the measured 18-phase run through those steps and the ordering becomes concrete. Steps one through three covered phase 1. Step four destroyed the process. Steps five and six carried phases 2 through 18. The client reattached only at step seven: **in this run, recovery progressed before the client reattached.** Reattachment resumed observation, not execution. A dropped client stream therefore did not establish workload failure in this run; durable state and workload output did.
 
-### 2.1 Three terms used below
+### Three terms used below
 
 - **Logical work:** the durable job or conversation, identified independently of one process.
 - **Checkpoint:** the application-owned marker for the last complete, replay-safe business unit.
@@ -174,7 +92,7 @@ Walk the measured 18-phase run through those steps and the ordering becomes conc
 
 Everything else in the article maps back to these three terms.
 
-### 2.2 Recovery is at-least-once; applications must make replay safe
+### Recovery is at-least-once; applications must make replay safe
 
 A recovered handler re-enters with the same identity and input. It does **not** replay your code's execution, and it does not re-run individual model or tool calls from where they stopped.
 
@@ -182,7 +100,7 @@ The unavoidable design implication is that work performed after the last durable
 
 So it is worth being explicit about what recovery is *not*. It is not resurrection of the old socket. It is not deterministic replay. It is not resubmitting the original request as a new job. It is not proven by an agent version showing `active`, which only means the control plane accepted a deployment. For workloads that can commit external side effects, re-entry is not safe unless those committed effects can be recognized and skipped.
 
-### 2.3 Where you plug in
+### Where you plug in
 
 The model is framework-agnostic. What changes between tiers is how much of it you wire yourself.
 
@@ -194,7 +112,7 @@ The model is framework-agnostic. What changes between tiers is how much of it yo
 
 LangGraph, Microsoft Agent Framework, and hand-written orchestration can all participate. None of them removes the application's obligation to define what "already done" means.
 
-### 2.4 Public recovery contract and repository reference model
+### Public recovery contract and repository reference model
 
 The official contract describes durable work/input identities, persisted input, lease renewal and abandonment, later-process reclaim, handler re-entry, and application-owned checkpoints. This repository's SQLite program adds generation fencing and atomic phase commits as **reference-implementation choices**; they are not claims about Microsoft Foundry's private service topology or storage schema.
 
@@ -206,13 +124,7 @@ The official contract describes durable work/input identities, persisted input, 
 | Replay safety | The application remains responsible for preventing duplicate side effects | Idempotency key; matching replay is deduplicated, conflicting replay fails closed |
 | Output observation | Stream replay helps reconnecting clients; it is not an application workflow checkpoint | Validator checks sequence, output coverage, and terminal evidence; it does not simulate a service stream |
 
-The figure below is the **official Microsoft diagram**, reproduced unmodified. It is a conceptual product-contract model, not a disclosure of private service components.
-
-<div align="center"><img src="images/official-lease-recovery-model.png" width="820" alt="Official Microsoft diagram of lease-based recovery: work and input identity, runtime persists input and acquires a lease, handler runs while the runtime renews the lease, the process stops and abandons the lease, a later process reclaims the work record, and the handler re-enters from the start to either rerun or resume from the durable boundary"></div>
-
-<p align="center"><sub><i>"Lease-based recovery of a resilient work item"</i> from <a href="https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience">Resilience for long-running Microsoft Foundry hosted agents</a> © Microsoft, used under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. Unmodified. This image is <b>not</b> covered by this repository's MIT license.</sub></p>
-
-#### 2.4.1 Executable recovery-contract reference
+#### Executable recovery-contract reference
 
 The earlier non-runnable sketch has been removed. [`recovery_contract_demo.py`](scripts/recovery_contract_demo.py) is executable standard-library code: SQLite persists the work and input, Worker A commits phase 1 and exits through `os._exit(9)`, its lease expires, and a separate Worker B conditionally reclaims generation 2 and commits phases 2-5. The program writes a derived [JSON summary](evidence/recovery-contract-demo.json) and [JSONL event log](evidence/recovery-contract-events.jsonl); six unit tests cover lease-clock timing, existing-state protection, hard loss, stale-generation fencing, idempotent/conflicting replay, and input-differential behavior.
 
@@ -227,7 +139,7 @@ Four invariants are implemented and tested:
 
 The LRA runtime gets the same work back into a handler. It cannot infer whether a payment, booking, tool call, or workflow node was already committed. That is why the application checkpoint and side-effect ledger are part of the recovery contract even though they are not the lease engine itself.
 
-### 2.5 From Hosted Agent configuration to a recoverable call
+### From Hosted Agent configuration to a recoverable call
 
 The feature is not enabled by one magic switch in the portal. Four layers must line up. All four now have public surfaces, but the middle two remain **public-preview / experimental** APIs and still require application-owned checkpoint and side-effect design.
 
@@ -238,19 +150,19 @@ The feature is not enabled by one magic switch in the portal. Four layers must l
 | Handler *(public preview)* | `TaskContext` + framework checkpoint hook | Defines the last durable output boundary | Does not make external side effects idempotent |
 | Client | `store=True`, `background=True`, same `response.id` | Creates addressable work and lets the caller poll or reattach | Must not replace recovery with a new create call |
 
-#### 2.5.1 Declare a Hosted Agent with the Responses protocol
+#### Declare a Hosted Agent with the Responses protocol
 
 This repository does not ship an incomplete `azure.yaml` with invented project, model, identity, or resource values. Start from the deployable [`azure.yaml` and application source in the official Hosted Agent samples](https://github.com/microsoft-foundry/foundry-samples/tree/main/samples/python/hosted-agents), then apply the public-preview recovery configuration supported by the current sample and SDK version.
 
 In a complete azd project, `azd deploy` reads the real service definition, creates a Hosted Agent version, and routes the declared protocol endpoint. CPU, memory, image or source packaging, model selection, and identity belong to that version definition; they are not recovery checkpoints.
 
-#### 2.5.2 Opt the agent process into recovery
+#### Opt the agent process into recovery
 
 The evaluated build added a **preview recovery opt-in** to the Responses host. That option changed a stored background response from “mark failed after a crash” to “re-invoke the handler in the next process lifetime.” A separate preview steering option allowed an overlapping follow-up turn to queue and cooperatively stop the current turn.
 
 The exact constructor fields were absent from the public PyPI interface at evaluation time. **The public packages tested here now expose the relevant symbols.** Against `azure-ai-agentserver-core` 2.0.0, the resilient-task surface exported `task`, `multi_turn_task`, `Task`, `MultiTurnTask`, `TaskContext`, `TaskMetadata`, `RetryPolicy`, `resilient_tasks_enabled`, and `set_resilient_tasks_enabled`; the Responses package exported `ExitForRecoverySignal` and `ResponseExitForRecovery`. The SDK marked these as experimental at import time, consistent with public-preview status. Check the current package before designing against any specific field.
 
-#### 2.5.3 Resume from a business checkpoint
+#### Resume from a business checkpoint
 
 Re-invocation alone starts the handler again. In the evaluated sample, the handler received recovery context, loaded the last framework snapshot, and committed a framework checkpoint only after a complete business unit was durable. The evaluated sample made one completed phase equal one finalized output item. In that sample, a process loss before the checkpoint repeated the phase; a loss after the checkpoint caused recovery to skip it.
 
@@ -268,7 +180,7 @@ The public SDK now exposes fields and methods corresponding to these concepts, c
 
 The tested recovered entry made that distinction concrete: after replacement it reported `recovery_count=1` and `retry_attempt=0`. This supports treating recovery separately from handler retry; exact counter values remain observations from that run. A handler's first argument must be named `ctx` and declare a parameterized `TaskContext[Input]`; in the tested package, the decorator rejected a different argument name or a bare `TaskContext`.
 
-The public API mapping is consistent with the official model in Section 2.4. Generation fencing in the local SQLite program remains a repository-owned reference choice, not a claim about private Foundry implementation.
+The public API mapping is consistent with the [official recovery model](#recovery-model-at-a-glance). Generation fencing in the local SQLite program remains a repository-owned reference choice, not a claim about private Foundry implementation.
 
 The application pattern is unchanged:
 
@@ -278,9 +190,9 @@ The application pattern is unchanged:
 4. Persist its output and side-effect identifiers.
 5. Advance the framework checkpoint only after step 4 succeeds.
 
-Any payment, booking, write, or tool action inside the replay window still needs the idempotency discipline from Section 6.4.
+Any payment, booking, write, or tool action inside the replay window still needs the [idempotency discipline below](#make-approval-decisions-and-side-effects-idempotent).
 
-#### 2.5.4 Keep dispatch separate from observation
+#### Keep dispatch separate from observation
 
 The standard Hosted Agent client surface comes from the Foundry project client, but a runnable production client also needs the application's real durable store, identity, endpoint, and workload schema. The earlier block referenced undefined dependencies and has been removed rather than presented as working code.
 
@@ -292,7 +204,7 @@ This application pattern has one public-API boundary: remote create and the appl
 
 If the polling process disappears after the application has durably recorded the response ID and deadline, a new observer retrieves **that same response** from those application-owned values. Streaming is a public Responses mode; active-handler crash replay is now the separate **public-preview resilient-execution** opt-in. The evaluation persisted transport cursors when available, accepted a new `response.in_progress` snapshot as a reset point, and rebuilt observer output from finalized items.
 
-Most importantly, it did **not** make a high transport sequence cursor the sole recovery key: one measured runtime restarted sequence numbering at 5. A sequence number can optimize replay within a compatible stream lifetime, but the durable `response_id` plus workload state are the recovery authority. Continue to validate finalized output indexes, phases, and durable business state as described in Section 5.
+Most importantly, it did **not** make a high transport sequence cursor the sole recovery key: one measured runtime restarted sequence numbering at 5. A sequence number can optimize replay within a compatible stream lifetime, but the durable `response_id` plus workload state are the recovery authority. Continue to validate finalized output indexes, phases, and durable business state as described in [Continuity](#continuity-workload-output-over-transport-sequence).
 
 A later sequential turn can use `previous_response_id=response_id`. Concurrent queuing and cooperative steering use the public-preview resilient-task surface; `previous_response_id` by itself only establishes response-chain continuity.
 
@@ -300,7 +212,7 @@ A concise operational route after deployment is `azd ai agent invoke`; it manage
 
 ---
 
-## 3. Method: what was actually run
+## Evaluation: what was actually run
 
 Everything above is a design claim until it survives a deliberate interruption. This is how that was tested.
 
@@ -310,7 +222,7 @@ The historical campaign below used the private-preview build available in July. 
 
 The pinned check passed **18 of 18** assertions against `azure-ai-agentserver-core` 2.0.0, `azure-ai-agentserver-invocations` 1.0.0, and `azure-ai-agentserver-responses` 2.0.0. It verifies package versions, recovered entry mode, separate recovery/retry counters, work and input identities, metadata checkpoint operations, cooperative shutdown, exit-for-recovery, steering, Responses recovery signals, retry policy, enablement, and the current handler contract: the first argument must be named `ctx` and typed as `TaskContext[Input]`.
 
-This is a **real public-SDK contract smoke**, not a mock and not a live-service recovery claim. A mock is appropriate for testing application checkpoints, idempotency, and side-effect watermarks; it cannot prove that Foundry replaced a host or reclaimed a lease. Live production-readiness still requires a deployed Hosted Agent and repeated fault injection as listed in Section 9.4.
+This is a **real public-SDK contract smoke**, not a mock and not a live-service recovery claim. A mock is appropriate for testing application checkpoints, idempotency, and side-effect watermarks; it cannot prove that Foundry replaced a host or reclaimed a lease. Live production-readiness still requires a deployed Hosted Agent and repeated fault injection against the [production gate](#before-you-call-this-production-ready).
 
 ### Re-checked on the current build (August 2026)
 
@@ -330,7 +242,7 @@ Two things were re-checked on the public build using the 2022 work subscription 
 | `recovery_count` / `retry_attempt` at recovery | `1` / `0` |
 | Reclaim gap | 1.93 s |
 
-The last row is the interesting one. Section 5 argued from behavior that recovery is not a retry; the current public-preview API now exposes the two as independent counters, and the recovered entry reported exactly the predicted split.
+The last row is the interesting one. The [continuity analysis](#continuity-workload-output-over-transport-sequence) argued from behavior that recovery is not a retry; the current public-preview API now exposes the two as independent counters, and the recovered entry reported exactly the predicted split.
 
 **What this re-test is not.** Phase durations are synthetic sleeps and there is no model inference in the loop, so its elapsed times carry no performance meaning. It exercises durable work, lease abandonment, reclaim, and re-entry in a local two-process test against the current SDK/runtime build; it is not live Hosted Agent evidence and does not re-measure the eight July scenarios. Those numbers stay labelled as July observations.
 
@@ -340,7 +252,7 @@ The check above runs against the SDK. This one ran against a real Hosted Agent, 
 
 The official public sample catalogue now ships `resilient-streaming` and `resilient-steering` under `bring-your-own/responses`; their description names `stream.checkpoint()` and `context.persisted_response`. Deploying the sample logic on the previously enabled 2022 work subscription, with the compatible package pins described below and **no new allowlist request or feature registration for this re-test**, took 4 minutes 3 seconds and the agent reported `active`. In July, before preview enablement, `/tasks` had returned `404`.
 
-A stored background response was created on the live endpoint and, while it was still `in_progress`, the runtime instance was replaced by redeploying the agent. Polling the **same response id** afterwards returned `completed` with all three stage items present, no gap and no repeated stage. The container log shows the runtime driving the task store with lease fields — `lease_owner`, `lease_instance_id`, `lease_duration_seconds=60` — and ETag-guarded `PATCH` updates, consistent with the lease and compare-and-set model described in Section 2.4.
+A stored background response was created on the live endpoint and, while it was still `in_progress`, the runtime instance was replaced by redeploying the agent. Polling the **same response id** afterwards returned `completed` with all three stage items present, no gap and no repeated stage. The container log shows the runtime driving the task store with lease fields — `lease_owner`, `lease_instance_id`, `lease_duration_seconds=60` — and ETag-guarded `PATCH` updates, consistent with the published [lease and compare-and-set model](#public-recovery-contract-and-repository-reference-model).
 
 The same interruption was then applied to all four official resilient samples, which between them cover the scenario families the July campaign measured:
 
@@ -357,7 +269,7 @@ Two further checks are worth reporting, including the one that did not go as exp
 
 **The same scenario also passed on a subscription that had not been preview-enabled.** The deployment above ran on a subscription the product group had enabled during the preview. Repeating it on a *different* subscription that had never been enabled — a 2026 work subscription — produced the same acceptance result: `azd up` succeeded in 3 minutes 29 seconds, and the same interruption left the response `completed` with all three items. Two subscriptions are not a survey and do not establish tenant-, region-, or subscription-wide availability; this result shows only that prior preview enablement was not required on that tested subscription.
 
-**The `424` sequence did not reproduce.** Section 4.4 rests on 29 consecutive `424` responses observed in July while a host was being replaced. Polling the same response every 0.4 s across a forced replacement produced **26 polls, all `200`, and no transient error**. This does not refute the July observation because the interruption paths differed. The engineering advice remains scoped: classify `424` before treating it as terminal. The number 29 remains a July observation that this current-build test did not reproduce.
+**The `424` sequence did not reproduce.** The [July result below](#twenty-nine-424-responses-before-completion) records 29 consecutive `424` responses while a host was being replaced. Polling the same response every 0.4 s across a forced replacement produced **26 polls, all `200`, and no transient error**. This does not refute the July observation because the interruption paths differed. The engineering advice remains scoped: classify `424` before treating it as terminal. The number 29 remains a July observation that this current-build test did not reproduce.
 
 A package-version compatibility issue is worth documenting. During the August re-test, the then-current sample pinned `responses==2.0.0b1` but only required `core>=2.0.0b10`; resolving `core 2.1.0b2` produced an observed `HTTP 500`. Pinning `core==2.0.0`, `responses==2.0.0`, and `invocations==1.0.0` resolved that historical run and remains the exact offline probe environment in this repo. The official sample has since moved to exact `core==2.1.0b2` and `responses==2.1.0b2` pins. New live reproductions should follow the current sample, not downgrade it to this repo's historical probe versions.
 
@@ -390,9 +302,9 @@ Optional cancel, delete, and deny branches were outside this matrix and remain u
 
 ---
 
-## 4. Results
+## Measured results
 
-### 4.1 A 21.7-minute run across injected process loss
+### A 21.7-minute run across injected process loss
 
 <div align="center"><img src="images/work-distribution.png" width="820" alt="Work-distribution chart, not a success score: 95 percent of elapsed time and events occurred after the injected runtime-instance loss"></div>
 
@@ -404,7 +316,7 @@ No resubmission followed. The client reattached, received an explicit recovery e
 
 The totals: 1,301 seconds, sequence 1 through 12,248, no gap and no repeated phase. Put another way, both the elapsed time and the event count split 5/95 across the moment the process died. The chart above draws that ratio to scale and illustrates why resubmission would have been wrong for this run.
 
-### 4.2 The same interruption, a different protocol
+### The same interruption, a different protocol
 
 With language and protocol changed, the tested continuity result still held.
 
@@ -412,7 +324,7 @@ The Python Responses research run recorded 11,584 events. Before the interruptio
 
 Output index 0 was produced before the interruption and indexes 1 through 17 after it. **No index was repeated and none was skipped.** Together with the unchanged response identity, that is strong evidence that this observed run continued the same stored response rather than creating a new one; it is not a general proof for every Responses workload.
 
-### 4.3 Injected runtime loss during a pending human approval
+### Injected runtime loss during a pending human approval
 
 <div align="center"><img src="images/approval-recovery.png" width="820" alt="Measured approval timeline showing 56 seconds from runtime loss to the decision being accepted"></div>
 
@@ -424,7 +336,7 @@ The pending approval, the tool results, and the exact options shown to the user 
 
 > These are deterministic sample tools. The confirmation numbers support that persisted graph state and one approval application survived these runs; they do not establish a general exactly-once guarantee or represent a real airline or hotel booking.
 
-### 4.4 Twenty-nine `424` responses before completion
+### Twenty-nine `424` responses before completion
 
 <div align="center"><img src="images/retry-pattern.png" width="820" alt="Twenty-nine consecutive HTTP 424 responses followed by successful completion"></div>
 
@@ -449,7 +361,7 @@ A client that treated the first 424 as terminal would have abandoned this run be
 
 This is also the finding most easily over-generalized, so to be precise: **this does not make every 424 retryable.** It makes *this* condition — host replacement on a response you can still address — worth classifying before you give up on it.
 
-### 4.5 Interrupting on purpose
+### Interrupting on purpose
 
 Not every interruption is a failure. A second turn was sent while the first was still generating.
 
@@ -457,7 +369,7 @@ The new input was accepted as `queued` rather than rejected. The first turn woun
 
 ---
 
-## 5. In the tested model, transport sequence is diagnostic, not the sole recovery authority
+## Continuity: workload output over transport sequence
 
 <div align="center"><img src="images/continuity-signals.png" width="820" alt="Four runs compared: transport sequence continued in three, workload output coverage held in all four"></div>
 
@@ -478,11 +390,11 @@ And while you are there, note a second trap in the same family: a monotonic sequ
 
 ---
 
-## 6. Executable validators, evidence, and fixes
+## Executable validators and client rules
 
-This is where the platform boundary becomes client engineering. [`validate_observations.py`](scripts/validate_observations.py) contains the executable checks discussed below, and its [JSON self-test report](evidence/observation-validation.json) records both passing and failing paths. The historical service values remain in the public-safe [aggregate evidence](evidence/historical-observations.json); raw logs remain private for the reasons in Section 9.2.
+This is where the platform boundary becomes client engineering. [`validate_observations.py`](scripts/validate_observations.py) contains the executable checks discussed below, and its [JSON self-test report](evidence/observation-validation.json) records both passing and failing paths. The historical service values remain in the public-safe [aggregate evidence](evidence/historical-observations.json); raw logs remain private for the [evidence-boundary reasons below](#what-the-numbers-trace-to).
 
-### 6.1 Continuity: reject gaps and duplicates
+### Reject gaps and duplicates
 
 The broken check was effectively `sequence == sorted(sequence)`. That proves ordering, not continuity. The real `sequence_has_no_gap` and `output_coverage_complete` functions in [`validate_observations.py`](scripts/validate_observations.py) check every adjacent step and the complete expected output domain.
 
@@ -494,19 +406,19 @@ The broken check was effectively `sequence == sorted(sequence)`. That proves ord
 
 The same executable check rejected a finalized output-item list with a missing index and with a duplicated index. Feed it one index per completed output item, not every streaming delta: multiple deltas for one item legitimately reuse that item's `output_index`. In this helper, transport sequence is diagnostic evidence; acceptance also checks workload indexes, phases, and durable state. Other protocols should use their own semantics.
 
-### 6.2 Terminal state: a `done` frame is not proof of success
+### A `done` frame is not proof of success
 
 The local evaluation evidence included streams with a bare `done` frame, but the harness pass criteria came from explicit invocation status and workload assertions. A closed stream can mean success, cancellation, failure, or observer loss. The executable `completion_is_proven` check requires service status, explicit terminal event, and expected phase count.
 
 This is the distilled phase-based pattern used by the harness, not a universal adapter. A Responses client should substitute its own explicit terminal event and output-coverage rule; a bare `{"type": "done"}` still does not prove the business result.
 
-### 6.3 Bounded retry: classify `424` separately from `403`
+### Classify `424` separately from `403`
 
 The July aggregate records 29 consecutive `424` responses before completion; it does not expose the response identifier. The real `recovery_action` function in [`validate_observations.py`](scripts/validate_observations.py) preserves the same-work requirement, distinguishes confirmed host replacement from observer-auth expiry, honors the caller deadline, and fails closed when signals are insufficient. Its committed JSON report includes confirmed and unclassified `424`/`403` cases.
 
 The deadline should come from the workload's recovery objective, not an arbitrary small retry count. Classify `403` independently: verify observer identity, scope, and durable workload state first; refresh credentials only when expiry is confirmed. A read-only recheck is safer than replaying business work.
 
-### 6.4 Human approval: make the decision and the side effect idempotent
+### Make approval decisions and side effects idempotent
 
 The measured approval run crossed the pause once and produced confirmation `TRIP-182336`; the structured public aggregate records the 56-second loss-to-decision interval and terminal result without publishing the private session log.
 
@@ -514,7 +426,65 @@ After recovery, the same approval message may be delivered again. The executable
 
 ---
 
-## 7. Failure and recovery playbook
+## Quick start
+
+**Prerequisites:** Git and Python 3.13. The local experiment and tests require no Azure subscription, credentials, endpoint, or service call. On Windows, clone under a short path such as `$HOME\lra-work` rather than a long OneDrive or project path. The experiment commands below use no shell-specific continuation or activation syntax, so they run in PowerShell, Bash, or zsh; use `python3` instead of `python` only if that is how your platform exposes Python 3.13.
+
+### Run the local recovery experiment
+
+```console
+git clone --depth 1 --filter=blob:none --sparse https://github.com/david-xinyuwei/david-share.git lra-demo
+git -C lra-demo sparse-checkout set Agents/Foundry-Long-Running-Agent-Resilience
+cd lra-demo/Agents/Foundry-Long-Running-Agent-Resilience
+
+python scripts/recovery_contract_demo.py demo --summary-file .demo-state/summary.json --events-file .demo-state/events.jsonl
+```
+
+Done-when is exit code `0` and a summary containing `"passed": true`, `worker_a_exit_code: 9`, `entry_modes: ["fresh", "recovered"]`, and phases `1-5`. Worker A exits through a real `os._exit(9)`; Worker B is a different operating-system process.
+
+### Tests and repository gate
+
+Windows PowerShell:
+
+```powershell
+python -m venv .venv
+$python = (Resolve-Path .\.venv\Scripts\python.exe).Path
+& $python -m pip install --no-input -r requirements-validation.txt
+& $python scripts\verify_public_resilience_api.py --quiet
+& $python scripts\validate_observations.py self-test
+& $python -m unittest discover -s tests -v
+& $python scripts\validate_repo.py
+```
+
+Linux / macOS:
+
+```bash
+python3 -m venv .venv
+PYTHON=.venv/bin/python
+"$PYTHON" -m pip install --no-input -r requirements-validation.txt
+"$PYTHON" scripts/verify_public_resilience_api.py --quiet
+"$PYTHON" scripts/validate_observations.py self-test
+"$PYTHON" -m unittest discover -s tests -v
+"$PYTHON" scripts/validate_repo.py
+```
+
+Done-when is `18/18 checks passed`, `Ran 12 tests ... OK`, and `PASS: bilingual parity ... Data/Log Rich ... Code/Test Rich`. These checks validate the pinned public SDK surface and this repository; they do not call a live Hosted Agent.
+
+### Reproduce on a live Hosted Agent
+
+The local commands prove this repository's executable recovery algorithm, **not** the Foundry service. A live service run starts from Microsoft's deployable sample rather than an incomplete project invented here:
+
+1. install Azure CLI and `azd`, then authenticate to a non-production test subscription;
+2. clone the official [`resilient-streaming` Hosted Agent sample](https://github.com/microsoft-foundry/foundry-samples/tree/main/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming);
+3. follow that sample's own deployment and invoke instructions; at the sample revision verified for this article, [`3d734b9`](https://github.com/microsoft-foundry/foundry-samples/blob/3d734b93b66f163bea9886d73c6808adc32e68fc/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming/src/resilient-streaming/requirements.txt), `core` and `responses` are both `2.1.0b2` — do **not** replace them with this repository's historical 2.0.0 offline-probe pins;
+4. while a stored background response remains `in_progress`, inject runtime-instance replacement;
+5. poll the same response ID and validate every expected output item before accepting completion.
+
+This repository intentionally does not invent your Foundry project, model deployment, identity, or endpoint. Live done-when is recovery of the same work identity plus complete workload output and explicit terminal state—not a portal chart or a bare `completed` string.
+
+---
+
+## Failure and recovery playbook
 
 <div align="center"><img src="images/recovery-decision-guide.png" width="560" alt="Decision guide for classifying runtime, client, host-replacement, and observer failures before recovering"></div>
 
@@ -532,7 +502,7 @@ Each row below is a diagnostic starting point, not a universal mapping from symp
 
 ---
 
-## 8. Design guidance
+## Design guidance
 
 These are engineering recommendations derived from the evaluated failure modes, not product guarantees. Apply them beyond this preview only where the same assumptions hold.
 
@@ -547,9 +517,9 @@ These are engineering recommendations derived from the evaluated failure modes, 
 
 ---
 
-## 9. Evidence, boundaries, and adoption gate
+## Evidence and boundaries
 
-### 9.1 How these claims were challenged
+### How these claims were challenged
 
 Eight passing runs are easy to over-read, so each conclusion was attacked before it was published.
 
@@ -563,7 +533,7 @@ Eight passing runs are easy to over-read, so each conclusion was attacked before
 | Analogy | Do observations align with public platform concepts? | Public session persistence and protocol ownership documentation | Consistent, but idle resume was never used as proof of active recovery |
 | Consistency | Does the conclusion survive runtime and protocol changes? | Python/.NET and Responses/Invocations pairs | Workload-output continuity held; transport event shape did not |
 
-### 9.2 What the numbers trace to
+### What the numbers trace to
 
 | Claim surface | Public evidence | Source boundary |
 |---|---|---|
@@ -576,7 +546,7 @@ Eight passing runs are easy to over-read, so each conclusion was attacked before
 
 Raw live artifacts stay private because they contain endpoints, work identifiers, environment metadata, and generated payload text. The public aggregate contains only values already disclosed here; the local JSONL contains a synthetic workload and no service identifiers.
 
-### 9.3 Boundaries
+### Boundaries
 
 - All numbers are **observed values from the evaluation each one names** — the July campaign or the August re-test — not benchmarks, guarantees, or SLAs.
 - The capability was in **private preview** when the campaign ran and has since moved to **public preview** with an [official concept page](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience). This repository now publishes a current public-API probe, executable local test fixture, tests, and public-safe evidence, but not Microsoft SDK source, a complete deployment recipe, live-service credentials, or private raw telemetry.
@@ -584,7 +554,7 @@ Raw live artifacts stay private because they contain endpoints, work identifiers
 - The listed recovery paths were observed under the stated conditions. Business-domain correctness and model quality were not evaluated.
 - Verify current capabilities against the [official documentation](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents) before designing against anything described here.
 
-### 9.4 Before you call this production-ready
+### Before you call this production-ready
 
 For a specific workload, require all of the following:
 

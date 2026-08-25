@@ -1,119 +1,35 @@
 # Microsoft Foundry 长任务 Agent 韧性：主动注入进程丢失的实测证据
 
 [![Status](https://img.shields.io/badge/Foundry_capability-public_preview-B3541E)](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
-[![Scope](https://img.shields.io/badge/scope-8_measured_scenarios-1363DF)](#3-评估方法到底跑了什么)
-[![Runtimes](https://img.shields.io/badge/runtimes-Python_%2B_.NET-0F8B6D)](#4-实测结果)
-[![Protocols](https://img.shields.io/badge/protocols-Responses_%2B_Invocations-5F4BB6)](#23-三种集成层级)
+[![Scope](https://img.shields.io/badge/scope-8_measured_scenarios-1363DF)](#评估到底跑了什么)
+[![Runtimes](https://img.shields.io/badge/runtimes-Python_%2B_.NET-0F8B6D)](#实测结果)
+[![Protocols](https://img.shields.io/badge/protocols-Responses_%2B_Invocations-5F4BB6)](#三种集成层级)
 [![License](https://img.shields.io/badge/license-MIT-D98E04)](LICENSE)
 
-这个 Repo 是一份面向 Microsoft Foundry Hosted Agent 长任务韧性的**中英双语技术文章与可执行验证套件**。它帮助架构师和工程师回答三个问题：
+本仓库验证 Microsoft Foundry Hosted Agent 长任务在进程丢失后的恢复能力。它把八个带日期的故障注入观测、当前公共 SDK contract probe、可执行的双进程恢复参考实现和 fail-closed validator 放在一起，帮助架构师与工程师分清平台恢复，以及应用仍须负责的 checkpoint、幂等与输出验收。
 
-1. 进程中断后 Foundry 保留什么，应用仍须负责什么；
-2. 不使用 Azure 凭据，如何在本地复现 recovery contract；
-3. 如何审计带日期的 Azure 故障注入观测与机器可读证据。
-
-请先运行下面的 clone-to-run 路径。只有需要理解产品模型、实测结果、客户端规则或采用边界时，再阅读后续章节。
-
-> **这是什么。** Microsoft Foundry Hosted Agent 长任务恢复行为的实测，以及公开安全的可执行检查与证据。该能力现已进入 **公共预览（public preview）**，并有[官方概念文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)。文中八个场景是 7 月在更早的 private preview 构件上运行的，因此每个数字仍是有日期的证据，不是对今天构件的断言。
-> **不是什么。** 这里**不包含 Microsoft SDK 源码、完整 Agent 实现、端到端部署配方、私有 API schema 或原始 live telemetry**。本地恢复程序是真实双进程 test fixture，不是 Foundry 服务代码或 live service 证明。官方声明没有 SLA、不建议用于生产——这与第 9.4 节立场一致。
+该能力处于**公共预览（public preview）**。这些证据只证明 2026 年 7 月和 8 月所述条件下的能力，不是可靠性 benchmark、SLA 或生产就绪声明。文中的每一次中断都是主动注入，不是线上服务事故。
 
 > **Author:** 魏新宇（Xinyu Wei）
 
-[English](README.md) | 中文 | [Hosted agents 概览](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents) | [Hosted agent 快速入门](https://learn.microsoft.com/en-us/azure/foundry/agents/quickstarts/quickstart-hosted-agent)
+[English](README.md) | 中文
 
-[从这里开始](#从这里开始在自己的环境复现) · [本仓库验证了什么](#本仓库验证了什么) · [实测结果](#4-实测结果) · [证据](#92-数字能追溯到哪里) · [生产采用门槛](#94-宣称可以上生产之前)
-
----
-
-## 从这里开始：在自己的环境复现
-
-**前置条件：** Git 与 Python 3.13。路径 A 在 clone 完成后不需要 Azure 订阅、凭据、endpoint 或网络调用。
-
-### 路径 A — 约三分钟完成本地恢复实验
-
-```powershell
-# Windows 避免把 clone 放进很长的 OneDrive / project 路径。
-$work = Join-Path $HOME "lra-work"
-New-Item -ItemType Directory -Force $work | Out-Null
-Set-Location $work
-
-git clone --depth 1 --filter=blob:none --sparse `
-  https://github.com/david-xinyuwei/david-share.git lra-demo
-Set-Location lra-demo
-git sparse-checkout set Agents/Foundry-Long-Running-Agent-Resilience
-Set-Location Agents\Foundry-Long-Running-Agent-Resilience
-
-# 这条路径不需要 Azure package 或凭据。
-python scripts\recovery_contract_demo.py demo `
-  --summary-file .demo-state\summary.json `
-  --events-file .demo-state\events.jsonl
-Get-Content .demo-state\summary.json
-
-# 路径 B — 可选：完整 SDK、测试与 L5 校验。
-python -m venv .venv
-.\.venv\Scripts\python -m pip install -r requirements-validation.txt
-.\.venv\Scripts\python scripts\verify_public_resilience_api.py --quiet
-.\.venv\Scripts\python scripts\validate_observations.py self-test
-.\.venv\Scripts\python -m unittest discover -s tests -v
-.\.venv\Scripts\python scripts\validate_repo.py
-```
-
-Linux / macOS：
-
-```bash
-mkdir -p "$HOME/lra-work" && cd "$HOME/lra-work"
-git clone --depth 1 --filter=blob:none --sparse \
-  https://github.com/david-xinyuwei/david-share.git lra-demo
-cd lra-demo
-git sparse-checkout set Agents/Foundry-Long-Running-Agent-Resilience
-cd Agents/Foundry-Long-Running-Agent-Resilience
-
-python3 scripts/recovery_contract_demo.py demo \
-  --summary-file .demo-state/summary.json \
-  --events-file .demo-state/events.jsonl
-cat .demo-state/summary.json
-
-# Path B — optional: full SDK, tests, and L5 validation.
-python3 -m venv .venv
-./.venv/bin/python -m pip install -r requirements-validation.txt
-./.venv/bin/python scripts/verify_public_resilience_api.py --quiet
-./.venv/bin/python scripts/validate_observations.py self-test
-./.venv/bin/python -m unittest discover -s tests -v
-./.venv/bin/python scripts/validate_repo.py
-```
-
-**本地预期结果：**
-
-- recovery JSON：`"passed": true`、`worker_a_exit_code: 9`、`entry_modes: ["fresh", "recovered"]`、phase `1-5`；
-- SDK probe：`18/18 checks passed`；
-- 测试：`Ran 12 tests ... OK`；
-- 仓库 gate：`PASS: bilingual parity ... Data/Log Rich ... Code/Test Rich`。
-
-**路径 A 完成标准：** recovery 命令 exit `0`；JSON 中有 `"passed": true`、退出码 `9`、`fresh → recovered` 和 phase `1-5`。
-
-**路径 B 完成标准：** 路径 A 通过，再看到 SDK probe `18/18`、12 项测试全部通过、仓库 gate exit `0`。只有图表或只有 `completed` 字符串但缺 workload 验收，不算完成复现。
-
-### 路径 C — 在真实 Hosted Agent 上复现
-
-本地程序证明的是本仓库可执行的恢复算法，**不是** Foundry 服务。真实 Azure 运行按以下顺序开始：
-
-1. 安装 Azure CLI 与 `azd`，登录测试订阅；
-2. 从官方 [`resilient-streaming` Hosted Agent sample](https://github.com/microsoft-foundry/foundry-samples/tree/main/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming)开始；
-3. 使用该 sample 当前自己的 pins——在 sample commit [`3d734b9`](https://github.com/microsoft-foundry/foundry-samples/blob/3d734b93b66f163bea9886d73c6808adc32e68fc/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming/src/resilient-streaming/requirements.txt) 中，`core` 与 `responses` 都是 `2.1.0b2`；**不要**把它们替换为本仓库离线 probe 的 2.0.0 pins；
-4. 按 sample 自己的 `azd up` 与 invoke 指引部署；
-5. 只在非生产测试环境中注入运行实例替换，然后轮询同一个 response ID 并校验 output items。
-
-本仓库不会虚构你的 Foundry project、模型部署、身份或 endpoint。
-
-| Surface | 场景类型 | 能证明什么 | 不能证明什么 |
-|---|---|---|---|
-| 本地 SQLite 恢复 | test-fixture | 本参考实现中的真实 OS 进程丢失、lease 过期/接管、generation fence、checkpoint 与幂等 | Microsoft Foundry 私有实现 |
-| 公共 SDK contract probe | dynamic-runtime | 已安装的固定版本 package 暴露 18 项受检公开符号与校验规则 | Live Hosted Agent 恢复 |
-| 历史观测 | measured aggregate / architecture-explainer | 从 7 月和 8 月捕获结果中提取的带日期公开安全数值 | 可靠性 benchmark、SLA 或可复用部署配方 |
-
-如果目标只是复现行为，到这里就可以停止。机器可读数据、日志、hash 与 truth contract 在[证据索引](evidence/README.md)；后续章节解释设计和 Azure 实测结果。
+[实测场景](#评估到底跑了什么) · [恢复模型](#深入理解恢复如何工作) · [快速开始](#快速开始) · [证据](#证据与边界) · [官方产品文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
 
 ---
+
+## Foundry 提供什么，应用还要负责什么
+
+| Foundry / AgentServer 提供 | 应用仍须负责 |
+|---|---|
+| Hosted sandbox、endpoint、身份、session 生命周期与 observability | Workload-specific schema、deadline 与终态验收 |
+| 持久化 work/input identity、输入保存、基于 lease 的进程丢失恢复和 handler 重入 | 表示已完成进度的业务 checkpoint 或 watermark |
+| Responses history、后台轮询与 stream replay | 支付、预订、写入与 tool side effect 的幂等 |
+| 进程中断后的替代计算资源 | 稳定 work reference、重连行为与 observer 身份验证 |
+
+**运行实例**只是当前正在执行 Hosted Agent 代码的副本；实例丢失会带走进程内存和连接，不会删除已持久化在进程之外的任务。微软把 **“Run long-lived work resiliently”** 列为选择 Hosted Agent 的理由之一（[来源](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents)）。
+
+公共文档定义平台 contract。本仓库验证应用侧问题：主动注入中断后，checkpoint、replay 安全、重连行为和输出验收是否正确。
 
 ## 本仓库验证了什么
 
@@ -137,36 +53,38 @@ python3 -m venv .venv
 
 **这些证据还不能说明什么：** 生产可用性、SLA、负载与并发下的表现、多区域恢复、成本，以及业务正确性。每个场景只跑了一次。它足以支撑立项做受控评估，但不足以作为生产放行依据。
 
----
+本仓库不包含 Microsoft SDK 源码、完整 Agent 实现、私有 API schema、原始 live telemetry 或可复用的端到端部署配方。
 
-## 1. Foundry 提供什么，应用还要负责什么
+### 恢复模型速览
 
-| Foundry / AgentServer 提供 | 应用仍须负责 |
+下图是**微软官方原图**，未经修改。它展示公开发布的 lease-based recovery contract，不披露私有服务组件。
+
+<div align="center"><img src="images/official-lease-recovery-model.png" width="820" alt="微软官方的基于租约恢复模型：任务和输入身份、运行时持久化输入并取得租约、handler 运行期间续租、进程停止并放弃租约、后续进程重新取得任务记录，handler 从头重入并选择重跑或从持久化边界恢复"></div>
+
+<p align="center"><sub><i>“Lease-based recovery of a resilient work item”</i>，来源：<a href="https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience">Resilience for long-running Microsoft Foundry hosted agents</a> © Microsoft，依照 <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a> 使用，未经修改。该图片<b>不属于</b>本仓库 MIT License 的授权范围。</sub></p>
+
+### 本仓库可执行，不只是一篇文章
+
+| 路径 | Contract |
 |---|---|
-| 托管沙箱、endpoint、身份、session 生命周期与可观测性 | Workload schema、deadline 与终态验收 |
-| 持久 work/input identity、输入持久化、基于 lease 的进程丢失恢复与 handler 重入 | 能说明业务做到哪里的 checkpoint 或 watermark |
-| Responses history、后台轮询与 stream replay | 支付、预订、写入和 tool side effect 的幂等 |
-| 进程中断后的替代计算资源 | 稳定 work reference、重连行为与 observer authentication |
-
-**运行实例**只是当前正在运行的 Hosted Agent 代码副本；它消失会带走进程内存与连接，不会带走已持久化在进程外的任务。本文使用 Hosted Agent，是因为恢复需要重新进入应用自己拥有的代码。微软把 **“Run long-lived work resiliently”** 列为选择 Hosted Agent 的理由之一（[来源](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents)）。
-
-公开文档说明平台契约；本仓库验证剩下的应用问题：checkpoint、replay 安全和 output 验收在注入中断后是否正确。
+| [`scripts/recovery_contract_demo.py`](scripts/recovery_contract_demo.py) | 仅使用标准库与 SQLite 的恢复参考实现：两个真实 OS 进程、硬进程丢失、lease 接管、generation fencing、checkpoint 与幂等 |
+| [`scripts/verify_public_resilience_api.py`](scripts/verify_public_resilience_api.py) | 对固定版本的已安装公共 SDK package 检查 18 个公开符号与 handler 规则 |
+| [`scripts/validate_observations.py`](scripts/validate_observations.py) | 拒绝 sequence 缺口、output 重复或缺失、终态证据不足，以及未分类的 `424` / `403` |
+| [`scripts/validate_repo.py`](scripts/validate_repo.py) | Fail-closed 的中英对齐、证据完整性、Data/Log Rich 与 Code/Test Rich 仓库 gate |
+| [`tests/`](tests/) | 12 项测试，覆盖正向、负向、时序、replay、输入完整性与 validator 拒绝路径 |
+| [`evidence/`](evidence/) | 结构化 summary、JSONL event、truth label、规范化 SHA-256 hash 与复现索引 |
 
 ---
 
-## 2. 原理：寻址任务，而不是抢救进程
-
-<div align="center"><img src="images/resilience-architecture-cn.png" width="820" alt="概念恢复流程：逻辑任务如何跨越 Hosted Agent 运行实例丢失"></div>
-
-<p align="center"><sub>项目作者绘制的概念概览——不是微软官方架构图。第 2.4 节展示微软官方原图。</sub></p>
+## 深入理解：恢复如何工作
 
 整套机制只建立在一个想法上：**给任务一个比进程活得更久的身份，然后重新进入这个任务，而不是去抢救那个进程。**
 
-下面的概念流程分为七步。客户端启动一个逻辑任务，并保留它的稳定引用。执行开始之前，长任务层先把任务身份、输入，以及后续重新定位所需的租约 metadata 持久化下来。Agent 运行过程中，不断记录有业务含义的进度——phase 编号、watermark、审批状态，或者一个指向外部状态的引用。接着运行实例丢失：进程、内存、socket 全都消失，但那条持久化记录还在。Foundry 提供替代计算资源，同一个逻辑任务带着恢复上下文被重新调用，应用加载自己的 checkpoint 并从一个明确的边界继续，最后客户端重新接回、确认连续性。
+上面的官方流程分为七步。客户端启动一个逻辑任务，并保留它的稳定引用。执行开始之前，长任务层先把任务身份、输入，以及后续重新定位所需的租约 metadata 持久化下来。Agent 运行过程中，不断记录有业务含义的进度——phase 编号、watermark、审批状态，或者一个指向外部状态的引用。接着运行实例丢失：进程、内存、socket 全都消失，但那条持久化记录还在。Foundry 提供替代计算资源，同一个逻辑任务带着恢复上下文被重新调用，应用加载自己的 checkpoint 并从一个明确的边界继续，最后客户端重新接回、确认连续性。
 
 把那次 18 阶段的实测运行套进这七步，顺序就变得很具体：第一到第三步覆盖 phase 1，第四步销毁进程，第五、六步跑完 phase 2 到 18，客户端到第七步才重新接回。**在这次运行中，恢复先于客户端重新接回继续推进。** 重新接回恢复的是观察，不是执行。因此，这次客户端断流本身不足以判定任务失败；判断依据来自持久化状态与 workload output。
 
-### 2.1 后文只需要三个词
+### 后文只需要三个词
 
 - **逻辑任务：** 独立于某个进程存在的持久 job 或 conversation。
 - **Checkpoint：** 应用自行维护的、最后一个完整且可安全 replay 的业务边界。
@@ -174,7 +92,7 @@ python3 -m venv .venv
 
 后文其他术语都可以映射回这三个词。
 
-### 2.2 恢复是 at-least-once；应用必须保证 replay 安全
+### 恢复是 at-least-once；应用必须保证 replay 安全
 
 被恢复的 handler 会带着同样的任务身份和输入重新进入。它**不会**重放你代码的执行过程，也不会从中断处续跑某一次模型调用或 tool call。
 
@@ -182,7 +100,7 @@ python3 -m venv .venv
 
 所以有必要把话说明白，恢复**不是**这些：不是复活旧 socket；不是确定性重放；不是把原始请求当作新任务重新提交；不能因为 Agent version 显示 `active` 就认为它成立——那只说明控制面接受了一个部署；对于会提交外部副作用的 workload，如果重新进入时无法识别并跳过已提交的副作用，重入就不安全。
 
-### 2.3 三种集成层级
+### 三种集成层级
 
 这套模型与 framework 无关。层级之间的差别，只在于有多少需要你自己接。
 
@@ -194,7 +112,7 @@ python3 -m venv .venv
 
 LangGraph、Microsoft Agent Framework、手写 orchestration 都能接进来。但没有任何一种能替你定义“哪些步骤算已经做完了”。
 
-### 2.4 公开恢复契约与仓库参考实现
+### 公开恢复契约与仓库参考实现
 
 官方契约描述了持久 work/input identity、输入持久化、lease 续期与遗弃、后续进程接管、handler 重入，以及应用自行维护 checkpoint。本仓库的 SQLite 程序额外采用 generation fence 和原子 phase commit；这些是**参考实现的设计选择**，不是对 Microsoft Foundry 私有服务拓扑或存储 schema 的声明。
 
@@ -206,13 +124,7 @@ LangGraph、Microsoft Agent Framework、手写 orchestration 都能接进来。�
 | Replay 安全 | 应用仍须负责防止外部副作用重复 | Idempotency key；相同 replay 去重，冲突 replay fail closed |
 | Output 观察 | Stream replay 帮助客户端重连；它不是应用 workflow checkpoint | Validator 检查 sequence、output coverage 与终态证据；不模拟服务端 stream |
 
-下图是**微软官方图**，在本文中原样使用。它是产品契约的概念模型，不代表微软公开了私有服务组件。
-
-<div align="center"><img src="images/official-lease-recovery-model.png" width="820" alt="微软官方的租约恢复图：work identity 与 input identity，runtime 持久化输入并取得 lease，handler 运行期间 runtime 续租，进程停止后 lease 被放弃，后续进程重新取得任务记录，handler 从头重入后选择重跑或从持久化边界继续"></div>
-
-<p align="center"><sub>微软 <a href="https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience">Resilience for long-running Microsoft Foundry hosted agents</a> 中的 <i>“Lease-based recovery of a resilient work item”</i>，© Microsoft，依据 <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a> 原样使用。该图片<b>不适用</b>本仓库的 MIT License。</sub></p>
-
-#### 2.4.1 可执行的 recovery contract 参考实现
+#### 可执行的 recovery contract 参考实现
 
 原来不可运行的示意代码已删除。[`recovery_contract_demo.py`](scripts/recovery_contract_demo.py) 是只使用 Python 标准库的可执行代码：SQLite 持久化任务与输入；Worker A 提交 phase 1 后通过 `os._exit(9)` 退出；lease 过期后，独立的 Worker B 带条件地接管 generation 2，并提交 phase 2-5。程序生成 [JSON summary](evidence/recovery-contract-demo.json) 和 [JSONL 事件日志](evidence/recovery-contract-events.jsonl)；六项单元测试覆盖 lease 计时、既有状态保护、硬退出、旧 generation fence、幂等/冲突 replay 和输入差异行为。
 
@@ -227,7 +139,7 @@ LangGraph、Microsoft Agent Framework、手写 orchestration 都能接进来。�
 
 LRA runtime 负责把同一个任务重新送进 handler，却无法判断支付、预订、tool call 或 workflow node 是否已经提交。这就是为什么 application checkpoint 与 side-effect ledger 属于恢复契约，但不属于 lease engine 本身。
 
-### 2.5 从 Hosted Agent 配置到一次可恢复调用
+### 从 Hosted Agent 配置到一次可恢复调用
 
 这项能力不是在 Portal 里打开一个开关就结束了，四层配置必须同时对齐。四层现在都有公开 surface，但中间两层仍属于 **public preview / experimental** API，应用仍须自己设计 checkpoint 与副作用边界。
 
@@ -238,19 +150,19 @@ LRA runtime 负责把同一个任务重新送进 handler，却无法判断支付
 | Handler（public preview） | `TaskContext` + framework checkpoint hook | 定义最后一个持久化 output 边界 | 不能自动保证外部副作用幂等 |
 | 客户端 | `store=True`、`background=True`、复用同一 `response.id` | 创建可寻址任务，并允许轮询或重新接回 | 不能用新建 response 代替恢复 |
 
-#### 2.5.1 用 Responses protocol 声明 Hosted Agent
+#### 用 Responses protocol 声明 Hosted Agent
 
 本仓库不提供省略 project、模型、身份和资源值的不完整 `azure.yaml`。应从[官方 Hosted Agent samples 中可部署的 `azure.yaml` 与应用源码](https://github.com/microsoft-foundry/foundry-samples/tree/main/samples/python/hosted-agents)开始，再按当前 sample 与 SDK 版本支持的方式应用 public-preview recovery 配置。
 
 在完整 azd project 中，`azd deploy` 读取真实 service definition，创建 Hosted Agent version，并把 endpoint 路由到声明的 protocol。CPU、内存、镜像或源码打包、模型选择与身份属于 version definition；它们不是 recovery checkpoint。
 
-#### 2.5.2 让 Agent 进程进入恢复模式
+#### 让 Agent 进程进入恢复模式
 
 本次评估使用的构件，在 Responses host 上增加了一个 **preview recovery opt-in**。对于已存储的 background response，这个开关会把行为从“进程崩溃后标记失败”改成“在下一个进程生命周期重新调用 handler”。另一个 preview steering 开关则允许重叠的新一轮进入队列，并让当前轮次协作式停止。
 
 评估当时，这些构造参数确实不在公共 PyPI 接口中。**本轮测试的公开 package 已提供相关符号。** 对 `azure-ai-agentserver-core` 2.0.0 实测时，resilient task surface 导出了 `task`、`multi_turn_task`、`Task`、`MultiTurnTask`、`TaskContext`、`TaskMetadata`、`RetryPolicy`、`resilient_tasks_enabled`、`set_resilient_tasks_enabled`；Responses package 另外导出了 `ExitForRecoverySignal` 与 `ResponseExitForRecovery`。SDK 在导入时将这些符号标记为 experimental，这与 public preview 状态一致。在依赖任何具体字段之前，请以当前 package 为准。
 
-#### 2.5.3 从业务 checkpoint 恢复
+#### 从业务 checkpoint 恢复
 
 重新调用 handler 只代表“重新进入”，并不代表“从正确位置继续”。在受测 sample 中，handler 收到恢复上下文、加载最后一个 framework snapshot，并且只在完整业务单元已持久化后提交 framework checkpoint。该 sample 把“一个完成 phase”映射成“一个 finalized output item”：进程死在 checkpoint 之前时 phase 再跑一次；死在 checkpoint 之后时，恢复后的 handler 跳过它。
 
@@ -268,7 +180,7 @@ LRA runtime 负责把同一个任务重新送进 handler，却无法判断支付
 
 本次恢复重入把两个字段的差异具体呈现出来：替换之后报告的是 `recovery_count=1`、`retry_attempt=0`。这个结果支持把恢复与 handler retry 分开处理；具体计数仍然只是这次运行的观测值。另外，在本轮测试的 package 中，handler 的第一个参数必须命名为 `ctx`，并声明参数化的 `TaskContext[Input]`；参数名不同或裸写 `TaskContext`，都会在装饰阶段被拒绝。
 
-公开 API mapping 与第 2.4 节的官方模型一致；本地 SQLite 程序中的 generation fence 仍然只是仓库自有参考设计，不代表 Foundry 私有实现。
+公开 API mapping 与前面的[官方恢复模型](#恢复模型速览)一致；本地 SQLite 程序中的 generation fence 仍然只是仓库自有参考设计，不代表 Foundry 私有实现。
 
 应用侧的模式没有变化：
 
@@ -278,9 +190,9 @@ LRA runtime 负责把同一个任务重新送进 handler，却无法判断支付
 4. 持久化该 phase 的 output 与副作用标识。
 5. 只有第 4 步成功后，才推进 framework checkpoint。
 
-Replay 窗口内的支付、预订、写入或 tool action，仍然必须采用第 6.4 节的幂等设计。
+Replay 窗口内的支付、预订、写入或 tool action，仍然必须采用后文的[幂等设计](#审批决定与副作用都必须幂等)。
 
-#### 2.5.4 把任务下发和状态观察分开
+#### 把任务下发和状态观察分开
 
 标准 Hosted Agent client surface 来自 Foundry project client，但可运行的生产 client 还需要应用自己的真实持久化存储、身份、endpoint 和 workload schema。原代码块引用了未定义依赖，因此已删除，不再把它包装成可运行代码。
 
@@ -292,7 +204,7 @@ Replay 窗口内的支付、预订、写入或 tool action，仍然必须采用�
 
 应用已持久化 response ID 与 deadline 后，如果轮询进程消失，新 observer 会从这些应用自有数据 retrieve **同一个 response**。Streaming 本身是公开的 Responses 模式；active-handler crash replay 现在属于单独启用的 **public-preview resilient execution**。本次评估会在可用时持久化传输游标，把新的 `response.in_progress` snapshot 当作 reset point，并根据 finalized item 重建观察者输出。
 
-最重要的是，它**没有**把高位 transport sequence cursor 当成唯一恢复 key：有一次实测的 runtime 在恢复后把 sequence 从 5 重新计数。Sequence number 可以在兼容的 stream lifetime 内优化 replay，但真正的恢复权威是持久化 `response_id` 与 workload state。仍然要按第 5 节验证 finalized output index、phase 和持久化业务状态。
+最重要的是，它**没有**把高位 transport sequence cursor 当成唯一恢复 key：有一次实测的 runtime 在恢复后把 sequence 从 5 重新计数。Sequence number 可以在兼容的 stream lifetime 内优化 replay，但真正的恢复权威是持久化 `response_id` 与 workload state。仍然要按[连续性章节](#连续性以-workload-output-为准而不是只看传输-sequence)验证 finalized output index、phase 和持久化业务状态。
 
 后续的顺序轮次可以设置 `previous_response_id=response_id`。并发排队和协作式 steering 使用 public-preview resilient task surface；`previous_response_id` 本身只负责建立 response chain 连续性。
 
@@ -300,7 +212,7 @@ Replay 窗口内的支付、预订、写入或 tool action，仍然必须采用�
 
 ---
 
-## 3. 评估方法：到底跑了什么
+## 评估：到底跑了什么
 
 上面所有内容，在经受一次真正的中断之前都只是设计主张。下面是验证方式。
 
@@ -310,7 +222,7 @@ Replay 窗口内的支付、预订、写入或 tool action，仍然必须采用�
 
 固定版本检查对 `azure-ai-agentserver-core` 2.0.0、`azure-ai-agentserver-invocations` 1.0.0 和 `azure-ai-agentserver-responses` 2.0.0 的 **18 项断言全部通过**。检查覆盖 package 版本、recovered entry mode、相互独立的 recovery/retry 计数、work/input identity、metadata checkpoint 操作、协作式 shutdown、exit-for-recovery、steering、Responses recovery signal、retry policy、enablement，以及当前 handler 契约：第一个参数必须命名为 `ctx`，并声明为 `TaskContext[Input]`。
 
-这是**对公共 SDK 契约的真实冒烟测试（smoke test）**，不是 mock，也不等于验证了线上服务的恢复能力。Mock 适合验证应用 checkpoint、幂等与 side-effect watermark；它不能证明 Foundry 已经替换 host 或重新取得 lease。要宣称可以上生产，仍须按第 9.4 节部署 Hosted Agent 并做多轮故障注入。
+这是**对公共 SDK 契约的真实冒烟测试（smoke test）**，不是 mock，也不等于验证了线上服务的恢复能力。Mock 适合验证应用 checkpoint、幂等与 side-effect watermark；它不能证明 Foundry 已经替换 host 或重新取得 lease。要宣称可以上生产，仍须按[生产采用门槛](#宣称可以上生产之前)部署 Hosted Agent 并做多轮故障注入。
 
 ### 在当前构件上复测（2026 年 8 月）
 
@@ -330,7 +242,7 @@ Replay 窗口内的支付、预订、写入或 tool action，仍然必须采用�
 | 恢复时的 `recovery_count` / `retry_attempt` | `1` / `0` |
 | 回收间隔 | 1.93 秒 |
 
-最后一行才是关键。第 5 节当初只能从行为上论证「恢复不是重试」；当前 public-preview API 现在把两者公开为相互独立的计数器，而恢复重入报告的正是预测中的那组数值。
+最后一行才是关键。[连续性分析](#连续性以-workload-output-为准而不是只看传输-sequence)当初只能从行为上论证「恢复不是重试」；当前 public-preview API 现在把两者公开为相互独立的计数器，而恢复重入报告的正是预测中的那组数值。
 
 **这次复测不是什么。** 各 phase 的耗时是人为 sleep，链路中也没有模型推理，因此其耗时数据没有任何性能含义。它是在本地双进程测试中，对当前 SDK/runtime 构件的持久任务、租约遗弃、回收与重入路径做演练；它不是线上 Hosted Agent 证据，也**没有**重新测量 7 月那八个场景。那些数字仍然标注为 7 月观测值。
 
@@ -340,7 +252,7 @@ Replay 窗口内的支付、预订、写入或 tool action，仍然必须采用�
 
 官方公开样例库现在提供 `bring-your-own/responses/resilient-streaming` 与 `resilient-steering`，其描述里写明使用 `stream.checkpoint()` 与 `context.persisted_response`。保留 sample handler 逻辑，并采用下文说明的兼容 package pins 后，在曾被开通过的 2022 工作订阅上部署；本次复测**没有新提交白名单申请，也没有注册 feature**。部署耗时 4 分 03 秒，Agent 状态为 `active`。7 月开通前，`/tasks` 曾返回 `404`。
 
-在这个真实 endpoint 上创建一个 stored background response，并**趁它仍处于 `in_progress` 时**，通过重新部署替换掉运行实例。之后再用**同一个 response id** 轮询，得到的是 `completed`，三个阶段的 output item 全部齐备，无缺口、无重复阶段。容器日志显示 runtime 通过 `lease_owner`、`lease_instance_id`、`lease_duration_seconds=60` 等租约字段和带 ETag 保护的 `PATCH` 更新驱动 task store；这些信号与第 2.4 节描述的租约和 compare-and-set 模型一致。
+在这个真实 endpoint 上创建一个 stored background response，并**趁它仍处于 `in_progress` 时**，通过重新部署替换掉运行实例。之后再用**同一个 response id** 轮询，得到的是 `completed`，三个阶段的 output item 全部齐备，无缺口、无重复阶段。容器日志显示 runtime 通过 `lease_owner`、`lease_instance_id`、`lease_duration_seconds=60` 等租约字段和带 ETag 保护的 `PATCH` 更新驱动 task store；这些信号与公开的[租约和 compare-and-set 模型](#公开恢复契约与仓库参考实现)一致。
 
 随后对四个官方 resilient 样例做了同样的中断。它们合起来覆盖了 7 月战役测过的那几类场景：
 
@@ -357,7 +269,7 @@ Replay 窗口内的支付、预订、写入或 tool action，仍然必须采用�
 
 **同一场景也在一个从未开通过预览的订阅上通过。** 上面那次部署使用的是产品组曾在预览期帮忙开通过的订阅。换到一个**从未开通过**的 2026 工作订阅后，得到相同的验收结果：`azd up` 用时 3 分 29 秒成功，同样的中断之后 response 仍然 `completed`、三个 item 齐全。两个订阅算不上抽样，也不能说明所有 tenant、region 或订阅都已就绪；它只能说明，在这个受测订阅上，使用该场景不要求事先开通过预览。
 
-**这次没有复现那串 `424`。** 第 4.4 节依据的是 7 月主机被替换期间观测到的 29 次连续 `424`。这次在强制替换的窗口内每 0.4 秒轮询同一个 response，得到的是 **26 次轮询、全部 `200`、没有瞬时错误**。由于两次中断路径不同，这个结果不能反驳 7 月的观测。工程建议也继续保持限定：先分类 `424`，再决定是否把它视为终态。数字 29 仍然只是 7 月观测，本次当前构件测试没有复现。
+**这次没有复现那串 `424`。** [后文的 7 月结果](#完成前收到的-29-次-424)记录了主机被替换期间观测到的 29 次连续 `424`。这次在强制替换的窗口内每 0.4 秒轮询同一个 response，得到的是 **26 次轮询、全部 `200`、没有瞬时错误**。由于两次中断路径不同，这个结果不能反驳 7 月的观测。工程建议也继续保持限定：先分类 `424`，再决定是否把它视为终态。数字 29 仍然只是 7 月观测，本次当前构件测试没有复现。
 
 这里还出现过一个 package 版本兼容问题。8 月复测时，当时的 sample 把 `responses` 钉在 `2.0.0b1`，却只要求 `core>=2.0.0b10`；解析到 `core 2.1.0b2` 后出现了 `HTTP 500`。把版本钉为 `core==2.0.0`、`responses==2.0.0` 和 `invocations==1.0.0` 后，历史复测恢复正常；这组版本也保留为本仓库离线 probe 的精确环境。官方 sample 此后已改成精确的 `core==2.1.0b2` 与 `responses==2.1.0b2` pins。新的 live 复现应跟随当前 sample，不应把它降级到本文历史 probe 版本。
 
@@ -390,9 +302,9 @@ Replay 窗口内的支付、预订、写入或 tool action，仍然必须采用�
 
 ---
 
-## 4. 实测结果
+## 实测结果
 
-### 4.1 一次跨越主动注入进程丢失的 21.7 分钟运行
+### 一次跨越主动注入进程丢失的 21.7 分钟运行
 
 <div align="center"><img src="images/work-distribution-cn.png" width="820" alt="工作分布图，不是成功率评分：95% 的耗时和事件发生在注入运行实例丢失之后"></div>
 
@@ -404,7 +316,7 @@ Python Invocations 的 Research Agent 在头 15 秒里产出了 599 条事件，
 
 汇总起来：1,301 秒，sequence 从 1 到 12,248，没有缺口，也没有重复阶段。换个说法，耗时和事件数在“进程死亡”这一刻，都是按 5 / 95 分开的。上面那张图按比例画出了这个结果，也说明为什么在这次运行中直接重新提交会是错误选择。
 
-### 4.2 换一种 protocol，同样的中断
+### 换一种 protocol，同样的中断
 
 语言和 protocol 都变了，这次受测的连续性结果仍然成立。
 
@@ -412,7 +324,7 @@ Python Responses 的 Research 运行共记录 11,584 条事件。中断之前：
 
 output index 0 是中断前产出的，1 到 17 是中断后产出的。**没有任何 index 重复，也没有任何 index 缺失。** 结合未变化的 response identity，这是支持本次运行继续同一个 stored response、而不是创建新 response 的强证据；它不是对所有 Responses workload 的通用证明。
 
-### 4.3 人工审批等待期间注入运行实例丢失
+### 人工审批等待期间注入运行实例丢失
 
 <div align="center"><img src="images/approval-recovery-cn.png" width="820" alt="审批场景实测时间线：从运行实例丢失到决定被接收共 56 秒"></div>
 
@@ -424,7 +336,7 @@ output index 0 是中断前产出的，1 到 17 是中断后产出的。**没有
 
 > 这些是确定性的示例工具。确认号支持以下结论：在这些运行中，持久化 Graph 状态与一次审批应用跨越了进程替换；它们不能证明通用的 exactly-once 保证，也不代表真实的航班或酒店预订。
 
-### 4.4 完成前收到的 29 次 `424`
+### 完成前收到的 29 次 `424`
 
 <div align="center"><img src="images/retry-pattern-cn.png" width="820" alt="连续 29 次 HTTP 424 之后正常完成"></div>
 
@@ -449,7 +361,7 @@ The quick brown fox jumps over the lazy dog.
 
 这也是最容易被过度推广的一条结论，所以必须说准确：**这不代表所有 424 都可以重试。** 它只说明，“主机替换、且这个 response 仍然可寻址”这一种情况，值得先分类、再决定要不要放弃。
 
-### 4.5 主动打断
+### 主动打断
 
 不是所有中断都是故障。第一轮还在生成时，第二轮请求就发过来了。
 
@@ -457,7 +369,7 @@ The quick brown fox jumps over the lazy dog.
 
 ---
 
-## 5. 在受测模型中，传输 sequence 是诊断信号，不是唯一恢复依据
+## 连续性：以 workload output 为准，而不是只看传输 sequence
 
 <div align="center"><img src="images/continuity-signals-cn.png" width="820" alt="四次运行对比：传输层 sequence 三次续上，workload output 四次全部成立"></div>
 
@@ -478,11 +390,11 @@ The quick brown fox jumps over the lazy dog.
 
 ---
 
-## 6. 可执行 validator、证据与修复
+## 可执行 validator 与客户端规则
 
-从这里开始，平台能力要靠客户端工程来接住。[`validate_observations.py`](scripts/validate_observations.py) 包含下面讨论的真实可执行检查，其 [JSON self-test report](evidence/observation-validation.json) 同时记录通过与失败路径。历史服务数值保留在公开安全的[聚合证据](evidence/historical-observations.json)中；原始日志因第 9.2 节说明的原因继续留在私有边界。
+从这里开始，平台能力要靠客户端工程来接住。[`validate_observations.py`](scripts/validate_observations.py) 包含下面讨论的真实可执行检查，其 [JSON self-test report](evidence/observation-validation.json) 同时记录通过与失败路径。历史服务数值保留在公开安全的[聚合证据](evidence/historical-observations.json)中；原始日志因[后文说明的证据边界](#数字能追溯到哪里)继续留在私有边界。
 
-### 6.1 连续性：同时拒绝缺口和重复
+### 同时拒绝缺口和重复
 
 原检查实质上是 `sequence == sorted(sequence)`。它只能证明顺序，不能证明连续。[`validate_observations.py`](scripts/validate_observations.py) 中真实的 `sequence_has_no_gap` 与 `output_coverage_complete` 函数，会逐项检查相邻差值和完整预期 output 区间。
 
@@ -494,19 +406,19 @@ The quick brown fox jumps over the lazy dog.
 
 同一组可执行检查也能拒绝缺少 index 或重复 index 的“已完成 output item 清单”。输入时必须保证每个已完成 item 只出现一次，不能把每个 streaming delta 都直接喂进去，因为同一个 item 的多个 delta 会合法复用同一个 `output_index`。在这个 helper 中，传输层 sequence 只作诊断证据；验收还会检查 workload index、phase 和持久化业务状态。其他 protocol 应按自身语义定义验收标准。
 
-### 6.2 终态：一个 `done` 帧不能证明成功
+### 一个 `done` 帧不能证明成功
 
 本地评估证据中确实有只带 `done` 帧的事件流，但 harness 的通过条件来自显式 invocation 状态与 workload 断言。流关闭可能代表成功、取消、失败，也可能只是观察连接断了。可执行的 `completion_is_proven` 检查同时要求服务状态、显式终态事件和预期 phase 数量。
 
 这是从 harness 的 phase-based run 中提炼出的实现模式，不是通用适配器。Responses 客户端应替换成自己的显式终态事件与 output coverage 规则；单独一个 `{"type": "done"}` 仍然不能证明业务结果成立。
 
-### 6.3 有界重试：把 `424` 和 `403` 分开处理
+### 把 `424` 和 `403` 分开处理
 
 7 月聚合数据记录了完成前连续 29 次 `424`，但不公开 response identifier。[`validate_observations.py`](scripts/validate_observations.py) 中真实的 `recovery_action` 函数保留 same-work 条件，区分已确认的 host replacement 与 observer auth 过期，遵守调用方 deadline，并在信号不足时 fail closed。已提交的 JSON report 包含已分类和未分类的 `424`/`403` 用例。
 
 决定何时停止的应该是 workload 恢复目标所定义的 deadline，而不是一个随手设定的很小的重试次数。`403` 需要独立分类：先核实观察者身份、scope 和持久化 workload 状态；只有确认凭据过期时才刷新。重新执行只读查询，比重放业务任务更安全。
 
-### 6.4 人工审批：决定与副作用都必须幂等
+### 审批决定与副作用都必须幂等
 
 实测审批运行只跨过一次暂停点，并产生确认号 `TRIP-182336`；结构化公开 aggregate 记录了从实例丢失到决定被接收的 56 秒和终态结果，但不公开私有 session log。
 
@@ -514,7 +426,65 @@ The quick brown fox jumps over the lazy dog.
 
 ---
 
-## 7. 故障判断与恢复速查表
+## 快速开始
+
+**前置条件：** Git 与 Python 3.13。本地实验和测试不需要 Azure 订阅、凭据、endpoint 或服务调用。Windows 用户应 clone 到 `$HOME\lra-work` 这类短路径，避免很长的 OneDrive 或 project 路径。下面的实验命令不使用特定 shell 的续行或 activation 语法，因此可在 PowerShell、Bash 或 zsh 中执行；只有当平台通过 `python3` 暴露 Python 3.13 时，才把 `python` 替换为 `python3`。
+
+### 运行本地恢复实验
+
+```console
+git clone --depth 1 --filter=blob:none --sparse https://github.com/david-xinyuwei/david-share.git lra-demo
+git -C lra-demo sparse-checkout set Agents/Foundry-Long-Running-Agent-Resilience
+cd lra-demo/Agents/Foundry-Long-Running-Agent-Resilience
+
+python scripts/recovery_contract_demo.py demo --summary-file .demo-state/summary.json --events-file .demo-state/events.jsonl
+```
+
+**完成标准：** 命令 exit code 为 `0`，summary 中包含 `"passed": true`、`worker_a_exit_code: 9`、`entry_modes: ["fresh", "recovered"]` 和 phase `1-5`。Worker A 通过真实的 `os._exit(9)` 退出；Worker B 是另一个操作系统进程。
+
+### 测试与仓库 gate
+
+Windows PowerShell：
+
+```powershell
+python -m venv .venv
+$python = (Resolve-Path .\.venv\Scripts\python.exe).Path
+& $python -m pip install --no-input -r requirements-validation.txt
+& $python scripts\verify_public_resilience_api.py --quiet
+& $python scripts\validate_observations.py self-test
+& $python -m unittest discover -s tests -v
+& $python scripts\validate_repo.py
+```
+
+Linux / macOS：
+
+```bash
+python3 -m venv .venv
+PYTHON=.venv/bin/python
+"$PYTHON" -m pip install --no-input -r requirements-validation.txt
+"$PYTHON" scripts/verify_public_resilience_api.py --quiet
+"$PYTHON" scripts/validate_observations.py self-test
+"$PYTHON" -m unittest discover -s tests -v
+"$PYTHON" scripts/validate_repo.py
+```
+
+**完成标准：** 依次看到 `18/18 checks passed`、`Ran 12 tests ... OK` 和 `PASS: bilingual parity ... Data/Log Rich ... Code/Test Rich`。这些检查验证固定版本的公共 SDK surface 和本仓库，不会调用 live Hosted Agent。
+
+### 在真实 Hosted Agent 上复现
+
+本地命令证明的是本仓库可执行的恢复算法，**不是** Foundry 服务。真实服务复现应从微软可部署 sample 开始，而不是让本仓库虚构一个不完整 project：
+
+1. 安装 Azure CLI 与 `azd`，登录非生产测试订阅；
+2. clone 官方 [`resilient-streaming` Hosted Agent sample](https://github.com/microsoft-foundry/foundry-samples/tree/main/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming)；
+3. 按该 sample 自己的部署和 invoke 指引操作；本文核验的 sample revision [`3d734b9`](https://github.com/microsoft-foundry/foundry-samples/blob/3d734b93b66f163bea9886d73c6808adc32e68fc/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming/src/resilient-streaming/requirements.txt) 中，`core` 与 `responses` 都是 `2.1.0b2`——**不要**把它们替换为本仓库历史离线 probe 的 2.0.0 pins；
+4. 在 stored background response 仍为 `in_progress` 时注入运行实例替换；
+5. 轮询同一个 response ID，验收全部预期 output item 后再接受完成结果。
+
+本仓库不会虚构你的 Foundry project、模型部署、身份或 endpoint。真实服务的完成标准是同一个 work identity 恢复、workload output 完整且具有明确终态；portal 图表或单独一个 `completed` 字符串都不够。
+
+---
+
+## 故障判断与恢复速查表
 
 <div align="center"><img src="images/recovery-decision-guide-cn.png" width="560" alt="恢复前的判断流程：区分运行实例、客户端、主机替换和观察者故障"></div>
 
@@ -532,7 +502,7 @@ The quick brown fox jumps over the lazy dog.
 
 ---
 
-## 8. 设计建议
+## 设计建议
 
 下面是从受测故障形态中提炼的工程建议，不是产品保证。只有在相同假设成立时，才应迁移到本次 preview 之外。
 
@@ -547,9 +517,9 @@ The quick brown fox jumps over the lazy dog.
 
 ---
 
-## 9. 证据、边界与采用门槛
+## 证据与边界
 
-### 9.1 这些结论是怎么被挑战的
+### 这些结论是怎么被挑战的
 
 八次通过很容易被过度解读，所以每条结论在发布之前都先被攻击过一遍。
 
@@ -563,7 +533,7 @@ The quick brown fox jumps over the lazy dog.
 | 类比 | 观测是否与公开平台概念一致？ | 公开的 session 持久化与 protocol 责任边界 | 一致，但始终没有用空闲恢复代替活跃恢复的证据 |
 | 一致性 | 结论能否跨 runtime 与 protocol 成立？ | Python / .NET 与 Responses / Invocations 配对 | workload output 连续性成立；传输事件形态不一致 |
 
-### 9.2 数字能追溯到哪里
+### 数字能追溯到哪里
 
 | 声明范围 | 公开证据 | 来源边界 |
 |---|---|---|
@@ -576,7 +546,7 @@ The quick brown fox jumps over the lazy dog.
 
 原始 live 产物继续留在私有边界，因为其中包含 endpoint、任务标识、环境 metadata 和生成的 payload 文本。公开 aggregate 只含本文已披露数值；本地 JSONL 使用 synthetic workload，不含服务标识。
 
-### 9.3 边界
+### 边界
 
 - 文中所有数字都是**对应评估**（7 月战役或 8 月复测）**的观测值**，不是 benchmark、保证或 SLA。
 - 本次战役进行时，该能力处于 **private preview**；此后已进入 **public preview** 并有[官方概念文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)。本仓库现在公开当前公共 API probe、可执行本地 test fixture、测试和公开安全证据，但不包含 Microsoft SDK 源码、完整部署配方、live service 凭据或私有 raw telemetry。
@@ -584,7 +554,7 @@ The quick brown fox jumps over the lazy dog.
 - 文中列出的恢复路径只在所述条件下得到观测；没有评估业务领域正确性和模型质量。
 - 在依据本文做设计之前，请以[官方文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents)核对当前能力。
 
-### 9.4 宣称“可以上生产”之前
+### 宣称“可以上生产”之前
 
 针对某个具体 workload，至少还要完成这些：
 

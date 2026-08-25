@@ -12,9 +12,11 @@ import ast
 import hashlib
 import json
 import re
+import unicodedata
 import unittest
 from collections import Counter
 from pathlib import Path
+from urllib.parse import unquote
 
 def parse_root() -> Path:
     parser = argparse.ArgumentParser(
@@ -66,8 +68,6 @@ ALLOWED_FILES = {
     "images/official-lease-recovery-model.png",
     "images/recovery-decision-guide.png",
     "images/recovery-decision-guide-cn.png",
-    "images/resilience-architecture.png",
-    "images/resilience-architecture-cn.png",
     "images/retry-pattern.png",
     "images/retry-pattern-cn.png",
     "images/work-distribution.png",
@@ -102,61 +102,75 @@ CRITICAL_NUMBERS = ["599", "11,649", "12,248", "1,301", "21.7", "577", "11,005",
                     "95"]
 
 REQUIRED_EN_SECTIONS = [
-    "## Start here: reproduce it in your own environment",
+    "## What Foundry provides, and what your application owns",
     "## What this repo validates",
-    "## 1. What Foundry provides, and what your application owns",
-    "## 2. How it works: address the work, not the process",
-    "### 2.1 Three terms used below",
-    "### 2.2 Recovery is at-least-once; applications must make replay safe",
-    "### 2.4 Public recovery contract and repository reference model",
-    "#### 2.4.1 Executable recovery-contract reference",
-    "### 2.5 From Hosted Agent configuration to a recoverable call",
-    "#### 2.5.1 Declare a Hosted Agent with the Responses protocol",
-    "#### 2.5.2 Opt the agent process into recovery",
-    "#### 2.5.3 Resume from a business checkpoint",
-    "#### 2.5.4 Keep dispatch separate from observation",
-    "## 3. Method: what was actually run",
+    "### Recovery model at a glance",
+    "### The repository is executable, not just a write-up",
+    "## Deep dive: how recovery works",
+    "### Three terms used below",
+    "### Recovery is at-least-once; applications must make replay safe",
+    "### Where you plug in",
+    "### Public recovery contract and repository reference model",
+    "#### Executable recovery-contract reference",
+    "### From Hosted Agent configuration to a recoverable call",
+    "#### Declare a Hosted Agent with the Responses protocol",
+    "#### Opt the agent process into recovery",
+    "#### Resume from a business checkpoint",
+    "#### Keep dispatch separate from observation",
+    "## Evaluation: what was actually run",
     "### Current public-preview contract check",
-    "## 4. Results",
-    "## 5. In the tested model, transport sequence is diagnostic, not the sole recovery authority",
-    "## 6. Executable validators, evidence, and fixes",
-    "### 6.1 Continuity: reject gaps and duplicates",
-    "### 6.2 Terminal state: a `done` frame is not proof of success",
-    "### 6.3 Bounded retry: classify `424` separately from `403`",
-    "### 6.4 Human approval: make the decision and the side effect idempotent",
-    "## 7. Failure and recovery playbook",
-    "## 8. Design guidance",
-    "## 9. Evidence, boundaries, and adoption gate",
-    "### 9.4 Before you call this production-ready",
+    "### On a deployed agent, on an ordinary subscription",
+    "## Measured results",
+    "## Continuity: workload output over transport sequence",
+    "## Executable validators and client rules",
+    "### Reject gaps and duplicates",
+    "### A `done` frame is not proof of success",
+    "### Classify `424` separately from `403`",
+    "### Make approval decisions and side effects idempotent",
+    "## Quick start",
+    "### Run the local recovery experiment",
+    "### Tests and repository gate",
+    "### Reproduce on a live Hosted Agent",
+    "## Failure and recovery playbook",
+    "## Design guidance",
+    "## Evidence and boundaries",
+    "### Before you call this production-ready",
 ]
 
 REQUIRED_CN_SECTIONS = [
-    "## 从这里开始：在自己的环境复现",
+    "## Foundry 提供什么，应用还要负责什么",
     "## 本仓库验证了什么",
-    "## 1. Foundry 提供什么，应用还要负责什么",
-    "## 2. 原理：寻址任务，而不是抢救进程",
-    "### 2.1 后文只需要三个词",
-    "### 2.2 恢复是 at-least-once；应用必须保证 replay 安全",
-    "### 2.4 公开恢复契约与仓库参考实现",
-    "#### 2.4.1 可执行的 recovery contract 参考实现",
-    "### 2.5 从 Hosted Agent 配置到一次可恢复调用",
-    "#### 2.5.1 用 Responses protocol 声明 Hosted Agent",
-    "#### 2.5.2 让 Agent 进程进入恢复模式",
-    "#### 2.5.3 从业务 checkpoint 恢复",
-    "#### 2.5.4 把任务下发和状态观察分开",
-    "## 3. 评估方法：到底跑了什么",
+    "### 恢复模型速览",
+    "### 本仓库可执行，不只是一篇文章",
+    "## 深入理解：恢复如何工作",
+    "### 后文只需要三个词",
+    "### 恢复是 at-least-once；应用必须保证 replay 安全",
+    "### 三种集成层级",
+    "### 公开恢复契约与仓库参考实现",
+    "#### 可执行的 recovery contract 参考实现",
+    "### 从 Hosted Agent 配置到一次可恢复调用",
+    "#### 用 Responses protocol 声明 Hosted Agent",
+    "#### 让 Agent 进程进入恢复模式",
+    "#### 从业务 checkpoint 恢复",
+    "#### 把任务下发和状态观察分开",
+    "## 评估：到底跑了什么",
     "### 当前 public-preview 契约检查",
-    "## 4. 实测结果",
-    "## 5. 在受测模型中，传输 sequence 是诊断信号，不是唯一恢复依据",
-    "## 6. 可执行 validator、证据与修复",
-    "### 6.1 连续性：同时拒绝缺口和重复",
-    "### 6.2 终态：一个 `done` 帧不能证明成功",
-    "### 6.3 有界重试：把 `424` 和 `403` 分开处理",
-    "### 6.4 人工审批：决定与副作用都必须幂等",
-    "## 7. 故障判断与恢复速查表",
-    "## 8. 设计建议",
-    "## 9. 证据、边界与采用门槛",
-    "### 9.4 宣称“可以上生产”之前",
+    "### 在普通订阅上，验证真实部署的 Agent",
+    "## 实测结果",
+    "## 连续性：以 workload output 为准，而不是只看传输 sequence",
+    "## 可执行 validator 与客户端规则",
+    "### 同时拒绝缺口和重复",
+    "### 一个 `done` 帧不能证明成功",
+    "### 把 `424` 和 `403` 分开处理",
+    "### 审批决定与副作用都必须幂等",
+    "## 快速开始",
+    "### 运行本地恢复实验",
+    "### 测试与仓库 gate",
+    "### 在真实 Hosted Agent 上复现",
+    "## 故障判断与恢复速查表",
+    "## 设计建议",
+    "## 证据与边界",
+    "### 宣称“可以上生产”之前",
 ]
 
 REQUIRED_CONCEPTS = {
@@ -201,6 +215,31 @@ def headings(text: str) -> list[str]:
     return re.findall(r"^(#{1,6}) ", text, flags=re.MULTILINE)
 
 
+def github_heading_anchors(text: str) -> set[str]:
+    """Generate the GitHub-style anchors used by this repository's headings."""
+    anchors: set[str] = set()
+    counts: Counter[str] = Counter()
+    for title in re.findall(r"^#{1,6}\s+(.+?)\s*$", text, flags=re.MULTILINE):
+        title = re.sub(r"<[^>]+>", "", title)
+        title = title.replace("`", "").lower().strip()
+        slug = "".join(
+            character
+            for character in title
+            if (
+                character in "-_"
+                or character.isspace()
+                or unicodedata.category(character)[0] in {"L", "M", "N"}
+            )
+        )
+        slug = re.sub(r"\s+", "-", slug)
+        if not slug:
+            continue
+        duplicate_index = counts[slug]
+        counts[slug] += 1
+        anchors.add(slug if duplicate_index == 0 else f"{slug}-{duplicate_index}")
+    return anchors
+
+
 def tables(lines: list[str]) -> list[int]:
     return [line.count("|") for line in lines if re.fullmatch(r"\|[-:| ]+\|", line)]
 
@@ -221,6 +260,11 @@ def local_links(text: str) -> list[str]:
     targets = re.findall(r"(?<!!)\[[^\]]*\]\(([^)]+)\)", text)
     return [t.split("#", 1)[0] for t in targets
             if t and not t.startswith(("#", "http://", "https://", "mailto:"))]
+
+
+def markdown_targets(text: str) -> list[str]:
+    """Extract Markdown destinations, including outer links around badge images."""
+    return re.findall(r"\]\(([^)\s]+)\)", text)
 
 
 def fenced_blocks(text: str, language: str) -> list[str]:
@@ -373,29 +417,29 @@ def main() -> int:
     require(abs(len(en_lines) - len(cn_lines)) <= 15,
             f"line-count drift too large: {len(en_lines)} vs {len(cn_lines)}")
 
-    # Image parity: six project charts are localized; the official CC BY image is shared.
+    # Image parity: five project charts are localized; the official CC BY image is shared.
     en_images = images(en_text)
     cn_images = images(cn_text)
     shared_image = "images/official-lease-recovery-model.png"
-    require(len(en_images) == len(cn_images) == 7,
-            f"each README must embed 7 images, got {len(en_images)}/{len(cn_images)}")
+    require(len(en_images) == len(cn_images) == 6,
+            f"each README must embed 6 images, got {len(en_images)}/{len(cn_images)}")
     require(en_images.count(shared_image) == cn_images.count(shared_image) == 1,
             "both READMEs must embed the official lease-recovery diagram once")
     en_localized = [path for path in en_images if path != shared_image]
     cn_localized = [path for path in cn_images if path != shared_image]
     expected_cn = [path.replace(".png", "-cn.png") for path in en_localized]
     require(cn_localized == expected_cn,
-            "Chinese README must reference the six localized project charts")
+            "Chinese README must reference the five localized project charts")
 
     # Every chart must be centred, width-capped, and carry alt text (CL-006)
     for readme, text in ((EN, en_text), (CN, cn_text)):
         centred = len(re.findall(r"<div align=\"center\"><img ", text))
-        require(centred == 7, f"{readme.name}: expected 7 centred image embeds, got {centred}")
+        require(centred == 6, f"{readme.name}: expected 6 centred image embeds, got {centred}")
         widths = re.findall(r"<img\s[^>]*width=\"(\d+)\"", text)
-        require(len(widths) == 7 and all(int(w) <= 820 for w in widths),
+        require(len(widths) == 6 and all(int(w) <= 820 for w in widths),
                 f"{readme.name}: every image needs a width attribute of at most 820")
         alts = image_alt_texts(text)
-        require(len(alts) == 7 and all(alt.strip() for alt in alts),
+        require(len(alts) == 6 and all(alt.strip() for alt in alts),
                 f"{readme.name}: every image needs non-empty alt text")
 
     # Link and image targets exist
@@ -404,6 +448,21 @@ def main() -> int:
             if target.startswith("../"):
                 continue
             require((ROOT / target).exists(), f"{readme.name}: missing target {target}")
+        for target in markdown_targets(text):
+            if "#" not in target or target.startswith(("http://", "https://", "mailto:")):
+                continue
+            path_text, fragment = target.split("#", 1)
+            if not fragment or path_text.startswith("../"):
+                continue
+            target_path = readme if not path_text else ROOT / unquote(path_text)
+            if target_path.suffix.lower() != ".md" or not target_path.is_file():
+                continue
+            target_anchors = github_heading_anchors(target_path.read_text(encoding="utf-8"))
+            decoded_fragment = unquote(fragment).lower()
+            require(
+                decoded_fragment in target_anchors,
+                f"{readme.name}: missing Markdown anchor {target} in {target_path.name}",
+            )
 
     # Numeric parity
     for number in CRITICAL_NUMBERS:
@@ -415,6 +474,17 @@ def main() -> int:
         require(section in en_text, f"English README missing customer-first section: {section}")
     for section in REQUIRED_CN_SECTIONS:
         require(section in cn_text, f"Chinese README missing customer-first section: {section}")
+    en_section_positions = [en_text.index(section) for section in REQUIRED_EN_SECTIONS if section in en_text]
+    cn_section_positions = [cn_text.index(section) for section in REQUIRED_CN_SECTIONS if section in cn_text]
+    require(en_section_positions == sorted(en_section_positions),
+            "English README does not follow the required reader flow")
+    require(cn_section_positions == sorted(cn_section_positions),
+            "Chinese README does not follow the required reader flow")
+    for readme, text in ((EN, en_text), (CN, cn_text)):
+        require(not re.search(r"^#{2,4}\s+\d+(?:\.\d+)*\.", text, flags=re.MULTILINE),
+                f"{readme.name}: numbered manual-style headings must not replace reader-flow headings")
+        require(not re.search(r"\bPath [ABC]\b|路径 [ABC]", text),
+                f"{readme.name}: opaque Path A/B/C labels must not return")
     for concept in REQUIRED_CONCEPTS["English"]:
         require(concept in en_text, f"English README missing recovery concept: {concept}")
     for concept in REQUIRED_CONCEPTS["Chinese"]:
@@ -508,52 +578,57 @@ def main() -> int:
                 f"{readme.name}: Python snippets must live in tested source files")
         require(not fenced_blocks(text, "yaml"),
                 f"{readme.name}: incomplete YAML fragments are forbidden")
+        console_blocks = fenced_blocks(text, "console")
+        require(len(console_blocks) == 1,
+                f"{readme.name}: Quick Start must contain one cross-shell experiment block")
+        if len(console_blocks) == 1:
+            experiment_block = console_blocks[0]
+            for command in (
+                "git clone --depth 1 --filter=blob:none --sparse",
+                "git -C lra-demo sparse-checkout set Agents/Foundry-Long-Running-Agent-Resilience",
+                "python scripts/recovery_contract_demo.py demo",
+                "--summary-file .demo-state/summary.json",
+                "--events-file .demo-state/events.jsonl",
+            ):
+                require(command in experiment_block,
+                        f"{readme.name}: local recovery experiment missing command {command}")
         powershell_blocks = fenced_blocks(text, "powershell")
         require(len(powershell_blocks) == 1,
-                f"{readme.name}: Quick Start must be the single command block")
+                f"{readme.name}: Quick Start must contain one PowerShell validation block")
         if len(powershell_blocks) == 1:
-            block = powershell_blocks[0]
-            require(bool(block.strip()),
-                    f"{readme.name}: Quick Start command block is empty")
+            powershell_block = powershell_blocks[0]
             for command in (
-                "git clone --depth 1 --filter=blob:none --sparse",
-                "git sparse-checkout set Agents/Foundry-Long-Running-Agent-Resilience",
-                "pip install -r requirements-validation.txt",
-                "scripts\\verify_public_resilience_api.py --quiet",
-                "scripts\\recovery_contract_demo.py demo",
-                "--summary-file .demo-state\\summary.json",
-                "--events-file .demo-state\\events.jsonl",
-                "scripts\\validate_observations.py self-test",
-                "-m unittest discover -s tests -v",
-                "scripts\\validate_repo.py",
+                "python -m venv .venv",
+                "Resolve-Path .\\.venv\\Scripts\\python.exe",
+                "& $python -m pip install --no-input -r requirements-validation.txt",
+                "& $python scripts\\verify_public_resilience_api.py --quiet",
+                "& $python scripts\\validate_observations.py self-test",
+                "& $python -m unittest discover -s tests -v",
+                "& $python scripts\\validate_repo.py",
             ):
-                require(command in block,
-                        f"{readme.name}: Quick Start missing command {command}")
+                require(command in powershell_block,
+                        f"{readme.name}: PowerShell validation missing command {command}")
         bash_blocks = fenced_blocks(text, "bash")
         require(len(bash_blocks) == 1,
-                f"{readme.name}: POSIX reproduction must be one Bash block")
+                f"{readme.name}: Quick Start must contain one POSIX validation block")
         if len(bash_blocks) == 1:
-            block = bash_blocks[0]
+            validation_block = bash_blocks[0]
             for command in (
-                "git clone --depth 1 --filter=blob:none --sparse",
-                "git sparse-checkout set Agents/Foundry-Long-Running-Agent-Resilience",
-                "python3 scripts/recovery_contract_demo.py demo",
-                "# Path B — optional: full SDK, tests, and L5 validation.",
-                "./.venv/bin/python -m pip install -r requirements-validation.txt",
-                "./.venv/bin/python scripts/validate_repo.py",
+                "python3 -m venv .venv",
+                'PYTHON=.venv/bin/python',
+                '"$PYTHON" -m pip install --no-input -r requirements-validation.txt',
+                '"$PYTHON" scripts/verify_public_resilience_api.py --quiet',
+                '"$PYTHON" scripts/validate_observations.py self-test',
+                '"$PYTHON" -m unittest discover -s tests -v',
+                '"$PYTHON" scripts/validate_repo.py',
             ):
-                require(command in block,
-                        f"{readme.name}: Bash reproduction missing command {command}")
+                require(command in validation_block,
+                        f"{readme.name}: POSIX validation missing command {command}")
         require(
             (
-                (
-                    "**Path A done-when:**" in text
-                    and "**Path B done-when:**" in text
-                )
-                or (
-                    "**路径 A 完成标准：**" in text
-                    and "**路径 B 完成标准：**" in text
-                )
+                text.count("Done-when is") >= 2
+                if readme == EN
+                else text.count("**完成标准：**") >= 2
             )
             and "worker_a_exit_code: 9" in text
             and "18/18 checks passed" in text,
@@ -649,22 +724,15 @@ def main() -> int:
             "English official-image attribution or notice link missing")
     require("CC BY 4.0" in cn_text and "THIRD-PARTY-NOTICES.md" in cn_text,
             "Chinese official-image attribution or notice link missing")
-    require(
-        "Project-authored conceptual overview — not an official Microsoft architecture diagram"
-        in en_text,
-        "English README must distinguish the project-authored diagram",
-    )
-    require(
-        "项目作者绘制的概念概览——不是微软官方架构图" in cn_text,
-        "Chinese README must distinguish the project-authored diagram",
-    )
+    require("resilience-architecture" not in en_text and "resilience-architecture" not in cn_text,
+            "retired project-authored architecture diagram must not return")
     require(
         "The figure below is the **official Microsoft diagram**, reproduced unmodified"
         in en_text,
         "English README must identify the official diagram",
     )
     require(
-        "下图是**微软官方图**，在本文中原样使用" in cn_text,
+        "下图是**微软官方原图**，未经修改" in cn_text,
         "Chinese README must identify the official diagram",
     )
 
