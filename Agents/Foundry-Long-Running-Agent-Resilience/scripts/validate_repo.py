@@ -50,6 +50,7 @@ ALLOWED_FILES = {
     "THIRD-PARTY-NOTICES.md",
     "requirements-validation.txt",
     "examples/resilience_handler.py",
+    "examples/resilient_responses_agent.py",
     "examples/resilience_sdk_usage.py",
     "scripts/recovery_contract_demo.py",
     "scripts/validate_observations.py",
@@ -103,6 +104,12 @@ CRITICAL_NUMBERS = [
 
 REQUIRED_EN_SECTIONS = [
     "## Use this in your own agent",
+    "### Choose where progress lives",
+    "### Configure the server and handler",
+    "### Prepare and deploy",
+    "### Configure external storage when your workload needs it",
+    "### Configure the caller",
+    "### Verify recovery",
     "## What Foundry provides, and what your application owns",
     "## What this repo validates",
     "### Recovery model at a glance",
@@ -140,6 +147,12 @@ REQUIRED_EN_SECTIONS = [
 
 REQUIRED_CN_SECTIONS = [
     "## 在你自己的 Agent 里使用",
+    "### 先选进度放在哪里",
+    "### 配置服务端和 Handler",
+    "### 准备和部署",
+    "### 业务需要外部存储时怎么配",
+    "### 配置调用方",
+    "### 验收恢复",
     "## Foundry 提供什么，应用负责什么",
     "## 本仓库验证了什么",
     "### 恢复模型速览",
@@ -494,30 +507,46 @@ def main() -> int:
     for snippet in (
         "not active-active redundancy",
         "task-level recovery",
-        "To add resilience to your code",
         "azure.ai.agentserver.core.tasks",
         "flush()` is not a durable-write acknowledgement",
         "| Your goal | Where to go | Azure subscription needed? |",
         "pip install azure-ai-agentserver-core==2.1.0b2 azure-ai-agentserver-responses==2.1.0b2",
-        "Your own work replaces the return body",
-        "That snippet alone is not enough",
-        "| What else you need | Who provides it | What happens without it |",
-        "Foundry does not store your business progress",
+        "An external database is **not always required**",
+        "| Strategy | Separate progress store? | Exact configuration | Use it when |",
+        "ResponsesServerOptions(resilient_background=True)",
+        "stream.checkpoint()",
+        "context.persisted_response",
+        "Foundry Project Manager",
+        "azd provision",
+        "Storage Blob Data Contributor",
+        "azd env set CHECKPOINT_ENDPOINT",
+        "environmentVariables",
+        "DefaultAzureCredential",
+        "azd ai agent show",
+        "remote create and local ID persistence are not atomic",
     ):
         require(snippet in en_text,
                 f"English README missing customer adoption guidance: {snippet}")
     for snippet in (
         "不是让两个 Agent 同时执行同一任务的 active-active 双活",
         "任务级恢复",
-        "接入自己的代码时，按下面六步",
         "azure.ai.agentserver.core.tasks",
         "不等于“持久化已经确认成功”",
         "| 你的目标 | 去哪里 | 需要 Azure 订阅吗 |",
         "pip install azure-ai-agentserver-core==2.1.0b2 azure-ai-agentserver-responses==2.1.0b2",
-        "你自己的业务逻辑替换返回值部分",
-        "光有这段代码不够",
-        "| 还需要什么 | 谁提供 | 缺了会怎样 |",
-        "Foundry 不替你存业务进度",
+        "**不是所有任务都要另建数据库。**",
+        "| 策略 | 要另配进度存储吗 | 具体配置 | 适用场景 |",
+        "ResponsesServerOptions(resilient_background=True)",
+        "stream.checkpoint()",
+        "context.persisted_response",
+        "Foundry Project Manager",
+        "azd provision",
+        "Storage Blob Data Contributor",
+        "azd env set CHECKPOINT_ENDPOINT",
+        "environmentVariables",
+        "DefaultAzureCredential",
+        "azd ai agent show",
+        "远端 create 与本地保存 ID 不是一个原子事务",
     ):
         require(snippet in cn_text,
                 f"Chinese README missing customer adoption guidance: {snippet}")
@@ -567,9 +596,9 @@ def main() -> int:
             cn_snippet in cn_text,
             f"Chinese README missing recovery boundary: {cn_snippet}",
         )
-    require("Resilient-task enablement" in en_text,
+    require("set_resilient_tasks_enabled(True)" in en_text,
             "English README missing current resilient-task enablement")
-    require("Resilient task（可恢复任务）" in cn_text,
+    require("set_resilient_tasks_enabled(True)" in cn_text,
             "Chinese README missing current resilient-task enablement")
     for snippet in (
         "azure-ai-agentserver-core` 2.0.0",
@@ -609,6 +638,16 @@ def main() -> int:
             "English README must link the actual public SDK handler")
     require("[`examples/resilience_handler.py`](examples/resilience_handler.py)" in cn_text,
             "Chinese README must link the actual public SDK handler")
+    require(
+        "[`examples/resilient_responses_agent.py`](examples/resilient_responses_agent.py)"
+        in en_text,
+        "English README must link the complete Responses recovery handler",
+    )
+    require(
+        "[`examples/resilient_responses_agent.py`](examples/resilient_responses_agent.py)"
+        in cn_text,
+        "Chinese README must link the complete Responses recovery handler",
+    )
     require("**not** a security sandbox or RBAC boundary" in en_text,
             "English README must scope the facade boundary")
     require("**不是**权限隔离机制（安全沙箱或 RBAC 边界）" in cn_text,
@@ -625,14 +664,14 @@ def main() -> int:
         and "去重能力或人工对账" in cn_text,
         "Chinese README must disclose and scope the create/persist crash window",
     )
-    handler_example = ROOT / "examples" / "resilience_handler.py"
+    handler_example = ROOT / "examples" / "resilient_responses_agent.py"
     handler_text = (
         handler_example.read_text(encoding="utf-8")
         if handler_example.is_file()
         else ""
     )
     snippet_match = re.search(
-        r"# README_SNIPPET_START\n(.*?)# README_SNIPPET_END",
+        r"# README_RESPONSES_SNIPPET_START\n(.*?)# README_RESPONSES_SNIPPET_END",
         handler_text,
         flags=re.DOTALL,
     )
@@ -640,7 +679,7 @@ def main() -> int:
         snippet_match.group(1).strip() if snippet_match else ""
     )
     require(bool(expected_python_snippet),
-            "resilience handler README snippet markers are missing")
+            "Responses handler README snippet markers are missing")
 
     for readme, text in ((EN, en_text), (CN, cn_text)):
         python_blocks = fenced_blocks(text, "python")
@@ -649,7 +688,7 @@ def main() -> int:
         if len(python_blocks) == 1:
             require(
                 python_blocks[0].strip() == expected_python_snippet,
-                f"{readme.name}: Python block drifted from resilience_handler.py",
+                f"{readme.name}: Python block drifted from resilient_responses_agent.py",
             )
         require(not fenced_blocks(text, "yaml"),
                 f"{readme.name}: incomplete YAML fragments are forbidden")
@@ -713,7 +752,7 @@ def main() -> int:
             f"{readme.name}: reproduction done-when or expected outputs missing",
         )
         require(
-            "3d734b93b66f163bea9886d73c6808adc32e68fc" in text
+            "b9b2cdd67efee6287e4b263f83ed45f18fe892be" in text
             and "2.1.0b2" in text
             and (
                 ("do **not** replace" in text)
@@ -842,7 +881,13 @@ def main() -> int:
         ):
             require(snippet in example_text,
                     f"public SDK check wrapper missing runtime check: {snippet}")
-    if handler_example.is_file():
+    task_handler_example = ROOT / "examples" / "resilience_handler.py"
+    task_handler_text = (
+        task_handler_example.read_text(encoding="utf-8")
+        if task_handler_example.is_file()
+        else ""
+    )
+    if task_handler_example.is_file():
         for snippet in (
             "from azure.ai.agentserver.core.tasks import RetryPolicy, TaskContext, task",
             '@task(name="resilience-api-usage", timeout=None, retry=RetryPolicy())',
@@ -851,8 +896,22 @@ def main() -> int:
             "ctx.recovery_count",
             "ctx.retry_attempt",
         ):
-            require(snippet in handler_text,
+            require(snippet in task_handler_text,
                     f"public SDK handler missing runtime code: {snippet}")
+    if handler_example.is_file():
+        for snippet in (
+            "ResponsesServerOptions(resilient_background=True)",
+            "set_resilient_tasks_enabled(True)",
+            "context.persisted_response",
+            "context.is_recovery",
+            "yield stream.checkpoint()",
+            "await context.exit_for_recovery()",
+            'STAGES = ("analyze", "generate", "refine")',
+        ):
+            require(
+                snippet in handler_text,
+                f"Responses recovery handler missing runtime code: {snippet}",
+            )
 
     def read_json_evidence(relative: str) -> dict:
         path = ROOT / relative
@@ -1299,8 +1358,8 @@ def main() -> int:
         + sorted((ROOT / "examples").glob("*.py"))
         + sorted((ROOT / "tests").glob("test_*.py"))
     )
-    require(len(python_files) == 8,
-            f"expected 4 scripts, 2 examples, and 2 test files, found {len(python_files)}")
+    require(len(python_files) == 9,
+            f"expected 4 scripts, 3 examples, and 2 test files, found {len(python_files)}")
     for path in python_files:
         for finding in python_redlines(path):
             require(False, finding)
