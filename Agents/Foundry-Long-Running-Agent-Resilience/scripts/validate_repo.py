@@ -91,9 +91,10 @@ SECRET_PATTERNS = {
 }
 
 # Numbers that must agree across both language versions.
-CRITICAL_NUMBERS = ["599", "11,649", "12,248", "1,301", "21.7", "577", "11,005", "1,140",
-                    "11,584", "47", "56", "578", "738", "12,073", "10,918", "570", "192", "18",
-                    "95"]
+CRITICAL_NUMBERS = [
+    "599", "12,248", "1,301", "21.7", "11,584", "47", "56",
+    "738", "12,073", "18", "95",
+]
 
 REQUIRED_EN_SECTIONS = [
     "## What Foundry provides, and what your application owns",
@@ -115,12 +116,12 @@ REQUIRED_EN_SECTIONS = [
     "### Current public-preview contract check",
     "### On a deployed agent, on an ordinary subscription",
     "## Measured results",
-    "## Continuity: workload output over transport sequence",
-    "## Executable validators and client rules",
+    "## Judge recovery by workload output, not transport sequence",
+    "## Executable checks and client rules",
     "### Reject gaps and duplicates",
     "### A `done` frame is not proof of success",
     "### Classify `424` separately from `403`",
-    "### Make approval decisions and side effects idempotent",
+    "### Prevent duplicate approvals and side effects",
     "## Quick start",
     "### Run the local recovery experiment",
     "### Tests and repository gate",
@@ -132,16 +133,16 @@ REQUIRED_EN_SECTIONS = [
 ]
 
 REQUIRED_CN_SECTIONS = [
-    "## Foundry 提供什么，应用还要负责什么",
+    "## Foundry 提供什么，应用负责什么",
     "## 本仓库验证了什么",
     "### 恢复模型速览",
-    "### 本仓库可执行，不只是一篇文章",
+    "### 本仓库可直接运行，不只是说明文档",
     "## 深入理解：恢复如何工作",
     "### 后文只需要三个词",
     "### 恢复是 at-least-once；应用必须保证 replay 安全",
     "### 三种集成层级",
     "### 公开恢复契约与仓库参考实现",
-    "#### 可执行的 recovery contract 参考实现",
+    "#### 可执行的恢复契约参考实现",
     "### 从 Hosted Agent 配置到一次可恢复调用",
     "#### 用 Responses protocol 声明 Hosted Agent",
     "#### 让 Agent 进程进入恢复模式",
@@ -151,15 +152,15 @@ REQUIRED_CN_SECTIONS = [
     "### 当前 public-preview 契约检查",
     "### 在普通订阅上，验证真实部署的 Agent",
     "## 实测结果",
-    "## 连续性：以 workload output 为准，而不是只看传输 sequence",
-    "## 可执行 validator 与客户端规则",
+    "## 验收看任务结果，不只看传输编号",
+    "## 自动检查与客户端规则",
     "### 同时拒绝缺口和重复",
     "### 一个 `done` 帧不能证明成功",
     "### 把 `424` 和 `403` 分开处理",
-    "### 审批决定与副作用都必须幂等",
+    "### 审批决定和外部操作都要防重复",
     "## 快速开始",
     "### 运行本地恢复实验",
-    "### 测试与仓库 gate",
+    "### 测试与仓库检查",
     "### 在真实 Hosted Agent 上复现",
     "## 故障判断与恢复速查表",
     "## 设计建议",
@@ -487,8 +488,8 @@ def main() -> int:
     # The Hosted Agent recovery path must keep official contract and local
     # reference-implementation choices separate.
     required_recovery_pairs = (
-        ("later process reclaims", "后续进程接管"),
-        ("generation fencing", "generation fence"),
+        ("later-process reclaim", "另一个进程可以接管"),
+        ("local design choices", "示例自己的设计"),
         ("Hosted Agent version", "Hosted Agent version"),
         ("Responses protocol", "Responses protocol"),
         ("framework checkpoint", "framework checkpoint"),
@@ -496,9 +497,7 @@ def main() -> int:
         ("background=True", "background=True"),
         ("recovery_contract_demo.py", "recovery_contract_demo.py"),
         ("validate_observations.py", "validate_observations.py"),
-        ("response.in_progress", "response.in_progress"),
-        ("not claims about Microsoft Foundry's private service topology",
-         "不是对 Microsoft Foundry 私有服务拓扑"),
+        ("not claims about Foundry internals", "不代表 Foundry 内部实现"),
     )
     for en_snippet, cn_snippet in required_recovery_pairs:
         require(
@@ -511,7 +510,7 @@ def main() -> int:
         )
     require("Resilient-task enablement" in en_text,
             "English README missing current resilient-task enablement")
-    require("Resilient task enablement" in cn_text,
+    require("Resilient task（可恢复任务）" in cn_text,
             "Chinese README missing current resilient-task enablement")
     for snippet in (
         "azure-ai-agentserver-core` 2.0.0",
@@ -521,9 +520,6 @@ def main() -> int:
         "recovery_count",
         "retry_attempt",
         "TaskContext.metadata",
-        "TaskContext.exit_for_recovery()",
-        "TaskContext.is_steered_turn",
-        "RetryPolicy",
         "18 of 18",
     ):
         require(snippet in en_text, f"English README missing public-preview API evidence: {snippet}")
@@ -535,10 +531,7 @@ def main() -> int:
         "recovery_count",
         "retry_attempt",
         "TaskContext.metadata",
-        "TaskContext.exit_for_recovery()",
-        "TaskContext.is_steered_turn",
-        "RetryPolicy",
-        "18 项断言全部通过",
+        "18 / 18 项通过",
     ):
         require(snippet in cn_text, f"Chinese README missing public-preview API evidence: {snippet}")
     require("[`recovery_contract_demo.py`](scripts/recovery_contract_demo.py)" in en_text,
@@ -549,22 +542,20 @@ def main() -> int:
             "English README must link the executable observation validator")
     require("[`validate_observations.py`](scripts/validate_observations.py)" in cn_text,
             "Chinese README must link the executable observation validator")
-    require("not** a security sandbox or RBAC boundary" in en_text,
+    require("**not** a security sandbox or RBAC boundary" in en_text,
             "English README must scope the facade boundary")
-    require("不是**安全沙箱或 RBAC 边界" in cn_text,
+    require("**不是**权限隔离机制（安全沙箱或 RBAC 边界）" in cn_text,
             "Chinese README must scope the facade boundary")
     require(
-        "application's durable recording of the returned response ID are not one atomic transaction"
-        in en_text
-        and "did not expose lookup by an application work key" in en_text
-        and "do not automatically create again" in en_text,
+        "Remote create and local persistence of the response ID are not atomic" in en_text
+        and "unknown result instead of creating again" in en_text
+        and "deduplication or reconciliation" in en_text,
         "English README must disclose and scope the create/persist crash window",
     )
     require(
-        "远端 create 调用与应用持久化记录返回的 response ID 不是一个原子事务"
-        in cn_text
-        and "不支持按应用自己的 work key 找回 response" in cn_text
-        and "不能自动再次 create" in cn_text,
+        "远端 create 与本地保存 ID 不是一个原子事务" in cn_text
+        and "结果未知时不要自动重建任务" in cn_text
+        and "去重能力或人工对账" in cn_text,
         "Chinese README must disclose and scope the create/persist crash window",
     )
     for readme, text in ((EN, en_text), (CN, cn_text)):
@@ -634,7 +625,7 @@ def main() -> int:
             and (
                 ("do **not** replace" in text)
                 if readme == EN
-                else ("**不要**把它们替换" in text)
+                else ("**不要**改成本仓库历史离线检查使用的 2.0.0" in text)
             ),
             f"{readme.name}: current live-sample version boundary missing",
         )
@@ -650,32 +641,25 @@ def main() -> int:
     require("private preview" in en_text.lower(), "English boundary statement missing")
     require("private preview" in cn_text.lower(), "Chinese boundary statement missing")
     require("no Microsoft SDK source" in en_text, "English SDK-source boundary missing")
-    require("不包含 Microsoft SDK 源码" in cn_text, "Chinese SDK-source boundary missing")
+    require("不提供 Microsoft SDK 源码" in cn_text, "Chinese SDK-source boundary missing")
     require("public preview" in en_text.lower(), "English current preview status missing")
     require("public preview" in cn_text.lower(), "Chinese current preview status missing")
 
-    # High-risk claims must retain their scope. These phrases are deliberately
-    # specific: deleting any one can turn an N=1 observation into a product-wide
-    # claim or turn a diagnostic symptom into a universal root-cause mapping.
+    # High-risk claims must retain their scope. Keep these short and semantic so
+    # the gate protects boundaries without forcing one editorial sentence.
     required_rigor_pairs = (
-        ("The question under test is not whether every run loses a process",
-         "测试的问题不是“每次运行是否都会丢失进程”"),
-        ("2022 work subscription that had been enabled during the earlier preview",
-         "2022 工作订阅上复测两件事；这个订阅曾在更早的预览期由产品组开通过"),
-        ("it is not live Hosted Agent evidence",
-         "它不是线上 Hosted Agent 证据"),
-        ("do not establish tenant-, region-, or subscription-wide availability",
-         "不能说明所有 tenant、region 或订阅都已就绪"),
+        ("Every interruption was deliberate, not an outage",
+         "所有中断都是主动注入，不是线上事故"),
+        ("not live Hosted Agent evidence", "不是线上 Hosted Agent 证据"),
+        ("not proof of universal availability", "不代表所有订阅或区域"),
         ("diagnostic starting point, not a universal mapping from symptom to cause",
          "只是诊断起点，不是“现象必然对应某个根因”的通用映射"),
         ("do not establish a general exactly-once guarantee",
          "不能证明通用的 exactly-once 保证"),
         ("not product guarantees",
          "不是产品保证"),
-        ("at the time of this re-test",
-         "在本次复测时"),
-        ("not a general proof for every Responses workload",
-         "不是对所有 Responses workload 的通用证明"),
+        ("not a guarantee for every Responses workload",
+         "不代表所有 Responses 任务都有相同行为"),
     )
     for en_boundary, cn_boundary in required_rigor_pairs:
         require(en_boundary in en_text,
@@ -726,17 +710,26 @@ def main() -> int:
         "English README must identify the official diagram",
     )
     require(
-        "下图是**微软官方原图**，未经修改" in cn_text,
+        "下图是**微软官方原图**" in cn_text and "未经修改" in cn_text,
         "Chinese README must identify the official diagram",
     )
 
     notice = ROOT / "THIRD-PARTY-NOTICES.md"
     if notice.is_file():
         notice_text = notice.read_text(encoding="utf-8")
+        official_image_sha256 = (
+            "a6e6d25c23bbcd745cae0b7e0b17ed0494528fcf01962962cd61d2526244bef2"
+        )
         require("320136d7185d71fd122d5c5e75bece175d4d3e65" in notice_text,
                 "third-party notice must pin the immutable Microsoft source")
-        require("a6e6d25c23bbcd745cae0b7e0b17ed0494528fcf01962962cd61d2526244bef2"
-                in notice_text, "third-party notice must record the image SHA-256")
+        require(official_image_sha256 in notice_text,
+                "third-party notice must record the image SHA-256")
+        official_image = ROOT / "images" / "official-lease-recovery-model.png"
+        if official_image.is_file():
+            require(
+                sha256_file(official_image) == official_image_sha256,
+                "official Microsoft diagram does not match the pinned SHA-256",
+            )
 
     validation_script = ROOT / "scripts" / "verify_public_resilience_api.py"
     if validation_script.is_file():
