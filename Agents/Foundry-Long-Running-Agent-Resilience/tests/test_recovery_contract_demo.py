@@ -41,7 +41,9 @@ class RecoveryContractDemoTests(unittest.TestCase):
                 lease = claim.result(timeout=5)
             blocker.close()
 
-        self.assertGreater(lease.expires_at - time.time(), 0.15)
+        # If the lease clock started before the 250 ms lock wait, it would
+        # already be expired here. Keep margin for Windows process scheduling.
+        self.assertGreater(lease.expires_at - time.time(), 0.05)
 
     def test_existing_state_is_not_silently_overwritten(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

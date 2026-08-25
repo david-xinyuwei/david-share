@@ -102,13 +102,13 @@ CRITICAL_NUMBERS = ["599", "11,649", "12,248", "1,301", "21.7", "577", "11,005",
                     "95"]
 
 REQUIRED_EN_SECTIONS = [
-    "## Quick Start",
-    "## Executive Summary",
-    "## 1. Background: the third outcome",
-    "### What \"runtime instance\" means here",
+    "## Start here: reproduce it in your own environment",
+    "## What this repo validates",
+    "## 1. What Foundry provides, and what your application owns",
     "## 2. How it works: address the work, not the process",
+    "### 2.1 Three terms used below",
     "### 2.2 Recovery is at-least-once; applications must make replay safe",
-    "### 2.4 The LRA core: durable work, leases, and recovery re-entry",
+    "### 2.4 Public recovery contract and repository reference model",
     "#### 2.4.1 Executable recovery-contract reference",
     "### 2.5 From Hosted Agent configuration to a recoverable call",
     "#### 2.5.1 Declare a Hosted Agent with the Responses protocol",
@@ -131,13 +131,13 @@ REQUIRED_EN_SECTIONS = [
 ]
 
 REQUIRED_CN_SECTIONS = [
-    "## Quick Start",
-    "## 摘要",
-    "## 1. 背景：长任务的第三种结局",
-    "### 这里说的“运行实例”是什么",
+    "## 从这里开始：在自己的环境复现",
+    "## 本仓库验证了什么",
+    "## 1. Foundry 提供什么，应用还要负责什么",
     "## 2. 原理：寻址任务，而不是抢救进程",
+    "### 2.1 后文只需要三个词",
     "### 2.2 恢复是 at-least-once；应用必须保证 replay 安全",
-    "### 2.4 LRA 核心：持久任务、租约与恢复重入",
+    "### 2.4 公开恢复契约与仓库参考实现",
     "#### 2.4.1 可执行的 recovery contract 参考实现",
     "### 2.5 从 Hosted Agent 配置到一次可恢复调用",
     "#### 2.5.1 用 Responses protocol 声明 Hosted Agent",
@@ -420,26 +420,31 @@ def main() -> int:
     for concept in REQUIRED_CONCEPTS["Chinese"]:
         require(concept in cn_text, f"Chinese README missing recovery concept: {concept}")
 
-    # The Hosted Agent recovery path must show all four configuration layers
-    # without relying on non-executable snippets.
-    for snippet in (
-        "Atomic reclaim",
-        "generation fencing",
-        "Hosted Agent version",
-        "Responses protocol",
-        "framework checkpoint",
-        "store=True",
-        "background=True",
-        "recovery_contract_demo.py",
-        "validate_observations.py",
-        "response.in_progress",
-    ):
-        require(snippet in en_text, f"English README missing Hosted Agent configuration: {snippet}")
-        require(snippet in cn_text, f"Chinese README missing Hosted Agent configuration: {snippet}")
-        require("Durable task store" in en_text,
-            "English README missing the durable task-store primitive")
-        require("持久任务存储" in cn_text,
-            "Chinese README missing the durable task-store primitive")
+    # The Hosted Agent recovery path must keep official contract and local
+    # reference-implementation choices separate.
+    required_recovery_pairs = (
+        ("later process reclaims", "后续进程接管"),
+        ("generation fencing", "generation fence"),
+        ("Hosted Agent version", "Hosted Agent version"),
+        ("Responses protocol", "Responses protocol"),
+        ("framework checkpoint", "framework checkpoint"),
+        ("store=True", "store=True"),
+        ("background=True", "background=True"),
+        ("recovery_contract_demo.py", "recovery_contract_demo.py"),
+        ("validate_observations.py", "validate_observations.py"),
+        ("response.in_progress", "response.in_progress"),
+        ("not claims about Microsoft Foundry's private service topology",
+         "不是对 Microsoft Foundry 私有服务拓扑"),
+    )
+    for en_snippet, cn_snippet in required_recovery_pairs:
+        require(
+            en_snippet in en_text,
+            f"English README missing recovery boundary: {en_snippet}",
+        )
+        require(
+            cn_snippet in cn_text,
+            f"Chinese README missing recovery boundary: {cn_snippet}",
+        )
     require("Resilient-task enablement" in en_text,
             "English README missing current resilient-task enablement")
     require("Resilient task enablement" in cn_text,
@@ -511,15 +516,59 @@ def main() -> int:
             require(bool(block.strip()),
                     f"{readme.name}: Quick Start command block is empty")
             for command in (
+                "git clone --depth 1 --filter=blob:none --sparse",
+                "git sparse-checkout set Agents/Foundry-Long-Running-Agent-Resilience",
                 "pip install -r requirements-validation.txt",
                 "scripts\\verify_public_resilience_api.py --quiet",
                 "scripts\\recovery_contract_demo.py demo",
+                "--summary-file .demo-state\\summary.json",
+                "--events-file .demo-state\\events.jsonl",
                 "scripts\\validate_observations.py self-test",
                 "-m unittest discover -s tests -v",
                 "scripts\\validate_repo.py",
             ):
                 require(command in block,
                         f"{readme.name}: Quick Start missing command {command}")
+        bash_blocks = fenced_blocks(text, "bash")
+        require(len(bash_blocks) == 1,
+                f"{readme.name}: POSIX reproduction must be one Bash block")
+        if len(bash_blocks) == 1:
+            block = bash_blocks[0]
+            for command in (
+                "git clone --depth 1 --filter=blob:none --sparse",
+                "git sparse-checkout set Agents/Foundry-Long-Running-Agent-Resilience",
+                "python3 scripts/recovery_contract_demo.py demo",
+                "# Path B — optional: full SDK, tests, and L5 validation.",
+                "./.venv/bin/python -m pip install -r requirements-validation.txt",
+                "./.venv/bin/python scripts/validate_repo.py",
+            ):
+                require(command in block,
+                        f"{readme.name}: Bash reproduction missing command {command}")
+        require(
+            (
+                (
+                    "**Path A done-when:**" in text
+                    and "**Path B done-when:**" in text
+                )
+                or (
+                    "**路径 A 完成标准：**" in text
+                    and "**路径 B 完成标准：**" in text
+                )
+            )
+            and "worker_a_exit_code: 9" in text
+            and "18/18 checks passed" in text,
+            f"{readme.name}: reproduction done-when or expected outputs missing",
+        )
+        require(
+            "3d734b93b66f163bea9886d73c6808adc32e68fc" in text
+            and "2.1.0b2" in text
+            and (
+                ("do **not** replace" in text)
+                if readme == EN
+                else ("**不要**把它们替换" in text)
+            ),
+            f"{readme.name}: current live-sample version boundary missing",
+        )
         for retired in ("pseudocode", "伪代码", "interface sketches", "接口示意"):
             require(retired not in text,
                     f"{readme.name}: retired non-executable content returned: {retired}")
@@ -600,6 +649,24 @@ def main() -> int:
             "English official-image attribution or notice link missing")
     require("CC BY 4.0" in cn_text and "THIRD-PARTY-NOTICES.md" in cn_text,
             "Chinese official-image attribution or notice link missing")
+    require(
+        "Project-authored conceptual overview — not an official Microsoft architecture diagram"
+        in en_text,
+        "English README must distinguish the project-authored diagram",
+    )
+    require(
+        "项目作者绘制的概念概览——不是微软官方架构图" in cn_text,
+        "Chinese README must distinguish the project-authored diagram",
+    )
+    require(
+        "The figure below is the **official Microsoft diagram**, reproduced unmodified"
+        in en_text,
+        "English README must identify the official diagram",
+    )
+    require(
+        "下图是**微软官方图**，在本文中原样使用" in cn_text,
+        "Chinese README must identify the official diagram",
+    )
 
     notice = ROOT / "THIRD-PARTY-NOTICES.md"
     if notice.is_file():

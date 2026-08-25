@@ -8,7 +8,7 @@
 
 一个需要跑二十二分钟的 Research 任务，刚跑到第 15 秒、刚完成 18 个阶段里的第 1 个，我们主动销毁了执行它的进程。没有任何人重新提交。二十一分钟后，同一个任务报告完成——18 个阶段全部产出，12,248 条事件，没有缺口，也没有重复阶段。
 
-这项任务 95% 的实测耗时和事件，都发生在原进程被销毁之后。
+原进程被销毁后，替代计算资源完成了剩余 17 个阶段；最终结果是 **18 / 18**。
 
 **本文中的每一次中断都是我们主动注入的，没有一次是线上事故。** 在连续性有要求的场景里，长任务设计应考虑可能发生的重启、崩溃、OOM 终止或重新部署等进程中断——微软官方文档将这些事件列为韧性（resilience）机制要应对的情形。这不意味着每次运行都会丢失进程；工程上真正要回答的是：如果进程丢失，**任务**能否继续。这正是这八个主动注入场景要测的东西。
 
@@ -21,85 +21,132 @@
 
 [English](README.md) | 中文 | [Hosted agents 概览](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents) | [Hosted agent 快速入门](https://learn.microsoft.com/en-us/azure/foundry/agents/quickstarts/quickstart-hosted-agent)
 
+[从这里开始](#从这里开始在自己的环境复现) · [本仓库验证了什么](#本仓库验证了什么) · [实测结果](#4-实测结果) · [证据](#92-数字能追溯到哪里) · [生产采用门槛](#94-宣称可以上生产之前)
+
 ---
 
-## Quick Start
+## 从这里开始：在自己的环境复现
+
+**前置条件：** Git 与 Python 3.13。路径 A 在 clone 完成后不需要 Azure 订阅、凭据、endpoint 或网络调用。
+
+### 路径 A — 约三分钟完成本地恢复实验
 
 ```powershell
+# Windows 避免把 clone 放进很长的 OneDrive / project 路径。
+$work = Join-Path $HOME "lra-work"
+New-Item -ItemType Directory -Force $work | Out-Null
+Set-Location $work
+
+git clone --depth 1 --filter=blob:none --sparse `
+  https://github.com/david-xinyuwei/david-share.git lra-demo
+Set-Location lra-demo
+git sparse-checkout set Agents/Foundry-Long-Running-Agent-Resilience
+Set-Location Agents\Foundry-Long-Running-Agent-Resilience
+
+# 这条路径不需要 Azure package 或凭据。
+python scripts\recovery_contract_demo.py demo `
+  --summary-file .demo-state\summary.json `
+  --events-file .demo-state\events.jsonl
+Get-Content .demo-state\summary.json
+
+# 路径 B — 可选：完整 SDK、测试与 L5 校验。
 python -m venv .venv
 .\.venv\Scripts\python -m pip install -r requirements-validation.txt
 .\.venv\Scripts\python scripts\verify_public_resilience_api.py --quiet
-.\.venv\Scripts\python scripts\recovery_contract_demo.py demo
 .\.venv\Scripts\python scripts\validate_observations.py self-test
 .\.venv\Scripts\python -m unittest discover -s tests -v
 .\.venv\Scripts\python scripts\validate_repo.py
 ```
 
-如果 Windows 尚未启用 long-path support，请先把 monorepo clone 到较短的目录，再创建 `.venv`；否则 Azure SDK 的依赖路径可能超过旧版路径长度限制。
+Linux / macOS：
 
-| Surface | 场景类型 | 这条命令能证明什么 | 不能证明什么 |
+```bash
+mkdir -p "$HOME/lra-work" && cd "$HOME/lra-work"
+git clone --depth 1 --filter=blob:none --sparse \
+  https://github.com/david-xinyuwei/david-share.git lra-demo
+cd lra-demo
+git sparse-checkout set Agents/Foundry-Long-Running-Agent-Resilience
+cd Agents/Foundry-Long-Running-Agent-Resilience
+
+python3 scripts/recovery_contract_demo.py demo \
+  --summary-file .demo-state/summary.json \
+  --events-file .demo-state/events.jsonl
+cat .demo-state/summary.json
+
+# Path B — optional: full SDK, tests, and L5 validation.
+python3 -m venv .venv
+./.venv/bin/python -m pip install -r requirements-validation.txt
+./.venv/bin/python scripts/verify_public_resilience_api.py --quiet
+./.venv/bin/python scripts/validate_observations.py self-test
+./.venv/bin/python -m unittest discover -s tests -v
+./.venv/bin/python scripts/validate_repo.py
+```
+
+**本地预期结果：**
+
+- recovery JSON：`"passed": true`、`worker_a_exit_code: 9`、`entry_modes: ["fresh", "recovered"]`、phase `1-5`；
+- SDK probe：`18/18 checks passed`；
+- 测试：`Ran 12 tests ... OK`；
+- 仓库 gate：`PASS: bilingual parity ... Data/Log Rich ... Code/Test Rich`。
+
+**路径 A 完成标准：** recovery 命令 exit `0`；JSON 中有 `"passed": true`、退出码 `9`、`fresh → recovered` 和 phase `1-5`。
+
+**路径 B 完成标准：** 路径 A 通过，再看到 SDK probe `18/18`、12 项测试全部通过、仓库 gate exit `0`。只有图表或只有 `completed` 字符串但缺 workload 验收，不算完成复现。
+
+### 路径 C — 在真实 Hosted Agent 上复现
+
+本地程序证明的是本仓库可执行的恢复算法，**不是** Foundry 服务。真实 Azure 运行按以下顺序开始：
+
+1. 安装 Azure CLI 与 `azd`，登录测试订阅；
+2. 从官方 [`resilient-streaming` Hosted Agent sample](https://github.com/microsoft-foundry/foundry-samples/tree/main/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming)开始；
+3. 使用该 sample 当前自己的 pins——在 sample commit [`3d734b9`](https://github.com/microsoft-foundry/foundry-samples/blob/3d734b93b66f163bea9886d73c6808adc32e68fc/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming/src/resilient-streaming/requirements.txt) 中，`core` 与 `responses` 都是 `2.1.0b2`；**不要**把它们替换为本仓库离线 probe 的 2.0.0 pins；
+4. 按 sample 自己的 `azd up` 与 invoke 指引部署；
+5. 只在非生产测试环境中注入运行实例替换，然后轮询同一个 response ID 并校验 output items。
+
+本仓库不会虚构你的 Foundry project、模型部署、身份或 endpoint。
+
+| Surface | 场景类型 | 能证明什么 | 不能证明什么 |
 |---|---|---|---|
+| 本地 SQLite 恢复 | test-fixture | 本参考实现中的真实 OS 进程丢失、lease 过期/接管、generation fence、checkpoint 与幂等 | Microsoft Foundry 私有实现 |
 | 公共 SDK contract probe | dynamic-runtime | 已安装的固定版本 package 暴露 18 项受检公开符号与校验规则 | Live Hosted Agent 恢复 |
-| SQLite 恢复程序 | test-fixture | 可执行参考模型中的真实 OS 进程丢失、lease 过期/接管、generation fence、checkpoint 与幂等行为 | Microsoft Foundry 私有实现 |
-| 历史观测 | measured aggregate / architecture-explainer | 从 7 月和 8 月捕获结果中提取的、带日期的公开安全数值 | 可靠性 benchmark、SLA 或可复现 live 部署 |
+| 历史观测 | measured aggregate / architecture-explainer | 从 7 月和 8 月捕获结果中提取的带日期公开安全数值 | 可靠性 benchmark、SLA 或可复用部署配方 |
 
-机器可读数据、结构化日志、hash、复现命令和完整 truth contract 均在[证据索引](evidence/README.md)。
+如果目标只是复现行为，到这里就可以停止。机器可读数据、日志、hash 与 truth contract 在[证据索引](evidence/README.md)；后续章节解释设计和 Azure 实测结果。
 
 ---
 
-## 摘要
+## 本仓库验证了什么
 
 长任务暴露在进程生命周期变化中的时间通常比短调用更长。其中一种可能的故障形态是：**执行进程消失了，但逻辑任务仍然有效。** 客户端如果把每次这类中断都当成终态并直接重新提交，就可能放弃仍可寻址的任务、启动第二次运行，并重复执行外部动作。
 
 本文评估的模型，把**逻辑任务**和**执行它的进程**拆开。在八次被接受的运行中，持久任务身份、已持久化输入和已 checkpoint 的进度跨越了注入的进程丢失；替代计算资源从记录的 checkpoint 重新进入任务。八次运行覆盖两种语言、两种 protocol 和四类中断，均走到了各自既定的终态。
 
-| 实测项 | 数值 | 意义 |
+下表同时包含验收结果、耗时和事件次数，**不是一张百分制评分表**。
+
+| 实测项 | 观测值（不是评分） | 意义 |
 |---|---|---|
-| 注入进程丢失之后完成的工作占比 | 1,301 秒中的 **95%**，12,248 条事件中的 95% | 在这次运行中，进程丢失没有抹掉已记录的任务 |
+| 注入进程丢失后的长任务验收 | **18 / 18 个阶段**；sequence 1-12,248，无缺口、无重复 phase | 同一个逻辑任务走到了既定终态 |
 | 从运行实例丢失到审批决定被接收 | **56 秒**，且原有选项保持不变 | 在这次运行中，待审批状态跨越了进程替换 |
 | 正常完成前连续收到的 `HTTP 424` | **29 次** | 在这次运行中，重试上限 10 次会在任务完成前停止 |
 | 走到既定终态的场景数 | **8 / 8**，每个场景一次被接受的运行 | 属于能力验证，不是可靠性 benchmark |
-| 重新接回时传输层 sequence 无缺口的运行数 | **3 / 4** | 有一个 runtime 重置了计数器；四次 workload output 均通过验收 |
+| 通过 workload output 验收的 Research 运行 | **4 / 4** | 其中 3 / 4 的传输 sequence 无缺口；这是传输层观测，不是恢复通过率 |
 
 **这些证据还不能说明什么：** 生产可用性、SLA、负载与并发下的表现、多区域恢复、成本，以及业务正确性。每个场景只跑了一次。它足以支撑立项做受控评估，但不足以作为生产放行依据。
 
 ---
 
-## 1. 背景：长任务的第三种结局
+## 1. Foundry 提供什么，应用还要负责什么
 
-短调用通常会在同一个进程生命周期内返回或抛错。更长的运行还可能遇到另一种情况：进程消失了，逻辑任务却仍然有效。
+| Foundry / AgentServer 提供 | 应用仍须负责 |
+|---|---|
+| 托管沙箱、endpoint、身份、session 生命周期与可观测性 | Workload schema、deadline 与终态验收 |
+| 持久 work/input identity、输入持久化、基于 lease 的进程丢失恢复与 handler 重入 | 能说明业务做到哪里的 checkpoint 或 watermark |
+| Responses history、后台轮询与 stream replay | 支付、预订、写入和 tool side effect 的幂等 |
+| 进程中断后的替代计算资源 | 稳定 work reference、重连行为与 observer authentication |
 
-这个窗口期里有三件事可能发生。运行实例可能停止——崩溃、重新部署、主机替换，或者某个生命周期动作。客户端的流可能中断，而且始终没收到终态事件。用户也可能跑到一半改主意。
+**运行实例**只是当前正在运行的 Hosted Agent 代码副本；它消失会带走进程内存与连接，不会带走已持久化在进程外的任务。本文使用 Hosted Agent，是因为恢复需要重新进入应用自己拥有的代码。微软把 **“Run long-lived work resiliently”** 列为选择 Hosted Agent 的理由之一（[来源](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents)）。
 
-不加判断地重新提交 create 请求，并不能恢复这几种情况。它会在原任务可能仍可寻址时启动另一个逻辑任务，从而可能带来重叠工作和重复外部动作。本文后面的模式会先判断现有任务的状态；任务仍然有效时重新接回，而 steering、取消或新建任务是另外的决策。
-
-### 这里说的“运行实例”是什么
-
-Hosted Agent 是客户自己的 Agent 代码，以 container image 的形式交付。Foundry 把它跑在按 session 隔离的 VM 沙箱里，并负责它的生命周期。本文所说的**运行实例**，指的就是当时正在运行的那份代码。
-
-它不是需要客户自己运维的 Docker 容器。实例丢失，带走的是进程、内存和已有连接。按照公开文档描述的模型，实例丢失本身不会删除 Hosted Agent 定义、session，或已持久化在进程之外的任务。
-
-### 平台本身已经提供了什么
-
-公开平台提供的是托管基线：按 session 隔离、跨空闲回收仍然保留的 `$HOME` 和 `/files`、持久化的对话历史、独立的 Microsoft Entra 身份，以及托管的生命周期与可观测性（[来源](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents)）。
-
-公开文档现在同时描述了空闲状态持久化和韧性执行；但它仍不能替你的应用证明 checkpoint、副作用和 output 验收是否正确。本次评估针对的正是这条应用侧边界。
-
-| 层次 | 公开文档（2026 年 7 月 21 日） | 本次实测 | 结论边界 |
-|---|---|---|---|
-| Session 状态 | 空闲计算恢复时还原 `$HOME` 与 `/files` | 活跃任务在注入运行实例丢失后继续 | 空闲还原与实测一致，但不能代替活跃任务恢复的证据 |
-| Responses | 平台托管对话历史、streaming lifecycle 和后台轮询 | 同一 response 跨恢复交付 output index 0-17 | 支持这一次 response 的连续性结论；不是所有 workload 的 SLA |
-| Invocations | 应用自行负责 payload、session 语义、task tracking 与轮询 | 观察到显式恢复事件和 phase 1-18 | 应用仍须自己保证 checkpoint 和外部副作用正确 |
-
-### 为什么本文的恢复模型使用 Hosted Agent
-
-针对这里的选型，Foundry 文档区分 Prompt-based agent 与 Hosted Agent。Prompt-based agent 由配置定义，不承载你自己的容器或代码包；Hosted Agent 则是在托管沙箱里跑**你自己的**代码。
-
-这个区别决定了能否使用应用自行拥有的 handler 重入。本文描述的恢复模型，会用同一个 work identity 和输入**重新进入你的 handler**。Prompt-based agent 不暴露客户自己的应用运行时与 handler，因而无法在其中记录“18 个 phase 里的第 7 个已提交”这类进度，也无法按本文模型重新进入 handler。
-
-微软官方文档现在也把这个结论写明了：**“Run long-lived work resiliently — preserve in-progress agent work across process interruptions and replay streamed results to reconnecting clients”**（有韧性地运行长任务——在进程中断后仍保留执行中的 agent 任务，并向重新连接的客户端重放流式结果）被列为选择 Hosted agent 而非 prompt-based agent 的理由之一（[来源](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents)）。
-
-对生产设计的实际含义是：如果 workload 需要应用自行拥有 handler、定制 checkpoint 和副作用控制，那么在这两种选项中应使用 Hosted Agent。这项选择应在架构阶段完成，再配置恢复行为。
+公开文档说明平台契约；本仓库验证剩下的应用问题：checkpoint、replay 安全和 output 验收在注入中断后是否正确。
 
 ---
 
@@ -107,24 +154,21 @@ Hosted Agent 是客户自己的 Agent 代码，以 container image 的形式交�
 
 <div align="center"><img src="images/resilience-architecture-cn.png" width="820" alt="概念恢复流程：逻辑任务如何跨越 Hosted Agent 运行实例丢失"></div>
 
+<p align="center"><sub>项目作者绘制的概念概览——不是微软官方架构图。第 2.4 节展示微软官方原图。</sub></p>
+
 整套机制只建立在一个想法上：**给任务一个比进程活得更久的身份，然后重新进入这个任务，而不是去抢救那个进程。**
 
 下面的概念流程分为七步。客户端启动一个逻辑任务，并保留它的稳定引用。执行开始之前，长任务层先把任务身份、输入，以及后续重新定位所需的租约 metadata 持久化下来。Agent 运行过程中，不断记录有业务含义的进度——phase 编号、watermark、审批状态，或者一个指向外部状态的引用。接着运行实例丢失：进程、内存、socket 全都消失，但那条持久化记录还在。Foundry 提供替代计算资源，同一个逻辑任务带着恢复上下文被重新调用，应用加载自己的 checkpoint 并从一个明确的边界继续，最后客户端重新接回、确认连续性。
 
 把那次 18 阶段的实测运行套进这七步，顺序就变得很具体：第一到第三步覆盖 phase 1，第四步销毁进程，第五、六步跑完 phase 2 到 18，客户端到第七步才重新接回。**在这次运行中，恢复先于客户端重新接回继续推进。** 重新接回恢复的是观察，不是执行。因此，这次客户端断流本身不足以判定任务失败；判断依据来自持久化状态与 workload output。
 
-### 2.1 四层责任必须分开
+### 2.1 后文只需要三个词
 
-分清楚这四层，是设计工作的大头，因为它决定了出问题时你有资格得出什么结论。
+- **逻辑任务：** 独立于某个进程存在的持久 job 或 conversation。
+- **Checkpoint：** 应用自行维护的、最后一个完整且可安全 replay 的业务边界。
+- **Observer：** 读取状态/output 的客户端或运维；observer 失败本身不能证明 workload 失败。
 
-| 层次 | 负责什么 | 必须保持有效 | 不能单独证明什么 |
-|---|---|---|---|
-| Foundry Hosted Agent 平台 | 运行沙箱、endpoint、身份、session 与对话状态、生命周期 | 能够提供替代计算资源，并继续寻址同一 session | 业务进度已经被正确 checkpoint |
-| 长任务执行层 | 稳定任务身份、持久化输入、恢复入口、task 与 stream 状态 | 逻辑任务记录跨进程存在 | 外部业务动作可以安全重复 |
-| Agent framework 或业务应用 | 有业务含义的 checkpoint、workflow 阶段、审批状态、终态结果 | 足以安全恢复的业务进度 | 客户端一定会正确重连 |
-| 客户端与运维 | 稳定任务引用、重连游标、有界轮询、认证刷新 | 断线后仍能观察到同一个逻辑任务 | 传输层报错等于 workload 失败 |
-
-一句话原则：**运行实例状态、业务任务状态、观察者状态，是三个不同的故障域。** 其中一层出问题，绝不能自动升级成另外两层也失败。第 6 章本质上就是把这条原则做成了一张速查表。
+后文其他术语都可以映射回这三个词。
 
 ### 2.2 恢复是 at-least-once；应用必须保证 replay 安全
 
@@ -146,44 +190,23 @@ Hosted Agent 是客户自己的 Agent 代码，以 container image 的形式交�
 
 LangGraph、Microsoft Agent Framework、手写 orchestration 都能接进来。但没有任何一种能替你定义“哪些步骤算已经做完了”。
 
-### 2.4 LRA 核心：持久任务、租约与恢复重入
+### 2.4 公开恢复契约与仓库参考实现
 
-本节后面的客户端代码**不是** LRA 核心。本文把核心建模为一个 runtime state machine：即使 worker 进程已经消失，它仍然保留逻辑任务的身份与输入。下面的模型不绑定具体方法名或存储 schema；第 2.5.3 节再把这些概念映射到本轮测试的公开 API。
+官方契约描述了持久 work/input identity、输入持久化、lease 续期与遗弃、后续进程接管、handler 重入，以及应用自行维护 checkpoint。本仓库的 SQLite 程序额外采用 generation fence 和原子 phase commit；这些是**参考实现的设计选择**，不是对 Microsoft Foundry 私有服务拓扑或存储 schema 的声明。
 
-| 核心原语 | 持久化职责 | 故障规则 |
+| 关注点 | 官方公开契约 | 本仓库可执行参考实现 |
 |---|---|---|
-| Work record | 稳定的任务与输入身份、持久化输入、状态、retry state、小型 metadata | 替代 worker 收到同一个身份与输入，不创建新任务 |
-| Lease | 当前唯一 owner、lease generation 与过期时间 | 活跃 worker 持续续租；进程丢失只会遗弃 lease，不写入虚假终态 |
-| Atomic reclaim | 对过期 lease 做 compare-and-set 接管 | 只有一个替代 worker 能推进 lease generation 并重新进入任务 |
-| Progress reference | 小型 watermark，或指向 framework/application checkpoint 的引用 | 最后一个已提交 checkpoint 之后的工作可能再次执行 |
-| Durable output state | 已 checkpoint 的 response snapshot、stream event 与显式终态 | 观察者从已提交 output 重建；连接关闭本身不等于完成 |
+| Work 与 input identity | 标识逻辑任务和一次输入；runtime 持久化输入 | SQLite work row 与 payload hash |
+| Lease 生命周期 | Runtime 获取并续租；进程停止后 lease 被遗弃；后续进程接管任务记录 | Owner、过期时间、generation 与条件式 claim |
+| 业务进度 | Handler 从头重入；应用检查持久化 checkpoint 或 watermark | 原子提交 phase result 与 checkpoint |
+| Replay 安全 | 应用仍须负责防止外部副作用重复 | Idempotency key；相同 replay 去重，冲突 replay fail closed |
+| Output 观察 | Stream replay 帮助客户端重连；它不是应用 workflow checkpoint | Validator 检查 sequence、output coverage 与终态证据；不模拟服务端 stream |
 
-```mermaid
-sequenceDiagram
-	participant C as 客户端
-	participant T as 持久任务存储
-	participant A as Worker A
-	participant P as Checkpoint/output 存储
-	participant R as Recovery scanner
-	participant B as Worker B
+下图是**微软官方图**，在本文中原样使用。它是产品契约的概念模型，不代表微软公开了私有服务组件。
 
-	C->>T: 创建稳定 work ID 并持久化输入
-	T->>A: 原子取得 lease（generation n）
-	loop Worker A 存活期间
-		A->>T: 续租
-		A->>P: 提交一个业务 phase 与 checkpoint
-	end
-	A--xA: 进程消失，停止续租
-	R->>T: 发现已过期的 running lease
-	R->>T: Compare-and-set reclaim（generation n+1）
-	T->>B: 同一 work ID、输入、metadata、恢复入口
-	B->>P: 加载最后一个已提交 checkpoint
-	B->>P: 从下一个可安全 replay 的 phase 继续
-	B->>T: 写入显式终态
-	C->>P: Retrieve 或重新接回同一逻辑 output
-```
+<div align="center"><img src="images/official-lease-recovery-model.png" width="820" alt="微软官方的租约恢复图：work identity 与 input identity，runtime 持久化输入并取得 lease，handler 运行期间 runtime 续租，进程停止后 lease 被放弃，后续进程重新取得任务记录，handler 从头重入后选择重跑或从持久化边界继续"></div>
 
-硬崩溃的进程无法执行清理。在上面的概念模型中，lease 停止续期，后续 scanner 发现它已过期，再由新 worker 带条件地接管同一条记录。模型中的 generation fencing 用于阻止旧 worker 在后续 generation 取得所有权后继续提交。
+<p align="center"><sub>微软 <a href="https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience">Resilience for long-running Microsoft Foundry hosted agents</a> 中的 <i>“Lease-based recovery of a resilient work item”</i>，© Microsoft，依据 <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a> 原样使用。该图片<b>不适用</b>本仓库的 MIT License。</sub></p>
 
 #### 2.4.1 可执行的 recovery contract 参考实现
 
@@ -241,11 +264,7 @@ LRA runtime 负责把同一个任务重新送进 handler，却无法判断支付
 
 本次恢复重入把两个字段的差异具体呈现出来：替换之后报告的是 `recovery_count=1`、`retry_attempt=0`。这个结果支持把恢复与 handler retry 分开处理；具体计数仍然只是这次运行的观测值。另外，在本轮测试的 package 中，handler 的第一个参数必须命名为 `ctx`，并声明参数化的 `TaskContext[Input]`；参数名不同或裸写 `TaskContext`，都会在装饰阶段被拒绝。
 
-微软官方对这套模型的图示如下。它与本文提前一个月从实测中推导出的循环，以及第 2.4 节的时序图高度一致。
-
-<div align="center"><img src="images/official-lease-recovery-model.png" width="820" alt="微软官方的租约恢复图：work identity 与 input identity，runtime 持久化输入并取得 lease，handler 运行期间 runtime 续租，进程停止后 lease 被放弃，后续进程重新取得任务记录，handler 从头重入后选择重跑或从持久化边界继续"></div>
-
-<p align="center"><sub>微软 <a href="https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience">Resilience for long-running Microsoft Foundry hosted agents</a> 中的 <i>“Lease-based recovery of a resilient work item”</i>，© Microsoft，依据 <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a> 原样使用。该图片<b>不适用</b>本仓库的 MIT License。</sub></p>
+公开 API mapping 与第 2.4 节的官方模型一致；本地 SQLite 程序中的 generation fence 仍然只是仓库自有参考设计，不代表 Foundry 私有实现。
 
 应用侧的模式没有变化：
 
@@ -336,7 +355,7 @@ Replay 窗口内的支付、预订、写入或 tool action，仍然必须采用�
 
 **这次没有复现那串 `424`。** 第 4.4 节依据的是 7 月主机被替换期间观测到的 29 次连续 `424`。这次在强制替换的窗口内每 0.4 秒轮询同一个 response，得到的是 **26 次轮询、全部 `200`、没有瞬时错误**。由于两次中断路径不同，这个结果不能反驳 7 月的观测。工程建议也继续保持限定：先分类 `424`，再决定是否把它视为终态。数字 29 仍然只是 7 月观测，本次当前构件测试没有复现。
 
-这里还出现了一个 package 版本兼容问题。首次部署在运行时返回 `HTTP 500`，容器日志显示 `resilient_task_handler_failure ... exc_type=AttributeError`，运行的是 `ai-agentserver-core/2.1.0b2`。样例把 `responses` 钉在 `2.0.0b1`，却只对 `core` 要求 `>=2.0.0b10`，于是容器解析到了比 handler 编写时更新的 beta。把版本钉为 `core==2.0.0`、`responses==2.0.0` 和 `invocations==1.0.0` 后，相关 samples 中的已观测故障消失；四个 sample 都使用了这组兼容版本。对于这些 preview sample deployments，精确的兼容版本 pins 避免了原下限允许的 beta 版本偏移。
+这里还出现过一个 package 版本兼容问题。8 月复测时，当时的 sample 把 `responses` 钉在 `2.0.0b1`，却只要求 `core>=2.0.0b10`；解析到 `core 2.1.0b2` 后出现了 `HTTP 500`。把版本钉为 `core==2.0.0`、`responses==2.0.0` 和 `invocations==1.0.0` 后，历史复测恢复正常；这组版本也保留为本仓库离线 probe 的精确环境。官方 sample 此后已改成精确的 `core==2.1.0b2` 与 `responses==2.1.0b2` pins。新的 live 复现应跟随当前 sample，不应把它降级到本文历史 probe 版本。
 
 这些中断都是通过强制替换运行实例造成的——它是平台级事件，但不等同于一次计划外的主机崩溃；样例的各阶段也仍然是模拟的。本轮覆盖四类场景、每类一次被接受的运行——属于当前构件上的能力验证，不是一次新的可靠性 benchmark，也不是把 7 月那套完整矩阵重跑一遍。7 月的 .NET 运行**没有**复测：在本次复测时，公开 C# samples 虽然提供 Hosted Agent，但没有任何一个使用 resilient task，因此那些结果仍然只是 7 月观测值。
 
@@ -371,7 +390,9 @@ Replay 窗口内的支付、预订、写入或 tool action，仍然必须采用�
 
 ### 4.1 一次跨越主动注入进程丢失的 21.7 分钟运行
 
-<div align="center"><img src="images/work-distribution-cn.png" width="820" alt="按比例绘制：95% 的耗时和事件发生在注入运行实例丢失之后"></div>
+<div align="center"><img src="images/work-distribution-cn.png" width="820" alt="工作分布图，不是成功率评分：95% 的耗时和事件发生在注入运行实例丢失之后"></div>
+
+这里的 **95% 是工作分布比例，不是成功率或完整度评分**。验收结果是 18 / 18 个 phase，且没有缺失或重复；95% 只表示注入进程丢失之后发生的实测耗时和事件量占比。
 
 Python Invocations 的 Research Agent 在头 15 秒里产出了 599 条事件，跑到 phase 1。随后我们销毁了运行实例，流断了。
 
