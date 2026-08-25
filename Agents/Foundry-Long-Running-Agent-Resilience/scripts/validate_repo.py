@@ -589,8 +589,8 @@ def main() -> int:
     # specific: deleting any one can turn an N=1 observation into a product-wide
     # claim or turn a diagnostic symptom into a universal root-cause mapping.
     required_rigor_pairs = (
-        ("This does not mean that every run will lose its process",
-         "这不意味着每次运行都会丢失进程"),
+        ("The question under test is not whether every run loses a process",
+         "测试的问题不是“每次运行是否都会丢失进程”"),
         ("2022 work subscription that had been enabled during the earlier preview",
          "2022 工作订阅上复测两件事；这个订阅曾在更早的预览期由产品组开通过"),
         ("it is not live Hosted Agent evidence",

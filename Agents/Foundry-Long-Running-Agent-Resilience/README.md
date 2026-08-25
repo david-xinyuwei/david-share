@@ -6,13 +6,13 @@
 [![Protocols](https://img.shields.io/badge/protocols-Responses_%2B_Invocations-5F4BB6)](#23-where-you-plug-in)
 [![License](https://img.shields.io/badge/license-MIT-D98E04)](LICENSE)
 
-Fifteen seconds into a twenty-two minute job, a research agent had just finished the first of eighteen phases when we deliberately destroyed the process running it. Nothing was resubmitted. Twenty-one minutes later the same job reported completion — all eighteen phases delivered, 12,248 stream events, no gap and no repeated phase.
+This repository is a **bilingual technical article and executable validation kit** for long-running Microsoft Foundry Hosted Agent resilience. It is for architects and engineers who need to:
 
-After the original process was destroyed, replacement compute completed the remaining seventeen phases; the run ended **18 of 18**.
+1. understand what Foundry preserves after a process interruption and what the application still owns;
+2. reproduce the recovery contract locally without Azure credentials;
+3. inspect dated Azure fault-injection observations and their machine-readable evidence.
 
-**Every interruption on this page was injected on purpose; none of them is an observed outage.** When continuity matters, designs for long-running workloads should account for possible process interruptions such as restarts, crashes, out-of-memory terminations, or redeployments — the cases Microsoft's documentation says resilient execution is designed to recover from. This does not mean that every run will lose its process. The engineering question is whether the *work* survives if one does. That is what these eight deliberately injected scenarios measured.
-
-This page explains why these observed runs completed, which signals supported that conclusion, and which seemingly reasonable responses could have abandoned or duplicated the work.
+Start with the clone-to-run path below. Read the later sections only when you need the product model, measured results, client rules, or adoption boundary.
 
 > **What this is.** Measured recovery behavior for long-running agent execution on Microsoft Foundry Hosted Agents, plus public-safe executable checks and evidence. The capability is now in **public preview** with an [official concept page](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience). The eight measured scenarios were run in July on the earlier private-preview build, so each number remains dated evidence rather than a claim about today's build.
 > **What it is not.** It ships **no Microsoft SDK source, complete agent implementation, end-to-end deployment recipe, private API schema, or raw live telemetry**. The local recovery program is a real two-process test fixture, not Foundry service code or live-service proof. Official guidance carries no SLA and does not recommend preview for production — the same position taken in Section 9.4.
@@ -116,6 +116,10 @@ If your goal is only to reproduce the behavior, you can stop here. Machine-reada
 ---
 
 ## What this repo validates
+
+Fifteen seconds into a twenty-two minute job, a research agent had completed the first of eighteen phases when we deliberately destroyed its process. Nothing was resubmitted. Replacement compute completed the remaining seventeen phases; the same job ended **18 of 18**, with 12,248 stream events, no gap and no repeated phase.
+
+**Every interruption in this repo was injected on purpose; none is an observed outage.** The question under test is not whether every run loses a process; it is whether the logical work can continue if one does.
 
 Long-running agent work remains exposed to process-lifetime changes for longer than a short call. One possible failure mode is that **the execution process disappears while the logical work remains valid.** If a client treats every such interruption as terminal and resubmits, it can abandon addressable work, start a second run, and duplicate an external action.
 
