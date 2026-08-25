@@ -61,6 +61,16 @@ async def resilience_api_usage(ctx: TaskContext[WorkInput]) -> dict[str, Any]:
     }
 ```
 
+**That snippet alone is not enough.** Pasting it into a project does not give you recovery; three things are still missing:
+
+| What else you need | Who provides it | What happens without it |
+|---|---|---|
+| Resilient-task enablement on the Hosted Agent (public preview) | Platform-side configuration; your code can check the current state with `resilient_tasks_enabled()` | After process loss the call simply fails instead of being re-entered in a new process |
+| Your own progress store that can confirm the write | **You provide it** — Foundry does not store your business progress. This repository's local demo uses SQLite, and the official Microsoft sample also uses a separate progress store | After re-entry nothing knows which phase was committed, so the work restarts from the beginning |
+| A client that persists the same response / invocation ID and deadline | Your caller code | After a disconnect you can only create a new task, and the original result is unreachable |
+
+`ctx.metadata` holds a small amount of progress marking, not your business data, and on the pinned version `flush()` returning is not a confirmed write ([why](#the-repository-is-executable-not-just-a-write-up)). For what each layer is responsible for, see [Four layers required for recovery](#four-layers-required-for-recovery).
+
 To add resilience to your code:
 
 1. **Start from an official Hosted Agent sample** and keep its package pins, so deployment, identity, and endpoint are real rather than invented.

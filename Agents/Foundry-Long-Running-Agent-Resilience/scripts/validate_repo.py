@@ -500,6 +500,9 @@ def main() -> int:
         "| Your goal | Where to go | Azure subscription needed? |",
         "pip install azure-ai-agentserver-core==2.1.0b2 azure-ai-agentserver-responses==2.1.0b2",
         "Your own work replaces the return body",
+        "That snippet alone is not enough",
+        "| What else you need | Who provides it | What happens without it |",
+        "Foundry does not store your business progress",
     ):
         require(snippet in en_text,
                 f"English README missing customer adoption guidance: {snippet}")
@@ -512,6 +515,9 @@ def main() -> int:
         "| 你的目标 | 去哪里 | 需要 Azure 订阅吗 |",
         "pip install azure-ai-agentserver-core==2.1.0b2 azure-ai-agentserver-responses==2.1.0b2",
         "你自己的业务逻辑替换返回值部分",
+        "光有这段代码不够",
+        "| 还需要什么 | 谁提供 | 缺了会怎样 |",
+        "Foundry 不替你存业务进度",
     ):
         require(snippet in cn_text,
                 f"Chinese README missing customer adoption guidance: {snippet}")
