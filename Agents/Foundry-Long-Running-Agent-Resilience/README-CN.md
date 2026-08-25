@@ -70,7 +70,7 @@
 
 | 文件或目录 | 作用 |
 |---|---|
-| [`examples/resilience_sdk_usage.py`](examples/resilience_sdk_usage.py) | 直接 import 公共恢复任务 API，并注册一个 typed `@task` handler；执行 `--check` 不需要 Azure endpoint。 |
+| [`examples/resilience_sdk_usage.py`](examples/resilience_sdk_usage.py) | 直接 import 公共恢复任务 API，并注册一个带类型标注的 `@task` 处理函数；执行 `--check` 不需要 Azure endpoint。 |
 | [`scripts/recovery_contract_demo.py`](scripts/recovery_contract_demo.py) | 在本机演示真实的进程中断与恢复：进程 A 被强制退出后，进程 B 接管同一个任务并从已保存的进度继续；SQLite 负责保存进度并防止重复提交。 |
 | [`scripts/verify_public_resilience_api.py`](scripts/verify_public_resilience_api.py) | 检查当前安装的 Azure SDK 是否包含本文依赖的 18 项公开接口与处理规则。 |
 | [`scripts/validate_observations.py`](scripts/validate_observations.py) | 检查运行记录是否有事件缺口、重复结果或缺少明确终态；遇到无法确认含义的 `424` / `403` 时停止并报错。 |
@@ -78,20 +78,20 @@
 | [`tests/`](tests/) | 12 项自动化测试，覆盖正常恢复、异常输入、时序问题、重复执行和拒绝路径。 |
 | [`evidence/`](evidence/) | 保存可供程序读取的实验结果、事件日志、证据分类和 SHA-256 校验清单，便于复核与复现。 |
 
-**公共 Resilience SDK 在哪里使用**
+**公共恢复 SDK 在哪里使用**
 
 `Resilience` 不是一个单独的 Python 包名。恢复任务 API 位于 `azure-ai-agentserver-core` 包的 `azure.ai.agentserver.core.tasks` 模块；Responses 的恢复信号位于 `azure-ai-agentserver-responses`。
 
 | 代码位置 | 直接使用的 SDK 能力 |
 |---|---|
 | [`examples/resilience_sdk_usage.py`](examples/resilience_sdk_usage.py) | import `RetryPolicy`、`TaskContext` 和 `task`；注册 `@task(name="resilience-api-usage")`；读取任务/输入 ID、`ctx.metadata`、进入模式和恢复/重试次数；收到关闭信号时调用 `ctx.exit_for_recovery()` |
-| [`scripts/verify_public_resilience_api.py`](scripts/verify_public_resilience_api.py) | import 同一组任务类型，以及 `TaskMetadata` 和 Responses 恢复信号；检查当前安装包是否符合本文依赖的 contract |
+| [`scripts/verify_public_resilience_api.py`](scripts/verify_public_resilience_api.py) | import 同一组任务类型，以及 `TaskMetadata` 和 Responses 恢复信号；检查当前安装包是否提供本文依赖的接口 |
 | [`scripts/recovery_contract_demo.py`](scripts/recovery_contract_demo.py) | **不 import Azure SDK**；它只用 SQLite 和两个本地进程验证恢复算法 |
-| [微软官方可部署的 `resilient-research` handler](https://github.com/microsoft-foundry/foundry-samples/blob/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/invocations/resilient-research/src/resilient-research/agent.py#L246-L285) | 在完整 sample 中使用 `@multi_turn_task`、`TaskContext`、`ctx.metadata` 和 streaming registry |
+| [微软官方可部署的 `resilient-research` 处理函数](https://github.com/microsoft-foundry/foundry-samples/blob/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/invocations/resilient-research/src/resilient-research/agent.py#L246-L285) | 在完整 sample 中使用 `@multi_turn_task`、`TaskContext`、`ctx.metadata` 和流式事件存储 |
 
-`--check` 只证明当前软件包可以 import，且真实 decorator 接受并注册了这个 typed handler。它**不会**执行 handler 正文，也不能证明线上恢复；handler 正文只有进入 Hosted Agent runtime 后才会执行。
+`--check` 只证明当前软件包可以 import，且真实装饰器接受并注册了这个带类型标注的处理函数。它**不会**执行处理函数正文，也不能证明线上恢复；正文只有进入 Hosted Agent runtime 后才会执行。
 
-**固定版本 SDK 的限制：** 在 core 2.0.0 中，`await ctx.metadata.flush()` 返回并不等于“持久化已经确认成功”，因为底层存储 callback 失败时只记录日志，不会把异常抛回 handler。因此，这个示例只读取 metadata，不把 `flush()` 写成可靠 checkpoint。生产代码需要能够确认写入成功的持久化路径，或准备运维对账；当前微软公开 sample 也使用独立 checkpoint store 保存进行中的正文。
+**固定版本 SDK 的限制：** 在 core 2.0.0 中，`await ctx.metadata.flush()` 返回并不等于“持久化已经确认成功”，因为底层存储回调失败时只记录日志，不会把异常抛回处理函数。因此，这个示例只读取 `metadata`，不把 `flush()` 写成已确认持久化的进度点。生产代码需要能够确认写入成功的持久化路径，或准备运维对账；当前微软公开 sample 也使用独立的进度存储保存进行中的正文。
 
 ---
 
