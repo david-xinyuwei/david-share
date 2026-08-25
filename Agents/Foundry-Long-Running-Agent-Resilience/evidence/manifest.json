@@ -2,10 +2,10 @@
   "algorithm": "sha256",
   "files": [
     {
-      "bytes": 3306,
+      "bytes": 3660,
       "path": "evidence/README.md",
       "provenance": "Maintained evidence index and reproduction boundary.",
-      "sha256": "a3a9c336b9f26478ec1430ff661ffdfb06b25a0cc41405d648c47c6480107f38"
+      "sha256": "9f11b005decce0a03b3c2be6756ebf4a585458c33a9fdfd5ada117d1b4d6789c"
     },
     {
       "bytes": 8319,
@@ -20,10 +20,16 @@
       "sha256": "3240679a41dfa04a4285f9c340780b0fdbe59aeff8f26a781a976c13eec48b84"
     },
     {
-      "bytes": 2992,
+      "bytes": 3055,
       "path": "evidence/public-sdk-contract.json",
       "provenance": "python scripts/verify_public_resilience_api.py --format json --output evidence/public-sdk-contract.json",
-      "sha256": "457ddd5ddea37c1a3d24992009885ae95270ddc433480307f8d6e26c54f2b7e5"
+      "sha256": "166c1d026da123af78de0f6ce4599edb4fefb8b3ebc043a06b0f70921db3ebf7"
+    },
+    {
+      "bytes": 799,
+      "path": "evidence/resilience-sdk-usage.json",
+      "provenance": "python examples/resilience_sdk_usage.py --check --format json --output evidence/resilience-sdk-usage.json",
+      "sha256": "684d7d80d15077709f4bc91448149e5013ff4366544833dd31f47ab92da949d8"
     },
     {
       "bytes": 1547,
@@ -38,10 +44,10 @@
       "sha256": "b627bad435819899ecc982a01ac55157d10656d97ebc6e99f87af8251d7fa4a0"
     },
     {
-      "bytes": 2322,
+      "bytes": 3168,
       "path": "evidence/scenario-manifest.json",
       "provenance": "Maintained Scenario Manifest for user-visible repository surfaces.",
-      "sha256": "53727e455389c765c8dc6d2e275b00ce75d854a256fa590bab9433ab483f5d1c"
+      "sha256": "0b1193cc1cb16ca9eda3052d22f7a11095a5ee239d4c06a18058733410ded0b6"
     }
   ],
   "generated_at_utc": "2026-08-25T09:35:00+00:00",

@@ -12,6 +12,8 @@ import ast
 import hashlib
 import json
 import re
+import subprocess
+import sys
 import unicodedata
 import unittest
 from collections import Counter
@@ -47,6 +49,7 @@ ALLOWED_FILES = {
     "README-CN.md",
     "THIRD-PARTY-NOTICES.md",
     "requirements-validation.txt",
+    "examples/resilience_sdk_usage.py",
     "scripts/recovery_contract_demo.py",
     "scripts/validate_observations.py",
     "scripts/validate_repo.py",
@@ -58,6 +61,7 @@ ALLOWED_FILES = {
     "evidence/manifest.json",
     "evidence/observation-validation.json",
     "evidence/public-sdk-contract.json",
+    "evidence/resilience-sdk-usage.json",
     "evidence/recovery-contract-demo.json",
     "evidence/recovery-contract-events.jsonl",
     "evidence/scenario-manifest.json",
@@ -564,6 +568,10 @@ def main() -> int:
             "English README must link the executable observation validator")
     require("[`validate_observations.py`](scripts/validate_observations.py)" in cn_text,
             "Chinese README must link the executable observation validator")
+    require("[`examples/resilience_sdk_usage.py`](examples/resilience_sdk_usage.py)" in en_text,
+            "English README must link the direct public SDK usage example")
+    require("[`examples/resilience_sdk_usage.py`](examples/resilience_sdk_usage.py)" in cn_text,
+            "Chinese README must link the direct public SDK usage example")
     require("**not** a security sandbox or RBAC boundary" in en_text,
             "English README must scope the facade boundary")
     require("**不是**权限隔离机制（安全沙箱或 RBAC 边界）" in cn_text,
@@ -608,6 +616,7 @@ def main() -> int:
                 "python -m venv .venv",
                 "Resolve-Path .\\.venv\\Scripts\\python.exe",
                 "& $python -m pip install --no-input -r requirements-validation.txt",
+                "& $python examples\\resilience_sdk_usage.py --check",
                 "& $python scripts\\verify_public_resilience_api.py --quiet",
                 "& $python scripts\\validate_observations.py self-test",
                 "& $python -m unittest discover -s tests -v",
@@ -624,6 +633,7 @@ def main() -> int:
                 "python3 -m venv .venv",
                 'PYTHON=.venv/bin/python',
                 '"$PYTHON" -m pip install --no-input -r requirements-validation.txt',
+                '"$PYTHON" examples/resilience_sdk_usage.py --check',
                 '"$PYTHON" scripts/verify_public_resilience_api.py --quiet',
                 '"$PYTHON" scripts/validate_observations.py self-test',
                 '"$PYTHON" -m unittest discover -s tests -v',
@@ -638,6 +648,7 @@ def main() -> int:
                 else text.count("**完成标准：**") >= 2
             )
             and "worker_a_exit_code: 9" in text
+            and "PASS: imported azure.ai.agentserver.core.tasks" in text
             and "18/18 checks passed" in text,
             f"{readme.name}: reproduction done-when or expected outputs missing",
         )
@@ -761,6 +772,20 @@ def main() -> int:
             require(snippet in script_text,
                     f"public SDK validation script missing contract check: {snippet}")
 
+    usage_example = ROOT / "examples" / "resilience_sdk_usage.py"
+    if usage_example.is_file():
+        example_text = usage_example.read_text(encoding="utf-8")
+        for snippet in (
+            "from azure.ai.agentserver.core.tasks import RetryPolicy, TaskContext, task",
+            '@task(name="resilience-api-usage", timeout=None, retry=RetryPolicy())',
+            "ctx.metadata.get(\"completed_phases\", 0)",
+            "return await ctx.exit_for_recovery()",
+            "ctx.recovery_count",
+            "ctx.retry_attempt",
+        ):
+            require(snippet in example_text,
+                    f"public SDK usage example missing runtime code: {snippet}")
+
     def read_json_evidence(relative: str) -> dict:
         path = ROOT / relative
         require(path.is_file(), f"missing evidence file: {relative}")
@@ -786,6 +811,7 @@ def main() -> int:
     }
     expected_scenarios = {
         "public-sdk-contract": "dynamic-runtime",
+        "public-resilience-sdk-usage": "dynamic-runtime",
         "local-recovery-contract": "test-fixture",
         "observation-validator": "dynamic-runtime",
         "historical-live-observations": "architecture-explainer",
@@ -826,7 +852,7 @@ def main() -> int:
         "recovery_count is separate from retry_attempt",
         "task_id (work identity) is exposed",
         "input_id (input identity) is exposed",
-        "metadata supports a durable checkpoint index",
+        "metadata exposes checkpoint operations",
         "cooperative shutdown is exposed",
         "exit-for-recovery is exposed",
         "steering is exposed",
@@ -856,6 +882,83 @@ def main() -> int:
         and sdk_summary.get("total") == 18,
         "SDK evidence must contain 18/18 passing checks",
     )
+
+    usage_evidence = read_json_evidence(
+        "evidence/resilience-sdk-usage.json"
+    )
+    expected_usage_checks = {
+        "azure-ai-agentserver-core version",
+        "@task handler registered",
+    }
+    require(
+        usage_evidence.get("scenario_type") == "dynamic-runtime"
+        and usage_evidence.get("evidence_type")
+        == "public-resilience-sdk-usage"
+        and usage_evidence.get("passed") is True
+        and usage_evidence.get("expected_core_version") == "2.0.0"
+        and usage_evidence.get("installed_core_version") == "2.0.0"
+        and usage_evidence.get("registered_task_type") == "Task"
+        and usage_evidence.get("registered_task_name") == "resilience-api-usage"
+        and {
+            item.get("name")
+            for item in usage_evidence.get("checks", [])
+            if isinstance(item, dict) and item.get("passed") is True
+        }
+        == expected_usage_checks,
+        "SDK usage evidence must prove the actual example import and registration",
+    )
+
+    if usage_example.is_file():
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(usage_example),
+                "--check",
+                "--format",
+                "json",
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        require(
+            completed.returncode == 0,
+            "SDK usage example --check failed: "
+            + (completed.stderr.strip() or completed.stdout.strip()),
+        )
+        try:
+            live_usage = json.loads(completed.stdout)
+        except json.JSONDecodeError as error:
+            require(False, f"SDK usage example returned invalid JSON: {error}")
+            live_usage = {}
+        for field in (
+            "evidence_type",
+            "scenario_type",
+            "expected_core_version",
+            "installed_core_version",
+            "registered_task_type",
+            "registered_task_name",
+            "passed",
+        ):
+            require(
+                live_usage.get(field) == usage_evidence.get(field),
+                f"SDK usage live check drifted from evidence field {field}",
+            )
+        require(
+            {
+                item.get("name"): item.get("passed")
+                for item in live_usage.get("checks", [])
+                if isinstance(item, dict)
+            }
+            == {
+                item.get("name"): item.get("passed")
+                for item in usage_evidence.get("checks", [])
+                if isinstance(item, dict)
+            },
+            "SDK usage live checks drifted from committed evidence",
+        )
 
     recovery_evidence = read_json_evidence("evidence/recovery-contract-demo.json")
     require(recovery_evidence.get("scenario_type") == "test-fixture",
@@ -1106,6 +1209,7 @@ def main() -> int:
         "evidence/historical-observations.json",
         "evidence/observation-validation.json",
         "evidence/public-sdk-contract.json",
+        "evidence/resilience-sdk-usage.json",
         "evidence/recovery-contract-demo.json",
         "evidence/recovery-contract-events.jsonl",
         "evidence/scenario-manifest.json",
@@ -1122,11 +1226,13 @@ def main() -> int:
                 f"evidence provenance missing: {relative}")
 
     # Code Rich / Test Rich / four user red lines.
-    python_files = sorted((ROOT / "scripts").glob("*.py")) + sorted(
-        (ROOT / "tests").glob("test_*.py")
+    python_files = (
+        sorted((ROOT / "scripts").glob("*.py"))
+        + sorted((ROOT / "examples").glob("*.py"))
+        + sorted((ROOT / "tests").glob("test_*.py"))
     )
-    require(len(python_files) == 6,
-            f"expected 4 scripts and 2 test files, found {len(python_files)}")
+    require(len(python_files) == 7,
+            f"expected 4 scripts, 1 example, and 2 test files, found {len(python_files)}")
     for path in python_files:
         for finding in python_redlines(path):
             require(False, finding)

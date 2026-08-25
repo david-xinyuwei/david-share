@@ -120,8 +120,9 @@ def collect_report() -> dict[str, Any]:
         member for member in dir(TaskMetadata) if not member.startswith("_")
     }
     check(
-        "metadata supports a durable checkpoint index",
+        "metadata exposes checkpoint operations",
         {"get", "set", "increment", "append", "flush"} <= metadata_operations,
+        "API surface only; flush return is not a durable-write acknowledgement",
     )
     check("cooperative shutdown is exposed", "shutdown" in context_members)
     check("exit-for-recovery is exposed", "exit_for_recovery" in context_members)

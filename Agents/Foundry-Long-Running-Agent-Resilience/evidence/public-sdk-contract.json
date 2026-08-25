@@ -41,8 +41,8 @@
       "passed": true
     },
     {
-      "detail": "",
-      "name": "metadata supports a durable checkpoint index",
+      "detail": "API surface only; flush return is not a durable-write acknowledgement",
+      "name": "metadata exposes checkpoint operations",
       "passed": true
     },
     {
@@ -98,7 +98,7 @@
     "azure-ai-agentserver-invocations": "1.0.0",
     "azure-ai-agentserver-responses": "2.0.0"
   },
-  "generated_at_utc": "2026-08-24T16:07:51.337+00:00",
+  "generated_at_utc": "2026-08-25T11:12:51.273+00:00",
   "installed_versions": {
     "azure-ai-agentserver-core": "2.0.0",
     "azure-ai-agentserver-invocations": "1.0.0",

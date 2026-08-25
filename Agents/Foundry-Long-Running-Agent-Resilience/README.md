@@ -70,12 +70,28 @@ The figure below is the **official Microsoft diagram**, reproduced unmodified. I
 
 | Path | Contract |
 |---|---|
+| [`examples/resilience_sdk_usage.py`](examples/resilience_sdk_usage.py) | Imports the real public resilience task API and registers a typed `@task` handler; `--check` runs without an Azure endpoint |
 | [`scripts/recovery_contract_demo.py`](scripts/recovery_contract_demo.py) | Standard-library SQLite recovery reference with two real OS processes, hard process loss, lease reclaim, generation fencing, checkpointing and idempotency |
 | [`scripts/verify_public_resilience_api.py`](scripts/verify_public_resilience_api.py) | Checks 18 public symbols and handler rules against the pinned installed SDK packages |
 | [`scripts/validate_observations.py`](scripts/validate_observations.py) | Rejects sequence gaps, duplicate/missing output, insufficient terminal proof, and unclassified `424` / `403` conditions |
 | [`scripts/validate_repo.py`](scripts/validate_repo.py) | Fail-closed bilingual, evidence-integrity, Data/Log Rich and Code/Test Rich repository gate |
 | [`tests/`](tests/) | Twelve tests covering positive, negative, timing, replay, input-integrity and validator refusal paths |
 | [`evidence/`](evidence/) | Structured summaries, JSONL events, truth labels, normalized SHA-256 hashes and reproduction index |
+
+**Where the public resilience SDK is used**
+
+`Resilience` is not a separate Python package name. The task API is in `azure-ai-agentserver-core`, under `azure.ai.agentserver.core.tasks`; Responses recovery signals are in `azure-ai-agentserver-responses`.
+
+| Code | Direct SDK use |
+|---|---|
+| [`examples/resilience_sdk_usage.py`](examples/resilience_sdk_usage.py) | Imports `RetryPolicy`, `TaskContext`, and `task`; registers `@task(name="resilience-api-usage")`; reads task/input identities, `ctx.metadata`, entry mode, and recovery/retry counters; exits through `ctx.exit_for_recovery()` on shutdown |
+| [`scripts/verify_public_resilience_api.py`](scripts/verify_public_resilience_api.py) | Imports the same task types plus `TaskMetadata` and Responses recovery signals, then validates the installed package contract |
+| [`scripts/recovery_contract_demo.py`](scripts/recovery_contract_demo.py) | Deliberately imports **no Azure SDK**; it tests the recovery algorithm locally with SQLite and two OS processes |
+| [Official deployed `resilient-research` handler](https://github.com/microsoft-foundry/foundry-samples/blob/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/invocations/resilient-research/src/resilient-research/agent.py#L246-L285) | Uses `@multi_turn_task`, `TaskContext`, `ctx.metadata`, and the streaming registry inside a complete Microsoft sample |
+
+`--check` proves that the installed package imports and that the real decorator registers the typed handler. It does **not** execute the handler body or prove live recovery; the body runs only inside a Hosted Agent runtime.
+
+**Pinned SDK limitation:** in core 2.0.0, returning from `await ctx.metadata.flush()` is not a durable-write acknowledgement because storage callback failures are logged rather than propagated to the handler. The example therefore reads metadata but does not present `flush()` as a confirmed checkpoint. Production code needs a persistence path that can confirm the write or an operational reconciliation path; the current official sample also uses a separate checkpoint store for in-flight text.
 
 ---
 
@@ -350,6 +366,7 @@ Windows PowerShell:
 python -m venv .venv
 $python = (Resolve-Path .\.venv\Scripts\python.exe).Path
 & $python -m pip install --no-input -r requirements-validation.txt
+& $python examples\resilience_sdk_usage.py --check
 & $python scripts\verify_public_resilience_api.py --quiet
 & $python scripts\validate_observations.py self-test
 & $python -m unittest discover -s tests -v
@@ -362,13 +379,14 @@ Linux / macOS:
 python3 -m venv .venv
 PYTHON=.venv/bin/python
 "$PYTHON" -m pip install --no-input -r requirements-validation.txt
+"$PYTHON" examples/resilience_sdk_usage.py --check
 "$PYTHON" scripts/verify_public_resilience_api.py --quiet
 "$PYTHON" scripts/validate_observations.py self-test
 "$PYTHON" -m unittest discover -s tests -v
 "$PYTHON" scripts/validate_repo.py
 ```
 
-Done-when is `18/18 checks passed`, `Ran 12 tests ... OK`, and `PASS: bilingual parity ... Data/Log Rich ... Code/Test Rich`. These checks validate the pinned public SDK surface and this repository; they do not call a live Hosted Agent.
+Done-when is `PASS: imported azure.ai.agentserver.core.tasks`, `18/18 checks passed`, `Ran 12 tests ... OK`, and `PASS: bilingual parity ... Data/Log Rich ... Code/Test Rich`. These checks validate the pinned public SDK surface and this repository; they do not call a live Hosted Agent.
 
 ### Reproduce on a live Hosted Agent
 
@@ -431,6 +449,7 @@ These are engineering recommendations, not product guarantees:
 |---|---|---|
 | July and August counts, ranges, durations, confirmations, 424 and steering values | [`historical-observations.json`](evidence/historical-observations.json) | Public-safe aggregates derived from captured runs; N and product status are explicit |
 | Current public SDK symbols and handler rules | [`public-sdk-contract.json`](evidence/public-sdk-contract.json) | Real installed-package probe; not live recovery |
+| Direct SDK import and `@task` registration | [`resilience-sdk-usage.json`](evidence/resilience-sdk-usage.json) | Generated by the example's own `--check`; not handler execution or live recovery |
 | Lease, process loss, generation fence, checkpoint, idempotency | [`recovery-contract-demo.json`](evidence/recovery-contract-demo.json) + [JSONL events](evidence/recovery-contract-events.jsonl) | Real local test fixture; not Foundry service code |
 | Gap, duplicate, terminal-state and 424/403 error paths | [`observation-validation.json`](evidence/observation-validation.json) | Executable positive and negative fixtures |
 | Scenario truth labels | [`scenario-manifest.json`](evidence/scenario-manifest.json) | Separates dynamic runtime, test fixture, and measured architecture explainer |

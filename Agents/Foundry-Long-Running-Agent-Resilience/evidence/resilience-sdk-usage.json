@@ -1,0 +1,24 @@
+{
+  "checks": [
+    {
+      "detail": "installed=2.0.0; expected=2.0.0",
+      "name": "azure-ai-agentserver-core version",
+      "passed": true
+    },
+    {
+      "detail": "type=Task; name=resilience-api-usage",
+      "name": "@task handler registered",
+      "passed": true
+    }
+  ],
+  "claim_scope": "Installed-package import and real @task decorator registration; not handler execution, durable-write acknowledgement, or live Hosted Agent recovery.",
+  "evidence_type": "public-resilience-sdk-usage",
+  "expected_core_version": "2.0.0",
+  "generated_at_utc": "2026-08-25T11:12:51.725+00:00",
+  "installed_core_version": "2.0.0",
+  "passed": true,
+  "registered_task_name": "resilience-api-usage",
+  "registered_task_type": "Task",
+  "scenario_type": "dynamic-runtime",
+  "schema_version": 1
+}

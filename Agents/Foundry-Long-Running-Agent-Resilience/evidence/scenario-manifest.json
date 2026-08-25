@@ -17,6 +17,24 @@
       "evidence": "evidence/public-sdk-contract.json"
     },
     {
+      "id": "public-resilience-sdk-usage",
+      "type": "dynamic-runtime",
+      "entrypoint": "examples/resilience_sdk_usage.py --check",
+      "real": [
+        "Imports RetryPolicy, TaskContext, and task from the installed public AgentServer core package",
+        "Registers a typed @task handler accepted by the real decorator",
+        "Reports the installed package version, registered Task type, and registered task name"
+      ],
+      "not_claimed": [
+        "Execution of the handler body outside the Hosted Agent runtime",
+        "Durable checkpoint-write acknowledgement from TaskMetadata.flush in core 2.0.0",
+        "A complete Hosted Agent deployment",
+        "A live Azure recovery run",
+        "Microsoft Foundry private service implementation"
+      ],
+      "evidence": "evidence/resilience-sdk-usage.json"
+    },
+    {
       "id": "local-recovery-contract",
       "type": "test-fixture",
       "entrypoint": "scripts/recovery_contract_demo.py demo",
