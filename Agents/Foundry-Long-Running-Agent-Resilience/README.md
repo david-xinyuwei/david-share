@@ -69,7 +69,7 @@ async def resilience_api_usage(ctx: TaskContext[WorkInput]) -> dict[str, Any]:
 | Your own progress store that can confirm the write | **You provide it** — Foundry does not store your business progress. This repository's local demo uses SQLite, and the official Microsoft sample also uses a separate progress store | After re-entry nothing knows which phase was committed, so the work restarts from the beginning |
 | A client that persists the same response / invocation ID and deadline | Your caller code | After a disconnect you can only create a new task, and the original result is unreachable |
 
-`ctx.metadata` holds a small amount of progress marking, not your business data, and on the pinned version `flush()` returning is not a confirmed write ([why](#the-repository-is-executable-not-just-a-write-up)). For what each layer is responsible for, see [Four layers required for recovery](#four-layers-required-for-recovery).
+`ctx.metadata` holds a small amount of progress marking, not your business data. In core 2.0.0, the version this repository inspected offline, `flush()` returning is not a confirmed write ([why](#the-repository-is-executable-not-just-a-write-up)). For what each layer is responsible for, see [Four layers required for recovery](#four-layers-required-for-recovery).
 
 To add resilience to your code:
 
