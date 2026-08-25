@@ -14,7 +14,63 @@ The capability is in **public preview**. Every interruption was deliberate, not 
 
 [中文](README-CN.md) | English
 
-[Measured scenarios](#evaluation-what-was-actually-run) · [Recovery model](#deep-dive-how-recovery-works) · [Quick start](#quick-start) · [Evidence](#evidence-and-boundaries) · [Official product documentation](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
+[Use this in your own agent](#use-this-in-your-own-agent) · [Measured scenarios](#evaluation-what-was-actually-run) · [Recovery model](#deep-dive-how-recovery-works) · [Quick start](#quick-start) · [Evidence](#evidence-and-boundaries) · [Official product documentation](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
+
+---
+
+## Use this in your own agent
+
+Pick your goal first:
+
+| Your goal | Where to go | Azure subscription needed? |
+|---|---|---|
+| Watch a process die and the same task continue, on my own machine | [Run the local recovery experiment](#run-the-local-recovery-experiment) — one command, about a minute | No |
+| Put recovery into my own Hosted Agent code | The six steps in this section | Only when you deploy |
+| Reproduce the measured Foundry behavior | [Reproduce on a live Hosted Agent](#reproduce-on-a-live-hosted-agent) | Yes, a non-production test subscription |
+
+There is no package named `Resilience`. The task API lives in `azure-ai-agentserver-core`, under `azure.ai.agentserver.core.tasks`; Responses recovery signals live in `azure-ai-agentserver-responses`. Install the versions the current official sample pins:
+
+`pip install azure-ai-agentserver-core==2.1.0b2 azure-ai-agentserver-responses==2.1.0b2`
+
+Then turn your long-running work into a task handler. The block below is copied verbatim from [`examples/resilience_handler.py`](examples/resilience_handler.py), and the repository gate compares the two so they cannot drift. Your own work replaces the return body; the rest is what makes recovery possible:
+
+```python
+from typing import Any, TypedDict
+
+from azure.ai.agentserver.core.tasks import RetryPolicy, TaskContext, task
+
+
+class WorkInput(TypedDict):
+    payload: str
+
+
+@task(name="resilience-api-usage", timeout=None, retry=RetryPolicy())
+async def resilience_api_usage(ctx: TaskContext[WorkInput]) -> dict[str, Any]:
+    if ctx.shutdown.is_set():
+        return await ctx.exit_for_recovery()
+
+    completed = int(ctx.metadata.get("completed_phases", 0) or 0)
+    return {
+        "task_id": ctx.task_id,
+        "input_id": ctx.input_id,
+        "entry_mode": ctx.entry_mode,
+        "recovery_count": ctx.recovery_count,
+        "retry_attempt": ctx.retry_attempt,
+        "completed_phases": completed,
+        "payload_length": len(ctx.input["payload"]),
+    }
+```
+
+To add resilience to your code:
+
+1. **Start from an official Hosted Agent sample** and keep its package pins, so deployment, identity, and endpoint are real rather than invented.
+2. **Declare the handler** with a typed input and `@task`, as above; use `@multi_turn_task` when the work spans turns.
+3. **Read where you are.** `ctx.entry_mode` says whether this is a fresh start or a recovered re-entry, `ctx.task_id` and `ctx.input_id` identify the same work across processes, and `recovery_count` / `retry_attempt` keep process loss separate from retry.
+4. **Save business progress after every completed phase** in a store that can confirm the write, and skip phases already recorded. Do not treat `ctx.metadata.flush()` as a confirmed write — see [the pinned-SDK limitation](#the-repository-is-executable-not-just-a-write-up).
+5. **Make payments, bookings, writes, and tool calls idempotent**, because [work after the last saved phase can run a second time](#recovery-can-repeat-work-after-the-last-checkpoint).
+6. **In the client, persist the response or invocation ID and the deadline**, then reconnect to that same ID instead of creating a new task.
+
+Verify it the way this repository does: kill the process mid-run, and accept the run only when the workload output is complete and the task reports an explicit terminal state.
 
 ---
 
@@ -92,47 +148,7 @@ The figure below is the **official Microsoft diagram**, reproduced unmodified. I
 | [`tests/`](tests/) | Twelve tests covering positive, negative, timing, replay, input-integrity and validator refusal paths |
 | [`evidence/`](evidence/) | Structured summaries, JSONL events, truth labels, normalized SHA-256 hashes and reproduction index |
 
-**Where the public resilience SDK is used**
-
-`Resilience` is not a separate Python package name. The task API is in `azure-ai-agentserver-core`, under `azure.ai.agentserver.core.tasks`; Responses recovery signals are in `azure-ai-agentserver-responses`.
-
-The following code is copied verbatim from [`examples/resilience_handler.py`](examples/resilience_handler.py); the repository gate compares the block with that source file:
-
-```python
-from typing import Any, TypedDict
-
-from azure.ai.agentserver.core.tasks import RetryPolicy, TaskContext, task
-
-
-class WorkInput(TypedDict):
-    payload: str
-
-
-@task(name="resilience-api-usage", timeout=None, retry=RetryPolicy())
-async def resilience_api_usage(ctx: TaskContext[WorkInput]) -> dict[str, Any]:
-    if ctx.shutdown.is_set():
-        return await ctx.exit_for_recovery()
-
-    completed = int(ctx.metadata.get("completed_phases", 0) or 0)
-    return {
-        "task_id": ctx.task_id,
-        "input_id": ctx.input_id,
-        "entry_mode": ctx.entry_mode,
-        "recovery_count": ctx.recovery_count,
-        "retry_attempt": ctx.retry_attempt,
-        "completed_phases": completed,
-        "payload_length": len(ctx.input["payload"]),
-    }
-```
-
-To add resilience to your code:
-
-1. Start from an official Hosted Agent sample and pin the package versions used by that sample.
-2. Define a typed input and decorate the handler with `@task` or `@multi_turn_task`.
-3. Read `TaskContext` for the stable task/input IDs, entry mode, shutdown signal, and recovery/retry counters.
-4. Store completed business progress in a persistence path that can confirm the write; keep external actions idempotent.
-5. Persist the response/invocation ID and deadline in the client, then reconnect to that same ID instead of creating a new task.
-6. Inject process replacement and accept the run only when workload output and explicit terminal state are complete.
+Each file below uses the public SDK, or deliberately does not:
 
 | Code | Direct SDK use |
 |---|---|

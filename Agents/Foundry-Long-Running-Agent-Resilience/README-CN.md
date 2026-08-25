@@ -14,7 +14,63 @@
 
 [English](README.md) | 中文
 
-[实测场景](#评估到底跑了什么) · [恢复模型](#深入理解恢复如何工作) · [快速开始](#快速开始) · [证据](#证据与边界) · [官方产品文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
+[在你自己的 Agent 里使用](#在你自己的-agent-里使用) · [实测场景](#评估到底跑了什么) · [恢复模型](#深入理解恢复如何工作) · [快速开始](#快速开始) · [证据](#证据与边界) · [官方产品文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
+
+---
+
+## 在你自己的 Agent 里使用
+
+先确定你想做哪件事：
+
+| 你的目标 | 去哪里 | 需要 Azure 订阅吗 |
+|---|---|---|
+| 在自己电脑上亲眼看到进程被杀掉、同一个任务继续跑完 | [运行本地恢复实验](#运行本地恢复实验)，一条命令，约一分钟 | 不需要 |
+| 把恢复能力写进自己的 Hosted Agent 代码 | 本节的六个步骤 | 只在部署时需要 |
+| 复现文中实测的 Foundry 行为 | [在真实 Hosted Agent 上复现](#在真实-hosted-agent-上复现) | 需要，用非生产测试订阅 |
+
+没有名字叫 `Resilience` 的包。恢复任务 API 位于 `azure-ai-agentserver-core` 包的 `azure.ai.agentserver.core.tasks` 模块；Responses 的恢复信号位于 `azure-ai-agentserver-responses`。按微软当前官方 sample 固定的版本安装：
+
+`pip install azure-ai-agentserver-core==2.1.0b2 azure-ai-agentserver-responses==2.1.0b2`
+
+然后把你的长任务写成一个任务处理函数。下面这段代码从 [`examples/resilience_handler.py`](examples/resilience_handler.py) 原样摘取，仓库检查脚本会逐字比对两处，防止它们不一致。你自己的业务逻辑替换返回值部分，其余部分才是让恢复成为可能的关键：
+
+```python
+from typing import Any, TypedDict
+
+from azure.ai.agentserver.core.tasks import RetryPolicy, TaskContext, task
+
+
+class WorkInput(TypedDict):
+    payload: str
+
+
+@task(name="resilience-api-usage", timeout=None, retry=RetryPolicy())
+async def resilience_api_usage(ctx: TaskContext[WorkInput]) -> dict[str, Any]:
+    if ctx.shutdown.is_set():
+        return await ctx.exit_for_recovery()
+
+    completed = int(ctx.metadata.get("completed_phases", 0) or 0)
+    return {
+        "task_id": ctx.task_id,
+        "input_id": ctx.input_id,
+        "entry_mode": ctx.entry_mode,
+        "recovery_count": ctx.recovery_count,
+        "retry_attempt": ctx.retry_attempt,
+        "completed_phases": completed,
+        "payload_length": len(ctx.input["payload"]),
+    }
+```
+
+接入自己的代码时，按下面六步：
+
+1. **从微软官方 Hosted Agent sample 开始**，保留它固定的 package 版本，这样部署配置、身份和 endpoint 都是真实可用的，不用自己编。
+2. **声明处理函数**：定义带类型的输入，用 `@task` 装饰，如上例；如果任务跨多轮对话，改用 `@multi_turn_task`。
+3. **读出"我现在在哪一步"**：`ctx.entry_mode` 告诉你这次是首次执行还是恢复后重入，`ctx.task_id` 和 `ctx.input_id` 让不同进程认出同一个任务，`recovery_count` 和 `retry_attempt` 把"进程丢失"和"重试"分开计数。
+4. **每完成一个阶段就保存业务进度**，写入能够确认写入成功的存储；已经记录过的阶段直接跳过。不要把 `ctx.metadata.flush()` 当成写入已确认，原因见[固定版本 SDK 的限制](#本仓库可直接运行不只是说明文档)。
+5. **让付款、预订、写入和工具调用可以安全重做**（幂等），因为[最后一个进度点之后的工作可能被执行第二次](#恢复后最后一个进度点之后的工作可能重做)。
+6. **在客户端保存 response 或 invocation ID 以及 deadline**，断线后继续查询同一个 ID，不要创建新任务。
+
+验证方式和本仓库一致：在任务跑到一半时杀掉进程，只有业务输出完整、并且任务给出明确终态时，才算这次运行通过。
 
 ---
 
@@ -92,47 +148,7 @@
 | [`tests/`](tests/) | 12 项自动化测试，覆盖正常恢复、异常输入、时序问题、重复执行和拒绝路径。 |
 | [`evidence/`](evidence/) | 保存可供程序读取的实验结果、事件日志、证据分类和 SHA-256 校验清单，便于复核与复现。 |
 
-**公共恢复 SDK 在哪里使用**
-
-`Resilience` 不是一个单独的 Python 包名。恢复任务 API 位于 `azure-ai-agentserver-core` 包的 `azure.ai.agentserver.core.tasks` 模块；Responses 的恢复信号位于 `azure-ai-agentserver-responses`。
-
-下面的代码从 [`examples/resilience_handler.py`](examples/resilience_handler.py) 原样摘取；仓库 gate 会逐字比对这段代码和源文件：
-
-```python
-from typing import Any, TypedDict
-
-from azure.ai.agentserver.core.tasks import RetryPolicy, TaskContext, task
-
-
-class WorkInput(TypedDict):
-    payload: str
-
-
-@task(name="resilience-api-usage", timeout=None, retry=RetryPolicy())
-async def resilience_api_usage(ctx: TaskContext[WorkInput]) -> dict[str, Any]:
-    if ctx.shutdown.is_set():
-        return await ctx.exit_for_recovery()
-
-    completed = int(ctx.metadata.get("completed_phases", 0) or 0)
-    return {
-        "task_id": ctx.task_id,
-        "input_id": ctx.input_id,
-        "entry_mode": ctx.entry_mode,
-        "recovery_count": ctx.recovery_count,
-        "retry_attempt": ctx.retry_attempt,
-        "completed_phases": completed,
-        "payload_length": len(ctx.input["payload"]),
-    }
-```
-
-接入自己的代码时，按下面六步：
-
-1. 从微软官方 Hosted Agent sample 开始，并使用该 sample 当前固定的 package 版本。
-2. 定义带类型的输入，用 `@task` 或 `@multi_turn_task` 装饰 handler。
-3. 从 `TaskContext` 读取稳定的任务/输入 ID、进入模式、关闭信号，以及恢复/重试次数。
-4. 把已完成的业务进度写入能够确认写入成功的持久化存储；外部操作必须使用幂等标识。
-5. 客户端保存 response/invocation ID 与 deadline；断线后继续查询同一个 ID，不创建新任务。
-6. 注入进程替换；只有业务输出完整且出现明确终态时，才接受本次运行。
+下面每个文件都直接使用了公共 SDK，或有意不使用：
 
 | 代码位置 | 直接使用的 SDK 能力 |
 |---|---|

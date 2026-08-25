@@ -102,6 +102,7 @@ CRITICAL_NUMBERS = [
 ]
 
 REQUIRED_EN_SECTIONS = [
+    "## Use this in your own agent",
     "## What Foundry provides, and what your application owns",
     "## What this repo validates",
     "### Recovery model at a glance",
@@ -138,6 +139,7 @@ REQUIRED_EN_SECTIONS = [
 ]
 
 REQUIRED_CN_SECTIONS = [
+    "## 在你自己的 Agent 里使用",
     "## Foundry 提供什么，应用负责什么",
     "## 本仓库验证了什么",
     "### 恢复模型速览",
@@ -495,6 +497,9 @@ def main() -> int:
         "To add resilience to your code",
         "azure.ai.agentserver.core.tasks",
         "flush()` is not a durable-write acknowledgement",
+        "| Your goal | Where to go | Azure subscription needed? |",
+        "pip install azure-ai-agentserver-core==2.1.0b2 azure-ai-agentserver-responses==2.1.0b2",
+        "Your own work replaces the return body",
     ):
         require(snippet in en_text,
                 f"English README missing customer adoption guidance: {snippet}")
@@ -504,6 +509,9 @@ def main() -> int:
         "接入自己的代码时，按下面六步",
         "azure.ai.agentserver.core.tasks",
         "不等于“持久化已经确认成功”",
+        "| 你的目标 | 去哪里 | 需要 Azure 订阅吗 |",
+        "pip install azure-ai-agentserver-core==2.1.0b2 azure-ai-agentserver-responses==2.1.0b2",
+        "你自己的业务逻辑替换返回值部分",
     ):
         require(snippet in cn_text,
                 f"Chinese README missing customer adoption guidance: {snippet}")
