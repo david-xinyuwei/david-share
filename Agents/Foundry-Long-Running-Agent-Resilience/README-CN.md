@@ -31,6 +31,19 @@
 
 官方文档说明平台负责什么；本仓库验证应用能否正确保存进度、防止重复执行，并在重连后确认结果完整。
 
+**这项韧性到底解决什么问题**
+
+它不是让两个 Agent 同时执行同一任务的 active-active 双活，而是提供**任务级恢复**：运行进程退出后，平台在替代计算资源上重新调用同一条任务记录，应用再从已经持久化的业务进度继续。
+
+| 没有任务级恢复 | 使用任务级恢复 |
+|---|---|
+| 进程退出后，内存状态丢失；客户端可能重新创建第二个任务 | 替代进程重新进入同一个任务 ID，并读取原输入 |
+| 客户端断线后，不知道任务是否还在运行 | 客户端保存 response/invocation ID，并继续查询同一任务 |
+| 等待人工审批的任务容易被误判为已经丢失 | 已保存的任务与审批状态仍可查询 |
+| 付款、预订、写入或工具调用重做时可能重复执行 | 应用通过进度点和幂等标识识别已经完成的操作 |
+
+下文数据证明这项能力在受测场景中成立，但它不是可靠性百分比或 SLA。要形成生产信心，仍需针对自己的任务做多轮故障注入。
+
 ## 本仓库验证了什么
 
 本次 18 阶段实测来自微软在 **2026 年 7 月 private preview 期间提供的 `resilient-research` 样例**，不是本仓库自造的任务。它是一个通用的深度研究简报任务：调用方提供一个研究主题，当次测试的具体主题和模型生成正文不公开。这个样例按固定计划分 18 个阶段完成研究：
@@ -70,7 +83,8 @@
 
 | 文件或目录 | 作用 |
 |---|---|
-| [`examples/resilience_sdk_usage.py`](examples/resilience_sdk_usage.py) | 直接 import 公共恢复任务 API，并注册一个带类型标注的 `@task` 处理函数；执行 `--check` 不需要 Azure endpoint。 |
+| [`examples/resilience_handler.py`](examples/resilience_handler.py) | 真实的 typed `@task` 处理函数，直接 import 并读取公共恢复上下文。 |
+| [`examples/resilience_sdk_usage.py`](examples/resilience_sdk_usage.py) | 通过真实 decorator 加载该 handler，并生成动态 JSON 证据；执行 `--check` 不需要 Azure endpoint。 |
 | [`scripts/recovery_contract_demo.py`](scripts/recovery_contract_demo.py) | 在本机演示真实的进程中断与恢复：进程 A 被强制退出后，进程 B 接管同一个任务并从已保存的进度继续；SQLite 负责保存进度并防止重复提交。 |
 | [`scripts/verify_public_resilience_api.py`](scripts/verify_public_resilience_api.py) | 检查当前安装的 Azure SDK 是否包含本文依赖的 18 项公开接口与处理规则。 |
 | [`scripts/validate_observations.py`](scripts/validate_observations.py) | 检查运行记录是否有事件缺口、重复结果或缺少明确终态；遇到无法确认含义的 `424` / `403` 时停止并报错。 |
@@ -82,9 +96,48 @@
 
 `Resilience` 不是一个单独的 Python 包名。恢复任务 API 位于 `azure-ai-agentserver-core` 包的 `azure.ai.agentserver.core.tasks` 模块；Responses 的恢复信号位于 `azure-ai-agentserver-responses`。
 
+下面的代码从 [`examples/resilience_handler.py`](examples/resilience_handler.py) 原样摘取；仓库 gate 会逐字比对这段代码和源文件：
+
+```python
+from typing import Any, TypedDict
+
+from azure.ai.agentserver.core.tasks import RetryPolicy, TaskContext, task
+
+
+class WorkInput(TypedDict):
+    payload: str
+
+
+@task(name="resilience-api-usage", timeout=None, retry=RetryPolicy())
+async def resilience_api_usage(ctx: TaskContext[WorkInput]) -> dict[str, Any]:
+    if ctx.shutdown.is_set():
+        return await ctx.exit_for_recovery()
+
+    completed = int(ctx.metadata.get("completed_phases", 0) or 0)
+    return {
+        "task_id": ctx.task_id,
+        "input_id": ctx.input_id,
+        "entry_mode": ctx.entry_mode,
+        "recovery_count": ctx.recovery_count,
+        "retry_attempt": ctx.retry_attempt,
+        "completed_phases": completed,
+        "payload_length": len(ctx.input["payload"]),
+    }
+```
+
+接入自己的代码时，按下面六步：
+
+1. 从微软官方 Hosted Agent sample 开始，并使用该 sample 当前固定的 package 版本。
+2. 定义带类型的输入，用 `@task` 或 `@multi_turn_task` 装饰 handler。
+3. 从 `TaskContext` 读取稳定的任务/输入 ID、进入模式、关闭信号，以及恢复/重试次数。
+4. 把已完成的业务进度写入能够确认写入成功的持久化存储；外部操作必须使用幂等标识。
+5. 客户端保存 response/invocation ID 与 deadline；断线后继续查询同一个 ID，不创建新任务。
+6. 注入进程替换；只有业务输出完整且出现明确终态时，才接受本次运行。
+
 | 代码位置 | 直接使用的 SDK 能力 |
 |---|---|
-| [`examples/resilience_sdk_usage.py`](examples/resilience_sdk_usage.py) | import `RetryPolicy`、`TaskContext` 和 `task`；注册 `@task(name="resilience-api-usage")`；读取任务/输入 ID、`ctx.metadata`、进入模式和恢复/重试次数；收到关闭信号时调用 `ctx.exit_for_recovery()` |
+| [`examples/resilience_handler.py`](examples/resilience_handler.py) | import `RetryPolicy`、`TaskContext` 和 `task`；注册 `@task(name="resilience-api-usage")`；读取任务/输入 ID、`ctx.metadata`、进入模式和恢复/重试次数；收到关闭信号时调用 `ctx.exit_for_recovery()` |
+| [`examples/resilience_sdk_usage.py`](examples/resilience_sdk_usage.py) | import 该 handler，通过真实 decorator 完成注册，并写出 `resilience-sdk-usage.json` |
 | [`scripts/verify_public_resilience_api.py`](scripts/verify_public_resilience_api.py) | import 同一组任务类型，以及 `TaskMetadata` 和 Responses 恢复信号；检查当前安装包是否提供本文依赖的接口 |
 | [`scripts/recovery_contract_demo.py`](scripts/recovery_contract_demo.py) | **不 import Azure SDK**；它只用 SQLite 和两个本地进程验证恢复算法 |
 | [微软官方可部署的 `resilient-research` 处理函数](https://github.com/microsoft-foundry/foundry-samples/blob/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/invocations/resilient-research/src/resilient-research/agent.py#L246-L285) | 在完整 sample 中使用 `@multi_turn_task`、`TaskContext`、`ctx.metadata` 和流式事件存储 |

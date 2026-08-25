@@ -17,10 +17,10 @@ import json
 from datetime import datetime, timezone
 from importlib.metadata import version
 from pathlib import Path
-from typing import Any, Sequence, TypedDict
+from typing import Any, Sequence
 
 try:
-    from azure.ai.agentserver.core.tasks import RetryPolicy, TaskContext, task
+    from resilience_handler import resilience_api_usage
 except ModuleNotFoundError as error:
     raise SystemExit(
         "The public AgentServer SDK is required. Install it with:\n"
@@ -29,32 +29,6 @@ except ModuleNotFoundError as error:
 
 
 EXPECTED_CORE_VERSION = "2.0.0"
-
-
-class WorkInput(TypedDict):
-    """Input accepted by the checkpointed task."""
-
-    payload: str
-
-
-@task(name="resilience-api-usage", timeout=None, retry=RetryPolicy())
-async def resilience_api_usage(ctx: TaskContext[WorkInput]) -> dict[str, Any]:
-    """Read real recovery context without claiming a durable write acknowledgement."""
-
-    if ctx.shutdown.is_set():
-        return await ctx.exit_for_recovery()
-
-    completed = int(ctx.metadata.get("completed_phases", 0) or 0)
-
-    return {
-        "task_id": ctx.task_id,
-        "input_id": ctx.input_id,
-        "entry_mode": ctx.entry_mode,
-        "recovery_count": ctx.recovery_count,
-        "retry_attempt": ctx.retry_attempt,
-        "completed_phases": completed,
-        "payload_length": len(ctx.input["payload"]),
-    }
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:

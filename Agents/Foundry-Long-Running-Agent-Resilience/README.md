@@ -31,6 +31,19 @@ A **runtime instance** is only the currently running copy of your Hosted Agent c
 
 The public documentation defines the platform contract. This repository tests the application side: checkpointing, replay safety, reconnect behavior, and output acceptance after an injected interruption.
 
+**What this resilience changes**
+
+This is not active-active redundancy with two agents doing the same work at once. It is **task-level recovery**: the platform can re-enter the same stored work on replacement compute, while the application resumes from a durable business checkpoint.
+
+| Without task-level recovery | With task-level recovery |
+|---|---|
+| Process loss removes in-memory state; the client may create a second task | Replacement compute re-enters the same task ID and input |
+| A disconnected client cannot tell whether work stopped | The client persists the response/invocation ID and reads the same work again |
+| Work waiting for approval may be mistaken for abandoned work | The saved task and approval state remain addressable |
+| Repeating a payment, booking, write, or tool call can duplicate the action | The application uses checkpoints and idempotency to recognize completed actions |
+
+The evidence below shows that this capability worked in the tested scenarios. It is not a reliability percentage or SLA; production confidence still requires repeated fault injection against your workload.
+
 ## What this repo validates
 
 The measured 18-phase workload came from a **Microsoft private-preview `resilient-research` sample used in July 2026**; it was not invented by this repository. It was a generic deep-research briefing task: the caller supplied a topic, while the measured topic and generated text remain private. The sample processed that topic through 18 fixed phases:
@@ -70,7 +83,8 @@ The figure below is the **official Microsoft diagram**, reproduced unmodified. I
 
 | Path | Contract |
 |---|---|
-| [`examples/resilience_sdk_usage.py`](examples/resilience_sdk_usage.py) | Imports the real public resilience task API and registers a typed `@task` handler; `--check` runs without an Azure endpoint |
+| [`examples/resilience_handler.py`](examples/resilience_handler.py) | The actual typed `@task` handler that imports and reads the public recovery context |
+| [`examples/resilience_sdk_usage.py`](examples/resilience_sdk_usage.py) | Loads that handler through the real decorator and emits dynamic JSON evidence; `--check` runs without an Azure endpoint |
 | [`scripts/recovery_contract_demo.py`](scripts/recovery_contract_demo.py) | Standard-library SQLite recovery reference with two real OS processes, hard process loss, lease reclaim, generation fencing, checkpointing and idempotency |
 | [`scripts/verify_public_resilience_api.py`](scripts/verify_public_resilience_api.py) | Checks 18 public symbols and handler rules against the pinned installed SDK packages |
 | [`scripts/validate_observations.py`](scripts/validate_observations.py) | Rejects sequence gaps, duplicate/missing output, insufficient terminal proof, and unclassified `424` / `403` conditions |
@@ -82,9 +96,48 @@ The figure below is the **official Microsoft diagram**, reproduced unmodified. I
 
 `Resilience` is not a separate Python package name. The task API is in `azure-ai-agentserver-core`, under `azure.ai.agentserver.core.tasks`; Responses recovery signals are in `azure-ai-agentserver-responses`.
 
+The following code is copied verbatim from [`examples/resilience_handler.py`](examples/resilience_handler.py); the repository gate compares the block with that source file:
+
+```python
+from typing import Any, TypedDict
+
+from azure.ai.agentserver.core.tasks import RetryPolicy, TaskContext, task
+
+
+class WorkInput(TypedDict):
+    payload: str
+
+
+@task(name="resilience-api-usage", timeout=None, retry=RetryPolicy())
+async def resilience_api_usage(ctx: TaskContext[WorkInput]) -> dict[str, Any]:
+    if ctx.shutdown.is_set():
+        return await ctx.exit_for_recovery()
+
+    completed = int(ctx.metadata.get("completed_phases", 0) or 0)
+    return {
+        "task_id": ctx.task_id,
+        "input_id": ctx.input_id,
+        "entry_mode": ctx.entry_mode,
+        "recovery_count": ctx.recovery_count,
+        "retry_attempt": ctx.retry_attempt,
+        "completed_phases": completed,
+        "payload_length": len(ctx.input["payload"]),
+    }
+```
+
+To add resilience to your code:
+
+1. Start from an official Hosted Agent sample and pin the package versions used by that sample.
+2. Define a typed input and decorate the handler with `@task` or `@multi_turn_task`.
+3. Read `TaskContext` for the stable task/input IDs, entry mode, shutdown signal, and recovery/retry counters.
+4. Store completed business progress in a persistence path that can confirm the write; keep external actions idempotent.
+5. Persist the response/invocation ID and deadline in the client, then reconnect to that same ID instead of creating a new task.
+6. Inject process replacement and accept the run only when workload output and explicit terminal state are complete.
+
 | Code | Direct SDK use |
 |---|---|
-| [`examples/resilience_sdk_usage.py`](examples/resilience_sdk_usage.py) | Imports `RetryPolicy`, `TaskContext`, and `task`; registers `@task(name="resilience-api-usage")`; reads task/input identities, `ctx.metadata`, entry mode, and recovery/retry counters; exits through `ctx.exit_for_recovery()` on shutdown |
+| [`examples/resilience_handler.py`](examples/resilience_handler.py) | Imports `RetryPolicy`, `TaskContext`, and `task`; registers `@task(name="resilience-api-usage")`; reads task/input identities, `ctx.metadata`, entry mode, and recovery/retry counters; exits through `ctx.exit_for_recovery()` on shutdown |
+| [`examples/resilience_sdk_usage.py`](examples/resilience_sdk_usage.py) | Imports the handler, runs the real decorator registration, and writes `resilience-sdk-usage.json` |
 | [`scripts/verify_public_resilience_api.py`](scripts/verify_public_resilience_api.py) | Imports the same task types plus `TaskMetadata` and Responses recovery signals, then validates the installed package contract |
 | [`scripts/recovery_contract_demo.py`](scripts/recovery_contract_demo.py) | Deliberately imports **no Azure SDK**; it tests the recovery algorithm locally with SQLite and two OS processes |
 | [Official deployed `resilient-research` handler](https://github.com/microsoft-foundry/foundry-samples/blob/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/invocations/resilient-research/src/resilient-research/agent.py#L246-L285) | Uses `@multi_turn_task`, `TaskContext`, `ctx.metadata`, and the streaming registry inside a complete Microsoft sample |

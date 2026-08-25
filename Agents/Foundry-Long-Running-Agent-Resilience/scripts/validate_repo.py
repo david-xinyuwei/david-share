@@ -49,6 +49,7 @@ ALLOWED_FILES = {
     "README-CN.md",
     "THIRD-PARTY-NOTICES.md",
     "requirements-validation.txt",
+    "examples/resilience_handler.py",
     "examples/resilience_sdk_usage.py",
     "scripts/recovery_contract_demo.py",
     "scripts/validate_observations.py",
@@ -489,6 +490,24 @@ def main() -> int:
     for concept in REQUIRED_CONCEPTS["Chinese"]:
         require(concept in cn_text, f"Chinese README missing recovery concept: {concept}")
     for snippet in (
+        "not active-active redundancy",
+        "task-level recovery",
+        "To add resilience to your code",
+        "azure.ai.agentserver.core.tasks",
+        "flush()` is not a durable-write acknowledgement",
+    ):
+        require(snippet in en_text,
+                f"English README missing customer adoption guidance: {snippet}")
+    for snippet in (
+        "不是让两个 Agent 同时执行同一任务的 active-active 双活",
+        "任务级恢复",
+        "接入自己的代码时，按下面六步",
+        "azure.ai.agentserver.core.tasks",
+        "不等于“持久化已经确认成功”",
+    ):
+        require(snippet in cn_text,
+                f"Chinese README missing customer adoption guidance: {snippet}")
+    for snippet in (
         "Microsoft private-preview `resilient-research` sample",
         "generic deep-research briefing task",
         "phases 1-4",
@@ -572,6 +591,10 @@ def main() -> int:
             "English README must link the direct public SDK usage example")
     require("[`examples/resilience_sdk_usage.py`](examples/resilience_sdk_usage.py)" in cn_text,
             "Chinese README must link the direct public SDK usage example")
+    require("[`examples/resilience_handler.py`](examples/resilience_handler.py)" in en_text,
+            "English README must link the actual public SDK handler")
+    require("[`examples/resilience_handler.py`](examples/resilience_handler.py)" in cn_text,
+            "Chinese README must link the actual public SDK handler")
     require("**not** a security sandbox or RBAC boundary" in en_text,
             "English README must scope the facade boundary")
     require("**不是**权限隔离机制（安全沙箱或 RBAC 边界）" in cn_text,
@@ -588,9 +611,32 @@ def main() -> int:
         and "去重能力或人工对账" in cn_text,
         "Chinese README must disclose and scope the create/persist crash window",
     )
+    handler_example = ROOT / "examples" / "resilience_handler.py"
+    handler_text = (
+        handler_example.read_text(encoding="utf-8")
+        if handler_example.is_file()
+        else ""
+    )
+    snippet_match = re.search(
+        r"# README_SNIPPET_START\n(.*?)# README_SNIPPET_END",
+        handler_text,
+        flags=re.DOTALL,
+    )
+    expected_python_snippet = (
+        snippet_match.group(1).strip() if snippet_match else ""
+    )
+    require(bool(expected_python_snippet),
+            "resilience handler README snippet markers are missing")
+
     for readme, text in ((EN, en_text), (CN, cn_text)):
-        require(not fenced_blocks(text, "python"),
-                f"{readme.name}: Python snippets must live in tested source files")
+        python_blocks = fenced_blocks(text, "python")
+        require(len(python_blocks) == 1,
+                f"{readme.name}: expected one source-synchronized Python block")
+        if len(python_blocks) == 1:
+            require(
+                python_blocks[0].strip() == expected_python_snippet,
+                f"{readme.name}: Python block drifted from resilience_handler.py",
+            )
         require(not fenced_blocks(text, "yaml"),
                 f"{readme.name}: incomplete YAML fragments are forbidden")
         console_blocks = fenced_blocks(text, "console")
@@ -776,6 +822,14 @@ def main() -> int:
     if usage_example.is_file():
         example_text = usage_example.read_text(encoding="utf-8")
         for snippet in (
+            "from resilience_handler import resilience_api_usage",
+            '"evidence_type": "public-resilience-sdk-usage"',
+            '"@task handler registered"',
+        ):
+            require(snippet in example_text,
+                    f"public SDK check wrapper missing runtime check: {snippet}")
+    if handler_example.is_file():
+        for snippet in (
             "from azure.ai.agentserver.core.tasks import RetryPolicy, TaskContext, task",
             '@task(name="resilience-api-usage", timeout=None, retry=RetryPolicy())',
             "ctx.metadata.get(\"completed_phases\", 0)",
@@ -783,8 +837,8 @@ def main() -> int:
             "ctx.recovery_count",
             "ctx.retry_attempt",
         ):
-            require(snippet in example_text,
-                    f"public SDK usage example missing runtime code: {snippet}")
+            require(snippet in handler_text,
+                    f"public SDK handler missing runtime code: {snippet}")
 
     def read_json_evidence(relative: str) -> dict:
         path = ROOT / relative
@@ -1231,8 +1285,8 @@ def main() -> int:
         + sorted((ROOT / "examples").glob("*.py"))
         + sorted((ROOT / "tests").glob("test_*.py"))
     )
-    require(len(python_files) == 7,
-            f"expected 4 scripts, 1 example, and 2 test files, found {len(python_files)}")
+    require(len(python_files) == 8,
+            f"expected 4 scripts, 2 examples, and 2 test files, found {len(python_files)}")
     for path in python_files:
         for finding in python_redlines(path):
             require(False, finding)
