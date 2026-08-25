@@ -3,7 +3,7 @@
 [![Status](https://img.shields.io/badge/Foundry_capability-public_preview-B3541E)](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
 [![Scope](https://img.shields.io/badge/scope-8_measured_scenarios-1363DF)](#evaluation-what-was-actually-run)
 [![Runtimes](https://img.shields.io/badge/runtimes-Python_%2B_.NET-0F8B6D)](#measured-results)
-[![Protocols](https://img.shields.io/badge/protocols-Responses_%2B_Invocations-5F4BB6)](#where-you-plug-in)
+[![Protocols](https://img.shields.io/badge/protocols-Responses_%2B_Invocations-5F4BB6)](#three-integration-options)
 [![License](https://img.shields.io/badge/license-MIT-D98E04)](LICENSE)
 
 This repository asks one question: **if the process running a long task disappears, can the same task continue from saved progress instead of starting over?** It includes eight fault-injection results, a public-SDK check, a local two-process demo, tests, and reviewable evidence.
@@ -33,13 +33,13 @@ The public documentation defines the platform contract. This repository tests th
 
 ## What this repo validates
 
-Fifteen seconds into a twenty-two minute job, we killed its process after phase 1. Nothing was resubmitted. A different process completed phases 2-18. The same job ended **18 of 18**, with 12,248 events, no gap and no repeated phase.
+A research job had 18 planned phases and an expected runtime of about 22 minutes. Fifteen seconds into the run, phase 1 finished, and we terminated Process A. We did not submit a new job. Process B found the same task record, loaded the saved phase-1 progress, and completed phases 2-18. All **18 planned phases completed**. The run recorded 12,248 events with sequence numbers from 1 through 12,248; no sequence number was missing or repeated.
 
 The test is simple: after process loss, can the **same work item** continue and produce complete output? These are observations, not product scores.
 
 | Measured | Observed value — not a score | Why it matters |
 |---|---|---|
-| Long-run acceptance after injected process loss | **18 of 18 phases**; sequence 1-12,248 with no gap or repeated phase | The same logical work reached its documented terminal result |
+| Long-run acceptance after injected process loss | All **18 planned phases completed**; 12,248 events had consecutive sequence numbers 1-12,248, with no missing or repeated number | Processes A and B completed the same task record |
 | Runtime loss to approval decision accepted | **56 s**, with the original selections intact | In this run, pending approval state survived process replacement |
 | Consecutive `HTTP 424` before normal completion | **29** | In this run, a retry budget of 10 would have stopped before completion |
 | Scenarios reaching their documented terminal result | **8 of 8**, one accepted run each | Capability validation, not a reliability benchmark |
@@ -70,23 +70,29 @@ The figure below is the **official Microsoft diagram**, reproduced unmodified. I
 
 ## Deep dive: how recovery works
 
-The idea is simple: **the work identity and saved progress must outlive the process.**
+Recovery requires the **task ID, input, and completed progress to be stored outside the process that is currently executing the task**. If that process exits, a replacement process can find the same task record, load the latest saved progress, and continue the unfinished phases.
 
-The flow has three parts: the platform saves the work and input; the application records progress at safe boundaries; after process loss, another process re-enters the same work and reads that progress. Client reconnection restores observation, not execution. In the 18-phase run, replacement work had already resumed before the client reconnected.
+The flow has three steps:
 
-### Three terms used below
+1. Before execution, the platform stores the task ID and input.
+2. After each completed business phase, the application stores the latest completed phase outside the executing process.
+3. If that process exits, a replacement process loads the same task record and continues with the next unfinished phase.
 
-- **Logical work:** the durable job or conversation, identified independently of one process.
-- **Checkpoint:** the application-owned marker for the last complete, replay-safe business unit.
-- **Observer:** the client or operator reading status/output; observer failure does not by itself prove workload failure.
+Client reconnection only resumes reading status and output; it does not start recovery. In the measured run, Process B had already resumed before the client reconnected.
 
-### Recovery is at-least-once; applications must make replay safe
+### Three concepts used below
 
-A recovered handler starts again at its entry point; it does not resume a line of code, model call, tool call, or old connection. Work after the last checkpoint may therefore run twice.
+- **Task record:** a durable record stored outside the executing process. It keeps the same task ID when a replacement process takes over.
+- **Checkpoint:** the latest business phase that the application has confirmed complete and stored.
+- **Observer:** a client or operator process that reads status and output. If it disconnects, the task can continue running.
 
-The application must recognize already-completed payments, bookings, writes, and tool actions. Recovery is not a new submission, and an `active` agent version proves deployment—not recovery.
+### Recovery can repeat work after the last checkpoint
 
-### Where you plug in
+Recovery calls the handler from its entry point. It does not resume a line of code, model call, tool call, or old connection. Work completed after the latest stored checkpoint may therefore run again.
+
+The application must recognize payments, bookings, writes, and tool actions that already completed. Recovery does not create a new task, and an `active` agent version proves deployment—not recovery.
+
+### Three integration options
 
 The three tiers differ mainly in how much lifecycle code you own.
 
@@ -98,19 +104,19 @@ The three tiers differ mainly in how much lifecycle code you own.
 
 Every tier still requires the application to define what "already done" means.
 
-### Public recovery contract and repository reference model
+### Official recovery contract and local example
 
 The official contract covers saved work and input, lease expiry, later-process reclaim, handler re-entry, and application checkpoints. The SQLite demo adds version fencing and atomic phase commits as **local design choices**, not claims about Foundry internals.
 
 | Concern | Official published contract | Executable reference in this repository |
 |---|---|---|
-| Work and input identity | Names the logical work and one input; runtime persists the input | SQLite work row plus payload hash |
+| Task and input identity | Names one task record and one input; runtime persists the input | SQLite task row plus payload hash |
 | Lease lifecycle | Runtime acquires and renews the lease; process stop abandons it; a later process reclaims the work record | Owner, expiry, generation, and conditional claim |
 | Progress | Handler re-enters from the start; the application checks a durable checkpoint or watermark | Atomic phase result and checkpoint commit |
 | Replay safety | The application remains responsible for preventing duplicate side effects | Idempotency key; matching replay is deduplicated, conflicting replay fails closed |
 | Output observation | Stream replay helps reconnecting clients; it is not an application workflow checkpoint | Validator checks sequence, output coverage, and terminal evidence; it does not simulate a service stream |
 
-#### Executable recovery-contract reference
+#### Executable local recovery demo
 
 [`recovery_contract_demo.py`](scripts/recovery_contract_demo.py) uses only the Python standard library. Worker A commits phase 1 and exits through `os._exit(9)`; after lease expiry, Worker B reclaims the same work and completes phases 2-5. It writes a [JSON result](evidence/recovery-contract-demo.json) and [JSONL event log](evidence/recovery-contract-events.jsonl).
 
@@ -118,7 +124,7 @@ Tests enforce four rules: reclaim only pending or expired work; block stale writ
 
 This is a **local test fixture**, not Foundry service code or live-service evidence.
 
-### From Hosted Agent configuration to a recoverable call
+### Four layers required for recovery
 
 Four layers must line up; the process and handler layers remain **public-preview / experimental** APIs.
 
@@ -129,15 +135,15 @@ Four layers must line up; the process and handler layers remain **public-preview
 | Handler *(public preview)* | `TaskContext` + framework checkpoint hook | Defines the last durable output boundary | Does not make external side effects idempotent |
 | Client | `store=True`, `background=True`, same `response.id` | Creates addressable work and lets the caller poll or reattach | Must not replace recovery with a new create call |
 
-#### Declare a Hosted Agent with the Responses protocol
+#### Start from the official Responses samples
 
 Start from the deployable [`azure.yaml` and source in the official samples](https://github.com/microsoft-foundry/foundry-samples/tree/main/samples/python/hosted-agents), not an incomplete file with invented project, model, or identity values. `azd deploy` handles deployment; it does not save business progress.
 
-#### Opt the agent process into recovery
+#### Enable process recovery
 
 With preview recovery enabled, a stored background response is re-entered in a new process instead of being marked failed after process loss. The public packages expose the relevant interfaces but still mark them experimental; see the [SDK report](evidence/public-sdk-contract.json) for the complete symbol list.
 
-#### Resume from a business checkpoint
+#### Continue from saved business progress
 
 After re-entry, the application reads its last checkpoint. A phase may repeat if the process died before that checkpoint; a saved phase should be skipped.
 
@@ -152,7 +158,7 @@ The observed recovered entry reported `recovery_count=1` and `retry_attempt=0`.
 
 The application pattern is: read identity and progress, rebuild state, run one replay-safe phase, persist its output and external-operation IDs, then advance the checkpoint. Payments, bookings, writes, and tools still require [idempotency](#prevent-duplicate-approvals-and-side-effects).
 
-#### Keep dispatch separate from observation
+#### Separate task creation from status observation
 
 This repo tests local progress storage and result validation. Use the [official quickstart](https://learn.microsoft.com/en-us/azure/foundry/agents/quickstarts/quickstart-hosted-agent) for authenticated calls; the repo does not invent your endpoint, identity, store, or workload schema.
 
@@ -203,11 +209,11 @@ The next check deployed the official resilient samples and replaced the runtime 
 | Responses, streaming recovery | `resilient-streaming` | 22.6 s | **PASS** — same response id, 3 items, no gap or duplicate |
 | Responses, steering | `resilient-steering` | 23.3 s | **PASS** — same response id reached a coherent answer |
 | Invocations, research recovery | `resilient-research` | 28.4 s | **PASS** — same `invocation_id` reached `completed` |
-| Invocations, approval outliving instance loss | `resilient-approval-gate` | 25.3 s | **PASS** — the decision was accepted (`202`) even though it was sent *after* the replacement, work completed |
+| Invocations, approval during runtime replacement | `resilient-approval-gate` | 25.3 s | **PASS** — the decision was accepted (`202`) after replacement, and the task completed |
 
 Three details matter:
 
-- The streaming scenario also passed on a subscription that had never been preview-enabled (`azd up`: 3m29s). This is one subscription, not proof of universal availability.
+- The streaming scenario also passed on a subscription that had never been preview-enabled (`azd up`: 3 minutes 29 seconds). This is one subscription, not proof of universal availability.
 - The July `424` pattern did **not** repeat: 26 polls were all `200`. The two interruption paths differed, so both observations remain scoped to their runs.
 - New live runs should follow the official sample's exact `core==2.1.0b2` and `responses==2.1.0b2` pins. This repo's 2.0.0 pins reproduce only its historical offline probe.
 
@@ -236,7 +242,7 @@ Optional cancel, delete, and deny branches were outside this matrix and remain u
 
 The Python Invocations run reached phase 1 and event 599 in 15 seconds; we then killed its process. Nothing was resubmitted. After reattachment, event 600 arrived on the same work item and phases 2-18 completed.
 
-The run ended after 1,301 seconds at event 12,248, with no gap or repeated phase. Roughly 95% of elapsed time and events came after process loss; that is a work-distribution ratio, not a success score. Acceptance was **18 of 18 phases**.
+The run ended after 1,301 seconds. All **18 planned phases completed**. It recorded 12,248 events with consecutive sequence numbers 1-12,248; no number was missing or repeated. Roughly 95% of elapsed time and events came after process loss; that is a work-distribution ratio, not a success score.
 
 ### The same interruption, a different protocol
 
@@ -260,7 +266,7 @@ This does **not** make every `424` retryable. It means a still-addressable respo
 
 ### Interrupting on purpose
 
-A second turn sent during generation was accepted as `queued`. The first turn stopped at a safe boundary; after seven `in_progress` polls, the second completed with the expected answer. This was cooperative steering, not a cancel/restart race.
+A second turn sent during generation was accepted as `queued`. The first turn stopped after its latest completed step had been saved; after seven `in_progress` polls, the second completed with the expected answer. This was cooperative steering, not a cancel/restart race.
 
 ---
 
@@ -371,7 +377,7 @@ This repository intentionally does not invent your Foundry project, model deploy
 
 <div align="center"><img src="images/recovery-decision-guide.png" width="560" alt="Decision guide for classifying runtime, client, host-replacement, and observer failures before recovering"></div>
 
-Each row below is a diagnostic starting point, not a universal mapping from symptom to cause. **Read the same logical work first, identify the likely layer from durable evidence, and create nothing new until the existing state is known.**
+Each row below is a diagnostic starting point, not a universal mapping from symptom to cause. **Read the same task record first, identify the likely layer from durable evidence, and create nothing new until the existing state is known.**
 
 | Symptom | Check first | Do not | Safer action |
 |---|---|---|---|
@@ -389,7 +395,7 @@ Each row below is a diagnostic starting point, not a universal mapping from symp
 These are engineering recommendations, not product guarantees:
 
 1. **Save progress at a verifiable boundary.** "Phase 7 of 18 complete" is useful; "somewhere in the middle" is not.
-2. **Use a work ID that outlives the process.** Recovery addresses work, not a socket.
+2. **Store the task ID and completed progress outside the executing process.** A replacement process must be able to find the same task record and continue from the latest checkpoint.
 3. **Assume at-least-once execution.** Repeating payments, approvals, writes, and tools must be harmless.
 4. **Separate reader failure from work failure, and require an explicit terminal result.**
 5. **Classify status codes against durable state before acting.**
