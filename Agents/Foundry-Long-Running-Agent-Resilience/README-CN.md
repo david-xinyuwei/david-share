@@ -194,21 +194,17 @@ Replay 窗口内的支付、预订、写入或 tool action，仍然必须采用�
 
 #### 把任务下发和状态观察分开
 
-标准 Hosted Agent client surface 来自 Foundry project client，但可运行的生产 client 还需要应用自己的真实持久化存储、身份、endpoint 和 workload schema。原代码块引用了未定义依赖，因此已删除，不再把它包装成可运行代码。
+本仓库只对自己能完整负责的部分做端到端测试：[`recovery_contract_demo.py`](scripts/recovery_contract_demo.py) 提供 durable ledger，[`validate_observations.py`](scripts/validate_observations.py) 校验 workload 证据。真实认证调用使用[官方 Hosted Agent quickstart](https://learn.microsoft.com/en-us/azure/foundry/agents/quickstarts/quickstart-hosted-agent)；本仓库不虚构你的 endpoint、身份、store 或 workload schema。
 
-本仓库现在只对自己能完整负责的部分做端到端执行：[`recovery_contract_demo.py`](scripts/recovery_contract_demo.py) 实现并测试原子 durable ledger；[`validate_observations.py`](scripts/validate_observations.py) 校验调用方提供的 workload 证据，并对未分类状态码 fail closed。真实认证 client 调用应使用[官方 Hosted Agent quickstart](https://learn.microsoft.com/en-us/azure/foundry/agents/quickstarts/quickstart-hosted-agent)与 samples。本仓库不提供虚构 endpoint、身份或持久化参数的环境专用 dispatch client。
+| 关注点 | 应用规则 |
+|---|---|
+| Create crash window | 远端 create 调用与应用持久化记录返回的 response ID 不是一个原子事务；本轮测试的公开 create 调用也不支持按应用自己的 work key 找回 response。结果未知时不能自动再次 create。生产系统需要产品支持的 idempotency / deduplication，或运维对账路径。 |
+| Observer 重启 | 持久化 `response_id` 与 deadline 后，新 observer 读取**同一个 response**。把新的 `response.in_progress` snapshot 当作 reset point，并根据 finalized item 重建结果。Streaming 是公开模式；active-handler crash replay 是单独启用的 **public-preview resilient execution**。 |
+| 恢复依据 | 使用持久化 `response_id` 与 workload state，不把高位 transport cursor 当成恢复 key。一次实测从 sequence 5 重新计数；仍须按[连续性章节](#连续性以-workload-output-为准而不是只看传输-sequence)校验 finalized index、phase 与业务状态。 |
+| 后续轮次 | `previous_response_id=response_id` 只连接后续顺序轮次；并发排队和协作式 steering 需要 resilient-task surface。 |
+| 读取边界 | 只读 adapter 是可维护性与 least-privilege pattern，**不是**安全沙箱或 RBAC 边界。不可信 observer 需要独立服务与身份；平台终态和 workload 完整性仍须分别检查。 |
 
-把观察能力放到只读应用 adapter 后面，是可维护性和 least-privilege pattern，**不是**安全沙箱或 RBAC 边界。不可信 observer 仍需独立服务与身份。Recovery objective 是 workload 配置，不是固定重试次数；应按健康运行时间和 workload 自己的替换余量设置。平台终态与 workload 完整性仍是两道独立检查。
-
-这个应用模式存在一个公共 API 边界：远端 create 调用与应用持久化记录返回的 response ID 不是一个原子事务；本轮测试的公开 create 调用也不支持按应用自己的 work key 找回 response。进程可能停在远端调用之前，也可能停在远端调用成功、应用尚未记录 response ID 之后。此时应保留这条结果未知的应用状态，不能自动再次 create。普通 transactional outbox 无法判断一次结果未知的远端调用是否成功。生产 dispatcher 需要产品支持的 idempotency / deduplication contract，或针对未决记录与 orphan response 的运维对账路径。本次评估只在 response ID 已持久化后开始观察。
-
-应用已持久化 response ID 与 deadline 后，如果轮询进程消失，新 observer 会从这些应用自有数据 retrieve **同一个 response**。Streaming 本身是公开的 Responses 模式；active-handler crash replay 现在属于单独启用的 **public-preview resilient execution**。本次评估会在可用时持久化传输游标，把新的 `response.in_progress` snapshot 当作 reset point，并根据 finalized item 重建观察者输出。
-
-最重要的是，它**没有**把高位 transport sequence cursor 当成唯一恢复 key：有一次实测的 runtime 在恢复后把 sequence 从 5 重新计数。Sequence number 可以在兼容的 stream lifetime 内优化 replay，但真正的恢复权威是持久化 `response_id` 与 workload state。仍然要按[连续性章节](#连续性以-workload-output-为准而不是只看传输-sequence)验证 finalized output index、phase 和持久化业务状态。
-
-后续的顺序轮次可以设置 `previous_response_id=response_id`。并发排队和协作式 steering 使用 public-preview resilient task surface；`previous_response_id` 本身只负责建立 response chain 连续性。
-
-部署后，一条简洁的操作路径是 `azd ai agent invoke`，它会替普通调用管理 Hosted Agent session 与 Responses conversation。如果系统必须持久化 background response ID、轮询 deadline、dispatch / observe 分离和 workload 终态检查，应使用应用自己实现并测试过的 client。
+普通调用使用 `azd ai agent invoke`。需要持久化 background response ID 与 deadline、重启观察并执行 workload 终态验收时，使用应用自己实现并测试过的 client。
 
 ---
 

@@ -194,21 +194,17 @@ Any payment, booking, write, or tool action inside the replay window still needs
 
 #### Keep dispatch separate from observation
 
-The standard Hosted Agent client surface comes from the Foundry project client, but a runnable production client also needs the application's real durable store, identity, endpoint, and workload schema. The earlier block referenced undefined dependencies and has been removed rather than presented as working code.
+This repository tests the parts it can own end to end: [`recovery_contract_demo.py`](scripts/recovery_contract_demo.py) provides the durable ledger, and [`validate_observations.py`](scripts/validate_observations.py) checks workload evidence. Use the [official Hosted Agent quickstart](https://learn.microsoft.com/en-us/azure/foundry/agents/quickstarts/quickstart-hosted-agent) for the authenticated call; this repo does not invent your endpoint, identity, store, or workload schema.
 
-This repository now exercises the parts it can own end to end: [`recovery_contract_demo.py`](scripts/recovery_contract_demo.py) implements and tests an atomic durable ledger, while [`validate_observations.py`](scripts/validate_observations.py) validates caller-supplied workload evidence and fails closed on unclassified status codes. Use the [official Hosted Agent quickstart](https://learn.microsoft.com/en-us/azure/foundry/agents/quickstarts/quickstart-hosted-agent) and samples for the actual authenticated client call. This repository does not ship an environment-specific dispatch client with invented endpoint, identity, or persistence values.
+| Concern | Application rule |
+|---|---|
+| Create crash window | Remote create and the application's durable recording of the returned response ID are not one atomic transaction; the tested public create call did not expose lookup by an application work key. Preserve an unknown result and do not automatically create again. Production needs supported idempotency/deduplication or operational reconciliation. |
+| Observer restart | After persisting `response_id` and deadline, a new observer retrieves the **same response**. Treat a new `response.in_progress` snapshot as a reset point and rebuild from finalized items. Streaming is public; active-handler crash replay is the separate **public-preview resilient-execution** opt-in. |
+| Recovery authority | Use durable `response_id` plus workload state—not a high transport cursor. One measured stream restarted at sequence 5; validate finalized indexes, phases, and business state as described in [Continuity](#continuity-workload-output-over-transport-sequence). |
+| Later turns | `previous_response_id=response_id` links a later sequential turn. Concurrent queuing and cooperative steering require the resilient-task surface. |
+| Read boundary | A read-only adapter is a maintainability and least-privilege pattern, **not** a security sandbox or RBAC boundary. Untrusted observers need a separate service and identity; platform terminal state and workload completion remain separate checks. |
 
-Separating observation behind a read-only application adapter is a maintainability and least-privilege pattern, **not** a security sandbox or RBAC boundary. Untrusted observer code still requires a separate service and identity. Recovery objectives are workload configuration rather than a fixed retry count; size them from healthy runtime and workload-specific replacement allowance. Platform terminal state and workload completion remain separate checks.
-
-This application pattern has one public-API boundary: remote create and the application's durable recording of the returned response ID are not one atomic transaction, and the tested public create call did not expose lookup by an application work key. A process can therefore stop before the remote call, or after it succeeds but before the application records the response ID. Preserve that unresolved application state; do not automatically create again. A normal transactional outbox cannot determine whether an unknown remote create succeeded. Production dispatch needs a product-supported idempotency/deduplication contract or an operational reconciliation path for unresolved records and orphaned responses. The evaluation started observation only after the response ID had been durably captured.
-
-If the polling process disappears after the application has durably recorded the response ID and deadline, a new observer retrieves **that same response** from those application-owned values. Streaming is a public Responses mode; active-handler crash replay is now the separate **public-preview resilient-execution** opt-in. The evaluation persisted transport cursors when available, accepted a new `response.in_progress` snapshot as a reset point, and rebuilt observer output from finalized items.
-
-Most importantly, it did **not** make a high transport sequence cursor the sole recovery key: one measured runtime restarted sequence numbering at 5. A sequence number can optimize replay within a compatible stream lifetime, but the durable `response_id` plus workload state are the recovery authority. Continue to validate finalized output indexes, phases, and durable business state as described in [Continuity](#continuity-workload-output-over-transport-sequence).
-
-A later sequential turn can use `previous_response_id=response_id`. Concurrent queuing and cooperative steering use the public-preview resilient-task surface; `previous_response_id` by itself only establishes response-chain continuity.
-
-A concise operational route after deployment is `azd ai agent invoke`; it manages the Hosted Agent session and Responses conversation for ordinary calls. Use an application-owned, tested client when your system must persist the background response ID, polling deadline, dispatch/observe separation, and workload-level completion checks.
+Use `azd ai agent invoke` for ordinary calls. Use an application-owned, tested client when you must persist a background response ID and deadline, restart observation, and enforce workload-level completion.
 
 ---
 
