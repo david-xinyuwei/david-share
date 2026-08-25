@@ -151,7 +151,7 @@ REQUIRED_CN_SECTIONS = [
     "### 官方恢复机制与本地示例",
     "### 启用恢复需要配置四层",
     "## 评估：到底跑了什么",
-    "### 当前 public-preview 契约检查",
+    "### 当前公共预览契约检查",
     "### 在普通订阅上，验证真实部署的 Agent",
     "## 验收规则",
     "### 同时拒绝缺口和重复",
@@ -181,9 +181,9 @@ REQUIRED_START_EN_SECTIONS = [
 
 REQUIRED_START_CN_SECTIONS = [
     "## 支持的路径",
-    "### 先选进度策略",
+    "### 先选进度保存方式",
     "### 前置条件",
-    "### 配置 Agent",
+    "### 配置 Agent 处理函数",
     "### 运行和部署",
     "### 仅在需要时配置外部状态",
     "### 配置调用方",
@@ -595,7 +595,7 @@ def main() -> int:
         require(snippet in en_text,
                 f"English README missing main reader route: {snippet}")
     for snippet in (
-        "不是让两个 Agent 同时执行同一任务的 active-active 双活",
+        "不是让两个 Agent 同时执行同一任务的双活（active-active）",
         "任务级恢复",
         "不等于“持久化已经确认成功”",
         "[客户快速入口](CUSTOMER-START-HERE-CN.md)",
@@ -633,10 +633,46 @@ def main() -> int:
         "environmentVariables",
         "DefaultAzureCredential",
         "azd ai agent show",
-        "远端 create 与本地保存 ID 不是一个原子事务",
+        "远端创建请求与本地保存 ID 不是一个原子事务",
     ):
         require(snippet in start_cn_text,
                 f"Chinese customer-start guide missing adoption guidance: {snippet}")
+    for snippet in (
+        "可恢复的后台任务",
+        "响应 ID 或任务 ID",
+        "状态查询方（observer）",
+        "处理函数重新执行后",
+        "输出项编号",
+        "远端创建请求与本地保存 ID 不是一个原子事务",
+        "使用当前公开版本复测",
+    ):
+        require(
+            snippet in cn_text,
+            f"Chinese README missing direct technical Chinese: {snippet}",
+        )
+    for snippet in (
+        "已保存的后台响应",
+        "进度保存方式",
+        "完整可执行处理函数",
+        "上游调用方",
+    ):
+        require(
+            snippet in start_cn_text,
+            f"Chinese customer-start guide missing direct Chinese: {snippet}",
+        )
+    for retired in (
+        "stored background work",
+        "stored background response",
+        "response/work ID",
+        "output index",
+        "远端 create",
+        "恢复接线",
+        "调用方始终保存",
+    ):
+        require(
+            retired not in cn_text and retired not in start_cn_text,
+            f"machine-translated or mixed Chinese returned: {retired}",
+        )
     for snippet in (
         "Microsoft private-preview `resilient-research` sample",
         "generic deep-research briefing task",
@@ -649,13 +685,13 @@ def main() -> int:
         require(snippet in en_text,
                 f"English README missing research workload context: {snippet}")
     for snippet in (
-        "微软在 **2026 年 7 月 private preview 期间提供的 `resilient-research` 样例",
+        "微软在 **2026 年 7 月私有预览（private preview）期间提供的 `resilient-research` 样例",
         "通用的深度研究简报任务",
         "第 1-4 阶段",
         "第 16-18 阶段",
         "调用方提供一个研究主题",
         "18 是 7 月那次样例运行的阶段数，不是当前产品要求",
-        "不是 public preview 唯一的韧性样例",
+        "不是公共预览中唯一的韧性样例",
     ):
         require(snippet in cn_text,
                 f"Chinese README missing research workload context: {snippet}")
@@ -665,8 +701,8 @@ def main() -> int:
     required_recovery_pairs = (
         ("later-process reclaim", "另一个进程可以接管"),
         ("local design choices", "示例自己的设计"),
-        ("Hosted Agent version", "Hosted Agent version"),
-        ("Responses protocol", "Responses protocol"),
+        ("Hosted Agent version", "Hosted Agent 版本"),
+        ("Responses protocol", "Responses 协议"),
         ("framework checkpoint", "framework checkpoint"),
         ("store=True", "store=True"),
         ("background=True", "background=True"),
@@ -746,7 +782,7 @@ def main() -> int:
         "English README must disclose and scope the create/persist crash window",
     )
     require(
-        "远端 create 与本地保存 ID 不是一个原子事务" in cn_text
+        "远端创建请求与本地保存 ID 不是一个原子事务" in cn_text
         and "结果未知时不要自动重建任务" in cn_text
         and "去重能力或人工对账" in cn_text,
         "Chinese README must disclose and scope the create/persist crash window",
@@ -880,7 +916,7 @@ def main() -> int:
         ("diagnostic starting point, not a universal mapping from symptom to cause",
          "只是诊断起点，不表示“某个现象必然对应某个原因”"),
         ("do not establish a general exactly-once guarantee",
-         "不能证明通用的 exactly-once 保证"),
+         "不能证明普遍适用的“严格一次”（exactly-once）保证"),
         ("not product guarantees",
          "不是产品保证"),
         ("not a guarantee for every Responses workload",
