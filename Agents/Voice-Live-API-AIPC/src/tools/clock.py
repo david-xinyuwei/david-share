@@ -48,13 +48,13 @@ def _resolve(timezone: str | None) -> ZoneInfo | None:
 
 @tool(
     name="get_current_time",
-    description="查询指定时区或城市的当前日期时间。用户问几点了、时差、某地现在几点时调用。",
+    description="Get the current date and time for a city or time zone when the user asks for local time or a time difference.",
     parameters={
         "type": "object",
         "properties": {
             "timezone": {
                 "type": "string",
-                "description": "IANA 时区名如 Asia/Shanghai，或中文城市名如 北京、纽约。留空表示本机时区。",
+                "description": "IANA time zone such as Asia/Shanghai, or a city such as Beijing or New York. Omit for the PC's local time zone.",
             }
         },
         "required": [],

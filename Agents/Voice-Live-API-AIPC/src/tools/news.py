@@ -112,12 +112,12 @@ async def fetch_headlines(topic: str | None = None, limit: int = 8) -> list[dict
 
 @tool(
     name="get_news_headlines",
-    description="获取最新新闻头条，可按主题检索。用户问新闻、最近发生了什么、某个话题的报道时调用。",
+    description="Get current news headlines, optionally filtered by topic.",
     parameters={
         "type": "object",
         "properties": {
-            "topic": {"type": "string", "description": "新闻主题关键词，例如 人工智能、半导体。留空表示综合头条。"},
-            "limit": {"type": "integer", "description": "返回条数，默认 8，最多 20"},
+            "topic": {"type": "string", "description": "News topic keyword, such as artificial intelligence or semiconductors. Omit for general headlines."},
+            "limit": {"type": "integer", "description": "Number of results. The default is 8 and the maximum is 20."},
         },
         "required": [],
     },

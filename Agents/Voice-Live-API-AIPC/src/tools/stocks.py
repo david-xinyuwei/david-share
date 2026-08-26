@@ -29,7 +29,6 @@ _ALIASES = {
     "特斯拉": "TSLA", "tesla": "TSLA",
     "meta": "META", "脸书": "META",
     "台积电": "TSM",
-    "联想": "0992.HK", "lenovo": "0992.HK",
     "腾讯": "0700.HK", "阿里巴巴": "9988.HK", "小米": "1810.HK",
     "标普500": "^GSPC", "标普": "^GSPC", "sp500": "^GSPC",
     "纳斯达克": "^IXIC", "nasdaq": "^IXIC",
@@ -111,13 +110,13 @@ async def _get_tencent_quote(client: httpx.AsyncClient, ticker: str, requested: 
 
 @tool(
     name="get_stock_quote",
-    description="查询股票或股指的最新行情。用户问股价、涨跌、大盘时调用。",
+    description="Get the latest quote for a stock or market index.",
     parameters={
         "type": "object",
         "properties": {
             "symbol": {
                 "type": "string",
-                "description": "股票代码或公司名，例如 MSFT、苹果、纳斯达克、0992.hk",
+                "description": "Ticker symbol, index, or company name, such as MSFT, Apple, Nasdaq, or 0992.HK.",
             }
         },
         "required": ["symbol"],

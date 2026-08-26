@@ -39,7 +39,7 @@ def test_public_version_fields_are_aligned() -> None:
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert version == "1.0.1"
+    assert version == "1.1.0"
     assert f'version = "{version}"' in pyproject
     assert f"## {version} - 2026-08-26" in changelog
 
@@ -71,7 +71,11 @@ def test_explicit_image_deployment_registers_twenty_five_tools() -> None:
         [
             sys.executable,
             "-c",
-            "from src import tools; print(len(tools.registered_names()))",
+            (
+                "import re; from src import tools; items=tools.function_tools(); "
+                "assert not any(re.search(r'[\\u3400-\\u9fff]', str(item)) for item in items); "
+                "print(len(items))"
+            ),
         ],
         cwd=ROOT,
         env=environment,

@@ -92,15 +92,15 @@ def _resolve_timezone_id(target: str) -> str:
 @tool(
     name="set_system_timezone",
     description=(
-        "修改这台 Windows 电脑的系统时区。用户说把时区改成某个城市、切到某地时间时调用。"
-        "只改时区，不改具体时刻。"
+        "Change the Windows system time zone to a requested city or Windows time-zone ID. "
+        "This changes the time zone, not the clock value."
     ),
     parameters={
         "type": "object",
         "properties": {
             "target": {
                 "type": "string",
-                "description": "目标城市或 Windows 时区 ID，例如 西雅图、北京、Pacific Standard Time",
+                "description": "Target city or Windows time-zone ID, such as Seattle, Beijing, or Pacific Standard Time.",
             }
         },
         "required": ["target"],

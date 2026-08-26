@@ -101,11 +101,11 @@ def _apply_wallpaper(path: Path) -> None:
 
 @tool(
     name="search_wallpaper_image",
-    description="从网上搜索并下载一张桌面壁纸图片到本地。用户说找一张壁纸、网上搜张桌面图片时调用。",
+    description="Search WebIQ for a wallpaper image and download a validated public HTTPS image to the local wallpaper directory.",
     parameters={
         "type": "object",
         "properties": {
-            "query": {"type": "string", "description": "图片主题，例如 雪山日出、星空、极简风景"},
+            "query": {"type": "string", "description": "Wallpaper subject, such as a mountain sunrise, a star field, or a minimal landscape."},
         },
         "required": ["query"],
     },
@@ -335,12 +335,11 @@ def _image_generation_available() -> bool:
 
 @tool(
     name="generate_wallpaper_image",
-    description="根据文字描述用 AI 生成一张桌面壁纸图片并保存到本地。仅当用户明确说生成、画一张时调用；"
-                "用户说从网上找、搜一张时要用 search_wallpaper_image。",
+    description="Generate a wallpaper image with the configured Azure OpenAI image deployment only when the user explicitly asks to create or draw one. Use search_wallpaper_image for web search.",
     parameters={
         "type": "object",
         "properties": {
-            "prompt": {"type": "string", "description": "壁纸画面描述，例如 雪山日出、赛博朋克城市夜景"},
+            "prompt": {"type": "string", "description": "Wallpaper composition, such as a mountain sunrise or a cyberpunk city at night."},
         },
         "required": ["prompt"],
     },
@@ -350,7 +349,7 @@ def generate_wallpaper_image(prompt: str) -> dict:
     size = config.get("AZURE_OPENAI_IMAGE_SIZE", "1536x1024")
     result = aoai.client().images.generate(
         model=aoai.image_deployment(),
-        prompt=f"{prompt}. 适合作为宽屏桌面壁纸的高质量横向构图，画面中不要出现文字。",
+        prompt=f"{prompt}. Create a high-quality wide landscape composition suitable for a desktop wallpaper, with no text in the image.",
         n=1,
         size=size,
     )
@@ -379,13 +378,13 @@ def generate_wallpaper_image(prompt: str) -> dict:
 
 @tool(
     name="set_desktop_wallpaper",
-    description="把指定图片设置为当前 Windows 桌面壁纸。用户说换桌面、把它设成壁纸时调用。",
+    description="Set a validated local image as the current Windows desktop wallpaper.",
     parameters={
         "type": "object",
         "properties": {
             "image_path": {
                 "type": "string",
-                "description": "壁纸图片路径，通常来自 generate_wallpaper_image 的返回值。留空表示使用目录中最新一张。",
+                "description": "Wallpaper path, normally returned by search_wallpaper_image or generate_wallpaper_image. Omit to use the latest image in the configured directory.",
             }
         },
         "required": [],

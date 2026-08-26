@@ -42,7 +42,7 @@ PATTERNS = {
         re.I,
     ),
     "private project term": re.compile(
-        r"Voice Agent Lenovo|AI-Super-Agent|Backend-of-david-share|"
+        r"Voice Agent Lenovo|Lenovo|联想|AI-Super-Agent|Backend-of-david-share|"
         r"总司令|大魏|军规|ed3df1b6|a15bb3f6|davidsajare",
         re.I,
     ),

@@ -1,4 +1,4 @@
-"""新闻简报：抓真实新闻，交给 Azure OpenAI 归纳成结构化简报。"""
+"""Create a structured news briefing from live articles with Azure OpenAI."""
 
 from __future__ import annotations
 
@@ -10,9 +10,10 @@ from . import tool
 from .news import fetch_headlines
 
 _SYSTEM_PROMPT = (
-    "你是一名资深新闻编辑。基于给定的新闻条目撰写一份中文简报。"
-    "要求：1) 开头一句话总览；2) 按主题分 3-5 个要点，每个要点两句以内并标注来源媒体；"
-    "3) 结尾给出一句值得关注的趋势判断。只使用给定条目中的事实，不要杜撰。"
+    "You are a senior news editor. Write a Chinese briefing using only the supplied news items. "
+    "Start with a one-sentence overview, organize three to five thematic points, keep each point "
+    "to at most two sentences with the source publication named, and end with one noteworthy trend. "
+    "Do not invent facts."
 )
 
 
@@ -33,12 +34,12 @@ def last_briefing() -> Briefing | None:
 
 @tool(
     name="create_news_briefing",
-    description="抓取最新新闻并整理成一份结构化简报。用户说整理新闻简报、总结今天的新闻时调用。",
+    description="Fetch current news and create a structured briefing when the user asks for a news summary.",
     parameters={
         "type": "object",
         "properties": {
-            "topic": {"type": "string", "description": "简报主题，例如 人工智能、科技。留空表示综合新闻。"},
-            "limit": {"type": "integer", "description": "纳入简报的新闻条数，默认 10，最多 20"},
+            "topic": {"type": "string", "description": "Briefing topic, such as artificial intelligence or technology. Omit for general news."},
+            "limit": {"type": "integer", "description": "Number of articles to include. The default is 10 and the maximum is 20."},
         },
         "required": [],
     },
@@ -55,12 +56,12 @@ async def create_news_briefing(topic: str | None = None, limit: int = 10) -> dic
         for i, a in enumerate(articles, start=1)
     )
 
-    # gpt-5.x 系列只接受默认 temperature，显式传值会 400
+    # GPT-5.x accepts only the default temperature; an explicit value returns HTTP 400.
     response = aoai.client().chat.completions.create(
         model=aoai.chat_deployment(),
         messages=[
             {"role": "system", "content": _SYSTEM_PROMPT},
-            {"role": "user", "content": f"简报主题：{topic or '综合新闻'}\n\n新闻条目：\n{source_block}"},
+            {"role": "user", "content": f"Briefing topic: {topic or 'general news'}\n\nNews items:\n{source_block}"},
         ],
     )
     markdown = response.choices[0].message.content or ""

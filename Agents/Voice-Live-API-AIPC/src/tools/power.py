@@ -181,7 +181,7 @@ def _read_brightness() -> int:
 
 @tool(
     name="get_screen_brightness",
-    description="查询本机屏幕当前亮度百分比。用户问现在亮度多少、屏幕多亮时调用。",
+    description="Get the current brightness percentage of the built-in display.",
     parameters={"type": "object", "properties": {}, "required": []},
 )
 def get_screen_brightness() -> dict:
@@ -194,15 +194,15 @@ def get_screen_brightness() -> dict:
 @tool(
     name="set_screen_brightness",
     description=(
-        "设置本机屏幕亮度百分比。用户说亮度调到 100、屏幕亮一点、暗一点、太刺眼时调用。"
-        "相对调节请先调 get_screen_brightness 拿到当前值再换算。只对笔记本内置屏幕有效。"
+        "Set the built-in display brightness percentage. For a relative change, get the current "
+        "brightness first and convert the request to an absolute percentage."
     ),
     parameters={
         "type": "object",
         "properties": {
             "level": {
                 "type": "integer",
-                "description": "目标亮度百分比，0 到 100。",
+                "description": "Target brightness percentage from 0 to 100.",
                 "minimum": 0,
                 "maximum": 100,
             }
@@ -297,7 +297,7 @@ def _registry_overlay() -> str | None:
 
 @tool(
     name="get_power_mode",
-    description="查询本机当前的电源模式（最佳能效 / 平衡 / 最佳性能）。用户问现在是什么电源模式、是不是省电模式时调用。",
+    description="Get the current Windows power-mode overlay and its independent Registry readback when available.",
     parameters={"type": "object", "properties": {}, "required": []},
 )
 def get_power_mode() -> dict:
@@ -316,8 +316,8 @@ def get_power_mode() -> dict:
 @tool(
     name="set_power_mode",
     description=(
-        "切换本机电源模式。用户说切到高性能模式、开省电模式、改成平衡模式、"
-        "电脑卡了调成性能优先、想省电时调用。"
+        "Change the Windows power-mode overlay among Recommended, Better performance, and Best "
+        "performance. Use show_proof when the user asks to inspect the Windows Settings result."
     ),
     parameters={
         "type": "object",
@@ -325,18 +325,17 @@ def get_power_mode() -> dict:
             "mode": {
                 "type": "string",
                 "description": (
-                    "目标电源模式，与 Windows 设置里的三个选项一一对应："
-                    "recommended 推荐（默认，也是最省电的档）、"
-                    "better_performance 更好的性能、best_performance 最佳性能。"
+                    "Target mode matching the three Windows Settings choices: recommended is the "
+                    "default and most energy-efficient choice, better_performance is the middle "
+                    "choice, and best_performance prioritizes performance."
                 ),
                 "enum": ["recommended", "better_performance", "best_performance"],
             },
             "show_proof": {
                 "type": "boolean",
                 "description": (
-                    "为 true 时切换后自动打开 Windows「电源和电池」设置页面，"
-                    "让用户在系统官方界面上亲眼看到模式已改变。"
-                    "用户说给我看看、证明一下、打开设置看看时传 true。"
+                    "When true, open the Windows Power & battery Settings page after the change so "
+                    "the user can inspect the official UI."
                 ),
             },
         },
@@ -613,8 +612,7 @@ _WHERE_TO_VERIFY = {
 @tool(
     name="get_power_timeouts",
     description=(
-        "查询本机多久自动关屏、多久进入睡眠、多久进入休眠。"
-        "用户问多久会黑屏、多久睡眠、休眠设置是多少时调用。"
+        "Get the current AC and battery timeouts for turning off the display, sleeping, and hibernating."
     ),
     parameters={"type": "object", "properties": {}, "required": []},
 )
@@ -643,34 +641,32 @@ def get_power_timeouts() -> dict:
 @tool(
     name="set_power_timeout",
     description=(
-        "设置多久后自动关屏、进入睡眠或进入休眠。"
-        "用户说十分钟后睡眠、半小时进休眠、别让它自动黑屏、改成永不睡眠时调用。"
-        "0 表示永不。默认同时改插电和电池两种情况。"
+        "Set the display-off, sleep, or hibernate timeout. Zero means never. By default, update both "
+        "AC and battery values. Use show_proof when the user asks to inspect the Windows result."
     ),
     parameters={
         "type": "object",
         "properties": {
             "kind": {
                 "type": "string",
-                "description": "要设置哪一项：sleep 睡眠、hibernate 休眠、monitor 关闭显示器。",
+                "description": "Timeout kind: sleep, hibernate, or monitor for display-off.",
                 "enum": ["sleep", "hibernate", "monitor"],
             },
             "minutes": {
                 "type": "integer",
-                "description": "多少分钟后触发。0 表示永不。最大 10080（7 天）。",
+                "description": "Minutes before the action. Zero means never; the maximum is 10080 minutes (7 days).",
                 "minimum": 0,
                 "maximum": 10080,
             },
             "power_source": {
                 "type": "string",
-                "description": "作用于插电、电池还是两者。默认 both。",
+                "description": "Apply to AC power, battery power, or both. The default is both.",
                 "enum": ["ac", "dc", "both"],
             },
             "show_proof": {
                 "type": "boolean",
                 "description": (
-                    "为 true 时打开能看到该设置的系统页面，供用户当场核对。"
-                    "用户说给我看看、证明一下、我没看到变化时传 true。"
+                    "When true, open the Windows Settings page that displays this value for user verification."
                 ),
             },
         },

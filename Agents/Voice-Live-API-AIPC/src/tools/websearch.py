@@ -1,4 +1,4 @@
-"""联网搜索，走 WebIQ。"""
+"""Live web search through WebIQ."""
 
 from __future__ import annotations
 
@@ -16,12 +16,12 @@ def _strip_html(html: str) -> str:
 
 @tool(
     name="web_search",
-    description="联网搜索并返回真实网页结果。用户说搜一下、查一查、帮我找某个信息时调用。",
+    description="Search the live web through WebIQ and return real source pages.",
     parameters={
         "type": "object",
         "properties": {
-            "query": {"type": "string", "description": "搜索关键词"},
-            "max_results": {"type": "integer", "description": "返回结果数，默认 5，最多 10"},
+            "query": {"type": "string", "description": "Search query."},
+            "max_results": {"type": "integer", "description": "Number of results. The default is 5 and the maximum is 10."},
         },
         "required": ["query"],
     },

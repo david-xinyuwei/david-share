@@ -65,7 +65,7 @@ def _read_state() -> dict:
 
 @tool(
     name="get_system_volume",
-    description="查询本机当前的系统音量百分比和静音状态。用户问「现在音量多少」「是不是静音了」时调用。",
+    description="Get the current system volume percentage and mute state.",
     parameters={"type": "object", "properties": {}, "required": []},
 )
 def get_system_volume() -> dict:
@@ -78,15 +78,15 @@ def get_system_volume() -> dict:
 @tool(
     name="set_system_volume",
     description=(
-        "设置本机系统音量。用户说「音量调到 30」「声音大一点」「把声音关小」时调用。"
-        "相对调节请先查询当前音量再换算成目标百分比。"
+        "Set the system volume percentage. For a relative change, get the current volume first "
+        "and convert the request to an absolute target percentage."
     ),
     parameters={
         "type": "object",
         "properties": {
             "level": {
                 "type": "integer",
-                "description": "目标音量百分比，0 到 100。",
+                "description": "Target volume percentage from 0 to 100.",
                 "minimum": 0,
                 "maximum": 100,
             }
@@ -111,11 +111,11 @@ def set_system_volume(level: int) -> dict:
 
 @tool(
     name="set_system_mute",
-    description="静音或取消静音。用户说「静音」「把声音关掉」「取消静音」时调用。",
+    description="Mute or unmute the system audio.",
     parameters={
         "type": "object",
         "properties": {
-            "muted": {"type": "boolean", "description": "true 为静音，false 为取消静音。"}
+            "muted": {"type": "boolean", "description": "Use true to mute and false to unmute."}
         },
         "required": ["muted"],
     },
@@ -149,15 +149,15 @@ def _resolve_system_executable(relative_path: Path) -> Path:
 @tool(
     name="open_windows_app",
     description=(
-        "打开 Windows 内置程序或显示桌面。用户说「打开计算器」「打开记事本」「打开资源管理器」"
-        "「打开任务管理器」「打开画图」「打开设置」「显示桌面」时调用。"
+        "Open an allowlisted built-in Windows application or show the desktop. Supported targets "
+        "are Calculator, Notepad, File Explorer, Task Manager, Paint, Settings, and Show desktop."
     ),
     parameters={
         "type": "object",
         "properties": {
             "app": {
                 "type": "string",
-                "description": "要打开的程序。",
+                "description": "Allowlisted application or desktop action to open.",
                 "enum": ["calculator", "notepad", "explorer", "taskmgr",
                          "mspaint", "settings", "show_desktop"],
             }

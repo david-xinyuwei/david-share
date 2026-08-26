@@ -21,6 +21,18 @@ _MAX_CAMERA_INDEX = 3
 _WARMUP_SECONDS = 4.0  # 自动曝光需要时间收敛，尤其是远程桌面重定向过来的摄像头
 _BRIGHT_ENOUGH = 18.0  # 0-255 灰度均值，低于这个基本就是全黑帧
 _PREVIEW_WIDTH = 360
+_VISION_SYSTEM_PROMPT = (
+    "You are viewing one camera image. Answer the user's exact question about that image in the "
+    "same language as the question. If asked what the user is doing, describe visible actions, "
+    "posture, environment, and objects in use, then make only a cautious activity inference. "
+    "Identify product category, brand, model, or packaging text only when the user asks what a "
+    "product is. Describe only what is visibly supported; say when a detail is unclear and never "
+    "guess. Avoid vague labels such as 'an object' when a more specific visible description is "
+    "possible. Only when the user explicitly asks what a product is, whether it is worth buying, "
+    "where to buy it, or its price, append one separate line in exactly this format: "
+    "Shopping keyword: <search terms>. For general visual questions or activity questions, never "
+    "append that line."
+)
 
 
 def _log_vision_metadata(answer: str, shopping_keyword: str) -> None:
@@ -110,8 +122,8 @@ def _emit_preview(frame, path: Path) -> None:
 @tool(
     name="open_camera",
     description=(
-        "打开摄像头实时画面并一直保持开启。用户说打开摄像头、开一下视频、把摄像头打开时调用。"
-        "开启后画面会持续显示在界面上，用户可以随时举起物品提问。"
+        "Open and keep the live camera preview running when the user explicitly asks to open the "
+        "camera or video. Opening the preview does not provide visual understanding by itself."
     ),
     parameters={"type": "object", "properties": {}, "required": []},
 )
@@ -138,7 +150,7 @@ def open_camera() -> dict:
 
 @tool(
     name="close_camera",
-    description="关闭摄像头实时画面。用户说关掉摄像头、把视频关了时调用。",
+    description="Close the live camera preview when the user asks to turn off the camera or video.",
     parameters={"type": "object", "properties": {}, "required": []},
 )
 def close_camera() -> dict:
@@ -152,9 +164,9 @@ def close_camera() -> dict:
 @tool(
     name="identify_object_with_camera",
     description=(
-        "看一眼摄像头当前画面并回答关于画面的问题。"
-        "用户问画面里有什么、我在干什么、这是什么、我手里拿的是啥时调用。"
-        "把用户的原话放进 question，工具会照着这个问题看图回答。"
+        "Capture the current camera frame and answer the user's exact visual question. Use for "
+        "questions about what is visible, what an object is, what the user is holding, or what the "
+        "user is doing. Pass the original question without rewriting it."
     ),
     parameters={
         "type": "object",
@@ -162,8 +174,8 @@ def close_camera() -> dict:
             "question": {
                 "type": "string",
                 "description": (
-                    "用户关于画面的原始问题，例如 我在干什么、这是什么牌子的水。"
-                    "尽量照抄用户原话，不要改写成识别物品。留空则做通用画面描述。"
+                    "The user's original question about the camera image, such as 'What am I doing?' "
+                    "or 'What brand is this bottle?'. Omit only for a general scene description."
                 ),
             }
         },
@@ -187,17 +199,7 @@ def identify_object_with_camera(question: str | None = None) -> dict:
         messages=[
             {
                 "role": "system",
-                "content": (
-                    "你在看一张摄像头照片，帮用户回答他关于这张照片的问题。"
-                    "直接回答用户问的那个问题，不要答成别的问题："
-                    "问「我在干什么」就描述人物的动作、姿态、所处环境和正在使用的东西，"
-                    "再据此推测他可能在做什么；问「这是什么」才去识别物品的品类、品牌、型号和包装文字。"
-                    "只描述画面里真实可见的内容，看不清就直说看不清，不要猜。"
-                    "避免只说「一个瓶子」「一个物体」这类笼统描述。\n"
-                    "只有当用户的问题本身是在问某个商品是什么、值不值得买、哪里能买时，"
-                    "才在最后单独一行输出：购物关键词：<中文搜索关键词>。"
-                    "用户只是问画面内容或自己在干什么时，绝对不要输出购物关键词这一行。"
-                ),
+                "content": _VISION_SYSTEM_PROMPT,
             },
             {
                 "role": "user",
@@ -217,11 +219,11 @@ def identify_object_with_camera(question: str | None = None) -> dict:
     # 于是模型顺手去查购买链接——这正是之前硬推购物的根因。
     keyword = ""
     for line in answer.splitlines():
-        if "购物关键词" in line:
-            keyword = line.split("：", 1)[-1].split(":", 1)[-1].strip()
+        if line.casefold().startswith("shopping keyword:"):
+            keyword = line.split(":", 1)[-1].strip()
     # 关键词行是给模型看的内部信号，不该念给用户听
     description = "\n".join(
-        line for line in answer.splitlines() if "购物关键词" not in line
+        line for line in answer.splitlines() if not line.casefold().startswith("shopping keyword:")
     ).strip()
 
     _log_vision_metadata(answer, keyword)
@@ -251,11 +253,11 @@ def identify_object_with_camera(question: str | None = None) -> dict:
 
 @tool(
     name="search_where_to_buy",
-    description="查询某个商品在网上哪里有卖、大概什么价位。用户问哪儿能买到、多少钱时调用。",
+    description="Search live web results for where a product is sold and its approximate price, only after an explicit buying or price question.",
     parameters={
         "type": "object",
         "properties": {
-            "keyword": {"type": "string", "description": "商品关键词，例如 罗技 MX Master 3S 鼠标"},
+            "keyword": {"type": "string", "description": "Product search terms, such as Logitech MX Master 3S mouse."},
         },
         "required": ["keyword"],
     },

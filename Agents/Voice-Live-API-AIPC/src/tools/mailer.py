@@ -75,30 +75,29 @@ def _validate(address: str) -> str:
 
 @tool(
     name="send_email",
-    description="把内容通过邮件发送。用户说发到我邮箱、邮件发给我时调用且不要填 to；执行前系统会二次确认。",
+    description="Send content by email. Omit 'to' when the user asks to send to their own configured address. Code-enforced confirmation is required before delivery.",
     parameters={
         "type": "object",
         "properties": {
             "to": {
                 "type": "string",
                 "maxLength": _MAX_ADDRESS_CHARS,
-                "description": "收件人邮箱。发给用户本人时省略此参数，系统会使用本人默认邮箱；"
-                "只有用户明确要发给其他人时才填写。",
+                "description": "Recipient address. Omit when sending to the user's configured default; provide it only for another explicitly named recipient.",
             },
             "subject": {
                 "type": "string",
                 "minLength": 1,
                 "maxLength": _MAX_SUBJECT_CHARS,
-                "description": "邮件主题",
+                "description": "Email subject.",
             },
             "body": {
                 "type": "string",
                 "maxLength": _MAX_CONTENT_CHARS,
-                "description": "邮件正文。若只发送已生成的新闻简报可留空。",
+                "description": "Email body. It may be omitted when sending only the latest generated news briefing.",
             },
             "include_last_briefing": {
                 "type": "boolean",
-                "description": "为 true 时把最近一次 create_news_briefing 生成的简报全文附在正文中",
+                "description": "When true, append the complete briefing from the latest create_news_briefing result.",
             },
         },
         "required": ["subject"],

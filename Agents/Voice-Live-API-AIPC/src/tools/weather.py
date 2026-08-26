@@ -27,11 +27,11 @@ _WMO = {
 
 @tool(
     name="get_weather",
-    description="查询某个城市的实时天气和未来三天预报。用户问天气、气温、要不要带伞时调用。",
+    description="Get current weather and a three-day forecast for a city.",
     parameters={
         "type": "object",
         "properties": {
-            "location": {"type": "string", "description": "城市名，例如 北京、Seattle、Tokyo"},
+            "location": {"type": "string", "description": "City name, such as Beijing, Seattle, or Tokyo."},
         },
         "required": ["location"],
     },

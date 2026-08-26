@@ -6,13 +6,48 @@
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/voice-live-aipc-ci.yml/badge.svg?branch=master)](https://github.com/david-xinyuwei/david-share/actions/workflows/voice-live-aipc-ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-107C10.svg)](LICENSE)
 
-A Windows AIPC voice agent that combines the **Azure Voice Live API** with 24 local tools for realtime conversation, camera perception, desktop and power control, live information lookup, wallpaper actions, and allowlisted email delivery. Voice coordination runs in Azure; every device action runs on the user's PC and remains visible on that device. The user can explicitly select any response language, and that choice persists until explicitly changed.
+A Windows AIPC voice agent that combines the **Azure Voice Live API** with 24 local tools for realtime conversation, camera perception, desktop and power control, live information lookup, wallpaper actions, and allowlisted email delivery. Voice coordination runs in Azure; every device action runs on the user's PC and remains visible on that device. The user can explicitly select the assistant's response language, and that choice persists until explicitly changed.
 
 > Author: **Xinyu Wei**
 
-English | [中文](README-CN.md) · [Customer start here](CUSTOMER-START-HERE.md)
+**English** | [中文](README-CN.md) · [Customer start here](CUSTOMER-START-HERE.md) · [Source](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Voice-Live-API-AIPC)
 
-[Truth boundary](#what-is-real-and-what-you-bring) · [Architecture](#architecture) · [Quick Start](#quick-start) · [Evidence](#measured-validation) · [Official Voice Live documentation](https://learn.microsoft.com/azure/ai-services/speech-service/voice-live)
+[Truth boundary](#what-is-real-and-what-you-bring) · [Technology](#technology-stack-and-call-paths) · [Architecture](#architecture) · [Quick Start](#quick-start) · [Evidence](#measured-validation) · [Official Voice Live documentation](https://learn.microsoft.com/azure/ai-services/speech-service/voice-live)
+
+## Scenario evidence
+
+No video is published. These four screenshots come from one continuous Windows run and use per-scenario cropping or opaque pixel replacement. They contain no human face or profile avatar, email or account identifier, desktop icon/folder/filename, or local path. [View the screenshot evidence manifest](evidence/scenario-screenshots.json).
+
+| Scenario | User request | Executed path | Observed result |
+|---|---|---|---|
+| Medication/supplement recognition | "Can you see what I'm holding in my hand?" | `open_camera` → `identify_object_with_camera` | The recorded response identified Centrum Men multivitamin supplements labeled as 200 tablets |
+| Email receipt | "Please send me the purchase link to my email." | `search_where_to_buy` → protected `send_email` through Microsoft Graph | New Outlook displayed `Purchase Links for Centrum Men Multivitamin 200 Tablets` with four retailer links |
+| System volume | "Please also set the sound volume to half of now." | `get_system_volume` → `set_system_volume` | The Windows readback and assistant response reported `47%` |
+| Desktop wallpaper | "Search for a blue-sky picture and change it to my wallpaper." | WebIQ image search → protected `set_desktop_wallpaper` | The desktop changed to the blue-sky image and the tool completed successfully |
+
+### Medication/supplement recognition
+
+![Medication recognition result with the complete camera and person column removed](images/scenario-medication-recognition.png)
+
+*The entire camera/person column is excluded. The screenshot proves the recorded visual-tool response, not medical correctness, product safety, or purchase suitability.*
+
+### Email receipt
+
+![Received purchase-links email with sender and account identity removed](images/scenario-email-delivery.png)
+
+*Only the received subject and message body remain. Sender, recipient, account, date, and avatar pixels are permanently replaced. This is one observed inbox receipt, not an email-delivery SLA.*
+
+### System volume
+
+![Volume result showing the 47 percent readback and completed tool calls](images/scenario-volume-control.png)
+
+*The application shows the `get_system_volume` and `set_system_volume` calls plus the `47%` result. The Windows taskbar is excluded.*
+
+### Desktop wallpaper
+
+![Blue-sky wallpaper result with desktop metadata and local path removed](images/scenario-wallpaper-change.png)
+
+*All desktop icons, folders, filenames, and the tool's local image path are excluded or permanently replaced. The remaining frame shows the successful tool card and the applied blue-sky background.*
 
 ---
 
@@ -35,7 +70,7 @@ This repository is an executable Windows application, not a UI-only simulation.
 ### Important boundaries
 
 - **No mock fallback:** production tools do not replace unavailable services with static data or synthetic success.
-- **The user selects the response language:** an explicit request such as “Please speak English” switches every response, tool-progress message, confirmation, and error to English until the user explicitly requests another language. Quoted or practiced foreign-language text alone does not switch it. Chinese is the default only before any language is selected.
+- **The user selects the assistant language:** an explicit request such as “Please speak English” switches assistant speech, model-authored progress, confirmation questions, and error explanations to English until the user explicitly requests another language. Quoted or practiced foreign-language text alone does not switch it. Chinese is the default only before any language is selected. The current Tkinter chrome and deterministic tool-card labels remain Chinese-first and do not dynamically localize.
 - **High-impact actions require two turns:** mail, camera open/capture, timezone, power, wallpaper, and image generation return a one-time token first. Only one protected action may be pending; a competing action is rejected. Only a later explicit confirmation of unchanged arguments can execute it; replay, expiry, cancellation, and changed arguments fail closed.
 - **Email is a real side effect:** unlike a draft-only workflow, a confirmed `send_email` call transmits mail after recipient and size validation.
 - **Windows-only device tools:** CI validates their contracts but does not claim that it moved a real slider, camera, or power setting.
@@ -58,16 +93,33 @@ The workspace keeps the conversation, voice state, camera preview, and live tool
 
 The Azure deployment used for the bounded validation reported `gpt-realtime` version `2025-08-28`, not `gpt-realtime-2.1`; the evidence records the Azure Resource Manager metadata source with resource identifiers removed. User-visible input captions use `gpt-4o-transcribe`; model audio understanding and user-caption generation are separate protocol surfaces.
 
+## Technology stack and call paths
+
+The application has one default voice path and two optional comparison/management paths. Voice Live and direct Realtime reuse the checked-in English runtime instructions and local tool schemas. Foundry Agent mode instead takes persona and tool definitions from the caller-provided cloud Agent, while reusing the local dispatcher, confirmation boundary, audio/events, and Windows execution layer.
+
+| Technology | Real role in this repository | Call boundary | Source evidence |
+|---|---|---|---|
+| Azure Voice Live API (`azure-ai-voicelive==1.3.0`) | Default and fully validated speech-to-speech path: `gpt-realtime`, Azure neural voice, `gpt-4o-transcribe`, multilingual Semantic VAD, noise suppression, server-reference echo cancellation, streaming audio, and function calling | Windows app ↔ Voice Live WebSocket | [src/backends/voicelive.py](src/backends/voicelive.py), [live evidence](evidence/live-validation.json) |
+| Azure OpenAI GPT Realtime (`openai[realtime]==3.0.0`) | Optional direct Realtime control path for comparing the base `/openai/v1/realtime` protocol with Voice Live enhancements | Windows app ↔ Azure OpenAI Realtime | [src/backends/realtime.py](src/backends/realtime.py) |
+| Microsoft Foundry Agent through Voice Live | Optional path where the cloud Agent definition owns persona and tool schemas; the client cannot inject runtime instructions or tools, but local Windows code still receives and executes declared device calls | Voice Live ↔ caller-provided Foundry Agent; Entra authentication only; not covered by the committed default-path live evidence | [src/backends/voicelive_agent.py](src/backends/voicelive_agent.py) |
+| WebIQ Web Search | Live web and image search for general queries, shopping lookup, wallpaper discovery, and the explicit fallback after RSS source failures | Local tool ↔ WebIQ service | [src/tools/websearch.py](src/tools/websearch.py), [src/tools/vision.py](src/tools/vision.py), [src/tools/wallpaper.py](src/tools/wallpaper.py), [src/tools/news.py](src/tools/news.py) |
+| Microsoft Graph API + MSAL | Default real email-delivery path using delegated `Mail.Send`, a recipient allowlist, and a locally protected token cache | Local tool ↔ `POST /v1.0/me/sendMail` | [src/graph_mail.py](src/graph_mail.py), [src/tools/mailer.py](src/tools/mailer.py) |
+| Azure OpenAI chat and image APIs | Optional camera-frame analysis and news briefing through Chat Completions; optional wallpaper generation through an explicitly configured image deployment | Local tool ↔ caller-configured Azure OpenAI deployment | [src/aoai.py](src/aoai.py), [src/tools/vision.py](src/tools/vision.py), [src/tools/briefing.py](src/tools/briefing.py), [src/tools/wallpaper.py](src/tools/wallpaper.py) |
+| Public data providers | Open-Meteo weather; RSS news feeds with WebIQ fallback; Yahoo Finance quotes with Tencent Stock Quote fallback | Local tool ↔ named public provider | [src/tools/weather.py](src/tools/weather.py), [src/tools/news.py](src/tools/news.py), [src/tools/stocks.py](src/tools/stocks.py) |
+| Windows AIPC runtime | Tkinter UI, PyAudio PCM16 capture/playback, OpenCV camera capture, pycaw/Core Audio, WMI/CIM brightness, PowrProf power controls, trusted Win32 processes, and local files | Local process and Windows APIs; no cloud proxy for device actions | [app.py](app.py), [src/audio.py](src/audio.py), [src/camera.py](src/camera.py), [src/tools/desktop.py](src/tools/desktop.py), [src/tools/power.py](src/tools/power.py) |
+
+The default validated path is **Voice Live**, not direct Realtime and not the Foundry Agent mode. Web search is implemented with **WebIQ**, not Bing. Microsoft Graph is the default mail transport; SMTP remains an explicitly selected compatibility path.
+
 ## Architecture
 
 ![Voice Live API for AIPC architecture](images/voice-live-aipc-architecture.svg)
 
-*The responsibility boundary is deliberate: Azure coordinates the voice session and function calls; the Windows AIPC owns camera, device control, files, credentials, and tool execution.*
+*Solid blue is the default validated Voice Live path. Dashed purple paths are optional direct Realtime and Foundry Agent modes. Green paths are real local tool calls to Windows APIs or named external services.*
 
 Runtime flow:
 
 1. [src/audio.py](src/audio.py) captures PCM16 microphone audio and plays streamed response audio.
-2. [src/backends/voicelive.py](src/backends/voicelive.py) configures `gpt-realtime`, `gpt-4o-transcribe`, multilingual semantic VAD, deep noise suppression, and server-reference echo cancellation.
+2. [src/backends/voicelive.py](src/backends/voicelive.py) opens the default Voice Live WebSocket and configures `gpt-realtime`, `gpt-4o-transcribe`, multilingual Semantic VAD, deep noise suppression, and server-reference echo cancellation. [src/backends/realtime.py](src/backends/realtime.py) and [src/backends/voicelive_agent.py](src/backends/voicelive_agent.py) are optional alternatives selected in the UI.
 3. [src/agent_core.py](src/agent_core.py) correlates function calls and passes them to the shared dispatcher without exposing full arguments or results in UI events or logs.
 4. [src/confirmation.py](src/confirmation.py) blocks protected actions until a later explicit user turn confirms the same argument digest with a valid one-time token.
 5. [src/tools](src/tools) performs local Windows actions or calls the explicitly named external provider, then returns structured results to the voice backend.
@@ -93,7 +145,7 @@ Runtime flow:
 
 ## Local tool surface
 
-Twenty-four tools register with the default public configuration. A twenty-fifth tool, `generate_wallpaper_image`, registers only when `AZURE_OPENAI_IMAGE_DEPLOYMENT` is configured.
+The default public configuration registers 24 tools. A 25th tool, `generate_wallpaper_image`, registers only when `AZURE_OPENAI_IMAGE_DEPLOYMENT` is configured.
 
 | Domain | Default tools |
 |---|---|
@@ -232,7 +284,7 @@ The MSAL cache is stored locally as `.msal_token_cache.json` and is ignored by G
 
 - `WEBIQ_API_KEY` enables general web search, shopping lookup, and wallpaper-image search.
 - `AZURE_OPENAI_ENDPOINT` plus `AZURE_OPENAI_CHAT_DEPLOYMENT` enable camera-frame analysis and news briefing generation.
-- `AZURE_OPENAI_IMAGE_DEPLOYMENT` enables the optional twenty-fifth tool for image generation.
+- `AZURE_OPENAI_IMAGE_DEPLOYMENT` enables the optional 25th tool for image generation.
 - `MAIL_TRANSPORT=smtp` enables the explicit SMTP path for providers that still allow authenticated SMTP.
 
 Every unavailable optional dependency fails explicitly. It never turns into demo data.
@@ -298,6 +350,8 @@ Voice-Live-API-AIPC/
 - [How to use the Voice Live API](https://learn.microsoft.com/azure/ai-services/speech-service/voice-live-how-to)
 - [Voice Live supported regions](https://learn.microsoft.com/azure/ai-services/speech-service/regions?tabs=voice-live#regions)
 - [Official Voice Live samples](https://github.com/microsoft-foundry/voicelive-samples)
+- [Azure OpenAI Realtime audio](https://learn.microsoft.com/azure/ai-foundry/openai/how-to/realtime-audio)
+- [Microsoft Graph `user: sendMail`](https://learn.microsoft.com/graph/api/user-sendmail)
 - [Microsoft identity platform refresh tokens](https://learn.microsoft.com/entra/identity-platform/refresh-tokens)
 
 ## License and security

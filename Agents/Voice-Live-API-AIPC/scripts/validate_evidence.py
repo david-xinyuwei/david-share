@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import struct
 from pathlib import Path
 
 if __package__:
@@ -18,6 +19,9 @@ def main() -> int:
     evidence = json.loads((ROOT / "evidence/live-validation.json").read_text(encoding="utf-8"))
     publication = json.loads(
         (ROOT / "evidence/publication-validation.json").read_text(encoding="utf-8")
+    )
+    screenshots = json.loads(
+        (ROOT / "evidence/scenario-screenshots.json").read_text(encoding="utf-8")
     )
     scenario = json.loads((ROOT / "scenario-manifest.json").read_text(encoding="utf-8"))
 
@@ -43,7 +47,7 @@ def main() -> int:
     assert publication["package"]["bytes"] > 0
     assert len(publication["package"]["sha256"]) == 64
     assert publication["packaged_self_check"]["result"] == "PASS"
-    assert publication["packaged_self_check"]["passed"] == 15
+    assert publication["packaged_self_check"]["passed"] >= 17
     assert publication["packaged_self_check"]["failed"] == 0
     assert publication["packaged_self_check"]["side_effects"] == []
 
@@ -55,13 +59,45 @@ def main() -> int:
     if self_check_path.exists():
         assert publication["packaged_self_check"]["sha256"] == sha256_file(self_check_path)
 
+    assert screenshots["evidence_type"] == "sanitized-scenario-screenshots"
+    assert screenshots["source"]["publicly_available"] is False
+    assert screenshots["source"]["review_copy_speed"] == 1.5
+    expected_screenshot_ids = {
+        "medication-recognition",
+        "email-receipt",
+        "volume-control",
+        "wallpaper-change",
+    }
+    assert {item["id"] for item in screenshots["scenarios"]} == expected_screenshot_ids
+    for item in screenshots["scenarios"]:
+        image_path = ROOT / item["image"]
+        assert image_path.is_file(), image_path
+        data = image_path.read_bytes()
+        assert data[:8] == b"\x89PNG\r\n\x1a\n"
+        width, height = struct.unpack(">II", data[16:24])
+        assert (width, height) == (item["width"], item["height"])
+        offset = 8
+        chunk_types: list[str] = []
+        while offset < len(data):
+            chunk_length = struct.unpack(">I", data[offset : offset + 4])[0]
+            chunk_types.append(data[offset + 4 : offset + 8].decode("ascii"))
+            offset += 12 + chunk_length
+        assert not {"tEXt", "iTXt", "zTXt", "eXIf"} & set(chunk_types)
+        assert image_path.stat().st_size == item["bytes"]
+        assert sha256_file(image_path) == item["sha256"]
+        assert item["tools"]
+        assert item["observed_result"]
+        assert item["redaction"]["removed"]
+    assert not any(screenshots["privacy_assertions"].values())
+    assert not list(ROOT.rglob("*.mp4"))
+
     ids = {item["id"] for item in scenario["scenarios"]}
     assert {"voice-live-conversation", "windows-device-control", "mail-delivery"} <= ids
     assert all(item["evidence"] for item in scenario["scenarios"])
 
     print(
         "PASS: evidence records the sanitized deployment version, 24 accepted tools, six live smoke checks, "
-        "source/workflow/package hashes, and explicit publication boundaries."
+        "source/workflow/package hashes, four privacy-safe scenario screenshots, and explicit publication boundaries."
     )
     return 0
 

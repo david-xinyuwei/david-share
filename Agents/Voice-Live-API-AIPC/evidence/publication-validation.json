@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
   "evidence_type": "publication-package-validation",
-  "captured_at": "2026-08-26T07:03:13+00:00",
+  "captured_at": "2026-08-26T10:26:13+00:00",
   "source_tree": {
     "algorithm": "sha256(path,canonical_git_bytes,file_sha256)",
-    "file_count": 76,
-    "sha256": "d7472f22949195da1660f26f28553e6e18017a9d7681ec253c0674bea80e13f6"
+    "file_count": 81,
+    "sha256": "3037f4cebd8e0071d0f22cf2a378e244ce701974f86639b453c3aed866a45d39"
   },
   "workflow": {
     "path": ".github/workflows/voice-live-aipc-ci.yml",
@@ -15,15 +15,15 @@
     "format": "PyInstaller onedir",
     "artifact_published": false,
     "path": "dist/VoiceLiveAgent/VoiceLiveAgent.exe",
-    "bytes": 16101100,
-    "sha256": "d1bdea0dbbd675db7b7487c2bf721192b18a7fbdff1f513f178541ee837c3ddf"
+    "bytes": 16099606,
+    "sha256": "efdc57f5c5d052d8e90145e64efd10ecf801c2482531fedf7056c9c3869e9e06"
   },
   "packaged_self_check": {
     "path": "dist/VoiceLiveAgent/self_check.txt",
     "result": "PASS",
-    "passed": 15,
+    "passed": 17,
     "failed": 0,
-    "sha256": "979d41bf7f170fc7999fc4b58dab3edec5204c16813479f5934bee0d88a07681",
+    "sha256": "bb2fa2985adb7423eb6c677a22a7b090fd4508107a42f1fb31bc1f2fa0d0f777",
     "side_effects": []
   },
   "environment": {

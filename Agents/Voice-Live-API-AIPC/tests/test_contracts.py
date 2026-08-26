@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from pathlib import Path
 
 import pytest
 
 from src import agent_core, tools
 from src.backends.voicelive import build_session
-from src.tools import desktop, mailer, power, stocks, timezone, wallpaper
+from src.tools import briefing, desktop, mailer, power, stocks, timezone, vision, wallpaper
 
 
 CORE_TOOLS = {
@@ -48,9 +49,23 @@ def test_instructions_honor_explicit_language_selection() -> None:
     assert "explicit language request is authoritative" in instructions
     assert "Keep using the explicitly requested language" in instructions
     assert "Do not switch languages merely because" in instructions
-    assert "用户还没有明确指定语言，默认使用中文" in instructions
-    assert "绝对不要声称回答必须保持中文" in instructions
-    assert "全程用简洁自然的中文口语回答" not in instructions
+    assert "If the user has not explicitly selected a language" in instructions
+    assert "Never claim that responses must remain in Chinese" in instructions
+    assert re.search(r"[\u3400-\u9fff]", instructions) is None
+
+
+def test_model_facing_prompts_and_tool_schemas_are_english() -> None:
+    model_prompts = (
+        agent_core.INSTRUCTIONS,
+        briefing._SYSTEM_PROMPT,
+        vision._VISION_SYSTEM_PROMPT,
+    )
+    for prompt in model_prompts:
+        assert re.search(r"[\u3400-\u9fff]", prompt) is None
+
+    for function_tool in tools.function_tools():
+        serialized = str(function_tool)
+        assert re.search(r"[\u3400-\u9fff]", serialized) is None, function_tool.name
 
 
 def test_voice_live_session_contract() -> None:

@@ -1,85 +1,110 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
-  <title id="title">Voice Live API for AIPC architecture</title>
-  <desc id="desc">A Windows AIPC hosts the user interface, microphone, camera, audio pipeline, and 24 local tools. Azure Voice Live handles the realtime voice session and function calling. Selected tools call external services.</desc>
+  <title id="title">Voice Live API for AIPC architecture and call paths</title>
+  <desc id="desc">The default Azure Voice Live path and two optional voice paths connect a Windows AIPC to cloud voice orchestration. Twenty-four registered local tools call Windows APIs, WebIQ Web Search, Microsoft Graph API, Azure OpenAI chat and image deployments, and named public data providers.</desc>
   <defs>
-    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
-      <path d="M0,0 L0,6 L9,3 z" fill="#425466"/>
+    <marker id="arrow-blue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#0078d4"/>
+    </marker>
+    <marker id="arrow-purple" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#6654d9"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#107c10"/>
     </marker>
     <style>
       .band { stroke-width: 3; }
       .node { fill: #ffffff; stroke-width: 3; rx: 18; }
       .title { font: 700 30px 'Segoe UI', sans-serif; fill: #17324d; }
-      .band-title { font: 700 25px 'Segoe UI', sans-serif; fill: #17324d; }
-      .label { font: 600 21px 'Segoe UI', sans-serif; fill: #172b3a; }
-      .small { font: 400 17px 'Segoe UI', sans-serif; fill: #425466; }
-      .edge { fill: none; stroke: #425466; stroke-width: 3; marker-end: url(#arrow); }
-      .edge-blue { fill: none; stroke: #0078d4; stroke-width: 4; marker-end: url(#arrow); }
-      .edge-green { fill: none; stroke: #107c10; stroke-width: 4; marker-end: url(#arrow); }
+      .subtitle { font: 400 17px 'Segoe UI', sans-serif; fill: #425466; }
+      .band-title { font: 700 24px 'Segoe UI', sans-serif; fill: #17324d; }
+      .label { font: 700 20px 'Segoe UI', sans-serif; fill: #172b3a; }
+      .small { font: 400 16px 'Segoe UI', sans-serif; fill: #425466; }
+      .tiny { font: 600 14px 'Segoe UI', sans-serif; fill: #425466; }
+      .default-edge { fill: none; stroke: #0078d4; stroke-width: 4; marker-end: url(#arrow-blue); }
+      .optional-edge { fill: none; stroke: #6654d9; stroke-width: 3; stroke-dasharray: 10 8; marker-end: url(#arrow-purple); }
+      .tool-edge { fill: none; stroke: #107c10; stroke-width: 3; marker-end: url(#arrow-green); }
     </style>
   </defs>
 
   <rect width="1600" height="900" fill="#f7f9fc"/>
-  <text x="60" y="58" class="title">Voice Live API for AIPC: runtime responsibility map</text>
-  <text x="60" y="88" class="small">Voice, camera, device control, and tool execution remain on the Windows PC. Azure coordinates the realtime conversation.</text>
+  <text x="50" y="52" class="title">Voice Live API for AIPC: real runtime and service boundaries</text>
+  <text x="50" y="80" class="subtitle">Default Voice Live is validated end to end. Direct Realtime and Foundry Agent are explicit optional modes.</text>
 
   <rect x="45" y="125" width="890" height="710" rx="28" fill="#eef6fc" stroke="#0078d4" class="band"/>
   <text x="75" y="168" class="band-title">Windows AIPC - local execution boundary</text>
 
   <rect x="85" y="210" width="260" height="115" class="node" stroke="#0078d4"/>
-  <text x="215" y="252" text-anchor="middle" class="label">Tkinter workspace</text>
-  <text x="215" y="282" text-anchor="middle" class="small">Conversation, status, camera</text>
+  <text x="215" y="248" text-anchor="middle" class="label">Tkinter + PyAudio</text>
+  <text x="215" y="278" text-anchor="middle" class="small">UI, PCM16 audio, camera</text>
 
   <rect x="85" y="390" width="260" height="135" class="node" stroke="#0078d4"/>
-  <text x="215" y="430" text-anchor="middle" class="label">Audio pipeline</text>
-  <text x="215" y="460" text-anchor="middle" class="small">PCM16 capture and playback</text>
-  <text x="215" y="488" text-anchor="middle" class="small">Barge-in and echo guard</text>
+  <text x="215" y="430" text-anchor="middle" class="label">Windows APIs</text>
+  <text x="215" y="460" text-anchor="middle" class="small">Core Audio, WMI/CIM</text>
+  <text x="215" y="488" text-anchor="middle" class="small">PowrProf, Win32, OpenCV</text>
 
   <rect x="430" y="210" width="440" height="150" class="node" stroke="#107c10"/>
   <text x="650" y="252" text-anchor="middle" class="label">Agent core</text>
-  <text x="650" y="282" text-anchor="middle" class="small">Instructions, function-call coordination</text>
+  <text x="650" y="282" text-anchor="middle" class="small">English instructions and function calls</text>
   <text x="650" y="312" text-anchor="middle" class="small">Structured errors, no mock fallback</text>
 
   <rect x="430" y="430" width="440" height="250" class="node" stroke="#107c10"/>
   <text x="650" y="472" text-anchor="middle" class="label">24 registered local tools</text>
-  <text x="470" y="515" class="small">Device: volume, apps, display, power, timezone</text>
-  <text x="470" y="550" class="small">Perception: camera, object recognition, snapshots</text>
-  <text x="470" y="585" class="small">Information: weather, market, news, search, time</text>
-  <text x="470" y="620" class="small">Action: wallpaper, briefing, allowlisted email</text>
-  <text x="470" y="655" class="small">Optional image generation adds one configured tool</text>
+  <text x="470" y="515" class="small">Device: volume, apps, brightness, power, timezone</text>
+  <text x="470" y="550" class="small">Perception: camera capture and Azure OpenAI vision</text>
+  <text x="470" y="585" class="small">Information: weather, market, news, WebIQ, time</text>
+  <text x="470" y="620" class="small">Action: wallpaper, briefing, Microsoft Graph email</text>
+  <text x="470" y="655" class="small">Protected actions require a later user confirmation</text>
 
-  <path d="M345 265 L430 265" class="edge"/>
-  <path d="M215 325 L215 390" class="edge"/>
-  <path d="M430 315 L345 420" class="edge"/>
-  <path d="M650 360 L650 430" class="edge-green"/>
-  <path d="M430 555 L345 480" class="edge"/>
+  <path d="M345 265 L430 265" class="tool-edge"/>
+  <path d="M215 325 L215 390" class="tool-edge"/>
+  <path d="M430 315 L345 420" class="tool-edge"/>
+  <path d="M650 360 L650 430" class="tool-edge"/>
+  <path d="M430 555 L345 480" class="tool-edge"/>
 
-  <rect x="995" y="125" width="560" height="365" rx="28" fill="#f3f0ff" stroke="#6654d9" class="band"/>
-  <text x="1025" y="168" class="band-title">Microsoft Foundry and Voice Live</text>
-  <rect x="1050" y="215" width="450" height="185" class="node" stroke="#6654d9"/>
-  <text x="1275" y="260" text-anchor="middle" class="label">Azure Voice Live WebSocket</text>
-  <text x="1275" y="296" text-anchor="middle" class="small">gpt-realtime + Azure neural voice</text>
-  <text x="1275" y="328" text-anchor="middle" class="small">Multilingual semantic VAD, noise suppression</text>
-  <text x="1275" y="360" text-anchor="middle" class="small">Function calls and streaming audio</text>
+  <rect x="995" y="125" width="560" height="430" rx="28" fill="#f3f0ff" stroke="#6654d9" class="band"/>
+  <text x="1025" y="168" class="band-title">Azure voice orchestration</text>
+  <rect x="1050" y="200" width="450" height="155" class="node" stroke="#0078d4"/>
+  <text x="1275" y="240" text-anchor="middle" class="label">Azure Voice Live WebSocket</text>
+  <text x="1275" y="272" text-anchor="middle" class="small">Default validated path</text>
+  <text x="1275" y="302" text-anchor="middle" class="small">gpt-realtime, neural voice, gpt-4o-transcribe</text>
+  <text x="1275" y="330" text-anchor="middle" class="small">Semantic VAD, audio streaming, function calls</text>
 
-  <path d="M345 445 C660 380, 850 280, 1050 285" class="edge-blue"/>
-  <path d="M1050 350 C880 410, 820 445, 870 505" class="edge-blue"/>
+  <rect x="1040" y="400" width="225" height="110" class="node" stroke="#6654d9"/>
+  <text x="1152" y="438" text-anchor="middle" class="label">Azure OpenAI Realtime</text>
+  <text x="1152" y="468" text-anchor="middle" class="small">Optional direct protocol</text>
+  <text x="1152" y="494" text-anchor="middle" class="small">Comparison path</text>
 
-  <rect x="995" y="540" width="560" height="295" rx="28" fill="#fff7e8" stroke="#d67d00" class="band"/>
-  <text x="1025" y="583" class="band-title">Tool-owned external services</text>
+  <rect x="1290" y="400" width="225" height="110" class="node" stroke="#6654d9"/>
+  <text x="1402" y="438" text-anchor="middle" class="label">Foundry Agent</text>
+  <text x="1402" y="468" text-anchor="middle" class="small">Optional through Voice Live</text>
+  <text x="1402" y="494" text-anchor="middle" class="small">Managed persona and tools</text>
 
-  <rect x="1040" y="630" width="210" height="130" class="node" stroke="#d67d00"/>
-  <text x="1145" y="670" text-anchor="middle" class="label">Azure OpenAI</text>
-  <text x="1145" y="700" text-anchor="middle" class="small">Vision, briefing, images</text>
-  <text x="1145" y="730" text-anchor="middle" class="small">Caller configuration</text>
+  <path d="M345 245 C620 145, 850 190, 1050 250" class="default-edge"/>
+  <path d="M1050 330 C880 410, 820 445, 870 505" class="default-edge"/>
+  <path d="M870 265 C970 315, 1000 400, 1040 450" class="optional-edge"/>
+  <path d="M870 300 C1040 340, 1200 365, 1290 450" class="optional-edge"/>
 
-  <rect x="1300" y="630" width="210" height="130" class="node" stroke="#d67d00"/>
-  <text x="1405" y="670" text-anchor="middle" class="label">Data and delivery</text>
-  <text x="1405" y="700" text-anchor="middle" class="small">Graph, WebIQ, public APIs</text>
-  <text x="1405" y="730" text-anchor="middle" class="small">Explicit failures</text>
+  <rect x="995" y="590" width="560" height="245" rx="28" fill="#fff7e8" stroke="#d67d00" class="band"/>
+  <text x="1025" y="628" class="band-title">Tool-owned external services</text>
 
-  <path d="M870 570 C965 570, 1010 630, 1040 670" class="edge"/>
-  <path d="M870 600 C1050 600, 1190 650, 1300 690" class="edge"/>
+  <rect x="1030" y="665" width="235" height="70" class="node" stroke="#d67d00"/>
+  <text x="1147" y="695" text-anchor="middle" class="label">WebIQ Web Search</text>
+  <text x="1147" y="720" text-anchor="middle" class="small">Web and image results</text>
+
+  <rect x="1290" y="665" width="235" height="70" class="node" stroke="#d67d00"/>
+  <text x="1407" y="695" text-anchor="middle" class="label">Microsoft Graph API</text>
+  <text x="1407" y="720" text-anchor="middle" class="small">MSAL delegated Mail.Send</text>
+
+  <rect x="1030" y="755" width="235" height="55" class="node" stroke="#d67d00"/>
+  <text x="1147" y="789" text-anchor="middle" class="small">Azure OpenAI chat / image</text>
+
+  <rect x="1290" y="755" width="235" height="55" class="node" stroke="#d67d00"/>
+  <text x="1407" y="789" text-anchor="middle" class="small">Open-Meteo, RSS, market APIs</text>
+
+  <path d="M870 555 C965 555, 1010 665, 1030 695" class="tool-edge"/>
+  <path d="M870 580 C1050 600, 1190 650, 1290 695" class="tool-edge"/>
 
   <rect x="80" y="740" width="800" height="60" rx="14" fill="#dff6dd" stroke="#107c10" stroke-width="2"/>
-  <text x="480" y="778" text-anchor="middle" class="small">Local side effects are visible and auditable on the PC. CI runs contract tests only.</text>
+  <text x="480" y="766" text-anchor="middle" class="label">One-time confirmation boundary</text>
+  <text x="480" y="790" text-anchor="middle" class="small">Later user turn + unchanged arguments before protected side effects</text>
 </svg>

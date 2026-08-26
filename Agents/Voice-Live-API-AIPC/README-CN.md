@@ -6,13 +6,48 @@
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/voice-live-aipc-ci.yml/badge.svg?branch=master)](https://github.com/david-xinyuwei/david-share/actions/workflows/voice-live-aipc-ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-107C10.svg)](LICENSE)
 
-这是一个运行在 Windows AIPC 上的语音代理：用 **Azure Voice Live API** 处理实时对话，并通过 24 个本机工具完成摄像头感知、桌面和电源控制、实时信息查询、壁纸操作与白名单邮件发送。语音编排发生在 Azure；所有设备操作都在用户自己的 PC 上执行，结果可在本机直接核对。用户可以明确指定任意回复语言，该选择会持续生效，直到用户明确要求切换。
+这是一个运行在 Windows AIPC 上的语音代理：用 **Azure Voice Live API** 处理实时对话，并通过 24 个本机工具完成摄像头感知、桌面和电源控制、实时信息查询、壁纸操作与白名单邮件发送。语音编排发生在 Azure；所有设备操作都在用户自己的 PC 上执行，结果可在本机直接核对。用户可以明确指定助手的回复语言，该选择会持续生效，直到用户明确要求切换。
 
 > Author: **Xinyu Wei（魏新宇）**
 
-[English](README.md) | 中文 · [客户从这里开始](CUSTOMER-START-HERE-CN.md)
+[English](README.md) | **中文** · [客户从这里开始](CUSTOMER-START-HERE-CN.md) · [源码](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Voice-Live-API-AIPC)
 
-[真实边界](#哪些是真实能力哪些需要用户提供) · [架构](#架构) · [快速开始](#快速开始) · [实测证据](#实测验证) · [Voice Live 官方文档](https://learn.microsoft.com/azure/ai-services/speech-service/voice-live)
+[真实边界](#哪些是真实能力哪些需要用户提供) · [技术栈](#技术栈与调用路径) · [架构](#架构) · [快速开始](#快速开始) · [实测证据](#实测验证) · [Voice Live 官方文档](https://learn.microsoft.com/azure/ai-services/speech-service/voice-live)
+
+## 场景证据
+
+本仓库不发布视频。下面四张截图来自同一次连续的 Windows 实测，并针对每个场景单独裁剪或用不透明色块永久替换像素。截图中不包含真人、人像或账号头像，不包含邮箱或账号标识，不包含桌面图标、目录、文件名，也不包含本机路径。[查看截图 evidence manifest](evidence/scenario-screenshots.json)。
+
+| 场景 | 用户请求 | 实际调用路径 | 观察结果 |
+|---|---|---|---|
+| 药物/营养补充剂识别 | “Can you see what I'm holding in my hand?” | `open_camera` → `identify_object_with_camera` | 录屏中的模型回复识别为 Centrum Men multivitamin，并读到 200 tablets 标签 |
+| 邮件收件 | “Please send me the purchase link to my email.” | `search_where_to_buy` → 受保护的 `send_email`，默认走 Microsoft Graph | New Outlook 中出现 `Purchase Links for Centrum Men Multivitamin 200 Tablets`，正文包含四个零售商链接 |
+| 系统音量 | “Please also set the sound volume to half of now.” | `get_system_volume` → `set_system_volume` | Windows 回读与助手回复均报告 `47%` |
+| 桌面壁纸 | “Search for a blue-sky picture and change it to my wallpaper.” | WebIQ 图片搜索 → 受保护的 `set_desktop_wallpaper` | 桌面切换为蓝天图片，工具执行成功 |
+
+### 药物/营养补充剂识别
+
+![药物识别结果，完整移除摄像头和人像列](images/scenario-medication-recognition.png)
+
+*整列摄像头画面和人像已裁掉。这张图只证明录屏中视觉工具给出了该回复，不证明医疗判断、产品安全性或购买建议正确。*
+
+### 邮件收件
+
+![购买链接邮件已进入收件箱，发件人和账号身份已移除](images/scenario-email-delivery.png)
+
+*只保留已收到的主题与正文。发件人、收件人、账号、日期和头像像素均已永久替换。这是一次实测收件结果，不代表邮件投递 SLA。*
+
+### 系统音量
+
+![音量结果显示 47% 回读值和已完成工具调用](images/scenario-volume-control.png)
+
+*界面同时显示 `get_system_volume`、`set_system_volume` 调用和 `47%` 结果；Windows 任务栏已裁掉。*
+
+### 桌面壁纸
+
+![蓝天壁纸结果，桌面信息和本机路径已移除](images/scenario-wallpaper-change.png)
+
+*所有桌面图标、目录、文件名以及工具返回的本机图片路径都已裁掉或永久替换。保留的画面只展示成功工具卡和已应用的蓝天背景。*
 
 ---
 
@@ -35,7 +70,7 @@
 ### 重要边界
 
 - **不做 mock fallback：** 生产工具不会在真实服务不可用时返回静态数据或伪造成功。
-- **回复语言由用户指定：** 用户明确说 “Please speak English” 后，回复、工具进度、确认和错误都会持续使用英文，直到用户明确要求换成另一种语言。引用或练习其他语言不会自动切换；只有尚未指定语言时才默认中文。
+- **助手语言由用户指定：** 用户明确说 “Please speak English” 后，助手语音、模型生成的进度说明、确认问题和错误解释都会持续使用英文，直到用户明确要求换成另一种语言。引用或练习其他语言不会自动切换；只有尚未指定语言时才默认中文。当前 Tkinter 界面与确定性的 tool-card 标签仍以中文为主，不会动态本地化。
 - **高影响操作需要两轮确认：** 邮件、打开/抓拍摄像头、时区、电源、壁纸和生图第一次只返回一次性 token。同一时刻只能有一个待确认操作，竞争操作会被拒绝。只有后续新一轮明确确认且参数完全一致时才会执行；重放、过期、取消或参数变化都会失败。
 - **邮件有真实副作用：** `send_email` 不是只生成草稿；完成确认并通过收件人和内容大小校验后，它会实际发送邮件。
 - **设备工具仅支持 Windows：** CI 只验证合同，不宣称实际移动了音量条、打开了摄像头或修改了电源设置。
@@ -58,16 +93,33 @@
 
 本次有边界验证所用的 Azure deployment 报告为 `gpt-realtime` 版本 `2025-08-28`，不是 `gpt-realtime-2.1`；evidence 记录了 Azure Resource Manager metadata 来源，并移除了资源标识。用户字幕由 `gpt-4o-transcribe` 生成；模型理解音频和生成用户字幕是两个不同的协议能力面。
 
+## 技术栈与调用路径
+
+应用提供一条默认语音路径，以及两条可选的对照或托管路径。Voice Live 与 direct Realtime 复用仓库内的英文 runtime instructions 和本机 tool schema。Foundry Agent 模式的 persona 与 tool definition 来自用户提供的云端 Agent，本机只复用 dispatcher、确认边界、音频/事件处理和 Windows 执行层。
+
+| 技术 | 本仓库中的真实作用 | 调用边界 | 源码证据 |
+|---|---|---|---|
+| Azure Voice Live API (`azure-ai-voicelive==1.3.0`) | 默认且完整验证的 Speech-to-Speech 路径：`gpt-realtime`、Azure 神经音色、`gpt-4o-transcribe`、多语言 Semantic VAD、降噪、服务端参考回声消除、流式音频与 function calling | Windows 应用 ↔ Voice Live WebSocket | [src/backends/voicelive.py](src/backends/voicelive.py)、[实测证据](evidence/live-validation.json) |
+| Azure OpenAI GPT Realtime (`openai[realtime]==3.0.0`) | 可选的 direct Realtime 对照路径，用于比较基础 `/openai/v1/realtime` 协议与 Voice Live 增强层 | Windows 应用 ↔ Azure OpenAI Realtime | [src/backends/realtime.py](src/backends/realtime.py) |
+| 通过 Voice Live 连接 Microsoft Foundry Agent | 可选路径：云端 Agent definition 负责 persona 与 tool schema；客户端不能注入 runtime instructions 或 tools，但声明的设备调用仍由本机 Windows 代码接收并执行 | Voice Live ↔ 用户提供的 Foundry Agent；仅支持 Entra 认证；不属于当前提交的默认路径 live evidence | [src/backends/voicelive_agent.py](src/backends/voicelive_agent.py) |
+| WebIQ Web Search | 为通用查询、购物搜索、壁纸发现提供实时网页和图片结果，也用于 RSS 全部失败后的显式 news fallback | 本机工具 ↔ WebIQ 服务 | [src/tools/websearch.py](src/tools/websearch.py)、[src/tools/vision.py](src/tools/vision.py)、[src/tools/wallpaper.py](src/tools/wallpaper.py)、[src/tools/news.py](src/tools/news.py) |
+| Microsoft Graph API + MSAL | 默认的真实邮件发送路径：使用 delegated `Mail.Send`、收件人 allowlist 与本机受保护的 token cache | 本机工具 ↔ `POST /v1.0/me/sendMail` | [src/graph_mail.py](src/graph_mail.py)、[src/tools/mailer.py](src/tools/mailer.py) |
+| Azure OpenAI Chat 与 Image API | 可选的摄像头画面分析、Chat Completions 新闻简报，以及通过显式配置的 image deployment 生成壁纸 | 本机工具 ↔ 用户配置的 Azure OpenAI deployment | [src/aoai.py](src/aoai.py)、[src/tools/vision.py](src/tools/vision.py)、[src/tools/briefing.py](src/tools/briefing.py)、[src/tools/wallpaper.py](src/tools/wallpaper.py) |
+| 公共数据提供方 | Open-Meteo 天气；RSS 新闻源与 WebIQ fallback；Yahoo Finance 行情与 Tencent Stock Quote fallback | 本机工具 ↔ 明确标注的数据提供方 | [src/tools/weather.py](src/tools/weather.py)、[src/tools/news.py](src/tools/news.py)、[src/tools/stocks.py](src/tools/stocks.py) |
+| Windows AIPC runtime | Tkinter UI、PyAudio PCM16 采集/播放、OpenCV 摄像头、pycaw/Core Audio、WMI/CIM 亮度、PowrProf 电源控制、可信 Win32 进程与本机文件 | 本机进程与 Windows API；设备操作不经过云端代理 | [app.py](app.py)、[src/audio.py](src/audio.py)、[src/camera.py](src/camera.py)、[src/tools/desktop.py](src/tools/desktop.py)、[src/tools/power.py](src/tools/power.py) |
+
+默认且经过验证的路径是 **Voice Live**，不是 direct Realtime，也不是 Foundry Agent 模式。Web Search 使用 **WebIQ**，不是 Bing。Microsoft Graph 是默认邮件传输方式；SMTP 只是用户显式选择的兼容路径。
+
 ## 架构
 
 ![面向 AIPC 的 Voice Live API 架构](images/voice-live-aipc-architecture.svg)
 
-*责任边界是刻意设计的：Azure 负责语音会话与 function call 编排；Windows AIPC 负责摄像头、设备控制、文件、凭据和工具执行。*
+*实线蓝色表示默认且经过验证的 Voice Live 路径；紫色虚线表示可选的 direct Realtime 与 Foundry Agent 模式；绿色表示本机工具对 Windows API 或明确外部服务的真实调用。*
 
 运行主线：
 
 1. [src/audio.py](src/audio.py) 采集 PCM16 麦克风音频并播放流式响应音频。
-2. [src/backends/voicelive.py](src/backends/voicelive.py) 配置 `gpt-realtime`、`gpt-4o-transcribe`、多语言 Semantic VAD、深度降噪和服务端参考回声消除。
+2. [src/backends/voicelive.py](src/backends/voicelive.py) 建立默认 Voice Live WebSocket，并配置 `gpt-realtime`、`gpt-4o-transcribe`、多语言 Semantic VAD、深度降噪和服务端参考回声消除。[src/backends/realtime.py](src/backends/realtime.py) 与 [src/backends/voicelive_agent.py](src/backends/voicelive_agent.py) 是在 UI 中显式选择的可选路径。
 3. [src/agent_core.py](src/agent_core.py) 关联 function call，并把调用交给共享 dispatcher；UI 事件和日志不记录完整参数或结果。
 4. [src/confirmation.py](src/confirmation.py) 用参数摘要绑定受保护操作，只有后续明确确认并提供有效一次性 token 才会放行。
 5. [src/tools](src/tools) 执行本机 Windows 操作，或调用代码中明确标注的外部提供方，再把结构化结果回传语音后端。
@@ -298,6 +350,8 @@ Voice-Live-API-AIPC/
 - [How to use the Voice Live API](https://learn.microsoft.com/azure/ai-services/speech-service/voice-live-how-to)
 - [Voice Live 支持区域](https://learn.microsoft.com/azure/ai-services/speech-service/regions?tabs=voice-live#regions)
 - [Voice Live 官方样例](https://github.com/microsoft-foundry/voicelive-samples)
+- [Azure OpenAI Realtime audio](https://learn.microsoft.com/azure/ai-foundry/openai/how-to/realtime-audio)
+- [Microsoft Graph `user: sendMail`](https://learn.microsoft.com/graph/api/user-sendmail)
 - [Microsoft identity platform refresh tokens](https://learn.microsoft.com/entra/identity-platform/refresh-tokens)
 
 ## License 与安全

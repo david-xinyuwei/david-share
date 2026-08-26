@@ -1,7 +1,7 @@
 """共享的 Azure OpenAI 客户端，供简报整理与壁纸生图使用。
 
-走 GA 的 /openai/v1 端点而不是 AzureOpenAI 包装类：openai 3.3.1 的 AzureOpenAI
-即使传了 azure_ad_token_provider，基类仍报 Missing credentials。
+走 GA 的 /openai/v1 端点并使用当前锁定的 OpenAI client。API Key 与 Entra token
+都只在进程内传给 client，不进入源码、日志或浏览器。
 """
 
 from __future__ import annotations

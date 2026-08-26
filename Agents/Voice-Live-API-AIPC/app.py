@@ -12,6 +12,7 @@ import logging
 import queue
 import math
 import random
+import re
 import sys
 import threading
 import time
@@ -35,7 +36,7 @@ def _self_check() -> int:
     因此验证「重新构建是否真的生效」只能让 exe 自己导入并报告。
     构建后跑一次 VoiceLiveAgent.exe --self-check 即可确认版本正确。
     """
-    from src import confirmation, graph_mail
+    from src import agent_core, confirmation, graph_mail
     from src.tools import registered_names, wallpaper
 
     report: list[tuple[str, bool, str]] = []
@@ -52,6 +53,19 @@ def _self_check() -> int:
     for required in ("search_wallpaper_image", "set_desktop_wallpaper", "send_email"):
         report.append((f"工具 {required} 已注册", required in names, ""))
     report.append(("高影响操作有代码级确认", confirmation.is_protected("send_email"), ""))
+    report.append((
+        "运行时系统提示词为英文",
+        re.search(r"[\u3400-\u9fff]", agent_core.INSTRUCTIONS) is None
+        and "explicit language request is authoritative" in agent_core.INSTRUCTIONS,
+        "english-only",
+    ))
+    model_tools = tools.function_tools()
+    report.append((
+        "模型工具 schema 为英文",
+        len(model_tools) == expected_count
+        and all(re.search(r"[\u3400-\u9fff]", str(item)) is None for item in model_tools),
+        f"count={len(model_tools)}",
+    ))
 
     # 壁纸修复：候选地址按可下载性排序，避免下载到站点首页
     for fn in ("_download_candidates", "_assert_public_https", "_open_pinned_response"):

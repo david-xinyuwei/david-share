@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "evidence_type": "sanitized-scenario-screenshots",
+  "source": {
+    "type": "private-screen-recording",
+    "publicly_available": false,
+    "review_copy_speed": 1.5,
+    "review_copy_sha256": "d107278a7709a1b36a1d56512933f3958451a69bed5a0eb998e0b36da7e0f616",
+    "capture_environment": "Windows AIPC",
+    "scope": "One continuous recorded run"
+  },
+  "scenarios": [
+    {
+      "id": "medication-recognition",
+      "image": "images/scenario-medication-recognition.png",
+      "source_time_seconds": 28,
+      "bytes": 539228,
+      "sha256": "c291fea3dbf314d34240a437da78fc8fd379757707962d2b905215695f726d56",
+      "width": 1500,
+      "height": 1500,
+      "user_request": "Can you see what I'm holding in my hand?",
+      "tools": [
+        "open_camera",
+        "identify_object_with_camera"
+      ],
+      "observed_result": "The recorded response identified Centrum Men multivitamin supplements labeled as 200 tablets.",
+      "redaction": {
+        "method": "crop",
+        "removed": [
+          "complete camera preview column",
+          "human face and body",
+          "Windows taskbar"
+        ]
+      }
+    },
+    {
+      "id": "email-receipt",
+      "image": "images/scenario-email-delivery.png",
+      "source_time_seconds": 46,
+      "bytes": 254611,
+      "sha256": "4d0f21efe235196f236ba4a726e5c251f300864b4a57dc5de89e9e5afb595c4d",
+      "width": 1000,
+      "height": 1250,
+      "user_request": "Please send me the purchase link to my email.",
+      "tools": [
+        "search_where_to_buy",
+        "send_email"
+      ],
+      "observed_result": "New Outlook displayed Purchase Links for Centrum Men Multivitamin 200 Tablets with four retailer links.",
+      "redaction": {
+        "method": "crop plus opaque pixel replacement",
+        "removed": [
+          "mail account navigation",
+          "sender and recipient identities",
+          "email addresses",
+          "profile avatar",
+          "message date",
+          "other inbox messages",
+          "Windows taskbar"
+        ]
+      }
+    },
+    {
+      "id": "volume-control",
+      "image": "images/scenario-volume-control.png",
+      "source_time_seconds": 80,
+      "bytes": 119089,
+      "sha256": "0d61af5c42db17053874e2185abe40e08afb44c7ae12eb0ab0df4230edfc0362",
+      "width": 2488,
+      "height": 340,
+      "user_request": "Please also set the sound volume to half of now.",
+      "tools": [
+        "get_system_volume",
+        "set_system_volume"
+      ],
+      "observed_result": "The Windows readback and assistant response reported 47 percent.",
+      "redaction": {
+        "method": "crop",
+        "removed": [
+          "unrelated prior camera and brightness results",
+          "Windows taskbar"
+        ]
+      }
+    },
+    {
+      "id": "wallpaper-change",
+      "image": "images/scenario-wallpaper-change.png",
+      "source_time_seconds": 112,
+      "bytes": 1445468,
+      "sha256": "29440ff658d09c5048c229f37ac88acf057acbdf365fb57feec74e38411be725",
+      "width": 2488,
+      "height": 1230,
+      "user_request": "Search for a blue-sky picture and change it to my wallpaper.",
+      "tools": [
+        "search_wallpaper_image",
+        "set_desktop_wallpaper"
+      ],
+      "observed_result": "The desktop changed to the blue-sky image and set_desktop_wallpaper completed successfully.",
+      "redaction": {
+        "method": "crop plus opaque pixel replacement",
+        "removed": [
+          "all desktop icons",
+          "desktop folders and filenames",
+          "Windows taskbar",
+          "local wallpaper path"
+        ]
+      }
+    }
+  ],
+  "privacy_assertions": {
+    "human_face_or_profile_avatar_visible": false,
+    "email_or_account_identifier_visible": false,
+    "desktop_icon_directory_or_filename_visible": false,
+    "local_path_visible": false
+  },
+  "boundaries": [
+    "The medication screenshot proves the recorded tool response, not medical correctness or safety.",
+    "The email screenshot proves one observed inbox receipt, not an email delivery SLA.",
+    "The volume and wallpaper screenshots prove one bounded Windows run, not universal hardware compatibility.",
+    "The private source recording is not published."
+  ]
+}
