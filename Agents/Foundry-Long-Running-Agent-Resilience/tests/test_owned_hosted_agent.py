@@ -98,9 +98,11 @@ class OwnedHostedAgentContractTests(unittest.TestCase):
         spec = CONTRACT.parse_work_spec(
             json.dumps({"work_id": "w1", "payload": "x"})
         )
+        indexes = list(range(len(CONTRACT.STAGES)))
+        indexes[2] = 1
         records = [
             CONTRACT.build_stage_record(spec, index, "process-a", False)
-            for index in (0, 1, 1, 3, 4)
+            for index in indexes
         ]
         with self.assertRaisesRegex(CONTRACT.ContractError, "stage indexes"):
             CONTRACT.validate_terminal_response(
@@ -123,6 +125,10 @@ class OwnedHostedAgentContractTests(unittest.TestCase):
                 expected_work_id="w1",
                 expect_recovery=True,
             )
+
+    def test_owned_contract_has_eighteen_distinct_stages(self):
+        self.assertEqual(len(CONTRACT.STAGES), 18)
+        self.assertEqual(len(set(CONTRACT.STAGES)), 18)
 
     def test_hosted_endpoint_keeps_api_version_on_item_reads(self):
         endpoint = (

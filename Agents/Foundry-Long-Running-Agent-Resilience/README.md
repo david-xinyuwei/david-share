@@ -38,7 +38,7 @@ The complete customer path is here in the main README. The runnable Agent, calle
 | File | What it does |
 |---|---|
 | [`hosted-agent/azure.yaml`](hosted-agent/azure.yaml) | Deploys `lra-evidence-agent` as a Python 3.13 Hosted Agent over Responses `2.0.0` |
-| [`hosted-agent/src/lra-evidence-agent/main.py`](hosted-agent/src/lra-evidence-agent/main.py) | Complete executable handler: five deterministic stages, one checkpoint per stage, and one guarded hard process exit |
+| [`hosted-agent/src/lra-evidence-agent/main.py`](hosted-agent/src/lra-evidence-agent/main.py) | Complete executable handler: 18 deterministic stages, one checkpoint per stage, and one guarded hard process exit |
 | [`hosted-agent/client.py`](hosted-agent/client.py) | Creates stored background work, saves and reuses the response ID, and rejects gaps, duplicates, expired observation, one-process "recovery," or an incomplete terminal state |
 | [`hosted-agent/run_local_recovery.py`](hosted-agent/run_local_recovery.py) | Starts process A, verifies exit code `86`, starts process B against the same state root, and validates completion |
 
@@ -149,7 +149,7 @@ VALIDATION_PYTHON=.venv-validation/bin/python
 "$VALIDATION_PYTHON" scripts/validate_repo.py
 ```
 
-Done-when is `PASS: imported azure.ai.agentserver.core.tasks`, `18/18 checks passed`, `Ran 21 tests ... OK`, and `PASS: bilingual parity ... Data/Log Rich ... Code/Test Rich`.
+Done-when is `PASS: imported azure.ai.agentserver.core.tasks`, `18/18 checks passed`, `Ran 22 tests ... OK`, and `PASS: bilingual parity ... Data/Log Rich ... Code/Test Rich`.
 
 ### Configure external state only when needed
 
@@ -178,10 +178,10 @@ Use a transaction or ETag condition to commit the stage result and `completed_ph
 | Persist | Save `response.id`, `work_id` and one absolute deadline before acknowledging success upstream |
 | Reconnect | Read only `GET /responses/{response_id}` or `GET /responses/{response_id}?stream=true`; never create replacement work |
 | Recover | Treat bounded timeout, `404`, `424`, `429` and replacement `5xx` as transient only for that known response ID |
-| Finish | Require an explicit terminal state, stages `0-4` exactly once, one payload hash, and complete expected output |
+| Finish | Require an explicit terminal state, stages `0-17` exactly once, 18 unique stage-result hashes, one payload hash, and complete expected output |
 | Unknown create result | Do not create another response automatically; remote create and local ID persistence are not atomic, so deduplicate or reconcile |
 
-Local done-when is process A exit code `86`, process B entry mode `recovered`, two process instances and stages `0-4` exactly once. Live done-when is the same response-ID hash plus `fresh + recovered`, two process-instance hashes and status `completed`. The measured repository run completed in **57.884 seconds**; [live evidence](evidence/owned-hosted-agent-live.json) contains hashes rather than endpoint, response, process, tenant or subscription identifiers.
+Local done-when is process A exit code `86`, process B entry mode `recovered`, two process instances and stages `0-17` exactly once. Live done-when is the same response-ID hash plus `fresh + recovered`, two process-instance hashes, 18 unique stage-result hashes and status `completed`. The measured repository run completed in **62.406 seconds**; [live evidence](evidence/owned-hosted-agent-live.json) contains hashes rather than endpoint, response, process, tenant or subscription identifiers.
 
 ## What Foundry provides, and what your application owns
 
@@ -217,41 +217,22 @@ This repository now owns the complete test path rather than asking the reader to
 
 | Surface | Repository implementation | What the run proved |
 |---|---|---|
-| Deployment | [`hosted-agent/azure.yaml`](hosted-agent/azure.yaml) and pinned [`requirements.txt`](hosted-agent/src/lra-evidence-agent/requirements.txt) | `lra-evidence-agent` version `1` reached `active` on Python 3.13 over Responses `2.0.0` |
-| Runtime | [`main.py`](hosted-agent/src/lra-evidence-agent/main.py) | Five deterministic stages; checkpoint after each; guarded hard exit after stage `1`; recovery seeds from `context.persisted_response` |
+| Deployment | [`hosted-agent/azure.yaml`](hosted-agent/azure.yaml) and pinned [`requirements.txt`](hosted-agent/src/lra-evidence-agent/requirements.txt) | Fault-test version `3` and safe version `4` reached `active` on Python 3.13 over Responses `2.0.0` |
+| Runtime | [`main.py`](hosted-agent/src/lra-evidence-agent/main.py) | 18 deterministic stages; checkpoint after each; guarded hard exit after stage `3`; recovery seeds from `context.persisted_response` |
 | Caller | [`client.py`](hosted-agent/client.py) | Saves the original response ID, tolerates the bounded replacement window, polls only that ID, and rejects missing/duplicate stages or one-process "recovery" |
-| Live acceptance | [`owned-hosted-agent-live.json`](evidence/owned-hosted-agent-live.json) | Same response completed stages `0-4` across two process instances with `fresh` and `recovered` entries in **57.884 seconds** |
+| Live acceptance | [`owned-hosted-agent-live.json`](evidence/owned-hosted-agent-live.json) | Same response completed stages `0-17` across two process instances with `fresh` and `recovered` entries in **62.406 seconds** |
 
-<div align="center"><img src="images/portal-owned-agent-active.png" width="820" alt="Sanitized Microsoft Foundry Portal showing the repository-owned lra-evidence-agent as a hosted Agent with active version 2"></div>
+<div align="center"><img src="images/product-ui/portal-owned-agent-list.png" width="820" alt="Sanitized Microsoft Foundry Portal Agent list showing lra-evidence-agent version 4 as Running and Hosted"></div>
 
-*Real Microsoft Foundry Portal view of this repository's deployed Agent. The project name is replaced with `non-production project`; no tenant, subscription, endpoint, response, or identity value is shown. The screenshot shows safe version `2`, which is `active` with fault injection disabled. The measured recovery evidence was produced by version `1` with fault injection enabled.*
+<div align="center"><img src="images/product-ui/portal-owned-agent-details.png" width="820" alt="Sanitized Microsoft Foundry Portal details for lra-evidence-agent version 4 showing hosted kind and Playground"></div>
 
-The live poll sequence was `in_progress (0 items)` -> one read timeout during replacement -> `in_progress (2 items)` -> `completed (5 items)`. Raw endpoint, response, process, tenant, and subscription identifiers are not published; the evidence contains hashes. This is the primary reproduction path. The historical Microsoft-sample runs below remain useful cross-runtime evidence and provenance.
+*Real Microsoft Foundry Portal views of this repository's Agent. The project name is replaced with `non-production project`; no tenant, subscription, endpoint, response or identity value is shown. The screenshots prove version `4` is `Running` and `Hosted`; the checked-in safe default sets fault injection to `false`. The measured 18-stage behavior evidence was produced by version `3` with fault injection enabled. Source lineage, redactions, hashes and proof boundaries are in [`ui-evidence.json`](evidence/ui-evidence.json).*
 
-The measured 18-phase workload came from a **Microsoft private-preview `resilient-research` sample used in July 2026**; it was not invented by this repository. It was a generic deep-research briefing task: the caller supplied a topic, while the measured topic and generated text remain private. The sample processed that topic through 18 fixed phases:
+The live poll sequence was `in_progress (0 items)` -> one read timeout -> temporary `404` during replacement -> `in_progress (4 items)` -> `completed (18 items)`. Process A committed stages `0-3`; Process B completed stages `4-17`. Raw identifiers are not published; the evidence contains hashes. This is the primary result and reproduction path.
 
-- phases 1-4 framed the research questions, background literature, key researchers, and history;
-- phases 5-9 reviewed recent work, debates, evidence quality, related fields, and open problems;
-- phases 10-15 covered applications and adoption, funding, ethics, alternatives, risks, and outlook;
-- phases 16-18 synthesized the briefing, recommendations, and next steps.
+Earlier cross-runtime evidence came from a Microsoft private-preview `resilient-research` sample used in July 2026. Its topic and generated text are private, so it is **historical corroboration, not the customer reproduction path**. That run also completed 18/18 phases on the same work after process loss and recorded 12,248 consecutive events; the public aggregate remains in [`historical-observations.json`](evidence/historical-observations.json).
 
-Each phase made one streaming model call and saved the completed-phase count before moving on. The [current public `resilient-research` sample](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/invocations/resilient-research) demonstrates the same workload family, but its configurable plan and defaults have evolved. **The number 18 is a property of the July sample run, not a current product requirement.**
-
-It is also not the only public resilience example. The current official catalog includes [`resilient-approval-gate`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/invocations/resilient-approval-gate) for Invocations and [`resilient-streaming`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming) plus [`resilient-steering`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-steering) for Responses.
-
-A research job had 18 planned phases and an expected runtime of about 22 minutes. Fifteen seconds into the run, phase 1 finished, and we terminated Process A. We did not submit a new job. Process B found the same task record, loaded the saved phase-1 progress, and completed phases 2-18. All **18 planned phases completed**. The run recorded 12,248 events with sequence numbers from 1 through 12,248; no sequence number was missing or repeated.
-
-The test is simple: after process loss, can the **same work item** continue and produce complete output? These are observations, not product scores.
-
-| Measured | Observed value — not a score | Why it matters |
-|---|---|---|
-| Long-run acceptance after injected process loss | All **18 planned phases completed**; 12,248 events had consecutive sequence numbers 1-12,248, with no missing or repeated number | Processes A and B completed the same task record |
-| Runtime loss to approval decision accepted | **56 s**, with the original selections intact | In this run, pending approval state survived process replacement |
-| Consecutive `HTTP 424` before normal completion | **29** | In this run, a retry budget of 10 would have stopped before completion |
-| Scenarios reaching their documented terminal result | **8 of 8**, one accepted run each | Capability validation, not a reliability benchmark |
-| Research runs passing workload-output acceptance | **4 of 4** | Transport sequence was gap-free in 3 of 4; that is a transport observation, not a recovery pass rate |
-
-The evidence does **not** establish production availability, SLA, load or concurrency behavior, multi-region recovery, cost, or business correctness. The repo also ships no Microsoft SDK source, complete agent, private API, raw live telemetry, or generic deployment recipe.
+The official catalog still provides [`resilient-research`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/invocations/resilient-research), [`resilient-approval-gate`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/invocations/resilient-approval-gate), [`resilient-streaming`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming) and [`resilient-steering`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-steering) as provenance and comparison. None is required to reproduce this repository's result.
 
 ### Recovery model at a glance
 
@@ -560,6 +541,7 @@ These are engineering recommendations, not product guarantees:
 | Direct SDK import and `@task` registration | [`resilience-sdk-usage.json`](evidence/resilience-sdk-usage.json) | Generated by the example's own `--check`; not handler execution or live recovery |
 | Lease, process loss, generation fence, checkpoint, idempotency | [`recovery-contract-demo.json`](evidence/recovery-contract-demo.json) + [JSONL events](evidence/recovery-contract-events.jsonl) | Real local test fixture; not Foundry service code |
 | Gap, duplicate, terminal-state and 424/403 error paths | [`observation-validation.json`](evidence/observation-validation.json) | Executable positive and negative fixtures |
+| Repository-owned 18-stage process recovery and deployed object state | [`owned-hosted-agent-local.json`](evidence/owned-hosted-agent-local.json), [`owned-hosted-agent-live.json`](evidence/owned-hosted-agent-live.json), and [`ui-evidence.json`](evidence/ui-evidence.json) | Public owned workload; one non-production live run on fault-test version 3; manual Portal captures prove safe version 4 is Running and Hosted |
 | Scenario truth labels | [`scenario-manifest.json`](evidence/scenario-manifest.json) | Separates dynamic runtime, test fixture, and measured architecture explainer |
 | File integrity and reproduction commands | [`manifest.json`](evidence/manifest.json) + [evidence index](evidence/README.md) | SHA-256 covers the public evidence files |
 
@@ -570,6 +552,7 @@ Raw live artifacts remain private because they contain endpoints, work IDs, envi
 - Every number is an observation from the named July or August run—not a benchmark, guarantee, or SLA.
 - July covered eight main scenarios once each; August covered four current sample families once each. Cancel, delete, and deny were not tested.
 - The capability moved from private preview to public preview. Check the [current official documentation](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents) before designing against it.
+- This repository contains no Microsoft SDK source or private service implementation. It pins public packages and publishes only its own application code and public-safe evidence.
 
 ### Before you call this production-ready
 

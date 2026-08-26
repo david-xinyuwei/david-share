@@ -2,10 +2,10 @@
   "algorithm": "sha256",
   "files": [
     {
-      "bytes": 4587,
+      "bytes": 4937,
       "path": "evidence/README.md",
       "provenance": "Maintained evidence index and reproduction boundary.",
-      "sha256": "aca82bcc5dc82ea2dd7ca57fff55897a2fdb4a0d8e177128d73f0de1312781a9"
+      "sha256": "769182ab5a67c9784291a1767facd7d15b615f9937bbc5c6fb6f0e56a44ed726"
     },
     {
       "bytes": 8319,
@@ -20,16 +20,16 @@
       "sha256": "3240679a41dfa04a4285f9c340780b0fdbe59aeff8f26a781a976c13eec48b84"
     },
     {
-      "bytes": 1322,
+      "bytes": 3977,
       "path": "evidence/owned-hosted-agent-local.json",
       "provenance": "python hosted-agent/run_local_recovery.py --python <2.1.0b2-python> --report evidence/owned-hosted-agent-local.json",
-      "sha256": "9341d02a366c2b30e7a1eb5585d3f83ada5dec35ef0f9ec467a6944b75a568db"
+      "sha256": "b64b046f3f8c8105005ba72890d17eff7a678c5f3da28bda567204d22d238919"
     },
     {
-      "bytes": 1870,
+      "bytes": 3821,
       "path": "evidence/owned-hosted-agent-live.json",
-      "provenance": "python hosted-agent/client.py against deployed lra-evidence-agent version 1; identifiers hashed before publication.",
-      "sha256": "e080a808147fbf370ef377b32f5aca5a8ea96f88de199c6d4dea699ed20a3b6a"
+      "provenance": "python hosted-agent/client.py against deployed lra-evidence-agent version 3; identifiers hashed before publication.",
+      "sha256": "b9062ffb6be2ab4a44f206436e398ec166419ab79cae57fcf9b0ea7f378bca4d"
     },
     {
       "bytes": 3055,
@@ -56,13 +56,19 @@
       "sha256": "b627bad435819899ecc982a01ac55157d10656d97ebc6e99f87af8251d7fa4a0"
     },
     {
-      "bytes": 4986,
+      "bytes": 5049,
       "path": "evidence/scenario-manifest.json",
       "provenance": "Maintained Scenario Manifest for user-visible repository surfaces.",
-      "sha256": "a0c3ab913d6df3b2fc51cffcaec432fb6f43c5ec9737cf9219ea8510fa029c8d"
+      "sha256": "5247befec99134504d08074646ac0d5c673f694196a3e9dcd71db90dc14ef70c"
+    },
+    {
+      "bytes": 1963,
+      "path": "evidence/ui-evidence.json",
+      "provenance": "User-downloaded Portal captures sanitized into images/product-ui; raw sources remain outside the repository.",
+      "sha256": "7a52a32aa5cea140608c9feb329e03b2f52687acae47b43b52a287a50f22c6de"
     }
   ],
-  "generated_at_utc": "2026-08-26T02:43:57+00:00",
+  "generated_at_utc": "2026-08-26T06:36:09Z",
   "normalization": "utf-8-lf",
   "schema_version": 1
 }

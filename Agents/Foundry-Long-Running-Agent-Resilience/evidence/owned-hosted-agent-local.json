@@ -4,11 +4,11 @@
       "fresh",
       "recovered"
     ],
-    "payload_sha256": "7c058be633b02e5f5b269d5e6125488190ce92feb534e074cb0a4f7a1aa10d76",
+    "payload_sha256": "4042d3d04f3806e8a5f9c05394089029a1b03937b4dadb292622938833f94a1a",
     "process_instance_count": 2,
     "process_instance_sha256": [
-      "8f8b2f2c30e3a4f956aa9a782ce5b4c257b983165dc064a08c96b5e10322ca69",
-      "5794687fc1f9addaf554c485e155ca16099c076e383fc990203d0867ec6513c5"
+      "7ebdb5cf7382efa53406538badd254e9b43844054083cb72472ca2a902067e58",
+      "d297dd7e67f84859d10b95bb43066128bac37697abdad06a274c3d2c62dde17c"
     ],
     "recovery_proven": true,
     "stage_indexes": [
@@ -16,38 +16,120 @@
       1,
       2,
       3,
-      4
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17
     ],
     "stage_names": [
       "accept",
-      "analyze",
-      "plan",
-      "execute",
-      "verify"
+      "validate_input",
+      "fingerprint_payload",
+      "plan_work",
+      "allocate_steps",
+      "prepare_context",
+      "execute_part_1",
+      "execute_part_2",
+      "execute_part_3",
+      "aggregate_results",
+      "verify_order",
+      "verify_uniqueness",
+      "verify_payload",
+      "build_summary",
+      "record_metrics",
+      "finalize_output",
+      "validate_terminal",
+      "complete"
+    ],
+    "stage_result_sha256": [
+      "0db3c5e7fe08f43656bf2d96c844efba751a9604c71a53ff08730bbbc660f27a",
+      "19cc6fef6d4ff9491cf71a22e659d4ef4b596c37147060349061102f521f75a9",
+      "24abb12c83361094efa8b3441a19ee9d130928ed7dfdbd613508d48746dd98a4",
+      "44e92b59195da576ae63ff265e9d46607268d61157da245df7dbea729f80a050",
+      "5abb7ac0a37a1156bd211af2d5a816672a31ab41bda917f3cbc9fd778bcd802f",
+      "5fa22925973dd1389ed690754b018299b33d92925fb174df02ed2951ee423d08",
+      "642865de4203e4dfad069b71bd82aea285330f3876ced2ccfd2d5e67083d44f6",
+      "673dcf229412394fb36596827f9b922ad887ead48cdeb71be70c33e2a468e76b",
+      "6f91360b52a71e045b9d77f872f556a9a7a11ba51d60ee770185408bc4bf5a35",
+      "79cc6717e57a80527ae48395da465c52480a46e312b59e0e5c8af1e3cfbe15cf",
+      "86525abb5e2f469d016efad406d46a49c585f6e1bba5dfb58d565fa42d0ea2a7",
+      "91f3a9ac52d187d9e2ea760652b1c2c9e2d351ef08c7a48a2243e681035e7dff",
+      "945e1cde3db07e91b8a603d6ab2d19d165466709045a139a7e265069f22e1bf1",
+      "ab03b6181973ee9ed69377877f7f663d891d31c97dcd42326be271fdda45cb42",
+      "b2743633fb722741db4c6b31846179bd2c44ed24c749d66869470a3fa42fcf71",
+      "c03b35dd9e57e9d10df885a3e415b73379a14a5a7b91a21d951eff051e567efb",
+      "e60f8297188599b051068dd2cd4aa7f5c693ca4244147e4fd3b14acdb4dc2eab",
+      "ed1588482f68020b5657ea915e5edbbfda4f13336c79ed48f5cc0936994f4289"
     ],
     "status": "completed",
-    "work_id": "owned-agent-local-public-001"
+    "work_id": "owned-agent-local-18-public-001"
   },
   "evidence_type": "owned-hosted-agent-local-recovery",
   "first_process_exit_code": 86,
-  "generated_at_utc": "2026-08-26T02:11:51.624+00:00",
-  "injected_after_stage": 1,
+  "generated_at_utc": "2026-08-26T05:54:27.150+00:00",
+  "injected_after_stage": 3,
   "passed": true,
   "poll_events": [
     {
-      "at": "2026-08-26T02:11:50.977+00:00",
+      "at": "2026-08-26T05:54:22.679+00:00",
       "kind": "poll",
-      "output_count": 2,
+      "output_count": 4,
       "status": "in_progress"
     },
     {
-      "at": "2026-08-26T02:11:51.624+00:00",
+      "at": "2026-08-26T05:54:23.355+00:00",
       "kind": "poll",
-      "output_count": 5,
+      "output_count": 4,
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T05:54:23.860+00:00",
+      "kind": "poll",
+      "output_count": 4,
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T05:54:24.411+00:00",
+      "kind": "poll",
+      "output_count": 4,
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T05:54:24.940+00:00",
+      "kind": "poll",
+      "output_count": 4,
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T05:54:25.498+00:00",
+      "kind": "poll",
+      "output_count": 4,
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T05:54:26.283+00:00",
+      "kind": "poll",
+      "output_count": 4,
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T05:54:27.149+00:00",
+      "kind": "poll",
+      "output_count": 18,
       "status": "completed"
     }
   ],
-  "response_id_sha256": "6625d25bc941c42c464bd921593152681cc41d2a05d4c0c68cc1321cfa938f81",
+  "response_id_sha256": "2b01b112ccb8c1bef8299cfa78abfc9aa42d9c111970e8ddad636619b2e29c3a",
   "schema_version": 1,
-  "work_id": "owned-agent-local-public-001"
+  "work_id": "owned-agent-local-18-public-001"
 }

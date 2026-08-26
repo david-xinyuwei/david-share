@@ -38,7 +38,7 @@
 | 文件 | 作用 |
 |---|---|
 | [`hosted-agent/azure.yaml`](hosted-agent/azure.yaml) | 把 `lra-evidence-agent` 部署为 Python 3.13、Responses `2.0.0` 协议的 Hosted Agent |
-| [`hosted-agent/src/lra-evidence-agent/main.py`](hosted-agent/src/lra-evidence-agent/main.py) | 完整可执行处理函数：五个确定性阶段、每阶段一个检查点，以及一次受控硬退出 |
+| [`hosted-agent/src/lra-evidence-agent/main.py`](hosted-agent/src/lra-evidence-agent/main.py) | 完整可执行处理函数：18 个确定性阶段、每阶段一个检查点，以及一次受控硬退出 |
 | [`hosted-agent/client.py`](hosted-agent/client.py) | 创建并保存后台响应、保存并复用响应 ID；发现缺口、重复、截止时间失效、单进程“恢复”或终态不完整时直接失败 |
 | [`hosted-agent/run_local_recovery.py`](hosted-agent/run_local_recovery.py) | 启动进程 A、核对退出码 `86`，再用相同状态目录启动进程 B，并验收完整结果 |
 
@@ -149,7 +149,7 @@ VALIDATION_PYTHON=.venv-validation/bin/python
 "$VALIDATION_PYTHON" scripts/validate_repo.py
 ```
 
-**仓库检查完成标准：** 看到 `PASS: imported azure.ai.agentserver.core.tasks`、`18/18 checks passed`、`Ran 21 tests ... OK` 和 `PASS: bilingual parity ... Data/Log Rich ... Code/Test Rich`。
+**仓库检查完成标准：** 看到 `PASS: imported azure.ai.agentserver.core.tasks`、`18/18 checks passed`、`Ran 22 tests ... OK` 和 `PASS: bilingual parity ... Data/Log Rich ... Code/Test Rich`。
 
 ### 仅在需要时配置外部状态
 
@@ -178,10 +178,10 @@ VALIDATION_PYTHON=.venv-validation/bin/python
 | 保存 | 在向上游确认成功前，保存 `response.id`、`work_id` 和一个绝对截止时间 |
 | 重连 | 只读取 `GET /responses/{response_id}` 或 `GET /responses/{response_id}?stream=true`；不能新建替代任务 |
 | 恢复 | 对这个已知响应 ID，只有在截止时间内才把读取超时、`404`、`424`、`429` 和实例替换期间的 `5xx` 当成暂态 |
-| 完成 | 要求明确终态、阶段 `0-4` 各出现一次、一个 payload hash，以及完整预期输出 |
+| 完成 | 要求明确终态、阶段 `0-17` 各出现一次、18 个不同的阶段结果哈希、一个 payload hash，以及完整预期输出 |
 | 创建结果未知 | 不要自动创建第二条响应；远端创建请求与本地保存 ID 不是一个原子事务，必须去重或对账 |
 
-本机完成标准：进程 A 退出码为 `86`，进程 B 的进入模式为 `recovered`，出现两个进程实例，阶段 `0-4` 各完成一次。线上完成标准：响应 ID 哈希不变，并同时出现 `fresh + recovered`、两个进程实例哈希和 `completed`。本仓库实测耗时 **57.884 秒**；[线上证据](evidence/owned-hosted-agent-live.json) 只保存哈希，不保存端点、响应、进程、租户或订阅原始标识。
+本机完成标准：进程 A 退出码为 `86`，进程 B 的进入模式为 `recovered`，出现两个进程实例，阶段 `0-17` 各完成一次。线上完成标准：响应 ID 哈希不变，并同时出现 `fresh + recovered`、两个进程实例哈希、18 个阶段结果哈希和 `completed`。本仓库实测耗时 **62.406 秒**；[线上证据](evidence/owned-hosted-agent-live.json) 只保存哈希，不保存端点、响应、进程、租户或订阅原始标识。
 
 ## Foundry 提供什么，应用负责什么
 
@@ -217,41 +217,22 @@ VALIDATION_PYTHON=.venv-validation/bin/python
 
 | 交付面 | 本仓库实现 | 实测证明 |
 |---|---|---|
-| 部署 | [`hosted-agent/azure.yaml`](hosted-agent/azure.yaml) 和固定版本的 [`requirements.txt`](hosted-agent/src/lra-evidence-agent/requirements.txt) | `lra-evidence-agent` 版本 `1` 在 Python 3.13、Responses `2.0.0` 上达到 `active` |
-| 运行时 | [`main.py`](hosted-agent/src/lra-evidence-agent/main.py) | 五个确定性阶段；每阶段写检查点；第 `1` 阶段后受控硬退出；恢复时从 `context.persisted_response` 继续 |
+| 部署 | [`hosted-agent/azure.yaml`](hosted-agent/azure.yaml) 和固定版本的 [`requirements.txt`](hosted-agent/src/lra-evidence-agent/requirements.txt) | 故障实测版本 `3` 和安全版本 `4` 均在 Python 3.13、Responses `2.0.0` 上达到 `active` |
+| 运行时 | [`main.py`](hosted-agent/src/lra-evidence-agent/main.py) | 18 个确定性阶段；每阶段写检查点；第 `3` 阶段后受控硬退出；恢复时从 `context.persisted_response` 继续 |
 | 客户端 | [`client.py`](hosted-agent/client.py) | 保存原响应 ID；在有截止时间的前提下容忍实例替换窗口；只轮询该 ID；阶段缺失、重复或“单进程恢复”都会失败 |
-| 线上验收 | [`owned-hosted-agent-live.json`](evidence/owned-hosted-agent-live.json) | 同一个响应跨两个进程实例完成阶段 `0-4`，进入模式同时出现 `fresh` 和 `recovered`，总耗时 **57.884 秒** |
+| 线上验收 | [`owned-hosted-agent-live.json`](evidence/owned-hosted-agent-live.json) | 同一个响应跨两个进程实例完成阶段 `0-17`，进入模式同时出现 `fresh` 和 `recovered`，总耗时 **62.406 秒** |
 
-<div align="center"><img src="images/portal-owned-agent-active.png" width="820" alt="脱敏的 Microsoft Foundry Portal：本仓库自有 lra-evidence-agent 是 Hosted Agent，版本 2 处于 active 状态"></div>
+<div align="center"><img src="images/product-ui/portal-owned-agent-list.png" width="820" alt="脱敏的 Microsoft Foundry Portal Agent 列表：lra-evidence-agent 版本 4 为 Running 和 Hosted"></div>
 
-*这是本仓库 Agent 的真实 Microsoft Foundry Portal 页面。项目名已替换为 `non-production project`，图片不显示租户、订阅、端点、响应或身份信息。截图展示的是关闭故障注入后的安全版本 `2`，状态为 `active`；产生恢复实测证据的是开启故障注入的版本 `1`。*
+<div align="center"><img src="images/product-ui/portal-owned-agent-details.png" width="820" alt="脱敏的 Microsoft Foundry Portal 详情页：lra-evidence-agent 版本 4，类型为 hosted，并显示 Playground"></div>
 
-线上轮询过程为：`in_progress（0 项）` -> 实例替换期间一次读取超时 -> `in_progress（2 项）` -> `completed（5 项）`。公开证据不保存端点、响应、进程、租户和订阅原始标识，只保存哈希。这是当前的主复现路径；下方基于微软样例的历史运行继续作为跨运行时证据和来源说明。
+*这是本仓库 Agent 的真实 Microsoft Foundry Portal 页面。项目名已替换为 `non-production project`，图片不显示租户、订阅、端点、响应或身份信息。截图证明版本 `4` 为 `Running` 和 `Hosted`；仓库中的安全默认配置把故障注入设为 `false`。18 阶段行为证据来自开启故障注入的版本 `3`。原图来源、脱敏项、哈希和证明边界见 [`ui-evidence.json`](evidence/ui-evidence.json)。*
 
-本次 18 阶段实测来自微软在 **2026 年 7 月私有预览（private preview）期间提供的 `resilient-research` 样例**，不是本仓库自造的任务。它是一个通用的深度研究简报任务：调用方提供一个研究主题，当次测试的具体主题和模型生成正文不公开。这个样例按固定计划分 18 个阶段完成研究：
+线上轮询过程为：`in_progress（0 项）` -> 一次读取超时 -> 实例替换期间临时 `404` -> `in_progress（4 项）` -> `completed（18 项）`。进程 A 提交阶段 `0-3`，进程 B 完成阶段 `4-17`。公开证据不保存原始标识，只保存哈希。这是当前的主结果和主复现路径。
 
-- 第 1-4 阶段：拆解研究问题，梳理基础文献、关键研究者和历史背景；
-- 第 5-9 阶段：分析最新进展、方法争议、证据质量、相关领域和未解决问题；
-- 第 10-15 阶段：评估应用与采用情况、资金趋势、伦理、替代方案、风险和发展前景；
-- 第 16-18 阶段：汇总结论，提出具体建议，并给出下一步路线图。
+较早的跨运行时证据来自微软在 2026 年 7 月私有预览期间提供的 `resilient-research` 样例。其研究主题和生成正文不公开，因此它现在只是**历史交叉验证，不是客户复现路径**。那次运行同样在进程丢失后由同一任务完成 18/18 阶段，并记录 12,248 条连续事件；公开汇总仍保留在 [`historical-observations.json`](evidence/historical-observations.json)。
 
-每个阶段都会调用一次模型生成该部分内容；阶段完成后，应用保存“已经完成到第几个阶段”。[当前公开的 `resilient-research` 样例](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/invocations/resilient-research) 仍属于同一类多阶段深度研究任务，但计划和默认配置已经变化。**18 是 7 月那次样例运行的阶段数，不是当前产品要求。**
-
-它也不是公共预览中唯一的韧性样例。微软当前公开目录还提供 Invocations 的 [`resilient-approval-gate`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/invocations/resilient-approval-gate)，以及 Responses 的 [`resilient-streaming`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming) 和 [`resilient-steering`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-steering)。
-
-一个研究任务预先划分为 18 个阶段，预计运行约 22 分钟。第 15 秒，第 1 个阶段完成后，我们强制结束进程 A。任务没有重新提交。进程 B 找到同一条任务记录，读取已经保存的第 1 阶段进度，继续完成第 2-18 阶段。最终，**计划中的 18 个阶段全部完成**。整次运行共记录 12,248 条事件，事件序号从 1 连续到 12,248，没有缺号，也没有重复编号。
-
-测试的问题只有一个：进程消失后，**同一个任务**能否继续并产出完整结果。下表中的数字是观测值，不是产品评分。
-
-| 验证内容 | 结果 | 说明 |
-|---|---|---|
-| 长任务恢复 | **计划中的 18 个阶段全部完成**；共记录 12,248 条事件，事件序号从 1 连续到 12,248，没有缺号或重复编号 | 进程 A 和进程 B 先后完成同一条任务记录 |
-| 等待人工审批时恢复 | 从进程丢失到决定被接收 **56 秒** | 本次运行中，待审批状态和原有选项都保留下来 |
-| 主机替换期间轮询 | 完成前连续收到 **29 次 `HTTP 424`** | 本次运行中，固定重试 10 次会过早放弃 |
-| 场景覆盖 | **8 / 8** 到达各自终态；每个场景只跑 1 次 | 证明功能可行，不代表可靠性水平 |
-| 研究任务输出 | **4 / 4** 输出完整 | 其中 1 次传输编号重置，说明验收不能只看编号 |
-
-这些结果**不能**证明生产可用性、SLA、负载与并发能力、多区域恢复、成本或业务正确性。本仓库也不提供 Microsoft SDK 源码、完整的 Agent 实现、私有 API、原始线上日志或通用部署方案。。
+微软当前公开目录仍提供 [`resilient-research`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/invocations/resilient-research)、[`resilient-approval-gate`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/invocations/resilient-approval-gate)、[`resilient-streaming`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming) 和 [`resilient-steering`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-steering)，用于来源说明和横向对照；复现本仓库结果不需要它们。
 
 ### 恢复模型速览
 
@@ -560,6 +541,7 @@ VALIDATION_PYTHON=.venv-validation/bin/python
 | 直接导入 SDK 并注册 `@task` | [`resilience-sdk-usage.json`](evidence/resilience-sdk-usage.json) | 由示例自己的 `--check` 生成；不代表处理函数正文已执行，也不是线上恢复 |
 | 租约、进程丢失、版本保护、进度点和防重复 | [`recovery-contract-demo.json`](evidence/recovery-contract-demo.json) + [JSONL 事件](evidence/recovery-contract-events.jsonl) | 真实的本地测试程序；不是 Foundry 服务代码 |
 | 缺口、重复、终态与 424/403 错误路径 | [`observation-validation.json`](evidence/observation-validation.json) | 可执行的正向与负向测试用例 |
+| 本仓库自有 18 阶段进程恢复与真实部署对象状态 | [`owned-hosted-agent-local.json`](evidence/owned-hosted-agent-local.json)、[`owned-hosted-agent-live.json`](evidence/owned-hosted-agent-live.json) 及 [`ui-evidence.json`](evidence/ui-evidence.json) | 公开自有任务；故障实测版本 3 在非生产环境中运行 1 次；人工 Portal 截图证明安全版本 4 为 Running 和 Hosted |
 | 场景类型标注 | [`scenario-manifest.json`](evidence/scenario-manifest.json) | 区分动态运行、测试程序与实测架构说明三类内容 |
 | 文件完整性与复现命令 | [`manifest.json`](evidence/manifest.json) + [证据索引](evidence/README.md) | SHA-256 覆盖公开证据文件 |
 
@@ -569,7 +551,8 @@ VALIDATION_PYTHON=.venv-validation/bin/python
 
 - 所有数字都是 7 月或 8 月某次运行的观测值，不是基准测试、保证或 SLA。
 - 7 月 8 个主场景和 8 月 4 类样例都只跑 1 次；`cancel`、`delete`、`deny` 没有测试。
-- 能力已从私有预览进入公共预览。设计前请查看[最新官方文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents)。
+- 能力已从私有预览（private preview）进入公共预览（public preview）。设计前请查看[最新官方文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents)。
+- 本仓库不提供 Microsoft SDK 源码或私有服务实现，只固定公开软件包版本，并发布自有应用代码与可公开证据。
 
 ### 宣称“可以上生产”之前
 

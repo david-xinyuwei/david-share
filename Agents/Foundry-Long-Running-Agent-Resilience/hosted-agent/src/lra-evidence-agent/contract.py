@@ -8,8 +8,27 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-SCHEMA_VERSION = 1
-STAGES = ("accept", "analyze", "plan", "execute", "verify")
+SCHEMA_VERSION = 2
+STAGES = (
+    "accept",
+    "validate_input",
+    "fingerprint_payload",
+    "plan_work",
+    "allocate_steps",
+    "prepare_context",
+    "execute_part_1",
+    "execute_part_2",
+    "execute_part_3",
+    "aggregate_results",
+    "verify_order",
+    "verify_uniqueness",
+    "verify_payload",
+    "build_summary",
+    "record_metrics",
+    "finalize_output",
+    "validate_terminal",
+    "complete",
+)
 _WORK_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 _ALLOWED_INPUT_FIELDS = {
     "work_id",
@@ -97,14 +116,19 @@ def build_stage_record(
     """Build one stable, machine-checkable stage result."""
     if stage_index not in range(len(STAGES)):
         raise ContractError(f"invalid stage index: {stage_index}")
+    stage_name = STAGES[stage_index]
+    stage_result_sha256 = hashlib.sha256(
+        f"{spec.payload}\n{stage_index}\n{stage_name}".encode("utf-8")
+    ).hexdigest()
     return {
         "schema_version": SCHEMA_VERSION,
         "kind": "lra_stage",
         "work_id": spec.work_id,
         "payload_sha256": hashlib.sha256(spec.payload.encode("utf-8")).hexdigest(),
         "stage_index": stage_index,
-        "stage_name": STAGES[stage_index],
+        "stage_name": stage_name,
         "stage_count": len(STAGES),
+        "stage_result_sha256": stage_result_sha256,
         "entry_mode": "recovered" if recovered_entry else "fresh",
         "process_instance_id": process_instance_id,
     }
@@ -156,6 +180,27 @@ def validate_terminal_response(
     if len(payload_hashes) != 1:
         errors.append("stage records do not share one payload hash")
 
+    stage_names = [record.get("stage_name") for record in records]
+    if stage_names != list(STAGES):
+        errors.append("stage names do not match the owned 18-stage contract")
+    stage_counts = {record.get("stage_count") for record in records}
+    if stage_counts != {len(STAGES)}:
+        errors.append(f"stage counts are {sorted(map(str, stage_counts))!r}")
+    schema_versions = {record.get("schema_version") for record in records}
+    if schema_versions != {SCHEMA_VERSION}:
+        errors.append(f"schema versions are {sorted(map(str, schema_versions))!r}")
+    stage_result_hashes = {
+        record.get("stage_result_sha256") for record in records
+    }
+    if (
+        len(stage_result_hashes) != len(STAGES)
+        or not all(
+            isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value)
+            for value in stage_result_hashes
+        )
+    ):
+        errors.append("stage result hashes are missing or duplicated")
+
     process_instances = {
         record.get("process_instance_id")
         for record in records
@@ -174,7 +219,8 @@ def validate_terminal_response(
         "status": status,
         "work_id": expected_work_id,
         "stage_indexes": indexes,
-        "stage_names": [record["stage_name"] for record in records],
+        "stage_names": stage_names,
+        "stage_result_sha256": sorted(stage_result_hashes),
         "payload_sha256": next(iter(payload_hashes)),
         "process_instance_ids": sorted(process_instances),
         "entry_modes": sorted(entry_modes),

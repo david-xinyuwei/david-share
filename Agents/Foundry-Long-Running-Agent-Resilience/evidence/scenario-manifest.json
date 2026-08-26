@@ -71,10 +71,10 @@
       "entrypoint": "hosted-agent/run_local_recovery.py",
       "real": [
         "Runs the repository-owned ResponsesAgentServerHost with the pinned public SDK",
-        "Commits stages 0 and 1 before os._exit(86) terminates the first process",
+        "Commits stages 0 through 3 before os._exit(86) terminates the first process",
         "Restarts a second operating-system process against the same AgentServer state root",
-        "Reuses the same stored response and completes stages 2 through 4",
-        "Validates five unique ordered stages, fresh and recovered entry modes, and two process instances"
+        "Reuses the same stored response and completes stages 4 through 17",
+        "Validates 18 unique ordered stages and stage-result hashes, fresh and recovered entry modes, and two process instances"
       ],
       "not_claimed": [
         "A live Microsoft Foundry Hosted Agent deployment",
@@ -86,12 +86,12 @@
     {
       "id": "owned-hosted-agent-live",
       "type": "dynamic-runtime",
-      "entrypoint": "hosted-agent/client.py against deployed lra-evidence-agent version 1",
+      "entrypoint": "hosted-agent/client.py against deployed lra-evidence-agent version 3",
       "real": [
         "Deploys the repository-owned Python 3.13 Hosted Agent over the Responses protocol",
-        "Creates one stored background response and injects a hard process loss after stage 1",
+        "Creates one stored background response and injects a hard process loss after stage 3",
         "Observes fresh and recovered entries from two process instances",
-        "Completes stages 0 through 4 exactly once on the same response",
+        "Completes stages 0 through 17 exactly once on the same response with 18 unique stage-result hashes",
         "Records the bounded replacement window and explicit completed terminal state"
       ],
       "not_claimed": [

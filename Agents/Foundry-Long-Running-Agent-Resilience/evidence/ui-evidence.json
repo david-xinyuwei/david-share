@@ -1,0 +1,52 @@
+{
+  "assets": [
+    {
+      "behavior_evidence": "evidence/owned-hosted-agent-live.json",
+      "does_not_prove": [
+        "process-loss recovery behavior",
+        "fault-injection environment-variable value",
+        "production reliability or SLA"
+      ],
+      "published_path": "images/product-ui/portal-owned-agent-list.png",
+      "published_sha256": "19be2513745a802b36673d789559bc1587cc1dcdbfa77920d7d0c04fc6ecef3d",
+      "proves": [
+        "lra-evidence-agent exists in Microsoft Foundry",
+        "version 4 is selected",
+        "status is Running",
+        "type is Hosted"
+      ],
+      "redactions": [
+        "project name replaced with non-production project"
+      ],
+      "source_basename": "ScreenShot_2026-08-26_140523_529.png",
+      "source_sha256": "8887a61888193e54040e3ee45941b2caab2ae9db162ce599cac22c1e3b26ea50"
+    },
+    {
+      "behavior_evidence": "evidence/owned-hosted-agent-live.json",
+      "does_not_prove": [
+        "process-loss recovery behavior",
+        "fault-injection environment-variable value",
+        "production reliability or SLA"
+      ],
+      "published_path": "images/product-ui/portal-owned-agent-details.png",
+      "published_sha256": "b314df1de5012222b68c04ac6cfed2a35e6635012611bb94b023f64154da8e59",
+      "proves": [
+        "the detail page is for lra-evidence-agent",
+        "version 4 is selected",
+        "kind is hosted",
+        "the Agent Playground is available"
+      ],
+      "redactions": [
+        "project name replaced with non-production project"
+      ],
+      "source_basename": "ScreenShot_2026-08-26_140542_067.png",
+      "source_sha256": "8b37f81bd99e473de79d2733b915bb695874318edf61a22e20ff90c77e659785"
+    }
+  ],
+  "capture_method": "user-manual-download",
+  "captured_at_local": "2026-08-26T14:05:23+08:00",
+  "published_directory": "images/product-ui/",
+  "raw_intake_directory": ".repo-evidence/inbox/ui/",
+  "raw_sources_committed": false,
+  "schema_version": 1
+}

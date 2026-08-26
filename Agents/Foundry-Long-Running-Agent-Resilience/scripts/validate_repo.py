@@ -78,10 +78,12 @@ ALLOWED_FILES = {
     "evidence/recovery-contract-demo.json",
     "evidence/recovery-contract-events.jsonl",
     "evidence/scenario-manifest.json",
+    "evidence/ui-evidence.json",
     "images/approval-recovery.png",
     "images/approval-recovery-cn.png",
     "images/official-lease-recovery-model.png",
-    "images/portal-owned-agent-active.png",
+    "images/product-ui/portal-owned-agent-list.png",
+    "images/product-ui/portal-owned-agent-details.png",
     "images/recovery-decision-guide.png",
     "images/recovery-decision-guide-cn.png",
 }
@@ -213,6 +215,7 @@ LOCAL_ARTEFACT_DIRS = {
     ".mypy_cache",
     ".ruff_cache",
     ".demo-state",
+    ".repo-evidence",
     ".azure",
     ".idea",
     ".vscode",
@@ -444,10 +447,11 @@ def main() -> int:
     cn_images = images(cn_text)
     shared_images = {
         "images/official-lease-recovery-model.png",
-        "images/portal-owned-agent-active.png",
+        "images/product-ui/portal-owned-agent-list.png",
+        "images/product-ui/portal-owned-agent-details.png",
     }
-    require(len(en_images) == len(cn_images) == 4,
-            f"each README must embed 4 images, got {len(en_images)}/{len(cn_images)}")
+    require(len(en_images) == len(cn_images) == 5,
+            f"each README must embed 5 images, got {len(en_images)}/{len(cn_images)}")
     for shared_image in shared_images:
         require(
             en_images.count(shared_image) == cn_images.count(shared_image) == 1,
@@ -462,30 +466,39 @@ def main() -> int:
     # Every chart must be centred, width-capped, and carry alt text (CL-006)
     for readme, text in ((EN, en_text), (CN, cn_text)):
         centred = len(re.findall(r"<div align=\"center\"><img ", text))
-        require(centred == 4, f"{readme.name}: expected 4 centred image embeds, got {centred}")
+        require(centred == 5, f"{readme.name}: expected 5 centred image embeds, got {centred}")
         widths = re.findall(r"<img\s[^>]*width=\"(\d+)\"", text)
-        require(len(widths) == 4 and all(int(w) <= 820 for w in widths),
+        require(len(widths) == 5 and all(int(w) <= 820 for w in widths),
                 f"{readme.name}: every image needs a width attribute of at most 820")
         alts = image_alt_texts(text)
-        require(len(alts) == 4 and all(alt.strip() for alt in alts),
+        require(len(alts) == 5 and all(alt.strip() for alt in alts),
                 f"{readme.name}: every image needs non-empty alt text")
-    portal_image = ROOT / "images" / "portal-owned-agent-active.png"
-    if portal_image.is_file():
+    portal_image_hashes = {
+        "product-ui/portal-owned-agent-list.png":
+            "19be2513745a802b36673d789559bc1587cc1dcdbfa77920d7d0c04fc6ecef3d",
+        "product-ui/portal-owned-agent-details.png":
+            "b314df1de5012222b68c04ac6cfed2a35e6635012611bb94b023f64154da8e59",
+    }
+    for image_name, expected_hash in portal_image_hashes.items():
+        portal_image = ROOT / "images" / image_name
+        if not portal_image.is_file():
+            continue
         require(
-            sha256_file(portal_image)
-            == "54e179f77dd0af489cf32b8d9d39f4bb364f167cace39c3a6c67f8d282f3baac",
-            "Portal screenshot drifted from the reviewed sanitized image",
+            sha256_file(portal_image) == expected_hash,
+            f"{image_name} drifted from the reviewed sanitized image",
         )
     for snippet in (
-        "Real Microsoft Foundry Portal view",
-        "safe version `2`",
-        "measured recovery evidence was produced by version `1`",
+        "Real Microsoft Foundry Portal views",
+        "screenshots prove version `4` is `Running` and `Hosted`",
+        "18-stage behavior evidence was produced by version `3`",
+        "[`ui-evidence.json`](evidence/ui-evidence.json)",
     ):
         require(snippet in en_text, f"English Portal evidence missing: {snippet}")
     for snippet in (
         "真实 Microsoft Foundry Portal 页面",
-        "安全版本 `2`",
-        "产生恢复实测证据的是开启故障注入的版本 `1`",
+        "截图证明版本 `4` 为 `Running` 和 `Hosted`",
+        "18 阶段行为证据来自开启故障注入的版本 `3`",
+        "[`ui-evidence.json`](evidence/ui-evidence.json)",
     ):
         require(snippet in cn_text, f"Chinese Portal evidence missing: {snippet}")
     for readme, text in ((EN, en_text), (CN, cn_text)):
@@ -572,7 +585,7 @@ def main() -> int:
         "hosted-agent/src/lra-evidence-agent/requirements.txt",
         "hosted-agent/run_local_recovery.py",
         "owned-hosted-agent-live.json",
-        "57.884 seconds",
+        "62.406 seconds",
         "ResponsesServerOptions(resilient_background=True)",
         "stream.checkpoint()",
         "context.persisted_response",
@@ -592,7 +605,7 @@ def main() -> int:
         "hosted-agent/src/lra-evidence-agent/requirements.txt",
         "hosted-agent/run_local_recovery.py",
         "owned-hosted-agent-live.json",
-        "57.884 秒",
+        "62.406 秒",
         "ResponsesServerOptions(resilient_background=True)",
         "stream.checkpoint()",
         "context.persisted_response",
@@ -644,27 +657,23 @@ def main() -> int:
             f"machine-translated or mixed Chinese returned: {retired}",
         )
     for snippet in (
-        "Microsoft private-preview `resilient-research` sample",
-        "generic deep-research briefing task",
-        "phases 1-4",
-        "phases 16-18",
-        "caller supplied a topic",
-        "18 is a property of the July sample run, not a current product requirement",
-        "not the only public resilience example",
+        "This is the primary result and reproduction path",
+        "historical corroboration, not the customer reproduction path",
+        "None is required to reproduce this repository's result",
+        "completed stages `0-17`",
+        "18 unique stage-result hashes",
     ):
         require(snippet in en_text,
-                f"English README missing research workload context: {snippet}")
+                f"English README missing owned-workload primacy: {snippet}")
     for snippet in (
-        "微软在 **2026 年 7 月私有预览（private preview）期间提供的 `resilient-research` 样例",
-        "通用的深度研究简报任务",
-        "第 1-4 阶段",
-        "第 16-18 阶段",
-        "调用方提供一个研究主题",
-        "18 是 7 月那次样例运行的阶段数，不是当前产品要求",
-        "不是公共预览中唯一的韧性样例",
+        "这是当前的主结果和主复现路径",
+        "历史交叉验证，不是客户复现路径",
+        "复现本仓库结果不需要它们",
+        "完成阶段 `0-17`",
+        "18 个阶段结果哈希",
     ):
         require(snippet in cn_text,
-                f"Chinese README missing research workload context: {snippet}")
+                f"Chinese README missing owned-workload primacy: {snippet}")
 
     # The Hosted Agent recovery path must keep official contract and local
     # reference-implementation choices separate.
@@ -1052,7 +1061,10 @@ def main() -> int:
     if owned_contract.is_file():
         source = owned_contract.read_text(encoding="utf-8")
         for snippet in (
-            'STAGES = ("accept", "analyze", "plan", "execute", "verify")',
+            '"accept"',
+            '"complete"',
+            "SCHEMA_VERSION = 2",
+            '"stage_result_sha256"',
             '"process_instance_id"',
             "stage indexes are",
             "recovery did not expose two process instances",
@@ -1194,7 +1206,8 @@ def main() -> int:
     )
     require(
         owned_acceptance.get("status") == "completed"
-        and owned_acceptance.get("stage_indexes") == [0, 1, 2, 3, 4]
+        and owned_acceptance.get("stage_indexes") == list(range(18))
+        and len(owned_acceptance.get("stage_result_sha256", [])) == 18
         and owned_acceptance.get("entry_modes") == ["fresh", "recovered"]
         and owned_acceptance.get("process_instance_count") == 2,
         "owned Hosted Agent evidence does not prove same-work recovery",
@@ -1219,14 +1232,15 @@ def main() -> int:
     )
     require(
         owned_live_acceptance.get("status") == "completed"
-        and owned_live_acceptance.get("stage_indexes") == [0, 1, 2, 3, 4]
+        and owned_live_acceptance.get("stage_indexes") == list(range(18))
+        and len(owned_live_acceptance.get("stage_result_sha256", [])) == 18
         and owned_live_acceptance.get("entry_modes") == ["fresh", "recovered"]
         and owned_live_acceptance.get("process_instance_count") == 2,
         "owned live Hosted Agent evidence does not prove two-process recovery",
     )
     require(
         owned_live_deployment.get("agent_name") == "lra-evidence-agent"
-        and owned_live_deployment.get("version") == "1"
+        and owned_live_deployment.get("version") == "3"
         and len(owned_live_deployment.get("content_sha256", "")) == 64,
         "owned live Hosted Agent deployment identity is incomplete",
     )
@@ -1248,6 +1262,62 @@ def main() -> int:
         and "response_id" not in owned_live_evidence,
         "owned live evidence must hash rather than publish response IDs",
     )
+    ui_evidence = read_json_evidence("evidence/ui-evidence.json")
+    require(
+        ui_evidence.get("schema_version") == 1
+        and ui_evidence.get("capture_method") == "user-manual-download"
+        and ui_evidence.get("raw_intake_directory")
+        == ".repo-evidence/inbox/ui/"
+        and ui_evidence.get("published_directory") == "images/product-ui/"
+        and ui_evidence.get("raw_sources_committed") is False,
+        "UI evidence must preserve the manual raw-inbox/public-derivative boundary",
+    )
+    ui_assets = ui_evidence.get("assets", [])
+    expected_ui_assets = {
+        "images/product-ui/portal-owned-agent-list.png": {
+            "published":
+                "19be2513745a802b36673d789559bc1587cc1dcdbfa77920d7d0c04fc6ecef3d",
+            "source":
+                "8887a61888193e54040e3ee45941b2caab2ae9db162ce599cac22c1e3b26ea50",
+        },
+        "images/product-ui/portal-owned-agent-details.png": {
+            "published":
+                "b314df1de5012222b68c04ac6cfed2a35e6635012611bb94b023f64154da8e59",
+            "source":
+                "8b37f81bd99e473de79d2733b915bb695874318edf61a22e20ff90c77e659785",
+        },
+    }
+    ui_asset_map = {
+        item.get("published_path"): item
+        for item in ui_assets
+        if isinstance(item, dict)
+    }
+    require(
+        len(ui_assets) == len(ui_asset_map) == 2
+        and set(ui_asset_map) == set(expected_ui_assets),
+        "UI evidence must contain exactly the two reviewed Portal images",
+    )
+    for relative, expected_hashes in expected_ui_assets.items():
+        item = ui_asset_map.get(relative, {})
+        source_basename = item.get("source_basename")
+        require(
+            isinstance(source_basename, str)
+            and Path(source_basename).name == source_basename
+            and item.get("source_sha256") == expected_hashes["source"]
+            and item.get("published_sha256") == expected_hashes["published"]
+            and item.get("behavior_evidence")
+            == "evidence/owned-hosted-agent-live.json"
+            and bool(item.get("redactions"))
+            and bool(item.get("proves"))
+            and bool(item.get("does_not_prove")),
+            f"{relative}: UI lineage or proof boundary is incomplete",
+        )
+        published_image = ROOT / relative
+        if published_image.is_file():
+            require(
+                sha256_file(published_image) == expected_hashes["published"],
+                f"{relative}: public image hash does not match UI evidence",
+            )
     expected_package_versions = {
         "azure-ai-agentserver-core": "2.0.0",
         "azure-ai-agentserver-invocations": "1.0.0",
@@ -1630,6 +1700,7 @@ def main() -> int:
         "evidence/recovery-contract-demo.json",
         "evidence/recovery-contract-events.jsonl",
         "evidence/scenario-manifest.json",
+        "evidence/ui-evidence.json",
     }
     require(set(manifest_map) == expected_evidence_paths,
             "evidence manifest path set is incomplete")
@@ -1701,6 +1772,22 @@ def main() -> int:
     )
 
     # Repository surface
+    gitignore_text = (ROOT / ".gitignore").read_text(encoding="utf-8")
+    require(
+        ".repo-evidence/" in gitignore_text.splitlines(),
+        "raw UI evidence inbox must be ignored",
+    )
+    tracked_raw = subprocess.run(
+        ["git", "-C", str(ROOT), "ls-files", "--", ".repo-evidence"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if tracked_raw.returncode == 0:
+        require(
+            not tracked_raw.stdout.strip(),
+            "raw UI evidence inbox contains tracked files",
+        )
     tracked = {
         path.relative_to(ROOT).as_posix()
         for path in ROOT.rglob("*")
