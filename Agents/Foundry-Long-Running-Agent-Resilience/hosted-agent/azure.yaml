@@ -1,0 +1,47 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+requiredVersions:
+  extensions:
+    azure.ai.agents: '>=1.0.0-beta.9'
+name: lra-evidence-agent
+services:
+  ai-project:
+    host: azure.ai.project
+  lra-evidence-agent:
+    host: azure.ai.agent
+    metadata:
+      tags:
+        - AI Agent Hosting
+        - Responses Protocol
+        - Bring Your Own
+        - Long-Running
+        - Resilient Tasks
+        - Fault Injection
+        - Python
+    project: src/lra-evidence-agent
+    language: python
+    codeConfiguration:
+      runtime: python_3_13
+      entryPoint: main.py
+    uses:
+      - ai-project
+    kind: hosted
+    name: lra-evidence-agent
+    displayName: LRA Evidence Agent
+    description: >-
+      Non-production deterministic Hosted Agent for validating stored
+      background response recovery after one controlled process loss.
+    protocols:
+      - protocol: responses
+        version: 2.0.0
+    environmentVariables:
+      - name: LRA_ENABLE_FAULT_INJECTION
+        value: ${LRA_ENABLE_FAULT_INJECTION}
+      - name: LRA_STAGE_DELAY_MS
+        value: ${LRA_STAGE_DELAY_MS}
+    container:
+      resources:
+        cpu: '0.5'
+        memory: 1Gi
+infra:
+  provider: microsoft.foundry

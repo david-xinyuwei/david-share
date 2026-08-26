@@ -1,12 +1,12 @@
 # Microsoft Foundry 长任务 Agent 韧性：主动终止进程后的恢复实测
 
 [![Status](https://img.shields.io/badge/Foundry_capability-public_preview-B3541E)](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
-[![Scope](https://img.shields.io/badge/scope-8_measured_scenarios-1363DF)](#评估到底跑了什么)
+[![Scope](https://img.shields.io/badge/scope-owned_agent_%2B_8_historical-1363DF)](#本仓库自有-hosted-agent-的实测结果)
 [![Runtimes](https://img.shields.io/badge/runtimes-Python_%2B_.NET-0F8B6D)](#实测结果)
 [![Protocols](https://img.shields.io/badge/protocols-Responses_%2B_Invocations-5F4BB6)](#三种接入方式)
 [![License](https://img.shields.io/badge/license-MIT-D98E04)](LICENSE)
 
-本仓库回答一个问题：**运行长任务的进程突然消失后，任务能否从已保存的进度继续，而不是从头再来？** 这里提供 8 个故障注入场景的结果、公共 SDK 检查、本地双进程演示、自动化测试和可复核证据。
+本仓库回答一个问题：**运行长任务的进程突然消失后，任务能否从已保存的进度继续，而不是从头再来？** 这里现在包含本仓库自己编写的 Hosted Agent 和客户端、一次线上恢复实测、此前 8 个故障注入场景、公共 SDK 检查、自动化测试和可复核证据。
 
 该能力处于**公共预览（public preview）**。所有中断都是主动注入，不是线上事故；结果只适用于文中 2026 年 7 月和 8 月的测试条件，不代表 SLA 或已经可以投入生产。
 
@@ -59,6 +59,23 @@
 
 ## 本仓库验证了什么
 
+### 本仓库自有 Hosted Agent 的实测结果
+
+现在整条测试路径都由本仓库提供，不再要求读者先相信外部样例：
+
+| 交付面 | 本仓库实现 | 实测证明 |
+|---|---|---|
+| 部署 | [`hosted-agent/azure.yaml`](hosted-agent/azure.yaml) 和固定版本的 [`requirements.txt`](hosted-agent/src/lra-evidence-agent/requirements.txt) | `lra-evidence-agent` 版本 `1` 在 Python 3.13、Responses `2.0.0` 上达到 `active` |
+| 运行时 | [`main.py`](hosted-agent/src/lra-evidence-agent/main.py) | 五个确定性阶段；每阶段写检查点；第 `1` 阶段后受控硬退出；恢复时从 `context.persisted_response` 继续 |
+| 客户端 | [`client.py`](hosted-agent/client.py) | 保存原响应 ID；在有截止时间的前提下容忍实例替换窗口；只轮询该 ID；阶段缺失、重复或“单进程恢复”都会失败 |
+| 线上验收 | [`owned-hosted-agent-live.json`](evidence/owned-hosted-agent-live.json) | 同一个响应跨两个进程实例完成阶段 `0-4`，进入模式同时出现 `fresh` 和 `recovered`，总耗时 **57.884 秒** |
+
+<div align="center"><img src="images/portal-owned-agent-active.png" width="820" alt="脱敏的 Microsoft Foundry Portal：本仓库自有 lra-evidence-agent 是 Hosted Agent，版本 2 处于 active 状态"></div>
+
+*这是本仓库 Agent 的真实 Microsoft Foundry Portal 页面。项目名已替换为 `non-production project`，图片不显示租户、订阅、端点、响应或身份信息。截图展示的是关闭故障注入后的安全版本 `2`，状态为 `active`；产生恢复实测证据的是开启故障注入的版本 `1`。*
+
+线上轮询过程为：`in_progress（0 项）` -> 实例替换期间一次读取超时 -> `in_progress（2 项）` -> `completed（5 项）`。公开证据不保存端点、响应、进程、租户和订阅原始标识，只保存哈希。这是当前的主复现路径；下方基于微软样例的历史运行继续作为跨运行时证据和来源说明。
+
 本次 18 阶段实测来自微软在 **2026 年 7 月私有预览（private preview）期间提供的 `resilient-research` 样例**，不是本仓库自造的任务。它是一个通用的深度研究简报任务：调用方提供一个研究主题，当次测试的具体主题和模型生成正文不公开。这个样例按固定计划分 18 个阶段完成研究：
 
 - 第 1-4 阶段：拆解研究问题，梳理基础文献、关键研究者和历史背景；
@@ -97,6 +114,7 @@
 | 文件或目录 | 作用 |
 |---|---|
 | [`CUSTOMER-START-HERE-CN.md`](CUSTOMER-START-HERE-CN.md) | 软件包、部署、状态保存、身份、客户端和故障验收的唯一客户操作手册。 |
+| [`hosted-agent/`](hosted-agent/) | 本仓库自有的可部署 Hosted Agent、恢复客户端、本地双进程运行器和固定版本依赖。 |
 | [`examples/resilient_responses_agent.py`](examples/resilient_responses_agent.py) | 完整的 Responses 恢复代码：服务端开启恢复、载入已保存的响应、逐阶段写入检查点、关闭时交接。 |
 | [`examples/resilience_handler.py`](examples/resilience_handler.py) | 带类型标注的真实 `@task` 处理函数，直接导入并读取公共恢复上下文。 |
 | [`examples/resilience_sdk_usage.py`](examples/resilience_sdk_usage.py) | 通过真实装饰器加载该处理函数，并生成动态 JSON 证据；执行 `--check` 不需要 Azure 端点。 |
@@ -104,7 +122,7 @@
 | [`scripts/verify_public_resilience_api.py`](scripts/verify_public_resilience_api.py) | 检查当前安装的 Azure SDK 是否包含本文依赖的 18 项公开接口与处理规则。 |
 | [`scripts/validate_observations.py`](scripts/validate_observations.py) | 检查运行记录是否有事件缺口、重复结果或缺少明确终态；遇到无法确认含义的 `424` / `403` 时停止并报错。 |
 | [`scripts/validate_repo.py`](scripts/validate_repo.py) | 一键检查中英文结构、证据文件与校验值、代码和测试是否完整；任何一项不通过都会返回错误。 |
-| [`tests/`](tests/) | 12 项自动化测试，覆盖正常恢复、异常输入、时序问题、重复执行和拒绝路径。 |
+| [`tests/`](tests/) | 19 项自动化测试，覆盖恢复契约、正常/异常输入、时序、重放、输入完整性和拒绝路径。 |
 | [`evidence/`](evidence/) | 保存可供程序读取的实验结果、事件日志、证据分类和 SHA-256 校验清单，便于复核与复现。 |
 
 下面每个文件都直接使用了公共 SDK，或有意不使用：
@@ -387,13 +405,13 @@ PYTHON=.venv/bin/python
 "$PYTHON" scripts/validate_repo.py
 ```
 
-**完成标准：** 看到 `PASS: imported azure.ai.agentserver.core.tasks`、`18/18 checks passed`、`Ran 12 tests ... OK` 和 `PASS: bilingual parity ... Data/Log Rich ... Code/Test Rich`。这些命令只检查 SDK 和本仓库，不会调用线上 Hosted Agent。
+**完成标准：** 看到 `PASS: imported azure.ai.agentserver.core.tasks`、`18/18 checks passed`、`Ran 19 tests ... OK` 和 `PASS: bilingual parity ... Data/Log Rich ... Code/Test Rich`。这些命令只检查 SDK 和本仓库，不会调用线上 Hosted Agent。
 
 ### 在真实 Hosted Agent 上复现
 
-本地命令只证明本仓库的恢复逻辑可运行，**不能证明 Foundry 线上服务**。请按[客户快速入口](CUSTOMER-START-HERE-CN.md)操作；其中把微软可部署样例固定到 [`b9b2cdd`](https://github.com/microsoft-foundry/foundry-samples/blob/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming/src/resilient-streaming/requirements.txt)，`core` 和 `responses` 都是 `2.1.0b2`；**不要**改成本仓库历史离线检查使用的 2.0.0。在已保存的后台响应仍为 `in_progress` 时替换运行实例，再查询同一个响应 ID，并检查全部预期输出。
+按[客户快速入口](CUSTOMER-START-HERE-CN.md)部署本仓库的 `lra-evidence-agent`，不再复制外部样例。这个确定性 Agent 不需要模型部署；它逐一提交阶段 `0-4`，在隔离的故障开关开启时于阶段 `1` 后退出，再由本仓库客户端验证两个进程实例是否完成同一个响应。
 
-**完成标准：** 同一个响应 ID 恢复，预期输出完整，并有明确终态。只有门户图表或一个 `completed` 字符串不够。
+**完成标准：** 同时看到 `fresh + recovered`、两个进程实例哈希、阶段 `0-4` 各出现一次、状态为 `completed`，而且响应 ID 哈希不变。只有门户图表或一个 `completed` 字符串不够。
 
 
 ## 故障判断与恢复速查表

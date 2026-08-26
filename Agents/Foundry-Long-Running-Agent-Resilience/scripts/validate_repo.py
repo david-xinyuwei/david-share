@@ -53,6 +53,14 @@ ALLOWED_FILES = {
     "CUSTOMER-START-HERE-CN.md",
     "THIRD-PARTY-NOTICES.md",
     "requirements-validation.txt",
+    "hosted-agent/.env.example",
+    "hosted-agent/azure.yaml",
+    "hosted-agent/client.py",
+    "hosted-agent/run_local_recovery.py",
+    "hosted-agent/src/lra-evidence-agent/.azdignore",
+    "hosted-agent/src/lra-evidence-agent/contract.py",
+    "hosted-agent/src/lra-evidence-agent/main.py",
+    "hosted-agent/src/lra-evidence-agent/requirements.txt",
     "examples/resilience_handler.py",
     "examples/resilient_responses_agent.py",
     "examples/resilience_sdk_usage.py",
@@ -61,11 +69,14 @@ ALLOWED_FILES = {
     "scripts/validate_repo.py",
     "scripts/verify_public_resilience_api.py",
     "tests/test_recovery_contract_demo.py",
+    "tests/test_owned_hosted_agent.py",
     "tests/test_validate_observations.py",
     "evidence/README.md",
     "evidence/historical-observations.json",
     "evidence/manifest.json",
     "evidence/observation-validation.json",
+    "evidence/owned-hosted-agent-local.json",
+    "evidence/owned-hosted-agent-live.json",
     "evidence/public-sdk-contract.json",
     "evidence/resilience-sdk-usage.json",
     "evidence/recovery-contract-demo.json",
@@ -74,6 +85,7 @@ ALLOWED_FILES = {
     "images/approval-recovery.png",
     "images/approval-recovery-cn.png",
     "images/official-lease-recovery-model.png",
+    "images/portal-owned-agent-active.png",
     "images/recovery-decision-guide.png",
     "images/recovery-decision-guide-cn.png",
 }
@@ -103,6 +115,10 @@ SECRET_PATTERNS = {
 # Numbers that must agree across both language versions.
 CRITICAL_NUMBERS = [
     "599", "12,248", "1,301", "21.7", "11,584", "47", "56",
+    "57.884", "738", "12,073", "18", "95",
+]
+HISTORICAL_NUMBERS = [
+    "599", "12,248", "1,301", "21.7", "11,584", "47", "56",
     "738", "12,073", "18", "95",
 ]
 
@@ -110,6 +126,7 @@ REQUIRED_EN_SECTIONS = [
     "## Start here",
     "## What Foundry provides, and what your application owns",
     "## What this repo validates",
+    "### Repository-owned Hosted Agent result",
     "### Recovery model at a glance",
     "### The repository is executable, not just a write-up",
     "## Measured results",
@@ -141,6 +158,7 @@ REQUIRED_CN_SECTIONS = [
     "## 从这里开始",
     "## Foundry 提供什么，应用负责什么",
     "## 本仓库验证了什么",
+    "### 本仓库自有 Hosted Agent 的实测结果",
     "### 恢复模型速览",
     "### 本仓库可直接运行，不只是说明文档",
     "## 实测结果",
@@ -172,8 +190,8 @@ REQUIRED_START_EN_SECTIONS = [
     "## Supported path",
     "### Choose the progress strategy",
     "### Prerequisites",
-    "### Configure the agent",
-    "### Run and deploy",
+    "### Prove recovery locally first",
+    "### Deploy and run the live fault test",
     "### Configure external state only when needed",
     "### Configure the caller",
     "### Accept the recovery",
@@ -183,8 +201,8 @@ REQUIRED_START_CN_SECTIONS = [
     "## 支持的路径",
     "### 先选进度保存方式",
     "### 前置条件",
-    "### 配置 Agent 处理函数",
-    "### 运行和部署",
+    "### 先在本机证明恢复",
+    "### 部署并运行线上故障测试",
     "### 仅在需要时配置外部状态",
     "### 配置调用方",
     "### 验收恢复",
@@ -217,6 +235,7 @@ LOCAL_ARTEFACT_DIRS = {
     ".mypy_cache",
     ".ruff_cache",
     ".demo-state",
+    ".azure",
     ".idea",
     ".vscode",
     "node_modules",
@@ -466,16 +485,22 @@ def main() -> int:
         "customer-start guides must remain one compact runbook",
     )
 
-    # Image parity: two project charts are localized; the official CC BY image is shared.
+    # Image parity: two project charts are localized; official and Portal images are shared.
     en_images = images(en_text)
     cn_images = images(cn_text)
-    shared_image = "images/official-lease-recovery-model.png"
-    require(len(en_images) == len(cn_images) == 3,
-            f"each README must embed 3 images, got {len(en_images)}/{len(cn_images)}")
-    require(en_images.count(shared_image) == cn_images.count(shared_image) == 1,
-            "both READMEs must embed the official lease-recovery diagram once")
-    en_localized = [path for path in en_images if path != shared_image]
-    cn_localized = [path for path in cn_images if path != shared_image]
+    shared_images = {
+        "images/official-lease-recovery-model.png",
+        "images/portal-owned-agent-active.png",
+    }
+    require(len(en_images) == len(cn_images) == 4,
+            f"each README must embed 4 images, got {len(en_images)}/{len(cn_images)}")
+    for shared_image in shared_images:
+        require(
+            en_images.count(shared_image) == cn_images.count(shared_image) == 1,
+            f"both READMEs must embed {shared_image} once",
+        )
+    en_localized = [path for path in en_images if path not in shared_images]
+    cn_localized = [path for path in cn_images if path not in shared_images]
     expected_cn = [path.replace(".png", "-cn.png") for path in en_localized]
     require(cn_localized == expected_cn,
             "Chinese README must reference the two localized project charts")
@@ -483,13 +508,32 @@ def main() -> int:
     # Every chart must be centred, width-capped, and carry alt text (CL-006)
     for readme, text in ((EN, en_text), (CN, cn_text)):
         centred = len(re.findall(r"<div align=\"center\"><img ", text))
-        require(centred == 3, f"{readme.name}: expected 3 centred image embeds, got {centred}")
+        require(centred == 4, f"{readme.name}: expected 4 centred image embeds, got {centred}")
         widths = re.findall(r"<img\s[^>]*width=\"(\d+)\"", text)
-        require(len(widths) == 3 and all(int(w) <= 820 for w in widths),
+        require(len(widths) == 4 and all(int(w) <= 820 for w in widths),
                 f"{readme.name}: every image needs a width attribute of at most 820")
         alts = image_alt_texts(text)
-        require(len(alts) == 3 and all(alt.strip() for alt in alts),
+        require(len(alts) == 4 and all(alt.strip() for alt in alts),
                 f"{readme.name}: every image needs non-empty alt text")
+    portal_image = ROOT / "images" / "portal-owned-agent-active.png"
+    if portal_image.is_file():
+        require(
+            sha256_file(portal_image)
+            == "54e179f77dd0af489cf32b8d9d39f4bb364f167cace39c3a6c67f8d282f3baac",
+            "Portal screenshot drifted from the reviewed sanitized image",
+        )
+    for snippet in (
+        "Real Microsoft Foundry Portal view",
+        "safe version `2`",
+        "measured recovery evidence was produced by version `1`",
+    ):
+        require(snippet in en_text, f"English Portal evidence missing: {snippet}")
+    for snippet in (
+        "真实 Microsoft Foundry Portal 页面",
+        "安全版本 `2`",
+        "产生恢复实测证据的是开启故障注入的版本 `1`",
+    ):
+        require(snippet in cn_text, f"Chinese Portal evidence missing: {snippet}")
         require(
             not re.search(r"^####\s+", text, flags=re.MULTILINE),
             f"{readme.name}: one-paragraph H4 fragments must stay merged",
@@ -605,7 +649,10 @@ def main() -> int:
                 f"Chinese README missing main reader route: {snippet}")
     for snippet in (
         "| Strategy | External progress store? | Use when |",
-        "pip install azure-ai-agentserver-core==2.1.0b2 azure-ai-agentserver-responses==2.1.0b2",
+        "hosted-agent/src/lra-evidence-agent/requirements.txt",
+        "hosted-agent/run_local_recovery.py",
+        "owned-hosted-agent-live.json",
+        "57.884 seconds",
         "ResponsesServerOptions(resilient_background=True)",
         "stream.checkpoint()",
         "context.persisted_response",
@@ -622,7 +669,10 @@ def main() -> int:
                 f"English customer-start guide missing adoption guidance: {snippet}")
     for snippet in (
         "| 策略 | 要另配进度存储吗 | 适用场景 |",
-        "pip install azure-ai-agentserver-core==2.1.0b2 azure-ai-agentserver-responses==2.1.0b2",
+        "hosted-agent/src/lra-evidence-agent/requirements.txt",
+        "hosted-agent/run_local_recovery.py",
+        "owned-hosted-agent-live.json",
+        "57.884 秒",
         "ResponsesServerOptions(resilient_background=True)",
         "stream.checkpoint()",
         "context.persisted_response",
@@ -871,16 +921,6 @@ def main() -> int:
             and "18/18 checks passed" in text,
             f"{readme.name}: reproduction done-when or expected outputs missing",
         )
-        require(
-            "b9b2cdd67efee6287e4b263f83ed45f18fe892be" in text
-            and "2.1.0b2" in text
-            and (
-                ("do **not** replace" in text)
-                if readme == EN
-                else ("**不要**改成本仓库历史离线检查使用的 2.0.0" in text)
-            ),
-            f"{readme.name}: current live-sample version boundary missing",
-        )
         for retired in ("pseudocode", "伪代码", "interface sketches", "接口示意"):
             require(retired not in text,
                     f"{readme.name}: retired non-executable content returned: {retired}")
@@ -893,6 +933,18 @@ def main() -> int:
             not fenced_blocks(text, "yaml"),
             f"{guide.name}: use the pinned complete azure.yaml instead of fragments",
         )
+    require(
+        "b9b2cdd67efee6287e4b263f83ed45f18fe892be" in start_en_text
+        and "2.1.0b2" in start_en_text
+        and "must not be replaced" in start_en_text,
+        "English customer-start guide missing public-sample version boundary",
+    )
+    require(
+        "b9b2cdd67efee6287e4b263f83ed45f18fe892be" in start_cn_text
+        and "2.1.0b2" in start_cn_text
+        and "**不能**替换成本仓库历史离线检查使用的 `2.0.0`" in start_cn_text,
+        "Chinese customer-start guide missing public-sample version boundary",
+    )
 
     # Confirmation identifiers must appear in both
     for token in ("TRIP-182336", "TRIP-749637", "424", "403"):
@@ -1042,6 +1094,128 @@ def main() -> int:
                 f"Responses recovery handler missing runtime code: {snippet}",
             )
 
+    owned_root = ROOT / "hosted-agent"
+    owned_agent = owned_root / "src" / "lra-evidence-agent" / "main.py"
+    owned_contract = owned_root / "src" / "lra-evidence-agent" / "contract.py"
+    owned_client = owned_root / "client.py"
+    owned_runner = owned_root / "run_local_recovery.py"
+    owned_azure_yaml = owned_root / "azure.yaml"
+    owned_requirements = (
+        owned_root / "src" / "lra-evidence-agent" / "requirements.txt"
+    )
+    owned_surfaces = {
+        "agent": owned_agent,
+        "contract": owned_contract,
+        "client": owned_client,
+        "runner": owned_runner,
+        "azure.yaml": owned_azure_yaml,
+        "requirements": owned_requirements,
+    }
+    for name, path in owned_surfaces.items():
+        require(path.is_file(), f"repository-owned Hosted Agent missing {name}")
+
+    if owned_agent.is_file():
+        source = owned_agent.read_text(encoding="utf-8")
+        for snippet in (
+            "ResponsesServerOptions(resilient_background=True)",
+            "set_resilient_tasks_enabled(True)",
+            "context.is_recovery and context.persisted_response is not None",
+            "yield stream.checkpoint()",
+            "and not context.is_recovery",
+            "os._exit(INJECTED_EXIT_CODE)",
+            'os.environ.get("LRA_ENABLE_FAULT_INJECTION", "false")',
+            "LRA_STAGE_COMMITTED",
+            "LRA_INJECTED_PROCESS_LOSS",
+        ):
+            require(
+                snippet in source,
+                f"repository-owned Hosted Agent missing recovery control: {snippet}",
+            )
+        require(
+            source.index("yield stream.checkpoint()")
+            < source.index("os._exit(INJECTED_EXIT_CODE)"),
+            "owned Agent must checkpoint before injecting process loss",
+        )
+
+    if owned_contract.is_file():
+        source = owned_contract.read_text(encoding="utf-8")
+        for snippet in (
+            'STAGES = ("accept", "analyze", "plan", "execute", "verify")',
+            '"process_instance_id"',
+            "stage indexes are",
+            "recovery did not expose two process instances",
+            "entry modes do not prove recovery",
+        ):
+            require(
+                snippet in source,
+                f"owned Agent contract missing acceptance rule: {snippet}",
+            )
+
+    if owned_client.is_file():
+        source = owned_client.read_text(encoding="utf-8")
+        for snippet in (
+            '"store": True',
+            '"background": True',
+            "write_json_atomic(args.state_file, state)",
+            '"response_id": response_id',
+            '"response_id_sha256": sha256_text(response_id)',
+            "if args.resume:",
+            "except (TimeoutError, urllib.error.URLError)",
+            "validate_terminal_response",
+            "TRANSIENT_HTTP_STATUSES = {404, 424, 429, 500, 502, 503, 504}",
+        ):
+            require(
+                snippet in source,
+                f"owned Agent client missing recovery behavior: {snippet}",
+            )
+
+    if owned_runner.is_file():
+        source = owned_runner.read_text(encoding="utf-8")
+        for snippet in (
+            '"AGENTSERVER_STATE_ROOT": str(state_root)',
+            '"LRA_ENABLE_FAULT_INJECTION": "true"',
+            "first_exit_code != 86",
+            "start_server(args.python, state_root, log_path)",
+            "expect_recovery=True",
+        ):
+            require(
+                snippet in source,
+                f"owned Agent local runner missing fault proof: {snippet}",
+            )
+
+    if owned_azure_yaml.is_file():
+        source = owned_azure_yaml.read_text(encoding="utf-8")
+        for snippet in (
+            "name: lra-evidence-agent",
+            "host: azure.ai.project",
+            "host: azure.ai.agent",
+            "runtime: python_3_13",
+            "entryPoint: main.py",
+            "protocol: responses",
+            "version: 2.0.0",
+            "name: LRA_ENABLE_FAULT_INJECTION",
+            "value: ${LRA_ENABLE_FAULT_INJECTION}",
+        ):
+            require(
+                snippet in source,
+                f"owned Agent azure.yaml missing deployment contract: {snippet}",
+            )
+
+    if owned_requirements.is_file():
+        requirements = {
+            line.strip()
+            for line in owned_requirements.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.startswith("#")
+        }
+        require(
+            requirements
+            == {
+                "azure-ai-agentserver-core==2.1.0b2",
+                "azure-ai-agentserver-responses==2.1.0b2",
+            },
+            "owned Agent requirements must match the live sample package boundary",
+        )
+
     def read_json_evidence(relative: str) -> dict:
         path = ROOT / relative
         require(path.is_file(), f"missing evidence file: {relative}")
@@ -1070,6 +1244,8 @@ def main() -> int:
         "public-resilience-sdk-usage": "dynamic-runtime",
         "local-recovery-contract": "test-fixture",
         "observation-validator": "dynamic-runtime",
+        "owned-hosted-agent-local": "dynamic-runtime",
+        "owned-hosted-agent-live": "dynamic-runtime",
         "historical-live-observations": "architecture-explainer",
     }
     require(set(scenario_map) == set(expected_scenarios),
@@ -1089,6 +1265,68 @@ def main() -> int:
             "SDK evidence must be dynamic-runtime")
     require(sdk_evidence.get("passed") is True,
             "SDK contract evidence must pass")
+    owned_agent_evidence = read_json_evidence(
+        "evidence/owned-hosted-agent-local.json"
+    )
+    owned_acceptance = owned_agent_evidence.get("acceptance", {})
+    require(
+        owned_agent_evidence.get("evidence_type")
+        == "owned-hosted-agent-local-recovery",
+        "owned Hosted Agent evidence type is wrong",
+    )
+    require(
+        owned_agent_evidence.get("passed") is True
+        and owned_agent_evidence.get("first_process_exit_code") == 86,
+        "owned Hosted Agent must record a passing injected hard process loss",
+    )
+    require(
+        owned_acceptance.get("status") == "completed"
+        and owned_acceptance.get("stage_indexes") == [0, 1, 2, 3, 4]
+        and owned_acceptance.get("entry_modes") == ["fresh", "recovered"]
+        and owned_acceptance.get("process_instance_count") == 2,
+        "owned Hosted Agent evidence does not prove same-work recovery",
+    )
+    require(
+        isinstance(owned_agent_evidence.get("response_id_sha256"), str)
+        and len(owned_agent_evidence["response_id_sha256"]) == 64
+        and "response_id" not in owned_agent_evidence,
+        "owned Hosted Agent evidence must hash rather than publish response IDs",
+    )
+    owned_live_evidence = read_json_evidence(
+        "evidence/owned-hosted-agent-live.json"
+    )
+    owned_live_acceptance = owned_live_evidence.get("acceptance", {})
+    owned_live_deployment = owned_live_evidence.get("deployment", {})
+    require(
+        owned_live_evidence.get("evidence_type")
+        == "owned-hosted-agent-recovery"
+        and owned_live_evidence.get("endpoint_class") == "foundry-hosted-agent"
+        and owned_live_evidence.get("passed") is True,
+        "owned live Hosted Agent evidence must be a passing Foundry run",
+    )
+    require(
+        owned_live_acceptance.get("status") == "completed"
+        and owned_live_acceptance.get("stage_indexes") == [0, 1, 2, 3, 4]
+        and owned_live_acceptance.get("entry_modes") == ["fresh", "recovered"]
+        and owned_live_acceptance.get("process_instance_count") == 2,
+        "owned live Hosted Agent evidence does not prove two-process recovery",
+    )
+    require(
+        owned_live_deployment.get("agent_name") == "lra-evidence-agent"
+        and owned_live_deployment.get("version") == "1"
+        and len(owned_live_deployment.get("content_sha256", "")) == 64,
+        "owned live Hosted Agent deployment identity is incomplete",
+    )
+    require(
+        owned_live_evidence.get("elapsed_seconds") == 57.884,
+        "owned live Hosted Agent measured duration drifted",
+    )
+    require(
+        isinstance(owned_live_evidence.get("response_id_sha256"), str)
+        and len(owned_live_evidence["response_id_sha256"]) == 64
+        and "response_id" not in owned_live_evidence,
+        "owned live evidence must hash rather than publish response IDs",
+    )
     expected_package_versions = {
         "azure-ai-agentserver-core": "2.0.0",
         "azure-ai-agentserver-invocations": "1.0.0",
@@ -1362,7 +1600,7 @@ def main() -> int:
         "August evidence must retain eight scoped observations",
     )
     historical_text = json.dumps(historical, ensure_ascii=False)
-    for value in CRITICAL_NUMBERS:
+    for value in HISTORICAL_NUMBERS:
         require(value.replace(",", "") in historical_text,
                 f"historical evidence missing measured value {value}")
     require(
@@ -1464,6 +1702,8 @@ def main() -> int:
         "evidence/README.md",
         "evidence/historical-observations.json",
         "evidence/observation-validation.json",
+        "evidence/owned-hosted-agent-local.json",
+        "evidence/owned-hosted-agent-live.json",
         "evidence/public-sdk-contract.json",
         "evidence/resilience-sdk-usage.json",
         "evidence/recovery-contract-demo.json",
@@ -1486,9 +1726,18 @@ def main() -> int:
         sorted((ROOT / "scripts").glob("*.py"))
         + sorted((ROOT / "examples").glob("*.py"))
         + sorted((ROOT / "tests").glob("test_*.py"))
+        + sorted((ROOT / "hosted-agent").glob("*.py"))
+        + sorted(
+            (ROOT / "hosted-agent" / "src" / "lra-evidence-agent").glob("*.py")
+        )
     )
-    require(len(python_files) == 9,
-            f"expected 4 scripts, 3 examples, and 2 test files, found {len(python_files)}")
+    require(
+        len(python_files) == 14,
+        (
+            "expected 4 scripts, 3 examples, 3 test files, and 4 owned-agent "
+            f"Python files, found {len(python_files)}"
+        ),
+    )
     for path in python_files:
         for finding in python_redlines(path):
             require(False, finding)

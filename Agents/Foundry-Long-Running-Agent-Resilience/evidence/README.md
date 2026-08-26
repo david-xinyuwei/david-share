@@ -11,6 +11,8 @@ telemetry.
 | [`recovery-contract-demo.json`](recovery-contract-demo.json) | test-fixture | `python scripts/recovery_contract_demo.py demo ...` | Real process exit, SQLite lease expiry/reclaim, generation fence, checkpoints, idempotency | Local executable reference model; not Foundry service code |
 | [`recovery-contract-events.jsonl`](recovery-contract-events.jsonl) | structured runtime log | Same command as above | Ordered state transitions, worker/process identity, generation, entry mode, checkpoint, phase, hashes | Synthetic public-safe workload |
 | [`observation-validation.json`](observation-validation.json) | test-fixture | `python scripts/validate_observations.py self-test --output evidence/observation-validation.json` | Gap, duplicate, terminal-state, 424/403 and deadline positive/negative paths | Fixtures are not service responses |
+| [`owned-hosted-agent-local.json`](owned-hosted-agent-local.json) | dynamic-runtime | `python hosted-agent/run_local_recovery.py --python <2.1.0b2-venv-python> --report evidence/owned-hosted-agent-local.json` | Repository-owned Hosted Agent, stored response, checkpoint-before-crash, hard process exit 86, second-process recovery, five unique stages | Local AgentServer recovery; not a live Foundry deployment |
+| [`owned-hosted-agent-live.json`](owned-hosted-agent-live.json) | dynamic-runtime | `python hosted-agent/client.py ...` against deployed `lra-evidence-agent` version 1 | Same stored response completed five unique stages across two Hosted Agent process instances after controlled process loss | One non-production live run; identifiers are hashed; not an SLA |
 | [`historical-observations.json`](historical-observations.json) | measured aggregate | July campaign and August re-test captures | Dated public values used by the article | Raw live artifacts remain private because they contain identifiers and endpoints |
 | [`scenario-manifest.json`](scenario-manifest.json) | truth contract | Maintained with the code and README | What is dynamic, a test fixture, or a measured architecture explainer | Prevents local code from being presented as live Azure behavior |
 | [`manifest.json`](manifest.json) | integrity manifest | SHA-256 over UTF-8/LF-normalized evidence | File integrity and reproduction commands across Windows and Linux checkouts | Hashes validate these public artifacts, not private raw telemetry |
@@ -36,6 +38,10 @@ python scripts\validate_observations.py self-test `
 
 python scripts\verify_public_resilience_api.py --format json `
   --output .demo-state\public-sdk-contract.json
+
+python hosted-agent\run_local_recovery.py `
+  --python <path-to-python-with-agentserver-2.1.0b2> `
+  --report .demo-state\owned-hosted-agent-local.json
 ```
 
 Timestamps and local process IDs in JSONL are expected to change on a new run.

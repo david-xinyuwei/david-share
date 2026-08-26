@@ -6,9 +6,20 @@
 
 ## 支持的路径
 
-`已保存的后台响应 -> 可恢复的 Hosted Agent -> 阶段检查点 -> 进程丢失后继续查询同一个响应 ID`
+`本仓库的 Hosted Agent -> 已保存的后台响应 -> 阶段检查点 -> 主动终止进程 -> 同一个响应 ID 完成`
 
-使用微软在 commit `b9b2cdd` 的可部署 [`resilient-streaming`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming) 样例，不要从自己拼出的残缺 `azure.yaml` 开始。
+现在的可运行主路径完全由本仓库提供：
+
+| 文件 | 作用 |
+|---|---|
+| [`hosted-agent/azure.yaml`](hosted-agent/azure.yaml) | 把 `lra-evidence-agent` 部署为 Python 3.13、Responses `2.0.0` 协议的 Hosted Agent |
+| [`hosted-agent/src/lra-evidence-agent/main.py`](hosted-agent/src/lra-evidence-agent/main.py) | 完整可执行处理函数：五个确定性阶段、每阶段一个检查点，以及一次受控硬退出 |
+| [`hosted-agent/client.py`](hosted-agent/client.py) | 创建并保存后台响应、保存响应 ID、轮询同一个 ID；发现缺口、重复、单进程“恢复”或终态不完整时直接失败 |
+| [`hosted-agent/run_local_recovery.py`](hosted-agent/run_local_recovery.py) | 启动进程 A、核对退出码 86，再用相同状态目录启动进程 B，并验收完整结果 |
+
+Agent 明确使用 `ResponsesServerOptions(resilient_background=True)`、`set_resilient_tasks_enabled(True)`、`context.persisted_response`、`stream.checkpoint()` 和 `context.exit_for_recovery()`。
+
+微软在 `b9b2cdd` 的 [`resilient-streaming`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming) 样例只保留为固定版本的公共 API 参考，不再是本仓库的可执行主路径。它使用的 `2.1.0b2` 依赖**不能**替换成本仓库历史离线检查使用的 `2.0.0`。
 
 ### 先选进度保存方式
 
@@ -24,40 +35,56 @@ Foundry 负责持久化任务身份、输入、租约，以及已保存响应中
 
 | 前置项 | 配置 |
 |---|---|
-| Azure | 非生产订阅、Foundry 项目和模型部署 |
+| Azure | 非生产订阅；这个确定性 Agent 需要 Foundry 项目，但不需要模型部署 |
 | 权限 | 项目范围的 `Foundry Project Manager`；新建项目还需要资源组范围的 `Owner` |
 | 工具 | Python 3.13、Azure CLI 2.80+、Azure Developer CLI（`azd`）1.27.1+、Git |
 | 登录 | `az login`、`azd ext install microsoft.foundry`、`azd auth login` |
-| 软件包 | `pip install azure-ai-agentserver-core==2.1.0b2 azure-ai-agentserver-responses==2.1.0b2` |
+| 软件包 | [`hosted-agent/src/lra-evidence-agent/requirements.txt`](hosted-agent/src/lra-evidence-agent/requirements.txt) 把 core 和 Responses 固定为 `2.1.0b2` |
 
-固定样例的 [`azure.yaml`](https://github.com/microsoft-foundry/foundry-samples/blob/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming/azure.yaml) 已定义 `host: azure.ai.agent`、Responses 协议 `2.0.0`、Python `3.13` 和项目/模型依赖。
+### 先在本机证明恢复
 
-### 配置 Agent 处理函数
+从仓库根目录执行：
 
-直接使用 [`examples/resilient_responses_agent.py`](examples/resilient_responses_agent.py) 中的完整可执行处理函数，只把 `run_stage()` 换成自己的一个完整工作阶段。
+```powershell
+python -m venv .venv-owned-agent
+$python = (Resolve-Path .\.venv-owned-agent\Scripts\python.exe).Path
+& $python -m pip install -r hosted-agent\src\lra-evidence-agent\requirements.txt
+& $python hosted-agent\run_local_recovery.py --python $python
+```
 
-| 位置 | 必须设置 | 作用 |
-|---|---|---|
-| 服务端 | `ResponsesServerOptions(resilient_background=True)` | 让已保存的后台响应可以恢复 |
-| 显式启用 | `set_resilient_tasks_enabled(True)` | 明确记录样例选择可恢复任务 |
-| 恢复入口 | `context.is_recovery` + `context.persisted_response` | 载入最近一次响应快照 |
-| 持久化边界 | 完整阶段后执行 `yield stream.checkpoint()` | 在下一阶段开始前提交已完成输出 |
-| 关闭时交接 | `await context.exit_for_recovery()` | 把未完成任务交给后续进程 |
+只有以下条件同时满足才算通过：进程 A 以退出码 `86` 结束；进程 B 报告 `recovered`；同一个响应中的阶段 `0-4` 各完成一次。[本地证据](evidence/owned-hosted-agent-local.json) 只保存响应 ID 和进程实例 ID 的哈希，不公开原值。
 
-本例中，一个完整输出项对应一个阶段。如果阶段会修改外部系统，还要使用应用存储和幂等机制。
+### 部署并运行线上故障测试
 
-### 运行和部署
+该测试会主动结束自己的进程，因此必须使用隔离的非生产项目：
 
-1. 运行 `git clone https://github.com/microsoft-foundry/foundry-samples.git`。
-2. 运行 `git -C foundry-samples checkout b9b2cdd67efee6287e4b263f83ed45f18fe892be` 固定版本。
-3. 进入 `foundry-samples/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming`。
-4. 运行 `azd ai agent run` 做本地测试；端点是 `http://localhost:8088`。
-5. 创建任务时同时设置 `store=true` 和 `background=true`，保存返回的响应 ID（`response.id`）。
-6. 先运行 `azd provision`，再运行 `azd deploy`。
-7. 运行 `azd ai agent invoke '{"input":"test recovery","store":true,"background":true}'`。
-8. 运行 `azd ai agent monitor --follow` 查看日志。
+```powershell
+Set-Location .\hosted-agent
+azd env new <environment-name> `
+  --subscription <subscription-id> `
+  --location <supported-region> `
+  --no-prompt
+azd env set LRA_ENABLE_FAULT_INJECTION true
+azd env set LRA_STAGE_DELAY_MS 500
+azd provision
+azd deploy
 
-样例默认模拟三个阶段，本地运行不需要模型凭据。调用真实模型时，替换 `_stage_tokens` 或 `run_stage()`，读取 Hosted Agent 自动注入的 `FOUNDRY_PROJECT_ENDPOINT`；不要把凭据提交到仓库。
+$agent = azd ai agent show lra-evidence-agent --output json |
+  ConvertFrom-Json
+python .\client.py `
+  --endpoint $agent.agent_endpoints.responses `
+  --auth azure-cli `
+  --agent-version $agent.version `
+  --deployed-content-sha256 $agent.definition.code_configuration.content_hash `
+  --work-id owned-agent-live-001 `
+  --payload "public-safe live recovery workload" `
+  --crash-after-stage 1 `
+  --deadline-seconds 360
+```
+
+本仓库的实测使用版本 `1`：首次状态为 `in_progress`；进程退出后出现一次读取超时；替代计算资源启动后，同一个响应由两个进程实例接力完成全部五个阶段，总耗时 **57.884 秒**。[线上证据](evidence/owned-hosted-agent-live.json) 只保存哈希，不保存端点、响应、进程、租户或订阅原始标识。
+
+不做故障测试时，运行 `azd env set LRA_ENABLE_FAULT_INJECTION false` 和 `azd deploy`。该设置为 false 时，普通请求不能触发硬退出。
 
 ### 仅在需要时配置外部状态
 

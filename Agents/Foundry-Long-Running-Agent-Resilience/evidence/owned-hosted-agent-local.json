@@ -1,0 +1,53 @@
+{
+  "acceptance": {
+    "entry_modes": [
+      "fresh",
+      "recovered"
+    ],
+    "payload_sha256": "7c058be633b02e5f5b269d5e6125488190ce92feb534e074cb0a4f7a1aa10d76",
+    "process_instance_count": 2,
+    "process_instance_sha256": [
+      "8f8b2f2c30e3a4f956aa9a782ce5b4c257b983165dc064a08c96b5e10322ca69",
+      "5794687fc1f9addaf554c485e155ca16099c076e383fc990203d0867ec6513c5"
+    ],
+    "recovery_proven": true,
+    "stage_indexes": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "stage_names": [
+      "accept",
+      "analyze",
+      "plan",
+      "execute",
+      "verify"
+    ],
+    "status": "completed",
+    "work_id": "owned-agent-local-public-001"
+  },
+  "evidence_type": "owned-hosted-agent-local-recovery",
+  "first_process_exit_code": 86,
+  "generated_at_utc": "2026-08-26T02:11:51.624+00:00",
+  "injected_after_stage": 1,
+  "passed": true,
+  "poll_events": [
+    {
+      "at": "2026-08-26T02:11:50.977+00:00",
+      "kind": "poll",
+      "output_count": 2,
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T02:11:51.624+00:00",
+      "kind": "poll",
+      "output_count": 5,
+      "status": "completed"
+    }
+  ],
+  "response_id_sha256": "6625d25bc941c42c464bd921593152681cc41d2a05d4c0c68cc1321cfa938f81",
+  "schema_version": 1,
+  "work_id": "owned-agent-local-public-001"
+}

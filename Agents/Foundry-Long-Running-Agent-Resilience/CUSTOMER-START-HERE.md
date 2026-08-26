@@ -6,9 +6,20 @@ This is the shortest complete path for adding process-loss recovery to a Microso
 
 ## Supported path
 
-`stored background response -> resilient Hosted Agent -> stage checkpoint -> same response ID after process loss`
+`this repository's Hosted Agent -> stored background response -> stage checkpoint -> injected process loss -> same response ID completes`
 
-Use Microsoft's deployable [`resilient-streaming`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming) sample at commit `b9b2cdd`. Do not begin with an invented partial `azure.yaml`.
+The runnable path is now owned by this repository:
+
+| File | What it does |
+|---|---|
+| [`hosted-agent/azure.yaml`](hosted-agent/azure.yaml) | Deploys `lra-evidence-agent` as a Python 3.13 Hosted Agent over Responses `2.0.0` |
+| [`hosted-agent/src/lra-evidence-agent/main.py`](hosted-agent/src/lra-evidence-agent/main.py) | Complete executable handler: five deterministic stages, one checkpoint per stage, and one guarded hard process exit |
+| [`hosted-agent/client.py`](hosted-agent/client.py) | Creates stored background work, saves the response ID, polls that same ID, and rejects gaps, duplicates, one-process "recovery," or an incomplete terminal state |
+| [`hosted-agent/run_local_recovery.py`](hosted-agent/run_local_recovery.py) | Starts process A, verifies exit code 86, starts process B against the same state root, and validates completion |
+
+The agent explicitly uses `ResponsesServerOptions(resilient_background=True)`, `set_resilient_tasks_enabled(True)`, `context.persisted_response`, `stream.checkpoint()`, and `context.exit_for_recovery()`.
+
+The Microsoft [`resilient-streaming`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming) sample at `b9b2cdd` remains the pinned public API reference, not the executable product path. Its `2.1.0b2` package pins must not be replaced with this repository's historical `2.0.0` offline-probe pins.
 
 ### Choose the progress strategy
 
@@ -24,40 +35,56 @@ Foundry persists the work identity, input, lease, and stored response events. It
 
 | Requirement | Configuration |
 |---|---|
-| Azure | Non-production subscription, Foundry project, and model deployment |
+| Azure | Non-production subscription; this deterministic agent needs a Foundry project but no model deployment |
 | Permissions | `Foundry Project Manager` at project scope; creating a project also requires `Owner` at resource-group scope |
 | Tools | Python 3.13, Azure CLI 2.80+, Azure Developer CLI (`azd`) 1.27.1+, Git |
 | Sign-in | `az login`, `azd ext install microsoft.foundry`, `azd auth login` |
-| Packages | `pip install azure-ai-agentserver-core==2.1.0b2 azure-ai-agentserver-responses==2.1.0b2` |
+| Packages | [`hosted-agent/src/lra-evidence-agent/requirements.txt`](hosted-agent/src/lra-evidence-agent/requirements.txt) pins core and Responses to `2.1.0b2` |
 
-The pinned sample's [`azure.yaml`](https://github.com/microsoft-foundry/foundry-samples/blob/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming/azure.yaml) already defines `host: azure.ai.agent`, Responses protocol `2.0.0`, Python `3.13`, and the project/model dependency.
+### Prove recovery locally first
 
-### Configure the agent
+From the repository root:
 
-Use the complete executable handler in [`examples/resilient_responses_agent.py`](examples/resilient_responses_agent.py). Replace only `run_stage()` with one completed unit of your work.
+```powershell
+python -m venv .venv-owned-agent
+$python = (Resolve-Path .\.venv-owned-agent\Scripts\python.exe).Path
+& $python -m pip install -r hosted-agent\src\lra-evidence-agent\requirements.txt
+& $python hosted-agent\run_local_recovery.py --python $python
+```
 
-| Location | Required setting | Purpose |
-|---|---|---|
-| Server | `ResponsesServerOptions(resilient_background=True)` | Makes stored background responses eligible for recovery |
-| Explicit opt-in | `set_resilient_tasks_enabled(True)` | Records the sample's resilient-task intent |
-| Recovery entry | `context.is_recovery` + `context.persisted_response` | Restores the last response snapshot |
-| Durable boundary | `yield stream.checkpoint()` after a complete stage | Commits completed output before the next stage |
-| Shutdown | `await context.exit_for_recovery()` | Leaves unfinished work for a later process |
+Pass only when process A exits with code `86`, process B reports `recovered`, and stages `0-4` complete once on the same response. The committed [local evidence](evidence/owned-hosted-agent-local.json) records that result without publishing the raw response or process IDs.
 
-One completed output item maps to one stage in this example. If the stage changes an external system, also use application storage and idempotency.
+### Deploy and run the live fault test
 
-### Run and deploy
+Use an isolated non-production project because the test intentionally terminates its own process:
 
-1. Run `git clone https://github.com/microsoft-foundry/foundry-samples.git`.
-2. Pin it with `git -C foundry-samples checkout b9b2cdd67efee6287e4b263f83ed45f18fe892be`.
-3. Enter `foundry-samples/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming`.
-4. Start locally with `azd ai agent run`; the endpoint is `http://localhost:8088`.
-5. Create work with `store=true` and `background=true`; save the returned `response.id`.
-6. Run `azd provision`, then `azd deploy`.
-7. Invoke with `azd ai agent invoke '{"input":"test recovery","store":true,"background":true}'`.
-8. Inspect logs with `azd ai agent monitor --follow`.
+```powershell
+Set-Location .\hosted-agent
+azd env new <environment-name> `
+  --subscription <subscription-id> `
+  --location <supported-region> `
+  --no-prompt
+azd env set LRA_ENABLE_FAULT_INJECTION true
+azd env set LRA_STAGE_DELAY_MS 500
+azd provision
+azd deploy
 
-The sample simulates three stages and needs no model credential locally. For a real model call, replace `_stage_tokens` or `run_stage()` and use the hosted container's injected `FOUNDRY_PROJECT_ENDPOINT`; do not commit credentials.
+$agent = azd ai agent show lra-evidence-agent --output json |
+  ConvertFrom-Json
+python .\client.py `
+  --endpoint $agent.agent_endpoints.responses `
+  --auth azure-cli `
+  --agent-version $agent.version `
+  --deployed-content-sha256 $agent.definition.code_configuration.content_hash `
+  --work-id owned-agent-live-001 `
+  --payload "public-safe live recovery workload" `
+  --crash-after-stage 1 `
+  --deadline-seconds 360
+```
+
+The measured repository run used version `1`: after an initial `in_progress`, one read timeout, and replacement compute, the same response completed all five stages across two process instances in **57.884 seconds**. The public-safe [live evidence](evidence/owned-hosted-agent-live.json) stores hashes instead of endpoint, response, process, tenant, or subscription identifiers.
+
+When the fault test is not in use, run `azd env set LRA_ENABLE_FAULT_INJECTION false` and `azd deploy`. Normal requests cannot trigger a hard exit when that setting is false.
 
 ### Configure external state only when needed
 

@@ -1,12 +1,12 @@
 # Resilience for Long-Running Agents on Microsoft Foundry: Evidence from Injected Process Loss
 
 [![Status](https://img.shields.io/badge/Foundry_capability-public_preview-B3541E)](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
-[![Scope](https://img.shields.io/badge/scope-8_measured_scenarios-1363DF)](#evaluation-what-was-actually-run)
+[![Scope](https://img.shields.io/badge/scope-owned_agent_%2B_8_historical-1363DF)](#repository-owned-hosted-agent-result)
 [![Runtimes](https://img.shields.io/badge/runtimes-Python_%2B_.NET-0F8B6D)](#measured-results)
 [![Protocols](https://img.shields.io/badge/protocols-Responses_%2B_Invocations-5F4BB6)](#three-integration-options)
 [![License](https://img.shields.io/badge/license-MIT-D98E04)](LICENSE)
 
-This repository asks one question: **if the process running a long task disappears, can the same task continue from saved progress instead of starting over?** It includes eight fault-injection results, a public-SDK check, a local two-process demo, tests, and reviewable evidence.
+This repository asks one question: **if the process running a long task disappears, can the same task continue from saved progress instead of starting over?** It now includes its own deployable Hosted Agent and client, one live recovery run, eight earlier fault-injection scenarios, a public-SDK check, tests, and reviewable evidence.
 
 The capability is in **public preview**. Every interruption was deliberate, not an outage. Results apply only to the stated July and August 2026 conditions; they are not an SLA or production-readiness claim.
 
@@ -59,6 +59,23 @@ The evidence below shows that this capability worked in the tested scenarios. It
 
 ## What this repo validates
 
+### Repository-owned Hosted Agent result
+
+This repository now owns the complete test path rather than asking the reader to trust an external sample:
+
+| Surface | Repository implementation | What the run proved |
+|---|---|---|
+| Deployment | [`hosted-agent/azure.yaml`](hosted-agent/azure.yaml) and pinned [`requirements.txt`](hosted-agent/src/lra-evidence-agent/requirements.txt) | `lra-evidence-agent` version `1` reached `active` on Python 3.13 over Responses `2.0.0` |
+| Runtime | [`main.py`](hosted-agent/src/lra-evidence-agent/main.py) | Five deterministic stages; checkpoint after each; guarded hard exit after stage `1`; recovery seeds from `context.persisted_response` |
+| Caller | [`client.py`](hosted-agent/client.py) | Saves the original response ID, tolerates the bounded replacement window, polls only that ID, and rejects missing/duplicate stages or one-process "recovery" |
+| Live acceptance | [`owned-hosted-agent-live.json`](evidence/owned-hosted-agent-live.json) | Same response completed stages `0-4` across two process instances with `fresh` and `recovered` entries in **57.884 seconds** |
+
+<div align="center"><img src="images/portal-owned-agent-active.png" width="820" alt="Sanitized Microsoft Foundry Portal showing the repository-owned lra-evidence-agent as a hosted Agent with active version 2"></div>
+
+*Real Microsoft Foundry Portal view of this repository's deployed Agent. The project name is replaced with `non-production project`; no tenant, subscription, endpoint, response, or identity value is shown. The screenshot shows safe version `2`, which is `active` with fault injection disabled. The measured recovery evidence was produced by version `1` with fault injection enabled.*
+
+The live poll sequence was `in_progress (0 items)` -> one read timeout during replacement -> `in_progress (2 items)` -> `completed (5 items)`. Raw endpoint, response, process, tenant, and subscription identifiers are not published; the evidence contains hashes. This is the primary reproduction path. The historical Microsoft-sample runs below remain useful cross-runtime evidence and provenance.
+
 The measured 18-phase workload came from a **Microsoft private-preview `resilient-research` sample used in July 2026**; it was not invented by this repository. It was a generic deep-research briefing task: the caller supplied a topic, while the measured topic and generated text remain private. The sample processed that topic through 18 fixed phases:
 
 - phases 1-4 framed the research questions, background literature, key researchers, and history;
@@ -97,6 +114,7 @@ The figure below is the **official Microsoft diagram**, reproduced unmodified. I
 | Path | Contract |
 |---|---|
 | [`CUSTOMER-START-HERE.md`](CUSTOMER-START-HERE.md) | Single customer runbook for packages, deployment, state strategy, identity, caller behavior and fault acceptance |
+| [`hosted-agent/`](hosted-agent/) | Repository-owned deployable Hosted Agent, recovery client, local two-process runner and exact package pins |
 | [`examples/resilient_responses_agent.py`](examples/resilient_responses_agent.py) | Complete Responses recovery wiring: server opt-in, persisted-response restore, per-stage checkpoint and shutdown handoff |
 | [`examples/resilience_handler.py`](examples/resilience_handler.py) | The actual typed `@task` handler that imports and reads the public recovery context |
 | [`examples/resilience_sdk_usage.py`](examples/resilience_sdk_usage.py) | Loads that handler through the real decorator and emits dynamic JSON evidence; `--check` runs without an Azure endpoint |
@@ -104,7 +122,7 @@ The figure below is the **official Microsoft diagram**, reproduced unmodified. I
 | [`scripts/verify_public_resilience_api.py`](scripts/verify_public_resilience_api.py) | Checks 18 public symbols and handler rules against the pinned installed SDK packages |
 | [`scripts/validate_observations.py`](scripts/validate_observations.py) | Rejects sequence gaps, duplicate/missing output, insufficient terminal proof, and unclassified `424` / `403` conditions |
 | [`scripts/validate_repo.py`](scripts/validate_repo.py) | Fail-closed bilingual, evidence-integrity, Data/Log Rich and Code/Test Rich repository gate |
-| [`tests/`](tests/) | Twelve tests covering positive, negative, timing, replay, input-integrity and validator refusal paths |
+| [`tests/`](tests/) | Nineteen tests covering recovery contracts, positive/negative paths, timing, replay, input integrity and validator refusal |
 | [`evidence/`](evidence/) | Structured summaries, JSONL events, truth labels, normalized SHA-256 hashes and reproduction index |
 
 Each file below uses the public SDK, or deliberately does not:
@@ -387,13 +405,13 @@ PYTHON=.venv/bin/python
 "$PYTHON" scripts/validate_repo.py
 ```
 
-Done-when is `PASS: imported azure.ai.agentserver.core.tasks`, `18/18 checks passed`, `Ran 12 tests ... OK`, and `PASS: bilingual parity ... Data/Log Rich ... Code/Test Rich`. These checks validate the pinned public SDK surface and this repository; they do not call a live Hosted Agent.
+Done-when is `PASS: imported azure.ai.agentserver.core.tasks`, `18/18 checks passed`, `Ran 19 tests ... OK`, and `PASS: bilingual parity ... Data/Log Rich ... Code/Test Rich`. These checks validate the pinned public SDK surface and this repository; they do not call a live Hosted Agent.
 
 ### Reproduce on a live Hosted Agent
 
-The local commands prove this repository's executable recovery algorithm, **not** the Foundry service. Follow [Customer Start Here](CUSTOMER-START-HERE.md), which pins Microsoft's deployable sample at [`b9b2cdd`](https://github.com/microsoft-foundry/foundry-samples/blob/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming/src/resilient-streaming/requirements.txt), where `core` and `responses` are both `2.1.0b2`; do **not** replace them with this repository's historical 2.0.0 offline-probe pins. While the stored background response is `in_progress`, replace the runtime instance, then poll the same response ID and validate every expected output item.
+Follow [Customer Start Here](CUSTOMER-START-HERE.md) to deploy this repository's `lra-evidence-agent`, not a copied external sample. The deterministic agent needs no model deployment. It checkpoints stages `0-4`, exits after stage `1` when the isolated fault switch is enabled, and the repository client validates the same response across two process instances.
 
-This repository intentionally does not invent your Foundry project, model deployment, identity, or endpoint. Live done-when is recovery of the same work identity plus complete workload output and explicit terminal state—not a portal chart or a bare `completed` string.
+Live done-when is `fresh + recovered`, two process-instance hashes, stage indexes `0-4` exactly once, status `completed`, and the same response-ID hash—not a portal chart or a bare `completed` string.
 
 
 ## Failure and recovery playbook

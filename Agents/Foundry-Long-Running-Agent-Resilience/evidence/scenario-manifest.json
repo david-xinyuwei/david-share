@@ -66,6 +66,42 @@
       "evidence": "evidence/observation-validation.json"
     },
     {
+      "id": "owned-hosted-agent-local",
+      "type": "dynamic-runtime",
+      "entrypoint": "hosted-agent/run_local_recovery.py",
+      "real": [
+        "Runs the repository-owned ResponsesAgentServerHost with the pinned public SDK",
+        "Commits stages 0 and 1 before os._exit(86) terminates the first process",
+        "Restarts a second operating-system process against the same AgentServer state root",
+        "Reuses the same stored response and completes stages 2 through 4",
+        "Validates five unique ordered stages, fresh and recovered entry modes, and two process instances"
+      ],
+      "not_claimed": [
+        "A live Microsoft Foundry Hosted Agent deployment",
+        "A production reliability benchmark or SLA",
+        "Recovery of external side effects without application idempotency"
+      ],
+      "evidence": "evidence/owned-hosted-agent-local.json"
+    },
+    {
+      "id": "owned-hosted-agent-live",
+      "type": "dynamic-runtime",
+      "entrypoint": "hosted-agent/client.py against deployed lra-evidence-agent version 1",
+      "real": [
+        "Deploys the repository-owned Python 3.13 Hosted Agent over the Responses protocol",
+        "Creates one stored background response and injects a hard process loss after stage 1",
+        "Observes fresh and recovered entries from two process instances",
+        "Completes stages 0 through 4 exactly once on the same response",
+        "Records the bounded replacement window and explicit completed terminal state"
+      ],
+      "not_claimed": [
+        "Production reliability benchmark or SLA",
+        "Model quality because the workload is deliberately deterministic",
+        "Recovery of external side effects without application idempotency"
+      ],
+      "evidence": "evidence/owned-hosted-agent-live.json"
+    },
+    {
       "id": "historical-live-observations",
       "type": "architecture-explainer",
       "evidence_kind": "measured-aggregate",

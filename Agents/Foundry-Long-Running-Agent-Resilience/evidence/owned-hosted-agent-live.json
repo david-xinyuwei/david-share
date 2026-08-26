@@ -1,0 +1,74 @@
+{
+  "acceptance": {
+    "entry_modes": [
+      "fresh",
+      "recovered"
+    ],
+    "payload_sha256": "5d0bebfd2b0af3b881f1e6a7a1a2cb2c4af54d8b060bf87ae9b61b665123113c",
+    "process_instance_count": 2,
+    "process_instance_sha256": [
+      "efdd78b4d4911935795d6717b3577d1b747f988d866d5ba8b6abdea7db2e6819",
+      "82ef7d236ab484999e7c1aa4cc421a6edf712d657fbf11effa0bf17b71ecc5e5"
+    ],
+    "recovery_proven": true,
+    "stage_indexes": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "stage_names": [
+      "accept",
+      "analyze",
+      "plan",
+      "execute",
+      "verify"
+    ],
+    "status": "completed",
+    "work_id": "owned-agent-live-005"
+  },
+  "deployment": {
+    "agent_name": "lra-evidence-agent",
+    "content_sha256": "88685bcacb2ecf8c85700b12e0dd070f79c7d27c7f8c424b667b592062efa443",
+    "version": "1"
+  },
+  "elapsed_seconds": 57.884,
+  "endpoint_class": "foundry-hosted-agent",
+  "evidence_type": "owned-hosted-agent-recovery",
+  "generated_at_utc": "2026-08-26T02:36:15.608+00:00",
+  "passed": true,
+  "poll_events": [
+    {
+      "at": "2026-08-26T02:35:25.652+00:00",
+      "kind": "poll",
+      "output_count": 0,
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T02:35:58.211+00:00",
+      "detail": "TimeoutError",
+      "kind": "connection_error"
+    },
+    {
+      "at": "2026-08-26T02:36:12.666+00:00",
+      "kind": "poll",
+      "output_count": 2,
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T02:36:15.608+00:00",
+      "kind": "poll",
+      "output_count": 5,
+      "status": "completed"
+    }
+  ],
+  "request": {
+    "crash_after_stage": 1,
+    "stage_delay_ms": 500,
+    "work_id": "owned-agent-live-005"
+  },
+  "response_id_sha256": "620ed7856cd75cc33ebaf37f34aff8b5aa67504436ba8ccd403334ef8449f077",
+  "schema_version": 1,
+  "started_at_utc": "2026-08-26T02:35:17.725+00:00"
+}

@@ -3,3 +3,5 @@ __pycache__/
 *.py[cod]
 *.sqlite3
 .demo-state/
+.azure/
+.env

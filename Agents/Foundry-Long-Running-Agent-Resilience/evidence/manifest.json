@@ -2,10 +2,10 @@
   "algorithm": "sha256",
   "files": [
     {
-      "bytes": 3660,
+      "bytes": 4587,
       "path": "evidence/README.md",
       "provenance": "Maintained evidence index and reproduction boundary.",
-      "sha256": "9f11b005decce0a03b3c2be6756ebf4a585458c33a9fdfd5ada117d1b4d6789c"
+      "sha256": "aca82bcc5dc82ea2dd7ca57fff55897a2fdb4a0d8e177128d73f0de1312781a9"
     },
     {
       "bytes": 8319,
@@ -18,6 +18,18 @@
       "path": "evidence/observation-validation.json",
       "provenance": "python scripts/validate_observations.py self-test --output evidence/observation-validation.json",
       "sha256": "3240679a41dfa04a4285f9c340780b0fdbe59aeff8f26a781a976c13eec48b84"
+    },
+    {
+      "bytes": 1322,
+      "path": "evidence/owned-hosted-agent-local.json",
+      "provenance": "python hosted-agent/run_local_recovery.py --python <2.1.0b2-python> --report evidence/owned-hosted-agent-local.json",
+      "sha256": "9341d02a366c2b30e7a1eb5585d3f83ada5dec35ef0f9ec467a6944b75a568db"
+    },
+    {
+      "bytes": 1870,
+      "path": "evidence/owned-hosted-agent-live.json",
+      "provenance": "python hosted-agent/client.py against deployed lra-evidence-agent version 1; identifiers hashed before publication.",
+      "sha256": "e080a808147fbf370ef377b32f5aca5a8ea96f88de199c6d4dea699ed20a3b6a"
     },
     {
       "bytes": 3055,
@@ -34,7 +46,7 @@
     {
       "bytes": 1547,
       "path": "evidence/recovery-contract-demo.json",
-      "provenance": "python scripts/recovery_contract_demo.py demo --work-id public-reference-001 --payload \"public-safe resilience contract payload\" --phases 5 --crash-after 1 --lease-seconds 0.5 --summary-file evidence/recovery-contract-demo.json --events-file evidence/recovery-contract-events.jsonl",
+      "provenance": "python scripts/recovery_contract_demo.py demo --work-id public-reference-001 --payload public-safe-resilience-contract-payload --phases 5 --crash-after 1 --lease-seconds 0.5",
       "sha256": "e7353e0f6c414f63951f48bd7c469c22718473769a4e5a944ae1b712feb5cb29"
     },
     {
@@ -44,13 +56,13 @@
       "sha256": "b627bad435819899ecc982a01ac55157d10656d97ebc6e99f87af8251d7fa4a0"
     },
     {
-      "bytes": 3168,
+      "bytes": 4986,
       "path": "evidence/scenario-manifest.json",
       "provenance": "Maintained Scenario Manifest for user-visible repository surfaces.",
-      "sha256": "0b1193cc1cb16ca9eda3052d22f7a11095a5ee239d4c06a18058733410ded0b6"
+      "sha256": "a0c3ab913d6df3b2fc51cffcaec432fb6f43c5ec9737cf9219ea8510fa029c8d"
     }
   ],
-  "generated_at_utc": "2026-08-25T09:35:00+00:00",
+  "generated_at_utc": "2026-08-26T02:43:57+00:00",
   "normalization": "utf-8-lf",
   "schema_version": 1
 }
