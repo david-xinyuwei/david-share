@@ -8,6 +8,8 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
+from translation_workload import SECTION_IDS, SOURCE_SECTIONS
+
 SCHEMA_VERSION = 2
 STAGES = (
     "accept",
@@ -35,6 +37,7 @@ _ALLOWED_INPUT_FIELDS = {
     "payload",
     "crash_after_stage",
     "stage_delay_ms",
+    "workload",
 }
 
 
@@ -48,6 +51,15 @@ class WorkSpec:
     payload: str
     crash_after_stage: int | None
     stage_delay_ms: int
+    workload: str
+
+
+def stage_names_for(workload: str) -> tuple[str, ...]:
+    if workload == "checkpoint_contract":
+        return STAGES
+    if workload == "translator_batch":
+        return SECTION_IDS
+    raise ContractError(f"unsupported workload: {workload}")
 
 
 def parse_work_spec(raw_input: str, default_delay_ms: int = 500) -> WorkSpec:
@@ -65,6 +77,7 @@ def parse_work_spec(raw_input: str, default_delay_ms: int = 500) -> WorkSpec:
             payload=raw_input,
             crash_after_stage=None,
             stage_delay_ms=default_delay_ms,
+            workload="checkpoint_contract",
         )
 
     if not isinstance(candidate, dict):
@@ -77,6 +90,7 @@ def parse_work_spec(raw_input: str, default_delay_ms: int = 500) -> WorkSpec:
     payload = candidate.get("payload")
     crash_after_stage = candidate.get("crash_after_stage")
     stage_delay_ms = candidate.get("stage_delay_ms", default_delay_ms)
+    workload = candidate.get("workload", "checkpoint_contract")
 
     if not isinstance(work_id, str) or not _WORK_ID.fullmatch(work_id):
         raise ContractError(
@@ -86,12 +100,19 @@ def parse_work_spec(raw_input: str, default_delay_ms: int = 500) -> WorkSpec:
         raise ContractError("payload must be a non-empty string")
     if len(payload) > 16_384:
         raise ContractError("payload must be at most 16384 characters")
+    if workload not in {"checkpoint_contract", "translator_batch"}:
+        raise ContractError(
+            "workload must be checkpoint_contract or translator_batch"
+        )
+    stage_names = stage_names_for(workload)
     if crash_after_stage is not None and (
         isinstance(crash_after_stage, bool)
         or not isinstance(crash_after_stage, int)
-        or crash_after_stage not in range(len(STAGES))
+        or crash_after_stage not in range(len(stage_names))
     ):
-        raise ContractError(f"crash_after_stage must be null or 0-{len(STAGES) - 1}")
+        raise ContractError(
+            f"crash_after_stage must be null or 0-{len(stage_names) - 1}"
+        )
     if (
         isinstance(stage_delay_ms, bool)
         or not isinstance(stage_delay_ms, int)
@@ -104,6 +125,7 @@ def parse_work_spec(raw_input: str, default_delay_ms: int = 500) -> WorkSpec:
         payload=payload,
         crash_after_stage=crash_after_stage,
         stage_delay_ms=stage_delay_ms,
+        workload=workload,
     )
 
 
@@ -112,26 +134,38 @@ def build_stage_record(
     stage_index: int,
     process_instance_id: str,
     recovered_entry: bool,
+    result_text: str | None = None,
 ) -> dict[str, Any]:
     """Build one stable, machine-checkable stage result."""
-    if stage_index not in range(len(STAGES)):
+    stage_names = stage_names_for(spec.workload)
+    if stage_index not in range(len(stage_names)):
         raise ContractError(f"invalid stage index: {stage_index}")
-    stage_name = STAGES[stage_index]
+    stage_name = stage_names[stage_index]
     stage_result_sha256 = hashlib.sha256(
-        f"{spec.payload}\n{stage_index}\n{stage_name}".encode("utf-8")
+        (
+            result_text
+            if result_text is not None
+            else f"{spec.payload}\n{stage_index}\n{stage_name}"
+        ).encode("utf-8")
     ).hexdigest()
-    return {
+    record = {
         "schema_version": SCHEMA_VERSION,
         "kind": "lra_stage",
+        "workload": spec.workload,
         "work_id": spec.work_id,
         "payload_sha256": hashlib.sha256(spec.payload.encode("utf-8")).hexdigest(),
         "stage_index": stage_index,
         "stage_name": stage_name,
-        "stage_count": len(STAGES),
+        "stage_count": len(stage_names),
         "stage_result_sha256": stage_result_sha256,
         "entry_mode": "recovered" if recovered_entry else "fresh",
         "process_instance_id": process_instance_id,
     }
+    if spec.workload == "translator_batch":
+        source = SOURCE_SECTIONS[stage_index]
+        record["source_sha256"] = hashlib.sha256(source.encode("utf-8")).hexdigest()
+        record["translated_text"] = result_text
+    return record
 
 
 def extract_stage_records(response: dict[str, Any]) -> list[dict[str, Any]]:
@@ -159,6 +193,7 @@ def validate_terminal_response(
     response: dict[str, Any],
     expected_work_id: str,
     expect_recovery: bool,
+    expected_workload: str = "checkpoint_contract",
 ) -> dict[str, Any]:
     """Fail closed unless the same response completed every stage exactly once."""
     errors: list[str] = []
@@ -167,8 +202,9 @@ def validate_terminal_response(
         errors.append(f"terminal status is {status!r}, expected 'completed'")
 
     records = extract_stage_records(response)
+    expected_stage_names = stage_names_for(expected_workload)
     indexes = [record.get("stage_index") for record in records]
-    expected_indexes = list(range(len(STAGES)))
+    expected_indexes = list(range(len(expected_stage_names)))
     if indexes != expected_indexes:
         errors.append(f"stage indexes are {indexes!r}, expected {expected_indexes!r}")
 
@@ -181,11 +217,16 @@ def validate_terminal_response(
         errors.append("stage records do not share one payload hash")
 
     stage_names = [record.get("stage_name") for record in records]
-    if stage_names != list(STAGES):
+    if stage_names != list(expected_stage_names):
         errors.append("stage names do not match the owned checkpoint contract")
     stage_counts = {record.get("stage_count") for record in records}
-    if stage_counts != {len(STAGES)}:
+    if stage_counts != {len(expected_stage_names)}:
         errors.append(f"stage counts are {sorted(map(str, stage_counts))!r}")
+    workloads = {
+        record.get("workload", "checkpoint_contract") for record in records
+    }
+    if workloads != {expected_workload}:
+        errors.append(f"workloads are {sorted(map(str, workloads))!r}")
     schema_versions = {record.get("schema_version") for record in records}
     if schema_versions != {SCHEMA_VERSION}:
         errors.append(f"schema versions are {sorted(map(str, schema_versions))!r}")
@@ -193,13 +234,34 @@ def validate_terminal_response(
         record.get("stage_result_sha256") for record in records
     }
     if (
-        len(stage_result_hashes) != len(STAGES)
+        len(stage_result_hashes) != len(expected_stage_names)
         or not all(
             isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value)
             for value in stage_result_hashes
         )
     ):
         errors.append("stage result hashes are missing or duplicated")
+    result_texts = [record.get("translated_text") for record in records]
+    if expected_workload == "translator_batch":
+        if not all(isinstance(value, str) and value.strip() for value in result_texts):
+            errors.append("translation output is missing")
+        else:
+            expected_result_hashes = [
+                hashlib.sha256(value.encode("utf-8")).hexdigest()
+                for value in result_texts
+            ]
+            actual_result_hashes = [
+                record.get("stage_result_sha256") for record in records
+            ]
+            if actual_result_hashes != expected_result_hashes:
+                errors.append("translation result hashes do not match the output")
+        source_hashes = [record.get("source_sha256") for record in records]
+        expected_source_hashes = [
+            hashlib.sha256(source.encode("utf-8")).hexdigest()
+            for source in SOURCE_SECTIONS
+        ]
+        if source_hashes != expected_source_hashes:
+            errors.append("translation source hashes do not match the workload")
 
     process_instances = {
         record.get("process_instance_id")
@@ -215,9 +277,10 @@ def validate_terminal_response(
 
     if errors:
         raise ContractError("; ".join(errors))
-    return {
+    result = {
         "status": status,
         "work_id": expected_work_id,
+        "workload": expected_workload,
         "stage_indexes": indexes,
         "stage_names": stage_names,
         "stage_result_sha256": sorted(stage_result_hashes),
@@ -226,3 +289,6 @@ def validate_terminal_response(
         "entry_modes": sorted(entry_modes),
         "recovery_proven": expect_recovery,
     }
+    if expected_workload == "translator_batch":
+        result["translated_texts"] = result_texts
+    return result

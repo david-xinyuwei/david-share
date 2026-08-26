@@ -66,6 +66,25 @@
       "evidence": "evidence/observation-validation.json"
     },
     {
+      "id": "owned-hosted-agent-translation-local",
+      "type": "dynamic-runtime",
+      "entrypoint": "hosted-agent/run_local_recovery.py --workload translator_batch",
+      "real": [
+        "Calls Azure Translator S1 once for each of 12 source sections",
+        "Checkpoints every completed translation before a guarded os._exit(86)",
+        "Starts a second operating-system process against the same AgentServer state",
+        "Resumes at translation section 5 and completes the original stored response",
+        "Validates 12 ordered source hashes, 12 non-empty translations, two process identities, and completed"
+      ],
+      "not_claimed": [
+        "A live Microsoft Foundry Hosted Agent deployment",
+        "Translation quality or human post-editing",
+        "A production reliability benchmark or SLA",
+        "Exactly-once external writes"
+      ],
+      "evidence": "evidence/owned-hosted-agent-translation-local.json"
+    },
+    {
       "id": "owned-hosted-agent-local",
       "type": "dynamic-runtime",
       "entrypoint": "hosted-agent/run_local_recovery.py",
@@ -86,20 +105,38 @@
     {
       "id": "owned-hosted-agent-live",
       "type": "dynamic-runtime",
-      "entrypoint": "hosted-agent/client.py against deployed lra-evidence-agent version 6",
+      "entrypoint": "hosted-agent/client.py --workload translator_batch against deployed lra-evidence-agent version 9",
       "real": [
         "Deploys the repository-owned Python 3.13 Hosted Agent over the Responses protocol",
         "Creates one stored background response with fault injection disabled",
-        "Completes the owned checkpoint contract on the current safe deployment",
+        "Calls Azure Translator S1 and completes all 12 sections on the current safe deployment",
         "Records the deployment version, source content hash, and explicit completed terminal state"
       ],
       "not_claimed": [
         "Live process-loss recovery because fault injection is disabled",
         "Production reliability benchmark or SLA",
-        "Model quality because the workload is deliberately deterministic",
+        "Translation quality or human post-editing",
         "Recovery of external side effects without application idempotency"
       ],
       "evidence": "evidence/owned-hosted-agent-live.json"
+    },
+    {
+      "id": "owned-hosted-agent-live-translation-recovery",
+      "type": "dynamic-runtime",
+      "entrypoint": "hosted-agent/client.py --workload translator_batch against temporary fault-enabled lra-evidence-agent version 7",
+      "real": [
+        "Creates one stored background response against the repository-owned Hosted Agent",
+        "Calls Azure Translator S1 and injects a guarded hard process exit after section 4",
+        "Observes replacement-compute timeout, recovered entry at section 5, two process hashes, all 12 translations, and completed",
+        "Collects client JSON, the complete translated document, and sanitized recovery-container events"
+      ],
+      "not_claimed": [
+        "An exact process-down timestamp because the prior container log was not retained",
+        "Translation quality or human post-editing",
+        "A production reliability benchmark or SLA",
+        "Exactly-once external writes"
+      ],
+      "evidence": "evidence/owned-hosted-agent-live-translation.json"
     },
     {
       "id": "owned-hosted-agent-live-recovery",

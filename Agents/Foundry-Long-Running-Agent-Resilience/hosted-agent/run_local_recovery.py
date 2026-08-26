@@ -33,6 +33,7 @@ SOURCE = Path(__file__).resolve().parent / "src" / "lra-evidence-agent"
 sys.path.insert(0, str(SOURCE))
 from contract import (  # noqa: E402
     STAGES,
+    stage_names_for,
     validate_terminal_response,
 )
 
@@ -64,14 +65,25 @@ def lifecycle_event(
     )
 
 
-def checkpoint_name(value: str | None) -> str | None:
+def checkpoint_name(
+    value: str | None,
+    checkpoint_names: Sequence[str] = STAGES,
+) -> str | None:
     if value is None:
         return None
     index = int(value)
-    return STAGES[index] if index in range(len(STAGES)) else None
+    return (
+        checkpoint_names[index]
+        if index in range(len(checkpoint_names))
+        else None
+    )
 
 
-def sanitize_agent_log(log_path: Path) -> list[dict[str, Any]]:
+def sanitize_agent_log(
+    log_path: Path,
+    workload: str = "checkpoint_contract",
+) -> list[dict[str, Any]]:
+    checkpoint_names = stage_names_for(workload)
     events: list[dict[str, Any]] = []
     for line in log_path.read_text(encoding="utf-8", errors="replace").splitlines():
         candidate_line = line
@@ -108,12 +120,20 @@ def sanitize_agent_log(log_path: Path) -> list[dict[str, Any]]:
         if "start" in fields:
             start = int(fields["start"])
             event["resume_from_checkpoint"] = (
-                STAGES[start] if start in range(len(STAGES)) else "terminal"
+                checkpoint_names[start]
+                if start in range(len(checkpoint_names))
+                else "terminal"
             )
-        checkpoint = checkpoint_name(fields.get("stage"))
+        checkpoint = fields.get("checkpoint") or checkpoint_name(
+            fields.get("stage"),
+            checkpoint_names,
+        )
         if checkpoint is not None:
             event["checkpoint"] = checkpoint
-        after_checkpoint = checkpoint_name(fields.get("after_stage"))
+        after_checkpoint = fields.get("after_checkpoint") or checkpoint_name(
+            fields.get("after_stage"),
+            checkpoint_names,
+        )
         if after_checkpoint is not None:
             event["after_checkpoint"] = after_checkpoint
         if "exit_code" in fields:
@@ -209,7 +229,9 @@ def run(args: argparse.Namespace) -> dict:
     started_at_utc = utc_now()
     started_monotonic = time.monotonic()
     lifecycle: list[dict[str, Any]] = []
-    interruption_checkpoint = STAGES[args.crash_after_stage]
+    interruption_checkpoint = stage_names_for(args.workload)[
+        args.crash_after_stage
+    ]
     server_command = args.server_command or [str(args.python), "main.py"]
     server_cwd = args.server_cwd or SOURCE
     with tempfile.TemporaryDirectory(prefix="lra-owned-agent-") as temporary:
@@ -244,6 +266,7 @@ def run(args: argparse.Namespace) -> dict:
                 crash_after_stage=args.crash_after_stage,
                 stage_delay_ms=args.stage_delay_ms,
                 token=None,
+                workload=args.workload,
             )
             response_id = created["id"]
             response_id_sha256 = sha256_text(response_id)
@@ -304,6 +327,7 @@ def run(args: argparse.Namespace) -> dict:
                 response=terminal,
                 expected_work_id=args.work_id,
                 expect_recovery=True,
+                expected_workload=args.workload,
             )
             lifecycle_event(
                 lifecycle,
@@ -322,7 +346,7 @@ def run(args: argparse.Namespace) -> dict:
                 process_role="B",
             )
 
-            agent_events = sanitize_agent_log(log_path)
+            agent_events = sanitize_agent_log(log_path, args.workload)
             for event in agent_events:
                 at_utc = event.get("at_utc")
                 if isinstance(at_utc, str):
@@ -403,6 +427,7 @@ def run(args: argparse.Namespace) -> dict:
                 "schema_version": 1,
                 "evidence_type": "owned-hosted-agent-local-recovery",
                 "runtime": args.runtime_label,
+                "workload": args.workload,
                 "run_started_at_utc": started_at_utc,
                 "generated_at_utc": utc_now(),
                 "work_id": args.work_id,
@@ -453,7 +478,10 @@ def run(args: argparse.Namespace) -> dict:
                 if args.debug_log is not None:
                     args.debug_log.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(log_path, args.debug_log)
-                write_jsonl(args.log_report, sanitize_agent_log(log_path))
+                write_jsonl(
+                    args.log_report,
+                    sanitize_agent_log(log_path, args.workload),
+                )
             cleanup_deadline = time.monotonic() + 5
             while log_path.exists():
                 try:
@@ -471,6 +499,11 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--python", type=Path, default=Path(sys.executable))
     parser.add_argument("--runtime-label", default="Python 3.13")
+    parser.add_argument(
+        "--workload",
+        choices=("checkpoint_contract", "translator_batch"),
+        default="checkpoint_contract",
+    )
     parser.add_argument("--server-command", nargs="+")
     parser.add_argument("--server-cwd", type=Path)
     parser.add_argument("--work-id", default="owned-agent-local-001")

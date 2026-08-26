@@ -8,18 +8,18 @@
         "production reliability or SLA"
       ],
       "published_path": "images/product-ui/portal-owned-agent-list.png",
-      "published_sha256": "7dab57ab59027aae68128b2c536c8c65a5817d3235dab5f89231f9b1da69c8bd",
+      "published_sha256": "cbbf1fde1ce56c06380dbc9513872ffe590497765156514c0888f6bb8635afdf",
       "proves": [
         "lra-evidence-agent exists in Microsoft Foundry",
-        "version 6 is selected",
+        "version 9 is selected",
         "status is Running",
         "type is Hosted"
       ],
       "redactions": [
         "project name replaced with non-production project"
       ],
-      "source_basename": "portal-version6-list-raw.png",
-      "source_sha256": "8046744011f3c7dd2fe2579cc1c4b198dfcae2bc070ff7e9af86696f3a0499e2"
+      "source_basename": "portal-version9-list-raw.png",
+      "source_sha256": "de8e72810e22f806ff92290dcaafdc7a45244202637645e956bdd33c22794582"
     },
     {
       "behavior_evidence": "evidence/owned-hosted-agent-live.json",
@@ -29,22 +29,22 @@
         "production reliability or SLA"
       ],
       "published_path": "images/product-ui/portal-owned-agent-details.png",
-      "published_sha256": "57a90c0c51f5d220bb79b5fc12712c4238d98196c2d5c45ab055408df5bb31a7",
+      "published_sha256": "b0d56e94062b88dfbf0588df5b3ea430c160e1d4b9acef9b713107065b181354",
       "proves": [
         "the detail page is for lra-evidence-agent",
-        "version 6 is selected",
+        "version 9 is selected",
         "kind is hosted",
         "the Agent Playground is available"
       ],
       "redactions": [
         "project name replaced with non-production project"
       ],
-      "source_basename": "portal-version6-details-raw.png",
-      "source_sha256": "2f2cb12cf49a3fbc6f9bb46992ab4a3cf1cdc1dbef829cbff4632c53c339bc73"
+      "source_basename": "portal-version9-details-raw.png",
+      "source_sha256": "7b313f4fd41aa55455412233b60f625fc364f02b97f7d889d709982c55982f7b"
     }
   ],
   "capture_method": "agent-visible-window-capture",
-  "captured_at_local": "2026-08-26T17:23:21+08:00",
+  "captured_at_local": "2026-08-26T20:22:21+08:00",
   "published_directory": "images/product-ui/",
   "raw_intake_directory": ".repo-evidence/inbox/ui/",
   "raw_sources_committed": false,

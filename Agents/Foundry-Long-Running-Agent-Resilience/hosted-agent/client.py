@@ -79,6 +79,7 @@ def public_acceptance(acceptance: dict[str, Any]) -> dict[str, Any]:
     return {
         "status": acceptance["status"],
         "work_id": acceptance["work_id"],
+        "workload": acceptance["workload"],
         "payload_sha256": acceptance["payload_sha256"],
         "entry_modes": acceptance["entry_modes"],
         "recovery_proven": acceptance["recovery_proven"],
@@ -93,7 +94,11 @@ def public_acceptance(acceptance: dict[str, Any]) -> dict[str, Any]:
         ),
         "process_instance_count": len(process_ids),
         "process_instance_sha256": [sha256_text(value) for value in process_ids],
-    }
+    } | (
+        {"translated_texts": acceptance["translated_texts"]}
+        if "translated_texts" in acceptance
+        else {}
+    )
 
 
 def public_poll_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -196,12 +201,14 @@ def create_work(
     crash_after_stage: int | None,
     stage_delay_ms: int,
     token: str | None,
+    workload: str = "checkpoint_contract",
 ) -> dict[str, Any]:
     work_input = {
         "work_id": work_id,
         "payload": payload,
         "crash_after_stage": crash_after_stage,
         "stage_delay_ms": stage_delay_ms,
+        "workload": workload,
     }
     response = request_json(
         "POST",
@@ -304,6 +311,7 @@ def run_test(args: argparse.Namespace) -> dict[str, Any]:
         work_id = state["work_id"]
         crash_after_stage = state["crash_after_stage"]
         stage_delay_ms = state["stage_delay_ms"]
+        workload = state.get("workload", "checkpoint_contract")
         persisted_deadline = state.get("deadline_at_utc")
         if not isinstance(persisted_deadline, str):
             created_at = datetime.fromisoformat(state["created_at"])
@@ -319,11 +327,13 @@ def run_test(args: argparse.Namespace) -> dict[str, Any]:
             crash_after_stage=args.crash_after_stage,
             stage_delay_ms=args.stage_delay_ms,
             token=token,
+            workload=args.workload,
         )
         response_id = created["id"]
         work_id = args.work_id
         crash_after_stage = args.crash_after_stage
         stage_delay_ms = args.stage_delay_ms
+        workload = args.workload
         persisted_deadline = deadline_at_utc(args.deadline_seconds)
         poll_deadline_seconds = args.deadline_seconds
         state = {
@@ -333,6 +343,7 @@ def run_test(args: argparse.Namespace) -> dict[str, Any]:
             "response_id": response_id,
             "crash_after_stage": crash_after_stage,
             "stage_delay_ms": stage_delay_ms,
+            "workload": workload,
             "deadline_seconds": args.deadline_seconds,
             "deadline_at_utc": persisted_deadline,
         }
@@ -348,6 +359,7 @@ def run_test(args: argparse.Namespace) -> dict[str, Any]:
                     "work_id": work_id,
                     "fault_injection_requested": crash_after_stage is not None,
                     "checkpoint_delay_ms": stage_delay_ms,
+                    "workload": workload,
                 },
                 "state_persisted": True,
                 "passed": True,
@@ -371,6 +383,7 @@ def run_test(args: argparse.Namespace) -> dict[str, Any]:
         response=terminal,
         expected_work_id=work_id,
         expect_recovery=crash_after_stage is not None,
+        expected_workload=workload,
     )
     report = {
         "schema_version": 1,
@@ -393,6 +406,7 @@ def run_test(args: argparse.Namespace) -> dict[str, Any]:
             "work_id": work_id,
             "fault_injection_requested": crash_after_stage is not None,
             "checkpoint_delay_ms": stage_delay_ms,
+            "workload": workload,
         },
         "poll_events": public_poll_events(events),
         "acceptance": public_acceptance(acceptance),
@@ -416,6 +430,11 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--payload",
         default="public-safe deterministic LRA evidence workload",
+    )
+    parser.add_argument(
+        "--workload",
+        choices=("checkpoint_contract", "translator_batch"),
+        default="checkpoint_contract",
     )
     parser.add_argument(
         "--crash-after-stage",

@@ -1,0 +1,17 @@
+RUN owned-agent-real-translation-primary
+2026-08-26T10:25:29.748+00:00  PROCESS_A_START
+2026-08-26T10:25:31.601+00:00  RESPONSE_CREATED       response_sha256=9acba83102c7a3b4da7da422d5083831235a3a6102a9d65c44679e24ff0b393d
+2026-08-26T10:25:44.638+00:00  CHECKPOINT_COMMITTED   checkpoint=translation_section_04
+2026-08-26T10:25:44.638+00:00  FAULT_INJECTED         mode=hard_process_exit exit_code=86
+2026-08-26T10:25:45.176+00:00  PROCESS_A_DOWN         exit_code=86
+2026-08-26T10:25:45.190+00:00  PROCESS_B_START
+2026-08-26T10:25:46.591+00:00  HANDLER_RECOVERED      mode=recovered resume_from=translation_section_05
+2026-08-26T10:25:50.692+00:00  CHECKPOINT_COMMITTED   checkpoint=translation_section_05
+2026-08-26T10:26:11.112+00:00  HANDLER_COMPLETED
+2026-08-26T10:26:11.276+00:00  RESPONSE_STATUS        status=completed
+ASSERT same_response_reused=true
+ASSERT process_memory_survived=false
+ASSERT checkpointed_response_survived=true
+ASSERT all_expected_checkpoints_completed_once=true
+ASSERT process_instance_count=2
+RESULT PASS

@@ -1,6 +1,56 @@
 {
   "scenarios": [
     {
+      "actual": "Process A completed four real Azure Translator S1 calls, checkpointed section 4, and exited with code 86. Process B entered recovered mode on the same response at section 5 and completed all 12 translations.",
+      "evidence": [
+        "evidence/owned-hosted-agent-translation-local.json",
+        "evidence/owned-hosted-agent-translation-local-events.jsonl",
+        "evidence/owned-hosted-agent-translation-local-trace.txt"
+      ],
+      "expected": "A new Agent process reuses the stored response and checkpointed translations, resumes with the first unfinished section, and completes the full document.",
+      "id": "python-translator-batch-hard-process-exit",
+      "runtime_protocol": "Python / Responses / local AgentServer / Azure Translator S1",
+      "status": "PASS",
+      "trigger": "os._exit(86) after translation_section_04"
+    },
+    {
+      "actual": "The Version 7 client observed a replacement timeout; the recovery container entered at section 5; two process hashes appeared on one response; and all 12 real S1 results reached completed in 89.199 seconds. The prior container log was not retained, so the exact down timestamp is bounded rather than claimed.",
+      "correlations": [
+        {
+          "event_field": "process_instance_sha256",
+          "event_match": {
+            "entry_mode": "recovered",
+            "event": "handler_entered"
+          },
+          "json_evidence": "evidence/owned-hosted-agent-live-translation.json",
+          "json_path": "acceptance.process_instance_sha256",
+          "jsonl_evidence": "evidence/owned-hosted-agent-live-translation-events.jsonl",
+          "operator": "contains"
+        },
+        {
+          "event_field": "response_id_sha256",
+          "event_match": {
+            "entry_mode": "recovered",
+            "event": "handler_entered"
+          },
+          "json_evidence": "evidence/owned-hosted-agent-live-translation.json",
+          "json_path": "response_id_sha256",
+          "jsonl_evidence": "evidence/owned-hosted-agent-live-translation-events.jsonl",
+          "operator": "equals"
+        }
+      ],
+      "evidence": [
+        "evidence/owned-hosted-agent-live-translation.json",
+        "evidence/owned-hosted-agent-live-translation-events.jsonl",
+        "evidence/owned-hosted-agent-live-translation-output.md"
+      ],
+      "expected": "Foundry replacement compute recovers the same stored batch, skips the four checkpointed translations, and completes the remaining eight.",
+      "id": "foundry-translator-batch-hard-process-exit",
+      "runtime_protocol": "Python / Responses / Foundry Hosted Agent Version 7 / Azure Translator S1",
+      "status": "PASS",
+      "trigger": "Guarded os._exit(86) after translation_section_04"
+    },
+    {
       "actual": "Process A exited with code 86; Process B entered recovered mode on the same response and completed.",
       "evidence": [
         "evidence/owned-hosted-agent-local.json",
@@ -73,14 +123,14 @@
       "trigger": "First observer exits; second observer loads the persisted response ID"
     },
     {
-      "actual": "Version 6 is active with fault injection disabled and completed the owned checkpoint contract in one Agent process.",
+      "actual": "Version 9 is active with fault injection disabled and completed all 12 Azure Translator S1 sections in one Agent process.",
       "evidence": [
         "evidence/owned-hosted-agent-live.json",
         "evidence/owned-hosted-agent-status.json"
       ],
-      "expected": "The post-test safe deployment remains callable without a fault request.",
+      "expected": "The post-test safe deployment remains callable for the real translation workload without a fault request.",
       "id": "foundry-current-safe-deployment",
-      "runtime_protocol": "Python / Responses / Foundry Hosted Agent Version 6",
+      "runtime_protocol": "Python / Responses / Foundry Hosted Agent Version 9 / Azure Translator S1",
       "status": "PASS",
       "trigger": "Normal stored background request with fault injection disabled"
     },

@@ -7,6 +7,9 @@ import json
 import logging
 import os
 import socket
+import urllib.error
+import urllib.parse
+import urllib.request
 import uuid
 from datetime import datetime, timezone
 
@@ -18,8 +21,15 @@ from azure.ai.agentserver.responses import (
     ResponsesAgentServerHost,
     ResponsesServerOptions,
 )
+from azure.identity import DefaultAzureCredential
 
-from contract import ContractError, STAGES, build_stage_record, parse_work_spec
+from contract import (
+    ContractError,
+    build_stage_record,
+    parse_work_spec,
+    stage_names_for,
+)
+from translation_workload import SOURCE_SECTIONS
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 LOGGER = logging.getLogger("lra-evidence-agent")
@@ -32,6 +42,9 @@ PROCESS_INSTANCE_ID = (
     f"{socket.gethostname()}-{os.getpid()}-{uuid.uuid4().hex[:8]}"
 )
 INJECTED_EXIT_CODE = 86
+TRANSLATOR_CREDENTIAL = DefaultAzureCredential(
+    exclude_interactive_browser_credential=True
+)
 
 app = ResponsesAgentServerHost(
     options=ResponsesServerOptions(resilient_background=True)
@@ -49,6 +62,59 @@ def _output_count(stream: ResponseEventStream) -> int:
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
+
+
+def _translate_sync(text: str) -> str:
+    endpoint = os.environ.get("LRA_TRANSLATOR_ENDPOINT", "").rstrip("/")
+    if not endpoint:
+        raise RuntimeError(
+            "LRA_TRANSLATOR_ENDPOINT is required for translator_batch"
+        )
+    region = os.environ.get("LRA_TRANSLATOR_REGION", "global")
+    query = urllib.parse.urlencode(
+        {"api-version": "3.0", "from": "en", "to": "zh-Hans"}
+    )
+    url = f"{endpoint}/translator/text/v3.0/translate?{query}"
+    token = TRANSLATOR_CREDENTIAL.get_token(
+        "https://cognitiveservices.azure.com/.default"
+    )
+    request = urllib.request.Request(
+        url,
+        data=json.dumps([{"Text": text}]).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {token.token}",
+            "Content-Type": "application/json",
+            "Ocp-Apim-Subscription-Region": region,
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as error:
+        body = error.read().decode("utf-8", errors="replace")
+        raise RuntimeError(
+            f"Translator returned HTTP {error.code}: {body}"
+        ) from error
+    try:
+        translated = payload[0]["translations"][0]["text"]
+    except (IndexError, KeyError, TypeError) as error:
+        raise RuntimeError(
+            f"Translator returned an unexpected payload: {payload!r}"
+        ) from error
+    if not isinstance(translated, str) or not translated.strip():
+        raise RuntimeError("Translator returned empty text")
+    return translated
+
+
+async def _run_workload_stage(spec, stage_index: int) -> str | None:
+    await asyncio.sleep(spec.stage_delay_ms / 1000)
+    if spec.workload == "translator_batch":
+        return await asyncio.to_thread(
+            _translate_sync,
+            SOURCE_SECTIONS[stage_index],
+        )
+    return None
 
 
 async def _defer_for_recovery(
@@ -133,8 +199,9 @@ async def handler(
         return
     yield stream.emit_in_progress()
 
-    for stage_index in range(start, len(STAGES)):
-        await asyncio.sleep(spec.stage_delay_ms / 1000)
+    stage_names = stage_names_for(spec.workload)
+    for stage_index in range(start, len(stage_names)):
+        result_text = await _run_workload_stage(spec, stage_index)
         if context.shutdown.is_set():
             await _defer_for_recovery(context, spec.work_id)
             return
@@ -146,6 +213,7 @@ async def handler(
             stage_index=stage_index,
             process_instance_id=PROCESS_INSTANCE_ID,
             recovered_entry=context.is_recovery,
+            result_text=result_text,
         )
         message = stream.add_output_item_message()
         yield message.emit_added()
@@ -161,11 +229,12 @@ async def handler(
 
         LOGGER.info(
             "LRA_STAGE_COMMITTED at_utc=%s response_id=%s work_id=%s "
-            "stage=%d instance=%s",
+            "stage=%d checkpoint=%s instance=%s",
             _utc_now(),
             context.response_id,
             spec.work_id,
             stage_index,
+            stage_names[stage_index],
             PROCESS_INSTANCE_ID,
         )
         if (
@@ -175,11 +244,12 @@ async def handler(
         ):
             LOGGER.critical(
                 "LRA_INJECTED_PROCESS_LOSS at_utc=%s response_id=%s work_id=%s "
-                "after_stage=%d exit_code=%d",
+                "after_stage=%d after_checkpoint=%s exit_code=%d",
                 _utc_now(),
                 context.response_id,
                 spec.work_id,
                 stage_index,
+                stage_names[stage_index],
                 INJECTED_EXIT_CODE,
             )
             await asyncio.sleep(0.5)

@@ -38,16 +38,40 @@
       "sha256": "dcf9dffcc8c28b551b239b1f081ffd4dbca1f70c21eb9fd161e3e67fd72e0a58"
     },
     {
-      "bytes": 2346,
+      "bytes": 3721,
+      "path": "evidence/owned-hosted-agent-live-translation-events.jsonl",
+      "provenance": "Sanitized Version 7 Translator recovery-container console events.",
+      "sha256": "79bc92b5fc0fbad7ec70b28d0845d6cad9bae70b9edf9c84a026d87bee45e3c8"
+    },
+    {
+      "bytes": 4617,
+      "path": "evidence/owned-hosted-agent-live-translation-output.md",
+      "provenance": "scripts/render_translation_result.py from the Version 7 report.",
+      "sha256": "22fc6ec39c9c88dc04e6da8ccea029517eda67c1f916251e7f0f0c01dca8fffc"
+    },
+    {
+      "bytes": 6612,
+      "path": "evidence/owned-hosted-agent-live-translation.json",
+      "provenance": "Version 7 real Translator S1 Foundry recovery run.",
+      "sha256": "91417770a1e2e9fb7dd81e4ac57cfbbfd8e0c014e93693ea9145270c18a7a872"
+    },
+    {
+      "bytes": 5191,
       "path": "evidence/owned-hosted-agent-live.json",
-      "provenance": "Version 6 safe Foundry run through hosted-agent/client.py.",
-      "sha256": "9731458f2b0d15c635952297a57545920d02449a679ad57abf9baa062dce1cd6"
+      "provenance": "Version 9 safe Translator S1 Foundry run through hosted-agent/client.py.",
+      "sha256": "087e99d4726b27d785f4eefbf67b0f3305b1d506044e8639e7e54a171a42a4f7"
     },
     {
       "bytes": 7918,
       "path": "evidence/owned-hosted-agent-local-events.jsonl",
       "provenance": "Sanitized Python AgentServer console lifecycle events.",
       "sha256": "a83d53dc6aca8a9c845c31d34652c24df32c74dc04c7137d47889708cfcdb9dd"
+    },
+    {
+      "bytes": 1002,
+      "path": "evidence/owned-hosted-agent-local-trace.txt",
+      "provenance": "scripts/render_recovery_trace.py from owned-hosted-agent-local.json.",
+      "sha256": "272b8bca3d6f81ccf9b035432cb011e79fcfe99f5ed5b66b8b1cfc34336c7e97"
     },
     {
       "bytes": 8932,
@@ -70,8 +94,26 @@
     {
       "bytes": 383,
       "path": "evidence/owned-hosted-agent-status.json",
-      "provenance": "Sanitized azd ai agent show for safe Version 6.",
-      "sha256": "3825579d44fe93e0e1c7aa5bb5773f9b35e3a669b5fbaec0a6396ab2cdc12ba2"
+      "provenance": "Sanitized azd ai agent show for safe Version 9.",
+      "sha256": "eef38e3b288b33b7e7fb37c0c0bc4266f2e1cb14f5d8591be15c615ea3435c1c"
+    },
+    {
+      "bytes": 5959,
+      "path": "evidence/owned-hosted-agent-translation-local-events.jsonl",
+      "provenance": "Sanitized real Translator local recovery lifecycle events.",
+      "sha256": "7eae9637011a01f7c13b3a65c6928697e0179c2b74bfc293366b3d556ce6d882"
+    },
+    {
+      "bytes": 1036,
+      "path": "evidence/owned-hosted-agent-translation-local-trace.txt",
+      "provenance": "scripts/render_recovery_trace.py from the local Translator report.",
+      "sha256": "7e32ca50aa64da09af702f140207502319fb31f7fb32e369db7664258b851b9c"
+    },
+    {
+      "bytes": 26851,
+      "path": "evidence/owned-hosted-agent-translation-local.json",
+      "provenance": "Real Translator S1 hard-loss run through hosted-agent/run_local_recovery.py.",
+      "sha256": "b650a423ced815ff877bef04666163cf58528daa179a30644bdfb57878ba9768"
     },
     {
       "bytes": 3044,
@@ -80,10 +122,10 @@
       "sha256": "25f4d0a3c934a882d8d23d39861888616f499e9ab85882c255ea08e766bac149"
     },
     {
-      "bytes": 5819,
+      "bytes": 7718,
       "path": "evidence/README.md",
       "provenance": "Maintained evidence index and reproduction commands.",
-      "sha256": "20ea30fb8f6e9170ad2f668a9207cfd3aeb1f65bcb3abde2e12da4ece829af8e"
+      "sha256": "36eceebaaad9119c50ac0bf1a92bb4613fc23d82762c65ea6a602bdec397777e"
     },
     {
       "bytes": 1547,
@@ -104,37 +146,37 @@
       "sha256": "684d7d80d15077709f4bc91448149e5013ff4366544833dd31f47ab92da949d8"
     },
     {
-      "bytes": 3487,
+      "bytes": 4883,
       "path": "evidence/run-contract.json",
       "provenance": "Maintained scenario-agnostic complete-run contract.",
-      "sha256": "0880cec17d49f74d21fe46c2f22102a73c2b7c0dae362a138cfb5d868bb1b1ad"
+      "sha256": "7c6f8276704a0489b5af21fb8b937bec3ded62a72768aaa9a5e86398d390f845"
     },
     {
-      "bytes": 6509,
+      "bytes": 9269,
       "path": "evidence/runs/owned-agent-recovery-validation-20260826/run-manifest.json",
       "provenance": "Commands, exits, logs, status, UI, and key-code hashes for this validation cycle.",
-      "sha256": "447b2c13fb822714483161687277ce11e7a6cfb255e9f49407d0ae2223d1a2ed"
+      "sha256": "a65ee6f397e94fe6f71f565d154e43a3e9967a744d953ee9775a50d5f00f73f8"
     },
     {
-      "bytes": 7108,
+      "bytes": 9115,
       "path": "evidence/scenario-manifest.json",
       "provenance": "Maintained authenticity classification and non-claims.",
-      "sha256": "4a38638e29c8baa1aa1bd4e047e7118341e02c3f71ff1e25e0be360a5190f243"
+      "sha256": "9346279b80cee0008dbacfda0f9e4b853a0258be2dab8a2a7521fb69b909dddb"
     },
     {
-      "bytes": 5231,
+      "bytes": 8061,
       "path": "evidence/scenario-matrix.json",
       "provenance": "Maintained PASS and NOT_VERIFIED mode matrix.",
-      "sha256": "1aa45184b1123ebe795f58b559c0508420d82fe424e1617371ce9bd7639c4cf6"
+      "sha256": "03bb094abb7a0278ac06776a3ba3ff088cc75289578fcc77ab562278eddce09d"
     },
     {
       "bytes": 2052,
       "path": "evidence/ui-evidence.json",
       "provenance": "Visible signed-in Portal captures sanitized into images/product-ui.",
-      "sha256": "47c16e4a84e3b3469b4b7c59f3d2c1c013b6d0f8251c4cc36d94f1f345c7c786"
+      "sha256": "3149069f2e8e905344790be5cefb1ddfc884b86d67db86406a7b9f52c1e4131b"
     }
   ],
-  "generated_at_utc": "2026-08-26T09:49:59+00:00",
+  "generated_at_utc": "2026-08-26T12:50:06+00:00",
   "normalization": "utf-8-lf",
   "schema_version": 1
 }

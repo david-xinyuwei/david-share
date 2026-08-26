@@ -18,7 +18,9 @@ This repository contains a real Hosted Agent, caller, fault harness, and evidenc
 
 The mechanism is not "restart the old process." The caller creates one stored background response. Process A writes a checkpoint and exits. Process B starts with empty process memory, finds the same persisted response and input, enters the handler with `is_recovery=True`, restores the checkpointed response, and continues. The caller keeps polling the original response ID.
 
-The main proof below is one repository-owned Python run. The same hard-loss test also passed against the repository-owned .NET handler. This is public-preview capability evidence, not an SLA or production-readiness claim.
+The primary demo below is a real long task, not a sleep loop: the repository-owned Agent calls Azure Translator S1 for 12 English sections, checkpoints each completed Chinese result, loses Process A after section 4, resumes at section 5 in Process B, and returns the complete 12-section document with terminal status `completed`.
+
+Two runs prove different parts of that statement. The local AgentServer run provides the exact operating-system down timestamp. The Foundry Version 7 run proves replacement-compute recovery in the hosted product and took `89.199` seconds. The same hard-loss contract also passed against the repository-owned .NET handler. This is public-preview capability evidence, not an SLA or production-readiness claim.
 
 ## One complete recovery run
 
@@ -26,35 +28,112 @@ The main proof below is one repository-owned Python run. The same hard-loss test
 
 | Required hook | Actual repository code | What it changes |
 |---|---|---|
-| Import the AgentServer recovery APIs | [`main.py`](hosted-agent/src/lra-evidence-agent/main.py#L13-L20) | Uses the public task and Responses packages |
-| Opt the server into crash recovery | [`ResponsesServerOptions(resilient_background=True)`](hosted-agent/src/lra-evidence-agent/main.py#L35-L38) | Stored background responses can be reinvoked after process loss |
-| Enable startup recovery scanning | [`set_resilient_tasks_enabled(True)`](hosted-agent/src/lra-evidence-agent/main.py#L39) | A new process scans for recoverable work |
-| Create stored background work | [`store=True`, `background=True`](hosted-agent/client.py#L205-L215) | The request and response identity outlive the original connection |
-| Restore the durable snapshot | [`context.persisted_response`](hosted-agent/src/lra-evidence-agent/main.py#L104-L115) | A recovered handler starts from previously checkpointed output |
-| Commit one durable boundary | [`yield stream.checkpoint()`](hosted-agent/src/lra-evidence-agent/main.py#L143-L166) | Output before that call survives process loss |
-| Inject a real hard process exit | [`os._exit(86)`](hosted-agent/src/lra-evidence-agent/main.py#L167-L186) | Process A stops without normal cleanup |
-| Keep observing the same work | [`state_file` and `validate_terminal_response`](hosted-agent/client.py#L330-L380) | A caller restart does not create replacement work |
+| Import the AgentServer recovery APIs | [`main.py`](hosted-agent/src/lra-evidence-agent/main.py#L16-L24) | Uses the public task and Responses packages |
+| Opt the server into crash recovery | [`ResponsesServerOptions(resilient_background=True)`](hosted-agent/src/lra-evidence-agent/main.py#L49-L52) | Stored background responses can be reinvoked after process loss |
+| Enable startup recovery scanning | [`set_resilient_tasks_enabled(True)`](hosted-agent/src/lra-evidence-agent/main.py#L52) | A new process scans for recoverable work |
+| Create stored background work | [`store=True`, `background=True`](hosted-agent/client.py#L197-L223) | The request and response identity outlive the original connection |
+| Restore the durable snapshot | [`context.persisted_response`](hosted-agent/src/lra-evidence-agent/main.py#L170-L175) | A recovered handler starts from previously checkpointed output |
+| Commit one durable boundary | [`yield stream.checkpoint()`](hosted-agent/src/lra-evidence-agent/main.py#L202-L228) | Output before that call survives process loss |
+| Inject a real hard process exit | [`os._exit(86)`](hosted-agent/src/lra-evidence-agent/main.py#L240-L256) | Process A stops without normal cleanup |
+| Keep observing the same work | [`state_file` and `validate_terminal_response`](hosted-agent/client.py#L339-L387) | A caller restart does not create replacement work |
 
-The .NET handler wires the same contract through [`ResilientBackground`](dotnet-agent/Program.cs#L10-L12), [`PersistedResponse`](dotnet-agent/Program.cs#L67-L72), [`stream.Checkpoint()`](dotnet-agent/Program.cs#L101-L107), and [`Environment.Exit(86)`](dotnet-agent/Program.cs#L109-L121).
+There is no separate package named `LRA`. Python imports the resilient-task and Responses classes from `azure-ai-agentserver-*`:
+
+```python
+from azure.ai.agentserver.core.tasks import set_resilient_tasks_enabled
+from azure.ai.agentserver.responses import (
+    ResponseEventStream,
+    ResponsesAgentServerHost,
+    ResponsesServerOptions,
+)
+
+app = ResponsesAgentServerHost(
+    options=ResponsesServerOptions(resilient_background=True)
+)
+set_resilient_tasks_enabled(True)
+
+# Inside the response handler:
+stream = (
+    ResponseEventStream(
+        response_id=context.response_id,
+        response=context.persisted_response,
+    )
+    if context.is_recovery and context.persisted_response is not None
+    else ResponseEventStream(response_id=context.response_id, request=request)
+)
+# Emit one complete, replay-safe unit of output, then:
+yield stream.checkpoint()
+```
+
+.NET imports the corresponding NuGet namespaces and enables the same behavior:
+
+```csharp
+using Azure.AI.AgentServer.Core;
+using Azure.AI.AgentServer.Responses;
+
+var builder = AgentHost.CreateBuilder(args);
+builder.AddResponses<LraEvidenceHandler>(
+    options => options.ResilientBackground = true);
+
+// Inside CreateAsync:
+var stream = context.IsRecovery && context.PersistedResponse is not null
+    ? new ResponseEventStream(context, context.PersistedResponse)
+    : new ResponseEventStream(context, request);
+yield return stream.Checkpoint();
+```
+
+The deployable Python package pins are in [`requirements.txt`](hosted-agent/src/lra-evidence-agent/requirements.txt); the .NET package pins are in [`LraEvidenceAgent.csproj`](dotnet-agent/LraEvidenceAgent.csproj).
+
+### What the long task actually does
+
+[`translation_workload.py`](hosted-agent/src/lra-evidence-agent/translation_workload.py) defines 12 public-safe English sections. For each section, [`main.py`](hosted-agent/src/lra-evidence-agent/main.py#L67) obtains a managed-identity token, calls the real Azure Translator S1 REST endpoint, emits the Chinese result, and only then executes `yield stream.checkpoint()`.
+
+The fault request sets `crash_after_stage=3`, so Process A commits `translation_section_04` and calls `os._exit(86)`. Process B restores four output items from `persisted_response`; `_output_count` therefore returns `4`, and the loop starts with `translation_section_05` instead of translating sections 1-4 again. Acceptance rejects the run unless all 12 ordered section records, source hashes, non-empty translations, two process identities, `fresh + recovered`, and the original response's `completed` state are present.
+
+The final hosted output is not merely a status flag: [`owned-hosted-agent-live-translation-output.md`](evidence/owned-hosted-agent-live-translation-output.md) contains all 12 English inputs and all 12 verbatim Translator results. It records completion and recovery, not a human language-quality evaluation.
 
 ### Exactly when it went down, recovered, and completed
 
-The table is from [`owned-hosted-agent-local.json`](evidence/owned-hosted-agent-local.json). Times below are UTC+8; the JSON keeps ISO timestamps and the complete sanitized event log.
+The table is from the real S1 run in [`owned-hosted-agent-translation-local.json`](evidence/owned-hosted-agent-translation-local.json). Times below are UTC+8; the JSON keeps ISO timestamps, the full acceptance result, and the sanitized event log.
 
 | Event | UTC+8 | Elapsed | Process | What happened | Durable state after the event |
 |---|---|---:|---|---|---|
-| Process A started | 16:55:10.437 | 0.019 s | A | AgentServer started with recovery enabled | No request yet |
-| Response created | 16:55:12.272 | 1.854 s | A | Caller sent one `store=true`, `background=true` request | Input and response identity persisted |
-| Checkpoint committed | 16:55:13.154 | 2.736 s | A | `plan_work` completed and `stream.checkpoint()` returned | Output through `plan_work` persisted |
-| Fault injected | 16:55:13.154 | 2.736 s | A | Handler logged the boundary and called `os._exit(86)` | Persisted state remains; process memory is disposable |
-| **Process down** | **16:55:13.678** | **3.260 s** | A | OS reported exit code `86` | No Agent process is running |
-| Process B started | 16:55:13.691 | 3.273 s | B | New empty process opened the same AgentServer state | Stored response is still addressable |
-| **Recovery observed** | **16:55:15.113** | **4.695 s** | B | Handler entered with `mode=recovered` and the same response hash | Resume point is `allocate_steps` |
-| First post-recovery checkpoint | 16:55:15.344 | 4.926 s | B | `allocate_steps` committed | Progress continues after the last Process A checkpoint |
-| Handler completed | 16:55:18.355 | 7.937 s | B | All expected checkpoint output was produced | Response snapshot is complete |
-| **Caller saw `completed`** | **16:55:18.649** | **8.231 s** | B | Original response reached its terminal state | Acceptance passed |
+| Process A started | 18:25:29.748 | 0.021 s | A | AgentServer started with recovery and Translator credentials | No request yet |
+| Response created | 18:25:31.601 | 1.875 s | A | Caller sent one `store=true`, `background=true`, `translator_batch` request | Input and response identity persisted |
+| Section 4 checkpoint | 18:25:44.638 | 14.911 s | A | Fourth real S1 result completed and `stream.checkpoint()` returned | Chinese results 1-4 persisted |
+| Fault injected | 18:25:44.638 | 14.911 s | A | Handler logged the durable boundary and called `os._exit(86)` | Checkpoint survives; process memory is disposable |
+| **Process down** | **18:25:45.176** | **15.452 s** | A | OS reported exit code `86` | No Agent process is running |
+| Process B started | 18:25:45.190 | 15.466 s | B | New empty process opened the same AgentServer state | Original response remains addressable |
+| **Recovery observed** | **18:25:46.591** | **16.864 s** | B | Handler entered `recovered` with the same response hash | Resume point is `translation_section_05` |
+| First post-recovery checkpoint | 18:25:50.692 | 20.965 s | B | Fifth real S1 result committed | Process B is doing remaining business work |
+| Handler completed | 18:26:11.112 | 41.385 s | B | Sections 5-12 completed; all 12 outputs are present | Response snapshot is complete |
+| **Caller saw `completed`** | **18:26:11.276** | **41.556 s** | B | The original response reached its terminal state | Full-output acceptance passed |
 
-Process A was actually down for **1.435 seconds before recovered entry**. Completion occurred **4.677 seconds after Process A went down**. The response-ID SHA-256 remained `b8af93f3...e42e1`; two different process-instance hashes appeared.
+Process A was actually down for **1.415 seconds before recovered entry**. Process B completed the handler **25.936 seconds after Process A went down**; the caller observed `completed` after 26.100 seconds. The response-ID SHA-256 remained `9acba831...b393d`; the report contains two different process-instance hashes.
+
+The recovered task **really completed in Process B**. This machine-generated trace is rendered from the committed JSON report:
+
+```text
+RUN owned-agent-real-translation-primary
+2026-08-26T10:25:29.748+00:00  PROCESS_A_START
+2026-08-26T10:25:31.601+00:00  RESPONSE_CREATED       response_sha256=9acba83102c7a3b4da7da422d5083831235a3a6102a9d65c44679e24ff0b393d
+2026-08-26T10:25:44.638+00:00  CHECKPOINT_COMMITTED   checkpoint=translation_section_04
+2026-08-26T10:25:44.638+00:00  FAULT_INJECTED         mode=hard_process_exit exit_code=86
+2026-08-26T10:25:45.176+00:00  PROCESS_A_DOWN         exit_code=86
+2026-08-26T10:25:45.190+00:00  PROCESS_B_START
+2026-08-26T10:25:46.591+00:00  HANDLER_RECOVERED      mode=recovered resume_from=translation_section_05
+2026-08-26T10:25:50.692+00:00  CHECKPOINT_COMMITTED   checkpoint=translation_section_05
+2026-08-26T10:26:11.112+00:00  HANDLER_COMPLETED
+2026-08-26T10:26:11.276+00:00  RESPONSE_STATUS        status=completed
+ASSERT same_response_reused=true
+ASSERT process_memory_survived=false
+ASSERT checkpointed_response_survived=true
+ASSERT all_expected_checkpoints_completed_once=true
+ASSERT process_instance_count=2
+RESULT PASS
+```
+
+The source file is [`owned-hosted-agent-translation-local-trace.txt`](evidence/owned-hosted-agent-translation-local-trace.txt); the repository gate requires this README block to match it exactly.
 
 ### Why the task did not stop and the data did not disappear
 
@@ -62,10 +141,11 @@ Process A was actually down for **1.435 seconds before recovered entry**. Comple
 |---|---|---|
 | Python local variables, stack, socket, PID | Process A memory | **Lost**, intentionally |
 | Work identity and original input | AgentServer file-backed task state | Survived and was reused by Process B |
-| Completed output through `plan_work` | Persisted Responses checkpoint | Survived; Process B did not repeat it |
-| Remaining work | Derived from the named checkpoint contract | Process B resumed at `allocate_steps` |
+| Chinese results for sections 1-4 | Persisted Responses checkpoint | Survived; Process B did not call S1 for them again |
+| Remaining sections 5-12 | Derived from the persisted output count and named workload | Process B resumed at `translation_section_05` |
 | Response ID and deadline | Caller state file | A new observer can poll the same response |
-| External payments, bookings, emails, writes | Not used by this deterministic workload | **Not proven**; real applications still need idempotency and reconciliation |
+| Azure Translator calls | External read-only transformation | Completed results were checkpointed; a call after the last checkpoint may still be repeated and billed |
+| Payments, bookings, emails, writes | Not used by this workload | **Not proven**; real applications still need idempotency and reconciliation |
 
 This is at-least-once recovery. Work after the last successful checkpoint can run again. Checkpoint before an irreversible operation, and give that operation its own idempotency key.
 
@@ -77,10 +157,13 @@ This is at-least-once recovery. Work after the last successful checkpoint can ru
 
 | Scenario / mode | Trigger | Expected | Actual result | Status | Evidence |
 |---|---|---|---|---|---|
-| Python Agent process loss | `os._exit(86)` after a checkpoint | New process recovers the same response | Recovered after 1.435 s; completed 4.677 s after down | **PASS** | [report](evidence/owned-hosted-agent-local.json) · [events](evidence/owned-hosted-agent-local-events.jsonl) |
-| Foundry Hosted Agent process loss | Guarded `os._exit(86)` on temporary fault-enabled Version 5 | Replacement compute recovers the same stored response | Client saw replacement timeout, then `fresh + recovered`, two process hashes, and `completed`; exact down time is bounded because the old container log was not retained | **PASS** | [report](evidence/owned-hosted-agent-live-recovery.json) · [recovery-container events](evidence/owned-hosted-agent-live-recovery-events.jsonl) |
+| Real S1 batch, local Agent process loss | `os._exit(86)` after section 4 | Process B resumes at section 5 and finishes the same document | Recovered after 1.415 s; all 12 translations completed 25.936 s after down | **PASS** | [report](evidence/owned-hosted-agent-translation-local.json) · [events](evidence/owned-hosted-agent-translation-local-events.jsonl) |
+| Real S1 batch, Foundry Hosted process loss | Guarded `os._exit(86)` on temporary fault-enabled Version 7 | Replacement compute resumes the same stored response | `89.199` s run; replacement timeout, `fresh + recovered`, two process hashes, all 12 results, `completed`; exact old-container down time remains bounded | **PASS** | [report](evidence/owned-hosted-agent-live-translation.json) · [events](evidence/owned-hosted-agent-live-translation-events.jsonl) · [full output](evidence/owned-hosted-agent-live-translation-output.md) |
+| Fast Python contract regression | `os._exit(86)` after a deterministic checkpoint | New process recovers the same response | Recovered after 1.435 s; completed 4.677 s after down | **PASS** | [report](evidence/owned-hosted-agent-local.json) · [events](evidence/owned-hosted-agent-local-events.jsonl) |
+| Fast Foundry contract regression | Guarded `os._exit(86)` on temporary Version 5 | Replacement compute recovers the same stored response | Replacement timeout, `fresh + recovered`, two process hashes, and `completed` | **PASS** | [report](evidence/owned-hosted-agent-live-recovery.json) · [events](evidence/owned-hosted-agent-live-recovery-events.jsonl) |
 | .NET Agent process loss | `Environment.Exit(86)` after a checkpoint | New CLR process recovers the same response | Recovered after 0.606 s; completed 3.917 s after down | **PASS** | [report](evidence/owned-hosted-agent-dotnet.json) · [events](evidence/owned-hosted-agent-dotnet-events.jsonl) |
 | Caller / observer restart | Observer A exits after saving response ID and deadline | Agent continues; Observer B resumes the same response | Durable progress occurred while no observer was attached; Observer B saw `completed` | **PASS** | [report](evidence/owned-hosted-agent-observer.json) · [events](evidence/owned-hosted-agent-observer-events.jsonl) |
+| Current safe Foundry deployment | Version 9, fault switch disabled | Normal real S1 batch remains callable after testing | 12 translations completed in one process in 22.862 s | **PASS** | [run](evidence/owned-hosted-agent-live.json) · [status](evidence/owned-hosted-agent-status.json) |
 | Graceful host shutdown | Windows console shutdown signal | Host sets shutdown, defers work, later process recovers | Local Windows harness did not drive the complete host shutdown lifecycle | **NOT VERIFIED** | [attempt record](evidence/owned-hosted-agent-graceful-attempt.json) |
 | Missing / duplicate output | Remove or duplicate completed output in fixtures | Acceptance fails closed | Gap, duplicate, and bare `done` cases were rejected | **PASS** | [validator evidence](evidence/observation-validation.json) |
 
@@ -92,9 +175,10 @@ The matrix is data, not a promise. [`run-contract.json`](evidence/run-contract.j
 
 | Path | Required |
 |---|---|
-| Python recovery and observer restart | Git, Python 3.13, packages from [`requirements.txt`](hosted-agent/src/lra-evidence-agent/requirements.txt) |
+| Real translation recovery | Git, Python 3.13, packages from [`requirements.txt`](hosted-agent/src/lra-evidence-agent/requirements.txt), Azure CLI login, Translator S1, and `Cognitive Services User` on that resource |
+| Fast Python recovery and observer restart | The same Python environment; Translator is not required |
 | .NET recovery | .NET 8 SDK and restore access for the pinned preview packages in [`LraEvidenceAgent.csproj`](dotnet-agent/LraEvidenceAgent.csproj) |
-| Live Foundry deployment | Non-production subscription, Foundry project, Azure CLI 2.80+, `azd` 1.27.1+, project-level `Foundry Project Manager` |
+| Live Foundry deployment | Non-production subscription, Foundry project, Azure CLI 2.80+, `azd` 1.27.1+, project-level `Foundry Project Manager`, and Agent managed-identity access to Translator |
 
 On Windows PowerShell:
 
@@ -110,17 +194,28 @@ $python = (Resolve-Path .\.venv\Scripts\python.exe).Path
 & $python -m pip install --no-input `
   -r hosted-agent\src\lra-evidence-agent\requirements.txt
 
-# 1. Python process loss -> Process B recovers the same response.
+# 1. Real long task: 12 Azure Translator S1 calls.
+az login
+$env:LRA_TRANSLATOR_ENDPOINT = "https://<translator-name>.cognitiveservices.azure.com"
+$env:LRA_TRANSLATOR_REGION = "<resource-region>"
+& $python hosted-agent\run_local_recovery.py `
+  --workload translator_batch `
+  --crash-after-stage 3 `
+  --stage-delay-ms 1000 `
+  --report .demo-state\translation-recovery.json `
+  --log-report .demo-state\translation-events.jsonl
+
+# 2. Fast deterministic process-loss regression.
 & $python hosted-agent\run_local_recovery.py `
   --report .demo-state\python-recovery.json `
   --log-report .demo-state\python-events.jsonl
 
-# 2. Observer A exits -> Observer B resumes; Agent process stays alive.
+# 3. Observer A exits -> Observer B resumes; Agent process stays alive.
 & $python hosted-agent\run_observer_restart.py `
   --report .demo-state\observer-restart.json `
   --log-report .demo-state\observer-events.jsonl
 
-# 3. Build and hard-exit the repository-owned .NET Agent.
+# 4. Build and hard-exit the repository-owned .NET Agent.
 dotnet build dotnet-agent\LraEvidenceAgent.csproj -c Release
 $dotnetDir = (Resolve-Path dotnet-agent\bin\Release\net8.0).Path
 $dotnetDll = Join-Path $dotnetDir LraEvidenceAgent.dll
@@ -131,12 +226,12 @@ $dotnetDll = Join-Path $dotnetDir LraEvidenceAgent.dll
   --report .demo-state\dotnet-recovery.json `
   --log-report .demo-state\dotnet-events.jsonl
 
-# 4. Repository acceptance.
+# 5. Repository acceptance.
 & $python -m unittest discover -s tests -v
 & $python scripts\validate_repo.py
 ```
 
-Done-when each runner exits `0`; Python and .NET reports contain `recovery_proven: true`, `fresh + recovered`, two process hashes, and `completed`; the observer report shows two observer processes but one Agent process.
+Done-when each runner exits `0`; the translation report contains 12 non-empty results plus `recovery_proven: true`, `fresh + recovered`, two process hashes, and `completed`; the observer report shows two observer processes but one Agent process.
 
 For Linux/macOS, use `.venv/bin/python` and `/` path separators. The runner accepts any server command, so the same contract is reused for Python and .NET instead of duplicating acceptance logic.
 
@@ -152,12 +247,14 @@ azd env new <environment-name> `
   --location <supported-region> `
   --no-prompt
 azd env set LRA_ENABLE_FAULT_INJECTION false
+azd env set LRA_TRANSLATOR_ENDPOINT "https://<translator-name>.cognitiveservices.azure.com"
+azd env set LRA_TRANSLATOR_REGION "<resource-region>"
 azd provision
 azd deploy
 azd ai agent show lra-evidence-agent
 ```
 
-Structured status and the Portal now show repository-owned Version 6 as `active` / `Running`, `hosted` / `Hosted`, and fault injection disabled. A safe Version 6 request completed; that proves the post-test deployment and normal execution. By itself, the safe run is not live process-loss recovery evidence; that proof is the Version 5 matrix row.
+Structured status and the Portal show repository-owned Version 9 as `active` / `Running`, `hosted` / `Hosted`, with fault injection disabled. A safe Version 9 real translation request completed all 12 sections in one process. By itself, that safe run is not live process-loss recovery evidence; the live proof is the temporary Version 7 row, after which Version 9 replaced it.
 
 ## Put the same hooks in your Agent
 
@@ -192,20 +289,18 @@ A `done` frame, a green Portal status, or a new successful request is not recove
 |---|---|
 | [`run-contract.json`](evidence/run-contract.json) | Scenario-declared milestones and state assertions used by the generic gate |
 | [`scenario-matrix.json`](evidence/scenario-matrix.json) | PASS / NOT VERIFIED status for each advertised mode |
-| [Python report](evidence/owned-hosted-agent-local.json) and [events](evidence/owned-hosted-agent-local-events.jsonl) | Exact hard-loss timeline, state survival, recovered entry, completion |
+| [Real local translation report](evidence/owned-hosted-agent-translation-local.json), [events](evidence/owned-hosted-agent-translation-local-events.jsonl), and [trace](evidence/owned-hosted-agent-translation-local-trace.txt) | Exact hard-loss time, section 4 boundary, section 5 resume, all 12 results, completion |
+| [Live Version 7 translation report](evidence/owned-hosted-agent-live-translation.json), [events](evidence/owned-hosted-agent-live-translation-events.jsonl), and [full output](evidence/owned-hosted-agent-live-translation-output.md) | Real Foundry replacement recovery and complete Translator result |
+| [Fast Python report](evidence/owned-hosted-agent-local.json) and [events](evidence/owned-hosted-agent-local-events.jsonl) | Deterministic regression of the same recovery contract |
 | [.NET report](evidence/owned-hosted-agent-dotnet.json) and [events](evidence/owned-hosted-agent-dotnet-events.jsonl) | The same contract executed by real .NET preview packages |
 | [Observer report](evidence/owned-hosted-agent-observer.json) and [events](evidence/owned-hosted-agent-observer-events.jsonl) | Background work continued with no attached observer |
-| [Version 6 status](evidence/owned-hosted-agent-status.json) | Sanitized deployed version, runtime, protocol, status, fault switch, and content hash |
-| [UI lineage](evidence/ui-evidence.json) | Original/public image hashes, redactions, and what the screenshots do not prove |
+| [Version 9 safe run](evidence/owned-hosted-agent-live.json) and [status](evidence/owned-hosted-agent-status.json) | Current normal completion, runtime, protocol, status, fault switch, and content hash |
+| [UI lineage](evidence/ui-evidence.json), [Version 9 list](images/product-ui/portal-owned-agent-list.png), and [Version 9 details](images/product-ui/portal-owned-agent-details.png) | Original/public image hashes, redactions, and deployment-object proof |
 | [Run bundle](evidence/runs/owned-agent-recovery-validation-20260826/run-manifest.json) | Commands, exits, logs, status, UI, and key-code hashes |
 
-<div align="center"><img src="images/product-ui/portal-owned-agent-list.png" width="820" alt="Sanitized Microsoft Foundry Portal Agent list showing lra-evidence-agent Version 6 as Running and Hosted"></div>
+The linked Portal screenshots prove the deployed object, version, state, and type. They do not prove process recovery; JSON and logs provide that behavior evidence. Raw authenticated screenshots and identifiers are not committed.
 
-<div align="center"><img src="images/product-ui/portal-owned-agent-details.png" width="820" alt="Sanitized Microsoft Foundry Portal detail page for lra-evidence-agent Version 6 with Kind hosted"></div>
-
-The screenshots prove the deployed object, version, state, and type. They do not prove process recovery; JSON and logs provide that behavior evidence. Raw authenticated screenshots and identifiers are not committed.
-
-This repository does not prove an SLA, repeated-trial reliability, load behavior, multi-region recovery, model quality, or exactly-once external side effects. Long-running-agent resilience is public preview and is not recommended for production workloads without workload-specific testing.
+This repository does not prove an SLA, repeated-trial reliability, load behavior, multi-region recovery, translation quality, or exactly-once external side effects. Long-running-agent resilience is public preview and is not recommended for production workloads without workload-specific testing.
 
 ## Related work and license
 

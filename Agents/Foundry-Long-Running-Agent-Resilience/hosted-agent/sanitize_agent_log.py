@@ -13,8 +13,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("input", type=Path)
     parser.add_argument("output", type=Path)
+    parser.add_argument(
+        "--workload",
+        choices=("checkpoint_contract", "translator_batch"),
+        default="checkpoint_contract",
+    )
     args = parser.parse_args()
-    events = sanitize_agent_log(args.input)
+    events = sanitize_agent_log(args.input, args.workload)
     if not events:
         parser.error("input log contains no recognized LRA lifecycle events")
     write_jsonl(args.output, events)

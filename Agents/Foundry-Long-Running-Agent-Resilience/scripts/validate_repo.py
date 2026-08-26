@@ -10,6 +10,7 @@ import json
 import re
 import subprocess
 import sys
+import tempfile
 import unittest
 from collections import Counter
 from datetime import datetime
@@ -49,11 +50,18 @@ ALLOWED_FILES = {
     "evidence/owned-hosted-agent-live.json",
     "evidence/owned-hosted-agent-live-recovery-events.jsonl",
     "evidence/owned-hosted-agent-live-recovery.json",
+    "evidence/owned-hosted-agent-live-translation-events.jsonl",
+    "evidence/owned-hosted-agent-live-translation-output.md",
+    "evidence/owned-hosted-agent-live-translation.json",
     "evidence/owned-hosted-agent-local-events.jsonl",
+    "evidence/owned-hosted-agent-local-trace.txt",
     "evidence/owned-hosted-agent-local.json",
     "evidence/owned-hosted-agent-observer-events.jsonl",
     "evidence/owned-hosted-agent-observer.json",
     "evidence/owned-hosted-agent-status.json",
+    "evidence/owned-hosted-agent-translation-local-events.jsonl",
+    "evidence/owned-hosted-agent-translation-local-trace.txt",
+    "evidence/owned-hosted-agent-translation-local.json",
     "evidence/public-sdk-contract.json",
     "evidence/recovery-contract-demo.json",
     "evidence/recovery-contract-events.jsonl",
@@ -76,12 +84,15 @@ ALLOWED_FILES = {
     "hosted-agent/src/lra-evidence-agent/contract.py",
     "hosted-agent/src/lra-evidence-agent/main.py",
     "hosted-agent/src/lra-evidence-agent/requirements.txt",
+    "hosted-agent/src/lra-evidence-agent/translation_workload.py",
     "images/official-lease-recovery-model.png",
     "images/product-ui/portal-owned-agent-details.png",
     "images/product-ui/portal-owned-agent-list.png",
     "requirements-validation.txt",
     "scripts/generate_evidence_manifest.py",
     "scripts/recovery_contract_demo.py",
+    "scripts/render_recovery_trace.py",
+    "scripts/render_translation_result.py",
     "scripts/validate_observations.py",
     "scripts/validate_repo.py",
     "scripts/verify_public_resilience_api.py",
@@ -138,7 +149,14 @@ REQUIRED_CN_SECTIONS = [
     "## 相关工作与许可证",
 ]
 
-CRITICAL_NUMBERS = ["86", "1.435", "4.677", "0.606", "3.917"]
+CRITICAL_NUMBERS = [
+    "86",
+    "1.415",
+    "25.936",
+    "89.199",
+    "0.606",
+    "3.917",
+]
 
 FORBIDDEN_LITERALS = [
     "services.ai.azure.com",
@@ -234,6 +252,14 @@ def table_shapes(text: str) -> list[int]:
 
 def fenced_languages(text: str) -> list[str]:
     return re.findall(r"^```([A-Za-z0-9_-]*)\s*$", text, flags=re.MULTILINE)[::2]
+
+
+def fenced_blocks(text: str, language: str) -> list[str]:
+    return re.findall(
+        rf"^```{re.escape(language)}\s*\n(.*?)^```$",
+        text,
+        flags=re.MULTILINE | re.DOTALL,
+    )
 
 
 def html_images(text: str) -> list[dict[str, str]]:
@@ -338,8 +364,8 @@ def validate_readmes(gate: Gate) -> tuple[str, str]:
         "bilingual image paths differ",
     )
     gate.require(
-        len(en_images) == len(cn_images) == 3,
-        "each README must contain the official diagram and two Portal images",
+        len(en_images) == len(cn_images) == 1,
+        "each README must embed only the explanatory official diagram",
     )
     for readme, images in ((EN, en_images), (CN, cn_images)):
         for image in images:
@@ -354,6 +380,18 @@ def validate_readmes(gate: Gate) -> tuple[str, str]:
                 bool(source) and (ROOT / source).is_file(),
                 f"{readme.name}: image target missing: {source}",
             )
+
+    contract = read_json(gate, "evidence/run-contract.json")
+    trace_relative = contract.get("readme_trace")
+    trace_path = ROOT / trace_relative if isinstance(trace_relative, str) else ROOT
+    gate.require(trace_path.is_file(), "declared README trace is missing")
+    trace = trace_path.read_text(encoding="utf-8") if trace_path.is_file() else ""
+    for readme, text in ((EN, en), (CN, cn)):
+        blocks = fenced_blocks(text, "text")
+        gate.require(
+            len(blocks) == 1 and blocks[0].strip() + "\n" == trace,
+            f"{readme.name}: completion trace drifted from evidence",
+        )
 
     for readme, text in ((EN, en), (CN, cn)):
         readme_anchors = github_anchors(text)
@@ -541,6 +579,65 @@ def validate_run_contract(gate: Gate, en: str, cn: str) -> None:
             isinstance(token, str) and token in en and token in cn,
             f"declared README token missing: {token}",
         )
+
+    generated_artifacts = contract.get("generated_artifacts", [])
+    gate.require(
+        isinstance(generated_artifacts, list) and bool(generated_artifacts),
+        "generated-artifact declarations are missing",
+    )
+    with tempfile.TemporaryDirectory(prefix="lra-repo-gate-") as temporary:
+        for index, artifact in enumerate(generated_artifacts):
+            generator = artifact.get("generator") if isinstance(artifact, dict) else None
+            source = artifact.get("input") if isinstance(artifact, dict) else None
+            expected = artifact.get("output") if isinstance(artifact, dict) else None
+            gate.require(
+                all(isinstance(value, str) and value for value in (generator, source, expected)),
+                f"generated artifact {index}: declaration is incomplete",
+            )
+            if not all(
+                isinstance(value, str) and value
+                for value in (generator, source, expected)
+            ):
+                continue
+            generator_path = ROOT / generator
+            source_path = ROOT / source
+            expected_path = ROOT / expected
+            gate.require(
+                generator_path.is_file()
+                and source_path.is_file()
+                and expected_path.is_file(),
+                f"generated artifact {index}: source, generator, or output is missing",
+            )
+            if not (
+                generator_path.is_file()
+                and source_path.is_file()
+                and expected_path.is_file()
+            ):
+                continue
+            actual_path = Path(temporary) / f"artifact-{index}{expected_path.suffix}"
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(generator_path),
+                    "--input",
+                    str(source_path),
+                    "--output",
+                    str(actual_path),
+                ],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            gate.require(
+                completed.returncode == 0,
+                f"generated artifact {index}: generator failed",
+            )
+            gate.require(
+                actual_path.is_file()
+                and actual_path.read_bytes() == expected_path.read_bytes(),
+                f"generated artifact {index}: committed output drifted",
+            )
 
     matrix_path = contract.get("matrix")
     matrix = read_json(gate, matrix_path) if isinstance(matrix_path, str) else {}
@@ -884,6 +981,7 @@ def validate_code_and_tests(gate: Gate) -> int:
         == [
             "azure-ai-agentserver-core==2.1.0b2",
             "azure-ai-agentserver-responses==2.1.0b2",
+            "azure-identity==1.25.3",
         ],
         "Python Agent package pins drifted",
     )

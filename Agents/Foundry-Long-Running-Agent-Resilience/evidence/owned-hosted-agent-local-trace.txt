@@ -1,0 +1,17 @@
+RUN owned-agent-reader-trace-python
+2026-08-26T08:55:10.437+00:00  PROCESS_A_START
+2026-08-26T08:55:12.272+00:00  RESPONSE_CREATED       response_sha256=b8af93f3be18cf485bbe43adf011dcd0244c3d7b928ea932d6c06855106e42e1
+2026-08-26T08:55:13.154+00:00  CHECKPOINT_COMMITTED   checkpoint=plan_work
+2026-08-26T08:55:13.154+00:00  FAULT_INJECTED         mode=hard_process_exit exit_code=86
+2026-08-26T08:55:13.678+00:00  PROCESS_A_DOWN         exit_code=86
+2026-08-26T08:55:13.691+00:00  PROCESS_B_START
+2026-08-26T08:55:15.113+00:00  HANDLER_RECOVERED      mode=recovered resume_from=allocate_steps
+2026-08-26T08:55:15.344+00:00  CHECKPOINT_COMMITTED   checkpoint=allocate_steps
+2026-08-26T08:55:18.355+00:00  HANDLER_COMPLETED
+2026-08-26T08:55:18.649+00:00  RESPONSE_STATUS        status=completed
+ASSERT same_response_reused=true
+ASSERT process_memory_survived=false
+ASSERT checkpointed_response_survived=true
+ASSERT all_expected_checkpoints_completed_once=true
+ASSERT process_instance_count=2
+RESULT PASS

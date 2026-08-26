@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_PATH = (
     ROOT / "hosted-agent" / "src" / "lra-evidence-agent" / "contract.py"
 )
+sys.path.insert(0, str(CONTRACT_PATH.parent))
 CLIENT_PATH = ROOT / "hosted-agent" / "client.py"
 SPEC = importlib.util.spec_from_file_location("lra_owned_contract", CONTRACT_PATH)
 assert SPEC and SPEC.loader
@@ -108,6 +109,39 @@ class OwnedHostedAgentContractTests(unittest.TestCase):
         self.assertEqual(result["stage_indexes"], list(range(len(CONTRACT.STAGES))))
         self.assertEqual(result["process_instance_ids"], ["process-a", "process-b"])
 
+    def test_tampered_translation_fails_hash_validation(self):
+        spec = CONTRACT.parse_work_spec(
+            json.dumps(
+                {
+                    "work_id": "translation-work",
+                    "payload": "translate",
+                    "crash_after_stage": 3,
+                    "workload": "translator_batch",
+                }
+            )
+        )
+        records = [
+            CONTRACT.build_stage_record(
+                spec,
+                index,
+                "process-a" if index <= 3 else "process-b",
+                index > 3,
+                result_text=f"translation {index}",
+            )
+            for index in range(len(CONTRACT.SOURCE_SECTIONS))
+        ]
+        records[6]["translated_text"] = "tampered translation"
+        with self.assertRaisesRegex(
+            CONTRACT.ContractError,
+            "translation result hashes",
+        ):
+            CONTRACT.validate_terminal_response(
+                response_with(records),
+                expected_work_id="translation-work",
+                expect_recovery=True,
+                expected_workload="translator_batch",
+            )
+
     def test_gap_or_duplicate_fails(self):
         spec = CONTRACT.parse_work_spec(
             json.dumps({"work_id": "w1", "payload": "x"})
@@ -152,6 +186,7 @@ class OwnedHostedAgentContractTests(unittest.TestCase):
                 "payload_sha256": "a" * 64,
                 "entry_modes": ["fresh", "recovered"],
                 "recovery_proven": True,
+                "workload": "checkpoint_contract",
                 "stage_names": ["one", "two"],
                 "stage_result_sha256": ["b" * 64, "c" * 64],
                 "process_instance_ids": ["private-process-a", "private-process-b"],
@@ -202,6 +237,20 @@ class OwnedHostedAgentContractTests(unittest.TestCase):
         )
         self.assertEqual(events[1]["exit_code"], 86)
         self.assertEqual(events[1]["after_checkpoint"], "plan_work")
+
+    def test_translation_log_uses_translation_checkpoint_names(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "agent.log"
+            path.write_text(
+                "LRA_ENTRY at_utc=2026-08-26T10:23:11.069+00:00 "
+                "mode=recovered start=4\n",
+                encoding="utf-8",
+            )
+            events = RUNNER.sanitize_agent_log(path, "translator_batch")
+        self.assertEqual(
+            events[0]["resume_from_checkpoint"],
+            "translation_section_05",
+        )
 
     def test_hosted_endpoint_keeps_api_version_on_item_reads(self):
         endpoint = (

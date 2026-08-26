@@ -29,8 +29,8 @@ services:
     name: lra-evidence-agent
     displayName: LRA Evidence Agent
     description: >-
-      Non-production deterministic Hosted Agent for validating stored
-      background response recovery after one controlled process loss.
+      Non-production Hosted Agent for validating stored background response
+      recovery with checkpoint and Azure Translator S1 workloads.
     protocols:
       - protocol: responses
         version: 2.0.0
@@ -39,6 +39,10 @@ services:
         value: ${LRA_ENABLE_FAULT_INJECTION}
       - name: LRA_STAGE_DELAY_MS
         value: ${LRA_STAGE_DELAY_MS}
+      - name: LRA_TRANSLATOR_ENDPOINT
+        value: ${LRA_TRANSLATOR_ENDPOINT}
+      - name: LRA_TRANSLATOR_REGION
+        value: ${LRA_TRANSLATOR_REGION}
     container:
       resources:
         cpu: '0.5'

@@ -1,0 +1,833 @@
+{
+  "acceptance": {
+    "all_expected_checkpoints_completed_once": true,
+    "checkpoint_contract_sha256": "7e4641991259390c6eff77bc30b09035c398f40cc83850275cf21824fa17a46e",
+    "entry_modes": [
+      "fresh",
+      "recovered"
+    ],
+    "payload_sha256": "2d582f74c984a67674b6eea7f59efde890405dcdd74c378a7c6092804490437b",
+    "process_instance_count": 2,
+    "process_instance_sha256": [
+      "8e0064b71cf7564d9a3ce594cde91880bd2df5b3a312a8534806d85d224f2fe0",
+      "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+    ],
+    "recovery_proven": true,
+    "status": "completed",
+    "translated_texts": [
+      "一个长期运行的代理应为每个逻辑作业赋予一个稳定的身份，使其寿命超过任何一个进程。呼叫者在报告成功前会先存储该身份。",
+      "后台执行和崩溃恢复解决了不同的问题。后台执行能在断线调用者中存活，而恢复则能承受失去拥有该工作的进程。",
+      "一个持久的检查点标志完成了业务进展。必须在相应输出或应用状态完成且安全可重放后才写入。",
+      "恢复启动一个新的进程，内存为空。处理器接收原始持久输入，并使用保存的响应快照或应用检查点找到其恢复点。",
+      "客户必须重新连接到原始响应，而不是创建替代工作。超时或临时未找到响应并不等同于重复该作业的许可。",
+      "外部操作需要幂等性。除非应用程序记录稳定的操作密钥，否则支付、预订、发送邮件和写入在崩溃后可能会重复。",
+      "仅凭绝症不足以证明。验收还应验证输出完整性、工作身份稳定、检查点连续性及预期业务结果。",
+      "平台保留任务元数据和租赁，但应用拥有域状态。大型工件和工作流状态通常应存储在应用存储或框架检查点中。",
+      "恢复的操作员可以在最后一个检查点之前安全跳过已完成的工作。该边界之后的工作可能会重复，因此必须是安全的重打。",
+      "操作证据应包括时间戳、进程身份、状态转换、代码哈希和日志。截图能证明已部署的对象，但不能证明恢复行为。",
+      "优雅关机和硬进程丢失是不同的中断模式。每种模式都需要自己的触发条件、预期结果、观察到的结果，以及显式的通过或未验证状态。",
+      "生产置信度需要反复试验、针对工作负载的截止日期、负载测试以及副作用对账。一次成功的演示证明的是能力，而非可靠性。"
+    ],
+    "work_id": "owned-agent-real-translation-primary",
+    "workload": "translator_batch"
+  },
+  "agent_log": "evidence/owned-hosted-agent-translation-local-events.jsonl",
+  "durable_state": {
+    "checkpointed_response_survived": true,
+    "first_checkpoint_after_recovery": "translation_section_05",
+    "last_checkpoint_before_loss": "translation_section_04",
+    "persisted_input_reused": true,
+    "process_memory_survived": false,
+    "provider": "AgentServer local file-backed state",
+    "same_response_reused": true
+  },
+  "evidence_type": "owned-hosted-agent-local-recovery",
+  "fault_injection_requested": true,
+  "first_process_exit_code": 86,
+  "generated_at_utc": "2026-08-26T10:26:11.292+00:00",
+  "interruption": {
+    "after_checkpoint": "translation_section_04",
+    "exit_code": 86,
+    "mode": "hard_process_exit",
+    "signal": null
+  },
+  "milestones": {
+    "completed_at_utc": "2026-08-26T10:26:11.112+00:00",
+    "down_to_completed_seconds": 25.936,
+    "down_to_recovered_seconds": 1.415,
+    "interruption_at_utc": "2026-08-26T10:25:44.638+00:00",
+    "process_down_at_utc": "2026-08-26T10:25:45.176+00:00",
+    "recovered_entry_at_utc": "2026-08-26T10:25:46.591+00:00"
+  },
+  "passed": true,
+  "poll_events": [
+    {
+      "at": "2026-08-26T10:25:46.956+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:25:47.461+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:25:47.966+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:25:48.470+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:25:48.974+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:25:49.479+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:25:49.983+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:25:50.487+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:25:50.991+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:25:51.496+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:25:52.001+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:25:52.505+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:25:53.013+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:25:53.516+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:25:54.020+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:25:54.524+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:25:55.029+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:25:55.533+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:25:56.038+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:25:56.542+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:25:57.046+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:25:57.551+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:25:58.056+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:25:58.560+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:25:59.064+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:25:59.568+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:26:00.073+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:26:00.578+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:26:01.083+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:26:01.588+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:26:02.092+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:26:02.596+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:26:03.099+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:26:03.604+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:26:04.110+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:26:04.613+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:26:05.118+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:26:05.642+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:26:06.146+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:26:06.650+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:26:07.154+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:26:07.658+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:26:08.162+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:26:08.666+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:26:09.170+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:26:09.675+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:26:10.179+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:26:10.683+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_04",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T10:26:11.276+00:00",
+      "entry_modes": [
+        "fresh",
+        "recovered"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "translation_section_12",
+      "process_instance_count": 2,
+      "process_instance_sha256": [
+        "8e0064b71cf7564d9a3ce594cde91880bd2df5b3a312a8534806d85d224f2fe0",
+        "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea"
+      ],
+      "status": "completed"
+    }
+  ],
+  "response_id_sha256": "9acba83102c7a3b4da7da422d5083831235a3a6102a9d65c44679e24ff0b393d",
+  "run_started_at_utc": "2026-08-26T10:25:29.727+00:00",
+  "runtime": "Python 3.13 + Azure Translator S1",
+  "schema_version": 1,
+  "timeline": [
+    {
+      "at_utc": "2026-08-26T10:25:29.748+00:00",
+      "elapsed_seconds": 0.021,
+      "event": "process_started",
+      "process_role": "A",
+      "source": "runner"
+    },
+    {
+      "at_utc": "2026-08-26T10:25:31.565+00:00",
+      "elapsed_seconds": 1.839,
+      "event": "server_ready",
+      "process_role": "A",
+      "source": "runner"
+    },
+    {
+      "at_utc": "2026-08-26T10:25:31.584+00:00",
+      "elapsed_seconds": 1.857,
+      "entry_mode": "fresh",
+      "event": "handler_entered",
+      "process_instance_sha256": "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea",
+      "response_id_sha256": "9acba83102c7a3b4da7da422d5083831235a3a6102a9d65c44679e24ff0b393d",
+      "resume_from_checkpoint": "translation_section_01",
+      "source": "agent_log",
+      "work_id": "owned-agent-real-translation-primary"
+    },
+    {
+      "at_utc": "2026-08-26T10:25:31.601+00:00",
+      "elapsed_seconds": 1.875,
+      "event": "response_created",
+      "process_role": "A",
+      "response_id_sha256": "9acba83102c7a3b4da7da422d5083831235a3a6102a9d65c44679e24ff0b393d",
+      "source": "runner"
+    },
+    {
+      "at_utc": "2026-08-26T10:25:44.638+00:00",
+      "checkpoint": "translation_section_04",
+      "elapsed_seconds": 14.911,
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "13cb1964d982623c21d9d7bb97264295c4e46413ac45ddc02fd1fb3c6b6d27ea",
+      "response_id_sha256": "9acba83102c7a3b4da7da422d5083831235a3a6102a9d65c44679e24ff0b393d",
+      "source": "agent_log",
+      "work_id": "owned-agent-real-translation-primary"
+    },
+    {
+      "after_checkpoint": "translation_section_04",
+      "at_utc": "2026-08-26T10:25:44.638+00:00",
+      "elapsed_seconds": 14.911,
+      "event": "fault_injected",
+      "exit_code": 86,
+      "response_id_sha256": "9acba83102c7a3b4da7da422d5083831235a3a6102a9d65c44679e24ff0b393d",
+      "source": "agent_log",
+      "work_id": "owned-agent-real-translation-primary"
+    },
+    {
+      "at_utc": "2026-08-26T10:25:45.176+00:00",
+      "elapsed_seconds": 15.452,
+      "event": "process_exited",
+      "exit_code": 86,
+      "process_role": "A",
+      "source": "runner"
+    },
+    {
+      "at_utc": "2026-08-26T10:25:45.190+00:00",
+      "elapsed_seconds": 15.466,
+      "event": "process_started",
+      "process_role": "B",
+      "source": "runner"
+    },
+    {
+      "at_utc": "2026-08-26T10:25:46.591+00:00",
+      "elapsed_seconds": 16.864,
+      "entry_mode": "recovered",
+      "event": "handler_entered",
+      "process_instance_sha256": "8e0064b71cf7564d9a3ce594cde91880bd2df5b3a312a8534806d85d224f2fe0",
+      "response_id_sha256": "9acba83102c7a3b4da7da422d5083831235a3a6102a9d65c44679e24ff0b393d",
+      "resume_from_checkpoint": "translation_section_05",
+      "source": "agent_log",
+      "work_id": "owned-agent-real-translation-primary"
+    },
+    {
+      "at_utc": "2026-08-26T10:25:46.953+00:00",
+      "elapsed_seconds": 17.229,
+      "event": "server_ready",
+      "process_role": "B",
+      "source": "runner"
+    },
+    {
+      "at_utc": "2026-08-26T10:25:50.692+00:00",
+      "checkpoint": "translation_section_05",
+      "elapsed_seconds": 20.965,
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "8e0064b71cf7564d9a3ce594cde91880bd2df5b3a312a8534806d85d224f2fe0",
+      "response_id_sha256": "9acba83102c7a3b4da7da422d5083831235a3a6102a9d65c44679e24ff0b393d",
+      "source": "agent_log",
+      "work_id": "owned-agent-real-translation-primary"
+    },
+    {
+      "at_utc": "2026-08-26T10:26:11.112+00:00",
+      "elapsed_seconds": 41.385,
+      "event": "handler_completed",
+      "process_instance_sha256": "8e0064b71cf7564d9a3ce594cde91880bd2df5b3a312a8534806d85d224f2fe0",
+      "response_id_sha256": "9acba83102c7a3b4da7da422d5083831235a3a6102a9d65c44679e24ff0b393d",
+      "source": "agent_log",
+      "work_id": "owned-agent-real-translation-primary"
+    },
+    {
+      "at_utc": "2026-08-26T10:26:11.276+00:00",
+      "elapsed_seconds": 41.556,
+      "event": "terminal_observed",
+      "process_role": "B",
+      "response_id_sha256": "9acba83102c7a3b4da7da422d5083831235a3a6102a9d65c44679e24ff0b393d",
+      "source": "runner",
+      "status": "completed"
+    },
+    {
+      "at_utc": "2026-08-26T10:26:11.278+00:00",
+      "elapsed_seconds": 41.559,
+      "event": "process_stopped",
+      "process_role": "B",
+      "source": "runner"
+    }
+  ],
+  "work_id": "owned-agent-real-translation-primary",
+  "workload": "translator_batch"
+}

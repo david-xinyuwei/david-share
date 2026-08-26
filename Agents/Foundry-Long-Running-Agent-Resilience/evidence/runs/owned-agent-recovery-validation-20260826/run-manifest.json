@@ -1,13 +1,21 @@
 {
   "boundaries": [
-    "The Python and .NET hard-loss runs prove local AgentServer recovery, not Foundry availability.",
-    "The Foundry Version 5 run proves hosted process replacement on one response; the prior container log was not retained, so exact down time is bounded.",
+    "The real Translator local run proves exact two-process recovery and full output, not Foundry availability or translation quality.",
+    "The Python and .NET deterministic hard-loss runs are fast contract regressions, not the primary long-task proof.",
+    "The Foundry Version 7 Translator run proves hosted process replacement and full output on one response; the prior container log was not retained, so exact down time is bounded.",
     "The observer run proves background execution across caller loss; it is not Agent process recovery.",
-    "The safe Version 6 run and Portal screenshots prove the post-test deployment, not recovery by themselves.",
+    "The safe Version 9 run and Portal screenshots prove the post-test deployment, not recovery by themselves.",
     "Graceful Windows shutdown recovery remains NOT_VERIFIED."
   ],
-  "captured_at_utc": "2026-08-26T09:29:51.229Z",
+  "captured_at_utc": "2026-08-26T12:47:01.728Z",
   "commands": [
+    {
+      "command": "python hosted-agent/run_local_recovery.py --runtime-label \"Python 3.13 + Azure Translator S1\" --workload translator_batch --work-id owned-agent-real-translation-primary --payload \"repository-owned-real-translation-workload-v1\" --crash-after-stage 3 --stage-delay-ms 1000 --first-exit-timeout-seconds 60 --deadline-seconds 240 --report evidence/owned-hosted-agent-translation-local.json --log-report evidence/owned-hosted-agent-translation-local-events.jsonl",
+      "command_redacted": false,
+      "evidence": "evidence/owned-hosted-agent-translation-local.json",
+      "exit_code": 0,
+      "id": "python-real-translation-hard-process-loss"
+    },
     {
       "command": "python hosted-agent/run_local_recovery.py --runtime-label \"Python 3.13\" --work-id owned-agent-reader-trace-python --payload \"public-safe reader recovery trace\" --crash-after-stage 3 --stage-delay-ms 200 --report evidence/owned-hosted-agent-local.json --log-report evidence/owned-hosted-agent-local-events.jsonl",
       "command_redacted": false,
@@ -44,7 +52,7 @@
       "id": "observer-restart"
     },
     {
-      "command": "azd env set LRA_ENABLE_FAULT_INJECTION true; azd deploy; python hosted-agent/client.py --endpoint <foundry-responses-endpoint> --auth azure-cli --agent-version 5 --work-id owned-agent-live-reader-trace --payload \"public-safe live recovery trace\" --crash-after-stage 3 --stage-delay-ms 500 --report evidence/owned-hosted-agent-live-recovery.json",
+      "command": "azd env set LRA_ENABLE_FAULT_INJECTION true; azd deploy; python hosted-agent/client.py --endpoint <foundry-responses-endpoint> --auth azure-cli --agent-version 5 --deployed-content-sha256 192dbbdcea2524e91d1fc497c97aef40d00c0a3b9cc50a8ef35de84cc755aa90 --work-id owned-agent-live-reader-trace --payload \"public-safe live recovery trace\" --crash-after-stage 3 --stage-delay-ms 500 --report evidence/owned-hosted-agent-live-recovery.json",
       "command_redacted": true,
       "evidence": "evidence/owned-hosted-agent-live-recovery.json",
       "exit_code": 0,
@@ -54,11 +62,21 @@
       ]
     },
     {
-      "command": "azd env set LRA_ENABLE_FAULT_INJECTION false; azd deploy; python hosted-agent/client.py --endpoint <foundry-responses-endpoint> --auth azure-cli --agent-version 6 --work-id owned-agent-version6-safe --payload \"public-safe current Agent workload\" --report evidence/owned-hosted-agent-live.json",
+      "command": "azd env set LRA_ENABLE_FAULT_INJECTION true; azd deploy; python hosted-agent/client.py --endpoint <foundry-responses-endpoint> --auth azure-cli --agent-version 7 --deployed-content-sha256 426cb72c01e223c3cd3479741ad0f86c32dc53cfd86ca3bc18491e99c629cb6b --workload translator_batch --work-id owned-agent-live-real-translation --payload \"repository-owned-real-translation-workload-v1\" --crash-after-stage 3 --stage-delay-ms 1500 --report evidence/owned-hosted-agent-live-translation.json",
+      "command_redacted": true,
+      "evidence": "evidence/owned-hosted-agent-live-translation.json",
+      "exit_code": 0,
+      "id": "foundry-version7-real-translation-hard-process-loss",
+      "redactions": [
+        "Foundry Responses endpoint"
+      ]
+    },
+    {
+      "command": "azd env set LRA_ENABLE_FAULT_INJECTION false; azd deploy; python hosted-agent/client.py --endpoint <foundry-responses-endpoint> --auth azure-cli --agent-version 9 --deployed-content-sha256 13ff84664719a258d22762413e4ba00f23516ce3d7043c58aa869cd27545582a --workload translator_batch --work-id owned-agent-version9-safe-translation --payload \"repository-owned-real-translation-workload-v1\" --stage-delay-ms 500 --deadline-seconds 180 --poll-interval-seconds 1 --report evidence/owned-hosted-agent-live.json",
       "command_redacted": true,
       "evidence": "evidence/owned-hosted-agent-live.json",
       "exit_code": 0,
-      "id": "foundry-version6-safe",
+      "id": "foundry-version9-safe-translation",
       "redactions": [
         "Foundry Responses endpoint"
       ]
@@ -74,23 +92,31 @@
   "key_code": [
     {
       "path": "hosted-agent/azure.yaml",
-      "sha256": "a782090420a73fa5938bf3b145eae9deb310e30c3317e1c6f4037be92c4d6cb2"
+      "sha256": "e7808b74691951de520e794003f4bfe8628220165a69e868751c7966cca91cd3"
     },
     {
       "path": "hosted-agent/src/lra-evidence-agent/main.py",
-      "sha256": "d6f954516e5f552c8c290f3056ec03173f824815b6287812bc130ac0534e1bde"
+      "sha256": "00ee5d3fed949053aeb606bebbecc1f8a2c25aadd5a8a2cae88fb96c76d21d93"
     },
     {
       "path": "hosted-agent/src/lra-evidence-agent/contract.py",
-      "sha256": "a9de4d7c82b2ceaed9225043f7ac0be9d6bc79d6ab3158f68345ce5dc74aa6e6"
+      "sha256": "2580027ea81c4a7831e44d3edcb20f529f489d7344fa15d4609b05bb0ffbe539"
+    },
+    {
+      "path": "hosted-agent/src/lra-evidence-agent/translation_workload.py",
+      "sha256": "ab6bec94dd3ae784644c2515fa013ce44b627c54f1e095bfd4157018472a40a7"
+    },
+    {
+      "path": "hosted-agent/src/lra-evidence-agent/requirements.txt",
+      "sha256": "65e2c5dc02b48149837f73cd2b9a465735a923d72901b6487ef0dc0b500c8739"
     },
     {
       "path": "hosted-agent/client.py",
-      "sha256": "164be3d19aad61e0373a2b1a4a7f21b8d1eb86b8c5514a6d5cb703b72c628a8d"
+      "sha256": "caf79c39afd37fa2de3f2914a9e4cc2e8a32ae40474c6144c4ad37d7516f1e40"
     },
     {
       "path": "hosted-agent/run_local_recovery.py",
-      "sha256": "35f082eddfd1ac14d2bcd95eff2036fa1e9d43ec3785a95df9bbd20b06803b1d"
+      "sha256": "5ab42acd212580421918b122347a06cb847dfad6893353d9a9257d51e83f5b28"
     },
     {
       "path": "hosted-agent/run_observer_restart.py",
@@ -98,7 +124,7 @@
     },
     {
       "path": "hosted-agent/sanitize_agent_log.py",
-      "sha256": "47a8b7698ce81e1e0d66e6c4e7201092f2504025d101941e7af1deee457b84df"
+      "sha256": "a93584aa16f9fdccf43837c2c4bd92de7ed6901ddf0990306ad0b147464dc72c"
     },
     {
       "path": "dotnet-agent/LraEvidenceAgent.csproj",
@@ -109,19 +135,29 @@
       "sha256": "44621c75a61ee6dcf266449e1c793828f08d5f81140e2cca18b7207ffc303cfb"
     },
     {
+      "path": "scripts/render_recovery_trace.py",
+      "sha256": "9648fdf0734ea2ffd3dfbe9b1f429907af1bdffb19fdd6790a4a29b575c83308"
+    },
+    {
+      "path": "scripts/render_translation_result.py",
+      "sha256": "ab26438c0c83c48a28faa76b3a482cb5207fa4d6984a9062a134ee7c4dbfd7a9"
+    },
+    {
       "path": "scripts/validate_repo.py",
-      "sha256": "d5e2e0d92bd121e76d21a130f0629320fe86dfcf39ff650b42a86541740ba63a"
+      "sha256": "750a90d260bf492d26b84effbbd54763d3f47dab022da2081d8e07589abd69d6"
     },
     {
       "path": "scripts/generate_evidence_manifest.py",
-      "sha256": "60e3e82e3c0371af46c7a6cf4ca5589238f23a603989f8671620c24dc8270e64"
+      "sha256": "0cf44574030e7a76585a91a0887e4ec6df86fe896da7fde5cfc0d76a3aba4686"
     },
     {
       "path": "evidence/run-contract.json",
-      "sha256": "0880cec17d49f74d21fe46c2f22102a73c2b7c0dae362a138cfb5d868bb1b1ad"
+      "sha256": "7c6f8276704a0489b5af21fb8b937bec3ded62a72768aaa9a5e86398d390f845"
     }
   ],
   "logs": [
+    "evidence/owned-hosted-agent-translation-local-events.jsonl",
+    "evidence/owned-hosted-agent-live-translation-events.jsonl",
     "evidence/owned-hosted-agent-local-events.jsonl",
     "evidence/owned-hosted-agent-dotnet-events.jsonl",
     "evidence/owned-hosted-agent-observer-events.jsonl",
@@ -131,6 +167,6 @@
   "run_id": "owned-agent-recovery-validation-20260826",
   "schema_version": 1,
   "status_evidence": "evidence/owned-hosted-agent-status.json",
-  "subject": "repository-owned Hosted Agent recovery across Python, .NET, observer restart, and Foundry replacement",
+  "subject": "repository-owned real Translator workload recovery across local and Foundry process replacement, plus Python, .NET, and observer regressions",
   "ui_evidence": "evidence/ui-evidence.json"
 }
