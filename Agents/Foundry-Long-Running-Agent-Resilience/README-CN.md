@@ -135,6 +135,42 @@ RESULT PASS
 
 源文件是 [`owned-hosted-agent-translation-local-trace.txt`](evidence/owned-hosted-agent-translation-local-trace.txt)；仓库门禁要求 README 中这段日志与源文件逐字一致。
 
+### 线上运行：延迟、接管和完成日志
+
+真实 Foundry Version 7 运行保留了恢复容器日志，但没有保留旧容器的退出行。因此，**49.555 秒是两次成功轮询之间的有界观测窗口，不是精确 hang 时长**。日志仍然直接给出关键链路：一次 timeout、进程 B 从第 5 段进入、恢复后第一个检查点、handler 完成，以及原 response 达到 `completed`。
+
+| 测量项 | 数值 | 含义 |
+|---|---:|---|
+| 线上整次运行 | 89.199 秒 | 从请求开始到客户端看到 `completed` |
+| 实例替换前后的成功轮询间隔 | 49.555 秒 | 包含 timeout、轮询、调度和实例替换；不是精确 hang |
+| recovered entry → handler 完成 | 16.511 秒 | 进程 B 完成第 5-12 段 |
+| handler 完成 → 客户端看到 `completed` | 4.322 秒 | 最终持久化和轮询延迟 |
+
+```text
+RUN owned-agent-live-real-translation foundry_version=7
+2026-08-26T10:16:04.612+00:00  REQUEST_STARTED        workload=translator_batch response_sha256=cfc1b7056cf1f2e8bb6fe4587405fc099d89c39b79b31fb90fc44f0be5519e09
+2026-08-26T10:16:24.658+00:00  LAST_SUCCESSFUL_POLL   status=in_progress
+2026-08-26T10:16:58.207+00:00  CONNECTION_TIMEOUT     detail=TimeoutError phase=replacement_window
+2026-08-26T10:17:12.978+00:00  HANDLER_RECOVERED      process=B resume_from=translation_section_05
+2026-08-26T10:17:14.213+00:00  POLL_AFTER_TIMEOUT     status=in_progress last_checkpoint=translation_section_04
+2026-08-26T10:17:15.859+00:00  CHECKPOINT_COMMITTED   checkpoint=translation_section_05
+2026-08-26T10:17:29.489+00:00  HANDLER_COMPLETED      process=B
+2026-08-26T10:17:33.811+00:00  RESPONSE_STATUS        status=completed process_instances=2
+BOUNDARY exact_process_a_down_at=NOT_AVAILABLE reason=prior_container_log_not_retained
+DURATION successful_poll_gap_seconds=49.555 meaning=timeout_plus_polling_plus_replacement_not_exact_hang
+DURATION recovered_to_handler_completed_seconds=16.511
+DURATION handler_completed_to_client_completed_seconds=4.322
+DURATION total_run_seconds=89.199
+ASSERT same_response_reused=true
+ASSERT checkpoint_continuity=translation_section_04->translation_section_05
+ASSERT all_12_translations_present=true
+ASSERT entry_modes=fresh+recovered
+ASSERT terminal_status=completed
+RESULT PASS
+```
+
+源文件是 [`owned-hosted-agent-live-translation-trace.txt`](evidence/owned-hosted-agent-live-translation-trace.txt)。它由[客户端报告](evidence/owned-hosted-agent-live-translation.json)和[脱敏恢复容器事件](evidence/owned-hosted-agent-live-translation-events.jsonl)自动生成；仓库门禁要求 README 中这段日志与源文件逐字一致。
+
 ### 为什么任务没停、数据没丢
 
 | 状态 | 保存位置 | 进程 A 丢失时发生了什么 |
@@ -158,7 +194,7 @@ RESULT PASS
 | 场景 / 模式 | 触发方式 | 预期 | 实际结果 | 状态 | 证据 |
 |---|---|---|---|---|---|
 | 真实 S1 批处理，本机 Agent 进程丢失 | 第 4 段后执行 `os._exit(86)` | 进程 B 从第 5 段继续并完成同一文档 | down 后 1.415 秒进入 recovered；25.936 秒完成全部 12 段 | **PASS** | [报告](evidence/owned-hosted-agent-translation-local.json) · [事件](evidence/owned-hosted-agent-translation-local-events.jsonl) |
-| 真实 S1 批处理，Foundry Hosted 进程丢失 | 临时开启故障的 Version 7 执行受保护的 `os._exit(86)` | 替代计算恢复同一个已保存响应 | `89.199` 秒；实例替换 timeout、`fresh + recovered`、两个进程哈希、12 段结果、`completed`；旧容器的精确 down 时间仍只做边界声明 | **PASS** | [报告](evidence/owned-hosted-agent-live-translation.json) · [事件](evidence/owned-hosted-agent-live-translation-events.jsonl) · [完整输出](evidence/owned-hosted-agent-live-translation-output.md) |
+| 真实 S1 批处理，Foundry Hosted 进程丢失 | 临时开启故障的 Version 7 执行受保护的 `os._exit(86)` | 替代计算恢复同一个已保存响应 | `89.199` 秒；实例替换 timeout、`fresh + recovered`、两个进程哈希、12 段结果、`completed`；旧容器的精确 down 时间仍只做边界声明 | **PASS** | [直读日志](evidence/owned-hosted-agent-live-translation-trace.txt) · [报告](evidence/owned-hosted-agent-live-translation.json) · [事件](evidence/owned-hosted-agent-live-translation-events.jsonl) · [完整输出](evidence/owned-hosted-agent-live-translation-output.md) |
 | Python 快速合同回归 | 确定性检查点后执行 `os._exit(86)` | 新进程恢复同一响应 | down 后 1.435 秒进入 recovered；4.677 秒完成 | **PASS** | [报告](evidence/owned-hosted-agent-local.json) · [事件](evidence/owned-hosted-agent-local-events.jsonl) |
 | Foundry 快速合同回归 | 临时 Version 5 执行受保护的 `os._exit(86)` | 替代计算恢复同一个已保存响应 | 实例替换 timeout、`fresh + recovered`、两个进程哈希和 `completed` | **PASS** | [报告](evidence/owned-hosted-agent-live-recovery.json) · [事件](evidence/owned-hosted-agent-live-recovery-events.jsonl) |
 | .NET Agent 进程丢失 | 检查点后执行 `Environment.Exit(86)` | 新 CLR 进程恢复同一响应 | 0.606 秒后进入 recovered；down 后 3.917 秒完成 | **PASS** | [报告](evidence/owned-hosted-agent-dotnet.json) · [事件](evidence/owned-hosted-agent-dotnet-events.jsonl) |
@@ -290,7 +326,7 @@ azd ai agent show lra-evidence-agent
 | [`run-contract.json`](evidence/run-contract.json) | 由场景声明、供通用门禁读取的里程碑和状态断言 |
 | [`scenario-matrix.json`](evidence/scenario-matrix.json) | 每个模式的 PASS / NOT VERIFIED 状态 |
 | [真实本机翻译报告](evidence/owned-hosted-agent-translation-local.json)、[事件](evidence/owned-hosted-agent-translation-local-events.jsonl)和[轨迹](evidence/owned-hosted-agent-translation-local-trace.txt) | 精确硬退出时间、第 4 段边界、第 5 段恢复、全部 12 段和完成 |
-| [线上 Version 7 翻译报告](evidence/owned-hosted-agent-live-translation.json)、[事件](evidence/owned-hosted-agent-live-translation-events.jsonl)和[完整输出](evidence/owned-hosted-agent-live-translation-output.md) | 真实 Foundry 替代计算恢复和完整 Translator 结果 |
+| [线上 Version 7 直读日志](evidence/owned-hosted-agent-live-translation-trace.txt)、[报告](evidence/owned-hosted-agent-live-translation.json)、[事件](evidence/owned-hosted-agent-live-translation-events.jsonl)和[完整输出](evidence/owned-hosted-agent-live-translation-output.md) | 可见的 timeout/恢复/完成链路和完整 Translator 结果 |
 | [Python 快速报告](evidence/owned-hosted-agent-local.json)和[事件](evidence/owned-hosted-agent-local-events.jsonl) | 同一恢复合同的确定性回归 |
 | [.NET 报告](evidence/owned-hosted-agent-dotnet.json)和[事件](evidence/owned-hosted-agent-dotnet-events.jsonl) | 真实 .NET 预览包执行同一恢复合同 |
 | [查询方报告](evidence/owned-hosted-agent-observer.json)和[事件](evidence/owned-hosted-agent-observer-events.jsonl) | 没有查询方连接时，后台工作仍继续 |

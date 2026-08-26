@@ -7,7 +7,7 @@
     "The safe Version 9 run and Portal screenshots prove the post-test deployment, not recovery by themselves.",
     "Graceful Windows shutdown recovery remains NOT_VERIFIED."
   ],
-  "captured_at_utc": "2026-08-26T12:47:01.728Z",
+  "captured_at_utc": "2026-08-26T14:20:19.268Z",
   "commands": [
     {
       "command": "python hosted-agent/run_local_recovery.py --runtime-label \"Python 3.13 + Azure Translator S1\" --workload translator_batch --work-id owned-agent-real-translation-primary --payload \"repository-owned-real-translation-workload-v1\" --crash-after-stage 3 --stage-delay-ms 1000 --first-exit-timeout-seconds 60 --deadline-seconds 240 --report evidence/owned-hosted-agent-translation-local.json --log-report evidence/owned-hosted-agent-translation-local-events.jsonl",
@@ -70,6 +70,13 @@
       "redactions": [
         "Foundry Responses endpoint"
       ]
+    },
+    {
+      "command": "python scripts/render_recovery_trace.py --input evidence/owned-hosted-agent-live-translation.json --events evidence/owned-hosted-agent-live-translation-events.jsonl --output evidence/owned-hosted-agent-live-translation-trace.txt",
+      "command_redacted": false,
+      "evidence": "evidence/owned-hosted-agent-live-translation-trace.txt",
+      "exit_code": 0,
+      "id": "render-foundry-version7-reader-log"
     },
     {
       "command": "azd env set LRA_ENABLE_FAULT_INJECTION false; azd deploy; python hosted-agent/client.py --endpoint <foundry-responses-endpoint> --auth azure-cli --agent-version 9 --deployed-content-sha256 13ff84664719a258d22762413e4ba00f23516ce3d7043c58aa869cd27545582a --workload translator_batch --work-id owned-agent-version9-safe-translation --payload \"repository-owned-real-translation-workload-v1\" --stage-delay-ms 500 --deadline-seconds 180 --poll-interval-seconds 1 --report evidence/owned-hosted-agent-live.json",
@@ -136,7 +143,7 @@
     },
     {
       "path": "scripts/render_recovery_trace.py",
-      "sha256": "9648fdf0734ea2ffd3dfbe9b1f429907af1bdffb19fdd6790a4a29b575c83308"
+      "sha256": "f9fbf366b3633e5663e97392f038163057c9f64d7ff9237f26e97ad5d8074adf"
     },
     {
       "path": "scripts/render_translation_result.py",
@@ -144,20 +151,21 @@
     },
     {
       "path": "scripts/validate_repo.py",
-      "sha256": "750a90d260bf492d26b84effbbd54763d3f47dab022da2081d8e07589abd69d6"
+      "sha256": "216c8c024b84189ee13a217f367544c729c8fb8d46e591f9bfac060e31ea5db6"
     },
     {
       "path": "scripts/generate_evidence_manifest.py",
-      "sha256": "0cf44574030e7a76585a91a0887e4ec6df86fe896da7fde5cfc0d76a3aba4686"
+      "sha256": "e6db2e63b6e215b5e6940c5025cedec2edc9d3d8e0c35065d5199391427ace2b"
     },
     {
       "path": "evidence/run-contract.json",
-      "sha256": "7c6f8276704a0489b5af21fb8b937bec3ded62a72768aaa9a5e86398d390f845"
+      "sha256": "3a555124e9a12ea76f0b6537214f66c013fd8acbc5b1462db43c4f79681abf27"
     }
   ],
   "logs": [
     "evidence/owned-hosted-agent-translation-local-events.jsonl",
     "evidence/owned-hosted-agent-live-translation-events.jsonl",
+    "evidence/owned-hosted-agent-live-translation-trace.txt",
     "evidence/owned-hosted-agent-local-events.jsonl",
     "evidence/owned-hosted-agent-dotnet-events.jsonl",
     "evidence/owned-hosted-agent-observer-events.jsonl",

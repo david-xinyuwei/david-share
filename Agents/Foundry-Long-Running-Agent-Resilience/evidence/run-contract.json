@@ -63,6 +63,15 @@
       "output": "evidence/owned-hosted-agent-translation-local-trace.txt"
     },
     {
+      "arguments": [
+        "--events",
+        "evidence/owned-hosted-agent-live-translation-events.jsonl"
+      ],
+      "generator": "scripts/render_recovery_trace.py",
+      "input": "evidence/owned-hosted-agent-live-translation.json",
+      "output": "evidence/owned-hosted-agent-live-translation-trace.txt"
+    },
+    {
       "generator": "scripts/render_translation_result.py",
       "input": "evidence/owned-hosted-agent-live-translation.json",
       "output": "evidence/owned-hosted-agent-live-translation-output.md"
@@ -124,8 +133,11 @@
     "translator_batch",
     "translation_section_04",
     "translation_section_05",
+    "owned-hosted-agent-live-translation-trace.txt",
     "owned-hosted-agent-live-translation-output.md",
     "89.199",
+    "successful_poll_gap_seconds=49.555",
+    "exact_process_a_down_at=NOT_AVAILABLE",
     "recovery_proven: true",
     "NOT VERIFIED",
     "store=true",
@@ -141,7 +153,10 @@
     "azd provision",
     "azd deploy"
   ],
-  "readme_trace": "evidence/owned-hosted-agent-translation-local-trace.txt",
+  "readme_traces": [
+    "evidence/owned-hosted-agent-translation-local-trace.txt",
+    "evidence/owned-hosted-agent-live-translation-trace.txt"
+  ],
   "scenario_id": "owned-agent-real-translation-process-loss",
   "schema_version": 1,
   "state_assertions": [

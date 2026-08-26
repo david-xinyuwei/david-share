@@ -135,6 +135,42 @@ RESULT PASS
 
 The source file is [`owned-hosted-agent-translation-local-trace.txt`](evidence/owned-hosted-agent-translation-local-trace.txt); the repository gate requires this README block to match it exactly.
 
+### Hosted run: delay, recovery, and completion log
+
+The real Foundry Version 7 run retained the recovery container log but not the previous container's exit line. Therefore **49.555 seconds is a bounded observation gap between successful polls, not an exact hang duration**. The log still shows the decisive chain: one timeout, Process B entering at section 5, the first recovered checkpoint, handler completion, and the original response reaching `completed`.
+
+| Measurement | Value | Meaning |
+|---|---:|---|
+| Whole hosted run | 89.199 s | Request start through client-observed `completed` |
+| Successful-poll gap around replacement | 49.555 s | Includes timeout, polling, scheduling, and replacement; not exact hang |
+| Recovered entry → handler completed | 16.511 s | Process B completed sections 5-12 |
+| Handler completed → client saw `completed` | 4.322 s | Final persistence and polling delay |
+
+```text
+RUN owned-agent-live-real-translation foundry_version=7
+2026-08-26T10:16:04.612+00:00  REQUEST_STARTED        workload=translator_batch response_sha256=cfc1b7056cf1f2e8bb6fe4587405fc099d89c39b79b31fb90fc44f0be5519e09
+2026-08-26T10:16:24.658+00:00  LAST_SUCCESSFUL_POLL   status=in_progress
+2026-08-26T10:16:58.207+00:00  CONNECTION_TIMEOUT     detail=TimeoutError phase=replacement_window
+2026-08-26T10:17:12.978+00:00  HANDLER_RECOVERED      process=B resume_from=translation_section_05
+2026-08-26T10:17:14.213+00:00  POLL_AFTER_TIMEOUT     status=in_progress last_checkpoint=translation_section_04
+2026-08-26T10:17:15.859+00:00  CHECKPOINT_COMMITTED   checkpoint=translation_section_05
+2026-08-26T10:17:29.489+00:00  HANDLER_COMPLETED      process=B
+2026-08-26T10:17:33.811+00:00  RESPONSE_STATUS        status=completed process_instances=2
+BOUNDARY exact_process_a_down_at=NOT_AVAILABLE reason=prior_container_log_not_retained
+DURATION successful_poll_gap_seconds=49.555 meaning=timeout_plus_polling_plus_replacement_not_exact_hang
+DURATION recovered_to_handler_completed_seconds=16.511
+DURATION handler_completed_to_client_completed_seconds=4.322
+DURATION total_run_seconds=89.199
+ASSERT same_response_reused=true
+ASSERT checkpoint_continuity=translation_section_04->translation_section_05
+ASSERT all_12_translations_present=true
+ASSERT entry_modes=fresh+recovered
+ASSERT terminal_status=completed
+RESULT PASS
+```
+
+The source file is [`owned-hosted-agent-live-translation-trace.txt`](evidence/owned-hosted-agent-live-translation-trace.txt). It is generated from the [client report](evidence/owned-hosted-agent-live-translation.json) plus the [sanitized recovery-container events](evidence/owned-hosted-agent-live-translation-events.jsonl), and the repository gate requires this block to match exactly.
+
 ### Why the task did not stop and the data did not disappear
 
 | State | Where it lived | What happened at Process A loss |
@@ -158,7 +194,7 @@ This is at-least-once recovery. Work after the last successful checkpoint can ru
 | Scenario / mode | Trigger | Expected | Actual result | Status | Evidence |
 |---|---|---|---|---|---|
 | Real S1 batch, local Agent process loss | `os._exit(86)` after section 4 | Process B resumes at section 5 and finishes the same document | Recovered after 1.415 s; all 12 translations completed 25.936 s after down | **PASS** | [report](evidence/owned-hosted-agent-translation-local.json) · [events](evidence/owned-hosted-agent-translation-local-events.jsonl) |
-| Real S1 batch, Foundry Hosted process loss | Guarded `os._exit(86)` on temporary fault-enabled Version 7 | Replacement compute resumes the same stored response | `89.199` s run; replacement timeout, `fresh + recovered`, two process hashes, all 12 results, `completed`; exact old-container down time remains bounded | **PASS** | [report](evidence/owned-hosted-agent-live-translation.json) · [events](evidence/owned-hosted-agent-live-translation-events.jsonl) · [full output](evidence/owned-hosted-agent-live-translation-output.md) |
+| Real S1 batch, Foundry Hosted process loss | Guarded `os._exit(86)` on temporary fault-enabled Version 7 | Replacement compute resumes the same stored response | `89.199` s run; replacement timeout, `fresh + recovered`, two process hashes, all 12 results, `completed`; exact old-container down time remains bounded | **PASS** | [reader log](evidence/owned-hosted-agent-live-translation-trace.txt) · [report](evidence/owned-hosted-agent-live-translation.json) · [events](evidence/owned-hosted-agent-live-translation-events.jsonl) · [full output](evidence/owned-hosted-agent-live-translation-output.md) |
 | Fast Python contract regression | `os._exit(86)` after a deterministic checkpoint | New process recovers the same response | Recovered after 1.435 s; completed 4.677 s after down | **PASS** | [report](evidence/owned-hosted-agent-local.json) · [events](evidence/owned-hosted-agent-local-events.jsonl) |
 | Fast Foundry contract regression | Guarded `os._exit(86)` on temporary Version 5 | Replacement compute recovers the same stored response | Replacement timeout, `fresh + recovered`, two process hashes, and `completed` | **PASS** | [report](evidence/owned-hosted-agent-live-recovery.json) · [events](evidence/owned-hosted-agent-live-recovery-events.jsonl) |
 | .NET Agent process loss | `Environment.Exit(86)` after a checkpoint | New CLR process recovers the same response | Recovered after 0.606 s; completed 3.917 s after down | **PASS** | [report](evidence/owned-hosted-agent-dotnet.json) · [events](evidence/owned-hosted-agent-dotnet-events.jsonl) |
@@ -290,7 +326,7 @@ A `done` frame, a green Portal status, or a new successful request is not recove
 | [`run-contract.json`](evidence/run-contract.json) | Scenario-declared milestones and state assertions used by the generic gate |
 | [`scenario-matrix.json`](evidence/scenario-matrix.json) | PASS / NOT VERIFIED status for each advertised mode |
 | [Real local translation report](evidence/owned-hosted-agent-translation-local.json), [events](evidence/owned-hosted-agent-translation-local-events.jsonl), and [trace](evidence/owned-hosted-agent-translation-local-trace.txt) | Exact hard-loss time, section 4 boundary, section 5 resume, all 12 results, completion |
-| [Live Version 7 translation report](evidence/owned-hosted-agent-live-translation.json), [events](evidence/owned-hosted-agent-live-translation-events.jsonl), and [full output](evidence/owned-hosted-agent-live-translation-output.md) | Real Foundry replacement recovery and complete Translator result |
+| [Live Version 7 reader log](evidence/owned-hosted-agent-live-translation-trace.txt), [report](evidence/owned-hosted-agent-live-translation.json), [events](evidence/owned-hosted-agent-live-translation-events.jsonl), and [full output](evidence/owned-hosted-agent-live-translation-output.md) | Visible timeout/recovery/completion chain and complete Translator result |
 | [Fast Python report](evidence/owned-hosted-agent-local.json) and [events](evidence/owned-hosted-agent-local-events.jsonl) | Deterministic regression of the same recovery contract |
 | [.NET report](evidence/owned-hosted-agent-dotnet.json) and [events](evidence/owned-hosted-agent-dotnet-events.jsonl) | The same contract executed by real .NET preview packages |
 | [Observer report](evidence/owned-hosted-agent-observer.json) and [events](evidence/owned-hosted-agent-observer-events.jsonl) | Background work continued with no attached observer |

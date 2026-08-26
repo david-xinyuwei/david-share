@@ -1,0 +1,20 @@
+RUN owned-agent-live-real-translation foundry_version=7
+2026-08-26T10:16:04.612+00:00  REQUEST_STARTED        workload=translator_batch response_sha256=cfc1b7056cf1f2e8bb6fe4587405fc099d89c39b79b31fb90fc44f0be5519e09
+2026-08-26T10:16:24.658+00:00  LAST_SUCCESSFUL_POLL   status=in_progress
+2026-08-26T10:16:58.207+00:00  CONNECTION_TIMEOUT     detail=TimeoutError phase=replacement_window
+2026-08-26T10:17:12.978+00:00  HANDLER_RECOVERED      process=B resume_from=translation_section_05
+2026-08-26T10:17:14.213+00:00  POLL_AFTER_TIMEOUT     status=in_progress last_checkpoint=translation_section_04
+2026-08-26T10:17:15.859+00:00  CHECKPOINT_COMMITTED   checkpoint=translation_section_05
+2026-08-26T10:17:29.489+00:00  HANDLER_COMPLETED      process=B
+2026-08-26T10:17:33.811+00:00  RESPONSE_STATUS        status=completed process_instances=2
+BOUNDARY exact_process_a_down_at=NOT_AVAILABLE reason=prior_container_log_not_retained
+DURATION successful_poll_gap_seconds=49.555 meaning=timeout_plus_polling_plus_replacement_not_exact_hang
+DURATION recovered_to_handler_completed_seconds=16.511
+DURATION handler_completed_to_client_completed_seconds=4.322
+DURATION total_run_seconds=89.199
+ASSERT same_response_reused=true
+ASSERT checkpoint_continuity=translation_section_04->translation_section_05
+ASSERT all_12_translations_present=true
+ASSERT entry_modes=fresh+recovered
+ASSERT terminal_status=completed
+RESULT PASS

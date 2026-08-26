@@ -52,6 +52,7 @@ ALLOWED_FILES = {
     "evidence/owned-hosted-agent-live-recovery.json",
     "evidence/owned-hosted-agent-live-translation-events.jsonl",
     "evidence/owned-hosted-agent-live-translation-output.md",
+    "evidence/owned-hosted-agent-live-translation-trace.txt",
     "evidence/owned-hosted-agent-live-translation.json",
     "evidence/owned-hosted-agent-local-events.jsonl",
     "evidence/owned-hosted-agent-local-trace.txt",
@@ -124,6 +125,7 @@ REQUIRED_EN_SECTIONS = [
     "## One complete recovery run",
     "### Where the Agent actually uses LRA",
     "### Exactly when it went down, recovered, and completed",
+    "### Hosted run: delay, recovery, and completion log",
     "### Why the task did not stop and the data did not disappear",
     "## Fault matrix",
     "## Reproduce it",
@@ -139,6 +141,7 @@ REQUIRED_CN_SECTIONS = [
     "## 一次完整的恢复运行",
     "### Agent 到底在哪里接入 LRA",
     "### 什么时候 down、什么时候恢复、什么时候完成",
+    "### 线上运行：延迟、接管和完成日志",
     "### 为什么任务没停、数据没丢",
     "## 故障矩阵",
     "## 自己复现",
@@ -153,6 +156,9 @@ CRITICAL_NUMBERS = [
     "86",
     "1.415",
     "25.936",
+    "49.555",
+    "16.511",
+    "4.322",
     "89.199",
     "0.606",
     "3.917",
@@ -382,15 +388,29 @@ def validate_readmes(gate: Gate) -> tuple[str, str]:
             )
 
     contract = read_json(gate, "evidence/run-contract.json")
-    trace_relative = contract.get("readme_trace")
-    trace_path = ROOT / trace_relative if isinstance(trace_relative, str) else ROOT
-    gate.require(trace_path.is_file(), "declared README trace is missing")
-    trace = trace_path.read_text(encoding="utf-8") if trace_path.is_file() else ""
+    trace_relatives = contract.get("readme_traces", [])
+    gate.require(
+        isinstance(trace_relatives, list)
+        and bool(trace_relatives)
+        and len(trace_relatives) == len(set(trace_relatives))
+        and all(isinstance(value, str) and value for value in trace_relatives),
+        "declared README traces are missing or duplicated",
+    )
+    traces: list[str] = []
+    for relative in trace_relatives if isinstance(trace_relatives, list) else []:
+        trace_path = ROOT / relative if isinstance(relative, str) else ROOT
+        gate.require(trace_path.is_file(), f"declared README trace is missing: {relative}")
+        if trace_path.is_file():
+            traces.append(trace_path.read_text(encoding="utf-8"))
     for readme, text in ((EN, en), (CN, cn)):
         blocks = fenced_blocks(text, "text")
         gate.require(
-            len(blocks) == 1 and blocks[0].strip() + "\n" == trace,
-            f"{readme.name}: completion trace drifted from evidence",
+            len(blocks) == len(traces)
+            and all(
+                block.strip() + "\n" == trace
+                for block, trace in zip(blocks, traces, strict=True)
+            ),
+            f"{readme.name}: completion traces drifted from evidence",
         )
 
     for readme, text in ((EN, en), (CN, cn)):
@@ -590,14 +610,22 @@ def validate_run_contract(gate: Gate, en: str, cn: str) -> None:
             generator = artifact.get("generator") if isinstance(artifact, dict) else None
             source = artifact.get("input") if isinstance(artifact, dict) else None
             expected = artifact.get("output") if isinstance(artifact, dict) else None
+            arguments = artifact.get("arguments", []) if isinstance(artifact, dict) else []
+            arguments_valid = isinstance(arguments, list) and all(
+                isinstance(value, str) and value for value in arguments
+            )
             gate.require(
                 all(isinstance(value, str) and value for value in (generator, source, expected)),
                 f"generated artifact {index}: declaration is incomplete",
             )
+            gate.require(
+                arguments_valid,
+                f"generated artifact {index}: arguments are invalid",
+            )
             if not all(
                 isinstance(value, str) and value
                 for value in (generator, source, expected)
-            ):
+            ) or not arguments_valid:
                 continue
             generator_path = ROOT / generator
             source_path = ROOT / source
@@ -623,6 +651,7 @@ def validate_run_contract(gate: Gate, en: str, cn: str) -> None:
                     str(source_path),
                     "--output",
                     str(actual_path),
+                    *arguments,
                 ],
                 cwd=ROOT,
                 capture_output=True,

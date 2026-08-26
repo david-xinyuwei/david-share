@@ -128,7 +128,7 @@
         "Creates one stored background response against the repository-owned Hosted Agent",
         "Calls Azure Translator S1 and injects a guarded hard process exit after section 4",
         "Observes replacement-compute timeout, recovered entry at section 5, two process hashes, all 12 translations, and completed",
-        "Collects client JSON, the complete translated document, and sanitized recovery-container events"
+        "Collects client JSON, the complete translated document, sanitized recovery-container events, and a generated reader-facing timeout/recovery/completion log"
       ],
       "not_claimed": [
         "An exact process-down timestamp because the prior container log was not retained",

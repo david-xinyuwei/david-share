@@ -42,6 +42,7 @@
       "evidence": [
         "evidence/owned-hosted-agent-live-translation.json",
         "evidence/owned-hosted-agent-live-translation-events.jsonl",
+        "evidence/owned-hosted-agent-live-translation-trace.txt",
         "evidence/owned-hosted-agent-live-translation-output.md"
       ],
       "expected": "Foundry replacement compute recovers the same stored batch, skips the four checkpointed translations, and completes the remaining eight.",

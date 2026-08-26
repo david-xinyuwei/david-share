@@ -23,6 +23,7 @@ PROVENANCE = {
     "evidence/owned-hosted-agent-live-recovery.json": "Version 5 Foundry fault run through hosted-agent/client.py.",
     "evidence/owned-hosted-agent-live-translation-events.jsonl": "Sanitized Version 7 Translator recovery-container console events.",
     "evidence/owned-hosted-agent-live-translation-output.md": "scripts/render_translation_result.py from the Version 7 report.",
+    "evidence/owned-hosted-agent-live-translation-trace.txt": "scripts/render_recovery_trace.py from the Version 7 report and recovery-container events.",
     "evidence/owned-hosted-agent-live-translation.json": "Version 7 real Translator S1 Foundry recovery run.",
     "evidence/owned-hosted-agent-live.json": "Version 9 safe Translator S1 Foundry run through hosted-agent/client.py.",
     "evidence/owned-hosted-agent-local-events.jsonl": "Sanitized Python AgentServer console lifecycle events.",

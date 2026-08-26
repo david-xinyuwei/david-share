@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +28,21 @@ def find_event(
 
 def format_line(label: str, event: dict[str, Any], details: str) -> str:
     return f"{event['at_utc']}  {label:<22} {details}".rstrip()
+
+
+def seconds_between(start: str, end: str) -> float:
+    return round(
+        (datetime.fromisoformat(end) - datetime.fromisoformat(start)).total_seconds(),
+        3,
+    )
+
+
+def read_jsonl(path: Path) -> list[dict[str, Any]]:
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def render(report: dict[str, Any]) -> str:
@@ -118,6 +134,110 @@ def render(report: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def render_hosted(
+    report: dict[str, Any],
+    events: list[dict[str, Any]],
+) -> str:
+    poll_events = report["poll_events"]
+    timeout_index = next(
+        index
+        for index, event in enumerate(poll_events)
+        if event.get("kind") == "connection_error"
+    )
+    poll_before = next(
+        event
+        for event in reversed(poll_events[:timeout_index])
+        if event.get("kind") == "poll"
+    )
+    poll_after = next(
+        event
+        for event in poll_events[timeout_index + 1 :]
+        if event.get("kind") == "poll"
+    )
+    terminal = next(
+        event
+        for event in reversed(poll_events)
+        if event.get("kind") == "poll" and event.get("status") == "completed"
+    )
+    timeout = poll_events[timeout_index]
+    recovered = find_event(
+        events,
+        "handler_entered",
+        entry_mode="recovered",
+    )
+    first_checkpoint = find_event(
+        events,
+        "checkpoint_committed",
+        checkpoint="translation_section_05",
+    )
+    completed = find_event(events, "handler_completed")
+    response_hash = report["response_id_sha256"]
+    if any(
+        event.get("response_id_sha256") != response_hash
+        for event in (recovered, first_checkpoint, completed)
+    ):
+        raise ValueError("hosted trace events do not share the report response hash")
+    acceptance = report["acceptance"]
+    if (
+        report.get("passed") is not True
+        or acceptance.get("status") != "completed"
+        or acceptance.get("process_instance_count") != 2
+        or acceptance.get("entry_modes") != ["fresh", "recovered"]
+        or len(acceptance.get("translated_texts", [])) != 12
+        or poll_after.get("last_durable_checkpoint") != "translation_section_04"
+    ):
+        raise ValueError("hosted recovery report does not satisfy the trace contract")
+
+    observation_gap = seconds_between(poll_before["at"], poll_after["at"])
+    recovery_to_completion = seconds_between(
+        recovered["at_utc"],
+        completed["at_utc"],
+    )
+    completion_to_terminal = seconds_between(
+        completed["at_utc"],
+        terminal["at"],
+    )
+    lines = [
+        f"RUN {acceptance['work_id']} foundry_version={report['deployment']['version']}",
+        f"{report['started_at_utc']}  REQUEST_STARTED        "
+        f"workload={acceptance['workload']} response_sha256={response_hash}",
+        f"{poll_before['at']}  LAST_SUCCESSFUL_POLL   "
+        f"status={poll_before['status']}",
+        f"{timeout['at']}  CONNECTION_TIMEOUT     "
+        f"detail={timeout['detail']} phase=replacement_window",
+        format_line(
+            "HANDLER_RECOVERED",
+            recovered,
+            f"process=B resume_from={recovered['resume_from_checkpoint']}",
+        ),
+        f"{poll_after['at']}  POLL_AFTER_TIMEOUT     "
+        f"status={poll_after['status']} "
+        f"last_checkpoint={poll_after['last_durable_checkpoint']}",
+        format_line(
+            "CHECKPOINT_COMMITTED",
+            first_checkpoint,
+            f"checkpoint={first_checkpoint['checkpoint']}",
+        ),
+        format_line("HANDLER_COMPLETED", completed, "process=B"),
+        f"{terminal['at']}  RESPONSE_STATUS        "
+        f"status={terminal['status']} process_instances=2",
+        "BOUNDARY exact_process_a_down_at=NOT_AVAILABLE "
+        "reason=prior_container_log_not_retained",
+        f"DURATION successful_poll_gap_seconds={observation_gap} "
+        "meaning=timeout_plus_polling_plus_replacement_not_exact_hang",
+        f"DURATION recovered_to_handler_completed_seconds={recovery_to_completion}",
+        f"DURATION handler_completed_to_client_completed_seconds={completion_to_terminal}",
+        f"DURATION total_run_seconds={report['elapsed_seconds']}",
+        "ASSERT same_response_reused=true",
+        "ASSERT checkpoint_continuity=translation_section_04->translation_section_05",
+        "ASSERT all_12_translations_present=true",
+        "ASSERT entry_modes=fresh+recovered",
+        "ASSERT terminal_status=completed",
+        "RESULT PASS",
+    ]
+    return "\n".join(lines) + "\n"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -130,10 +250,21 @@ def main() -> int:
         type=Path,
         default=ROOT / "evidence" / "owned-hosted-agent-local-trace.txt",
     )
+    parser.add_argument(
+        "--events",
+        type=Path,
+        help="sanitized JSONL events required for a hosted recovery report",
+    )
     args = parser.parse_args()
     report = json.loads(args.input.read_text(encoding="utf-8"))
+    if "timeline" in report:
+        output = render(report)
+    else:
+        if args.events is None:
+            parser.error("--events is required for a hosted recovery report")
+        output = render_hosted(report, read_jsonl(args.events))
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(render(report), encoding="utf-8")
+    args.output.write_text(output, encoding="utf-8")
     print(f"wrote recovery trace to {args.output}")
     return 0
 

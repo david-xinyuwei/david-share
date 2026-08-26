@@ -50,6 +50,12 @@
       "sha256": "22fc6ec39c9c88dc04e6da8ccea029517eda67c1f916251e7f0f0c01dca8fffc"
     },
     {
+      "bytes": 1414,
+      "path": "evidence/owned-hosted-agent-live-translation-trace.txt",
+      "provenance": "scripts/render_recovery_trace.py from the Version 7 report and recovery-container events.",
+      "sha256": "59420e115ff8de532a0003351502651cbd6d0eb109c186351015c79f558bd241"
+    },
+    {
       "bytes": 6612,
       "path": "evidence/owned-hosted-agent-live-translation.json",
       "provenance": "Version 7 real Translator S1 Foundry recovery run.",
@@ -122,10 +128,10 @@
       "sha256": "25f4d0a3c934a882d8d23d39861888616f499e9ab85882c255ea08e766bac149"
     },
     {
-      "bytes": 7718,
+      "bytes": 8047,
       "path": "evidence/README.md",
       "provenance": "Maintained evidence index and reproduction commands.",
-      "sha256": "36eceebaaad9119c50ac0bf1a92bb4613fc23d82762c65ea6a602bdec397777e"
+      "sha256": "c891abf8117241b7a4382ef9048d03b74835d700aee2c51a1a16af136bb13b48"
     },
     {
       "bytes": 1547,
@@ -146,28 +152,28 @@
       "sha256": "684d7d80d15077709f4bc91448149e5013ff4366544833dd31f47ab92da949d8"
     },
     {
-      "bytes": 4883,
+      "bytes": 5423,
       "path": "evidence/run-contract.json",
       "provenance": "Maintained scenario-agnostic complete-run contract.",
-      "sha256": "7c6f8276704a0489b5af21fb8b937bec3ded62a72768aaa9a5e86398d390f845"
+      "sha256": "3a555124e9a12ea76f0b6537214f66c013fd8acbc5b1462db43c4f79681abf27"
     },
     {
-      "bytes": 9269,
+      "bytes": 9773,
       "path": "evidence/runs/owned-agent-recovery-validation-20260826/run-manifest.json",
       "provenance": "Commands, exits, logs, status, UI, and key-code hashes for this validation cycle.",
-      "sha256": "a65ee6f397e94fe6f71f565d154e43a3e9967a744d953ee9775a50d5f00f73f8"
+      "sha256": "3a09e94717f46e346d76755db02ca1e3d3e9522b8285adab4c623d2148bb9c16"
     },
     {
-      "bytes": 9115,
+      "bytes": 9174,
       "path": "evidence/scenario-manifest.json",
       "provenance": "Maintained authenticity classification and non-claims.",
-      "sha256": "9346279b80cee0008dbacfda0f9e4b853a0258be2dab8a2a7521fb69b909dddb"
+      "sha256": "5f801700fcc008df3482a4ad156c817fa302155efbc0abb89b44b624f18c1dc6"
     },
     {
-      "bytes": 8061,
+      "bytes": 8127,
       "path": "evidence/scenario-matrix.json",
       "provenance": "Maintained PASS and NOT_VERIFIED mode matrix.",
-      "sha256": "03bb094abb7a0278ac06776a3ba3ff088cc75289578fcc77ab562278eddce09d"
+      "sha256": "b5320e0a1e5f7d40ad061ca1da41e434b22c289cbc0b6d56eefc6630a617b31a"
     },
     {
       "bytes": 2052,
@@ -176,7 +182,7 @@
       "sha256": "3149069f2e8e905344790be5cefb1ddfc884b86d67db86406a7b9f52c1e4131b"
     }
   ],
-  "generated_at_utc": "2026-08-26T12:50:06+00:00",
+  "generated_at_utc": "2026-08-26T14:31:11+00:00",
   "normalization": "utf-8-lf",
   "schema_version": 1
 }
