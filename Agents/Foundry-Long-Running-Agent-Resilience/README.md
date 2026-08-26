@@ -14,7 +14,7 @@ The capability is in **public preview**. Every interruption was deliberate, not 
 
 [中文](README-CN.md) | English
 
-[Customer Start Here](CUSTOMER-START-HERE.md) · [Measured results](#measured-results) · [Recovery model](#deep-dive-how-recovery-works) · [Reproduce](#quick-start) · [Evidence](#evidence-and-boundaries) · [Official documentation](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
+[Reproduce](#reproduce-with-this-repository) · [Measured results](#measured-results) · [Recovery model](#deep-dive-how-recovery-works) · [Evidence](#evidence-and-boundaries) · [Official documentation](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
 
 
 ## Start here
@@ -23,13 +23,165 @@ Do not read the whole repository first. Choose the path that matches your goal:
 
 | What you want to do | Go here |
 |---|---|
-| Add recovery to your Hosted Agent | [Customer Start Here](CUSTOMER-START-HERE.md) — complete packages, server settings, deployment, state, identity, caller and fault test |
-| Watch two local processes recover one task | [Run the local recovery experiment](#run-the-local-recovery-experiment) — no Azure subscription |
+| Add recovery to your Hosted Agent | [Reproduce with this repository](#reproduce-with-this-repository) — packages, server settings, deployment, state, identity, caller and fault test |
+| Watch two local processes recover one task | [Run local and live checks](#run-local-validate-then-deploy) — the first two paths need no Azure subscription |
 | Inspect the measured claim | [Measured results](#measured-results), then [evidence and boundaries](#evidence-and-boundaries) |
 
 The shortest accurate answer is: enable resilient stored background work on the server and request; choose safe rerun, a Responses snapshot, or application-owned state; then keep the same response/work ID in the caller. An external database is required only when meaningful progress lives outside the stored response or a side effect must be reconciled.
 
 **Done-when:** after injected process loss, the same work identity reaches an explicit terminal state with complete expected output, and committed side effects are not duplicated.
+
+## Reproduce with this repository
+
+The complete customer path is here in the main README. The runnable Agent, caller and evidence are owned by this repository:
+
+| File | What it does |
+|---|---|
+| [`hosted-agent/azure.yaml`](hosted-agent/azure.yaml) | Deploys `lra-evidence-agent` as a Python 3.13 Hosted Agent over Responses `2.0.0` |
+| [`hosted-agent/src/lra-evidence-agent/main.py`](hosted-agent/src/lra-evidence-agent/main.py) | Complete executable handler: five deterministic stages, one checkpoint per stage, and one guarded hard process exit |
+| [`hosted-agent/client.py`](hosted-agent/client.py) | Creates stored background work, saves and reuses the response ID, and rejects gaps, duplicates, expired observation, one-process "recovery," or an incomplete terminal state |
+| [`hosted-agent/run_local_recovery.py`](hosted-agent/run_local_recovery.py) | Starts process A, verifies exit code `86`, starts process B against the same state root, and validates completion |
+
+The Agent uses `ResponsesServerOptions(resilient_background=True)`, `set_resilient_tasks_enabled(True)`, `context.persisted_response`, `stream.checkpoint()` and `context.exit_for_recovery()`.
+
+The Microsoft [`resilient-streaming`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming) sample at `b9b2cdd` remains the public API reference, not the executable product path. Its `2.1.0b2` package pins must not be replaced with this repository's historical `2.0.0` offline-probe pins.
+
+### Choose where progress lives
+
+| Strategy | External progress store? | Use when |
+|---|---|---|
+| Safe rerun | No | The entire handler is inexpensive and safe to repeat |
+| Responses checkpoint | No separate database for completed response output | Progress is the staged output in one response |
+| Application/framework checkpoint | Yes | Business state, approvals, large artifacts, writes, payments, bookings or tool state must survive |
+
+Foundry persists work identity, input, leases and stored response events. It does not automatically preserve arbitrary business state or make side effects idempotent.
+
+### Prerequisites
+
+| Requirement | Configuration |
+|---|---|
+| Local | Git and Python 3.13 |
+| Azure | A non-production subscription and Foundry project; this deterministic Agent needs no model deployment |
+| Permissions | `Foundry Project Manager` at project scope; creating a project also requires `Owner` at resource-group scope |
+| Tools | Azure CLI 2.80+, Azure Developer CLI (`azd`) 1.27.1+, and `azd ext install microsoft.foundry` |
+| Sign-in | `az login` and `azd auth login` |
+| Packages | [`hosted-agent/src/lra-evidence-agent/requirements.txt`](hosted-agent/src/lra-evidence-agent/requirements.txt) pins core and Responses to `2.1.0b2` |
+
+Use a short clone path on Windows, such as `$HOME\lra-work`.
+
+### Run local, validate, then deploy
+
+The fastest no-Azure check is a standard-library recovery contract:
+
+```console
+git clone --depth 1 --filter=blob:none --sparse https://github.com/david-xinyuwei/david-share.git lra-demo
+git -C lra-demo sparse-checkout set Agents/Foundry-Long-Running-Agent-Resilience
+cd lra-demo/Agents/Foundry-Long-Running-Agent-Resilience
+
+python scripts/recovery_contract_demo.py demo --summary-file .demo-state/summary.json --events-file .demo-state/events.jsonl
+```
+
+Done-when is exit code `0` and a summary containing `"passed": true`, `worker_a_exit_code: 9`, `entry_modes: ["fresh", "recovered"]`, and phases `1-5`.
+
+On Windows PowerShell, run the repository-owned Agent locally, run every gate in a separate SDK environment, then deploy the same source to an isolated non-production project:
+
+```powershell
+# Repository-owned Agent: process A exits 86; process B completes the same response.
+python -m venv .venv-owned-agent
+$ownedPython = (Resolve-Path .\.venv-owned-agent\Scripts\python.exe).Path
+& $ownedPython -m pip install --no-input -r hosted-agent\src\lra-evidence-agent\requirements.txt
+& $ownedPython hosted-agent\run_local_recovery.py --python $ownedPython
+
+# Historical SDK probe and all repository gates use their own pinned environment.
+python -m venv .venv-validation
+$validationPython = (Resolve-Path .\.venv-validation\Scripts\python.exe).Path
+& $validationPython -m pip install --no-input -r requirements-validation.txt
+& $validationPython examples\resilience_sdk_usage.py --check
+& $validationPython scripts\verify_public_resilience_api.py --quiet
+& $validationPython scripts\validate_observations.py self-test
+& $validationPython -m unittest discover -s tests -v
+& $validationPython scripts\validate_repo.py
+
+# Live fault test. Use a dedicated non-production environment.
+Set-Location .\hosted-agent
+azd env new <environment-name> `
+  --subscription <subscription-id> `
+  --location <supported-region> `
+  --no-prompt
+azd env set LRA_ENABLE_FAULT_INJECTION true
+azd env set LRA_STAGE_DELAY_MS 500
+azd provision
+azd deploy
+
+$agent = azd ai agent show lra-evidence-agent --output json |
+  ConvertFrom-Json
+python .\client.py `
+  --endpoint $agent.agent_endpoints.responses `
+  --auth azure-cli `
+  --agent-version $agent.version `
+  --deployed-content-sha256 $agent.definition.code_configuration.content_hash `
+  --work-id owned-agent-live-001 `
+  --payload "public-safe live recovery workload" `
+  --crash-after-stage 1 `
+  --deadline-seconds 360
+
+# Return the deployment to a safe state after collecting evidence.
+azd env set LRA_ENABLE_FAULT_INJECTION false
+azd deploy
+Set-Location ..
+```
+
+Linux, macOS and WSL can run the no-Azure checks with:
+
+```bash
+python3 -m venv .venv-owned-agent
+OWNED_PYTHON=.venv-owned-agent/bin/python
+"$OWNED_PYTHON" -m pip install --no-input -r hosted-agent/src/lra-evidence-agent/requirements.txt
+"$OWNED_PYTHON" hosted-agent/run_local_recovery.py --python "$OWNED_PYTHON"
+
+python3 -m venv .venv-validation
+VALIDATION_PYTHON=.venv-validation/bin/python
+"$VALIDATION_PYTHON" -m pip install --no-input -r requirements-validation.txt
+"$VALIDATION_PYTHON" examples/resilience_sdk_usage.py --check
+"$VALIDATION_PYTHON" scripts/verify_public_resilience_api.py --quiet
+"$VALIDATION_PYTHON" scripts/validate_observations.py self-test
+"$VALIDATION_PYTHON" -m unittest discover -s tests -v
+"$VALIDATION_PYTHON" scripts/validate_repo.py
+```
+
+Done-when is `PASS: imported azure.ai.agentserver.core.tasks`, `18/18 checks passed`, `Ran 21 tests ... OK`, and `PASS: bilingual parity ... Data/Log Rich ... Code/Test Rich`.
+
+### Configure external state only when needed
+
+For application/framework checkpoints, create one durable record per logical job:
+
+| Field | Purpose |
+|---|---|
+| `work_id` | Stable application job ID and primary key |
+| `response_id` or `input_id` | Maps the job to Foundry work |
+| `completed_phase` | Last phase whose output was committed |
+| `state_ref` | JSON state or pointer to a large artifact |
+| `idempotency_key` | Stable key sent to downstream operations |
+| `status` | `running`, `completed`, `failed` or `needs_reconciliation` |
+| `version` / ETag | Rejects a stale process after takeover |
+| `updated_at` | Audit and timeout decisions |
+
+Set non-secret resource names with `azd env set CHECKPOINT_ENDPOINT <resource-endpoint>` and `azd env set CHECKPOINT_DATABASE <database-name>`, then map them under `environmentVariables` in `azure.yaml`. Authenticate through the identity method supported by the selected SDK, commonly `DefaultAzureCredential`; never embed a connection string. After deployment, run `azd ai agent show`, open the Hosted Agent's **Identity** in Foundry, and grant least privilege—such as `Storage Blob Data Contributor`—on only the required Blob, Cosmos DB or SQL scope.
+
+Use a transaction or ETag condition to commit the stage result and `completed_phase` together. Derive downstream idempotency keys from `work_id + phase`; when the target supports neither idempotency nor result lookup, record `needs_reconciliation` instead of guessing. Keep `TaskContext.metadata` small: phase, idempotency key or an external-state pointer.
+
+### Caller and acceptance contract
+
+| Action | Required behavior |
+|---|---|
+| Create | Send `store=true` and `background=true`; `stream=true` is optional |
+| Persist | Save `response.id`, `work_id` and one absolute deadline before acknowledging success upstream |
+| Reconnect | Read only `GET /responses/{response_id}` or `GET /responses/{response_id}?stream=true`; never create replacement work |
+| Recover | Treat bounded timeout, `404`, `424`, `429` and replacement `5xx` as transient only for that known response ID |
+| Finish | Require an explicit terminal state, stages `0-4` exactly once, one payload hash, and complete expected output |
+| Unknown create result | Do not create another response automatically; remote create and local ID persistence are not atomic, so deduplicate or reconcile |
+
+Local done-when is process A exit code `86`, process B entry mode `recovered`, two process instances and stages `0-4` exactly once. Live done-when is the same response-ID hash plus `fresh + recovered`, two process-instance hashes and status `completed`. The measured repository run completed in **57.884 seconds**; [live evidence](evidence/owned-hosted-agent-live.json) contains hashes rather than endpoint, response, process, tenant or subscription identifiers.
 
 ## What Foundry provides, and what your application owns
 
@@ -113,7 +265,6 @@ The figure below is the **official Microsoft diagram**, reproduced unmodified. I
 
 | Path | Contract |
 |---|---|
-| [`CUSTOMER-START-HERE.md`](CUSTOMER-START-HERE.md) | Single customer runbook for packages, deployment, state strategy, identity, caller behavior and fault acceptance |
 | [`hosted-agent/`](hosted-agent/) | Repository-owned deployable Hosted Agent, recovery client, local two-process runner and exact package pins |
 | [`examples/resilient_responses_agent.py`](examples/resilient_responses_agent.py) | Complete Responses recovery wiring: server opt-in, persisted-response restore, per-stage checkpoint and shutdown handoff |
 | [`examples/resilience_handler.py`](examples/resilience_handler.py) | The actual typed `@task` handler that imports and reads the public recovery context |
@@ -224,7 +375,7 @@ Four layers must line up; the process and handler layers remain **public-preview
 
 **Official sample.**
 
-Use the pinned deployable [`resilient-streaming`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming) sample, not an incomplete file with invented project, model, or identity values. The complete prerequisites, commands and storage choices are in [Customer Start Here](CUSTOMER-START-HERE.md).
+Use the pinned deployable [`resilient-streaming`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming) sample as the public API reference, not as the runnable product path. Complete prerequisites, commands and storage choices are in [Reproduce with this repository](#reproduce-with-this-repository).
 
 **Process recovery.**
 
@@ -266,7 +417,7 @@ Everything above is a design claim until it survives a deliberate interruption. 
 
 ### Current public-preview contract check
 
-Because the July campaign used a private-preview build, the Quick Start also checks pinned public packages in a clean Python 3.13 environment. All **18 of 18** checks passed against `core` 2.0.0, `invocations` 1.0.0, and `responses` 2.0.0; the exact assertions and versions are in the [JSON report](evidence/public-sdk-contract.json).
+Because the July campaign used a private-preview build, the reproduction section also checks pinned public packages in a clean Python 3.13 environment. All **18 of 18** checks passed against `core` 2.0.0, `invocations` 1.0.0, and `responses` 2.0.0; the exact assertions and versions are in the [JSON report](evidence/public-sdk-contract.json).
 
 This proves the installed public API surface—not live recovery. Any failed assertion returns a nonzero exit code.
 
@@ -359,59 +510,6 @@ Continue bounded polling on `424` only when the same work remains addressable an
 ### Prevent duplicate approvals and side effects
 
 The same approval may arrive again after recovery. The SQLite ledger skips identical replay and rejects conflicting content. Real payment, booking, and write APIs must honor the same idempotency identity or they may still execute twice.
-
-
-## Quick start
-
-**Prerequisites:** Git and Python 3.13. The local experiment and tests require no Azure subscription, credentials, endpoint, or service call. On Windows, clone under a short path such as `$HOME\lra-work` rather than a long OneDrive or project path. The experiment commands below use no shell-specific continuation or activation syntax, so they run in PowerShell, Bash, or zsh; use `python3` instead of `python` only if that is how your platform exposes Python 3.13.
-
-### Run the local recovery experiment
-
-```console
-git clone --depth 1 --filter=blob:none --sparse https://github.com/david-xinyuwei/david-share.git lra-demo
-git -C lra-demo sparse-checkout set Agents/Foundry-Long-Running-Agent-Resilience
-cd lra-demo/Agents/Foundry-Long-Running-Agent-Resilience
-
-python scripts/recovery_contract_demo.py demo --summary-file .demo-state/summary.json --events-file .demo-state/events.jsonl
-```
-
-Done-when is exit code `0` and a summary containing `"passed": true`, `worker_a_exit_code: 9`, `entry_modes: ["fresh", "recovered"]`, and phases `1-5`. Worker A exits through a real `os._exit(9)`; Worker B is a different operating-system process.
-
-### Tests and repository gate
-
-Windows PowerShell:
-
-```powershell
-python -m venv .venv
-$python = (Resolve-Path .\.venv\Scripts\python.exe).Path
-& $python -m pip install --no-input -r requirements-validation.txt
-& $python examples\resilience_sdk_usage.py --check
-& $python scripts\verify_public_resilience_api.py --quiet
-& $python scripts\validate_observations.py self-test
-& $python -m unittest discover -s tests -v
-& $python scripts\validate_repo.py
-```
-
-Linux / macOS:
-
-```bash
-python3 -m venv .venv
-PYTHON=.venv/bin/python
-"$PYTHON" -m pip install --no-input -r requirements-validation.txt
-"$PYTHON" examples/resilience_sdk_usage.py --check
-"$PYTHON" scripts/verify_public_resilience_api.py --quiet
-"$PYTHON" scripts/validate_observations.py self-test
-"$PYTHON" -m unittest discover -s tests -v
-"$PYTHON" scripts/validate_repo.py
-```
-
-Done-when is `PASS: imported azure.ai.agentserver.core.tasks`, `18/18 checks passed`, `Ran 21 tests ... OK`, and `PASS: bilingual parity ... Data/Log Rich ... Code/Test Rich`. These checks validate the pinned public SDK surface and this repository; they do not call a live Hosted Agent.
-
-### Reproduce on a live Hosted Agent
-
-Follow [Customer Start Here](CUSTOMER-START-HERE.md) to deploy this repository's `lra-evidence-agent`, not a copied external sample. The deterministic agent needs no model deployment. It checkpoints stages `0-4`, exits after stage `1` when the isolated fault switch is enabled, and the repository client validates the same response across two process instances.
-
-Live done-when is `fresh + recovered`, two process-instance hashes, stage indexes `0-4` exactly once, status `completed`, and the same response-ID hash—not a portal chart or a bare `completed` string.
 
 
 ## Failure and recovery playbook

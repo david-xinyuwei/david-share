@@ -14,7 +14,7 @@
 
 [English](README.md) | 中文
 
-[客户快速入口](CUSTOMER-START-HERE-CN.md) · [实测结果](#实测结果) · [恢复模型](#深入理解恢复如何工作) · [复现](#快速开始) · [证据](#证据与边界) · [官方文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
+[复现](#使用本仓库复现) · [实测结果](#实测结果) · [恢复模型](#深入理解恢复如何工作) · [证据](#证据与边界) · [官方文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
 
 
 ## 从这里开始
@@ -23,13 +23,165 @@
 
 | 你想做什么 | 去哪里 |
 |---|---|
-| 给自己的 Hosted Agent 加恢复能力 | [客户快速入口](CUSTOMER-START-HERE-CN.md)：软件包、服务端、部署、状态保存、身份、客户端和故障验收都在一处 |
-| 在本机看两个进程接力同一任务 | [运行本地恢复实验](#运行本地恢复实验)，不需要 Azure 订阅 |
+| 给自己的 Hosted Agent 加恢复能力 | [使用本仓库复现](#使用本仓库复现)：软件包、服务端、部署、状态保存、身份、客户端和故障验收都在本页 |
+| 在本机看两个进程接力同一任务 | [本机运行、验证，再部署](#本机运行验证再部署)，前两条路径不需要 Azure 订阅 |
 | 核对实测结论 | 先看[实测结果](#实测结果)，再看[证据与边界](#证据与边界) |
 
 最短且准确的答案是：服务端和请求都要启用可恢复的后台任务；再根据任务选择安全重跑、Responses 快照或应用自有状态；客户端始终保存同一个响应 ID 或任务 ID。只有当重要进度不在已保存的响应中，或外部操作需要对账时，才必须另配数据库。
 
 **完成标准：** 主动注入进程丢失后，同一条任务到达明确终态、预期输出完整，而且已提交的外部操作没有重复。
+
+## 使用本仓库复现
+
+完整客户复现路径就在主 README。可运行的 Agent、客户端和证据都由本仓库提供：
+
+| 文件 | 作用 |
+|---|---|
+| [`hosted-agent/azure.yaml`](hosted-agent/azure.yaml) | 把 `lra-evidence-agent` 部署为 Python 3.13、Responses `2.0.0` 协议的 Hosted Agent |
+| [`hosted-agent/src/lra-evidence-agent/main.py`](hosted-agent/src/lra-evidence-agent/main.py) | 完整可执行处理函数：五个确定性阶段、每阶段一个检查点，以及一次受控硬退出 |
+| [`hosted-agent/client.py`](hosted-agent/client.py) | 创建并保存后台响应、保存并复用响应 ID；发现缺口、重复、截止时间失效、单进程“恢复”或终态不完整时直接失败 |
+| [`hosted-agent/run_local_recovery.py`](hosted-agent/run_local_recovery.py) | 启动进程 A、核对退出码 `86`，再用相同状态目录启动进程 B，并验收完整结果 |
+
+Agent 使用 `ResponsesServerOptions(resilient_background=True)`、`set_resilient_tasks_enabled(True)`、`context.persisted_response`、`stream.checkpoint()` 和 `context.exit_for_recovery()`。
+
+微软在 `b9b2cdd` 的 [`resilient-streaming`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming) 样例只保留为公共 API 参考，不再是本仓库的可执行主路径。它使用的 `2.1.0b2` 依赖**不能**替换成本仓库历史离线检查使用的 `2.0.0`。
+
+### 先选进度保存位置
+
+| 策略 | 要另配进度存储吗 | 适用场景 |
+|---|---|---|
+| 安全重跑 | 不需要 | 整个处理函数执行成本低，而且可以安全重复 |
+| Responses 检查点 | 已完成的响应输出不需要另建数据库 | 进度就是同一个响应中的分段输出 |
+| 应用或框架检查点 | 需要 | 业务状态、审批、大文件、写入、付款、预订或工具状态必须保留 |
+
+Foundry 负责持久化任务身份、输入、租约和已保存的后台响应中的事件，但不会自动保存任意业务状态，也不会自动让外部操作具备幂等性。
+
+### 前置条件
+
+| 前置项 | 配置 |
+|---|---|
+| 本机 | Git 和 Python 3.13 |
+| Azure | 非生产订阅和 Foundry 项目；这个确定性 Agent 不需要模型部署 |
+| 权限 | 项目范围的 `Foundry Project Manager`；新建项目还需要资源组范围的 `Owner` |
+| 工具 | Azure CLI 2.80+、Azure Developer CLI（`azd`）1.27.1+，以及 `azd ext install microsoft.foundry` |
+| 登录 | `az login` 和 `azd auth login` |
+| 软件包 | [`hosted-agent/src/lra-evidence-agent/requirements.txt`](hosted-agent/src/lra-evidence-agent/requirements.txt) 把 core 和 Responses 固定为 `2.1.0b2` |
+
+Windows 请使用 `$HOME\lra-work` 这类短路径。
+
+### 本机运行、验证，再部署
+
+最快的零 Azure 检查只使用 Python 标准库：
+
+```console
+git clone --depth 1 --filter=blob:none --sparse https://github.com/david-xinyuwei/david-share.git lra-demo
+git -C lra-demo sparse-checkout set Agents/Foundry-Long-Running-Agent-Resilience
+cd lra-demo/Agents/Foundry-Long-Running-Agent-Resilience
+
+python scripts/recovery_contract_demo.py demo --summary-file .demo-state/summary.json --events-file .demo-state/events.jsonl
+```
+
+**完成标准：** 命令退出码为 `0`，结果包含 `"passed": true`、`worker_a_exit_code: 9`、`entry_modes: ["fresh", "recovered"]` 和阶段 `1-5`。
+
+在 Windows PowerShell 中，先运行本仓库自有 Agent，再在独立 SDK 环境中执行全部门禁，最后把同一份源码部署到隔离的非生产项目：
+
+```powershell
+# 本仓库自有 Agent：进程 A 退出码为 86，进程 B 完成同一个响应。
+python -m venv .venv-owned-agent
+$ownedPython = (Resolve-Path .\.venv-owned-agent\Scripts\python.exe).Path
+& $ownedPython -m pip install --no-input -r hosted-agent\src\lra-evidence-agent\requirements.txt
+& $ownedPython hosted-agent\run_local_recovery.py --python $ownedPython
+
+# 历史 SDK 探测与仓库门禁使用另一套固定版本环境。
+python -m venv .venv-validation
+$validationPython = (Resolve-Path .\.venv-validation\Scripts\python.exe).Path
+& $validationPython -m pip install --no-input -r requirements-validation.txt
+& $validationPython examples\resilience_sdk_usage.py --check
+& $validationPython scripts\verify_public_resilience_api.py --quiet
+& $validationPython scripts\validate_observations.py self-test
+& $validationPython -m unittest discover -s tests -v
+& $validationPython scripts\validate_repo.py
+
+# 线上故障测试必须使用独立的非生产环境。
+Set-Location .\hosted-agent
+azd env new <environment-name> `
+  --subscription <subscription-id> `
+  --location <supported-region> `
+  --no-prompt
+azd env set LRA_ENABLE_FAULT_INJECTION true
+azd env set LRA_STAGE_DELAY_MS 500
+azd provision
+azd deploy
+
+$agent = azd ai agent show lra-evidence-agent --output json |
+  ConvertFrom-Json
+python .\client.py `
+  --endpoint $agent.agent_endpoints.responses `
+  --auth azure-cli `
+  --agent-version $agent.version `
+  --deployed-content-sha256 $agent.definition.code_configuration.content_hash `
+  --work-id owned-agent-live-001 `
+  --payload "public-safe live recovery workload" `
+  --crash-after-stage 1 `
+  --deadline-seconds 360
+
+# 采集证据后，把部署恢复到安全状态。
+azd env set LRA_ENABLE_FAULT_INJECTION false
+azd deploy
+Set-Location ..
+```
+
+Linux、macOS 和 WSL 可以执行以下零 Azure 检查：
+
+```bash
+python3 -m venv .venv-owned-agent
+OWNED_PYTHON=.venv-owned-agent/bin/python
+"$OWNED_PYTHON" -m pip install --no-input -r hosted-agent/src/lra-evidence-agent/requirements.txt
+"$OWNED_PYTHON" hosted-agent/run_local_recovery.py --python "$OWNED_PYTHON"
+
+python3 -m venv .venv-validation
+VALIDATION_PYTHON=.venv-validation/bin/python
+"$VALIDATION_PYTHON" -m pip install --no-input -r requirements-validation.txt
+"$VALIDATION_PYTHON" examples/resilience_sdk_usage.py --check
+"$VALIDATION_PYTHON" scripts/verify_public_resilience_api.py --quiet
+"$VALIDATION_PYTHON" scripts/validate_observations.py self-test
+"$VALIDATION_PYTHON" -m unittest discover -s tests -v
+"$VALIDATION_PYTHON" scripts/validate_repo.py
+```
+
+**仓库检查完成标准：** 看到 `PASS: imported azure.ai.agentserver.core.tasks`、`18/18 checks passed`、`Ran 21 tests ... OK` 和 `PASS: bilingual parity ... Data/Log Rich ... Code/Test Rich`。
+
+### 仅在需要时配置外部状态
+
+使用应用或框架检查点时，每个业务任务至少保存一条持久化记录：
+
+| 字段 | 用途 |
+|---|---|
+| `work_id` | 应用自己的稳定任务 ID 和主键 |
+| `response_id` 或 `input_id` | 把业务任务映射到 Foundry 中的任务 |
+| `completed_phase` | 最后一个已提交结果的阶段 |
+| `state_ref` | JSON 状态或指向大文件的地址 |
+| `idempotency_key` | 传给下游操作的稳定幂等键 |
+| `status` | `running`、`completed`、`failed` 或 `needs_reconciliation` |
+| `version` / ETag | 新进程接管后阻止旧进程继续写入 |
+| `updated_at` | 审计和超时判断 |
+
+用 `azd env set CHECKPOINT_ENDPOINT <resource-endpoint>` 和 `azd env set CHECKPOINT_DATABASE <database-name>` 设置非敏感的资源名称，并在 `azure.yaml` 的 `environmentVariables` 中映射。使用所选 SDK 支持的身份认证方式，通常是 `DefaultAzureCredential`；不要写入连接字符串。部署后运行 `azd ai agent show`，在 Foundry 中打开 Hosted Agent 的 **Identity**，只为所需的 Blob、Cosmos DB 或 SQL 范围授予最小权限，例如 `Storage Blob Data Contributor`。
+
+使用事务或 ETag 条件同时提交阶段结果和 `completed_phase`。用 `work_id + phase` 生成下游幂等键；如果目标既不支持幂等，也不能查询结果，就记录 `needs_reconciliation`，不要猜测。`TaskContext.metadata` 只放阶段、幂等键或外部状态指针。
+
+### 客户端与验收合同
+
+| 动作 | 必须做到 |
+|---|---|
+| 创建 | 同时发送 `store=true` 和 `background=true`；可按需设置 `stream=true` |
+| 保存 | 在向上游确认成功前，保存 `response.id`、`work_id` 和一个绝对截止时间 |
+| 重连 | 只读取 `GET /responses/{response_id}` 或 `GET /responses/{response_id}?stream=true`；不能新建替代任务 |
+| 恢复 | 对这个已知响应 ID，只有在截止时间内才把读取超时、`404`、`424`、`429` 和实例替换期间的 `5xx` 当成暂态 |
+| 完成 | 要求明确终态、阶段 `0-4` 各出现一次、一个 payload hash，以及完整预期输出 |
+| 创建结果未知 | 不要自动创建第二条响应；远端创建请求与本地保存 ID 不是一个原子事务，必须去重或对账 |
+
+本机完成标准：进程 A 退出码为 `86`，进程 B 的进入模式为 `recovered`，出现两个进程实例，阶段 `0-4` 各完成一次。线上完成标准：响应 ID 哈希不变，并同时出现 `fresh + recovered`、两个进程实例哈希和 `completed`。本仓库实测耗时 **57.884 秒**；[线上证据](evidence/owned-hosted-agent-live.json) 只保存哈希，不保存端点、响应、进程、租户或订阅原始标识。
 
 ## Foundry 提供什么，应用负责什么
 
@@ -113,7 +265,6 @@
 
 | 文件或目录 | 作用 |
 |---|---|
-| [`CUSTOMER-START-HERE-CN.md`](CUSTOMER-START-HERE-CN.md) | 软件包、部署、状态保存、身份、客户端和故障验收的唯一客户操作手册。 |
 | [`hosted-agent/`](hosted-agent/) | 本仓库自有的可部署 Hosted Agent、恢复客户端、本地双进程运行器和固定版本依赖。 |
 | [`examples/resilient_responses_agent.py`](examples/resilient_responses_agent.py) | 完整的 Responses 恢复代码：服务端开启恢复、载入已保存的响应、逐阶段写入检查点、关闭时交接。 |
 | [`examples/resilience_handler.py`](examples/resilience_handler.py) | 带类型标注的真实 `@task` 处理函数，直接导入并读取公共恢复上下文。 |
@@ -224,7 +375,7 @@
 
 **官方样例。**
 
-使用固定版本的官方 [`resilient-streaming`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming) 可部署样例，不要自己编一个缺少项目、模型或身份配置的文件。完整前置条件、命令和存储选择见[客户快速入口](CUSTOMER-START-HERE-CN.md)。
+使用固定版本的官方 [`resilient-streaming`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming) 作为公共 API 参考，而不是可执行主路径。完整前置条件、命令和存储选择见[使用本仓库复现](#使用本仓库复现)。
 
 **进程恢复。**
 
@@ -266,7 +417,7 @@
 
 ### 当前公共预览契约检查
 
-7 月测试使用的是私有预览构件，因此“快速开始”还会在干净的 Python 3.13 环境中检查当前公开软件包。固定版本的 `core` 2.0.0、`invocations` 1.0.0 和 `responses` 2.0.0 共 **18 / 18 项通过**；版本与每项检查见 [JSON 报告](evidence/public-sdk-contract.json)。
+7 月测试使用的是私有预览构件，因此复现章节还会在干净的 Python 3.13 环境中检查当前公开软件包。固定版本的 `core` 2.0.0、`invocations` 1.0.0 和 `responses` 2.0.0 共 **18 / 18 项通过**；版本与每项检查见 [JSON 报告](evidence/public-sdk-contract.json)。
 
 这只能证明已安装的公共接口符合预期，不能证明线上恢复。任何一项失败都会返回非零退出码。
 
@@ -359,59 +510,6 @@
 ### 审批决定和外部操作都要防重复
 
 恢复后，同一条审批消息可能再次送达。本地 SQLite 记录阶段结果、去重标识和进度：相同消息再次到达时跳过，内容冲突时立即报错。真实支付、预订或写入接口也必须识别同一个去重标识，否则仍可能执行两次。
-
-
-## 快速开始
-
-**需要：** Git 和 Python 3.13。本地实验不需要 Azure 订阅或凭据。Windows 请放在 `$HOME\lra-work` 这类短路径下；命令可直接用于 PowerShell、Bash 或 zsh。如果系统只有 `python3`，把命令中的 `python` 换成 `python3`。
-
-### 运行本地恢复实验
-
-```console
-git clone --depth 1 --filter=blob:none --sparse https://github.com/david-xinyuwei/david-share.git lra-demo
-git -C lra-demo sparse-checkout set Agents/Foundry-Long-Running-Agent-Resilience
-cd lra-demo/Agents/Foundry-Long-Running-Agent-Resilience
-
-python scripts/recovery_contract_demo.py demo --summary-file .demo-state/summary.json --events-file .demo-state/events.jsonl
-```
-
-**完成标准：** 命令正常结束（退出码 `0`）；结果中有 `"passed": true`、`worker_a_exit_code: 9`、`entry_modes: ["fresh", "recovered"]` 和阶段 `1-5`。这表示进程 A 被真实终止后，另一个进程 B 接手并完成任务。
-
-### 测试与仓库检查
-
-Windows PowerShell：
-
-```powershell
-python -m venv .venv
-$python = (Resolve-Path .\.venv\Scripts\python.exe).Path
-& $python -m pip install --no-input -r requirements-validation.txt
-& $python examples\resilience_sdk_usage.py --check
-& $python scripts\verify_public_resilience_api.py --quiet
-& $python scripts\validate_observations.py self-test
-& $python -m unittest discover -s tests -v
-& $python scripts\validate_repo.py
-```
-
-Linux / macOS：
-
-```bash
-python3 -m venv .venv
-PYTHON=.venv/bin/python
-"$PYTHON" -m pip install --no-input -r requirements-validation.txt
-"$PYTHON" examples/resilience_sdk_usage.py --check
-"$PYTHON" scripts/verify_public_resilience_api.py --quiet
-"$PYTHON" scripts/validate_observations.py self-test
-"$PYTHON" -m unittest discover -s tests -v
-"$PYTHON" scripts/validate_repo.py
-```
-
-**完成标准：** 看到 `PASS: imported azure.ai.agentserver.core.tasks`、`18/18 checks passed`、`Ran 21 tests ... OK` 和 `PASS: bilingual parity ... Data/Log Rich ... Code/Test Rich`。这些命令只检查 SDK 和本仓库，不会调用线上 Hosted Agent。
-
-### 在真实 Hosted Agent 上复现
-
-按[客户快速入口](CUSTOMER-START-HERE-CN.md)部署本仓库的 `lra-evidence-agent`，不再复制外部样例。这个确定性 Agent 不需要模型部署；它逐一提交阶段 `0-4`，在隔离的故障开关开启时于阶段 `1` 后退出，再由本仓库客户端验证两个进程实例是否完成同一个响应。
-
-**完成标准：** 同时看到 `fresh + recovered`、两个进程实例哈希、阶段 `0-4` 各出现一次、状态为 `completed`，而且响应 ID 哈希不变。只有门户图表或一个 `completed` 字符串不够。
 
 
 ## 故障判断与恢复速查表

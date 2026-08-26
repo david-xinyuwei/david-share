@@ -40,8 +40,6 @@ def parse_root() -> Path:
 ROOT = parse_root()
 EN = ROOT / "README.md"
 CN = ROOT / "README-CN.md"
-START_EN = ROOT / "CUSTOMER-START-HERE.md"
-START_CN = ROOT / "CUSTOMER-START-HERE-CN.md"
 
 ALLOWED_FILES = {
     ".gitattributes",
@@ -49,8 +47,6 @@ ALLOWED_FILES = {
     "LICENSE",
     "README.md",
     "README-CN.md",
-    "CUSTOMER-START-HERE.md",
-    "CUSTOMER-START-HERE-CN.md",
     "THIRD-PARTY-NOTICES.md",
     "requirements-validation.txt",
     "hosted-agent/.env.example",
@@ -124,6 +120,12 @@ HISTORICAL_NUMBERS = [
 
 REQUIRED_EN_SECTIONS = [
     "## Start here",
+    "## Reproduce with this repository",
+    "### Choose where progress lives",
+    "### Prerequisites",
+    "### Run local, validate, then deploy",
+    "### Configure external state only when needed",
+    "### Caller and acceptance contract",
     "## What Foundry provides, and what your application owns",
     "## What this repo validates",
     "### Repository-owned Hosted Agent result",
@@ -144,10 +146,6 @@ REQUIRED_EN_SECTIONS = [
     "### A `done` frame is not proof of success",
     "### Classify `424` separately from `403`",
     "### Prevent duplicate approvals and side effects",
-    "## Quick start",
-    "### Run the local recovery experiment",
-    "### Tests and repository gate",
-    "### Reproduce on a live Hosted Agent",
     "## Failure and recovery playbook",
     "## Design guidance",
     "## Evidence and boundaries",
@@ -156,6 +154,12 @@ REQUIRED_EN_SECTIONS = [
 
 REQUIRED_CN_SECTIONS = [
     "## 从这里开始",
+    "## 使用本仓库复现",
+    "### 先选进度保存位置",
+    "### 前置条件",
+    "### 本机运行、验证，再部署",
+    "### 仅在需要时配置外部状态",
+    "### 客户端与验收合同",
     "## Foundry 提供什么，应用负责什么",
     "## 本仓库验证了什么",
     "### 本仓库自有 Hosted Agent 的实测结果",
@@ -176,36 +180,10 @@ REQUIRED_CN_SECTIONS = [
     "### 一个 `done` 帧不能证明成功",
     "### 把 `424` 和 `403` 分开处理",
     "### 审批决定和外部操作都要防重复",
-    "## 快速开始",
-    "### 运行本地恢复实验",
-    "### 测试与仓库检查",
-    "### 在真实 Hosted Agent 上复现",
     "## 故障判断与恢复速查表",
     "## 设计建议",
     "## 证据与边界",
     "### 宣称“可以上生产”之前",
-]
-
-REQUIRED_START_EN_SECTIONS = [
-    "## Supported path",
-    "### Choose the progress strategy",
-    "### Prerequisites",
-    "### Prove recovery locally first",
-    "### Deploy and run the live fault test",
-    "### Configure external state only when needed",
-    "### Configure the caller",
-    "### Accept the recovery",
-]
-
-REQUIRED_START_CN_SECTIONS = [
-    "## 支持的路径",
-    "### 先选进度保存方式",
-    "### 前置条件",
-    "### 先在本机证明恢复",
-    "### 部署并运行线上故障测试",
-    "### 仅在需要时配置外部状态",
-    "### 配置调用方",
-    "### 验收恢复",
 ]
 
 REQUIRED_CONCEPTS = {
@@ -434,18 +412,14 @@ def count_unittest_cases(suite: unittest.TestSuite) -> int:
 def main() -> int:
     errors: list[str] = []
 
-    if not all(path.is_file() for path in (EN, CN, START_EN, START_CN)):
-        print("ERROR: both READMEs and both customer-start guides must exist")
+    if not EN.is_file() or not CN.is_file():
+        print("ERROR: both READMEs must exist")
         return 1
 
     en_text = EN.read_text(encoding="utf-8")
     cn_text = CN.read_text(encoding="utf-8")
-    start_en_text = START_EN.read_text(encoding="utf-8")
-    start_cn_text = START_CN.read_text(encoding="utf-8")
     en_lines = en_text.splitlines()
     cn_lines = cn_text.splitlines()
-    start_en_lines = start_en_text.splitlines()
-    start_cn_lines = start_cn_text.splitlines()
 
     def require(condition: bool, message: str) -> None:
         if not condition:
@@ -457,32 +431,12 @@ def main() -> int:
     require(abs(len(en_lines) - len(cn_lines)) <= 15,
             f"line-count drift too large: {len(en_lines)} vs {len(cn_lines)}")
     require(
-        len(headings(en_text)) <= 36,
+        len(headings(en_text)) <= 42,
         f"English main narrative re-fragmented into {len(headings(en_text))} headings",
     )
     require(
-        len(headings(cn_text)) <= 36,
+        len(headings(cn_text)) <= 42,
         f"Chinese main narrative re-fragmented into {len(headings(cn_text))} headings",
-    )
-    require(
-        headings(start_en_text) == headings(start_cn_text),
-        "customer-start heading level sequence differs",
-    )
-    require(
-        tables(start_en_lines) == tables(start_cn_lines),
-        "customer-start table shapes differ",
-    )
-    require(
-        abs(len(start_en_lines) - len(start_cn_lines)) <= 12,
-        (
-            "customer-start line-count drift too large: "
-            f"{len(start_en_lines)} vs {len(start_cn_lines)}"
-        ),
-    )
-    require(
-        len(headings(start_en_text)) <= 10
-        and len(headings(start_cn_text)) <= 10,
-        "customer-start guides must remain one compact runbook",
     )
 
     # Image parity: two project charts are localized; official and Portal images are shared.
@@ -545,12 +499,7 @@ def main() -> int:
         )
 
     # Link and image targets exist
-    documents = (
-        (EN, en_text),
-        (CN, cn_text),
-        (START_EN, start_en_text),
-        (START_CN, start_cn_text),
-    )
+    documents = ((EN, en_text), (CN, cn_text))
     for readme, text in documents:
         for target in local_links(text) + images(text):
             if target.startswith("../"):
@@ -577,50 +526,20 @@ def main() -> int:
         require(number in en_text, f"English README missing measured value {number}")
         require(number in cn_text, f"Chinese README missing measured value {number}")
     for number in ("3.13", "2.80", "1.27.1", "2.1.0b2", "2.0.0"):
-        require(number in start_en_text,
-                f"English customer-start guide missing version {number}")
-        require(number in start_cn_text,
-                f"Chinese customer-start guide missing version {number}")
+        require(number in en_text, f"English README missing version {number}")
+        require(number in cn_text, f"Chinese README missing version {number}")
 
     # Customer-first narrative and recovery semantics
     for section in REQUIRED_EN_SECTIONS:
         require(section in en_text, f"English README missing customer-first section: {section}")
     for section in REQUIRED_CN_SECTIONS:
         require(section in cn_text, f"Chinese README missing customer-first section: {section}")
-    for section in REQUIRED_START_EN_SECTIONS:
-        require(
-            section in start_en_text,
-            f"English customer-start guide missing section: {section}",
-        )
-    for section in REQUIRED_START_CN_SECTIONS:
-        require(
-            section in start_cn_text,
-            f"Chinese customer-start guide missing section: {section}",
-        )
     en_section_positions = [en_text.index(section) for section in REQUIRED_EN_SECTIONS if section in en_text]
     cn_section_positions = [cn_text.index(section) for section in REQUIRED_CN_SECTIONS if section in cn_text]
-    start_en_positions = [
-        start_en_text.index(section)
-        for section in REQUIRED_START_EN_SECTIONS
-        if section in start_en_text
-    ]
-    start_cn_positions = [
-        start_cn_text.index(section)
-        for section in REQUIRED_START_CN_SECTIONS
-        if section in start_cn_text
-    ]
     require(en_section_positions == sorted(en_section_positions),
             "English README does not follow the required reader flow")
     require(cn_section_positions == sorted(cn_section_positions),
             "Chinese README does not follow the required reader flow")
-    require(
-        start_en_positions == sorted(start_en_positions),
-        "English customer-start guide does not follow the required flow",
-    )
-    require(
-        start_cn_positions == sorted(start_cn_positions),
-        "Chinese customer-start guide does not follow the required flow",
-    )
     for readme, text in documents:
         require(not re.search(r"^#{2,4}\s+\d+(?:\.\d+)*\.", text, flags=re.MULTILINE),
                 f"{readme.name}: numbered manual-style headings must not replace reader-flow headings")
@@ -634,7 +553,7 @@ def main() -> int:
         "not active-active redundancy",
         "task-level recovery",
         "flush()` is not a durable-write acknowledgement",
-        "[Customer Start Here](CUSTOMER-START-HERE.md)",
+        "[Reproduce](#reproduce-with-this-repository)",
         "| What you want to do | Go here |",
     ):
         require(snippet in en_text,
@@ -643,7 +562,7 @@ def main() -> int:
         "不是让两个 Agent 同时执行同一任务的双活（active-active）",
         "任务级恢复",
         "不等于“持久化已经确认成功”",
-        "[客户快速入口](CUSTOMER-START-HERE-CN.md)",
+        "[复现](#使用本仓库复现)",
         "| 你想做什么 | 去哪里 |",
     ):
         require(snippet in cn_text,
@@ -666,8 +585,8 @@ def main() -> int:
         "azd ai agent show",
         "remote create and local ID persistence are not atomic",
     ):
-        require(snippet in start_en_text,
-                f"English customer-start guide missing adoption guidance: {snippet}")
+        require(snippet in en_text,
+                f"English README missing reproduction guidance: {snippet}")
     for snippet in (
         "| 策略 | 要另配进度存储吗 | 适用场景 |",
         "hosted-agent/src/lra-evidence-agent/requirements.txt",
@@ -686,8 +605,8 @@ def main() -> int:
         "azd ai agent show",
         "远端创建请求与本地保存 ID 不是一个原子事务",
     ):
-        require(snippet in start_cn_text,
-                f"Chinese customer-start guide missing adoption guidance: {snippet}")
+        require(snippet in cn_text,
+                f"Chinese README missing reproduction guidance: {snippet}")
     for snippet in (
         "可恢复的后台任务",
         "响应 ID 或任务 ID",
@@ -703,13 +622,13 @@ def main() -> int:
         )
     for snippet in (
         "已保存的后台响应",
-        "进度保存方式",
+        "进度保存位置",
         "完整可执行处理函数",
-        "上游调用方",
+        "向上游确认成功",
     ):
         require(
-            snippet in start_cn_text,
-            f"Chinese customer-start guide missing direct Chinese: {snippet}",
+            snippet in cn_text,
+            f"Chinese README missing direct reproduction Chinese: {snippet}",
         )
     for retired in (
         "stored background work",
@@ -721,7 +640,7 @@ def main() -> int:
         "调用方始终保存",
     ):
         require(
-            retired not in cn_text and retired not in start_cn_text,
+            retired not in cn_text,
             f"machine-translated or mixed Chinese returned: {retired}",
         )
     for snippet in (
@@ -883,14 +802,16 @@ def main() -> int:
         if len(powershell_blocks) == 1:
             powershell_block = powershell_blocks[0]
             for command in (
-                "python -m venv .venv",
-                "Resolve-Path .\\.venv\\Scripts\\python.exe",
-                "& $python -m pip install --no-input -r requirements-validation.txt",
-                "& $python examples\\resilience_sdk_usage.py --check",
-                "& $python scripts\\verify_public_resilience_api.py --quiet",
-                "& $python scripts\\validate_observations.py self-test",
-                "& $python -m unittest discover -s tests -v",
-                "& $python scripts\\validate_repo.py",
+                "python -m venv .venv-owned-agent",
+                "hosted-agent\\run_local_recovery.py --python $ownedPython",
+                "python -m venv .venv-validation",
+                "& $validationPython -m pip install --no-input -r requirements-validation.txt",
+                "& $validationPython -m unittest discover -s tests -v",
+                "& $validationPython scripts\\validate_repo.py",
+                "azd env set LRA_ENABLE_FAULT_INJECTION true",
+                "azd deploy",
+                "python .\\client.py",
+                "azd env set LRA_ENABLE_FAULT_INJECTION false",
             ):
                 require(command in powershell_block,
                         f"{readme.name}: PowerShell validation missing command {command}")
@@ -900,14 +821,13 @@ def main() -> int:
         if len(bash_blocks) == 1:
             validation_block = bash_blocks[0]
             for command in (
-                "python3 -m venv .venv",
-                'PYTHON=.venv/bin/python',
-                '"$PYTHON" -m pip install --no-input -r requirements-validation.txt',
-                '"$PYTHON" examples/resilience_sdk_usage.py --check',
-                '"$PYTHON" scripts/verify_public_resilience_api.py --quiet',
-                '"$PYTHON" scripts/validate_observations.py self-test',
-                '"$PYTHON" -m unittest discover -s tests -v',
-                '"$PYTHON" scripts/validate_repo.py',
+                "python3 -m venv .venv-owned-agent",
+                'OWNED_PYTHON=.venv-owned-agent/bin/python',
+                '"$OWNED_PYTHON" hosted-agent/run_local_recovery.py',
+                "python3 -m venv .venv-validation",
+                'VALIDATION_PYTHON=.venv-validation/bin/python',
+                '"$VALIDATION_PYTHON" -m unittest discover -s tests -v',
+                '"$VALIDATION_PYTHON" scripts/validate_repo.py',
             ):
                 require(command in validation_block,
                         f"{readme.name}: POSIX validation missing command {command}")
@@ -925,26 +845,17 @@ def main() -> int:
         for retired in ("pseudocode", "伪代码", "interface sketches", "接口示意"):
             require(retired not in text,
                     f"{readme.name}: retired non-executable content returned: {retired}")
-    for guide, text in ((START_EN, start_en_text), (START_CN, start_cn_text)):
-        require(
-            not fenced_blocks(text, "python"),
-            f"{guide.name}: link the executable handler instead of duplicating it",
-        )
-        require(
-            not fenced_blocks(text, "yaml"),
-            f"{guide.name}: use the pinned complete azure.yaml instead of fragments",
-        )
     require(
-        "b9b2cdd67efee6287e4b263f83ed45f18fe892be" in start_en_text
-        and "2.1.0b2" in start_en_text
-        and "must not be replaced" in start_en_text,
-        "English customer-start guide missing public-sample version boundary",
+        "b9b2cdd67efee6287e4b263f83ed45f18fe892be" in en_text
+        and "2.1.0b2" in en_text
+        and "must not be replaced" in en_text,
+        "English README missing public-sample version boundary",
     )
     require(
-        "b9b2cdd67efee6287e4b263f83ed45f18fe892be" in start_cn_text
-        and "2.1.0b2" in start_cn_text
-        and "**不能**替换成本仓库历史离线检查使用的 `2.0.0`" in start_cn_text,
-        "Chinese customer-start guide missing public-sample version boundary",
+        "b9b2cdd67efee6287e4b263f83ed45f18fe892be" in cn_text
+        and "2.1.0b2" in cn_text
+        and "**不能**替换成本仓库历史离线检查使用的 `2.0.0`" in cn_text,
+        "Chinese README missing public-sample version boundary",
     )
 
     # Confirmation identifiers must appear in both
@@ -1328,9 +1239,7 @@ def main() -> int:
         elapsed_text = f"{owned_elapsed:.3f}"
         require(
             elapsed_text in en_text
-            and elapsed_text in cn_text
-            and elapsed_text in start_en_text
-            and elapsed_text in start_cn_text,
+            and elapsed_text in cn_text,
             "owned live duration must align across evidence and bilingual docs",
         )
     require(
@@ -1826,10 +1735,8 @@ def main() -> int:
         return 1
 
     print(
-        f"PASS: bilingual parity ({len(headings(en_text))} main headings, "
-        f"{len(headings(start_en_text))} customer-start headings, "
-        f"{len(tables(en_lines))} main tables, "
-        f"{len(tables(start_en_lines))} customer-start tables), "
+        f"PASS: bilingual parity ({len(headings(en_text))} headings, "
+        f"{len(tables(en_lines))} tables), "
         f"Data/Log Rich ({len(manifest_map)} hashed evidence files, "
         f"{len(events)} structured events), "
         f"Code/Test Rich ({len(python_files)} Python files, {test_count} tests), "
