@@ -201,9 +201,8 @@ def collect_report() -> dict[str, Any]:
         "installed_versions": installed_versions,
         "checks": checks,
         "summary": {
-            "passed": passed,
+            "all_passed": passed == len(checks),
             "failed": len(checks) - passed,
-            "total": len(checks),
         },
         "passed": passed == len(checks),
     }
@@ -220,7 +219,9 @@ def render_text(report: dict[str, Any], *, quiet: bool) -> str:
         lines.append("")
     summary = report["summary"]
     lines.append(
-        f"{summary['passed']}/{summary['total']} checks passed against the public SDK"
+        "all required checks passed against the public SDK"
+        if summary["all_passed"]
+        else f"{summary['failed']} required checks failed against the public SDK"
     )
     return "\n".join(lines) + "\n"
 

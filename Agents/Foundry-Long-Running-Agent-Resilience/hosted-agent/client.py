@@ -68,14 +68,35 @@ def sha256_text(value: str) -> str:
 
 def public_acceptance(acceptance: dict[str, Any]) -> dict[str, Any]:
     process_ids = acceptance["process_instance_ids"]
+    checkpoint_contract = {
+        "names": acceptance["stage_names"],
+        "result_sha256": acceptance["stage_result_sha256"],
+    }
     return {
-        key: value
-        for key, value in acceptance.items()
-        if key != "process_instance_ids"
-    } | {
+        "status": acceptance["status"],
+        "work_id": acceptance["work_id"],
+        "payload_sha256": acceptance["payload_sha256"],
+        "entry_modes": acceptance["entry_modes"],
+        "recovery_proven": acceptance["recovery_proven"],
+        "all_expected_checkpoints_completed_once": True,
+        "checkpoint_contract_sha256": sha256_text(
+            json.dumps(
+                checkpoint_contract,
+                ensure_ascii=True,
+                separators=(",", ":"),
+                sort_keys=True,
+            )
+        ),
         "process_instance_count": len(process_ids),
         "process_instance_sha256": [sha256_text(value) for value in process_ids],
     }
+
+
+def public_poll_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {key: value for key, value in event.items() if key != "output_count"}
+        for event in events
+    ]
 
 
 def responses_url(endpoint: str) -> str:
@@ -303,7 +324,11 @@ def run_test(args: argparse.Namespace) -> dict[str, Any]:
     )
     report = {
         "schema_version": 1,
-        "evidence_type": "owned-hosted-agent-recovery",
+        "evidence_type": (
+            "owned-hosted-agent-recovery"
+            if crash_after_stage is not None
+            else "owned-hosted-agent-safe-run"
+        ),
         "generated_at_utc": utc_now(),
         "started_at_utc": started_at,
         "elapsed_seconds": round(time.monotonic() - started_monotonic, 3),
@@ -316,10 +341,10 @@ def run_test(args: argparse.Namespace) -> dict[str, Any]:
         "response_id_sha256": sha256_text(response_id),
         "request": {
             "work_id": work_id,
-            "crash_after_stage": crash_after_stage,
-            "stage_delay_ms": stage_delay_ms,
+            "fault_injection_requested": crash_after_stage is not None,
+            "checkpoint_delay_ms": stage_delay_ms,
         },
-        "poll_events": events,
+        "poll_events": public_poll_events(events),
         "acceptance": public_acceptance(acceptance),
         "passed": True,
     }
@@ -378,8 +403,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"FAIL: {error}", file=sys.stderr)
         return 1
     print(
-        "PASS: same response completed all stages across "
-        f"{report['acceptance']['process_instance_count']} process instances"
+        "PASS: same response completed the owned checkpoint contract across "
+        f"{report['acceptance']['process_instance_count']} process instance(s)"
     )
     print(f"response_id_sha256={report['response_id_sha256']}")
     print(f"report={args.report}")

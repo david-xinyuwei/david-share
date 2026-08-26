@@ -98,7 +98,7 @@
     "azure-ai-agentserver-invocations": "1.0.0",
     "azure-ai-agentserver-responses": "2.0.0"
   },
-  "generated_at_utc": "2026-08-25T11:12:51.273+00:00",
+  "generated_at_utc": "2026-08-26T07:11:52.729+00:00",
   "installed_versions": {
     "azure-ai-agentserver-core": "2.0.0",
     "azure-ai-agentserver-invocations": "1.0.0",
@@ -108,8 +108,7 @@
   "scenario_type": "dynamic-runtime",
   "schema_version": 1,
   "summary": {
-    "failed": 0,
-    "passed": 18,
-    "total": 18
+    "all_passed": true,
+    "failed": 0
   }
 }

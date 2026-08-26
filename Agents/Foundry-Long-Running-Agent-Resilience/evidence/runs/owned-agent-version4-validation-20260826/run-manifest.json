@@ -1,0 +1,60 @@
+{
+  "boundaries": [
+    "The Version 4 live run proves current deployment and normal completion, not live process-loss recovery.",
+    "The local two-process run proves the repository-owned checkpoint recovery contract, not Foundry availability or an SLA.",
+    "Portal screenshots prove object, version, status, and type; they do not prove runtime recovery behavior."
+  ],
+  "captured_at_utc": "2026-08-26T07:15:15.092Z",
+  "commands": [
+    {
+      "command": "python hosted-agent/client.py --endpoint <foundry-responses-endpoint> --auth azure-cli --agent-version 4 --report evidence/owned-hosted-agent-live.json",
+      "evidence": "evidence/owned-hosted-agent-live.json",
+      "exit_code": 0,
+      "id": "version4-safe-live"
+    },
+    {
+      "command": "python hosted-agent/run_local_recovery.py --python <agentserver-python> --report evidence/owned-hosted-agent-local.json",
+      "evidence": "evidence/owned-hosted-agent-local.json",
+      "exit_code": 0,
+      "id": "local-injected-recovery"
+    },
+    {
+      "command": "python scripts/verify_public_resilience_api.py --format json --output evidence/public-sdk-contract.json",
+      "evidence": "evidence/public-sdk-contract.json",
+      "exit_code": 0,
+      "id": "public-sdk-contract"
+    }
+  ],
+  "key_code": [
+    {
+      "path": "hosted-agent/azure.yaml",
+      "sha256": "a782090420a73fa5938bf3b145eae9deb310e30c3317e1c6f4037be92c4d6cb2"
+    },
+    {
+      "path": "hosted-agent/src/lra-evidence-agent/main.py",
+      "sha256": "4818d0b04988d2169868fb5180e6692c257aba7f1c34fd5549a4ac9a6274bf23"
+    },
+    {
+      "path": "hosted-agent/src/lra-evidence-agent/contract.py",
+      "sha256": "a9de4d7c82b2ceaed9225043f7ac0be9d6bc79d6ab3158f68345ce5dc74aa6e6"
+    },
+    {
+      "path": "hosted-agent/client.py",
+      "sha256": "5abefccb366d46be23d04a86fba47230e55de4f740950948dc219cece7a63242"
+    },
+    {
+      "path": "hosted-agent/run_local_recovery.py",
+      "sha256": "36a77cd5f02e16aa3960f9ba77f735b52dd2a695ee5f1412cfad790a36d4fba6"
+    }
+  ],
+  "logs": [
+    "evidence/owned-hosted-agent-live.json",
+    "evidence/owned-hosted-agent-local.json",
+    "evidence/recovery-contract-events.jsonl"
+  ],
+  "run_id": "owned-agent-version4-validation-20260826",
+  "schema_version": 1,
+  "status_evidence": "evidence/owned-hosted-agent-status.json",
+  "subject": "repository-owned lra-evidence-agent Version 4",
+  "ui_evidence": "evidence/ui-evidence.json"
+}

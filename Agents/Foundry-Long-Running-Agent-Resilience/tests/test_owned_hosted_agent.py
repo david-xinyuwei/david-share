@@ -126,9 +126,9 @@ class OwnedHostedAgentContractTests(unittest.TestCase):
                 expect_recovery=True,
             )
 
-    def test_owned_contract_has_eighteen_distinct_stages(self):
-        self.assertEqual(len(CONTRACT.STAGES), 18)
-        self.assertEqual(len(set(CONTRACT.STAGES)), 18)
+    def test_owned_contract_checkpoints_are_distinct(self):
+        self.assertGreater(len(CONTRACT.STAGES), 1)
+        self.assertEqual(len(set(CONTRACT.STAGES)), len(CONTRACT.STAGES))
 
     def test_hosted_endpoint_keeps_api_version_on_item_reads(self):
         endpoint = (

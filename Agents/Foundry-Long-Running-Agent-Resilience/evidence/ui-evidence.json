@@ -48,5 +48,6 @@
   "published_directory": "images/product-ui/",
   "raw_intake_directory": ".repo-evidence/inbox/ui/",
   "raw_sources_committed": false,
+  "run_manifest": "evidence/runs/owned-agent-version4-validation-20260826/run-manifest.json",
   "schema_version": 1
 }

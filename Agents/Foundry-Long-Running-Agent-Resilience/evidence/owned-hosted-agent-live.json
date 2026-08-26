@@ -1,125 +1,57 @@
 {
   "acceptance": {
+    "all_expected_checkpoints_completed_once": true,
+    "checkpoint_contract_sha256": "0c3d03acd49d0aec0a411c2180a2e207fb76249eb5a30ebabffa892d82501c9a",
     "entry_modes": [
-      "fresh",
-      "recovered"
+      "fresh"
     ],
-    "payload_sha256": "85ebedbb5b7a02a12be7dad4fac7630f661504dccd08191b41a75ecffccbb208",
-    "process_instance_count": 2,
+    "payload_sha256": "56ced8c409385db16ae4ff1dfb2f36094efe2a798f2c8536155263567c756e6c",
+    "process_instance_count": 1,
     "process_instance_sha256": [
-      "d9c9f3fc3a75d8c098ee719f45d85f836e1e1967b4e403449f201cb5d41c6b98",
-      "6e9f3fa333d8686ef893e58b31f913effee514167195ce69e3dbb2417800a7f4"
+      "0f7805d2a390554fceec7d09bd81de2ab4489c193c7cea063c3dbf5c2d3639e2"
     ],
-    "recovery_proven": true,
-    "stage_indexes": [
-      0,
-      1,
-      2,
-      3,
-      4,
-      5,
-      6,
-      7,
-      8,
-      9,
-      10,
-      11,
-      12,
-      13,
-      14,
-      15,
-      16,
-      17
-    ],
-    "stage_names": [
-      "accept",
-      "validate_input",
-      "fingerprint_payload",
-      "plan_work",
-      "allocate_steps",
-      "prepare_context",
-      "execute_part_1",
-      "execute_part_2",
-      "execute_part_3",
-      "aggregate_results",
-      "verify_order",
-      "verify_uniqueness",
-      "verify_payload",
-      "build_summary",
-      "record_metrics",
-      "finalize_output",
-      "validate_terminal",
-      "complete"
-    ],
-    "stage_result_sha256": [
-      "0302de65b6d3ac8b46dbf85c117034cc15b7e7b9db7b09e29ccbbeac6e7190b6",
-      "06e04e036eee7d13320cd606796b6fe6f964a6e793a74b0285c711279637adf2",
-      "1ef81fab8d90434de3993cc418c5a791a949147a1d1cc8d8f86f8ee54257968d",
-      "213b155596bd05f59d3d53f577a200db8236ec815d83fd5235d16c1bab7e85df",
-      "440682b0740df54a94c9fe5cae4081333c94a5113898bf6fad502723e9b10d12",
-      "5902ba9bc36690a74de830a1cd1ee4ac47d5e63b91f2d4ae454fc80c26575716",
-      "5a7f66f2d916a46e9fa12068db5f0fefca17cc2c0bbacbb9a7fe965b973f1f1c",
-      "5e8faf80662c2778d2c6431163d8aa9e943d566ffda8cbf2449cebf36ead7ce7",
-      "61799f551924e57418bd64ad2c38d46438e8458a64b491ec55335169163e8c4c",
-      "627fc61f723d473daf1196d7b0d0af803a651d245f74861b360cd8dcb804b9cb",
-      "64df5efdcbfc939c98adc739275bdd17e5ca283907bb7cdb468fde6562afb152",
-      "828e5dc11a03a89c3a2a854b530210cb06603f8ba2cee67b53ab9745bf1bfb16",
-      "ac5d9b4351f0a03f84c4fe1cd0db6f510db91968809eab688c66938243147e87",
-      "bc9977153ed84f22b2a0ffebfad0487e5ec50e39f02d822d878b1499d1a2d8a5",
-      "cd737e71081b83a10ffa6df9a0ed2a3a436c10a193131e7cacbf3e9af34bac98",
-      "d002ab937224441f63c14c88ed9ce52f17fe3ffd600526fdc27d0be34ce03b7b",
-      "e702c019771e907c516fa930c52668e942da6e889267ecbc7d1dc063de9bf314",
-      "f75622276d3cb298005e5959f636d4286ad2c59c629cbfdd4c50fdfe65c745dd"
-    ],
+    "recovery_proven": false,
     "status": "completed",
-    "work_id": "owned-agent-live-18-001"
+    "work_id": "owned-agent-version4-safe-002"
   },
   "deployment": {
     "agent_name": "lra-evidence-agent",
     "content_sha256": "6276592bf366a3e025dbb66707746d137e4d9016652993a4444a0b368d944f82",
-    "version": "3"
+    "version": "4"
   },
-  "elapsed_seconds": 62.406,
+  "elapsed_seconds": 18.714,
   "endpoint_class": "foundry-hosted-agent",
-  "evidence_type": "owned-hosted-agent-recovery",
-  "generated_at_utc": "2026-08-26T05:58:12.209+00:00",
+  "evidence_type": "owned-hosted-agent-safe-run",
+  "generated_at_utc": "2026-08-26T07:12:21.559+00:00",
   "passed": true,
   "poll_events": [
     {
-      "at": "2026-08-26T05:57:19.206+00:00",
+      "at": "2026-08-26T07:12:12.837+00:00",
       "kind": "poll",
-      "output_count": 0,
       "status": "in_progress"
     },
     {
-      "at": "2026-08-26T05:57:51.764+00:00",
-      "detail": "TimeoutError",
-      "kind": "connection_error"
-    },
-    {
-      "at": "2026-08-26T05:58:06.169+00:00",
-      "kind": "http_error",
-      "status": 404
-    },
-    {
-      "at": "2026-08-26T05:58:09.015+00:00",
+      "at": "2026-08-26T07:12:15.707+00:00",
       "kind": "poll",
-      "output_count": 4,
       "status": "in_progress"
     },
     {
-      "at": "2026-08-26T05:58:12.208+00:00",
+      "at": "2026-08-26T07:12:18.573+00:00",
       "kind": "poll",
-      "output_count": 18,
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T07:12:21.559+00:00",
+      "kind": "poll",
       "status": "completed"
     }
   ],
   "request": {
-    "crash_after_stage": 3,
-    "stage_delay_ms": 250,
-    "work_id": "owned-agent-live-18-001"
+    "checkpoint_delay_ms": 250,
+    "fault_injection_requested": false,
+    "work_id": "owned-agent-version4-safe-002"
   },
-  "response_id_sha256": "a1b2248dff2342acf81e198598132ab94c4045271ae9d4d32f1b6d5762ccaebd",
+  "response_id_sha256": "67b1f626c5070693a20d90e1bc8a162ffe5977f7c5164361d20611029665c7ad",
   "schema_version": 1,
-  "started_at_utc": "2026-08-26T05:57:09.803+00:00"
+  "started_at_utc": "2026-08-26T07:12:02.846+00:00"
 }

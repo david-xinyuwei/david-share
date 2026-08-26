@@ -182,7 +182,7 @@ def validate_terminal_response(
 
     stage_names = [record.get("stage_name") for record in records]
     if stage_names != list(STAGES):
-        errors.append("stage names do not match the owned 18-stage contract")
+        errors.append("stage names do not match the owned checkpoint contract")
     stage_counts = {record.get("stage_count") for record in records}
     if stage_counts != {len(STAGES)}:
         errors.append(f"stage counts are {sorted(map(str, stage_counts))!r}")

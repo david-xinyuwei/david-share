@@ -68,19 +68,18 @@ ALLOWED_FILES = {
     "tests/test_owned_hosted_agent.py",
     "tests/test_validate_observations.py",
     "evidence/README.md",
-    "evidence/historical-observations.json",
     "evidence/manifest.json",
     "evidence/observation-validation.json",
     "evidence/owned-hosted-agent-local.json",
     "evidence/owned-hosted-agent-live.json",
+    "evidence/owned-hosted-agent-status.json",
     "evidence/public-sdk-contract.json",
     "evidence/resilience-sdk-usage.json",
     "evidence/recovery-contract-demo.json",
     "evidence/recovery-contract-events.jsonl",
     "evidence/scenario-manifest.json",
     "evidence/ui-evidence.json",
-    "images/approval-recovery.png",
-    "images/approval-recovery-cn.png",
+    "evidence/runs/owned-agent-version4-validation-20260826/run-manifest.json",
     "images/official-lease-recovery-model.png",
     "images/product-ui/portal-owned-agent-list.png",
     "images/product-ui/portal-owned-agent-details.png",
@@ -112,12 +111,7 @@ SECRET_PATTERNS = {
 
 # Numbers that must agree across both language versions.
 CRITICAL_NUMBERS = [
-    "599", "12,248", "1,301", "21.7", "11,584", "47", "56",
-    "738", "12,073", "18", "95",
-]
-HISTORICAL_NUMBERS = [
-    "599", "12,248", "1,301", "21.7", "11,584", "47", "56",
-    "738", "12,073", "18", "95",
+    "86", "360", "500",
 ]
 
 REQUIRED_EN_SECTIONS = [
@@ -142,7 +136,8 @@ REQUIRED_EN_SECTIONS = [
     "### Four layers required for recovery",
     "## Evaluation: what was actually run",
     "### Current public-preview contract check",
-    "### On a deployed agent, on an ordinary subscription",
+    "### Current Version 4 deployment",
+    "### Local injected recovery",
     "## Acceptance rules",
     "### Reject gaps and duplicates",
     "### A `done` frame is not proof of success",
@@ -176,7 +171,8 @@ REQUIRED_CN_SECTIONS = [
     "### 启用恢复需要配置四层",
     "## 评估：到底跑了什么",
     "### 当前公共预览契约检查",
-    "### 在普通订阅上，验证真实部署的 Agent",
+    "### 当前 Version 4 部署",
+    "### 本机故障注入恢复",
     "## 验收规则",
     "### 同时拒绝缺口和重复",
     "### 一个 `done` 帧不能证明成功",
@@ -450,8 +446,8 @@ def main() -> int:
         "images/product-ui/portal-owned-agent-list.png",
         "images/product-ui/portal-owned-agent-details.png",
     }
-    require(len(en_images) == len(cn_images) == 5,
-            f"each README must embed 5 images, got {len(en_images)}/{len(cn_images)}")
+    require(len(en_images) == len(cn_images) == 4,
+            f"each README must embed 4 images, got {len(en_images)}/{len(cn_images)}")
     for shared_image in shared_images:
         require(
             en_images.count(shared_image) == cn_images.count(shared_image) == 1,
@@ -461,17 +457,17 @@ def main() -> int:
     cn_localized = [path for path in cn_images if path not in shared_images]
     expected_cn = [path.replace(".png", "-cn.png") for path in en_localized]
     require(cn_localized == expected_cn,
-            "Chinese README must reference the two localized project charts")
+            "Chinese README must reference the localized project chart")
 
     # Every chart must be centred, width-capped, and carry alt text (CL-006)
     for readme, text in ((EN, en_text), (CN, cn_text)):
         centred = len(re.findall(r"<div align=\"center\"><img ", text))
-        require(centred == 5, f"{readme.name}: expected 5 centred image embeds, got {centred}")
+        require(centred == 4, f"{readme.name}: expected 4 centred image embeds, got {centred}")
         widths = re.findall(r"<img\s[^>]*width=\"(\d+)\"", text)
-        require(len(widths) == 5 and all(int(w) <= 820 for w in widths),
+        require(len(widths) == 4 and all(int(w) <= 820 for w in widths),
                 f"{readme.name}: every image needs a width attribute of at most 820")
         alts = image_alt_texts(text)
-        require(len(alts) == 5 and all(alt.strip() for alt in alts),
+        require(len(alts) == 4 and all(alt.strip() for alt in alts),
                 f"{readme.name}: every image needs non-empty alt text")
     portal_image_hashes = {
         "product-ui/portal-owned-agent-list.png":
@@ -489,15 +485,15 @@ def main() -> int:
         )
     for snippet in (
         "Real Microsoft Foundry Portal views",
-        "screenshots prove version `4` is `Running` and `Hosted`",
-        "18-stage behavior evidence was produced by version `3`",
+        "screenshots prove Version `4` is `Running` and `Hosted`",
+        "local two-process report proves",
         "[`ui-evidence.json`](evidence/ui-evidence.json)",
     ):
         require(snippet in en_text, f"English Portal evidence missing: {snippet}")
     for snippet in (
         "真实 Microsoft Foundry Portal 页面",
-        "截图证明版本 `4` 为 `Running` 和 `Hosted`",
-        "18 阶段行为证据来自开启故障注入的版本 `3`",
+        "截图证明 Version `4` 为 `Running` 和 `Hosted`",
+        "本机双进程报告证明",
         "[`ui-evidence.json`](evidence/ui-evidence.json)",
     ):
         require(snippet in cn_text, f"Chinese Portal evidence missing: {snippet}")
@@ -585,7 +581,6 @@ def main() -> int:
         "hosted-agent/src/lra-evidence-agent/requirements.txt",
         "hosted-agent/run_local_recovery.py",
         "owned-hosted-agent-live.json",
-        "62.406 seconds",
         "ResponsesServerOptions(resilient_background=True)",
         "stream.checkpoint()",
         "context.persisted_response",
@@ -605,7 +600,6 @@ def main() -> int:
         "hosted-agent/src/lra-evidence-agent/requirements.txt",
         "hosted-agent/run_local_recovery.py",
         "owned-hosted-agent-live.json",
-        "62.406 秒",
         "ResponsesServerOptions(resilient_background=True)",
         "stream.checkpoint()",
         "context.persisted_response",
@@ -625,9 +619,9 @@ def main() -> int:
         "响应 ID 或任务 ID",
         "状态查询方（observer）",
         "处理函数重新执行后",
-        "输出项编号",
+        "命名检查点序列",
         "远端创建请求与本地保存 ID 不是一个原子事务",
-        "使用当前公开版本复测",
+        "当前 Version 4 部署",
     ):
         require(
             snippet in cn_text,
@@ -657,20 +651,20 @@ def main() -> int:
             f"machine-translated or mixed Chinese returned: {retired}",
         )
     for snippet in (
-        "This is the primary result and reproduction path",
-        "historical corroboration, not the customer reproduction path",
-        "None is required to reproduce this repository's result",
-        "completed stages `0-17`",
-        "18 unique stage-result hashes",
+        "Version `4` is active",
+        "local two-process report proves",
+        "does **not** claim live process-loss recovery",
+        "not required to reproduce this repository's result",
+        "every expected checkpoint exactly once",
     ):
         require(snippet in en_text,
                 f"English README missing owned-workload primacy: {snippet}")
     for snippet in (
-        "这是当前的主结果和主复现路径",
-        "历史交叉验证，不是客户复现路径",
-        "复现本仓库结果不需要它们",
-        "完成阶段 `0-17`",
-        "18 个阶段结果哈希",
+        "本仓库自有 Version `4` 处于 active 状态",
+        "本机双进程报告证明",
+        "**不**声称线上进程丢失恢复",
+        "复现本仓库结果不需要外部样例",
+        "每个预期检查点各完成一次",
     ):
         require(snippet in cn_text,
                 f"Chinese README missing owned-workload primacy: {snippet}")
@@ -710,7 +704,7 @@ def main() -> int:
         "recovery_count",
         "retry_attempt",
         "TaskContext.metadata",
-        "18 of 18",
+        "Every required check passed",
     ):
         require(snippet in en_text, f"English README missing public-preview API evidence: {snippet}")
     for snippet in (
@@ -721,7 +715,7 @@ def main() -> int:
         "recovery_count",
         "retry_attempt",
         "TaskContext.metadata",
-        "18 / 18 项通过",
+        "所有必需检查均通过",
     ):
         require(snippet in cn_text, f"Chinese README missing public-preview API evidence: {snippet}")
     require("[`recovery_contract_demo.py`](scripts/recovery_contract_demo.py)" in en_text,
@@ -848,7 +842,11 @@ def main() -> int:
             )
             and "worker_a_exit_code: 9" in text
             and "PASS: imported azure.ai.agentserver.core.tasks" in text
-            and "18/18 checks passed" in text,
+            and (
+                "all SDK contract checks pass" in text
+                if readme == EN
+                else "全部 SDK 契约检查通过" in text
+            ),
             f"{readme.name}: reproduction done-when or expected outputs missing",
         )
         for retired in ("pseudocode", "伪代码", "interface sketches", "接口示意"):
@@ -863,17 +861,14 @@ def main() -> int:
     require(
         "b9b2cdd67efee6287e4b263f83ed45f18fe892be" in cn_text
         and "2.1.0b2" in cn_text
-        and "**不能**替换成本仓库历史离线检查使用的 `2.0.0`" in cn_text,
+        and "**不能**替换成独立兼容性检查使用的 `2.0.0`" in cn_text,
         "Chinese README missing public-sample version boundary",
     )
 
-    # Confirmation identifiers must appear in both
-    for token in ("TRIP-182336", "TRIP-749637", "424", "403"):
+    for token in ("424", "403"):
         require(token in en_text and token in cn_text, f"both READMEs must mention {token}")
 
     # Boundary statements
-    require("private preview" in en_text.lower(), "English boundary statement missing")
-    require("private preview" in cn_text.lower(), "Chinese boundary statement missing")
     require("no Microsoft SDK source" in en_text, "English SDK-source boundary missing")
     require("不提供 Microsoft SDK 源码" in cn_text, "Chinese SDK-source boundary missing")
     require("public preview" in en_text.lower(), "English current preview status missing")
@@ -884,16 +879,16 @@ def main() -> int:
     required_rigor_pairs = (
         ("Every interruption was deliberate, not an outage",
          "所有中断都是主动注入，不是线上事故"),
-        ("not live Hosted Agent evidence", "不是线上 Hosted Agent 证据"),
-        ("not proof of universal availability", "不代表所有订阅或区域"),
+        ("does **not** claim live process-loss recovery",
+         "**不**声称线上进程丢失恢复"),
+        ("not a Foundry service availability result",
+         "不是 Foundry 服务可用性结论"),
         ("diagnostic starting point, not a universal mapping from symptom to cause",
          "只是诊断起点，不表示“某个现象必然对应某个原因”"),
-        ("do not establish a general exactly-once guarantee",
-         "不能证明普遍适用的“严格一次”（exactly-once）保证"),
         ("not product guarantees",
          "不是产品保证"),
-        ("not a guarantee for every Responses workload",
-         "不代表所有 Responses 任务都有相同行为"),
+        ("not an SLA or reliability percentage",
+         "不是 SLA 或可靠性百分比"),
     )
     for en_boundary, cn_boundary in required_rigor_pairs:
         require(en_boundary in en_text,
@@ -902,19 +897,11 @@ def main() -> int:
                 f"Chinese rigor boundary missing: {cn_boundary}")
 
     legacy_overclaims = (
-        "Any platform that keeps a workload running for twenty minutes eventually",
-        "The barrier that blocked this work in July is gone",
-        "A subscription that was never enabled works too",
-        "decision sent *after* the replacement was accepted",
         "exactly-once decision handling",
         "By any workload measure that run recovered perfectly",
         "What Happens After the Process Dies",
-        "任何让工作负载连续跑二十分钟的平台，早晚都会遇到",
-        "7 月挡住这项工作的那道门槛已经没有了",
-        "一个从未被开通过的订阅同样可用",
         "进程死了之后，任务怎么活下来",
         "按 workload 的标准衡量，这次运行恢复得完美无缺",
-        "证明的是持久化 Graph 状态和“决定只生效一次”",
     )
     for phrase in legacy_overclaims:
         require(phrase not in en_text and phrase not in cn_text,
@@ -1171,7 +1158,6 @@ def main() -> int:
         "observation-validator": "dynamic-runtime",
         "owned-hosted-agent-local": "dynamic-runtime",
         "owned-hosted-agent-live": "dynamic-runtime",
-        "historical-live-observations": "architecture-explainer",
     }
     require(set(scenario_map) == set(expected_scenarios),
             f"scenario manifest ids differ: {sorted(scenario_map)}")
@@ -1201,15 +1187,17 @@ def main() -> int:
     )
     require(
         owned_agent_evidence.get("passed") is True
-        and owned_agent_evidence.get("first_process_exit_code") == 86,
+        and owned_agent_evidence.get("first_process_exit_code") == 86
+        and owned_agent_evidence.get("fault_injection_requested") is True,
         "owned Hosted Agent must record a passing injected hard process loss",
     )
     require(
         owned_acceptance.get("status") == "completed"
-        and owned_acceptance.get("stage_indexes") == list(range(18))
-        and len(owned_acceptance.get("stage_result_sha256", [])) == 18
+        and owned_acceptance.get("all_expected_checkpoints_completed_once") is True
+        and len(owned_acceptance.get("checkpoint_contract_sha256", "")) == 64
         and owned_acceptance.get("entry_modes") == ["fresh", "recovered"]
-        and owned_acceptance.get("process_instance_count") == 2,
+        and owned_acceptance.get("process_instance_count") == 2
+        and owned_acceptance.get("recovery_proven") is True,
         "owned Hosted Agent evidence does not prove same-work recovery",
     )
     require(
@@ -1225,22 +1213,26 @@ def main() -> int:
     owned_live_deployment = owned_live_evidence.get("deployment", {})
     require(
         owned_live_evidence.get("evidence_type")
-        == "owned-hosted-agent-recovery"
+        == "owned-hosted-agent-safe-run"
         and owned_live_evidence.get("endpoint_class") == "foundry-hosted-agent"
         and owned_live_evidence.get("passed") is True,
-        "owned live Hosted Agent evidence must be a passing Foundry run",
+        "owned live Hosted Agent evidence must be a passing Version 4 run",
     )
     require(
         owned_live_acceptance.get("status") == "completed"
-        and owned_live_acceptance.get("stage_indexes") == list(range(18))
-        and len(owned_live_acceptance.get("stage_result_sha256", [])) == 18
-        and owned_live_acceptance.get("entry_modes") == ["fresh", "recovered"]
-        and owned_live_acceptance.get("process_instance_count") == 2,
-        "owned live Hosted Agent evidence does not prove two-process recovery",
+        and owned_live_acceptance.get("all_expected_checkpoints_completed_once") is True
+        and len(owned_live_acceptance.get("checkpoint_contract_sha256", "")) == 64
+        and owned_live_acceptance.get("entry_modes") == ["fresh"]
+        and owned_live_acceptance.get("process_instance_count") == 1
+        and owned_live_acceptance.get("recovery_proven") is False
+        and owned_live_evidence.get("request", {}).get(
+            "fault_injection_requested"
+        ) is False,
+        "owned live evidence must prove a safe current deployment run",
     )
     require(
         owned_live_deployment.get("agent_name") == "lra-evidence-agent"
-        and owned_live_deployment.get("version") == "3"
+        and owned_live_deployment.get("version") == "4"
         and len(owned_live_deployment.get("content_sha256", "")) == 64,
         "owned live Hosted Agent deployment identity is incomplete",
     )
@@ -1249,13 +1241,6 @@ def main() -> int:
         isinstance(owned_elapsed, (int, float)) and 0 < owned_elapsed <= 360,
         "owned live Hosted Agent duration must be a positive bounded measurement",
     )
-    if isinstance(owned_elapsed, (int, float)):
-        elapsed_text = f"{owned_elapsed:.3f}"
-        require(
-            elapsed_text in en_text
-            and elapsed_text in cn_text,
-            "owned live duration must align across evidence and bilingual docs",
-        )
     require(
         isinstance(owned_live_evidence.get("response_id_sha256"), str)
         and len(owned_live_evidence["response_id_sha256"]) == 64
@@ -1271,6 +1256,11 @@ def main() -> int:
         and ui_evidence.get("published_directory") == "images/product-ui/"
         and ui_evidence.get("raw_sources_committed") is False,
         "UI evidence must preserve the manual raw-inbox/public-derivative boundary",
+    )
+    require(
+        ui_evidence.get("run_manifest")
+        == "evidence/runs/owned-agent-version4-validation-20260826/run-manifest.json",
+        "UI evidence must link the public test-run bundle",
     )
     ui_assets = ui_evidence.get("assets", [])
     expected_ui_assets = {
@@ -1318,6 +1308,69 @@ def main() -> int:
                 sha256_file(published_image) == expected_hashes["published"],
                 f"{relative}: public image hash does not match UI evidence",
             )
+    status_evidence = read_json_evidence(
+        "evidence/owned-hosted-agent-status.json"
+    )
+    require(
+        status_evidence.get("agent_name") == "lra-evidence-agent"
+        and status_evidence.get("version") == "4"
+        and status_evidence.get("status") == "active"
+        and status_evidence.get("kind") == "hosted"
+        and status_evidence.get("runtime") == "python_3_13"
+        and status_evidence.get("protocol") == "responses"
+        and status_evidence.get("protocol_version") == "2.0.0"
+        and status_evidence.get("fault_injection_enabled") is False
+        and status_evidence.get("content_sha256")
+        == owned_live_deployment.get("content_sha256"),
+        "Version 4 status evidence does not match the safe live run",
+    )
+    run_manifest = read_json_evidence(
+        "evidence/runs/owned-agent-version4-validation-20260826/run-manifest.json"
+    )
+    run_commands = run_manifest.get("commands", [])
+    require(
+        run_manifest.get("run_id")
+        == "owned-agent-version4-validation-20260826"
+        and run_manifest.get("subject")
+        == "repository-owned lra-evidence-agent Version 4"
+        and run_manifest.get("status_evidence")
+        == "evidence/owned-hosted-agent-status.json"
+        and run_manifest.get("ui_evidence") == "evidence/ui-evidence.json"
+        and isinstance(run_commands, list)
+        and len(run_commands) == 3
+        and all(
+            isinstance(item, dict)
+            and item.get("exit_code") == 0
+            and isinstance(item.get("command"), str)
+            and isinstance(item.get("evidence"), str)
+            for item in run_commands
+        )
+        and bool(run_manifest.get("boundaries")),
+        "Version 4 run manifest is incomplete",
+    )
+    expected_code_paths = {
+        "hosted-agent/azure.yaml",
+        "hosted-agent/src/lra-evidence-agent/main.py",
+        "hosted-agent/src/lra-evidence-agent/contract.py",
+        "hosted-agent/client.py",
+        "hosted-agent/run_local_recovery.py",
+    }
+    code_manifest = {
+        item.get("path"): item.get("sha256")
+        for item in run_manifest.get("key_code", [])
+        if isinstance(item, dict)
+    }
+    require(
+        set(code_manifest) == expected_code_paths,
+        "Version 4 run manifest key-code path set is incomplete",
+    )
+    for relative in expected_code_paths:
+        path = ROOT / relative
+        if path.is_file():
+            require(
+                code_manifest.get(relative) == sha256_file(path),
+                f"{relative}: run-manifest code hash drifted",
+            )
     expected_package_versions = {
         "azure-ai-agentserver-core": "2.0.0",
         "azure-ai-agentserver-invocations": "1.0.0",
@@ -1355,17 +1408,16 @@ def main() -> int:
         if isinstance(item, dict) and isinstance(item.get("name"), str)
     }
     require(
-        len(sdk_checks) == 18
+        len(sdk_checks) == len(expected_sdk_checks)
         and set(sdk_check_map) == expected_sdk_checks
         and all(item.get("passed") is True for item in sdk_check_map.values()),
-        "SDK evidence must contain the exact 18 passing checks",
+        "SDK evidence must contain the exact passing contract checks",
     )
     sdk_summary = sdk_evidence.get("summary", {})
     require(
-        sdk_summary.get("passed") == 18
-        and sdk_summary.get("failed") == 0
-        and sdk_summary.get("total") == 18,
-        "SDK evidence must contain 18/18 passing checks",
+        sdk_summary.get("all_passed") is True
+        and sdk_summary.get("failed") == 0,
+        "SDK evidence must report every required check passed",
     )
 
     usage_evidence = read_json_evidence(
@@ -1550,56 +1602,6 @@ def main() -> int:
         "recovery action evidence must contain the exact five cases",
     )
 
-    historical = read_json_evidence("evidence/historical-observations.json")
-    campaigns = {
-        item.get("id"): item
-        for item in historical.get("campaigns", [])
-        if isinstance(item, dict)
-    }
-    july = campaigns.get("july-private-preview", {})
-    august = campaigns.get("august-public-preview-retest", {})
-    require(
-        july.get("accepted_main_scenarios") == 8
-        and july.get("accepted_runs_per_scenario") == 1
-        and july.get("benchmark") is False
-        and len(july.get("observations", [])) == 8,
-        "July evidence must retain N=1 across eight main scenarios",
-    )
-    research_workload = july.get("research_workload", {})
-    phase_groups = research_workload.get("phase_groups", [])
-    require(
-        research_workload.get("type") == "generic multi-phase deep-research briefing"
-        and research_workload.get("source")
-        == "Microsoft July 2026 private-preview resilient-research sample"
-        and "caller-supplied topic" in research_workload.get("input", "")
-        and "18-phase plan is not a current product requirement"
-        in research_workload.get("current_public_relation", "")
-        and "not the only public resilience example"
-        in research_workload.get("current_public_relation", "")
-        and [item.get("phases") for item in phase_groups]
-        == ["1-4", "5-9", "10-15", "16-18"]
-        and research_workload.get("execution")
-        == (
-            "one streaming model call per phase; completed-phase count "
-            "checkpointed after each phase"
-        ),
-        "July evidence must retain the public-safe 18-phase workload structure",
-    )
-    require(
-        august.get("benchmark") is False
-        and len(august.get("observations", [])) == 8,
-        "August evidence must retain eight scoped observations",
-    )
-    historical_text = json.dumps(historical, ensure_ascii=False)
-    for value in HISTORICAL_NUMBERS:
-        require(value.replace(",", "") in historical_text,
-                f"historical evidence missing measured value {value}")
-    require(
-        "not tenant-, region-, or subscription-wide availability evidence"
-        in historical_text,
-        "cross-subscription evidence must retain its scope limit",
-    )
-
     # Log Rich: ordered, structured runtime events with correlation fields.
     events_path = ROOT / "evidence" / "recovery-contract-events.jsonl"
     require(events_path.is_file(), "structured recovery event log missing")
@@ -1691,16 +1693,17 @@ def main() -> int:
     }
     expected_evidence_paths = {
         "evidence/README.md",
-        "evidence/historical-observations.json",
         "evidence/observation-validation.json",
         "evidence/owned-hosted-agent-local.json",
         "evidence/owned-hosted-agent-live.json",
+        "evidence/owned-hosted-agent-status.json",
         "evidence/public-sdk-contract.json",
         "evidence/resilience-sdk-usage.json",
         "evidence/recovery-contract-demo.json",
         "evidence/recovery-contract-events.jsonl",
         "evidence/scenario-manifest.json",
         "evidence/ui-evidence.json",
+        "evidence/runs/owned-agent-version4-validation-20260826/run-manifest.json",
     }
     require(set(manifest_map) == expected_evidence_paths,
             "evidence manifest path set is incomplete")
@@ -1800,6 +1803,14 @@ def main() -> int:
 
     # Public boundary scan across every text delivery surface.
     text_suffixes = {".md", ".py", ".json", ".jsonl", ".txt", ".yaml", ".yml"}
+    retired_stage_narrative = (
+        re.compile(r"\b1[8][ -](?:stage|phase)s?\b", re.IGNORECASE),
+        re.compile(r"1[8]\s*个阶段"),
+        re.compile(r"\b0-1[7]\b"),
+        re.compile(r"\b1-1[8]\b"),
+        re.compile(r"resilient" + r"-research", re.IGNORECASE),
+        re.compile(r"historical" + r"-observations", re.IGNORECASE),
+    )
     for path in sorted(ROOT.rglob("*")):
         if (
             not path.is_file()
@@ -1811,6 +1822,12 @@ def main() -> int:
         relative = path.relative_to(ROOT).as_posix()
         if relative == "scripts/validate_repo.py":
             text = validator_self_scan_text(text, ast.parse(text))
+        else:
+            for pattern in retired_stage_narrative:
+                require(
+                    not pattern.search(text),
+                    f"{relative}: retired fixed-stage narrative returned",
+                )
         for literal in FORBIDDEN_LITERALS:
             require(literal not in text, f"{relative}: forbidden literal {literal}")
         for name, pattern in SECRET_PATTERNS.items():

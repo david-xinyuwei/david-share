@@ -1,0 +1,13 @@
+{
+  "agent_name": "lra-evidence-agent",
+  "captured_at_utc": "2026-08-26T07:15:15.092Z",
+  "content_sha256": "6276592bf366a3e025dbb66707746d137e4d9016652993a4444a0b368d944f82",
+  "fault_injection_enabled": false,
+  "kind": "hosted",
+  "protocol": "responses",
+  "protocol_version": "2.0.0",
+  "runtime": "python_3_13",
+  "schema_version": 1,
+  "status": "active",
+  "version": "4"
+}

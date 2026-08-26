@@ -71,10 +71,10 @@
       "entrypoint": "hosted-agent/run_local_recovery.py",
       "real": [
         "Runs the repository-owned ResponsesAgentServerHost with the pinned public SDK",
-        "Commits stages 0 through 3 before os._exit(86) terminates the first process",
+        "Commits durable checkpoints before os._exit(86) terminates the first process",
         "Restarts a second operating-system process against the same AgentServer state root",
-        "Reuses the same stored response and completes stages 4 through 17",
-        "Validates 18 unique ordered stages and stage-result hashes, fresh and recovered entry modes, and two process instances"
+        "Reuses the same stored response and completes the owned checkpoint contract",
+        "Validates every expected checkpoint exactly once, fresh and recovered entry modes, and two process instances"
       ],
       "not_claimed": [
         "A live Microsoft Foundry Hosted Agent deployment",
@@ -86,36 +86,20 @@
     {
       "id": "owned-hosted-agent-live",
       "type": "dynamic-runtime",
-      "entrypoint": "hosted-agent/client.py against deployed lra-evidence-agent version 3",
+      "entrypoint": "hosted-agent/client.py against deployed lra-evidence-agent version 4",
       "real": [
         "Deploys the repository-owned Python 3.13 Hosted Agent over the Responses protocol",
-        "Creates one stored background response and injects a hard process loss after stage 3",
-        "Observes fresh and recovered entries from two process instances",
-        "Completes stages 0 through 17 exactly once on the same response with 18 unique stage-result hashes",
-        "Records the bounded replacement window and explicit completed terminal state"
+        "Creates one stored background response with fault injection disabled",
+        "Completes the owned checkpoint contract on the current safe deployment",
+        "Records the deployment version, source content hash, and explicit completed terminal state"
       ],
       "not_claimed": [
+        "Live process-loss recovery because fault injection is disabled",
         "Production reliability benchmark or SLA",
         "Model quality because the workload is deliberately deterministic",
         "Recovery of external side effects without application idempotency"
       ],
       "evidence": "evidence/owned-hosted-agent-live.json"
-    },
-    {
-      "id": "historical-live-observations",
-      "type": "architecture-explainer",
-      "evidence_kind": "measured-aggregate",
-      "entrypoint": "evidence/historical-observations.json",
-      "real": [
-        "Public-safe aggregates derived from captured July and August runs",
-        "Dated runtime, protocol, interruption, count, duration, and terminal-state fields"
-      ],
-      "not_claimed": [
-        "Raw telemetry",
-        "A reproducible live deployment recipe",
-        "Reliability benchmark or SLA"
-      ],
-      "evidence": "evidence/historical-observations.json"
     }
   ]
 }

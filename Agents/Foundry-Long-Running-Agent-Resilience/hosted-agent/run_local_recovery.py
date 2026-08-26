@@ -18,6 +18,7 @@ from client import (
     create_work,
     poll_work,
     public_acceptance,
+    public_poll_events,
     sha256_text,
     utc_now,
     write_json_atomic,
@@ -132,8 +133,8 @@ def run(args: argparse.Namespace) -> dict:
                 "work_id": args.work_id,
                 "response_id_sha256": sha256_text(response_id),
                 "first_process_exit_code": first_exit_code,
-                "injected_after_stage": args.crash_after_stage,
-                "poll_events": poll_events,
+                "fault_injection_requested": True,
+                "poll_events": public_poll_events(poll_events),
                 "acceptance": public_acceptance(acceptance),
                 "passed": True,
             }
@@ -141,6 +142,17 @@ def run(args: argparse.Namespace) -> dict:
             return report
         finally:
             stop_server(process)
+            cleanup_deadline = time.monotonic() + 5
+            while log_path.exists():
+                try:
+                    log_path.unlink()
+                    break
+                except PermissionError as error:
+                    if time.monotonic() >= cleanup_deadline:
+                        raise RuntimeError(
+                            f"agent log remained locked after shutdown: {log_path}"
+                        ) from error
+                    time.sleep(0.1)
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
