@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1120" viewBox="0 0 1800 1120" role="img" aria-labelledby="title desc">
+  <title id="title">Real Translator long task recovery timeline</title>
+  <desc id="desc">The actual request starts Process A, which completes four translation sections and checkpoints them. A hard process exit is injected. Process B starts, recovers the same response at section five, and completes all twelve sections.</desc>
+  <defs>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0078D4"/>
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#D13438"/>
+    </marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#5C2D91"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#107C10"/>
+    </marker>
+    <marker id="arrow-black" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1E1E1E"/>
+    </marker>
+    <style>
+      .title { font: 700 30px "Segoe UI", Arial, sans-serif; fill: #000; }
+      .subtitle { font: 16px "Segoe UI", Arial, sans-serif; fill: #000; }
+      .box-title { font: 700 18px "Segoe UI", Arial, sans-serif; fill: #000; }
+      .box-text { font: 17px "Segoe UI", Arial, sans-serif; fill: #000; }
+      .mono { font: 17px "Cascadia Mono", Consolas, monospace; fill: #000; }
+      .small { font: 15px "Segoe UI", Arial, sans-serif; fill: #000; }
+      .metric { font: 700 17px "Segoe UI", Arial, sans-serif; fill: #000; }
+      .center { text-anchor: middle; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1800" height="1120" fill="#FFFFFF"/>
+  <text x="900" y="65" class="title center">Real Translator long task: Process A fails, Process B resumes, original task completes</text>
+  <text x="900" y="105" class="subtitle center">Exact UTC+8 timeline from the committed local AgentServer + real Azure Translator S1 recovery run</text>
+
+  <rect x="80" y="145" width="1640" height="155" rx="16" fill="#CFE4FA" stroke="#0078D4" stroke-width="3"/>
+  <text x="900" y="178" class="box-title center">ACTUAL REQUEST / PROMPT</text>
+  <text x="900" y="210" class="mono center">workload=translator_batch   payload=repository-owned-real-translation-workload-v1</text>
+  <text x="900" y="240" class="mono center">work_id=owned-agent-real-translation-primary   crash_after_stage=3   stage_delay_ms=1000</text>
+  <text x="900" y="274" class="box-text center">Business meaning: translate 12 English resilience sections to Chinese; checkpoint every completed S1 result.</text>
+
+  <text x="80" y="350" class="box-title">Process A</text>
+
+  <rect x="120" y="385" width="245" height="120" rx="14" fill="#CFE4FA" stroke="#0078D4" stroke-width="3"/>
+  <text x="242" y="414" class="box-title center">18:25:31.601</text>
+  <text x="242" y="442" class="box-text center">Stored background</text>
+  <text x="242" y="468" class="box-text center">response created</text>
+  <text x="242" y="493" class="mono center">store=true</text>
+
+  <rect x="410" y="385" width="285" height="120" rx="14" fill="#DFF6DD" stroke="#107C10" stroke-width="3"/>
+  <text x="552" y="414" class="box-title center">Process A works</text>
+  <text x="552" y="442" class="box-text center">sections 1 &#8594; 4</text>
+  <text x="552" y="468" class="box-text center">18:25:44.638</text>
+  <text x="552" y="493" class="box-text center">checkpoint 04 committed</text>
+
+  <rect x="740" y="365" width="280" height="160" rx="14" fill="#FDE7E9" stroke="#D13438" stroke-width="4"/>
+  <text x="880" y="397" class="box-title center">FAULT INJECTION</text>
+  <text x="880" y="425" class="box-text center">18:25:44.638</text>
+  <text x="880" y="452" class="mono center">os._exit(86)</text>
+  <text x="880" y="486" class="box-title center">PROCESS A DOWN</text>
+  <text x="880" y="513" class="box-text center">18:25:45.176</text>
+
+  <rect x="1065" y="365" width="300" height="160" rx="14" fill="#E8DAEF" stroke="#5C2D91" stroke-width="4"/>
+  <text x="1215" y="397" class="box-title center">PROCESS B STARTS</text>
+  <text x="1215" y="425" class="box-text center">18:25:45.190</text>
+  <text x="1215" y="463" class="box-title center">RECOVERED ENTRY</text>
+  <text x="1215" y="490" class="box-text center">18:25:46.591</text>
+  <text x="1215" y="515" class="box-text center">resume at section 05</text>
+
+  <rect x="1410" y="365" width="310" height="160" rx="14" fill="#DFF6DD" stroke="#107C10" stroke-width="4"/>
+  <text x="1565" y="397" class="box-title center">PROCESS B FINISHES</text>
+  <text x="1565" y="425" class="box-text center">sections 5 &#8594; 12</text>
+  <text x="1565" y="452" class="box-text center">18:26:11.112</text>
+  <text x="1565" y="486" class="box-title center">ORIGINAL RESPONSE</text>
+  <text x="1565" y="513" class="box-text center">completed 18:26:11.276</text>
+
+  <line x1="365" y1="445" x2="405" y2="445" stroke="#0078D4" stroke-width="4" marker-end="url(#arrow-blue)"/>
+  <line x1="695" y1="445" x2="735" y2="445" stroke="#D13438" stroke-width="4" marker-end="url(#arrow-red)"/>
+  <line x1="1020" y1="445" x2="1060" y2="445" stroke="#5C2D91" stroke-width="4" marker-end="url(#arrow-purple)"/>
+  <line x1="1365" y1="445" x2="1405" y2="445" stroke="#107C10" stroke-width="4" marker-end="url(#arrow-green)"/>
+
+  <text x="80" y="596" class="box-title">TIME</text>
+  <line x1="145" y1="590" x2="1675" y2="590" stroke="#1E1E1E" stroke-width="4" marker-end="url(#arrow-black)"/>
+  <circle cx="242" cy="590" r="12" fill="#CFE4FA" stroke="#0078D4" stroke-width="3"/>
+  <circle cx="622" cy="590" r="12" fill="#DFF6DD" stroke="#107C10" stroke-width="3"/>
+  <circle cx="880" cy="590" r="15" fill="#FDE7E9" stroke="#D13438" stroke-width="4"/>
+  <circle cx="1203" cy="590" r="15" fill="#E8DAEF" stroke="#5C2D91" stroke-width="4"/>
+  <circle cx="1563" cy="590" r="15" fill="#DFF6DD" stroke="#107C10" stroke-width="4"/>
+  <text x="242" y="632" class="small center">18:25:31.601</text>
+  <text x="242" y="655" class="small center">request</text>
+  <text x="622" y="632" class="small center">18:25:44.638</text>
+  <text x="622" y="655" class="small center">checkpoint 04</text>
+  <text x="880" y="632" class="small center">18:25:45.176</text>
+  <text x="880" y="655" class="small center">A down</text>
+  <text x="1203" y="632" class="small center">18:25:46.591</text>
+  <text x="1203" y="655" class="small center">B recovered</text>
+  <text x="1563" y="632" class="small center">18:26:11.276</text>
+  <text x="1563" y="655" class="small center">completed</text>
+
+  <line x1="880" y1="715" x2="1203" y2="715" stroke="#5C2D91" stroke-width="4"/>
+  <line x1="880" y1="702" x2="880" y2="728" stroke="#5C2D91" stroke-width="4"/>
+  <line x1="1203" y1="702" x2="1203" y2="728" stroke="#5C2D91" stroke-width="4"/>
+  <text x="1041" y="696" class="metric center">A down &#8594; B recovered = 1.415 s</text>
+
+  <line x1="242" y1="775" x2="1563" y2="775" stroke="#0C8599" stroke-width="4"/>
+  <line x1="242" y1="762" x2="242" y2="788" stroke="#0C8599" stroke-width="4"/>
+  <line x1="1563" y1="762" x2="1563" y2="788" stroke="#0C8599" stroke-width="4"/>
+  <text x="902" y="756" class="metric center">Request created &#8594; completed = 39.675 s   |   Whole harness = 41.556 s</text>
+
+  <rect x="80" y="825" width="1640" height="155" rx="16" fill="#99E9F2" stroke="#0C8599" stroke-width="3"/>
+  <text x="900" y="858" class="box-title center">WHY THIS PROVES TAKEOVER + NO DATA LOSS</text>
+  <text x="900" y="890" class="box-text center">Same response hash: 9acba831...b393d   |   two different process hashes   |   entry modes: fresh + recovered</text>
+  <text x="900" y="922" class="box-text center">A last checkpoint = section 04   &#8594;   B first checkpoint = section 05   |   all 12 results exactly once</text>
+  <text x="900" y="954" class="box-title center">FINAL STATE: original response status=completed   |   RESULT PASS</text>
+
+  <rect x="80" y="1010" width="1640" height="100" rx="16" fill="#FFF4CE" stroke="#F7630C" stroke-width="3"/>
+  <text x="900" y="1045" class="box-text center">LIVE FOUNDRY CROSS-CHECK (Version 7): same section 04 &#8594; 05 takeover, two processes, completed; total 89.199 s.</text>
+  <text x="900" y="1078" class="box-text center">One TimeoutError occurred. The 49.555 s successful-poll gap includes timeout + polling + scheduling + replacement, not an exact hang.</text>
+</svg>

@@ -53,6 +53,28 @@
         "Environment.Exit(InjectedExitCode)"
       ],
       "path": "dotnet-agent/Program.cs"
+    },
+    {
+      "contains": [
+        "payload=repository-owned-real-translation-workload-v1",
+        "18:25:31.601",
+        "os._exit(86)",
+        "18:25:46.591",
+        "completed 18:26:11.276",
+        "49.555 s"
+      ],
+      "path": "images/lra-recovery-timeline.svg"
+    },
+    {
+      "contains": [
+        "payload=repository-owned-real-translation-workload-v1",
+        "18:25:31.601",
+        "os._exit(86)",
+        "18:25:46.591",
+        "completed 18:26:11.276",
+        "49.555 s"
+      ],
+      "path": "images/lra-recovery-timeline.excalidraw"
     }
   ],
   "evidence": "evidence/owned-hosted-agent-translation-local.json",
@@ -133,6 +155,9 @@
     "translator_batch",
     "translation_section_04",
     "translation_section_05",
+    "lra-recovery-timeline.png",
+    "lra-recovery-timeline.svg",
+    "lra-recovery-timeline.excalidraw",
     "owned-hosted-agent-live-translation-trace.txt",
     "owned-hosted-agent-live-translation-output.md",
     "89.199",

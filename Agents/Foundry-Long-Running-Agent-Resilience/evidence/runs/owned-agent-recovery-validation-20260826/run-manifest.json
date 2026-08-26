@@ -7,7 +7,7 @@
     "The safe Version 9 run and Portal screenshots prove the post-test deployment, not recovery by themselves.",
     "Graceful Windows shutdown recovery remains NOT_VERIFIED."
   ],
-  "captured_at_utc": "2026-08-26T14:20:19.268Z",
+  "captured_at_utc": "2026-08-26T15:00:53.106Z",
   "commands": [
     {
       "command": "python hosted-agent/run_local_recovery.py --runtime-label \"Python 3.13 + Azure Translator S1\" --workload translator_batch --work-id owned-agent-real-translation-primary --payload \"repository-owned-real-translation-workload-v1\" --crash-after-stage 3 --stage-delay-ms 1000 --first-exit-timeout-seconds 60 --deadline-seconds 240 --report evidence/owned-hosted-agent-translation-local.json --log-report evidence/owned-hosted-agent-translation-local-events.jsonl",
@@ -98,6 +98,18 @@
   ],
   "key_code": [
     {
+      "path": "images/lra-recovery-timeline.excalidraw",
+      "sha256": "d2f670e5759d5cd3cad1e3d900ada38ae2e91491f7d9181e63a68b51a8663516"
+    },
+    {
+      "path": "images/lra-recovery-timeline.png",
+      "sha256": "78d95229f7ef65d2c161dad58435706bf3c08641be01372d6543794adce7b282"
+    },
+    {
+      "path": "images/lra-recovery-timeline.svg",
+      "sha256": "92c580e43054689bf7b08bf5b9571b7959dd097cbed804b256cff848843bea10"
+    },
+    {
       "path": "hosted-agent/azure.yaml",
       "sha256": "e7808b74691951de520e794003f4bfe8628220165a69e868751c7966cca91cd3"
     },
@@ -151,7 +163,7 @@
     },
     {
       "path": "scripts/validate_repo.py",
-      "sha256": "216c8c024b84189ee13a217f367544c729c8fb8d46e591f9bfac060e31ea5db6"
+      "sha256": "4e36e960680db07d5fffbb926917c19719c2dbb47e2862c0d9bcbcccc175a9da"
     },
     {
       "path": "scripts/generate_evidence_manifest.py",
@@ -159,7 +171,7 @@
     },
     {
       "path": "evidence/run-contract.json",
-      "sha256": "3a555124e9a12ea76f0b6537214f66c013fd8acbc5b1462db43c4f79681abf27"
+      "sha256": "eea02e3f1f457c23c42c8cf4b7f0920e48d72d2c554a742f79b9d150b8667773"
     }
   ],
   "logs": [

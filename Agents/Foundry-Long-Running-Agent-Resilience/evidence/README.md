@@ -2,6 +2,8 @@
 
 This directory contains public-safe evidence only. Raw authenticated screenshots, endpoints, response IDs, session IDs, process IDs, and unredacted Hosted Agent logs remain under the ignored `.repo-evidence/` intake tree.
 
+The reader-facing [recovery timeline PNG](../images/lra-recovery-timeline.png) is derived from the exact local report and the live Foundry cross-check. Its [scalable SVG](../images/lra-recovery-timeline.svg) and [editable Excalidraw source](../images/lra-recovery-timeline.excalidraw) are committed beside it; the diagram summarizes evidence but does not replace the JSON or logs.
+
 | Evidence | Classification | What it proves | Boundary |
 |---|---|---|---|
 | [`run-contract.json`](run-contract.json) | truth contract | Scenario-declared timeline milestones, state assertions, code hooks, README tokens, and matrix path | The generic gate interprets this data; it does not know LRA event names |

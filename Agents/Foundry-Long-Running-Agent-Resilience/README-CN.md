@@ -92,6 +92,10 @@ yield return stream.Checkpoint();
 
 最终线上结果不是一个状态字：[破坏后完成的完整译文](evidence/owned-hosted-agent-live-translation-output.md)同时列出 12 段英文输入和 12 段 Translator 原始结果。它证明完成和恢复，不代表人工翻译质量评测。
 
+![进程 A 到进程 B 的精确恢复时间轴，包含实际请求、故障注入、时间戳、检查点连续性和 completed 终态](images/lra-recovery-timeline.png)
+
+图中主时间轴使用下面的本机精确时间，底部同时写明线上 Foundry 证明边界。[打开可缩放 SVG](images/lra-recovery-timeline.svg)或[编辑 Excalidraw 源文件](images/lra-recovery-timeline.excalidraw)。
+
 ### 什么时候 down、什么时候恢复、什么时候完成
 
 下表直接来自真实 S1 运行 [`owned-hosted-agent-translation-local.json`](evidence/owned-hosted-agent-translation-local.json)。时间为 UTC+8；JSON 中保留 ISO 时间、完整验收结果和脱敏事件日志。

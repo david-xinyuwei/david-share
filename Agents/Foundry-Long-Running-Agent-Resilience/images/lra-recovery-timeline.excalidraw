@@ -1,0 +1,662 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "copilot-cli",
+  "elements": [
+    {
+      "type": "text",
+      "id": "title",
+      "x": 60,
+      "y": 30,
+      "width": 1680,
+      "height": 75,
+      "text": "Real Translator long task: Process A fails, Process B resumes, original task completes",
+      "fontSize": 30,
+      "fontFamily": 2,
+      "strokeColor": "#000000",
+      "textAlign": "center",
+      "verticalAlign": "top"
+    },
+    {
+      "type": "text",
+      "id": "subtitle",
+      "x": 80,
+      "y": 95,
+      "width": 1640,
+      "height": 45,
+      "text": "Exact UTC+8 timeline from the committed local AgentServer + real Azure Translator S1 recovery run",
+      "fontSize": 16,
+      "fontFamily": 2,
+      "strokeColor": "#000000",
+      "textAlign": "center",
+      "verticalAlign": "top"
+    },
+    {
+      "type": "rectangle",
+      "id": "prompt_box",
+      "x": 80,
+      "y": 145,
+      "width": 1640,
+      "height": 155,
+      "strokeColor": "#0078D4",
+      "backgroundColor": "#CFE4FA",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "roundness": {
+        "type": 3
+      },
+      "boundElements": [
+        {
+          "type": "text",
+          "id": "prompt_text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "prompt_text",
+      "containerId": "prompt_box",
+      "x": 110,
+      "y": 165,
+      "width": 1580,
+      "height": 125,
+      "text": "ACTUAL REQUEST / PROMPT\nworkload=translator_batch   payload=repository-owned-real-translation-workload-v1\nwork_id=owned-agent-real-translation-primary   crash_after_stage=3   stage_delay_ms=1000\nBusiness meaning: translate 12 English resilience sections to Chinese; checkpoint every completed S1 result.",
+      "fontSize": 18,
+      "fontFamily": 3,
+      "strokeColor": "#000000",
+      "textAlign": "center",
+      "verticalAlign": "middle"
+    },
+    {
+      "type": "text",
+      "id": "lane_a",
+      "x": 80,
+      "y": 335,
+      "width": 130,
+      "height": 45,
+      "text": "Process A",
+      "fontSize": 20,
+      "fontFamily": 2,
+      "strokeColor": "#000000",
+      "textAlign": "left",
+      "verticalAlign": "top"
+    },
+    {
+      "type": "rectangle",
+      "id": "request_box",
+      "x": 120,
+      "y": 385,
+      "width": 245,
+      "height": 120,
+      "strokeColor": "#0078D4",
+      "backgroundColor": "#CFE4FA",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "roundness": {
+        "type": 3
+      },
+      "boundElements": [
+        {
+          "type": "text",
+          "id": "request_text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "request_text",
+      "containerId": "request_box",
+      "x": 135,
+      "y": 400,
+      "width": 215,
+      "height": 90,
+      "text": "18:25:31.601\nStored background\nresponse created\nstore=true",
+      "fontSize": 17,
+      "fontFamily": 2,
+      "strokeColor": "#000000",
+      "textAlign": "center",
+      "verticalAlign": "middle"
+    },
+    {
+      "type": "rectangle",
+      "id": "process_a_box",
+      "x": 410,
+      "y": 385,
+      "width": 285,
+      "height": 120,
+      "strokeColor": "#107C10",
+      "backgroundColor": "#DFF6DD",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "roundness": {
+        "type": 3
+      },
+      "boundElements": [
+        {
+          "type": "text",
+          "id": "process_a_text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "process_a_text",
+      "containerId": "process_a_box",
+      "x": 425,
+      "y": 400,
+      "width": 255,
+      "height": 90,
+      "text": "Process A works\nsections 1 → 4\n18:25:44.638\ncheckpoint 04 committed",
+      "fontSize": 17,
+      "fontFamily": 2,
+      "strokeColor": "#000000",
+      "textAlign": "center",
+      "verticalAlign": "middle"
+    },
+    {
+      "type": "rectangle",
+      "id": "fault_box",
+      "x": 740,
+      "y": 365,
+      "width": 280,
+      "height": 160,
+      "strokeColor": "#D13438",
+      "backgroundColor": "#FDE7E9",
+      "fillStyle": "solid",
+      "strokeWidth": 3,
+      "roundness": {
+        "type": 3
+      },
+      "boundElements": [
+        {
+          "type": "text",
+          "id": "fault_text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "fault_text",
+      "containerId": "fault_box",
+      "x": 755,
+      "y": 380,
+      "width": 250,
+      "height": 130,
+      "text": "FAULT INJECTION\n18:25:44.638\nos._exit(86)\n\nPROCESS A DOWN\n18:25:45.176",
+      "fontSize": 18,
+      "fontFamily": 2,
+      "strokeColor": "#000000",
+      "textAlign": "center",
+      "verticalAlign": "middle"
+    },
+    {
+      "type": "rectangle",
+      "id": "process_b_box",
+      "x": 1065,
+      "y": 365,
+      "width": 300,
+      "height": 160,
+      "strokeColor": "#5C2D91",
+      "backgroundColor": "#E8DAEF",
+      "fillStyle": "solid",
+      "strokeWidth": 3,
+      "roundness": {
+        "type": 3
+      },
+      "boundElements": [
+        {
+          "type": "text",
+          "id": "process_b_text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "process_b_text",
+      "containerId": "process_b_box",
+      "x": 1080,
+      "y": 380,
+      "width": 270,
+      "height": 130,
+      "text": "PROCESS B STARTS\n18:25:45.190\n\nRECOVERED ENTRY\n18:25:46.591\nresume at section 05",
+      "fontSize": 18,
+      "fontFamily": 2,
+      "strokeColor": "#000000",
+      "textAlign": "center",
+      "verticalAlign": "middle"
+    },
+    {
+      "type": "rectangle",
+      "id": "complete_box",
+      "x": 1410,
+      "y": 365,
+      "width": 310,
+      "height": 160,
+      "strokeColor": "#107C10",
+      "backgroundColor": "#DFF6DD",
+      "fillStyle": "solid",
+      "strokeWidth": 3,
+      "roundness": {
+        "type": 3
+      },
+      "boundElements": [
+        {
+          "type": "text",
+          "id": "complete_text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "complete_text",
+      "containerId": "complete_box",
+      "x": 1425,
+      "y": 380,
+      "width": 280,
+      "height": 130,
+      "text": "PROCESS B FINISHES\nsections 5 → 12\n18:26:11.112\n\nORIGINAL RESPONSE\ncompleted 18:26:11.276",
+      "fontSize": 18,
+      "fontFamily": 2,
+      "strokeColor": "#000000",
+      "textAlign": "center",
+      "verticalAlign": "middle"
+    },
+    {
+      "type": "arrow",
+      "id": "flow_1",
+      "x": 365,
+      "y": 445,
+      "width": 45,
+      "height": 0,
+      "strokeColor": "#0078D4",
+      "strokeWidth": 3,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          45,
+          0
+        ]
+      ],
+      "endArrowhead": "arrow"
+    },
+    {
+      "type": "arrow",
+      "id": "flow_2",
+      "x": 695,
+      "y": 445,
+      "width": 45,
+      "height": 0,
+      "strokeColor": "#D13438",
+      "strokeWidth": 3,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          45,
+          0
+        ]
+      ],
+      "endArrowhead": "arrow"
+    },
+    {
+      "type": "arrow",
+      "id": "flow_3",
+      "x": 1020,
+      "y": 445,
+      "width": 45,
+      "height": 0,
+      "strokeColor": "#5C2D91",
+      "strokeWidth": 3,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          45,
+          0
+        ]
+      ],
+      "endArrowhead": "arrow"
+    },
+    {
+      "type": "arrow",
+      "id": "flow_4",
+      "x": 1365,
+      "y": 445,
+      "width": 45,
+      "height": 0,
+      "strokeColor": "#107C10",
+      "strokeWidth": 3,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          45,
+          0
+        ]
+      ],
+      "endArrowhead": "arrow"
+    },
+    {
+      "type": "arrow",
+      "id": "timeline",
+      "x": 145,
+      "y": 590,
+      "width": 1530,
+      "height": 0,
+      "strokeColor": "#1e1e1e",
+      "strokeWidth": 3,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          1530,
+          0
+        ]
+      ],
+      "endArrowhead": "arrow"
+    },
+    {
+      "type": "text",
+      "id": "timeline_label",
+      "x": 80,
+      "y": 565,
+      "width": 120,
+      "height": 45,
+      "text": "TIME",
+      "fontSize": 18,
+      "fontFamily": 2,
+      "strokeColor": "#000000",
+      "textAlign": "left",
+      "verticalAlign": "top"
+    },
+    {
+      "type": "ellipse",
+      "id": "marker_request",
+      "x": 230,
+      "y": 578,
+      "width": 24,
+      "height": 24,
+      "strokeColor": "#0078D4",
+      "backgroundColor": "#CFE4FA",
+      "fillStyle": "solid",
+      "strokeWidth": 2
+    },
+    {
+      "type": "ellipse",
+      "id": "marker_checkpoint",
+      "x": 610,
+      "y": 578,
+      "width": 24,
+      "height": 24,
+      "strokeColor": "#107C10",
+      "backgroundColor": "#DFF6DD",
+      "fillStyle": "solid",
+      "strokeWidth": 2
+    },
+    {
+      "type": "ellipse",
+      "id": "marker_down",
+      "x": 865,
+      "y": 575,
+      "width": 30,
+      "height": 30,
+      "strokeColor": "#D13438",
+      "backgroundColor": "#FDE7E9",
+      "fillStyle": "solid",
+      "strokeWidth": 3
+    },
+    {
+      "type": "ellipse",
+      "id": "marker_recover",
+      "x": 1188,
+      "y": 575,
+      "width": 30,
+      "height": 30,
+      "strokeColor": "#5C2D91",
+      "backgroundColor": "#E8DAEF",
+      "fillStyle": "solid",
+      "strokeWidth": 3
+    },
+    {
+      "type": "ellipse",
+      "id": "marker_complete",
+      "x": 1548,
+      "y": 575,
+      "width": 30,
+      "height": 30,
+      "strokeColor": "#107C10",
+      "backgroundColor": "#DFF6DD",
+      "fillStyle": "solid",
+      "strokeWidth": 3
+    },
+    {
+      "type": "text",
+      "id": "time_request",
+      "x": 170,
+      "y": 620,
+      "width": 150,
+      "height": 70,
+      "text": "18:25:31.601\nrequest",
+      "fontSize": 15,
+      "fontFamily": 2,
+      "strokeColor": "#000000",
+      "textAlign": "center",
+      "verticalAlign": "top"
+    },
+    {
+      "type": "text",
+      "id": "time_checkpoint",
+      "x": 545,
+      "y": 620,
+      "width": 160,
+      "height": 70,
+      "text": "18:25:44.638\ncheckpoint 04",
+      "fontSize": 15,
+      "fontFamily": 2,
+      "strokeColor": "#000000",
+      "textAlign": "center",
+      "verticalAlign": "top"
+    },
+    {
+      "type": "text",
+      "id": "time_down",
+      "x": 800,
+      "y": 620,
+      "width": 160,
+      "height": 70,
+      "text": "18:25:45.176\nA down",
+      "fontSize": 15,
+      "fontFamily": 2,
+      "strokeColor": "#000000",
+      "textAlign": "center",
+      "verticalAlign": "top"
+    },
+    {
+      "type": "text",
+      "id": "time_recover",
+      "x": 1110,
+      "y": 620,
+      "width": 190,
+      "height": 70,
+      "text": "18:25:46.591\nB recovered",
+      "fontSize": 15,
+      "fontFamily": 2,
+      "strokeColor": "#000000",
+      "textAlign": "center",
+      "verticalAlign": "top"
+    },
+    {
+      "type": "text",
+      "id": "time_complete",
+      "x": 1465,
+      "y": 620,
+      "width": 200,
+      "height": 70,
+      "text": "18:26:11.276\ncompleted",
+      "fontSize": 15,
+      "fontFamily": 2,
+      "strokeColor": "#000000",
+      "textAlign": "center",
+      "verticalAlign": "top"
+    },
+    {
+      "type": "arrow",
+      "id": "recovery_duration",
+      "x": 880,
+      "y": 715,
+      "width": 323,
+      "height": 0,
+      "strokeColor": "#5C2D91",
+      "strokeWidth": 3,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          323,
+          0
+        ]
+      ],
+      "startArrowhead": "bar",
+      "endArrowhead": "bar"
+    },
+    {
+      "type": "text",
+      "id": "recovery_duration_text",
+      "x": 900,
+      "y": 675,
+      "width": 285,
+      "height": 45,
+      "text": "A down → B recovered = 1.415 s",
+      "fontSize": 17,
+      "fontFamily": 2,
+      "strokeColor": "#000000",
+      "textAlign": "center",
+      "verticalAlign": "top"
+    },
+    {
+      "type": "arrow",
+      "id": "total_duration",
+      "x": 242,
+      "y": 775,
+      "width": 1321,
+      "height": 0,
+      "strokeColor": "#0c8599",
+      "strokeWidth": 3,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          1321,
+          0
+        ]
+      ],
+      "startArrowhead": "bar",
+      "endArrowhead": "bar"
+    },
+    {
+      "type": "text",
+      "id": "total_duration_text",
+      "x": 560,
+      "y": 735,
+      "width": 690,
+      "height": 45,
+      "text": "Request created → completed = 39.675 s   |   Whole harness = 41.556 s",
+      "fontSize": 17,
+      "fontFamily": 2,
+      "strokeColor": "#000000",
+      "textAlign": "center",
+      "verticalAlign": "top"
+    },
+    {
+      "type": "rectangle",
+      "id": "proof_box",
+      "x": 80,
+      "y": 825,
+      "width": 1640,
+      "height": 155,
+      "strokeColor": "#0c8599",
+      "backgroundColor": "#99e9f2",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "roundness": {
+        "type": 3
+      },
+      "boundElements": [
+        {
+          "type": "text",
+          "id": "proof_text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "proof_text",
+      "containerId": "proof_box",
+      "x": 110,
+      "y": 845,
+      "width": 1580,
+      "height": 120,
+      "text": "WHY THIS PROVES TAKEOVER + NO DATA LOSS\nSame response hash: 9acba831…b393d   |   two different process hashes   |   entry modes: fresh + recovered\nA last checkpoint = section 04   →   B first checkpoint = section 05   |   all 12 results exactly once\nFINAL STATE: original response status=completed   |   RESULT PASS",
+      "fontSize": 18,
+      "fontFamily": 2,
+      "strokeColor": "#000000",
+      "textAlign": "center",
+      "verticalAlign": "middle"
+    },
+    {
+      "type": "rectangle",
+      "id": "hosted_note_box",
+      "x": 80,
+      "y": 1010,
+      "width": 1640,
+      "height": 100,
+      "strokeColor": "#F7630C",
+      "backgroundColor": "#FFF4CE",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "roundness": {
+        "type": 3
+      },
+      "boundElements": [
+        {
+          "type": "text",
+          "id": "hosted_note_text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "hosted_note_text",
+      "containerId": "hosted_note_box",
+      "x": 105,
+      "y": 1025,
+      "width": 1590,
+      "height": 75,
+      "text": "LIVE FOUNDRY CROSS-CHECK (Version 7): same section 04 → 05 takeover, two processes, completed; total 89.199 s.\nOne TimeoutError occurred. The 49.555 s successful-poll gap includes timeout + polling + scheduling + replacement, not an exact hang.",
+      "fontSize": 17,
+      "fontFamily": 2,
+      "strokeColor": "#000000",
+      "textAlign": "center",
+      "verticalAlign": "middle"
+    }
+  ],
+  "appState": {
+    "viewBackgroundColor": "#ffffff"
+  },
+  "files": {}
+}

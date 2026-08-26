@@ -92,6 +92,10 @@ The fault request sets `crash_after_stage=3`, so Process A commits `translation_
 
 The final hosted output is not merely a status flag: [`owned-hosted-agent-live-translation-output.md`](evidence/owned-hosted-agent-live-translation-output.md) contains all 12 English inputs and all 12 verbatim Translator results. It records completion and recovery, not a human language-quality evaluation.
 
+![Exact Process A to Process B recovery timeline, including the actual request, fault injection, timestamps, checkpoint continuity, and completed state](images/lra-recovery-timeline.png)
+
+The diagram uses the exact local timestamps below and includes the live Foundry boundary at the bottom. [Open the scalable SVG](images/lra-recovery-timeline.svg) or [edit the Excalidraw source](images/lra-recovery-timeline.excalidraw).
+
 ### Exactly when it went down, recovered, and completed
 
 The table is from the real S1 run in [`owned-hosted-agent-translation-local.json`](evidence/owned-hosted-agent-translation-local.json). Times below are UTC+8; the JSON keeps ISO timestamps, the full acceptance result, and the sanitized event log.
