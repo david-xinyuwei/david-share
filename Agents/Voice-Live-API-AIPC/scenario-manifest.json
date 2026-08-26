@@ -1,3 +1,61 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:7b25229324522bfca2f4554c43f7f3b37777f6335a24cbac8ac67408a0a82620
-size 2482
+{
+  "schema_version": "1.0",
+  "project": "Voice Live API for AIPC",
+  "runtime": "Windows local application",
+  "scenarios": [
+    {
+      "id": "voice-live-conversation",
+      "classification": "dynamic-runtime",
+      "entrypoint": "app.py",
+      "service": "Azure Voice Live API",
+      "evidence": "evidence/live-validation.json",
+      "boundary": "Requires a caller-owned Foundry resource and credentials."
+    },
+    {
+      "id": "windows-device-control",
+      "classification": "dynamic-runtime",
+      "entrypoint": "src/tools/desktop.py; src/tools/power.py; src/tools/timezone.py",
+      "service": "Windows Core Audio, PowrProf, WMI, and Shell APIs",
+      "evidence": "evidence/live-validation.json",
+      "boundary": "Changes the local Windows device and is not executed in CI."
+    },
+    {
+      "id": "camera-and-vision",
+      "classification": "dynamic-runtime",
+      "entrypoint": "src/camera.py; src/tools/vision.py",
+      "service": "Local camera plus caller-configured multimodal model",
+      "evidence": "evidence/live-validation.json",
+      "boundary": "Camera frames stay in ignored local runtime storage."
+    },
+    {
+      "id": "live-information-tools",
+      "classification": "dynamic-runtime",
+      "entrypoint": "src/tools/weather.py; src/tools/stocks.py; src/tools/news.py; src/tools/websearch.py",
+      "service": "Open-Meteo, market quote providers, RSS, and WebIQ",
+      "evidence": "evidence/live-validation.json",
+      "boundary": "Providers can throttle or change independently; failures remain explicit."
+    },
+    {
+      "id": "mail-delivery",
+      "classification": "dynamic-runtime",
+      "entrypoint": "src/tools/mailer.py; src/graph_mail.py",
+      "service": "Microsoft Graph or SMTP",
+      "evidence": "evidence/live-validation.json",
+      "boundary": "Transmits email only after an explicit user request and recipient-allowlist validation."
+    },
+    {
+      "id": "offline-contract-tests",
+      "classification": "test-fixture",
+      "entrypoint": "tests/; scripts/pre_delivery_check.py",
+      "service": "None",
+      "evidence": "evidence/README.md",
+      "boundary": "Validates contracts and refusal paths; it is not evidence of live service quality."
+    }
+  ],
+  "prohibited_runtime_fallbacks": [
+    "mock external data",
+    "synthetic tool success",
+    "timer-driven fake progress",
+    "silent fallback from live service failure"
+  ]
+}

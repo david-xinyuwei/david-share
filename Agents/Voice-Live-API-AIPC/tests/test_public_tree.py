@@ -34,6 +34,15 @@ def test_runtime_dependencies_are_exactly_pinned() -> None:
     assert all("==" in requirement for requirement in requirements)
 
 
+def test_public_json_is_stored_as_regular_git_text() -> None:
+    attributes = (ROOT / ".gitattributes").read_text(encoding="utf-8")
+    assert "*.json !filter !diff !merge text eol=lf" in attributes
+    for path in ROOT.rglob("*.json"):
+        text = path.read_text(encoding="utf-8")
+        assert not text.startswith("version https://git-lfs.github.com/spec/v1")
+        json.loads(text)
+
+
 def test_environment_template_keeps_image_generation_opt_in() -> None:
     values = {}
     for line in (ROOT / ".env.example").read_text(encoding="utf-8").splitlines():

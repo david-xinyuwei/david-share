@@ -1,3 +1,48 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:5d7b09a7412cce5521a597d4e3e01e4a378f19fdfd146e41ba8050deb6b2fa26
-size 1692
+{
+  "schema_version": "1.0",
+  "evidence_type": "sanitized-runtime-summary",
+  "captured_at": "2026-08-23T17:03:53+08:00",
+  "environment": {
+    "os": "Windows 11",
+    "python": "3.11.9",
+    "pyinstaller": "6.22.0",
+    "resource_identifiers": "redacted"
+  },
+  "voice_live": {
+    "model": "gpt-realtime",
+    "model_version": "2025-08-28",
+    "model_version_source": "Azure Resource Manager deployment metadata",
+    "api_version": "2026-04-10",
+    "input_transcription": "gpt-4o-transcribe",
+    "session_updated": true,
+    "registered_tool_count": 24,
+    "server_accepted_tool_count": 24
+  },
+  "external_smoke": [
+    {"tool": "get_current_time", "result": "PASS", "source": "IANA tzdata"},
+    {"tool": "get_weather", "result": "PASS", "source": "Open-Meteo"},
+    {"tool": "get_stock_quote", "result": "PASS", "source": "Tencent Stock Quote fallback after Yahoo HTTP 403"},
+    {"tool": "get_news_headlines", "result": "PASS", "source": "WebIQ fallback after RSS connection timeout"},
+    {"tool": "web_search", "result": "PASS", "source": "WebIQ"},
+    {"tool": "search_wallpaper_image", "result": "PASS", "source": "WebIQ plus HTTPS image download"}
+  ],
+  "publication": {
+    "raw_logs_public": false,
+    "redacted_fields": [
+      "subscription",
+      "tenant",
+      "resource group",
+      "resource name",
+      "endpoint host",
+      "account",
+      "tokens and keys"
+    ]
+  },
+  "does_not_prove": [
+    "production readiness or SLA",
+    "universal provider availability",
+    "model quality benchmark",
+    "all hardware compatibility",
+    "successful execution without caller-owned credentials and devices"
+  ]
+}
