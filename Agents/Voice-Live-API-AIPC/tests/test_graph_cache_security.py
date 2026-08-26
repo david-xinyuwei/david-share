@@ -112,3 +112,27 @@ def test_secure_fallback_is_migrated_and_revalidated(
     assert graph_mail._read_cache_text() == "credential"
     assert target.read_text(encoding="utf-8") == "credential"
     assert validated == [fallback, target]
+
+
+def test_sddl_validator_accepts_only_current_user_and_system() -> None:
+    sid = "S-1-12-1-1-2-3-4"
+    graph_mail._validate_cache_sddl(
+        f"D:PAI(A;;FA;;;SY)(A;;FA;;;{sid})",
+        sid,
+    )
+
+    with pytest.raises(PermissionError):
+        graph_mail._validate_cache_sddl(
+            f"D:PAI(A;;FA;;;BU)(A;;FA;;;{sid})",
+            sid,
+        )
+    with pytest.raises(PermissionError):
+        graph_mail._validate_cache_sddl(
+            f"D:AI(A;;FA;;;SY)(A;;FA;;;{sid})",
+            sid,
+        )
+    with pytest.raises(PermissionError):
+        graph_mail._validate_cache_sddl(
+            f"D:PAI(A;ID;FA;;;SY)(A;;FA;;;{sid})",
+            sid,
+        )

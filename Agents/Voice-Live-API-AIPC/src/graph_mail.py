@@ -7,10 +7,13 @@ Outlook.com / Exchange Online 的 SMTP Basic Auth 已于 2026-04-30 退役，
 
 from __future__ import annotations
 
+import csv
 import getpass
 import json
+import locale
 import logging
 import os
+import re
 import subprocess
 import tempfile
 from pathlib import Path
@@ -109,10 +112,7 @@ def _restrict_cache_file(path: Path) -> None:
         path.chmod(0o600)
         return
 
-    system_root = Path(os.environ.get("SystemRoot", r"C:\Windows"))
-    icacls = system_root / "System32" / "icacls.exe"
-    if not icacls.is_file():
-        raise RuntimeError("无法定位 icacls.exe，拒绝写入 Graph token cache")
+    icacls = _trusted_system_tool("icacls.exe")
 
     username = os.environ.get("USERNAME") or getpass.getuser()
     domain = os.environ.get("USERDOMAIN")
@@ -144,72 +144,107 @@ def _assert_cache_file_secure(path: Path) -> None:
             raise PermissionError("Graph token cache 权限必须是 0600")
         return
 
-    system_root = Path(os.environ.get("SystemRoot", r"C:\Windows")).resolve()
-    powershell = (
-        system_root / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
-    ).resolve()
-    if not powershell.is_relative_to(system_root) or not powershell.is_file():
-        raise RuntimeError("无法定位受信任的 powershell.exe，拒绝读取 Graph token cache")
+    current_sid = _current_windows_sid()
+    acl_path: Path | None = None
+    try:
+        descriptor = tempfile.NamedTemporaryFile(
+            prefix=".voice-agent-acl.", suffix=".txt", dir=path.parent, delete=False
+        )
+        acl_path = Path(descriptor.name)
+        descriptor.close()
+        acl_path.unlink()
+        result = subprocess.run(
+            [
+                str(_trusted_system_tool("icacls.exe")),
+                str(path),
+                "/save",
+                str(acl_path),
+                "/c",
+            ],
+            capture_output=True,
+            timeout=10,
+            check=False,
+        )
+        if result.returncode != 0 or not acl_path.is_file():
+            raise PermissionError("无法导出 Graph token cache 的 Windows ACL，已拒绝读取")
+        sddl = _read_sddl(acl_path)
+        _validate_cache_sddl(sddl, current_sid)
+    finally:
+        if acl_path is not None:
+            acl_path.unlink(missing_ok=True)
 
-    script = r"""
-$ErrorActionPreference = 'Stop'
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-$acl = Get-Acl -LiteralPath $env:VOICE_AGENT_CACHE_PATH
-$rules = @($acl.Access | ForEach-Object {
-    [pscustomobject]@{
-        sid = $_.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value
-        type = $_.AccessControlType.ToString()
-        inherited = [bool]$_.IsInherited
-        rights = [int64]$_.FileSystemRights
-    }
-})
-[pscustomobject]@{
-    current_sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
-    protected = [bool]$acl.AreAccessRulesProtected
-    rules = $rules
-} | ConvertTo-Json -Compress -Depth 4
-"""
+
+def _trusted_system_tool(name: str) -> Path:
+    system_root = Path(os.environ.get("SystemRoot", r"C:\Windows")).resolve()
+    candidate = (system_root / "System32" / name).resolve()
+    if not candidate.is_relative_to(system_root) or not candidate.is_file():
+        raise RuntimeError(f"无法定位受信任的 Windows 程序: {candidate}")
+    return candidate
+
+
+def _current_windows_sid() -> str:
     result = subprocess.run(
-        [
-            str(powershell),
-            "-NoProfile",
-            "-NonInteractive",
-            "-Command",
-            script,
-        ],
+        [str(_trusted_system_tool("whoami.exe")), "/user", "/fo", "csv", "/nh"],
         capture_output=True,
         timeout=10,
         check=False,
-        env={**os.environ, "VOICE_AGENT_CACHE_PATH": str(path)},
     )
     if result.returncode != 0:
-        raise PermissionError("无法验证 Graph token cache 的 Windows ACL，已拒绝读取")
+        raise PermissionError("无法读取当前 Windows SID，已拒绝读取 Graph token cache")
+    text = _decode_command_output(result.stdout)
     try:
-        state = json.loads(result.stdout.decode("utf-8-sig"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise PermissionError("无法解析 Graph token cache 的 Windows ACL，已拒绝读取") from exc
+        row = next(csv.reader([text.strip()]))
+        sid = row[1].strip().upper()
+    except (IndexError, StopIteration, csv.Error) as exc:
+        raise PermissionError("无法解析当前 Windows SID，已拒绝读取 Graph token cache") from exc
+    if not re.fullmatch(r"S-\d+(?:-\d+)+", sid):
+        raise PermissionError("当前 Windows SID 格式无效，已拒绝读取 Graph token cache")
+    return sid
 
-    current_sid = str(state.get("current_sid", "")).upper()
-    allowed_sids = {current_sid, "S-1-5-18"}
-    if not current_sid or state.get("protected") is not True:
+
+def _read_sddl(path: Path) -> str:
+    data = path.read_bytes()
+    for encoding in ("utf-16", "utf-8-sig", locale.getpreferredencoding(False)):
+        try:
+            text = data.decode(encoding)
+        except (UnicodeDecodeError, UnicodeError, LookupError):
+            continue
+        for line in text.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("D:"):
+                return stripped
+    raise PermissionError("无法解析 Graph token cache 的 SDDL，已拒绝读取")
+
+
+def _decode_command_output(data: bytes) -> str:
+    for encoding in ("utf-8-sig", locale.getpreferredencoding(False), "utf-16"):
+        try:
+            return data.decode(encoding)
+        except (UnicodeDecodeError, UnicodeError, LookupError):
+            continue
+    raise PermissionError("无法解析 Windows 安全命令输出")
+
+
+def _validate_cache_sddl(sddl: str, current_sid: str) -> None:
+    first_ace = sddl.find("(")
+    if not sddl.startswith("D:") or first_ace < 0 or "P" not in sddl[2:first_ace]:
         raise PermissionError("Graph token cache 仍继承目录权限，已拒绝读取")
 
+    aces = re.findall(r"\(([^()]*)\)", sddl)
+    if len(aces) != 2:
+        raise PermissionError("Graph token cache ACL 必须只包含当前用户和 SYSTEM")
+    expected = {current_sid.upper(), "S-1-5-18"}
     grants: set[str] = set()
-    rules = state.get("rules") or []
-    if isinstance(rules, dict):
-        rules = [rules]
-    full_control = 0x1F01FF
-    for rule in rules:
-        if str(rule.get("type", "")).lower() != "allow":
-            continue
-        sid = str(rule.get("sid", "")).upper()
-        rights = int(rule.get("rights", 0))
-        if rule.get("inherited") or sid not in allowed_sids:
+    for ace in aces:
+        fields = ace.split(";")
+        if len(fields) != 6:
+            raise PermissionError("Graph token cache ACL 结构无效")
+        ace_type, flags, rights, _object_guid, _inherit_guid, trustee = fields
+        normalized = "S-1-5-18" if trustee.upper() == "SY" else trustee.upper()
+        if ace_type != "A" or flags or rights != "FA" or normalized not in expected:
             raise PermissionError("Graph token cache 向其他 Windows principal 授权，已拒绝读取")
-        if rights & full_control != full_control:
-            raise PermissionError("Graph token cache 缺少受控 principal 的 Full Control")
-        grants.add(sid)
-    if grants != allowed_sids:
+        grants.add(normalized)
+    if grants != expected:
         raise PermissionError("Graph token cache ACL 必须只包含当前用户和 SYSTEM")
 
 
