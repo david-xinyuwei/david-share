@@ -1,0 +1,15 @@
+[project]
+name = "voice-live-api-aipc"
+version = "1.0.0"
+description = "Windows AIPC voice agent built on Azure Voice Live API"
+requires-python = ">=3.11,<3.14"
+license = { text = "MIT" }
+authors = [{ name = "Xinyu Wei" }]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["tests/*"]
