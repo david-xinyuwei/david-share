@@ -1,526 +1,217 @@
-# Microsoft Foundry 长任务 Agent 韧性：主动终止进程后的恢复实测
+# Microsoft Foundry Hosted Agent 进程丢失后如何恢复
 
 [![Status](https://img.shields.io/badge/Foundry_capability-public_preview-B3541E)](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
-[![Scope](https://img.shields.io/badge/scope-repository_owned_agent-1363DF)](#本仓库自有-hosted-agent-的实测结果)
-[![Runtime](https://img.shields.io/badge/runtime-Python_3.13-0F8B6D)](#实测结果)
-[![Protocol](https://img.shields.io/badge/protocol-Responses-5F4BB6)](#三种接入方式)
+[![Scope](https://img.shields.io/badge/scope-repository_owned_agent-1363DF)](#一次完整的恢复运行)
+[![Runtimes](https://img.shields.io/badge/runtimes-Python_3.13_%2B_.NET_8-0F8B6D)](#故障矩阵)
+[![Protocol](https://img.shields.io/badge/protocol-Responses-5F4BB6)](#把同样的接线放进你的-agent)
 [![License](https://img.shields.io/badge/license-MIT-D98E04)](LICENSE)
 
-本仓库回答一个问题：**运行长任务的进程突然消失后，任务能否从已保存的进度继续，而不是从头再来？** 这里包含本仓库自己编写的 Hosted Agent 和客户端、当前 Version 4 部署检查、本机双进程恢复测试、SDK 契约检查、自动化测试和可复核证据。
-
-该能力处于**公共预览（public preview）**。所有中断都是主动注入，不是线上事故；结果只适用于这个非生产实现和测试环境，不代表 SLA 或已经可以投入生产。
+本仓库包含真实的 Hosted Agent、客户端、故障运行器和证据。它只回答一个问题：**Agent 进程消失后，同一个已保存响应如何由新进程继续，而且不丢失已经写入检查点的输出？**
 
 > **Author:** 魏新宇（Xinyu Wei）
 
 [English](README.md) | 中文
 
-[复现](#使用本仓库复现) · [实测结果](#实测结果) · [恢复模型](#深入理解恢复如何工作) · [证据](#证据与边界) · [官方文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
+[一次完整运行](#一次完整的恢复运行) · [故障矩阵](#故障矩阵) · [复现](#自己复现) · [接入自己的 Agent](#把同样的接线放进你的-agent) · [证据](#证据与边界) · [官方文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
 
+## 先看这里
 
-## 从这里开始
+这里不是“把旧进程重新启动”。客户端只创建一个已保存的后台响应。进程 A 写入检查点后退出。进程 B 带着空的进程内存启动，从持久化存储中找到同一个响应和输入，以 `is_recovery=True` 重新进入处理函数，加载已经保存的响应快照，再从下一个检查点继续。客户端始终轮询原来的响应 ID。
 
-不用先读全文，按你的目标选择入口：
+下面的主证据来自本仓库自有 Python Agent 的一次真实运行。同样的硬退出测试也在本仓库自有 .NET handler 上通过。它们是公共预览能力证据，不是 SLA 或生产就绪声明。
 
-| 你想做什么 | 去哪里 |
-|---|---|
-| 给自己的 Hosted Agent 加恢复能力 | [使用本仓库复现](#使用本仓库复现)：软件包、服务端、部署、状态保存、身份、客户端和故障验收都在本页 |
-| 在本机看两个进程接力同一任务 | [本机运行、验证，再部署](#本机运行验证再部署)，前两条路径不需要 Azure 订阅 |
-| 核对实测结论 | 先看[实测结果](#实测结果)，再看[证据与边界](#证据与边界) |
+## 一次完整的恢复运行
 
-最短且准确的答案是：服务端和请求都要启用可恢复的后台任务；再根据任务选择安全重跑、Responses 快照或应用自有状态；客户端始终保存同一个响应 ID 或任务 ID。只有当重要进度不在已保存的响应中，或外部操作需要对账时，才必须另配数据库。
+### Agent 到底在哪里接入 LRA
 
-**完成标准：** 主动注入进程丢失后，同一条任务到达明确终态、预期输出完整，而且已提交的外部操作没有重复。
-
-## 使用本仓库复现
-
-完整客户复现路径就在主 README。可运行的 Agent、客户端和证据都由本仓库提供：
-
-| 文件 | 作用 |
-|---|---|
-| [`hosted-agent/azure.yaml`](hosted-agent/azure.yaml) | 把 `lra-evidence-agent` 部署为 Python 3.13、Responses `2.0.0` 协议的 Hosted Agent |
-| [`hosted-agent/src/lra-evidence-agent/main.py`](hosted-agent/src/lra-evidence-agent/main.py) | 完整可执行处理函数：一组有名称的确定性检查点，以及一次受控硬退出 |
-| [`hosted-agent/client.py`](hosted-agent/client.py) | 创建并保存后台响应、保存并复用响应 ID；发现缺口、重复、截止时间失效、单进程“恢复”或终态不完整时直接失败 |
-| [`hosted-agent/run_local_recovery.py`](hosted-agent/run_local_recovery.py) | 启动进程 A、核对退出码 `86`，再用相同状态目录启动进程 B，并验收完整结果 |
-
-Agent 使用 `ResponsesServerOptions(resilient_background=True)`、`set_resilient_tasks_enabled(True)`、`context.persisted_response`、`stream.checkpoint()` 和 `context.exit_for_recovery()`。
-
-微软在 `b9b2cdd` 的 [`resilient-streaming`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming) 样例只保留为公共 API 参考，不是本仓库的可执行主路径。部署使用的 `2.1.0b2` 依赖**不能**替换成独立兼容性检查使用的 `2.0.0`。
-
-### 先选进度保存位置
-
-| 策略 | 要另配进度存储吗 | 适用场景 |
+| 必需接线 | 本仓库真实代码 | 它改变了什么 |
 |---|---|---|
-| 安全重跑 | 不需要 | 整个处理函数执行成本低，而且可以安全重复 |
-| Responses 检查点 | 已完成的响应输出不需要另建数据库 | 进度就是同一个响应中的分段输出 |
-| 应用或框架检查点 | 需要 | 业务状态、审批、大文件、写入、付款、预订或工具状态必须保留 |
+| 导入 AgentServer 恢复 API | [`main.py`](hosted-agent/src/lra-evidence-agent/main.py#L13-L20) | 使用公共 task 和 Responses 软件包 |
+| 服务端开启崩溃恢复 | [`ResponsesServerOptions(resilient_background=True)`](hosted-agent/src/lra-evidence-agent/main.py#L35-L38) | 已保存的后台响应可以在进程丢失后重新调用 |
+| 开启启动恢复扫描 | [`set_resilient_tasks_enabled(True)`](hosted-agent/src/lra-evidence-agent/main.py#L39) | 新进程启动时扫描可恢复任务 |
+| 创建已保存的后台任务 | [`store=True`、`background=True`](hosted-agent/client.py#L205-L215) | 请求和响应身份不依赖原始连接 |
+| 载入持久化快照 | [`context.persisted_response`](hosted-agent/src/lra-evidence-agent/main.py#L104-L115) | 恢复后的处理函数从已写入检查点的输出继续 |
+| 提交一个持久化边界 | [`yield stream.checkpoint()`](hosted-agent/src/lra-evidence-agent/main.py#L143-L166) | 该调用之前的输出可以跨进程保留 |
+| 注入真实硬退出 | [`os._exit(86)`](hosted-agent/src/lra-evidence-agent/main.py#L167-L186) | 进程 A 不做正常清理，直接退出 |
+| 始终查询同一任务 | [`state_file` 和 `validate_terminal_response`](hosted-agent/client.py#L330-L380) | 客户端重启不会创建替代任务 |
 
-Foundry 负责持久化任务身份、输入、租约和已保存的后台响应中的事件，但不会自动保存任意业务状态，也不会自动让外部操作具备幂等性。
+.NET handler 使用同一套契约：[`ResilientBackground`](dotnet-agent/Program.cs#L10-L12)、[`PersistedResponse`](dotnet-agent/Program.cs#L67-L72)、[`stream.Checkpoint()`](dotnet-agent/Program.cs#L101-L107) 和 [`Environment.Exit(86)`](dotnet-agent/Program.cs#L109-L121)。
+
+### 什么时候 down、什么时候恢复、什么时候完成
+
+下表直接来自 [`owned-hosted-agent-local.json`](evidence/owned-hosted-agent-local.json)。时间为 UTC+8；JSON 中保留 ISO 时间和完整脱敏事件日志。
+
+| 事件 | UTC+8 | 已运行 | 进程 | 发生了什么 | 事件后的持久化状态 |
+|---|---|---:|---|---|---|
+| 进程 A 启动 | 16:55:10.437 | 0.019 秒 | A | AgentServer 开启恢复能力后启动 | 还没有请求 |
+| 创建响应 | 16:55:12.272 | 1.854 秒 | A | 客户端发送一个 `store=true`、`background=true` 请求 | 输入和响应身份已经持久化 |
+| 写入检查点 | 16:55:13.154 | 2.736 秒 | A | `plan_work` 完成，`stream.checkpoint()` 返回 | 到 `plan_work` 为止的输出已经持久化 |
+| 注入故障 | 16:55:13.154 | 2.736 秒 | A | handler 记录边界后调用 `os._exit(86)` | 持久化状态保留；进程内存可以丢弃 |
+| **进程真正 down** | **16:55:13.678** | **3.260 秒** | A | 操作系统报告退出码 `86` | 当前没有 Agent 进程运行 |
+| 进程 B 启动 | 16:55:13.691 | 3.273 秒 | B | 新的空进程打开同一 AgentServer 状态 | 已保存响应仍可查询 |
+| **观察到恢复** | **16:55:15.113** | **4.695 秒** | B | handler 以 `mode=recovered` 进入，响应哈希不变 | 从 `allocate_steps` 继续 |
+| 恢复后第一个检查点 | 16:55:15.344 | 4.926 秒 | B | `allocate_steps` 写入成功 | 从进程 A 的最后检查点之后继续推进 |
+| handler 完成 | 16:55:18.355 | 7.937 秒 | B | 所有预期检查点输出完成 | 响应快照完整 |
+| **客户端看到 `completed`** | **16:55:18.649** | **8.231 秒** | B | 原响应到达明确终态 | 验收通过 |
+
+进程 A 真正 down 后 **1.435 秒观察到 recovered entry**；down 后 **4.677 秒完成**。响应 ID 的 SHA-256 始终是 `b8af93f3...e42e1`，同时出现两个不同的进程实例哈希。
+
+### 为什么任务没停、数据没丢
+
+| 状态 | 保存位置 | 进程 A 丢失时发生了什么 |
+|---|---|---|
+| Python 局部变量、调用栈、连接、PID | 进程 A 内存 | **全部丢失**，这是预期行为 |
+| 任务身份和原始输入 | AgentServer 本地文件任务存储 | 保留下来，进程 B 继续使用 |
+| 到 `plan_work` 为止的完成输出 | Responses 持久化检查点 | 保留下来，进程 B 不重复执行 |
+| 剩余工作 | 由命名检查点契约确定 | 进程 B 从 `allocate_steps` 继续 |
+| 响应 ID 和截止时间 | 客户端状态文件 | 新的查询进程仍能读取同一响应 |
+| 支付、预订、邮件、写入等外部操作 | 本确定性任务没有使用 | **本文没有证明**；真实应用仍需幂等和对账 |
+
+这是 at-least-once 恢复。最后一次成功检查点之后的工作可能再次执行。不可逆操作之前要先写入检查点，并给外部操作单独的幂等键。
+
+<div align="center"><img src="images/official-lease-recovery-model.png" width="820" alt="微软官方租约恢复模型：后续进程接管同一条持久化任务记录"></div>
+
+<p align="center"><sub><i>“Lease-based recovery of a resilient work item”</i>，来源：<a href="https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience">Microsoft Foundry 官方文档</a> © Microsoft，依据 <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a> 原样使用，不属于本仓库 MIT License。</sub></p>
+
+## 故障矩阵
+
+| 场景 / 模式 | 触发方式 | 预期 | 实际结果 | 状态 | 证据 |
+|---|---|---|---|---|---|
+| Python Agent 进程丢失 | 检查点后执行 `os._exit(86)` | 新进程恢复同一响应 | 1.435 秒后进入 recovered；down 后 4.677 秒完成 | **PASS** | [报告](evidence/owned-hosted-agent-local.json) · [事件](evidence/owned-hosted-agent-local-events.jsonl) |
+| Foundry Hosted Agent 进程丢失 | 临时开启故障的 Version 5 执行受保护的 `os._exit(86)` | 替代计算恢复同一个已保存响应 | 客户端先遇到实例替换 timeout，之后看到 `fresh + recovered`、两个进程哈希和 `completed`；旧容器日志未保留，因此不伪造精确 down 时间 | **PASS** | [报告](evidence/owned-hosted-agent-live-recovery.json) · [恢复容器事件](evidence/owned-hosted-agent-live-recovery-events.jsonl) |
+| .NET Agent 进程丢失 | 检查点后执行 `Environment.Exit(86)` | 新 CLR 进程恢复同一响应 | 0.606 秒后进入 recovered；down 后 3.917 秒完成 | **PASS** | [报告](evidence/owned-hosted-agent-dotnet.json) · [事件](evidence/owned-hosted-agent-dotnet-events.jsonl) |
+| 客户端 / 查询进程重启 | 查询方 A 保存响应 ID 和截止时间后退出 | Agent 继续；查询方 B 读取同一响应 | 无查询方期间仍有持久化进度；查询方 B 看到 `completed` | **PASS** | [报告](evidence/owned-hosted-agent-observer.json) · [事件](evidence/owned-hosted-agent-observer-events.jsonl) |
+| 宿主优雅关闭 | Windows 控制台 shutdown signal | 宿主设置 shutdown、交接任务，后续进程恢复 | Windows 本机运行器未驱动完整宿主 shutdown 生命周期 | **NOT VERIFIED** | [尝试记录](evidence/owned-hosted-agent-graceful-attempt.json) |
+| 输出缺失或重复 | 在测试数据中删除或复制已完成输出 | 验收必须失败 | 缺口、重复和只有 `done` 的用例均被拒绝 | **PASS** | [验证器证据](evidence/observation-validation.json) |
+
+这张表是数据，不是承诺。[`run-contract.json`](evidence/run-contract.json) 声明主运行必须出现的里程碑和状态断言；[`scenario-matrix.json`](evidence/scenario-matrix.json) 声明全部模式。门禁读取这些文件，不把当前 Demo 的事件名写死在验证器里。
+
+## 自己复现
 
 ### 前置条件
 
-| 前置项 | 配置 |
+| 路径 | 需要 |
 |---|---|
-| 本机 | Git 和 Python 3.13 |
-| Azure | 非生产订阅和 Foundry 项目；这个确定性 Agent 不需要模型部署 |
-| 权限 | 项目范围的 `Foundry Project Manager`；新建项目还需要资源组范围的 `Owner` |
-| 工具 | Azure CLI 2.80+、Azure Developer CLI（`azd`）1.27.1+，以及 `azd ext install microsoft.foundry` |
-| 登录 | `az login` 和 `azd auth login` |
-| 软件包 | [`hosted-agent/src/lra-evidence-agent/requirements.txt`](hosted-agent/src/lra-evidence-agent/requirements.txt) 把 core 和 Responses 固定为 `2.1.0b2` |
+| Python 恢复和查询方重启 | Git、Python 3.13、[`requirements.txt`](hosted-agent/src/lra-evidence-agent/requirements.txt) 中的软件包 |
+| .NET 恢复 | .NET 8 SDK，并能恢复 [`LraEvidenceAgent.csproj`](dotnet-agent/LraEvidenceAgent.csproj) 中固定的预览软件包 |
+| 部署到 Foundry | 非生产订阅、Foundry 项目、Azure CLI 2.80+、`azd` 1.27.1+、项目级 `Foundry Project Manager` |
 
-Windows 请使用 `$HOME\lra-work` 这类短路径。
-
-### 本机运行、验证，再部署
-
-最快的零 Azure 检查只使用 Python 标准库：
-
-```console
-git clone --depth 1 --filter=blob:none --sparse https://github.com/david-xinyuwei/david-share.git lra-demo
-git -C lra-demo sparse-checkout set Agents/Foundry-Long-Running-Agent-Resilience
-cd lra-demo/Agents/Foundry-Long-Running-Agent-Resilience
-
-python scripts/recovery_contract_demo.py demo --summary-file .demo-state/summary.json --events-file .demo-state/events.jsonl
-```
-
-**完成标准：** 命令退出码为 `0`，结果包含 `"passed": true`、`worker_a_exit_code: 9`、`entry_modes: ["fresh", "recovered"]` 和阶段 `1-5`。
-
-在 Windows PowerShell 中，先运行本仓库自有 Agent，再在独立 SDK 环境中执行全部门禁，最后把同一份源码部署到隔离的非生产项目：
+Windows PowerShell：
 
 ```powershell
-# 本仓库自有 Agent：进程 A 退出码为 86，进程 B 完成同一个响应。
-python -m venv .venv-owned-agent
-$ownedPython = (Resolve-Path .\.venv-owned-agent\Scripts\python.exe).Path
-& $ownedPython -m pip install --no-input -r hosted-agent\src\lra-evidence-agent\requirements.txt
-& $ownedPython hosted-agent\run_local_recovery.py --python $ownedPython
+git clone --depth 1 --filter=blob:none --sparse `
+  https://github.com/david-xinyuwei/david-share.git lra-demo
+git -C lra-demo sparse-checkout set `
+  Agents/Foundry-Long-Running-Agent-Resilience
+Set-Location lra-demo\Agents\Foundry-Long-Running-Agent-Resilience
 
-# SDK 契约探测与仓库门禁使用另一套固定版本环境。
-python -m venv .venv-validation
-$validationPython = (Resolve-Path .\.venv-validation\Scripts\python.exe).Path
-& $validationPython -m pip install --no-input -r requirements-validation.txt
-& $validationPython examples\resilience_sdk_usage.py --check
-& $validationPython scripts\verify_public_resilience_api.py --quiet
-& $validationPython scripts\validate_observations.py self-test
-& $validationPython -m unittest discover -s tests -v
-& $validationPython scripts\validate_repo.py
+python -m venv .venv
+$python = (Resolve-Path .\.venv\Scripts\python.exe).Path
+& $python -m pip install --no-input `
+  -r hosted-agent\src\lra-evidence-agent\requirements.txt
 
-# 线上故障测试必须使用独立的非生产环境。
-Set-Location .\hosted-agent
+# 1. Python 进程硬退出，进程 B 恢复同一响应。
+& $python hosted-agent\run_local_recovery.py `
+  --report .demo-state\python-recovery.json `
+  --log-report .demo-state\python-events.jsonl
+
+# 2. 查询方 A 退出，查询方 B 继续；Agent 进程不退出。
+& $python hosted-agent\run_observer_restart.py `
+  --report .demo-state\observer-restart.json `
+  --log-report .demo-state\observer-events.jsonl
+
+# 3. 编译并硬退出本仓库自有 .NET Agent。
+dotnet build dotnet-agent\LraEvidenceAgent.csproj -c Release
+$dotnetDir = (Resolve-Path dotnet-agent\bin\Release\net8.0).Path
+$dotnetDll = Join-Path $dotnetDir LraEvidenceAgent.dll
+& $python hosted-agent\run_local_recovery.py `
+  --runtime-label ".NET 8.0" `
+  --server-command dotnet $dotnetDll `
+  --server-cwd $dotnetDir `
+  --report .demo-state\dotnet-recovery.json `
+  --log-report .demo-state\dotnet-events.jsonl
+
+# 4. 仓库验收。
+& $python -m unittest discover -s tests -v
+& $python scripts\validate_repo.py
+```
+
+完成标准：每个运行器退出码为 `0`；Python 和 .NET 报告同时包含 `recovery_proven: true`、`fresh + recovered`、两个进程哈希和 `completed`；查询方报告显示两个查询进程、一个 Agent 进程。
+
+Linux/macOS 使用 `.venv/bin/python` 和 `/` 路径分隔符。运行器接收任意 server command，因此 Python 和 .NET 共用同一套验收逻辑，不复制第二份标准。
+
+把安全版本部署到 Foundry：
+
+```powershell
+Set-Location hosted-agent
+az login
+azd auth login
+azd ext install microsoft.foundry
 azd env new <environment-name> `
   --subscription <subscription-id> `
   --location <supported-region> `
   --no-prompt
-azd env set LRA_ENABLE_FAULT_INJECTION true
-azd env set LRA_STAGE_DELAY_MS 500
+azd env set LRA_ENABLE_FAULT_INJECTION false
 azd provision
 azd deploy
-
-$agent = azd ai agent show lra-evidence-agent --output json |
-  ConvertFrom-Json
-python .\client.py `
-  --endpoint $agent.agent_endpoints.responses `
-  --auth azure-cli `
-  --agent-version $agent.version `
-  --deployed-content-sha256 $agent.definition.code_configuration.content_hash `
-  --work-id owned-agent-live-001 `
-  --payload "public-safe live recovery workload" `
-  --crash-after-stage 1 `
-  --deadline-seconds 360
-
-# 采集证据后，把部署恢复到安全状态。
-azd env set LRA_ENABLE_FAULT_INJECTION false
-azd deploy
-Set-Location ..
+azd ai agent show lra-evidence-agent
 ```
 
-Linux、macOS 和 WSL 可以执行以下零 Azure 检查：
+结构化状态和 Portal 现在都显示本仓库自有 Version 6 为 `active` / `Running`、`hosted` / `Hosted`，而且故障注入已关闭。Version 6 安全请求已经完成；这证明故障测试后的部署和正常执行。安全运行本身不证明线上进程恢复；该证明来自矩阵中的 Version 5。
 
-```bash
-python3 -m venv .venv-owned-agent
-OWNED_PYTHON=.venv-owned-agent/bin/python
-"$OWNED_PYTHON" -m pip install --no-input -r hosted-agent/src/lra-evidence-agent/requirements.txt
-"$OWNED_PYTHON" hosted-agent/run_local_recovery.py --python "$OWNED_PYTHON"
+## 把同样的接线放进你的 Agent
 
-python3 -m venv .venv-validation
-VALIDATION_PYTHON=.venv-validation/bin/python
-"$VALIDATION_PYTHON" -m pip install --no-input -r requirements-validation.txt
-"$VALIDATION_PYTHON" examples/resilience_sdk_usage.py --check
-"$VALIDATION_PYTHON" scripts/verify_public_resilience_api.py --quiet
-"$VALIDATION_PYTHON" scripts/validate_observations.py self-test
-"$VALIDATION_PYTHON" -m unittest discover -s tests -v
-"$VALIDATION_PYTHON" scripts/validate_repo.py
-```
+1. 固定你所用运行时的公共 AgentServer 软件包版本。
+2. 在服务端开启 resilient background execution。
+3. 请求必须发送 `store=true` 和 `background=true`。
+4. 向上游确认成功前，先保存 `response.id`、业务 work ID 和一个绝对截止时间。
+5. 一个可以安全重放的工作单元完成后，先提交应用状态，再给响应写检查点。
+6. 以 recovered 模式进入时，加载 `persisted_response` 或应用/框架检查点，跳过已经提交的工作。
+7. 始终轮询原响应；一次读取超时不能成为创建替代任务的理由。
+8. 所有外部操作必须幂等，或能够明确对账。
 
-**仓库检查完成标准：** 看到 `PASS: imported azure.ai.agentserver.core.tasks`、全部 SDK 契约检查通过、`Ran 22 tests ... OK` 和 `PASS: bilingual parity ... Data/Log Rich ... Code/Test Rich`。
+当进度不能完整放进响应快照，或者审批、工具状态、大文件、支付、预订和写入必须跨进程保留时，使用应用自己的数据库。
 
-### 仅在需要时配置外部状态
+## 验收合同
 
-使用应用或框架检查点时，每个业务任务至少保存一条持久化记录：
+只有同时满足下面条件，才能说“恢复成功”：
 
-| 字段 | 用途 |
-|---|---|
-| `work_id` | 应用自己的稳定任务 ID 和主键 |
-| `response_id` 或 `input_id` | 把业务任务映射到 Foundry 中的任务 |
-| `completed_phase` | 最后一个已提交结果的阶段 |
-| `state_ref` | JSON 状态或指向大文件的地址 |
-| `idempotency_key` | 传给下游操作的稳定幂等键 |
-| `status` | `running`、`completed`、`failed` 或 `needs_reconciliation` |
-| `version` / ETag | 新进程接管后阻止旧进程继续写入 |
-| `updated_at` | 审计和超时判断 |
+- 进程 A 确实在已经记录的检查点之后退出。
+- 进程 B 的实例哈希不同，并以 `recovered` 模式进入。
+- work ID、输入哈希和响应 ID 哈希不变。
+- 恢复后的工作从最后持久化检查点之后开始。
+- 每个预期检查点只出现一次，没有缺口或重复。
+- 原响应到达明确的 `completed` 终态。
+- 外部操作不存在、具备幂等性，或已经单独对账。
 
-用 `azd env set CHECKPOINT_ENDPOINT <resource-endpoint>` 和 `azd env set CHECKPOINT_DATABASE <database-name>` 设置非敏感的资源名称，并在 `azure.yaml` 的 `environmentVariables` 中映射。使用所选 SDK 支持的身份认证方式，通常是 `DefaultAzureCredential`；不要写入连接字符串。部署后运行 `azd ai agent show`，在 Foundry 中打开 Hosted Agent 的 **Identity**，只为所需的 Blob、Cosmos DB 或 SQL 范围授予最小权限，例如 `Storage Blob Data Contributor`。
-
-使用事务或 ETag 条件同时提交阶段结果和 `completed_phase`。用 `work_id + phase` 生成下游幂等键；如果目标既不支持幂等，也不能查询结果，就记录 `needs_reconciliation`，不要猜测。`TaskContext.metadata` 只放阶段、幂等键或外部状态指针。
-
-### 客户端与验收合同
-
-| 动作 | 必须做到 |
-|---|---|
-| 创建 | 同时发送 `store=true` 和 `background=true`；可按需设置 `stream=true` |
-| 保存 | 在向上游确认成功前，保存 `response.id`、`work_id` 和一个绝对截止时间 |
-| 重连 | 只读取 `GET /responses/{response_id}` 或 `GET /responses/{response_id}?stream=true`；不能新建替代任务 |
-| 恢复 | 对这个已知响应 ID，只有在截止时间内才把读取超时、`404`、`424`、`429` 和实例替换期间的 `5xx` 当成暂态 |
-| 完成 | 要求明确终态、每个命名检查点各出现一次、一个 payload hash，以及完整预期输出 |
-| 创建结果未知 | 不要自动创建第二条响应；远端创建请求与本地保存 ID 不是一个原子事务，必须去重或对账 |
-
-本机完成标准：进程 A 退出码为 `86`，进程 B 的进入模式为 `recovered`，出现两个进程实例，而且每个预期检查点只完成一次。线上完成标准：Version 4、`fault_injection_requested: false`、检查点契约完整并达到 `completed`。公开证据只保存哈希，不保存端点、响应、进程、租户或订阅原始标识。
-
-## Foundry 提供什么，应用负责什么
-
-| Foundry / AgentServer 提供 | 应用负责 |
-|---|---|
-| 托管运行环境、端点、身份、会话和监控 | 业务输入输出格式、超时和完成标准 |
-| 保存任务与输入；进程丢失后重新调用同一任务 | 记录业务进度，决定从哪里继续 |
-| 保存响应历史；支持后台轮询和断线后继续读取 | 防止支付、预订、写入或工具调用被重复执行（保证幂等） |
-| 提供替代计算资源 | 保存稳定的任务标识，并处理重连和读取权限 |
-
-**运行实例**只是当前执行代码的那一个进程。进程消失会丢失内存和连接，但不会丢失保存在进程之外的任务和进度（[官方说明](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents)）。
-
-官方文档说明平台负责什么；本仓库验证应用能否正确保存进度、防止重复执行，并在重连后确认结果完整。
-
-**这项韧性到底解决什么问题**
-
-它不是让两个 Agent 同时执行同一任务的双活（active-active），而是提供**任务级恢复**：运行进程退出后，平台在替代计算资源上重新调用同一条任务记录，应用再从已经持久化的业务进度继续。
-
-| 没有任务级恢复 | 使用任务级恢复 |
-|---|---|
-| 进程退出后，内存状态丢失；客户端可能重新创建第二个任务 | 替代进程重新进入同一个任务 ID，并读取原输入 |
-| 客户端断线后，不知道任务是否还在运行 | 客户端保存响应 ID 或调用 ID，并继续查询同一任务 |
-| 等待人工审批的任务容易被误判为已经丢失 | 已保存的任务与审批状态仍可查询 |
-| 付款、预订、写入或工具调用重做时可能重复执行 | 应用通过进度点和幂等标识识别已经完成的操作 |
-
-下文数据证明这项能力在受测场景中成立，但它不是可靠性百分比或 SLA。要形成生产信心，仍需针对自己的任务做多轮故障注入。
-
-## 本仓库验证了什么
-
-### 本仓库自有 Hosted Agent 的实测结果
-
-现在整条测试路径都由本仓库提供，不再要求读者先相信外部样例：
-
-| 交付面 | 本仓库实现 | 实测证明 |
-|---|---|---|
-| 当前部署 | [`hosted-agent/azure.yaml`](hosted-agent/azure.yaml)、固定版本的 [`requirements.txt`](hosted-agent/src/lra-evidence-agent/requirements.txt) 和 [`owned-hosted-agent-live.json`](evidence/owned-hosted-agent-live.json) | 本仓库自有 Version `4` 处于 active 状态；关闭故障注入时完成整个检查点契约 |
-| 运行时 | [`main.py`](hosted-agent/src/lra-evidence-agent/main.py) | 每个命名检查点都持久化；从 `context.persisted_response` 恢复；硬退出受非生产故障开关保护 |
-| 本机恢复 | [`run_local_recovery.py`](hosted-agent/run_local_recovery.py) 和 [`owned-hosted-agent-local.json`](evidence/owned-hosted-agent-local.json) | 进程 A 以 `86` 退出；进程 B 复用同一个已保存响应；`fresh + recovered` 和两个进程哈希证明接管 |
-| 客户端 | [`client.py`](hosted-agent/client.py) | 保存原响应 ID，只轮询该 ID，共用一个截止时间；检查点缺失、重复或终态输出不完整时失败 |
-
-<div align="center"><img src="images/product-ui/portal-owned-agent-list.png" width="820" alt="脱敏的 Microsoft Foundry Portal Agent 列表：lra-evidence-agent 版本 4 为 Running 和 Hosted"></div>
-
-<div align="center"><img src="images/product-ui/portal-owned-agent-details.png" width="820" alt="脱敏的 Microsoft Foundry Portal 详情页：lra-evidence-agent 版本 4，类型为 hosted，并显示 Playground"></div>
-
-*这是本仓库 Agent 的真实 Microsoft Foundry Portal 页面。项目名已替换为 `non-production project`，图片不显示租户、订阅、端点、响应或身份信息。截图证明 Version `4` 为 `Running` 和 `Hosted`；Version 4 结构化运行证明未请求故障时可以正常完成；本机双进程报告证明同一仓库实现能够恢复。原图来源、脱敏项、哈希和证明边界见 [`ui-evidence.json`](evidence/ui-evidence.json)。*
-
-Version 4 的线上轮询从 `in_progress` 进入 `completed`，始终查询同一个已保存响应。公开证据不保存原始标识，只保存哈希。微软的 [`resilient-streaming`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming) 只作为 API 参考；复现本仓库结果不需要外部样例。
-
-### 恢复模型速览
-
-下图是**微软官方原图**，展示公开的租约恢复机制，不代表微软公开了内部服务结构。
-
-<div align="center"><img src="images/official-lease-recovery-model.png" width="820" alt="微软官方的租约恢复模型：任务和输入身份、运行时保存输入并取得租约、处理函数运行期间续租、进程停止并放弃租约、后续进程重新取得任务记录，处理函数从入口重新执行，并选择重跑或从持久化边界恢复"></div>
-
-<p align="center"><sub><i>“Lease-based recovery of a resilient work item”</i>，来源：<a href="https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience">Resilience for long-running Microsoft Foundry hosted agents</a> © Microsoft，依照 <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a> 使用，未经修改。该图片<b>不属于</b>本仓库 MIT License 的授权范围。</sub></p>
-
-### 本仓库可直接运行，不只是说明文档
-
-| 文件或目录 | 作用 |
-|---|---|
-| [`hosted-agent/`](hosted-agent/) | 本仓库自有的可部署 Hosted Agent、恢复客户端、本地双进程运行器和固定版本依赖。 |
-| [`examples/resilient_responses_agent.py`](examples/resilient_responses_agent.py) | 完整的 Responses 恢复代码：服务端开启恢复、载入已保存的响应、逐阶段写入检查点、关闭时交接。 |
-| [`examples/resilience_handler.py`](examples/resilience_handler.py) | 带类型标注的真实 `@task` 处理函数，直接导入并读取公共恢复上下文。 |
-| [`examples/resilience_sdk_usage.py`](examples/resilience_sdk_usage.py) | 通过真实装饰器加载该处理函数，并生成动态 JSON 证据；执行 `--check` 不需要 Azure 端点。 |
-| [`scripts/recovery_contract_demo.py`](scripts/recovery_contract_demo.py) | 在本机演示真实的进程中断与恢复：进程 A 被强制退出后，进程 B 接管同一个任务并从已保存的进度继续；SQLite 负责保存进度并防止重复提交。 |
-| [`scripts/verify_public_resilience_api.py`](scripts/verify_public_resilience_api.py) | 检查当前安装的 Azure SDK 是否包含本文依赖的公开接口与处理规则。 |
-| [`scripts/validate_observations.py`](scripts/validate_observations.py) | 检查运行记录是否有事件缺口、重复结果或缺少明确终态；遇到无法确认含义的 `424` / `403` 时停止并报错。 |
-| [`scripts/validate_repo.py`](scripts/validate_repo.py) | 一键检查中英文结构、证据文件与校验值、代码和测试是否完整；任何一项不通过都会返回错误。 |
-| [`tests/`](tests/) | 22 项自动化测试，覆盖恢复契约、认证、持久化截止时间、正常/异常输入、时序、重放、输入完整性和拒绝路径。 |
-| [`evidence/`](evidence/) | 保存可供程序读取的实验结果、事件日志、证据分类和 SHA-256 校验清单，便于复核与复现。 |
-
-下面每个文件都直接使用了公共 SDK，或有意不使用：
-
-| 代码位置 | 直接使用的 SDK 能力 |
-|---|---|
-| [`examples/resilient_responses_agent.py`](examples/resilient_responses_agent.py) | 使用 `ResponsesServerOptions(resilient_background=True)`、`set_resilient_tasks_enabled(True)`、`context.persisted_response`、`stream.checkpoint()` 和 `context.exit_for_recovery()` |
-| [`examples/resilience_handler.py`](examples/resilience_handler.py) | 导入 `RetryPolicy`、`TaskContext` 和 `task`；注册 `@task(name="resilience-api-usage")`；读取任务/输入 ID、`ctx.metadata`、进入模式和恢复/重试次数；收到关闭信号时调用 `ctx.exit_for_recovery()` |
-| [`examples/resilience_sdk_usage.py`](examples/resilience_sdk_usage.py) | 导入该处理函数，通过真实装饰器完成注册，并写出 `resilience-sdk-usage.json` |
-| [`scripts/verify_public_resilience_api.py`](scripts/verify_public_resilience_api.py) | 导入同一组任务类型、`TaskMetadata` 和 Responses 恢复信号；检查当前安装包是否提供本文依赖的接口 |
-| [`scripts/recovery_contract_demo.py`](scripts/recovery_contract_demo.py) | **不导入 Azure SDK**；它只用 SQLite 和两个本地进程验证恢复算法 |
-`--check` 只证明当前软件包可以导入，而且真实装饰器接受并注册了这个带类型标注的处理函数。它**不会**执行处理函数正文，也不能证明线上恢复；正文只有进入 Hosted Agent 运行时后才会执行。
-
-**固定版本 SDK 的限制：** 在 core 2.0.0 中，`await ctx.metadata.flush()` 返回并不等于“持久化已经确认成功”，因为底层存储回调失败时只记录日志，不会把异常抛回处理函数。因此，底层 `@task` 示例只读取 `metadata`，不把 `flush()` 写成已确认的进度点。当前 Responses 样例改用 `stream.checkpoint()` 保存响应快照；业务状态仍需要能够确认写入的检查点存储，或准备对账。
-
-
-## 实测结果
-
-| 场景 | 中断与恢复 | 实测结果 | 边界 |
-|---|---|---|---|
-| 当前 Version 4 部署 | 未请求故障 | 同一个已保存响应到达 `completed`；每个预期检查点只出现一次；报告记录 Version `4` 和部署内容哈希 | 证明当前部署和正常完成，不证明线上进程丢失恢复 |
-| 本仓库自有本机恢复 | 进程 A 硬退出；进程 B 使用同一 AgentServer 状态继续 | 退出码 `86`、同一响应 ID 哈希、`fresh + recovered`、两个进程实例哈希和完整检查点契约哈希 | 真实本机 AgentServer 恢复，不是 Foundry 服务可用性结论 |
-| 公共 SDK 契约 | 干净的固定版本环境 | 所有必需导入、运行时类型、成员、装饰器规则和软件包版本均通过 | 只证明已安装软件包契约，不证明线上恢复 |
-
-这些是范围明确的能力检查，不是 SLA 或可靠性百分比。
-
-## 深入理解：恢复如何工作
-
-要实现恢复，**任务 ID、输入和已完成进度必须保存在当前执行进程之外**。已完成进度可以是框架管理的响应快照，也可以是应用自有状态。原进程退出后，替代进程找到同一任务，并从这个持久化边界继续。
-
-恢复流程分为三步：
-
-1. 执行开始前，平台保存任务 ID 和输入。
-2. 每完成一个检查点，处理函数保存响应快照，或在进程之外提交应用状态。
-3. 原进程退出后，替代进程读取同一条任务记录，从下一个未完成检查点继续。
-
-客户端重连只负责继续读取状态和结果，不会触发任务恢复。
-
-### 先说明三个概念
-
-- **任务记录：** 保存在执行进程之外，用同一个任务 ID 标识同一个任务；替代进程接手后，任务 ID 不变。
-- **进度点（checkpoint）：** 应用已经确认完成并保存的最新业务边界。
-- **状态查询方（observer）：** 负责查询状态和读取结果的客户端或运维程序；它断开后，任务仍可继续运行。
-
-### 恢复后，最后一个进度点之后的工作可能重做
-
-恢复时，系统会从入口重新调用处理函数（handler），而不是从中断的代码位置、模型调用、工具调用或旧连接处继续。因此，最近一次保存进度之后的工作可能再次执行。
-
-应用必须识别已经完成的付款、预订、写入或工具调用，并跳过重复操作。恢复不会创建一个新任务；Agent 显示 `active` 只代表部署成功，不代表恢复已经发生。
-
-### 三种接入方式
-
-三种接入方式的区别，是应用需要自己负责多少。
-
-| 层级 | 平台负责 | 你仍然要负责 | 适用场景 |
-|---|---|---|---|
-| Foundry 上的 Microsoft Agent Framework | 在 Responses 之上的更高层封装，生命周期大多已代为处理 | 配置、框架检查点（framework checkpoint）、防止外部操作重复 | 希望少写生命周期代码的团队 |
-| Responses 协议 | 对话历史、流式输出、后台执行、轮询和取消 | 开启恢复、保存进度、检查输出完整 | 对话型和工具型 Agent |
-| Invocations 协议 | 传输和基础接口 | 自己定义任务、事件、进度、轮询和恢复 | 结构化流程和自定义协议 |
-
-无论使用哪种框架，应用都必须定义“哪些步骤已经完成”。
-
-### 官方恢复机制与本地示例
-
-官方文档说明任务如何被保存、租约如何过期、另一个进程如何接管，以及应用为什么要保存进度。本仓库用 SQLite 做了一个可运行示例；其中的版本保护和原子提交是**示例自己的设计**，不代表 Foundry 内部实现。
-
-| 关注点 | 官方公开契约 | 本仓库可执行参考实现 |
-|---|---|---|
-| 任务和输入 | 平台保存任务身份与输入 | SQLite 保存任务记录和输入校验值 |
-| 接管条件 | 进程停止续租后，另一个进程可以接管 | 保存持有者（`owner`）、过期时间和版本号；只允许符合条件的接管 |
-| 业务进度 | 处理函数重新执行后，由应用读取已保存进度 | 在一个事务中同时保存阶段结果和进度点 |
-| 防止重复 | 应用负责避免外部操作重复 | 相同结果自动去重；内容冲突立即报错 |
-| 查看输出 | 流重放让客户端重连；显式调用 Responses `stream.checkpoint()` 还会保存完整阶段的响应快照 | 检查事件是否连续、输出是否齐全、终态是否明确 |
-
-**本地恢复演示程序。**
-
-[`recovery_contract_demo.py`](scripts/recovery_contract_demo.py) 只使用 Python 标准库。进程 A 完成第 1 阶段后通过 `os._exit(9)` 退出；租约过期后，进程 B 接管并完成第 2-5 阶段。程序生成 [JSON 结果](evidence/recovery-contract-demo.json) 和 [JSONL 事件日志](evidence/recovery-contract-events.jsonl)。
-
-它测试四条规则：只能接管未运行或租约已过期的任务；旧进程不能在接管后继续写；重复提交相同结果会去重、冲突结果会报错；阶段结果与进度在同一个事务中保存。
-
-这是本仓库的**本地测试程序**，不是 Foundry 服务代码，也不能单独证明线上恢复。
-
-### 启用恢复需要配置四层
-
-要让一次调用能够恢复，需要四层同时配好；其中进程和处理函数两层仍是**公共预览中的实验性接口**。
-
-| 层次 | 需要配置 | 能做什么 | 仍需应用负责 |
-|---|---|---|---|
-| Hosted Agent 版本 | `host: azure.ai.agent` + Responses 协议 | 部署代码并提供端点 | 这一步本身不负责崩溃恢复 |
-| Agent 进程 | `ResponsesServerOptions(resilient_background=True)` + `set_resilient_tasks_enabled(True)` | 进程丢失后重新调用已保存的后台任务 | 不会替应用选择持久化边界 |
-| 处理函数 | `context.persisted_response` + `stream.checkpoint()`，或应用/框架检查点 | 恢复已完成输出或业务状态 | 不能自动防止外部操作重复 |
-| 客户端 | `store=True`、`background=True`、保存同一 `response.id` | 后台运行、轮询和重连 | 不能新建响应来冒充恢复 |
-
-**官方样例。**
-
-使用固定版本的官方 [`resilient-streaming`](https://github.com/microsoft-foundry/foundry-samples/tree/b9b2cdd67efee6287e4b263f83ed45f18fe892be/samples/python/hosted-agents/bring-your-own/responses/resilient-streaming) 作为公共 API 参考，而不是可执行主路径。完整前置条件、命令和存储选择见[使用本仓库复现](#使用本仓库复现)。
-
-**进程恢复。**
-
-设置 `ResponsesServerOptions(resilient_background=True)`；官方样例还调用 `set_resilient_tasks_enabled(True)`，明确表示选择启用。然后让请求带 `store=True` 和 `background=True`。前台响应或未保存的后台响应不会在崩溃后重新调用。接口仍属实验性；底层符号清单见 [SDK 检查报告](evidence/public-sdk-contract.json)。
-
-**已保存进度。**
-
-处理函数重新执行后，读取 Responses 快照、框架检查点或应用记录。进程死在持久化边界之前，该阶段可能重做；已经提交的阶段必须跳过。
-
-| 应用需要知道什么 | 公开 API（`azure-ai-agentserver-core` 2.0.0） |
-|---|---|
-| 当前是哪一个任务和输入 | `TaskContext.task_id`、`TaskContext.input_id` |
-| 这是首次进入还是恢复进入 | `TaskContext.entry_mode` |
-| 恢复与普通重试分别发生了几次 | `recovery_count`、`retry_attempt` |
-| 保存少量进度信息 | `TaskContext.metadata` |
-
-本次恢复报告 `recovery_count=1`、`retry_attempt=0`。
-
-处理顺序是：读取任务身份和进度；重建状态；执行一个可安全重复的阶段；保存结果和外部操作标识后，再推进检查点。支付、预订、写入和工具调用仍须[防止重复](#审批决定和外部操作都要防重复)。
-
-**创建与查询。**
-
-本仓库测试本地进度存储和结果校验。真实认证调用使用[官方 Hosted Agent 快速入门](https://learn.microsoft.com/en-us/azure/foundry/agents/quickstarts/quickstart-hosted-agent)；本仓库不虚构你的端点、身份、存储或业务格式。
-
-| 问题 | 应用应怎么做 |
-|---|---|
-| 创建请求后、保存响应 ID 前进程崩溃 | 结果未知时不要自动重建任务。远端创建请求与本地保存 ID 不是一个原子事务，当时测试的 API 也不支持按应用自己的任务标识反查；生产系统需要去重能力或人工对账。 |
-| 轮询进程崩溃 | 预先保存 `response_id` 和截止时间；新进程继续读取**同一个响应**。 |
-| 从哪里继续读取 | 以 `response_id` 和业务状态为准，不以传输编号为准。 |
-| 后续轮次 | `previous_response_id` 只连接顺序轮次；并发排队和转向（steering）需要可恢复任务（resilient-task）接口。 |
-| 谁可以读取 | 只读适配器**不是**权限隔离机制（安全沙箱或 RBAC 边界）。不可信读取端需要独立服务和身份；平台显示完成后，仍要检查业务结果。 |
-
-普通调用可用 `azd ai agent invoke`。需要保存后台任务 ID、重启轮询或检查业务终态时，使用应用自己测试过的客户端。
-
-
-## 评估：到底跑了什么
-
-本仓库把当前线上部署检查与故障注入恢复检查分开，避免把任何一项证据写大。
-
-### 当前公共预览契约检查
-
-复现章节会在干净的 Python 3.13 环境中检查固定版本的公开软件包。`core` 2.0.0、`invocations` 1.0.0 和 `responses` 2.0.0 的所有必需检查均通过；版本与每项检查见 [JSON 报告](evidence/public-sdk-contract.json)。
-
-这只能证明已安装的公共接口符合预期，不能证明线上恢复。任何一项失败都会返回非零退出码。
-
-### 当前 Version 4 部署
-
-本仓库直接查询并调用了 Foundry 上的自有 `lra-evidence-agent` Version `4`：
-
-| 检查项 | 结果 |
-|---|---|
-| Portal 对象 | Version `4`、`Running`、`Hosted` |
-| 安全请求 | `fault_injection_requested: false` |
-| 终态 | `completed`，而且自有检查点契约完整 |
-| 源码身份 | 结构化报告记录部署内容哈希 |
-
-这次线上运行证明当前安全部署可以工作，**不**声称线上进程丢失恢复。
-
-### 本机故障注入恢复
-
-随后，同一仓库实现进入本机 AgentServer 恢复路径。进程 A 保存持久化进度后以 `86` 硬退出；进程 B 打开同一个状态目录和响应，以 `recovered` 模式进入，并把每个预期检查点各完成一次。这证明应用恢复契约在本机成立，不代表 Foundry 可用性或 SLA。
-
-
-## 验收规则
-
-验收绑定到本仓库自有 Agent 的检查点契约，而不是某个作为卖点的阶段数量。客户端要求命名检查点序列准确、结果哈希不重复、payload hash 唯一、任务身份不变并到达明确终态。公开证据只提交该契约的哈希，不把契约大小写成产品结论。
-
-[`validate_observations.py`](scripts/validate_observations.py) 把下面的其余规则做成了可执行检查；[JSON 报告](evidence/observation-validation.json) 同时记录通过与失败用例。
-
-### 同时拒绝缺口和重复
-
-`sequence == sorted(sequence)` 只能证明顺序，不能发现缺口或重复。正确检查要逐项比较相邻编号，并核对完整的预期输出范围。
-
-| 反例 | 原排序检查 | 修复后的检查 |
-|---|---:|---:|
-| 丢事件：`[10, 12]` | `True` | `False` |
-| 重复事件：`[10, 10, 11]` | `True` | `False` |
-| 干净事件流：`[10, 11, 12]` | `True` | `True` |
-
-对输出编号也采用同样规则：缺少或重复都失败。只输入已经完成的结果项；同一个结果项的多个流式增量会共用同一编号，不能当成重复结果。
-
-### 一个 `done` 帧不能证明成功
-
-流结束可能代表成功、取消、失败，也可能只是连接断开。`completion_is_proven` 同时要求服务状态、明确终态和完整检查点契约；单独一个 `{"type": "done"}` 不算成功。
-
-### 把 `424` 和 `403` 分开处理
-
-`424` 只有在“同一任务仍可查询且已确认正在替换主机”时才继续做有上限的轮询；信号不足就停止。`403` 应先检查读取身份和权限，确认凭据过期后再刷新。停止时间由任务截止时间决定，不要用随手设定的固定次数。
-
-### 审批决定和外部操作都要防重复
-
-恢复后，同一条审批消息可能再次送达。本地 SQLite 记录阶段结果、去重标识和进度：相同消息再次到达时跳过，内容冲突时立即报错。真实支付、预订或写入接口也必须识别同一个去重标识，否则仍可能执行两次。
-
-
-## 故障判断与恢复速查表
-
-<div align="center"><img src="images/recovery-decision-guide-cn.png" width="560" alt="恢复前的判断流程：区分运行实例、客户端、主机替换和观察者故障"></div>
-
-下面每一行只是诊断起点，不表示“某个现象必然对应某个原因”。**先读取同一条任务记录，再根据已保存的状态判断问题出在哪一层；状态没有查清之前，不要创建新任务。**
-
-| 现象 | 先确认 | 不要做 | 更安全的做法 |
-|---|---|---|---|
-| 流停止，没有终态 | 查询同一个任务；问题可能在客户端、网络或运行实例 | 重新提交 | 任务仍存在时重新接回，并检查输出完整和明确终态 |
-| 任务停在审批 | 确认挂起任务仍然存在 | 重建审批 | 找回同一任务，再发送决定 |
-| 同一响应反复返回 `424` | 确认正在替换主机，且响应仍可查询 | 把所有 `424` 都当成终态或都当成可重试 | 对同一响应做有上限的退避轮询 |
-| 读取返回 `403` | 检查读取身份和权限 | 重跑任务 | 只在确认凭据过期后刷新，再重试读取 |
-| 日志突然结束 | 直接查询服务端保存的状态 | 用最后一行判断失败 | 重新采集，或直接读取终态 |
-| 运行中收到新指令 | 检查是否启用了转向（steering） | 强制结束当前轮次并启动新任务 | 通过转向机制排队，或使用已定义的取消策略 |
-
-
-## 设计建议
-
-下面是工程建议，不是产品保证：
-
-1. **在可核实的位置保存进度。** 有名称且已经提交的检查点有用；“大概跑到中间”没用。
-2. **把任务 ID 和已完成进度保存在执行进程之外。** 替代进程必须能找到同一条任务记录，并从最近的进度点继续。
-3. **按可能重复执行来设计。** 付款、审批、写入和工具调用再次发生时必须安全。
-4. **把读取故障和任务故障分开，并要求明确终态。**
-5. **先对照已保存状态判断错误码，再决定动作。**
-6. **区分挂起和运行中任务。** 等待审批时释放计算资源，不等于任务丢失。
-
+一个 `done` 帧、Portal 绿色状态，或者重新跑一个成功请求，都不能证明恢复。
 
 ## 证据与边界
 
-### 这些结论是怎么被挑战的
-
-| 方法 | 证据 | 结论 |
-|---|---|---|
-| 当前部署是否真实存在？ | Version 4 Portal 页面和带部署内容哈希的结构化运行 | 接受“对象存在且正常完成”的声明 |
-| Version 4 截图能否证明恢复？ | UI 证据明确写明不能 | 拒绝“截图证明线上恢复”的扩大声明 |
-| 本机是否为同一任务继续？ | 同一个响应 ID 哈希、`fresh + recovered` 和两个进程哈希 | 排除“新任务重跑” |
-| 只有终态能否证明恢复？ | 还要求检查点契约、payload 身份和进程证据 | 只有 `completed` 不够 |
-
-### 数字能追溯到哪里
-
-| 声明范围 | 公开证据 | 来源边界 |
-|---|---|---|
-| 当前公共 SDK 符号与处理函数规则 | [`public-sdk-contract.json`](evidence/public-sdk-contract.json) | 真实的已安装包探测；不是线上恢复 |
-| 直接导入 SDK 并注册 `@task` | [`resilience-sdk-usage.json`](evidence/resilience-sdk-usage.json) | 由示例自己的 `--check` 生成；不代表处理函数正文已执行，也不是线上恢复 |
-| 租约、进程丢失、版本保护、进度点和防重复 | [`recovery-contract-demo.json`](evidence/recovery-contract-demo.json) + [JSONL 事件](evidence/recovery-contract-events.jsonl) | 真实的本地测试程序；不是 Foundry 服务代码 |
-| 缺口、重复、终态与 424/403 错误路径 | [`observation-validation.json`](evidence/observation-validation.json) | 可执行的正向与负向测试用例 |
-| 本仓库自有部署与恢复契约 | [`run-manifest.json`](evidence/runs/owned-agent-version4-validation-20260826/run-manifest.json) 串联 [`owned-hosted-agent-live.json`](evidence/owned-hosted-agent-live.json)、[`owned-hosted-agent-local.json`](evidence/owned-hosted-agent-local.json)、状态、UI、命令、退出码、日志和关键代码哈希 | Version 4 线上完成和本机故障注入恢复各自保留边界 |
-| 场景类型标注 | [`scenario-manifest.json`](evidence/scenario-manifest.json) | 区分线上部署、本机恢复、测试程序和未声明内容 |
-| 文件完整性与复现命令 | [`manifest.json`](evidence/manifest.json) + [证据索引](evidence/README.md) | SHA-256 覆盖公开证据文件 |
-
-原始线上材料包含端点、任务标识、环境信息和 payload 文本，因此不公开。公开证据只保留哈希和范围明确的结果；本地 JSONL 使用合成数据。
-
-### 边界
-
-- 当前线上证据只有一次 Version 4 安全运行，不是基准测试、保证、SLA 或线上恢复试验。
-- 故障注入恢复由本机双进程 AgentServer 运行证明，不由 Portal 截图证明。
-- 该能力处于公共预览（public preview）。设计前请查看[最新官方文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents)。
-- 本仓库不提供 Microsoft SDK 源码或私有服务实现，只固定公开软件包版本，并发布自有应用代码与可公开证据。
-
-### 宣称“可以上生产”之前
-
-针对具体任务，至少还要完成：
-
-- 多轮故障注入，并明确恢复时间目标和失败预算；
-- 对每个写入、审批、支付、预订和工具调用做防重复测试；
-- 做负载、并发和重叠轮次测试；
-- 明确超时、取消、保留、删除和失败任务处理策略；
-- 监控能够区分运行实例、任务、读取端和身份故障；
-- 按目标区域、运行时和协议核对最新官方文档。
-
-
-## 相关工作
-
-| 仓库 | 关系 |
+| 证据 | 证明什么 |
 |---|---|
-| [Foundry-Agent-Lifecycle-Build-Deploy-Operate](../Foundry-Agent-Lifecycle-Build-Deploy-Operate/) | 更完整的构建、部署和运维生命周期 |
-| [Foundry-Hosted-Agent-Toolbox-Demo](../Foundry-Hosted-Agent-Toolbox-Demo/) | Hosted Agent 的工具、记忆与技能 |
-| [Foundry-Agent-ModelOps-Governance](../Foundry-Agent-ModelOps-Governance/) | 运维平面边界梳理 |
+| [`run-contract.json`](evidence/run-contract.json) | 由场景声明、供通用门禁读取的里程碑和状态断言 |
+| [`scenario-matrix.json`](evidence/scenario-matrix.json) | 每个模式的 PASS / NOT VERIFIED 状态 |
+| [Python 报告](evidence/owned-hosted-agent-local.json)和[事件](evidence/owned-hosted-agent-local-events.jsonl) | 精确的硬退出时间线、状态存活、恢复进入和完成 |
+| [.NET 报告](evidence/owned-hosted-agent-dotnet.json)和[事件](evidence/owned-hosted-agent-dotnet-events.jsonl) | 真实 .NET 预览包执行同一恢复合同 |
+| [查询方报告](evidence/owned-hosted-agent-observer.json)和[事件](evidence/owned-hosted-agent-observer-events.jsonl) | 没有查询方连接时，后台工作仍继续 |
+| [Version 6 状态](evidence/owned-hosted-agent-status.json) | 脱敏的部署版本、运行时、协议、状态、故障开关和内容哈希 |
+| [UI 来源清单](evidence/ui-evidence.json) | 原图/公开图哈希、脱敏项以及截图不能证明什么 |
+| [Run bundle](evidence/runs/owned-agent-recovery-validation-20260826/run-manifest.json) | 命令、退出码、日志、状态、UI 和关键代码哈希 |
 
-## 许可证
+<div align="center"><img src="images/product-ui/portal-owned-agent-list.png" width="820" alt="脱敏的 Microsoft Foundry Portal Agent 列表：lra-evidence-agent Version 6 为 Running 和 Hosted"></div>
+
+<div align="center"><img src="images/product-ui/portal-owned-agent-details.png" width="820" alt="脱敏的 Microsoft Foundry Portal 详情页：lra-evidence-agent Version 6，Kind 为 hosted"></div>
+
+截图只证明部署对象、版本、状态和类型；进程恢复行为由 JSON 和日志证明。带登录态的原图和原始标识不会提交到仓库。
+
+本仓库不证明 SLA、多轮可靠性、负载能力、多区域恢复、模型质量或外部操作的严格一次执行。长期任务韧性处于公共预览；没有针对实际任务完成专项测试前，不建议用于生产。
+
+## 相关工作与许可证
+
+- [Foundry-Agent-Lifecycle-Build-Deploy-Operate](../Foundry-Agent-Lifecycle-Build-Deploy-Operate/)
+- [Foundry-Hosted-Agent-Toolbox-Demo](../Foundry-Hosted-Agent-Toolbox-Demo/)
+- [长期任务韧性官方文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
+- [包含 Python 和 .NET 的官方 API 参考](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-reference)
 
 项目原创内容使用 [MIT 许可证](LICENSE)。微软官方图依据 CC BY 4.0 使用，不属于 MIT 许可证；详见[第三方声明](THIRD-PARTY-NOTICES.md)。

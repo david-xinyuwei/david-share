@@ -21,7 +21,11 @@ from typing import Any, Sequence
 SOURCE = Path(__file__).resolve().parent / "src" / "lra-evidence-agent"
 sys.path.insert(0, str(SOURCE))
 
-from contract import ContractError, validate_terminal_response  # noqa: E402
+from contract import (  # noqa: E402
+    ContractError,
+    extract_stage_records,
+    validate_terminal_response,
+)
 
 # A known response can be temporarily absent while replacement compute starts.
 # The deadline still bounds this; an unknown or mistyped ID therefore fails closed.
@@ -250,12 +254,35 @@ def poll_work(
             )
         else:
             status = response.get("status")
+            records = extract_stage_records(response)
+            entry_modes = sorted(
+                {
+                    record.get("entry_mode")
+                    for record in records
+                    if isinstance(record.get("entry_mode"), str)
+                }
+            )
+            process_instances = sorted(
+                {
+                    record.get("process_instance_id")
+                    for record in records
+                    if isinstance(record.get("process_instance_id"), str)
+                }
+            )
             events.append(
                 {
                     "at": utc_now(),
                     "kind": "poll",
                     "status": status,
                     "output_count": len(response.get("output") or []),
+                    "entry_modes": entry_modes,
+                    "process_instance_count": len(process_instances),
+                    "process_instance_sha256": [
+                        sha256_text(value) for value in process_instances
+                    ],
+                    "last_durable_checkpoint": (
+                        records[-1].get("stage_name") if records else None
+                    ),
                 }
             )
             if status in TERMINAL_STATUSES:
@@ -310,6 +337,29 @@ def run_test(args: argparse.Namespace) -> dict[str, Any]:
             "deadline_at_utc": persisted_deadline,
         }
         write_json_atomic(args.state_file, state)
+        if args.create_only:
+            report = {
+                "schema_version": 1,
+                "evidence_type": "owned-hosted-agent-dispatch",
+                "generated_at_utc": utc_now(),
+                "started_at_utc": started_at,
+                "response_id_sha256": sha256_text(response_id),
+                "request": {
+                    "work_id": work_id,
+                    "fault_injection_requested": crash_after_stage is not None,
+                    "checkpoint_delay_ms": stage_delay_ms,
+                },
+                "state_persisted": True,
+                "passed": True,
+            }
+            if args.agent_version or args.deployed_content_sha256:
+                report["deployment"] = {
+                    "agent_name": "lra-evidence-agent",
+                    "version": args.agent_version,
+                    "content_sha256": args.deployed_content_sha256,
+                }
+            write_json_atomic(args.report, report)
+            return report
     terminal, events = poll_work(
         endpoint=args.endpoint,
         response_id=response_id,
@@ -377,10 +427,16 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--poll-interval-seconds", type=float, default=1)
     parser.add_argument("--agent-version")
     parser.add_argument("--deployed-content-sha256")
-    parser.add_argument(
+    observer_mode = parser.add_mutually_exclusive_group()
+    observer_mode.add_argument(
         "--resume",
         action="store_true",
         help="resume polling the exact response recorded in --state-file",
+    )
+    observer_mode.add_argument(
+        "--create-only",
+        action="store_true",
+        help="create work, persist observer state, and exit without polling",
     )
     parser.add_argument(
         "--state-file",
@@ -402,10 +458,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     except (ContractError, ResponseRequestError, RuntimeError, TimeoutError) as error:
         print(f"FAIL: {error}", file=sys.stderr)
         return 1
-    print(
-        "PASS: same response completed the owned checkpoint contract across "
-        f"{report['acceptance']['process_instance_count']} process instance(s)"
-    )
+    if args.create_only:
+        print("PASS: response created and observer state persisted")
+    else:
+        print(
+            "PASS: same response completed the owned checkpoint contract across "
+            f"{report['acceptance']['process_instance_count']} process instance(s)"
+        )
     print(f"response_id_sha256={report['response_id_sha256']}")
     print(f"report={args.report}")
     return 0

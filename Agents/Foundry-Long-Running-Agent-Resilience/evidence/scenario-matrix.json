@@ -1,0 +1,111 @@
+{
+  "scenarios": [
+    {
+      "actual": "Process A exited with code 86; Process B entered recovered mode on the same response and completed.",
+      "evidence": [
+        "evidence/owned-hosted-agent-local.json",
+        "evidence/owned-hosted-agent-local-events.jsonl"
+      ],
+      "expected": "A new Agent process reuses the stored response, input, and latest checkpoint.",
+      "id": "python-hard-process-exit",
+      "runtime_protocol": "Python / Responses / local AgentServer",
+      "status": "PASS",
+      "trigger": "os._exit(86) after a durable checkpoint"
+    },
+    {
+      "actual": "The client observed a replacement timeout, the recovery container logged recovered entry, two process hashes appeared on the same response, and the response completed. The prior container log was not retained, so the exact down timestamp is bounded rather than claimed.",
+      "correlations": [
+        {
+          "event_field": "process_instance_sha256",
+          "event_match": {
+            "entry_mode": "recovered",
+            "event": "handler_entered"
+          },
+          "json_evidence": "evidence/owned-hosted-agent-live-recovery.json",
+          "json_path": "acceptance.process_instance_sha256",
+          "jsonl_evidence": "evidence/owned-hosted-agent-live-recovery-events.jsonl",
+          "operator": "contains"
+        },
+        {
+          "event_field": "response_id_sha256",
+          "event_match": {
+            "entry_mode": "recovered",
+            "event": "handler_entered"
+          },
+          "json_evidence": "evidence/owned-hosted-agent-live-recovery.json",
+          "json_path": "response_id_sha256",
+          "jsonl_evidence": "evidence/owned-hosted-agent-live-recovery-events.jsonl",
+          "operator": "equals"
+        }
+      ],
+      "evidence": [
+        "evidence/owned-hosted-agent-live-recovery.json",
+        "evidence/owned-hosted-agent-live-recovery-events.jsonl"
+      ],
+      "expected": "Foundry replacement compute recovers the same stored background response after the hosted process exits.",
+      "id": "foundry-hosted-hard-process-exit",
+      "runtime_protocol": "Python / Responses / Foundry Hosted Agent Version 5",
+      "status": "PASS",
+      "trigger": "Guarded os._exit(86) after a durable checkpoint"
+    },
+    {
+      "actual": "The CLR process exited with code 86; a second .NET process entered recovered mode on the same response and completed.",
+      "evidence": [
+        "evidence/owned-hosted-agent-dotnet.json",
+        "evidence/owned-hosted-agent-dotnet-events.jsonl"
+      ],
+      "expected": "The .NET AgentServer process recovers the same stored Responses work.",
+      "id": "dotnet-hard-process-exit",
+      "runtime_protocol": ".NET / Responses / local AgentServer",
+      "status": "PASS",
+      "trigger": "Environment.Exit(86) after a durable checkpoint"
+    },
+    {
+      "actual": "Observer A exited after persisting the response ID and deadline; the Agent continued committing checkpoints; Observer B resumed the same response and saw completed.",
+      "evidence": [
+        "evidence/owned-hosted-agent-observer.json",
+        "evidence/owned-hosted-agent-observer-events.jsonl"
+      ],
+      "expected": "Background work continues while no observer is attached.",
+      "id": "observer-restart",
+      "runtime_protocol": "Python client / Responses / local AgentServer",
+      "status": "PASS",
+      "trigger": "First observer exits; second observer loads the persisted response ID"
+    },
+    {
+      "actual": "Version 6 is active with fault injection disabled and completed the owned checkpoint contract in one Agent process.",
+      "evidence": [
+        "evidence/owned-hosted-agent-live.json",
+        "evidence/owned-hosted-agent-status.json"
+      ],
+      "expected": "The post-test safe deployment remains callable without a fault request.",
+      "id": "foundry-current-safe-deployment",
+      "runtime_protocol": "Python / Responses / Foundry Hosted Agent Version 6",
+      "status": "PASS",
+      "trigger": "Normal stored background request with fault injection disabled"
+    },
+    {
+      "actual": "Windows local signals either allowed the request to finish in the first process or did not drive the complete host shutdown lifecycle; no recovered entry was observed.",
+      "evidence": [
+        "evidence/owned-hosted-agent-graceful-attempt.json"
+      ],
+      "expected": "Host shutdown sets both response and task shutdown signals, defers unfinished work, and a later process recovers it.",
+      "id": "graceful-shutdown-handoff",
+      "runtime_protocol": "Python / Responses / Windows local AgentServer",
+      "status": "NOT_VERIFIED",
+      "trigger": "Windows console shutdown signal"
+    },
+    {
+      "actual": "Gap, duplicate, and bare-done fixtures were rejected by the executable validator.",
+      "evidence": [
+        "evidence/observation-validation.json"
+      ],
+      "expected": "Incomplete or duplicated output must fail acceptance.",
+      "id": "output-integrity-corruption",
+      "runtime_protocol": "Protocol-independent validator",
+      "status": "PASS",
+      "trigger": "Remove, duplicate, or terminate output without full terminal proof"
+    }
+  ],
+  "schema_version": 1
+}

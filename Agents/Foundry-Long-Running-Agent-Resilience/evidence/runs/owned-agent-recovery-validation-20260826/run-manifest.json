@@ -1,0 +1,136 @@
+{
+  "boundaries": [
+    "The Python and .NET hard-loss runs prove local AgentServer recovery, not Foundry availability.",
+    "The Foundry Version 5 run proves hosted process replacement on one response; the prior container log was not retained, so exact down time is bounded.",
+    "The observer run proves background execution across caller loss; it is not Agent process recovery.",
+    "The safe Version 6 run and Portal screenshots prove the post-test deployment, not recovery by themselves.",
+    "Graceful Windows shutdown recovery remains NOT_VERIFIED."
+  ],
+  "captured_at_utc": "2026-08-26T09:29:51.229Z",
+  "commands": [
+    {
+      "command": "python hosted-agent/run_local_recovery.py --runtime-label \"Python 3.13\" --work-id owned-agent-reader-trace-python --payload \"public-safe reader recovery trace\" --crash-after-stage 3 --stage-delay-ms 200 --report evidence/owned-hosted-agent-local.json --log-report evidence/owned-hosted-agent-local-events.jsonl",
+      "command_redacted": false,
+      "evidence": "evidence/owned-hosted-agent-local.json",
+      "exit_code": 0,
+      "id": "python-hard-process-loss"
+    },
+    {
+      "command": "dotnet build dotnet-agent/LraEvidenceAgent.csproj --configuration Release",
+      "command_redacted": true,
+      "evidence": "evidence/owned-hosted-agent-dotnet.json",
+      "exit_code": 0,
+      "id": "dotnet-build",
+      "redactions": [
+        "Temporary dotnet SDK executable path replaced with dotnet"
+      ]
+    },
+    {
+      "command": "python hosted-agent/run_local_recovery.py --runtime-label \".NET 8.0\" --server-command <dotnet> <dotnet-output-dir>/LraEvidenceAgent.dll --server-cwd <dotnet-output-dir> --work-id owned-agent-reader-trace-dotnet --payload \"public-safe .NET reader recovery trace\" --crash-after-stage 3 --stage-delay-ms 200 --report evidence/owned-hosted-agent-dotnet.json --log-report evidence/owned-hosted-agent-dotnet-events.jsonl",
+      "command_redacted": true,
+      "evidence": "evidence/owned-hosted-agent-dotnet.json",
+      "exit_code": 0,
+      "id": "dotnet-hard-process-loss",
+      "redactions": [
+        "Temporary dotnet SDK executable path",
+        "Absolute .NET build output directory"
+      ]
+    },
+    {
+      "command": "python hosted-agent/run_observer_restart.py --work-id owned-agent-reader-trace-observer --payload \"public-safe observer restart trace\" --stage-delay-ms 500 --detached-seconds 2 --report evidence/owned-hosted-agent-observer.json --log-report evidence/owned-hosted-agent-observer-events.jsonl",
+      "command_redacted": false,
+      "evidence": "evidence/owned-hosted-agent-observer.json",
+      "exit_code": 0,
+      "id": "observer-restart"
+    },
+    {
+      "command": "azd env set LRA_ENABLE_FAULT_INJECTION true; azd deploy; python hosted-agent/client.py --endpoint <foundry-responses-endpoint> --auth azure-cli --agent-version 5 --work-id owned-agent-live-reader-trace --payload \"public-safe live recovery trace\" --crash-after-stage 3 --stage-delay-ms 500 --report evidence/owned-hosted-agent-live-recovery.json",
+      "command_redacted": true,
+      "evidence": "evidence/owned-hosted-agent-live-recovery.json",
+      "exit_code": 0,
+      "id": "foundry-version5-hard-process-loss",
+      "redactions": [
+        "Foundry Responses endpoint"
+      ]
+    },
+    {
+      "command": "azd env set LRA_ENABLE_FAULT_INJECTION false; azd deploy; python hosted-agent/client.py --endpoint <foundry-responses-endpoint> --auth azure-cli --agent-version 6 --work-id owned-agent-version6-safe --payload \"public-safe current Agent workload\" --report evidence/owned-hosted-agent-live.json",
+      "command_redacted": true,
+      "evidence": "evidence/owned-hosted-agent-live.json",
+      "exit_code": 0,
+      "id": "foundry-version6-safe",
+      "redactions": [
+        "Foundry Responses endpoint"
+      ]
+    },
+    {
+      "command": "python scripts/verify_public_resilience_api.py --format json --output evidence/public-sdk-contract.json",
+      "command_redacted": false,
+      "evidence": "evidence/public-sdk-contract.json",
+      "exit_code": 0,
+      "id": "public-sdk-contract"
+    }
+  ],
+  "key_code": [
+    {
+      "path": "hosted-agent/azure.yaml",
+      "sha256": "a782090420a73fa5938bf3b145eae9deb310e30c3317e1c6f4037be92c4d6cb2"
+    },
+    {
+      "path": "hosted-agent/src/lra-evidence-agent/main.py",
+      "sha256": "d6f954516e5f552c8c290f3056ec03173f824815b6287812bc130ac0534e1bde"
+    },
+    {
+      "path": "hosted-agent/src/lra-evidence-agent/contract.py",
+      "sha256": "a9de4d7c82b2ceaed9225043f7ac0be9d6bc79d6ab3158f68345ce5dc74aa6e6"
+    },
+    {
+      "path": "hosted-agent/client.py",
+      "sha256": "164be3d19aad61e0373a2b1a4a7f21b8d1eb86b8c5514a6d5cb703b72c628a8d"
+    },
+    {
+      "path": "hosted-agent/run_local_recovery.py",
+      "sha256": "35f082eddfd1ac14d2bcd95eff2036fa1e9d43ec3785a95df9bbd20b06803b1d"
+    },
+    {
+      "path": "hosted-agent/run_observer_restart.py",
+      "sha256": "e2dd2df21c990c936f6804bce1fb7054234b6691273788232c30c5a9103ac232"
+    },
+    {
+      "path": "hosted-agent/sanitize_agent_log.py",
+      "sha256": "47a8b7698ce81e1e0d66e6c4e7201092f2504025d101941e7af1deee457b84df"
+    },
+    {
+      "path": "dotnet-agent/LraEvidenceAgent.csproj",
+      "sha256": "2db85cb0e4f28d40a335d89776887492b7cdc3a7186c312b2cff126a729420af"
+    },
+    {
+      "path": "dotnet-agent/Program.cs",
+      "sha256": "44621c75a61ee6dcf266449e1c793828f08d5f81140e2cca18b7207ffc303cfb"
+    },
+    {
+      "path": "scripts/validate_repo.py",
+      "sha256": "d5e2e0d92bd121e76d21a130f0629320fe86dfcf39ff650b42a86541740ba63a"
+    },
+    {
+      "path": "scripts/generate_evidence_manifest.py",
+      "sha256": "60e3e82e3c0371af46c7a6cf4ca5589238f23a603989f8671620c24dc8270e64"
+    },
+    {
+      "path": "evidence/run-contract.json",
+      "sha256": "0880cec17d49f74d21fe46c2f22102a73c2b7c0dae362a138cfb5d868bb1b1ad"
+    }
+  ],
+  "logs": [
+    "evidence/owned-hosted-agent-local-events.jsonl",
+    "evidence/owned-hosted-agent-dotnet-events.jsonl",
+    "evidence/owned-hosted-agent-observer-events.jsonl",
+    "evidence/owned-hosted-agent-live-recovery-events.jsonl",
+    "evidence/recovery-contract-events.jsonl"
+  ],
+  "run_id": "owned-agent-recovery-validation-20260826",
+  "schema_version": 1,
+  "status_evidence": "evidence/owned-hosted-agent-status.json",
+  "subject": "repository-owned Hosted Agent recovery across Python, .NET, observer restart, and Foundry replacement",
+  "ui_evidence": "evidence/ui-evidence.json"
+}

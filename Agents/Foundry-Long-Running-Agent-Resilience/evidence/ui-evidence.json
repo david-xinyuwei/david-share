@@ -8,18 +8,18 @@
         "production reliability or SLA"
       ],
       "published_path": "images/product-ui/portal-owned-agent-list.png",
-      "published_sha256": "19be2513745a802b36673d789559bc1587cc1dcdbfa77920d7d0c04fc6ecef3d",
+      "published_sha256": "7dab57ab59027aae68128b2c536c8c65a5817d3235dab5f89231f9b1da69c8bd",
       "proves": [
         "lra-evidence-agent exists in Microsoft Foundry",
-        "version 4 is selected",
+        "version 6 is selected",
         "status is Running",
         "type is Hosted"
       ],
       "redactions": [
         "project name replaced with non-production project"
       ],
-      "source_basename": "ScreenShot_2026-08-26_140523_529.png",
-      "source_sha256": "8887a61888193e54040e3ee45941b2caab2ae9db162ce599cac22c1e3b26ea50"
+      "source_basename": "portal-version6-list-raw.png",
+      "source_sha256": "8046744011f3c7dd2fe2579cc1c4b198dfcae2bc070ff7e9af86696f3a0499e2"
     },
     {
       "behavior_evidence": "evidence/owned-hosted-agent-live.json",
@@ -29,25 +29,25 @@
         "production reliability or SLA"
       ],
       "published_path": "images/product-ui/portal-owned-agent-details.png",
-      "published_sha256": "b314df1de5012222b68c04ac6cfed2a35e6635012611bb94b023f64154da8e59",
+      "published_sha256": "57a90c0c51f5d220bb79b5fc12712c4238d98196c2d5c45ab055408df5bb31a7",
       "proves": [
         "the detail page is for lra-evidence-agent",
-        "version 4 is selected",
+        "version 6 is selected",
         "kind is hosted",
         "the Agent Playground is available"
       ],
       "redactions": [
         "project name replaced with non-production project"
       ],
-      "source_basename": "ScreenShot_2026-08-26_140542_067.png",
-      "source_sha256": "8b37f81bd99e473de79d2733b915bb695874318edf61a22e20ff90c77e659785"
+      "source_basename": "portal-version6-details-raw.png",
+      "source_sha256": "2f2cb12cf49a3fbc6f9bb46992ab4a3cf1cdc1dbef829cbff4632c53c339bc73"
     }
   ],
-  "capture_method": "user-manual-download",
-  "captured_at_local": "2026-08-26T14:05:23+08:00",
+  "capture_method": "agent-visible-window-capture",
+  "captured_at_local": "2026-08-26T17:23:21+08:00",
   "published_directory": "images/product-ui/",
   "raw_intake_directory": ".repo-evidence/inbox/ui/",
   "raw_sources_committed": false,
-  "run_manifest": "evidence/runs/owned-agent-version4-validation-20260826/run-manifest.json",
+  "run_manifest": "evidence/runs/owned-agent-recovery-validation-20260826/run-manifest.json",
   "schema_version": 1
 }

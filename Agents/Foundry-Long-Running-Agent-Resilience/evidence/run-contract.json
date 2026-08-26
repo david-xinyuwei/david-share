@@ -1,0 +1,147 @@
+{
+  "code_requirements": [
+    {
+      "contains": [
+        "ResponsesServerOptions(resilient_background=True)",
+        "set_resilient_tasks_enabled(True)",
+        "context.persisted_response",
+        "yield stream.checkpoint()",
+        "os._exit(INJECTED_EXIT_CODE)"
+      ],
+      "path": "hosted-agent/src/lra-evidence-agent/main.py"
+    },
+    {
+      "contains": [
+        "\"store\": True",
+        "\"background\": True",
+        "write_json_atomic(args.state_file, state)",
+        "validate_terminal_response("
+      ],
+      "path": "hosted-agent/client.py"
+    },
+    {
+      "contains": [
+        "--server-command",
+        "\"process_down_at_utc\"",
+        "\"recovered_entry_at_utc\"",
+        "\"completed_at_utc\""
+      ],
+      "path": "hosted-agent/run_local_recovery.py"
+    },
+    {
+      "contains": [
+        "--create-only",
+        "--resume",
+        "\"background_work_continued\": True"
+      ],
+      "path": "hosted-agent/run_observer_restart.py"
+    },
+    {
+      "contains": [
+        "options.ResilientBackground = true",
+        "context.PersistedResponse",
+        "yield return stream.Checkpoint()",
+        "Environment.Exit(InjectedExitCode)"
+      ],
+      "path": "dotnet-agent/Program.cs"
+    }
+  ],
+  "evidence": "evidence/owned-hosted-agent-local.json",
+  "matrix": "evidence/scenario-matrix.json",
+  "milestones": [
+    {
+      "id": "initial",
+      "match": {
+        "event": "process_started",
+        "process_role": "A"
+      }
+    },
+    {
+      "id": "invoke",
+      "match": {
+        "event": "response_created",
+        "process_role": "A"
+      }
+    },
+    {
+      "id": "transition",
+      "match": {
+        "event": "fault_injected"
+      }
+    },
+    {
+      "id": "observe",
+      "match": {
+        "entry_mode": "recovered",
+        "event": "handler_entered"
+      }
+    },
+    {
+      "id": "terminal",
+      "match": {
+        "event": "terminal_observed",
+        "status": "completed"
+      }
+    }
+  ],
+  "required_evidence_types": [
+    "code",
+    "command",
+    "lifecycle_log",
+    "status",
+    "ui"
+  ],
+  "readme_required_tokens": [
+    "run-contract.json",
+    "scenario-matrix.json",
+    "run_local_recovery.py",
+    "run_observer_restart.py",
+    "LraEvidenceAgent.csproj",
+    "os._exit(86)",
+    "Environment.Exit(86)",
+    "recovery_proven: true",
+    "NOT VERIFIED",
+    "store=true",
+    "background=true",
+    "persisted_response",
+    "stream.checkpoint()",
+    "hosted-agent\\run_local_recovery.py",
+    "hosted-agent\\run_observer_restart.py",
+    "dotnet build dotnet-agent\\LraEvidenceAgent.csproj",
+    "--server-command dotnet",
+    "python -m unittest discover -s tests -v",
+    "scripts\\validate_repo.py",
+    "azd provision",
+    "azd deploy"
+  ],
+  "scenario_id": "owned-agent-hard-process-loss",
+  "schema_version": 1,
+  "state_assertions": [
+    {
+      "equals": true,
+      "path": "acceptance.all_expected_checkpoints_completed_once"
+    },
+    {
+      "equals": true,
+      "path": "acceptance.recovery_proven"
+    },
+    {
+      "equals": "completed",
+      "path": "acceptance.status"
+    },
+    {
+      "equals": true,
+      "path": "durable_state.checkpointed_response_survived"
+    },
+    {
+      "equals": false,
+      "path": "durable_state.process_memory_survived"
+    },
+    {
+      "equals": true,
+      "path": "durable_state.same_response_reused"
+    }
+  ],
+  "subject": "repository-owned Hosted Agent hard process-loss recovery",
+  "timeline_path": "timeline"
+}

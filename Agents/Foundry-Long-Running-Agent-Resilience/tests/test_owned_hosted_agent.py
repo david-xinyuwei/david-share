@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
 import sys
+import tempfile
 import unittest
+from contextlib import redirect_stderr
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
@@ -23,6 +26,17 @@ assert CLIENT_SPEC and CLIENT_SPEC.loader
 CLIENT = importlib.util.module_from_spec(CLIENT_SPEC)
 sys.modules[CLIENT_SPEC.name] = CLIENT
 CLIENT_SPEC.loader.exec_module(CLIENT)
+sys.modules["client"] = CLIENT
+sys.modules["contract"] = CONTRACT
+RUNNER_PATH = ROOT / "hosted-agent" / "run_local_recovery.py"
+RUNNER_SPEC = importlib.util.spec_from_file_location(
+    "lra_owned_runner",
+    RUNNER_PATH,
+)
+assert RUNNER_SPEC and RUNNER_SPEC.loader
+RUNNER = importlib.util.module_from_spec(RUNNER_SPEC)
+sys.modules[RUNNER_SPEC.name] = RUNNER
+RUNNER_SPEC.loader.exec_module(RUNNER)
 
 
 def response_with(records: list[dict], status: str = "completed") -> dict:
@@ -129,6 +143,65 @@ class OwnedHostedAgentContractTests(unittest.TestCase):
     def test_owned_contract_checkpoints_are_distinct(self):
         self.assertGreater(len(CONTRACT.STAGES), 1)
         self.assertEqual(len(set(CONTRACT.STAGES)), len(CONTRACT.STAGES))
+
+    def test_public_acceptance_hashes_process_identity(self):
+        public = CLIENT.public_acceptance(
+            {
+                "status": "completed",
+                "work_id": "w1",
+                "payload_sha256": "a" * 64,
+                "entry_modes": ["fresh", "recovered"],
+                "recovery_proven": True,
+                "stage_names": ["one", "two"],
+                "stage_result_sha256": ["b" * 64, "c" * 64],
+                "process_instance_ids": ["private-process-a", "private-process-b"],
+            }
+        )
+        self.assertNotIn("process_instance_ids", public)
+        self.assertEqual(public["process_instance_count"], 2)
+        self.assertEqual(len(public["process_instance_sha256"]), 2)
+
+    def test_observer_modes_are_mutually_exclusive(self):
+        with redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit):
+                CLIENT.parse_args(["--resume", "--create-only"])
+
+    def test_foundry_log_envelope_is_unwrapped_before_hashing(self):
+        envelope = {
+            "timestamp": "2026-08-26T09:09:54.039+00:00",
+            "stream": "stderr",
+            "message": (
+                "2026-08-26 INFO LRA_ENTRY "
+                "at_utc=2026-08-26T09:09:54.039+00:00 "
+                "response_id=response-1 work_id=w1 mode=recovered "
+                "start=4 instance=instance-1"
+            ),
+        }
+        exit_envelope = {
+            "timestamp": "2026-08-26T09:09:55.000+00:00",
+            "stream": "stderr",
+            "message": (
+                "LRA_INJECTED_PROCESS_LOSS "
+                "at_utc=2026-08-26T09:09:55.000+00:00 "
+                "response_id=response-1 work_id=w1 "
+                "after_stage=3 exit_code=86"
+            ),
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "monitor.log"
+            path.write_text(
+                "data: " + json.dumps(envelope) + "\n"
+                "data: " + json.dumps(exit_envelope) + "\n",
+                encoding="utf-8",
+            )
+            events = RUNNER.sanitize_agent_log(path)
+        self.assertEqual(events[0]["at_utc"], "2026-08-26T09:09:54.039+00:00")
+        self.assertEqual(
+            events[0]["process_instance_sha256"],
+            CLIENT.sha256_text("instance-1"),
+        )
+        self.assertEqual(events[1]["exit_code"], 86)
+        self.assertEqual(events[1]["after_checkpoint"], "plan_work")
 
     def test_hosted_endpoint_keeps_api_version_on_item_reads(self):
         endpoint = (

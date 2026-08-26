@@ -1,0 +1,120 @@
+{
+  "acceptance": {
+    "all_expected_checkpoints_completed_once": true,
+    "checkpoint_contract_sha256": "b2e28601bb5e3e454ee512f77c9e0daaa64402b2034e90289190eb858136a252",
+    "entry_modes": [
+      "fresh",
+      "recovered"
+    ],
+    "payload_sha256": "1159facc42ddeb1fd38d49d320d8e46f0967b231f0e530a5e6631c599a203097",
+    "process_instance_count": 2,
+    "process_instance_sha256": [
+      "0062e8d632b60c0ed85f630517e62fc7b50df99a9e4ad90399aa59c04bd456c8",
+      "bb0e236ea905f1959a6f3a2e2047c7acd5387c544902f5770ebda42e1f891db6"
+    ],
+    "recovery_proven": true,
+    "status": "completed",
+    "work_id": "owned-agent-live-reader-trace"
+  },
+  "deployment": {
+    "agent_name": "lra-evidence-agent",
+    "content_sha256": "192dbbdcea2524e91d1fc497c97aef40d00c0a3b9cc50a8ef35de84cc755aa90",
+    "version": "5"
+  },
+  "elapsed_seconds": 65.773,
+  "endpoint_class": "foundry-hosted-agent",
+  "evidence_type": "owned-hosted-agent-recovery",
+  "generated_at_utc": "2026-08-26T09:10:06.503+00:00",
+  "passed": true,
+  "poll_events": [
+    {
+      "at": "2026-08-26T09:09:09.054+00:00",
+      "entry_modes": [],
+      "kind": "poll",
+      "last_durable_checkpoint": null,
+      "process_instance_count": 0,
+      "process_instance_sha256": [],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T09:09:41.598+00:00",
+      "detail": "TimeoutError",
+      "kind": "connection_error"
+    },
+    {
+      "at": "2026-08-26T09:09:54.961+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "plan_work",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "bb0e236ea905f1959a6f3a2e2047c7acd5387c544902f5770ebda42e1f891db6"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T09:09:57.769+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "plan_work",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "bb0e236ea905f1959a6f3a2e2047c7acd5387c544902f5770ebda42e1f891db6"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T09:10:00.761+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "plan_work",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "bb0e236ea905f1959a6f3a2e2047c7acd5387c544902f5770ebda42e1f891db6"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T09:10:03.592+00:00",
+      "entry_modes": [
+        "fresh"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "plan_work",
+      "process_instance_count": 1,
+      "process_instance_sha256": [
+        "bb0e236ea905f1959a6f3a2e2047c7acd5387c544902f5770ebda42e1f891db6"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "at": "2026-08-26T09:10:06.503+00:00",
+      "entry_modes": [
+        "fresh",
+        "recovered"
+      ],
+      "kind": "poll",
+      "last_durable_checkpoint": "complete",
+      "process_instance_count": 2,
+      "process_instance_sha256": [
+        "0062e8d632b60c0ed85f630517e62fc7b50df99a9e4ad90399aa59c04bd456c8",
+        "bb0e236ea905f1959a6f3a2e2047c7acd5387c544902f5770ebda42e1f891db6"
+      ],
+      "status": "completed"
+    }
+  ],
+  "request": {
+    "checkpoint_delay_ms": 500,
+    "fault_injection_requested": true,
+    "work_id": "owned-agent-live-reader-trace"
+  },
+  "response_id_sha256": "9c5bf1c891a24f15e074c9cfa8cc7ae32b416fe0601343fa710f95aded3880e8",
+  "schema_version": 1,
+  "started_at_utc": "2026-08-26T09:09:00.730+00:00"
+}

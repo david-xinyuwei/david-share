@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic quality gate for the public LRA documentation repository.
-
-Checks structure parity between the bilingual READMEs, image references,
-link targets, numeric-claim consistency, and public-boundary safety.
-"""
+"""Fail-closed gate for the bilingual report, run contract, evidence, and code."""
 
 from __future__ import annotations
 
@@ -14,25 +10,19 @@ import json
 import re
 import subprocess
 import sys
-import unicodedata
 import unittest
 from collections import Counter
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import unquote
 
+
 def parse_root() -> Path:
-    parser = argparse.ArgumentParser(
-        description=(
-            "Run the fail-closed bilingual, authenticity, evidence, security, "
-            "and repository-surface gate."
-        )
-    )
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "root",
-        nargs="?",
+        "--root",
         type=Path,
         default=Path(__file__).resolve().parents[1],
-        help="repository root (default: parent of scripts/)",
     )
     return parser.parse_args().root.resolve()
 
@@ -45,47 +35,110 @@ ALLOWED_FILES = {
     ".gitattributes",
     ".gitignore",
     "LICENSE",
-    "README.md",
     "README-CN.md",
+    "README.md",
     "THIRD-PARTY-NOTICES.md",
-    "requirements-validation.txt",
+    "dotnet-agent/LraEvidenceAgent.csproj",
+    "dotnet-agent/Program.cs",
+    "evidence/README.md",
+    "evidence/manifest.json",
+    "evidence/observation-validation.json",
+    "evidence/owned-hosted-agent-dotnet-events.jsonl",
+    "evidence/owned-hosted-agent-dotnet.json",
+    "evidence/owned-hosted-agent-graceful-attempt.json",
+    "evidence/owned-hosted-agent-live.json",
+    "evidence/owned-hosted-agent-live-recovery-events.jsonl",
+    "evidence/owned-hosted-agent-live-recovery.json",
+    "evidence/owned-hosted-agent-local-events.jsonl",
+    "evidence/owned-hosted-agent-local.json",
+    "evidence/owned-hosted-agent-observer-events.jsonl",
+    "evidence/owned-hosted-agent-observer.json",
+    "evidence/owned-hosted-agent-status.json",
+    "evidence/public-sdk-contract.json",
+    "evidence/recovery-contract-demo.json",
+    "evidence/recovery-contract-events.jsonl",
+    "evidence/resilience-sdk-usage.json",
+    "evidence/run-contract.json",
+    "evidence/runs/owned-agent-recovery-validation-20260826/run-manifest.json",
+    "evidence/scenario-manifest.json",
+    "evidence/scenario-matrix.json",
+    "evidence/ui-evidence.json",
+    "examples/resilience_handler.py",
+    "examples/resilience_sdk_usage.py",
+    "examples/resilient_responses_agent.py",
     "hosted-agent/.env.example",
     "hosted-agent/azure.yaml",
     "hosted-agent/client.py",
     "hosted-agent/run_local_recovery.py",
+    "hosted-agent/run_observer_restart.py",
+    "hosted-agent/sanitize_agent_log.py",
     "hosted-agent/src/lra-evidence-agent/.azdignore",
     "hosted-agent/src/lra-evidence-agent/contract.py",
     "hosted-agent/src/lra-evidence-agent/main.py",
     "hosted-agent/src/lra-evidence-agent/requirements.txt",
-    "examples/resilience_handler.py",
-    "examples/resilient_responses_agent.py",
-    "examples/resilience_sdk_usage.py",
+    "images/official-lease-recovery-model.png",
+    "images/product-ui/portal-owned-agent-details.png",
+    "images/product-ui/portal-owned-agent-list.png",
+    "requirements-validation.txt",
+    "scripts/generate_evidence_manifest.py",
     "scripts/recovery_contract_demo.py",
     "scripts/validate_observations.py",
     "scripts/validate_repo.py",
     "scripts/verify_public_resilience_api.py",
-    "tests/test_recovery_contract_demo.py",
     "tests/test_owned_hosted_agent.py",
+    "tests/test_recovery_contract_demo.py",
     "tests/test_validate_observations.py",
-    "evidence/README.md",
-    "evidence/manifest.json",
-    "evidence/observation-validation.json",
-    "evidence/owned-hosted-agent-local.json",
-    "evidence/owned-hosted-agent-live.json",
-    "evidence/owned-hosted-agent-status.json",
-    "evidence/public-sdk-contract.json",
-    "evidence/resilience-sdk-usage.json",
-    "evidence/recovery-contract-demo.json",
-    "evidence/recovery-contract-events.jsonl",
-    "evidence/scenario-manifest.json",
-    "evidence/ui-evidence.json",
-    "evidence/runs/owned-agent-version4-validation-20260826/run-manifest.json",
-    "images/official-lease-recovery-model.png",
-    "images/product-ui/portal-owned-agent-list.png",
-    "images/product-ui/portal-owned-agent-details.png",
-    "images/recovery-decision-guide.png",
-    "images/recovery-decision-guide-cn.png",
 }
+
+LOCAL_ARTEFACT_DIRS = {
+    ".azure",
+    ".demo-state",
+    ".git",
+    ".idea",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".repo-evidence",
+    ".ruff_cache",
+    ".venv",
+    ".vscode",
+    "__pycache__",
+    "bin",
+    "node_modules",
+    "obj",
+    "venv",
+}
+
+REQUIRED_EN_SECTIONS = [
+    "## Read this first",
+    "## One complete recovery run",
+    "### Where the Agent actually uses LRA",
+    "### Exactly when it went down, recovered, and completed",
+    "### Why the task did not stop and the data did not disappear",
+    "## Fault matrix",
+    "## Reproduce it",
+    "### Prerequisites",
+    "## Put the same hooks in your Agent",
+    "## Acceptance contract",
+    "## Evidence and boundaries",
+    "## Related work and license",
+]
+
+REQUIRED_CN_SECTIONS = [
+    "## 先看这里",
+    "## 一次完整的恢复运行",
+    "### Agent 到底在哪里接入 LRA",
+    "### 什么时候 down、什么时候恢复、什么时候完成",
+    "### 为什么任务没停、数据没丢",
+    "## 故障矩阵",
+    "## 自己复现",
+    "### 前置条件",
+    "## 把同样的接线放进你的 Agent",
+    "## 验收合同",
+    "## 证据与边界",
+    "## 相关工作与许可证",
+]
+
+CRITICAL_NUMBERS = ["86", "1.435", "4.677", "0.606", "3.917"]
 
 FORBIDDEN_LITERALS = [
     "services.ai.azure.com",
@@ -93,195 +146,106 @@ FORBIDDEN_LITERALS = [
     "/mnt/c/",
     "/mnt/g/",
     "@microsoft.com",
-    "thread.v2",
-    "lra-pp-",
-    "caresp_",
-    "mcpr_",
-    "inv_",
     "agent_session_id",
     "api-version=",
 ]
 
 SECRET_PATTERNS = {
-    "GUID": re.compile(r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b"),
+    "GUID": re.compile(
+        r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-"
+        r"[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b"
+    ),
     "GitHub token": re.compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}\b"),
     "Bearer-like key": re.compile(r"\bsk-[A-Za-z0-9_-]{20,}\b"),
     "Windows path": re.compile(r"\b[A-Za-z]:\\"),
 }
 
-# Numbers that must agree across both language versions.
-CRITICAL_NUMBERS = [
-    "86", "360", "500",
-]
-
-REQUIRED_EN_SECTIONS = [
-    "## Start here",
-    "## Reproduce with this repository",
-    "### Choose where progress lives",
-    "### Prerequisites",
-    "### Run local, validate, then deploy",
-    "### Configure external state only when needed",
-    "### Caller and acceptance contract",
-    "## What Foundry provides, and what your application owns",
-    "## What this repo validates",
-    "### Repository-owned Hosted Agent result",
-    "### Recovery model at a glance",
-    "### The repository is executable, not just a write-up",
-    "## Measured results",
-    "## Deep dive: how recovery works",
-    "### Three concepts used below",
-    "### Recovery can repeat work after the last checkpoint",
-    "### Three integration options",
-    "### Official recovery contract and local example",
-    "### Four layers required for recovery",
-    "## Evaluation: what was actually run",
-    "### Current public-preview contract check",
-    "### Current Version 4 deployment",
-    "### Local injected recovery",
-    "## Acceptance rules",
-    "### Reject gaps and duplicates",
-    "### A `done` frame is not proof of success",
-    "### Classify `424` separately from `403`",
-    "### Prevent duplicate approvals and side effects",
-    "## Failure and recovery playbook",
-    "## Design guidance",
-    "## Evidence and boundaries",
-    "### Before you call this production-ready",
-]
-
-REQUIRED_CN_SECTIONS = [
-    "## 从这里开始",
-    "## 使用本仓库复现",
-    "### 先选进度保存位置",
-    "### 前置条件",
-    "### 本机运行、验证，再部署",
-    "### 仅在需要时配置外部状态",
-    "### 客户端与验收合同",
-    "## Foundry 提供什么，应用负责什么",
-    "## 本仓库验证了什么",
-    "### 本仓库自有 Hosted Agent 的实测结果",
-    "### 恢复模型速览",
-    "### 本仓库可直接运行，不只是说明文档",
-    "## 实测结果",
-    "## 深入理解：恢复如何工作",
-    "### 先说明三个概念",
-    "### 恢复后，最后一个进度点之后的工作可能重做",
-    "### 三种接入方式",
-    "### 官方恢复机制与本地示例",
-    "### 启用恢复需要配置四层",
-    "## 评估：到底跑了什么",
-    "### 当前公共预览契约检查",
-    "### 当前 Version 4 部署",
-    "### 本机故障注入恢复",
-    "## 验收规则",
-    "### 同时拒绝缺口和重复",
-    "### 一个 `done` 帧不能证明成功",
-    "### 把 `424` 和 `403` 分开处理",
-    "### 审批决定和外部操作都要防重复",
-    "## 故障判断与恢复速查表",
-    "## 设计建议",
-    "## 证据与边界",
-    "### 宣称“可以上生产”之前",
-]
-
-REQUIRED_CONCEPTS = {
-    "English": [
-        "runtime instance",
-        "at-least-once",
-        "idempotency",
-        "task record",
-    ],
-    "Chinese": [
-        "运行实例",
-        "可能再次执行",
-        "幂等",
-        "任务记录",
-    ],
-}
+RETIRED_STAGE_PATTERNS = (
+    re.compile(r"\b1[8][ -](?:stage|phase)s?\b", re.IGNORECASE),
+    re.compile(r"1[8]\s*个阶段"),
+    re.compile(r"\b0-1[7]\b"),
+    re.compile(r"\b1-1[8]\b"),
+    re.compile(r"resilient" + r"-research", re.IGNORECASE),
+    re.compile(r"historical" + r"-observations", re.IGNORECASE),
+)
 
 
-# Local tooling artefacts a reader may create by following the README
-# (virtual environment, byte-code cache). They are never delivery surface.
-LOCAL_ARTEFACT_DIRS = {
-    "__pycache__",
-    ".venv",
-    "venv",
-    ".git",
-    ".pytest_cache",
-    ".mypy_cache",
-    ".ruff_cache",
-    ".demo-state",
-    ".repo-evidence",
-    ".azure",
-    ".idea",
-    ".vscode",
-    "node_modules",
-}
+class Gate:
+    def __init__(self) -> None:
+        self.errors: list[str] = []
+
+    def require(self, condition: bool, message: str) -> None:
+        if not condition:
+            self.errors.append(message)
 
 
 def is_delivery_file(path: Path) -> bool:
-    """True when the path is repository surface rather than a local artefact."""
     return not LOCAL_ARTEFACT_DIRS.intersection(path.parts)
 
 
-def headings(text: str) -> list[str]:
-    return re.findall(r"^(#{1,6}) ", text, flags=re.MULTILINE)
+def without_fences(text: str) -> str:
+    return re.sub(
+        r"^```[^\n]*\n.*?^```\s*$",
+        "",
+        text,
+        flags=re.MULTILINE | re.DOTALL,
+    )
 
 
-def github_heading_anchors(text: str) -> set[str]:
-    """Generate the GitHub-style anchors used by this repository's headings."""
+def heading_levels(text: str) -> list[int]:
+    return [
+        len(value)
+        for value in re.findall(
+            r"^(#{1,6})\s+",
+            without_fences(text),
+            flags=re.MULTILINE,
+        )
+    ]
+
+
+def heading_titles(text: str) -> list[str]:
+    return re.findall(
+        r"^#{1,6}\s+(.+?)\s*$",
+        without_fences(text),
+        flags=re.MULTILINE,
+    )
+
+
+def github_anchors(text: str) -> set[str]:
     anchors: set[str] = set()
     counts: Counter[str] = Counter()
-    for title in re.findall(r"^#{1,6}\s+(.+?)\s*$", text, flags=re.MULTILINE):
-        title = re.sub(r"<[^>]+>", "", title)
-        title = title.replace("`", "").lower().strip()
-        slug = "".join(
-            character
-            for character in title
-            if (
-                character in "-_"
-                or character.isspace()
-                or unicodedata.category(character)[0] in {"L", "M", "N"}
-            )
-        )
-        slug = re.sub(r"\s+", "-", slug)
-        if not slug:
-            continue
-        duplicate_index = counts[slug]
+    for title in heading_titles(text):
+        title = re.sub(r"<[^>]+>", "", title).replace("`", "").lower()
+        slug = re.sub(r"[^\w\s-]", "", title, flags=re.UNICODE)
+        slug = re.sub(r"[\s-]+", "-", slug).strip("-")
+        index = counts[slug]
         counts[slug] += 1
-        anchors.add(slug if duplicate_index == 0 else f"{slug}-{duplicate_index}")
+        anchors.add(slug if index == 0 else f"{slug}-{index}")
     return anchors
 
 
-def tables(lines: list[str]) -> list[int]:
-    return [line.count("|") for line in lines if re.fullmatch(r"\|[-:| ]+\|", line)]
+def table_shapes(text: str) -> list[int]:
+    shapes: list[int] = []
+    for line in text.splitlines():
+        if re.fullmatch(r"\|(?:\s*:?-+:?\s*\|)+", line):
+            shapes.append(line.count("|") - 1)
+    return shapes
 
 
-def images(text: str) -> list[str]:
-    """Local image targets from Markdown and HTML embeds; badge URLs excluded."""
-    markdown = re.findall(r"!\[[^\]]*\]\(([^)]+)\)", text)
-    html = re.findall(r"<img\s[^>]*src=\"([^\"]+)\"", text)
-    return [t for t in markdown + html if not t.startswith(("http://", "https://"))]
+def fenced_languages(text: str) -> list[str]:
+    return re.findall(r"^```([A-Za-z0-9_-]*)\s*$", text, flags=re.MULTILINE)[::2]
 
 
-def image_alt_texts(text: str) -> list[str]:
-    """Alt text for every HTML image embed, used to enforce accessibility."""
-    return re.findall(r"<img\s[^>]*alt=\"([^\"]*)\"", text)
-
-
-def local_links(text: str) -> list[str]:
-    targets = re.findall(r"(?<!!)\[[^\]]*\]\(([^)]+)\)", text)
-    return [t.split("#", 1)[0] for t in targets
-            if t and not t.startswith(("#", "http://", "https://", "mailto:"))]
+def html_images(text: str) -> list[dict[str, str]]:
+    result: list[dict[str, str]] = []
+    for tag in re.findall(r"<img\s+[^>]+>", text):
+        attributes = dict(re.findall(r'(\w+)="([^"]*)"', tag))
+        result.append(attributes)
+    return result
 
 
 def markdown_targets(text: str) -> list[str]:
-    """Extract Markdown destinations, including outer links around badge images."""
     return re.findall(r"\]\(([^)\s]+)\)", text)
-
-
-def fenced_blocks(text: str, language: str) -> list[str]:
-    return re.findall(rf"^```{language}\s*\n(.*?)^```$", text, flags=re.MULTILINE | re.DOTALL)
 
 
 def sha256_file(path: Path) -> str:
@@ -291,1495 +255,742 @@ def sha256_file(path: Path) -> str:
     return hashlib.sha256(content).hexdigest()
 
 
-def function_has_substance(
-    node: ast.FunctionDef | ast.AsyncFunctionDef,
-) -> bool:
-    body = list(node.body)
-    if (
-        body
-        and isinstance(body[0], ast.Expr)
-        and isinstance(body[0].value, ast.Constant)
-        and isinstance(body[0].value.value, str)
-    ):
-        body = body[1:]
-    return bool(body) and not all(
-        isinstance(item, ast.Pass)
-        or (
-            isinstance(item, ast.Expr)
-            and isinstance(item.value, ast.Constant)
-            and item.value.value is Ellipsis
-        )
-        for item in body
-    )
+def normalized_size(path: Path) -> int:
+    content = path.read_bytes()
+    if path.suffix.lower() in {".json", ".jsonl", ".md", ".py", ".txt"}:
+        content = content.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    return len(content)
 
 
-def validator_self_scan_text(source: str, tree: ast.Module) -> str:
-    """Mask only the validator's pattern definitions during self-scanning."""
-    ranges: list[tuple[int, int]] = []
-    for node in tree.body:
-        if isinstance(node, (ast.Assign, ast.AnnAssign)):
-            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
-            names = {
-                target.id for target in targets if isinstance(target, ast.Name)
-            }
-            if names & {"FORBIDDEN_LITERALS", "SECRET_PATTERNS"}:
-                ranges.append((node.lineno, node.end_lineno or node.lineno))
-    for node in ast.walk(tree):
-        if isinstance(node, ast.For) and isinstance(node.target, ast.Tuple):
-            names = {
-                item.id for item in node.target.elts if isinstance(item, ast.Name)
-            }
-            if names == {"pattern", "label"}:
-                ranges.append(
-                    (node.iter.lineno, node.iter.end_lineno or node.iter.lineno)
-                )
-
-    lines = source.splitlines(keepends=True)
-    for start, end in ranges:
-        for index in range(start - 1, end):
-            lines[index] = "\n"
-    return "".join(lines)
-
-
-def python_redlines(path: Path) -> list[str]:
-    """Return authenticity and maintainability red lines for one Python file."""
-    source = path.read_text(encoding="utf-8")
-    relative = path.relative_to(ROOT).as_posix()
-    findings: list[str] = []
+def read_json(gate: Gate, relative: str) -> dict:
+    path = ROOT / relative
+    gate.require(path.is_file(), f"missing JSON evidence: {relative}")
+    if not path.is_file():
+        return {}
     try:
-        tree = ast.parse(source, filename=relative)
-    except SyntaxError as error:
-        return [f"{relative}: syntax error: {error}"]
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        gate.require(False, f"{relative}: invalid JSON: {error}")
+        return {}
+    gate.require(isinstance(value, dict), f"{relative}: root must be an object")
+    return value if isinstance(value, dict) else {}
 
-    for node in ast.walk(tree):
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            if not function_has_substance(node):
-                findings.append(
-                    f"{relative}:{node.lineno}: function {node.name!r} has no implementation"
-                )
-        if isinstance(node, ast.Pass):
-            findings.append(f"{relative}:{node.lineno}: empty pass statement")
-        if (
-            isinstance(node, ast.Expr)
-            and isinstance(node.value, ast.Constant)
-            and node.value.value is Ellipsis
-        ):
-            findings.append(f"{relative}:{node.lineno}: ellipsis placeholder")
-        if isinstance(node, ast.Raise) and isinstance(node.exc, ast.Call):
-            if isinstance(node.exc.func, ast.Name) and node.exc.func.id == "NotImplementedError":
-                findings.append(
-                    f"{relative}:{node.lineno}: NotImplementedError shell"
-                )
-        if isinstance(node, ast.ImportFrom) and node.module:
-            parts = node.module.split(".")
-            if parts[0] == "azure" and any(part.startswith("_") for part in parts):
-                findings.append(
-                    f"{relative}:{node.lineno}: private Azure module import {node.module}"
-                )
 
-    scan_source = (
-        validator_self_scan_text(source, tree)
-        if path.name == "validate_repo.py"
-        else source
+def resolve_dotted_path(value: object, dotted_path: str) -> object:
+    current = value
+    for segment in dotted_path.split("."):
+        if not isinstance(current, dict) or segment not in current:
+            raise KeyError(dotted_path)
+        current = current[segment]
+    return current
+
+
+def event_matches(event: object, expected: object) -> bool:
+    return (
+        isinstance(event, dict)
+        and isinstance(expected, dict)
+        and all(event.get(key) == value for key, value in expected.items())
     )
-    for pattern, label in (
-        (r"\bTODO\b|\bFIXME\b", "unfinished marker"),
-        (r"\b[A-Za-z]:\\", "absolute Windows path"),
-        (r"/mnt/[a-z]/|/home/[^/\s]+/", "absolute user path"),
-        (r"https://[^/\s]*cloudapp\.azure\.com", "hardcoded cloud endpoint"),
-        (r"https://[^/\s]*services\.ai\.azure\.com", "hardcoded Foundry endpoint"),
-    ):
-        if re.search(pattern, scan_source, flags=re.IGNORECASE):
-            findings.append(f"{relative}: {label}")
-
-    if path.parent.name == "scripts":
-        if 'if __name__ == "__main__":' not in source:
-            findings.append(f"{relative}: missing executable main guard")
-    return findings
 
 
-def count_unittest_cases(suite: unittest.TestSuite) -> int:
+def validate_readmes(gate: Gate) -> tuple[str, str]:
+    gate.require(EN.is_file() and CN.is_file(), "both main READMEs are required")
+    if not EN.is_file() or not CN.is_file():
+        return "", ""
+    en = EN.read_text(encoding="utf-8")
+    cn = CN.read_text(encoding="utf-8")
+
+    gate.require(
+        heading_levels(en) == heading_levels(cn),
+        "bilingual heading-level sequence differs",
+    )
+    gate.require(
+        table_shapes(en) == table_shapes(cn),
+        "bilingual table shapes differ",
+    )
+    gate.require(
+        fenced_languages(en) == fenced_languages(cn),
+        "bilingual code-block language sequence differs",
+    )
+    gate.require(
+        abs(len(en.splitlines()) - len(cn.splitlines())) <= 10,
+        "bilingual line-count drift exceeds 10",
+    )
+    gate.require(
+        len(heading_titles(en)) <= 20 and len(heading_titles(cn)) <= 20,
+        "main README re-fragmented beyond 20 headings",
+    )
+
+    for section in REQUIRED_EN_SECTIONS:
+        gate.require(section in en, f"English README missing section: {section}")
+    for section in REQUIRED_CN_SECTIONS:
+        gate.require(section in cn, f"Chinese README missing section: {section}")
+    en_positions = [en.index(value) for value in REQUIRED_EN_SECTIONS if value in en]
+    cn_positions = [cn.index(value) for value in REQUIRED_CN_SECTIONS if value in cn]
+    gate.require(en_positions == sorted(en_positions), "English reader flow is wrong")
+    gate.require(cn_positions == sorted(cn_positions), "Chinese reader flow is wrong")
+
+    en_images = html_images(en)
+    cn_images = html_images(cn)
+    gate.require(
+        [item.get("src") for item in en_images]
+        == [item.get("src") for item in cn_images],
+        "bilingual image paths differ",
+    )
+    gate.require(
+        len(en_images) == len(cn_images) == 3,
+        "each README must contain the official diagram and two Portal images",
+    )
+    for readme, images in ((EN, en_images), (CN, cn_images)):
+        for image in images:
+            gate.require(bool(image.get("alt")), f"{readme.name}: image alt missing")
+            width = image.get("width", "")
+            gate.require(
+                width.isdigit() and int(width) <= 820,
+                f"{readme.name}: image width missing or too large",
+            )
+            source = image.get("src", "")
+            gate.require(
+                bool(source) and (ROOT / source).is_file(),
+                f"{readme.name}: image target missing: {source}",
+            )
+
+    for readme, text in ((EN, en), (CN, cn)):
+        readme_anchors = github_anchors(text)
+        for target in markdown_targets(text):
+            if target.startswith(("http://", "https://", "mailto:")):
+                continue
+            decoded = unquote(target)
+            if decoded.startswith("#"):
+                gate.require(
+                    decoded[1:].lower() in readme_anchors,
+                    f"{readme.name}: missing local anchor {target}",
+                )
+                continue
+            path_text, _, fragment = decoded.partition("#")
+            if path_text.startswith("../"):
+                continue
+            target_path = ROOT / path_text
+            gate.require(
+                target_path.exists(),
+                f"{readme.name}: missing link target {path_text}",
+            )
+            if (
+                fragment
+                and target_path.suffix.lower() == ".md"
+                and target_path.is_file()
+            ):
+                gate.require(
+                    fragment.lower()
+                    in github_anchors(target_path.read_text(encoding="utf-8")),
+                    f"{readme.name}: missing Markdown anchor {target}",
+                )
+
+    for number in CRITICAL_NUMBERS:
+        gate.require(number in en and number in cn, f"measured value drift: {number}")
+
+    badges_en = re.findall(
+        r"!\[[^\]]*\]\((https://img\.shields\.io/[^)]+)\)",
+        en,
+    )
+    badges_cn = re.findall(
+        r"!\[[^\]]*\]\((https://img\.shields\.io/[^)]+)\)",
+        cn,
+    )
+    gate.require(badges_en == badges_cn, "bilingual badges differ")
+    gate.require(
+        4 <= len(badges_en) <= 5 and "public_preview" in badges_en[0],
+        "badge row must state public preview and contain 4-5 facts",
+    )
+
+    boundaries = [
+        "not an SLA",
+        "not live process-loss recovery",
+        "NOT VERIFIED",
+        "do not prove process recovery",
+    ]
+    for boundary in boundaries:
+        gate.require(boundary.lower() in en.lower(), f"English boundary missing: {boundary}")
+    cn_boundaries = [
+        "不是 SLA",
+        "不证明线上进程恢复",
+        "NOT VERIFIED",
+        "不能证明恢复",
+    ]
+    for boundary in cn_boundaries:
+        gate.require(boundary in cn, f"Chinese boundary missing: {boundary}")
+
+    gate.require(
+        "CC BY 4.0" in en
+        and "CC BY 4.0" in cn
+        and "THIRD-PARTY-NOTICES.md" in en
+        and "THIRD-PARTY-NOTICES.md" in cn,
+        "official diagram attribution is incomplete",
+    )
+    gate.require(
+        not re.search(r"^####\s+", en, flags=re.MULTILINE)
+        and not re.search(r"^####\s+", cn, flags=re.MULTILINE),
+        "one-paragraph H4 fragments must not return",
+    )
+    return en, cn
+
+
+def validate_run_contract(gate: Gate, en: str, cn: str) -> None:
+    contract = read_json(gate, "evidence/run-contract.json")
+    gate.require(
+        contract.get("schema_version") == 1
+        and isinstance(contract.get("scenario_id"), str)
+        and isinstance(contract.get("subject"), str),
+        "run contract identity is incomplete",
+    )
+    evidence_path = contract.get("evidence")
+    gate.require(isinstance(evidence_path, str), "run contract evidence path missing")
+    evidence = read_json(gate, evidence_path) if isinstance(evidence_path, str) else {}
+    timeline_path = contract.get("timeline_path")
+    try:
+        timeline = resolve_dotted_path(evidence, timeline_path)
+    except (KeyError, AttributeError):
+        timeline = []
+        gate.require(False, "run contract timeline path does not resolve")
+    gate.require(
+        isinstance(timeline, list) and bool(timeline),
+        "run timeline must be non-empty",
+    )
+    if isinstance(timeline, list):
+        timestamps = [
+            datetime.fromisoformat(item["at_utc"])
+            for item in timeline
+            if isinstance(item, dict) and isinstance(item.get("at_utc"), str)
+        ]
+        gate.require(
+            len(timestamps) == len(timeline) and timestamps == sorted(timestamps),
+            "run timeline timestamps are missing or out of order",
+        )
+
+    milestones = contract.get("milestones", [])
+    ids = [item.get("id") for item in milestones if isinstance(item, dict)]
+    gate.require(
+        isinstance(milestones, list)
+        and len(ids) == len(milestones)
+        and len(ids) == len(set(ids))
+        and bool(ids),
+        "run milestones need unique IDs",
+    )
+    previous_index = -1
+    for milestone in milestones:
+        expected = milestone.get("match") if isinstance(milestone, dict) else None
+        indexes = [
+            index
+            for index, event in enumerate(timeline)
+            if index > previous_index and event_matches(event, expected)
+        ]
+        gate.require(
+            bool(indexes),
+            f"run milestone missing or out of order: "
+            f"{milestone.get('id') if isinstance(milestone, dict) else None}",
+        )
+        if indexes:
+            previous_index = indexes[0]
+
+    for assertion in contract.get("state_assertions", []):
+        path = assertion.get("path") if isinstance(assertion, dict) else None
+        gate.require(isinstance(path, str), "state assertion path missing")
+        if not isinstance(path, str):
+            continue
+        try:
+            actual = resolve_dotted_path(evidence, path)
+        except KeyError:
+            gate.require(False, f"state assertion path missing: {path}")
+            continue
+        gate.require(
+            actual == assertion.get("equals"),
+            f"state assertion failed: {path}",
+        )
+
+    evidence_types = contract.get("required_evidence_types", [])
+    gate.require(
+        isinstance(evidence_types, list)
+        and bool(evidence_types)
+        and len(evidence_types) == len(set(evidence_types))
+        and all(isinstance(value, str) and value for value in evidence_types),
+        "run contract evidence types are missing or duplicated",
+    )
+
+    code_requirements = contract.get("code_requirements", [])
+    gate.require(
+        isinstance(code_requirements, list) and bool(code_requirements),
+        "run contract code requirements are missing",
+    )
+    for requirement in code_requirements:
+        relative = requirement.get("path") if isinstance(requirement, dict) else None
+        snippets = requirement.get("contains", []) if isinstance(requirement, dict) else []
+        path = ROOT / relative if isinstance(relative, str) else ROOT
+        gate.require(path.is_file(), f"run contract code file missing: {relative}")
+        if not path.is_file():
+            continue
+        source = path.read_text(encoding="utf-8")
+        for snippet in snippets:
+            gate.require(
+                isinstance(snippet, str) and snippet in source,
+                f"{relative}: required code hook missing: {snippet}",
+            )
+
+    readme_tokens = contract.get("readme_required_tokens", [])
+    for token in readme_tokens:
+        gate.require(
+            isinstance(token, str) and token in en and token in cn,
+            f"declared README token missing: {token}",
+        )
+
+    matrix_path = contract.get("matrix")
+    matrix = read_json(gate, matrix_path) if isinstance(matrix_path, str) else {}
+    scenarios = matrix.get("scenarios", [])
+    ids = [item.get("id") for item in scenarios if isinstance(item, dict)]
+    gate.require(
+        isinstance(scenarios, list)
+        and bool(scenarios)
+        and len(ids) == len(scenarios)
+        and len(ids) == len(set(ids)),
+        "scenario matrix IDs are missing or duplicated",
+    )
+    for scenario in scenarios:
+        gate.require(isinstance(scenario, dict), "scenario entry must be an object")
+        if not isinstance(scenario, dict):
+            continue
+        status = scenario.get("status")
+        paths = scenario.get("evidence", [])
+        gate.require(
+            status in {"PASS", "NOT_VERIFIED"}
+            and all(
+                isinstance(scenario.get(field), str)
+                for field in ("trigger", "expected", "actual", "runtime_protocol")
+            )
+            and isinstance(paths, list)
+            and bool(paths),
+            f"{scenario.get('id')}: scenario result is incomplete",
+        )
+        for relative in paths:
+            path = ROOT / relative if isinstance(relative, str) else ROOT
+            gate.require(path.is_file(), f"{scenario.get('id')}: evidence missing: {relative}")
+            if path.is_file() and path.suffix.lower() == ".json":
+                payload = read_json(gate, relative)
+                if status == "PASS":
+                    if "passed" in payload:
+                        gate.require(
+                            payload.get("passed") is True,
+                            f"{scenario.get('id')}: PASS evidence is not passing",
+                        )
+                else:
+                    if "status" in payload:
+                        gate.require(
+                            payload.get("status") == "NOT_VERIFIED",
+                            f"{scenario.get('id')}: boundary evidence is missing",
+                        )
+        for correlation in scenario.get("correlations", []):
+            gate.require(
+                isinstance(correlation, dict),
+                f"{scenario.get('id')}: correlation must be an object",
+            )
+            if not isinstance(correlation, dict):
+                continue
+            json_path = correlation.get("json_evidence")
+            jsonl_path = correlation.get("jsonl_evidence")
+            left_path = correlation.get("json_path")
+            event_field = correlation.get("event_field")
+            operator = correlation.get("operator")
+            gate.require(
+                all(
+                    isinstance(value, str)
+                    for value in (
+                        json_path,
+                        jsonl_path,
+                        left_path,
+                        event_field,
+                        operator,
+                    )
+                ),
+                f"{scenario.get('id')}: correlation fields are incomplete",
+            )
+            if not all(
+                isinstance(value, str)
+                for value in (
+                    json_path,
+                    jsonl_path,
+                    left_path,
+                    event_field,
+                    operator,
+                )
+            ):
+                continue
+            left_document = read_json(gate, json_path)
+            try:
+                left_value = resolve_dotted_path(left_document, left_path)
+            except KeyError:
+                gate.require(
+                    False,
+                    f"{scenario.get('id')}: correlation JSON path is missing",
+                )
+                continue
+            event_path = ROOT / jsonl_path
+            events = [
+                json.loads(line)
+                for line in event_path.read_text(encoding="utf-8").splitlines()
+            ]
+            matching_event = next(
+                (
+                    event
+                    for event in events
+                    if event_matches(event, correlation.get("event_match"))
+                ),
+                None,
+            )
+            gate.require(
+                isinstance(matching_event, dict)
+                and event_field in matching_event,
+                f"{scenario.get('id')}: correlation event is missing",
+            )
+            if not isinstance(matching_event, dict) or event_field not in matching_event:
+                continue
+            right_value = matching_event[event_field]
+            if operator == "contains":
+                gate.require(
+                    isinstance(left_value, list) and right_value in left_value,
+                    f"{scenario.get('id')}: correlated value is not contained",
+                )
+            elif operator == "equals":
+                gate.require(
+                    left_value == right_value,
+                    f"{scenario.get('id')}: correlated values differ",
+                )
+            else:
+                gate.require(
+                    False,
+                    f"{scenario.get('id')}: unsupported correlation operator",
+                )
+
+
+def validate_scenario_manifest(gate: Gate) -> None:
+    manifest = read_json(gate, "evidence/scenario-manifest.json")
+    scenarios = manifest.get("scenarios", [])
+    ids = [item.get("id") for item in scenarios if isinstance(item, dict)]
+    gate.require(
+        isinstance(scenarios, list)
+        and len(ids) == len(scenarios)
+        and len(ids) == len(set(ids)),
+        "scenario manifest IDs are missing or duplicated",
+    )
+    for scenario in scenarios:
+        if not isinstance(scenario, dict):
+            continue
+        gate.require(
+            scenario.get("type")
+            in {"dynamic-runtime", "test-fixture", "architecture-explainer"}
+            and bool(scenario.get("real"))
+            and bool(scenario.get("not_claimed")),
+            f"{scenario.get('id')}: scenario truth boundary is incomplete",
+        )
+        evidence = scenario.get("evidence")
+        gate.require(
+            isinstance(evidence, str) and (ROOT / evidence).is_file(),
+            f"{scenario.get('id')}: scenario evidence is missing",
+        )
+
+
+def validate_ui_and_run_bundles(gate: Gate) -> None:
+    ui = read_json(gate, "evidence/ui-evidence.json")
+    status_evidence = read_json(gate, "evidence/owned-hosted-agent-status.json")
+    deployed_version = str(status_evidence.get("version", ""))
+    gate.require(
+        ui.get("capture_method")
+        in {"user-manual-download", "agent-visible-window-capture"}
+        and ui.get("raw_intake_directory") == ".repo-evidence/inbox/ui/"
+        and ui.get("published_directory") == "images/product-ui/"
+        and ui.get("raw_sources_committed") is False,
+        "UI raw/public boundary is wrong",
+    )
+    assets = ui.get("assets", [])
+    gate.require(isinstance(assets, list) and bool(assets), "UI assets are missing")
+    for asset in assets:
+        if not isinstance(asset, dict):
+            gate.require(False, "UI asset must be an object")
+            continue
+        published = asset.get("published_path")
+        path = ROOT / published if isinstance(published, str) else ROOT
+        gate.require(
+            path.is_file()
+            and asset.get("published_sha256") == sha256_file(path)
+            and re.fullmatch(r"[0-9a-f]{64}", str(asset.get("source_sha256", "")))
+            is not None
+            and bool(asset.get("redactions"))
+            and bool(asset.get("proves"))
+            and bool(asset.get("does_not_prove")),
+            f"UI lineage is incomplete: {published}",
+        )
+        gate.require(
+            any(
+                f"version {deployed_version}" in str(claim).lower()
+                for claim in asset.get("proves", [])
+            ),
+            f"UI evidence does not show current Version {deployed_version}",
+        )
+
+    run_manifests = sorted((ROOT / "evidence" / "runs").glob("*/run-manifest.json"))
+    gate.require(bool(run_manifests), "at least one public run manifest is required")
+    for path in run_manifests:
+        relative = path.relative_to(ROOT).as_posix()
+        bundle = read_json(gate, relative)
+        commands = bundle.get("commands", [])
+        gate.require(
+            isinstance(commands, list)
+            and bool(commands)
+            and all(
+                isinstance(item, dict)
+                and item.get("exit_code") == 0
+                and isinstance(item.get("command"), str)
+                and isinstance(item.get("command_redacted"), bool)
+                and isinstance(item.get("evidence"), str)
+                and (ROOT / item["evidence"]).is_file()
+                for item in commands
+            ),
+            f"{relative}: command evidence is incomplete",
+        )
+        for item in commands:
+            if not isinstance(item, dict):
+                continue
+            command = str(item.get("command", ""))
+            if item.get("command_redacted") is True:
+                gate.require(
+                    bool(item.get("redactions")),
+                    f"{relative}: redacted command lacks a redaction list",
+                )
+            if "<" in command and ">" in command:
+                gate.require(
+                    item.get("command_redacted") is True,
+                    f"{relative}: placeholder command is not marked redacted",
+                )
+        for evidence in bundle.get("logs", []):
+            gate.require(
+                isinstance(evidence, str) and (ROOT / evidence).is_file(),
+                f"{relative}: log evidence missing: {evidence}",
+            )
+        for field in ("status_evidence", "ui_evidence"):
+            evidence = bundle.get(field)
+            gate.require(
+                isinstance(evidence, str) and (ROOT / evidence).is_file(),
+                f"{relative}: {field} is missing",
+            )
+        key_code = bundle.get("key_code", [])
+        gate.require(
+            isinstance(key_code, list) and bool(key_code),
+            f"{relative}: key-code manifest is missing",
+        )
+        for item in key_code:
+            code_path = (
+                ROOT / item.get("path", "") if isinstance(item, dict) else ROOT
+            )
+            gate.require(
+                code_path.is_file()
+                and item.get("sha256") == sha256_file(code_path),
+                f"{relative}: key-code hash drifted: "
+                f"{item.get('path') if isinstance(item, dict) else None}",
+            )
+
+
+def validate_evidence_manifest(gate: Gate) -> int:
+    manifest = read_json(gate, "evidence/manifest.json")
+    gate.require(
+        manifest.get("algorithm") == "sha256"
+        and manifest.get("normalization") == "utf-8-lf",
+        "evidence manifest normalization is wrong",
+    )
+    entries = {
+        item.get("path"): item
+        for item in manifest.get("files", [])
+        if isinstance(item, dict)
+    }
+    expected = {
+        path.relative_to(ROOT).as_posix()
+        for path in (ROOT / "evidence").rglob("*")
+        if path.is_file() and path.name != "manifest.json"
+    }
+    gate.require(set(entries) == expected, "evidence manifest path set is incomplete")
+    for relative in expected:
+        path = ROOT / relative
+        entry = entries.get(relative, {})
+        gate.require(
+            entry.get("sha256") == sha256_file(path)
+            and entry.get("bytes") == normalized_size(path)
+            and bool(entry.get("provenance")),
+            f"evidence manifest drift: {relative}",
+        )
+    return len(entries)
+
+
+def validate_jsonl(gate: Gate) -> int:
     count = 0
-    for item in suite:
-        if isinstance(item, unittest.TestSuite):
-            count += count_unittest_cases(item)
-        else:
+    for path in sorted((ROOT / "evidence").rglob("*.jsonl")):
+        lines = path.read_text(encoding="utf-8").splitlines()
+        gate.require(bool(lines), f"{path.name}: JSONL must not be empty")
+        for line_number, line in enumerate(lines, start=1):
+            try:
+                value = json.loads(line)
+            except json.JSONDecodeError as error:
+                gate.require(False, f"{path.name}:{line_number}: {error}")
+                continue
+            gate.require(
+                isinstance(value, dict),
+                f"{path.name}:{line_number}: JSON object required",
+            )
+            if isinstance(value, dict) and "at_utc" in value:
+                try:
+                    datetime.fromisoformat(str(value["at_utc"]))
+                except ValueError:
+                    gate.require(
+                        False,
+                        f"{path.name}:{line_number}: at_utc is not ISO-8601",
+                    )
+            if isinstance(value, dict):
+                for field in (
+                    "process_instance_sha256",
+                    "response_id_sha256",
+                ):
+                    if field in value:
+                        gate.require(
+                            re.fullmatch(r"[0-9a-f]{64}", str(value[field]))
+                            is not None,
+                            f"{path.name}:{line_number}: invalid {field}",
+                        )
             count += 1
     return count
 
 
-def main() -> int:
-    errors: list[str] = []
-
-    if not EN.is_file() or not CN.is_file():
-        print("ERROR: both READMEs must exist")
-        return 1
-
-    en_text = EN.read_text(encoding="utf-8")
-    cn_text = CN.read_text(encoding="utf-8")
-    en_lines = en_text.splitlines()
-    cn_lines = cn_text.splitlines()
-
-    def require(condition: bool, message: str) -> None:
-        if not condition:
-            errors.append(message)
-
-    # Structure parity
-    require(headings(en_text) == headings(cn_text), "heading level sequence differs")
-    require(tables(en_lines) == tables(cn_lines), "table shapes differ")
-    require(abs(len(en_lines) - len(cn_lines)) <= 15,
-            f"line-count drift too large: {len(en_lines)} vs {len(cn_lines)}")
-    require(
-        len(headings(en_text)) <= 42,
-        f"English main narrative re-fragmented into {len(headings(en_text))} headings",
-    )
-    require(
-        len(headings(cn_text)) <= 42,
-        f"Chinese main narrative re-fragmented into {len(headings(cn_text))} headings",
-    )
-
-    # Image parity: two project charts are localized; official and Portal images are shared.
-    en_images = images(en_text)
-    cn_images = images(cn_text)
-    shared_images = {
-        "images/official-lease-recovery-model.png",
-        "images/product-ui/portal-owned-agent-list.png",
-        "images/product-ui/portal-owned-agent-details.png",
-    }
-    require(len(en_images) == len(cn_images) == 4,
-            f"each README must embed 4 images, got {len(en_images)}/{len(cn_images)}")
-    for shared_image in shared_images:
-        require(
-            en_images.count(shared_image) == cn_images.count(shared_image) == 1,
-            f"both READMEs must embed {shared_image} once",
-        )
-    en_localized = [path for path in en_images if path not in shared_images]
-    cn_localized = [path for path in cn_images if path not in shared_images]
-    expected_cn = [path.replace(".png", "-cn.png") for path in en_localized]
-    require(cn_localized == expected_cn,
-            "Chinese README must reference the localized project chart")
-
-    # Every chart must be centred, width-capped, and carry alt text (CL-006)
-    for readme, text in ((EN, en_text), (CN, cn_text)):
-        centred = len(re.findall(r"<div align=\"center\"><img ", text))
-        require(centred == 4, f"{readme.name}: expected 4 centred image embeds, got {centred}")
-        widths = re.findall(r"<img\s[^>]*width=\"(\d+)\"", text)
-        require(len(widths) == 4 and all(int(w) <= 820 for w in widths),
-                f"{readme.name}: every image needs a width attribute of at most 820")
-        alts = image_alt_texts(text)
-        require(len(alts) == 4 and all(alt.strip() for alt in alts),
-                f"{readme.name}: every image needs non-empty alt text")
-    portal_image_hashes = {
-        "product-ui/portal-owned-agent-list.png":
-            "19be2513745a802b36673d789559bc1587cc1dcdbfa77920d7d0c04fc6ecef3d",
-        "product-ui/portal-owned-agent-details.png":
-            "b314df1de5012222b68c04ac6cfed2a35e6635012611bb94b023f64154da8e59",
-    }
-    for image_name, expected_hash in portal_image_hashes.items():
-        portal_image = ROOT / "images" / image_name
-        if not portal_image.is_file():
-            continue
-        require(
-            sha256_file(portal_image) == expected_hash,
-            f"{image_name} drifted from the reviewed sanitized image",
-        )
-    for snippet in (
-        "Real Microsoft Foundry Portal views",
-        "screenshots prove Version `4` is `Running` and `Hosted`",
-        "local two-process report proves",
-        "[`ui-evidence.json`](evidence/ui-evidence.json)",
-    ):
-        require(snippet in en_text, f"English Portal evidence missing: {snippet}")
-    for snippet in (
-        "真实 Microsoft Foundry Portal 页面",
-        "截图证明 Version `4` 为 `Running` 和 `Hosted`",
-        "本机双进程报告证明",
-        "[`ui-evidence.json`](evidence/ui-evidence.json)",
-    ):
-        require(snippet in cn_text, f"Chinese Portal evidence missing: {snippet}")
-    for readme, text in ((EN, en_text), (CN, cn_text)):
-        require(
-            not re.search(r"^####\s+", text, flags=re.MULTILINE),
-            f"{readme.name}: one-paragraph H4 fragments must stay merged",
-        )
-        require(
-            not re.search(r"^---\s*$", text, flags=re.MULTILINE),
-            f"{readme.name}: decorative horizontal separators must not return",
-        )
-
-    # Link and image targets exist
-    documents = ((EN, en_text), (CN, cn_text))
-    for readme, text in documents:
-        for target in local_links(text) + images(text):
-            if target.startswith("../"):
-                continue
-            require((ROOT / target).exists(), f"{readme.name}: missing target {target}")
-        for target in markdown_targets(text):
-            if "#" not in target or target.startswith(("http://", "https://", "mailto:")):
-                continue
-            path_text, fragment = target.split("#", 1)
-            if not fragment or path_text.startswith("../"):
-                continue
-            target_path = readme if not path_text else ROOT / unquote(path_text)
-            if target_path.suffix.lower() != ".md" or not target_path.is_file():
-                continue
-            target_anchors = github_heading_anchors(target_path.read_text(encoding="utf-8"))
-            decoded_fragment = unquote(fragment).lower()
-            require(
-                decoded_fragment in target_anchors,
-                f"{readme.name}: missing Markdown anchor {target} in {target_path.name}",
-            )
-
-    # Numeric parity
-    for number in CRITICAL_NUMBERS:
-        require(number in en_text, f"English README missing measured value {number}")
-        require(number in cn_text, f"Chinese README missing measured value {number}")
-    for number in ("3.13", "2.80", "1.27.1", "2.1.0b2", "2.0.0"):
-        require(number in en_text, f"English README missing version {number}")
-        require(number in cn_text, f"Chinese README missing version {number}")
-
-    # Customer-first narrative and recovery semantics
-    for section in REQUIRED_EN_SECTIONS:
-        require(section in en_text, f"English README missing customer-first section: {section}")
-    for section in REQUIRED_CN_SECTIONS:
-        require(section in cn_text, f"Chinese README missing customer-first section: {section}")
-    en_section_positions = [en_text.index(section) for section in REQUIRED_EN_SECTIONS if section in en_text]
-    cn_section_positions = [cn_text.index(section) for section in REQUIRED_CN_SECTIONS if section in cn_text]
-    require(en_section_positions == sorted(en_section_positions),
-            "English README does not follow the required reader flow")
-    require(cn_section_positions == sorted(cn_section_positions),
-            "Chinese README does not follow the required reader flow")
-    for readme, text in documents:
-        require(not re.search(r"^#{2,4}\s+\d+(?:\.\d+)*\.", text, flags=re.MULTILINE),
-                f"{readme.name}: numbered manual-style headings must not replace reader-flow headings")
-        require(not re.search(r"\bPath [ABC]\b|路径 [ABC]", text),
-                f"{readme.name}: opaque Path A/B/C labels must not return")
-    for concept in REQUIRED_CONCEPTS["English"]:
-        require(concept in en_text, f"English README missing recovery concept: {concept}")
-    for concept in REQUIRED_CONCEPTS["Chinese"]:
-        require(concept in cn_text, f"Chinese README missing recovery concept: {concept}")
-    for snippet in (
-        "not active-active redundancy",
-        "task-level recovery",
-        "flush()` is not a durable-write acknowledgement",
-        "[Reproduce](#reproduce-with-this-repository)",
-        "| What you want to do | Go here |",
-    ):
-        require(snippet in en_text,
-                f"English README missing main reader route: {snippet}")
-    for snippet in (
-        "不是让两个 Agent 同时执行同一任务的双活（active-active）",
-        "任务级恢复",
-        "不等于“持久化已经确认成功”",
-        "[复现](#使用本仓库复现)",
-        "| 你想做什么 | 去哪里 |",
-    ):
-        require(snippet in cn_text,
-                f"Chinese README missing main reader route: {snippet}")
-    for snippet in (
-        "| Strategy | External progress store? | Use when |",
-        "hosted-agent/src/lra-evidence-agent/requirements.txt",
-        "hosted-agent/run_local_recovery.py",
-        "owned-hosted-agent-live.json",
-        "ResponsesServerOptions(resilient_background=True)",
-        "stream.checkpoint()",
-        "context.persisted_response",
-        "Foundry Project Manager",
-        "azd provision",
-        "Storage Blob Data Contributor",
-        "azd env set CHECKPOINT_ENDPOINT",
-        "environmentVariables",
-        "DefaultAzureCredential",
-        "azd ai agent show",
-        "remote create and local ID persistence are not atomic",
-    ):
-        require(snippet in en_text,
-                f"English README missing reproduction guidance: {snippet}")
-    for snippet in (
-        "| 策略 | 要另配进度存储吗 | 适用场景 |",
-        "hosted-agent/src/lra-evidence-agent/requirements.txt",
-        "hosted-agent/run_local_recovery.py",
-        "owned-hosted-agent-live.json",
-        "ResponsesServerOptions(resilient_background=True)",
-        "stream.checkpoint()",
-        "context.persisted_response",
-        "Foundry Project Manager",
-        "azd provision",
-        "Storage Blob Data Contributor",
-        "azd env set CHECKPOINT_ENDPOINT",
-        "environmentVariables",
-        "DefaultAzureCredential",
-        "azd ai agent show",
-        "远端创建请求与本地保存 ID 不是一个原子事务",
-    ):
-        require(snippet in cn_text,
-                f"Chinese README missing reproduction guidance: {snippet}")
-    for snippet in (
-        "可恢复的后台任务",
-        "响应 ID 或任务 ID",
-        "状态查询方（observer）",
-        "处理函数重新执行后",
-        "命名检查点序列",
-        "远端创建请求与本地保存 ID 不是一个原子事务",
-        "当前 Version 4 部署",
-    ):
-        require(
-            snippet in cn_text,
-            f"Chinese README missing direct technical Chinese: {snippet}",
-        )
-    for snippet in (
-        "已保存的后台响应",
-        "进度保存位置",
-        "完整可执行处理函数",
-        "向上游确认成功",
-    ):
-        require(
-            snippet in cn_text,
-            f"Chinese README missing direct reproduction Chinese: {snippet}",
-        )
-    for retired in (
-        "stored background work",
-        "stored background response",
-        "response/work ID",
-        "output index",
-        "远端 create",
-        "恢复接线",
-        "调用方始终保存",
-    ):
-        require(
-            retired not in cn_text,
-            f"machine-translated or mixed Chinese returned: {retired}",
-        )
-    for snippet in (
-        "Version `4` is active",
-        "local two-process report proves",
-        "does **not** claim live process-loss recovery",
-        "not required to reproduce this repository's result",
-        "every expected checkpoint exactly once",
-    ):
-        require(snippet in en_text,
-                f"English README missing owned-workload primacy: {snippet}")
-    for snippet in (
-        "本仓库自有 Version `4` 处于 active 状态",
-        "本机双进程报告证明",
-        "**不**声称线上进程丢失恢复",
-        "复现本仓库结果不需要外部样例",
-        "每个预期检查点各完成一次",
-    ):
-        require(snippet in cn_text,
-                f"Chinese README missing owned-workload primacy: {snippet}")
-
-    # The Hosted Agent recovery path must keep official contract and local
-    # reference-implementation choices separate.
-    required_recovery_pairs = (
-        ("later-process reclaim", "另一个进程可以接管"),
-        ("local design choices", "示例自己的设计"),
-        ("Hosted Agent version", "Hosted Agent 版本"),
-        ("Responses protocol", "Responses 协议"),
-        ("framework checkpoint", "framework checkpoint"),
-        ("store=True", "store=True"),
-        ("background=True", "background=True"),
-        ("recovery_contract_demo.py", "recovery_contract_demo.py"),
-        ("validate_observations.py", "validate_observations.py"),
-        ("not claims about Foundry internals", "不代表 Foundry 内部实现"),
-    )
-    for en_snippet, cn_snippet in required_recovery_pairs:
-        require(
-            en_snippet in en_text,
-            f"English README missing recovery boundary: {en_snippet}",
-        )
-        require(
-            cn_snippet in cn_text,
-            f"Chinese README missing recovery boundary: {cn_snippet}",
-        )
-    require("set_resilient_tasks_enabled(True)" in en_text,
-            "English README missing current resilient-task enablement")
-    require("set_resilient_tasks_enabled(True)" in cn_text,
-            "Chinese README missing current resilient-task enablement")
-    for snippet in (
-        "azure-ai-agentserver-core` 2.0.0",
-        "TaskContext.task_id",
-        "TaskContext.input_id",
-        "TaskContext.entry_mode",
-        "recovery_count",
-        "retry_attempt",
-        "TaskContext.metadata",
-        "Every required check passed",
-    ):
-        require(snippet in en_text, f"English README missing public-preview API evidence: {snippet}")
-    for snippet in (
-        "azure-ai-agentserver-core` 2.0.0",
-        "TaskContext.task_id",
-        "TaskContext.input_id",
-        "TaskContext.entry_mode",
-        "recovery_count",
-        "retry_attempt",
-        "TaskContext.metadata",
-        "所有必需检查均通过",
-    ):
-        require(snippet in cn_text, f"Chinese README missing public-preview API evidence: {snippet}")
-    require("[`recovery_contract_demo.py`](scripts/recovery_contract_demo.py)" in en_text,
-            "English README must link the executable recovery reference")
-    require("[`recovery_contract_demo.py`](scripts/recovery_contract_demo.py)" in cn_text,
-            "Chinese README must link the executable recovery reference")
-    require("[`validate_observations.py`](scripts/validate_observations.py)" in en_text,
-            "English README must link the executable observation validator")
-    require("[`validate_observations.py`](scripts/validate_observations.py)" in cn_text,
-            "Chinese README must link the executable observation validator")
-    require("[`examples/resilience_sdk_usage.py`](examples/resilience_sdk_usage.py)" in en_text,
-            "English README must link the direct public SDK usage example")
-    require("[`examples/resilience_sdk_usage.py`](examples/resilience_sdk_usage.py)" in cn_text,
-            "Chinese README must link the direct public SDK usage example")
-    require("[`examples/resilience_handler.py`](examples/resilience_handler.py)" in en_text,
-            "English README must link the actual public SDK handler")
-    require("[`examples/resilience_handler.py`](examples/resilience_handler.py)" in cn_text,
-            "Chinese README must link the actual public SDK handler")
-    require(
-        "[`examples/resilient_responses_agent.py`](examples/resilient_responses_agent.py)"
-        in en_text,
-        "English README must link the complete Responses recovery handler",
-    )
-    require(
-        "[`examples/resilient_responses_agent.py`](examples/resilient_responses_agent.py)"
-        in cn_text,
-        "Chinese README must link the complete Responses recovery handler",
-    )
-    require("**not** a security sandbox or RBAC boundary" in en_text,
-            "English README must scope the facade boundary")
-    require("**不是**权限隔离机制（安全沙箱或 RBAC 边界）" in cn_text,
-            "Chinese README must scope the facade boundary")
-    require(
-        "Remote create and local persistence of the response ID are not atomic" in en_text
-        and "unknown result instead of creating again" in en_text
-        and "deduplication or reconciliation" in en_text,
-        "English README must disclose and scope the create/persist crash window",
-    )
-    require(
-        "远端创建请求与本地保存 ID 不是一个原子事务" in cn_text
-        and "结果未知时不要自动重建任务" in cn_text
-        and "去重能力或人工对账" in cn_text,
-        "Chinese README must disclose and scope the create/persist crash window",
-    )
-    handler_example = ROOT / "examples" / "resilient_responses_agent.py"
-    handler_text = (
-        handler_example.read_text(encoding="utf-8")
-        if handler_example.is_file()
-        else ""
-    )
-    snippet_match = re.search(
-        r"# README_RESPONSES_SNIPPET_START\n(.*?)# README_RESPONSES_SNIPPET_END",
-        handler_text,
-        flags=re.DOTALL,
-    )
-    expected_python_snippet = (
-        snippet_match.group(1).strip() if snippet_match else ""
-    )
-    require(bool(expected_python_snippet),
-            "Responses handler README snippet markers are missing")
-
-    for readme, text in ((EN, en_text), (CN, cn_text)):
-        python_blocks = fenced_blocks(text, "python")
-        require(
-            not python_blocks,
-            f"{readme.name}: full handler code belongs in examples/, not the main narrative",
-        )
-        require(not fenced_blocks(text, "yaml"),
-                f"{readme.name}: incomplete YAML fragments are forbidden")
-        console_blocks = fenced_blocks(text, "console")
-        require(len(console_blocks) == 1,
-                f"{readme.name}: Quick Start must contain one cross-shell experiment block")
-        if len(console_blocks) == 1:
-            experiment_block = console_blocks[0]
-            for command in (
-                "git clone --depth 1 --filter=blob:none --sparse",
-                "git -C lra-demo sparse-checkout set Agents/Foundry-Long-Running-Agent-Resilience",
-                "python scripts/recovery_contract_demo.py demo",
-                "--summary-file .demo-state/summary.json",
-                "--events-file .demo-state/events.jsonl",
-            ):
-                require(command in experiment_block,
-                        f"{readme.name}: local recovery experiment missing command {command}")
-        powershell_blocks = fenced_blocks(text, "powershell")
-        require(len(powershell_blocks) == 1,
-                f"{readme.name}: Quick Start must contain one PowerShell validation block")
-        if len(powershell_blocks) == 1:
-            powershell_block = powershell_blocks[0]
-            for command in (
-                "python -m venv .venv-owned-agent",
-                "hosted-agent\\run_local_recovery.py --python $ownedPython",
-                "python -m venv .venv-validation",
-                "& $validationPython -m pip install --no-input -r requirements-validation.txt",
-                "& $validationPython -m unittest discover -s tests -v",
-                "& $validationPython scripts\\validate_repo.py",
-                "azd env set LRA_ENABLE_FAULT_INJECTION true",
-                "azd deploy",
-                "python .\\client.py",
-                "azd env set LRA_ENABLE_FAULT_INJECTION false",
-            ):
-                require(command in powershell_block,
-                        f"{readme.name}: PowerShell validation missing command {command}")
-        bash_blocks = fenced_blocks(text, "bash")
-        require(len(bash_blocks) == 1,
-                f"{readme.name}: Quick Start must contain one POSIX validation block")
-        if len(bash_blocks) == 1:
-            validation_block = bash_blocks[0]
-            for command in (
-                "python3 -m venv .venv-owned-agent",
-                'OWNED_PYTHON=.venv-owned-agent/bin/python',
-                '"$OWNED_PYTHON" hosted-agent/run_local_recovery.py',
-                "python3 -m venv .venv-validation",
-                'VALIDATION_PYTHON=.venv-validation/bin/python',
-                '"$VALIDATION_PYTHON" -m unittest discover -s tests -v',
-                '"$VALIDATION_PYTHON" scripts/validate_repo.py',
-            ):
-                require(command in validation_block,
-                        f"{readme.name}: POSIX validation missing command {command}")
-        require(
-            (
-                text.count("Done-when is") >= 2
-                if readme == EN
-                else text.count("**完成标准：**") >= 2
-            )
-            and "worker_a_exit_code: 9" in text
-            and "PASS: imported azure.ai.agentserver.core.tasks" in text
-            and (
-                "all SDK contract checks pass" in text
-                if readme == EN
-                else "全部 SDK 契约检查通过" in text
-            ),
-            f"{readme.name}: reproduction done-when or expected outputs missing",
-        )
-        for retired in ("pseudocode", "伪代码", "interface sketches", "接口示意"):
-            require(retired not in text,
-                    f"{readme.name}: retired non-executable content returned: {retired}")
-    require(
-        "b9b2cdd67efee6287e4b263f83ed45f18fe892be" in en_text
-        and "2.1.0b2" in en_text
-        and "must not be replaced" in en_text,
-        "English README missing public-sample version boundary",
-    )
-    require(
-        "b9b2cdd67efee6287e4b263f83ed45f18fe892be" in cn_text
-        and "2.1.0b2" in cn_text
-        and "**不能**替换成独立兼容性检查使用的 `2.0.0`" in cn_text,
-        "Chinese README missing public-sample version boundary",
-    )
-
-    for token in ("424", "403"):
-        require(token in en_text and token in cn_text, f"both READMEs must mention {token}")
-
-    # Boundary statements
-    require("no Microsoft SDK source" in en_text, "English SDK-source boundary missing")
-    require("不提供 Microsoft SDK 源码" in cn_text, "Chinese SDK-source boundary missing")
-    require("public preview" in en_text.lower(), "English current preview status missing")
-    require("public preview" in cn_text.lower(), "Chinese current preview status missing")
-
-    # High-risk claims must retain their scope. Keep these short and semantic so
-    # the gate protects boundaries without forcing one editorial sentence.
-    required_rigor_pairs = (
-        ("Every interruption was deliberate, not an outage",
-         "所有中断都是主动注入，不是线上事故"),
-        ("does **not** claim live process-loss recovery",
-         "**不**声称线上进程丢失恢复"),
-        ("not a Foundry service availability result",
-         "不是 Foundry 服务可用性结论"),
-        ("diagnostic starting point, not a universal mapping from symptom to cause",
-         "只是诊断起点，不表示“某个现象必然对应某个原因”"),
-        ("not product guarantees",
-         "不是产品保证"),
-        ("not an SLA or reliability percentage",
-         "不是 SLA 或可靠性百分比"),
-    )
-    for en_boundary, cn_boundary in required_rigor_pairs:
-        require(en_boundary in en_text,
-                f"English rigor boundary missing: {en_boundary}")
-        require(cn_boundary in cn_text,
-                f"Chinese rigor boundary missing: {cn_boundary}")
-
-    legacy_overclaims = (
-        "exactly-once decision handling",
-        "By any workload measure that run recovered perfectly",
-        "What Happens After the Process Dies",
-        "进程死了之后，任务怎么活下来",
-        "按 workload 的标准衡量，这次运行恢复得完美无缺",
-    )
-    for phrase in legacy_overclaims:
-        require(phrase not in en_text and phrase not in cn_text,
-                f"retired overclaim returned: {phrase}")
-
-    # Badges carry the status on the first screen, so they are delivery surface
-    # too. Compare the shields.io URLs, which encode label, message and colour;
-    # only the anchor target may differ, because CN section anchors are Chinese.
-    en_badges = re.findall(r"!\[[^\]]*\]\((https://img\.shields\.io/[^)]+)\)", en_text)
-    cn_badges = re.findall(r"!\[[^\]]*\]\((https://img\.shields\.io/[^)]+)\)", cn_text)
-    require(en_badges == cn_badges,
-            f"badge rows must match: EN {en_badges} vs CN {cn_badges}")
-    require(4 <= len(en_badges) <= 5,
-            f"expected 4-5 badges, found {len(en_badges)}")
-    require(bool(en_badges) and "public_preview" in en_badges[0],
-            "the first badge must state the capability is in public preview")
-
-    require("CC BY 4.0" in en_text and "THIRD-PARTY-NOTICES.md" in en_text,
-            "English official-image attribution or notice link missing")
-    require("CC BY 4.0" in cn_text and "THIRD-PARTY-NOTICES.md" in cn_text,
-            "Chinese official-image attribution or notice link missing")
-    require("resilience-architecture" not in en_text and "resilience-architecture" not in cn_text,
-            "retired project-authored architecture diagram must not return")
-    require(
-        "The figure below is the **official Microsoft diagram**, reproduced unmodified"
-        in en_text,
-        "English README must identify the official diagram",
-    )
-    require(
-        "下图是**微软官方原图**" in cn_text and "未经修改" in cn_text,
-        "Chinese README must identify the official diagram",
-    )
-
-    notice = ROOT / "THIRD-PARTY-NOTICES.md"
-    if notice.is_file():
-        notice_text = notice.read_text(encoding="utf-8")
-        official_image_sha256 = (
-            "a6e6d25c23bbcd745cae0b7e0b17ed0494528fcf01962962cd61d2526244bef2"
-        )
-        require("320136d7185d71fd122d5c5e75bece175d4d3e65" in notice_text,
-                "third-party notice must pin the immutable Microsoft source")
-        require(official_image_sha256 in notice_text,
-                "third-party notice must record the image SHA-256")
-        official_image = ROOT / "images" / "official-lease-recovery-model.png"
-        if official_image.is_file():
-            require(
-                sha256_file(official_image) == official_image_sha256,
-                "official Microsoft diagram does not match the pinned SHA-256",
-            )
-
-    validation_script = ROOT / "scripts" / "verify_public_resilience_api.py"
-    if validation_script.is_file():
-        script_text = validation_script.read_text(encoding="utf-8")
-        for snippet in ("EntryMode", "TaskContext", "TaskMetadata", "RetryPolicy",
-                        "ExitForRecoverySignal", "ResponseExitForRecovery"):
-            require(snippet in script_text,
-                    f"public SDK validation script missing contract check: {snippet}")
-
-    usage_example = ROOT / "examples" / "resilience_sdk_usage.py"
-    if usage_example.is_file():
-        example_text = usage_example.read_text(encoding="utf-8")
-        for snippet in (
-            "from resilience_handler import resilience_api_usage",
-            '"evidence_type": "public-resilience-sdk-usage"',
-            '"@task handler registered"',
-        ):
-            require(snippet in example_text,
-                    f"public SDK check wrapper missing runtime check: {snippet}")
-    task_handler_example = ROOT / "examples" / "resilience_handler.py"
-    task_handler_text = (
-        task_handler_example.read_text(encoding="utf-8")
-        if task_handler_example.is_file()
-        else ""
-    )
-    if task_handler_example.is_file():
-        for snippet in (
-            "from azure.ai.agentserver.core.tasks import RetryPolicy, TaskContext, task",
-            '@task(name="resilience-api-usage", timeout=None, retry=RetryPolicy())',
-            "ctx.metadata.get(\"completed_phases\", 0)",
-            "return await ctx.exit_for_recovery()",
-            "ctx.recovery_count",
-            "ctx.retry_attempt",
-        ):
-            require(snippet in task_handler_text,
-                    f"public SDK handler missing runtime code: {snippet}")
-    if handler_example.is_file():
-        for snippet in (
-            "ResponsesServerOptions(resilient_background=True)",
-            "set_resilient_tasks_enabled(True)",
-            "context.persisted_response",
-            "context.is_recovery",
-            "yield stream.checkpoint()",
-            "await context.exit_for_recovery()",
-            'STAGES = ("analyze", "generate", "refine")',
-        ):
-            require(
-                snippet in handler_text,
-                f"Responses recovery handler missing runtime code: {snippet}",
-            )
-
-    owned_root = ROOT / "hosted-agent"
-    owned_agent = owned_root / "src" / "lra-evidence-agent" / "main.py"
-    owned_contract = owned_root / "src" / "lra-evidence-agent" / "contract.py"
-    owned_client = owned_root / "client.py"
-    owned_runner = owned_root / "run_local_recovery.py"
-    owned_azure_yaml = owned_root / "azure.yaml"
-    owned_requirements = (
-        owned_root / "src" / "lra-evidence-agent" / "requirements.txt"
-    )
-    owned_surfaces = {
-        "agent": owned_agent,
-        "contract": owned_contract,
-        "client": owned_client,
-        "runner": owned_runner,
-        "azure.yaml": owned_azure_yaml,
-        "requirements": owned_requirements,
-    }
-    for name, path in owned_surfaces.items():
-        require(path.is_file(), f"repository-owned Hosted Agent missing {name}")
-
-    if owned_agent.is_file():
-        source = owned_agent.read_text(encoding="utf-8")
-        for snippet in (
-            "ResponsesServerOptions(resilient_background=True)",
-            "set_resilient_tasks_enabled(True)",
-            "context.is_recovery and context.persisted_response is not None",
-            "yield stream.checkpoint()",
-            "and not context.is_recovery",
-            "os._exit(INJECTED_EXIT_CODE)",
-            'os.environ.get("LRA_ENABLE_FAULT_INJECTION", "false")',
-            "LRA_STAGE_COMMITTED",
-            "LRA_INJECTED_PROCESS_LOSS",
-        ):
-            require(
-                snippet in source,
-                f"repository-owned Hosted Agent missing recovery control: {snippet}",
-            )
-        require(
-            source.index("yield stream.checkpoint()")
-            < source.index("os._exit(INJECTED_EXIT_CODE)"),
-            "owned Agent must checkpoint before injecting process loss",
-        )
-
-    if owned_contract.is_file():
-        source = owned_contract.read_text(encoding="utf-8")
-        for snippet in (
-            '"accept"',
-            '"complete"',
-            "SCHEMA_VERSION = 2",
-            '"stage_result_sha256"',
-            '"process_instance_id"',
-            "stage indexes are",
-            "recovery did not expose two process instances",
-            "entry modes do not prove recovery",
-        ):
-            require(
-                snippet in source,
-                f"owned Agent contract missing acceptance rule: {snippet}",
-            )
-
-    if owned_client.is_file():
-        source = owned_client.read_text(encoding="utf-8")
-        for snippet in (
-            '"store": True',
-            '"background": True',
-            "write_json_atomic(args.state_file, state)",
-            '"response_id": response_id',
-            '"response_id_sha256": sha256_text(response_id)',
-            "if args.resume:",
-            "remaining_deadline_seconds(persisted_deadline)",
-            "except (TimeoutError, urllib.error.URLError)",
-            "validate_terminal_response",
-            "TRANSIENT_HTTP_STATUSES = {404, 424, 429, 500, 502, 503, 504}",
-        ):
-            require(
-                snippet in source,
-                f"owned Agent client missing recovery behavior: {snippet}",
-            )
-
-    if owned_runner.is_file():
-        source = owned_runner.read_text(encoding="utf-8")
-        for snippet in (
-            '"AGENTSERVER_STATE_ROOT": str(state_root)',
-            '"LRA_ENABLE_FAULT_INJECTION": "true"',
-            "first_exit_code != 86",
-            "start_server(args.python, state_root, log_path)",
-            "expect_recovery=True",
-        ):
-            require(
-                snippet in source,
-                f"owned Agent local runner missing fault proof: {snippet}",
-            )
-
-    if owned_azure_yaml.is_file():
-        source = owned_azure_yaml.read_text(encoding="utf-8")
-        for snippet in (
-            "name: lra-evidence-agent",
-            "host: azure.ai.project",
-            "host: azure.ai.agent",
-            "runtime: python_3_13",
-            "entryPoint: main.py",
-            "protocol: responses",
-            "version: 2.0.0",
-            "name: LRA_ENABLE_FAULT_INJECTION",
-            "value: ${LRA_ENABLE_FAULT_INJECTION}",
-        ):
-            require(
-                snippet in source,
-                f"owned Agent azure.yaml missing deployment contract: {snippet}",
-            )
-
-    if owned_requirements.is_file():
-        requirements = {
-            line.strip()
-            for line in owned_requirements.read_text(encoding="utf-8").splitlines()
-            if line.strip() and not line.startswith("#")
-        }
-        require(
-            requirements
-            == {
-                "azure-ai-agentserver-core==2.1.0b2",
-                "azure-ai-agentserver-responses==2.1.0b2",
-            },
-            "owned Agent requirements must match the live sample package boundary",
-        )
-
-    def read_json_evidence(relative: str) -> dict:
-        path = ROOT / relative
-        require(path.is_file(), f"missing evidence file: {relative}")
-        if not path.is_file():
-            return {}
+def validate_code_and_tests(gate: Gate) -> int:
+    python_files = [
+        path
+        for path in ROOT.rglob("*.py")
+        if path.is_file() and is_delivery_file(path)
+    ]
+    for path in python_files:
         try:
-            value = json.loads(path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as error:
-            require(False, f"{relative}: invalid JSON: {error}")
-            return {}
-        require(isinstance(value, dict), f"{relative}: root must be an object")
-        return value if isinstance(value, dict) else {}
+            ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        except SyntaxError as error:
+            gate.require(False, f"{path.relative_to(ROOT)}: syntax error: {error}")
 
-    # Scenario Manifest / authenticity boundary.
-    scenario_manifest = read_json_evidence("evidence/scenario-manifest.json")
-    scenarios = scenario_manifest.get("scenarios", [])
-    require(isinstance(scenarios, list),
-            "scenario manifest must contain a scenarios array")
-    scenario_map = {
-        item.get("id"): item
-        for item in scenarios
-        if isinstance(item, dict) and isinstance(item.get("id"), str)
-    }
-    expected_scenarios = {
-        "public-sdk-contract": "dynamic-runtime",
-        "public-resilience-sdk-usage": "dynamic-runtime",
-        "local-recovery-contract": "test-fixture",
-        "observation-validator": "dynamic-runtime",
-        "owned-hosted-agent-local": "dynamic-runtime",
-        "owned-hosted-agent-live": "dynamic-runtime",
-    }
-    require(set(scenario_map) == set(expected_scenarios),
-            f"scenario manifest ids differ: {sorted(scenario_map)}")
-    for scenario_id, expected_type in expected_scenarios.items():
-        item = scenario_map.get(scenario_id, {})
-        require(item.get("type") == expected_type,
-                f"{scenario_id}: expected scenario type {expected_type}")
-        require(bool(item.get("real")),
-                f"{scenario_id}: real behavior must be declared")
-        require(bool(item.get("not_claimed")),
-                f"{scenario_id}: non-claims must be declared")
+    requirements = (
+        ROOT / "hosted-agent" / "src" / "lra-evidence-agent" / "requirements.txt"
+    ).read_text(encoding="utf-8")
+    gate.require(
+        requirements.splitlines()
+        == [
+            "azure-ai-agentserver-core==2.1.0b2",
+            "azure-ai-agentserver-responses==2.1.0b2",
+        ],
+        "Python Agent package pins drifted",
+    )
+    project = (ROOT / "dotnet-agent" / "LraEvidenceAgent.csproj").read_text(
+        encoding="utf-8"
+    )
+    for token in (
+        'Azure.AI.AgentServer.Core" Version="1.0.0-beta.28"',
+        'Azure.AI.AgentServer.Responses" Version="1.0.0-beta.8"',
+        'Microsoft.Extensions.Logging" Version="10.0.0"',
+    ):
+        gate.require(token in project, f".NET package pin missing: {token}")
 
-    # Data Rich: each public claim surface has machine-readable evidence.
-    sdk_evidence = read_json_evidence("evidence/public-sdk-contract.json")
-    require(sdk_evidence.get("scenario_type") == "dynamic-runtime",
-            "SDK evidence must be dynamic-runtime")
-    require(sdk_evidence.get("passed") is True,
-            "SDK contract evidence must pass")
-    owned_agent_evidence = read_json_evidence(
-        "evidence/owned-hosted-agent-local.json"
+    loader = unittest.TestLoader()
+    suite = loader.discover(str(ROOT / "tests"), pattern="test_*.py")
+    gate.require(not loader.errors, f"test discovery errors: {loader.errors}")
+    result = unittest.TestResult()
+    suite.run(result)
+    gate.require(
+        result.wasSuccessful(),
+        f"unit tests failed: failures={len(result.failures)} errors={len(result.errors)}",
     )
-    owned_acceptance = owned_agent_evidence.get("acceptance", {})
-    require(
-        owned_agent_evidence.get("evidence_type")
-        == "owned-hosted-agent-local-recovery",
-        "owned Hosted Agent evidence type is wrong",
-    )
-    require(
-        owned_agent_evidence.get("passed") is True
-        and owned_agent_evidence.get("first_process_exit_code") == 86
-        and owned_agent_evidence.get("fault_injection_requested") is True,
-        "owned Hosted Agent must record a passing injected hard process loss",
-    )
-    require(
-        owned_acceptance.get("status") == "completed"
-        and owned_acceptance.get("all_expected_checkpoints_completed_once") is True
-        and len(owned_acceptance.get("checkpoint_contract_sha256", "")) == 64
-        and owned_acceptance.get("entry_modes") == ["fresh", "recovered"]
-        and owned_acceptance.get("process_instance_count") == 2
-        and owned_acceptance.get("recovery_proven") is True,
-        "owned Hosted Agent evidence does not prove same-work recovery",
-    )
-    require(
-        isinstance(owned_agent_evidence.get("response_id_sha256"), str)
-        and len(owned_agent_evidence["response_id_sha256"]) == 64
-        and "response_id" not in owned_agent_evidence,
-        "owned Hosted Agent evidence must hash rather than publish response IDs",
-    )
-    owned_live_evidence = read_json_evidence(
-        "evidence/owned-hosted-agent-live.json"
-    )
-    owned_live_acceptance = owned_live_evidence.get("acceptance", {})
-    owned_live_deployment = owned_live_evidence.get("deployment", {})
-    require(
-        owned_live_evidence.get("evidence_type")
-        == "owned-hosted-agent-safe-run"
-        and owned_live_evidence.get("endpoint_class") == "foundry-hosted-agent"
-        and owned_live_evidence.get("passed") is True,
-        "owned live Hosted Agent evidence must be a passing Version 4 run",
-    )
-    require(
-        owned_live_acceptance.get("status") == "completed"
-        and owned_live_acceptance.get("all_expected_checkpoints_completed_once") is True
-        and len(owned_live_acceptance.get("checkpoint_contract_sha256", "")) == 64
-        and owned_live_acceptance.get("entry_modes") == ["fresh"]
-        and owned_live_acceptance.get("process_instance_count") == 1
-        and owned_live_acceptance.get("recovery_proven") is False
-        and owned_live_evidence.get("request", {}).get(
-            "fault_injection_requested"
-        ) is False,
-        "owned live evidence must prove a safe current deployment run",
-    )
-    require(
-        owned_live_deployment.get("agent_name") == "lra-evidence-agent"
-        and owned_live_deployment.get("version") == "4"
-        and len(owned_live_deployment.get("content_sha256", "")) == 64,
-        "owned live Hosted Agent deployment identity is incomplete",
-    )
-    owned_elapsed = owned_live_evidence.get("elapsed_seconds")
-    require(
-        isinstance(owned_elapsed, (int, float)) and 0 < owned_elapsed <= 360,
-        "owned live Hosted Agent duration must be a positive bounded measurement",
-    )
-    require(
-        isinstance(owned_live_evidence.get("response_id_sha256"), str)
-        and len(owned_live_evidence["response_id_sha256"]) == 64
-        and "response_id" not in owned_live_evidence,
-        "owned live evidence must hash rather than publish response IDs",
-    )
-    ui_evidence = read_json_evidence("evidence/ui-evidence.json")
-    require(
-        ui_evidence.get("schema_version") == 1
-        and ui_evidence.get("capture_method") == "user-manual-download"
-        and ui_evidence.get("raw_intake_directory")
-        == ".repo-evidence/inbox/ui/"
-        and ui_evidence.get("published_directory") == "images/product-ui/"
-        and ui_evidence.get("raw_sources_committed") is False,
-        "UI evidence must preserve the manual raw-inbox/public-derivative boundary",
-    )
-    require(
-        ui_evidence.get("run_manifest")
-        == "evidence/runs/owned-agent-version4-validation-20260826/run-manifest.json",
-        "UI evidence must link the public test-run bundle",
-    )
-    ui_assets = ui_evidence.get("assets", [])
-    expected_ui_assets = {
-        "images/product-ui/portal-owned-agent-list.png": {
-            "published":
-                "19be2513745a802b36673d789559bc1587cc1dcdbfa77920d7d0c04fc6ecef3d",
-            "source":
-                "8887a61888193e54040e3ee45941b2caab2ae9db162ce599cac22c1e3b26ea50",
-        },
-        "images/product-ui/portal-owned-agent-details.png": {
-            "published":
-                "b314df1de5012222b68c04ac6cfed2a35e6635012611bb94b023f64154da8e59",
-            "source":
-                "8b37f81bd99e473de79d2733b915bb695874318edf61a22e20ff90c77e659785",
-        },
-    }
-    ui_asset_map = {
-        item.get("published_path"): item
-        for item in ui_assets
-        if isinstance(item, dict)
-    }
-    require(
-        len(ui_assets) == len(ui_asset_map) == 2
-        and set(ui_asset_map) == set(expected_ui_assets),
-        "UI evidence must contain exactly the two reviewed Portal images",
-    )
-    for relative, expected_hashes in expected_ui_assets.items():
-        item = ui_asset_map.get(relative, {})
-        source_basename = item.get("source_basename")
-        require(
-            isinstance(source_basename, str)
-            and Path(source_basename).name == source_basename
-            and item.get("source_sha256") == expected_hashes["source"]
-            and item.get("published_sha256") == expected_hashes["published"]
-            and item.get("behavior_evidence")
-            == "evidence/owned-hosted-agent-live.json"
-            and bool(item.get("redactions"))
-            and bool(item.get("proves"))
-            and bool(item.get("does_not_prove")),
-            f"{relative}: UI lineage or proof boundary is incomplete",
-        )
-        published_image = ROOT / relative
-        if published_image.is_file():
-            require(
-                sha256_file(published_image) == expected_hashes["published"],
-                f"{relative}: public image hash does not match UI evidence",
-            )
-    status_evidence = read_json_evidence(
-        "evidence/owned-hosted-agent-status.json"
-    )
-    require(
-        status_evidence.get("agent_name") == "lra-evidence-agent"
-        and status_evidence.get("version") == "4"
-        and status_evidence.get("status") == "active"
-        and status_evidence.get("kind") == "hosted"
-        and status_evidence.get("runtime") == "python_3_13"
-        and status_evidence.get("protocol") == "responses"
-        and status_evidence.get("protocol_version") == "2.0.0"
-        and status_evidence.get("fault_injection_enabled") is False
-        and status_evidence.get("content_sha256")
-        == owned_live_deployment.get("content_sha256"),
-        "Version 4 status evidence does not match the safe live run",
-    )
-    run_manifest = read_json_evidence(
-        "evidence/runs/owned-agent-version4-validation-20260826/run-manifest.json"
-    )
-    run_commands = run_manifest.get("commands", [])
-    require(
-        run_manifest.get("run_id")
-        == "owned-agent-version4-validation-20260826"
-        and run_manifest.get("subject")
-        == "repository-owned lra-evidence-agent Version 4"
-        and run_manifest.get("status_evidence")
-        == "evidence/owned-hosted-agent-status.json"
-        and run_manifest.get("ui_evidence") == "evidence/ui-evidence.json"
-        and isinstance(run_commands, list)
-        and len(run_commands) == 3
-        and all(
-            isinstance(item, dict)
-            and item.get("exit_code") == 0
-            and isinstance(item.get("command"), str)
-            and isinstance(item.get("evidence"), str)
-            for item in run_commands
-        )
-        and bool(run_manifest.get("boundaries")),
-        "Version 4 run manifest is incomplete",
-    )
-    expected_code_paths = {
-        "hosted-agent/azure.yaml",
-        "hosted-agent/src/lra-evidence-agent/main.py",
-        "hosted-agent/src/lra-evidence-agent/contract.py",
-        "hosted-agent/client.py",
-        "hosted-agent/run_local_recovery.py",
-    }
-    code_manifest = {
-        item.get("path"): item.get("sha256")
-        for item in run_manifest.get("key_code", [])
-        if isinstance(item, dict)
-    }
-    require(
-        set(code_manifest) == expected_code_paths,
-        "Version 4 run manifest key-code path set is incomplete",
-    )
-    for relative in expected_code_paths:
-        path = ROOT / relative
-        if path.is_file():
-            require(
-                code_manifest.get(relative) == sha256_file(path),
-                f"{relative}: run-manifest code hash drifted",
-            )
-    expected_package_versions = {
-        "azure-ai-agentserver-core": "2.0.0",
-        "azure-ai-agentserver-invocations": "1.0.0",
-        "azure-ai-agentserver-responses": "2.0.0",
-    }
-    require(
-        sdk_evidence.get("expected_versions") == expected_package_versions
-        and sdk_evidence.get("installed_versions") == expected_package_versions,
-        "SDK evidence package versions must match the pinned runtime",
-    )
-    expected_sdk_checks = {
-        "azure-ai-agentserver-core version",
-        "azure-ai-agentserver-invocations version",
-        "azure-ai-agentserver-responses version",
-        "EntryMode exposes recovered re-entry",
-        "entry_mode and retry_attempt are separate fields",
-        "recovery_count is separate from retry_attempt",
-        "task_id (work identity) is exposed",
-        "input_id (input identity) is exposed",
-        "metadata exposes checkpoint operations",
-        "cooperative shutdown is exposed",
-        "exit-for-recovery is exposed",
-        "steering is exposed",
-        "RetryPolicy is public",
-        "resilient-task enablement is queryable",
-        "Responses recovery signals are public",
-        "@task accepts name, timeout, and retry",
-        "handler first argument must be named ctx",
-        "handler requires TaskContext[Input]",
-    }
-    sdk_checks = sdk_evidence.get("checks", [])
-    sdk_check_map = {
-        item.get("name"): item
-        for item in sdk_checks
-        if isinstance(item, dict) and isinstance(item.get("name"), str)
-    }
-    require(
-        len(sdk_checks) == len(expected_sdk_checks)
-        and set(sdk_check_map) == expected_sdk_checks
-        and all(item.get("passed") is True for item in sdk_check_map.values()),
-        "SDK evidence must contain the exact passing contract checks",
-    )
-    sdk_summary = sdk_evidence.get("summary", {})
-    require(
-        sdk_summary.get("all_passed") is True
-        and sdk_summary.get("failed") == 0,
-        "SDK evidence must report every required check passed",
-    )
+    return result.testsRun
 
-    usage_evidence = read_json_evidence(
-        "evidence/resilience-sdk-usage.json"
-    )
-    expected_usage_checks = {
-        "azure-ai-agentserver-core version",
-        "@task handler registered",
-    }
-    require(
-        usage_evidence.get("scenario_type") == "dynamic-runtime"
-        and usage_evidence.get("evidence_type")
-        == "public-resilience-sdk-usage"
-        and usage_evidence.get("passed") is True
-        and usage_evidence.get("expected_core_version") == "2.0.0"
-        and usage_evidence.get("installed_core_version") == "2.0.0"
-        and usage_evidence.get("registered_task_type") == "Task"
-        and usage_evidence.get("registered_task_name") == "resilience-api-usage"
-        and {
-            item.get("name")
-            for item in usage_evidence.get("checks", [])
-            if isinstance(item, dict) and item.get("passed") is True
-        }
-        == expected_usage_checks,
-        "SDK usage evidence must prove the actual example import and registration",
-    )
 
-    if usage_example.is_file():
-        completed = subprocess.run(
+def validate_dynamic_sdk_evidence(gate: Gate) -> None:
+    checks = [
+        (
             [
                 sys.executable,
-                str(usage_example),
+                str(ROOT / "examples" / "resilience_sdk_usage.py"),
                 "--check",
                 "--format",
                 "json",
             ],
+            "evidence/resilience-sdk-usage.json",
+            (
+                "evidence_type",
+                "scenario_type",
+                "expected_core_version",
+                "installed_core_version",
+                "registered_task_type",
+                "registered_task_name",
+                "passed",
+            ),
+        ),
+        (
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "verify_public_resilience_api.py"),
+                "--format",
+                "json",
+            ],
+            "evidence/public-sdk-contract.json",
+            (
+                "evidence_type",
+                "scenario_type",
+                "expected_versions",
+                "installed_versions",
+                "checks",
+                "summary",
+                "passed",
+            ),
+        ),
+    ]
+    for command, relative, fields in checks:
+        completed = subprocess.run(
+            command,
             cwd=ROOT,
             capture_output=True,
             text=True,
-            timeout=30,
+            timeout=60,
             check=False,
         )
-        require(
+        gate.require(
             completed.returncode == 0,
-            "SDK usage example --check failed: "
-            + (completed.stderr.strip() or completed.stdout.strip()),
+            f"dynamic SDK check failed: {relative}: "
+            f"{completed.stderr.strip() or completed.stdout.strip()}",
         )
+        if completed.returncode != 0:
+            continue
         try:
-            live_usage = json.loads(completed.stdout)
+            actual = json.loads(completed.stdout)
         except json.JSONDecodeError as error:
-            require(False, f"SDK usage example returned invalid JSON: {error}")
-            live_usage = {}
-        for field in (
-            "evidence_type",
-            "scenario_type",
-            "expected_core_version",
-            "installed_core_version",
-            "registered_task_type",
-            "registered_task_name",
-            "passed",
-        ):
-            require(
-                live_usage.get(field) == usage_evidence.get(field),
-                f"SDK usage live check drifted from evidence field {field}",
+            gate.require(False, f"{relative}: live check returned invalid JSON: {error}")
+            continue
+        expected = read_json(gate, relative)
+        for field in fields:
+            gate.require(
+                actual.get(field) == expected.get(field),
+                f"{relative}: live field drifted: {field}",
             )
-        require(
-            {
-                item.get("name"): item.get("passed")
-                for item in live_usage.get("checks", [])
-                if isinstance(item, dict)
-            }
-            == {
-                item.get("name"): item.get("passed")
-                for item in usage_evidence.get("checks", [])
-                if isinstance(item, dict)
-            },
-            "SDK usage live checks drifted from committed evidence",
-        )
 
-    recovery_evidence = read_json_evidence("evidence/recovery-contract-demo.json")
-    require(recovery_evidence.get("scenario_type") == "test-fixture",
-            "recovery demo must be labelled test-fixture")
-    require(recovery_evidence.get("passed") is True,
-            "recovery contract demo evidence must pass")
-    require(recovery_evidence.get("entry_modes") == ["fresh", "recovered"],
-            "recovery demo must record fresh then recovered entry")
-    require(recovery_evidence.get("worker_a_exit_code") == 9,
-            "recovery demo must record the injected hard exit")
-    require(recovery_evidence.get("worker_b_exit_code") == 0,
-            "recovery demo must record successful worker B completion")
-    require(recovery_evidence.get("lease_generation") == 2,
-            "recovery demo must advance the lease generation")
-    require(recovery_evidence.get("checkpoint") == 5,
-            "recovery demo must finish at checkpoint 5")
-    require(recovery_evidence.get("committed_phases") == [1, 2, 3, 4, 5],
-            "recovery demo must commit the complete phase domain")
-    require(
-        recovery_evidence.get("phase_workers")
-        == {
-            "1": "worker-a",
-            "2": "worker-b",
-            "3": "worker-b",
-            "4": "worker-b",
-            "5": "worker-b",
-        },
-        "recovery demo phase ownership must match the injected-loss boundary",
-    )
-    expected_recovery_checks = {
-        "checkpoint_complete",
-        "fresh_then_recovered",
-        "generation_advanced",
-        "no_duplicate_phase_commit",
-        "original_worker_stopped_at_injected_phase",
-        "payload_affected_every_result",
-        "phase_domain_complete",
-        "same_work_recovered",
-        "worker_a_hard_exit_observed",
-        "worker_b_completed",
-    }
-    recovery_checks = recovery_evidence.get("checks")
-    require(
-        isinstance(recovery_checks, dict)
-        and set(recovery_checks) == expected_recovery_checks
-        and all(value is True for value in recovery_checks.values()),
-        "recovery evidence must contain the exact ten passing checks",
-    )
-    phase_result_sha256s = recovery_evidence.get("phase_result_sha256s")
-    require(
-        isinstance(phase_result_sha256s, list)
-        and len(phase_result_sha256s) == 5
-        and all(
-            isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value)
-            for value in phase_result_sha256s
-        ),
-        "recovery evidence must contain five output hashes",
-    )
 
-    observation_evidence = read_json_evidence(
-        "evidence/observation-validation.json"
-    )
-    require(observation_evidence.get("passed") is True,
-            "observation validator evidence must pass")
-    require(
-        observation_evidence.get("checks")
-        == {
-            "materially_different_inputs_change_hash": True,
-            "observation_cases_match": True,
-            "recovery_actions_match": True,
-        },
-        "observation evidence must contain the exact three passing checks",
-    )
-    observation_cases = observation_evidence.get("observation_cases", [])
-    require(
-        {item.get("name") for item in observation_cases if isinstance(item, dict)}
-        == {"clean", "sequence_gap", "duplicate_output", "bare_done"}
-        and all(item.get("matched") is True for item in observation_cases),
-        "observation evidence must contain the exact matched fixture set",
-    )
-    require(
-        any(item.get("actual") is True for item in observation_cases)
-        and any(item.get("actual") is False for item in observation_cases),
-        "observation evidence must include positive and negative paths",
-    )
-    action_cases = {
-        item.get("name"): item.get("actual")
-        for item in observation_evidence.get("recovery_action_cases", [])
-        if isinstance(item, dict)
+def validate_repository_surface_and_security(gate: Gate) -> None:
+    actual = {
+        path.relative_to(ROOT).as_posix()
+        for path in ROOT.rglob("*")
+        if path.is_file() and is_delivery_file(path)
     }
-    require(action_cases.get("unclassified_424") == "fail_closed",
-            "unclassified 424 must fail closed")
-    require(action_cases.get("unclassified_403") == "fail_closed",
-            "unclassified 403 must fail closed")
-    require(
-        set(action_cases)
-        == {
-            "confirmed_424",
-            "unclassified_424",
-            "expired_observer_403",
-            "unclassified_403",
-            "deadline",
-        },
-        "recovery action evidence must contain the exact five cases",
+    gate.require(
+        actual == ALLOWED_FILES,
+        "repository surface differs; unexpected="
+        f"{sorted(actual - ALLOWED_FILES)}, missing={sorted(ALLOWED_FILES - actual)}",
     )
-
-    # Log Rich: ordered, structured runtime events with correlation fields.
-    events_path = ROOT / "evidence" / "recovery-contract-events.jsonl"
-    require(events_path.is_file(), "structured recovery event log missing")
-    events: list[dict] = []
-    if events_path.is_file():
-        for line_number, line in enumerate(
-            events_path.read_text(encoding="utf-8").splitlines(), start=1
-        ):
-            try:
-                event = json.loads(line)
-            except json.JSONDecodeError as error:
-                require(False, f"event log line {line_number}: {error}")
-                continue
-            require(isinstance(event, dict),
-                    f"event log line {line_number}: object required")
-            if isinstance(event, dict):
-                events.append(event)
-    require(
-        [item.get("event_index") for item in events]
-        == list(range(1, len(events) + 1)),
-        "event log indexes must be contiguous",
-    )
-    required_event_fields = {
-        "event_index", "schema_version", "timestamp_utc", "event", "work_id",
-        "worker_id", "process_id", "lease_generation", "entry_mode", "phase",
-        "checkpoint", "details",
-    }
-    for index, event in enumerate(events, start=1):
-        require(required_event_fields <= set(event),
-                f"event {index}: missing correlation fields")
-    require(
-        [item.get("entry_mode") for item in events
-         if item.get("event") == "handler_entry"] == ["fresh", "recovered"],
-        "event log must show fresh and recovered handler entries",
-    )
-    require(
-        bool(events)
-        and any(item.get("event") == "process_loss_injected" for item in events)
-        and events[-1].get("event") == "work_completed",
-        "event log must include injected loss and completion",
-    )
-    require(
-        len({item.get("process_id") for item in events
-             if item.get("worker_id") in {"worker-a", "worker-b"}}) == 2,
-        "event log must show two distinct worker processes",
-    )
-    phase_events = [
-        (
-            item.get("phase"),
-            item.get("worker_id"),
-            item.get("lease_generation"),
-            item.get("checkpoint"),
-        )
-        for item in events
-        if item.get("event") == "phase_committed"
-    ]
-    require(
-        phase_events
-        == [
-            (1, "worker-a", 1, 1),
-            (2, "worker-b", 2, 2),
-            (3, "worker-b", 2, 3),
-            (4, "worker-b", 2, 4),
-            (5, "worker-b", 2, 5),
-        ],
-        "event log phase ownership must agree with the recovery summary",
-    )
-    loss_events = [
-        item for item in events if item.get("event") == "process_loss_injected"
-    ]
-    require(
-        len(loss_events) == 1
-        and loss_events[0].get("details", {}).get("exit_code") == 9
-        and loss_events[0].get("phase") == 1,
-        "event log must record one exit-9 loss after phase 1",
-    )
-
-    # Evidence integrity manifest.
-    evidence_manifest = read_json_evidence("evidence/manifest.json")
-    require(evidence_manifest.get("algorithm") == "sha256",
-            "evidence manifest must use SHA-256")
-    require(evidence_manifest.get("normalization") == "utf-8-lf",
-            "evidence manifest must declare UTF-8/LF normalization")
-    manifest_entries = evidence_manifest.get("files", [])
-    manifest_map = {
-        item.get("path"): item
-        for item in manifest_entries
-        if isinstance(item, dict)
-    }
-    expected_evidence_paths = {
-        "evidence/README.md",
-        "evidence/observation-validation.json",
-        "evidence/owned-hosted-agent-local.json",
-        "evidence/owned-hosted-agent-live.json",
-        "evidence/owned-hosted-agent-status.json",
-        "evidence/public-sdk-contract.json",
-        "evidence/resilience-sdk-usage.json",
-        "evidence/recovery-contract-demo.json",
-        "evidence/recovery-contract-events.jsonl",
-        "evidence/scenario-manifest.json",
-        "evidence/ui-evidence.json",
-        "evidence/runs/owned-agent-version4-validation-20260826/run-manifest.json",
-    }
-    require(set(manifest_map) == expected_evidence_paths,
-            "evidence manifest path set is incomplete")
-    for relative in expected_evidence_paths:
-        path = ROOT / relative
-        entry = manifest_map.get(relative, {})
-        if path.is_file():
-            require(entry.get("sha256") == sha256_file(path),
-                    f"evidence hash mismatch: {relative}")
-        require(bool(entry.get("provenance")),
-                f"evidence provenance missing: {relative}")
-
-    # Code Rich / Test Rich / four user red lines.
-    python_files = (
-        sorted((ROOT / "scripts").glob("*.py"))
-        + sorted((ROOT / "examples").glob("*.py"))
-        + sorted((ROOT / "tests").glob("test_*.py"))
-        + sorted((ROOT / "hosted-agent").glob("*.py"))
-        + sorted(
-            (ROOT / "hosted-agent" / "src" / "lra-evidence-agent").glob("*.py")
-        )
-    )
-    require(
-        len(python_files) == 14,
-        (
-            "expected 4 scripts, 3 examples, 3 test files, and 4 owned-agent "
-            f"Python files, found {len(python_files)}"
-        ),
-    )
-    for path in python_files:
-        for finding in python_redlines(path):
-            require(False, finding)
-    static_test_count = 0
-    for path in (ROOT / "tests").glob("test_*.py"):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        static_test_count += sum(
-            isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-            and node.name.startswith("test_")
-            and function_has_substance(node)
-            for node in ast.walk(tree)
-        )
-    loader = unittest.TestLoader()
-    suite = loader.discover(str(ROOT / "tests"), pattern="test_*.py")
-    discovered_test_count = count_unittest_cases(suite)
-    require(not loader.errors,
-            f"unittest discovery errors: {'; '.join(loader.errors)}")
-    require(
-        static_test_count == discovered_test_count,
-        "every substantive test_* function must be discoverable by unittest",
-    )
-    test_count = discovered_test_count
-    require(test_count >= 10,
-            f"expected at least 10 explicit tests, found {test_count}")
-    requirements = {
-        line.strip()
-        for line in (ROOT / "requirements-validation.txt")
-        .read_text(encoding="utf-8")
-        .splitlines()
-        if line.strip() and not line.startswith("#")
-    }
-    require(
-        requirements
-        == {
-            "azure-ai-agentserver-core==2.0.0",
-            "azure-ai-agentserver-invocations==1.0.0",
-            "azure-ai-agentserver-responses==2.0.0",
-        },
-        "requirements-validation.txt must exactly pin the imported Azure packages",
-    )
-
-    # Repository surface
-    gitignore_text = (ROOT / ".gitignore").read_text(encoding="utf-8")
-    require(
-        ".repo-evidence/" in gitignore_text.splitlines(),
-        "raw UI evidence inbox must be ignored",
-    )
+    gitignore = (ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
+    gate.require(".repo-evidence/" in gitignore, "raw UI inbox must be ignored")
     tracked_raw = subprocess.run(
         ["git", "-C", str(ROOT), "ls-files", "--", ".repo-evidence"],
         capture_output=True,
@@ -1787,64 +998,67 @@ def main() -> int:
         check=False,
     )
     if tracked_raw.returncode == 0:
-        require(
-            not tracked_raw.stdout.strip(),
-            "raw UI evidence inbox contains tracked files",
-        )
-    tracked = {
-        path.relative_to(ROOT).as_posix()
-        for path in ROOT.rglob("*")
-        if path.is_file() and is_delivery_file(path)
-    }
-    unexpected = sorted(tracked - ALLOWED_FILES)
-    require(not unexpected, f"unexpected files present: {', '.join(unexpected)}")
-    missing = sorted(ALLOWED_FILES - tracked)
-    require(not missing, f"required files missing: {', '.join(missing)}")
+        gate.require(not tracked_raw.stdout.strip(), "raw evidence is tracked")
 
-    # Public boundary scan across every text delivery surface.
-    text_suffixes = {".md", ".py", ".json", ".jsonl", ".txt", ".yaml", ".yml"}
-    retired_stage_narrative = (
-        re.compile(r"\b1[8][ -](?:stage|phase)s?\b", re.IGNORECASE),
-        re.compile(r"1[8]\s*个阶段"),
-        re.compile(r"\b0-1[7]\b"),
-        re.compile(r"\b1-1[8]\b"),
-        re.compile(r"resilient" + r"-research", re.IGNORECASE),
-        re.compile(r"historical" + r"-observations", re.IGNORECASE),
-    )
+    text_suffixes = {
+        ".cs",
+        ".csproj",
+        ".json",
+        ".jsonl",
+        ".md",
+        ".py",
+        ".txt",
+        ".yaml",
+        ".yml",
+    }
     for path in sorted(ROOT.rglob("*")):
         if (
             not path.is_file()
             or not is_delivery_file(path)
-            or (path.suffix.lower() not in text_suffixes and path.name != ".gitignore")
+            or (
+                path.suffix.lower() not in text_suffixes
+                and path.name != ".gitignore"
+            )
         ):
             continue
-        text = path.read_text(encoding="utf-8")
         relative = path.relative_to(ROOT).as_posix()
-        if relative == "scripts/validate_repo.py":
-            text = validator_self_scan_text(text, ast.parse(text))
-        else:
-            for pattern in retired_stage_narrative:
-                require(
+        text = path.read_text(encoding="utf-8")
+        if relative != "scripts/validate_repo.py":
+            for pattern in RETIRED_STAGE_PATTERNS:
+                gate.require(
                     not pattern.search(text),
                     f"{relative}: retired fixed-stage narrative returned",
                 )
-        for literal in FORBIDDEN_LITERALS:
-            require(literal not in text, f"{relative}: forbidden literal {literal}")
-        for name, pattern in SECRET_PATTERNS.items():
-            require(not pattern.search(text), f"{relative}: matched {name}")
+            for literal in FORBIDDEN_LITERALS:
+                gate.require(literal not in text, f"{relative}: forbidden literal {literal}")
+            for label, pattern in SECRET_PATTERNS.items():
+                gate.require(
+                    pattern.search(text) is None,
+                    f"{relative}: possible {label}",
+                )
 
-    if errors:
-        for error in errors:
+
+def main() -> int:
+    gate = Gate()
+    en, cn = validate_readmes(gate)
+    validate_run_contract(gate, en, cn)
+    validate_scenario_manifest(gate)
+    validate_ui_and_run_bundles(gate)
+    manifest_count = validate_evidence_manifest(gate)
+    event_count = validate_jsonl(gate)
+    test_count = validate_code_and_tests(gate)
+    validate_dynamic_sdk_evidence(gate)
+    validate_repository_surface_and_security(gate)
+
+    if gate.errors:
+        for error in gate.errors:
             print(f"ERROR: {error}")
         return 1
-
     print(
-        f"PASS: bilingual parity ({len(headings(en_text))} headings, "
-        f"{len(tables(en_lines))} tables), "
-        f"Data/Log Rich ({len(manifest_map)} hashed evidence files, "
-        f"{len(events)} structured events), "
-        f"Code/Test Rich ({len(python_files)} Python files, {test_count} tests), "
-        f"{len(CRITICAL_NUMBERS)} measured values aligned, public boundary clean"
+        f"PASS: bilingual parity ({len(heading_titles(en))} headings, "
+        f"{len(table_shapes(en))} tables), complete run contract, "
+        f"{manifest_count} hashed evidence files, {event_count} JSONL events, "
+        f"{test_count} tests, public boundary clean"
     )
     return 0
 

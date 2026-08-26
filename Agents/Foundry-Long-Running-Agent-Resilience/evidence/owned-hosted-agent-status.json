@@ -1,7 +1,7 @@
 {
   "agent_name": "lra-evidence-agent",
-  "captured_at_utc": "2026-08-26T07:15:15.092Z",
-  "content_sha256": "6276592bf366a3e025dbb66707746d137e4d9016652993a4444a0b368d944f82",
+  "captured_at_utc": "2026-08-26T09:13:57.370Z",
+  "content_sha256": "192dbbdcea2524e91d1fc497c97aef40d00c0a3b9cc50a8ef35de84cc755aa90",
   "fault_injection_enabled": false,
   "kind": "hosted",
   "protocol": "responses",
@@ -9,5 +9,5 @@
   "runtime": "python_3_13",
   "schema_version": 1,
   "status": "active",
-  "version": "4"
+  "version": "6"
 }

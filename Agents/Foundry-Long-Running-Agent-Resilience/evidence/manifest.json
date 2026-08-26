@@ -2,79 +2,139 @@
   "algorithm": "sha256",
   "files": [
     {
-      "bytes": 5313,
-      "path": "evidence/README.md",
-      "provenance": "Maintained evidence index and reproduction boundary.",
-      "sha256": "0c688f55a4ff80e11ecec6ec47818a46b54adaa82d8f87484f1616fbb1a90fc2"
-    },
-    {
       "bytes": 3567,
       "path": "evidence/observation-validation.json",
-      "provenance": "python scripts/validate_observations.py self-test --output evidence/observation-validation.json",
+      "provenance": "python scripts/validate_observations.py self-test",
       "sha256": "3240679a41dfa04a4285f9c340780b0fdbe59aeff8f26a781a976c13eec48b84"
     },
     {
-      "bytes": 1712,
-      "path": "evidence/owned-hosted-agent-local.json",
-      "provenance": "python hosted-agent/run_local_recovery.py --python <2.1.0b2-python> --report evidence/owned-hosted-agent-local.json",
-      "sha256": "6da35b88c968f465b4c023dfb177511b6b96ba147dde0bf3a4371559dd1cfcbf"
+      "bytes": 8101,
+      "path": "evidence/owned-hosted-agent-dotnet-events.jsonl",
+      "provenance": "Sanitized .NET AgentServer console lifecycle events.",
+      "sha256": "b0a4526f2c0f5b8f0367e957ced2c5fcb3572c164413c68a18576a6f66ebb7d0"
     },
     {
-      "bytes": 1699,
+      "bytes": 10046,
+      "path": "evidence/owned-hosted-agent-dotnet.json",
+      "provenance": "Generic recovery runner against the repository-owned .NET Agent.",
+      "sha256": "37f5328ff8878a5aa984319b275b22ae1934a22218d828917eb67541a4e7ee81"
+    },
+    {
+      "bytes": 738,
+      "path": "evidence/owned-hosted-agent-graceful-attempt.json",
+      "provenance": "Bounded Windows graceful-shutdown attempts and non-claim.",
+      "sha256": "2bf23877e7e56dda9d71712f44e79ddf47827dc18c4bc9f92e8696389aaa0de3"
+    },
+    {
+      "bytes": 5777,
+      "path": "evidence/owned-hosted-agent-live-recovery-events.jsonl",
+      "provenance": "Sanitized Version 5 recovery-container console events.",
+      "sha256": "d43c54867846611c44ecc18e82ebc6e0b771490f6e5b3af95124c886444f34ba"
+    },
+    {
+      "bytes": 3605,
+      "path": "evidence/owned-hosted-agent-live-recovery.json",
+      "provenance": "Version 5 Foundry fault run through hosted-agent/client.py.",
+      "sha256": "dcf9dffcc8c28b551b239b1f081ffd4dbca1f70c21eb9fd161e3e67fd72e0a58"
+    },
+    {
+      "bytes": 2346,
       "path": "evidence/owned-hosted-agent-live.json",
-      "provenance": "python hosted-agent/client.py against repository-owned lra-evidence-agent Version 4; identifiers hashed before publication.",
-      "sha256": "da4b1e9aedaed1a7ccc6d1205f17c0c5cb087c27d6a31d60b0ee086c758d8b50"
+      "provenance": "Version 6 safe Foundry run through hosted-agent/client.py.",
+      "sha256": "9731458f2b0d15c635952297a57545920d02449a679ad57abf9baa062dce1cd6"
+    },
+    {
+      "bytes": 7918,
+      "path": "evidence/owned-hosted-agent-local-events.jsonl",
+      "provenance": "Sanitized Python AgentServer console lifecycle events.",
+      "sha256": "a83d53dc6aca8a9c845c31d34652c24df32c74dc04c7137d47889708cfcdb9dd"
+    },
+    {
+      "bytes": 8932,
+      "path": "evidence/owned-hosted-agent-local.json",
+      "provenance": "Python hard-loss run through hosted-agent/run_local_recovery.py.",
+      "sha256": "342db16a8f16d215d19423c92c6965310b7b9324447a17e152c7367318be941d"
+    },
+    {
+      "bytes": 7811,
+      "path": "evidence/owned-hosted-agent-observer-events.jsonl",
+      "provenance": "Sanitized observer-restart Agent console events.",
+      "sha256": "f441e642c6d89eb4d95baf841c83578f6bb5d216eff3fe4534390226a5bbea19"
+    },
+    {
+      "bytes": 3864,
+      "path": "evidence/owned-hosted-agent-observer.json",
+      "provenance": "hosted-agent/run_observer_restart.py",
+      "sha256": "5e57497a1817c48876415b74e82f5321c8208ca021d87a9cb6fa18d4a8e695d2"
     },
     {
       "bytes": 383,
       "path": "evidence/owned-hosted-agent-status.json",
-      "provenance": "Sanitized azd ai agent show status for repository-owned lra-evidence-agent Version 4.",
-      "sha256": "92aae64ce362d8d4822c63876dec752e5c3f82fe69a0d3bc70f3f83e6ba85dea"
+      "provenance": "Sanitized azd ai agent show for safe Version 6.",
+      "sha256": "3825579d44fe93e0e1c7aa5bb5773f9b35e3a669b5fbaec0a6396ab2cdc12ba2"
     },
     {
       "bytes": 3044,
       "path": "evidence/public-sdk-contract.json",
-      "provenance": "python scripts/verify_public_resilience_api.py --format json --output evidence/public-sdk-contract.json",
+      "provenance": "python scripts/verify_public_resilience_api.py --format json",
       "sha256": "25f4d0a3c934a882d8d23d39861888616f499e9ab85882c255ea08e766bac149"
     },
     {
-      "bytes": 799,
-      "path": "evidence/resilience-sdk-usage.json",
-      "provenance": "python examples/resilience_sdk_usage.py --check --format json --output evidence/resilience-sdk-usage.json",
-      "sha256": "684d7d80d15077709f4bc91448149e5013ff4366544833dd31f47ab92da949d8"
+      "bytes": 5819,
+      "path": "evidence/README.md",
+      "provenance": "Maintained evidence index and reproduction commands.",
+      "sha256": "20ea30fb8f6e9170ad2f668a9207cfd3aeb1f65bcb3abde2e12da4ece829af8e"
     },
     {
       "bytes": 1547,
       "path": "evidence/recovery-contract-demo.json",
-      "provenance": "python scripts/recovery_contract_demo.py demo --work-id public-reference-001 --payload public-safe-resilience-contract-payload --phases 5 --crash-after 1 --lease-seconds 0.5",
+      "provenance": "python scripts/recovery_contract_demo.py demo",
       "sha256": "e7353e0f6c414f63951f48bd7c469c22718473769a4e5a944ae1b712feb5cb29"
     },
     {
       "bytes": 3732,
       "path": "evidence/recovery-contract-events.jsonl",
-      "provenance": "Structured JSONL emitted by the recovery-contract-demo command recorded in this manifest.",
+      "provenance": "Structured events from recovery_contract_demo.py.",
       "sha256": "b627bad435819899ecc982a01ac55157d10656d97ebc6e99f87af8251d7fa4a0"
     },
     {
-      "bytes": 4419,
+      "bytes": 799,
+      "path": "evidence/resilience-sdk-usage.json",
+      "provenance": "python examples/resilience_sdk_usage.py --check --format json",
+      "sha256": "684d7d80d15077709f4bc91448149e5013ff4366544833dd31f47ab92da949d8"
+    },
+    {
+      "bytes": 3487,
+      "path": "evidence/run-contract.json",
+      "provenance": "Maintained scenario-agnostic complete-run contract.",
+      "sha256": "0880cec17d49f74d21fe46c2f22102a73c2b7c0dae362a138cfb5d868bb1b1ad"
+    },
+    {
+      "bytes": 6509,
+      "path": "evidence/runs/owned-agent-recovery-validation-20260826/run-manifest.json",
+      "provenance": "Commands, exits, logs, status, UI, and key-code hashes for this validation cycle.",
+      "sha256": "447b2c13fb822714483161687277ce11e7a6cfb255e9f49407d0ae2223d1a2ed"
+    },
+    {
+      "bytes": 7108,
       "path": "evidence/scenario-manifest.json",
-      "provenance": "Maintained Scenario Manifest for user-visible repository surfaces.",
-      "sha256": "6bc4bb11517e8b533834c344401de60af8a18272d0949cd2bc5f75fe85b40754"
+      "provenance": "Maintained authenticity classification and non-claims.",
+      "sha256": "4a38638e29c8baa1aa1bd4e047e7118341e02c3f71ff1e25e0be360a5190f243"
     },
     {
-      "bytes": 2057,
+      "bytes": 5231,
+      "path": "evidence/scenario-matrix.json",
+      "provenance": "Maintained PASS and NOT_VERIFIED mode matrix.",
+      "sha256": "1aa45184b1123ebe795f58b559c0508420d82fe424e1617371ce9bd7639c4cf6"
+    },
+    {
+      "bytes": 2052,
       "path": "evidence/ui-evidence.json",
-      "provenance": "User-downloaded Portal captures sanitized into images/product-ui; raw sources remain outside the repository.",
-      "sha256": "7583f3819a2b51a575ad2aef2afd4ad0de06af824cb3374625d50ff6b3f6a4da"
-    },
-    {
-      "bytes": 2428,
-      "path": "evidence/runs/owned-agent-version4-validation-20260826/run-manifest.json",
-      "provenance": "Public run bundle linking commands, exit codes, logs, status, UI, and key-code hashes for Version 4 validation.",
-      "sha256": "37448e1897e9050395e59a34ad96e561c21bd10ea31c4dbcc884eb19821e4664"
+      "provenance": "Visible signed-in Portal captures sanitized into images/product-ui.",
+      "sha256": "47c16e4a84e3b3469b4b7c59f3d2c1c013b6d0f8251c4cc36d94f1f345c7c786"
     }
   ],
-  "generated_at_utc": "2026-08-26T07:18:13Z",
+  "generated_at_utc": "2026-08-26T09:49:59+00:00",
   "normalization": "utf-8-lf",
   "schema_version": 1
 }

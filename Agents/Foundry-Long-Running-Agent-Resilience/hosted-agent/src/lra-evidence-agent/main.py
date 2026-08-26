@@ -8,6 +8,7 @@ import logging
 import os
 import socket
 import uuid
+from datetime import datetime, timezone
 
 from azure.ai.agentserver.core.tasks import set_resilient_tasks_enabled
 from azure.ai.agentserver.responses import (
@@ -44,6 +45,24 @@ def _output_count(stream: ResponseEventStream) -> int:
         getter = getattr(stream.response, "get", None)
         output = getter("output") if callable(getter) else None
     return len(output or [])
+
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
+
+
+async def _defer_for_recovery(
+    context: ResponseContext,
+    work_id: str,
+) -> None:
+    LOGGER.warning(
+        "LRA_SHUTDOWN_DEFER at_utc=%s response_id=%s work_id=%s instance=%s",
+        _utc_now(),
+        context.response_id,
+        work_id,
+        PROCESS_INSTANCE_ID,
+    )
+    await context.exit_for_recovery()
 
 
 @app.response_handler
@@ -96,7 +115,9 @@ async def handler(
         start = 0
 
     LOGGER.info(
-        "LRA_ENTRY response_id=%s work_id=%s mode=%s start=%d instance=%s",
+        "LRA_ENTRY at_utc=%s response_id=%s work_id=%s mode=%s "
+        "start=%d instance=%s",
+        _utc_now(),
         context.response_id,
         spec.work_id,
         "recovered" if context.is_recovery else "fresh",
@@ -106,7 +127,8 @@ async def handler(
 
     yield stream.emit_created()
     if context.shutdown.is_set():
-        await context.exit_for_recovery()
+        await _defer_for_recovery(context, spec.work_id)
+        return
     if cancellation_signal.is_set():
         return
     yield stream.emit_in_progress()
@@ -114,7 +136,8 @@ async def handler(
     for stage_index in range(start, len(STAGES)):
         await asyncio.sleep(spec.stage_delay_ms / 1000)
         if context.shutdown.is_set():
-            await context.exit_for_recovery()
+            await _defer_for_recovery(context, spec.work_id)
+            return
         if cancellation_signal.is_set():
             return
 
@@ -137,7 +160,9 @@ async def handler(
         yield stream.checkpoint()
 
         LOGGER.info(
-            "LRA_STAGE_COMMITTED response_id=%s work_id=%s stage=%d instance=%s",
+            "LRA_STAGE_COMMITTED at_utc=%s response_id=%s work_id=%s "
+            "stage=%d instance=%s",
+            _utc_now(),
             context.response_id,
             spec.work_id,
             stage_index,
@@ -149,8 +174,9 @@ async def handler(
             and spec.crash_after_stage == stage_index
         ):
             LOGGER.critical(
-                "LRA_INJECTED_PROCESS_LOSS response_id=%s work_id=%s "
+                "LRA_INJECTED_PROCESS_LOSS at_utc=%s response_id=%s work_id=%s "
                 "after_stage=%d exit_code=%d",
+                _utc_now(),
                 context.response_id,
                 spec.work_id,
                 stage_index,
@@ -159,6 +185,13 @@ async def handler(
             await asyncio.sleep(0.5)
             os._exit(INJECTED_EXIT_CODE)
 
+    LOGGER.info(
+        "LRA_COMPLETED at_utc=%s response_id=%s work_id=%s instance=%s",
+        _utc_now(),
+        context.response_id,
+        spec.work_id,
+        PROCESS_INSTANCE_ID,
+    )
     yield stream.emit_completed()
 
 

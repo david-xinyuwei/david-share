@@ -86,7 +86,7 @@
     {
       "id": "owned-hosted-agent-live",
       "type": "dynamic-runtime",
-      "entrypoint": "hosted-agent/client.py against deployed lra-evidence-agent version 4",
+      "entrypoint": "hosted-agent/client.py against deployed lra-evidence-agent version 6",
       "real": [
         "Deploys the repository-owned Python 3.13 Hosted Agent over the Responses protocol",
         "Creates one stored background response with fault injection disabled",
@@ -100,6 +100,67 @@
         "Recovery of external side effects without application idempotency"
       ],
       "evidence": "evidence/owned-hosted-agent-live.json"
+    },
+    {
+      "id": "owned-hosted-agent-live-recovery",
+      "type": "dynamic-runtime",
+      "entrypoint": "hosted-agent/client.py against temporary fault-enabled lra-evidence-agent version 5",
+      "real": [
+        "Creates one stored background response against the repository-owned Hosted Agent",
+        "Injects a guarded hard process exit after a durable checkpoint",
+        "Observes replacement-compute timeout, recovered entry, two process hashes, and completed on the same response",
+        "Collects client JSON and sanitized recovery-container console events"
+      ],
+      "not_claimed": [
+        "An exact process-down timestamp because the prior container log was not retained",
+        "Production reliability benchmark or SLA",
+        "Recovery of external side effects without application idempotency"
+      ],
+      "evidence": "evidence/owned-hosted-agent-live-recovery.json"
+    },
+    {
+      "id": "owned-hosted-agent-dotnet",
+      "type": "dynamic-runtime",
+      "entrypoint": "hosted-agent/run_local_recovery.py with dotnet-agent/LraEvidenceAgent.dll",
+      "real": [
+        "Builds against the public Azure.AI.AgentServer preview packages",
+        "Hard-exits one CLR process after a durable checkpoint",
+        "Starts a second CLR process against the same AgentServer state",
+        "Completes the same stored response with fresh and recovered entries"
+      ],
+      "not_claimed": [
+        "A live Foundry .NET deployment",
+        "Production reliability benchmark or SLA"
+      ],
+      "evidence": "evidence/owned-hosted-agent-dotnet.json"
+    },
+    {
+      "id": "owned-hosted-agent-observer-restart",
+      "type": "dynamic-runtime",
+      "entrypoint": "hosted-agent/run_observer_restart.py",
+      "real": [
+        "Observer A creates work, persists the response ID and deadline, then exits",
+        "The Agent process continues committing durable progress without an observer",
+        "Observer B loads the saved state and completes the same response"
+      ],
+      "not_claimed": [
+        "Agent process recovery because the Agent process stays alive",
+        "Production reliability benchmark or SLA"
+      ],
+      "evidence": "evidence/owned-hosted-agent-observer.json"
+    },
+    {
+      "id": "owned-hosted-agent-graceful-attempt",
+      "type": "dynamic-runtime",
+      "entrypoint": "Windows local shutdown-signal attempts",
+      "real": [
+        "Records bounded graceful-shutdown attempts and their actual outcomes"
+      ],
+      "not_claimed": [
+        "Graceful-shutdown recovery",
+        "A passing fault-injection scenario"
+      ],
+      "evidence": "evidence/owned-hosted-agent-graceful-attempt.json"
     }
   ]
 }

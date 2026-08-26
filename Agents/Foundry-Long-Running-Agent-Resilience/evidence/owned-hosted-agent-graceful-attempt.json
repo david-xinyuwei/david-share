@@ -1,0 +1,19 @@
+{
+  "attempts": [
+    {
+      "actual": "The short workload completed in the original process during the graceful window; no recovered entry occurred.",
+      "result": "not a recovery trial",
+      "signal": "CTRL_BREAK_EVENT"
+    },
+    {
+      "actual": "The process did not exit before the bounded timeout; no recovered entry occurred.",
+      "result": "host lifecycle not driven",
+      "signal": "CTRL_C_EVENT"
+    }
+  ],
+  "boundary": "This evidence does not prove graceful-shutdown recovery. It records why the mode remains NOT_VERIFIED on the Windows local harness.",
+  "evidence_type": "owned-hosted-agent-graceful-attempt",
+  "generated_at_utc": "2026-08-26T08:40:18.342Z",
+  "schema_version": 1,
+  "status": "NOT_VERIFIED"
+}
