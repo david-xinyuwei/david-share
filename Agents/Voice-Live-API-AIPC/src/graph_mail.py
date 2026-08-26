@@ -8,6 +8,7 @@ Outlook.com / Exchange Online 的 SMTP Basic Auth 已于 2026-04-30 退役，
 from __future__ import annotations
 
 import csv
+import ctypes
 import json
 import locale
 import logging
@@ -15,6 +16,7 @@ import os
 import re
 import subprocess
 import tempfile
+from ctypes import wintypes
 from pathlib import Path
 import stat
 
@@ -112,7 +114,7 @@ def _restrict_cache_file(path: Path) -> None:
         return
 
     icacls = _trusted_system_tool("icacls.exe")
-    current_sid = _current_windows_sid()
+    current_account, current_sid = _current_windows_identity()
     result = subprocess.run(
         [
             str(icacls),
@@ -147,7 +149,7 @@ def _assert_cache_file_secure(path: Path) -> None:
             raise PermissionError("Graph token cache 权限必须是 0600")
         return
 
-    current_sid = _current_windows_sid()
+    current_account, current_sid = _current_windows_identity()
     acl_path: Path | None = None
     try:
         descriptor = tempfile.NamedTemporaryFile(
@@ -171,21 +173,37 @@ def _assert_cache_file_secure(path: Path) -> None:
         if result.returncode != 0 or not acl_path.is_file():
             raise PermissionError("无法导出 Graph token cache 的 Windows ACL，已拒绝读取")
         sddl = _read_sddl(acl_path)
-        _validate_cache_sddl(sddl, current_sid)
+        _validate_cache_sddl(
+            sddl,
+            current_sid,
+            allow_local_administrator_alias=_is_local_builtin_administrator(
+                current_account, current_sid
+            ),
+        )
     finally:
         if acl_path is not None:
             acl_path.unlink(missing_ok=True)
 
 
 def _trusted_system_tool(name: str) -> Path:
-    system_root = Path(os.environ.get("SystemRoot", r"C:\Windows")).resolve()
-    candidate = (system_root / "System32" / name).resolve()
-    if not candidate.is_relative_to(system_root) or not candidate.is_file():
+    if os.name != "nt":
+        raise RuntimeError("Windows security tools are unavailable on this platform")
+    buffer = ctypes.create_unicode_buffer(32_768)
+    length = ctypes.windll.kernel32.GetSystemDirectoryW(buffer, len(buffer))
+    if length <= 0 or length >= len(buffer):
+        raise RuntimeError("无法读取受信任的 Windows System32 路径")
+    system_directory = Path(buffer.value).resolve()
+    candidate = (system_directory / name).resolve()
+    if not candidate.is_relative_to(system_directory) or not candidate.is_file():
         raise RuntimeError(f"无法定位受信任的 Windows 程序: {candidate}")
     return candidate
 
 
 def _current_windows_sid() -> str:
+    return _current_windows_identity()[1]
+
+
+def _current_windows_identity() -> tuple[str, str]:
     result = subprocess.run(
         [str(_trusted_system_tool("whoami.exe")), "/user", "/fo", "csv", "/nh"],
         capture_output=True,
@@ -197,12 +215,34 @@ def _current_windows_sid() -> str:
     text = _decode_command_output(result.stdout)
     try:
         row = next(csv.reader([text.strip()]))
+        account = row[0].strip()
         sid = row[1].strip().upper()
     except (IndexError, StopIteration, csv.Error) as exc:
         raise PermissionError("无法解析当前 Windows SID，已拒绝读取 Graph token cache") from exc
     if not re.fullmatch(r"S-\d+(?:-\d+)+", sid):
         raise PermissionError("当前 Windows SID 格式无效，已拒绝读取 Graph token cache")
-    return sid
+    if "\\" not in account:
+        raise PermissionError("当前 Windows 账号格式无效，已拒绝读取 Graph token cache")
+    return account, sid
+
+
+def _windows_computer_name() -> str:
+    if os.name != "nt":
+        raise RuntimeError("Windows computer identity is unavailable on this platform")
+    buffer = ctypes.create_unicode_buffer(256)
+    size = wintypes.DWORD(len(buffer))
+    if not ctypes.windll.kernel32.GetComputerNameW(buffer, ctypes.byref(size)):
+        raise RuntimeError("无法读取 Windows computer name")
+    return buffer.value
+
+
+def _is_local_builtin_administrator(account: str, sid: str) -> bool:
+    account_domain, separator, _username = account.partition("\\")
+    return (
+        bool(separator)
+        and sid.upper().endswith("-500")
+        and account_domain.casefold() == _windows_computer_name().casefold()
+    )
 
 
 def _read_sddl(path: Path) -> str:
@@ -228,7 +268,12 @@ def _decode_command_output(data: bytes) -> str:
     raise PermissionError("无法解析 Windows 安全命令输出")
 
 
-def _validate_cache_sddl(sddl: str, current_sid: str) -> None:
+def _validate_cache_sddl(
+    sddl: str,
+    current_sid: str,
+    *,
+    allow_local_administrator_alias: bool = False,
+) -> None:
     first_ace = sddl.find("(")
     if not sddl.startswith("D:") or first_ace < 0 or "P" not in sddl[2:first_ace]:
         raise PermissionError("Graph token cache 仍继承目录权限，已拒绝读取")
@@ -246,7 +291,7 @@ def _validate_cache_sddl(sddl: str, current_sid: str) -> None:
         trustee = trustee.upper()
         if trustee == "SY":
             normalized = "S-1-5-18"
-        elif trustee == "LA" and current_sid.upper().endswith("-500"):
+        elif trustee == "LA" and allow_local_administrator_alias:
             normalized = current_sid.upper()
         else:
             normalized = trustee

@@ -151,20 +151,48 @@ def test_sddl_validator_accepts_only_current_user_and_system() -> None:
         )
 
 
-def test_sddl_validator_maps_local_administrator_only_to_current_500_sid() -> None:
+def test_sddl_validator_maps_local_administrator_only_after_identity_check() -> None:
     administrator_sid = "S-1-5-21-1-2-3-500"
     graph_mail._validate_cache_sddl(
         "D:PAI(A;;FA;;;SY)(A;;FA;;;LA)",
         administrator_sid,
+        allow_local_administrator_alias=True,
     )
 
     with pytest.raises(PermissionError):
         graph_mail._validate_cache_sddl(
             "D:PAI(A;;FA;;;SY)(A;;FA;;;LA)",
-            "S-1-5-21-1-2-3-1001",
+            administrator_sid,
         )
     with pytest.raises(PermissionError):
         graph_mail._validate_cache_sddl(
             "D:PAI(A;;FA;;;SY)(A;;FA;;;BA)(A;;FA;;;LA)",
             administrator_sid,
+            allow_local_administrator_alias=True,
         )
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows native system-directory validation")
+def test_security_tools_ignore_mutated_systemroot(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    actual = graph_mail._trusted_system_tool("whoami.exe")
+    fake = tmp_path / "System32" / "whoami.exe"
+    fake.parent.mkdir()
+    fake.write_bytes(b"malicious")
+    monkeypatch.setenv("SystemRoot", str(tmp_path))
+
+    assert graph_mail._trusted_system_tool("whoami.exe") == actual
+    assert graph_mail._trusted_system_tool("whoami.exe") != fake
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows native computer-name validation")
+def test_local_administrator_alias_requires_local_machine_identity() -> None:
+    computer = graph_mail._windows_computer_name()
+    sid = "S-1-5-21-1-2-3-500"
+
+    assert graph_mail._is_local_builtin_administrator(f"{computer}\\Administrator", sid)
+    assert not graph_mail._is_local_builtin_administrator("CONTOSO\\Administrator", sid)
+    assert not graph_mail._is_local_builtin_administrator(
+        f"{computer}\\User", "S-1-5-21-1-2-3-1001"
+    )
