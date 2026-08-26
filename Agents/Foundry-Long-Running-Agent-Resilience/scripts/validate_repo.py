@@ -534,6 +534,7 @@ def main() -> int:
         "产生恢复实测证据的是开启故障注入的版本 `1`",
     ):
         require(snippet in cn_text, f"Chinese Portal evidence missing: {snippet}")
+    for readme, text in ((EN, en_text), (CN, cn_text)):
         require(
             not re.search(r"^####\s+", text, flags=re.MULTILINE),
             f"{readme.name}: one-paragraph H4 fragments must stay merged",
