@@ -123,6 +123,7 @@ def _restrict_cache_file(path: Path) -> None:
             "*S-1-5-32-545",
             "*S-1-1-0",
             "*S-1-5-11",
+            "*S-1-3-4",
             "/grant:r",
             f"*{current_sid}:(F)",
             "*S-1-5-18:(F)",

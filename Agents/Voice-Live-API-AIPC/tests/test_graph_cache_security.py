@@ -48,6 +48,19 @@ def test_cache_acl_failure_preserves_existing_cache(
 def test_windows_cache_acl_keeps_current_user_access(tmp_path: Path) -> None:
     cache = tmp_path / ".msal_token_cache.json"
     cache.write_text("before", encoding="utf-8")
+    injected = graph_mail.subprocess.run(
+        [
+            str(graph_mail._trusted_system_tool("icacls.exe")),
+            str(cache),
+            "/grant:r",
+            "*S-1-5-32-544:(F)",
+            "*S-1-3-4:(F)",
+        ],
+        capture_output=True,
+        timeout=10,
+        check=False,
+    )
+    assert injected.returncode == 0
 
     graph_mail._restrict_cache_file(cache)
     graph_mail._assert_cache_file_secure(cache)
