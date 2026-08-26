@@ -14,7 +14,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -40,6 +40,26 @@ class ResponseRequestError(RuntimeError):
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
+
+
+def deadline_at_utc(seconds: float) -> str:
+    return (
+        datetime.now(timezone.utc) + timedelta(seconds=seconds)
+    ).isoformat(timespec="milliseconds")
+
+
+def remaining_deadline_seconds(
+    deadline: str,
+    now: datetime | None = None,
+) -> float:
+    current = now or datetime.now(timezone.utc)
+    target = datetime.fromisoformat(deadline)
+    if target.tzinfo is None:
+        raise RuntimeError("persisted deadline must include a timezone")
+    remaining = (target - current).total_seconds()
+    if remaining <= 0:
+        raise TimeoutError("the persisted response deadline has expired")
+    return remaining
 
 
 def sha256_text(value: str) -> str:
@@ -236,6 +256,13 @@ def run_test(args: argparse.Namespace) -> dict[str, Any]:
         work_id = state["work_id"]
         crash_after_stage = state["crash_after_stage"]
         stage_delay_ms = state["stage_delay_ms"]
+        persisted_deadline = state.get("deadline_at_utc")
+        if not isinstance(persisted_deadline, str):
+            created_at = datetime.fromisoformat(state["created_at"])
+            persisted_deadline = (
+                created_at + timedelta(seconds=float(state["deadline_seconds"]))
+            ).isoformat(timespec="milliseconds")
+        poll_deadline_seconds = remaining_deadline_seconds(persisted_deadline)
     else:
         created = create_work(
             endpoint=args.endpoint,
@@ -249,6 +276,8 @@ def run_test(args: argparse.Namespace) -> dict[str, Any]:
         work_id = args.work_id
         crash_after_stage = args.crash_after_stage
         stage_delay_ms = args.stage_delay_ms
+        persisted_deadline = deadline_at_utc(args.deadline_seconds)
+        poll_deadline_seconds = args.deadline_seconds
         state = {
             "schema_version": 1,
             "created_at": utc_now(),
@@ -257,13 +286,14 @@ def run_test(args: argparse.Namespace) -> dict[str, Any]:
             "crash_after_stage": crash_after_stage,
             "stage_delay_ms": stage_delay_ms,
             "deadline_seconds": args.deadline_seconds,
+            "deadline_at_utc": persisted_deadline,
         }
         write_json_atomic(args.state_file, state)
     terminal, events = poll_work(
         endpoint=args.endpoint,
         response_id=response_id,
         token=token,
-        deadline_seconds=args.deadline_seconds,
+        deadline_seconds=poll_deadline_seconds,
         poll_interval_seconds=args.poll_interval_seconds,
     )
     acceptance = validate_terminal_response(

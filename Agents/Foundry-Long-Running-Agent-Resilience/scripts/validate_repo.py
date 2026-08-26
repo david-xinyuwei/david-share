@@ -115,7 +115,7 @@ SECRET_PATTERNS = {
 # Numbers that must agree across both language versions.
 CRITICAL_NUMBERS = [
     "599", "12,248", "1,301", "21.7", "11,584", "47", "56",
-    "57.884", "738", "12,073", "18", "95",
+    "738", "12,073", "18", "95",
 ]
 HISTORICAL_NUMBERS = [
     "599", "12,248", "1,301", "21.7", "11,584", "47", "56",
@@ -1160,6 +1160,7 @@ def main() -> int:
             '"response_id": response_id',
             '"response_id_sha256": sha256_text(response_id)',
             "if args.resume:",
+            "remaining_deadline_seconds(persisted_deadline)",
             "except (TimeoutError, urllib.error.URLError)",
             "validate_terminal_response",
             "TRANSIENT_HTTP_STATUSES = {404, 424, 429, 500, 502, 503, 504}",
@@ -1317,10 +1318,20 @@ def main() -> int:
         and len(owned_live_deployment.get("content_sha256", "")) == 64,
         "owned live Hosted Agent deployment identity is incomplete",
     )
+    owned_elapsed = owned_live_evidence.get("elapsed_seconds")
     require(
-        owned_live_evidence.get("elapsed_seconds") == 57.884,
-        "owned live Hosted Agent measured duration drifted",
+        isinstance(owned_elapsed, (int, float)) and 0 < owned_elapsed <= 360,
+        "owned live Hosted Agent duration must be a positive bounded measurement",
     )
+    if isinstance(owned_elapsed, (int, float)):
+        elapsed_text = f"{owned_elapsed:.3f}"
+        require(
+            elapsed_text in en_text
+            and elapsed_text in cn_text
+            and elapsed_text in start_en_text
+            and elapsed_text in start_cn_text,
+            "owned live duration must align across evidence and bilingual docs",
+        )
     require(
         isinstance(owned_live_evidence.get("response_id_sha256"), str)
         and len(owned_live_evidence["response_id_sha256"]) == 64

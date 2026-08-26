@@ -122,7 +122,7 @@
 | [`scripts/verify_public_resilience_api.py`](scripts/verify_public_resilience_api.py) | 检查当前安装的 Azure SDK 是否包含本文依赖的 18 项公开接口与处理规则。 |
 | [`scripts/validate_observations.py`](scripts/validate_observations.py) | 检查运行记录是否有事件缺口、重复结果或缺少明确终态；遇到无法确认含义的 `424` / `403` 时停止并报错。 |
 | [`scripts/validate_repo.py`](scripts/validate_repo.py) | 一键检查中英文结构、证据文件与校验值、代码和测试是否完整；任何一项不通过都会返回错误。 |
-| [`tests/`](tests/) | 19 项自动化测试，覆盖恢复契约、正常/异常输入、时序、重放、输入完整性和拒绝路径。 |
+| [`tests/`](tests/) | 21 项自动化测试，覆盖恢复契约、认证、持久化截止时间、正常/异常输入、时序、重放、输入完整性和拒绝路径。 |
 | [`evidence/`](evidence/) | 保存可供程序读取的实验结果、事件日志、证据分类和 SHA-256 校验清单，便于复核与复现。 |
 
 下面每个文件都直接使用了公共 SDK，或有意不使用：
@@ -405,7 +405,7 @@ PYTHON=.venv/bin/python
 "$PYTHON" scripts/validate_repo.py
 ```
 
-**完成标准：** 看到 `PASS: imported azure.ai.agentserver.core.tasks`、`18/18 checks passed`、`Ran 19 tests ... OK` 和 `PASS: bilingual parity ... Data/Log Rich ... Code/Test Rich`。这些命令只检查 SDK 和本仓库，不会调用线上 Hosted Agent。
+**完成标准：** 看到 `PASS: imported azure.ai.agentserver.core.tasks`、`18/18 checks passed`、`Ran 21 tests ... OK` 和 `PASS: bilingual parity ... Data/Log Rich ... Code/Test Rich`。这些命令只检查 SDK 和本仓库，不会调用线上 Hosted Agent。
 
 ### 在真实 Hosted Agent 上复现
 

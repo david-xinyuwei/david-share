@@ -4,7 +4,9 @@ import importlib.util
 import json
 import sys
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_PATH = (
@@ -134,6 +136,47 @@ class OwnedHostedAgentContractTests(unittest.TestCase):
                 "responses/response%20id?api-" "version=v1"
             ),
         )
+
+    def test_azure_token_is_sent_on_the_wire(self):
+        class FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self):
+                return b'{"status":"ok"}'
+
+        captured = {}
+
+        def fake_urlopen(request, timeout):
+            captured["authorization"] = request.get_header("Authorization")
+            captured["timeout"] = timeout
+            return FakeResponse()
+
+        with patch.object(CLIENT.urllib.request, "urlopen", fake_urlopen):
+            result = CLIENT.request_json(
+                "GET",
+                "https://example.invalid/responses/r1",
+                None,
+                "abc123",
+            )
+        self.assertEqual(result, {"status": "ok"})
+        self.assertEqual(captured["authorization"], "Bearer abc123")
+        self.assertEqual(captured["timeout"], 30)
+
+    def test_resume_uses_remaining_absolute_deadline(self):
+        remaining = CLIENT.remaining_deadline_seconds(
+            "2026-08-26T10:01:00+00:00",
+            now=datetime(2026, 8, 26, 10, 0, 0, tzinfo=timezone.utc),
+        )
+        self.assertEqual(remaining, 60)
+        with self.assertRaisesRegex(TimeoutError, "deadline has expired"):
+            CLIENT.remaining_deadline_seconds(
+                "2026-08-26T09:59:59+00:00",
+                now=datetime(2026, 8, 26, 10, 0, 0, tzinfo=timezone.utc),
+            )
 
 
 if __name__ == "__main__":

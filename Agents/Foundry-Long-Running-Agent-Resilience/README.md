@@ -122,7 +122,7 @@ The figure below is the **official Microsoft diagram**, reproduced unmodified. I
 | [`scripts/verify_public_resilience_api.py`](scripts/verify_public_resilience_api.py) | Checks 18 public symbols and handler rules against the pinned installed SDK packages |
 | [`scripts/validate_observations.py`](scripts/validate_observations.py) | Rejects sequence gaps, duplicate/missing output, insufficient terminal proof, and unclassified `424` / `403` conditions |
 | [`scripts/validate_repo.py`](scripts/validate_repo.py) | Fail-closed bilingual, evidence-integrity, Data/Log Rich and Code/Test Rich repository gate |
-| [`tests/`](tests/) | Nineteen tests covering recovery contracts, positive/negative paths, timing, replay, input integrity and validator refusal |
+| [`tests/`](tests/) | Twenty-one tests covering recovery contracts, authentication, persisted deadlines, positive/negative paths, timing, replay, input integrity and validator refusal |
 | [`evidence/`](evidence/) | Structured summaries, JSONL events, truth labels, normalized SHA-256 hashes and reproduction index |
 
 Each file below uses the public SDK, or deliberately does not:
@@ -405,7 +405,7 @@ PYTHON=.venv/bin/python
 "$PYTHON" scripts/validate_repo.py
 ```
 
-Done-when is `PASS: imported azure.ai.agentserver.core.tasks`, `18/18 checks passed`, `Ran 19 tests ... OK`, and `PASS: bilingual parity ... Data/Log Rich ... Code/Test Rich`. These checks validate the pinned public SDK surface and this repository; they do not call a live Hosted Agent.
+Done-when is `PASS: imported azure.ai.agentserver.core.tasks`, `18/18 checks passed`, `Ran 21 tests ... OK`, and `PASS: bilingual parity ... Data/Log Rich ... Code/Test Rich`. These checks validate the pinned public SDK surface and this repository; they do not call a live Hosted Agent.
 
 ### Reproduce on a live Hosted Agent
 
