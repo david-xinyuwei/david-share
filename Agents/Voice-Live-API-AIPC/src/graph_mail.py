@@ -8,7 +8,6 @@ Outlook.com / Exchange Online 的 SMTP Basic Auth 已于 2026-04-30 退役，
 from __future__ import annotations
 
 import csv
-import getpass
 import json
 import locale
 import logging
@@ -113,17 +112,19 @@ def _restrict_cache_file(path: Path) -> None:
         return
 
     icacls = _trusted_system_tool("icacls.exe")
-
-    username = os.environ.get("USERNAME") or getpass.getuser()
-    domain = os.environ.get("USERDOMAIN")
-    principal = f"{domain}\\{username}" if domain else username
+    current_sid = _current_windows_sid()
     result = subprocess.run(
         [
             str(icacls),
             str(path),
             "/inheritance:r",
+            "/remove:g",
+            "*S-1-5-32-544",
+            "*S-1-5-32-545",
+            "*S-1-1-0",
+            "*S-1-5-11",
             "/grant:r",
-            f"{principal}:(F)",
+            f"*{current_sid}:(F)",
             "*S-1-5-18:(F)",
         ],
         capture_output=True,
@@ -133,6 +134,7 @@ def _restrict_cache_file(path: Path) -> None:
     )
     if result.returncode != 0:
         raise RuntimeError("无法限制 Graph token cache 的 Windows ACL，已拒绝写入")
+    _assert_cache_file_secure(path)
 
 
 def _assert_cache_file_secure(path: Path) -> None:
@@ -240,7 +242,13 @@ def _validate_cache_sddl(sddl: str, current_sid: str) -> None:
         if len(fields) != 6:
             raise PermissionError("Graph token cache ACL 结构无效")
         ace_type, flags, rights, _object_guid, _inherit_guid, trustee = fields
-        normalized = "S-1-5-18" if trustee.upper() == "SY" else trustee.upper()
+        trustee = trustee.upper()
+        if trustee == "SY":
+            normalized = "S-1-5-18"
+        elif trustee == "LA" and current_sid.upper().endswith("-500"):
+            normalized = current_sid.upper()
+        else:
+            normalized = trustee
         if ace_type != "A" or flags or rights != "FA" or normalized not in expected:
             raise PermissionError("Graph token cache 向其他 Windows principal 授权，已拒绝读取")
         grants.add(normalized)

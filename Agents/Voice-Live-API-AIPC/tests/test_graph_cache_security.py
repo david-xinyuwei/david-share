@@ -136,3 +136,22 @@ def test_sddl_validator_accepts_only_current_user_and_system() -> None:
             f"D:PAI(A;ID;FA;;;SY)(A;;FA;;;{sid})",
             sid,
         )
+
+
+def test_sddl_validator_maps_local_administrator_only_to_current_500_sid() -> None:
+    administrator_sid = "S-1-5-21-1-2-3-500"
+    graph_mail._validate_cache_sddl(
+        "D:PAI(A;;FA;;;SY)(A;;FA;;;LA)",
+        administrator_sid,
+    )
+
+    with pytest.raises(PermissionError):
+        graph_mail._validate_cache_sddl(
+            "D:PAI(A;;FA;;;SY)(A;;FA;;;LA)",
+            "S-1-5-21-1-2-3-1001",
+        )
+    with pytest.raises(PermissionError):
+        graph_mail._validate_cache_sddl(
+            "D:PAI(A;;FA;;;SY)(A;;FA;;;BA)(A;;FA;;;LA)",
+            administrator_sid,
+        )
