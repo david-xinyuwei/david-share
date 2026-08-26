@@ -50,6 +50,8 @@ Accept the setup only when the offline gate serializes 24 tools and the live gat
 
 Select **Start conversation**. First test a harmless request such as time or weather before enabling camera, Windows power, wallpaper, or mail side effects.
 
+To select English, say: **“Please speak English for this demo and keep using English until I explicitly request another language.”** The agent keeps that selection until you explicitly request a different language; merely quoting another language does not switch it. Chinese is the default before a language is selected.
+
 Camera open/capture, timezone, power, wallpaper, image generation, and mail are code-protected actions. The first call cannot execute; review the summarized action and confirm it in a separate user turn. Changed, replayed, expired, or cancelled confirmations are rejected.
 
 ## Optional mail delivery

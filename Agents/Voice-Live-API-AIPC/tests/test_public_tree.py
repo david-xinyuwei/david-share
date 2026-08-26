@@ -34,6 +34,16 @@ def test_runtime_dependencies_are_exactly_pinned() -> None:
     assert all("==" in requirement for requirement in requirements)
 
 
+def test_public_version_fields_are_aligned() -> None:
+    version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+
+    assert version == "1.0.1"
+    assert f'version = "{version}"' in pyproject
+    assert f"## {version} - 2026-08-26" in changelog
+
+
 def test_public_json_is_stored_as_regular_git_text() -> None:
     attributes = (ROOT / ".gitattributes").read_text(encoding="utf-8")
     assert "*.json !filter !diff !merge text eol=lf" in attributes

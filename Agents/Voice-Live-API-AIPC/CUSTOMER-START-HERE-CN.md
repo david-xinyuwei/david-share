@@ -50,6 +50,8 @@ Git 会忽略 `.env`。不要把 Key 粘贴到命令、Issue、日志或截图�
 
 点击**开始对话**。先用时间或天气这类无害请求验证，再启用摄像头、Windows 电源、壁纸或邮件副作用。
 
+要选择英文，请说：**“Please speak English for this demo and keep using English until I explicitly request another language.”** 该选择会持续生效，直到你明确要求另一种语言；仅引用其他语言不会触发切换。尚未指定语言时默认中文。
+
 打开/抓拍摄像头、时区、电源、壁纸、生图和邮件都是代码层受保护操作。第一次调用不会执行；请先核对系统概括的操作，再在下一轮明确确认。参数变化、token 重放、过期或取消都会被拒绝。
 
 ## 可选邮件发送

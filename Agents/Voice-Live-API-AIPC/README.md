@@ -6,7 +6,7 @@
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/voice-live-aipc-ci.yml/badge.svg?branch=master)](https://github.com/david-xinyuwei/david-share/actions/workflows/voice-live-aipc-ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-107C10.svg)](LICENSE)
 
-A Windows AIPC voice agent that combines the **Azure Voice Live API** with 24 local tools for realtime conversation, camera perception, desktop and power control, live information lookup, wallpaper actions, and allowlisted email delivery. Voice coordination runs in Azure; every device action runs on the user's PC and remains visible on that device.
+A Windows AIPC voice agent that combines the **Azure Voice Live API** with 24 local tools for realtime conversation, camera perception, desktop and power control, live information lookup, wallpaper actions, and allowlisted email delivery. Voice coordination runs in Azure; every device action runs on the user's PC and remains visible on that device. The user can explicitly select any response language, and that choice persists until explicitly changed.
 
 > Author: **Xinyu Wei**
 
@@ -24,7 +24,7 @@ This repository is an executable Windows application, not a UI-only simulation.
 
 | Surface | This repository actually does | You provide |
 |---|---|---|
-| Realtime voice | Opens a real Voice Live WebSocket, streams PCM16 audio, configures multilingual semantic VAD, deep noise suppression, server-reference echo cancellation, `gpt-realtime`, and an Azure neural voice | A Microsoft Foundry resource, supported region, endpoint, and either Entra access or an API key |
+| Realtime voice | Opens a real Voice Live WebSocket, streams PCM16 audio, configures multilingual semantic VAD, deep noise suppression, server-reference echo cancellation, `gpt-realtime`, an Azure neural voice, and persistent user-selected response language | A Microsoft Foundry resource, supported region, endpoint, and either Entra access or an API key |
 | Function calling | Publishes 24 default tool schemas and executes the selected tool on the local PC; high-impact actions require a later one-time confirmation bound to the exact arguments | Consent to local side effects and any optional provider credentials |
 | AIPC device control | Reads/sets volume, launches allowlisted apps, changes timezone, brightness, power mode, display/sleep/hibernate timeouts, and wallpaper using Windows APIs | Windows 10/11 and compatible hardware |
 | Camera perception | Captures the current local camera frame and sends it to a caller-configured multimodal model only after an explicit camera/vision request | Camera permission and an Azure OpenAI chat deployment |
@@ -35,6 +35,7 @@ This repository is an executable Windows application, not a UI-only simulation.
 ### Important boundaries
 
 - **No mock fallback:** production tools do not replace unavailable services with static data or synthetic success.
+- **The user selects the response language:** an explicit request such as “Please speak English” switches every response, tool-progress message, confirmation, and error to English until the user explicitly requests another language. Quoted or practiced foreign-language text alone does not switch it. Chinese is the default only before any language is selected.
 - **High-impact actions require two turns:** mail, camera open/capture, timezone, power, wallpaper, and image generation return a one-time token first. Only one protected action may be pending; a competing action is rejected. Only a later explicit confirmation of unchanged arguments can execute it; replay, expiry, cancellation, and changed arguments fail closed.
 - **Email is a real side effect:** unlike a draft-only workflow, a confirmed `send_email` call transmits mail after recipient and size validation.
 - **Windows-only device tools:** CI validates their contracts but does not claim that it moved a real slider, camera, or power setting.
@@ -201,7 +202,9 @@ This opens a real Voice Live WebSocket and waits for `session.updated`; it does 
 
 Select **Start conversation**. Use headphones for the most predictable demo path.
 
-**Done-When:** the UI reports that the microphone is open, speech receives a live response, and a harmless tool such as time or weather completes in the tool panel.
+For an English recording, begin with: **“Please speak English for this demo and keep using English until I explicitly request another language.”** The selection remains active across later turns, even if a turn quotes or practices another language. To switch back, explicitly say: **“Please switch to Chinese.”**
+
+**Done-When:** the UI reports that the microphone is open, the agent follows the explicitly selected language across later turns, and a harmless tool such as time or weather completes in the tool panel.
 
 ## Optional integrations
 

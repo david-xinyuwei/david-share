@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from src import tools
+from src import agent_core, tools
 from src.backends.voicelive import build_session
 from src.tools import desktop, mailer, power, stocks, timezone, wallpaper
 
@@ -41,6 +41,16 @@ CORE_TOOLS = {
 def test_default_registry_has_24_real_tools() -> None:
     assert set(tools.registered_names()) == CORE_TOOLS
     assert len(tools.function_tools()) == 24
+
+
+def test_instructions_honor_explicit_language_selection() -> None:
+    instructions = agent_core.INSTRUCTIONS
+    assert "explicit language request is authoritative" in instructions
+    assert "Keep using the explicitly requested language" in instructions
+    assert "Do not switch languages merely because" in instructions
+    assert "用户还没有明确指定语言，默认使用中文" in instructions
+    assert "绝对不要声称回答必须保持中文" in instructions
+    assert "全程用简洁自然的中文口语回答" not in instructions
 
 
 def test_voice_live_session_contract() -> None:

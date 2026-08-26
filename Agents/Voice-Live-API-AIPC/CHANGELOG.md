@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1 - 2026-08-26
+
+- Honor the user's explicit response-language selection and keep it active until the user explicitly changes languages.
+- Add an English recording prompt and bilingual usage guidance.
+
 ## 1.0.0 - 2026-08-26
 
 - Publish the Windows Voice Live AIPC application with 24 default local tools.

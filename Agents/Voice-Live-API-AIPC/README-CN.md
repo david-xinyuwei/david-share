@@ -6,7 +6,7 @@
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/voice-live-aipc-ci.yml/badge.svg?branch=master)](https://github.com/david-xinyuwei/david-share/actions/workflows/voice-live-aipc-ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-107C10.svg)](LICENSE)
 
-这是一个运行在 Windows AIPC 上的语音代理：用 **Azure Voice Live API** 处理实时对话，并通过 24 个本机工具完成摄像头感知、桌面和电源控制、实时信息查询、壁纸操作与白名单邮件发送。语音编排发生在 Azure；所有设备操作都在用户自己的 PC 上执行，结果可在本机直接核对。
+这是一个运行在 Windows AIPC 上的语音代理：用 **Azure Voice Live API** 处理实时对话，并通过 24 个本机工具完成摄像头感知、桌面和电源控制、实时信息查询、壁纸操作与白名单邮件发送。语音编排发生在 Azure；所有设备操作都在用户自己的 PC 上执行，结果可在本机直接核对。用户可以明确指定任意回复语言，该选择会持续生效，直到用户明确要求切换。
 
 > Author: **Xinyu Wei（魏新宇）**
 
@@ -24,7 +24,7 @@
 
 | 能力面 | 本仓库真实执行 | 用户需要提供 |
 |---|---|---|
-| 实时语音 | 建立真实 Voice Live WebSocket，流式传输 PCM16 音频，配置多语言 Semantic VAD、深度降噪、服务端参考回声消除、`gpt-realtime` 和 Azure 神经音色 | Microsoft Foundry 资源、受支持区域、endpoint，以及 Entra 权限或 API Key |
+| 实时语音 | 建立真实 Voice Live WebSocket，流式传输 PCM16 音频，配置多语言 Semantic VAD、深度降噪、服务端参考回声消除、`gpt-realtime`、Azure 神经音色和持续生效的用户指定回复语言 | Microsoft Foundry 资源、受支持区域、endpoint，以及 Entra 权限或 API Key |
 | Function calling | 向服务端声明 24 个默认工具 schema，并在本机执行模型选中的工具；高影响操作必须在后续轮次用绑定原参数的一次性 token 确认 | 对本机副作用的明确授权，以及可选服务所需的凭据 |
 | AIPC 设备控制 | 通过 Windows API 查询/设置音量，启动白名单应用，修改时区、亮度、电源模式、关屏/睡眠/休眠时间和壁纸 | Windows 10/11 与兼容硬件 |
 | 摄像头感知 | 只有用户明确请求相机/识图后，才抓取当前本机画面并调用用户配置的多模态模型 | 摄像头权限与 Azure OpenAI chat deployment |
@@ -35,6 +35,7 @@
 ### 重要边界
 
 - **不做 mock fallback：** 生产工具不会在真实服务不可用时返回静态数据或伪造成功。
+- **回复语言由用户指定：** 用户明确说 “Please speak English” 后，回复、工具进度、确认和错误都会持续使用英文，直到用户明确要求换成另一种语言。引用或练习其他语言不会自动切换；只有尚未指定语言时才默认中文。
 - **高影响操作需要两轮确认：** 邮件、打开/抓拍摄像头、时区、电源、壁纸和生图第一次只返回一次性 token。同一时刻只能有一个待确认操作，竞争操作会被拒绝。只有后续新一轮明确确认且参数完全一致时才会执行；重放、过期、取消或参数变化都会失败。
 - **邮件有真实副作用：** `send_email` 不是只生成草稿；完成确认并通过收件人和内容大小校验后，它会实际发送邮件。
 - **设备工具仅支持 Windows：** CI 只验证合同，不宣称实际移动了音量条、打开了摄像头或修改了电源设置。
@@ -201,7 +202,9 @@ az account show --query "{name:name,id:id,tenantId:tenantId}" -o table
 
 点击**开始对话**。为了提高 Demo 稳定性，建议佩戴耳机。
 
-**Done-When：** 界面显示麦克风已打开，语音得到真实回复，并且时间或天气这类无害工具在工具面板中完成。
+录英文视频时，第一句说：**“Please speak English for this demo and keep using English until I explicitly request another language.”** 后续即使引用或练习其他语言，也会保持英文。需要切回中文时明确说：**“Please switch to Chinese.”**
+
+**Done-When：** 界面显示麦克风已打开，助手在后续轮次持续使用用户明确指定的语言，并且时间或天气这类无害工具在工具面板中完成。
 
 ## 可选集成
 
