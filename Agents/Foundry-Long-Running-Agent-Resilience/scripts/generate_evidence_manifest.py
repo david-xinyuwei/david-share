@@ -40,6 +40,7 @@ PROVENANCE = {
     "evidence/recovery-contract-events.jsonl": "Structured events from recovery_contract_demo.py.",
     "evidence/resilience-sdk-usage.json": "python examples/resilience_sdk_usage.py --check --format json",
     "evidence/run-contract.json": "Maintained scenario-agnostic complete-run contract.",
+    "evidence/rule-results.json": "Executable SOP-68 RUN-001 through RUN-015 rule outcomes and evidence paths.",
     "evidence/runs/owned-agent-recovery-validation-20260826/run-manifest.json": "Commands, exits, logs, status, UI, and key-code hashes for this validation cycle.",
     "evidence/scenario-manifest.json": "Maintained authenticity classification and non-claims.",
     "evidence/scenario-matrix.json": "Maintained PASS and NOT_VERIFIED mode matrix.",

@@ -7,6 +7,7 @@ The reader-facing [recovery timeline PNG](../images/lra-recovery-timeline.png) i
 | Evidence | Classification | What it proves | Boundary |
 |---|---|---|---|
 | [`run-contract.json`](run-contract.json) | truth contract | Scenario-declared timeline milestones, state assertions, code hooks, README tokens, and matrix path | The generic gate interprets this data; it does not know LRA event names |
+| [`rule-results.json`](rule-results.json) | executable rule result | One PASS/FAIL/N/A/NOT_VERIFIED record for each SOP-68 `RUN-001` through `RUN-015` rule, with assertions and evidence paths | Missing, duplicate, failed, unsupported, or ungrounded rules fail the native gate |
 | [`scenario-matrix.json`](scenario-matrix.json) | truth contract | PASS / NOT VERIFIED status for every advertised mode | Each row keeps its runtime and evidence boundary |
 | [`owned-hosted-agent-translation-local.json`](owned-hosted-agent-translation-local.json) | dynamic runtime | Real Translator S1 batch, exact process down/recovered/completed times, section 4 checkpoint, section 5 resume, all 12 results | Local AgentServer, not Foundry availability or translation quality |
 | [`owned-hosted-agent-translation-local-events.jsonl`](owned-hosted-agent-translation-local-events.jsonl) and [`owned-hosted-agent-translation-local-trace.txt`](owned-hosted-agent-translation-local-trace.txt) | sanitized log / reader trace | Process A loss, Process B recovery, first resumed section, handler completion, original-response completion | Raw response/process identifiers are hashed |

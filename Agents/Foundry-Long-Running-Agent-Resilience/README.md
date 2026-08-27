@@ -209,6 +209,8 @@ This is at-least-once recovery. Work after the last successful checkpoint can ru
 
 The matrix is data, not a promise. [`run-contract.json`](evidence/run-contract.json) declares the required milestones and state assertions; [`scenario-matrix.json`](evidence/scenario-matrix.json) declares the modes. The validator reads those files instead of hardcoding this demo's event names.
 
+SOP-68 rules are executable, not self-attested: [`scripts\generate_rule_results.py`](scripts/generate_rule_results.py) computes `RUN-001` through `RUN-015`, writes [`rule-results.json`](evidence/rule-results.json), and the repository gate regenerates and compares that file byte-for-byte.
+
 ## Reproduce it
 
 ### Prerequisites

@@ -7,7 +7,7 @@
     "The safe Version 9 run and Portal screenshots prove the post-test deployment, not recovery by themselves.",
     "Graceful Windows shutdown recovery remains NOT_VERIFIED."
   ],
-  "captured_at_utc": "2026-08-26T15:00:53.106Z",
+  "captured_at_utc": "2026-08-27T03:30:17.430Z",
   "commands": [
     {
       "command": "python hosted-agent/run_local_recovery.py --runtime-label \"Python 3.13 + Azure Translator S1\" --workload translator_batch --work-id owned-agent-real-translation-primary --payload \"repository-owned-real-translation-workload-v1\" --crash-after-stage 3 --stage-delay-ms 1000 --first-exit-timeout-seconds 60 --deadline-seconds 240 --report evidence/owned-hosted-agent-translation-local.json --log-report evidence/owned-hosted-agent-translation-local-events.jsonl",
@@ -98,6 +98,10 @@
   ],
   "key_code": [
     {
+      "path": "evidence/rule-results.json",
+      "sha256": "f0f42442d008aa97f0151391ff1cdc68cd5d713a0d1652a6a50accca56269f9f"
+    },
+    {
       "path": "images/lra-recovery-timeline.excalidraw",
       "sha256": "d2f670e5759d5cd3cad1e3d900ada38ae2e91491f7d9181e63a68b51a8663516"
     },
@@ -154,6 +158,10 @@
       "sha256": "44621c75a61ee6dcf266449e1c793828f08d5f81140e2cca18b7207ffc303cfb"
     },
     {
+      "path": "scripts/generate_rule_results.py",
+      "sha256": "3222ac2d58fe075d9e0fcf6b33e85006c64559e2f73629a4639442512065b48f"
+    },
+    {
       "path": "scripts/render_recovery_trace.py",
       "sha256": "f9fbf366b3633e5663e97392f038163057c9f64d7ff9237f26e97ad5d8074adf"
     },
@@ -163,18 +171,23 @@
     },
     {
       "path": "scripts/validate_repo.py",
-      "sha256": "4e36e960680db07d5fffbb926917c19719c2dbb47e2862c0d9bcbcccc175a9da"
+      "sha256": "ec74ef6729e2725b1de966f5d11661e25cc005eaf4bc9ab565456f81c277cc16"
     },
     {
       "path": "scripts/generate_evidence_manifest.py",
-      "sha256": "e6db2e63b6e215b5e6940c5025cedec2edc9d3d8e0c35065d5199391427ace2b"
+      "sha256": "2efd539413b0bc1392a847d71064b1f75a62636d1c1e9e38e64f87ff3fc287b8"
     },
     {
       "path": "evidence/run-contract.json",
-      "sha256": "eea02e3f1f457c23c42c8cf4b7f0920e48d72d2c554a742f79b9d150b8667773"
+      "sha256": "31884b5b79585531d6d611511f5ec06ec42a2deb00374fda9e902a2f639e1b70"
+    },
+    {
+      "path": "tests/test_rule_results.py",
+      "sha256": "9066ffd0d3a2b1475320f176a1aa8ca78cad3beaf1a27bc52a0e4d76e6101e62"
     }
   ],
   "logs": [
+    "evidence/rule-results.json",
     "evidence/owned-hosted-agent-translation-local-events.jsonl",
     "evidence/owned-hosted-agent-live-translation-events.jsonl",
     "evidence/owned-hosted-agent-live-translation-trace.txt",

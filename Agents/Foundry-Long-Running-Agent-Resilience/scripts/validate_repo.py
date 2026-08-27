@@ -17,6 +17,17 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import unquote
 
+try:
+    from generate_rule_results import (
+        evaluate_rules,
+        validate_document as validate_computed_rule_document,
+    )
+except ModuleNotFoundError:
+    from scripts.generate_rule_results import (
+        evaluate_rules,
+        validate_document as validate_computed_rule_document,
+    )
+
 
 def parse_root() -> Path:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -68,6 +79,7 @@ ALLOWED_FILES = {
     "evidence/recovery-contract-events.jsonl",
     "evidence/resilience-sdk-usage.json",
     "evidence/run-contract.json",
+    "evidence/rule-results.json",
     "evidence/runs/owned-agent-recovery-validation-20260826/run-manifest.json",
     "evidence/scenario-manifest.json",
     "evidence/scenario-matrix.json",
@@ -94,6 +106,7 @@ ALLOWED_FILES = {
     "images/product-ui/portal-owned-agent-list.png",
     "requirements-validation.txt",
     "scripts/generate_evidence_manifest.py",
+    "scripts/generate_rule_results.py",
     "scripts/recovery_contract_demo.py",
     "scripts/render_recovery_trace.py",
     "scripts/render_translation_result.py",
@@ -102,6 +115,7 @@ ALLOWED_FILES = {
     "scripts/verify_public_resilience_api.py",
     "tests/test_owned_hosted_agent.py",
     "tests/test_recovery_contract_demo.py",
+    "tests/test_rule_results.py",
     "tests/test_validate_observations.py",
 }
 
@@ -798,6 +812,43 @@ def validate_run_contract(gate: Gate, en: str, cn: str) -> None:
                 )
 
 
+def validate_rule_results(gate: Gate) -> list[str]:
+    contract = read_json(gate, "evidence/run-contract.json")
+    relative = contract.get("rule_results")
+    gate.require(isinstance(relative, str), "run contract rule-results path is missing")
+    results = read_json(gate, relative) if isinstance(relative, str) else {}
+    computed = evaluate_rules(ROOT)
+    gate.require(
+        json.dumps(results, indent=2, ensure_ascii=False) + "\n"
+        == json.dumps(computed, indent=2, ensure_ascii=False) + "\n",
+        "committed rule results drifted from unconditional evaluator output",
+    )
+    rules = results.get("rules", [])
+    for error in validate_computed_rule_document(ROOT, results):
+        gate.require(False, error)
+    summaries: list[str] = []
+    for rule in rules if isinstance(rules, list) else []:
+        if not isinstance(rule, dict):
+            continue
+        rule_id = rule.get("id")
+        status = rule.get("status")
+        checks = rule.get("checks", [])
+        evidence = rule.get("evidence", [])
+        failed_checks = [
+            item.get("id")
+            for item in checks
+            if isinstance(item, dict) and item.get("passed") is False
+        ]
+        gate.require(
+            status == "PASS" and not failed_checks,
+            f"{rule_id}: computed rule did not pass: {failed_checks}",
+        )
+        summaries.append(
+            f"RULE {rule_id} {status} {len(evidence) if isinstance(evidence, list) else 0}"
+        )
+    return summaries
+
+
 def validate_scenario_manifest(gate: Gate) -> None:
     manifest = read_json(gate, "evidence/scenario-manifest.json")
     scenarios = manifest.get("scenarios", [])
@@ -1172,6 +1223,7 @@ def main() -> int:
     gate = Gate()
     en, cn = validate_readmes(gate)
     validate_run_contract(gate, en, cn)
+    rule_summaries = validate_rule_results(gate)
     validate_scenario_manifest(gate)
     validate_ui_and_run_bundles(gate)
     manifest_count = validate_evidence_manifest(gate)
@@ -1184,6 +1236,8 @@ def main() -> int:
         for error in gate.errors:
             print(f"ERROR: {error}")
         return 1
+    for summary in rule_summaries:
+        print(summary)
     print(
         f"PASS: bilingual parity ({len(heading_titles(en))} headings, "
         f"{len(table_shapes(en))} tables), complete run contract, "

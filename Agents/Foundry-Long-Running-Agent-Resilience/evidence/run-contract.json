@@ -97,6 +97,11 @@
       "generator": "scripts/render_translation_result.py",
       "input": "evidence/owned-hosted-agent-live-translation.json",
       "output": "evidence/owned-hosted-agent-live-translation-output.md"
+    },
+    {
+      "generator": "scripts/generate_rule_results.py",
+      "input": "evidence/run-contract.json",
+      "output": "evidence/rule-results.json"
     }
   ],
   "matrix": "evidence/scenario-matrix.json",
@@ -145,6 +150,7 @@
   ],
   "readme_required_tokens": [
     "run-contract.json",
+    "rule-results.json",
     "scenario-matrix.json",
     "run_local_recovery.py",
     "run_observer_restart.py",
@@ -175,6 +181,7 @@
     "--server-command dotnet",
     "python -m unittest discover -s tests -v",
     "scripts\\validate_repo.py",
+    "generate_rule_results.py",
     "azd provision",
     "azd deploy"
   ],
@@ -182,6 +189,7 @@
     "evidence/owned-hosted-agent-translation-local-trace.txt",
     "evidence/owned-hosted-agent-live-translation-trace.txt"
   ],
+  "rule_results": "evidence/rule-results.json",
   "scenario_id": "owned-agent-real-translation-process-loss",
   "schema_version": 1,
   "state_assertions": [

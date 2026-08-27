@@ -209,6 +209,8 @@ RESULT PASS
 
 这张表是数据，不是承诺。[`run-contract.json`](evidence/run-contract.json) 声明主运行必须出现的里程碑和状态断言；[`scenario-matrix.json`](evidence/scenario-matrix.json) 声明全部模式。门禁读取这些文件，不把当前 Demo 的事件名写死在验证器里。
 
+SOP-68 Rule 不是自报 PASS：[`scripts\generate_rule_results.py`](scripts/generate_rule_results.py) 实际计算 `RUN-001` 至 `RUN-015`，生成 [`rule-results.json`](evidence/rule-results.json)；仓库门禁重新运行 evaluator，并逐 byte 比较生成结果。
+
 ## 自己复现
 
 ### 前置条件

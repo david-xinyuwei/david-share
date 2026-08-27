@@ -1,0 +1,717 @@
+{
+  "rules": [
+    {
+      "applicable": true,
+      "checks": [
+        {
+          "actual": "translator_batch",
+          "expected": "translator_batch",
+          "id": "workload",
+          "passed": true
+        },
+        {
+          "actual": "owned-agent-real-translation-primary",
+          "expected": "owned-agent-real-translation-primary",
+          "id": "work-id",
+          "passed": true
+        },
+        {
+          "actual": "2d582f74c984a67674b6eea7f59efde890405dcdd74c378a7c6092804490437b",
+          "expected": "2d582f74c984a67674b6eea7f59efde890405dcdd74c378a7c6092804490437b",
+          "id": "payload-hash",
+          "passed": true
+        },
+        {
+          "actual": "3",
+          "expected": "3",
+          "id": "crash-stage",
+          "passed": true
+        },
+        {
+          "actual": "1000",
+          "expected": "1000",
+          "id": "stage-delay",
+          "passed": true
+        },
+        {
+          "actual": "all request tokens present",
+          "expected": "all request tokens present",
+          "id": "diagram-request-values",
+          "passed": true
+        },
+        {
+          "actual": "embedded",
+          "expected": "embedded in both READMEs",
+          "id": "readme-diagram",
+          "passed": true
+        }
+      ],
+      "evidence": [
+        "README.md",
+        "evidence/owned-hosted-agent-translation-local.json",
+        "images/lra-recovery-timeline.svg"
+      ],
+      "id": "RUN-001",
+      "status": "PASS"
+    },
+    {
+      "applicable": true,
+      "checks": [
+        {
+          "actual": "12",
+          "expected": "12",
+          "id": "source-section-count",
+          "passed": true
+        },
+        {
+          "actual": "12",
+          "expected": "12",
+          "id": "live-output-count",
+          "passed": true
+        },
+        {
+          "actual": "present",
+          "expected": "managed-identity Translator call",
+          "id": "real-translator-call",
+          "passed": true
+        }
+      ],
+      "evidence": [
+        "hosted-agent/src/lra-evidence-agent/translation_workload.py",
+        "hosted-agent/src/lra-evidence-agent/main.py",
+        "evidence/owned-hosted-agent-live-translation-output.md"
+      ],
+      "id": "RUN-002",
+      "status": "PASS"
+    },
+    {
+      "applicable": true,
+      "checks": [
+        {
+          "actual": "all required tokens",
+          "expected": "all required tokens",
+          "id": "source:hosted-agent/src/lra-evidence-agent/main.py",
+          "passed": true
+        },
+        {
+          "actual": "all required tokens",
+          "expected": "all required tokens",
+          "id": "source:hosted-agent/src/lra-evidence-agent/translation_workload.py",
+          "passed": true
+        },
+        {
+          "actual": "all required tokens",
+          "expected": "all required tokens",
+          "id": "source:hosted-agent/client.py",
+          "passed": true
+        },
+        {
+          "actual": "all required tokens",
+          "expected": "all required tokens",
+          "id": "source:hosted-agent/run_local_recovery.py",
+          "passed": true
+        },
+        {
+          "actual": "all required tokens",
+          "expected": "all required tokens",
+          "id": "source:hosted-agent/run_observer_restart.py",
+          "passed": true
+        },
+        {
+          "actual": "all required tokens",
+          "expected": "all required tokens",
+          "id": "source:dotnet-agent/Program.cs",
+          "passed": true
+        },
+        {
+          "actual": "all required tokens",
+          "expected": "all required tokens",
+          "id": "source:images/lra-recovery-timeline.svg",
+          "passed": true
+        },
+        {
+          "actual": "all required tokens",
+          "expected": "all required tokens",
+          "id": "source:images/lra-recovery-timeline.excalidraw",
+          "passed": true
+        },
+        {
+          "actual": "present",
+          "expected": "all wiring tokens linked",
+          "id": "readme-code-links",
+          "passed": true
+        }
+      ],
+      "evidence": [
+        "README.md",
+        "hosted-agent/src/lra-evidence-agent/main.py",
+        "hosted-agent/src/lra-evidence-agent/requirements.txt",
+        "dotnet-agent/Program.cs",
+        "dotnet-agent/LraEvidenceAgent.csproj"
+      ],
+      "id": "RUN-003",
+      "status": "PASS"
+    },
+    {
+      "applicable": true,
+      "checks": [
+        {
+          "actual": "{'checkpoint': 4, 'fault': 5, 'exit': 6}",
+          "expected": "checkpoint <= fault < process exit",
+          "id": "transition-order",
+          "passed": true
+        },
+        {
+          "actual": "{'at_utc': '2026-08-26T10:25:45.176+00:00', 'elapsed_seconds': 15.452, 'event': 'process_exited', 'exit_code': 86, 'process_role': 'A', 'source': 'runner'}",
+          "expected": "exit_code=86",
+          "id": "exit-code",
+          "passed": true
+        },
+        {
+          "actual": "True",
+          "expected": "True",
+          "id": "fault-requested",
+          "passed": true
+        }
+      ],
+      "evidence": [
+        "evidence/owned-hosted-agent-translation-local.json",
+        "evidence/owned-hosted-agent-translation-local-events.jsonl"
+      ],
+      "id": "RUN-004",
+      "status": "PASS"
+    },
+    {
+      "applicable": true,
+      "checks": [
+        {
+          "actual": "True",
+          "expected": "True",
+          "id": "same-response-local",
+          "passed": true
+        },
+        {
+          "actual": "2",
+          "expected": "2",
+          "id": "local-process-count",
+          "passed": true
+        },
+        {
+          "actual": "{'9acba83102c7a3b4da7da422d5083831235a3a6102a9d65c44679e24ff0b393d'}",
+          "expected": "{'9acba83102c7a3b4da7da422d5083831235a3a6102a9d65c44679e24ff0b393d'}",
+          "id": "local-response-count",
+          "passed": true
+        },
+        {
+          "actual": "['fresh', 'recovered']",
+          "expected": "['fresh', 'recovered']",
+          "id": "entry-modes",
+          "passed": true
+        },
+        {
+          "actual": "2",
+          "expected": "2",
+          "id": "live-process-count",
+          "passed": true
+        },
+        {
+          "actual": "cfc1b7056cf1f2e8bb6fe4587405fc099d89c39b79b31fb90fc44f0be5519e09",
+          "expected": "cfc1b7056cf1f2e8bb6fe4587405fc099d89c39b79b31fb90fc44f0be5519e09",
+          "id": "live-response-correlation",
+          "passed": true
+        }
+      ],
+      "evidence": [
+        "evidence/owned-hosted-agent-translation-local.json",
+        "evidence/owned-hosted-agent-live-translation.json",
+        "evidence/owned-hosted-agent-live-translation-events.jsonl"
+      ],
+      "id": "RUN-005",
+      "status": "PASS"
+    },
+    {
+      "applicable": true,
+      "checks": [
+        {
+          "actual": "translation_section_04",
+          "expected": "translation_section_04",
+          "id": "local-last-checkpoint",
+          "passed": true
+        },
+        {
+          "actual": "translation_section_05",
+          "expected": "translation_section_05",
+          "id": "local-first-recovered",
+          "passed": true
+        },
+        {
+          "actual": "True",
+          "expected": "True",
+          "id": "all-checkpoints-once",
+          "passed": true
+        },
+        {
+          "actual": "translation_section_05",
+          "expected": "translation_section_05",
+          "id": "live-resume-point",
+          "passed": true
+        },
+        {
+          "actual": "translation_section_05",
+          "expected": "translation_section_05",
+          "id": "live-first-recovered-checkpoint",
+          "passed": true
+        }
+      ],
+      "evidence": [
+        "evidence/owned-hosted-agent-translation-local.json",
+        "evidence/owned-hosted-agent-translation-local-trace.txt",
+        "evidence/owned-hosted-agent-live-translation-trace.txt"
+      ],
+      "id": "RUN-006",
+      "status": "PASS"
+    },
+    {
+      "applicable": true,
+      "checks": [
+        {
+          "actual": "completed",
+          "expected": "completed",
+          "id": "terminal-status",
+          "passed": true
+        },
+        {
+          "actual": "12",
+          "expected": "12",
+          "id": "translation-count",
+          "passed": true
+        },
+        {
+          "actual": "all nonempty",
+          "expected": "all nonempty",
+          "id": "translations-nonempty",
+          "passed": true
+        },
+        {
+          "actual": "7e4641991259390c6eff77bc30b09035c398f40cc83850275cf21824fa17a46e",
+          "expected": "7e4641991259390c6eff77bc30b09035c398f40cc83850275cf21824fa17a46e",
+          "id": "checkpoint-contract-hash",
+          "passed": true
+        },
+        {
+          "actual": "byte-identical",
+          "expected": "byte-identical",
+          "id": "generated-output",
+          "passed": true
+        }
+      ],
+      "evidence": [
+        "evidence/owned-hosted-agent-live-translation.json",
+        "evidence/owned-hosted-agent-live-translation-output.md",
+        "scripts/render_translation_result.py"
+      ],
+      "id": "RUN-007",
+      "status": "PASS"
+    },
+    {
+      "applicable": true,
+      "checks": [
+        {
+          "actual": "byte-identical",
+          "expected": "byte-identical",
+          "id": "generated:evidence/owned-hosted-agent-translation-local-trace.txt",
+          "passed": true
+        },
+        {
+          "actual": "byte-identical",
+          "expected": "byte-identical",
+          "id": "generated:evidence/owned-hosted-agent-live-translation-trace.txt",
+          "passed": true
+        },
+        {
+          "actual": "2",
+          "expected": "2",
+          "id": "english-readme-traces",
+          "passed": true
+        },
+        {
+          "actual": "2",
+          "expected": "2",
+          "id": "chinese-readme-traces",
+          "passed": true
+        }
+      ],
+      "evidence": [
+        "evidence/run-contract.json",
+        "evidence/owned-hosted-agent-translation-local-trace.txt",
+        "evidence/owned-hosted-agent-live-translation-trace.txt",
+        "scripts/render_recovery_trace.py"
+      ],
+      "id": "RUN-008",
+      "status": "PASS"
+    },
+    {
+      "applicable": true,
+      "checks": [
+        {
+          "actual": "(1800, 1120)",
+          "expected": "(1800, 1120)",
+          "id": "png-dimensions",
+          "passed": true
+        },
+        {
+          "actual": "valid XML",
+          "expected": "valid XML",
+          "id": "svg-valid",
+          "passed": true
+        },
+        {
+          "actual": "all present",
+          "expected": "all present",
+          "id": "svg-critical-tokens",
+          "passed": true
+        },
+        {
+          "actual": "all present",
+          "expected": "all present",
+          "id": "excalidraw-critical-tokens",
+          "passed": true
+        },
+        {
+          "actual": "all positive",
+          "expected": "all positive",
+          "id": "excalidraw-text-dimensions",
+          "passed": true
+        },
+        {
+          "actual": "all match",
+          "expected": "all match",
+          "id": "diagram-key-hashes",
+          "passed": true
+        },
+        {
+          "actual": "completed",
+          "expected": "completed",
+          "id": "terminal-evidence-present",
+          "passed": true
+        }
+      ],
+      "evidence": [
+        "images/lra-recovery-timeline.png",
+        "images/lra-recovery-timeline.svg",
+        "images/lra-recovery-timeline.excalidraw",
+        "evidence/run-contract.json"
+      ],
+      "id": "RUN-009",
+      "status": "PASS"
+    },
+    {
+      "applicable": true,
+      "checks": [
+        {
+          "actual": "1.415",
+          "expected": "1.415",
+          "id": "exact-local-recovery",
+          "passed": true
+        },
+        {
+          "actual": "49.555",
+          "expected": "49.555",
+          "id": "hosted-observation-gap",
+          "passed": true
+        },
+        {
+          "actual": "16.511",
+          "expected": "16.511",
+          "id": "hosted-recovered-to-complete",
+          "passed": true
+        },
+        {
+          "actual": "present",
+          "expected": "present",
+          "id": "exact-down-unavailable",
+          "passed": true
+        },
+        {
+          "actual": "bounded",
+          "expected": "bounded",
+          "id": "gap-not-called-exact-hang",
+          "passed": true
+        }
+      ],
+      "evidence": [
+        "evidence/owned-hosted-agent-translation-local.json",
+        "evidence/owned-hosted-agent-live-translation-trace.txt",
+        "README.md"
+      ],
+      "id": "RUN-010",
+      "status": "PASS"
+    },
+    {
+      "applicable": true,
+      "checks": [
+        {
+          "actual": "cbbf1fde1ce56c06380dbc9513872ffe590497765156514c0888f6bb8635afdf",
+          "expected": "cbbf1fde1ce56c06380dbc9513872ffe590497765156514c0888f6bb8635afdf",
+          "id": "ui-hash-0",
+          "passed": true
+        },
+        {
+          "actual": "['lra-evidence-agent exists in Microsoft Foundry', 'version 9 is selected', 'status is Running', 'type is Hosted']",
+          "expected": "version 9 is selected",
+          "id": "ui-version-0",
+          "passed": true
+        },
+        {
+          "actual": "['process-loss recovery behavior', 'fault-injection environment-variable value', 'production reliability or SLA']",
+          "expected": "process-loss recovery behavior",
+          "id": "ui-nonclaim-0",
+          "passed": true
+        },
+        {
+          "actual": "evidence/owned-hosted-agent-live.json",
+          "expected": "existing file",
+          "id": "ui-behavior-evidence-0",
+          "passed": true
+        },
+        {
+          "actual": "b0d56e94062b88dfbf0588df5b3ea430c160e1d4b9acef9b713107065b181354",
+          "expected": "b0d56e94062b88dfbf0588df5b3ea430c160e1d4b9acef9b713107065b181354",
+          "id": "ui-hash-1",
+          "passed": true
+        },
+        {
+          "actual": "['the detail page is for lra-evidence-agent', 'version 9 is selected', 'kind is hosted', 'the Agent Playground is available']",
+          "expected": "version 9 is selected",
+          "id": "ui-version-1",
+          "passed": true
+        },
+        {
+          "actual": "['process-loss recovery behavior', 'fault-injection environment-variable value', 'production reliability or SLA']",
+          "expected": "process-loss recovery behavior",
+          "id": "ui-nonclaim-1",
+          "passed": true
+        },
+        {
+          "actual": "evidence/owned-hosted-agent-live.json",
+          "expected": "existing file",
+          "id": "ui-behavior-evidence-1",
+          "passed": true
+        },
+        {
+          "actual": "present",
+          "expected": "present in both READMEs",
+          "id": "readme-dual-proof-boundary",
+          "passed": true
+        }
+      ],
+      "evidence": [
+        "evidence/ui-evidence.json",
+        "evidence/owned-hosted-agent-status.json",
+        "evidence/owned-hosted-agent-live-translation.json"
+      ],
+      "id": "RUN-011",
+      "status": "PASS"
+    },
+    {
+      "applicable": true,
+      "checks": [
+        {
+          "actual": "True",
+          "expected": "True",
+          "id": "scenario-fields",
+          "passed": true
+        },
+        {
+          "actual": "True",
+          "expected": "True",
+          "id": "scenario-evidence",
+          "passed": true
+        },
+        {
+          "actual": "NOT_VERIFIED",
+          "expected": "NOT_VERIFIED",
+          "id": "graceful-boundary",
+          "passed": true
+        }
+      ],
+      "evidence": [
+        "evidence/scenario-matrix.json",
+        "evidence/owned-hosted-agent-graceful-attempt.json"
+      ],
+      "id": "RUN-012",
+      "status": "PASS"
+    },
+    {
+      "applicable": true,
+      "checks": [
+        {
+          "actual": "9/9",
+          "expected": "9/9",
+          "id": "safe-version",
+          "passed": true
+        },
+        {
+          "actual": "13ff84664719a258d22762413e4ba00f23516ce3d7043c58aa869cd27545582a",
+          "expected": "13ff84664719a258d22762413e4ba00f23516ce3d7043c58aa869cd27545582a",
+          "id": "safe-content-hash",
+          "passed": true
+        },
+        {
+          "actual": "False",
+          "expected": "False",
+          "id": "fault-disabled",
+          "passed": true
+        },
+        {
+          "actual": "active",
+          "expected": "active",
+          "id": "safe-active",
+          "passed": true
+        },
+        {
+          "actual": "completed",
+          "expected": "completed",
+          "id": "safe-completed",
+          "passed": true
+        },
+        {
+          "actual": "1",
+          "expected": "1",
+          "id": "safe-one-process",
+          "passed": true
+        },
+        {
+          "actual": "12",
+          "expected": "12",
+          "id": "safe-output-count",
+          "passed": true
+        }
+      ],
+      "evidence": [
+        "evidence/owned-hosted-agent-status.json",
+        "evidence/owned-hosted-agent-live.json",
+        "evidence/ui-evidence.json"
+      ],
+      "id": "RUN-013",
+      "status": "PASS"
+    },
+    {
+      "applicable": true,
+      "checks": [
+        {
+          "actual": "[1, 2, 2, 3, 1, 1, 3, 3, 3, 3, 2, 2, 3, 1, 1, 1, 1, 1, 2, 2, 2, 2]",
+          "expected": "[1, 2, 2, 3, 1, 1, 3, 3, 3, 3, 2, 2, 3, 1, 1, 1, 1, 1, 2, 2, 2, 2]",
+          "id": "heading-shape",
+          "passed": true
+        },
+        {
+          "actual": "[(3, 10), (6, 12), (3, 6), (3, 9), (6, 11), (2, 6), (2, 12)]",
+          "expected": "[(3, 10), (6, 12), (3, 6), (3, 9), (6, 11), (2, 6), (2, 12)]",
+          "id": "table-shape",
+          "passed": true
+        },
+        {
+          "actual": "['python', '', 'csharp', '', 'text', '', 'text', '', 'powershell', '', 'powershell', '']",
+          "expected": "['python', '', 'csharp', '', 'text', '', 'text', '', 'powershell', '', 'powershell', '']",
+          "id": "code-block-shape",
+          "passed": true
+        },
+        {
+          "actual": "['https://img.shields.io/badge/Foundry_capability-public_preview-B3541E', 'https://img.shields.io/badge/scope-repository_owned_agent-1363DF', 'https://img.shields.io/badge/runtimes-Python_3.13_%2B_.NET_8-0F8B6D', 'https://img.shields.io/badge/protocol-Responses-5F4BB6', 'https://img.shields.io/badge/license-MIT-D98E04', 'images/lra-recovery-timeline.png']",
+          "expected": "['https://img.shields.io/badge/Foundry_capability-public_preview-B3541E', 'https://img.shields.io/badge/scope-repository_owned_agent-1363DF', 'https://img.shields.io/badge/runtimes-Python_3.13_%2B_.NET_8-0F8B6D', 'https://img.shields.io/badge/protocol-Responses-5F4BB6', 'https://img.shields.io/badge/license-MIT-D98E04', 'images/lra-recovery-timeline.png']",
+          "id": "image-order",
+          "passed": true
+        },
+        {
+          "actual": "0",
+          "expected": "0",
+          "id": "numeric-drift",
+          "passed": true
+        },
+        {
+          "actual": "present",
+          "expected": "present",
+          "id": "risk-boundaries",
+          "passed": true
+        }
+      ],
+      "evidence": [
+        "README.md",
+        "README-CN.md",
+        "scripts/validate_repo.py"
+      ],
+      "id": "RUN-014",
+      "status": "PASS"
+    },
+    {
+      "applicable": true,
+      "checks": [
+        {
+          "actual": "True",
+          "expected": "True",
+          "id": "observation-negative-evidence",
+          "passed": true
+        },
+        {
+          "actual": "True",
+          "expected": "True",
+          "id": "mutation:absolute_path",
+          "passed": true
+        },
+        {
+          "actual": "True",
+          "expected": "True",
+          "id": "mutation:duplicate_rule",
+          "passed": true
+        },
+        {
+          "actual": "True",
+          "expected": "True",
+          "id": "mutation:escaping_path",
+          "passed": true
+        },
+        {
+          "actual": "True",
+          "expected": "True",
+          "id": "mutation:false_applicability",
+          "passed": true
+        },
+        {
+          "actual": "True",
+          "expected": "True",
+          "id": "mutation:forged_pass",
+          "passed": true
+        },
+        {
+          "actual": "True",
+          "expected": "True",
+          "id": "mutation:manifest_drift",
+          "passed": true
+        },
+        {
+          "actual": "True",
+          "expected": "True",
+          "id": "mutation:missing_rule",
+          "passed": true
+        },
+        {
+          "actual": "True",
+          "expected": "True",
+          "id": "mutation:stale_generated_artifact",
+          "passed": true
+        }
+      ],
+      "evidence": [
+        "evidence/observation-validation.json",
+        "tests/test_owned_hosted_agent.py",
+        "tests/test_rule_results.py",
+        "scripts/validate_repo.py"
+      ],
+      "id": "RUN-015",
+      "status": "PASS"
+    }
+  ],
+  "scenario_type": "measured-runtime-recovery-demo",
+  "schema_version": 1
+}
