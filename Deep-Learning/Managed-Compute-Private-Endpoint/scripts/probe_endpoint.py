@@ -4,11 +4,13 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import datetime as dt
 import hashlib
 import ipaddress
 import json
 import os
+import pathlib
 import socket
 import subprocess
 import sys
@@ -26,6 +28,37 @@ ALLOWED_HOST_SUFFIXES = (
 
 def sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def token_identity_sha256(token: str) -> str:
+    parts = token.split(".")
+    if len(parts) < 2:
+        raise RuntimeError("Entra access token is not a JWT")
+    encoded_claims = parts[1]
+    try:
+        claims = json.loads(
+            base64.urlsafe_b64decode(encoded_claims + "=" * (-len(encoded_claims) % 4))
+        )
+    except (ValueError, json.JSONDecodeError) as error:
+        raise RuntimeError("Entra access token claims are not readable") from error
+    tenant = claims.get("tid") if isinstance(claims, dict) else None
+    subject = (claims.get("oid") or claims.get("sub")) if isinstance(claims, dict) else None
+    if not isinstance(tenant, str) or not isinstance(subject, str):
+        raise RuntimeError("Entra access token has no stable tenant and subject claims")
+    return sha256_text(f"{tenant}:{subject}")
+
+
+def probe_source_sha256(supplied_digest: str | None) -> str:
+    if supplied_digest is not None:
+        if len(supplied_digest) != 64 or any(
+            character not in "0123456789abcdef" for character in supplied_digest.lower()
+        ):
+            raise ValueError("--probe-source-sha256 must be a SHA-256 hex digest")
+        return supplied_digest.lower()
+    path = pathlib.Path(__file__)
+    if not path.is_file():
+        raise RuntimeError("Probe source hash must be supplied for embedded execution")
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def validate_endpoint(endpoint: str) -> urllib.parse.ParseResult:
@@ -109,9 +142,13 @@ def summarize_body(body: bytes) -> dict[str, object]:
     error = payload.get("error") if isinstance(payload, dict) else None
     if isinstance(error, dict):
         message = str(error.get("message", ""))
+        network_policy_blocked = "public access is disabled" in message.lower()
         return {
             "errorCode": error.get("code"),
-            "networkPolicyBlocked": "public access is disabled" in message.lower(),
+            "errorCategory": (
+                "public-access-disabled" if network_policy_blocked else "service-error"
+            ),
+            "networkPolicyBlocked": network_policy_blocked,
             "errorMessageBytes": len(message.encode("utf-8")),
             "errorMessageSha256": sha256_text(message),
         }
@@ -138,7 +175,10 @@ def result_satisfies_expectation(
     if result.get("dnsClass") != expected_dns or result.get("httpStatus") != expected_http:
         return False
     if expected_http == 403:
-        return result.get("networkPolicyBlocked") is True
+        return (
+            result.get("networkPolicyBlocked") is True
+            and result.get("errorCategory") == "public-access-disabled"
+        )
     if expected_http == 200:
         return (
             result.get("object") == "chat.completion"
@@ -188,6 +228,11 @@ def run_probe(args: argparse.Namespace) -> dict[str, object]:
     result: dict[str, object] = {
         "capturedAtUtc": dt.datetime.now(dt.timezone.utc).isoformat(),
         "hostnameSha256": sha256_text(parsed_endpoint.hostname),
+        "endpointSha256": sha256_text(args.endpoint),
+        "deploymentSha256": sha256_text(args.deployment),
+        "identitySha256": token_identity_sha256(token),
+        "probeSourceSha256": probe_source_sha256(args.probe_source_sha256),
+        "requestSha256": hashlib.sha256(request_body).hexdigest(),
         "addressCount": len(addresses),
         "dnsClass": classify_addresses(addresses),
         "httpStatus": status,
@@ -219,6 +264,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-response-bytes", type=int, default=16_384)
     parser.add_argument("--az-executable", default="az")
     parser.add_argument("--token-environment-variable", default="AZURE_ACCESS_TOKEN")
+    parser.add_argument("--probe-source-sha256")
     parser.add_argument("--output", help="Write the sanitized result to this JSON file")
     parser.add_argument("--include-sensitive-diagnostics", action="store_true")
     return parser

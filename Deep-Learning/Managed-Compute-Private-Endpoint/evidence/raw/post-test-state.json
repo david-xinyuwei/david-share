@@ -1,0 +1,29 @@
+{
+  "runId": "managed-compute-private-link-dedicated-20260831",
+  "sourceType": "sanitized-live-management-read",
+  "observedAtUtc": "2026-08-31T06:19:54.324119+00:00",
+  "captureDateUtc": "2026-08-31",
+  "parentProvisioningState": "Succeeded",
+  "parentPublicNetworkAccess": "Enabled",
+  "approvedAccountPrivateEndpointConnectionCount": 1,
+  "managedComputeProvisioningState": "Succeeded",
+  "managedComputeSku": "GlobalManagedCompute",
+  "managedComputeCapacity": 1,
+  "acceleratorType": "H100_80GB",
+  "containerGroups": [
+    {
+      "provisioningState": "Succeeded",
+      "state": "Terminated",
+      "exitCode": 0
+    },
+    {
+      "provisioningState": "Succeeded",
+      "state": "Terminated",
+      "exitCode": 0
+    }
+  ],
+  "temporaryResourcesRetained": true,
+  "cleanupStatus": "AWAITING_USER",
+  "billingContinues": true,
+  "status": "PASS"
+}

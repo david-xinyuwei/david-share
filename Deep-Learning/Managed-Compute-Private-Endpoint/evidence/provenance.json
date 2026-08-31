@@ -1,16 +1,27 @@
 {
   "schemaVersion": 1,
-  "publicEvidenceClass": "sanitized transcription of an interactive live run",
+  "publicEvidenceClass": "sanitized transcription of a dedicated-account live run",
   "rawDirectoryMeaning": "Earliest public-safe observations, not byte-for-byte Azure logs",
-  "privateSourceRetention": "Exact command output and identifiers are retained outside this public repository",
+  "privateSourceRetention": "Exact commands, probe outputs, management reads, and identifiers are retained outside this public repository",
   "publicVerificationBoundary": "Repository hashes and evaluators prove internal consistency and change detection; they do not independently authenticate the withheld source",
   "hashCanonicalization": "SHA-256 uses UTF-8 text normalized to LF; binary assets use raw bytes",
-  "observationTimeBasis": "observedAtUtc is the archived client-tool completion time, not a service-side request timestamp",
-  "historicalRunSequence": [
+  "observationTimeBasis": "observedAtUtc comes from the probe output or post-test management read, not a service-side request timestamp",
+  "liveRunSequence": [
+    "authenticated public request returned a Chat Completions HTTP 200 while PNA was Enabled",
+    "private-IP ACI returned a Chat Completions HTTP 200 while PNA was Enabled",
     "authenticated public request blocked while PNA was Disabled",
-    "authenticated private request returned a Chat Completions envelope while PNA was Disabled",
+    "the same private-IP ACI code path returned a Chat Completions HTTP 200 while PNA was Disabled",
     "authenticated public request returned HTTP 200 after PNA was restored"
   ],
-  "safeReproductionDelta": "The Quick Start adds a private HTTP 200 guard before disabling PNA; that guard is a safety improvement and is not represented as a fourth historical observation",
-  "fieldRetentionBoundary": "The restored-public observation retained HTTP 200 and the response model, but not generated content, response object, usage, or choice count"
+  "privateRunner": "Private-IP Azure Container Instances in a linked VNet workload subnet; not Azure Bastion",
+  "sourceContinuity": "All five observations carry identical probe-source, Entra-subject, endpoint, deployment, and serialized-request SHA-256 fingerprints",
+  "measuredProbeSource": {
+    "repositoryBaselineCommit": "762b69780da73c9f9ca21c28508349755a980820",
+    "path": "scripts/probe_endpoint.py",
+    "executionBytesSha256": "d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6",
+    "lfCanonicalSha256": "ff0eac11b956c3b2327402cdf245f9e4cc045688a9cedd4de8a29a4cbe6bb639"
+  },
+  "postRunHardening": "The current probe adds native fingerprints, the ACI launcher is create-only, and PNA restore uses ETag preconditions. connectivity-run.json separately hashes the current executable files.",
+  "fieldRetentionBoundary": "Successful probes retain DNS class, HTTP status, response object, model, choice count, usage, and request-ID digest; completion text and resolved IP addresses are omitted",
+  "postTestBoundary": "PNA was restored and both ACI probes terminated with exit code 0. Dedicated resources remain, cleanup is awaiting explicit user authorization, and Managed Compute billing continues."
 }

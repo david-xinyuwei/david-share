@@ -1,3 +1,4 @@
+import base64
 import importlib.util
 import json
 import pathlib
@@ -39,6 +40,7 @@ class ProbeEndpointTests(unittest.TestCase):
         ).encode()
         summary = PROBE.summarize_body(body)
         self.assertEqual(summary["errorCode"], "403")
+        self.assertEqual(summary["errorCategory"], "public-access-disabled")
         self.assertTrue(summary["networkPolicyBlocked"])
         self.assertNotIn("internal", summary)
         self.assertNotIn("Public access is disabled.", json.dumps(summary))
@@ -77,6 +79,21 @@ class ProbeEndpointTests(unittest.TestCase):
             "networkPolicyBlocked": False,
         }
         self.assertFalse(PROBE.result_satisfies_expectation(result, "public", 403))
+
+    def test_token_identity_fingerprint_is_stable_and_secret_free(self) -> None:
+        claims = base64.urlsafe_b64encode(
+            json.dumps({"tid": "tenant", "oid": "subject"}).encode()
+        ).decode().rstrip("=")
+        first = PROBE.token_identity_sha256(f"header.{claims}.signature-one")
+        second = PROBE.token_identity_sha256(f"header.{claims}.signature-two")
+        self.assertEqual(first, second)
+        self.assertNotIn("tenant", first)
+        self.assertNotIn("subject", first)
+
+    def test_probe_source_digest_is_validated(self) -> None:
+        self.assertEqual(PROBE.probe_source_sha256("A" * 64), "a" * 64)
+        with self.assertRaisesRegex(ValueError, "SHA-256"):
+            PROBE.probe_source_sha256("not-a-digest")
 
     def test_non_completion_200_does_not_pass(self) -> None:
         result = {

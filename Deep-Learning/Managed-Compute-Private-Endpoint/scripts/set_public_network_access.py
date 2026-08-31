@@ -14,6 +14,7 @@ import sys
 import time
 import urllib.parse
 import urllib.request
+from collections.abc import Callable
 
 
 MANAGEMENT_ENDPOINT = "https://management.azure.com"
@@ -77,11 +78,14 @@ def approved_private_endpoint_count(account: dict[str, object]) -> int:
             continue
         state = connection_properties.get("privateLinkServiceConnectionState")
         group_ids = connection_properties.get("groupIds")
+        provisioning_state = connection_properties.get("provisioningState")
         if (
             isinstance(state, dict)
             and str(state.get("status", "")).lower() == "approved"
-            and str(connection_properties.get("provisioningState", "")).lower()
-            == "succeeded"
+            and (
+                provisioning_state is None
+                or str(provisioning_state).lower() == "succeeded"
+            )
             and isinstance(group_ids, list)
             and "account" in group_ids
         ):
@@ -91,6 +95,19 @@ def approved_private_endpoint_count(account: dict[str, object]) -> int:
 
 def sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def resource_etag(
+    headers: dict[str, str],
+    resource: dict[str, object],
+) -> str:
+    etag = resource.get("etag") or next(
+        (value for key, value in headers.items() if key.lower() == "etag"),
+        None,
+    )
+    if not isinstance(etag, str) or not etag:
+        raise RuntimeError("Foundry account response has no ETag")
+    return etag
 
 
 def validate_private_probe(
@@ -124,11 +141,13 @@ def save_prior_state(
     evidence_path: str,
     account_resource_id: str,
     prior_state: str,
+    initial_etag: str,
 ) -> None:
     evidence = {
         "schemaVersion": 1,
         "accountResourceIdSha256": sha256_text(account_resource_id.lower()),
         "priorState": prior_state,
+        "initialEtag": initial_etag,
         "capturedAtUtc": dt.datetime.now(dt.timezone.utc).isoformat(),
         "phase": "prepared",
     }
@@ -137,13 +156,14 @@ def save_prior_state(
         handle.write("\n")
 
 
-def mark_state_applied(evidence_path: str) -> None:
+def mark_state_applied(evidence_path: str, applied_etag: str) -> None:
     path = pathlib.Path(evidence_path)
     evidence = json.loads(path.read_text(encoding="utf-8"))
     if evidence.get("phase") != "prepared":
         raise RuntimeError("Saved PNA state is not in the prepared phase")
     evidence["phase"] = "applied"
     evidence["appliedState"] = "Disabled"
+    evidence["appliedEtag"] = applied_etag
     evidence["appliedAtUtc"] = dt.datetime.now(dt.timezone.utc).isoformat()
     temporary_path = path.with_name(f".{path.name}.tmp")
     temporary_path.write_text(
@@ -158,7 +178,7 @@ def load_prior_state(
     evidence_path: str,
     account_resource_id: str,
     max_age_seconds: int,
-) -> str:
+) -> tuple[str, str]:
     with open(evidence_path, encoding="utf-8") as evidence_file:
         evidence = json.load(evidence_file)
     if evidence.get("accountResourceIdSha256") != sha256_text(
@@ -170,6 +190,9 @@ def load_prior_state(
         raise RuntimeError("Saved PNA state is invalid")
     if evidence.get("phase") != "applied" or evidence.get("appliedState") != "Disabled":
         raise RuntimeError("Saved PNA state does not prove a completed disable operation")
+    applied_etag = evidence.get("appliedEtag")
+    if not isinstance(applied_etag, str) or not applied_etag:
+        raise RuntimeError("Saved PNA state has no applied account ETag")
     captured_at = dt.datetime.fromisoformat(str(evidence.get("capturedAtUtc", "")))
     if captured_at.tzinfo is None:
         raise RuntimeError("Saved PNA state timestamp must include a timezone")
@@ -179,7 +202,7 @@ def load_prior_state(
     age = (dt.datetime.now(dt.timezone.utc) - applied_at).total_seconds()
     if age < 0 or age > max_age_seconds:
         raise RuntimeError("Saved PNA state is stale")
-    return prior_state
+    return prior_state, applied_etag
 
 
 def acquire_management_token(az_executable: str) -> str:
@@ -207,16 +230,19 @@ def request_json(
     url: str,
     token: str,
     payload: dict[str, object] | None = None,
+    extra_headers: dict[str, str] | None = None,
 ) -> tuple[int, dict[str, str], dict[str, object]]:
     validate_management_url(url)
     body = json.dumps(payload).encode("utf-8") if payload is not None else None
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
+    headers.update(extra_headers or {})
     request = urllib.request.Request(
         url,
         data=body,
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-        },
+        headers=headers,
         method=method,
     )
     opener = urllib.request.build_opener(NoRedirectHandler())
@@ -237,6 +263,7 @@ def wait_for_operation(
     timeout_seconds: int,
     request_function=request_json,
     sleep_function=time.sleep,
+    completion_probe: Callable[[], bool] | None = None,
 ) -> None:
     if status != 202:
         return
@@ -263,6 +290,8 @@ def wait_for_operation(
             return
         if operation_status in {"failed", "canceled", "cancelled"}:
             raise RuntimeError(f"Azure operation ended in {operation_status}")
+        if completion_probe and completion_probe():
+            return
         sleep_function(2)
     raise OperationInProgress("Azure update is still in progress after the polling timeout")
 
@@ -308,7 +337,7 @@ def change_public_network_access(
         f"{urllib.parse.quote(args.account_name)}"
     )
     account_url = f"{MANAGEMENT_ENDPOINT}{account_path}?api-version={api_version}"
-    _, _, before = request_function("GET", account_url, token)
+    _, before_headers, before = request_function("GET", account_url, token)
     before_properties = before.get("properties", {})
     before_state = before_properties.get("publicNetworkAccess")
     if str(before_properties.get("provisioningState", "")).lower() != "succeeded":
@@ -316,15 +345,15 @@ def change_public_network_access(
     if before_state not in {"Enabled", "Disabled"}:
         raise RuntimeError("Foundry account returned an invalid publicNetworkAccess state")
     restore_state_from = getattr(args, "restore_state_from", None)
-    requested_state = (
-        load_prior_state(
+    restore_etag = None
+    if restore_state_from:
+        requested_state, restore_etag = load_prior_state(
             restore_state_from,
             account_path,
             args.max_restore_age_seconds,
         )
-        if restore_state_from
-        else args.state
-    )
+    else:
+        requested_state = args.state
     if restore_state_from:
         if before_state != "Disabled":
             raise RuntimeError(
@@ -341,11 +370,20 @@ def change_public_network_access(
                 "apiVersion": api_version,
                 "passed": True,
             }
+        current_etag = resource_etag(before_headers, before)
+        if current_etag != restore_etag:
+            raise RuntimeError(
+                "Refusing restore because the Foundry account changed after PNA was disabled"
+            )
     approved_count = approved_private_endpoint_count(before)
     if requested_state == "Disabled" and not restore_state_from:
+        if not args.confirm_dedicated_test_account:
+            raise RuntimeError(
+                "Refusing to disable public access: confirm a dedicated non-production Foundry account with --confirm-dedicated-test-account"
+            )
         if approved_count == 0:
             raise RuntimeError(
-                "Refusing to disable public access: no Succeeded, Approved account-group private endpoint exists"
+                "Refusing to disable public access: no usable Approved account-group private endpoint exists"
             )
         if not args.private_probe_evidence:
             raise RuntimeError(
@@ -360,7 +398,12 @@ def change_public_network_access(
             raise RuntimeError(
                 "Refusing to disable public access: --save-prior-state is required"
             )
-        save_prior_state(args.save_prior_state, account_path, before_state)
+        save_prior_state(
+            args.save_prior_state,
+            account_path,
+            before_state,
+            resource_etag(before_headers, before),
+        )
 
     if before_state == requested_state:
         return {
@@ -379,13 +422,29 @@ def change_public_network_access(
         account_url,
         token,
         {"properties": {"publicNetworkAccess": requested_state}},
+        {
+            "If-Match": restore_etag
+            if restore_state_from
+            else resource_etag(before_headers, before)
+        },
     )
+
+    def account_has_requested_state() -> bool:
+        _, _, current = request_function("GET", account_url, token)
+        current_properties = current.get("properties", {})
+        return (
+            current_properties.get("publicNetworkAccess") == requested_state
+            and str(current_properties.get("provisioningState", "")).lower()
+            == "succeeded"
+        )
+
     wait_for_operation(
         status,
         headers,
         token,
         args.operation_timeout,
         request_function=request_function,
+        completion_probe=account_has_requested_state,
     )
     after = wait_for_account_state(
         account_url,
@@ -395,7 +454,10 @@ def change_public_network_access(
         request_function=request_function,
     )
     if requested_state == "Disabled" and not restore_state_from:
-        mark_state_applied(args.save_prior_state)
+        mark_state_applied(
+            args.save_prior_state,
+            resource_etag({}, after),
+        )
     properties = after.get("properties", {})
     return {
         "requestedState": requested_state,
@@ -419,6 +481,11 @@ def build_parser() -> argparse.ArgumentParser:
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument("--state", choices=("Disabled",))
     action.add_argument("--restore-state-from")
+    parser.add_argument(
+        "--confirm-dedicated-test-account",
+        action="store_true",
+        help="Confirm that the parent Foundry account and all child projects are dedicated non-production test assets",
+    )
     parser.add_argument("--az-executable", default="az")
     parser.add_argument("--private-probe-evidence")
     parser.add_argument("--save-prior-state")

@@ -2,16 +2,10 @@
   "schemaVersion": 1,
   "images": [
     {
-      "path": "images/product-ui/private-network-access-required.png",
-      "sha256": "cc4cc447790659c544294508f356f2d784a1686f25c554fcd7b978250b34f74b",
-      "proves": "Foundry UI rejected access from outside the approved VNet while public network access was disabled.",
-      "doesNotProve": "The managed inference pods are injected into the customer VNet."
-    },
-    {
       "path": "images/product-ui/deployment-facts.png",
-      "sha256": "f9b3b5537e1757a9071ab63600f6c1b285157a4074968883c63e76e369f61b4b",
-      "proves": "The tested deployment was GlobalManagedCompute, reached Succeeded, and used H100_80GB.",
-      "doesNotProve": "The deployment's outbound network path or production readiness."
+      "sha256": "8a5e5acd77ef1f94951082e8d5ea9af520ff1dc510c62253f318d9253cffd7d4",
+      "proves": "The dedicated-run deployment was GlobalManagedCompute, reached Succeeded, used H100_80GB, and served qwen--qwen3-32b.",
+      "doesNotProve": "Network behavior, the deployment's outbound path, or production readiness; those claims require the code-path evidence."
     }
   ],
   "redactions": [
@@ -21,5 +15,6 @@
     "endpoint hostname",
     "email address",
     "tenant and subscription identifiers"
-  ]
+  ],
+  "captureMethod": "Four field-level crops from the authenticated Microsoft Foundry deployment details page, combined without redrawing or altering field values."
 }

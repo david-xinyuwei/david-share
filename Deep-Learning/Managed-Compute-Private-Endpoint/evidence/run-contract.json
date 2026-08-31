@@ -1,12 +1,15 @@
 {
   "schemaVersion": 1,
-  "runId": "managed-compute-private-link-20260831",
+  "runId": "managed-compute-private-link-dedicated-20260831",
   "question": "Does a GlobalManagedCompute inference route honor the parent Foundry account's public network access and Private Endpoint boundary?",
   "acceptance": [
+    "The authenticated public request returns a valid Chat Completions HTTP 200 before isolation.",
+    "A private-IP ACI in the linked VNet returns a valid Chat Completions HTTP 200 before public access is disabled.",
     "The authenticated public request is rejected after public network access is disabled.",
     "The same endpoint resolves privately and returns HTTP 200 from inside the linked VNet.",
     "Public access is restored and the authenticated public request returns HTTP 200 again.",
-    "All temporary billable and networking resources are removed after evidence capture."
+    "The parent account returns to its saved PNA state and both private ACI probes terminate with exit code 0.",
+    "Temporary resources remain until the user explicitly authorizes cleanup; billing continues while Managed Compute remains deployed."
   ],
   "fixedVariables": [
     "Foundry account",
@@ -16,10 +19,12 @@
     "request payload"
   ],
   "changedVariable": "Caller network path and parent publicNetworkAccess setting",
-  "timeBoundary": "Scenario order uses archived client-tool completion times; service-side request timestamps were not retained.",
-  "reproductionDelta": "The Quick Start adds a pre-disable private HTTP 200 safety guard that was not a separate historical observation.",
+  "timeBoundary": "Scenario order uses timestamps emitted by the probe and post-test management read; no latency distribution or service-side request-time claim is made.",
+  "privateRunner": "Private-IP Azure Container Instances in a linked VNet workload subnet; direct outbound HTTPS through Private Endpoint, not Azure Bastion.",
+  "cleanupBoundary": "PNA was restored and both ACI probes terminated. The dedicated account, deployment, Private Endpoint, DNS zones, VNet, and container groups remain because stop/delete authorization was not granted.",
   "evidence": [
     "connectivity-run.json",
+    "cli-transcript.txt",
     "provenance.json",
     "ui-evidence.json"
   ]

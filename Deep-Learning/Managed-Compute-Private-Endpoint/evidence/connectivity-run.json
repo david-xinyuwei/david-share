@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
-  "runId": "managed-compute-private-link-20260831",
+  "runId": "managed-compute-private-link-dedicated-20260831",
   "dateUtc": "2026-08-31",
   "scope": "Single-run inbound connectivity differential",
   "target": {
     "service": "Microsoft Foundry Managed Compute",
     "deploymentType": "GlobalManagedCompute",
     "accelerator": "H100_80GB",
-    "model": "qwen--qwen3.6-27b",
+    "model": "qwen--qwen3-32b",
     "endpointPattern": "https://<foundry-account>.services.ai.azure.com/openai/v1/chat/completions"
   },
   "request": {
@@ -16,7 +16,16 @@
     "maxTokens": 4,
     "temperature": 0
   },
+  "fingerprints": {
+    "basis": "Five retained command receipts plus their shared authenticated AZ profile",
+    "probeSourceSha256": "d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6",
+    "identitySha256": "887146420b45005bf903fd183eda936b0e3fee00aa6be67a91a47f0546b54e6c",
+    "endpointSha256": "5e8cfa4be4c9aa5803d351815eceacece53477c04e26695a928e80c93935246b",
+    "deploymentSha256": "4d87fdbcba1fe6671069062752306ee4957a40c6ac281803b423c80ddd682776",
+    "requestSha256": "c4c06fac9fe6ed09d3f3117ca538e1f1d9e8be12330d5ef9b36284b6e4120804"
+  },
   "controlPlane": {
+    "dedicatedTestBoundary": true,
     "privateEndpoint": {
       "provisioningState": "Succeeded",
       "connectionStatus": "Approved",
@@ -24,114 +33,211 @@
       "privateDnsZoneCount": 3
     },
     "publicNetworkAccess": {
+      "initial": "Enabled",
       "duringTest": "Disabled",
-      "afterCleanup": "Enabled"
+      "afterTest": "Enabled"
+    },
+    "privateRunner": {
+      "type": "Azure Container Instances",
+      "networkMode": "Private IP in a linked VNet workload subnet",
+      "accessMethod": "Direct outbound HTTPS through Private Endpoint; not Azure Bastion",
+      "probeSourceSha256": "d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6"
     }
   },
   "scenarios": [
     {
-      "id": "public-blocked",
-      "runId": "managed-compute-private-link-20260831",
+      "id": "public-baseline",
+      "runId": "managed-compute-private-link-dedicated-20260831",
       "sequence": 1,
       "sourceType": "sanitized-live-observation",
-      "captureTime": "NOT_AVAILABLE",
-      "observedAtUtc": "2026-08-31T03:03:11.123Z",
+      "observedAtUtc": "2026-08-31T05:52:07.510094+00:00",
+      "caller": "Client outside the test VNet",
+      "parentPublicNetworkAccess": "Enabled",
+      "dnsClass": "public",
+      "httpStatus": 200,
+      "responseObject": "chat.completion",
+      "responseModel": "qwen--qwen3-32b",
+      "choiceCount": 1,
+      "usage": {
+        "promptTokens": 13,
+        "completionTokens": 4,
+        "totalTokens": 17
+      },
+      "probeSourceSha256": "d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6",
+      "identitySha256": "887146420b45005bf903fd183eda936b0e3fee00aa6be67a91a47f0546b54e6c",
+      "endpointSha256": "5e8cfa4be4c9aa5803d351815eceacece53477c04e26695a928e80c93935246b",
+      "deploymentSha256": "4d87fdbcba1fe6671069062752306ee4957a40c6ac281803b423c80ddd682776",
+      "requestSha256": "c4c06fac9fe6ed09d3f3117ca538e1f1d9e8be12330d5ef9b36284b6e4120804",
+      "requestIdSha256": "931ef7d07cd5a2164f36b11a4567c466554ba91cf13eba7a841df28d5d2a6ccc",
+      "status": "PASS"
+    },
+    {
+      "id": "private-preflight",
+      "runId": "managed-compute-private-link-dedicated-20260831",
+      "sequence": 2,
+      "sourceType": "sanitized-live-observation",
+      "observedAtUtc": "2026-08-31T05:53:43.009747+00:00",
+      "caller": "Private-IP ACI in a linked VNet workload subnet",
+      "parentPublicNetworkAccess": "Enabled",
+      "dnsClass": "private",
+      "httpStatus": 200,
+      "responseObject": "chat.completion",
+      "responseModel": "qwen--qwen3-32b",
+      "choiceCount": 1,
+      "usage": {
+        "promptTokens": 13,
+        "completionTokens": 4,
+        "totalTokens": 17
+      },
+      "requestIdSha256": "ed3e63b7022622827fb98080145ea5df8126e792b2d81f501c7c4899ba8ef7bd",
+      "probeSourceSha256": "d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6",
+      "identitySha256": "887146420b45005bf903fd183eda936b0e3fee00aa6be67a91a47f0546b54e6c",
+      "endpointSha256": "5e8cfa4be4c9aa5803d351815eceacece53477c04e26695a928e80c93935246b",
+      "deploymentSha256": "4d87fdbcba1fe6671069062752306ee4957a40c6ac281803b423c80ddd682776",
+      "requestSha256": "c4c06fac9fe6ed09d3f3117ca538e1f1d9e8be12330d5ef9b36284b6e4120804",
+      "runnerExitCode": 0,
+      "status": "PASS"
+    },
+    {
+      "id": "public-blocked",
+      "runId": "managed-compute-private-link-dedicated-20260831",
+      "sequence": 3,
+      "sourceType": "sanitized-live-observation",
+      "observedAtUtc": "2026-08-31T06:06:03.530809+00:00",
       "caller": "Client outside the test VNet",
       "dnsClass": "public",
       "httpStatus": 403,
       "errorCode": "403",
+      "errorCategory": "public-access-disabled",
       "networkPolicyBlocked": true,
       "errorMessageSha256": "a9869784eb0f0f9c50cfc52b65118592c9a302d9f9406b413867b6dcbac8df39",
-      "requestIdSha256": "b945b1fe94eb7775a18f0990b99b058daa72a4318db8be4ac4ba2620db435ee3",
+      "probeSourceSha256": "d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6",
+      "identitySha256": "887146420b45005bf903fd183eda936b0e3fee00aa6be67a91a47f0546b54e6c",
+      "endpointSha256": "5e8cfa4be4c9aa5803d351815eceacece53477c04e26695a928e80c93935246b",
+      "deploymentSha256": "4d87fdbcba1fe6671069062752306ee4957a40c6ac281803b423c80ddd682776",
+      "requestSha256": "c4c06fac9fe6ed09d3f3117ca538e1f1d9e8be12330d5ef9b36284b6e4120804",
+      "requestIdSha256": "0bca43fc944a7328def2b961d977e09767bce02d11a2ea8322a1d6ec3594217b",
       "status": "PASS"
     },
     {
       "id": "private-success",
-      "runId": "managed-compute-private-link-20260831",
-      "sequence": 2,
+      "runId": "managed-compute-private-link-dedicated-20260831",
+      "sequence": 4,
       "sourceType": "sanitized-live-observation",
-      "captureTime": "NOT_AVAILABLE",
-      "observedAtUtc": "2026-08-31T03:07:05.161Z",
-      "caller": "Ephemeral test container in a VNet workload subnet",
+      "observedAtUtc": "2026-08-31T06:07:39.938843+00:00",
+      "caller": "Private-IP ACI in a linked VNet workload subnet",
       "dnsClass": "private",
       "httpStatus": 200,
       "responseObject": "chat.completion",
-      "responseModel": "qwen--qwen3.6-27b",
-      "runtimeFingerprint": "vllm-0.21.0-401ffc9d",
+      "responseModel": "qwen--qwen3-32b",
+      "choiceCount": 1,
       "usage": {
-        "promptTokens": 15,
+        "promptTokens": 13,
         "completionTokens": 4,
-        "totalTokens": 19
+        "totalTokens": 17
       },
-      "requestIdSha256": "8d34cba88d5c2f72694914a068a5ddb967d30d72a5985341c5d70eb10d34a19e",
+      "requestIdSha256": "eb511b575cc023ba02e44edcd13e61d578bac32b120f7029eac249dc7f776065",
+      "probeSourceSha256": "d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6",
+      "identitySha256": "887146420b45005bf903fd183eda936b0e3fee00aa6be67a91a47f0546b54e6c",
+      "endpointSha256": "5e8cfa4be4c9aa5803d351815eceacece53477c04e26695a928e80c93935246b",
+      "deploymentSha256": "4d87fdbcba1fe6671069062752306ee4957a40c6ac281803b423c80ddd682776",
+      "requestSha256": "c4c06fac9fe6ed09d3f3117ca538e1f1d9e8be12330d5ef9b36284b6e4120804",
       "runnerExitCode": 0,
       "status": "PASS"
     },
     {
       "id": "public-restored",
-      "runId": "managed-compute-private-link-20260831",
-      "sequence": 3,
+      "runId": "managed-compute-private-link-dedicated-20260831",
+      "sequence": 5,
       "sourceType": "sanitized-live-observation",
-      "captureTime": "NOT_AVAILABLE",
-      "observedAtUtc": "2026-08-31T03:17:35.770Z",
+      "observedAtUtc": "2026-08-31T06:12:14.739435+00:00",
       "caller": "Client outside the test VNet",
       "dnsClass": "public",
       "httpStatus": 200,
-      "responseModel": "qwen--qwen3.6-27b",
-      "requestIdSha256": "2dc77f170428cb8766ed17d7c7fc7d714ca44105a5cc135de893c0188d5ac3fb",
+      "responseObject": "chat.completion",
+      "responseModel": "qwen--qwen3-32b",
+      "choiceCount": 1,
+      "usage": {
+        "promptTokens": 13,
+        "completionTokens": 4,
+        "totalTokens": 17
+      },
+      "probeSourceSha256": "d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6",
+      "identitySha256": "887146420b45005bf903fd183eda936b0e3fee00aa6be67a91a47f0546b54e6c",
+      "endpointSha256": "5e8cfa4be4c9aa5803d351815eceacece53477c04e26695a928e80c93935246b",
+      "deploymentSha256": "4d87fdbcba1fe6671069062752306ee4957a40c6ac281803b423c80ddd682776",
+      "requestSha256": "c4c06fac9fe6ed09d3f3117ca538e1f1d9e8be12330d5ef9b36284b6e4120804",
+      "requestIdSha256": "50f4ebab5abb8a5f5c735b8b67ee09b1a301e3edb1cc0ce5cf9d29488c40a0c2",
       "status": "PASS"
     }
   ],
-  "cleanup": {
-    "runId": "managed-compute-private-link-20260831",
+  "postTestState": {
+    "runId": "managed-compute-private-link-dedicated-20260831",
     "sourceType": "sanitized-live-management-read",
-    "captureTime": "NOT_AVAILABLE",
-    "observedAtUtc": "2026-08-31T03:26:07.155Z",
+    "observedAtUtc": "2026-08-31T06:19:54.324119+00:00",
     "captureDateUtc": "2026-08-31",
-    "queryScope": "Test resource name/type filter within one resource group",
-    "deletedResourceTypes": [
-      "Microsoft.CognitiveServices/accounts/managedComputeDeployments",
-      "Microsoft.ContainerInstance/containerGroups",
-      "Microsoft.Network/privateEndpoints",
-      "Microsoft.Network/privateDnsZones",
-      "Microsoft.Network/virtualNetworks"
-    ],
-    "temporaryResourceCount": 0,
     "parentProvisioningState": "Succeeded",
     "parentPublicNetworkAccess": "Enabled",
-    "parentPrivateEndpointConnectionCount": 0,
+    "approvedAccountPrivateEndpointConnectionCount": 1,
+    "managedComputeProvisioningState": "Succeeded",
+    "managedComputeSku": "GlobalManagedCompute",
+    "managedComputeCapacity": 1,
+    "acceleratorType": "H100_80GB",
+    "containerGroups": [
+      {
+        "provisioningState": "Succeeded",
+        "state": "Terminated",
+        "exitCode": 0
+      },
+      {
+        "provisioningState": "Succeeded",
+        "state": "Terminated",
+        "exitCode": 0
+      }
+    ],
+    "temporaryResourcesRetained": true,
+    "cleanupStatus": "AWAITING_USER",
+    "billingContinues": true,
     "status": "PASS"
   },
   "doesNotProve": [
     "Managed Compute pods are injected into the customer VNet",
     "Managed Compute outbound traffic traverses the customer VNet",
     "Prompt or completion zero retention",
-    "Service-side request timestamps or exact phase durations",
+    "Service-side request timestamps or latency distributions",
     "Production readiness or SLA"
   ],
+  "codeEvidence": {
+    "path": "evidence/cli-transcript.txt",
+    "sha256": "5293a06384e20474ce87e6ae7472a639de64a09060182fb208a7000bb6c332b7",
+    "evidenceClass": "derived-sanitized-view-of-live-code-observations"
+  },
   "provenance": {
     "path": "evidence/provenance.json",
-    "sha256": "35a1eca6c1224983764fc183c0747f2ce83bc9bffd83a209c4839cc17905ec60",
-    "publicEvidenceClass": "sanitized transcription of an interactive live run"
+    "sha256": "1cc66c267dc341994c22dfe1aba97b497a421460b0edbdfa753603950c5ea55d",
+    "publicEvidenceClass": "sanitized transcription of a dedicated-account live run"
   },
   "lineage": {
     "producer": "scripts/build_evidence.py",
     "hashCanonicalization": "UTF-8 text normalized to LF; binary assets use raw bytes",
     "rawSha256": {
-      "raw/control-plane.json": "f7e6b35edf68b57f67bee69ece5edbc0ab8b013b1c5e876a38646943a86e01c7",
-      "raw/public-blocked.json": "b9df9f5ab4efb5d29a34dbb7398369f88fb5241dc985890d273312336e9d4a47",
-      "raw/private-success.json": "d40abbefb9b76d65b7cd9e5b9e1ae30b30926424a39547c76fa34a60d56eec40",
-      "raw/public-restored.json": "0c2be5b1ffd8f443b4c7f7e040b77f7a53c7aa0a13aad2b950c2159a63c7efb9",
-      "raw/cleanup.json": "f613c7b67b7aceedc4cd69e3db53ccb48aa56651a0483f12b9d5c9a9c9fc5e22"
+      "raw/control-plane.json": "f27fcc1a924d3da994b86619792550d4e8b8ae2fd725dab64d038510ee9387de",
+      "raw/public-baseline.json": "f72daf41911ebfafd59cff4837b10b73705593ce3fd853aa988dec40ddb57c05",
+      "raw/private-preflight.json": "480f1a96e2b2c8f6c07453673374a1d8d52b92cf324c6ff3df32e05a07a5d544",
+      "raw/public-blocked.json": "5e6dd6514a374e2ae5070f8ccc406dd20171b93cebbbb428fb4892241eb6a3c3",
+      "raw/private-success.json": "c4c97afa0462f5b3bfd6ce8fd2b82df0164f0d7f2a34c2488448d15e0ad71438",
+      "raw/public-restored.json": "2e7760c1353baab139825134a47495e76bf79dc00ba47c67ffa9ecaf12f73a6a",
+      "raw/post-test-state.json": "ccae1bf9186f722e170e2dcc2cb290cf4ca558355916ea26812bae787f9ad26c"
     },
     "executableSha256": {
       "infra/main.bicep": "e861ca08e010a64da3e9128657605412010b4f920271ced6a7f62b20a95f694c",
-      "scripts/build_evidence.py": "e228c50a4ad6ad75163f9012f1da9c721a59a747f7831399a59cac43d52f62e1",
-      "scripts/probe_endpoint.py": "ff0eac11b956c3b2327402cdf245f9e4cc045688a9cedd4de8a29a4cbe6bb639",
-      "scripts/set_public_network_access.py": "53e6eb1de3afcd3ea7a2fa7da20ff04f6f26236d503ac85b320b0a7dafdf632d",
-      "scripts/validate_repo.py": "df81b6bd72d2fb0ca6ee564b7b5b648828ac4562881d47df300ad96b5204c0aa",
-      "evidence/run-contract.json": "4833a36011deca68e4aab11f93a75a9fbf6b716c668fe0e23bc469ba4e0aff94",
-      "evidence/provenance.json": "35a1eca6c1224983764fc183c0747f2ce83bc9bffd83a209c4839cc17905ec60"
+      "scripts/build_evidence.py": "81541c33ff38957cf3ddc57400a5a76350abe03b076cafff2c8b7b94cb313fff",
+      "scripts/probe_endpoint.py": "093eaa5f18bc15f5c0400d05f03706c30e4efda737cae28d670ee43fcb2e5d74",
+      "scripts/submit_private_aci_probe.py": "1a5859b471d14b216aada80bbbe3ad8d1c3a2708472818f97cfe1a1697554f46",
+      "scripts/set_public_network_access.py": "43fff50ad5ad9d5dcecc7cc0156b4d3f615b083eff6c6e7361678df13422ca16",
+      "scripts/validate_repo.py": "3eb3ba787fd1443e7997bbf484029d72c611c2a8b1a80adcbafc0e297d17e8bf",
+      "evidence/run-contract.json": "8775c759161622711a81a8eefdd2641bf8344c1594927ad375f412c22d448593",
+      "evidence/provenance.json": "1cc66c267dc341994c22dfe1aba97b497a421460b0edbdfa753603950c5ea55d"
     }
   }
 }

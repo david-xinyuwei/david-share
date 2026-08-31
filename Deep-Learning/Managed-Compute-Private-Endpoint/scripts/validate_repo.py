@@ -21,24 +21,28 @@ REQUIRED_PATHS = [
     "LICENSE",
     "infra/main.bicep",
     "scripts/probe_endpoint.py",
+    "scripts/submit_private_aci_probe.py",
     "scripts/set_public_network_access.py",
     "scripts/build_evidence.py",
     "tests/test_probe_endpoint.py",
+    "tests/test_submit_private_aci_probe.py",
     "tests/test_set_public_network_access.py",
     "tests/test_build_evidence.py",
     "tests/test_validate_repo.py",
     "evidence/raw/control-plane.json",
+    "evidence/raw/public-baseline.json",
+    "evidence/raw/private-preflight.json",
     "evidence/raw/public-blocked.json",
     "evidence/raw/private-success.json",
     "evidence/raw/public-restored.json",
-    "evidence/raw/cleanup.json",
+    "evidence/raw/post-test-state.json",
     "evidence/connectivity-run.json",
+    "evidence/cli-transcript.txt",
     "evidence/run-contract.json",
     "evidence/provenance.json",
     "evidence/source-lock.json",
     "evidence/ui-evidence.json",
     "evidence/rule-results.json",
-    "images/product-ui/private-network-access-required.png",
     "images/product-ui/deployment-facts.png",
     "docs/reproduction.md",
     "docs/exemplar-alignment.md",
@@ -60,22 +64,26 @@ QUICK_START_STAGES = (
     ("what-if", ("az deployment group what-if", "foundryAccountResourceId", "privateEndpointSubnetResourceId", "privateEndpointLocation", "PE_SUBSCRIPTION_ID", "CURRENT_SUBSCRIPTION_ID")),
     ("deploy-private-endpoint", ("az deployment group create", "foundryAccountResourceId", "privateEndpointSubnetResourceId", "privateEndpointLocation")),
     ("private-before-disable", ("--expect-dns private", "--expect-http 200", "--prompt \"Reply with exactly OK.\"", "--max-tokens 4", "--output private-probe.json")),
-    ("disable-and-save", ("--state Disabled", "--private-probe-evidence private-probe.json", "--save-prior-state pna-before.json")),
+    ("disable-and-save", ("--state Disabled", "--confirm-dedicated-test-account", "--private-probe-evidence private-probe.json", "--save-prior-state pna-before.json")),
     ("public-blocked", ("--expect-dns public", "--expect-http 403", "--prompt \"Reply with exactly OK.\"", "--max-tokens 4", "--output public-blocked-probe.json")),
     ("private-after-disable", ("--expect-dns private", "--expect-http 200", "--prompt \"Reply with exactly OK.\"", "--max-tokens 4", "--output private-after-disable-probe.json")),
     ("restore-original", ("--restore-state-from pna-before.json",)),
     ("public-restored", ("--expect-dns public", "--expect-http 200", "--prompt \"Reply with exactly OK.\"", "--max-tokens 4", "--output public-restored-probe.json")),
 )
 BILINGUAL_FACTS = (
-    ("managed-compute-private-link-20260831", "managed-compute-private-link-20260831"),
+    ("managed-compute-private-link-dedicated-20260831", "managed-compute-private-link-dedicated-20260831"),
     ("2026-08-31", "2026-08-31"),
     ("does not prove that managed pods are injected", "不能证明托管 Pod 被注入"),
     ("Managed Compute egress traverses", "Managed Compute 出站流量"),
     ("prompts or completions have zero retention", "Prompt/Completion 零留存"),
-    ("temporary test resource was removed", "临时测试资源"),
+    ("Temporary resources remain", "临时资源仍保留"),
+    ("billing continues", "继续计费"),
+    ("private-IP ACI", "private-IP ACI"),
+    ("not Azure Bastion", "不是 Azure Bastion"),
     ("do not hard-code `Enabled`", "不要把目标值硬编码为 `Enabled`"),
     ("parent Foundry account", "所属 Foundry account"),
     ("earliest **public-safe sanitized", "最早一层**可公开的脱敏观测"),
+    ("dedicated non-production Foundry account", "专用的非生产 Foundry account"),
 )
 TEXT_HASH_SUFFIXES = {".bicep", ".json", ".md", ".py", ".txt", ".yaml", ".yml"}
 
@@ -166,13 +174,22 @@ def image_paths(text: str) -> list[str]:
     return re.findall(r"!\[[^\]]*\]\(([^)]+)\)", text)
 
 
+def extract_cli_evidence(text: str) -> str | None:
+    match = re.search(
+        r"<!-- BEGIN GENERATED CLI EVIDENCE -->\s*```text\s*\n(.*?)```\s*<!-- END GENERATED CLI EVIDENCE -->",
+        text,
+        flags=re.DOTALL,
+    )
+    return match.group(1) if match else None
+
+
 def validate_ui_evidence(
     ui: dict[str, object], root: pathlib.Path = ROOT
 ) -> list[str]:
     errors = []
     images = ui.get("images")
-    if not isinstance(images, list) or len(images) != 2:
-        return ["UI evidence must contain exactly two images"]
+    if not isinstance(images, list) or len(images) != 1:
+        return ["UI evidence must contain exactly one dedicated-run image"]
     for image in images:
         if not isinstance(image, dict):
             errors.append("UI evidence image entry is not an object")
@@ -320,17 +337,25 @@ def run_evidence_mutation_checks() -> dict[str, bool]:
         "wrong-run-rejected": lambda value: value["private-success.json"].update(
             runId="different-run"
         ),
+        "identity-drift-rejected": lambda value: value[
+            "public-restored.json"
+        ].update(identitySha256="0" * 64),
         "duplicate-sequence-rejected": lambda value: value[
             "private-success.json"
-        ].update(sequence=1),
+        ].update(sequence=3),
         "non-monotonic-time-rejected": lambda value: value[
             "public-restored.json"
         ].update(observedAtUtc=value["public-blocked.json"]["observedAtUtc"]),
         "missing-output-rejected": lambda value: value[
             "private-success.json"
         ].update(responseObject=None),
-        "unsafe-cleanup-rejected": lambda value: value["cleanup.json"].update(
-            temporaryResourceCount=1
+        "non-policy-403-rejected": lambda value: value[
+            "public-blocked.json"
+        ].update(errorCategory="service-error"),
+        "false-cleanup-rejected": lambda value: value[
+            "post-test-state.json"
+        ].update(
+            temporaryResourcesRetained=False
         ),
     }
     results = {}
@@ -407,6 +432,7 @@ def build_rule_results() -> dict[str, object]:
     ui = load_json("evidence/ui-evidence.json")
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     readme_cn = (ROOT / "README-CN.md").read_text(encoding="utf-8")
+    cli_transcript = (ROOT / "evidence/cli-transcript.txt").read_text(encoding="utf-8")
     scenario_list = run["scenarios"]
     scenarios = {item["id"]: item for item in run["scenarios"]}
     quick_start = quick_start_stage_results(readme)
@@ -415,12 +441,15 @@ def build_rule_results() -> dict[str, object]:
         "infra/main.bicep",
         "scripts/build_evidence.py",
         "scripts/probe_endpoint.py",
+        "scripts/submit_private_aci_probe.py",
         "scripts/set_public_network_access.py",
         "scripts/validate_repo.py",
         "evidence/run-contract.json",
         "evidence/provenance.json",
     )
     raw_paths = {
+        "public-baseline": "evidence/raw/public-baseline.json",
+        "private-preflight": "evidence/raw/private-preflight.json",
         "public-blocked": "evidence/raw/public-blocked.json",
         "private-success": "evidence/raw/private-success.json",
         "public-restored": "evidence/raw/public-restored.json",
@@ -457,12 +486,51 @@ def build_rule_results() -> dict[str, object]:
                     contract["runId"],
                     run["runId"],
                 ),
+                make_check(
+                    "generated-cli-evidence-synchronized",
+                    extract_cli_evidence(readme) == cli_transcript
+                    and extract_cli_evidence(readme_cn) == cli_transcript,
+                    {
+                        "english": extract_cli_evidence(readme) == cli_transcript,
+                        "chinese": extract_cli_evidence(readme_cn) == cli_transcript,
+                    },
+                ),
+                make_check(
+                    "five-stage-fingerprint-chain",
+                    all(
+                        all(
+                            scenario.get(field) == run["fingerprints"].get(field)
+                            for field in (
+                                "probeSourceSha256",
+                                "identitySha256",
+                                "endpointSha256",
+                                "deploymentSha256",
+                                "requestSha256",
+                            )
+                        )
+                        for scenario in scenario_list
+                    ),
+                    {
+                        scenario["id"]: all(
+                            scenario.get(field) == run.get("fingerprints", {}).get(field)
+                            for field in (
+                                "probeSourceSha256",
+                                "identitySha256",
+                                "endpointSha256",
+                                "deploymentSha256",
+                                "requestSha256",
+                            )
+                        )
+                        for scenario in scenario_list
+                    },
+                ),
             ],
             [
                 "README.md",
                 "README-CN.md",
                 "evidence/connectivity-run.json",
                 "evidence/run-contract.json",
+                "evidence/cli-transcript.txt",
             ],
         ),
         make_rule(
@@ -517,6 +585,7 @@ def build_rule_results() -> dict[str, object]:
             [
                 "README.md",
                 "scripts/probe_endpoint.py",
+                "scripts/submit_private_aci_probe.py",
                 "scripts/set_public_network_access.py",
                 "scripts/build_evidence.py",
                 "scripts/validate_repo.py",
@@ -532,7 +601,11 @@ def build_rule_results() -> dict[str, object]:
                 make_check(
                     "pna-transition",
                     run["controlPlane"]["publicNetworkAccess"]
-                    == {"duringTest": "Disabled", "afterCleanup": "Enabled"},
+                    == {
+                        "initial": "Enabled",
+                        "duringTest": "Disabled",
+                        "afterTest": "Enabled",
+                    },
                     run["controlPlane"]["publicNetworkAccess"],
                 ),
                 make_check(
@@ -558,13 +631,37 @@ def build_rule_results() -> dict[str, object]:
             "Every terminal scenario contains the claimed business response.",
             [
                 make_check(
+                    "public-baseline-completion",
+                    scenarios["public-baseline"]["dnsClass"] == "public"
+                    and scenarios["public-baseline"]["httpStatus"] == 200
+                    and scenarios["public-baseline"]["responseObject"]
+                    == "chat.completion"
+                    and scenarios["public-baseline"]["responseModel"]
+                    == run["target"]["model"],
+                    scenarios["public-baseline"],
+                ),
+                make_check(
+                    "private-preflight-completion",
+                    scenarios["private-preflight"]["dnsClass"] == "private"
+                    and scenarios["private-preflight"]["httpStatus"] == 200
+                    and scenarios["private-preflight"]["responseObject"]
+                    == "chat.completion"
+                    and scenarios["private-preflight"]["responseModel"]
+                    == run["target"]["model"]
+                    and scenarios["private-preflight"]["runnerExitCode"] == 0,
+                    scenarios["private-preflight"],
+                ),
+                make_check(
                     "public-policy-block",
                     scenarios["public-blocked"]["dnsClass"] == "public"
                     and scenarios["public-blocked"]["httpStatus"] == 403
+                    and scenarios["public-blocked"]["errorCategory"]
+                    == "public-access-disabled"
                     and scenarios["public-blocked"]["networkPolicyBlocked"] is True,
                     {
                         "dns": scenarios["public-blocked"]["dnsClass"],
                         "http": scenarios["public-blocked"]["httpStatus"],
+                        "errorCategory": scenarios["public-blocked"]["errorCategory"],
                         "networkPolicyBlocked": scenarios["public-blocked"][
                             "networkPolicyBlocked"
                         ],
@@ -621,30 +718,46 @@ def build_rule_results() -> dict[str, object]:
                 make_check(
                     "deployment-ui-facts",
                     all(
-                        value in ui["images"][1]["proves"]
-                        for value in ("GlobalManagedCompute", "Succeeded", "H100_80GB")
+                        value in ui["images"][0]["proves"]
+                        for value in (
+                            "GlobalManagedCompute",
+                            "Succeeded",
+                            "H100_80GB",
+                            "qwen--qwen3-32b",
+                        )
                     ),
-                    ui["images"][1]["proves"],
+                    ui["images"][0]["proves"],
                 ),
             ],
             [
                 "evidence/ui-evidence.json",
-                "images/product-ui/private-network-access-required.png",
                 "images/product-ui/deployment-facts.png",
                 "evidence/connectivity-run.json",
             ],
         ),
         make_rule(
             "RUN-012",
-            "The scenario matrix covers block, private allow, and restore exactly once.",
+            "The scenario matrix covers baseline, safety preflight, block, private allow, and restore exactly once.",
             [
                 make_check(
                     "scenario-set",
                     [item["id"] for item in scenario_list]
-                    == ["public-blocked", "private-success", "public-restored"]
+                    == [
+                        "public-baseline",
+                        "private-preflight",
+                        "public-blocked",
+                        "private-success",
+                        "public-restored",
+                    ]
                     and len(scenarios) == len(scenario_list),
                     [item["id"] for item in scenario_list],
-                    ["public-blocked", "private-success", "public-restored"],
+                    [
+                        "public-baseline",
+                        "private-preflight",
+                        "public-blocked",
+                        "private-success",
+                        "public-restored",
+                    ],
                 ),
                 make_check(
                     "scenario-statuses",
@@ -662,7 +775,8 @@ def build_rule_results() -> dict[str, object]:
                 ),
                 make_check(
                     "scenario-order-and-time",
-                    [item["sequence"] for item in scenario_list] == [1, 2, 3]
+                    [item["sequence"] for item in scenario_list]
+                    == [1, 2, 3, 4, 5]
                     and [item["observedAtUtc"] for item in scenario_list]
                     == sorted(item["observedAtUtc"] for item in scenario_list),
                     [
@@ -682,30 +796,63 @@ def build_rule_results() -> dict[str, object]:
         ),
         make_rule(
             "RUN-013",
-            "The recorded post-test state is safe and complete.",
+            "The recorded post-test state is restored and does not misrepresent retained resources as cleaned up.",
             [
                 make_check(
-                    "temporary-resources-zero",
-                    run["cleanup"]["temporaryResourceCount"] == 0,
-                    run["cleanup"]["temporaryResourceCount"],
-                    0,
+                    "resources-retained-explicitly",
+                    run["postTestState"]["temporaryResourcesRetained"] is True
+                    and run["postTestState"]["cleanupStatus"] == "AWAITING_USER"
+                    and run["postTestState"]["billingContinues"] is True,
+                    {
+                        "temporaryResourcesRetained": run["postTestState"]["temporaryResourcesRetained"],
+                        "cleanupStatus": run["postTestState"]["cleanupStatus"],
+                        "billingContinues": run["postTestState"]["billingContinues"],
+                    },
                 ),
                 make_check(
                     "parent-restored",
-                    run["cleanup"]["parentPublicNetworkAccess"]
-                    == run["controlPlane"]["publicNetworkAccess"]["afterCleanup"]
+                    run["postTestState"]["parentPublicNetworkAccess"]
+                    == run["controlPlane"]["publicNetworkAccess"]["afterTest"]
                     == "Enabled",
-                    run["cleanup"]["parentPublicNetworkAccess"],
+                    run["postTestState"]["parentPublicNetworkAccess"],
                     "Enabled",
                 ),
                 make_check(
-                    "private-endpoints-removed",
-                    run["cleanup"]["parentPrivateEndpointConnectionCount"] == 0,
-                    run["cleanup"]["parentPrivateEndpointConnectionCount"],
-                    0,
+                    "private-endpoint-retained",
+                    run["postTestState"]["approvedAccountPrivateEndpointConnectionCount"]
+                    == 1,
+                    run["postTestState"]["approvedAccountPrivateEndpointConnectionCount"],
+                    1,
+                ),
+                make_check(
+                    "managed-compute-retained",
+                    run["postTestState"]["managedComputeProvisioningState"]
+                    == "Succeeded"
+                    and run["postTestState"]["managedComputeSku"]
+                    == "GlobalManagedCompute"
+                    and run["postTestState"]["managedComputeCapacity"] == 1,
+                    {
+                        "state": run["postTestState"]["managedComputeProvisioningState"],
+                        "sku": run["postTestState"]["managedComputeSku"],
+                        "capacity": run["postTestState"]["managedComputeCapacity"],
+                    },
+                ),
+                make_check(
+                    "private-runners-terminated",
+                    len(run["postTestState"]["containerGroups"]) == 2
+                    and all(
+                        item["provisioningState"] == "Succeeded"
+                        and item["state"] == "Terminated"
+                        and item["exitCode"] == 0
+                        for item in run["postTestState"]["containerGroups"]
+                    ),
+                    run["postTestState"]["containerGroups"],
                 ),
             ],
-            ["evidence/connectivity-run.json", "evidence/raw/cleanup.json"],
+            [
+                "evidence/connectivity-run.json",
+                "evidence/raw/post-test-state.json",
+            ],
         ),
         make_rule(
             "RUN-014",
@@ -756,6 +903,7 @@ def build_rule_results() -> dict[str, object]:
             [
                 "tests/test_build_evidence.py",
                 "tests/test_set_public_network_access.py",
+                "tests/test_submit_private_aci_probe.py",
                 "tests/test_validate_repo.py",
                 "scripts/build_evidence.py",
                 "scripts/validate_repo.py",

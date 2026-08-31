@@ -45,10 +45,24 @@ class PublicNetworkAccessTests(unittest.TestCase):
                             "groupIds": ["account"]
                         },
                     },
+                    {
+                        "properties": {
+                            "privateLinkServiceConnectionState": {"status": "Approved"},
+                            "provisioningState": None,
+                            "groupIds": ["account"],
+                        },
+                    },
+                    {
+                        "properties": {
+                            "privateLinkServiceConnectionState": {"status": "Approved"},
+                            "provisioningState": "Failed",
+                            "groupIds": ["account"],
+                        },
+                    },
                 ]
             }
         }
-        self.assertEqual(PNA.approved_private_endpoint_count(account), 1)
+        self.assertEqual(PNA.approved_private_endpoint_count(account), 2)
 
     def test_missing_connections_fail_closed(self) -> None:
         self.assertEqual(PNA.approved_private_endpoint_count({"properties": {}}), 0)
@@ -102,13 +116,14 @@ class PublicNetworkAccessTests(unittest.TestCase):
             account_name="exampleaccount123",
             state="Disabled",
             restore_state_from=None,
+            confirm_dedicated_test_account=True,
             save_prior_state="unused.json",
             private_probe_evidence=None,
             max_probe_age_seconds=900,
             max_restore_age_seconds=3600,
             operation_timeout=10,
         )
-        with self.assertRaisesRegex(RuntimeError, "no Succeeded, Approved"):
+        with self.assertRaisesRegex(RuntimeError, "no usable Approved"):
             PNA.change_public_network_access(args, "token", fake_request)
         self.assertEqual(calls, ["GET", "GET"])
 
@@ -189,6 +204,7 @@ class PublicNetworkAccessTests(unittest.TestCase):
                     account_name=account_name,
                     state="Disabled",
                     restore_state_from=None,
+                    confirm_dedicated_test_account=True,
                     save_prior_state=str(pathlib.Path(directory) / "pna-before.json"),
                     private_probe_evidence=str(evidence_path),
                     max_probe_age_seconds=900,
@@ -207,10 +223,13 @@ class PublicNetworkAccessTests(unittest.TestCase):
             ]
         }
         current_state = "Enabled"
+        current_etag = '"etag-1"'
         patches = []
+        operation_reads = []
 
         def account():
             return {
+                "etag": current_etag,
                 "properties": {
                     "provisioningState": "Succeeded",
                     "publicNetworkAccess": current_state,
@@ -228,14 +247,21 @@ class PublicNetworkAccessTests(unittest.TestCase):
                 }
             }
 
-        def fake_request(method, url, token, payload=None):
-            nonlocal current_state
+        def fake_request(method, url, token, payload=None, extra_headers=None):
+            nonlocal current_etag, current_state
             if "providers/Microsoft.CognitiveServices?" in url:
                 return 200, {}, provider
+            if url == "https://management.azure.com/operation":
+                operation_reads.append(url)
+                return 200, {}, {"status": "Running"}
             if method == "PATCH":
+                self.assertEqual(extra_headers, {"If-Match": current_etag})
                 current_state = payload["properties"]["publicNetworkAccess"]
                 patches.append(current_state)
-                return 200, {}, {}
+                current_etag = f'"etag-{len(patches) + 1}"'
+                return 202, {
+                    "Azure-AsyncOperation": "https://management.azure.com/operation"
+                }, {}
             return 200, {}, account()
 
         with tempfile.TemporaryDirectory() as directory:
@@ -263,6 +289,7 @@ class PublicNetworkAccessTests(unittest.TestCase):
                 "subscription_id": "example-subscription",
                 "resource_group": "example-resource-group",
                 "account_name": account_name,
+                "confirm_dedicated_test_account": True,
                 "max_probe_age_seconds": 900,
                 "max_restore_age_seconds": 3600,
                 "operation_timeout": 10,
@@ -283,6 +310,8 @@ class PublicNetworkAccessTests(unittest.TestCase):
             self.assertEqual(receipt["priorState"], "Enabled")
             self.assertEqual(receipt["phase"], "applied")
             self.assertEqual(receipt["appliedState"], "Disabled")
+            self.assertEqual(receipt["initialEtag"], '"etag-1"')
+            self.assertEqual(receipt["appliedEtag"], '"etag-2"')
 
             restored = PNA.change_public_network_access(
                 argparse.Namespace(
@@ -297,6 +326,7 @@ class PublicNetworkAccessTests(unittest.TestCase):
             )
             self.assertEqual(restored["actualState"], "Enabled")
             self.assertEqual(patches, ["Disabled", "Enabled"])
+            self.assertEqual(len(operation_reads), 2)
 
     def test_accepted_operation_is_polled(self) -> None:
         calls = []
@@ -388,6 +418,7 @@ class PublicNetworkAccessTests(unittest.TestCase):
             account_name="exampleaccount123",
             state="Disabled",
             restore_state_from=None,
+            confirm_dedicated_test_account=True,
             save_prior_state="unused.json",
             private_probe_evidence="unused.json",
             max_probe_age_seconds=900,
@@ -395,6 +426,45 @@ class PublicNetworkAccessTests(unittest.TestCase):
             operation_timeout=10,
         )
         with self.assertRaisesRegex(RuntimeError, "not Succeeded"):
+            PNA.change_public_network_access(args, "token", fake_request)
+        self.assertEqual(calls, ["GET", "GET"])
+
+    def test_shared_account_confirmation_is_required_before_patch(self) -> None:
+        calls = []
+        provider = {
+            "resourceTypes": [
+                {"resourceType": "accounts", "apiVersions": ["2026-07-01"]}
+            ]
+        }
+        account = {
+            "properties": {
+                "provisioningState": "Succeeded",
+                "publicNetworkAccess": "Enabled",
+                "privateEndpointConnections": [],
+            }
+        }
+
+        def fake_request(method, url, token, payload=None):
+            calls.append(method)
+            if method == "PATCH":
+                self.fail("PATCH must not run without dedicated account confirmation")
+            result = provider if "providers/Microsoft.CognitiveServices?" in url else account
+            return 200, {}, result
+
+        args = argparse.Namespace(
+            subscription_id="example-subscription",
+            resource_group="example-resource-group",
+            account_name="exampleaccount123",
+            state="Disabled",
+            restore_state_from=None,
+            confirm_dedicated_test_account=False,
+            save_prior_state="unused.json",
+            private_probe_evidence="unused.json",
+            max_probe_age_seconds=900,
+            max_restore_age_seconds=3600,
+            operation_timeout=10,
+        )
+        with self.assertRaisesRegex(RuntimeError, "dedicated non-production"):
             PNA.change_public_network_access(args, "token", fake_request)
         self.assertEqual(calls, ["GET", "GET"])
 
@@ -434,6 +504,7 @@ class PublicNetworkAccessTests(unittest.TestCase):
                         "capturedAtUtc": dt.datetime.now(dt.timezone.utc).isoformat(),
                         "phase": "applied",
                         "appliedState": "Disabled",
+                        "appliedEtag": '"etag-after-disable"',
                         "appliedAtUtc": dt.datetime.now(dt.timezone.utc).isoformat(),
                     }
                 ),
@@ -455,6 +526,67 @@ class PublicNetworkAccessTests(unittest.TestCase):
                 PNA.change_public_network_access(args, "token", fake_request)
         self.assertEqual(calls, ["GET", "GET"])
 
+    def test_restore_rejects_concurrent_or_aba_account_change(self) -> None:
+        calls = []
+        provider = {
+            "resourceTypes": [
+                {"resourceType": "accounts", "apiVersions": ["2026-07-01"]}
+            ]
+        }
+        account = {
+            "etag": '"etag-after-external-change"',
+            "properties": {
+                "provisioningState": "Succeeded",
+                "publicNetworkAccess": "Disabled",
+                "privateEndpointConnections": [],
+            },
+        }
+
+        def fake_request(method, url, token, payload=None):
+            calls.append(method)
+            if method == "PATCH":
+                self.fail("PATCH must not overwrite a concurrently changed account")
+            result = provider if "providers/Microsoft.CognitiveServices?" in url else account
+            return 200, {}, result
+
+        with tempfile.TemporaryDirectory() as directory:
+            restore_path = pathlib.Path(directory) / "restore.json"
+            account_path = (
+                "/subscriptions/example-subscription/resourceGroups/example-resource-group"
+                "/providers/Microsoft.CognitiveServices/accounts/exampleaccount123"
+            )
+            now = dt.datetime.now(dt.timezone.utc).isoformat()
+            restore_path.write_text(
+                json.dumps(
+                    {
+                        "accountResourceIdSha256": PNA.sha256_text(account_path.lower()),
+                        "priorState": "Enabled",
+                        "initialEtag": '"etag-before-disable"',
+                        "capturedAtUtc": now,
+                        "phase": "applied",
+                        "appliedState": "Disabled",
+                        "appliedEtag": '"etag-after-disable"',
+                        "appliedAtUtc": now,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            args = argparse.Namespace(
+                subscription_id="example-subscription",
+                resource_group="example-resource-group",
+                account_name="exampleaccount123",
+                state=None,
+                restore_state_from=str(restore_path),
+                save_prior_state=None,
+                private_probe_evidence=None,
+                max_probe_age_seconds=900,
+                max_restore_age_seconds=3600,
+                operation_timeout=10,
+            )
+            with self.assertRaisesRegex(RuntimeError, "changed after PNA"):
+                PNA.change_public_network_access(args, "token", fake_request)
+        self.assertEqual(calls, ["GET", "GET"])
+
     def test_prepared_restore_receipt_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = pathlib.Path(directory) / "prepared.json"
@@ -462,7 +594,12 @@ class PublicNetworkAccessTests(unittest.TestCase):
                 "/subscriptions/example-subscription/resourceGroups/example-resource-group"
                 "/providers/Microsoft.CognitiveServices/accounts/exampleaccount123"
             )
-            PNA.save_prior_state(str(path), account_path, "Enabled")
+            PNA.save_prior_state(
+                str(path),
+                account_path,
+                "Enabled",
+                '"etag-before-disable"',
+            )
             with self.assertRaisesRegex(RuntimeError, "completed disable"):
                 PNA.load_prior_state(str(path), account_path, 3600)
 

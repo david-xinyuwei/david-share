@@ -1,22 +1,26 @@
 {
   "id": "private-success",
-  "runId": "managed-compute-private-link-20260831",
-  "sequence": 2,
+  "runId": "managed-compute-private-link-dedicated-20260831",
+  "sequence": 4,
   "sourceType": "sanitized-live-observation",
-  "captureTime": "NOT_AVAILABLE",
-  "observedAtUtc": "2026-08-31T03:07:05.161Z",
-  "caller": "Ephemeral test container in a VNet workload subnet",
+  "observedAtUtc": "2026-08-31T06:07:39.938843+00:00",
+  "caller": "Private-IP ACI in a linked VNet workload subnet",
   "dnsClass": "private",
   "httpStatus": 200,
   "responseObject": "chat.completion",
-  "responseModel": "qwen--qwen3.6-27b",
-  "runtimeFingerprint": "vllm-0.21.0-401ffc9d",
+  "responseModel": "qwen--qwen3-32b",
+  "choiceCount": 1,
   "usage": {
-    "promptTokens": 15,
+    "promptTokens": 13,
     "completionTokens": 4,
-    "totalTokens": 19
+    "totalTokens": 17
   },
-  "requestIdSha256": "8d34cba88d5c2f72694914a068a5ddb967d30d72a5985341c5d70eb10d34a19e",
+  "requestIdSha256": "eb511b575cc023ba02e44edcd13e61d578bac32b120f7029eac249dc7f776065",
+  "probeSourceSha256": "d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6",
+  "identitySha256": "887146420b45005bf903fd183eda936b0e3fee00aa6be67a91a47f0546b54e6c",
+  "endpointSha256": "5e8cfa4be4c9aa5803d351815eceacece53477c04e26695a928e80c93935246b",
+  "deploymentSha256": "4d87fdbcba1fe6671069062752306ee4957a40c6ac281803b423c80ddd682776",
+  "requestSha256": "c4c06fac9fe6ed09d3f3117ca538e1f1d9e8be12330d5ef9b36284b6e4120804",
   "runnerExitCode": 0,
   "status": "PASS"
 }

@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "sourceType": "sanitized-live-observation",
-  "runId": "managed-compute-private-link-20260831",
+  "runId": "managed-compute-private-link-dedicated-20260831",
   "dateUtc": "2026-08-31",
   "target": {
     "service": "Microsoft Foundry Managed Compute",
     "deploymentType": "GlobalManagedCompute",
     "accelerator": "H100_80GB",
-    "model": "qwen--qwen3.6-27b",
+    "model": "qwen--qwen3-32b",
     "endpointPattern": "https://<foundry-account>.services.ai.azure.com/openai/v1/chat/completions"
   },
   "request": {
@@ -16,7 +16,16 @@
     "maxTokens": 4,
     "temperature": 0
   },
+  "fingerprints": {
+    "basis": "Five retained command receipts plus their shared authenticated AZ profile",
+    "probeSourceSha256": "d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6",
+    "identitySha256": "887146420b45005bf903fd183eda936b0e3fee00aa6be67a91a47f0546b54e6c",
+    "endpointSha256": "5e8cfa4be4c9aa5803d351815eceacece53477c04e26695a928e80c93935246b",
+    "deploymentSha256": "4d87fdbcba1fe6671069062752306ee4957a40c6ac281803b423c80ddd682776",
+    "requestSha256": "c4c06fac9fe6ed09d3f3117ca538e1f1d9e8be12330d5ef9b36284b6e4120804"
+  },
   "controlPlane": {
+    "dedicatedTestBoundary": true,
     "privateEndpoint": {
       "provisioningState": "Succeeded",
       "connectionStatus": "Approved",
@@ -24,15 +33,22 @@
       "privateDnsZoneCount": 3
     },
     "publicNetworkAccess": {
+      "initial": "Enabled",
       "duringTest": "Disabled",
-      "afterCleanup": "Enabled"
+      "afterTest": "Enabled"
+    },
+    "privateRunner": {
+      "type": "Azure Container Instances",
+      "networkMode": "Private IP in a linked VNet workload subnet",
+      "accessMethod": "Direct outbound HTTPS through Private Endpoint; not Azure Bastion",
+      "probeSourceSha256": "d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6"
     }
   },
   "doesNotProve": [
     "Managed Compute pods are injected into the customer VNet",
     "Managed Compute outbound traffic traverses the customer VNet",
     "Prompt or completion zero retention",
-    "Service-side request timestamps or exact phase durations",
+    "Service-side request timestamps or latency distributions",
     "Production readiness or SLA"
   ]
 }

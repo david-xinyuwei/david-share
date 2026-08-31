@@ -9,18 +9,31 @@ outbound VNet injection, content retention, or production readiness.
 ## Preconditions
 
 - Bash and Azure CLI authenticated to the target subscription on the control runner.
-- Python 3.11 or later and this repository on both probe runners.
+- Python 3.11 or later and this repository on the public/control runner.
 - Contributor access on the Foundry account and Network Contributor access on
   the target virtual network.
 - An existing `GlobalManagedCompute` deployment in Azure commercial cloud.
+- A dedicated non-production Foundry account. A new project under a shared
+  account is not sufficient because PNA and Private Endpoint are account-level
+  controls.
 - An existing customer-managed VNet, a subnet dedicated to Private Endpoints,
-  and a separate workload subnet. A VM, Container Apps job, or another approved
-  runner in the workload subnet is sufficient.
+  and a separate workload subnet. The ACI path below requires the workload
+  subnet to be delegated to `Microsoft.ContainerInstance/containerGroups`.
 - The private runner resolves through the linked VNet, can reach the Foundry
   endpoint on TCP 443, and can run as the same approved Entra principal as the
   public runner through Azure CLI or a securely supplied process environment.
 - The application/network owner owns creation and cleanup of any temporary
   workload runner. The Foundry resource owner approves and restores PNA changes.
+
+The measured path used **private-IP Azure Container Instances (ACI)** in the
+workload subnet. It did not use Azure Bastion. The control runner acquired the
+approved Entra data-plane token, submitted it to ARM as a container environment
+`secureValue`, and embedded the exact bytes of `scripts/probe_endpoint.py` in a
+`restartPolicy=Never` container. The ACI then resolved the Foundry hostname
+privately and sent HTTPS directly through the Private Endpoint. The secure value
+is not returned by the ACI read API or printed by the probe.
+The launcher refuses any existing container-group name and sends the create PUT
+with `If-None-Match: *`; it never updates an existing ACI.
 
 ## 1. Deploy the Private Endpoint
 
@@ -73,29 +86,87 @@ zones resolvable from the workload subnet through existing links or custom DNS
 forwarding. Done-when remains a private DNS resolution plus Chat Completions
 `200` from that subnet.
 
-## 2. Prove the private path before disabling public access
+## 2. Prove the public baseline and private path
 
-Run from a client attached to the linked VNet:
+From outside the VNet, first prove that the authenticated endpoint works while
+PNA is enabled:
 
 ```bash
 python scripts/probe_endpoint.py \
   --endpoint "https://<foundry-account>.services.ai.azure.com/openai/v1/chat/completions" \
   --deployment "<managed-compute-deployment>" \
-  --expect-dns private \
+  --expect-dns public \
   --expect-http 200 \
   --prompt "Reply with exactly OK." \
   --max-tokens 4 \
-  --output private-before-disable-probe.json
+  --output public-baseline-probe.json
 ```
 
-Done-when: `dnsClass` is `private`, `httpStatus` is `200`, and `passed` is
-`true`.
+For the private preflight, create a private-IP ACI from the control runner. The
+launcher embeds the exact probe source and never forwards the ARM token into the
+container. Use a unique ACI name for each probe:
+
+```bash
+RUN_ID="managed-compute-private-link-$(date -u +%Y%m%dT%H%M%SZ)"
+WORKLOAD_SUBNET_ID="/subscriptions/<subscription-id>/resourceGroups/<network-resource-group>/providers/Microsoft.Network/virtualNetworks/<vnet>/subnets/<workload-subnet>"
+PRIVATE_BEFORE_ACI="aci-mcpe-before-<unique-suffix>"
+
+python scripts/submit_private_aci_probe.py \
+  --subscription-id "<subscription-id>" \
+  --resource-group "<resource-group>" \
+  --container-group-name "$PRIVATE_BEFORE_ACI" \
+  --location "<vnet-region>" \
+  --subnet-id "$WORKLOAD_SUBNET_ID" \
+  --endpoint "https://<foundry-account>.services.ai.azure.com/openai/v1/chat/completions" \
+  --deployment "<managed-compute-deployment>" \
+  --run-id "$RUN_ID" \
+  --output private-before-submit.json
+
+wait_for_aci_probe() {
+  local name="$1" state exit_code
+  for _ in $(seq 1 60); do
+    IFS=$'\t' read -r state exit_code <<< "$(az container show \
+      --resource-group "<resource-group>" \
+      --name "$name" \
+      --query '[containers[0].instanceView.currentState.state,containers[0].instanceView.currentState.exitCode]' \
+      --output tsv)"
+    if [ "$state" = "Terminated" ]; then
+      test "$exit_code" = "0"
+      return
+    fi
+    sleep 5
+  done
+  echo "ACI probe did not terminate within 300 seconds" >&2
+  return 1
+}
+
+wait_for_aci_probe "$PRIVATE_BEFORE_ACI"
+
+az container show \
+  --resource-group "<resource-group>" \
+  --name "$PRIVATE_BEFORE_ACI" \
+  --query '{provisioningState:provisioningState,containerState:containers[0].instanceView.currentState.state,exitCode:containers[0].instanceView.currentState.exitCode}' \
+  --output json
+
+az container logs \
+  --resource-group "<resource-group>" \
+  --name "$PRIVATE_BEFORE_ACI" \
+  --container-name probe > private-before-disable-probe.json
+```
+
+The submit result (`201`, `Pending`, or `Creating`) proves only that ARM accepted
+the container group. Done-when: the container reaches `Terminated` with exit code
+`0`, and its log JSON has `dnsClass=private`, `httpStatus=200`,
+`object=chat.completion`, `choiceCount>0`, and `passed=true`.
 
 ## 3. Disable public access with a guard
 
 The script refuses to disable public access unless an Approved Private Endpoint
 is attached and the fresh private probe is a valid Chat Completions response.
 It saves the exact initial PNA state before issuing the PATCH.
+The receipt stores the account ETag before and after disable. Disable and restore
+use `If-Match`, so a concurrent or ABA account change fails instead of being
+overwritten.
 
 ```bash
 python scripts/set_public_network_access.py \
@@ -103,6 +174,7 @@ python scripts/set_public_network_access.py \
   --resource-group "<resource-group>" \
   --account-name "<foundry-account>" \
   --state Disabled \
+  --confirm-dedicated-test-account \
   --private-probe-evidence private-before-disable-probe.json \
   --save-prior-state pna-before.json
 ```
@@ -129,17 +201,36 @@ python scripts/probe_endpoint.py \
   --output public-blocked-probe.json
 ```
 
-From inside the linked VNet:
+Create a second private-IP ACI after PNA is disabled. This runs the same probe
+source through the same workload subnet; it does not reuse the completed
+preflight container:
 
 ```bash
-python scripts/probe_endpoint.py \
+PRIVATE_AFTER_ACI="aci-mcpe-after-<unique-suffix>"
+
+python scripts/submit_private_aci_probe.py \
+  --subscription-id "<subscription-id>" \
+  --resource-group "<resource-group>" \
+  --container-group-name "$PRIVATE_AFTER_ACI" \
+  --location "<vnet-region>" \
+  --subnet-id "$WORKLOAD_SUBNET_ID" \
   --endpoint "https://<foundry-account>.services.ai.azure.com/openai/v1/chat/completions" \
   --deployment "<managed-compute-deployment>" \
-  --expect-dns private \
-  --expect-http 200 \
-  --prompt "Reply with exactly OK." \
-  --max-tokens 4 \
-  --output private-after-disable-probe.json
+  --run-id "$RUN_ID" \
+  --output private-after-submit.json
+
+wait_for_aci_probe "$PRIVATE_AFTER_ACI"
+
+az container show \
+  --resource-group "<resource-group>" \
+  --name "$PRIVATE_AFTER_ACI" \
+  --query '{provisioningState:provisioningState,containerState:containers[0].instanceView.currentState.state,exitCode:containers[0].instanceView.currentState.exitCode}' \
+  --output json
+
+az container logs \
+  --resource-group "<resource-group>" \
+  --name "$PRIVATE_AFTER_ACI" \
+  --container-name probe > private-after-disable-probe.json
 ```
 
 Do not change the endpoint, deployment, identity, prompt, or token limit.
@@ -171,9 +262,12 @@ python scripts/probe_endpoint.py \
 ```
 
 If the saved state is `Disabled`, verify the private `200` remains valid and
-the public route remains blocked instead. Delete temporary compute and
-networking resources only after retaining sanitized evidence. For a temporary
-lab deployment, delete in dependency order: workload runner, Private Endpoint,
-Private DNS VNet links, Private DNS zones, and any lab-only VNet. Never delete a
+the public route remains blocked instead. Both ACI probes use
+`restartPolicy=Never`, but the terminated container-group resources still exist
+until deleted. Delete temporary compute and networking resources only after
+retaining sanitized evidence and obtaining the resource owner's explicit
+authorization. For a temporary lab deployment, delete in dependency order:
+workload runner, Managed Compute deployment, Private Endpoint, Private DNS VNet
+links, Private DNS zones, and any lab-only VNet/account. Never delete a
 customer-owned VNet. Resource deletion is intentionally not automated by this
-repository.
+repository, and Managed Compute billing continues while the deployment remains.
