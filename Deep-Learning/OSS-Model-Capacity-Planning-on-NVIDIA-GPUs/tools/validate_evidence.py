@@ -68,6 +68,17 @@ REQUIRED_LOG_LINKS = {
     "evidence/runs/qwen3-235b-h100-vllm-real-workloads/logs/chat-16gpu.log",
 }
 RETIRED_CHINESE_PHRASES = {
+    "拟议",
+    "尚未实现",
+    "计划中",
+    "服务形态",
+    "工作负载形态",
+    "性能画像",
+    "输入契约",
+    "工作负载契约",
+    "平台契约",
+    "拒绍",
+    "脘敏",
     "OSS 模型",
     "open-weight 模型",
     "平台合同",
@@ -272,8 +283,6 @@ def validate_readmes() -> None:
     chinese = chinese_path.read_text(encoding="utf-8")
     require(english.startswith("# OSS Model Capacity Planning on Azure ND/NC H100\n"), "English H1 drifted")
     require(chinese.startswith("# Azure ND/NC H100 上的开源与开放权重模型容量规划\n"), "Chinese H1 drifted")
-    require("T[Production trace] -.-> S[AI Simulate and Dynamo Replay]" in english, "English Mermaid compatibility edge drifted")
-    require("T[生产 trace] -.-> S[AI Simulate 与 Dynamo Replay]" in chinese, "Chinese Mermaid compatibility edge drifted")
     require("## 5. Reproduce the complete CPU-offline run" in english, "Detailed English walkthrough missing")
     require("## 5. 完整复现一次 CPU 离线预测" in chinese, "Detailed Chinese walkthrough missing")
     for token in (
@@ -283,7 +292,7 @@ def validate_readmes() -> None:
         "AttributeError: module 'plotext' has no attribute 'plot_size'",
         "agg GPUs needed: 32 (replicas: 32)",
         "disagg GPUs needed: 34 (replicas: 17)",
-        "README_VALIDATION=PASS LOG_LINKS=9 COMMAND_BLOCKS=9",
+        "README_VALIDATION=PASS LOG_LINKS=9 COMMAND_BLOCKS=8",
         "EVIDENCE_VALIDATION=PASS RUNS=3 PUBLIC_BOUNDARY=PASS",
     ):
         require(token in english, f"English walkthrough token missing: {token}")

@@ -23,10 +23,6 @@ GREEN = "#2F7D57"
 GREEN_LIGHT = "#DFEEE5"
 TEAL = "#087A80"
 TEAL_LIGHT = "#D9EFF0"
-PURPLE = "#69558E"
-PURPLE_LIGHT = "#E9E4F2"
-AMBER = "#B56C10"
-AMBER_LIGHT = "#F7E8C9"
 RED = "#B83B3B"
 WHITE = "#FFFFFF"
 
@@ -156,40 +152,6 @@ def configuration_problem() -> None:
     save(image, "configuration-problem.png")
 
 
-def aic_aisimulate_boundary() -> None:
-    image, draw = canvas()
-    text(draw, (72, 54), "Fixed-point sizing first; trace-level policy search only when needed", 46, bold=True)
-    text(
-        draw,
-        (72, 119),
-        "AIConfigurator runs independently. AI Simulate is an optional experimental extension for dynamic system-policy questions.",
-        25,
-        color=MUTED,
-    )
-
-    box(
-        draw,
-        (90, 242, 620, 540),
-        "AICONFIGURATOR 0.11.0",
-        ["Fixed workload descriptors", "Memory and performance model", "Top-N configuration search", "Independent CLI workflow"],
-        border=TEAL,
-        header=TEAL_LIGHT,
-        title_size=31,
-    )
-    box(draw, (980, 242, 1510, 540), "AI SIMULATE / SPICA", ["Production traces", "Dynamo Replay", "Router and planner policies", "Experimental search"], border=PURPLE, header=PURPLE_LIGHT, title_size=31)
-    arrow(draw, (620, 390), (980, 390), color=PURPLE, dashed=True)
-    text(draw, (800, 348), "optional extension", 23, color=PURPLE, bold=True, anchor="ma")
-    text(draw, (800, 430), "uses AIC models and", 21, color=MUTED, anchor="ma")
-    text(draw, (800, 460), "adds trace replay", 21, color=MUTED, anchor="ma")
-
-    box(draw, (90, 642, 620, 782), "FIXED-POINT DECISION", ["GPU count, topology, runtime candidates"], border=GREEN, header=GREEN_LIGHT, title_size=27)
-    box(draw, (980, 642, 1510, 782), "DYNAMIC-POLICY CANDIDATES", ["Routing, planning, KV offload, scheduling"], border=AMBER, header=AMBER_LIGHT, title_size=27)
-    arrow(draw, (355, 540), (355, 642), color=GREEN)
-    arrow(draw, (1245, 540), (1245, 642), color=AMBER)
-    footer(draw, "Original boundary diagram", "AI Simulate remains upstream-dependent and experimental")
-    save(image, "aic-aisimulate-boundary.png")
-
-
 def first_row(path: Path) -> dict[str, str]:
     with path.open(encoding="utf-8", newline="") as handle:
         return next(csv.DictReader(handle))
@@ -244,7 +206,6 @@ def qwen32_example() -> None:
 
 def main() -> None:
     configuration_problem()
-    aic_aisimulate_boundary()
     qwen32_example()
 
 
