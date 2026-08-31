@@ -22,7 +22,7 @@ Capacity planning for open-source and open-weight models is not a lookup from pa
 
 The workflow starts with versioned model, workload, and platform contracts. It uses NVIDIA AIConfigurator to produce ranked deployment candidates, sends only the discriminating candidates to a target-GPU benchmark, and carries measured prediction error plus operational reserve into the capacity decision. AI Simulate is an optional experimental extension for trace-level system-policy questions; it is not required for fixed-point sizing.
 
-The two Qwen cases in Section 8 demonstrate the workflow. They are examples, not the scope of the tool. Their fixed 50 req/s input is a synthetic capacity scenario, not a universal throughput target.
+The Qwen cases in Section 8 demonstrate the workflow. They are examples, not the scope of the tool. Their workload descriptors are the inputs that decide the answer: the same model on the same GPUs differs by 4.8x in predicted per-GPU throughput between a long-context coding-agent shape and a short-context chat shape.
 
 ## 2. Official OSS foundation
 
@@ -119,6 +119,54 @@ capacity input  = model contract + workload contract + platform contract
 candidate       = serving mode + parallelism + workers + batch/runtime settings
 capacity output = ranked candidates + predicted metrics + generated artifacts
 ```
+
+### 3.5 Serving mode: Aggregated versus Disaggregated
+
+Serving mode is the first dimension of the search space and the one that most often surprises planners, so it is worth stating precisely what the two modes are.
+
+LLM inference has two phases with opposite hardware characteristics:
+
+| Phase | Work | Bottleneck | Compute pattern |
+|---|---|---|---|
+| Prefill | Process the whole input prompt, emit the first token | Compute | Large matrix multiplications, high GPU utilization from a single request |
+| Decode | Generate each subsequent token | Memory bandwidth | One token per step, needs batching to fill the GPU |
+
+The conflict follows directly: a long Prefill occupies the GPU and stalls requests that are already decoding, which shows up as TPOT jitter.
+
+**Aggregated** runs both phases in the same worker and relies on continuous (in-flight) batching to interleave new prefills with ongoing decodes.
+
+**Disaggregated** splits them into separate worker pools. Prefill workers process inputs and hand the KV cache to decode workers, which own token generation.
+
+The two modes compute GPU counts differently. Upstream states the arithmetic as:
+
+```text
+Aggregated:    gpus/replica = gpus/worker
+
+Disaggregated: gpus/replica = (p)gpus/worker x (p)workers
+                            + (d)gpus/worker x (d)workers
+```
+
+A Disaggregated replica is the smallest scalable `xPyD` unit, meaning `x` prefill plus `y` decode workers. It is therefore larger and less divisible than an Aggregated worker.
+
+Disaggregated throughput is limited by whichever pool is slower, and upstream applies silicon-calibrated rate-matching degradation factors when pairing the pools:
+
+```text
+seq/s = min( prefill seq/s x (p)workers x 0.90,
+             decode  seq/s x (d)workers x 0.92 )
+```
+
+Per the upstream docstrings, `0.90` accounts for pipeline bubbles on the prefill side and `0.92` for decode batch-size under-saturation. Both are configurable. The practical consequence is that a badly proportioned `xPyD` layout wastes the GPUs on the faster side.
+
+| Property | Aggregated | Disaggregated |
+|---|---|---|
+| Architectural complexity | Lower | Higher: KV-cache transfer plus two-pool scheduling |
+| KV-cache transfer | None | Required between pools |
+| Independent scaling | No, phases are coupled | Yes, prefill and decode scale separately |
+| TPOT stability | Long prefills interfere with decodes | Decode pool is not interrupted |
+| Smallest deployable unit | Small worker, easy to replicate | Whole `xPyD` replica |
+| Pool-ratio tuning | Not applicable | Required, otherwise the faster pool idles |
+
+Neither mode is universally better. Section 8.2 shows the same model and the same GPU count reaching opposite conclusions once the workload shape changes, which is why the mode is a search result rather than a standing preference.
 
 ## 4. How estimation and measurement fit together
 
@@ -364,13 +412,13 @@ Expected terminal output:
 ```text
 RUN qwen3-235b-h100-vllm-50rps PASS files=16
 RUN qwen3-32b-h200-trtllm-50rps PASS files=15
-README_VALIDATION=PASS LOG_LINKS=7 COMMAND_BLOCKS=9
-EVIDENCE_VALIDATION=PASS RUNS=2 PUBLIC_BOUNDARY=PASS
+README_VALIDATION=PASS LOG_LINKS=9 COMMAND_BLOCKS=9
+EVIDENCE_VALIDATION=PASS RUNS=3 PUBLIC_BOUNDARY=PASS
 ```
 
-The validator recomputes every published SHA-256, checks each log's exit marker, rejects private paths, verifies 32/34 and 428/920 capacity arithmetic, confirms the four-GPU MoE topology, and checks the recorded CPU memory peak.
+The validator recomputes every published SHA-256, checks each log's exit marker, rejects private paths, verifies the 32/34 H200 capacity arithmetic, confirms the four-GPU MoE topology, checks the recorded CPU memory peak, and verifies the real-workload replica arithmetic and SLA compliance.
 
-**Done-When:** the final line is exactly `EVIDENCE_VALIDATION=PASS RUNS=2 PUBLIC_BOUNDARY=PASS`.
+**Done-When:** the final line is exactly `EVIDENCE_VALIDATION=PASS RUNS=3 PUBLIC_BOUNDARY=PASS`.
 
 ## 6. Proposed OSS integration and contribution plan
 
@@ -432,12 +480,12 @@ The first public milestone should stop after Phase 2: publish the schemas, two e
 
 ## 8. Worked examples
 
-The examples below prove that the same planning method can represent different model sizes, architectures, NVIDIA GPUs, and inference backends. They do not define a fixed service target for the general workflow.
+The examples below prove that the same planning method can represent different model sizes, architectures, NVIDIA GPUs, inference backends, and workload shapes. Every number is an AIConfigurator prediction, which is what the tool is designed to produce; none of them is a GPU benchmark.
 
-| Example | Model | Target platform | Backend database | Synthetic workload | Main predicted result |
+| Example | Model | Target platform | Backend database | Workload | Main predicted result |
 |---|---|---|---|---|---|
-| Dense-model canary | `Qwen/Qwen3-32B-FP8` | H200 SXM | TensorRT-LLM | ISL 4,000; OSL 1,000; TTFT <=2,000 ms; TPOT <=30 ms; 50 req/s | 32 H200 Aggregated versus 34 H200 Disaggregated |
-| MoE large-model case | `Qwen/Qwen3-235B-A22B-FP8` | H100 SXM | vLLM `0.24.0` | ISL 4,000; OSL 1,000; TTFT <=2,000 ms; TPOT <=30 ms; 50 req/s | Four-GPU `TP4/ETP4` worker; 428-H100 Aggregated example capacity |
+| Dense-model canary | `Qwen/Qwen3-32B-FP8` | H200 SXM | TensorRT-LLM | ISL 4,000; OSL 1,000; TTFT <=2,000 ms; TPOT <=30 ms; 50 req/s procurement target | 32 H200 Aggregated versus 34 H200 Disaggregated |
+| MoE workload comparison | `Qwen/Qwen3-235B-A22B-FP8` | H100 SXM | vLLM `0.24.0` | Fixed 16/32 GPU budgets; coding-agent and chat shapes | Same model, same GPUs: 4.8x difference in per-GPU throughput between workloads |
 
 ### 8.1 Qwen3-32B-FP8 on H200 SXM
 
@@ -445,34 +493,75 @@ The upstream `support` and `recommend` paths completed on CPU. Under the example
 
 ![Qwen3-32B H200 example](images/qwen3-32b-h200-canary.png)
 
-**Figure 4. Local CPU-offline prediction, not an H200 benchmark.** AIConfigurator v0.11.0, Qwen3-32B-FP8, H200 SXM, TensorRT-LLM, synthetic 50 req/s workload. [Full CLI log](evidence/runs/qwen3-32b-h200-trtllm-50rps/logs/03-recommend-success.log) · [Aggregated CSV](evidence/runs/qwen3-32b-h200-trtllm-50rps/results/agg/best_config_topn.csv) · [Disaggregated CSV](evidence/runs/qwen3-32b-h200-trtllm-50rps/results/disagg/best_config_topn.csv). Image SHA-256: `b290bbd126594ca3ac923591b567f6b4cd5e838de6c73ef512405aa3caa08690`.
+**Figure 4. Local CPU-offline prediction, not an H200 benchmark.** AIConfigurator v0.11.0, Qwen3-32B-FP8, H200 SXM, TensorRT-LLM, 50 req/s procurement-sizing target. [Full CLI log](evidence/runs/qwen3-32b-h200-trtllm-50rps/logs/03-recommend-success.log) · [Aggregated CSV](evidence/runs/qwen3-32b-h200-trtllm-50rps/results/agg/best_config_topn.csv) · [Disaggregated CSV](evidence/runs/qwen3-32b-h200-trtllm-50rps/results/disagg/best_config_topn.csv). Image SHA-256: `b290bbd126594ca3ac923591b567f6b4cd5e838de6c73ef512405aa3caa08690`.
 
-### 8.2 Qwen3-235B-A22B-FP8 on H100 SXM
+### 8.2 Qwen3-235B-A22B-FP8 on H100 SXM: workload shape decides capacity
 
-The same workflow was applied to a 235B-total / 22B-active MoE model with 128 experts and 8 activated experts. A two-GPU budget produced no feasible candidate in the search. The smallest modeled worker uses four H100 SXM GPUs with `TP4/PP1/DP1/ETP4/EP1`. At the synthetic 50 req/s point, the top Aggregated result uses 107 four-GPU replicas, or 428 GPUs.
+This example answers the question a capacity planner actually asks: for a fixed GPU budget, what can this model serve? It uses two workload shapes reported by inference practitioners rather than one invented request-rate target.
+
+| Workload shape | ISL | OSL | Prefix cache | TTFT limit | TPOT limit |
+|---|---:|---:|---:|---:|---:|
+| Long-context coding agent | 32,000 | 500 | 28,000 (87.5% reuse) | 4,000 ms | 50 ms |
+| Interactive chat | 1,000 | 500 | 0 | 500 ms | 50 ms |
+
+The coding-agent shape follows the pattern practitioners describe for agent workloads: very long accumulated context where most of the prefix is already cached and only a small tail needs incremental prefill. Both shapes are representative descriptors, not a captured trace from a named customer.
+
+All runs used `--strict-sla`, so every reported candidate satisfies both latency limits.
+
+| Scenario | GPU budget | Best mode | Replica layout | tokens/s/GPU | Cluster req/s | TTFT | TPOT |
+|---|---:|---|---|---:|---:|---:|---:|
+| Coding agent | 16 | Disaggregated | 1 x 16-GPU replica | 120.15 | 3.85 | 2,037.14 ms | 49.87 ms |
+| Coding agent | 32 | Aggregated | 8 x 4-GPU replicas | 99.75 | 6.40 | 602.91 ms | 48.91 ms |
+| Interactive chat | 16 | Aggregated | 2 x 8-GPU replicas | 570.50 | 18.29 | 466.36 ms | 48.15 ms |
+
+Three planning conclusions follow from the same model and the same hardware:
+
+1. **Workload shape dominates capacity.** At an identical 16-GPU budget, the chat shape predicts 570.50 tokens/s/GPU while the coding-agent shape predicts 120.15 tokens/s/GPU, a 4.8x difference. Quoting a single capacity number for a model without naming the workload is meaningless.
+2. **Disaggregation earns its complexity only when prefill dominates.** With 32,000-token inputs on 16 GPUs, Disaggregated wins by 1.20x. In the short-context chat shape, Aggregated wins by 1.08x.
+3. **Adding GPUs buys throughput, not per-GPU efficiency.** Going from 16 to 32 GPUs on the coding-agent shape raises cluster throughput from 3.85 to 6.40 req/s because the planner replicates a smaller 4-GPU worker; per-GPU efficiency does not improve.
+
+Comparing both serving modes at the same 16-GPU budget shows why the mode cannot be chosen by preference. The winner and the reason change with the workload shape:
+
+| Workload | Mode | Replica layout | tokens/s/GPU | Cluster req/s | TTFT | TPOT |
+|---|---|---|---:|---:|---:|---:|
+| Chat | Aggregated | 2 x 8-GPU | **570.50** | **18.29** | 466.36 ms | 48.15 ms |
+| Chat | Disaggregated | 1 x 16-GPU | 528.54 | 16.91 | **292.60 ms** | **41.86 ms** |
+| Coding agent | Aggregated | 4 x 4-GPU | 99.75 | 3.20 | **602.91 ms** | 48.91 ms |
+| Coding agent | Disaggregated | 1 x 16-GPU | **120.15** | **3.85** | 2,037.14 ms | 49.87 ms |
+
+In the chat shape, Disaggregated cuts TTFT by 37% but gives up 7% of per-GPU throughput: with only 1,000 input tokens, prefill is not heavy enough for the split to pay for its KV-cache transfer. In the coding-agent shape, Disaggregated gains 20% per-GPU throughput while TTFT gets worse, because the ranking objective is throughput and the selected layout still fits inside the 4,000 ms TTFT limit.
 
 ```text
-107 replicas x 4 H100 SXM GPUs = 428 H100 SXM GPUs
+16 GPUs, chat shape         : 570.50 tokens/s/GPU
+16 GPUs, coding-agent shape : 120.15 tokens/s/GPU
+ratio                       : 4.75x
 ```
 
 ![Qwen3-235B H100 example](images/qwen3-235b-h100-pareto.png)
 
-**Figure 5. Local CPU-offline prediction, not an H100 benchmark.** AIConfigurator v0.11.0, Qwen3-235B-A22B-FP8, H100 SXM, vLLM 0.24.0, synthetic 50 req/s workload. The 428-GPU value comes from the ranked CSV, not from reading this plot. [Full capacity log](evidence/runs/qwen3-235b-h100-vllm-50rps/logs/03-capacity-50rps.log) · [Aggregated CSV](evidence/runs/qwen3-235b-h100-vllm-50rps/results/agg/best_config_topn.csv) · [Disaggregated CSV](evidence/runs/qwen3-235b-h100-vllm-50rps/results/disagg/best_config_topn.csv). Image SHA-256: `2f0aef7b052857e3084b518a29a159bf9ab6a1e47e380a3c59d3126756a8c352`.
+**Figure 5. Candidate Pareto frontier from an AIConfigurator search, not an H100 benchmark.** The plot shows the trade-off between per-user generation speed (`tokens/s/user`) and per-GPU efficiency (`tokens/s/gpu`) across candidate configurations. It is retained as an illustration of that trade-off and is not the source of the capacity table above; it was produced by an earlier run without `--strict-sla`, so some plotted points exceed a 30 ms TPOT limit. Image SHA-256: `2f0aef7b052857e3084b518a29a159bf9ab6a1e47e380a3c59d3126756a8c352`.
 
-The supplemental run bundle preserves the entire decision path:
+Evidence for the capacity table:
+
+| Scenario | Full CLI log | Ranked candidates |
+|---|---|---|
+| Coding agent, 16 GPU | [`coding-agent-16gpu.log`](evidence/runs/qwen3-235b-h100-vllm-real-workloads/logs/coding-agent-16gpu.log) | [Disaggregated CSV](evidence/runs/qwen3-235b-h100-vllm-real-workloads/results/coding-agent-16gpu/disagg/best_config_topn.csv) |
+| Coding agent, 32 GPU | [`coding-agent-32gpu.log`](evidence/runs/qwen3-235b-h100-vllm-real-workloads/logs/coding-agent-32gpu.log) | [Aggregated CSV](evidence/runs/qwen3-235b-h100-vllm-real-workloads/results/coding-agent-32gpu/agg/best_config_topn.csv) |
+| Interactive chat, 16 GPU | [`chat-16gpu.log`](evidence/runs/qwen3-235b-h100-vllm-real-workloads/logs/chat-16gpu.log) | [Aggregated CSV](evidence/runs/qwen3-235b-h100-vllm-real-workloads/results/chat-16gpu/agg/best_config_topn.csv) |
+
+Stage commands, argv, source hashes, and published hashes are in the [`run manifest`](evidence/runs/qwen3-235b-h100-vllm-real-workloads/run-manifest.json).
+
+A separate supplemental bundle records the model's feasibility boundary and the planner's own resource cost:
 
 | Step | Result | Evidence |
 |---|---|---|
 | Test a two-GPU budget | Expected boundary failure, exit `1`; no candidate fits | [`01-two-gpu-infeasible.log`](evidence/runs/qwen3-235b-h100-vllm-50rps/logs/01-two-gpu-infeasible.log) |
 | Find the minimum worker | Four-GPU Aggregated worker, `TP4/PP1/DP1/ETP4/EP1`, exit `0` | [`02-four-gpu-worker.log`](evidence/runs/qwen3-235b-h100-vllm-50rps/logs/02-four-gpu-worker.log) · [`Top-N CSV`](evidence/runs/qwen3-235b-h100-vllm-50rps/results/worker-4g/agg/best_config_topn.csv) |
-| Size the synthetic 50 req/s point | 428 H100 Aggregated versus 920 H100 Disaggregated, exit `0` | [`03-capacity-50rps.log`](evidence/runs/qwen3-235b-h100-vllm-50rps/logs/03-capacity-50rps.log) · [`run manifest`](evidence/runs/qwen3-235b-h100-vllm-50rps/run-manifest.json) |
 | Measure planning-process footprint | 12.27 s wall time and 496,100 KiB peak RSS, exit `0` | [`04-cpu-memory-profile.log`](evidence/runs/qwen3-235b-h100-vllm-50rps/logs/04-cpu-memory-profile.log) |
 
-The run logs also record that vLLM `0.24.0` had no FP8 `context_attention` performance data for H100 SXM, so AIConfigurator fell back to BF16 FMHA data. The 235B/H100 numbers are version-specific predictions with this database-fallback boundary.
+Two prediction boundaries are recorded in the run logs. vLLM `0.24.0` has no FP8 `context_attention` performance data for H100 SXM, so the search fell back to BF16 FMHA data. `--generated-config-version` was not provided, so generated configuration defaulted through Dynamo 1.2.0 to vLLM `0.20.1` while the search used the vLLM `0.24.0` database; the generated YAML stays a candidate until regenerated for the deployed runtime.
 
-The same logs warn that `--generated-config-version` was not provided. Search used the vLLM `0.24.0` performance database, while generated configuration defaulted through Dynamo 1.2.0 to vLLM `0.20.1`. The generated YAML therefore remains a candidate until it is regenerated for, or accepted by, a version-aligned runtime.
-
-The 428 result is not the capacity requirement for Qwen3-235B in general. It belongs to one model revision family, target system, backend database, workload point, and SLA. A different output-length distribution, request rate, cache profile, backend, or GPU changes the result.
+None of these numbers is a capacity requirement for Qwen3-235B in general. Each belongs to one model revision family, target system, backend database, workload shape, and SLA pair.
 
 ## 9. Boundaries and risks
 

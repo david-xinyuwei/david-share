@@ -22,7 +22,7 @@
 
 这套流程先冻结带版本的模型、工作负载和平台输入契约。NVIDIA AIConfigurator 负责生成排序后的部署候选；只有最能区分方案的少量候选才进入目标 GPU 实测；最终容量由目标 GPU 实测得到的预测误差和运维冗余共同决定。只有在分析 trace 级动态系统策略时，才需要把 AI Simulate 作为实验性扩展；固定工作负载的容量规划不依赖它。
 
-第 8 节用两个 Qwen 案例说明同一套方法如何处理不同模型。它们只是示例，不限定工具的模型范围。其中的 50 req/s 是人为设定的容量场景，不是通用吞吐目标。
+第 8 节的 Qwen 案例说明同一套方法如何处理不同模型和不同业务形态。它们只是示例，不限定工具的模型范围。真正决定结果的是工作负载描述：同一个模型、同样的 GPU 数量，长上下文 Coding Agent 形态与短上下文 Chat 形态的每卡吞吐预测相差 4.8 倍。
 
 ## 2. 官方开源项目
 
@@ -119,6 +119,54 @@ capacity input  = model contract + workload contract + platform contract
 candidate       = serving mode + parallelism + workers + batch/runtime settings
 capacity output = ranked candidates + predicted metrics + generated artifacts
 ```
+
+### 3.5 服务形态：Aggregated 与 Disaggregated 的区别
+
+服务形态是搜索空间的第一个维度，也是最容易被误判的一个维度，因此需要单独说清两者到底差在哪里。
+
+LLM 推理包含两个硬件特征完全相反的阶段：
+
+| 阶段 | 做什么 | 瓶颈 | 计算特征 |
+|---|---|---|---|
+| Prefill | 一次性处理完整输入 prompt，产出第一个 token | 算力 | 大矩阵乘，单个请求就能把 GPU 打满 |
+| Decode | 逐个生成后续 token | 显存带宽 | 每步只算一个 token，必须靠 batch 才能填满 GPU |
+
+矛盾由此产生：一次很长的 Prefill 会占住 GPU，让正在 Decode 的请求排队等待，表现为 TPOT 抖动。
+
+**Aggregated** 让同一个 worker 承担两个阶段，依靠 continuous batching（in-flight batching）把新请求的 Prefill 插入正在进行的 Decode 批次。
+
+**Disaggregated** 把两个阶段拆成独立的 worker 池：Prefill worker 负责处理输入，算完后把 KV Cache 交给 Decode worker，由后者负责 token 生成。
+
+两种形态计算 GPU 数量的方式不同，上游给出的算式是：
+
+```text
+Aggregated:    gpus/replica = gpus/worker
+
+Disaggregated: gpus/replica = (p)gpus/worker x (p)workers
+                            + (d)gpus/worker x (d)workers
+```
+
+Disaggregated 的副本是最小可扩展单元 `xPyD`，即 `x` 个 Prefill worker 加 `y` 个 Decode worker。因此它比 Aggregated 的单个 worker 更大，也更难拆分复制。
+
+Disaggregated 的吞吐由两个池中较慢的那个决定，上游在配对两个池时会施加经过 silicon 标定的 rate matching 降级系数：
+
+```text
+seq/s = min( prefill seq/s x (p)workers x 0.90,
+             decode  seq/s x (d)workers x 0.92 )
+```
+
+按上游注释，`0.90` 对应 Prefill 侧的 pipeline bubble，`0.92` 对应 Decode 侧 batch size 未饱和。两个系数都可配置。工程含义是：`xPyD` 配比失衡时，较快那一侧的 GPU 会闲置浪费。
+
+| 对比项 | Aggregated | Disaggregated |
+|---|---|---|
+| 架构复杂度 | 较低 | 较高：需要 KV Cache 传输和两池调度 |
+| KV Cache 传输 | 不需要 | 必须在两个池之间传输 |
+| 独立扩缩容 | 不支持，两个阶段绑定 | 支持，Prefill 与 Decode 可分别调整 |
+| TPOT 稳定性 | 长 Prefill 会干扰 Decode | Decode 池不被打断 |
+| 最小部署单元 | worker 较小，易于复制 | 整个 `xPyD` 副本 |
+| 配比调优 | 不涉及 | 必须调，否则较快一侧空转 |
+
+两种形态没有普遍优劣。第 8.2 节的数据显示：同一个模型、同样的 GPU 数量，仅工作负载形态改变，结论就会反向。所以服务形态应当是搜索结果，而不是预设立场。
 
 ## 4. 预测与实测如何衔接
 
@@ -364,13 +412,13 @@ python tools/validate_evidence.py
 ```text
 RUN qwen3-235b-h100-vllm-50rps PASS files=16
 RUN qwen3-32b-h200-trtllm-50rps PASS files=15
-README_VALIDATION=PASS LOG_LINKS=7 COMMAND_BLOCKS=9
-EVIDENCE_VALIDATION=PASS RUNS=2 PUBLIC_BOUNDARY=PASS
+README_VALIDATION=PASS LOG_LINKS=9 COMMAND_BLOCKS=9
+EVIDENCE_VALIDATION=PASS RUNS=3 PUBLIC_BOUNDARY=PASS
 ```
 
-校验器会重新计算每个公开文件的 SHA-256，检查日志退出码，拒绝私有路径，复算 32/34 与 428/920，核对四卡 MoE topology，并检查记录的 CPU 内存峰值。
+校验器会重新计算每个公开文件的 SHA-256，检查日志退出码，拒绍私有路径，复算 H200 的 32/34 容量算术，核对四卡 MoE topology，检查记录的 CPU 内存峰值，并验证真实工作负载场景的副本算术和 SLA 符合情况。
 
-**完成标准：** 最后一行必须严格等于 `EVIDENCE_VALIDATION=PASS RUNS=2 PUBLIC_BOUNDARY=PASS`。
+**完成标准：** 最后一行必须严格等于 `EVIDENCE_VALIDATION=PASS RUNS=3 PUBLIC_BOUNDARY=PASS`。
 
 ## 6. 拟议的开源集成与贡献计划
 
@@ -434,10 +482,10 @@ flowchart LR
 
 下面两个示例说明同一容量规划方法可以处理不同模型规模、架构、NVIDIA GPU 和推理后端。它们不代表通用流程的固定服务目标。
 
-| 示例 | 模型 | 目标平台 | 后端性能数据库 | 人为设定的工作负载 | 主要预测结果 |
+| 示例 | 模型 | 目标平台 | 后端性能数据库 | 工作负载 | 主要预测结果 |
 |---|---|---|---|---|---|
-| Dense 模型示例 | `Qwen/Qwen3-32B-FP8` | H200 SXM | TensorRT-LLM | ISL 4,000；OSL 1,000；TTFT <=2,000 ms；TPOT <=30 ms；50 req/s | Aggregated 需要 32 张 H200；Disaggregated 需要 34 张 H200 |
-| 大规模 MoE 模型示例 | `Qwen/Qwen3-235B-A22B-FP8` | H100 SXM | vLLM `0.24.0` | ISL 4,000；OSL 1,000；TTFT <=2,000 ms；TPOT <=30 ms；50 req/s | 四卡 `TP4/ETP4` worker；Aggregated 示例容量为 428 张 H100 |
+| Dense 模型示例 | `Qwen/Qwen3-32B-FP8` | H200 SXM | TensorRT-LLM | ISL 4,000；OSL 1,000；TTFT <=2,000 ms；TPOT <=30 ms；按 50 req/s 做采购估算 | Aggregated 需要 32 张 H200；Disaggregated 需要 34 张 H200 |
+| MoE 模型工作负载对比 | `Qwen/Qwen3-235B-A22B-FP8` | H100 SXM | vLLM `0.24.0` | 固定 16/32 卡预算；Coding Agent 与 Chat 两种形态 | 同模型同卡数下，两种工作负载的每卡吞吐相差 4.8 倍 |
 
 ### 8.1 Qwen3-32B-FP8 on H200 SXM
 
@@ -445,34 +493,75 @@ flowchart LR
 
 ![Qwen3-32B H200 示例](images/qwen3-32b-h200-canary.png)
 
-**图 4：本地 CPU 离线预测，不是 H200 实机基准测试。** AIConfigurator v0.11.0、Qwen3-32B-FP8、H200 SXM、TensorRT-LLM，人为设定 50 req/s 工作负载。[完整 CLI 日志](evidence/runs/qwen3-32b-h200-trtllm-50rps/logs/03-recommend-success.log) · [Aggregated CSV](evidence/runs/qwen3-32b-h200-trtllm-50rps/results/agg/best_config_topn.csv) · [Disaggregated CSV](evidence/runs/qwen3-32b-h200-trtllm-50rps/results/disagg/best_config_topn.csv)。图片 SHA-256：`b290bbd126594ca3ac923591b567f6b4cd5e838de6c73ef512405aa3caa08690`。
+**图 4：本地 CPU 离线预测，不是 H200 实机基准测试。** AIConfigurator v0.11.0、Qwen3-32B-FP8、H200 SXM、TensorRT-LLM，按 50 req/s 做采购估算。[完整 CLI 日志](evidence/runs/qwen3-32b-h200-trtllm-50rps/logs/03-recommend-success.log) · [Aggregated CSV](evidence/runs/qwen3-32b-h200-trtllm-50rps/results/agg/best_config_topn.csv) · [Disaggregated CSV](evidence/runs/qwen3-32b-h200-trtllm-50rps/results/disagg/best_config_topn.csv)。图片 SHA-256：`b290bbd126594ca3ac923591b567f6b4cd5e838de6c73ef512405aa3caa08690`。
 
-### 8.2 Qwen3-235B-A22B-FP8 on H100 SXM
+### 8.2 Qwen3-235B-A22B-FP8 on H100 SXM：工作负载形态决定容量
 
-同一流程被用于这个 MoE 模型：总参数 235B、每次推理激活 22B、共有 128 个 experts、每次激活 8 个 experts。在本次搜索中，2 张 H100 的 GPU 预算没有找到可行候选。最小预测 worker 使用 4 张 H100 SXM，拓扑为 `TP4/PP1/DP1/ETP4/EP1`。在人为设定的 50 req/s 工作点，Aggregated Top-1 使用 107 个四卡副本，共 428 张 GPU。
+这个示例回答容量规划真正要回答的问题：给定固定 GPU 预算，这个模型能支撑多少业务量。输入采用推理工程实践中常见的两种工作负载形态，而不是凭空设定一个请求率目标。
+
+| 工作负载形态 | ISL | OSL | Prefix Cache | TTFT 上限 | TPOT 上限 |
+|---|---:|---:|---:|---:|---:|
+| 长上下文 Coding Agent | 32,000 | 500 | 28,000（复用率 87.5%） | 4,000 ms | 50 ms |
+| 交互式 Chat | 1,000 | 500 | 0 | 500 ms | 50 ms |
+
+Coding Agent 形态对应 Agent 类业务的典型特征：累积上下文很长，但其中绝大部分前缀已被缓存，只有少量增量需要真正做 Prefill。两种形态都是代表性描述，不是某个具名客户的生产 trace。
+
+三次运行都启用了 `--strict-sla`，因此表中每个候选都同时满足两项时延约束。
+
+| 场景 | GPU 预算 | 更优形态 | 副本结构 | tokens/s/GPU | 集群 req/s | TTFT | TPOT |
+|---|---:|---|---|---:|---:|---:|---:|
+| Coding Agent | 16 | Disaggregated | 1 个 16 卡副本 | 120.15 | 3.85 | 2,037.14 ms | 49.87 ms |
+| Coding Agent | 32 | Aggregated | 8 个 4 卡副本 | 99.75 | 6.40 | 602.91 ms | 48.91 ms |
+| 交互式 Chat | 16 | Aggregated | 2 个 8 卡副本 | 570.50 | 18.29 | 466.36 ms | 48.15 ms |
+
+同一个模型、同样的硬件，可以直接读出三条规划结论：
+
+1. **工作负载形态对容量的影响远大于模型本身。** 同样 16 张卡，Chat 形态预测每卡 570.50 tokens/s，Coding Agent 形态只有 120.15 tokens/s，相差 4.8 倍。脱离工作负载谈某个模型需要多少卡没有意义。
+2. **只有 Prefill 成为瓶颈时，Disaggregated 才值得付出额外复杂度。** 32,000 token 输入、16 卡预算下，Disaggregated 领先 1.20 倍；短上下文 Chat 场景反而是 Aggregated 领先 1.08 倍。
+3. **增加 GPU 提升的是集群吞吐，不是每卡效率。** Coding Agent 形态从 16 卡扩到 32 卡，集群吞吐从 3.85 req/s 提升到 6.40 req/s，因为规划器改为复制更小的 4 卡 worker；每卡效率并没有提高。
+
+在同样 16 卡预算下把两种服务形态并排比较，可以看出为什么这个选择不能靠预设立场。赢家和原因都随工作负载形态改变：
+
+| 工作负载 | 服务形态 | 副本结构 | tokens/s/GPU | 集群 req/s | TTFT | TPOT |
+|---|---|---|---:|---:|---:|---:|
+| Chat | Aggregated | 2 个 8 卡副本 | **570.50** | **18.29** | 466.36 ms | 48.15 ms |
+| Chat | Disaggregated | 1 个 16 卡副本 | 528.54 | 16.91 | **292.60 ms** | **41.86 ms** |
+| Coding Agent | Aggregated | 4 个 4 卡副本 | 99.75 | 3.20 | **602.91 ms** | 48.91 ms |
+| Coding Agent | Disaggregated | 1 个 16 卡副本 | **120.15** | **3.85** | 2,037.14 ms | 49.87 ms |
+
+Chat 形态下，Disaggregated 把 TTFT 降低 37%，但每卡吞吐损失 7%：输入只有 1,000 token，Prefill 负载不足以抵偿 KV Cache 传输的开销。Coding Agent 形态下，Disaggregated 每卡吞吐高 20%，TTFT 反而变差，因为排序目标是吞吐，而所选方案的 TTFT 仍在 4,000 ms 限制内。
 
 ```text
-107 replicas x 4 H100 SXM GPUs = 428 H100 SXM GPUs
+16 卡，Chat 形态         : 570.50 tokens/s/GPU
+16 卡，Coding Agent 形态 : 120.15 tokens/s/GPU
+比值                     : 4.75 倍
 ```
 
 ![Qwen3-235B H100 示例](images/qwen3-235b-h100-pareto.png)
 
-**图 5：本地 CPU 离线预测，不是 H100 实机基准测试。** AIConfigurator v0.11.0、Qwen3-235B-A22B-FP8、H100 SXM、vLLM 0.24.0，人为设定 50 req/s 工作负载。428 来自排序后的 CSV，不是从图中读取。[完整容量日志](evidence/runs/qwen3-235b-h100-vllm-50rps/logs/03-capacity-50rps.log) · [Aggregated CSV](evidence/runs/qwen3-235b-h100-vllm-50rps/results/agg/best_config_topn.csv) · [Disaggregated CSV](evidence/runs/qwen3-235b-h100-vllm-50rps/results/disagg/best_config_topn.csv)。图片 SHA-256：`2f0aef7b052857e3084b518a29a159bf9ab6a1e47e380a3c59d3126756a8c352`。
+**图 5：AIConfigurator 搜索得到的候选 Pareto 前沿，不是 H100 实机基准测试。** 图中展示单用户生成速度（`tokens/s/user`）与每卡效率（`tokens/s/gpu`）之间的取舍关系。它作为这一取舍的示意保留，不是上面容量表的数据来源；该图来自早期未启用 `--strict-sla` 的运行，因此部分点的 TPOT 超过 30 ms 限制。图片 SHA-256：`2f0aef7b052857e3084b518a29a159bf9ab6a1e47e380a3c59d3126756a8c352`。
 
-补充 run bundle 保留了完整的判断过程：
+容量表对应的证据：
+
+| 场景 | 完整 CLI 日志 | 候选排序结果 |
+|---|---|---|
+| Coding Agent，16 卡 | [`coding-agent-16gpu.log`](evidence/runs/qwen3-235b-h100-vllm-real-workloads/logs/coding-agent-16gpu.log) | [Disaggregated CSV](evidence/runs/qwen3-235b-h100-vllm-real-workloads/results/coding-agent-16gpu/disagg/best_config_topn.csv) |
+| Coding Agent，32 卡 | [`coding-agent-32gpu.log`](evidence/runs/qwen3-235b-h100-vllm-real-workloads/logs/coding-agent-32gpu.log) | [Aggregated CSV](evidence/runs/qwen3-235b-h100-vllm-real-workloads/results/coding-agent-32gpu/agg/best_config_topn.csv) |
+| 交互式 Chat，16 卡 | [`chat-16gpu.log`](evidence/runs/qwen3-235b-h100-vllm-real-workloads/logs/chat-16gpu.log) | [Aggregated CSV](evidence/runs/qwen3-235b-h100-vllm-real-workloads/results/chat-16gpu/agg/best_config_topn.csv) |
+
+每个阶段的完整命令、argv、源文件 hash 和公开文件 hash 记录在 [`run manifest`](evidence/runs/qwen3-235b-h100-vllm-real-workloads/run-manifest.json)。
+
+另一组补充证据记录了模型的可行性边界和规划器自身的资源开销：
 
 | 步骤 | 结果 | 证据 |
 |---|---|---|
 | 以 2×H100 为 GPU 预算做可行性测试 | 符合预期的边界失败，退出码 `1`；没有候选能容纳模型 | [`01-two-gpu-infeasible.log`](evidence/runs/qwen3-235b-h100-vllm-50rps/logs/01-two-gpu-infeasible.log) |
 | 查找最小 worker | 四卡 Aggregated worker，`TP4/PP1/DP1/ETP4/EP1`，退出码 `0` | [`02-four-gpu-worker.log`](evidence/runs/qwen3-235b-h100-vllm-50rps/logs/02-four-gpu-worker.log) · [`Top-N CSV`](evidence/runs/qwen3-235b-h100-vllm-50rps/results/worker-4g/agg/best_config_topn.csv) |
-| 估算人为设定的 50 req/s 工作点 | Aggregated 428 张 H100；Disaggregated 920 张 H100，退出码 `0` | [`03-capacity-50rps.log`](evidence/runs/qwen3-235b-h100-vllm-50rps/logs/03-capacity-50rps.log) · [`run manifest`](evidence/runs/qwen3-235b-h100-vllm-50rps/run-manifest.json) |
 | 测量规划进程开销 | 运行 12.27 秒，峰值 RSS 为 496,100 KiB，退出码 `0` | [`04-cpu-memory-profile.log`](evidence/runs/qwen3-235b-h100-vllm-50rps/logs/04-cpu-memory-profile.log) |
 
-运行日志还显示，vLLM `0.24.0` 在 H100 SXM 上没有 FP8 `context_attention` 性能数据，因此 AIConfigurator 回退到 BF16 FMHA 数据。235B/H100 数字应按带有该数据库回退边界的版本特定预测解读。
+运行日志记录了两个预测边界。第一，vLLM `0.24.0` 在 H100 SXM 上没有 FP8 `context_attention` 性能数据，搜索回退到 BF16 FMHA 数据。第二，运行时没有传入 `--generated-config-version`，搜索使用 vLLM `0.24.0` 性能数据库，而生成配置通过 Dynamo 1.2.0 默认映射到 vLLM `0.20.1`；在按目标版本重新生成之前，这些 YAML 只能作为候选配置。
 
-同一组日志还提示：运行时没有传入 `--generated-config-version`。搜索阶段使用 vLLM `0.24.0` 性能数据库，而生成配置通过 Dynamo 1.2.0 默认映射到 vLLM `0.20.1`。因此，在按目标版本重新生成配置，或由版本对齐的运行时实际接受之前，这些 YAML 只能作为候选配置。
-
-428 不是 Qwen3-235B 的通用容量要求。它只属于特定模型版本系列、目标系统、后端性能数据库、一个工作负载点和一组 SLA。改变输出长度分布、请求率、缓存命中画像、后端或 GPU，结果都会变化。
+以上任何数字都不是 Qwen3-235B 的通用容量要求。每个数字只属于特定模型版本系列、目标系统、后端性能数据库、一种工作负载形态和一组 SLA 约束。
 
 ## 9. 边界与风险
 

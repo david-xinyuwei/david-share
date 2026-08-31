@@ -13,6 +13,42 @@ RUNS = ROOT / "evidence" / "runs"
 EXPECTED_RUNS = {
     "qwen3-32b-h200-trtllm-50rps",
     "qwen3-235b-h100-vllm-50rps",
+    "qwen3-235b-h100-vllm-real-workloads",
+}
+REAL_WORKLOAD_SCENARIOS = {
+    "coding-agent-16gpu": {
+        "totalGpus": 16,
+        "isl": 32000,
+        "osl": 500,
+        "prefix": 28000,
+        "ttftMs": 4000,
+        "tpotMs": 50,
+        "bestMode": "disagg",
+        "tokensPerGpu": 120.15,
+        "clusterRequestRate": 3.85,
+    },
+    "coding-agent-32gpu": {
+        "totalGpus": 32,
+        "isl": 32000,
+        "osl": 500,
+        "prefix": 28000,
+        "ttftMs": 4000,
+        "tpotMs": 50,
+        "bestMode": "agg",
+        "tokensPerGpu": 99.75,
+        "clusterRequestRate": 6.40,
+    },
+    "chat-16gpu": {
+        "totalGpus": 16,
+        "isl": 1000,
+        "osl": 500,
+        "prefix": 0,
+        "ttftMs": 500,
+        "tpotMs": 50,
+        "bestMode": "agg",
+        "tokensPerGpu": 570.50,
+        "clusterRequestRate": 18.29,
+    },
 }
 FORBIDDEN_PUBLIC_PATTERNS = {
     "private-linux-root": re.compile(r"/root/"),
@@ -26,8 +62,10 @@ REQUIRED_LOG_LINKS = {
     "evidence/runs/qwen3-32b-h200-trtllm-50rps/logs/03-recommend-success.log",
     "evidence/runs/qwen3-235b-h100-vllm-50rps/logs/01-two-gpu-infeasible.log",
     "evidence/runs/qwen3-235b-h100-vllm-50rps/logs/02-four-gpu-worker.log",
-    "evidence/runs/qwen3-235b-h100-vllm-50rps/logs/03-capacity-50rps.log",
     "evidence/runs/qwen3-235b-h100-vllm-50rps/logs/04-cpu-memory-profile.log",
+    "evidence/runs/qwen3-235b-h100-vllm-real-workloads/logs/coding-agent-16gpu.log",
+    "evidence/runs/qwen3-235b-h100-vllm-real-workloads/logs/coding-agent-32gpu.log",
+    "evidence/runs/qwen3-235b-h100-vllm-real-workloads/logs/chat-16gpu.log",
 }
 RETIRED_CHINESE_PHRASES = {
     "OSS 模型",
@@ -129,28 +167,79 @@ def validate_qwen32(run_root: Path, manifest: dict[str, Any]) -> None:
 
 
 def validate_qwen235(run_root: Path, manifest: dict[str, Any]) -> None:
-    require([stage["status"] for stage in manifest["stages"]] == ["FAIL", "PASS", "PASS", "PASS"], "Qwen3-235B stage sequence drift")
     require(manifest["stages"][0]["expectedForBoundaryStudy"] is True, "Two-GPU boundary flag missing")
     validate_log_exit(run_root, "logs/01-two-gpu-infeasible.log", 1)
     validate_log_exit(run_root, "logs/02-four-gpu-worker.log", 0)
-    validate_log_exit(run_root, "logs/03-capacity-50rps.log", 0)
     validate_log_exit(run_root, "logs/04-cpu-memory-profile.log", 0)
     two_gpu = (run_root / "logs/01-two-gpu-infeasible.log").read_text(encoding="utf-8")
     require("model does not fit in GPU memory" in two_gpu, "Two-GPU infeasibility evidence missing")
     worker = first_row(run_root / "results" / "worker-4g" / "agg" / "best_config_topn.csv")
     require(int(worker["num_total_gpus"]) == 4, "Four-GPU worker size drift")
     require(worker["parallel"] == "tp4pp1dp1etp4ep1", "Four-GPU worker topology drift")
-    agg = first_row(run_root / "results" / "agg" / "best_config_topn.csv")
-    disagg = first_row(run_root / "results" / "disagg" / "best_config_topn.csv")
-    require(int(agg["replicas_needed"]) * int(agg["num_total_gpus"]) == 428, "Qwen3-235B Aggregated arithmetic failed")
-    require(int(disagg["replicas_needed"]) * int(disagg["num_total_gpus"]) == 920, "Qwen3-235B Disaggregated arithmetic failed")
-    capacity_log = (run_root / "logs/03-capacity-50rps.log").read_text(encoding="utf-8")
-    require("agg GPUs needed: 428 (replicas: 107)" in capacity_log, "428-GPU log result missing")
-    require("disagg GPUs needed: 920 (replicas: 115)" in capacity_log, "920-GPU log result missing")
-    require("Perf-DB version: 0.24.0" in capacity_log, "vLLM search version warning missing")
-    require("Defaulting to backend version from dynamo 1.2.0: (vllm)0.20.1" in capacity_log, "vLLM generated-config version warning missing")
     profile = (run_root / "logs/04-cpu-memory-profile.log").read_text(encoding="utf-8")
     require("Maximum resident set size (kbytes): 496100" in profile, "CPU memory evidence missing")
+
+
+def validate_real_workloads(run_root: Path, manifest: dict[str, Any]) -> None:
+    require(
+        manifest["publicationBoundary"]["aiperfExecuted"] is False,
+        "Real-workload manifest must state that AIPerf was not executed",
+    )
+    require(
+        manifest["publicationBoundary"]["gpuUsed"] is False,
+        "Real-workload manifest must state that no GPU was used",
+    )
+    stage_ids = {stage["id"] for stage in manifest["stages"]}
+    require(stage_ids == set(REAL_WORKLOAD_SCENARIOS), f"Real-workload stage set drift: {sorted(stage_ids)}")
+
+    for stage in manifest["stages"]:
+        expected = REAL_WORKLOAD_SCENARIOS[stage["id"]]
+        workload = stage["workload"]
+        for key in ("totalGpus", "isl", "osl", "ttftLimitMs", "tpotLimitMs"):
+            manifest_key = {"ttftLimitMs": "ttftLimitMs", "tpotLimitMs": "tpotLimitMs"}.get(key, key)
+            expected_key = {"ttftLimitMs": "ttftMs", "tpotLimitMs": "tpotMs"}.get(key, key)
+            require(
+                workload[manifest_key] == expected[expected_key],
+                f"{stage['id']} workload {key} drift",
+            )
+        require(
+            workload["prefixCacheTokens"] == expected["prefix"],
+            f"{stage['id']} prefix-cache drift",
+        )
+        require(workload["strictSla"] is True, f"{stage['id']} must use --strict-sla")
+        require("--strict-sla" in stage["command"], f"{stage['id']} command missing --strict-sla")
+        validate_log_exit(run_root, stage["log"], 0)
+
+    for scenario, expected in REAL_WORKLOAD_SCENARIOS.items():
+        row = first_row(run_root / "results" / scenario / expected["bestMode"] / "best_config_topn.csv")
+        gpus_per_replica = int(row["num_total_gpus"])
+        require(
+            expected["totalGpus"] % gpus_per_replica == 0,
+            f"{scenario} replica size {gpus_per_replica} does not divide the {expected['totalGpus']}-GPU budget",
+        )
+        replicas = expected["totalGpus"] // gpus_per_replica
+        require(
+            abs(float(row["tokens/s/gpu"]) - expected["tokensPerGpu"]) < 0.01,
+            f"{scenario} tokens/s/gpu drift",
+        )
+        require(
+            abs(float(row["request_rate"]) * replicas - expected["clusterRequestRate"]) < 0.01,
+            f"{scenario} cluster request-rate arithmetic failed",
+        )
+        require(float(row["ttft"]) <= expected["ttftMs"], f"{scenario} TTFT exceeds its SLA")
+        require(float(row["tpot"]) <= expected["tpotMs"], f"{scenario} TPOT exceeds its SLA")
+
+    chat = first_row(run_root / "results" / "chat-16gpu" / "agg" / "best_config_topn.csv")
+    coding = first_row(run_root / "results" / "coding-agent-16gpu" / "disagg" / "best_config_topn.csv")
+    ratio = float(chat["tokens/s/gpu"]) / float(coding["tokens/s/gpu"])
+    require(4.7 < ratio < 4.8, f"Workload-shape ratio drift: {ratio:.3f}")
+
+    coding_log = (run_root / "logs/coding-agent-16gpu.log").read_text(encoding="utf-8")
+    require("Perf-DB version: 0.24.0" in coding_log, "vLLM search version warning missing")
+    require(
+        "Defaulting to backend version from dynamo 1.2.0: (vllm)0.20.1" in coding_log,
+        "vLLM generated-config version warning missing",
+    )
 
 
 def validate_public_boundary() -> None:
@@ -194,8 +283,8 @@ def validate_readmes() -> None:
         "AttributeError: module 'plotext' has no attribute 'plot_size'",
         "agg GPUs needed: 32 (replicas: 32)",
         "disagg GPUs needed: 34 (replicas: 17)",
-        "README_VALIDATION=PASS LOG_LINKS=7 COMMAND_BLOCKS=9",
-        "EVIDENCE_VALIDATION=PASS RUNS=2 PUBLIC_BOUNDARY=PASS",
+        "README_VALIDATION=PASS LOG_LINKS=9 COMMAND_BLOCKS=9",
+        "EVIDENCE_VALIDATION=PASS RUNS=3 PUBLIC_BOUNDARY=PASS",
     ):
         require(token in english, f"English walkthrough token missing: {token}")
         require(token in chinese, f"Chinese walkthrough token missing: {token}")
@@ -220,12 +309,14 @@ def main() -> None:
         validate_manifest_files(run_root, manifest)
         if manifest["runId"] == "qwen3-32b-h200-trtllm-50rps":
             validate_qwen32(run_root, manifest)
-        else:
+        elif manifest["runId"] == "qwen3-235b-h100-vllm-50rps":
             validate_qwen235(run_root, manifest)
+        else:
+            validate_real_workloads(run_root, manifest)
         print(f"RUN {manifest['runId']} PASS files={len(manifest['files'])}")
     validate_public_boundary()
     validate_readmes()
-    print("EVIDENCE_VALIDATION=PASS RUNS=2 PUBLIC_BOUNDARY=PASS")
+    print(f"EVIDENCE_VALIDATION=PASS RUNS={len(EXPECTED_RUNS)} PUBLIC_BOUNDARY=PASS")
 
 
 if __name__ == "__main__":

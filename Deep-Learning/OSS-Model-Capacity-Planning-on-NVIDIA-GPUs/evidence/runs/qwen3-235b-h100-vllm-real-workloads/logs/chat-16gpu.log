@@ -1,0 +1,137 @@
+SCENARIO=chat-16gpu ISL=1000 OSL=500 PREFIX=0 TTFT_MS=500 TPOT_MS=50 TOTAL_GPUS=16
+13:00:32 [aiconfigurator] [I] [main.py:2694] Loading AIConfigurator version: 0.11.0
+13:00:32 [aiconfigurator] [I] [main.py:2695] Number of top configurations to output: 3 (change with --top-n)
+13:00:32 [aiconfigurator] [I] [main.py:2760] Effective parameters: ISL=1000, OSL=500, TTFT=500.0ms, TPOT=50.0ms, backend=vllm
+13:00:32 [aiconfigurator] [I] [utils.py:1079] Quant inference result: quant_algo=fp8_block, kv_cache_quant_algo=None, quant_dynamic=True
+13:00:32 [aiconfigurator] [I] [utils.py:1186] Loaded model config for Qwen/Qwen3-235B-A22B-FP8: architecture=Qwen3MoeForCausalLM, layers=94, n=64, n_kv=4, d=128, hidden_size=4096, inter_size=12288, vocab=151936, context=40960, topk=8, num_experts=128, moe_inter_size=1536, extra_params={'architecture': 'Qwen3MoeForCausalLM', 'use_qk_norm': True}
+13:00:32 [aiconfigurator] [I] [perf_database.py:952] Loading database for system='h100_sxm', backend='vllm', version='0.24.0'
+13:00:33 [aiconfigurator] [W] [task_v2.py:819] agg fmha_quant_mode=fp8 (inferred from the model checkpoint) has no 'context_attention' perf data for system='h100_sxm', backend='vllm', version='0.24.0'; falling back to bfloat16 FMHA data. Predictions are conservative if the deployed engine runs fp8 FMHA; set fmha_quant_mode explicitly to override.
+13:00:33 [aiconfigurator] [W] [task_v2.py:819] prefill fmha_quant_mode=fp8 (inferred from the model checkpoint) has no 'context_attention' perf data for system='h100_sxm', backend='vllm', version='0.24.0'; falling back to bfloat16 FMHA data. Predictions are conservative if the deployed engine runs fp8 FMHA; set prefill_fmha_quant_mode explicitly to override.
+13:00:33 [aiconfigurator] [I] [main.py:1865] Starting experiment: agg
+13:00:39 [aiconfigurator] [I] [sweep.py:499] sweep_agg: error at tp=1 pp=1 dp=8 moe_tp=8 moe_ep=1, skipping
+13:00:42 [aiconfigurator] [I] [sweep.py:499] sweep_agg: error at tp=2 pp=1 dp=4 moe_tp=8 moe_ep=1, skipping
+13:00:45 [aiconfigurator] [I] [sweep.py:499] sweep_agg: error at tp=4 pp=1 dp=2 moe_tp=8 moe_ep=1, skipping
+13:00:47 [aiconfigurator] [I] [sweep.py:499] sweep_agg: error at tp=8 pp=1 dp=1 moe_tp=8 moe_ep=1, skipping
+13:00:47 [aiconfigurator] [I] [main.py:1869] Experiment agg completed with 667 results.
+13:00:47 [aiconfigurator] [I] [main.py:1865] Starting experiment: disagg
+13:00:47 [aiconfigurator] [W] [sweep.py:609] sweep_disagg/prefill: error at parallel tp=1 pp=1 dp=8 moe_tp=8 moe_ep=1; skipping. err=Invalid quantized MoE configuration: (moe_intermediate_size=1536 / moe_tp_size=8) % weight_block_size=128 != 0. 
+13:00:47 [aiconfigurator] [W] [sweep.py:609] sweep_disagg/prefill: error at parallel tp=2 pp=1 dp=4 moe_tp=8 moe_ep=1; skipping. err=Invalid quantized MoE configuration: (moe_intermediate_size=1536 / moe_tp_size=8) % weight_block_size=128 != 0. 
+13:00:47 [aiconfigurator] [W] [sweep.py:609] sweep_disagg/prefill: error at parallel tp=4 pp=1 dp=2 moe_tp=8 moe_ep=1; skipping. err=Invalid quantized MoE configuration: (moe_intermediate_size=1536 / moe_tp_size=8) % weight_block_size=128 != 0. 
+13:00:47 [aiconfigurator] [W] [sweep.py:609] sweep_disagg/prefill: error at parallel tp=8 pp=1 dp=1 moe_tp=8 moe_ep=1; skipping. err=Invalid quantized MoE configuration: (moe_intermediate_size=1536 / moe_tp_size=8) % weight_block_size=128 != 0. 
+13:00:47 [aiconfigurator] [W] [sweep.py:609] sweep_disagg/decode: error at parallel tp=1 pp=1 dp=8 moe_tp=8 moe_ep=1; skipping. err=Invalid quantized MoE configuration: (moe_intermediate_size=1536 / moe_tp_size=8) % weight_block_size=128 != 0. 
+13:00:48 [aiconfigurator] [W] [sweep.py:609] sweep_disagg/decode: error at parallel tp=2 pp=1 dp=4 moe_tp=8 moe_ep=1; skipping. err=Invalid quantized MoE configuration: (moe_intermediate_size=1536 / moe_tp_size=8) % weight_block_size=128 != 0. 
+13:00:49 [aiconfigurator] [W] [sweep.py:609] sweep_disagg/decode: error at parallel tp=4 pp=1 dp=2 moe_tp=8 moe_ep=1; skipping. err=Invalid quantized MoE configuration: (moe_intermediate_size=1536 / moe_tp_size=8) % weight_block_size=128 != 0. 
+13:00:49 [aiconfigurator] [W] [sweep.py:609] sweep_disagg/decode: error at parallel tp=8 pp=1 dp=1 moe_tp=8 moe_ep=1; skipping. err=Invalid quantized MoE configuration: (moe_intermediate_size=1536 / moe_tp_size=8) % weight_block_size=128 != 0. 
+13:00:53 [aiconfigurator] [I] [main.py:1869] Experiment disagg completed with 60 results.
+13:00:53 [aiconfigurator] [I] [report_and_save.py:526] 
+********************************************************************************
+*                         AIConfigurator Final Results                         *
+********************************************************************************
+  ----------------------------------------------------------------------------
+  Input Configuration & SLA Target:
+    Model: Qwen/Qwen3-235B-A22B-FP8 (is_moe: True)
+    Total GPUs: 16
+    Best Experiment Chosen: agg at 570.50 tokens/s/gpu (agg 1.08x better than disagg)
+  ----------------------------------------------------------------------------
+  Overall Best Configuration:
+    - Best Throughput: 9,128.06 tokens/s
+    - Per-GPU Throughput: 570.50 tokens/s/gpu
+    - Per-User Throughput: 20.77 tokens/s/user
+    - Request Rate: 18.29 req/s
+    - TTFT: 466.36ms
+    - TPOT: 48.15ms
+    - Request Latency: 24490.63ms
+  ----------------------------------------------------------------------------
+  Pareto Frontier:
+                                                                                
+     +-------------------------------------------------------------------------+
+700.0+ ** agg                                                                  |
+     | ff disagg                                                               |
+     | xx agg selected                                                         |
+583.3+                         x                                               |
+     |                          ** f                                           |
+     |                            *f                                           |
+466.7+                             f*                                          |
+     |                              f**                                        |
+350.0+                              f  **                                      |
+     |                              f   **                                     |
+     |                               f    **                                   |
+233.3+                                ff    *                                  |
+     |                                  ff  *                                  |
+     |                                   f   *                                 |
+116.7+                                   ff   ****                             |
+     |                                     fffff  ******                       |
+     |                                         fffffffff*********              |
+  0.0+                                                 ffffffffffffff****      |
+     ++-----------------+-----------------+-----------------+-----------------++
+      0                15                30                45                60 
+tokens/s/gpu_cluster                tokens/s/user                               
+
+  ----------------------------------------------------------------------------
+  Deployment Details:
+    (p) stands for prefill, (d) stands for decode, bs stands for batch size, a replica stands for the smallest scalable unit xPyD of the disagg system
+    Some math: total gpus used = replicas * gpus/replica
+               gpus/replica = (p)gpus/worker * (p)workers + (d)gpus/worker * (d)workers; for Agg, gpus/replica = gpus/worker
+               gpus/worker = tp * pp * dp = etp * ep * pp for MoE models; tp * pp for dense models (underlined numbers are the actual values in math)
+
+agg Top Configurations: (Ranked by tokens/s/gpu)
++------+---------+--------------+---------------+-------+--------+-----------------+--------------+-------------------+----------+--------------+-------------+------------------+-----+
+| Rank | backend | tokens/s/gpu | tokens/s/user | req/s |  TTFT  | request_latency | concurrency  | total_gpus (used) | replicas | gpus/replica | gpus/worker |     parallel     |  bs |
++------+---------+--------------+---------------+-------+--------+-----------------+--------------+-------------------+----------+--------------+-------------+------------------+-----+
+|  1   |   vllm  |    570.50    |     20.77     | 18.29 | 466.36 |     24490.63    | 448 (=224x2) |    16 (16=2x8)    |    2     |      8       |  8 (=1x1x8) | tp1pp1dp8etp1ep8 |  28 |
+|  2   |   vllm  |    475.70    |     20.09     | 15.25 | 330.47 |     25175.41    | 384 (=192x2) |    16 (16=2x8)    |    2     |      8       |  8 (=8x1x1) | tp8pp1dp1etp1ep8 | 192 |
+|  3   |   vllm  |    415.98    |     21.13     | 13.34 | 379.50 |     23991.65    | 320 (=80x4)  |    16 (16=4x4)    |    4     |      4       |  4 (=1x1x4) | tp1pp1dp4etp1ep4 |  20 |
++------+---------+--------------+---------------+-------+--------+-----------------+--------------+-------------------+----------+--------------+-------------+------------------+-----+
+
+disagg Top Configurations: (Ranked by tokens/s/gpu)
++------+---------+--------------+---------------+-------+--------+-----------------+--------------+-------------------+----------+---------------+------------+----------------+------------------+-------+------------+----------------+------------------+-------+
+| Rank | backend | tokens/s/gpu | tokens/s/user | req/s |  TTFT  | request_latency | concurrency  | total_gpus (used) | replicas |  gpus/replica | (p)workers | (p)gpus/worker |   (p)parallel    | (p)bs | (d)workers | (d)gpus/worker |   (d)parallel    | (d)bs |
++------+---------+--------------+---------------+-------+--------+-----------------+--------------+-------------------+----------+---------------+------------+----------------+------------------+-------+------------+----------------+------------------+-------+
+|  1   |   vllm  |    528.54    |     23.89     | 16.91 | 292.60 |     21180.24    | 384 (=384x1) |    16 (16=1x16)   |    1     | 16 (=2x4+1x8) |     2      |   4 (=1x1x4)   | tp1pp1dp4etp4ep1 |   1   |     1      |   8 (=8x1x1)   | tp8pp1dp1etp1ep8 |  384  |
+|  2   |   vllm  |    463.31    |     20.94     | 14.83 | 292.60 |     24121.35    | 384 (=384x1) |    16 (16=1x16)   |    1     | 16 (=2x4+1x8) |     2      |   4 (=1x1x4)   | tp1pp1dp4etp4ep1 |   1   |     1      |   8 (=1x1x8)   | tp1pp1dp8etp1ep8 |   48  |
+|  3   |   vllm  |    408.97    |     20.17     | 13.09 | 292.60 |     25037.51    | 352 (=352x1) |    16 (16=1x16)   |    1     | 16 (=2x4+1x8) |     2      |   4 (=1x1x4)   | tp1pp1dp4etp4ep1 |   1   |     1      |   8 (=2x1x4)   | tp2pp1dp4etp1ep8 |   88  |
++------+---------+--------------+---------------+-------+--------+-----------------+--------------+-------------------+----------+---------------+------------+----------------+------------------+-------+------------+----------------+------------------+-------+
+********************************************************************************
+13:00:53 [aiconfigurator] [I] [main.py:1979] All experiments completed in 19.92 seconds
+13:00:53 [aiconfigurator] [I] [report_and_save.py:578] Saving results to ./results/Qwen/Qwen3-235B-A22B-FP8_h100_sxm_vllm_isl1000_osl500_ttft500_tpot50_107382
+13:00:53 [aiconfigurator] [W] [report_and_save.py:714] 
+================================================================================
+  🔍  Search / perf-DB version (simulation fidelity)
+================================================================================
+  Experiment: agg
+  Perf-DB version: 0.24.0   (--perf-db-version; default: latest)
+  This is what the search simulated against; it may differ from the
+  generated/deployed config version shown next.
+================================================================================
+13:00:53 [aiconfigurator] [W] [report_and_save.py:799] 
+================================================================================
+  🟢  IMPORTANT: Config Generation Version Not Specified
+================================================================================
+  Experiment: agg
+  --generated-config-version NOT provided
+  Defaulting to backend version from dynamo 1.2.0: (vllm)0.20.1
+
+  Config formats differ across backend releases. If you are targeting
+  a different version, please pass --generated-config-version explicitly!
+================================================================================
+13:00:53 [aiconfigurator] [W] [report_and_save.py:714] 
+================================================================================
+  🔍  Search / perf-DB version (simulation fidelity)
+================================================================================
+  Experiment: disagg
+  Perf-DB version: 0.24.0   (--perf-db-version; default: latest)
+  This is what the search simulated against; it may differ from the
+  generated/deployed config version shown next.
+================================================================================
+13:00:53 [aiconfigurator] [W] [report_and_save.py:799] 
+================================================================================
+  🟢  IMPORTANT: Config Generation Version Not Specified
+================================================================================
+  Experiment: disagg
+  --generated-config-version NOT provided
+  Defaulting to backend version from dynamo 1.2.0: (vllm)0.20.1
+
+  Config formats differ across backend releases. If you are targeting
+  a different version, please pass --generated-config-version explicitly!
+================================================================================
+EXIT_CODE=0

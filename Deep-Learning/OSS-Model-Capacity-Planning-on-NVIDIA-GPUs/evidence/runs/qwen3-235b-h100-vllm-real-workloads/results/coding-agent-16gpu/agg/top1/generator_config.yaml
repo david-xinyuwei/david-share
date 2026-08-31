@@ -1,0 +1,112 @@
+ServiceConfig:
+  model_path: Qwen/Qwen3-235B-A22B-FP8
+  served_model_path: Qwen/Qwen3-235B-A22B-FP8
+  include_frontend: true
+  prefix: 28000
+  hf_token: null
+  served_model_name: Qwen/Qwen3-235B-A22B-FP8
+  model_name: Qwen/Qwen3-235B-A22B-FP8
+  head_node_ip: 0.0.0.0
+  port: 8000
+  dyn_vllm_kv_event_port: 20081
+  vllm_nixl_side_channel_port: 20097
+K8sConfig:
+  name_prefix: dynamo
+  k8s_namespace: null
+  k8s_image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:1.2.0
+  k8s_planner_image: null
+  k8s_image_pull_secret: null
+  transport: null
+  k8s_pvc_name: ''
+  k8s_model_path_in_pvc: ''
+  k8s_pvc_mount_path: /workspace/model_cache
+  k8s_model_cache: ''
+  k8s_etcd_endpoints: null
+  k8s_hf_home: ''
+  name: dynamo-agg
+  k8s_engine_mode: null
+  use_engine_cm: false
+  prefill_engine_args: /workspace/engine_configs/prefill_config.yaml
+  decode_engine_args: /workspace/engine_configs/decode_config.yaml
+  agg_engine_args: /workspace/engine_configs/agg_config.yaml
+DynConfig:
+  mode: agg
+  enable_router: false
+WorkerConfig:
+  prefill_workers: 0
+  decode_workers: 0
+  agg_workers: 4
+  prefill_gpus_per_worker: null
+  decode_gpus_per_worker: null
+  agg_gpus_per_worker: 4
+SlaConfig:
+  isl: 32000
+  osl: 500
+  ttft: 602.915
+  tpot: 48.915
+BenchConfig:
+  name: dynamo-agg-benchmark
+  image: python:3.12-slim
+  profile_start_timeout: 400
+  endpoint_type: chat
+  endpoint_url: http://dynamo-agg-frontend.None.svc.cluster.local:8000
+  model: Qwen/Qwen3-235B-A22B-FP8
+  tokenizer: Qwen/Qwen3-235B-A22B-FP8
+  isl: 32000
+  osl: 500
+  isl_stddev: 0
+  osl_stddev: 0
+  prefix_prompt_pool_size: 1
+  concurrency:
+  - 1
+  - 2
+  - 4
+  - 8
+  - 32
+  - 64
+  - 128
+  - 256
+  num_requests:
+  - 50
+  - 100
+  - 200
+  - 400
+  - 1600
+  - 3200
+  - 6400
+  - 12800
+  ui: simple
+  image_batch_size: 0
+SflowConfig:
+  slurm_account: null
+  slurm_partition: null
+  slurm_timelimit: 120
+  aiperf_image: python:3.12-slim
+  extra_frontend_args: null
+  dynamo_image: null
+  variable_profile: null
+NodeConfig:
+  num_gpus_per_node: 8
+  system_name: h100_sxm
+params:
+  prefill: {}
+  decode: {}
+  agg:
+    tensor_parallel_size: 4
+    pipeline_parallel_size: 1
+    data_parallel_size: 1
+    gpus_per_worker: 4
+    moe_tensor_parallel_size: 4
+    moe_expert_parallel_size: 1
+    max_batch_size: 20
+    gemm_quant_mode: fp8_block
+    moe_quant_mode: fp8_block
+    kvcache_quant_mode: fp8
+    fmha_quant_mode: bfloat16
+    comm_quant_mode: half
+    memory: 78.153
+    kv_cache_dtype: fp8
+ModelConfig:
+  prefix: 28000
+  is_moe: true
+  nextn: 0
