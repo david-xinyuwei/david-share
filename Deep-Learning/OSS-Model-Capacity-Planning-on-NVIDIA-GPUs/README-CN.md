@@ -1,4 +1,4 @@
-# 面向 NVIDIA GPU 的开源与开放权重模型容量规划
+# Azure ND/NC H100 上的开源与开放权重模型容量规划
 
 [![AIConfigurator](https://img.shields.io/badge/AIConfigurator-0.11.0-76B900)](https://github.com/ai-dynamo/aiconfigurator/tree/v0.11.0)
 [![Evidence](https://img.shields.io/badge/evidence-CPU--offline%20prediction-087A80)](evidence/)

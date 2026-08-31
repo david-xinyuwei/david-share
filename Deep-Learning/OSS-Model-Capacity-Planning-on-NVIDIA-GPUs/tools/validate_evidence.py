@@ -181,6 +181,8 @@ def validate_readmes() -> None:
     chinese_path = ROOT / "README-CN.md"
     english = english_path.read_text(encoding="utf-8")
     chinese = chinese_path.read_text(encoding="utf-8")
+    require(english.startswith("# OSS Model Capacity Planning on Azure ND/NC H100\n"), "English H1 drifted")
+    require(chinese.startswith("# Azure ND/NC H100 上的开源与开放权重模型容量规划\n"), "Chinese H1 drifted")
     require("## 5. Reproduce the complete CPU-offline run" in english, "Detailed English walkthrough missing")
     require("## 5. 完整复现一次 CPU 离线预测" in chinese, "Detailed Chinese walkthrough missing")
     for token in (
