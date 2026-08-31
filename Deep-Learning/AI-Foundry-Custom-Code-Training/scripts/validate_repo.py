@@ -142,8 +142,8 @@ def main() -> int:
 
         english = README_FILES[0].read_text(encoding="utf-8")
         chinese = README_FILES[1].read_text(encoding="utf-8")
-        require(english.startswith("# Microsoft Foundry Custom Code Training"), "English H1 is not product-first")
-        require(chinese.startswith("# Microsoft Foundry Custom Code Training"), "Chinese H1 is not product-first")
+        require(english.startswith("# Microsoft AI Foundry Custom Code Training:"), "English H1 does not use the canonical product name")
+        require(chinese.startswith("# Microsoft AI Foundry Custom Code Training："), "Chinese H1 does not use the canonical product name")
         require(markdown_shape(english) == markdown_shape(chinese), "README bilingual structure differs")
         links = sum(check_links(path, text) for path, text in zip(README_FILES, (english, chinese)))
 

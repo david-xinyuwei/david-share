@@ -1,4 +1,4 @@
-# Microsoft Foundry Custom Code Training：Hello World、SFT 与 GRPO
+# Microsoft AI Foundry Custom Code Training：Hello World、SFT 与 GRPO
 
 [![Foundry Preview](https://img.shields.io/badge/Microsoft%20Foundry-Preview-0067b8)](https://learn.microsoft.com/azure/ai-foundry/what-is-azure-ai-foundry)
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/ai-foundry-custom-code-training-ci.yml/badge.svg)](https://github.com/david-xinyuwei/david-share/actions/workflows/ai-foundry-custom-code-training-ci.yml)
