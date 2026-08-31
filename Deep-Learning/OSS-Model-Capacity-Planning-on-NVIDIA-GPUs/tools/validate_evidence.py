@@ -51,6 +51,16 @@ RETIRED_CHINESE_PHRASES = {
     "Workload buckets",
     "backend matrix",
     "policy candidates",
+    "物理 benchmark",
+    "输入合同下",
+    "模型 metadata",
+    "所有合同的不可变副本",
+    "通用 runner",
+    "固定 workload",
+    "示例 workload",
+    "人为设定的 workload",
+    "在 benchmark 前",
+    "workload 合同",
 }
 
 

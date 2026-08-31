@@ -34,7 +34,7 @@
 | NVIDIA Dynamo | [GitHub repository](https://github.com/ai-dynamo/dynamo) | 分布式推理编排，也是生成配置的部署目标 | 集成目标；本次研究未执行部署 |
 | NVIDIA AI Simulate | [Dynamo v1.4.2 source](https://github.com/ai-dynamo/dynamo/tree/v1.4.2/aisimulate) | 对 engine 与 Dynamo 配置进行实验性 trace replay 和参数搜索 | 未来可选集成；本次研究未执行 |
 | NVIDIA AIPerf | [GitHub repository](https://github.com/ai-dynamo/aiperf) | 生成基准测试负载并测量目标运行时 | 拟议的校准路径；本项目未执行 |
-| llm-d | [GitHub repository](https://github.com/llm-d/llm-d) | Kubernetes 分布式推理 serving stack，也是生成配置的部署目标 | 集成目标；本次研究未执行部署 |
+| llm-d | [GitHub repository](https://github.com/llm-d/llm-d) | Kubernetes 分布式推理服务栈，也是生成配置的部署目标 | 集成目标；本次研究未执行部署 |
 | vLLM | [GitHub repository](https://github.com/vllm-project/vllm) | 开源推理后端 | 一个本地示例使用其性能数据库；未启动模型服务 |
 | SGLang | [GitHub repository](https://github.com/sgl-project/sglang) | 开源推理后端 | 上游支持的集成目标；本项目未执行 |
 | TensorRT-LLM | [GitHub repository](https://github.com/NVIDIA/TensorRT-LLM) | NVIDIA 优化的推理后端 | 一个本地示例使用其性能数据库；未启动模型服务 |
@@ -68,7 +68,7 @@ AIConfigurator 采用 Apache-2.0 许可证。它的内置性能画像围绕 NVID
 - 预测 TTFT、TPOT、请求时延、显存和吞吐；
 - 在指定约束下对 Pareto 有效候选进行排序；
 - 按请求率或并发目标计算副本数与总 GPU 数；
-- 为支持的 runtime 和平台生成启动与部署候选。
+- 为支持的运行时和平台生成启动与部署候选。
 
 普通配置搜索不会真正运行模型、优化内核、管理集群，也不会自动识别生产负载画像；它不能替代物理 GPU 实测。
 
@@ -78,7 +78,7 @@ AIConfigurator 采用 Apache-2.0 许可证。它的内置性能画像围绕 NVID
 
 ![容量规划问题定义](images/configuration-problem.png)
 
-**图 1：原创解释图。** 模型、workload、服务目标、后端和硬件共同决定配置搜索。依据：[AIConfigurator CLI guide](https://github.com/ai-dynamo/aiconfigurator/blob/v0.11.0/docs/cli_user_guide.md) 与 [paper Section 4](https://arxiv.org/html/2601.06288v1)。图片 SHA-256：`42e48e0571826eb2f5f8457fe0d84e5b28df05f4da1acf2b2b0ab2616cdf868b`。
+**图 1：原创解释图。** 模型、工作负载、服务目标、后端和硬件共同决定配置搜索。依据：[AIConfigurator CLI guide](https://github.com/ai-dynamo/aiconfigurator/blob/v0.11.0/docs/cli_user_guide.md) 与 [论文第 4 节](https://arxiv.org/html/2601.06288v1)。图片 SHA-256：`42e48e0571826eb2f5f8457fe0d84e5b28df05f4da1acf2b2b0ab2616cdf868b`。
 
 ### 3.1 模型输入契约
 
@@ -98,7 +98,7 @@ AIConfigurator 采用 Apache-2.0 许可证。它的内置性能画像围绕 NVID
 | 用户行为 | Thinking/Non-thinking 占比、chat template、sampling 和输出 token 计数口径 |
 | 服务目标 | TTFT、TPOT、端到端时延、goodput 和错误率目标 |
 
-生产分析至少应拆分正常、峰值和长上下文尾部等代表性 bucket。单个平均 ISL/OSL 只是一个示例点，不能代表生产流量分布。
+生产分析至少应拆分正常流量、峰值流量和长上下文尾部等代表性流量分组。单个平均 ISL/OSL 只是一个示例点，不能代表生产流量分布。
 
 ### 3.3 平台输入契约
 
@@ -112,7 +112,7 @@ AIConfigurator 采用 Apache-2.0 许可证。它的内置性能画像围绕 NVID
 
 ### 3.4 搜索空间与输出
 
-搜索空间可包括 serving mode、TP/PP/DP/EP/ETP、worker 数、副本数、batch size、KV Cache 分配、chunked prefill 和受支持的 runtime flags。输出是一组带预测指标和生成配置的排序候选，不是一个脱离上下文的 GPU 数字。
+搜索空间可包括服务形态、TP/PP/DP/EP/ETP、worker 数、副本数、batch size、KV Cache 分配、chunked prefill 和受支持的运行时参数。输出是一组带预测指标和生成配置的排序候选，不是一个脱离上下文的 GPU 数字。
 
 ```text
 capacity input  = model contract + workload contract + platform contract
@@ -134,16 +134,16 @@ AIConfigurator 的上游数据采集会在目标 GPU 与后端组合上采集 GE
 
 **图 2：AIConfigurator 官方工作流，取自 arXiv:2601.06288v1。** 图中从 PerfDatabase 与 TaskRunner，经过 InferenceSession 和 Pareto Analyzer，最终进入 Generator。[公开来源](https://arxiv.org/html/2601.06288v1/AIC_assets/AIC-Workflow.png)。图片 SHA-256：`ee1db977c816218ca0cb6b8e3eff6237c1dd55051d507f0e5579d5b08012bc0f`。
 
-### 4.3 物理 benchmark 用于校准预测
+### 4.3 物理基准测试用于校准预测
 
-生成的候选仍需部署到目标运行时和硬件。在目标环境中运行 AIPerf 或等价负载发生器，并结合运行时与 GPU telemetry 记录实际显存、TTFT、TPOT、请求时延、吞吐、goodput 和错误率。预测与实测的差值按模型、工作负载分组、后端版本和 GPU 拓扑保存。
+生成的候选仍需部署到目标运行时和硬件。在目标环境中运行 AIPerf 或等价负载发生器，并结合运行时与 GPU 遥测记录实际显存、TTFT、TPOT、请求时延、吞吐、goodput 和错误率。预测与实测的差值按模型、工作负载分组、后端版本和 GPU 拓扑保存。
 
 | 证据层 | 是否使用 GPU | 能证明什么 |
 |---|:---:|---|
-| 上游性能数据采集 | 是 | 指定 system/backend/version 下的算子级或单次 forward pass 实测耗时 |
-| AIConfigurator 搜索 | 不需要 | 输入合同下的候选配置预测排名 |
+| 上游性能数据采集 | 是 | 指定系统型号、后端和版本下的算子级或单次 forward pass 实测耗时 |
+| AIConfigurator 搜索 | 不需要 | 输入契约下的候选配置预测排名 |
 | 生成部署配置 | 不需要 | 指定目标版本的候选配置语法 |
-| 目标运行时实测 | 是 | 一个精确 model/workload/runtime/hardware 组合的实际行为 |
+| 目标运行时实测 | 是 | 一个精确模型、工作负载、运行时和硬件组合的实际行为 |
 | 生产校准 | 是 | 包含实测误差与运维冗余的容量 |
 
 ## 5. 完整复现一次 CPU 离线预测
@@ -165,7 +165,7 @@ AIConfigurator 的上游数据采集会在目标 GPU 与后端组合上采集 GE
 
 ### 5.2 第 0 步：确认执行环境
 
-使用 Linux x86-64、glibc 2.28 或更高版本，以及 Python 3.11。参考运行的环境是 Ubuntu 24.04、glibc 2.39、Python 3.11.15。首次安装软件包和解析未缓存的模型 metadata 时需要网络；不需要 CUDA、模型服务或 GPU。
+使用 Linux x86-64、glibc 2.28 或更高版本，以及 Python 3.11。参考运行的环境是 Ubuntu 24.04、glibc 2.39、Python 3.11.15。首次安装软件包和解析未缓存的模型元数据时需要网络；不需要 CUDA、模型服务或 GPU。
 
 ```bash
 uname -m
@@ -406,7 +406,7 @@ flowchart LR
 | `configs/models/` | 模型 ID、revision、架构、精度和 context 设置 | 拟议 |
 | `configs/workloads/` | 命名的 normal/peak/tail buckets，包含 ISL/OSL、负载、cache 与 SLO | 拟议 |
 | `configs/platforms/` | NVIDIA GPU、节点拓扑、后端/数据库版本与部署目标 | 拟议 |
-| `runs/<run-id>/inputs/` | 所有合同的不可变副本与来源哈希 | 拟议 |
+| `runs/<run-id>/inputs/` | 所有输入契约的不可变副本与来源哈希 | 拟议 |
 | `runs/<run-id>/prediction/` | 官方 CLI argv、日志、Top-N CSV、Pareto 输出与生成配置 | 已捕获本地示例；通用输入契约仍属拟议 |
 | `runs/<run-id>/benchmark/` | 运行时和镜像身份、AIPerf 命令、原始测量与遥测 | 拟议；本项目尚未执行 GPU |
 | `runs/<run-id>/calibration.json` | 按指标记录预测/实测差值与批准的冗余 | 拟议 |
@@ -416,32 +416,32 @@ flowchart LR
 
 | 阶段 | 交付物 | 判断依据 | 当前状态 |
 |---|---|---|---|
-| 0. 参考证据 | 保存官方 CLI、logs、Top-N CSV、生成配置与 hashes | 至少一个稠密模型和一个 MoE/开放权重模型示例可在本地审计 | 已提交示例 Top-N 证据和 run manifest；通用 runner 的可复用 manifest 生成机制尚未实现 |
-| 1. 合同层 | 模型/workload/平台/目标的 JSON Schema 或 YAML 合同 | 无效或不完整的问题在搜索前失败 | 拟议 |
-| 2. 通用 runner | 原样调用上游 `support`、`default`、`recommend` 与选定的 `exp` | 一个命令生成隔离运行目录和证据清单 | 拟议 |
+| 0. 参考证据 | 保存官方 CLI、完整日志、Top-N CSV、生成配置与哈希 | 至少一个稠密模型和一个 MoE/开放权重模型示例可在本地审计 | 已提交示例 Top-N 证据和 run manifest；通用运行器的可复用 manifest 生成机制尚未实现 |
+| 1. 输入契约层 | 模型、工作负载、平台和目标的 JSON Schema 或 YAML 输入契约 | 无效或不完整的问题在搜索前失败 | 拟议 |
+| 2. 通用运行器 | 原样调用上游 `support`、`default`、`recommend` 与选定的 `exp` | 一个命令生成隔离运行目录和证据清单 | 拟议 |
 | 3. 矩阵与比较 | 扫描模型 x NVIDIA GPU x 后端 x 工作负载分组，并保留 Top-N | 结果按精确版本与证据类型隔离 | 拟议 |
 | 4. 基准测试校准 | 部署选定候选，在预测工作点附近运行 AIPerf | 预测/实测差值和冗余可由机器读取 | 拟议；需要目标 GPU |
 | 5. 社区贡献 | 通过上游 issue、数据采集或 pull request 增加可复现覆盖 | 上游接受产物，或贡献内容可公开评审 | 拟议；当前没有 PR |
 | 6. Trace-level 扩展 | 把脱敏 trace 输入 AI Simulate/Dynamo Replay，搜索路由器、规划器与策略 | 实验固定版本并完成独立基准测试 | 依赖上游，且处于实验阶段 |
 
-第一个公开里程碑应止于 Phase 2：发布 schemas、两个示例输入契约，以及一个只做轻量封装、直接调用官方 CLI 的 runner。矩阵自动化、GPU 校准、上游贡献和 AI Simulate 分别作为后续里程碑，并保留独立证据。
+第一个公开里程碑应止于 Phase 2：发布 schemas、两个示例输入契约，以及一个只做轻量封装、直接调用官方 CLI 的运行器。矩阵自动化、GPU 校准、上游贡献和 AI Simulate 分别作为后续里程碑，并保留独立证据。
 
 ![AIConfigurator 与 AI Simulate 的边界](images/aic-aisimulate-boundary.png)
 
-**图 3：根据公开 AIConfigurator v0.11.0 与 Dynamo v1.4.2 源码绘制的原创边界图。** AIConfigurator 可以针对固定 workload 独立运行；AI Simulate/Spica 使用 Dynamo Replay 扩展动态搜索，仍处于实验阶段。[AI Simulate source](https://github.com/ai-dynamo/dynamo/tree/v1.4.2/aisimulate)。图片 SHA-256：`0b7c56f3dc0b18504a09c20864ae371b6e097b9057497e10cfbcbea301fbb3ab`。
+**图 3：根据公开 AIConfigurator v0.11.0 与 Dynamo v1.4.2 源码绘制的原创边界图。** AIConfigurator 可以针对固定工作负载独立运行；AI Simulate/Spica 使用 Dynamo Replay 扩展动态搜索，仍处于实验阶段。[AI Simulate source](https://github.com/ai-dynamo/dynamo/tree/v1.4.2/aisimulate)。图片 SHA-256：`0b7c56f3dc0b18504a09c20864ae371b6e097b9057497e10cfbcbea301fbb3ab`。
 
 ## 8. 完整示例
 
 下面两个示例说明同一容量规划方法可以处理不同模型规模、架构、NVIDIA GPU 和推理后端。它们不代表通用流程的固定服务目标。
 
-| 示例 | 模型 | 目标平台 | 后端性能数据库 | 人为设定的 workload | 主要预测结果 |
+| 示例 | 模型 | 目标平台 | 后端性能数据库 | 人为设定的工作负载 | 主要预测结果 |
 |---|---|---|---|---|---|
 | Dense 模型示例 | `Qwen/Qwen3-32B-FP8` | H200 SXM | TensorRT-LLM | ISL 4,000；OSL 1,000；TTFT <=2,000 ms；TPOT <=30 ms；50 req/s | Aggregated 需要 32 张 H200；Disaggregated 需要 34 张 H200 |
 | 大规模 MoE 模型示例 | `Qwen/Qwen3-235B-A22B-FP8` | H100 SXM | vLLM `0.24.0` | ISL 4,000；OSL 1,000；TTFT <=2,000 ms；TPOT <=30 ms；50 req/s | 四卡 `TP4/ETP4` worker；Aggregated 示例容量为 428 张 H100 |
 
 ### 8.1 Qwen3-32B-FP8 on H200 SXM
 
-上游 `support` 和 `recommend` 路径在 CPU 上完成。在示例 workload 下，Aggregated Top-1 使用 32 个单卡副本；Disaggregated Top-1 使用 17 个副本，每个副本由 1 张 Prefill GPU 与 1 张 Decode GPU 组成，共 34 张 GPU。
+上游 `support` 和 `recommend` 路径在 CPU 上完成。在示例工作负载下，Aggregated Top-1 使用 32 个单卡副本；Disaggregated Top-1 使用 17 个副本，每个副本由 1 张 Prefill GPU 与 1 张 Decode GPU 组成，共 34 张 GPU。
 
 ![Qwen3-32B H200 示例](images/qwen3-32b-h200-canary.png)
 
@@ -479,7 +479,7 @@ flowchart LR
 | 边界 | 对容量决策的影响 |
 |---|---|
 | 支持矩阵随版本变化 | 不支持的组合需要更换后端或 NVIDIA 系统型号；如果继续探索，必须明确标注为研究模式，或补充新的实测数据 |
-| `SILICON` 表示数据库输入来自实测 | 端到端 TTFT、TPOT、显存和吞吐在 benchmark 前仍是预测输出 |
+| `SILICON` 表示数据库输入来自实测 | 端到端 TTFT、TPOT、显存和吞吐在基准测试前仍是预测输出 |
 | 上游已知问题仍提示 vLLM 与 SGLang 存在对齐工作 | 生产使用必须测量目标版本 |
 | 搜索器、配置生成器和运行时版本可能不一致 | 生成的 YAML 只是候选，直到真实运行时接受并成功提供服务 |
 | 单个工作负载点不是流量分布 | 正常、峰值和尾部流量分组必须分别重算容量 |
@@ -509,7 +509,7 @@ aiconfigurator cli recommend \
   --save-dir <isolated-run-directory>
 ```
 
-`--target-request-rate <req/s>` 可以替代 `--target-concurrency`，两种负载目标互斥。参数值来自 workload 合同，不是项目内写死的默认值。
+`--target-request-rate <req/s>` 可以替代 `--target-concurrency`，两种负载目标互斥。参数值来自工作负载输入契约，不是项目内写死的默认值。
 
 ### 重建原创图片
 
