@@ -1,6 +1,14 @@
 # 面向 NVIDIA GPU 的 OSS 模型容量规划
 
+[![AIConfigurator](https://img.shields.io/badge/AIConfigurator-0.11.0-76B900)](https://github.com/ai-dynamo/aiconfigurator/tree/v0.11.0)
+[![Evidence](https://img.shields.io/badge/evidence-CPU--offline%20prediction-087A80)](evidence/)
+[![GPU scope](https://img.shields.io/badge/GPU%20scope-H100%20SXM%20%7C%20H200%20SXM-76B900)](https://ai-dynamo.org/aiconfigurator/support-matrix/)
+[![Python](https://img.shields.io/badge/Python-3.11-3776AB)](requirements.txt)
+[![License](https://img.shields.io/badge/license-MIT-lightgrey)](../../LICENSE)
+
 > 建立一套可复用的开源工作流：输入模型、workload、服务目标、推理 runtime 和 NVIDIA 平台，得到排序后的部署候选，再用少量目标 GPU benchmark 校准预测。
+
+> Author: 魏新宇 (Xinyu Wei)
 
 [English](README.md) | [中文](README-CN.md)
 

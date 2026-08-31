@@ -1,6 +1,14 @@
 # OSS Model Capacity Planning on NVIDIA GPUs
 
+[![AIConfigurator](https://img.shields.io/badge/AIConfigurator-0.11.0-76B900)](https://github.com/ai-dynamo/aiconfigurator/tree/v0.11.0)
+[![Evidence](https://img.shields.io/badge/evidence-CPU--offline%20prediction-087A80)](evidence/)
+[![GPU scope](https://img.shields.io/badge/GPU%20scope-H100%20SXM%20%7C%20H200%20SXM-76B900)](https://ai-dynamo.org/aiconfigurator/support-matrix/)
+[![Python](https://img.shields.io/badge/Python-3.11-3776AB)](requirements.txt)
+[![License](https://img.shields.io/badge/license-MIT-lightgrey)](../../LICENSE)
+
 > A reusable open-source workflow that turns a model, workload, service objectives, inference runtime, and NVIDIA platform into ranked deployment candidates, then calibrates those predictions with targeted GPU benchmarks.
+
+> Author: 魏新宇 (Xinyu Wei)
 
 [English](README.md) | [中文](README-CN.md)
 
