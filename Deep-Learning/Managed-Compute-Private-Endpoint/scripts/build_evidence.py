@@ -22,10 +22,15 @@ RAW_FILES = (
     "public-restored.json",
     "cleanup.json",
 )
+TEXT_HASH_SUFFIXES = {".bicep", ".json", ".md", ".py", ".txt", ".yaml", ".yml"}
 
 
 def sha256(path: pathlib.Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    data = path.read_bytes()
+    if path.suffix.lower() in TEXT_HASH_SUFFIXES:
+        text = data.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
+        data = text.encode("utf-8")
+    return hashlib.sha256(data).hexdigest()
 
 
 def load_raw(raw_dir: pathlib.Path, name: str) -> dict[str, object]:
@@ -164,6 +169,7 @@ def build_connectivity_run(raw_dir: pathlib.Path = RAW_DIR) -> dict[str, object]
         },
         "lineage": {
             "producer": "scripts/build_evidence.py",
+            "hashCanonicalization": "UTF-8 text normalized to LF; binary assets use raw bytes",
             "rawSha256": {
                 f"raw/{name}": sha256(raw_dir / name) for name in RAW_FILES
             },

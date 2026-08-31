@@ -4,6 +4,7 @@
   "rawDirectoryMeaning": "Earliest public-safe observations, not byte-for-byte Azure logs",
   "privateSourceRetention": "Exact command output and identifiers are retained outside this public repository",
   "publicVerificationBoundary": "Repository hashes and evaluators prove internal consistency and change detection; they do not independently authenticate the withheld source",
+  "hashCanonicalization": "SHA-256 uses UTF-8 text normalized to LF; binary assets use raw bytes",
   "observationTimeBasis": "observedAtUtc is the archived client-tool completion time, not a service-side request timestamp",
   "historicalRunSequence": [
     "authenticated public request blocked while PNA was Disabled",

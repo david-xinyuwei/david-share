@@ -111,26 +111,27 @@
   ],
   "provenance": {
     "path": "evidence/provenance.json",
-    "sha256": "61bc5c6de582d7fcc9afe94392e59e4fdd1da2248361a2d12b7a56e2575592d4",
+    "sha256": "35a1eca6c1224983764fc183c0747f2ce83bc9bffd83a209c4839cc17905ec60",
     "publicEvidenceClass": "sanitized transcription of an interactive live run"
   },
   "lineage": {
     "producer": "scripts/build_evidence.py",
+    "hashCanonicalization": "UTF-8 text normalized to LF; binary assets use raw bytes",
     "rawSha256": {
-      "raw/control-plane.json": "53cbd143e8d2b58249bb0efabb2f370ba2203d0e3c87e3f83da6c7ae067b7f18",
-      "raw/public-blocked.json": "8988837d844597bfc076a1a63ce15f599e1a669bc923c1e1be22af88be9d705c",
-      "raw/private-success.json": "451382d68f44679cc237d6ae332ece9ead85a76b77556c382fb866a36286c489",
-      "raw/public-restored.json": "dea8ff01bdabb9b123e62c4e011224c23b17f19a8015dcd8acf7d039a3187ee5",
-      "raw/cleanup.json": "6bcdc3e7f461a38ba6b6c5dacaf3998441c9a06c41841d8b4e30235680c46468"
+      "raw/control-plane.json": "f7e6b35edf68b57f67bee69ece5edbc0ab8b013b1c5e876a38646943a86e01c7",
+      "raw/public-blocked.json": "b9df9f5ab4efb5d29a34dbb7398369f88fb5241dc985890d273312336e9d4a47",
+      "raw/private-success.json": "d40abbefb9b76d65b7cd9e5b9e1ae30b30926424a39547c76fa34a60d56eec40",
+      "raw/public-restored.json": "0c2be5b1ffd8f443b4c7f7e040b77f7a53c7aa0a13aad2b950c2159a63c7efb9",
+      "raw/cleanup.json": "f613c7b67b7aceedc4cd69e3db53ccb48aa56651a0483f12b9d5c9a9c9fc5e22"
     },
     "executableSha256": {
-      "infra/main.bicep": "7c27f7afc00db85af178d14de358bf969c6ed15bac7bec474dc3be67c46218d2",
-      "scripts/build_evidence.py": "99e4d4b8688adb1b2ccbb0f5430a2583ba45e1abbffd83b52e8b038556c8e0f6",
-      "scripts/probe_endpoint.py": "d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6",
-      "scripts/set_public_network_access.py": "aa1a91871bac559b73d44db6e37d86135ad958f8f05c385720dd1d1d55902480",
-      "scripts/validate_repo.py": "f29d63fede39291691ac45cefbd6433447deaaa5067e9ac3d5698d43019c3139",
-      "evidence/run-contract.json": "eefef45f1f8f4f9e7eaba27c8fcbed6288e903974d153607253bc88fbf1cbfad",
-      "evidence/provenance.json": "61bc5c6de582d7fcc9afe94392e59e4fdd1da2248361a2d12b7a56e2575592d4"
+      "infra/main.bicep": "e861ca08e010a64da3e9128657605412010b4f920271ced6a7f62b20a95f694c",
+      "scripts/build_evidence.py": "e228c50a4ad6ad75163f9012f1da9c721a59a747f7831399a59cac43d52f62e1",
+      "scripts/probe_endpoint.py": "ff0eac11b956c3b2327402cdf245f9e4cc045688a9cedd4de8a29a4cbe6bb639",
+      "scripts/set_public_network_access.py": "53e6eb1de3afcd3ea7a2fa7da20ff04f6f26236d503ac85b320b0a7dafdf632d",
+      "scripts/validate_repo.py": "df81b6bd72d2fb0ca6ee564b7b5b648828ac4562881d47df300ad96b5204c0aa",
+      "evidence/run-contract.json": "4833a36011deca68e4aab11f93a75a9fbf6b716c668fe0e23bc469ba4e0aff94",
+      "evidence/provenance.json": "35a1eca6c1224983764fc183c0747f2ce83bc9bffd83a209c4839cc17905ec60"
     }
   }
 }

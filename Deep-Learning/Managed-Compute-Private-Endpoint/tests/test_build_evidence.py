@@ -1,6 +1,8 @@
 import copy
+import hashlib
 import importlib.util
 import pathlib
+import tempfile
 import unittest
 
 
@@ -19,6 +21,19 @@ class EvidenceBuilderTests(unittest.TestCase):
 
     def test_checked_in_raw_observations_form_valid_differential(self) -> None:
         BUILDER.validate_observations(self.observations)
+
+    def test_text_hash_is_stable_across_line_endings(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "sample.json"
+            path.write_bytes(b'{"value": 1}\r\n')
+            windows_hash = BUILDER.sha256(path)
+            path.write_bytes(b'{"value": 1}\n')
+            linux_hash = BUILDER.sha256(path)
+        self.assertEqual(windows_hash, linux_hash)
+        self.assertEqual(
+            linux_hash,
+            hashlib.sha256(b'{"value": 1}\n').hexdigest(),
+        )
 
     def test_public_success_cannot_replace_blocked_observation(self) -> None:
         tampered = copy.deepcopy(self.observations)

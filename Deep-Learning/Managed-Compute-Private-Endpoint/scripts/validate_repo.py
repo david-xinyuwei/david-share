@@ -77,6 +77,7 @@ BILINGUAL_FACTS = (
     ("parent Foundry account", "所属 Foundry account"),
     ("earliest **public-safe sanitized", "最早一层**可公开的脱敏观测"),
 )
+TEXT_HASH_SUFFIXES = {".bicep", ".json", ".md", ".py", ".txt", ".yaml", ".yml"}
 
 
 def load_json(relative_path: str) -> dict[str, object]:
@@ -84,7 +85,12 @@ def load_json(relative_path: str) -> dict[str, object]:
 
 
 def sha256(relative_path: str) -> str:
-    return hashlib.sha256((ROOT / relative_path).read_bytes()).hexdigest()
+    path = ROOT / relative_path
+    data = path.read_bytes()
+    if path.suffix.lower() in TEXT_HASH_SUFFIXES:
+        text = data.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
+        data = text.encode("utf-8")
+    return hashlib.sha256(data).hexdigest()
 
 
 def make_check(
