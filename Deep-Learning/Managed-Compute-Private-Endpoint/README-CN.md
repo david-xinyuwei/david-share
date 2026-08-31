@@ -179,7 +179,7 @@ SOURCE=evidence/raw/public-restored.json
 flowchart LR
     OUT[VNet 外客户端] -->|Public DNS| PUB[Foundry 公网 endpoint]
     PUB -->|PNA disabled| DENY[403 拒绝]
-    IN[private-IP ACI<br/>不是 Bastion] -->|Private DNS + HTTPS| PE[Private Endpoint]
+    IN[private-IP ACI, 不是 Bastion] -->|Private DNS + HTTPS| PE[Private Endpoint]
     PE --> ACCOUNT[Foundry account 边界]
     ACCOUNT --> ROUTE[GlobalManagedCompute 路由]
     ROUTE --> OK[200 推理响应]

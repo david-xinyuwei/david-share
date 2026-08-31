@@ -190,7 +190,7 @@ SOURCE=evidence/raw/public-restored.json
 flowchart LR
     OUT[Client outside VNet] -->|Public DNS| PUB[Foundry public endpoint]
     PUB -->|PNA disabled| DENY[403 blocked]
-    IN[Private-IP ACI<br/>not Bastion] -->|Private DNS + HTTPS| PE[Private Endpoint]
+    IN[Private-IP ACI, not Bastion] -->|Private DNS + HTTPS| PE[Private Endpoint]
     PE --> ACCOUNT[Foundry account boundary]
     ACCOUNT --> ROUTE[GlobalManagedCompute route]
     ROUTE --> OK[200 inference response]
