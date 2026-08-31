@@ -3,7 +3,7 @@
 [![AIConfigurator](https://img.shields.io/badge/AIConfigurator-0.11.0-76B900)](https://github.com/ai-dynamo/aiconfigurator/tree/v0.11.0)
 [![Evidence](https://img.shields.io/badge/evidence-CPU--offline%20prediction-087A80)](evidence/)
 [![GPU scope](https://img.shields.io/badge/GPU%20scope-H100%20SXM%20%7C%20H200%20SXM-76B900)](https://ai-dynamo.org/aiconfigurator/support-matrix/)
-[![Python](https://img.shields.io/badge/Python-3.11-3776AB)](requirements.txt)
+[![Python](https://img.shields.io/badge/Python-3.11-3776AB)](requirements-repro.txt)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](../../LICENSE)
 
 > A reusable open-source workflow that turns a model, workload, service objectives, inference runtime, and NVIDIA platform into ranked deployment candidates, then calibrates those predictions with targeted GPU benchmarks.
@@ -12,7 +12,7 @@
 
 [English](README.md) | [中文](README-CN.md)
 
-[Official projects](#2-official-oss-foundation) · [Planning method](#3-capacity-planning-contract) · [How it is measured](#4-how-estimation-and-measurement-fit-together) · [Integration plan](#5-proposed-oss-integration-and-contribution-plan) · [Roadmap](#6-proposed-implementation-roadmap) · [Examples](#7-worked-examples) · [Evidence](#appendix-b-evidence-and-references)
+[Detailed steps](#5-reproduce-the-complete-cpu-offline-run) · [Official projects](#2-official-oss-foundation) · [Planning method](#3-capacity-planning-contract) · [Integration plan](#6-proposed-oss-integration-and-contribution-plan) · [Examples](#8-worked-examples) · [Evidence](#appendix-b-evidence-and-references)
 
 ---
 
@@ -22,7 +22,7 @@ Capacity planning for open-source and open-weight models is not a lookup from pa
 
 The workflow starts with versioned model, workload, and platform contracts. It uses NVIDIA AIConfigurator to produce ranked deployment candidates, sends only the discriminating candidates to a target-GPU benchmark, and carries measured prediction error plus operational reserve into the capacity decision. AI Simulate is an optional experimental extension for trace-level system-policy questions; it is not required for fixed-point sizing.
 
-The two Qwen cases in Section 7 demonstrate the workflow. They are examples, not the scope of the tool. Their fixed 50 req/s input is a synthetic capacity scenario, not a universal throughput target.
+The two Qwen cases in Section 8 demonstrate the workflow. They are examples, not the scope of the tool. Their fixed 50 req/s input is a synthetic capacity scenario, not a universal throughput target.
 
 ## 2. Official OSS foundation
 
@@ -132,7 +132,7 @@ For a supported model/system/backend combination, the user-side search reads mod
 
 ![Official AIConfigurator workflow](images/aic-workflow-official.png)
 
-**Figure 2. Official AIConfigurator workflow, Figure 2 in arXiv:2601.06288v1.** Inspect the progression from PerfDatabase and TaskRunner through InferenceSession and Pareto Analyzer to Generator. [Public source](https://arxiv.org/html/2601.06288v1/AIC_assets/AIC-Workflow.png). Image SHA-256: `ee1db977c816218ca0cb6b8e3eff6237c1dd55051d507f0e5579d5b08012bc0f`.
+**Figure 2. Official AIConfigurator workflow from arXiv:2601.06288v1.** Inspect the progression from PerfDatabase and TaskRunner through InferenceSession and Pareto Analyzer to Generator. [Public source](https://arxiv.org/html/2601.06288v1/AIC_assets/AIC-Workflow.png). Image SHA-256: `ee1db977c816218ca0cb6b8e3eff6237c1dd55051d507f0e5579d5b08012bc0f`.
 
 ### 4.3 Physical benchmarks calibrate the prediction
 
@@ -146,15 +146,241 @@ The generated candidate must still be deployed on the target runtime and hardwar
 | Target-runtime benchmark | Yes | Observed behavior for one exact model, workload, runtime, and hardware tuple |
 | Production calibration | Yes | Capacity with measured error and operational reserve |
 
-## 5. Proposed OSS integration and contribution plan
+## 5. Reproduce the complete CPU-offline run
 
-### 5.1 Objective
+This section reproduces the Qwen3-32B/H200 example from checkout through validation. It uses the real AIConfigurator CLI, preserves stdout/stderr, and requires no GPU. The target system name selects the packaged H200 performance data; it does not allocate an H200.
+
+### 5.1 Reference-run chronology
+
+The published reference run did not hide its failed first attempt:
+
+| Stage | Actual result | Full CLI record | Done-When |
+|---|---|---|---|
+| Support preflight | PASS, exit `0` | [`01-support.log`](evidence/runs/qwen3-32b-h200-trtllm-50rps/logs/01-support.log) | Both Aggregated and Disaggregated report `YES` |
+| Initial recommendation | FAIL, exit `1`, classified `ENVIRONMENT` | [`02-recommend-plotext6-failure.log`](evidence/runs/qwen3-32b-h200-trtllm-50rps/logs/02-recommend-plotext6-failure.log) | Candidate search completes, then report rendering fails at `plotext.plot_size` |
+| Local repair | Pin `plotext==5.3.2`; model, workload, backend, and SLA stay unchanged | [`requirements-repro.txt`](requirements-repro.txt) | Installed version prints `5.3.2` |
+| Unchanged recommendation retry | PASS, exit `0` | [`03-recommend-success.log`](evidence/runs/qwen3-32b-h200-trtllm-50rps/logs/03-recommend-success.log) | Top results are 32 H200 Aggregated and 34 H200 Disaggregated |
+
+The complete stage argv, timestamps, source hashes, published hashes, and redaction counts are in the [`run-manifest.json`](evidence/runs/qwen3-32b-h200-trtllm-50rps/run-manifest.json).
+
+### 5.2 Step 0: confirm the execution boundary
+
+Use Linux x86-64 with glibc 2.28 or newer and Python 3.11. The recorded run used Ubuntu 24.04, glibc 2.39, and Python 3.11.15. Network access is needed for package installation and uncached model-metadata resolution. CUDA, a model server, and GPU access are not required.
+
+```bash
+uname -m
+ldd --version | head -n 1
+python3.11 --version
+```
+
+Expected shape:
+
+```text
+x86_64
+ldd (Ubuntu GLIBC ...) 2.39
+Python 3.11.x
+```
+
+**Done-When:** architecture is `x86_64`, glibc is at least 2.28, and Python is 3.11.
+
+### 5.3 Step 1: check out the repo and hydrate evidence
+
+The CSV evidence is stored with Git LFS. Hydrate it before running the validator.
+
+```bash
+git lfs version
+git clone --filter=blob:none --sparse https://github.com/david-xinyuwei/david-share.git
+git -C david-share sparse-checkout set \
+  Deep-Learning/OSS-Model-Capacity-Planning-on-NVIDIA-GPUs
+git -C david-share lfs pull \
+  --include="Deep-Learning/OSS-Model-Capacity-Planning-on-NVIDIA-GPUs/evidence/**"
+cd david-share/Deep-Learning/OSS-Model-Capacity-Planning-on-NVIDIA-GPUs
+```
+
+**Done-When:** `README.md`, `requirements-repro.txt`, `tools/`, and both directories under `evidence/runs/` exist; the CSVs contain data rather than LFS pointer text.
+
+### 5.4 Step 2: create the pinned environment
+
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install --no-input -r requirements-repro.txt
+python - <<'PY'
+from importlib.metadata import version
+
+for package in ("aiconfigurator", "aiconfigurator-core", "plotext"):
+    print(f"{package}={version(package)}")
+PY
+```
+
+Expected versions:
+
+```text
+aiconfigurator=0.11.0
+aiconfigurator-core=0.11.0
+plotext=5.3.2
+```
+
+Why the `plotext` pin matters: the unconstrained installation selected 6.0.0. Search completed, but rendering then failed:
+
+```text
+AttributeError: module 'plotext' has no attribute 'plot_size'
+EXIT_CODE=1
+```
+
+That is the captured [`initial failure`](evidence/runs/qwen3-32b-h200-trtllm-50rps/logs/02-recommend-plotext6-failure.log), not a hypothetical troubleshooting note. The clean reproduction starts with the corrected pin and does not intentionally recreate the failure.
+
+**Done-When:** all three package versions exactly match the block above.
+
+### 5.5 Step 3: run the support preflight and capture its log
+
+```bash
+set -o pipefail
+mkdir -p run-output/logs
+support_log=run-output/logs/01-support.log
+printf 'START_UTC=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee "$support_log"
+aiconfigurator cli support \
+  --model-path Qwen/Qwen3-32B-FP8 \
+  --system h200_sxm \
+  --backend trtllm \
+  --no-color 2>&1 | tee -a "$support_log"
+support_rc=${PIPESTATUS[0]}
+printf 'EXIT_CODE=%s\nEND_UTC=%s\n' \
+  "$support_rc" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee -a "$support_log"
+test "$support_rc" -eq 0
+```
+
+Reference CLI output:
+
+```text
+Model:           Qwen/Qwen3-32B-FP8
+System:          h200_sxm
+Backend:         trtllm
+Aggregated Support:    YES
+Disaggregated Support: YES
+EXIT_CODE=0
+```
+
+See the complete [`support log`](evidence/runs/qwen3-32b-h200-trtllm-50rps/logs/01-support.log).
+
+**Done-When:** both support modes are `YES` and the captured exit code is `0`. Stop here if support is `NO`; do not reinterpret a different backend or database mode as the same run.
+
+### 5.6 Step 4: run the recommendation and capture its log
+
+```bash
+recommend_log=run-output/logs/02-recommend.log
+printf 'START_UTC=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee "$recommend_log"
+aiconfigurator cli recommend \
+  --model-path Qwen/Qwen3-32B-FP8 \
+  --system h200_sxm \
+  --backend trtllm \
+  --target-request-rate 50 \
+  --isl 4000 \
+  --osl 1000 \
+  --ttft 2000 \
+  --tpot 30 \
+  --database-mode SILICON \
+  --strict-sla \
+  --top-n 5 \
+  --save-dir ./run-output/results \
+  --no-color 2>&1 | tee -a "$recommend_log"
+recommend_rc=${PIPESTATUS[0]}
+printf 'EXIT_CODE=%s\nEND_UTC=%s\n' \
+  "$recommend_rc" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee -a "$recommend_log"
+test "$recommend_rc" -eq 0
+```
+
+Reference CLI result:
+
+```text
+Target Load: 50.0 req/s
+agg GPUs needed: 32 (replicas: 32)
+disagg GPUs needed: 34 (replicas: 17)
+Best Experiment Chosen: agg
+Request Rate: 50.53 req/s
+TTFT: 1114.22ms
+TPOT: 29.66ms
+EXIT_CODE=0
+```
+
+The full [`successful recommendation log`](evidence/runs/qwen3-32b-h200-trtllm-50rps/logs/03-recommend-success.log) also preserves every Top-N row and the version warnings. The search used TensorRT-LLM performance DB `1.3.0rc10`; generated configuration defaulted through Dynamo 1.2.0 to TensorRT-LLM `1.3.0rc14`, and the tool reported no version-specific CLI template. Treat the YAML as a candidate until versions are aligned and the runtime accepts it.
+
+**Done-When:** the command exits `0`, both `agg/` and `disagg/` results exist, and the selected candidate meets the declared request-rate, TTFT, and TPOT constraints.
+
+### 5.7 Step 5: inspect the generated evidence
+
+AIConfigurator creates a model-specific directory below `run-output/results`. This check discovers that directory, validates both Top-1 rows, and prints the capacity arithmetic:
+
+```bash
+python - <<'PY'
+import csv
+from pathlib import Path
+
+root = Path("run-output/results")
+expected = {"agg": 32, "disagg": 34}
+for mode, expected_gpus in expected.items():
+    paths = list(root.rglob(f"{mode}/best_config_topn.csv"))
+    assert len(paths) == 1, (mode, paths)
+    with paths[0].open(newline="") as handle:
+        row = next(csv.DictReader(handle))
+    replicas = int(row["replicas_needed"])
+    gpus_per_replica = int(row["num_total_gpus"])
+    total_gpus = int(row["total_gpus_needed"])
+    cluster_rate = float(row["request_rate"]) * replicas
+    assert replicas * gpus_per_replica == total_gpus == expected_gpus
+    assert cluster_rate >= 50
+    assert float(row["ttft"]) <= 2000
+    assert float(row["tpot"]) <= 30
+    print(
+        f"{mode}: GPUs={total_gpus}, replicas={replicas}, "
+        f"GPUs/replica={gpus_per_replica}, cluster_req_s={cluster_rate:.2f}, "
+        f"TTFT={float(row['ttft']):.2f}ms, TPOT={float(row['tpot']):.2f}ms"
+    )
+PY
+```
+
+Expected output:
+
+```text
+agg: GPUs=32, replicas=32, GPUs/replica=1, cluster_req_s=50.53, TTFT=1114.22ms, TPOT=29.66ms
+disagg: GPUs=34, replicas=17, GPUs/replica=2, cluster_req_s=51.20, TTFT=537.83ms, TPOT=29.94ms
+```
+
+Compare the new files with the committed reference bundle:
+
+- [`Aggregated Top-N`](evidence/runs/qwen3-32b-h200-trtllm-50rps/results/agg/best_config_topn.csv), [`Pareto data`](evidence/runs/qwen3-32b-h200-trtllm-50rps/results/agg/pareto.csv), [`experiment config`](evidence/runs/qwen3-32b-h200-trtllm-50rps/results/agg/exp_config.yaml), and [`Top-1 candidate`](evidence/runs/qwen3-32b-h200-trtllm-50rps/results/agg/top1/agg_config.yaml)
+- [`Disaggregated Top-N`](evidence/runs/qwen3-32b-h200-trtllm-50rps/results/disagg/best_config_topn.csv), [`Pareto data`](evidence/runs/qwen3-32b-h200-trtllm-50rps/results/disagg/pareto.csv), [`experiment config`](evidence/runs/qwen3-32b-h200-trtllm-50rps/results/disagg/exp_config.yaml), [`prefill candidate`](evidence/runs/qwen3-32b-h200-trtllm-50rps/results/disagg/top1/prefill_config.yaml), and [`decode candidate`](evidence/runs/qwen3-32b-h200-trtllm-50rps/results/disagg/top1/decode_config.yaml)
+
+**Done-When:** the script prints both expected lines and every linked reference artifact opens.
+
+### 5.8 Step 6: validate the committed run lineage
+
+```bash
+python tools/validate_evidence.py
+```
+
+Expected terminal output:
+
+```text
+RUN qwen3-235b-h100-vllm-50rps PASS files=16
+RUN qwen3-32b-h200-trtllm-50rps PASS files=15
+README_VALIDATION=PASS LOG_LINKS=7 COMMAND_BLOCKS=9
+EVIDENCE_VALIDATION=PASS RUNS=2 PUBLIC_BOUNDARY=PASS
+```
+
+The validator recomputes every published SHA-256, checks each log's exit marker, rejects private paths, verifies 32/34 and 428/920 capacity arithmetic, confirms the four-GPU MoE topology, and checks the recorded CPU memory peak.
+
+**Done-When:** the final line is exactly `EVIDENCE_VALIDATION=PASS RUNS=2 PUBLIC_BOUNDARY=PASS`.
+
+## 6. Proposed OSS integration and contribution plan
+
+### 6.1 Objective
 
 The proposed OSS integration should turn AIConfigurator from an expert-operated CLI into a repeatable capacity-planning workflow without replacing the upstream product. Its objective is to make every recommendation traceable from input contracts to prediction, generated configuration, target benchmark, and calibration.
 
 The committed evidence captures official AIConfigurator CLI results for two OSS model examples. This repository does **not** contain a standalone adapter, upstream pull request, generic schema, or benchmark-calibration service. The items below are a proposed implementation plan.
 
-### 5.2 Integration architecture
+### 6.2 Integration architecture
 
 ```mermaid
 flowchart LR
@@ -173,7 +399,7 @@ flowchart LR
 
 The integration layer owns input normalization, run identity, evidence packaging, calibration, and policy around acceptable prediction error. AIConfigurator remains the configuration-search authority; Dynamo/llm-d own deployment; AIPerf owns measured load generation; AI Simulate owns its experimental trace-search path.
 
-### 5.3 Proposed repository contracts
+### 6.3 Proposed repository contracts
 
 | Proposed surface | Contract | Status |
 |---|---|---|
@@ -186,11 +412,11 @@ The integration layer owns input normalization, run identity, evidence packaging
 | `runs/<run-id>/calibration.json` | Prediction/measurement delta and approved reserve by metric | Proposed |
 | `adapters/` | Thin, versioned invocation adapters for official CLI and deployment targets | Proposed; must not reimplement AIConfigurator logic |
 
-## 6. Proposed implementation roadmap
+## 7. Proposed implementation roadmap
 
 | Phase | Deliverable | Completion signal | Current status |
 |---|---|---|---|
-| 0. Reference evidence | Preserve official CLI commands, logs, Top-N CSVs, generated configs, and hashes | At least one Dense and one MoE/open-weight example can be audited locally | Example Top-N evidence committed; reusable run manifest not implemented |
+| 0. Reference evidence | Preserve official CLI commands, logs, Top-N CSVs, generated configs, and hashes | At least one Dense and one MoE/open-weight example can be audited locally | Example Top-N evidence and run manifests committed; reusable manifest generation in the generic runner is not implemented |
 | 1. Contract layer | JSON Schema or YAML contracts for model, workload, platform, and objective | Invalid or incomplete capacity questions fail before search | Proposed |
 | 2. Generic runner | Invoke upstream `support`, `default`, `recommend`, and selected `exp` workflows without changing their semantics | One command produces an isolated run directory and evidence manifest | Proposed |
 | 3. Matrix and comparison | Sweep model x NVIDIA GPU x backend x workload bucket and retain Top-N | Results remain separated by exact version and evidence class | Proposed |
@@ -204,7 +430,7 @@ The first public milestone should stop after Phase 2: publish the schemas, two e
 
 **Figure 3. Original boundary diagram based on public AIConfigurator v0.11.0 and Dynamo v1.4.2 sources.** AIConfigurator can run independently for fixed workload descriptors. AI Simulate/Spica extends the search with Dynamo Replay and remains experimental. [AI Simulate source](https://github.com/ai-dynamo/dynamo/tree/v1.4.2/aisimulate). Image SHA-256: `0b7c56f3dc0b18504a09c20864ae371b6e097b9057497e10cfbcbea301fbb3ab`.
 
-## 7. Worked examples
+## 8. Worked examples
 
 The examples below prove that the same planning method can represent different model sizes, architectures, NVIDIA GPUs, and inference backends. They do not define a fixed service target for the general workflow.
 
@@ -213,15 +439,15 @@ The examples below prove that the same planning method can represent different m
 | Dense-model canary | `Qwen/Qwen3-32B-FP8` | H200 SXM | TensorRT-LLM | ISL 4,000; OSL 1,000; TTFT <=2,000 ms; TPOT <=30 ms; 50 req/s | 32 H200 Aggregated versus 34 H200 Disaggregated |
 | MoE large-model case | `Qwen/Qwen3-235B-A22B-FP8` | H100 SXM | vLLM `0.24.0` | ISL 4,000; OSL 1,000; TTFT <=2,000 ms; TPOT <=30 ms; 50 req/s | Four-GPU `TP4/ETP4` worker; 428-H100 Aggregated example capacity |
 
-### 7.1 Qwen3-32B-FP8 on H200 SXM
+### 8.1 Qwen3-32B-FP8 on H200 SXM
 
 The upstream `support` and `recommend` paths completed on CPU. Under the example workload, the top Aggregated result uses 32 one-GPU replicas, while the top Disaggregated result uses 17 replicas with one prefill and one decode GPU each, for 34 GPUs total.
 
 ![Qwen3-32B H200 example](images/qwen3-32b-h200-canary.png)
 
-**Figure 4. Local CPU-offline prediction, not an H200 benchmark.** AIConfigurator v0.11.0, Qwen3-32B-FP8, H200 SXM, TensorRT-LLM, synthetic 50 req/s workload. [Aggregated CSV](evidence/qwen3-32b-h200-agg-topn.csv) · [Disaggregated CSV](evidence/qwen3-32b-h200-disagg-topn.csv). Image SHA-256: `b290bbd126594ca3ac923591b567f6b4cd5e838de6c73ef512405aa3caa08690`.
+**Figure 4. Local CPU-offline prediction, not an H200 benchmark.** AIConfigurator v0.11.0, Qwen3-32B-FP8, H200 SXM, TensorRT-LLM, synthetic 50 req/s workload. [Full CLI log](evidence/runs/qwen3-32b-h200-trtllm-50rps/logs/03-recommend-success.log) · [Aggregated CSV](evidence/runs/qwen3-32b-h200-trtllm-50rps/results/agg/best_config_topn.csv) · [Disaggregated CSV](evidence/runs/qwen3-32b-h200-trtllm-50rps/results/disagg/best_config_topn.csv). Image SHA-256: `b290bbd126594ca3ac923591b567f6b4cd5e838de6c73ef512405aa3caa08690`.
 
-### 7.2 Qwen3-235B-A22B-FP8 on H100 SXM
+### 8.2 Qwen3-235B-A22B-FP8 on H100 SXM
 
 The same workflow was applied to a 235B-total / 22B-active MoE model with 128 experts and 8 activated experts. A two-GPU budget produced no feasible candidate in the search. The smallest modeled worker uses four H100 SXM GPUs with `TP4/PP1/DP1/ETP4/EP1`. At the synthetic 50 req/s point, the top Aggregated result uses 107 four-GPU replicas, or 428 GPUs.
 
@@ -231,13 +457,24 @@ The same workflow was applied to a 235B-total / 22B-active MoE model with 128 ex
 
 ![Qwen3-235B H100 example](images/qwen3-235b-h100-pareto.png)
 
-**Figure 5. Local CPU-offline prediction, not an H100 benchmark.** AIConfigurator v0.11.0, Qwen3-235B-A22B-FP8, H100 SXM, vLLM 0.24.0, synthetic 50 req/s workload. The 428-GPU value comes from the ranked CSV, not from reading this plot. [Aggregated CSV](evidence/qwen3-235b-h100-agg-topn.csv) · [Disaggregated CSV](evidence/qwen3-235b-h100-disagg-topn.csv). Image SHA-256: `2f0aef7b052857e3084b518a29a159bf9ab6a1e47e380a3c59d3126756a8c352`.
+**Figure 5. Local CPU-offline prediction, not an H100 benchmark.** AIConfigurator v0.11.0, Qwen3-235B-A22B-FP8, H100 SXM, vLLM 0.24.0, synthetic 50 req/s workload. The 428-GPU value comes from the ranked CSV, not from reading this plot. [Full capacity log](evidence/runs/qwen3-235b-h100-vllm-50rps/logs/03-capacity-50rps.log) · [Aggregated CSV](evidence/runs/qwen3-235b-h100-vllm-50rps/results/agg/best_config_topn.csv) · [Disaggregated CSV](evidence/runs/qwen3-235b-h100-vllm-50rps/results/disagg/best_config_topn.csv). Image SHA-256: `2f0aef7b052857e3084b518a29a159bf9ab6a1e47e380a3c59d3126756a8c352`.
+
+The supplemental run bundle preserves the entire decision path:
+
+| Step | Result | Evidence |
+|---|---|---|
+| Test a two-GPU budget | Expected boundary failure, exit `1`; no candidate fits | [`01-two-gpu-infeasible.log`](evidence/runs/qwen3-235b-h100-vllm-50rps/logs/01-two-gpu-infeasible.log) |
+| Find the minimum worker | Four-GPU Aggregated worker, `TP4/PP1/DP1/ETP4/EP1`, exit `0` | [`02-four-gpu-worker.log`](evidence/runs/qwen3-235b-h100-vllm-50rps/logs/02-four-gpu-worker.log) · [`Top-N CSV`](evidence/runs/qwen3-235b-h100-vllm-50rps/results/worker-4g/agg/best_config_topn.csv) |
+| Size the synthetic 50 req/s point | 428 H100 Aggregated versus 920 H100 Disaggregated, exit `0` | [`03-capacity-50rps.log`](evidence/runs/qwen3-235b-h100-vllm-50rps/logs/03-capacity-50rps.log) · [`run manifest`](evidence/runs/qwen3-235b-h100-vllm-50rps/run-manifest.json) |
+| Measure planning-process footprint | 12.27 s wall time and 496,100 KiB peak RSS, exit `0` | [`04-cpu-memory-profile.log`](evidence/runs/qwen3-235b-h100-vllm-50rps/logs/04-cpu-memory-profile.log) |
 
 The run logs also record that vLLM `0.24.0` had no FP8 `context_attention` performance data for H100 SXM, so AIConfigurator fell back to BF16 FMHA data. The 235B/H100 numbers are version-specific predictions with this database-fallback boundary.
 
+The same logs warn that `--generated-config-version` was not provided. Search used the vLLM `0.24.0` performance database, while generated configuration defaulted through Dynamo 1.2.0 to vLLM `0.20.1`. The generated YAML therefore remains a candidate until it is regenerated for, or accepted by, a version-aligned runtime.
+
 The 428 result is not the capacity requirement for Qwen3-235B in general. It belongs to one model revision family, target system, backend database, workload point, and SLA. A different output-length distribution, request rate, cache profile, backend, or GPU changes the result.
 
-## 8. Boundaries and risks
+## 9. Boundaries and risks
 
 | Boundary | Implication |
 |---|---|
@@ -276,7 +513,7 @@ aiconfigurator cli recommend \
 
 ### Rebuild the original figures
 
-The figure generator requires Python 3.11, Pillow 12.3.0, and the Segoe UI fonts included with Windows. It regenerates Figures 1, 3, and 4 from the committed source and CSV evidence.
+The figure generator requires Python 3.11, Pillow 12.3.0, and the Segoe UI fonts included with Windows. It regenerates Figures 1, 3, and 4 from the committed source and CSV evidence. This is separate from the Linux AIConfigurator environment in Section 5.
 
 ```powershell
 python -m pip install -r requirements.txt
@@ -287,10 +524,11 @@ python tools/make_report_figures.py
 
 ### Committed evidence
 
-- [Qwen3-32B/H200 Aggregated Top-N CSV](evidence/qwen3-32b-h200-agg-topn.csv)
-- [Qwen3-32B/H200 Disaggregated Top-N CSV](evidence/qwen3-32b-h200-disagg-topn.csv)
-- [Qwen3-235B/H100 Aggregated Top-N CSV](evidence/qwen3-235b-h100-agg-topn.csv)
-- [Qwen3-235B/H100 Disaggregated Top-N CSV](evidence/qwen3-235b-h100-disagg-topn.csv)
+- [Evidence index](evidence/README.md)
+- [Qwen3-32B/H200 complete run bundle](evidence/runs/qwen3-32b-h200-trtllm-50rps/)
+- [Qwen3-235B/H100 supplemental run bundle](evidence/runs/qwen3-235b-h100-vllm-50rps/)
+- [Evidence publisher and redaction lineage](tools/publish_run_evidence.py)
+- [Deterministic evidence validator](tools/validate_evidence.py)
 - [Original figure generator](tools/make_report_figures.py)
 
 ### Public references

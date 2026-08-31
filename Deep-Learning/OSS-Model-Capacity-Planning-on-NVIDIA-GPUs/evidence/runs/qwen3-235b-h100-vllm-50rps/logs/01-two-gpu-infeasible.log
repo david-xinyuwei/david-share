@@ -1,0 +1,16 @@
+06:04:34 [aiconfigurator] [I] [main.py:2694] Loading AIConfigurator version: 0.11.0
+06:04:34 [aiconfigurator] [I] [main.py:2695] Number of top configurations to output: 3 (change with --top-n)
+06:04:34 [aiconfigurator] [I] [main.py:2760] Effective parameters: ISL=4000, OSL=1000, TTFT=2000.0ms, TPOT=30.0ms, backend=vllm
+06:04:34 [aiconfigurator] [I] [utils.py:1079] Quant inference result: quant_algo=fp8_block, kv_cache_quant_algo=None, quant_dynamic=True
+06:04:34 [aiconfigurator] [I] [utils.py:1186] Loaded model config for Qwen/Qwen3-235B-A22B-FP8: architecture=Qwen3MoeForCausalLM, layers=94, n=64, n_kv=4, d=128, hidden_size=4096, inter_size=12288, vocab=151936, context=40960, topk=8, num_experts=128, moe_inter_size=1536, extra_params={'architecture': 'Qwen3MoeForCausalLM', 'use_qk_norm': True}
+06:04:34 [aiconfigurator] [I] [perf_database.py:952] Loading database for system='h100_sxm', backend='vllm', version='0.24.0'
+06:04:35 [aiconfigurator] [W] [task_v2.py:819] agg fmha_quant_mode=fp8 (inferred from the model checkpoint) has no 'context_attention' perf data for system='h100_sxm', backend='vllm', version='0.24.0'; falling back to bfloat16 FMHA data. Predictions are conservative if the deployed engine runs fp8 FMHA; set fmha_quant_mode explicitly to override.
+06:04:35 [aiconfigurator] [W] [task_v2.py:819] prefill fmha_quant_mode=fp8 (inferred from the model checkpoint) has no 'context_attention' perf data for system='h100_sxm', backend='vllm', version='0.24.0'; falling back to bfloat16 FMHA data. Predictions are conservative if the deployed engine runs fp8 FMHA; set prefill_fmha_quant_mode explicitly to override.
+06:04:35 [aiconfigurator] [I] [main.py:1865] Starting experiment: agg
+06:04:40 [aiconfigurator] [E] [main.py:1898] Error running experiment agg: sweep_agg: no results — model does not fit in GPU memory for any parallel config. Try increasing --total-gpus, using a quantized model, or a system with more VRAM per GPU.
+06:04:40 [aiconfigurator] [I] [main.py:1865] Starting experiment: disagg
+06:04:40 [aiconfigurator] [E] [main.py:1898] Error running experiment disagg: sweep_disagg/prefill: no results — model does not fit in GPU memory for any parallel config. Try increasing GPU budget, using a quantized model, or a system with more VRAM per GPU.
+06:04:40 [aiconfigurator] [E] [main.py:1923] No successful experiment runs to compare. If this is a frontier or newly-released model, retry with --database-mode HYBRID to extend coverage beyond the silicon database.
+06:04:40 [aiconfigurator] [E] [main.py:1932]   -> Experiment agg failed: sweep_agg: no results — model does not fit in GPU memory for any parallel config. Try increasing --total-gpus, using a quantized model, or a system with more VRAM per GPU.
+06:04:40 [aiconfigurator] [E] [main.py:1932]   -> Experiment disagg failed: sweep_disagg/prefill: no results — model does not fit in GPU memory for any parallel config. Try increasing GPU budget, using a quantized model, or a system with more VRAM per GPU.
+EXIT_CODE=1

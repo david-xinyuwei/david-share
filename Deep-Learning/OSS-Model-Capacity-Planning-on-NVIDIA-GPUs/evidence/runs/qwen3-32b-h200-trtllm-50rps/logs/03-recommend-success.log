@@ -1,0 +1,147 @@
+EXECUTION_PLANE=LINUX_X86_64
+START_UTC=2026-08-31T02:15:08Z
+AICONFIGURATOR_VERSION=0.11.0
+PLOTEXT_VERSION=5.3.2
+MODEL=Qwen/Qwen3-32B-FP8
+SYSTEM=h200_sxm
+BACKEND=trtllm
+DATABASE_MODE=SILICON
+TARGET_REQUEST_RATE=50
+ISL=4000
+OSL=1000
+TTFT_SLO_MS=2000
+TPOT_SLO_MS=30
+COMMAND=aiconfigurator_cli_recommend_model_Qwen3-32B-FP8_system_h200_sxm_backend_trtllm_target_request_rate_50_isl_4000_osl_1000_ttft_2000_tpot_30_database_mode_SILICON_strict_sla_top_n_5_save_dir_canary-50rps-retry1_no_color
+02:15:08 [aiconfigurator] [I] [main.py:2694] Loading AIConfigurator version: 0.11.0
+02:15:08 [aiconfigurator] [I] [main.py:2695] Number of top configurations to output: 5 (change with --top-n)
+02:15:08 [aiconfigurator] [I] [main.py:2607] Finding minimum GPUs for Qwen/Qwen3-32B-FP8 on h200_sxm (backend=trtllm)
+02:15:08 [aiconfigurator] [I] [utils.py:1079] Quant inference result: quant_algo=fp8_block, kv_cache_quant_algo=None, quant_dynamic=True
+02:15:08 [aiconfigurator] [I] [utils.py:1186] Loaded model config for Qwen/Qwen3-32B-FP8: architecture=Qwen3ForCausalLM, layers=64, n=64, n_kv=8, d=128, hidden_size=5120, inter_size=25600, vocab=151936, context=40960, topk=0, num_experts=0, moe_inter_size=25600, extra_params={'architecture': 'Qwen3ForCausalLM', 'use_qk_norm': True}
+02:15:09 [aiconfigurator] [I] [perf_database.py:952] Loading database for system='h200_sxm', backend='trtllm', version='1.3.0rc10'
+02:15:10 [aiconfigurator] [I] [main.py:1865] Starting experiment: agg
+02:15:10 [aiconfigurator] [I] [main.py:1865] Starting experiment: disagg
+02:15:21 [aiconfigurator] [I] [main.py:1869] Experiment agg completed with 283 results.
+02:15:22 [aiconfigurator] [I] [main.py:1869] Experiment disagg completed with 32 results.
+02:15:22 [aiconfigurator] [I] [report_and_save.py:526] 
+********************************************************************************
+*                         AIConfigurator Final Results                         *
+********************************************************************************
+  ----------------------------------------------------------------------------
+  Input Configuration & SLA Target:
+    Model: Qwen/Qwen3-32B-FP8 (is_moe: False)
+    Target Load: 50.0 req/s
+    agg GPUs needed: 32 (replicas: 32)
+    disagg GPUs needed: 34 (replicas: 17)
+    Best Experiment Chosen: agg
+  ----------------------------------------------------------------------------
+  Overall Best Configuration:
+    - Best Throughput: 50,465.06 tokens/s
+    - Per-GPU Throughput: 1577.03 tokens/s/gpu
+    - Per-User Throughput: 33.72 tokens/s/user
+    - Request Rate: 50.53 req/s
+    - TTFT: 1114.22ms
+    - TPOT: 29.66ms
+    - Request Latency: 30744.33ms
+  ----------------------------------------------------------------------------
+  Pareto Frontier:
+       Qwen/Qwen3-32B-FP8 Pareto Frontier: tokens/s/gpu_cluster vs tokens/s/user
+      +------------------------------------------------------------------------+
+2450.0+ ** agg                                                                 |
+      | ff disagg                                                              |
+      | xx agg selected                                                        |
+2041.7+     *                                                                  |
+      |     **                                                                 |
+      |       ***                                                              |
+1633.3+          x                                                             |
+      |           **** ff                                                      |
+1225.0+               ***fff                                                   |
+      |                  *  fffff                                              |
+      |                   ****** fff                                           |
+ 816.7+                         **  ffff                                       |
+      |                           ****  f                                      |
+      |                               ***ff*                                   |
+ 408.3+                                    ff*********                         |
+      |                                      ffffff   **************           |
+      |                                            fff              *****      |
+   0.0+                                               fff                      |
+      ++-----------------+-----------------+----------------+-----------------++
+       0                60                120              180              240 
+tokens/s/gpu_cluster                 tokens/s/user                              
+
+  ----------------------------------------------------------------------------
+  Deployment Details:
+    (p) stands for prefill, (d) stands for decode, bs stands for batch size, a replica stands for the smallest scalable unit xPyD of the disagg system
+    Some math: total gpus used = replicas * gpus/replica
+               gpus/replica = (p)gpus/worker * (p)workers + (d)gpus/worker * (d)workers; for Agg, gpus/replica = gpus/worker
+               gpus/worker = tp * pp * dp = etp * ep * pp for MoE models; tp * pp for dense models (underlined numbers are the actual values in math)
+
+agg Top Configurations: (Ranked by total_gpus_needed)
++------+---------+--------------+---------------+-------+---------+-----------------+----------------+-------------------+----------+--------------+-------------+----------+-----+
+| Rank | backend | tokens/s/gpu | tokens/s/user | req/s |   TTFT  | request_latency |  concurrency   | total_gpus (used) | replicas | gpus/replica | gpus/worker | parallel |  bs |
++------+---------+--------------+---------------+-------+---------+-----------------+----------------+-------------------+----------+--------------+-------------+----------+-----+
+|  1   |  trtllm |   1577.03    |     33.72     | 50.53 | 1114.22 |     30744.33    | 1536 (=48x32)  |    32 (32=32x1)   |    32    |      1       |   1 (=1x1)  |  tp1pp1  |  48 |
+|  2   |  trtllm |   1442.54    |     47.08     | 51.98 | 1132.35 |     22351.03    | 1152 (=64x18)  |    36 (36=18x2)   |    18    |      2       |   2 (=2x1)  |  tp2pp1  |  64 |
+|  3   |  trtllm |   1320.32    |     42.29     | 52.87 |  846.73 |     24471.36    | 1280 (=128x10) |    40 (40=10x4)   |    10    |      4       |   4 (=4x1)  |  tp4pp1  | 128 |
+|  4   |  trtllm |    989.67    |     33.42     | 55.48 |  596.38 |     30491.85    | 1680 (=240x7)  |    56 (56=7x8)    |    7     |      8       |   8 (=8x1)  |  tp8pp1  | 240 |
++------+---------+--------------+---------------+-------+---------+-----------------+----------------+-------------------+----------+--------------+-------------+----------+-----+
+
+disagg Top Configurations: (Ranked by total_gpus_needed)
++------+---------+--------------+---------------+-------+--------+-----------------+----------------+-------------------+----------+--------------+------------+----------------+-------------+-------+------------+----------------+-------------+-------+
+| Rank | backend | tokens/s/gpu | tokens/s/user | req/s |  TTFT  | request_latency |  concurrency   | total_gpus (used) | replicas | gpus/replica | (p)workers | (p)gpus/worker | (p)parallel | (p)bs | (d)workers | (d)gpus/worker | (d)parallel | (d)bs |
++------+---------+--------------+---------------+-------+--------+-----------------+----------------+-------------------+----------+--------------+------------+----------------+-------------+-------+------------+----------------+-------------+-------+
+|  1   |  trtllm |   1506.15    |     33.40     | 51.20 | 537.83 |     30450.88    | 1904 (=112x17) |    34 (34=17x2)   |    17    | 2 (=1x1+1x1) |     1      |    1 (=1x1)    |    tp1pp1   |   1   |     1      |    1 (=1x1)    |    tp1pp1   |  112  |
+|  2   |  trtllm |   1506.15    |     33.43     | 54.23 | 537.83 |     30418.92    | 2160 (=240x9)  |    36 (36=9x4)    |    9     | 4 (=2x1+1x2) |     2      |    1 (=1x1)    |    tp1pp1   |   1   |     1      |    2 (=2x1)    |    tp2pp1   |  240  |
+|  3   |  trtllm |   1506.15    |     33.71     | 60.24 | 537.83 |     30173.16    | 2120 (=424x5)  |    40 (40=5x8)    |    5     | 8 (=4x1+1x4) |     4      |    1 (=1x1)    |    tp1pp1   |   1   |     1      |    4 (=4x1)    |    tp4pp1   |  424  |
++------+---------+--------------+---------------+-------+--------+-----------------+----------------+-------------------+----------+--------------+------------+----------------+-------------+-------+------------+----------------+-------------+-------+
+********************************************************************************
+02:15:22 [aiconfigurator] [I] [main.py:1979] All experiments completed in 12.10 seconds
+02:15:22 [aiconfigurator] [I] [report_and_save.py:578] Saving results to <workspace>/artifacts/canary-50rps-retry1/Qwen/Qwen3-32B-FP8_h200_sxm_trtllm_isl4000_osl1000_ttft2000_tpot30_47143
+02:15:22 [aiconfigurator] [W] [report_and_save.py:714] 
+================================================================================
+  🔍  Search / perf-DB version (simulation fidelity)
+================================================================================
+  Experiment: agg
+  Perf-DB version: 1.3.0rc10   (--perf-db-version; default: latest)
+  This is what the search simulated against; it may differ from the
+  generated/deployed config version shown next.
+================================================================================
+02:15:22 [aiconfigurator] [W] [report_and_save.py:799] 
+================================================================================
+  🟢  IMPORTANT: Config Generation Version Not Specified
+================================================================================
+  Experiment: agg
+  --generated-config-version NOT provided
+  Defaulting to backend version from dynamo 1.2.0: (trtllm)1.3.0rc14
+
+  Config formats differ across backend releases. If you are targeting
+  a different version, please pass --generated-config-version explicitly!
+================================================================================
+02:15:22 [aiconfigurator] [W] [engine.py:132] No version-specific CLI args template for 1.3.0rc14, using default cli_args.j2.
+02:15:22 [aiconfigurator] [W] [engine.py:132] No version-specific CLI args template for 1.3.0rc14, using default cli_args.j2.
+02:15:22 [aiconfigurator] [W] [engine.py:132] No version-specific CLI args template for 1.3.0rc14, using default cli_args.j2.
+02:15:22 [aiconfigurator] [W] [engine.py:132] No version-specific CLI args template for 1.3.0rc14, using default cli_args.j2.
+02:15:22 [aiconfigurator] [W] [report_and_save.py:714] 
+================================================================================
+  🔍  Search / perf-DB version (simulation fidelity)
+================================================================================
+  Experiment: disagg
+  Perf-DB version: 1.3.0rc10   (--perf-db-version; default: latest)
+  This is what the search simulated against; it may differ from the
+  generated/deployed config version shown next.
+================================================================================
+02:15:22 [aiconfigurator] [W] [report_and_save.py:799] 
+================================================================================
+  🟢  IMPORTANT: Config Generation Version Not Specified
+================================================================================
+  Experiment: disagg
+  --generated-config-version NOT provided
+  Defaulting to backend version from dynamo 1.2.0: (trtllm)1.3.0rc14
+
+  Config formats differ across backend releases. If you are targeting
+  a different version, please pass --generated-config-version explicitly!
+================================================================================
+02:15:22 [aiconfigurator] [W] [engine.py:132] No version-specific CLI args template for 1.3.0rc14, using default cli_args.j2.
+02:15:23 [aiconfigurator] [W] [engine.py:132] No version-specific CLI args template for 1.3.0rc14, using default cli_args.j2.
+02:15:23 [aiconfigurator] [W] [engine.py:132] No version-specific CLI args template for 1.3.0rc14, using default cli_args.j2.
+EXIT_CODE=0
+END_UTC=2026-08-31T02:15:23Z

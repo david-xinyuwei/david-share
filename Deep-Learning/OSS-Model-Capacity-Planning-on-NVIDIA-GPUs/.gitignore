@@ -1,0 +1,6 @@
+.venv/
+run-output/
+__pycache__/
+*.py[cod]
+!evidence/runs/**/logs/
+!evidence/runs/**/*.log

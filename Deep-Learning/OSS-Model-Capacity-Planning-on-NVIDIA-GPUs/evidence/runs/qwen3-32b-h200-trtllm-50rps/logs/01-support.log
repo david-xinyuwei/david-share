@@ -1,0 +1,21 @@
+EXECUTION_PLANE=LINUX_X86_64
+START_UTC=2026-08-31T02:12:59Z
+COMMAND=aiconfigurator_cli_support_model_Qwen3-32B-FP8_system_h200_sxm_backend_trtllm
+02:13:00 [aiconfigurator] [I] [utils.py:1079] Quant inference result: quant_algo=fp8_block, kv_cache_quant_algo=None, quant_dynamic=True
+02:13:00 [aiconfigurator] [I] [utils.py:1186] Loaded model config for Qwen/Qwen3-32B-FP8: architecture=Qwen3ForCausalLM, layers=64, n=64, n_kv=8, d=128, hidden_size=5120, inter_size=25600, vocab=151936, context=40960, topk=0, num_experts=0, moe_inter_size=25600, extra_params={'architecture': 'Qwen3ForCausalLM', 'use_qk_norm': True}
+02:13:00 [aiconfigurator] [I] [main.py:2182] Checking support for model=Qwen/Qwen3-32B-FP8, system=h200_sxm, backend=trtllm, version=1.3.0rc15
+
+============================================================
+  AIC Support Check Results
+============================================================
+  Model:           Qwen/Qwen3-32B-FP8
+  System:          h200_sxm
+  Backend:         trtllm
+  Version:         1.3.0rc15
+------------------------------------------------------------
+  Aggregated Support:    YES
+  Disaggregated Support: YES
+============================================================
+
+EXIT_CODE=0
+END_UTC=2026-08-31T02:13:00Z

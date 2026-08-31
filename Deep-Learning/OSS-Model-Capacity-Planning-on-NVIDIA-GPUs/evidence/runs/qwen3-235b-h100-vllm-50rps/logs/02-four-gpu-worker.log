@@ -1,0 +1,95 @@
+05:56:50 [aiconfigurator] [I] [main.py:2694] Loading AIConfigurator version: 0.11.0
+05:56:50 [aiconfigurator] [I] [main.py:2695] Number of top configurations to output: 3 (change with --top-n)
+05:56:50 [aiconfigurator] [I] [main.py:2760] Effective parameters: ISL=4000, OSL=1000, TTFT=2000.0ms, TPOT=30.0ms, backend=vllm
+05:56:50 [aiconfigurator] [I] [utils.py:1079] Quant inference result: quant_algo=fp8_block, kv_cache_quant_algo=None, quant_dynamic=True
+05:56:50 [aiconfigurator] [I] [utils.py:1186] Loaded model config for Qwen/Qwen3-235B-A22B-FP8: architecture=Qwen3MoeForCausalLM, layers=94, n=64, n_kv=4, d=128, hidden_size=4096, inter_size=12288, vocab=151936, context=40960, topk=8, num_experts=128, moe_inter_size=1536, extra_params={'architecture': 'Qwen3MoeForCausalLM', 'use_qk_norm': True}
+05:56:51 [aiconfigurator] [I] [perf_database.py:952] Loading database for system='h100_sxm', backend='vllm', version='0.24.0'
+05:56:51 [aiconfigurator] [W] [task_v2.py:819] agg fmha_quant_mode=fp8 (inferred from the model checkpoint) has no 'context_attention' perf data for system='h100_sxm', backend='vllm', version='0.24.0'; falling back to bfloat16 FMHA data. Predictions are conservative if the deployed engine runs fp8 FMHA; set fmha_quant_mode explicitly to override.
+05:56:52 [aiconfigurator] [W] [task_v2.py:819] prefill fmha_quant_mode=fp8 (inferred from the model checkpoint) has no 'context_attention' perf data for system='h100_sxm', backend='vllm', version='0.24.0'; falling back to bfloat16 FMHA data. Predictions are conservative if the deployed engine runs fp8 FMHA; set prefill_fmha_quant_mode explicitly to override.
+05:56:52 [aiconfigurator] [I] [main.py:1865] Starting experiment: agg
+05:56:59 [aiconfigurator] [I] [main.py:1869] Experiment agg completed with 261 results.
+05:56:59 [aiconfigurator] [I] [main.py:1865] Starting experiment: disagg
+05:57:01 [aiconfigurator] [W] [main.py:1890] Experiment disagg returned no results. Possible causes: (1) TTFT/TPOT constraints are too tight — try relaxing --ttft or --tpot; (2) the model does not fit — try a larger --total-gpus value or a quantized model; (3) no perf data in the database for this configuration. For frontier/new models without silicon data, try --database-mode HYBRID.
+05:57:01 [aiconfigurator] [I] [report_and_save.py:526] 
+********************************************************************************
+*                         AIConfigurator Final Results                         *
+********************************************************************************
+  ----------------------------------------------------------------------------
+  Input Configuration & SLA Target:
+    Model: Qwen/Qwen3-235B-A22B-FP8 (is_moe: True)
+    Total GPUs: 4
+    Best Experiment Chosen: agg at 117.01 tokens/s/gpu
+  ----------------------------------------------------------------------------
+  Overall Best Configuration:
+    - Best Throughput: 468.02 tokens/s
+    - Per-GPU Throughput: 117.01 tokens/s/gpu
+    - Per-User Throughput: 33.86 tokens/s/user
+    - Request Rate: 0.47 req/s
+    - TTFT: 377.12ms
+    - TPOT: 29.54ms
+    - Request Latency: 29883.10ms
+  ----------------------------------------------------------------------------
+  Pareto Frontier:
+                                                                                
+   +---------------------------------------------------------------------------+
+150+ ** agg                                                                    |
+   | xx agg selected                                                           |
+   |                                                                           |
+125+                                                                           |
+   |                                          x*                               |
+   |                                           *                               |
+100+                                            *                              |
+   |                                            *                              |
+ 75+                                            *                              |
+   |                                             *                             |
+   |                                              *                            |
+ 50+                                               *****                       |
+   |                                                    **                     |
+   |                                                      **                   |
+ 25+                                                        ****               |
+   |                                                            ***            |
+   |                                                               ***         |
+  0+                                                                           |
+   ++------------------+-----------------+------------------+-----------------++
+    0                 15                30                 45                60 
+tokens/s/gpu_cluster               tokens/s/user                                
+
+  ----------------------------------------------------------------------------
+  Deployment Details:
+    (p) stands for prefill, (d) stands for decode, bs stands for batch size, a replica stands for the smallest scalable unit xPyD of the disagg system
+    Some math: total gpus used = replicas * gpus/replica
+               gpus/replica = (p)gpus/worker * (p)workers + (d)gpus/worker * (d)workers; for Agg, gpus/replica = gpus/worker
+               gpus/worker = tp * pp * dp = etp * ep * pp for MoE models; tp * pp for dense models (underlined numbers are the actual values in math)
+
+agg Top Configurations: (Ranked by tokens/s/gpu)
++------+---------+--------------+---------------+-------+--------+-----------------+-------------+-------------------+----------+--------------+-------------+------------------+----+
+| Rank | backend | tokens/s/gpu | tokens/s/user | req/s |  TTFT  | request_latency | concurrency | total_gpus (used) | replicas | gpus/replica | gpus/worker |     parallel     | bs |
++------+---------+--------------+---------------+-------+--------+-----------------+-------------+-------------------+----------+--------------+-------------+------------------+----+
+|  1   |   vllm  |    117.01    |     33.86     |  0.47 | 377.12 |     29883.10    |  14 (=14x1) |     4 (4=1x4)     |    1     |      4       |  4 (=4x1x1) | tp4pp1dp1etp4ep1 | 14 |
+|  2   |   vllm  |    108.17    |     33.73     |  0.43 | 401.16 |     30014.15    |  13 (=13x1) |     4 (4=1x4)     |    1     |      4       |  4 (=4x1x1) | tp4pp1dp1etp1ep4 | 13 |
+|  3   |   vllm  |    100.57    |     34.33     |  0.40 | 699.89 |     29799.48    |  12 (=12x1) |     4 (4=1x4)     |    1     |      4       |  4 (=1x1x4) | tp1pp1dp4etp4ep1 | 3  |
++------+---------+--------------+---------------+-------+--------+-----------------+-------------+-------------------+----------+--------------+-------------+------------------+----+
+********************************************************************************
+05:57:01 [aiconfigurator] [I] [main.py:1979] All experiments completed in 9.39 seconds
+05:57:01 [aiconfigurator] [I] [report_and_save.py:578] Saving results to <run-root>/4g/results/Qwen/Qwen3-235B-A22B-FP8_h100_sxm_vllm_isl4000_osl1000_ttft2000_tpot30_854075
+05:57:01 [aiconfigurator] [W] [report_and_save.py:714] 
+================================================================================
+  🔍  Search / perf-DB version (simulation fidelity)
+================================================================================
+  Experiment: agg
+  Perf-DB version: 0.24.0   (--perf-db-version; default: latest)
+  This is what the search simulated against; it may differ from the
+  generated/deployed config version shown next.
+================================================================================
+05:57:01 [aiconfigurator] [W] [report_and_save.py:799] 
+================================================================================
+  🟢  IMPORTANT: Config Generation Version Not Specified
+================================================================================
+  Experiment: agg
+  --generated-config-version NOT provided
+  Defaulting to backend version from dynamo 1.2.0: (vllm)0.20.1
+
+  Config formats differ across backend releases. If you are targeting
+  a different version, please pass --generated-config-version explicitly!
+================================================================================
+EXIT_CODE=0

@@ -1,0 +1,29 @@
+backend: pytorch
+tensor_parallel_size: 1
+pipeline_parallel_size: 1
+enable_attention_dp: false
+enable_chunked_prefill: false
+max_batch_size: 1
+max_num_tokens: 4512
+kv_cache_config:
+  free_gpu_memory_fraction: 0.8
+  dtype: fp8
+  tokens_per_block: 32
+  enable_block_reuse: false
+cache_transceiver_config:
+  backend: DEFAULT
+  max_tokens_in_buffer: 5504
+cuda_graph_config:
+  enable_padding: false
+  batch_sizes:
+  - 1
+  - 2
+  - 4
+  - 8
+  - 16
+  - 32
+  - 64
+  - 128
+  - 256
+disable_overlap_scheduler: true
+print_iter_log: false

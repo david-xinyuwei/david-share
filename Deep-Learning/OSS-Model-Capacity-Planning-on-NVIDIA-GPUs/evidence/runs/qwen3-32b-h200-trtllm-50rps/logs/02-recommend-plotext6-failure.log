@@ -1,0 +1,52 @@
+EXECUTION_PLANE=LINUX_X86_64
+START_UTC=2026-08-31T02:13:24Z
+AICONFIGURATOR_VERSION=0.11.0
+MODEL=Qwen/Qwen3-32B-FP8
+SYSTEM=h200_sxm
+BACKEND=trtllm
+DATABASE_MODE=SILICON
+TARGET_REQUEST_RATE=50
+ISL=4000
+OSL=1000
+TTFT_SLO_MS=2000
+TPOT_SLO_MS=30
+COMMAND=aiconfigurator_cli_recommend_model_Qwen3-32B-FP8_system_h200_sxm_backend_trtllm_target_request_rate_50_isl_4000_osl_1000_ttft_2000_tpot_30_database_mode_SILICON_strict_sla_top_n_5_save_dir_canary-50rps_no_color
+02:13:25 [aiconfigurator] [I] [main.py:2694] Loading AIConfigurator version: 0.11.0
+02:13:25 [aiconfigurator] [I] [main.py:2695] Number of top configurations to output: 5 (change with --top-n)
+02:13:25 [aiconfigurator] [I] [main.py:2607] Finding minimum GPUs for Qwen/Qwen3-32B-FP8 on h200_sxm (backend=trtllm)
+02:13:25 [aiconfigurator] [I] [utils.py:1079] Quant inference result: quant_algo=fp8_block, kv_cache_quant_algo=None, quant_dynamic=True
+02:13:25 [aiconfigurator] [I] [utils.py:1186] Loaded model config for Qwen/Qwen3-32B-FP8: architecture=Qwen3ForCausalLM, layers=64, n=64, n_kv=8, d=128, hidden_size=5120, inter_size=25600, vocab=151936, context=40960, topk=0, num_experts=0, moe_inter_size=25600, extra_params={'architecture': 'Qwen3ForCausalLM', 'use_qk_norm': True}
+02:13:25 [aiconfigurator] [I] [perf_database.py:952] Loading database for system='h200_sxm', backend='trtllm', version='1.3.0rc10'
+02:13:26 [aiconfigurator] [I] [main.py:1865] Starting experiment: agg
+02:13:26 [aiconfigurator] [I] [main.py:1865] Starting experiment: disagg
+02:13:37 [aiconfigurator] [I] [main.py:1869] Experiment agg completed with 283 results.
+02:13:38 [aiconfigurator] [I] [main.py:1869] Experiment disagg completed with 32 results.
+Traceback (most recent call last):
+  File "<python-env>/bin/aiconfigurator", line 6, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "<python-env>/lib/python3.11/site-packages/aiconfigurator/main.py", line 48, in main
+    handler(extras)
+  File "<python-env>/lib/python3.11/site-packages/aiconfigurator/main.py", line 21, in _run_cli
+    cli_main(cli_args)
+  File "<python-env>/lib/python3.11/site-packages/aiconfigurator/cli/main.py", line 2725, in main
+    _run_recommend(args)
+  File "<python-env>/lib/python3.11/site-packages/aiconfigurator/cli/main.py", line 2614, in _run_recommend
+    cli_recommend(
+  File "<python-env>/lib/python3.11/site-packages/aiconfigurator/cli/api.py", line 527, in cli_recommend
+    result = _execute_and_wrap_result(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<python-env>/lib/python3.11/site-packages/aiconfigurator/cli/api.py", line 133, in _execute_and_wrap_result
+    chosen_exp, best_configs, pareto_fronts, best_throughputs, best_latencies, outcomes = _execute_tasks_internal(
+                                                                                          ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<python-env>/lib/python3.11/site-packages/aiconfigurator/cli/main.py", line 1964, in _execute_tasks
+    log_final_summary(
+  File "<python-env>/lib/python3.11/site-packages/aiconfigurator/cli/report_and_save.py", line 461, in log_final_summary
+    pareto_plot_buf = draw_pareto_to_string(
+                      ^^^^^^^^^^^^^^^^^^^^^^
+  File "<python-env>/lib/python3.11/site-packages/aiconfigurator/sdk/pareto_analysis.py", line 440, in draw_pareto_to_string
+    plotext.plot_size(80, 30)
+    ^^^^^^^^^^^^^^^^^
+AttributeError: module 'plotext' has no attribute 'plot_size'
+EXIT_CODE=1
+END_UTC=2026-08-31T02:13:38Z

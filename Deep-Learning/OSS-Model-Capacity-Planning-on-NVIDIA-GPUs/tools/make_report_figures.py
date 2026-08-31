@@ -10,6 +10,7 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parents[1]
 IMAGES = ROOT / "images"
 EVIDENCE = ROOT / "evidence"
+QWEN32_RESULTS = EVIDENCE / "runs" / "qwen3-32b-h200-trtllm-50rps" / "results"
 
 WIDTH = 1600
 HEIGHT = 900
@@ -189,8 +190,8 @@ def aic_aisimulate_boundary() -> None:
     save(image, "aic-aisimulate-boundary.png")
 
 
-def first_row(name: str) -> dict[str, str]:
-    with (EVIDENCE / name).open(encoding="utf-8", newline="") as handle:
+def first_row(path: Path) -> dict[str, str]:
+    with path.open(encoding="utf-8", newline="") as handle:
         return next(csv.DictReader(handle))
 
 
@@ -228,8 +229,8 @@ def metric_card(
 
 
 def qwen32_example() -> None:
-    agg = first_row("qwen3-32b-h200-agg-topn.csv")
-    disagg = first_row("qwen3-32b-h200-disagg-topn.csv")
+    agg = first_row(QWEN32_RESULTS / "agg" / "best_config_topn.csv")
+    disagg = first_row(QWEN32_RESULTS / "disagg" / "best_config_topn.csv")
     selected_agg = int(agg["total_gpus_needed"]) <= int(disagg["total_gpus_needed"])
     image, draw = canvas()
     text(draw, (72, 51), "Worked example: synthetic 50 req/s capacity point", 46, bold=True)

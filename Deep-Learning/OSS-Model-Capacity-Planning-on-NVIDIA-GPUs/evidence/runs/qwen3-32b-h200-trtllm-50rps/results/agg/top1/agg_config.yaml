@@ -1,0 +1,75 @@
+backend: pytorch
+tensor_parallel_size: 1
+pipeline_parallel_size: 1
+enable_attention_dp: false
+enable_chunked_prefill: false
+max_batch_size: 48
+max_num_tokens: 4576
+kv_cache_config:
+  free_gpu_memory_fraction: 0.8
+  dtype: fp8
+  tokens_per_block: 32
+  enable_block_reuse: false
+cuda_graph_config:
+  enable_padding: true
+  batch_sizes:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 10
+  - 11
+  - 12
+  - 13
+  - 14
+  - 15
+  - 16
+  - 16
+  - 20
+  - 24
+  - 28
+  - 32
+  - 32
+  - 40
+  - 48
+  - 56
+  - 64
+  - 64
+  - 80
+  - 96
+  - 112
+  - 128
+  - 128
+  - 160
+  - 192
+  - 224
+  - 256
+  - 256
+  - 320
+  - 384
+  - 448
+  - 512
+  - 40
+  - 41
+  - 42
+  - 43
+  - 44
+  - 45
+  - 46
+  - 47
+  - 48
+  - 49
+  - 50
+  - 51
+  - 52
+  - 53
+  - 54
+  - 55
+  - 56
+disable_overlap_scheduler: false
+print_iter_log: false
