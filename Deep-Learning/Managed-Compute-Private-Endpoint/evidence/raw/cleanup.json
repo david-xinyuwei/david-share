@@ -1,0 +1,20 @@
+{
+  "runId": "managed-compute-private-link-20260831",
+  "sourceType": "sanitized-live-management-read",
+  "captureTime": "NOT_AVAILABLE",
+  "observedAtUtc": "2026-08-31T03:26:07.155Z",
+  "captureDateUtc": "2026-08-31",
+  "queryScope": "Test resource name/type filter within one resource group",
+  "deletedResourceTypes": [
+    "Microsoft.CognitiveServices/accounts/managedComputeDeployments",
+    "Microsoft.ContainerInstance/containerGroups",
+    "Microsoft.Network/privateEndpoints",
+    "Microsoft.Network/privateDnsZones",
+    "Microsoft.Network/virtualNetworks"
+  ],
+  "temporaryResourceCount": 0,
+  "parentProvisioningState": "Succeeded",
+  "parentPublicNetworkAccess": "Enabled",
+  "parentPrivateEndpointConnectionCount": 0,
+  "status": "PASS"
+}

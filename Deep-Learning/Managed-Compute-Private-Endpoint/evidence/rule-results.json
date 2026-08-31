@@ -1,0 +1,538 @@
+{
+  "schemaVersion": 1,
+  "rules": [
+    {
+      "id": "RUN-001",
+      "applicable": true,
+      "description": "Actual request and work identity are visible and synchronized.",
+      "status": "PASS",
+      "checks": [
+        {
+          "id": "run-id-in-both-readmes",
+          "passed": true,
+          "actual": "managed-compute-private-link-20260831",
+          "expected": true
+        },
+        {
+          "id": "prompt-synchronized",
+          "passed": true,
+          "actual": "Reply with exactly OK.",
+          "expected": "Reply with exactly OK."
+        },
+        {
+          "id": "request-parameters-synchronized",
+          "passed": true,
+          "actual": {
+            "authentication": "Microsoft Entra bearer token",
+            "prompt": "Reply with exactly OK.",
+            "maxTokens": 4,
+            "temperature": 0
+          },
+          "expected": true
+        },
+        {
+          "id": "contract-run-id",
+          "passed": true,
+          "actual": "managed-compute-private-link-20260831",
+          "expected": "managed-compute-private-link-20260831"
+        }
+      ],
+      "evidence": [
+        "README.md",
+        "README-CN.md",
+        "evidence/connectivity-run.json",
+        "evidence/run-contract.json"
+      ]
+    },
+    {
+      "id": "RUN-002",
+      "applicable": true,
+      "description": "The primary workload, input, command, and output are public assets.",
+      "status": "PASS",
+      "checks": [
+        {
+          "id": "owned-primary-assets",
+          "passed": true,
+          "actual": true,
+          "expected": true
+        },
+        {
+          "id": "public-endpoint-placeholder",
+          "passed": true,
+          "actual": "https://<foundry-account>.services.ai.azure.com/openai/v1/chat/completions",
+          "expected": true
+        }
+      ],
+      "evidence": [
+        "scripts/probe_endpoint.py",
+        "infra/main.bicep",
+        "evidence/run-contract.json",
+        "evidence/connectivity-run.json"
+      ]
+    },
+    {
+      "id": "RUN-003",
+      "applicable": true,
+      "description": "README wiring is ordered, complete, and synchronized to source hashes.",
+      "status": "PASS",
+      "checks": [
+        {
+          "id": "quick-start-clone-and-test",
+          "passed": true,
+          "actual": true,
+          "expected": true
+        },
+        {
+          "id": "quick-start-account-guard",
+          "passed": true,
+          "actual": true,
+          "expected": true
+        },
+        {
+          "id": "quick-start-what-if",
+          "passed": true,
+          "actual": true,
+          "expected": true
+        },
+        {
+          "id": "quick-start-deploy-private-endpoint",
+          "passed": true,
+          "actual": true,
+          "expected": true
+        },
+        {
+          "id": "quick-start-private-before-disable",
+          "passed": true,
+          "actual": true,
+          "expected": true
+        },
+        {
+          "id": "quick-start-disable-and-save",
+          "passed": true,
+          "actual": true,
+          "expected": true
+        },
+        {
+          "id": "quick-start-public-blocked",
+          "passed": true,
+          "actual": true,
+          "expected": true
+        },
+        {
+          "id": "quick-start-private-after-disable",
+          "passed": true,
+          "actual": true,
+          "expected": true
+        },
+        {
+          "id": "quick-start-restore-original",
+          "passed": true,
+          "actual": true,
+          "expected": true
+        },
+        {
+          "id": "quick-start-public-restored",
+          "passed": true,
+          "actual": true,
+          "expected": true
+        },
+        {
+          "id": "quick-start-no-independent-vnet-parameter",
+          "passed": true,
+          "actual": true,
+          "expected": true
+        },
+        {
+          "id": "quick-start-no-hard-coded-public-enable",
+          "passed": true,
+          "actual": true,
+          "expected": true
+        },
+        {
+          "id": "source-hashes-current",
+          "passed": true,
+          "actual": {
+            "infra/main.bicep": true,
+            "scripts/build_evidence.py": true,
+            "scripts/probe_endpoint.py": true,
+            "scripts/set_public_network_access.py": true,
+            "scripts/validate_repo.py": true,
+            "evidence/run-contract.json": true,
+            "evidence/provenance.json": true
+          },
+          "expected": true
+        }
+      ],
+      "evidence": [
+        "README.md",
+        "scripts/probe_endpoint.py",
+        "scripts/set_public_network_access.py",
+        "scripts/build_evidence.py",
+        "scripts/validate_repo.py",
+        "infra/main.bicep",
+        "evidence/run-contract.json",
+        "evidence/connectivity-run.json"
+      ]
+    },
+    {
+      "id": "RUN-004",
+      "applicable": true,
+      "description": "The PNA transition and Private Endpoint prerequisite are recorded.",
+      "status": "PASS",
+      "checks": [
+        {
+          "id": "pna-transition",
+          "passed": true,
+          "actual": {
+            "duringTest": "Disabled",
+            "afterCleanup": "Enabled"
+          },
+          "expected": true
+        },
+        {
+          "id": "private-endpoint-approved",
+          "passed": true,
+          "actual": {
+            "provisioningState": "Succeeded",
+            "connectionStatus": "Approved",
+            "groupId": "account",
+            "privateDnsZoneCount": 3
+          },
+          "expected": true
+        }
+      ],
+      "evidence": [
+        "evidence/connectivity-run.json",
+        "evidence/raw/control-plane.json"
+      ]
+    },
+    {
+      "id": "RUN-005",
+      "applicable": false,
+      "status": "N/A",
+      "reason": "No process takeover or recovery claim is made.",
+      "checks": [],
+      "evidence": []
+    },
+    {
+      "id": "RUN-006",
+      "applicable": false,
+      "status": "N/A",
+      "reason": "The connectivity probe has no checkpoint or resume semantics.",
+      "checks": [],
+      "evidence": []
+    },
+    {
+      "id": "RUN-007",
+      "applicable": true,
+      "description": "Every terminal scenario contains the claimed business response.",
+      "status": "PASS",
+      "checks": [
+        {
+          "id": "public-policy-block",
+          "passed": true,
+          "actual": {
+            "dns": "public",
+            "http": 403,
+            "networkPolicyBlocked": true
+          },
+          "expected": true
+        },
+        {
+          "id": "private-completion",
+          "passed": true,
+          "actual": {
+            "dns": "private",
+            "http": 200,
+            "object": "chat.completion",
+            "model": "qwen--qwen3.6-27b",
+            "exitCode": 0
+          },
+          "expected": true
+        },
+        {
+          "id": "restored-public-http-response",
+          "passed": true,
+          "actual": {
+            "dns": "public",
+            "http": 200,
+            "model": "qwen--qwen3.6-27b"
+          },
+          "expected": true
+        }
+      ],
+      "evidence": [
+        "evidence/connectivity-run.json",
+        "evidence/raw/public-blocked.json",
+        "evidence/raw/private-success.json",
+        "evidence/raw/public-restored.json"
+      ]
+    },
+    {
+      "id": "RUN-008",
+      "applicable": false,
+      "status": "N/A",
+      "reason": "This is not a time-sequenced recovery report.",
+      "checks": [],
+      "evidence": []
+    },
+    {
+      "id": "RUN-009",
+      "applicable": false,
+      "status": "N/A",
+      "reason": "No crash, recovery, or replacement storyboard is claimed.",
+      "checks": [],
+      "evidence": []
+    },
+    {
+      "id": "RUN-010",
+      "applicable": false,
+      "status": "N/A",
+      "reason": "No latency or duration claim is made.",
+      "checks": [],
+      "evidence": []
+    },
+    {
+      "id": "RUN-011",
+      "applicable": true,
+      "description": "UI object proof and behavior proof are paired without conflation.",
+      "status": "PASS",
+      "checks": [
+        {
+          "id": "ui-hashes-and-boundaries",
+          "passed": true,
+          "actual": [],
+          "expected": []
+        },
+        {
+          "id": "deployment-ui-facts",
+          "passed": true,
+          "actual": "The tested deployment was GlobalManagedCompute, reached Succeeded, and used H100_80GB.",
+          "expected": true
+        }
+      ],
+      "evidence": [
+        "evidence/ui-evidence.json",
+        "images/product-ui/private-network-access-required.png",
+        "images/product-ui/deployment-facts.png",
+        "evidence/connectivity-run.json"
+      ]
+    },
+    {
+      "id": "RUN-012",
+      "applicable": true,
+      "description": "The scenario matrix covers block, private allow, and restore exactly once.",
+      "status": "PASS",
+      "checks": [
+        {
+          "id": "scenario-set",
+          "passed": true,
+          "actual": [
+            "public-blocked",
+            "private-success",
+            "public-restored"
+          ],
+          "expected": [
+            "public-blocked",
+            "private-success",
+            "public-restored"
+          ]
+        },
+        {
+          "id": "scenario-statuses",
+          "passed": true,
+          "actual": {
+            "public-blocked": "PASS",
+            "private-success": "PASS",
+            "public-restored": "PASS"
+          },
+          "expected": true
+        },
+        {
+          "id": "scenario-evidence-identity",
+          "passed": true,
+          "actual": true,
+          "expected": true
+        },
+        {
+          "id": "scenario-order-and-time",
+          "passed": true,
+          "actual": [
+            {
+              "sequence": 1,
+              "observedAtUtc": "2026-08-31T03:03:11.123Z"
+            },
+            {
+              "sequence": 2,
+              "observedAtUtc": "2026-08-31T03:07:05.161Z"
+            },
+            {
+              "sequence": 3,
+              "observedAtUtc": "2026-08-31T03:17:35.770Z"
+            }
+          ],
+          "expected": true
+        }
+      ],
+      "evidence": [
+        "evidence/connectivity-run.json",
+        "evidence/provenance.json",
+        "evidence/raw/public-blocked.json",
+        "evidence/raw/private-success.json",
+        "evidence/raw/public-restored.json"
+      ]
+    },
+    {
+      "id": "RUN-013",
+      "applicable": true,
+      "description": "The recorded post-test state is safe and complete.",
+      "status": "PASS",
+      "checks": [
+        {
+          "id": "temporary-resources-zero",
+          "passed": true,
+          "actual": 0,
+          "expected": 0
+        },
+        {
+          "id": "parent-restored",
+          "passed": true,
+          "actual": "Enabled",
+          "expected": "Enabled"
+        },
+        {
+          "id": "private-endpoints-removed",
+          "passed": true,
+          "actual": 0,
+          "expected": 0
+        }
+      ],
+      "evidence": [
+        "evidence/connectivity-run.json",
+        "evidence/raw/cleanup.json"
+      ]
+    },
+    {
+      "id": "RUN-014",
+      "applicable": true,
+      "description": "English and Chinese preserve facts, assets, boundaries, and commands.",
+      "status": "PASS",
+      "checks": [
+        {
+          "id": "bilingual-fact-ledger",
+          "passed": true,
+          "actual": {
+            "managed-compute-private-link-20260831": true,
+            "2026-08-31": true,
+            "does not prove that managed pods are injected": true,
+            "Managed Compute egress traverses": true,
+            "prompts or completions have zero retention": true,
+            "temporary test resource was removed": true,
+            "do not hard-code `Enabled`": true,
+            "parent Foundry account": true,
+            "earliest **public-safe sanitized": true
+          },
+          "expected": true
+        },
+        {
+          "id": "bilingual-command-parity",
+          "passed": true,
+          "actual": 10,
+          "expected": 10
+        },
+        {
+          "id": "bilingual-image-parity",
+          "passed": true,
+          "actual": [
+            "https://img.shields.io/badge/Microsoft%20Foundry-Managed%20Compute-0067b8",
+            "https://img.shields.io/badge/Azure-Private%20Link-0078d4",
+            "https://img.shields.io/badge/connectivity-public%20403%20%7C%20private%20200-2ea44f",
+            "https://github.com/david-xinyuwei/david-share/actions/workflows/managed-compute-private-endpoint-ci.yml/badge.svg",
+            "https://img.shields.io/badge/license-MIT-lightgrey",
+            "images/product-ui/deployment-facts.png",
+            "images/product-ui/private-network-access-required.png"
+          ],
+          "expected": [
+            "https://img.shields.io/badge/Microsoft%20Foundry-Managed%20Compute-0067b8",
+            "https://img.shields.io/badge/Azure-Private%20Link-0078d4",
+            "https://img.shields.io/badge/connectivity-public%20403%20%7C%20private%20200-2ea44f",
+            "https://github.com/david-xinyuwei/david-share/actions/workflows/managed-compute-private-endpoint-ci.yml/badge.svg",
+            "https://img.shields.io/badge/license-MIT-lightgrey",
+            "images/product-ui/deployment-facts.png",
+            "images/product-ui/private-network-access-required.png"
+          ]
+        }
+      ],
+      "evidence": [
+        "README.md",
+        "README-CN.md",
+        "evidence/run-contract.json"
+      ]
+    },
+    {
+      "id": "RUN-015",
+      "applicable": true,
+      "description": "Negative evidence and rule-contract mutations fail closed.",
+      "status": "PASS",
+      "checks": [
+        {
+          "id": "evidence-mutations-rejected",
+          "passed": true,
+          "actual": {
+            "raw-gap-rejected": true,
+            "duplicate-scenario-rejected": true,
+            "wrong-identity-rejected": true,
+            "wrong-run-rejected": true,
+            "duplicate-sequence-rejected": true,
+            "non-monotonic-time-rejected": true,
+            "missing-output-rejected": true,
+            "unsafe-cleanup-rejected": true
+          },
+          "expected": {
+            "raw-gap-rejected": true,
+            "duplicate-scenario-rejected": true,
+            "wrong-identity-rejected": true,
+            "wrong-run-rejected": true,
+            "duplicate-sequence-rejected": true,
+            "non-monotonic-time-rejected": true,
+            "missing-output-rejected": true,
+            "unsafe-cleanup-rejected": true
+          }
+        },
+        {
+          "id": "rule-contract-mutations-rejected",
+          "passed": true,
+          "actual": {
+            "missing-rule-rejected": true,
+            "duplicate-rule-rejected": true,
+            "unknown-rule-rejected": true,
+            "false-applicability-rejected": true,
+            "forged-pass-rejected": true,
+            "absolute-evidence-rejected": true,
+            "parent-evidence-rejected": true,
+            "missing-evidence-rejected": true,
+            "duplicate-check-rejected": true
+          },
+          "expected": {
+            "missing-rule-rejected": true,
+            "duplicate-rule-rejected": true,
+            "unknown-rule-rejected": true,
+            "false-applicability-rejected": true,
+            "forged-pass-rejected": true,
+            "absolute-evidence-rejected": true,
+            "parent-evidence-rejected": true,
+            "missing-evidence-rejected": true,
+            "duplicate-check-rejected": true
+          }
+        }
+      ],
+      "evidence": [
+        "tests/test_build_evidence.py",
+        "tests/test_set_public_network_access.py",
+        "tests/test_validate_repo.py",
+        "scripts/build_evidence.py",
+        "scripts/validate_repo.py"
+      ]
+    }
+  ]
+}

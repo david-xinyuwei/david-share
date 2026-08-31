@@ -1,0 +1,16 @@
+{
+  "id": "public-blocked",
+  "runId": "managed-compute-private-link-20260831",
+  "sequence": 1,
+  "sourceType": "sanitized-live-observation",
+  "captureTime": "NOT_AVAILABLE",
+  "observedAtUtc": "2026-08-31T03:03:11.123Z",
+  "caller": "Client outside the test VNet",
+  "dnsClass": "public",
+  "httpStatus": 403,
+  "errorCode": "403",
+  "networkPolicyBlocked": true,
+  "errorMessageSha256": "a9869784eb0f0f9c50cfc52b65118592c9a302d9f9406b413867b6dcbac8df39",
+  "requestIdSha256": "b945b1fe94eb7775a18f0990b99b058daa72a4318db8be4ac4ba2620db435ee3",
+  "status": "PASS"
+}

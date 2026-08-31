@@ -1,0 +1,14 @@
+{
+  "id": "public-restored",
+  "runId": "managed-compute-private-link-20260831",
+  "sequence": 3,
+  "sourceType": "sanitized-live-observation",
+  "captureTime": "NOT_AVAILABLE",
+  "observedAtUtc": "2026-08-31T03:17:35.770Z",
+  "caller": "Client outside the test VNet",
+  "dnsClass": "public",
+  "httpStatus": 200,
+  "responseModel": "qwen--qwen3.6-27b",
+  "requestIdSha256": "2dc77f170428cb8766ed17d7c7fc7d714ca44105a5cc135de893c0188d5ac3fb",
+  "status": "PASS"
+}

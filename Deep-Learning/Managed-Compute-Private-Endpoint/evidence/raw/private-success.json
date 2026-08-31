@@ -1,0 +1,22 @@
+{
+  "id": "private-success",
+  "runId": "managed-compute-private-link-20260831",
+  "sequence": 2,
+  "sourceType": "sanitized-live-observation",
+  "captureTime": "NOT_AVAILABLE",
+  "observedAtUtc": "2026-08-31T03:07:05.161Z",
+  "caller": "Ephemeral test container in a VNet workload subnet",
+  "dnsClass": "private",
+  "httpStatus": 200,
+  "responseObject": "chat.completion",
+  "responseModel": "qwen--qwen3.6-27b",
+  "runtimeFingerprint": "vllm-0.21.0-401ffc9d",
+  "usage": {
+    "promptTokens": 15,
+    "completionTokens": 4,
+    "totalTokens": 19
+  },
+  "requestIdSha256": "8d34cba88d5c2f72694914a068a5ddb967d30d72a5985341c5d70eb10d34a19e",
+  "runnerExitCode": 0,
+  "status": "PASS"
+}

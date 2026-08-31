@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "publicEvidenceClass": "sanitized transcription of an interactive live run",
+  "rawDirectoryMeaning": "Earliest public-safe observations, not byte-for-byte Azure logs",
+  "privateSourceRetention": "Exact command output and identifiers are retained outside this public repository",
+  "publicVerificationBoundary": "Repository hashes and evaluators prove internal consistency and change detection; they do not independently authenticate the withheld source",
+  "observationTimeBasis": "observedAtUtc is the archived client-tool completion time, not a service-side request timestamp",
+  "historicalRunSequence": [
+    "authenticated public request blocked while PNA was Disabled",
+    "authenticated private request returned a Chat Completions envelope while PNA was Disabled",
+    "authenticated public request returned HTTP 200 after PNA was restored"
+  ],
+  "safeReproductionDelta": "The Quick Start adds a private HTTP 200 guard before disabling PNA; that guard is a safety improvement and is not represented as a fourth historical observation",
+  "fieldRetentionBoundary": "The restored-public observation retained HTTP 200 and the response model, but not generated content, response object, usage, or choice count"
+}

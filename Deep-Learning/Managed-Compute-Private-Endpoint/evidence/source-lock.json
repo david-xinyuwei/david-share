@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {
+      "title": "How to configure network isolation for Microsoft Foundry",
+      "url": "https://learn.microsoft.com/azure/foundry/how-to/configure-private-link",
+      "gitCommit": "e6bd90a0228a200be8823e63e0c86330783bfb23",
+      "scope": "Foundry account inbound Private Endpoint and public network access"
+    },
+    {
+      "title": "Microsoft Foundry Models overview",
+      "url": "https://learn.microsoft.com/azure/foundry/concepts/foundry-models-overview",
+      "gitCommit": "3e7e30b1970c3c910459662865dd183faea64125",
+      "scope": "Managed compute and serverless deployment boundary"
+    },
+    {
+      "title": "Quickstart: Create a private endpoint - Azure CLI",
+      "url": "https://learn.microsoft.com/azure/private-link/create-private-endpoint-cli",
+      "gitCommit": "01f2a7e8a8dd7920f88a4e509241eb6f2cbd1187",
+      "scope": "Private Endpoint, VNet, and Private DNS mechanics"
+    }
+  ]
+}

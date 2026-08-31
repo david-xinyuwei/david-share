@@ -1,0 +1,41 @@
+name: Managed Compute Private Endpoint CI
+
+on:
+  push:
+    paths:
+      - "Deep-Learning/Managed-Compute-Private-Endpoint/**"
+      - ".github/workflows/managed-compute-private-endpoint-ci.yml"
+  pull_request:
+    paths:
+      - "Deep-Learning/Managed-Compute-Private-Endpoint/**"
+      - ".github/workflows/managed-compute-private-endpoint-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: Deep-Learning/Managed-Compute-Private-Endpoint
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Compile Python
+        run: python -m compileall -q scripts tests
+      - name: Run tests
+        run: python -m unittest discover -s tests -v
+      - name: Verify generated evidence
+        run: python scripts/build_evidence.py --check
+      - name: Validate repository
+        run: python scripts/validate_repo.py
+      - name: Build Bicep
+        uses: azure/cli@9f7ce6f37c31b777ec6c6b6d1dfe7db79f497956 # v2
+        with:
+          inlineScript: az bicep build --file Deep-Learning/Managed-Compute-Private-Endpoint/infra/main.bicep

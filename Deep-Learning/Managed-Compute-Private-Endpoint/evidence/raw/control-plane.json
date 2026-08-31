@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "sourceType": "sanitized-live-observation",
+  "runId": "managed-compute-private-link-20260831",
+  "dateUtc": "2026-08-31",
+  "target": {
+    "service": "Microsoft Foundry Managed Compute",
+    "deploymentType": "GlobalManagedCompute",
+    "accelerator": "H100_80GB",
+    "model": "qwen--qwen3.6-27b",
+    "endpointPattern": "https://<foundry-account>.services.ai.azure.com/openai/v1/chat/completions"
+  },
+  "request": {
+    "authentication": "Microsoft Entra bearer token",
+    "prompt": "Reply with exactly OK.",
+    "maxTokens": 4,
+    "temperature": 0
+  },
+  "controlPlane": {
+    "privateEndpoint": {
+      "provisioningState": "Succeeded",
+      "connectionStatus": "Approved",
+      "groupId": "account",
+      "privateDnsZoneCount": 3
+    },
+    "publicNetworkAccess": {
+      "duringTest": "Disabled",
+      "afterCleanup": "Enabled"
+    }
+  },
+  "doesNotProve": [
+    "Managed Compute pods are injected into the customer VNet",
+    "Managed Compute outbound traffic traverses the customer VNet",
+    "Prompt or completion zero retention",
+    "Service-side request timestamps or exact phase durations",
+    "Production readiness or SLA"
+  ]
+}
