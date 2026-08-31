@@ -393,8 +393,8 @@ flowchart LR
     D --> B[AIPerf 目标实测]
     B --> C[预测误差与冗余账本]
     C --> P
-    T[生产 trace] -. 后续实验阶段 .-> S[AI Simulate 与 Dynamo Replay]
-    S -. 策略候选 .-> R
+    T[生产 trace] -.-> S[AI Simulate 与 Dynamo Replay]
+    S -.-> R
 ```
 
 集成层负责输入规范化、运行标识、证据打包、校准和预测误差策略。AIConfigurator 仍是配置搜索权威；Dynamo/llm-d 负责部署；AIPerf 负责生成实测负载；AI Simulate 负责实验性的 trace 级搜索路径。

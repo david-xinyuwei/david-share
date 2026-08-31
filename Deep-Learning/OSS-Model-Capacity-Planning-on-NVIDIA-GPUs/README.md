@@ -393,8 +393,8 @@ flowchart LR
     D --> B[AIPerf target benchmark]
     B --> C[Prediction-error and reserve ledger]
     C --> P
-    T[Production trace] -. future .-> S[AI Simulate and Dynamo Replay]
-    S -. policy candidates .-> R
+    T[Production trace] -.-> S[AI Simulate and Dynamo Replay]
+    S -.-> R
 ```
 
 The integration layer owns input normalization, run identity, evidence packaging, calibration, and policy around acceptable prediction error. AIConfigurator remains the configuration-search authority; Dynamo/llm-d own deployment; AIPerf owns measured load generation; AI Simulate owns its experimental trace-search path.
