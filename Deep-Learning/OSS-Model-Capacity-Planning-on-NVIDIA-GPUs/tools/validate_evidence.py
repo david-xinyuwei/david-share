@@ -77,6 +77,9 @@ MECHANISM_TOKENS = (
     "prefill_latency_correction",
     "_ttft_queuing_factor",
     "_prefill_dispatch_overhead_ms",
+    "_match_workers",
+    "tokens/s/gpu_cluster",
+    "pick_load_match",
     "H100 NVL",
 )
 RATIO_TOKENS = {"english": "4.75x", "chinese": "4.75 倍"}
@@ -90,6 +93,15 @@ SELECTED_DISAGG_ROW = {
     "(p)parallel": "tp1pp1dp4etp4ep1",
     "(d)parallel": "tp1pp1dp8etp1ep8",
 }
+# The 32-GPU Disaggregated search returned a 24-GPU replica; 8 GPUs idle, cluster metric
+# falls below the per-replica metric. Both READMEs must disclose these numbers.
+IDLE_GPU_ARTIFACT_ROW = {
+    "scenario": "coding-agent-32gpu",
+    "num_total_gpus": 24,
+    "tokens/s/gpu": 132.525,
+    "tokens/s/gpu_cluster": 99.394,
+}
+IDLE_GPU_README_TOKENS = ("132.53", "99.39", "7.69")
 CODING_AGENT_LOG_TOKENS = (
     "Experiment agg completed with 211 results.",
     "Experiment disagg completed with 35 results.",
@@ -153,6 +165,11 @@ def sha256(path: Path) -> str:
 def first_row(path: Path) -> dict[str, str]:
     with path.open(encoding="utf-8", newline="") as handle:
         return next(csv.DictReader(handle))
+
+
+def all_rows(path: Path) -> list[dict[str, str]]:
+    with path.open(encoding="utf-8", newline="") as handle:
+        return list(csv.DictReader(handle))
 
 
 def load_manifest(path: Path) -> dict[str, Any]:
@@ -286,6 +303,34 @@ def validate_real_workloads(run_root: Path, manifest: dict[str, Any]) -> None:
     for token in CODING_AGENT_LOG_TOKENS:
         require(token in coding_log, f"coding-agent-16gpu log token missing: {token}")
     require("Perf-DB version: 0.24.0" in coding_log, "vLLM search version warning missing")
+
+    # Idle-GPU arithmetic: tokens/s/gpu_cluster must equal tokens/s/gpu scaled by the GPUs
+    # a whole number of replicas can actually occupy inside the budget.
+    artifact_seen = False
+    for scenario, expected in REAL_WORKLOAD_SCENARIOS.items():
+        budget = expected["totalGpus"]
+        for mode in ("agg", "disagg"):
+            for index, row in enumerate(all_rows(run_root / "results" / scenario / mode / "best_config_topn.csv"), 1):
+                replica = int(row["num_total_gpus"])
+                used = (budget // replica) * replica
+                expected_cluster = float(row["tokens/s/gpu"]) * used / budget
+                require(
+                    abs(float(row["tokens/s/gpu_cluster"]) - expected_cluster) < 0.01,
+                    f"{scenario} {mode} row {index}: tokens/s/gpu_cluster {row['tokens/s/gpu_cluster']} "
+                    f"does not equal tokens/s/gpu x {used}/{budget}",
+                )
+                if (
+                    scenario == IDLE_GPU_ARTIFACT_ROW["scenario"]
+                    and mode == "disagg"
+                    and replica == IDLE_GPU_ARTIFACT_ROW["num_total_gpus"]
+                ):
+                    require(
+                        abs(float(row["tokens/s/gpu"]) - IDLE_GPU_ARTIFACT_ROW["tokens/s/gpu"]) < 0.01
+                        and abs(float(row["tokens/s/gpu_cluster"]) - IDLE_GPU_ARTIFACT_ROW["tokens/s/gpu_cluster"]) < 0.01,
+                        f"{scenario} 24-GPU replica row drifted from the disclosed 132.53 / 99.39 values",
+                    )
+                    artifact_seen = True
+    require(artifact_seen, "coding-agent-32gpu disagg CSV no longer contains the 24-GPU replica row the README discusses")
     require(
         "Defaulting to backend version from dynamo 1.2.0: (vllm)0.20.1" in coding_log,
         "vLLM generated-config version warning missing",
@@ -337,6 +382,7 @@ def validate_readmes() -> None:
         readme_line,
         "EVIDENCE_VALIDATION=PASS RUNS=3 PUBLIC_BOUNDARY=PASS",
         *MECHANISM_TOKENS,
+        *IDLE_GPU_README_TOKENS,
         SELECTED_DISAGG_ROW["(p)parallel"],
         SELECTED_DISAGG_ROW["(d)parallel"],
     ):

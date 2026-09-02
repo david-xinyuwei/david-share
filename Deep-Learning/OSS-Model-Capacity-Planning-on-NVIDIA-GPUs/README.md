@@ -22,7 +22,7 @@ Capacity planning for open-source and open-weight models is not a lookup from pa
 
 This repository freezes the model, workload, platform, and SLO inputs; runs NVIDIA AIConfigurator 0.11.0 in `SILICON` mode on CPU; preserves the complete logs, Top-N CSVs, Pareto data, and generated candidates; and verifies their hashes and arithmetic. The results are AIConfigurator capacity predictions, which is the intended output of the tool.
 
-The Qwen cases in Section 6 demonstrate the method. They are examples, not the scope of the tool. In a same-model, same-GPU-budget comparison, workload inputs materially change the prediction: per-GPU throughput differs by 4.75x between the long-context coding-agent and short-context chat scenarios. Section 4.4 reads the pinned source to show exactly what arithmetic produced those numbers and lists ten modeling limitations that bound their use.
+The Qwen cases in Section 6 demonstrate the method. They are examples, not the scope of the tool. In a same-model, same-GPU-budget comparison, workload inputs materially change the prediction: per-GPU throughput differs by 4.75x between the long-context coding-agent and short-context chat scenarios. Section 4.4 reads the pinned source to show exactly what arithmetic produced those numbers and lists twelve modeling limitations that bound their use.
 
 ## 2. Tools and method used
 
@@ -31,8 +31,8 @@ The Qwen cases in Section 6 demonstrate the method. They are examples, not the s
 | Software | Official source | Role in this repository | Exact use here |
 |---|---|---|---|
 | NVIDIA AIConfigurator | [GitHub repository](https://github.com/ai-dynamo/aiconfigurator) · [v0.11.0](https://github.com/ai-dynamo/aiconfigurator/tree/v0.11.0) · [CLI guide](https://github.com/ai-dynamo/aiconfigurator/blob/v0.11.0/docs/cli_user_guide.md) | Performance modeling, configuration search, ranking, and deployment-config generation | Primary sizing engine; version `0.11.0`, commit `614b9c8c8725332533616786e2eb049df48935f0` |
-| vLLM | [GitHub repository](https://github.com/vllm-project/vllm) | Open-source inference backend | Used as a performance-database target in one local example; no model server was launched |
-| TensorRT-LLM | [GitHub repository](https://github.com/NVIDIA/TensorRT-LLM) | NVIDIA-optimized inference backend | Used as a performance-database target in one local example; no model server was launched |
+| vLLM | [GitHub repository](https://github.com/vllm-project/vllm) | Open-source inference backend | Performance-database target for the Qwen3-235B/H100 runs in Section 6.2; no model server was launched |
+| TensorRT-LLM | [GitHub repository](https://github.com/NVIDIA/TensorRT-LLM) | NVIDIA-optimized inference backend | Performance-database target for the Qwen3-32B/H200 run in Section 6.1; no model server was launched |
 
 AIConfigurator is Apache-2.0 software. Its built-in performance profiles are centered on NVIDIA GPU platforms and framework-specific implementations, so an open software path does not make the capacity model hardware-vendor neutral.
 
@@ -58,7 +58,7 @@ Given a model, NVIDIA system, inference backend, workload descriptor, and latenc
 
 - determine whether candidate topologies fit in GPU memory;
 - search Tensor, Pipeline, Data, Expert, and MoE Tensor Parallelism where applicable;
-- compare Static, Aggregated, and Disaggregated serving models;
+- compare Aggregated and Disaggregated serving; `cli default` builds exactly these two tasks, and the SDK's single-step Static mode is not searched;
 - estimate TTFT, TPOT, request latency, memory, and throughput;
 - filter candidates by the declared TTFT and TPOT limits and rank them by tokens/s/GPU; the Pareto frontier is emitted as a plotting output (Section 4.4);
 - calculate replicas and total GPUs for a request-rate or concurrency target;
@@ -70,7 +70,7 @@ It does not execute the model during ordinary configuration search, optimize ker
 
 | Path | Contract |
 |---|---|
-| [`tools/validate_evidence.py`](tools/validate_evidence.py) | Deterministic gate. Recomputes every published SHA-256 and byte count, checks each log's exit marker, rejects private paths, re-derives the H200 32/34 arithmetic, the four-GPU MoE topology, the three workload rows, the selected 16-GPU layout, and the 4.75x ratio, and compares both READMEs for required links, command blocks, mechanism tokens, and retired phrases. No network or GPU; the exit code is the verdict |
+| [`tools/validate_evidence.py`](tools/validate_evidence.py) | Deterministic gate. Recomputes every published SHA-256 and byte count, checks each log's exit marker, rejects private paths, re-derives the H200 32/34 arithmetic, the four-GPU MoE topology, the three workload rows, the selected 16-GPU layout, the 4.75x ratio, and the idle-GPU arithmetic on every Disaggregated row, and compares both READMEs for required links, command blocks, mechanism tokens, and retired phrases. No network or GPU; the exit code is the verdict |
 | [`tests/test_validate_evidence.py`](tests/test_validate_evidence.py) | Fail-closed proof. Copies this directory to a temporary location, applies one tampering per test, and asserts that the validator exits non-zero with the expected message |
 | [`tools/publish_run_evidence.py`](tools/publish_run_evidence.py) · [`tools/publish_real_scenario_evidence.py`](tools/publish_real_scenario_evidence.py) | Allowlisted copy from the run host into `evidence/runs/<run-id>/`. Replaces host identity and absolute paths, records source and published hashes. Needed only to publish a new run |
 | [`tools/make_report_figures.py`](tools/make_report_figures.py) | Regenerates Figures 1 and 3 from committed source and CSV evidence; Windows fonts and Pillow |
@@ -118,7 +118,7 @@ The Azure sizes named in the title map to AIConfigurator system profiles as foll
 
 | Azure size series | GPU per Microsoft Learn | AIConfigurator v0.11.0 system profile | Used by a published run |
 |---|---|---|---|
-| [ND H100 v5](https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/ndh100v5-series) | 8 x H100 SXM 80 GB, NVLink 4.0, 400 Gb/s InfiniBand per GPU | `h100_sxm`: 80 GiB, 3,350 GB/s, 8 GPUs per node, 450 GB/s intra-node, 400 Gb/s inter-node | Yes, every H100 result in Section 6.2 |
+| [ND H100 v5](https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/ndh100v5-series) | 8 x H100 80 GB, NVLink 4.0, 400 Gb/s InfiniBand per GPU; the page does not name the form factor, SXM is implied by the eight-GPU NVLink domain | `h100_sxm`: 80 GiB, 3,350 GB/s, 8 GPUs per node, 450 GB/s intra-node, 400 Gb/s inter-node | Yes, every H100 result in Section 6.2 |
 | [ND H200 v5](https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/nd-h200-v5-series) | 8 x H200 141 GB, 900 GB/s NVLink, 400 Gb/s InfiniBand per GPU | `h200_sxm` | Yes, Section 6.1 |
 | [NCads H100 v5](https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/ncadsh100v5-series) | 1 to 2 x H100 NVL 94 GB, PCIe form factor, no InfiniBand | None. The shipped `h100_pcie` profile describes an 80 GB PCIe part, and its YAML states that no silicon performance database is provided for it | No. No published number in this repository applies to NC-series sizes |
 
@@ -131,6 +131,8 @@ capacity input  = model definition + workload definition + platform definition
 candidate       = serving mode + parallelism + workers + batch/runtime settings
 capacity output = ranked candidates + predicted metrics + generated artifacts
 ```
+
+The throughput columns count output tokens only. A Disaggregated row's `tokens/s` is `seq/s x OSL`; an Aggregated row's is `b x (OSL - 1)` per step; prefill tokens, cached or not, never enter the numerator. `tokens/s/gpu` divides by the GPUs of one replica, `tokens/s/gpu_cluster` by the whole budget, so the two differ whenever the replica size does not divide the budget and GPUs sit idle. `tokens/s/user` is `1000 / TPOT` and `concurrency` is the number of in-flight sequences; reading them next to `tokens/s/gpu` shows whether a throughput difference comes from per-user speed or from how many sequences run at once.
 
 ### 3.5 Serving mode: Aggregated versus Disaggregated
 
@@ -195,7 +197,7 @@ aiconfigurator cli default
   -> SLA filter -> sort by tokens/s/gpu
 ```
 
-`AnalyticPredictor` describes itself as "steady-state analytic predictions (zero-queue)". The `sweep.py` module docstring states that the sweep returns the SLA-feasible candidate set, not a Pareto frontier, and that the frontier is a downstream plotting view; selection is sorting plus group-by. There is no discrete-event simulation, queueing solver, or learned model on this path. The two serving modes take different branches:
+`AnalyticPredictor` describes itself as "steady-state analytic predictions (zero-queue)". The `sweep.py` module docstring states that the sweep returns the SLA-feasible candidate set, not a Pareto frontier, and that the frontier is a downstream plotting view; selection is sorting plus group-by. There is no discrete-event simulation, queueing solver, or learned model on this path. `cli recommend`, used by Sections 5 and 6.1, runs the same sweeps and differs only in the picker: `picking.pick_load_match` chooses the candidate that needs the fewest GPUs to reach the target request rate under the SLA and adds the `replicas_needed` and `total_gpus_needed` columns, whereas `cli default` uses `pick_default`, which maximizes throughput for a fixed budget. The two serving modes take different branches:
 
 | Published row | Branch | Per-point predictor call |
 |---|---|---|
@@ -241,14 +243,14 @@ Every constant that touches the published rows, grouped by the layer it belongs 
 | Aggregated TPOT, TensorRT-LLM | `max(1, num_mix_steps - 3)` | `trtllm_backend.py` `_tpot_mix_steps` | Pipeline-drain bubble of about three steps; "empirical correction" |
 | Memory fit, H100 profile | `mem_bw x 0.8`, `3 us`, `other_mem` 3.5 GB, NCCL 342 to 392 MB | `aic-core/.../systems/h100_sxm.yaml` | Marked in the YAML as "nonofficial correction based on observations" |
 
-Despite its name, `autoscale_ttft_correction_factor` is applied by the ordinary non-autoscale search: `_find_best_disagg_under_constraint` assigns `ttft = ttft * 1.8` before the SLA comparison, and the overwritten column is what the Disaggregated result table reports. The two modes therefore do not pass through the same TTFT arithmetic before meeting the same limit: a vLLM Aggregated candidate is filtered on its step TTFT times `1 + log2(b)/8` plus dispatch overhead, a Disaggregated candidate on `1.98 x` its operation-level prefill TTFT. The mode comparison in Section 6.2 compares two calibrated heuristics.
+Despite its name, `autoscale_ttft_correction_factor` is applied by the ordinary non-autoscale search: `_find_best_disagg_under_constraint` assigns `ttft = ttft * 1.8` before the SLA comparison, and the overwritten column is what the Disaggregated result table reports. The two modes therefore do not pass through the same arithmetic before meeting the same limit. A vLLM Aggregated candidate is filtered on its step TTFT times `1 + log2(b)/8` plus the 0.8 ms-per-layer dispatch overhead, and its throughput is capped by Little's law; a Disaggregated candidate is filtered on `1.98 x` its operation-level prefill TTFT with no dispatch overhead and no throughput cap, because `run_static` applies neither hook. The branches even define `tokens/s` differently, `OSL - 1` output tokens per request for Aggregated and `OSL` for Disaggregated, a 0.2% tilt toward Disaggregated at OSL 500. The mode comparison in Section 6.2 compares two calibrated heuristics.
 
 **Selected 16-GPU rows, reconciled with the logs and CSVs:**
 
 | Step | Log line, CSV field, or arithmetic |
 |---|---|
-| Candidates | [`coding-agent-16gpu.log`](evidence/runs/qwen3-235b-h100-vllm-real-workloads/logs/coding-agent-16gpu.log): 211 Aggregated results, 35 Disaggregated results |
-| Skipped points | All `moe_tp=8` combinations: `(moe_intermediate_size=1536 / moe_tp_size=8) % weight_block_size=128 != 0` |
+| Rows retained | [`coding-agent-16gpu.log`](evidence/runs/qwen3-235b-h100-vllm-real-workloads/logs/coding-agent-16gpu.log): "agg completed with 211 results", "disagg completed with 35 results". These are not feasible-set sizes: `pareto_sweep` evaluates 75 TPOT thresholds from 1 to 295 ms, keeps the top 10 rows per layout per threshold (top 5 per constraint pair for Disaggregated), and deduplicates; the 50 ms limit is applied afterwards by the picker |
+| Skipped points | The four `moe_tp=8` layouts (`tp1dp8`, `tp2dp4`, `tp4dp2`, `tp8dp1`) are rejected in each of the agg, prefill, and decode enumerations, 12 log lines: `(moe_intermediate_size=1536 / moe_tp_size=8) % weight_block_size=128 != 0` |
 | Selected Disaggregated layout | `(p)workers=2` x 4 GPUs (`tp1pp1dp4etp4ep1`, `(p)bs=1`) + `(d)workers=1` x 8 GPUs (`tp1pp1dp8etp1ep8`, `(d)bs=13`) = 16 GPUs |
 | Throughput | 1,922.34 tokens/s / 16 = 120.15 tokens/s/gpu; 3.85 req/s x 500 OSL |
 | Reported TTFT | 2,037.14 ms already includes the 1.1 and 1.8 corrections; 2,037.14 / 1.98 = 1,029 ms is the operation-level estimate by arithmetic inversion, not a logged value |
@@ -261,14 +263,16 @@ Despite its name, `autoscale_ttft_correction_factor` is applied by the ordinary 
 
 1. Composition assumption: system latency is approximated by adding and interpolating operation measurements; fusion, overlap, contention, and scheduler interactions are only partly represented.
 2. Zero-queue base predictor with heuristic corrections: `AnalyticPredictor` is steady-state; queueing enters only through `_ttft_queuing_factor` on the Aggregated branch and the 1.8 factor on the Disaggregated branch, and neither is a queueing-model solution.
-3. Asymmetric mode filtering: the two branches apply different TTFT corrections before the same limit, so a mode ranking is a ranking of two heuristics.
+3. Asymmetric mode arithmetic: the branches apply different TTFT corrections, only Aggregated carries the dispatch overhead and the Little's-law cap, and `tokens/s` uses `OSL - 1` versus `OSL`, so a mode ranking is a ranking of two heuristics.
 4. Finite search grid: "best" means best among the enumerated TP/DP/ETP/EP/batch/worker choices.
-5. Skipped candidates: `sweep_agg` and `_get_disagg_worker_candidates` catch `Exception`, log, and continue; the log shows eight MoE combinations removed.
+5. Skipped candidates: `sweep_agg` and `_get_disagg_worker_candidates` catch `Exception`, log, and continue; the log shows the same four `moe_tp=8` layouts removed from all three enumerations.
 6. Data coverage gap: H100/vLLM 0.24.0 has no FP8 `context_attention` data and falls back to BF16 FMHA.
 7. Version split: the search used vLLM perf DB 0.24.0; `--generated-config-version` was not passed, so the generator defaulted through the Dynamo 1.2.0 mapping to vLLM 0.20.1.
 8. `SILICON` constrains the input data class, not per-point row provenance; the published bundle does not record which sampled rows the selected point used.
 9. Pareto is not the picker: the frontier is a plotting view; selection is SLA filtering plus sort and group-by.
-10. Narrow objective and profile constants: tokens/s/gpu excludes purchase price, power, failures, rollout capacity, and operational reserve, and the memory-fit boundary depends on the profile's 3.5 GB reserve rather than a measured allocator footprint.
+10. Narrow objective and memory budget: tokens/s/gpu excludes purchase price, power, failures, rollout capacity, and operational reserve. The vLLM memory check is `total <= 80 GiB` with the profile's 3.5 GB reserve and `free_gpu_memory_fraction: 1.0`; `VLLMBackend` states it has "no KV-cache-aware OOM accounting yet". The selected rows sit at 78.15 GiB (32-GPU Aggregated) and 75.37 GiB (16-GPU decode worker), above the 72 GiB that vLLM's default `gpu_memory_utilization=0.9` would allow, and the generated `generator_config.yaml` carries `max_batch_size` and `memory` but no utilization setting.
+11. Disaggregated worker counts optimize the replica, not the budget: `_match_workers` returns one `(prefill workers, decode workers)` pair per worker combination, the pair with the highest per-replica `tokens/s/gpu` among the allowed replica sizes; `tokens/s/gpu_cluster` is computed afterwards and drops when the replica does not divide the budget. Section 6.2 shows the 32-GPU consequence.
+12. No KV-cache transfer term: `_rate_match_dict` sets `request_latency = ttft + tpot x (OSL - 1)` and neither `sweep.py` nor `base_backend.py` charges time or bandwidth for moving KV from prefill to decode workers. For a 32,500-token FP8 context that is about 3.1 GB per request, or 0.39 GB if only the 4,000-token suffix moves, and the 16-GPU replica spans two eight-GPU nodes; the 1.8 factor is the only place this cost could be hiding.
 
 ## 5. Reproduce the complete CPU-offline run
 
@@ -497,7 +501,7 @@ README_VALIDATION=PASS LOG_LINKS=9 COMMAND_BLOCKS=10
 EVIDENCE_VALIDATION=PASS RUNS=3 PUBLIC_BOUNDARY=PASS
 ```
 
-The validator recomputes every published SHA-256, checks each log's exit marker, rejects private paths, verifies the 32/34 H200 capacity arithmetic, confirms the four-GPU MoE topology, checks the recorded CPU memory peak, verifies the real-workload replica arithmetic and SLA compliance, re-derives the 4.75x ratio, and compares the Section 4.4 candidate counts and selected 16-GPU layout against the log and CSV. It then checks both READMEs for the required log links, identical command blocks, mechanism tokens, and retired phrases.
+The validator recomputes every published SHA-256, checks each log's exit marker, rejects private paths, verifies the 32/34 H200 capacity arithmetic, confirms the four-GPU MoE topology, checks the recorded CPU memory peak, verifies the real-workload replica arithmetic and SLA compliance, re-derives the 4.75x ratio, compares the Section 4.4 retained-row counts and selected 16-GPU layout against the log and CSV, and recomputes `tokens/s/gpu_cluster` from `tokens/s/gpu` and the idle-GPU count on every Disaggregated row, including the 24-GPU row behind the 32-GPU result. It then checks both READMEs for the required log links, identical command blocks, mechanism tokens, and retired phrases.
 
 **Done-When:** the final line is exactly `EVIDENCE_VALIDATION=PASS RUNS=3 PUBLIC_BOUNDARY=PASS`.
 
@@ -507,9 +511,9 @@ The validator recomputes every published SHA-256, checks each log's exit marker,
 python -m unittest discover -s tests -v
 ```
 
-The suite copies this directory to a temporary location, applies one tampering per test, and expects `validate_evidence.py` to exit non-zero with the matching message: a flipped log byte, a forged manifest hash that hides a changed CSV value, a drifted README ratio, a drifted selected-layout token, a missing log link, a drifted bilingual command block, a retired Chinese phrase, and a private path inside a log. The untampered copy must still pass. No GPU, credentials, or network are needed.
+The suite copies this directory to a temporary location, applies one tampering per test, and expects `validate_evidence.py` to exit non-zero with the matching message: a flipped log byte, a forged manifest hash that hides a changed CSV value, a forged manifest hash that hides an inflated `tokens/s/gpu_cluster` on the 24-GPU row, a drifted README ratio, a drifted selected-layout token, a missing log link, a drifted bilingual command block, a retired Chinese phrase, and a private path inside a log. The untampered copy must still pass. No GPU, credentials, or network are needed.
 
-**Done-When:** all 9 tests report `ok` and the summary line is `OK`.
+**Done-When:** all 10 tests report `ok` and the summary line is `OK`.
 
 ## 6. Worked examples
 
@@ -549,9 +553,15 @@ All runs used `--strict-sla`, so every reported candidate satisfies both latency
 
 Three conclusions stay within what these predictions establish:
 
-1. **In this same-model, same-budget comparison, workload inputs materially change the capacity result.** At an identical 16-GPU budget, the chat scenario predicts 570.50 tokens/s/GPU while the coding-agent scenario predicts 120.15 tokens/s/GPU, a 4.75x difference. A capacity result must therefore name its workload and SLA inputs.
+1. **In this same-model, same-budget comparison, workload inputs materially change the capacity result.** At an identical 16-GPU budget, the chat scenario predicts 570.50 output tokens/s/GPU while the coding-agent scenario predicts 120.15, a 4.75x difference. Per-user decode speed is almost the same in both rows (`tokens/s/user` 20.77 versus 20.05); the gap is concurrency, 448 versus 104 in-flight sequences on the same 16 GPUs, set by KV-cache room for 32,000-token contexts and by the Disaggregated layout spending 8 of its 16 GPUs on prefill. The 4,000 uncached prefill tokens that every coding-agent request also processes are not in the numerator (Section 3.4). A capacity result must therefore name its workload, its SLA inputs, and its metric definition.
 2. **The recommended serving mode changes with the declared workload.** Under these inputs, Disaggregated predicts 1.20x higher per-GPU throughput for the 16-GPU coding-agent scenario, while Aggregated predicts 1.08x higher per-GPU throughput for the 16-GPU chat scenario. The serving mode must remain a search variable rather than a fixed preference.
-3. **The 16-GPU and 32-GPU coding-agent rows are not a single-variable scaling experiment.** They predict 3.85 and 6.40 cluster req/s, and 120.15 and 99.75 tokens/s/GPU, respectively, but the GPU budget, serving mode, and replica topology all change. The comparison cannot isolate the effect of GPU count on per-GPU efficiency.
+3. **The 32-GPU coding-agent row is the tool's output, not the best deployment inside its own search space.** Its Disaggregated search returned a 24-GPU replica (2 prefill workers x 4 GPUs + 2 decode workers x 8 GPUs) with 132.53 tokens/s/gpu per replica; 24 does not divide 32, 8 GPUs idle, and `tokens/s/gpu_cluster` falls to 99.39, so Aggregated won by 0.36%. Two copies of the 16-GPU Disaggregated replica would use all 32 GPUs at 120.15 tokens/s/gpu and 7.69 req/s, 20% above the reported best, with the same TTFT and TPOT. The tool never emitted that layout because `_match_workers` keeps only the per-replica optimum for each worker pair (Section 4.4, limitation 11); at 16 GPUs the 24-GPU option was outside the allowed replica sizes, at 32 GPUs it was inside. The 16-GPU and 32-GPU rows are therefore not a scaling experiment, and the 32-GPU mode flip is a search artifact rather than a property of the workload.
+
+| 32-GPU coding-agent candidate | Source | Replica | tokens/s/gpu | tokens/s/gpu_cluster | Cluster req/s |
+|---|---|---|---:|---:|---:|
+| Aggregated, reported best | [Aggregated CSV](evidence/runs/qwen3-235b-h100-vllm-real-workloads/results/coding-agent-32gpu/agg/best_config_topn.csv) rank 1 | 4 GPUs (`tp4pp1dp1etp4ep1`, bs 20) x 8 replicas | 99.75 | 99.75 | 6.40 |
+| Disaggregated, tool's rank 3 | [Disaggregated CSV](evidence/runs/qwen3-235b-h100-vllm-real-workloads/results/coding-agent-32gpu/disagg/best_config_topn.csv) rank 3 | 24 GPUs (2 x `tp1pp1dp4etp4ep1` + 2 x `tp1pp1dp8etp1ep8`) x 1 replica, 8 idle | 132.53 | 99.39 | 6.36 |
+| Disaggregated, not emitted | Arithmetic from the 16-GPU Disaggregated rank-1 row | 16 GPUs (2 x `tp1pp1dp4etp4ep1` + 1 x `tp1pp1dp8etp1ep8`) x 2 replicas | 120.15 | 120.15 | 7.69 |
 
 Comparing both serving modes at the same 16-GPU budget shows why the mode cannot be chosen by preference. The winner and the reason change with the workload shape:
 
@@ -569,7 +579,7 @@ Evidence for the capacity table:
 | Scenario | Full CLI log | Ranked candidates |
 |---|---|---|
 | Coding agent, 16 GPU | [`coding-agent-16gpu.log`](evidence/runs/qwen3-235b-h100-vllm-real-workloads/logs/coding-agent-16gpu.log) | [Disaggregated CSV](evidence/runs/qwen3-235b-h100-vllm-real-workloads/results/coding-agent-16gpu/disagg/best_config_topn.csv) |
-| Coding agent, 32 GPU | [`coding-agent-32gpu.log`](evidence/runs/qwen3-235b-h100-vllm-real-workloads/logs/coding-agent-32gpu.log) | [Aggregated CSV](evidence/runs/qwen3-235b-h100-vllm-real-workloads/results/coding-agent-32gpu/agg/best_config_topn.csv) |
+| Coding agent, 32 GPU | [`coding-agent-32gpu.log`](evidence/runs/qwen3-235b-h100-vllm-real-workloads/logs/coding-agent-32gpu.log) | [Aggregated CSV](evidence/runs/qwen3-235b-h100-vllm-real-workloads/results/coding-agent-32gpu/agg/best_config_topn.csv) · [Disaggregated CSV](evidence/runs/qwen3-235b-h100-vllm-real-workloads/results/coding-agent-32gpu/disagg/best_config_topn.csv) |
 | Interactive chat, 16 GPU | [`chat-16gpu.log`](evidence/runs/qwen3-235b-h100-vllm-real-workloads/logs/chat-16gpu.log) | [Aggregated CSV](evidence/runs/qwen3-235b-h100-vllm-real-workloads/results/chat-16gpu/agg/best_config_topn.csv) |
 
 Stage commands, argv, source hashes, and published hashes are in the [`run manifest`](evidence/runs/qwen3-235b-h100-vllm-real-workloads/run-manifest.json). Each scenario was executed in its own working directory inside the Section 5 environment; the coding-agent 16-GPU argv, verbatim from the manifest, is:
@@ -617,7 +627,9 @@ None of these numbers is a capacity requirement for Qwen3-235B in general. Each 
 | One workload point is not a traffic distribution | Capacity must be recomputed for normal, peak, and tail buckets |
 | Prediction error is not operational reserve | Tail latency, bursts, failures, startup, and upgrades require separate allowance |
 | Azure size coverage is partial | `h100_sxm` matches ND H100 v5; NCads H100 v5 uses H100 NVL 94 GB, which has no v0.11.0 profile, so no published number applies to NC-series sizes |
-| The serving-mode comparison is heuristic against heuristic | Aggregated and Disaggregated candidates pass through different TTFT correction arithmetic before the same limit (Section 4.4) |
+| The serving-mode comparison is heuristic against heuristic | Aggregated and Disaggregated candidates pass through different TTFT, overhead, cap, and `tokens/s` arithmetic before the same limit (Section 4.4) |
+| Disaggregated worker counts are chosen per replica, not per budget | A replica size that does not divide the budget leaves GPUs idle; compare `tokens/s/gpu_cluster` with `tokens/s/gpu` on every Disaggregated row before accepting a mode ranking (Section 6.2) |
+| The vLLM memory check uses the whole card | Selected rows sit at 94% to 98% of 80 GiB; vLLM's default `gpu_memory_utilization=0.9` would not grant the predicted KV blocks, and the generated config does not set the utilization |
 | The committed evidence contains CPU-offline predictions only | No committed result proves physical H100/H200 performance or production capacity |
 
 ## Appendix A. Evidence and references

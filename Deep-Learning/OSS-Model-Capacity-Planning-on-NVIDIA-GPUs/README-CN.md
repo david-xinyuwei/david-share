@@ -22,7 +22,7 @@
 
 本仓库冻结模型、工作负载、平台和 SLO 输入；在 CPU 上以 `SILICON` 模式运行 NVIDIA AIConfigurator 0.11.0；保存完整日志、Top-N CSV、Pareto 数据和生成的候选配置；并校验它们的哈希和算术。这些结果是 AIConfigurator 的容量预测，也正是该工具设计要输出的内容。
 
-第 6 节的 Qwen 案例用于演示方法。它们是示例，不是工具的适用范围。在同一模型、同一 GPU 预算的对比中，工作负载输入会显著改变预测：长上下文 Coding Agent 与短上下文 Chat 两个场景的每卡吞吐相差 4.75 倍。第 4.4 节对照固定版本的源码，说明这些数字究竟由哪些算术得出，并列出限制其使用范围的十项建模局限。
+第 6 节的 Qwen 案例用于演示方法。它们是示例，不是工具的适用范围。在同一模型、同一 GPU 预算的对比中，工作负载输入会显著改变预测：长上下文 Coding Agent 与短上下文 Chat 两个场景的每卡吞吐相差 4.75 倍。第 4.4 节对照固定版本的源码，说明这些数字究竟由哪些算术得出，并列出限制其使用范围的十二项建模局限。
 
 ## 2. 使用的工具与方法
 
@@ -31,8 +31,8 @@
 | 软件 | 官方来源 | 在本仓库中的角色 | 本次实际用法 |
 |---|---|---|---|
 | NVIDIA AIConfigurator | [GitHub repository](https://github.com/ai-dynamo/aiconfigurator) · [v0.11.0](https://github.com/ai-dynamo/aiconfigurator/tree/v0.11.0) · [CLI guide](https://github.com/ai-dynamo/aiconfigurator/blob/v0.11.0/docs/cli_user_guide.md) | 性能建模、配置搜索、排序和部署配置生成 | 主要的容量评估引擎；版本 `0.11.0`，commit `614b9c8c8725332533616786e2eb049df48935f0` |
-| vLLM | [GitHub repository](https://github.com/vllm-project/vllm) | 开源推理后端 | 在一个本地示例中作为性能数据库目标；未启动模型服务 |
-| TensorRT-LLM | [GitHub repository](https://github.com/NVIDIA/TensorRT-LLM) | NVIDIA 优化的推理后端 | 在一个本地示例中作为性能数据库目标；未启动模型服务 |
+| vLLM | [GitHub repository](https://github.com/vllm-project/vllm) | 开源推理后端 | 第 6.2 节 Qwen3-235B/H100 各次运行的性能数据库目标；未启动模型服务 |
+| TensorRT-LLM | [GitHub repository](https://github.com/NVIDIA/TensorRT-LLM) | NVIDIA 优化的推理后端 | 第 6.1 节 Qwen3-32B/H200 运行的性能数据库目标；未启动模型服务 |
 
 AIConfigurator 是 Apache-2.0 软件。它内置的性能数据以 NVIDIA GPU 平台和特定框架实现为中心，因此软件路径开放并不意味着这个容量模型与硬件厂商无关。
 
@@ -58,7 +58,7 @@ AIConfigurator 是 Apache-2.0 软件。它内置的性能数据以 NVIDIA GPU �
 
 - 判断候选拓扑能否装进 GPU 显存；
 - 在适用时搜索张量并行、流水线并行、数据并行、专家并行和 MoE 张量并行；
-- 比较 Static、Aggregated 和 Disaggregated 三种服务模式；
+- 比较 Aggregated 与 Disaggregated 两种服务模式；`cli default` 恰好只构建这两个任务，SDK 里的单步 Static 模式不在搜索范围内；
 - 预测 TTFT、TPOT、请求时延、显存和吞吐；
 - 按声明的 TTFT 和 TPOT 上限过滤候选，并按 tokens/s/GPU 排序；Pareto 前沿作为绘图输出给出（第 4.4 节）；
 - 按请求率或并发目标计算副本数和总 GPU 数；
@@ -70,7 +70,7 @@ AIConfigurator 是 Apache-2.0 软件。它内置的性能数据以 NVIDIA GPU �
 
 | 路径 | 职责约定 |
 |---|---|
-| [`tools/validate_evidence.py`](tools/validate_evidence.py) | 确定性门禁。重算每个公开文件的 SHA-256 和字节数，检查每份日志的退出码标记，拒绝私有路径，重新推导 H200 的 32/34 卡算术、四卡 MoE 拓扑、三个工作负载行、选中的 16 卡布局和 4.75 倍比值，并比对两份 README 的必需链接、命令块、机制标识和已停用短语。不需要网络或 GPU；退出码即结论 |
+| [`tools/validate_evidence.py`](tools/validate_evidence.py) | 确定性门禁。重算每个公开文件的 SHA-256 和字节数，检查每份日志的退出码标记，拒绝私有路径，重新推导 H200 的 32/34 卡算术、四卡 MoE 拓扑、三个工作负载行、选中的 16 卡布局、4.75 倍比值，以及每一行 Disaggregated 结果的闲置 GPU 算术，并比对两份 README 的必需链接、命令块、机制标识和已停用短语。不需要网络或 GPU；退出码即结论 |
 | [`tests/test_validate_evidence.py`](tests/test_validate_evidence.py) | 拒绝篡改的证明。把本目录复制到临时位置，每个测试只做一处篡改，并断言校验器以非零退出码和预期信息拒绝 |
 | [`tools/publish_run_evidence.py`](tools/publish_run_evidence.py) · [`tools/publish_real_scenario_evidence.py`](tools/publish_real_scenario_evidence.py) | 按允许清单从运行主机复制到 `evidence/runs/<run-id>/`。替换主机身份和绝对路径，记录源文件和公开文件哈希。只有发布新运行时才需要 |
 | [`tools/make_report_figures.py`](tools/make_report_figures.py) | 根据已提交源码和 CSV 证据重新生成图 1 和图 3；需要 Windows 字体和 Pillow |
@@ -118,7 +118,7 @@ AIConfigurator 是 Apache-2.0 软件。它内置的性能数据以 NVIDIA GPU �
 
 | Azure 规格系列 | Microsoft Learn 给出的 GPU | AIConfigurator v0.11.0 系统配置 | 是否被已公开运行使用 |
 |---|---|---|---|
-| [ND H100 v5](https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/ndh100v5-series) | 8 × H100 SXM 80 GB，NVLink 4.0，每 GPU 400 Gb/s InfiniBand | `h100_sxm`：80 GiB、3,350 GB/s、每节点 8 GPU、节点内 450 GB/s、节点间 400 Gb/s | 是，第 6.2 节的全部 H100 结果 |
+| [ND H100 v5](https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/ndh100v5-series) | 8 × H100 80 GB，NVLink 4.0，每 GPU 400 Gb/s InfiniBand；页面未写明形态，SXM 由八卡 NVLink 域推断 | `h100_sxm`：80 GiB、3,350 GB/s、每节点 8 GPU、节点内 450 GB/s、节点间 400 Gb/s | 是，第 6.2 节的全部 H100 结果 |
 | [ND H200 v5](https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/nd-h200-v5-series) | 8 × H200 141 GB，900 GB/s NVLink，每 GPU 400 Gb/s InfiniBand | `h200_sxm` | 是，第 6.1 节 |
 | [NCads H100 v5](https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/ncadsh100v5-series) | 1 至 2 × H100 NVL 94 GB，PCIe 形态，无 InfiniBand | 无。随附的 `h100_pcie` 配置描述的是 80 GB 的 PCIe 型号，其 YAML 注明未提供该型号的 silicon 性能数据库 | 否。本仓库没有任何公开数字适用于 NC 系列规格 |
 
@@ -131,6 +131,8 @@ capacity input  = model definition + workload definition + platform definition
 candidate       = serving mode + parallelism + workers + batch/runtime settings
 capacity output = ranked candidates + predicted metrics + generated artifacts
 ```
+
+吞吐列只统计输出 token。Disaggregated 行的 `tokens/s` 是 `seq/s × OSL`；Aggregated 行是每步 `b × (OSL − 1)`；prefill token 无论是否命中缓存都不进入分子。`tokens/s/gpu` 按一个副本的 GPU 数相除，`tokens/s/gpu_cluster` 按整个预算相除，因此只要副本尺寸不能整除预算、有 GPU 闲置，两者就会不同。`tokens/s/user` 是 `1000 / TPOT`，`concurrency` 是同时在途的序列数；把它们和 `tokens/s/gpu` 放在一起看，就能分清吞吐差异是来自每个用户的生成速度，还是来自同时运行的序列数量。
 
 ### 3.5 服务模式：Aggregated 与 Disaggregated
 
@@ -195,7 +197,7 @@ aiconfigurator cli default
   -> SLA 过滤 -> 按 tokens/s/gpu 排序
 ```
 
-`AnalyticPredictor` 自述为 "steady-state analytic predictions (zero-queue)"，即稳态、零排队的解析预测。`sweep.py` 的模块文档写明：sweep 返回的是满足 SLA 的候选集而不是 Pareto 前沿，前沿是下游的绘图视图；选优靠排序加分组。这条路径上没有离散事件仿真、排队论求解器或机器学习模型。两种服务模式走不同分支：
+`AnalyticPredictor` 自述为 "steady-state analytic predictions (zero-queue)"，即稳态、零排队的解析预测。`sweep.py` 的模块文档写明：sweep 返回的是满足 SLA 的候选集而不是 Pareto 前沿，前沿是下游的绘图视图；选优靠排序加分组。这条路径上没有离散事件仿真、排队论求解器或机器学习模型。第 5 节和第 6.1 节使用的 `cli recommend` 跑的是同样的 sweep，只有选优步骤不同：`picking.pick_load_match` 在 SLA 内选出达到目标请求率所需 GPU 最少的候选，并增加 `replicas_needed` 和 `total_gpus_needed` 两列；`cli default` 则用 `pick_default`，在固定预算下最大化吞吐。两种服务模式走不同分支：
 
 | 已公开的行 | 分支 | 逐点预测调用 |
 |---|---|---|
@@ -241,14 +243,14 @@ tokens/s/gpu = seq_s x OSL / total_gpus
 | Aggregated TPOT，TensorRT-LLM | `max(1, num_mix_steps - 3)` | `trtllm_backend.py` `_tpot_mix_steps` | 约三步的流水线排空气泡；"empirical correction" |
 | 显存装载，H100 配置 | `mem_bw x 0.8`、`3 us`、`other_mem` 3.5 GB、NCCL 342 到 392 MB | `aic-core/.../systems/h100_sxm.yaml` | YAML 中标注为 "nonofficial correction based on observations" |
 
-`autoscale_ttft_correction_factor` 这个名字有误导性：普通的非 autoscale 搜索同样使用它。`_find_best_disagg_under_constraint` 在比较 SLA 之前执行 `ttft = ttft * 1.8`，Disaggregated 结果表报告的就是这一覆盖后的列。因此，两种模式在面对同一上限之前并没有经过同样的 TTFT 算术：vLLM 的 Aggregated 候选按其单步 TTFT 乘 `1 + log2(b)/8` 再加派发开销过滤，Disaggregated 候选按算子级 Prefill TTFT 的 `1.98 倍` 过滤。第 6.2 节的模式对比，比较的是两套标定过的启发式。
+`autoscale_ttft_correction_factor` 这个名字有误导性：普通的非 autoscale 搜索同样使用它。`_find_best_disagg_under_constraint` 在比较 SLA 之前执行 `ttft = ttft * 1.8`，Disaggregated 结果表报告的就是这一覆盖后的列。因此，两种模式在面对同一上限之前并没有经过同样的算术。vLLM 的 Aggregated 候选按单步 TTFT 乘 `1 + log2(b)/8` 再加每层 0.8 ms 的派发开销过滤，吞吐还受 Little 定律上限约束；Disaggregated 候选按算子级 Prefill TTFT 的 `1.98 倍` 过滤，没有派发开销也没有吞吐上限，因为 `run_static` 两个钩子都不调用。两个分支连 `tokens/s` 的定义都不同：Aggregated 每请求按 `OSL − 1` 个输出 token 计，Disaggregated 按 `OSL` 计，在 OSL 500 时向 Disaggregated 倾斜 0.2%。第 6.2 节的模式对比，比较的是两套标定过的启发式。
 
 **选中的 16 卡各行与日志、CSV 的对账：**
 
 | 步骤 | 日志行、CSV 字段或算术 |
 |---|---|
-| 候选数 | [`coding-agent-16gpu.log`](evidence/runs/qwen3-235b-h100-vllm-real-workloads/logs/coding-agent-16gpu.log)：Aggregated 211 个结果，Disaggregated 35 个结果 |
-| 被跳过的点 | 所有 `moe_tp=8` 组合：`(moe_intermediate_size=1536 / moe_tp_size=8) % weight_block_size=128 != 0` |
+| 保留的行数 | [`coding-agent-16gpu.log`](evidence/runs/qwen3-235b-h100-vllm-real-workloads/logs/coding-agent-16gpu.log)："agg completed with 211 results"、"disagg completed with 35 results"。这不是可行集的大小：`pareto_sweep` 会对 1 到 295 ms 的 75 个 TPOT 阈值各评估一遍，每个布局每个阈值保留 top 10 行（Disaggregated 每个约束对保留 top 5），再去重；50 ms 上限是之后由选优步骤施加的 |
+| 被跳过的点 | 四种 `moe_tp=8` 布局（`tp1dp8`、`tp2dp4`、`tp4dp2`、`tp8dp1`）在 agg、prefill、decode 三次枚举中各被拒绝一次，共 12 行日志：`(moe_intermediate_size=1536 / moe_tp_size=8) % weight_block_size=128 != 0` |
 | 选中的 Disaggregated 布局 | `(p)workers=2` × 4 卡（`tp1pp1dp4etp4ep1`，`(p)bs=1`）+ `(d)workers=1` × 8 卡（`tp1pp1dp8etp1ep8`，`(d)bs=13`）= 16 卡 |
 | 吞吐 | 1,922.34 tokens/s ÷ 16 = 120.15 tokens/s/gpu；3.85 req/s × 500 OSL |
 | 报告的 TTFT | 2,037.14 ms 已包含 1.1 和 1.8 两个系数；2,037.14 / 1.98 = 1,029 ms 是反推得到的算子级估计，不是日志值 |
@@ -261,14 +263,16 @@ tokens/s/gpu = seq_s x OSL / total_gpus
 
 1. 组合假设：系统时延由算子实测值相加与插值近似得到；算子融合、重叠、争用和调度交互只得到部分体现。
 2. 零排队的基础预测器加启发式修正：`AnalyticPredictor` 是稳态模型；排队只通过 Aggregated 分支的 `_ttft_queuing_factor` 和 Disaggregated 分支的 1.8 系数进入，两者都不是排队模型的解。
-3. 模式过滤不对称：两个分支在同一上限前施加不同的 TTFT 修正，因此模式排名是两套启发式之间的排名。
+3. 模式算术不对称：两个分支施加不同的 TTFT 修正，只有 Aggregated 承担派发开销和 Little 定律上限，`tokens/s` 又分别按 `OSL − 1` 和 `OSL` 计，因此模式排名是两套启发式之间的排名。
 4. 有限搜索网格："最优"只是枚举的 TP/DP/ETP/EP/batch/worker 组合中的最优。
-5. 被跳过的候选：`sweep_agg` 与 `_get_disagg_worker_candidates` 捕获 `Exception` 后记日志继续；日志显示 8 个 MoE 组合被移除。
+5. 被跳过的候选：`sweep_agg` 与 `_get_disagg_worker_candidates` 捕获 `Exception` 后记日志继续；日志显示同样四种 `moe_tp=8` 布局在三次枚举中都被移除。
 6. 数据覆盖缺口：H100/vLLM 0.24.0 没有 FP8 `context_attention` 数据，回退到 BF16 FMHA。
 7. 版本分裂：搜索使用 vLLM 性能数据库 0.24.0；未传入 `--generated-config-version`，生成器因此按 Dynamo 1.2.0 的映射默认到 vLLM 0.20.1。
 8. `SILICON` 约束的是输入数据的类别，不是逐点的行来源；公开证据包没有记录选中点用到了哪些采样行。
 9. Pareto 不是选择器：前沿是绘图视图；选优靠 SLA 过滤加排序分组。
-10. 目标函数窄且依赖配置常数：tokens/s/gpu 不含采购价格、功耗、故障、滚动升级容量和运维余量，显存装载边界依赖配置文件中 3.5 GB 的预留常数，而不是实测的分配器占用。
+10. 目标函数窄且显存预算偏松：tokens/s/gpu 不含采购价格、功耗、故障、滚动升级容量和运维余量。vLLM 的显存检查是 `total <= 80 GiB`，只扣配置文件里 3.5 GB 的预留，且 `free_gpu_memory_fraction: 1.0`；`VLLMBackend` 自述 "no KV-cache-aware OOM accounting yet"。选中的行分别占 78.15 GiB（32 卡 Aggregated）和 75.37 GiB（16 卡 decode worker），都高于 vLLM 默认 `gpu_memory_utilization=0.9` 允许的 72 GiB，而生成的 `generator_config.yaml` 只带 `max_batch_size` 和 `memory`，没有设置 utilization。
+11. Disaggregated 的 worker 数按副本而不是按预算选优：`_match_workers` 对每个 worker 组合只返回一对 `(Prefill worker 数, Decode worker 数)`，即允许的副本尺寸中单副本 `tokens/s/gpu` 最高的那一对；`tokens/s/gpu_cluster` 事后才计算，副本尺寸不能整除预算时它就会下降。第 6.2 节给出 32 卡时的后果。
+12. 没有 KV Cache 传输项：`_rate_match_dict` 令 `request_latency = ttft + tpot × (OSL − 1)`，`sweep.py` 和 `base_backend.py` 都不为把 KV 从 Prefill worker 搬到 Decode worker 计入时间或带宽。32,500 token 的 FP8 上下文每请求约 3.1 GB，只搬 4,000 token 的尾部也有 0.39 GB，而 16 卡副本跨两个八卡节点；1.8 系数是这项成本唯一可能藏身的地方。
 
 ## 5. 完整复现一次 CPU 离线预测
 
@@ -497,7 +501,7 @@ README_VALIDATION=PASS LOG_LINKS=9 COMMAND_BLOCKS=10
 EVIDENCE_VALIDATION=PASS RUNS=3 PUBLIC_BOUNDARY=PASS
 ```
 
-校验器重算每个公开文件的 SHA-256，检查每份日志的退出码标记，拒绝私有路径，核对 H200 的 32/34 卡容量算术，确认四卡 MoE 拓扑，检查记录的 CPU 内存峰值，核对真实工作负载的副本算术和 SLA 合规，重新推导 4.75 倍比值，并把第 4.4 节的候选数与选中的 16 卡布局同日志和 CSV 比对。随后检查两份 README 的必需日志链接、相同的命令块、机制标识和已停用短语。
+校验器重算每个公开文件的 SHA-256，检查每份日志的退出码标记，拒绝私有路径，核对 H200 的 32/34 卡容量算术，确认四卡 MoE 拓扑，检查记录的 CPU 内存峰值，核对真实工作负载的副本算术和 SLA 合规，重新推导 4.75 倍比值，把第 4.4 节保留的行数与选中的 16 卡布局同日志和 CSV 比对，并对每一行 Disaggregated 结果用 `tokens/s/gpu` 和闲置 GPU 数重算 `tokens/s/gpu_cluster`，包括 32 卡结果背后那行 24 卡副本。随后检查两份 README 的必需日志链接、相同的命令块、机制标识和已停用短语。
 
 **完成标准：** 最后一行必须严格等于 `EVIDENCE_VALIDATION=PASS RUNS=3 PUBLIC_BOUNDARY=PASS`。
 
@@ -507,9 +511,9 @@ EVIDENCE_VALIDATION=PASS RUNS=3 PUBLIC_BOUNDARY=PASS
 python -m unittest discover -s tests -v
 ```
 
-测试套件把本目录复制到临时位置，每个测试只做一处篡改，并要求 `validate_evidence.py` 以非零退出码和对应信息拒绝：翻转一个日志字节、伪造 manifest 哈希以掩盖被改动的 CSV 数值、README 中比值漂移、选中布局标识漂移、缺少日志链接、双语命令块漂移、已停用的中文短语，以及日志中的私有路径。未篡改的副本必须仍然通过。不需要 GPU、凭据或网络。
+测试套件把本目录复制到临时位置，每个测试只做一处篡改，并要求 `validate_evidence.py` 以非零退出码和对应信息拒绝：翻转一个日志字节、伪造 manifest 哈希以掩盖被改动的 CSV 数值、伪造 manifest 哈希以掩盖 24 卡副本行被抬高的 `tokens/s/gpu_cluster`、README 中比值漂移、选中布局标识漂移、缺少日志链接、双语命令块漂移、已停用的中文短语，以及日志中的私有路径。未篡改的副本必须仍然通过。不需要 GPU、凭据或网络。
 
-**完成标准：** 全部 9 个测试报告 `ok`，汇总行为 `OK`。
+**完成标准：** 全部 10 个测试报告 `ok`，汇总行为 `OK`。
 
 ## 6. 完整示例
 
@@ -549,9 +553,15 @@ Coding Agent 场景模拟的是累积上下文大部分已缓存的 Agent 循环
 
 这些预测能够支持、且不超出其证明范围的三条结论：
 
-1. **在这个同模型、同预算的对比中，工作负载输入显著改变容量结果。** 同样 16 卡预算下，Chat 场景预测 570.50 tokens/s/GPU，Coding Agent 场景预测 120.15 tokens/s/GPU，相差 4.75 倍。因此容量结果必须写明其工作负载和 SLA 输入。
+1. **在这个同模型、同预算的对比中，工作负载输入显著改变容量结果。** 同样 16 卡预算下，Chat 场景预测每卡 570.50 输出 tokens/s，Coding Agent 场景预测 120.15，相差 4.75 倍。两行的每用户生成速度几乎相同（`tokens/s/user` 20.77 对 20.05）；差距来自并发——同样 16 张卡上 448 对 104 个在途序列——由 32,000 token 上下文能占用的 KV Cache 空间，以及 Disaggregated 布局把 16 卡中的 8 卡用于 Prefill 共同决定。每个 Coding Agent 请求还要处理的 4,000 个未缓存 prefill token 不在分子里（第 3.4 节）。因此容量结果必须写明工作负载、SLA 输入和指标定义。
 2. **推荐的服务模式随声明的工作负载改变。** 在这些输入下，16 卡 Coding Agent 场景中 Disaggregated 预测的每卡吞吐高 1.20 倍，16 卡 Chat 场景中 Aggregated 预测的每卡吞吐高 1.08 倍。服务模式必须保留为搜索变量，而不是固定偏好。
-3. **16 卡和 32 卡的 Coding Agent 行不是单变量扩容实验。** 它们分别预测 3.85 和 6.40 集群 req/s、120.15 和 99.75 tokens/s/GPU，但 GPU 预算、服务模式和副本拓扑都变了。这一对比无法分离 GPU 数量对每卡效率的影响。
+3. **32 卡 Coding Agent 那一行是工具的输出，不是它自己搜索空间里的最优部署。** 该次 Disaggregated 搜索返回的是一个 24 卡副本（2 个 Prefill worker × 4 卡 + 2 个 Decode worker × 8 卡），单副本 132.53 tokens/s/gpu；24 不能整除 32，8 张卡闲置，`tokens/s/gpu_cluster` 落到 99.39，Aggregated 因此以 0.36% 胜出。把 16 卡的 Disaggregated 副本复制两份即可用满 32 卡，得到 120.15 tokens/s/gpu 和 7.69 req/s，比报告的最优高 20%，TTFT 与 TPOT 不变。工具没有生成这一布局，因为 `_match_workers` 对每个 worker 组合只保留单副本最优解（第 4.4 节局限 11）；16 卡时 24 卡方案在允许的副本尺寸之外，32 卡时它在范围之内。因此 16 卡和 32 卡两行不是扩容实验，32 卡时的模式反转是搜索产物，不是工作负载的性质。
+
+| 32 卡 Coding Agent 候选 | 来源 | 副本 | tokens/s/gpu | tokens/s/gpu_cluster | 集群 req/s |
+|---|---|---|---:|---:|---:|
+| Aggregated，报告的最优 | [Aggregated CSV](evidence/runs/qwen3-235b-h100-vllm-real-workloads/results/coding-agent-32gpu/agg/best_config_topn.csv) 第 1 名 | 4 卡（`tp4pp1dp1etp4ep1`，bs 20）× 8 个副本 | 99.75 | 99.75 | 6.40 |
+| Disaggregated，工具的第 3 名 | [Disaggregated CSV](evidence/runs/qwen3-235b-h100-vllm-real-workloads/results/coding-agent-32gpu/disagg/best_config_topn.csv) 第 3 名 | 24 卡（2 × `tp1pp1dp4etp4ep1` + 2 × `tp1pp1dp8etp1ep8`）× 1 个副本，8 卡闲置 | 132.53 | 99.39 | 6.36 |
+| Disaggregated，未被生成 | 由 16 卡 Disaggregated 第 1 名行算术推得 | 16 卡（2 × `tp1pp1dp4etp4ep1` + 1 × `tp1pp1dp8etp1ep8`）× 2 个副本 | 120.15 | 120.15 | 7.69 |
 
 在同样 16 卡预算下比较两种服务模式，说明了模式为什么不能凭偏好选择。赢家和赢的原因都随工作负载特征改变：
 
@@ -569,7 +579,7 @@ Chat 场景中，Disaggregated 预测的 TTFT 低 37%，每卡吞吐低 7%。Cod
 | 场景 | 完整 CLI 日志 | 候选排序结果 |
 |---|---|---|
 | Coding Agent，16 卡 | [`coding-agent-16gpu.log`](evidence/runs/qwen3-235b-h100-vllm-real-workloads/logs/coding-agent-16gpu.log) | [Disaggregated CSV](evidence/runs/qwen3-235b-h100-vllm-real-workloads/results/coding-agent-16gpu/disagg/best_config_topn.csv) |
-| Coding Agent，32 卡 | [`coding-agent-32gpu.log`](evidence/runs/qwen3-235b-h100-vllm-real-workloads/logs/coding-agent-32gpu.log) | [Aggregated CSV](evidence/runs/qwen3-235b-h100-vllm-real-workloads/results/coding-agent-32gpu/agg/best_config_topn.csv) |
+| Coding Agent，32 卡 | [`coding-agent-32gpu.log`](evidence/runs/qwen3-235b-h100-vllm-real-workloads/logs/coding-agent-32gpu.log) | [Aggregated CSV](evidence/runs/qwen3-235b-h100-vllm-real-workloads/results/coding-agent-32gpu/agg/best_config_topn.csv) · [Disaggregated CSV](evidence/runs/qwen3-235b-h100-vllm-real-workloads/results/coding-agent-32gpu/disagg/best_config_topn.csv) |
 | 交互式 Chat，16 卡 | [`chat-16gpu.log`](evidence/runs/qwen3-235b-h100-vllm-real-workloads/logs/chat-16gpu.log) | [Aggregated CSV](evidence/runs/qwen3-235b-h100-vllm-real-workloads/results/chat-16gpu/agg/best_config_topn.csv) |
 
 阶段命令、argv、源哈希和公开哈希在 [`运行清单`](evidence/runs/qwen3-235b-h100-vllm-real-workloads/run-manifest.json) 中。每个场景都在第 5 节的环境里各自的工作目录中执行；Coding Agent 16 卡的 argv 原样摘自 manifest：
@@ -617,7 +627,9 @@ aiconfigurator cli default \
 | 一个工作负载点不是流量分布 | 必须为正常、峰值和尾部分组分别重算容量 |
 | 预测误差不是运维余量 | 尾时延、突发、故障、启动和升级需要单独预留 |
 | Azure 规格覆盖是部分的 | `h100_sxm` 对应 ND H100 v5；NCads H100 v5 使用 H100 NVL 94 GB，v0.11.0 没有它的配置，因此没有任何公开数字适用于 NC 系列规格 |
-| 服务模式对比是启发式对启发式 | Aggregated 与 Disaggregated 候选在面对同一上限之前经过不同的 TTFT 修正算术（第 4.4 节） |
+| 服务模式对比是启发式对启发式 | Aggregated 与 Disaggregated 候选在面对同一上限之前经过不同的 TTFT、开销、上限和 `tokens/s` 算术（第 4.4 节） |
+| Disaggregated 的 worker 数按副本而非按预算选定 | 副本尺寸不能整除预算时会有 GPU 闲置；接受任何模式排名前，先比较每一行 Disaggregated 结果的 `tokens/s/gpu_cluster` 与 `tokens/s/gpu`（第 6.2 节） |
+| vLLM 的显存检查按整卡计算 | 选中的行占用 80 GiB 的 94% 到 98%；vLLM 默认 `gpu_memory_utilization=0.9` 不会分配出预测所需的 KV block，而生成的配置没有设置 utilization |
 | 已提交证据只包含 CPU 离线预测 | 没有任何已提交结果证明 H100/H200 的实机性能或生产容量 |
 
 ## 附录 A. 证据与参考资料

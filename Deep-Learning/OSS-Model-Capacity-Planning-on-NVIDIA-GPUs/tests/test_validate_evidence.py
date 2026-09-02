@@ -27,6 +27,7 @@ SUBTREE = Path(__file__).resolve().parents[1]
 REAL_WORKLOADS = Path("evidence/runs/qwen3-235b-h100-vllm-real-workloads")
 CODING_LOG = REAL_WORKLOADS / "logs/coding-agent-16gpu.log"
 CODING_CSV = REAL_WORKLOADS / "results/coding-agent-16gpu/disagg/best_config_topn.csv"
+CODING_32_CSV = REAL_WORKLOADS / "results/coding-agent-32gpu/disagg/best_config_topn.csv"
 MANIFEST = REAL_WORKLOADS / "run-manifest.json"
 IGNORE = shutil.ignore_patterns(".venv", "run-output", "__pycache__", ".git", "*.pyc")
 
@@ -106,6 +107,12 @@ class ValidatorFailsClosed(unittest.TestCase):
         self.copy.replace_once(CODING_CSV, ",120.146,", ",121.146,")
         self.copy.forge_manifest_entry("results/coding-agent-16gpu/disagg/best_config_topn.csv")
         self.assert_rejected("tokens/s/gpu drift")
+
+    def test_forged_hash_does_not_hide_inflated_cluster_metric(self) -> None:
+        # Pretend the 24-GPU replica used all 32 GPUs by copying tokens/s/gpu into tokens/s/gpu_cluster.
+        self.copy.replace_once(CODING_32_CSV, ",99.39375000000001", ",132.525")
+        self.copy.forge_manifest_entry("results/coding-agent-32gpu/disagg/best_config_topn.csv")
+        self.assert_rejected("does not equal tokens/s/gpu x 24/32")
 
     def test_readme_ratio_drift_is_rejected(self) -> None:
         self.copy.write("README.md", self.copy.read("README.md").replace("4.75x", "4.8x"))
