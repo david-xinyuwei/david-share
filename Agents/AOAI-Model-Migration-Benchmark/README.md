@@ -21,7 +21,7 @@ Production-grade benchmark and traffic-management toolkit for migrating a low-la
 |------|---------------|
 | Azure service | Azure OpenAI Service + Azure API Management + Azure Monitor / Application Insights |
 | Primary API path | Responses API with `stream=True`; `web_search_preview` and WebIQ explicit retrieval are both benchmarked for every web-search scenario |
-| Models tested | gpt-4o-mini, gpt-5.4-nano, gpt-5.4-mini, gpt-5-nano, gpt-5-mini; gpt-5.6-luna / gpt-5.6-sol / gpt-5.6-terra and gpt-5.4 in the knowledge-only addendum (Section 3.5) |
+| Models tested | gpt-4o-mini, gpt-5.4-nano, gpt-5.4-mini, gpt-5-nano, gpt-5-mini; gpt-5.6-luna / gpt-5.6-sol / gpt-5.6-terra, gpt-5.4 and a same-venue gpt-4o-mini baseline in the knowledge-only addendum (Section 3.5) |
 | Traffic management | PTU first, APIM proactive routing to PAYGO at high utilization, 429 retry safety net |
 | Runtime | Python benchmark scripts + optional Node.js PTU monitor proxy |
 | Authentication | API key for benchmark scripts (the Section 3.5 script also supports Microsoft Entra ID via Azure CLI); APIM named values/backends for routing PoC |
@@ -141,6 +141,7 @@ A customer loop asking `gpt-5.6-luna` a tool-free question showed a ~2 s median 
 | Why is Luna's default TTFT higher than Terra's? | Default reasoning effort; at `effort=none` the three 5.6 variants have the same TTFT and Luna the fastest E2E. | [3.5.4](#354-single-variable-reasoningeffort-for-the-56-family-streaming-15-samples-per-cell) |
 | Where does a 15–60 s tail come from? | A live `429 no_capacity` peak-load event plus the SDK's default retries, which turn rejected attempts into 15–26 s "successes". | [3.5.2](#352-what-a-capacity-event-looks-like-from-the-client), [3.5.3](#353-single-variable-sdk-automatic-retries-max_retries2-the-sdk-default) |
 | Does a >1,024-token system prompt (prompt caching) help? | It caches (58/59 hits) and saves cost; a hit does not lower TTFT on any of the four models. Verify the token count from `usage`, not offline. | [3.5.6](#356-single-variable-a-1200-token-system-prompt-cached-vs-never-cached-streaming-15-samples-per-cell) |
+| How does it compare with gpt-4o-mini, and is `datazone` the problem? | gpt-4o-mini has the faster first token (0.69 s vs 2.01 s) but the slower finished answer (5.63 s vs 3.24 s) because it decodes 2.5× slower. `gpt-5.6-luna` on DataZoneStandard vs GlobalStandard shows no significant difference (p ≥ 0.36) — the SKU in the name is not the cause. | [3.5.7](#357-the-missing-baseline-gpt-4o-mini-in-the-same-venue-and-datazone-vs-globalstandard) |
 | What to change on the client? | `max_retries=0` while diagnosing, log request id / status / `retries_taken` / usage / token-provider time, pin `reasoning.effort`, interleave compared models and conditions. | [Findings](#findings-and-guidance) |
 
 **Production settings for web_search path** (customer's architecture):
@@ -649,6 +650,67 @@ Six requests in run B waited 2.7–4.3 s before the response headers arrived, ac
 
 </details>
 
+#### 3.5.7 The missing baseline: gpt-4o-mini in the same venue, and DataZone vs. GlobalStandard
+
+Two gaps remained after 3.5.6. First, every comparison so far was between new models — **gpt-4o-mini, the model this repo is about migrating away from, was never in the same run**, so the only link to Section 3.1 was a cross-benchmark estimate. Second, the customer's deployment is named `gpt-5.6-luna-datazone`, and Section 3.5 could only say that a deployment name is not SKU evidence.
+
+Both are closed by deploying two more deployments on the **same resource and region** as everything above:
+
+| Deployment | Model | SKU | Note |
+|---|---|---|---|
+| `gpt-4o-mini` | gpt-4o-mini 2024-07-18 | **DataZoneStandard** | GlobalStandard refuses new gpt-4o-mini deployments (`ServiceModelDeprecating: the model ... is in deprecating state and cannot be used for new deployments`, same error in Sweden Central and East US 2). DataZoneStandard still accepts them. |
+| `gpt-5.6-luna-datazone` | gpt-5.6-luna 2026-07-09 | **DataZoneStandard** | Same model, version and resource as the existing GlobalStandard `gpt-5.6-luna`; **only the SKU differs**, which is what makes the SKU question answerable. |
+
+The second deployment also removes the confound created by the first: gpt-4o-mini can only be tested on DataZoneStandard, so the Luna Global-vs-DataZone pair is what proves the SKU is not doing the work.
+
+##### The SKU question: DataZoneStandard is not slower than GlobalStandard
+
+`gpt-5.6-luna` on both SKUs, interleaved request by request in the same minutes, 25 samples per cell, `max_retries=0`:
+
+| Mode | Metric | GlobalStandard | DataZoneStandard | p |
+|---|---|:-:|:-:|:-:|
+| stream | TTFT p50 | 2.51s | 2.85s | 0.36 |
+| stream | E2E p50 | 4.63s | 5.24s | 0.44 |
+| stream | E2E p95 / max | 12.28s / 14.26s | 9.98s / 13.15s | — |
+| non-stream | E2E p50 | 4.07s | 4.36s | 0.58 |
+| non-stream | E2E p95 / max | 8.18s / 9.88s | 9.56s / 11.16s | — |
+
+No metric separates the two SKUs (permutation test on median difference, 20,000 shuffles), and the tails cross over. **A `datazone` deployment name does not by itself explain a latency problem.** If the customer's DataZone deployment behaves differently from this one, the cause is its region, its capacity, or the load on its specific pool — not the SKU as such.
+
+##### The baseline question: gpt-4o-mini has the fastest first token and the slowest answer
+
+All three deployments interleaved in one clean window (no capacity event, no elevated latency; `stream=True`, 20 samples per cell):
+
+| Model | TTFT p50 / p95 | E2E p50 / max | decode | output tokens | requests > 5s |
+|---|:-:|:-:|:-:|:-:|:-:|
+| **gpt-4o-mini** (DataZone) | **0.69s** / 1.02s | 5.63s / 10.86s | 59 tok/s | 321 | **14/20** |
+| gpt-5.6-luna (Global) | 2.01s / 2.48s | **3.24s** / **4.63s** | **147 tok/s** | 288 | **0/20** |
+| gpt-5.6-terra (Global) | 1.45s / 61.93s | 3.56s / 64.66s | 101 tok/s | 224 | 5/20 |
+
+- **gpt-4o-mini's 0.69 s TTFT reproduces Section 3.1 exactly** (0.57–0.69 s p50 measured in March from East Asia to East US 2). A five-month-old number, a different region and a different prompt landed on the same value — that is the anchor that makes the cross-benchmark comparison in this addendum legitimate rather than an estimate.
+- **On first token gpt-4o-mini still wins**: 0.69 s vs Luna's 2.01 s, a 1.32 s gap (p < 0.0001). Luna spends ~90 reasoning tokens before speaking; gpt-4o-mini spends none.
+- **On the finished answer Luna wins by more**: E2E p50 3.24 s vs 5.63 s, a 2.39 s gap in the other direction (p < 0.0001), because Luna decodes at **2.5× the speed** (147 vs 59 tok/s, p < 0.0001) while producing a comparable answer length. 14 of 20 gpt-4o-mini requests took over 5 seconds end to end; none of Luna's did.
+- **Which one is "faster" depends on the product surface.** For a UI that streams tokens as they arrive, gpt-4o-mini feels faster to start. For an assistant that must show a complete answer — the customer's knowledge-Q&A case — Luna is the faster model, and pinning `reasoning.effort=none` (Section 3.5.4) removes most of its TTFT disadvantage as well.
+
+##### A reproducible ~62-second server-side hold, on exactly one model pool
+
+The same two runs surfaced something no amount of client instrumentation would have found:
+
+| Observation | Value |
+|---|---|
+| Affected deployment | `gpt-5.6-terra` (GlobalStandard) only |
+| Frequency | **21 of 75** successful requests (28%), across two independent time windows 80 minutes apart |
+| Response headers | arrive normally: TTFB 0.54–4.95 s |
+| First output token | 61.42–65.02 s, median **62.16 s**, **standard deviation 0.96 s** |
+| HTTP status / retries | 200 on every one, `retries_taken` = 0 on every one |
+| Other five deployments in the same runs | **0** requests above 60 s |
+
+A standard deviation under one second across 21 events is not queueing — queueing is heavy-tailed and spread out. It is a **deterministic ~62-second boundary**, consistent with a backend that stops responding and a gateway that fails over after a 60-second timeout: the connection and headers are fine, then nothing happens for a minute, then a complete and correct answer arrives.
+
+This matters directly for the customer's screenshot: **its maximum was 61.918 s**, inside the 61.42–65.02 s band measured here. Combined with the 62.5 s zero-retry hold on `gpt-5.6-sol` in Section 3.5.6 and the 16.7 s / 19.5 s holds in 3.5.2–3.5.3, the conclusion is that a single ~60-second "successful" request is a known service-side behaviour that needs no client retry, no unusual prompt and no client bug to appear — and that it lands on one model pool at a time while its neighbours on the same resource stay under 5 seconds.
+
+> Data files: `outputs/benchmark_luna_knowledge_qa_20260902_130423_4omini-vs-56-datazone-vs-global.json` (324 records, 6 deployments × stream + non-stream × 25 samples; includes one 1,775 s client-side `APIConnectionError` — a local network drop, recorded as a failure and excluded from statistics) and `outputs/benchmark_luna_knowledge_qa_20260902_142457_terra-62s-confirm.json` (66 records, clean-window confirmation). The first run sits in a degraded window: within-run comparisons are valid because all deployments are interleaved, but its absolute values are higher than the clean window and should not be quoted on their own.
+
 #### Findings and guidance
 
 1. **Luna is not inherently slow.** Over 25+25 requests with `max_retries=0`, Luna's E2E stayed within 3.9 s (streaming) and 8.8 s (non-streaming), with the fastest decode of the five models. Its higher default TTFT is reasoning effort, a request parameter, not model speed.
@@ -656,6 +718,9 @@ Six requests in run B waited 2.7–4.3 s before the response headers arrived, ac
 3. **Instrument before you conclude.** Set `max_retries=0`; log `x-request-id`, HTTP status, `retries_taken`, `retry-after`, usage and `response.status` for every call; measure TTFT and E2E separately with `stream=True`; time the token provider (`auth_seconds`) so a credential refresh is never booked as model latency; interleave the compared models *and conditions* in the same minutes; read the deployment's SKU, region and model version from ARM instead of inferring them from the deployment name.
 4. **Capacity levers.** `no_capacity` is not a TPM quota limit. Options are PTU (which the error text itself recommends) with PAYGO spillover, a different SKU/region pool, and APIM proactive routing (Section 7) so that peak-load rejections never reach the user path.
 5. **Prompt caching is a cost lever here, not a latency lever.** With a ≥1,024-token stable prefix 58/59 requests returned `cached_tokens`, but no model's TTFT was lower on a cache hit (p ≥ 0.06). Keep the static prefix identical (dynamic content after it, never before it) to collect the billing discount; do not expect it to fix a latency tail.
+6. **`gpt-4o-mini` is still the fastest to first token, and the slowest to a finished answer.** Measured in the same window as the 5.6 family: TTFT p50 0.69 s (matching the March measurement) but E2E p50 5.63 s against Luna's 3.24 s, because it decodes at 59 tok/s versus Luna's 147. Choose on the metric the product actually shows the user.
+7. **A deployment name is not a SKU diagnosis, and the SKU is not the problem.** `gpt-5.6-luna` measured on GlobalStandard and DataZoneStandard in the same minutes shows no significant difference in TTFT or E2E (p ≥ 0.36). Read the deployment's real SKU, region and capacity from ARM, then look at the pool's load rather than at the word in its name.
+8. **Watch for a ~62-second server-side hold.** On one model pool, 28% of requests returned their headers within 5 s and their first token at 62.16 s ± 0.96 s — HTTP 200, zero retries, correct answers — while five other deployments on the same resource stayed under 60 s throughout. A near-62-second outlier in a customer trace is therefore a service-side signature to escalate with request ids, not evidence of a client bug.
 
 > Data files (git-ignored, reproducibility ledger): `outputs/benchmark_luna_knowledge_qa_20260902_040020_seven-wonders-5models.json` (270 records), `outputs/benchmark_luna_knowledge_qa_20260902_042339_sol-sdk-default-retries.json` (10 records), `outputs/benchmark_luna_knowledge_qa_20260902_042728_effort-ladder-5.6.json` (102 records), `outputs/benchmark_luna_knowledge_qa_20260902_043401_capability-spread.json` (140 records), `outputs/benchmark_luna_knowledge_qa_20260902_0620*_sysprompt-*.json` (3 × 68 records, sequential first pass), `outputs/benchmark_luna_knowledge_qa_20260902_072950_sysprompt-interleaved.json` (204 records). Cross-continent network RTT is included in every number; a client in the same region will see lower absolute TTFT but the same relative picture.
 
@@ -1248,7 +1313,7 @@ The 5-run web_search dataset (`data/benchmark_websearch_guardrails_*.json`) cont
 
 Data-integrity rule for future runs: if a web-grounded table reports S4, it must also report the matching S5 WebIQ result or explicitly state why WebIQ was not run. The current public script avoids terminal-encoding duplicate records by using ASCII status labels and explicit `success` flags.
 
-The Section 3.5 knowledge-only runs (`outputs/benchmark_luna_knowledge_qa_20260902_*.json`, 930 records in eight files) follow the same rule: statistics are computed from `success=true` records only, failed records are kept with their HTTP status, error body and request id, records whose timing includes a client-side token refresh (`auth_seconds` > 0.5 s) are kept but excluded from latency distributions, and each file carries the SHA-256 of the script that produced it.
+The Section 3.5 knowledge-only runs (`outputs/benchmark_luna_knowledge_qa_20260902_*.json`, 1,320 records in ten files) follow the same rule: statistics are computed from `success=true` records only, failed records are kept with their HTTP status, error body and request id, records whose timing includes a client-side token refresh (`auth_seconds` > 0.5 s) are kept but excluded from latency distributions, and each file carries the SHA-256 of the script that produced it. `scripts/verify_luna_readme_numbers.py` recomputes every quoted cell from these files and fails closed on any mismatch.
 
 ### 9.5 Scripts Inventory
 

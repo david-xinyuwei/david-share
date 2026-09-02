@@ -79,6 +79,8 @@ def check_readme(readme: Path, rows: list[dict], label: str) -> int:
     for row in rows:
         if row["n_ok"] == 0 or "sol-sdk-default-retries" in row["file"]:
             continue  # the retries run is presented per request, checked separately below
+        if "4omini-vs-56" in row["file"] or "terra-62s-confirm" in row["file"]:
+            continue  # section 3.5.7 uses metric-oriented tables; checked by check_section_357
         per_query = "capability-spread" in row["file"]
         if per_query:
             needles = [f"{row['nums']['ttft_p50']:.2f}s", f"{row['nums']['e2e_p50']:.2f}s"]
@@ -117,6 +119,89 @@ def check_retries_table(readme: Path, outputs: Path, label: str) -> int:
     return failures
 
 
+def check_section_357(readme: Path, outputs: Path, label: str) -> int:
+    """Section 3.5.7 quotes metric-oriented tables (SKU comparison, baseline, 62 s hold).
+
+    Every value asserted below is recomputed from the raw JSON and must appear verbatim in the file.
+    """
+    main = list(outputs.glob("*4omini-vs-56-datazone-vs-global.json"))
+    clean = list(outputs.glob("*terra-62s-confirm.json"))
+    if not main or not clean:
+        return 0
+    whole = readme.read_text(encoding="utf-8")
+    # Scope the search to section 3.5.7 so a value that happens to appear elsewhere in the README
+    # cannot produce a false PASS.
+    start = next((i for i, ln in enumerate(whole.splitlines()) if ln.startswith("#### 3.5.7 ")), None)
+    if start is None:
+        print(f"[{label}] FAIL 3.5.7 section heading not found")
+        return 1
+    lines = whole.splitlines()
+    end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("#### ") and not lines[i].startswith("#### 3.5.7")), len(lines))
+    text = "\n".join(lines[start:end])
+    failures = 0
+
+    def ok(path: Path) -> list[dict]:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return [r for r in data["records"]
+                if not r["warmup"] and r["success"] and (r.get("auth_seconds") or 0) <= 0.5]
+
+    def vals(recs: list[dict], model: str, stream: bool, key: str) -> list[float]:
+        return [r[key] for r in recs if r["model"] == model and r["stream"] == stream and r.get(key) is not None]
+
+    def assert_in(name: str, value: float, fmt_str: str = "{:.2f}s") -> None:
+        nonlocal failures
+        needle = fmt_str.format(value)
+        hit = needle in text
+        if not hit:
+            failures += 1
+        print(f"[{label}] {'PASS' if hit else 'FAIL'} 3.5.7 {name:<46} {needle}")
+
+    m = ok(main[0])
+    # SKU comparison: gpt-5.6-luna GlobalStandard vs DataZoneStandard
+    for stream, tag in ((True, "stream"), (False, "nonstream")):
+        for model, sku in (("gpt-5.6-luna", "global"), ("gpt-5.6-luna-datazone", "datazone")):
+            e = vals(m, model, stream, "e2e")
+            assert_in(f"SKU {tag} {sku} E2E p50", statistics.median(e))
+            assert_in(f"SKU {tag} {sku} E2E p95", pct(e, 0.95))
+            assert_in(f"SKU {tag} {sku} E2E max", max(e))
+            if stream:
+                assert_in(f"SKU stream {sku} TTFT p50", statistics.median(vals(m, model, True, "ttft")))
+
+    c = ok(clean[0])
+    # Baseline table: the clean window, stream only
+    for model in ("gpt-4o-mini-dz", "gpt-5.6-luna", "gpt-5.6-terra"):
+        t = vals(c, model, True, "ttft")
+        e = vals(c, model, True, "e2e")
+        assert_in(f"baseline {model} TTFT p50", statistics.median(t))
+        assert_in(f"baseline {model} TTFT p95", pct(t, 0.95))
+        assert_in(f"baseline {model} E2E p50", statistics.median(e))
+        assert_in(f"baseline {model} E2E max", max(e))
+        tps = vals(c, model, True, "visible_tps")
+        assert_in(f"baseline {model} decode", statistics.median(tps), "{:.0f} tok/s")
+
+    # The ~62 s hold, pooled across both runs
+    both = json.loads(main[0].read_text(encoding="utf-8"))["records"] + \
+           json.loads(clean[0].read_text(encoding="utf-8"))["records"]
+    terra = [r for r in both if r["model"] == "gpt-5.6-terra" and r["success"]]
+    holds = [r for r in terra if r["e2e"] > 60]
+    first = [r["ttft"] for r in holds if r.get("ttft")]
+    others = [r for r in both if r["model"] != "gpt-5.6-terra" and r["success"] and r["e2e"] > 60]
+    checks = [
+        (f"hold count {len(holds)} of {len(terra)}", f"{len(holds)} of {len(terra)}" in text or f"{len(holds)} 次" in text),
+        ("hold min", f"{min(first):.2f}" in text),
+        ("hold max", f"{max(first):.2f}" in text),
+        ("hold median", f"{statistics.median(first):.2f}" in text),
+        ("hold stdev", f"{statistics.stdev(first):.2f}" in text),
+        ("no retries on holds", all(r["http_status"] == 200 and (r.get("retries_taken") or 0) == 0 for r in holds)),
+        ("other pools have zero >60s", len(others) == 0),
+    ]
+    for name, hit in checks:
+        if not hit:
+            failures += 1
+        print(f"[{label}] {'PASS' if hit else 'FAIL'} 3.5.7 62s-hold {name}")
+    return failures
+
+
 def permutation_p(a: list[float], b: list[float], iters: int = 20000, seed: int = 7) -> float:
     rng = random.Random(seed)
     obs = abs(statistics.median(a) - statistics.median(b))
@@ -148,6 +233,7 @@ def main() -> int:
         print(f"\n== README number check: {rd.name} ==")
         failures += check_readme(rd, all_rows, rd.stem)
         failures += check_retries_table(rd, outputs, rd.stem)
+        failures += check_section_357(rd, outputs, rd.stem)
 
     print("\n== Round 3 permutation tests on Luna TTFT (median difference) ==")
     r3 = {row["file"]: row for row in all_rows if row["model"] == "gpt-5.6-luna" and "sysprompt" in row["file"]}

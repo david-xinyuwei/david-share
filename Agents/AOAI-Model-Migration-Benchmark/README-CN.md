@@ -21,7 +21,7 @@
 |------|------|
 | Azure service | Azure OpenAI Service + Azure API Management + Azure Monitor / Application Insights |
 | 主 API 路径 | Responses API + `stream=True`；所有 web-search 场景都同时测试 `web_search_preview` 和 WebIQ 显式 retrieval |
-| 测试模型 | gpt-4o-mini, gpt-5.4-nano, gpt-5.4-mini, gpt-5-nano, gpt-5-mini；知识型直连补充测试（Section 3.5）覆盖 gpt-5.6-luna / gpt-5.6-sol / gpt-5.6-terra 与 gpt-5.4 |
+| 测试模型 | gpt-4o-mini, gpt-5.4-nano, gpt-5.4-mini, gpt-5-nano, gpt-5-mini；知识型直连补充测试（Section 3.5）覆盖 gpt-5.6-luna / gpt-5.6-sol / gpt-5.6-terra、gpt-5.4，以及一个同场 gpt-4o-mini 基线 |
 | 流量管理 | PTU 优先，高利用率时 APIM 主动路由到 PAYGO，429 retry 作为安全网 |
 | Runtime | Python benchmark scripts + 可选 Node.js PTU monitor proxy |
 | 认证方式 | Benchmark scripts 使用 API key（Section 3.5 脚本同时支持通过 Azure CLI 的 Microsoft Entra ID）；APIM routing PoC 使用 named values / backends |
@@ -141,6 +141,7 @@ SDK 对 web/news/classic search 支持 `ContentFormat.passage`、`text`、`html`
 | 为什么 Luna 默认 TTFT 比 Terra 高？ | 默认 reasoning effort；`effort=none` 时三个 5.6 变体 TTFT 相同，Luna E2E 最快。 | 3.5.4 |
 | 15–60 s 长尾从哪来？ | 一次真实的 `429 no_capacity` 峰值负载事件叠加 SDK 默认重试，把被拒的尝试变成 15–26 s 的"成功"。 | 3.5.2、3.5.3 |
 | >1,024-token 的 system prompt（prompt caching）有帮助吗？ | 会命中（59 次中 58 次）并省钱；四个模型上命中都没有降低 TTFT。token 数以 `usage` 为准，不要离线估算。 | 3.5.6 |
+| 与 gpt-4o-mini 相比如何？`datazone` 是问题所在吗？ | gpt-4o-mini 首 token 更快（0.69 s vs 2.01 s），但完整答案更慢（5.63 s vs 3.24 s），因为 decode 慢 2.5 倍。`gpt-5.6-luna` 在 DataZoneStandard 与 GlobalStandard 上无显著差异（p ≥ 0.36）——名字里的 SKU 不是原因。 | 3.5.7 |
 | 客户端应该改什么？ | 排查期间 `max_retries=0`；记录 request id / 状态码 / `retries_taken` / usage / token provider 耗时；显式固定 `reasoning.effort`；被比较的模型和条件交错运行。 | 结论与建议 |
 
 **web_search 路径生产配置**（客户实际架构）：
@@ -649,6 +650,67 @@ B 轮里有六个请求在响应头到达前等了 2.7–4.3 s，横跨三个池
 
 </details>
 
+#### 3.5.7 补上缺失的基线：同场 gpt-4o-mini，以及 DataZone vs GlobalStandard
+
+3.5.6 之后还剩两个缺口。其一，前面所有对比都发生在新模型之间——**本 repo 整个迁移主题的起点 gpt-4o-mini 从未进入同一轮测试**，与 Section 3.1 之间只有跨基准估算。其二，客户的部署名叫 `gpt-5.6-luna-datazone`，而 Section 3.5 只能说"部署名不等于 SKU 证据"。
+
+在与上文完全相同的资源和区域上新增两个部署，两个缺口一起闭合：
+
+| 部署 | 模型 | SKU | 说明 |
+|---|---|---|---|
+| `gpt-4o-mini` | gpt-4o-mini 2024-07-18 | **DataZoneStandard** | GlobalStandard 拒绝新建 gpt-4o-mini 部署（`ServiceModelDeprecating: the model ... is in deprecating state and cannot be used for new deployments`，Sweden Central 与 East US 2 报同一错误）。DataZoneStandard 仍可创建。 |
+| `gpt-5.6-luna-datazone` | gpt-5.6-luna 2026-07-09 | **DataZoneStandard** | 与既有的 GlobalStandard `gpt-5.6-luna` 同模型、同版本、同资源，**只有 SKU 不同**，SKU 问题因此可判。 |
+
+第二个部署同时消除了第一个带来的混淆：gpt-4o-mini 只能测在 DataZoneStandard 上，而 Luna 的 Global-vs-DataZone 对照正是用来证明 SKU 没有在起作用的那一组。
+
+##### SKU 问题：DataZoneStandard 并不比 GlobalStandard 慢
+
+`gpt-5.6-luna` 两个 SKU，逐请求在同一分钟内交错，每格 25 样本，`max_retries=0`：
+
+| 模式 | 指标 | GlobalStandard | DataZoneStandard | p |
+|---|---|:-:|:-:|:-:|
+| stream | TTFT p50 | 2.51s | 2.85s | 0.36 |
+| stream | E2E p50 | 4.63s | 5.24s | 0.44 |
+| stream | E2E p95 / max | 12.28s / 14.26s | 9.98s / 13.15s | — |
+| non-stream | E2E p50 | 4.07s | 4.36s | 0.58 |
+| non-stream | E2E p95 / max | 8.18s / 9.88s | 9.56s / 11.16s | — |
+
+没有任何指标能把两个 SKU 分开（中位数差的置换检验，20,000 次重排），且尾部互有高低。**部署名里的 `datazone` 本身不解释延迟问题。** 如果客户的 DataZone 部署表现与这个不同，原因在它的区域、容量或该池的负载，而不在 SKU 本身。
+
+##### 基线问题：gpt-4o-mini 首 token 最快，完整答案最慢
+
+三个部署在同一个干净窗口内交错（无容量事件、无整体劣化；`stream=True`，每格 20 样本）：
+
+| 模型 | TTFT p50 / p95 | E2E p50 / max | decode | 输出 tokens | >5s 请求 |
+|---|:-:|:-:|:-:|:-:|:-:|
+| **gpt-4o-mini**（DataZone） | **0.69s** / 1.02s | 5.63s / 10.86s | 59 tok/s | 321 | **14/20** |
+| gpt-5.6-luna（Global） | 2.01s / 2.48s | **3.24s** / **4.63s** | **147 tok/s** | 288 | **0/20** |
+| gpt-5.6-terra（Global） | 1.45s / 61.93s | 3.56s / 64.66s | 101 tok/s | 224 | 5/20 |
+
+- **gpt-4o-mini 的 0.69 s TTFT 精确复现了 Section 3.1**（3 月从东亚到 East US 2 实测 p50 0.57–0.69 s）。一个五个月前的数字，换了区域、换了 prompt，落在同一个值上——正是这个锚点让本补充测试中的跨基准比较成立，而不只是估算。
+- **首 token 上 gpt-4o-mini 仍然领先**：0.69 s vs Luna 的 2.01 s，差 1.32 s（p < 0.0001）。Luna 在开口前花掉约 90 个 reasoning tokens，gpt-4o-mini 一个都不花。
+- **完整答案上 Luna 反超更多**：E2E p50 3.24 s vs 5.63 s，反向差 2.39 s（p < 0.0001），因为 Luna 的 decode 快 **2.5 倍**（147 vs 59 tok/s，p < 0.0001），而答案长度相当。gpt-4o-mini 20 次里有 14 次端到端超过 5 秒，Luna 一次也没有。
+- **"谁更快"取决于产品呈现哪个指标。** 对逐 token 流式渲染的 UI，gpt-4o-mini 起步更快；对必须展示完整答案的助手——也就是客户的知识问答场景——Luna 才是更快的模型，再按 3.5.4 把 `reasoning.effort` 钉到 `none`，它连 TTFT 劣势也基本消掉。
+
+##### 一个可复现的 ~62 秒服务端持有，只发生在一个模型池上
+
+同样这两轮测出了一个再多客户端埋点也找不到的东西：
+
+| 观察 | 取值 |
+|---|---|
+| 受影响部署 | 仅 `gpt-5.6-terra`（GlobalStandard） |
+| 频率 | **75 次成功请求中 21 次**（28%），跨两个相隔 80 分钟的独立时间窗 |
+| 响应头 | 正常到达：TTFB 0.54–4.95 s |
+| 首个输出 token | 61.42–65.02 s，中位 **62.16 s**，**标准差 0.96 s** |
+| HTTP 状态 / 重试 | 每一次都是 200，每一次 `retries_taken` = 0 |
+| 同两轮里其余五个部署 | 超过 60 s 的请求 **0** 次 |
+
+21 个事件的标准差不到 1 秒，这不是排队——排队是重尾且分散的。这是一个**确定性的 ~62 秒边界**，符合"后端停止响应、网关在 60 秒超时后故障转移"的形态：连接和响应头都正常，然后整整一分钟什么都没有，接着一个完整正确的答案到达。
+
+这一条直接关系到客户的截图：**它的最大值是 61.918 s**，正落在这里测到的 61.42–65.02 s 区间内。结合 3.5.6 里 `gpt-5.6-sol` 的 62.5 s 零重试持有，以及 3.5.2–3.5.3 的 16.7 s / 19.5 s 持有，结论是：单次 ~60 秒的"成功"请求是一种已知的服务端行为，不需要客户端重试、不需要特殊 prompt、也不需要客户端 bug 就会出现；而且它一次只落在一个模型池上，同资源上的邻居仍然稳定在 5 秒以内。
+
+> 数据文件：`outputs/benchmark_luna_knowledge_qa_20260902_130423_4omini-vs-56-datazone-vs-global.json`（324 条，6 个部署 × stream + non-stream × 25 样本；含一条 1,775 s 的客户端 `APIConnectionError`——本机网络断连，记为失败并排除在统计外）与 `outputs/benchmark_luna_knowledge_qa_20260902_142457_terra-62s-confirm.json`（66 条，干净窗口确认）。第一轮落在劣化窗口内：因为所有部署逐请求交错，轮内比较仍然成立，但它的绝对值高于干净窗口，不应单独引用。
+
 #### 结论与建议
 
 1. **Luna 本身不慢。** 25+25 次 `max_retries=0` 请求中，Luna 的 E2E 在 streaming 下不超过 3.9 s、non-streaming 下不超过 8.8 s，decode 是五个模型中最快的。它较高的默认 TTFT 来自 reasoning effort——一个请求参数，不是模型速度。
@@ -656,6 +718,9 @@ B 轮里有六个请求在响应头到达前等了 2.7–4.3 s，横跨三个池
 3. **先度量再下结论。** 设置 `max_retries=0`；对每次调用记录 `x-request-id`、HTTP 状态、`retries_taken`、`retry-after`、usage 与 `response.status`；用 `stream=True` 分别度量 TTFT 与 E2E；给 token provider 计时（`auth_seconds`），凭据刷新永远不要记在模型延迟上；被比较的模型*和条件*在同一时段交错运行；部署的 SKU、region、model version 从 ARM 读取，不要从部署名称推断。
 4. **容量手段。** `no_capacity` 不是 TPM 配额限制。可选项是 PTU（错误文本本身就在推荐）加 PAYGO spillover、换 SKU/region 池，以及 APIM 主动路由（Section 7），让峰值负载拒绝永远到不了用户路径。
 5. **Prompt caching 在这里是成本杠杆，不是延迟杠杆。** 前缀 ≥1,024 tokens 且稳定时，59 个请求中 58 个返回了 `cached_tokens`；但没有任何模型在缓存命中时 TTFT 更低（p ≥ 0.06）。保持静态前缀完全一致（动态内容放在它之后，绝不放在前面）以拿到计费折扣；不要指望它解决延迟长尾。
+6. **`gpt-4o-mini` 仍是首 token 最快、完整答案最慢的那一个。** 与 5.6 系列同窗实测：TTFT p50 0.69 s（与 3 月测量一致），但 E2E p50 5.63 s，Luna 是 3.24 s，因为它的 decode 只有 59 tok/s 而 Luna 是 147。按产品真正呈现给用户的那个指标来选型。
+7. **部署名不是 SKU 诊断，而且 SKU 不是问题所在。** `gpt-5.6-luna` 在 GlobalStandard 与 DataZoneStandard 上同分钟交错实测，TTFT 与 E2E 均无显著差异（p ≥ 0.36）。从 ARM 读出部署真实的 SKU、区域和容量，然后去看该池的负载，而不是去看名字里的那个词。
+8. **警惕 ~62 秒的服务端持有。** 在一个模型池上，28% 的请求在 5 秒内返回响应头、首 token 出现在 62.16 s ± 0.96 s——HTTP 200、零重试、答案正确——而同资源上另外五个部署全程不超过 60 秒。因此客户 trace 里接近 62 秒的异常值是一个应当带着 request id 上报的服务端签名，不是客户端 bug 的证据。
 
 > 数据文件（git-ignored，可追溯 ledger）：`outputs/benchmark_luna_knowledge_qa_20260902_040020_seven-wonders-5models.json`（270 条）、`outputs/benchmark_luna_knowledge_qa_20260902_042339_sol-sdk-default-retries.json`（10 条）、`outputs/benchmark_luna_knowledge_qa_20260902_042728_effort-ladder-5.6.json`（102 条）、`outputs/benchmark_luna_knowledge_qa_20260902_043401_capability-spread.json`（140 条）、`outputs/benchmark_luna_knowledge_qa_20260902_0620*_sysprompt-*.json`（3 × 68 条，顺序第一遍）、`outputs/benchmark_luna_knowledge_qa_20260902_072950_sysprompt-interleaved.json`（204 条）。所有数字都包含跨洲网络 RTT；同 region 客户端的绝对 TTFT 会更低，但相对关系不变。
 
@@ -1248,7 +1313,7 @@ Public repo 不包含逐请求 raw JSON 文件；这些文件保留在 private s
 
 后续数据完整性规则：任何 web-grounded benchmark 表只要报告 S4，就必须同时报告匹配的 S5 WebIQ 结果，或者明确说明为什么没有运行 WebIQ。当前 public script 使用 ASCII 状态标签和显式 `success` 字段，避免终端编码导致重复 failure records。
 
-Section 3.5 的知识型直连运行（`outputs/benchmark_luna_knowledge_qa_20260902_*.json`，8 个文件共 930 条记录）遵循同样的规则：统计只用 `success=true` 的记录，失败记录连同 HTTP 状态、错误体和 request id 一起保留，计时中包含客户端 token 刷新的记录（`auth_seconds` > 0.5 s）保留但不进入延迟分布，每个文件都带有生成它的脚本 SHA-256。
+Section 3.5 的知识型直连运行（`outputs/benchmark_luna_knowledge_qa_20260902_*.json`，10 个文件共 1,320 条记录）遵循同样的规则：统计只用 `success=true` 的记录，失败记录连同 HTTP 状态、错误体和 request id 一起保留，计时中包含客户端 token 刷新的记录（`auth_seconds` > 0.5 s）保留但不进入延迟分布，每个文件都带有生成它的脚本 SHA-256。`scripts/verify_luna_readme_numbers.py` 从这些文件重算每一个被引用的单元格，任一不符即 fail closed。
 
 ### 9.5 脚本清单
 
