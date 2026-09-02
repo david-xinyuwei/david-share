@@ -133,15 +133,15 @@ Less ideal fits: no-search tasks, zero-code orchestration requirements, image-to
 
 ### gpt-5.6 Luna Addendum: Knowledge-only Direct Latency (September 2026)
 
-A customer loop asking `gpt-5.6-luna` a tool-free question ("What are the seven wonders of the world?") showed a ~2 s median with a 15–60 s tail. Section 3.5 reproduces the scenario with `scripts/benchmark_luna_knowledge_qa.py` — Responses API, no tools, `max_retries=0`, per-request request ids and token usage — across `gpt-5.6-luna` / `sol` / `terra`, `gpt-5.4` and `gpt-5.4-nano`:
+A customer loop asking `gpt-5.6-luna` a tool-free question showed a ~2 s median with a 15–60 s tail. Section 3.5 reproduces the scenario with `scripts/benchmark_luna_knowledge_qa.py` (Responses API, no tools, `max_retries=0`, per-request request ids and token usage) across `gpt-5.6-luna` / `sol` / `terra`, `gpt-5.4` and `gpt-5.4-nano`. Headline answers, with the evidence in the linked subsections:
 
-| Question | Answer from the data |
-|----------|----------------------|
-| Is Luna slow? | No. 25 streaming requests: E2E p50 **3.14 s**, max **3.89 s**, fastest decode of the five (175 tok/s). With `reasoning.effort=none` Luna has the same TTFT as Sol/Terra (~0.9–1.0 s) and the fastest E2E (2.24 s p50). |
-| Why is Luna's default TTFT higher (2.04 s vs 1.22 s Terra)? | Default reasoning: ~100 reasoning tokens per answer on this prompt (≈`medium`), adaptive per prompt (0 on a TCP/UDP explanation). |
-| Where does a 15–60 s tail come from? | A live `429 no_capacity` peak-load event (observed on `gpt-5.6-sol`, 34/54 requests, 04:04–04:20 UTC) plus the SDK's default two retries: "successful" calls of 15.2–25.7 s, failures surfacing after 5–7 s. With `max_retries=0` the same 429 surfaces in ~2 s. |
-| What to change on the client? | `max_retries=0` while diagnosing, log `x-request-id` / status / `retries_taken` / usage, pin `reasoning.effort`, measure TTFT and E2E separately, interleave the compared models. |
-| Does the >1,024-token system prompt (and prompt caching) matter? | For cost, yes: with a 1,200-token stable prefix every request after the first returned `cached_tokens` (15/15 on all four models). For latency, no: Luna's TTFT was 1.9 s cached, 1.7 s never cached, 2.0 s with no system prompt. Verify the count from `usage`, not offline — the repo's "1066-token" GUARDRAILS is 536 tokens on gpt-5.4/5.6 and never caches. |
+| Question | Answer | Where |
+|----------|--------|-------|
+| Is Luna slow? | No — its tail stayed under 4 s over 25 streaming requests and it has the fastest decode of the five. | [3.5.1](#351-default-settings--25-samples-per-cell) |
+| Why is Luna's default TTFT higher than Terra's? | Default reasoning effort; at `effort=none` the three 5.6 variants have the same TTFT and Luna the fastest E2E. | [3.5.4](#354-single-variable-reasoningeffort-for-the-56-family-streaming-15-samples-per-cell) |
+| Where does a 15–60 s tail come from? | A live `429 no_capacity` peak-load event plus the SDK's default retries, which turn rejected attempts into 15–26 s "successes". | [3.5.2](#352-what-a-capacity-event-looks-like-from-the-client), [3.5.3](#353-single-variable-sdk-automatic-retries-max_retries2-the-sdk-default) |
+| Does a >1,024-token system prompt (prompt caching) help? | It caches (58/59 hits) and saves cost; a hit does not lower TTFT on any of the four models. Verify the token count from `usage`, not offline. | [3.5.6](#356-single-variable-a-1200-token-system-prompt-cached-vs-never-cached-streaming-15-samples-per-cell) |
+| What to change on the client? | `max_retries=0` while diagnosing, log request id / status / `retries_taken` / usage / token-provider time, pin `reasoning.effort`, interleave compared models and conditions. | [Findings](#findings-and-guidance) |
 
 **Production settings for web_search path** (customer's architecture):
 
@@ -499,7 +499,7 @@ Streaming (`stream=True`): TTFT = first `response.output_text.delta`; tok/s = vi
 | Model | N ok/total | TTFT p50 / p95 | E2E mean / p50 / p95 / max | >5s | Output tokens (of which reasoning) | tok/s p50 |
 |-------|:-:|:-:|:-:|:-:|:-:|:-:|
 | **gpt-5.6-luna** | 25/25 | 2.04s / 2.35s | 3.17s / 3.14s / 3.55s / **3.89s** | 0 | 300 (102) | **175** |
-| gpt-5.6-sol | **8/25** | 2.57s / 12.11s | 7.17s / 5.14s / 15.27s / 19.45s | 4 | 245 (50) | 65 |
+| gpt-5.6-sol | **8/25** — capacity event (Section 3.5.2); N=8 statistics are not comparable with the other rows | 2.57s / 12.11s | 7.17s / 5.14s / 15.27s / 19.45s | 4 | 245 (50) | 65 |
 | gpt-5.6-terra | 25/25 | 1.22s / 3.89s | 3.31s / 3.01s / 6.00s / 6.65s | 2 | 224 (24) | 111 |
 | gpt-5.4 | 25/25 | 1.38s / 1.61s | 4.59s / 4.29s / 6.74s / 8.10s | 6 | 213 (0) | 77 |
 | gpt-5.4-nano | 25/25 | **0.97s** / 1.48s | 2.62s / **2.44s** / 3.56s / 4.12s | 0 | 151 (0) | 98 |
@@ -509,7 +509,7 @@ Non-streaming (`stream=False`, the shape of a simple `time.time()` loop):
 | Model | N ok/total | E2E mean / p50 / p95 / max | >5s | Output tokens (of which reasoning) |
 |-------|:-:|:-:|:-:|:-:|
 | **gpt-5.6-luna** | 25/25 | 3.55s / 3.29s / 5.17s / 8.78s | 2 | 287 (91) |
-| gpt-5.6-sol | **8/25** | 5.50s / 5.44s / 6.29s / 6.36s | 7 | 265 (75) |
+| gpt-5.6-sol | **8/25** — capacity event, N=8 not comparable | 5.50s / 5.44s / 6.29s / 6.36s | 7 | 265 (75) |
 | gpt-5.6-terra | 25/25 | 3.47s / 3.28s / 4.86s / 5.38s | 2 | 223 (28) |
 | gpt-5.4 | 25/25 | 4.22s / 4.21s / 5.00s / 6.36s | 2 | 217 (0) |
 | gpt-5.4-nano | 25/25 | 2.89s / 2.86s / 3.70s / 4.04s | 0 | 162 (0) |
@@ -545,11 +545,13 @@ Ten non-streaming Sol requests were sent during the same capacity event with the
 
 | # | Result | E2E | Hidden retries | # | Result | E2E | Hidden retries |
 |:-:|--------|:---:|:-:|:-:|--------|:---:|:-:|
-| 1 | 429 | 7.3s | 2 (exhausted) | 6 | **200** | **20.8s** | 2 |
-| 2 | 429 | 6.0s | 2 (exhausted) | 7 | **200** | **15.2s** | 1 |
-| 3 | **200** | **25.7s** | 2 | 8 | 429 | 5.5s | 2 (exhausted) |
-| 4 | **200** | **16.7s** | 0 (server-side hold) | 9 | 429 | 5.2s | 2 (exhausted) |
-| 5 | 429 | 5.4s | 2 (exhausted) | 10 | 429 | 5.3s | 2 (exhausted) |
+| 1 | 429 | 7.3s | 2 (inferred) | 6 | **200** | **20.8s** | 2 |
+| 2 | 429 | 6.0s | 2 (inferred) | 7 | **200** | **15.2s** | 1 |
+| 3 | **200** | **25.7s** | 2 | 8 | 429 | 5.5s | 2 (inferred) |
+| 4 | **200** | **16.7s** | 0 (server-side hold) | 9 | 429 | 5.2s | 2 (inferred) |
+| 5 | 429 | 5.4s | 2 (inferred) | 10 | 429 | 5.3s | 2 (inferred) |
+
+Retry counts on successful requests are read from the SDK response (`retries_taken`); on failed requests the SDK only surfaces a 429 after exhausting its retries, so "2 (inferred)" is derived from `max_retries=2` and the 5–7 s total, not from a response field (the JSON marks these `retries_taken_inferred=true`).
 
 With the default retry policy four requests "succeeded" in **15.2 s, 16.7 s, 20.8 s and 25.7 s**. Three of them contain one or two invisible retries; the fourth was held 16.7 s server-side. The six that still failed took 5.2–7.3 s to surface (three attempts plus back-off) instead of ~2 s. This is exactly the shape reported by the customer: **a low median with a 15–60 s tail that appears only under peak load, inflated by automatic retries that a bare timing loop cannot see.** The script records `retries_taken` per request so that this is never ambiguous again.
 
@@ -565,9 +567,9 @@ With the default retry policy four requests "succeeded" in **15.2 s, 16.7 s, 20.
 | gpt-5.6-terra | `low` | 1.09s / 1.36s | 3.06s / 2.77s / 4.34s / 6.15s | 216 (21) | 115 |
 | gpt-5.6-terra | `none` | 0.90s / 2.12s | 2.89s / 2.72s / 3.62s / 5.06s | 222 (0) | 122 |
 
-- gpt-5.6 accepts `reasoning.effort` = `none`, `low`, `medium`; `minimal` is rejected (`400 Unsupported value`). The default behaves like `medium` (~100 reasoning tokens on Luna).
+- gpt-5.6 accepts `reasoning.effort` = `none`, `low`, `medium`; `minimal` is rejected (`400 Unsupported value`). The documented default is `medium`, and the one explicit `medium` sample (108 reasoning tokens) matches the default runs (mean 102).
 - **At equal effort the three variants have the same TTFT (0.90–1.00 s p50), and Luna has the fastest E2E** (2.24 s p50) because it decodes at ~169 tok/s versus 122 (Terra) and 69 (Sol).
-- On Luna each step default → `low` → `none` removes roughly 0.7 s of TTFT (2.04 → 1.36 → 0.92 s). For latency-sensitive knowledge Q&A, set `reasoning={"effort": "none"}` (or `low`) explicitly rather than relying on the default.
+- On Luna each step default → `low` → `none` removes roughly 0.7 s of TTFT (2.04 → 1.36 → 0.92 s; permutation test on medians, `none` vs `low` p = 0.0006, `none` vs default p < 0.0001). For latency-sensitive knowledge Q&A, set `reasoning={"effort": "none"}` (or `low`) explicitly rather than relying on the default.
 
 #### 3.5.5 Knowledge-only capability spread (streaming, 5 samples per cell)
 
@@ -587,17 +589,50 @@ Four more prompts that need no tools — a technical explanation, a small coding
 
 #### 3.5.6 Single variable: a 1,200-token system prompt, cached vs. never cached (streaming, 15 samples per cell)
 
-The customer's assistant sends a system prompt of more than 1,024 tokens on every request, so the runs above (15 input tokens) under-represent their prefill and leave prompt caching out of the picture. Three back-to-back runs (06:20–06:33 UTC, same four deployments interleaved) isolate that variable with the `guardrails-long` preset — 1,202 input tokens including the question:
+The customer's assistant sends a system prompt of more than 1,024 tokens on every request, so the runs above (15 input tokens) under-represent their prefill and leave prompt caching out of the picture. The `guardrails-long` preset — 1,202 input tokens including the question — isolates that variable under three conditions:
 
 | Condition | Flag | What the service sees |
 |-----------|------|-----------------------|
-| **A. cached** | `--system-preset guardrails-long` | identical 1,187-token prefix every request → `cached_tokens` = 1,199 (gpt-5.6) / 1,024 (gpt-5.4-nano) on 15/15 requests |
-| **B. never cached** | `--system-preset guardrails-long --cache-bust` | a unique nonce at the start of the prompt → `cached_tokens` = 0 on 15/15 requests (full prefill every time; what a per-request dynamic prefix does in production) |
-| **C. no system prompt** | `--system-preset none` | 15 input tokens (the earlier runs) |
+| **A. cached** | `guardrails-long` | identical 1,187-token prefix every request → `cached_tokens` = 1,199 (gpt-5.6) / 1,024 (gpt-5.4-nano) |
+| **B. never cached** | `guardrails-long+bust` | a unique nonce at the start of the prompt → `cached_tokens` = 0 (full prefill every time; what a per-request dynamic prefix does in production) |
+| **C. no system prompt** | `none` | 15 input tokens (the earlier runs) |
+
+The three conditions were **interleaved inside every iteration** (`--conditions guardrails-long,guardrails-long+bust,none`, 07:30–07:45 UTC) so that no condition is confounded with the minutes in which it ran. Per-request token-provider time was logged (`auth_seconds`); one Luna request that carried a 6.3 s Entra token refresh inside its timing is excluded from the statistics (see below).
+
+| Model | Condition | TTFT p50 / p95 | E2E mean / p50 / p95 / max | In tokens (cached) | Out tokens (reasoning) | cached vs. B, p |
+|-------|-----------|:-:|:-:|:-:|:-:|:-:|
+| **gpt-5.6-luna** | A. cached | 1.95s / 2.82s | 3.14s / 3.07s / 4.57s / 4.66s | 1202 (1198) | 211 (69) | 0.31 |
+| gpt-5.6-luna | B. never cached | 1.62s / 4.58s | 3.13s / 2.77s / 5.53s / 6.67s | 1228 (0) | 205 (63) | |
+| gpt-5.6-luna | C. no system prompt | 2.01s / 3.81s | 3.65s / 3.25s / 5.60s / 8.18s | 15 (0) | 298 (98) | |
+| gpt-5.6-terra | A. cached | 1.40s / 2.71s | 3.88s / 3.10s / 8.31s / 9.99s | 1202 (1199) | 197 (28) | 0.14 |
+| gpt-5.6-terra | B. never cached | 1.22s / 2.73s | 3.00s / 2.80s / 4.79s / 6.36s | 1229 (0) | 151 (20) | |
+| gpt-5.6-terra | C. no system prompt | 1.22s / 1.46s | 3.48s / 3.35s / 4.78s / 6.32s | 15 (0) | 224 (25) | |
+| gpt-5.4-nano | A. cached | 1.11s / 2.62s | 2.95s / 2.67s / 4.94s / 5.11s | 1202 (956) | 129 (0) | 0.06 |
+| gpt-5.4-nano | B. never cached | 0.98s / 1.68s | 2.26s / 2.02s / 3.47s / 3.68s | 1229 (0) | 125 (0) | |
+| gpt-5.4-nano | C. no system prompt | 1.03s / 2.35s | 3.03s / 2.61s / 4.69s / 5.22s | 15 (0) | 157 (0) | |
+| gpt-5.6-sol | A. cached | 1.90s / 4.34s | 5.22s / 4.77s / 7.89s / 8.81s | 1202 (1198) | 198 (40) | 0.85 |
+| gpt-5.6-sol | B. never cached | 1.94s / 7.09s | 5.58s / 4.66s / 10.21s / 16.65s | 1229 (0) | 205 (47) | |
+| gpt-5.6-sol | C. no system prompt | 2.92s / 22.12s | 10.31s / 6.77s / 25.01s / **66.54s** | 15 (0) | 275 (76) | |
+
+*p* = two-sided permutation test on the median TTFT difference between the cached and never-cached conditions (20,000 shuffles).
+
+What the data says:
+
+- **Prompt caching engages once the prefix is ≥1,024 tokens, but a hit is not guaranteed.** 58 of 59 cached-condition requests returned `cached_tokens` (gpt-5.6 ≈ the whole 1,199-token prefix; gpt-5.4-nano reported 1,024 — granularity differs by model family); one gpt-5.4-nano request with the identical prefix came back with 0 about 50 s after the previous hit. That is the billing benefit the customer is after, and the script prints `cached_tokens` per request so a production loop can confirm the actual hit rate.
+- **A cache hit does not lower TTFT on any of the four models.** Where the medians differ at all, the cached condition is the slower one (Luna 1.95 s vs 1.62 s, Terra 1.40 vs 1.22, nano 1.11 vs 0.98), and none of the differences is significant (p = 0.06–0.85). A 1,200-token prefill is on the order of 100 ms; with or without a system prompt, Luna's first token is governed by its ~60–100 reasoning tokens. This is the same conclusion as Section 4.1, now from a single-variable design (same prompt length, cache on/off, same minutes) rather than long-prompt vs. short-prompt runs.
+- **A concise system prompt shortens Luna's answers and reasoning** (reasoning 98 → 69 tokens, output 298 → 211). Instruction content, not caching, produced that gain.
+- **A 62 s outlier with zero retries.** Sol's 66.54 s request (condition C, 07:35 UTC) returned its headers in 0.57 s and its first token after **62.5 s**, HTTP 200, `retries_taken` 0 — the service accepted the request and held it for a minute. Together with the 16.7 s (0 retries) and 19.5 s (0 retries) holds in 3.5.2–3.5.3, this is direct evidence that a 60-second "successful" request can come from the service alone, without any client retry, on the same resource where Luna, Terra and gpt-5.4-nano stayed under 10 s in the same minutes.
+- **A second client-side artifact: token refresh.** One Luna request carried 6.34 s of synchronous Entra ID token refresh (`az account get-access-token`) inside its timing — TTFB 7.86 s, E2E 11.42 s — with `auth_seconds` = 6.34 logged. A plain timing loop would have attributed that to the model. The script now records `auth_seconds` per request and leaves such records out of the latency statistics; every other pre-header wait above 3 s in this run (seven requests across all four pools) had `auth_seconds` = 0 and is therefore server-side queueing.
+- **Check the token count in the deployment's own tokenizer.** The 12-section GUARDRAILS prompt this repo has labelled "~1066 tokens" is reported as **536 input tokens** (including the 15-token question) by gpt-5.4, gpt-5.4-nano and gpt-5.6-luna, so with that prompt `cached_tokens` is always 0. A prompt believed to be "over 1,024 tokens" should be verified from `usage.input_tokens_details.cached_tokens`, not from an offline count.
+
+<details>
+<summary>First pass (06:20–06:33 UTC): the same three conditions as three consecutive runs — kept for the record</summary>
+
+Before `--conditions` existed, the three conditions were run one after another (A 06:20–06:24, B 06:24–06:28, C 06:28–06:33). In that pass Terra's cached TTFT was 0.24 s *lower* than never-cached (1.11 s vs 1.35 s, p = 0.002); in the interleaved run above the sign reversed (1.40 s vs 1.22 s). The sequential design confounds condition with time window, which is why the interleaved run is the one to quote.
 
 | Model | Condition | TTFT p50 / p95 | E2E mean / p50 / p95 / max | In tokens (cached) | Out tokens (reasoning) |
 |-------|-----------|:-:|:-:|:-:|:-:|
-| **gpt-5.6-luna** | A. cached | 1.88s / 2.36s | 2.95s / 2.77s / 3.96s / 5.17s | 1202 (1199) | 224 (81) |
+| gpt-5.6-luna | A. cached | 1.88s / 2.36s | 2.95s / 2.77s / 3.96s / 5.17s | 1202 (1199) | 224 (81) |
 | gpt-5.6-luna | B. never cached | 1.72s / 4.52s | 3.18s / 2.80s / 6.43s / 6.77s | 1228 (0) | 209 (69) |
 | gpt-5.6-luna | C. no system prompt | 1.96s / 2.13s | 3.06s / 3.09s / 3.44s / 3.46s | 15 (0) | 288 (95) |
 | gpt-5.6-sol | A. cached | 1.71s / 3.13s | 4.48s / 4.35s / 6.30s / 7.73s | 1202 (1199) | 198 (46) |
@@ -610,23 +645,19 @@ The customer's assistant sends a system prompt of more than 1,024 tokens on ever
 | gpt-5.4-nano | B. never cached | 0.95s / 3.88s | 2.89s / 2.05s / 6.70s / 10.99s | 1227 (0) | 128 (0) |
 | gpt-5.4-nano | C. no system prompt | 1.01s / 1.62s | 3.00s / 2.78s / 4.54s / 5.69s | 15 (0) | 158 (0) |
 
-What the data says:
+Six requests in run B waited 2.7–4.3 s before the response headers arrived, across three pools inside a 3-minute window; token-provider time was not logged in this pass, so a client-side refresh could not be excluded for them — that gap is what the `auth_seconds` field closes.
 
-- **Prompt caching engages exactly as documented once the prefix is ≥1,024 tokens** — 15/15 hits on every model from the second request on, with gpt-5.6 caching almost the whole prefix (1,199 tokens) and gpt-5.4-nano caching in 1,024-token blocks. That is the billing benefit the customer is after, and the script now prints `cached_tokens` per request so a production loop can confirm it.
-- **Caching does not move Luna's TTFT.** Median TTFT is 1.88 s cached, 1.72 s never cached and 1.96 s with no system prompt at all; the 1,200-token prefill is invisible next to ~70–95 reasoning tokens. This is the same conclusion as Section 4.1, now from a cleaner single-variable design (same prompt length, cache on/off, same minutes) rather than long-prompt vs. short-prompt runs.
-- **A concise system prompt shortens Luna's answers and reasoning** (reasoning 95 → 81 tokens, output 288 → 224), which is why E2E p50 improves from 3.09 s to 2.77 s. Instruction content, not caching, produced that gain.
-- **The `never cached` tails are queueing, not prefill.** The six requests above 4.5 s TTFT in run B — two Luna, two gpt-5.4-nano, one Terra, and gpt-5.4-nano's 10.99 s maximum — all show 2.7–4.3 s **before the response headers arrived**, across three different model pools inside a 3-minute window (06:25–06:28 UTC). A 1,200-token prefill takes on the order of 100 ms; a multi-second wait for headers is the shared-pool queue.
-- **Check the token count in the deployment's own tokenizer.** The 12-section GUARDRAILS prompt this repo has labelled "~1066 tokens" is reported as **536 input tokens** (including the 15-token question) by gpt-5.4, gpt-5.4-nano and gpt-5.6-luna, so with that prompt `cached_tokens` is always 0. A prompt believed to be "over 1,024 tokens" should be verified from `usage.input_tokens_details.cached_tokens`, not from an offline count.
+</details>
 
 #### Findings and guidance
 
 1. **Luna is not inherently slow.** Over 25+25 requests with `max_retries=0`, Luna's E2E stayed within 3.9 s (streaming) and 8.8 s (non-streaming), with the fastest decode of the five models. Its higher default TTFT is reasoning effort, a request parameter, not model speed.
-2. **A 15–60 s tail on a simple loop is a capacity-plus-retry signature.** During a `429 no_capacity` event the service holds or rejects requests for seconds to tens of seconds, and the SDK's default two retries with back-off turn those into 15–26 s "successful" calls. The same event never touched the other four model pools on the same resource.
-3. **Instrument before you conclude.** Set `max_retries=0`; log `x-request-id`, HTTP status, `retries_taken`, `retry-after`, usage and `response.status` for every call; measure TTFT and E2E separately with `stream=True`; interleave the compared models in the same minutes; read the deployment's SKU, region and model version from ARM instead of inferring them from the deployment name.
+2. **A 15–60 s tail on a simple loop is a service-hold-plus-retry signature.** Under load the service holds or rejects requests for seconds to a minute (16.7 s, 19.5 s and 62.5 s "successes" with zero retries were observed), and the SDK's default two retries with back-off turn rejected attempts into 15–26 s "successful" calls. The events never touched the other model pools on the same resource.
+3. **Instrument before you conclude.** Set `max_retries=0`; log `x-request-id`, HTTP status, `retries_taken`, `retry-after`, usage and `response.status` for every call; measure TTFT and E2E separately with `stream=True`; time the token provider (`auth_seconds`) so a credential refresh is never booked as model latency; interleave the compared models *and conditions* in the same minutes; read the deployment's SKU, region and model version from ARM instead of inferring them from the deployment name.
 4. **Capacity levers.** `no_capacity` is not a TPM quota limit. Options are PTU (which the error text itself recommends) with PAYGO spillover, a different SKU/region pool, and APIM proactive routing (Section 7) so that peak-load rejections never reach the user path.
-5. **Prompt caching is a cost lever here, not a latency lever.** With a ≥1,024-token stable prefix every model returned `cached_tokens` on 15/15 requests, but Luna's TTFT was the same cached, uncached and without a system prompt (1.7–2.0 s p50). Keep the static prefix identical (dynamic content after it, never before it) to collect the billing discount; do not expect it to fix a latency tail.
+5. **Prompt caching is a cost lever here, not a latency lever.** With a ≥1,024-token stable prefix 58/59 requests returned `cached_tokens`, but no model's TTFT was lower on a cache hit (p ≥ 0.06). Keep the static prefix identical (dynamic content after it, never before it) to collect the billing discount; do not expect it to fix a latency tail.
 
-> Data files (git-ignored, reproducibility ledger): `outputs/benchmark_luna_knowledge_qa_20260902_040020_seven-wonders-5models.json` (270 records), `outputs/benchmark_luna_knowledge_qa_20260902_042339_sol-sdk-default-retries.json` (10 records), `outputs/benchmark_luna_knowledge_qa_20260902_042728_effort-ladder-5.6.json` (102 records), `outputs/benchmark_luna_knowledge_qa_20260902_043401_capability-spread.json` (140 records), `outputs/benchmark_luna_knowledge_qa_20260902_0620*_sysprompt-*.json` (3 × 68 records). Cross-continent network RTT is included in every number; a client in the same region will see lower absolute TTFT but the same relative picture.
+> Data files (git-ignored, reproducibility ledger): `outputs/benchmark_luna_knowledge_qa_20260902_040020_seven-wonders-5models.json` (270 records), `outputs/benchmark_luna_knowledge_qa_20260902_042339_sol-sdk-default-retries.json` (10 records), `outputs/benchmark_luna_knowledge_qa_20260902_042728_effort-ladder-5.6.json` (102 records), `outputs/benchmark_luna_knowledge_qa_20260902_043401_capability-spread.json` (140 records), `outputs/benchmark_luna_knowledge_qa_20260902_0620*_sysprompt-*.json` (3 × 68 records, sequential first pass), `outputs/benchmark_luna_knowledge_qa_20260902_072950_sysprompt-interleaved.json` (204 records). Cross-continent network RTT is included in every number; a client in the same region will see lower absolute TTFT but the same relative picture.
 
 
 ## 4. Prompt Caching: Cost Reduction Analysis
@@ -635,7 +666,7 @@ Azure OpenAI applies automatic [prompt caching](https://learn.microsoft.com/en-u
 
 For the AI assistant's production scenario, the GUARDRAILS system prompt (12 behavioral sections, ~1066 tokens) consistently exceeds the caching threshold, making every request eligible for prompt caching.
 
-> **Correction (September 2026).** The Responses API `usage` block reports the 12-section GUARDRAILS prompt as **536 input tokens** (including a 15-token question) on gpt-5.4, gpt-5.4-nano and gpt-5.6-luna, and Section 4.3 below independently measured 596 tokens with longer user queries — below the 1,024-token threshold, so `cached_tokens` is 0 for that prompt on those models. The "~1066 tokens" label is a stale estimate. Prompt caching does engage as soon as the stable prefix crosses 1,024 tokens: with a 1,200-token version of the prompt, 15/15 requests returned `cached_tokens` = 1,199 (gpt-5.6) / 1,024 (gpt-5.4-nano). See Section 3.5.6 for the measurement and use `scripts/benchmark_luna_knowledge_qa.py --system-preset guardrails-long` to reproduce it. The cost arithmetic in 4.2–4.3 remains valid for any prompt that actually exceeds the threshold in the deployment's tokenizer.
+> **Correction (September 2026).** The Responses API `usage` block reports the 12-section GUARDRAILS prompt as **536 input tokens** (including a 15-token question) on gpt-5.4, gpt-5.4-nano and gpt-5.6-luna, and Section 4.3 below independently measured 596 tokens with longer user queries — below the 1,024-token threshold, so `cached_tokens` is 0 for that prompt on those models. The "~1066 tokens" label is a stale estimate. Prompt caching does engage as soon as the stable prefix crosses 1,024 tokens: with a 1,200-token version of the prompt, 58 of 59 requests returned `cached_tokens` (1,199 on gpt-5.6, 1,024 on gpt-5.4-nano). See Section 3.5.6 for the measurement and use `scripts/benchmark_luna_knowledge_qa.py --conditions guardrails-long,guardrails-long+bust,none` to reproduce it. The cost arithmetic in 4.2–4.3 remains valid for any prompt that actually exceeds the threshold in the deployment's tokenizer.
 
 ### 4.1 TTFT Impact: None
 
@@ -1200,15 +1231,14 @@ python scripts/benchmark_luna_knowledge_qa.py --endpoint ... --models gpt-5.6-lu
 python scripts/benchmark_luna_knowledge_qa.py --endpoint ... --models gpt-5.6-luna:none,gpt-5.6-luna:low,gpt-5.6-luna --iterations 17 --warmup 2  # reasoning effort ladder
 python scripts/benchmark_luna_knowledge_qa.py --endpoint ... --models gpt-5.6-luna --new-client-per-request --iterations 27 --warmup 2            # new TLS connection per call
 python scripts/benchmark_luna_knowledge_qa.py --endpoint ... --queries all --iterations 7 --warmup 2                                               # capability spread
-python scripts/benchmark_luna_knowledge_qa.py --endpoint ... --system-preset guardrails-long --iterations 17 --warmup 2                            # 1,200-token system prompt, prompt cache engaged
-python scripts/benchmark_luna_knowledge_qa.py --endpoint ... --system-preset guardrails-long --cache-bust --iterations 17 --warmup 2               # same prompt, cache defeated (unique prefix per request)
+python scripts/benchmark_luna_knowledge_qa.py --endpoint ... --conditions guardrails-long,guardrails-long+bust,none --iterations 17 --warmup 2   # 1,200-token system prompt: cache hit vs never cached vs none, interleaved per iteration
 python scripts/benchmark_luna_knowledge_qa.py --endpoint ... --custom-query "your customer's exact prompt"
 
 # Recompute the summary tables from a saved run
 python scripts/benchmark_luna_knowledge_qa.py --report-from outputs/benchmark_luna_knowledge_qa_<timestamp>.json
 ```
 
-Each record stores HTTP status, `x-request-id` / `apim-request-id`, `retries_taken`, `retry-after`, TTFT / E2E, input / output / reasoning / **cached** token usage, `response.status`, and a light sanity flag, so slow request ids can be handed to the service team without re-running.
+Each record stores HTTP status, `x-request-id` / `apim-request-id`, `retries_taken` (flagged `retries_taken_inferred` on failed requests), `retry-after`, `auth_seconds` (time spent inside the token provider, so a credential refresh is never booked as model latency), TTFB / TTFT / E2E, input / output / reasoning / **cached** token usage, `response.status`, and a light sanity flag, so slow request ids can be handed to the service team without re-running.
 
 ### 9.4 Data Files
 
@@ -1218,7 +1248,7 @@ The 5-run web_search dataset (`data/benchmark_websearch_guardrails_*.json`) cont
 
 Data-integrity rule for future runs: if a web-grounded table reports S4, it must also report the matching S5 WebIQ result or explicitly state why WebIQ was not run. The current public script avoids terminal-encoding duplicate records by using ASCII status labels and explicit `success` flags.
 
-The Section 3.5 knowledge-only runs (`outputs/benchmark_luna_knowledge_qa_20260902_*.json`, 726 records in seven files) follow the same rule: statistics are computed from `success=true` records only, failed records are kept with their HTTP status, error body and request id, and each file carries the SHA-256 of the script that produced it.
+The Section 3.5 knowledge-only runs (`outputs/benchmark_luna_knowledge_qa_20260902_*.json`, 930 records in eight files) follow the same rule: statistics are computed from `success=true` records only, failed records are kept with their HTTP status, error body and request id, records whose timing includes a client-side token refresh (`auth_seconds` > 0.5 s) are kept but excluded from latency distributions, and each file carries the SHA-256 of the script that produced it.
 
 ### 9.5 Scripts Inventory
 
@@ -1230,7 +1260,8 @@ The Section 3.5 knowledge-only runs (`outputs/benchmark_luna_knowledge_qa_202609
 | `benchmark_3s_detective.py` | Foundry Agent + Bing, 3 scenarios × 5 models | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_AI_PROJECT_ENDPOINT`, `BING_CONNECTION_NAME` |
 | `benchmark_3s_cached.py` | Prompt caching version (1066-token system prompt) | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_AI_PROJECT_ENDPOINT`, `BING_CONNECTION_NAME` |
 | `benchmark_intent_classification.py` | Short-output intent classification cost analysis | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY` |
-| `benchmark_luna_knowledge_qa.py` | gpt-5.6 Luna / Sol / Terra vs gpt-5.4 family, knowledge-only prompts, no tools; stream + non-stream, `max_retries`, `reasoning.effort`, connection-mode and system-prompt / prompt-cache single-variable switches; per-request request ids and `cached_tokens` | `--endpoint`, `--api-key` or Entra ID (`az login`), `--models`, `--queries`, `--mode`, `--max-retries`, `--system-preset`, `--cache-bust`, `--report-from` |
+| `benchmark_luna_knowledge_qa.py` | gpt-5.6 Luna / Sol / Terra vs gpt-5.4 family, knowledge-only prompts, no tools; stream + non-stream, `max_retries`, `reasoning.effort`, connection-mode and interleaved system-prompt / prompt-cache conditions; per-request request ids, `cached_tokens` and token-provider time | `--endpoint`, `--api-key` or Entra ID (`az login`), `--models`, `--queries`, `--mode`, `--max-retries`, `--conditions`, `--report-from` |
+| `verify_luna_readme_numbers.py` | Native gate for Section 3.5: recomputes every latency / token cell from the raw `outputs/*.json`, checks that the 2-decimal values appear on the matching README EN/CN table rows, and runs permutation tests for the cache and effort claims; exits non-zero on any mismatch | `outputs/ README.md [README-CN.md]` |
 | `stress_test_tpm_utilization.py` | Concurrent TPM utilization stress test | `--endpoint`, `--api-key`, `--concurrency`, `--total` |
 
 ---

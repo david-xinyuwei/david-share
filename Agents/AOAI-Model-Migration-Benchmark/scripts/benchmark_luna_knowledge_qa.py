@@ -255,6 +255,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--cache-bust", dest="cache_bust", action="store_true",
                         help="Prefix the system prompt with a unique nonce per request so the >1024-token "
                              "prefix can never be served from the prompt cache (worst-case prefill)")
+    parser.add_argument("--conditions", default="",
+                        help="Comma-separated system-prompt conditions to interleave inside every iteration, each "
+                             "<preset>[+bust], e.g. 'guardrails-long,guardrails-long+bust,none'. Removes the "
+                             "time-window confound of running conditions as separate runs. Overrides "
+                             "--system-preset / --cache-bust")
     parser.add_argument("--mode", choices=("stream", "nonstream", "both"), default="stream",
                         help="stream=True (TTFT + E2E), stream=False (TTFB == E2E), or both per iteration")
     parser.add_argument("--iterations", type=int, default=10,
@@ -327,20 +332,40 @@ def build_base_url(endpoint: str) -> str:
     return endpoint + "/openai/v1"
 
 
-def make_credential(args: argparse.Namespace) -> str | Callable[[], str]:
+class TimedTokenProvider:
+    """Wraps a bearer-token provider and records how long each call took.
+
+    The openai client calls the provider inside every request, so any Azure CLI refresh
+    would otherwise be invisible and would show up as "time to first byte".
+    """
+
+    def __init__(self, provider: Callable[[], str]) -> None:
+        self._provider = provider
+        self.calls: list[tuple[float, float]] = []  # (perf_counter start, duration seconds)
+
+    def __call__(self) -> str:
+        started = time.perf_counter()
+        token = self._provider()
+        self.calls.append((started, time.perf_counter() - started))
+        return token
+
+    def seconds_between(self, start: float, end: float) -> float:
+        return round(sum(d for s, d in self.calls if start <= s <= end), 3)
+
+
+def make_credential(args: argparse.Namespace) -> str | TimedTokenProvider:
     if args.api_key:
         return args.api_key
     from azure.identity import AzureCliCredential, get_bearer_token_provider
     # `az` can take well over the 10 s default on a busy workstation; the provider caches
     # the token, so priming it here keeps the first measured request free of CLI latency.
-    provider = get_bearer_token_provider(AzureCliCredential(process_timeout=90), args.token_scope)
-    t0 = time.perf_counter()
+    provider = TimedTokenProvider(get_bearer_token_provider(AzureCliCredential(process_timeout=90), args.token_scope))
     provider()
-    print(f"Entra ID token acquired via Azure CLI in {time.perf_counter() - t0:.1f}s (scope {args.token_scope})")
+    print(f"Entra ID token acquired via Azure CLI in {provider.calls[-1][1]:.1f}s (scope {args.token_scope})")
     return provider
 
 
-def make_client(args: argparse.Namespace, credential: str | Callable[[], str]) -> OpenAI:
+def make_client(args: argparse.Namespace, credential: str | TimedTokenProvider) -> OpenAI:
     api_key: Any = credential
     if callable(credential):
         # openai>=1.100 accepts a callable api_key; fall back to a one-shot token otherwise.
@@ -355,12 +380,32 @@ def make_client(args: argparse.Namespace, credential: str | Callable[[], str]) -
 
 # ── Single request ──────────────────────────────────────────────────────
 
+def parse_conditions(args: argparse.Namespace) -> list[tuple[str, str, bool]]:
+    """Return [(label, preset, cache_bust)] for the system-prompt conditions to interleave.
+
+    --conditions "guardrails-long,guardrails-long+bust,none" cycles three conditions inside every
+    iteration so that a condition is never confounded with the minutes in which it ran. Without the
+    flag the single condition given by --system-preset / --cache-bust is used.
+    """
+    if not args.conditions:
+        return [("", args.system_preset, args.cache_bust)]
+    parsed: list[tuple[str, str, bool]] = []
+    for token in (t.strip() for t in args.conditions.split(",") if t.strip()):
+        preset, _, suffix = token.partition("+")
+        if preset not in SYSTEM_PRESETS or suffix not in ("", "bust"):
+            raise SystemExit(f"Bad condition '{token}'. Use <preset>[+bust] with preset in {', '.join(SYSTEM_PRESETS)}")
+        if suffix == "bust" and preset == "none":
+            raise SystemExit("'none+bust' is meaningless: there is no prefix to bust")
+        parsed.append((token, preset, suffix == "bust"))
+    return parsed
+
+
 def request_kwargs(args: argparse.Namespace, deploy: str, effort: str | None,
-                   prompt: str, max_tokens: int) -> dict[str, Any]:
+                   prompt: str, max_tokens: int, preset: str, cache_bust: bool) -> dict[str, Any]:
     kwargs: dict[str, Any] = {"model": deploy, "input": prompt, "max_output_tokens": max_tokens}
-    system = args.system or SYSTEM_PRESETS[args.system_preset]
+    system = args.system or SYSTEM_PRESETS[preset]
     if system:
-        if args.cache_bust:
+        if cache_bust:
             # A unique leading token sequence defeats prefix matching for the whole prompt.
             system = f"[session {uuid.uuid4()}]\n{system}"
         kwargs["instructions"] = system
@@ -390,11 +435,13 @@ def usage_fields(usage: Any) -> dict[str, Any]:
     }
 
 
-def run_once(client: OpenAI, stream: bool, kwargs: dict[str, Any]) -> dict[str, Any]:
+def run_once(client: OpenAI, stream: bool, kwargs: dict[str, Any],
+             provider: TimedTokenProvider | None = None) -> dict[str, Any]:
     rec: dict[str, Any] = {
         "stream": stream, "success": False, "http_status": None, "request_id": None,
         "response_id": None, "response_status": None, "incomplete_reason": None,
-        "retries_taken": None, "retry_after": None, "ttfb": None, "ttft": None, "e2e": None, "text_len": 0,
+        "retries_taken": None, "retries_taken_inferred": False, "retry_after": None,
+        "auth_seconds": None, "ttfb": None, "ttft": None, "e2e": None, "text_len": 0,
         **usage_fields(None),
     }
     text_parts: list[str] = []
@@ -445,15 +492,22 @@ def run_once(client: OpenAI, stream: bool, kwargs: dict[str, Any]) -> dict[str, 
         headers = getattr(error.response, "headers", None)
         rec["request_id"] = error.request_id or header_request_id(headers)
         rec["retry_after"] = headers.get("retry-after-ms") or headers.get("retry-after") if headers is not None else None
-        # A surfaced 408/409/429/5xx means the SDK already exhausted its automatic retries.
-        rec["retries_taken"] = client.max_retries if error.status_code in (408, 409, 429) or error.status_code >= 500 else 0
+        # The SDK only surfaces 408/409/429/5xx after exhausting its automatic retries, so the count
+        # is inferred from the client setting rather than read from a response header.
+        retryable = error.status_code in (408, 409, 429) or error.status_code >= 500
+        rec["retries_taken"] = client.max_retries if retryable else 0
+        rec["retries_taken_inferred"] = True
         rec["error"] = f"{type(error).__name__}: {str(error)[:500]}"
     except (openai.APITimeoutError, openai.APIConnectionError) as error:
         rec["e2e"] = round(time.perf_counter() - t0, 3)
+        rec["retries_taken"] = client.max_retries
+        rec["retries_taken_inferred"] = True
         rec["error"] = f"{type(error).__name__}: {str(error)[:500]}"
     except Exception as error:  # noqa: BLE001 - keep the loop alive, record everything
         rec["e2e"] = round(time.perf_counter() - t0, 3)
         rec["error"] = f"{type(error).__name__}: {str(error)[:500]}"
+    if provider is not None:
+        rec["auth_seconds"] = provider.seconds_between(t0, time.perf_counter())
     rec["text_len"] = len(rec.get("text", ""))
     visible = (rec["output_tokens"] or 0) - (rec["reasoning_tokens"] or 0)
     first = rec["ttft"] if stream else None
@@ -488,16 +542,26 @@ def dist(values: list[float]) -> dict[str, Any]:
     }
 
 
+# A request whose timing includes a synchronous Entra token refresh measures the client, not the
+# service. Such records stay in the file but are excluded from latency distributions.
+CLIENT_AUTH_ARTIFACT_SECONDS = 0.5
+
+
+def is_client_artifact(record: dict[str, Any]) -> bool:
+    return (record.get("auth_seconds") or 0) > CLIENT_AUTH_ARTIFACT_SECONDS
+
+
 def summarize(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    keys = sorted({(r["model"], r.get("reasoning_effort", "default"), r["query"], r["stream"]) for r in records},
-                  key=lambda k: (k[2], not k[3], k[0], k[1]))
+    keys = sorted({(r["model"], r.get("reasoning_effort", "default"), r["query"], r["stream"], r.get("condition", "")) for r in records},
+                  key=lambda k: (k[2], not k[3], k[0], k[1], k[4]))
     summary: list[dict[str, Any]] = []
-    for model, effort, query, stream in keys:
+    for model, effort, query, stream, condition in keys:
         group = [r for r in records if r["model"] == model and r.get("reasoning_effort", "default") == effort
-                 and r["query"] == query and r["stream"] == stream and not r["warmup"]]
+                 and r["query"] == query and r["stream"] == stream and r.get("condition", "") == condition and not r["warmup"]]
         if not group:
             continue
-        ok = [r for r in group if r["success"]]
+        artifacts = [r for r in group if is_client_artifact(r)]
+        ok = [r for r in group if r["success"] and not is_client_artifact(r)]
         e2e = [r["e2e"] for r in ok]
         ttft = [r["ttft"] for r in ok if r.get("ttft") is not None]
         ttfb = [r["ttfb"] for r in ok if r.get("ttfb") is not None]
@@ -507,14 +571,20 @@ def summarize(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
         cached = [r["cached_tokens"] or 0 for r in ok if r.get("input_tokens") is not None]
         reasoning = [r["reasoning_tokens"] or 0 for r in ok if r.get("output_tokens") is not None]
         sanity = [r["sanity_pass"] for r in ok if r.get("sanity_pass") is not None]
+        auth = [r["auth_seconds"] for r in group if r.get("auth_seconds") is not None]
         request_ids = {r["request_id"] for r in group if r.get("request_id")}
+        label = model if effort == "default" else f"{model}:{effort}"
+        if condition:
+            label = f"{label} [{condition}]"
         summary.append({
-            "model": model if effort == "default" else f"{model}:{effort}", "deployment": model,
+            "model": label, "deployment": model, "condition": condition or None,
             "reasoning_effort": effort, "query": query, "mode": "stream" if stream else "nonstream",
-            "requests": len(group), "successful": len(ok), "failed": len(group) - len(ok),
+            "requests": len(group), "successful": len(ok), "failed": len(group) - len(ok) - len(artifacts),
+            "excluded_client_auth_refresh": len(artifacts),
             "http_statuses": sorted({str(r["http_status"]) for r in group}),
             "unique_request_ids": len(request_ids),
             "retries_taken_total": sum(r["retries_taken"] or 0 for r in group),
+            "auth_seconds_max": round(max(auth), 3) if auth else None,
             "incomplete": sum(1 for r in group if r.get("response_status") == "incomplete"),
             "ttft": dist(ttft), "ttfb": dist(ttfb), "e2e": dist(e2e),
             "over_5s": sum(v > 5 for v in e2e), "over_10s": sum(v > 10 for v in e2e), "over_20s": sum(v > 20 for v in e2e),
@@ -557,8 +627,10 @@ def markdown_summary(summary: list[dict[str, Any]]) -> str:
     for row in summary:
         ttft = f"{fmt(row['ttft'].get('p50'), 's')} / {fmt(row['ttft'].get('p95'), 's')}" if row["mode"] == "stream" else "n/a (non-stream)"
         e2e = row["e2e"]
+        excluded = row.get("excluded_client_auth_refresh") or 0
+        n_cell = f"{row['successful']}/{row['requests']}" + (f" (−{excluded} auth)" if excluded else "")
         lines.append(
-            f"| {row['query']} | {row['mode']} | `{row['model']}` | {row['successful']}/{row['requests']} | {ttft} | "
+            f"| {row['query']} | {row['mode']} | `{row['model']}` | {n_cell} | {ttft} | "
             f"{fmt(e2e.get('mean'), 's')} / {fmt(e2e.get('p50'), 's')} / {fmt(e2e.get('p95'), 's')} / {fmt(e2e.get('max'), 's')} | "
             f"{row['over_5s']} | {fmt(row.get('input_tokens_mean'))} ({fmt(row.get('cached_tokens_mean'))}) | "
             f"{fmt(row['output_tokens_mean'])} ({fmt(row['reasoning_tokens_mean'])}) | {fmt(row['visible_tps_p50'])} | "
@@ -586,31 +658,37 @@ def main() -> int:
     with open(SCRIPT_PATH, "rb") as handle:
         script_sha = hashlib.sha256(handle.read()).hexdigest()
     credential = make_credential(args)
+    provider = credential if isinstance(credential, TimedTokenProvider) else None
     shared_client = None if args.new_client else make_client(args, credential)
+    conditions = parse_conditions(args)
 
-    total = len(models) * len(queries) * len(modes) * args.iterations
+    total = len(models) * len(queries) * len(modes) * len(conditions) * args.iterations
     started = dt.datetime.now(dt.timezone.utc)
     print(f"Knowledge-only direct benchmark: {len(models)} models x {len(queries)} queries x {len(modes)} mode(s) x "
-          f"{args.iterations} iterations = {total} calls ({args.warmup} warmup per cell)")
+          f"{len(conditions)} condition(s) x {args.iterations} iterations = {total} calls ({args.warmup} warmup per cell)")
+    system_desc = "custom" if args.system else (",".join(c[0] for c in conditions) if args.conditions
+                                                 else f"{args.system_preset}{' +cache-bust' if args.cache_bust else ''}")
     print(f"Endpoint: {build_base_url(args.endpoint)} | auth: {'api-key' if args.api_key else 'Entra ID (Azure CLI)'} | "
           f"max_retries={args.max_retries} | timeout={args.timeout}s | order={args.order} | "
-          f"client={'new per request' if args.new_client else 'shared'} | "
-          f"system={'custom' if args.system else args.system_preset}{' +cache-bust' if args.cache_bust else ''} | "
+          f"client={'new per request' if args.new_client else 'shared'} | system={system_desc} | "
           f"openai=={openai.__version__}")
 
     records: list[dict[str, Any]] = []
 
     def execute(deploy: str, effort: str | None, qid: str, prompt: str, max_tokens: int,
-                checker: Callable[[str], bool] | None, stream: bool, iteration: int) -> None:
+                checker: Callable[[str], bool] | None, stream: bool, iteration: int,
+                condition: tuple[str, str, bool]) -> None:
+        label, preset, cache_bust = condition
         client = shared_client or make_client(args, credential)
-        kwargs = request_kwargs(args, deploy, effort, prompt, max_tokens)
-        rec = run_once(client, stream, kwargs)
+        kwargs = request_kwargs(args, deploy, effort, prompt, max_tokens, preset, cache_bust)
+        rec = run_once(client, stream, kwargs, provider)
         if args.new_client:
             client.close()
         text = rec.pop("text", "")
         rec.update({
             "scenario": "S1_direct_knowledge_only", "model": deploy, "reasoning_effort": effort or "default",
             "query": qid, "iteration": iteration, "warmup": iteration <= args.warmup,
+            "condition": label, "system_preset": "custom" if args.system else preset, "cache_bust": cache_bust,
             "max_output_tokens": max_tokens, "timestamp_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
             "sanity_pass": checker(text) if (checker and rec["success"]) else None,
             "answer_preview": text[:160],
@@ -619,8 +697,10 @@ def main() -> int:
         tag = "WU" if rec["warmup"] else "  "
         mode = "stream" if stream else "nonstr"
         status = "ok " if rec["success"] else "ERR"
-        print(f"  {tag} i{iteration:>2} {qid:<13} {mode} {deploy:<16} {status} http={fmt(rec['http_status'])} "
-              f"ttft={fmt(rec['ttft'], 's')} e2e={fmt(rec['e2e'], 's')} in={fmt(rec['input_tokens'])} "
+        cond = f" [{label}]" if label else ""
+        print(f"  {tag} i{iteration:>2} {qid:<13} {mode} {deploy:<16}{cond} {status} http={fmt(rec['http_status'])} "
+              f"ttfb={fmt(rec['ttfb'], 's')} ttft={fmt(rec['ttft'], 's')} e2e={fmt(rec['e2e'], 's')} "
+              f"auth={fmt(rec['auth_seconds'], 's')} in={fmt(rec['input_tokens'])} "
               f"cached={fmt(rec['cached_tokens'])} out={fmt(rec['output_tokens'])} "
               f"reason={fmt(rec['reasoning_tokens'])} tps={fmt(rec['visible_tps'])} sane={fmt(rec['sanity_pass'])} "
               f"rid={fmt(rec['request_id'])}" + (f" err={rec['error'][:120]}" if rec.get("error") else ""), flush=True)
@@ -633,13 +713,15 @@ def main() -> int:
         if args.order == "roundrobin":
             for iteration in range(1, args.iterations + 1):
                 for deploy, effort in models:
-                    for stream in modes:
-                        execute(deploy, effort, qid, prompt, max_tokens, checker, stream, iteration)
+                    for condition in conditions:
+                        for stream in modes:
+                            execute(deploy, effort, qid, prompt, max_tokens, checker, stream, iteration, condition)
         else:
             for deploy, effort in models:
-                for stream in modes:
-                    for iteration in range(1, args.iterations + 1):
-                        execute(deploy, effort, qid, prompt, max_tokens, checker, stream, iteration)
+                for condition in conditions:
+                    for stream in modes:
+                        for iteration in range(1, args.iterations + 1):
+                            execute(deploy, effort, qid, prompt, max_tokens, checker, stream, iteration, condition)
 
     finished = dt.datetime.now(dt.timezone.utc)
     summary = summarize(records)
@@ -658,6 +740,8 @@ def main() -> int:
             "system_preset": "custom" if args.system else args.system_preset,
             "system_prompt_chars": len(args.system or SYSTEM_PRESETS[args.system_preset]),
             "cache_bust": args.cache_bust,
+            "conditions": [{"label": c[0], "system_preset": c[1], "cache_bust": c[2]} for c in conditions] if args.conditions else None,
+            "token_provider_calls": len(provider.calls) if provider else None,
             "modes": ["stream" if s else "nonstream" for s in modes],
             "iterations": args.iterations, "warmup": args.warmup, "order": args.order,
             "max_retries": args.max_retries, "timeout_seconds": args.timeout,
@@ -676,7 +760,10 @@ def main() -> int:
     with open(outfile, "w", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=2, ensure_ascii=False)
     failed = sum(1 for r in records if not r["success"])
+    artifacts = sum(1 for r in records if is_client_artifact(r))
     print(f"\nSaved {len(records)} records -> {outfile}")
+    if artifacts:
+        print(f"CLIENT_AUTH_REFRESH_EXCLUDED={artifacts} (records with auth_seconds > {CLIENT_AUTH_ARTIFACT_SECONDS}s are kept in the file but left out of latency statistics)")
     print(f"BENCHMARK_STATUS={'PASS' if failed == 0 else 'PARTIAL'} failed={failed} script_sha256={script_sha}")
     return 0 if failed == 0 else 1
 
