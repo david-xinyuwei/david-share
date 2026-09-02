@@ -21,10 +21,10 @@ Production-grade benchmark and traffic-management toolkit for migrating a low-la
 |------|---------------|
 | Azure service | Azure OpenAI Service + Azure API Management + Azure Monitor / Application Insights |
 | Primary API path | Responses API with `stream=True`; `web_search_preview` and WebIQ explicit retrieval are both benchmarked for every web-search scenario |
-| Models tested | gpt-4o-mini, gpt-5.4-nano, gpt-5.4-mini, gpt-5-nano, gpt-5-mini |
+| Models tested | gpt-4o-mini, gpt-5.4-nano, gpt-5.4-mini, gpt-5-nano, gpt-5-mini; gpt-5.6-luna / gpt-5.6-sol / gpt-5.6-terra and gpt-5.4 in the knowledge-only addendum (Section 3.5) |
 | Traffic management | PTU first, APIM proactive routing to PAYGO at high utilization, 429 retry safety net |
 | Runtime | Python benchmark scripts + optional Node.js PTU monitor proxy |
-| Authentication | API key for benchmark scripts; APIM named values/backends for routing PoC |
+| Authentication | API key for benchmark scripts (the Section 3.5 script also supports Microsoft Entra ID via Azure CLI); APIM named values/backends for routing PoC |
 
 ## Executive Summary
 
@@ -130,6 +130,17 @@ Side-by-side answer checks used the original migration scenarios and gpt-5.4-min
 Less ideal fits: no-search tasks, zero-code orchestration requirements, image-to-image search, and sites with bot protection.
 
 > Original benchmark note: the web_search, Foundry+Bing, and Direct rows above were measured as P50 (median) across **120 samples per model per scenario** (5 independent runs). The WebIQ E2E comparison (Section 3.4) uses a separate 7-iteration run with 15 effective samples per model. Test environment: East Asia → East US 2 (PAYGO GlobalStandard). Customer PTU environment will have lower TTFT.
+
+### gpt-5.6 Luna Addendum: Knowledge-only Direct Latency (September 2026)
+
+A customer loop asking `gpt-5.6-luna` a tool-free question ("What are the seven wonders of the world?") showed a ~2 s median with a 15–60 s tail. Section 3.5 reproduces the scenario with `scripts/benchmark_luna_knowledge_qa.py` — Responses API, no tools, `max_retries=0`, per-request request ids and token usage — across `gpt-5.6-luna` / `sol` / `terra`, `gpt-5.4` and `gpt-5.4-nano`:
+
+| Question | Answer from the data |
+|----------|----------------------|
+| Is Luna slow? | No. 25 streaming requests: E2E p50 **3.14 s**, max **3.89 s**, fastest decode of the five (175 tok/s). With `reasoning.effort=none` Luna has the same TTFT as Sol/Terra (~0.9–1.0 s) and the fastest E2E (2.24 s p50). |
+| Why is Luna's default TTFT higher (2.04 s vs 1.22 s Terra)? | Default reasoning: ~100 reasoning tokens per answer on this prompt (≈`medium`), adaptive per prompt (0 on a TCP/UDP explanation). |
+| Where does a 15–60 s tail come from? | A live `429 no_capacity` peak-load event (observed on `gpt-5.6-sol`, 34/54 requests, 04:04–04:20 UTC) plus the SDK's default two retries: "successful" calls of 15.2–25.7 s, failures surfacing after 5–7 s. With `max_retries=0` the same 429 surfaces in ~2 s. |
+| What to change on the client? | `max_retries=0` while diagnosing, log `x-request-id` / status / `retries_taken` / usage, pin `reasoning.effort`, measure TTFT and E2E separately, interleave the compared models. |
 
 **Production settings for web_search path** (customer's architecture):
 
@@ -463,6 +474,124 @@ API: `responses.create(agent_reference=..., tool_choice="required", stream=True)
 5. **Trade-off**: WebIQ requires application-level search orchestration code; `web_search_preview` is zero-code but slower
 
 > Data source: `outputs/benchmark_websearch_guardrails_20260617_103004.json` (7 iterations, 2 warmup). S4 rows above use only search-verified success records. The public script now uses ASCII status labels and explicit `success` flags so future runs do not append duplicate terminal-encoding failure records.
+
+### 3.5 gpt-5.6 Luna / Sol / Terra — Knowledge-only Direct Latency (Addendum, September 2026)
+
+> **Why this addendum exists.** A customer evaluating `gpt-5.6-luna` ran a plain request loop — no tools, no web search, the prompt was simply *"What are the seven wonders of the world?"* — and saw a median around 2 s but a large share of requests at 15–60 s. Three explanations compete: Luna is inherently slow, the client loop hides something (SDK automatic retries, a new TLS connection per call), or the service had a capacity event. This section separates them with single-variable measurements. Everything here is scenario **S1-KQ**: Direct AOAI Responses API with knowledge-only prompts, so nothing but the model and the service path is measured.
+
+#### Test setup
+
+| Item | Value |
+|------|-------|
+| Script | `scripts/benchmark_luna_knowledge_qa.py` (new; see Section 9.3) |
+| API | Responses API v1 (`<endpoint>/openai/v1/responses`), `openai==2.14.0`, Microsoft Entra ID authentication |
+| Deployments | `gpt-5.6-luna`, `gpt-5.6-sol`, `gpt-5.6-terra` (all model version `2026-07-09`), `gpt-5.4`, `gpt-5.4-nano` — GlobalStandard, same resource, Sweden Central |
+| Client | Windows workstation in East Asia → Sweden Central (cross-continent RTT is included in every number) |
+| Prompt | `What are the seven wonders of the world?`, no system prompt, `max_output_tokens=1024`, `reasoning` **unset** (model default) unless stated |
+| Sampling | 27 iterations per cell, 2 warmup discarded → **25 samples per model per mode**; models interleaved round-robin; `stream=True` and `stream=False` measured side by side |
+| Client hygiene | `max_retries=0` (SDK default is 2), one shared HTTPS connection, `timeout=120s`; every request logs HTTP status, `x-request-id` / `apim-request-id`, `retries_taken`, token usage and `response.status` |
+
+#### 3.5.1 Default settings — 25 samples per cell
+
+Streaming (`stream=True`): TTFT = first `response.output_text.delta`; tok/s = visible output tokens ÷ (E2E − TTFT).
+
+| Model | N ok/total | TTFT p50 / p95 | E2E mean / p50 / p95 / max | >5s | Output tokens (of which reasoning) | tok/s p50 |
+|-------|:-:|:-:|:-:|:-:|:-:|:-:|
+| **gpt-5.6-luna** | 25/25 | 2.04s / 2.35s | 3.17s / 3.14s / 3.55s / **3.89s** | 0 | 300 (102) | **175** |
+| gpt-5.6-sol | **8/25** | 2.57s / 12.11s | 7.17s / 5.14s / 15.27s / 19.45s | 4 | 245 (50) | 65 |
+| gpt-5.6-terra | 25/25 | 1.22s / 3.89s | 3.31s / 3.01s / 6.00s / 6.65s | 2 | 224 (24) | 111 |
+| gpt-5.4 | 25/25 | 1.38s / 1.61s | 4.59s / 4.29s / 6.74s / 8.10s | 6 | 213 (0) | 77 |
+| gpt-5.4-nano | 25/25 | **0.97s** / 1.48s | 2.62s / **2.44s** / 3.56s / 4.12s | 0 | 151 (0) | 98 |
+
+Non-streaming (`stream=False`, the shape of a simple `time.time()` loop):
+
+| Model | N ok/total | E2E mean / p50 / p95 / max | >5s | Output tokens (of which reasoning) |
+|-------|:-:|:-:|:-:|:-:|
+| **gpt-5.6-luna** | 25/25 | 3.55s / 3.29s / 5.17s / 8.78s | 2 | 287 (91) |
+| gpt-5.6-sol | **8/25** | 5.50s / 5.44s / 6.29s / 6.36s | 7 | 265 (75) |
+| gpt-5.6-terra | 25/25 | 3.47s / 3.28s / 4.86s / 5.38s | 2 | 223 (28) |
+| gpt-5.4 | 25/25 | 4.22s / 4.21s / 5.00s / 6.36s | 2 | 217 (0) |
+| gpt-5.4-nano | 25/25 | 2.89s / 2.86s / 3.70s / 4.04s | 0 | 162 (0) |
+
+Reading the tables:
+
+- **Luna is not slow.** Its visible decode speed is the fastest of the five (175 tok/s p50) and its streaming E2E maximum over 25 requests was 3.89 s. With `max_retries=0` there were **no 15–60 s outliers**.
+- **Luna's TTFT is ~0.8 s higher than Terra's because it thinks more by default.** Luna emitted ~100 reasoning tokens per answer, Sol ~50, Terra ~24, gpt-5.4 none. Nothing else in the request differs; Section 3.5.4 removes this variable.
+- **`gpt-5.6-sol` hit a live capacity event during the run.** 34 of 54 Sol requests failed with `429 too_many_requests` / `code: no_capacity` between 04:04 and 04:20 UTC, while Luna, Terra, gpt-5.4 and gpt-5.4-nano served every request on the same resource in the same minutes. Capacity is per model pool, not per resource.
+- All 236 successful answers (warmup included) passed the sanity check (≥5 of the wonders named); 269 of 270 requests carried a unique request id — the exception is the one request that hit the 120 s client timeout.
+
+#### 3.5.2 What a capacity event looks like from the client
+
+Error body returned by the service (verbatim):
+
+```text
+429 too_many_requests, code: no_capacity
+"The system is currently experiencing high demand and cannot process your request.
+ Your request exceeds the maximum usage size allowed during peak load.
+ For improved capacity reliability, consider switching to Provisioned Throughput."
+```
+
+| Observation | Value |
+|-------------|-------|
+| Non-streaming failures | HTTP 429 surfaced after 2.1–3.0 s in most cases, but also after 5.6 s, 6.4 s, 11.4 s and 30.8 s; one request hit the 120 s client timeout |
+| Streaming failures | HTTP **200** with headers, then the SSE stream terminates with the error → the SDK raises `APIError` 1.1–34.5 s after the request started. A client that only checks the status code will not see a 429 at all |
+| Server-side hold | Just before the failures began, one Sol request **succeeded after 19.45 s** with 0 retries (iteration 5, streaming): response headers arrived in 0.5 s, the first token after 16.2 s. Luna's only two non-streaming requests above 5 s (5.5 s and 8.8 s) also fell inside the Sol event window (04:18–04:20 UTC) |
+| Not a quota limit | The request was 15 input tokens with `max_output_tokens=1024`; `no_capacity` means the shared GlobalStandard pool for that model was saturated. Raising TPM quota does not help; PTU, a different SKU/region pool, or proactive routing (Section 7) does |
+
+#### 3.5.3 Single variable: SDK automatic retries (`max_retries=2`, the SDK default)
+
+Ten non-streaming Sol requests were sent during the same capacity event with the only change being `max_retries=2` instead of `0`:
+
+| # | Result | E2E | Hidden retries | # | Result | E2E | Hidden retries |
+|:-:|--------|:---:|:-:|:-:|--------|:---:|:-:|
+| 1 | 429 | 7.3s | 2 (exhausted) | 6 | **200** | **20.8s** | 2 |
+| 2 | 429 | 6.0s | 2 (exhausted) | 7 | **200** | **15.2s** | 1 |
+| 3 | **200** | **25.7s** | 2 | 8 | 429 | 5.5s | 2 (exhausted) |
+| 4 | **200** | **16.7s** | 0 (server-side hold) | 9 | 429 | 5.2s | 2 (exhausted) |
+| 5 | 429 | 5.4s | 2 (exhausted) | 10 | 429 | 5.3s | 2 (exhausted) |
+
+With the default retry policy four requests "succeeded" in **15.2 s, 16.7 s, 20.8 s and 25.7 s**. Three of them contain one or two invisible retries; the fourth was held 16.7 s server-side. The six that still failed took 5.2–7.3 s to surface (three attempts plus back-off) instead of ~2 s. This is exactly the shape reported by the customer: **a low median with a 15–60 s tail that appears only under peak load, inflated by automatic retries that a bare timing loop cannot see.** The script records `retries_taken` per request so that this is never ambiguous again.
+
+#### 3.5.4 Single variable: `reasoning.effort` for the 5.6 family (streaming, 15 samples per cell)
+
+| Model | `effort` | TTFT p50 / p95 | E2E mean / p50 / p95 / max | Output tokens (reasoning) | tok/s p50 |
+|-------|:-:|:-:|:-:|:-:|:-:|
+| gpt-5.6-luna | default (≈medium) | 2.04s / 2.35s | 3.17s / 3.14s / 3.55s / 3.89s | 300 (102) | 175 |
+| gpt-5.6-luna | `low` | 1.36s / 1.79s | 2.84s / 2.64s / 3.85s / 5.10s | 237 (42) | 156 |
+| **gpt-5.6-luna** | **`none`** | **0.92s / 1.22s** | 2.48s / **2.24s** / 3.49s / 4.75s | 226 (0) | **169** |
+| gpt-5.6-sol | `low` | 1.60s / 2.64s | 4.90s / 4.70s / 6.50s / 7.33s | 227 (21) | 70 |
+| gpt-5.6-sol | `none` | 1.00s / 1.46s | 4.31s / 4.26s / 4.94s / 5.25s | 224 (0) | 69 |
+| gpt-5.6-terra | `low` | 1.09s / 1.36s | 3.06s / 2.77s / 4.34s / 6.15s | 216 (21) | 115 |
+| gpt-5.6-terra | `none` | 0.90s / 2.12s | 2.89s / 2.72s / 3.62s / 5.06s | 222 (0) | 122 |
+
+- gpt-5.6 accepts `reasoning.effort` = `none`, `low`, `medium`; `minimal` is rejected (`400 Unsupported value`). The default behaves like `medium` (~100 reasoning tokens on Luna).
+- **At equal effort the three variants have the same TTFT (0.90–1.00 s p50), and Luna has the fastest E2E** (2.24 s p50) because it decodes at ~169 tok/s versus 122 (Terra) and 69 (Sol).
+- On Luna each step default → `low` → `none` removes roughly 0.7 s of TTFT (2.04 → 1.36 → 0.92 s). For latency-sensitive knowledge Q&A, set `reasoning={"effort": "none"}` (or `low`) explicitly rather than relying on the default.
+
+#### 3.5.5 Knowledge-only capability spread (streaming, 5 samples per cell)
+
+Four more prompts that need no tools — a technical explanation, a small coding task, arithmetic with unit conversion, and strict JSON output — were run against the same five deployments (7 iterations, 2 warmup). Cells show TTFT p50 / E2E p50 (mean reasoning tokens).
+
+| Model | TCP vs UDP (5 bullets) | Python `is_palindrome` | 150 km in 1 h 40 min → km/h, mph | JSON capitals (JSON only) | Sanity |
+|-------|:-:|:-:|:-:|:-:|:-:|
+| gpt-5.6-luna | **0.91s / 1.96s** (0) | 1.48s / 2.17s (12) | 1.55s / **2.85s** (59) | 1.73s / 2.02s (65) | 20/20 |
+| gpt-5.6-sol | 0.98s / 2.24s (0) | 1.37s / 2.09s (0) | 1.95s / 3.39s (53) | 2.07s / 2.65s (17) | 20/20 |
+| gpt-5.6-terra | **0.87s** / 2.28s (0) | **0.85s / 1.44s** (0) | **1.39s** / **2.85s** (47) | **0.92s / 1.33s** (8) | 20/20 |
+| gpt-5.4 | 1.35s / 3.68s (0) | 1.32s / 2.25s (0) | 1.42s / 3.53s (0) | 1.36s / 1.95s (0) | 20/20 |
+| gpt-5.4-nano | 0.93s / 2.53s (0) | 1.03s / 1.90s (0) | 1.03s / 3.28s (0) | 1.05s / 2.08s (0) | 20/20 |
+
+- All 140 answers passed their sanity checks; on prompts this simple the five models are not separable by correctness, only by latency and verbosity.
+- **Luna's default reasoning is adaptive.** It spent 0 reasoning tokens on the TCP/UDP explanation (TTFT 0.91 s, the fastest E2E in that row), ~60 on arithmetic and JSON, and ~100 on the seven wonders. A single "Luna TTFT" number therefore depends on the prompt; pin `reasoning.effort` when comparing models.
+- Terra had the lowest TTFT on three of the four prompts; gpt-5.4-nano remains the cheapest low-latency option. Sol produced one 8.8 s outlier (palindrome: headers in 0.4 s, first token after 8.1 s) about ten minutes after its last observed 429, with every other Sol request in the 1–3.4 s range.
+
+#### Findings and guidance
+
+1. **Luna is not inherently slow.** Over 25+25 requests with `max_retries=0`, Luna's E2E stayed within 3.9 s (streaming) and 8.8 s (non-streaming), with the fastest decode of the five models. Its higher default TTFT is reasoning effort, a request parameter, not model speed.
+2. **A 15–60 s tail on a simple loop is a capacity-plus-retry signature.** During a `429 no_capacity` event the service holds or rejects requests for seconds to tens of seconds, and the SDK's default two retries with back-off turn those into 15–26 s "successful" calls. The same event never touched the other four model pools on the same resource.
+3. **Instrument before you conclude.** Set `max_retries=0`; log `x-request-id`, HTTP status, `retries_taken`, `retry-after`, usage and `response.status` for every call; measure TTFT and E2E separately with `stream=True`; interleave the compared models in the same minutes; read the deployment's SKU, region and model version from ARM instead of inferring them from the deployment name.
+4. **Capacity levers.** `no_capacity` is not a TPM quota limit. Options are PTU (which the error text itself recommends) with PAYGO spillover, a different SKU/region pool, and APIM proactive routing (Section 7) so that peak-load rejections never reach the user path.
+
+> Data files (git-ignored, reproducibility ledger): `outputs/benchmark_luna_knowledge_qa_20260902_040020_seven-wonders-5models.json` (270 records), `outputs/benchmark_luna_knowledge_qa_20260902_042339_sol-sdk-default-retries.json` (10 records), `outputs/benchmark_luna_knowledge_qa_20260902_042728_effort-ladder-5.6.json` (102 records), `outputs/benchmark_luna_knowledge_qa_20260902_043401_capability-spread.json` (140 records). Cross-continent network RTT is included in every number; a client in the same region will see lower absolute TTFT but the same relative picture.
 
 
 ## 4. Prompt Caching: Cost Reduction Analysis
@@ -941,7 +1070,7 @@ Key findings (216 records, IQR denoised): **TPS +30~43%** for outputs ≥50 toke
 ### 9.1 Prerequisites
 
 - Python 3.10+
-- Azure OpenAI deployment with API key
+- Azure OpenAI deployment with API key (the Section 3.5 script alternatively uses Microsoft Entra ID through an `az login` session; `azure-identity` is in `requirements.txt`)
 - For web_search tests: Responses API access (`2025-04-01-preview`)
 - For WebIQ tests: `WEBIQ_API_KEY` or `--webiq-key` and the `webiq==0.1.0` package from `requirements.txt`
 
@@ -1020,6 +1149,28 @@ python scripts/stress_test_tpm_utilization.py \
   --output results.json
 ```
 
+**gpt-5.6 Luna / Sol / Terra knowledge-only direct benchmark** (Section 3.5; no tools, Responses API v1, per-request request ids):
+
+```bash
+# Entra ID (az login) or --api-key; the endpoint may be *.openai.azure.com or *.services.ai.azure.com
+python scripts/benchmark_luna_knowledge_qa.py \
+  --endpoint https://<your-resource>.openai.azure.com \
+  --models gpt-5.6-luna,gpt-5.6-sol,gpt-5.6-terra,gpt-5.4,gpt-5.4-nano \
+  --queries seven_wonders --mode both --iterations 27 --warmup 2 --max-retries 0
+
+# Single-variable checks
+python scripts/benchmark_luna_knowledge_qa.py --endpoint ... --models gpt-5.6-luna --mode nonstream --iterations 10 --warmup 0 --max-retries 2   # SDK default retries
+python scripts/benchmark_luna_knowledge_qa.py --endpoint ... --models gpt-5.6-luna:none,gpt-5.6-luna:low,gpt-5.6-luna --iterations 17 --warmup 2  # reasoning effort ladder
+python scripts/benchmark_luna_knowledge_qa.py --endpoint ... --models gpt-5.6-luna --new-client-per-request --iterations 27 --warmup 2            # new TLS connection per call
+python scripts/benchmark_luna_knowledge_qa.py --endpoint ... --queries all --iterations 7 --warmup 2                                               # capability spread
+python scripts/benchmark_luna_knowledge_qa.py --endpoint ... --custom-query "your customer's exact prompt"
+
+# Recompute the summary tables from a saved run
+python scripts/benchmark_luna_knowledge_qa.py --report-from outputs/benchmark_luna_knowledge_qa_<timestamp>.json
+```
+
+Each record stores HTTP status, `x-request-id` / `apim-request-id`, `retries_taken`, `retry-after`, TTFT / E2E, input / output / reasoning token usage, `response.status`, and a light sanity flag, so slow request ids can be handed to the service team without re-running.
+
 ### 9.4 Data Files
 
 The public repo does not include raw per-request JSON files. Those files live in the private source repo to avoid publishing customer-specific traces. The filenames below are retained as a reproducibility ledger, and the public scripts can regenerate equivalent JSON outputs under `outputs/`.
@@ -1027,6 +1178,8 @@ The public repo does not include raw per-request JSON files. Those files live in
 The 5-run web_search dataset (`data/benchmark_websearch_guardrails_*.json`) contains 1,199 records across 5 models × 4 scenarios × ~120 samples. The WebIQ E2E dataset (`outputs/benchmark_websearch_guardrails_20260617_103004.json`) contains S1/S4/S5 records for the same original migration queries; S4 statistics must be computed from search-verified success records only.
 
 Data-integrity rule for future runs: if a web-grounded table reports S4, it must also report the matching S5 WebIQ result or explicitly state why WebIQ was not run. The current public script avoids terminal-encoding duplicate records by using ASCII status labels and explicit `success` flags.
+
+The Section 3.5 knowledge-only runs (`outputs/benchmark_luna_knowledge_qa_20260902_*.json`, 522 records in four files) follow the same rule: statistics are computed from `success=true` records only, failed records are kept with their HTTP status, error body and request id, and each file carries the SHA-256 of the script that produced it.
 
 ### 9.5 Scripts Inventory
 
@@ -1038,6 +1191,7 @@ Data-integrity rule for future runs: if a web-grounded table reports S4, it must
 | `benchmark_3s_detective.py` | Foundry Agent + Bing, 3 scenarios × 5 models | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_AI_PROJECT_ENDPOINT`, `BING_CONNECTION_NAME` |
 | `benchmark_3s_cached.py` | Prompt caching version (1066-token system prompt) | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_AI_PROJECT_ENDPOINT`, `BING_CONNECTION_NAME` |
 | `benchmark_intent_classification.py` | Short-output intent classification cost analysis | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY` |
+| `benchmark_luna_knowledge_qa.py` | gpt-5.6 Luna / Sol / Terra vs gpt-5.4 family, knowledge-only prompts, no tools; stream + non-stream, `max_retries`, `reasoning.effort` and connection-mode single-variable switches; per-request request ids | `--endpoint`, `--api-key` or Entra ID (`az login`), `--models`, `--queries`, `--mode`, `--max-retries`, `--report-from` |
 | `stress_test_tpm_utilization.py` | Concurrent TPM utilization stress test | `--endpoint`, `--api-key`, `--concurrency`, `--total` |
 
 ---
