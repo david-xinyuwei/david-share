@@ -55,6 +55,12 @@ ALLOWED_FILES = {
     "evidence/README.md",
     "evidence/manifest.json",
     "evidence/observation-validation.json",
+    "evidence/owned-approval-live-events.jsonl",
+    "evidence/owned-approval-live-trace.txt",
+    "evidence/owned-approval-live.json",
+    "evidence/owned-approval-local-events.jsonl",
+    "evidence/owned-approval-local-trace.txt",
+    "evidence/owned-approval-local.json",
     "evidence/owned-hosted-agent-dotnet-events.jsonl",
     "evidence/owned-hosted-agent-dotnet.json",
     "evidence/owned-hosted-agent-graceful-attempt.json",
@@ -74,6 +80,9 @@ ALLOWED_FILES = {
     "evidence/owned-hosted-agent-translation-local-events.jsonl",
     "evidence/owned-hosted-agent-translation-local-trace.txt",
     "evidence/owned-hosted-agent-translation-local.json",
+    "evidence/owned-steering-live-events.jsonl",
+    "evidence/owned-steering-live-trace.txt",
+    "evidence/owned-steering-live.json",
     "evidence/public-sdk-contract.json",
     "evidence/recovery-contract-demo.json",
     "evidence/recovery-contract-events.jsonl",
@@ -83,6 +92,7 @@ ALLOWED_FILES = {
     "evidence/runs/owned-agent-recovery-validation-20260826/run-manifest.json",
     "evidence/scenario-manifest.json",
     "evidence/scenario-matrix.json",
+    "evidence/steering-order-boundary.json",
     "evidence/ui-evidence.json",
     "examples/resilience_handler.py",
     "examples/resilience_sdk_usage.py",
@@ -98,6 +108,26 @@ ALLOWED_FILES = {
     "hosted-agent/src/lra-evidence-agent/main.py",
     "hosted-agent/src/lra-evidence-agent/requirements.txt",
     "hosted-agent/src/lra-evidence-agent/translation_workload.py",
+    "hosted-agent-approval/.env.example",
+    "hosted-agent-approval/azure.yaml",
+    "hosted-agent-approval/run_approval_recovery.py",
+    "hosted-agent-approval/scripts/deploy.sh",
+    "hosted-agent-approval/src/resilient-approval-gate/.azdignore",
+    "hosted-agent-approval/src/resilient-approval-gate/.dockerignore",
+    "hosted-agent-approval/src/resilient-approval-gate/Dockerfile",
+    "hosted-agent-approval/src/resilient-approval-gate/main.py",
+    "hosted-agent-approval/src/resilient-approval-gate/requirements.txt",
+    "hosted-agent-approval/src/resilient-approval-gate/translation_workload.py",
+    "hosted-agent-steering/.env.example",
+    "hosted-agent-steering/azure.yaml",
+    "hosted-agent-steering/run_steering_recovery.py",
+    "hosted-agent-steering/scripts/deploy.sh",
+    "hosted-agent-steering/src/resilient-steering/.azdignore",
+    "hosted-agent-steering/src/resilient-steering/.dockerignore",
+    "hosted-agent-steering/src/resilient-steering/Dockerfile",
+    "hosted-agent-steering/src/resilient-steering/main.py",
+    "hosted-agent-steering/src/resilient-steering/requirements.txt",
+    "hosted-agent-steering/src/resilient-steering/translation_workload.py",
     "images/official-lease-recovery-model.png",
     "images/lra-recovery-timeline.excalidraw",
     "images/lra-recovery-timeline.png",
@@ -108,7 +138,9 @@ ALLOWED_FILES = {
     "scripts/generate_evidence_manifest.py",
     "scripts/generate_rule_results.py",
     "scripts/recovery_contract_demo.py",
+    "scripts/render_approval_trace.py",
     "scripts/render_recovery_trace.py",
+    "scripts/render_steering_trace.py",
     "scripts/render_translation_result.py",
     "scripts/validate_observations.py",
     "scripts/validate_repo.py",
@@ -116,8 +148,18 @@ ALLOWED_FILES = {
     "tests/test_owned_hosted_agent.py",
     "tests/test_recovery_contract_demo.py",
     "tests/test_rule_results.py",
+    "tests/test_steering_approval_evidence.py",
     "tests/test_validate_observations.py",
 }
+
+# The Invocations protocol names its session query parameter; the server reads
+# it and the client sends it, so these two source files may spell it out.
+# Evidence, documentation, and configuration still may not contain it.
+PROTOCOL_PARAMETER_FILES = {
+    "hosted-agent-approval/run_approval_recovery.py",
+    "hosted-agent-approval/src/resilient-approval-gate/main.py",
+}
+PROTOCOL_PARAMETER_LITERAL = "agent_session_id"
 
 LOCAL_ARTEFACT_DIRS = {
     ".azure",
@@ -179,6 +221,9 @@ CRITICAL_NUMBERS = [
     "89.199",
     "0.606",
     "3.917",
+    "73.868",
+    "75.249",
+    "52.411",
 ]
 
 FORBIDDEN_LITERALS = [
@@ -1068,6 +1113,28 @@ def validate_code_and_tests(gate: Gate) -> int:
         ],
         "Python Agent package pins drifted",
     )
+    for relative, expected_pins in (
+        (
+            "hosted-agent-steering/src/resilient-steering/requirements.txt",
+            [
+                "azure-ai-agentserver-core==2.1.0",
+                "azure-ai-agentserver-responses==2.1.0",
+                "azure-identity==1.25.3",
+            ],
+        ),
+        (
+            "hosted-agent-approval/src/resilient-approval-gate/requirements.txt",
+            [
+                "azure-ai-agentserver-core==2.0.0",
+                "azure-ai-agentserver-invocations==1.0.0b8",
+                "azure-identity==1.25.3",
+            ],
+        ),
+    ):
+        gate.require(
+            (ROOT / relative).read_text(encoding="utf-8").splitlines() == expected_pins,
+            f"{relative}: package pins drifted",
+        )
     project = (ROOT / "dotnet-agent" / "LraEvidenceAgent.csproj").read_text(
         encoding="utf-8"
     )
@@ -1184,21 +1251,24 @@ def validate_repository_surface_and_security(gate: Gate) -> None:
     text_suffixes = {
         ".cs",
         ".csproj",
+        ".example",
         ".json",
         ".jsonl",
         ".md",
         ".py",
+        ".sh",
         ".txt",
         ".yaml",
         ".yml",
     }
+    text_names = {".azdignore", ".dockerignore", ".gitignore", "Dockerfile"}
     for path in sorted(ROOT.rglob("*")):
         if (
             not path.is_file()
             or not is_delivery_file(path)
             or (
                 path.suffix.lower() not in text_suffixes
-                and path.name != ".gitignore"
+                and path.name not in text_names
             )
         ):
             continue
@@ -1211,6 +1281,11 @@ def validate_repository_surface_and_security(gate: Gate) -> None:
                     f"{relative}: retired fixed-stage narrative returned",
                 )
             for literal in FORBIDDEN_LITERALS:
+                if (
+                    literal == PROTOCOL_PARAMETER_LITERAL
+                    and relative in PROTOCOL_PARAMETER_FILES
+                ):
+                    continue
                 gate.require(literal not in text, f"{relative}: forbidden literal {literal}")
             for label, pattern in SECRET_PATTERNS.items():
                 gate.require(

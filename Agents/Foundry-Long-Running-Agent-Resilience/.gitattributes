@@ -4,4 +4,16 @@
 *.md text eol=lf
 *.py text eol=lf
 *.txt text eol=lf
+*.yaml text eol=lf
+*.sh text eol=lf
+*.example text eol=lf
+Dockerfile text eol=lf
+.azdignore text eol=lf
+.dockerignore text eol=lf
 .gitignore text eol=lf
+*.cs text eol=lf
+*.csproj text eol=lf
+*.svg text eol=lf
+*.excalidraw text eol=lf
+LICENSE text eol=lf
+.gitattributes text eol=lf

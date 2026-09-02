@@ -1,0 +1,29 @@
+{
+  "attempts": [
+    {
+      "actual": "The steer was accepted while the original process was alive. After the injected exit, the replacement process reclaimed the task but logged `Resilient input failed validation ... (response_id=None); failing closed without re-invoking the handler`. The response stayed `in_progress` with no further output.",
+      "order": "steer -> crash -> recover",
+      "result": "handler never re-entered",
+      "sdk": "azure-ai-agentserver-core 2.0.0 / azure-ai-agentserver-responses 2.0.0"
+    },
+    {
+      "actual": "Same client-side outcome: the response stayed `in_progress` with no further output after the replacement process started. The container log line was not retained for this attempt.",
+      "order": "steer -> crash -> recover",
+      "result": "handler never re-entered",
+      "sdk": "azure-ai-agentserver-core 2.1.0 / azure-ai-agentserver-responses 2.1.0"
+    }
+  ],
+  "boundary": "This evidence does not prove that a steer posted before the crash survives instance loss. It records why that order remains NOT_VERIFIED and which order the committed steering evidence actually uses.",
+  "evidence_type": "owned-hosted-agent-steering-order-boundary",
+  "generated_at_utc": "2026-09-02T09:40:00Z",
+  "observed_message": "Resilient input failed validation ... (response_id=None); failing closed without re-invoking the handler",
+  "scenario": "steer-then-crash",
+  "schema_version": 1,
+  "sdk_versions_observed": [
+    "2.0.0",
+    "2.1.0"
+  ],
+  "status": "NOT_VERIFIED",
+  "working_order": "crash -> recover -> steer",
+  "working_order_evidence": "owned-steering-live.json"
+}

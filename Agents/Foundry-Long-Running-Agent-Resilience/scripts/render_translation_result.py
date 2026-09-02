@@ -100,7 +100,8 @@ def main() -> int:
         lines.append(
             f"| {index} | {source_cell} | {translation_cell} |"
         )
-    args.output.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    with args.output.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write("\n".join(lines) + "\n")
     print(f"wrote completed translation output to {args.output}")
     return 0
 

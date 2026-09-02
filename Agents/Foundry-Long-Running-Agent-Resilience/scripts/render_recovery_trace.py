@@ -264,7 +264,8 @@ def main() -> int:
             parser.error("--events is required for a hosted recovery report")
         output = render_hosted(report, read_jsonl(args.events))
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(output, encoding="utf-8")
+    with args.output.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(output)
     print(f"wrote recovery trace to {args.output}")
     return 0
 

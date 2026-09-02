@@ -156,6 +156,124 @@
       "runtime_protocol": "Protocol-independent validator",
       "status": "PASS",
       "trigger": "Remove, duplicate, or terminate output without full terminal proof"
+    },
+    {
+      "actual": "The gateway closed the stream after 10 committed sections; the recovery entry resumed at translation_section_11 on a second process hash 25.304 seconds after the stream closed; the steered response entered as steered on that process, started at section 1, and completed 30 sections; the original response completed with 14 sections. The whole run took 73.868 seconds.",
+      "correlations": [
+        {
+          "event_field": "process_instance_sha256",
+          "event_match": {
+            "event": "recovery_observed",
+            "response_role": "A"
+          },
+          "json_evidence": "evidence/owned-steering-live.json",
+          "json_path": "responses.A.process_instance_sha256",
+          "jsonl_evidence": "evidence/owned-steering-live-events.jsonl",
+          "operator": "contains"
+        },
+        {
+          "event_field": "response_id_sha256",
+          "event_match": {
+            "event": "terminal_observed",
+            "response_role": "B"
+          },
+          "json_evidence": "evidence/owned-steering-live.json",
+          "json_path": "responses.B.response_id_sha256",
+          "jsonl_evidence": "evidence/owned-steering-live-events.jsonl",
+          "operator": "equals"
+        }
+      ],
+      "evidence": [
+        "evidence/owned-steering-live.json",
+        "evidence/owned-steering-live-events.jsonl",
+        "evidence/owned-steering-live-trace.txt"
+      ],
+      "expected": "The replacement process resumes the original Simplified Chinese response at section 11; the steered Traditional Chinese response starts at section 1 on that same process and completes all 30 sections while the original response reaches completed.",
+      "id": "foundry-steering-change-of-target",
+      "runtime_protocol": "Python / Responses / Foundry Hosted Agent Version 9 / Azure Translator S1",
+      "status": "PASS",
+      "trigger": "Guarded os._exit(86) after translation_section_10 on Version 9, then a steered turn posted to the same conversation once the replacement process had recovered"
+    },
+    {
+      "actual": "The replacement process reclaimed the task but logged that the resilient input failed validation without a response ID and failed closed without re-invoking the handler; the response stayed in_progress. Observed with agentserver-core 2.0.0; 2.1.0 showed the same client-side outcome. The committed steering evidence therefore uses the order crash, recover, then steer.",
+      "evidence": [
+        "evidence/steering-order-boundary.json"
+      ],
+      "expected": "The replacement process recovers the original response and then runs the steered turn.",
+      "id": "steer-then-crash-order",
+      "runtime_protocol": "Python / Responses / Foundry Hosted Agent / agentserver-core 2.0.0 and 2.1.0",
+      "status": "NOT_VERIFIED",
+      "trigger": "Steered turn posted while the original process is still alive, then os._exit(86)"
+    },
+    {
+      "actual": "Process A exited with code 86 0.258 seconds after the fault request; Process B answered 2.004 seconds after the exit with the sample still awaiting review; the approval landed on Process B and the remaining 20 sections completed 30.08 seconds later. The whole run took 52.411 seconds.",
+      "correlations": [
+        {
+          "event_field": "process_instance_sha256",
+          "event_match": {
+            "event": "replacement_instance_observed"
+          },
+          "json_evidence": "evidence/owned-approval-local.json",
+          "json_path": "acceptance.process_instance_sha256",
+          "jsonl_evidence": "evidence/owned-approval-local-events.jsonl",
+          "operator": "contains"
+        },
+        {
+          "event_field": "task_id_sha256",
+          "event_match": {
+            "event": "approval_submitted"
+          },
+          "json_evidence": "evidence/owned-approval-local.json",
+          "json_path": "task_id_sha256",
+          "jsonl_evidence": "evidence/owned-approval-local-events.jsonl",
+          "operator": "equals"
+        }
+      ],
+      "evidence": [
+        "evidence/owned-approval-local.json",
+        "evidence/owned-approval-local-events.jsonl",
+        "evidence/owned-approval-local-trace.txt"
+      ],
+      "expected": "A new process answers with the same task identity, the sample hashes are unchanged, the approval lands on the new process, and sections 11-30 complete there.",
+      "id": "approval-gate-local-process-loss",
+      "runtime_protocol": "Python / Invocations / local AgentServer / Azure Translator S1",
+      "status": "PASS",
+      "trigger": "os._exit(86) while the 10-section sample awaits human review"
+    },
+    {
+      "actual": "A second process hash answered 36.121 seconds after the fault request with the sample still awaiting review; the approval landed on it; sections 11-30 completed 22.686 seconds after the approval. The whole run took 75.249 seconds. The exact instance-down time is not observable by the client.",
+      "correlations": [
+        {
+          "event_field": "process_instance_sha256",
+          "event_match": {
+            "event": "replacement_instance_observed"
+          },
+          "json_evidence": "evidence/owned-approval-live.json",
+          "json_path": "acceptance.process_instance_sha256",
+          "jsonl_evidence": "evidence/owned-approval-live-events.jsonl",
+          "operator": "contains"
+        },
+        {
+          "event_field": "task_id_sha256",
+          "event_match": {
+            "event": "approval_submitted"
+          },
+          "json_evidence": "evidence/owned-approval-live.json",
+          "json_path": "task_id_sha256",
+          "jsonl_evidence": "evidence/owned-approval-live-events.jsonl",
+          "operator": "equals"
+        }
+      ],
+      "evidence": [
+        "evidence/owned-approval-live.json",
+        "evidence/owned-approval-live-events.jsonl",
+        "evidence/owned-approval-live-trace.txt"
+      ],
+      "expected": "Foundry replaces the instance; the review gate, the sample hashes, and the pending approval survive; the remaining sections complete on the replacement.",
+      "id": "foundry-approval-gate-instance-loss",
+      "runtime_protocol": "Python / Invocations / Foundry Hosted Agent Version 4 / Azure Translator S1",
+      "status": "PASS",
+      "trigger": "Guarded os._exit(86) on Version 4 while the 10-section sample awaits human review"
     }
   ],
   "schema_version": 1

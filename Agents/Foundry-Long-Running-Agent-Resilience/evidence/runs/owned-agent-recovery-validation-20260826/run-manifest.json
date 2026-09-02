@@ -99,11 +99,11 @@
   "key_code": [
     {
       "path": "evidence/rule-results.json",
-      "sha256": "f0f42442d008aa97f0151391ff1cdc68cd5d713a0d1652a6a50accca56269f9f"
+      "sha256": "a4fb82d14b4b7795c1399d3125af1df1252084836364ed1c1a23493fe7c1fdb4"
     },
     {
       "path": "images/lra-recovery-timeline.excalidraw",
-      "sha256": "d2f670e5759d5cd3cad1e3d900ada38ae2e91491f7d9181e63a68b51a8663516"
+      "sha256": "1ce8c12171feb2e1ca75ae61cc2e6f5e1766e2fb7decc25d5732a449361d1f52"
     },
     {
       "path": "images/lra-recovery-timeline.png",
@@ -111,11 +111,11 @@
     },
     {
       "path": "images/lra-recovery-timeline.svg",
-      "sha256": "92c580e43054689bf7b08bf5b9571b7959dd097cbed804b256cff848843bea10"
+      "sha256": "34b1e5b838d0ac92413d0ad02b398baf42998425dcea782190b204947bf3e1c1"
     },
     {
       "path": "hosted-agent/azure.yaml",
-      "sha256": "e7808b74691951de520e794003f4bfe8628220165a69e868751c7966cca91cd3"
+      "sha256": "7ead65ab554c745f9087562f901dcb45d57ba18f921190b21993f500dae49bd2"
     },
     {
       "path": "hosted-agent/src/lra-evidence-agent/main.py",
@@ -151,35 +151,35 @@
     },
     {
       "path": "dotnet-agent/LraEvidenceAgent.csproj",
-      "sha256": "2db85cb0e4f28d40a335d89776887492b7cdc3a7186c312b2cff126a729420af"
+      "sha256": "50cc63da1d8871a11e4808b55bcc9d3cef5be81ac0ada74aadefdbbd0daa3659"
     },
     {
       "path": "dotnet-agent/Program.cs",
-      "sha256": "44621c75a61ee6dcf266449e1c793828f08d5f81140e2cca18b7207ffc303cfb"
+      "sha256": "5817a21497089892cb2a4bfc9f201568c1e8fc30d1a2da0193268eb00ed455be"
     },
     {
       "path": "scripts/generate_rule_results.py",
-      "sha256": "3222ac2d58fe075d9e0fcf6b33e85006c64559e2f73629a4639442512065b48f"
+      "sha256": "8133d6573083399fd2571888eac22107a289f26eb48bad5fca439d4c72ce7802"
     },
     {
       "path": "scripts/render_recovery_trace.py",
-      "sha256": "f9fbf366b3633e5663e97392f038163057c9f64d7ff9237f26e97ad5d8074adf"
+      "sha256": "f6080903c2921e633e66b50f5ed8522dc3985f079c2004c1a86da3d35fae9674"
     },
     {
       "path": "scripts/render_translation_result.py",
-      "sha256": "ab26438c0c83c48a28faa76b3a482cb5207fa4d6984a9062a134ee7c4dbfd7a9"
+      "sha256": "9880f1c71ecccd9ebccefcd77442c97dd7d179cb81b4b7a03a5428fd6e0714b6"
     },
     {
       "path": "scripts/validate_repo.py",
-      "sha256": "ec74ef6729e2725b1de966f5d11661e25cc005eaf4bc9ab565456f81c277cc16"
+      "sha256": "7c265b1fe0c400f430a889c57ef2f59577cfcc28f3bbab1e8a286dda453203b2"
     },
     {
       "path": "scripts/generate_evidence_manifest.py",
-      "sha256": "2efd539413b0bc1392a847d71064b1f75a62636d1c1e9e38e64f87ff3fc287b8"
+      "sha256": "b7a340b657caa92660616c3ec154df18e200fa9efaa8848e5dcb7ba16d2fec0f"
     },
     {
       "path": "evidence/run-contract.json",
-      "sha256": "31884b5b79585531d6d611511f5ec06ec42a2deb00374fda9e902a2f639e1b70"
+      "sha256": "4a867e9da234099492d4aa99d0d3c4037a3ce24078548b4b99a1646781dbbe8f"
     },
     {
       "path": "tests/test_rule_results.py",

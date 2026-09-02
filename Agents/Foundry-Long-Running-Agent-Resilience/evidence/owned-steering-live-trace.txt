@@ -1,0 +1,26 @@
+RUN owned-agent-live-steering foundry_version=9
+2026-09-02T11:41:59.280+00:00  REQUEST_STARTED        response=A target=zh-Hans crash_after_stage=9
+2026-09-02T11:42:04.863+00:00  RESPONSE_CREATED       response=A response_sha256=d74fda4d9b75404892324f8a5b52a80cf369a649bbc380b84c9ec1641d93283d
+2026-09-02T11:42:04.863+00:00  HANDLER_ENTERED        response=A mode=fresh process=P1
+2026-09-02T11:42:17.468+00:00  CHECKPOINT_COMMITTED   response=A checkpoint=translation_section_10 process=P1
+2026-09-02T11:42:18.133+00:00  STREAM_CLOSED          response=A committed_sections=10 detail=no_terminal_event_process_gone
+2026-09-02T11:42:43.437+00:00  HANDLER_RECOVERED      response=A mode=recovered process=P2 resume_from=translation_section_11
+2026-09-02T11:42:43.439+00:00  CHECKPOINT_COMMITTED   response=A checkpoint=translation_section_11 process=P2
+2026-09-02T11:42:45.215+00:00  STEER_POSTED           response=B from=zh-Hans to=zh-Hant same_conversation=true original_sections_so_far=14
+2026-09-02T11:42:47.830+00:00  RESPONSE_CREATED       response=B response_sha256=89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2
+2026-09-02T11:42:47.830+00:00  HANDLER_ENTERED        response=B mode=steered process=P2
+2026-09-02T11:42:48.791+00:00  CHECKPOINT_COMMITTED   response=B checkpoint=translation_section_01 process=P2 meaning=new_language_starts_at_section_1
+2026-09-02T11:43:12.269+00:00  CHECKPOINT_COMMITTED   response=B checkpoint=translation_section_30 process=P2
+2026-09-02T11:43:12.659+00:00  RESPONSE_STATUS        response=B status=completed sections=30
+2026-09-02T11:43:13.148+00:00  RESPONSE_STATUS        response=A status=completed sections=14
+BOUNDARY exact_process_p1_down_at=NOT_AVAILABLE reason=hosted_container_exit_not_observable_by_client observed=stream_close
+DURATION stream_close_to_recovered_entry_seconds=25.304 meaning=observation_window_includes_replacement_scheduling_and_reconnect_polling
+DURATION steer_posted_to_replacement_completed_seconds=27.444
+DURATION total_run_seconds=73.868
+ASSERT process_replaced=true
+ASSERT checkpoint_continuity=translation_section_10->translation_section_11
+ASSERT steered_on_replacement_process=true
+ASSERT replacement_starts_at_section_1=true
+ASSERT original_sections_kept=14 replacement_sections=30
+ASSERT terminal_status=A:completed B:completed
+RESULT PASS

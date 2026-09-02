@@ -16,6 +16,12 @@ MANIFEST = EVIDENCE / "manifest.json"
 PROVENANCE = {
     "evidence/README.md": "Maintained evidence index and reproduction commands.",
     "evidence/observation-validation.json": "python scripts/validate_observations.py self-test",
+    "evidence/owned-approval-live-events.jsonl": "Client-polled events from hosted-agent-approval/run_approval_recovery.py against lre-approval-gate version 4.",
+    "evidence/owned-approval-live-trace.txt": "scripts/render_approval_trace.py from owned-approval-live.json.",
+    "evidence/owned-approval-live.json": "Version 4 Foundry review-gate instance-loss run through hosted-agent-approval/run_approval_recovery.py.",
+    "evidence/owned-approval-local-events.jsonl": "Client-polled events from hosted-agent-approval/run_approval_recovery.py --local.",
+    "evidence/owned-approval-local-trace.txt": "scripts/render_approval_trace.py from owned-approval-local.json.",
+    "evidence/owned-approval-local.json": "Local AgentServer review-gate process-loss run through hosted-agent-approval/run_approval_recovery.py --local.",
     "evidence/owned-hosted-agent-dotnet-events.jsonl": "Sanitized .NET AgentServer console lifecycle events.",
     "evidence/owned-hosted-agent-dotnet.json": "Generic recovery runner against the repository-owned .NET Agent.",
     "evidence/owned-hosted-agent-graceful-attempt.json": "Bounded Windows graceful-shutdown attempts and non-claim.",
@@ -35,6 +41,9 @@ PROVENANCE = {
     "evidence/owned-hosted-agent-translation-local-events.jsonl": "Sanitized real Translator local recovery lifecycle events.",
     "evidence/owned-hosted-agent-translation-local-trace.txt": "scripts/render_recovery_trace.py from the local Translator report.",
     "evidence/owned-hosted-agent-translation-local.json": "Real Translator S1 hard-loss run through hosted-agent/run_local_recovery.py.",
+    "evidence/owned-steering-live-events.jsonl": "Client-observed stream events from hosted-agent-steering/run_steering_recovery.py against lre-steering-agent version 9.",
+    "evidence/owned-steering-live-trace.txt": "scripts/render_steering_trace.py from owned-steering-live.json.",
+    "evidence/owned-steering-live.json": "Version 9 Foundry crash, recover, then steer run through hosted-agent-steering/run_steering_recovery.py.",
     "evidence/public-sdk-contract.json": "python scripts/verify_public_resilience_api.py --format json",
     "evidence/recovery-contract-demo.json": "python scripts/recovery_contract_demo.py demo",
     "evidence/recovery-contract-events.jsonl": "Structured events from recovery_contract_demo.py.",
@@ -44,6 +53,7 @@ PROVENANCE = {
     "evidence/runs/owned-agent-recovery-validation-20260826/run-manifest.json": "Commands, exits, logs, status, UI, and key-code hashes for this validation cycle.",
     "evidence/scenario-manifest.json": "Maintained authenticity classification and non-claims.",
     "evidence/scenario-matrix.json": "Maintained PASS and NOT_VERIFIED mode matrix.",
+    "evidence/steering-order-boundary.json": "Bounded steer-then-crash attempts and non-claim.",
     "evidence/ui-evidence.json": "Visible signed-in Portal captures sanitized into images/product-ui.",
 }
 
@@ -90,10 +100,8 @@ def main() -> int:
         "normalization": "utf-8-lf",
         "schema_version": 1,
     }
-    MANIFEST.write_text(
-        json.dumps(payload, indent=2, sort_keys=False) + "\n",
-        encoding="utf-8",
-    )
+    with MANIFEST.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(json.dumps(payload, indent=2, sort_keys=False) + "\n")
     print(f"wrote {len(entries)} evidence hashes to {MANIFEST}")
     return 0
 

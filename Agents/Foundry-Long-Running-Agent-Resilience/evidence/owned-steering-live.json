@@ -1,0 +1,741 @@
+{
+  "acceptance": {
+    "every_section_has_text": true,
+    "fresh_sections_are_a_prefix": true,
+    "original_response_completed": true,
+    "process_exited_after_crash_stage": true,
+    "process_instance_count": 2,
+    "recovered_on_a_different_process": true,
+    "recovered_sections_are_contiguous": true,
+    "replacement_completed_all_sections": true,
+    "replacement_response_completed": true,
+    "replacement_starts_at_section_1": true,
+    "replacement_target_everywhere": true,
+    "resume_after_last_checkpoint": true,
+    "sections_translated_twice_across_languages": 14,
+    "steered_entry_on_replacement_process": true
+  },
+  "deployment": {
+    "agent_name": "lre-steering-agent",
+    "version": "9"
+  },
+  "elapsed_seconds": 73.868,
+  "endpoint_class": "foundry-hosted-agent",
+  "evidence_type": "owned-hosted-agent-steering",
+  "generated_at_utc": "2026-09-02T11:43:13.148+00:00",
+  "passed": true,
+  "request": {
+    "crash_after_stage": 9,
+    "fault_injection_requested": true,
+    "original_target": "zh-Hans",
+    "replacement_target": "zh-Hant",
+    "stage_delay_ms": 300,
+    "steer_after_sections": 4
+  },
+  "responses": {
+    "A": {
+      "entry_modes": [
+        "fresh",
+        "recovered"
+      ],
+      "first_checkpoint_after_recovery": "translation_section_11",
+      "fresh_sections": 10,
+      "last_checkpoint_before_loss": "translation_section_10",
+      "process_instance_sha256": [
+        "85ea85df75026bb585aa55a52c18a78edebfccc97444d73ba5e3edae88fd692d",
+        "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c"
+      ],
+      "recovered_sections": 4,
+      "response_id_sha256": "d74fda4d9b75404892324f8a5b52a80cf369a649bbc380b84c9ec1641d93283d",
+      "status": "completed"
+    },
+    "B": {
+      "entry_modes": [
+        "steered"
+      ],
+      "process_instance_sha256": [
+        "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c"
+      ],
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "sections": 30,
+      "status": "completed"
+    }
+  },
+  "samples": {
+    "original_last": {
+      "section": "translation_section_14",
+      "text": "接管不是瞬间完成的。平台必须注意到前业主已经离开，安排替代能力，并开始新的流程，才能继续任何工作。"
+    },
+    "replacement_first": {
+      "section": "translation_section_01",
+      "text": "長期執行的代理應賦予每個邏輯工作一個穩定的身份，使其存活於任何一個程序之上。呼叫者在回報上游成功前，先儲存該身份。"
+    },
+    "replacement_same_section": {
+      "section": "translation_section_14",
+      "text": "接管並非立刻完成。平台必須察覺前任擁有者已離去，排程更換產能，並啟動新流程，才能繼續施工。"
+    }
+  },
+  "schema_version": 1,
+  "started_at_utc": "2026-09-02T11:41:59.280+00:00",
+  "timeline": [
+    {
+      "at_utc": "2026-09-02T11:41:59.280+00:00",
+      "crash_after_stage": 9,
+      "event": "request_started",
+      "fault_injection_requested": true,
+      "response_role": "A",
+      "source": "client_stream",
+      "target": "zh-Hans",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:04.863+00:00",
+      "event": "response_created",
+      "response_id_sha256": "d74fda4d9b75404892324f8a5b52a80cf369a649bbc380b84c9ec1641d93283d",
+      "response_role": "A",
+      "source": "client_stream",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:04.863+00:00",
+      "entry_mode": "fresh",
+      "event": "handler_entered",
+      "process_instance_sha256": "85ea85df75026bb585aa55a52c18a78edebfccc97444d73ba5e3edae88fd692d",
+      "response_id_sha256": "d74fda4d9b75404892324f8a5b52a80cf369a649bbc380b84c9ec1641d93283d",
+      "response_role": "A",
+      "resume_from_checkpoint": "translation_section_01",
+      "source": "client_stream",
+      "target": "zh-Hans",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:07.202+00:00",
+      "checkpoint": "translation_section_01",
+      "entry_mode": "fresh",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "85ea85df75026bb585aa55a52c18a78edebfccc97444d73ba5e3edae88fd692d",
+      "response_id_sha256": "d74fda4d9b75404892324f8a5b52a80cf369a649bbc380b84c9ec1641d93283d",
+      "response_role": "A",
+      "source": "client_stream",
+      "target": "zh-Hans",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:08.348+00:00",
+      "checkpoint": "translation_section_02",
+      "entry_mode": "fresh",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "85ea85df75026bb585aa55a52c18a78edebfccc97444d73ba5e3edae88fd692d",
+      "response_id_sha256": "d74fda4d9b75404892324f8a5b52a80cf369a649bbc380b84c9ec1641d93283d",
+      "response_role": "A",
+      "source": "client_stream",
+      "target": "zh-Hans",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:09.524+00:00",
+      "checkpoint": "translation_section_03",
+      "entry_mode": "fresh",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "85ea85df75026bb585aa55a52c18a78edebfccc97444d73ba5e3edae88fd692d",
+      "response_id_sha256": "d74fda4d9b75404892324f8a5b52a80cf369a649bbc380b84c9ec1641d93283d",
+      "response_role": "A",
+      "source": "client_stream",
+      "target": "zh-Hans",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:10.884+00:00",
+      "checkpoint": "translation_section_04",
+      "entry_mode": "fresh",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "85ea85df75026bb585aa55a52c18a78edebfccc97444d73ba5e3edae88fd692d",
+      "response_id_sha256": "d74fda4d9b75404892324f8a5b52a80cf369a649bbc380b84c9ec1641d93283d",
+      "response_role": "A",
+      "source": "client_stream",
+      "target": "zh-Hans",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:12.325+00:00",
+      "checkpoint": "translation_section_05",
+      "entry_mode": "fresh",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "85ea85df75026bb585aa55a52c18a78edebfccc97444d73ba5e3edae88fd692d",
+      "response_id_sha256": "d74fda4d9b75404892324f8a5b52a80cf369a649bbc380b84c9ec1641d93283d",
+      "response_role": "A",
+      "source": "client_stream",
+      "target": "zh-Hans",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:12.935+00:00",
+      "checkpoint": "translation_section_06",
+      "entry_mode": "fresh",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "85ea85df75026bb585aa55a52c18a78edebfccc97444d73ba5e3edae88fd692d",
+      "response_id_sha256": "d74fda4d9b75404892324f8a5b52a80cf369a649bbc380b84c9ec1641d93283d",
+      "response_role": "A",
+      "source": "client_stream",
+      "target": "zh-Hans",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:14.393+00:00",
+      "checkpoint": "translation_section_07",
+      "entry_mode": "fresh",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "85ea85df75026bb585aa55a52c18a78edebfccc97444d73ba5e3edae88fd692d",
+      "response_id_sha256": "d74fda4d9b75404892324f8a5b52a80cf369a649bbc380b84c9ec1641d93283d",
+      "response_role": "A",
+      "source": "client_stream",
+      "target": "zh-Hans",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:15.578+00:00",
+      "checkpoint": "translation_section_08",
+      "entry_mode": "fresh",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "85ea85df75026bb585aa55a52c18a78edebfccc97444d73ba5e3edae88fd692d",
+      "response_id_sha256": "d74fda4d9b75404892324f8a5b52a80cf369a649bbc380b84c9ec1641d93283d",
+      "response_role": "A",
+      "source": "client_stream",
+      "target": "zh-Hans",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:16.169+00:00",
+      "checkpoint": "translation_section_09",
+      "entry_mode": "fresh",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "85ea85df75026bb585aa55a52c18a78edebfccc97444d73ba5e3edae88fd692d",
+      "response_id_sha256": "d74fda4d9b75404892324f8a5b52a80cf369a649bbc380b84c9ec1641d93283d",
+      "response_role": "A",
+      "source": "client_stream",
+      "target": "zh-Hans",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:17.468+00:00",
+      "checkpoint": "translation_section_10",
+      "entry_mode": "fresh",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "85ea85df75026bb585aa55a52c18a78edebfccc97444d73ba5e3edae88fd692d",
+      "response_id_sha256": "d74fda4d9b75404892324f8a5b52a80cf369a649bbc380b84c9ec1641d93283d",
+      "response_role": "A",
+      "source": "client_stream",
+      "target": "zh-Hans",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:18.133+00:00",
+      "committed_sections": 10,
+      "detail": "the gateway closed the SSE stream cleanly; the process is gone",
+      "event": "stream_ended_without_terminal",
+      "process_instance_sha256": "85ea85df75026bb585aa55a52c18a78edebfccc97444d73ba5e3edae88fd692d",
+      "response_id_sha256": "d74fda4d9b75404892324f8a5b52a80cf369a649bbc380b84c9ec1641d93283d",
+      "response_role": "A",
+      "source": "client_stream",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:33.295+00:00",
+      "detail": "TimeoutError",
+      "event": "reconnect_timeout",
+      "response_id_sha256": "d74fda4d9b75404892324f8a5b52a80cf369a649bbc380b84c9ec1641d93283d",
+      "response_role": "A",
+      "source": "client_stream",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:43.346+00:00",
+      "event": "reconnect_attached",
+      "response_id_sha256": "d74fda4d9b75404892324f8a5b52a80cf369a649bbc380b84c9ec1641d93283d",
+      "response_role": "A",
+      "source": "client_stream",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:43.437+00:00",
+      "entry_mode": "recovered",
+      "event": "handler_entered",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "d74fda4d9b75404892324f8a5b52a80cf369a649bbc380b84c9ec1641d93283d",
+      "response_role": "A",
+      "resume_from_checkpoint": "translation_section_11",
+      "source": "client_stream",
+      "target": "zh-Hans",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:43.439+00:00",
+      "checkpoint": "translation_section_11",
+      "entry_mode": "recovered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "d74fda4d9b75404892324f8a5b52a80cf369a649bbc380b84c9ec1641d93283d",
+      "response_role": "A",
+      "source": "client_stream",
+      "target": "zh-Hans",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:43.439+00:00",
+      "checkpoint": "translation_section_12",
+      "entry_mode": "recovered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "d74fda4d9b75404892324f8a5b52a80cf369a649bbc380b84c9ec1641d93283d",
+      "response_role": "A",
+      "source": "client_stream",
+      "target": "zh-Hans",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:43.804+00:00",
+      "checkpoint": "translation_section_13",
+      "entry_mode": "recovered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "d74fda4d9b75404892324f8a5b52a80cf369a649bbc380b84c9ec1641d93283d",
+      "response_role": "A",
+      "source": "client_stream",
+      "target": "zh-Hans",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:45.215+00:00",
+      "checkpoint": "translation_section_14",
+      "entry_mode": "recovered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "d74fda4d9b75404892324f8a5b52a80cf369a649bbc380b84c9ec1641d93283d",
+      "response_role": "A",
+      "source": "client_stream",
+      "target": "zh-Hans",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:45.215+00:00",
+      "event": "recovery_observed",
+      "last_checkpoint_before_loss": "translation_section_10",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "d74fda4d9b75404892324f8a5b52a80cf369a649bbc380b84c9ec1641d93283d",
+      "response_role": "A",
+      "resume_from_checkpoint": "translation_section_11",
+      "source": "client_stream",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:45.215+00:00",
+      "event": "steer_posted",
+      "from_target": "zh-Hans",
+      "original_sections_so_far": 14,
+      "previous_response_sha256": "d74fda4d9b75404892324f8a5b52a80cf369a649bbc380b84c9ec1641d93283d",
+      "response_role": "B",
+      "source": "client_stream",
+      "to_target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:47.830+00:00",
+      "event": "response_created",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:47.830+00:00",
+      "entry_mode": "steered",
+      "event": "handler_entered",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "resume_from_checkpoint": "translation_section_01",
+      "source": "client_stream",
+      "target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:48.791+00:00",
+      "checkpoint": "translation_section_01",
+      "entry_mode": "steered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:49.434+00:00",
+      "checkpoint": "translation_section_02",
+      "entry_mode": "steered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:49.965+00:00",
+      "checkpoint": "translation_section_03",
+      "entry_mode": "steered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:50.525+00:00",
+      "checkpoint": "translation_section_04",
+      "entry_mode": "steered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:52.026+00:00",
+      "checkpoint": "translation_section_05",
+      "entry_mode": "steered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:53.295+00:00",
+      "checkpoint": "translation_section_06",
+      "entry_mode": "steered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:54.425+00:00",
+      "checkpoint": "translation_section_07",
+      "entry_mode": "steered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:55.564+00:00",
+      "checkpoint": "translation_section_08",
+      "entry_mode": "steered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:56.862+00:00",
+      "checkpoint": "translation_section_09",
+      "entry_mode": "steered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:57.458+00:00",
+      "checkpoint": "translation_section_10",
+      "entry_mode": "steered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:58.054+00:00",
+      "checkpoint": "translation_section_11",
+      "entry_mode": "steered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:58.726+00:00",
+      "checkpoint": "translation_section_12",
+      "entry_mode": "steered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:59.398+00:00",
+      "checkpoint": "translation_section_13",
+      "entry_mode": "steered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:42:59.999+00:00",
+      "checkpoint": "translation_section_14",
+      "entry_mode": "steered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:43:00.636+00:00",
+      "checkpoint": "translation_section_15",
+      "entry_mode": "steered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:43:01.252+00:00",
+      "checkpoint": "translation_section_16",
+      "entry_mode": "steered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:43:01.819+00:00",
+      "checkpoint": "translation_section_17",
+      "entry_mode": "steered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:43:02.415+00:00",
+      "checkpoint": "translation_section_18",
+      "entry_mode": "steered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:43:03.014+00:00",
+      "checkpoint": "translation_section_19",
+      "entry_mode": "steered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:43:04.155+00:00",
+      "checkpoint": "translation_section_20",
+      "entry_mode": "steered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:43:04.782+00:00",
+      "checkpoint": "translation_section_21",
+      "entry_mode": "steered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:43:06.102+00:00",
+      "checkpoint": "translation_section_22",
+      "entry_mode": "steered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:43:06.712+00:00",
+      "checkpoint": "translation_section_23",
+      "entry_mode": "steered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:43:07.295+00:00",
+      "checkpoint": "translation_section_24",
+      "entry_mode": "steered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:43:07.893+00:00",
+      "checkpoint": "translation_section_25",
+      "entry_mode": "steered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:43:08.525+00:00",
+      "checkpoint": "translation_section_26",
+      "entry_mode": "steered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:43:09.665+00:00",
+      "checkpoint": "translation_section_27",
+      "entry_mode": "steered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:43:10.305+00:00",
+      "checkpoint": "translation_section_28",
+      "entry_mode": "steered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:43:10.910+00:00",
+      "checkpoint": "translation_section_29",
+      "entry_mode": "steered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:43:12.269+00:00",
+      "checkpoint": "translation_section_30",
+      "entry_mode": "steered",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "920277e85211b0c6b62030d78f548d1460825f33bc608f4e8de52e6e1b1b2b3c",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "target": "zh-Hant",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:43:12.659+00:00",
+      "event": "terminal_observed",
+      "response_id_sha256": "89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2",
+      "response_role": "B",
+      "source": "client_stream",
+      "status": "completed",
+      "work_id": "owned-agent-live-steering"
+    },
+    {
+      "at_utc": "2026-09-02T11:43:13.148+00:00",
+      "event": "terminal_observed",
+      "response_id_sha256": "d74fda4d9b75404892324f8a5b52a80cf369a649bbc380b84c9ec1641d93283d",
+      "response_role": "A",
+      "source": "client_stream",
+      "status": "completed",
+      "work_id": "owned-agent-live-steering"
+    }
+  ],
+  "work_id": "owned-agent-live-steering"
+}

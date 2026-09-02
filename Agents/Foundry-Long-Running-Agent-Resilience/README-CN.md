@@ -3,7 +3,7 @@
 [![Status](https://img.shields.io/badge/Foundry_capability-public_preview-B3541E)](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
 [![Scope](https://img.shields.io/badge/scope-repository_owned_agent-1363DF)](#一次完整的恢复运行)
 [![Runtimes](https://img.shields.io/badge/runtimes-Python_3.13_%2B_.NET_8-0F8B6D)](#故障矩阵)
-[![Protocol](https://img.shields.io/badge/protocol-Responses-5F4BB6)](#把同样的接线放进你的-agent)
+[![Protocol](https://img.shields.io/badge/protocol-Responses_%2B_Invocations-5F4BB6)](#把同样的接线放进你的-agent)
 [![License](https://img.shields.io/badge/license-MIT-D98E04)](LICENSE)
 
 本仓库包含真实的 Hosted Agent、客户端、故障运行器和证据。它只回答一个问题：**Agent 进程消失后，同一个已保存响应如何由新进程继续，而且不丢失已经写入检查点的输出？**
@@ -21,6 +21,8 @@
 下面的主 Demo 是真实长任务，不是 sleep 循环：本仓库自有 Agent 调用 Azure Translator S1，依次翻译 12 段英文；每完成一段中文结果就写检查点；第 4 段后进程 A 丢失；进程 B 从第 5 段继续；最终返回完整 12 段文档，而且终态是 `completed`。
 
 两次运行分别证明不同部分。本机 AgentServer 运行给出操作系统观察到的精确 down 时间；Foundry Version 7 运行证明 Hosted 产品中的替代计算恢复，整次运行耗时 `89.199` 秒。同样的硬退出合同也在本仓库自有 .NET handler 上通过。这些是公共预览能力证据，不是 SLA 或生产就绪声明。
+
+另外两个自有 Agent 把同一份任务扩成 30 段，分别放到两种新的打断下面：恢复之后临时换目标语言，以及必须等人审批、而且等待期间实例还丢了。详见[同一份任务再经受两种打断](#同一份任务再经受两种打断)。
 
 ## 一次完整的恢复运行
 
@@ -193,6 +195,79 @@ RESULT PASS
 
 <p align="center"><sub><i>“Lease-based recovery of a resilient work item”</i>，来源：<a href="https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience">Microsoft Foundry 官方文档</a> © Microsoft，依据 <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a> 原样使用，不属于本仓库 MIT License。</sub></p>
 
+## 同一份任务再经受两种打断
+
+进程丢失只是一种打断。真实的长任务还会遇到另外两种：干着干着，提需求的人改主意了；或者任务必须停下来等一个人点头才能继续。本仓库另有两个自有 Agent，把同一份 Translator 任务扩成 30 段，分别放到这两种打断下面跑。代码、部署脚本和运行器在 [`hosted-agent-steering/`](hosted-agent-steering/) 和 [`hosted-agent-approval/`](hosted-agent-approval/)；下面的日志来自从这两个目录原样部署出去的 Agent。
+
+### 恢复之后改主意
+
+转向 Agent（[`main.py`](hosted-agent-steering/src/resilient-steering/main.py)）在 `resilient_background=True` 之外还开了 `steerable_conversations=True`。所谓转向，就是在第一个响应还在跑的时候，往同一个会话再 POST 一个新响应：正在运行的处理函数看到 `context.pending_input_count > 0`，把手上这一段做完，带着已完成的段落发出 `completed`；新响应以 `context.is_steered_turn` 进入，从第 1 段开始翻译新语言——繁体文档不能拿简体段落凑数。
+
+提交的这次运行把两种打断叠在一起：进程 P1 提交 `translation_section_10` 后执行 `os._exit(86)`；网关随即关掉客户端的流；替代进程 P2 在 `translation_section_11` 恢复同一个响应；客户端这时才发出“改成繁体”的请求，P2 把转向后的响应从第 1 段跑到第 30 段，原响应则以 14 段收尾。
+
+```text
+RUN owned-agent-live-steering foundry_version=9
+2026-09-02T11:41:59.280+00:00  REQUEST_STARTED        response=A target=zh-Hans crash_after_stage=9
+2026-09-02T11:42:04.863+00:00  RESPONSE_CREATED       response=A response_sha256=d74fda4d9b75404892324f8a5b52a80cf369a649bbc380b84c9ec1641d93283d
+2026-09-02T11:42:04.863+00:00  HANDLER_ENTERED        response=A mode=fresh process=P1
+2026-09-02T11:42:17.468+00:00  CHECKPOINT_COMMITTED   response=A checkpoint=translation_section_10 process=P1
+2026-09-02T11:42:18.133+00:00  STREAM_CLOSED          response=A committed_sections=10 detail=no_terminal_event_process_gone
+2026-09-02T11:42:43.437+00:00  HANDLER_RECOVERED      response=A mode=recovered process=P2 resume_from=translation_section_11
+2026-09-02T11:42:43.439+00:00  CHECKPOINT_COMMITTED   response=A checkpoint=translation_section_11 process=P2
+2026-09-02T11:42:45.215+00:00  STEER_POSTED           response=B from=zh-Hans to=zh-Hant same_conversation=true original_sections_so_far=14
+2026-09-02T11:42:47.830+00:00  RESPONSE_CREATED       response=B response_sha256=89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2
+2026-09-02T11:42:47.830+00:00  HANDLER_ENTERED        response=B mode=steered process=P2
+2026-09-02T11:42:48.791+00:00  CHECKPOINT_COMMITTED   response=B checkpoint=translation_section_01 process=P2 meaning=new_language_starts_at_section_1
+2026-09-02T11:43:12.269+00:00  CHECKPOINT_COMMITTED   response=B checkpoint=translation_section_30 process=P2
+2026-09-02T11:43:12.659+00:00  RESPONSE_STATUS        response=B status=completed sections=30
+2026-09-02T11:43:13.148+00:00  RESPONSE_STATUS        response=A status=completed sections=14
+BOUNDARY exact_process_p1_down_at=NOT_AVAILABLE reason=hosted_container_exit_not_observable_by_client observed=stream_close
+DURATION stream_close_to_recovered_entry_seconds=25.304 meaning=observation_window_includes_replacement_scheduling_and_reconnect_polling
+DURATION steer_posted_to_replacement_completed_seconds=27.444
+DURATION total_run_seconds=73.868
+ASSERT process_replaced=true
+ASSERT checkpoint_continuity=translation_section_10->translation_section_11
+ASSERT steered_on_replacement_process=true
+ASSERT replacement_starts_at_section_1=true
+ASSERT original_sections_kept=14 replacement_sections=30
+ASSERT terminal_status=A:completed B:completed
+RESULT PASS
+```
+
+源文件是 [`owned-steering-live-trace.txt`](evidence/owned-steering-live-trace.txt)，由 [`render_steering_trace.py`](scripts/render_steering_trace.py) 从 [`owned-steering-live.json`](evidence/owned-steering-live.json) 生成；报告本身由 [`run_steering_recovery.py`](hosted-agent-steering/run_steering_recovery.py) 产出并执行验收规则。流关闭到恢复进入之间的 25.304 秒包含重连尝试：进程已经不在时，对该响应发 `stream=true` 的 `GET` 会被拒绝，直到替代进程重新进入，运行器在此期间改为轮询持久化状态。反过来的顺序——先转向、再丢进程——是 **NOT VERIFIED**：在 `azure-ai-agentserver-core` 2.0.0 和 2.1.0 上，替代进程都拒绝了持久化下来的转向输入，响应一直停在 `in_progress`。[`steering-order-boundary.json`](evidence/steering-order-boundary.json) 记录了观察到的原始信息。
+
+### 等人审批，中途实例还丢了
+
+审批 Agent（[`main.py`](hosted-agent-approval/src/resilient-approval-gate/main.py)）走 Invocations 协议，每个任务一条 `@multi_turn_task` 链。`start` 先翻译 10 段样稿，每段用 `await job.flush()` 提交一次，把任务阶段置为 `awaiting_review` 后返回；审稿人看样稿期间，没有任何东西在跑。`approve_review` 重新进入同一条链，从任务存储读回已提交的段落和阶段，接着翻译第 11-30 段，同样每段刷一次。
+
+提交的本机运行在样稿等待审批时丢掉进程：故障请求发出 0.258 秒后，进程 P1 以退出码 86 结束；进程 P2 在同一个任务存储上启动，退出 2.004 秒后就用新的进程哈希应答，样稿仍显示 `awaiting_review`，随后接下审批，完成剩余 20 段。下面的 Foundry 运行在已部署的 Version 4 上做了同样的事；客户端在那里只能看到，故障请求发出 36.121 秒后换了一个进程来应答。
+
+```text
+RUN owned-agent-live-approval foundry_version=4
+2026-09-02T11:40:43.595+00:00  REQUEST_STARTED        action=start target=zh-Hans sample_size=10
+2026-09-02T11:40:51.774+00:00  CHECKPOINT_COMMITTED   checkpoint=translation_section_01 batch=sample process=P1
+2026-09-02T11:41:00.036+00:00  CHECKPOINT_COMMITTED   checkpoint=translation_section_10 batch=sample process=P1
+2026-09-02T11:41:00.037+00:00  REVIEW_GATE_REACHED    sample_sections=10 task_sha256=0a9c04dced7418f27de9e0b0d3ea05c78f21e9d0103bb194cca920e8d1e38a1b waiting_for=human_reviewer
+2026-09-02T11:41:00.037+00:00  FAULT_INJECTED         mode=hard_process_exit exit_code=86 while=awaiting_review
+2026-09-02T11:41:36.158+00:00  REPLACEMENT_OBSERVED   process=P2 sample_still=awaiting_review
+2026-09-02T11:41:36.158+00:00  APPROVAL_SUBMITTED     decision=approve_review landed_on=P2
+2026-09-02T11:41:38.580+00:00  CHECKPOINT_COMMITTED   checkpoint=translation_section_11 batch=remaining process=P2
+2026-09-02T11:41:58.844+00:00  CHECKPOINT_COMMITTED   checkpoint=translation_section_30 batch=remaining process=P2
+2026-09-02T11:41:58.844+00:00  TASK_STATUS            status=resolved outcome=completed sections=30
+BOUNDARY exact_instance_down_at=NOT_AVAILABLE reason=platform_replaced_the_instance observed=probe_answered_by_new_process
+DURATION fault_request_to_replacement_observed_seconds=36.121 meaning=observation_window_not_exact_downtime
+DURATION approval_to_completed_seconds=22.686
+DURATION total_run_seconds=75.249
+ASSERT same_task_identity=true
+ASSERT process_replaced=true
+ASSERT sample_result_hashes_unchanged=true
+ASSERT sample_on_process_p1=true remaining_on_process_p2=true
+ASSERT all_sections_present_once=true sections=30
+RESULT PASS
+```
+
+源文件是 [`owned-approval-live-trace.txt`](evidence/owned-approval-live-trace.txt)；带精确退出和重启时间的本机版本是 [`owned-approval-local-trace.txt`](evidence/owned-approval-local-trace.txt)。两者都由 [`render_approval_trace.py`](scripts/render_approval_trace.py) 从 [`run_approval_recovery.py`](hosted-agent-approval/run_approval_recovery.py) 写出的报告生成，门禁会重新生成并逐字比对。审批 Agent 把 `azure-ai-agentserver-core` 固定在 2.0.0，因为 2.1.0 去掉了这条链用来保存阶段的 `TaskContext.metadata` 命名空间；转向 Agent 固定在 2.1.0。两个 Agent 的故障注入都是只供测试的开关，部署前不显式导出 `LRE_ENABLE_FAULT_INJECTION=true` 就保持关闭。
+
 ## 故障矩阵
 
 | 场景 / 模式 | 触发方式 | 预期 | 实际结果 | 状态 | 证据 |
@@ -206,6 +281,10 @@ RESULT PASS
 | 当前安全 Foundry 部署 | Version 9，故障开关关闭 | 测试后仍可正常执行真实 S1 批处理 | 单进程 22.862 秒完成 12 段翻译 | **PASS** | [运行](evidence/owned-hosted-agent-live.json) · [状态](evidence/owned-hosted-agent-status.json) |
 | 宿主优雅关闭 | Windows 控制台 shutdown signal | 宿主设置 shutdown、交接任务，后续进程恢复 | Windows 本机运行器未驱动完整宿主 shutdown 生命周期 | **NOT VERIFIED** | [尝试记录](evidence/owned-hosted-agent-graceful-attempt.json) |
 | 输出缺失或重复 | 在测试数据中删除或复制已完成输出 | 验收必须失败 | 缺口、重复和只有 `done` 的用例均被拒绝 | **PASS** | [验证器证据](evidence/observation-validation.json) |
+| 恢复后换目标语言（转向 Agent） | Version 9 第 10 段后执行受保护的 `os._exit(86)`，P2 恢复后再发转向 | P2 从第 11 段续跑原响应；转向后的响应在 P2 上从第 1 段开始；两者都完成 | 流关闭 25.304 秒后进入 recovered；转向响应在 P2 上进入并完成 30 段；原响应以 14 段完成；共 `73.868` 秒 | **PASS** | [直读日志](evidence/owned-steering-live-trace.txt) · [报告](evidence/owned-steering-live.json) · [事件](evidence/owned-steering-live-events.jsonl) |
+| 先转向、再丢进程 | 先发转向，再执行 `os._exit(86)` | P2 恢复原响应并执行转向 | 替代进程拒绝了持久化的转向输入并 fail closed；响应停在 `in_progress`（core 2.0.0 与 2.1.0） | **NOT VERIFIED** | [边界记录](evidence/steering-order-boundary.json) |
+| 审批门，本机进程丢失（审批 Agent） | 10 段样稿处于 `awaiting_review` 时执行 `os._exit(86)` | 新进程保留任务身份和样稿哈希；审批落在新进程上；第 11-30 段完成 | 0.258 秒后以 86 退出；2.004 秒后 P2 应答；审批落在 P2；共 30 段；`52.411` 秒 | **PASS** | [直读日志](evidence/owned-approval-local-trace.txt) · [报告](evidence/owned-approval-local.json) · [事件](evidence/owned-approval-local-events.jsonl) |
+| 审批门，Foundry 实例丢失 | Version 4 处于 `awaiting_review` 时执行受保护的 `os._exit(86)` | 替代实例保留审批门并接下审批 | 故障请求 36.121 秒后由第二个进程哈希应答；审批落在其上；22.686 秒后完成第 11-30 段；共 `75.249` 秒 | **PASS** | [直读日志](evidence/owned-approval-live-trace.txt) · [报告](evidence/owned-approval-live.json) · [事件](evidence/owned-approval-live-events.jsonl) |
 
 这张表是数据，不是承诺。[`run-contract.json`](evidence/run-contract.json) 声明主运行必须出现的里程碑和状态断言；[`scenario-matrix.json`](evidence/scenario-matrix.json) 声明全部模式。门禁读取这些文件，不把当前 Demo 的事件名写死在验证器里。
 
@@ -221,6 +300,7 @@ SOP-68 Rule 不是自报 PASS：[`scripts\generate_rule_results.py`](scripts/gen
 | Python 快速恢复和查询方重启 | 同一个 Python 环境；不需要 Translator |
 | .NET 恢复 | .NET 8 SDK，并能恢复 [`LraEvidenceAgent.csproj`](dotnet-agent/LraEvidenceAgent.csproj) 中固定的预览软件包 |
 | 部署到 Foundry | 非生产订阅、Foundry 项目、Azure CLI 2.80+、`azd` 1.27.1+、项目级 `Foundry Project Manager`，以及 Agent 托管身份对 Translator 的访问权限 |
+| 转向 Agent 与审批 Agent | 同一套工具，加上 [`hosted-agent-steering/.../requirements.txt`](hosted-agent-steering/src/resilient-steering/requirements.txt) 和 [`hosted-agent-approval/.../requirements.txt`](hosted-agent-approval/src/resilient-approval-gate/requirements.txt) 中固定的版本；本机审批运行还需要 `LRA_TRANSLATOR_RESOURCE_ID` |
 
 Windows PowerShell：
 
@@ -268,7 +348,15 @@ $dotnetDll = Join-Path $dotnetDir LraEvidenceAgent.dll
   --report .demo-state\dotnet-recovery.json `
   --log-report .demo-state\dotnet-events.jsonl
 
-# 5. 仓库验收。
+# 5. 审批门经受本机进程丢失（Translator 变量沿用第 1 步）。
+& $python -m pip install --no-input `
+  -r hosted-agent-approval\src\resilient-approval-gate\requirements.txt
+$env:LRA_TRANSLATOR_RESOURCE_ID = "<translator-resource-id>"
+& $python hosted-agent-approval\run_approval_recovery.py --local `
+  --report .demo-state\approval-local.json `
+  --log-report .demo-state\approval-local-events.jsonl
+
+# 6. 仓库验收。
 & $python -m unittest discover -s tests -v
 & $python scripts\validate_repo.py
 ```
@@ -297,6 +385,8 @@ azd ai agent show lra-evidence-agent
 ```
 
 结构化状态和 Portal 显示本仓库自有 Version 9 为 `active` / `Running`、`hosted` / `Hosted`，而且故障注入已关闭。Version 9 安全请求在一个进程中完成全部 12 段真实翻译。安全运行本身不证明线上进程恢复；线上证明来自临时 Version 7，之后由 Version 9 替换。
+
+转向 Agent 和审批 Agent 各自从自己的目录部署：[`hosted-agent-steering/scripts/deploy.sh`](hosted-agent-steering/scripts/deploy.sh) 和 [`hosted-agent-approval/scripts/deploy.sh`](hosted-agent-approval/scripts/deploy.sh)。脚本从环境变量读取订阅、区域、项目 ID、项目端点和 Translator 资源 ID，写入 `azd` 环境，然后执行 `azd provision` 和 `azd deploy`。部署完成后，用 `run_steering_recovery.py --endpoint "<带 API 版本参数的 responses 端点>"` 或 `run_approval_recovery.py --endpoint "<带 API 版本参数的 invocations 端点>"` 加 `--agent-version` 跑线上场景；两者都用 Azure CLI 登录态鉴权，任一验收规则不满足就以非零退出码结束。
 
 ## 把同样的接线放进你的 Agent
 
@@ -339,10 +429,13 @@ azd ai agent show lra-evidence-agent
 | [Version 9 安全运行](evidence/owned-hosted-agent-live.json)和[状态](evidence/owned-hosted-agent-status.json) | 当前正常完成、运行时、协议、状态、故障开关和内容哈希 |
 | [UI 来源清单](evidence/ui-evidence.json)、[Version 9 列表图](images/product-ui/portal-owned-agent-list.png)和[Version 9 详情图](images/product-ui/portal-owned-agent-details.png) | 原图/公开图哈希、脱敏项和部署对象证据 |
 | [Run bundle](evidence/runs/owned-agent-recovery-validation-20260826/run-manifest.json) | 命令、退出码、日志、状态、UI 和关键代码哈希 |
+| [转向直读日志](evidence/owned-steering-live-trace.txt)、[报告](evidence/owned-steering-live.json)和[事件](evidence/owned-steering-live-events.jsonl) | 流关闭、第 11 段恢复进入、转向响应在替代进程上从第 1 段开始、两个终态 |
+| [先转向再丢进程的边界记录](evidence/steering-order-boundary.json) | 为什么这个顺序在 core 2.0.0 和 2.1.0 上仍是 NOT VERIFIED |
+| [审批本机轨迹](evidence/owned-approval-local-trace.txt)、[报告](evidence/owned-approval-local.json)、[事件](evidence/owned-approval-local-events.jsonl)，以及 [Foundry 轨迹](evidence/owned-approval-live-trace.txt)、[报告](evidence/owned-approval-live.json)、[事件](evidence/owned-approval-live-events.jsonl) | 审批门、`awaiting_review` 期间的退出码 86、替代进程、审批落在其上、第 11-30 段完成 |
 
 链接中的 Portal 截图只证明部署对象、版本、状态和类型；进程恢复行为由 JSON 和日志证明。带登录态的原图和原始标识不会提交到仓库。
 
-本仓库不证明 SLA、多轮可靠性、负载能力、多区域恢复、翻译质量或外部操作的严格一次执行。长期任务韧性处于公共预览；没有针对实际任务完成专项测试前，不建议用于生产。
+本仓库不证明 SLA、多轮可靠性、负载能力、多区域恢复、翻译质量或外部操作的严格一次执行。转向和审批两组运行同样只是单次试验：它们证明的是“恢复后换目标”和“审批悬而未决”这两种情况下的恢复合同，不证明先转向再丢进程的顺序。长期任务韧性处于公共预览；没有针对实际任务完成专项测试前，不建议用于生产。
 
 ## 相关工作与许可证
 

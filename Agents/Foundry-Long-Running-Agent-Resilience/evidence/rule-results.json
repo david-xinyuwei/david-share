@@ -136,6 +136,30 @@
           "passed": true
         },
         {
+          "actual": "all required tokens",
+          "expected": "all required tokens",
+          "id": "source:hosted-agent-steering/src/resilient-steering/main.py",
+          "passed": true
+        },
+        {
+          "actual": "all required tokens",
+          "expected": "all required tokens",
+          "id": "source:hosted-agent-approval/src/resilient-approval-gate/main.py",
+          "passed": true
+        },
+        {
+          "actual": "all required tokens",
+          "expected": "all required tokens",
+          "id": "source:hosted-agent-steering/run_steering_recovery.py",
+          "passed": true
+        },
+        {
+          "actual": "all required tokens",
+          "expected": "all required tokens",
+          "id": "source:hosted-agent-approval/run_approval_recovery.py",
+          "passed": true
+        },
+        {
           "actual": "present",
           "expected": "all wiring tokens linked",
           "id": "readme-code-links",
@@ -329,14 +353,32 @@
           "passed": true
         },
         {
-          "actual": "2",
-          "expected": "2",
+          "actual": "byte-identical",
+          "expected": "byte-identical",
+          "id": "generated:evidence/owned-steering-live-trace.txt",
+          "passed": true
+        },
+        {
+          "actual": "byte-identical",
+          "expected": "byte-identical",
+          "id": "generated:evidence/owned-approval-live-trace.txt",
+          "passed": true
+        },
+        {
+          "actual": "byte-identical",
+          "expected": "byte-identical",
+          "id": "generated:evidence/owned-approval-local-trace.txt",
+          "passed": true
+        },
+        {
+          "actual": "4",
+          "expected": "4",
           "id": "english-readme-traces",
           "passed": true
         },
         {
-          "actual": "2",
-          "expected": "2",
+          "actual": "4",
+          "expected": "4",
           "id": "chinese-readme-traces",
           "passed": true
         }
@@ -600,26 +642,26 @@
       "applicable": true,
       "checks": [
         {
-          "actual": "[1, 2, 2, 3, 1, 1, 3, 3, 3, 3, 2, 2, 3, 1, 1, 1, 1, 1, 2, 2, 2, 2]",
-          "expected": "[1, 2, 2, 3, 1, 1, 3, 3, 3, 3, 2, 2, 3, 1, 1, 1, 1, 1, 2, 2, 2, 2]",
+          "actual": "[1, 2, 2, 3, 1, 1, 3, 3, 3, 3, 2, 3, 3, 2, 2, 3, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2]",
+          "expected": "[1, 2, 2, 3, 1, 1, 3, 3, 3, 3, 2, 3, 3, 2, 2, 3, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2]",
           "id": "heading-shape",
           "passed": true
         },
         {
-          "actual": "[(3, 10), (6, 12), (3, 6), (3, 9), (6, 11), (2, 6), (2, 12)]",
-          "expected": "[(3, 10), (6, 12), (3, 6), (3, 9), (6, 11), (2, 6), (2, 12)]",
+          "actual": "[(3, 10), (6, 12), (3, 6), (3, 9), (6, 15), (2, 7), (2, 15)]",
+          "expected": "[(3, 10), (6, 12), (3, 6), (3, 9), (6, 15), (2, 7), (2, 15)]",
           "id": "table-shape",
           "passed": true
         },
         {
-          "actual": "['python', '', 'csharp', '', 'text', '', 'text', '', 'powershell', '', 'powershell', '']",
-          "expected": "['python', '', 'csharp', '', 'text', '', 'text', '', 'powershell', '', 'powershell', '']",
+          "actual": "['python', '', 'csharp', '', 'text', '', 'text', '', 'text', '', 'text', '', 'powershell', '', 'powershell', '']",
+          "expected": "['python', '', 'csharp', '', 'text', '', 'text', '', 'text', '', 'text', '', 'powershell', '', 'powershell', '']",
           "id": "code-block-shape",
           "passed": true
         },
         {
-          "actual": "['https://img.shields.io/badge/Foundry_capability-public_preview-B3541E', 'https://img.shields.io/badge/scope-repository_owned_agent-1363DF', 'https://img.shields.io/badge/runtimes-Python_3.13_%2B_.NET_8-0F8B6D', 'https://img.shields.io/badge/protocol-Responses-5F4BB6', 'https://img.shields.io/badge/license-MIT-D98E04', 'images/lra-recovery-timeline.png']",
-          "expected": "['https://img.shields.io/badge/Foundry_capability-public_preview-B3541E', 'https://img.shields.io/badge/scope-repository_owned_agent-1363DF', 'https://img.shields.io/badge/runtimes-Python_3.13_%2B_.NET_8-0F8B6D', 'https://img.shields.io/badge/protocol-Responses-5F4BB6', 'https://img.shields.io/badge/license-MIT-D98E04', 'images/lra-recovery-timeline.png']",
+          "actual": "['https://img.shields.io/badge/Foundry_capability-public_preview-B3541E', 'https://img.shields.io/badge/scope-repository_owned_agent-1363DF', 'https://img.shields.io/badge/runtimes-Python_3.13_%2B_.NET_8-0F8B6D', 'https://img.shields.io/badge/protocol-Responses_%2B_Invocations-5F4BB6', 'https://img.shields.io/badge/license-MIT-D98E04', 'images/lra-recovery-timeline.png']",
+          "expected": "['https://img.shields.io/badge/Foundry_capability-public_preview-B3541E', 'https://img.shields.io/badge/scope-repository_owned_agent-1363DF', 'https://img.shields.io/badge/runtimes-Python_3.13_%2B_.NET_8-0F8B6D', 'https://img.shields.io/badge/protocol-Responses_%2B_Invocations-5F4BB6', 'https://img.shields.io/badge/license-MIT-D98E04', 'images/lra-recovery-timeline.png']",
           "id": "image-order",
           "passed": true
         },

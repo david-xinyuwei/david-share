@@ -75,6 +75,43 @@
         "49.555 s"
       ],
       "path": "images/lra-recovery-timeline.excalidraw"
+    },
+    {
+      "path": "hosted-agent-steering/src/resilient-steering/main.py",
+      "contains": [
+        "resilient_background=True",
+        "steerable_conversations=True",
+        "set_resilient_tasks_enabled(True)",
+        "context.persisted_response",
+        "context.is_steered_turn",
+        "context.pending_input_count",
+        "yield stream.checkpoint()",
+        "yield stream.emit_completed()",
+        "os._exit(INJECTED_EXIT_CODE)"
+      ]
+    },
+    {
+      "path": "hosted-agent-approval/src/resilient-approval-gate/main.py",
+      "contains": [
+        "@multi_turn_task(name=\"translation_review_workflow\")",
+        "ctx.entry_mode == \"recovered\"",
+        "await job.flush()",
+        "\"awaiting_review\"",
+        "os._exit(86)"
+      ]
+    },
+    {
+      "path": "hosted-agent-steering/run_steering_recovery.py",
+      "contains": [
+        "def steering_checks("
+      ]
+    },
+    {
+      "path": "hosted-agent-approval/run_approval_recovery.py",
+      "contains": [
+        "def approval_checks(",
+        "AZURE_TOKEN_CREDENTIALS"
+      ]
     }
   ],
   "evidence": "evidence/owned-hosted-agent-translation-local.json",
@@ -102,6 +139,21 @@
       "generator": "scripts/generate_rule_results.py",
       "input": "evidence/run-contract.json",
       "output": "evidence/rule-results.json"
+    },
+    {
+      "generator": "scripts/render_steering_trace.py",
+      "input": "evidence/owned-steering-live.json",
+      "output": "evidence/owned-steering-live-trace.txt"
+    },
+    {
+      "generator": "scripts/render_approval_trace.py",
+      "input": "evidence/owned-approval-live.json",
+      "output": "evidence/owned-approval-live-trace.txt"
+    },
+    {
+      "generator": "scripts/render_approval_trace.py",
+      "input": "evidence/owned-approval-local.json",
+      "output": "evidence/owned-approval-local-trace.txt"
     }
   ],
   "matrix": "evidence/scenario-matrix.json",
@@ -183,11 +235,25 @@
     "scripts\\validate_repo.py",
     "generate_rule_results.py",
     "azd provision",
-    "azd deploy"
+    "azd deploy",
+    "run_steering_recovery.py",
+    "run_approval_recovery.py",
+    "owned-steering-live-trace.txt",
+    "owned-approval-live-trace.txt",
+    "owned-approval-local-trace.txt",
+    "steering-order-boundary.json",
+    "translation_section_10",
+    "translation_section_11",
+    "awaiting_review",
+    "73.868",
+    "75.249",
+    "52.411"
   ],
   "readme_traces": [
     "evidence/owned-hosted-agent-translation-local-trace.txt",
-    "evidence/owned-hosted-agent-live-translation-trace.txt"
+    "evidence/owned-hosted-agent-live-translation-trace.txt",
+    "evidence/owned-steering-live-trace.txt",
+    "evidence/owned-approval-live-trace.txt"
   ],
   "rule_results": "evidence/rule-results.json",
   "scenario_id": "owned-agent-real-translation-process-loss",

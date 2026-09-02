@@ -198,6 +198,72 @@
         "A passing fault-injection scenario"
       ],
       "evidence": "evidence/owned-hosted-agent-graceful-attempt.json"
+    },
+    {
+      "id": "owned-hosted-agent-steering-live",
+      "type": "dynamic-runtime",
+      "entrypoint": "hosted-agent-steering/run_steering_recovery.py against deployed lre-steering-agent version 9",
+      "real": [
+        "Creates one stored background response with steerable conversations enabled on the repository-owned Hosted Agent",
+        "Calls Azure Translator S1 and injects a guarded hard process exit after section 10",
+        "Observes the stream close, a recovered entry at section 11 on a second process hash, then posts a steered turn that starts Traditional Chinese at section 1 on that process",
+        "Collects the client report, the client-observed stream events, and a generated reader-facing trace"
+      ],
+      "not_claimed": [
+        "An exact container-down timestamp; the client only observes the stream closing and the recovered entry",
+        "That a steer posted before the crash survives instance loss; that order is recorded separately as NOT_VERIFIED",
+        "Translation quality or human post-editing",
+        "A production reliability benchmark or SLA"
+      ],
+      "evidence": "evidence/owned-steering-live.json"
+    },
+    {
+      "id": "owned-hosted-agent-steering-order-boundary",
+      "type": "dynamic-runtime",
+      "entrypoint": "Bounded steer-then-crash attempts against lre-steering-agent with agentserver-core 2.0.0 and 2.1.0",
+      "real": [
+        "Records the replacement-process log line that failed the persisted steered input closed without re-invoking the handler",
+        "Records that the response stayed in_progress in both SDK versions"
+      ],
+      "not_claimed": [
+        "That the steer-then-crash order recovers",
+        "A root cause inside the SDK; only the observed message and outcome are recorded"
+      ],
+      "evidence": "evidence/steering-order-boundary.json"
+    },
+    {
+      "id": "owned-hosted-agent-approval-local",
+      "type": "dynamic-runtime",
+      "entrypoint": "hosted-agent-approval/run_approval_recovery.py --local",
+      "real": [
+        "Starts the Invocations Agent from src/, translates a 10-section sample with Azure Translator S1, and stops at the human review gate",
+        "Kills the process with exit code 86 while the sample awaits review, then starts a second process on the same task store",
+        "Observes the new process identity, unchanged sample hashes, the approval landing on the new process, and sections 11-30 completing there",
+        "Collects the client report, the polled events, and a generated reader-facing trace"
+      ],
+      "not_claimed": [
+        "Foundry availability; this is a local AgentServer run",
+        "Translation quality or human post-editing",
+        "Exactly-once external writes"
+      ],
+      "evidence": "evidence/owned-approval-local.json"
+    },
+    {
+      "id": "owned-hosted-agent-approval-live",
+      "type": "dynamic-runtime",
+      "entrypoint": "hosted-agent-approval/run_approval_recovery.py --endpoint against deployed lre-approval-gate version 4",
+      "real": [
+        "Runs the same review-gate workflow against the repository-owned Hosted Agent on Foundry",
+        "Injects a guarded hard process exit while the sample awaits review and waits for a different process hash to answer",
+        "Observes the approval landing on the replacement and sections 11-30 completing there",
+        "Collects the client report, the polled events, and a generated reader-facing trace"
+      ],
+      "not_claimed": [
+        "An exact instance-down timestamp; only the window between the fault request and the replacement answering is measured",
+        "Translation quality or human post-editing",
+        "A production reliability benchmark or SLA"
+      ],
+      "evidence": "evidence/owned-approval-live.json"
     }
   ]
 }

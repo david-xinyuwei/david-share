@@ -3,7 +3,7 @@
 [![Status](https://img.shields.io/badge/Foundry_capability-public_preview-B3541E)](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
 [![Scope](https://img.shields.io/badge/scope-repository_owned_agent-1363DF)](#one-complete-recovery-run)
 [![Runtimes](https://img.shields.io/badge/runtimes-Python_3.13_%2B_.NET_8-0F8B6D)](#fault-matrix)
-[![Protocol](https://img.shields.io/badge/protocol-Responses-5F4BB6)](#put-the-same-hooks-in-your-agent)
+[![Protocol](https://img.shields.io/badge/protocol-Responses_%2B_Invocations-5F4BB6)](#put-the-same-hooks-in-your-agent)
 [![License](https://img.shields.io/badge/license-MIT-D98E04)](LICENSE)
 
 This repository contains a real Hosted Agent, caller, fault harness, and evidence. It answers one question: **when the Agent process disappears, how does the same stored response continue on a new process without losing checkpointed output?**
@@ -21,6 +21,8 @@ The mechanism is not "restart the old process." The caller creates one stored ba
 The primary demo below is a real long task, not a sleep loop: the repository-owned Agent calls Azure Translator S1 for 12 English sections, checkpoints each completed Chinese result, loses Process A after section 4, resumes at section 5 in Process B, and returns the complete 12-section document with terminal status `completed`.
 
 Two runs prove different parts of that statement. The local AgentServer run provides the exact operating-system down timestamp. The Foundry Version 7 run proves replacement-compute recovery in the hosted product and took `89.199` seconds. The same hard-loss contract also passed against the repository-owned .NET handler. This is public-preview capability evidence, not an SLA or production-readiness claim.
+
+Two more repository-owned Agents put a 30-section version of the same job under a change of target language after recovery and under a human approval gate that has to survive instance loss; see [the same job under two more interruptions](#the-same-job-under-two-more-interruptions).
 
 ## One complete recovery run
 
@@ -193,6 +195,79 @@ This is at-least-once recovery. Work after the last successful checkpoint can ru
 
 <p align="center"><sub><i>"Lease-based recovery of a resilient work item"</i> from <a href="https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience">Microsoft Foundry documentation</a> © Microsoft, used unmodified under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. It is not covered by this repository's MIT license.</sub></p>
 
+## The same job under two more interruptions
+
+Process loss is one interruption. Two others happen to real long tasks: the requester changes their mind while the work is running, and the work has to wait for a human before it may continue. Two more repository-owned Agents put a 30-section version of the same Translator job under each of them. Their code, deploy scripts, and runners are in [`hosted-agent-steering/`](hosted-agent-steering/) and [`hosted-agent-approval/`](hosted-agent-approval/); the traces below come from Agents deployed from exactly those directories.
+
+### Change of mind after recovery
+
+The steering Agent ([`main.py`](hosted-agent-steering/src/resilient-steering/main.py)) enables `steerable_conversations=True` next to `resilient_background=True`. A steered turn is a new response posted to the same conversation while the first response is still running: the running handler sees `context.pending_input_count > 0`, finishes the section it is on, and emits `completed` with the sections it has; the new response enters with `context.is_steered_turn` and starts the new language at section 1, because a Traditional Chinese document cannot reuse Simplified Chinese sections.
+
+The committed run stacks both interruptions: Process P1 commits `translation_section_10` and calls `os._exit(86)`; the gateway closes the client's stream; the replacement process P2 recovers the same response at `translation_section_11`; only then does the client post the change to Traditional Chinese, and P2 runs the steered response from section 1 to 30 while the original response completes with 14 sections.
+
+```text
+RUN owned-agent-live-steering foundry_version=9
+2026-09-02T11:41:59.280+00:00  REQUEST_STARTED        response=A target=zh-Hans crash_after_stage=9
+2026-09-02T11:42:04.863+00:00  RESPONSE_CREATED       response=A response_sha256=d74fda4d9b75404892324f8a5b52a80cf369a649bbc380b84c9ec1641d93283d
+2026-09-02T11:42:04.863+00:00  HANDLER_ENTERED        response=A mode=fresh process=P1
+2026-09-02T11:42:17.468+00:00  CHECKPOINT_COMMITTED   response=A checkpoint=translation_section_10 process=P1
+2026-09-02T11:42:18.133+00:00  STREAM_CLOSED          response=A committed_sections=10 detail=no_terminal_event_process_gone
+2026-09-02T11:42:43.437+00:00  HANDLER_RECOVERED      response=A mode=recovered process=P2 resume_from=translation_section_11
+2026-09-02T11:42:43.439+00:00  CHECKPOINT_COMMITTED   response=A checkpoint=translation_section_11 process=P2
+2026-09-02T11:42:45.215+00:00  STEER_POSTED           response=B from=zh-Hans to=zh-Hant same_conversation=true original_sections_so_far=14
+2026-09-02T11:42:47.830+00:00  RESPONSE_CREATED       response=B response_sha256=89f83641ff214ade2cc9541bbab106594bc3cd34fd8180d5848abcb2d6d2a4d2
+2026-09-02T11:42:47.830+00:00  HANDLER_ENTERED        response=B mode=steered process=P2
+2026-09-02T11:42:48.791+00:00  CHECKPOINT_COMMITTED   response=B checkpoint=translation_section_01 process=P2 meaning=new_language_starts_at_section_1
+2026-09-02T11:43:12.269+00:00  CHECKPOINT_COMMITTED   response=B checkpoint=translation_section_30 process=P2
+2026-09-02T11:43:12.659+00:00  RESPONSE_STATUS        response=B status=completed sections=30
+2026-09-02T11:43:13.148+00:00  RESPONSE_STATUS        response=A status=completed sections=14
+BOUNDARY exact_process_p1_down_at=NOT_AVAILABLE reason=hosted_container_exit_not_observable_by_client observed=stream_close
+DURATION stream_close_to_recovered_entry_seconds=25.304 meaning=observation_window_includes_replacement_scheduling_and_reconnect_polling
+DURATION steer_posted_to_replacement_completed_seconds=27.444
+DURATION total_run_seconds=73.868
+ASSERT process_replaced=true
+ASSERT checkpoint_continuity=translation_section_10->translation_section_11
+ASSERT steered_on_replacement_process=true
+ASSERT replacement_starts_at_section_1=true
+ASSERT original_sections_kept=14 replacement_sections=30
+ASSERT terminal_status=A:completed B:completed
+RESULT PASS
+```
+
+The source file is [`owned-steering-live-trace.txt`](evidence/owned-steering-live-trace.txt), rendered from [`owned-steering-live.json`](evidence/owned-steering-live.json) by [`render_steering_trace.py`](scripts/render_steering_trace.py); [`run_steering_recovery.py`](hosted-agent-steering/run_steering_recovery.py) produced the report and applies the acceptance rules. The 25.304 seconds between the stream closing and the recovered entry include the reconnect attempts: a `GET` with `stream=true` on a response whose process is gone is rejected until the replacement has re-entered, so the runner polls the durable status in between. The opposite order, steer first and lose the process afterwards, is **NOT VERIFIED**: with `azure-ai-agentserver-core` 2.0.0 and 2.1.0 the replacement process rejected the persisted steered input and the response never left `in_progress`. [`steering-order-boundary.json`](evidence/steering-order-boundary.json) records the observed message.
+
+### Human approval that survives instance loss
+
+The approval Agent ([`main.py`](hosted-agent-approval/src/resilient-approval-gate/main.py)) uses the Invocations protocol and one `@multi_turn_task` chain per job. `start` translates a 10-section sample, commits each section with `await job.flush()`, sets the job phase to `awaiting_review`, and returns; nothing runs while the reviewer reads. `approve_review` re-enters the same chain, reads the committed sections and the phase back from the task store, and translates sections 11-30, again with one flush per section.
+
+The committed local run loses the process while the sample is waiting: Process P1 exits with code 86 0.258 seconds after the fault request; Process P2 starts on the same task store, answers with a new process hash 2.004 seconds after the exit, still reports the sample as `awaiting_review`, takes the approval, and completes the remaining 20 sections. The Foundry run below does the same against Version 4 of the deployed Agent; there the client can only see that a different process answered 36.121 seconds after the fault request.
+
+```text
+RUN owned-agent-live-approval foundry_version=4
+2026-09-02T11:40:43.595+00:00  REQUEST_STARTED        action=start target=zh-Hans sample_size=10
+2026-09-02T11:40:51.774+00:00  CHECKPOINT_COMMITTED   checkpoint=translation_section_01 batch=sample process=P1
+2026-09-02T11:41:00.036+00:00  CHECKPOINT_COMMITTED   checkpoint=translation_section_10 batch=sample process=P1
+2026-09-02T11:41:00.037+00:00  REVIEW_GATE_REACHED    sample_sections=10 task_sha256=0a9c04dced7418f27de9e0b0d3ea05c78f21e9d0103bb194cca920e8d1e38a1b waiting_for=human_reviewer
+2026-09-02T11:41:00.037+00:00  FAULT_INJECTED         mode=hard_process_exit exit_code=86 while=awaiting_review
+2026-09-02T11:41:36.158+00:00  REPLACEMENT_OBSERVED   process=P2 sample_still=awaiting_review
+2026-09-02T11:41:36.158+00:00  APPROVAL_SUBMITTED     decision=approve_review landed_on=P2
+2026-09-02T11:41:38.580+00:00  CHECKPOINT_COMMITTED   checkpoint=translation_section_11 batch=remaining process=P2
+2026-09-02T11:41:58.844+00:00  CHECKPOINT_COMMITTED   checkpoint=translation_section_30 batch=remaining process=P2
+2026-09-02T11:41:58.844+00:00  TASK_STATUS            status=resolved outcome=completed sections=30
+BOUNDARY exact_instance_down_at=NOT_AVAILABLE reason=platform_replaced_the_instance observed=probe_answered_by_new_process
+DURATION fault_request_to_replacement_observed_seconds=36.121 meaning=observation_window_not_exact_downtime
+DURATION approval_to_completed_seconds=22.686
+DURATION total_run_seconds=75.249
+ASSERT same_task_identity=true
+ASSERT process_replaced=true
+ASSERT sample_result_hashes_unchanged=true
+ASSERT sample_on_process_p1=true remaining_on_process_p2=true
+ASSERT all_sections_present_once=true sections=30
+RESULT PASS
+```
+
+The source file is [`owned-approval-live-trace.txt`](evidence/owned-approval-live-trace.txt); the local counterpart with the exact exit and restart times is [`owned-approval-local-trace.txt`](evidence/owned-approval-local-trace.txt). Both are generated by [`render_approval_trace.py`](scripts/render_approval_trace.py) from reports written by [`run_approval_recovery.py`](hosted-agent-approval/run_approval_recovery.py), and the gate regenerates and compares them. The approval Agent pins `azure-ai-agentserver-core` 2.0.0 because 2.1.0 removed the `TaskContext.metadata` namespaces this chain keeps its phase in; the steering Agent pins 2.1.0. Fault injection in both Agents is a test-only switch that stays off unless `LRE_ENABLE_FAULT_INJECTION=true` is exported before deploying.
+
 ## Fault matrix
 
 | Scenario / mode | Trigger | Expected | Actual result | Status | Evidence |
@@ -206,6 +281,10 @@ This is at-least-once recovery. Work after the last successful checkpoint can ru
 | Current safe Foundry deployment | Version 9, fault switch disabled | Normal real S1 batch remains callable after testing | 12 translations completed in one process in 22.862 s | **PASS** | [run](evidence/owned-hosted-agent-live.json) · [status](evidence/owned-hosted-agent-status.json) |
 | Graceful host shutdown | Windows console shutdown signal | Host sets shutdown, defers work, later process recovers | Local Windows harness did not drive the complete host shutdown lifecycle | **NOT VERIFIED** | [attempt record](evidence/owned-hosted-agent-graceful-attempt.json) |
 | Missing / duplicate output | Remove or duplicate completed output in fixtures | Acceptance fails closed | Gap, duplicate, and bare `done` cases were rejected | **PASS** | [validator evidence](evidence/observation-validation.json) |
+| Change of target after recovery (steering Agent) | Guarded `os._exit(86)` after section 10 on Version 9, then a steered turn once P2 had recovered | P2 resumes the original response at section 11; the steered response starts at section 1 on P2; both complete | Recovered entry 25.304 s after the stream closed; steered response entered on P2 and completed 30 sections; original completed with 14; `73.868` s total | **PASS** | [reader log](evidence/owned-steering-live-trace.txt) · [report](evidence/owned-steering-live.json) · [events](evidence/owned-steering-live-events.jsonl) |
+| Steer first, then process loss | Steered turn posted, then `os._exit(86)` | P2 recovers the original response and runs the steered turn | Replacement process failed the persisted steered input closed; response stayed `in_progress` (core 2.0.0 and 2.1.0) | **NOT VERIFIED** | [boundary record](evidence/steering-order-boundary.json) |
+| Review gate, local process loss (approval Agent) | `os._exit(86)` while the 10-section sample is `awaiting_review` | New process keeps the task identity and sample hashes; approval lands on it; sections 11-30 complete | Exit 86 after 0.258 s; P2 answered 2.004 s later; approval on P2; 30 sections; `52.411` s total | **PASS** | [reader log](evidence/owned-approval-local-trace.txt) · [report](evidence/owned-approval-local.json) · [events](evidence/owned-approval-local-events.jsonl) |
+| Review gate, Foundry instance loss | Guarded `os._exit(86)` on Version 4 while `awaiting_review` | Replacement instance keeps the gate and takes the approval | Second process hash answered 36.121 s after the fault request; approval on it; sections 11-30 done 22.686 s later; `75.249` s total | **PASS** | [reader log](evidence/owned-approval-live-trace.txt) · [report](evidence/owned-approval-live.json) · [events](evidence/owned-approval-live-events.jsonl) |
 
 The matrix is data, not a promise. [`run-contract.json`](evidence/run-contract.json) declares the required milestones and state assertions; [`scenario-matrix.json`](evidence/scenario-matrix.json) declares the modes. The validator reads those files instead of hardcoding this demo's event names.
 
@@ -221,6 +300,7 @@ SOP-68 rules are executable, not self-attested: [`scripts\generate_rule_results.
 | Fast Python recovery and observer restart | The same Python environment; Translator is not required |
 | .NET recovery | .NET 8 SDK and restore access for the pinned preview packages in [`LraEvidenceAgent.csproj`](dotnet-agent/LraEvidenceAgent.csproj) |
 | Live Foundry deployment | Non-production subscription, Foundry project, Azure CLI 2.80+, `azd` 1.27.1+, project-level `Foundry Project Manager`, and Agent managed-identity access to Translator |
+| Steering and approval Agents | The same tooling plus the pins in [`hosted-agent-steering/.../requirements.txt`](hosted-agent-steering/src/resilient-steering/requirements.txt) and [`hosted-agent-approval/.../requirements.txt`](hosted-agent-approval/src/resilient-approval-gate/requirements.txt); the local approval run also needs `LRA_TRANSLATOR_RESOURCE_ID` |
 
 On Windows PowerShell:
 
@@ -268,7 +348,15 @@ $dotnetDll = Join-Path $dotnetDir LraEvidenceAgent.dll
   --report .demo-state\dotnet-recovery.json `
   --log-report .demo-state\dotnet-events.jsonl
 
-# 5. Repository acceptance.
+# 5. Review gate that survives local process loss (Translator variables from step 1).
+& $python -m pip install --no-input `
+  -r hosted-agent-approval\src\resilient-approval-gate\requirements.txt
+$env:LRA_TRANSLATOR_RESOURCE_ID = "<translator-resource-id>"
+& $python hosted-agent-approval\run_approval_recovery.py --local `
+  --report .demo-state\approval-local.json `
+  --log-report .demo-state\approval-local-events.jsonl
+
+# 6. Repository acceptance.
 & $python -m unittest discover -s tests -v
 & $python scripts\validate_repo.py
 ```
@@ -297,6 +385,8 @@ azd ai agent show lra-evidence-agent
 ```
 
 Structured status and the Portal show repository-owned Version 9 as `active` / `Running`, `hosted` / `Hosted`, with fault injection disabled. A safe Version 9 real translation request completed all 12 sections in one process. By itself, that safe run is not live process-loss recovery evidence; the live proof is the temporary Version 7 row, after which Version 9 replaced it.
+
+The steering and approval Agents deploy from their own directories with [`hosted-agent-steering/scripts/deploy.sh`](hosted-agent-steering/scripts/deploy.sh) and [`hosted-agent-approval/scripts/deploy.sh`](hosted-agent-approval/scripts/deploy.sh). Each script reads the subscription, location, project ID, project endpoint, and Translator resource ID from the environment, sets the `azd` environment, and runs `azd provision` and `azd deploy`. Then run `run_steering_recovery.py --endpoint "<responses endpoint with its API-version query>"` or `run_approval_recovery.py --endpoint "<invocations endpoint with its API-version query>"` with `--agent-version`; both authenticate with the Azure CLI login and exit non-zero unless every acceptance rule passes.
 
 ## Put the same hooks in your Agent
 
@@ -339,10 +429,13 @@ A `done` frame, a green Portal status, or a new successful request is not recove
 | [Version 9 safe run](evidence/owned-hosted-agent-live.json) and [status](evidence/owned-hosted-agent-status.json) | Current normal completion, runtime, protocol, status, fault switch, and content hash |
 | [UI lineage](evidence/ui-evidence.json), [Version 9 list](images/product-ui/portal-owned-agent-list.png), and [Version 9 details](images/product-ui/portal-owned-agent-details.png) | Original/public image hashes, redactions, and deployment-object proof |
 | [Run bundle](evidence/runs/owned-agent-recovery-validation-20260826/run-manifest.json) | Commands, exits, logs, status, UI, and key-code hashes |
+| [Steering reader log](evidence/owned-steering-live-trace.txt), [report](evidence/owned-steering-live.json), and [events](evidence/owned-steering-live-events.jsonl) | Stream close, recovered entry at section 11, steered response from section 1 on the replacement process, both terminal states |
+| [Steer-then-crash boundary](evidence/steering-order-boundary.json) | Why that order stays NOT VERIFIED with core 2.0.0 and 2.1.0 |
+| [Approval local trace](evidence/owned-approval-local-trace.txt), [report](evidence/owned-approval-local.json), [events](evidence/owned-approval-local-events.jsonl), and the [Foundry trace](evidence/owned-approval-live-trace.txt), [report](evidence/owned-approval-live.json), [events](evidence/owned-approval-live-events.jsonl) | Review gate, exit code 86 while `awaiting_review`, replacement process, approval landing on it, sections 11-30 completing |
 
 The linked Portal screenshots prove the deployed object, version, state, and type. They do not prove process recovery; JSON and logs provide that behavior evidence. Raw authenticated screenshots and identifiers are not committed.
 
-This repository does not prove an SLA, repeated-trial reliability, load behavior, multi-region recovery, translation quality, or exactly-once external side effects. Long-running-agent resilience is public preview and is not recommended for production workloads without workload-specific testing.
+This repository does not prove an SLA, repeated-trial reliability, load behavior, multi-region recovery, translation quality, or exactly-once external side effects. The steering and approval runs are single trials as well: they prove the recovery contract for a change of target after recovery and for a pending human approval, not the steer-then-crash order. Long-running-agent resilience is public preview and is not recommended for production workloads without workload-specific testing.
 
 ## Related work and license
 

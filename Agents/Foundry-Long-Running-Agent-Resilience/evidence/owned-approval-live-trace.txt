@@ -1,0 +1,21 @@
+RUN owned-agent-live-approval foundry_version=4
+2026-09-02T11:40:43.595+00:00  REQUEST_STARTED        action=start target=zh-Hans sample_size=10
+2026-09-02T11:40:51.774+00:00  CHECKPOINT_COMMITTED   checkpoint=translation_section_01 batch=sample process=P1
+2026-09-02T11:41:00.036+00:00  CHECKPOINT_COMMITTED   checkpoint=translation_section_10 batch=sample process=P1
+2026-09-02T11:41:00.037+00:00  REVIEW_GATE_REACHED    sample_sections=10 task_sha256=0a9c04dced7418f27de9e0b0d3ea05c78f21e9d0103bb194cca920e8d1e38a1b waiting_for=human_reviewer
+2026-09-02T11:41:00.037+00:00  FAULT_INJECTED         mode=hard_process_exit exit_code=86 while=awaiting_review
+2026-09-02T11:41:36.158+00:00  REPLACEMENT_OBSERVED   process=P2 sample_still=awaiting_review
+2026-09-02T11:41:36.158+00:00  APPROVAL_SUBMITTED     decision=approve_review landed_on=P2
+2026-09-02T11:41:38.580+00:00  CHECKPOINT_COMMITTED   checkpoint=translation_section_11 batch=remaining process=P2
+2026-09-02T11:41:58.844+00:00  CHECKPOINT_COMMITTED   checkpoint=translation_section_30 batch=remaining process=P2
+2026-09-02T11:41:58.844+00:00  TASK_STATUS            status=resolved outcome=completed sections=30
+BOUNDARY exact_instance_down_at=NOT_AVAILABLE reason=platform_replaced_the_instance observed=probe_answered_by_new_process
+DURATION fault_request_to_replacement_observed_seconds=36.121 meaning=observation_window_not_exact_downtime
+DURATION approval_to_completed_seconds=22.686
+DURATION total_run_seconds=75.249
+ASSERT same_task_identity=true
+ASSERT process_replaced=true
+ASSERT sample_result_hashes_unchanged=true
+ASSERT sample_on_process_p1=true remaining_on_process_p2=true
+ASSERT all_sections_present_once=true sections=30
+RESULT PASS

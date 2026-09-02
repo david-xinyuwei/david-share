@@ -1,0 +1,55 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+requiredVersions:
+  azd: '>=1.27.1'
+  extensions:
+    azure.ai.agents: '>=1.0.0-beta.9'
+name: lre-steering-agent
+services:
+  ai-project:
+    host: azure.ai.project
+    deployments: []
+    endpoint: ${AZURE_AI_PROJECT_ENDPOINT}
+  lre-steering-agent:
+    host: azure.ai.agent
+    metadata:
+      tags:
+        - AI Agent Hosting
+        - Responses Protocol
+        - Bring Your Own
+        - Long-Running
+        - Resilient Tasks
+        - Steering
+        - Fault Injection
+        - Python
+    project: src/resilient-steering
+    language: python
+    codeConfiguration:
+      dependencyResolution: remote_build
+      runtime: python_3_13
+      entryPoint: main.py
+    uses:
+      - ai-project
+    kind: hosted
+    name: lre-steering-agent
+    displayName: LRA Steering Agent
+    description: >-
+      Non-production Hosted Agent. Translates the shared 30-section document with
+      one durable checkpoint per section, resumes from the last checkpoint on
+      replacement compute after a guarded hard process exit, and accepts a
+      change of target language posted on the same conversation.
+    protocols:
+      - protocol: responses
+        version: 2.0.0
+    env:
+      LRE_ENABLE_FAULT_INJECTION: ${LRE_ENABLE_FAULT_INJECTION}
+      LRE_STAGE_DELAY_MS: ${LRE_STAGE_DELAY_MS}
+      LRA_TRANSLATOR_ENDPOINT: ${LRA_TRANSLATOR_ENDPOINT}
+      LRA_TRANSLATOR_REGION: ${LRA_TRANSLATOR_REGION}
+      LRA_TRANSLATOR_RESOURCE_ID: ${LRA_TRANSLATOR_RESOURCE_ID}
+    container:
+      resources:
+        cpu: '1'
+        memory: 2Gi
+infra:
+  provider: microsoft.foundry

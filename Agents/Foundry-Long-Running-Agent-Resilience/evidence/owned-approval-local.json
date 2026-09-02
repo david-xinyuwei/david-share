@@ -1,0 +1,453 @@
+{
+  "acceptance": {
+    "all_sections_present_once": true,
+    "every_section_has_text": true,
+    "outcome": "completed",
+    "process_instance_count": 2,
+    "process_instance_sha256": [
+      "d41b50ee67b99fe13028883dab1e5bfc528282f7e24ff06d3f9b269ae73051ba",
+      "e49294ea1443d1530f0fc5203be8aad84a7e9b1a20cec675c3bca790a010dbef"
+    ],
+    "process_replaced": true,
+    "remaining_sections": 20,
+    "remaining_translated_on_process_b": true,
+    "resolved_as_completed": true,
+    "review_gate_reached": true,
+    "sample_result_hashes_unchanged": true,
+    "sample_sections": 10,
+    "sample_translated_on_process_a": true,
+    "status": "resolved",
+    "task_identity_unchanged": true,
+    "total_sections": 30
+  },
+  "deployment": {
+    "agent_name": "lre-approval-gate",
+    "version": "local"
+  },
+  "elapsed_seconds": 52.411,
+  "endpoint_class": "local-agentserver",
+  "evidence_type": "owned-hosted-agent-approval",
+  "generated_at_utc": "2026-09-02T11:39:10.735+00:00",
+  "passed": true,
+  "request": {
+    "fault_injection_requested": true,
+    "sample_size": 10,
+    "stage_delay_ms": 300,
+    "target": "zh-Hans"
+  },
+  "samples": {
+    "first_remaining_section": {
+      "section": "translation_section_11",
+      "text": "优雅关机和硬进程丢失是不同的中断模式。每种模式都需要自己的触发条件、预期结果、观察到的结果，以及明确的PASS或NOT VERIFIED状态。"
+    },
+    "last_sample_section": {
+      "section": "translation_section_10",
+      "text": "操作证据应包括时间戳、进程身份、状态转换、代码哈希和日志。截图证明已部署的对象，但不能证明恢复行为。"
+    }
+  },
+  "schema_version": 1,
+  "session_id_sha256": "f12b67654493920fcf049e282183b161162c4c3597ce338f8dd2d620c06d1810",
+  "started_at_utc": "2026-09-02T11:38:18.324+00:00",
+  "task_id_sha256": "a924e7bfc5b4805dbca9eb1603f509188d2df7060a094768f442187b037161f2",
+  "timeline": [
+    {
+      "at_utc": "2026-09-02T11:38:18.325+00:00",
+      "endpoint_class": "local-agentserver",
+      "event": "process_started",
+      "process_role": "A",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "action": "start",
+      "at_utc": "2026-09-02T11:38:18.325+00:00",
+      "event": "request_started",
+      "sample_size": 10,
+      "session_id_sha256": "f12b67654493920fcf049e282183b161162c4c3597ce338f8dd2d620c06d1810",
+      "source": "client_poll",
+      "target": "zh-Hans",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "action": "start",
+      "at_utc": "2026-09-02T11:38:19.348+00:00",
+      "event": "invocation_accepted",
+      "invocation_id_sha256": "224528f11c98e67d3fed79ed6cf00d670ce5a2631368c6f6607cd425c7f78f70",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:38:21.356+00:00",
+      "batch": "sample",
+      "checkpoint": "translation_section_01",
+      "entry_mode": "fresh",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "d41b50ee67b99fe13028883dab1e5bfc528282f7e24ff06d3f9b269ae73051ba",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:38:23.361+00:00",
+      "batch": "sample",
+      "checkpoint": "translation_section_02",
+      "entry_mode": "fresh",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "d41b50ee67b99fe13028883dab1e5bfc528282f7e24ff06d3f9b269ae73051ba",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:38:25.365+00:00",
+      "batch": "sample",
+      "checkpoint": "translation_section_03",
+      "entry_mode": "fresh",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "d41b50ee67b99fe13028883dab1e5bfc528282f7e24ff06d3f9b269ae73051ba",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:38:27.369+00:00",
+      "batch": "sample",
+      "checkpoint": "translation_section_04",
+      "entry_mode": "fresh",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "d41b50ee67b99fe13028883dab1e5bfc528282f7e24ff06d3f9b269ae73051ba",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:38:29.373+00:00",
+      "batch": "sample",
+      "checkpoint": "translation_section_05",
+      "entry_mode": "fresh",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "d41b50ee67b99fe13028883dab1e5bfc528282f7e24ff06d3f9b269ae73051ba",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:38:31.377+00:00",
+      "batch": "sample",
+      "checkpoint": "translation_section_06",
+      "entry_mode": "fresh",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "d41b50ee67b99fe13028883dab1e5bfc528282f7e24ff06d3f9b269ae73051ba",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:38:33.382+00:00",
+      "batch": "sample",
+      "checkpoint": "translation_section_07",
+      "entry_mode": "fresh",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "d41b50ee67b99fe13028883dab1e5bfc528282f7e24ff06d3f9b269ae73051ba",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:38:34.385+00:00",
+      "batch": "sample",
+      "checkpoint": "translation_section_08",
+      "entry_mode": "fresh",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "d41b50ee67b99fe13028883dab1e5bfc528282f7e24ff06d3f9b269ae73051ba",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:38:36.389+00:00",
+      "batch": "sample",
+      "checkpoint": "translation_section_09",
+      "entry_mode": "fresh",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "d41b50ee67b99fe13028883dab1e5bfc528282f7e24ff06d3f9b269ae73051ba",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:38:38.393+00:00",
+      "batch": "sample",
+      "checkpoint": "translation_section_10",
+      "entry_mode": "fresh",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "d41b50ee67b99fe13028883dab1e5bfc528282f7e24ff06d3f9b269ae73051ba",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:38:38.393+00:00",
+      "event": "review_gate_reached",
+      "process_instance_sha256": "d41b50ee67b99fe13028883dab1e5bfc528282f7e24ff06d3f9b269ae73051ba",
+      "sample_sections": 10,
+      "source": "client_poll",
+      "task_id_sha256": "a924e7bfc5b4805dbca9eb1603f509188d2df7060a094768f442187b037161f2",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:38:38.393+00:00",
+      "event": "fault_injected",
+      "exit_code": 86,
+      "mode": "hard_process_exit",
+      "process_instance_sha256": "d41b50ee67b99fe13028883dab1e5bfc528282f7e24ff06d3f9b269ae73051ba",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:38:38.651+00:00",
+      "event": "process_exited",
+      "exit_code": 86,
+      "process_instance_sha256": "d41b50ee67b99fe13028883dab1e5bfc528282f7e24ff06d3f9b269ae73051ba",
+      "process_role": "A",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:38:38.652+00:00",
+      "endpoint_class": "local-agentserver",
+      "event": "process_started",
+      "process_role": "B",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:38:40.655+00:00",
+      "event": "replacement_instance_observed",
+      "process_instance_sha256": "e49294ea1443d1530f0fc5203be8aad84a7e9b1a20cec675c3bca790a010dbef",
+      "process_role": "B",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "approver": "repository reviewer",
+      "at_utc": "2026-09-02T11:38:40.655+00:00",
+      "decision": "approve_review",
+      "event": "approval_submitted",
+      "process_instance_sha256": "e49294ea1443d1530f0fc5203be8aad84a7e9b1a20cec675c3bca790a010dbef",
+      "source": "client_poll",
+      "task_id_sha256": "a924e7bfc5b4805dbca9eb1603f509188d2df7060a094768f442187b037161f2",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "action": "approve_review",
+      "at_utc": "2026-09-02T11:38:40.658+00:00",
+      "event": "invocation_accepted",
+      "invocation_id_sha256": "dbff60e421d8d6aba6799db7048443c5d8d32be743fcfc47d78ba5f1dc46ebbe",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:38:43.669+00:00",
+      "batch": "remaining",
+      "checkpoint": "translation_section_11",
+      "entry_mode": "resumed",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "e49294ea1443d1530f0fc5203be8aad84a7e9b1a20cec675c3bca790a010dbef",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:38:44.672+00:00",
+      "batch": "remaining",
+      "checkpoint": "translation_section_12",
+      "entry_mode": "resumed",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "e49294ea1443d1530f0fc5203be8aad84a7e9b1a20cec675c3bca790a010dbef",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:38:46.676+00:00",
+      "batch": "remaining",
+      "checkpoint": "translation_section_13",
+      "entry_mode": "resumed",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "e49294ea1443d1530f0fc5203be8aad84a7e9b1a20cec675c3bca790a010dbef",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:38:47.678+00:00",
+      "batch": "remaining",
+      "checkpoint": "translation_section_14",
+      "entry_mode": "resumed",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "e49294ea1443d1530f0fc5203be8aad84a7e9b1a20cec675c3bca790a010dbef",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:38:49.683+00:00",
+      "batch": "remaining",
+      "checkpoint": "translation_section_15",
+      "entry_mode": "resumed",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "e49294ea1443d1530f0fc5203be8aad84a7e9b1a20cec675c3bca790a010dbef",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:38:50.685+00:00",
+      "batch": "remaining",
+      "checkpoint": "translation_section_16",
+      "entry_mode": "resumed",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "e49294ea1443d1530f0fc5203be8aad84a7e9b1a20cec675c3bca790a010dbef",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:38:52.691+00:00",
+      "batch": "remaining",
+      "checkpoint": "translation_section_17",
+      "entry_mode": "resumed",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "e49294ea1443d1530f0fc5203be8aad84a7e9b1a20cec675c3bca790a010dbef",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:38:53.693+00:00",
+      "batch": "remaining",
+      "checkpoint": "translation_section_18",
+      "entry_mode": "resumed",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "e49294ea1443d1530f0fc5203be8aad84a7e9b1a20cec675c3bca790a010dbef",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:38:55.698+00:00",
+      "batch": "remaining",
+      "checkpoint": "translation_section_19",
+      "entry_mode": "resumed",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "e49294ea1443d1530f0fc5203be8aad84a7e9b1a20cec675c3bca790a010dbef",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:38:57.703+00:00",
+      "batch": "remaining",
+      "checkpoint": "translation_section_20",
+      "entry_mode": "resumed",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "e49294ea1443d1530f0fc5203be8aad84a7e9b1a20cec675c3bca790a010dbef",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:38:58.705+00:00",
+      "batch": "remaining",
+      "checkpoint": "translation_section_21",
+      "entry_mode": "resumed",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "e49294ea1443d1530f0fc5203be8aad84a7e9b1a20cec675c3bca790a010dbef",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:39:00.710+00:00",
+      "batch": "remaining",
+      "checkpoint": "translation_section_22",
+      "entry_mode": "resumed",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "e49294ea1443d1530f0fc5203be8aad84a7e9b1a20cec675c3bca790a010dbef",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:39:02.714+00:00",
+      "batch": "remaining",
+      "checkpoint": "translation_section_23",
+      "entry_mode": "resumed",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "e49294ea1443d1530f0fc5203be8aad84a7e9b1a20cec675c3bca790a010dbef",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:39:03.717+00:00",
+      "batch": "remaining",
+      "checkpoint": "translation_section_24",
+      "entry_mode": "resumed",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "e49294ea1443d1530f0fc5203be8aad84a7e9b1a20cec675c3bca790a010dbef",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:39:04.720+00:00",
+      "batch": "remaining",
+      "checkpoint": "translation_section_25",
+      "entry_mode": "resumed",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "e49294ea1443d1530f0fc5203be8aad84a7e9b1a20cec675c3bca790a010dbef",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:39:05.722+00:00",
+      "batch": "remaining",
+      "checkpoint": "translation_section_26",
+      "entry_mode": "resumed",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "e49294ea1443d1530f0fc5203be8aad84a7e9b1a20cec675c3bca790a010dbef",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:39:06.724+00:00",
+      "batch": "remaining",
+      "checkpoint": "translation_section_27",
+      "entry_mode": "resumed",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "e49294ea1443d1530f0fc5203be8aad84a7e9b1a20cec675c3bca790a010dbef",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:39:07.727+00:00",
+      "batch": "remaining",
+      "checkpoint": "translation_section_28",
+      "entry_mode": "resumed",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "e49294ea1443d1530f0fc5203be8aad84a7e9b1a20cec675c3bca790a010dbef",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:39:08.730+00:00",
+      "batch": "remaining",
+      "checkpoint": "translation_section_29",
+      "entry_mode": "resumed",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "e49294ea1443d1530f0fc5203be8aad84a7e9b1a20cec675c3bca790a010dbef",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:39:10.735+00:00",
+      "batch": "remaining",
+      "checkpoint": "translation_section_30",
+      "entry_mode": "resumed",
+      "event": "checkpoint_committed",
+      "process_instance_sha256": "e49294ea1443d1530f0fc5203be8aad84a7e9b1a20cec675c3bca790a010dbef",
+      "source": "client_poll",
+      "work_id": "owned-agent-local-approval"
+    },
+    {
+      "at_utc": "2026-09-02T11:39:10.735+00:00",
+      "event": "terminal_observed",
+      "outcome": "completed",
+      "process_instance_sha256": "e49294ea1443d1530f0fc5203be8aad84a7e9b1a20cec675c3bca790a010dbef",
+      "sections": 30,
+      "source": "client_poll",
+      "status": "resolved",
+      "task_id_sha256": "a924e7bfc5b4805dbca9eb1603f509188d2df7060a094768f442187b037161f2",
+      "work_id": "owned-agent-local-approval"
+    }
+  ],
+  "work_id": "owned-agent-local-approval"
+}

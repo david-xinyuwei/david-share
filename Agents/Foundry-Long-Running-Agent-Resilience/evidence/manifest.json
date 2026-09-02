@@ -8,6 +8,42 @@
       "sha256": "3240679a41dfa04a4285f9c340780b0fdbe59aeff8f26a781a976c13eec48b84"
     },
     {
+      "bytes": 12421,
+      "path": "evidence/owned-approval-live-events.jsonl",
+      "provenance": "Client-polled events from hosted-agent-approval/run_approval_recovery.py against lre-approval-gate version 4.",
+      "sha256": "82bad96de199395defb3d22c2002945b1aba39c0ff6413256e40c3137bc92774"
+    },
+    {
+      "bytes": 1711,
+      "path": "evidence/owned-approval-live-trace.txt",
+      "provenance": "scripts/render_approval_trace.py from owned-approval-live.json.",
+      "sha256": "6388e34e29c42c8933cf50ed94217ec718c0458bb3887f48f19b64ceefbfb49e"
+    },
+    {
+      "bytes": 16668,
+      "path": "evidence/owned-approval-live.json",
+      "provenance": "Version 4 Foundry review-gate instance-loss run through hosted-agent-approval/run_approval_recovery.py.",
+      "sha256": "e1ef6eb3f6839f745f588e99ae419541a3de85ed77f2de76bd2beac1b452da17"
+    },
+    {
+      "bytes": 12829,
+      "path": "evidence/owned-approval-local-events.jsonl",
+      "provenance": "Client-polled events from hosted-agent-approval/run_approval_recovery.py --local.",
+      "sha256": "c0b6c2e8f62a1a00f35eb6ee7fb62f7b9095ccf3e75469ede7ec14fbb2c9022f"
+    },
+    {
+      "bytes": 1706,
+      "path": "evidence/owned-approval-local-trace.txt",
+      "provenance": "scripts/render_approval_trace.py from owned-approval-local.json.",
+      "sha256": "1d445b5a0974b9a4f8b71d954a0b4d8f811866e33ae85915c9a16d534552d750"
+    },
+    {
+      "bytes": 17178,
+      "path": "evidence/owned-approval-local.json",
+      "provenance": "Local AgentServer review-gate process-loss run through hosted-agent-approval/run_approval_recovery.py --local.",
+      "sha256": "83e79bd937993cf8c67879cb46c4a0fe57a4e1cb73285c171282f412547e1f12"
+    },
+    {
       "bytes": 8101,
       "path": "evidence/owned-hosted-agent-dotnet-events.jsonl",
       "provenance": "Sanitized .NET AgentServer console lifecycle events.",
@@ -122,16 +158,34 @@
       "sha256": "b650a423ced815ff877bef04666163cf58528daa179a30644bdfb57878ba9768"
     },
     {
+      "bytes": 23633,
+      "path": "evidence/owned-steering-live-events.jsonl",
+      "provenance": "Client-observed stream events from hosted-agent-steering/run_steering_recovery.py against lre-steering-agent version 9.",
+      "sha256": "a9551f5e928e007a1f486ffabdcf0a3155c78320ad7ca2a5f4d9bd36284c1cf3"
+    },
+    {
+      "bytes": 2341,
+      "path": "evidence/owned-steering-live-trace.txt",
+      "provenance": "scripts/render_steering_trace.py from owned-steering-live.json.",
+      "sha256": "625de07eee110437169b067e49552f10f8c77aef98217609493181fff07ecd1f"
+    },
+    {
+      "bytes": 30502,
+      "path": "evidence/owned-steering-live.json",
+      "provenance": "Version 9 Foundry crash, recover, then steer run through hosted-agent-steering/run_steering_recovery.py.",
+      "sha256": "d4e35ef54582ee4d1deaede2ee8839ebe94e888a70745bee060551537cf038d3"
+    },
+    {
       "bytes": 3044,
       "path": "evidence/public-sdk-contract.json",
       "provenance": "python scripts/verify_public_resilience_api.py --format json",
       "sha256": "25f4d0a3c934a882d8d23d39861888616f499e9ab85882c255ea08e766bac149"
     },
     {
-      "bytes": 8708,
+      "bytes": 11974,
       "path": "evidence/README.md",
       "provenance": "Maintained evidence index and reproduction commands.",
-      "sha256": "e1c9173fa516c29a754880bcd9920aac63d26369b14870da01fec9a1f48d7e22"
+      "sha256": "bf16e2dcb8fa41ae54ed212508182ea72115992b2dbda31af6aebb40c7253ebe"
     },
     {
       "bytes": 1547,
@@ -152,34 +206,40 @@
       "sha256": "684d7d80d15077709f4bc91448149e5013ff4366544833dd31f47ab92da949d8"
     },
     {
-      "bytes": 21006,
+      "bytes": 22532,
       "path": "evidence/rule-results.json",
       "provenance": "Executable SOP-68 RUN-001 through RUN-015 rule outcomes and evidence paths.",
-      "sha256": "f0f42442d008aa97f0151391ff1cdc68cd5d713a0d1652a6a50accca56269f9f"
+      "sha256": "a4fb82d14b4b7795c1399d3125af1df1252084836364ed1c1a23493fe7c1fdb4"
     },
     {
-      "bytes": 6361,
+      "bytes": 8400,
       "path": "evidence/run-contract.json",
       "provenance": "Maintained scenario-agnostic complete-run contract.",
-      "sha256": "31884b5b79585531d6d611511f5ec06ec42a2deb00374fda9e902a2f639e1b70"
+      "sha256": "4a867e9da234099492d4aa99d0d3c4037a3ce24078548b4b99a1646781dbbe8f"
     },
     {
       "bytes": 10678,
       "path": "evidence/runs/owned-agent-recovery-validation-20260826/run-manifest.json",
       "provenance": "Commands, exits, logs, status, UI, and key-code hashes for this validation cycle.",
-      "sha256": "69cac0d137d4f36958cb4adc77eed5d48fb06571cd338a50dc2e288e76092717"
+      "sha256": "c06be727e4cb74947b91c5ff50a5529c236a6ea85f8a1547e322d984c19e978e"
     },
     {
-      "bytes": 9174,
+      "bytes": 12973,
       "path": "evidence/scenario-manifest.json",
       "provenance": "Maintained authenticity classification and non-claims.",
-      "sha256": "5f801700fcc008df3482a4ad156c817fa302155efbc0abb89b44b624f18c1dc6"
+      "sha256": "e1e78a8cbdb22fa0f832ac12066e9069479672bdf46e2adec350fa78d3f64ee8"
     },
     {
-      "bytes": 8127,
+      "bytes": 14494,
       "path": "evidence/scenario-matrix.json",
       "provenance": "Maintained PASS and NOT_VERIFIED mode matrix.",
-      "sha256": "b5320e0a1e5f7d40ad061ca1da41e434b22c289cbc0b6d56eefc6630a617b31a"
+      "sha256": "e589b936d86b0e0512e254c79663759e50c86862482d9695e95745605e64ac0e"
+    },
+    {
+      "bytes": 1627,
+      "path": "evidence/steering-order-boundary.json",
+      "provenance": "Bounded steer-then-crash attempts and non-claim.",
+      "sha256": "8d8eb2db39f9be02352a5177d91529121c3f4e1a587d7351ba3a48656b32649a"
     },
     {
       "bytes": 2052,
@@ -188,7 +248,7 @@
       "sha256": "3149069f2e8e905344790be5cefb1ddfc884b86d67db86406a7b9f52c1e4131b"
     }
   ],
-  "generated_at_utc": "2026-08-27T03:30:55+00:00",
+  "generated_at_utc": "2026-09-02T12:04:48+00:00",
   "normalization": "utf-8-lf",
   "schema_version": 1
 }

@@ -1,0 +1,23 @@
+RUN owned-agent-local-approval local_agentserver
+2026-09-02T11:38:18.325+00:00  REQUEST_STARTED        action=start target=zh-Hans sample_size=10
+2026-09-02T11:38:21.356+00:00  CHECKPOINT_COMMITTED   checkpoint=translation_section_01 batch=sample process=P1
+2026-09-02T11:38:38.393+00:00  CHECKPOINT_COMMITTED   checkpoint=translation_section_10 batch=sample process=P1
+2026-09-02T11:38:38.393+00:00  REVIEW_GATE_REACHED    sample_sections=10 task_sha256=a924e7bfc5b4805dbca9eb1603f509188d2df7060a094768f442187b037161f2 waiting_for=human_reviewer
+2026-09-02T11:38:38.393+00:00  FAULT_INJECTED         mode=hard_process_exit exit_code=86 while=awaiting_review
+2026-09-02T11:38:38.651+00:00  PROCESS_P1_DOWN        exit_code=86
+2026-09-02T11:38:38.652+00:00  PROCESS_P2_START
+2026-09-02T11:38:40.655+00:00  REPLACEMENT_OBSERVED   process=P2 sample_still=awaiting_review
+2026-09-02T11:38:40.655+00:00  APPROVAL_SUBMITTED     decision=approve_review landed_on=P2
+2026-09-02T11:38:43.669+00:00  CHECKPOINT_COMMITTED   checkpoint=translation_section_11 batch=remaining process=P2
+2026-09-02T11:39:10.735+00:00  CHECKPOINT_COMMITTED   checkpoint=translation_section_30 batch=remaining process=P2
+2026-09-02T11:39:10.735+00:00  TASK_STATUS            status=resolved outcome=completed sections=30
+DURATION fault_to_process_p1_down_seconds=0.258
+DURATION process_p1_down_to_replacement_observed_seconds=2.004
+DURATION approval_to_completed_seconds=30.08
+DURATION total_run_seconds=52.411
+ASSERT same_task_identity=true
+ASSERT process_replaced=true
+ASSERT sample_result_hashes_unchanged=true
+ASSERT sample_on_process_p1=true remaining_on_process_p2=true
+ASSERT all_sections_present_once=true sections=30
+RESULT PASS

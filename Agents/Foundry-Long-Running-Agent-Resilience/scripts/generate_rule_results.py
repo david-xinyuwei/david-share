@@ -1032,10 +1032,8 @@ def main() -> int:
     root = args.input.resolve().parents[1]
     results = evaluate_rules(root)
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(
-        json.dumps(results, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
+    with args.output.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(json.dumps(results, indent=2, ensure_ascii=False) + "\n")
     errors = validate_document(root, results)
     for rule in results["rules"]:
         print(f"RULE {rule['id']} {rule['status']} {len(rule['evidence'])}")
