@@ -268,6 +268,25 @@ RESULT PASS
 
 源文件是 [`owned-approval-live-trace.txt`](evidence/owned-approval-live-trace.txt)；带精确退出和重启时间的本机版本是 [`owned-approval-local-trace.txt`](evidence/owned-approval-local-trace.txt)。两者都由 [`render_approval_trace.py`](scripts/render_approval_trace.py) 从 [`run_approval_recovery.py`](hosted-agent-approval/run_approval_recovery.py) 写出的报告生成，门禁会重新生成并逐字比对。审批 Agent 把 `azure-ai-agentserver-core` 固定在 2.0.0，因为 2.1.0 去掉了这条链用来保存阶段的 `TaskContext.metadata` 命名空间；转向 Agent 固定在 2.1.0。两个 Agent 的故障注入都是只供测试的开关，部署前不显式导出 `LRE_ENABLE_FAULT_INJECTION=true` 就保持关闭。
 
+## 在浏览器里看完整过程
+
+[`demo-portal/`](demo-portal/) 是从“星辰”大 Demo 中单独抽出的韧性实验区，不包含与 LRA 无关的聊天、记忆、Toolbox、路由和交易结算功能。[`demo-portal/app.py`](demo-portal/app.py) 里的 FastAPI 编排只调用本仓库这三个 Agent；[`demo-portal/static/app.js`](demo-portal/static/app.js) 提供中英文界面和五个按钮：一条安全基线，加上进程崩溃、客户端断线、等待人工审批时实例崩溃，以及恢复后更换目标语言四种打断。
+
+基线、进程崩溃和断线三个按钮直接使用 [`hosted-agent/`](hosted-agent/) 中原有的 12 段 `lra-evidence-agent`，没有再复制一个 30 段 Agent。服务端和浏览器都从检查点记录里的 `stage_count` 读取总段数；转向和审批场景仍使用各自的 30 段任务。[`test_demo_portal.py`](tests/test_demo_portal.py) 分别用 12 段恢复、6 段转向和 8 段审批验证动态段数，并加入损坏输入，防止固定段数或空的 recovered lane 蒙混过关。
+
+三个 Agent 部署完成后，在仓库根目录启动 Portal：
+
+```powershell
+& $python -m pip install --no-input -r demo-portal\requirements.txt
+$env:FOUNDRY_PROJECT_ENDPOINT = "<project-endpoint>"
+$env:LRA_FAULT_AGENT_NAME = "lra-evidence-agent"
+$env:LRA_STEERING_AGENT_NAME = "lre-steering-agent"
+$env:LRA_APPROVAL_AGENT_NAME = "lre-approval-gate"
+& $python -m uvicorn app:app --app-dir demo-portal --host 127.0.0.1 --port 8765
+```
+
+打开 `http://127.0.0.1:8765/`。安全基线和客户端断线可以使用关闭故障注入的安全版本；另外三条包含进程崩溃的路径必须使用专门的非生产 Agent 版本，并在部署前显式设置 `LRE_ENABLE_FAULT_INJECTION=true`。所有部署脚本默认都是 `false`，不要在面向客户的 Agent 上打开。页面负责把单次运行讲清楚，可复验依据仍是 [`evidence/`](evidence/) 中的 JSON 报告和事件日志。
+
 ## 故障矩阵
 
 | 场景 / 模式 | 触发方式 | 预期 | 实际结果 | 状态 | 证据 |

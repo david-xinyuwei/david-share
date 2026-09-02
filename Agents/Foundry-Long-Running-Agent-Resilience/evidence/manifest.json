@@ -206,22 +206,22 @@
       "sha256": "684d7d80d15077709f4bc91448149e5013ff4366544833dd31f47ab92da949d8"
     },
     {
-      "bytes": 22532,
+      "bytes": 23125,
       "path": "evidence/rule-results.json",
       "provenance": "Executable SOP-68 RUN-001 through RUN-015 rule outcomes and evidence paths.",
-      "sha256": "a4fb82d14b4b7795c1399d3125af1df1252084836364ed1c1a23493fe7c1fdb4"
+      "sha256": "5ec698e2c33de5feeb72534dd12da12ed490435141bfb14d2168d51a782a38ec"
     },
     {
-      "bytes": 8400,
+      "bytes": 9528,
       "path": "evidence/run-contract.json",
       "provenance": "Maintained scenario-agnostic complete-run contract.",
-      "sha256": "4a867e9da234099492d4aa99d0d3c4037a3ce24078548b4b99a1646781dbbe8f"
+      "sha256": "77ac0987b2c3c89b9a637203af01b884899fde447f27d07b0040cfc3c1ca7bb1"
     },
     {
       "bytes": 10678,
       "path": "evidence/runs/owned-agent-recovery-validation-20260826/run-manifest.json",
       "provenance": "Commands, exits, logs, status, UI, and key-code hashes for this validation cycle.",
-      "sha256": "c06be727e4cb74947b91c5ff50a5529c236a6ea85f8a1547e322d984c19e978e"
+      "sha256": "246e905689efc5485b40e0f5855253546e0e4c2111b695ec533a6a1ece5b8e3c"
     },
     {
       "bytes": 12973,
@@ -248,7 +248,7 @@
       "sha256": "3149069f2e8e905344790be5cefb1ddfc884b86d67db86406a7b9f52c1e4131b"
     }
   ],
-  "generated_at_utc": "2026-09-02T12:04:48+00:00",
+  "generated_at_utc": "2026-09-02T13:13:00+00:00",
   "normalization": "utf-8-lf",
   "schema_version": 1
 }

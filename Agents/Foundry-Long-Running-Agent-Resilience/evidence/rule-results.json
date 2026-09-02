@@ -160,6 +160,24 @@
           "passed": true
         },
         {
+          "actual": "all required tokens",
+          "expected": "all required tokens",
+          "id": "source:demo-portal/app.py",
+          "passed": true
+        },
+        {
+          "actual": "all required tokens",
+          "expected": "all required tokens",
+          "id": "source:demo-portal/static/app.js",
+          "passed": true
+        },
+        {
+          "actual": "all required tokens",
+          "expected": "all required tokens",
+          "id": "source:tests/test_demo_portal.py",
+          "passed": true
+        },
+        {
           "actual": "present",
           "expected": "all wiring tokens linked",
           "id": "readme-code-links",
@@ -642,8 +660,8 @@
       "applicable": true,
       "checks": [
         {
-          "actual": "[1, 2, 2, 3, 1, 1, 3, 3, 3, 3, 2, 3, 3, 2, 2, 3, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2]",
-          "expected": "[1, 2, 2, 3, 1, 1, 3, 3, 3, 3, 2, 3, 3, 2, 2, 3, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2]",
+          "actual": "[1, 2, 2, 3, 1, 1, 3, 3, 3, 3, 2, 3, 3, 2, 2, 2, 3, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2]",
+          "expected": "[1, 2, 2, 3, 1, 1, 3, 3, 3, 3, 2, 3, 3, 2, 2, 2, 3, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2]",
           "id": "heading-shape",
           "passed": true
         },
@@ -654,8 +672,8 @@
           "passed": true
         },
         {
-          "actual": "['python', '', 'csharp', '', 'text', '', 'text', '', 'text', '', 'text', '', 'powershell', '', 'powershell', '']",
-          "expected": "['python', '', 'csharp', '', 'text', '', 'text', '', 'text', '', 'text', '', 'powershell', '', 'powershell', '']",
+          "actual": "['python', '', 'csharp', '', 'text', '', 'text', '', 'text', '', 'text', '', 'powershell', '', 'powershell', '', 'powershell', '']",
+          "expected": "['python', '', 'csharp', '', 'text', '', 'text', '', 'text', '', 'text', '', 'powershell', '', 'powershell', '', 'powershell', '']",
           "id": "code-block-shape",
           "passed": true
         },

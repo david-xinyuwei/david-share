@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>LRA Interruption Lab</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
+  <script src="/static/i18n.js" defer></script>
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <div id="authView" class="auth-view hidden">
+    <section class="auth-panel" aria-labelledby="loginTitle">
+      <span class="eyebrow">Microsoft Foundry</span>
+      <h1 id="loginTitle">LRA Interruption Lab</h1>
+      <p>Sign in to run the repository-owned Hosted Agents.</p>
+      <form id="loginForm">
+        <label>Username<input id="username" autocomplete="username" required></label>
+        <label>Password<input id="password" type="password" autocomplete="current-password" required></label>
+        <button class="button primary" type="submit"><i data-lucide="log-in"></i><span>Sign in</span></button>
+        <p id="loginError" class="error" role="alert"></p>
+      </form>
+    </section>
+  </div>
+
+  <div id="appView" class="hidden">
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="LRA Interruption Lab home">
+        <span class="brand-mark"><i data-lucide="activity"></i></span>
+        <span><strong>LRA Interruption Lab</strong><small>Microsoft Foundry Hosted Agents</small></span>
+      </a>
+      <div class="topbar-actions">
+        <div class="lang-toggle" role="group" aria-label="Language">
+          <button type="button" data-lang="en">EN</button>
+          <button type="button" data-lang="zh">中文</button>
+        </div>
+        <button id="refreshButton" class="icon-button" title="Refresh Agent status" aria-label="Refresh Agent status"><i data-lucide="refresh-cw"></i></button>
+        <button id="themeButton" class="icon-button" title="Toggle theme" aria-label="Toggle theme"><i data-lucide="sun-moon"></i></button>
+        <button id="logoutButton" class="icon-button" title="Sign out" aria-label="Sign out"><i data-lucide="log-out"></i></button>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="intro-band">
+        <div class="intro-copy">
+          <span class="eyebrow">Live resilience experiment</span>
+          <h1>One translation job.<br>Four kinds of interruption.</h1>
+          <p>Each run calls Azure Translator, commits every finished section, and fails closed unless the original durable work reaches its declared terminal state.</p>
+          <div class="intro-facts" aria-label="Experiment facts">
+            <span><i data-lucide="database"></i>Durable checkpoints</span>
+            <span><i data-lucide="radio"></i>Live SSE evidence</span>
+            <span><i data-lucide="shield-check"></i>Fail-closed acceptance</span>
+          </div>
+        </div>
+        <figure class="mechanism-figure">
+          <img src="/assets/official-lease-recovery-model.png" alt="Official lease-based recovery model showing a later process reclaiming durable work">
+          <figcaption>Lease-based recovery of the same durable work item</figcaption>
+        </figure>
+      </section>
+
+      <section class="runtime-band" aria-labelledby="agentsTitle">
+        <div class="section-heading">
+          <div><span class="eyebrow">Live objects</span><h2 id="agentsTitle">Repository-owned Agents</h2></div>
+          <span id="runtimeStatus" class="runtime-status loading"><i data-lucide="loader-circle"></i>Reading Foundry</span>
+        </div>
+        <div id="agentStrip" class="agent-strip" aria-live="polite"></div>
+      </section>
+
+      <section class="experiment-band" aria-labelledby="experimentsTitle">
+        <div class="section-heading">
+          <div><span class="eyebrow">Control, then interruption</span><h2 id="experimentsTitle">Run the experiment</h2></div>
+          <span class="section-note">Baseline first; every later run starts fresh durable work.</span>
+        </div>
+
+        <article class="baseline-row">
+          <span class="scenario-icon baseline"><i data-lucide="play"></i></span>
+          <div><span class="state-label">CONTROL</span><h3>No interruption</h3><p>The repository's 12-section evidence Agent completes on one process.</p></div>
+          <div class="expected"><small>Expected</small><strong>1 process · all checkpoints · completed</strong></div>
+          <button id="safeButton" class="button primary"><i data-lucide="play"></i><span>Run baseline</span></button>
+        </article>
+
+        <div class="scenario-grid">
+          <article class="scenario-card fault">
+            <span class="scenario-icon"><i data-lucide="zap-off"></i></span>
+            <span class="state-label">PROCESS LOSS</span>
+            <h3>Process A exits after checkpoint 4</h3>
+            <p>Foundry assigns the same stored response to Process B, which must resume at checkpoint 5.</p>
+            <div class="expected"><small>Acceptance</small><strong>A → B · same response · no gaps</strong></div>
+            <button id="faultButton" class="button danger"><i data-lucide="power"></i><span>Run process-loss test</span></button>
+          </article>
+
+          <article class="scenario-card connection">
+            <span class="scenario-icon"><i data-lucide="unplug"></i></span>
+            <span class="state-label">CALLER LOSS</span>
+            <h3>The observer disconnects</h3>
+            <p>The Agent continues with no attached caller. The page reconnects to the original response after eight seconds.</p>
+            <div class="expected"><small>Acceptance</small><strong>1 process · same response · progress continues</strong></div>
+            <button id="detachButton" class="button"><i data-lucide="unplug"></i><span>Run disconnect test</span></button>
+          </article>
+
+          <article class="scenario-card approval">
+            <span class="scenario-icon"><i data-lucide="badge-check"></i></span>
+            <span class="state-label">HUMAN WAIT</span>
+            <h3>Approval survives instance loss</h3>
+            <p>A 10-section sample waits for review. Its process exits; the decision must land on the replacement.</p>
+            <label class="field">Target language<select id="approvalTarget"></select></label>
+            <label class="check-field"><input id="autoApprove" type="checkbox"><span>Approve automatically</span></label>
+            <div class="expected"><small>Acceptance</small><strong>Sample unchanged · approval on B · 30 sections</strong></div>
+            <button id="approvalButton" class="button"><i data-lucide="badge-check"></i><span>Run approval test</span></button>
+          </article>
+
+          <article class="scenario-card steering">
+            <span class="scenario-icon"><i data-lucide="git-compare-arrows"></i></span>
+            <span class="state-label">CHANGE OF INTENT</span>
+            <h3>Recover, then change the target</h3>
+            <p>Process B resumes language A, then accepts language B on the same conversation. B starts at section 1.</p>
+            <div class="target-pair">
+              <label class="field">Language A<select id="steeringOriginalTarget"></select></label>
+              <i data-lucide="arrow-right"></i>
+              <label class="field">Language B<select id="steeringReplacementTarget"></select></label>
+            </div>
+            <div class="expected"><small>Acceptance</small><strong>A recovered · B starts at 1 · both completed</strong></div>
+            <button id="steeringButton" class="button"><i data-lucide="git-compare-arrows"></i><span>Run steering test</span></button>
+          </article>
+        </div>
+      </section>
+
+      <section id="runPanel" class="run-band hidden" aria-live="polite">
+        <header class="run-header">
+          <div><span id="runType" class="eyebrow">Live run</span><h2 id="runTitle">Scenario</h2></div>
+          <div class="run-clock"><span id="runClock">0.0s</span><small id="runPhase">starting</small></div>
+        </header>
+
+        <div id="checks" class="check-strip">
+          <span data-check="started"><i data-lucide="circle"></i>Started</span>
+          <span data-check="checkpoint"><i data-lucide="circle"></i>Checkpoint committed</span>
+          <span data-check="interrupted"><i data-lucide="circle"></i>Interruption observed</span>
+          <span data-check="recovered"><i data-lucide="circle"></i>Durable work recovered</span>
+          <span data-check="continued"><i data-lucide="circle"></i>Work continued</span>
+          <span data-check="completed"><i data-lucide="circle"></i>Acceptance passed</span>
+        </div>
+
+        <p id="runStatus" class="run-status">Starting the live run…</p>
+
+        <section id="decisionPanel" class="decision-panel hidden">
+          <div><span class="eyebrow">Human decision</span><h3>The sample survived. Continue on Process B?</h3><p>Nothing runs while you decide.</p></div>
+          <div><button id="approveButton" class="button primary"><i data-lucide="check"></i><span>Approve</span></button><button id="rejectButton" class="button danger"><i data-lucide="x"></i><span>Reject</span></button></div>
+        </section>
+
+        <div class="run-layout">
+          <div id="evidenceView" class="evidence-view"></div>
+          <div class="timeline-column"><span class="eyebrow">Observed timeline</span><div id="timeline" class="timeline"></div></div>
+        </div>
+      </section>
+
+      <section class="boundary-band">
+        <div><span class="eyebrow">Evidence boundary</span><h2>A live screen is not the proof by itself.</h2></div>
+        <p>The page shows one run as it happens. The committed JSON reports and event logs remain the reproducible evidence. These fault-enabled Agents are for non-production testing; at-least-once recovery still requires idempotent external effects.</p>
+        <button id="validatorButton" class="button quiet"><i data-lucide="shield-check"></i><span>Run damaged-evidence checks</span></button>
+        <output id="validatorResult"></output>
+      </section>
+    </main>
+    <div id="toast" class="toast" role="status"></div>
+  </div>
+</body>
+</html>

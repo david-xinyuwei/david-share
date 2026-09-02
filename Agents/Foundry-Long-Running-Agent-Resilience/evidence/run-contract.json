@@ -112,6 +112,34 @@
         "def approval_checks(",
         "AZURE_TOKEN_CREDENTIALS"
       ]
+    },
+    {
+      "path": "demo-portal/app.py",
+      "contains": [
+        "def _lra_acceptance(",
+        "active_processes = [item for item in processes if item.get(\"stages\")]",
+        "_responses_url(agent, state[\"response_id\"], stream=\"true\")",
+        "second_payload[\"previous_response_id\"] = first_id",
+        "async def _approval_decide_events(",
+        "if state.get(\"status\") == \"failed\""
+      ]
+    },
+    {
+      "path": "demo-portal/static/app.js",
+      "contains": [
+        "run.stageCount = event.stage_count || run.stageCount",
+        "event.total_sections || run.stageCount",
+        "result.acceptance?.passed",
+        "\"/api/approval/decide\""
+      ]
+    },
+    {
+      "path": "tests/test_demo_portal.py",
+      "contains": [
+        "test_twelve_section_repository_agent_contract_passes",
+        "test_dynamic_stage_count_passes",
+        "test_changed_sample_fails_closed"
+      ]
     }
   ],
   "evidence": "evidence/owned-hosted-agent-translation-local.json",
@@ -247,7 +275,14 @@
     "awaiting_review",
     "73.868",
     "75.249",
-    "52.411"
+    "52.411",
+    "demo-portal/app.py",
+    "demo-portal/static/app.js",
+    "demo-portal\\requirements.txt",
+    "test_demo_portal.py",
+    "LRA_FAULT_AGENT_NAME",
+    "stage_count",
+    "http://127.0.0.1:8765/"
   ],
   "readme_traces": [
     "evidence/owned-hosted-agent-translation-local-trace.txt",

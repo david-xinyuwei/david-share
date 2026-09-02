@@ -50,6 +50,13 @@ ALLOWED_FILES = {
     "README-CN.md",
     "README.md",
     "THIRD-PARTY-NOTICES.md",
+    "demo-portal/.env.example",
+    "demo-portal/app.py",
+    "demo-portal/requirements.txt",
+    "demo-portal/static/app.js",
+    "demo-portal/static/i18n.js",
+    "demo-portal/static/index.html",
+    "demo-portal/static/styles.css",
     "dotnet-agent/LraEvidenceAgent.csproj",
     "dotnet-agent/Program.cs",
     "evidence/README.md",
@@ -146,6 +153,7 @@ ALLOWED_FILES = {
     "scripts/validate_repo.py",
     "scripts/verify_public_resilience_api.py",
     "tests/test_owned_hosted_agent.py",
+    "tests/test_demo_portal.py",
     "tests/test_recovery_contract_demo.py",
     "tests/test_rule_results.py",
     "tests/test_steering_approval_evidence.py",
@@ -156,8 +164,10 @@ ALLOWED_FILES = {
 # it and the client sends it, so these two source files may spell it out.
 # Evidence, documentation, and configuration still may not contain it.
 PROTOCOL_PARAMETER_FILES = {
+    "demo-portal/app.py",
     "hosted-agent-approval/run_approval_recovery.py",
     "hosted-agent-approval/src/resilient-approval-gate/main.py",
+    "tests/test_demo_portal.py",
 }
 PROTOCOL_PARAMETER_LITERAL = "agent_session_id"
 
@@ -1130,11 +1140,33 @@ def validate_code_and_tests(gate: Gate) -> int:
                 "azure-identity==1.25.3",
             ],
         ),
+        (
+            "demo-portal/requirements.txt",
+            [
+                "fastapi==0.116.1",
+                "uvicorn[standard]==0.34.0",
+                "httpx==0.28.1",
+                "azure-identity==1.25.3",
+            ],
+        ),
     ):
         gate.require(
             (ROOT / relative).read_text(encoding="utf-8").splitlines() == expected_pins,
             f"{relative}: package pins drifted",
         )
+    gate.require(
+        (ROOT / "requirements-validation.txt").read_text(encoding="utf-8").splitlines()
+        == [
+            "azure-ai-agentserver-core==2.0.0",
+            "azure-ai-agentserver-invocations==1.0.0",
+            "azure-ai-agentserver-responses==2.0.0",
+            "azure-identity==1.25.3",
+            "fastapi==0.116.1",
+            "httpx==0.28.1",
+            "uvicorn[standard]==0.34.0",
+        ],
+        "validation package pins drifted",
+    )
     project = (ROOT / "dotnet-agent" / "LraEvidenceAgent.csproj").read_text(
         encoding="utf-8"
     )
@@ -1251,9 +1283,12 @@ def validate_repository_surface_and_security(gate: Gate) -> None:
     text_suffixes = {
         ".cs",
         ".csproj",
+        ".css",
         ".example",
+        ".html",
         ".json",
         ".jsonl",
+        ".js",
         ".md",
         ".py",
         ".sh",
