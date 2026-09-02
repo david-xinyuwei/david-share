@@ -67,6 +67,34 @@ REQUIRED_LOG_LINKS = {
     "evidence/runs/qwen3-235b-h100-vllm-real-workloads/logs/coding-agent-32gpu.log",
     "evidence/runs/qwen3-235b-h100-vllm-real-workloads/logs/chat-16gpu.log",
 }
+# Section 4.4 statements that must survive in both READMEs: source symbols read from the
+# pinned v0.11.0 tag, the Azure size boundary, and the workload-shape ratio.
+MECHANISM_TOKENS = (
+    "AnalyticPredictor",
+    "_find_best_disagg_under_constraint",
+    "_AUTOSCALE_TTFT_CORRECTION_FACTOR",
+    "_RATE_MATCHING_PREFILL_DEGRADATION_FACTOR",
+    "prefill_latency_correction",
+    "_ttft_queuing_factor",
+    "_prefill_dispatch_overhead_ms",
+    "H100 NVL",
+)
+RATIO_TOKENS = {"english": "4.75x", "chinese": "4.75 倍"}
+WORKLOAD_RATIO = 4.75
+# Selected coding-agent 16-GPU Disaggregated row, read back from the Top-1 CSV.
+SELECTED_DISAGG_ROW = {
+    "(p)workers": "2",
+    "(d)workers": "1",
+    "(p)bs": "1",
+    "(d)bs": "13",
+    "(p)parallel": "tp1pp1dp4etp4ep1",
+    "(d)parallel": "tp1pp1dp8etp1ep8",
+}
+CODING_AGENT_LOG_TOKENS = (
+    "Experiment agg completed with 211 results.",
+    "Experiment disagg completed with 35 results.",
+    "(moe_intermediate_size=1536 / moe_tp_size=8) % weight_block_size=128 != 0",
+)
 RETIRED_CHINESE_PHRASES = {
     "拟议",
     "尚未实现",
@@ -243,9 +271,20 @@ def validate_real_workloads(run_root: Path, manifest: dict[str, Any]) -> None:
     chat = first_row(run_root / "results" / "chat-16gpu" / "agg" / "best_config_topn.csv")
     coding = first_row(run_root / "results" / "coding-agent-16gpu" / "disagg" / "best_config_topn.csv")
     ratio = float(chat["tokens/s/gpu"]) / float(coding["tokens/s/gpu"])
-    require(4.7 < ratio < 4.8, f"Workload-shape ratio drift: {ratio:.3f}")
+    require(abs(ratio - WORKLOAD_RATIO) < 0.005, f"Workload-shape ratio drift: {ratio:.4f} (README states {WORKLOAD_RATIO}x)")
+    for field, expected_value in SELECTED_DISAGG_ROW.items():
+        require(
+            coding[field] == expected_value,
+            f"coding-agent-16gpu selected layout drift: {field}={coding[field]!r}, expected {expected_value!r}",
+        )
+    require(
+        abs(float(coding["ttft"]) + float(coding["tpot"]) * 499 - float(coding["request_latency"])) < 0.01,
+        "coding-agent-16gpu request-latency identity ttft + tpot x (osl - 1) failed",
+    )
 
     coding_log = (run_root / "logs/coding-agent-16gpu.log").read_text(encoding="utf-8")
+    for token in CODING_AGENT_LOG_TOKENS:
+        require(token in coding_log, f"coding-agent-16gpu log token missing: {token}")
     require("Perf-DB version: 0.24.0" in coding_log, "vLLM search version warning missing")
     require(
         "Defaulting to backend version from dynamo 1.2.0: (vllm)0.20.1" in coding_log,
@@ -285,27 +324,36 @@ def validate_readmes() -> None:
     require(chinese.startswith("# Azure ND/NC H100 上的开源与开放权重模型容量规划\n"), "Chinese H1 drifted")
     require("## 5. Reproduce the complete CPU-offline run" in english, "Detailed English walkthrough missing")
     require("## 5. 完整复现一次 CPU 离线预测" in chinese, "Detailed Chinese walkthrough missing")
+    english_blocks = command_blocks(english)
+    readme_line = f"README_VALIDATION=PASS LOG_LINKS={len(REQUIRED_LOG_LINKS)} COMMAND_BLOCKS={len(english_blocks)}"
     for token in (
         "requirements-repro.txt",
         "aiconfigurator cli support",
         "aiconfigurator cli recommend",
+        "aiconfigurator cli default",
         "AttributeError: module 'plotext' has no attribute 'plot_size'",
         "agg GPUs needed: 32 (replicas: 32)",
         "disagg GPUs needed: 34 (replicas: 17)",
-        "README_VALIDATION=PASS LOG_LINKS=9 COMMAND_BLOCKS=8",
+        readme_line,
         "EVIDENCE_VALIDATION=PASS RUNS=3 PUBLIC_BOUNDARY=PASS",
+        *MECHANISM_TOKENS,
+        SELECTED_DISAGG_ROW["(p)parallel"],
+        SELECTED_DISAGG_ROW["(d)parallel"],
     ):
         require(token in english, f"English walkthrough token missing: {token}")
         require(token in chinese, f"Chinese walkthrough token missing: {token}")
+    require(RATIO_TOKENS["english"] in english, f"English walkthrough token missing: {RATIO_TOKENS['english']}")
+    require(RATIO_TOKENS["chinese"] in chinese, f"Chinese walkthrough token missing: {RATIO_TOKENS['chinese']}")
+    require("4.8x" not in english and "4.8 倍" not in chinese, "Retired rounded ratio 4.8 found in a README")
     for link in REQUIRED_LOG_LINKS:
         require(link in english, f"English full-log link missing: {link}")
         require(link in chinese, f"Chinese full-log link missing: {link}")
-    require(command_blocks(english) == command_blocks(chinese), "Bilingual Bash/PowerShell command blocks drifted")
+    require(english_blocks == command_blocks(chinese), "Bilingual Bash/PowerShell command blocks drifted")
     for phrase in RETIRED_CHINESE_PHRASES:
         require(phrase not in chinese, f"Retired Chinese phrase found: {phrase}")
     validate_readme_links(english_path, english)
     validate_readme_links(chinese_path, chinese)
-    print(f"README_VALIDATION=PASS LOG_LINKS={len(REQUIRED_LOG_LINKS)} COMMAND_BLOCKS={len(command_blocks(english))}")
+    print(readme_line)
 
 
 def main() -> None:

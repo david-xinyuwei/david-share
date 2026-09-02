@@ -41,4 +41,4 @@ EVIDENCE_VALIDATION=PASS RUNS=3 PUBLIC_BOUNDARY=PASS
 
 这里保存的是三组 **CPU 离线预测**的完整证据，不是 H100/H200 实机 benchmark。主 README 只展示关键日志片段；本目录保留完整 stdout/stderr、失败 traceback、退出码、Top-N 与 Pareto CSV、实验配置、Top-1 候选配置，以及从原始文件到公开文件的 SHA-256 追溯关系。
 
-三组证据分别回答不同问题：`qwen3-32b-h200-trtllm-50rps` 按请求率做采购规模估算；`qwen3-235b-h100-vllm-50rps` 确定大模型能装下的最小 worker，并测量规划器自身的 CPU 开销；`qwen3-235b-h100-vllm-real-workloads` 在固定 16/32 卡预算下对比长上下文 Coding Agent 与短上下文 Chat 两种工作负载形态，三次运行都启用 `--strict-sla`。
+三组证据分别回答不同问题：`qwen3-32b-h200-trtllm-50rps` 按请求率做采购规模估算；`qwen3-235b-h100-vllm-50rps` 确定大模型能装下的最小 worker，并测量规划器自身的 CPU 开销；`qwen3-235b-h100-vllm-real-workloads` 在固定 16/32 卡预算下对比长上下文 Coding Agent 与短上下文 Chat 两种工作负载场景，三次运行都启用 `--strict-sla`。
