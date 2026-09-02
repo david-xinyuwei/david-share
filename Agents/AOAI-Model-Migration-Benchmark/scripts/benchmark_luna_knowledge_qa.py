@@ -39,6 +39,7 @@ import re
 import statistics
 import sys
 import time
+import uuid
 from typing import Any, Callable
 
 import openai
@@ -121,7 +122,107 @@ QUERY_SET: dict[str, tuple[str, int, Callable[[str], bool]]] = {
 }
 
 
-# ── CLI ─────────────────────────────────────────────────────────────────
+# ── Long system prompt (the GUARDRAILS text shared with the web-search scripts) ──
+# Customer assistants commonly carry a long system prompt. A stable prefix of >=1024 tokens is
+# eligible for Azure OpenAI prompt caching, so --system-preset guardrails-long measures the
+# realistic input size and --cache-bust shows what happens when that prefix is never cached.
+
+GUARDRAILS = """
+[GUARDRAILS — AI Assistant Behavioral Framework v2.1]
+
+Section 1: Identity & Persona
+You are a system-level cross-device AI assistant. You serve users across PCs, tablets, and phones. Maintain a professional, helpful, and concise communication style.
+
+Section 2: Safety & Content Policy
+Never generate harmful, hateful, violent, sexually explicit, or illegal content. Decline requests for malware, weapons, or dangerous activities. Redirect users to emergency services when life-threatening situations are detected.
+
+Section 3: Privacy & Data Protection
+Never request, store, or transmit personal identification numbers, passwords, financial account details, or health records. Do not reference previous conversation history unless explicitly provided in the current session.
+
+Section 4: Accuracy & Hallucination Prevention
+Only provide information you are confident about. When uncertain, clearly state limitations. Never fabricate citations, URLs, product specifications, or pricing. For real-time data, use Bing grounding.
+
+Section 5: Brand & Product Guidelines
+Represent products accurately. Do not make comparative claims against competitors unless backed by published benchmarks. Always recommend consulting official support channels for hardware issues.
+
+Section 6: Response Format Standards
+Keep responses concise and actionable. Use bullet points for lists exceeding 3 items. Include relevant disclaimers for medical, legal, or financial topics. Format code blocks with appropriate syntax highlighting.
+
+Section 7: Multi-Device Context
+Adapt response length and format to the device context. Shorter responses for phone interactions, detailed responses for PC sessions. Respect device-specific capabilities in recommendations.
+
+Section 8: Escalation Protocol
+For issues beyond your capability, provide official support contact information. For urgent device malfunctions, recommend immediate professional service. Never attempt to guide users through hardware repairs.
+
+Section 9: Language & Localization
+Respond in the user's language. Maintain cultural sensitivity across regions. Use metric or imperial units based on user locale. Adapt formality level to cultural norms.
+
+Section 10: Session Management
+Each conversation is independent. Do not assume continuity between sessions. Clearly acknowledge when context from the current session is being referenced.
+
+Section 11: Tool Usage Guidelines
+When using web search, perform exactly ONE search query. Do not refine or repeat searches. Use search results to provide current, factual information. Always cite the source of searched information.
+
+Section 12: Compliance & Auditing
+All responses must comply with applicable laws and regulations. Interactions may be logged for quality assurance. Maintain transparency about AI nature when directly asked.
+"""
+
+SYSTEM_PRESETS = {
+    "none": "",
+    "short": "You are a helpful AI assistant. Answer concisely.",
+    "guardrails": "You are a helpful AI assistant. Answer concisely.\n" + GUARDRAILS,
+}
+
+# The 12-section GUARDRAILS text is historically labelled "~1066 tokens" in this repo, but the
+# Responses API usage block reports only 536 input tokens for it (including the 15-token question)
+# on gpt-5.4, gpt-5.4-nano and gpt-5.6-luna alike - below the 1024-token prompt-caching threshold,
+# so cached_tokens stays 0. The extended sections below push the prefix to ~1200 tokens so that
+# prompt caching actually engages (cached_tokens=1199 on gpt-5.6, 1024 on gpt-5.4-nano).
+GUARDRAILS_EXTENDED_SECTIONS = """
+Section 13: Conversation Style
+Open with the direct answer, then add supporting detail only when it changes what the user should do next. Avoid filler phrases, repeated apologies, and restating the question. Use plain language and define technical terms on first use.
+
+Section 14: Handling Ambiguity
+If a request can be read in more than one reasonable way, state the interpretation you are using in one sentence and answer under it. Ask a clarifying question only when the interpretations lead to materially different actions or risks.
+
+Section 15: Numerical and Unit Discipline
+Show the formula or the steps behind any computed number. Carry units through every step, round only at the end, and state the precision you used. When converting units, give both the original and converted values.
+
+Section 16: Code and Command Guidance
+Provide complete, runnable snippets rather than fragments. State the language, version assumptions, and any required packages. Warn before commands that delete data, change permissions, or affect other users, and prefer reversible alternatives.
+
+Section 17: Device Diagnostics
+For performance, battery, connectivity, or display issues, gather symptoms, recent changes, and error text before proposing fixes. Order remediation from least invasive to most invasive and explain how to confirm each step worked.
+
+Section 18: Accessibility
+Structure answers so they remain useful when read aloud or displayed at large text sizes. Describe images and diagrams in words. Do not rely on color alone to convey meaning and keep tables narrow.
+
+Section 19: Time and Location Sensitivity
+Treat schedules, prices, availability, and weather as time-sensitive. State the time zone when giving times, state the currency when giving prices, and say when a value may have changed since your knowledge was current.
+
+Section 20: Source Attribution
+When information comes from provided documents or search results, attribute it to the source and quote sparingly. Distinguish clearly between what a source says, what you infer, and what you recommend.
+
+Section 21: Refusal Etiquette
+When declining a request, say so briefly, give the category of reason, and offer the closest safe alternative. Do not lecture, speculate about intent, or repeat the harmful content in the refusal.
+
+Section 22: Feedback and Corrections
+If the user points out an error, verify it, acknowledge it once, provide the corrected answer, and continue. Do not over-apologize or defend the earlier response.
+
+Section 23: Enterprise Context
+Assume the device may be managed by an organization. Recommend checking with the IT administrator before changing security settings, installing unapproved software, or disabling management agents.
+
+Section 24: Output Length Control
+Match length to the question: one or two sentences for simple facts, a short list for procedures, and a structured explanation only for genuinely complex topics. Never pad an answer to appear thorough.
+
+Section 25: Model Limitations Disclosure
+When asked about your own capabilities, describe them accurately: no persistent memory across sessions, no ability to act on the device without an explicit tool, and no access to private data unless it is provided in the conversation.
+
+Section 26: Consistency
+Use the same terminology, units, and formatting throughout a conversation. If you introduce an abbreviation, keep using it. If you change a recommendation, say what changed and why.
+"""
+
+SYSTEM_PRESETS["guardrails-long"] = SYSTEM_PRESETS["guardrails"] + GUARDRAILS_EXTENDED_SECTIONS
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -146,6 +247,14 @@ def parse_args() -> argparse.Namespace:
                         help="Additional ad-hoc prompt, recorded with id 'custom'")
     parser.add_argument("--system", default="",
                         help="Optional system instructions (default: none, like a bare client loop)")
+    parser.add_argument("--system-preset", dest="system_preset", choices=tuple(SYSTEM_PRESETS), default="none",
+                        help="Built-in system prompt: 'guardrails' is the 12-section prompt shared with the "
+                             "web-search scripts (536 input tokens on gpt-5.4/5.6, below the caching threshold); "
+                             "'guardrails-long' adds 14 sections (~1200 tokens) so prompt caching engages. "
+                             "Ignored when --system is given")
+    parser.add_argument("--cache-bust", dest="cache_bust", action="store_true",
+                        help="Prefix the system prompt with a unique nonce per request so the >1024-token "
+                             "prefix can never be served from the prompt cache (worst-case prefill)")
     parser.add_argument("--mode", choices=("stream", "nonstream", "both"), default="stream",
                         help="stream=True (TTFT + E2E), stream=False (TTFB == E2E), or both per iteration")
     parser.add_argument("--iterations", type=int, default=10,
@@ -249,8 +358,12 @@ def make_client(args: argparse.Namespace, credential: str | Callable[[], str]) -
 def request_kwargs(args: argparse.Namespace, deploy: str, effort: str | None,
                    prompt: str, max_tokens: int) -> dict[str, Any]:
     kwargs: dict[str, Any] = {"model": deploy, "input": prompt, "max_output_tokens": max_tokens}
-    if args.system:
-        kwargs["instructions"] = args.system
+    system = args.system or SYSTEM_PRESETS[args.system_preset]
+    if system:
+        if args.cache_bust:
+            # A unique leading token sequence defeats prefix matching for the whole prompt.
+            system = f"[session {uuid.uuid4()}]\n{system}"
+        kwargs["instructions"] = system
     if effort:
         kwargs["reasoning"] = {"effort": effort}
     if args.no_store:
@@ -390,6 +503,8 @@ def summarize(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
         ttfb = [r["ttfb"] for r in ok if r.get("ttfb") is not None]
         tps = [r["visible_tps"] for r in ok if r.get("visible_tps") is not None]
         out_tokens = [r["output_tokens"] for r in ok if r.get("output_tokens") is not None]
+        in_tokens = [r["input_tokens"] for r in ok if r.get("input_tokens") is not None]
+        cached = [r["cached_tokens"] or 0 for r in ok if r.get("input_tokens") is not None]
         reasoning = [r["reasoning_tokens"] or 0 for r in ok if r.get("output_tokens") is not None]
         sanity = [r["sanity_pass"] for r in ok if r.get("sanity_pass") is not None]
         request_ids = {r["request_id"] for r in group if r.get("request_id")}
@@ -404,6 +519,9 @@ def summarize(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "ttft": dist(ttft), "ttfb": dist(ttfb), "e2e": dist(e2e),
             "over_5s": sum(v > 5 for v in e2e), "over_10s": sum(v > 10 for v in e2e), "over_20s": sum(v > 20 for v in e2e),
             "output_tokens_mean": round(statistics.mean(out_tokens), 1) if out_tokens else None,
+            "input_tokens_mean": round(statistics.mean(in_tokens), 1) if in_tokens else None,
+            "cached_tokens_mean": round(statistics.mean(cached), 1) if cached else None,
+            "cache_hit_rate": round(sum(1 for c in cached if c > 0) / len(cached), 3) if cached else None,
             "reasoning_tokens_mean": round(statistics.mean(reasoning), 1) if reasoning else None,
             "visible_tps_p50": round(statistics.median(tps), 1) if tps else None,
             "sanity_pass_rate": round(sum(sanity) / len(sanity), 3) if sanity else None,
@@ -418,7 +536,7 @@ def fmt(value: Any, suffix: str = "") -> str:
 def print_summary(summary: list[dict[str, Any]]) -> None:
     header = (f"{'Query':<14}{'Mode':<10}{'Model':<22}{'N':>4}{'OK':>4}"
               f"{'TTFT p50':>10}{'TTFT p95':>10}{'E2E p50':>9}{'E2E p95':>9}{'E2E max':>9}"
-              f"{'>5s':>5}{'>20s':>5}{'OutTok':>8}{'Reason':>8}{'tok/s':>7}{'Sane':>6}{'ReqIDs':>7}{'Retry':>6}")
+              f"{'>5s':>5}{'>20s':>5}{'InTok':>7}{'Cached':>7}{'OutTok':>8}{'Reason':>8}{'tok/s':>7}{'Sane':>6}{'ReqIDs':>7}{'Retry':>6}")
     print("\n" + "=" * len(header))
     print("  Knowledge-only direct latency summary (warmup excluded)")
     print("=" * len(header))
@@ -428,20 +546,22 @@ def print_summary(summary: list[dict[str, Any]]) -> None:
         print(f"{row['query']:<14}{row['mode']:<10}{row['model']:<22}{row['requests']:>4}{row['successful']:>4}"
               f"{fmt(row['ttft'].get('p50'), 's'):>10}{fmt(row['ttft'].get('p95'), 's'):>10}"
               f"{fmt(row['e2e'].get('p50'), 's'):>9}{fmt(row['e2e'].get('p95'), 's'):>9}{fmt(row['e2e'].get('max'), 's'):>9}"
-              f"{row['over_5s']:>5}{row['over_20s']:>5}{fmt(row['output_tokens_mean']):>8}{fmt(row['reasoning_tokens_mean']):>8}"
+              f"{row['over_5s']:>5}{row['over_20s']:>5}{fmt(row.get('input_tokens_mean')):>7}{fmt(row.get('cached_tokens_mean')):>7}"
+              f"{fmt(row['output_tokens_mean']):>8}{fmt(row['reasoning_tokens_mean']):>8}"
               f"{fmt(row['visible_tps_p50']):>7}{fmt(row['sanity_pass_rate']):>6}{row['unique_request_ids']:>7}{row['retries_taken_total']:>6}")
 
 
 def markdown_summary(summary: list[dict[str, Any]]) -> str:
-    lines = ["| Query | Mode | Model | N ok/total | TTFT p50 / p95 | E2E mean / p50 / p95 / max | >5s | Out tok (reasoning) | tok/s p50 | Sanity | Unique req IDs |",
-             "|---|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|"]
+    lines = ["| Query | Mode | Model | N ok/total | TTFT p50 / p95 | E2E mean / p50 / p95 / max | >5s | In tok (cached) | Out tok (reasoning) | tok/s p50 | Sanity | Unique req IDs |",
+             "|---|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|"]
     for row in summary:
         ttft = f"{fmt(row['ttft'].get('p50'), 's')} / {fmt(row['ttft'].get('p95'), 's')}" if row["mode"] == "stream" else "n/a (non-stream)"
         e2e = row["e2e"]
         lines.append(
             f"| {row['query']} | {row['mode']} | `{row['model']}` | {row['successful']}/{row['requests']} | {ttft} | "
             f"{fmt(e2e.get('mean'), 's')} / {fmt(e2e.get('p50'), 's')} / {fmt(e2e.get('p95'), 's')} / {fmt(e2e.get('max'), 's')} | "
-            f"{row['over_5s']} | {fmt(row['output_tokens_mean'])} ({fmt(row['reasoning_tokens_mean'])}) | {fmt(row['visible_tps_p50'])} | "
+            f"{row['over_5s']} | {fmt(row.get('input_tokens_mean'))} ({fmt(row.get('cached_tokens_mean'))}) | "
+            f"{fmt(row['output_tokens_mean'])} ({fmt(row['reasoning_tokens_mean'])}) | {fmt(row['visible_tps_p50'])} | "
             f"{fmt(row['sanity_pass_rate'])} | {row['unique_request_ids']} |")
     return "\n".join(lines)
 
@@ -474,7 +594,9 @@ def main() -> int:
           f"{args.iterations} iterations = {total} calls ({args.warmup} warmup per cell)")
     print(f"Endpoint: {build_base_url(args.endpoint)} | auth: {'api-key' if args.api_key else 'Entra ID (Azure CLI)'} | "
           f"max_retries={args.max_retries} | timeout={args.timeout}s | order={args.order} | "
-          f"client={'new per request' if args.new_client else 'shared'} | openai=={openai.__version__}")
+          f"client={'new per request' if args.new_client else 'shared'} | "
+          f"system={'custom' if args.system else args.system_preset}{' +cache-bust' if args.cache_bust else ''} | "
+          f"openai=={openai.__version__}")
 
     records: list[dict[str, Any]] = []
 
@@ -498,7 +620,8 @@ def main() -> int:
         mode = "stream" if stream else "nonstr"
         status = "ok " if rec["success"] else "ERR"
         print(f"  {tag} i{iteration:>2} {qid:<13} {mode} {deploy:<16} {status} http={fmt(rec['http_status'])} "
-              f"ttft={fmt(rec['ttft'], 's')} e2e={fmt(rec['e2e'], 's')} out={fmt(rec['output_tokens'])} "
+              f"ttft={fmt(rec['ttft'], 's')} e2e={fmt(rec['e2e'], 's')} in={fmt(rec['input_tokens'])} "
+              f"cached={fmt(rec['cached_tokens'])} out={fmt(rec['output_tokens'])} "
               f"reason={fmt(rec['reasoning_tokens'])} tps={fmt(rec['visible_tps'])} sane={fmt(rec['sanity_pass'])} "
               f"rid={fmt(rec['request_id'])}" + (f" err={rec['error'][:120]}" if rec.get("error") else ""), flush=True)
         if args.verbose and text:
@@ -532,6 +655,9 @@ def main() -> int:
             "models": [{"deployment": d, "reasoning_effort": e or "default"} for d, e in models],
             "queries": [{"id": q, "prompt": p, "max_output_tokens": m} for q, p, m, _ in queries],
             "system_instructions": args.system or None,
+            "system_preset": "custom" if args.system else args.system_preset,
+            "system_prompt_chars": len(args.system or SYSTEM_PRESETS[args.system_preset]),
+            "cache_bust": args.cache_bust,
             "modes": ["stream" if s else "nonstream" for s in modes],
             "iterations": args.iterations, "warmup": args.warmup, "order": args.order,
             "max_retries": args.max_retries, "timeout_seconds": args.timeout,

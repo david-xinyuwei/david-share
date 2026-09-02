@@ -141,6 +141,7 @@ SDK 对 web/news/classic search 支持 `ContentFormat.passage`、`text`、`html`
 | 为什么 Luna 默认 TTFT 更高（2.04 s vs Terra 1.22 s）？ | 默认 reasoning：该问题上每次约 100 个 reasoning tokens（≈`medium`），且随 prompt 自适应（TCP/UDP 解释题为 0）。 |
 | 15–60 s 长尾从哪来？ | 一次真实的 `429 no_capacity` 峰值负载事件（在 `gpt-5.6-sol` 上观察到，34/54 请求，04:04–04:20 UTC）叠加 SDK 默认的两次自动重试："成功"调用耗时 15.2–25.7 s，失败也要 5–7 s 才暴露。`max_retries=0` 时同样的 429 约 2 s 即返回。 |
 | 客户端应该改什么？ | 排查期间 `max_retries=0`；记录 `x-request-id` / 状态码 / `retries_taken` / usage；显式固定 `reasoning.effort`；分别度量 TTFT 与 E2E；被比较的模型在同一时段交错运行。 |
+| >1,024-token 的 system prompt（以及 prompt caching）有影响吗？ | 对成本有：1,200-token 稳定前缀下，四个模型从第二个请求起 15/15 返回 `cached_tokens`。对延迟没有：Luna 的 TTFT 命中 1.9 s、永不命中 1.7 s、无 system prompt 2.0 s。token 数以 `usage` 为准而不是离线估算——本 repo 标为"1066 tokens"的 GUARDRAILS 在 gpt-5.4/5.6 上只有 536 tokens，永远不会命中缓存。 |
 
 **web_search 路径生产配置**（客户实际架构）：
 
@@ -584,14 +585,48 @@ Non-streaming（`stream=False`，也就是一个朴素 `time.time()` 循环看�
 - **Luna 的默认 reasoning 是自适应的。** TCP/UDP 解释题上 0 个 reasoning tokens（TTFT 0.91 s，该行 E2E 最快），算术和 JSON 约 60 个，七大奇迹约 100 个。因此单一的"Luna TTFT"数字取决于 prompt；比较模型时请固定 `reasoning.effort`。
 - Terra 在四个 prompt 中的三个 TTFT 最低；gpt-5.4-nano 仍是最便宜的低延迟选项。Sol 在其最后一次 429 约十分钟后出现一个 8.8 s 异常值（palindrome：响应头 0.4 s，首 token 8.1 s），其余 Sol 请求都在 1–3.4 s。
 
+#### 3.5.6 单变量：1,200-token system prompt，缓存命中 vs 永不命中（streaming，每个 cell 15 个样本）
+
+客户的助手每次请求都带一个超过 1,024 tokens 的 system prompt，所以上面各轮（15 个输入 token）低估了他们的 prefill，也没有覆盖 prompt caching。三轮背靠背运行（06:20–06:33 UTC，同样四个部署交错）用 `guardrails-long` 预设把这个变量单独拿出来——含问题共 1,202 个输入 token：
+
+| 条件 | 参数 | 服务端看到的 |
+|------|------|--------------|
+| **A. 缓存命中** | `--system-preset guardrails-long` | 每次请求都是同一个 1,187-token 前缀 → `cached_tokens` = 1,199（gpt-5.6）/ 1,024（gpt-5.4-nano），15/15 命中 |
+| **B. 永不命中** | `--system-preset guardrails-long --cache-bust` | prompt 开头加一个每次不同的 nonce → `cached_tokens` = 0，15/15（每次完整 prefill；等价于生产环境把动态内容放在前缀开头） |
+| **C. 无 system prompt** | `--system-preset none` | 15 个输入 token（前面几轮的口径） |
+
+| 模型 | 条件 | TTFT p50 / p95 | E2E mean / p50 / p95 / max | 输入 tokens（cached） | 输出 tokens（reasoning） |
+|------|------|:-:|:-:|:-:|:-:|
+| **gpt-5.6-luna** | A. 缓存命中 | 1.88s / 2.36s | 2.95s / 2.77s / 3.96s / 5.17s | 1202 (1199) | 224 (81) |
+| gpt-5.6-luna | B. 永不命中 | 1.72s / 4.52s | 3.18s / 2.80s / 6.43s / 6.77s | 1228 (0) | 209 (69) |
+| gpt-5.6-luna | C. 无 system prompt | 1.96s / 2.13s | 3.06s / 3.09s / 3.44s / 3.46s | 15 (0) | 288 (95) |
+| gpt-5.6-sol | A. 缓存命中 | 1.71s / 3.13s | 4.48s / 4.35s / 6.30s / 7.73s | 1202 (1199) | 198 (46) |
+| gpt-5.6-sol | B. 永不命中 | 1.82s / 2.80s | 4.38s / 4.41s / 5.11s / 5.20s | 1229 (0) | 215 (57) |
+| gpt-5.6-sol | C. 无 system prompt | 2.18s / 2.98s | 4.99s / 4.95s / 5.78s / 5.96s | 15 (0) | 270 (66) |
+| gpt-5.6-terra | A. 缓存命中 | 1.11s / 1.24s | 2.48s / 2.43s / 3.07s / 3.15s | 1202 (1199) | 161 (19) |
+| gpt-5.6-terra | B. 永不命中 | 1.35s / 2.72s | 2.95s / 2.58s / 4.34s / 5.97s | 1229 (0) | 140 (22) |
+| gpt-5.6-terra | C. 无 system prompt | 1.36s / 2.48s | 3.76s / 3.25s / 6.46s / 6.55s | 15 (0) | 222 (26) |
+| gpt-5.4-nano | A. 缓存命中 | 0.96s / 1.24s | 2.46s / 2.30s / 3.13s / 3.32s | 1202 (1024) | 137 (0) |
+| gpt-5.4-nano | B. 永不命中 | 0.95s / 3.88s | 2.89s / 2.05s / 6.70s / 10.99s | 1227 (0) | 128 (0) |
+| gpt-5.4-nano | C. 无 system prompt | 1.01s / 1.62s | 3.00s / 2.78s / 4.54s / 5.69s | 15 (0) | 158 (0) |
+
+数据说明了什么：
+
+- **前缀一旦 ≥1,024 tokens，prompt caching 就完全按文档生效**——每个模型从第二个请求起 15/15 命中，gpt-5.6 几乎缓存整个前缀（1,199），gpt-5.4-nano 按 1,024-token 块缓存。这就是客户想要的计费收益，脚本现在逐请求打印 `cached_tokens`，生产环境的循环可以直接验证。
+- **缓存不改变 Luna 的 TTFT。** 中位 TTFT：命中 1.88 s，永不命中 1.72 s，完全没有 system prompt 1.96 s；1,200-token 的 prefill 在约 70–95 个 reasoning tokens 面前不可见。结论与 Section 4.1 相同，但这次是更干净的单变量设计（同一 prompt 长度、缓存开/关、同一时段），而不是长 prompt 对短 prompt 两轮比较。
+- **一条"简明回答"的 system prompt 会让 Luna 少想、少说**（reasoning 95 → 81，输出 288 → 224），所以 E2E p50 从 3.09 s 改善到 2.77 s。带来这个收益的是指令内容，不是缓存。
+- **"永不命中"那一轮的长尾是排队，不是 prefill。** B 轮里 TTFT 超过 4.5 s 的六个请求——Luna 两个、gpt-5.4-nano 两个、Terra 一个，以及 gpt-5.4-nano 10.99 s 的最大值——**响应头到达前**都等了 2.7–4.3 s，横跨三个不同的模型池，集中在 3 分钟窗口内（06:25–06:28 UTC）。1,200-token 的 prefill 是百毫秒量级；等响应头等了好几秒，那是共享池排队。
+- **用部署自己的 tokenizer 核对 token 数。** 本 repo 一直标注为"~1066 tokens"的 12 节 GUARDRAILS，在 gpt-5.4、gpt-5.4-nano、gpt-5.6-luna 上被 usage 报告为 **536 个输入 token**（含 15-token 问题），因此用那个 prompt `cached_tokens` 永远是 0。自认为"超过 1,024 tokens"的 prompt，应以 `usage.input_tokens_details.cached_tokens` 为准，而不是离线估算。
+
 #### 结论与建议
 
 1. **Luna 本身不慢。** 25+25 次 `max_retries=0` 请求中，Luna 的 E2E 在 streaming 下不超过 3.9 s、non-streaming 下不超过 8.8 s，decode 是五个模型中最快的。它较高的默认 TTFT 来自 reasoning effort——一个请求参数，不是模型速度。
 2. **简单循环里的 15–60 s 长尾是"容量 + 重试"的签名。** 在 `429 no_capacity` 事件期间，服务会把请求持有或拒绝数秒到数十秒，SDK 默认的两次退避重试把它们变成 15–26 s 的"成功"调用。同一事件没有触及同一资源上的另外四个模型池。
 3. **先度量再下结论。** 设置 `max_retries=0`；对每次调用记录 `x-request-id`、HTTP 状态、`retries_taken`、`retry-after`、usage 与 `response.status`；用 `stream=True` 分别度量 TTFT 与 E2E；被比较的模型在同一时段交错运行；部署的 SKU、region、model version 从 ARM 读取，不要从部署名称推断。
 4. **容量手段。** `no_capacity` 不是 TPM 配额限制。可选项是 PTU（错误文本本身就在推荐）加 PAYGO spillover、换 SKU/region 池，以及 APIM 主动路由（Section 7），让峰值负载拒绝永远到不了用户路径。
+5. **Prompt caching 在这里是成本杠杆，不是延迟杠杆。** 前缀 ≥1,024 tokens 且稳定时，每个模型 15/15 请求都返回 `cached_tokens`；但 Luna 的 TTFT 在命中、未命中、无 system prompt 三种条件下相同（p50 1.7–2.0 s）。保持静态前缀完全一致（动态内容放在它之后，绝不放在前面）以拿到计费折扣；不要指望它解决延迟长尾。
 
-> 数据文件（git-ignored，可追溯 ledger）：`outputs/benchmark_luna_knowledge_qa_20260902_040020_seven-wonders-5models.json`（270 条）、`outputs/benchmark_luna_knowledge_qa_20260902_042339_sol-sdk-default-retries.json`（10 条）、`outputs/benchmark_luna_knowledge_qa_20260902_042728_effort-ladder-5.6.json`（102 条）、`outputs/benchmark_luna_knowledge_qa_20260902_043401_capability-spread.json`（140 条）。所有数字都包含跨洲网络 RTT；同 region 客户端的绝对 TTFT 会更低，但相对关系不变。
+> 数据文件（git-ignored，可追溯 ledger）：`outputs/benchmark_luna_knowledge_qa_20260902_040020_seven-wonders-5models.json`（270 条）、`outputs/benchmark_luna_knowledge_qa_20260902_042339_sol-sdk-default-retries.json`（10 条）、`outputs/benchmark_luna_knowledge_qa_20260902_042728_effort-ladder-5.6.json`（102 条）、`outputs/benchmark_luna_knowledge_qa_20260902_043401_capability-spread.json`（140 条）、`outputs/benchmark_luna_knowledge_qa_20260902_0620*_sysprompt-*.json`（3 × 68 条）。所有数字都包含跨洲网络 RTT；同 region 客户端的绝对 TTFT 会更低，但相对关系不变。
 
 
 ## 4. Prompt Caching：降本分析
@@ -599,6 +634,8 @@ Non-streaming（`stream=False`，也就是一个朴素 `time.time()` 循环看�
 Azure OpenAI 在输入前缀 ≥1024 tokens 且跨请求重复相同前缀时，自动触发 [Prompt Caching](https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/prompt-caching)。**Cached input 的价格因模型而异**：Azure 原生 gpt-4o-mini 按标准 input 价格的 50% 计费，gpt-5.4 系列则采用下表中的 OpenAI cached-input 价格。
 
 AI 助手生产场景中，GUARDRAILS 系统提示词（12 个行为规范章节，~1066 tokens）持续超过缓存阈值，每次 AI 助手请求均可触发 Prompt Caching。
+
+> **勘误（2026-09）。** Responses API 的 `usage` 在 gpt-5.4、gpt-5.4-nano、gpt-5.6-luna 上把这个 12 节 GUARDRAILS 报告为 **536 个输入 token**（含 15-token 问题），下方 4.3 节用更长的用户 query 也独立测到 596——低于 1,024 阈值，因此该 prompt 在这些模型上 `cached_tokens` 为 0。"~1066 tokens" 是一个过时的估算标签。前缀一旦跨过 1,024 tokens，prompt caching 立即生效：用 1,200-token 版本的 prompt，15/15 请求返回 `cached_tokens` = 1,199（gpt-5.6）/ 1,024（gpt-5.4-nano）。测量见 Section 3.5.6，复现用 `scripts/benchmark_luna_knowledge_qa.py --system-preset guardrails-long`。4.2–4.3 的成本算式对任何在部署 tokenizer 下确实超过阈值的 prompt 仍然成立。
 
 ### 4.1 TTFT 影响：无
 
@@ -1163,13 +1200,15 @@ python scripts/benchmark_luna_knowledge_qa.py --endpoint ... --models gpt-5.6-lu
 python scripts/benchmark_luna_knowledge_qa.py --endpoint ... --models gpt-5.6-luna:none,gpt-5.6-luna:low,gpt-5.6-luna --iterations 17 --warmup 2  # reasoning effort 阶梯
 python scripts/benchmark_luna_knowledge_qa.py --endpoint ... --models gpt-5.6-luna --new-client-per-request --iterations 27 --warmup 2            # 每次新建 TLS 连接
 python scripts/benchmark_luna_knowledge_qa.py --endpoint ... --queries all --iterations 7 --warmup 2                                               # 能力横向对比
+python scripts/benchmark_luna_knowledge_qa.py --endpoint ... --system-preset guardrails-long --iterations 17 --warmup 2                            # 1,200-token system prompt，prompt cache 生效
+python scripts/benchmark_luna_knowledge_qa.py --endpoint ... --system-preset guardrails-long --cache-bust --iterations 17 --warmup 2               # 同一 prompt，缓存被打掉（每次请求前缀唯一）
 python scripts/benchmark_luna_knowledge_qa.py --endpoint ... --custom-query "客户的原始 prompt"
 
 # 从已保存的运行重新生成汇总表
 python scripts/benchmark_luna_knowledge_qa.py --report-from outputs/benchmark_luna_knowledge_qa_<timestamp>.json
 ```
 
-每条记录保存 HTTP 状态、`x-request-id` / `apim-request-id`、`retries_taken`、`retry-after`、TTFT / E2E、输入 / 输出 / reasoning token 用量、`response.status` 和一个轻量 sanity 标记，慢请求的 request id 可以直接交给服务团队，无需重跑。
+每条记录保存 HTTP 状态、`x-request-id` / `apim-request-id`、`retries_taken`、`retry-after`、TTFT / E2E、输入 / 输出 / reasoning / **cached** token 用量、`response.status` 和一个轻量 sanity 标记，慢请求的 request id 可以直接交给服务团队，无需重跑。
 
 ### 9.4 数据文件
 
@@ -1179,7 +1218,7 @@ Public repo 不包含逐请求 raw JSON 文件；这些文件保留在 private s
 
 后续数据完整性规则：任何 web-grounded benchmark 表只要报告 S4，就必须同时报告匹配的 S5 WebIQ 结果，或者明确说明为什么没有运行 WebIQ。当前 public script 使用 ASCII 状态标签和显式 `success` 字段，避免终端编码导致重复 failure records。
 
-Section 3.5 的知识型直连运行（`outputs/benchmark_luna_knowledge_qa_20260902_*.json`，4 个文件共 522 条记录）遵循同样的规则：统计只用 `success=true` 的记录，失败记录连同 HTTP 状态、错误体和 request id 一起保留，每个文件都带有生成它的脚本 SHA-256。
+Section 3.5 的知识型直连运行（`outputs/benchmark_luna_knowledge_qa_20260902_*.json`，7 个文件共 726 条记录）遵循同样的规则：统计只用 `success=true` 的记录，失败记录连同 HTTP 状态、错误体和 request id 一起保留，每个文件都带有生成它的脚本 SHA-256。
 
 ### 9.5 脚本清单
 
@@ -1191,7 +1230,7 @@ Section 3.5 的知识型直连运行（`outputs/benchmark_luna_knowledge_qa_2026
 | `benchmark_3s_detective.py` | Foundry Agent + Bing，3 场景 × 5 模型 | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_AI_PROJECT_ENDPOINT`, `BING_CONNECTION_NAME` |
 | `benchmark_3s_cached.py` | Prompt Caching 版本（1066-token 系统提示词） | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_AI_PROJECT_ENDPOINT`, `BING_CONNECTION_NAME` |
 | `benchmark_intent_classification.py` | 短输出意图分类成本分析 | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY` |
-| `benchmark_luna_knowledge_qa.py` | gpt-5.6 Luna / Sol / Terra vs gpt-5.4 系列，知识型 prompt、无工具；stream + non-stream，`max_retries`、`reasoning.effort`、连接模式单变量开关；逐请求 request id | `--endpoint`，`--api-key` 或 Entra ID（`az login`），`--models`, `--queries`, `--mode`, `--max-retries`, `--report-from` |
+| `benchmark_luna_knowledge_qa.py` | gpt-5.6 Luna / Sol / Terra vs gpt-5.4 系列，知识型 prompt、无工具；stream + non-stream，`max_retries`、`reasoning.effort`、连接模式、system prompt / prompt cache 单变量开关；逐请求 request id 与 `cached_tokens` | `--endpoint`，`--api-key` 或 Entra ID（`az login`），`--models`, `--queries`, `--mode`, `--max-retries`, `--system-preset`, `--cache-bust`, `--report-from` |
 | `stress_test_tpm_utilization.py` | 并发 TPM 利用率压测 | `--endpoint`, `--api-key`, `--concurrency`, `--total` |
 
 ---
