@@ -171,7 +171,7 @@
     },
     {
       "path": "scripts/validate_repo.py",
-      "sha256": "e611607028c3f95fef220ba040853c5440d34b72b70704fdbfbb8f7b5354e3be"
+      "sha256": "ef2a75718f405ba104bc17706a43c5ff93a5681f86125260c27f4763f9241a83"
     },
     {
       "path": "scripts/generate_evidence_manifest.py",

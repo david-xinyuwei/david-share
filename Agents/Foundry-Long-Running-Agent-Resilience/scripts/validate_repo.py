@@ -256,6 +256,12 @@ SECRET_PATTERNS = {
     "Windows path": re.compile(r"\b[A-Za-z]:\\"),
 }
 
+# GitHub mints this URL for media attached to a repository page. Its identifier is a
+# public display handle, not a tenant, subscription, resource, or credential ID.
+PUBLIC_MEDIA_URL = re.compile(
+    r"https://github\.com/user-attachments/assets/[0-9a-fA-F-]+"
+)
+
 RETIRED_STAGE_PATTERNS = (
     re.compile(r"\b1[8][ -](?:stage|phase)s?\b", re.IGNORECASE),
     re.compile(r"1[8]\s*个阶段"),
@@ -1324,7 +1330,7 @@ def validate_repository_surface_and_security(gate: Gate) -> None:
                 gate.require(literal not in text, f"{relative}: forbidden literal {literal}")
             for label, pattern in SECRET_PATTERNS.items():
                 gate.require(
-                    pattern.search(text) is None,
+                    pattern.search(PUBLIC_MEDIA_URL.sub("", text)) is None,
                     f"{relative}: possible {label}",
                 )
 

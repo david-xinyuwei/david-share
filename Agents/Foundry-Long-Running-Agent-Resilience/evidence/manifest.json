@@ -221,7 +221,7 @@
       "bytes": 10678,
       "path": "evidence/runs/owned-agent-recovery-validation-20260826/run-manifest.json",
       "provenance": "Commands, exits, logs, status, UI, and key-code hashes for this validation cycle.",
-      "sha256": "246e905689efc5485b40e0f5855253546e0e4c2111b695ec533a6a1ece5b8e3c"
+      "sha256": "39cb2acffe5a75f8bd3a65708f1d150ff2d41c0f9552da625adf5ee2ac74b23b"
     },
     {
       "bytes": 12973,
@@ -248,7 +248,7 @@
       "sha256": "3149069f2e8e905344790be5cefb1ddfc884b86d67db86406a7b9f52c1e4131b"
     }
   ],
-  "generated_at_utc": "2026-09-02T13:13:00+00:00",
+  "generated_at_utc": "2026-09-03T04:14:22+00:00",
   "normalization": "utf-8-lf",
   "schema_version": 1
 }

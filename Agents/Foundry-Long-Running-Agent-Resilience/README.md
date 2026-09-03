@@ -270,6 +270,10 @@ The source file is [`owned-approval-live-trace.txt`](evidence/owned-approval-liv
 
 ## Watch it happen in the browser
 
+The recording below runs the four interruptions end to end against the deployed Agents, at double speed:
+
+https://github.com/user-attachments/assets/d548d973-57d4-46e5-bfcd-b85142be9a6f
+
 [`demo-portal/`](demo-portal/) is a standalone extraction of the resilience stage from the larger Xingchen demonstration, not a copy of its unrelated chat, memory, toolbox, routing, or commerce stages. The FastAPI orchestrator in [`demo-portal/app.py`](demo-portal/app.py) drives only the three Agents in this repository. The bilingual UI in [`demo-portal/static/app.js`](demo-portal/static/app.js) exposes a safe baseline plus four interruptions: hard process loss, observer disconnect, a human approval pending during instance loss, and a target-language change after recovery.
 
 The baseline, process-loss, and disconnect buttons target `lra-evidence-agent`, the existing 12-section Agent under [`hosted-agent/`](hosted-agent/). They do not assume 30 sections: the server and browser read `stage_count` from the Agent's checkpoint records. Steering and approval retain their 30-section workloads. [`test_demo_portal.py`](tests/test_demo_portal.py) exercises 12-section checkpoint recovery, a 6-section steering mock, an 8-section approval mock, and damaged-input cases so a fixed section count or an empty recovered lane cannot pass unnoticed.

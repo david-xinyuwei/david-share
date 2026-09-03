@@ -270,6 +270,10 @@ RESULT PASS
 
 ## 在浏览器里看完整过程
 
+下面这段录像以双倍速完整跑过四种打断，全部针对已部署的 Agent：
+
+https://github.com/user-attachments/assets/d548d973-57d4-46e5-bfcd-b85142be9a6f
+
 [`demo-portal/`](demo-portal/) 是从“星辰”大 Demo 中单独抽出的韧性实验区，不包含与 LRA 无关的聊天、记忆、Toolbox、路由和交易结算功能。[`demo-portal/app.py`](demo-portal/app.py) 里的 FastAPI 编排只调用本仓库这三个 Agent；[`demo-portal/static/app.js`](demo-portal/static/app.js) 提供中英文界面和五个按钮：一条安全基线，加上进程崩溃、客户端断线、等待人工审批时实例崩溃，以及恢复后更换目标语言四种打断。
 
 基线、进程崩溃和断线三个按钮直接使用 [`hosted-agent/`](hosted-agent/) 中原有的 12 段 `lra-evidence-agent`，没有再复制一个 30 段 Agent。服务端和浏览器都从检查点记录里的 `stage_count` 读取总段数；转向和审批场景仍使用各自的 30 段任务。[`test_demo_portal.py`](tests/test_demo_portal.py) 分别用 12 段恢复、6 段转向和 8 段审批验证动态段数，并加入损坏输入，防止固定段数或空的 recovered lane 蒙混过关。
