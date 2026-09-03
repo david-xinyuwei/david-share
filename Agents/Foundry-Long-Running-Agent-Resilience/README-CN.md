@@ -12,17 +12,17 @@
 
 [English](README.md) | 中文
 
-[一次完整运行](#一次完整的恢复运行) · [故障矩阵](#故障矩阵) · [复现](#自己复现) · [接入自己的 Agent](#把同样的接线放进你的-agent) · [证据](#证据与边界) · [官方文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
+[四个场景](#在浏览器里看完整过程) · [一次完整运行](#一次完整的恢复运行) · [故障矩阵](#故障矩阵) · [复现](#自己复现) · [接入自己的 Agent](#把同样的接线放进你的-agent) · [证据](#证据与边界) · [官方文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
 
 ## 先看这里
 
 这里不是“把旧进程重新启动”。客户端只创建一个已保存的后台响应。进程 A 写入检查点后退出。进程 B 带着空的进程内存启动，从持久化存储中找到同一个响应和输入，以 `is_recovery=True` 重新进入处理函数，加载已经保存的响应快照，再从下一个检查点继续。客户端始终轮询原来的响应 ID。
 
-下面的主 Demo 是真实长任务，不是 sleep 循环：本仓库自有 Agent 调用 Azure Translator S1，依次翻译 12 段英文；每完成一段中文结果就写检查点；第 4 段后进程 A 丢失；进程 B 从第 5 段继续；最终返回完整 12 段文档，而且终态是 `completed`。
+核心例子是[浏览器完整过程](#在浏览器里看完整过程)里的四种打断：安全基线、进程硬丢失、调用方断线、等人审批时实例丢失，以及恢复之后临时换目标语言。每一种都驱动本仓库的 Agent 跑真实长任务，不是 sleep 循环：Agent 逐段调用 Azure Translator S1，每完成一段就写检查点。
 
-两次运行分别证明不同部分。本机 AgentServer 运行给出操作系统观察到的精确 down 时间；Foundry Version 7 运行证明 Hosted 产品中的替代计算恢复，整次运行耗时 `89.199` 秒。同样的硬退出合同也在本仓库自有 .NET handler 上通过。这些是公共预览能力证据，不是 SLA 或生产就绪声明。
+紧接着记录的那次运行把这套机制写到每个细节：12 段英文，第 4 段后进程 A 丢失，进程 B 从第 5 段继续，最终返回完整 12 段文档，而且终态是 `completed`。两次运行分别证明不同部分。本机 AgentServer 运行给出操作系统观察到的精确 down 时间；Foundry Version 7 运行证明 Hosted 产品中的替代计算恢复，整次运行耗时 `89.199` 秒。同样的硬退出合同也在本仓库自有 .NET handler 上通过。这些是公共预览能力证据，不是 SLA 或生产就绪声明。
 
-另外两个自有 Agent 把同一份任务扩成 30 段，分别放到两种新的打断下面：恢复之后临时换目标语言，以及必须等人审批、而且等待期间实例还丢了。详见[同一份任务再经受两种打断](#同一份任务再经受两种打断)。
+转向 Agent 和审批 Agent 把同一份任务扩成 30 段，承担最后两种打断；详见[同一份任务再经受两种打断](#同一份任务再经受两种打断)。
 
 ## 一次完整的恢复运行
 
@@ -274,6 +274,18 @@ RESULT PASS
 
 https://github.com/user-attachments/assets/d548d973-57d4-46e5-bfcd-b85142be9a6f
 
+[下载仓库里的副本](https://github.com/david-xinyuwei/david-share/raw/refs/heads/master/Agents/Foundry-Long-Running-Agent-Resilience/media/lra-interruption-demo-2x.mp4?download=1)
+
+四种打断各自的代价。本机进程几秒就能重启；在 Foundry 上，平台要先察觉丢失、调度替代计算、再启动新进程，所以录像里同样的打断明显更长：
+
+| # | 场景 | 打断的是什么 | 平台怎么接下去 | 屏幕上看什么 | 单次实测 |
+|---|---|---|---|---|---|
+| ① | 基线，不制造打断 | 不打断 | 持久化后台响应，每段落盘一个检查点 | 1 个进程跑完，检查点齐全，终态 completed | 对照组 |
+| ② | 进程崩溃后恢复 | Agent 进程 | 新进程凭租约接管同一条持久化任务 | 进程 A→B 哈希不同、响应 ID 不变、检查点不缺不重 | 本机 1.415 秒；Foundry 上 49.555 秒 |
+| ③ | 客户端断线重连 | 调用方连接 | 后台执行与调用方解耦 | 始终 1 个进程；无人连接期间进度照常推进 | Agent 全程未停 |
+| ④ | 等审批时实例丢失 | 审批等待中的实例 | 多轮任务链把阶段与样稿写进任务存储 | 样稿哈希不变、审批落到新实例、剩余段在 B 完成 | 本机 2.004 秒；Foundry 上 36.121 秒 |
+| ⑤ | 恢复后中途改主意 | 进程 + 目标本身 | 崩溃恢复 + 可转向会话叠加 | A 从断点续跑，B 在同一新进程从第 1 段重译，两者都完成 | Foundry 上 25.304 秒 |
+
 [`demo-portal/`](demo-portal/) 是从“星辰”大 Demo 中单独抽出的韧性实验区，不包含与 LRA 无关的聊天、记忆、Toolbox、路由和交易结算功能。[`demo-portal/app.py`](demo-portal/app.py) 里的 FastAPI 编排只调用本仓库这三个 Agent；[`demo-portal/static/app.js`](demo-portal/static/app.js) 提供中英文界面和五个按钮：一条安全基线，加上进程崩溃、客户端断线、等待人工审批时实例崩溃，以及恢复后更换目标语言四种打断。
 
 基线、进程崩溃和断线三个按钮直接使用 [`hosted-agent/`](hosted-agent/) 中原有的 12 段 `lra-evidence-agent`，没有再复制一个 30 段 Agent。服务端和浏览器都从检查点记录里的 `stage_count` 读取总段数；转向和审批场景仍使用各自的 30 段任务。[`test_demo_portal.py`](tests/test_demo_portal.py) 分别用 12 段恢复、6 段转向和 8 段审批验证动态段数，并加入损坏输入，防止固定段数或空的 recovered lane 蒙混过关。
@@ -290,6 +302,32 @@ $env:LRA_APPROVAL_AGENT_NAME = "lre-approval-gate"
 ```
 
 打开 `http://127.0.0.1:8765/`。安全基线和客户端断线可以使用关闭故障注入的安全版本；另外三条包含进程崩溃的路径必须使用专门的非生产 Agent 版本，并在部署前显式设置 `LRE_ENABLE_FAULT_INJECTION=true`。所有部署脚本默认都是 `false`，不要在面向客户的 Agent 上打开。页面负责把单次运行讲清楚，可复验依据仍是 [`evidence/`](evidence/) 中的 JSON 报告和事件日志。
+
+## 这四个场景到底跑了什么
+
+这条链路里没有语言模型，因此也不存在推理强度设置。这里每个 `azure.yaml` 都声明 `deployments: []`，任何 Agent 中都没有 chat、responses 模型或推理调用。这是有意为之：恢复是靠对比新旧两个进程下每段译文的 SHA-256 哈希来证明的，而采样型模型重放时会给出不同措辞，这个对比就失效了。确定性的翻译服务才能让恢复结论可被证伪。
+
+| 配置项 | 实际部署值 |
+|---|---|
+| 模型部署 | 无；每个 `azure.yaml` 都是 `deployments: []` |
+| 推理强度 | 不适用，因为链路中没有推理模型 |
+| 实际干的活 | Azure AI Translator 文本翻译 `v3.0`，源语言固定 `en`，S1 层 |
+| 翻译服务认证 | `DefaultAzureCredential` 针对作用域 `https://cognitiveservices.azure.com/.default` 的令牌，加 `Ocp-Apim-Subscription-Region` 头；资源无自定义子域名时再加 `Ocp-Apim-ResourceId` |
+| 可选目标语言 | `zh-Hans`、`zh-Hant`、`ja`、`ko`、`fr`、`de`、`es` |
+| 托管方式 | Foundry Hosted Agent，`python_3_13`，远端构建，`microsoft.foundry` provider |
+| 故障注入 | 由环境变量控制；留在线上的版本均已关闭 |
+
+| # | Agent | 协议与服务端 SDK | 容器规格 | 段数 | Portal 默认参数 |
+|---|---|---|---|---|---|
+| ① | `lra-evidence-agent` | responses `2.0.0`，core 与 responses `2.1.0b2` | 0.5 vCPU / 1 GiB | 12 | 不注入故障，每段 300 ms |
+| ② | `lra-evidence-agent` | responses `2.0.0`，core 与 responses `2.1.0b2` | 0.5 vCPU / 1 GiB | 12 | 第 3 段后崩溃，每段 300 ms |
+| ③ | `lra-evidence-agent` | responses `2.0.0`，core 与 responses `2.1.0b2` | 0.5 vCPU / 1 GiB | 12 | 第 3 段后断开 8 秒 |
+| ④ | `lre-approval-gate` | invocations `2.0.0`，core `2.0.0` 与 invocations `1.0.0b8` | 1 vCPU / 2 GiB | 30 | 样稿 10 段，每段 300 ms |
+| ⑤ | `lre-steering-agent` | responses `2.0.0`，core 与 responses `2.1.0` | 1 vCPU / 2 GiB | 30 | 第 9 段后崩溃，第 4 段后转向 |
+
+Portal 给每次运行设了 300 秒绝对截止、180 秒流超时和 10 秒重连超时并每秒重试一次，因此重连尝试不会在平台完成自己的握手之前就被取消。
+
+这四个场景背后的编排逻辑由 [`tests/test_demo_portal.py`](tests/test_demo_portal.py) 覆盖，全程不需要 Azure。它先断言回环页面与 URL 构造器，再把录制的事件形状回放进线上 Portal 用的同一套验收函数：12 段契约通过，而缺段、重段、只有终态事件但没有第二个进程三种情况均被拒绝；转向路径在动态段数下通过，而续跑留缺口或仍在同一进程时失败关闭；审批路径两阶段通过，而两阶段之间样稿哈希被改时失败关闭。用下面的验收步骤运行它们。
 
 ## 故障矩阵
 

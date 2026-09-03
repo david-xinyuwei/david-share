@@ -99,7 +99,7 @@
   "key_code": [
     {
       "path": "evidence/rule-results.json",
-      "sha256": "5ec698e2c33de5feeb72534dd12da12ed490435141bfb14d2168d51a782a38ec"
+      "sha256": "b8a56faeb5063ab6925aa9ddfafe5130d53b9d26b10e501135b6717b732559b1"
     },
     {
       "path": "images/lra-recovery-timeline.excalidraw",
@@ -171,7 +171,7 @@
     },
     {
       "path": "scripts/validate_repo.py",
-      "sha256": "ef2a75718f405ba104bc17706a43c5ff93a5681f86125260c27f4763f9241a83"
+      "sha256": "7a4a0b08fc277d0a6d422ac3135c1527fb0b4eaeb6808e47446c59aeff4e1d06"
     },
     {
       "path": "scripts/generate_evidence_manifest.py",

@@ -12,17 +12,17 @@ This repository contains a real Hosted Agent, caller, fault harness, and evidenc
 
 [中文](README-CN.md) | English
 
-[One complete run](#one-complete-recovery-run) · [Fault matrix](#fault-matrix) · [Reproduce](#reproduce-it) · [Use in your Agent](#put-the-same-hooks-in-your-agent) · [Evidence](#evidence-and-boundaries) · [Official documentation](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
+[Four scenarios](#watch-it-happen-in-the-browser) · [One complete run](#one-complete-recovery-run) · [Fault matrix](#fault-matrix) · [Reproduce](#reproduce-it) · [Use in your Agent](#put-the-same-hooks-in-your-agent) · [Evidence](#evidence-and-boundaries) · [Official documentation](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/long-running-agent-resilience)
 
 ## Read this first
 
 The mechanism is not "restart the old process." The caller creates one stored background response. Process A writes a checkpoint and exits. Process B starts with empty process memory, finds the same persisted response and input, enters the handler with `is_recovery=True`, restores the checkpointed response, and continues. The caller keeps polling the original response ID.
 
-The primary demo below is a real long task, not a sleep loop: the repository-owned Agent calls Azure Translator S1 for 12 English sections, checkpoints each completed Chinese result, loses Process A after section 4, resumes at section 5 in Process B, and returns the complete 12-section document with terminal status `completed`.
+The core example is the set of four interruptions in [the browser walkthrough](#watch-it-happen-in-the-browser): a safe baseline, hard process loss, caller disconnect, a human approval pending while the instance is lost, and a change of target language after recovery. Each one drives the Agents in this repository against a real long task, not a sleep loop, where the Agent calls Azure Translator S1 section by section and checkpoints every completed result.
 
-Two runs prove different parts of that statement. The local AgentServer run provides the exact operating-system down timestamp. The Foundry Version 7 run proves replacement-compute recovery in the hosted product and took `89.199` seconds. The same hard-loss contract also passed against the repository-owned .NET handler. This is public-preview capability evidence, not an SLA or production-readiness claim.
+The run documented next is that mechanism in detail: 12 English sections, Process A lost after section 4, Process B resuming at section 5, and the complete 12-section document with terminal status `completed`. Two runs prove different parts of that statement. The local AgentServer run provides the exact operating-system down timestamp. The Foundry Version 7 run proves replacement-compute recovery in the hosted product and took `89.199` seconds. The same hard-loss contract also passed against the repository-owned .NET handler. This is public-preview capability evidence, not an SLA or production-readiness claim.
 
-Two more repository-owned Agents put a 30-section version of the same job under a change of target language after recovery and under a human approval gate that has to survive instance loss; see [the same job under two more interruptions](#the-same-job-under-two-more-interruptions).
+The steering and approval Agents run a 30-section version of the same job under the last two interruptions; see [the same job under two more interruptions](#the-same-job-under-two-more-interruptions).
 
 ## One complete recovery run
 
@@ -274,6 +274,18 @@ The recording below runs the four interruptions end to end against the deployed 
 
 https://github.com/user-attachments/assets/d548d973-57d4-46e5-bfcd-b85142be9a6f
 
+[Download the repository copy](https://github.com/david-xinyuwei/david-share/raw/refs/heads/master/Agents/Foundry-Long-Running-Agent-Resilience/media/lra-interruption-demo-2x.mp4?download=1)
+
+The four interruptions, and what each one costs. A lost process restarts locally in seconds, while Foundry first has to notice the loss, schedule replacement compute, and start a new process, so the same interruption is visibly longer in the recording:
+
+| # | Scenario | What is interrupted | How the platform continues | What to watch on screen | Measured once |
+|---|---|---|---|---|---|
+| ① | Baseline, nothing interrupted | nothing | durable background response, one checkpoint committed per section | 1 process finishes, no checkpoint missing, terminal completed | control |
+| ② | Process loss and recovery | the agent process | a replacement process reclaims the same durable work | A→B process hashes differ, response ID unchanged, no gap or duplicate | 1.415 s locally; 49.555 s on Foundry |
+| ③ | Caller disconnect and reattach | the caller connection | background execution is independent of the caller | still 1 process; progress continues while nobody is attached | the agent never stopped |
+| ④ | Instance lost while approval is pending | the instance holding the review | the multi-turn chain keeps phase and sample in the task store | sample hashes unchanged, approval lands on the new instance, remaining sections finish on B | 2.004 s locally; 36.121 s on Foundry |
+| ⑤ | Change of mind after recovery | the process and the objective | crash recovery and a steerable conversation stacked | A resumes from its checkpoint, B restarts at section 1 on that same new process, both complete | 25.304 s on Foundry |
+
 [`demo-portal/`](demo-portal/) is a standalone extraction of the resilience stage from the larger Xingchen demonstration, not a copy of its unrelated chat, memory, toolbox, routing, or commerce stages. The FastAPI orchestrator in [`demo-portal/app.py`](demo-portal/app.py) drives only the three Agents in this repository. The bilingual UI in [`demo-portal/static/app.js`](demo-portal/static/app.js) exposes a safe baseline plus four interruptions: hard process loss, observer disconnect, a human approval pending during instance loss, and a target-language change after recovery.
 
 The baseline, process-loss, and disconnect buttons target `lra-evidence-agent`, the existing 12-section Agent under [`hosted-agent/`](hosted-agent/). They do not assume 30 sections: the server and browser read `stage_count` from the Agent's checkpoint records. Steering and approval retain their 30-section workloads. [`test_demo_portal.py`](tests/test_demo_portal.py) exercises 12-section checkpoint recovery, a 6-section steering mock, an 8-section approval mock, and damaged-input cases so a fixed section count or an empty recovered lane cannot pass unnoticed.
@@ -290,6 +302,32 @@ $env:LRA_APPROVAL_AGENT_NAME = "lre-approval-gate"
 ```
 
 Open `http://127.0.0.1:8765/`. The baseline and observer-disconnect runs work against a safe deployment. The three process-loss stories require dedicated non-production Agent versions deployed with `LRE_ENABLE_FAULT_INJECTION=true`; every deploy script defaults that switch to `false`. Do not enable it on a customer-facing Agent. The page visualizes one run, while the JSON reports and logs under [`evidence/`](evidence/) remain the reproducible proof.
+
+## What these four scenarios actually run
+
+There is no language model in this path and therefore no reasoning-effort setting. Every `azure.yaml` here declares `deployments: []`, and no chat, responses-model, or reasoning call exists in any Agent. That is a deliberate choice: recovery is proven by comparing a SHA-256 hash per translated section across the old and the new process, and a sampled model would return different wording on replay, which would destroy the comparison. A deterministic translation service keeps the recovery claim falsifiable.
+
+| Setting | Value as deployed |
+|---|---|
+| Model deployment | none; `deployments: []` in every `azure.yaml` |
+| Reasoning effort | not applicable, because no reasoning model is in the path |
+| Work performed | Azure AI Translator, Text Translation `v3.0`, fixed source language `en`, tier S1 |
+| Translator auth | `DefaultAzureCredential` token for scope `https://cognitiveservices.azure.com/.default`, header `Ocp-Apim-Subscription-Region`, plus `Ocp-Apim-ResourceId` when the resource has no custom subdomain |
+| Target languages offered | `zh-Hans`, `zh-Hant`, `ja`, `ko`, `fr`, `de`, `es` |
+| Hosting | Foundry Hosted Agent, `python_3_13`, remote build, `microsoft.foundry` provider |
+| Fault injection | environment-gated; the versions left deployed have it disabled |
+
+| # | Agent | Protocol and server SDK | Container | Sections | Portal defaults |
+|---|---|---|---|---|---|
+| ① | `lra-evidence-agent` | responses `2.0.0`, core and responses `2.1.0b2` | 0.5 vCPU / 1 GiB | 12 | no injection, 300 ms per section |
+| ② | `lra-evidence-agent` | responses `2.0.0`, core and responses `2.1.0b2` | 0.5 vCPU / 1 GiB | 12 | crash after stage 3, 300 ms per section |
+| ③ | `lra-evidence-agent` | responses `2.0.0`, core and responses `2.1.0b2` | 0.5 vCPU / 1 GiB | 12 | detach after 3 sections for 8 s |
+| ④ | `lre-approval-gate` | invocations `2.0.0`, core `2.0.0` and invocations `1.0.0b8` | 1 vCPU / 2 GiB | 30 | sample 10 sections, 300 ms per section |
+| ⑤ | `lre-steering-agent` | responses `2.0.0`, core and responses `2.1.0` | 1 vCPU / 2 GiB | 30 | crash after stage 9, steer after 4 sections |
+
+The Portal gives every run an absolute 300 s deadline, a 180 s stream timeout, and a 10 s reconnect timeout retried once per second, so a reconnect attempt is never cancelled before the platform finishes its own handshake.
+
+The orchestration behind these scenarios is covered by [`tests/test_demo_portal.py`](tests/test_demo_portal.py) without touching Azure. It asserts the loopback surface and the URL builder, then replays recorded event shapes through the same acceptance functions the live Portal uses: the 12-section contract passes while a gap, a duplicate, and a bare terminal event without a second process are all rejected; the steering path passes on a dynamic section count and fails closed when the resume leaves a gap or stays on the same process; the approval path passes two-phase review and fails closed when a sample hash changes between the phases. Run them with the acceptance step below.
 
 ## Fault matrix
 

@@ -141,6 +141,7 @@ ALLOWED_FILES = {
     "images/lra-recovery-timeline.svg",
     "images/product-ui/portal-owned-agent-details.png",
     "images/product-ui/portal-owned-agent-list.png",
+    "media/lra-interruption-demo-2x.mp4",
     "requirements-validation.txt",
     "scripts/generate_evidence_manifest.py",
     "scripts/generate_rule_results.py",
