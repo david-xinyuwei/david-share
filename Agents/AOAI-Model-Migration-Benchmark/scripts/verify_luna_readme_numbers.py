@@ -313,6 +313,9 @@ def check_section_358(readme: Path, outputs: Path, label: str) -> int:
         ("all sanity checks pass", all(record["sanity_pass"] for record in records)),
         ("zero auth artifacts", not any((record.get("auth_seconds") or 0) > 0.5 for record in data["records"])),
         ("T2T formula documented", "(E2E - TTFT) / (visible_output_tokens - 1)" in text),
+        ("reasoning mean formula documented", "sum(usage.output_tokens_details.reasoning_tokens) / 20" in text),
+        ("reasoning metric says hidden and per-request", ("hidden reasoning tokens / request" in text or "每请求平均隐藏 reasoning tokens" in text)),
+        ("configured effort labelled", ("Configured effort" in text or "配置的推理强度" in text)),
         ("4o-mini effort N/A", "gpt-4o-mini | **N/A**" in text),
         ("Luna max documented", "`max`" in text),
     ]

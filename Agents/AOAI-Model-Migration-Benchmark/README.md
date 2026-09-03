@@ -741,11 +741,14 @@ A separate aligned control run tested Luna `default`; it is statistically indist
 
 - **TTFT** = request start to the first `response.output_text.delta` event.
 - **T2T** = median across requests of each request's mean visible-token gap: `(E2E - TTFT) / (visible_output_tokens - 1) x 1000 ms`. Reasoning tokens occur before the first visible token, so they belong to TTFT and are excluded from T2T.
-- **E2E** = request start to completed stream. Every number below is P50 unless the column says mean.
+- **E2E** = request start to completed stream.
+- **Average hidden reasoning tokens per request (20-request mean)** = `sum(usage.output_tokens_details.reasoning_tokens) / 20`. This is observed hidden token usage reported by the API — not the configured effort name, not visible answer tokens, and not a duration. These tokens occur before the first visible token, so they primarily increase TTFT and are excluded from T2T.
+
+The latency columns below are P50. The hidden-reasoning column is the arithmetic mean across the 20 effective requests in that row.
 
 ##### Full matrix (P50, 20 samples per row)
 
-| Venue | Model | Effort | Reasoning tokens mean | TTFT p50 | T2T p50 | E2E p50 |
+| Venue | Model | Configured effort | Avg hidden reasoning tokens / request (20 requests) | TTFT p50 | T2T p50 | E2E p50 |
 |---|---|---:|---:|---:|---:|---:|
 | DataZone | gpt-4o-mini | **N/A** | 0.0 | **0.669s** | 10.67ms | 2.707s |
 | DataZone | gpt-5.6-luna | `none` | 0.0 | 0.763s | **7.63ms** | **1.873s** |

@@ -741,11 +741,14 @@ B 轮里有六个请求在响应头到达前等了 2.7–4.3 s，横跨三个池
 
 - **TTFT**：请求开始到首个 `response.output_text.delta` 事件。
 - **T2T**：先计算每个请求的可见 token 平均间隔，再对 20 个请求取 P50：`(E2E - TTFT) / (visible_output_tokens - 1) x 1000 ms`。Reasoning tokens 发生在首个可见 token 之前，因此属于 TTFT，不计入 T2T。
-- **E2E**：请求开始到 stream 完成。除“reasoning tokens mean”列外，下表全部是 P50。
+- **E2E**：请求开始到 stream 完成。
+- **每请求平均隐藏 reasoning tokens（20 次请求的算术平均）** = `sum(usage.output_tokens_details.reasoning_tokens) / 20`。它是 API 实际报告的隐藏推理 token 用量，不是配置的 effort 名称、不是用户看到的答案 token，也不是时间。这些 token 出现在首个可见 token 之前，因此主要增加 TTFT，不计入 T2T。
+
+下表三个延迟列均为 P50；隐藏 reasoning tokens 列是该行 20 个有效请求的算术平均。
 
 ##### 完整矩阵（P50，每行 20 个样本）
 
-| 执行面 | 模型 | 推理强度 | Reasoning tokens mean | TTFT p50 | T2T p50 | E2E p50 |
+| 执行面 | 模型 | 配置的推理强度 | 每请求平均隐藏 reasoning tokens（20 次） | TTFT p50 | T2T p50 | E2E p50 |
 |---|---|---:|---:|---:|---:|---:|
 | DataZone | gpt-4o-mini | **N/A** | 0.0 | **0.669s** | 10.67ms | 2.707s |
 | DataZone | gpt-5.6-luna | `none` | 0.0 | 0.763s | **7.63ms** | **1.873s** |
