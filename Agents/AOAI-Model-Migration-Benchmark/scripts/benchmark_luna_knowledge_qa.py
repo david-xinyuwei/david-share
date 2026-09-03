@@ -13,8 +13,9 @@ triggers retrieval or tool orchestration, so the measurement isolates:
     end-to-end wall clock              -> E2E
 
 Per request the script records HTTP status, request id (x-request-id /
-apim-request-id), SDK retries taken, input/output/reasoning token usage, the
-Responses API status (completed / incomplete), and a light answer sanity flag.
+apim-request-id), SDK retries taken, input/output/reasoning token usage, visible
+output tokens, TTFT, derived T2T / TPOT, the Responses API status (completed /
+incomplete), call position, and a light answer sanity flag.
 
 Defaults deliberately mirror what a customer gets out of the box, except that
 SDK automatic retries are disabled (--max-retries 0) so a single "successful"
@@ -35,6 +36,7 @@ import hashlib
 import json
 import os
 import platform
+import random
 import re
 import statistics
 import sys
@@ -265,9 +267,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--iterations", type=int, default=10,
                         help="Iterations per model per query per mode, including warmup")
     parser.add_argument("--warmup", type=int, default=2, help="Leading iterations excluded from statistics")
-    parser.add_argument("--order", choices=("roundrobin", "sequential"), default="roundrobin",
-                        help="roundrobin interleaves models within each iteration; sequential runs "
-                             "one model to completion at a time (like a simple customer loop)")
+    parser.add_argument("--order", choices=("roundrobin", "balanced", "sequential"), default="roundrobin",
+                        help="roundrobin interleaves configurations in a fixed order; balanced shuffles a seeded "
+                             "base order then rotates it each iteration so configurations occupy different call "
+                             "positions; sequential runs one model to completion at a time")
+    parser.add_argument("--order-seed", dest="order_seed", type=int, default=42,
+                        help="Seed for the balanced base-order shuffle (recorded in report metadata)")
     parser.add_argument("--max-output-tokens", dest="max_output_tokens", type=int, default=0,
                         help="Override the per-query max_output_tokens (0 = per-query default)")
     parser.add_argument("--max-retries", dest="max_retries", type=int, default=0,
@@ -510,17 +515,21 @@ def run_once(client: OpenAI, stream: bool, kwargs: dict[str, Any],
         rec["auth_seconds"] = provider.seconds_between(t0, time.perf_counter())
     rec["text_len"] = len(rec.get("text", ""))
     visible = (rec["output_tokens"] or 0) - (rec["reasoning_tokens"] or 0)
+    rec["visible_output_tokens"] = visible if rec["success"] else None
     first = rec["ttft"] if stream else None
     if rec["success"] and first is not None and rec["e2e"] and rec["e2e"] > first and visible > 1:
         decode_seconds = rec["e2e"] - first
         rec["visible_tps"] = round(visible / decode_seconds, 1)
-        # T2T (inter-token latency): mean gap between consecutive visible output tokens.
-        # Reasoning tokens are emitted before the first visible token, so they sit inside TTFT
-        # and are deliberately excluded here.
+        # Derived T2T / TPOT: average time per visible output token. The t2t_ms name is
+        # retained for report compatibility. This uses stream completion, not per-token event
+        # timestamps, so it includes the small last-token-to-completion interval.
+        # Reasoning tokens occur before the first visible token and belong to TTFT.
         rec["t2t_ms"] = round(decode_seconds / (visible - 1) * 1000, 2)
+        rec["derived_tpot_ms"] = rec["t2t_ms"]
     else:
         rec["visible_tps"] = None
         rec["t2t_ms"] = None
+        rec["derived_tpot_ms"] = None
     return rec
 
 
@@ -573,6 +582,10 @@ def summarize(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
         ttfb = [r["ttfb"] for r in ok if r.get("ttfb") is not None]
         tps = [r["visible_tps"] for r in ok if r.get("visible_tps") is not None]
         t2t = [r["t2t_ms"] for r in ok if r.get("t2t_ms") is not None]
+        visible_tokens = [
+            r.get("visible_output_tokens", (r.get("output_tokens") or 0) - (r.get("reasoning_tokens") or 0))
+            for r in ok if r.get("output_tokens") is not None
+        ]
         out_tokens = [r["output_tokens"] for r in ok if r.get("output_tokens") is not None]
         in_tokens = [r["input_tokens"] for r in ok if r.get("input_tokens") is not None]
         cached = [r["cached_tokens"] or 0 for r in ok if r.get("input_tokens") is not None]
@@ -602,6 +615,8 @@ def summarize(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "reasoning_tokens_mean": round(statistics.mean(reasoning), 1) if reasoning else None,
             "visible_tps_p50": round(statistics.median(tps), 1) if tps else None,
             "t2t_ms_p50": round(statistics.median(t2t), 2) if t2t else None,
+            "derived_tpot_ms_p50": round(statistics.median(t2t), 2) if t2t else None,
+            "visible_output_tokens_mean": round(statistics.mean(visible_tokens), 1) if visible_tokens else None,
             "sanity_pass_rate": round(sum(sanity) / len(sanity), 3) if sanity else None,
         })
     return summary
@@ -614,7 +629,7 @@ def fmt(value: Any, suffix: str = "") -> str:
 def print_summary(summary: list[dict[str, Any]]) -> None:
     header = (f"{'Query':<14}{'Mode':<10}{'Model':<22}{'N':>4}{'OK':>4}"
               f"{'TTFT p50':>10}{'TTFT p95':>10}{'E2E p50':>9}{'E2E p95':>9}{'E2E max':>9}"
-              f"{'>5s':>5}{'>20s':>5}{'InTok':>7}{'Cached':>7}{'OutTok':>8}{'Reason':>8}{'tok/s':>7}{'T2Tms':>8}{'Sane':>6}{'ReqIDs':>7}{'Retry':>6}")
+              f"{'>5s':>5}{'>20s':>5}{'InTok':>7}{'Cached':>7}{'OutTok':>8}{'Reason':>8}{'tok/s':>7}{'TPOTms':>8}{'Sane':>6}{'ReqIDs':>7}{'Retry':>6}")
     print("\n" + "=" * len(header))
     print("  Knowledge-only direct latency summary (warmup excluded)")
     print("=" * len(header))
@@ -630,7 +645,7 @@ def print_summary(summary: list[dict[str, Any]]) -> None:
 
 
 def markdown_summary(summary: list[dict[str, Any]]) -> str:
-    lines = ["| Query | Mode | Model | N ok/total | TTFT p50 / p95 | E2E mean / p50 / p95 / max | >5s | In tok (cached) | Out tok (reasoning) | tok/s p50 | T2T ms p50 | Sanity | Unique req IDs |",
+    lines = ["| Query | Mode | Model | N ok/total | TTFT p50 / p95 | E2E mean / p50 / p95 / max | >5s | In tok (cached) | Out tok (reasoning) | tok/s p50 | Derived T2T / TPOT ms p50 | Sanity | Unique req IDs |",
              "|---|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|"]
     for row in summary:
         ttft = f"{fmt(row['ttft'].get('p50'), 's')} / {fmt(row['ttft'].get('p95'), 's')}" if row["mode"] == "stream" else "n/a (non-stream)"
@@ -685,7 +700,7 @@ def main() -> int:
 
     def execute(deploy: str, effort: str | None, qid: str, prompt: str, max_tokens: int,
                 checker: Callable[[str], bool] | None, stream: bool, iteration: int,
-                condition: tuple[str, str, bool]) -> None:
+                condition: tuple[str, str, bool], call_position: int | None = None) -> None:
         label, preset, cache_bust = condition
         client = shared_client or make_client(args, credential)
         kwargs = request_kwargs(args, deploy, effort, prompt, max_tokens, preset, cache_bust)
@@ -696,6 +711,7 @@ def main() -> int:
         rec.update({
             "scenario": "S1_direct_knowledge_only", "model": deploy, "reasoning_effort": effort or "default",
             "query": qid, "iteration": iteration, "warmup": iteration <= args.warmup,
+            "call_position": call_position,
             "condition": label, "system_preset": "custom" if args.system else preset, "cache_bust": cache_bust,
             "max_output_tokens": max_tokens, "timestamp_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
             "sanity_pass": checker(text) if (checker and rec["success"]) else None,
@@ -718,12 +734,23 @@ def main() -> int:
 
     for qid, prompt, max_tokens, checker in queries:
         print(f"\n[{qid}] max_output_tokens={max_tokens} prompt={prompt!r}")
-        if args.order == "roundrobin":
+        if args.order in ("roundrobin", "balanced"):
+            plan = [
+                (deploy, effort, condition, stream)
+                for deploy, effort in models
+                for condition in conditions
+                for stream in modes
+            ]
+            if args.order == "balanced":
+                random.Random(args.order_seed).shuffle(plan)
             for iteration in range(1, args.iterations + 1):
-                for deploy, effort in models:
-                    for condition in conditions:
-                        for stream in modes:
-                            execute(deploy, effort, qid, prompt, max_tokens, checker, stream, iteration, condition)
+                iteration_plan = plan
+                if args.order == "balanced":
+                    offset = (iteration - 1) % len(plan)
+                    iteration_plan = plan[offset:] + plan[:offset]
+                for position, (deploy, effort, condition, stream) in enumerate(iteration_plan, 1):
+                    execute(deploy, effort, qid, prompt, max_tokens, checker, stream,
+                            iteration, condition, position)
         else:
             for deploy, effort in models:
                 for condition in conditions:
@@ -752,6 +779,7 @@ def main() -> int:
             "token_provider_calls": len(provider.calls) if provider else None,
             "modes": ["stream" if s else "nonstream" for s in modes],
             "iterations": args.iterations, "warmup": args.warmup, "order": args.order,
+            "order_seed": args.order_seed if args.order == "balanced" else None,
             "max_retries": args.max_retries, "timeout_seconds": args.timeout,
             "new_client_per_request": args.new_client, "store": False if args.no_store else "default",
             "sleep_seconds": args.sleep, "tag": args.tag or None,

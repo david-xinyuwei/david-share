@@ -84,6 +84,7 @@ def check_readme(readme: Path, rows: list[dict], label: str) -> int:
             or "terra-62s-confirm" in row["file"]
             or "aligned-effort-matrix" in row["file"]
             or "effort-ladder-1to1" in row["file"]
+            or "final-balanced-effort-t2t" in row["file"]
         ):
             continue  # Sections 3.5.7/3.5.8 use dedicated metric-oriented gates.
         per_query = "capability-spread" in row["file"]
@@ -208,10 +209,9 @@ def check_section_357(readme: Path, outputs: Path, label: str) -> int:
 
 
 def check_section_358(readme: Path, outputs: Path, label: str) -> int:
-    """Check the fully aligned effort / TTFT / T2T / E2E matrix in Section 3.5.8."""
-    matrix_files = list(outputs.glob("*effort-ladder-1to1.json"))
-    control_files = list(outputs.glob("*aligned-effort-matrix.json"))
-    if not matrix_files or not control_files:
+    """Check the final balanced effort / derived-TPOT matrix in Section 3.5.8."""
+    files = list(outputs.glob("*final-balanced-effort-t2t.json"))
+    if not files:
         return 0
     whole = readme.read_text(encoding="utf-8")
     lines = whole.splitlines()
@@ -219,105 +219,60 @@ def check_section_358(readme: Path, outputs: Path, label: str) -> int:
     if start is None:
         print(f"[{label}] FAIL 3.5.8 section heading not found")
         return 1
-    end = next(
-        (i for i in range(start + 1, len(lines))
-         if lines[i].startswith("#### ") and not lines[i].startswith("#### 3.5.8")),
-        len(lines),
-    )
+    end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("#### ") and not lines[i].startswith("#### 3.5.8")), len(lines))
     text = "\n".join(lines[start:end])
-    data = json.loads(matrix_files[0].read_text(encoding="utf-8"))
-    records = [
-        record for record in data["records"]
-        if not record["warmup"]
-        and record["success"]
-        and (record.get("auth_seconds") or 0) <= 0.5
-    ]
+    data = json.loads(files[0].read_text(encoding="utf-8"))
+    records = [r for r in data["records"] if not r["warmup"] and r["success"] and (r.get("auth_seconds") or 0) <= 0.5]
     failures = 0
 
-    def values(model: str, effort: str, key: str, rows: list[dict] = records) -> list[float]:
-        return [
-            record[key] for record in rows
-            if record["model"] == model
-            and record.get("reasoning_effort", "default") == effort
-            and record.get(key) is not None
-        ]
+    def rows(model: str, effort: str) -> list[dict]:
+        return [r for r in records if r["model"] == model and r.get("reasoning_effort", "default") == effort]
+
+    def values(model: str, effort: str, key: str) -> list[float]:
+        return [r[key] for r in rows(model, effort) if r.get(key) is not None]
 
     def assert_text(name: str, needle: str) -> None:
         nonlocal failures
         hit = needle in text
         if not hit:
             failures += 1
-        print(f"[{label}] {'PASS' if hit else 'FAIL'} 3.5.8 {name:<52} {needle}")
+        print(f"[{label}] {'PASS' if hit else 'FAIL'} 3.5.8 {name:<56} {needle}")
 
-    cells = [
-        ("gpt-4o-mini-dz", "default"),
-        ("gpt-5.6-luna-datazone", "none"),
-        *(('gpt-5.4-nano', effort) for effort in ("none", "low", "medium", "high", "xhigh")),
-        *(('gpt-5.6-luna', effort) for effort in ("none", "low", "medium", "high", "xhigh", "max")),
-    ]
+    cells = [("gpt-4o-mini-dz", "default")]
+    cells += [("gpt-5.6-luna-datazone", e) for e in ("none", "low", "medium", "high", "xhigh", "max", "default")]
+    cells += [("gpt-5.4-nano", e) for e in ("none", "low", "medium", "high", "xhigh", "default")]
+    cells += [("gpt-5.6-luna", e) for e in ("none", "low", "medium", "high", "xhigh", "max", "default")]
     for model, effort in cells:
-        ttft = values(model, effort, "ttft")
-        t2t = values(model, effort, "t2t_ms")
-        e2e = values(model, effort, "e2e")
+        row = rows(model, effort)
         reasoning = values(model, effort, "reasoning_tokens")
-        prefix = f"{model}:{effort}"
-        assert_text(f"{prefix} TTFT p50", f"{statistics.median(ttft):.3f}s")
-        assert_text(f"{prefix} T2T p50", f"{statistics.median(t2t):.2f}ms")
-        assert_text(f"{prefix} E2E p50", f"{statistics.median(e2e):.3f}s")
-        assert_text(f"{prefix} reasoning mean", f"{statistics.mean(reasoning):.1f}")
-
-    # Same-effort 5.4-nano vs Luna bounds quoted below the pairwise table.
-    common = ("none", "low", "medium", "high", "xhigh")
-    ttft_ps = [permutation_p(values("gpt-5.4-nano", e, "ttft"), values("gpt-5.6-luna", e, "ttft"), 30000) for e in common]
-    t2t_ps = [permutation_p(values("gpt-5.4-nano", e, "t2t_ms"), values("gpt-5.6-luna", e, "t2t_ms"), 30000) for e in common]
-    e2e_medium_p = permutation_p(
-        values("gpt-5.4-nano", "medium", "e2e"),
-        values("gpt-5.6-luna", "medium", "e2e"),
-        30000,
-    )
-    assert_text("same-effort TTFT p-value bound", f"p <= {max(ttft_ps):.4f}")
-    assert_text("same-effort T2T p-value bound", f"p <= {max(t2t_ps):.4f}")
-    assert_text("medium E2E tie p-value", f"p = {e2e_medium_p:.4f}")
-
-    # Same-SKU 4o-mini vs Luna-none values quoted in prose.
-    for key, fmt, metric in (("ttft", ".4f", "TTFT"), ("t2t_ms", ".4f", "T2T"), ("e2e", ".4f", "E2E")):
-        p_value = permutation_p(
-            values("gpt-4o-mini-dz", "default", key),
-            values("gpt-5.6-luna-datazone", "none", key),
-            30000,
-        )
-        if p_value == 0:
-            assert_text(f"4o-mini vs Luna {metric} p-value", "p < 0.0001")
-        else:
-            assert_text(f"4o-mini vs Luna {metric} p-value", f"p = {p_value:{fmt}}")
-
-    # Default == medium control comes from the prior aligned matrix.
-    control = json.loads(control_files[0].read_text(encoding="utf-8"))["records"]
-    control = [record for record in control if not record["warmup"] and record["success"]]
-    control_ps = []
-    for model in ("gpt-5.6-luna", "gpt-5.6-luna-datazone"):
-        for key in ("ttft", "e2e", "reasoning_tokens"):
-            left = values(model, "medium", key, control)
-            right = values(model, "default", key, control)
-            control_ps.append(permutation_p(left, right, 30000))
-    assert_text("default vs medium p-value floor", f"p >= {min(control_ps):.2f}")
+        visible = [(r["output_tokens"] or 0) - (r["reasoning_tokens"] or 0) for r in row]
+        cache_hits = sum((r.get("cached_tokens") or 0) > 0 for r in row)
+        assert_text(f"{model}:{effort} reasoning mean", f"{statistics.mean(reasoning):.1f}")
+        assert_text(f"{model}:{effort} visible mean", f"{statistics.mean(visible):.1f}")
+        assert_text(f"{model}:{effort} cache hits", f"{cache_hits}/{len(row)}")
+        assert_text(f"{model}:{effort} TTFT p50", f"{statistics.median(values(model, effort, 'ttft')):.3f}s")
+        assert_text(f"{model}:{effort} TPOT p50", f"{statistics.median(values(model, effort, 't2t_ms')):.2f}ms")
+        assert_text(f"{model}:{effort} E2E p50", f"{statistics.median(values(model, effort, 'e2e')):.3f}s")
 
     checks = [
+        ("balanced order", data["meta"].get("order") == "balanced"),
+        ("balanced seed", data["meta"].get("order_seed") == 20260903),
+        ("20 unique positions per cell", all(len({r["call_position"] for r in rows(m, e)}) == 20 for m, e in cells)),
         ("stream only", data["meta"]["modes"] == ["stream"]),
         ("2,048 max output tokens", data["meta"]["queries"][0]["max_output_tokens"] == 2048),
         ("zero retries", data["meta"]["max_retries"] == 0),
-        ("260 effective samples", len(records) == 260),
-        ("260 unique request ids", len({record["request_id"] for record in records}) == 260),
-        ("zero failures", not any(not record["success"] for record in data["records"])),
-        ("zero incomplete responses", not any(record.get("response_status") == "incomplete" for record in data["records"])),
-        ("all sanity checks pass", all(record["sanity_pass"] for record in records)),
-        ("zero auth artifacts", not any((record.get("auth_seconds") or 0) > 0.5 for record in data["records"])),
-        ("T2T formula documented", "(E2E - TTFT) / (visible_output_tokens - 1)" in text),
-        ("reasoning mean formula documented", "sum(usage.output_tokens_details.reasoning_tokens) / 20" in text),
-        ("reasoning metric says hidden and per-request", ("hidden reasoning tokens / request" in text or "每请求平均隐藏 reasoning tokens" in text)),
-        ("configured effort labelled", ("Configured effort" in text or "配置的推理强度" in text)),
-        ("4o-mini effort N/A", "gpt-4o-mini | **N/A**" in text),
-        ("Luna max documented", "`max`" in text),
+        ("420 effective samples", len(records) == 420),
+        ("420 unique request ids", len({r["request_id"] for r in records}) == 420),
+        ("zero failures", not any(not r["success"] for r in data["records"])),
+        ("zero incomplete", not any(r.get("response_status") == "incomplete" for r in data["records"])),
+        ("all sanity pass", all(r["sanity_pass"] for r in records)),
+        ("zero auth artifacts", not any((r.get("auth_seconds") or 0) > 0.5 for r in data["records"])),
+        ("derived TPOT label", ("Derived T2T / TPOT" in text)),
+        ("derived metric caveat", ("not the median of individually timestamped token gaps" in text or "不是对每个 token 单独打时间戳" in text)),
+        ("visible-output column", ("Avg Visible Output Tokens" in text or "平均可见输出 tokens" in text)),
+        ("P50 tail boundary", ("central tendency only" in text and "establish P95/P99" in text) or "不能**证明 P95/P99" in text),
+        ("same-label budget boundary", ("does not imply the same reasoning budget" in text or "不代表相同 reasoning 预算" in text)),
+        ("Holm correction declared", ("Holm-corrected" in text or "Holm 校正" in text)),
     ]
     for name, hit in checks:
         if not hit:
