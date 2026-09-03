@@ -79,8 +79,12 @@ def check_readme(readme: Path, rows: list[dict], label: str) -> int:
     for row in rows:
         if row["n_ok"] == 0 or "sol-sdk-default-retries" in row["file"]:
             continue  # the retries run is presented per request, checked separately below
-        if "4omini-vs-56" in row["file"] or "terra-62s-confirm" in row["file"]:
-            continue  # section 3.5.7 uses metric-oriented tables; checked by check_section_357
+        if (
+            "4omini-vs-56" in row["file"]
+            or "terra-62s-confirm" in row["file"]
+            or "aligned-effort-matrix" in row["file"]
+        ):
+            continue  # Sections 3.5.7/3.5.8 use dedicated metric-oriented gates.
         per_query = "capability-spread" in row["file"]
         if per_query:
             needles = [f"{row['nums']['ttft_p50']:.2f}s", f"{row['nums']['e2e_p50']:.2f}s"]
@@ -202,6 +206,106 @@ def check_section_357(readme: Path, outputs: Path, label: str) -> int:
     return failures
 
 
+def check_section_358(readme: Path, outputs: Path, label: str) -> int:
+    """Check the fully aligned streaming matrix in Section 3.5.8."""
+    files = list(outputs.glob("*aligned-effort-matrix.json"))
+    if not files:
+        return 0
+    whole = readme.read_text(encoding="utf-8")
+    lines = whole.splitlines()
+    start = next((i for i, line in enumerate(lines) if line.startswith("#### 3.5.8 ")), None)
+    if start is None:
+        print(f"[{label}] FAIL 3.5.8 section heading not found")
+        return 1
+    end = next(
+        (i for i in range(start + 1, len(lines))
+         if lines[i].startswith("#### ") and not lines[i].startswith("#### 3.5.8")),
+        len(lines),
+    )
+    text = "\n".join(lines[start:end])
+    data = json.loads(files[0].read_text(encoding="utf-8"))
+    records = [
+        record for record in data["records"]
+        if not record["warmup"]
+        and record["success"]
+        and (record.get("auth_seconds") or 0) <= 0.5
+    ]
+    failures = 0
+
+    def values(model: str, effort: str, key: str) -> list[float]:
+        return [
+            record[key] for record in records
+            if record["model"] == model
+            and record.get("reasoning_effort", "default") == effort
+            and record.get(key) is not None
+        ]
+
+    def assert_text(name: str, needle: str) -> None:
+        nonlocal failures
+        hit = needle in text
+        if not hit:
+            failures += 1
+        print(f"[{label}] {'PASS' if hit else 'FAIL'} 3.5.8 {name:<48} {needle}")
+
+    cells = [
+        ("gpt-4o-mini-dz", "default"),
+        ("gpt-5.4-nano", "none"),
+        ("gpt-5.6-luna-datazone", "none"),
+        ("gpt-5.6-luna-datazone", "low"),
+        ("gpt-5.6-luna-datazone", "medium"),
+        ("gpt-5.6-luna-datazone", "default"),
+        ("gpt-5.6-luna", "none"),
+        ("gpt-5.6-luna", "low"),
+        ("gpt-5.6-luna", "medium"),
+        ("gpt-5.6-luna", "default"),
+    ]
+    for model, effort in cells:
+        ttft = values(model, effort, "ttft")
+        e2e = values(model, effort, "e2e")
+        output = values(model, effort, "output_tokens")
+        reasoning = values(model, effort, "reasoning_tokens")
+        cached = values(model, effort, "cached_tokens")
+        prefix = f"{model}:{effort}"
+        assert_text(f"{prefix} TTFT p50", f"{statistics.median(ttft):.3f}s")
+        assert_text(f"{prefix} E2E p50", f"{statistics.median(e2e):.3f}s")
+        assert_text(f"{prefix} output mean", f"{statistics.mean(output):.1f}")
+        assert_text(f"{prefix} reasoning mean", f"{statistics.mean(reasoning):.1f}")
+        assert_text(
+            f"{prefix} cache hits",
+            f"{sum(1 for value in cached if value > 0)}/{len(cached)}",
+        )
+
+    comparisons = [
+        ("DataZone none->low TTFT", "gpt-5.6-luna-datazone", "none", "low", "ttft"),
+        ("DataZone none->low E2E", "gpt-5.6-luna-datazone", "none", "low", "e2e"),
+        ("DataZone low->medium E2E", "gpt-5.6-luna-datazone", "low", "medium", "e2e"),
+        ("DataZone medium->default TTFT", "gpt-5.6-luna-datazone", "medium", "default", "ttft"),
+        ("Global none->low E2E", "gpt-5.6-luna", "none", "low", "e2e"),
+        ("Global low->medium TTFT", "gpt-5.6-luna", "low", "medium", "ttft"),
+        ("Global medium->default E2E", "gpt-5.6-luna", "medium", "default", "e2e"),
+    ]
+    for name, model, left, right, key in comparisons:
+        p_value = permutation_p(
+            values(model, left, key),
+            values(model, right, key),
+            iters=30000,
+        )
+        assert_text(name, f"{p_value:.4f}")
+
+    checks = [
+        ("stream only", data["meta"]["modes"] == ["stream"]),
+        ("zero retries", data["meta"]["max_retries"] == 0),
+        ("250 effective samples", len(records) == 250),
+        ("250 unique request ids", len({record["request_id"] for record in records}) == 250),
+        ("all sanity checks pass", all(record["sanity_pass"] for record in records)),
+    ]
+    for name, hit in checks:
+        if not hit:
+            failures += 1
+        print(f"[{label}] {'PASS' if hit else 'FAIL'} 3.5.8 contract {name}")
+    return failures
+
+
 def permutation_p(a: list[float], b: list[float], iters: int = 20000, seed: int = 7) -> float:
     rng = random.Random(seed)
     obs = abs(statistics.median(a) - statistics.median(b))
@@ -234,6 +338,7 @@ def main() -> int:
         failures += check_readme(rd, all_rows, rd.stem)
         failures += check_retries_table(rd, outputs, rd.stem)
         failures += check_section_357(rd, outputs, rd.stem)
+        failures += check_section_358(rd, outputs, rd.stem)
 
     print("\n== Round 3 permutation tests on Luna TTFT (median difference) ==")
     r3 = {row["file"]: row for row in all_rows if row["model"] == "gpt-5.6-luna" and "sysprompt" in row["file"]}
