@@ -138,7 +138,7 @@ A customer loop asking `gpt-5.6-luna` a tool-free question showed a ~2 s median 
 | Question | Answer | Where |
 |----------|--------|-------|
 | Is Luna slow? | No — its tail stayed under 4 s over 25 streaming requests and it has the fastest decode of the five. | [3.5.1](#351-default-settings--25-samples-per-cell) |
-| What are Luna's reasoning levels, and was streaming aligned? | Luna supports `none`, `low`, and `medium` (`minimal` is rejected); `default` is statistically indistinguishable from explicit `medium`. A fully aligned `stream=True` run interleaves 4o-mini, 5.4-nano, and Luna's four settings under the same prompt, cached system prompt, output limit, connection, and zero-retry policy. | [3.5.8](#358-fully-aligned-matrix-luna-reasoning-levels-vs-gpt-4o-mini-and-gpt-54-nano) |
+| Which effort values exist, and were TTFT/T2T compared 1-to-1? | 4o-mini has no effort parameter; 5.4-nano supports `none/low/medium/high/xhigh`; Luna supports `none/low/medium/high/xhigh/max`. All 13 rows use one `stream=True` contract and report TTFT, T2T, and E2E P50; a separate control confirms Luna default equals `medium`. | [3.5.8](#358-fully-aligned-1-to-1-matrix-effort-ttft-t2t-and-e2e-p50) |
 | Where does a 15–60 s tail come from? | A live `429 no_capacity` peak-load event plus the SDK's default retries, which turn rejected attempts into 15–26 s "successes". | [3.5.2](#352-what-a-capacity-event-looks-like-from-the-client), [3.5.3](#353-single-variable-sdk-automatic-retries-max_retries2-the-sdk-default) |
 | Does a >1,024-token system prompt (prompt caching) help? | It caches (58/59 hits) and saves cost; a hit does not lower TTFT on any of the four models. Verify the token count from `usage`, not offline. | [3.5.6](#356-single-variable-a-1200-token-system-prompt-cached-vs-never-cached-streaming-15-samples-per-cell) |
 | How does it compare with gpt-4o-mini, and is `datazone` the problem? | gpt-4o-mini has the faster first token (0.69 s vs 2.01 s) but the slower finished answer (5.63 s vs 3.24 s) because it decodes 2.5× slower. `gpt-5.6-luna` on DataZoneStandard vs GlobalStandard shows no significant difference (p ≥ 0.36) — the SKU in the name is not the cause. | [3.5.7](#357-the-missing-baseline-gpt-4o-mini-in-the-same-venue-and-datazone-vs-globalstandard) |
@@ -568,7 +568,7 @@ With the default retry policy four requests "succeeded" in **15.2 s, 16.7 s, 20.
 | gpt-5.6-terra | `low` | 1.09s / 1.36s | 3.06s / 2.77s / 4.34s / 6.15s | 216 (21) | 115 |
 | gpt-5.6-terra | `none` | 0.90s / 2.12s | 2.89s / 2.72s / 3.62s / 5.06s | 222 (0) | 122 |
 
-- gpt-5.6 accepts `reasoning.effort` = `none`, `low`, `medium`; `minimal` is rejected (`400 Unsupported value`). The documented default is `medium`, and the one explicit `medium` sample (108 reasoning tokens) matches the default runs (mean 102).
+- This preliminary pass sampled `none` / `low` plus default and one `medium` canary. The API's full supported list is `none`, `low`, `medium`, `high`, `xhigh`, `max`; `minimal` is rejected. Section 3.5.8 supersedes it with a same-window full matrix, while the aligned control confirms that default is statistically indistinguishable from explicit `medium`.
 - **At equal effort the three variants have the same TTFT (0.90–1.00 s p50), and Luna has the fastest E2E** (2.24 s p50) because it decodes at ~169 tok/s versus 122 (Terra) and 69 (Sol).
 - On Luna each step default → `low` → `none` removes roughly 0.7 s of TTFT (2.04 → 1.36 → 0.92 s; permutation test on medians, `none` vs `low` p = 0.0006, `none` vs default p < 0.0001). For latency-sensitive knowledge Q&A, set `reasoning={"effort": "none"}` (or `low`) explicitly rather than relying on the default.
 
@@ -711,64 +711,78 @@ This matters directly for the customer's screenshot: **its maximum was 61.918 s*
 
 > Data files: `outputs/benchmark_luna_knowledge_qa_20260902_130423_4omini-vs-56-datazone-vs-global.json` (324 records, 6 deployments × stream + non-stream × 25 samples; includes one 1,775 s client-side `APIConnectionError` — a local network drop, recorded as a failure and excluded from statistics) and `outputs/benchmark_luna_knowledge_qa_20260902_142457_terra-62s-confirm.json` (66 records, clean-window confirmation). The first run sits in a degraded window: within-run comparisons are valid because all deployments are interleaved, but its absolute values are higher than the clean window and should not be quoted on their own.
 
-#### 3.5.8 Fully aligned matrix: Luna reasoning levels vs gpt-4o-mini and gpt-5.4-nano
+#### 3.5.8 Fully aligned 1-to-1 matrix: effort, TTFT, T2T and E2E P50
 
-This is the strict comparison the earlier runs did not contain. **`nano` is not a Luna reasoning level**: `gpt-5.4-nano` is a separate model. Luna accepts `reasoning.effort = none / low / medium`; `minimal` returns HTTP 400. `default` is included as a fourth Luna cell only to test whether it really behaves like explicit `medium`.
+This is the comparison contract to use when someone asks "which model is faster?" It closes two gaps in the earlier matrix: the full supported effort range, and **T2T (inter-token latency)** rather than only aggregate throughput.
 
-Every cell below uses the exact same contract:
+First, the settings are not the same across model families:
+
+| Model | Supported `reasoning.effort` | Meaning in this matrix |
+|---|---|---|
+| gpt-4o-mini | **N/A** — sending `reasoning.effort` returns HTTP 400 `unsupported_parameter` | one baseline row, with no effort parameter |
+| gpt-5.4-nano | `none`, `low`, `medium`, `high`, `xhigh`; `minimal` is rejected | all five explicit levels |
+| gpt-5.6-luna | `none`, `low`, `medium`, `high`, `xhigh`, `max`; `minimal` is rejected | all six explicit levels |
+
+A separate aligned control run tested Luna `default`; it is statistically indistinguishable from explicit `medium` on TTFT, E2E and reasoning tokens on both GlobalStandard and DataZoneStandard (all p >= 0.22). The table therefore uses explicit levels only.
+
+##### One contract for every cell
 
 | Variable | Fixed value |
 |---|---|
 | User prompt | `What are the seven wonders of the world?` |
-| System prompt | identical 1,202-input-token `guardrails-long` prefix (prompt cache eligible) |
-| API / streaming | Responses API v1, **`stream=True`**; TTFT = first `response.output_text.delta`, E2E = completed stream |
-| Output / retries / connection | `max_output_tokens=1024`, `max_retries=0`, one shared HTTPS client |
-| Scheduling | round-robin interleaving inside every iteration — models and efforts share the same minutes |
-| Sample size | 27 iterations per cell, first 2 warmups excluded → **25 effective samples per cell, 250 total**, 0 failures, 250 unique request ids |
-| Venue | same resource and region; 4o-mini and Luna DataZone share DataZoneStandard, while 5.4-nano and Luna Global share GlobalStandard |
+| System prompt | identical `guardrails-long` prefix (1,202 input tokens for Luna / 5.4-nano, 1,203 for 4o-mini because tokenization differs), prompt-cache eligible |
+| API / streaming | Responses API v1, **`stream=True` for all 260 effective requests** |
+| Output / retries / connection | `max_output_tokens=2048`, `max_retries=0`, one shared HTTPS client |
+| Scheduling | round-robin interleaving inside every iteration; all models and levels share the same minutes |
+| Sample size | 22 iterations per cell, first 2 warmups excluded -> **20 effective samples per cell, 13 cells / 260 total**, 0 failures, 0 incomplete responses, 260 unique request ids, 260/260 sanity checks passed |
+| Venue | DataZone: 4o-mini vs Luna `none`; GlobalStandard: 5.4-nano five levels vs Luna six levels |
 
-##### DataZoneStandard: gpt-4o-mini vs Luna at every effort
+**Metric definitions**
 
-| Model / effort | TTFT p50 | E2E p50 | Output tokens | Reasoning tokens | Cache hits |
-|---|---:|---:|---:|---:|---:|
-| **gpt-4o-mini** | **0.665s** | 2.671s | 187.3 | 0.0 | 23/25 |
-| **Luna `none`** | 0.803s | **1.844s** | 139.6 | 0.0 | 25/25 |
-| Luna `low` | 1.077s | 2.497s | 175.7 | 20.3 | 25/25 |
-| Luna `medium` | 1.916s | 2.996s | 217.4 | 72.3 | 25/25 |
-| Luna `default` | 1.855s | 2.917s | 229.3 | 77.6 | 25/25 |
+- **TTFT** = request start to the first `response.output_text.delta` event.
+- **T2T** = median across requests of each request's mean visible-token gap: `(E2E - TTFT) / (visible_output_tokens - 1) x 1000 ms`. Reasoning tokens occur before the first visible token, so they belong to TTFT and are excluded from T2T.
+- **E2E** = request start to completed stream. Every number below is P50 unless the column says mean.
 
-At the same DataZoneStandard SKU, 4o-mini reaches the first token 0.138 s sooner than Luna `none` (p = 0.0003), but Luna `none` finishes 0.827 s sooner (p < 0.0001). The system prompt itself is identical; 4o-mini reports 1,203 input tokens vs 1,202 for Luna because tokenization is model-specific.
+##### Full matrix (P50, 20 samples per row)
 
-##### GlobalStandard: gpt-5.4-nano vs Luna at every effort
+| Venue | Model | Effort | Reasoning tokens mean | TTFT p50 | T2T p50 | E2E p50 |
+|---|---|---:|---:|---:|---:|---:|
+| DataZone | gpt-4o-mini | **N/A** | 0.0 | **0.669s** | 10.67ms | 2.707s |
+| DataZone | gpt-5.6-luna | `none` | 0.0 | 0.763s | **7.63ms** | **1.873s** |
+| Global | gpt-5.4-nano | `none` | 0.0 | **0.724s** | 10.69ms | 2.349s |
+| Global | gpt-5.4-nano | `low` | 0.0 | **0.949s** | 17.40ms | 3.481s |
+| Global | gpt-5.4-nano | `medium` | 0.0 | **0.924s** | 11.79ms | **2.414s** |
+| Global | gpt-5.4-nano | `high` | 5.9 | **0.745s** | 11.51ms | **2.147s** |
+| Global | gpt-5.4-nano | `xhigh` | 169.5 | 2.474s | 11.66ms | 3.952s |
+| Global | gpt-5.6-luna | `none` | 0.0 | 0.935s | **5.88ms** | **1.785s** |
+| Global | gpt-5.6-luna | `low` | 31.4 | 1.286s | **6.01ms** | **2.199s** |
+| Global | gpt-5.6-luna | `medium` | 71.6 | 1.706s | **6.33ms** | 2.638s |
+| Global | gpt-5.6-luna | `high` | 132.4 | 2.065s | **5.46ms** | 2.883s |
+| Global | gpt-5.6-luna | `xhigh` | 162.2 | **2.133s** | **5.53ms** | **2.880s** |
+| Global | gpt-5.6-luna | `max` | 241.8 | 3.010s | 6.09ms | 3.778s |
 
-| Model / effort | TTFT p50 | E2E p50 | Output tokens | Reasoning tokens | Cache hits |
-|---|---:|---:|---:|---:|---:|
-| **gpt-5.4-nano `none`** | **0.777s** | 2.171s | 128.0 | 0.0 | 25/25 |
-| **Luna `none`** | 0.933s | **1.922s** | 147.6 | 0.0 | 25/25 |
-| Luna `low` | 1.281s | 2.281s | 173.4 | 24.6 | 25/25 |
-| Luna `medium` | 1.622s | 2.477s | 207.7 | 67.0 | 25/25 |
-| Luna `default` | 1.760s | 2.665s | 220.8 | 74.8 | 25/25 |
+Bold values identify the lower latency in each valid 1-to-1 pair: DataZone 4o-mini vs Luna `none`, or Global 5.4-nano vs Luna at the same explicit level. Luna `max` has no 5.4-nano counterpart.
 
-At the same GlobalStandard SKU, 5.4-nano reaches the first token 0.156 s sooner than Luna `none` (p = 0.0003), but Luna `none` finishes 0.249 s sooner (p = 0.0234).
+##### GlobalStandard 1-to-1 P50: 5.4-nano vs Luna at the same effort
 
-##### What the effort ladder proves
+| Effort | TTFT p50 (nano / Luna) | TTFT winner | T2T p50 (nano / Luna) | T2T winner | E2E p50 (nano / Luna) | E2E winner |
+|---|---:|---|---:|---|---:|---|
+| `none` | 0.724 / 0.935s | nano | 10.69 / **5.88ms** | **Luna** | 2.349 / **1.785s** | **Luna** |
+| `low` | 0.949 / 1.286s | nano | 17.40 / **6.01ms** | **Luna** | 3.481 / **2.199s** | **Luna** |
+| `medium` | 0.924 / 1.706s | nano | 11.79 / **6.33ms** | **Luna** | 2.414 / 2.638s | tie (p = 0.1178) |
+| `high` | 0.745 / 2.065s | nano | 11.51 / **5.46ms** | **Luna** | **2.147** / 2.883s | nano |
+| `xhigh` | 2.474 / **2.133s** | **Luna** | 11.66 / **5.53ms** | **Luna** | 3.952 / **2.880s** | **Luna** |
 
-| Luna venue | Transition | TTFT p50 | TTFT p | E2E p50 | E2E p |
-|---|---|---:|---:|---:|---:|
-| DataZone | `none → low` | 0.803 → 1.077s | 0.0019 | 1.844 → 2.497s | 0.0009 |
-| DataZone | `low → medium` | 1.077 → 1.916s | <0.0001 | 2.497 → 2.996s | 0.0343 |
-| DataZone | `medium → default` | 1.916 → 1.855s | 0.7467 | 2.996 → 2.917s | 1.0000 |
-| Global | `none → low` | 0.933 → 1.281s | <0.0001 | 1.922 → 2.281s | 0.0052 |
-| Global | `low → medium` | 1.281 → 1.622s | 0.0015 | 2.281 → 2.477s | 0.0424 |
-| Global | `medium → default` | 1.622 → 1.760s | 0.4357 | 2.477 → 2.665s | 0.2224 |
+The TTFT differences are significant at every common level (p <= 0.0354). Luna's T2T is lower at every level (p <= 0.0009): visible tokens arrive every 5.46-6.33 ms vs nano's 10.69-17.40 ms. E2E favours Luna at `none`, `low`, and `xhigh`; favours nano at `high`; and is not separable at `medium`.
 
-Three conclusions survive both SKUs:
+##### What the levels actually do
 
-1. **`none`, `low`, and `medium` are real, separable latency tiers.** Every adjacent explicit step increases TTFT significantly; the E2E increase is also significant.
-2. **`default` is `medium` for practical purposes.** Explicit `medium` vs default is not distinguishable on TTFT, E2E, or reasoning-token count on either SKU (all p ≥ 0.22; reasoning-token p ≥ 0.41).
-3. **For this knowledge-only task, `none` is the correct latency setting.** All 250 answers pass the same sanity check, so the extra reasoning buys no observed correctness while adding 0.35–1.11 s to TTFT and 0.36–1.15 s to E2E. This quality statement is deliberately limited to these simple prompts; it does not generalize to hard reasoning workloads.
+- **Luna is a real monotonic reasoning ladder.** Mean reasoning tokens rise 0.0 -> 31.4 -> 71.6 -> 132.4 -> 162.2 -> 241.8 from `none` to `max`; TTFT rises from 0.935s to 3.010s. T2T stays in a tight 5.46-6.33ms band: effort changes time spent *before* the first token, not visible-token decode speed. `high` and `xhigh` are a latency plateau on this prompt; `max` adds another 0.88s TTFT.
+- **5.4-nano's configured effort is not the same as observed reasoning on this simple prompt.** `none`, `low`, and `medium` use zero reasoning tokens in 20/20 requests; `high` uses any reasoning in only 3/20 (mean 5.9); only `xhigh` reasons on 20/20 (mean 169.5). That is why its latency is not a clean monotonic ladder. Always report both the configured effort and observed reasoning tokens.
+- **4o-mini is not a `none` row.** It has no reasoning-effort surface at all; `N/A` is the only correct label. Under the same DataZone contract it starts 0.094s before Luna `none` (p = 0.0052), but Luna has 28% lower T2T (7.63 vs 10.67ms, p < 0.0001) and finishes 0.834s sooner (p = 0.0001).
+- **For this simple knowledge task**, Luna `none` gives the best E2E with 0 reasoning tokens. This does not prove `none` is best for hard reasoning tasks; those need a separate quality-scored dataset, not the seven-wonders sanity check.
 
-> Data file: `outputs/benchmark_luna_knowledge_qa_20260903_023941_aligned-effort-matrix.json` (270 records including warmups; runtime script SHA-256 `2070ba01bc1f34e8853f9bc32ba833b5bfea0773ad0d0a9c95f9756ac0250a3c`).
+> Data file: `outputs/benchmark_luna_knowledge_qa_20260903_050804_effort-ladder-1to1.json` (286 records including warmups; 13 cells x 20 effective samples; runtime script SHA-256 `958a0570cd3708d5eb2fd031a7d1be93948281495c694680eff4da7ddd03723d`). The default-vs-medium control remains in `outputs/benchmark_luna_knowledge_qa_20260903_023941_aligned-effort-matrix.json`.
 
 #### Findings and guidance
 
@@ -780,7 +794,7 @@ Three conclusions survive both SKUs:
 6. **`gpt-4o-mini` is still the fastest to first token, and the slowest to a finished answer.** Measured in the same window as the 5.6 family: TTFT p50 0.69 s (matching the March measurement) but E2E p50 5.63 s against Luna's 3.24 s, because it decodes at 59 tok/s versus Luna's 147. Choose on the metric the product actually shows the user.
 7. **A deployment name is not a SKU diagnosis, and the SKU is not the problem.** `gpt-5.6-luna` measured on GlobalStandard and DataZoneStandard in the same minutes shows no significant difference in TTFT or E2E (p ≥ 0.36). Read the deployment's real SKU, region and capacity from ARM, then look at the pool's load rather than at the word in its name.
 8. **Watch for a ~62-second server-side hold.** On one model pool, 28% of requests returned their headers within 5 s and their first token at 62.16 s ± 0.96 s — HTTP 200, zero retries, correct answers — while five other deployments on the same resource stayed under 60 s throughout. A near-62-second outlier in a customer trace is therefore a service-side signature to escalate with request ids, not evidence of a client bug.
-9. **Compare explicit Luna effort levels under one streaming contract.** `none`, `low`, and `medium` are distinct tiers; `default` is medium. On this task Luna `none` has slightly slower TTFT but faster E2E than both same-SKU baselines (4o-mini and 5.4-nano). Do not call `nano` a Luna effort level, and do not compare results from different prompts, system prompts, streaming settings, retry policies, or time windows.
+9. **Compare the full effort surfaces under one streaming contract.** 4o-mini is `N/A`; 5.4-nano has five explicit levels; Luna has six, with default equal to `medium`. Report configured effort, observed reasoning tokens, TTFT P50, T2T P50, and E2E P50 together. On this task Luna decodes visible tokens about 2x faster than nano at every common level, but TTFT and E2E winners depend on effort.
 
 > Data files (git-ignored, reproducibility ledger): `outputs/benchmark_luna_knowledge_qa_20260902_040020_seven-wonders-5models.json` (270 records), `outputs/benchmark_luna_knowledge_qa_20260902_042339_sol-sdk-default-retries.json` (10 records), `outputs/benchmark_luna_knowledge_qa_20260902_042728_effort-ladder-5.6.json` (102 records), `outputs/benchmark_luna_knowledge_qa_20260902_043401_capability-spread.json` (140 records), `outputs/benchmark_luna_knowledge_qa_20260902_0620*_sysprompt-*.json` (3 × 68 records, sequential first pass), `outputs/benchmark_luna_knowledge_qa_20260902_072950_sysprompt-interleaved.json` (204 records), and the Section 3.5.7–3.5.8 files listed in those subsections. Cross-continent network RTT is included in every number; a client in the same region will see lower absolute TTFT but the same relative picture.
 
@@ -1373,7 +1387,7 @@ The 5-run web_search dataset (`data/benchmark_websearch_guardrails_*.json`) cont
 
 Data-integrity rule for future runs: if a web-grounded table reports S4, it must also report the matching S5 WebIQ result or explicitly state why WebIQ was not run. The current public script avoids terminal-encoding duplicate records by using ASCII status labels and explicit `success` flags.
 
-The Section 3.5 knowledge-only runs (`outputs/benchmark_luna_knowledge_qa_2026090*.json`, 1,590 records in eleven files) follow the same rule: statistics are computed from `success=true` records only, failed records are kept with their HTTP status, error body and request id, records whose timing includes a client-side token refresh (`auth_seconds` > 0.5 s) are kept but excluded from latency distributions, and each file carries the SHA-256 of the script that produced it. `scripts/verify_luna_readme_numbers.py` recomputes every quoted cell from these files and fails closed on any mismatch.
+The Section 3.5 knowledge-only runs (`outputs/benchmark_luna_knowledge_qa_2026090*.json`, 1,876 records in twelve files) follow the same rule: statistics are computed from `success=true` records only, failed records are kept with their HTTP status, error body and request id, records whose timing includes a client-side token refresh (`auth_seconds` > 0.5 s) are kept but excluded from latency distributions, and each file carries the SHA-256 of the script that produced it. `scripts/verify_luna_readme_numbers.py` recomputes every quoted cell from these files and fails closed on any mismatch.
 
 ### 9.5 Scripts Inventory
 
@@ -1385,7 +1399,7 @@ The Section 3.5 knowledge-only runs (`outputs/benchmark_luna_knowledge_qa_202609
 | `benchmark_3s_detective.py` | Foundry Agent + Bing, 3 scenarios × 5 models | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_AI_PROJECT_ENDPOINT`, `BING_CONNECTION_NAME` |
 | `benchmark_3s_cached.py` | Prompt caching version (1066-token system prompt) | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_AI_PROJECT_ENDPOINT`, `BING_CONNECTION_NAME` |
 | `benchmark_intent_classification.py` | Short-output intent classification cost analysis | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY` |
-| `benchmark_luna_knowledge_qa.py` | gpt-5.6 Luna / Sol / Terra vs gpt-5.4 family, knowledge-only prompts, no tools; stream + non-stream, `max_retries`, `reasoning.effort`, connection-mode and interleaved system-prompt / prompt-cache conditions; per-request request ids, `cached_tokens` and token-provider time | `--endpoint`, `--api-key` or Entra ID (`az login`), `--models`, `--queries`, `--mode`, `--max-retries`, `--conditions`, `--report-from` |
+| `benchmark_luna_knowledge_qa.py` | gpt-5.6 Luna / Sol / Terra vs gpt-5.4 family, knowledge-only prompts, no tools; stream + non-stream, `max_retries`, full `reasoning.effort`, connection-mode and interleaved prompt-cache conditions; per-request request ids, `cached_tokens`, token-provider time, TTFT, T2T and E2E | `--endpoint`, `--api-key` or Entra ID (`az login`), `--models`, `--queries`, `--mode`, `--max-retries`, `--conditions`, `--report-from` |
 | `verify_luna_readme_numbers.py` | Native gate for Section 3.5: recomputes every latency / token cell from the raw `outputs/*.json`, checks that the 2-decimal values appear on the matching README EN/CN table rows, and runs permutation tests for the cache and effort claims; exits non-zero on any mismatch | `outputs/ README.md [README-CN.md]` |
 | `stress_test_tpm_utilization.py` | Concurrent TPM utilization stress test | `--endpoint`, `--api-key`, `--concurrency`, `--total` |
 

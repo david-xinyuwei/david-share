@@ -83,6 +83,7 @@ def check_readme(readme: Path, rows: list[dict], label: str) -> int:
             "4omini-vs-56" in row["file"]
             or "terra-62s-confirm" in row["file"]
             or "aligned-effort-matrix" in row["file"]
+            or "effort-ladder-1to1" in row["file"]
         ):
             continue  # Sections 3.5.7/3.5.8 use dedicated metric-oriented gates.
         per_query = "capability-spread" in row["file"]
@@ -207,9 +208,10 @@ def check_section_357(readme: Path, outputs: Path, label: str) -> int:
 
 
 def check_section_358(readme: Path, outputs: Path, label: str) -> int:
-    """Check the fully aligned streaming matrix in Section 3.5.8."""
-    files = list(outputs.glob("*aligned-effort-matrix.json"))
-    if not files:
+    """Check the fully aligned effort / TTFT / T2T / E2E matrix in Section 3.5.8."""
+    matrix_files = list(outputs.glob("*effort-ladder-1to1.json"))
+    control_files = list(outputs.glob("*aligned-effort-matrix.json"))
+    if not matrix_files or not control_files:
         return 0
     whole = readme.read_text(encoding="utf-8")
     lines = whole.splitlines()
@@ -223,7 +225,7 @@ def check_section_358(readme: Path, outputs: Path, label: str) -> int:
         len(lines),
     )
     text = "\n".join(lines[start:end])
-    data = json.loads(files[0].read_text(encoding="utf-8"))
+    data = json.loads(matrix_files[0].read_text(encoding="utf-8"))
     records = [
         record for record in data["records"]
         if not record["warmup"]
@@ -232,9 +234,9 @@ def check_section_358(readme: Path, outputs: Path, label: str) -> int:
     ]
     failures = 0
 
-    def values(model: str, effort: str, key: str) -> list[float]:
+    def values(model: str, effort: str, key: str, rows: list[dict] = records) -> list[float]:
         return [
-            record[key] for record in records
+            record[key] for record in rows
             if record["model"] == model
             and record.get("reasoning_effort", "default") == effort
             and record.get(key) is not None
@@ -245,66 +247,80 @@ def check_section_358(readme: Path, outputs: Path, label: str) -> int:
         hit = needle in text
         if not hit:
             failures += 1
-        print(f"[{label}] {'PASS' if hit else 'FAIL'} 3.5.8 {name:<48} {needle}")
+        print(f"[{label}] {'PASS' if hit else 'FAIL'} 3.5.8 {name:<52} {needle}")
 
     cells = [
         ("gpt-4o-mini-dz", "default"),
-        ("gpt-5.4-nano", "none"),
         ("gpt-5.6-luna-datazone", "none"),
-        ("gpt-5.6-luna-datazone", "low"),
-        ("gpt-5.6-luna-datazone", "medium"),
-        ("gpt-5.6-luna-datazone", "default"),
-        ("gpt-5.6-luna", "none"),
-        ("gpt-5.6-luna", "low"),
-        ("gpt-5.6-luna", "medium"),
-        ("gpt-5.6-luna", "default"),
+        *(('gpt-5.4-nano', effort) for effort in ("none", "low", "medium", "high", "xhigh")),
+        *(('gpt-5.6-luna', effort) for effort in ("none", "low", "medium", "high", "xhigh", "max")),
     ]
     for model, effort in cells:
         ttft = values(model, effort, "ttft")
+        t2t = values(model, effort, "t2t_ms")
         e2e = values(model, effort, "e2e")
-        output = values(model, effort, "output_tokens")
         reasoning = values(model, effort, "reasoning_tokens")
-        cached = values(model, effort, "cached_tokens")
         prefix = f"{model}:{effort}"
         assert_text(f"{prefix} TTFT p50", f"{statistics.median(ttft):.3f}s")
+        assert_text(f"{prefix} T2T p50", f"{statistics.median(t2t):.2f}ms")
         assert_text(f"{prefix} E2E p50", f"{statistics.median(e2e):.3f}s")
-        assert_text(f"{prefix} output mean", f"{statistics.mean(output):.1f}")
         assert_text(f"{prefix} reasoning mean", f"{statistics.mean(reasoning):.1f}")
-        assert_text(
-            f"{prefix} cache hits",
-            f"{sum(1 for value in cached if value > 0)}/{len(cached)}",
-        )
 
-    comparisons = [
-        ("DataZone none->low TTFT", "gpt-5.6-luna-datazone", "none", "low", "ttft"),
-        ("DataZone none->low E2E", "gpt-5.6-luna-datazone", "none", "low", "e2e"),
-        ("DataZone low->medium E2E", "gpt-5.6-luna-datazone", "low", "medium", "e2e"),
-        ("DataZone medium->default TTFT", "gpt-5.6-luna-datazone", "medium", "default", "ttft"),
-        ("Global none->low E2E", "gpt-5.6-luna", "none", "low", "e2e"),
-        ("Global low->medium TTFT", "gpt-5.6-luna", "low", "medium", "ttft"),
-        ("Global medium->default E2E", "gpt-5.6-luna", "medium", "default", "e2e"),
-    ]
-    for name, model, left, right, key in comparisons:
+    # Same-effort 5.4-nano vs Luna bounds quoted below the pairwise table.
+    common = ("none", "low", "medium", "high", "xhigh")
+    ttft_ps = [permutation_p(values("gpt-5.4-nano", e, "ttft"), values("gpt-5.6-luna", e, "ttft"), 30000) for e in common]
+    t2t_ps = [permutation_p(values("gpt-5.4-nano", e, "t2t_ms"), values("gpt-5.6-luna", e, "t2t_ms"), 30000) for e in common]
+    e2e_medium_p = permutation_p(
+        values("gpt-5.4-nano", "medium", "e2e"),
+        values("gpt-5.6-luna", "medium", "e2e"),
+        30000,
+    )
+    assert_text("same-effort TTFT p-value bound", f"p <= {max(ttft_ps):.4f}")
+    assert_text("same-effort T2T p-value bound", f"p <= {max(t2t_ps):.4f}")
+    assert_text("medium E2E tie p-value", f"p = {e2e_medium_p:.4f}")
+
+    # Same-SKU 4o-mini vs Luna-none values quoted in prose.
+    for key, fmt, metric in (("ttft", ".4f", "TTFT"), ("t2t_ms", ".4f", "T2T"), ("e2e", ".4f", "E2E")):
         p_value = permutation_p(
-            values(model, left, key),
-            values(model, right, key),
-            iters=30000,
+            values("gpt-4o-mini-dz", "default", key),
+            values("gpt-5.6-luna-datazone", "none", key),
+            30000,
         )
-        assert_text(name, f"{p_value:.4f}")
+        if p_value == 0:
+            assert_text(f"4o-mini vs Luna {metric} p-value", "p < 0.0001")
+        else:
+            assert_text(f"4o-mini vs Luna {metric} p-value", f"p = {p_value:{fmt}}")
+
+    # Default == medium control comes from the prior aligned matrix.
+    control = json.loads(control_files[0].read_text(encoding="utf-8"))["records"]
+    control = [record for record in control if not record["warmup"] and record["success"]]
+    control_ps = []
+    for model in ("gpt-5.6-luna", "gpt-5.6-luna-datazone"):
+        for key in ("ttft", "e2e", "reasoning_tokens"):
+            left = values(model, "medium", key, control)
+            right = values(model, "default", key, control)
+            control_ps.append(permutation_p(left, right, 30000))
+    assert_text("default vs medium p-value floor", f"p >= {min(control_ps):.2f}")
 
     checks = [
         ("stream only", data["meta"]["modes"] == ["stream"]),
+        ("2,048 max output tokens", data["meta"]["queries"][0]["max_output_tokens"] == 2048),
         ("zero retries", data["meta"]["max_retries"] == 0),
-        ("250 effective samples", len(records) == 250),
-        ("250 unique request ids", len({record["request_id"] for record in records}) == 250),
+        ("260 effective samples", len(records) == 260),
+        ("260 unique request ids", len({record["request_id"] for record in records}) == 260),
+        ("zero failures", not any(not record["success"] for record in data["records"])),
+        ("zero incomplete responses", not any(record.get("response_status") == "incomplete" for record in data["records"])),
         ("all sanity checks pass", all(record["sanity_pass"] for record in records)),
+        ("zero auth artifacts", not any((record.get("auth_seconds") or 0) > 0.5 for record in data["records"])),
+        ("T2T formula documented", "(E2E - TTFT) / (visible_output_tokens - 1)" in text),
+        ("4o-mini effort N/A", "gpt-4o-mini | **N/A**" in text),
+        ("Luna max documented", "`max`" in text),
     ]
     for name, hit in checks:
         if not hit:
             failures += 1
         print(f"[{label}] {'PASS' if hit else 'FAIL'} 3.5.8 contract {name}")
     return failures
-
 
 def permutation_p(a: list[float], b: list[float], iters: int = 20000, seed: int = 7) -> float:
     rng = random.Random(seed)

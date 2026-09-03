@@ -512,9 +512,15 @@ def run_once(client: OpenAI, stream: bool, kwargs: dict[str, Any],
     visible = (rec["output_tokens"] or 0) - (rec["reasoning_tokens"] or 0)
     first = rec["ttft"] if stream else None
     if rec["success"] and first is not None and rec["e2e"] and rec["e2e"] > first and visible > 1:
-        rec["visible_tps"] = round(visible / (rec["e2e"] - first), 1)
+        decode_seconds = rec["e2e"] - first
+        rec["visible_tps"] = round(visible / decode_seconds, 1)
+        # T2T (inter-token latency): mean gap between consecutive visible output tokens.
+        # Reasoning tokens are emitted before the first visible token, so they sit inside TTFT
+        # and are deliberately excluded here.
+        rec["t2t_ms"] = round(decode_seconds / (visible - 1) * 1000, 2)
     else:
         rec["visible_tps"] = None
+        rec["t2t_ms"] = None
     return rec
 
 
@@ -566,6 +572,7 @@ def summarize(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
         ttft = [r["ttft"] for r in ok if r.get("ttft") is not None]
         ttfb = [r["ttfb"] for r in ok if r.get("ttfb") is not None]
         tps = [r["visible_tps"] for r in ok if r.get("visible_tps") is not None]
+        t2t = [r["t2t_ms"] for r in ok if r.get("t2t_ms") is not None]
         out_tokens = [r["output_tokens"] for r in ok if r.get("output_tokens") is not None]
         in_tokens = [r["input_tokens"] for r in ok if r.get("input_tokens") is not None]
         cached = [r["cached_tokens"] or 0 for r in ok if r.get("input_tokens") is not None]
@@ -594,6 +601,7 @@ def summarize(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "cache_hit_rate": round(sum(1 for c in cached if c > 0) / len(cached), 3) if cached else None,
             "reasoning_tokens_mean": round(statistics.mean(reasoning), 1) if reasoning else None,
             "visible_tps_p50": round(statistics.median(tps), 1) if tps else None,
+            "t2t_ms_p50": round(statistics.median(t2t), 2) if t2t else None,
             "sanity_pass_rate": round(sum(sanity) / len(sanity), 3) if sanity else None,
         })
     return summary
@@ -606,7 +614,7 @@ def fmt(value: Any, suffix: str = "") -> str:
 def print_summary(summary: list[dict[str, Any]]) -> None:
     header = (f"{'Query':<14}{'Mode':<10}{'Model':<22}{'N':>4}{'OK':>4}"
               f"{'TTFT p50':>10}{'TTFT p95':>10}{'E2E p50':>9}{'E2E p95':>9}{'E2E max':>9}"
-              f"{'>5s':>5}{'>20s':>5}{'InTok':>7}{'Cached':>7}{'OutTok':>8}{'Reason':>8}{'tok/s':>7}{'Sane':>6}{'ReqIDs':>7}{'Retry':>6}")
+              f"{'>5s':>5}{'>20s':>5}{'InTok':>7}{'Cached':>7}{'OutTok':>8}{'Reason':>8}{'tok/s':>7}{'T2Tms':>8}{'Sane':>6}{'ReqIDs':>7}{'Retry':>6}")
     print("\n" + "=" * len(header))
     print("  Knowledge-only direct latency summary (warmup excluded)")
     print("=" * len(header))
@@ -618,12 +626,12 @@ def print_summary(summary: list[dict[str, Any]]) -> None:
               f"{fmt(row['e2e'].get('p50'), 's'):>9}{fmt(row['e2e'].get('p95'), 's'):>9}{fmt(row['e2e'].get('max'), 's'):>9}"
               f"{row['over_5s']:>5}{row['over_20s']:>5}{fmt(row.get('input_tokens_mean')):>7}{fmt(row.get('cached_tokens_mean')):>7}"
               f"{fmt(row['output_tokens_mean']):>8}{fmt(row['reasoning_tokens_mean']):>8}"
-              f"{fmt(row['visible_tps_p50']):>7}{fmt(row['sanity_pass_rate']):>6}{row['unique_request_ids']:>7}{row['retries_taken_total']:>6}")
+              f"{fmt(row['visible_tps_p50']):>7}{fmt(row.get('t2t_ms_p50')):>8}{fmt(row['sanity_pass_rate']):>6}{row['unique_request_ids']:>7}{row['retries_taken_total']:>6}")
 
 
 def markdown_summary(summary: list[dict[str, Any]]) -> str:
-    lines = ["| Query | Mode | Model | N ok/total | TTFT p50 / p95 | E2E mean / p50 / p95 / max | >5s | In tok (cached) | Out tok (reasoning) | tok/s p50 | Sanity | Unique req IDs |",
-             "|---|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|"]
+    lines = ["| Query | Mode | Model | N ok/total | TTFT p50 / p95 | E2E mean / p50 / p95 / max | >5s | In tok (cached) | Out tok (reasoning) | tok/s p50 | T2T ms p50 | Sanity | Unique req IDs |",
+             "|---|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|"]
     for row in summary:
         ttft = f"{fmt(row['ttft'].get('p50'), 's')} / {fmt(row['ttft'].get('p95'), 's')}" if row["mode"] == "stream" else "n/a (non-stream)"
         e2e = row["e2e"]
@@ -633,7 +641,7 @@ def markdown_summary(summary: list[dict[str, Any]]) -> str:
             f"| {row['query']} | {row['mode']} | `{row['model']}` | {n_cell} | {ttft} | "
             f"{fmt(e2e.get('mean'), 's')} / {fmt(e2e.get('p50'), 's')} / {fmt(e2e.get('p95'), 's')} / {fmt(e2e.get('max'), 's')} | "
             f"{row['over_5s']} | {fmt(row.get('input_tokens_mean'))} ({fmt(row.get('cached_tokens_mean'))}) | "
-            f"{fmt(row['output_tokens_mean'])} ({fmt(row['reasoning_tokens_mean'])}) | {fmt(row['visible_tps_p50'])} | "
+            f"{fmt(row['output_tokens_mean'])} ({fmt(row['reasoning_tokens_mean'])}) | {fmt(row['visible_tps_p50'])} | {fmt(row.get('t2t_ms_p50'))} | "
             f"{fmt(row['sanity_pass_rate'])} | {row['unique_request_ids']} |")
     return "\n".join(lines)
 

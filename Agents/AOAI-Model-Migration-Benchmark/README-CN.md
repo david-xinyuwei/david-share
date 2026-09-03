@@ -138,7 +138,7 @@ SDK 对 web/news/classic search 支持 `ContentFormat.passage`、`text`、`html`
 | 问题 | 答案 | 位置 |
 |------|------|------|
 | Luna 慢吗？ | 不慢——25 次 streaming 请求尾部不超过 4 s，decode 五个模型中最快。 | 3.5.1 |
-| Luna 有哪些 reasoning 档位？streaming 对齐了吗？ | Luna 支持 `none`、`low`、`medium`（`minimal` 会被拒绝）；`default` 与显式 `medium` 在统计上不可区分。严格对齐轮使用同一个 prompt、缓存 system prompt、输出上限、连接和零重试策略，把 4o-mini、5.4-nano 与 Luna 四档全部放在 `stream=True` 下交错运行。 | 3.5.8 |
+| 有哪些 effort 值？TTFT/T2T 是否做了 1 对 1？ | 4o-mini 没有 effort 参数；5.4-nano 支持 `none/low/medium/high/xhigh`；Luna 支持 `none/low/medium/high/xhigh/max`。13 行全部使用同一套 `stream=True` 合同并报告 TTFT、T2T、E2E P50；单独控制轮证明 Luna default 等于 `medium`。 | 3.5.8 |
 | 15–60 s 长尾从哪来？ | 一次真实的 `429 no_capacity` 峰值负载事件叠加 SDK 默认重试，把被拒的尝试变成 15–26 s 的"成功"。 | 3.5.2、3.5.3 |
 | >1,024-token 的 system prompt（prompt caching）有帮助吗？ | 会命中（59 次中 58 次）并省钱；四个模型上命中都没有降低 TTFT。token 数以 `usage` 为准，不要离线估算。 | 3.5.6 |
 | 与 gpt-4o-mini 相比如何？`datazone` 是问题所在吗？ | gpt-4o-mini 首 token 更快（0.69 s vs 2.01 s），但完整答案更慢（5.63 s vs 3.24 s），因为 decode 慢 2.5 倍。`gpt-5.6-luna` 在 DataZoneStandard 与 GlobalStandard 上无显著差异（p ≥ 0.36）——名字里的 SKU 不是原因。 | 3.5.7 |
@@ -568,7 +568,7 @@ Non-streaming（`stream=False`，也就是一个朴素 `time.time()` 循环看�
 | gpt-5.6-terra | `low` | 1.09s / 1.36s | 3.06s / 2.77s / 4.34s / 6.15s | 216 (21) | 115 |
 | gpt-5.6-terra | `none` | 0.90s / 2.12s | 2.89s / 2.72s / 3.62s / 5.06s | 222 (0) | 122 |
 
-- gpt-5.6 接受 `reasoning.effort` = `none`、`low`、`medium`；`minimal` 会被拒绝（`400 Unsupported value`）。文档默认值为 `medium`，唯一一个显式 `medium` 样本（108 个 reasoning tokens）与默认运行（均值 102）一致。
+- 这一遍初步测试只覆盖 `none` / `low` 加 default 和一个 `medium` canary。API 的完整支持列表是 `none`、`low`、`medium`、`high`、`xhigh`、`max`；`minimal` 不支持。Section 3.5.8 用同一时间窗的完整矩阵替代本节口径；另一个对齐控制轮证明 default 与显式 `medium` 统计上不可区分。
 - **effort 相同时，三个变体的 TTFT 一致（p50 0.90–1.00 s），而 Luna 的 E2E 最快**（p50 2.24 s），因为它的 decode 约 169 tok/s，Terra 122，Sol 69。
 - 在 Luna 上，默认 → `low` → `none` 每一步大约减少 0.7 s TTFT（2.04 → 1.36 → 0.92 s；中位数置换检验，`none` vs `low` p = 0.0006，`none` vs 默认 p < 0.0001）。对延迟敏感的知识问答，请显式设置 `reasoning={"effort": "none"}`（或 `low`），不要依赖默认值。
 
@@ -711,64 +711,78 @@ B 轮里有六个请求在响应头到达前等了 2.7–4.3 s，横跨三个池
 
 > 数据文件：`outputs/benchmark_luna_knowledge_qa_20260902_130423_4omini-vs-56-datazone-vs-global.json`（324 条，6 个部署 × stream + non-stream × 25 样本；含一条 1,775 s 的客户端 `APIConnectionError`——本机网络断连，记为失败并排除在统计外）与 `outputs/benchmark_luna_knowledge_qa_20260902_142457_terra-62s-confirm.json`（66 条，干净窗口确认）。第一轮落在劣化窗口内：因为所有部署逐请求交错，轮内比较仍然成立，但它的绝对值高于干净窗口，不应单独引用。
 
-#### 3.5.8 严格对齐矩阵：Luna 全部 reasoning 档位 vs gpt-4o-mini / gpt-5.4-nano
+#### 3.5.8 严格 1 对 1 矩阵：推理强度、TTFT、T2T 与 E2E P50
 
-这是前面各轮缺失的严格对比。**`nano` 不是 Luna 的 reasoning 档位**：`gpt-5.4-nano` 是独立模型。Luna 支持 `reasoning.effort = none / low / medium`；`minimal` 会返回 HTTP 400。这里额外保留 `default` 作为第四个 Luna cell，只为验证它是否真的等价于显式 `medium`。
+这才是回答“哪个模型更快”应使用的对比合同。它补上前一版的两个缺口：完整推理强度范围，以及 **T2T（token 间延迟）**，而不再只给总体吞吐。
 
-下面每个 cell 使用完全相同的合同：
+先把各模型的设置口径分清：
+
+| 模型 | 支持的 `reasoning.effort` | 本矩阵如何标注 |
+|---|---|---|
+| gpt-4o-mini | **N/A**——发送 `reasoning.effort` 会返回 HTTP 400 `unsupported_parameter` | 一行基线，不发送 effort 参数 |
+| gpt-5.4-nano | `none`、`low`、`medium`、`high`、`xhigh`；`minimal` 不支持 | 五个显式档位全部测 |
+| gpt-5.6-luna | `none`、`low`、`medium`、`high`、`xhigh`、`max`；`minimal` 不支持 | 六个显式档位全部测 |
+
+另一个同样对齐的控制轮测了 Luna `default`：两个 SKU 上，default 与显式 `medium` 的 TTFT、E2E、reasoning token 数均不可区分（全部 p >= 0.22）。因此主表只放显式档位，不再把 default 当成独立强度。
+
+##### 每个 cell 使用同一套合同
 
 | 变量 | 固定值 |
 |---|---|
 | User prompt | `What are the seven wonders of the world?` |
-| System prompt | 完全相同的 1,202-input-token `guardrails-long` 前缀（可命中 prompt cache） |
-| API / streaming | Responses API v1，**`stream=True`**；TTFT = 首个 `response.output_text.delta`，E2E = stream 完成 |
-| 输出 / 重试 / 连接 | `max_output_tokens=1024`、`max_retries=0`、一个共享 HTTPS client |
-| 调度 | 每轮 round-robin 交错——模型和 effort 共享同一分钟 |
-| 样本量 | 每 cell 27 轮，丢弃前 2 轮 warmup → **每格 25 个有效样本，共 250 个**；0 失败，250 个唯一 request ID |
-| 执行面 | 同一资源和区域；4o-mini 与 Luna DataZone 同为 DataZoneStandard，5.4-nano 与 Luna Global 同为 GlobalStandard |
+| System prompt | 完全相同的 `guardrails-long` 前缀（Luna / 5.4-nano 为 1,202 输入 token，4o-mini 因 tokenizer 不同为 1,203），可命中 prompt cache |
+| API / streaming | Responses API v1，**260 个有效请求全部 `stream=True`** |
+| 输出 / 重试 / 连接 | `max_output_tokens=2048`、`max_retries=0`、一个共享 HTTPS client |
+| 调度 | 每轮 round-robin 交错；所有模型和档位共享同一分钟 |
+| 样本量 | 每 cell 22 轮，丢弃前 2 轮 warmup -> **每格 20 个有效样本，13 格 / 共 260 个**；0 失败、0 incomplete、260 个唯一 request ID、260/260 sanity check 通过 |
+| 执行面 | DataZone：4o-mini vs Luna `none`；GlobalStandard：5.4-nano 五档 vs Luna 六档 |
 
-##### DataZoneStandard：gpt-4o-mini vs Luna 全档
+**指标定义**
 
-| 模型 / effort | TTFT p50 | E2E p50 | 输出 tokens | Reasoning tokens | Cache hits |
-|---|---:|---:|---:|---:|---:|
-| **gpt-4o-mini** | **0.665s** | 2.671s | 187.3 | 0.0 | 23/25 |
-| **Luna `none`** | 0.803s | **1.844s** | 139.6 | 0.0 | 25/25 |
-| Luna `low` | 1.077s | 2.497s | 175.7 | 20.3 | 25/25 |
-| Luna `medium` | 1.916s | 2.996s | 217.4 | 72.3 | 25/25 |
-| Luna `default` | 1.855s | 2.917s | 229.3 | 77.6 | 25/25 |
+- **TTFT**：请求开始到首个 `response.output_text.delta` 事件。
+- **T2T**：先计算每个请求的可见 token 平均间隔，再对 20 个请求取 P50：`(E2E - TTFT) / (visible_output_tokens - 1) x 1000 ms`。Reasoning tokens 发生在首个可见 token 之前，因此属于 TTFT，不计入 T2T。
+- **E2E**：请求开始到 stream 完成。除“reasoning tokens mean”列外，下表全部是 P50。
 
-同为 DataZoneStandard，4o-mini 首 token 比 Luna `none` 快 0.138 s（p = 0.0003），但 Luna `none` 完成答案快 0.827 s（p < 0.0001）。System prompt 内容完全相同；4o-mini 报告 1,203 个输入 token、Luna 1,202 个，差异来自模型 tokenizer。
+##### 完整矩阵（P50，每行 20 个样本）
 
-##### GlobalStandard：gpt-5.4-nano vs Luna 全档
+| 执行面 | 模型 | 推理强度 | Reasoning tokens mean | TTFT p50 | T2T p50 | E2E p50 |
+|---|---|---:|---:|---:|---:|---:|
+| DataZone | gpt-4o-mini | **N/A** | 0.0 | **0.669s** | 10.67ms | 2.707s |
+| DataZone | gpt-5.6-luna | `none` | 0.0 | 0.763s | **7.63ms** | **1.873s** |
+| Global | gpt-5.4-nano | `none` | 0.0 | **0.724s** | 10.69ms | 2.349s |
+| Global | gpt-5.4-nano | `low` | 0.0 | **0.949s** | 17.40ms | 3.481s |
+| Global | gpt-5.4-nano | `medium` | 0.0 | **0.924s** | 11.79ms | **2.414s** |
+| Global | gpt-5.4-nano | `high` | 5.9 | **0.745s** | 11.51ms | **2.147s** |
+| Global | gpt-5.4-nano | `xhigh` | 169.5 | 2.474s | 11.66ms | 3.952s |
+| Global | gpt-5.6-luna | `none` | 0.0 | 0.935s | **5.88ms** | **1.785s** |
+| Global | gpt-5.6-luna | `low` | 31.4 | 1.286s | **6.01ms** | **2.199s** |
+| Global | gpt-5.6-luna | `medium` | 71.6 | 1.706s | **6.33ms** | 2.638s |
+| Global | gpt-5.6-luna | `high` | 132.4 | 2.065s | **5.46ms** | 2.883s |
+| Global | gpt-5.6-luna | `xhigh` | 162.2 | **2.133s** | **5.53ms** | **2.880s** |
+| Global | gpt-5.6-luna | `max` | 241.8 | 3.010s | 6.09ms | 3.778s |
 
-| 模型 / effort | TTFT p50 | E2E p50 | 输出 tokens | Reasoning tokens | Cache hits |
-|---|---:|---:|---:|---:|---:|
-| **gpt-5.4-nano `none`** | **0.777s** | 2.171s | 128.0 | 0.0 | 25/25 |
-| **Luna `none`** | 0.933s | **1.922s** | 147.6 | 0.0 | 25/25 |
-| Luna `low` | 1.281s | 2.281s | 173.4 | 24.6 | 25/25 |
-| Luna `medium` | 1.622s | 2.477s | 207.7 | 67.0 | 25/25 |
-| Luna `default` | 1.760s | 2.665s | 220.8 | 74.8 | 25/25 |
+粗体表示每个有效 1 对 1 配对里更低的延迟：DataZone 的 4o-mini vs Luna `none`，或 Global 的 5.4-nano vs Luna 同档。Luna `max` 没有 5.4-nano 对应档位。
 
-同为 GlobalStandard，5.4-nano 首 token 比 Luna `none` 快 0.156 s（p = 0.0003），但 Luna `none` 完成答案快 0.249 s（p = 0.0234）。
+##### GlobalStandard 同档 1 对 1 P50：5.4-nano vs Luna
 
-##### Effort 阶梯证明了什么
+| 推理强度 | TTFT p50（nano / Luna） | TTFT 胜出 | T2T p50（nano / Luna） | T2T 胜出 | E2E p50（nano / Luna） | E2E 胜出 |
+|---|---:|---|---:|---|---:|---|
+| `none` | 0.724 / 0.935s | nano | 10.69 / **5.88ms** | **Luna** | 2.349 / **1.785s** | **Luna** |
+| `low` | 0.949 / 1.286s | nano | 17.40 / **6.01ms** | **Luna** | 3.481 / **2.199s** | **Luna** |
+| `medium` | 0.924 / 1.706s | nano | 11.79 / **6.33ms** | **Luna** | 2.414 / 2.638s | 持平（p = 0.1178） |
+| `high` | 0.745 / 2.065s | nano | 11.51 / **5.46ms** | **Luna** | **2.147** / 2.883s | nano |
+| `xhigh` | 2.474 / **2.133s** | **Luna** | 11.66 / **5.53ms** | **Luna** | 3.952 / **2.880s** | **Luna** |
 
-| Luna 执行面 | 变化 | TTFT p50 | TTFT p | E2E p50 | E2E p |
-|---|---|---:|---:|---:|---:|
-| DataZone | `none → low` | 0.803 → 1.077s | 0.0019 | 1.844 → 2.497s | 0.0009 |
-| DataZone | `low → medium` | 1.077 → 1.916s | <0.0001 | 2.497 → 2.996s | 0.0343 |
-| DataZone | `medium → default` | 1.916 → 1.855s | 0.7467 | 2.996 → 2.917s | 1.0000 |
-| Global | `none → low` | 0.933 → 1.281s | <0.0001 | 1.922 → 2.281s | 0.0052 |
-| Global | `low → medium` | 1.281 → 1.622s | 0.0015 | 2.281 → 2.477s | 0.0424 |
-| Global | `medium → default` | 1.622 → 1.760s | 0.4357 | 2.477 → 2.665s | 0.2224 |
+五个同档的 TTFT 差异均显著（p <= 0.0354）。Luna 每一档 T2T 都更低（p <= 0.0009）：可见 token 间隔为 5.46-6.33ms，nano 为 10.69-17.40ms。E2E 在 `none`、`low`、`xhigh` 上 Luna 更快；`high` 上 nano 更快；`medium` 无法区分。
 
-两种 SKU 上都成立的三个结论：
+##### 各档实际做了什么
 
-1. **`none`、`low`、`medium` 是真实可分的延迟档位。** 每相邻一个显式档位，TTFT 都显著增加；E2E 也显著增加。
-2. **`default` 在实用意义上就是 `medium`。** 两个 SKU 上，显式 `medium` 与 default 的 TTFT、E2E、reasoning token 数均不可区分（全部 p ≥ 0.22；reasoning token p ≥ 0.41）。
-3. **对这类纯知识问题，`none` 是正确的低延迟设置。** 250 个答案全部通过同一个 sanity check；额外 reasoning 没带来可观测的正确性收益，却增加 0.35–1.11 s TTFT 和 0.36–1.15 s E2E。这个质量结论只适用于这批简单问题，不能外推到困难推理任务。
+- **Luna 是真实单调的 reasoning 阶梯。** 从 `none` 到 `max`，平均 reasoning tokens 为 0.0 -> 31.4 -> 71.6 -> 132.4 -> 162.2 -> 241.8；TTFT 从 0.935s 升到 3.010s。T2T 始终收敛在 5.46-6.33ms：effort 改变的是首 token 之前的思考时间，不是可见 token 的 decode 速度。这个 prompt 上 `high` 与 `xhigh` 进入延迟平台；`max` 再增加 0.88s TTFT。
+- **5.4-nano 的配置档位不等于这道简单题上实际发生的 reasoning。** `none`、`low`、`medium` 在 20/20 请求中都是 0 reasoning token；`high` 只有 3/20 真正产生 reasoning（均值 5.9）；只有 `xhigh` 20/20 都 reasoning（均值 169.5）。因此它的延迟不是干净的单调阶梯。报告时必须同时标“配置 effort”和“实际 reasoning tokens”。
+- **4o-mini 不能标成 `none`。** 它根本没有 reasoning-effort 接口；唯一正确标签是 `N/A`。同一 DataZone 合同下，4o-mini 比 Luna `none` 早 0.094s 出首 token（p = 0.0052），但 Luna T2T 低 28%（7.63 vs 10.67ms，p < 0.0001），完整答案快 0.834s（p = 0.0001）。
+- **对这类简单知识问题**，Luna `none` 以 0 reasoning token 得到最低 E2E。该结论不能外推到困难推理任务；困难任务需要带质量评分的数据集，不能用“七大奇迹”sanity check 判断。
 
-> 数据文件：`outputs/benchmark_luna_knowledge_qa_20260903_023941_aligned-effort-matrix.json`（270 条，含 warmup；运行时脚本 SHA-256 `2070ba01bc1f34e8853f9bc32ba833b5bfea0773ad0d0a9c95f9756ac0250a3c`）。
+> 数据文件：`outputs/benchmark_luna_knowledge_qa_20260903_050804_effort-ladder-1to1.json`（286 条，含 warmup；13 格 x 每格 20 个有效样本；运行时脚本 SHA-256 `958a0570cd3708d5eb2fd031a7d1be93948281495c694680eff4da7ddd03723d`）。default-vs-medium 控制结果仍在 `outputs/benchmark_luna_knowledge_qa_20260903_023941_aligned-effort-matrix.json`。
 
 #### 结论与建议
 
@@ -780,7 +794,7 @@ B 轮里有六个请求在响应头到达前等了 2.7–4.3 s，横跨三个池
 6. **`gpt-4o-mini` 仍是首 token 最快、完整答案最慢的那一个。** 与 5.6 系列同窗实测：TTFT p50 0.69 s（与 3 月测量一致），但 E2E p50 5.63 s，Luna 是 3.24 s，因为它的 decode 只有 59 tok/s 而 Luna 是 147。按产品真正呈现给用户的那个指标来选型。
 7. **部署名不是 SKU 诊断，而且 SKU 不是问题所在。** `gpt-5.6-luna` 在 GlobalStandard 与 DataZoneStandard 上同分钟交错实测，TTFT 与 E2E 均无显著差异（p ≥ 0.36）。从 ARM 读出部署真实的 SKU、区域和容量，然后去看该池的负载，而不是去看名字里的那个词。
 8. **警惕 ~62 秒的服务端持有。** 在一个模型池上，28% 的请求在 5 秒内返回响应头、首 token 出现在 62.16 s ± 0.96 s——HTTP 200、零重试、答案正确——而同资源上另外五个部署全程不超过 60 秒。因此客户 trace 里接近 62 秒的异常值是一个应当带着 request id 上报的服务端签名，不是客户端 bug 的证据。
-9. **必须在一套 streaming 合同下比较 Luna 显式档位。** `none`、`low`、`medium` 是三个不同档位；`default` 就是 medium。这个任务上 Luna `none` 的 TTFT 略慢于两个同 SKU 基线（4o-mini、5.4-nano），但 E2E 更快。不要把 `nano` 叫作 Luna 档位，也不要拿不同 prompt、system prompt、streaming、retry 策略或时间窗的数字直接相减。
+9. **必须在一套 streaming 合同下比较完整 effort surface。** 4o-mini 是 `N/A`；5.4-nano 有五个显式档位；Luna 有六个，default 等于 `medium`。配置 effort、实际 reasoning tokens、TTFT P50、T2T P50、E2E P50 必须一起报告。这个任务上 Luna 每个同档的可见 token decode 都约比 nano 快 2 倍，但 TTFT 与 E2E 谁胜出取决于 effort。
 
 > 数据文件（git-ignored，可追溯 ledger）：`outputs/benchmark_luna_knowledge_qa_20260902_040020_seven-wonders-5models.json`（270 条）、`outputs/benchmark_luna_knowledge_qa_20260902_042339_sol-sdk-default-retries.json`（10 条）、`outputs/benchmark_luna_knowledge_qa_20260902_042728_effort-ladder-5.6.json`（102 条）、`outputs/benchmark_luna_knowledge_qa_20260902_043401_capability-spread.json`（140 条）、`outputs/benchmark_luna_knowledge_qa_20260902_0620*_sysprompt-*.json`（3 × 68 条，顺序第一遍）、`outputs/benchmark_luna_knowledge_qa_20260902_072950_sysprompt-interleaved.json`（204 条），以及 3.5.7–3.5.8 各自列出的文件。所有数字都包含跨洲网络 RTT；同 region 客户端的绝对 TTFT 会更低，但相对关系不变。
 
@@ -1373,7 +1387,7 @@ Public repo 不包含逐请求 raw JSON 文件；这些文件保留在 private s
 
 后续数据完整性规则：任何 web-grounded benchmark 表只要报告 S4，就必须同时报告匹配的 S5 WebIQ 结果，或者明确说明为什么没有运行 WebIQ。当前 public script 使用 ASCII 状态标签和显式 `success` 字段，避免终端编码导致重复 failure records。
 
-Section 3.5 的知识型直连运行（`outputs/benchmark_luna_knowledge_qa_2026090*.json`，11 个文件共 1,590 条记录）遵循同样的规则：统计只用 `success=true` 的记录，失败记录连同 HTTP 状态、错误体和 request id 一起保留，计时中包含客户端 token 刷新的记录（`auth_seconds` > 0.5 s）保留但不进入延迟分布，每个文件都带有生成它的脚本 SHA-256。`scripts/verify_luna_readme_numbers.py` 从这些文件重算每一个被引用的单元格，任一不符即 fail closed。
+Section 3.5 的知识型直连运行（`outputs/benchmark_luna_knowledge_qa_2026090*.json`，12 个文件共 1,876 条记录）遵循同样的规则：统计只用 `success=true` 的记录，失败记录连同 HTTP 状态、错误体和 request id 一起保留，计时中包含客户端 token 刷新的记录（`auth_seconds` > 0.5 s）保留但不进入延迟分布，每个文件都带有生成它的脚本 SHA-256。`scripts/verify_luna_readme_numbers.py` 从这些文件重算每一个被引用的单元格，任一不符即 fail closed。
 
 ### 9.5 脚本清单
 
@@ -1385,7 +1399,7 @@ Section 3.5 的知识型直连运行（`outputs/benchmark_luna_knowledge_qa_2026
 | `benchmark_3s_detective.py` | Foundry Agent + Bing，3 场景 × 5 模型 | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_AI_PROJECT_ENDPOINT`, `BING_CONNECTION_NAME` |
 | `benchmark_3s_cached.py` | Prompt Caching 版本（1066-token 系统提示词） | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_AI_PROJECT_ENDPOINT`, `BING_CONNECTION_NAME` |
 | `benchmark_intent_classification.py` | 短输出意图分类成本分析 | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY` |
-| `benchmark_luna_knowledge_qa.py` | gpt-5.6 Luna / Sol / Terra vs gpt-5.4 系列，知识型 prompt、无工具；stream + non-stream，`max_retries`、`reasoning.effort`、连接模式，以及逐轮交错的 system prompt / prompt cache 条件；逐请求 request id、`cached_tokens` 与 token provider 耗时 | `--endpoint`，`--api-key` 或 Entra ID（`az login`），`--models`, `--queries`, `--mode`, `--max-retries`, `--conditions`, `--report-from` |
+| `benchmark_luna_knowledge_qa.py` | gpt-5.6 Luna / Sol / Terra vs gpt-5.4 系列，知识型 prompt、无工具；stream + non-stream，`max_retries`、完整 `reasoning.effort`、连接模式与逐轮交错的 prompt cache 条件；逐请求 request id、`cached_tokens`、token provider 耗时、TTFT、T2T 与 E2E | `--endpoint`，`--api-key` 或 Entra ID（`az login`），`--models`, `--queries`, `--mode`, `--max-retries`, `--conditions`, `--report-from` |
 | `verify_luna_readme_numbers.py` | Section 3.5 的原生 gate：从原始 `outputs/*.json` 重算每个延迟 / token 单元格，核对两位小数值出现在 README EN/CN 对应表格行上，并对缓存与 effort 结论做置换检验；任一不符即非零退出 | `outputs/ README.md [README-CN.md]` |
 | `stress_test_tpm_utilization.py` | 并发 TPM 利用率压测 | `--endpoint`, `--api-key`, `--concurrency`, `--total` |
 
