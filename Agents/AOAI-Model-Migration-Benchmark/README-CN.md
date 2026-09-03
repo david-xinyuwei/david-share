@@ -781,6 +781,21 @@ B 轮里有六个请求在响应头到达前等了 2.7–4.3 s，横跨三个池
 
 **本轮内的尾部（描述性，相同设置，每 cell n = 20）。** 本轮没有任何请求超过 15s。最大 TTFT 与最大 E2E 都属于 5.4-nano `xhigh`（10.562s，484 个 reasoning token；13.838s）；Luna 最大 TTFT 是 DataZone `high` 的 6.996s，4o-mini 是 1.491s。因此本窗口内的多秒级离群值并非 Luna 独有，但每 cell 只有 20 个样本，这些最大值只是个案，不是尾部估计。
 
+##### 缓存未命中敏感性：同一提示词，有缓存 vs 永不缓存
+
+上表中低于 20/20 的缓存命中不是"第一次提问"效应。两次 warmup 之后，平衡轮 420 个请求里有 5 个在第 3、10、12、13 轮未命中（4o-mini 两次，5.4-nano 三次），Luna 则 280 次全部命中。Azure prompt caching 是尽力而为的：[文档](https://learn.microsoft.com/azure/foundry/openai/how-to/prompt-caching)明确写到同一前缀的请求也可能未命中；而且未命中本身在这里并不昂贵（下方这一轮的 4 个非 warmup 未命中请求 TTFT 为 0.74–1.50s，对应命中中位数 0.87–0.98s）。为证明命中率不驱动比较结论，把四个 `none` 类 cell 在每一轮内交错两种条件重跑：完全相同的可缓存前缀，以及在同一前缀前加唯一 nonce、使其永远无法命中缓存（`--conditions guardrails-long,guardrails-long+bust`）。22 轮、2 次 warmup、balanced seed `20260903`，160 个有效 stream 请求，0 失败，160 个唯一 request id。
+
+| 模型 | 配置 Effort | 缓存命中 有缓存 / 永不缓存 | TTFT P50 有缓存 | TTFT P50 永不缓存 | TTFT p（有缓存 vs 永不缓存） | 有缓存更快（轮数） | Derived TPOT P50 有缓存 / 永不缓存 | E2E P50 有缓存 / 永不缓存 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| gpt-4o-mini（DataZone） | **N/A** | 17/20 / 0/20 | 0.891s | 0.889s | 0.991 | 12/20 | 15.04 / 15.27ms | 4.096 / 4.009s |
+| gpt-5.6-luna（DataZone） | `none` | 20/20 / 0/20 | 0.974s | 1.031s | 0.399 | 12/20 | 11.08 / 11.02ms | 2.486 / 2.387s |
+| gpt-5.4-nano（Global） | `none` | 19/20 / 0/20 | 0.970s | 1.031s | 0.207 | 12/20 | 14.04 / 11.36ms | 2.679 / 2.394s |
+| gpt-5.6-luna（Global） | `none` | 20/20 / 0/20 | 1.528s | 1.348s | 0.283 | 9/20 | 10.44 / 9.91ms | 2.633 / 2.627s |
+
+每个模型内部，有缓存与永不缓存的 TTFT P50 差异为 0.002–0.180s、方向不一，且均不显著（p = 0.207–0.991；有缓存更快的轮数为 20 轮中的 9–12 轮）；derived TPOT 与 E2E 也没有变化。在永不缓存条件下，跨模型格局不变：4o-mini vs Luna `none` TTFT 0.889 vs 1.031s（p = 0.119，无稳健胜者），derived TPOT 15.27 vs 11.02ms（p = 0.006）与 E2E 4.009 vs 2.387s（p = 0.005）均利于 Luna；GlobalStandard 上 5.4-nano `none` vs Luna `none` TTFT 1.031 vs 1.348s（p < 0.001，nano 更早），derived TPOT 11.36 vs 9.91ms（p = 0.246），E2E 2.394 vs 2.627s（p = 0.339）。这 11 分钟窗口（12:57–13:08 UTC）对所有模型都比 11:30 UTC 窗口更慢——160 个请求中 26 个 E2E 超过 5s（4o-mini 9/40，Luna DataZone 7/40，5.4-nano 4/40，Luna GlobalStandard 6/40），最大 E2E 为 Luna GlobalStandard 的 12.16s（decode 仅 17 tok/s），4o-mini 也达到 8.02s——因此其绝对值不可单独引用，表格支持的是轮内比较。对这四个模型、这个提示词而言，prompt caching 是成本杠杆而不是延迟杠杆，上文的胜负不依赖命中率。
+
+> 数据：`outputs/benchmark_luna_knowledge_qa_20260903_125706_cache-bust-none-4omini.json`（176 条，含 warmup；8 cells x 20 有效样本）。
+
 ##### 多重检验与 iteration 配对后的保守 1 对 1 结论
 
 只有当 (a) Holm 校正后的中位数置换检验，及 (b) Holm 校正后的 iteration 配对方向检验支持同一方向时，才判“胜出”；否则标不确定。
@@ -806,7 +821,7 @@ B 轮里有六个请求在响应头到达前等了 2.7–4.3 s，横跨三个池
 
 #### 结论与建议
 
-1. **Luna 本身不慢。** 25+25 次 `max_retries=0` 请求中，Luna 的 E2E 在 streaming 下不超过 3.9 s、non-streaming 下不超过 8.8 s，decode 是五个模型中最快的。它较高的默认 TTFT 来自 reasoning effort——一个请求参数，不是模型速度。全部 13 个数据文件（2,338 条）中，两个 Luna 部署共 1,026 次请求完成 1,025 次；唯一的失败是 3.5.6 中记录的那条 1,775 s 客户端连接错误。成功请求里 Luna 最大 TTFT 为 10.65 s（`default` 档，9 月 2 日交错轮），最大 E2E 为 14.26 s（9 月 2 日劣化窗口，同窗 4o-mini 也出现 7.61 s TTFT 与 15.18 s E2E）；显式 `none` 档的 159 次 Luna 请求从未超过 2.98 s TTFT 或 5.76 s E2E。
+1. **Luna 本身不慢。** 25+25 次 `max_retries=0` 请求中，Luna 的 E2E 在 streaming 下不超过 3.9 s、non-streaming 下不超过 8.8 s，decode 是五个模型中最快的。它较高的默认 TTFT 来自 reasoning effort——一个请求参数，不是模型速度。全部 14 个数据文件（2,514 条）中，两个 Luna 部署共 1,114 次请求完成 1,113 次；唯一的失败是 3.5.6 中记录的那条 1,775 s 客户端连接错误。成功请求里 Luna 最大 TTFT 为 10.65 s（`default` 档，9 月 2 日交错轮），最大 E2E 为 14.26 s（9 月 2 日劣化窗口，同窗 4o-mini 也出现 7.61 s TTFT 与 15.18 s E2E）；显式 `none` 档的 247 次 Luna 请求从未超过 6.26 s TTFT 或 12.16 s E2E，这两个极值都落在 12:57 UTC 那个偏慢的缓存敏感性窗口里，同窗 4o-mini 也达到 8.02 s E2E。
 2. **简单循环里的 15–60 s 长尾是"服务端持有 + 重试"的签名。** 负载高时服务会把请求持有或拒绝数秒到一分钟（观测到 16.7 s、19.5 s、62.5 s 的零重试"成功"），SDK 默认的两次退避重试再把被拒的尝试变成 15–26 s 的"成功"调用。这些事件都没有触及同一资源上的其他模型池。
 3. **先度量再下结论。** 设置 `max_retries=0`；对每次调用记录 `x-request-id`、HTTP 状态、`retries_taken`、`retry-after`、usage 与 `response.status`；用 `stream=True` 分别度量 TTFT 与 E2E；给 token provider 计时（`auth_seconds`），凭据刷新永远不要记在模型延迟上；被比较的模型*和条件*在同一时段交错运行；部署的 SKU、region、model version 从 ARM 读取，不要从部署名称推断。
 4. **容量手段。** `no_capacity` 不是 TPM 配额限制。可选项是 PTU（错误文本本身就在推荐）加 PAYGO spillover、换 SKU/region 池，以及 APIM 主动路由（Section 7），让峰值负载拒绝永远到不了用户路径。
@@ -1407,7 +1422,7 @@ Public repo 不包含逐请求 raw JSON 文件；这些文件保留在 private s
 
 后续数据完整性规则：任何 web-grounded benchmark 表只要报告 S4，就必须同时报告匹配的 S5 WebIQ 结果，或者明确说明为什么没有运行 WebIQ。当前 public script 使用 ASCII 状态标签和显式 `success` 字段，避免终端编码导致重复 failure records。
 
-Section 3.5 的知识型直连运行（`outputs/benchmark_luna_knowledge_qa_2026090*.json`，13 个文件共 2,338 条记录）遵循同样的规则：统计只用 `success=true` 的记录，失败记录连同 HTTP 状态、错误体和 request id 一起保留，计时中包含客户端 token 刷新的记录（`auth_seconds` > 0.5 s）保留但不进入延迟分布，每个文件都带有生成它的脚本 SHA-256。`scripts/verify_luna_readme_numbers.py` 从这些文件重算每一个被引用的单元格，任一不符即 fail closed。
+Section 3.5 的知识型直连运行（`outputs/benchmark_luna_knowledge_qa_2026090*.json`，14 个文件共 2,514 条记录）遵循同样的规则：统计只用 `success=true` 的记录，失败记录连同 HTTP 状态、错误体和 request id 一起保留，计时中包含客户端 token 刷新的记录（`auth_seconds` > 0.5 s）保留但不进入延迟分布，每个文件都带有生成它的脚本 SHA-256。`scripts/verify_luna_readme_numbers.py` 从这些文件重算每一个被引用的单元格，任一不符即 fail closed。
 
 ### 9.5 脚本清单
 

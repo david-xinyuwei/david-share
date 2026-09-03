@@ -86,6 +86,7 @@ def check_readme(readme: Path, rows: list[dict], label: str) -> int:
             or "aligned-effort-matrix" in row["file"]
             or "effort-ladder-1to1" in row["file"]
             or "final-balanced-effort-t2t" in row["file"]
+            or "cache-bust-none-4omini" in row["file"]
         ):
             continue  # Sections 3.5.7/3.5.8 use dedicated metric-oriented gates.
         per_query = "capability-spread" in row["file"]
@@ -337,6 +338,95 @@ def check_section_358(readme: Path, outputs: Path, label: str) -> int:
     return failures
 
 
+def check_cache_bust_358(readme: Path, outputs: Path, label: str) -> int:
+    """Check the cached vs never-cached sensitivity table in Section 3.5.8."""
+    files = list(outputs.glob("*cache-bust-none-4omini.json"))
+    if not files:
+        return 0
+    whole = readme.read_text(encoding="utf-8")
+    lines = whole.splitlines()
+    start = next((i for i, line in enumerate(lines) if line.startswith("#### 3.5.8 ")), None)
+    if start is None:
+        return 1
+    end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("#### ") and not lines[i].startswith("#### 3.5.8")), len(lines))
+    text = "\n".join(lines[start:end])
+    data = json.loads(files[0].read_text(encoding="utf-8"))
+    records = [r for r in data["records"] if not r["warmup"] and r["success"] and (r.get("auth_seconds") or 0) <= 0.5]
+    failures = 0
+
+    def assert_text(name: str, needle) -> None:
+        nonlocal failures
+        needles = (needle,) if isinstance(needle, str) else tuple(needle)
+        hit = any(n in text for n in needles)
+        if not hit:
+            failures += 1
+        print(f"[{label}] {'PASS' if hit else 'FAIL'} 3.5.8-cache {name:<50} {' | '.join(needles)}")
+
+    cached, bust = "guardrails-long", "guardrails-long+bust"
+
+    def rows(model: str, cond: str) -> list[dict]:
+        return [r for r in records if r["model"] == model and r["condition"] == cond]
+
+    models = ["gpt-4o-mini-dz", "gpt-5.6-luna-datazone", "gpt-5.4-nano", "gpt-5.6-luna"]
+    diffs, ps, wins_all, miss_ttft, hit_medians = [], [], [], [], []
+    for m in models:
+        a, b = rows(m, cached), rows(m, bust)
+        hits_a = sum((r.get("cached_tokens") or 0) > 0 for r in a)
+        hits_b = sum((r.get("cached_tokens") or 0) > 0 for r in b)
+        ta, tb = [r["ttft"] for r in a], [r["ttft"] for r in b]
+        p = permutation_p(ta, tb)
+        by_a = {r["iteration"]: r["ttft"] for r in a}
+        by_b = {r["iteration"]: r["ttft"] for r in b}
+        wins = sum(by_a[i] < by_b[i] for i in by_a if i in by_b)
+        row = (f"| {hits_a}/20 / {hits_b}/20 | {statistics.median(ta):.3f}s | {statistics.median(tb):.3f}s | {p:.3f} | {wins}/20 | "
+               f"{statistics.median(r['t2t_ms'] for r in a):.2f} / {statistics.median(r['t2t_ms'] for r in b):.2f}ms | "
+               f"{statistics.median(r['e2e'] for r in a):.3f} / {statistics.median(r['e2e'] for r in b):.3f}s |")
+        assert_text(f"{m} row", row)
+        diffs.append(abs(statistics.median(ta) - statistics.median(tb))); ps.append(p); wins_all.append(wins)
+        misses = [r["ttft"] for r in a if (r.get("cached_tokens") or 0) == 0]
+        miss_ttft += misses
+        if misses:  # hit medians are quoted only for the models that actually missed
+            hit_medians.append(statistics.median(r["ttft"] for r in a if (r.get("cached_tokens") or 0) > 0))
+    assert_text("TTFT diff range", (f"{min(diffs):.3f}–{max(diffs):.3f}s", f"{min(diffs):.3f}-{max(diffs):.3f}s"))
+    assert_text("p range", (f"p = {min(ps):.3f}–{max(ps):.3f}", f"p = {min(ps):.3f}-{max(ps):.3f}"))
+    assert_text("cached-faster range", (f"{min(wins_all)}–{max(wins_all)} of 20", f"{min(wins_all)}–{max(wins_all)} 轮"))
+    assert_text("miss TTFT range", f"{min(miss_ttft):.2f}–{max(miss_ttft):.2f}s")
+    assert_text("hit median range", f"{min(hit_medians):.2f}–{max(hit_medians):.2f}s")
+
+    def cross(x: str, y: str, key: str, fmt: str) -> tuple[str, float]:
+        a = [r[key] for r in rows(x, bust)]
+        b = [r[key] for r in rows(y, bust)]
+        return f"{statistics.median(a):{fmt}} vs {statistics.median(b):{fmt}}", permutation_p(a, b)
+
+    for x, y, tag in (("gpt-4o-mini-dz", "gpt-5.6-luna-datazone", "4o-mini vs Luna"), ("gpt-5.4-nano", "gpt-5.6-luna", "nano vs Luna")):
+        for key, fmt, unit in (("ttft", ".3f", "s"), ("t2t_ms", ".2f", "ms"), ("e2e", ".3f", "s")):
+            val, p = cross(x, y, key, fmt)
+            ptxt = f"p = {p:.3f}" if p >= 0.001 else "p < 0.001"
+            assert_text(f"never-cached {tag} {key}", (f"{val}{unit} ({ptxt}", f"{val}{unit}（{ptxt}"))
+    over5 = [r for r in records if r["e2e"] > 5]
+    assert_text("window >5s total", (f"{len(over5)} of {len(records)}", f"{len(records)} 个请求中 {len(over5)} 个"))
+    for m, name in zip(models, ("4o-mini", "Luna DataZone", "5.4-nano", "Luna GlobalStandard")):
+        n = sum(1 for r in over5 if r["model"] == m)
+        assert_text(f"window >5s {name}", f"{name} {n}/40")
+    worst = max(records, key=lambda r: r["e2e"])
+    assert_text("window worst E2E", f"{worst['e2e']:.2f}s")
+    assert_text("window worst decode", f"{worst['visible_tps']:.0f} tok/s")
+    assert_text("window 4o-mini worst E2E", f"{max(r['e2e'] for r in records if r['model'] == 'gpt-4o-mini-dz'):.2f}s")
+    checks = [
+        ("balanced order", data["meta"].get("order") == "balanced" and data["meta"].get("order_seed") == 20260903),
+        ("160 effective", len(records) == 160),
+        ("160 unique request ids", len({r["request_id"] for r in records}) == 160),
+        ("zero failures", not any(not r["success"] for r in data["records"])),
+        ("bust never cached", all((r.get("cached_tokens") or 0) == 0 for r in records if r["condition"] == bust)),
+        ("176 records declared", "176 records" in text or "176 条" in text),
+    ]
+    for name, hit in checks:
+        if not hit:
+            failures += 1
+        print(f"[{label}] {'PASS' if hit else 'FAIL'} 3.5.8-cache contract {name}")
+    return failures
+
+
 def check_tail_ledger(readme: Path, outputs: Path, label: str) -> int:
     """Check the cross-file Luna tail sentence in Findings #1 against all data files."""
     files = sorted(outputs.glob("benchmark_luna_knowledge_qa_*.json"))
@@ -411,6 +501,7 @@ def main() -> int:
         failures += check_retries_table(rd, outputs, rd.stem)
         failures += check_section_357(rd, outputs, rd.stem)
         failures += check_section_358(rd, outputs, rd.stem)
+        failures += check_cache_bust_358(rd, outputs, rd.stem)
         failures += check_tail_ledger(rd, outputs, rd.stem)
 
     print("\n== Round 3 permutation tests on Luna TTFT (median difference) ==")
