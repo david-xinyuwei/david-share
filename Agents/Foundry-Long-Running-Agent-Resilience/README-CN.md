@@ -8,6 +8,12 @@
 
 本仓库包含真实的 Hosted Agent、客户端、故障运行器和证据。它只回答一个问题：**Agent 进程消失后，同一个已保存响应如何由新进程继续，而且不丢失已经写入检查点的输出？**
 
+**四场景打断实录（双倍速，2:52）：**
+
+https://github.com/user-attachments/assets/d548d973-57d4-46e5-bfcd-b85142be9a6f
+
+[下载仓库里的副本](https://github.com/david-xinyuwei/david-share/raw/refs/heads/master/Agents/Foundry-Long-Running-Agent-Resilience/media/lra-interruption-demo-2x.mp4?download=1)
+
 > **Author:** 魏新宇（Xinyu Wei）
 
 [English](README.md) | 中文
@@ -270,11 +276,7 @@ RESULT PASS
 
 ## 在浏览器里看完整过程
 
-下面这段录像以双倍速完整跑过四种打断，全部针对已部署的 Agent：
-
-https://github.com/user-attachments/assets/d548d973-57d4-46e5-bfcd-b85142be9a6f
-
-[下载仓库里的副本](https://github.com/david-xinyuwei/david-share/raw/refs/heads/master/Agents/Foundry-Long-Running-Agent-Resilience/media/lra-interruption-demo-2x.mp4?download=1)
+README 首屏的视频以双倍速完整跑过四种打断，全部针对已部署的 Agent。
 
 四种打断各自的代价。本机进程几秒就能重启；在 Foundry 上，平台要先察觉丢失、调度替代计算、再启动新进程，所以录像里同样的打断明显更长：
 

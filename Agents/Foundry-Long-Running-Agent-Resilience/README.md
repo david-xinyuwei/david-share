@@ -8,6 +8,12 @@
 
 This repository contains a real Hosted Agent, caller, fault harness, and evidence. It answers one question: **when the Agent process disappears, how does the same stored response continue on a new process without losing checkpointed output?**
 
+**Four-scenario interruption walkthrough (double speed, 2:52):**
+
+https://github.com/user-attachments/assets/d548d973-57d4-46e5-bfcd-b85142be9a6f
+
+[Download the repository copy](https://github.com/david-xinyuwei/david-share/raw/refs/heads/master/Agents/Foundry-Long-Running-Agent-Resilience/media/lra-interruption-demo-2x.mp4?download=1)
+
 > **Author:** Xinyu Wei (魏新宇)
 
 [中文](README-CN.md) | English
@@ -270,11 +276,7 @@ The source file is [`owned-approval-live-trace.txt`](evidence/owned-approval-liv
 
 ## Watch it happen in the browser
 
-The recording below runs the four interruptions end to end against the deployed Agents, at double speed:
-
-https://github.com/user-attachments/assets/d548d973-57d4-46e5-bfcd-b85142be9a6f
-
-[Download the repository copy](https://github.com/david-xinyuwei/david-share/raw/refs/heads/master/Agents/Foundry-Long-Running-Agent-Resilience/media/lra-interruption-demo-2x.mp4?download=1)
+The recording at the top of this README runs the four interruptions end to end against the deployed Agents, at double speed.
 
 The four interruptions, and what each one costs. A lost process restarts locally in seconds, while Foundry first has to notice the loss, schedule replacement compute, and start a new process, so the same interruption is visibly longer in the recording:
 
