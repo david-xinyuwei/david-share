@@ -87,6 +87,7 @@ def check_readme(readme: Path, rows: list[dict], label: str) -> int:
             or "effort-ladder-1to1" in row["file"]
             or "final-balanced-effort-t2t" in row["file"]
             or "cache-bust-none-4omini" in row["file"]
+            or "final-balanced-nocache" in row["file"]
         ):
             continue  # Sections 3.5.7/3.5.8 use dedicated metric-oriented gates.
         per_query = "capability-spread" in row["file"]
@@ -427,6 +428,135 @@ def check_cache_bust_358(readme: Path, outputs: Path, label: str) -> int:
     return failures
 
 
+def check_nocache_358(readme: Path, outputs: Path, label: str) -> int:
+    """Check the fully never-cached 21-cell matrix in Section 3.5.8 (aligned cache state)."""
+    files = list(outputs.glob("*final-balanced-nocache.json"))
+    if not files:
+        return 0
+    whole = readme.read_text(encoding="utf-8")
+    lines = whole.splitlines()
+    start = next((i for i, line in enumerate(lines) if line.startswith("#### 3.5.8 ")), None)
+    if start is None:
+        return 1
+    end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("#### ") and not lines[i].startswith("#### 3.5.8")), len(lines))
+    text = "\n".join(lines[start:end])
+    data = json.loads(files[0].read_text(encoding="utf-8"))
+    records = [r for r in data["records"] if not r["warmup"] and r["success"] and (r.get("auth_seconds") or 0) <= 0.5]
+    failures = 0
+
+    def assert_text(name: str, needle) -> None:
+        nonlocal failures
+        needles = (needle,) if isinstance(needle, str) else tuple(needle)
+        hit = any(n in text for n in needles)
+        if not hit:
+            failures += 1
+        print(f"[{label}] {'PASS' if hit else 'FAIL'} 3.5.8-nocache {name:<48} {' | '.join(needles)}")
+
+    def rows(model: str, effort: str) -> list[dict]:
+        return [r for r in records if r["model"] == model and r.get("reasoning_effort", "default") == effort]
+
+    def values(model: str, effort: str, key: str) -> list[float]:
+        return [r[key] for r in rows(model, effort)]
+
+    cells = [("gpt-4o-mini-dz", "default")]
+    cells += [("gpt-5.6-luna-datazone", e) for e in ("none", "low", "medium", "high", "xhigh", "max", "default")]
+    cells += [("gpt-5.4-nano", e) for e in ("none", "low", "medium", "high", "xhigh", "default")]
+    cells += [("gpt-5.6-luna", e) for e in ("none", "low", "medium", "high", "xhigh", "max", "default")]
+    for model, effort in cells:
+        row = rows(model, effort)
+        visible = [(r["output_tokens"] or 0) - (r["reasoning_tokens"] or 0) for r in row]
+        core = (f"| {statistics.mean(r['reasoning_tokens'] for r in row):.1f} | {statistics.mean(visible):.1f} | "
+                f"{sum((r.get('cached_tokens') or 0) > 0 for r in row)}/20 | ")
+        assert_text(f"{model}:{effort} reasoning/visible/hits", core)
+        for key, fmt, unit in (("ttft", ".3f", "s"), ("t2t_ms", ".2f", "ms"), ("e2e", ".3f", "s")):
+            v = f"{statistics.median(values(model, effort, key)):{fmt}}{unit}"
+            assert_text(f"{model}:{effort} {key}", (f"| {v} |", f"| **{v}** |"))
+
+    def holm(ps: list[float]) -> list[float]:
+        order = sorted(range(len(ps)), key=lambda i: ps[i])
+        adj = [0.0] * len(ps)
+        prev = 0.0
+        for rank, i in enumerate(order):
+            v = max(prev, min(1.0, (len(ps) - rank) * ps[i]))
+            adj[i] = v
+            prev = v
+        return adj
+
+    def sign_p(wins: int, n: int) -> float:
+        k = max(wins, n - wins)
+        return min(1.0, 2 * sum(math.comb(n, i) for i in range(k, n + 1)) / 2 ** n)
+
+    def paired_wins(a: list[dict], b: list[dict], key: str) -> int:
+        by_b = {r["iteration"]: r[key] for r in b}
+        return sum(r[key] < by_b[r["iteration"]] for r in a if r["iteration"] in by_b)
+
+    # same-label winners must match the never-cached table
+    expected = {"ttft": {"none": None, "low": "nano", "medium": "nano", "high": "nano", "xhigh": None},
+                "t2t_ms": {"none": "Luna", "low": None, "medium": "Luna", "high": "Luna", "xhigh": "Luna"},
+                "e2e": {"none": None, "low": None, "medium": None, "high": None, "xhigh": None}}
+    labels = ["none", "low", "medium", "high", "xhigh"]
+    for key in ("ttft", "t2t_ms", "e2e"):
+        raw, paired, nano_lower, wins_list = [], [], [], []
+        for lab in labels:
+            a, b = rows("gpt-5.4-nano", lab), rows("gpt-5.6-luna", lab)
+            raw.append(permutation_p([r[key] for r in a], [r[key] for r in b]))
+            w = paired_wins(a, b, key)
+            wins_list.append(w)
+            paired.append(sign_p(w, 20))
+            nano_lower.append(statistics.median(r[key] for r in a) < statistics.median(r[key] for r in b))
+        ha, hp = holm(raw), holm(paired)
+        for lab, h1, h2, nl, w in zip(labels, ha, hp, nano_lower, wins_list):
+            winner = ("nano" if nl else "Luna") if (h1 < 0.05 and h2 < 0.05 and ((w > 10) == nl)) else None
+            ok = winner == expected[key][lab]
+            if not ok:
+                failures += 1
+            print(f"[{label}] {'PASS' if ok else 'FAIL'} 3.5.8-nocache winner {key} {lab}: computed={winner} expected={expected[key][lab]}")
+
+    mini, luna = rows("gpt-4o-mini-dz", "default"), rows("gpt-5.6-luna-datazone", "none")
+    raw = [permutation_p([r[k] for r in mini], [r[k] for r in luna]) for k in ("ttft", "t2t_ms", "e2e")]
+    pw = [paired_wins(mini, luna, k) for k in ("ttft", "t2t_ms", "e2e")]
+    pp = [sign_p(w, 20) for w in pw]
+    hr, hp = holm(raw), holm(pp)
+    assert_text("4o-mini TTFT wins", f"{pw[0]} of 20" if "of 20" in text else f"{pw[0]} 轮")
+    assert_text("4o-mini TTFT paired p / Holm", (f"paired p = {pp[0]:.3f}, Holm {hp[0]:.3f}", f"配对 p = {pp[0]:.3f}，Holm {hp[0]:.3f}"))
+    assert_text("4o-mini TTFT raw p", f"p = {raw[0]:.3f}")
+    assert_text("4o-mini TTFT Holm", f"{hr[0]:.3f}")
+    assert_text("4o-mini TPOT raw/Holm", (f"raw p = {raw[1]:.3f}, Holm {hr[1]:.3f}", f"原始 p = {raw[1]:.3f}，Holm {hr[1]:.3f}"))
+    assert_text("4o-mini E2E raw p", f"p = {raw[2]:.4f}")
+    assert_text("4o-mini E2E wins", (f"{20 - pw[2]} of 20", f"{20 - pw[2]} 轮"))
+    cps = lambda r: r["text_len"] / (r["e2e"] - r["ttft"])
+    assert_text("chars/s", f"{statistics.median(map(cps, mini)):.0f} vs {statistics.median(map(cps, luna)):.0f}")
+    assert_text("chars/s p", f"p = {permutation_p([cps(r) for r in mini], [cps(r) for r in luna]):.3f}")
+    for e in ("none", "high", "xhigh", "max"):
+        p = permutation_p(values("gpt-5.6-luna-datazone", e, "ttft"), values("gpt-5.6-luna", e, "ttft"))
+        assert_text(f"SKU {e} TTFT p", f"{p:.3f}")
+    ladder = [f"{statistics.mean(r['reasoning_tokens'] for r in rows('gpt-5.6-luna', e)):.1f}" for e in ("none", "low", "medium", "high", "xhigh", "max")]
+    assert_text("Luna reasoning ladder", " → ".join(ladder).replace("0.0 → ", "0 → ", 1))
+    hold = max(records, key=lambda r: r["ttft"])
+    assert_text("hold request id", hold["request_id"])
+    assert_text("hold ttfb", f"{hold['ttfb']:.2f}s")
+    assert_text("hold ttft", f"{hold['ttft']:.2f}s")
+    assert_text("hold e2e", f"{hold['e2e']:.2f}s")
+    assert_text("hold reasoning tokens", (f"{hold['reasoning_tokens']} reasoning tokens", f"{hold['reasoning_tokens']} 个 reasoning token"))
+    over5 = [r for r in records if r["e2e"] > 5]
+    assert_text("window >5s", (f"{len(over5)} of 420", f"420 个请求中 {len(over5)} 个"))
+    checks = [
+        ("balanced order + seed", data["meta"].get("order") == "balanced" and data["meta"].get("order_seed") == 20260903),
+        ("cache-bust flag", data["meta"].get("cache_bust") is True),
+        ("420 effective", len(records) == 420),
+        ("420 unique request ids", len({r["request_id"] for r in records}) == 420),
+        ("zero failures", not any(not r["success"] for r in data["records"])),
+        ("zero cache hits", not any((r.get("cached_tokens") or 0) > 0 for r in records)),
+        ("hold is HTTP 200 zero retries", hold["http_status"] == 200 and hold["retries_taken"] == 0 and hold["ttft"] > 15),
+        ("hold on Luna Global high", (hold["model"], hold["reasoning_effort"]) == ("gpt-5.6-luna", "high")),
+    ]
+    for name, hit in checks:
+        if not hit:
+            failures += 1
+        print(f"[{label}] {'PASS' if hit else 'FAIL'} 3.5.8-nocache contract {name}")
+    return failures
+
+
 def check_tail_ledger(readme: Path, outputs: Path, label: str) -> int:
     """Check the cross-file Luna tail sentence in Findings #1 against all data files."""
     files = sorted(outputs.glob("benchmark_luna_knowledge_qa_*.json"))
@@ -502,6 +632,7 @@ def main() -> int:
         failures += check_section_357(rd, outputs, rd.stem)
         failures += check_section_358(rd, outputs, rd.stem)
         failures += check_cache_bust_358(rd, outputs, rd.stem)
+        failures += check_nocache_358(rd, outputs, rd.stem)
         failures += check_tail_ledger(rd, outputs, rd.stem)
 
     print("\n== Round 3 permutation tests on Luna TTFT (median difference) ==")
