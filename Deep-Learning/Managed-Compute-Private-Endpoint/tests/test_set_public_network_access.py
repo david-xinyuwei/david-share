@@ -89,6 +89,26 @@ class PublicNetworkAccessTests(unittest.TestCase):
             200,
         )
 
+    def test_private_probe_accepts_every_account_hostname(self) -> None:
+        account_name = "exampleaccount123"
+        for suffix in PNA.ACCOUNT_HOST_SUFFIXES:
+            evidence = {
+                "passed": True,
+                "dnsClass": "private",
+                "httpStatus": 200,
+                "object": "chat.completion",
+                "choiceCount": 1,
+                "hostnameSha256": PNA.sha256_text(f"{account_name}{suffix}"),
+                "capturedAtUtc": dt.datetime.now(dt.timezone.utc).isoformat(),
+            }
+            with tempfile.NamedTemporaryFile(
+                "w", encoding="utf-8", delete=False
+            ) as handle:
+                json.dump(evidence, handle)
+                path = handle.name
+            self.addCleanup(pathlib.Path(path).unlink)
+            PNA.validate_private_probe(path, account_name, 900)
+
     def test_missing_approved_endpoint_never_patches(self) -> None:
         calls = []
         provider = {

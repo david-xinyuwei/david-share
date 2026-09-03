@@ -155,10 +155,12 @@ def build_probe_command(
 ) -> tuple[list[str], str]:
     probe_source_sha256 = hashlib.sha256(probe_source).hexdigest()
     encoded_source = base64.b64encode(probe_source).decode("ascii")
+    # The container hashes the bytes it actually executes; the launcher's digest is a receipt only.
     bootstrap = (
-        "import base64;"
-        f"exec(compile(base64.b64decode('{encoded_source}'),"
-        "'probe_endpoint.py','exec'))"
+        "import base64,hashlib,sys;"
+        f"s=base64.b64decode('{encoded_source}');"
+        "sys.argv+=['--probe-source-sha256',hashlib.sha256(s).hexdigest()];"
+        "exec(compile(s,'probe_endpoint.py','exec'))"
     )
     command = [
         "python3",
@@ -176,8 +178,6 @@ def build_probe_command(
         "Reply with exactly OK.",
         "--max-tokens",
         "4",
-        "--probe-source-sha256",
-        probe_source_sha256,
     ]
     return command, probe_source_sha256
 

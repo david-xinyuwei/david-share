@@ -28,8 +28,12 @@ class EvidenceBuilderTests(unittest.TestCase):
             "ORIGINAL_TERMINAL_CAPTURE=false",
             "CLIENT=Python HTTPS client with Microsoft Entra bearer token",
             "ACTUAL_PROBE_OUTPUT_RETAINED=true",
-            "REPRODUCTION_ENTRYPOINT=scripts/probe_endpoint.py",
+            "REPRODUCTION_ENTRYPOINT=scripts/probe_endpoint.py (current version; not the bytes that ran)",
+            "MEASURED_PROBE_COMMIT=762b69780da73c9f9ca21c28508349755a980820",
+            "MEASURED_PROBE_RETRIEVAL=git show 762b69780da73c9f9ca21c28508349755a980820:Deep-Learning/Managed-Compute-Private-Endpoint/scripts/probe_endpoint.py",
             "MODEL_DEPLOYMENT_CHANGED=false",
+            "FINGERPRINT_CLASS=derived-post-run",
+            "FINGERPRINTS_EMITTED_BY_MEASURED_PROBE=false",
             "IDENTITY_SHA256=887146420b45005bf903fd183eda936b0e3fee00aa6be67a91a47f0546b54e6c",
             "DEPLOYMENT_SHA256=4d87fdbcba1fe6671069062752306ee4957a40c6ac281803b423c80ddd682776",
             "REQUEST_SHA256=c4c06fac9fe6ed09d3f3117ca538e1f1d9e8be12330d5ef9b36284b6e4120804",
@@ -68,10 +72,24 @@ class EvidenceBuilderTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "authenticated 403"):
             BUILDER.validate_observations(tampered)
 
-    def test_different_identity_fingerprint_is_rejected(self) -> None:
+    def test_derived_fingerprint_in_raw_observation_is_rejected(self) -> None:
         tampered = copy.deepcopy(self.observations)
         tampered["public-restored.json"]["identitySha256"] = "0" * 64
-        with self.assertRaisesRegex(ValueError, "fingerprint chain"):
+        with self.assertRaisesRegex(ValueError, "derived fingerprint leaked"):
+            BUILDER.validate_observations(tampered)
+
+    def test_fingerprint_chain_must_declare_post_run_derivation(self) -> None:
+        tampered = copy.deepcopy(self.observations)
+        tampered["control-plane.json"]["derivedFingerprints"]["emittedByMeasuredProbe"] = True
+        with self.assertRaisesRegex(ValueError, "post-run derived"):
+            BUILDER.validate_observations(tampered)
+
+    def test_fingerprint_derivation_must_follow_last_probe(self) -> None:
+        tampered = copy.deepcopy(self.observations)
+        tampered["control-plane.json"]["derivedFingerprints"]["derivedAtUtc"] = tampered[
+            "public-baseline.json"
+        ]["observedAtUtc"]
+        with self.assertRaisesRegex(ValueError, "post-run derived"):
             BUILDER.validate_observations(tampered)
 
     def test_non_policy_403_category_is_rejected(self) -> None:

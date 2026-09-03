@@ -84,6 +84,12 @@ BILINGUAL_FACTS = (
     ("parent Foundry account", "所属 Foundry account"),
     ("earliest **public-safe sanitized", "最早一层**可公开的脱敏观测"),
     ("dedicated non-production Foundry account", "专用的非生产 Foundry account"),
+    ("derived after the run", "运行结束后派生"),
+    ("git show 762b69780da73c9f9ca21c28508349755a980820:", "git show 762b69780da73c9f9ca21c28508349755a980820:"),
+    ("no live measurement", "没有实测"),
+    ("inferred from the private DNS class", "由私网 DNS 类别推断"),
+    ("other inbound hostname", "其他入站主机名"),
+    ("manual-restore", "manual-restore"),
 )
 TEXT_HASH_SUFFIXES = {".bicep", ".json", ".md", ".py", ".txt", ".yaml", ".yml"}
 
@@ -338,8 +344,14 @@ def run_evidence_mutation_checks() -> dict[str, bool]:
             runId="different-run"
         ),
         "identity-drift-rejected": lambda value: value[
+            "private-success.json"
+        ].update(probeSourceSha256="0" * 64),
+        "derived-field-in-raw-rejected": lambda value: value[
             "public-restored.json"
         ].update(identitySha256="0" * 64),
+        "unlabeled-fingerprint-chain-rejected": lambda value: value[
+            "control-plane.json"
+        ]["derivedFingerprints"].update(emittedByMeasuredProbe=True),
         "duplicate-sequence-rejected": lambda value: value[
             "private-success.json"
         ].update(sequence=3),
@@ -496,32 +508,48 @@ def build_rule_results() -> dict[str, object]:
                     },
                 ),
                 make_check(
-                    "five-stage-fingerprint-chain",
-                    all(
-                        all(
-                            scenario.get(field) == run["fingerprints"].get(field)
-                            for field in (
-                                "probeSourceSha256",
-                                "identitySha256",
-                                "endpointSha256",
-                                "deploymentSha256",
-                                "requestSha256",
-                            )
-                        )
+                    "fingerprint-chain-labeled-derived",
+                    run["derivedFingerprints"]["class"] == "derived-post-run"
+                    and run["derivedFingerprints"]["emittedByMeasuredProbe"] is False
+                    and all(
+                        field not in scenario
                         for scenario in scenario_list
-                    ),
+                        for field in (
+                            "identitySha256",
+                            "endpointSha256",
+                            "deploymentSha256",
+                            "requestSha256",
+                        )
+                    )
+                    and all(
+                        scenario.get("probeSourceSha256")
+                        == run["derivedFingerprints"]["probeSourceSha256"]
+                        for scenario in scenario_list
+                        if scenario["id"].startswith("private-")
+                    )
+                    and readme.count(run["derivedFingerprints"]["derivedAtUtc"]) >= 1
+                    and readme_cn.count(run["derivedFingerprints"]["derivedAtUtc"]) >= 1,
                     {
-                        scenario["id"]: all(
-                            scenario.get(field) == run.get("fingerprints", {}).get(field)
-                            for field in (
-                                "probeSourceSha256",
-                                "identitySha256",
-                                "endpointSha256",
-                                "deploymentSha256",
-                                "requestSha256",
-                            )
-                        )
-                        for scenario in scenario_list
+                        "class": run["derivedFingerprints"]["class"],
+                        "emittedByMeasuredProbe": run["derivedFingerprints"]["emittedByMeasuredProbe"],
+                        "derivedOnlyFieldsInRaw": sorted(
+                            {
+                                field
+                                for scenario in scenario_list
+                                for field in (
+                                    "identitySha256",
+                                    "endpointSha256",
+                                    "deploymentSha256",
+                                    "requestSha256",
+                                )
+                                if field in scenario
+                            }
+                        ),
+                    },
+                    {
+                        "class": "derived-post-run",
+                        "emittedByMeasuredProbe": False,
+                        "derivedOnlyFieldsInRaw": [],
                     },
                 ),
             ],
@@ -596,7 +624,7 @@ def build_rule_results() -> dict[str, object]:
         ),
         make_rule(
             "RUN-004",
-            "The PNA transition and Private Endpoint prerequisite are recorded.",
+            "The public network access transition and Private Endpoint prerequisite are recorded.",
             [
                 make_check(
                     "pna-transition",

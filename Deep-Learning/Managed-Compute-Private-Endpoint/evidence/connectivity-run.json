@@ -16,8 +16,18 @@
     "maxTokens": 4,
     "temperature": 0
   },
-  "fingerprints": {
-    "basis": "Five retained command receipts plus their shared authenticated AZ profile",
+  "derivedFingerprints": {
+    "class": "derived-post-run",
+    "emittedByMeasuredProbe": false,
+    "derivedAtUtc": "2026-08-31T06:45:33.338213+00:00",
+    "basis": "Five retained command receipts (argv) plus the shared authenticated Azure CLI profile, hashed after the last probe returned; the measured probe source emitted only hostnameSha256 and requestIdSha256",
+    "formulas": {
+      "probeSourceSha256": "SHA-256 of the executed probe_endpoint.py bytes (CRLF Windows checkout of the measured commit)",
+      "identitySha256": "SHA-256 of '<tenantId>:<objectId>' from the shared Azure CLI profile; the current probe emits the same formula from the token's tid and oid claims",
+      "endpointSha256": "SHA-256 of the --endpoint argv value",
+      "deploymentSha256": "SHA-256 of the --deployment argv value",
+      "requestSha256": "SHA-256 of json.dumps({model, messages:[{role:user, content:prompt}], max_tokens:4, temperature:0}) with default separators"
+    },
     "probeSourceSha256": "d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6",
     "identitySha256": "887146420b45005bf903fd183eda936b0e3fee00aa6be67a91a47f0546b54e6c",
     "endpointSha256": "5e8cfa4be4c9aa5803d351815eceacece53477c04e26695a928e80c93935246b",
@@ -40,7 +50,7 @@
     "privateRunner": {
       "type": "Azure Container Instances",
       "networkMode": "Private IP in a linked VNet workload subnet",
-      "accessMethod": "Direct outbound HTTPS through Private Endpoint; not Azure Bastion",
+      "accessMethod": "Outbound HTTPS to a privately resolved address; Private Endpoint use is inferred from dnsClass=private, not from an address match against the Private Endpoint NIC; not Azure Bastion",
       "probeSourceSha256": "d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6"
     }
   },
@@ -63,11 +73,6 @@
         "completionTokens": 4,
         "totalTokens": 17
       },
-      "probeSourceSha256": "d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6",
-      "identitySha256": "887146420b45005bf903fd183eda936b0e3fee00aa6be67a91a47f0546b54e6c",
-      "endpointSha256": "5e8cfa4be4c9aa5803d351815eceacece53477c04e26695a928e80c93935246b",
-      "deploymentSha256": "4d87fdbcba1fe6671069062752306ee4957a40c6ac281803b423c80ddd682776",
-      "requestSha256": "c4c06fac9fe6ed09d3f3117ca538e1f1d9e8be12330d5ef9b36284b6e4120804",
       "requestIdSha256": "931ef7d07cd5a2164f36b11a4567c466554ba91cf13eba7a841df28d5d2a6ccc",
       "status": "PASS"
     },
@@ -91,10 +96,7 @@
       },
       "requestIdSha256": "ed3e63b7022622827fb98080145ea5df8126e792b2d81f501c7c4899ba8ef7bd",
       "probeSourceSha256": "d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6",
-      "identitySha256": "887146420b45005bf903fd183eda936b0e3fee00aa6be67a91a47f0546b54e6c",
-      "endpointSha256": "5e8cfa4be4c9aa5803d351815eceacece53477c04e26695a928e80c93935246b",
-      "deploymentSha256": "4d87fdbcba1fe6671069062752306ee4957a40c6ac281803b423c80ddd682776",
-      "requestSha256": "c4c06fac9fe6ed09d3f3117ca538e1f1d9e8be12330d5ef9b36284b6e4120804",
+      "probeSourceSha256Basis": "launcher receipt: scripts/submit_private_aci_probe.py hashed the embedded probe bytes at submit time; the measured probe itself did not emit this field",
       "runnerExitCode": 0,
       "status": "PASS"
     },
@@ -111,11 +113,6 @@
       "errorCategory": "public-access-disabled",
       "networkPolicyBlocked": true,
       "errorMessageSha256": "a9869784eb0f0f9c50cfc52b65118592c9a302d9f9406b413867b6dcbac8df39",
-      "probeSourceSha256": "d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6",
-      "identitySha256": "887146420b45005bf903fd183eda936b0e3fee00aa6be67a91a47f0546b54e6c",
-      "endpointSha256": "5e8cfa4be4c9aa5803d351815eceacece53477c04e26695a928e80c93935246b",
-      "deploymentSha256": "4d87fdbcba1fe6671069062752306ee4957a40c6ac281803b423c80ddd682776",
-      "requestSha256": "c4c06fac9fe6ed09d3f3117ca538e1f1d9e8be12330d5ef9b36284b6e4120804",
       "requestIdSha256": "0bca43fc944a7328def2b961d977e09767bce02d11a2ea8322a1d6ec3594217b",
       "status": "PASS"
     },
@@ -138,10 +135,7 @@
       },
       "requestIdSha256": "eb511b575cc023ba02e44edcd13e61d578bac32b120f7029eac249dc7f776065",
       "probeSourceSha256": "d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6",
-      "identitySha256": "887146420b45005bf903fd183eda936b0e3fee00aa6be67a91a47f0546b54e6c",
-      "endpointSha256": "5e8cfa4be4c9aa5803d351815eceacece53477c04e26695a928e80c93935246b",
-      "deploymentSha256": "4d87fdbcba1fe6671069062752306ee4957a40c6ac281803b423c80ddd682776",
-      "requestSha256": "c4c06fac9fe6ed09d3f3117ca538e1f1d9e8be12330d5ef9b36284b6e4120804",
+      "probeSourceSha256Basis": "launcher receipt: scripts/submit_private_aci_probe.py hashed the embedded probe bytes at submit time; the measured probe itself did not emit this field",
       "runnerExitCode": 0,
       "status": "PASS"
     },
@@ -162,11 +156,6 @@
         "completionTokens": 4,
         "totalTokens": 17
       },
-      "probeSourceSha256": "d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6",
-      "identitySha256": "887146420b45005bf903fd183eda936b0e3fee00aa6be67a91a47f0546b54e6c",
-      "endpointSha256": "5e8cfa4be4c9aa5803d351815eceacece53477c04e26695a928e80c93935246b",
-      "deploymentSha256": "4d87fdbcba1fe6671069062752306ee4957a40c6ac281803b423c80ddd682776",
-      "requestSha256": "c4c06fac9fe6ed09d3f3117ca538e1f1d9e8be12330d5ef9b36284b6e4120804",
       "requestIdSha256": "50f4ebab5abb8a5f5c735b8b67ee09b1a301e3edb1cc0ce5cf9d29488c40a0c2",
       "status": "PASS"
     }
@@ -205,39 +194,42 @@
     "Managed Compute outbound traffic traverses the customer VNet",
     "Prompt or completion zero retention",
     "Service-side request timestamps or latency distributions",
-    "Production readiness or SLA"
+    "Production readiness or SLA",
+    "The Managed Compute deployment exposes no inbound hostname other than the parent account's services.ai.azure.com route; only that route was tested",
+    "The 403 originated inside the Managed Compute route; it is an account-boundary rejection of a request addressed to that deployment",
+    "The private probe's resolved address equals the Private Endpoint NIC address; only the RFC 1918 class of the resolved address was retained"
   ],
   "codeEvidence": {
     "path": "evidence/cli-transcript.txt",
-    "sha256": "5293a06384e20474ce87e6ae7472a639de64a09060182fb208a7000bb6c332b7",
+    "sha256": "9e686d4d19be2f537f573b0faa307dab6accf84cdd0e5e8e98e56177f156e357",
     "evidenceClass": "derived-sanitized-view-of-live-code-observations"
   },
   "provenance": {
     "path": "evidence/provenance.json",
-    "sha256": "1cc66c267dc341994c22dfe1aba97b497a421460b0edbdfa753603950c5ea55d",
+    "sha256": "2c555fa8dd19c5bc6701548a35191808dadeaa8e0a137625d78d7623ac558c95",
     "publicEvidenceClass": "sanitized transcription of a dedicated-account live run"
   },
   "lineage": {
     "producer": "scripts/build_evidence.py",
     "hashCanonicalization": "UTF-8 text normalized to LF; binary assets use raw bytes",
     "rawSha256": {
-      "raw/control-plane.json": "f27fcc1a924d3da994b86619792550d4e8b8ae2fd725dab64d038510ee9387de",
-      "raw/public-baseline.json": "f72daf41911ebfafd59cff4837b10b73705593ce3fd853aa988dec40ddb57c05",
-      "raw/private-preflight.json": "480f1a96e2b2c8f6c07453673374a1d8d52b92cf324c6ff3df32e05a07a5d544",
-      "raw/public-blocked.json": "5e6dd6514a374e2ae5070f8ccc406dd20171b93cebbbb428fb4892241eb6a3c3",
-      "raw/private-success.json": "c4c97afa0462f5b3bfd6ce8fd2b82df0164f0d7f2a34c2488448d15e0ad71438",
-      "raw/public-restored.json": "2e7760c1353baab139825134a47495e76bf79dc00ba47c67ffa9ecaf12f73a6a",
+      "raw/control-plane.json": "3c9aa4dd6d20fa32aae9b33d1da68bd286ab63ec0d3333b0bb30ff2d2760fcc4",
+      "raw/public-baseline.json": "e447985ef9395581691f9a99b690a8fc6f4980fd156a789537947372e23e811c",
+      "raw/private-preflight.json": "a8ce36beda777617e0b1adab502110c029379db45c86b5d435e68f966ef641b4",
+      "raw/public-blocked.json": "2eabc4d4810f0ade27fcbc4bdf2709c879d622e55fcc06ae2f8d04441eafb99d",
+      "raw/private-success.json": "af1d9d214daba1c3bdbc022a55cddd269d6e8f0d239a8234e8ca91a31abab2cb",
+      "raw/public-restored.json": "2a2e80bb897a71c4c57d9e82d4fc3ddcf70956d0ab57e848efa5e3ac487c629f",
       "raw/post-test-state.json": "ccae1bf9186f722e170e2dcc2cb290cf4ca558355916ea26812bae787f9ad26c"
     },
     "executableSha256": {
       "infra/main.bicep": "e861ca08e010a64da3e9128657605412010b4f920271ced6a7f62b20a95f694c",
-      "scripts/build_evidence.py": "81541c33ff38957cf3ddc57400a5a76350abe03b076cafff2c8b7b94cb313fff",
+      "scripts/build_evidence.py": "54bbb9d644503dbd9973f8e5ae7e87a9c03e760bc1e51a926fe417adc84e839e",
       "scripts/probe_endpoint.py": "093eaa5f18bc15f5c0400d05f03706c30e4efda737cae28d670ee43fcb2e5d74",
-      "scripts/submit_private_aci_probe.py": "1a5859b471d14b216aada80bbbe3ad8d1c3a2708472818f97cfe1a1697554f46",
-      "scripts/set_public_network_access.py": "43fff50ad5ad9d5dcecc7cc0156b4d3f615b083eff6c6e7361678df13422ca16",
-      "scripts/validate_repo.py": "3eb3ba787fd1443e7997bbf484029d72c611c2a8b1a80adcbafc0e297d17e8bf",
-      "evidence/run-contract.json": "8775c759161622711a81a8eefdd2641bf8344c1594927ad375f412c22d448593",
-      "evidence/provenance.json": "1cc66c267dc341994c22dfe1aba97b497a421460b0edbdfa753603950c5ea55d"
+      "scripts/submit_private_aci_probe.py": "6840294d46780beee3e3f609a3d17d99608af35906f6bb053e3d598eb83dafd2",
+      "scripts/set_public_network_access.py": "602200a1f4c40db8fe62e0c4065f693eff39da9ecddadcb8e29c4baf136c1357",
+      "scripts/validate_repo.py": "7ef7a5e13a5adab24d290c0ec66a89f95b11f8e4e217eefdbbf913459e33d9f2",
+      "evidence/run-contract.json": "1030a9e80cb0215e0f49f74cad6d1482d00d9ec3e52c57e17d8c67e24a0ec838",
+      "evidence/provenance.json": "2c555fa8dd19c5bc6701548a35191808dadeaa8e0a137625d78d7623ac558c95"
     }
   }
 }

@@ -16,8 +16,18 @@
     "maxTokens": 4,
     "temperature": 0
   },
-  "fingerprints": {
-    "basis": "Five retained command receipts plus their shared authenticated AZ profile",
+  "derivedFingerprints": {
+    "class": "derived-post-run",
+    "emittedByMeasuredProbe": false,
+    "derivedAtUtc": "2026-08-31T06:45:33.338213+00:00",
+    "basis": "Five retained command receipts (argv) plus the shared authenticated Azure CLI profile, hashed after the last probe returned; the measured probe source emitted only hostnameSha256 and requestIdSha256",
+    "formulas": {
+      "probeSourceSha256": "SHA-256 of the executed probe_endpoint.py bytes (CRLF Windows checkout of the measured commit)",
+      "identitySha256": "SHA-256 of '<tenantId>:<objectId>' from the shared Azure CLI profile; the current probe emits the same formula from the token's tid and oid claims",
+      "endpointSha256": "SHA-256 of the --endpoint argv value",
+      "deploymentSha256": "SHA-256 of the --deployment argv value",
+      "requestSha256": "SHA-256 of json.dumps({model, messages:[{role:user, content:prompt}], max_tokens:4, temperature:0}) with default separators"
+    },
     "probeSourceSha256": "d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6",
     "identitySha256": "887146420b45005bf903fd183eda936b0e3fee00aa6be67a91a47f0546b54e6c",
     "endpointSha256": "5e8cfa4be4c9aa5803d351815eceacece53477c04e26695a928e80c93935246b",
@@ -40,7 +50,7 @@
     "privateRunner": {
       "type": "Azure Container Instances",
       "networkMode": "Private IP in a linked VNet workload subnet",
-      "accessMethod": "Direct outbound HTTPS through Private Endpoint; not Azure Bastion",
+      "accessMethod": "Outbound HTTPS to a privately resolved address; Private Endpoint use is inferred from dnsClass=private, not from an address match against the Private Endpoint NIC; not Azure Bastion",
       "probeSourceSha256": "d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6"
     }
   },
@@ -49,6 +59,9 @@
     "Managed Compute outbound traffic traverses the customer VNet",
     "Prompt or completion zero retention",
     "Service-side request timestamps or latency distributions",
-    "Production readiness or SLA"
+    "Production readiness or SLA",
+    "The Managed Compute deployment exposes no inbound hostname other than the parent account's services.ai.azure.com route; only that route was tested",
+    "The 403 originated inside the Managed Compute route; it is an account-boundary rejection of a request addressed to that deployment",
+    "The private probe's resolved address equals the Private Endpoint NIC address; only the RFC 1918 class of the resolved address was retained"
   ]
 }

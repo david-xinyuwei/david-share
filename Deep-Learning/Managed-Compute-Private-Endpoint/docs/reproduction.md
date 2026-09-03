@@ -14,7 +14,7 @@ outbound VNet injection, content retention, or production readiness.
   the target virtual network.
 - An existing `GlobalManagedCompute` deployment in Azure commercial cloud.
 - A dedicated non-production Foundry account. A new project under a shared
-  account is not sufficient because PNA and Private Endpoint are account-level
+  account is not sufficient because public network access and Private Endpoint are account-level
   controls.
 - An existing customer-managed VNet, a subnet dedicated to Private Endpoints,
   and a separate workload subnet. The ACI path below requires the workload
@@ -23,17 +23,21 @@ outbound VNet injection, content retention, or production readiness.
   endpoint on TCP 443, and can run as the same approved Entra principal as the
   public runner through Azure CLI or a securely supplied process environment.
 - The application/network owner owns creation and cleanup of any temporary
-  workload runner. The Foundry resource owner approves and restores PNA changes.
+  workload runner. The Foundry resource owner approves and restores public network access changes.
 
 The measured path used **private-IP Azure Container Instances (ACI)** in the
 workload subnet. It did not use Azure Bastion. The control runner acquired the
 approved Entra data-plane token, submitted it to ARM as a container environment
 `secureValue`, and embedded the exact bytes of `scripts/probe_endpoint.py` in a
-`restartPolicy=Never` container. The ACI then resolved the Foundry hostname
-privately and sent HTTPS directly through the Private Endpoint. The secure value
+`restartPolicy=Never` container. The ACI then resolved the Foundry hostname to a
+private address and sent HTTPS to it; Private Endpoint use is inferred from that
+private DNS class because the resolved address was not compared with the Private
+Endpoint NIC in the retained evidence. The secure value
 is not returned by the ACI read API or printed by the probe.
 The launcher refuses any existing container-group name and sends the create PUT
-with `If-None-Match: *`; it never updates an existing ACI.
+with `If-None-Match: *`; it never updates an existing ACI. The current launcher
+makes the container hash the decoded probe bytes itself; the measured run used
+the `762b6978` launcher, which passed a launcher-computed digest into the container.
 
 ## 1. Deploy the Private Endpoint
 
@@ -89,7 +93,7 @@ forwarding. Done-when remains a private DNS resolution plus Chat Completions
 ## 2. Prove the public baseline and private path
 
 From outside the VNet, first prove that the authenticated endpoint works while
-PNA is enabled:
+public network access is enabled:
 
 ```bash
 python scripts/probe_endpoint.py \
@@ -163,10 +167,13 @@ the container group. Done-when: the container reaches `Terminated` with exit cod
 
 The script refuses to disable public access unless an Approved Private Endpoint
 is attached and the fresh private probe is a valid Chat Completions response.
-It saves the exact initial PNA state before issuing the PATCH.
-The receipt stores the account ETag before and after disable. Disable and restore
-use `If-Match`, so a concurrent or ABA account change fails instead of being
-overwritten.
+It saves the exact initial public network access state before issuing the PATCH.
+The current script stores the account ETag before and after disable, and both disable
+and restore send `If-Match`, so a concurrent or ABA account change fails instead of being
+overwritten. The 2026-08-31 measured run executed the earlier `762b6978` script,
+which had no ETag capture or precondition; Azure Resource Manager's `If-Match`
+enforcement on `Microsoft.CognitiveServices/accounts` is therefore covered by unit
+tests only and has no live measurement in this repository.
 
 ```bash
 python scripts/set_public_network_access.py \
@@ -183,7 +190,7 @@ Done-when: `actualState` is `Disabled`.
 
 Keep `pna-before.json` only on the trusted control runner. Do not commit or edit
 it. The script promotes it from `prepared` to `applied` only after Azure confirms
-the Disabled state, rejects concurrent PNA drift, and treats Azure RBAC as the
+the Disabled state, rejects concurrent public network access drift, and treats Azure RBAC as the
 authorization boundary.
 
 ## 4. Prove the public/private differential
@@ -201,7 +208,7 @@ python scripts/probe_endpoint.py \
   --output public-blocked-probe.json
 ```
 
-Create a second private-IP ACI after PNA is disabled. This runs the same probe
+Create a second private-IP ACI after public network access is disabled. This runs the same probe
 source through the same workload subnet; it does not reuse the completed
 preflight container:
 
@@ -271,3 +278,23 @@ workload runner, Managed Compute deployment, Private Endpoint, Private DNS VNet
 links, Private DNS zones, and any lab-only VNet/account. Never delete a
 customer-owned VNet. Resource deletion is intentionally not automated by this
 repository, and Managed Compute billing continues while the deployment remains.
+
+### Manual restore
+
+The restore path refuses by design in two situations: the receipt never reached
+`applied` because the process stopped between the PATCH and the receipt update,
+or an unrelated change moved the account ETag after disable. Both leave the
+account at `Disabled` with no scripted exit. Read the account first, confirm the
+current state and that `privateEndpointConnections` still shows an Approved
+connection, then set the value that `pna-before.json` records under `priorState`:
+
+```bash
+ACCOUNT_URL="https://management.azure.com$FOUNDRY_ACCOUNT_ID?api-version=$(az provider show --namespace Microsoft.CognitiveServices --query "resourceTypes[?resourceType=='accounts'].apiVersions[] | [?!contains(@, 'preview')] | sort(@) | [-1]" --output tsv)"
+az rest --method get --url "$ACCOUNT_URL" --query "{state:properties.publicNetworkAccess,provisioning:properties.provisioningState,approvedPe:length(properties.privateEndpointConnections[?properties.privateLinkServiceConnectionState.status=='Approved'])}" --output json
+az rest --method patch --url "$ACCOUNT_URL" --headers "Content-Type=application/json" --body '{"properties":{"publicNetworkAccess":"<priorState from pna-before.json>"}}'
+az rest --method get --url "$ACCOUNT_URL" --query "properties.publicNetworkAccess" --output tsv
+```
+
+Done-when: the final read returns the recorded `priorState`. This path has no
+ETag precondition; use it only after the read confirms no other operator is
+changing the account.

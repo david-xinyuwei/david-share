@@ -33,6 +33,10 @@ FINGERPRINT_FIELDS = (
     "deploymentSha256",
     "requestSha256",
 )
+# Never emitted by the measured probe; their presence in a raw scenario is a provenance leak.
+DERIVED_ONLY_FIELDS = FINGERPRINT_FIELDS[1:]
+PUBLIC_SCENARIOS = ("public-baseline.json", "public-blocked.json", "public-restored.json")
+PRIVATE_SCENARIOS = ("private-preflight.json", "private-success.json")
 
 
 def sha256(path: pathlib.Path) -> str:
@@ -138,25 +142,35 @@ def validate_observations(observations: dict[str, dict[str, object]]) -> None:
         )
     ):
         raise ValueError("scenario source type or status is invalid")
-    fingerprints = control.get("fingerprints")
+    fingerprints = control.get("derivedFingerprints")
     if not isinstance(fingerprints, dict) or any(
         not isinstance(fingerprints.get(field), str)
         or len(fingerprints[field]) != 64
         for field in FINGERPRINT_FIELDS
     ):
         raise ValueError("control-plane fingerprint chain is incomplete")
-    for observation in (
-        public_baseline,
-        private_preflight,
-        public_blocked,
-        private_success,
-        public_restored,
+    if (
+        fingerprints.get("class") != "derived-post-run"
+        or fingerprints.get("emittedByMeasuredProbe") is not False
+        or not isinstance(fingerprints.get("basis"), str)
+        or not isinstance(fingerprints.get("formulas"), dict)
+        or set(fingerprints["formulas"]) != set(FINGERPRINT_FIELDS)
+        or parse_observed_time({"observedAtUtc": fingerprints.get("derivedAtUtc")})
+        <= scenario_times[-1]
     ):
-        if any(
-            observation.get(field) != fingerprints[field]
-            for field in FINGERPRINT_FIELDS
-        ):
+        raise ValueError("control-plane fingerprint chain is not labeled as post-run derived")
+    for name in RAW_FILES[1:6]:
+        leaked = [field for field in DERIVED_ONLY_FIELDS if field in observations[name]]
+        if leaked:
+            raise ValueError(f"derived fingerprint leaked into raw observation {name}: {leaked}")
+    for name in PUBLIC_SCENARIOS:
+        if "probeSourceSha256" in observations[name]:
+            raise ValueError(f"derived fingerprint leaked into raw observation {name}: probeSourceSha256")
+    for name in PRIVATE_SCENARIOS:
+        if observations[name].get("probeSourceSha256") != fingerprints["probeSourceSha256"]:
             raise ValueError("scenario fingerprint chain does not match")
+        if not isinstance(observations[name].get("probeSourceSha256Basis"), str):
+            raise ValueError(f"{name} probeSourceSha256 has no stated basis")
     if not (
         public_baseline.get("parentPublicNetworkAccess") == "Enabled"
         and public_baseline.get("dnsClass") == "public"
@@ -249,6 +263,8 @@ def build_cli_transcript(raw_dir: pathlib.Path = RAW_DIR) -> str:
     request = control["request"]
     target = control["target"]
     usage = private_success["usage"]
+    fingerprints = control["derivedFingerprints"]
+    measured_source = json.loads(PROVENANCE.read_text(encoding="utf-8"))["measuredProbeSource"]
     lines = [
         "CODE_PATH_EVIDENCE",
         f"RUN_ID={control['runId']}",
@@ -257,15 +273,23 @@ def build_cli_transcript(raw_dir: pathlib.Path = RAW_DIR) -> str:
         "ORIGINAL_TERMINAL_CAPTURE=false",
         "CLIENT=Python HTTPS client with Microsoft Entra bearer token",
         "ACTUAL_PROBE_OUTPUT_RETAINED=true",
-        "REPRODUCTION_ENTRYPOINT=scripts/probe_endpoint.py",
+        "REPRODUCTION_ENTRYPOINT=scripts/probe_endpoint.py (current version; not the bytes that ran)",
+        f"MEASURED_PROBE_COMMIT={measured_source['repositoryBaselineCommit']}",
+        f"MEASURED_PROBE_RETRIEVAL={measured_source['retrieval']}",
+        f"MEASURED_PROBE_EXECUTED_BYTES_SHA256={measured_source['executionBytesSha256']} (CRLF checkout)",
+        f"MEASURED_PROBE_LF_SHA256={measured_source['lfCanonicalSha256']}",
         "MODEL_DEPLOYMENT_CHANGED=false",
-        f"PROBE_SOURCE_SHA256={control['fingerprints']['probeSourceSha256']}",
-        f"IDENTITY_SHA256={control['fingerprints']['identitySha256']}",
-        f"ENDPOINT_SHA256={control['fingerprints']['endpointSha256']}",
-        f"DEPLOYMENT_SHA256={control['fingerprints']['deploymentSha256']}",
-        f"REQUEST_SHA256={control['fingerprints']['requestSha256']}",
-        "NETWORK_CONTROL=parent Foundry account PNA plus Private Endpoint",
+        f"FINGERPRINT_CLASS={fingerprints['class']}",
+        f"FINGERPRINTS_EMITTED_BY_MEASURED_PROBE={str(fingerprints['emittedByMeasuredProbe']).lower()}",
+        f"FINGERPRINTS_DERIVED_AT_UTC={fingerprints['derivedAtUtc']}",
+        f"PROBE_SOURCE_SHA256={fingerprints['probeSourceSha256']}",
+        f"IDENTITY_SHA256={fingerprints['identitySha256']}",
+        f"ENDPOINT_SHA256={fingerprints['endpointSha256']}",
+        f"DEPLOYMENT_SHA256={fingerprints['deploymentSha256']}",
+        f"REQUEST_SHA256={fingerprints['requestSha256']}",
+        "NETWORK_CONTROL=parent Foundry account public network access plus Private Endpoint",
         "PRIVATE_RUNNER=private-IP Azure Container Instances in a linked VNet workload subnet (not Bastion)",
+        "PRIVATE_PATH_EVIDENCE=dnsClass=private only; resolved address not compared with the Private Endpoint NIC",
         f"ENDPOINT={target['endpointPattern']}",
         "DEPLOYMENT=<managed-compute-deployment>",
         f"PROMPT={json.dumps(request['prompt'], ensure_ascii=False)}",
@@ -289,7 +313,7 @@ def build_cli_transcript(raw_dir: pathlib.Path = RAW_DIR) -> str:
         f"HTTP_STATUS={private_preflight['httpStatus']}",
         f"RESPONSE_OBJECT={private_preflight['responseObject']}",
         f"RUNNER_EXIT_CODE={private_preflight['runnerExitCode']}",
-        f"PROBE_SOURCE_SHA256={private_preflight['probeSourceSha256']}",
+        f"PROBE_SOURCE_SHA256={private_preflight['probeSourceSha256']} (launcher receipt)",
         "RESULT=PASS",
         "SOURCE=evidence/raw/private-preflight.json",
         "",
@@ -309,7 +333,7 @@ def build_cli_transcript(raw_dir: pathlib.Path = RAW_DIR) -> str:
         f"HTTP_STATUS={private_success['httpStatus']}",
         f"RESPONSE_OBJECT={private_success['responseObject']}",
         f"RESPONSE_MODEL={private_success['responseModel']}",
-        f"PROBE_SOURCE_SHA256={private_success['probeSourceSha256']}",
+        f"PROBE_SOURCE_SHA256={private_success['probeSourceSha256']} (launcher receipt)",
         f"TOKENS=prompt:{usage['promptTokens']} completion:{usage['completionTokens']} total:{usage['totalTokens']}",
         f"RUNNER_EXIT_CODE={private_success['runnerExitCode']}",
         f"REQUEST_ID_SHA256={private_success['requestIdSha256']}",
@@ -347,7 +371,7 @@ def build_connectivity_run(raw_dir: pathlib.Path = RAW_DIR) -> dict[str, object]
         "scope": "Single-run inbound connectivity differential",
         "target": control["target"],
         "request": control["request"],
-        "fingerprints": control["fingerprints"],
+        "derivedFingerprints": control["derivedFingerprints"],
         "controlPlane": control["controlPlane"],
         "scenarios": scenarios,
         "postTestState": observations["post-test-state.json"],

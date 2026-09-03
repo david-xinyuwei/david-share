@@ -8,7 +8,7 @@
     "The authenticated public request is rejected after public network access is disabled.",
     "The same endpoint resolves privately and returns HTTP 200 from inside the linked VNet.",
     "Public access is restored and the authenticated public request returns HTTP 200 again.",
-    "The parent account returns to its saved PNA state and both private ACI probes terminate with exit code 0.",
+    "The parent account returns to its saved public network access state and both private ACI probes terminate with exit code 0.",
     "Temporary resources remain until the user explicitly authorizes cleanup; billing continues while Managed Compute remains deployed."
   ],
   "fixedVariables": [
@@ -21,7 +21,7 @@
   "changedVariable": "Caller network path and parent publicNetworkAccess setting",
   "timeBoundary": "Scenario order uses timestamps emitted by the probe and post-test management read; no latency distribution or service-side request-time claim is made.",
   "privateRunner": "Private-IP Azure Container Instances in a linked VNet workload subnet; direct outbound HTTPS through Private Endpoint, not Azure Bastion.",
-  "cleanupBoundary": "PNA was restored and both ACI probes terminated. The dedicated account, deployment, Private Endpoint, DNS zones, VNet, and container groups remain because stop/delete authorization was not granted.",
+  "cleanupBoundary": "Public network access was restored and both ACI probes terminated. The dedicated account, deployment, Private Endpoint, DNS zones, VNet, and container groups remain because stop/delete authorization was not granted.",
   "evidence": [
     "connectivity-run.json",
     "cli-transcript.txt",

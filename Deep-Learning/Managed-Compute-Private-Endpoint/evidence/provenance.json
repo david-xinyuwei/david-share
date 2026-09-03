@@ -1,27 +1,30 @@
 {
   "schemaVersion": 1,
   "publicEvidenceClass": "sanitized transcription of a dedicated-account live run",
-  "rawDirectoryMeaning": "Earliest public-safe observations, not byte-for-byte Azure logs",
+  "rawDirectoryMeaning": "Earliest public-safe observations, not byte-for-byte Azure logs. Scenario files carry only fields the measured probe or the ACI launcher emitted plus run and sequence metadata; post-run derived values live under control-plane.json derivedFingerprints",
   "privateSourceRetention": "Exact commands, probe outputs, management reads, and identifiers are retained outside this public repository",
   "publicVerificationBoundary": "Repository hashes and evaluators prove internal consistency and change detection; they do not independently authenticate the withheld source",
   "hashCanonicalization": "SHA-256 uses UTF-8 text normalized to LF; binary assets use raw bytes",
   "observationTimeBasis": "observedAtUtc comes from the probe output or post-test management read, not a service-side request timestamp",
   "liveRunSequence": [
-    "authenticated public request returned a Chat Completions HTTP 200 while PNA was Enabled",
-    "private-IP ACI returned a Chat Completions HTTP 200 while PNA was Enabled",
-    "authenticated public request blocked while PNA was Disabled",
-    "the same private-IP ACI code path returned a Chat Completions HTTP 200 while PNA was Disabled",
-    "authenticated public request returned HTTP 200 after PNA was restored"
+    "authenticated public request returned a Chat Completions HTTP 200 while public network access was Enabled",
+    "private-IP ACI returned a Chat Completions HTTP 200 while public network access was Enabled",
+    "authenticated public request blocked while public network access was Disabled",
+    "the same private-IP ACI code path returned a Chat Completions HTTP 200 while public network access was Disabled",
+    "authenticated public request returned HTTP 200 after public network access was restored"
   ],
   "privateRunner": "Private-IP Azure Container Instances in a linked VNet workload subnet; not Azure Bastion",
-  "sourceContinuity": "All five observations carry identical probe-source, Entra-subject, endpoint, deployment, and serialized-request SHA-256 fingerprints",
+  "privateEndpointPathInference": "The only retained public evidence that the ACI path used the Private Endpoint is dnsClass=private (RFC 1918 resolved address inside the linked VNet). The resolved address was not compared with the Private Endpoint NIC address in the public evidence",
+  "sourceContinuity": "The five argv command receipts share one endpoint and one deployment, and one Azure CLI profile supplied the Entra subject. The five SHA-256 fingerprints were derived from those receipts at 2026-08-31T06:45:33Z, after the last probe; the measured probe emitted only hostnameSha256 and requestIdSha256. endpoint, deployment, and request digests are recomputable from the real argv values; identity requires the tenant and object IDs",
   "measuredProbeSource": {
     "repositoryBaselineCommit": "762b69780da73c9f9ca21c28508349755a980820",
     "path": "scripts/probe_endpoint.py",
+    "retrieval": "git show 762b69780da73c9f9ca21c28508349755a980820:Deep-Learning/Managed-Compute-Private-Endpoint/scripts/probe_endpoint.py",
     "executionBytesSha256": "d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6",
     "lfCanonicalSha256": "ff0eac11b956c3b2327402cdf245f9e4cc045688a9cedd4de8a29a4cbe6bb639"
   },
-  "postRunHardening": "The current probe adds native fingerprints, the ACI launcher is create-only, and PNA restore uses ETag preconditions. connectivity-run.json separately hashes the current executable files.",
+  "measuredScriptBoundary": "The 2026-08-31 run executed the 762b6978 versions of all scripts. That set_public_network_access.py saved and restored the prior state without ETag capture or If-Match preconditions, and that submit_private_aci_probe.py passed a launcher-computed source digest into the container. ETag preconditions and in-container hashing exist in the current scripts with unit tests but have no live measurement in this repository",
+  "postRunHardening": "The current probe adds native fingerprints, the ACI launcher is create-only and hashes the executed bytes inside the container, and the public network access restore path uses ETag preconditions. connectivity-run.json separately hashes the current executable files.",
   "fieldRetentionBoundary": "Successful probes retain DNS class, HTTP status, response object, model, choice count, usage, and request-ID digest; completion text and resolved IP addresses are omitted",
-  "postTestBoundary": "PNA was restored and both ACI probes terminated with exit code 0. Dedicated resources remain, cleanup is awaiting explicit user authorization, and Managed Compute billing continues."
+  "postTestBoundary": "Public network access was restored and both ACI probes terminated with exit code 0. Dedicated resources remain, cleanup is awaiting explicit user authorization, and Managed Compute billing continues."
 }

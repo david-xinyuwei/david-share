@@ -19,6 +19,11 @@ from collections.abc import Callable
 
 MANAGEMENT_ENDPOINT = "https://management.azure.com"
 PROVIDER_API_VERSION = "2021-04-01"
+ACCOUNT_HOST_SUFFIXES = (
+    ".services.ai.azure.com",
+    ".openai.azure.com",
+    ".cognitiveservices.azure.com",
+)
 
 
 def validate_management_url(url: str) -> urllib.parse.ParseResult:
@@ -117,7 +122,9 @@ def validate_private_probe(
 ) -> dict[str, object]:
     with open(evidence_path, encoding="utf-8") as evidence_file:
         evidence = json.load(evidence_file)
-    expected_hostname_digest = sha256_text(f"{account_name}.services.ai.azure.com")
+    expected_hostname_digests = {
+        sha256_text(f"{account_name}{suffix}") for suffix in ACCOUNT_HOST_SUFFIXES
+    }
     if (
         evidence.get("passed") is not True
         or evidence.get("dnsClass") != "private"
@@ -125,7 +132,7 @@ def validate_private_probe(
         or evidence.get("object") != "chat.completion"
         or not isinstance(evidence.get("choiceCount"), int)
         or evidence["choiceCount"] < 1
-        or evidence.get("hostnameSha256") != expected_hostname_digest
+        or evidence.get("hostnameSha256") not in expected_hostname_digests
     ):
         raise RuntimeError("Private probe evidence does not match this account and a private HTTP 200")
     captured_at = dt.datetime.fromisoformat(str(evidence.get("capturedAtUtc", "")))

@@ -46,16 +46,18 @@
           "expected": true
         },
         {
-          "id": "five-stage-fingerprint-chain",
+          "id": "fingerprint-chain-labeled-derived",
           "passed": true,
           "actual": {
-            "public-baseline": true,
-            "private-preflight": true,
-            "public-blocked": true,
-            "private-success": true,
-            "public-restored": true
+            "class": "derived-post-run",
+            "emittedByMeasuredProbe": false,
+            "derivedOnlyFieldsInRaw": []
           },
-          "expected": true
+          "expected": {
+            "class": "derived-post-run",
+            "emittedByMeasuredProbe": false,
+            "derivedOnlyFieldsInRaw": []
+          }
         }
       ],
       "evidence": [
@@ -201,7 +203,7 @@
     {
       "id": "RUN-004",
       "applicable": true,
-      "description": "The PNA transition and Private Endpoint prerequisite are recorded.",
+      "description": "The public network access transition and Private Endpoint prerequisite are recorded.",
       "status": "PASS",
       "checks": [
         {
@@ -274,11 +276,6 @@
               "completionTokens": 4,
               "totalTokens": 17
             },
-            "probeSourceSha256": "d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6",
-            "identitySha256": "887146420b45005bf903fd183eda936b0e3fee00aa6be67a91a47f0546b54e6c",
-            "endpointSha256": "5e8cfa4be4c9aa5803d351815eceacece53477c04e26695a928e80c93935246b",
-            "deploymentSha256": "4d87fdbcba1fe6671069062752306ee4957a40c6ac281803b423c80ddd682776",
-            "requestSha256": "c4c06fac9fe6ed09d3f3117ca538e1f1d9e8be12330d5ef9b36284b6e4120804",
             "requestIdSha256": "931ef7d07cd5a2164f36b11a4567c466554ba91cf13eba7a841df28d5d2a6ccc",
             "status": "PASS"
           },
@@ -307,10 +304,7 @@
             },
             "requestIdSha256": "ed3e63b7022622827fb98080145ea5df8126e792b2d81f501c7c4899ba8ef7bd",
             "probeSourceSha256": "d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6",
-            "identitySha256": "887146420b45005bf903fd183eda936b0e3fee00aa6be67a91a47f0546b54e6c",
-            "endpointSha256": "5e8cfa4be4c9aa5803d351815eceacece53477c04e26695a928e80c93935246b",
-            "deploymentSha256": "4d87fdbcba1fe6671069062752306ee4957a40c6ac281803b423c80ddd682776",
-            "requestSha256": "c4c06fac9fe6ed09d3f3117ca538e1f1d9e8be12330d5ef9b36284b6e4120804",
+            "probeSourceSha256Basis": "launcher receipt: scripts/submit_private_aci_probe.py hashed the embedded probe bytes at submit time; the measured probe itself did not emit this field",
             "runnerExitCode": 0,
             "status": "PASS"
           },
@@ -571,7 +565,13 @@
             "do not hard-code `Enabled`": true,
             "parent Foundry account": true,
             "earliest **public-safe sanitized": true,
-            "dedicated non-production Foundry account": true
+            "dedicated non-production Foundry account": true,
+            "derived after the run": true,
+            "git show 762b69780da73c9f9ca21c28508349755a980820:": true,
+            "no live measurement": true,
+            "inferred from the private DNS class": true,
+            "other inbound hostname": true,
+            "manual-restore": true
           },
           "expected": true
         },
@@ -623,6 +623,8 @@
             "wrong-identity-rejected": true,
             "wrong-run-rejected": true,
             "identity-drift-rejected": true,
+            "derived-field-in-raw-rejected": true,
+            "unlabeled-fingerprint-chain-rejected": true,
             "duplicate-sequence-rejected": true,
             "non-monotonic-time-rejected": true,
             "missing-output-rejected": true,
@@ -635,6 +637,8 @@
             "wrong-identity-rejected": true,
             "wrong-run-rejected": true,
             "identity-drift-rejected": true,
+            "derived-field-in-raw-rejected": true,
+            "unlabeled-fingerprint-chain-rejected": true,
             "duplicate-sequence-rejected": true,
             "non-monotonic-time-rejected": true,
             "missing-output-rejected": true,

@@ -1,6 +1,8 @@
 import importlib.util
 import json
 import pathlib
+import subprocess
+import sys
 import unittest
 
 
@@ -59,9 +61,29 @@ class SubmitPrivateAciProbeTests(unittest.TestCase):
         self.assertEqual(command[0:2], ["python3", "-c"])
         self.assertIn("--expect-dns", command)
         self.assertIn("private", command)
-        self.assertIn("--probe-source-sha256", command)
-        self.assertEqual(command[command.index("--probe-source-sha256") + 1], digest)
+        self.assertNotIn("--probe-source-sha256", command)
+        self.assertNotIn(digest, command[2])
+        self.assertIn("hashlib.sha256(s).hexdigest()", command[2])
         self.assertEqual(len(digest), 64)
+
+    def test_container_bootstrap_hashes_executed_bytes(self) -> None:
+        source = (
+            b"import sys\n"
+            b"index = sys.argv.index('--probe-source-sha256')\n"
+            b"print(sys.argv[index + 1])\n"
+        )
+        command, digest = ACI.build_probe_command(
+            source,
+            "https://example.services.ai.azure.com/openai/v1/chat/completions",
+            "example-deployment",
+        )
+        completed = subprocess.run(
+            [sys.executable, *command[1:]],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.stdout.strip(), digest)
 
     def test_existing_container_group_is_never_updated(self) -> None:
         calls = []
