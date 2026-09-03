@@ -10,6 +10,7 @@ permutation tests for the round-3 "no TTFT effect" claim and recomputes the cust
 from __future__ import annotations
 
 import json
+import math
 import random
 import re
 import statistics
@@ -231,12 +232,13 @@ def check_section_358(readme: Path, outputs: Path, label: str) -> int:
     def values(model: str, effort: str, key: str) -> list[float]:
         return [r[key] for r in rows(model, effort) if r.get(key) is not None]
 
-    def assert_text(name: str, needle: str) -> None:
+    def assert_text(name: str, needle) -> None:
         nonlocal failures
-        hit = needle in text
+        needles = (needle,) if isinstance(needle, str) else tuple(needle)
+        hit = any(n in text for n in needles)
         if not hit:
             failures += 1
-        print(f"[{label}] {'PASS' if hit else 'FAIL'} 3.5.8 {name:<56} {needle}")
+        print(f"[{label}] {'PASS' if hit else 'FAIL'} 3.5.8 {name:<56} {' | '.join(needles)}")
 
     cells = [("gpt-4o-mini-dz", "default")]
     cells += [("gpt-5.6-luna-datazone", e) for e in ("none", "low", "medium", "high", "xhigh", "max", "default")]
@@ -278,6 +280,102 @@ def check_section_358(readme: Path, outputs: Path, label: str) -> int:
         if not hit:
             failures += 1
         print(f"[{label}] {'PASS' if hit else 'FAIL'} 3.5.8 contract {name}")
+
+    # Fairness cross-checks added after the final audit: every number quoted in the
+    # 4o-mini paragraph, the SKU cross-check and the within-run tail note must recompute.
+    mini = rows("gpt-4o-mini-dz", "default")
+    luna_none = rows("gpt-5.6-luna-datazone", "none")
+    mini_hit = [r["ttft"] for r in mini if (r.get("cached_tokens") or 0) > 0]
+    luna_hit = [r["ttft"] for r in luna_none if (r.get("cached_tokens") or 0) > 0]
+    assert_text("4o-mini cache-hit-only TTFT p50", f"{statistics.median(mini_hit):.3f} vs {statistics.median(luna_hit):.3f}s")
+    assert_text("4o-mini cache-hit-only raw p", f"raw p = {permutation_p(mini_hit, luna_hit):.3f}")
+    assert_text("4o-mini all-request raw p", (f"raw p = {permutation_p([r['ttft'] for r in mini], [r['ttft'] for r in luna_none]):.3f}, paired p", f"raw p={permutation_p([r['ttft'] for r in mini], [r['ttft'] for r in luna_none]):.3f}，paired p"))
+    mini_by_iter = {r["iteration"]: r["ttft"] for r in mini}
+    luna_by_iter = {r["iteration"]: r["ttft"] for r in luna_none}
+    wins = sum(mini_by_iter[i] < luna_by_iter[i] for i in mini_by_iter if i in luna_by_iter)
+    n_pairs = sum(1 for i in mini_by_iter if i in luna_by_iter)
+    paired_p = 2 * sum(math.comb(n_pairs, k) for k in range(max(wins, n_pairs - wins), n_pairs + 1)) / 2 ** n_pairs
+    assert_text("4o-mini paired sign-test p", (f"paired p = {min(paired_p, 1.0):.3f}", f"paired p={min(paired_p, 1.0):.3f}"))
+    assert_text("4o-mini paired split", f"{wins}/{n_pairs}")
+    assert_text("4o-mini TTFT max", f"{max(r['ttft'] for r in mini):.3f}s")
+    assert_text("Luna none TTFT max", f"{max(r['ttft'] for r in luna_none):.3f}s")
+
+    def chars_per_second(r: dict) -> float:
+        return r["text_len"] / (r["e2e"] - r["ttft"])
+
+    def chars_per_token(r: dict) -> float:
+        return r["text_len"] / ((r["output_tokens"] or 0) - (r["reasoning_tokens"] or 0))
+
+    cps_mini = [chars_per_second(r) for r in mini]
+    cps_luna = [chars_per_second(r) for r in luna_none]
+    assert_text("chars/s medians", f"{statistics.median(cps_mini):.0f} vs {statistics.median(cps_luna):.0f}")
+    assert_text("chars/s p < 0.0001", "p < 0.0001" if permutation_p(cps_mini, cps_luna) < 0.0001 else "CHARS_PER_SECOND_NOT_SIGNIFICANT")
+    assert_text("chars/token means", f"{statistics.mean(chars_per_token(r) for r in mini):.2f} vs {statistics.mean(chars_per_token(r) for r in luna_none):.2f}")
+    mini_tokens = statistics.mean((r["output_tokens"] or 0) - (r["reasoning_tokens"] or 0) for r in mini)
+    luna_tokens = statistics.mean((r["output_tokens"] or 0) - (r["reasoning_tokens"] or 0) for r in luna_none)
+    luna_at_mini_len = statistics.median(values("gpt-5.6-luna-datazone", "none", "ttft")) + mini_tokens * statistics.median(values("gpt-5.6-luna-datazone", "none", "t2t_ms")) / 1000
+    mini_at_luna_len = statistics.median(values("gpt-4o-mini-dz", "default", "ttft")) + luna_tokens * statistics.median(values("gpt-4o-mini-dz", "default", "t2t_ms")) / 1000
+    assert_text("length-normalised Luna", f"{luna_at_mini_len:.3f}s")
+    assert_text("length-normalised 4o-mini", f"{mini_at_luna_len:.3f}s")
+
+    for effort in ("none", "medium", "max"):
+        p_ttft = permutation_p(values("gpt-5.6-luna-datazone", effort, "ttft"), values("gpt-5.6-luna", effort, "ttft"))
+        assert_text(f"SKU cross-check {effort} TTFT p", f"p = {p_ttft:.3f}")
+    e2e_ps = [permutation_p(values("gpt-5.6-luna-datazone", e, "e2e"), values("gpt-5.6-luna", e, "e2e")) for e in ("low", "xhigh", "max")]
+    assert_text("SKU cross-check low/xhigh/max E2E p", "p = " + " / ".join(f"{p:.3f}" for p in e2e_ps))
+    ns_ps = [permutation_p(values("gpt-5.6-luna-datazone", e, "ttft"), values("gpt-5.6-luna", e, "ttft")) for e in ("low", "high", "default")]
+    assert_text("SKU cross-check low/high/default TTFT p", "p = " + " / ".join(f"{p:.3f}" for p in ns_ps))
+
+    worst_ttft = max(records, key=lambda r: r["ttft"])
+    worst_e2e = max(records, key=lambda r: r["e2e"])
+    assert_text("worst TTFT is nano xhigh", f"{worst_ttft['ttft']:.3f}s" if (worst_ttft["model"], worst_ttft["reasoning_effort"]) == ("gpt-5.4-nano", "xhigh") else "WORST_TTFT_NOT_NANO_XHIGH")
+    assert_text("worst TTFT reasoning tokens", (f"{worst_ttft['reasoning_tokens']} reasoning token", f"{worst_ttft['reasoning_tokens']} 个 reasoning token"))
+    assert_text("worst E2E is nano xhigh", f"{worst_e2e['e2e']:.3f}s" if (worst_e2e["model"], worst_e2e["reasoning_effort"]) == ("gpt-5.4-nano", "xhigh") else "WORST_E2E_NOT_NANO_XHIGH")
+    luna_rows = [r for r in records if r["model"].startswith("gpt-5.6-luna")]
+    assert_text("Luna worst TTFT", f"{max(r['ttft'] for r in luna_rows):.3f}s")
+    assert_text("no request above 15s", "15s" if max(r["e2e"] for r in records) < 15 else "REQUEST_ABOVE_15S")
+    return failures
+
+
+def check_tail_ledger(readme: Path, outputs: Path, label: str) -> int:
+    """Check the cross-file Luna tail sentence in Findings #1 against all data files."""
+    files = sorted(outputs.glob("benchmark_luna_knowledge_qa_*.json"))
+    if len(files) < 13:
+        return 0
+    text = readme.read_text(encoding="utf-8")
+    failures = 0
+
+    def assert_text(name: str, needle) -> None:
+        nonlocal failures
+        needles = (needle,) if isinstance(needle, str) else tuple(needle)
+        hit = any(n in text for n in needles)
+        if not hit:
+            failures += 1
+        print(f"[{label}] {'PASS' if hit else 'FAIL'} ledger {name:<56} {' | '.join(needles)}")
+
+    total = 0
+    luna = []
+    mini = []
+    for path in files:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        total += len(data["records"])
+        luna += [r for r in data["records"] if r["model"].startswith("gpt-5.6-luna")]
+        mini += [r for r in data["records"] if r["model"] == "gpt-4o-mini-dz"]
+    luna_ok = [r for r in luna if r["success"]]
+    luna_none = [r for r in luna_ok if r.get("reasoning_effort") == "none"]
+    mini_ok = [r for r in mini if r["success"]]
+    assert_text("file count", (f"{len(files)} data files", f"{len(files)} 个数据文件"))
+    assert_text("record total", (f"({total:,} records)", f"（{total:,} 条）"))
+    assert_text("Luna completed/total", (f"{len(luna_ok):,} of {len(luna):,} requests", f"{len(luna):,} 次请求完成 {len(luna_ok):,} 次"))
+    assert_text("Luna max successful TTFT", f"{max(r['ttft'] for r in luna_ok if r.get('ttft') is not None):.2f} s")
+    assert_text("Luna max successful E2E", f"{max(r['e2e'] for r in luna_ok):.2f} s")
+    assert_text("4o-mini max TTFT", f"{max(r['ttft'] for r in mini_ok if r.get('ttft') is not None):.2f} s TTFT")
+    assert_text("4o-mini max E2E", f"{max(r['e2e'] for r in mini_ok):.2f} s E2E")
+    assert_text("Luna none count", (f"{len(luna_none)} Luna requests", f"{len(luna_none)} 次 Luna 请求"))
+    assert_text("Luna none max TTFT", f"{max(r['ttft'] for r in luna_none):.2f} s TTFT")
+    assert_text("Luna none max E2E", f"{max(r['e2e'] for r in luna_none):.2f} s E2E")
+    failed = [r for r in luna if not r["success"]]
+    assert_text("single Luna failure is the 1,775 s connection error", "1,775 s" if len(failed) == 1 and round(failed[0]["e2e"]) == 1775 and "APIConnectionError" in str(failed[0].get("error")) else "LUNA_FAILURE_LEDGER_MISMATCH")
     return failures
 
 def permutation_p(a: list[float], b: list[float], iters: int = 20000, seed: int = 7) -> float:
@@ -313,6 +411,7 @@ def main() -> int:
         failures += check_retries_table(rd, outputs, rd.stem)
         failures += check_section_357(rd, outputs, rd.stem)
         failures += check_section_358(rd, outputs, rd.stem)
+        failures += check_tail_ledger(rd, outputs, rd.stem)
 
     print("\n== Round 3 permutation tests on Luna TTFT (median difference) ==")
     r3 = {row["file"]: row for row in all_rows if row["model"] == "gpt-5.6-luna" and "sysprompt" in row["file"]}
