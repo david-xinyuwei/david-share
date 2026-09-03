@@ -8,7 +8,7 @@
 
 This repository contains a real Hosted Agent, caller, fault harness, and evidence. It answers one question: **when the Agent process disappears, how does the same stored response continue on a new process without losing checkpointed output?**
 
-**Four-scenario interruption walkthrough (double speed, 2:52):**
+**Four interruptions on the demonstration portal, double speed, 2:52. This is the visual walkthrough; the committed evidence follows below.**
 
 https://github.com/user-attachments/assets/d548d973-57d4-46e5-bfcd-b85142be9a6f
 
@@ -24,7 +24,7 @@ https://github.com/user-attachments/assets/d548d973-57d4-46e5-bfcd-b85142be9a6f
 
 The mechanism is not "restart the old process." The caller creates one stored background response. Process A writes a checkpoint and exits. Process B starts with empty process memory, finds the same persisted response and input, enters the handler with `is_recovery=True`, restores the checkpointed response, and continues. The caller keeps polling the original response ID.
 
-The core example is the set of four interruptions in [the browser walkthrough](#watch-it-happen-in-the-browser): a safe baseline, hard process loss, caller disconnect, a human approval pending while the instance is lost, and a change of target language after recovery. Each one drives the Agents in this repository against a real long task, not a sleep loop, where the Agent calls Azure Translator S1 section by section and checkpoints every completed result.
+The repository is organized around four interruptions, shown in [the browser walkthrough](#watch-it-happen-in-the-browser): a safe baseline, hard process loss, caller disconnect, a human approval pending while the instance is lost, and a change of target language after recovery. Every scenario runs a real long task, not a sleep loop: the Agent calls Azure Translator S1 section by section and checkpoints each completed result. The recording is the visual walkthrough of those four scenarios; the sections below hold the committed, machine-checked evidence for each of them, and every measured duration in this README comes from those evidence files rather than from the recording.
 
 The run documented next is that mechanism in detail: 12 English sections, Process A lost after section 4, Process B resuming at section 5, and the complete 12-section document with terminal status `completed`. Two runs prove different parts of that statement. The local AgentServer run provides the exact operating-system down timestamp. The Foundry Version 7 run proves replacement-compute recovery in the hosted product and took `89.199` seconds. The same hard-loss contract also passed against the repository-owned .NET handler. This is public-preview capability evidence, not an SLA or production-readiness claim.
 
@@ -276,17 +276,17 @@ The source file is [`owned-approval-live-trace.txt`](evidence/owned-approval-liv
 
 ## Watch it happen in the browser
 
-The recording at the top of this README runs the four interruptions end to end against the deployed Agents, at double speed.
+The recording at the top of this README was made on 2026-09-03 on the Xingchen demonstration portal, the source of [`demo-portal/`](demo-portal/). In the recording, the baseline, process-loss, and disconnect scenarios ran a 30-section fault-injection build of the checkpoint Agent with the crash after section 10, while the approval and steering scenarios ran the same `lre-approval-gate` and `lre-steering-agent` as this repository. That portal does not persist machine-readable run records for these scenarios, so the durations shown on screen are one day's single observation for watching and are deliberately not repeated here as evidence.
 
 The four interruptions, and what each one costs. A lost process restarts locally in seconds, while Foundry first has to notice the loss, schedule replacement compute, and start a new process, so the same interruption is visibly longer in the recording:
 
-| # | Scenario | What is interrupted | How the platform continues | What to watch on screen | Measured once |
+| # | Scenario | What is interrupted | How the platform continues | What to watch on screen | Committed evidence |
 |---|---|---|---|---|---|
-| ① | Baseline, nothing interrupted | nothing | durable background response, one checkpoint committed per section | 1 process finishes, no checkpoint missing, terminal completed | control |
-| ② | Process loss and recovery | the agent process | a replacement process reclaims the same durable work | A→B process hashes differ, response ID unchanged, no gap or duplicate | 1.415 s locally; 49.555 s on Foundry |
-| ③ | Caller disconnect and reattach | the caller connection | background execution is independent of the caller | still 1 process; progress continues while nobody is attached | the agent never stopped |
-| ④ | Instance lost while approval is pending | the instance holding the review | the multi-turn chain keeps phase and sample in the task store | sample hashes unchanged, approval lands on the new instance, remaining sections finish on B | 2.004 s locally; 36.121 s on Foundry |
-| ⑤ | Change of mind after recovery | the process and the objective | crash recovery and a steerable conversation stacked | A resumes from its checkpoint, B restarts at section 1 on that same new process, both complete | 25.304 s on Foundry |
+| ① | Baseline, nothing interrupted | nothing | durable background response, one checkpoint committed per section | 1 process finishes, no checkpoint missing, terminal completed | [control run](evidence/owned-hosted-agent-live.json) |
+| ② | Process loss and recovery | the agent process | a replacement process reclaims the same durable work | A→B process hashes differ, response ID unchanged, no gap or duplicate | [1.415 s locally](evidence/owned-hosted-agent-translation-local.json) · [49.555 s window on Foundry](evidence/owned-hosted-agent-live-translation-trace.txt) |
+| ③ | Caller disconnect and reattach | the caller connection | background execution is independent of the caller | still 1 process; progress continues while nobody is attached | [the agent never stopped](evidence/owned-hosted-agent-observer.json) |
+| ④ | Instance lost while approval is pending | the instance holding the review | the multi-turn chain keeps phase and sample in the task store | sample hashes unchanged, approval lands on the new instance, remaining sections finish on B | [2.004 s locally](evidence/owned-approval-local-trace.txt) · [36.121 s window on Foundry](evidence/owned-approval-live-trace.txt) |
+| ⑤ | Change of mind after recovery | the process and the objective | crash recovery and a steerable conversation stacked | A resumes from its checkpoint, B restarts at section 1 on that same new process, both complete | [25.304 s window on Foundry](evidence/owned-steering-live-trace.txt) |
 
 [`demo-portal/`](demo-portal/) is a standalone extraction of the resilience stage from the larger Xingchen demonstration, not a copy of its unrelated chat, memory, toolbox, routing, or commerce stages. The FastAPI orchestrator in [`demo-portal/app.py`](demo-portal/app.py) drives only the three Agents in this repository. The bilingual UI in [`demo-portal/static/app.js`](demo-portal/static/app.js) exposes a safe baseline plus four interruptions: hard process loss, observer disconnect, a human approval pending during instance loss, and a target-language change after recovery.
 
@@ -326,6 +326,8 @@ There is no language model in this path and therefore no reasoning-effort settin
 | ③ | `lra-evidence-agent` | responses `2.0.0`, core and responses `2.1.0b2` | 0.5 vCPU / 1 GiB | 12 | detach after 3 sections for 8 s |
 | ④ | `lre-approval-gate` | invocations `2.0.0`, core `2.0.0` and invocations `1.0.0b8` | 1 vCPU / 2 GiB | 30 | sample 10 sections, 300 ms per section |
 | ⑤ | `lre-steering-agent` | responses `2.0.0`, core and responses `2.1.0` | 1 vCPU / 2 GiB | 30 | crash after stage 9, steer after 4 sections |
+
+The recording departs from these defaults in one respect: scenarios ①, ②, and ③ ran a 30-section build with the crash after section 10.
 
 The Portal gives every run an absolute 300 s deadline, a 180 s stream timeout, and a 10 s reconnect timeout retried once per second, so a reconnect attempt is never cancelled before the platform finishes its own handshake.
 
