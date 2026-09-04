@@ -230,7 +230,7 @@
       "scripts/set_public_network_access.py": "602200a1f4c40db8fe62e0c4065f693eff39da9ecddadcb8e29c4baf136c1357",
       "scripts/load_test_endpoint.py": "6c606721b8e542e4247d1e877008e7fb6ff41f85d86bdec82407df2a8dcf436c",
       "scripts/submit_private_aci_load_test.py": "b4fd14f2685da30c464742d626919933cb6ce4f002c2424cf1b7c3352ffd1e4a",
-      "scripts/validate_repo.py": "b9716d0789056322029699a00bedf4431c531c627b40d60385c11bb041a095be",
+      "scripts/validate_repo.py": "5cfe3617364eaccbb43836031e6add95bc4fe10c28a8d7644c56193dba60f5e1",
       "evidence/run-contract.json": "1030a9e80cb0215e0f49f74cad6d1482d00d9ec3e52c57e17d8c67e24a0ec838",
       "evidence/provenance.json": "2c555fa8dd19c5bc6701548a35191808dadeaa8e0a137625d78d7623ac558c95"
     }

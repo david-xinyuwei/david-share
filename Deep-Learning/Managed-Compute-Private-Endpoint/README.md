@@ -84,7 +84,7 @@ resource, not to the individual Managed Compute deployment dialog.
 
 | Capability | Measured observation | Evidence |
 |---|---|---|
-| Global Managed Compute was the tested deployment type | The dedicated-run Foundry page showed `qwen--qwen3-32b`, `GlobalManagedCompute`, `Succeeded`, and `H100_80GB` | [Redacted field crops](images/product-ui/deployment-facts.png) |
+| Global Managed Compute was the tested deployment type | The control-plane readback recorded `qwen--qwen3-32b`, `GlobalManagedCompute`, `Succeeded`, and `H100_80GB` | [Control-plane readback](evidence/raw/control-plane.json) |
 | Public access enforcement applied to a request addressed to the Managed Compute deployment | Authenticated request outside the VNet returned `403` with `Public access is disabled`; the rejection is an account-boundary result, not proof of where inside the route it was produced | [Run evidence](evidence/connectivity-run.json) |
 | Private Endpoint carried a real inference request | The same probe source ran in private-IP ACI, resolved to a private (RFC 1918) address, and returned Chat Completions `200` before and after public network access was disabled; Private Endpoint use is inferred from the private DNS class, not from an address match against the Private Endpoint NIC | [Generated code transcript](evidence/cli-transcript.txt) |
 | Safe post-test network state | Public access was restored, public inference returned `200`, and both private ACI probes terminated with exit code `0` | [Post-test record](evidence/raw/post-test-state.json) |
@@ -135,13 +135,15 @@ the run, and how to retrieve the exact `762b6978` probe bytes.
 
 ### The deployment was Managed Compute
 
-![Redacted Microsoft Foundry fields showing GlobalManagedCompute, Succeeded, and H100_80GB](images/product-ui/deployment-facts.png)
+![Microsoft Foundry Deploy dialog: Deployment type Global Managed Compute, Deployment template dropdown listing GPU SKU templates](images/product-ui/deploy-dialog-managed-compute.png)
 
-*Local measurement, run `managed-compute-private-link-dedicated-20260831`,
-2026-08-31. Inspect the model, deployment type, provisioning state, and
-accelerator. Resource, project, deployment, endpoint, identity, tenant, and
-subscription identifiers are omitted. The image identifies the tested object;
-the [UI evidence record](evidence/ui-evidence.json) carries its SHA-256 and claim
+*Microsoft Foundry model catalog, Deploy dialog, captured 2026-09-04. Deployment
+type is `Global Managed Compute`; the Deployment template dropdown fixes the GPU
+SKU for the model container (NVIDIA A100 / H100, single or dual, AMD MI300X). This
+is where a customer chooses Managed Compute for an open model. The measured run's
+own deployment identity (`qwen--qwen3-32b`, `H100_80GB`, `Succeeded`) is recorded
+in the [control-plane readback](evidence/raw/control-plane.json); the
+[UI evidence record](evidence/ui-evidence.json) carries the image SHA-256 and claim
 boundary.*
 
 ### Traffic paths
@@ -163,6 +165,42 @@ flowchart LR
 [Microsoft's Foundry network-isolation documentation](https://learn.microsoft.com/azure/foundry/how-to/configure-private-link).
 It shows client ingress only. The `403` is placed at the account boundary because
 the evidence cannot locate it deeper in the route.*
+
+### Test topology
+
+```mermaid
+flowchart LR
+    subgraph VNET[Customer VNet]
+        direction TB
+        subgraph RUNNER[Workload subnet, delegated to ACI]
+            ACI[ACI container group<br/>azure-cli image, python3<br/>probe / load-test script<br/>private IP only]
+        end
+        subgraph PESUB[Private Endpoint subnet]
+            NIC[Private Endpoint NIC<br/>private IP]
+        end
+        DNS[Three linked Private DNS zones<br/>privatelink.cognitiveservices.azure.com<br/>privatelink.openai.azure.com<br/>privatelink.services.ai.azure.com]
+    end
+    subgraph MS[Microsoft-hosted, not visible to the customer]
+        ACCT[Foundry account<br/>publicNetworkAccess=Disabled]
+        MC[Managed Compute deployment<br/>OpenAI-compatible Chat Completions API]
+    end
+    ACI -->|1 resolve account FQDN| DNS
+    DNS -->|2 returns the Private Endpoint IP| ACI
+    ACI -->|3 HTTPS 443| NIC
+    NIC -->|4 Private Link| ACCT
+    ACCT -->|5 routes to the deployment| MC
+```
+
+The ACI container group is the client, not the model. It runs
+`mcr.microsoft.com/azure-cli:2.77.0` (which ships `python3`), receives the
+probe or load-test source as a base64 argument, hashes the bytes it executes,
+and exits when the request finishes (`restartPolicy: Never`). It has only a
+private IP in a subnet delegated to `Microsoft.ContainerInstance/containerGroups`;
+the Private Endpoint lives in a separate, non-delegated subnet. Nothing joins
+the two except DNS: the linked zones resolve the account hostname to the Private
+Endpoint address, so the request never leaves the VNet. The model container
+receives requests and streams tokens back on the same connection; it does not
+open connections of its own.
 
 ## Executable assets
 

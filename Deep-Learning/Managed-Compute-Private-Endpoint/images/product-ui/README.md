@@ -2,11 +2,11 @@
 
 | Asset | Source class | Run / date | Crop and dimensions | Claim boundary |
 |---|---|---|---|---|
-| `deployment-facts.png` | `LOCAL_MEASUREMENT` | `managed-compute-private-link-dedicated-20260831` / 2026-08-31 | Four field-level crops combined; 1318 × 583 | Identifies the model, `GlobalManagedCompute`, `Succeeded`, and `H100_80GB`; does not prove network behavior |
+| `deploy-dialog-managed-compute.png` | `LOCAL_MEASUREMENT` | `foundry-deploy-dialog-20260904` / 2026-09-04 | Single uncropped screenshot with a red box around the Deployment template field; 3035 × 1683 | Shows Deployment type `Global Managed Compute` and the Deployment template list of GPU SKUs; does not identify the measured run or prove network behavior |
 
-Account, project, deployment, endpoint, identity, tenant, and subscription
-identifiers are omitted. The image was not redrawn and the displayed values
-were not altered. SHA-256, redactions, configuration scope, and claim boundaries
+The dialog shows no account, project, endpoint, identity, tenant, or subscription
+identifiers. The image was not redrawn and the displayed values
+were not altered. SHA-256, configuration scope, and claim boundaries
 are recorded in [`../../evidence/ui-evidence.json`](../../evidence/ui-evidence.json).
 
 The inline Mermaid traffic diagram is `AUTHOR_SYNTHESIS`. Microsoft Foundry's

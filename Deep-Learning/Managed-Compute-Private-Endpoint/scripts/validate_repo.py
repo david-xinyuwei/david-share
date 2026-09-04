@@ -50,7 +50,7 @@ REQUIRED_PATHS = [
     "evidence/ui-evidence.json",
     "evidence/rule-results.json",
     "evidence/translator-back-translation.json",
-    "images/product-ui/deployment-facts.png",
+    "images/product-ui/deploy-dialog-managed-compute.png",
     "docs/reproduction.md",
     "docs/exemplar-alignment.md",
 ]
@@ -83,6 +83,10 @@ BILINGUAL_FACTS = (
     ("run on Microsoft-hosted", "跑在微软托管的算力上"),
     ("not observable from the customer network", "从客户网络里观察不到"),
     ("evidence/perf/resource-inventory.json", "evidence/perf/resource-inventory.json"),
+    ("### Test topology", "### 实测拓扑"),
+    ("is the client, not the model", "是客户端，不是模型"),
+    ("mcr.microsoft.com/azure-cli:2.77.0", "mcr.microsoft.com/azure-cli:2.77.0"),
+    ("Microsoft.ContainerInstance/containerGroups", "Microsoft.ContainerInstance/containerGroups"),
     ("Temporary resources remain", "临时资源仍然保留"),
     ("billing continues", "继续产生费用"),
     ("Azure Container Instances (ACI)", "Azure Container Instances（Azure 容器实例，ACI）"),
@@ -363,9 +367,9 @@ def validate_ui_evidence(
                     errors.append(f"UI image dimensions mismatch: {relative_path}")
         if image.get("sourceClass") != "LOCAL_MEASUREMENT":
             errors.append(f"UI image source class is invalid: {relative_path}")
-        if image.get("runId") != "managed-compute-private-link-dedicated-20260831":
+        if image.get("runId") != "foundry-deploy-dialog-20260904":
             errors.append(f"UI image run identity is invalid: {relative_path}")
-        if image.get("captureDateUtc") != "2026-08-31":
+        if image.get("captureDateUtc") != "2026-09-04":
             errors.append(f"UI image capture date is invalid: {relative_path}")
         if not image.get("cropStatus") or not image.get("captureScope"):
             errors.append(f"UI image provenance is incomplete: {relative_path}")
@@ -1021,10 +1025,9 @@ def build_rule_results() -> dict[str, object]:
                     all(
                         value in ui["images"][0]["proves"]
                         for value in (
-                            "GlobalManagedCompute",
-                            "Succeeded",
-                            "H100_80GB",
-                            "qwen--qwen3-32b",
+                            "Global Managed Compute",
+                            "Deployment template",
+                            "H100",
                         )
                     ),
                     ui["images"][0]["proves"],
@@ -1032,7 +1035,7 @@ def build_rule_results() -> dict[str, object]:
             ],
             [
                 "evidence/ui-evidence.json",
-                "images/product-ui/deployment-facts.png",
+                "images/product-ui/deploy-dialog-managed-compute.png",
                 "evidence/connectivity-run.json",
             ],
         ),

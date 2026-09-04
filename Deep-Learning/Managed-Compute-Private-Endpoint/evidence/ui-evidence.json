@@ -2,31 +2,26 @@
   "schemaVersion": 1,
   "images": [
     {
-      "path": "images/product-ui/deployment-facts.png",
+      "path": "images/product-ui/deploy-dialog-managed-compute.png",
       "sourceClass": "LOCAL_MEASUREMENT",
-      "sourceOwner": "Microsoft Foundry authenticated deployment details page",
-      "runId": "managed-compute-private-link-dedicated-20260831",
-      "captureDateUtc": "2026-08-31",
-      "captureScope": "Single-run field values for model, deployment type, provisioning state, and accelerator",
-      "cropStatus": "Four field-level crops combined; whitespace removed; displayed values not redrawn or altered",
+      "sourceOwner": "Microsoft Foundry model catalog Deploy dialog",
+      "runId": "foundry-deploy-dialog-20260904",
+      "captureDateUtc": "2026-09-04",
+      "captureScope": "Full Deploy dialog for an open model showing Deployment type Global Managed Compute and the Deployment template list of GPU SKUs",
+      "cropStatus": "Single uncropped screenshot; a red box was drawn around the Deployment template field; displayed values not redrawn or altered",
       "dimensions": {
-        "width": 1318,
-        "height": 583
+        "width": 3035,
+        "height": 1683
       },
-      "sha256": "8a5e5acd77ef1f94951082e8d5ea9af520ff1dc510c62253f318d9253cffd7d4",
-      "proves": "The dedicated-run deployment was GlobalManagedCompute, reached Succeeded, used H100_80GB, and served qwen--qwen3-32b.",
-      "doesNotProve": "Network behavior, the deployment's outbound path, or production readiness; those claims require the code-path evidence."
+      "sha256": "6a1e964a806ec9277296a6b7f59d57674d4ea268dcd5c485c70e0dee3075ecef",
+      "proves": "In the Foundry catalog, an open model is deployed by choosing Deployment type Global Managed Compute and a Deployment template that fixes the GPU SKU (NVIDIA A100, H100, 2xA100, 2xH100, AMD MI300X, 2xMI300X).",
+      "doesNotProve": "Network behavior, the measured run's deployment identity (qwen--qwen3-32b on H100_80GB is recorded in evidence/raw/control-plane.json), or production readiness; those claims require the code-path evidence."
     }
   ],
   "redactions": [
-    "Project name",
-    "deployment name",
-    "account name",
-    "endpoint hostname",
-    "email address",
-    "tenant and subscription identifiers"
+    "None required: the dialog shows no account, project, endpoint, identity, tenant, or subscription identifiers"
   ],
-  "captureMethod": "Four field-level crops from the authenticated Microsoft Foundry deployment details page, combined without redrawing or altering field values.",
+  "captureMethod": "Single screenshot of the Microsoft Foundry model catalog Deploy dialog with the Deployment template dropdown expanded; a red highlight box was added around that field and nothing else was altered.",
   "explanatoryDiagram": {
     "path": "README.md#traffic-paths",
     "sourceClass": "AUTHOR_SYNTHESIS",

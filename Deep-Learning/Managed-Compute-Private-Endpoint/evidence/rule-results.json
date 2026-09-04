@@ -475,13 +475,13 @@
         {
           "id": "deployment-ui-facts",
           "passed": true,
-          "actual": "The dedicated-run deployment was GlobalManagedCompute, reached Succeeded, used H100_80GB, and served qwen--qwen3-32b.",
+          "actual": "In the Foundry catalog, an open model is deployed by choosing Deployment type Global Managed Compute and a Deployment template that fixes the GPU SKU (NVIDIA A100, H100, 2xA100, 2xH100, AMD MI300X, 2xMI300X).",
           "expected": true
         }
       ],
       "evidence": [
         "evidence/ui-evidence.json",
-        "images/product-ui/deployment-facts.png",
+        "images/product-ui/deploy-dialog-managed-compute.png",
         "evidence/connectivity-run.json"
       ]
     },
@@ -641,6 +641,10 @@
             "run on Microsoft-hosted": true,
             "not observable from the customer network": true,
             "evidence/perf/resource-inventory.json": true,
+            "### Test topology": true,
+            "is the client, not the model": true,
+            "mcr.microsoft.com/azure-cli:2.77.0": true,
+            "Microsoft.ContainerInstance/containerGroups": true,
             "Temporary resources remain": true,
             "billing continues": true,
             "Azure Container Instances (ACI)": true,
@@ -681,7 +685,7 @@
             "https://img.shields.io/badge/connectivity-public%20403%20%7C%20private%20200-2ea44f",
             "https://github.com/david-xinyuwei/david-share/actions/workflows/managed-compute-private-endpoint-ci.yml/badge.svg",
             "https://img.shields.io/badge/license-MIT-lightgrey",
-            "images/product-ui/deployment-facts.png"
+            "images/product-ui/deploy-dialog-managed-compute.png"
           ],
           "expected": [
             "https://img.shields.io/badge/Microsoft%20Foundry-Managed%20Compute-0067b8",
@@ -689,7 +693,7 @@
             "https://img.shields.io/badge/connectivity-public%20403%20%7C%20private%20200-2ea44f",
             "https://github.com/david-xinyuwei/david-share/actions/workflows/managed-compute-private-endpoint-ci.yml/badge.svg",
             "https://img.shields.io/badge/license-MIT-lightgrey",
-            "images/product-ui/deployment-facts.png"
+            "images/product-ui/deploy-dialog-managed-compute.png"
           ]
         },
         {

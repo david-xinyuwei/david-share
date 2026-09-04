@@ -74,7 +74,7 @@ Foundry 资源的事，不在单个 Managed Compute 模型部署上。
 
 | 能力 | 实测观测 | 证据 |
 |---|---|---|
-| 实测对象确为 Global Managed Compute | Foundry 页面显示 `qwen--qwen3-32b`、`GlobalManagedCompute`、`Succeeded` 和 `H100_80GB` | [脱敏字段截图](images/product-ui/deployment-facts.png) |
+| 实测对象确为 Global Managed Compute | 管理面回读记录了 `qwen--qwen3-32b`、`GlobalManagedCompute`、`Succeeded` 和 `H100_80GB` | [管理面回读](evidence/raw/control-plane.json) |
 | 公网访问设置作用于发往 Managed Compute 模型部署的请求 | VNet 外的已认证请求返回 `403 Public access is disabled`；这只证明请求在 Foundry 资源边界被拒绝，不能定位路由内部的拒绝点 | [运行证据](evidence/connectivity-run.json) |
 | Private Endpoint 承载真实推理请求 | 同一份探针源码在具有私有 IP 的 ACI 中执行；关闭公网前后，DNS 都解析到 RFC 1918 私有地址，Chat Completions 都返回 `200`。Private Endpoint 的使用仅凭私网 DNS 解析结果推断，尚未与其网卡地址逐项比对 | [自动生成的调用记录](evidence/cli-transcript.txt) |
 | 测试后网络状态已恢复 | 恢复公网后，推理调用重新返回 `200`；两个 ACI 探针均以退出码 `0` 结束 | [测试后状态](evidence/raw/post-test-state.json) |
@@ -117,11 +117,13 @@ Request ID 只保留 SHA-256 摘要。探针时间戳只证明执行顺序，不
 
 ### 实测对象
 
-![脱敏后的 Microsoft Foundry 字段，显示 GlobalManagedCompute、Succeeded 和 H100_80GB](images/product-ui/deployment-facts.png)
+![Microsoft Foundry 部署对话框：部署类型 Global Managed Compute，Deployment template 下拉列出 GPU SKU 模板](images/product-ui/deploy-dialog-managed-compute.png)
 
-*本地实测，运行 ID `managed-compute-private-link-dedicated-20260831`，2026-08-31。请检查
-模型名称、部署类型、预配状态和加速器。截图已移除资源、项目、部署、端点、身份、tenant
-与 subscription 标识；[图片证据记录](evidence/ui-evidence.json)保存 SHA-256 和声明边界。*
+*Microsoft Foundry 模型目录的 Deploy 对话框，2026-09-04 截取。部署类型为 `Global Managed Compute`；
+Deployment template 下拉框决定模型容器使用的 GPU SKU（NVIDIA A100 / H100 单卡或双卡、AMD MI300X）。
+客户就是在这里为开源模型选择 Managed Compute。本次实测部署自身的身份（`qwen--qwen3-32b`、
+`H100_80GB`、`Succeeded`）记录在[管理面回读](evidence/raw/control-plane.json)；
+[图片证据记录](evidence/ui-evidence.json)保存图片 SHA-256 和声明边界。*
 
 ### 流量路径
 
@@ -141,6 +143,39 @@ flowchart LR
 *原创说明图，依据本次差分实测和
 [Microsoft Foundry 网络隔离文档](https://learn.microsoft.com/azure/foundry/how-to/configure-private-link)。
 图中只表示客户端入站路径；证据只能把 `403` 定位到 Foundry 资源边界。*
+
+### 实测拓扑
+
+```mermaid
+flowchart LR
+    subgraph VNET[客户 VNet]
+        direction TB
+        subgraph RUNNER[工作负载子网，委派给 ACI]
+            ACI[ACI 容器组<br/>azure-cli 镜像，自带 python3<br/>探测 / 负载测试脚本<br/>仅私有 IP]
+        end
+        subgraph PESUB[Private Endpoint 子网]
+            NIC[Private Endpoint 网卡<br/>私有 IP]
+        end
+        DNS[三个已链接的 Private DNS Zone<br/>privatelink.cognitiveservices.azure.com<br/>privatelink.openai.azure.com<br/>privatelink.services.ai.azure.com]
+    end
+    subgraph MS[微软托管，客户不可见]
+        ACCT[Foundry 资源<br/>publicNetworkAccess=Disabled]
+        MC[Managed Compute 部署<br/>OpenAI 兼容的 Chat Completions API]
+    end
+    ACI -->|1 解析资源域名| DNS
+    DNS -->|2 返回 Private Endpoint 的 IP| ACI
+    ACI -->|3 HTTPS 443| NIC
+    NIC -->|4 Private Link| ACCT
+    ACCT -->|5 路由到部署| MC
+```
+
+ACI 容器组是客户端，不是模型。它运行 `mcr.microsoft.com/azure-cli:2.77.0`
+镜像（自带 `python3`），通过 base64 参数接收探测或负载测试脚本源码，对实际执行的
+字节计算 SHA-256，请求结束即退出（`restartPolicy: Never`）。它只有一个私有 IP，
+所在子网委派给 `Microsoft.ContainerInstance/containerGroups`；Private Endpoint
+放在另一个未委派的子网。两者之间没有任何连线配置，靠的是 DNS：已链接的区域把
+资源域名解析成 Private Endpoint 地址，请求始终不出 VNet。模型容器只接收请求并在
+同一连接上流式返回 token，不会主动向外发起连接。
 
 ## 可执行资产
 
