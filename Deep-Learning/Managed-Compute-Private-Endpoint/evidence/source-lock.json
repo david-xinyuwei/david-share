@@ -18,6 +18,30 @@
       "url": "https://learn.microsoft.com/azure/private-link/create-private-endpoint-cli",
       "gitCommit": "01f2a7e8a8dd7920f88a4e509241eb6f2cbd1187",
       "scope": "Private Endpoint, VNet, and Private DNS mechanics"
+    },
+    {
+      "title": "Azure Private Endpoint DNS Integration Scenarios",
+      "url": "https://learn.microsoft.com/azure/private-link/private-endpoint-dns-integration",
+      "gitCommit": "d7941f4c9d80854f18ed2e7ac83ef938a1161aca",
+      "scope": "Same-VNet, peered-VNet, and on-premises DNS resolution paths"
+    },
+    {
+      "title": "Azure DNS Private Resolver Overview",
+      "url": "https://learn.microsoft.com/azure/dns/dns-private-resolver-overview",
+      "gitCommit": "730f100d04bf7be59b1499ebc1be22bbbc8164f8",
+      "scope": "Conditional forwarding between on-premises networks and Azure Private DNS zones"
+    },
+    {
+      "title": "Azure AI Translator Translate Method",
+      "url": "https://learn.microsoft.com/azure/ai-services/translator/text-translation/reference/v3/translate",
+      "gitCommit": "aed9abb40b1ae0aa3e6f64102d40e2b2f594b679",
+      "scope": "Translator v3 request, response, metered usage, and status contract"
+    },
+    {
+      "title": "Azure AI Translator Authentication",
+      "url": "https://learn.microsoft.com/azure/ai-services/translator/text-translation/reference/authentication",
+      "gitCommit": "aed9abb40b1ae0aa3e6f64102d40e2b2f594b679",
+      "scope": "Global TextTranslation F0 key authentication and secret-handling boundary"
     }
   ]
 }

@@ -1,5 +1,6 @@
 import copy
 import importlib.util
+import json
 import pathlib
 import tempfile
 import unittest
@@ -66,8 +67,16 @@ class RepositoryValidatorTests(unittest.TestCase):
 
     def test_failed_check_with_forged_pass_is_rejected(self) -> None:
         candidate = copy.deepcopy(self.document)
-        candidate["rules"][0]["checks"][0]["passed"] = False
-        self.assert_invalid(candidate, "forged status: RUN-001=PASS")
+        passing_rule = next(
+            rule
+            for rule in candidate["rules"]
+            if rule["status"] == "PASS" and rule["checks"]
+        )
+        passing_rule["checks"][0]["passed"] = False
+        self.assert_invalid(
+            candidate,
+            f"forged status: {passing_rule['id']}=PASS",
+        )
 
     def test_absolute_evidence_path_is_rejected(self) -> None:
         candidate = copy.deepcopy(self.document)
@@ -112,6 +121,72 @@ class RepositoryValidatorTests(unittest.TestCase):
     def test_quick_start_stages_are_complete_and_ordered(self) -> None:
         readme = (MODULE_PATH.parents[1] / "README.md").read_text(encoding="utf-8")
         self.assertTrue(all(VALIDATOR.quick_start_stage_results(readme).values()))
+
+    def test_reader_flow_is_complete_and_ordered(self) -> None:
+        readme = (MODULE_PATH.parents[1] / "README.md").read_text(encoding="utf-8")
+        self.assertTrue(all(VALIDATOR.reader_flow_results(readme).values()))
+
+    def test_selected_exemplar_is_immutable_meeting_agent(self) -> None:
+        alignment = (
+            MODULE_PATH.parents[1] / "docs" / "exemplar-alignment.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("Meeting-Agent", alignment)
+        self.assertIn(VALIDATOR.SELECTED_EXEMPLAR_COMMIT, alignment)
+
+    def test_chinese_reader_flow_and_language_gate_pass(self) -> None:
+        readme_cn = (MODULE_PATH.parents[1] / "README-CN.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertTrue(all(VALIDATOR.chinese_quality_results(readme_cn).values()))
+
+    def test_readme_mutations_fail_closed(self) -> None:
+        root = MODULE_PATH.parents[1]
+        readme = (root / "README.md").read_text(encoding="utf-8")
+        readme_cn = (root / "README-CN.md").read_text(encoding="utf-8")
+        results = VALIDATOR.run_readme_mutation_checks(readme, readme_cn)
+        self.assertTrue(results and all(results.values()), results)
+
+    def test_visual_evidence_ledger_is_complete(self) -> None:
+        document = json.loads(
+            (VALIDATOR.ROOT / "evidence/ui-evidence.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertEqual(VALIDATOR.validate_ui_evidence(document), [])
+
+    def test_visual_evidence_dimension_mutation_is_rejected(self) -> None:
+        document = json.loads(
+            (VALIDATOR.ROOT / "evidence/ui-evidence.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        document["images"][0]["dimensions"]["width"] += 1
+        errors = VALIDATOR.validate_ui_evidence(document)
+        self.assertTrue(any("dimensions mismatch" in error for error in errors))
+
+    def test_visual_evidence_source_mutation_is_rejected(self) -> None:
+        document = json.loads(
+            (VALIDATOR.ROOT / "evidence/ui-evidence.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        document["images"][0]["sourceClass"] = "AUTHOR_SYNTHESIS"
+        document["explanatoryDiagram"]["inputs"] = []
+        errors = VALIDATOR.validate_ui_evidence(document)
+        self.assertTrue(any("source class" in error for error in errors))
+        self.assertTrue(any("diagram provenance" in error for error in errors))
+
+    def test_public_content_audit_rejects_secret_and_email(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            (root / "unsafe.md").write_text(
+                "Bearer " + "a" * 32 + "\n"
+                "contact=user" + "@" + "contoso.com\n",
+                encoding="utf-8",
+            )
+            errors = VALIDATOR.public_content_errors(root)
+        self.assertTrue(any("literal bearer credential" in error for error in errors))
+        self.assertTrue(any("email address" in error for error in errors))
 
     def test_embedded_rule_mutations_all_fail_closed(self) -> None:
         results = VALIDATOR.run_rule_contract_mutation_checks(self.document)

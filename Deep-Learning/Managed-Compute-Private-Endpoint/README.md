@@ -6,46 +6,69 @@
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/managed-compute-private-endpoint-ci.yml/badge.svg)](https://github.com/david-xinyuwei/david-share/actions/workflows/managed-compute-private-endpoint-ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
-This repository validates one precise network claim with a dedicated Foundry
-account and real authenticated code calls. The same `GlobalManagedCompute`
-deployment returned public `200` and private `200` while public access was
-enabled. After the **parent Foundry account's** public access was disabled, the
-outside request returned `403` while a private-IP ACI in the linked VNet still
-returned `200`. Restoring the saved account state returned the public path to
-`200`. This is an **inbound client-to-endpoint result only**; it is not a
-pod-placement or egress claim.
+This repository answers one question: can a client still call a
+`GlobalManagedCompute` deployment through a Private Endpoint after public
+network access is disabled on its parent Foundry resource? In one dedicated
+run, the outside client changed from `200` to `403`, while a client in the
+linked VNet remained at `200`; restoring the saved setting returned the outside
+client to `200`.
 
-This does **not** convert a deployment into a different "private model." The
-deployment stays the same; the parent Foundry account enforces its public network
-access setting and Private Endpoint access. A reproducible isolation test must use a dedicated
-non-production Foundry account. Creating only a new project under a shared
-account is insufficient because the network controls affect every child project.
+**Scope:** this proves one inbound client-to-endpoint path. It does not prove
+that Managed Compute pods run inside the customer VNet, that Managed Compute
+egress uses the customer VNet, zero prompt or completion retention, or
+production readiness.
 
 > Author: 魏新宇 (Xinyu Wei)
 
 [English](README.md) | [中文](README-CN.md)
 
-[Measured result](#measured-result) · [Product evidence](#product-evidence) · [Quick start](#quick-start) · [Evidence](#evidence) · [Official sources](#official-sources)
+[Start here](#start-here) · [Measured run](#measured-run) · [How it works](#how-the-validation-works) · [Quick start](#quick-start) · [Evidence](#evidence)
 
 ---
 
-## Configuration ownership
+## Start here
 
-| Setting | Configuration surface | Responsible role | Minimum permission | Acceptance point |
-|---|---|---|---|---|
-| Managed Compute deployment | Foundry project | Model platform owner | Foundry project model deployment permission | Deployment is `Succeeded` |
-| Public network access | Parent Foundry account | Foundry resource owner | Contributor on the account | Prior public network access state is saved; each requested state is read back |
-| Private Endpoint connection | Customer VNet + parent Foundry account | Network owner and Foundry resource owner | Network Contributor + Contributor | Connection is `Approved` and `Succeeded` |
-| Private DNS zones and VNet links | Customer Azure subscription | DNS/network owner | Private DNS Zone Contributor or equivalent | Workload client resolves a private address |
-| Client route, VPN, or ExpressRoute | Customer network | Enterprise network owner | Organization-specific | Port 443 reaches the private endpoint |
-| Private probe runner | Workload subnet in the linked VNet | Application/network owner | Ability to run Python and obtain the approved inference identity's token | Private DNS, TCP 443, and a valid Chat Completions `200` all pass; temporary runner cleanup has an owner |
-| Inference identity | Entra ID and Foundry data-plane RBAC | Identity owner | Permission to invoke Chat Completions on the tested deployment | The same principal returns a valid completion before and after the network-policy change |
+| Goal | Go to | Side effects |
+|---|---|---|
+| Understand what was measured | [Measured run](#measured-run) and [Evidence](#evidence) | None |
+| Check the code and evidence locally | [Tests](#tests) | Local files only; no Azure credentials or endpoint calls |
+| Reproduce against your Foundry resource | [Quick start](#quick-start) | Inference calls, Private Endpoint/DNS changes, a temporary public-access change, and model billing |
 
-The key operational point is that networking is configured on the **parent
-Foundry account boundary**, not in the individual Managed Compute deployment
-dialog.
+Runtime scripts require Python 3.11+ and use only the Python standard library.
+The live path also requires Azure CLI and an Entra identity allowed to invoke
+the deployment.
 
-## What this repository validates
+The acceptance path is deliberately ordered so a broken private path cannot
+lock out the operator:
+
+| Stage | Client location | Public network access | Required observation |
+|---:|---|---|---|
+| 1 | Outside the linked VNet | Enabled | Authenticated Chat Completions `200` |
+| 2 | Inside the linked VNet | Enabled | Private DNS plus authenticated `200` |
+| 3 | Outside the linked VNet | Disabled | `403` with `Public access is disabled` |
+| 4 | Inside the linked VNet | Disabled | Private DNS plus authenticated `200` |
+| 5 | Outside the linked VNet | Restored | Authenticated `200` when the saved state was `Enabled` |
+
+Done-when: the parent Foundry resource is back at its saved public network
+access setting, and the expected public/private responses all match.
+
+## Responsibility boundary
+
+| Microsoft Foundry and Azure provide | You provide and verify |
+|---|---|
+| A `GlobalManagedCompute` deployment and its parent Foundry resource | A dedicated non-production Foundry resource; all child projects must be disposable test assets |
+| The parent resource's public network access setting | Contributor on the Foundry resource; save and read back the exact prior setting |
+| Private Endpoint connection group `account` | A Private Endpoint subnet, Network Contributor, and an `Approved`/`Succeeded` connection |
+| Private DNS zone integration | The required zones, VNet links or DNS forwarding, and a client that resolves the endpoint to a private address |
+| Entra authentication and data-plane RBAC | One approved inference identity used for every stage |
+| Azure Container Instances (ACI), when used as the probe runner | A delegated workload subnet, token delivery through ARM `secureValue`, evidence capture, and an explicit cleanup owner |
+
+**Benefit:** the model URL and deployment do not change when public access is
+disabled. **Trade-off:** every client needs both a route to the VNet and DNS that
+returns the Private Endpoint address. Networking belongs to the parent Foundry
+resource, not to the individual Managed Compute deployment dialog.
+
+## What this repository proves
 
 | Capability | Measured observation | Evidence |
 |---|---|---|
@@ -55,14 +78,12 @@ dialog.
 | Safe post-test network state | Public access was restored, public inference returned `200`, and both private ACI probes terminated with exit code `0` | [Post-test record](evidence/raw/post-test-state.json) |
 | Resource and billing boundary | Temporary resources remain because cleanup was not authorized; billing continues while Managed Compute remains deployed | [Post-test record](evidence/raw/post-test-state.json) |
 
-**This does not prove that managed pods are injected into the customer VNet.**
-It also does not prove that Managed Compute egress traverses the customer VNet,
-that prompts or completions have zero retention, or that this single preview run is production
-ready. Only the parent account's `*.services.ai.azure.com` route was tested; the
-run does not show whether the Managed Compute deployment exposes any other inbound hostname.
-The measured claim is inbound client-to-endpoint isolation only.
+Only the parent Foundry resource's `*.services.ai.azure.com` route was tested.
+The run does not show whether the Managed Compute deployment exposes any other
+inbound hostname. A `403` proves rejection at the account boundary; it does not
+locate the rejection inside the Managed Compute route.
 
-## Measured result
+## Measured run
 
 The test kept the Foundry account, deployment, endpoint, Entra identity, and
 request payload fixed. Only the caller network path and the parent account's
@@ -86,112 +107,10 @@ source hash and exited with code `0`. Generated content and resolved addresses
 are omitted; request IDs are represented only as SHA-256 digests. Probe
 timestamps establish order, not a latency distribution.
 
-## Code-path evidence
-
-The dedicated run used this repository's Python HTTPS probe with a Microsoft
-Entra token. Its actual sanitized probe outputs were retained. The block below
-is generated from those validated live observations by
-[`scripts/build_evidence.py`](scripts/build_evidence.py); it is a direct-reading
-view, not a fabricated terminal screenshot.
-
-The probe that ran emitted only `hostnameSha256` and `requestIdSha256`. The five
-SHA-256 fingerprints in the block were derived after the run, at
-`2026-08-31T06:45:33.338213+00:00`, from the five retained command receipts and
-the shared Azure CLI profile; they bind the stages to one probe source, Entra
-subject, endpoint, deployment, and serialized request without publishing those
-values, but they are not probe output. The endpoint, deployment, and request
-digests are recomputable from the real argv values; the identity digest needs
-the tenant and object IDs. The bytes that ran are not the current
-`scripts/probe_endpoint.py`; retrieve them with
-`git show 762b69780da73c9f9ca21c28508349755a980820:Deep-Learning/Managed-Compute-Private-Endpoint/scripts/probe_endpoint.py`
-(LF `ff0eac11…`; the CRLF Windows checkout that executed hashes to `d2d99524…`).
-
-<!-- BEGIN GENERATED CLI EVIDENCE -->
-```text
-CODE_PATH_EVIDENCE
-RUN_ID=managed-compute-private-link-dedicated-20260831
-DATE_UTC=2026-08-31
-EVIDENCE_CLASS=derived-sanitized-view-of-live-code-observations
-ORIGINAL_TERMINAL_CAPTURE=false
-CLIENT=Python HTTPS client with Microsoft Entra bearer token
-ACTUAL_PROBE_OUTPUT_RETAINED=true
-REPRODUCTION_ENTRYPOINT=scripts/probe_endpoint.py (current version; not the bytes that ran)
-MEASURED_PROBE_COMMIT=762b69780da73c9f9ca21c28508349755a980820
-MEASURED_PROBE_RETRIEVAL=git show 762b69780da73c9f9ca21c28508349755a980820:Deep-Learning/Managed-Compute-Private-Endpoint/scripts/probe_endpoint.py
-MEASURED_PROBE_EXECUTED_BYTES_SHA256=d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6 (CRLF checkout)
-MEASURED_PROBE_LF_SHA256=ff0eac11b956c3b2327402cdf245f9e4cc045688a9cedd4de8a29a4cbe6bb639
-MODEL_DEPLOYMENT_CHANGED=false
-FINGERPRINT_CLASS=derived-post-run
-FINGERPRINTS_EMITTED_BY_MEASURED_PROBE=false
-FINGERPRINTS_DERIVED_AT_UTC=2026-08-31T06:45:33.338213+00:00
-PROBE_SOURCE_SHA256=d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6
-IDENTITY_SHA256=887146420b45005bf903fd183eda936b0e3fee00aa6be67a91a47f0546b54e6c
-ENDPOINT_SHA256=5e8cfa4be4c9aa5803d351815eceacece53477c04e26695a928e80c93935246b
-DEPLOYMENT_SHA256=4d87fdbcba1fe6671069062752306ee4957a40c6ac281803b423c80ddd682776
-REQUEST_SHA256=c4c06fac9fe6ed09d3f3117ca538e1f1d9e8be12330d5ef9b36284b6e4120804
-NETWORK_CONTROL=parent Foundry account public network access plus Private Endpoint
-PRIVATE_RUNNER=private-IP Azure Container Instances in a linked VNet workload subnet (not Bastion)
-PRIVATE_PATH_EVIDENCE=dnsClass=private only; resolved address not compared with the Private Endpoint NIC
-ENDPOINT=https://<foundry-account>.services.ai.azure.com/openai/v1/chat/completions
-DEPLOYMENT=<managed-compute-deployment>
-PROMPT="Reply with exactly OK."
-MAX_TOKENS=4
-TEMPERATURE=0
-
-REPRODUCTION_CLI=python scripts/probe_endpoint.py --endpoint <endpoint> --deployment <deployment> --expect-dns <public|private> --expect-http <status> --prompt "Reply with exactly OK." --max-tokens 4
-
-[1/5] OUTSIDE_VNET_PNA_ENABLED_BASELINE
-OBSERVED_AT_UTC=2026-08-31T05:52:07.510094+00:00
-DNS_CLASS=public
-HTTP_STATUS=200
-RESPONSE_OBJECT=chat.completion
-RESPONSE_MODEL=qwen--qwen3-32b
-RESULT=PASS
-SOURCE=evidence/raw/public-baseline.json
-
-[2/5] INSIDE_LINKED_VNET_PNA_ENABLED_PREFLIGHT
-OBSERVED_AT_UTC=2026-08-31T05:53:43.009747+00:00
-DNS_CLASS=private
-HTTP_STATUS=200
-RESPONSE_OBJECT=chat.completion
-RUNNER_EXIT_CODE=0
-PROBE_SOURCE_SHA256=d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6 (launcher receipt)
-RESULT=PASS
-SOURCE=evidence/raw/private-preflight.json
-
-[3/5] OUTSIDE_VNET_PNA_DISABLED
-OBSERVED_AT_UTC=2026-08-31T06:06:03.530809+00:00
-DNS_CLASS=public
-HTTP_STATUS=403
-ERROR_CATEGORY=public-access-disabled
-NETWORK_POLICY_BLOCKED=true
-REQUEST_ID_SHA256=0bca43fc944a7328def2b961d977e09767bce02d11a2ea8322a1d6ec3594217b
-RESULT=PASS
-SOURCE=evidence/raw/public-blocked.json
-
-[4/5] INSIDE_LINKED_VNET_PNA_DISABLED
-OBSERVED_AT_UTC=2026-08-31T06:07:39.938843+00:00
-DNS_CLASS=private
-HTTP_STATUS=200
-RESPONSE_OBJECT=chat.completion
-RESPONSE_MODEL=qwen--qwen3-32b
-PROBE_SOURCE_SHA256=d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6 (launcher receipt)
-TOKENS=prompt:13 completion:4 total:17
-RUNNER_EXIT_CODE=0
-REQUEST_ID_SHA256=eb511b575cc023ba02e44edcd13e61d578bac32b120f7029eac249dc7f776065
-RESULT=PASS
-SOURCE=evidence/raw/private-success.json
-
-[5/5] OUTSIDE_VNET_PNA_RESTORED
-OBSERVED_AT_UTC=2026-08-31T06:12:14.739435+00:00
-DNS_CLASS=public
-HTTP_STATUS=200
-RESPONSE_MODEL=qwen--qwen3-32b
-REQUEST_ID_SHA256=50f4ebab5abb8a5f5c735b8b67ee09b1a301e3edb1cc0ce5cf9d29488c40a0c2
-RESULT=PASS
-SOURCE=evidence/raw/public-restored.json
-```
-<!-- END GENERATED CLI EVIDENCE -->
+The [generated transcript](evidence/cli-transcript.txt) is the canonical
+direct-reading view of the five observations. [Provenance](evidence/provenance.json)
+records which fields came from the probe, which fingerprints were derived after
+the run, and how to retrieve the exact `762b6978` probe bytes.
 
 ## Product evidence
 
@@ -199,7 +118,12 @@ SOURCE=evidence/raw/public-restored.json
 
 ![Redacted Microsoft Foundry fields showing GlobalManagedCompute, Succeeded, and H100_80GB](images/product-ui/deployment-facts.png)
 
-*Run `managed-compute-private-link-dedicated-20260831`, 2026-08-31. Four field-level crops retain the model, deployment type, provisioning state, and accelerator. Account, project, deployment, endpoint, identity, tenant, and subscription fields are omitted. UI identifies the tested object; the generated code transcript proves network behavior.*
+*Local measurement, run `managed-compute-private-link-dedicated-20260831`,
+2026-08-31. Inspect the model, deployment type, provisioning state, and
+accelerator. Resource, project, deployment, endpoint, identity, tenant, and
+subscription identifiers are omitted. The image identifies the tested object;
+the [UI evidence record](evidence/ui-evidence.json) carries its SHA-256 and claim
+boundary.*
 
 ### Traffic paths
 
@@ -216,7 +140,10 @@ flowchart LR
     style OK fill:#dff6dd,stroke:#107c10
 ```
 
-*Original explanatory diagram based on the measured differential and the official Foundry Private Link documentation. It describes the client ingress path, not pod placement. The 403 is drawn at the account boundary because that is where the evidence places it.*
+*Original explanatory diagram based on the measured differential and
+[Microsoft's Foundry network-isolation documentation](https://learn.microsoft.com/azure/foundry/how-to/configure-private-link).
+It shows client ingress only. The `403` is placed at the account boundary because
+the evidence cannot locate it deeper in the route.*
 
 ## Executable assets
 
@@ -226,8 +153,42 @@ flowchart LR
 | [`scripts/probe_endpoint.py`](scripts/probe_endpoint.py) | Sends the same authenticated request and asserts DNS class plus HTTP status without printing a token |
 | [`scripts/submit_private_aci_probe.py`](scripts/submit_private_aci_probe.py) | Runs the exact probe source in a private-IP ACI; the container hashes the bytes it executes; the Entra token is injected only as an ARM `secureValue`; an existing name is never updated |
 | [`scripts/set_public_network_access.py`](scripts/set_public_network_access.py) | Fails closed unless an Approved PE exists before disabling public access; ETag preconditions reject concurrent account changes (added after the measured run; unit-tested, no live measurement) |
+| [`scripts/azure_translator_backtranslate.py`](scripts/azure_translator_backtranslate.py) | Calls Azure AI Translator for Chinese-to-English back-translation; the key is read only from the process environment, while `--check` validates committed evidence without credentials |
 | [`tests/`](tests/) | Exercises the CLI entry point, response semantics, zero-PATCH refusal matrix, saved-state restore, raw evidence mutations, and Rule Catalog mutations |
 | [`evidence/`](evidence/) | Sanitized run contract, measurements, source lock, UI hashes, and Level 5 rule results |
+
+## How the validation works
+
+| Layer | Actual implementation | Pass condition | Evidence boundary |
+|---|---|---|---|
+| DNS | [`resolve_addresses`](scripts/probe_endpoint.py) resolves the endpoint; [`classify_addresses`](scripts/probe_endpoint.py) classifies every result as public, private, or mixed | The in-VNet client reports `dnsClass=private` | The retained run did not compare the resolved address with the Private Endpoint NIC |
+| Data plane | [`run_probe`](scripts/probe_endpoint.py) sends one Entra-authenticated Chat Completions request | `200` requires `object=chat.completion` and at least one choice; `403` requires the public-access-disabled error category | A network `403` is not interchangeable with an RBAC `403` |
+| Control plane | [`change_public_network_access`](scripts/set_public_network_access.py) saves, changes, reads back, and restores the parent resource setting | The requested setting and `Succeeded` state are read back | ETag guards were added after the measured run and have unit tests but no live measurement |
+
+### How customers reach the Private Endpoint
+
+The client type is not the deciding factor. A VM, container, Kubernetes pod, or
+on-premises application can call the same model URL when it has a route to the
+VNet and DNS resolves that URL to the Private Endpoint address.
+
+| Client location | Network path | DNS requirement |
+|---|---|---|
+| VM, ACI, or Kubernetes workload in the same or a peered VNet | VNet routing or peering | Link the same Foundry Private DNS zones to every client VNet, or use the organization's DNS resolver |
+| On-premises application | ExpressRoute or site-to-site VPN | Conditionally forward the Foundry service zone to an Azure DNS Private Resolver inbound endpoint or an Azure DNS forwarder |
+| Developer workstation | Point-to-site VPN, or a VM reached through Azure Bastion | Use the VPN/resolver DNS path; a Bastion VM is a development option, not a requirement |
+
+See [Azure Private Endpoint DNS integration scenarios](https://learn.microsoft.com/azure/private-link/private-endpoint-dns-integration)
+and [Azure DNS Private Resolver](https://learn.microsoft.com/azure/dns/dns-private-resolver-overview).
+The ACI in this repository is a disposable validation runner, not a prescribed
+production client.
+
+### Common misunderstandings
+
+| Misunderstanding | What the code and evidence show |
+|---|---|
+| “Private Endpoint creates a private copy of the model.” | The deployment and URL stay fixed; the parent Foundry resource changes which network path may reach it. |
+| “Private DNS proves the Managed Compute pods are in my VNet.” | The probe proves only that the client resolved a private address and received a valid response. Pod placement is outside scope. |
+| “ACI is required to use the model privately.” | ACI was the measured runner. Any client with private routing, private DNS, and an authorized Entra identity can use the endpoint. |
 
 ## Quick start
 
@@ -251,7 +212,6 @@ owner is responsible for the workload runner and its cleanup.
 git clone --filter=blob:none --sparse https://github.com/david-xinyuwei/david-share.git
 git -C david-share sparse-checkout set Deep-Learning/Managed-Compute-Private-Endpoint
 cd david-share/Deep-Learning/Managed-Compute-Private-Endpoint
-python -m unittest discover -s tests -v
 ```
 
 Confirm the intended Azure account. These commands have no resource side effects:
@@ -407,27 +367,94 @@ path remains blocked. See
 [`docs/reproduction.md`](docs/reproduction.md) for the complete validation and
 cleanup sequence.
 
+## Tests
+
+No Azure credentials, GPU, or live endpoint are required. The tests cover URL
+and DNS classification, authenticated response semantics, create-only ACI,
+zero-PATCH refusal paths, saved-state restore, evidence mutations, bilingual
+reader flow, Azure Translator evidence, and the Level 5 rule contract.
+
+```bash
+python -m compileall -q scripts tests
+python -m unittest discover -s tests -v
+python scripts/build_evidence.py --check
+python scripts/azure_translator_backtranslate.py --check
+python scripts/validate_repo.py --public-content-only
+python scripts/validate_repo.py
+```
+
+Done-when: all tests pass, generated evidence is synchronized, and
+`REPO_VALIDATION=PASS`.
+
+## Compatibility notes
+
+- The live run used Azure commercial cloud, Python 3.11+, one
+  `GlobalManagedCompute` deployment, and the
+  `*.services.ai.azure.com/openai/v1/chat/completions` route.
+- The Private Endpoint must be in the same subscription and region as its VNet,
+  and its connection must be `Approved` before traffic can pass.
+- The default Bicep path manages the three Foundry Private DNS zones. Central
+  DNS mode requires pre-existing resolution from the workload network.
+- The optional ACI runner requires a separate workload subnet delegated to
+  `Microsoft.ContainerInstance/containerGroups`.
+- The public Managed Compute deployment how-to remains classic-only. The
+  recorded `GlobalManagedCompute` behavior comes from this single 2026-08-31
+  run, not from extrapolating the classic endpoint documentation.
+
+## Repository map
+
+| Path | Owner |
+|---|---|
+| [`infra/`](infra/) | Private Endpoint and Private DNS deployment |
+| [`scripts/`](scripts/) | Endpoint probe, ACI submission, public-access change, evidence generation, Azure Translator back-translation, and repository validation |
+| [`tests/`](tests/) | Offline behavior, rejection-path, mutation, and reader-flow tests |
+| [`evidence/`](evidence/) | Sanitized observations, derived results, source locks, UI ledger, and rule results |
+| [`images/`](images/) | Redacted product UI evidence |
+| [`docs/`](docs/) | Full ACI reproduction, manual restore, and exemplar alignment |
+
 ## Evidence
 
 | Asset | Purpose |
 |---|---|
 | [`evidence/connectivity-run.json`](evidence/connectivity-run.json) | Sanitized control-plane and public/private data-plane observations |
-| [`evidence/cli-transcript.txt`](evidence/cli-transcript.txt) | Generated direct-reading view of the authenticated Python 200/200/403/200/200 observations |
+| [Generated transcript](evidence/cli-transcript.txt) | Derived direct-reading view of the authenticated Python 200/200/403/200/200 observations |
 | [`evidence/raw/`](evidence/raw/) | Sanitized source observations from which the connectivity result is generated; scenario files hold only probe- or launcher-emitted fields |
 | [`evidence/run-contract.json`](evidence/run-contract.json) | Frozen question, acceptance conditions, and changed variable |
 | [`evidence/provenance.json`](evidence/provenance.json) | Public/private evidence boundary, time basis, runner method, and retained-resource state |
 | [`evidence/ui-evidence.json`](evidence/ui-evidence.json) | Image hashes, redactions, and per-image claim boundaries |
+| [`evidence/translator-back-translation.json`](evidence/translator-back-translation.json) | Live Azure AI Translator Chinese-to-English back-translation, input hashes, metered usage, and numeric-drift result |
 | [`evidence/source-lock.json`](evidence/source-lock.json) | Official URLs and immutable documentation commits |
 | [`evidence/rule-results.json`](evidence/rule-results.json) | Generated Level 5 rule-by-rule result |
 
-The files under `evidence/raw/` are the earliest **public-safe sanitized
-observations**, not byte-for-byte Azure logs. Their hashes and the native gate
-detect drift inside this repository; they do not independently authenticate the
-withheld private source. This limitation is explicit in the provenance record.
+The files under `evidence/raw/` are the earliest public-safe sanitized
+observations, not byte-for-byte Azure logs. Their hashes and the repository
+validator detect drift inside this repository; they do not independently
+authenticate the withheld private source. Fingerprints marked
+`derived-post-run` were derived after the run; they are not probe output.
+
+| Evidence class | Assets | What it can support |
+|---|---|---|
+| `LOCAL_MEASUREMENT` | `evidence/raw/*.json`, product UI image | The recorded five-stage behavior and tested object |
+| `DERIVED` | `connectivity-run.json`, generated transcript, rule results | Internal consistency, lineage, and direct reading; not independent source authentication |
+| `SOURCE_FACT` | `source-lock.json` | Official Private Endpoint, DNS, and Foundry configuration behavior at the pinned source commits |
+
+Quality status: `ESSENCE_STATUS=PASS`; the recorded run has
+`REPRO_STATUS=PASS`. Post-run ETag and in-container hash hardening remain
+`LIVE_STATUS=NOT_RUN` and are claimed only as unit-tested code.
+
+The Chinese README is native-authored and independently reviewed; it is not
+published machine output. Azure AI Translator was then called for a live
+Chinese-to-English back-translation check. The checked-in evidence requires
+HTTP `200`, hashed request IDs, current README SHA-256 values, and zero semantic
+numeric drift in both English↔Chinese and Chinese→back-translation comparisons.
 
 ## Official sources
 
 - [Configure network isolation for Microsoft Foundry](https://learn.microsoft.com/azure/foundry/how-to/configure-private-link)
+- [Azure Private Endpoint DNS integration scenarios](https://learn.microsoft.com/azure/private-link/private-endpoint-dns-integration)
+- [Azure DNS Private Resolver overview](https://learn.microsoft.com/azure/dns/dns-private-resolver-overview)
+- [Azure AI Translator Translate method](https://learn.microsoft.com/azure/ai-services/translator/text-translation/reference/v3/translate)
+- [Azure AI Translator authentication](https://learn.microsoft.com/azure/ai-services/translator/text-translation/reference/authentication)
 - [Microsoft Foundry Models overview](https://learn.microsoft.com/azure/foundry/concepts/foundry-models-overview)
 - [Create a Private Endpoint with Azure CLI](https://learn.microsoft.com/azure/private-link/create-private-endpoint-cli)
 

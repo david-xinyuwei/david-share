@@ -6,196 +6,119 @@
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/managed-compute-private-endpoint-ci.yml/badge.svg)](https://github.com/david-xinyuwei/david-share/actions/workflows/managed-compute-private-endpoint-ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
-这个 Repo 使用专用 Foundry account 和真实代码调用，验证一个精确结论：同一个
-`GlobalManagedCompute` deployment 在公网开放时，公网和私网调用都返回 `200`；关闭
-所属 **Foundry account** 的公网后，VNet 外调用返回 `403`，关联 VNet 内的 private-IP
-ACI 仍返回 `200`；恢复保存的原始状态后，公网再次返回 `200`。这个结论**只覆盖客户端
-到 endpoint 的入站路径**，不涉及 Pod 落点或出站流量。
+本仓库只回答一个问题：关闭所属 Foundry 资源的 public network access（公网访问）后，
+业务客户端是否还能通过 Private Endpoint（私有端点）调用
+`GlobalManagedCompute` 模型部署？在一次独立环境实测中，VNet 外的调用从 `200` 变为
+`403`，VNet 内的调用保持 `200`；恢复原值后，VNet 外的调用重新返回 `200`。
 
-这不是把 deployment 转换成另一种“private model”。模型 deployment 保持不变，
-由父级 Foundry account 的 public network access（公网访问开关）和 Private Endpoint
-控制访问。可复现的隔离测试必须使用专用的非生产 Foundry account；只在共享 account
-下新建 project 仍会影响该 account 的全部子 project，因此不满足隔离要求。
+**结论边界：**本次实测仅验证客户端到推理端点的入站网络路径；并不证明 Managed Compute
+托管 Pod 位于客户 VNet，也不证明其出站流量经过客户 VNet；同时不证明 Prompt 或
+Completion 零留存，也不证明该 Preview 能力已达到生产要求。
 
 > Author: 魏新宇 (Xinyu Wei)
 
 [English](README.md) | [中文](README-CN.md)
 
-[实测结果](#实测结果) · [产品证据](#产品证据) · [快速上手](#快速上手) · [证据](#证据) · [官方来源](#官方来源)
+[从这里开始](#从这里开始) · [五阶段实测](#五阶段实测) · [验证原理](#验证原理) · [复现步骤](#复现步骤) · [证据](#证据)
 
 ---
 
-## 配置归属
+## 从这里开始
 
-| 配置项 | 配置位置 | 责任角色 | 最低权限 | 验收点 |
-|---|---|---|---|---|
-| Managed Compute deployment | Foundry project | 模型平台负责人 | Foundry project 模型部署权限 | Deployment 为 `Succeeded` |
-| 公网访问 | 所属 Foundry account | Foundry 资源负责人 | 该资源的 Contributor | 保存原始公网访问状态；每次修改后回读目标状态 |
-| Private Endpoint 连接 | 客户 VNet + 所属 Foundry 资源 | 网络负责人和 Foundry 资源负责人 | Network Contributor + Contributor | 连接为 `Approved` 且 `Succeeded` |
-| Private DNS zone 与 VNet link | 客户 Azure 订阅 | DNS/网络负责人 | Private DNS Zone Contributor 或等价权限 | 业务客户端解析到私有地址 |
-| 客户端路由、VPN 或 ExpressRoute | 客户网络 | 企业网络负责人 | 按组织网络规范 | TCP 443 到达 Private Endpoint |
-| 私网探测 runner | 关联 VNet 的业务 subnet | 应用/网络负责人 | 能运行 Python，并取得已批准推理身份的 Token | 私网 DNS、TCP 443 和有效 Chat Completions `200` 均通过；临时 runner 有明确清理责任人 |
-| 推理调用身份 | Entra ID 和 Foundry 数据面 RBAC | 身份负责人 | 调用实测 deployment 的 Chat Completions 权限 | 同一 principal 在网络策略切换前后均能返回有效 completion |
+| 目标 | 入口 | 副作用 |
+|---|---|---|
+| 快速了解结论与证据 | [五阶段实测](#五阶段实测)和[证据](#证据) | 无 |
+| 在本地检查代码与证据 | [测试](#测试) | 只读本地文件；不需要 Azure 凭据，也不会调用线上端点 |
+| 在客户环境复现 | [复现步骤](#复现步骤) | 会调用模型、创建 Private Endpoint 与 DNS、临时修改公网访问，并持续产生模型费用 |
 
-关键操作点是：网络配置位于**所属 Foundry account 边界**，不在单个 Managed
-Compute deployment 创建窗口里。
+运行脚本要求 Python 3.11+，只使用 Python 标准库。线上复现还需要 Azure CLI，以及有权
+调用目标模型部署的 Entra 身份。
 
-## 这个 Repo 验证了什么
+执行顺序不能颠倒。必须先证明私网路径可用，再关闭公网，避免因 DNS 或路由错误把操作人员
+锁在网络之外。
+
+| 阶段 | 客户端位置 | 公网访问 | 必须看到的结果 |
+|---:|---|---|---|
+| 1 | 关联 VNet 外 | 开启 | 通过 Entra 认证的 Chat Completions 请求返回 `200` |
+| 2 | 关联 VNet 内 | 开启 | DNS 解析到私有地址，并返回 `200` |
+| 3 | 关联 VNet 外 | 关闭 | 返回 `403 Public access is disabled` |
+| 4 | 关联 VNet 内 | 关闭 | DNS 仍解析到私有地址，并返回 `200` |
+| 5 | 关联 VNet 外 | 恢复原值 | 若原值为 `Enabled`，请求重新返回 `200` |
+
+完成条件：所属 Foundry 资源回到测试前保存的公网访问状态，五个阶段的公网与私网结果全部
+符合预期。
+
+## 平台与客户各负责什么
+
+| Microsoft Foundry 与 Azure 提供 | 客户负责并验收 |
+|---|---|
+| `GlobalManagedCompute` 模型部署及其所属 Foundry 资源 | 独立的非生产 Foundry 资源；其下所有项目都必须是可处置的测试资产 |
+| 所属资源的公网访问设置 | Foundry 资源的 Contributor 权限；修改前保存原值，修改后回读确认 |
+| 连接组为 `account` 的 Private Endpoint | Private Endpoint 专用子网、Network Contributor 权限，以及 `Approved`、`Succeeded` 的连接状态 |
+| Private DNS Zone 集成 | 所需的私有 DNS 区域、VNet 链接或 DNS 转发，并确认客户端解析到私有地址 |
+| Entra 认证与数据面 RBAC | 五个阶段始终使用同一个、具备模型调用权限的 Entra 身份 |
+| Azure Container Instances（Azure 容器实例，ACI），如果用它执行探测 | 已委派的工作负载子网、通过 ARM `secureValue` 传入令牌、保存证据，并指定清理负责人 |
+
+**收益：**关闭公网后，模型 URL 和部署本身不需要改变。**代价：**每个客户端都必须具备
+到 VNet 的路由，并且 DNS 必须返回 Private Endpoint 的私有地址。网络控制属于所属
+Foundry 资源，不属于单个 Managed Compute 模型部署。
+
+## 本仓库证明了什么
 
 | 能力 | 实测观测 | 证据 |
 |---|---|---|
-| 实测对象确为 Global Managed Compute | 专用 run 的 Foundry 页面显示 `qwen--qwen3-32b`、`GlobalManagedCompute`、`Succeeded` 和 `H100_80GB` | [脱敏字段截图](images/product-ui/deployment-facts.png) |
-| 所属资源的公网策略作用于发往 Managed Compute deployment 的请求 | VNet 外使用已通过 Entra 认证的请求调用，返回 `403 Public access is disabled`；这是 account 边界上的拒绝，不能说明拒绝发生在路由内部哪一层 | [运行证据](evidence/connectivity-run.json) |
-| Private Endpoint 承载真实推理请求 | 同一份 probe 源码在 private-IP ACI 中执行，关闭公网前后都解析到私网（RFC 1918）地址并返回 Chat Completions `200`；“经由 Private Endpoint”由私网 DNS 类别推断，未与 Private Endpoint 网卡地址对账 | [自动生成的代码记录](evidence/cli-transcript.txt) |
-| 测试后网络状态已恢复 | 公网恢复后推理再次返回 `200`，两个私网 ACI probe 都以退出码 `0` 结束 | [测试后状态](evidence/raw/post-test-state.json) |
-| 资源和计费边界 | 未获得清理授权，因此临时资源仍保留；Managed Compute 保留期间继续计费 | [测试后状态](evidence/raw/post-test-state.json) |
+| 实测对象确为 Global Managed Compute | Foundry 页面显示 `qwen--qwen3-32b`、`GlobalManagedCompute`、`Succeeded` 和 `H100_80GB` | [脱敏字段截图](images/product-ui/deployment-facts.png) |
+| 公网访问设置作用于发往 Managed Compute 模型部署的请求 | VNet 外的已认证请求返回 `403 Public access is disabled`；这只证明请求在 Foundry 资源边界被拒绝，不能定位路由内部的拒绝点 | [运行证据](evidence/connectivity-run.json) |
+| Private Endpoint 承载真实推理请求 | 同一份探针源码在具有私有 IP 的 ACI 中执行；关闭公网前后，DNS 都解析到 RFC 1918 私有地址，Chat Completions 都返回 `200`。Private Endpoint 的使用仅凭私网 DNS 解析结果推断，尚未与其网卡地址逐项比对 | [自动生成的调用记录](evidence/cli-transcript.txt) |
+| 测试后网络状态已恢复 | 恢复公网后，推理调用重新返回 `200`；两个 ACI 探针均以退出码 `0` 结束 | [测试后状态](evidence/raw/post-test-state.json) |
+| 资源和计费边界 | 未获得清理授权，因此临时资源仍然保留；Managed Compute 保留期间继续产生费用 | [测试后状态](evidence/raw/post-test-state.json) |
 
-**这不能证明托管 Pod 被注入客户 VNet。**本次也没有证明 Managed Compute 出站流量
-经过客户 VNet、Prompt/Completion 零留存，或者一次 Preview 实测已经达到生产 SLA。
-本次只测了父级 account 的 `*.services.ai.azure.com` 这一条路由，不能说明 Managed Compute
-deployment 是否还暴露其他入站主机名。正式结论只覆盖客户端进入推理 endpoint 的入站私网隔离。
+证据只覆盖所属 Foundry 资源的 `*.services.ai.azure.com` 路由，因此不能据此推断
+Managed Compute 是否还暴露其他入站主机名。
 
-## 实测结果
+## 五阶段实测
 
-测试期间固定 Foundry 资源、deployment、endpoint、Entra identity 和 request
-payload，只改变客户端网络路径和所属 Foundry 资源的公网访问设置。
+测试期间固定 Foundry 资源、模型部署、推理端点、Entra 身份和请求内容，只改变客户端的
+网络位置以及所属 Foundry 资源的公网访问设置。
 
-Run ID：`managed-compute-private-link-dedicated-20260831` · 日期：2026-08-31 · 范围：
+运行 ID：`managed-compute-private-link-dedicated-20260831` · 日期：2026-08-31 · 范围：
 单次入站连通性差分测试。
 
 | 场景 | DNS | 已通过 Entra 认证的调用结果 | 状态 | 证据 |
 |---|---|---:|---|---|
 | VNet 外客户端，公网开放 | 公网地址 | `200`：真实的 Chat Completions 响应 | PASS | [`public-baseline.json`](evidence/raw/public-baseline.json) |
-| 关联 VNet 内的 private-IP ACI，公网开放 | 私有地址 | `200`：关闭公网前的安全探测 | PASS | [`private-preflight.json`](evidence/raw/private-preflight.json) |
+| 关联 VNet 内具有私有 IP 的 ACI，公网开放 | 私有地址 | `200`：关闭公网前的安全探测 | PASS | [`private-preflight.json`](evidence/raw/private-preflight.json) |
 | VNet 外客户端，公网关闭 | 公网地址 | `403`：公网访问已关闭 | PASS | [`public-blocked.json`](evidence/raw/public-blocked.json) |
-| 关联 VNet 内的 private-IP ACI，公网关闭 | 私有地址 | `200`：真实的 Chat Completions 响应 | PASS | [`private-success.json`](evidence/raw/private-success.json) |
-| VNet 外客户端，公网恢复 | 公网地址 | `200`：同一模型 endpoint 已响应；未保留 choice 内容 | PASS | [`public-restored.json`](evidence/raw/public-restored.json) |
+| 关联 VNet 内具有私有 IP 的 ACI，公网关闭 | 私有地址 | `200`：真实的 Chat Completions 响应 | PASS | [`private-success.json`](evidence/raw/private-success.json) |
+| VNet 外客户端，公网恢复 | 公网地址 | `200`：同一推理端点已响应；未保留生成内容 | PASS | [`public-restored.json`](evidence/raw/public-restored.json) |
 
-私网 runner 使用 Azure Container Instances，在关联 VNet 的业务 subnet 中分配私有
-IP，向解析得到的私网地址发出 HTTPS 请求；它**不是 Azure Bastion**。两个 ACI
-probe 使用同一个 `probe_endpoint.py` 源码 hash，退出码均为 `0`。公开证据不保存生成
-内容和解析后的 IP；Request ID 只保留 SHA-256 摘要。Probe 时间戳只证明执行顺序，
-不代表延迟分布。
+私网探测使用 ACI，在关联 VNet 的独立工作负载子网中分配私有 IP，再向 DNS 解析出的
+私有地址发送 HTTPS 请求；它**不是 Azure Bastion**。两个 ACI 探针使用同一份
+`probe_endpoint.py` 源码，退出码均为 `0`。公开证据不保存生成内容和解析后的 IP；
+Request ID 只保留 SHA-256 摘要。探针时间戳只证明执行顺序，不代表延迟分布。
 
-## 代码调用证据
+[自动生成的调用记录](evidence/cli-transcript.txt)是五个阶段的唯一机器直读入口。
+[证据来源记录](evidence/provenance.json)说明哪些字段来自探针、哪些指纹在运行结束后派生，
+以及如何取回 `762b6978` 提交中实际执行的探针源码。
 
-本次专用 run 直接使用 Repo 中的 Python HTTPS probe 和 Microsoft Entra Token，实际
-probe 输出已经保留。下面的 block 由
-[`scripts/build_evidence.py`](scripts/build_evidence.py) 从已验证的 live observation
-自动生成，便于直接阅读；它不是伪造的终端截图。
+## 产品界面与流量路径
 
-当时运行的 probe 只输出了 `hostnameSha256` 和 `requestIdSha256`。block 里的五个
-SHA-256 指纹是运行结束后派生的：`2026-08-31T06:45:33.338213+00:00` 由五份命令收据和
-共用的 Azure CLI profile 计算得出。它们能把五个阶段绑定到同一份 probe 源码、同一个
-Entra subject、endpoint、deployment 和序列化请求，但不是 probe 自己的输出。endpoint、
-deployment、request 三个摘要可以用真实 argv 值重算；identity 摘要需要 tenant 和 object ID。
-实际执行的源码不是当前的 `scripts/probe_endpoint.py`，取回方式：
-`git show 762b69780da73c9f9ca21c28508349755a980820:Deep-Learning/Managed-Compute-Private-Endpoint/scripts/probe_endpoint.py`
-（LF 版 `ff0eac11…`；当时执行的 Windows CRLF 检出版 hash 为 `d2d99524…`）。
-
-<!-- BEGIN GENERATED CLI EVIDENCE -->
-```text
-CODE_PATH_EVIDENCE
-RUN_ID=managed-compute-private-link-dedicated-20260831
-DATE_UTC=2026-08-31
-EVIDENCE_CLASS=derived-sanitized-view-of-live-code-observations
-ORIGINAL_TERMINAL_CAPTURE=false
-CLIENT=Python HTTPS client with Microsoft Entra bearer token
-ACTUAL_PROBE_OUTPUT_RETAINED=true
-REPRODUCTION_ENTRYPOINT=scripts/probe_endpoint.py (current version; not the bytes that ran)
-MEASURED_PROBE_COMMIT=762b69780da73c9f9ca21c28508349755a980820
-MEASURED_PROBE_RETRIEVAL=git show 762b69780da73c9f9ca21c28508349755a980820:Deep-Learning/Managed-Compute-Private-Endpoint/scripts/probe_endpoint.py
-MEASURED_PROBE_EXECUTED_BYTES_SHA256=d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6 (CRLF checkout)
-MEASURED_PROBE_LF_SHA256=ff0eac11b956c3b2327402cdf245f9e4cc045688a9cedd4de8a29a4cbe6bb639
-MODEL_DEPLOYMENT_CHANGED=false
-FINGERPRINT_CLASS=derived-post-run
-FINGERPRINTS_EMITTED_BY_MEASURED_PROBE=false
-FINGERPRINTS_DERIVED_AT_UTC=2026-08-31T06:45:33.338213+00:00
-PROBE_SOURCE_SHA256=d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6
-IDENTITY_SHA256=887146420b45005bf903fd183eda936b0e3fee00aa6be67a91a47f0546b54e6c
-ENDPOINT_SHA256=5e8cfa4be4c9aa5803d351815eceacece53477c04e26695a928e80c93935246b
-DEPLOYMENT_SHA256=4d87fdbcba1fe6671069062752306ee4957a40c6ac281803b423c80ddd682776
-REQUEST_SHA256=c4c06fac9fe6ed09d3f3117ca538e1f1d9e8be12330d5ef9b36284b6e4120804
-NETWORK_CONTROL=parent Foundry account public network access plus Private Endpoint
-PRIVATE_RUNNER=private-IP Azure Container Instances in a linked VNet workload subnet (not Bastion)
-PRIVATE_PATH_EVIDENCE=dnsClass=private only; resolved address not compared with the Private Endpoint NIC
-ENDPOINT=https://<foundry-account>.services.ai.azure.com/openai/v1/chat/completions
-DEPLOYMENT=<managed-compute-deployment>
-PROMPT="Reply with exactly OK."
-MAX_TOKENS=4
-TEMPERATURE=0
-
-REPRODUCTION_CLI=python scripts/probe_endpoint.py --endpoint <endpoint> --deployment <deployment> --expect-dns <public|private> --expect-http <status> --prompt "Reply with exactly OK." --max-tokens 4
-
-[1/5] OUTSIDE_VNET_PNA_ENABLED_BASELINE
-OBSERVED_AT_UTC=2026-08-31T05:52:07.510094+00:00
-DNS_CLASS=public
-HTTP_STATUS=200
-RESPONSE_OBJECT=chat.completion
-RESPONSE_MODEL=qwen--qwen3-32b
-RESULT=PASS
-SOURCE=evidence/raw/public-baseline.json
-
-[2/5] INSIDE_LINKED_VNET_PNA_ENABLED_PREFLIGHT
-OBSERVED_AT_UTC=2026-08-31T05:53:43.009747+00:00
-DNS_CLASS=private
-HTTP_STATUS=200
-RESPONSE_OBJECT=chat.completion
-RUNNER_EXIT_CODE=0
-PROBE_SOURCE_SHA256=d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6 (launcher receipt)
-RESULT=PASS
-SOURCE=evidence/raw/private-preflight.json
-
-[3/5] OUTSIDE_VNET_PNA_DISABLED
-OBSERVED_AT_UTC=2026-08-31T06:06:03.530809+00:00
-DNS_CLASS=public
-HTTP_STATUS=403
-ERROR_CATEGORY=public-access-disabled
-NETWORK_POLICY_BLOCKED=true
-REQUEST_ID_SHA256=0bca43fc944a7328def2b961d977e09767bce02d11a2ea8322a1d6ec3594217b
-RESULT=PASS
-SOURCE=evidence/raw/public-blocked.json
-
-[4/5] INSIDE_LINKED_VNET_PNA_DISABLED
-OBSERVED_AT_UTC=2026-08-31T06:07:39.938843+00:00
-DNS_CLASS=private
-HTTP_STATUS=200
-RESPONSE_OBJECT=chat.completion
-RESPONSE_MODEL=qwen--qwen3-32b
-PROBE_SOURCE_SHA256=d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6 (launcher receipt)
-TOKENS=prompt:13 completion:4 total:17
-RUNNER_EXIT_CODE=0
-REQUEST_ID_SHA256=eb511b575cc023ba02e44edcd13e61d578bac32b120f7029eac249dc7f776065
-RESULT=PASS
-SOURCE=evidence/raw/private-success.json
-
-[5/5] OUTSIDE_VNET_PNA_RESTORED
-OBSERVED_AT_UTC=2026-08-31T06:12:14.739435+00:00
-DNS_CLASS=public
-HTTP_STATUS=200
-RESPONSE_MODEL=qwen--qwen3-32b
-REQUEST_ID_SHA256=50f4ebab5abb8a5f5c735b8b67ee09b1a301e3edb1cc0ce5cf9d29488c40a0c2
-RESULT=PASS
-SOURCE=evidence/raw/public-restored.json
-```
-<!-- END GENERATED CLI EVIDENCE -->
-
-## 产品证据
-
-### 实测对象是 Managed Compute
+### 实测对象
 
 ![脱敏后的 Microsoft Foundry 字段，显示 GlobalManagedCompute、Succeeded 和 H100_80GB](images/product-ui/deployment-facts.png)
 
-*Run `managed-compute-private-link-dedicated-20260831`，2026-08-31。四个字段级 crop 保留模型、deployment type、provisioning state 和 accelerator；account、project、deployment、endpoint、identity、tenant 与 subscription 均已移除。UI 用于确认实测对象，自动生成的代码记录用于证明网络行为。*
+*本地实测，运行 ID `managed-compute-private-link-dedicated-20260831`，2026-08-31。请检查
+模型名称、部署类型、预配状态和加速器。截图已移除资源、项目、部署、端点、身份、tenant
+与 subscription 标识；[图片证据记录](evidence/ui-evidence.json)保存 SHA-256 和声明边界。*
 
 ### 流量路径
 
 ```mermaid
 flowchart LR
-    OUT[VNet 外客户端] -->|Public DNS| PUB[Foundry 公网 endpoint]
+    OUT[VNet 外客户端] -->|Public DNS| PUB[Foundry 公网端点]
     PUB -->|公网访问已关闭| DENY[403 拒绝]
-    IN[private-IP ACI, 不是 Bastion] -->|Private DNS + HTTPS| PE[Private Endpoint]
-    PE --> ACCOUNT[Foundry account 边界]
+    IN[具有私有 IP 的 ACI, 不是 Bastion] -->|Private DNS + HTTPS| PE[Private Endpoint]
+    PE --> ACCOUNT[Foundry 资源边界]
     ACCOUNT --> ROUTE[GlobalManagedCompute 路由]
     ROUTE --> OK[200 推理响应]
 
@@ -203,50 +126,82 @@ flowchart LR
     style OK fill:#dff6dd,stroke:#107c10
 ```
 
-*原创解释图，依据本次差分实测和 Foundry Private Link 官方文档。图中只描述客户端入站路径，不描述 Pod 落点。403 画在 account 边界，因为证据只能定位到这一层。*
+*原创说明图，依据本次差分实测和
+[Microsoft Foundry 网络隔离文档](https://learn.microsoft.com/azure/foundry/how-to/configure-private-link)。
+图中只表示客户端入站路径；证据只能把 `403` 定位到 Foundry 资源边界。*
 
 ## 可执行资产
 
 | 路径 | 契约 |
 |---|---|
-| [`infra/main.bicep`](infra/main.bicep) | 将已有 PE subnet 接入 group ID=`account`；可创建并链接三套 Foundry Private DNS zone，也可接收完整的客户已有 zone ID object |
-| [`scripts/probe_endpoint.py`](scripts/probe_endpoint.py) | 用同一请求断言 DNS 类型和 HTTP 状态，不打印 Token |
-| [`scripts/submit_private_aci_probe.py`](scripts/submit_private_aci_probe.py) | 在 private-IP ACI 中运行完全相同的 probe 源码，容器内对实际执行的字节现算 hash；Entra Token 只通过 ARM `secureValue` 注入；绝不更新同名已有资源 |
-| [`scripts/set_public_network_access.py`](scripts/set_public_network_access.py) | 关闭公网前必须检测到 Approved PE 和同次私网 200 证据；ETag precondition 会拒绝并发 account 变更（实测之后加入，有单元测试、没有实测） |
-| [`tests/`](tests/) | 执行 CLI 入口、响应语义、零 PATCH 拒绝矩阵、原值恢复、raw evidence mutation 和 Rule Catalog mutation |
-| [`evidence/`](evidence/) | 脱敏运行合同、实测结果、官方来源锁和 Level 5 gate 结果 |
+| [`infra/main.bicep`](infra/main.bicep) | 把现有 Private Endpoint 子网连接到 `account` 组；可以创建并链接三个 Foundry Private DNS Zone，也可以使用客户已有的完整区域 ID 对象 |
+| [`scripts/probe_endpoint.py`](scripts/probe_endpoint.py) | 使用同一请求检查 DNS 类型和 HTTP 状态，不输出令牌 |
+| [`scripts/submit_private_aci_probe.py`](scripts/submit_private_aci_probe.py) | 在具有私有 IP 的 ACI 中运行同一份探针源码；容器对实际执行的字节计算 SHA-256；Entra 令牌只通过 ARM `secureValue` 传入；不更新同名资源 |
+| [`scripts/set_public_network_access.py`](scripts/set_public_network_access.py) | 关闭公网前，必须存在已批准的 Private Endpoint 和同次私网 `200` 证据；ETag 前置条件用于拒绝并发变更（实测后新增，已有单元测试、没有实测） |
+| [`scripts/azure_translator_backtranslate.py`](scripts/azure_translator_backtranslate.py) | 调用 Azure AI Translator 执行中文到英文回译；key 只从进程环境读取，`--check` 无需凭据即可校验已提交证据 |
+| [`tests/`](tests/) | 覆盖命令入口、响应语义、零 PATCH 拒绝路径、原值恢复、证据变异和 Level 5 规则变异 |
+| [`evidence/`](evidence/) | 保存脱敏运行合同、实测结果、官方来源锁、图片证据账本和 Level 5 规则结果 |
 
-## 快速上手
+## 验证原理
 
-以下命令均使用 **Bash**。账号和部署命令在安装了 Azure CLI 的控制端执行；公网探针
-在关联 VNet 外执行；私网探针在独立业务 subnet 中已批准的 runner 上执行。每个探针
-runner 都需要取得本 Repo。私网 runner 需要 Python 3.11+、关联 VNet 的 DNS、到
-endpoint 的出站 TCP 443，以及已登录的 Azure CLI，或通过安全进程环境传入
-`AZURE_ACCESS_TOKEN`。所有探针必须使用同一个 Entra principal、endpoint、
-deployment、prompt 和 token 上限。
+| 层次 | 实际实现 | 通过条件 | 证据边界 |
+|---|---|---|---|
+| DNS | [`resolve_addresses`](scripts/probe_endpoint.py) 解析端点，[`classify_addresses`](scripts/probe_endpoint.py) 把全部地址分为公网、私网或混合 | VNet 内客户端输出 `dnsClass=private` | 已保留证据未把解析地址与 Private Endpoint 网卡地址逐项对账 |
+| 数据面 | [`run_probe`](scripts/probe_endpoint.py) 发送一次通过 Entra 认证的 Chat Completions 请求 | `200` 必须包含 `object=chat.completion` 且至少有一个 choice；`403` 必须属于公网已关闭错误 | 网络策略 `403` 不能用 RBAC `403` 代替 |
+| 管理面 | [`change_public_network_access`](scripts/set_public_network_access.py) 保存原值、修改、回读并恢复所属资源的公网访问设置 | 回读值等于目标值，资源状态为 `Succeeded` | ETag 保护在实测后加入，目前只有单元测试、没有实测 |
 
-Azure 前置条件：专用的非生产 Foundry account（其全部子 project 都是可处置测试资产）、
-公有云、所属 Foundry account 的 Contributor、目标 VNet/subnet 的
-Network Contributor，以及创建 Private DNS zone 所需的 Private DNS Zone Contributor
-或等价权限。Private Endpoint subnet 必须预先存在并允许 Private Endpoint。应用/网络
-负责人负责业务 runner 的生命周期和清理。
+### 客户如何访问 Private Endpoint
+
+关键不是客户端采用 VM 还是容器，而是它是否同时具备两项条件：路由能够到达 Private
+Endpoint 所在 VNet，DNS 能把同一个模型 URL 解析到 Private Endpoint 的私有地址。
+
+| 客户端位置 | 网络路径 | DNS 要求 |
+|---|---|---|
+| 同一或对等 VNet 内的 VM、ACI、Kubernetes 工作负载 | VNet 内路由或 VNet peering | 将同一组 Foundry Private DNS Zone 链接到每个客户端 VNet，或使用企业 DNS 解析器 |
+| 本地数据中心应用 | ExpressRoute 或站点到站点 VPN | 将 Foundry 服务域名条件转发到 Azure DNS Private Resolver 的入站端点，或 Azure 内的 DNS 转发器 |
+| 开发人员电脑 | 点到站点 VPN，或通过 Azure Bastion 登录 VNet 内 VM | 使用 VPN/解析器提供的 DNS；Bastion VM 只是开发方式，不是必需组件 |
+
+依据：[Azure Private Endpoint DNS 集成场景](https://learn.microsoft.com/azure/private-link/private-endpoint-dns-integration)
+和 [Azure DNS Private Resolver](https://learn.microsoft.com/azure/dns/dns-private-resolver-overview)。
+本仓库中的 ACI 只是一次性验证执行端，不是生产客户端的规定形态。
+
+### 常见误解
+
+| 误解 | 代码和证据说明什么 |
+|---|---|
+| “Private Endpoint 会复制出一个私有模型。” | 模型部署和 URL 均不改变；所属 Foundry 资源只改变允许到达模型的网络路径。 |
+| “DNS 返回私有地址，说明 Managed Compute 的 Pod 在客户 VNet。” | 探针只证明客户端解析到私有地址并收到有效响应，不能证明 Pod 放置位置。 |
+| “只有 ACI 才能访问私网模型。” | ACI 只是本次实测的执行端。任何具备私网路由、私网 DNS 和已授权 Entra 身份的客户端都可以调用。 |
+
+## 复现步骤
+
+以下命令均使用 **Bash**。资源和部署命令在装有 Azure CLI 的控制端执行；公网探针在
+关联 VNet 外执行；私网探针在独立工作负载子网中的已授权探测执行端上运行。每个探测执行端
+都要取得本仓库。私网探测执行端需要 Python 3.11+、关联 VNet 的 DNS、到推理端点的 TCP 443
+出站连接，以及已登录的 Azure CLI，或通过安全的进程环境传入
+`AZURE_ACCESS_TOKEN`。五个阶段必须使用同一个 Entra 身份、推理端点、模型部署、提示词
+和 token 上限。
+
+Azure 前置条件：独立的非生产 Foundry 资源，其下所有项目都是可处置的测试资产；Azure
+公有云；所属 Foundry 资源的 Contributor；目标 VNet 和子网的 Network Contributor；
+如需创建 Private DNS Zone，还要具备 Private DNS Zone Contributor 或等价权限。
+Private Endpoint 专用子网必须已存在。应用或网络负责人负责临时探测执行端的生命周期和清理。
 
 ```bash
 git clone --filter=blob:none --sparse https://github.com/david-xinyuwei/david-share.git
 git -C david-share sparse-checkout set Deep-Learning/Managed-Compute-Private-Endpoint
 cd david-share/Deep-Learning/Managed-Compute-Private-Endpoint
-python -m unittest discover -s tests -v
 ```
 
-先锁定 Azure 账号。这两条命令不会修改资源：
+先锁定 Azure 账号。以下命令不修改 Azure 资源：
 
 ```bash
 az account set --subscription "<subscription-id>"
 az account show --query "{subscription:id,tenant:tenantId,user:user.name}" --output json
 ```
 
-设置所属 Foundry account 和已有 Private Endpoint subnet 的资源 ID。模板从 subnet ID
-派生所属 VNet，从结构上避免 PE 与 DNS link 指向两个 VNet。先做 what-if：
+设置所属 Foundry 资源和现有 Private Endpoint 子网的资源 ID。模板从子网 ID 派生 VNet，
+避免 Private Endpoint 与 DNS 链接误指向不同 VNet。先运行 what-if 预览：
 
 ```bash
 FOUNDRY_ACCOUNT_ID="/subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.CognitiveServices/accounts/<foundry-account>"
@@ -268,8 +223,8 @@ az deployment group what-if \
       privateEndpointLocation="$PRIVATE_ENDPOINT_LOCATION"
 ```
 
-确认 what-if 结果后，再创建 Private Endpoint 和 Foundry 支持的 Private DNS zone。
-下面的默认模式由本次 deployment 管理三套 zone 及其 VNet link：
+确认 what-if 结果后，再创建 Private Endpoint 和 Foundry 所需的 Private DNS Zone。
+默认模式由本次部署管理三个 DNS 区域及其 VNet 链接：
 
 ```bash
 az deployment group create \
@@ -281,14 +236,14 @@ az deployment group create \
       privateEndpointLocation="$PRIVATE_ENDPOINT_LOCATION"
 ```
 
-若企业使用 central DNS，应传入完整的 `existingPrivateDnsZoneResourceIds` typed
-object，包含 `cognitiveservices`、`openai` 和 `servicesAi` 三个 key。这个模式不会
-创建 zone 或 VNet link；DNS 负责人必须预先完成 zone link 或 custom DNS forwarding，
-并以私网 probe 作为验收。详见[完整流程](docs/reproduction.md#central-dns-mode)。
+如果企业统一管理 DNS，应将完整对象传给 `existingPrivateDnsZoneResourceIds`，其中应
+包含 `cognitiveservices`、`openai` 和 `servicesAi`。此模式不会创建 Private DNS Zone 或
+VNet 链接；DNS 负责人必须提前配置区域链接或自定义 DNS 转发，并以私网探针作为验收。
+详见[完整流程](docs/reproduction.md#central-dns-mode)。
 
 先从 VNet 内证明私网 DNS 和推理可用，再关闭公网：
 
-> 这个 pre-disable `200` 既是 fail-closed 安全门，也是五阶段实测的第 2 阶段。
+> 关闭公网前的 `200` 既是防止失联的安全门，也是五阶段实测的第 2 阶段。
 
 ```bash
 python scripts/probe_endpoint.py \
@@ -314,13 +269,13 @@ python scripts/set_public_network_access.py \
   --save-prior-state pna-before.json
 ```
 
-`pna-before.json` 只保留在受控的操作端，不要提交或手工修改。当前版本的脚本只在 Azure
-回读确认 `Disabled` 后才把 receipt 标为 `applied`，会记录关闭前后的 account ETag，两次
-PATCH 都带 `If-Match`；receipt 不完整或 account ETag 已变化时，restore 会拒绝执行。
-2026-08-31 的实测用的是更早的 `762b6978` 版本，那个版本保存和恢复原值时没有 ETag
-precondition；ETag 保护目前只有单元测试，没有实测。如果 receipt 停在 `prepared`，或者无关
-变更改动了 account ETag，脚本按设计拒绝执行，此时改用[手工恢复](docs/reproduction.md#manual-restore)。
-这个文件用于防误操作，不是授权边界；最终权限仍以 Azure RBAC 为准。
+`pna-before.json` 是恢复记录，只保留在受控操作端，不要提交或手工修改。当前脚本只在
+Azure 回读确认 `Disabled` 后才把记录标为 `applied`；它会保存关闭前后的资源 ETag，
+两次 PATCH 都带 `If-Match`。记录不完整或 ETag 已变化时，脚本会拒绝恢复。
+2026-08-31 的实测使用较早的 `762b6978` 版本，该版本保存和恢复原值时没有 ETag 前置
+条件；当前 ETag 保护只有单元测试，没有实测。如果记录停在 `prepared`，或其他操作已经
+改变资源 ETag，请使用[手工恢复](docs/reproduction.md#manual-restore)。该文件只用于防止
+误操作，最终授权仍由 Azure RBAC 决定。
 
 从关联 VNet 外证明已认证公网请求由网络策略明确拦截：
 
@@ -335,7 +290,7 @@ python scripts/probe_endpoint.py \
   --output public-blocked-probe.json
 ```
 
-公网关闭后，再从关联 VNet 内的业务 runner 执行同一个请求：
+公网关闭后，再从关联 VNet 内的探测执行端发出同一个请求：
 
 ```bash
 python scripts/probe_endpoint.py \
@@ -371,34 +326,94 @@ python scripts/probe_endpoint.py \
   --output public-restored-probe.json
 ```
 
-完成条件：所属 Foundry account 回到保存的原始公网访问状态。若原值为 `Enabled`，最后
+完成条件：所属 Foundry 资源回到保存的原始公网访问状态。若原值为 `Enabled`，最后
 一次公网探针还必须返回有效 Chat Completions `200`；若原值为 `Disabled`，私网路径
 继续返回 `200`，公网继续被拦截。完整验证与清理顺序见
 [`docs/reproduction.md`](docs/reproduction.md)。
+
+## 测试
+
+测试不需要 Azure 凭据、GPU 或线上推理端点。覆盖范围包括 URL 与 DNS 分类、认证响应
+语义、ACI 仅创建、不覆盖、零 PATCH 拒绝路径、原值恢复、证据变异、双语读者动线和
+Azure Translator 证据，以及 Level 5 规则合同。
+
+```bash
+python -m compileall -q scripts tests
+python -m unittest discover -s tests -v
+python scripts/build_evidence.py --check
+python scripts/azure_translator_backtranslate.py --check
+python scripts/validate_repo.py --public-content-only
+python scripts/validate_repo.py
+```
+
+完成条件：全部测试通过，派生证据与源文件一致，并输出 `REPO_VALIDATION=PASS`。
+
+## 兼容性说明
+
+- 实测环境为 Azure 公有云、Python 3.11+、一个 `GlobalManagedCompute` 模型部署，以及
+  `*.services.ai.azure.com/openai/v1/chat/completions` 路由。
+- Private Endpoint 必须与 VNet 位于同一订阅和区域，连接状态必须为 `Approved`。
+- 默认 Bicep 路径管理三个 Foundry Private DNS Zone；企业 DNS 模式要求工作负载网络
+  已能解析这些区域。
+- 可选 ACI 执行端需要单独的工作负载子网，并委派给
+  `Microsoft.ContainerInstance/containerGroups`。
+- 当前公开的 Managed Compute 部署指南仍仅适用于 classic 体验。本仓库记录的
+  `GlobalManagedCompute` 行为来自 2026-08-31 的单次实测，不是从 classic 文档外推得出。
+
+## 目录说明
+
+| 路径 | 职责 |
+|---|---|
+| [`infra/`](infra/) | 部署 Private Endpoint 和 Private DNS |
+| [`scripts/`](scripts/) | 推理端点探针、ACI 提交、公网访问修改、证据生成、Azure Translator 回译和仓库校验 |
+| [`tests/`](tests/) | 离线行为测试、拒绝路径、变异测试和读者动线测试 |
+| [`evidence/`](evidence/) | 脱敏观测、派生结果、官方来源锁、图片账本和规则结果 |
+| [`images/`](images/) | 已脱敏的产品界面证据 |
+| [`docs/`](docs/) | 完整 ACI 复现、手工恢复和金标准对照 |
 
 ## 证据
 
 | 资产 | 作用 |
 |---|---|
 | [`evidence/connectivity-run.json`](evidence/connectivity-run.json) | 脱敏控制面与公网/私网数据面观测 |
-| [`evidence/cli-transcript.txt`](evidence/cli-transcript.txt) | 从已认证 Python 200/200/403/200/200 观测自动生成的直读证据 |
-| [`evidence/raw/`](evidence/raw/) | 生成 connectivity 结果所使用的脱敏源观测；场景文件只保留 probe 或 launcher 实际输出的字段 |
+| [自动生成的调用记录](evidence/cli-transcript.txt) | 由已认证 Python 200/200/403/200/200 观测生成的直读证据 |
+| [`evidence/raw/`](evidence/raw/) | 生成连通性结果所用的脱敏源观测；场景文件只保留探针或 ACI 提交脚本实际输出的字段 |
 | [`evidence/run-contract.json`](evidence/run-contract.json) | 冻结的问题、验收条件和唯一改变变量 |
-| [`evidence/provenance.json`](evidence/provenance.json) | 公开/私有证据边界、时间口径、runner 方式和资源保留状态 |
-| [`evidence/ui-evidence.json`](evidence/ui-evidence.json) | 图片 hash、脱敏项和每张图的声明边界 |
-| [`evidence/source-lock.json`](evidence/source-lock.json) | 官方 URL 和不可变文档 commit |
+| [`evidence/provenance.json`](evidence/provenance.json) | 公开与私有证据边界、时间口径、执行方式和资源保留状态 |
+| [`evidence/ui-evidence.json`](evidence/ui-evidence.json) | 图片 SHA-256、脱敏项和声明边界 |
+| [`evidence/translator-back-translation.json`](evidence/translator-back-translation.json) | Azure AI Translator 实际执行的中文到英文回译、输入 SHA-256、计费字符数和数字漂移结果 |
+| [`evidence/source-lock.json`](evidence/source-lock.json) | 官方 URL 和固定文档 commit |
 | [`evidence/rule-results.json`](evidence/rule-results.json) | 自动生成的 Level 5 逐规则结果 |
 
-`evidence/raw/` 保存的是最早一层**可公开的脱敏观测**，不是 Azure 原始日志的逐字节
-副本。Hash 和原生 gate 能发现 Repo 内部漂移，但不能独立认证未公开的私有原始证据；
-这个限制已写入 provenance 记录。
+`evidence/raw/` 保存最早一层可公开的脱敏观测，不是 Azure 原始日志的逐字节副本。
+SHA-256 和仓库校验器可以发现仓库内的证据漂移，但不能独立验证未公开的私有原始证据。
+标记为 `derived-post-run` 的指纹是在运行结束后派生，并非探针输出。
 
-## 官方来源
+| 证据类别 | 资产 | 可支持的结论 |
+|---|---|---|
+| `LOCAL_MEASUREMENT` | `evidence/raw/*.json`、产品界面截图 | 五阶段实测行为和实测对象 |
+| `DERIVED` | `connectivity-run.json`、自动生成的调用记录、规则结果 | 仓库内部一致性、证据血缘和直接阅读；不能独立认证私有原始证据 |
+| `SOURCE_FACT` | `source-lock.json` | 固定版本官方文档中的 Private Endpoint、DNS 和 Foundry 配置行为 |
+
+质量状态：`ESSENCE_STATUS=PASS`；2026-08-31 的记录运行满足 `REPRO_STATUS=PASS`。
+实测后新增的 ETag 保护和容器内源码 SHA-256 仍为 `LIVE_STATUS=NOT_RUN`，只能声明已有
+单元测试，不能声明已经过线上实测。
+
+中文由人工按中文工程写作逻辑起草并独立审校，不把机器翻译直接作为发布稿。随后实际调用
+Azure AI Translator 做中文到英文回译检查。已提交证据要求 Translator 返回 HTTP `200`、
+只保存 request ID 的 SHA-256、README 输入 SHA-256 与当前文件一致，并且“英文↔中文”与
+“中文→回译英文”的语义数字漂移均为 `0`。
+
+## 官方资料
 
 - [配置 Microsoft Foundry 网络隔离](https://learn.microsoft.com/azure/foundry/how-to/configure-private-link)
+- [Azure Private Endpoint DNS 集成场景](https://learn.microsoft.com/azure/private-link/private-endpoint-dns-integration)
+- [Azure DNS Private Resolver 概览](https://learn.microsoft.com/azure/dns/dns-private-resolver-overview)
+- [Azure AI Translator Translate 方法](https://learn.microsoft.com/azure/ai-services/translator/text-translation/reference/v3/translate)
+- [Azure AI Translator 认证](https://learn.microsoft.com/azure/ai-services/translator/text-translation/reference/authentication)
 - [Microsoft Foundry Models 概览](https://learn.microsoft.com/azure/foundry/concepts/foundry-models-overview)
 - [使用 Azure CLI 创建 Private Endpoint](https://learn.microsoft.com/azure/private-link/create-private-endpoint-cli)
 
-当前公开 Managed Compute 部署指南明确标为 classic-only。因此本 Repo 不把旧的
-managed online endpoint 行为外推到新的 `GlobalManagedCompute`；核心结论来自
-2026-08-31 的真实差分测试。
+当前公开的 Managed Compute 部署指南明确标为 classic-only。因此，本仓库没有把旧版
+`managed online endpoint` 的行为外推到 `GlobalManagedCompute`；核心结论只来自
+2026-08-31 的五阶段实测。

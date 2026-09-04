@@ -399,6 +399,9 @@ def build_connectivity_run(raw_dir: pathlib.Path = RAW_DIR) -> dict[str, object]
                 "scripts/build_evidence.py": sha256(
                     ROOT / "scripts" / "build_evidence.py"
                 ),
+                "scripts/azure_translator_backtranslate.py": sha256(
+                    ROOT / "scripts" / "azure_translator_backtranslate.py"
+                ),
                 "scripts/probe_endpoint.py": sha256(ROOT / "scripts" / "probe_endpoint.py"),
                 "scripts/submit_private_aci_probe.py": sha256(
                     ROOT / "scripts" / "submit_private_aci_probe.py"

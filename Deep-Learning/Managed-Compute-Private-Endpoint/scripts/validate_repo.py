@@ -14,6 +14,7 @@ import sys
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+SELECTED_EXEMPLAR_COMMIT = "f1c72653c900dba73cc272ed006dc26add75203f"
 REQUIRED_PATHS = [
     ".gitattributes",
     "README.md",
@@ -24,10 +25,12 @@ REQUIRED_PATHS = [
     "scripts/submit_private_aci_probe.py",
     "scripts/set_public_network_access.py",
     "scripts/build_evidence.py",
+    "scripts/azure_translator_backtranslate.py",
     "tests/test_probe_endpoint.py",
     "tests/test_submit_private_aci_probe.py",
     "tests/test_set_public_network_access.py",
     "tests/test_build_evidence.py",
+    "tests/test_azure_translator_backtranslate.py",
     "tests/test_validate_repo.py",
     "evidence/raw/control-plane.json",
     "evidence/raw/public-baseline.json",
@@ -43,6 +46,7 @@ REQUIRED_PATHS = [
     "evidence/source-lock.json",
     "evidence/ui-evidence.json",
     "evidence/rule-results.json",
+    "evidence/translator-back-translation.json",
     "images/product-ui/deployment-facts.png",
     "docs/reproduction.md",
     "docs/exemplar-alignment.md",
@@ -59,7 +63,7 @@ FORBIDDEN_PATTERNS = [
 RULE_IDS = tuple(f"RUN-{number:03d}" for number in range(1, 16))
 LEGAL_RULE_STATUSES = {"PASS", "FAIL", "NOT_VERIFIED", "N/A"}
 QUICK_START_STAGES = (
-    ("clone-and-test", ("git clone --filter=blob:none --sparse", "python -m unittest discover -s tests -v")),
+    ("clone", ("git clone --filter=blob:none --sparse", "sparse-checkout set Deep-Learning/Managed-Compute-Private-Endpoint")),
     ("account-guard", ("az account set", "az account show")),
     ("what-if", ("az deployment group what-if", "foundryAccountResourceId", "privateEndpointSubnetResourceId", "privateEndpointLocation", "PE_SUBSCRIPTION_ID", "CURRENT_SUBSCRIPTION_ID")),
     ("deploy-private-endpoint", ("az deployment group create", "foundryAccountResourceId", "privateEndpointSubnetResourceId", "privateEndpointLocation")),
@@ -73,23 +77,82 @@ QUICK_START_STAGES = (
 BILINGUAL_FACTS = (
     ("managed-compute-private-link-dedicated-20260831", "managed-compute-private-link-dedicated-20260831"),
     ("2026-08-31", "2026-08-31"),
-    ("does not prove that managed pods are injected", "不能证明托管 Pod 被注入"),
-    ("Managed Compute egress traverses", "Managed Compute 出站流量"),
-    ("prompts or completions have zero retention", "Prompt/Completion 零留存"),
-    ("Temporary resources remain", "临时资源仍保留"),
-    ("billing continues", "继续计费"),
-    ("private-IP ACI", "private-IP ACI"),
+    ("does not prove that Managed Compute pods run inside", "不证明 Managed Compute 托管 Pod 位于"),
+    ("Managed Compute egress uses", "不证明其出站流量经过"),
+    ("zero prompt or completion retention", "不证明 Prompt 或 Completion 零留存"),
+    ("Temporary resources remain", "临时资源仍然保留"),
+    ("billing continues", "继续产生费用"),
+    ("Azure Container Instances (ACI)", "Azure Container Instances（Azure 容器实例，ACI）"),
     ("not Azure Bastion", "不是 Azure Bastion"),
     ("do not hard-code `Enabled`", "不要把目标值硬编码为 `Enabled`"),
-    ("parent Foundry account", "所属 Foundry account"),
-    ("earliest **public-safe sanitized", "最早一层**可公开的脱敏观测"),
-    ("dedicated non-production Foundry account", "专用的非生产 Foundry account"),
+    ("parent Foundry resource", "所属 Foundry 资源"),
+    ("earliest public-safe sanitized", "最早一层可公开的脱敏观测"),
+    ("dedicated non-production Foundry resource", "独立的非生产 Foundry 资源"),
     ("derived after the run", "运行结束后派生"),
-    ("git show 762b69780da73c9f9ca21c28508349755a980820:", "git show 762b69780da73c9f9ca21c28508349755a980820:"),
     ("no live measurement", "没有实测"),
-    ("inferred from the private DNS class", "由私网 DNS 类别推断"),
+    ("inferred from the private DNS class", "私网 DNS 解析结果推断"),
     ("other inbound hostname", "其他入站主机名"),
+    ("Point-to-site VPN", "点到站点 VPN"),
+    ("ExpressRoute or site-to-site VPN", "ExpressRoute 或站点到站点 VPN"),
     ("manual-restore", "manual-restore"),
+)
+READER_FLOW_HEADINGS_EN = (
+    "## Start here",
+    "## Responsibility boundary",
+    "## What this repository proves",
+    "## Measured run",
+    "## Product evidence",
+    "## Executable assets",
+    "## How the validation works",
+    "## Quick start",
+    "## Tests",
+    "## Compatibility notes",
+    "## Repository map",
+    "## Evidence",
+    "## Official sources",
+)
+READER_FLOW_HEADINGS_CN = (
+    "## 从这里开始",
+    "## 平台与客户各负责什么",
+    "## 本仓库证明了什么",
+    "## 五阶段实测",
+    "## 产品界面与流量路径",
+    "## 可执行资产",
+    "## 验证原理",
+    "## 复现步骤",
+    "## 测试",
+    "## 兼容性说明",
+    "## 目录说明",
+    "## 证据",
+    "## 官方资料",
+)
+START_HERE_TOKENS_EN = (
+    "| Goal | Go to | Side effects |",
+    "Python 3.11+",
+    "use only the Python standard library",
+    "[Quick start](#quick-start)",
+    "[Tests](#tests)",
+)
+START_HERE_TOKENS_CN = (
+    "| 目标 | 入口 | 副作用 |",
+    "Python 3.11+",
+    "只使用 Python 标准库",
+    "[复现步骤](#复现步骤)",
+    "[测试](#测试)",
+)
+RETIRED_CN_PROSE = (
+    "这个 Repo",
+    "专用 run",
+    "下面的 block",
+    "live observation",
+    "private-IP ACI",
+    "业务 subnet",
+    "私网 runner",
+    "probe 输出",
+    "receipt",
+    "typed object",
+    "三个 key",
+    "原生 gate",
 )
 TEXT_HASH_SUFFIXES = {".bicep", ".json", ".md", ".py", ".txt", ".yaml", ".yml"}
 
@@ -176,17 +239,83 @@ def quick_start_stage_results(text: str) -> dict[str, bool]:
     return results
 
 
+def reader_flow_results(
+    text: str,
+    headings: tuple[str, ...] = READER_FLOW_HEADINGS_EN,
+) -> dict[str, bool]:
+    lines = text.splitlines()
+    positions = {
+        heading: next(
+            (index for index, line in enumerate(lines) if line == heading),
+            None,
+        )
+        for heading in headings
+    }
+    present_positions = [positions[heading] for heading in headings]
+    first_h2 = next((line for line in lines if line.startswith("## ")), None)
+    return {
+        "all-required-headings": all(position is not None for position in present_positions),
+        "required-heading-order": all(position is not None for position in present_positions)
+        and present_positions == sorted(present_positions),
+        "start-here-is-first-section": first_h2 == headings[0],
+        "start-here-in-first-80-lines": positions[headings[0]] is not None
+        and positions[headings[0]] < 80,
+    }
+
+
+def prose_without_code(text: str) -> str:
+    without_fences = re.sub(r"```.*?```", "", text, flags=re.DOTALL)
+    return re.sub(r"`[^`]+`", "", without_fences)
+
+
+def normalize_whitespace(text: str) -> str:
+    return " ".join(text.split())
+
+
+def chinese_quality_results(text: str) -> dict[str, bool]:
+    prose = prose_without_code(text)
+    return {
+        "reader-flow": all(
+            reader_flow_results(text, READER_FLOW_HEADINGS_CN).values()
+        ),
+        "start-here-contract": all(token in text for token in START_HERE_TOKENS_CN),
+        "official-terms-introduced": all(
+            token in text
+            for token in (
+                "Private Endpoint（私有端点）",
+                "public network access（公网访问）",
+                "Azure Container Instances（Azure 容器实例，ACI）",
+            )
+        ),
+        "generic-nouns-in-chinese": all(
+            token in text for token in ("推理端点", "探针", "子网", "恢复记录")
+        ),
+        "retired-translation-phrases-absent": not any(
+            phrase in prose for phrase in RETIRED_CN_PROSE
+        ),
+    }
+
+
+def run_readme_mutation_checks(readme: str, readme_cn: str) -> dict[str, bool]:
+    moved_start = readme.replace("## Start here", "## Start-here-moved", 1)
+    missing_tests = readme.replace("## Tests", "## Test-details-removed", 1)
+    stiff_chinese = f"{readme_cn}\n\n这个 Repo\n"
+    chinese_heading_drift = readme_cn.replace("## 从这里开始", "## 开始位置已漂移", 1)
+    command_drift = f"{readme_cn}\n\n```bash\necho drift\n```\n"
+    return {
+        "moved-start-here-rejected": not all(reader_flow_results(moved_start).values()),
+        "missing-tests-rejected": not all(reader_flow_results(missing_tests).values()),
+        "stiff-chinese-rejected": not all(chinese_quality_results(stiff_chinese).values()),
+        "chinese-heading-drift-rejected": not all(
+            chinese_quality_results(chinese_heading_drift).values()
+        ),
+        "bilingual-command-drift-rejected": extract_bash_blocks(readme)
+        != extract_bash_blocks(command_drift),
+    }
+
+
 def image_paths(text: str) -> list[str]:
     return re.findall(r"!\[[^\]]*\]\(([^)]+)\)", text)
-
-
-def extract_cli_evidence(text: str) -> str | None:
-    match = re.search(
-        r"<!-- BEGIN GENERATED CLI EVIDENCE -->\s*```text\s*\n(.*?)```\s*<!-- END GENERATED CLI EVIDENCE -->",
-        text,
-        flags=re.DOTALL,
-    )
-    return match.group(1) if match else None
 
 
 def validate_ui_evidence(
@@ -207,10 +336,45 @@ def validate_ui_evidence(
         image_path = root / relative_path
         if not image_path.is_file():
             errors.append(f"missing UI image: {relative_path}")
-        elif hashlib.sha256(image_path.read_bytes()).hexdigest() != image.get("sha256"):
-            errors.append(f"UI image hash mismatch: {relative_path}")
+        else:
+            image_bytes = image_path.read_bytes()
+            if hashlib.sha256(image_bytes).hexdigest() != image.get("sha256"):
+                errors.append(f"UI image hash mismatch: {relative_path}")
+            if image_bytes[:8] != b"\x89PNG\r\n\x1a\n" or len(image_bytes) < 24:
+                errors.append(f"UI image is not a valid PNG: {relative_path}")
+            else:
+                actual_dimensions = {
+                    "width": int.from_bytes(image_bytes[16:20], "big"),
+                    "height": int.from_bytes(image_bytes[20:24], "big"),
+                }
+                if image.get("dimensions") != actual_dimensions:
+                    errors.append(f"UI image dimensions mismatch: {relative_path}")
+        if image.get("sourceClass") != "LOCAL_MEASUREMENT":
+            errors.append(f"UI image source class is invalid: {relative_path}")
+        if image.get("runId") != "managed-compute-private-link-dedicated-20260831":
+            errors.append(f"UI image run identity is invalid: {relative_path}")
+        if image.get("captureDateUtc") != "2026-08-31":
+            errors.append(f"UI image capture date is invalid: {relative_path}")
+        if not image.get("cropStatus") or not image.get("captureScope"):
+            errors.append(f"UI image provenance is incomplete: {relative_path}")
         if not image.get("proves") or not image.get("doesNotProve"):
             errors.append(f"UI image claim boundary is incomplete: {relative_path}")
+    diagram = ui.get("explanatoryDiagram")
+    if not isinstance(diagram, dict):
+        errors.append("explanatory diagram ledger is missing")
+    elif not (
+        diagram.get("sourceClass") == "AUTHOR_SYNTHESIS"
+        and diagram.get("format") == "Mermaid flowchart"
+        and isinstance(diagram.get("inputs"), list)
+        and "evidence/connectivity-run.json" in diagram["inputs"]
+        and any(
+            str(value).startswith("https://learn.microsoft.com/")
+            for value in diagram["inputs"]
+        )
+        and diagram.get("incrementalValue")
+        and diagram.get("doesNotProve")
+    ):
+        errors.append("explanatory diagram provenance is incomplete")
     return errors
 
 
@@ -327,6 +491,37 @@ def load_evidence_builder():
     return module
 
 
+def load_translation_validator():
+    module_path = ROOT / "scripts" / "azure_translator_backtranslate.py"
+    spec = importlib.util.spec_from_file_location(
+        "azure_translator_backtranslate",
+        module_path,
+    )
+    if not spec or not spec.loader:
+        raise RuntimeError("Unable to load Azure Translator validator")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def public_content_errors(root: pathlib.Path = ROOT) -> list[str]:
+    errors: list[str] = []
+    text_files = [
+        path
+        for path in root.rglob("*")
+        if path.is_file()
+        and ".repo-evidence" not in path.parts
+        and "__pycache__" not in path.parts
+        and path.suffix.lower() in {".md", ".py", ".json", ".bicep", ".txt", ".yml"}
+    ]
+    for path in text_files:
+        text = path.read_text(encoding="utf-8")
+        for label, pattern in FORBIDDEN_PATTERNS:
+            if pattern.search(text):
+                errors.append(f"{label} in {path.relative_to(root)}")
+    return errors
+
+
 def run_evidence_mutation_checks() -> dict[str, bool]:
     builder = load_evidence_builder()
     baseline = {
@@ -395,6 +590,12 @@ def run_rule_contract_mutation_checks(
         mutator(candidate)
         return bool(validate_rule_results_document(candidate, expected))
 
+    passing_rule_index = next(
+        index
+        for index, rule in enumerate(document["rules"])
+        if rule["status"] == "PASS" and rule["checks"]
+    )
+
     return {
         "missing-rule-rejected": rejected(lambda value: value["rules"].pop()),
         "duplicate-rule-rejected": rejected(
@@ -413,7 +614,9 @@ def run_rule_contract_mutation_checks(
             )
         ),
         "forged-pass-rejected": rejected(
-            lambda value: value["rules"][0]["checks"][0].update(passed=False)
+            lambda value: value["rules"][passing_rule_index]["checks"][0].update(
+                passed=False
+            )
         ),
         "absolute-evidence-rejected": rejected(
             lambda value: value["rules"][0]["evidence"].__setitem__(
@@ -441,17 +644,28 @@ def run_rule_contract_mutation_checks(
 def build_rule_results() -> dict[str, object]:
     run = load_json("evidence/connectivity-run.json")
     contract = load_json("evidence/run-contract.json")
+    provenance = load_json("evidence/provenance.json")
     ui = load_json("evidence/ui-evidence.json")
+    translation = load_json("evidence/translator-back-translation.json")
+    translation_validator = load_translation_validator()
+    translation_errors = translation_validator.validate_document(translation)
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     readme_cn = (ROOT / "README-CN.md").read_text(encoding="utf-8")
-    cli_transcript = (ROOT / "evidence/cli-transcript.txt").read_text(encoding="utf-8")
+    exemplar_alignment = (ROOT / "docs/exemplar-alignment.md").read_text(
+        encoding="utf-8"
+    )
+    normalized_readme = normalize_whitespace(readme)
+    normalized_readme_cn = normalize_whitespace(readme_cn)
     scenario_list = run["scenarios"]
     scenarios = {item["id"]: item for item in run["scenarios"]}
     quick_start = quick_start_stage_results(readme)
+    reader_flow = reader_flow_results(readme, READER_FLOW_HEADINGS_EN)
+    chinese_quality = chinese_quality_results(readme_cn)
     lineage = run.get("lineage", {}).get("executableSha256", {})
     expected_lineage_paths = (
         "infra/main.bicep",
         "scripts/build_evidence.py",
+        "scripts/azure_translator_backtranslate.py",
         "scripts/probe_endpoint.py",
         "scripts/submit_private_aci_probe.py",
         "scripts/set_public_network_access.py",
@@ -467,6 +681,7 @@ def build_rule_results() -> dict[str, object]:
         "public-restored": "evidence/raw/public-restored.json",
     }
     evidence_mutations = run_evidence_mutation_checks()
+    readme_mutations = run_readme_mutation_checks(readme, readme_cn)
 
     rules = [
         make_rule(
@@ -499,12 +714,21 @@ def build_rule_results() -> dict[str, object]:
                     run["runId"],
                 ),
                 make_check(
-                    "generated-cli-evidence-synchronized",
-                    extract_cli_evidence(readme) == cli_transcript
-                    and extract_cli_evidence(readme_cn) == cli_transcript,
+                    "measured-probe-retrieval-recorded",
+                    provenance["measuredProbeSource"]["repositoryBaselineCommit"]
+                    == "762b69780da73c9f9ca21c28508349755a980820"
+                    and provenance["measuredProbeSource"]["retrieval"].startswith(
+                        "git show 762b69780da73c9f9ca21c28508349755a980820:"
+                    ),
+                    provenance["measuredProbeSource"],
+                ),
+                make_check(
+                    "generated-cli-evidence-linked",
+                    "[Generated transcript](evidence/cli-transcript.txt)" in readme
+                    and "[自动生成的调用记录](evidence/cli-transcript.txt)" in readme_cn,
                     {
-                        "english": extract_cli_evidence(readme) == cli_transcript,
-                        "chinese": extract_cli_evidence(readme_cn) == cli_transcript,
+                        "english": "[Generated transcript](evidence/cli-transcript.txt)" in readme,
+                        "chinese": "[自动生成的调用记录](evidence/cli-transcript.txt)" in readme_cn,
                     },
                 ),
                 make_check(
@@ -527,8 +751,8 @@ def build_rule_results() -> dict[str, object]:
                         for scenario in scenario_list
                         if scenario["id"].startswith("private-")
                     )
-                    and readme.count(run["derivedFingerprints"]["derivedAtUtc"]) >= 1
-                    and readme_cn.count(run["derivedFingerprints"]["derivedAtUtc"]) >= 1,
+                    and run["derivedFingerprints"]["derivedAtUtc"]
+                    == load_json("evidence/raw/control-plane.json")["derivedFingerprints"]["derivedAtUtc"],
                     {
                         "class": run["derivedFingerprints"]["class"],
                         "emittedByMeasuredProbe": run["derivedFingerprints"]["emittedByMeasuredProbe"],
@@ -597,6 +821,41 @@ def build_rule_results() -> dict[str, object]:
             "RUN-003",
             "README wiring is ordered, complete, and synchronized to source hashes.",
             [
+                *[
+                    make_check(f"reader-flow-{name}", passed, passed)
+                    for name, passed in reader_flow.items()
+                ],
+                make_check(
+                    "start-here-contract",
+                    all(token in readme for token in START_HERE_TOKENS_EN),
+                    {token: token in readme for token in START_HERE_TOKENS_EN},
+                    {token: True for token in START_HERE_TOKENS_EN},
+                ),
+                make_check(
+                    "responsibility-boundary",
+                    "| Microsoft Foundry and Azure provide | You provide and verify |"
+                    in readme,
+                    "| Microsoft Foundry and Azure provide | You provide and verify |"
+                    in readme,
+                ),
+                make_check(
+                    "tests-have-offline-contract",
+                    "## Tests" in readme
+                    and "No Azure credentials, GPU, or live endpoint are required"
+                    in readme
+                    and "python scripts/validate_repo.py" in readme,
+                    True,
+                ),
+                make_check(
+                    "selected-exemplar-locked",
+                    "Meeting-Agent" in exemplar_alignment
+                    and SELECTED_EXEMPLAR_COMMIT in exemplar_alignment,
+                    {
+                        "repository": "Meeting-Agent" in exemplar_alignment,
+                        "commit": SELECTED_EXEMPLAR_COMMIT in exemplar_alignment,
+                    },
+                    {"repository": True, "commit": True},
+                ),
                 *[
                     make_check(f"quick-start-{name}", passed, passed)
                     for name, passed in quick_start.items()
@@ -884,16 +1143,18 @@ def build_rule_results() -> dict[str, object]:
         ),
         make_rule(
             "RUN-014",
-            "English and Chinese preserve facts, assets, boundaries, and commands.",
+            "English and Chinese preserve facts and assets; the Chinese README uses native engineering prose.",
             [
                 make_check(
                     "bilingual-fact-ledger",
                     all(
-                        english in readme and chinese in readme_cn
+                        english in normalized_readme
+                        and chinese in normalized_readme_cn
                         for english, chinese in BILINGUAL_FACTS
                     ),
                     {
-                        english: english in readme and chinese in readme_cn
+                        english: english in normalized_readme
+                        and chinese in normalized_readme_cn
                         for english, chinese in BILINGUAL_FACTS
                     },
                 ),
@@ -909,8 +1170,24 @@ def build_rule_results() -> dict[str, object]:
                     image_paths(readme),
                     image_paths(readme_cn),
                 ),
+                *[
+                    make_check(f"chinese-{name}", passed, passed)
+                    for name, passed in chinese_quality.items()
+                ],
+                make_check(
+                    "azure-translator-back-translation",
+                    not translation_errors,
+                    translation_errors,
+                    [],
+                ),
             ],
-            ["README.md", "README-CN.md", "evidence/run-contract.json"],
+            [
+                "README.md",
+                "README-CN.md",
+                "evidence/run-contract.json",
+                "evidence/translator-back-translation.json",
+                "scripts/azure_translator_backtranslate.py",
+            ],
         ),
         make_rule(
             "RUN-015",
@@ -927,14 +1204,23 @@ def build_rule_results() -> dict[str, object]:
                     True,
                     "pending second-pass self-test",
                 ),
+                make_check(
+                    "readme-mutations-rejected",
+                    all(readme_mutations.values()),
+                    readme_mutations,
+                    {name: True for name in readme_mutations},
+                ),
             ],
             [
                 "tests/test_build_evidence.py",
+                "tests/test_azure_translator_backtranslate.py",
                 "tests/test_set_public_network_access.py",
                 "tests/test_submit_private_aci_probe.py",
                 "tests/test_validate_repo.py",
                 "scripts/build_evidence.py",
                 "scripts/validate_repo.py",
+                "README.md",
+                "README-CN.md",
             ],
         ),
     ]
@@ -959,18 +1245,7 @@ def validate() -> list[str]:
     attributes = ROOT / ".gitattributes"
     if attributes.is_file() and attributes.read_text(encoding="utf-8").strip() != "*.json !filter !diff !merge text eol=lf":
         errors.append(".gitattributes must keep evidence JSON out of Git LFS")
-    text_files = [
-        path
-        for path in ROOT.rglob("*")
-        if path.is_file()
-        and ".repo-evidence" not in path.parts
-        and path.suffix.lower() in {".md", ".py", ".json", ".bicep", ".txt", ".yml"}
-    ]
-    for path in text_files:
-        text = path.read_text(encoding="utf-8")
-        for label, pattern in FORBIDDEN_PATTERNS:
-            if pattern.search(text):
-                errors.append(f"{label} in {path.relative_to(ROOT)}")
+    errors.extend(public_content_errors())
 
     if all((ROOT / path).is_file() for path in ("evidence/connectivity-run.json", "evidence/ui-evidence.json")):
         builder = load_evidence_builder()
@@ -1018,7 +1293,16 @@ def validate() -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--write-rule-results", action="store_true")
+    parser.add_argument("--public-content-only", action="store_true")
     args = parser.parse_args()
+    if args.public_content_only:
+        errors = public_content_errors()
+        if errors:
+            for error in errors:
+                print(f"ERROR {error}")
+            return 1
+        print("PUBLIC_CONTENT_AUDIT=PASS")
+        return 0
     if args.write_rule_results:
         generated = build_rule_results()
         expected_applicability = {

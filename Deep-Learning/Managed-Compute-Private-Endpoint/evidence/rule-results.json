@@ -37,7 +37,19 @@
           "expected": "managed-compute-private-link-dedicated-20260831"
         },
         {
-          "id": "generated-cli-evidence-synchronized",
+          "id": "measured-probe-retrieval-recorded",
+          "passed": true,
+          "actual": {
+            "repositoryBaselineCommit": "762b69780da73c9f9ca21c28508349755a980820",
+            "path": "scripts/probe_endpoint.py",
+            "retrieval": "git show 762b69780da73c9f9ca21c28508349755a980820:Deep-Learning/Managed-Compute-Private-Endpoint/scripts/probe_endpoint.py",
+            "executionBytesSha256": "d2d99524ff6a3fd5b37789d0557b9bb0af8155ccffa8fb75c1e382de799ea7f6",
+            "lfCanonicalSha256": "ff0eac11b956c3b2327402cdf245f9e4cc045688a9cedd4de8a29a4cbe6bb639"
+          },
+          "expected": true
+        },
+        {
+          "id": "generated-cli-evidence-linked",
           "passed": true,
           "actual": {
             "english": true,
@@ -101,7 +113,73 @@
       "status": "PASS",
       "checks": [
         {
-          "id": "quick-start-clone-and-test",
+          "id": "reader-flow-all-required-headings",
+          "passed": true,
+          "actual": true,
+          "expected": true
+        },
+        {
+          "id": "reader-flow-required-heading-order",
+          "passed": true,
+          "actual": true,
+          "expected": true
+        },
+        {
+          "id": "reader-flow-start-here-is-first-section",
+          "passed": true,
+          "actual": true,
+          "expected": true
+        },
+        {
+          "id": "reader-flow-start-here-in-first-80-lines",
+          "passed": true,
+          "actual": true,
+          "expected": true
+        },
+        {
+          "id": "start-here-contract",
+          "passed": true,
+          "actual": {
+            "| Goal | Go to | Side effects |": true,
+            "Python 3.11+": true,
+            "use only the Python standard library": true,
+            "[Quick start](#quick-start)": true,
+            "[Tests](#tests)": true
+          },
+          "expected": {
+            "| Goal | Go to | Side effects |": true,
+            "Python 3.11+": true,
+            "use only the Python standard library": true,
+            "[Quick start](#quick-start)": true,
+            "[Tests](#tests)": true
+          }
+        },
+        {
+          "id": "responsibility-boundary",
+          "passed": true,
+          "actual": true,
+          "expected": true
+        },
+        {
+          "id": "tests-have-offline-contract",
+          "passed": true,
+          "actual": true,
+          "expected": true
+        },
+        {
+          "id": "selected-exemplar-locked",
+          "passed": true,
+          "actual": {
+            "repository": true,
+            "commit": true
+          },
+          "expected": {
+            "repository": true,
+            "commit": true
+          }
+        },
+        {
+          "id": "quick-start-clone",
           "passed": true,
           "actual": true,
           "expected": true
@@ -178,6 +256,7 @@
           "actual": {
             "infra/main.bicep": true,
             "scripts/build_evidence.py": true,
+            "scripts/azure_translator_backtranslate.py": true,
             "scripts/probe_endpoint.py": true,
             "scripts/submit_private_aci_probe.py": true,
             "scripts/set_public_network_access.py": true,
@@ -546,7 +625,7 @@
     {
       "id": "RUN-014",
       "applicable": true,
-      "description": "English and Chinese preserve facts, assets, boundaries, and commands.",
+      "description": "English and Chinese preserve facts and assets; the Chinese README uses native engineering prose.",
       "status": "PASS",
       "checks": [
         {
@@ -555,22 +634,23 @@
           "actual": {
             "managed-compute-private-link-dedicated-20260831": true,
             "2026-08-31": true,
-            "does not prove that managed pods are injected": true,
-            "Managed Compute egress traverses": true,
-            "prompts or completions have zero retention": true,
+            "does not prove that Managed Compute pods run inside": true,
+            "Managed Compute egress uses": true,
+            "zero prompt or completion retention": true,
             "Temporary resources remain": true,
             "billing continues": true,
-            "private-IP ACI": true,
+            "Azure Container Instances (ACI)": true,
             "not Azure Bastion": true,
             "do not hard-code `Enabled`": true,
-            "parent Foundry account": true,
-            "earliest **public-safe sanitized": true,
-            "dedicated non-production Foundry account": true,
+            "parent Foundry resource": true,
+            "earliest public-safe sanitized": true,
+            "dedicated non-production Foundry resource": true,
             "derived after the run": true,
-            "git show 762b69780da73c9f9ca21c28508349755a980820:": true,
             "no live measurement": true,
             "inferred from the private DNS class": true,
             "other inbound hostname": true,
+            "Point-to-site VPN": true,
+            "ExpressRoute or site-to-site VPN": true,
             "manual-restore": true
           },
           "expected": true
@@ -578,8 +658,8 @@
         {
           "id": "bilingual-command-parity",
           "passed": true,
-          "actual": 10,
-          "expected": 10
+          "actual": 11,
+          "expected": 11
         },
         {
           "id": "bilingual-image-parity",
@@ -600,12 +680,50 @@
             "https://img.shields.io/badge/license-MIT-lightgrey",
             "images/product-ui/deployment-facts.png"
           ]
+        },
+        {
+          "id": "chinese-reader-flow",
+          "passed": true,
+          "actual": true,
+          "expected": true
+        },
+        {
+          "id": "chinese-start-here-contract",
+          "passed": true,
+          "actual": true,
+          "expected": true
+        },
+        {
+          "id": "chinese-official-terms-introduced",
+          "passed": true,
+          "actual": true,
+          "expected": true
+        },
+        {
+          "id": "chinese-generic-nouns-in-chinese",
+          "passed": true,
+          "actual": true,
+          "expected": true
+        },
+        {
+          "id": "chinese-retired-translation-phrases-absent",
+          "passed": true,
+          "actual": true,
+          "expected": true
+        },
+        {
+          "id": "azure-translator-back-translation",
+          "passed": true,
+          "actual": [],
+          "expected": []
         }
       ],
       "evidence": [
         "README.md",
         "README-CN.md",
-        "evidence/run-contract.json"
+        "evidence/run-contract.json",
+        "evidence/translator-back-translation.json",
+        "scripts/azure_translator_backtranslate.py"
       ]
     },
     {
@@ -671,15 +789,36 @@
             "missing-evidence-rejected": true,
             "duplicate-check-rejected": true
           }
+        },
+        {
+          "id": "readme-mutations-rejected",
+          "passed": true,
+          "actual": {
+            "moved-start-here-rejected": true,
+            "missing-tests-rejected": true,
+            "stiff-chinese-rejected": true,
+            "chinese-heading-drift-rejected": true,
+            "bilingual-command-drift-rejected": true
+          },
+          "expected": {
+            "moved-start-here-rejected": true,
+            "missing-tests-rejected": true,
+            "stiff-chinese-rejected": true,
+            "chinese-heading-drift-rejected": true,
+            "bilingual-command-drift-rejected": true
+          }
         }
       ],
       "evidence": [
         "tests/test_build_evidence.py",
+        "tests/test_azure_translator_backtranslate.py",
         "tests/test_set_public_network_access.py",
         "tests/test_submit_private_aci_probe.py",
         "tests/test_validate_repo.py",
         "scripts/build_evidence.py",
-        "scripts/validate_repo.py"
+        "scripts/validate_repo.py",
+        "README.md",
+        "README-CN.md"
       ]
     }
   ]

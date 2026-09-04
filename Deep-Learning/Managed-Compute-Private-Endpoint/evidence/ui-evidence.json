@@ -3,6 +3,16 @@
   "images": [
     {
       "path": "images/product-ui/deployment-facts.png",
+      "sourceClass": "LOCAL_MEASUREMENT",
+      "sourceOwner": "Microsoft Foundry authenticated deployment details page",
+      "runId": "managed-compute-private-link-dedicated-20260831",
+      "captureDateUtc": "2026-08-31",
+      "captureScope": "Single-run field values for model, deployment type, provisioning state, and accelerator",
+      "cropStatus": "Four field-level crops combined; whitespace removed; displayed values not redrawn or altered",
+      "dimensions": {
+        "width": 1318,
+        "height": 583
+      },
       "sha256": "8a5e5acd77ef1f94951082e8d5ea9af520ff1dc510c62253f318d9253cffd7d4",
       "proves": "The dedicated-run deployment was GlobalManagedCompute, reached Succeeded, used H100_80GB, and served qwen--qwen3-32b.",
       "doesNotProve": "Network behavior, the deployment's outbound path, or production readiness; those claims require the code-path evidence."
@@ -16,5 +26,16 @@
     "email address",
     "tenant and subscription identifiers"
   ],
-  "captureMethod": "Four field-level crops from the authenticated Microsoft Foundry deployment details page, combined without redrawing or altering field values."
+  "captureMethod": "Four field-level crops from the authenticated Microsoft Foundry deployment details page, combined without redrawing or altering field values.",
+  "explanatoryDiagram": {
+    "path": "README.md#traffic-paths",
+    "sourceClass": "AUTHOR_SYNTHESIS",
+    "format": "Mermaid flowchart",
+    "inputs": [
+      "evidence/connectivity-run.json",
+      "https://learn.microsoft.com/azure/foundry/how-to/configure-private-link"
+    ],
+    "incrementalValue": "Combines the measured public-block/private-allow differential with the documented Foundry account boundary; the official diagram covers broader inbound and outbound isolation instead of this measured run.",
+    "doesNotProve": "Packet-level path instrumentation, Managed Compute pod placement, or egress routing."
+  }
 }
