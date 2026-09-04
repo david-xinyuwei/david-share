@@ -4,7 +4,7 @@
   "apiVersion": "3.0",
   "sourceLanguage": "zh-Hans",
   "targetLanguage": "en",
-  "generatedAtUtc": "2026-09-04T02:16:41.295255+00:00",
+  "generatedAtUtc": "2026-09-04T02:24:59.784299+00:00",
   "resource": {
     "kind": "TextTranslation",
     "sku": "F0",
@@ -14,25 +14,25 @@
   },
   "inputs": {
     "chinesePath": "README-CN.md",
-    "chineseSha256": "8acf070aa392b6fad4c1cb7b4977c3a279d5997bf44faa30dd63af42ad97b8f5",
+    "chineseSha256": "7ce893a33eb1c6c1de62e5440c818061e685bc4c3a22ab1ef51d840fe4c1f245",
     "englishPath": "README.md",
-    "englishSha256": "d59b4baa8872e40ff6e7096e6f159e07cea205ce9e46f005b5cc7c821a603960",
+    "englishSha256": "bb7100cd6d897dfc998b837e411568aa434e573a0f9c595f940f13b786d9cbcd",
     "translationUnitCount": 175,
-    "sourceCharacterCount": 12190
+    "sourceCharacterCount": 12410
   },
   "calls": [
     {
       "batch": 1,
       "unitCount": 90,
       "httpStatus": 200,
-      "requestIdSha256": "dcbfc1e83247119bf193d5e3a72e4f20f7a8403117c731ce5aee68a166b3566a",
-      "meteredUsage": 6700
+      "requestIdSha256": "4c4ededc6ef93a402913f5529cae497c54dac4bb1e932d5b00629fca0dfe0d10",
+      "meteredUsage": 6920
     },
     {
       "batch": 2,
       "unitCount": 85,
       "httpStatus": 200,
-      "requestIdSha256": "3a6741e71f9637302ca22f9e3db0ad909dfa94a787f09d21d18bd10d0ef61c3d",
+      "requestIdSha256": "be17c2a409d04206b757008ddec277717a971ca41c9bef6b6e2f64158aebb4a4",
       "meteredUsage": 5316
     }
   ],
@@ -45,1045 +45,1045 @@
     },
     {
       "lineStart": 9,
-      "lineEnd": 12,
-      "sourceSha256": "2e734fe7cb244029e4463c7fe6fb30003deaf2d7048653456c959c07652d4aba",
-      "backTranslation": "This repository answers only one question: After shutting down public network access for the associated Foundry resource, can the business client still deploy the GlobalManagedCompute model via a Private Endpoint? In a test in an independent environment, calls outside the VNet changed from 200 to 403, while calls within the VNet remained at 200; after restoring the original value, calls outside the VNet returned 200."
+      "lineEnd": 16,
+      "sourceSha256": "70703c856a4851e32a1a28eef58bed25a8300367030ac36b9cd211b2fea6a7f2",
+      "backTranslation": "This repository originated from a customer question. When evaluating Microsoft Foundry Managed Compute, the customer asked: Can the open-source model it hosts achieve secure isolation over the network—not exposed to the public network, only allowing business systems within its own network to be called, and ensuring the production environment works normally? Microsoft's control measures for this issue are the public network access switch for the Foundry resource plus the Private Endpoint. Therefore, this repository only tests the one thing that determines the answer: after shutting down public access to the Foundry resource, can the business client still deploy the GlobalManaged Compute model via the Private Endpoint? In an independent environment test, calls outside VNet changed from 200 to 403, while calls inside VNet remained at 200; after restoring the original value, calls outside VNet returned 200. Subsequent load tests on the same deployment also showed that smuggling networks are not slower than public networks (see performance tests)."
     },
     {
-      "lineStart": 14,
-      "lineEnd": 16,
+      "lineStart": 18,
+      "lineEnd": 20,
       "sourceSha256": "f3468401651fa981aa4be3a45e1d8d20947b51bb633a480841fd454842763f47",
       "backTranslation": "Conclusion boundary: This test only verifies the inbound network path from the client to the inference endpoint; It does not prove that the managed computed Pod is located in the client's VNet, nor does it prove that outbound traffic passes through the client's VNet; It also does not prove that prompt or completion has zero retention, nor does it prove that the preview capability has met production requirements."
     },
     {
-      "lineStart": 18,
-      "lineEnd": 18,
+      "lineStart": 22,
+      "lineEnd": 22,
       "sourceSha256": "9ddcd7ffb61e3d615a2f63062ad14026f471360bc03017c49296ccff2906eb00",
       "backTranslation": "Author: Xinyu Wei"
     },
     {
-      "lineStart": 20,
-      "lineEnd": 20,
+      "lineStart": 24,
+      "lineEnd": 24,
       "sourceSha256": "85570e8ca9d5054b6166225a402fc1bb4a2a0279a5b4e2bcf33d0471b44a08b4",
       "backTranslation": "English | Chinese"
     },
     {
-      "lineStart": 22,
-      "lineEnd": 22,
+      "lineStart": 26,
+      "lineEnd": 26,
       "sourceSha256": "5ee0a4f14983fe5d58b77266e5f412f162acb282d75f95ccce5a7808d3f43b72",
       "backTranslation": "Start here · Five-stage testing · Verification principles · Replication steps · Evidence"
     },
     {
-      "lineStart": 26,
-      "lineEnd": 26,
+      "lineStart": 30,
+      "lineEnd": 30,
       "sourceSha256": "df7006ca069712d5419bcde92d83a70be1d878d2caf1fa40532b54ccf65d45bf",
       "backTranslation": "Start here"
     },
     {
-      "lineStart": 28,
-      "lineEnd": 28,
+      "lineStart": 32,
+      "lineEnd": 32,
       "sourceSha256": "208a43ab5eab65d26194925e7cfc5c8672d81d020dc47081839bf7c9e296848a",
       "backTranslation": "Goal — Entry"
     },
     {
-      "lineStart": 30,
-      "lineEnd": 30,
+      "lineStart": 34,
+      "lineEnd": 34,
       "sourceSha256": "28da93966a044c41e5a2e72881bc4af856664e33fc91404b1359240ce12b7d69",
       "backTranslation": "Quickly grasp conclusions and evidence—five stages of measurement and evidence"
     },
     {
-      "lineStart": 31,
-      "lineEnd": 31,
+      "lineStart": 35,
+      "lineEnd": 35,
       "sourceSha256": "cb92b70be2b808284f0831f7497c022ab28c7d932b62c2c56a0aad81565b70aa",
       "backTranslation": "Check code and evidence locally — test"
     },
     {
-      "lineStart": 32,
-      "lineEnd": 32,
+      "lineStart": 36,
+      "lineEnd": 36,
       "sourceSha256": "caed2ff14c6ac8c24a07ac9ae0d5112bc1755f038422cd36142af3629fea36e9",
       "backTranslation": "Planning the production environment network — recommended configuration for the production environment"
     },
     {
-      "lineStart": 33,
-      "lineEnd": 33,
+      "lineStart": 37,
+      "lineEnd": 37,
       "sourceSha256": "fd5a4dc975ba2c73c0063007df6aeb8a3b2acedd8ffe9b9d88ff80224791e301",
       "backTranslation": "Reproducing in the customer environment — reproduction steps"
     },
     {
-      "lineStart": 35,
-      "lineEnd": 36,
+      "lineStart": 39,
+      "lineEnd": 40,
       "sourceSha256": "1cd0b8ceffd19e561678c3a06fed612946f88fce0e2fab0d34e23ce1ecead217",
       "backTranslation": "Running scripts requires Python 3.11+ and only uses the Python standard library. Online reproduction also requires Azure CLI and a credential to call model deployment: either the API key for Foundry resources or Entra identity, either of both."
     },
     {
-      "lineStart": 38,
-      "lineEnd": 39,
+      "lineStart": 42,
+      "lineEnd": 43,
       "sourceSha256": "b93fccb802e84167b1589e84f25626aa835a018ef90f8901968e808d9e8d566e",
       "backTranslation": "The execution order must not be reversed: first prove that the private network path is available, then close the public network. Otherwise, if DNS or routing is mismatched, operators themselves will be locked out of the network."
     },
     {
-      "lineStart": 41,
-      "lineEnd": 41,
+      "lineStart": 45,
+      "lineEnd": 45,
       "sourceSha256": "9951a40ec23e7ce0d4c353c28eddb9a47f376d77d9b88e6063fe96187a39931e",
       "backTranslation": "Stage — client location — public network access — the result that must be seen"
     },
     {
-      "lineStart": 43,
-      "lineEnd": 43,
+      "lineStart": 47,
+      "lineEnd": 47,
       "sourceSha256": "1bfe23e5a6c8a11108c03574158a78a8261ab8d3274e14b22e71301cfbf24258",
       "backTranslation": "1 — Associate VNet outside — Open — Chat Completions request returns 200"
     },
     {
-      "lineStart": 44,
-      "lineEnd": 44,
+      "lineStart": 48,
+      "lineEnd": 48,
       "sourceSha256": "ffeb6ace1fd0abbe347159e2d8eaa79ec297eb50d3dd26024198827ea7a4916b",
       "backTranslation": "2 — Associate within VNet — Enable — DNS resolution to private addresses and return 200"
     },
     {
-      "lineStart": 45,
-      "lineEnd": 45,
+      "lineStart": 49,
+      "lineEnd": 49,
       "sourceSha256": "87ab9417a21d4ec4f57ac61e13417a66532ab51828155cdbd46bcd28bb9f92d8",
       "backTranslation": "3 — Associate outside VNet — Close — Return 403 Public access is disabled"
     },
     {
-      "lineStart": 46,
-      "lineEnd": 46,
+      "lineStart": 50,
+      "lineEnd": 50,
       "sourceSha256": "8f293cd9523a94ffbae41753deb98cd9a77e1b6b022ccb1914d670f9c88be9fc",
       "backTranslation": "4 — Associate within VNet — Close — DNS still resolves to private addresses and returns 200"
     },
     {
-      "lineStart": 47,
-      "lineEnd": 47,
+      "lineStart": 51,
+      "lineEnd": 51,
       "sourceSha256": "e183fd8d775828bd89df1d9a3e909821dd5fc29fd3098f8aaf439a21e2db189c",
       "backTranslation": "5 — Associate outside VNet — Restore original value — If the original value is Enabled, request to return 200"
     },
     {
-      "lineStart": 49,
-      "lineEnd": 50,
+      "lineStart": 53,
+      "lineEnd": 54,
       "sourceSha256": "c4d591d3a8da303029dce6f02935e992804d98c9878ee93a036473c9a1ee2311",
       "backTranslation": "Completion condition: The Foundry resource returns to the public network access state saved before testing, and all five stages of public and private network results meet expectations."
     },
     {
-      "lineStart": 52,
-      "lineEnd": 52,
+      "lineStart": 56,
+      "lineEnd": 56,
       "sourceSha256": "60e13f9d13f4defcc0a16a455f337bfd69e16b3bbdef66d68aeacd7402b4e23d",
       "backTranslation": "What are the responsibilities of the platform and the customer?"
     },
     {
-      "lineStart": 54,
-      "lineEnd": 54,
+      "lineStart": 58,
+      "lineEnd": 58,
       "sourceSha256": "3086f5b02921495c9e3bb42171ac82ea5ced163e71711f97cc2287ff035f1509",
       "backTranslation": "Microsoft Foundry and Azure provide — customer responsibility and acceptance"
     },
     {
-      "lineStart": 56,
-      "lineEnd": 56,
+      "lineStart": 60,
+      "lineEnd": 60,
       "sourceSha256": "503e010e1a6032110853d76840383f1aca870ae7f74577179fa6733328512f4d",
       "backTranslation": "GlobalManagedCompute model deployment and its affiliated Foundry resources — independent non-production foundry resources; All projects under it must be disposable test assets"
     },
     {
-      "lineStart": 57,
-      "lineEnd": 57,
+      "lineStart": 61,
+      "lineEnd": 61,
       "sourceSha256": "662a1bbc782bbab5622c7a9348016a6f6e3169a634b776911f94130481daa1d3",
       "backTranslation": "Public network access settings for the resource — Contributor permissions for Foundry resources; Save the original value before modification, and read back to confirm after modification"
     },
     {
-      "lineStart": 58,
-      "lineEnd": 58,
+      "lineStart": 62,
+      "lineEnd": 62,
       "sourceSha256": "f6ce4a0485bcb3f74bdca17603e07e3ab024f1fd9d559fa43f5459ab15923669",
       "backTranslation": "The connection group is the Private Endpoint for accounts—Private Endpoint private subnet, Network Contributor permissions, and the status of Approved and Succeeded connections"
     },
     {
-      "lineStart": 59,
-      "lineEnd": 59,
+      "lineStart": 63,
+      "lineEnd": 63,
       "sourceSha256": "d609e0cea0ccd404fa2128c8004f14a0bf123b421ac722eb96effaeec48bda15",
       "backTranslation": "Private DNS Zone Integration — Requires a private DNS zone, VNet link, or DNS forwarding, and confirms client resolution to a private address"
     },
     {
-      "lineStart": 60,
-      "lineEnd": 60,
+      "lineStart": 64,
+      "lineEnd": 64,
       "sourceSha256": "f118ae997afa9b4ed47a2aa93cdf3670b96bc1ea659f81886c444552e5edfaf5",
       "backTranslation": "Data Face Authentication: API key (api-key request header) or Entra token (Authorization: Bearer) — the same credential is used throughout all five stages; If the resource is set to disableLocalAuth=true, only Entra can be used"
     },
     {
-      "lineStart": 61,
-      "lineEnd": 61,
+      "lineStart": 65,
+      "lineEnd": 65,
       "sourceSha256": "e27f613d7ba3dd9d9db62c382416c480be07ad2fea92467409fb7354f7dd1a59",
       "backTranslation": "Azure Container Instances (ACI) can be used to perform probing — delegated workload subnets, credentials passed in via ARM secureValue, evidence preserved, and a cleanup leader assigned"
     },
     {
-      "lineStart": 63,
-      "lineEnd": 65,
+      "lineStart": 67,
+      "lineEnd": 69,
       "sourceSha256": "2a750a588fdead67d7e2b9230305fdb92d9bc514868b83d4a557b1c72bfbe14c",
       "backTranslation": "Benefit: After shutting down the public network, neither the model URL nor the deployment itself needs to be changed. Cost: Every client must be able to route to VNet, and DNS must resolve the model URL into the private address of the Private Endpoint. Network control is the responsibility of the foundry resources, not on individual Managed Compute model deployments."
     },
     {
-      "lineStart": 67,
-      "lineEnd": 67,
+      "lineStart": 71,
+      "lineEnd": 71,
       "sourceSha256": "e448087033bdc23b2ba25de9dfde2458697d463217cd93207a126b0051644ec4",
       "backTranslation": "This warehouse proves what it is"
     },
     {
-      "lineStart": 69,
-      "lineEnd": 69,
+      "lineStart": 73,
+      "lineEnd": 73,
       "sourceSha256": "08bf0d6fd5c4bcf3f60f23230badbfe62603c384cec161ed9bef3bbb97e12af4",
       "backTranslation": "Capability — measured observation — evidence"
     },
     {
-      "lineStart": 71,
-      "lineEnd": 71,
+      "lineStart": 75,
+      "lineEnd": 75,
       "sourceSha256": "7a9b358d1e05ccd640e40cc8ed85ef05ce8f1d164b6a4ff73fdee05bd599b991",
       "backTranslation": "The tested object is indeed a screenshot of the Global Managed Compute — Foundry page showing qwen--qwen3-32b, GlobalManagedCompute, Succeeded, and H100_80GB — anonymized fields"
     },
     {
-      "lineStart": 72,
-      "lineEnd": 72,
+      "lineStart": 76,
+      "lineEnd": 76,
       "sourceSha256": "07688f3dd92ddf2c5bd9743d53096b158045e2a50039d172ec5887d2701744b1",
       "backTranslation": "Public access settings apply to requests sent to Managed Compute model deployments — Authenticated requests outside VNet return 403 Public access is disabled; This only proves that requests are rejected at the Foundry resource boundary and cannot locate rejection points inside the routing — runtime evidence"
     },
     {
-      "lineStart": 73,
-      "lineEnd": 73,
+      "lineStart": 77,
+      "lineEnd": 77,
       "sourceSha256": "91e94e5933bc6be885561c17ab4fc072d3374b123444ee735f2f847ccd8929c4",
       "backTranslation": "Private Endpoint carries real inference requests — the same probe source code is executed in ACI with a private IP; Before and after shutting down the public network, DNS resolves to RFC 1918 private addresses, and Chat Completions return 200. Private Endpoint usage is inferred solely from private network DNS resolution results and has not yet been itemized with its network card address — automatically generated call records"
     },
     {
-      "lineStart": 74,
-      "lineEnd": 74,
+      "lineStart": 78,
+      "lineEnd": 78,
       "sourceSha256": "a00819978d03b41504c60a9c638feb160ed28b2fb74b4fe36125806b7c192a01",
       "backTranslation": "Network status restored after testing — after restoring the public network, inference calls return 200; both ACI probes end with exit code 0 — post-test state"
     },
     {
-      "lineStart": 75,
-      "lineEnd": 75,
+      "lineStart": 79,
+      "lineEnd": 79,
       "sourceSha256": "ad70a391c20590f78b5dd5aeccfccf045121ecf17bcd55bf9dd28213a602f3f6",
       "backTranslation": "Resource and billing boundaries — no cleanup authorization is granted, so temporary resources remain in place; Managed Compute continues to incur fees during retention — post-test state"
     },
     {
-      "lineStart": 77,
-      "lineEnd": 78,
+      "lineStart": 81,
+      "lineEnd": 82,
       "sourceSha256": "788edd9031b3b8388fdb5679e4d261219a8456988a591659db4602ddfc620934",
       "backTranslation": "The evidence only covers *.services.ai.azure.com routes belonging to the Foundry resource, so it is unclear whether Managed Compute also exposes other inbound hostnames."
     },
     {
-      "lineStart": 80,
-      "lineEnd": 80,
+      "lineStart": 84,
+      "lineEnd": 84,
       "sourceSha256": "8ab617fdbc42d707938f879a573cb59093f24fbd202b354dd51ab84401630ff8",
       "backTranslation": "Five-stage real-world testing"
     },
     {
-      "lineStart": 82,
-      "lineEnd": 83,
+      "lineStart": 86,
+      "lineEnd": 87,
       "sourceSha256": "7767d5266053c95a6769ac133e81060d0996c682da3329b98f311b45a5e05eef",
       "backTranslation": "During testing, Foundry resources, model deployment, inference endpoints, credentials, and request content are fixed, only changing the client's network location and the public network access settings for the Foundry resources."
     },
     {
-      "lineStart": 85,
-      "lineEnd": 88,
+      "lineStart": 89,
+      "lineEnd": 92,
       "sourceSha256": "c4b4fc6d9a975d595214fc20883d6455043a5d505be033eacd70fcb14ec58f13",
       "backTranslation": "This test uses the Entra token because the test resource disabled key access (disableLocalAuth=true). Foundry resources support both types of authentication: API-key request heading API key or Authorization: Bearer passing Entra token. Scripts support both. Public access is a resource-level network configuration and is independent of which credential the client uses; However, this time only Entra was tested."
     },
     {
-      "lineStart": 90,
-      "lineEnd": 91,
+      "lineStart": 94,
+      "lineEnd": 95,
       "sourceSha256": "580b1cb99641dc2c6a1382ce2265f6b687247fb4202dd7108f9aa5f29dccb06a",
       "backTranslation": "Runtime ID: managed-compute-private-link-dedicated-20260831 · Date: 2026-08-31 · Scope: Single inbound connectivity differential test."
     },
     {
-      "lineStart": 93,
-      "lineEnd": 93,
+      "lineStart": 97,
+      "lineEnd": 97,
       "sourceSha256": "02029df28ab6b04b81c9c83367f630bde48011e643501a31a5da2857808178d4",
       "backTranslation": "Scenario — DNS — Authenticated call result — State — Evidence"
     },
     {
-      "lineStart": 95,
-      "lineEnd": 95,
+      "lineStart": 99,
+      "lineEnd": 99,
       "sourceSha256": "ba1e6a63530ab0a013ec79a70a2f998846ef5619bfd792d5f03379800c73a2ea",
       "backTranslation": "VNet external client, public network open — public address — 200: real Chat Compliance response — PASS — public-baseline.json"
     },
     {
-      "lineStart": 96,
-      "lineEnd": 96,
+      "lineStart": 100,
+      "lineEnd": 100,
       "sourceSha256": "03776169d7fe08b4484bad8793ee615e4a0fdfdcbbbe610b7784431225de847b",
       "backTranslation": "Associated ACI with private IP within the VNet, public network open — private address — 200: security probing before shutting down public network — PASS — private-preflight.json"
     },
     {
-      "lineStart": 97,
-      "lineEnd": 97,
+      "lineStart": 101,
+      "lineEnd": 101,
       "sourceSha256": "6807f1c820410e9b19bca2cc246d1da57fc53c3125ccc652ded0d8f100288982",
       "backTranslation": "VNet external client, public network closed — public address — 403: public access disabled — PASS — public-blocked.json"
     },
     {
-      "lineStart": 98,
-      "lineEnd": 98,
+      "lineStart": 102,
+      "lineEnd": 102,
       "sourceSha256": "ddd2cef26807bbd2e28e42249ea2ec4f199d932974b5c72ca634facbd2d22dcd",
       "backTranslation": "Associated ACI with private IP within the VNet, public network shutdown — private address — 200: real Chat Completions response — PASS — private-success.json"
     },
     {
-      "lineStart": 99,
-      "lineEnd": 99,
+      "lineStart": 103,
+      "lineEnd": 103,
       "sourceSha256": "3bb980e2bf20d8a760d30312a7a532665cd357ba285a438b242e128478225650",
       "backTranslation": "VNet external client, public network recovery — public address — 200: same inference endpoint has responded; generated content not retained — PASS — public-restored.json"
     },
     {
-      "lineStart": 101,
-      "lineEnd": 104,
+      "lineStart": 105,
+      "lineEnd": 108,
       "sourceSha256": "39619904745ea959e20e2686b40f8f6347c9e4b3fceace8f8fe39162c3ed6407",
       "backTranslation": "Private network probing uses ACI, assigning private IPs in the dedicated workload subnet associated with VNet, then sending HTTPS requests to private addresses resolved by DNS; It is not Azure Bastion. Both ACI probes use the same probe_endpoint.py source code, with exit codes of 0. Public evidence does not store generated content or parsed IPs; Request IDs only retain the SHA-256 summary. Probe timestamps only prove execution order and do not represent delay distribution."
     },
     {
-      "lineStart": 106,
-      "lineEnd": 108,
+      "lineStart": 110,
+      "lineEnd": 112,
       "sourceSha256": "b807dc628947a50fe9e8093a6eb9f0e188d22a7ebe1106551b2de29bfb4e2118",
       "backTranslation": "The automatically generated call log is the only machine-read-through entry point for five stages. Source of evidence records explain which fields come from probes, which fingerprints are derived after runtime, and how to retrieve the probe source code actually executed in the 762b6978 submission."
     },
     {
-      "lineStart": 110,
-      "lineEnd": 110,
+      "lineStart": 114,
+      "lineEnd": 114,
       "sourceSha256": "e0d09f1bb1801e8f5abb72efb29ec1ac198216dfea0700bbde2e55513ecf315a",
       "backTranslation": "Product interface and traffic paths"
     },
     {
-      "lineStart": 112,
-      "lineEnd": 112,
+      "lineStart": 116,
+      "lineEnd": 116,
       "sourceSha256": "d1564e22447776d158c383e8cc8ed7b6e8ff2321695e2830f00618d65b12248e",
       "backTranslation": "Test subject"
     },
     {
-      "lineStart": 114,
-      "lineEnd": 114,
+      "lineStart": 118,
+      "lineEnd": 118,
       "sourceSha256": "124513e048c84c87e4709987702508dcb56ded2d290915d3a290672b8ddbfb82",
       "backTranslation": "The desensitized Microsoft Foundry field displays GlobalManagedCompute, Succeeded, and H100_80GB"
     },
     {
-      "lineStart": 116,
-      "lineEnd": 118,
+      "lineStart": 120,
+      "lineEnd": 122,
       "sourceSha256": "726463cf434414814128a952015a1960574b89a5fa10e95ed1ee58ae82147eb3",
       "backTranslation": "*Local test, run ID managed-compute-private-link-dedicated-20260831, 2026-08-31. Please check the model name, deployment type, provision status, and accelerator. The screenshot removes the identifiers for resources, projects, deployments, endpoints, identities, tenants, and subscriptions; Image evidence records preserve SHA-256 and declared boundaries. *"
     },
     {
-      "lineStart": 120,
-      "lineEnd": 120,
+      "lineStart": 124,
+      "lineEnd": 124,
       "sourceSha256": "df178e69f851cec3e8b7bedb6f2d6f5d35a1d89410e3d3861f40178591c47665",
       "backTranslation": "Traffic paths"
     },
     {
-      "lineStart": 135,
-      "lineEnd": 137,
+      "lineStart": 139,
+      "lineEnd": 141,
       "sourceSha256": "f2f473e6f8873ab6135471d66aa4300072bcdcda89401a520e19182139fb8688",
       "backTranslation": "*Original explanatory diagram, based on this differential test and Microsoft Foundry network isolation documentation. The diagram only shows the client inbound path; The evidence only places 403 at the Foundry resource boundary. *"
     },
     {
-      "lineStart": 139,
-      "lineEnd": 139,
+      "lineStart": 143,
+      "lineEnd": 143,
       "sourceSha256": "2f284eb2b0809b3ae75ce47738a6192371f360a9949f9e9a2e6750ec1136a105",
       "backTranslation": "Executable assets"
     },
     {
-      "lineStart": 141,
-      "lineEnd": 141,
+      "lineStart": 145,
+      "lineEnd": 145,
       "sourceSha256": "e233a5740bb60b076fbbb0fa2cecb3a94570b2e42717a173cd19105d5784acdb",
       "backTranslation": "Path — Contract"
     },
     {
-      "lineStart": 143,
-      "lineEnd": 143,
+      "lineStart": 147,
+      "lineEnd": 147,
       "sourceSha256": "7478357acfe97848b58e4099ebd4e1cd9ee96b00c996845b1ee80ad294e681a4",
       "backTranslation": "infra/main.bicep — connects existing Private Endpoint subnets to the account group; You can create and link three Foundry Private DNS Zones, or use the customer's existing full zone ID object"
     },
     {
-      "lineStart": 144,
-      "lineEnd": 144,
+      "lineStart": 148,
+      "lineEnd": 148,
       "sourceSha256": "e2e8d943318e331d6d95635717059ef59067070ebd04097fa84177c3f761deb9",
       "backTranslation": "scripts/probe_endpoint.py — Send the same request using an API key or Entra token to check DNS type and HTTP status, without outputting credentials"
     },
     {
-      "lineStart": 145,
-      "lineEnd": 145,
+      "lineStart": 149,
+      "lineEnd": 149,
       "sourceSha256": "20e3439eab79f901653a283317d06352019ebaa0be2f102cccc78fd30c055846",
       "backTranslation": "scripts/submit_private_aci_probe.py — runs the same probe source code in ACI with a private IP; Container calculates SHA-256 for the actual byte executed; API key or Entra token is passed only via ARM secureValue; Resource with the same name is not updated"
     },
     {
-      "lineStart": 146,
-      "lineEnd": 146,
+      "lineStart": 150,
+      "lineEnd": 150,
       "sourceSha256": "9b9521ba2104145ba4c7176d80ed7a072b053222dc6649fa566d503e8b072ece",
       "backTranslation": "scripts/set_public_network_access.py — Before shutting down the public network, there must be an approved Private Endpoint and 200 evidence of the same private network; ETag prerequisites are used to deny concurrent changes (added after testing, units tested but not tested)"
     },
     {
-      "lineStart": 147,
-      "lineEnd": 147,
+      "lineStart": 151,
+      "lineEnd": 151,
       "sourceSha256": "2fa4adc3f9f346dc7a34fca8d2d5ea739dabe8e82cd3a32011a7fdeee538eb32",
       "backTranslation": "scripts/load_test_endpoint.py — Fixed concurrency level streaming load testing: TTFT, end-to-end, single request, and aggregate output tok/s; Generated content is not saved; results are output as short lines to accommodate ACI log retention limits"
     },
     {
-      "lineStart": 148,
-      "lineEnd": 148,
+      "lineStart": 152,
+      "lineEnd": 152,
       "sourceSha256": "b5273e3c4777abf866fdbea624d9e47c5a4c8fa96f8a71a9072ef2e621aba47e",
       "backTranslation": "scripts/submit_private_aci_load_test.py — Run the same load test byte in an ACI with a private IP; --collect-log Restore the saved container log to the result JSON"
     },
     {
-      "lineStart": 149,
-      "lineEnd": 149,
+      "lineStart": 153,
+      "lineEnd": 153,
       "sourceSha256": "19b8b4c916dfc21ec403ff94fcb0631b8e72d07eb8c18d9f070818adce0886d4",
       "backTranslation": "scripts/azure_translator_backtranslate.py — Call Azure AI Translator to perform Chinese-to-English back-translation; Key only reads from the process environment,--check can verify submitted evidence without credentials"
     },
     {
-      "lineStart": 150,
-      "lineEnd": 150,
+      "lineStart": 154,
+      "lineEnd": 154,
       "sourceSha256": "74d1fe29e2920d248de89c221d7c44ed9c9c546a1034b34f1f6b2673f3e6eb40",
       "backTranslation": "tests/ — Override command entry, response semantics, zero PATCH rejection path, original value recovery, evidence mutation, and Level 5 rule mutation"
     },
     {
-      "lineStart": 151,
-      "lineEnd": 151,
+      "lineStart": 155,
+      "lineEnd": 155,
       "sourceSha256": "a749372b9634759eed1643820c8d665dde17778006cf4d1daf13aed4478c0577",
       "backTranslation": "Evidence/ — Stores anxious operation contracts, test results, official source locks, image evidence ledger, and Level 5 rule results"
     },
     {
-      "lineStart": 153,
-      "lineEnd": 153,
+      "lineStart": 157,
+      "lineEnd": 157,
       "sourceSha256": "89d7069478c55b99dc9c134753cf30de086cff7e56d2a02429056f5af2540ecb",
       "backTranslation": "Verification principle"
     },
     {
-      "lineStart": 155,
-      "lineEnd": 155,
+      "lineStart": 159,
+      "lineEnd": 159,
       "sourceSha256": "fe97c84a79e270e9fd106b1ff3bf34403e8326a6d074902036546c4d3d772694",
       "backTranslation": "Hierarchy — Actual implementation — Conditions — Evidence boundary"
     },
     {
-      "lineStart": 157,
-      "lineEnd": 157,
+      "lineStart": 161,
+      "lineEnd": 161,
       "sourceSha256": "5823fb83d7745bb4745e421467580cff31454e2a785e80bfdb353395e3c8378c",
       "backTranslation": "DNS — resolve_addresses resolve the endpoint, classify_addresses divide all addresses into public, private, or mixed networks — VNet client outputs dnsClass=private — evidence has been preserved, but the resolution address has not been reconciled item-by-item with the private endpoint network card address"
     },
     {
-      "lineStart": 158,
-      "lineEnd": 158,
+      "lineStart": 162,
+      "lineEnd": 162,
       "sourceSha256": "28408a1a22ef1f5b562fed0f350ba5531f4297897b1f18a8937ac3a05cf49db8",
       "backTranslation": "Data Side — run_probe Send a Chat Completions request once using an API key or Entra token — 200 must include object=chat.completion and at least one choice; 403 Must be a public network closed error — Network Policy 403 cannot be replaced by RBAC 403"
     },
     {
-      "lineStart": 159,
-      "lineEnd": 159,
+      "lineStart": 163,
+      "lineEnd": 163,
       "sourceSha256": "674568bcf440f125fa7669950573a02003dab85bf06d7a9d60f33f4d04ecefc1",
       "backTranslation": "Management Side — change_public_network_access Saves original values, modifies, readbacks, and restores public network access settings for associated resources — Callback values equal target values, resource status is Succeeded — ETag protection is added after testing; currently only unit tests, no actual tests"
     },
     {
-      "lineStart": 161,
-      "lineEnd": 161,
+      "lineStart": 165,
+      "lineEnd": 165,
       "sourceSha256": "bdb0f6cab47ca361f7515f3d42f19ac060f6f35d1760ae115f71841c1526204e",
       "backTranslation": "How clients access Private Endpoints"
     },
     {
-      "lineStart": 163,
-      "lineEnd": 164,
+      "lineStart": 167,
+      "lineEnd": 168,
       "sourceSha256": "effeff0c54fe61031fef5cb5db21eac5616aa49ff2ecdbebab63a71b166fc1cf",
       "backTranslation": "The key is not whether the client is a VM or a container, but whether both conditions are met: the route can reach the VNet where the Private Endpoint resides; DNS can resolve the same model URL into the private address of the Private Endpoint."
     },
     {
-      "lineStart": 166,
-      "lineEnd": 166,
+      "lineStart": 170,
+      "lineEnd": 170,
       "sourceSha256": "36b83cd784bae93f858bb86de6e419a3d3f7cafa72ad2711ebe0481e496642f2",
       "backTranslation": "Client location — network path — DNS requirements"
     },
     {
-      "lineStart": 168,
-      "lineEnd": 168,
+      "lineStart": 172,
+      "lineEnd": 172,
       "sourceSha256": "889d7fc7f1af66cd9d4428fb43d2eac296b0b3257ee18ed77aa475d7cea45403",
       "backTranslation": "VM, ACI, and Kubernetes workloads within the same or peer VNet—routing or VNet peering—link the same set of Foundry Private DNS Zones to each client VNet, or run a unified enterprise DNS parser"
     },
     {
-      "lineStart": 169,
-      "lineEnd": 169,
+      "lineStart": 173,
+      "lineEnd": 173,
       "sourceSha256": "b98767e7b692d53fdeb978a5e6bc1f68342c515d54bebd2ae531446e888f386e",
       "backTranslation": "Local data center applications—ExpressRoute or Site-to-Site VPNs—forward Foundry service domain terms to the inbound endpoint of Azure DNS Private Resolver or the DNS forwarder within Azure"
     },
     {
-      "lineStart": 170,
-      "lineEnd": 170,
+      "lineStart": 174,
+      "lineEnd": 174,
       "sourceSha256": "f1a95478170772df32541a4d4a521110ab5d15ed703eaa94ca4a7897ca19cf31",
       "backTranslation": "Developer computers — point-to-site VPN or VM logging into VNet via Azure Bastion — using DNS provided by VPN/resolver; Bastion is just one way during development and not a required component"
     },
     {
-      "lineStart": 172,
-      "lineEnd": 174,
+      "lineStart": 176,
+      "lineEnd": 178,
       "sourceSha256": "8c0c70d9e25bbcfe312172c6365683100e929c0906ad0a17f8c81165652262c5",
       "backTranslation": "Based on: Azure Private Endpoint DNS integration scenario and Azure DNS Private Resolver. The ACI in this repository is only a one-time authentication execution end and does not represent what the production client should look like."
     },
     {
-      "lineStart": 176,
-      "lineEnd": 176,
+      "lineStart": 180,
+      "lineEnd": 180,
       "sourceSha256": "935c3e10fcf30637379d49a04f37bb60e5061e0ae9b4576b05541df104df4664",
       "backTranslation": "Recommended configuration for production environments"
     },
     {
-      "lineStart": 178,
-      "lineEnd": 178,
+      "lineStart": 182,
+      "lineEnd": 182,
       "sourceSha256": "1f613fe336f6f6b6c04617d22f7e652ec105d683b8e0b886d4195e79edbfaf08",
       "backTranslation": "Below are suggestions based on official documentation and this differential test; this configuration itself was not tested in this test."
     },
     {
-      "lineStart": 180,
-      "lineEnd": 180,
+      "lineStart": 184,
+      "lineEnd": 184,
       "sourceSha256": "2bef78d30a2793e0c0a8918a113e05027655e156e6aa26a1a4013e5a48a65710",
       "backTranslation": "Hierarchy — Recommended configuration — Reason"
     },
     {
-      "lineStart": 182,
-      "lineEnd": 182,
+      "lineStart": 186,
+      "lineEnd": 186,
       "sourceSha256": "bf5699561ce623ed1368c7dad13e03e123612d097957de33cac3b1d3acd0a89f",
       "backTranslation": "Foundry resources — keep publicNetworkAccess=Disabled; Do not use the IP whitelist for the \"selected network\" as the production access path — the 403 in the test is caused by this setup; The IP whitelist is equivalent to opening a new public path"
     },
     {
-      "lineStart": 183,
-      "lineEnd": 183,
+      "lineStart": 187,
+      "lineEnd": 187,
       "sourceSha256": "3e847ca6645acd73ae64da1a9551870c6bcbc380c61bf108bd46444ddad352b0",
       "backTranslation": "Private Endpoint location — using a hub-spoke topology, create a Private Endpoint for each Foundry resource in the hub VNet (or shared service spoke) — all peer spoke can access it; unless required by isolation policies, it is not necessary to create one separately for each application"
     },
     {
-      "lineStart": 184,
-      "lineEnd": 184,
+      "lineStart": 188,
+      "lineEnd": 188,
       "sourceSha256": "90925ea95880196810b0c86f12bf7a0d6fa1f1dfab1970e828dda7bfd0d17c40",
       "backTranslation": "Application VNet — connects to the hub via VNet peering; Production clients are workloads already in spoke (AKS, App Service, Functions, VMs with VNet integration) — peering provides routing; the type of client doesn't matter"
     },
     {
-      "lineStart": 185,
-      "lineEnd": 185,
+      "lineStart": 189,
+      "lineEnd": 189,
       "sourceSha256": "a5f1564ae7366e6f10661ab620890f8fc77427be7e0fdbc9213f418f671165f2",
       "backTranslation": "Azure internal DNS — link three Foundry Private DNS Zones (privatelink.cognitiveservices.azure.com, privatelink.openai.azure.com, privatelink.services.ai.azure.com) to the hub; speak points uniformly to the central DNS (Azure DNS Private Resolver inbound endpoint or custom DNS forwarder), or links the same group of zones to each spoke — each client must resolve the model URL into a Private Endpoint address"
     },
     {
-      "lineStart": 186,
-      "lineEnd": 186,
+      "lineStart": 190,
+      "lineEnd": 190,
       "sourceSha256": "5eb86fcd7653de1addf508b1fa29837e8094ac556f737fe49df6f4b1bb325c23",
       "backTranslation": "Local Data Center — Access hub via ExpressRoute private peer or site-to-site VPN; Forward these three zone conditions to the Private Resolver inbound endpoint — the local DNS server cannot see Azure Private DNS Zone"
     },
     {
-      "lineStart": 187,
-      "lineEnd": 187,
+      "lineStart": 191,
+      "lineEnd": 191,
       "sourceSha256": "050ba6f3ce33fbaa264f3cf6ca9135604b764bea8e62b0d77768c2fedb2d6f7d",
       "backTranslation": "Developers and operations personnel — point-to-site VPN access hub, or logging into the Stepping Board VM via Azure Bastion — Bastion for use and does not carry application traffic"
     },
     {
-      "lineStart": 188,
-      "lineEnd": 188,
+      "lineStart": 192,
+      "lineEnd": 192,
       "sourceSha256": "fa22a92936e94977e5a0b49cd8d5065ef8d6143960080e74c466524f25158cf7",
       "backTranslation": "Credentials — API keys are stored in Azure Key Vault and rotated regularly, or managed with inference roles; Choose based on the team's key management strategy — both inference endpoints are supported; network isolation is independent of which type is chosen"
     },
     {
-      "lineStart": 189,
-      "lineEnd": 189,
+      "lineStart": 193,
+      "lineEnd": 193,
       "sourceSha256": "889a17c4d84a619a700da4498ec3abee21c6b68603900e5651c1cbac8a166291",
       "backTranslation": "Change control — run from spoke once before and after each network or DNS change probe_endpoint.py — do phase 2 before phase 3 to avoid locking yourself out"
     },
     {
-      "lineStart": 191,
-      "lineEnd": 194,
+      "lineStart": 195,
+      "lineEnd": 198,
       "sourceSha256": "87967fe0a207772729306011bfcf8cec2842ce95c79c10b8f17fe97d112db965",
       "backTranslation": "Azure Container Instances and Azure Bastion are only validation tools and operations entry points in this repository, not production data paths. References: Hub-spoke Network Topology, Private Endpoint DNS Integration,"
     },
     {
-      "lineStart": 196,
-      "lineEnd": 197,
+      "lineStart": 200,
+      "lineEnd": 201,
       "sourceSha256": "1cc84ce62f26e0bdfa718d9ba8ce7955eef62286b4907949901f83a3ef7845c7",
       "backTranslation": "Azure OpenAI authentication methods, disable local authentication."
     },
     {
-      "lineStart": 199,
-      "lineEnd": 199,
+      "lineStart": 203,
+      "lineEnd": 203,
       "sourceSha256": "2b372a6025948fc77299cb52d2e216bb8e89bf5c1cd187b1de9d3d309f8f24e5",
       "backTranslation": "Common misconceptions"
     },
     {
-      "lineStart": 201,
-      "lineEnd": 201,
+      "lineStart": 205,
+      "lineEnd": 205,
       "sourceSha256": "9789b8f06d0928d0eb31e8a813ffabed7f903b2f466d2ee353691c52eb167ad7",
       "backTranslation": "Misunderstandings — what the code and evidence show"
     },
     {
-      "lineStart": 203,
-      "lineEnd": 203,
+      "lineStart": 207,
+      "lineEnd": 207,
       "sourceSha256": "82da90356c51d9b18cbc9f7fcf2a6e3c0afe4deb27d5392b3d609bdf7f495612",
       "backTranslation": "\"The Private Endpoint replicates a private model.\" — The model deployment and URL remain unchanged; The Foundry resource belongs only to which network path leads to the model."
     },
     {
-      "lineStart": 204,
-      "lineEnd": 204,
+      "lineStart": 208,
+      "lineEnd": 208,
       "sourceSha256": "bca367b4985215633f3e49ff182b9d2764c66a02b371eda4e7c0e430712fac41",
       "backTranslation": "\"DNS returns a private address, indicating that the Managed Compute Pod is in the client's VNet.\" — The probe only proves that the client has resolved to the private address and received a valid response, but does not indicate where the Pod is located."
     },
     {
-      "lineStart": 205,
-      "lineEnd": 205,
+      "lineStart": 209,
+      "lineEnd": 209,
       "sourceSha256": "78971dfa4eec44072819b2cdce02ebab6dd2fce62f29a31cfb4e6734f1ca393f",
       "backTranslation": "\"Only ACI can access the private network model.\" — ACI is just the execution side used in this test. Any client with private network routing, private DNS, and valid credentials (API key or Entra identity) can call it."
     },
     {
-      "lineStart": 207,
-      "lineEnd": 207,
+      "lineStart": 211,
+      "lineEnd": 211,
       "sourceSha256": "8274ee3975df72221e9cfab4d521047b3218a07d19262abe6c4948970eccc9d4",
       "backTranslation": "Performance Test: Public Network Path vs Private Endpoint"
     },
     {
-      "lineStart": 209,
-      "lineEnd": 213,
+      "lineStart": 213,
+      "lineEnd": 217,
       "sourceSha256": "930a529f02d731fc0573246ff173b65787ebcd23835ea42cb51262121a0a2561",
       "backTranslation": "Runtime ID: mcpe-perf-20260904 · Date: 2026-09-04 · Same deployment (GlobalManagedCompute, 1×H100 80GB, Qwen3-32B), same fixed prompt word (332 prompt tokens), max_tokens=256, stream=true, temperature=0, same Entra token. The only variable is the client location: public network starts from workstations outside the VNet, private network starts from ACI with private IP within the associated VNet. Both sides run the same load_test_endpoint.py byte (SHA-256 479d03d4... ）。 Each path has 256 requests, and both sides have zero failures."
     },
     {
-      "lineStart": 215,
-      "lineEnd": 215,
+      "lineStart": 219,
+      "lineEnd": 219,
       "sourceSha256": "75cea7958ff5f47826feb61282a3eb35620e2ea06fa5acfe004db0c7be6cc1d9",
       "backTranslation": "Concurrency — TTFT p50 public → private (sec) — TTFT p95 public → private (sec) — end-to-end p50 public → private (sec) — aggregated output tok/s public → private"
     },
     {
-      "lineStart": 224,
-      "lineEnd": 224,
+      "lineStart": 228,
+      "lineEnd": 228,
       "sourceSha256": "c8aa8a2d4df20c7ab90b91e0e1455837197e1a077af1e79045b2da87eefa6622",
       "backTranslation": "What does this set of data indicate, and what does it not indicate:"
     },
     {
-      "lineStart": 226,
-      "lineEnd": 226,
+      "lineStart": 230,
+      "lineEnd": 230,
       "sourceSha256": "f850d09727f7c708db9d3b43e5d68061d484a45d6bf32d450fb8abec21244baa",
       "backTranslation": "Running Private Endpoint doesn't slow down. TTFT p50 drops from about 0.5–0.8 seconds to about 0.2–0.4 seconds, and p95 in every gear"
     },
     {
-      "lineStart": 227,
-      "lineEnd": 228,
+      "lineStart": 231,
+      "lineEnd": 232,
       "sourceSha256": "3e2d3b7b4f2fab0eeb45af211bc35e45e285ce921601dc1e4e65891b9153e5f4",
       "backTranslation": "More convergent. A reasonable explanation for this difference is that ACI is deployed in the same region (Japaneast), while workstations access the public network from overseas; It reflects \"same-region client vs. remote client,\" not the acceleration of Private Link itself."
     },
     {
-      "lineStart": 229,
-      "lineEnd": 229,
+      "lineStart": 233,
+      "lineEnd": 233,
       "sourceSha256": "c06007448cfe92c083edc45075754de71f16a1c50e2cf40dae700b4c6d512da0",
       "backTranslation": "The decoding speed for both paths for a single request is exactly the same (about 40 tok/s for concurrent 1, about 36 tok/s for concurrent 64): this figure is determined by the model"
     },
     {
-      "lineStart": 230,
-      "lineEnd": 230,
+      "lineStart": 234,
+      "lineEnd": 234,
       "sourceSha256": "31ca87866e7ad7cea7d5ab0c8fac14f4b788eca9b898c4765c56d5b8ca95528a",
       "backTranslation": "The decision has nothing to do with the internet."
     },
     {
-      "lineStart": 231,
-      "lineEnd": 231,
+      "lineStart": 235,
+      "lineEnd": 235,
       "sourceSha256": "c51eee1550cfa618f4c9891fa15ba5ed9649297e26ee355b369fba240e3d5815",
       "backTranslation": "Concurrency from aggregated to 64 channels still shows close linear growth (single-card H100 about 2,000 tok/s), with no 429 or 5xx occurrences;"
     },
     {
-      "lineStart": 232,
-      "lineEnd": 232,
+      "lineStart": 236,
+      "lineEnd": 236,
       "sourceSha256": "1ffd6ee7c00e30cbcbe5914e38fef11fc8009035592e445d9f32a287e114e3ea",
       "backTranslation": "Saturation point above 64, but it was not measured this time."
     },
     {
-      "lineStart": 233,
-      "lineEnd": 233,
+      "lineStart": 237,
+      "lineEnd": 237,
       "sourceSha256": "6bd1d91f7760059be6c4bfe7558d561f82cec364e5eacde764553b103a70bcd5",
       "backTranslation": "Single run, single prompt format, single credential—these numbers are measured once, not distributed. See original records per request"
     },
     {
-      "lineStart": 235,
-      "lineEnd": 236,
+      "lineStart": 239,
+      "lineEnd": 240,
       "sourceSha256": "3077bf2bfed62a3ad353a433603a74298d13d3f6595828c4375a0d813beed320",
       "backTranslation": "and container logs private-container.log. After data is collected, deployment is immediately deleted (before deletion / post-delete readback)."
     },
     {
-      "lineStart": 238,
-      "lineEnd": 238,
+      "lineStart": 242,
+      "lineEnd": 242,
       "sourceSha256": "ce3597f37f12637d47a2106161d2a27ceca624b69fc1bc53d7e3350afb793f20",
       "backTranslation": "Repeat the steps"
     },
     {
-      "lineStart": 240,
-      "lineEnd": 245,
+      "lineStart": 244,
+      "lineEnd": 249,
       "sourceSha256": "b42c4e3b15a1fdbf0151ac8649b01c75d7a4f8d7262f520ce36d4c345d15e16a",
       "backTranslation": "All the following commands use Bash. Resource and deployment commands are executed on the control end equipped with Azure CLI; Public probes run outside the associated VNet; Private probes run on authorized probe execution ends in the independent workload subnet. Each probe executor must obtain this repository. The private probe executor requires Python 3.11+, DNS associated with VNet, TCP 443 outbound connection to inference endpoints, and credentials passed in through the process environment: AZURE_AI_API_KEY (resource API key) or AZURE_ACCESS_TOKEN (Entra token); If neither is present, the probe calls the Azure CLI to obtain the token. All five phases must use the same credentials, inference endpoints, model deployment, prompts, and token caps."
     },
     {
-      "lineStart": 247,
-      "lineEnd": 250,
+      "lineStart": 251,
+      "lineEnd": 254,
       "sourceSha256": "2e9de806d650c2b4ac3e6c722ff0346a5fed093d003874a2523671a2006c8d35",
       "backTranslation": "Azure prerequisites: independent, non-production foundry resources, with all projects being disposable test assets; Azure public cloud; Contributor to the affiliated foundry resources; Network Contributor for target VNets and subnets; To create a Private DNS Zone, a Private DNS Zone Contributor or equivalent permissions must also be present. Private Endpoint private subnets must already exist. The application or network leader is responsible for temporary detection of the execution end's lifecycle and cleanup."
     },
     {
-      "lineStart": 258,
-      "lineEnd": 258,
+      "lineStart": 262,
+      "lineEnd": 262,
       "sourceSha256": "b5239afe60668a758d70648c7988a86fbd1a81d0c72d7f2f9210a89ba0fab63e",
       "backTranslation": "Lock your Azure account first. The following command does not modify Azure resources:"
     },
     {
-      "lineStart": 265,
-      "lineEnd": 266,
+      "lineStart": 269,
+      "lineEnd": 270,
       "sourceSha256": "26d2861052bd745878e46181f41a6b4ffaed2e1abfaf9059fc279be22188c7d9",
       "backTranslation": "Set the resource IDs of the Foundry resource and the existing Private Endpoint subnet. The template derives VNets from the subnet IDs to prevent the Private Endpoint and DNS connections from mistakenly pointing to different VNets. First, run the what-if preview:"
     },
     {
-      "lineStart": 288,
-      "lineEnd": 289,
+      "lineStart": 292,
+      "lineEnd": 293,
       "sourceSha256": "46bdb988868f624bfa5c638e789faa305ea2e1538fbe43182b910830f03890f5",
       "backTranslation": "After confirming the what-if result, create the Private DNS Zones required for the Private Endpoint and Foundry. The default mode is managed by this deployment for three DNS zones and their VNet links:"
     },
     {
-      "lineStart": 301,
-      "lineEnd": 304,
+      "lineStart": 305,
+      "lineEnd": 308,
       "sourceSha256": "dce67decbc9470f8122236239bc123e53975e5a8d869857f332ea5f1aaacbc7d",
       "backTranslation": "If the enterprise manages DNS uniformly, the full object should be passed to existingPrivateDnsZoneResourceIds, which should include cognitiveservices, openai, and servicesAi. This mode does not create a Private DNS Zone or VNet link; The DNS administrator must pre-configure the zone link or custom DNS forwarding and accept it with private network probes. See the full process for details."
     },
     {
-      "lineStart": 306,
-      "lineEnd": 306,
+      "lineStart": 310,
+      "lineEnd": 310,
       "sourceSha256": "639a2fbed19d1f9ceec574f2c734f5a0d43b9eefaad92968fc7da7751d77d26c",
       "backTranslation": "First, prove that private network DNS and inference are available within VNet, then close the public network:"
     },
     {
-      "lineStart": 308,
-      "lineEnd": 308,
+      "lineStart": 312,
+      "lineEnd": 312,
       "sourceSha256": "5b89be13bb6c6e9b3a9d81baba2f2fcd53c6a5038770928829c1ab5856e0a552",
       "backTranslation": "Before shutting down the public network, the 200 was both a safety gate to prevent loss of contact and the second phase of the five-phase real-world test."
     },
     {
-      "lineStart": 321,
-      "lineEnd": 321,
+      "lineStart": 325,
+      "lineEnd": 325,
       "sourceSha256": "ea4eced56765aa4864731a60149cdb8172c6d30f26e3c6ca434e61984ecb9127",
       "backTranslation": "After the private network is approved, use a protected script to close the public network and save the exact original value:"
     },
     {
-      "lineStart": 334,
-      "lineEnd": 340,
+      "lineStart": 338,
+      "lineEnd": 344,
       "sourceSha256": "eb3f9e30a744741355d8ff4d6c8bc2852945086654be87f221bc5964864ada5e",
       "backTranslation": "pna-before.json is a recovery record, which is kept only on the controlled operation side, and does not commit or manually modify it. The current script only marks the record as applied, after Azure checkback confirms Disabled; It saves the ETag resource before and after the closure, and both patches include If-Match. If the record is incomplete or the ETag has changed, the script will refuse to recover. The test on 2026-08-31 used the earlier version 762b6978, which had no ETag prerequisites when saving and restoring the original value; Currently, ETag protection is only for unit testing, not actual testing. If the record is stuck in prepared or other operations have changed the resource ETag, please use manual recovery. This file is only used to prevent accidental operations; final authorization is still determined by Azure RBAC."
     },
     {
-      "lineStart": 342,
-      "lineEnd": 342,
+      "lineStart": 346,
+      "lineEnd": 346,
       "sourceSha256": "b6198e844eb56303f89d6b5ca088392263aafdcf92036b381ecd46fdf46d2162",
       "backTranslation": "Requests from the associated VNet proving that the certified public network request is explicitly blocked by network policies:"
     },
     {
-      "lineStart": 355,
-      "lineEnd": 355,
+      "lineStart": 359,
+      "lineEnd": 359,
       "sourceSha256": "8bdae92f7880c1b1daf3c236ef6ee03b61a2e80dbe2b483a67fa6e062c08785b",
       "backTranslation": "After the public network is shut down, the same request is sent from the probe execution end within the associated VNet:"
     },
     {
-      "lineStart": 368,
-      "lineEnd": 368,
+      "lineStart": 372,
+      "lineEnd": 372,
       "sourceSha256": "7f8c257305fc1575d260886e2eb067f8769168aad760e952d9d9aab18d49a84b",
       "backTranslation": "Restore the original value saved before testing; Do not hardcode the target value to Enabled:"
     },
     {
-      "lineStart": 378,
-      "lineEnd": 378,
+      "lineStart": 382,
+      "lineEnd": 382,
       "sourceSha256": "80a0e77c4e731d44e48f9ec6908b26e556cf00e38f1341f8174afd61a753bbf7",
       "backTranslation": "If the pna-before.json records priorState: Enabled, use the same request to prove public network recovery:"
     },
     {
-      "lineStart": 391,
-      "lineEnd": 393,
+      "lineStart": 395,
+      "lineEnd": 397,
       "sourceSha256": "4cb6b3c1772470c71620396d9a77a969e0cf27d0c8f1443b88c0f283b19de413",
       "backTranslation": "Completion condition: The Foundry resource returns to the original public access state it saved. If the original value is Enabled, the last public probe must return a valid Chat Completions of 200; If the original value is Disabled, the private network path will continue to return 200, and the public network will continue to be intercepted. See the complete verification and cleanup sequence"
     },
     {
-      "lineStart": 396,
-      "lineEnd": 396,
+      "lineStart": 400,
+      "lineEnd": 400,
       "sourceSha256": "6aa8f49cc992dfd75a114269ed26de0ad6d4e7d7a70d9c8afb3d7a57a88a73ed",
       "backTranslation": "Testing"
     },
     {
-      "lineStart": 398,
-      "lineEnd": 400,
+      "lineStart": 402,
+      "lineEnd": 404,
       "sourceSha256": "f24f93926ee63cc5ca2eb23b86b3ce88cb52dd98e5d762f82678be0bb8bdcb60",
       "backTranslation": "Testing does not require Azure credentials, GPUs, or online inference endpoints. Coverage includes URL and DNS classification, authentication response semantics, ACI only created, no overriding, zero PATCH denial path, original value restoration, evidence variation, bilingual reader flow, Azure Translator evidence, and Level 5 rule contracts."
     },
     {
-      "lineStart": 411,
-      "lineEnd": 411,
+      "lineStart": 415,
+      "lineEnd": 415,
       "sourceSha256": "99f2c637309ad5894c334ac948802c76a7729e7f83af8f1e1c7a0bbbabd2e8ae",
       "backTranslation": "Completion conditions: All tests passed, derivation evidence matches the source file, and output REPO_VALIDATION=PASS."
     },
     {
-      "lineStart": 413,
-      "lineEnd": 413,
+      "lineStart": 417,
+      "lineEnd": 417,
       "sourceSha256": "239d0b8566989369a539a70d63c92308799ba0a3ffd61bd05da87d9c855b1b2e",
       "backTranslation": "Compatibility explanation"
     },
     {
-      "lineStart": 415,
-      "lineEnd": 415,
+      "lineStart": 419,
+      "lineEnd": 419,
       "sourceSha256": "8660575fe7b054434e4826239235f9617d7db33758063bf5f508c991da3767fe",
       "backTranslation": "The test environment consisted of Azure public cloud, Python 3.11+, a GlobalManagedCompute model deployment, and more"
     },
     {
-      "lineStart": 416,
-      "lineEnd": 416,
+      "lineStart": 420,
+      "lineEnd": 420,
       "sourceSha256": "8a81ed0e9ef08d978409ef3c390ca70a118e09a360554c110087c5180933137d",
       "backTranslation": "*.services.ai.azure.com/openai/v1/chat/completions Routing."
     },
     {
-      "lineStart": 417,
-      "lineEnd": 417,
+      "lineStart": 421,
+      "lineEnd": 421,
       "sourceSha256": "0670e4b2e3f703257d4f0a02ae16409fb9f29519b26c556d1e65981795dad761",
       "backTranslation": "The Private Endpoint must be in the same subscription and region as the VNet, and the connection status must be Approved."
     },
     {
-      "lineStart": 418,
-      "lineEnd": 418,
+      "lineStart": 422,
+      "lineEnd": 422,
       "sourceSha256": "a71a8138bfb14875c33494bf1b441b753324888db2cf7600206d607aac452540",
       "backTranslation": "The default Bicep path manages three Foundry Private DNS Zones; Enterprise DNS mode requires workload networking"
     },
     {
-      "lineStart": 419,
-      "lineEnd": 419,
+      "lineStart": 423,
+      "lineEnd": 423,
       "sourceSha256": "4697f0a957dbe8bdc878ecd3974f93e1bb3a49b60e42b6535202040e620c3208",
       "backTranslation": "These regions can now be parsed."
     },
     {
-      "lineStart": 420,
-      "lineEnd": 420,
+      "lineStart": 424,
+      "lineEnd": 424,
       "sourceSha256": "95dd2bf576f49841e23536256e37c433f24c7a18b89c7d04d08a4934ff5cfa59",
       "backTranslation": "The optional ACI executor requires a separate workload subnet and is delegated to"
     },
     {
-      "lineStart": 422,
-      "lineEnd": 422,
+      "lineStart": 426,
+      "lineEnd": 426,
       "sourceSha256": "601639f890ab8c36e1165253b347c8fbdd6ec4d34028741f3c65571d4bd0b66f",
       "backTranslation": "The currently publicly available Managed Compute deployment guide still applies only to the classic experience. This repository records"
     },
     {
-      "lineStart": 423,
-      "lineEnd": 423,
+      "lineStart": 427,
+      "lineEnd": 427,
       "sourceSha256": "9ad71f7c9d6321c998aa0a5f4cb99362193c57dd217f6c60df911f2dd0ec4977",
       "backTranslation": "GlobalManagedCompute behavior comes from a single test on 2026-08-31, not extrapolated from the classic documentation."
     },
     {
-      "lineStart": 425,
-      "lineEnd": 425,
+      "lineStart": 429,
+      "lineEnd": 429,
       "sourceSha256": "0d42fc960923716d490d0e15c46c7e95c8c974a93f3197bfcb041d87f05099aa",
       "backTranslation": "Table of Contents Description"
     },
     {
-      "lineStart": 427,
-      "lineEnd": 427,
+      "lineStart": 431,
+      "lineEnd": 431,
       "sourceSha256": "aaf2244f9c8581b99c58d9c7e36d3ea4c0dc0455d1450148fdfae1030b802479",
       "backTranslation": "Path — Responsibility"
     },
     {
-      "lineStart": 429,
-      "lineEnd": 429,
+      "lineStart": 433,
+      "lineEnd": 433,
       "sourceSha256": "78b1078243e832b12f42948ce6e1ef7c788f482211b195258f23c0d857ba2f79",
       "backTranslation": "infra/ — Deploys Private Endpoint and Private DNS"
     },
     {
-      "lineStart": 430,
-      "lineEnd": 430,
+      "lineStart": 434,
+      "lineEnd": 434,
       "sourceSha256": "7302e20498234f321170670094bcefcca7bb976b2b23db1b15043b537544849b",
       "backTranslation": "scripts/ — Inference endpoint probes, ACI submissions, public access modifications, evidence generation, Azure Translator back-translation, and repository validation"
     },
     {
-      "lineStart": 431,
-      "lineEnd": 431,
+      "lineStart": 435,
+      "lineEnd": 435,
       "sourceSha256": "f96b84c008b46de41fd96450aeeb46efb2bf78b7787edb5ced5fcae57edd3033",
       "backTranslation": "tests/ — offline behavior tests, rejection paths, variance tests, and reader flow tests"
     },
     {
-      "lineStart": 432,
-      "lineEnd": 432,
+      "lineStart": 436,
+      "lineEnd": 436,
       "sourceSha256": "16920a7e3725cf6571d945639bd656cf1c919777ebbbfad07957c091f6447d5d",
       "backTranslation": "evidence/ — Ansensitized observations, derived results, official source locks, image ledgers, and rule results"
     },
     {
-      "lineStart": 433,
-      "lineEnd": 433,
+      "lineStart": 437,
+      "lineEnd": 437,
       "sourceSha256": "0b3033bea32cb50aeeee34fa21b192db700fb82caf307ed283685b5fca131804",
       "backTranslation": "images/ — Evidence of product interfaces that have been desensitized"
     },
     {
-      "lineStart": 434,
-      "lineEnd": 434,
+      "lineStart": 438,
+      "lineEnd": 438,
       "sourceSha256": "21b7b2492a8999c00a639ee13868eda7ac2726da4e2af84d138911f4b3cc438c",
       "backTranslation": "docs/ — Complete ACI reproduction, manual recovery, and gold standard comparison"
     },
     {
-      "lineStart": 436,
-      "lineEnd": 436,
+      "lineStart": 440,
+      "lineEnd": 440,
       "sourceSha256": "d883c636d3f8913e51a7cbbbd649757dccc142d4b4cc9d9a7cae9c2982826c3b",
       "backTranslation": "Evidence"
     },
     {
-      "lineStart": 438,
-      "lineEnd": 438,
+      "lineStart": 442,
+      "lineEnd": 442,
       "sourceSha256": "78b47a5b8a4142bde86597500ba93c0e0851b9fe6ce73c361abcefd0160d3642",
       "backTranslation": "Assets — Function"
     },
     {
-      "lineStart": 440,
-      "lineEnd": 440,
+      "lineStart": 444,
+      "lineEnd": 444,
       "sourceSha256": "28c90ddf75769cb0fb2806256cd37aafb1c3ab4650e2157e230a399c2d6df156",
       "backTranslation": "Evidence/connectivity-run.json — Observation of the anxious control plane and public/private network data plane"
     },
     {
-      "lineStart": 441,
-      "lineEnd": 441,
+      "lineStart": 445,
+      "lineEnd": 445,
       "sourceSha256": "31c6a38c170685508ba8bfe439164231d336904223775fd34327683ca763ec44",
       "backTranslation": "Automatically generated call logs — direct read evidence generated by verified Python 200/200/403/200/200 observations"
     },
     {
-      "lineStart": 442,
-      "lineEnd": 442,
+      "lineStart": 446,
+      "lineEnd": 446,
       "sourceSha256": "fd41038a1966acd80c56ade36630279fe417140b584d478f04b1b1ff3358c077",
       "backTranslation": "evidence/raw/ — desensitized observation used to generate connectivity results; The scene file only retains the fields actually output by the probe or ACI submission script"
     },
     {
-      "lineStart": 443,
-      "lineEnd": 443,
+      "lineStart": 447,
+      "lineEnd": 447,
       "sourceSha256": "b0a1838e8958b6e9d6a24ccc9c71280f7a7d9c043ed4cdd9efb6025be6d90cd7",
       "backTranslation": "evidence/run-contract.json — frozen issues, acceptance conditions, and unique change variables"
     },
     {
-      "lineStart": 444,
-      "lineEnd": 444,
+      "lineStart": 448,
+      "lineEnd": 448,
       "sourceSha256": "fd9c671b6146fa506e8c52f2eaeb5a6555eabd327957d9fe098dbff64e4592f5",
       "backTranslation": "evidence/provenance.json — The boundaries between public and private evidence, time scope, enforcement methods, and resource retention status"
     },
     {
-      "lineStart": 445,
-      "lineEnd": 445,
+      "lineStart": 449,
+      "lineEnd": 449,
       "sourceSha256": "67b9ade8c237b9201e34e551c0ea5eb60aa5c175a24234317d36a4df7670b19c",
       "backTranslation": "evidence/ui-evidence.json — Image SHA-256, desensitization terms, and declared boundaries"
     },
     {
-      "lineStart": 446,
-      "lineEnd": 446,
+      "lineStart": 450,
+      "lineEnd": 450,
       "sourceSha256": "39b74a0926d2be3ce08fe564ebcc61cc672546c5f65ba7b658ed04b7779dae17",
       "backTranslation": "evidence/translator-back-translation.json — Azure AI Translator actually performs Chinese-to-English back-translation, input SHA-256, billable character count, and number drift results"
     },
     {
-      "lineStart": 447,
-      "lineEnd": 447,
+      "lineStart": 451,
+      "lineEnd": 451,
       "sourceSha256": "747b866135f3ba8ae60e6a25a2b650f476f18d3e34725f5a658d0b462ac2135e",
       "backTranslation": "evidence/source-lock.json — official URL and fixed document commit"
     },
     {
-      "lineStart": 448,
-      "lineEnd": 448,
+      "lineStart": 452,
+      "lineEnd": 452,
       "sourceSha256": "5373757bc6c9e4b94c5a0fd3c267701a27a312a81c9ef82b55d8d104e056a87c",
       "backTranslation": "evidence/rule-results.json — automatically generated Level 5 rule-by-rule results"
     },
     {
-      "lineStart": 450,
-      "lineEnd": 452,
+      "lineStart": 454,
+      "lineEnd": 456,
       "sourceSha256": "774f3869e9a64ffc64764665b795df63f7484fd8fd7af04bad6ed4c8776bb935",
       "backTranslation": "evidence/raw/ stores the earliest publicly available anatomized observations, not byte-byte copies of the Azure raw log. SHA-256 and warehouse verifiers can detect evidence drift within the repository but cannot independently verify unpublished private raw evidence. Fingerprints marked as derived-post-run are derived after runtime, not probe outputs."
     },
     {
-      "lineStart": 454,
-      "lineEnd": 454,
+      "lineStart": 458,
+      "lineEnd": 458,
       "sourceSha256": "612e4c0ff8acdb92843054bbe06f8d9901dbf22b09d3c18d3104ca4fcd7068bb",
       "backTranslation": "Evidence category — assets — supports the conclusion"
     },
     {
-      "lineStart": 456,
-      "lineEnd": 456,
+      "lineStart": 460,
+      "lineEnd": 460,
       "sourceSha256": "46d2e58b05d68959e2be14056a44b52ee261074aa70c3ea39534f2f7f50846ab",
       "backTranslation": "LOCAL_MEASUREMENT — evidence/raw/*.json Product interface screenshot — Five stages of tested behavior and subjects"
     },
     {
-      "lineStart": 457,
-      "lineEnd": 457,
+      "lineStart": 461,
+      "lineEnd": 461,
       "sourceSha256": "5725bb34c2092f9f9e30ffcda43c47c35bb5fadc2e43a7fbe6154aefaec40c4d",
       "backTranslation": "DERIVED — connectivity-run.json, automatically generated call records, rule results — internal warehouse consistency, evidence lineage, and direct reading; Private original evidence cannot be independently certified"
     },
     {
-      "lineStart": 458,
-      "lineEnd": 458,
+      "lineStart": 462,
+      "lineEnd": 462,
       "sourceSha256": "8f8c8269eaf8234cecc32e62a42f4a1c6a596956165fd42a94bb74cded0a244c",
       "backTranslation": "SOURCE_FACT — source-lock.json — Private Endpoint, DNS, and Foundry configuration behaviors in the fixed version official documentation"
     },
     {
-      "lineStart": 460,
-      "lineEnd": 462,
+      "lineStart": 464,
+      "lineEnd": 466,
       "sourceSha256": "84e8bd00c756b4c7b20e81f67b138411f020e34fad8c932c494fc9b6703ed2f0",
       "backTranslation": "Quality status: ESSENCE_STATUS=PASS; The recorded run on 2026-08-31 met REPRO_STATUS=PASS. After testing, the newly added ETag protection and the container source code SHA-256 remain LIVE_STATUS=NOT_RUN, so only unit testing can be declared, not online testing."
     },
     {
-      "lineStart": 464,
-      "lineEnd": 467,
+      "lineStart": 468,
+      "lineEnd": 471,
       "sourceSha256": "12ea5d849898effe6ef476e2df251e1d730df426f12aff7d028eafa3a4faf65e",
       "backTranslation": "Chinese is manually drafted and independently reviewed according to the Chinese engineering logic, without machine translation being directly used as a published draft. Subsequently, Azure AI Translator is actually called for Chinese-to-English backtranslation checks. Evidence has been submitted requiring Translator to return HTTP 200, SHA-256 with only the request ID, README input SHA-256 consistent with the current file, and the semantic numeric drift of \"English-Chinese ↔\" and \"Chinese→ Back-Translation English\" is zero."
     },
     {
-      "lineStart": 469,
-      "lineEnd": 469,
+      "lineStart": 473,
+      "lineEnd": 473,
       "sourceSha256": "c8c1a2ef21d1b2f7a7daa764f2587ff5dbb6f9d699ba48ae31e7dcd6a30ab69e",
       "backTranslation": "Official information"
     },
     {
-      "lineStart": 471,
-      "lineEnd": 471,
+      "lineStart": 475,
+      "lineEnd": 475,
       "sourceSha256": "561f0653d7b60d10f60745271982219f5abb015a0f8d31dd284250997b32b660",
       "backTranslation": "Configure Microsoft Foundry network isolation"
     },
     {
-      "lineStart": 472,
-      "lineEnd": 472,
+      "lineStart": 476,
+      "lineEnd": 476,
       "sourceSha256": "5696656df0fd8ce3ea855521ad73b52cc0b6eae823ffe5084c58c1a36f009b74",
       "backTranslation": "Azure Private Endpoint DNS integration scenario"
     },
     {
-      "lineStart": 473,
-      "lineEnd": 473,
+      "lineStart": 477,
+      "lineEnd": 477,
       "sourceSha256": "fc35c0af5ce9de9280b5737dcdf30755374e15ebce9e1037075c3babecc7c00e",
       "backTranslation": "Overview of Azure DNS Private Resolver"
     },
     {
-      "lineStart": 474,
-      "lineEnd": 474,
+      "lineStart": 478,
+      "lineEnd": 478,
       "sourceSha256": "3f9d0d21e0cb3e2c042150a91b430cfd3e6a3da618b22432e2915f00e83f35a6",
       "backTranslation": "Azure Hub-spoke network topology"
     },
     {
-      "lineStart": 475,
-      "lineEnd": 475,
+      "lineStart": 479,
+      "lineEnd": 479,
       "sourceSha256": "d05754830705124342be0598c34454105b2fd838517fb3bf1396ee5a15c1fb27",
       "backTranslation": "Azure OpenAI REST API reference: Authentication"
     },
     {
-      "lineStart": 476,
-      "lineEnd": 476,
+      "lineStart": 480,
+      "lineEnd": 480,
       "sourceSha256": "18346c7daead1821e0539b51e1ba4d0d4822790591301e6dc2431588592bb70e",
       "backTranslation": "Disable local authentication in Foundry Tools"
     },
     {
-      "lineStart": 477,
-      "lineEnd": 477,
+      "lineStart": 481,
+      "lineEnd": 481,
       "sourceSha256": "48e1ad03e4d87fc70175df8494f381d35b72c1e6dcf2504ad11966eb51323f47",
       "backTranslation": "Azure AI Translator Translate method"
     },
     {
-      "lineStart": 478,
-      "lineEnd": 478,
+      "lineStart": 482,
+      "lineEnd": 482,
       "sourceSha256": "4563d3f64d4897f94ee80c6ef8a3be1f06b60bae37159aec153ccc0e5a2d650e",
       "backTranslation": "Azure AI Translator certification"
     },
     {
-      "lineStart": 479,
-      "lineEnd": 479,
+      "lineStart": 483,
+      "lineEnd": 483,
       "sourceSha256": "ccce13ad47c83bbf573c4feea7fcfbb6989aaa04061f858e6bf9fd6cd8bc3305",
       "backTranslation": "Overview of Microsoft Foundry Models"
     },
     {
-      "lineStart": 480,
-      "lineEnd": 480,
+      "lineStart": 484,
+      "lineEnd": 484,
       "sourceSha256": "faa9ca07ee88d1c3cd47fbfbd22af5c761666fe4daef0119c2e0fbdba3ec3041",
       "backTranslation": "Create a Private Endpoint using Azure CLI"
     },
     {
-      "lineStart": 482,
-      "lineEnd": 484,
+      "lineStart": 486,
+      "lineEnd": 488,
       "sourceSha256": "736f6cbad95bdf9e90ec34f7a7f7b5e3f6cf6bf2a48cc51fec9e0de6adfc3184",
       "backTranslation": "The currently publicly available Managed Compute deployment guide is clearly labeled as classic-only. Therefore, this repository does not extrapolate the behavior of the older managed online endpoint to GlobalManagedCompute; The core conclusion comes only from the five-phase test on 2026-08-31."
     }
@@ -1100,6 +1100,6 @@
       "added": {}
     }
   },
-  "outputSha256": "122b6d00320bc7e4c644cee070d7e4cf7c49504b551f50b3b598a40c9542fbc0",
+  "outputSha256": "dc639f057cddb887285088ef6147c837195958520a56ceed0e386fb55e73c341",
   "status": "PASS"
 }

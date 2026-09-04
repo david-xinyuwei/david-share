@@ -6,12 +6,19 @@
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/managed-compute-private-endpoint-ci.yml/badge.svg)](https://github.com/david-xinyuwei/david-share/actions/workflows/managed-compute-private-endpoint-ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
-This repository answers one question: can a client still call a
-`GlobalManagedCompute` deployment through a Private Endpoint after public
-network access is disabled on its parent Foundry resource? In one dedicated
-run, the outside client changed from `200` to `403`, while a client in the
-linked VNet remained at `200`; restoring the saved setting returned the outside
-client to `200`.
+This repository started from a customer question about Microsoft Foundry
+Managed Compute: can an open model hosted on Managed Compute be locked down so
+that it is unreachable from the public internet, callable only from the
+customer's own network, and still usable by production workloads? The network
+control Microsoft provides for this is the parent Foundry resource's public
+network access setting plus a Private Endpoint, so the repository measures the
+one thing that decides the answer: after public network access is disabled on
+the parent Foundry resource, can a client still call a `GlobalManagedCompute`
+deployment through the Private Endpoint? In one dedicated run, the outside
+client changed from `200` to `403`, while a client in the linked VNet remained
+at `200`; restoring the saved setting returned the outside client to `200`. A
+follow-up load test on the same deployment showed the private path is not
+slower than the public one (see [Measured performance](#measured-performance-public-path-vs-private-endpoint)).
 
 **Scope:** this proves one inbound client-to-endpoint path. It does not prove
 that Managed Compute pods run inside the customer VNet, that Managed Compute
