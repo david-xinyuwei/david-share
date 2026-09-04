@@ -24,9 +24,10 @@ inference endpoint. The model containers themselves run on Microsoft-hosted
 compute, not in the customer VNet: throughout the run the customer resource
 group held only the Foundry account, the VNet, the Private Endpoint and its
 NIC, three Private DNS zones, and the disposable ACI runners
-([inventory](evidence/perf/resource-inventory.json)). Pod placement and model
-egress therefore sit on Microsoft's side of the Private Endpoint and are not
-observable from the customer network.
+([inventory](evidence/perf/resource-inventory.json)). Pod placement therefore
+sits on Microsoft's side of the Private Endpoint and is not observable from the
+customer network. The serving container only answers requests; it does not
+initiate connections of its own.
 
 > Author: 魏新宇 (Xinyu Wei)
 

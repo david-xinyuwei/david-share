@@ -18,7 +18,8 @@
 **边界：**实测覆盖的是客户端到推理端点的入站路径。模型容器本身跑在微软托管的算力上，不在
 客户 VNet 里：整个实测期间，客户资源组里只有 Foundry 资源、VNet、Private Endpoint 及其网卡、
 三个私有 DNS 区域，以及一次性的 ACI 探测容器（[资源清单](evidence/perf/resource-inventory.json)）。
-因此 Pod 的位置和模型的出站流量都在 Private Endpoint 的微软一侧，从客户网络里观察不到。
+因此 Pod 的位置在 Private Endpoint 的微软一侧，从客户网络里观察不到。推理容器只负责应答请求，
+自己不会主动向外发起连接。
 
 > Author: 魏新宇 (Xinyu Wei)
 
