@@ -23,6 +23,7 @@ DEFAULT_SOURCE = ROOT / "README-CN.md"
 DEFAULT_ENGLISH = ROOT / "README.md"
 DEFAULT_OUTPUT = ROOT / "evidence" / "translator-back-translation.json"
 TRANSLATOR_HOST = "api.cognitive.microsofttranslator.com"
+TEXT_HASH_SUFFIXES = {".md", ".py", ".json", ".txt", ".yml", ".yaml", ".bicep"}
 CJK_RE = re.compile(r"[\u3400-\u9fff]")
 NUMBER_RE = re.compile(
     r"(?<![A-Za-z0-9_])(?:\d{4}-\d{2}-\d{2}|\d+(?:\.\d+)?)(?![A-Za-z0-9_])"
@@ -58,7 +59,11 @@ def sha256_text(value: str) -> str:
 
 
 def sha256_file(path: pathlib.Path) -> str:
-    return sha256_bytes(path.read_bytes())
+    data = path.read_bytes()
+    if path.suffix.lower() in TEXT_HASH_SUFFIXES:
+        text = data.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
+        data = text.encode("utf-8")
+    return sha256_bytes(data)
 
 
 def normalize_markdown_line(line: str) -> str:

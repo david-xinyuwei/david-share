@@ -224,7 +224,7 @@
     "executableSha256": {
       "infra/main.bicep": "e861ca08e010a64da3e9128657605412010b4f920271ced6a7f62b20a95f694c",
       "scripts/build_evidence.py": "6beb68aacc489748638f68b7082d2ce4c098837b31a503d35e36b34b5a19ab7f",
-      "scripts/azure_translator_backtranslate.py": "a170680894408d675e3dca83e4e4eea6db4e5d8d39cac71bcd7a8890e51be880",
+      "scripts/azure_translator_backtranslate.py": "5212160041c755ed49e40a4c7c15bdd157d594cd88b944a0f4b53141e61af57e",
       "scripts/probe_endpoint.py": "093eaa5f18bc15f5c0400d05f03706c30e4efda737cae28d670ee43fcb2e5d74",
       "scripts/submit_private_aci_probe.py": "6840294d46780beee3e3f609a3d17d99608af35906f6bb053e3d598eb83dafd2",
       "scripts/set_public_network_access.py": "602200a1f4c40db8fe62e0c4065f693eff39da9ecddadcb8e29c4baf136c1357",

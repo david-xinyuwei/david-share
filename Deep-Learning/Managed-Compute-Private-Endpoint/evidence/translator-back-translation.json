@@ -4,7 +4,7 @@
   "apiVersion": "3.0",
   "sourceLanguage": "zh-Hans",
   "targetLanguage": "en",
-  "generatedAtUtc": "2026-09-03T23:58:15.156248+00:00",
+  "generatedAtUtc": "2026-09-04T00:45:36.709132+00:00",
   "resource": {
     "kind": "TextTranslation",
     "sku": "F0",
@@ -14,9 +14,9 @@
   },
   "inputs": {
     "chinesePath": "README-CN.md",
-    "chineseSha256": "c11ff93a1cb584929f9316489de0bfcc37ed771cce7b13ba6f262b54bd72826e",
+    "chineseSha256": "9d11425ea16ea53578df0522bceabf2f1570deb03d9a1624644c3198bb8bcc2b",
     "englishPath": "README.md",
-    "englishSha256": "132ae2f1fca5c454cafdb6b3a643dd9bb8bd8cf760cb3259c3500a89ef8da48d",
+    "englishSha256": "b692a48eb4c2997804fcbe73223e3f2d22c3b63a6b0da05ed76af0dc8f0eca61",
     "translationUnitCount": 143,
     "sourceCharacterCount": 9526
   },
@@ -25,14 +25,14 @@
       "batch": 1,
       "unitCount": 90,
       "httpStatus": 200,
-      "requestIdSha256": "6749aa3425b2d8cd7394d366fa7ab4ecc7884299bb7b433a8d53c2f842d149c5",
+      "requestIdSha256": "e36552b4cea5466900f542b1ddfe9a4f2bdbb671259d73816ce6d66dc3c4099d",
       "meteredUsage": 6463
     },
     {
       "batch": 2,
       "unitCount": 53,
       "httpStatus": 200,
-      "requestIdSha256": "f5cc9d7c6b4e6d1c9279a0394054b77f092b74b3a9f045cd9e05e5e264e37b27",
+      "requestIdSha256": "ef458786630413fe06fab2088e705885d5c3d4900110c2d5f554bf8519c5436d",
       "meteredUsage": 2921
     }
   ],

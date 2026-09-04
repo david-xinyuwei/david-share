@@ -1,4 +1,5 @@
 import argparse
+import hashlib
 import importlib.util
 import json
 import pathlib
@@ -58,6 +59,19 @@ echo 不应翻译
                 "the second phase of the five-stage run returned 200",
             )["count"],
             0,
+        )
+
+    def test_text_hash_is_stable_across_line_endings(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "README.md"
+            path.write_bytes("中文\r\n200\r\n".encode("utf-8"))
+            windows_hash = TRANSLATOR.sha256_file(path)
+            path.write_bytes("中文\n200\n".encode("utf-8"))
+            linux_hash = TRANSLATOR.sha256_file(path)
+        self.assertEqual(windows_hash, linux_hash)
+        self.assertEqual(
+            linux_hash,
+            hashlib.sha256("中文\n200\n".encode("utf-8")).hexdigest(),
         )
 
     def test_checked_in_evidence_matches_current_readmes(self) -> None:
