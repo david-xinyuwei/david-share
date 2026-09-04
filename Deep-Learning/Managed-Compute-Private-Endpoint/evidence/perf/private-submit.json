@@ -1,0 +1,12 @@
+{
+  "containerGroupIdSha256": "e7968255d56700e6f0de8e7294e7972ee2da165a447e1ee701d1e2042a774845",
+  "httpStatus": 201,
+  "image": "mcr.microsoft.com/azure-cli:2.77.0",
+  "note": "container group deleted after log collection",
+  "observedIpAddressType": null,
+  "passed": true,
+  "probeSourceSha256": "479d03d4f37f9c3140ddcc6f25f6da28265f9c9f46b28c5edae94f9d11f13ca7",
+  "provisioningState": "Pending",
+  "requestedIpAddressType": "Private",
+  "secretVariable": "AZURE_ACCESS_TOKEN"
+}

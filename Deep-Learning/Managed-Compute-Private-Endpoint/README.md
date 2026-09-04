@@ -161,6 +161,8 @@ the evidence cannot locate it deeper in the route.*
 | [`scripts/probe_endpoint.py`](scripts/probe_endpoint.py) | Sends the same request with an API key or an Entra token and asserts DNS class plus HTTP status without printing the credential |
 | [`scripts/submit_private_aci_probe.py`](scripts/submit_private_aci_probe.py) | Runs the exact probe source in a private-IP ACI; the container hashes the bytes it executes; the API key or Entra token is injected only as an ARM `secureValue`; an existing name is never updated |
 | [`scripts/set_public_network_access.py`](scripts/set_public_network_access.py) | Fails closed unless an Approved PE exists before disabling public access; ETag preconditions reject concurrent account changes (added after the measured run; unit-tested, no live measurement) |
+| [`scripts/load_test_endpoint.py`](scripts/load_test_endpoint.py) | Streaming load test at fixed concurrency levels: TTFT, end-to-end, per-request and aggregate output tokens/s; generated text is discarded, results are emitted as short marker lines so ACI log retention keeps them |
+| [`scripts/submit_private_aci_load_test.py`](scripts/submit_private_aci_load_test.py) | Runs the exact load-test bytes in a private-IP ACI; `--collect-log` reassembles a saved container log into the result JSON |
 | [`scripts/azure_translator_backtranslate.py`](scripts/azure_translator_backtranslate.py) | Calls Azure AI Translator for Chinese-to-English back-translation; the key is read only from the process environment, while `--check` validates committed evidence without credentials |
 | [`tests/`](tests/) | Exercises the CLI entry point, response semantics, zero-PATCH refusal matrix, saved-state restore, raw evidence mutations, and Rule Catalog mutations |
 | [`evidence/`](evidence/) | Sanitized run contract, measurements, source lock, UI hashes, and Level 5 rule results |
@@ -221,6 +223,43 @@ validation and operator tools; neither is the production data path. References:
 | “Private Endpoint creates a private copy of the model.” | The deployment and URL stay fixed; the parent Foundry resource changes which network path may reach it. |
 | “Private DNS proves the Managed Compute pods are in my VNet.” | The probe proves only that the client resolved a private address and received a valid response. Pod placement is outside scope. |
 | “ACI is required to use the model privately.” | ACI was the measured runner. Any client with private routing, private DNS, and a valid credential (API key or Entra identity) can use the endpoint. |
+
+### Measured performance: public path vs Private Endpoint
+
+Run ID: `mcpe-perf-20260904` · Date: 2026-09-04 · Same deployment (`GlobalManagedCompute`,
+1×H100 80GB, Qwen3-32B), same fixed prompt (332 prompt tokens), `max_tokens=256`,
+`stream=true`, `temperature=0`, one Entra token. Only the client location changed:
+the public run came from a workstation outside the VNet; the private run came from a
+private-IP ACI in the linked VNet. Both ran the same `load_test_endpoint.py` bytes
+(SHA-256 `479d03d4…`). 256 requests per path, 0 failures on either path.
+
+| Concurrency | TTFT p50 public → private (s) | TTFT p95 public → private (s) | E2E p50 public → private (s) | Aggregate output tok/s public → private |
+|---:|---|---|---|---|
+| 1 | 0.53 → 0.39 | 0.70 → 0.41 | 6.80 → 6.66 | 37 → 39 |
+| 4 | 0.55 → 0.21 | 0.88 → 0.43 | 6.90 → 6.56 | 140 → 153 |
+| 8 | 0.59 → 0.24 | 0.65 → 0.28 | 7.01 → 6.63 | 276 → 304 |
+| 16 | 0.66 → 0.23 | 0.83 → 0.55 | 7.06 → 6.64 | 530 → 578 |
+| 32 | 0.70 → 0.24 | 1.04 → 0.30 | 7.36 → 6.89 | 957 → 1126 |
+| 64 | 0.78 → 0.26 | 1.06 → 0.36 | 7.86 → 7.43 | 1608 → 2003 |
+
+What this does and does not show:
+
+- The Private Endpoint path was **not slower**. TTFT p50 dropped from about 0.5–0.8 s
+  to about 0.2–0.4 s and p95 tightened at every level; the difference is consistent with
+  the ACI sitting in the same region as the deployment (japaneast) while the workstation
+  crossed the public internet from another country. It is a same-region-vs-remote-client
+  effect, not a Private Link speed-up.
+- Per-request decode speed was identical on both paths (about 40 tok/s at concurrency 1,
+  about 36 tok/s at 64): the model, not the network, sets that number.
+- Aggregate throughput scaled almost linearly to 64 concurrent streams (about 2,000 tok/s
+  on one H100) with no `429` or `5xx`; the saturation point is above 64 and was not
+  measured.
+- Single run, one prompt shape, one credential. Treat the numbers as one measurement,
+  not a distribution. Raw per-request records: [`load-public.json`](evidence/perf/load-public.json),
+  [`load-private.json`](evidence/perf/load-private.json), container log
+  [`private-container.log`](evidence/perf/private-container.log). The deployment was
+  deleted immediately after collection ([before](evidence/perf/deployment-before-delete.json) /
+  [after](evidence/perf/deployment-after-delete.json) readbacks).
 
 ## Quick start
 

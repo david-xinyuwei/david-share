@@ -223,12 +223,14 @@
     },
     "executableSha256": {
       "infra/main.bicep": "e861ca08e010a64da3e9128657605412010b4f920271ced6a7f62b20a95f694c",
-      "scripts/build_evidence.py": "6beb68aacc489748638f68b7082d2ce4c098837b31a503d35e36b34b5a19ab7f",
+      "scripts/build_evidence.py": "35c99c4dba28d2f2251c1d0e3dc97d58c69d44b4a2e9d302164e463447793aae",
       "scripts/azure_translator_backtranslate.py": "5212160041c755ed49e40a4c7c15bdd157d594cd88b944a0f4b53141e61af57e",
       "scripts/probe_endpoint.py": "a124ac8c2fc3bf5f51e9b5acaad40f4e87891e20bc911c3ae667f0da8a2dbb98",
       "scripts/submit_private_aci_probe.py": "ea6088626a4594a30e7bbead80dd9798e22f05fa00567578c88f1bba7a562056",
       "scripts/set_public_network_access.py": "602200a1f4c40db8fe62e0c4065f693eff39da9ecddadcb8e29c4baf136c1357",
-      "scripts/validate_repo.py": "3ec4f1d963df8b5440cf03cbcc2eb614e6cf49b1d06a8f8e94a3709c07c62321",
+      "scripts/load_test_endpoint.py": "6c606721b8e542e4247d1e877008e7fb6ff41f85d86bdec82407df2a8dcf436c",
+      "scripts/submit_private_aci_load_test.py": "b4fd14f2685da30c464742d626919933cb6ce4f002c2424cf1b7c3352ffd1e4a",
+      "scripts/validate_repo.py": "eaa0a3a411b64a0e07d0482638774bd63aaa48cab46f3b9a0f5954246fdfa351",
       "evidence/run-contract.json": "1030a9e80cb0215e0f49f74cad6d1482d00d9ec3e52c57e17d8c67e24a0ec838",
       "evidence/provenance.json": "2c555fa8dd19c5bc6701548a35191808dadeaa8e0a137625d78d7623ac558c95"
     }

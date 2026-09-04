@@ -409,6 +409,12 @@ def build_connectivity_run(raw_dir: pathlib.Path = RAW_DIR) -> dict[str, object]
                 "scripts/set_public_network_access.py": sha256(
                     ROOT / "scripts" / "set_public_network_access.py"
                 ),
+                "scripts/load_test_endpoint.py": sha256(
+                    ROOT / "scripts" / "load_test_endpoint.py"
+                ),
+                "scripts/submit_private_aci_load_test.py": sha256(
+                    ROOT / "scripts" / "submit_private_aci_load_test.py"
+                ),
                 "scripts/validate_repo.py": sha256(
                     ROOT / "scripts" / "validate_repo.py"
                 ),

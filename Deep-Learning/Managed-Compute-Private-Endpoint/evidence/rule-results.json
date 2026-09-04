@@ -262,6 +262,8 @@
             "scripts/probe_endpoint.py": true,
             "scripts/submit_private_aci_probe.py": true,
             "scripts/set_public_network_access.py": true,
+            "scripts/load_test_endpoint.py": true,
+            "scripts/submit_private_aci_load_test.py": true,
             "scripts/validate_repo.py": true,
             "evidence/run-contract.json": true,
             "evidence/provenance.json": true

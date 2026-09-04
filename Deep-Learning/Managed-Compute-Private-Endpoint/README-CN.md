@@ -144,6 +144,8 @@ flowchart LR
 | [`scripts/probe_endpoint.py`](scripts/probe_endpoint.py) | 用 API key 或 Entra 令牌发送同一请求，检查 DNS 类型和 HTTP 状态，不输出凭据 |
 | [`scripts/submit_private_aci_probe.py`](scripts/submit_private_aci_probe.py) | 在具有私有 IP 的 ACI 中运行同一份探针源码；容器对实际执行的字节计算 SHA-256；API key 或 Entra 令牌只通过 ARM `secureValue` 传入；不更新同名资源 |
 | [`scripts/set_public_network_access.py`](scripts/set_public_network_access.py) | 关闭公网前，必须存在已批准的 Private Endpoint 和同次私网 `200` 证据；ETag 前置条件用于拒绝并发变更（实测后新增，已有单元测试、没有实测） |
+| [`scripts/load_test_endpoint.py`](scripts/load_test_endpoint.py) | 固定并发档位的流式负载测试：TTFT、端到端、单请求与聚合输出 tok/s；不保存生成内容，结果按短行标记输出以适应 ACI 日志保留限制 |
+| [`scripts/submit_private_aci_load_test.py`](scripts/submit_private_aci_load_test.py) | 在具有私有 IP 的 ACI 中运行同一份负载测试字节；`--collect-log` 把保存的容器日志还原为结果 JSON |
 | [`scripts/azure_translator_backtranslate.py`](scripts/azure_translator_backtranslate.py) | 调用 Azure AI Translator 执行中文到英文回译；key 只从进程环境读取，`--check` 无需凭据即可校验已提交证据 |
 | [`tests/`](tests/) | 覆盖命令入口、响应语义、零 PATCH 拒绝路径、原值恢复、证据变异和 Level 5 规则变异 |
 | [`evidence/`](evidence/) | 保存脱敏运行合同、实测结果、官方来源锁、图片证据账本和 Level 5 规则结果 |
@@ -201,6 +203,37 @@ Azure Container Instances 和 Azure Bastion 在本仓库里只是验证工具和
 | “Private Endpoint 会复制出一个私有模型。” | 模型部署和 URL 都不变；所属 Foundry 资源只是改变了哪条网络路径可以到达模型。 |
 | “DNS 返回私有地址，说明 Managed Compute 的 Pod 在客户 VNet。” | 探针只证明客户端解析到私有地址并收到有效响应，说明不了 Pod 放在哪里。 |
 | “只有 ACI 才能访问私网模型。” | ACI 只是本次实测的执行端。任何有私网路由、私网 DNS 和有效凭据（API key 或 Entra 身份）的客户端都能调用。 |
+
+### 性能实测：公网路径 vs Private Endpoint
+
+运行 ID：`mcpe-perf-20260904` · 日期：2026-09-04 · 同一个部署（`GlobalManagedCompute`，
+1×H100 80GB，Qwen3-32B），同一个固定提示词（332 个 prompt token），`max_tokens=256`，
+`stream=true`，`temperature=0`，同一个 Entra 令牌。唯一变量是客户端位置：公网这一轮从
+VNet 外的工作站发起，私网这一轮从关联 VNet 内具有私有 IP 的 ACI 发起。两边跑的是同一份
+`load_test_endpoint.py` 字节（SHA-256 `479d03d4…`）。每条路径 256 个请求，两边都是 0 失败。
+
+| 并发 | TTFT p50 公网 → 私网（秒） | TTFT p95 公网 → 私网（秒） | 端到端 p50 公网 → 私网（秒） | 聚合输出 tok/s 公网 → 私网 |
+|---:|---|---|---|---|
+| 1 | 0.53 → 0.39 | 0.70 → 0.41 | 6.80 → 6.66 | 37 → 39 |
+| 4 | 0.55 → 0.21 | 0.88 → 0.43 | 6.90 → 6.56 | 140 → 153 |
+| 8 | 0.59 → 0.24 | 0.65 → 0.28 | 7.01 → 6.63 | 276 → 304 |
+| 16 | 0.66 → 0.23 | 0.83 → 0.55 | 7.06 → 6.64 | 530 → 578 |
+| 32 | 0.70 → 0.24 | 1.04 → 0.30 | 7.36 → 6.89 | 957 → 1126 |
+| 64 | 0.78 → 0.26 | 1.06 → 0.36 | 7.86 → 7.43 | 1608 → 2003 |
+
+这组数据能说明什么，不能说明什么：
+
+- 走 Private Endpoint **没有变慢**。TTFT p50 从约 0.5–0.8 秒降到约 0.2–0.4 秒，p95 在每一档都
+  更收敛。这个差异的合理解释是 ACI 和部署在同一区域（japaneast），而工作站从境外跨公网访问；
+  它反映的是“同区域客户端 vs 远端客户端”，不是 Private Link 本身加速。
+- 单请求解码速度两条路径完全一致（并发 1 时约 40 tok/s，并发 64 时约 36 tok/s）：这个数字由模型
+  决定，与网络无关。
+- 聚合吞吐到 64 路并发仍接近线性增长（单卡 H100 约 2,000 tok/s），没有出现 `429` 或 `5xx`；
+  饱和点在 64 以上，本次没有测到。
+- 单次运行、单一提示词形态、单一凭据，这些数字是一次测量，不是分布。逐请求原始记录见
+  [`load-public.json`](evidence/perf/load-public.json)、[`load-private.json`](evidence/perf/load-private.json)
+  和容器日志 [`private-container.log`](evidence/perf/private-container.log)。数据收齐后部署立即删除
+  （[删除前](evidence/perf/deployment-before-delete.json) / [删除后](evidence/perf/deployment-after-delete.json) 回读）。
 
 ## 复现步骤
 

@@ -1,0 +1,13 @@
+{
+  "acceleratorType": "H100_80GB",
+  "createdAt": "2026-08-31T05:31:24.1762457Z",
+  "idSha256": "cd1ebe9cb4807303138bfa9c8a50061847aa9e295860a4edd7d72f756277797a",
+  "name": "qwen3-32b-h100-e2e",
+  "provisioningState": "Succeeded",
+  "readAtUtc": "2026-09-04T02:07Z",
+  "sku": {
+    "capacity": 1,
+    "name": "GlobalManagedCompute"
+  },
+  "totalAccelerators": 1
+}
