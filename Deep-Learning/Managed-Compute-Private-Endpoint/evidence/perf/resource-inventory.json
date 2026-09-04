@@ -1,0 +1,18 @@
+{
+  "capturedAtUtc": "2026-09-04T02:30Z",
+  "duringRunAdditionally": {
+    "Microsoft.CognitiveServices/accounts/managedComputeDeployments": 1,
+    "Microsoft.ContainerInstance/containerGroups": "2 probe runners on 2026-08-31, 2 load-test runners on 2026-09-04"
+  },
+  "observation": "No compute, VM, AKS, or network interface other than the Private Endpoint NIC and the ACI runners ever existed in the customer VNet; Managed Compute model containers run on Microsoft-managed compute outside the customer subscription.",
+  "resourceTypeCounts": {
+    "Microsoft.CognitiveServices/accounts": 1,
+    "Microsoft.CognitiveServices/accounts/projects": 1,
+    "Microsoft.Network/networkInterfaces": 1,
+    "Microsoft.Network/privateDnsZones": 3,
+    "Microsoft.Network/privateDnsZones/virtualNetworkLinks": 3,
+    "Microsoft.Network/privateEndpoints": 1,
+    "Microsoft.Network/virtualNetworks": 1
+  },
+  "scope": "Customer subscription resource group used for the 2026-08-31 run, read after the Managed Compute deployment and ACI probe runners were deleted"
+}

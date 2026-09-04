@@ -80,9 +80,9 @@ QUICK_START_STAGES = (
 BILINGUAL_FACTS = (
     ("managed-compute-private-link-dedicated-20260831", "managed-compute-private-link-dedicated-20260831"),
     ("2026-08-31", "2026-08-31"),
-    ("does not prove that Managed Compute pods run inside", "不证明 Managed Compute 托管 Pod 位于"),
-    ("Managed Compute egress uses", "不证明其出站流量经过"),
-    ("zero prompt or completion retention", "不证明 Prompt 或 Completion 零留存"),
+    ("run on Microsoft-hosted", "跑在微软托管的算力上"),
+    ("not observable from the customer network", "从客户网络里观察不到"),
+    ("evidence/perf/resource-inventory.json", "evidence/perf/resource-inventory.json"),
     ("Temporary resources remain", "临时资源仍然保留"),
     ("billing continues", "继续产生费用"),
     ("Azure Container Instances (ACI)", "Azure Container Instances（Azure 容器实例，ACI）"),

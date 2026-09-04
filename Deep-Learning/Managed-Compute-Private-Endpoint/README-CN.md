@@ -6,18 +6,19 @@
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/managed-compute-private-endpoint-ci.yml/badge.svg)](https://github.com/david-xinyuwei/david-share/actions/workflows/managed-compute-private-endpoint-ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
-这个仓库源于一个客户问题。客户在评估 Microsoft Foundry Managed Compute 时问：用它托管的开源
-模型，能不能做到网络上的安全隔离——不暴露在公网、只允许自己网络里的业务系统调用，而且生产
-环境能正常用？微软为这件事提供的控制手段，是所属 Foundry 资源的 public network access（公网访问）
-开关加 Private Endpoint（私有端点）。所以本仓库只实测决定答案的那一件事：关闭所属 Foundry 资源的
-公网访问后，业务客户端还能不能通过 Private Endpoint 调用 `GlobalManagedCompute` 模型部署？
-在一次独立环境实测中，VNet 外的调用从 `200` 变为 `403`，VNet 内的调用保持 `200`；恢复原值后，
-VNet 外的调用重新返回 `200`。后续在同一个部署上做的负载测试还说明，走私网并不比走公网慢
+用 Microsoft Foundry Managed Compute 托管的开源模型，能不能做到网络上的安全隔离——不暴露在
+公网、只允许自己网络里的业务系统调用，而且生产环境能正常用？微软为这件事提供的控制手段，
+是所属 Foundry 资源的 public network access（公网访问）开关加 Private Endpoint（私有端点）。
+所以本仓库只实测决定答案的那一件事：关闭所属 Foundry 资源的公网访问后，业务客户端还能不能
+通过 Private Endpoint 调用 `GlobalManagedCompute` 模型部署？在一次独立环境实测中，VNet 外的
+调用从 `200` 变为 `403`，VNet 内的调用保持 `200`；恢复原值后，VNet 外的调用重新返回 `200`。
+后续在同一个部署上做的负载测试还说明，走私网并不比走公网慢
 （见[性能实测](#性能实测公网路径-vs-private-endpoint)）。
 
-**结论边界：**本次实测仅验证客户端到推理端点的入站网络路径；并不证明 Managed Compute
-托管 Pod 位于客户 VNet，也不证明其出站流量经过客户 VNet；同时不证明 Prompt 或
-Completion 零留存，也不证明该 Preview 能力已达到生产要求。
+**边界：**实测覆盖的是客户端到推理端点的入站路径。模型容器本身跑在微软托管的算力上，不在
+客户 VNet 里：整个实测期间，客户资源组里只有 Foundry 资源、VNet、Private Endpoint 及其网卡、
+三个私有 DNS 区域，以及一次性的 ACI 探测容器（[资源清单](evidence/perf/resource-inventory.json)）。
+因此 Pod 的位置和模型的出站流量都在 Private Endpoint 的微软一侧，从客户网络里观察不到。
 
 > Author: 魏新宇 (Xinyu Wei)
 

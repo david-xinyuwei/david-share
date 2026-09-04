@@ -638,9 +638,9 @@
           "actual": {
             "managed-compute-private-link-dedicated-20260831": true,
             "2026-08-31": true,
-            "does not prove that Managed Compute pods run inside": true,
-            "Managed Compute egress uses": true,
-            "zero prompt or completion retention": true,
+            "run on Microsoft-hosted": true,
+            "not observable from the customer network": true,
+            "evidence/perf/resource-inventory.json": true,
             "Temporary resources remain": true,
             "billing continues": true,
             "Azure Container Instances (ACI)": true,

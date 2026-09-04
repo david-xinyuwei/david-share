@@ -6,12 +6,11 @@
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/managed-compute-private-endpoint-ci.yml/badge.svg)](https://github.com/david-xinyuwei/david-share/actions/workflows/managed-compute-private-endpoint-ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
-This repository started from a customer question about Microsoft Foundry
-Managed Compute: can an open model hosted on Managed Compute be locked down so
+Can an open model hosted on Microsoft Foundry Managed Compute be locked down so
 that it is unreachable from the public internet, callable only from the
 customer's own network, and still usable by production workloads? The network
 control Microsoft provides for this is the parent Foundry resource's public
-network access setting plus a Private Endpoint, so the repository measures the
+network access setting plus a Private Endpoint, so this repository measures the
 one thing that decides the answer: after public network access is disabled on
 the parent Foundry resource, can a client still call a `GlobalManagedCompute`
 deployment through the Private Endpoint? In one dedicated run, the outside
@@ -20,10 +19,14 @@ at `200`; restoring the saved setting returned the outside client to `200`. A
 follow-up load test on the same deployment showed the private path is not
 slower than the public one (see [Measured performance](#measured-performance-public-path-vs-private-endpoint)).
 
-**Scope:** this proves one inbound client-to-endpoint path. It does not prove
-that Managed Compute pods run inside the customer VNet, that Managed Compute
-egress uses the customer VNet, zero prompt or completion retention, or
-production readiness.
+**Scope:** the measurement covers the inbound path from a client to the
+inference endpoint. The model containers themselves run on Microsoft-hosted
+compute, not in the customer VNet: throughout the run the customer resource
+group held only the Foundry account, the VNet, the Private Endpoint and its
+NIC, three Private DNS zones, and the disposable ACI runners
+([inventory](evidence/perf/resource-inventory.json)). Pod placement and model
+egress therefore sit on Microsoft's side of the Private Endpoint and are not
+observable from the customer network.
 
 > Author: 魏新宇 (Xinyu Wei)
 
