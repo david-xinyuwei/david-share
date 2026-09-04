@@ -188,11 +188,24 @@ def result_satisfies_expectation(
     return True
 
 
+def build_auth(args: argparse.Namespace) -> tuple[dict[str, str], str, str | None]:
+    """Return (headers, authMethod, identitySha256). API key wins when present."""
+    api_key = os.getenv(args.api_key_environment_variable)
+    if api_key:
+        return {"api-key": api_key}, "api-key", None
+    token = acquire_token(args.az_executable, args.token_environment_variable)
+    return (
+        {"Authorization": f"Bearer {token}"},
+        "entra-bearer",
+        token_identity_sha256(token),
+    )
+
+
 def run_probe(args: argparse.Namespace) -> dict[str, object]:
     parsed_endpoint = validate_endpoint(args.endpoint)
 
     addresses = resolve_addresses(parsed_endpoint.hostname)
-    token = acquire_token(args.az_executable, args.token_environment_variable)
+    auth_headers, auth_method, identity_sha256 = build_auth(args)
     request_body = json.dumps(
         {
             "model": args.deployment,
@@ -204,10 +217,7 @@ def run_probe(args: argparse.Namespace) -> dict[str, object]:
     request = urllib.request.Request(
         args.endpoint,
         data=request_body,
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-        },
+        headers={**auth_headers, "Content-Type": "application/json"},
         method="POST",
     )
 
@@ -230,7 +240,8 @@ def run_probe(args: argparse.Namespace) -> dict[str, object]:
         "hostnameSha256": sha256_text(parsed_endpoint.hostname),
         "endpointSha256": sha256_text(args.endpoint),
         "deploymentSha256": sha256_text(args.deployment),
-        "identitySha256": token_identity_sha256(token),
+        "authMethod": auth_method,
+        "identitySha256": identity_sha256,
         "probeSourceSha256": probe_source_sha256(args.probe_source_sha256),
         "requestSha256": hashlib.sha256(request_body).hexdigest(),
         "addressCount": len(addresses),
@@ -263,6 +274,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--timeout", type=float, default=60)
     parser.add_argument("--max-response-bytes", type=int, default=16_384)
     parser.add_argument("--az-executable", default="az")
+    parser.add_argument("--api-key-environment-variable", default="AZURE_AI_API_KEY")
     parser.add_argument("--token-environment-variable", default="AZURE_ACCESS_TOKEN")
     parser.add_argument("--probe-source-sha256")
     parser.add_argument("--output", help="Write the sanitized result to this JSON file")

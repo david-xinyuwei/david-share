@@ -95,6 +95,13 @@ BILINGUAL_FACTS = (
     ("Point-to-site VPN", "点到站点 VPN"),
     ("ExpressRoute or site-to-site VPN", "ExpressRoute 或站点到站点 VPN"),
     ("manual-restore", "manual-restore"),
+    ("disableLocalAuth=true", "disableLocalAuth=true"),
+    ("`api-key` header", "`api-key` 请求头"),
+    ("Only the Entra path was", "只实测了 Entra 这一条"),
+    ("### Recommended production access configuration", "### 生产环境建议配置"),
+    ("`publicNetworkAccess=Disabled`", "`publicNetworkAccess=Disabled`"),
+    ("privatelink.services.ai.azure.com", "privatelink.services.ai.azure.com"),
+    ("validation and operator tools", "验证工具和运维入口"),
 )
 READER_FLOW_HEADINGS_EN = (
     "## Start here",
@@ -127,18 +134,20 @@ READER_FLOW_HEADINGS_CN = (
     "## 官方资料",
 )
 START_HERE_TOKENS_EN = (
-    "| Goal | Go to | Side effects |",
+    "| Goal | Go to |",
     "Python 3.11+",
     "use only the Python standard library",
     "[Quick start](#quick-start)",
     "[Tests](#tests)",
+    "[Recommended production access configuration](#recommended-production-access-configuration)",
 )
 START_HERE_TOKENS_CN = (
-    "| 目标 | 入口 | 副作用 |",
+    "| 目标 | 入口 |",
     "Python 3.11+",
     "只使用 Python 标准库",
     "[复现步骤](#复现步骤)",
     "[测试](#测试)",
+    "[生产环境建议配置](#生产环境建议配置)",
 )
 RETIRED_CN_PROSE = (
     "这个 Repo",

@@ -11,7 +11,7 @@ not copied here.
 | Slot | Why the exemplar has it | This repository | Deterministic gate |
 |---|---|---|---|
 | S0 | Establish scope and measured result immediately | Headline `200 → 403` outside and steady private `200`, followed by explicit non-claims | Intro facts and navigation tokens |
-| S0.5 | Give every reader one entry point before the report | `Start here` / `从这里开始` routes audit, offline tests, and live reproduction with side effects | First-H2, first-80-lines, route-table, dependency, and mutation checks |
+| S0.5 | Give every reader one entry point before the report | `Start here` / `从这里开始` routes audit, offline tests, production planning, and live reproduction | First-H2, first-80-lines, route-table, dependency, and mutation checks |
 | S1 | Separate platform responsibility from customer responsibility | Two-column platform/customer table plus benefit and trade-off | Required table header and bilingual reader-flow gate |
 | S2 | Connect every capability claim to evidence | 200 public baseline, 200 private preflight, 403 public block, 200 private allow, 200 restored | `connectivity-run.json` assertions |
 | S3 | Show the actual product surface | Same-run Foundry model, deployment type, status, and accelerator field crops | Image hash validation |
@@ -39,4 +39,4 @@ Language audit record, 2026-09-04:
 - `AI_NATIVE_CHINESE_AUDIT=PASS`: independent Chinese-only review, material findings `0`.
 - `AI_BILINGUAL_SEMANTIC_AUDIT=PASS`: independent fact-ledger comparison, numeric drift `0`.
 - `DETERMINISTIC_BILINGUAL_GATE`: `RUN-014` checks facts, command blocks, images, reader flow, official-term introductions, and retired translation phrases.
-- `AZURE_TRANSLATOR_BACK_TRANSLATION=PASS`: Azure AI Translator `TextTranslation/F0/global` translated 143 Chinese prose units in 2 HTTP `200` calls (9,384 metered characters); English↔Chinese and Chinese→back-translation numeric drift are both `0`. Request IDs are retained only as SHA-256 digests in `evidence/translator-back-translation.json`.
+- `AZURE_TRANSLATOR_BACK_TRANSLATION=PASS`: Azure AI Translator `TextTranslation/F0/global` translated 161 Chinese prose units in 2 HTTP `200` calls (10,957 metered characters); English↔Chinese and Chinese→back-translation numeric drift are both `0`. Request IDs are retained only as SHA-256 digests in `evidence/translator-back-translation.json`.

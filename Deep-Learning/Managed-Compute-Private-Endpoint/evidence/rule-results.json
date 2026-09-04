@@ -140,18 +140,20 @@
           "id": "start-here-contract",
           "passed": true,
           "actual": {
-            "| Goal | Go to | Side effects |": true,
+            "| Goal | Go to |": true,
             "Python 3.11+": true,
             "use only the Python standard library": true,
             "[Quick start](#quick-start)": true,
-            "[Tests](#tests)": true
+            "[Tests](#tests)": true,
+            "[Recommended production access configuration](#recommended-production-access-configuration)": true
           },
           "expected": {
-            "| Goal | Go to | Side effects |": true,
+            "| Goal | Go to |": true,
             "Python 3.11+": true,
             "use only the Python standard library": true,
             "[Quick start](#quick-start)": true,
-            "[Tests](#tests)": true
+            "[Tests](#tests)": true,
+            "[Recommended production access configuration](#recommended-production-access-configuration)": true
           }
         },
         {
@@ -651,7 +653,14 @@
             "other inbound hostname": true,
             "Point-to-site VPN": true,
             "ExpressRoute or site-to-site VPN": true,
-            "manual-restore": true
+            "manual-restore": true,
+            "disableLocalAuth=true": true,
+            "`api-key` header": true,
+            "Only the Entra path was": true,
+            "### Recommended production access configuration": true,
+            "`publicNetworkAccess=Disabled`": true,
+            "privatelink.services.ai.azure.com": true,
+            "validation and operator tools": true
           },
           "expected": true
         },

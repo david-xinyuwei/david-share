@@ -7,6 +7,7 @@ import argparse
 import base64
 import hashlib
 import json
+import os
 import pathlib
 import re
 import subprocess
@@ -188,8 +189,9 @@ def build_container_group_payload(
     subnet_id: str,
     image: str,
     command: list[str],
-    data_token: str,
+    data_secret: str,
     run_id: str,
+    secret_variable: str = "AZURE_ACCESS_TOKEN",
 ) -> dict[str, object]:
     return {
         "location": location,
@@ -205,7 +207,7 @@ def build_container_group_payload(
                         "image": image,
                         "command": command,
                         "environmentVariables": [
-                            {"name": "AZURE_ACCESS_TOKEN", "secureValue": data_token}
+                            {"name": secret_variable, "secureValue": data_secret}
                         ],
                         "ports": [{"port": 80, "protocol": "TCP"}],
                         "resources": {
@@ -286,17 +288,24 @@ def main() -> int:
         "/providers/Microsoft.ContainerInstance/containerGroups/"
         f"{urllib.parse.quote(args.container_group_name)}?api-version={api_version}"
     )
-    data_token = acquire_token(
-        args.az_executable, "https://cognitiveservices.azure.com/"
-    )
+    # An API key in the launcher's environment is forwarded as-is; otherwise an Entra token is minted.
+    api_key = os.getenv("AZURE_AI_API_KEY")
+    if api_key:
+        data_secret, secret_variable = api_key, "AZURE_AI_API_KEY"
+    else:
+        data_secret = acquire_token(
+            args.az_executable, "https://cognitiveservices.azure.com/"
+        )
+        secret_variable = "AZURE_ACCESS_TOKEN"
     payload = build_container_group_payload(
         args.container_group_name,
         args.location,
         args.subnet_id,
         args.image,
         command,
-        data_token,
+        data_secret,
         args.run_id,
+        secret_variable,
     )
     status, response = create_container_group(
         resource_url,

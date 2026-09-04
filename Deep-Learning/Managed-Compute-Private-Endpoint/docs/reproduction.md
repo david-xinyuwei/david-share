@@ -20,14 +20,16 @@ outbound VNet injection, content retention, or production readiness.
   and a separate workload subnet. The ACI path below requires the workload
   subnet to be delegated to `Microsoft.ContainerInstance/containerGroups`.
 - The private runner resolves through the linked VNet, can reach the Foundry
-  endpoint on TCP 443, and can run as the same approved Entra principal as the
-  public runner through Azure CLI or a securely supplied process environment.
+  endpoint on TCP 443, and presents the same credential as the public runner:
+  the resource's API key (`AZURE_AI_API_KEY`) or an Entra token
+  (`AZURE_ACCESS_TOKEN`, or Azure CLI) supplied through the process environment.
 - The application/network owner owns creation and cleanup of any temporary
   workload runner. The Foundry resource owner approves and restores public network access changes.
 
 The measured path used **private-IP Azure Container Instances (ACI)** in the
 workload subnet. It did not use Azure Bastion. The control runner acquired the
-approved Entra data-plane token, submitted it to ARM as a container environment
+approved Entra data-plane token (the test resource had `disableLocalAuth=true`,
+so an API key was not available), submitted it to ARM as a container environment
 `secureValue`, and embedded the exact bytes of `scripts/probe_endpoint.py` in a
 `restartPolicy=Never` container. The ACI then resolved the Foundry hostname to a
 private address and sent HTTPS to it; Private Endpoint use is inferred from that

@@ -25,21 +25,22 @@ Completion 零留存，也不证明该 Preview 能力已达到生产要求。
 
 ## 从这里开始
 
-| 目标 | 入口 | 副作用 |
-|---|---|---|
-| 快速了解结论与证据 | [五阶段实测](#五阶段实测)和[证据](#证据) | 无 |
-| 在本地检查代码与证据 | [测试](#测试) | 只读本地文件；不需要 Azure 凭据，也不会调用线上端点 |
-| 在客户环境复现 | [复现步骤](#复现步骤) | 会调用模型、创建 Private Endpoint 与 DNS、临时修改公网访问，并持续产生模型费用 |
+| 目标 | 入口 |
+|---|---|
+| 快速了解结论与证据 | [五阶段实测](#五阶段实测)和[证据](#证据) |
+| 在本地检查代码与证据 | [测试](#测试) |
+| 规划生产环境网络 | [生产环境建议配置](#生产环境建议配置) |
+| 在客户环境复现 | [复现步骤](#复现步骤) |
 
-运行脚本要求 Python 3.11+，只使用 Python 标准库。线上复现还需要 Azure CLI，以及有权
-调用目标模型部署的 Entra 身份。
+运行脚本要求 Python 3.11+，只使用 Python 标准库。线上复现还需要 Azure CLI，以及一个能
+调用模型部署的凭据：Foundry 资源的 API key，或者 Entra 身份，二者任选其一。
 
-执行顺序不能颠倒。必须先证明私网路径可用，再关闭公网，避免因 DNS 或路由错误把操作人员
-锁在网络之外。
+执行顺序不能颠倒：先证明私网路径可用，再关闭公网。否则一旦 DNS 或路由配错，操作人员
+自己也会被锁在网络之外。
 
 | 阶段 | 客户端位置 | 公网访问 | 必须看到的结果 |
 |---:|---|---|---|
-| 1 | 关联 VNet 外 | 开启 | 通过 Entra 认证的 Chat Completions 请求返回 `200` |
+| 1 | 关联 VNet 外 | 开启 | Chat Completions 请求返回 `200` |
 | 2 | 关联 VNet 内 | 开启 | DNS 解析到私有地址，并返回 `200` |
 | 3 | 关联 VNet 外 | 关闭 | 返回 `403 Public access is disabled` |
 | 4 | 关联 VNet 内 | 关闭 | DNS 仍解析到私有地址，并返回 `200` |
@@ -56,12 +57,12 @@ Completion 零留存，也不证明该 Preview 能力已达到生产要求。
 | 所属资源的公网访问设置 | Foundry 资源的 Contributor 权限；修改前保存原值，修改后回读确认 |
 | 连接组为 `account` 的 Private Endpoint | Private Endpoint 专用子网、Network Contributor 权限，以及 `Approved`、`Succeeded` 的连接状态 |
 | Private DNS Zone 集成 | 所需的私有 DNS 区域、VNet 链接或 DNS 转发，并确认客户端解析到私有地址 |
-| Entra 认证与数据面 RBAC | 五个阶段始终使用同一个、具备模型调用权限的 Entra 身份 |
-| Azure Container Instances（Azure 容器实例，ACI），如果用它执行探测 | 已委派的工作负载子网、通过 ARM `secureValue` 传入令牌、保存证据，并指定清理负责人 |
+| 数据面认证：API key（`api-key` 请求头）或 Entra 令牌（`Authorization: Bearer`） | 五个阶段始终使用同一个凭据；如果资源设置了 `disableLocalAuth=true`，就只能用 Entra |
+| Azure Container Instances（Azure 容器实例，ACI），如果用它执行探测 | 已委派的工作负载子网、通过 ARM `secureValue` 传入凭据、保存证据，并指定清理负责人 |
 
-**收益：**关闭公网后，模型 URL 和部署本身不需要改变。**代价：**每个客户端都必须具备
-到 VNet 的路由，并且 DNS 必须返回 Private Endpoint 的私有地址。网络控制属于所属
-Foundry 资源，不属于单个 Managed Compute 模型部署。
+**收益：**关闭公网后，模型 URL 和部署本身都不用改。**代价：**每个客户端都要能路由到
+VNet，而且 DNS 必须把模型 URL 解析成 Private Endpoint 的私有地址。网络控制是所属
+Foundry 资源的事，不在单个 Managed Compute 模型部署上。
 
 ## 本仓库证明了什么
 
@@ -73,18 +74,23 @@ Foundry 资源，不属于单个 Managed Compute 模型部署。
 | 测试后网络状态已恢复 | 恢复公网后，推理调用重新返回 `200`；两个 ACI 探针均以退出码 `0` 结束 | [测试后状态](evidence/raw/post-test-state.json) |
 | 资源和计费边界 | 未获得清理授权，因此临时资源仍然保留；Managed Compute 保留期间继续产生费用 | [测试后状态](evidence/raw/post-test-state.json) |
 
-证据只覆盖所属 Foundry 资源的 `*.services.ai.azure.com` 路由，因此不能据此推断
+证据只覆盖所属 Foundry 资源的 `*.services.ai.azure.com` 路由，所以看不出
 Managed Compute 是否还暴露其他入站主机名。
 
 ## 五阶段实测
 
-测试期间固定 Foundry 资源、模型部署、推理端点、Entra 身份和请求内容，只改变客户端的
-网络位置以及所属 Foundry 资源的公网访问设置。
+测试期间固定 Foundry 资源、模型部署、推理端点、凭据和请求内容，只改变客户端的网络位置
+以及所属 Foundry 资源的公网访问设置。
+
+本次实测用的是 Entra 令牌，原因是测试资源关闭了 key 访问（`disableLocalAuth=true`）。
+Foundry 资源本身两种认证都支持：`api-key` 请求头传 API key，或者 `Authorization: Bearer`
+传 Entra 令牌。脚本两种都支持。公网访问是资源级别的网络设置，跟客户端用哪种凭据无关；
+只是本次只实测了 Entra 这一条。
 
 运行 ID：`managed-compute-private-link-dedicated-20260831` · 日期：2026-08-31 · 范围：
 单次入站连通性差分测试。
 
-| 场景 | DNS | 已通过 Entra 认证的调用结果 | 状态 | 证据 |
+| 场景 | DNS | 已认证调用结果 | 状态 | 证据 |
 |---|---|---:|---|---|
 | VNet 外客户端，公网开放 | 公网地址 | `200`：真实的 Chat Completions 响应 | PASS | [`public-baseline.json`](evidence/raw/public-baseline.json) |
 | 关联 VNet 内具有私有 IP 的 ACI，公网开放 | 私有地址 | `200`：关闭公网前的安全探测 | PASS | [`private-preflight.json`](evidence/raw/private-preflight.json) |
@@ -135,8 +141,8 @@ flowchart LR
 | 路径 | 契约 |
 |---|---|
 | [`infra/main.bicep`](infra/main.bicep) | 把现有 Private Endpoint 子网连接到 `account` 组；可以创建并链接三个 Foundry Private DNS Zone，也可以使用客户已有的完整区域 ID 对象 |
-| [`scripts/probe_endpoint.py`](scripts/probe_endpoint.py) | 使用同一请求检查 DNS 类型和 HTTP 状态，不输出令牌 |
-| [`scripts/submit_private_aci_probe.py`](scripts/submit_private_aci_probe.py) | 在具有私有 IP 的 ACI 中运行同一份探针源码；容器对实际执行的字节计算 SHA-256；Entra 令牌只通过 ARM `secureValue` 传入；不更新同名资源 |
+| [`scripts/probe_endpoint.py`](scripts/probe_endpoint.py) | 用 API key 或 Entra 令牌发送同一请求，检查 DNS 类型和 HTTP 状态，不输出凭据 |
+| [`scripts/submit_private_aci_probe.py`](scripts/submit_private_aci_probe.py) | 在具有私有 IP 的 ACI 中运行同一份探针源码；容器对实际执行的字节计算 SHA-256；API key 或 Entra 令牌只通过 ARM `secureValue` 传入；不更新同名资源 |
 | [`scripts/set_public_network_access.py`](scripts/set_public_network_access.py) | 关闭公网前，必须存在已批准的 Private Endpoint 和同次私网 `200` 证据；ETag 前置条件用于拒绝并发变更（实测后新增，已有单元测试、没有实测） |
 | [`scripts/azure_translator_backtranslate.py`](scripts/azure_translator_backtranslate.py) | 调用 Azure AI Translator 执行中文到英文回译；key 只从进程环境读取，`--check` 无需凭据即可校验已提交证据 |
 | [`tests/`](tests/) | 覆盖命令入口、响应语义、零 PATCH 拒绝路径、原值恢复、证据变异和 Level 5 规则变异 |
@@ -147,40 +153,63 @@ flowchart LR
 | 层次 | 实际实现 | 通过条件 | 证据边界 |
 |---|---|---|---|
 | DNS | [`resolve_addresses`](scripts/probe_endpoint.py) 解析端点，[`classify_addresses`](scripts/probe_endpoint.py) 把全部地址分为公网、私网或混合 | VNet 内客户端输出 `dnsClass=private` | 已保留证据未把解析地址与 Private Endpoint 网卡地址逐项对账 |
-| 数据面 | [`run_probe`](scripts/probe_endpoint.py) 发送一次通过 Entra 认证的 Chat Completions 请求 | `200` 必须包含 `object=chat.completion` 且至少有一个 choice；`403` 必须属于公网已关闭错误 | 网络策略 `403` 不能用 RBAC `403` 代替 |
+| 数据面 | [`run_probe`](scripts/probe_endpoint.py) 用 API key 或 Entra 令牌发送一次 Chat Completions 请求 | `200` 必须包含 `object=chat.completion` 且至少有一个 choice；`403` 必须属于公网已关闭错误 | 网络策略 `403` 不能用 RBAC `403` 代替 |
 | 管理面 | [`change_public_network_access`](scripts/set_public_network_access.py) 保存原值、修改、回读并恢复所属资源的公网访问设置 | 回读值等于目标值，资源状态为 `Succeeded` | ETag 保护在实测后加入，目前只有单元测试、没有实测 |
 
 ### 客户如何访问 Private Endpoint
 
-关键不是客户端采用 VM 还是容器，而是它是否同时具备两项条件：路由能够到达 Private
-Endpoint 所在 VNet，DNS 能把同一个模型 URL 解析到 Private Endpoint 的私有地址。
+关键不在于客户端是 VM 还是容器，而在于两个条件是否同时满足：路由能到 Private Endpoint
+所在的 VNet；DNS 能把同一个模型 URL 解析成 Private Endpoint 的私有地址。
 
 | 客户端位置 | 网络路径 | DNS 要求 |
 |---|---|---|
-| 同一或对等 VNet 内的 VM、ACI、Kubernetes 工作负载 | VNet 内路由或 VNet peering | 将同一组 Foundry Private DNS Zone 链接到每个客户端 VNet，或使用企业 DNS 解析器 |
-| 本地数据中心应用 | ExpressRoute 或站点到站点 VPN | 将 Foundry 服务域名条件转发到 Azure DNS Private Resolver 的入站端点，或 Azure 内的 DNS 转发器 |
-| 开发人员电脑 | 点到站点 VPN，或通过 Azure Bastion 登录 VNet 内 VM | 使用 VPN/解析器提供的 DNS；Bastion VM 只是开发方式，不是必需组件 |
+| 同一或对等 VNet 内的 VM、ACI、Kubernetes 工作负载 | VNet 内路由或 VNet peering | 把同一组 Foundry Private DNS Zone 链接到每个客户端 VNet，或者统一走企业 DNS 解析器 |
+| 本地数据中心应用 | ExpressRoute 或站点到站点 VPN | 把 Foundry 服务域名条件转发到 Azure DNS Private Resolver 的入站端点，或 Azure 内的 DNS 转发器 |
+| 开发人员电脑 | 点到站点 VPN，或通过 Azure Bastion 登录 VNet 内的 VM | 使用 VPN/解析器提供的 DNS；Bastion 只是开发时的一种方式，不是必需组件 |
 
 依据：[Azure Private Endpoint DNS 集成场景](https://learn.microsoft.com/azure/private-link/private-endpoint-dns-integration)
 和 [Azure DNS Private Resolver](https://learn.microsoft.com/azure/dns/dns-private-resolver-overview)。
-本仓库中的 ACI 只是一次性验证执行端，不是生产客户端的规定形态。
+本仓库里的 ACI 只是一次性的验证执行端，不代表生产客户端应该长什么样。
+
+### 生产环境建议配置
+
+下面是根据官方文档和本次差分实测给出的建议，这套配置本身没有在本次实测中跑过。
+
+| 层次 | 建议配置 | 原因 |
+|---|---|---|
+| Foundry 资源 | 保持 `publicNetworkAccess=Disabled`；不要把「选定网络」的 IP 白名单当作生产访问路径 | 实测中的 `403` 就是这个设置产生的；IP 白名单等于重新开了一条公网路径 |
+| Private Endpoint 位置 | 采用 hub-spoke 拓扑，在 hub VNet（或共享服务 spoke）里为每个 Foundry 资源建一个 Private Endpoint | 所有对等的 spoke 都能访问到；除非隔离策略要求，不必每个应用单独建 |
+| 应用 VNet | 通过 VNet peering 接到 hub；生产客户端就是已经在 spoke 里的工作负载（AKS、启用 VNet 集成的 App Service、Functions、VM） | peering 提供路由，客户端是什么类型不重要 |
+| Azure 内部 DNS | 把三个 Foundry Private DNS Zone（`privatelink.cognitiveservices.azure.com`、`privatelink.openai.azure.com`、`privatelink.services.ai.azure.com`）链接到 hub；spoke 统一指向中央 DNS（Azure DNS Private Resolver 入站端点或自建 DNS 转发器），或者把同一组区域也链接到每个 spoke | 每个客户端都必须把模型 URL 解析成 Private Endpoint 地址 |
+| 本地数据中心 | 通过 ExpressRoute 私有对等或站点到站点 VPN 接入 hub；把这三个区域条件转发到 Private Resolver 入站端点 | 本地 DNS 服务器看不到 Azure Private DNS Zone |
+| 开发与运维人员 | 点到站点 VPN 接入 hub，或通过 Azure Bastion 登录跳板 VM | Bastion 给人用，不承载应用流量 |
+| 凭据 | API key 放在 Azure Key Vault 并定期轮换，或者用托管身份加推理角色；按团队的密钥管理策略选 | 推理端点两种都支持，网络隔离效果与选哪种无关 |
+| 变更控制 | 每次改网络或 DNS 之前和之后，都从 spoke 跑一次 [`probe_endpoint.py`](scripts/probe_endpoint.py) | 先做第 2 阶段再做第 3 阶段，才不会把自己锁在外面 |
+
+Azure Container Instances 和 Azure Bastion 在本仓库里只是验证工具和运维入口，都不是
+生产数据路径。参考：
+[Hub-spoke 网络拓扑](https://learn.microsoft.com/azure/architecture/networking/architecture/hub-spoke)、
+[Private Endpoint DNS 集成](https://learn.microsoft.com/azure/private-link/private-endpoint-dns-integration)、
+[Azure DNS Private Resolver](https://learn.microsoft.com/azure/dns/dns-private-resolver-overview)、
+[Azure OpenAI 认证方式](https://learn.microsoft.com/azure/foundry/openai/reference#authentication)、
+[关闭本地认证](https://learn.microsoft.com/azure/ai-services/disable-local-auth)。
 
 ### 常见误解
 
 | 误解 | 代码和证据说明什么 |
 |---|---|
-| “Private Endpoint 会复制出一个私有模型。” | 模型部署和 URL 均不改变；所属 Foundry 资源只改变允许到达模型的网络路径。 |
-| “DNS 返回私有地址，说明 Managed Compute 的 Pod 在客户 VNet。” | 探针只证明客户端解析到私有地址并收到有效响应，不能证明 Pod 放置位置。 |
-| “只有 ACI 才能访问私网模型。” | ACI 只是本次实测的执行端。任何具备私网路由、私网 DNS 和已授权 Entra 身份的客户端都可以调用。 |
+| “Private Endpoint 会复制出一个私有模型。” | 模型部署和 URL 都不变；所属 Foundry 资源只是改变了哪条网络路径可以到达模型。 |
+| “DNS 返回私有地址，说明 Managed Compute 的 Pod 在客户 VNet。” | 探针只证明客户端解析到私有地址并收到有效响应，说明不了 Pod 放在哪里。 |
+| “只有 ACI 才能访问私网模型。” | ACI 只是本次实测的执行端。任何有私网路由、私网 DNS 和有效凭据（API key 或 Entra 身份）的客户端都能调用。 |
 
 ## 复现步骤
 
 以下命令均使用 **Bash**。资源和部署命令在装有 Azure CLI 的控制端执行；公网探针在
 关联 VNet 外执行；私网探针在独立工作负载子网中的已授权探测执行端上运行。每个探测执行端
 都要取得本仓库。私网探测执行端需要 Python 3.11+、关联 VNet 的 DNS、到推理端点的 TCP 443
-出站连接，以及已登录的 Azure CLI，或通过安全的进程环境传入
-`AZURE_ACCESS_TOKEN`。五个阶段必须使用同一个 Entra 身份、推理端点、模型部署、提示词
-和 token 上限。
+出站连接，以及通过进程环境传入的凭据：`AZURE_AI_API_KEY`（资源的 API key）或
+`AZURE_ACCESS_TOKEN`（Entra 令牌）；两者都没有时，探针会调用 Azure CLI 获取令牌。
+五个阶段必须使用同一个凭据、推理端点、模型部署、提示词和 token 上限。
 
 Azure 前置条件：独立的非生产 Foundry 资源，其下所有项目都是可处置的测试资产；Azure
 公有云；所属 Foundry 资源的 Contributor；目标 VNet 和子网的 Network Contributor；
@@ -409,6 +438,9 @@ Azure AI Translator 做中文到英文回译检查。已提交证据要求 Trans
 - [配置 Microsoft Foundry 网络隔离](https://learn.microsoft.com/azure/foundry/how-to/configure-private-link)
 - [Azure Private Endpoint DNS 集成场景](https://learn.microsoft.com/azure/private-link/private-endpoint-dns-integration)
 - [Azure DNS Private Resolver 概览](https://learn.microsoft.com/azure/dns/dns-private-resolver-overview)
+- [Azure Hub-spoke 网络拓扑](https://learn.microsoft.com/azure/architecture/networking/architecture/hub-spoke)
+- [Azure OpenAI REST API 参考：认证](https://learn.microsoft.com/azure/foundry/openai/reference#authentication)
+- [在 Foundry Tools 中关闭本地认证](https://learn.microsoft.com/azure/ai-services/disable-local-auth)
 - [Azure AI Translator Translate 方法](https://learn.microsoft.com/azure/ai-services/translator/text-translation/reference/v3/translate)
 - [Azure AI Translator 认证](https://learn.microsoft.com/azure/ai-services/translator/text-translation/reference/authentication)
 - [Microsoft Foundry Models 概览](https://learn.microsoft.com/azure/foundry/concepts/foundry-models-overview)

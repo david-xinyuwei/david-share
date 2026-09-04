@@ -42,6 +42,24 @@
       "url": "https://learn.microsoft.com/azure/ai-services/translator/text-translation/reference/authentication",
       "gitCommit": "aed9abb40b1ae0aa3e6f64102d40e2b2f594b679",
       "scope": "Global TextTranslation F0 key authentication and secret-handling boundary"
+    },
+    {
+      "title": "Hub-spoke network topology in Azure",
+      "url": "https://learn.microsoft.com/azure/architecture/networking/architecture/hub-spoke",
+      "gitCommit": "f97206ed179f1f5d3b43b98d864d678aff86d8ce",
+      "scope": "Recommended production placement of the Private Endpoint, peering, DNS, and cross-premises gateways"
+    },
+    {
+      "title": "Azure OpenAI REST API reference: authentication",
+      "url": "https://learn.microsoft.com/azure/foundry/openai/reference#authentication",
+      "gitCommit": "4bf7fd09d1f07de2f941412e0154c99cc263ccc1",
+      "scope": "Data-plane authentication with the api-key header or an Entra bearer token"
+    },
+    {
+      "title": "Disable local authentication in Foundry Tools",
+      "url": "https://learn.microsoft.com/azure/ai-services/disable-local-auth",
+      "gitCommit": "777f84fbedeb0995f4fdea6c65bee2f2a4af1657",
+      "scope": "disableLocalAuth semantics; why the measured run could only use an Entra token"
     }
   ]
 }

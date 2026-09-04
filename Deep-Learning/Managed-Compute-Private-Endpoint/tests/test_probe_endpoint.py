@@ -1,6 +1,8 @@
 import base64
 import importlib.util
+import argparse
 import json
+import os
 import pathlib
 import sys
 import tempfile
@@ -94,6 +96,35 @@ class ProbeEndpointTests(unittest.TestCase):
         self.assertEqual(PROBE.probe_source_sha256("A" * 64), "a" * 64)
         with self.assertRaisesRegex(ValueError, "SHA-256"):
             PROBE.probe_source_sha256("not-a-digest")
+
+    def test_api_key_is_preferred_and_never_reaches_az(self) -> None:
+        args = argparse.Namespace(
+            api_key_environment_variable="TEST_AI_KEY",
+            token_environment_variable="TEST_TOKEN",
+            az_executable="az-must-not-run",
+        )
+        with mock.patch.dict(os.environ, {"TEST_AI_KEY": "k" * 32}, clear=False):
+            headers, method, identity = PROBE.build_auth(args)
+        self.assertEqual(headers, {"api-key": "k" * 32})
+        self.assertEqual(method, "api-key")
+        self.assertIsNone(identity)
+
+    def test_entra_token_is_fallback_with_identity(self) -> None:
+        claims = base64.urlsafe_b64encode(
+            json.dumps({"tid": "tenant", "oid": "subject"}).encode()
+        ).decode().rstrip("=")
+        args = argparse.Namespace(
+            api_key_environment_variable="TEST_AI_KEY_ABSENT",
+            token_environment_variable="TEST_TOKEN",
+            az_executable="az-must-not-run",
+        )
+        environment = {"TEST_TOKEN": f"h.{claims}.s"}
+        with mock.patch.dict(os.environ, environment, clear=False):
+            os.environ.pop("TEST_AI_KEY_ABSENT", None)
+            headers, method, identity = PROBE.build_auth(args)
+        self.assertEqual(headers, {"Authorization": f"Bearer h.{claims}.s"})
+        self.assertEqual(method, "entra-bearer")
+        self.assertEqual(len(identity), 64)
 
     def test_non_completion_200_does_not_pass(self) -> None:
         result = {

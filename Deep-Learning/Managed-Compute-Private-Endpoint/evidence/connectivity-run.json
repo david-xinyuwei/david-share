@@ -225,10 +225,10 @@
       "infra/main.bicep": "e861ca08e010a64da3e9128657605412010b4f920271ced6a7f62b20a95f694c",
       "scripts/build_evidence.py": "6beb68aacc489748638f68b7082d2ce4c098837b31a503d35e36b34b5a19ab7f",
       "scripts/azure_translator_backtranslate.py": "5212160041c755ed49e40a4c7c15bdd157d594cd88b944a0f4b53141e61af57e",
-      "scripts/probe_endpoint.py": "093eaa5f18bc15f5c0400d05f03706c30e4efda737cae28d670ee43fcb2e5d74",
-      "scripts/submit_private_aci_probe.py": "6840294d46780beee3e3f609a3d17d99608af35906f6bb053e3d598eb83dafd2",
+      "scripts/probe_endpoint.py": "a124ac8c2fc3bf5f51e9b5acaad40f4e87891e20bc911c3ae667f0da8a2dbb98",
+      "scripts/submit_private_aci_probe.py": "ea6088626a4594a30e7bbead80dd9798e22f05fa00567578c88f1bba7a562056",
       "scripts/set_public_network_access.py": "602200a1f4c40db8fe62e0c4065f693eff39da9ecddadcb8e29c4baf136c1357",
-      "scripts/validate_repo.py": "82c326f5eabc74faf378ccf2cc80a68fc98fcd9de9e94fcc6e0dcffdfbebba3c",
+      "scripts/validate_repo.py": "3ec4f1d963df8b5440cf03cbcc2eb614e6cf49b1d06a8f8e94a3709c07c62321",
       "evidence/run-contract.json": "1030a9e80cb0215e0f49f74cad6d1482d00d9ec3e52c57e17d8c67e24a0ec838",
       "evidence/provenance.json": "2c555fa8dd19c5bc6701548a35191808dadeaa8e0a137625d78d7623ac558c95"
     }
