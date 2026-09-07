@@ -84,7 +84,57 @@ class ReportIntegrityTests(unittest.TestCase):
         summary = {"matched_summary": [{"route": "test-fixture", "concurrency": 1,
                     "source_groups": ["0", "1", "2"]}]}
         table = validate_report.latency_table(groups, summary, False)
-        self.assertIn("| test-fixture / 1 | 3.000 | 3.000 | 0.003 | 96 / 0 | 96 / 0 | 96 / 0 |", table)
+        self.assertIn("| Concurrency | test-fixture |", table)
+        self.assertEqual(table.count("| 1 | 3.000 |"), 2)
+        self.assertIn("| 1 | 0.003 |", table)
+        self.assertIn("96 valid response observations and 0 missing", table)
+
+    def test_chinese_latency_tables_are_narrow_and_keep_values(self):
+        groups = validate_report.read_json(self.root / "data/groups.json")["groups"]
+        summary = validate_report.read_json(self.root / "data/summary.json")
+        table = validate_report.latency_table(groups, summary, True)
+        table_rows = [line for line in table.splitlines() if line.startswith("|")]
+        self.assertTrue(all(line.count("|") == 5 for line in table_rows))
+        self.assertIn("| 1 | 82.727 | 75.127 | 80.286 |", table)
+        self.assertIn("| 1 | 18.567 | 8.011 | 5.875 |", table)
+        self.assertIn("| 1 | 16.359 | 6.236 | 6.185 |", table)
+
+    def test_chinese_result_tables_are_narrow_and_keep_values(self):
+        summary = validate_report.read_json(self.root / "data/summary.json")
+        table = validate_report.result_table(summary, True)
+        table_rows = [line for line in table.splitlines() if line.startswith("|")]
+        self.assertTrue(all(line.count("|") == 5 for line in table_rows))
+        self.assertIn("| 1 | DFlash 2-7 | 150.51 | 1149.41 |", table)
+        self.assertIn("| 4 | DFlash 2-7 | 31、31、29 | 31、31、30 |", table)
+        self.assertIn("| 4 | DFlash 2-7 | 1、1、3 | 1、1、1 |", table)
+        self.assertNotIn("代码 raw", table)
+        self.assertNotIn("代码 normal", table)
+
+    def test_distinct_normal_correct_counts_are_not_hidden(self):
+        summary = validate_report.read_json(self.root / "data/summary.json")
+        summary["matched_summary"][0]["datasets"]["humaneval_plus"]["normal_correct"][0] = 28
+        table = validate_report.result_table(summary, True)
+        self.assertIn("正常结束且答对的数量另列如下", table)
+        self.assertIn("| 1 | 基线 | 28、31、30 | 30、30、30 |", table)
+
+    def test_latency_retains_metric_specific_missing_counts(self):
+        groups = [{"group_id": "observed", "client": {"all": {
+            metric: {"p50": 0.01, "valid_count": 32, "missing_count": 0}
+            for metric in ("ttft_token_s", "tpot_s", "e2e_s")}}}]
+        groups[0]["client"]["all"]["tpot_s"].update(valid_count=31, missing_count=1)
+        summary = {"matched_summary": [{"route": "mtp7", "concurrency": 1,
+                    "source_groups": ["observed"]}]}
+        table = validate_report.latency_table(groups, summary, True)
+        self.assertIn("| MTP7 / 1 | ttft_token_s | 32 | 0 |", table)
+        self.assertIn("| MTP7 / 1 | tpot_s | 31 | 1 |", table)
+
+    def test_readable_timeline_uses_recorded_timestamps(self):
+        run = validate_report.read_json(self.root / "evidence/run.json")
+        table = validate_report.run_log(run, True)
+        self.assertIn("| 最后一次执行开始 | 2026-09-06 06:28:46 |", table)
+        self.assertIn("| 本地证据校验通过 | 2026-09-06 15:22:13 |", table)
+        self.assertIn("| GPU 已释放 | 2026-09-06 15:22:53 |", table)
+        self.assertIn("1,920/5,904", table)
 
     def test_parent_onboarding_removal_is_rejected(self):
         parent = self.root.parent.parent / "README.md"

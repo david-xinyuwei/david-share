@@ -1,170 +1,281 @@
-# Qwen3.8-27B 部署回归（2026-09-06）
+# Qwen3.8-27B：MTP 与 DFlash 2 实测
 
-[English](README.md) | 中文 | [推测解码总览](../../README-CN.md)
+同样起草 7 个候选 token，DFlash 2 比模型自带的 MTP 快多少？更快输出的回答，还能答对吗？这次在单张 H100 NVL 上，用同一批代码题和数学题，同时测速度、得分和截断情况。
 
-## 结论与范围
+在三个并发档位、三个随机种子（seed）的九组配对中，DFlash 2 的输出吞吐均高于 MTP7。得分总体接近，但并发 4 的第三次运行里，DFlash 2 的代码题答对 **29/32**，MTP7 为 **31/32**，而且 DFlash 2 做完这一组题更慢。**吞吐优势已经测到，准确率不下降尚未得到证明。**
 
-**这是作者在 vLLM 上执行的推测解码 benchmark 和部署回归，不是 DFlash 论文的完整复现，也不是质量认证。** 运行标识为 `qwen38-quality-20260906`。S 阶段中，`dflash2_7` 在三个并发档位的组吞吐三 seed 中位数均为最高。本子集的分数整体接近，但这不等于准确率保证、答案质量等价或正式的非劣效结论。
+这是作者在 vLLM 上的部署实测，不是 DFlash 论文的完整复现。正式结果来自同一批 64 题的重复测试；完整题集阶段未执行，详见[测试覆盖](#测试覆盖与未执行项)。
 
-C/G/S 已执行 **69 组、1,920 份响应**，原计划为 **5,904 份**。完整计划仍为 `BLOCKED`：F 的 **3,984 份响应从未执行，状态为 `NOT_RUN`**，原计划分母不变。
+> 作者：魏新宇（Xinyu Wei）
 
-## S 阶段结果
+[English](README.md) | [中文](README-CN.md) | [推测解码总览](../../README-CN.md)
 
-S 阶段共 27 组：三条路线、并发 1/4/8、三个 seed。每组使用同一批 64 题，包括 32 道 HumanEval+ 代码题和 32 道 MATH-500 数学题。同一批 32 题重复三次，**不是 96 道独立题**。
+[结果](#吞吐与答案质量) · [延迟](#客户端延迟) · [方法](#测试方法) · [覆盖范围](#测试覆盖与未执行项) · [离线复算](#离线复算)
 
-表内三元组依次对应 seed **20260906、20260907、20260908**。正确数的每个值都以 32 为分母；代码对应 HumanEval+，数学对应 MATH-500。吞吐和组耗时分别取三个 seed 的中位数；截断列记录 `length_stopped` 次数，不是百分比。
+实验日期：2026-09-06。运行标识：`qwen38-quality-20260906`。
+
+---
+
+<a id="s-阶段结果"></a>
+
+## 吞吐与答案质量
+
+使用 32 道 HumanEval+ 代码题和 32 道 MATH-500 数学题，三条路线在并发 1、4、8 下各跑三次，共 27 组。每组都是同一批题，**每类 32 题重复三次，不是 96 道独立题**。
+
+基线不开推测解码；MTP7 和 DFlash 2-7 都起草 7 个候选 token。下表的吞吐和整组耗时分别取三次运行的中位数。得分和截断列的三个数，依次对应 seed **20260906、20260907、20260908**；每个得分的分母都是 32。
+
+![三种路线在并发 1、4、8 下的输出吞吐](images/throughput.png)
+
+*图 1：作者实测。柱形表示三次运行的中位数，误差线表示最小值和最大值，不是置信区间；同一批 64 题，吞吐包含 thinking token。来源：[逐组记录](data/groups.json)。*
 
 <!-- BEGIN RESULT_TABLE -->
-| 路线 / 并发 | tok/s 中位数 | 组耗时中位数（秒） | 代码 raw /32 | 代码 normal /32 | 数学 raw /32 | 数学 normal /32 | 代码截断 | 数学截断 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| baseline / 1 | 53.40 | 3458.61 | 29, 31, 30 | 29, 31, 30 | 30, 30, 30 | 30, 30, 30 | 1, 1, 2 | 2, 1, 2 |
-| mtp7 / 1 | 113.34 | 1591.09 | 30, 31, 31 | 30, 31, 31 | 30, 28, 31 | 30, 28, 31 | 2, 1, 1 | 1, 2, 1 |
-| dflash2_7 / 1 | 150.51 | 1149.41 | 30, 31, 30 | 30, 31, 30 | 29, 32, 30 | 29, 32, 30 | 2, 1, 2 | 2, 0, 1 |
-| baseline / 4 | 190.08 | 1037.22 | 31, 31, 31 | 31, 31, 31 | 30, 31, 30 | 30, 31, 30 | 1, 1, 1 | 1, 0, 2 |
-| mtp7 / 4 | 382.85 | 470.35 | 30, 30, 31 | 30, 30, 31 | 29, 29, 29 | 29, 29, 29 | 2, 2, 1 | 2, 1, 2 |
-| dflash2_7 / 4 | 451.74 | 377.79 | 31, 31, 29 | 31, 31, 29 | 31, 31, 30 | 31, 31, 30 | 1, 1, 3 | 1, 1, 1 |
-| baseline / 8 | 287.72 | 577.44 | 31, 31, 31 | 31, 31, 31 | 30, 29, 30 | 30, 29, 30 | 1, 1, 1 | 2, 2, 2 |
-| mtp7 / 8 | 565.24 | 308.08 | 31, 31, 30 | 31, 31, 30 | 29, 29, 30 | 29, 29, 30 | 1, 1, 2 | 2, 1, 1 |
-| dflash2_7 / 8 | 741.07 | 249.68 | 31, 31, 30 | 31, 31, 30 | 30, 31, 30 | 30, 31, 30 | 1, 1, 2 | 2, 1, 2 |
+### 吞吐与整组耗时
+
+| 并发 | 路线 | 吞吐（tok/s） | 整组耗时（秒） |
+| --- | --- | --- | --- |
+| 1 | 基线 | 53.40 | 3458.61 |
+| 1 | MTP7 | 113.34 | 1591.09 |
+| 1 | DFlash 2-7 | 150.51 | 1149.41 |
+| 4 | 基线 | 190.08 | 1037.22 |
+| 4 | MTP7 | 382.85 | 470.35 |
+| 4 | DFlash 2-7 | 451.74 | 377.79 |
+| 8 | 基线 | 287.72 | 577.44 |
+| 8 | MTP7 | 565.24 | 308.08 |
+| 8 | DFlash 2-7 | 741.07 | 249.68 |
+
+### 代码与数学得分
+
+| 并发 | 路线 | 代码答对数 /32 | 数学答对数 /32 |
+| --- | --- | --- | --- |
+| 1 | 基线 | 29、31、30 | 30、30、30 |
+| 1 | MTP7 | 30、31、31 | 30、28、31 |
+| 1 | DFlash 2-7 | 30、31、30 | 29、32、30 |
+| 4 | 基线 | 31、31、31 | 30、31、30 |
+| 4 | MTP7 | 30、30、31 | 29、29、29 |
+| 4 | DFlash 2-7 | 31、31、29 | 31、31、30 |
+| 8 | 基线 | 31、31、31 | 30、29、30 |
+| 8 | MTP7 | 31、31、30 | 29、29、30 |
+| 8 | DFlash 2-7 | 31、31、30 | 30、31、30 |
+
+本次所有被评分器判对的回答都正常结束，因此“答对数”和“正常结束且答对数”相同，不重复列两遍。两项原始字段均保留在数据文件中。
+
+<details>
+<summary>查看三次运行的截断情况</summary>
+
+| 并发 | 路线 | 代码截断数 | 数学截断数 |
+| --- | --- | --- | --- |
+| 1 | 基线 | 1、1、2 | 2、1、2 |
+| 1 | MTP7 | 2、1、1 | 1、2、1 |
+| 1 | DFlash 2-7 | 2、1、2 | 2、0、1 |
+| 4 | 基线 | 1、1、1 | 1、0、2 |
+| 4 | MTP7 | 2、2、1 | 2、1、2 |
+| 4 | DFlash 2-7 | 1、1、3 | 1、1、1 |
+| 8 | 基线 | 1、1、1 | 2、2、2 |
+| 8 | MTP7 | 1、1、2 | 2、1、1 |
+| 8 | DFlash 2-7 | 1、1、2 | 2、1、2 |
+
+达到输出上限的回答仍保留在每次 32 题的分母中。
+
+</details>
 <!-- END RESULT_TABLE -->
 
-数据来自 [data/summary.json](data/summary.json) 的 `matched_summary`。`raw_correct` 是官方评分正确的数量；`normal_correct` 还要求 `finish_reason=stop`。本次 S 阶段中两者恰好一致，不能用接受率替代。截断响应仍保留在每次 32 题的分母中。
+以上各表由[已保存的汇总](data/summary.json)生成。吞吐按“服务端确认的输出 token 总数 ÷ 整组耗时”计算，**包含 thinking、错答和截断回答**。计时从首个测量请求派发，到最后一个请求的终止事件接收完成；不含模型下载、启动、预热和评分。这不是 GPU 纯解码吞吐。
 
-**计时口径：** 组 tok/s 用服务端确认的 completion token 总数除以整组耗时，**包含 thinking 及全部回答**。计时从第一个测量请求派发开始，到最后一个请求的终止事件接收完成，错答和截断所用的时间都计入；模型下载、启动、预热和判分不计入。它不是 GPU 纯 decode 吞吐，也不是 TTFT（首 token 等待时间）。
+### 为什么还要看正确答案的交付速度
 
 <!-- BEGIN COUNTEREXAMPLE -->
-**已测反例：并发 4、seed 20260908。下表只取这一次运行，不使用上方三次运行的中位数。**
+并发 4 的第三次运行（seed 20260908）出现了一个例外：**DFlash 2 输出 token 更快，但做完同一组题反而更慢。** 下表只统计正常结束且答对的回答，耗时取自这一次运行，不是三次运行的中位数。
 
-| 路线 | 该次整组耗时（秒） | 正常答对代码 /32 | 正常答对数学 /32 |
+| 路线 | 整组耗时（秒） | 代码答对数 /32 | 数学答对数 /32 |
 | --- | --- | --- | --- |
-| mtp7 | 450.866977 | 31 | 29 |
-| dflash2_7 | 484.069949 | 29 | 30 |
+| MTP7 | 450.87 | 31 | 29 |
+| DFlash 2-7 | 484.07 | 29 | 30 |
 
-DFlash 2 有 3 份代码回答因长度上限停止。按各数据集的 `normal_correct / 整组耗时` 计算，DFlash/MTP 的正常正确答案每秒速率比为：代码 **0.8713**，数学 **0.9635**。这两个比率低于 1，尽管该次 DFlash 的 token 速率更高；不能据此作根因诊断或宣称所有性能指标都更好。
+DFlash 2 有 3 份代码回答达到输出上限。用“正常结束且答对数 ÷ 整组耗时”衡量正确答案的交付速度，DFlash 2 与 MTP7 的比值为：代码 **0.8713**，数学 **0.9635**。两者都小于 1。这说明 token 吞吐优势不能直接当成正确答案的交付优势；这次差异的原因尚未定位。
 <!-- END COUNTEREXAMPLE -->
-
-![S 阶段组吞吐对比](images/throughput.png)
-
-*图 1：作者实测，运行标识 `qwen38-quality-20260906`。并发 C1/C4/C8，每条路线在每个并发档位测三个 seed，使用同一批 64 题（32 道代码题 + 32 道数学题）；组 tok/s 包含 thinking。图示为三次记录的中位数与最小值/最大值，不是置信区间。来源：[data/groups.json](data/groups.json)。应同时查看吞吐及重复运行的取值范围。*
 
 ## 客户端延迟
 
-每条路线、每个并发档位先分别计算三个 seed 的 P50，再取这三个 P50 的中位数，**不是把重复响应合并后求一个分位数**。表内分别列出 TTFT 和 TPOT 的有效、缺失请求数；这些是响应观测数，不是独立题目数。缺失或无定义的值不能补成零。
+TTFT 是等待首个输出 token 的时间；TPOT 是首个 token 之后，平均每个输出 token 的交付间隔；回答耗时是从请求派发到接收终止事件的时间。三项都从客户端观察，数值越低越好。
+
+每个配置先分别计算三次运行的 P50，再取三个 P50 的中位数，**不是把所有响应合并后求一次分位数**。缺失或无定义的值不补零。
 
 <!-- BEGIN LATENCY_TABLE -->
-| 路线 / 并发 | TTFT（ms） | TPOT（ms/token） | E2E（秒） | TTFT 有效 / 缺失 | TPOT 有效 / 缺失 | E2E 有效 / 缺失 |
-| --- | --- | --- | --- | --- | --- | --- |
-| baseline / 1 | 82.727 | 18.567 | 16.359 | 192 / 0 | 192 / 0 | 192 / 0 |
-| mtp7 / 1 | 75.127 | 8.011 | 6.236 | 192 / 0 | 192 / 0 | 192 / 0 |
-| dflash2_7 / 1 | 80.286 | 5.875 | 6.185 | 192 / 0 | 192 / 0 | 192 / 0 |
-| baseline / 4 | 104.008 | 20.104 | 19.035 | 192 / 0 | 192 / 0 | 192 / 0 |
-| mtp7 / 4 | 110.259 | 8.549 | 8.661 | 192 / 0 | 192 / 0 | 192 / 0 |
-| dflash2_7 / 4 | 115.994 | 6.739 | 5.237 | 192 / 0 | 192 / 0 | 192 / 0 |
-| baseline / 8 | 106.598 | 20.845 | 18.457 | 192 / 0 | 192 / 0 | 192 / 0 |
-| mtp7 / 8 | 124.699 | 10.041 | 9.915 | 192 / 0 | 192 / 0 | 192 / 0 |
-| dflash2_7 / 8 | 124.781 | 7.892 | 7.742 | 192 / 0 | 192 / 0 | 192 / 0 |
+### 首 token 等待（TTFT，ms）
+
+| 并发 | 基线 | MTP7 | DFlash 2-7 |
+| --- | --- | --- | --- |
+| 1 | 82.727 | 75.127 | 80.286 |
+| 4 | 104.008 | 110.259 | 115.994 |
+| 8 | 106.598 | 124.699 | 124.781 |
+
+### token 交付间隔（TPOT，ms/token）
+
+| 并发 | 基线 | MTP7 | DFlash 2-7 |
+| --- | --- | --- | --- |
+| 1 | 18.567 | 8.011 | 5.875 |
+| 4 | 20.104 | 8.549 | 6.739 |
+| 8 | 20.845 | 10.041 | 7.892 |
+
+### 单次回答耗时（秒）
+
+| 并发 | 基线 | MTP7 | DFlash 2-7 |
+| --- | --- | --- | --- |
+| 1 | 16.359 | 6.236 | 6.185 |
+| 4 | 19.035 | 8.661 | 5.237 |
+| 8 | 18.457 | 9.915 | 7.742 |
+
+每个配置、每项指标均有 192 份有效响应记录，缺失 0 份。这是重复运行的观测数，不是独立题目数。
 <!-- END LATENCY_TABLE -->
 
-基于 token 的 TTFT 从请求派发计时，到首个非空生成 `token_ids` 事件为止；空的角色事件或 usage 事件不算首 token。逐请求 TPOT（平均每个输出 token 的交付间隔）按 `(last_token_time - first_token_time) / (completion_tokens - 1)` 计算，仅在输出多于一个 token、且 token-ID 覆盖校验通过时有效。它们是**客户端接收侧指标**，不是 GPU kernel 耗时分位数；一个推测解码 SSE 块可以包含多个 token。定义和已保存观测分别见 [evidence/configuration.json](evidence/configuration.json) 与 [data/groups.json](data/groups.json)。
+<details>
+<summary>查看延迟的精确定义</summary>
 
-## 已记录的方法
+TTFT 从派发请求计时，到首个非空生成 `token_ids` 事件为止；空的角色事件或 usage 事件不算首 token。TPOT 按 `(last_token_time - first_token_time) / (completion_tokens - 1)` 计算，仅在输出多于一个 token、且 token-ID 覆盖校验通过时有效。
 
-参数依据冻结的[配置](evidence/configuration.json)和最终[汇总](data/summary.json)，不沿用旧实验，也不把模型仓库当前版本当成本次版本。配置描述实验约定；实际加载检查另见 [evidence/run.json](evidence/run.json) 中的 `activation`。
+一个推测解码 SSE 块可以包含多个 token，所以这些是客户端接收侧指标，不是 GPU kernel 的执行时间。定义见[配置](evidence/configuration.json)，观测值见[逐组记录](data/groups.json)。
 
-| 项目 | 记录值 |
+</details>
+
+<a id="已记录的方法"></a>
+
+## 测试方法
+
+三条路线固定目标模型、数值精度、题目、输出预算和采样设置，只切换推测解码配置。参数来自当时保存的[配置](evidence/configuration.json)，实际加载检查记录在[运行证据](evidence/run.json)的 `activation` 中。
+
+| 项目 | 本次设置 |
 |---|---|
-| GPU 与并行 | H100 NVL；`tensor_parallel_size=1` |
-| 目标模型 | `Qwen/Qwen3.8-27B` |
-| 目标 revision | `1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0` |
-| draft model | `incoai/Qwen3.8-27B-DFlash2` |
-| draft revision | `dedf8df68adfb1afeaf7b7480c0a0243108177b4` |
-| 精度 | 目标与 draft model 均为 `bfloat16` |
-| 原生 MTP（Multi-Token Prediction，多 token 预测） | 使用该目标 checkpoint 自带的权重，没有另行训练、转换或使用社区 MTP 模型 |
-| draft 所需架构 | `DFlash2DraftModel` |
-| vLLM | `0.28.0`，commit `2cf0a6915ce544dc493a0990f2ea38d81601128a` |
-| 配对 seed | `20260906`、`20260907`、`20260908`；`coverage.sampling.seed=20260906` 是基础配置记录 |
-| 路线与并发 | 保留归档标识 `baseline`、`mtp7`、`dflash2_7`；并发 `1`、`4`、`8` |
-| 推测窗口 | baseline 为 0；MTP 和 DFlash 2 均为 7 个 token |
-| 采样 | `temperature=1.0`、`top_p=0.95`、`top_k=20`、`min_p=0.0` |
-| 惩罚项 | `presence_penalty=0.0`、`repetition_penalty=1.0` |
-| 思考设置 | `reasoning_effort="xhigh"`；`chat_template_kwargs`：`enable_thinking=true`、`preserve_thinking=true` |
-| 长度与调度上限 | `max_completion_tokens=16384`；`max_model_len=32768`；`max_num_seqs=16`；`max_num_batched_tokens=16384` |
-| 请求派发 | 客户端与服务端同机，经回环地址按冻结顺序、固定并发补位派发；不代表 GPU 批次形状相同 |
-| 评分器 | EvalPlus 官方 sanitize/evaluate CLI，commit `26d6d00bb1fd0fa37f39c99d5290da67891d1c5e`；Math-Verify 官方 `evaluate_model_outputs.py`，commit `ba3d3aaff23b3f4cac7a14672b4f6e293d97c98b` |
+| 硬件 | 单张 H100 NVL，张量并行度为 1 |
+| 目标模型 | Qwen3.8-27B，BF16 |
+| MTP | 目标 checkpoint 自带的多 token 预测权重，未另行训练或转换 |
+| DFlash 2 | incoai 发布的 Qwen3.8-27B-DFlash2，BF16 |
+| 推理引擎 | vLLM 0.28.0，实际加载 Model Runner V2 |
+| 候选数量 | 基线为 0；MTP7 和 DFlash 2-7 均为 7 |
+| 输出预算 | 每题最多 16,384 个 token，包含 thinking |
+| 思考设置 | 开启并保留 thinking，`reasoning_effort="xhigh"` |
+| 采样 | temperature 为 1.0，top_p 为 0.95，top_k 为 20 |
+| 配对方式 | 并发 1、4、8；seed 为 20260906、20260907、20260908 |
 
-每个数据集的 32 个题目 ID 按冻结的 SHA-256 排序规则选取，不参考回答或分数。逐题请求 seed 在各路线间保持一致，但这不代表随机 token 抽样逐步对齐。[实际请求样例](evidence/request-examples.json)保留了 `S-baseline-c1-s20260906-r1-thinking-mixed` 中 `HumanEval/69` 和 `MATH-500/100` 的原始提示词、请求参数及哈希。分析保留归档中的官方判分、token 计数和计时记录，不重新判分。
+每类 32 个题目 ID 按预先固定的 SHA-256 排序规则选取，不参考回答和分数。三条路线使用相同的逐题 seed，但这不代表每一步随机抽样完全对齐。代码题由 EvalPlus 官方工具评分，数学题由 Math-Verify 官方工具评分。
 
-版本来源：[目标模型](https://huggingface.co/Qwen/Qwen3.8-27B/tree/1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0)、[DFlash 2](https://huggingface.co/incoai/Qwen3.8-27B-DFlash2/tree/dedf8df68adfb1afeaf7b7480c0a0243108177b4)、[vLLM 固定源码](https://github.com/vllm-project/vllm/tree/2cf0a6915ce544dc493a0990f2ea38d81601128a)。
+<details>
+<summary>查看固定版本、完整参数与请求样例</summary>
 
-## 执行覆盖
+以下链接固定到实际使用的版本，不指向模型仓库当前最新版：
 
-各行均属于 `qwen38-quality-20260906`，覆盖 baseline、MTP、DFlash 2 三条路线。阶段耗时取自 [evidence/run.json](evidence/run.json)，是该阶段各测量组耗时之和，不是 VM 占用时间。
+| 对象 | 版本记录 |
+|---|---|
+| 目标模型 | [Qwen3.8-27B checkpoint](https://huggingface.co/Qwen/Qwen3.8-27B/tree/1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0) |
+| DFlash 2 | [Qwen3.8-27B-DFlash2 checkpoint](https://huggingface.co/incoai/Qwen3.8-27B-DFlash2/tree/dedf8df68adfb1afeaf7b7480c0a0243108177b4)，架构为 `DFlash2DraftModel` |
+| vLLM | [0.28.0 固定源码](https://github.com/vllm-project/vllm/tree/2cf0a6915ce544dc493a0990f2ea38d81601128a) |
+| EvalPlus | [固定源码](https://github.com/evalplus/evalplus/tree/26d6d00bb1fd0fa37f39c99d5290da67891d1c5e)，使用官方 sanitize/evaluate CLI |
+| Math-Verify | [固定源码](https://github.com/huggingface/Math-Verify/tree/ba3d3aaff23b3f4cac7a14672b4f6e293d97c98b)，使用官方 `evaluate_model_outputs.py` |
 
-| 阶段 | 已完成组数 | 实际响应数 | 测量组耗时合计（秒） | 执行状态 |
-|---|---:|---:|---:|---|
-| C：兼容性小样本 | 6 | 48 | 928.508749592 | COMPLETE |
-| G：贪心诊断 | 36 | 144 | 387.088947539 | COMPLETE |
-| S：配对子集 | 27 | 1,728 | 27800.411325179 | COMPLETE |
-| F：完整数据集 | 0 | 0 | 0（未执行） | NOT_RUN：12 组、3,984 份响应 |
+其余参数为 `min_p=0.0`、`presence_penalty=0.0`、`repetition_penalty=1.0`。模板同时设置 `enable_thinking=true` 和 `preserve_thinking=true`；调度上限为 `max_model_len=32768`、`max_num_seqs=16`、`max_num_batched_tokens=16384`。
 
-总覆盖为 **69/81 组、1,920/5,904 份响应**：`48 + 144 + 1728 = 1920`，`1920 + 3984 = 5904`。C/G 不混入 S 阶段结果表；COMPLETE 只表示相应执行已完成，不表示每份答案都正确。
+客户端与服务端同机，经过回环地址按固定顺序、固定并发补位派发。固定客户端并发，不代表 GPU 批次形状相同。归档路线标识分别为 `baseline`、`mtp7`、`dflash2_7`；配置中的基础 seed 为 20260906。
 
-F 的 12 组对应三条路线、并发 1 和 8、seed 20260906，以及 HumanEval+、MATH-500 两个数据集。未执行项既不删除，也不补判分。启动 F 前，时间检查给出的预计耗时为 **134491.31154072736 秒**，已包含 **1.5 的安全系数**，而剩余时限为 **4628.763888597488 秒**；因此记录 `FULL_MATRIX_DOES_NOT_FIT_BILLING_RUNWAY; denominator unchanged`。这是根据预计耗时作出的启动判断，不是“算力一直运行到预算耗尽”。
+[请求样例](evidence/request-examples.json)保存了第一组基线运行中 `HumanEval/69` 和 `MATH-500/100` 的提示词、完整参数及哈希。`raw_correct` 记录评分器判对数，`normal_correct` 还要求 `finish_reason=stop`；二者在本次 S 阶段恰好一致。离线分析使用已保存的评分，不重新判分。
+
+</details>
+
+<a id="执行覆盖"></a>
+
+## 测试覆盖与未执行项
+
+原计划包含四个阶段。本文的速度和得分表只使用 S 阶段，兼容性检查和贪心诊断不混入正式子集结果。
+
+| 阶段 | 完成组数 | 实际响应数 | 状态 |
+|---|---:|---:|---|
+| C：兼容性检查 | 6 | 48 | 已完成 |
+| G：贪心诊断 | 36 | 144 | 已完成 |
+| S：重复子集 | 27 | 1,728 | 已完成 |
+| F：完整题集 | 0 | 0 | 未执行 |
+
+总计完成 **69/81 组、1,920/5,904 份响应**。剩余 12 组、3,984 份响应保持 `NOT_RUN`，既不从计划中删除，也不当作答错。运行记录的总体状态因此仍为 `BLOCKED`。
+
+F 原本要让三条路线在并发 1 和 8 下，分别完成全部 164 道 HumanEval+ 和 500 道 MATH-500，每题一次，seed 为 20260906。启动前预计还需约 **37.36 小时**（包含 1.5 倍安全系数），剩余时限只有约 **1.29 小时**，因此没有启动。它不是运行到预算耗尽后才被迫中断。
+
+精确预测值和停止原因保留在[运行证据](evidence/run.json)中，原记录为 `FULL_MATRIX_DOES_NOT_FIT_BILLING_RUNWAY; denominator unchanged`。
+
+<details>
+<summary>查看各阶段的测量耗时</summary>
+
+| 阶段 | 测量组耗时合计（秒） |
+|---|---:|
+| C | 928.51 |
+| G | 387.09 |
+| S | 27,800.41 |
+| F | 0，未执行 |
+
+这里只累加各测量组的耗时，显示到小数点后两位；精确值保留在[运行证据](evidence/run.json)中。这不是 VM 总占用时间，“已完成”也不表示每份答案都正确。
+
+</details>
 
 ### 执行时间线
 
-以下节点来自 [evidence/run.json](evidence/run.json)；更早的调用记录保留在 [evidence/events.jsonl](evidence/events.jsonl)。
+实验结束后，先回收并校验本地证据，再释放 GPU。以下节点来自[运行记录](evidence/run.json)，更早的执行过程保留在[事件日志](evidence/events.jsonl)中。
 
 ![最后一次执行与证据回收的记录](images/run-timeline.png)
 
-*图 2：依据本次运行事件、配置和请求样例生成的原创解释图。图示测量、全量启动被阻止、本地校验和 GPU 释放的先后关系，距离不按时间比例绘制；精确时间见下方生成式日志。*
+*图 2：依据本次运行事件、配置和请求样例生成。图中展示执行、全量阶段未启动、证据回收和 GPU 释放的顺序，间距不代表经过的时间。*
 
 <!-- BEGIN RUN_LOG -->
-```text
-last_invocation_start_utc=2026-09-06T06:28:46.633864+00:00 run_id=qwen38-quality-20260906
-last_invocation_end_utc=2026-09-06T15:20:08.244046+00:00 phase=BLOCKED completed=1920 total=5904
-evidence_verified_utc=2026-09-06T15:22:13Z evidence_verified=true
-power_verified_utc=2026-09-06T15:22:53.681726+00:00 power_decision=STOPPED
-```
+| 节点 | 时间（UTC） |
+| --- | --- |
+| 最后一次执行开始 | 2026-09-06 06:28:46 |
+| 结束执行，全量阶段未启动 | 2026-09-06 15:20:08 |
+| 本地证据校验通过 | 2026-09-06 15:22:13 |
+| GPU 已释放 | 2026-09-06 15:22:53 |
+
+结束时已完成 **1,920/5,904 份响应**。表内时间显示到秒；完整时间戳、执行状态和释放记录见 [运行证据](evidence/run.json)。
 <!-- END RUN_LOG -->
 
-**最后一次调用**耗时 **31881.610182 秒**，其中包含恢复已有组和非测量开销，不是完整实验的 VM 总占用时长。它与上表的测量组耗时合计、逐请求延迟是不同的时钟，不能相加或相互替代；公开快照不足以据此重建 VM 总占用时长。
+最后一次执行持续约 **8 小时 51 分钟**，包含恢复已有组和测量以外的开销。这个时长、测量组耗时和逐请求延迟不能相加；公开记录不足以重建整个实验的 VM 总占用时间。
 
-## 证据与复算边界
+<a id="证据与复算边界"></a>
 
-| 产物 | 可查看的内容 |
+## 证据与代码
+
+| 入口 | 可核对的内容 |
 |---|---|
-| [source/campaign_runner.py](source/campaign_runner.py) | 实际测量代码的归档快照：组派发、计时与实验流程控制 |
-| [source/scoring.py](source/scoring.py) | 官方评分器的接入和结果绑定 |
-| [source/stream_metrics.py](source/stream_metrics.py) | SSE token 核对与客户端计时定义 |
-| [evidence/configuration.json](evidence/configuration.json)、[evidence/request-examples.json](evidence/request-examples.json) | 冻结的服务、评分约定，以及两份带哈希的实际请求 |
-| [evidence/run.json](evidence/run.json)、[evidence/events.jsonl](evidence/events.jsonl) | 终态、生命周期时间点、加载观测和来源记录 |
-| [data/groups.json](data/groups.json)、[data/summary.json](data/summary.json) | 公开复算输入及派生汇总；逐组 `ordered_task_ids` 保存实际输入清单 |
-| [evidence/run.json](evidence/run.json) 的 `source_members` | 来源成员 manifest，含字节数和 SHA-256；复算数据中逐组 `source` 指向原始成员 |
-| [analyze_results.py](analyze_results.py) | 标准库数值汇总，以及可选图片生成 |
+| [执行程序](source/campaign_runner.py) | 当时使用的组派发、计时和实验控制代码 |
+| [评分接入](source/scoring.py)、[流式计时](source/stream_metrics.py) | 官方评分与回答如何绑定，token 如何核对，延迟如何计算 |
+| [配置](evidence/configuration.json)、[请求样例](evidence/request-examples.json) | 固定参数及两份带哈希的实际请求 |
+| [运行记录](evidence/run.json)、[事件日志](evidence/events.jsonl) | 执行状态、加载检查、来源成员哈希及回收顺序 |
+| [逐组记录](data/groups.json)、[数值汇总](data/summary.json) | 题目 ID、已存评分、计时、计数和配对结果 |
+| [分析程序](analyze_results.py)、[验收程序](validate_report.py) | 重新汇总数字，检查报告和证据是否一致 |
 
-这些源码快照说明了已执行实验所归档的测量代码，**不是从零准备 GPU 并复跑的完整部署包**，也不代表一次新运行。公开投影不含基础设施定位信息或凭据。**原始 SSE 流和完整原始回答仍在私有归档中，不在这里重新分发。** 归档 SHA-256 与成员 manifest 用于说明来源；哈希本身不能独立证明运行行为。
+这些源码是实际执行版本的归档，不是从零部署 GPU 的完整安装包。**完整原始回答和 SSE 流仍在作者的私有归档中，没有在此重新分发。** 公开文件不含基础设施定位信息或凭据；归档及成员哈希说明来源，但不能独立证明运行行为。
 
 ## 离线复算
 
-在本目录执行，使用 Python 3.10+ 标准库，无需安装包、GPU、网络或凭据：
+在本目录执行，使用 Python 3.10+ 标准库，无需额外依赖、GPU、网络或凭据：
 
 ```bash
 python validate_report.py
 python -m unittest discover -p "test_*.py"
 ```
 
-两项检查均应以退出码 0 结束。它们验证已保存报告和复算约定，不执行新的推理或官方评分。需要重新生成数值汇总时，可另行执行：
+验收应输出 `REPORT_GATE=PASS`，测试全部通过，两条命令的退出码都为 0。它们不发起新推理，也不重新评分。需要重新生成数值汇总时，执行：
 
 ```bash
 python analyze_results.py --groups data/groups.json --output regenerated
 ```
 
-这条命令只汇总**已保存的判分、计数和计时**，不生成响应、不执行生成的答案，也不重新判分；输出可与 [data/summary.json](data/summary.json) 对照。追加 `--figure regenerated/throughput.png` 可生成图表，此可选操作使用 [Matplotlib 3.10.9](requirements-figures.txt)，数值复算本身不需要。审阅源码变更后，可运行 `python validate_report.py --refresh --timeline` 重新生成时间线、报告块和 manifest；默认验收命令不会改写证据。图片字节可能随字体或平台变化。从父目录执行的检查入口见[根文档快速开始](../../README-CN.md#快速开始)。
+输出可与[已发布汇总](data/summary.json)对照。程序只读取已保存的评分、计数和计时，不执行生成的答案。从父目录运行的命令见[总览快速开始](../../README-CN.md#快速开始)。
 
-## 边界
+<details>
+<summary>重新生成图片和报告</summary>
 
-- 有限题目的重复运行不提供统计显著性、分布等价、正式非劣效或普遍无损保证。
-- draft 接受率不是答案准确率；`raw_correct`、`normal_correct` 和截断数必须分别看待。
-- 本次使用不同的模型、checkpoint 和运行时，**不能据此认定 [9 月 5 日的 DFlash 并发故障](../20260905-quality/README-CN.md)已经修好**。旧结果独立保留，不改写、不混算。
-- 组吞吐和客户端延迟对应不同测量边界，都不能证明 GPU kernel 的独立性能。公开离线复算检查的是已保存证据，不是新执行的 GPU 任务。
+为分析命令追加 `--figure regenerated/throughput.png` 可生成吞吐图，此项需要 [Matplotlib 3.10.9](requirements-figures.txt)。数值复算本身不需要 Matplotlib。
+
+审阅修改后，`python validate_report.py --refresh --timeline` 会重建报告表格、时间线图片和文件哈希清单。默认验收命令只读，不改写证据。图片字节可能随字体或平台变化。
+
+</details>
+
+## 结论适用到哪里
+
+- 可以说明本次固定配置、固定子集中的性能和得分，不能证明统计显著性、分布等价或正式非劣效。
+- 吞吐、客户端延迟、正确答案交付速度是不同指标，不能互相替代，也不能据此推断 GPU kernel 的独立性能。
+- 本轮换了模型、checkpoint 和引擎，不能据此认定[旧版 DFlash 的并发故障](../20260905-quality/README-CN.md)已修复。两轮结果独立保留。

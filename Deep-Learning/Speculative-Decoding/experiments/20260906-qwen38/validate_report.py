@@ -27,61 +27,110 @@ def markdown_table(headers, rows):
                      [headers, ["---"] * len(headers), *rows])
 
 
+def display_route(route, chinese):
+    labels = {"baseline": "基线" if chinese else "Baseline", "mtp7": "MTP7", "dflash2_7": "DFlash 2-7"}
+    return labels.get(route, route)
+
+
 def result_table(summary, chinese):
-    headers = (["路线 / 并发", "tok/s 中位数", "组耗时中位数（秒）", "代码 raw /32", "代码 normal /32",
-                "数学 raw /32", "数学 normal /32", "代码截断", "数学截断"] if chinese else
-               ["Route / concurrency", "Median tok/s", "Median group wall (s)", "Code raw /32", "Code normal /32",
-                "Math raw /32", "Math normal /32", "Code length", "Math length"])
-    rows = []
+    performance, accuracy, normal_accuracy, truncation = [], [], [], []
+    counts_equal = True
+    separator = "、" if chinese else ", "
     for group in summary["matched_summary"]:
         code, maths = (group["datasets"][name] for name in ("humaneval_plus", "math_500"))
-        values = [f"{group['route']} / {group['concurrency']}", f"{group['throughput_tok_s']['median']:.2f}",
-                  f"{group['group_wall_s']['median']:.2f}"]
-        values.extend(", ".join(map(str, value)) for value in
-                      (code["raw_correct"], code["normal_correct"], maths["raw_correct"],
-                       maths["normal_correct"], code["length_stopped"], maths["length_stopped"]))
-        rows.append(values)
-    return markdown_table(headers, rows)
+        identity = [group["concurrency"], display_route(group["route"], chinese)]
+        performance.append(identity + [f"{group['throughput_tok_s']['median']:.2f}", f"{group['group_wall_s']['median']:.2f}"])
+        for target, field in ((accuracy, "raw_correct"), (normal_accuracy, "normal_correct"), (truncation, "length_stopped")):
+            target.append(identity + [separator.join(map(str, dataset[field])) for dataset in (code, maths)])
+        counts_equal = counts_equal and all(dataset["raw_correct"] == dataset["normal_correct"] for dataset in (code, maths))
+    if chinese:
+        performance_header = ["并发", "路线", "吞吐（tok/s）", "整组耗时（秒）"]
+        accuracy_header = ["并发", "路线", "代码答对数 /32", "数学答对数 /32"]
+        truncation_header = ["并发", "路线", "代码截断数", "数学截断数"]
+        sections = ["### 吞吐与整组耗时", markdown_table(performance_header, performance),
+                    "### 代码与数学得分", markdown_table(accuracy_header, accuracy)]
+        if counts_equal:
+            sections.append("本次所有被评分器判对的回答都正常结束，因此“答对数”和“正常结束且答对数”相同，不重复列两遍。两项原始字段均保留在数据文件中。")
+        else:
+            sections.extend(["正常结束且答对的数量另列如下，不能用全部答对数替代：", markdown_table(accuracy_header, normal_accuracy)])
+        sections.append("<details>\n<summary>查看三次运行的截断情况</summary>\n\n" + markdown_table(truncation_header, truncation) + "\n\n达到输出上限的回答仍保留在每次 32 题的分母中。\n\n</details>")
+    else:
+        performance_header = ["Concurrency", "Route", "Output tok/s", "Group wall (s)"]
+        accuracy_header = ["Concurrency", "Route", "Code correct /32", "Math correct /32"]
+        truncation_header = ["Concurrency", "Route", "Code length stops", "Math length stops"]
+        sections = ["### Throughput and Group Duration", markdown_table(performance_header, performance),
+                    "### Code and Math Scores", markdown_table(accuracy_header, accuracy)]
+        if counts_equal:
+            sections.append("All answers marked correct by the graders stopped normally in this run, so raw-correct and normal-stop-correct counts coincide. Both fields remain in the data; duplicate columns are omitted here.")
+        else:
+            sections.extend(["Normal-stop-correct counts are shown separately and must not be replaced by raw-correct counts:", markdown_table(accuracy_header, normal_accuracy)])
+        sections.append("<details>\n<summary>Length stops across the three runs</summary>\n\n" + markdown_table(truncation_header, truncation) + "\n\nLength-stopped responses remain in each 32-task denominator.\n\n</details>")
+    return "\n\n".join(sections)
 
 
 def latency_table(groups, summary, chinese):
-    headers = (["路线 / 并发", "TTFT（ms）", "TPOT（ms/token）", "E2E（秒）", "TTFT 有效 / 缺失", "TPOT 有效 / 缺失", "E2E 有效 / 缺失"] if chinese else
-               ["Route / concurrency", "TTFT (ms)", "TPOT (ms/token)", "E2E (s)", "TTFT valid / missing", "TPOT valid / missing", "E2E valid / missing"])
-    rows = []
+    cells = summary["matched_summary"]
+    routes = list(dict.fromkeys(cell["route"] for cell in cells))
+    concurrency_levels = sorted({cell["concurrency"] for cell in cells})
+    headers = ["并发" if chinese else "Concurrency"] + [display_route(route, chinese) for route in routes]
+    measurements = {}
+    observations = []
     by_id = {group["group_id"]: group for group in groups}
-    for cell in summary["matched_summary"]:
+    for cell in cells:
         clients = [by_id[name]["client"]["all"] for name in cell["source_groups"]]
         metrics = ("ttft_token_s", "tpot_s", "e2e_s")
-        values = [f"{cell['route']} / {cell['concurrency']}"]
+        route = display_route(cell["route"], chinese)
+        values = []
         for metric, scale in zip(metrics, (1000, 1000, 1)):
             values.append(f"{median(client[metric]['p50'] for client in clients) * scale:.3f}")
         for metric in metrics:
             valid = sum(client[metric]["valid_count"] for client in clients)
             missing = sum(client[metric]["missing_count"] for client in clients)
-            values.append(f"{valid} / {missing}")
-        rows.append(values)
-    return markdown_table(headers, rows)
+            observations.append([f"{route} / {cell['concurrency']}", metric, valid, missing])
+        measurements[(cell["concurrency"], cell["route"])] = values
+    titles = (["### 首 token 等待（TTFT，ms）", "### token 交付间隔（TPOT，ms/token）", "### 单次回答耗时（秒）"] if chinese else
+              ["### Time to First Token (ms)", "### Time per Output Token (ms/token)", "### Response Time (s)"])
+    sections = []
+    for index, title in enumerate(titles):
+        rows = [[concurrency] + [measurements[(concurrency, route)][index] for route in routes]
+                for concurrency in concurrency_levels]
+        sections.extend([title, markdown_table(headers, rows)])
+    counts = {(row[2], row[3]) for row in observations}
+    if len(counts) == 1:
+        valid, missing = next(iter(counts))
+        note = (f"每个配置、每项指标均有 {valid} 份有效响应记录，缺失 {missing} 份。这是重复运行的观测数，不是独立题目数。" if chinese else
+                f"Each metric in each configuration has {valid} valid response observations and {missing} missing observations. These are repeated responses, not independent tasks.")
+    else:
+        count_headers = ["路线 / 并发", "指标", "有效", "缺失"] if chinese else ["Route / concurrency", "Metric", "Valid", "Missing"]
+        note = markdown_table(count_headers, observations)
+    return "\n\n".join([*sections, note])
 
 
-def run_log(run):
+def run_log(run, chinese):
     timing, terminal, closure = (run[key] for key in ("timing", "terminal", "closure"))
-    return "\n".join((
-        "```text",
-        f"last_invocation_start_utc={timing['last_invocation_start_utc']} run_id={run['run_id']}",
-        f"last_invocation_end_utc={timing['last_invocation_end_utc']} phase={terminal['phase']} completed={terminal['completed']} total={terminal['total']}",
-        f"evidence_verified_utc={closure['evidence_verified_utc']} evidence_verified={str(closure['evidence_verified']).lower()}",
-        f"power_verified_utc={closure['power_verified_utc']} power_decision={closure['power_decision']}",
-        "```",
-    ))
+    timestamps = [timing["last_invocation_start_utc"], timing["last_invocation_end_utc"],
+                  closure["evidence_verified_utc"], closure["power_verified_utc"]]
+    times = [parse_timestamp(value).strftime("%Y-%m-%d %H:%M:%S") for value in timestamps]
+    if chinese:
+        headers = ["节点", "时间（UTC）"]
+        labels = ["最后一次执行开始", "结束执行，全量阶段未启动", "本地证据校验通过", "GPU 已释放"]
+        note = (f"结束时已完成 **{terminal['completed']:,}/{terminal['total']:,} 份响应**。"
+                "表内时间显示到秒；完整时间戳、执行状态和释放记录见 [运行证据](evidence/run.json)。")
+    else:
+        headers = ["Milestone", "Time (UTC)"]
+        labels = ["Final invocation starts", "Execution ends; full stage not started", "Local evidence verified", "GPU deallocated"]
+        note = (f"**{terminal['completed']:,}/{terminal['total']:,} responses** were complete at the end. "
+                "Times are displayed to seconds; full timestamps, execution state and closure records remain in [run evidence](evidence/run.json).")
+    return markdown_table(headers, list(zip(labels, times))) + "\n\n" + note
 
 
 def counterexample(groups, chinese):
     selected = {group["route"]: group for group in groups if group["stage"] == "S"
                 and group["concurrency"] == 4 and group["base_seed"] == 20260908}
     candidate, reference = selected["dflash2_7"], selected["mtp7"]
-    headers = (["路线", "该次整组耗时（秒）", "正常答对代码 /32", "正常答对数学 /32"] if chinese else
+    headers = (["路线", "整组耗时（秒）", "代码答对数 /32", "数学答对数 /32"] if chinese else
                ["Route", "This run's group wall (s)", "Normal-correct code /32", "Normal-correct math /32"])
-    rows = [[group["route"], f"{group['elapsed_wall_s']:.6f}",
+    rows = [[display_route(group["route"], chinese), f"{group['elapsed_wall_s']:.2f}",
              group["scores"]["datasets"]["humaneval_plus"]["normal_correct"],
              group["scores"]["datasets"]["math_500"]["normal_correct"]] for group in (reference, candidate)]
     ratios = []
@@ -91,10 +140,10 @@ def counterexample(groups, chinese):
         ratios.append(candidate_rate / reference_rate)
     truncated = candidate["datasets"]["humaneval_plus"]["finish_counts"].get("length", 0)
     if chinese:
-        introduction = "**已测反例：并发 4、seed 20260908。下表只取这一次运行，不使用上方三次运行的中位数。**"
-        conclusion = (f"DFlash 2 有 {truncated} 份代码回答因长度上限停止。按各数据集的 `normal_correct / 整组耗时` 计算，"
-                      f"DFlash/MTP 的正常正确答案每秒速率比为：代码 **{ratios[0]:.4f}**，数学 **{ratios[1]:.4f}**。"
-                      "这两个比率低于 1，尽管该次 DFlash 的 token 速率更高；不能据此作根因诊断或宣称所有性能指标都更好。")
+        introduction = "并发 4 的第三次运行（seed 20260908）出现了一个例外：**DFlash 2 输出 token 更快，但做完同一组题反而更慢。** 下表只统计正常结束且答对的回答，耗时取自这一次运行，不是三次运行的中位数。"
+        conclusion = (f"DFlash 2 有 {truncated} 份代码回答达到输出上限。用“正常结束且答对数 ÷ 整组耗时”衡量正确答案的交付速度，"
+                      f"DFlash 2 与 MTP7 的比值为：代码 **{ratios[0]:.4f}**，数学 **{ratios[1]:.4f}**。"
+                      "两者都小于 1。这说明 token 吞吐优势不能直接当成正确答案的交付优势；这次差异的原因尚未定位。")
     else:
         introduction = "**Observed counterexample: concurrency 4, seed 20260908. This table uses that individual run, not the three-run medians above.**"
         conclusion = (f"DFlash 2 has {truncated} length-stopped code responses. Using each dataset's `normal_correct / entire group wall time`, "
@@ -268,7 +317,7 @@ def validate(root=ROOT, *, refresh=False, timeline=False):
         for name, value in (("RESULT_TABLE", result_table(summary, chinese)),
                             ("LATENCY_TABLE", latency_table(groups, summary, chinese)),
                             ("COUNTEREXAMPLE", counterexample(groups, chinese)),
-                            ("RUN_LOG", run_log(run))):
+                            ("RUN_LOG", run_log(run, chinese))):
             text = generated_block(text, name, value, refresh=refresh)
         if refresh:
             path.write_text(text, encoding="utf-8")
