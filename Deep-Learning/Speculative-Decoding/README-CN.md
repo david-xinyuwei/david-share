@@ -88,9 +88,9 @@
 
 基线不开推测解码；MTP7 和 DFlash 2-7 都起草 7 个候选 token。下表的吞吐和整组耗时分别取三次运行的中位数。得分和截断列的三个数，依次对应随机种子 **20260906、20260907、20260908**；每个得分的分母都是 32。
 
-![三种路线在并发 1、4、8 下的输出吞吐](experiments/20260906-qwen38/images/throughput.png)
+![三种路线在并发 1、4、8 下的输出吞吐](images/throughput-cn.png)
 
-*图 1：作者实测。柱形表示三次运行的中位数，误差线表示最小值和最大值，不是置信区间；同一批 64 题，吞吐包含思考过程中的 token。来源：[逐组记录](experiments/20260906-qwen38/data/groups.json)。*
+*图 1：作者实测。柱形表示三次运行的中位数，误差线表示最小值和最大值，不是置信区间；同一批 64 题，吞吐包含思考过程中的 token。数据来自[数值汇总](experiments/20260906-qwen38/data/summary.json)，由[绘图脚本](tools/make_readme_figures.py)生成。*
 
 <!-- BEGIN RESULT_TABLE -->
 ### 吞吐与整组耗时
@@ -425,9 +425,9 @@ F 阶段计划让三条路线在并发 1 和 8 下，分别完成全部 164 道 
 
 Baseline、MTP5、DFlash15 的代码请求耗时中位数为 4.393、1.175、0.660 秒，数学为 15.666、4.542、2.980 秒；代码输出速率中位数为 53.61、196.01、367.52 tok/s，数学为 54.05、187.60、281.77 tok/s。计时含预填充和同机客户端开销，不含服务启动。先对每一题计算 MTP5 耗时/DFlash15 耗时再取中位数，代码为 1.861 倍、数学为 1.498 倍。5 与 15 个草拟词元不代表相同计算预算，也不是各路线调优后的最佳配置。
 
-![上一轮完整答案请求耗时](experiments/20260905-quality/analysis/figures/primary-latency.png)
+![上一轮完整答案请求耗时](images/previous-latency-cn.png)
 
-*作者实测，运行编号 dflash-quality-20260905，每路线代码 164 题、数学 500 题，每题一次。图值来自[逐题复算汇总](experiments/20260905-quality/analysis/summary.json)。统计所有答案的请求总耗时，不是单独解码算子的时间。*
+*作者实测，运行编号 dflash-quality-20260905，每路线代码 164 题、数学 500 题，每题一次。图值来自[逐题复算汇总](experiments/20260905-quality/analysis/summary.json)，由[绘图脚本](tools/make_readme_figures.py)生成。统计所有答案的请求总耗时，不是单独解码算子的时间。*
 
 ### 并发质量不能放行
 
@@ -445,9 +445,9 @@ Baseline、MTP5、DFlash15 的代码请求耗时中位数为 4.393、1.175、0.6
 | DFlash15 | 4 | 11/32 | 13/32 | 8/17 |
 | DFlash15 | 8 | 10/32 | 12/32 | 13/20 |
 
-![上一轮相同题目下的并发正确数](experiments/20260905-quality/analysis/figures/concurrency-quality.png)
+![上一轮相同题目下的并发正确数](images/previous-concurrency-cn.png)
 
-*作者实测，相同 32+32 题，每档一次。原始响应和官方评分在[结果目录](experiments/20260905-quality/results/)，汇总在[分析结果](experiments/20260905-quality/analysis/summary.json)。异常只绑定该轮已测组合，曲线不提供根因证明。*
+*作者实测，相同 32+32 题，每档一次。原始响应和官方评分在[结果目录](experiments/20260905-quality/results/)，汇总在[分析结果](experiments/20260905-quality/analysis/summary.json)，图由[绘图脚本](tools/make_readme_figures.py)生成。异常只绑定该轮已测组合，曲线不提供根因证明。*
 
 HumanEval/2 是一个具体例子：三个并发档的规范化请求哈希相同，[并发 1](experiments/20260905-quality/results/dflash15/concurrency-1/repeat-0/HumanEval_2.json) 返回正确函数；[并发 4](experiments/20260905-quality/results/dflash15/concurrency-4/repeat-0/HumanEval_2.json) 返回空定义和 JSON 片段；[并发 8](experiments/20260905-quality/results/dflash15/concurrency-8/repeat-0/HumanEval_2.json) 出现无关函数名和重复文本，耗尽 4,096 个词元后截断。这套 DFlash15 配置不能凭单请求结果直接承载并发流量；现有证据也不能把原因归结为某个 vLLM 组件、浮点误差、DFlash 理论、H100 或云平台。
 
@@ -525,7 +525,8 @@ printf '{"phase":"COMPLETE","exit_code":0}\n' > "$DFLASH_RUN_ROOT/state/campaign
 | [`scripts/`](scripts/) | EAGLE3 服务启动与训练脚本、训练数据准备脚本；Qwen3.6 的 vLLM MTP/DFlash 与 llama.cpp MTP 启动脚本；三路线 benchmark 客户端与编排脚本 |
 | [`data/`](data/) | 2026-06-28 三路线的原始 benchmark 结果 `h100_vllm_native_mtp.json`、`h100_vllm_dflash.json`、`h100_llamacpp_mtp_q4kxl.json` |
 | [`logs/`](logs/) | EAGLE3 服务启动与训练样例日志、三路线服务启动日志 |
-| [`images/`](images/) | EAGLE3 架构图、训练对比图和 EAGLE/MTP 参数示意图 |
+| [`images/`](images/) | EAGLE3 架构图、训练对比图和 EAGLE/MTP 参数示意图，以及本文使用的中文结果图 |
+| [`tools/make_readme_figures.py`](tools/make_readme_figures.py) | 从两轮实验的已发布汇总数据重新生成本文的中文结果图，需要 Matplotlib 和中文字体 |
 | [`test_performance.py`](test_performance.py)、[`requirements.txt`](requirements.txt) | 早期性能测试脚本及其依赖 |
 
 ## 证据与代码

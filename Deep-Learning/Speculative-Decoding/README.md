@@ -523,7 +523,8 @@ The 2026-06-28 sample used **capped outputs**: all 18 formal vLLM records ended 
 | [`scripts/`](scripts/) | EAGLE3 server launch and training scripts, training-data preparation; Qwen3.6 vLLM MTP/DFlash and llama.cpp MTP launch scripts; the three-route benchmark client and orchestrator |
 | [`data/`](data/) | Raw 2026-06-28 benchmark results `h100_vllm_native_mtp.json`, `h100_vllm_dflash.json` and `h100_llamacpp_mtp_q4kxl.json` |
 | [`logs/`](logs/) | EAGLE3 server startup and training sample logs, plus the three-route server startup logs |
-| [`images/`](images/) | EAGLE3 architecture, training comparison and EAGLE/MTP parameter illustrations |
+| [`images/`](images/) | EAGLE3 architecture, training comparison and EAGLE/MTP parameter illustrations, plus the Chinese result figures used by the Chinese README |
+| [`tools/make_readme_figures.py`](tools/make_readme_figures.py) | Regenerates the Chinese README result figures from both experiments' published summaries; requires Matplotlib and a CJK font |
 | [`test_performance.py`](test_performance.py), [`requirements.txt`](requirements.txt) | The early performance test script and its dependencies |
 
 ## Evidence and Code
