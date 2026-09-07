@@ -9,7 +9,7 @@ import re
 from statistics import median
 from urllib.parse import unquote, urlsplit
 
-from analyze_results import digest_file, dump_json, parse_timestamp, require, summarize
+from analyze_results import digest_file, dump_json, require, summarize
 
 
 ROOT = Path(__file__).resolve().parent
@@ -106,24 +106,6 @@ def latency_table(groups, summary, chinese):
     return "\n\n".join([*sections, note])
 
 
-def run_log(run, chinese):
-    timing, terminal, closure = (run[key] for key in ("timing", "terminal", "closure"))
-    timestamps = [timing["last_invocation_start_utc"], timing["last_invocation_end_utc"],
-                  closure["evidence_verified_utc"], closure["power_verified_utc"]]
-    times = [parse_timestamp(value).strftime("%Y-%m-%d %H:%M:%S") for value in timestamps]
-    if chinese:
-        headers = ["节点", "时间（UTC）"]
-        labels = ["最后一次执行开始", "结束执行，全量阶段未启动", "本地证据校验通过", "GPU 已释放"]
-        note = (f"结束时已完成 **{terminal['completed']:,}/{terminal['total']:,} 份响应**。"
-                "表内时间显示到秒；完整时间戳、执行状态和释放记录见 [运行证据](evidence/run.json)。")
-    else:
-        headers = ["Milestone", "Time (UTC)"]
-        labels = ["Final invocation starts", "Execution ends; full stage not started", "Local evidence verified", "GPU deallocated"]
-        note = (f"**{terminal['completed']:,}/{terminal['total']:,} responses** were complete at the end. "
-                "Times are displayed to seconds; full timestamps, execution state and closure records remain in [run evidence](evidence/run.json).")
-    return markdown_table(headers, list(zip(labels, times))) + "\n\n" + note
-
-
 def counterexample(groups, chinese):
     selected = {group["route"]: group for group in groups if group["stage"] == "S"
                 and group["concurrency"] == 4 and group["base_seed"] == 20260908}
@@ -209,6 +191,7 @@ def validate_data(root):
     summary = summarize(groups, coverage)
     require(summary == read_json(root / "data/summary.json"), "SAVED_SUMMARY_MISMATCH")
     run = read_json(root / "evidence/run.json")
+    require(not {"timing", "closure", "runway"}.intersection(run), "INTERNAL_OPERATIONS_IN_PUBLIC_EVIDENCE")
     config = read_json(root / "evidence/configuration.json")
     require(run["run_id"] == coverage["run_id"] == config["run_id"], "RUN_ID_MISMATCH")
     terminal = run["terminal"]
@@ -241,17 +224,6 @@ def validate_data(root):
         require("v2_runner" in observation["observed_checks"], "RUNNER_NOT_OBSERVED")
         require(observation["cold_start_contamination"] is False, "COLD_START_CONTAMINATION")
         require(run["source_members"][group["source"]["member"]]["sha256"] == group["source"]["sha256"], "GROUP_PROVENANCE_MISMATCH")
-    timing, closure = run["timing"], run["closure"]
-    start = parse_timestamp(timing["last_invocation_start_utc"])
-    end = parse_timestamp(timing["last_invocation_end_utc"])
-    require(math.isclose((end - start).total_seconds(), timing["last_invocation_elapsed_s"], rel_tol=1e-12), "INVOCATION_DURATION_MISMATCH")
-    require(end <= parse_timestamp(closure["evidence_verified_utc"]) <= parse_timestamp(closure["power_verified_utc"]), "CLOSURE_ORDER_MISMATCH")
-    require(closure["evidence_verified"] is True and closure["power_decision"] == "STOPPED", "CLOSURE_NOT_VERIFIED")
-    events = [json.loads(line) for line in (root / "evidence/events.jsonl").read_text(encoding="utf-8").splitlines()]
-    require(all(event["run_id"] == run["run_id"] for event in events), "EVENT_RUN_MISMATCH")
-    require(any(event["event"] == "CAMPAIGN_START" and event["updated_utc"] == timing["last_invocation_start_utc"] for event in events), "START_EVENT_MISSING")
-    require(any(event["updated_utc"] == terminal["updated_utc"] and event["phase"] == terminal["phase"]
-                and event["completed"] == terminal["completed"] for event in events), "TERMINAL_EVENT_MISSING")
     for path in sorted((root / "source").glob("*.py")):
         require(digest_file(path) == run["source_members"]["src/" + path.name]["sha256"], "EXECUTED_SOURCE_CHANGED")
         compile(path.read_text(encoding="utf-8"), str(path), "exec")
@@ -266,58 +238,15 @@ def validate_data(root):
     return groups, summary, run
 
 
-def draw_timeline(root, run):
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as pyplot
-
-    figure, axis = pyplot.subplots(figsize=(15, 7.6), dpi=100)
-    axis.set_position([0, 0, 1, 1])
-    axis.set_xlim(0, 15)
-    axis.set_ylim(0, 7.6)
-    axis.axis("off")
-    events = [
-        ("Final invocation", run["timing"]["last_invocation_start_utc"], "Starts; earlier groups retained"),
-        ("Admission check", run["timing"]["last_invocation_end_utc"], f"{run['terminal']['phase']}: full stage not started"),
-        ("Evidence returned", run["closure"]["evidence_verified_utc"], "Local archive hashes verified"),
-        ("GPU released", run["closure"]["power_verified_utc"], "Deallocation read back; disks retained"),
-    ]
-    positions = (1.9, 5.6, 9.35, 13.05)
-    colors = ("#2773B4", "#B47516", "#16836F", "#16836F")
-    axis.text(7.5, 6.95, "Qwen3.8 run: measured work, bounded stop, verified return", ha="center", fontsize=22, weight="bold")
-    axis.text(7.5, 6.35, run["run_id"] + " | 2026-09-06 UTC | Event order shown; spacing is not elapsed time", ha="center", fontsize=12, color="#46525A")
-    axis.plot(positions, [4.85] * len(positions), color="#BDC8CD", linewidth=3, zorder=1)
-    for position, color, (label, timestamp, state) in zip(positions, colors, events):
-        axis.scatter([position], [4.85], s=160, color=color, zorder=2)
-        axis.text(position, 5.35, label, ha="center", fontsize=14, weight="bold", color=color)
-        axis.text(position, 4.32, parse_timestamp(timestamp).strftime("%H:%M:%S"), ha="center", fontsize=17)
-        axis.text(position, 3.83, state, ha="center", fontsize=10)
-    terminal = run["terminal"]
-    axis.text(7.5, 2.75, f"C/G/S: {terminal['groups_completed']} completed groups, {terminal['completed']} responses | F: NOT_RUN", ha="center", fontsize=16, weight="bold")
-    examples = read_json(root / "evidence/request-examples.json")
-    axis.text(7.5, 2.08, "Actual request examples: " + " + ".join(sample["task_id"] for sample in examples), ha="center", fontsize=13)
-    request = examples[0]["request"]
-    axis.text(7.5, 1.55, f"reasoning_effort={request['reasoning_effort']} | max_completion_tokens={request['max_completion_tokens']} | complete payloads: evidence/request-examples.json", ha="center", fontsize=11)
-    axis.text(7.5, 0.78, "Source: evidence/run.json and evidence/events.jsonl | Original explanatory diagram from recorded events", ha="center", fontsize=11, color="#46525A")
-    axis.text(7.5, 0.33, "Final invocation includes restored groups and overhead; this is not the total GPU allocation duration.", ha="center", fontsize=11, color="#46525A")
-    figure.savefig(root / "images/run-timeline.png", facecolor="white")
-    pyplot.close(figure)
-
-
-def validate(root=ROOT, *, refresh=False, timeline=False):
+def validate(root=ROOT, *, refresh=False):
     root = root.resolve()
     groups, summary, run = validate_data(root)
-    if timeline:
-        require(refresh, "TIMELINE_REQUIRES_REFRESH")
-        draw_timeline(root, run)
     for filename, chinese in (("README.md", False), ("README-CN.md", True)):
         path = root / filename
         text = path.read_text(encoding="utf-8")
         for name, value in (("RESULT_TABLE", result_table(summary, chinese)),
                             ("LATENCY_TABLE", latency_table(groups, summary, chinese)),
-                            ("COUNTEREXAMPLE", counterexample(groups, chinese)),
-                            ("RUN_LOG", run_log(run, chinese))):
+                            ("COUNTEREXAMPLE", counterexample(groups, chinese))):
             text = generated_block(text, name, value, refresh=refresh)
         if refresh:
             path.write_text(text, encoding="utf-8")
@@ -329,9 +258,9 @@ def validate(root=ROOT, *, refresh=False, timeline=False):
         {"id": name, "status": "PASS", "evidence": evidence}
         for name, evidence in (
             ("recorded-group-score-and-token-reconciliation", ["data/groups.json", "data/summary.json"]),
-            ("run-id-state-duration-and-coverage", ["evidence/run.json", "evidence/events.jsonl"]),
+            ("run-id-measurement-duration-and-coverage", ["evidence/run.json", "data/groups.json"]),
             ("actual-request-and-executed-source-hashes", ["evidence/request-examples.json", "source/"]),
-            ("generated-bilingual-tables-and-reader-log", ["README.md", "README-CN.md"]),
+            ("generated-bilingual-result-tables", ["README.md", "README-CN.md"]),
             ("local-links-and-reader-entry", ["README.md", "README-CN.md"]),
             ("published-file-integrity", [MANIFEST]),
         )
@@ -349,10 +278,9 @@ def validate(root=ROOT, *, refresh=False, timeline=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--refresh", action="store_true", help="Regenerate tables, reader log and file manifest after reviewing an edit")
-    parser.add_argument("--timeline", action="store_true", help="With --refresh, render the recorded lifecycle PNG; requires matplotlib")
+    parser.add_argument("--refresh", action="store_true", help="Regenerate result tables and file manifest after reviewing an edit")
     args = parser.parse_args()
-    validate(refresh=args.refresh, timeline=args.timeline)
+    validate(refresh=args.refresh)
 
 
 if __name__ == "__main__":

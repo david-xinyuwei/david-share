@@ -3,7 +3,11 @@
 import copy
 import json
 from pathlib import Path
+import re
+import shlex
 import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -45,8 +49,13 @@ class ReportIntegrityTests(unittest.TestCase):
             validate_report.validate_data(self.root)
 
     def test_duration_change_is_rejected(self):
-        self.mutate_json("evidence/run.json", lambda value: value["timing"].update(last_invocation_elapsed_s=0))
-        with self.assertRaisesRegex(ValueError, "INVOCATION_DURATION_MISMATCH"):
+        self.mutate_json("evidence/run.json", lambda value: value["stages"]["S"].update(measured_group_wall_s=0))
+        with self.assertRaisesRegex(ValueError, "STAGE_DURATION_MISMATCH"):
+            validate_report.validate_data(self.root)
+
+    def test_internal_operations_are_not_public_evidence(self):
+        self.mutate_json("evidence/run.json", lambda value: value.update(closure={"power_decision": "STOPPED"}))
+        with self.assertRaisesRegex(ValueError, "INTERNAL_OPERATIONS_IN_PUBLIC_EVIDENCE"):
             validate_report.validate_data(self.root)
 
     def test_stale_source_is_rejected(self):
@@ -128,19 +137,81 @@ class ReportIntegrityTests(unittest.TestCase):
         self.assertIn("| MTP7 / 1 | ttft_token_s | 32 | 0 |", table)
         self.assertIn("| MTP7 / 1 | tpot_s | 31 | 1 |", table)
 
-    def test_readable_timeline_uses_recorded_timestamps(self):
-        run = validate_report.read_json(self.root / "evidence/run.json")
-        table = validate_report.run_log(run, True)
-        self.assertIn("| 最后一次执行开始 | 2026-09-06 06:28:46 |", table)
-        self.assertIn("| 本地证据校验通过 | 2026-09-06 15:22:13 |", table)
-        self.assertIn("| GPU 已释放 | 2026-09-06 15:22:53 |", table)
-        self.assertIn("1,920/5,904", table)
+    def test_public_reports_omit_internal_timeline(self):
+        for filename in ("README.md", "README-CN.md"):
+            text = (self.root / filename).read_text(encoding="utf-8")
+            for internal_content in ("run-timeline.png", "BEGIN RUN_LOG", "--timeline"):
+                self.assertNotIn(internal_content, text)
 
     def test_parent_onboarding_removal_is_rejected(self):
         parent = self.root.parent.parent / "README.md"
         parent.write_text(parent.read_text(encoding="utf-8").replace("python experiments/20260906-qwen38/validate_report.py", "omitted"), encoding="utf-8")
         with self.assertRaisesRegex(ValueError, "PARENT_REPLAY_ENTRY_MISSING"):
             validate_report.validate(self.root)
+
+    def how_to_run_blocks(self, filename):
+        text = (self.root / filename).read_text(encoding="utf-8")
+        self.assertEqual(text.count("\n## How to Run\n"), 1)
+        section = text.split("\n## How to Run\n", 1)[1].split("\n## ", 1)[0]
+        blocks = re.findall(r"```bash\n(.*?)\n```", section, re.S)
+        self.assertEqual(len(blocks), 6)
+        parent = (self.root.parent.parent / filename).read_text(encoding="utf-8")
+        self.assertIn(f"experiments/{self.root.name}/{filename}#how-to-run", parent)
+        return blocks
+
+    def test_how_to_run_matches_recorded_launch_contract(self):
+        blocks = self.how_to_run_blocks("README.md")
+        self.assertEqual(blocks, self.how_to_run_blocks("README-CN.md"))
+        config = validate_report.read_json(self.root / "evidence/configuration.json")
+        serving = config["serving"]
+        for role in ("target", "draft"):
+            self.assertIn("hf download " + config[role]["model_id"], blocks[0])
+            self.assertIn("--revision " + config[role]["revision"], blocks[0])
+        self.assertIn("VLLM_USE_V2_MODEL_RUNNER=1", blocks[1])
+        common = re.search(r"COMMON=\(\n(.*?)\n\)", blocks[1], re.S)
+        self.assertIsNotNone(common)
+        tokens = shlex.split(common.group(1))
+        self.assertEqual(tokens.count("--no-enable-prefix-caching"), 1)
+        self.assertIs(serving["prefix_caching"], False)
+        tokens.remove("--no-enable-prefix-caching")
+        options = dict(zip(tokens[::2], tokens[1::2]))
+        self.assertEqual(len(options) * 2, len(tokens))
+        expected = {
+            "--model": "$MODEL_ROOT/target", "--served-model-name": config["target"]["model_id"],
+            "--dtype": config["target"]["dtype"], "--kv-cache-dtype": "auto",
+            "--attention-backend": "FLASH_ATTN", "--mamba-ssm-cache-dtype": "float32",
+            "--generation-config": "vllm", "--seed": str(config["sampling"]["seed"]),
+            "--limit-mm-per-prompt": '{"image":0,"video":0,"audio":0}',
+            "--host": "127.0.0.1", "--port": "18080",
+        }
+        for field in ("tensor_parallel_size", "max_model_len", "max_num_seqs",
+                      "max_num_batched_tokens", "gpu_memory_utilization", "reasoning_parser", "stream_interval"):
+            expected["--" + field.replace("_", "-")] = str(serving[field])
+        self.assertEqual(options, expected)
+        for route, block in zip(config["routes"], blocks[2:5]):
+            arguments = shlex.split(block.replace("\\\n", ""))
+            self.assertEqual(arguments[:6], ["python", "-I", "-B", "-m",
+                             "vllm.entrypoints.openai.api_server", "${COMMON[@]}"])
+            if route["method"] is None:
+                self.assertNotIn("--speculative-config", arguments)
+                continue
+            actual = json.loads(arguments[arguments.index("--speculative-config") + 1])
+            expected_spec = {"method": route["method"], "num_speculative_tokens": route["num_speculative_tokens"],
+                             "rejection_sample_method": serving["rejection_sample_method"]}
+            if route["method"] == "dflash":
+                expected_spec["model"] = "$MODEL_ROOT/draft"
+            self.assertEqual(actual, expected_spec)
+
+    def test_documented_client_extracts_actual_request(self):
+        block = self.how_to_run_blocks("README.md")[-1]
+        arguments = shlex.split(block.replace("\\\n", ""))
+        code = arguments[arguments.index("-c") + 1]
+        result = subprocess.run([sys.executable, "-B", "-X", "utf8", "-c", code],
+                                cwd=self.root, check=True, capture_output=True, encoding="utf-8")
+        examples = validate_report.read_json(self.root / "evidence/request-examples.json")
+        self.assertEqual(json.loads(result.stdout), examples[0]["request"])
+        self.assertIn("http://127.0.0.1:18080/v1/chat/completions", arguments)
+        self.assertIn("--data-binary", arguments)
 
     def test_manifest_path_escape_is_rejected(self):
         self.mutate_json(validate_report.MANIFEST, lambda value: value["files"].update({"../outside.json": {"sha256": "0" * 64, "bytes": 0}}))

@@ -10,7 +10,7 @@ This is an author-run vLLM deployment test, not a full reproduction of the DFlas
 
 [English](README.md) | [中文](README-CN.md) | [Speculative decoding overview](../../README.md)
 
-[Results](#throughput-and-answer-quality) · [Latency](#client-latency) · [Method](#test-method) · [Coverage](#coverage-and-unexecuted-work) · [Offline Replay](#offline-replay)
+[Results](#throughput-and-answer-quality) · [Method](#test-method) · [How to Run](#how-to-run) · [Coverage](#coverage-and-unexecuted-work) · [Offline Replay](#offline-replay)
 
 Run date: 2026-09-06. Run ID: `qwen38-quality-20260906`.
 
@@ -179,6 +179,140 @@ Client and server run on the same machine, with closed-loop fixed-concurrency di
 
 </details>
 
+## How to Run
+
+### 1. Distinguish Target And Draft Weights
+
+The roughly 3.8 GB file is the **DFlash 2 draft model, not the complete Qwen3.8-27B target or its MTP weights**. Do not pass it as `--model` with `method=mtp`. All three routes load the complete target checkpoint:
+
+| Route | Target | Speculative configuration |
+|---|---|---|
+| Baseline | Qwen3.8-27B | Omit `--speculative-config` |
+| MTP7 | Same target checkpoint, using its native MTP weights | `method="mtp"`, without a separate draft model |
+| DFlash 2-7 | Same target plus the matched DFlash 2 draft | `method="dflash"`, with `model` pointing to the draft directory |
+
+The archive records 18 target `.safetensors` files totaling 55,563,006,776 bytes (about 55.56 GB), and one draft weight file of 3,848,817,896 bytes (about 3.85 GB / 3.58 GiB). These are disk weight sizes, not total inference VRAM. **DFlash 2 is the checkpoint name; this vLLM version still uses `dflash`, not `dflash2` or `draft_model`, as the method.**
+
+The commands use Linux x86_64, Bash and Python 3.12. The measured hardware was one H100 NVL, with a CUDA-13-compatible NVIDIA driver and enough VRAM for target, draft, KV cache and workspace. Capacity and numerical behavior on other GPUs need separate validation.
+
+### 2. Prepare Pinned Versions
+
+Run from `Deep-Learning/Speculative-Decoding/experiments/20260906-qwen38` in this repository. Create the environment only for a first installation; activate an existing verified environment with the same versions instead of rebuilding it. Downloads require tens of GB of disk space.
+
+```bash
+python3 -m venv "$HOME/.venvs/qwen38-specdec"
+source "$HOME/.venvs/qwen38-specdec/bin/activate"
+python -m pip install 'vllm==0.28.0' 'torch==2.13.0' 'transformers==5.16.1'
+python -m pip check
+
+export MODEL_ROOT="$HOME/models/qwen38"
+hf download Qwen/Qwen3.8-27B \
+	--revision 1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0 \
+	--local-dir "$MODEL_ROOT/target"
+hf download incoai/Qwen3.8-27B-DFlash2 \
+	--revision dedf8df68adfb1afeaf7b7480c0a0243108177b4 \
+	--local-dir "$MODEL_ROOT/draft"
+```
+
+The directories must contain configuration, all weight shards and the target tokenizer, not a single shard alone. Key package versions come from the recorded installation; future resolution of all transitive dependencies is not guaranteed to reproduce identical environment bytes.
+
+### 3. Set Shared Server Parameters
+
+Run once in the server terminal. All routes use this Bash array. Keep `dflash` out of the target's local path to avoid confusing path-based model identification with its actual role. Logs go outside the repository; do not publish private inputs or new run output.
+
+```bash
+set -euo pipefail
+export VLLM_USE_V2_MODEL_RUNNER=1
+export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
+export RUN_DIR="$HOME/specdec-runs/$(date -u +%Y%m%dT%H%M%SZ)"
+mkdir -p "$RUN_DIR"
+
+COMMON=(
+	--model "$MODEL_ROOT/target"
+	--served-model-name Qwen/Qwen3.8-27B
+	--dtype bfloat16 --tensor-parallel-size 1
+	--max-model-len 32768
+	--max-num-seqs 16 --max-num-batched-tokens 16384
+	--gpu-memory-utilization 0.9
+	--no-enable-prefix-caching --kv-cache-dtype auto
+	--attention-backend FLASH_ATTN --mamba-ssm-cache-dtype float32
+	--reasoning-parser qwen3 --stream-interval 1
+	--generation-config vllm --seed 20260906
+	--limit-mm-per-prompt '{"image":0,"video":0,"audio":0}'
+	--host 127.0.0.1 --port 18080
+)
+```
+
+The target and KV cache use BF16, while the Mamba SSM cache is fixed to FP32. `max-num-seqs=16` is the server scheduler limit, not a requirement to send 16 concurrent client requests. `generation-config=vllm` prevents model-directory generation defaults from replacing explicit experiment settings.
+
+### 4. Start One Route
+
+**Run only one route on this GPU and port at a time.** Finish a route, press `Ctrl+C` in its server terminal and use `nvidia-smi` to confirm that service has exited before starting the next one.
+
+Baseline without speculation:
+
+```bash
+python -I -B -m vllm.entrypoints.openai.api_server "${COMMON[@]}" \
+	2>&1 | tee "$RUN_DIR/baseline-server.log"
+```
+
+MTP7 using weights in the target checkpoint:
+
+```bash
+python -I -B -m vllm.entrypoints.openai.api_server "${COMMON[@]}" \
+	--speculative-config '{"method":"mtp","num_speculative_tokens":7,"rejection_sample_method":"standard"}' \
+	2>&1 | tee "$RUN_DIR/mtp7-server.log"
+```
+
+DFlash 2-7 with its additional draft checkpoint:
+
+```bash
+python -I -B -m vllm.entrypoints.openai.api_server "${COMMON[@]}" \
+	--speculative-config "{\"method\":\"dflash\",\"model\":\"$MODEL_ROOT/draft\",\"num_speculative_tokens\":7,\"rejection_sample_method\":\"standard\"}" \
+	2>&1 | tee "$RUN_DIR/dflash2_7-server.log"
+```
+
+In another terminal on the same host, check that `curl --fail http://127.0.0.1:18080/v1/models` returns `Qwen/Qwen3.8-27B`. Also inspect the startup log for the actual mode, V2 runner and precision; DFlash must load `DFlash2DraftModel`. Readiness proves loading only; send the real request below next.
+
+### 5. Configure Client Requests And Sampling
+
+The client always calls the same `/v1/chat/completions` endpoint and `model` name. **MTP/DFlash selection is server-side, not a client switch.** There is no Web search or RAG in this experiment. Client settings mean sampling, thinking, output budget and request concurrency. `top_k=20` controls output sampling, not the server's seven draft tokens per cycle.
+
+| Client setting | Recorded value |
+|---|---|
+| Sampling | `temperature=1.0`, `top_p=0.95`, `top_k=20`, `min_p=0.0` |
+| Penalties | `presence_penalty=0.0`, `repetition_penalty=1.0` |
+| Thinking | `reasoning_effort="xhigh"`; template enables and preserves thinking |
+| Output limit | `max_completion_tokens=16384`, including thinking |
+| Stream accounting | `stream=true`, `include_usage=true`, `return_token_ids=true`, `include_reasoning=true`, `stream_interval=1` |
+| Client concurrency | The measured subset uses 1, 4 and 8; base seeds 20260906, 20260907 and 20260908 |
+
+The actual per-task seed is `int(SHA256(f"{base_seed}|{task_id}")[:8], 16) % 2147483647`, not the base seed copied to every task. [Request examples](evidence/request-examples.json) contain the full recorded JSON. Send one directly without reconstructing its prompt or parameters.
+
+In the client terminal, enter the same experiment directory and activate the same Python environment, then run:
+
+```bash
+set -euo pipefail
+source "$HOME/.venvs/qwen38-specdec/bin/activate"
+CLIENT_RUN="$HOME/specdec-runs/client-$(date -u +%Y%m%dT%H%M%SZ)"
+mkdir -p "$CLIENT_RUN"
+python -c 'import json; from pathlib import Path; samples=json.loads(Path("evidence/request-examples.json").read_text(encoding="utf-8")); print(json.dumps(samples[0]["request"], ensure_ascii=False))' \
+	> "$CLIENT_RUN/request.json"
+curl --fail-with-body --no-buffer --connect-timeout 10 --max-time 600 \
+	http://127.0.0.1:18080/v1/chat/completions \
+	-H 'Content-Type: application/json' \
+	--data-binary @"$CLIENT_RUN/request.json" \
+	| tee "$CLIENT_RUN/response.sse"
+```
+
+`samples[0]` is the code task; use `samples[1]` for the math task. Inspect the complete SSE for generated `token_ids`, final `usage`, `finish_reason` and `[DONE]`. A `length` finish reason means the output limit was reached, not a normally completed answer. Use the same request JSON on all three routes. The curl timeout and recording here are for request reproduction only, not the performance measurement in the tables above.
+
+### Reproduction Scope
+
+Commands are transcribed from the recorded installation, actual launch arguments and `server_command` in the [measurement source](source/campaign_runner.py), with local paths replaced by environment variables. No GPU was restarted for this documentation revision. **This reproduces the three server configurations and an actual request; one curl call is not the full benchmark.**
+
+Reproducing the score table additionally requires the same 64 tasks, 27 groups, frozen ordering, closed-loop concurrency, original measurement logic and EvalPlus/Math-Verify grading. The archived `campaign_runner.py` entry point depends on the preparation-stage input and runtime contract; the public configuration with internal fields removed cannot be passed directly to `--stage all`. This public snapshot provides startup/request instructions and offline replay, not yet a standalone installer for the full 27-group experiment. Official method references: [MTP](https://github.com/vllm-project/vllm/blob/v0.28.0/docs/features/speculative_decoding/mtp.md), [pinned speculative configuration source](https://github.com/vllm-project/vllm/blob/2cf0a6915ce544dc493a0990f2ea38d81601128a/vllm/config/speculative.py).
+
 <a id="coverage-and-completion"></a>
 
 ## Coverage and Unexecuted Work
@@ -194,9 +328,7 @@ The original plan has four stages. Performance and score tables in this report u
 
 Totals are **69/81 groups and 1,920/5,904 responses**. The remaining 12 groups and 3,984 responses stay `NOT_RUN`: neither removed from the plan nor marked incorrect. The campaign's recorded overall state therefore remains `BLOCKED`.
 
-F would run all three routes at concurrency 1 and 8 over all 164 HumanEval+ and 500 MATH-500 tasks, once per task, with seed 20260906. Before admission, the guard projected about **37.36 hours** including a 1.5 safety factor, with about **1.29 hours** remaining. F was not started; it did not run until the budget was exhausted.
-
-Exact projections and the reason remain in [run evidence](evidence/run.json): `FULL_MATRIX_DOES_NOT_FIT_BILLING_RUNWAY; denominator unchanged`.
+F would run all three routes at concurrency 1 and 8 over all 164 HumanEval+ and 500 MATH-500 tasks, once per task, with seed 20260906. It was not started because it did not fit this run's budget. The measured subset is not a full-dataset score; the [coverage record](evidence/run.json) preserves the original plan and unexecuted items.
 
 <details>
 <summary>Measured duration by stage</summary>
@@ -212,27 +344,6 @@ These are sums of measured group wall times, rounded to two decimals; exact valu
 
 </details>
 
-### Recorded Timeline
-
-After execution, evidence was collected and verified locally before GPU deallocation. Milestones come from the [run record](evidence/run.json); earlier invocations remain in the [event log](evidence/events.jsonl).
-
-![Recorded final invocation and evidence return](images/run-timeline.png)
-
-*Figure 2. Generated from recorded events, configuration and request examples. It shows execution, blocked full-stage admission, evidence collection and GPU deallocation in order; spacing does not represent elapsed time.*
-
-<!-- BEGIN RUN_LOG -->
-| Milestone | Time (UTC) |
-| --- | --- |
-| Final invocation starts | 2026-09-06 06:28:46 |
-| Execution ends; full stage not started | 2026-09-06 15:20:08 |
-| Local evidence verified | 2026-09-06 15:22:13 |
-| GPU deallocated | 2026-09-06 15:22:53 |
-
-**1,920/5,904 responses** were complete at the end. Times are displayed to seconds; full timestamps, execution state and closure records remain in [run evidence](evidence/run.json).
-<!-- END RUN_LOG -->
-
-The final invocation lasted about **8 hours 51 minutes**, including restored earlier groups and nonmeasurement overhead. Invocation duration, measured group time and per-request latency must not be added together. These public records do not reconstruct total campaign VM allocation time.
-
 <a id="evidence-and-replay"></a>
 
 ## Evidence and Code
@@ -242,7 +353,7 @@ The final invocation lasted about **8 hours 51 minutes**, including restored ear
 | [Runner](source/campaign_runner.py) | The dispatch, timing and campaign-control code used in the run |
 | [Grader integration](source/scoring.py), [stream timing](source/stream_metrics.py) | Response/grade binding, token accounting and latency calculation |
 | [Configuration](evidence/configuration.json), [requests](evidence/request-examples.json) | Fixed settings and two hashed actual payloads |
-| [Run record](evidence/run.json), [events](evidence/events.jsonl) | Execution state, activation checks, source-member hashes and closure order |
+| [Experiment record](evidence/run.json) | Coverage, activation checks, measured durations and source-member hashes |
 | [Groups](data/groups.json), [summary](data/summary.json) | Task IDs, saved scores, timing, counters and matched comparisons |
 | [Analyzer](analyze_results.py), [validator](validate_report.py) | Reaggregation and report/evidence consistency checks |
 
@@ -270,7 +381,7 @@ Compare the output with the [published summary](data/summary.json). The program 
 
 Add `--figure regenerated/throughput.png` to the analysis command to generate the throughput plot. This requires [Matplotlib 3.10.9](requirements-figures.txt); numerical replay does not.
 
-After reviewing edits, `python validate_report.py --refresh --timeline` regenerates report tables, the timeline figure and the file hash inventory. Default validation is read-only. Rendered image bytes can vary with fonts or platform.
+After reviewing edits, `python validate_report.py --refresh` regenerates result tables and the file hash inventory. Default validation is read-only. Rendered image bytes can vary with fonts or platform.
 
 </details>
 

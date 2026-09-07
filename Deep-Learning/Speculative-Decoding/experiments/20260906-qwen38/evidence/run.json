@@ -27,30 +27,7 @@
       "F-baseline-c8-s20260906-r1-thinking-math_500"
     ],
     "error": "FULL_MATRIX_DOES_NOT_FIT_BILLING_RUNWAY; denominator unchanged",
-    "error_type": "CampaignBlocked",
-    "updated_utc": "2026-09-06T15:20:08.244046+00:00"
-  },
-  "timing": {
-    "last_invocation_start_utc": "2026-09-06T06:28:46.633864+00:00",
-    "last_invocation_end_utc": "2026-09-06T15:20:08.244046+00:00",
-    "last_invocation_elapsed_s": 31881.610182,
-    "definition": "Final campaign invocation, including restored earlier groups and nonmeasurement overhead; not total GPU allocation or sum of request latency."
-  },
-  "runway": {
-    "status": "BLOCKED",
-    "safety_factor": 1.5,
-    "remaining_seconds": 4628.763888597488,
-    "estimated_seconds_with_safety": 134491.31154072736,
-    "server_startup_seconds": 205.98369494099998,
-    "collection_reserve_seconds": 1800.0,
-    "scope_reduced": false
-  },
-  "closure": {
-    "evidence_verified_utc": "2026-09-06T15:22:13Z",
-    "power_decision": "STOPPED",
-    "power_verified_utc": "2026-09-06T15:22:53.681726+00:00",
-    "evidence_verified": true,
-    "source_sha256": "ff08dd8c2964d75e86bf37eb4da92d0e696bd3aed54bd9beb0871d46d2695f34"
+    "error_type": "CampaignBlocked"
   },
   "stages": {
     "C": {
@@ -1074,14 +1051,6 @@
       "bytes": 1527,
       "sha256": "bf1c85b7067d5d60d884297d0c056f7faef9afea2f40c867d065206337fbcd9e"
     },
-    "state/full-runway.json": {
-      "bytes": 3048,
-      "sha256": "a1821d804c33b146155693682a8b5c971203e5b16a6cfb68f2497fa93b0b7c18"
-    },
-    "logs/campaign-events.jsonl": {
-      "bytes": 2052738,
-      "sha256": "029a4852594e140b8342c0f9ce669a1b8f3a0a9a443044a93575ac9502c6acc3"
-    },
     "results/C-baseline-c1-s20260906-r1-thinking-mixed/group-summary.json": {
       "bytes": 44391,
       "sha256": "370d149ad912f195245b30bd3c45eade227670e36cfc71251b79690988c53fac"
@@ -1375,5 +1344,5 @@
       "sha256": "420413df072a1331ed4d485dca0bcb9af0946cadebc7b57fec461b83642a8abc"
     }
   },
-  "projection": "Allowlisted source fields, unchanged scientific values. Administrative resource fields and raw server logs excluded; original archive retained by author."
+  "projection": "Allowlisted experimental coverage, activation and provenance; scientific values unchanged. Operational timelines, budget estimates, transfer and power-management records remain private."
 }

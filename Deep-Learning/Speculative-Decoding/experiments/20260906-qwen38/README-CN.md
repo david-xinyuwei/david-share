@@ -10,7 +10,7 @@
 
 [English](README.md) | [中文](README-CN.md) | [推测解码总览](../../README-CN.md)
 
-[结果](#吞吐与答案质量) · [延迟](#客户端延迟) · [方法](#测试方法) · [覆盖范围](#测试覆盖与未执行项) · [离线复算](#离线复算)
+[结果](#吞吐与答案质量) · [方法](#测试方法) · [How to Run](#how-to-run) · [覆盖范围](#测试覆盖与未执行项) · [离线复算](#离线复算)
 
 实验日期：2026-09-06。运行标识：`qwen38-quality-20260906`。
 
@@ -179,6 +179,140 @@ TTFT 从派发请求计时，到首个非空生成 `token_ids` 事件为止；�
 
 </details>
 
+## How to Run
+
+### 1. 先分清目标模型和 draft 权重
+
+约 3.8 GB 的文件是 **DFlash 2 的 draft model，不是完整的 Qwen3.8-27B，也不是它的 MTP 权重**。不能把该文件作为 `--model` 再指定 `method=mtp`。三条路线都必须加载完整目标 checkpoint：
+
+| 路线 | 目标模型 | 推测配置 |
+|---|---|---|
+| 基线 | Qwen3.8-27B | 不传 `--speculative-config` |
+| MTP7 | 同一目标 checkpoint，使用其自带 MTP 权重 | `method="mtp"`，不另传 draft model |
+| DFlash 2-7 | 同一目标 checkpoint，另挂 DFlash 2 draft | `method="dflash"`，`model` 指向 draft 目录 |
+
+本次归档记录的目标 `.safetensors` 共 18 个、55,563,006,776 字节（约 55.56 GB）；draft 权重为 1 个、3,848,817,896 字节（约 3.85 GB / 3.58 GiB）。这是磁盘权重大小，不是推理所需总显存。**DFlash 2 是 checkpoint 的名称，本次 vLLM 的启动方法仍写 `dflash`，不是 `dflash2` 或 `draft_model`。**
+
+以下使用 Linux x86_64、Bash 和 Python 3.12。实测硬件为单张 H100 NVL；需要支持 CUDA 13 的 NVIDIA 驱动，以及目标、draft、KV cache 和工作区所需显存。其他 GPU 容量与数值行为需另行验证。
+
+### 2. 准备固定版本
+
+从本仓库的 `Deep-Learning/Speculative-Decoding/experiments/20260906-qwen38` 目录执行。下面的环境创建仅用于首次安装；已有经过验证的相同版本环境时直接激活，不要重建。下载会占用数十 GB 磁盘空间。
+
+```bash
+python3 -m venv "$HOME/.venvs/qwen38-specdec"
+source "$HOME/.venvs/qwen38-specdec/bin/activate"
+python -m pip install 'vllm==0.28.0' 'torch==2.13.0' 'transformers==5.16.1'
+python -m pip check
+
+export MODEL_ROOT="$HOME/models/qwen38"
+hf download Qwen/Qwen3.8-27B \
+	--revision 1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0 \
+	--local-dir "$MODEL_ROOT/target"
+hf download incoai/Qwen3.8-27B-DFlash2 \
+	--revision dedf8df68adfb1afeaf7b7480c0a0243108177b4 \
+	--local-dir "$MODEL_ROOT/draft"
+```
+
+模型目录中应包含配置、全部权重分片和目标 tokenizer，不能只下载一块权重。上述包版本来自原安装记录；这里只固定关键包，不保证未来解析出的所有间接依赖逐字节相同。
+
+### 3. 设置三条路线共用的启动超参
+
+在服务端终端执行一次，三种启动方式共用同一个 Bash 数组。目标路径不要包含 `dflash` 字样，避免模型路径识别与实际角色混淆。日志保存在仓库外，不要将新运行的私有数据提交到公共 Repo。
+
+```bash
+set -euo pipefail
+export VLLM_USE_V2_MODEL_RUNNER=1
+export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
+export RUN_DIR="$HOME/specdec-runs/$(date -u +%Y%m%dT%H%M%SZ)"
+mkdir -p "$RUN_DIR"
+
+COMMON=(
+	--model "$MODEL_ROOT/target"
+	--served-model-name Qwen/Qwen3.8-27B
+	--dtype bfloat16 --tensor-parallel-size 1
+	--max-model-len 32768
+	--max-num-seqs 16 --max-num-batched-tokens 16384
+	--gpu-memory-utilization 0.9
+	--no-enable-prefix-caching --kv-cache-dtype auto
+	--attention-backend FLASH_ATTN --mamba-ssm-cache-dtype float32
+	--reasoning-parser qwen3 --stream-interval 1
+	--generation-config vllm --seed 20260906
+	--limit-mm-per-prompt '{"image":0,"video":0,"audio":0}'
+	--host 127.0.0.1 --port 18080
+)
+```
+
+关键区别：模型和 KV cache 使用 BF16，但 Mamba SSM cache 固定为 FP32。`max-num-seqs=16` 是服务端调度上限，不是客户端必须发 16 路并发。`generation-config=vllm` 避免模型目录的生成默认值覆盖显式实验设置。
+
+### 4. 选择一种方式启动
+
+**同一 GPU、同一端口只运行其中一条。** 一条路线测完后，在服务端终端按 `Ctrl+C` 停止，并用 `nvidia-smi` 确认该服务已退出，再启动下一条。
+
+基线，不启用推测解码：
+
+```bash
+python -I -B -m vllm.entrypoints.openai.api_server "${COMMON[@]}" \
+	2>&1 | tee "$RUN_DIR/baseline-server.log"
+```
+
+MTP7，使用目标模型自带的 MTP 权重：
+
+```bash
+python -I -B -m vllm.entrypoints.openai.api_server "${COMMON[@]}" \
+	--speculative-config '{"method":"mtp","num_speculative_tokens":7,"rejection_sample_method":"standard"}' \
+	2>&1 | tee "$RUN_DIR/mtp7-server.log"
+```
+
+DFlash 2-7，额外加载配套 draft checkpoint：
+
+```bash
+python -I -B -m vllm.entrypoints.openai.api_server "${COMMON[@]}" \
+	--speculative-config "{\"method\":\"dflash\",\"model\":\"$MODEL_ROOT/draft\",\"num_speculative_tokens\":7,\"rejection_sample_method\":\"standard\"}" \
+	2>&1 | tee "$RUN_DIR/dflash2_7-server.log"
+```
+
+另开同机终端，先检查 `curl --fail http://127.0.0.1:18080/v1/models` 能返回 `Qwen/Qwen3.8-27B`。同时核对启动日志中实际生效的模式、V2 runner 和精度；DFlash 应加载 `DFlash2DraftModel`。服务就绪只证明加载完成，还需要下一步真实请求。
+
+### 5. 设置客户端请求与采样
+
+客户端始终调用同一个 `/v1/chat/completions` 和同一个 `model` 名称，**不在客户端切换 MTP/DFlash**。模式由上面的服务端启动参数决定。本实验没有 Web search 或 RAG；这里的客户端设置是采样、thinking、输出预算和请求并发。`top_k=20` 是输出采样范围，不是服务端每轮起草的 7 个 token。
+
+| 客户端设置 | 本次值 |
+|---|---|
+| 采样 | `temperature=1.0`、`top_p=0.95`、`top_k=20`、`min_p=0.0` |
+| 重复惩罚 | `presence_penalty=0.0`、`repetition_penalty=1.0` |
+| 思考 | `reasoning_effort="xhigh"`，模板开启并保留 thinking |
+| 输出上限 | `max_completion_tokens=16384`，包含 thinking |
+| 流式统计 | `stream=true`、`include_usage=true`、`return_token_ids=true`、`include_reasoning=true`、`stream_interval=1` |
+| 客户端并发 | 正式子集分别为 1、4、8；三次基础 seed 为 20260906、20260907、20260908 |
+
+每题实际 seed 为 `int(SHA256(f"{base_seed}|{task_id}")[:8], 16) % 2147483647`，不是把基础 seed 原样用于每题。[请求样例](evidence/request-examples.json)已保存当时发送的完整 JSON。下面直接发送其中一份，不重写提示词或猜参数。
+
+在客户端终端进入同一实验目录并激活相同 Python 环境，然后执行：
+
+```bash
+set -euo pipefail
+source "$HOME/.venvs/qwen38-specdec/bin/activate"
+CLIENT_RUN="$HOME/specdec-runs/client-$(date -u +%Y%m%dT%H%M%SZ)"
+mkdir -p "$CLIENT_RUN"
+python -c 'import json; from pathlib import Path; samples=json.loads(Path("evidence/request-examples.json").read_text(encoding="utf-8")); print(json.dumps(samples[0]["request"], ensure_ascii=False))' \
+	> "$CLIENT_RUN/request.json"
+curl --fail-with-body --no-buffer --connect-timeout 10 --max-time 600 \
+	http://127.0.0.1:18080/v1/chat/completions \
+	-H 'Content-Type: application/json' \
+	--data-binary @"$CLIENT_RUN/request.json" \
+	| tee "$CLIENT_RUN/response.sse"
+```
+
+`samples[0]` 是代码题，改为 `samples[1]` 可发送数学题。检查完整 SSE 中的生成 `token_ids`、最终 `usage`、`finish_reason` 和 `[DONE]`；`finish_reason=length` 表示触及上限，不能当作正常完成的答案。三条路线应使用相同请求 JSON。此处 curl 的超时与记录方式仅用于单请求复现，不用于计算上文性能表。
+
+### 复现范围
+
+上述命令依据实际安装记录、启动参数及[测量源码](source/campaign_runner.py)的 `server_command` 整理，仅将本机路径改为环境变量；本次文档修订没有重新开 GPU。**它提供三种服务启动与真实请求的复现路径，不把一次 curl 请求冒充完整 benchmark。**
+
+复跑得分表还必须保持同一批 64 题、27 组、固定顺序和并发补位策略，执行原测量逻辑及 EvalPlus/Math-Verify 评分。原 `campaign_runner.py` 的入口还依赖准备阶段的完整输入与运行合同，不能直接拿删去内部字段的公开配置去运行 `--stage all`。现有公开快照提供启动/请求说明和离线复算，尚不是完整 27 组实验的独立安装包。官方方法入口：[MTP](https://github.com/vllm-project/vllm/blob/v0.28.0/docs/features/speculative_decoding/mtp.md)、[固定版本推测配置源码](https://github.com/vllm-project/vllm/blob/2cf0a6915ce544dc493a0990f2ea38d81601128a/vllm/config/speculative.py)。
+
 <a id="执行覆盖"></a>
 
 ## 测试覆盖与未执行项
@@ -194,9 +328,7 @@ TTFT 从派发请求计时，到首个非空生成 `token_ids` 事件为止；�
 
 总计完成 **69/81 组、1,920/5,904 份响应**。剩余 12 组、3,984 份响应保持 `NOT_RUN`，既不从计划中删除，也不当作答错。运行记录的总体状态因此仍为 `BLOCKED`。
 
-F 原本要让三条路线在并发 1 和 8 下，分别完成全部 164 道 HumanEval+ 和 500 道 MATH-500，每题一次，seed 为 20260906。启动前预计还需约 **37.36 小时**（包含 1.5 倍安全系数），剩余时限只有约 **1.29 小时**，因此没有启动。它不是运行到预算耗尽后才被迫中断。
-
-精确预测值和停止原因保留在[运行证据](evidence/run.json)中，原记录为 `FULL_MATRIX_DOES_NOT_FIT_BILLING_RUNWAY; denominator unchanged`。
+F 原本要让三条路线在并发 1 和 8 下，分别完成全部 164 道 HumanEval+ 和 500 道 MATH-500，每题一次，seed 为 20260906。本轮预算没有覆盖这一阶段，因此未启动；已测子集不能写成全量题集成绩。[覆盖记录](evidence/run.json)保留原计划和未执行项。
 
 <details>
 <summary>查看各阶段的测量耗时</summary>
@@ -212,27 +344,6 @@ F 原本要让三条路线在并发 1 和 8 下，分别完成全部 164 道 Hum
 
 </details>
 
-### 执行时间线
-
-实验结束后，先回收并校验本地证据，再释放 GPU。以下节点来自[运行记录](evidence/run.json)，更早的执行过程保留在[事件日志](evidence/events.jsonl)中。
-
-![最后一次执行与证据回收的记录](images/run-timeline.png)
-
-*图 2：依据本次运行事件、配置和请求样例生成。图中展示执行、全量阶段未启动、证据回收和 GPU 释放的顺序，间距不代表经过的时间。*
-
-<!-- BEGIN RUN_LOG -->
-| 节点 | 时间（UTC） |
-| --- | --- |
-| 最后一次执行开始 | 2026-09-06 06:28:46 |
-| 结束执行，全量阶段未启动 | 2026-09-06 15:20:08 |
-| 本地证据校验通过 | 2026-09-06 15:22:13 |
-| GPU 已释放 | 2026-09-06 15:22:53 |
-
-结束时已完成 **1,920/5,904 份响应**。表内时间显示到秒；完整时间戳、执行状态和释放记录见 [运行证据](evidence/run.json)。
-<!-- END RUN_LOG -->
-
-最后一次执行持续约 **8 小时 51 分钟**，包含恢复已有组和测量以外的开销。这个时长、测量组耗时和逐请求延迟不能相加；公开记录不足以重建整个实验的 VM 总占用时间。
-
 <a id="证据与复算边界"></a>
 
 ## 证据与代码
@@ -242,7 +353,7 @@ F 原本要让三条路线在并发 1 和 8 下，分别完成全部 164 道 Hum
 | [执行程序](source/campaign_runner.py) | 当时使用的组派发、计时和实验控制代码 |
 | [评分接入](source/scoring.py)、[流式计时](source/stream_metrics.py) | 官方评分与回答如何绑定，token 如何核对，延迟如何计算 |
 | [配置](evidence/configuration.json)、[请求样例](evidence/request-examples.json) | 固定参数及两份带哈希的实际请求 |
-| [运行记录](evidence/run.json)、[事件日志](evidence/events.jsonl) | 执行状态、加载检查、来源成员哈希及回收顺序 |
+| [实验记录](evidence/run.json) | 测试覆盖、加载检查、测量耗时及来源成员哈希 |
 | [逐组记录](data/groups.json)、[数值汇总](data/summary.json) | 题目 ID、已存评分、计时、计数和配对结果 |
 | [分析程序](analyze_results.py)、[验收程序](validate_report.py) | 重新汇总数字，检查报告和证据是否一致 |
 
@@ -270,7 +381,7 @@ python analyze_results.py --groups data/groups.json --output regenerated
 
 为分析命令追加 `--figure regenerated/throughput.png` 可生成吞吐图，此项需要 [Matplotlib 3.10.9](requirements-figures.txt)。数值复算本身不需要 Matplotlib。
 
-审阅修改后，`python validate_report.py --refresh --timeline` 会重建报告表格、时间线图片和文件哈希清单。默认验收命令只读，不改写证据。图片字节可能随字体或平台变化。
+审阅修改后，`python validate_report.py --refresh` 会重建结果表格和文件哈希清单。默认验收命令只读，不改写证据。图片字节可能随字体或平台变化。
 
 </details>
 

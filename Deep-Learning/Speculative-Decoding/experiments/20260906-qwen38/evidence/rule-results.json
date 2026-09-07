@@ -10,11 +10,11 @@
       ]
     },
     {
-      "id": "run-id-state-duration-and-coverage",
+      "id": "run-id-measurement-duration-and-coverage",
       "status": "PASS",
       "evidence": [
         "evidence/run.json",
-        "evidence/events.jsonl"
+        "data/groups.json"
       ]
     },
     {
@@ -26,7 +26,7 @@
       ]
     },
     {
-      "id": "generated-bilingual-tables-and-reader-log",
+      "id": "generated-bilingual-result-tables",
       "status": "PASS",
       "evidence": [
         "README.md",
@@ -49,5 +49,5 @@
       ]
     }
   ],
-  "manifest_sha256": "e6bb4024a2b8f9e93a7192ca58a3fe677a93d0306a483077e5ee3b73ccf085c1"
+  "manifest_sha256": "97c90ab3ff2045c24453a5b40aa50932cc0888a19079b733dad8cd4f7f316537"
 }

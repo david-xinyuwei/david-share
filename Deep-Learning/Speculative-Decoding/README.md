@@ -23,6 +23,7 @@ These observations support initial selection, not production acceptance. The ful
 | Goal | Read |
 |---|---|
 | Compare speed and answer quality | [Latest measured report](experiments/20260906-qwen38/README.md) |
+| Download weights, start baseline/MTP/DFlash and configure the client | [How to Run](experiments/20260906-qwen38/README.md#how-to-run) |
 | Check report numbers against saved records | [Offline replay and tests](#quick-start) |
 | Understand the drafting difference | [How MTP and DFlash differ](#how-mtp-and-dflash-differ) |
 | Inspect the first-generation DFlash concurrency failure | [Qwen3.6 complete-answer evaluation](experiments/20260905-quality/README.md) |
@@ -89,7 +90,7 @@ python -m unittest discover -s experiments/20260906-qwen38 -p "test_*.py"
 
 Both commands should exit with code 0, with all tests passing. They check consistency of the report, saved scores and file hashes; **they do not rerun inference or grading**. The dedicated CI runs these checks on Windows and Linux with Python 3.10 and 3.12.
 
-The previous report's exact replay follows its recorded Python 3.12 environment; see the [earlier experiment](experiments/20260905-quality/README.md). Fresh inference additionally needs a GPU and the pinned model/runtime setup. Public offline replay assets are not a complete deployment bundle.
+For real inference, [How to Run](experiments/20260906-qwen38/README.md#how-to-run) covers weight roles, downloads, all three server modes, common parameters and client requests. This differs from offline validation, and a request smoke is not the full scored experiment. The previous report's Python 3.12 replay is documented in the [earlier experiment](experiments/20260905-quality/README.md).
 
 ## Evidence and Code
 
@@ -97,7 +98,7 @@ The previous report's exact replay follows its recorded Python 3.12 environment;
 |---|---|
 | Scores, throughput and individual repeats | [Summary](experiments/20260906-qwen38/data/summary.json), [group records](experiments/20260906-qwen38/data/groups.json) |
 | Actual settings and requests | [Configuration](experiments/20260906-qwen38/evidence/configuration.json), [request examples](experiments/20260906-qwen38/evidence/request-examples.json) |
-| Completed stages, stop and collection times | [Run record](experiments/20260906-qwen38/evidence/run.json), [event log](experiments/20260906-qwen38/evidence/events.jsonl) |
+| Completed tests and observed parameter loading | [Experiment record](experiments/20260906-qwen38/evidence/run.json) |
 | Executed dispatch, timing and grader integration | [Source snapshots](experiments/20260906-qwen38/source/) |
 | Numerical replay and report checks | [Analyzer](experiments/20260906-qwen38/analyze_results.py), [validator](experiments/20260906-qwen38/validate_report.py) |
 

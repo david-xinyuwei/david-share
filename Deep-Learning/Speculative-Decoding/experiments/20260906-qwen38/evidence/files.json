@@ -16,37 +16,29 @@
       "bytes": 15985,
       "sha256": "aa2a21b8b0ad05799acde42318f17a6954c406c288688eae66b30f08dc2031ff"
     },
-    "evidence/events.jsonl": {
-      "bytes": 754893,
-      "sha256": "55ed3b7d2ef0b812c2abd1a2d3e305d2e215c387585973b50b01f8d21ed5b245"
-    },
     "evidence/request-examples.json": {
       "bytes": 3026,
       "sha256": "da29ee3655c449ca0529467b96c1c6329b250a2232ae0b69f9abc6d5bbc3b647"
     },
     "evidence/run.json": {
-      "bytes": 45700,
-      "sha256": "a651e7552c0c60d3c5544a1b477d2a1aea4f5536c56219994a9a5c8abbdbf530"
+      "bytes": 44412,
+      "sha256": "56c452d5b302e3ee108fba3e601b6d1d780712c3766027de460d28c8e4a726e7"
     },
     "export_evidence.py": {
-      "bytes": 7374,
-      "sha256": "fbaf04f80ebfc72a52e8f0b6f0c1699e5405e69a4d81c53bd4002a0ae2bd79e3"
-    },
-    "images/run-timeline.png": {
-      "bytes": 97768,
-      "sha256": "dbd17918a8dcd176603d5989a0695ba35d24f9c357b868931d75611a9bc6ffef"
+      "bytes": 4795,
+      "sha256": "533264db1a93bf8ea656a579be0cc0509e861f98d6eb3a599b310073b30c1f9d"
     },
     "images/throughput.png": {
       "bytes": 82369,
       "sha256": "02707795cab9cd507412aefef7a98518a026de451ea107c571700805a5997216"
     },
     "README-CN.md": {
-      "bytes": 15828,
-      "sha256": "18cf6a8c633e9f5d3698719a1eeb0bada325875aaf41c19f4ca5a6a5c2039c1d"
+      "bytes": 22697,
+      "sha256": "481380468e0f0fadcff365d5f4025d44abfb8706305a9793e43e0a950da4475e"
     },
     "README.md": {
-      "bytes": 16255,
-      "sha256": "40dc48ee83a6ff2b213dd7becbfb143ec718e69e5a54009347bb610267265b05"
+      "bytes": 23465,
+      "sha256": "c51c88a86db4c992ec93156cb3f46de40b4f78ba26fc95741c682f1a79589692"
     },
     "requirements-figures.txt": {
       "bytes": 18,
@@ -69,12 +61,12 @@
       "sha256": "b322b92867a37c5097e31112f3831176499a5a6d511bb886ed9323153ea4dea5"
     },
     "test_report.py": {
-      "bytes": 8635,
-      "sha256": "2115198688f86a305002d331173be1aca5801f52192cedd04701f11625111b09"
+      "bytes": 12822,
+      "sha256": "b2a7ec0be7f60e3ba9d132a7d8aa6e76612ce901cec31770addf4376e8759bb6"
     },
     "validate_report.py": {
-      "bytes": 23851,
-      "sha256": "35ddc01ebd1904657df8256c42254503cffe06cc6910f353e5ab807d43c7d528"
+      "bytes": 18325,
+      "sha256": "3ebabc7b7f49c15b7c0a0a5ec5427f758be044b0d6d43be27d34c69cb6f69d1c"
     }
   },
   "scope": "Published experiment files; generated rule results and this manifest excluded."

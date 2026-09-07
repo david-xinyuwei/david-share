@@ -23,6 +23,7 @@
 | 你想了解什么 | 入口 |
 |---|---|
 | DFlash 2 比 MTP 快多少，答案有没有变差 | [最新测试报告](experiments/20260906-qwen38/README-CN.md) |
+| 下载权重，启动基线、MTP 或 DFlash，设置客户端 | [How to Run](experiments/20260906-qwen38/README-CN.md#how-to-run) |
 | 核对报告数字和已保存记录 | [离线复算与测试](#快速开始) |
 | 理解两种起草方式的区别 | [MTP 和 DFlash 差在哪里](#mtp-和-dflash-差在哪里) |
 | 回看首代 DFlash 的并发异常 | [Qwen3.6 完整答案评测](experiments/20260905-quality/README-CN.md) |
@@ -89,7 +90,7 @@ python -m unittest discover -s experiments/20260906-qwen38 -p "test_*.py"
 
 两条命令都应以退出码 0 结束，测试全部通过。它们验证报告、已保存的评分和文件哈希是否一致，**不重新执行推理或评分**。专用 CI 在 Windows、Linux 的 Python 3.10 和 3.12 上执行这些检查。
 
-上一轮报告按当时的 Python 3.12 环境复算，入口见[旧实验说明](experiments/20260905-quality/README-CN.md)。发起新的推理还需要 GPU、固定版本的模型和引擎；公开的离线复算资产不是完整部署包。
+启动真实推理见 [How to Run](experiments/20260906-qwen38/README-CN.md#how-to-run)：包含权重角色、下载、三种服务启动、共享超参和客户端请求。它与上述离线校验不同，且单次请求不等于重跑全部评分实验。上一轮报告的 Python 3.12 复算入口见[旧实验说明](experiments/20260905-quality/README-CN.md)。
 
 ## 证据与代码
 
@@ -97,7 +98,7 @@ python -m unittest discover -s experiments/20260906-qwen38 -p "test_*.py"
 |---|---|
 | 分数、吞吐与每次重复的结果 | [汇总](experiments/20260906-qwen38/data/summary.json)、[逐组记录](experiments/20260906-qwen38/data/groups.json) |
 | 实际使用的参数和请求 | [配置](experiments/20260906-qwen38/evidence/configuration.json)、[请求样例](experiments/20260906-qwen38/evidence/request-examples.json) |
-| 哪些阶段完成，何时停止和回收 | [运行记录](experiments/20260906-qwen38/evidence/run.json)、[事件日志](experiments/20260906-qwen38/evidence/events.jsonl) |
+| 哪些测试完成，参数是否实际加载 | [实验记录](experiments/20260906-qwen38/evidence/run.json) |
 | 当时怎样派发、计时和接入评分器 | [执行源码快照](experiments/20260906-qwen38/source/) |
 | 如何重算和检查报告 | [分析程序](experiments/20260906-qwen38/analyze_results.py)、[验收程序](experiments/20260906-qwen38/validate_report.py) |
 
