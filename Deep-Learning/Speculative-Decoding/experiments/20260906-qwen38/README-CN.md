@@ -1,6 +1,12 @@
 # Qwen3.8-27B：MTP 与 DFlash 2 实测
 
-同样起草 7 个候选 token，DFlash 2 比模型自带的 MTP 快多少？更快输出的回答，还能答对吗？这次在单张 H100 NVL 上，用同一批代码题和数学题，同时测速度、得分和截断情况。
+[![vLLM](https://img.shields.io/badge/vLLM-0.28.0-0078D4.svg)](https://github.com/vllm-project/vllm/releases/tag/v0.28.0)
+[![GPU](https://img.shields.io/badge/GPU-H100%20NVL-76B900.svg?logo=nvidia&logoColor=white)](#测试方法)
+[![精度](https://img.shields.io/badge/Precision-BF16-008080.svg)](#测试方法)
+[![测试范围](https://img.shields.io/badge/Scope-64%20tasks%20repeated-D97706.svg)](#测试覆盖与未执行项)
+[![证据校验 CI](https://github.com/david-xinyuwei/david-share/actions/workflows/speculative-decoding-ci.yml/badge.svg?branch=master)](https://github.com/david-xinyuwei/david-share/actions/workflows/speculative-decoding-ci.yml)
+
+在 vLLM 上部署 Qwen3.8-27B 时，这份报告帮助你比较模型自带的 MTP 与 DFlash 2，并提供权重下载、三种服务启动和客户端请求配置。选型同时看吞吐、延迟和答案质量，不能只凭 token 输出速度决定是否切换。
 
 在三个并发档位、三个随机种子（seed）的九组配对中，DFlash 2 的输出吞吐均高于 MTP7。得分总体接近，但并发 4 的第三次运行里，DFlash 2 的代码题答对 **29/32**，MTP7 为 **31/32**，而且 DFlash 2 做完这一组题更慢。**吞吐优势已经测到，准确率不下降尚未得到证明。**
 
@@ -10,7 +16,7 @@
 
 [English](README.md) | [中文](README-CN.md) | [推测解码总览](../../README-CN.md)
 
-[结果](#吞吐与答案质量) · [方法](#测试方法) · [How to Run](#how-to-run) · [覆盖范围](#测试覆盖与未执行项) · [离线复算](#离线复算)
+[结果](#吞吐与答案质量) · [方法](#测试方法) · [启动与调用](#how-to-run) · [覆盖范围](#测试覆盖与未执行项) · [离线复算](#离线复算)
 
 实验日期：2026-09-06。运行标识：`qwen38-quality-20260906`。
 
@@ -26,7 +32,7 @@
 
 ![三种路线在并发 1、4、8 下的输出吞吐](images/throughput.png)
 
-*图 1：作者实测。柱形表示三次运行的中位数，误差线表示最小值和最大值，不是置信区间；同一批 64 题，吞吐包含 thinking token。来源：[逐组记录](data/groups.json)。*
+*图 1：作者实测。柱形表示三次运行的中位数，误差线表示最小值和最大值，不是置信区间；同一批 64 题，吞吐包含思考过程中的 token。来源：[逐组记录](data/groups.json)。*
 
 <!-- BEGIN RESULT_TABLE -->
 ### 吞吐与整组耗时
@@ -79,7 +85,7 @@
 </details>
 <!-- END RESULT_TABLE -->
 
-以上各表由[已保存的汇总](data/summary.json)生成。吞吐按“服务端确认的输出 token 总数 ÷ 整组耗时”计算，**包含 thinking、错答和截断回答**。计时从首个测量请求派发，到最后一个请求的终止事件接收完成；不含模型下载、启动、预热和评分。这不是 GPU 纯解码吞吐。
+以上各表对应[数值汇总](data/summary.json)。吞吐按“服务端确认的输出 token 总数 ÷ 整组耗时”计算，**包含思考过程、错答和截断回答中的 token**。计时从首个测量请求派发，到最后一个请求的终止事件接收完成；不含模型下载、启动、预热和评分。这不是 GPU 纯解码吞吐。
 
 ### 为什么还要看正确答案的交付速度
 
@@ -143,20 +149,22 @@ TTFT 从派发请求计时，到首个非空生成 `token_ids` 事件为止；�
 
 三条路线固定目标模型、数值精度、题目、输出预算和采样设置，只切换推测解码配置。参数来自当时保存的[配置](evidence/configuration.json)，实际加载检查记录在[运行证据](evidence/run.json)的 `activation` 中。
 
+客户端、推理服务与评分程序的关系见[架构与测试流程](../../README-CN.md#架构与测试流程)。本次客户端与服务端同机，计时包含请求派发与流式响应接收，不把模型启动或离线评分时间算作推理性能。
+
 | 项目 | 本次设置 |
 |---|---|
 | 硬件 | 单张 H100 NVL，张量并行度为 1 |
 | 目标模型 | Qwen3.8-27B，BF16 |
-| MTP | 目标 checkpoint 自带的多 token 预测权重，未另行训练或转换 |
+| MTP | 目标模型文件自带的多 token 预测权重，未另行训练或转换 |
 | DFlash 2 | incoai 发布的 Qwen3.8-27B-DFlash2，BF16 |
 | 推理引擎 | vLLM 0.28.0，实际加载 Model Runner V2 |
 | 候选数量 | 基线为 0；MTP7 和 DFlash 2-7 均为 7 |
-| 输出预算 | 每题最多 16,384 个 token，包含 thinking |
-| 思考设置 | 开启并保留 thinking，`reasoning_effort="xhigh"` |
+| 输出预算 | 每题最多 16,384 个 token，包含思考过程 |
+| 思考设置 | 开启并保留思考过程（thinking），`reasoning_effort="xhigh"` |
 | 采样 | temperature 为 1.0，top_p 为 0.95，top_k 为 20 |
-| 配对方式 | 并发 1、4、8；seed 为 20260906、20260907、20260908 |
+| 配对方式 | 并发 1、4、8；随机种子为 20260906、20260907、20260908 |
 
-每类 32 个题目 ID 按预先固定的 SHA-256 排序规则选取，不参考回答和分数。三条路线使用相同的逐题 seed，但这不代表每一步随机抽样完全对齐。代码题由 EvalPlus 官方工具评分，数学题由 Math-Verify 官方工具评分。
+每类 32 个题目 ID 按预先固定的 SHA-256 排序规则选取，不参考回答和分数。三条路线使用相同的逐题随机种子，但这不代表每一步随机抽样完全对齐。代码题由 EvalPlus 官方工具评分，数学题由 Math-Verify 官方工具评分。
 
 <details>
 <summary>查看固定版本、完整参数与请求样例</summary>
@@ -165,35 +173,37 @@ TTFT 从派发请求计时，到首个非空生成 `token_ids` 事件为止；�
 
 | 对象 | 版本记录 |
 |---|---|
-| 目标模型 | [Qwen3.8-27B checkpoint](https://huggingface.co/Qwen/Qwen3.8-27B/tree/1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0) |
-| DFlash 2 | [Qwen3.8-27B-DFlash2 checkpoint](https://huggingface.co/incoai/Qwen3.8-27B-DFlash2/tree/dedf8df68adfb1afeaf7b7480c0a0243108177b4)，架构为 `DFlash2DraftModel` |
+| 目标模型 | [Qwen3.8-27B 固定版本权重](https://huggingface.co/Qwen/Qwen3.8-27B/tree/1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0) |
+| DFlash 2 | [Qwen3.8-27B-DFlash2 固定版本权重](https://huggingface.co/incoai/Qwen3.8-27B-DFlash2/tree/dedf8df68adfb1afeaf7b7480c0a0243108177b4)，架构为 `DFlash2DraftModel` |
 | vLLM | [0.28.0 固定源码](https://github.com/vllm-project/vllm/tree/2cf0a6915ce544dc493a0990f2ea38d81601128a) |
 | EvalPlus | [固定源码](https://github.com/evalplus/evalplus/tree/26d6d00bb1fd0fa37f39c99d5290da67891d1c5e)，使用官方 sanitize/evaluate CLI |
 | Math-Verify | [固定源码](https://github.com/huggingface/Math-Verify/tree/ba3d3aaff23b3f4cac7a14672b4f6e293d97c98b)，使用官方 `evaluate_model_outputs.py` |
 
 其余参数为 `min_p=0.0`、`presence_penalty=0.0`、`repetition_penalty=1.0`。模板同时设置 `enable_thinking=true` 和 `preserve_thinking=true`；调度上限为 `max_model_len=32768`、`max_num_seqs=16`、`max_num_batched_tokens=16384`。
 
-客户端与服务端同机，经过回环地址按固定顺序、固定并发补位派发。固定客户端并发，不代表 GPU 批次形状相同。归档路线标识分别为 `baseline`、`mtp7`、`dflash2_7`；配置中的基础 seed 为 20260906。
+客户端按固定顺序发送请求：一个请求完成后再补发下一个，保持指定并发数。相同客户端并发不代表 GPU 每批处理的请求数和序列长度相同。记录中的路线标识分别为 `baseline`、`mtp7`、`dflash2_7`；配置中的基础随机种子为 20260906。
 
 [请求样例](evidence/request-examples.json)保存了第一组基线运行中 `HumanEval/69` 和 `MATH-500/100` 的提示词、完整参数及哈希。`raw_correct` 记录评分器判对数，`normal_correct` 还要求 `finish_reason=stop`；二者在本次 S 阶段恰好一致。离线分析使用已保存的评分，不重新判分。
 
 </details>
 
-## How to Run
+<a id="how-to-run"></a>
 
-### 1. 先分清目标模型和 draft 权重
+## 启动与调用
 
-约 3.8 GB 的文件是 **DFlash 2 的 draft model，不是完整的 Qwen3.8-27B，也不是它的 MTP 权重**。不能把该文件作为 `--model` 再指定 `method=mtp`。三条路线都必须加载完整目标 checkpoint：
+### 1. 先分清目标模型和草稿模型权重
+
+约 3.8 GB 的文件是 **DFlash 2 的草稿模型（draft model），不是完整的 Qwen3.8-27B，也不是它的 MTP 权重**。不能把该文件作为 `--model` 再指定 `method=mtp`。三条路线都必须加载完整目标模型权重：
 
 | 路线 | 目标模型 | 推测配置 |
 |---|---|---|
 | 基线 | Qwen3.8-27B | 不传 `--speculative-config` |
-| MTP7 | 同一目标 checkpoint，使用其自带 MTP 权重 | `method="mtp"`，不另传 draft model |
-| DFlash 2-7 | 同一目标 checkpoint，另挂 DFlash 2 draft | `method="dflash"`，`model` 指向 draft 目录 |
+| MTP7 | 同一目标模型，使用其自带 MTP 权重 | `method="mtp"`，不另传草稿模型 |
+| DFlash 2-7 | 同一目标模型，另加载 DFlash 2 草稿模型 | `method="dflash"`，`model` 指向草稿模型目录 |
 
-本次归档记录的目标 `.safetensors` 共 18 个、55,563,006,776 字节（约 55.56 GB）；draft 权重为 1 个、3,848,817,896 字节（约 3.85 GB / 3.58 GiB）。这是磁盘权重大小，不是推理所需总显存。**DFlash 2 是 checkpoint 的名称，本次 vLLM 的启动方法仍写 `dflash`，不是 `dflash2` 或 `draft_model`。**
+本次记录的目标 `.safetensors` 共 18 个、55,563,006,776 字节（约 55.56 GB）；草稿模型权重为 1 个、3,848,817,896 字节（约 3.85 GB / 3.58 GiB）。这是磁盘权重大小，不是推理所需总显存。**DFlash 2 是模型权重的名称，本次 vLLM 的启动方法仍写 `dflash`，不是 `dflash2` 或 `draft_model`。**
 
-以下使用 Linux x86_64、Bash 和 Python 3.12。实测硬件为单张 H100 NVL；需要支持 CUDA 13 的 NVIDIA 驱动，以及目标、draft、KV cache 和工作区所需显存。其他 GPU 容量与数值行为需另行验证。
+以下使用 Linux x86_64、Bash 和 Python 3.12。实测硬件为单张 H100 NVL；需要支持 CUDA 13 的 NVIDIA 驱动，以及目标模型、草稿模型、KV cache 和工作区所需显存。其他 GPU 容量与数值行为需另行验证。
 
 ### 2. 准备固定版本
 
@@ -214,11 +224,11 @@ hf download incoai/Qwen3.8-27B-DFlash2 \
 	--local-dir "$MODEL_ROOT/draft"
 ```
 
-模型目录中应包含配置、全部权重分片和目标 tokenizer，不能只下载一块权重。上述包版本来自原安装记录；这里只固定关键包，不保证未来解析出的所有间接依赖逐字节相同。
+模型目录中应包含配置、全部权重分片和目标模型的分词器（tokenizer），不能只下载一个权重分片。上述包版本来自实际安装记录；这里只固定关键包，不保证未来安装时取得的所有间接依赖完全相同。
 
-### 3. 设置三条路线共用的启动超参
+### 3. 设置三条路线共用的启动参数
 
-在服务端终端执行一次，三种启动方式共用同一个 Bash 数组。目标路径不要包含 `dflash` 字样，避免模型路径识别与实际角色混淆。日志保存在仓库外，不要将新运行的私有数据提交到公共 Repo。
+在服务端终端执行一次，三种启动方式共用同一个 Bash 数组。目标路径不要包含 `dflash` 字样，避免模型路径识别与实际角色混淆。每次启动的日志保存到 `$HOME/specdec-runs/` 下的独立目录，不覆盖已有结果。
 
 ```bash
 set -euo pipefail
@@ -264,7 +274,7 @@ python -I -B -m vllm.entrypoints.openai.api_server "${COMMON[@]}" \
 	2>&1 | tee "$RUN_DIR/mtp7-server.log"
 ```
 
-DFlash 2-7，额外加载配套 draft checkpoint：
+DFlash 2-7，额外加载配套草稿模型权重：
 
 ```bash
 python -I -B -m vllm.entrypoints.openai.api_server "${COMMON[@]}" \
@@ -272,22 +282,22 @@ python -I -B -m vllm.entrypoints.openai.api_server "${COMMON[@]}" \
 	2>&1 | tee "$RUN_DIR/dflash2_7-server.log"
 ```
 
-另开同机终端，先检查 `curl --fail http://127.0.0.1:18080/v1/models` 能返回 `Qwen/Qwen3.8-27B`。同时核对启动日志中实际生效的模式、V2 runner 和精度；DFlash 应加载 `DFlash2DraftModel`。服务就绪只证明加载完成，还需要下一步真实请求。
+另开同机终端，先检查 `curl --fail http://127.0.0.1:18080/v1/models` 能返回 `Qwen/Qwen3.8-27B`。同时核对启动日志中实际生效的模式、Model Runner V2 和精度；DFlash 应加载 `DFlash2DraftModel`。服务就绪只证明加载完成，还需要下一步真实请求。
 
 ### 5. 设置客户端请求与采样
 
-客户端始终调用同一个 `/v1/chat/completions` 和同一个 `model` 名称，**不在客户端切换 MTP/DFlash**。模式由上面的服务端启动参数决定。本实验没有 Web search 或 RAG；这里的客户端设置是采样、thinking、输出预算和请求并发。`top_k=20` 是输出采样范围，不是服务端每轮起草的 7 个 token。
+客户端始终调用同一个 `/v1/chat/completions` 和同一个 `model` 名称，**不在客户端切换 MTP/DFlash**。模式由服务端启动参数决定。下面配置的是采样、思考过程、输出上限和请求并发，不包含联网搜索或检索增强生成（RAG）。`top_k=20` 是输出采样范围，不是服务端每轮起草的 7 个 token。
 
 | 客户端设置 | 本次值 |
 |---|---|
 | 采样 | `temperature=1.0`、`top_p=0.95`、`top_k=20`、`min_p=0.0` |
 | 重复惩罚 | `presence_penalty=0.0`、`repetition_penalty=1.0` |
-| 思考 | `reasoning_effort="xhigh"`，模板开启并保留 thinking |
-| 输出上限 | `max_completion_tokens=16384`，包含 thinking |
+| 思考 | `reasoning_effort="xhigh"`，模板开启并保留思考过程 |
+| 输出上限 | `max_completion_tokens=16384`，包含思考过程 |
 | 流式统计 | `stream=true`、`include_usage=true`、`return_token_ids=true`、`include_reasoning=true`、`stream_interval=1` |
-| 客户端并发 | 正式子集分别为 1、4、8；三次基础 seed 为 20260906、20260907、20260908 |
+| 客户端并发 | 正式子集分别为 1、4、8；三次基础随机种子为 20260906、20260907、20260908 |
 
-每题实际 seed 为 `int(SHA256(f"{base_seed}|{task_id}")[:8], 16) % 2147483647`，不是把基础 seed 原样用于每题。[请求样例](evidence/request-examples.json)已保存当时发送的完整 JSON。下面直接发送其中一份，不重写提示词或猜参数。
+每题实际随机种子为 `int(SHA256(f"{base_seed}|{task_id}")[:8], 16) % 2147483647`，不是把基础随机种子原样用于每题。[请求样例](evidence/request-examples.json)保存了当时发送的完整 JSON。下面直接发送其中一份，以保持提示词和参数一致。
 
 在客户端终端进入同一实验目录并激活相同 Python 环境，然后执行：
 
@@ -309,9 +319,9 @@ curl --fail-with-body --no-buffer --connect-timeout 10 --max-time 600 \
 
 ### 复现范围
 
-上述命令依据实际安装记录、启动参数及[测量源码](source/campaign_runner.py)的 `server_command` 整理，仅将本机路径改为环境变量；本次文档修订没有重新开 GPU。**它提供三种服务启动与真实请求的复现路径，不把一次 curl 请求冒充完整 benchmark。**
+上述命令依据实际安装记录、启动参数及[测量源码](source/campaign_runner.py)的 `server_command` 整理，将本机路径改为环境变量。**适用范围是三种服务的启动和单个请求的调用，不是完整的性能与质量评测。** 新安装环境仍需验证模型加载与请求结果，不能将已有测试成绩视为新环境的验收结果。
 
-复跑得分表还必须保持同一批 64 题、27 组、固定顺序和并发补位策略，执行原测量逻辑及 EvalPlus/Math-Verify 评分。原 `campaign_runner.py` 的入口还依赖准备阶段的完整输入与运行合同，不能直接拿删去内部字段的公开配置去运行 `--stage all`。现有公开快照提供启动/请求说明和离线复算，尚不是完整 27 组实验的独立安装包。官方方法入口：[MTP](https://github.com/vllm-project/vllm/blob/v0.28.0/docs/features/speculative_decoding/mtp.md)、[固定版本推测配置源码](https://github.com/vllm-project/vllm/blob/2cf0a6915ce544dc493a0990f2ea38d81601128a/vllm/config/speculative.py)。
+复跑得分表还必须保持同一批 64 题、27 组、固定顺序和并发策略，执行原测量逻辑及 EvalPlus/Math-Verify 评分。`campaign_runner.py` 所需的完整准备步骤、题目输入和调度配置尚未打包为可独立运行的公开入口，因此不能仅凭本页配置直接运行 `--stage all`。现有文件支持启动与调用参考、已保存结果的离线复算，不是完整 27 组实验的独立安装包。官方方法入口：[MTP](https://github.com/vllm-project/vllm/blob/v0.28.0/docs/features/speculative_decoding/mtp.md)、[固定版本推测配置源码](https://github.com/vllm-project/vllm/blob/2cf0a6915ce544dc493a0990f2ea38d81601128a/vllm/config/speculative.py)。
 
 <a id="执行覆盖"></a>
 
@@ -326,23 +336,20 @@ curl --fail-with-body --no-buffer --connect-timeout 10 --max-time 600 \
 | S：重复子集 | 27 | 1,728 | 已完成 |
 | F：完整题集 | 0 | 0 | 未执行 |
 
-总计完成 **69/81 组、1,920/5,904 份响应**。剩余 12 组、3,984 份响应保持 `NOT_RUN`，既不从计划中删除，也不当作答错。运行记录的总体状态因此仍为 `BLOCKED`。
+总计完成 **69/81 组、1,920/5,904 份响应**。剩余 12 组、3,984 份响应未执行，既不从计划中删除，也不当作答错。因此，当前结果只覆盖已完成部分，不代表全部计划通过。
 
-F 原本要让三条路线在并发 1 和 8 下，分别完成全部 164 道 HumanEval+ 和 500 道 MATH-500，每题一次，seed 为 20260906。本轮预算没有覆盖这一阶段，因此未启动；已测子集不能写成全量题集成绩。[覆盖记录](evidence/run.json)保留原计划和未执行项。
+F 阶段计划让三条路线在并发 1 和 8 下，分别完成全部 164 道 HumanEval+ 和 500 道 MATH-500，每题一次，随机种子为 20260906。该阶段未执行；已测子集不能写成全量题集成绩。[覆盖记录](evidence/run.json)保留原计划和未执行项。
 
-<details>
-<summary>查看各阶段的测量耗时</summary>
+### 各阶段测试耗时
 
 | 阶段 | 测量组耗时合计（秒） |
 |---|---:|
-| C | 928.51 |
-| G | 387.09 |
-| S | 27,800.41 |
-| F | 0，未执行 |
+| 兼容性检查（C） | 928.51 |
+| 贪心诊断（G） | 387.09 |
+| 重复子集（S） | 27,800.41 |
+| 完整题集（F） | 0，未执行 |
 
-这里只累加各测量组的耗时，显示到小数点后两位；精确值保留在[运行证据](evidence/run.json)中。这不是 VM 总占用时间，“已完成”也不表示每份答案都正确。
-
-</details>
+这里只累加各测量组从请求派发到响应结束的耗时，不含模型下载、服务启动、预热和评分，显示到小数点后两位；精确值保留在[运行证据](evidence/run.json)中。测试已完成不表示每份答案都正确。
 
 <a id="证据与复算边界"></a>
 
@@ -368,7 +375,7 @@ python validate_report.py
 python -m unittest discover -p "test_*.py"
 ```
 
-验收应输出 `REPORT_GATE=PASS`，测试全部通过，两条命令的退出码都为 0。它们不发起新推理，也不重新评分。需要重新生成数值汇总时，执行：
+验收应输出 `REPORT_GATE=PASS`，测试全部通过，两条命令的退出码都为 0。它们不发起新推理，也不重新评分。要从逐组数据独立核对汇总数字，可执行：
 
 ```bash
 python analyze_results.py --groups data/groups.json --output regenerated
@@ -376,17 +383,8 @@ python analyze_results.py --groups data/groups.json --output regenerated
 
 输出可与[已发布汇总](data/summary.json)对照。程序只读取已保存的评分、计数和计时，不执行生成的答案。从父目录运行的命令见[总览快速开始](../../README-CN.md#快速开始)。
 
-<details>
-<summary>重新生成图片和报告</summary>
-
-为分析命令追加 `--figure regenerated/throughput.png` 可生成吞吐图，此项需要 [Matplotlib 3.10.9](requirements-figures.txt)。数值复算本身不需要 Matplotlib。
-
-审阅修改后，`python validate_report.py --refresh` 会重建结果表格和文件哈希清单。默认验收命令只读，不改写证据。图片字节可能随字体或平台变化。
-
-</details>
-
 ## 结论适用到哪里
 
 - 可以说明本次固定配置、固定子集中的性能和得分，不能证明统计显著性、分布等价或正式非劣效。
 - 吞吐、客户端延迟、正确答案交付速度是不同指标，不能互相替代，也不能据此推断 GPU kernel 的独立性能。
-- 本轮换了模型、checkpoint 和引擎，不能据此认定[旧版 DFlash 的并发故障](../20260905-quality/README-CN.md)已修复。两轮结果独立保留。
+- 本轮换了模型、权重版本和引擎，不能据此认定[旧版 DFlash 的并发故障](../20260905-quality/README-CN.md)已修复。两轮结果独立保留。

@@ -1,6 +1,12 @@
 # Qwen3.8-27B: MTP and DFlash 2 Measurements
 
-With seven draft candidates each, how much faster is DFlash 2 than native MTP? Are those faster responses still correct? This run used the same code and math tasks on one H100 NVL to measure speed, scores and length stops together.
+[![vLLM](https://img.shields.io/badge/vLLM-0.28.0-0078D4.svg)](https://github.com/vllm-project/vllm/releases/tag/v0.28.0)
+[![GPU](https://img.shields.io/badge/GPU-H100%20NVL-76B900.svg?logo=nvidia&logoColor=white)](#test-method)
+[![Precision](https://img.shields.io/badge/Precision-BF16-008080.svg)](#test-method)
+[![Test scope](https://img.shields.io/badge/Scope-64%20tasks%20repeated-D97706.svg)](#coverage-and-unexecuted-work)
+[![Evidence CI](https://github.com/david-xinyuwei/david-share/actions/workflows/speculative-decoding-ci.yml/badge.svg?branch=master)](https://github.com/david-xinyuwei/david-share/actions/workflows/speculative-decoding-ci.yml)
+
+This report helps engineers deploying Qwen3.8-27B on vLLM compare native MTP with DFlash 2. It provides weight downloads, all three server modes and client request settings. Use throughput, latency and answer quality together when selecting a route, rather than switching based only on token output speed.
 
 DFlash 2 exceeded MTP7 in output throughput across all nine matched concurrency/seed pairs. Scores were broadly close, but at concurrency 4 in the third run, DFlash 2 answered **29/32** code tasks correctly versus **31/32** for MTP7, and took longer to finish that group. **The throughput advantage was observed; non-decreasing accuracy was not established.**
 
@@ -143,6 +149,8 @@ A speculative SSE chunk can carry several tokens. These are client delivery meas
 
 The three routes keep the target model, precision, tasks, output budget and sampling fixed while switching speculative configuration. Settings come from the [saved configuration](evidence/configuration.json); observed loading checks are in `activation` in the [run evidence](evidence/run.json).
 
+See [architecture and test flow](../../README.md#architecture-and-test-flow) for the client, inference service and graders. Client and server share one host. Timing covers request dispatch through streamed response completion, excluding model startup and offline grading.
+
 | Setting | This run |
 |---|---|
 | Hardware | One H100 NVL; tensor parallelism 1 |
@@ -218,7 +226,7 @@ The directories must contain configuration, all weight shards and the target tok
 
 ### 3. Set Shared Server Parameters
 
-Run once in the server terminal. All routes use this Bash array. Keep `dflash` out of the target's local path to avoid confusing path-based model identification with its actual role. Logs go outside the repository; do not publish private inputs or new run output.
+Run once in the server terminal. All routes use this Bash array. Keep `dflash` out of the target's local path to avoid confusing path-based model identification with its actual role. Each launch writes logs to a separate directory under `$HOME/specdec-runs/`, preserving previous results.
 
 ```bash
 set -euo pipefail
@@ -309,9 +317,9 @@ curl --fail-with-body --no-buffer --connect-timeout 10 --max-time 600 \
 
 ### Reproduction Scope
 
-Commands are transcribed from the recorded installation, actual launch arguments and `server_command` in the [measurement source](source/campaign_runner.py), with local paths replaced by environment variables. No GPU was restarted for this documentation revision. **This reproduces the three server configurations and an actual request; one curl call is not the full benchmark.**
+Commands are transcribed from the recorded installation, actual launch arguments and `server_command` in the [measurement source](source/campaign_runner.py), with local paths replaced by environment variables. **Their scope is starting the three server modes and sending a request, not running the full performance and quality evaluation.** A new installation still needs model-loading and request checks; existing scores are not acceptance results for that environment.
 
-Reproducing the score table additionally requires the same 64 tasks, 27 groups, frozen ordering, closed-loop concurrency, original measurement logic and EvalPlus/Math-Verify grading. The archived `campaign_runner.py` entry point depends on the preparation-stage input and runtime contract; the public configuration with internal fields removed cannot be passed directly to `--stage all`. This public snapshot provides startup/request instructions and offline replay, not yet a standalone installer for the full 27-group experiment. Official method references: [MTP](https://github.com/vllm-project/vllm/blob/v0.28.0/docs/features/speculative_decoding/mtp.md), [pinned speculative configuration source](https://github.com/vllm-project/vllm/blob/2cf0a6915ce544dc493a0990f2ea38d81601128a/vllm/config/speculative.py).
+Reproducing the score table additionally requires the same 64 tasks, 27 groups, frozen ordering, closed-loop concurrency, original measurement logic and EvalPlus/Math-Verify grading. The full preparation steps, task inputs and scheduling configuration required by `campaign_runner.py` are not yet packaged as a standalone public entry point, so the settings on this page cannot be passed directly to `--stage all`. Available files provide startup/request guidance and offline replay, not a standalone installer for the full 27-group experiment. Official method references: [MTP](https://github.com/vllm-project/vllm/blob/v0.28.0/docs/features/speculative_decoding/mtp.md), [pinned speculative configuration source](https://github.com/vllm-project/vllm/blob/2cf0a6915ce544dc493a0990f2ea38d81601128a/vllm/config/speculative.py).
 
 <a id="coverage-and-completion"></a>
 
@@ -326,23 +334,20 @@ The original plan has four stages. Performance and score tables in this report u
 | S: repeated subset | 27 | 1,728 | Complete |
 | F: full datasets | 0 | 0 | Not run |
 
-Totals are **69/81 groups and 1,920/5,904 responses**. The remaining 12 groups and 3,984 responses stay `NOT_RUN`: neither removed from the plan nor marked incorrect. The campaign's recorded overall state therefore remains `BLOCKED`.
+Totals are **69/81 groups and 1,920/5,904 responses**. The remaining 12 groups and 3,984 responses were not executed: neither removed from the plan nor marked incorrect. These results cover the completed work, not a pass for the entire plan.
 
-F would run all three routes at concurrency 1 and 8 over all 164 HumanEval+ and 500 MATH-500 tasks, once per task, with seed 20260906. It was not started because it did not fit this run's budget. The measured subset is not a full-dataset score; the [coverage record](evidence/run.json) preserves the original plan and unexecuted items.
+F would run all three routes at concurrency 1 and 8 over all 164 HumanEval+ and 500 MATH-500 tasks, once per task, with seed 20260906. This stage was not executed. The measured subset is not a full-dataset score; the [coverage record](evidence/run.json) preserves the original plan and unexecuted items.
 
-<details>
-<summary>Measured duration by stage</summary>
+### Measured Duration by Stage
 
 | Stage | Sum of group wall times (s) |
 |---|---:|
-| C | 928.51 |
-| G | 387.09 |
-| S | 27,800.41 |
-| F | 0, not run |
+| Compatibility (C) | 928.51 |
+| Greedy diagnostics (G) | 387.09 |
+| Repeated subset (S) | 27,800.41 |
+| Full datasets (F) | 0, not run |
 
-These are sums of measured group wall times, rounded to two decimals; exact values remain in [run evidence](evidence/run.json). They are not total VM allocation time. Complete describes execution, not perfect correctness.
-
-</details>
+These sum measured group times from request dispatch to response completion, excluding model downloads, server startup, warmup and grading. Values are rounded to two decimals; exact values remain in [run evidence](evidence/run.json). Complete describes execution, not perfect correctness.
 
 <a id="evidence-and-replay"></a>
 
@@ -368,22 +373,13 @@ python validate_report.py
 python -m unittest discover -p "test_*.py"
 ```
 
-Validation should print `REPORT_GATE=PASS`, all tests should pass, and both commands should exit with code 0. They do not start fresh inference or regrading. To regenerate the numerical summary:
+Validation should print `REPORT_GATE=PASS`, all tests should pass, and both commands should exit with code 0. They do not start fresh inference or regrading. To independently check summary values from the per-group records:
 
 ```bash
 python analyze_results.py --groups data/groups.json --output regenerated
 ```
 
 Compare the output with the [published summary](data/summary.json). The program only reads saved grades, counts and timing; it does not execute generated answers. Commands from the parent directory are in the [overview Quick Start](../../README.md#quick-start).
-
-<details>
-<summary>Regenerating figures and report content</summary>
-
-Add `--figure regenerated/throughput.png` to the analysis command to generate the throughput plot. This requires [Matplotlib 3.10.9](requirements-figures.txt); numerical replay does not.
-
-After reviewing edits, `python validate_report.py --refresh` regenerates result tables and the file hash inventory. Default validation is read-only. Rendered image bytes can vary with fonts or platform.
-
-</details>
 
 ## Scope of the Conclusion
 

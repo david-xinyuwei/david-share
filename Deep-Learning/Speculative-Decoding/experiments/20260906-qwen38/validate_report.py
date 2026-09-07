@@ -183,6 +183,24 @@ def verify_local_links(root):
         parent_text = (boundary / filename).read_text(encoding="utf-8")
         require(f"experiments/{root.name}/{filename}" in parent_text, "PARENT_REPORT_ENTRY_MISSING")
         require(f"python experiments/{root.name}/validate_report.py" in parent_text, "PARENT_REPLAY_ENTRY_MISSING")
+        for page_text in (text, parent_text):
+            opening = page_text.split("\n## ", 1)[0]
+            badges = re.findall(r"\[!\[[^\]]*\]\((https?://[^)]+)\)\]\([^)]+\)", opening)
+            for signature in ("img.shields.io/badge/vLLM-", "img.shields.io/badge/GPU-",
+                              "github.com/david-xinyuwei/david-share/actions/workflows/speculative-decoding-ci.yml/badge.svg"):
+                require(any(signature in badge for badge in badges), "READER_BADGE_MISSING:" + filename)
+            for marker in ("validate_report.py --refresh", "--figure regenerated/",
+                           "重新生成图片和报告", "Regenerating figures and report content",
+                           "本次文档修订", "documentation revision"):
+                require(marker not in page_text, "INTERNAL_MAINTENANCE_IN_READER_PAGE:" + filename)
+        chinese = filename == "README-CN.md"
+        value_heading = "## 你能用它做什么" if chinese else "## What You Can Do With This Repository"
+        require(value_heading in parent_text, "CUSTOMER_VALUE_ENTRY_MISSING")
+        require(re.search(r"```mermaid\s+flowchart\b.*?```", parent_text, re.S) is not None, "TEST_FLOW_MISSING")
+        duration_heading = "### 各阶段测试耗时" if chinese else "### Measured Duration by Stage"
+        require(duration_heading in text, "STAGE_DURATION_SECTION_MISSING")
+        for collapsed in re.findall(r"<details\b[^>]*>.*?</details>", text, re.S | re.I):
+            require(duration_heading not in collapsed, "STAGE_DURATIONS_COLLAPSED")
 
 
 def validate_data(root):
@@ -262,6 +280,7 @@ def validate(root=ROOT, *, refresh=False):
             ("actual-request-and-executed-source-hashes", ["evidence/request-examples.json", "source/"]),
             ("generated-bilingual-result-tables", ["README.md", "README-CN.md"]),
             ("local-links-and-reader-entry", ["README.md", "README-CN.md"]),
+            ("reader-layout-and-maintenance-boundary", ["README.md", "README-CN.md", "../../README.md", "../../README-CN.md"]),
             ("published-file-integrity", [MANIFEST]),
         )
     ]

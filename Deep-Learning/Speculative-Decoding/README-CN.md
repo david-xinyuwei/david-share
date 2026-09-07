@@ -4,7 +4,7 @@
 [![GPU](https://img.shields.io/badge/GPU-H100%20NVL-76B900.svg)](experiments/20260906-qwen38/README-CN.md)
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/speculative-decoding-ci.yml/badge.svg)](https://github.com/david-xinyuwei/david-share/actions/workflows/speculative-decoding-ci.yml)
 
-给同一个大模型开启推测解码，能不能更快生成回答，又不损失答案质量？只看每秒输出多少 token 不够，还要给同一批回答评分。
+这个仓库帮助你为 Qwen3.8-27B 比较模型自带的 MTP 和 DFlash 2，并提供权重下载、服务启动、客户端请求及结果核对方法。你可以据此选择先在业务负载上验证哪条路线，而不是只凭每秒输出多少 token 决定是否切换。
 
 我们在单张 H100 NVL 上，用 Qwen3.8-27B 和 vLLM 0.28.0 比较了不开推测解码的基线、模型自带的 MTP，以及 DFlash 2。相同的 64 道题，在并发 1、4、8 下各跑三次。DFlash 2 的输出吞吐在九组配对中都高于 MTP，但得分只是总体接近，**尚未证明准确率不下降**。
 
@@ -23,11 +23,22 @@
 | 你想了解什么 | 入口 |
 |---|---|
 | DFlash 2 比 MTP 快多少，答案有没有变差 | [最新测试报告](experiments/20260906-qwen38/README-CN.md) |
-| 下载权重，启动基线、MTP 或 DFlash，设置客户端 | [How to Run](experiments/20260906-qwen38/README-CN.md#how-to-run) |
+| 下载权重，启动基线、MTP 或 DFlash，设置客户端 | [启动与调用](experiments/20260906-qwen38/README-CN.md#how-to-run) |
 | 核对报告数字和已保存记录 | [离线复算与测试](#快速开始) |
+| 了解客户端、推理服务和评分如何连接 | [架构与测试流程](#架构与测试流程) |
 | 理解两种起草方式的区别 | [MTP 和 DFlash 差在哪里](#mtp-和-dflash-差在哪里) |
 | 回看首代 DFlash 的并发异常 | [Qwen3.6 完整答案评测](experiments/20260905-quality/README-CN.md) |
 | 查早期 EAGLE3、训练和参数研究 | [历史研究原稿](RESEARCH-NOTES-CN.md) |
+
+## 你能用它做什么
+
+| 目标 | 仓库提供什么 | 对你的帮助 |
+|---|---|---|
+| 启动三条推理路线 | 固定权重版本、完整启动命令和相同请求样例 | 不必从零拼装 MTP、DFlash 与客户端参数 |
+| 判断哪条路线值得验证 | 同一批题目的吞吐、延迟、答对数和截断记录 | 同时比较速度与答案质量，识别“token 更快、正确答案反而交付更慢”的情况 |
+| 核对选型依据 | 逐组数据、评分接入源码、分析程序和测试 | 能检查报告数字从何而来，再为自己的业务设计验收 |
+
+这里提供的是部署参考和测试依据，不是经过生产验收的托管服务。完整 27 组实验的准备与调度尚未提供独立运行入口；具体边界见[复现范围](experiments/20260906-qwen38/README-CN.md#复现范围)。
 
 ## 本次实测说明了什么
 
@@ -35,29 +46,50 @@
 
 ![三种路线在并发 1、4、8 下的输出吞吐](experiments/20260906-qwen38/images/throughput.png)
 
-*作者实测。每个柱形表示三次运行的吞吐中位数，误差线表示最小值和最大值，不是置信区间。同一批 32 道代码题和 32 道数学题；吞吐包含 thinking token，按整组请求耗时计算。来源：[逐组记录](experiments/20260906-qwen38/data/groups.json)。*
+*作者实测。每个柱形表示三次运行的吞吐中位数，误差线表示最小值和最大值，不是置信区间。同一批 32 道代码题和 32 道数学题；吞吐包含思考过程中的 token，按整组请求耗时计算。来源：[逐组记录](experiments/20260906-qwen38/data/groups.json)。*
 
 | 问题 | 实测回答 |
 |---|---|
-| 输出吞吐更高吗 | 是。三档并发、三个 seed 的九组配对中，DFlash 2 都高于 MTP7 |
+| 输出吞吐更高吗 | 是。三档并发、三个随机种子的九组配对中，DFlash 2 都高于 MTP7 |
 | 准确率不下降得到证明了吗 | 没有。每类只有 32 道不同题目，三次重复用于观察波动，不能当成 96 道独立题 |
 | 正确答案也一定更快交付吗 | 不一定。并发 4 的第三次运行中，DFlash 2 做完同一组题更慢，正常结束且答对的答案交付速率也低于 MTP7 |
-| 原定全量题集都测了吗 | 没有。已完成 1,920 份响应，原计划 5,904 份；其余 3,984 份在启动前被预算检查阻止 |
+| 原定全量题集都测了吗 | 没有。已完成 1,920 份响应，原计划 5,904 份；其余 3,984 份未执行，不计作答错 |
 
 得分、截断数、延迟和例外情况均列在[完整报告](experiments/20260906-qwen38/README-CN.md)中。吞吐优势不能替代客户负载上的准确率、延迟和异常率验收。
 
+## 架构与测试流程
+
+客户端与推理服务运行在同一台机器上，通过回环地址通信。服务端每次只启动基线、MTP 或 DFlash 中的一种模式；切换模式不改变客户端 API。客户端记录请求耗时，评分程序检查生成的完整答案。
+
+```mermaid
+flowchart TB
+	client["客户端：固定题目、采样参数和并发"]
+	service["vLLM 0.28.0 / 单张 H100 NVL<br/>Qwen3.8-27B：基线、MTP 或 DFlash"]
+	draft["DFlash 2 草稿模型<br/>仅 DFlash 模式加载"]
+	records["完整回答、输出 token 与客户端计时"]
+	grading["EvalPlus / Math-Verify<br/>评分与截断统计"]
+	results["逐组结果与性能、质量汇总"]
+	client -->|"相同请求 API"| service
+	draft -->|"提供候选，目标模型验证"| service
+	service -->|"流式响应"| records
+	records --> grading
+	grading --> results
+```
+
+*原创测试流程图，依据本次[执行程序](experiments/20260906-qwen38/source/campaign_runner.py)、[流式计时](experiments/20260906-qwen38/source/stream_metrics.py)与[评分接入](experiments/20260906-qwen38/source/scoring.py)。图中区分推理、客户端测量和评分；三种模式并非同时运行。详细参数及题目选择见[测试方法](experiments/20260906-qwen38/README-CN.md#测试方法)。*
+
 ## MTP 和 DFlash 差在哪里
 
-推测解码让较小的 draft model 先提出候选，再由目标模型验证。目标模型仍决定哪些 token 能进入输出。
+推测解码先由草稿模型（draft model）提出候选，再由目标模型验证。目标模型仍决定哪些 token 能进入输出。
 
 | 比较项 | 本次 MTP7 | 本次 DFlash 2-7 |
 |---|---|---|
-| 起草所用权重 | Qwen3.8 checkpoint 自带的 MTP 权重 | 与目标模型配套的 DFlash 2 checkpoint |
-| 候选怎样生成 | 在本次 vLLM 路径中逐步起草 | 通过 block diffusion 并行起草一块候选 |
+| 起草所用权重 | Qwen3.8 模型文件自带的 MTP 权重 | 与目标模型配套的 DFlash 2 权重 |
+| 候选怎样生成 | 在本次 vLLM 路径中逐步起草 | 通过块扩散（block diffusion）并行生成一组候选 |
 | 每轮候选数量 | 7 个 token | 7 个 token |
 | 谁做最终验证 | 同一个 Qwen3.8 目标模型 | 同一个 Qwen3.8 目标模型 |
 
-这里的“7”是候选数量，不是网络层数。一次 forward 也不表示网络只有一层；它仍会经过 draft model 的各层。MTP 权重是否单独发布，随具体模型而异，不能把本次的打包方式当成 MTP 的统一定义。
+这里的“7”是候选数量，不是网络层数。一次前向计算也不表示网络只有一层；它仍会经过草稿模型的各层。MTP 权重是否单独发布，随具体模型而异，不能把本次的打包方式当成 MTP 的统一定义。
 
 推测解码的收益取决于两件事：每轮起草与验证花了多久，以及这一轮实际推进了多少个 token。候选越多，不一定越快；接受率也不是答案准确率。采样算法的分布保证，还需要正确的引擎实现，不能替代部署后的质量测试。
 
@@ -70,7 +102,7 @@
 | Qwen3.8 / DFlash 2 / vLLM 0.28.0 | 同一批 64 题，三档并发各跑三次；吞吐更高，质量结论限于该子集 | [最新实测](experiments/20260906-qwen38/README-CN.md) |
 | Qwen3.6 / 首代 DFlash / vLLM 0.21.0 | 主评测覆盖全部 164 道代码题和 500 道数学题；另测并发时发现明显质量回退 | [完整答案评测](experiments/20260905-quality/README-CN.md) |
 
-两轮的目标模型、draft model、引擎、题目范围和采样设置不同。新组合没有复现旧组合的严重回退，不能据此认定旧问题已经修好；旧问题的根因仍未定位。
+两轮的目标模型、草稿模型、引擎、题目范围和采样设置不同。新组合没有复现旧组合的严重回退，不能据此认定旧问题已经修好；旧问题的根因仍未定位。
 
 ## 快速开始
 
@@ -90,7 +122,7 @@ python -m unittest discover -s experiments/20260906-qwen38 -p "test_*.py"
 
 两条命令都应以退出码 0 结束，测试全部通过。它们验证报告、已保存的评分和文件哈希是否一致，**不重新执行推理或评分**。专用 CI 在 Windows、Linux 的 Python 3.10 和 3.12 上执行这些检查。
 
-启动真实推理见 [How to Run](experiments/20260906-qwen38/README-CN.md#how-to-run)：包含权重角色、下载、三种服务启动、共享超参和客户端请求。它与上述离线校验不同，且单次请求不等于重跑全部评分实验。上一轮报告的 Python 3.12 复算入口见[旧实验说明](experiments/20260905-quality/README-CN.md)。
+启动真实推理见[启动与调用](experiments/20260906-qwen38/README-CN.md#how-to-run)：包含权重说明、下载、三种服务启动、共用参数和客户端请求。它与上述离线校验不同，且单次请求不等于重跑全部评分实验。上一轮报告的 Python 3.12 复算入口见[旧实验说明](experiments/20260905-quality/README-CN.md)。
 
 ## 证据与代码
 

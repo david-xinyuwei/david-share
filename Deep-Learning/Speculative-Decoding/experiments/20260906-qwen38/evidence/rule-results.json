@@ -42,6 +42,16 @@
       ]
     },
     {
+      "id": "reader-layout-and-maintenance-boundary",
+      "status": "PASS",
+      "evidence": [
+        "README.md",
+        "README-CN.md",
+        "../../README.md",
+        "../../README-CN.md"
+      ]
+    },
+    {
       "id": "published-file-integrity",
       "status": "PASS",
       "evidence": [
@@ -49,5 +59,5 @@
       ]
     }
   ],
-  "manifest_sha256": "97c90ab3ff2045c24453a5b40aa50932cc0888a19079b733dad8cd4f7f316537"
+  "manifest_sha256": "c8b0fd643cd0a1e9ef3c4e9ed747683ae1495ebe665612176da7302bc89ff933"
 }

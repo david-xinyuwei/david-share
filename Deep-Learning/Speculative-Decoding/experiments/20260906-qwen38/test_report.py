@@ -149,10 +149,72 @@ class ReportIntegrityTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "PARENT_REPLAY_ENTRY_MISSING"):
             validate_report.validate(self.root)
 
+    def test_missing_reader_badges_are_rejected(self):
+        for directory in (self.root, self.root.parent.parent):
+            for filename in ("README.md", "README-CN.md"):
+                path = directory / filename
+                original = path.read_text(encoding="utf-8")
+                for signature in ("/badge/vLLM-", "/badge/GPU-", "/speculative-decoding-ci.yml/badge.svg"):
+                    with self.subTest(page=str(path), badge=signature):
+                        changed = "".join(line for line in original.splitlines(keepends=True) if signature not in line)
+                        self.assertNotEqual(changed, original)
+                        path.write_text(changed, encoding="utf-8")
+                        with self.assertRaisesRegex(ValueError, "READER_BADGE_MISSING"):
+                            validate_report.verify_local_links(self.root)
+                        path.write_text(original, encoding="utf-8")
+
+    def test_internal_report_maintenance_is_rejected(self):
+        for directory in (self.root, self.root.parent.parent):
+            for filename in ("README.md", "README-CN.md"):
+                with self.subTest(directory=str(directory), filename=filename):
+                    path = directory / filename
+                    original = path.read_text(encoding="utf-8")
+                    path.write_text(original + "\npython validate_report.py --refresh\n", encoding="utf-8")
+                    with self.assertRaisesRegex(ValueError, "INTERNAL_MAINTENANCE_IN_READER_PAGE"):
+                        validate_report.verify_local_links(self.root)
+                    path.write_text(original, encoding="utf-8")
+
+    def test_stage_durations_cannot_be_hidden(self):
+        for filename, heading in (("README.md", "### Measured Duration by Stage"),
+                                  ("README-CN.md", "### 各阶段测试耗时")):
+            with self.subTest(filename=filename):
+                path = self.root / filename
+                original = path.read_text(encoding="utf-8")
+                section = heading + original.split(heading, 1)[1].split("\n<a id=", 1)[0]
+                hidden = "<details>\n<summary>Stage durations</summary>\n\n" + section + "\n</details>\n"
+                path.write_text(original.replace(section, hidden), encoding="utf-8")
+                with self.assertRaisesRegex(ValueError, "STAGE_DURATIONS_COLLAPSED"):
+                    validate_report.verify_local_links(self.root)
+                path.write_text(original, encoding="utf-8")
+
+    def test_customer_value_section_cannot_be_removed(self):
+        for filename, heading in (("README.md", "## What You Can Do With This Repository"),
+                                  ("README-CN.md", "## 你能用它做什么")):
+            with self.subTest(filename=filename):
+                path = self.root.parent.parent / filename
+                original = path.read_text(encoding="utf-8")
+                path.write_text(original.replace(heading, ""), encoding="utf-8")
+                with self.assertRaisesRegex(ValueError, "CUSTOMER_VALUE_ENTRY_MISSING"):
+                    validate_report.verify_local_links(self.root)
+                path.write_text(original, encoding="utf-8")
+
+    def test_test_flow_cannot_be_removed(self):
+        for filename in ("README.md", "README-CN.md"):
+            with self.subTest(filename=filename):
+                path = self.root.parent.parent / filename
+                original = path.read_text(encoding="utf-8")
+                path.write_text(re.sub(r"```mermaid\n.*?```", "", original, flags=re.S), encoding="utf-8")
+                with self.assertRaisesRegex(ValueError, "TEST_FLOW_MISSING"):
+                    validate_report.verify_local_links(self.root)
+                path.write_text(original, encoding="utf-8")
+
     def how_to_run_blocks(self, filename):
         text = (self.root / filename).read_text(encoding="utf-8")
-        self.assertEqual(text.count("\n## How to Run\n"), 1)
-        section = text.split("\n## How to Run\n", 1)[1].split("\n## ", 1)[0]
+        heading = "启动与调用" if filename == "README-CN.md" else "How to Run"
+        self.assertEqual(text.count(f"\n## {heading}\n"), 1)
+        if filename == "README-CN.md":
+            self.assertIn('<a id="how-to-run"></a>', text)
+        section = text.split(f"\n## {heading}\n", 1)[1].split("\n## ", 1)[0]
         blocks = re.findall(r"```bash\n(.*?)\n```", section, re.S)
         self.assertEqual(len(blocks), 6)
         parent = (self.root.parent.parent / filename).read_text(encoding="utf-8")
