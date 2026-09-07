@@ -2,6 +2,7 @@
 
 import argparse
 from collections import Counter, defaultdict
+from datetime import datetime
 import hashlib
 import json
 import math
@@ -36,6 +37,11 @@ def digest_file(path):
 def require(condition, message):
     if not condition:
         raise ValueError(message)
+
+
+def parse_timestamp(value):
+    normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
+    return datetime.fromisoformat(normalized)
 
 
 def read_groups(archive, verification):

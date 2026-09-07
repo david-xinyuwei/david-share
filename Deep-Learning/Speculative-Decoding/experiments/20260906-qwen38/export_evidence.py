@@ -2,13 +2,12 @@
 
 import argparse
 from collections import Counter
-from datetime import datetime
 import hashlib
 import json
 from pathlib import Path
 import tarfile
 
-from analyze_results import digest_file, dump_json, require
+from analyze_results import digest_file, dump_json, parse_timestamp, require
 
 
 EVENT_FIELDS = (
@@ -51,7 +50,7 @@ def export(source, destination):
         require(bool(starts), "CAMPAIGN_START_MISSING")
         start = starts[-1]["updated_utc"]
         end = campaign["updated_utc"]
-        duration = (datetime.fromisoformat(end) - datetime.fromisoformat(start)).total_seconds()
+        duration = (parse_timestamp(end) - parse_timestamp(start)).total_seconds()
         require(duration > 0, "INVALID_INVOCATION_CLOCK")
         groups = projection["groups"]
         require(campaign["completed"] == sum(group["completed"] for group in groups), "CAMPAIGN_COUNT_MISMATCH")
@@ -82,7 +81,7 @@ def export(source, destination):
     verified = [line.split("=", 1)[1] for line in finalizer_raw.decode("utf-8").splitlines() if line.startswith("EVIDENCE_LOCAL_VERIFIED=")]
     require(bool(verified), "COLLECTION_VERIFICATION_TIME_MISSING")
     closure_time = closure["finished_utc"]
-    require(datetime.fromisoformat(end) <= datetime.fromisoformat(verified[-1]) <= datetime.fromisoformat(closure_time), "CLOSURE_ORDER_INVALID")
+    require(parse_timestamp(end) <= parse_timestamp(verified[-1]) <= parse_timestamp(closure_time), "CLOSURE_ORDER_INVALID")
     public = {
         "run_id": campaign["run_id"],
         "source_archive": {"sha256": digest_file(archive_path), "bytes": archive_path.stat().st_size},

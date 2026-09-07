@@ -1,7 +1,6 @@
 """Validate the saved experiment, generated report blocks and published hashes."""
 
 import argparse
-from datetime import datetime
 import hashlib
 import json
 import math
@@ -10,7 +9,7 @@ import re
 from statistics import median
 from urllib.parse import unquote, urlsplit
 
-from analyze_results import digest_file, dump_json, require, summarize
+from analyze_results import digest_file, dump_json, parse_timestamp, require, summarize
 
 
 ROOT = Path(__file__).resolve().parent
@@ -194,10 +193,10 @@ def validate_data(root):
         require(observation["cold_start_contamination"] is False, "COLD_START_CONTAMINATION")
         require(run["source_members"][group["source"]["member"]]["sha256"] == group["source"]["sha256"], "GROUP_PROVENANCE_MISMATCH")
     timing, closure = run["timing"], run["closure"]
-    start = datetime.fromisoformat(timing["last_invocation_start_utc"])
-    end = datetime.fromisoformat(timing["last_invocation_end_utc"])
+    start = parse_timestamp(timing["last_invocation_start_utc"])
+    end = parse_timestamp(timing["last_invocation_end_utc"])
     require(math.isclose((end - start).total_seconds(), timing["last_invocation_elapsed_s"], rel_tol=1e-12), "INVOCATION_DURATION_MISMATCH")
-    require(end <= datetime.fromisoformat(closure["evidence_verified_utc"]) <= datetime.fromisoformat(closure["power_verified_utc"]), "CLOSURE_ORDER_MISMATCH")
+    require(end <= parse_timestamp(closure["evidence_verified_utc"]) <= parse_timestamp(closure["power_verified_utc"]), "CLOSURE_ORDER_MISMATCH")
     require(closure["evidence_verified"] is True and closure["power_decision"] == "STOPPED", "CLOSURE_NOT_VERIFIED")
     events = [json.loads(line) for line in (root / "evidence/events.jsonl").read_text(encoding="utf-8").splitlines()]
     require(all(event["run_id"] == run["run_id"] for event in events), "EVENT_RUN_MISMATCH")
@@ -243,7 +242,7 @@ def draw_timeline(root, run):
     for position, color, (label, timestamp, state) in zip(positions, colors, events):
         axis.scatter([position], [4.85], s=160, color=color, zorder=2)
         axis.text(position, 5.35, label, ha="center", fontsize=14, weight="bold", color=color)
-        axis.text(position, 4.32, datetime.fromisoformat(timestamp).strftime("%H:%M:%S"), ha="center", fontsize=17)
+        axis.text(position, 4.32, parse_timestamp(timestamp).strftime("%H:%M:%S"), ha="center", fontsize=17)
         axis.text(position, 3.83, state, ha="center", fontsize=10)
     terminal = run["terminal"]
     axis.text(7.5, 2.75, f"C/G/S: {terminal['groups_completed']} completed groups, {terminal['completed']} responses | F: NOT_RUN", ha="center", fontsize=16, weight="bold")

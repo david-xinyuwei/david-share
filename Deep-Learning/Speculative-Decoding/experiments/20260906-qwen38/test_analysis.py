@@ -24,6 +24,11 @@ class EvidenceReplayTests(unittest.TestCase):
     def test_saved_summary_is_reproduced(self):
         self.assertEqual(analyze_results.summarize(self.groups, self.coverage), self.expected)
 
+    def test_utc_z_timestamp_matches_explicit_offset(self):
+        self.assertEqual(analyze_results.parse_timestamp("2026-09-06T15:22:13Z"),
+                         analyze_results.parse_timestamp("2026-09-06T15:22:13+00:00"))
+        self.assertEqual(analyze_results.parse_timestamp("2026-09-06T15:22:53.681726Z").microsecond, 681726)
+
     def test_missing_engine_is_rejected(self):
         self.groups[0].pop("engine")
         with self.assertRaisesRegex(ValueError, "ENGINE_NOT_RECONCILED"):
