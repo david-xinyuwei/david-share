@@ -10,11 +10,13 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from urllib.parse import unquote, urlsplit
 
 import validate_report
 
 
 ROOT = Path(__file__).resolve().parent
+TOPIC = ROOT.parent.parent
 
 
 class ReportIntegrityTests(unittest.TestCase):
@@ -22,12 +24,28 @@ class ReportIntegrityTests(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name) / "topic" / "experiments" / ROOT.name
+        self.topic = self.root.parent.parent
         shutil.copytree(ROOT, self.root, ignore=shutil.ignore_patterns("__pycache__", "regenerated"))
-        for language in ("README.md", "README-CN.md"):
-            shutil.copyfile(ROOT.parent.parent / language, self.root.parent.parent / language)
-            old = self.root.parent / "20260905-quality"
-            old.mkdir(exist_ok=True)
-            shutil.copyfile(ROOT.parent / "20260905-quality" / language, old / language)
+        for language in validate_report.READMES:
+            shutil.copyfile(TOPIC / language, self.topic / language)
+        self.mirror_link_targets()
+
+    def mirror_link_targets(self):
+        for language in validate_report.READMES:
+            text = (self.topic / language).read_text(encoding="utf-8")
+            for link in re.findall(r"!?\[[^\]]*\]\(([^)]+)\)", text):
+                target = urlsplit(link)
+                if target.scheme or link.startswith("#"):
+                    continue
+                relative = unquote(target.path)
+                source, destination = TOPIC / relative, self.topic / relative
+                if destination.exists() or not source.exists():
+                    continue
+                if source.is_dir():
+                    destination.mkdir(parents=True, exist_ok=True)
+                else:
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copyfile(source, destination)
 
     def mutate_json(self, relative, mutate):
         path = self.root / relative
@@ -70,7 +88,7 @@ class ReportIntegrityTests(unittest.TestCase):
             validate_report.validate_data(self.root)
 
     def test_table_change_is_rejected(self):
-        path = self.root / "README.md"
+        path = self.topic / "README.md"
         path.write_text(path.read_text(encoding="utf-8").replace("150.51", "151.51"), encoding="utf-8")
         with self.assertRaisesRegex(ValueError, "REPORT_DATA_DRIFT:RESULT_TABLE"):
             validate_report.validate(self.root)
@@ -80,7 +98,7 @@ class ReportIntegrityTests(unittest.TestCase):
             validate_report.generated_block("<!-- BEGIN RESULT_TABLE -->" * 2 + "<!-- END RESULT_TABLE -->", "RESULT_TABLE", "", refresh=False)
 
     def test_counterexample_ratio_drift_is_rejected(self):
-        path = self.root / "README.md"
+        path = self.topic / "README.md"
         path.write_text(path.read_text(encoding="utf-8").replace("0.8713", "1.1640"), encoding="utf-8")
         with self.assertRaisesRegex(ValueError, "REPORT_DATA_DRIFT:COUNTEREXAMPLE"):
             validate_report.validate(self.root)
@@ -138,47 +156,61 @@ class ReportIntegrityTests(unittest.TestCase):
         self.assertIn("| MTP7 / 1 | tpot_s | 31 | 1 |", table)
 
     def test_public_reports_omit_internal_timeline(self):
-        for filename in ("README.md", "README-CN.md"):
-            text = (self.root / filename).read_text(encoding="utf-8")
+        for filename in validate_report.READMES:
+            text = (self.topic / filename).read_text(encoding="utf-8")
             for internal_content in ("run-timeline.png", "BEGIN RUN_LOG", "--timeline"):
                 self.assertNotIn(internal_content, text)
 
-    def test_parent_onboarding_removal_is_rejected(self):
-        parent = self.root.parent.parent / "README.md"
-        parent.write_text(parent.read_text(encoding="utf-8").replace("python experiments/20260906-qwen38/validate_report.py", "omitted"), encoding="utf-8")
-        with self.assertRaisesRegex(ValueError, "PARENT_REPLAY_ENTRY_MISSING"):
+    def test_replay_entry_removal_is_rejected(self):
+        path = self.topic / "README.md"
+        path.write_text(path.read_text(encoding="utf-8").replace("python experiments/20260906-qwen38/validate_report.py", "omitted"), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "REPLAY_ENTRY_MISSING"):
             validate_report.validate(self.root)
 
-    def test_missing_reader_badges_are_rejected(self):
-        for directory in (self.root, self.root.parent.parent):
-            for filename in ("README.md", "README-CN.md"):
-                path = directory / filename
-                original = path.read_text(encoding="utf-8")
-                for signature in ("/badge/vLLM-", "/badge/GPU-", "/speculative-decoding-ci.yml/badge.svg"):
-                    with self.subTest(page=str(path), badge=signature):
-                        changed = "".join(line for line in original.splitlines(keepends=True) if signature not in line)
-                        self.assertNotEqual(changed, original)
-                        path.write_text(changed, encoding="utf-8")
-                        with self.assertRaisesRegex(ValueError, "READER_BADGE_MISSING"):
-                            validate_report.verify_local_links(self.root)
-                        path.write_text(original, encoding="utf-8")
+    def test_nested_markdown_is_rejected(self):
+        nested = self.root / "NOTES.md"
+        nested.write_text("# nested\n", encoding="utf-8")
+        with self.subTest(case="file"):
+            with self.assertRaisesRegex(ValueError, "NESTED_MARKDOWN_FILE"):
+                validate_report.verify_local_links(self.root)
+        with self.subTest(case="link"):
+            path = self.topic / "README.md"
+            original = path.read_text(encoding="utf-8")
+            path.write_text(original + "\n[notes](experiments/20260906-qwen38/NOTES.md)\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "NESTED_MARKDOWN_LINK"):
+                validate_report.verify_local_links(self.root)
+            path.write_text(original, encoding="utf-8")
+        nested.unlink()
+        validate_report.verify_local_links(self.root)
 
-    def test_internal_report_maintenance_is_rejected(self):
-        for directory in (self.root, self.root.parent.parent):
-            for filename in ("README.md", "README-CN.md"):
-                with self.subTest(directory=str(directory), filename=filename):
-                    path = directory / filename
-                    original = path.read_text(encoding="utf-8")
-                    path.write_text(original + "\npython validate_report.py --refresh\n", encoding="utf-8")
-                    with self.assertRaisesRegex(ValueError, "INTERNAL_MAINTENANCE_IN_READER_PAGE"):
+    def test_missing_reader_badges_are_rejected(self):
+        for filename in validate_report.READMES:
+            path = self.topic / filename
+            original = path.read_text(encoding="utf-8")
+            for signature in ("/badge/vLLM-", "/badge/GPU-", "/speculative-decoding-ci.yml/badge.svg"):
+                with self.subTest(page=filename, badge=signature):
+                    changed = "".join(line for line in original.splitlines(keepends=True) if signature not in line)
+                    self.assertNotEqual(changed, original)
+                    path.write_text(changed, encoding="utf-8")
+                    with self.assertRaisesRegex(ValueError, "READER_BADGE_MISSING"):
                         validate_report.verify_local_links(self.root)
                     path.write_text(original, encoding="utf-8")
+
+    def test_internal_report_maintenance_is_rejected(self):
+        for filename in validate_report.READMES:
+            with self.subTest(filename=filename):
+                path = self.topic / filename
+                original = path.read_text(encoding="utf-8")
+                path.write_text(original + "\npython validate_report.py --refresh\n", encoding="utf-8")
+                with self.assertRaisesRegex(ValueError, "INTERNAL_MAINTENANCE_IN_READER_PAGE"):
+                    validate_report.verify_local_links(self.root)
+                path.write_text(original, encoding="utf-8")
 
     def test_stage_durations_cannot_be_hidden(self):
         for filename, heading in (("README.md", "### Measured Duration by Stage"),
                                   ("README-CN.md", "### 各阶段测试耗时")):
             with self.subTest(filename=filename):
-                path = self.root / filename
+                path = self.topic / filename
                 original = path.read_text(encoding="utf-8")
                 section = heading + original.split(heading, 1)[1].split("\n<a id=", 1)[0]
                 hidden = "<details>\n<summary>Stage durations</summary>\n\n" + section + "\n</details>\n"
@@ -191,7 +223,7 @@ class ReportIntegrityTests(unittest.TestCase):
         for filename, heading in (("README.md", "## What You Can Do With This Repository"),
                                   ("README-CN.md", "## 你能用它做什么")):
             with self.subTest(filename=filename):
-                path = self.root.parent.parent / filename
+                path = self.topic / filename
                 original = path.read_text(encoding="utf-8")
                 path.write_text(original.replace(heading, ""), encoding="utf-8")
                 with self.assertRaisesRegex(ValueError, "CUSTOMER_VALUE_ENTRY_MISSING"):
@@ -199,17 +231,19 @@ class ReportIntegrityTests(unittest.TestCase):
                 path.write_text(original, encoding="utf-8")
 
     def test_test_flow_cannot_be_removed(self):
-        for filename in ("README.md", "README-CN.md"):
+        for filename in validate_report.READMES:
             with self.subTest(filename=filename):
-                path = self.root.parent.parent / filename
+                path = self.topic / filename
                 original = path.read_text(encoding="utf-8")
-                path.write_text(re.sub(r"```mermaid\n.*?```", "", original, flags=re.S), encoding="utf-8")
+                changed = re.sub(r"!\[[^\]]*\]\([^)]*test-flow-[a-z]+\.png\)", "", original)
+                self.assertNotEqual(changed, original)
+                path.write_text(changed, encoding="utf-8")
                 with self.assertRaisesRegex(ValueError, "TEST_FLOW_MISSING"):
                     validate_report.verify_local_links(self.root)
                 path.write_text(original, encoding="utf-8")
 
     def how_to_run_blocks(self, filename):
-        text = (self.root / filename).read_text(encoding="utf-8")
+        text = (self.topic / filename).read_text(encoding="utf-8")
         heading = "启动与调用" if filename == "README-CN.md" else "How to Run"
         self.assertEqual(text.count(f"\n## {heading}\n"), 1)
         if filename == "README-CN.md":
@@ -217,8 +251,7 @@ class ReportIntegrityTests(unittest.TestCase):
         section = text.split(f"\n## {heading}\n", 1)[1].split("\n## ", 1)[0]
         blocks = re.findall(r"```bash\n(.*?)\n```", section, re.S)
         self.assertEqual(len(blocks), 6)
-        parent = (self.root.parent.parent / filename).read_text(encoding="utf-8")
-        self.assertIn(f"experiments/{self.root.name}/{filename}#how-to-run", parent)
+        self.assertIn(f"experiments/{self.root.name}/evidence/request-examples.json", blocks[-1])
         return blocks
 
     def test_how_to_run_matches_recorded_launch_contract(self):
@@ -269,7 +302,7 @@ class ReportIntegrityTests(unittest.TestCase):
         arguments = shlex.split(block.replace("\\\n", ""))
         code = arguments[arguments.index("-c") + 1]
         result = subprocess.run([sys.executable, "-B", "-X", "utf8", "-c", code],
-                                cwd=self.root, check=True, capture_output=True, encoding="utf-8")
+                                cwd=self.topic, check=True, capture_output=True, encoding="utf-8")
         examples = validate_report.read_json(self.root / "evidence/request-examples.json")
         self.assertEqual(json.loads(result.stdout), examples[0]["request"])
         self.assertIn("http://127.0.0.1:18080/v1/chat/completions", arguments)

@@ -1,0 +1,12 @@
+flowchart TB
+    client["Client<br/>fixed tasks, sampling and concurrency"]
+    service["vLLM 0.28.0 on one H100 NVL<br/>Qwen3.8-27B<br/>baseline, MTP or DFlash, one at a time"]
+    draft["DFlash 2 draft model<br/>loaded only in DFlash mode"]
+    records["Complete answers, output tokens<br/>and client-side timing"]
+    grading["EvalPlus / Math-Verify<br/>grading and length-stop counts"]
+    results["Per-group records<br/>performance and quality summaries"]
+    client -->|"same request API"| service
+    draft -->|"candidates verified by the target"| service
+    service -->|"streamed responses"| records
+    records --> grading
+    grading --> results

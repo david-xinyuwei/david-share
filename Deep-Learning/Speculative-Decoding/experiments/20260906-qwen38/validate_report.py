@@ -16,6 +16,11 @@ ROOT = Path(__file__).resolve().parent
 MANIFEST = "evidence/files.json"
 RULES = "evidence/rule-results.json"
 IGNORED_PARTS = {"__pycache__", ".venv", "regenerated", ".pytest_cache"}
+READMES = ("README.md", "README-CN.md")
+
+
+def topic_dir(root):
+    return root.parent.parent
 
 
 def read_json(path):
@@ -170,37 +175,38 @@ def verify_manifest(root):
 
 
 def verify_local_links(root):
-    boundary = root.parent.parent.resolve()
-    for filename in ("README.md", "README-CN.md"):
-        text = (root / filename).read_text(encoding="utf-8")
+    topic = topic_dir(root).resolve()
+    experiment = f"experiments/{root.name}/"
+    for filename in READMES:
+        text = (topic / filename).read_text(encoding="utf-8")
         for link in re.findall(r"!?\[[^\]]*\]\(([^)]+)\)", text):
             target = urlsplit(link)
             if target.scheme or link.startswith("#"):
                 continue
-            path = (root / unquote(target.path)).resolve()
-            require(path.is_relative_to(boundary) and path.exists(), "BROKEN_LOCAL_LINK:" + target.path)
+            path = (topic / unquote(target.path)).resolve()
+            require(path.is_relative_to(topic) and path.exists(), "BROKEN_LOCAL_LINK:" + target.path)
+            require(path.suffix.lower() != ".md" or target.path in READMES, "NESTED_MARKDOWN_LINK:" + target.path)
         require(text.count("```") % 2 == 0, "UNPAIRED_CODE_FENCE")
-        parent_text = (boundary / filename).read_text(encoding="utf-8")
-        require(f"experiments/{root.name}/{filename}" in parent_text, "PARENT_REPORT_ENTRY_MISSING")
-        require(f"python experiments/{root.name}/validate_report.py" in parent_text, "PARENT_REPLAY_ENTRY_MISSING")
-        for page_text in (text, parent_text):
-            opening = page_text.split("\n## ", 1)[0]
-            badges = re.findall(r"\[!\[[^\]]*\]\((https?://[^)]+)\)\]\([^)]+\)", opening)
-            for signature in ("img.shields.io/badge/vLLM-", "img.shields.io/badge/GPU-",
-                              "github.com/david-xinyuwei/david-share/actions/workflows/speculative-decoding-ci.yml/badge.svg"):
-                require(any(signature in badge for badge in badges), "READER_BADGE_MISSING:" + filename)
-            for marker in ("validate_report.py --refresh", "--figure regenerated/",
-                           "重新生成图片和报告", "Regenerating figures and report content",
-                           "本次文档修订", "documentation revision"):
-                require(marker not in page_text, "INTERNAL_MAINTENANCE_IN_READER_PAGE:" + filename)
+        require(f"python {experiment}validate_report.py" in text, "REPLAY_ENTRY_MISSING")
+        opening = text.split("\n## ", 1)[0]
+        badges = re.findall(r"\[!\[[^\]]*\]\((https?://[^)]+)\)\]\([^)]+\)", opening)
+        for signature in ("img.shields.io/badge/vLLM-", "img.shields.io/badge/GPU-",
+                          "github.com/david-xinyuwei/david-share/actions/workflows/speculative-decoding-ci.yml/badge.svg"):
+            require(any(signature in badge for badge in badges), "READER_BADGE_MISSING:" + filename)
+        for marker in ("validate_report.py --refresh", "--figure ", "重新生成图片和报告", "Regenerating figures and report content",
+                       "本次文档修订", "documentation revision"):
+            require(marker not in text, "INTERNAL_MAINTENANCE_IN_READER_PAGE:" + filename)
         chinese = filename == "README-CN.md"
-        value_heading = "## 你能用它做什么" if chinese else "## What You Can Do With This Repository"
-        require(value_heading in parent_text, "CUSTOMER_VALUE_ENTRY_MISSING")
-        require(re.search(r"```mermaid\s+flowchart\b.*?```", parent_text, re.S) is not None, "TEST_FLOW_MISSING")
+        require(("## 你能用它做什么" if chinese else "## What You Can Do With This Repository") in text, "CUSTOMER_VALUE_ENTRY_MISSING")
+        flow = f"]({experiment}images/test-flow-{'cn' if chinese else 'en'}.png)"
+        require(flow in text and (root / f"images/test-flow-{'cn' if chinese else 'en'}.png").is_file(), "TEST_FLOW_MISSING")
         duration_heading = "### 各阶段测试耗时" if chinese else "### Measured Duration by Stage"
         require(duration_heading in text, "STAGE_DURATION_SECTION_MISSING")
         for collapsed in re.findall(r"<details\b[^>]*>.*?</details>", text, re.S | re.I):
             require(duration_heading not in collapsed, "STAGE_DURATIONS_COLLAPSED")
+    for path in topic.rglob("*.md"):
+        relative = path.relative_to(topic).as_posix()
+        require(relative in READMES or set(path.relative_to(topic).parts) & IGNORED_PARTS, "NESTED_MARKDOWN_FILE:" + relative)
 
 
 def validate_data(root):
@@ -260,7 +266,7 @@ def validate(root=ROOT, *, refresh=False):
     root = root.resolve()
     groups, summary, run = validate_data(root)
     for filename, chinese in (("README.md", False), ("README-CN.md", True)):
-        path = root / filename
+        path = topic_dir(root) / filename
         text = path.read_text(encoding="utf-8")
         for name, value in (("RESULT_TABLE", result_table(summary, chinese)),
                             ("LATENCY_TABLE", latency_table(groups, summary, chinese)),
@@ -278,9 +284,9 @@ def validate(root=ROOT, *, refresh=False):
             ("recorded-group-score-and-token-reconciliation", ["data/groups.json", "data/summary.json"]),
             ("run-id-measurement-duration-and-coverage", ["evidence/run.json", "data/groups.json"]),
             ("actual-request-and-executed-source-hashes", ["evidence/request-examples.json", "source/"]),
-            ("generated-bilingual-result-tables", ["README.md", "README-CN.md"]),
-            ("local-links-and-reader-entry", ["README.md", "README-CN.md"]),
-            ("reader-layout-and-maintenance-boundary", ["README.md", "README-CN.md", "../../README.md", "../../README-CN.md"]),
+            ("generated-bilingual-result-tables", ["../../README.md", "../../README-CN.md"]),
+            ("local-links-and-reader-entry", ["../../README.md", "../../README-CN.md"]),
+            ("single-readme-layout-and-maintenance-boundary", ["../../README.md", "../../README-CN.md"]),
             ("published-file-integrity", [MANIFEST]),
         )
     ]

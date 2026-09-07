@@ -28,17 +28,25 @@
       "bytes": 4795,
       "sha256": "533264db1a93bf8ea656a579be0cc0509e861f98d6eb3a599b310073b30c1f9d"
     },
+    "images/test-flow-cn.mmd": {
+      "bytes": 612,
+      "sha256": "08466b60e97fc96b38ae2ec7ac47fa3d15872366c19d3650d3039ea4cff82163"
+    },
+    "images/test-flow-cn.png": {
+      "bytes": 142490,
+      "sha256": "622482d8b14059a1b21a55091d0772e710fa687ce20a02d7e44944d17ce38cd8"
+    },
+    "images/test-flow-en.mmd": {
+      "bytes": 657,
+      "sha256": "8d35a2cc943fe2d35e3704a8e00a9eb1ad7f993050701fe592e6e5261efb976e"
+    },
+    "images/test-flow-en.png": {
+      "bytes": 152357,
+      "sha256": "205f9f0bf9381ef99383242ce8d6989d603011798de0bfb77861b391a4e98f48"
+    },
     "images/throughput.png": {
       "bytes": 82369,
       "sha256": "02707795cab9cd507412aefef7a98518a026de451ea107c571700805a5997216"
-    },
-    "README-CN.md": {
-      "bytes": 23671,
-      "sha256": "175c711aed56c5138e15e897789e583a2fa91a04cd6f663771bc90a6e74d8ff7"
-    },
-    "README.md": {
-      "bytes": 24227,
-      "sha256": "d40dfd800ed128c096de5f2df9f4f9f1e06d60c317022b8bb41ad7e17278b717"
     },
     "requirements-figures.txt": {
       "bytes": 18,
@@ -61,12 +69,12 @@
       "sha256": "b322b92867a37c5097e31112f3831176499a5a6d511bb886ed9323153ea4dea5"
     },
     "test_report.py": {
-      "bytes": 16812,
-      "sha256": "a724277f52c2db3f19daeed210ce376787eea1b7910537eb45d341ebe889836e"
+      "bytes": 18154,
+      "sha256": "05aa2bf27fef405c816e1f096d55bfdb7c2f4de3658b0fa12a905d97ad9ce9d0"
     },
     "validate_report.py": {
-      "bytes": 20025,
-      "sha256": "d3d548d37f35cb1975ee525c25565a5444510c86ba5ea8de8715a3c7a7c05a22"
+      "bytes": 20205,
+      "sha256": "1ec5731766161053b4be37525494a4b421d2b2275a4014cf2a76fa9e6b5e9121"
     }
   },
   "scope": "Published experiment files; generated rule results and this manifest excluded."

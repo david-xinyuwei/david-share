@@ -1,0 +1,12 @@
+flowchart TB
+    client["客户端<br/>固定题目、采样参数与并发"]
+    service["vLLM 0.28.0，单张 H100 NVL<br/>Qwen3.8-27B<br/>基线 / MTP / DFlash 三选一"]
+    draft["DFlash 2 草稿模型<br/>仅 DFlash 模式加载"]
+    records["完整回答、输出 token<br/>与客户端计时"]
+    grading["EvalPlus / Math-Verify<br/>评分与截断统计"]
+    results["逐组结果<br/>性能与质量汇总"]
+    client -->|"相同请求 API"| service
+    draft -->|"提供候选，目标模型验证"| service
+    service -->|"流式响应"| records
+    records --> grading
+    grading --> results
