@@ -77,7 +77,7 @@
 - 第 11 题第一轮是较接近猴子的形象，第二轮变为类人猿形象。画面完整不代表类别细节始终准确。
 - 第 1 题中新图保留了完整头部和深蓝金属质感；旧 MAI-Image-2 第一轮图采用了截断头部的紧裁切。这只是具体样图差异，不能证明对所有 MAI 或 GPT 场景都更好。
 
-以下公开**每个提示词的两轮原图**，点击可查看原文件。四月的图片对比保留在后文，作为历史视觉参考。
+以下公开**每个提示词的两轮原图**，点击可查看原文件。按同题同轮查看不同模型配置时，可直接跳到[六组配置并排对比](#并排图片对比)：第一列为 MAI-Image-2.6，旁边保留四月各配置的历史样图。
 
 | 提示词 | 九月第一轮 | 九月第二轮 |
 | --- | --- | --- |
@@ -137,7 +137,7 @@ python -m unittest discover -s tests -v
 
 ## 历史基线：2026-04-19
 
-**下文完整保留四月的测量及当时的能力、价格说明，不用于描述 MAI-Image-2.6。** 旧成功数是执行内置重试策略后的样本完成数，不等于已核验的首试成功数。输出 token 数本身不能证明画质。
+**下文保留原五组配置的四月测量及当时的能力、价格说明；逐题并排图片表另补入了明确标注九月日期的 MAI-Image-2.6 样图。** 四月的能力和价格说明不适用于 MAI-Image-2.6。旧成功数是执行内置重试策略后的样本完成数，不等于已核验的首试成功数。输出 token 数本身不能证明画质。
 
 <!-- MAI-2.6-UPDATE-END -->
 
@@ -237,21 +237,23 @@ MAI-Image-2 和 MAI-Image-2e 的 API 仅接受 4 个参数：`model`、`prompt`�
 
 ## 并排图片对比
 
+**第一列为 2026-09-07 实测的 MAI-Image-2.6，其余五列为 2026-04-19 的历史样图。** 按相同提示词和轮次并排展示，但测试日期与客户端不同；这是跨日期的视觉参考，不是同条件的延迟对照。点击图片可查看原始 PNG。
+
 ### Test 1: 金属和服少女
 
 > **Prompt**: Chrome kimono, a maiden surrounded by metallic flowers, earrings, ornate, dark blue, exquisite realism, high exposure, Canon 5D, cinematic lighting, metallic luster, blurred foreground, depth of field, light
 
 **Round 1:**
 
-| MAI-Image-2 (21.2s, 1821KB) | MAI-Image-2e (15.9s, 1494KB) | GPT-1.5 low (14.4s, 1724KB) | GPT-1.5 med (20.7s, 1899KB) | GPT-1.5 high (43.9s, 2137KB) |
-|:---:|:---:|:---:|:---:|:---:|
-| ![](images/mai-image-2/r1/01_test.png) | ![](images/mai-image-2e/r1/01_test.png) | ![](images/gpt-image-1.5-low/r1/01_test.png) | ![](images/gpt-image-1.5-medium/r1/01_test.png) | ![](images/gpt-image-1.5-high/r1/01_test.png) |
+| **MAI-Image-2.6**<br>2026-09-07<br>37.0s, 1772 KiB | MAI-Image-2 (21.2s, 1821KB) | MAI-Image-2e (15.9s, 1494KB) | GPT-1.5 low (14.4s, 1724KB) | GPT-1.5 med (20.7s, 1899KB) | GPT-1.5 high (43.9s, 2137KB) |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| ![MAI-Image-2.6 第1题第一轮](data/mai-image-2.6-20260907/mai-image-2.6/r1/01_test.png) | ![](images/mai-image-2/r1/01_test.png) | ![](images/mai-image-2e/r1/01_test.png) | ![](images/gpt-image-1.5-low/r1/01_test.png) | ![](images/gpt-image-1.5-medium/r1/01_test.png) | ![](images/gpt-image-1.5-high/r1/01_test.png) |
 
 **Round 2:**
 
-| MAI-Image-2 (18.6s, 1467KB) | MAI-Image-2e (17.9s, 1723KB) | GPT-1.5 low (11.1s, 1884KB) | GPT-1.5 med (22.0s, 1901KB) | GPT-1.5 high (46.0s, 2026KB) |
-|:---:|:---:|:---:|:---:|:---:|
-| ![](images/mai-image-2/r2/01_test.png) | ![](images/mai-image-2e/r2/01_test.png) | ![](images/gpt-image-1.5-low/r2/01_test.png) | ![](images/gpt-image-1.5-medium/r2/01_test.png) | ![](images/gpt-image-1.5-high/r2/01_test.png) |
+| **MAI-Image-2.6**<br>2026-09-07<br>34.3s, 1813 KiB | MAI-Image-2 (18.6s, 1467KB) | MAI-Image-2e (17.9s, 1723KB) | GPT-1.5 low (11.1s, 1884KB) | GPT-1.5 med (22.0s, 1901KB) | GPT-1.5 high (46.0s, 2026KB) |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| ![MAI-Image-2.6 第1题第二轮](data/mai-image-2.6-20260907/mai-image-2.6/r2/01_test.png) | ![](images/mai-image-2/r2/01_test.png) | ![](images/mai-image-2e/r2/01_test.png) | ![](images/gpt-image-1.5-low/r2/01_test.png) | ![](images/gpt-image-1.5-medium/r2/01_test.png) | ![](images/gpt-image-1.5-high/r2/01_test.png) |
 
 
 ### Test 2: 森林传送门
@@ -260,15 +262,15 @@ MAI-Image-2 和 MAI-Image-2e 的 API 仅接受 4 个参数：`model`、`prompt`�
 
 **Round 1:**
 
-| MAI-Image-2 (21.9s, 1597KB) | MAI-Image-2e (16.7s, 1706KB) | GPT-1.5 low (14.5s, 1859KB) | GPT-1.5 med (22.5s, 2128KB) | GPT-1.5 high (42.3s, 2242KB) |
-|:---:|:---:|:---:|:---:|:---:|
-| ![](images/mai-image-2/r1/02_test.png) | ![](images/mai-image-2e/r1/02_test.png) | ![](images/gpt-image-1.5-low/r1/02_test.png) | ![](images/gpt-image-1.5-medium/r1/02_test.png) | ![](images/gpt-image-1.5-high/r1/02_test.png) |
+| **MAI-Image-2.6**<br>2026-09-07<br>36.8s, 1679 KiB | MAI-Image-2 (21.9s, 1597KB) | MAI-Image-2e (16.7s, 1706KB) | GPT-1.5 low (14.5s, 1859KB) | GPT-1.5 med (22.5s, 2128KB) | GPT-1.5 high (42.3s, 2242KB) |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| ![MAI-Image-2.6 第2题第1轮](data/mai-image-2.6-20260907/mai-image-2.6/r1/02_test.png) | ![](images/mai-image-2/r1/02_test.png) | ![](images/mai-image-2e/r1/02_test.png) | ![](images/gpt-image-1.5-low/r1/02_test.png) | ![](images/gpt-image-1.5-medium/r1/02_test.png) | ![](images/gpt-image-1.5-high/r1/02_test.png) |
 
 **Round 2:**
 
-| MAI-Image-2 (21.5s, 1577KB) | MAI-Image-2e (17.2s, 1484KB) | GPT-1.5 low (13.1s, 1968KB) | GPT-1.5 med (22.1s, 2127KB) | GPT-1.5 high (46.1s, 2280KB) |
-|:---:|:---:|:---:|:---:|:---:|
-| ![](images/mai-image-2/r2/02_test.png) | ![](images/mai-image-2e/r2/02_test.png) | ![](images/gpt-image-1.5-low/r2/02_test.png) | ![](images/gpt-image-1.5-medium/r2/02_test.png) | ![](images/gpt-image-1.5-high/r2/02_test.png) |
+| **MAI-Image-2.6**<br>2026-09-07<br>37.1s, 1758 KiB | MAI-Image-2 (21.5s, 1577KB) | MAI-Image-2e (17.2s, 1484KB) | GPT-1.5 low (13.1s, 1968KB) | GPT-1.5 med (22.1s, 2127KB) | GPT-1.5 high (46.1s, 2280KB) |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| ![MAI-Image-2.6 第2题第2轮](data/mai-image-2.6-20260907/mai-image-2.6/r2/02_test.png) | ![](images/mai-image-2/r2/02_test.png) | ![](images/mai-image-2e/r2/02_test.png) | ![](images/gpt-image-1.5-low/r2/02_test.png) | ![](images/gpt-image-1.5-medium/r2/02_test.png) | ![](images/gpt-image-1.5-high/r2/02_test.png) |
 
 
 ### Test 3: 月球宇航员
@@ -277,15 +279,15 @@ MAI-Image-2 和 MAI-Image-2e 的 API 仅接受 4 个参数：`model`、`prompt`�
 
 **Round 1:**
 
-| MAI-Image-2 (19.8s, 1311KB) | MAI-Image-2e (14.6s, 1330KB) | GPT-1.5 low (13.7s, 1758KB) | GPT-1.5 med (19.9s, 1526KB) | GPT-1.5 high (44.4s, 1625KB) |
-|:---:|:---:|:---:|:---:|:---:|
-| ![](images/mai-image-2/r1/03_test.png) | ![](images/mai-image-2e/r1/03_test.png) | ![](images/gpt-image-1.5-low/r1/03_test.png) | ![](images/gpt-image-1.5-medium/r1/03_test.png) | ![](images/gpt-image-1.5-high/r1/03_test.png) |
+| **MAI-Image-2.6**<br>2026-09-07<br>34.8s, 1615 KiB | MAI-Image-2 (19.8s, 1311KB) | MAI-Image-2e (14.6s, 1330KB) | GPT-1.5 low (13.7s, 1758KB) | GPT-1.5 med (19.9s, 1526KB) | GPT-1.5 high (44.4s, 1625KB) |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| ![MAI-Image-2.6 第3题第1轮](data/mai-image-2.6-20260907/mai-image-2.6/r1/03_test.png) | ![](images/mai-image-2/r1/03_test.png) | ![](images/mai-image-2e/r1/03_test.png) | ![](images/gpt-image-1.5-low/r1/03_test.png) | ![](images/gpt-image-1.5-medium/r1/03_test.png) | ![](images/gpt-image-1.5-high/r1/03_test.png) |
 
 **Round 2:**
 
-| MAI-Image-2 (20.6s, 1532KB) | MAI-Image-2e (16.6s, 1279KB) | GPT-1.5 low (12.5s, 1567KB) | GPT-1.5 med (21.2s, 1662KB) | GPT-1.5 high (44.0s, 1771KB) |
-|:---:|:---:|:---:|:---:|:---:|
-| ![](images/mai-image-2/r2/03_test.png) | ![](images/mai-image-2e/r2/03_test.png) | ![](images/gpt-image-1.5-low/r2/03_test.png) | ![](images/gpt-image-1.5-medium/r2/03_test.png) | ![](images/gpt-image-1.5-high/r2/03_test.png) |
+| **MAI-Image-2.6**<br>2026-09-07<br>33.4s, 1450 KiB | MAI-Image-2 (20.6s, 1532KB) | MAI-Image-2e (16.6s, 1279KB) | GPT-1.5 low (12.5s, 1567KB) | GPT-1.5 med (21.2s, 1662KB) | GPT-1.5 high (44.0s, 1771KB) |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| ![MAI-Image-2.6 第3题第2轮](data/mai-image-2.6-20260907/mai-image-2.6/r2/03_test.png) | ![](images/mai-image-2/r2/03_test.png) | ![](images/mai-image-2e/r2/03_test.png) | ![](images/gpt-image-1.5-low/r2/03_test.png) | ![](images/gpt-image-1.5-medium/r2/03_test.png) | ![](images/gpt-image-1.5-high/r2/03_test.png) |
 
 
 ### Test 4: LOTR 小红龙
@@ -294,15 +296,15 @@ MAI-Image-2 和 MAI-Image-2e 的 API 仅接受 4 个参数：`model`、`prompt`�
 
 **Round 1:**
 
-| MAI-Image-2 (19.3s, 1424KB) | MAI-Image-2e (17.8s, 1506KB) | GPT-1.5 low (14.7s, 1521KB) | GPT-1.5 med (22.5s, 1645KB) | GPT-1.5 high (43.9s, 1593KB) |
-|:---:|:---:|:---:|:---:|:---:|
-| ![](images/mai-image-2/r1/04_test.png) | ![](images/mai-image-2e/r1/04_test.png) | ![](images/gpt-image-1.5-low/r1/04_test.png) | ![](images/gpt-image-1.5-medium/r1/04_test.png) | ![](images/gpt-image-1.5-high/r1/04_test.png) |
+| **MAI-Image-2.6**<br>2026-09-07<br>40.5s, 1676 KiB | MAI-Image-2 (19.3s, 1424KB) | MAI-Image-2e (17.8s, 1506KB) | GPT-1.5 low (14.7s, 1521KB) | GPT-1.5 med (22.5s, 1645KB) | GPT-1.5 high (43.9s, 1593KB) |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| ![MAI-Image-2.6 第4题第1轮](data/mai-image-2.6-20260907/mai-image-2.6/r1/04_test.png) | ![](images/mai-image-2/r1/04_test.png) | ![](images/mai-image-2e/r1/04_test.png) | ![](images/gpt-image-1.5-low/r1/04_test.png) | ![](images/gpt-image-1.5-medium/r1/04_test.png) | ![](images/gpt-image-1.5-high/r1/04_test.png) |
 
 **Round 2:**
 
-| MAI-Image-2 (21.2s, 1441KB) | MAI-Image-2e (17.1s, 1439KB) | GPT-1.5 low (10.8s, 1518KB) | GPT-1.5 med (22.1s, 1555KB) | GPT-1.5 high (44.2s, 1574KB) |
-|:---:|:---:|:---:|:---:|:---:|
-| ![](images/mai-image-2/r2/04_test.png) | ![](images/mai-image-2e/r2/04_test.png) | ![](images/gpt-image-1.5-low/r2/04_test.png) | ![](images/gpt-image-1.5-medium/r2/04_test.png) | ![](images/gpt-image-1.5-high/r2/04_test.png) |
+| **MAI-Image-2.6**<br>2026-09-07<br>36.1s, 1537 KiB | MAI-Image-2 (21.2s, 1441KB) | MAI-Image-2e (17.1s, 1439KB) | GPT-1.5 low (10.8s, 1518KB) | GPT-1.5 med (22.1s, 1555KB) | GPT-1.5 high (44.2s, 1574KB) |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| ![MAI-Image-2.6 第4题第2轮](data/mai-image-2.6-20260907/mai-image-2.6/r2/04_test.png) | ![](images/mai-image-2/r2/04_test.png) | ![](images/mai-image-2e/r2/04_test.png) | ![](images/gpt-image-1.5-low/r2/04_test.png) | ![](images/gpt-image-1.5-medium/r2/04_test.png) | ![](images/gpt-image-1.5-high/r2/04_test.png) |
 
 
 ### Test 5: 梦幻生物
@@ -311,15 +313,15 @@ MAI-Image-2 和 MAI-Image-2e 的 API 仅接受 4 个参数：`model`、`prompt`�
 
 **Round 1:**
 
-| MAI-Image-2 (19.6s, 1048KB) | MAI-Image-2e (14.8s, 1202KB) | GPT-1.5 low (11.7s, 1438KB) | GPT-1.5 med (20.4s, 1691KB) | GPT-1.5 high (45.7s, 1526KB) |
-|:---:|:---:|:---:|:---:|:---:|
-| ![](images/mai-image-2/r1/05_test.png) | ![](images/mai-image-2e/r1/05_test.png) | ![](images/gpt-image-1.5-low/r1/05_test.png) | ![](images/gpt-image-1.5-medium/r1/05_test.png) | ![](images/gpt-image-1.5-high/r1/05_test.png) |
+| **MAI-Image-2.6**<br>2026-09-07<br>35.1s, 1459 KiB | MAI-Image-2 (19.6s, 1048KB) | MAI-Image-2e (14.8s, 1202KB) | GPT-1.5 low (11.7s, 1438KB) | GPT-1.5 med (20.4s, 1691KB) | GPT-1.5 high (45.7s, 1526KB) |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| ![MAI-Image-2.6 第5题第1轮](data/mai-image-2.6-20260907/mai-image-2.6/r1/05_test.png) | ![](images/mai-image-2/r1/05_test.png) | ![](images/mai-image-2e/r1/05_test.png) | ![](images/gpt-image-1.5-low/r1/05_test.png) | ![](images/gpt-image-1.5-medium/r1/05_test.png) | ![](images/gpt-image-1.5-high/r1/05_test.png) |
 
 **Round 2:**
 
-| MAI-Image-2 (17.8s, 965KB) | MAI-Image-2e (16.1s, 1107KB) | GPT-1.5 low (12.4s, 1518KB) | GPT-1.5 med (22.8s, 1593KB) | GPT-1.5 high (47.5s, 1669KB) |
-|:---:|:---:|:---:|:---:|:---:|
-| ![](images/mai-image-2/r2/05_test.png) | ![](images/mai-image-2e/r2/05_test.png) | ![](images/gpt-image-1.5-low/r2/05_test.png) | ![](images/gpt-image-1.5-medium/r2/05_test.png) | ![](images/gpt-image-1.5-high/r2/05_test.png) |
+| **MAI-Image-2.6**<br>2026-09-07<br>52.6s, 1461 KiB | MAI-Image-2 (17.8s, 965KB) | MAI-Image-2e (16.1s, 1107KB) | GPT-1.5 low (12.4s, 1518KB) | GPT-1.5 med (22.8s, 1593KB) | GPT-1.5 high (47.5s, 1669KB) |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| ![MAI-Image-2.6 第5题第2轮](data/mai-image-2.6-20260907/mai-image-2.6/r2/05_test.png) | ![](images/mai-image-2/r2/05_test.png) | ![](images/mai-image-2e/r2/05_test.png) | ![](images/gpt-image-1.5-low/r2/05_test.png) | ![](images/gpt-image-1.5-medium/r2/05_test.png) | ![](images/gpt-image-1.5-high/r2/05_test.png) |
 
 
 ### Test 6: 丛林天坑
@@ -328,15 +330,15 @@ MAI-Image-2 和 MAI-Image-2e 的 API 仅接受 4 个参数：`model`、`prompt`�
 
 **Round 1:**
 
-| MAI-Image-2 (20.0s, 1953KB) | MAI-Image-2e (19.6s, 2255KB) | GPT-1.5 low (12.9s, 2173KB) | GPT-1.5 med (24.3s, 2529KB) | GPT-1.5 high (42.9s, 2502KB) |
-|:---:|:---:|:---:|:---:|:---:|
-| ![](images/mai-image-2/r1/06_test.png) | ![](images/mai-image-2e/r1/06_test.png) | ![](images/gpt-image-1.5-low/r1/06_test.png) | ![](images/gpt-image-1.5-medium/r1/06_test.png) | ![](images/gpt-image-1.5-high/r1/06_test.png) |
+| **MAI-Image-2.6**<br>2026-09-07<br>39.4s, 2110 KiB | MAI-Image-2 (20.0s, 1953KB) | MAI-Image-2e (19.6s, 2255KB) | GPT-1.5 low (12.9s, 2173KB) | GPT-1.5 med (24.3s, 2529KB) | GPT-1.5 high (42.9s, 2502KB) |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| ![MAI-Image-2.6 第6题第1轮](data/mai-image-2.6-20260907/mai-image-2.6/r1/06_test.png) | ![](images/mai-image-2/r1/06_test.png) | ![](images/mai-image-2e/r1/06_test.png) | ![](images/gpt-image-1.5-low/r1/06_test.png) | ![](images/gpt-image-1.5-medium/r1/06_test.png) | ![](images/gpt-image-1.5-high/r1/06_test.png) |
 
 **Round 2:**
 
-| MAI-Image-2 (21.6s, 2052KB) | MAI-Image-2e (17.3s, 2192KB) | GPT-1.5 low (15.4s, 2162KB) | GPT-1.5 med (24.7s, 2320KB) | GPT-1.5 high (48.3s, 2464KB) |
-|:---:|:---:|:---:|:---:|:---:|
-| ![](images/mai-image-2/r2/06_test.png) | ![](images/mai-image-2e/r2/06_test.png) | ![](images/gpt-image-1.5-low/r2/06_test.png) | ![](images/gpt-image-1.5-medium/r2/06_test.png) | ![](images/gpt-image-1.5-high/r2/06_test.png) |
+| **MAI-Image-2.6**<br>2026-09-07<br>45.5s, 2142 KiB | MAI-Image-2 (21.6s, 2052KB) | MAI-Image-2e (17.3s, 2192KB) | GPT-1.5 low (15.4s, 2162KB) | GPT-1.5 med (24.7s, 2320KB) | GPT-1.5 high (48.3s, 2464KB) |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| ![MAI-Image-2.6 第6题第2轮](data/mai-image-2.6-20260907/mai-image-2.6/r2/06_test.png) | ![](images/mai-image-2/r2/06_test.png) | ![](images/mai-image-2e/r2/06_test.png) | ![](images/gpt-image-1.5-low/r2/06_test.png) | ![](images/gpt-image-1.5-medium/r2/06_test.png) | ![](images/gpt-image-1.5-high/r2/06_test.png) |
 
 
 ### Test 7: 科技少女
@@ -345,15 +347,15 @@ MAI-Image-2 和 MAI-Image-2e 的 API 仅接受 4 个参数：`model`、`prompt`�
 
 **Round 1:**
 
-| MAI-Image-2 (21.3s, 1283KB) | MAI-Image-2e (16.5s, 1485KB) | GPT-1.5 low (13.6s, 1636KB) | GPT-1.5 med (22.8s, 1790KB) | GPT-1.5 high (47.4s, 1870KB) |
-|:---:|:---:|:---:|:---:|:---:|
-| ![](images/mai-image-2/r1/07_test.png) | ![](images/mai-image-2e/r1/07_test.png) | ![](images/gpt-image-1.5-low/r1/07_test.png) | ![](images/gpt-image-1.5-medium/r1/07_test.png) | ![](images/gpt-image-1.5-high/r1/07_test.png) |
+| **MAI-Image-2.6**<br>2026-09-07<br>48.2s, 1590 KiB | MAI-Image-2 (21.3s, 1283KB) | MAI-Image-2e (16.5s, 1485KB) | GPT-1.5 low (13.6s, 1636KB) | GPT-1.5 med (22.8s, 1790KB) | GPT-1.5 high (47.4s, 1870KB) |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| ![MAI-Image-2.6 第7题第1轮](data/mai-image-2.6-20260907/mai-image-2.6/r1/07_test.png) | ![](images/mai-image-2/r1/07_test.png) | ![](images/mai-image-2e/r1/07_test.png) | ![](images/gpt-image-1.5-low/r1/07_test.png) | ![](images/gpt-image-1.5-medium/r1/07_test.png) | ![](images/gpt-image-1.5-high/r1/07_test.png) |
 
 **Round 2:**
 
-| MAI-Image-2 (18.9s, 1312KB) | MAI-Image-2e (17.0s, 1415KB) | GPT-1.5 low (11.5s, 1590KB) | GPT-1.5 med (23.4s, 1788KB) | GPT-1.5 high (52.2s, 1834KB) |
-|:---:|:---:|:---:|:---:|:---:|
-| ![](images/mai-image-2/r2/07_test.png) | ![](images/mai-image-2e/r2/07_test.png) | ![](images/gpt-image-1.5-low/r2/07_test.png) | ![](images/gpt-image-1.5-medium/r2/07_test.png) | ![](images/gpt-image-1.5-high/r2/07_test.png) |
+| **MAI-Image-2.6**<br>2026-09-07<br>36.9s, 1530 KiB | MAI-Image-2 (18.9s, 1312KB) | MAI-Image-2e (17.0s, 1415KB) | GPT-1.5 low (11.5s, 1590KB) | GPT-1.5 med (23.4s, 1788KB) | GPT-1.5 high (52.2s, 1834KB) |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| ![MAI-Image-2.6 第7题第2轮](data/mai-image-2.6-20260907/mai-image-2.6/r2/07_test.png) | ![](images/mai-image-2/r2/07_test.png) | ![](images/mai-image-2e/r2/07_test.png) | ![](images/gpt-image-1.5-low/r2/07_test.png) | ![](images/gpt-image-1.5-medium/r2/07_test.png) | ![](images/gpt-image-1.5-high/r2/07_test.png) |
 
 
 ### Test 8: 迷幻宇宙
@@ -362,15 +364,15 @@ MAI-Image-2 和 MAI-Image-2e 的 API 仅接受 4 个参数：`model`、`prompt`�
 
 **Round 1:**
 
-| MAI-Image-2 (21.4s, 2379KB) | MAI-Image-2e (20.4s, 2528KB) | GPT-1.5 low (13.1s, 2667KB) | GPT-1.5 med (23.9s, 2630KB) | GPT-1.5 high (46.3s, 2621KB) |
-|:---:|:---:|:---:|:---:|:---:|
-| ![](images/mai-image-2/r1/08_test.png) | ![](images/mai-image-2e/r1/08_test.png) | ![](images/gpt-image-1.5-low/r1/08_test.png) | ![](images/gpt-image-1.5-medium/r1/08_test.png) | ![](images/gpt-image-1.5-high/r1/08_test.png) |
+| **MAI-Image-2.6**<br>2026-09-07<br>37.0s, 2251 KiB | MAI-Image-2 (21.4s, 2379KB) | MAI-Image-2e (20.4s, 2528KB) | GPT-1.5 low (13.1s, 2667KB) | GPT-1.5 med (23.9s, 2630KB) | GPT-1.5 high (46.3s, 2621KB) |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| ![MAI-Image-2.6 第8题第1轮](data/mai-image-2.6-20260907/mai-image-2.6/r1/08_test.png) | ![](images/mai-image-2/r1/08_test.png) | ![](images/mai-image-2e/r1/08_test.png) | ![](images/gpt-image-1.5-low/r1/08_test.png) | ![](images/gpt-image-1.5-medium/r1/08_test.png) | ![](images/gpt-image-1.5-high/r1/08_test.png) |
 
 **Round 2:**
 
-| MAI-Image-2 (21.6s, 2305KB) | MAI-Image-2e (20.0s, 2509KB) | GPT-1.5 low (14.9s, 2598KB) | GPT-1.5 med (22.9s, 2649KB) | GPT-1.5 high (50.2s, 2634KB) |
-|:---:|:---:|:---:|:---:|:---:|
-| ![](images/mai-image-2/r2/08_test.png) | ![](images/mai-image-2e/r2/08_test.png) | ![](images/gpt-image-1.5-low/r2/08_test.png) | ![](images/gpt-image-1.5-medium/r2/08_test.png) | ![](images/gpt-image-1.5-high/r2/08_test.png) |
+| **MAI-Image-2.6**<br>2026-09-07<br>52.7s, 2286 KiB | MAI-Image-2 (21.6s, 2305KB) | MAI-Image-2e (20.0s, 2509KB) | GPT-1.5 low (14.9s, 2598KB) | GPT-1.5 med (22.9s, 2649KB) | GPT-1.5 high (50.2s, 2634KB) |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| ![MAI-Image-2.6 第8题第2轮](data/mai-image-2.6-20260907/mai-image-2.6/r2/08_test.png) | ![](images/mai-image-2/r2/08_test.png) | ![](images/mai-image-2e/r2/08_test.png) | ![](images/gpt-image-1.5-low/r2/08_test.png) | ![](images/gpt-image-1.5-medium/r2/08_test.png) | ![](images/gpt-image-1.5-high/r2/08_test.png) |
 
 
 ### Test 9: 分形生物
@@ -379,15 +381,15 @@ MAI-Image-2 和 MAI-Image-2e 的 API 仅接受 4 个参数：`model`、`prompt`�
 
 **Round 1:**
 
-| MAI-Image-2 (18.9s, 1463KB) | MAI-Image-2e (17.2s, 1510KB) | GPT-1.5 low (11.5s, 2029KB) | GPT-1.5 med (22.5s, 2108KB) | GPT-1.5 high (48.5s, 2193KB) |
-|:---:|:---:|:---:|:---:|:---:|
-| ![](images/mai-image-2/r1/09_test.png) | ![](images/mai-image-2e/r1/09_test.png) | ![](images/gpt-image-1.5-low/r1/09_test.png) | ![](images/gpt-image-1.5-medium/r1/09_test.png) | ![](images/gpt-image-1.5-high/r1/09_test.png) |
+| **MAI-Image-2.6**<br>2026-09-07<br>36.9s, 1802 KiB | MAI-Image-2 (18.9s, 1463KB) | MAI-Image-2e (17.2s, 1510KB) | GPT-1.5 low (11.5s, 2029KB) | GPT-1.5 med (22.5s, 2108KB) | GPT-1.5 high (48.5s, 2193KB) |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| ![MAI-Image-2.6 第9题第1轮](data/mai-image-2.6-20260907/mai-image-2.6/r1/09_test.png) | ![](images/mai-image-2/r1/09_test.png) | ![](images/mai-image-2e/r1/09_test.png) | ![](images/gpt-image-1.5-low/r1/09_test.png) | ![](images/gpt-image-1.5-medium/r1/09_test.png) | ![](images/gpt-image-1.5-high/r1/09_test.png) |
 
 **Round 2:**
 
-| MAI-Image-2 (20.4s, 1407KB) | MAI-Image-2e (17.3s, 1679KB) | GPT-1.5 low (13.1s, 1937KB) | GPT-1.5 med (23.5s, 2244KB) | GPT-1.5 high (47.8s, 2103KB) |
-|:---:|:---:|:---:|:---:|:---:|
-| ![](images/mai-image-2/r2/09_test.png) | ![](images/mai-image-2e/r2/09_test.png) | ![](images/gpt-image-1.5-low/r2/09_test.png) | ![](images/gpt-image-1.5-medium/r2/09_test.png) | ![](images/gpt-image-1.5-high/r2/09_test.png) |
+| **MAI-Image-2.6**<br>2026-09-07<br>35.9s, 1852 KiB | MAI-Image-2 (20.4s, 1407KB) | MAI-Image-2e (17.3s, 1679KB) | GPT-1.5 low (13.1s, 1937KB) | GPT-1.5 med (23.5s, 2244KB) | GPT-1.5 high (47.8s, 2103KB) |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| ![MAI-Image-2.6 第9题第2轮](data/mai-image-2.6-20260907/mai-image-2.6/r2/09_test.png) | ![](images/mai-image-2/r2/09_test.png) | ![](images/mai-image-2e/r2/09_test.png) | ![](images/gpt-image-1.5-low/r2/09_test.png) | ![](images/gpt-image-1.5-medium/r2/09_test.png) | ![](images/gpt-image-1.5-high/r2/09_test.png) |
 
 
 ### Test 10: 愤怒猫鼓手
@@ -396,15 +398,15 @@ MAI-Image-2 和 MAI-Image-2e 的 API 仅接受 4 个参数：`model`、`prompt`�
 
 **Round 1:**
 
-| MAI-Image-2 (18.7s, 1551KB) | MAI-Image-2e (16.5s, 1370KB) | GPT-1.5 low (16.7s, 1810KB) | GPT-1.5 med (22.9s, 1825KB) | GPT-1.5 high (44.3s, 1780KB) |
-|:---:|:---:|:---:|:---:|:---:|
-| ![](images/mai-image-2/r1/10_test.png) | ![](images/mai-image-2e/r1/10_test.png) | ![](images/gpt-image-1.5-low/r1/10_test.png) | ![](images/gpt-image-1.5-medium/r1/10_test.png) | ![](images/gpt-image-1.5-high/r1/10_test.png) |
+| **MAI-Image-2.6**<br>2026-09-07<br>38.1s, 1570 KiB | MAI-Image-2 (18.7s, 1551KB) | MAI-Image-2e (16.5s, 1370KB) | GPT-1.5 low (16.7s, 1810KB) | GPT-1.5 med (22.9s, 1825KB) | GPT-1.5 high (44.3s, 1780KB) |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| ![MAI-Image-2.6 第10题第1轮](data/mai-image-2.6-20260907/mai-image-2.6/r1/10_test.png) | ![](images/mai-image-2/r1/10_test.png) | ![](images/mai-image-2e/r1/10_test.png) | ![](images/gpt-image-1.5-low/r1/10_test.png) | ![](images/gpt-image-1.5-medium/r1/10_test.png) | ![](images/gpt-image-1.5-high/r1/10_test.png) |
 
 **Round 2:**
 
-| MAI-Image-2 (18.1s, 1409KB) | MAI-Image-2e (17.2s, 1546KB) | GPT-1.5 low (13.7s, 1860KB) | GPT-1.5 med (22.0s, 1895KB) | GPT-1.5 high (50.2s, 1945KB) |
-|:---:|:---:|:---:|:---:|:---:|
-| ![](images/mai-image-2/r2/10_test.png) | ![](images/mai-image-2e/r2/10_test.png) | ![](images/gpt-image-1.5-low/r2/10_test.png) | ![](images/gpt-image-1.5-medium/r2/10_test.png) | ![](images/gpt-image-1.5-high/r2/10_test.png) |
+| **MAI-Image-2.6**<br>2026-09-07<br>34.9s, 1633 KiB | MAI-Image-2 (18.1s, 1409KB) | MAI-Image-2e (17.2s, 1546KB) | GPT-1.5 low (13.7s, 1860KB) | GPT-1.5 med (22.0s, 1895KB) | GPT-1.5 high (50.2s, 1945KB) |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| ![MAI-Image-2.6 第10题第2轮](data/mai-image-2.6-20260907/mai-image-2.6/r2/10_test.png) | ![](images/mai-image-2/r2/10_test.png) | ![](images/mai-image-2e/r2/10_test.png) | ![](images/gpt-image-1.5-low/r2/10_test.png) | ![](images/gpt-image-1.5-medium/r2/10_test.png) | ![](images/gpt-image-1.5-high/r2/10_test.png) |
 
 
 ### Test 11: 猴子音乐家
@@ -413,15 +415,15 @@ MAI-Image-2 和 MAI-Image-2e 的 API 仅接受 4 个参数：`model`、`prompt`�
 
 **Round 1:**
 
-| MAI-Image-2 (20.1s, 1755KB) | MAI-Image-2e (17.3s, 1780KB) | GPT-1.5 low (14.0s, 1711KB) | GPT-1.5 med (25.8s, 1973KB) | GPT-1.5 high (48.7s, 2016KB) |
-|:---:|:---:|:---:|:---:|:---:|
-| ![](images/mai-image-2/r1/11_test.png) | ![](images/mai-image-2e/r1/11_test.png) | ![](images/gpt-image-1.5-low/r1/11_test.png) | ![](images/gpt-image-1.5-medium/r1/11_test.png) | ![](images/gpt-image-1.5-high/r1/11_test.png) |
+| **MAI-Image-2.6**<br>2026-09-07<br>35.4s, 1824 KiB | MAI-Image-2 (20.1s, 1755KB) | MAI-Image-2e (17.3s, 1780KB) | GPT-1.5 low (14.0s, 1711KB) | GPT-1.5 med (25.8s, 1973KB) | GPT-1.5 high (48.7s, 2016KB) |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| ![MAI-Image-2.6 第11题第1轮](data/mai-image-2.6-20260907/mai-image-2.6/r1/11_test.png) | ![](images/mai-image-2/r1/11_test.png) | ![](images/mai-image-2e/r1/11_test.png) | ![](images/gpt-image-1.5-low/r1/11_test.png) | ![](images/gpt-image-1.5-medium/r1/11_test.png) | ![](images/gpt-image-1.5-high/r1/11_test.png) |
 
 **Round 2:**
 
-| MAI-Image-2 (19.9s, 1679KB) | MAI-Image-2e (17.1s, 1880KB) | GPT-1.5 low (13.5s, 1671KB) | GPT-1.5 med (25.8s, 1940KB) | GPT-1.5 high (43.9s, 2019KB) |
-|:---:|:---:|:---:|:---:|:---:|
-| ![](images/mai-image-2/r2/11_test.png) | ![](images/mai-image-2e/r2/11_test.png) | ![](images/gpt-image-1.5-low/r2/11_test.png) | ![](images/gpt-image-1.5-medium/r2/11_test.png) | ![](images/gpt-image-1.5-high/r2/11_test.png) |
+| **MAI-Image-2.6**<br>2026-09-07<br>33.5s, 1653 KiB | MAI-Image-2 (19.9s, 1679KB) | MAI-Image-2e (17.1s, 1880KB) | GPT-1.5 low (13.5s, 1671KB) | GPT-1.5 med (25.8s, 1940KB) | GPT-1.5 high (43.9s, 2019KB) |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| ![MAI-Image-2.6 第11题第2轮](data/mai-image-2.6-20260907/mai-image-2.6/r2/11_test.png) | ![](images/mai-image-2/r2/11_test.png) | ![](images/mai-image-2e/r2/11_test.png) | ![](images/gpt-image-1.5-low/r2/11_test.png) | ![](images/gpt-image-1.5-medium/r2/11_test.png) | ![](images/gpt-image-1.5-high/r2/11_test.png) |
 
 
 ## API 对比
