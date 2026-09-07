@@ -1,6 +1,145 @@
-# MAI-Image-2 vs MAI-Image-2e vs GPT-Image-1.5: Azure AI Image Generation Benchmark
+# MAI-Image-2.6: Azure Image Generation Benchmark with Historical Baselines
 
 > **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
+<!-- MAI-2.6-UPDATE-START -->
+## September 7, 2026: MAI-Image-2.6 Results
+
+[中文](README-CN.md) | [Measurements](data/mai-image-2.6-20260907/summary.json) | [Per-request evidence](data/mai-image-2.6-20260907/attempts.jsonl) | [Visual observations](data/mai-image-2.6-20260907/quality-review.json)
+
+**MAI-Image-2.6 completed all 22 samples on the first attempt. Mean request latency was 38.73 s, P50 36.92 s, and descriptive P95 52.34 s.** This run does not demonstrate a speed improvement over the historical measurements below. The model, deployment, test date, and client location differ; the historical comparison is not a contemporaneous controlled A/B test.
+
+### Test Contract
+
+| Item | September measurement |
+| --- | --- |
+| Model / version | **MAI-Image-2.6 / 2026-07-31**, verified from the deployed resource; not GPT-Image-2.6 or Flash |
+| Deployment | Microsoft Foundry, Global Standard, Sweden Central; configured limit 2 requests/minute |
+| Client | Local Windows 11 ARM64 workstation, Python 3.13.15, requests 2.34.2; not the historical East US client |
+| Started / finished | **2026-09-07 14:11:51–14:28:30 UTC+08:00**, including warmup and waits; UTC timestamps are preserved per request |
+| Total duration | **999.11 s** (16 min 39 s), including warmup and waits |
+| Inputs | The same [11 prompts](prompts.csv), original order, 1024×1024 PNG |
+| Procedure | 1 excluded warmup with `blue circle`; 2 rounds; concurrency 1; 5 s between calls; up to 3 attempts using the original MAI backoff |
+| API / authentication | `/mai/v1/images/generations`, resource API key from an environment variable |
+| Request parameters | `model`, `prompt`, `width=1024`, `height=1024`; no explicit quality, seed, web-grounding, or aspect-ratio option |
+| Changes from April | Only the new deployment is selected; five-group order reversal is not applicable to a single group. Authentication and client location differ. Per-attempt evidence and checkpoints were added. |
+
+The request payload, prompt sequence, resolution, warmup, round count, and inter-call wait follow the earlier procedure. This is an **adapted single-model extension**, not a rerun of all five historical configurations. No GPT model or Flash deployment was invoked in September.
+
+### Measured Performance
+
+| Metric | Result |
+| --- | ---: |
+| Successful / planned samples | **22 / 22** |
+| First-attempt successful samples | **22 / 22** |
+| Formal HTTP attempts / HTTP 429 responses | **22 / 0** |
+| Mean request latency | **38.73 s** |
+| P50 / descriptive P95 | **36.92 s / 52.34 s** |
+| Sample standard deviation | **5.73 s** |
+| Minimum / maximum | **33.45 s / 52.75 s** |
+| Round 1 / round 2 mean | **38.10 s / 39.36 s** |
+| Mean logical-request duration | **38.79 s** |
+| Observed serial completion rate, including 5 s waits | **1.38 images/min** |
+| Output tokens per successful image | **1,024**, returned under `usage.num_output_tokens` |
+| Estimated mean cost per formal image | **USD 0.039083** |
+| Estimated total, 22 formal images | **USD 0.859824** |
+| Estimated total including one warmup | **USD 0.898741** |
+
+Request latency uses the original boundary: immediately before `requests.post` until its return, before JSON parsing, base64 decoding, or writing the PNG. Logical-request duration also includes unsuccessful attempts, retry waits, decoding, and response-metadata persistence; there were **no retries in this run**. The observed serial completion rate is not the service's maximum throughput. P95 uses linear interpolation at `(n-1)×0.95` over 22 observations, not a production tail-latency guarantee.
+
+Cost is **returned usage × published list price**, not an Azure invoice: USD 5/M text-input tokens and USD 38/M image-output tokens, from the [September 4 Foundry announcement](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/mai-image-2-6-and-mai-image-2-6-flash-quality-and-speed-at-production-scale/4550970). Input-image usage was zero. Raw response metadata retains the usage fields; the original `cost_usd` fields are not retroactively filled. [The offline summary](scripts/summarize_mai_run.py) owns the derived estimate.
+
+### Every Prompt, Both Rounds
+
+All values below are request seconds. The slow second-round samples remain in the result; neither a best-of run nor a retry-selected result replaces them.
+
+| # | Prompt | Round 1 | Round 2 | Mean |
+| --- | --- | ---: | ---: | ---: |
+| 1 | Chrome kimono metallic maiden | 36.97 | 34.31 | 35.64 |
+| 2 | Portal into mythical forest | 36.75 | 37.12 | 36.94 |
+| 3 | Tiny astronaut hatching on moon | 34.81 | 33.45 | 34.13 |
+| 4 | Tiny red dragon macro | 40.48 | 36.09 | 38.28 |
+| 5 | Fluffy creature fantasy | 35.05 | 52.56 | 43.81 |
+| 6 | Hidden jungle cenote | 39.36 | 45.45 | 42.40 |
+| 7 | Tech-savvy girl holographic UI | 48.20 | 36.93 | 42.57 |
+| 8 | Universe fractal worlds | 37.03 | 52.75 | 44.89 |
+| 9 | Fractal mythical creature | 36.92 | 35.88 | 36.40 |
+| 10 | Angry cat playing drums | 38.11 | 34.95 | 36.53 |
+| 11 | Monkey playing music | 35.35 | 33.47 | 34.41 |
+
+### Image Quality: Observations, Not a Score
+
+All **22 original 1024×1024 PNGs** were decoded, hash-checked, and visually inspected. The inspection is **AI-assisted, unblinded, and qualitative**, not a human preference study, a benchmark accuracy score, or a claim that more output tokens mean better images.
+
+- Both rounds show the requested primary subjects and rich surface detail: metallic clothing and flowers, the bedroom portal, lunar eggshell scene, and water/stone lighting in the cenote.
+- Prompt 7 is less consistent: round 1 uses longer silver hair than the requested pixie cut; round 2 is closer. Both choose an anime-style treatment and introduce extra UI text.
+- Several prompts introduce unsolicited slogans or labels, especially 2, 4, 7, 10, and 11. Some larger text is legible, but small text is uneven; no exact-text accuracy was measured.
+- Prompt 11 changes from a monkey-like subject in round 1 to an ape-like subject in round 2. A convincing image does not guarantee exact category compliance.
+- For prompt 1, the new samples retain the full head and dark-blue metallic treatment, while the archived MAI-Image-2 round-1 sample crops the head. This is a sample-level observation, not proof of general superiority over MAI or GPT.
+
+The following gallery discloses **both rounds for every prompt**. Click an image for its original file. The April gallery remains below for historical visual comparison.
+
+| Prompt | September round 1 | September round 2 |
+| --- | --- | --- |
+| 1. Chrome kimono | ![MAI-Image-2.6 prompt 1 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/01_test.png) | ![MAI-Image-2.6 prompt 1 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/01_test.png) |
+| 2. Bedroom portal | ![MAI-Image-2.6 prompt 2 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/02_test.png) | ![MAI-Image-2.6 prompt 2 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/02_test.png) |
+| 3. Lunar astronaut | ![MAI-Image-2.6 prompt 3 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/03_test.png) | ![MAI-Image-2.6 prompt 3 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/03_test.png) |
+| 4. Dragon macro | ![MAI-Image-2.6 prompt 4 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/04_test.png) | ![MAI-Image-2.6 prompt 4 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/04_test.png) |
+| 5. Fluffy creature | ![MAI-Image-2.6 prompt 5 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/05_test.png) | ![MAI-Image-2.6 prompt 5 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/05_test.png) |
+| 6. Jungle cenote | ![MAI-Image-2.6 prompt 6 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/06_test.png) | ![MAI-Image-2.6 prompt 6 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/06_test.png) |
+| 7. Holographic UI | ![MAI-Image-2.6 prompt 7 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/07_test.png) | ![MAI-Image-2.6 prompt 7 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/07_test.png) |
+| 8. Fractal worlds | ![MAI-Image-2.6 prompt 8 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/08_test.png) | ![MAI-Image-2.6 prompt 8 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/08_test.png) |
+| 9. Fractal creature | ![MAI-Image-2.6 prompt 9 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/09_test.png) | ![MAI-Image-2.6 prompt 9 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/09_test.png) |
+| 10. Cat drummer | ![MAI-Image-2.6 prompt 10 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/10_test.png) | ![MAI-Image-2.6 prompt 10 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/10_test.png) |
+| 11. Musical primate | ![MAI-Image-2.6 prompt 11 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/11_test.png) | ![MAI-Image-2.6 prompt 11 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/11_test.png) |
+
+### External Evaluation Context
+
+![Artificial Analysis Text to Image Leaderboard, captured September 7, 2026](images/external/20260907/aa-text-to-image-wide.png)
+
+Source: [Artificial Analysis, Text to Image Leaderboard](https://artificialanalysis.ai/image/leaderboard/text-to-image), captured September 7, 2026. Inspect Elo, confidence intervals, samples, and the **provisional** markers together: MAI-Image-2.6 was 1149 ±12 with 6,351 samples, and Flash was 1099 ±10 with 5,162 samples. These are external human-preference results, **not scores for this 22-image test**, and do not measure this deployment's latency. See [source and image hashes](images/external/20260907/sources.json) and the [evaluation methodology](https://artificialanalysis.ai/image/methodology).
+
+### Reproduce or Recalculate
+
+The existing runner now accepts a single MAI deployment and environment-variable credentials. Keep `MAI_ENDPOINT` at the resource **origin**, without `/models` or the generations path. Supply `AZURE_API_KEY` through your secret-management mechanism; do not put it in source control.
+
+Clone `https://github.com/david-xinyuwei/david-share.git` and enter `Multimodal-Models/MAI-Image-2-vs-GPT-Image-Benchmark`. CSV and JSON files use **Git LFS**; install Git LFS and run `git lfs pull` before reading prompts or recalculating archived results. A raw GitHub URL may return an LFS pointer instead of the underlying data.
+
+From this benchmark directory, with Python and `requests` installed:
+
+```powershell
+# No model calls: verify the original prompt matrix.
+python scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --dry-run
+
+# Metadata must match your actual deployment. The next run is billable.
+$env:MAI_MODEL_VERSION = '2026-07-31'
+$env:MAI_DEPLOYMENT_SKU = 'GlobalStandard'
+$env:MAI_DEPLOYMENT_REGION = 'swedencentral'
+$env:MAI_RATE_LIMIT_RPM = '2'
+$env:BENCHMARK_CLIENT_LOCATION = 'Describe your actual client location'
+python scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --output runs/mai-image-2.6-new-run
+```
+
+The output directory is not overwritten. After an interruption, use the same environment and add `--resume`; recorded samples are not rerun. An in-flight request at interruption may already have incurred a charge even if its result was not saved. Do not change the frozen runner or inputs while a run is active.
+
+To recalculate the archived measurements **without model calls**:
+
+```powershell
+python scripts/summarize_mai_run.py data/mai-image-2.6-20260907 --historical-results data/5way_v2_results.json
+python -m unittest discover -s tests -v
+```
+
+The archive includes [original results](data/mai-image-2.6-20260907/5way_v2_results.json), response metadata, per-attempt timestamps/request IDs, all images, and the executed source snapshot. Image base64 is omitted from metadata because the decoded PNG is archived; the original response-body hash is retained. The public console log redacts only its local output path. See [measurement provenance](data/mai-image-2.6-20260907/provenance.json).
+
+**Interpretation limit:** the 11 prompts emphasize surreal imagery, not exhaustive text rendering, editing, multi-reference generation, or Chinese-language quality. The model was tested at 1024×1024 only. A current, same-environment GPT comparison would require a separate controlled run; no such run is claimed here.
+
+---
+
+## Historical Baseline: April 19, 2026
+
+**All sections below retain the April measurements and their contemporary capability/pricing descriptions. They do not describe MAI-Image-2.6.** The old success counts describe completed sample points after the runner's retry policy, not independently verified first-attempt success. Output token counts alone do not establish image quality.
+
+<!-- MAI-2.6-UPDATE-END -->
 
 ## Executive Summary
 

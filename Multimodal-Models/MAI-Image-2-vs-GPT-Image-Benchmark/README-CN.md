@@ -1,6 +1,145 @@
-# MAI-Image-2 vs MAI-Image-2e vs GPT-Image-1.5：Azure AI 图像生成基准测试
+# MAI-Image-2.6：Azure 图像生成实测与历史对照
 
 > **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+
+<!-- MAI-2.6-UPDATE-START -->
+## 2026-09-07：MAI-Image-2.6 实测
+
+[English](README.md) | [指标汇总](data/mai-image-2.6-20260907/summary.json) | [逐次请求记录](data/mai-image-2.6-20260907/attempts.jsonl) | [图像质量观察](data/mai-image-2.6-20260907/quality-review.json)
+
+**22 个正式样本全部首试成功。平均请求耗时 38.73 秒，P50 为 36.92 秒，描述性 P95 为 52.34 秒。** 本轮没有测出相对下文历史数据的速度提升。但模型、部署、测试日期和客户端位置不同，不能把跨日期的数值差异直接归因于模型本身，也不能视为同条件 A/B 对照。
+
+### 测试口径
+
+| 项目 | 本次设置 |
+| --- | --- |
+| 模型与版本 | 部署查询确认是 **MAI-Image-2.6 / 2026-07-31**，不是 GPT-Image-2.6，也不是 Flash |
+| 部署 | Microsoft Foundry，Global Standard，Sweden Central；配置限额为每分钟 2 次请求 |
+| 客户端 | 本地 Windows 11 ARM64，Python 3.13.15，requests 2.34.2；不是四月测试的 East US 客户端 |
+| 起止时间 | **2026-09-07 14:11:51–14:28:30，北京时间（UTC+08:00）**，含预热和等待；每次请求另存 UTC 时间 |
+| 总时长 | **999.11 秒**，即 16 分 39 秒，含预热和等待 |
+| 输入 | 原报告的[同一批 11 个提示词](prompts.csv)，保持原顺序；1024×1024 PNG |
+| 流程 | 用 `blue circle` 预热 1 次并排除；正式 2 轮；并发 1；调用间隔 5 秒；最多 3 次尝试，沿用原 MAI 退避规则 |
+| 接口与认证 | `/mai/v1/images/generations`；API key 从环境变量读取 |
+| 请求参数 | `model`、`prompt`、`width=1024`、`height=1024`；未显式传 quality、seed、web grounding 或宽高比选项 |
+| 相对旧流程的变化 | 只选择新部署，单组测试不适用五组顺序翻转；认证及客户端位置不同；新增逐次记录和检查点 |
+
+提示词、请求格式、分辨率、预热、轮数和调用间隔沿用旧流程；本次属于**适配后的单模型增补测试**，不是重新运行旧报告的五组矩阵。九月没有调用 GPT 或 Flash 模型。
+
+### 性能结果
+
+| 指标 | 实测结果 |
+| --- | ---: |
+| 成功样本 / 计划样本 | **22 / 22** |
+| 首试成功样本 | **22 / 22** |
+| 正式 HTTP 尝试次数 / 429 次数 | **22 / 0** |
+| 平均请求耗时 | **38.73 秒** |
+| P50 / 描述性 P95 | **36.92 秒 / 52.34 秒** |
+| 样本标准差 | **5.73 秒** |
+| 最小 / 最大 | **33.45 秒 / 52.75 秒** |
+| 第一轮 / 第二轮平均 | **38.10 秒 / 39.36 秒** |
+| 单个任务平均耗时 | **38.79 秒** |
+| 含 5 秒间隔的串行完成速率 | **1.38 张/分钟** |
+| 每张成功图片的输出 token | **1,024**，来自 `usage.num_output_tokens` |
+| 每张正式图片平均估算费用 | **USD 0.039083** |
+| 22 张正式图片合计估算费用 | **USD 0.859824** |
+| 加上 1 次预热的合计估算费用 | **USD 0.898741** |
+
+请求耗时沿用旧脚本的计时边界：从 `requests.post` 前开始，到函数返回为止，不含随后的 JSON 解析、base64 解码和 PNG 写盘。单个任务耗时还包含失败尝试、退避等待、解码和响应元数据保存；**本轮没有发生重试**。串行完成速率不是服务最大吞吐。P95 在 22 个观测值上按 `(n-1)×0.95` 线性插值，仅描述本轮样本，不是生产环境尾延迟保证。
+
+费用是**接口返回用量乘以公开标价的估算，不是 Azure 账单**：文本输入 USD 5/百万 token，图片输出 USD 38/百万 token，来源为[9 月 4 日 Foundry 公告](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/mai-image-2-6-and-mai-image-2-6-flash-quality-and-speed-at-production-scale/4550970)。本次图片输入用量为零。原始响应保存了 usage 字段，没有反向补写原结果中的 `cost_usd`；估算统一由[离线汇总脚本](scripts/summarize_mai_run.py)生成。
+
+### 逐提示词耗时
+
+单位均为秒。第二轮的较慢样本原样保留，没有用最佳轮次或挑选重试结果替代。
+
+| # | 提示词 | 第一轮 | 第二轮 | 平均 |
+| --- | --- | ---: | ---: | ---: |
+| 1 | 金属和服少女 | 36.97 | 34.31 | 35.64 |
+| 2 | 卧室森林入口 | 36.75 | 37.12 | 36.94 |
+| 3 | 月面蛋壳中的宇航员 | 34.81 | 33.45 | 34.13 |
+| 4 | 桌上小龙微距 | 40.48 | 36.09 | 38.28 |
+| 5 | 梦幻毛绒生物 | 35.05 | 52.56 | 43.81 |
+| 6 | 丛林天坑 | 39.36 | 45.45 | 42.40 |
+| 7 | 银发人物与全息界面 | 48.20 | 36.93 | 42.57 |
+| 8 | 分形宇宙 | 37.03 | 52.75 | 44.89 |
+| 9 | 分形生物 | 36.92 | 35.88 | 36.40 |
+| 10 | 愤怒猫鼓手 | 38.11 | 34.95 | 36.53 |
+| 11 | 猴子演奏音乐 | 35.35 | 33.47 | 34.41 |
+
+### 图像质量：具体观察，不冒充评分
+
+已对 **22 张原始 1024×1024 PNG** 逐张解码、校验哈希并查看画面。本次是 **AI 辅助、非盲评的定性检查**，不是人类偏好实验或图像准确率测试，也不以输出 token 数证明画质。
+
+- 两轮都能辨认出主要主体，金属服饰与花朵、卧室入口、月面蛋壳、天坑水面和石壁等细节较丰富。
+- 第 7 题的发型不够稳定：第一轮银发较长，与 pixie cut 要求有偏差，第二轮更接近短发。两轮都选择了动漫画风，并加入额外界面文字。
+- 第 2、4、7、10、11 题出现了未请求的标语或文字。部分大字可读，小字质量不均；本次没有指定目标文字并测量其准确率。
+- 第 11 题第一轮是较接近猴子的形象，第二轮变为类人猿形象。画面完整不代表类别细节始终准确。
+- 第 1 题中新图保留了完整头部和深蓝金属质感；旧 MAI-Image-2 第一轮图采用了截断头部的紧裁切。这只是具体样图差异，不能证明对所有 MAI 或 GPT 场景都更好。
+
+以下公开**每个提示词的两轮原图**，点击可查看原文件。四月的图片对比保留在后文，作为历史视觉参考。
+
+| 提示词 | 九月第一轮 | 九月第二轮 |
+| --- | --- | --- |
+| 1. 金属和服 | ![MAI-Image-2.6 第1题第一轮](data/mai-image-2.6-20260907/mai-image-2.6/r1/01_test.png) | ![MAI-Image-2.6 第1题第二轮](data/mai-image-2.6-20260907/mai-image-2.6/r2/01_test.png) |
+| 2. 卧室入口 | ![MAI-Image-2.6 第2题第一轮](data/mai-image-2.6-20260907/mai-image-2.6/r1/02_test.png) | ![MAI-Image-2.6 第2题第二轮](data/mai-image-2.6-20260907/mai-image-2.6/r2/02_test.png) |
+| 3. 月面宇航员 | ![MAI-Image-2.6 第3题第一轮](data/mai-image-2.6-20260907/mai-image-2.6/r1/03_test.png) | ![MAI-Image-2.6 第3题第二轮](data/mai-image-2.6-20260907/mai-image-2.6/r2/03_test.png) |
+| 4. 小龙微距 | ![MAI-Image-2.6 第4题第一轮](data/mai-image-2.6-20260907/mai-image-2.6/r1/04_test.png) | ![MAI-Image-2.6 第4题第二轮](data/mai-image-2.6-20260907/mai-image-2.6/r2/04_test.png) |
+| 5. 毛绒生物 | ![MAI-Image-2.6 第5题第一轮](data/mai-image-2.6-20260907/mai-image-2.6/r1/05_test.png) | ![MAI-Image-2.6 第5题第二轮](data/mai-image-2.6-20260907/mai-image-2.6/r2/05_test.png) |
+| 6. 丛林天坑 | ![MAI-Image-2.6 第6题第一轮](data/mai-image-2.6-20260907/mai-image-2.6/r1/06_test.png) | ![MAI-Image-2.6 第6题第二轮](data/mai-image-2.6-20260907/mai-image-2.6/r2/06_test.png) |
+| 7. 全息界面 | ![MAI-Image-2.6 第7题第一轮](data/mai-image-2.6-20260907/mai-image-2.6/r1/07_test.png) | ![MAI-Image-2.6 第7题第二轮](data/mai-image-2.6-20260907/mai-image-2.6/r2/07_test.png) |
+| 8. 分形宇宙 | ![MAI-Image-2.6 第8题第一轮](data/mai-image-2.6-20260907/mai-image-2.6/r1/08_test.png) | ![MAI-Image-2.6 第8题第二轮](data/mai-image-2.6-20260907/mai-image-2.6/r2/08_test.png) |
+| 9. 分形生物 | ![MAI-Image-2.6 第9题第一轮](data/mai-image-2.6-20260907/mai-image-2.6/r1/09_test.png) | ![MAI-Image-2.6 第9题第二轮](data/mai-image-2.6-20260907/mai-image-2.6/r2/09_test.png) |
+| 10. 猫鼓手 | ![MAI-Image-2.6 第10题第一轮](data/mai-image-2.6-20260907/mai-image-2.6/r1/10_test.png) | ![MAI-Image-2.6 第10题第二轮](data/mai-image-2.6-20260907/mai-image-2.6/r2/10_test.png) |
+| 11. 演奏音乐 | ![MAI-Image-2.6 第11题第一轮](data/mai-image-2.6-20260907/mai-image-2.6/r1/11_test.png) | ![MAI-Image-2.6 第11题第二轮](data/mai-image-2.6-20260907/mai-image-2.6/r2/11_test.png) |
+
+### 外部评估参考
+
+![Artificial Analysis 文生图榜单，2026年9月7日截取](images/external/20260907/aa-text-to-image-wide.png)
+
+来源：[Artificial Analysis，Text to Image Leaderboard](https://artificialanalysis.ai/image/leaderboard/text-to-image)，2026-09-07 截取。请同时查看 Elo、置信区间、样本数和 **Provisional（暂定）** 标记：当时 MAI-Image-2.6 为 1149 ±12、6,351 个样本，Flash 为 1099 ±10、5,162 个样本。这是外部人类偏好评估，**不是本次 22 张图片的评分**，也不代表本部署的速度。详见[截图来源与哈希](images/external/20260907/sources.json)和[评估方法](https://artificialanalysis.ai/image/methodology)。
+
+### 复测与离线复算
+
+原脚本现在支持选择单个 MAI 部署，并从环境变量读取凭据。`MAI_ENDPOINT` 应是资源**根地址**，不带 `/models` 或 generations 路径。通过自己的秘密管理机制提供 `AZURE_API_KEY`，不要把密钥写进源码或 Git。
+
+克隆 `https://github.com/david-xinyuwei/david-share.git`，进入 `Multimodal-Models/MAI-Image-2-vs-GPT-Image-Benchmark`。CSV 和 JSON 使用 **Git LFS**，读取提示词或复算前须安装 Git LFS 并执行 `git lfs pull`；GitHub raw 地址有时返回的是 LFS 指针，不是实际数据。
+
+进入本 benchmark 目录，使用已安装 `requests` 的 Python：
+
+```powershell
+# 不调用模型，先检查原始样本矩阵。
+python scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --dry-run
+
+# 元数据须与实际部署一致。下一条运行命令会产生推理费用。
+$env:MAI_MODEL_VERSION = '2026-07-31'
+$env:MAI_DEPLOYMENT_SKU = 'GlobalStandard'
+$env:MAI_DEPLOYMENT_REGION = 'swedencentral'
+$env:MAI_RATE_LIMIT_RPM = '2'
+$env:BENCHMARK_CLIENT_LOCATION = 'Describe your actual client location'
+python scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --output runs/mai-image-2.6-new-run
+```
+
+脚本不会覆盖已有输出。中断后使用相同环境并增加 `--resume`，已记录样本不会重跑；中断时尚未记录结果的在途请求仍可能已经计费。运行过程中不要修改冻结的脚本或输入。
+
+对已归档数据**离线复算，不调用模型**：
+
+```powershell
+python scripts/summarize_mai_run.py data/mai-image-2.6-20260907 --historical-results data/5way_v2_results.json
+python -m unittest discover -s tests -v
+```
+
+归档中保留了[原始结果](data/mai-image-2.6-20260907/5way_v2_results.json)、响应元数据、逐次时间戳与请求 ID、全部图片和实际执行的源码快照。元数据省略图片 base64，改为保留解码后的原始 PNG，并记录原 HTTP 响应体哈希；公开控制台日志只脱敏本地输出路径。来源对应关系见[测试来源说明](data/mai-image-2.6-20260907/provenance.json)。
+
+**结论边界：**这 11 个提示词主要覆盖超现实图像，不能代表全面的文字渲染、图像编辑、多图参考或中文质量。仅测试了 1024×1024。要判断当前部署相对 GPT 是否更好，还需要双方在相同环境下的新一轮测试；本报告不声称已完成这种对照。
+
+---
+
+## 历史基线：2026-04-19
+
+**下文完整保留四月的测量及当时的能力、价格说明，不用于描述 MAI-Image-2.6。** 旧成功数是执行内置重试策略后的样本完成数，不等于已核验的首试成功数。输出 token 数本身不能证明画质。
+
+<!-- MAI-2.6-UPDATE-END -->
 
 ## 概要总结
 
