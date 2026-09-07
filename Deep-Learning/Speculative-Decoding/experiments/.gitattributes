@@ -1,0 +1,6 @@
+* -filter -text
+*.json diff merge=text
+*.jsonl diff merge=text
+*.md diff
+*.py diff
+*.png -diff

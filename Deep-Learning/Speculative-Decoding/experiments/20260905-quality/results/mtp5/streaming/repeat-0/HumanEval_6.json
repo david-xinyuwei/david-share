@@ -1,0 +1,775 @@
+{
+  "status": "COMPLETE",
+  "task_id": "HumanEval/6",
+  "dataset": "humaneval_plus",
+  "protocol_hash": "a379ab0f25d801e5a8e38419331586962b3299192aa8c648ce450e6b8ef82c47",
+  "started_utc": "2026-09-05T21:32:56.072993+00:00",
+  "ended_utc": "2026-09-05T21:32:57.185982+00:00",
+  "request": {
+    "model": "Qwen/Qwen3.6-27B",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Please provide a self-contained Python script that solves the following problem in a markdown code block:\n```python\nfrom typing import List\n\n\ndef parse_nested_parens(paren_string: str) -> List[int]:\n    \"\"\" Input to this function is a string represented multiple groups for nested parentheses separated by spaces.\n    For each of the group, output the deepest level of nesting of parentheses.\n    E.g. (()()) has maximum two levels of nesting while ((())) has three.\n\n    >>> parse_nested_parens('(()()) ((())) () ((())()())')\n    [2, 3, 1, 3]\n    \"\"\"\n```"
+      }
+    ],
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "top_k": -1,
+    "seed": 20260905,
+    "max_tokens": 4096,
+    "stream": true,
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    },
+    "stream_options": {
+      "include_usage": true
+    }
+  },
+  "response": {
+    "chunks": [
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "role": "assistant",
+              "content": ""
+            },
+            "logprobs": null,
+            "finish_reason": null
+          }
+        ],
+        "prompt_token_ids": null,
+        "prompt_text": null
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "```"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "python\nfrom typing import List"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "\n\n\ndef parse_nested_pare"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "ns(paren_string: str)"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " -> List[int]:\n   "
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " \"\"\" Input to this function is"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " a string represented multiple groups for"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " nested parentheses separated by spaces."
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "\n    For each of the"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " group, output the deepest level"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " of nesting of parentheses.\n"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "    E.g. (()())"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " has maximum two levels of nesting"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " while ((())) has three."
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "\n\n    >>> parse_nested_p"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "arens('(()()) (("
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "())) ()"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " ((())()())')\n"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "    [2, 3"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": ", 1, 3"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "]\n    \"\"\"\n   "
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " if not paren_string.strip"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "():\n        return []"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "\n    \n    groups = paren"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "_string.split()\n   "
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " result = []\n    \n   "
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " for group in groups:\n"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "        max"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "_depth = 0\n       "
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " current_depth = 0\n"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "        for char in group:"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "\n            if char == '"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "(':\n                current_depth +="
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " 1\n                if current"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "_depth > max_depth:\n"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "                    max_depth = current_depth"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "\n            elif char == ')"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "':\n                current_depth -="
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " 1\n        result"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": ".append(max_depth)\n    \n"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "    return result\n```"
+            },
+            "logprobs": null,
+            "finish_reason": "stop",
+            "stop_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-aab55efa1836e9b5",
+        "object": "chat.completion.chunk",
+        "created": 1788643976,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [],
+        "usage": {
+          "prompt_tokens": 148,
+          "total_tokens": 377,
+          "completion_tokens": 229
+        },
+        "system_fingerprint": "vllm-0.21.0-710969cf"
+      }
+    ]
+  },
+  "content": "```python\nfrom typing import List\n\n\ndef parse_nested_parens(paren_string: str) -> List[int]:\n    \"\"\" Input to this function is a string represented multiple groups for nested parentheses separated by spaces.\n    For each of the group, output the deepest level of nesting of parentheses.\n    E.g. (()()) has maximum two levels of nesting while ((())) has three.\n\n    >>> parse_nested_parens('(()()) ((())) () ((())()())')\n    [2, 3, 1, 3]\n    \"\"\"\n    if not paren_string.strip():\n        return []\n    \n    groups = paren_string.split()\n    result = []\n    \n    for group in groups:\n        max_depth = 0\n        current_depth = 0\n        for char in group:\n            if char == '(':\n                current_depth += 1\n                if current_depth > max_depth:\n                    max_depth = current_depth\n            elif char == ')':\n                current_depth -= 1\n        result.append(max_depth)\n    \n    return result\n```",
+  "reasoning": "",
+  "finish_reason": "stop",
+  "usage": {
+    "prompt_tokens": 148,
+    "total_tokens": 377,
+    "completion_tokens": 229
+  },
+  "total_s": 1.1129792450010427,
+  "ttft_any_s": 0.06350435600325,
+  "ttft_content_s": 0.0635052160032501,
+  "output_tps_e2e": 205.7540614782852
+}

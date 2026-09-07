@@ -1,0 +1,792 @@
+{
+  "status": "COMPLETE",
+  "task_id": "HumanEval/1",
+  "dataset": "humaneval_plus",
+  "protocol_hash": "a379ab0f25d801e5a8e38419331586962b3299192aa8c648ce450e6b8ef82c47",
+  "started_utc": "2026-09-05T21:32:52.082124+00:00",
+  "ended_utc": "2026-09-05T21:32:53.221763+00:00",
+  "request": {
+    "model": "Qwen/Qwen3.6-27B",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Please provide a self-contained Python script that solves the following problem in a markdown code block:\n```python\nfrom typing import List\n\n\ndef separate_paren_groups(paren_string: str) -> List[str]:\n    \"\"\" Input to this function is a string containing multiple groups of nested parentheses. Your goal is to\n    separate those group into separate strings and return the list of those.\n    Separate groups are balanced (each open brace is properly closed) and not nested within each other\n    Ignore any spaces in the input string.\n    >>> separate_paren_groups('( ) (( )) (( )( ))')\n    ['()', '(())', '(()())']\n    \"\"\"\n```"
+      }
+    ],
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "top_k": -1,
+    "seed": 20260905,
+    "max_tokens": 4096,
+    "stream": true,
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    },
+    "stream_options": {
+      "include_usage": true
+    }
+  },
+  "response": {
+    "chunks": [
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "role": "assistant",
+              "content": ""
+            },
+            "logprobs": null,
+            "finish_reason": null
+          }
+        ],
+        "prompt_token_ids": null,
+        "prompt_text": null
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "```"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "python\nfrom typing import List"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "\n\n\ndef separate_paren_groups"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "(paren_string: str) ->"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " List[str]:\n    \"\"\""
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " Input to this function is a"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " string containing multiple groups of nested"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " parentheses. Your goal is to"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "\n    separate those group into"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " separate strings and return the list"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " of those.\n    Separate"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " groups are balanced (each open"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " brace is properly closed) and"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " not nested within each other\n"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "    Ignore any spaces in the"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " input string.\n    >>>"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " separate_paren_groups('( )"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " (( )) (( )( ))')"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "\n    ['()', '(())"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "', '(()())']\n"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "    \"\"\"\n    # Remove"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " all"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " spaces\n    cleaned"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " = paren"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "_string.replace(' ', '')\n"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "    \n    result = []\n"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "    current_group = []\n"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "    depth = 0\n    \n"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "    for char in cleaned:"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "\n        if char == '"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "(':\n            depth += "
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "1\n            current_group.append"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "(char)\n        elif char"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " == ')':\n            depth"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " -= 1\n            current"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "_group.append(char)\n           "
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " if depth == 0:"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "\n                result"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": ".append(''.join(current_group"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "))\n                current_group ="
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " []\n    \n    return result"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "\n```"
+            },
+            "logprobs": null,
+            "finish_reason": "stop",
+            "stop_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8738b9364a5ff288",
+        "object": "chat.completion.chunk",
+        "created": 1788643972,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [],
+        "usage": {
+          "prompt_tokens": 150,
+          "total_tokens": 380,
+          "completion_tokens": 230
+        },
+        "system_fingerprint": "vllm-0.21.0-710969cf"
+      }
+    ]
+  },
+  "content": "```python\nfrom typing import List\n\n\ndef separate_paren_groups(paren_string: str) -> List[str]:\n    \"\"\" Input to this function is a string containing multiple groups of nested parentheses. Your goal is to\n    separate those group into separate strings and return the list of those.\n    Separate groups are balanced (each open brace is properly closed) and not nested within each other\n    Ignore any spaces in the input string.\n    >>> separate_paren_groups('( ) (( )) (( )( ))')\n    ['()', '(())', '(()())']\n    \"\"\"\n    # Remove all spaces\n    cleaned = paren_string.replace(' ', '')\n    \n    result = []\n    current_group = []\n    depth = 0\n    \n    for char in cleaned:\n        if char == '(':\n            depth += 1\n            current_group.append(char)\n        elif char == ')':\n            depth -= 1\n            current_group.append(char)\n            if depth == 0:\n                result.append(''.join(current_group))\n                current_group = []\n    \n    return result\n```",
+  "reasoning": "",
+  "finish_reason": "stop",
+  "usage": {
+    "prompt_tokens": 150,
+    "total_tokens": 380,
+    "completion_tokens": 230
+  },
+  "total_s": 1.139630264002335,
+  "ttft_any_s": 0.06555968500106246,
+  "ttft_content_s": 0.06556019500203547,
+  "output_tps_e2e": 201.81984215849917
+}

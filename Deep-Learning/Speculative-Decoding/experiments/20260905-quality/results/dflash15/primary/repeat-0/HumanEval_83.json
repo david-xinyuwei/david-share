@@ -1,0 +1,78 @@
+{
+  "status": "COMPLETE",
+  "task_id": "HumanEval/83",
+  "dataset": "humaneval_plus",
+  "protocol_hash": "a379ab0f25d801e5a8e38419331586962b3299192aa8c648ce450e6b8ef82c47",
+  "started_utc": "2026-09-05T21:47:49.274676+00:00",
+  "ended_utc": "2026-09-05T21:47:50.740525+00:00",
+  "request": {
+    "model": "Qwen/Qwen3.6-27B",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Please provide a self-contained Python script that solves the following problem in a markdown code block:\n```python\ndef starts_one_ends(n):\n    \"\"\"\n    Given a positive integer n, return the count of the numbers of n-digit\n    positive integers that start or end with 1.\n    \"\"\"\n```"
+      }
+    ],
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "top_k": -1,
+    "seed": 20260905,
+    "max_tokens": 4096,
+    "stream": false,
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    }
+  },
+  "response": {
+    "id": "chatcmpl-95e5fb9241c644f3",
+    "object": "chat.completion",
+    "created": 1788644869,
+    "prompt_routed_experts": null,
+    "model": "Qwen/Qwen3.6-27B",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "```python\ndef starts_one_ends(n):\n    \"\"\"\n    Given a positive integer n, return the count of the numbers of n-digit\n    positive integers that start or end with 1.\n    \"\"\"\n    if n <= 0:\n        return 0\n    \n    if n == 1:\n        # 1-digit numbers: 1-9. Those that start or end with 1: just 1.\n        return 1\n    \n    # n-digit numbers range from 10^(n-1) to 10^n - 1\n    # Total n-digit numbers: 9 * 10^(n-1)\n    \n    # Count numbers that start with 1:\n    # First digit is 1, remaining n-1 digits can be anything (0-9)\n    # So there are 10^(n-1) such numbers.\n    \n    # Count numbers that end with 1:\n    # Last digit is 1, first digit can be 1-9 (9 choices), remaining n-2 digits can be anything (0-9)\n    # So there are 9 * 10^(n-2) such numbers.\n    \n    # But we've double-counted numbers that both start AND end with 1.\n    # First digit is 1, last digit is 1, remaining n-2 digits can be anything.\n    # So there are 10^(n-2) such numbers.\n    \n    starts_with_1 = 10 ** (n - 1)\n    ends_with_1 = 9 * (10 ** (n - 2))\n    both = 10 ** (n - 2)\n    \n    return starts_with_1 + ends_with_1 - both\n```",
+          "refusal": null,
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "tool_calls": [],
+          "reasoning": null
+        },
+        "logprobs": null,
+        "finish_reason": "stop",
+        "stop_reason": null,
+        "token_ids": null,
+        "routed_experts": null
+      }
+    ],
+    "service_tier": null,
+    "system_fingerprint": "vllm-0.21.0-0f3fe2c4",
+    "usage": {
+      "prompt_tokens": 77,
+      "total_tokens": 464,
+      "completion_tokens": 387,
+      "prompt_tokens_details": null
+    },
+    "prompt_logprobs": null,
+    "prompt_token_ids": null,
+    "prompt_text": null,
+    "kv_transfer_params": null
+  },
+  "content": "```python\ndef starts_one_ends(n):\n    \"\"\"\n    Given a positive integer n, return the count of the numbers of n-digit\n    positive integers that start or end with 1.\n    \"\"\"\n    if n <= 0:\n        return 0\n    \n    if n == 1:\n        # 1-digit numbers: 1-9. Those that start or end with 1: just 1.\n        return 1\n    \n    # n-digit numbers range from 10^(n-1) to 10^n - 1\n    # Total n-digit numbers: 9 * 10^(n-1)\n    \n    # Count numbers that start with 1:\n    # First digit is 1, remaining n-1 digits can be anything (0-9)\n    # So there are 10^(n-1) such numbers.\n    \n    # Count numbers that end with 1:\n    # Last digit is 1, first digit can be 1-9 (9 choices), remaining n-2 digits can be anything (0-9)\n    # So there are 9 * 10^(n-2) such numbers.\n    \n    # But we've double-counted numbers that both start AND end with 1.\n    # First digit is 1, last digit is 1, remaining n-2 digits can be anything.\n    # So there are 10^(n-2) such numbers.\n    \n    starts_with_1 = 10 ** (n - 1)\n    ends_with_1 = 9 * (10 ** (n - 2))\n    both = 10 ** (n - 2)\n    \n    return starts_with_1 + ends_with_1 - both\n```",
+  "reasoning": "",
+  "finish_reason": "stop",
+  "usage": {
+    "prompt_tokens": 77,
+    "total_tokens": 464,
+    "completion_tokens": 387,
+    "prompt_tokens_details": null
+  },
+  "total_s": 1.4658396769991668,
+  "ttft_any_s": null,
+  "ttft_content_s": null,
+  "output_tps_e2e": 264.0125015528693
+}

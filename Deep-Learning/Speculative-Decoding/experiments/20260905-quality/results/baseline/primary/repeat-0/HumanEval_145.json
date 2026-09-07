@@ -1,0 +1,78 @@
+{
+  "status": "COMPLETE",
+  "task_id": "HumanEval/145",
+  "dataset": "humaneval_plus",
+  "protocol_hash": "a379ab0f25d801e5a8e38419331586962b3299192aa8c648ce450e6b8ef82c47",
+  "started_utc": "2026-09-05T16:26:19.618509+00:00",
+  "ended_utc": "2026-09-05T16:26:46.047484+00:00",
+  "request": {
+    "model": "Qwen/Qwen3.6-27B",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Please provide a self-contained Python script that solves the following problem in a markdown code block:\n```python\ndef order_by_points(nums):\n    \"\"\"\n    Write a function which sorts the given list of integers\n    in ascending order according to the sum of their digits.\n    Note: if there are several items with similar sum of their digits,\n    order them based on their index in original list.\n\n    For example:\n    >>> order_by_points([1, 11, -1, -11, -12]) == [-1, -11, 1, -12, 11]\n    >>> order_by_points([]) == []\n    \"\"\"\n```"
+      }
+    ],
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "top_k": -1,
+    "seed": 20260905,
+    "max_tokens": 4096,
+    "stream": false,
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    }
+  },
+  "response": {
+    "id": "chatcmpl-8182a96c44328caa",
+    "object": "chat.completion",
+    "created": 1788625579,
+    "prompt_routed_experts": null,
+    "model": "Qwen/Qwen3.6-27B",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "```python\ndef order_by_points(nums):\n    \"\"\"\n    Write a function which sorts the given list of integers\n    in ascending order according to the sum of their digits.\n    Note: if there are several items with similar sum of their digits,\n    order them based on their index in original list.\n\n    For example:\n    >>> order_by_points([1, 11, -1, -11, -12]) == [-1, -11, 1, -12, 11]\n    >>> order_by_points([]) == []\n    \"\"\"\n    def digit_sum(n):\n        # Sum of digits: for negative numbers, we consider the absolute value's digits\n        # But looking at the example: -1 has digit sum 1, -11 has digit sum 2, -12 has digit sum 3\n        # 1 has digit sum 1, 11 has digit sum 2\n        # So -1 and 1 both have digit sum 1. In the result, -1 comes before 1 because -1 appears at index 2 and 1 appears at index 0... wait.\n        # Let me re-examine: [1, 11, -1, -11, -12]\n        # Indices: 0:1, 1:11, 2:-1, 3:-11, 4:-12\n        # Digit sums: 1->1, 11->2, -1->1, -11->2, -12->3\n        # Sorted by digit sum ascending, then by original index:\n        # digit sum 1: indices 0 (1) and 2 (-1) -> order by index: 0 then 2 -> [1, -1]\n        # But expected output is [-1, -11, 1, -12, 11]\n        # Hmm, that doesn't match. Let me re-read.\n        # Expected: [-1, -11, 1, -12, 11]\n        # -1: digit sum 1, index 2\n        # -11: digit sum 2, index 3\n        # 1: digit sum 1, index 0\n        # -12: digit sum 3, index 4\n        # 11: digit sum 2, index 1\n        # If sorted by digit sum: 1, 1, 2, 2, 3\n        # For digit sum 1: indices 0 and 2 -> should be [1, -1] if stable sort by index\n        # But expected has -1 before 1. So maybe the digit sum for negative numbers is different?\n        # Perhaps for negative numbers, the digit sum includes the negative sign? Or maybe it's the sum of digits of the absolute value but negative numbers get a different treatment?\n        # Let me think again. Maybe the digit sum of -1 is considered as -1? No, that doesn't make sense.\n        # Wait, maybe the problem considers the sum of digits where negative numbers have their digit sum negated?\n        # -1: digit sum = -1, -11: digit sum = -2, 1: digit sum = 1, -12: digit sum = -3, 11: digit sum = 2\n        # Sorted by digit sum: -3, -2, -1, 1, 2 -> corresponding to -12, -11, -1, 1, 11\n        # But expected is [-1, -11, 1, -12, 11]. That doesn't match either.\n        # Let me try another interpretation: maybe for negative numbers, we take the sum of digits of the absolute value, but the sorting key is different.\n        # Actually, let me just look at the expected output more carefully:\n        # [-1, -11, 1, -12, 11]\n        # Let's compute digit sums of absolute values: -1->1, -11->2, 1->1, -12->3, 11->2\n        # If we sort by (digit_sum, original_index): \n        # (-1, 2), (-11, 3), (1, 0), (-12, 4), (11, 1)\n        # Keys: (1,2), (2,3), (1,0), (3,4), (2,1)\n        # Sorted: (1,0)=1, (1,2)=-1, (2,1)=11, (2,3)=-11, (3,4)=-12 -> [1, -1, 11, -11, -12]\n        # That's not the expected output either.\n        # Hmm, let me try: maybe the digit sum for negative numbers is negative of the sum of digits of absolute value?\n        # -1: -1, -11: -2, 1: 1, -12: -3, 11: 2\n        # Keys: (-1, 2), (-2, 3), (1, 0), (-3, 4), (2, 1)\n        # Sorted by first element: -3, -2, -1, 1, 2 -> (-3,4)=-12, (-2,3)=-11, (-1,2)=-1, (1,0)=1, (2,1)=11\n        # Result: [-12, -11, -1, 1, 11]. Still not matching.\n        # Let me try yet another approach. Maybe the problem statement's example is using a different definition.\n        # Actually, I think I need to just implement it as: sum of digits of the absolute value, and use stable sort.\n        # Let me just implement and see.\n        n = abs(n)\n        return sum(int(d) for d in str(n))\n    \n    # Create list of (digit_sum, original_index, value)\n    indexed = [(digit_sum(n), i, n) for i, n in enumerate(nums)]\n    # Sort by digit_sum, then by original index\n    indexed.sort(key=lambda x: (x[0], x[1]))\n    return [x[2] for x in indexed]\n```",
+          "refusal": null,
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "tool_calls": [],
+          "reasoning": null
+        },
+        "logprobs": null,
+        "finish_reason": "stop",
+        "stop_reason": null,
+        "token_ids": null,
+        "routed_experts": null
+      }
+    ],
+    "service_tier": null,
+    "system_fingerprint": "vllm-0.21.0-6cc6a8e8",
+    "usage": {
+      "prompt_tokens": 159,
+      "total_tokens": 1584,
+      "completion_tokens": 1425,
+      "prompt_tokens_details": null
+    },
+    "prompt_logprobs": null,
+    "prompt_token_ids": null,
+    "prompt_text": null,
+    "kv_transfer_params": null
+  },
+  "content": "```python\ndef order_by_points(nums):\n    \"\"\"\n    Write a function which sorts the given list of integers\n    in ascending order according to the sum of their digits.\n    Note: if there are several items with similar sum of their digits,\n    order them based on their index in original list.\n\n    For example:\n    >>> order_by_points([1, 11, -1, -11, -12]) == [-1, -11, 1, -12, 11]\n    >>> order_by_points([]) == []\n    \"\"\"\n    def digit_sum(n):\n        # Sum of digits: for negative numbers, we consider the absolute value's digits\n        # But looking at the example: -1 has digit sum 1, -11 has digit sum 2, -12 has digit sum 3\n        # 1 has digit sum 1, 11 has digit sum 2\n        # So -1 and 1 both have digit sum 1. In the result, -1 comes before 1 because -1 appears at index 2 and 1 appears at index 0... wait.\n        # Let me re-examine: [1, 11, -1, -11, -12]\n        # Indices: 0:1, 1:11, 2:-1, 3:-11, 4:-12\n        # Digit sums: 1->1, 11->2, -1->1, -11->2, -12->3\n        # Sorted by digit sum ascending, then by original index:\n        # digit sum 1: indices 0 (1) and 2 (-1) -> order by index: 0 then 2 -> [1, -1]\n        # But expected output is [-1, -11, 1, -12, 11]\n        # Hmm, that doesn't match. Let me re-read.\n        # Expected: [-1, -11, 1, -12, 11]\n        # -1: digit sum 1, index 2\n        # -11: digit sum 2, index 3\n        # 1: digit sum 1, index 0\n        # -12: digit sum 3, index 4\n        # 11: digit sum 2, index 1\n        # If sorted by digit sum: 1, 1, 2, 2, 3\n        # For digit sum 1: indices 0 and 2 -> should be [1, -1] if stable sort by index\n        # But expected has -1 before 1. So maybe the digit sum for negative numbers is different?\n        # Perhaps for negative numbers, the digit sum includes the negative sign? Or maybe it's the sum of digits of the absolute value but negative numbers get a different treatment?\n        # Let me think again. Maybe the digit sum of -1 is considered as -1? No, that doesn't make sense.\n        # Wait, maybe the problem considers the sum of digits where negative numbers have their digit sum negated?\n        # -1: digit sum = -1, -11: digit sum = -2, 1: digit sum = 1, -12: digit sum = -3, 11: digit sum = 2\n        # Sorted by digit sum: -3, -2, -1, 1, 2 -> corresponding to -12, -11, -1, 1, 11\n        # But expected is [-1, -11, 1, -12, 11]. That doesn't match either.\n        # Let me try another interpretation: maybe for negative numbers, we take the sum of digits of the absolute value, but the sorting key is different.\n        # Actually, let me just look at the expected output more carefully:\n        # [-1, -11, 1, -12, 11]\n        # Let's compute digit sums of absolute values: -1->1, -11->2, 1->1, -12->3, 11->2\n        # If we sort by (digit_sum, original_index): \n        # (-1, 2), (-11, 3), (1, 0), (-12, 4), (11, 1)\n        # Keys: (1,2), (2,3), (1,0), (3,4), (2,1)\n        # Sorted: (1,0)=1, (1,2)=-1, (2,1)=11, (2,3)=-11, (3,4)=-12 -> [1, -1, 11, -11, -12]\n        # That's not the expected output either.\n        # Hmm, let me try: maybe the digit sum for negative numbers is negative of the sum of digits of absolute value?\n        # -1: -1, -11: -2, 1: 1, -12: -3, 11: 2\n        # Keys: (-1, 2), (-2, 3), (1, 0), (-3, 4), (2, 1)\n        # Sorted by first element: -3, -2, -1, 1, 2 -> (-3,4)=-12, (-2,3)=-11, (-1,2)=-1, (1,0)=1, (2,1)=11\n        # Result: [-12, -11, -1, 1, 11]. Still not matching.\n        # Let me try yet another approach. Maybe the problem statement's example is using a different definition.\n        # Actually, I think I need to just implement it as: sum of digits of the absolute value, and use stable sort.\n        # Let me just implement and see.\n        n = abs(n)\n        return sum(int(d) for d in str(n))\n    \n    # Create list of (digit_sum, original_index, value)\n    indexed = [(digit_sum(n), i, n) for i, n in enumerate(nums)]\n    # Sort by digit_sum, then by original index\n    indexed.sort(key=lambda x: (x[0], x[1]))\n    return [x[2] for x in indexed]\n```",
+  "reasoning": "",
+  "finish_reason": "stop",
+  "usage": {
+    "prompt_tokens": 159,
+    "total_tokens": 1584,
+    "completion_tokens": 1425,
+    "prompt_tokens_details": null
+  },
+  "total_s": 26.42896576000021,
+  "ttft_any_s": null,
+  "ttft_content_s": null,
+  "output_tps_e2e": 53.918114425677345
+}

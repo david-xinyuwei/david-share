@@ -1,0 +1,258 @@
+{
+  "summary_sha256": "66458a408d4fbfc75ef0eb7591a03a908ac68fceb0161c7acd0cbcbd48985027",
+  "scope": "complete_frozen_matrix",
+  "figures": [
+    {
+      "path": "primary-quality.png",
+      "sha256": "e7e42b785cdd29334d0ee055b5b23b6e65fc98666bbfdd13b5d7a616447c27d0",
+      "pixels": [
+        1332,
+        1584
+      ],
+      "values": [
+        {
+          "route": "baseline",
+          "dataset": "humaneval_plus",
+          "value": 92.6829268292683,
+          "correct": 152,
+          "responses": 164,
+          "annotation": "152/164  (92.7%)"
+        },
+        {
+          "route": "mtp5",
+          "dataset": "humaneval_plus",
+          "value": 94.51219512195121,
+          "correct": 155,
+          "responses": 164,
+          "annotation": "155/164  (94.5%)"
+        },
+        {
+          "route": "dflash15",
+          "dataset": "humaneval_plus",
+          "value": 93.29268292682927,
+          "correct": 153,
+          "responses": 164,
+          "annotation": "153/164  (93.3%)"
+        },
+        {
+          "route": "baseline",
+          "dataset": "math_500",
+          "value": 97.8,
+          "correct": 489,
+          "responses": 500,
+          "annotation": "489/500  (97.8%)"
+        },
+        {
+          "route": "mtp5",
+          "dataset": "math_500",
+          "value": 98.8,
+          "correct": 494,
+          "responses": 500,
+          "annotation": "494/500  (98.8%)"
+        },
+        {
+          "route": "dflash15",
+          "dataset": "math_500",
+          "value": 98.0,
+          "correct": 490,
+          "responses": 500,
+          "annotation": "490/500  (98.0%)"
+        }
+      ]
+    },
+    {
+      "path": "primary-latency.png",
+      "sha256": "2c3c2a6cef38f23d35f9285a0ccf3787702fdb2e62eb7607b6572b3a6ce0df08",
+      "pixels": [
+        1332,
+        1584
+      ],
+      "values": [
+        {
+          "route": "baseline",
+          "dataset": "humaneval_plus",
+          "value": 4.393126754999685,
+          "correct": 152,
+          "responses": 164,
+          "annotation": "4.39 s"
+        },
+        {
+          "route": "mtp5",
+          "dataset": "humaneval_plus",
+          "value": 1.1750733559983928,
+          "correct": 155,
+          "responses": 164,
+          "annotation": "1.18 s"
+        },
+        {
+          "route": "dflash15",
+          "dataset": "humaneval_plus",
+          "value": 0.6603324130010151,
+          "correct": 153,
+          "responses": 164,
+          "annotation": "0.66 s"
+        },
+        {
+          "route": "baseline",
+          "dataset": "math_500",
+          "value": 15.665548925499479,
+          "correct": 489,
+          "responses": 500,
+          "annotation": "15.67 s"
+        },
+        {
+          "route": "mtp5",
+          "dataset": "math_500",
+          "value": 4.542410700500113,
+          "correct": 494,
+          "responses": 500,
+          "annotation": "4.54 s"
+        },
+        {
+          "route": "dflash15",
+          "dataset": "math_500",
+          "value": 2.9798000364990003,
+          "correct": 490,
+          "responses": 500,
+          "annotation": "2.98 s"
+        }
+      ]
+    },
+    {
+      "path": "concurrency-quality.png",
+      "sha256": "bf13c57770811810defb3ddc6b4fbe4d9165b742154c6db1bf7f8ff99d1b9fbd",
+      "pixels": [
+        1332,
+        1584
+      ],
+      "values": [
+        {
+          "route": "baseline",
+          "dataset": "humaneval_plus",
+          "concurrency": 1,
+          "correct": 32,
+          "responses": 32
+        },
+        {
+          "route": "baseline",
+          "dataset": "humaneval_plus",
+          "concurrency": 4,
+          "correct": 32,
+          "responses": 32
+        },
+        {
+          "route": "baseline",
+          "dataset": "humaneval_plus",
+          "concurrency": 8,
+          "correct": 32,
+          "responses": 32
+        },
+        {
+          "route": "mtp5",
+          "dataset": "humaneval_plus",
+          "concurrency": 1,
+          "correct": 32,
+          "responses": 32
+        },
+        {
+          "route": "mtp5",
+          "dataset": "humaneval_plus",
+          "concurrency": 4,
+          "correct": 32,
+          "responses": 32
+        },
+        {
+          "route": "mtp5",
+          "dataset": "humaneval_plus",
+          "concurrency": 8,
+          "correct": 32,
+          "responses": 32
+        },
+        {
+          "route": "dflash15",
+          "dataset": "humaneval_plus",
+          "concurrency": 1,
+          "correct": 32,
+          "responses": 32
+        },
+        {
+          "route": "dflash15",
+          "dataset": "humaneval_plus",
+          "concurrency": 4,
+          "correct": 11,
+          "responses": 32
+        },
+        {
+          "route": "dflash15",
+          "dataset": "humaneval_plus",
+          "concurrency": 8,
+          "correct": 10,
+          "responses": 32
+        },
+        {
+          "route": "baseline",
+          "dataset": "math_500",
+          "concurrency": 1,
+          "correct": 32,
+          "responses": 32
+        },
+        {
+          "route": "baseline",
+          "dataset": "math_500",
+          "concurrency": 4,
+          "correct": 30,
+          "responses": 32
+        },
+        {
+          "route": "baseline",
+          "dataset": "math_500",
+          "concurrency": 8,
+          "correct": 31,
+          "responses": 32
+        },
+        {
+          "route": "mtp5",
+          "dataset": "math_500",
+          "concurrency": 1,
+          "correct": 31,
+          "responses": 32
+        },
+        {
+          "route": "mtp5",
+          "dataset": "math_500",
+          "concurrency": 4,
+          "correct": 31,
+          "responses": 32
+        },
+        {
+          "route": "mtp5",
+          "dataset": "math_500",
+          "concurrency": 8,
+          "correct": 32,
+          "responses": 32
+        },
+        {
+          "route": "dflash15",
+          "dataset": "math_500",
+          "concurrency": 1,
+          "correct": 31,
+          "responses": 32
+        },
+        {
+          "route": "dflash15",
+          "dataset": "math_500",
+          "concurrency": 4,
+          "correct": 13,
+          "responses": 32
+        },
+        {
+          "route": "dflash15",
+          "dataset": "math_500",
+          "concurrency": 8,
+          "correct": 12,
+          "responses": 32
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "route": "dflash15",
+  "group": "concurrency-4",
+  "requests": 64,
+  "expected": 64,
+  "concurrency": 4,
+  "elapsed_wall_s": 235.3587244090013,
+  "finish_counts": {
+    "length": 25,
+    "stop": 39
+  },
+  "empty_content": 0,
+  "completion_tokens": 202108
+}

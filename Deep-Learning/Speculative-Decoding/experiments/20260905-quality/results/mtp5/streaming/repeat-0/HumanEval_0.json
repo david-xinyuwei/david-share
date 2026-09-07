@@ -1,0 +1,622 @@
+{
+  "status": "COMPLETE",
+  "task_id": "HumanEval/0",
+  "dataset": "humaneval_plus",
+  "protocol_hash": "a379ab0f25d801e5a8e38419331586962b3299192aa8c648ce450e6b8ef82c47",
+  "started_utc": "2026-09-05T21:32:51.242139+00:00",
+  "ended_utc": "2026-09-05T21:32:52.081218+00:00",
+  "request": {
+    "model": "Qwen/Qwen3.6-27B",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Please provide a self-contained Python script that solves the following problem in a markdown code block:\n```python\nfrom typing import List\n\n\ndef has_close_elements(numbers: List[float], threshold: float) -> bool:\n    \"\"\" Check if in given list of numbers, are any two numbers closer to each other than\n    given threshold.\n    >>> has_close_elements([1.0, 2.0, 3.0], 0.5)\n    False\n    >>> has_close_elements([1.0, 2.8, 3.0, 4.0, 5.0, 2.0], 0.3)\n    True\n    \"\"\"\n```"
+      }
+    ],
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "top_k": -1,
+    "seed": 20260905,
+    "max_tokens": 4096,
+    "stream": true,
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    },
+    "stream_options": {
+      "include_usage": true
+    }
+  },
+  "response": {
+    "chunks": [
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "role": "assistant",
+              "content": ""
+            },
+            "logprobs": null,
+            "finish_reason": null
+          }
+        ],
+        "prompt_token_ids": null,
+        "prompt_text": null
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "```"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "python\nfrom typing import List"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "\n\n\ndef has_close_elements(numbers"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": ": List[float], threshold:"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " float) -> bool:\n"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "    \"\"\" Check if in given"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " list of numbers, are any"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " two numbers closer to each other"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " than\n    given threshold."
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "\n    >>> has_close_elements"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "([1.0, "
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "2.0, 3"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": ".0], 0."
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "5)\n    False\n"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "    >>> has_close_elements(["
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "1.0, 2"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": ".8, 3"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": ".0, 4."
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "0, 5.0"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": ", 2.0],"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " 0.3)\n"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "    True\n    \"\"\""
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "\n    sorted"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "_numbers = sorted(numbers)\n"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "    for i in range(len"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "(sorted_numbers) - 1"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "):\n        if abs(sorted"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "_numbers[i +"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " 1] - sorted_numbers"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "[i]) < threshold:\n"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "            return True\n    return"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " False\n```"
+            },
+            "logprobs": null,
+            "finish_reason": "stop",
+            "stop_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-8b41c729757d7e6c",
+        "object": "chat.completion.chunk",
+        "created": 1788643971,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [],
+        "usage": {
+          "prompt_tokens": 158,
+          "total_tokens": 335,
+          "completion_tokens": 177
+        },
+        "system_fingerprint": "vllm-0.21.0-710969cf"
+      }
+    ]
+  },
+  "content": "```python\nfrom typing import List\n\n\ndef has_close_elements(numbers: List[float], threshold: float) -> bool:\n    \"\"\" Check if in given list of numbers, are any two numbers closer to each other than\n    given threshold.\n    >>> has_close_elements([1.0, 2.0, 3.0], 0.5)\n    False\n    >>> has_close_elements([1.0, 2.8, 3.0, 4.0, 5.0, 2.0], 0.3)\n    True\n    \"\"\"\n    sorted_numbers = sorted(numbers)\n    for i in range(len(sorted_numbers) - 1):\n        if abs(sorted_numbers[i + 1] - sorted_numbers[i]) < threshold:\n            return True\n    return False\n```",
+  "reasoning": "",
+  "finish_reason": "stop",
+  "usage": {
+    "prompt_tokens": 158,
+    "total_tokens": 335,
+    "completion_tokens": 177
+  },
+  "total_s": 0.8390600719976646,
+  "ttft_any_s": 0.04754008599775261,
+  "ttft_content_s": 0.04754037599923322,
+  "output_tps_e2e": 210.9503310991691
+}

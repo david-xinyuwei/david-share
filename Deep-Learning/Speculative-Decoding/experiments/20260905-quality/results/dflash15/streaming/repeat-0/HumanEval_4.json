@@ -1,0 +1,333 @@
+{
+  "status": "COMPLETE",
+  "task_id": "HumanEval/4",
+  "dataset": "humaneval_plus",
+  "protocol_hash": "a379ab0f25d801e5a8e38419331586962b3299192aa8c648ce450e6b8ef82c47",
+  "started_utc": "2026-09-05T22:32:48.012296+00:00",
+  "ended_utc": "2026-09-05T22:32:48.437849+00:00",
+  "request": {
+    "model": "Qwen/Qwen3.6-27B",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Please provide a self-contained Python script that solves the following problem in a markdown code block:\n```python\nfrom typing import List\n\n\ndef mean_absolute_deviation(numbers: List[float]) -> float:\n    \"\"\" For a given list of input numbers, calculate Mean Absolute Deviation\n    around the mean of this dataset.\n    Mean Absolute Deviation is the average absolute difference between each\n    element and a centerpoint (mean in this case):\n    MAD = average | x - x_mean |\n    >>> mean_absolute_deviation([1.0, 2.0, 3.0, 4.0])\n    1.0\n    \"\"\"\n```"
+      }
+    ],
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "top_k": -1,
+    "seed": 20260905,
+    "max_tokens": 4096,
+    "stream": true,
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    },
+    "stream_options": {
+      "include_usage": true
+    }
+  },
+  "response": {
+    "chunks": [
+      {
+        "id": "chatcmpl-a64e9b0c935d0636",
+        "object": "chat.completion.chunk",
+        "created": 1788647568,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "role": "assistant",
+              "content": ""
+            },
+            "logprobs": null,
+            "finish_reason": null
+          }
+        ],
+        "prompt_token_ids": null,
+        "prompt_text": null
+      },
+      {
+        "id": "chatcmpl-a64e9b0c935d0636",
+        "object": "chat.completion.chunk",
+        "created": 1788647568,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "```"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-a64e9b0c935d0636",
+        "object": "chat.completion.chunk",
+        "created": 1788647568,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "python\nfrom typing import List\n\n\ndef mean_absolute_deviation"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-a64e9b0c935d0636",
+        "object": "chat.completion.chunk",
+        "created": 1788647568,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "(numbers: List[float]) -> float:\n    \"\"\" For a given list of"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-a64e9b0c935d0636",
+        "object": "chat.completion.chunk",
+        "created": 1788647568,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " input numbers, calculate Mean Absolute Deviation\n    around"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-a64e9b0c935d0636",
+        "object": "chat.completion.chunk",
+        "created": 1788647568,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " the mean of this dataset.\n    Mean Absolute Deviation is the average absolute"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-a64e9b0c935d0636",
+        "object": "chat.completion.chunk",
+        "created": 1788647568,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " difference between each\n    element and a"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-a64e9b0c935d0636",
+        "object": "chat.completion.chunk",
+        "created": 1788647568,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " centerpoint (mean in this case):\n    MAD = average | x"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-a64e9b0c935d0636",
+        "object": "chat.completion.chunk",
+        "created": 1788647568,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " - x_mean |\n    >>> mean_absolute_deviation([1.0,"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-a64e9b0c935d0636",
+        "object": "chat.completion.chunk",
+        "created": 1788647568,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " 2.0, 3.0, 4.0])\n"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-a64e9b0c935d0636",
+        "object": "chat.completion.chunk",
+        "created": 1788647568,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "    1.0\n    \"\"\"\n    if not numbers:\n       "
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-a64e9b0c935d0636",
+        "object": "chat.completion.chunk",
+        "created": 1788647568,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " return 0.0\n    \n    n = len"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-a64e9b0c935d0636",
+        "object": "chat.completion.chunk",
+        "created": 1788647568,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "(numbers)\n    mean = sum"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-a64e9b0c935d0636",
+        "object": "chat.completion.chunk",
+        "created": 1788647568,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": "(numbers) / n\n    mad"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-a64e9b0c935d0636",
+        "object": "chat.completion.chunk",
+        "created": 1788647568,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " = sum(abs(x - mean) for x in numbers) /"
+            },
+            "logprobs": null,
+            "finish_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-a64e9b0c935d0636",
+        "object": "chat.completion.chunk",
+        "created": 1788647568,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [
+          {
+            "index": 0,
+            "delta": {
+              "content": " n\n    return mad\n```"
+            },
+            "logprobs": null,
+            "finish_reason": "stop",
+            "stop_reason": null,
+            "token_ids": null
+          }
+        ]
+      },
+      {
+        "id": "chatcmpl-a64e9b0c935d0636",
+        "object": "chat.completion.chunk",
+        "created": 1788647568,
+        "model": "Qwen/Qwen3.6-27B",
+        "choices": [],
+        "usage": {
+          "prompt_tokens": 152,
+          "total_tokens": 324,
+          "completion_tokens": 172
+        },
+        "system_fingerprint": "vllm-0.21.0-0f3fe2c4"
+      }
+    ]
+  },
+  "content": "```python\nfrom typing import List\n\n\ndef mean_absolute_deviation(numbers: List[float]) -> float:\n    \"\"\" For a given list of input numbers, calculate Mean Absolute Deviation\n    around the mean of this dataset.\n    Mean Absolute Deviation is the average absolute difference between each\n    element and a centerpoint (mean in this case):\n    MAD = average | x - x_mean |\n    >>> mean_absolute_deviation([1.0, 2.0, 3.0, 4.0])\n    1.0\n    \"\"\"\n    if not numbers:\n        return 0.0\n    \n    n = len(numbers)\n    mean = sum(numbers) / n\n    mad = sum(abs(x - mean) for x in numbers) / n\n    return mad\n```",
+  "reasoning": "",
+  "finish_reason": "stop",
+  "usage": {
+    "prompt_tokens": 152,
+    "total_tokens": 324,
+    "completion_tokens": 172
+  },
+  "total_s": 0.42554431399912573,
+  "ttft_any_s": 0.06059925299996394,
+  "ttft_content_s": 0.06059952299983706,
+  "output_tps_e2e": 404.18822280481317
+}

@@ -1,0 +1,78 @@
+{
+  "status": "COMPLETE",
+  "task_id": "HumanEval/114",
+  "dataset": "humaneval_plus",
+  "protocol_hash": "a379ab0f25d801e5a8e38419331586962b3299192aa8c648ce450e6b8ef82c47",
+  "started_utc": "2026-09-05T20:30:53.036811+00:00",
+  "ended_utc": "2026-09-05T20:30:54.102201+00:00",
+  "request": {
+    "model": "Qwen/Qwen3.6-27B",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Please provide a self-contained Python script that solves the following problem in a markdown code block:\n```python\ndef minSubArraySum(nums):\n    \"\"\"\n    Given an array of integers nums, find the minimum sum of any non-empty sub-array\n    of nums.\n    Example\n    minSubArraySum([2, 3, 4, 1, 2, 4]) == 1\n    minSubArraySum([-1, -2, -3]) == -6\n    \"\"\"\n```"
+      }
+    ],
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "top_k": -1,
+    "seed": 20260905,
+    "max_tokens": 4096,
+    "stream": false,
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    }
+  },
+  "response": {
+    "id": "chatcmpl-b6b2f12782a58d36",
+    "object": "chat.completion",
+    "created": 1788640253,
+    "prompt_routed_experts": null,
+    "model": "Qwen/Qwen3.6-27B",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "```python\ndef minSubArraySum(nums):\n    \"\"\"\n    Given an array of integers nums, find the minimum sum of any non-empty sub-array\n    of nums.\n    Example\n    minSubArraySum([2, 3, 4, 1, 2, 4]) == 1\n    minSubArraySum([-1, -2, -3]) == -6\n    \"\"\"\n    if not nums:\n        return 0\n    \n    # Kadane's algorithm for minimum subarray sum\n    min_ending_here = nums[0]\n    min_so_far = nums[0]\n    \n    for i in range(1, len(nums)):\n        # Either extend the previous subarray or start a new one at current element\n        min_ending_here = min(nums[i], min_ending_here + nums[i])\n        min_so_far = min(min_so_far, min_ending_here)\n    \n    return min_so_far\n```",
+          "refusal": null,
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "tool_calls": [],
+          "reasoning": null
+        },
+        "logprobs": null,
+        "finish_reason": "stop",
+        "stop_reason": null,
+        "token_ids": null,
+        "routed_experts": null
+      }
+    ],
+    "service_tier": null,
+    "system_fingerprint": "vllm-0.21.0-710969cf",
+    "usage": {
+      "prompt_tokens": 121,
+      "total_tokens": 328,
+      "completion_tokens": 207,
+      "prompt_tokens_details": null
+    },
+    "prompt_logprobs": null,
+    "prompt_token_ids": null,
+    "prompt_text": null,
+    "kv_transfer_params": null
+  },
+  "content": "```python\ndef minSubArraySum(nums):\n    \"\"\"\n    Given an array of integers nums, find the minimum sum of any non-empty sub-array\n    of nums.\n    Example\n    minSubArraySum([2, 3, 4, 1, 2, 4]) == 1\n    minSubArraySum([-1, -2, -3]) == -6\n    \"\"\"\n    if not nums:\n        return 0\n    \n    # Kadane's algorithm for minimum subarray sum\n    min_ending_here = nums[0]\n    min_so_far = nums[0]\n    \n    for i in range(1, len(nums)):\n        # Either extend the previous subarray or start a new one at current element\n        min_ending_here = min(nums[i], min_ending_here + nums[i])\n        min_so_far = min(min_so_far, min_ending_here)\n    \n    return min_so_far\n```",
+  "reasoning": "",
+  "finish_reason": "stop",
+  "usage": {
+    "prompt_tokens": 121,
+    "total_tokens": 328,
+    "completion_tokens": 207,
+    "prompt_tokens_details": null
+  },
+  "total_s": 1.0653801650005335,
+  "ttft_any_s": null,
+  "ttft_content_s": null,
+  "output_tps_e2e": 194.29684050847365
+}

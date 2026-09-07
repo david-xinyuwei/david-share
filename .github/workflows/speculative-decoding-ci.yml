@@ -1,0 +1,42 @@
+name: Speculative Decoding Evidence CI
+
+on:
+  push:
+    paths:
+      - "Deep-Learning/Speculative-Decoding/**"
+      - ".github/workflows/speculative-decoding-ci.yml"
+  pull_request:
+    paths:
+      - "Deep-Learning/Speculative-Decoding/**"
+      - ".github/workflows/speculative-decoding-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evidence:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.10", "3.12"]
+    defaults:
+      run:
+        working-directory: Deep-Learning/Speculative-Decoding
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          lfs: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Test recorded evidence and refusal paths
+        run: python -m unittest discover -s experiments/20260906-qwen38 -p "test_*.py" -v
+      - name: Validate latest bilingual report
+        run: python experiments/20260906-qwen38/validate_report.py
+      - name: Reconcile previous complete-answer experiment
+        run: python experiments/20260905-quality/src/analyze_results.py --root experiments/20260905-quality --output out/20260905-replayed.json --matrix
+      - name: Compare previous summary without changing its evidence
+        run: python -c "import json; from pathlib import Path; expected=json.loads(Path('experiments/20260905-quality/analysis/summary.json').read_text(encoding='utf-8')); actual=json.loads(Path('out/20260905-replayed.json').read_text(encoding='utf-8')); assert expected == actual, 'PREVIOUS_SUMMARY_MISMATCH'"

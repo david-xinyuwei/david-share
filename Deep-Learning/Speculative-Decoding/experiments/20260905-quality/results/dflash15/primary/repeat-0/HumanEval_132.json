@@ -1,0 +1,78 @@
+{
+  "status": "COMPLETE",
+  "task_id": "HumanEval/132",
+  "dataset": "humaneval_plus",
+  "protocol_hash": "a379ab0f25d801e5a8e38419331586962b3299192aa8c648ce450e6b8ef82c47",
+  "started_utc": "2026-09-05T21:48:49.674116+00:00",
+  "ended_utc": "2026-09-05T21:48:53.241824+00:00",
+  "request": {
+    "model": "Qwen/Qwen3.6-27B",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Please provide a self-contained Python script that solves the following problem in a markdown code block:\n```python\ndef is_nested(string):\n    '''\n    Create a function that takes a string as input which contains only square brackets.\n    The function should return True if and only if there is a valid subsequence of brackets \n    where at least one bracket in the subsequence is nested.\n\n    is_nested('[[]]') ➞ True\n    is_nested('[]]]]]]][[[[[]') ➞ False\n    is_nested('[][]') ➞ False\n    is_nested('[]') ➞ False\n    is_nested('[[][]]') ➞ True\n    is_nested('[[]][[') ➞ True\n    '''\n```"
+      }
+    ],
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "top_k": -1,
+    "seed": 20260905,
+    "max_tokens": 4096,
+    "stream": false,
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    }
+  },
+  "response": {
+    "id": "chatcmpl-bec135d886c1aa6e",
+    "object": "chat.completion",
+    "created": 1788644929,
+    "prompt_routed_experts": null,
+    "model": "Qwen/Qwen3.6-27B",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "```python\ndef is_nested(string):\n    '''\n    Create a function that takes a string as input which contains only square brackets.\n    The function should return True if and only if there is a valid subsequence of brackets \n    where at least one bracket in the subsequence is nested.\n\n    is_nested('[[]]') ➞ True\n    is_nested('[]]]]]]][[[[[]') ➞ False\n    is_nested('[][]') ➞ False\n    is_nested('[]') ➞ False\n    is_nested('[[][]]') ➞ True\n    is_nested('[[]][[') ➞ True\n    '''\n    # We need to check if there exists a valid subsequence of brackets where at least one bracket is nested.\n    # A nested bracket means something like \"[[]]\" where one pair is inside another.\n    # Essentially, we need to find if there's a subsequence that forms a properly nested structure with depth >= 2.\n    \n    # One approach: Check if there exists a subsequence that is a valid bracket sequence with nesting depth at least 2.\n    # A valid bracket sequence with nesting depth at least 2 means there's at least one '[' that has another '[' before its matching ']'.\n    \n    # Let's think about it differently: We need to find two indices i < j < k < l such that:\n    # string[i] = '[', string[j] = '[', string[k] = ']', string[l] = ']'\n    # and the subsequence string[i] + string[j] + string[k] + string[l] = \"[[]]\" which is valid and nested.\n    \n    # More generally, we need a valid subsequence with nesting. The simplest nested valid subsequence is \"[[]]\".\n    # So we just need to check if there exist four indices i < j < k < l such that:\n    # string[i] = '[', string[j] = '[', string[k] = ']', string[l] = ']'\n    \n    # Let's find the first two '[' and the last two ']' such that the indices are in order.\n    \n    # Find all positions of '[' and ']'\n    left_positions = [i for i, c in enumerate(string) if c == '[']\n    right_positions = [i for i, c in enumerate(string) if c == ']']\n    \n    # We need at least 2 '[' and at least 2 ']'\n    if len(left_positions) < 2 or len(right_positions) < 2:\n        return False\n    \n    # We need to find i1 < i2 < j1 < j2 where i1, i2 are positions of '[' and j1, j2 are positions of ']'\n    # The simplest check: take the first two '[' positions and the last two ']' positions.\n    # If left_positions[1] < right_positions[-2], then we have i1 = left_positions[0], i2 = left_positions[1], \n    # j1 = right_positions[-2], j2 = right_positions[-1], and i2 < j1, so the subsequence is valid and nested.\n    \n    if left_positions[1] < right_positions[-2]:\n        return True\n    \n    return False\n```",
+          "refusal": null,
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "tool_calls": [],
+          "reasoning": null
+        },
+        "logprobs": null,
+        "finish_reason": "stop",
+        "stop_reason": null,
+        "token_ids": null,
+        "routed_experts": null
+      }
+    ],
+    "service_tier": null,
+    "system_fingerprint": "vllm-0.21.0-0f3fe2c4",
+    "usage": {
+      "prompt_tokens": 167,
+      "total_tokens": 866,
+      "completion_tokens": 699,
+      "prompt_tokens_details": null
+    },
+    "prompt_logprobs": null,
+    "prompt_token_ids": null,
+    "prompt_text": null,
+    "kv_transfer_params": null
+  },
+  "content": "```python\ndef is_nested(string):\n    '''\n    Create a function that takes a string as input which contains only square brackets.\n    The function should return True if and only if there is a valid subsequence of brackets \n    where at least one bracket in the subsequence is nested.\n\n    is_nested('[[]]') ➞ True\n    is_nested('[]]]]]]][[[[[]') ➞ False\n    is_nested('[][]') ➞ False\n    is_nested('[]') ➞ False\n    is_nested('[[][]]') ➞ True\n    is_nested('[[]][[') ➞ True\n    '''\n    # We need to check if there exists a valid subsequence of brackets where at least one bracket is nested.\n    # A nested bracket means something like \"[[]]\" where one pair is inside another.\n    # Essentially, we need to find if there's a subsequence that forms a properly nested structure with depth >= 2.\n    \n    # One approach: Check if there exists a subsequence that is a valid bracket sequence with nesting depth at least 2.\n    # A valid bracket sequence with nesting depth at least 2 means there's at least one '[' that has another '[' before its matching ']'.\n    \n    # Let's think about it differently: We need to find two indices i < j < k < l such that:\n    # string[i] = '[', string[j] = '[', string[k] = ']', string[l] = ']'\n    # and the subsequence string[i] + string[j] + string[k] + string[l] = \"[[]]\" which is valid and nested.\n    \n    # More generally, we need a valid subsequence with nesting. The simplest nested valid subsequence is \"[[]]\".\n    # So we just need to check if there exist four indices i < j < k < l such that:\n    # string[i] = '[', string[j] = '[', string[k] = ']', string[l] = ']'\n    \n    # Let's find the first two '[' and the last two ']' such that the indices are in order.\n    \n    # Find all positions of '[' and ']'\n    left_positions = [i for i, c in enumerate(string) if c == '[']\n    right_positions = [i for i, c in enumerate(string) if c == ']']\n    \n    # We need at least 2 '[' and at least 2 ']'\n    if len(left_positions) < 2 or len(right_positions) < 2:\n        return False\n    \n    # We need to find i1 < i2 < j1 < j2 where i1, i2 are positions of '[' and j1, j2 are positions of ']'\n    # The simplest check: take the first two '[' positions and the last two ']' positions.\n    # If left_positions[1] < right_positions[-2], then we have i1 = left_positions[0], i2 = left_positions[1], \n    # j1 = right_positions[-2], j2 = right_positions[-1], and i2 < j1, so the subsequence is valid and nested.\n    \n    if left_positions[1] < right_positions[-2]:\n        return True\n    \n    return False\n```",
+  "reasoning": "",
+  "finish_reason": "stop",
+  "usage": {
+    "prompt_tokens": 167,
+    "total_tokens": 866,
+    "completion_tokens": 699,
+    "prompt_tokens_details": null
+  },
+  "total_s": 3.5676987539991387,
+  "ttft_any_s": null,
+  "ttft_content_s": null,
+  "output_tps_e2e": 195.92461365087797
+}

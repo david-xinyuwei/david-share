@@ -1,0 +1,78 @@
+{
+  "status": "COMPLETE",
+  "task_id": "HumanEval/92",
+  "dataset": "humaneval_plus",
+  "protocol_hash": "a379ab0f25d801e5a8e38419331586962b3299192aa8c648ce450e6b8ef82c47",
+  "started_utc": "2026-09-05T20:30:17.890366+00:00",
+  "ended_utc": "2026-09-05T20:30:19.854068+00:00",
+  "request": {
+    "model": "Qwen/Qwen3.6-27B",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Please provide a self-contained Python script that solves the following problem in a markdown code block:\n```python\ndef any_int(x, y, z):\n    '''\n    Create a function that takes 3 numbers.\n    Returns true if one of the numbers is equal to the sum of the other two, and all numbers are integers.\n    Returns false in any other cases.\n    \n    Examples\n    any_int(5, 2, 7) ➞ True\n    \n    any_int(3, 2, 2) ➞ False\n\n    any_int(3, -2, 1) ➞ True\n    \n    any_int(3.6, -2.2, 2) ➞ False\n  \n\n    \n    '''\n```"
+      }
+    ],
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "top_k": -1,
+    "seed": 20260905,
+    "max_tokens": 4096,
+    "stream": false,
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    }
+  },
+  "response": {
+    "id": "chatcmpl-98418a5fd17501e2",
+    "object": "chat.completion",
+    "created": 1788640217,
+    "prompt_routed_experts": null,
+    "model": "Qwen/Qwen3.6-27B",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "```python\ndef any_int(x, y, z):\n    '''\n    Create a function that takes 3 numbers.\n    Returns true if one of the numbers is equal to the sum of the other two, and all numbers are integers.\n    Returns false in any other cases.\n    \n    Examples\n    any_int(5, 2, 7) ➞ True\n    \n    any_int(3, 2, 2) ➞ False\n\n    any_int(3, -2, 1) ➞ True\n    \n    any_int(3.6, -2.2, 2) ➞ False\n  \n\n    \n    '''\n    # Check if all numbers are integers\n    if not (isinstance(x, int) and isinstance(y, int) and isinstance(z, int)):\n        # Also handle booleans since bool is a subclass of int in Python\n        # But typically we want to exclude booleans\n        if isinstance(x, bool) or isinstance(y, bool) or isinstance(z, bool):\n            return False\n        # Check if they are floats that are actually integer values\n        # The problem says \"all numbers are integers\", so we need to check if they are actual integers\n        # Let's be strict: they must be of type int (not bool)\n        return False\n    \n    # Check if any one number is the sum of the other two\n    if x == y + z:\n        return True\n    if y == x + z:\n        return True\n    if z == x + y:\n        return True\n    \n    return False\n```",
+          "refusal": null,
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "tool_calls": [],
+          "reasoning": null
+        },
+        "logprobs": null,
+        "finish_reason": "stop",
+        "stop_reason": null,
+        "token_ids": null,
+        "routed_experts": null
+      }
+    ],
+    "service_tier": null,
+    "system_fingerprint": "vllm-0.21.0-710969cf",
+    "usage": {
+      "prompt_tokens": 170,
+      "total_tokens": 508,
+      "completion_tokens": 338,
+      "prompt_tokens_details": null
+    },
+    "prompt_logprobs": null,
+    "prompt_token_ids": null,
+    "prompt_text": null,
+    "kv_transfer_params": null
+  },
+  "content": "```python\ndef any_int(x, y, z):\n    '''\n    Create a function that takes 3 numbers.\n    Returns true if one of the numbers is equal to the sum of the other two, and all numbers are integers.\n    Returns false in any other cases.\n    \n    Examples\n    any_int(5, 2, 7) ➞ True\n    \n    any_int(3, 2, 2) ➞ False\n\n    any_int(3, -2, 1) ➞ True\n    \n    any_int(3.6, -2.2, 2) ➞ False\n  \n\n    \n    '''\n    # Check if all numbers are integers\n    if not (isinstance(x, int) and isinstance(y, int) and isinstance(z, int)):\n        # Also handle booleans since bool is a subclass of int in Python\n        # But typically we want to exclude booleans\n        if isinstance(x, bool) or isinstance(y, bool) or isinstance(z, bool):\n            return False\n        # Check if they are floats that are actually integer values\n        # The problem says \"all numbers are integers\", so we need to check if they are actual integers\n        # Let's be strict: they must be of type int (not bool)\n        return False\n    \n    # Check if any one number is the sum of the other two\n    if x == y + z:\n        return True\n    if y == x + z:\n        return True\n    if z == x + y:\n        return True\n    \n    return False\n```",
+  "reasoning": "",
+  "finish_reason": "stop",
+  "usage": {
+    "prompt_tokens": 170,
+    "total_tokens": 508,
+    "completion_tokens": 338,
+    "prompt_tokens_details": null
+  },
+  "total_s": 1.9636927520004974,
+  "ttft_any_s": null,
+  "ttft_content_s": null,
+  "output_tps_e2e": 172.12468684607865
+}

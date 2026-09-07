@@ -1,0 +1,1168 @@
+{
+  "coverage": {
+    "run_id": "qwen38-quality-20260906",
+    "archive_sha256": "4e239dbce777340d6734d6fa54f673f5ff044bb97bb08b28186537adb9770242",
+    "planned_responses": 5904,
+    "completed_responses": 1920,
+    "planned_groups": 81,
+    "completed_groups": 69,
+    "campaign_phase": "BLOCKED",
+    "reason": "FULL_MATRIX_DOES_NOT_FIT_BILLING_RUNWAY; denominator unchanged",
+    "remaining_groups": [
+      "F-baseline-c1-s20260906-r1-thinking-humaneval_plus",
+      "F-baseline-c1-s20260906-r1-thinking-math_500",
+      "F-mtp7-c1-s20260906-r1-thinking-humaneval_plus",
+      "F-mtp7-c1-s20260906-r1-thinking-math_500",
+      "F-dflash2_7-c1-s20260906-r1-thinking-humaneval_plus",
+      "F-dflash2_7-c1-s20260906-r1-thinking-math_500",
+      "F-dflash2_7-c8-s20260906-r1-thinking-humaneval_plus",
+      "F-dflash2_7-c8-s20260906-r1-thinking-math_500",
+      "F-mtp7-c8-s20260906-r1-thinking-humaneval_plus",
+      "F-mtp7-c8-s20260906-r1-thinking-math_500",
+      "F-baseline-c8-s20260906-r1-thinking-humaneval_plus",
+      "F-baseline-c8-s20260906-r1-thinking-math_500"
+    ],
+    "matched_seeds": [
+      20260906,
+      20260907,
+      20260908
+    ],
+    "matched_concurrency": [
+      1,
+      4,
+      8
+    ],
+    "target": {
+      "model_id": "Qwen/Qwen3.8-27B",
+      "revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
+      "revision_source": "https://huggingface.co/api/models/Qwen/Qwen3.8-27B",
+      "revision_checked_date": "2026-09-06",
+      "native_mtp_source": "The MTP weights shipped in this exact target checkpoint; no separately trained, converted or community MTP model",
+      "dtype": "bfloat16"
+    },
+    "draft": {
+      "model_id": "incoai/Qwen3.8-27B-DFlash2",
+      "revision": "dedf8df68adfb1afeaf7b7480c0a0243108177b4",
+      "revision_source": "https://huggingface.co/api/models/incoai/Qwen3.8-27B-DFlash2",
+      "revision_checked_date": "2026-09-06",
+      "dtype": "bfloat16",
+      "required_architecture": "DFlash2DraftModel"
+    },
+    "sampling": {
+      "temperature": 1.0,
+      "top_p": 0.95,
+      "top_k": 20,
+      "min_p": 0.0,
+      "presence_penalty": 0.0,
+      "repetition_penalty": 1.0,
+      "seed": 20260906,
+      "reasoning_effort": "xhigh",
+      "chat_template_kwargs": {
+        "enable_thinking": true,
+        "preserve_thinking": true
+      }
+    },
+    "vllm_version": "0.28.0",
+    "vllm_commit": "2cf0a6915ce544dc493a0990f2ea38d81601128a",
+    "projection": "Only result, grade and timing fields; infrastructure locators and credentials are excluded."
+  },
+  "stage_group_counts": {
+    "C": 6,
+    "G": 36,
+    "S": 27
+  },
+  "stage_response_counts": {
+    "C": 48,
+    "G": 144,
+    "S": 1728,
+    "F": 0
+  },
+  "matched_summary": [
+    {
+      "route": "baseline",
+      "concurrency": 1,
+      "seeds": [
+        20260906,
+        20260907,
+        20260908
+      ],
+      "throughput_tok_s": {
+        "min": 53.366008245552266,
+        "median": 53.39998537910204,
+        "max": 53.40007933537203,
+        "values": [
+          53.366008245552266,
+          53.39998537910204,
+          53.40007933537203
+        ]
+      },
+      "group_wall_s": {
+        "min": 3435.275795152,
+        "median": 3458.606069068,
+        "max": 3459.13952389,
+        "values": [
+          3458.606069068,
+          3459.13952389,
+          3435.275795152
+        ]
+      },
+      "datasets": {
+        "humaneval_plus": {
+          "denominator_per_repeat": 32,
+          "raw_correct": [
+            29,
+            31,
+            30
+          ],
+          "normal_correct": [
+            29,
+            31,
+            30
+          ],
+          "length_stopped": [
+            1,
+            1,
+            2
+          ],
+          "mean_accuracy": 0.9375
+        },
+        "math_500": {
+          "denominator_per_repeat": 32,
+          "raw_correct": [
+            30,
+            30,
+            30
+          ],
+          "normal_correct": [
+            30,
+            30,
+            30
+          ],
+          "length_stopped": [
+            2,
+            1,
+            2
+          ],
+          "mean_accuracy": 0.9375
+        }
+      },
+      "source_groups": [
+        "S-baseline-c1-s20260906-r1-thinking-mixed",
+        "S-baseline-c1-s20260907-r2-thinking-mixed",
+        "S-baseline-c1-s20260908-r3-thinking-mixed"
+      ],
+      "acceptance_rate": null
+    },
+    {
+      "route": "mtp7",
+      "concurrency": 1,
+      "seeds": [
+        20260906,
+        20260907,
+        20260908
+      ],
+      "throughput_tok_s": {
+        "min": 112.11679368912513,
+        "median": 113.33550420210584,
+        "max": 113.35343992389268,
+        "values": [
+          113.33550420210584,
+          112.11679368912513,
+          113.35343992389268
+        ]
+      },
+      "group_wall_s": {
+        "min": 1503.562663069,
+        "median": 1591.090809238,
+        "max": 1723.034642805,
+        "values": [
+          1723.034642805,
+          1591.090809238,
+          1503.562663069
+        ]
+      },
+      "datasets": {
+        "humaneval_plus": {
+          "denominator_per_repeat": 32,
+          "raw_correct": [
+            30,
+            31,
+            31
+          ],
+          "normal_correct": [
+            30,
+            31,
+            31
+          ],
+          "length_stopped": [
+            2,
+            1,
+            1
+          ],
+          "mean_accuracy": 0.9583333333333334
+        },
+        "math_500": {
+          "denominator_per_repeat": 32,
+          "raw_correct": [
+            30,
+            28,
+            31
+          ],
+          "normal_correct": [
+            30,
+            28,
+            31
+          ],
+          "length_stopped": [
+            1,
+            2,
+            1
+          ],
+          "mean_accuracy": 0.9270833333333334
+        }
+      },
+      "source_groups": [
+        "S-mtp7-c1-s20260906-r1-thinking-mixed",
+        "S-mtp7-c1-s20260907-r2-thinking-mixed",
+        "S-mtp7-c1-s20260908-r3-thinking-mixed"
+      ],
+      "acceptance_rate": {
+        "min": 0.32715394317945423,
+        "median": 0.33165282472907365,
+        "max": 0.33199417673464526,
+        "values": [
+          0.33199417673464526,
+          0.32715394317945423,
+          0.33165282472907365
+        ]
+      }
+    },
+    {
+      "route": "dflash2_7",
+      "concurrency": 1,
+      "seeds": [
+        20260906,
+        20260907,
+        20260908
+      ],
+      "throughput_tok_s": {
+        "min": 150.43347759096753,
+        "median": 150.51378623379057,
+        "max": 151.41197475694986,
+        "values": [
+          150.43347759096753,
+          150.51378623379057,
+          151.41197475694986
+        ]
+      },
+      "group_wall_s": {
+        "min": 1086.378889878,
+        "median": 1149.407107855,
+        "max": 1311.835657596,
+        "values": [
+          1311.835657596,
+          1086.378889878,
+          1149.407107855
+        ]
+      },
+      "datasets": {
+        "humaneval_plus": {
+          "denominator_per_repeat": 32,
+          "raw_correct": [
+            30,
+            31,
+            30
+          ],
+          "normal_correct": [
+            30,
+            31,
+            30
+          ],
+          "length_stopped": [
+            2,
+            1,
+            2
+          ],
+          "mean_accuracy": 0.9479166666666666
+        },
+        "math_500": {
+          "denominator_per_repeat": 32,
+          "raw_correct": [
+            29,
+            32,
+            30
+          ],
+          "normal_correct": [
+            29,
+            32,
+            30
+          ],
+          "length_stopped": [
+            2,
+            0,
+            1
+          ],
+          "mean_accuracy": 0.9479166666666666
+        }
+      },
+      "source_groups": [
+        "S-dflash2_7-c1-s20260906-r1-thinking-mixed",
+        "S-dflash2_7-c1-s20260907-r2-thinking-mixed",
+        "S-dflash2_7-c1-s20260908-r3-thinking-mixed"
+      ],
+      "acceptance_rate": {
+        "min": 0.3672903348589649,
+        "median": 0.36736725349108384,
+        "max": 0.371044705604441,
+        "values": [
+          0.36736725349108384,
+          0.3672903348589649,
+          0.371044705604441
+        ]
+      }
+    },
+    {
+      "route": "baseline",
+      "concurrency": 4,
+      "seeds": [
+        20260906,
+        20260907,
+        20260908
+      ],
+      "throughput_tok_s": {
+        "min": 172.54840528350388,
+        "median": 190.07576509210045,
+        "max": 194.27236228512592,
+        "values": [
+          190.07576509210045,
+          172.54840528350388,
+          194.27236228512592
+        ]
+      },
+      "group_wall_s": {
+        "min": 846.351979286,
+        "median": 1037.224222889,
+        "max": 1081.076348944,
+        "values": [
+          846.351979286,
+          1081.076348944,
+          1037.224222889
+        ]
+      },
+      "datasets": {
+        "humaneval_plus": {
+          "denominator_per_repeat": 32,
+          "raw_correct": [
+            31,
+            31,
+            31
+          ],
+          "normal_correct": [
+            31,
+            31,
+            31
+          ],
+          "length_stopped": [
+            1,
+            1,
+            1
+          ],
+          "mean_accuracy": 0.96875
+        },
+        "math_500": {
+          "denominator_per_repeat": 32,
+          "raw_correct": [
+            30,
+            31,
+            30
+          ],
+          "normal_correct": [
+            30,
+            31,
+            30
+          ],
+          "length_stopped": [
+            1,
+            0,
+            2
+          ],
+          "mean_accuracy": 0.9479166666666666
+        }
+      },
+      "source_groups": [
+        "S-baseline-c4-s20260906-r1-thinking-mixed",
+        "S-baseline-c4-s20260907-r2-thinking-mixed",
+        "S-baseline-c4-s20260908-r3-thinking-mixed"
+      ],
+      "acceptance_rate": null
+    },
+    {
+      "route": "mtp7",
+      "concurrency": 4,
+      "seeds": [
+        20260906,
+        20260907,
+        20260908
+      ],
+      "throughput_tok_s": {
+        "min": 362.75980304984785,
+        "median": 382.8534994962837,
+        "max": 387.16657283929146,
+        "values": [
+          362.75980304984785,
+          387.16657283929146,
+          382.8534994962837
+        ]
+      },
+      "group_wall_s": {
+        "min": 450.866977126,
+        "median": 470.353105808,
+        "max": 584.571383646,
+        "values": [
+          584.571383646,
+          470.353105808,
+          450.866977126
+        ]
+      },
+      "datasets": {
+        "humaneval_plus": {
+          "denominator_per_repeat": 32,
+          "raw_correct": [
+            30,
+            30,
+            31
+          ],
+          "normal_correct": [
+            30,
+            30,
+            31
+          ],
+          "length_stopped": [
+            2,
+            2,
+            1
+          ],
+          "mean_accuracy": 0.9479166666666666
+        },
+        "math_500": {
+          "denominator_per_repeat": 32,
+          "raw_correct": [
+            29,
+            29,
+            29
+          ],
+          "normal_correct": [
+            29,
+            29,
+            29
+          ],
+          "length_stopped": [
+            2,
+            1,
+            2
+          ],
+          "mean_accuracy": 0.90625
+        }
+      },
+      "source_groups": [
+        "S-mtp7-c4-s20260906-r1-thinking-mixed",
+        "S-mtp7-c4-s20260907-r2-thinking-mixed",
+        "S-mtp7-c4-s20260908-r3-thinking-mixed"
+      ],
+      "acceptance_rate": {
+        "min": 0.32181894235212444,
+        "median": 0.32786317892092076,
+        "max": 0.3403065012196415,
+        "values": [
+          0.32181894235212444,
+          0.3403065012196415,
+          0.32786317892092076
+        ]
+      }
+    },
+    {
+      "route": "dflash2_7",
+      "concurrency": 4,
+      "seeds": [
+        20260906,
+        20260907,
+        20260908
+      ],
+      "throughput_tok_s": {
+        "min": 450.68693155813077,
+        "median": 451.74103203694597,
+        "max": 497.28305755011746,
+        "values": [
+          497.28305755011746,
+          451.74103203694597,
+          450.68693155813077
+        ]
+      },
+      "group_wall_s": {
+        "min": 362.15591355,
+        "median": 377.787245118,
+        "max": 484.069949057,
+        "values": [
+          362.15591355,
+          377.787245118,
+          484.069949057
+        ]
+      },
+      "datasets": {
+        "humaneval_plus": {
+          "denominator_per_repeat": 32,
+          "raw_correct": [
+            31,
+            31,
+            29
+          ],
+          "normal_correct": [
+            31,
+            31,
+            29
+          ],
+          "length_stopped": [
+            1,
+            1,
+            3
+          ],
+          "mean_accuracy": 0.9479166666666666
+        },
+        "math_500": {
+          "denominator_per_repeat": 32,
+          "raw_correct": [
+            31,
+            31,
+            30
+          ],
+          "normal_correct": [
+            31,
+            31,
+            30
+          ],
+          "length_stopped": [
+            1,
+            1,
+            1
+          ],
+          "mean_accuracy": 0.9583333333333334
+        }
+      },
+      "source_groups": [
+        "S-dflash2_7-c4-s20260906-r1-thinking-mixed",
+        "S-dflash2_7-c4-s20260907-r2-thinking-mixed",
+        "S-dflash2_7-c4-s20260908-r3-thinking-mixed"
+      ],
+      "acceptance_rate": {
+        "min": 0.35476152460026,
+        "median": 0.3548664642558193,
+        "max": 0.36455592058921316,
+        "values": [
+          0.36455592058921316,
+          0.3548664642558193,
+          0.35476152460026
+        ]
+      }
+    },
+    {
+      "route": "baseline",
+      "concurrency": 8,
+      "seeds": [
+        20260906,
+        20260907,
+        20260908
+      ],
+      "throughput_tok_s": {
+        "min": 286.03679942595465,
+        "median": 287.7175603166199,
+        "max": 312.3902317762395,
+        "values": [
+          312.3902317762395,
+          286.03679942595465,
+          287.7175603166199
+        ]
+      },
+      "group_wall_s": {
+        "min": 560.857904724,
+        "median": 577.43802991,
+        "max": 586.707324413,
+        "values": [
+          577.43802991,
+          560.857904724,
+          586.707324413
+        ]
+      },
+      "datasets": {
+        "humaneval_plus": {
+          "denominator_per_repeat": 32,
+          "raw_correct": [
+            31,
+            31,
+            31
+          ],
+          "normal_correct": [
+            31,
+            31,
+            31
+          ],
+          "length_stopped": [
+            1,
+            1,
+            1
+          ],
+          "mean_accuracy": 0.96875
+        },
+        "math_500": {
+          "denominator_per_repeat": 32,
+          "raw_correct": [
+            30,
+            29,
+            30
+          ],
+          "normal_correct": [
+            30,
+            29,
+            30
+          ],
+          "length_stopped": [
+            2,
+            2,
+            2
+          ],
+          "mean_accuracy": 0.9270833333333334
+        }
+      },
+      "source_groups": [
+        "S-baseline-c8-s20260906-r1-thinking-mixed",
+        "S-baseline-c8-s20260907-r2-thinking-mixed",
+        "S-baseline-c8-s20260908-r3-thinking-mixed"
+      ],
+      "acceptance_rate": null
+    },
+    {
+      "route": "mtp7",
+      "concurrency": 8,
+      "seeds": [
+        20260906,
+        20260907,
+        20260908
+      ],
+      "throughput_tok_s": {
+        "min": 560.2125555541138,
+        "median": 565.2417293419176,
+        "max": 580.6481963278242,
+        "values": [
+          560.2125555541138,
+          580.6481963278242,
+          565.2417293419176
+        ]
+      },
+      "group_wall_s": {
+        "min": 280.882642935,
+        "median": 308.075272862,
+        "max": 316.021121349,
+        "values": [
+          316.021121349,
+          280.882642935,
+          308.075272862
+        ]
+      },
+      "datasets": {
+        "humaneval_plus": {
+          "denominator_per_repeat": 32,
+          "raw_correct": [
+            31,
+            31,
+            30
+          ],
+          "normal_correct": [
+            31,
+            31,
+            30
+          ],
+          "length_stopped": [
+            1,
+            1,
+            2
+          ],
+          "mean_accuracy": 0.9583333333333334
+        },
+        "math_500": {
+          "denominator_per_repeat": 32,
+          "raw_correct": [
+            29,
+            29,
+            30
+          ],
+          "normal_correct": [
+            29,
+            29,
+            30
+          ],
+          "length_stopped": [
+            2,
+            1,
+            1
+          ],
+          "mean_accuracy": 0.9166666666666666
+        }
+      },
+      "source_groups": [
+        "S-mtp7-c8-s20260906-r1-thinking-mixed",
+        "S-mtp7-c8-s20260907-r2-thinking-mixed",
+        "S-mtp7-c8-s20260908-r3-thinking-mixed"
+      ],
+      "acceptance_rate": {
+        "min": 0.3296438575430172,
+        "median": 0.3310930449517354,
+        "max": 0.33248294119188865,
+        "values": [
+          0.3296438575430172,
+          0.33248294119188865,
+          0.3310930449517354
+        ]
+      }
+    },
+    {
+      "route": "dflash2_7",
+      "concurrency": 8,
+      "seeds": [
+        20260906,
+        20260907,
+        20260908
+      ],
+      "throughput_tok_s": {
+        "min": 730.4470232320299,
+        "median": 741.0713774151905,
+        "max": 754.3364069214117,
+        "values": [
+          741.0713774151905,
+          754.3364069214117,
+          730.4470232320299
+        ]
+      },
+      "group_wall_s": {
+        "min": 219.505513032,
+        "median": 249.683101573,
+        "max": 288.452130406,
+        "values": [
+          249.683101573,
+          219.505513032,
+          288.452130406
+        ]
+      },
+      "datasets": {
+        "humaneval_plus": {
+          "denominator_per_repeat": 32,
+          "raw_correct": [
+            31,
+            31,
+            30
+          ],
+          "normal_correct": [
+            31,
+            31,
+            30
+          ],
+          "length_stopped": [
+            1,
+            1,
+            2
+          ],
+          "mean_accuracy": 0.9583333333333334
+        },
+        "math_500": {
+          "denominator_per_repeat": 32,
+          "raw_correct": [
+            30,
+            31,
+            30
+          ],
+          "normal_correct": [
+            30,
+            31,
+            30
+          ],
+          "length_stopped": [
+            2,
+            1,
+            2
+          ],
+          "mean_accuracy": 0.9479166666666666
+        }
+      },
+      "source_groups": [
+        "S-dflash2_7-c8-s20260906-r1-thinking-mixed",
+        "S-dflash2_7-c8-s20260907-r2-thinking-mixed",
+        "S-dflash2_7-c8-s20260908-r3-thinking-mixed"
+      ],
+      "acceptance_rate": {
+        "min": 0.35103527652302735,
+        "median": 0.36729500064702586,
+        "max": 0.3729714207651797,
+        "values": [
+          0.3729714207651797,
+          0.36729500064702586,
+          0.35103527652302735
+        ]
+      }
+    }
+  ],
+  "paired_comparisons": [
+    {
+      "candidate": "dflash2_7",
+      "reference": "baseline",
+      "concurrency": 1,
+      "paired": [
+        {
+          "seed": 20260906,
+          "throughput_ratio": 2.8189006923429627,
+          "datasets": {
+            "humaneval_plus": {
+              "correct_difference": 1,
+              "accuracy_difference_pp": 3.125
+            },
+            "math_500": {
+              "correct_difference": -1,
+              "accuracy_difference_pp": -3.125
+            }
+          }
+        },
+        {
+          "seed": 20260907,
+          "throughput_ratio": 2.8186110008317304,
+          "datasets": {
+            "humaneval_plus": {
+              "correct_difference": 0,
+              "accuracy_difference_pp": 0.0
+            },
+            "math_500": {
+              "correct_difference": 2,
+              "accuracy_difference_pp": 6.25
+            }
+          }
+        },
+        {
+          "seed": 20260908,
+          "throughput_ratio": 2.835426026355266,
+          "datasets": {
+            "humaneval_plus": {
+              "correct_difference": 0,
+              "accuracy_difference_pp": 0.0
+            },
+            "math_500": {
+              "correct_difference": 0,
+              "accuracy_difference_pp": 0.0
+            }
+          }
+        }
+      ],
+      "throughput_ratio": {
+        "min": 2.8186110008317304,
+        "median": 2.8189006923429627,
+        "max": 2.835426026355266,
+        "values": [
+          2.8189006923429627,
+          2.8186110008317304,
+          2.835426026355266
+        ]
+      }
+    },
+    {
+      "candidate": "dflash2_7",
+      "reference": "mtp7",
+      "concurrency": 1,
+      "paired": [
+        {
+          "seed": 20260906,
+          "throughput_ratio": 1.3273287894207153,
+          "datasets": {
+            "humaneval_plus": {
+              "correct_difference": 0,
+              "accuracy_difference_pp": 0.0
+            },
+            "math_500": {
+              "correct_difference": -1,
+              "accuracy_difference_pp": -3.125
+            }
+          }
+        },
+        {
+          "seed": 20260907,
+          "throughput_ratio": 1.3424731592943313,
+          "datasets": {
+            "humaneval_plus": {
+              "correct_difference": 0,
+              "accuracy_difference_pp": 0.0
+            },
+            "math_500": {
+              "correct_difference": 4,
+              "accuracy_difference_pp": 12.5
+            }
+          }
+        },
+        {
+          "seed": 20260908,
+          "throughput_ratio": 1.3357510355099085,
+          "datasets": {
+            "humaneval_plus": {
+              "correct_difference": -1,
+              "accuracy_difference_pp": -3.125
+            },
+            "math_500": {
+              "correct_difference": -1,
+              "accuracy_difference_pp": -3.125
+            }
+          }
+        }
+      ],
+      "throughput_ratio": {
+        "min": 1.3273287894207153,
+        "median": 1.3357510355099085,
+        "max": 1.3424731592943313,
+        "values": [
+          1.3273287894207153,
+          1.3424731592943313,
+          1.3357510355099085
+        ]
+      }
+    },
+    {
+      "candidate": "dflash2_7",
+      "reference": "baseline",
+      "concurrency": 4,
+      "paired": [
+        {
+          "seed": 20260906,
+          "throughput_ratio": 2.616235990470226,
+          "datasets": {
+            "humaneval_plus": {
+              "correct_difference": 0,
+              "accuracy_difference_pp": 0.0
+            },
+            "math_500": {
+              "correct_difference": 1,
+              "accuracy_difference_pp": 3.125
+            }
+          }
+        },
+        {
+          "seed": 20260907,
+          "throughput_ratio": 2.61805393851492,
+          "datasets": {
+            "humaneval_plus": {
+              "correct_difference": 0,
+              "accuracy_difference_pp": 0.0
+            },
+            "math_500": {
+              "correct_difference": 0,
+              "accuracy_difference_pp": 0.0
+            }
+          }
+        },
+        {
+          "seed": 20260908,
+          "throughput_ratio": 2.319871577495286,
+          "datasets": {
+            "humaneval_plus": {
+              "correct_difference": -2,
+              "accuracy_difference_pp": -6.25
+            },
+            "math_500": {
+              "correct_difference": 0,
+              "accuracy_difference_pp": 0.0
+            }
+          }
+        }
+      ],
+      "throughput_ratio": {
+        "min": 2.319871577495286,
+        "median": 2.616235990470226,
+        "max": 2.61805393851492,
+        "values": [
+          2.616235990470226,
+          2.61805393851492,
+          2.319871577495286
+        ]
+      }
+    },
+    {
+      "candidate": "dflash2_7",
+      "reference": "mtp7",
+      "concurrency": 4,
+      "paired": [
+        {
+          "seed": 20260906,
+          "throughput_ratio": 1.3708328579111737,
+          "datasets": {
+            "humaneval_plus": {
+              "correct_difference": 1,
+              "accuracy_difference_pp": 3.125
+            },
+            "math_500": {
+              "correct_difference": 2,
+              "accuracy_difference_pp": 6.25
+            }
+          }
+        },
+        {
+          "seed": 20260907,
+          "throughput_ratio": 1.1667872789845901,
+          "datasets": {
+            "humaneval_plus": {
+              "correct_difference": 1,
+              "accuracy_difference_pp": 3.125
+            },
+            "math_500": {
+              "correct_difference": 2,
+              "accuracy_difference_pp": 6.25
+            }
+          }
+        },
+        {
+          "seed": 20260908,
+          "throughput_ratio": 1.1771785608623007,
+          "datasets": {
+            "humaneval_plus": {
+              "correct_difference": -2,
+              "accuracy_difference_pp": -6.25
+            },
+            "math_500": {
+              "correct_difference": 1,
+              "accuracy_difference_pp": 3.125
+            }
+          }
+        }
+      ],
+      "throughput_ratio": {
+        "min": 1.1667872789845901,
+        "median": 1.1771785608623007,
+        "max": 1.3708328579111737,
+        "values": [
+          1.3708328579111737,
+          1.1667872789845901,
+          1.1771785608623007
+        ]
+      }
+    },
+    {
+      "candidate": "dflash2_7",
+      "reference": "baseline",
+      "concurrency": 8,
+      "paired": [
+        {
+          "seed": 20260906,
+          "throughput_ratio": 2.3722616843730533,
+          "datasets": {
+            "humaneval_plus": {
+              "correct_difference": 0,
+              "accuracy_difference_pp": 0.0
+            },
+            "math_500": {
+              "correct_difference": 0,
+              "accuracy_difference_pp": 0.0
+            }
+          }
+        },
+        {
+          "seed": 20260907,
+          "throughput_ratio": 2.637200557534151,
+          "datasets": {
+            "humaneval_plus": {
+              "correct_difference": 0,
+              "accuracy_difference_pp": 0.0
+            },
+            "math_500": {
+              "correct_difference": 2,
+              "accuracy_difference_pp": 6.25
+            }
+          }
+        },
+        {
+          "seed": 20260908,
+          "throughput_ratio": 2.538764135314531,
+          "datasets": {
+            "humaneval_plus": {
+              "correct_difference": -1,
+              "accuracy_difference_pp": -3.125
+            },
+            "math_500": {
+              "correct_difference": 0,
+              "accuracy_difference_pp": 0.0
+            }
+          }
+        }
+      ],
+      "throughput_ratio": {
+        "min": 2.3722616843730533,
+        "median": 2.538764135314531,
+        "max": 2.637200557534151,
+        "values": [
+          2.3722616843730533,
+          2.637200557534151,
+          2.538764135314531
+        ]
+      }
+    },
+    {
+      "candidate": "dflash2_7",
+      "reference": "mtp7",
+      "concurrency": 8,
+      "paired": [
+        {
+          "seed": 20260906,
+          "throughput_ratio": 1.3228396437530514,
+          "datasets": {
+            "humaneval_plus": {
+              "correct_difference": 0,
+              "accuracy_difference_pp": 0.0
+            },
+            "math_500": {
+              "correct_difference": 1,
+              "accuracy_difference_pp": 3.125
+            }
+          }
+        },
+        {
+          "seed": 20260907,
+          "throughput_ratio": 1.29912813247684,
+          "datasets": {
+            "humaneval_plus": {
+              "correct_difference": 0,
+              "accuracy_difference_pp": 0.0
+            },
+            "math_500": {
+              "correct_difference": 2,
+              "accuracy_difference_pp": 6.25
+            }
+          }
+        },
+        {
+          "seed": 20260908,
+          "throughput_ratio": 1.2922737039999728,
+          "datasets": {
+            "humaneval_plus": {
+              "correct_difference": 0,
+              "accuracy_difference_pp": 0.0
+            },
+            "math_500": {
+              "correct_difference": 0,
+              "accuracy_difference_pp": 0.0
+            }
+          }
+        }
+      ],
+      "throughput_ratio": {
+        "min": 1.2922737039999728,
+        "median": 1.29912813247684,
+        "max": 1.3228396437530514,
+        "values": [
+          1.3228396437530514,
+          1.29912813247684,
+          1.2922737039999728
+        ]
+      }
+    }
+  ],
+  "method": "Offline reconciliation of archived official-grader verdicts and saved token counters; no new generation or grading; repeats are not independent new tasks."
+}

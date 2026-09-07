@@ -1,0 +1,78 @@
+{
+  "status": "COMPLETE",
+  "task_id": "HumanEval/126",
+  "dataset": "humaneval_plus",
+  "protocol_hash": "a379ab0f25d801e5a8e38419331586962b3299192aa8c648ce450e6b8ef82c47",
+  "started_utc": "2026-09-05T16:23:55.251961+00:00",
+  "ended_utc": "2026-09-05T16:24:04.891194+00:00",
+  "request": {
+    "model": "Qwen/Qwen3.6-27B",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Please provide a self-contained Python script that solves the following problem in a markdown code block:\n```python\ndef is_sorted(lst):\n    '''\n    Given a list of numbers, return whether or not they are sorted\n    in ascending order. If list has more than 1 duplicate of the same\n    number, return False. Assume no negative numbers and only integers.\n\n    Examples\n    is_sorted([5]) ➞ True\n    is_sorted([1, 2, 3, 4, 5]) ➞ True\n    is_sorted([1, 3, 2, 4, 5]) ➞ False\n    is_sorted([1, 2, 3, 4, 5, 6]) ➞ True\n    is_sorted([1, 2, 3, 4, 5, 6, 7]) ➞ True\n    is_sorted([1, 3, 2, 4, 5, 6, 7]) ➞ False\n    is_sorted([1, 2, 2, 3, 3, 4]) ➞ True\n    is_sorted([1, 2, 2, 2, 3, 4]) ➞ False\n    '''\n```"
+      }
+    ],
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "top_k": -1,
+    "seed": 20260905,
+    "max_tokens": 4096,
+    "stream": false,
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    }
+  },
+  "response": {
+    "id": "chatcmpl-be02f0a3c15699cb",
+    "object": "chat.completion",
+    "created": 1788625435,
+    "prompt_routed_experts": null,
+    "model": "Qwen/Qwen3.6-27B",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "```python\ndef is_sorted(lst):\n    '''\n    Given a list of numbers, return whether or not they are sorted\n    in ascending order. If list has more than 1 duplicate of the same\n    number, return False. Assume no negative numbers and only integers.\n\n    Examples\n    is_sorted([5]) ➞ True\n    is_sorted([1, 2, 3, 4, 5]) ➞ True\n    is_sorted([1, 3, 2, 4, 5]) ➞ False\n    is_sorted([1, 2, 3, 4, 5, 6]) ➞ True\n    is_sorted([1, 2, 3, 4, 5, 6, 7]) ➞ True\n    is_sorted([1, 3, 2, 4, 5, 6, 7]) ➞ False\n    is_sorted([1, 2, 2, 3, 3, 4]) ➞ True\n    is_sorted([1, 2, 2, 2, 3, 4]) ➞ False\n    '''\n    if len(lst) <= 1:\n        return True\n    \n    # Check if sorted in ascending order (non-decreasing)\n    for i in range(len(lst) - 1):\n        if lst[i] > lst[i + 1]:\n            return False\n    \n    # Check for duplicates: no number should appear more than twice\n    # Wait, let me re-read: \"If list has more than 1 duplicate of the same number, return False\"\n    # This means if any number appears more than 2 times, return False.\n    # But looking at the examples:\n    # is_sorted([1, 2, 2, 3, 3, 4]) ➞ True  (2 appears twice, 3 appears twice - OK)\n    # is_sorted([1, 2, 2, 2, 3, 4]) ➞ False  (2 appears three times - not OK)\n    # So \"more than 1 duplicate\" means more than 2 occurrences total (i.e., 3 or more)\n    \n    from collections import Counter\n    counts = Counter(lst)\n    for count in counts.values():\n        if count > 2:\n            return False\n    \n    return True\n```",
+          "refusal": null,
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "tool_calls": [],
+          "reasoning": null
+        },
+        "logprobs": null,
+        "finish_reason": "stop",
+        "stop_reason": null,
+        "token_ids": null,
+        "routed_experts": null
+      }
+    ],
+    "service_tier": null,
+    "system_fingerprint": "vllm-0.21.0-6cc6a8e8",
+    "usage": {
+      "prompt_tokens": 282,
+      "total_tokens": 800,
+      "completion_tokens": 518,
+      "prompt_tokens_details": null
+    },
+    "prompt_logprobs": null,
+    "prompt_token_ids": null,
+    "prompt_text": null,
+    "kv_transfer_params": null
+  },
+  "content": "```python\ndef is_sorted(lst):\n    '''\n    Given a list of numbers, return whether or not they are sorted\n    in ascending order. If list has more than 1 duplicate of the same\n    number, return False. Assume no negative numbers and only integers.\n\n    Examples\n    is_sorted([5]) ➞ True\n    is_sorted([1, 2, 3, 4, 5]) ➞ True\n    is_sorted([1, 3, 2, 4, 5]) ➞ False\n    is_sorted([1, 2, 3, 4, 5, 6]) ➞ True\n    is_sorted([1, 2, 3, 4, 5, 6, 7]) ➞ True\n    is_sorted([1, 3, 2, 4, 5, 6, 7]) ➞ False\n    is_sorted([1, 2, 2, 3, 3, 4]) ➞ True\n    is_sorted([1, 2, 2, 2, 3, 4]) ➞ False\n    '''\n    if len(lst) <= 1:\n        return True\n    \n    # Check if sorted in ascending order (non-decreasing)\n    for i in range(len(lst) - 1):\n        if lst[i] > lst[i + 1]:\n            return False\n    \n    # Check for duplicates: no number should appear more than twice\n    # Wait, let me re-read: \"If list has more than 1 duplicate of the same number, return False\"\n    # This means if any number appears more than 2 times, return False.\n    # But looking at the examples:\n    # is_sorted([1, 2, 2, 3, 3, 4]) ➞ True  (2 appears twice, 3 appears twice - OK)\n    # is_sorted([1, 2, 2, 2, 3, 4]) ➞ False  (2 appears three times - not OK)\n    # So \"more than 1 duplicate\" means more than 2 occurrences total (i.e., 3 or more)\n    \n    from collections import Counter\n    counts = Counter(lst)\n    for count in counts.values():\n        if count > 2:\n            return False\n    \n    return True\n```",
+  "reasoning": "",
+  "finish_reason": "stop",
+  "usage": {
+    "prompt_tokens": 282,
+    "total_tokens": 800,
+    "completion_tokens": 518,
+    "prompt_tokens_details": null
+  },
+  "total_s": 9.639225243000055,
+  "ttft_any_s": null,
+  "ttft_content_s": null,
+  "output_tps_e2e": 53.73875876343572
+}

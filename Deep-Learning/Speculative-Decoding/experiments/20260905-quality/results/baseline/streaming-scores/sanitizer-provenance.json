@@ -1,0 +1,7 @@
+{
+  "producer": "EvalPlus official sanitize CLI",
+  "original_sha256": "7dd1be15c6c91e37ab9a071ca6218bc7236a2215a2c0f798865591643199a0c5",
+  "sanitized_sha256": "c00565bffce7319341447ac6ddba8970ef536a0e53c16e60fdfef069be7d0c98",
+  "samples": 24,
+  "task_multiset_preserved": true
+}

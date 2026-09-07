@@ -1,0 +1,13 @@
+{
+  "route": "baseline",
+  "group": "long-context",
+  "requests": 12,
+  "expected": 12,
+  "concurrency": 1,
+  "elapsed_wall_s": 32.693255123998824,
+  "finish_counts": {
+    "stop": 12
+  },
+  "empty_content": 0,
+  "completion_tokens": 164
+}

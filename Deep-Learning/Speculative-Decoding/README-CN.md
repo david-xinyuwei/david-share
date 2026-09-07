@@ -1,39 +1,58 @@
-# Speculative Decoding for OSS Models
+# 推测解码（Speculative Decoding）：实测与机制
 
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+[![vLLM 0.28.0](https://img.shields.io/badge/vLLM-0.28.0-0078D4.svg)](https://github.com/vllm-project/vllm/releases/tag/v0.28.0)
+[![H100 NVL](https://img.shields.io/badge/GPU-H100%20NVL-76B900.svg)](experiments/20260906-qwen38/README-CN.md#已记录的方法)
+[![64-task subset](https://img.shields.io/badge/Scope-64--task%20subset-956A00.svg)](experiments/20260906-qwen38/README-CN.md#s-阶段结果)
+[![Python 3.12 replay](https://img.shields.io/badge/Replay-Python%203.12-3776AB.svg)](#快速开始)
 
-[English](README.md) | 中文文档
+推测解码先生成多个候选 token，再由目标模型验证。本仓库用服务实测和机制资料对照这条路径：最新的 Qwen3.8-27B 报告在同一批 64 题上比较 baseline、原生 MTP 和 DFlash 2，并提供已保存证据的 CPU 离线复算入口；早期 EAGLE3 与服务实验独立保留。
 
-[![EAGLE Paper](https://img.shields.io/badge/arXiv-EAGLE-b31b1b.svg)](https://arxiv.org/abs/2401.15077)
-[![EAGLE-2 Paper](https://img.shields.io/badge/arXiv-EAGLE2-b31b1b.svg)](https://arxiv.org/abs/2406.16858)
-[![SGLang](https://img.shields.io/badge/Inference-SGLang-blue.svg)](https://github.com/sgl-project/sglang)
-[![vLLM](https://img.shields.io/badge/Inference-vLLM-purple.svg)](https://github.com/vllm-project/vllm)
-[![SpecForge](https://img.shields.io/badge/Training-SpecForge-green.svg)](https://github.com/SafeAILab/SpecForge)
+> **作者**: 魏新宇 / Xinyu Wei
 
-Draft-and-verify 加速工程指南：用可复现 benchmark 对比 EAGLE3、自训练 draft head、native model-family MTP、DFlash 和 llama.cpp MTP。
+[English](README.md) | 中文
+
+[最新实验](experiments/20260906-qwen38/README-CN.md) · [快速开始](#快速开始) · [机制](#背景什么是-speculative-decoding推测解码) · [证据](experiments/20260906-qwen38/README-CN.md#证据与复算边界) · [上游 vLLM](https://github.com/vllm-project/vllm/tree/2cf0a6915ce544dc493a0990f2ea38d81601128a)
+
+---
+
+## 快速开始
+
+在 `Deep-Learning/Speculative-Decoding` 目录执行，使用 Python 3.10+，徽章标注的复算目标版本为 Python 3.12。两项检查只依赖标准库，不需要安装包、GPU、网络或凭据。
+
+```bash
+python experiments/20260906-qwen38/validate_report.py
+python -m unittest discover -s experiments/20260906-qwen38 -p "test_*.py"
+```
+
+两条命令均应以退出码 0 结束。它们检查已保存的报告和复算约定，不会发起 GPU 推理或重新运行官方评分器。可选的数值和图片生成见[实验报告的离线复算部分](experiments/20260906-qwen38/README-CN.md#离线复算)。
+
+## 最新结果与快照边界
+
+以 **[2026-09-06 Qwen3.8-27B 报告](experiments/20260906-qwen38/README-CN.md)** 为主：C/G/S 已完成 **69 组、1,920 份响应**；F 的 **3,984 份响应为 NOT_RUN**，原计划 **5,904 份**不变。DFlash 2 在并发 1/4/8 的组 tok/s 三 seed 中位数均为最高，但这不是质量认证，也不是正式的非劣效结论。并发 4、seed 20260908 时，其代码正确数为 **29/32，MTP 为 31/32**，且有三份代码回答因长度上限停止；正常结束且答对的答案速率对比见子报告。
+
+三份快照分别阅读：下文的 **6 月 H100 服务记录**属于历史研究；**[9 月 5 日](experiments/20260905-quality/README-CN.md)** 使用 Qwen3.6-27B 与 vLLM 0.21.0；**[9 月 6 日](experiments/20260906-qwen38/README-CN.md)** 使用 Qwen3.8-27B 与 vLLM 0.28.0。徽章只描述最新快照及复算目标版本，不能套用到全部历史实验。新结果也不能证明 9 月 5 日的 DFlash 并发故障已修复。
 
 ## 核心成果
 
-本项目记录多条 Speculative Decoding / draft-and-verify 路线的完整研究流程：官方 EAGLE3 验证、自训练 draft head、native model-family MTP、GLM-5.2 的 IndexShare/KVShare MTP 设计，以及 DFlash/MTP serving 实验。
+**以下为保留的历史研究。** 内容包括官方 EAGLE3 验证、自训练 draft head、各模型家族的原生 MTP、GLM-5.2 的 IndexShare/KVShare 设计，以及早期 DFlash/MTP 服务实验。这些测量不与最新报告混算。
 
 | 主题 | 本 repo 覆盖什么 | 证据 / 来源 | 关键洞察 |
 |------|----------------|-------------|----------|
 | EAGLE3 官方验证 | Llama-3.1-8B 的官方 EAGLE3 draft model | **441.7 vs 165.7 tok/s = 2.67x**，SGLang，H100，20 runs | Feature-based draft head 在低并发场景能带来明显 latency 收益 |
-| 自训练 draft head | 单卡训练自定义 EAGLE3 draft head | **207.7 vs 159.8 tok/s = 1.30x**（代码任务），45 分钟训练 | 极短训练也能产生有效加速，但强依赖任务分布 |
+| 自训练 draft head | 单卡训练自定义 EAGLE3 draft head | **207.7 vs 159.8 tok/s = 1.30x**（代码任务），45 分钟训练 | 这是该任务下的实测速率比，不是训练效率的对照实验 |
 | Native model-family MTP | Qwen3.6 / DeepSeek-style MTP patterns，以及 GLM-5.2 的单层 MTP + IndexShare/KVShare | GLM-5.2 官方 config + blog：`num_nextn_predict_layers=1`、shared MTP parameters、acceptance length **4.56 → 5.47 (+20%)** | Native MTP 不是一种固定 recipe；KVShare / IndexShare 这类 serving 架构细节很关键 |
 | DFlash vs native MTP serving | Qwen3.6 native MTP、DFlash、llama.cpp MTP 的 H100 benchmark | Repo JSON/logs：测试口径下 DFlash coding **191.7 tok/s** vs native MTP **146.7 tok/s** | DFlash 在长输出 single-stream 测试中更快，但结论受 spec tokens、backend、precision 和 workload 影响 |
 | Simulated acceptance | `SGLANG_SIMULATE_ACC_LEN=3` 在 4-token draft window 下的含义 | 公式：`accept_rate = 3 / 4 = 0.75`；README 中有 token timeline 例子 | simulated acceptance 是 runtime 诊断设置，不是真实模型质量证明 |
 
-**为什么 45 分钟训练达到 1.30x 加速很有意义？**
-- 官方模型需要在 8x A100/H100 上训练数天
-- 我们用单卡 45 分钟就达到了官方效果的 ~50%
-- 证明了 EAGLE3 的样本效率 - 极少计算量即可获得有效加速
-- GLM-5.2 和 Qwen3.6 说明 native MTP 需要按 model family 具体分析；同样是 `num_nextn_predict_layers=1`，serving 架构不同，acceptance 表现也会不同。
+**训练结果的边界：** 45 分钟训练后的代码测试测得 1.30x，但它与另一次官方 EAGLE3 验证不构成控制训练算力的对照实验。因此不能换算成“官方加速效果的几成”，也不能据此证明样本效率。
+
+GLM-5.2 和 Qwen3.6 同样需要按模型家族分别分析；仅有 `num_nextn_predict_layers=1` 不能证明服务行为相同。
 
 ## 怎么读这个 Repo
 
 | 你关心什么 | 从哪里开始 | 能得到什么 |
 |---|---|---|
+| 最新实测对比 | [Qwen3.8-27B 报告](experiments/20260906-qwen38/README-CN.md) | 配对结果、延迟、执行覆盖与证据边界 |
 | 核心机制 | [背景](#背景什么是-speculative-decoding推测解码) | 为什么 draft-and-verify 能降低 latency |
 | 选哪条路线 | [分类](#speculative-decoding-分类eagle3-vs-原生-mtp-vs-dflash) 和 [选型指南](#选型指南什么场景选哪条路线) | EAGLE3、native MTP、DFlash 分别适合什么场景 |
 | Native MTP 细节 | [MTP 层数与超参数](#mtp-层数与-speculative-decoding-超参数) | GLM-5.2、Qwen3.6、draft steps、模拟接受率和 `accept_rate=0.75` |
@@ -42,7 +61,7 @@ Draft-and-verify 加速工程指南：用可复现 benchmark 对比 EAGLE3、自
 
 ## Repo 质量承诺
 
-这个 repo 不是只讲概念，而是按证据交付：
+下面列出保留的历史服务实验资产；最新报告的[测量代码、配置与复算证据](experiments/20260906-qwen38/README-CN.md#证据与复算边界)单独列出。
 
 | 原则 | 已包含什么 | 去哪里检查 |
 |---|---|---|
@@ -93,7 +112,7 @@ total_s = t_end - t_start
 "gen_tps": round(completion_tokens / max(total_s, 0.001), 2)
 ```
 
-**CLI 复现入口**：
+**历史 GPU 实验入口（不是离线快速开始）**：
 
 ```bash
 # 自动顺序运行三条路线
@@ -112,7 +131,7 @@ python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8000 \
 | vLLM DFlash | `data/h100_vllm_dflash.json` | 191.62 / 191.75 / 191.70 | **191.7** |
 | llama.cpp MTP Q4_K_XL | `data/h100_llamacpp_mtp_q4kxl.json` | 106.65 / 107.70 / 107.28 | **107.3** |
 
-**TTFT 口径说明：** 这组 H100 证据证明的是 decode throughput / output TPS，不证明 TTFT 提升。当前保存的 JSON 是用 `--no-stream` 跑出来的，这样可以用 `usage.completion_tokens` 精确计算 TPS；在这个模式下 `ttft_s` 为 `null`。如果要比较 TTFT，需要用 streaming 模式单独记录 time-to-first-SSE-chunk。
+**测量边界：** 这组历史 H100 记录测的是输出 token 数除以请求总耗时，包含预填充和客户端开销，不是单独解码阶段的吞吐，也不能证明 TTFT 提升。保存的 JSON 来自 `--no-stream` 调用，`ttft_s` 为 `null`。流式响应的第一个事件未必含有输出 token；测 TTFT 时应区分首个事件和首个非空输出。
 
 ```bash
 # 可选 TTFT sanity check：去掉 --no-stream。
@@ -123,7 +142,7 @@ python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8000 \
 
 ## Benchmark 环境
 
-本项目使用下面的 GPU 环境完成实验。Azure 只是本次 benchmark 的测试基础设施，不是 Speculative Decoding 技术本身的依赖。
+下面的环境属于历史实验，不是 9 月 6 日的 H100 NVL 快照。Azure 是测试基础设施，不是推测解码技术本身的依赖。
 
 | 项目 | 详情 |
 |---|---|
@@ -447,7 +466,9 @@ GLM-5.2 是一个很好的公开例子。它的 HF config 写着 `num_nextn_pred
 
 本 repo 在 NVIDIA H100 NVL 96GB 上测试了单请求 total latency 和 generation TPS。vLLM 路线使用 `Qwen/Qwen3.6-27B` bf16；llama.cpp 路线使用 `unsloth/Qwen3.6-27B-MTP-GGUF:UD-Q4_K_XL`。测试覆盖 Coding、Math、Chat 三类任务，每类 warmup 1 次、正式运行 3 次，报告中位数。API 使用 non-streaming 模式，TPS = `usage.completion_tokens / total_time`。
 
-这张表应该理解为 **decode throughput / tokens-per-second 对比**，不是 TTFT 对比。Speculative decoding 和 MTP 主要减少 generation 开始后的 target decode steps 数量；它们不会天然减少 prefill time，所以 TTFT 通常是持平，也可能因为 draft model setup、scheduler overhead 或 first visible token 前的额外验证而略有回退。本轮测试为了精确 token accounting 使用了 `--no-stream`，因此没有测 TTFT。小样本 TTFT follow-up 工作量不大：复用同一个已启动 server，去掉 `--no-stream`，每条 route 跑 3 个 prompts x 3 runs 即可。完整控制变量 TTFT study 则需要额外增加 no-speculation baseline，并把 streaming-TTFT run 和 non-streaming accurate-TPS run 分开看。
+这张表是 **2026-06-28 的限长速度样例**，不是完整答案准确率评测，也不是单独解码阶段的吞吐。每个领域标签只对应一条固定提示词。两条 vLLM 路线合计 18 条正式记录全部以 `finish_reason="length"` 结束；最终答案预览为空，只留下了简短推理预览，没有代码测试或标准答案评分。旧客户端中的文字指令 `/no_think` 也不能证明模型的思考模板已关闭。
+
+表中速率按输出词元数除以请求总耗时计算，包含预填充和客户端开销。非流式记录没有测 TTFT，因此不能用它推断首词元更快或完整答案质量不降。草拟窗口和后端配置的差别也限制了比较范围，不能据此给算法排总名次。后续完整答案评测必须作为独立实验，另外冻结题目、模型版本、模板开关与输出预算，保存完整响应并用正式评分工具判分。
 
 **测试环境：**
 
@@ -513,6 +534,30 @@ python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8080   --lab
 | Server startup logs | `logs/h100_vllm_native_mtp_startup.log`, `logs/h100_vllm_dflash_startup.log`, `logs/h100_llamacpp_mtp_startup.log` |
 | Benchmark client | `scripts/mtp_benchmark_client.py` |
 | Orchestrator | `scripts/mtp_benchmark_orchestrator.sh` |
+
+---
+
+## 阶段 4：完整答案质量评测（2026-09-05）
+
+**单请求更快，但本轮 DFlash15 并发配置没有通过已测质量检查。** 作者执行的完整矩阵包含 3,100 份响应、25 个路线/场景组合；证据回流并校验后，GPU VM 已释放。本阶段独立于阶段 3 的三个限长提示词样例，不回填或混算旧成绩。
+
+| 路线 | HumanEval+ | MATH-500 | 代码/数学请求耗时中位数 |
+|---|---:|---:|---:|
+| Baseline | 152/164 | 489/500 | 4.393 / 15.666 s |
+| MTP5 | 155/164 | 494/500 | 1.175 / 4.542 s |
+| DFlash15 | 153/164 | 490/500 | 0.660 / 2.980 s |
+
+在相同 32+32 题子集上，DFlash15 代码/数学从并发 1 的 32/32、31/32，降到并发 4 的 11/32、13/32，以及并发 8 的 10/32、12/32。原始请求与官方评分的绑定已逐条核对。根因尚未确定，也没有修复后复测；不能把本轮现象外推到所有 DFlash 实现或云平台。
+
+[完整方法、结果与无 GPU 复算](experiments/20260905-quality/README-CN.md) · [原始回答与评分](experiments/20260905-quality/results/) · [配对汇总](experiments/20260905-quality/analysis/summary.json)
+
+本轮固定 Qwen3.6-27B BF16 权重快照和 vLLM 0.21.0。主分数每题一次，截断不剔除；请求计时包含预填充和客户端开销，草拟窗口不同，有限分数不能证明普遍无损。重复、流式、并发、随机采样和合成长上下文结果均单独列出。
+
+---
+
+## 阶段 5：Qwen3.8 部署回归（2026-09-06）
+
+[最新报告：实测结果、延迟、执行时间线与 CPU 离线复算](experiments/20260906-qwen38/README-CN.md)。
 
 ---
 

@@ -1,0 +1,13 @@
+{
+  "route": "baseline",
+  "group": "concurrency-1",
+  "requests": 64,
+  "expected": 64,
+  "concurrency": 1,
+  "elapsed_wall_s": 892.7169264949989,
+  "finish_counts": {
+    "stop": 64
+  },
+  "empty_content": 0,
+  "completion_tokens": 48139
+}

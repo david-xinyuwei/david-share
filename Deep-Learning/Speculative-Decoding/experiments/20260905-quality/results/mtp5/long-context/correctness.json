@@ -1,0 +1,62 @@
+[
+  {
+    "task_id": "long/4096-0",
+    "actual_input_tokens": 4123,
+    "correct": true
+  },
+  {
+    "task_id": "long/4096-1",
+    "actual_input_tokens": 4123,
+    "correct": true
+  },
+  {
+    "task_id": "long/4096-2",
+    "actual_input_tokens": 4123,
+    "correct": true
+  },
+  {
+    "task_id": "long/4096-3",
+    "actual_input_tokens": 4123,
+    "correct": true
+  },
+  {
+    "task_id": "long/16384-0",
+    "actual_input_tokens": 16416,
+    "correct": true
+  },
+  {
+    "task_id": "long/16384-1",
+    "actual_input_tokens": 16416,
+    "correct": true
+  },
+  {
+    "task_id": "long/16384-2",
+    "actual_input_tokens": 16416,
+    "correct": true
+  },
+  {
+    "task_id": "long/16384-3",
+    "actual_input_tokens": 16416,
+    "correct": true
+  },
+  {
+    "task_id": "long/32768-0",
+    "actual_input_tokens": 32796,
+    "correct": true
+  },
+  {
+    "task_id": "long/32768-1",
+    "actual_input_tokens": 32796,
+    "correct": true
+  },
+  {
+    "task_id": "long/32768-2",
+    "actual_input_tokens": 32796,
+    "correct": true
+  },
+  {
+    "task_id": "long/32768-3",
+    "actual_input_tokens": 32796,
+    "correct": true
+  }
+]

@@ -1,0 +1,14 @@
+{
+  "route": "mtp5",
+  "group": "primary",
+  "requests": 664,
+  "expected": 664,
+  "concurrency": 1,
+  "elapsed_wall_s": 3674.7885367309973,
+  "finish_counts": {
+    "length": 2,
+    "stop": 662
+  },
+  "empty_content": 0,
+  "completion_tokens": 672684
+}

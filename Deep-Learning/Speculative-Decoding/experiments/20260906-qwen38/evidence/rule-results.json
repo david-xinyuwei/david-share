@@ -1,0 +1,53 @@
+{
+  "scope": "Offline report verification; not fresh GPU execution, regrading or precision noninferiority.",
+  "checks": [
+    {
+      "id": "recorded-group-score-and-token-reconciliation",
+      "status": "PASS",
+      "evidence": [
+        "data/groups.json",
+        "data/summary.json"
+      ]
+    },
+    {
+      "id": "run-id-state-duration-and-coverage",
+      "status": "PASS",
+      "evidence": [
+        "evidence/run.json",
+        "evidence/events.jsonl"
+      ]
+    },
+    {
+      "id": "actual-request-and-executed-source-hashes",
+      "status": "PASS",
+      "evidence": [
+        "evidence/request-examples.json",
+        "source/"
+      ]
+    },
+    {
+      "id": "generated-bilingual-tables-and-reader-log",
+      "status": "PASS",
+      "evidence": [
+        "README.md",
+        "README-CN.md"
+      ]
+    },
+    {
+      "id": "local-links-and-reader-entry",
+      "status": "PASS",
+      "evidence": [
+        "README.md",
+        "README-CN.md"
+      ]
+    },
+    {
+      "id": "published-file-integrity",
+      "status": "PASS",
+      "evidence": [
+        "evidence/files.json"
+      ]
+    }
+  ],
+  "manifest_sha256": "d15cc40f10bb3bf9d5d6daf2ed80746e0f3d59b49b49e70e1f74ccbc99c5d04e"
+}

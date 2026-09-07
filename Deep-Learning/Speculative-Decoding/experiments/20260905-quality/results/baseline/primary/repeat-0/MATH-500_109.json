@@ -1,0 +1,78 @@
+{
+  "status": "COMPLETE",
+  "task_id": "MATH-500/109",
+  "dataset": "math_500",
+  "protocol_hash": "a379ab0f25d801e5a8e38419331586962b3299192aa8c648ce450e6b8ef82c47",
+  "started_utc": "2026-09-05T17:11:11.233740+00:00",
+  "ended_utc": "2026-09-05T17:11:43.777029+00:00",
+  "request": {
+    "model": "Qwen/Qwen3.6-27B",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Find the degree measure of the least positive angle $\\theta$ for which\n\\[\\tan \\theta = \\frac{\\cos 5^\\circ \\cos 20^\\circ + \\cos 35^\\circ \\cos 50^\\circ - \\sin 5^\\circ \\sin 20^\\circ - \\sin 35^\\circ \\sin 50^\\circ}{\\sin 5^\\circ \\cos 20^\\circ - \\sin 35^\\circ \\cos 50^\\circ + \\cos 5^\\circ \\sin 20^\\circ - \\cos 35^\\circ \\sin 50^\\circ}.\\]\nPlease reason carefully and put your final answer within \\boxed{}."
+      }
+    ],
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "top_k": -1,
+    "seed": 20260905,
+    "max_tokens": 8192,
+    "stream": false,
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    }
+  },
+  "response": {
+    "id": "chatcmpl-af01041a50ebd68a",
+    "object": "chat.completion",
+    "created": 1788628271,
+    "prompt_routed_experts": null,
+    "model": "Qwen/Qwen3.6-27B",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "To find the degree measure of the least positive angle $\\theta$ satisfying the given equation, we need to simplify the expression on the right-hand side.\n\nLet the expression be $E$.\n\\[ E = \\frac{\\cos 5^\\circ \\cos 20^\\circ + \\cos 35^\\circ \\cos 50^\\circ - \\sin 5^\\circ \\sin 20^\\circ - \\sin 35^\\circ \\sin 50^\\circ}{\\sin 5^\\circ \\cos 20^\\circ - \\sin 35^\\circ \\cos 50^\\circ + \\cos 5^\\circ \\sin 20^\\circ - \\cos 35^\\circ \\sin 50^\\circ} \\]\n\n### Step 1: Simplify the Numerator\n\nLet the numerator be $N$. We can group the terms to apply trigonometric addition formulas.\nRecall the cosine addition formula: $\\cos(A + B) = \\cos A \\cos B - \\sin A \\sin B$.\n\nGroup the first and third terms, and the second and fourth terms:\n\\[ N = (\\cos 5^\\circ \\cos 20^\\circ - \\sin 5^\\circ \\sin 20^\\circ) + (\\cos 35^\\circ \\cos 50^\\circ - \\sin 35^\\circ \\sin 50^\\circ) \\]\n\nApplying the formula:\n1. $\\cos 5^\\circ \\cos 20^\\circ - \\sin 5^\\circ \\sin 20^\\circ = \\cos(5^\\circ + 20^\\circ) = \\cos 25^\\circ$\n2. $\\cos 35^\\circ \\cos 50^\\circ - \\sin 35^\\circ \\sin 50^\\circ = \\cos(35^\\circ + 50^\\circ) = \\cos 85^\\circ$\n\nSo, the numerator simplifies to:\n\\[ N = \\cos 25^\\circ + \\cos 85^\\circ \\]\n\nWe can further simplify this sum using the sum-to-product formula: $\\cos A + \\cos B = 2 \\cos\\left(\\frac{A+B}{2}\\right) \\cos\\left(\\frac{A-B}{2}\\right)$.\nHere $A = 85^\\circ$ and $B = 25^\\circ$.\n\\[ \\frac{A+B}{2} = \\frac{85^\\circ + 25^\\circ}{2} = \\frac{110^\\circ}{2} = 55^\\circ \\]\n\\[ \\frac{A-B}{2} = \\frac{85^\\circ - 25^\\circ}{2} = \\frac{60^\\circ}{2} = 30^\\circ \\]\n\nThus,\n\\[ N = 2 \\cos 55^\\circ \\cos 30^\\circ \\]\nSince $\\cos 30^\\circ = \\frac{\\sqrt{3}}{2}$, we have:\n\\[ N = 2 \\cos 55^\\circ \\left(\\frac{\\sqrt{3}}{2}\\right) = \\sqrt{3} \\cos 55^\\circ \\]\n\n### Step 2: Simplify the Denominator\n\nLet the denominator be $D$.\n\\[ D = \\sin 5^\\circ \\cos 20^\\circ - \\sin 35^\\circ \\cos 50^\\circ + \\cos 5^\\circ \\sin 20^\\circ - \\cos 35^\\circ \\sin 50^\\circ \\]\n\nRearrange the terms to group those that form sine addition/subtraction formulas.\nRecall the sine addition formula: $\\sin(A + B) = \\sin A \\cos B + \\cos A \\sin B$.\nRecall the sine subtraction formula: $\\sin(A - B) = \\sin A \\cos B - \\cos A \\sin B$.\n\nLet's group the terms involving $5^\\circ$ and $20^\\circ$, and the terms involving $35^\\circ$ and $50^\\circ$.\n\\[ D = (\\sin 5^\\circ \\cos 20^\\circ + \\cos 5^\\circ \\sin 20^\\circ) - (\\sin 35^\\circ \\cos 50^\\circ + \\cos 35^\\circ \\sin 50^\\circ) \\]\n\nApplying the formulas:\n1. $\\sin 5^\\circ \\cos 20^\\circ + \\cos 5^\\circ \\sin 20^\\circ = \\sin(5^\\circ + 20^\\circ) = \\sin 25^\\circ$\n2. $\\sin 35^\\circ \\cos 50^\\circ + \\cos 35^\\circ \\sin 50^\\circ = \\sin(35^\\circ + 50^\\circ) = \\sin 85^\\circ$\n\nSo, the denominator simplifies to:\n\\[ D = \\sin 25^\\circ - \\sin 85^\\circ \\]\n\nWe can simplify this difference using the sum-to-product formula: $\\sin A - \\sin B = 2 \\cos\\left(\\frac{A+B}{2}\\right) \\sin\\left(\\frac{A-B}{2}\\right)$.\nHere $A = 25^\\circ$ and $B = 85^\\circ$.\n\\[ \\frac{A+B}{2} = \\frac{25^\\circ + 85^\\circ}{2} = \\frac{110^\\circ}{2} = 55^\\circ \\]\n\\[ \\frac{A-B}{2} = \\frac{25^\\circ - 85^\\circ}{2} = \\frac{-60^\\circ}{2} = -30^\\circ \\]\n\nThus,\n\\[ D = 2 \\cos 55^\\circ \\sin(-30^\\circ) \\]\nSince $\\sin(-30^\\circ) = -\\sin 30^\\circ = -\\frac{1}{2}$, we have:\n\\[ D = 2 \\cos 55^\\circ \\left(-\\frac{1}{2}\\right) = -\\cos 55^\\circ \\]\n\n### Step 3: Calculate $\\tan \\theta$\n\nNow substitute the simplified $N$ and $D$ back into the expression for $\\tan \\theta$:\n\\[ \\tan \\theta = \\frac{N}{D} = \\frac{\\sqrt{3} \\cos 55^\\circ}{-\\cos 55^\\circ} \\]\n\nAssuming $\\cos 55^\\circ \\neq 0$ (which is true since $55^\\circ \\neq 90^\\circ$), we can cancel $\\cos 55^\\circ$:\n\\[ \\tan \\theta = -\\sqrt{3} \\]\n\n### Step 4: Find the Least Positive Angle $\\theta$\n\nWe need to find the least positive angle $\\theta$ such that $\\tan \\theta = -\\sqrt{3}$.\n\nThe reference angle $\\alpha$ for which $\\tan \\alpha = \\sqrt{3}$ is $\\alpha = 60^\\circ$.\nSince the tangent is negative, the angle $\\theta$ must be in the second or fourth quadrant.\n- In the second quadrant: $\\theta = 180^\\circ - 60^\\circ = 120^\\circ$.\n- In the fourth quadrant: $\\theta = 360^\\circ - 60^\\circ = 300^\\circ$.\n\nThe general solution is $\\theta = 120^\\circ + 180^\\circ k$ for any integer $k$.\nFor $k=0$, $\\theta = 120^\\circ$.\nFor $k=-1$, $\\theta = -60^\\circ$ (not positive).\nFor $k=1$, $\\theta = 300^\\circ$.\n\nThe least positive angle is $120^\\circ$.\n\n\\boxed{120}",
+          "refusal": null,
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "tool_calls": [],
+          "reasoning": null
+        },
+        "logprobs": null,
+        "finish_reason": "stop",
+        "stop_reason": null,
+        "token_ids": null,
+        "routed_experts": null
+      }
+    ],
+    "service_tier": null,
+    "system_fingerprint": "vllm-0.21.0-6cc6a8e8",
+    "usage": {
+      "prompt_tokens": 166,
+      "total_tokens": 1926,
+      "completion_tokens": 1760,
+      "prompt_tokens_details": null
+    },
+    "prompt_logprobs": null,
+    "prompt_token_ids": null,
+    "prompt_text": null,
+    "kv_transfer_params": null
+  },
+  "content": "To find the degree measure of the least positive angle $\\theta$ satisfying the given equation, we need to simplify the expression on the right-hand side.\n\nLet the expression be $E$.\n\\[ E = \\frac{\\cos 5^\\circ \\cos 20^\\circ + \\cos 35^\\circ \\cos 50^\\circ - \\sin 5^\\circ \\sin 20^\\circ - \\sin 35^\\circ \\sin 50^\\circ}{\\sin 5^\\circ \\cos 20^\\circ - \\sin 35^\\circ \\cos 50^\\circ + \\cos 5^\\circ \\sin 20^\\circ - \\cos 35^\\circ \\sin 50^\\circ} \\]\n\n### Step 1: Simplify the Numerator\n\nLet the numerator be $N$. We can group the terms to apply trigonometric addition formulas.\nRecall the cosine addition formula: $\\cos(A + B) = \\cos A \\cos B - \\sin A \\sin B$.\n\nGroup the first and third terms, and the second and fourth terms:\n\\[ N = (\\cos 5^\\circ \\cos 20^\\circ - \\sin 5^\\circ \\sin 20^\\circ) + (\\cos 35^\\circ \\cos 50^\\circ - \\sin 35^\\circ \\sin 50^\\circ) \\]\n\nApplying the formula:\n1. $\\cos 5^\\circ \\cos 20^\\circ - \\sin 5^\\circ \\sin 20^\\circ = \\cos(5^\\circ + 20^\\circ) = \\cos 25^\\circ$\n2. $\\cos 35^\\circ \\cos 50^\\circ - \\sin 35^\\circ \\sin 50^\\circ = \\cos(35^\\circ + 50^\\circ) = \\cos 85^\\circ$\n\nSo, the numerator simplifies to:\n\\[ N = \\cos 25^\\circ + \\cos 85^\\circ \\]\n\nWe can further simplify this sum using the sum-to-product formula: $\\cos A + \\cos B = 2 \\cos\\left(\\frac{A+B}{2}\\right) \\cos\\left(\\frac{A-B}{2}\\right)$.\nHere $A = 85^\\circ$ and $B = 25^\\circ$.\n\\[ \\frac{A+B}{2} = \\frac{85^\\circ + 25^\\circ}{2} = \\frac{110^\\circ}{2} = 55^\\circ \\]\n\\[ \\frac{A-B}{2} = \\frac{85^\\circ - 25^\\circ}{2} = \\frac{60^\\circ}{2} = 30^\\circ \\]\n\nThus,\n\\[ N = 2 \\cos 55^\\circ \\cos 30^\\circ \\]\nSince $\\cos 30^\\circ = \\frac{\\sqrt{3}}{2}$, we have:\n\\[ N = 2 \\cos 55^\\circ \\left(\\frac{\\sqrt{3}}{2}\\right) = \\sqrt{3} \\cos 55^\\circ \\]\n\n### Step 2: Simplify the Denominator\n\nLet the denominator be $D$.\n\\[ D = \\sin 5^\\circ \\cos 20^\\circ - \\sin 35^\\circ \\cos 50^\\circ + \\cos 5^\\circ \\sin 20^\\circ - \\cos 35^\\circ \\sin 50^\\circ \\]\n\nRearrange the terms to group those that form sine addition/subtraction formulas.\nRecall the sine addition formula: $\\sin(A + B) = \\sin A \\cos B + \\cos A \\sin B$.\nRecall the sine subtraction formula: $\\sin(A - B) = \\sin A \\cos B - \\cos A \\sin B$.\n\nLet's group the terms involving $5^\\circ$ and $20^\\circ$, and the terms involving $35^\\circ$ and $50^\\circ$.\n\\[ D = (\\sin 5^\\circ \\cos 20^\\circ + \\cos 5^\\circ \\sin 20^\\circ) - (\\sin 35^\\circ \\cos 50^\\circ + \\cos 35^\\circ \\sin 50^\\circ) \\]\n\nApplying the formulas:\n1. $\\sin 5^\\circ \\cos 20^\\circ + \\cos 5^\\circ \\sin 20^\\circ = \\sin(5^\\circ + 20^\\circ) = \\sin 25^\\circ$\n2. $\\sin 35^\\circ \\cos 50^\\circ + \\cos 35^\\circ \\sin 50^\\circ = \\sin(35^\\circ + 50^\\circ) = \\sin 85^\\circ$\n\nSo, the denominator simplifies to:\n\\[ D = \\sin 25^\\circ - \\sin 85^\\circ \\]\n\nWe can simplify this difference using the sum-to-product formula: $\\sin A - \\sin B = 2 \\cos\\left(\\frac{A+B}{2}\\right) \\sin\\left(\\frac{A-B}{2}\\right)$.\nHere $A = 25^\\circ$ and $B = 85^\\circ$.\n\\[ \\frac{A+B}{2} = \\frac{25^\\circ + 85^\\circ}{2} = \\frac{110^\\circ}{2} = 55^\\circ \\]\n\\[ \\frac{A-B}{2} = \\frac{25^\\circ - 85^\\circ}{2} = \\frac{-60^\\circ}{2} = -30^\\circ \\]\n\nThus,\n\\[ D = 2 \\cos 55^\\circ \\sin(-30^\\circ) \\]\nSince $\\sin(-30^\\circ) = -\\sin 30^\\circ = -\\frac{1}{2}$, we have:\n\\[ D = 2 \\cos 55^\\circ \\left(-\\frac{1}{2}\\right) = -\\cos 55^\\circ \\]\n\n### Step 3: Calculate $\\tan \\theta$\n\nNow substitute the simplified $N$ and $D$ back into the expression for $\\tan \\theta$:\n\\[ \\tan \\theta = \\frac{N}{D} = \\frac{\\sqrt{3} \\cos 55^\\circ}{-\\cos 55^\\circ} \\]\n\nAssuming $\\cos 55^\\circ \\neq 0$ (which is true since $55^\\circ \\neq 90^\\circ$), we can cancel $\\cos 55^\\circ$:\n\\[ \\tan \\theta = -\\sqrt{3} \\]\n\n### Step 4: Find the Least Positive Angle $\\theta$\n\nWe need to find the least positive angle $\\theta$ such that $\\tan \\theta = -\\sqrt{3}$.\n\nThe reference angle $\\alpha$ for which $\\tan \\alpha = \\sqrt{3}$ is $\\alpha = 60^\\circ$.\nSince the tangent is negative, the angle $\\theta$ must be in the second or fourth quadrant.\n- In the second quadrant: $\\theta = 180^\\circ - 60^\\circ = 120^\\circ$.\n- In the fourth quadrant: $\\theta = 360^\\circ - 60^\\circ = 300^\\circ$.\n\nThe general solution is $\\theta = 120^\\circ + 180^\\circ k$ for any integer $k$.\nFor $k=0$, $\\theta = 120^\\circ$.\nFor $k=-1$, $\\theta = -60^\\circ$ (not positive).\nFor $k=1$, $\\theta = 300^\\circ$.\n\nThe least positive angle is $120^\\circ$.\n\n\\boxed{120}",
+  "reasoning": "",
+  "finish_reason": "stop",
+  "usage": {
+    "prompt_tokens": 166,
+    "total_tokens": 1926,
+    "completion_tokens": 1760,
+    "prompt_tokens_details": null
+  },
+  "total_s": 32.54328097100006,
+  "ttft_any_s": null,
+  "ttft_content_s": null,
+  "output_tps_e2e": 54.081824188789376
+}

@@ -1,0 +1,141 @@
+{
+  "run_id": "dflash-quality-20260905",
+  "status": "PREFLIGHT",
+  "question": "Does strict DFlash or native MTP change complete-answer correctness versus the same target model without speculation, and what are the measured serving trade-offs?",
+  "protocol_type": "new_author_run_quality_regression_not_paper_reproduction",
+  "target": {
+    "model_id": "Qwen/Qwen3.6-27B",
+    "revision": "6a9e13bd6fc8f0983b9b99948120bc37f49c13e9",
+    "dtype": "bfloat16"
+  },
+  "draft": {
+    "model_id": "z-lab/Qwen3.6-27B-DFlash",
+    "revision": "0919688658996800f86b895034249700e9481106"
+  },
+  "serving": {
+    "vllm_version": "0.21.0",
+    "max_model_len": 40960,
+    "max_num_seqs": 16,
+    "max_num_batched_tokens": 8192,
+    "gpu_memory_utilization": 0.9,
+    "prefix_caching": false,
+    "reasoning_parser": "qwen3",
+    "generation_config": "vllm"
+  },
+  "routes": [
+    {
+      "name": "baseline",
+      "method": null,
+      "num_speculative_tokens": 0
+    },
+    {
+      "name": "mtp5",
+      "method": "mtp",
+      "num_speculative_tokens": 5
+    },
+    {
+      "name": "dflash15",
+      "method": "dflash",
+      "num_speculative_tokens": 15
+    }
+  ],
+  "primary_quality": {
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "top_k": -1,
+    "seed": 20260905,
+    "enable_thinking": false,
+    "rejection_sample_method": "standard",
+    "concurrency": 1,
+    "samples_per_task": 1,
+    "code_max_tokens": 4096,
+    "math_max_tokens": 8192,
+    "datasets": [
+      {
+        "name": "humaneval_plus",
+        "expected_tasks": 164,
+        "evaluator": "EvalPlus official CLI",
+        "evaluator_commit": "26d6d00bb1fd0fa37f39c99d5290da67891d1c5e"
+      },
+      {
+        "name": "math_500",
+        "expected_tasks": 500,
+        "dataset": "HuggingFaceH4/MATH-500",
+        "dataset_revision": "6e4ed1a2a79af7d8630a6b768ec859cb5af4d3be",
+        "evaluator": "Hugging Face Math-Verify official evaluate_model_outputs.py",
+        "evaluator_commit": "ba3d3aaff23b3f4cac7a14672b4f6e293d97c98b"
+      }
+    ]
+  },
+  "supplemental_matrix": {
+    "matched_window": {
+      "route": "dflash5",
+      "num_speculative_tokens": 5,
+      "selection": "first 32 task IDs per primary dataset in frozen manifest order; identical subset across all routes"
+    },
+    "repeatability": {
+      "selection": "first 8 task IDs per primary dataset",
+      "repeats": 3
+    },
+    "streaming_latency": {
+      "selection": "same repeatability subset",
+      "repeats": 3,
+      "capture": "first nonempty token event, final content, server token usage, total latency"
+    },
+    "concurrency": {
+      "levels": [
+        1,
+        4,
+        8
+      ],
+      "selection": "same first 32 task IDs per primary dataset",
+      "repeats": 1
+    },
+    "long_context": {
+      "input_token_targets": [
+        4096,
+        16384,
+        32768
+      ],
+      "cases_per_length": 4,
+      "kind": "explicitly synthetic retrieval probes kept separate from accuracy benchmarks"
+    },
+    "sampling": {
+      "temperature": 0.7,
+      "top_p": 0.9,
+      "selection": "same repeatability subset",
+      "seeds": [
+        20260905,
+        20260906,
+        20260907
+      ],
+      "claim": "finite behavior regression only, not a distribution-equivalence proof"
+    }
+  },
+  "preflight_gates": [
+    "Verify real GPU, driver, memory, disk and existing runtime without overwriting unrelated services.",
+    "Pin serving runtime, target and draft snapshots, tokenizer/chat-template hash, exact command and complete dataset manifest.",
+    "Use canonical chat_template_kwargs enable_thinking=false, not a text /no_think instruction; inspect a complete response.",
+    "Run at least one code and one math canary through generation and scoring for every primary route before full dispatch.",
+    "Use an isolated, non-networked unprivileged code-evaluation container; never execute generated code directly in the privileged VM host.",
+    "Confirm isolated Azure readback and deallocate control path before long execution."
+  ],
+  "evidence": {
+    "save": [
+      "full raw responses",
+      "prompts and task IDs",
+      "all scoring inputs and outputs",
+      "launch commands and process identity",
+      "server logs and metrics",
+      "model and dataset hashes",
+      "resource telemetry",
+      "per-stage exit status",
+      "local-return hashes",
+      "power-state readback"
+    ],
+    "denominators": "164 and 500 independently, per route. Errors, empty answers and truncations are reported, not silently dropped.",
+    "preserve_old_results": true,
+    "resume": "skip only validated completed task IDs for this run and protocol hash; never pick best-of retries",
+    "new_claims_require_actual_results": true
+  }
+}

@@ -1,0 +1,1150 @@
+task_id,answer,gold
+MATH-500/0,"To convert the point $(x, y) = (0, 3)$ from rectangular coordinates to polar coordinates $(r, \theta)$, we use the following relationships:
+
+1.  $r = \sqrt{x^2 + y^2}$
+2.  $\tan \theta = \frac{y}{x}$ (with adjustments based on the quadrant)
+
+**Step 1: Calculate $r$**
+
+Given $x = 0$ and $y = 3$:
+$$ r = \sqrt{0^2 + 3^2} = \sqrt{9} = 3 $$
+Since the problem requires $r > 0$, we have $r = 3$.
+
+**Step 2: Calculate $\theta$**
+
+The point $(0, 3)$ lies on the positive $y$-axis.
+*   The angle corresponding to the positive $x$-axis is $0$.
+*   The angle corresponding to the positive $y$-axis is $\frac{\pi}{2}$.
+*   The angle corresponding to the negative $x$-axis is $\pi$.
+*   The angle corresponding to the negative $y$-axis is $\frac{3\pi}{2}$.
+
+Since the point is on the positive $y$-axis, the angle $\theta$ is $\frac{\pi}{2}$.
+
+We must ensure that $0 \le \theta < 2\pi$.
+$\frac{\pi}{2}$ satisfies this condition.
+
+**Conclusion**
+
+The polar coordinates are $(3, \frac{\pi}{2})$.
+
+\boxed{(3, \frac{\pi}{2})}","$\left( 3, \frac{\pi}{2} \right)$"
+MATH-500/1,"To find the value of the double sum
+\[ S = \sum_{j = 1}^\infty \sum_{k = 1}^\infty \frac{1}{(j + k)^3} \]
+in terms of $p = \sum_{k=1}^\infty \frac{1}{k^2}$ and $q = \sum_{k=1}^\infty \frac{1}{k^3}$, we will proceed by changing the order of summation and grouping terms based on the sum of the indices.
+
+### Step 1: Change the Index of Summation
+
+Let $n = j + k$. Since $j \ge 1$ and $k \ge 1$, the smallest possible value for $n$ is $1+1=2$. For a fixed integer $n \ge 2$, the possible pairs $(j, k)$ such that $j+k=n$ are:
+\[ (1, n-1), (2, n-2), \dots, (n-1, 1) \]
+There are exactly $n-1$ such pairs.
+
+We can rewrite the double sum by summing over $n$ first. The term $\frac{1}{(j+k)^3}$ becomes $\frac{1}{n^3}$ for all pairs in the group corresponding to $n$. Since there are $n-1$ such pairs, the contribution to the sum for a fixed $n$ is:
+\[ (n-1) \cdot \frac{1}{n^3} \]
+
+Thus, the double sum can be rewritten as a single sum over $n$:
+\[ S = \sum_{n=2}^\infty \frac{n-1}{n^3} \]
+
+### Step 2: Simplify the General Term
+
+We can split the fraction $\frac{n-1}{n^3}$ into two separate terms:
+\[ \frac{n-1}{n^3} = \frac{n}{n^3} - \frac{1}{n^3} = \frac{1}{n^2} - \frac{1}{n^3} \]
+
+Substituting this back into the sum:
+\[ S = \sum_{n=2}^\infty \left( \frac{1}{n^2} - \frac{1}{n^3} \right) \]
+
+By linearity of convergent series, we can split this into two separate sums:
+\[ S = \sum_{n=2}^\infty \frac{1}{n^2} - \sum_{n=2}^\infty \frac{1}{n^3} \]
+
+### Step 3: Relate to $p$ and $q$
+
+Recall the definitions given in the problem:
+\[ p = \sum_{k=1}^\infty \frac{1}{k^2} = 1 + \sum_{k=2}^\infty \frac{1}{k^2} \]
+\[ q = \sum_{k=1}^\infty \frac{1}{k^3} = 1 + \sum_{k=2}^\infty \frac{1}{k^3} \]
+
+From these definitions, we can express the sums starting from $n=2$ as:
+\[ \sum_{n=2}^\infty \frac{1}{n^2} = p - 1 \]
+\[ \sum_{n=2}^\infty \frac{1}{n^3} = q - 1 \]
+
+### Step 4: Calculate the Final Result
+
+Substitute these expressions back into the equation for $S$:
+\[ S = (p - 1) - (q - 1) \]
+\[ S = p - 1 - q + 1 \]
+\[ S = p - q \]
+
+### Conclusion
+
+The double sum can be written in terms of $p$ and $q$ as:
+\[ \sum_{j = 1}^\infty \sum_{k = 1}^\infty \frac{1}{(j + k)^3} = p - q \]
+
+\boxed{p - q}",$p - q$
+MATH-500/2,"To find the value of $f(-2) + f(-1) + f(0)$ for the function $f(x) = \frac{3x-2}{x-2}$, we will evaluate the function at each of the specified points and then sum the results.
+
+**Step 1: Evaluate $f(-2)$**
+
+Substitute $x = -2$ into the function:
+$$ f(-2) = \frac{3(-2) - 2}{-2 - 2} $$
+$$ f(-2) = \frac{-6 - 2}{-4} $$
+$$ f(-2) = \frac{-8}{-4} $$
+$$ f(-2) = 2 $$
+
+**Step 2: Evaluate $f(-1)$**
+
+Substitute $x = -1$ into the function:
+$$ f(-1) = \frac{3(-1) - 2}{-1 - 2} $$
+$$ f(-1) = \frac{-3 - 2}{-3} $$
+$$ f(-1) = \frac{-5}{-3} $$
+$$ f(-1) = \frac{5}{3} $$
+
+**Step 3: Evaluate $f(0)$**
+
+Substitute $x = 0$ into the function:
+$$ f(0) = \frac{3(0) - 2}{0 - 2} $$
+$$ f(0) = \frac{0 - 2}{-2} $$
+$$ f(0) = \frac{-2}{-2} $$
+$$ f(0) = 1 $$
+
+**Step 4: Sum the values**
+
+Now, we add the three results together:
+$$ f(-2) + f(-1) + f(0) = 2 + \frac{5}{3} + 1 $$
+
+Combine the integers first:
+$$ 2 + 1 = 3 $$
+
+Add the fraction:
+$$ 3 + \frac{5}{3} $$
+
+To add these, convert 3 to a fraction with a denominator of 3:
+$$ 3 = \frac{9}{3} $$
+
+So,
+$$ \frac{9}{3} + \frac{5}{3} = \frac{9 + 5}{3} = \frac{14}{3} $$
+
+The result is already in simplest form as a common fraction.
+
+\boxed{\frac{14}{3}}",$\frac{14}{3}$
+MATH-500/3,"To find the number of positive whole-number divisors of 196, we can follow these steps:
+
+### Step 1: Prime Factorization of 196
+
+First, we determine the prime factorization of the number 196.
+
+1.  Since 196 is an even number, we can divide it by 2:
+    $$196 \div 2 = 98$$
+2.  98 is also even, so we divide by 2 again:
+    $$98 \div 2 = 49$$
+3.  Now we have 49. We know that $49 = 7 \times 7$, or $7^2$.
+
+So, the prime factorization of 196 is:
+$$196 = 2 \times 2 \times 7 \times 7 = 2^2 \times 7^2$$
+
+### Step 2: Use the Divisor Counting Formula
+
+If the prime factorization of a number $n$ is given by $n = p_1^{e_1} \times p_2^{e_2} \times \dots \times p_k^{e_k}$, then the total number of positive divisors of $n$, denoted as $d(n)$, is calculated by multiplying the successors of the exponents:
+$$d(n) = (e_1 + 1)(e_2 + 1)\dots(e_k + 1)$$
+
+For $196 = 2^2 \times 7^2$:
+- The exponent of the prime factor 2 is $2$.
+- The exponent of the prime factor 7 is $2$.
+
+Applying the formula:
+$$d(196) = (2 + 1)(2 + 1)$$
+$$d(196) = 3 \times 3$$
+$$d(196) = 9$$
+
+### Step 3: Verification by Listing Divisors
+
+Let's list all the divisors to verify the result. The divisors are formed by combinations of the prime factors $2^0, 2^1, 2^2$ and $7^0, 7^1, 7^2$.
+
+1.  $2^0 \times 7^0 = 1 \times 1 = 1$
+2.  $2^1 \times 7^0 = 2 \times 1 = 2$
+3.  $2^2 \times 7^0 = 4 \times 1 = 4$
+4.  $2^0 \times 7^1 = 1 \times 7 = 7$
+5.  $2^1 \times 7^1 = 2 \times 7 = 14$
+6.  $2^2 \times 7^1 = 4 \times 7 = 28$
+7.  $2^0 \times 7^2 = 1 \times 49 = 49$
+8.  $2^1 \times 7^2 = 2 \times 49 = 98$
+9.  $2^2 \times 7^2 = 4 \times 49 = 196$
+
+The divisors are: 1, 2, 4, 7, 14, 28, 49, 98, 196.
+Counting them, we find there are exactly 9 divisors.
+
+### Conclusion
+
+The number of positive whole-number divisors of 196 is 9.
+
+\boxed{9}",$9$
+MATH-500/4,"To determine which student has the greatest average speed, we need to analyze the relationship between distance and time for each student as shown in the graph.
+
+**1. Understanding the Graph**
+*   The horizontal axis (x-axis) represents **time**.
+*   The vertical axis (y-axis) represents **distance**.
+*   The formula for average speed is:
+    $$ \text{Speed} = \frac{\text{Distance}}{\text{Time}} $$
+*   On a distance-time graph, the speed of an object is represented by the slope of the line connecting the origin $(0,0)$ to the point representing the object's final position. A steeper slope indicates a greater speed. Alternatively, we can calculate the ratio $\frac{y}{x}$ for each point.
+
+**2. Analyzing Each Student's Data**
+Let's estimate the coordinates $(t, d)$ for each student from the graph and calculate their approximate speed ($v = d/t$).
+
+*   **Evelyn**:
+    *   Time ($t$) $\approx 1.25$
+    *   Distance ($d$) $\approx 4.5$
+    *   Speed $\approx \frac{4.5}{1.25} = 3.6$
+
+*   **Briana**:
+    *   Time ($t$) $\approx 2.5$
+    *   Distance ($d$) $\approx 2.2$
+    *   Speed $\approx \frac{2.2}{2.5} = 0.88$
+
+*   **Carla**:
+    *   Time ($t$) $\approx 4.25$
+    *   Distance ($d$) $\approx 5.2$
+    *   Speed $\approx \frac{5.2}{4.25} \approx 1.22$
+
+*   **Debra**:
+    *   Time ($t$) $\approx 5.6$
+    *   Distance ($d$) $\approx 2.8$
+    *   Speed $\approx \frac{2.8}{5.6} = 0.5$
+
+*   **Angela**:
+    *   Time ($t$) $\approx 6.8$
+    *   Distance ($d$) $\approx 1.4$
+    *   Speed $\approx \frac{1.4}{6.8} \approx 0.21$
+
+**3. Comparison**
+Comparing the calculated speeds:
+*   Evelyn: $3.6$
+*   Briana: $0.88$
+*   Carla: $1.22$
+*   Debra: $0.5$
+*   Angela: $0.21$
+
+Evelyn has the highest value. Visually, this is also confirmed by observing that Evelyn's point is the ""steepest"" relative to the origin. She covers a large distance in a very short amount of time.
+
+**Conclusion**
+Evelyn has the greatest average speed.
+
+\boxed{Evelyn}",$\text{Evelyn}$
+MATH-500/5,"To find the perimeter of the regular hexagon, we will follow these steps:
+
+1.  **Determine the side length of the equilateral triangle.**
+    The problem states that the regular hexagon is divided into six equilateral triangles. An equilateral triangle has three sides of equal length. Let $s$ be the side length of one of these triangles.
+    
+    The perimeter of one equilateral triangle is given as 21 inches. Therefore:
+    $$3s = 21$$
+    
+    Solving for $s$:
+    $$s = \frac{21}{3} = 7 \text{ inches}$$
+
+2.  **Determine the side length of the regular hexagon.**
+    A regular hexagon can be divided into six equilateral triangles by drawing lines from the center to each vertex. The sides of these triangles that form the boundary of the hexagon are the sides of the hexagon itself. Therefore, the side length of the regular hexagon is equal to the side length of the equilateral triangle.
+    
+    So, the side length of the hexagon is also $7$ inches.
+
+3.  **Calculate the perimeter of the regular hexagon.**
+    A regular hexagon has 6 equal sides. Let $P_{hex}$ be the perimeter of the hexagon.
+    $$P_{hex} = 6 \times s$$
+    $$P_{hex} = 6 \times 7$$
+    $$P_{hex} = 42 \text{ inches}$$
+
+**Conclusion:**
+The perimeter of the regular hexagon is 42 inches.
+
+\boxed{42}",$42$
+MATH-500/6,"To find the smallest positive perfect cube that can be written as the sum of three consecutive integers, we will proceed with the following logical steps:
+
+### Step 1: Express the sum of three consecutive integers algebraically
+
+Let the three consecutive integers be $n-1$, $n$, and $n+1$, where $n$ is an integer.
+The sum $S$ of these three integers is:
+$$ S = (n-1) + n + (n+1) $$
+$$ S = 3n $$
+
+So, the sum of any three consecutive integers is always a multiple of 3.
+
+### Step 2: Set the sum equal to a perfect cube
+
+We are looking for a number that is both a perfect cube and equal to this sum. Let the perfect cube be $k^3$, where $k$ is a positive integer.
+Therefore, we have the equation:
+$$ k^3 = 3n $$
+
+This implies that $k^3$ must be divisible by 3.
+
+### Step 3: Determine the properties of $k$
+
+If a perfect cube $k^3$ is divisible by a prime number $p$, then the base $k$ must also be divisible by $p$.
+*   Proof: Let the prime factorization of $k$ be $p_1^{a_1} p_2^{a_2} \dots$. Then $k^3 = p_1^{3a_1} p_2^{3a_2} \dots$. For $k^3$ to be divisible by 3, the exponent of the prime factor 3 in the prime factorization of $k^3$ must be at least 1. Since the exponents in $k^3$ are multiples of 3, the smallest positive multiple of 3 is 3. This means the exponent of 3 in $k$ must be at least 1. Thus, $k$ is divisible by 3.
+
+So, $k$ must be a multiple of 3. Let $k = 3m$ for some positive integer $m$.
+
+### Step 4: Find the smallest positive integer $k$
+
+We want the **smallest** positive perfect cube. This corresponds to the smallest positive integer $k$.
+Since $k$ must be a multiple of 3, the possible values for $k$ are $3, 6, 9, \dots$.
+
+The smallest positive value is $k = 3$.
+
+### Step 5: Calculate the perfect cube and verify
+
+Let's test $k = 3$:
+$$ k^3 = 3^3 = 27 $$
+
+Now, we check if 27 can be written as the sum of three consecutive integers.
+From Step 1, we know the sum is $3n$. So:
+$$ 27 = 3n $$
+$$ n = 9 $$
+
+The three consecutive integers are $n-1, n, n+1$, which are:
+$$ 8, 9, 10 $$
+
+Let's verify the sum:
+$$ 8 + 9 + 10 = 27 $$
+
+Since $27 = 3^3$, it is a perfect cube.
+Since $8, 9, 10$ are consecutive integers, the condition is satisfied.
+
+Is there a smaller positive perfect cube?
+The positive perfect cubes are $1^3=1$, $2^3=8$, $3^3=27$, etc.
+*   $1$: Is $1$ divisible by 3? No. ($1 = 3n \implies n=1/3$, not an integer).
+*   $8$: Is $8$ divisible by 3? No. ($8 = 3n \implies n=8/3$, not an integer).
+*   $27$: Is $27$ divisible by 3? Yes. ($27 = 3n \implies n=9$, an integer).
+
+Thus, 27 is the smallest.
+
+### Conclusion
+
+The smallest positive perfect cube that can be written as the sum of three consecutive integers is 27.
+
+\boxed{27}",$27$
+MATH-500/7,"To find the angle between the two lines, we first need to determine the direction vectors for each line.
+
+### Step 1: Find the direction vector of the first line
+
+The equation for the first line is given by:
+\[ 2x = 3y = -z \]
+
+Let this common value be equal to a parameter $t$. Then we can write:
+\[ 2x = t \implies x = \frac{t}{2} \]
+\[ 3y = t \implies y = \frac{t}{3} \]
+\[ -z = t \implies z = -t \]
+
+So, the position vector $\mathbf{r}_1$ of any point on this line can be written as:
+\[ \mathbf{r}_1 = \left( \frac{1}{2}, \frac{1}{3}, -1 \right) t \]
+
+The direction vector $\mathbf{v}_1$ is the coefficient of $t$:
+\[ \mathbf{v}_1 = \left( \frac{1}{2}, \frac{1}{3}, -1 \right) \]
+
+To make calculations easier, we can scale this vector by the least common multiple of the denominators (which is 6) to get an integer vector parallel to $\mathbf{v}_1$. Let's call this scaled vector $\mathbf{u}_1$:
+\[ \mathbf{u}_1 = 6 \mathbf{v}_1 = \left( 3, 2, -6 \right) \]
+
+### Step 2: Find the direction vector of the second line
+
+The equation for the second line is given by:
+\[ 6x = -y = -4z \]
+
+Let this common value be equal to a parameter $s$. Then we can write:
+\[ 6x = s \implies x = \frac{s}{6} \]
+\[ -y = s \implies y = -s \]
+\[ -4z = s \implies z = -\frac{s}{4} \]
+
+So, the position vector $\mathbf{r}_2$ of any point on this line can be written as:
+\[ \mathbf{r}_2 = \left( \frac{1}{6}, -1, -\frac{1}{4} \right) s \]
+
+The direction vector $\mathbf{v}_2$ is the coefficient of $s$:
+\[ \mathbf{v}_2 = \left( \frac{1}{6}, -1, -\frac{1}{4} \right) \]
+
+Similarly, we can scale this vector to get an integer vector parallel to $\mathbf{v}_2$. The least common multiple of the denominators 6 and 4 is 12. Let's call this scaled vector $\mathbf{u}_2$:
+\[ \mathbf{u}_2 = 12 \mathbf{v}_2 = \left( 2, -12, -3 \right) \]
+
+### Step 3: Calculate the angle between the direction vectors
+
+The angle $\theta$ between two lines is defined as the acute angle between their direction vectors. We use the dot product formula:
+\[ \cos \theta = \frac{|\mathbf{u}_1 \cdot \mathbf{u}_2|}{\|\mathbf{u}_1\| \|\mathbf{u}_2\|} \]
+
+First, calculate the dot product $\mathbf{u}_1 \cdot \mathbf{u}_2$:
+\[ \mathbf{u}_1 = (3, 2, -6) \]
+\[ \mathbf{u}_2 = (2, -12, -3) \]
+\[ \mathbf{u}_1 \cdot \mathbf{u}_2 = (3)(2) + (2)(-12) + (-6)(-3) \]
+\[ \mathbf{u}_1 \cdot \mathbf{u}_2 = 6 - 24 + 18 \]
+\[ \mathbf{u}_1 \cdot \mathbf{u}_2 = 0 \]
+
+Since the dot product is 0, the vectors are orthogonal (perpendicular).
+
+### Step 4: Determine the angle
+
+If the dot product of two non-zero vectors is 0, the angle between them is $90^\circ$.
+
+\[ \cos \theta = 0 \implies \theta = 90^\circ \]
+
+### Conclusion
+
+The angle between the two lines is $90^\circ$.
+
+\boxed{90}",$90^\circ$
+MATH-500/0,"To convert the point $(x, y) = (0, 3)$ from rectangular coordinates to polar coordinates $(r, \theta)$, we use the following relationships:
+
+1.  $r = \sqrt{x^2 + y^2}$
+2.  $\tan \theta = \frac{y}{x}$ (with adjustments based on the quadrant)
+
+**Step 1: Calculate $r$**
+
+Given $x = 0$ and $y = 3$:
+$$ r = \sqrt{0^2 + 3^2} = \sqrt{9} = 3 $$
+Since the problem requires $r > 0$, we have $r = 3$.
+
+**Step 2: Calculate $\theta$**
+
+The point $(0, 3)$ lies on the positive $y$-axis.
+*   The angle corresponding to the positive $x$-axis is $0$.
+*   The angle corresponding to the positive $y$-axis is $\frac{\pi}{2}$.
+*   The angle corresponding to the negative $x$-axis is $\pi$.
+*   The angle corresponding to the negative $y$-axis is $\frac{3\pi}{2}$.
+
+Since the point is on the positive $y$-axis, the angle $\theta$ is $\frac{\pi}{2}$.
+
+We must ensure that $0 \le \theta < 2\pi$.
+$\frac{\pi}{2}$ satisfies this condition.
+
+**Conclusion**
+
+The polar coordinates are $(3, \frac{\pi}{2})$.
+
+\boxed{(3, \frac{\pi}{2})}","$\left( 3, \frac{\pi}{2} \right)$"
+MATH-500/1,"To find the value of the double sum
+\[ S = \sum_{j = 1}^\infty \sum_{k = 1}^\infty \frac{1}{(j + k)^3} \]
+in terms of $p = \sum_{k=1}^\infty \frac{1}{k^2}$ and $q = \sum_{k=1}^\infty \frac{1}{k^3}$, we will proceed by changing the order of summation and grouping terms based on the sum of the indices.
+
+### Step 1: Change the Index of Summation
+
+Let $n = j + k$. Since $j \ge 1$ and $k \ge 1$, the smallest possible value for $n$ is $1+1=2$. For a fixed integer $n \ge 2$, the possible pairs $(j, k)$ such that $j+k=n$ are:
+\[ (1, n-1), (2, n-2), \dots, (n-1, 1) \]
+There are exactly $n-1$ such pairs.
+
+We can rewrite the double sum by summing over $n$ first. The term $\frac{1}{(j+k)^3}$ becomes $\frac{1}{n^3}$ for all pairs in the group corresponding to $n$. Since there are $n-1$ such pairs, the contribution to the sum for a fixed $n$ is:
+\[ (n-1) \cdot \frac{1}{n^3} \]
+
+Thus, the double sum can be rewritten as a single sum over $n$:
+\[ S = \sum_{n=2}^\infty \frac{n-1}{n^3} \]
+
+### Step 2: Simplify the General Term
+
+We can split the fraction $\frac{n-1}{n^3}$ into two separate terms:
+\[ \frac{n-1}{n^3} = \frac{n}{n^3} - \frac{1}{n^3} = \frac{1}{n^2} - \frac{1}{n^3} \]
+
+Substituting this back into the sum:
+\[ S = \sum_{n=2}^\infty \left( \frac{1}{n^2} - \frac{1}{n^3} \right) \]
+
+By linearity of convergent series, we can split this into two separate sums:
+\[ S = \sum_{n=2}^\infty \frac{1}{n^2} - \sum_{n=2}^\infty \frac{1}{n^3} \]
+
+### Step 3: Relate to $p$ and $q$
+
+Recall the definitions given in the problem:
+\[ p = \sum_{k=1}^\infty \frac{1}{k^2} = 1 + \sum_{k=2}^\infty \frac{1}{k^2} \]
+\[ q = \sum_{k=1}^\infty \frac{1}{k^3} = 1 + \sum_{k=2}^\infty \frac{1}{k^3} \]
+
+From these definitions, we can express the sums starting from $n=2$ as:
+\[ \sum_{n=2}^\infty \frac{1}{n^2} = p - 1 \]
+\[ \sum_{n=2}^\infty \frac{1}{n^3} = q - 1 \]
+
+### Step 4: Calculate the Final Result
+
+Substitute these expressions back into the equation for $S$:
+\[ S = (p - 1) - (q - 1) \]
+\[ S = p - 1 - q + 1 \]
+\[ S = p - q \]
+
+### Conclusion
+
+The double sum can be written in terms of $p$ and $q$ as:
+\[ \sum_{j = 1}^\infty \sum_{k = 1}^\infty \frac{1}{(j + k)^3} = p - q \]
+
+\boxed{p - q}",$p - q$
+MATH-500/2,"To find the value of $f(-2) + f(-1) + f(0)$ for the function $f(x) = \frac{3x-2}{x-2}$, we will evaluate the function at each of the specified points and then sum the results.
+
+**Step 1: Evaluate $f(-2)$**
+
+Substitute $x = -2$ into the function:
+$$ f(-2) = \frac{3(-2) - 2}{-2 - 2} $$
+$$ f(-2) = \frac{-6 - 2}{-4} $$
+$$ f(-2) = \frac{-8}{-4} $$
+$$ f(-2) = 2 $$
+
+**Step 2: Evaluate $f(-1)$**
+
+Substitute $x = -1$ into the function:
+$$ f(-1) = \frac{3(-1) - 2}{-1 - 2} $$
+$$ f(-1) = \frac{-3 - 2}{-3} $$
+$$ f(-1) = \frac{-5}{-3} $$
+$$ f(-1) = \frac{5}{3} $$
+
+**Step 3: Evaluate $f(0)$**
+
+Substitute $x = 0$ into the function:
+$$ f(0) = \frac{3(0) - 2}{0 - 2} $$
+$$ f(0) = \frac{0 - 2}{-2} $$
+$$ f(0) = \frac{-2}{-2} $$
+$$ f(0) = 1 $$
+
+**Step 4: Sum the values**
+
+Now, we add the three results together:
+$$ f(-2) + f(-1) + f(0) = 2 + \frac{5}{3} + 1 $$
+
+Combine the integers first:
+$$ 2 + 1 = 3 $$
+
+Add the fraction:
+$$ 3 + \frac{5}{3} $$
+
+To add these, convert 3 to a fraction with a denominator of 3:
+$$ 3 = \frac{9}{3} $$
+
+So,
+$$ \frac{9}{3} + \frac{5}{3} = \frac{9 + 5}{3} = \frac{14}{3} $$
+
+The result is already in simplest form as a common fraction.
+
+\boxed{\frac{14}{3}}",$\frac{14}{3}$
+MATH-500/3,"To find the number of positive whole-number divisors of 196, we can follow these steps:
+
+### Step 1: Prime Factorization of 196
+
+First, we determine the prime factorization of the number 196.
+
+1.  Since 196 is an even number, we can divide it by 2:
+    $$196 \div 2 = 98$$
+2.  98 is also even, so we divide by 2 again:
+    $$98 \div 2 = 49$$
+3.  Now we have 49. We know that $49 = 7 \times 7$, or $7^2$.
+
+So, the prime factorization of 196 is:
+$$196 = 2 \times 2 \times 7 \times 7 = 2^2 \times 7^2$$
+
+### Step 2: Use the Divisor Counting Formula
+
+If the prime factorization of a number $n$ is given by $n = p_1^{e_1} \times p_2^{e_2} \times \dots \times p_k^{e_k}$, then the total number of positive divisors of $n$, denoted as $d(n)$, is calculated by multiplying the successors of the exponents:
+$$d(n) = (e_1 + 1)(e_2 + 1)\dots(e_k + 1)$$
+
+For $196 = 2^2 \times 7^2$:
+- The exponent of the prime factor 2 is $2$.
+- The exponent of the prime factor 7 is $2$.
+
+Applying the formula:
+$$d(196) = (2 + 1)(2 + 1)$$
+$$d(196) = 3 \times 3$$
+$$d(196) = 9$$
+
+### Step 3: Verification by Listing Divisors
+
+Let's list all the divisors to verify the result. The divisors are formed by combinations of the prime factors $2^0, 2^1, 2^2$ and $7^0, 7^1, 7^2$.
+
+1.  $2^0 \times 7^0 = 1 \times 1 = 1$
+2.  $2^1 \times 7^0 = 2 \times 1 = 2$
+3.  $2^2 \times 7^0 = 4 \times 1 = 4$
+4.  $2^0 \times 7^1 = 1 \times 7 = 7$
+5.  $2^1 \times 7^1 = 2 \times 7 = 14$
+6.  $2^2 \times 7^1 = 4 \times 7 = 28$
+7.  $2^0 \times 7^2 = 1 \times 49 = 49$
+8.  $2^1 \times 7^2 = 2 \times 49 = 98$
+9.  $2^2 \times 7^2 = 4 \times 49 = 196$
+
+The divisors are: 1, 2, 4, 7, 14, 28, 49, 98, 196.
+Counting them, we find there are exactly 9 divisors.
+
+### Conclusion
+
+The number of positive whole-number divisors of 196 is 9.
+
+\boxed{9}",$9$
+MATH-500/4,"To determine which student has the greatest average speed, we need to analyze the relationship between distance and time for each student as shown in the graph.
+
+**1. Understanding the Graph**
+*   The horizontal axis (x-axis) represents **time**.
+*   The vertical axis (y-axis) represents **distance**.
+*   The formula for average speed is:
+    $$ \text{Speed} = \frac{\text{Distance}}{\text{Time}} $$
+*   On a distance-time graph, the speed of an object is represented by the slope of the line connecting the origin $(0,0)$ to the point representing the object's final position. A steeper slope indicates a greater speed. Alternatively, we can calculate the ratio $\frac{y}{x}$ for each point.
+
+**2. Analyzing Each Student's Data**
+Let's estimate the coordinates $(t, d)$ for each student from the graph and calculate their approximate speed ($v = d/t$).
+
+*   **Evelyn**:
+    *   Time ($t$) $\approx 1.25$
+    *   Distance ($d$) $\approx 4.5$
+    *   Speed $\approx \frac{4.5}{1.25} = 3.6$
+
+*   **Briana**:
+    *   Time ($t$) $\approx 2.5$
+    *   Distance ($d$) $\approx 2.2$
+    *   Speed $\approx \frac{2.2}{2.5} = 0.88$
+
+*   **Carla**:
+    *   Time ($t$) $\approx 4.25$
+    *   Distance ($d$) $\approx 5.2$
+    *   Speed $\approx \frac{5.2}{4.25} \approx 1.22$
+
+*   **Debra**:
+    *   Time ($t$) $\approx 5.6$
+    *   Distance ($d$) $\approx 2.8$
+    *   Speed $\approx \frac{2.8}{5.6} = 0.5$
+
+*   **Angela**:
+    *   Time ($t$) $\approx 6.8$
+    *   Distance ($d$) $\approx 1.4$
+    *   Speed $\approx \frac{1.4}{6.8} \approx 0.21$
+
+**3. Comparison**
+Comparing the calculated speeds:
+*   Evelyn: $3.6$
+*   Briana: $0.88$
+*   Carla: $1.22$
+*   Debra: $0.5$
+*   Angela: $0.21$
+
+Evelyn has the highest value. Visually, this is also confirmed by observing that Evelyn's point is the ""steepest"" relative to the origin. She covers a large distance in a very short amount of time.
+
+**Conclusion**
+Evelyn has the greatest average speed.
+
+\boxed{Evelyn}",$\text{Evelyn}$
+MATH-500/5,"To find the perimeter of the regular hexagon, we will follow these steps:
+
+1.  **Determine the side length of the equilateral triangle.**
+    The problem states that the regular hexagon is divided into six equilateral triangles. An equilateral triangle has three sides of equal length. Let $s$ be the side length of one of these triangles.
+    
+    The perimeter of one equilateral triangle is given as 21 inches. Therefore:
+    $$3s = 21$$
+    
+    Solving for $s$:
+    $$s = \frac{21}{3} = 7 \text{ inches}$$
+
+2.  **Determine the side length of the regular hexagon.**
+    A regular hexagon can be divided into six equilateral triangles by drawing lines from the center to each vertex. The sides of these triangles that form the boundary of the hexagon are the sides of the hexagon itself. Therefore, the side length of the regular hexagon is equal to the side length of the equilateral triangle.
+    
+    So, the side length of the hexagon is also $7$ inches.
+
+3.  **Calculate the perimeter of the regular hexagon.**
+    A regular hexagon has 6 equal sides. Let $P_{hex}$ be the perimeter of the hexagon.
+    $$P_{hex} = 6 \times s$$
+    $$P_{hex} = 6 \times 7$$
+    $$P_{hex} = 42 \text{ inches}$$
+
+**Conclusion:**
+The perimeter of the regular hexagon is 42 inches.
+
+\boxed{42}",$42$
+MATH-500/6,"To find the smallest positive perfect cube that can be written as the sum of three consecutive integers, we will proceed with the following logical steps:
+
+### Step 1: Express the sum of three consecutive integers algebraically
+
+Let the three consecutive integers be $n-1$, $n$, and $n+1$, where $n$ is an integer.
+The sum $S$ of these three integers is:
+$$ S = (n-1) + n + (n+1) $$
+$$ S = 3n $$
+
+So, the sum of any three consecutive integers is always a multiple of 3.
+
+### Step 2: Set the sum equal to a perfect cube
+
+We are looking for a number that is both a perfect cube and equal to this sum. Let the perfect cube be $k^3$, where $k$ is a positive integer.
+Therefore, we have the equation:
+$$ k^3 = 3n $$
+
+This implies that $k^3$ must be divisible by 3.
+
+### Step 3: Determine the properties of $k$
+
+If a perfect cube $k^3$ is divisible by a prime number $p$, then the base $k$ must also be divisible by $p$.
+*   Proof: Let the prime factorization of $k$ be $p_1^{a_1} p_2^{a_2} \dots$. Then $k^3 = p_1^{3a_1} p_2^{3a_2} \dots$. For $k^3$ to be divisible by 3, the exponent of the prime factor 3 in the prime factorization of $k^3$ must be at least 1. Since the exponents in $k^3$ are multiples of 3, the smallest positive multiple of 3 is 3. This means the exponent of 3 in $k$ must be at least 1. Thus, $k$ is divisible by 3.
+
+So, $k$ must be a multiple of 3. Let $k = 3m$ for some positive integer $m$.
+
+### Step 4: Find the smallest positive integer $k$
+
+We want the **smallest** positive perfect cube. This corresponds to the smallest positive integer $k$.
+Since $k$ must be a multiple of 3, the possible values for $k$ are $3, 6, 9, \dots$.
+
+The smallest positive value is $k = 3$.
+
+### Step 5: Calculate the perfect cube and verify
+
+Let's test $k = 3$:
+$$ k^3 = 3^3 = 27 $$
+
+Now, we check if 27 can be written as the sum of three consecutive integers.
+From Step 1, we know the sum is $3n$. So:
+$$ 27 = 3n $$
+$$ n = 9 $$
+
+The three consecutive integers are $n-1, n, n+1$, which are:
+$$ 8, 9, 10 $$
+
+Let's verify the sum:
+$$ 8 + 9 + 10 = 27 $$
+
+Since $27 = 3^3$, it is a perfect cube.
+Since $8, 9, 10$ are consecutive integers, the condition is satisfied.
+
+Is there a smaller positive perfect cube?
+The positive perfect cubes are $1^3=1$, $2^3=8$, $3^3=27$, etc.
+*   $1$: Is $1$ divisible by 3? No. ($1 = 3n \implies n=1/3$, not an integer).
+*   $8$: Is $8$ divisible by 3? No. ($8 = 3n \implies n=8/3$, not an integer).
+*   $27$: Is $27$ divisible by 3? Yes. ($27 = 3n \implies n=9$, an integer).
+
+Thus, 27 is the smallest.
+
+### Conclusion
+
+The smallest positive perfect cube that can be written as the sum of three consecutive integers is 27.
+
+\boxed{27}",$27$
+MATH-500/7,"To find the angle between the two lines, we first need to determine the direction vectors for each line.
+
+### Step 1: Find the direction vector of the first line
+
+The equation for the first line is given by:
+\[ 2x = 3y = -z \]
+
+Let this common value be equal to a parameter $t$. Then we can write:
+\[ 2x = t \implies x = \frac{t}{2} \]
+\[ 3y = t \implies y = \frac{t}{3} \]
+\[ -z = t \implies z = -t \]
+
+So, the position vector $\mathbf{r}_1$ of any point on this line can be written as:
+\[ \mathbf{r}_1 = \left( \frac{1}{2}, \frac{1}{3}, -1 \right) t \]
+
+The direction vector $\mathbf{v}_1$ is the coefficient of $t$:
+\[ \mathbf{v}_1 = \left( \frac{1}{2}, \frac{1}{3}, -1 \right) \]
+
+To make calculations easier, we can scale this vector by the least common multiple of the denominators (which is 6) to get an integer vector parallel to $\mathbf{v}_1$. Let's call this scaled vector $\mathbf{u}_1$:
+\[ \mathbf{u}_1 = 6 \mathbf{v}_1 = \left( 3, 2, -6 \right) \]
+
+### Step 2: Find the direction vector of the second line
+
+The equation for the second line is given by:
+\[ 6x = -y = -4z \]
+
+Let this common value be equal to a parameter $s$. Then we can write:
+\[ 6x = s \implies x = \frac{s}{6} \]
+\[ -y = s \implies y = -s \]
+\[ -4z = s \implies z = -\frac{s}{4} \]
+
+So, the position vector $\mathbf{r}_2$ of any point on this line can be written as:
+\[ \mathbf{r}_2 = \left( \frac{1}{6}, -1, -\frac{1}{4} \right) s \]
+
+The direction vector $\mathbf{v}_2$ is the coefficient of $s$:
+\[ \mathbf{v}_2 = \left( \frac{1}{6}, -1, -\frac{1}{4} \right) \]
+
+Similarly, we can scale this vector to get an integer vector parallel to $\mathbf{v}_2$. The least common multiple of the denominators 6 and 4 is 12. Let's call this scaled vector $\mathbf{u}_2$:
+\[ \mathbf{u}_2 = 12 \mathbf{v}_2 = \left( 2, -12, -3 \right) \]
+
+### Step 3: Calculate the angle between the direction vectors
+
+The angle $\theta$ between two lines is defined as the acute angle between their direction vectors. We use the dot product formula:
+\[ \cos \theta = \frac{|\mathbf{u}_1 \cdot \mathbf{u}_2|}{\|\mathbf{u}_1\| \|\mathbf{u}_2\|} \]
+
+First, calculate the dot product $\mathbf{u}_1 \cdot \mathbf{u}_2$:
+\[ \mathbf{u}_1 = (3, 2, -6) \]
+\[ \mathbf{u}_2 = (2, -12, -3) \]
+\[ \mathbf{u}_1 \cdot \mathbf{u}_2 = (3)(2) + (2)(-12) + (-6)(-3) \]
+\[ \mathbf{u}_1 \cdot \mathbf{u}_2 = 6 - 24 + 18 \]
+\[ \mathbf{u}_1 \cdot \mathbf{u}_2 = 0 \]
+
+Since the dot product is 0, the vectors are orthogonal (perpendicular).
+
+### Step 4: Determine the angle
+
+If the dot product of two non-zero vectors is 0, the angle between them is $90^\circ$.
+
+\[ \cos \theta = 0 \implies \theta = 90^\circ \]
+
+### Conclusion
+
+The angle between the two lines is $90^\circ$.
+
+\boxed{90}",$90^\circ$
+MATH-500/0,"To convert the point $(x, y) = (0, 3)$ from rectangular coordinates to polar coordinates $(r, \theta)$, we use the following relationships:
+
+1.  $r = \sqrt{x^2 + y^2}$
+2.  $\tan \theta = \frac{y}{x}$ (with adjustments based on the quadrant)
+
+**Step 1: Calculate $r$**
+
+Given $x = 0$ and $y = 3$:
+$$ r = \sqrt{0^2 + 3^2} = \sqrt{9} = 3 $$
+Since the problem requires $r > 0$, we have $r = 3$.
+
+**Step 2: Calculate $\theta$**
+
+The point $(0, 3)$ lies on the positive $y$-axis.
+*   The angle corresponding to the positive $x$-axis is $0$.
+*   The angle corresponding to the positive $y$-axis is $\frac{\pi}{2}$.
+*   The angle corresponding to the negative $x$-axis is $\pi$.
+*   The angle corresponding to the negative $y$-axis is $\frac{3\pi}{2}$.
+
+Since the point is on the positive $y$-axis, the angle $\theta$ is $\frac{\pi}{2}$.
+
+We must ensure that $0 \le \theta < 2\pi$.
+$\frac{\pi}{2}$ satisfies this condition.
+
+**Conclusion**
+
+The polar coordinates are $(3, \frac{\pi}{2})$.
+
+\boxed{(3, \frac{\pi}{2})}","$\left( 3, \frac{\pi}{2} \right)$"
+MATH-500/1,"To find the value of the double sum
+\[ S = \sum_{j = 1}^\infty \sum_{k = 1}^\infty \frac{1}{(j + k)^3} \]
+in terms of $p = \sum_{k=1}^\infty \frac{1}{k^2}$ and $q = \sum_{k=1}^\infty \frac{1}{k^3}$, we will proceed by changing the order of summation and grouping terms based on the sum of the indices.
+
+### Step 1: Change the Index of Summation
+
+Let $n = j + k$. Since $j \ge 1$ and $k \ge 1$, the smallest possible value for $n$ is $1+1=2$. For a fixed integer $n \ge 2$, the possible pairs $(j, k)$ such that $j+k=n$ are:
+\[ (1, n-1), (2, n-2), \dots, (n-1, 1) \]
+There are exactly $n-1$ such pairs.
+
+We can rewrite the double sum by summing over $n$ first. The term $\frac{1}{(j+k)^3}$ becomes $\frac{1}{n^3}$ for all pairs in the group corresponding to $n$. Since there are $n-1$ such pairs, the contribution to the sum for a fixed $n$ is:
+\[ (n-1) \cdot \frac{1}{n^3} \]
+
+Thus, the double sum can be rewritten as a single sum over $n$:
+\[ S = \sum_{n=2}^\infty \frac{n-1}{n^3} \]
+
+### Step 2: Simplify the General Term
+
+We can split the fraction $\frac{n-1}{n^3}$ into two separate terms:
+\[ \frac{n-1}{n^3} = \frac{n}{n^3} - \frac{1}{n^3} = \frac{1}{n^2} - \frac{1}{n^3} \]
+
+Substituting this back into the sum:
+\[ S = \sum_{n=2}^\infty \left( \frac{1}{n^2} - \frac{1}{n^3} \right) \]
+
+By linearity of convergent series, we can split this into two separate sums:
+\[ S = \sum_{n=2}^\infty \frac{1}{n^2} - \sum_{n=2}^\infty \frac{1}{n^3} \]
+
+### Step 3: Relate to $p$ and $q$
+
+Recall the definitions given in the problem:
+\[ p = \sum_{k=1}^\infty \frac{1}{k^2} = 1 + \sum_{k=2}^\infty \frac{1}{k^2} \]
+\[ q = \sum_{k=1}^\infty \frac{1}{k^3} = 1 + \sum_{k=2}^\infty \frac{1}{k^3} \]
+
+From these definitions, we can express the sums starting from $n=2$ as:
+\[ \sum_{n=2}^\infty \frac{1}{n^2} = p - 1 \]
+\[ \sum_{n=2}^\infty \frac{1}{n^3} = q - 1 \]
+
+### Step 4: Calculate the Final Result
+
+Substitute these expressions back into the equation for $S$:
+\[ S = (p - 1) - (q - 1) \]
+\[ S = p - 1 - q + 1 \]
+\[ S = p - q \]
+
+### Conclusion
+
+The double sum can be written in terms of $p$ and $q$ as:
+\[ \sum_{j = 1}^\infty \sum_{k = 1}^\infty \frac{1}{(j + k)^3} = p - q \]
+
+\boxed{p - q}",$p - q$
+MATH-500/2,"To find the value of $f(-2) + f(-1) + f(0)$ for the function $f(x) = \frac{3x-2}{x-2}$, we will evaluate the function at each of the specified points and then sum the results.
+
+**Step 1: Evaluate $f(-2)$**
+
+Substitute $x = -2$ into the function:
+$$ f(-2) = \frac{3(-2) - 2}{-2 - 2} $$
+$$ f(-2) = \frac{-6 - 2}{-4} $$
+$$ f(-2) = \frac{-8}{-4} $$
+$$ f(-2) = 2 $$
+
+**Step 2: Evaluate $f(-1)$**
+
+Substitute $x = -1$ into the function:
+$$ f(-1) = \frac{3(-1) - 2}{-1 - 2} $$
+$$ f(-1) = \frac{-3 - 2}{-3} $$
+$$ f(-1) = \frac{-5}{-3} $$
+$$ f(-1) = \frac{5}{3} $$
+
+**Step 3: Evaluate $f(0)$**
+
+Substitute $x = 0$ into the function:
+$$ f(0) = \frac{3(0) - 2}{0 - 2} $$
+$$ f(0) = \frac{0 - 2}{-2} $$
+$$ f(0) = \frac{-2}{-2} $$
+$$ f(0) = 1 $$
+
+**Step 4: Sum the values**
+
+Now, we add the three results together:
+$$ f(-2) + f(-1) + f(0) = 2 + \frac{5}{3} + 1 $$
+
+Combine the integers first:
+$$ 2 + 1 = 3 $$
+
+Add the fraction:
+$$ 3 + \frac{5}{3} $$
+
+To add these, convert 3 to a fraction with a denominator of 3:
+$$ 3 = \frac{9}{3} $$
+
+So,
+$$ \frac{9}{3} + \frac{5}{3} = \frac{9 + 5}{3} = \frac{14}{3} $$
+
+The result is already in simplest form as a common fraction.
+
+\boxed{\frac{14}{3}}",$\frac{14}{3}$
+MATH-500/3,"To find the number of positive whole-number divisors of 196, we can follow these steps:
+
+### Step 1: Prime Factorization of 196
+
+First, we determine the prime factorization of the number 196.
+
+1.  Since 196 is an even number, we can divide it by 2:
+    $$196 \div 2 = 98$$
+2.  98 is also even, so we divide by 2 again:
+    $$98 \div 2 = 49$$
+3.  Now we have 49. We know that $49 = 7 \times 7$, or $7^2$.
+
+So, the prime factorization of 196 is:
+$$196 = 2 \times 2 \times 7 \times 7 = 2^2 \times 7^2$$
+
+### Step 2: Use the Divisor Counting Formula
+
+If the prime factorization of a number $n$ is given by $n = p_1^{e_1} \times p_2^{e_2} \times \dots \times p_k^{e_k}$, then the total number of positive divisors of $n$, denoted as $d(n)$, is calculated by multiplying the successors of the exponents:
+$$d(n) = (e_1 + 1)(e_2 + 1)\dots(e_k + 1)$$
+
+For $196 = 2^2 \times 7^2$:
+- The exponent of the prime factor 2 is $2$.
+- The exponent of the prime factor 7 is $2$.
+
+Applying the formula:
+$$d(196) = (2 + 1)(2 + 1)$$
+$$d(196) = 3 \times 3$$
+$$d(196) = 9$$
+
+### Step 3: Verification by Listing Divisors
+
+Let's list all the divisors to verify the result. The divisors are formed by combinations of the prime factors $2^0, 2^1, 2^2$ and $7^0, 7^1, 7^2$.
+
+1.  $2^0 \times 7^0 = 1 \times 1 = 1$
+2.  $2^1 \times 7^0 = 2 \times 1 = 2$
+3.  $2^2 \times 7^0 = 4 \times 1 = 4$
+4.  $2^0 \times 7^1 = 1 \times 7 = 7$
+5.  $2^1 \times 7^1 = 2 \times 7 = 14$
+6.  $2^2 \times 7^1 = 4 \times 7 = 28$
+7.  $2^0 \times 7^2 = 1 \times 49 = 49$
+8.  $2^1 \times 7^2 = 2 \times 49 = 98$
+9.  $2^2 \times 7^2 = 4 \times 49 = 196$
+
+The divisors are: 1, 2, 4, 7, 14, 28, 49, 98, 196.
+Counting them, we find there are exactly 9 divisors.
+
+### Conclusion
+
+The number of positive whole-number divisors of 196 is 9.
+
+\boxed{9}",$9$
+MATH-500/4,"To determine which student has the greatest average speed, we need to analyze the relationship between distance and time for each student as shown in the graph.
+
+**1. Understanding the Graph**
+*   The horizontal axis (x-axis) represents **time**.
+*   The vertical axis (y-axis) represents **distance**.
+*   The formula for average speed is:
+    $$ \text{Speed} = \frac{\text{Distance}}{\text{Time}} $$
+*   On a distance-time graph, the speed of an object is represented by the slope of the line connecting the origin $(0,0)$ to the point representing the object's final position. A steeper slope indicates a greater speed. Alternatively, we can calculate the ratio $\frac{y}{x}$ for each point.
+
+**2. Analyzing Each Student's Data**
+Let's estimate the coordinates $(t, d)$ for each student from the graph and calculate their approximate speed ($v = d/t$).
+
+*   **Evelyn**:
+    *   Time ($t$) $\approx 1.25$
+    *   Distance ($d$) $\approx 4.5$
+    *   Speed $\approx \frac{4.5}{1.25} = 3.6$
+
+*   **Briana**:
+    *   Time ($t$) $\approx 2.5$
+    *   Distance ($d$) $\approx 2.2$
+    *   Speed $\approx \frac{2.2}{2.5} = 0.88$
+
+*   **Carla**:
+    *   Time ($t$) $\approx 4.25$
+    *   Distance ($d$) $\approx 5.2$
+    *   Speed $\approx \frac{5.2}{4.25} \approx 1.22$
+
+*   **Debra**:
+    *   Time ($t$) $\approx 5.6$
+    *   Distance ($d$) $\approx 2.8$
+    *   Speed $\approx \frac{2.8}{5.6} = 0.5$
+
+*   **Angela**:
+    *   Time ($t$) $\approx 6.8$
+    *   Distance ($d$) $\approx 1.4$
+    *   Speed $\approx \frac{1.4}{6.8} \approx 0.21$
+
+**3. Comparison**
+Comparing the calculated speeds:
+*   Evelyn: $3.6$
+*   Briana: $0.88$
+*   Carla: $1.22$
+*   Debra: $0.5$
+*   Angela: $0.21$
+
+Evelyn has the highest value. Visually, this is also confirmed by observing that Evelyn's point is the ""steepest"" relative to the origin. She covers a large distance in a very short amount of time.
+
+**Conclusion**
+Evelyn has the greatest average speed.
+
+\boxed{Evelyn}",$\text{Evelyn}$
+MATH-500/5,"To find the perimeter of the regular hexagon, we will follow these steps:
+
+1.  **Determine the side length of the equilateral triangle.**
+    The problem states that the regular hexagon is divided into six equilateral triangles. An equilateral triangle has three sides of equal length. Let $s$ be the side length of one of these triangles.
+    
+    The perimeter of one equilateral triangle is given as 21 inches. Therefore:
+    $$3s = 21$$
+    
+    Solving for $s$:
+    $$s = \frac{21}{3} = 7 \text{ inches}$$
+
+2.  **Determine the side length of the regular hexagon.**
+    A regular hexagon can be divided into six equilateral triangles by drawing lines from the center to each vertex. The sides of these triangles that form the boundary of the hexagon are the sides of the hexagon itself. Therefore, the side length of the regular hexagon is equal to the side length of the equilateral triangle.
+    
+    So, the side length of the hexagon is also $7$ inches.
+
+3.  **Calculate the perimeter of the regular hexagon.**
+    A regular hexagon has 6 equal sides. Let $P_{hex}$ be the perimeter of the hexagon.
+    $$P_{hex} = 6 \times s$$
+    $$P_{hex} = 6 \times 7$$
+    $$P_{hex} = 42 \text{ inches}$$
+
+**Conclusion:**
+The perimeter of the regular hexagon is 42 inches.
+
+\boxed{42}",$42$
+MATH-500/6,"To find the smallest positive perfect cube that can be written as the sum of three consecutive integers, we will proceed with the following logical steps:
+
+### Step 1: Express the sum of three consecutive integers algebraically
+
+Let the three consecutive integers be $n-1$, $n$, and $n+1$, where $n$ is an integer.
+The sum $S$ of these three integers is:
+$$ S = (n-1) + n + (n+1) $$
+$$ S = 3n $$
+
+So, the sum of any three consecutive integers is always a multiple of 3.
+
+### Step 2: Set the sum equal to a perfect cube
+
+We are looking for a number that is both a perfect cube and equal to this sum. Let the perfect cube be $k^3$, where $k$ is a positive integer.
+Therefore, we have the equation:
+$$ k^3 = 3n $$
+
+This implies that $k^3$ must be divisible by 3.
+
+### Step 3: Determine the properties of $k$
+
+If a perfect cube $k^3$ is divisible by a prime number $p$, then the base $k$ must also be divisible by $p$.
+*   Proof: Let the prime factorization of $k$ be $p_1^{a_1} p_2^{a_2} \dots$. Then $k^3 = p_1^{3a_1} p_2^{3a_2} \dots$. For $k^3$ to be divisible by 3, the exponent of the prime factor 3 in the prime factorization of $k^3$ must be at least 1. Since the exponents in $k^3$ are multiples of 3, the smallest positive multiple of 3 is 3. This means the exponent of 3 in $k$ must be at least 1. Thus, $k$ is divisible by 3.
+
+So, $k$ must be a multiple of 3. Let $k = 3m$ for some positive integer $m$.
+
+### Step 4: Find the smallest positive integer $k$
+
+We want the **smallest** positive perfect cube. This corresponds to the smallest positive integer $k$.
+Since $k$ must be a multiple of 3, the possible values for $k$ are $3, 6, 9, \dots$.
+
+The smallest positive value is $k = 3$.
+
+### Step 5: Calculate the perfect cube and verify
+
+Let's test $k = 3$:
+$$ k^3 = 3^3 = 27 $$
+
+Now, we check if 27 can be written as the sum of three consecutive integers.
+From Step 1, we know the sum is $3n$. So:
+$$ 27 = 3n $$
+$$ n = 9 $$
+
+The three consecutive integers are $n-1, n, n+1$, which are:
+$$ 8, 9, 10 $$
+
+Let's verify the sum:
+$$ 8 + 9 + 10 = 27 $$
+
+Since $27 = 3^3$, it is a perfect cube.
+Since $8, 9, 10$ are consecutive integers, the condition is satisfied.
+
+Is there a smaller positive perfect cube?
+The positive perfect cubes are $1^3=1$, $2^3=8$, $3^3=27$, etc.
+*   $1$: Is $1$ divisible by 3? No. ($1 = 3n \implies n=1/3$, not an integer).
+*   $8$: Is $8$ divisible by 3? No. ($8 = 3n \implies n=8/3$, not an integer).
+*   $27$: Is $27$ divisible by 3? Yes. ($27 = 3n \implies n=9$, an integer).
+
+Thus, 27 is the smallest.
+
+### Conclusion
+
+The smallest positive perfect cube that can be written as the sum of three consecutive integers is 27.
+
+\boxed{27}",$27$
+MATH-500/7,"To find the angle between the two lines, we first need to determine the direction vectors for each line.
+
+### Step 1: Find the direction vector of the first line
+
+The equation for the first line is given by:
+\[ 2x = 3y = -z \]
+
+Let this common value be equal to a parameter $t$. Then we can write:
+\[ 2x = t \implies x = \frac{t}{2} \]
+\[ 3y = t \implies y = \frac{t}{3} \]
+\[ -z = t \implies z = -t \]
+
+So, the position vector $\mathbf{r}_1$ of any point on this line can be written as:
+\[ \mathbf{r}_1 = \left( \frac{1}{2}, \frac{1}{3}, -1 \right) t \]
+
+The direction vector $\mathbf{v}_1$ is the coefficient of $t$:
+\[ \mathbf{v}_1 = \left( \frac{1}{2}, \frac{1}{3}, -1 \right) \]
+
+To make calculations easier, we can scale this vector by the least common multiple of the denominators (which is 6) to get an integer vector parallel to $\mathbf{v}_1$. Let's call this scaled vector $\mathbf{u}_1$:
+\[ \mathbf{u}_1 = 6 \mathbf{v}_1 = \left( 3, 2, -6 \right) \]
+
+### Step 2: Find the direction vector of the second line
+
+The equation for the second line is given by:
+\[ 6x = -y = -4z \]
+
+Let this common value be equal to a parameter $s$. Then we can write:
+\[ 6x = s \implies x = \frac{s}{6} \]
+\[ -y = s \implies y = -s \]
+\[ -4z = s \implies z = -\frac{s}{4} \]
+
+So, the position vector $\mathbf{r}_2$ of any point on this line can be written as:
+\[ \mathbf{r}_2 = \left( \frac{1}{6}, -1, -\frac{1}{4} \right) s \]
+
+The direction vector $\mathbf{v}_2$ is the coefficient of $s$:
+\[ \mathbf{v}_2 = \left( \frac{1}{6}, -1, -\frac{1}{4} \right) \]
+
+Similarly, we can scale this vector to get an integer vector parallel to $\mathbf{v}_2$. The least common multiple of the denominators 6 and 4 is 12. Let's call this scaled vector $\mathbf{u}_2$:
+\[ \mathbf{u}_2 = 12 \mathbf{v}_2 = \left( 2, -12, -3 \right) \]
+
+### Step 3: Calculate the angle between the direction vectors
+
+The angle $\theta$ between two lines is defined as the acute angle between their direction vectors. We use the dot product formula:
+\[ \cos \theta = \frac{|\mathbf{u}_1 \cdot \mathbf{u}_2|}{\|\mathbf{u}_1\| \|\mathbf{u}_2\|} \]
+
+First, calculate the dot product $\mathbf{u}_1 \cdot \mathbf{u}_2$:
+\[ \mathbf{u}_1 = (3, 2, -6) \]
+\[ \mathbf{u}_2 = (2, -12, -3) \]
+\[ \mathbf{u}_1 \cdot \mathbf{u}_2 = (3)(2) + (2)(-12) + (-6)(-3) \]
+\[ \mathbf{u}_1 \cdot \mathbf{u}_2 = 6 - 24 + 18 \]
+\[ \mathbf{u}_1 \cdot \mathbf{u}_2 = 0 \]
+
+Since the dot product is 0, the vectors are orthogonal (perpendicular).
+
+### Step 4: Determine the angle
+
+If the dot product of two non-zero vectors is 0, the angle between them is $90^\circ$.
+
+\[ \cos \theta = 0 \implies \theta = 90^\circ \]
+
+### Conclusion
+
+The angle between the two lines is $90^\circ$.
+
+\boxed{90}",$90^\circ$

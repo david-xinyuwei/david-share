@@ -1,0 +1,14 @@
+{
+  "route": "baseline",
+  "group": "primary",
+  "requests": 664,
+  "expected": 664,
+  "concurrency": 1,
+  "elapsed_wall_s": 12524.89927964,
+  "finish_counts": {
+    "length": 4,
+    "stop": 660
+  },
+  "empty_content": 0,
+  "completion_tokens": 676004
+}

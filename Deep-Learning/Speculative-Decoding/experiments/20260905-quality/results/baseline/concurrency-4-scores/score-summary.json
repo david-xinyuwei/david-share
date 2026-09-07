@@ -1,0 +1,21 @@
+{
+  "input_sha256": "1ff810441ddcda61e87e4360c5838320bf1c3835aca9a271134e8351ffbafa4d",
+  "code": {
+    "tasks": 32,
+    "samples": 32,
+    "pass_at_k": {
+      "base": {
+        "pass@1": 1.0
+      },
+      "plus": {
+        "pass@1": 1.0
+      }
+    }
+  },
+  "math": {
+    "correct": 30,
+    "denominator": 32,
+    "accuracy": 0.9375,
+    "scoring_errors": 0
+  }
+}

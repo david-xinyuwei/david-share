@@ -1,0 +1,78 @@
+{
+  "status": "COMPLETE",
+  "task_id": "HumanEval/130",
+  "dataset": "humaneval_plus",
+  "protocol_hash": "a379ab0f25d801e5a8e38419331586962b3299192aa8c648ce450e6b8ef82c47",
+  "started_utc": "2026-09-05T21:48:41.889919+00:00",
+  "ended_utc": "2026-09-05T21:48:49.296834+00:00",
+  "request": {
+    "model": "Qwen/Qwen3.6-27B",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Please provide a self-contained Python script that solves the following problem in a markdown code block:\n```python\ndef tri(n):\n    \"\"\"Everyone knows Fibonacci sequence, it was studied deeply by mathematicians in \n    the last couple centuries. However, what people don't know is Tribonacci sequence.\n    Tribonacci sequence is defined by the recurrence:\n    tri(1) = 3\n    tri(n) = 1 + n / 2, if n is even.\n    tri(n) =  tri(n - 1) + tri(n - 2) + tri(n + 1), if n is odd.\n    For example:\n    tri(2) = 1 + (2 / 2) = 2\n    tri(4) = 3\n    tri(3) = tri(2) + tri(1) + tri(4)\n           = 2 + 3 + 3 = 8 \n    You are given a non-negative integer number n, you have to a return a list of the \n    first n + 1 numbers of the Tribonacci sequence.\n    Examples:\n    tri(3) = [1, 3, 2, 8]\n    \"\"\"\n```"
+      }
+    ],
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "top_k": -1,
+    "seed": 20260905,
+    "max_tokens": 4096,
+    "stream": false,
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    }
+  },
+  "response": {
+    "id": "chatcmpl-82a722068f5e4574",
+    "object": "chat.completion",
+    "created": 1788644921,
+    "prompt_routed_experts": null,
+    "model": "Qwen/Qwen3.6-27B",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "```python\ndef tri(n):\n    \"\"\"Everyone knows Fibonacci sequence, it was studied deeply by mathematicians in \n    the last couple centuries. However, what people don't know is Tribonacci sequence.\n    Tribonacci sequence is defined by the recurrence:\n    tri(1) = 3\n    tri(n) = 1 + n / 2, if n is even.\n    tri(n) =  tri(n - 1) + tri(n - 2) + tri(n + 1), if n is odd.\n    For example:\n    tri(2) = 1 + (2 / 2) = 2\n    tri(4) = 3\n    tri(3) = tri(2) + tri(1) + tri(4)\n           = 2 + 3 + 3 = 8 \n    You are given a non-negative integer number n, you have to a return a list of the \n    first n + 1 numbers of the Tribonacci sequence.\n    Examples:\n    tri(3) = [1, 3, 2, 8]\n    \"\"\"\n    if n < 0:\n        return []\n    \n    # We need to compute tri(0), tri(1), ..., tri(n)\n    # From the example: tri(3) = [1, 3, 2, 8]\n    # So tri(0) = 1, tri(1) = 3, tri(2) = 2, tri(3) = 8\n    \n    # Let's figure out the base cases:\n    # tri(0) = 1 (from example)\n    # tri(1) = 3 (given)\n    # For even n: tri(n) = 1 + n/2\n    # For odd n > 1: tri(n) = tri(n-1) + tri(n-2) + tri(n+1)\n    \n    # The tricky part is that for odd n, tri(n) depends on tri(n+1), which is even.\n    # So we can compute even values directly, and for odd values, we need to use the formula.\n    # But tri(n) for odd n depends on tri(n+1), which we can compute since n+1 is even.\n    \n    # Let's think about this more carefully:\n    # tri(0) = 1\n    # tri(1) = 3\n    # tri(2) = 1 + 2/2 = 2\n    # tri(3) = tri(2) + tri(1) + tri(4) = 2 + 3 + tri(4)\n    # tri(4) = 1 + 4/2 = 3\n    # So tri(3) = 2 + 3 + 3 = 8\n    \n    # For odd n, tri(n) = tri(n-1) + tri(n-2) + tri(n+1)\n    # Since n+1 is even, tri(n+1) = 1 + (n+1)/2\n    \n    # So we can compute all values iteratively.\n    # We need to be careful about the order. For odd n, we need tri(n+1), which is even and can be computed directly.\n    \n    # Let's compute values from 0 to n.\n    # For even indices, we can compute directly.\n    # For odd indices, we need tri(n-1), tri(n-2), and tri(n+1).\n    # tri(n+1) for odd n is even, so it's 1 + (n+1)/2.\n    \n    # But wait, if n is the maximum index we need, and n is odd, then tri(n) depends on tri(n+1), which is beyond our range.\n    # However, tri(n+1) can still be computed using the even formula.\n    \n    # Let's build the list up to n+1 if needed, but we only return up to n.\n    \n    # Actually, let's just compute each value as needed.\n    \n    result = []\n    \n    # We'll compute tri(i) for i from 0 to n\n    # We need a way to compute tri(i) for any i up to n+1 (since odd i might need i+1)\n    \n    # Let's create a dictionary or list to store computed values\n    # We'll compute up to n+1 to handle the dependency\n    \n    max_needed = n + 1  # In case n is odd, we need tri(n+1)\n    \n    # Initialize with known values\n    # tri(0) = 1\n    # tri(1) = 3\n    \n    # Let's compute all values from 0 to max_needed\n    values = [0] * (max_needed + 1)\n    \n    # Base cases\n    values[0] = 1\n    if max_needed >= 1:\n        values[1] = 3\n    \n    # Now compute for i from 2 to max_needed\n    for i in range(2, max_needed + 1):\n        if i % 2 == 0:\n            values[i] = 1 + i / 2\n        else:\n            # i is odd, so tri(i) = tri(i-1) + tri(i-2) + tri(i+1)\n            # But i+1 might be beyond max_needed if i == max_needed\n            # If i == max_needed and i is odd, then i+1 = n+2, which we might not have computed\n            # Wait, max_needed = n + 1. If n is odd, max_needed = n + 1 is even.\n            # If n is even, max_needed = n + 1 is odd.\n            # So if max_needed is odd, we need tri(max_needed + 1) = tri(n + 2)\n            # Hmm, this is getting complicated.\n            \n            # Let's reconsider. We only need values up to n.\n            # For odd i <= n, tri(i) = tri(i-1) + tri(i-2) + tri(i+1)\n            # If i+1 <= n, we need tri(i+1). If i+1 > n, we still need to compute it.\n            # So we need to compute up to n+1 at most.\n            \n            # If i is odd and i <= n:\n            #   If i+1 <= n+1, we can compute tri(i+1) if it's even (which it is).\n            #   tri(i+1) = 1 + (i+1)/2 since i+1 is even.\n            \n            # So for odd i, tri(i) = tri(i-1) + tri(i-2) + (1 + (i+1)/2)\n            \n            tri_i_plus_1 = 1 + (i + 1) / 2\n            values[i] = values[i - 1] + values[i - 2] + tri_i_plus_1\n    \n    # Now extract values[0] to values[n]\n    for i in range(n + 1):\n        result.append(values[i])\n    \n    return result\n```",
+          "refusal": null,
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "tool_calls": [],
+          "reasoning": null
+        },
+        "logprobs": null,
+        "finish_reason": "stop",
+        "stop_reason": null,
+        "token_ids": null,
+        "routed_experts": null
+      }
+    ],
+    "service_tier": null,
+    "system_fingerprint": "vllm-0.21.0-0f3fe2c4",
+    "usage": {
+      "prompt_tokens": 275,
+      "total_tokens": 1856,
+      "completion_tokens": 1581,
+      "prompt_tokens_details": null
+    },
+    "prompt_logprobs": null,
+    "prompt_token_ids": null,
+    "prompt_text": null,
+    "kv_transfer_params": null
+  },
+  "content": "```python\ndef tri(n):\n    \"\"\"Everyone knows Fibonacci sequence, it was studied deeply by mathematicians in \n    the last couple centuries. However, what people don't know is Tribonacci sequence.\n    Tribonacci sequence is defined by the recurrence:\n    tri(1) = 3\n    tri(n) = 1 + n / 2, if n is even.\n    tri(n) =  tri(n - 1) + tri(n - 2) + tri(n + 1), if n is odd.\n    For example:\n    tri(2) = 1 + (2 / 2) = 2\n    tri(4) = 3\n    tri(3) = tri(2) + tri(1) + tri(4)\n           = 2 + 3 + 3 = 8 \n    You are given a non-negative integer number n, you have to a return a list of the \n    first n + 1 numbers of the Tribonacci sequence.\n    Examples:\n    tri(3) = [1, 3, 2, 8]\n    \"\"\"\n    if n < 0:\n        return []\n    \n    # We need to compute tri(0), tri(1), ..., tri(n)\n    # From the example: tri(3) = [1, 3, 2, 8]\n    # So tri(0) = 1, tri(1) = 3, tri(2) = 2, tri(3) = 8\n    \n    # Let's figure out the base cases:\n    # tri(0) = 1 (from example)\n    # tri(1) = 3 (given)\n    # For even n: tri(n) = 1 + n/2\n    # For odd n > 1: tri(n) = tri(n-1) + tri(n-2) + tri(n+1)\n    \n    # The tricky part is that for odd n, tri(n) depends on tri(n+1), which is even.\n    # So we can compute even values directly, and for odd values, we need to use the formula.\n    # But tri(n) for odd n depends on tri(n+1), which we can compute since n+1 is even.\n    \n    # Let's think about this more carefully:\n    # tri(0) = 1\n    # tri(1) = 3\n    # tri(2) = 1 + 2/2 = 2\n    # tri(3) = tri(2) + tri(1) + tri(4) = 2 + 3 + tri(4)\n    # tri(4) = 1 + 4/2 = 3\n    # So tri(3) = 2 + 3 + 3 = 8\n    \n    # For odd n, tri(n) = tri(n-1) + tri(n-2) + tri(n+1)\n    # Since n+1 is even, tri(n+1) = 1 + (n+1)/2\n    \n    # So we can compute all values iteratively.\n    # We need to be careful about the order. For odd n, we need tri(n+1), which is even and can be computed directly.\n    \n    # Let's compute values from 0 to n.\n    # For even indices, we can compute directly.\n    # For odd indices, we need tri(n-1), tri(n-2), and tri(n+1).\n    # tri(n+1) for odd n is even, so it's 1 + (n+1)/2.\n    \n    # But wait, if n is the maximum index we need, and n is odd, then tri(n) depends on tri(n+1), which is beyond our range.\n    # However, tri(n+1) can still be computed using the even formula.\n    \n    # Let's build the list up to n+1 if needed, but we only return up to n.\n    \n    # Actually, let's just compute each value as needed.\n    \n    result = []\n    \n    # We'll compute tri(i) for i from 0 to n\n    # We need a way to compute tri(i) for any i up to n+1 (since odd i might need i+1)\n    \n    # Let's create a dictionary or list to store computed values\n    # We'll compute up to n+1 to handle the dependency\n    \n    max_needed = n + 1  # In case n is odd, we need tri(n+1)\n    \n    # Initialize with known values\n    # tri(0) = 1\n    # tri(1) = 3\n    \n    # Let's compute all values from 0 to max_needed\n    values = [0] * (max_needed + 1)\n    \n    # Base cases\n    values[0] = 1\n    if max_needed >= 1:\n        values[1] = 3\n    \n    # Now compute for i from 2 to max_needed\n    for i in range(2, max_needed + 1):\n        if i % 2 == 0:\n            values[i] = 1 + i / 2\n        else:\n            # i is odd, so tri(i) = tri(i-1) + tri(i-2) + tri(i+1)\n            # But i+1 might be beyond max_needed if i == max_needed\n            # If i == max_needed and i is odd, then i+1 = n+2, which we might not have computed\n            # Wait, max_needed = n + 1. If n is odd, max_needed = n + 1 is even.\n            # If n is even, max_needed = n + 1 is odd.\n            # So if max_needed is odd, we need tri(max_needed + 1) = tri(n + 2)\n            # Hmm, this is getting complicated.\n            \n            # Let's reconsider. We only need values up to n.\n            # For odd i <= n, tri(i) = tri(i-1) + tri(i-2) + tri(i+1)\n            # If i+1 <= n, we need tri(i+1). If i+1 > n, we still need to compute it.\n            # So we need to compute up to n+1 at most.\n            \n            # If i is odd and i <= n:\n            #   If i+1 <= n+1, we can compute tri(i+1) if it's even (which it is).\n            #   tri(i+1) = 1 + (i+1)/2 since i+1 is even.\n            \n            # So for odd i, tri(i) = tri(i-1) + tri(i-2) + (1 + (i+1)/2)\n            \n            tri_i_plus_1 = 1 + (i + 1) / 2\n            values[i] = values[i - 1] + values[i - 2] + tri_i_plus_1\n    \n    # Now extract values[0] to values[n]\n    for i in range(n + 1):\n        result.append(values[i])\n    \n    return result\n```",
+  "reasoning": "",
+  "finish_reason": "stop",
+  "usage": {
+    "prompt_tokens": 275,
+    "total_tokens": 1856,
+    "completion_tokens": 1581,
+    "prompt_tokens_details": null
+  },
+  "total_s": 7.406905803996779,
+  "ttft_any_s": null,
+  "ttft_content_s": null,
+  "output_tps_e2e": 213.44945404150945
+}

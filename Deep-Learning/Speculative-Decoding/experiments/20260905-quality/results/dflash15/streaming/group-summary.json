@@ -1,0 +1,13 @@
+{
+  "route": "dflash15",
+  "group": "streaming",
+  "requests": 48,
+  "expected": 48,
+  "concurrency": 1,
+  "elapsed_wall_s": 69.36990172100195,
+  "finish_counts": {
+    "stop": 48
+  },
+  "empty_content": 0,
+  "completion_tokens": 20598
+}

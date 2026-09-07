@@ -1,0 +1,7 @@
+FROM python:3.12-slim
+RUN apt-get update && apt-get install -y --no-install-recommends git && apt-get clean
+RUN git config --global url."https://github.com/".insteadOf "git@github.com:"
+RUN python -m pip install --no-cache-dir "evalplus @ git+https://github.com/evalplus/evalplus.git@26d6d00bb1fd0fa37f39c99d5290da67891d1c5e" "math-verify[antlr4_13_2] @ git+https://github.com/huggingface/Math-Verify.git@ba3d3aaff23b3f4cac7a14672b4f6e293d97c98b" pandas
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 HOME=/tmp XDG_CACHE_HOME=/tmp/cache
+WORKDIR /work
+USER 1000:1000

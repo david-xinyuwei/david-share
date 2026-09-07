@@ -1,0 +1,72 @@
+[
+  {
+    "dataset": "humaneval_plus",
+    "request": {
+      "chat_template_kwargs": {
+        "enable_thinking": true,
+        "preserve_thinking": true
+      },
+      "include_reasoning": true,
+      "max_completion_tokens": 16384,
+      "messages": [
+        {
+          "content": "Please provide a self-contained Python script that solves the following problem in a markdown code block:\n```python\ndef search(lst):\n    '''\n    You are given a non-empty list of positive integers. Return the greatest integer that is greater than \n    zero, and has a frequency greater than or equal to the value of the integer itself. \n    The frequency of an integer is the number of times it appears in the list.\n    If no such a value exist, return -1.\n    Examples:\n        search([4, 1, 2, 2, 3, 1]) == 2\n        search([1, 2, 2, 3, 3, 3, 4, 4, 4]) == 3\n        search([5, 5, 4, 4, 4]) == -1\n    '''\n```",
+          "role": "user"
+        }
+      ],
+      "min_p": 0.0,
+      "model": "Qwen/Qwen3.8-27B",
+      "presence_penalty": 0.0,
+      "reasoning_effort": "xhigh",
+      "repetition_penalty": 1.0,
+      "return_token_ids": true,
+      "seed": 1337699070,
+      "stream": true,
+      "stream_interval": 1,
+      "stream_options": {
+        "include_usage": true
+      },
+      "temperature": 1.0,
+      "top_k": 20,
+      "top_p": 0.95
+    },
+    "request_sha256": "3f7e06fb777d572c253c9dc0d642c9343d378a8f1c7def06a4837d2a64c02891",
+    "task_id": "HumanEval/69",
+    "group_id": "S-baseline-c1-s20260906-r1-thinking-mixed"
+  },
+  {
+    "dataset": "math_500",
+    "request": {
+      "chat_template_kwargs": {
+        "enable_thinking": true,
+        "preserve_thinking": true
+      },
+      "include_reasoning": true,
+      "max_completion_tokens": 16384,
+      "messages": [
+        {
+          "content": "A hexagon is inscribed in a circle: [asy]\npair pA, pB, pC, pD, pE, pF, pO;\npO = (0, 0);\npA = pO + dir(-10);\npB = pO + dir(60);\npC = pO + dir(130);\npD = pO + dir(170);\npE = pO + dir(-160);\npF = pO + dir(-80);\ndraw(pA--pB--pC--pD--pE--pF--pA);\nlabel(\"$105^\\circ$\", pF, N * 2);\nlabel(\"$110^\\circ$\", pB, SW * 1.5);\nlabel(\"$\\alpha$\", pD, E);\ndraw(circle(pO, 1));\n[/asy] What is the measure of $\\alpha$, in degrees?\nPlease reason carefully and put your final answer within \\boxed{}.",
+          "role": "user"
+        }
+      ],
+      "min_p": 0.0,
+      "model": "Qwen/Qwen3.8-27B",
+      "presence_penalty": 0.0,
+      "reasoning_effort": "xhigh",
+      "repetition_penalty": 1.0,
+      "return_token_ids": true,
+      "seed": 530631841,
+      "stream": true,
+      "stream_interval": 1,
+      "stream_options": {
+        "include_usage": true
+      },
+      "temperature": 1.0,
+      "top_k": 20,
+      "top_p": 0.95
+    },
+    "request_sha256": "1c5c7ba4164c518f80b102de8e8157622bfc7b34bf85bfe0e2d4647c79973e88",
+    "task_id": "MATH-500/100",
+    "group_id": "S-baseline-c1-s20260906-r1-thinking-mixed"
+  }
+]

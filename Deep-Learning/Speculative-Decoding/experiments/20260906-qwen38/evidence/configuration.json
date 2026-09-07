@@ -1,0 +1,300 @@
+{
+  "run_id": "qwen38-quality-20260906",
+  "method": "author_deployment_regression_with_official_inference_and_graders_not_paper_reproduction",
+  "target": {
+    "model_id": "Qwen/Qwen3.8-27B",
+    "revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
+    "revision_source": "https://huggingface.co/api/models/Qwen/Qwen3.8-27B",
+    "revision_checked_date": "2026-09-06",
+    "native_mtp_source": "The MTP weights shipped in this exact target checkpoint; no separately trained, converted or community MTP model",
+    "dtype": "bfloat16"
+  },
+  "draft": {
+    "model_id": "incoai/Qwen3.8-27B-DFlash2",
+    "revision": "dedf8df68adfb1afeaf7b7480c0a0243108177b4",
+    "revision_source": "https://huggingface.co/api/models/incoai/Qwen3.8-27B-DFlash2",
+    "revision_checked_date": "2026-09-06",
+    "dtype": "bfloat16",
+    "required_architecture": "DFlash2DraftModel"
+  },
+  "serving": {
+    "vllm_version": "0.28.0",
+    "vllm_commit": "2cf0a6915ce544dc493a0990f2ea38d81601128a",
+    "latest_release_checked_date": "2026-09-06",
+    "release_policy": "Official v0.28.0 release artifact, no PR checkout, nightly, fork or local engine patch. Source inclusion and recipe support do not replace the real three-route H100 compatibility gate.",
+    "release_url": "https://github.com/vllm-project/vllm/releases/tag/v0.28.0",
+    "model_recipe_url": "https://recipes.vllm.ai/Qwen/Qwen3.8-27B",
+    "required_runner": "V2_for_all_three_routes_subject_to_real_compatibility_gate",
+    "runner_env": {
+      "VLLM_USE_V2_MODEL_RUNNER": "1"
+    },
+    "runner_compatibility_verified": false,
+    "tensor_parallel_size": 1,
+    "kv_cache_dtype": "auto_resolved_BF16_required",
+    "reasoning_parser": "qwen3",
+    "attention_backend": "freeze_observed_H100_supported_backend_before_measurement",
+    "ssm_cache_dtype": "freeze_observed_value_identically_for_all_routes",
+    "max_model_len": 32768,
+    "max_num_seqs": 16,
+    "max_num_batched_tokens": 16384,
+    "gpu_memory_utilization": 0.9,
+    "prefix_caching": false,
+    "stream_interval": 1,
+    "rejection_sample_method": "standard"
+  },
+  "routes": [
+    {
+      "name": "baseline",
+      "method": null,
+      "num_speculative_tokens": 0
+    },
+    {
+      "name": "mtp7",
+      "method": "mtp",
+      "num_speculative_tokens": 7
+    },
+    {
+      "name": "dflash2_7",
+      "method": "dflash",
+      "num_speculative_tokens": 7
+    }
+  ],
+  "sampling": {
+    "temperature": 1.0,
+    "top_p": 0.95,
+    "top_k": 20,
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "repetition_penalty": 1.0,
+    "seed": 20260906,
+    "reasoning_effort": "xhigh",
+    "chat_template_kwargs": {
+      "enable_thinking": true,
+      "preserve_thinking": true
+    }
+  },
+  "quality": {
+    "datasets": [
+      {
+        "name": "humaneval_plus",
+        "tasks": 164,
+        "version": "v0.1.10",
+        "max_tokens": 16384
+      },
+      {
+        "name": "math_500",
+        "tasks": 500,
+        "revision": "6e4ed1a2a79af7d8630a6b768ec859cb5af4d3be",
+        "max_tokens": 16384
+      }
+    ],
+    "samples_per_task": 1,
+    "primary_concurrency_levels": [
+      1,
+      8
+    ],
+    "score_scope": "Final answer content only; thinking is saved separately. Scorable wrong, empty and truncated responses retain the frozen denominator. Infrastructure or grader failures remain missing measurements, not silently counted model errors; a final full score requires all scheduled measurements to be resolved.",
+    "report_strict_completion_quality": true,
+    "code_grader": "EvalPlus official sanitize and evaluate CLI",
+    "evalplus_commit": "26d6d00bb1fd0fa37f39c99d5290da67891d1c5e",
+    "math_grader": "Math-Verify official evaluate_model_outputs.py",
+    "math_verify_commit": "ba3d3aaff23b3f4cac7a14672b4f6e293d97c98b"
+  },
+  "serving_checks": {
+    "canary_task_ids": [
+      "HumanEval/0",
+      "HumanEval/2",
+      "HumanEval/9",
+      "HumanEval/11",
+      "MATH-500/0",
+      "MATH-500/4",
+      "MATH-500/10",
+      "MATH-500/18"
+    ],
+    "canary_concurrency": [
+      1,
+      8
+    ],
+    "matched_subset": "32 task IDs per dataset selected by ascending SHA256 of UTF8 qwen38-plan-v1|20260906|dataset|task_id; ID tie-break; selection independent of old answers and new scores",
+    "matched_concurrency": [
+      1,
+      4,
+      8
+    ],
+    "matched_repeats": 3,
+    "matched_base_seeds": [
+      20260906,
+      20260907,
+      20260908
+    ],
+    "request_seed": "Integer from first 8 SHA256 hex digits of UTF8 base_seed|task_id, modulo 2147483647; identical across routes and concurrency for a task/repetition, not assumed to align random token draws",
+    "ordered_requests": "Dataset names are exactly humaneval_plus and math_500. C/G preserve their listed task-ID order. S/F sort ascending SHA256 of UTF8 qwen38-order-v1|stage|base_seed|dataset|task_id with dataset/task_id tie-breaks; S sorts the mixed 64 tasks together, F sorts within each separate dataset group. Same ordered list across routes and concurrency. Freeze each actual ordered request list and hash before generation.",
+    "dispatch_policy": "Closed-loop fixed client concurrency: dispatch the first min(concurrency, task_count) requests together, then dispatch the next item in the frozen list when a slot completes. No artificial think time or request-rate target. Record real dispatch/completion times; client backlog is in group wall time, not individual in-flight latency. Actual GPU batch shapes may differ and must not be described as controlled identical batches.",
+    "route_orders": [
+      [
+        "baseline",
+        "mtp7",
+        "dflash2_7"
+      ],
+      [
+        "mtp7",
+        "dflash2_7",
+        "baseline"
+      ],
+      [
+        "dflash2_7",
+        "baseline",
+        "mtp7"
+      ]
+    ],
+    "concurrency_orders": [
+      [
+        1,
+        4,
+        8
+      ],
+      [
+        4,
+        8,
+        1
+      ],
+      [
+        8,
+        1,
+        4
+      ]
+    ],
+    "full_route_orders_by_concurrency": {
+      "1": [
+        "baseline",
+        "mtp7",
+        "dflash2_7"
+      ],
+      "8": [
+        "dflash2_7",
+        "mtp7",
+        "baseline"
+      ]
+    },
+    "greedy_diagnostic": {
+      "task_ids": [
+        "HumanEval/0",
+        "HumanEval/2",
+        "MATH-500/0",
+        "MATH-500/18"
+      ],
+      "concurrency": [
+        1,
+        4
+      ],
+      "temperature": 0.0,
+      "top_p": 1.0,
+      "top_k": -1,
+      "thinking_modes": [
+        false,
+        true
+      ],
+      "repeats": 3,
+      "max_tokens": 512,
+      "stream": false,
+      "return_token_ids": true,
+      "return_prompt_text": true,
+      "logprobs": true,
+      "top_logprobs": 5,
+      "claim": "Token/logit diagnostic, not final-answer quality scores or proof of distribution equivalence"
+    }
+  },
+  "throughput": {
+    "output_tokens_per_second": "Total authoritative completion tokens divided by the wall time of the same request group",
+    "engine_output_tokens_per_second": "Delta of vllm:generation_tokens_total for the isolated model/engine over the same group's wall time, after pre/post snapshots are reconciled with final usage and no unrelated or warmup requests are present. This is serving throughput, not isolated GPU-kernel throughput.",
+    "engine_input_tokens_per_second": "Group-local delta of vllm:prompt_tokens_total divided by group wall time, with computed/cached source breakdown recorded; never add rejected speculative drafts to committed output tokens",
+    "requests_per_second": "Completed request count divided by group wall time",
+    "correct_answers_per_second": "Count of responses with official grade correct AND finish_reason=stop divided by the entire same-group wall time, including time spent on wrong or truncated answers; code and math counts separately visible",
+    "raw_correct_count": "All official correct grades retained as a separate accuracy numerator, including a length-stopped answer that happens to satisfy the grader; never substitute for normal-stop-and-correct goodput",
+    "excludes": [
+      "model download",
+      "server startup",
+      "official grading time"
+    ],
+    "warmup": "One full concurrency wave of predetermined code/math warmups before each measured group; same profile and 512-token cap; two short waves for greedy diagnostic. Excluded from every score and measured clock, retained in evidence and billing.",
+    "thinking_token_boundary": "Authoritative completion tokens include reasoning and final output. Report that total explicitly; separate reasoning/final token counts only if the actual API or verified raw token boundaries support them. Never use retokenized text as original server tokens.",
+    "measurement_clock": "Monotonic start before dispatch of the first measured request to terminal receipt of the last; no grader, hash generation or post-run analysis inside the measured interval",
+    "resume_rule": "Resumed groups remain valid per-task quality observations. A wall-time throughput result is valid only for an uninterrupted full group; never divide old cached tokens by resume wall time. Reruns require a separate supplemental performance group and cannot replace primary answers."
+  },
+  "stream_measurement": {
+    "required_stages": [
+      "C",
+      "S",
+      "F"
+    ],
+    "request": {
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "return_token_ids": true,
+      "include_reasoning": true,
+      "stream_interval": 1
+    },
+    "output_limit_api_field": "max_completion_tokens",
+    "clock": "Client monotonic_ns; timestamp raw incoming data before JSON parsing, grading or synchronous artifact serialization; record wall UTC separately. The client runs beside the server through loopback, not across SSH or the public network.",
+    "required_timestamps": [
+      "dispatch",
+      "first_token_ids",
+      "first_reasoning_or_content",
+      "first_final_content",
+      "last_token_ids",
+      "finish_reason",
+      "final_usage",
+      "done"
+    ],
+    "ttft_token": "first non-empty generated token_ids event time minus dispatch; empty role, prompt-only, usage-only, comment and DONE events do not qualify",
+    "ttft_visible": "first non-empty delta.reasoning or delta.content time minus dispatch; not the time to the final answer",
+    "time_to_first_final_answer": "first non-empty delta.content time minus dispatch; null with an explicit missing-final status if none arrives",
+    "tpot": "For each request i: (last_token_time_i - first_token_time_i) / (completion_tokens_i - 1), only when that request has completion_tokens_i > 1 and validated token-ID coverage. Never use the group's sum of tokens in a per-request denominator. Otherwise null with reason, never fabricate zero. A single-chunk multi-token response can yield zero delivery TPOT and must be labeled SINGLE_CHUNK, not zero GPU compute time.",
+    "e2e_latency": "DONE time minus dispatch for a valid complete SSE response; separately retain last-token, finish and usage times",
+    "chunk_boundary": "stream_interval=1 does not guarantee one token per event under speculation. Record tokens per chunk; chunk gaps are delivery gaps, not individual-token GPU timings. Client TPOT is a delivery-average metric and server request TPOT is reported separately.",
+    "integrity": "Reassemble exactly one index-0 choice in event order, retaining reasoning and final content separately. Require DONE, finish_reason, final authoritative usage, stable request/model identity and original token-ID accounting. Validate actual special-token/usage semantics in C for all routes; unexplained mismatch or missing IDs blocks affected timing metrics and full dispatch, not a model quality verdict.",
+    "recording": "Retain raw SSE frames with receive timestamps and received partial data on failure. Timestamp before processing; persist with bounded buffering outside timing-critical parsing, include actual recorder overhead in end-to-end results and report client backpressure. No per-event compression, tokenization or grading in the receive loop.",
+    "statistics": {
+      "percentiles": [
+        50,
+        95,
+        99
+      ],
+      "mean": true,
+      "stddev": true,
+      "valid_count": true,
+      "missing_count": true,
+      "percentile_method": "linear interpolation on sorted valid per-request observations"
+    },
+    "server_metrics": [
+      "vllm:generation_tokens_total",
+      "vllm:prompt_tokens_total",
+      "vllm:time_to_first_token_seconds",
+      "vllm:request_time_per_output_token_seconds",
+      "vllm:inter_token_latency_seconds",
+      "vllm:e2e_request_latency_seconds",
+      "vllm:request_queue_time_seconds",
+      "vllm:request_prefill_time_seconds",
+      "vllm:request_decode_time_seconds"
+    ],
+    "server_metrics_scope": "Snapshot group-local counters and histogram sum/count/buckets after warmup drains and after the measured group drains. Keep process/model/engine labels and reconcile counts; reset, missing data or unrelated traffic invalidates that metric. Histogram means are sum/count; quantiles from buckets are approximate, never exact client P95. Missing metrics are an acceptance gap, not zero.",
+    "server_histogram_units": {
+      "time_to_first_token_seconds": "One observation per request that reaches first output; a later-aborted request may already have TTFT, so reconcile with first-output coverage, not blindly with final success count.",
+      "request_time_per_output_token_seconds": "One observation per finished request. v0.28.0 records decode_time/(generated_tokens-1) for generated_tokens>1 and zero otherwise. Preserve this native mean and its single/zero-token count; do not compare its all-finished denominator to the client's >1-token subset as if populations matched.",
+      "e2e_queue_prefill_decode_seconds": "Finished-request observations, reconciled to group-local request_success_total split by finished_reason; a finished request is not necessarily a correct answer or normal stop.",
+      "inter_token_latency_seconds": "One sample per qualifying post-first generation-output update in the engine, which may contain multiple accepted speculative tokens. The count is not generated_tokens-requests and is not the number of SSE events. Preserve native unit and avoid per-token interpretation."
+    },
+    "server_return_token_path": "Official v0.28.0 chat_completion_stream_generator protects token_ids even when the parsed delta is empty, provided return_token_ids=true and include_reasoning=true. Prompt IDs are separate. Verify actual EOS/special-token coverage against final usage on C; schema/source support is not runtime evidence.",
+    "official_benchmark_boundary": "vLLM v0.28.0 openai-chat benchmark starts TTFT on first choices event, including an empty role event; its latency includes final non-DONE usage. Preserve any native CLI results unchanged as supplemental references. Our token-ID and reasoning-aware metrics are explicitly author-defined; do not relabel corrected values as unmodified official bench output.",
+    "source_urls": [
+      "https://github.com/vllm-project/vllm/blob/v0.28.0/vllm/benchmarks/serve.py",
+      "https://github.com/vllm-project/vllm/blob/v0.28.0/vllm/benchmarks/lib/endpoint_request_func.py",
+      "https://github.com/vllm-project/vllm/blob/v0.28.0/vllm/entrypoints/openai/chat_completion/protocol.py",
+      "https://github.com/vllm-project/vllm/blob/v0.28.0/vllm/v1/metrics/loggers.py",
+      "https://github.com/vllm-project/vllm/blob/2cf0a6915ce544dc493a0990f2ea38d81601128a/vllm/entrypoints/openai/chat_completion/serving.py",
+      "https://github.com/vllm-project/vllm/blob/2cf0a6915ce544dc493a0990f2ea38d81601128a/vllm/v1/metrics/stats.py"
+    ]
+  }
+}

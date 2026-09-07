@@ -1,0 +1,13 @@
+{
+  "route": "mtp5",
+  "group": "sampling",
+  "requests": 48,
+  "expected": 48,
+  "concurrency": 1,
+  "elapsed_wall_s": 115.86510482899757,
+  "finish_counts": {
+    "stop": 48
+  },
+  "empty_content": 0,
+  "completion_tokens": 21186
+}

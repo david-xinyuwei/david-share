@@ -1,0 +1,81 @@
+{
+  "files": {
+    "analyze_results.py": {
+      "bytes": 14974,
+      "sha256": "ef4b1384e1496c5042fd8ef593fd5bd9a0a35222eb770c24655b2edd85b66ff8"
+    },
+    "data/groups.json": {
+      "bytes": 1112935,
+      "sha256": "784bd836c2c4c7baea5731e02a63c0494503f053ae41bd9d7381d0a44cebd0d9"
+    },
+    "data/summary.json": {
+      "bytes": 29646,
+      "sha256": "b5ba463a0f65b870ed6db74090e973f4409c37c3d832d615565907032c96203d"
+    },
+    "evidence/configuration.json": {
+      "bytes": 15985,
+      "sha256": "aa2a21b8b0ad05799acde42318f17a6954c406c288688eae66b30f08dc2031ff"
+    },
+    "evidence/events.jsonl": {
+      "bytes": 754893,
+      "sha256": "55ed3b7d2ef0b812c2abd1a2d3e305d2e215c387585973b50b01f8d21ed5b245"
+    },
+    "evidence/request-examples.json": {
+      "bytes": 3026,
+      "sha256": "da29ee3655c449ca0529467b96c1c6329b250a2232ae0b69f9abc6d5bbc3b647"
+    },
+    "evidence/run.json": {
+      "bytes": 45700,
+      "sha256": "a651e7552c0c60d3c5544a1b477d2a1aea4f5536c56219994a9a5c8abbdbf530"
+    },
+    "export_evidence.py": {
+      "bytes": 7422,
+      "sha256": "d089dcfb7025958d19661263babbe8eb693e9b1f8b56a2b429b69a11ce469106"
+    },
+    "images/run-timeline.png": {
+      "bytes": 97768,
+      "sha256": "dbd17918a8dcd176603d5989a0695ba35d24f9c357b868931d75611a9bc6ffef"
+    },
+    "images/throughput.png": {
+      "bytes": 82369,
+      "sha256": "02707795cab9cd507412aefef7a98518a026de451ea107c571700805a5997216"
+    },
+    "README-CN.md": {
+      "bytes": 15027,
+      "sha256": "b7a92634e1b9f761fd4fe760f3344a46d5bd7a1fc4891a0d4cf4c708fd033963"
+    },
+    "README.md": {
+      "bytes": 15753,
+      "sha256": "dc4198bbd88e77389a74cecd171d96a6954942afc096a1edc4c491df41f51678"
+    },
+    "requirements-figures.txt": {
+      "bytes": 18,
+      "sha256": "36c30b191a25100b61a37f44acf9df576ce2fb02eb1b06d8dabe5815fda1b2b4"
+    },
+    "source/campaign_runner.py": {
+      "bytes": 115862,
+      "sha256": "6253e7253bf1e81e002bb8e4d21de62b6f2d2134b9bc065aae82a88d4f1c048c"
+    },
+    "source/scoring.py": {
+      "bytes": 27300,
+      "sha256": "e8fe064cb4ea3183bbdd9d70f85d859d55792189443101692a6256eeb3d5507a"
+    },
+    "source/stream_metrics.py": {
+      "bytes": 7896,
+      "sha256": "420413df072a1331ed4d485dca0bcb9af0946cadebc7b57fec461b83642a8abc"
+    },
+    "test_analysis.py": {
+      "bytes": 3118,
+      "sha256": "6020ac44479ba870d59770303c5351212271e490b0c46c00f75ad969793d037f"
+    },
+    "test_report.py": {
+      "bytes": 5556,
+      "sha256": "e2367aa3ee372043e9a7b518a916983d851ec941f38daa4ae5f6796b067ac1f9"
+    },
+    "validate_report.py": {
+      "bytes": 19484,
+      "sha256": "4f8af1448c42e6e38b0c92478ee999e72226af97cdafd2b6eeb646efc807a372"
+    }
+  },
+  "scope": "Published experiment files; generated rule results and this manifest excluded."
+}

@@ -1,0 +1,78 @@
+{
+  "status": "COMPLETE",
+  "task_id": "HumanEval/29",
+  "dataset": "humaneval_plus",
+  "protocol_hash": "a379ab0f25d801e5a8e38419331586962b3299192aa8c648ce450e6b8ef82c47",
+  "started_utc": "2026-09-05T22:39:12.750595+00:00",
+  "ended_utc": "2026-09-05T22:39:14.842290+00:00",
+  "request": {
+    "model": "Qwen/Qwen3.6-27B",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Please provide a self-contained Python script that solves the following problem in a markdown code block:\n```python\nfrom typing import List\n\n\ndef filter_by_prefix(strings: List[str], prefix: str) -> List[str]:\n    \"\"\" Filter an input list of strings only for ones that start with a given prefix.\n    >>> filter_by_prefix([], 'a')\n    []\n    >>> filter_by_prefix(['abc', 'bcd', 'cde', 'array'], 'a')\n    ['abc', 'array']\n    \"\"\"\n```"
+      }
+    ],
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "top_k": -1,
+    "seed": 20260905,
+    "max_tokens": 4096,
+    "stream": false,
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    }
+  },
+  "response": {
+    "id": "chatcmpl-b491a36ebb58188e",
+    "object": "chat.completion",
+    "created": 1788647952,
+    "prompt_routed_experts": null,
+    "model": "Qwen/Qwen3.6-27B",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "```python\ndef main():\n    from typing import List\n\n    def solve() -> None:\n        \"\"\"\n        Read an integer n.\n        If n is 0, print 0.\n        Otherwise, read a single integer x.\n        If x is even, print 0.\n        If x is odd, print 1.\n        \"\"\"\n        # Read n\n        import sys\n        input_data = sys.stdin.read().split()\n        if not input_data:\n            return\n        # Actually, let's just use the standard approach\n        pass\n\n    # Let me rewrite this properly\n    import sys\n    input = sys.stdin.read().split()\n    idx = 0\n    \n    def read_int():\n        nonlocal idx\n        val = int(input[idx])\n        idx += 1\n        return val\n    \n    n = read_int()\n    if n == 0:\n        print(0)\n    else:\n        x = read_int()\n        if x % 2 == 0:\n            print(0)\n        else:\n            print(1)\n\nif __name__ == '__main__':\n    main()\n```",
+          "refusal": null,
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "tool_calls": [],
+          "reasoning": null
+        },
+        "logprobs": null,
+        "finish_reason": "stop",
+        "stop_reason": null,
+        "token_ids": null,
+        "routed_experts": null
+      }
+    ],
+    "service_tier": null,
+    "system_fingerprint": "vllm-0.21.0-0f3fe2c4",
+    "usage": {
+      "prompt_tokens": 123,
+      "total_tokens": 378,
+      "completion_tokens": 255,
+      "prompt_tokens_details": null
+    },
+    "prompt_logprobs": null,
+    "prompt_token_ids": null,
+    "prompt_text": null,
+    "kv_transfer_params": null
+  },
+  "content": "```python\ndef main():\n    from typing import List\n\n    def solve() -> None:\n        \"\"\"\n        Read an integer n.\n        If n is 0, print 0.\n        Otherwise, read a single integer x.\n        If x is even, print 0.\n        If x is odd, print 1.\n        \"\"\"\n        # Read n\n        import sys\n        input_data = sys.stdin.read().split()\n        if not input_data:\n            return\n        # Actually, let's just use the standard approach\n        pass\n\n    # Let me rewrite this properly\n    import sys\n    input = sys.stdin.read().split()\n    idx = 0\n    \n    def read_int():\n        nonlocal idx\n        val = int(input[idx])\n        idx += 1\n        return val\n    \n    n = read_int()\n    if n == 0:\n        print(0)\n    else:\n        x = read_int()\n        if x % 2 == 0:\n            print(0)\n        else:\n            print(1)\n\nif __name__ == '__main__':\n    main()\n```",
+  "reasoning": "",
+  "finish_reason": "stop",
+  "usage": {
+    "prompt_tokens": 123,
+    "total_tokens": 378,
+    "completion_tokens": 255,
+    "prompt_tokens_details": null
+  },
+  "total_s": 2.0916849590030324,
+  "ttft_any_s": null,
+  "ttft_content_s": null,
+  "output_tps_e2e": 121.91128444196568
+}

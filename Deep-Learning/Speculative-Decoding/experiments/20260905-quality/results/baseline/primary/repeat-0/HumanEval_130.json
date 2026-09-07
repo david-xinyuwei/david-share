@@ -1,0 +1,78 @@
+{
+  "status": "COMPLETE",
+  "task_id": "HumanEval/130",
+  "dataset": "humaneval_plus",
+  "protocol_hash": "a379ab0f25d801e5a8e38419331586962b3299192aa8c648ce450e6b8ef82c47",
+  "started_utc": "2026-09-05T16:24:43.177829+00:00",
+  "ended_utc": "2026-09-05T16:25:02.810492+00:00",
+  "request": {
+    "model": "Qwen/Qwen3.6-27B",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Please provide a self-contained Python script that solves the following problem in a markdown code block:\n```python\ndef tri(n):\n    \"\"\"Everyone knows Fibonacci sequence, it was studied deeply by mathematicians in \n    the last couple centuries. However, what people don't know is Tribonacci sequence.\n    Tribonacci sequence is defined by the recurrence:\n    tri(1) = 3\n    tri(n) = 1 + n / 2, if n is even.\n    tri(n) =  tri(n - 1) + tri(n - 2) + tri(n + 1), if n is odd.\n    For example:\n    tri(2) = 1 + (2 / 2) = 2\n    tri(4) = 3\n    tri(3) = tri(2) + tri(1) + tri(4)\n           = 2 + 3 + 3 = 8 \n    You are given a non-negative integer number n, you have to a return a list of the \n    first n + 1 numbers of the Tribonacci sequence.\n    Examples:\n    tri(3) = [1, 3, 2, 8]\n    \"\"\"\n```"
+      }
+    ],
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "top_k": -1,
+    "seed": 20260905,
+    "max_tokens": 4096,
+    "stream": false,
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    }
+  },
+  "response": {
+    "id": "chatcmpl-b937c41e55ed2a08",
+    "object": "chat.completion",
+    "created": 1788625483,
+    "prompt_routed_experts": null,
+    "model": "Qwen/Qwen3.6-27B",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "```python\ndef tri(n):\n    \"\"\"Everyone knows Fibonacci sequence, it was studied deeply by mathematicians in \n    the last couple centuries. However, what people don't know is Tribonacci sequence.\n    Tribonacci sequence is defined by the recurrence:\n    tri(1) = 3\n    tri(n) = 1 + n / 2, if n is even.\n    tri(n) =  tri(n - 1) + tri(n - 2) + tri(n + 1), if n is odd.\n    For example:\n    tri(2) = 1 + (2 / 2) = 2\n    tri(4) = 3\n    tri(3) = tri(2) + tri(1) + tri(4)\n           = 2 + 3 + 3 = 8 \n    You are given a non-negative integer number n, you have to a return a list of the \n    first n + 1 numbers of the Tribonacci sequence.\n    Examples:\n    tri(3) = [1, 3, 2, 8]\n    \"\"\"\n    if n < 0:\n        return []\n    \n    # We need to compute tri(0), tri(1), ..., tri(n)\n    # From the example: tri(3) = [1, 3, 2, 8]\n    # So tri(0) = 1, tri(1) = 3, tri(2) = 2, tri(3) = 8\n    \n    # Let's figure out the base cases:\n    # tri(0) = 1 (from example)\n    # tri(1) = 3 (given)\n    # For even n: tri(n) = 1 + n/2\n    # For odd n > 1: tri(n) = tri(n-1) + tri(n-2) + tri(n+1)\n    \n    # But wait, the recurrence for odd n references tri(n+1), which is a future value.\n    # This means we need to solve it carefully.\n    \n    # Let's think about this differently. For odd n, tri(n) = tri(n-1) + tri(n-2) + tri(n+1)\n    # This can be rewritten as: tri(n+1) = tri(n) - tri(n-1) - tri(n-2)\n    \n    # So if n is odd, we can express tri(n+1) in terms of previous values.\n    # But tri(n+1) would be even (since n is odd, n+1 is even), so tri(n+1) = 1 + (n+1)/2\n    \n    # Let me re-examine:\n    # tri(0) = 1\n    # tri(1) = 3\n    # tri(2) = 1 + 2/2 = 2 (even)\n    # tri(3): odd, so tri(3) = tri(2) + tri(1) + tri(4)\n    # tri(4) = 1 + 4/2 = 3 (even)\n    # So tri(3) = 2 + 3 + 3 = 8\n    \n    # For tri(5): odd, tri(5) = tri(4) + tri(3) + tri(6)\n    # tri(6) = 1 + 6/2 = 4\n    # tri(5) = 3 + 8 + 4 = 15\n    \n    # So the approach: we can compute values iteratively.\n    # For even indices, we know the formula directly.\n    # For odd indices, we need tri(n+1) which is even, so we can compute it.\n    \n    # Let's build the list up to n.\n    result = []\n    \n    if n >= 0:\n        result.append(1)  # tri(0)\n    \n    if n >= 1:\n        result.append(3)  # tri(1)\n    \n    for i in range(2, n + 1):\n        if i % 2 == 0:\n            # Even: tri(i) = 1 + i/2\n            val = 1 + i / 2\n            result.append(val)\n        else:\n            # Odd: tri(i) = tri(i-1) + tri(i-2) + tri(i+1)\n            # tri(i+1) is even, so tri(i+1) = 1 + (i+1)/2\n            tri_i_plus_1 = 1 + (i + 1) / 2\n            val = result[i - 1] + result[i - 2] + tri_i_plus_1\n            result.append(val)\n    \n    return result\n```",
+          "refusal": null,
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "tool_calls": [],
+          "reasoning": null
+        },
+        "logprobs": null,
+        "finish_reason": "stop",
+        "stop_reason": null,
+        "token_ids": null,
+        "routed_experts": null
+      }
+    ],
+    "service_tier": null,
+    "system_fingerprint": "vllm-0.21.0-6cc6a8e8",
+    "usage": {
+      "prompt_tokens": 275,
+      "total_tokens": 1332,
+      "completion_tokens": 1057,
+      "prompt_tokens_details": null
+    },
+    "prompt_logprobs": null,
+    "prompt_token_ids": null,
+    "prompt_text": null,
+    "kv_transfer_params": null
+  },
+  "content": "```python\ndef tri(n):\n    \"\"\"Everyone knows Fibonacci sequence, it was studied deeply by mathematicians in \n    the last couple centuries. However, what people don't know is Tribonacci sequence.\n    Tribonacci sequence is defined by the recurrence:\n    tri(1) = 3\n    tri(n) = 1 + n / 2, if n is even.\n    tri(n) =  tri(n - 1) + tri(n - 2) + tri(n + 1), if n is odd.\n    For example:\n    tri(2) = 1 + (2 / 2) = 2\n    tri(4) = 3\n    tri(3) = tri(2) + tri(1) + tri(4)\n           = 2 + 3 + 3 = 8 \n    You are given a non-negative integer number n, you have to a return a list of the \n    first n + 1 numbers of the Tribonacci sequence.\n    Examples:\n    tri(3) = [1, 3, 2, 8]\n    \"\"\"\n    if n < 0:\n        return []\n    \n    # We need to compute tri(0), tri(1), ..., tri(n)\n    # From the example: tri(3) = [1, 3, 2, 8]\n    # So tri(0) = 1, tri(1) = 3, tri(2) = 2, tri(3) = 8\n    \n    # Let's figure out the base cases:\n    # tri(0) = 1 (from example)\n    # tri(1) = 3 (given)\n    # For even n: tri(n) = 1 + n/2\n    # For odd n > 1: tri(n) = tri(n-1) + tri(n-2) + tri(n+1)\n    \n    # But wait, the recurrence for odd n references tri(n+1), which is a future value.\n    # This means we need to solve it carefully.\n    \n    # Let's think about this differently. For odd n, tri(n) = tri(n-1) + tri(n-2) + tri(n+1)\n    # This can be rewritten as: tri(n+1) = tri(n) - tri(n-1) - tri(n-2)\n    \n    # So if n is odd, we can express tri(n+1) in terms of previous values.\n    # But tri(n+1) would be even (since n is odd, n+1 is even), so tri(n+1) = 1 + (n+1)/2\n    \n    # Let me re-examine:\n    # tri(0) = 1\n    # tri(1) = 3\n    # tri(2) = 1 + 2/2 = 2 (even)\n    # tri(3): odd, so tri(3) = tri(2) + tri(1) + tri(4)\n    # tri(4) = 1 + 4/2 = 3 (even)\n    # So tri(3) = 2 + 3 + 3 = 8\n    \n    # For tri(5): odd, tri(5) = tri(4) + tri(3) + tri(6)\n    # tri(6) = 1 + 6/2 = 4\n    # tri(5) = 3 + 8 + 4 = 15\n    \n    # So the approach: we can compute values iteratively.\n    # For even indices, we know the formula directly.\n    # For odd indices, we need tri(n+1) which is even, so we can compute it.\n    \n    # Let's build the list up to n.\n    result = []\n    \n    if n >= 0:\n        result.append(1)  # tri(0)\n    \n    if n >= 1:\n        result.append(3)  # tri(1)\n    \n    for i in range(2, n + 1):\n        if i % 2 == 0:\n            # Even: tri(i) = 1 + i/2\n            val = 1 + i / 2\n            result.append(val)\n        else:\n            # Odd: tri(i) = tri(i-1) + tri(i-2) + tri(i+1)\n            # tri(i+1) is even, so tri(i+1) = 1 + (i+1)/2\n            tri_i_plus_1 = 1 + (i + 1) / 2\n            val = result[i - 1] + result[i - 2] + tri_i_plus_1\n            result.append(val)\n    \n    return result\n```",
+  "reasoning": "",
+  "finish_reason": "stop",
+  "usage": {
+    "prompt_tokens": 275,
+    "total_tokens": 1332,
+    "completion_tokens": 1057,
+    "prompt_tokens_details": null
+  },
+  "total_s": 19.63265438999997,
+  "ttft_any_s": null,
+  "ttft_content_s": null,
+  "output_tps_e2e": 53.838873694959474
+}

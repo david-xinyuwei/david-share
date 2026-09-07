@@ -1,39 +1,58 @@
-# Speculative Decoding for OSS Models
+# Speculative Decoding: Measurements and Mechanisms
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+[![vLLM 0.28.0](https://img.shields.io/badge/vLLM-0.28.0-0078D4.svg)](https://github.com/vllm-project/vllm/releases/tag/v0.28.0)
+[![H100 NVL](https://img.shields.io/badge/GPU-H100%20NVL-76B900.svg)](experiments/20260906-qwen38/README.md#recorded-method)
+[![64-task subset](https://img.shields.io/badge/Scope-64--task%20subset-956A00.svg)](experiments/20260906-qwen38/README.md#matched-s-results)
+[![Python 3.12 replay](https://img.shields.io/badge/Replay-Python%203.12-3776AB.svg)](#quick-start)
 
-[中文文档](README-CN.md) | English
+Speculative decoding drafts several tokens and verifies them with the target model. This repository pairs serving measurements with mechanism references. The latest Qwen3.8-27B report compares baseline, native MTP and DFlash 2 on a 64-task subset, with CPU-only replay of saved evidence; earlier EAGLE3 and serving research remains available separately.
 
-[![EAGLE Paper](https://img.shields.io/badge/arXiv-EAGLE-b31b1b.svg)](https://arxiv.org/abs/2401.15077)
-[![EAGLE-2 Paper](https://img.shields.io/badge/arXiv-EAGLE2-b31b1b.svg)](https://arxiv.org/abs/2406.16858)
-[![SGLang](https://img.shields.io/badge/Inference-SGLang-blue.svg)](https://github.com/sgl-project/sglang)
-[![vLLM](https://img.shields.io/badge/Inference-vLLM-purple.svg)](https://github.com/vllm-project/vllm)
-[![SpecForge](https://img.shields.io/badge/Training-SpecForge-green.svg)](https://github.com/SafeAILab/SpecForge)
+> **Author**: Xinyu Wei / 魏新宇
 
-Engineering guide to draft-and-verify acceleration: compare EAGLE3, self-trained draft heads, native model-family MTP, DFlash, and llama.cpp MTP with reproducible benchmark evidence.
+English | [中文](README-CN.md)
+
+[Latest experiment](experiments/20260906-qwen38/README.md) · [Quick Start](#quick-start) · [Mechanisms](#background-what-is-speculative-decoding) · [Evidence](experiments/20260906-qwen38/README.md#evidence-and-replay) · [Upstream vLLM](https://github.com/vllm-project/vllm/tree/2cf0a6915ce544dc493a0990f2ea38d81601128a)
+
+---
+
+## Quick Start
+
+From `Deep-Learning/Speculative-Decoding`, use Python 3.10+; the replay target shown above is Python 3.12. These checks use only the standard library: no package installation, GPU, network or credentials are needed.
+
+```bash
+python experiments/20260906-qwen38/validate_report.py
+python -m unittest discover -s experiments/20260906-qwen38 -p "test_*.py"
+```
+
+Both commands should exit with code 0. They check the saved report and replay contract, not a new GPU run or fresh official grading. Optional numerical and figure regeneration is described in the [experiment's offline replay section](experiments/20260906-qwen38/README.md#offline-replay).
+
+## Latest Results and Snapshot Boundaries
+
+The [2026-09-06 Qwen3.8-27B report](experiments/20260906-qwen38/README.md) is the primary measured report. C/G/S cover **69 groups and 1,920 responses**; F's **3,984 responses are NOT_RUN**, with the original **5,904-response** plan unchanged. DFlash 2 has the highest observed three-seed median group tok/s at concurrency 1/4/8, but this is not a quality certification or a formal non-inferiority result. At concurrency 4, seed 20260908, its code score is **29/32 versus MTP's 31/32**, with three length-stopped code responses; see the report for the correct-answer-rate comparison.
+
+Keep the snapshots separate: the **June H100 serving snapshot** below is historical research; **[September 5](experiments/20260905-quality/README.md)** uses Qwen3.6-27B and vLLM 0.21.0; **[September 6](experiments/20260906-qwen38/README.md)** uses Qwen3.8-27B and vLLM 0.28.0. The badges describe the latest snapshot and replay target, not every historical experiment. The newer run does not demonstrate a fix for the September 5 DFlash concurrent failure.
 
 ## Executive Summary
 
-This project documents a complete research workflow for speculative decoding across multiple draft-and-verify routes: official EAGLE3 validation, self-trained draft heads, native model-family MTP, GLM-5.2's IndexShare/KVShare MTP design, and DFlash/MTP serving experiments:
+**Historical research.** The retained sections cover official EAGLE3 validation, self-trained draft heads, native model-family MTP, GLM-5.2's IndexShare/KVShare MTP design, and earlier DFlash/MTP serving experiments. Their measurements are not pooled with the latest report:
 
 | Area | What this repo covers | Evidence / source | Key insight |
 |------|-----------------------|-------------------|-------------|
 | EAGLE3 validation | Official EAGLE3 draft model for Llama-3.1-8B | **441.7 vs 165.7 tok/s = 2.67x**, SGLang, H100, 20 runs | Feature-based draft heads can deliver large low-concurrency latency wins |
-| Self-trained draft heads | Custom EAGLE3 draft head trained on one GPU | **207.7 vs 159.8 tok/s = 1.30x** on code, 45-minute training | Minimal training can produce useful acceleration, but workload distribution matters |
+| Self-trained draft heads | Custom EAGLE3 draft head trained on one GPU | **207.7 vs 159.8 tok/s = 1.30x** on code, 45-minute training | An observed speed ratio for this workload, not a controlled comparison of training efficiency |
 | Native model-family MTP | Qwen3.6 / DeepSeek-style MTP patterns and GLM-5.2 single-layer MTP with IndexShare/KVShare | GLM-5.2 official config + blog: `num_nextn_predict_layers=1`, shared MTP parameters, acceptance length **4.56 → 5.47 (+20%)** | Native MTP is not one recipe; implementation details such as KVShare and IndexShare matter |
 | DFlash vs native MTP serving | H100 benchmark for Qwen3.6 native MTP, DFlash, and llama.cpp MTP | Repo JSON/logs: DFlash coding **191.7 tok/s** vs native MTP **146.7 tok/s** under the tested single-stream setup | DFlash can win in long-output single-stream tests, but the comparison depends on spec tokens, backend, precision, and workload |
 | Simulated acceptance | `SGLANG_SIMULATE_ACC_LEN=3` under a 4-token draft window | Formula: `accept_rate = 3 / 4 = 0.75`; token timeline example in this README | Simulated acceptance is a runtime diagnostic setting, not proof of real model quality |
 
-**Why 1.30x with 45-min training is significant:**
-- Official models require days of training on 8x A100/H100 GPUs
-- Our 45-minute single-GPU training achieved ~50% of the official speedup
-- Demonstrates EAGLE3 sample efficiency - useful acceleration with minimal compute
-- GLM-5.2 and Qwen3.6 show why native MTP needs model-family-specific reading; the same `num_nextn_predict_layers=1` can behave differently once the serving architecture changes.
+**Training evidence boundary:** the 45-minute run measured 1.30x on its code workload. It is not a controlled training-compute comparison with the separate official EAGLE3 validation, so it does not establish a fraction of the official speedup or prove sample efficiency.
+
+GLM-5.2 and Qwen3.6 also require model-family-specific reading: `num_nextn_predict_layers=1` alone does not establish equivalent serving behavior.
 
 ## How to Read This Repo
 
 | If you care about... | Start here | What you get |
 |---|---|---|
+| The latest measured comparison | [Qwen3.8-27B report](experiments/20260906-qwen38/README.md) | Matched results, latency, execution coverage and evidence boundaries |
 | The core mechanism | [Background](#background-what-is-speculative-decoding) | Why draft-and-verify can reduce latency |
 | Choosing a route | [Taxonomy](#speculative-decoding-taxonomy-eagle3-vs-native-mtp-vs-dflash) and [Decision Guide](#decision-guide-which-route-to-use) | When to use EAGLE3, native MTP, or DFlash |
 | Native MTP details | [MTP layers and hyperparameters](#understanding-mtp-layers-and-speculative-decoding-hyperparameters) | GLM-5.2, Qwen3.6, draft steps, simulated acceptance, and `accept_rate=0.75` |
@@ -42,7 +61,7 @@ This project documents a complete research workflow for speculative decoding acr
 
 ## Repo Quality Contract
 
-This repo is meant to be evidence-rich, not just explanatory prose:
+This inventory describes the retained historical serving assets. The latest report has its own [measurement code, configuration and replay evidence](experiments/20260906-qwen38/README.md#evidence-and-replay).
 
 | Principle | What is included | Where to inspect |
 |---|---|---|
@@ -93,7 +112,7 @@ total_s = t_end - t_start
 "gen_tps": round(completion_tokens / max(total_s, 0.001), 2)
 ```
 
-**CLI reproduction path**:
+**Historical GPU reproduction path (not the offline Quick Start)**:
 
 ```bash
 # Run all three routes sequentially
@@ -112,7 +131,7 @@ python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8000 \
 | vLLM DFlash | `data/h100_vllm_dflash.json` | 191.62 / 191.75 / 191.70 | **191.7** |
 | llama.cpp MTP Q4_K_XL | `data/h100_llamacpp_mtp_q4kxl.json` | 106.65 / 107.70 / 107.28 | **107.3** |
 
-**TTFT scope note:** this H100 evidence slice proves decode throughput / output TPS, not TTFT improvement. The stored JSON files were generated with `--no-stream` so that `usage.completion_tokens` could be used for accurate TPS; in that mode `ttft_s` is `null`. To compare TTFT, run the client in streaming mode and capture time-to-first-SSE-chunk separately.
+**Measurement boundary:** this historical H100 slice measures output tokens divided by total request time, including prefill and client overhead, not isolated decode throughput or TTFT improvement. The stored JSON files were generated with `--no-stream`; `ttft_s` is `null`. First SSE event arrival is not necessarily the first nonempty output token, so a streaming TTFT measurement must distinguish those events.
 
 ```bash
 # Optional TTFT sanity check: omit --no-stream.
@@ -123,7 +142,7 @@ python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8000 \
 
 ## Benchmark Environment
 
-The experiments in this project were run on the following GPU environment. Azure is the test infrastructure here, not a dependency of the speculative decoding technique.
+The following environment belongs to the historical experiments, not the September 6 H100 NVL snapshot. Azure is test infrastructure here, not a dependency of speculative decoding.
 
 | Item | Details |
 |---|---|
@@ -447,7 +466,9 @@ The lesson is general: native MTP is not just "how many layers." You also need t
 
 This repo measured single-stream total latency and generation TPS on NVIDIA H100 NVL 96GB. Target model: `Qwen/Qwen3.6-27B` bf16 for vLLM routes, `unsloth/Qwen3.6-27B-MTP-GGUF:UD-Q4_K_XL` for llama.cpp. Three domains (Coding/Math/Chat), warmup 1 round + 3 timed runs, median reported. Non-streaming API, TPS = `usage.completion_tokens / total_time`.
 
-This table should be read as a **decode-throughput / tokens-per-second comparison**, not a TTFT comparison. Speculative decoding and MTP primarily reduce the number of target decode steps after generation has started. They do not inherently reduce prefill time, so TTFT is usually neutral and can even regress slightly if the serving stack adds draft-model setup, scheduler overhead, or extra validation before the first visible token. This run did not measure TTFT because `--no-stream` was used for accurate token accounting. A small TTFT follow-up is lightweight: reuse the same launched server, omit `--no-stream`, and run 3 prompts x 3 runs per route. A full controlled TTFT study would add a no-speculation baseline and separate streaming-TTFT from non-streaming accurate-TPS runs.
+Read this as a **2026-06-28 limited-output speed sample**, not a complete-answer accuracy test or isolated decode-throughput measurement. Each domain label represents one fixed prompt. All 18 measured records across the two vLLM routes ended with `finish_reason="length"`; their final-answer previews are empty and only short reasoning previews were retained. There was no code-test or reference-answer grading. The text instruction `/no_think` in that client does not establish that the model's thinking template was disabled.
+
+The reported rate includes total request time. These non-streaming records contain no TTFT measurement; neither TTFT improvement nor complete-answer quality can be inferred from this table. The different speculative windows and backend settings also prevent a universal algorithm ranking. A subsequent complete-answer evaluation must remain a separate experiment, with its own frozen prompts, model revisions, template options, output budgets, full responses and official graders.
 
 **Test Environment:**
 
@@ -513,6 +534,30 @@ Archived evidence:
 | Server startup logs | `logs/h100_vllm_native_mtp_startup.log`, `logs/h100_vllm_dflash_startup.log`, `logs/h100_llamacpp_mtp_startup.log` |
 | Benchmark client | `scripts/mtp_benchmark_client.py` |
 | Orchestrator | `scripts/mtp_benchmark_orchestrator.sh` |
+
+---
+
+## Phase 4: Complete-Answer Quality Regression (2026-09-05)
+
+**Serial speed improved, but the tested DFlash15 concurrent configuration failed the observed quality check.** The full author-run matrix contains 3,100 responses across 25 route/group combinations, all returned and reconciled before the GPU VM was deallocated. It is separate from Phase 3's truncated three-prompt speed samples.
+
+| Route | HumanEval+ | MATH-500 | Code / math median request time |
+|---|---:|---:|---:|
+| Baseline | 152/164 | 489/500 | 4.393 / 15.666 s |
+| MTP5 | 155/164 | 494/500 | 1.175 / 4.542 s |
+| DFlash15 | 153/164 | 490/500 | 0.660 / 2.980 s |
+
+On the same 32+32 task subset, DFlash15 code/math correctness dropped from 32/32 and 31/32 at concurrency 1 to 11/32 and 13/32 at concurrency 4, then 10/32 and 12/32 at concurrency 8. Raw requests and official grader bindings were reconciled. The cause is not established and no fix was retested; do not generalize this observation to every DFlash implementation or cloud platform.
+
+[Full method, results and CPU-only recomputation](experiments/20260905-quality/README.md) · [Raw responses and scores](experiments/20260905-quality/results/) · [Paired results](experiments/20260905-quality/analysis/summary.json)
+
+The experiment fixes Qwen3.6-27B BF16 snapshots and vLLM 0.21.0. Scores use one response per task; truncations remain in the denominator. Request timing includes prefill/client overhead, the draft windows differ, and finite scores do not prove universal equivalence. Supplemental repeated, streaming, concurrent, sampled and synthetic-context results are reported separately.
+
+---
+
+## Phase 5: Qwen3.8 Deployment Regression (2026-09-06)
+
+[Latest report: measured results, latency, execution timeline and CPU-only replay](experiments/20260906-qwen38/README.md).
 
 ---
 

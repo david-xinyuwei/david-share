@@ -1,0 +1,78 @@
+{
+  "status": "COMPLETE",
+  "task_id": "HumanEval/24",
+  "dataset": "humaneval_plus",
+  "protocol_hash": "a379ab0f25d801e5a8e38419331586962b3299192aa8c648ce450e6b8ef82c47",
+  "started_utc": "2026-09-05T22:38:52.003208+00:00",
+  "ended_utc": "2026-09-05T22:38:53.925554+00:00",
+  "request": {
+    "model": "Qwen/Qwen3.6-27B",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Please provide a self-contained Python script that solves the following problem in a markdown code block:\n```python\ndef largest_divisor(n: int) -> int:\n    \"\"\" For a given number n, find the largest number that divides n evenly, smaller than n\n    >>> largest_divisor(15)\n    5\n    \"\"\"\n```"
+      }
+    ],
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "top_k": -1,
+    "seed": 20260905,
+    "max_tokens": 4096,
+    "stream": false,
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    }
+  },
+  "response": {
+    "id": "chatcmpl-8e28d4506c25732f",
+    "object": "chat.completion",
+    "created": 1788647932,
+    "prompt_routed_experts": null,
+    "model": "Qwen/Qwen3.6-27B",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "```python\ndef largest_proper_divisor(n: int) -> int:\n    \"\"\"\n    Find the largest proper divisor of n that is less than n.\n    For perfect numbers, we need to find the largest proper divisor.\n    \"\"\"\n    if n <= 0:\n        raise ValueError(\"Number must be positive\")\n    # We need to find the largest proper divisor less than n\n    # But actually, the problem asks for the largest number that divides n evenly, smaller than n\n    # This is the largest proper divisor of n\n    \n    # The largest proper divisor of n is n divided by its smallest prime factor\n    # Or we can just iterate from n-1 down to 1 and find the first divisor\n    \n    for i in range(n - 1, 0, -1):\n        if n % i == 0:\n            return i\n    return 1  # This should never be reached for n > 1\n\n\ndef largest_divisor(n: int) -> int:\n    \"\"\" For a given number n, find the largest number that divides n evenly, smaller than n\n    >>> largest_divisor(15)\n    5\n    \"\"\"\n    if n <= 1:\n        raise ValueError(\"n must be greater than 1\")\n    return largest_proper_divisor(n)\n```",
+          "refusal": null,
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "tool_calls": [],
+          "reasoning": null
+        },
+        "logprobs": null,
+        "finish_reason": "stop",
+        "stop_reason": null,
+        "token_ids": null,
+        "routed_experts": null
+      }
+    ],
+    "service_tier": null,
+    "system_fingerprint": "vllm-0.21.0-0f3fe2c4",
+    "usage": {
+      "prompt_tokens": 85,
+      "total_tokens": 371,
+      "completion_tokens": 286,
+      "prompt_tokens_details": null
+    },
+    "prompt_logprobs": null,
+    "prompt_token_ids": null,
+    "prompt_text": null,
+    "kv_transfer_params": null
+  },
+  "content": "```python\ndef largest_proper_divisor(n: int) -> int:\n    \"\"\"\n    Find the largest proper divisor of n that is less than n.\n    For perfect numbers, we need to find the largest proper divisor.\n    \"\"\"\n    if n <= 0:\n        raise ValueError(\"Number must be positive\")\n    # We need to find the largest proper divisor less than n\n    # But actually, the problem asks for the largest number that divides n evenly, smaller than n\n    # This is the largest proper divisor of n\n    \n    # The largest proper divisor of n is n divided by its smallest prime factor\n    # Or we can just iterate from n-1 down to 1 and find the first divisor\n    \n    for i in range(n - 1, 0, -1):\n        if n % i == 0:\n            return i\n    return 1  # This should never be reached for n > 1\n\n\ndef largest_divisor(n: int) -> int:\n    \"\"\" For a given number n, find the largest number that divides n evenly, smaller than n\n    >>> largest_divisor(15)\n    5\n    \"\"\"\n    if n <= 1:\n        raise ValueError(\"n must be greater than 1\")\n    return largest_proper_divisor(n)\n```",
+  "reasoning": "",
+  "finish_reason": "stop",
+  "usage": {
+    "prompt_tokens": 85,
+    "total_tokens": 371,
+    "completion_tokens": 286,
+    "prompt_tokens_details": null
+  },
+  "total_s": 1.9223375549991033,
+  "ttft_any_s": null,
+  "ttft_content_s": null,
+  "output_tps_e2e": 148.77720057866392
+}

@@ -1,0 +1,9 @@
+{
+  "source_sha256": "a379ab0f25d801e5a8e38419331586962b3299192aa8c648ce450e6b8ef82c47",
+  "public_sha256": "850e87bc836b03e529f1282d12e9298809530f9a3fd128b3970f83f3c70166ca",
+  "removed_json_pointers": [
+    "/resource"
+  ],
+  "scientific_fields_unchanged": true,
+  "boundary": "Author-provided field projection. The private original digest is retained as provenance, not reconstructed by this public file. Raw response protocol_hash fields are unchanged."
+}

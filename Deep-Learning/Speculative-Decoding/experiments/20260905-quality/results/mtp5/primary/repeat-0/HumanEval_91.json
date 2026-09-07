@@ -1,0 +1,78 @@
+{
+  "status": "COMPLETE",
+  "task_id": "HumanEval/91",
+  "dataset": "humaneval_plus",
+  "protocol_hash": "a379ab0f25d801e5a8e38419331586962b3299192aa8c648ce450e6b8ef82c47",
+  "started_utc": "2026-09-05T20:30:15.850679+00:00",
+  "ended_utc": "2026-09-05T20:30:17.889922+00:00",
+  "request": {
+    "model": "Qwen/Qwen3.6-27B",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Please provide a self-contained Python script that solves the following problem in a markdown code block:\n```python\ndef is_bored(S):\n    \"\"\"\n    You'll be given a string of words, and your task is to count the number\n    of boredoms. A boredom is a sentence that starts with the word \"I\".\n    Sentences are delimited by '.', '?' or '!'.\n   \n    For example:\n    >>> is_bored(\"Hello world\")\n    0\n    >>> is_bored(\"The sky is blue. The sun is shining. I love this weather\")\n    1\n    \"\"\"\n```"
+      }
+    ],
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "top_k": -1,
+    "seed": 20260905,
+    "max_tokens": 4096,
+    "stream": false,
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    }
+  },
+  "response": {
+    "id": "chatcmpl-a0b6a6a302371400",
+    "object": "chat.completion",
+    "created": 1788640215,
+    "prompt_routed_experts": null,
+    "model": "Qwen/Qwen3.6-27B",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "```python\ndef is_bored(S):\n    \"\"\"\n    You'll be given a string of words, and your task is to count the number\n    of boredoms. A boredom is a sentence that starts with the word \"I\".\n    Sentences are delimited by '.', '?' or '!'.\n   \n    For example:\n    >>> is_bored(\"Hello world\")\n    0\n    >>> is_bored(\"The sky is blue. The sun is shining. I love this weather\")\n    1\n    \"\"\"\n    if not S:\n        return 0\n    \n    # Split the string into sentences by '.', '?' or '!'\n    import re\n    sentences = re.split(r'[.?!]', S)\n    \n    count = 0\n    for sentence in sentences:\n        # Strip leading whitespace\n        stripped = sentence.strip()\n        if not stripped:\n            continue\n        # Check if the sentence starts with \"I\" followed by a non-alphanumeric character or end of string\n        # The word \"I\" should be a standalone word at the start\n        # So we check if it starts with \"I\" and then either ends or has a non-letter character after\n        if stripped.startswith('I'):\n            # Check that \"I\" is a complete word (not part of another word like \"It\")\n            if len(stripped) == 1:\n                count += 1\n            elif len(stripped) > 1 and not stripped[1].isalpha():\n                count += 1\n    \n    return count\n```",
+          "refusal": null,
+          "annotations": null,
+          "audio": null,
+          "function_call": null,
+          "tool_calls": [],
+          "reasoning": null
+        },
+        "logprobs": null,
+        "finish_reason": "stop",
+        "stop_reason": null,
+        "token_ids": null,
+        "routed_experts": null
+      }
+    ],
+    "service_tier": null,
+    "system_fingerprint": "vllm-0.21.0-710969cf",
+    "usage": {
+      "prompt_tokens": 144,
+      "total_tokens": 477,
+      "completion_tokens": 333,
+      "prompt_tokens_details": null
+    },
+    "prompt_logprobs": null,
+    "prompt_token_ids": null,
+    "prompt_text": null,
+    "kv_transfer_params": null
+  },
+  "content": "```python\ndef is_bored(S):\n    \"\"\"\n    You'll be given a string of words, and your task is to count the number\n    of boredoms. A boredom is a sentence that starts with the word \"I\".\n    Sentences are delimited by '.', '?' or '!'.\n   \n    For example:\n    >>> is_bored(\"Hello world\")\n    0\n    >>> is_bored(\"The sky is blue. The sun is shining. I love this weather\")\n    1\n    \"\"\"\n    if not S:\n        return 0\n    \n    # Split the string into sentences by '.', '?' or '!'\n    import re\n    sentences = re.split(r'[.?!]', S)\n    \n    count = 0\n    for sentence in sentences:\n        # Strip leading whitespace\n        stripped = sentence.strip()\n        if not stripped:\n            continue\n        # Check if the sentence starts with \"I\" followed by a non-alphanumeric character or end of string\n        # The word \"I\" should be a standalone word at the start\n        # So we check if it starts with \"I\" and then either ends or has a non-letter character after\n        if stripped.startswith('I'):\n            # Check that \"I\" is a complete word (not part of another word like \"It\")\n            if len(stripped) == 1:\n                count += 1\n            elif len(stripped) > 1 and not stripped[1].isalpha():\n                count += 1\n    \n    return count\n```",
+  "reasoning": "",
+  "finish_reason": "stop",
+  "usage": {
+    "prompt_tokens": 144,
+    "total_tokens": 477,
+    "completion_tokens": 333,
+    "prompt_tokens_details": null
+  },
+  "total_s": 2.039233483999851,
+  "ttft_any_s": null,
+  "ttft_content_s": null,
+  "output_tps_e2e": 163.29665171387717
+}
