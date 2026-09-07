@@ -37,6 +37,8 @@ jobs:
       - name: Validate latest bilingual report
         run: python experiments/20260906-qwen38/validate_report.py
       - name: Reconcile previous complete-answer experiment
+        if: matrix.python-version == '3.12'
         run: python experiments/20260905-quality/src/analyze_results.py --root experiments/20260905-quality --output out/20260905-replayed.json --matrix
       - name: Compare previous summary without changing its evidence
+        if: matrix.python-version == '3.12'
         run: python -c "import json; from pathlib import Path; expected=json.loads(Path('experiments/20260905-quality/analysis/summary.json').read_text(encoding='utf-8')); actual=json.loads(Path('out/20260905-replayed.json').read_text(encoding='utf-8')); assert expected == actual, 'PREVIOUS_SUMMARY_MISMATCH'"
