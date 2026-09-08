@@ -104,9 +104,12 @@ class ComparisonReportTests(unittest.TestCase):
                     row["image"] = f"{configuration['group']}/r{row['round']}/{prompt_index:02d}_test.png"
             prompts.append(prompt)
         for language in ("en", "zh"):
-            with patch.object(report, "render_overview", return_value="Current four-configuration evidence"):
-                generated = report.update_document(original, {"per_prompt": prompts}, {}, "data/offline-fixture", language)
-                regenerated = report.update_document(generated, {"per_prompt": prompts}, {}, "data/offline-fixture", language)
+            grounding = "### Web Grounding Test\n\nOffline grounding evidence"
+            with patch.object(report, "render_overview",
+                              side_effect=lambda *_args, section=grounding, **_kwargs:
+                              "Current four-configuration evidence\n\n" + section):
+                generated = report.update_document(original, {"per_prompt": prompts}, {}, "data/offline-fixture", language, grounding)
+                regenerated = report.update_document(generated, {"per_prompt": prompts}, {}, "data/offline-fixture", language, grounding)
             self.assertEqual(generated, regenerated)
             self.assertNotIn("MAI-Image-2e", generated)
             self.assertNotIn("GPT-Image-1.5", generated)
@@ -116,8 +119,11 @@ class ComparisonReportTests(unittest.TestCase):
             self.assertEqual(generated.count("### Test "), 11)
             self.assertEqual(generated.count("**Round "), 22)
             self.assertEqual(generated.count("!["), 88)
-            supplement_page = "README-CN.md" if language == "zh" else "README.md"
-            self.assertIn(f"data/lenovo-web-grounding-20260908/{supplement_page}", generated)
+            self.assertIn("### Web Grounding Test\n\nOffline grounding evidence", generated)
+            self.assertNotIn("web-grounding-20260908/README", generated)
+            self.assertNotIn("Supplement", generated)
+            self.assertNotIn("Lenovo products", generated)
+            self.assertLess(generated.index("Offline grounding evidence"), generated.index("### Test 1:"))
 
 
 if __name__ == "__main__":

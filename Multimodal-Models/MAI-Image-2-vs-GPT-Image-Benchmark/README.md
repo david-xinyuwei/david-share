@@ -2,8 +2,6 @@
 
 > **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
 
-**Supplement: [MAI web-grounding on/off examples for Lenovo products](data/lenovo-web-grounding-20260908/README.md).** Two scenarios selected for improved text facts, with both rounds shown. Separate from the two-model benchmark below; selection scope, latency and timeouts are disclosed.
-
 ## Current Run: Both Models and All Quality Tiers
 
 [中文](README-CN.md) | [Side-by-side images](#side-by-side-image-comparison) | [Measurements](data/paired-all-quality-20260907/5way_v2_results.json) | [Metrics](data/paired-all-quality-20260907/summary.json) | [Attempts](data/paired-all-quality-20260907/attempts.jsonl)
@@ -133,6 +131,63 @@ AI-assisted, unblinded inspection only. Each cell describes observed image diffe
 | 10 | Both cats bare their teeth and drum with human-like two-stick grips; drums and posters add English text, with R2 cropping the bass drum and lower lettering. | Both cats bare their teeth and raise sticks, with some paw motion blur; shirts and drums add English, and R2 crops the bass drum's lower edge. | Both center the drummer with clear fur and chrome highlights, adding slogans such as I HATE MONDAYS or PAWS OF FURY and some blurred paw/stick edges. | Both clearly depict snarling faces and two-stick poses, with cropped foreground drums and added wording such as HISS OFF or BAD KITTY. |
 | 11 | R1's monkey plays a pear-shaped string instrument, R2's plays guitar on stone paving; fur and wood are clear, with unrequested text on a book or tip bowl. | Both subjects play guitar with added performance lettering; R1 looks young-ape-like and R2 crops the headstock. R1's image followed an output-moderation rejection and retry. | Both straw-hatted monkeys play guitar against added performance lettering; R2 has a blurred strumming hand and a cropped right-hand headstock. | R1's monkey plays beside a vintage microphone, R2's sits cross-legged with closed eyes; materials are distinct, with added English signage in both. |
 
+### Web Grounding Test
+
+This section tests web grounding as a general image-generation capability: identical prompts are sent to MAI-Image-2.6 with `web_grounding=false/true` to compare text factual accuracy and latency. Public product announcements supply the test subjects; this is not a customer project or adoption case.
+
+The complete supplement contains 12 formal samples and 2 excluded warmups. Two subjects were selected after observing improved text facts; all off/on results from both rounds are shown, 8 original images and 4 samples per setting. The table covers only these examples, not an overall improvement rate. No GPT comparison was performed in this section, so it does not establish superiority over GPT-Image-2.
+
+| Test subject | Grounding off | Grounding on |
+| --- | --- | --- |
+| New-product colours and sizes | Both rounds used unofficial colour names and incorrect screen options | Both matched all seven official colour names and the 14/15-inch options |
+| Product specifications and usage modes | Screen size and computing platform were wrong; Canvas mode was missing | Both matched 16 inches, NVIDIA RTX Spark, five mode names and the pen-input surfaces |
+
+| Metric | Grounding off | Grounding on |
+| --- | --- | --- |
+| Images returned / displayed samples | 4/4 | 4/4 |
+| First-attempt successes / displayed samples | 4/4 | 1/4 |
+| HTTP attempts | 4 | 7 |
+| HTTP 408 responses | 0 | 3 |
+| Mean successful request | 35.75 s | 68.91 s |
+| Successful request P50 | 34.57 s | 67.23 s |
+| Mean logical call including retries | 35.77 s | 168.21 s |
+
+Both settings used 1024x1024, `auto_aspect_ratio=false`, model version 2026-07-31 and the same Sweden Central GlobalStandard deployment. Round 2 reversed request order. Only the grounding switch differed; reference answers were not included in prompts. Successful request time excludes JSON/base64 processing; logical call time includes failures, backoff and response processing, but excludes the outer five-second interval and final PNG write. All HTTP 408 responses and retries are retained. The internal timeout stage was not returned, so the additional time cannot all be attributed to search.
+
+Improved text facts do not establish better aesthetics or product fidelity. In subject 2, round 2, the grounding-on `Tablet Mode` illustration still has an upright screen. Inspection was AI-assisted and unblinded, with few repetitions, not human preference voting or a statistically significant result. Responses included no search queries, source URLs or retrieval traces; usage changes do not identify retrieval sources.
+
+#### New-product colours and sizes / Round 1
+
+| `web_grounding=false` | `web_grounding=true` |
+| --- | --- |
+| ![Web grounding off, subject 1, round 1](data/lenovo-web-grounding-20260908/mai-image-2.6-web-off/r1/01_test.png) | ![Web grounding on, subject 1, round 1](data/lenovo-web-grounding-20260908/mai-image-2.6-web-on/r1/01_test.png) |
+
+#### New-product colours and sizes / Round 2
+
+| `web_grounding=false` | `web_grounding=true` |
+| --- | --- |
+| ![Web grounding off, subject 1, round 2](data/lenovo-web-grounding-20260908/mai-image-2.6-web-off/r2/01_test.png) | ![Web grounding on, subject 1, round 2](data/lenovo-web-grounding-20260908/mai-image-2.6-web-on/r2/01_test.png) |
+
+#### Product specifications and usage modes / Round 1
+
+| `web_grounding=false` | `web_grounding=true` |
+| --- | --- |
+| ![Web grounding off, subject 2, round 1](data/lenovo-web-grounding-20260908/mai-image-2.6-web-off/r1/02_test.png) | ![Web grounding on, subject 2, round 1](data/lenovo-web-grounding-20260908/mai-image-2.6-web-on/r1/02_test.png) |
+
+#### Product specifications and usage modes / Round 2
+
+| `web_grounding=false` | `web_grounding=true` |
+| --- | --- |
+| ![Web grounding off, subject 2, round 2](data/lenovo-web-grounding-20260908/mai-image-2.6-web-off/r2/02_test.png) | ![Web grounding on, subject 2, round 2](data/lenovo-web-grounding-20260908/mai-image-2.6-web-on/r2/02_test.png) |
+
+Full original evidence is retained without rewriting previous runs. This section is measured separately from the two-model test above; its commands appear in the reproduction section below.
+
+[Raw results](data/lenovo-web-grounding-20260908/5way_v2_results.json) | [All attempts](data/lenovo-web-grounding-20260908/attempts.jsonl) | [Visual observations](data/lenovo-web-grounding-20260908/visual-review.json) | [Full 12-sample statistics](data/lenovo-web-grounding-20260908/web-grounding-summary.json) | [Provenance and hashes](data/lenovo-web-grounding-20260908/provenance.json)
+
+Result SHA-256: `669617dd5d59d0748a0fc398d98ec4c59cb4b26cc9655138edf9b6c9622f3c1b`.
+
+Official references: [IdeaPad Vibe](https://news.lenovo.com/pressroom/press-releases/colorful-ideapad-vibe-series-all-in-one-ai-pcs/) | [Yoga](https://news.lenovo.com/pressroom/press-releases/yoga-portfolio-new-ai-pcs-and-tablets/) | [MAI API](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image#request-parameters)
+
 ### Measured API Settings
 
 | API item | MAI-Image-2.6 | GPT-Image-2 |
@@ -192,6 +247,14 @@ These commands validate saved evidence without model calls. Regressions cover re
 python scripts/summarize_paired_run.py data/paired-all-quality-20260907
 python scripts/render_paired_report.py data/paired-all-quality-20260907 --check
 python -m unittest discover -s tests -v
+```
+
+The web-grounding test needs only the MAI deployment. The first command verifies the existing archive without writing; the second checks parameters without network calls; only the third reruns all three subjects into a new directory, leaving published data unchanged.
+
+```powershell
+python scripts/summarize_web_grounding.py data/lenovo-web-grounding-20260908 --require-complete --check
+python data/lenovo-web-grounding-20260908/source/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --mai-web-grounding both --prompts-csv data/lenovo-web-grounding-20260908/source/prompts.csv --output runs/web-grounding-reproduction --dry-run
+python data/lenovo-web-grounding-20260908/source/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --mai-web-grounding both --prompts-csv data/lenovo-web-grounding-20260908/source/prompts.csv --output runs/web-grounding-reproduction
 ```
 
 Runner: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py); offline summary: [summarize_paired_run.py](scripts/summarize_paired_run.py); report rendering: [render_paired_report.py](scripts/render_paired_report.py); regressions: [tests](tests).

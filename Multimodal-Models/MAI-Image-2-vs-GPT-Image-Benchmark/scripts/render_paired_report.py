@@ -1,12 +1,15 @@
 import argparse
 import json
 import re
+import statistics
 from pathlib import Path
 
 from summarize_paired_run import GROUPS, summarize
+from summarize_web_grounding import summarize as summarize_grounding
 
 
 LABELS = ("MAI-Image-2.6", "GPT-Image-2 low", "GPT-Image-2 medium", "GPT-Image-2 high")
+GROUNDING_ARCHIVE = "data/lenovo-web-grounding-20260908"
 
 
 def table(headers, rows):
@@ -123,7 +126,7 @@ def exception_section(summary, language):
     return text + "\n\n" + table(headers, rows)
 
 
-def reproduction_section(archive_path, language):
+def reproduction_section(archive_path, language, grounding_archive=None):
     intro = ("需要可用的 MAI-Image-2.6 和 GPT-Image-2 部署。部署身份由您查询确认，不能仅凭 deployment 名称判断底层模型。先克隆仓库、拉取本项目的 Git LFS 文件，并在 Python 环境安装 requests："
              if language == "zh" else
              "Supply accessible MAI-Image-2.6 and GPT-Image-2 deployments. Verify their underlying model versions; deployment names alone are not model identity. Clone the repository, fetch this project's Git LFS inputs, and install requests in your Python environment:")
@@ -136,6 +139,13 @@ def reproduction_section(archive_path, language):
     tests = ("以下命令只重算已保存结果，不调用模型。回归覆盖四档请求、失败分母、原始 usage、图片归属和报告覆盖；模拟 HTTP 只用于离线单元测试，不是图像质量证据。新测批次的汇总与发布必须等全部计划样本结束。"
              if language == "zh" else
              "These commands validate saved evidence without model calls. Regressions cover request tiers, failure denominators, original usage, image ownership and report coverage. HTTP mocks exist only in offline tests and do not establish image quality. A new run cannot produce its final summary until every planned sample is recorded.")
+    grounding = ""
+    if grounding_archive:
+        grounding = "\n\n".join([
+            ("联网信息补充测试只需 MAI 部署。第一条只读核验已有归档；第二条只检查参数；第三条才真实重跑完整三题，结果写入新目录，不覆盖已发布数据。"
+             if language == "zh" else
+             "The web-grounding test needs only the MAI deployment. The first command verifies the existing archive without writing; the second checks parameters without network calls; only the third reruns all three subjects into a new directory, leaving published data unchanged."),
+            grounding_reproduction_commands(grounding_archive)])
     return f"""## {'复现与测试' if language == 'zh' else 'Reproduction and Tests'}
 
 {intro}
@@ -187,11 +197,13 @@ python scripts/render_paired_report.py {archive_path} --check
 python -m unittest discover -s tests -v
 ```
 
+{grounding}
+
 {'执行脚本' if language == 'zh' else 'Runner'}: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py); {'离线汇总' if language == 'zh' else 'offline summary'}: [summarize_paired_run.py](scripts/summarize_paired_run.py); {'报告生成' if language == 'zh' else 'report rendering'}: [render_paired_report.py](scripts/render_paired_report.py); {'回归测试' if language == 'zh' else 'regressions'}: [tests](tests).
 """
 
 
-def render_overview(summary, quality, archive_path, language):
+def render_overview(summary, quality, archive_path, language, grounding_section=""):
     chinese = language == "zh"
     metadata = summary["config"]["group_configurations"]
     if [group["group"] for group in summary["groups"]] != list(GROUPS):
@@ -285,11 +297,13 @@ flowchart LR
 
 {observations}
 
+{grounding_section}
+
 ### {heading('Measured API Settings', '本轮实际接口设置')}
 
 {api}
 
-{reproduction_section(archive_path, language)}
+{reproduction_section(archive_path, language, GROUNDING_ARCHIVE if grounding_section else None)}
 
 ### {heading('Limits', '结论边界')}
 
@@ -299,7 +313,134 @@ flowchart LR
 """
 
 
-def update_document(text, summary, quality, archive_path, language):
+def grounding_reproduction_commands(archive_path):
+    return (f"```powershell\npython scripts/summarize_web_grounding.py {archive_path} --require-complete --check\n"
+            f"python {archive_path}/source/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --mai-web-grounding both "
+            f"--prompts-csv {archive_path}/source/prompts.csv --output runs/web-grounding-reproduction --dry-run\n"
+            f"python {archive_path}/source/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --mai-web-grounding both "
+            f"--prompts-csv {archive_path}/source/prompts.csv --output runs/web-grounding-reproduction\n```")
+
+
+def render_grounding_section(summary, archive_path, language):
+    if not summary["complete"]:
+        raise ValueError("Grounding results must be complete before publication")
+    chinese = language == "zh"
+    selected = [sample for sample in summary["samples"] if sample["prompt_idx"] in (1, 2)]
+    settings = [False, True]
+    rows_by_setting = [[sample for sample in selected if sample["web_grounding"] is enabled]
+                       for enabled in settings]
+    selected_ids = {(sample["group"], sample["round"], sample["prompt_idx"]) for sample in selected}
+    unsuccessful = [attempt for attempt in summary["unsuccessful_attempts"]
+                    if (attempt["group"], attempt["round"], attempt["prompt_idx"]) in selected_ids]
+    metrics = []
+    for label, measure in (
+        ("返回图片 / 展示样本" if chinese else "Images returned / displayed samples",
+         lambda rows: f"{sum(sample['ok'] for sample in rows)}/{len(rows)}"),
+        ("首试成功 / 展示样本" if chinese else "First-attempt successes / displayed samples",
+         lambda rows: f"{sum(sample['first_attempt_ok'] for sample in rows)}/{len(rows)}"),
+        ("HTTP 请求次数" if chinese else "HTTP attempts",
+         lambda rows: str(sum(sample["attempt_count"] for sample in rows))),
+        ("HTTP 408 次数" if chinese else "HTTP 408 responses",
+         lambda rows: str(sum(attempt.get("http_status") == 408 and attempt["group"] == rows[0]["group"]
+                              for attempt in unsuccessful))),
+    ):
+        metrics.append([label, *(measure(rows) for rows in rows_by_setting)])
+    unit = "秒" if chinese else "s"
+    for label, statistic, field, successful_only in (
+        ("成功请求平均耗时" if chinese else "Mean successful request", statistics.mean, "time", True),
+        ("成功请求 P50" if chinese else "Successful request P50", statistics.median, "time", True),
+        ("含失败重试的逻辑调用平均耗时" if chinese else "Mean logical call including retries",
+         statistics.mean, "logical_request_seconds", False),
+    ):
+        values = [[sample[field] for sample in rows if sample["ok"] or not successful_only]
+                  for rows in rows_by_setting]
+        metrics.append([label, *(f"{statistic(values_for_setting):.2f} {unit}" if values_for_setting else "N/A"
+                                 for values_for_setting in values)])
+    headers = ["指标", "关闭联网", "开启联网"] if chinese else ["Metric", "Grounding off", "Grounding on"]
+    intro = (
+        "本节测试通用的联网信息补充能力：在相同提示词下，对比 MAI-Image-2.6 的 `web_grounding=false/true`，"
+        "观察文字事实准确性与生成耗时。公开新品资料只是测试题材，不是客户项目或客户采纳案例。"
+        if chinese else
+        "This section tests web grounding as a general image-generation capability: identical prompts are sent to "
+        "MAI-Image-2.6 with `web_grounding=false/true` to compare text factual accuracy and latency. "
+        "Public product announcements supply the test subjects; this is not a customer project or adoption case."
+    )
+    scope = (
+        f"完整补测为 {summary['planned_samples']} 个正式样本，另有 {summary['warmups_excluded']} 次预热。"
+        f"按已观察到的文字事实改善选取两个题目，保留全部两轮开／关对照，共 {len(selected)} 张原图，"
+        f"每组 {len(rows_by_setting[0])} 个样本。下表仅统计这些选例，不是全量提升率。"
+        "本节没有 GPT 对照，不能据此得出相对 GPT-Image-2 的优势结论。"
+        if chinese else
+        f"The complete supplement contains {summary['planned_samples']} formal samples and "
+        f"{summary['warmups_excluded']} excluded warmups. Two subjects were selected after observing improved text facts; "
+        f"all off/on results from both rounds are shown, {len(selected)} original images and "
+        f"{len(rows_by_setting[0])} samples per setting. The table covers only these examples, not an overall improvement rate. "
+        "No GPT comparison was performed in this section, so it does not establish superiority over GPT-Image-2."
+    )
+    findings = (
+        [["新品配色与尺寸", "两轮均出现非官方配色名和错误屏幕选项", "两轮均匹配七种官方配色名及 14/15 英寸选项"],
+         ["产品规格与使用模式", "屏幕尺寸和计算平台错误，均漏掉 Canvas 模式", "两轮均写对 16 英寸、NVIDIA RTX Spark、五种模式及笔输入表面"]]
+        if chinese else
+        [["New-product colours and sizes", "Both rounds used unofficial colour names and incorrect screen options",
+          "Both matched all seven official colour names and the 14/15-inch options"],
+         ["Product specifications and usage modes", "Screen size and computing platform were wrong; Canvas mode was missing",
+          "Both matched 16 inches, NVIDIA RTX Spark, five mode names and the pen-input surfaces"]]
+    )
+    boundaries = (
+        "固定 1024x1024、`auto_aspect_ratio=false`，同一模型版本 2026-07-31、Sweden Central GlobalStandard 部署；"
+        "第二轮反转请求顺序。两组仅联网开关不同，核对答案未加入提示词。"
+        "成功请求耗时不含 JSON/base64 处理；逻辑调用耗时包含失败、退避和响应处理，不含外侧 5 秒间隔及最终 PNG 写盘。"
+        "所有 HTTP 408 和重试均保留，服务未说明内部超时环节，不能把全部额外时间归因于搜索。"
+        if chinese else
+        "Both settings used 1024x1024, `auto_aspect_ratio=false`, model version 2026-07-31 and the same Sweden Central "
+        "GlobalStandard deployment. Round 2 reversed request order. Only the grounding switch differed; reference answers "
+        "were not included in prompts. Successful request time excludes JSON/base64 processing; logical call time includes "
+        "failures, backoff and response processing, but excludes the outer five-second interval and final PNG write. "
+        "All HTTP 408 responses and retries are retained. The internal timeout stage was not returned, so the additional "
+        "time cannot all be attributed to search."
+    )
+    quality_boundary = (
+        "文字事实改善不等于画面质量或产品外观保真。第二题第二轮开启图中，`Tablet Mode` 标签下仍画着竖起的屏幕，"
+        "存在图文不一致。观察为 AI 辅助非盲评，只有少量重复，不是人工偏好或统计显著性结论。"
+        "响应没有提供检索查询、来源 URL 或调用轨迹；usage 变化不能证明具体检索来源。"
+        if chinese else
+        "Improved text facts do not establish better aesthetics or product fidelity. In subject 2, round 2, the "
+        "grounding-on `Tablet Mode` illustration still has an upright screen. Inspection was AI-assisted and unblinded, "
+        "with few repetitions, not human preference voting or a statistically significant result. Responses included "
+        "no search queries, source URLs or retrieval traces; usage changes do not identify retrieval sources."
+    )
+    sections = [f"### {'联网信息补充测试' if chinese else 'Web Grounding Test'}", intro, scope,
+                table(["测试项", "关闭联网", "开启联网"] if chinese else ["Test subject", "Grounding off", "Grounding on"], findings),
+                table(headers, metrics), boundaries, quality_boundary]
+    for prompt_index, subject in ((1, "新品配色与尺寸" if chinese else "New-product colours and sizes"),
+                                  (2, "产品规格与使用模式" if chinese else "Product specifications and usage modes")):
+        for round_number in (1, 2):
+            rows = [next(sample for sample in selected if sample["prompt_idx"] == prompt_index
+                         and sample["round"] == round_number and sample["web_grounding"] is enabled)
+                    for enabled in settings]
+            images = [f"![Web grounding {'on' if enabled else 'off'}, subject {prompt_index}, round {round_number}]"
+                      f"({archive_path}/{sample['image']})" if sample["ok"] else
+                      ("未返回图片" if chinese else "No image returned") for enabled, sample in zip(settings, rows)]
+            caption = f"#### {subject} / {'第' + str(round_number) + '轮' if chinese else 'Round ' + str(round_number)}"
+            sections.extend([caption, table(["`web_grounding=false`", "`web_grounding=true`"], [images])])
+    sections.extend([
+        ("完整原始数据保留，旧批次不重写；本节与上文双模型测试分别统计，复现命令见下方复现与测试章节。" if chinese else
+         "Full original evidence is retained without rewriting previous runs. This section is measured separately from the two-model test above; its commands appear in the reproduction section below."),
+        f"[{'原始结果' if chinese else 'Raw results'}]({archive_path}/5way_v2_results.json) | "
+        f"[{'全部请求' if chinese else 'All attempts'}]({archive_path}/attempts.jsonl) | "
+        f"[{'逐图观察' if chinese else 'Visual observations'}]({archive_path}/visual-review.json) | "
+        f"[{'完整12样本统计' if chinese else 'Full 12-sample statistics'}]({archive_path}/web-grounding-summary.json) | "
+        f"[{'出处与哈希' if chinese else 'Provenance and hashes'}]({archive_path}/provenance.json)",
+        f"{'结果 SHA-256' if chinese else 'Result SHA-256'}: `{summary['result_sha256']}`.",
+        ("官方参考：" if chinese else "Official references: ") +
+        "[IdeaPad Vibe](https://news.lenovo.com/pressroom/press-releases/colorful-ideapad-vibe-series-all-in-one-ai-pcs/) | "
+        "[Yoga](https://news.lenovo.com/pressroom/press-releases/yoga-portfolio-new-ai-pcs-and-tablets/) | "
+        "[MAI API](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image#request-parameters)",
+    ])
+    return "\n\n".join(sections)
+
+
+def update_document(text, summary, quality, archive_path, language, grounding_section=""):
     chinese = language == "zh"
     title = ("# MAI-Image-2.6 与 GPT-Image-2：全质量档位图像生成对比" if chinese else
              "# MAI-Image-2.6 vs GPT-Image-2: All Quality Tiers")
@@ -310,18 +451,11 @@ def update_document(text, summary, quality, archive_path, language):
               re.findall(r"(?m)^### Test (\d+): ([^\n]+)$", text)}
     if set(titles) != set(range(1, 12)) or [item["prompt_index"] for item in summary["per_prompt"]] != list(range(1, 12)):
         raise ValueError("All eleven original scenarios are required")
-    content = render_overview(summary, quality, archive_path, language)
+    content = render_overview(summary, quality, archive_path, language, grounding_section)
     comparison_heading = "## 并排图片对比" if chinese else "## Side-by-Side Image Comparison"
     description = ("每个场景、每一轮只展示 MAI-Image-2.6 与 GPT-Image-2 low、medium、high。图片来自本次四组测试，未返回图片的格子保留失败说明。点击图片查看原始 1024x1024 PNG。"
                    if chinese else "Every scenario and round compares only MAI-Image-2.6 with GPT-Image-2 low, medium and high. Images come from this four-configuration run; missing images retain their failure record. Click an image for the original 1024x1024 PNG.")
-    supplement = (
-        "**补充选例：[联想新品的 MAI 联网开／关对照](data/lenovo-web-grounding-20260908/README-CN.md)。** "
-        "展示两个有文字事实改善的场景及全部两轮原图；独立于下方双模型测试，包含选例范围、耗时和超时记录。"
-        if chinese else
-        "**Supplement: [MAI web-grounding on/off examples for Lenovo products](data/lenovo-web-grounding-20260908/README.md).** "
-        "Two scenarios selected for improved text facts, with both rounds shown. Separate from the two-model benchmark below; selection scope, latency and timeouts are disclosed."
-    )
-    sections = [title, author.group(), supplement, content.strip(), comparison_heading, description]
+    sections = [title, author.group(), content.strip(), comparison_heading, description]
     for prompt_record in summary["per_prompt"]:
         prompt_index = prompt_record["prompt_index"]
         sections.extend([f"### Test {prompt_index}: {titles[prompt_index]}",
@@ -364,11 +498,13 @@ def main():
                           "inspected_images": len(quality["inspected_images"]), "scenarios": len(quality["per_prompt"])}))
         return
     archive_path = run_directory.relative_to(root).as_posix()
+    grounding_summary = summarize_grounding(root / GROUNDING_ARCHIVE)
     documents = []
     for filename, language in (("README.md", "en"), ("README-CN.md", "zh")):
         path = root / filename
         original = path.read_text("utf-8")
-        generated = update_document(original, summary, quality, archive_path, language)
+        generated = update_document(original, summary, quality, archive_path, language,
+                                    render_grounding_section(grounding_summary, GROUNDING_ARCHIVE, language))
         documents.append((path, original, generated))
     if arguments.check:
         changed = [path.name for path, original, generated in documents if original != generated]

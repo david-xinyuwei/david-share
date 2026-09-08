@@ -16,6 +16,7 @@ class GroundingPublicationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.archive = ROOT / "data" / "lenovo-web-grounding-20260908"
+        cls.archive_prefix = f"data/{cls.archive.name}/"
         cls.summary = summarize_web_grounding.summarize(cls.archive)
         cls.selected = [sample for sample in cls.summary["samples"] if sample["prompt_idx"] in (1, 2)]
 
@@ -29,18 +30,28 @@ class GroundingPublicationTests(unittest.TestCase):
             self.assertEqual(len(content), artifact["bytes"])
             self.assertEqual(hashlib.sha256(content).hexdigest(), artifact["sha256"])
 
-    def test_bilingual_showcase_uses_only_selected_originals(self):
-        expected = {sample["image"] for sample in self.selected}
+    def test_grounding_rendered_inside_main_reports_without_separate_pages(self):
+        self.assertFalse((self.archive / "README.md").exists())
+        self.assertFalse((self.archive / "README-CN.md").exists())
+        expected = {self.archive_prefix + sample["image"] for sample in self.selected}
         self.assertEqual(len(expected), 8)
-        for filename in ("README.md", "README-CN.md"):
-            text = (self.archive / filename).read_text("utf-8")
-            images = re.findall(r"!\[[^\]]*\]\(([^)]+)\)", text)
-            self.assertEqual(len(images), 8)
-            self.assertEqual(set(images), expected)
+        for filename, heading, previous, following in (
+                ("README.md", "### Web Grounding Test", "### Quality Observations", "## Reproduction and Tests"),
+                ("README-CN.md", "### 联网信息补充测试", "### 逐场景画面观察", "## 复现与测试")):
+            text = (ROOT / filename).read_text("utf-8")
+            self.assertEqual(text.count(heading), 1)
+            self.assertLess(text.index(previous), text.index(heading))
+            self.assertLess(text.index(heading), text.index(following))
+            images = {target for target in re.findall(r"!\[[^\]]*\]\(([^)]+)\)", text)
+                      if target.startswith(self.archive_prefix)}
+            self.assertEqual(images, expected)
             for target in re.findall(r"\]\(([^)]+)\)", text):
-                if not target.startswith(("https://", "http://", "#")):
-                    self.assertTrue((self.archive / target.split("#")[0]).exists(), target)
+                if target.startswith(self.archive_prefix):
+                    self.assertTrue((ROOT / target.split("#")[0]).exists(), target)
             self.assertIn("Tablet Mode", text)
+            self.assertNotIn(f"{self.archive_prefix}README", text)
+            self.assertNotIn("Supplement", text)
+            self.assertNotIn("Lenovo products", text)
 
     def test_selected_metrics_not_full_run_averages(self):
         rows_by_setting = [[sample for sample in self.selected if sample["web_grounding"] is enabled]
@@ -50,7 +61,7 @@ class GroundingPublicationTests(unittest.TestCase):
                                  (statistics.mean, "logical_request_seconds")):
             values.append([f"{statistic(sample[field] for sample in rows):.2f}" for rows in rows_by_setting])
         for filename, unit in (("README.md", "s"), ("README-CN.md", "秒")):
-            text = (self.archive / filename).read_text("utf-8")
+            text = (ROOT / filename).read_text("utf-8")
             for off, on in values:
                 self.assertIn(f"| {off} {unit} | {on} {unit} |", text)
             self.assertIn("| 4/4 | 1/4 |", text)

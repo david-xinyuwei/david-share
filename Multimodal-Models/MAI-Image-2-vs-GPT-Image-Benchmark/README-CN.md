@@ -2,8 +2,6 @@
 
 > **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
 
-**补充选例：[联想新品的 MAI 联网开／关对照](data/lenovo-web-grounding-20260908/README-CN.md)。** 展示两个有文字事实改善的场景及全部两轮原图；独立于下方双模型测试，包含选例范围、耗时和超时记录。
-
 ## 本轮：两模型与全部质量档位
 
 [English](README.md) | [逐题图片](#并排图片对比) | [测量记录](data/paired-all-quality-20260907/5way_v2_results.json) | [指标](data/paired-all-quality-20260907/summary.json) | [请求记录](data/paired-all-quality-20260907/attempts.jsonl)
@@ -133,6 +131,63 @@ token 用量取自接口返回的 usage，不从模型或档位推算。没有�
 | 10 | 两轮猫都露齿持双槌打鼓，握槌明显拟人化；鼓组与海报添加英文，R2底鼓和下方文字被裁切。 | 两轮猫露齿举槌，部分前爪有动作模糊；衣服与鼓面增加英文，R2底鼓下缘被裁切。 | 两轮鼓手居中，毛发和镀铬反光清楚；增加I HATE MONDAYS或PAWS OF FURY等文字，部分爪槌边缘模糊。 | 两轮龇牙表情与双槌姿态明确，前景鼓组被画框裁切，另加HISS OFF或BAD KITTY等文字。 |
 | 11 | R1猴子弹梨形弦乐器，R2坐在石板路弹吉他；毛发与木纹清楚，书脊或小费碗另有未请求文字。 | 两轮主体弹吉他并增加演出文字，R1脸型偏幼猿，R2琴头被裁切；R1首次输出审核拦截后重试才返回此图。 | 两轮戴草帽猴子弹吉他，背景增加演出文字；R2拨弦手模糊、琴头右端被裁切。 | R1猴子在复古麦克风旁弹吉他，R2闭眼盘腿演奏；材质清楚，背景均有额外英文。 |
 
+### 联网信息补充测试
+
+本节测试通用的联网信息补充能力：在相同提示词下，对比 MAI-Image-2.6 的 `web_grounding=false/true`，观察文字事实准确性与生成耗时。公开新品资料只是测试题材，不是客户项目或客户采纳案例。
+
+完整补测为 12 个正式样本，另有 2 次预热。按已观察到的文字事实改善选取两个题目，保留全部两轮开／关对照，共 8 张原图，每组 4 个样本。下表仅统计这些选例，不是全量提升率。本节没有 GPT 对照，不能据此得出相对 GPT-Image-2 的优势结论。
+
+| 测试项 | 关闭联网 | 开启联网 |
+| --- | --- | --- |
+| 新品配色与尺寸 | 两轮均出现非官方配色名和错误屏幕选项 | 两轮均匹配七种官方配色名及 14/15 英寸选项 |
+| 产品规格与使用模式 | 屏幕尺寸和计算平台错误，均漏掉 Canvas 模式 | 两轮均写对 16 英寸、NVIDIA RTX Spark、五种模式及笔输入表面 |
+
+| 指标 | 关闭联网 | 开启联网 |
+| --- | --- | --- |
+| 返回图片 / 展示样本 | 4/4 | 4/4 |
+| 首试成功 / 展示样本 | 4/4 | 1/4 |
+| HTTP 请求次数 | 4 | 7 |
+| HTTP 408 次数 | 0 | 3 |
+| 成功请求平均耗时 | 35.75 秒 | 68.91 秒 |
+| 成功请求 P50 | 34.57 秒 | 67.23 秒 |
+| 含失败重试的逻辑调用平均耗时 | 35.77 秒 | 168.21 秒 |
+
+固定 1024x1024、`auto_aspect_ratio=false`，同一模型版本 2026-07-31、Sweden Central GlobalStandard 部署；第二轮反转请求顺序。两组仅联网开关不同，核对答案未加入提示词。成功请求耗时不含 JSON/base64 处理；逻辑调用耗时包含失败、退避和响应处理，不含外侧 5 秒间隔及最终 PNG 写盘。所有 HTTP 408 和重试均保留，服务未说明内部超时环节，不能把全部额外时间归因于搜索。
+
+文字事实改善不等于画面质量或产品外观保真。第二题第二轮开启图中，`Tablet Mode` 标签下仍画着竖起的屏幕，存在图文不一致。观察为 AI 辅助非盲评，只有少量重复，不是人工偏好或统计显著性结论。响应没有提供检索查询、来源 URL 或调用轨迹；usage 变化不能证明具体检索来源。
+
+#### 新品配色与尺寸 / 第1轮
+
+| `web_grounding=false` | `web_grounding=true` |
+| --- | --- |
+| ![Web grounding off, subject 1, round 1](data/lenovo-web-grounding-20260908/mai-image-2.6-web-off/r1/01_test.png) | ![Web grounding on, subject 1, round 1](data/lenovo-web-grounding-20260908/mai-image-2.6-web-on/r1/01_test.png) |
+
+#### 新品配色与尺寸 / 第2轮
+
+| `web_grounding=false` | `web_grounding=true` |
+| --- | --- |
+| ![Web grounding off, subject 1, round 2](data/lenovo-web-grounding-20260908/mai-image-2.6-web-off/r2/01_test.png) | ![Web grounding on, subject 1, round 2](data/lenovo-web-grounding-20260908/mai-image-2.6-web-on/r2/01_test.png) |
+
+#### 产品规格与使用模式 / 第1轮
+
+| `web_grounding=false` | `web_grounding=true` |
+| --- | --- |
+| ![Web grounding off, subject 2, round 1](data/lenovo-web-grounding-20260908/mai-image-2.6-web-off/r1/02_test.png) | ![Web grounding on, subject 2, round 1](data/lenovo-web-grounding-20260908/mai-image-2.6-web-on/r1/02_test.png) |
+
+#### 产品规格与使用模式 / 第2轮
+
+| `web_grounding=false` | `web_grounding=true` |
+| --- | --- |
+| ![Web grounding off, subject 2, round 2](data/lenovo-web-grounding-20260908/mai-image-2.6-web-off/r2/02_test.png) | ![Web grounding on, subject 2, round 2](data/lenovo-web-grounding-20260908/mai-image-2.6-web-on/r2/02_test.png) |
+
+完整原始数据保留，旧批次不重写；本节与上文双模型测试分别统计，复现命令见下方复现与测试章节。
+
+[原始结果](data/lenovo-web-grounding-20260908/5way_v2_results.json) | [全部请求](data/lenovo-web-grounding-20260908/attempts.jsonl) | [逐图观察](data/lenovo-web-grounding-20260908/visual-review.json) | [完整12样本统计](data/lenovo-web-grounding-20260908/web-grounding-summary.json) | [出处与哈希](data/lenovo-web-grounding-20260908/provenance.json)
+
+结果 SHA-256: `669617dd5d59d0748a0fc398d98ec4c59cb4b26cc9655138edf9b6c9622f3c1b`.
+
+官方参考：[IdeaPad Vibe](https://news.lenovo.com/pressroom/press-releases/colorful-ideapad-vibe-series-all-in-one-ai-pcs/) | [Yoga](https://news.lenovo.com/pressroom/press-releases/yoga-portfolio-new-ai-pcs-and-tablets/) | [MAI API](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image#request-parameters)
+
 ### 本轮实际接口设置
 
 | 接口项目 | MAI-Image-2.6 | GPT-Image-2 |
@@ -192,6 +247,14 @@ python scripts/summarize_paired_run.py $run
 python scripts/summarize_paired_run.py data/paired-all-quality-20260907
 python scripts/render_paired_report.py data/paired-all-quality-20260907 --check
 python -m unittest discover -s tests -v
+```
+
+联网信息补充测试只需 MAI 部署。第一条只读核验已有归档；第二条只检查参数；第三条才真实重跑完整三题，结果写入新目录，不覆盖已发布数据。
+
+```powershell
+python scripts/summarize_web_grounding.py data/lenovo-web-grounding-20260908 --require-complete --check
+python data/lenovo-web-grounding-20260908/source/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --mai-web-grounding both --prompts-csv data/lenovo-web-grounding-20260908/source/prompts.csv --output runs/web-grounding-reproduction --dry-run
+python data/lenovo-web-grounding-20260908/source/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --mai-web-grounding both --prompts-csv data/lenovo-web-grounding-20260908/source/prompts.csv --output runs/web-grounding-reproduction
 ```
 
 执行脚本: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py); 离线汇总: [summarize_paired_run.py](scripts/summarize_paired_run.py); 报告生成: [render_paired_report.py](scripts/render_paired_report.py); 回归测试: [tests](tests).
