@@ -217,8 +217,167 @@ python -m unittest discover -s tests -v
 """
 
 
-def render_overview(summary, quality, archive_path, language, grounding_section="",
-                    multi_image_section=""):
+def render_highlights(summary, language, has_grounding, has_multi_image):
+    """Open with what this run establishes about MAI-Image-2.6, at evidence strength.
+
+    Image quality is reported as an outcome a reader can inspect, not as a win.
+    The visual review is unblinded and states no preference ranking, so a
+    "matches GPT" claim would exceed the evidence. The two capability items are
+    stated plainly because each has a direct observation behind it.
+    """
+    chinese = language == "zh"
+    scenarios = len(summary.get("per_prompt", ())) or 11
+    returned = summary.get("successful_samples")
+    planned = summary.get("formal_samples")
+    latency = {group["group"]: group.get("successful_request_latency", {}).get("p50_seconds")
+               for group in summary.get("groups", ())}
+    mai_p50 = latency.get("mai-image-2.6")
+    low_p50 = latency.get("gpt-image-2-low")
+    medium_p50 = latency.get("gpt-image-2-medium")
+    high_p50 = latency.get("gpt-image-2-high")
+    counted = (f"本轮 {returned}/{planned} 个正式样本返回图片，" if chinese else
+               f"This run returned images for {returned}/{planned} formal samples, ") \
+        if returned is not None and planned is not None else ""
+    items = [
+        ((f"**{scenarios} 个场景与 GPT-Image-2 三档并排可比。** "
+          f"{counted}两轮结果和原图全部保留在下方，"
+          "可以逐题自行比较画面。逐图观察为非盲评的差异描述，没有评出优劣胜负，"
+          "因此本文不声称画质优于或等同 GPT-Image-2。")
+         if chinese else
+         (f"**{scenarios} scenarios sit side by side with all three GPT-Image-2 tiers.** "
+          f"{counted}Both rounds plus the "
+          "original PNGs are kept below so you can compare each scenario yourself. The per-image "
+          "observations describe differences without ranking them, so this report does not claim MAI "
+          "image quality beats or matches GPT-Image-2.")),
+    ]
+    if has_multi_image:
+        items.append(
+            ("**一次编辑可以传多张参考图。** 服务端声明 `Only 1 to 5 image files are supported for "
+             "edit requests.`，实测两张同时传入时第二张图的内容确实进入了输出。"
+             "官方参数表把 `image` 标为单个 `string`，没有写这项能力。"
+             if chinese else
+             "**One edit request accepts several reference images.** The service states `Only 1 to 5 image "
+             "files are supported for edit requests.`, and with two images the second image's content "
+             "verifiably reached the output. The official parameter table types `image` as a single "
+             "`string` and does not mention this."))
+    if has_grounding:
+        items.append(
+            ("**`web_grounding=true` 可以在生成时补充联网信息。** 开启后模型会从 Bing Search 检索当前信息"
+             "作为额外上下文，实测让两个题目的产品文字事实从错误变为与官方发布一致；"
+             "代价是首试成功率下降、耗时明显上升。这与视觉领域的 dense grounding（密集视觉定位）不是同一件事。"
+             if chinese else
+             "**`web_grounding=true` adds current web information at generation time.** The model retrieves "
+             "current information from Bing Search as extra context, which moved the product text facts in "
+             "two subjects from wrong to matching the official announcement. The cost is a lower "
+             "first-attempt success rate and clearly higher latency. This is not the same thing as dense "
+             "visual grounding."))
+    heading = "## MAI-Image-2.6 在本轮中体现的能力" if chinese else "## What This Run Shows About MAI-Image-2.6"
+    scope = ("以下三条都只依据本仓库的实测记录，`MAI-Image-2.6` 处于 Preview，无 SLA。"
+             if chinese else
+             "All three items rest on the measurements in this repository. `MAI-Image-2.6` is in preview "
+             "with no SLA.")
+    parts = [heading, scope] + [f"{index}. {text}" for index, text in enumerate(items, 1)]
+    # The vendor charts only appear when this run actually measured the same models,
+    # so a fixture without latency records cannot render an unsupported comparison.
+    if None not in (mai_p50, low_p50, medium_p50, high_p50):
+        parts.append(render_vendor_charts(language, mai_p50, medium_p50, low_p50, high_p50))
+    return "\n\n".join(parts)
+
+
+def render_vendor_charts(language, mai_p50, medium_p50, low_p50, high_p50):
+    """Show the vendor's published charts, then this run's numbers for the same models.
+
+    The vendor measured a 100 RPM internal load test; this run used 2 RPM with
+    concurrency 1 and different regions, so the two are reported separately and
+    the text states that they do not validate each other. Only the direction is
+    compared, because the multiples differ.
+    """
+    chinese = language == "zh"
+    assets = "assets/official-microsoft-ai-20260908"
+    ratio_vendor = 33.6 / 25.6
+    ratio_ours = medium_p50 / mai_p50 if mai_p50 else None
+    heading = ("### 厂商公布的性能图表与本轮实测的关系" if chinese else
+               "### Vendor Performance Charts And How This Run Relates To Them")
+    intro = (
+        f"下面三张图取自微软官网 MAI-Image-2.6 页面的 Performance 区（抓取于 2026-09-08，"
+        f"页面标注最后更新 2026-09-04），图内数据出处由厂商在图上标明。"
+        "它们是厂商声明，测量条件与本仓库不同，因此与我们的实测互不验证；此处并列展示，供对照阅读。"
+        if chinese else
+        "The three charts below come from the Performance area of the vendor's MAI-Image-2.6 page "
+        "(captured 2026-09-08; the page reports itself last modified 2026-09-04), with the data source "
+        "annotated inside each chart by the vendor. They are vendor claims measured under different "
+        "conditions from this repository, so they do not validate our measurements; they appear here "
+        "side by side for reference."
+    )
+    charts = [
+        (("文生图排行榜前十" if chinese else "Text-to-Image Arena top ten"),
+         "arena-text-to-image-top10.png",
+         ("厂商标注 MAI-Image-2.6 位列第 2（1,336），第 1 名是 GPT Image 2 Medium（1,381）。"
+          "这是全提示词类别的总分排名，不等于逐场景画质判定。"
+          if chinese else
+          "The vendor annotates MAI-Image-2.6 as ranked #2 (1,336), behind GPT Image 2 Medium at #1 "
+          "(1,381). This is an aggregate score across prompt categories, not a per-scenario quality verdict.")),
+        (("文生图速度对比" if chinese else "Text-to-image speed comparison"),
+         "speed-vs-gpt-image-2-medium.png",
+         ("厂商脚注写明：内部压测，100 RPM，1024x1024，取中位数，误差带到 P90。"
+          "对照基线只有 GPT-Image-2-Medium，没有 low 与 high 档。"
+          if chinese else
+          "The vendor footnote states: internal load test, 100 RPM at 1024x1024, median response time "
+          "with a band to P90. The only baseline is GPT-Image-2-Medium; the low and high tiers are absent.")),
+        (("图像编辑的质量与价格前沿" if chinese else "Quality versus price frontier for image editing"),
+         "quality-vs-price-frontier.png",
+         ("横轴为第三方公布的每千张 API 参考价，纵轴为图像编辑 Arena Elo。"
+          "厂商标注 MAI-Image-2.6（Elo 1324、$38.90）与 MAI-Image-2.6-Flash（Elo 1311、$19.50）位于 Pareto 前沿；"
+          "GPT Image 2 high 为 Elo 1318、$211。这是图像编辑任务，与上面的文生图排行榜不是同一件事。"
+          "价格为第三方公开参考价，不是微软报价，也不代表任何客户的实际成交价。"
+          if chinese else
+          "The horizontal axis is a third-party published API reference price per 1,000 images and the "
+          "vertical axis is image-edit Arena Elo. The vendor marks MAI-Image-2.6 (Elo 1324, $38.90) and "
+          "MAI-Image-2.6-Flash (Elo 1311, $19.50) as sitting on the Pareto frontier, with GPT Image 2 high "
+          "at Elo 1318 and $211. This measures image editing, a different task from the text-to-image "
+          "leaderboard above. Prices are third-party reference figures, not a Microsoft quote and not any "
+          "customer's contracted price.")),
+    ]
+    blocks = []
+    for label, filename, note in charts:
+        blocks.append(f"**{label}**\n\n![{label}]({assets}/{filename})\n\n{note}")
+    ours = (
+        f"本轮实测的同一统计量（成功请求耗时 P50，客户端记录）："
+        f"MAI-Image-2.6 {mai_p50:.2f} 秒；GPT-Image-2 low {low_p50:.2f} 秒、medium {medium_p50:.2f} 秒、"
+        f"high {high_p50:.2f} 秒。厂商图上 MAI 比 GPT-Image-2-Medium 快 {ratio_vendor:.2f} 倍，"
+        f"本轮为 {ratio_ours:.2f} 倍：**方向一致，倍数不同**。"
+        if chinese else
+        f"The same statistic measured in this run (client-side P50 of successful requests): "
+        f"MAI-Image-2.6 {mai_p50:.2f} s; GPT-Image-2 low {low_p50:.2f} s, medium {medium_p50:.2f} s, "
+        f"high {high_p50:.2f} s. The vendor chart shows MAI {ratio_vendor:.2f}x faster than "
+        f"GPT-Image-2-Medium; this run gives {ratio_ours:.2f}x: **the direction agrees, the multiple does not**."
+    )
+    boundary = (
+        "两者不可互相验证：厂商在 100 RPM 压测下测量，本轮为每分钟 2 次请求、并发 1；"
+        "本轮 MAI 部署在 Sweden Central、GPT 在 East US 2，客户端在同一台工作站，"
+        "因此耗时差中包含区域与网络因素，无法从本轮数据里剥离。"
+        "每组 22 个样本为描述性样本，不是容量或尾延迟结论。"
+        "本仓库没有测过 `MAI-Image-2.6-Flash`，也没有复现 Arena 或 Artificial Analysis 的 Elo 分数。"
+        f"厂商图上没有的两条：本轮 GPT-Image-2 low 的 P50 为 {low_p50:.2f} 秒，比 MAI 更快；"
+        f"MAI 比 GPT-Image-2 high 快 {high_p50 / mai_p50:.2f} 倍。"
+        if chinese else
+        "Neither validates the other: the vendor measured a 100 RPM load test while this run used two "
+        "requests per minute at concurrency 1. Here MAI ran in Sweden Central and GPT in East US 2 from "
+        "the same workstation, so region and transport are part of any latency gap and cannot be separated "
+        "from this run's data. Twenty-two samples per configuration is a descriptive sample, not a capacity "
+        "or tail-latency result. This repository never called `MAI-Image-2.6-Flash` and did not reproduce "
+        "the Arena or Artificial Analysis Elo scores. Two facts absent from the vendor charts: this run's "
+        f"GPT-Image-2 low P50 is {low_p50:.2f} s, faster than MAI, and MAI is "
+        f"{high_p50 / mai_p50:.2f}x faster than GPT-Image-2 high."
+    )
+    source = (f"[{'图表来源与逐项读数' if chinese else 'Chart provenance and per-item readings'}]"
+              f"({assets}/provenance.json) | "
+              f"[{'厂商页面' if chinese else 'Vendor page'}](https://microsoft.ai/models/mai-image-2-6/)")
+    return "\n\n".join([heading, intro] + blocks + [ours, boundary, source])
+
+
+def render_overview(summary, quality, archive_path, language, has_grounding=False,
+                    has_multi_image=False):
     chinese = language == "zh"
     metadata = summary["config"]["group_configurations"]
     if [group["group"] for group in summary["groups"]] != list(GROUPS):
@@ -312,15 +471,11 @@ flowchart LR
 
 {observations}
 
-{grounding_section}
-
-{multi_image_section}
-
 ### {heading('Measured API Settings', '本轮实际接口设置')}
 
 {api}
 
-{reproduction_section(archive_path, language, GROUNDING_ARCHIVE if grounding_section else None, MULTI_IMAGE_ARCHIVE if multi_image_section else None)}
+{reproduction_section(archive_path, language, GROUNDING_ARCHIVE if has_grounding else None, MULTI_IMAGE_ARCHIVE if has_multi_image else None)}
 
 ### {heading('Limits', '结论边界')}
 
@@ -448,7 +603,7 @@ def render_multi_image_section(summary, archive_path, language):
         "`HTTP 400`."
     )
     sections = [
-        f"### {'多图输入编辑测试' if chinese else 'Multi-Image Input Edit Test'}",
+        f"## {'多图输入编辑测试' if chinese else 'Multi-Image Input Edit Test'}",
         f"**{'要回答什么' if chinese else 'What this section determines'}**", question, intro,
         f"**{'两张输入图' if chinese else 'The two input images'}**",
         ("两张图都取自上文联网补测的模型输出，在这里复用为输入素材。左图是一张深色配色信息图，"
@@ -466,11 +621,11 @@ def render_multi_image_section(summary, archive_path, language):
               [[f"![Input image 1]({GROUNDING_ARCHIVE}/mai-image-2.6-web-off/r1/01_test.png)",
                 f"![Input image 2]({GROUNDING_ARCHIVE}/mai-image-2.6-web-off/r1/02_test.png)"]]),
         f"**{'第一组：各自用法的实际效果' if chinese else 'Group 1: what each usage returns'}**", capability_note,
-        (f"单图提示词（发送 1 张图时）：\n\n```text\n{capability[1]['prompt']}\n```\n\n"
-         f"双图提示词（发送 2 张图时）：\n\n```text\n{capability[2]['prompt']}\n```"
+        (f"发送 1 张图时的提示词：\n\n> {' '.join(capability[1]['prompt'].split())}\n\n"
+         f"发送 2 张图时的提示词：\n\n> {' '.join(capability[2]['prompt'].split())}"
          if chinese else
-         f"Prompt sent with one image:\n\n```text\n{capability[1]['prompt']}\n```\n\n"
-         f"Prompt sent with two images:\n\n```text\n{capability[2]['prompt']}\n```"),
+         f"The prompt sent with one image:\n\n> {' '.join(capability[1]['prompt'].split())}\n\n"
+         f"The prompt sent with two images:\n\n> {' '.join(capability[2]['prompt'].split())}"),
         table(([ "输入", "请求耗时", "输出大小"] if chinese else
                ["Input", "Request latency", "Output size"]),
               [[row[0], row[2], row[3]] for row in capability_rows]),
@@ -480,9 +635,9 @@ def render_multi_image_section(summary, archive_path, language):
                 f"![Two-image edit output]({archive_path}/{capability[2]['output']})"]]),
         f"**{'第二组：第二张图到底有没有被用上' if chinese else 'Group 2: was the second image actually used'}**",
         attribution_note,
-        (f"本组三次调用都用这一条提示词：\n\n```text\n{attribution_prompt}\n```"
+        (f"本组三次调用都用同一条提示词：\n\n> {' '.join(attribution_prompt.split())}"
          if chinese else
-         f"All three calls in this group use this one prompt:\n\n```text\n{attribution_prompt}\n```"),
+         f"All three calls in this group use the same prompt:\n\n> {' '.join(attribution_prompt.split())}"),
         table(([ "输入组合", "张数", "请求耗时", "画面结果"] if chinese else
                ["Input combination", "Images", "Request latency", "Observed result"]), attribution_rows),
         table([("只给输入图 1" if chinese else "Image 1 only"),
@@ -615,11 +770,13 @@ def render_grounding_section(summary, archive_path, language):
         "New-product colours and sizes", "Product specifications and usage modes")
     prompt_block = []
     for index, label in enumerate(subject_labels):
-        prompt_text = summary["prompts"][index]
-        opened = "<details><summary>" + (
-            f"题目 {index + 1}：{label} — 展开查看发给模型的完整提示词" if chinese else
-            f"Subject {index + 1}: {label} — expand for the exact prompt sent") + "</summary>\n\n"
-        prompt_block.append(opened + "```text\n" + prompt_text + "\n```\n\n</details>")
+        # Prompts are shown as ordinary wrapped paragraphs. A fenced block would
+        # scroll sideways and a collapsed block would hide the actual input.
+        prompt_text = " ".join(summary["prompts"][index].split())
+        prompt_block.append(
+            (f"题目 {index + 1}（{label}）发给模型的完整提示词：" if chinese else
+             f"The exact prompt sent for subject {index + 1} ({label}):")
+            + f"\n\n> {prompt_text}")
     asked = (
         "两个题目都要求模型把真实产品信息画进海报：题目 1 要求列出官方发布的全部配色名与屏幕尺寸选项，"
         "题目 2 要求写出产品名、屏幕尺寸、计算平台，并标出官方命名的翻转使用模式与支持笔输入的表面。"
@@ -637,7 +794,7 @@ def render_grounding_section(summary, archive_path, language):
         "The only thing that changes is the `web_grounding` switch. Prompt, dimensions, model version, deployment "
         "and round count are identical."
     )
-    sections = [f"### {'联网信息补充测试' if chinese else 'Web Grounding Test'}", intro,
+    sections = [f"## {'联网信息补充测试' if chinese else 'Web Grounding Test'}", intro,
                 f"**{'我们向模型提出的问题' if chinese else 'What we asked the model'}**", asked,
                 *prompt_block,
                 f"**{'受控变量' if chinese else 'Controlled variable'}**", controlled, scope,
@@ -685,12 +842,15 @@ def update_document(text, summary, quality, archive_path, language, grounding_se
               re.findall(r"(?m)^### Test (\d+): ([^\n]+)$", text)}
     if set(titles) != set(range(1, 12)) or [item["prompt_index"] for item in summary["per_prompt"]] != list(range(1, 12)):
         raise ValueError("All eleven original scenarios are required")
-    content = render_overview(summary, quality, archive_path, language, grounding_section,
-                              multi_image_section)
+    content = render_overview(summary, quality, archive_path, language,
+                              bool(grounding_section), bool(multi_image_section))
     comparison_heading = "## 并排图片对比" if chinese else "## Side-by-Side Image Comparison"
     description = ("每个场景、每一轮只展示 MAI-Image-2.6 与 GPT-Image-2 low、medium、high。图片来自本次四组测试，未返回图片的格子保留失败说明。点击图片查看原始 1024x1024 PNG。"
                    if chinese else "Every scenario and round compares only MAI-Image-2.6 with GPT-Image-2 low, medium and high. Images come from this four-configuration run; missing images retain their failure record. Click an image for the original 1024x1024 PNG.")
-    sections = [title, author.group(), content.strip(), comparison_heading, description]
+    sections = [title, author.group(),
+                render_highlights(summary, language, bool(grounding_section),
+                                  bool(multi_image_section)),
+                content.strip(), comparison_heading, description]
     for prompt_record in summary["per_prompt"]:
         prompt_index = prompt_record["prompt_index"]
         sections.extend([f"### Test {prompt_index}: {titles[prompt_index]}",
@@ -698,6 +858,12 @@ def update_document(text, summary, quality, archive_path, language, grounding_se
         for round_number in (1, 2):
             sections.extend([f"**Round {round_number}:**",
                              comparison_table(prompt_record, round_number, archive_path, language)])
+    # The two capability tests follow the image comparison, in the order a reader
+    # meets them: what the model knows, then how many images it accepts.
+    if grounding_section:
+        sections.append(grounding_section)
+    if multi_image_section:
+        sections.append(multi_image_section)
     return "\n\n".join(sections) + "\n"
 
 

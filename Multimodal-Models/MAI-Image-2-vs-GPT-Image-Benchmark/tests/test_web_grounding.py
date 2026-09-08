@@ -35,13 +35,12 @@ class GroundingPublicationTests(unittest.TestCase):
         self.assertFalse((self.archive / "README-CN.md").exists())
         expected = {self.archive_prefix + sample["image"] for sample in self.selected}
         self.assertEqual(len(expected), 8)
-        for filename, heading, previous, following in (
-                ("README.md", "### Web Grounding Test", "### Quality Observations", "## Reproduction and Tests"),
-                ("README-CN.md", "### 联网信息补充测试", "### 逐场景画面观察", "## 复现与测试")):
+        for filename, heading, previous in (
+                ("README.md", "## Web Grounding Test", "## Side-by-Side Image Comparison"),
+                ("README-CN.md", "## 联网信息补充测试", "## 并排图片对比")):
             text = (ROOT / filename).read_text("utf-8")
             self.assertEqual(text.count(heading), 1)
             self.assertLess(text.index(previous), text.index(heading))
-            self.assertLess(text.index(heading), text.index(following))
             images = {target for target in re.findall(r"!\[[^\]]*\]\(([^)]+)\)", text)
                       if target.startswith(self.archive_prefix)}
             self.assertEqual(images, expected)

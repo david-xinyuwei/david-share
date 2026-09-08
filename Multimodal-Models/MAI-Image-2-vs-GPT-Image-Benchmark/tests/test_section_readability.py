@@ -14,26 +14,35 @@ MULTI_IMAGE_ARCHIVE = ROOT / "data" / "mai-multi-image-edit-20260908"
 
 SECTIONS = {
     "README.md": {
-        "grounding": "### Web Grounding Test",
-        "multi_image": "### Multi-Image Input Edit Test",
+        "grounding": "## Web Grounding Test",
+        "multi_image": "## Multi-Image Input Edit Test",
         "asked": "What we asked the model",
         "controlled": "Controlled variable",
         "determines": "What this section determines",
+        "highlights": "## What This Run Shows About MAI-Image-2.6",
+        "comparison": "## Side-by-Side Image Comparison",
     },
     "README-CN.md": {
-        "grounding": "### 联网信息补充测试",
-        "multi_image": "### 多图输入编辑测试",
+        "grounding": "## 联网信息补充测试",
+        "multi_image": "## 多图输入编辑测试",
         "asked": "我们向模型提出的问题",
         "controlled": "受控变量",
         "determines": "要回答什么",
+        "highlights": "## MAI-Image-2.6 在本轮中体现的能力",
+        "comparison": "## 并排图片对比",
     },
 }
 
 
-def section_text(text, heading, level="### "):
+def normalize(prompt):
+    """Prompts render as wrapped quote paragraphs, so compare on collapsed whitespace."""
+    return " ".join(prompt.split())
+
+
+def section_text(text, heading):
     start = text.index(heading)
     remainder = text[start + len(heading):]
-    match = re.search(r"(?m)^#{2,3} ", remainder)
+    match = re.search(r"(?m)^## ", remainder)
     return remainder[:match.start()] if match else remainder
 
 
@@ -50,18 +59,52 @@ class SectionReadabilityTests(unittest.TestCase):
 
     def test_grounding_shows_verbatim_prompts_from_the_frozen_csv(self):
         for name, labels in SECTIONS.items():
-            body = section_text(self.documents[name], labels["grounding"])
+            body = normalize(section_text(self.documents[name], labels["grounding"]))
             for prompt in self.grounding_prompts[:2]:
-                self.assertIn(prompt, body, f"{name}: prompt not quoted verbatim")
-            self.assertNotIn(self.grounding_prompts[2], body,
+                self.assertIn(normalize(prompt), body, f"{name}: prompt not quoted verbatim")
+            self.assertNotIn(normalize(self.grounding_prompts[2]), body,
                              f"{name}: unselected subject must not be shown")
 
     def test_multi_image_shows_every_prompt_actually_sent(self):
         prompts = {attempt["prompt"] for attempt in self.multi["attempts"]}
         for name, labels in SECTIONS.items():
-            body = section_text(self.documents[name], labels["multi_image"])
+            body = normalize(section_text(self.documents[name], labels["multi_image"]))
             for prompt in prompts:
-                self.assertIn(prompt, body, f"{name}: prompt not quoted verbatim")
+                self.assertIn(normalize(prompt), body, f"{name}: prompt not quoted verbatim")
+
+    def test_no_collapsed_blocks_hide_the_input(self):
+        """A collapsed block hides the actual prompt behind an extra click."""
+        for name in SECTIONS:
+            self.assertNotIn("<details", self.documents[name], f"{name}: collapsed block found")
+            self.assertNotIn("<summary", self.documents[name], f"{name}: collapsed block found")
+
+    def test_opening_states_capabilities_before_any_measurement_section(self):
+        """A reader must learn what the model can do before reading test detail."""
+        for name, labels in SECTIONS.items():
+            text = self.documents[name]
+            self.assertIn(labels["highlights"], text)
+            self.assertLess(text.index(labels["highlights"]), text.index(labels["comparison"]))
+            opening = section_text(text, labels["highlights"])
+            self.assertIn("web_grounding", opening)
+            for marker in (("1 to 5 image files",) if not name.endswith("CN.md")
+                           else ("1 to 5 image files",)):
+                self.assertIn(marker, opening, f"{name}: multi-image capability not stated")
+            # A sentence that denies a ranking is required; only an asserted ranking is a defect.
+            asserted = ((r"(?<!不声称画质)(?<!没有评出)优于", r"毫不逊色", r"(?<!不)领先")
+                        if name.endswith("CN.md")
+                        else (r"(?<!does not claim MAI image quality )beats", r"outperforms"))
+            for pattern in asserted:
+                self.assertIsNone(re.search(pattern, opening),
+                                  f"{name}: unsupported quality ranking claimed")
+            denial = ("不声称画质优于或等同" if name.endswith("CN.md")
+                      else "does not claim MAI image quality beats or matches")
+            self.assertIn(denial, opening, f"{name}: quality-ranking boundary missing")
+
+    def test_measurement_sections_follow_the_image_comparison(self):
+        for name, labels in SECTIONS.items():
+            text = self.documents[name]
+            self.assertLess(text.index(labels["comparison"]), text.index(labels["grounding"]))
+            self.assertLess(text.index(labels["grounding"]), text.index(labels["multi_image"]))
 
     def test_input_precedes_the_first_metric_table(self):
         """A reader who cannot see the input cannot judge the number."""
@@ -70,13 +113,13 @@ class SectionReadabilityTests(unittest.TestCase):
             self.assertIn(labels["asked"], grounding)
             self.assertLess(grounding.index(labels["asked"]), grounding.index("| ---"),
                             f"{name}: metric table appears before the question")
-            self.assertLess(grounding.index("```text"), grounding.index("| ---"),
+            self.assertLess(grounding.index("\n> "), grounding.index("| ---"),
                             f"{name}: metric table appears before the prompt")
             self.assertIn(labels["controlled"], grounding)
 
             multi = section_text(self.documents[name], labels["multi_image"])
             self.assertIn(labels["determines"], multi)
-            self.assertLess(multi.index(labels["determines"]), multi.index("```text"),
+            self.assertLess(multi.index(labels["determines"]), multi.index("\n> "),
                             f"{name}: prompt appears before the question")
 
     def test_terminology_a_conclusion_depends_on_is_explained(self):

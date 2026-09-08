@@ -63,17 +63,15 @@ class MultiImageEditEvidenceTests(unittest.TestCase):
 
     def test_reports_render_the_section_with_measured_values_only(self):
         by_count = {entry["image_count"]: entry for entry in self.summary["capability"]}
-        for filename, heading, previous, following in (
-                ("README.md", "### Multi-Image Input Edit Test",
-                 "### Web Grounding Test", "### Measured API Settings"),
-                ("README-CN.md", "### 多图输入编辑测试",
-                 "### 联网信息补充测试", "### 本轮实际接口设置")):
+        for filename, heading, previous in (
+                ("README.md", "## Multi-Image Input Edit Test", "## Web Grounding Test"),
+                ("README-CN.md", "## 多图输入编辑测试", "## 联网信息补充测试")):
             text = (ROOT / filename).read_text("utf-8")
             self.assertEqual(text.count(heading), 1, filename)
             self.assertLess(text.index(previous), text.index(heading))
-            self.assertLess(text.index(heading), text.index(following))
+            collapsed = " ".join(text.split())
             for entry in by_count.values():
-                self.assertIn(entry["prompt"], text)
+                self.assertIn(" ".join(entry["prompt"].split()), collapsed)
                 self.assertIn(f"{entry['request_seconds']} s", text)
             self.assertIn("Only 1 to 5 image files are supported for edit requests.", text)
             self.assertIn("429", text)

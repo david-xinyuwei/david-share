@@ -2,6 +2,44 @@
 
 > **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
 
+## MAI-Image-2.6 在本轮中体现的能力
+
+以下三条都只依据本仓库的实测记录，`MAI-Image-2.6` 处于 Preview，无 SLA。
+
+1. **11 个场景与 GPT-Image-2 三档并排可比。** 本轮 87/88 个正式样本返回图片，两轮结果和原图全部保留在下方，可以逐题自行比较画面。逐图观察为非盲评的差异描述，没有评出优劣胜负，因此本文不声称画质优于或等同 GPT-Image-2。
+
+2. **一次编辑可以传多张参考图。** 服务端声明 `Only 1 to 5 image files are supported for edit requests.`，实测两张同时传入时第二张图的内容确实进入了输出。官方参数表把 `image` 标为单个 `string`，没有写这项能力。
+
+3. **`web_grounding=true` 可以在生成时补充联网信息。** 开启后模型会从 Bing Search 检索当前信息作为额外上下文，实测让两个题目的产品文字事实从错误变为与官方发布一致；代价是首试成功率下降、耗时明显上升。这与视觉领域的 dense grounding（密集视觉定位）不是同一件事。
+
+### 厂商公布的性能图表与本轮实测的关系
+
+下面三张图取自微软官网 MAI-Image-2.6 页面的 Performance 区（抓取于 2026-09-08，页面标注最后更新 2026-09-04），图内数据出处由厂商在图上标明。它们是厂商声明，测量条件与本仓库不同，因此与我们的实测互不验证；此处并列展示，供对照阅读。
+
+**文生图排行榜前十**
+
+![文生图排行榜前十](assets/official-microsoft-ai-20260908/arena-text-to-image-top10.png)
+
+厂商标注 MAI-Image-2.6 位列第 2（1,336），第 1 名是 GPT Image 2 Medium（1,381）。这是全提示词类别的总分排名，不等于逐场景画质判定。
+
+**文生图速度对比**
+
+![文生图速度对比](assets/official-microsoft-ai-20260908/speed-vs-gpt-image-2-medium.png)
+
+厂商脚注写明：内部压测，100 RPM，1024x1024，取中位数，误差带到 P90。对照基线只有 GPT-Image-2-Medium，没有 low 与 high 档。
+
+**图像编辑的质量与价格前沿**
+
+![图像编辑的质量与价格前沿](assets/official-microsoft-ai-20260908/quality-vs-price-frontier.png)
+
+横轴为第三方公布的每千张 API 参考价，纵轴为图像编辑 Arena Elo。厂商标注 MAI-Image-2.6（Elo 1324、$38.90）与 MAI-Image-2.6-Flash（Elo 1311、$19.50）位于 Pareto 前沿；GPT Image 2 high 为 Elo 1318、$211。这是图像编辑任务，与上面的文生图排行榜不是同一件事。价格为第三方公开参考价，不是微软报价，也不代表任何客户的实际成交价。
+
+本轮实测的同一统计量（成功请求耗时 P50，客户端记录）：MAI-Image-2.6 38.03 秒；GPT-Image-2 low 31.19 秒、medium 64.64 秒、high 171.26 秒。厂商图上 MAI 比 GPT-Image-2-Medium 快 1.31 倍，本轮为 1.70 倍：**方向一致，倍数不同**。
+
+两者不可互相验证：厂商在 100 RPM 压测下测量，本轮为每分钟 2 次请求、并发 1；本轮 MAI 部署在 Sweden Central、GPT 在 East US 2，客户端在同一台工作站，因此耗时差中包含区域与网络因素，无法从本轮数据里剥离。每组 22 个样本为描述性样本，不是容量或尾延迟结论。本仓库没有测过 `MAI-Image-2.6-Flash`，也没有复现 Arena 或 Artificial Analysis 的 Elo 分数。厂商图上没有的两条：本轮 GPT-Image-2 low 的 P50 为 31.19 秒，比 MAI 更快；MAI 比 GPT-Image-2 high 快 4.50 倍。
+
+[图表来源与逐项读数](assets/official-microsoft-ai-20260908/provenance.json) | [厂商页面](https://microsoft.ai/models/mai-image-2-6/)
+
 ## 本轮：两模型与全部质量档位
 
 [English](README.md) | [逐题图片](#并排图片对比) | [测量记录](data/paired-all-quality-20260907/5way_v2_results.json) | [指标](data/paired-all-quality-20260907/summary.json) | [请求记录](data/paired-all-quality-20260907/attempts.jsonl)
@@ -130,181 +168,6 @@ token 用量取自接口返回的 usage，不从模型或档位推算。没有�
 | 9 | 两轮银灰龙形侧脸布满螺旋，表面偏雕刻或骨瓷质感，背景虚化；R2另有月下城堡。 | 两轮蓝金镂空龙形近景有清晰眼部和卷须，R1顶部角被裁切，密集装饰的局部连接难辨。 | 两轮蓝金龙首覆盖大小螺旋，浅景深明确，皮肤更像金属雕饰，未见文字。 | R1蓝紫生物有圆瞳与珠粒状螺旋皮肤，卷须交叠处难辨；R2橙眼和多尺度螺旋清楚，未见文字。 |
 | 10 | 两轮猫都露齿持双槌打鼓，握槌明显拟人化；鼓组与海报添加英文，R2底鼓和下方文字被裁切。 | 两轮猫露齿举槌，部分前爪有动作模糊；衣服与鼓面增加英文，R2底鼓下缘被裁切。 | 两轮鼓手居中，毛发和镀铬反光清楚；增加I HATE MONDAYS或PAWS OF FURY等文字，部分爪槌边缘模糊。 | 两轮龇牙表情与双槌姿态明确，前景鼓组被画框裁切，另加HISS OFF或BAD KITTY等文字。 |
 | 11 | R1猴子弹梨形弦乐器，R2坐在石板路弹吉他；毛发与木纹清楚，书脊或小费碗另有未请求文字。 | 两轮主体弹吉他并增加演出文字，R1脸型偏幼猿，R2琴头被裁切；R1首次输出审核拦截后重试才返回此图。 | 两轮戴草帽猴子弹吉他，背景增加演出文字；R2拨弦手模糊、琴头右端被裁切。 | R1猴子在复古麦克风旁弹吉他，R2闭眼盘腿演奏；材质清楚，背景均有额外英文。 |
-
-### 联网信息补充测试
-
-本节测试通用的联网信息补充能力：在相同提示词下，对比 MAI-Image-2.6 的 `web_grounding=false/true`，观察文字事实准确性与生成耗时。公开新品资料只是测试题材，不是客户项目或客户采纳案例。
-
-**我们向模型提出的问题**
-
-两个题目都要求模型把真实产品信息画进海报：题目 1 要求列出官方发布的全部配色名与屏幕尺寸选项，题目 2 要求写出产品名、屏幕尺寸、计算平台，并标出官方命名的翻转使用模式与支持笔输入的表面。提示词只要求以官方发布信息为准，没有把正确答案写进提示词。
-
-<details><summary>题目 1：新品配色与尺寸 — 展开查看发给模型的完整提示词</summary>
-
-```text
-Create a polished square English-language launch poster for the Lenovo IdeaPad Vibe series announced at Lenovo Innovation World in September 2026. Present the official launch colour lineup as clearly separated colour swatches, each with its exact official colour name, and include the official screen-size options. Use a restrained stylized laptop silhouette and prioritize readable product information. Base factual claims on Lenovo's announcement; do not substitute colours or models from older IdeaPad products. Do not include prices, purchase links or unsupported specifications.
-```
-
-</details>
-
-<details><summary>题目 2：产品规格与使用模式 — 展开查看发给模型的完整提示词</summary>
-
-```text
-Create a polished square English-language creator poster for the Lenovo Yoga 9n 2-in-1 announced at Lenovo Innovation World in September 2026. Include its exact product name, screen size and computing platform. Illustrate and label its officially named convertible usage modes, and describe which surfaces support pen input. Use a simple stylized device illustration with clear readable labels and generous spacing. Base the facts on Lenovo's announcement rather than specifications from older Yoga 9i products. Preserve qualifiers for optional features. Do not include prices or invented specifications.
-```
-
-</details>
-
-**受控变量**
-
-唯一变化的是 `web_grounding` 开关。提示词、尺寸、模型版本、部署与轮数完全相同。
-
-完整补测为 12 个正式样本，另有 2 次预热。按已观察到的文字事实改善选取两个题目，保留全部两轮开／关对照，共 8 张原图，每组 4 个样本。下表仅统计这些选例，不是全量提升率。本节没有 GPT 对照，不能据此得出相对 GPT-Image-2 的优势结论。
-
-**文字事实核对结果**
-
-| 测试项 | 关闭联网 | 开启联网 |
-| --- | --- | --- |
-| 新品配色与尺寸 | 两轮均出现非官方配色名和错误屏幕选项 | 两轮均匹配七种官方配色名及 14/15 英寸选项 |
-| 产品规格与使用模式 | 屏幕尺寸和计算平台错误，均漏掉 Canvas 模式 | 两轮均写对 16 英寸、NVIDIA RTX Spark、五种模式及笔输入表面 |
-
-**耗时与请求情况**
-
-| 指标 | 关闭联网 | 开启联网 |
-| --- | --- | --- |
-| 返回图片 / 展示样本 | 4/4 | 4/4 |
-| 首试成功 / 展示样本 | 4/4 | 1/4 |
-| HTTP 请求次数 | 4 | 7 |
-| HTTP 408 次数 | 0 | 3 |
-| 成功请求平均耗时 | 35.75 秒 | 68.91 秒 |
-| 成功请求 P50 | 34.57 秒 | 67.23 秒 |
-| 含失败重试的逻辑调用平均耗时 | 35.77 秒 | 168.21 秒 |
-
-固定 1024x1024、`auto_aspect_ratio=false`，同一模型版本 2026-07-31、Sweden Central GlobalStandard 部署；第二轮反转请求顺序。两组仅联网开关不同，核对答案未加入提示词。成功请求耗时不含 JSON/base64 处理；逻辑调用耗时包含失败、退避和响应处理，不含外侧 5 秒间隔及最终 PNG 写盘。所有 HTTP 408 和重试均保留，服务未说明内部超时环节，不能把全部额外时间归因于搜索。
-
-文字事实改善不等于画面质量或产品外观保真。第二题第二轮开启图中，`Tablet Mode` 标签下仍画着竖起的屏幕，存在图文不一致。观察为 AI 辅助非盲评，只有少量重复，不是人工偏好或统计显著性结论。响应没有提供检索查询、来源 URL 或调用轨迹；usage 变化不能证明具体检索来源。
-
-#### 新品配色与尺寸 / 第1轮
-
-| `web_grounding=false` | `web_grounding=true` |
-| --- | --- |
-| ![Web grounding off, subject 1, round 1](data/lenovo-web-grounding-20260908/mai-image-2.6-web-off/r1/01_test.png) | ![Web grounding on, subject 1, round 1](data/lenovo-web-grounding-20260908/mai-image-2.6-web-on/r1/01_test.png) |
-
-#### 新品配色与尺寸 / 第2轮
-
-| `web_grounding=false` | `web_grounding=true` |
-| --- | --- |
-| ![Web grounding off, subject 1, round 2](data/lenovo-web-grounding-20260908/mai-image-2.6-web-off/r2/01_test.png) | ![Web grounding on, subject 1, round 2](data/lenovo-web-grounding-20260908/mai-image-2.6-web-on/r2/01_test.png) |
-
-#### 产品规格与使用模式 / 第1轮
-
-| `web_grounding=false` | `web_grounding=true` |
-| --- | --- |
-| ![Web grounding off, subject 2, round 1](data/lenovo-web-grounding-20260908/mai-image-2.6-web-off/r1/02_test.png) | ![Web grounding on, subject 2, round 1](data/lenovo-web-grounding-20260908/mai-image-2.6-web-on/r1/02_test.png) |
-
-#### 产品规格与使用模式 / 第2轮
-
-| `web_grounding=false` | `web_grounding=true` |
-| --- | --- |
-| ![Web grounding off, subject 2, round 2](data/lenovo-web-grounding-20260908/mai-image-2.6-web-off/r2/02_test.png) | ![Web grounding on, subject 2, round 2](data/lenovo-web-grounding-20260908/mai-image-2.6-web-on/r2/02_test.png) |
-
-完整原始数据保留，旧批次不重写；本节与上文双模型测试分别统计，复现命令见下方复现与测试章节。
-
-[原始结果](data/lenovo-web-grounding-20260908/5way_v2_results.json) | [全部请求](data/lenovo-web-grounding-20260908/attempts.jsonl) | [逐图观察](data/lenovo-web-grounding-20260908/visual-review.json) | [完整12样本统计](data/lenovo-web-grounding-20260908/web-grounding-summary.json) | [出处与哈希](data/lenovo-web-grounding-20260908/provenance.json)
-
-结果 SHA-256: `669617dd5d59d0748a0fc398d98ec4c59cb4b26cc9655138edf9b6c9622f3c1b`.
-
-官方参考：[IdeaPad Vibe](https://news.lenovo.com/pressroom/press-releases/colorful-ideapad-vibe-series-all-in-one-ai-pcs/) | [Yoga](https://news.lenovo.com/pressroom/press-releases/yoga-portfolio-new-ai-pcs-and-tablets/) | [MAI API](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image#request-parameters)
-
-### 多图输入编辑测试
-
-**要回答什么**
-
-要回答的问题是：这个编辑接口一次能接受几张参考图，多传的那张会不会真的被用上。官方文档没有答案，所以下面用实际调用来定。
-
-本节测试 `/mai/v1/images/edits` 接受几张参考图。官方参数表把 `image` 标为 `string`、描述为 the image，既没有多图说明也没有张数上限，因此下列张数与字段规则取自服务端自身的校验消息，属实测结果，不是官方支持承诺。
-
-**两张输入图**
-
-两张图都取自上文联网补测的模型输出，在这里复用为输入素材。左图是一张深色配色信息图，画面里有四个配色圆点、14/16 英寸标注和一台紫色笔记本；右图是一张浅色规格信息图，有一台棕色笔记本、屏幕文字和下排四种使用模式（其中平板模式带手写笔）。它们是模型生成内容，不是官方素材，图中的配色名与规格文字不代表官方产品信息。
-
-| 输入图 1（深色配色信息图） | 输入图 2（浅色规格信息图） |
-| --- | --- |
-| ![Input image 1](data/lenovo-web-grounding-20260908/mai-image-2.6-web-off/r1/01_test.png) | ![Input image 2](data/lenovo-web-grounding-20260908/mai-image-2.6-web-off/r1/02_test.png) |
-
-**第一组：各自用法的实际效果**
-
-能力组给每种输入配一条它能满足的提示词：单图用单数指令，双图用双数指令。两次提示词不同，因此本组只展示各自用法的实际效果，不能把差异归因于第二张图。
-
-单图提示词（发送 1 张图时）：
-
-```text
-Show the laptop from the reference image alone on a plain white studio background as a clean product photograph.
-```
-
-双图提示词（发送 2 张图时）：
-
-```text
-Show the laptops from both reference images together on one plain white studio background as a clean product photograph.
-```
-
-| 输入 | 请求耗时 | 输出大小 |
-| --- | --- | --- |
-| 单图输入 `image` x 1 | 31.619 s | 920,112 bytes |
-| 双图输入 `image` x 2 | 38.455 s | 932,695 bytes |
-
-| 单图输入的输出 | 双图输入的输出 |
-| --- | --- |
-| ![Single-image edit output](data/mai-multi-image-edit-20260908/01_single_image_matched_prompt.png) | ![Two-image edit output](data/mai-multi-image-edit-20260908/02_two_images_matched_prompt.png) |
-
-**第二组：第二张图到底有没有被用上**
-
-归因组固定同一条提示词，只更换输入图，并同时保留两条单图臂，使对照对称。该提示词对单张输入是欠定的，因此本组只用于归因，不代表单图编辑质量。
-
-本组三次调用都用这一条提示词：
-
-```text
-Place every laptop that appears in the reference images on one plain white studio background as a clean product photograph.
-```
-
-| 输入组合 | 张数 | 请求耗时 | 画面结果 |
-| --- | --- | --- | --- |
-| 只给输入图 1 | 1 | 31.783 s | 仅紫色机身，无第二张图元素 |
-| 只给输入图 2 | 1 | 33.511 s | 仅输入图 2 的设备，无紫色机身 |
-| 同时给两张 | 2 | 41.639 s | 两张图各自的设备与模式排列同时出现 |
-
-| 只给输入图 1 | 只给输入图 2 |
-| --- | --- |
-| ![Attribution, image 1 only](data/mai-multi-image-edit-20260908/attribution_01_single_image.png) | ![Attribution, image 2 only](data/mai-multi-image-edit-20260908/03_fixed_prompt_image_two_only.png) |
-
-| 同时给两张输入图 |
-| --- |
-| ![Attribution, both images](data/mai-multi-image-edit-20260908/attribution_02_two_image_fields.png) |
-
-每张输入图的独有元素只在该图在场时出现，因此第二张图被读取并影响了生成结果，不是被静默忽略。
-
-**第三组：能传几张，字段该怎么写**
-
-术语说明：`HTTP 429` 是配额用尽（本部署每分钟 2 次请求），表示请求没被处理，与接口拒绝某个张数是两件事；`HTTP 400` 才是接口明确拒绝。
-
-| multipart 字段 | 状态 | 服务端返回 |
-| --- | --- | --- |
-| `image` x 1 | 200 | 返回图片 |
-| `image` x 2 | 200 | 返回图片，第二张图生效 |
-| `image` x 3, 5 | 429 | 配额限制（本部署 2 RPM），既非能力否证也非支持证明 |
-| `image` x 9 | 400 | `Only 1 to 5 image files are supported for edit requests.` |
-| 不传图片 | 400 | `Only 1 to 5 image files are supported for edit requests.` |
-| `image[]`, `images`, `image1`+`image2`, `image_a`+`image_b`, `reference` | 400 | `File must be attached in a form field with a name starting with 'image'.` |
-
-服务端提示字段名需以 `image` 开头，但 `image1`、`image_a`、`image[]`、`images` 实测均被拒，实际只接受重复命名为 `image` 的字段。上限 1–5 取自服务端消息；3 与 5 张因配额未取得成功样本。
-
-**是否等于抠图**
-
-三张输出均为 PNG colour type 2，文件不含 alpha 通道，四角为不透明近白像素。因此白色背景是模型画出来的背景，不是透明区域，用于合成仍需另行抠图。接口没有 `background` 或 `output_format` 参数可要求透明输出，也没有 `mask` 参数，无法指定各输入图的哪一部分进入结果；输出是重新生成的画面，不是图像拼接。
-
-每种组合各调用一次，未做重复性验证；`MAI-Image-2.6` 为 Preview，无 SLA，接口行为可能变化。耗时为客户端 `requests.post` 往返时间，不是服务端推理时长。
-
-[能力组与归因组第三臂](data/mai-multi-image-edit-20260908/clean-results.json) | [字段形式](data/mai-multi-image-edit-20260908/field-shape-results.json) | [校验与上限](data/mai-multi-image-edit-20260908/limit-probe-results.json) | [探测脚本](data/mai-multi-image-edit-20260908/source)
 
 ### 本轮实际接口设置
 
@@ -594,3 +457,164 @@ python data/mai-multi-image-edit-20260908/source/check_alpha_and_cutout.py
 | --- | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 11, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/11_test.png) | ![GPT-Image-2 low, prompt 11, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/11_test.png) | ![GPT-Image-2 medium, prompt 11, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/11_test.png) | ![GPT-Image-2 high, prompt 11, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/11_test.png) |
 | 35.77 s<br>1725 KiB | 27.29 s<br>1615 KiB | 56.27 s<br>1541 KiB | 152.77 s<br>1715 KiB |
+
+## 联网信息补充测试
+
+本节测试通用的联网信息补充能力：在相同提示词下，对比 MAI-Image-2.6 的 `web_grounding=false/true`，观察文字事实准确性与生成耗时。公开新品资料只是测试题材，不是客户项目或客户采纳案例。
+
+**我们向模型提出的问题**
+
+两个题目都要求模型把真实产品信息画进海报：题目 1 要求列出官方发布的全部配色名与屏幕尺寸选项，题目 2 要求写出产品名、屏幕尺寸、计算平台，并标出官方命名的翻转使用模式与支持笔输入的表面。提示词只要求以官方发布信息为准，没有把正确答案写进提示词。
+
+题目 1（新品配色与尺寸）发给模型的完整提示词：
+
+> Create a polished square English-language launch poster for the Lenovo IdeaPad Vibe series announced at Lenovo Innovation World in September 2026. Present the official launch colour lineup as clearly separated colour swatches, each with its exact official colour name, and include the official screen-size options. Use a restrained stylized laptop silhouette and prioritize readable product information. Base factual claims on Lenovo's announcement; do not substitute colours or models from older IdeaPad products. Do not include prices, purchase links or unsupported specifications.
+
+题目 2（产品规格与使用模式）发给模型的完整提示词：
+
+> Create a polished square English-language creator poster for the Lenovo Yoga 9n 2-in-1 announced at Lenovo Innovation World in September 2026. Include its exact product name, screen size and computing platform. Illustrate and label its officially named convertible usage modes, and describe which surfaces support pen input. Use a simple stylized device illustration with clear readable labels and generous spacing. Base the facts on Lenovo's announcement rather than specifications from older Yoga 9i products. Preserve qualifiers for optional features. Do not include prices or invented specifications.
+
+**受控变量**
+
+唯一变化的是 `web_grounding` 开关。提示词、尺寸、模型版本、部署与轮数完全相同。
+
+完整补测为 12 个正式样本，另有 2 次预热。按已观察到的文字事实改善选取两个题目，保留全部两轮开／关对照，共 8 张原图，每组 4 个样本。下表仅统计这些选例，不是全量提升率。本节没有 GPT 对照，不能据此得出相对 GPT-Image-2 的优势结论。
+
+**文字事实核对结果**
+
+| 测试项 | 关闭联网 | 开启联网 |
+| --- | --- | --- |
+| 新品配色与尺寸 | 两轮均出现非官方配色名和错误屏幕选项 | 两轮均匹配七种官方配色名及 14/15 英寸选项 |
+| 产品规格与使用模式 | 屏幕尺寸和计算平台错误，均漏掉 Canvas 模式 | 两轮均写对 16 英寸、NVIDIA RTX Spark、五种模式及笔输入表面 |
+
+**耗时与请求情况**
+
+| 指标 | 关闭联网 | 开启联网 |
+| --- | --- | --- |
+| 返回图片 / 展示样本 | 4/4 | 4/4 |
+| 首试成功 / 展示样本 | 4/4 | 1/4 |
+| HTTP 请求次数 | 4 | 7 |
+| HTTP 408 次数 | 0 | 3 |
+| 成功请求平均耗时 | 35.75 秒 | 68.91 秒 |
+| 成功请求 P50 | 34.57 秒 | 67.23 秒 |
+| 含失败重试的逻辑调用平均耗时 | 35.77 秒 | 168.21 秒 |
+
+固定 1024x1024、`auto_aspect_ratio=false`，同一模型版本 2026-07-31、Sweden Central GlobalStandard 部署；第二轮反转请求顺序。两组仅联网开关不同，核对答案未加入提示词。成功请求耗时不含 JSON/base64 处理；逻辑调用耗时包含失败、退避和响应处理，不含外侧 5 秒间隔及最终 PNG 写盘。所有 HTTP 408 和重试均保留，服务未说明内部超时环节，不能把全部额外时间归因于搜索。
+
+文字事实改善不等于画面质量或产品外观保真。第二题第二轮开启图中，`Tablet Mode` 标签下仍画着竖起的屏幕，存在图文不一致。观察为 AI 辅助非盲评，只有少量重复，不是人工偏好或统计显著性结论。响应没有提供检索查询、来源 URL 或调用轨迹；usage 变化不能证明具体检索来源。
+
+#### 新品配色与尺寸 / 第1轮
+
+| `web_grounding=false` | `web_grounding=true` |
+| --- | --- |
+| ![Web grounding off, subject 1, round 1](data/lenovo-web-grounding-20260908/mai-image-2.6-web-off/r1/01_test.png) | ![Web grounding on, subject 1, round 1](data/lenovo-web-grounding-20260908/mai-image-2.6-web-on/r1/01_test.png) |
+
+#### 新品配色与尺寸 / 第2轮
+
+| `web_grounding=false` | `web_grounding=true` |
+| --- | --- |
+| ![Web grounding off, subject 1, round 2](data/lenovo-web-grounding-20260908/mai-image-2.6-web-off/r2/01_test.png) | ![Web grounding on, subject 1, round 2](data/lenovo-web-grounding-20260908/mai-image-2.6-web-on/r2/01_test.png) |
+
+#### 产品规格与使用模式 / 第1轮
+
+| `web_grounding=false` | `web_grounding=true` |
+| --- | --- |
+| ![Web grounding off, subject 2, round 1](data/lenovo-web-grounding-20260908/mai-image-2.6-web-off/r1/02_test.png) | ![Web grounding on, subject 2, round 1](data/lenovo-web-grounding-20260908/mai-image-2.6-web-on/r1/02_test.png) |
+
+#### 产品规格与使用模式 / 第2轮
+
+| `web_grounding=false` | `web_grounding=true` |
+| --- | --- |
+| ![Web grounding off, subject 2, round 2](data/lenovo-web-grounding-20260908/mai-image-2.6-web-off/r2/02_test.png) | ![Web grounding on, subject 2, round 2](data/lenovo-web-grounding-20260908/mai-image-2.6-web-on/r2/02_test.png) |
+
+完整原始数据保留，旧批次不重写；本节与上文双模型测试分别统计，复现命令见下方复现与测试章节。
+
+[原始结果](data/lenovo-web-grounding-20260908/5way_v2_results.json) | [全部请求](data/lenovo-web-grounding-20260908/attempts.jsonl) | [逐图观察](data/lenovo-web-grounding-20260908/visual-review.json) | [完整12样本统计](data/lenovo-web-grounding-20260908/web-grounding-summary.json) | [出处与哈希](data/lenovo-web-grounding-20260908/provenance.json)
+
+结果 SHA-256: `669617dd5d59d0748a0fc398d98ec4c59cb4b26cc9655138edf9b6c9622f3c1b`.
+
+官方参考：[IdeaPad Vibe](https://news.lenovo.com/pressroom/press-releases/colorful-ideapad-vibe-series-all-in-one-ai-pcs/) | [Yoga](https://news.lenovo.com/pressroom/press-releases/yoga-portfolio-new-ai-pcs-and-tablets/) | [MAI API](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image#request-parameters)
+
+## 多图输入编辑测试
+
+**要回答什么**
+
+要回答的问题是：这个编辑接口一次能接受几张参考图，多传的那张会不会真的被用上。官方文档没有答案，所以下面用实际调用来定。
+
+本节测试 `/mai/v1/images/edits` 接受几张参考图。官方参数表把 `image` 标为 `string`、描述为 the image，既没有多图说明也没有张数上限，因此下列张数与字段规则取自服务端自身的校验消息，属实测结果，不是官方支持承诺。
+
+**两张输入图**
+
+两张图都取自上文联网补测的模型输出，在这里复用为输入素材。左图是一张深色配色信息图，画面里有四个配色圆点、14/16 英寸标注和一台紫色笔记本；右图是一张浅色规格信息图，有一台棕色笔记本、屏幕文字和下排四种使用模式（其中平板模式带手写笔）。它们是模型生成内容，不是官方素材，图中的配色名与规格文字不代表官方产品信息。
+
+| 输入图 1（深色配色信息图） | 输入图 2（浅色规格信息图） |
+| --- | --- |
+| ![Input image 1](data/lenovo-web-grounding-20260908/mai-image-2.6-web-off/r1/01_test.png) | ![Input image 2](data/lenovo-web-grounding-20260908/mai-image-2.6-web-off/r1/02_test.png) |
+
+**第一组：各自用法的实际效果**
+
+能力组给每种输入配一条它能满足的提示词：单图用单数指令，双图用双数指令。两次提示词不同，因此本组只展示各自用法的实际效果，不能把差异归因于第二张图。
+
+发送 1 张图时的提示词：
+
+> Show the laptop from the reference image alone on a plain white studio background as a clean product photograph.
+
+发送 2 张图时的提示词：
+
+> Show the laptops from both reference images together on one plain white studio background as a clean product photograph.
+
+| 输入 | 请求耗时 | 输出大小 |
+| --- | --- | --- |
+| 单图输入 `image` x 1 | 31.619 s | 920,112 bytes |
+| 双图输入 `image` x 2 | 38.455 s | 932,695 bytes |
+
+| 单图输入的输出 | 双图输入的输出 |
+| --- | --- |
+| ![Single-image edit output](data/mai-multi-image-edit-20260908/01_single_image_matched_prompt.png) | ![Two-image edit output](data/mai-multi-image-edit-20260908/02_two_images_matched_prompt.png) |
+
+**第二组：第二张图到底有没有被用上**
+
+归因组固定同一条提示词，只更换输入图，并同时保留两条单图臂，使对照对称。该提示词对单张输入是欠定的，因此本组只用于归因，不代表单图编辑质量。
+
+本组三次调用都用同一条提示词：
+
+> Place every laptop that appears in the reference images on one plain white studio background as a clean product photograph.
+
+| 输入组合 | 张数 | 请求耗时 | 画面结果 |
+| --- | --- | --- | --- |
+| 只给输入图 1 | 1 | 31.783 s | 仅紫色机身，无第二张图元素 |
+| 只给输入图 2 | 1 | 33.511 s | 仅输入图 2 的设备，无紫色机身 |
+| 同时给两张 | 2 | 41.639 s | 两张图各自的设备与模式排列同时出现 |
+
+| 只给输入图 1 | 只给输入图 2 |
+| --- | --- |
+| ![Attribution, image 1 only](data/mai-multi-image-edit-20260908/attribution_01_single_image.png) | ![Attribution, image 2 only](data/mai-multi-image-edit-20260908/03_fixed_prompt_image_two_only.png) |
+
+| 同时给两张输入图 |
+| --- |
+| ![Attribution, both images](data/mai-multi-image-edit-20260908/attribution_02_two_image_fields.png) |
+
+每张输入图的独有元素只在该图在场时出现，因此第二张图被读取并影响了生成结果，不是被静默忽略。
+
+**第三组：能传几张，字段该怎么写**
+
+术语说明：`HTTP 429` 是配额用尽（本部署每分钟 2 次请求），表示请求没被处理，与接口拒绝某个张数是两件事；`HTTP 400` 才是接口明确拒绝。
+
+| multipart 字段 | 状态 | 服务端返回 |
+| --- | --- | --- |
+| `image` x 1 | 200 | 返回图片 |
+| `image` x 2 | 200 | 返回图片，第二张图生效 |
+| `image` x 3, 5 | 429 | 配额限制（本部署 2 RPM），既非能力否证也非支持证明 |
+| `image` x 9 | 400 | `Only 1 to 5 image files are supported for edit requests.` |
+| 不传图片 | 400 | `Only 1 to 5 image files are supported for edit requests.` |
+| `image[]`, `images`, `image1`+`image2`, `image_a`+`image_b`, `reference` | 400 | `File must be attached in a form field with a name starting with 'image'.` |
+
+服务端提示字段名需以 `image` 开头，但 `image1`、`image_a`、`image[]`、`images` 实测均被拒，实际只接受重复命名为 `image` 的字段。上限 1–5 取自服务端消息；3 与 5 张因配额未取得成功样本。
+
+**是否等于抠图**
+
+三张输出均为 PNG colour type 2，文件不含 alpha 通道，四角为不透明近白像素。因此白色背景是模型画出来的背景，不是透明区域，用于合成仍需另行抠图。接口没有 `background` 或 `output_format` 参数可要求透明输出，也没有 `mask` 参数，无法指定各输入图的哪一部分进入结果；输出是重新生成的画面，不是图像拼接。
+
+每种组合各调用一次，未做重复性验证；`MAI-Image-2.6` 为 Preview，无 SLA，接口行为可能变化。耗时为客户端 `requests.post` 往返时间，不是服务端推理时长。
+
+[能力组与归因组第三臂](data/mai-multi-image-edit-20260908/clean-results.json) | [字段形式](data/mai-multi-image-edit-20260908/field-shape-results.json) | [校验与上限](data/mai-multi-image-edit-20260908/limit-probe-results.json) | [探测脚本](data/mai-multi-image-edit-20260908/source)
