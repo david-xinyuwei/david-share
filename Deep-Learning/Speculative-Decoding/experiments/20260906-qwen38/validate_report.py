@@ -17,8 +17,8 @@ ROOT = Path(__file__).resolve().parent
 MANIFEST = "evidence/files.json"
 RULES = "evidence/rule-results.json"
 IGNORED_PARTS = {"__pycache__", ".venv", "regenerated", ".pytest_cache"}
-README = "README.md"
-LANGUAGES = ((False, ""), (True, "_CN"))
+READMES = {"README.md": False, "README_CN.md": True}
+LANGUAGE_SWITCH = "[English](README.md) | [中文](README_CN.md)"
 
 
 def topic_dir(root):
@@ -80,7 +80,7 @@ def result_table(summary, chinese):
             sections.append("本次所有被评分器判对的回答都正常结束，因此“答对数”和“正常结束且答对数”相同，不重复列两遍。两项原始字段均保留在数据文件中。")
         else:
             sections.extend(["正常结束且答对的数量另列如下，不能用全部答对数替代：", markdown_table(accuracy_header, normal_accuracy)])
-        sections.append("<details>\n<summary>查看三次运行的截断情况</summary>\n\n" + markdown_table(truncation_header, truncation) + "\n\n达到输出上限的回答仍保留在每次 32 题的分母中。\n\n</details>")
+        sections.append("### 三次运行的截断情况\n\n" + markdown_table(truncation_header, truncation) + "\n\n达到输出上限的回答仍保留在每次 32 题的分母中。")
     else:
         performance_header = ["Concurrency", "Route", "Output tok/s", "Group wall (s)"]
         accuracy_header = ["Concurrency", "Route", "Code correct /32", "Math correct /32"]
@@ -91,7 +91,7 @@ def result_table(summary, chinese):
             sections.append("All answers marked correct by the graders stopped normally in this run, so raw-correct and normal-stop-correct counts coincide. Both fields remain in the data; duplicate columns are omitted here.")
         else:
             sections.extend(["Normal-stop-correct counts are shown separately and must not be replaced by raw-correct counts:", markdown_table(accuracy_header, normal_accuracy)])
-        sections.append("<details>\n<summary>Length stops across the three runs</summary>\n\n" + markdown_table(truncation_header, truncation) + "\n\nLength-stopped responses remain in each 32-task denominator.\n\n</details>")
+        sections.append("### Length Stops Across the Three Runs\n\n" + markdown_table(truncation_header, truncation) + "\n\nLength-stopped responses remain in each 32-task denominator.")
     return "\n\n".join(sections)
 
 
@@ -199,37 +199,44 @@ def verify_manifest(root):
 def verify_local_links(root):
     topic = topic_dir(root).resolve()
     experiment = f"experiments/{root.name}/"
-    text = (topic / README).read_text(encoding="utf-8")
-    for link in re.findall(r"!?\[[^\]]*\]\(([^)]+)\)", text):
-        target = urlsplit(link)
-        if target.scheme or link.startswith("#"):
-            continue
-        path = (topic / unquote(target.path)).resolve()
-        require(path.is_relative_to(topic) and path.exists(), "BROKEN_LOCAL_LINK:" + target.path)
-        require(path.suffix.lower() != ".md", "NESTED_MARKDOWN_LINK:" + target.path)
-    require(text.count("```") % 2 == 0, "UNPAIRED_CODE_FENCE")
-    require(text.count(f"python {experiment}validate_report.py") == len(LANGUAGES), "REPLAY_ENTRY_MISSING")
-    opening = text.split("\n## ", 1)[0]
-    badges = re.findall(r"\[!\[[^\]]*\]\((https?://[^)]+)\)\]\([^)]+\)", opening)
-    for signature in ("img.shields.io/badge/vLLM-", "img.shields.io/badge/GPU-",
-                      "github.com/david-xinyuwei/david-share/actions/workflows/speculative-decoding-ci.yml/badge.svg"):
-        require(any(signature in badge for badge in badges), "READER_BADGE_MISSING")
-    for marker in ("validate_report.py --refresh", "--figure ", "重新生成图片和报告", "Regenerating figures and report content",
-                   "本次文档修订", "documentation revision"):
-        require(marker not in text, "INTERNAL_MAINTENANCE_IN_READER_PAGE")
-    require('<a id="chinese"></a>' in text and "[中文](#chinese)" in opening, "CHINESE_SECTION_ENTRY_MISSING")
-    for chinese, _suffix in LANGUAGES:
-        require(has_heading(text, "## 你能用它做什么" if chinese else "## What You Can Do With This Repository"), "CUSTOMER_VALUE_ENTRY_MISSING")
+    documented = set()
+    for filename, chinese in READMES.items():
+        text = (topic / filename).read_text(encoding="utf-8")
+        for link in re.findall(r"!?\[[^\]]*\]\(([^)]+)\)", text):
+            target = urlsplit(link)
+            if target.scheme or link.startswith("#"):
+                continue
+            relative = unquote(target.path)
+            path = (topic / relative).resolve()
+            require(path.is_relative_to(topic) and path.exists(), "BROKEN_LOCAL_LINK:" + relative)
+            require(path.suffix.lower() != ".md" or relative in READMES, "NESTED_MARKDOWN_LINK:" + relative)
+            documented.add(PurePosixPath(relative).parts[0])
+        require(text.count("```") % 2 == 0, "UNPAIRED_CODE_FENCE")
+        require(LANGUAGE_SWITCH in text.split("\n## ", 1)[0], "LANGUAGE_SWITCH_MISSING:" + filename)
+        require(f"python {experiment}validate_report.py" in text, "REPLAY_ENTRY_MISSING:" + filename)
+        require("<details" not in text.lower(), "COLLAPSED_SECTION_IN_READER_PAGE:" + filename)
+        badges = re.findall(r"\[!\[[^\]]*\]\((https?://[^)]+)\)\]\([^)]+\)", text.split("\n## ", 1)[0])
+        for signature in ("img.shields.io/badge/vLLM-", "img.shields.io/badge/GPU-",
+                          "github.com/david-xinyuwei/david-share/actions/workflows/speculative-decoding-ci.yml/badge.svg"):
+            require(any(signature in badge for badge in badges), "READER_BADGE_MISSING:" + filename)
+        for marker in ("validate_report.py --refresh", "--figure ", "重新生成图片和报告", "Regenerating figures and report content",
+                       "本次文档修订", "documentation revision"):
+            require(marker not in text, "INTERNAL_MAINTENANCE_IN_READER_PAGE:" + filename)
+        require(has_heading(text, "## 你能用它做什么" if chinese else "## What You Can Do With This Repository"), "CUSTOMER_VALUE_ENTRY_MISSING:" + filename)
+        require(has_heading(text, "## 仓库目录" if chinese else "## Repository Layout"), "REPOSITORY_LAYOUT_MISSING:" + filename)
+        require(has_heading(text, "## 测试与离线复算" if chinese else "## Tests and Offline Replay"), "TEST_DOCUMENTATION_MISSING:" + filename)
         flow = f"]({experiment}images/test-flow-{'cn' if chinese else 'en'}.png)"
-        require(flow in text and (root / f"images/test-flow-{'cn' if chinese else 'en'}.png").is_file(), "TEST_FLOW_MISSING")
-        duration_heading = "### 各阶段测试耗时" if chinese else "### Measured Duration by Stage"
-        require(has_heading(text, duration_heading), "STAGE_DURATION_SECTION_MISSING")
-        for collapsed in re.findall(r"<details\b[^>]*>.*?</details>", text, re.S | re.I):
-            require(duration_heading not in collapsed, "STAGE_DURATIONS_COLLAPSED")
-    verify_page_anchors(text)
+        require(flow in text and (root / f"images/test-flow-{'cn' if chinese else 'en'}.png").is_file(), "TEST_FLOW_MISSING:" + filename)
+        require(has_heading(text, "### 各阶段测试耗时" if chinese else "### Measured Duration by Stage"), "STAGE_DURATION_SECTION_MISSING:" + filename)
+        verify_page_anchors(text)
+    for path in topic.iterdir():
+        name = path.name
+        if name.startswith(".") or name in READMES:
+            continue
+        require(name in documented, "UNDOCUMENTED_REPOSITORY_ENTRY:" + name)
     for path in topic.rglob("*.md"):
         relative = path.relative_to(topic).as_posix()
-        require(relative == README or set(path.relative_to(topic).parts) & IGNORED_PARTS, "NESTED_MARKDOWN_FILE:" + relative)
+        require(relative in READMES or set(path.relative_to(topic).parts) & IGNORED_PARTS, "NESTED_MARKDOWN_FILE:" + relative)
 
 
 def validate_data(root):
@@ -288,15 +295,15 @@ def validate_data(root):
 def validate(root=ROOT, *, refresh=False):
     root = root.resolve()
     groups, summary, run = validate_data(root)
-    path = topic_dir(root) / README
-    text = path.read_text(encoding="utf-8")
-    for chinese, suffix in LANGUAGES:
+    for filename, chinese in READMES.items():
+        path = topic_dir(root) / filename
+        text = path.read_text(encoding="utf-8")
         for name, value in (("RESULT_TABLE", result_table(summary, chinese)),
                             ("LATENCY_TABLE", latency_table(groups, summary, chinese)),
                             ("COUNTEREXAMPLE", counterexample(groups, chinese))):
-            text = generated_block(text, name + suffix, value, refresh=refresh)
-    if refresh:
-        path.write_text(text, encoding="utf-8")
+            text = generated_block(text, name, value, refresh=refresh)
+        if refresh:
+            path.write_text(text, encoding="utf-8")
     verify_local_links(root)
     if refresh:
         dump_json(root / MANIFEST, file_manifest(root))
@@ -307,9 +314,9 @@ def validate(root=ROOT, *, refresh=False):
             ("recorded-group-score-and-token-reconciliation", ["data/groups.json", "data/summary.json"]),
             ("run-id-measurement-duration-and-coverage", ["evidence/run.json", "data/groups.json"]),
             ("actual-request-and-executed-source-hashes", ["evidence/request-examples.json", "source/"]),
-            ("generated-bilingual-result-tables", ["../../README.md"]),
-            ("local-links-and-reader-entry", ["../../README.md"]),
-            ("single-readme-layout-and-maintenance-boundary", ["../../README.md"]),
+            ("generated-bilingual-result-tables", ["../../README.md", "../../README_CN.md"]),
+            ("local-links-and-reader-entry", ["../../README.md", "../../README_CN.md"]),
+            ("single-readme-layout-and-maintenance-boundary", ["../../README.md", "../../README_CN.md"]),
             ("published-file-integrity", [MANIFEST]),
         )
     ]

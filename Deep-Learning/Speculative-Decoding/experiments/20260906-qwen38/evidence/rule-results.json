@@ -29,21 +29,24 @@
       "id": "generated-bilingual-result-tables",
       "status": "PASS",
       "evidence": [
-        "../../README.md"
+        "../../README.md",
+        "../../README_CN.md"
       ]
     },
     {
       "id": "local-links-and-reader-entry",
       "status": "PASS",
       "evidence": [
-        "../../README.md"
+        "../../README.md",
+        "../../README_CN.md"
       ]
     },
     {
       "id": "single-readme-layout-and-maintenance-boundary",
       "status": "PASS",
       "evidence": [
-        "../../README.md"
+        "../../README.md",
+        "../../README_CN.md"
       ]
     },
     {
@@ -54,5 +57,5 @@
       ]
     }
   ],
-  "manifest_sha256": "db4b51b2415b25da8fa0c590b8e7f954fb80c652ea3440d2b5f2dd8a3be51536"
+  "manifest_sha256": "83150d14d083dfd00b33990ecca3384203381a5981e65a0077b469f6705f919b"
 }
