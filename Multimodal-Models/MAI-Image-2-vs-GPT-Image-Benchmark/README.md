@@ -1,243 +1,209 @@
-# MAI-Image-2.6: Azure Image Generation Benchmark with Historical Baselines
+# MAI-Image-2.6 vs GPT-Image-2: All Quality Tiers
 
 > **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
 
-<!-- MAI-2.6-UPDATE-START -->
-## September 7, 2026: MAI-Image-2.6 Results
+## Current Run: Both Models and All Quality Tiers
 
-[中文](README-CN.md) | [Measurements](data/mai-image-2.6-20260907/summary.json) | [Per-request evidence](data/mai-image-2.6-20260907/attempts.jsonl) | [Visual observations](data/mai-image-2.6-20260907/quality-review.json)
+[中文](README-CN.md) | [Side-by-side images](#side-by-side-image-comparison) | [Measurements](data/paired-all-quality-20260907/5way_v2_results.json) | [Metrics](data/paired-all-quality-20260907/summary.json) | [Attempts](data/paired-all-quality-20260907/attempts.jsonl)
 
-**MAI-Image-2.6 completed all 22 samples on the first attempt. Mean request latency was 38.73 s, P50 36.92 s, and descriptive P95 52.34 s.** This run does not demonstrate a speed improvement over the historical measurements below. The model, deployment, test date, and client location differ; the historical comparison is not a contemporaneous controlled A/B test.
+**This run returned images for 87/88 formal samples; 1 returned no image. The 4 warmups are excluded from the formal denominator.** Requests were interleaved on the same client with identical prompts, dimensions and repetitions. Deployment regions differ, so end-to-end latency differences cannot be attributed solely to the models. Quality observations are unblinded, not an official benchmark score, human-preference win rate or production reliability claim.
 
 ### Test Contract
 
-| Item | September measurement |
-| --- | --- |
-| Model / version | **MAI-Image-2.6 / 2026-07-31**, verified from the deployed resource; not GPT-Image-2.6 or Flash |
-| Deployment | Microsoft Foundry, Global Standard, Sweden Central; configured limit 2 requests/minute |
-| Client | Local Windows 11 ARM64 workstation, Python 3.13.15, requests 2.34.2; not the historical East US client |
-| Started / finished | **2026-09-07 14:11:51–14:28:30 UTC+08:00**, including warmup and waits; UTC timestamps are preserved per request |
-| Total duration | **999.11 s** (16 min 39 s), including warmup and waits |
-| Inputs | The same [11 prompts](prompts.csv), original order, 1024×1024 PNG |
-| Procedure | 1 excluded warmup with `blue circle`; 2 rounds; concurrency 1; 5 s between calls; up to 3 attempts using the original MAI backoff |
-| API / authentication | `/mai/v1/images/generations`, resource API key from an environment variable |
-| Request parameters | `model`, `prompt`, `width=1024`, `height=1024`; no explicit quality, seed, web-grounding, or aspect-ratio option |
-| Changes from April | Only the new deployment is selected; five-group order reversal is not applicable to a single group. Authentication and client location differ. Per-attempt evidence and checkpoints were added. |
+| Configuration | Model version | Quality field | Dimensions | Resource region | Formal samples |
+| --- | --- | --- | --- | --- | --- |
+| MAI-Image-2.6 | 2026-07-31 | omitted | 1024x1024 | swedencentral | 22 |
+| GPT-Image-2 low | 2026-04-21 | low | 1024x1024 | eastus2 | 22 |
+| GPT-Image-2 medium | 2026-04-21 | medium | 1024x1024 | eastus2 | 22 |
+| GPT-Image-2 high | 2026-04-21 | high | 1024x1024 | eastus2 | 22 |
 
-The request payload, prompt sequence, resolution, warmup, round count, and inter-call wait follow the earlier procedure. This is an **adapted single-model extension**, not a rerun of all five historical configurations. No GPT model or Flash deployment was invoked in September.
+The original eleven-prompt CSV is unchanged. Each configuration receives one `blue circle` warmup. Each prompt runs MAI, GPT low, medium, high in round 1, with reversed configuration order in round 2. Concurrency is 1, with 5 seconds after each logical call and at most 3 attempts under the original retry backoff. Each GlobalStandard deployment is configured for 2 requests/minute; GPT tiers share one deployment and limit. Request timeouts are 180 seconds for MAI and 300 for GPT.
 
-### Measured Performance
+Client: Windows-11-10.0.26200-SP0, ARM64, Python 3.13.15, requests 2.34.2.
 
-| Metric | Result |
-| --- | ---: |
-| Successful / planned samples | **22 / 22** |
-| First-attempt successful samples | **22 / 22** |
-| Formal HTTP attempts / HTTP 429 responses | **22 / 0** |
-| Mean request latency | **38.73 s** |
-| P50 / descriptive P95 | **36.92 s / 52.34 s** |
-| Sample standard deviation | **5.73 s** |
-| Minimum / maximum | **33.45 s / 52.75 s** |
-| Round 1 / round 2 mean | **38.10 s / 39.36 s** |
-| Mean logical-request duration | **38.79 s** |
-| Observed serial completion rate, including 5 s waits | **1.38 images/min** |
-| Output tokens per successful image | **1,024**, returned under `usage.num_output_tokens` |
-| Estimated mean cost per formal image | **USD 0.039083** |
-| Estimated total, 22 formal images | **USD 0.859824** |
-| Estimated total including one warmup | **USD 0.898741** |
+Formal interval (UTC): `2026-09-07T12:32:56.332837+00:00` to `2026-09-07T16:24:46.795573+00:00`. Formal window including waits: **13,910.46 s**. Observed mixed-workload completion rate: **0.38 images/min** (not per-model or maximum throughput).
 
-Request latency uses the original boundary: immediately before `requests.post` until its return, before JSON parsing, base64 decoding, or writing the PNG. Logical-request duration also includes unsuccessful attempts, retry waits, decoding, and response-metadata persistence; there were **no retries in this run**. The observed serial completion rate is not the service's maximum throughput. P95 uses linear interpolation at `(n-1)×0.95` over 22 observations, not a production tail-latency guarantee.
+### Architecture and Measurement Boundary
 
-Cost is **returned usage × published list price**, not an Azure invoice: USD 5/M text-input tokens and USD 38/M image-output tokens, from the [September 4 Foundry announcement](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/mai-image-2-6-and-mai-image-2-6-flash-quality-and-speed-at-production-scale/4550970). Input-image usage was zero. Raw response metadata retains the usage fields; the original `cost_usd` fields are not retroactively filled. [The offline summary](scripts/summarize_mai_run.py) owns the derived estimate.
-
-### Every Prompt, Both Rounds
-
-All values below are request seconds. The slow second-round samples remain in the result; neither a best-of run nor a retry-selected result replaces them.
-
-| # | Prompt | Round 1 | Round 2 | Mean |
-| --- | --- | ---: | ---: | ---: |
-| 1 | Chrome kimono metallic maiden | 36.97 | 34.31 | 35.64 |
-| 2 | Portal into mythical forest | 36.75 | 37.12 | 36.94 |
-| 3 | Tiny astronaut hatching on moon | 34.81 | 33.45 | 34.13 |
-| 4 | Tiny red dragon macro | 40.48 | 36.09 | 38.28 |
-| 5 | Fluffy creature fantasy | 35.05 | 52.56 | 43.81 |
-| 6 | Hidden jungle cenote | 39.36 | 45.45 | 42.40 |
-| 7 | Tech-savvy girl holographic UI | 48.20 | 36.93 | 42.57 |
-| 8 | Universe fractal worlds | 37.03 | 52.75 | 44.89 |
-| 9 | Fractal mythical creature | 36.92 | 35.88 | 36.40 |
-| 10 | Angry cat playing drums | 38.11 | 34.95 | 36.53 |
-| 11 | Monkey playing music | 35.35 | 33.47 | 34.41 |
-
-### Image Quality: Observations, Not a Score
-
-All **22 original 1024×1024 PNGs** were decoded, hash-checked, and visually inspected. The inspection is **AI-assisted, unblinded, and qualitative**, not a human preference study, a benchmark accuracy score, or a claim that more output tokens mean better images.
-
-- Both rounds show the requested primary subjects and rich surface detail: metallic clothing and flowers, the bedroom portal, lunar eggshell scene, and water/stone lighting in the cenote.
-- Prompt 7 is less consistent: round 1 uses longer silver hair than the requested pixie cut; round 2 is closer. Both choose an anime-style treatment and introduce extra UI text.
-- Several prompts introduce unsolicited slogans or labels, especially 2, 4, 7, 10, and 11. Some larger text is legible, but small text is uneven; no exact-text accuracy was measured.
-- Prompt 11 changes from a monkey-like subject in round 1 to an ape-like subject in round 2. A convincing image does not guarantee exact category compliance.
-- For prompt 1, the new samples retain the full head and dark-blue metallic treatment, while the archived MAI-Image-2 round-1 sample crops the head. This is a sample-level observation, not proof of general superiority over MAI or GPT.
-
-The following gallery discloses **both rounds for every prompt**. Click an image for its original file. For the same prompt and round across model configurations, use the [six-configuration side-by-side comparison](#side-by-side-image-comparison), with MAI-Image-2.6 in the first column and the April configurations alongside it.
-
-| Prompt | September round 1 | September round 2 |
-| --- | --- | --- |
-| 1. Chrome kimono | ![MAI-Image-2.6 prompt 1 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/01_test.png) | ![MAI-Image-2.6 prompt 1 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/01_test.png) |
-| 2. Bedroom portal | ![MAI-Image-2.6 prompt 2 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/02_test.png) | ![MAI-Image-2.6 prompt 2 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/02_test.png) |
-| 3. Lunar astronaut | ![MAI-Image-2.6 prompt 3 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/03_test.png) | ![MAI-Image-2.6 prompt 3 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/03_test.png) |
-| 4. Dragon macro | ![MAI-Image-2.6 prompt 4 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/04_test.png) | ![MAI-Image-2.6 prompt 4 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/04_test.png) |
-| 5. Fluffy creature | ![MAI-Image-2.6 prompt 5 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/05_test.png) | ![MAI-Image-2.6 prompt 5 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/05_test.png) |
-| 6. Jungle cenote | ![MAI-Image-2.6 prompt 6 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/06_test.png) | ![MAI-Image-2.6 prompt 6 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/06_test.png) |
-| 7. Holographic UI | ![MAI-Image-2.6 prompt 7 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/07_test.png) | ![MAI-Image-2.6 prompt 7 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/07_test.png) |
-| 8. Fractal worlds | ![MAI-Image-2.6 prompt 8 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/08_test.png) | ![MAI-Image-2.6 prompt 8 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/08_test.png) |
-| 9. Fractal creature | ![MAI-Image-2.6 prompt 9 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/09_test.png) | ![MAI-Image-2.6 prompt 9 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/09_test.png) |
-| 10. Cat drummer | ![MAI-Image-2.6 prompt 10 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/10_test.png) | ![MAI-Image-2.6 prompt 10 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/10_test.png) |
-| 11. Musical primate | ![MAI-Image-2.6 prompt 11 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/11_test.png) | ![MAI-Image-2.6 prompt 11 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/11_test.png) |
-
-### External Evaluation Context
-
-![Artificial Analysis Text to Image Leaderboard, captured September 7, 2026](images/external/20260907/aa-text-to-image-wide.png)
-
-Source: [Artificial Analysis, Text to Image Leaderboard](https://artificialanalysis.ai/image/leaderboard/text-to-image), captured September 7, 2026. Inspect Elo, confidence intervals, samples, and the **provisional** markers together: MAI-Image-2.6 was 1149 ±12 with 6,351 samples, and Flash was 1099 ±10 with 5,162 samples. These are external human-preference results, **not scores for this 22-image test**, and do not measure this deployment's latency. See [source and image hashes](images/external/20260907/sources.json) and the [evaluation methodology](https://artificialanalysis.ai/image/methodology).
-
-### Reproduce or Recalculate
-
-The existing runner now accepts a single MAI deployment and environment-variable credentials. Keep `MAI_ENDPOINT` at the resource **origin**, without `/models` or the generations path. Supply `AZURE_API_KEY` through your secret-management mechanism; do not put it in source control.
-
-Clone `https://github.com/david-xinyuwei/david-share.git` and enter `Multimodal-Models/MAI-Image-2-vs-GPT-Image-Benchmark`. CSV and JSON files use **Git LFS**; install Git LFS and run `git lfs pull` before reading prompts or recalculating archived results. A raw GitHub URL may return an LFS pointer instead of the underlying data.
-
-From this benchmark directory, with Python and `requests` installed:
-
-```powershell
-# No model calls: verify the original prompt matrix.
-python scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --dry-run
-
-# Metadata must match your actual deployment. The next run is billable.
-$env:MAI_MODEL_VERSION = '2026-07-31'
-$env:MAI_DEPLOYMENT_SKU = 'GlobalStandard'
-$env:MAI_DEPLOYMENT_REGION = 'swedencentral'
-$env:MAI_RATE_LIMIT_RPM = '2'
-$env:BENCHMARK_CLIENT_LOCATION = 'Describe your actual client location'
-python scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --output runs/mai-image-2.6-new-run
+```mermaid
+flowchart LR
+    prompts["Original 11 prompts"] --> runner["Local Windows Python runner"]
+    runner --> mai["MAI-Image-2.6 / Sweden Central"]
+    runner --> gpt["GPT-Image-2 / East US 2 / low, medium, high"]
+    mai --> evidence["PNG, usage, request IDs, timestamps, failures"]
+    gpt --> evidence
+    evidence --> summary["Offline validation and report"]
 ```
 
-The output directory is not overwritten. After an interruption, use the same environment and add `--resume`; recorded samples are not rerun. An in-flight request at interruption may already have incurred a charge even if its result was not saved. Do not change the frozen runner or inputs while a run is active.
+Original explanatory diagram of this project's client/service calls, not model internals. [MAI API](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image) | [GPT image API](https://learn.microsoft.com/en-us/azure/foundry/openai/how-to/dall-e).
 
-To recalculate the archived measurements **without model calls**:
+### Performance and Reliability
+
+| Metric | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- | --- |
+| Successful / planned samples | 22 / 22 | 22 / 22 | 22 / 22 | 21 / 22 |
+| First-attempt successes / planned | 20 / 22 | 20 / 22 | 20 / 22 | 20 / 22 |
+| HTTP attempts / 429 responses | 24 / 0 | 24 / 0 | 24 / 0 | 25 / 0 |
+| Unsuccessful HTTP attempts | 2 | 2 | 2 | 4 |
+| Total unsuccessful attempt duration (s) | 192.56 | 329.49 | 5,291.35 | 604.30 |
+| Mean request latency (s) | 45.33 | 38.69 | 65.09 | 175.17 |
+| P50 / descriptive P95 (s) | 38.03 / 79.77 | 31.19 / 81.41 | 64.64 / 74.82 | 171.26 / 215.09 |
+| Sample standard deviation (s) | 18.56 | 19.69 | 6.01 | 23.51 |
+| Minimum / maximum request latency (s) | 32.19 / 106.81 | 23.61 / 99.08 | 56.04 / 78.13 | 139.24 / 241.38 |
+| Round 1 / round 2 mean (s) | 47.57 / 43.09 | 43.30 / 34.09 | 67.27 / 62.90 | 171.91 / 178.14 |
+| Mean logical duration, all samples (s) | 55.06 | 54.65 | 306.58 | 196.12 |
+| Mean successful PNG size (KiB) | 1,737 | 1,673 | 1,666 | 1,683 |
+
+Request latency measures `requests.post` through receipt of the complete HTTP response, before JSON/base64 processing and file writes, for successful image-producing attempts only. Logical duration includes failed attempts, retry waits and response processing across all planned samples. Failures are not averaged as zero-second responses or removed from the success-rate denominator. P95 is descriptive linear interpolation over at most 22 observations per group, not a production tail guarantee.
+
+### Exceptions and Waiting
+
+The longest unsuccessful attempt was `gpt-image-2-medium-r1-p09` at 4,968.72 client-observed seconds. This is elapsed client request time, not server-side GPU inference duration; these logs do not establish the underlying cause. Exceptions remain in logical durations, attempt counts and observed completion rate, and missing-image samples remain in the planned denominator.
+
+| Sample | Attempt | HTTP / exception | Client duration (s) | Started (UTC) | Finished (UTC) |
+| --- | --- | --- | --- | --- | --- |
+| gpt-image-2-high-r1-p01 | 1 | ReadTimeout | 301.99 | 2026-09-07T12:35:59.924543+00:00 | 2026-09-07T12:41:11.917183+00:00 |
+| gpt-image-2-high-r1-p01 | 2 | ConnectionError | 0.01 | 2026-09-07T12:41:11.921034+00:00 | 2026-09-07T12:41:21.934816+00:00 |
+| gpt-image-2-high-r1-p01 | 3 | ConnectionError | 0.00 | 2026-09-07T12:41:21.937598+00:00 | 2026-09-07T12:41:21.941635+00:00 |
+| mai-image-2.6-r1-p02 | 1 | ConnectionError | 0.00 | 2026-09-07T12:41:26.958872+00:00 | 2026-09-07T12:41:36.998889+00:00 |
+| gpt-image-2-medium-r1-p09 | 1 | ConnectionError | 4,968.72 | 2026-09-07T13:26:31.695448+00:00 | 2026-09-07T14:49:30.415316+00:00 |
+| gpt-image-2-low-r1-p11 | 1 | 400 | 20.50 | 2026-09-07T14:58:49.988889+00:00 | 2026-09-07T14:59:20.487114+00:00 |
+| gpt-image-2-high-r2-p08 | 1 | ReadTimeout | 302.29 | 2026-09-07T15:40:22.017096+00:00 | 2026-09-07T15:45:34.310843+00:00 |
+| mai-image-2.6-r2-p08 | 1 | ReadTimeout | 192.56 | 2026-09-07T15:52:16.770891+00:00 | 2026-09-07T15:55:39.334382+00:00 |
+| gpt-image-2-medium-r2-p09 | 1 | ReadTimeout | 322.63 | 2026-09-07T16:01:37.758367+00:00 | 2026-09-07T16:07:10.387228+00:00 |
+| gpt-image-2-low-r2-p09 | 1 | ReadTimeout | 309.00 | 2026-09-07T16:08:16.133855+00:00 | 2026-09-07T16:13:35.129678+00:00 |
+
+### Token Usage
+
+| Configuration | Returned output tokens | Successful / planned samples |
+| --- | --- | --- |
+| MAI-Image-2.6 | 1024 | 22/22 |
+| GPT-Image-2 low | 196 | 22/22 |
+| GPT-Image-2 medium | 1756 | 22/22 |
+| GPT-Image-2 high | 7024 | 21/22 |
+
+Token counts come from returned usage, not assumptions about the model or tier. Missing values are not replaced with zero. Output-token counts and PNG byte sizes do not independently establish image quality.
+
+### Every Scenario, Both Rounds
+
+Seconds; failed cells remain tied to their original requests and are not replaced by another round.
+
+| Scenario / round | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- | --- |
+| 01 / R1 | 38.82 | 51.44 | 78.13 | Failed |
+| 01 / R2 | 33.96 | 26.25 | 63.52 | 182.78 |
+| 02 / R1 | 65.12 | 41.67 | 74.93 | 176.78 |
+| 02 / R2 | 37.43 | 28.50 | 60.23 | 170.60 |
+| 03 / R1 | 32.29 | 82.39 | 68.42 | 170.29 |
+| 03 / R2 | 32.19 | 23.61 | 59.58 | 152.75 |
+| 04 / R1 | 38.63 | 47.05 | 65.18 | 192.56 |
+| 04 / R2 | 34.69 | 23.98 | 59.51 | 171.26 |
+| 05 / R1 | 60.09 | 29.09 | 69.86 | 187.57 |
+| 05 / R2 | 38.42 | 24.80 | 63.22 | 163.33 |
+| 06 / R1 | 80.54 | 62.70 | 71.35 | 190.79 |
+| 06 / R2 | 32.25 | 35.88 | 65.19 | 185.09 |
+| 07 / R1 | 54.92 | 33.29 | 67.74 | 177.19 |
+| 07 / R2 | 37.63 | 35.08 | 66.85 | 170.62 |
+| 08 / R1 | 36.49 | 35.03 | 68.73 | 174.50 |
+| 08 / R2 | 106.81 | 99.08 | 72.83 | 215.09 |
+| 09 / R1 | 49.96 | 37.29 | 61.67 | 169.84 |
+| 09 / R2 | 41.92 | 25.10 | 60.62 | 241.38 |
+| 10 / R1 | 32.92 | 28.74 | 57.93 | 139.24 |
+| 10 / R2 | 42.97 | 25.43 | 64.09 | 153.85 |
+| 11 / R1 | 33.49 | 27.58 | 56.04 | 140.32 |
+| 11 / R2 | 35.77 | 27.29 | 56.27 | 152.77 |
+
+### Quality Observations
+
+AI-assisted, unblinded inspection only. Each cell describes observed image differences, not a numeric quality score. [Inspection record](data/paired-all-quality-20260907/quality-review.json).
+
+| Scenario | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- | --- |
+| 1 | Both rounds include blue metallic clothing, flowers and foreground blur; R1 has a bright background, R2 is dark, with no visible added text. | Both use tightly framed portraits and metallic flowers in dark scenes; R2 clothing resembles wrinkled silver foil, with little sense of high exposure. | Metallic flowers and blue-silver clothing are clear in both dark-toned images; R2 has a smoothed face and shell-like fabric. | R1 returned no image. R2 shows a backward-looking portrait and silver metallic flowers, with cropped upper hair ornaments and no visible added text. |
+| 2 | Both retain the messy bedroom and portal; castles and waterfalls dominate R1's forest, and both add numerous unrequested English slogans. | Both depict stone portals, forest paths and scattered clothing with deep room shadows; R2 adds poster lettering and frame glyphs. | Both show vine-covered stone portals and bedroom clutter; R1 adds glowing frame symbols, R2 includes a deer, and some poster lettering is indistinct. | Both show clear forest depth through the portal; R1 adds green stone-ring symbols, while R2's woody portal ends above floor level. |
+| 3 | Both clearly depict the tiny astronaut, lunar ground and eggshell; R1 uses a doll-like face, while R2 has a floating upper shell and small suit markings. | The astronaut waves in R1 and emerges from a speckled shell in R2; lunar ground and visor reflections are clear, without obvious limb anomalies. | Both astronauts grip the broken shell rim against detailed lunar terrain; the suits add NASA or NASA-like badges. | R1 emphasizes a tall rear shell wall, while R2 waves above grounded shell fragments; no prominent text or obvious structural anomalies are visible. |
+| 4 | Both include the red dragon, nest, table, window light and steam, but add extensive readable English on books and pages. | The dragon reclines in its nest in both tabletop close-ups, with blurred objects behind; the palette is dark warm brown and page lettering is indistinct. | Both show a sleeping curled dragon, book, twig nest and cup steam; R2 has washed-out window highlights and dense page lettering. | Scales, nests and tabletop objects are clear in both close-ups; R1's curled body hides limbs, R2's cup overlaps the nest rim, and scrolls contain small writing. |
+| 5 | Both use white long-eared fluffy subjects, islands and castles matching the fantasy theme; R2 adds an unrequested English slogan at upper right. | R1 shows an antlered pink creature holding a glowing orb, R2 a white horned creature on moss; neither has visible added text. | Both feature large-eyed fluffy subjects on clouds amid small companions and dreamlike decoration, without visible added text. | R1 has another face-like form above the subject, creating hood-versus-second-face ambiguity; R2 clearly shows large ears, flowers and mushrooms, with no text in either. |
+| 6 | Both include water, sunbeams, vines, orchids and ruins; R1's underwater textures are busy, and partial submersion is less clear in R2. | Waterside temples, orchids and sunbeams follow the prompt in both rounds; R1 has deep cave-wall shadows, with no added typography visible. | Both clearly depict foreground pillars, carvings and submerged structures, with architecture occupying much of the scene and no visible added typography. | Both clearly depict light shafts, water, vines and right-hand ruins; R1 has washed-out opening highlights, while R2 includes a partly submerged foreground pillar. |
+| 7 | Both show silver hair, blue eyes and a holographic workshop; R1 uses an anime style with irregular small lettering, while R2 adds NEXA branding and slogans. | Both show a silver-pixie-haired character touching a hologram with clear skin and jacket textures; both add PROJECT: AURORA, and R2 adds a mug slogan. | Both show a character interacting with mechanical holograms; R1 crops the right panel edge, and both add project names, branding or slogans. | Hair, fabric and metal reflections are distinct in both; panels add project names, R2 adds slogans, and tiny interface lettering remains hard to distinguish. |
+| 8 | Both form cosmic landscapes from giant eyes, galaxies and dense curling motifs, adding a meditating figure without visible text. | Both fill the sky with multiple eyes, planets and repeated curls above dense landscapes; R1 has granular fine detail, with no visible text in either. | Both emphasize giant eyes, spheres, spiral galaxies and dense textures; R1 has deep shadows, while R2 centers a glowing geometric sphere. | R1 merges eyes with bridge-like terrain and adds a walker; R2 uses near-symmetric blue-orange eyes and a meditating figure, with no text in either. |
+| 9 | Both show silver-gray dragon profiles covered in spirals with carved or porcelain-like surfaces and blurred backgrounds; R2 adds moonlit castles. | Both use blue-gold openwork dragon close-ups with clear eyes and tendrils; R1 crops the upper horn, and some dense ornamental connections are hard to distinguish. | Both blue-gold dragon heads carry differently sized spirals in shallow focus; the skin resembles metallic filigree, with no visible text. | R1 uses a round-eyed blue-purple creature with beaded spiral skin and ambiguous tendril overlaps; R2 has a clear orange eye and multiscale spirals, without visible text. |
+| 10 | Both cats bare their teeth and drum with human-like two-stick grips; drums and posters add English text, with R2 cropping the bass drum and lower lettering. | Both cats bare their teeth and raise sticks, with some paw motion blur; shirts and drums add English, and R2 crops the bass drum's lower edge. | Both center the drummer with clear fur and chrome highlights, adding slogans such as I HATE MONDAYS or PAWS OF FURY and some blurred paw/stick edges. | Both clearly depict snarling faces and two-stick poses, with cropped foreground drums and added wording such as HISS OFF or BAD KITTY. |
+| 11 | R1's monkey plays a pear-shaped string instrument, R2's plays guitar on stone paving; fur and wood are clear, with unrequested text on a book or tip bowl. | Both subjects play guitar with added performance lettering; R1 looks young-ape-like and R2 crops the headstock. R1's image followed an output-moderation rejection and retry. | Both straw-hatted monkeys play guitar against added performance lettering; R2 has a blurred strumming hand and a cropped right-hand headstock. | R1's monkey plays beside a vintage microphone, R2's sits cross-legged with closed eyes; materials are distinct, with added English signage in both. |
+
+### Measured API Settings
+
+| API item | MAI-Image-2.6 | GPT-Image-2 |
+| --- | --- | --- |
+| POST | `/mai/v1/images/generations` | `/openai/deployments/{deployment}/images/generations?api-version=2025-04-01-preview` |
+| Payload | `model`, `prompt`, `width=1024`, `height=1024` | `prompt`, `n=1`, `size=1024x1024`, `quality=low/medium/high` |
+| Auth | `api-key` | `api-key` |
+| Output | `data[0].b64_json`, PNG | `data[0].b64_json`, PNG |
+| Usage | `usage.num_input_text_tokens`, `usage.num_output_tokens` | `usage.input_tokens_details`, `usage.output_tokens_details` |
+
+## Reproduction and Tests
+
+Supply accessible MAI-Image-2.6 and GPT-Image-2 deployments. Verify their underlying model versions; deployment names alone are not model identity. Clone the repository, fetch this project's Git LFS inputs, and install requests in your Python environment:
 
 ```powershell
-python scripts/summarize_mai_run.py data/mai-image-2.6-20260907 --historical-results data/5way_v2_results.json
+git clone https://github.com/david-xinyuwei/david-share.git
+cd david-share/Multimodal-Models/MAI-Image-2-vs-GPT-Image-Benchmark
+git lfs install
+git lfs pull --include="Multimodal-Models/MAI-Image-2-vs-GPT-Image-Benchmark/**"
+python -m pip install requests==2.34.2
+```
+
+Replace the two resource origins and GPT deployment name below. Supply `AZURE_API_KEY` (MAI) and `AZURE_OPENAI_API_KEY` (GPT) in the process through your secret-management mechanism, never source control. Model version, region, SKU and rate-limit metadata must match your verified deployments; the values below describe this measurement, not your resources.
+
+```powershell
+$env:MAI_ENDPOINT = 'https://<mai-resource>.services.ai.azure.com'
+$env:GPT_ENDPOINT = 'https://<openai-resource>.openai.azure.com'
+$env:GPT_DEPLOYMENT = '<gpt-image-2-deployment>'
+$env:GPT_API_VERSION = '2025-04-01-preview'
+$env:MAI_MODEL_VERSION = '2026-07-31'
+$env:GPT_MODEL_VERSION = '2026-04-21'
+$env:MAI_DEPLOYMENT_SKU = 'GlobalStandard'
+$env:GPT_DEPLOYMENT_SKU = 'GlobalStandard'
+$env:MAI_DEPLOYMENT_REGION = 'swedencentral'
+$env:GPT_DEPLOYMENT_REGION = 'eastus2'
+$env:MAI_RATE_LIMIT_RPM = '2.0'
+$env:GPT_RATE_LIMIT_RPM = '2.0'
+$env:BENCHMARK_CLIENT_LOCATION = 'Describe your actual client location'
+python scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --gpt-model gpt-image-2 --gpt-quality all --dry-run
+```
+
+The first model command runs four warmups; the second continues the same output directory through the formal matrix. Both consume Azure service usage. Existing results are not overwritten and recorded samples are not rerun. Resume requires unchanged script, prompts, endpoints and configuration. An interrupted in-flight request may already have reached the service. Save the script and CSV before each new run and keep them unchanged during execution.
+
+```powershell
+$run = 'runs/paired-all-quality-new-run'
+New-Item -ItemType Directory -Path "$run/source" -ErrorAction Stop
+Copy-Item -LiteralPath scripts/benchmark_5way_v2.py -Destination "$run/source/benchmark_5way_v2.py"
+Copy-Item -LiteralPath prompts.csv -Destination "$run/source/prompts.csv"
+python -u scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --gpt-model gpt-image-2 --gpt-quality all --output $run --warmup-only
+python -u scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --gpt-model gpt-image-2 --gpt-quality all --output $run --resume
+python scripts/summarize_paired_run.py $run
+```
+
+These commands validate saved evidence without model calls. Regressions cover request tiers, failure denominators, original usage, image ownership and report coverage. HTTP mocks exist only in offline tests and do not establish image quality. A new run cannot produce its final summary until every planned sample is recorded.
+
+```powershell
+python scripts/summarize_paired_run.py data/paired-all-quality-20260907
+python scripts/render_paired_report.py data/paired-all-quality-20260907 --check
 python -m unittest discover -s tests -v
 ```
 
-The archive includes [original results](data/mai-image-2.6-20260907/5way_v2_results.json), response metadata, per-attempt timestamps/request IDs, all images, and the executed source snapshot. Image base64 is omitted from metadata because the decoded PNG is archived; the original response-body hash is retained. The public console log redacts only its local output path. See [measurement provenance](data/mai-image-2.6-20260907/provenance.json).
+Runner: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py); offline summary: [summarize_paired_run.py](scripts/summarize_paired_run.py); report rendering: [render_paired_report.py](scripts/render_paired_report.py); regressions: [tests](tests).
 
-**Interpretation limit:** the 11 prompts emphasize surreal imagery, not exhaustive text rendering, editing, multi-reference generation, or Chinese-language quality. The model was tested at 1024×1024 only. A current, same-environment GPT comparison would require a separate controlled run; no such run is claimed here.
 
----
+### Limits
 
-## Historical Baseline: April 19, 2026
+This report compares only MAI-Image-2.6 and GPT-Image-2 at low, medium and high. Scope is eleven text-to-image scenarios at 1024x1024, excluding 2K, editing, multiple reference images, exact-text accuracy, concurrency capacity and other authentication modes. MAI sends no quality parameter and is not labeled as equivalent to GPT high. Every metric uses this four-configuration run only.
 
-**The original five-model results below retain the April measurements and their contemporary capability/pricing descriptions. The side-by-side image tables additionally include the separately dated September MAI-Image-2.6 samples.** The April capability and pricing descriptions do not apply to MAI-Image-2.6. The old success counts describe completed sample points after the runner's retry policy, not independently verified first-attempt success. Output token counts alone do not establish image quality.
-
-<!-- MAI-2.6-UPDATE-END -->
-
-## Executive Summary
-
-This benchmark compares three Azure image generation models across 5 configurations (11 prompts × 2 rounds = 110 API calls) with fairness controls (warmup, order reversal, symmetric wait). All models are in preview as of April 2026.
-
-**Model Profiles:**
-
-| | MAI-Image-2 | MAI-Image-2e | GPT-Image-1.5 |
-|---|:---:|:---:|:---:|
-| **Provider** | Microsoft AI (first-party) | Microsoft AI (first-party) | OpenAI via Azure |
-| **API** | `/mai/v1/` (dedicated) | `/mai/v1/` (dedicated) | `/openai/deployments/` (standard) |
-| **Quality control** | Single fixed tier | Single fixed tier | 3 tiers (low/med/high) |
-| **Avg latency** | 20.1s | 17.2s | 13.3s (low) / 22.8s (med) / 46.3s (high) |
-| **Output pricing** | USD 33/1M tokens | **USD 19.50/1M tokens** | USD 32/1M tokens |
-| **Output tokens (1024²)** | 1,024 (fixed) | N/A (not returned) | 479 (low) / 1,473 (med) / 4,573 (high) |
-| **Cost per image (1024²)** | USD 0.034 | ~USD 0.020* | USD 0.015 (low) / 0.047 (med) / 0.146 (high) |
-| **Image editing** | ❌ | ❌ | ✅ |
-| **Flexible resolution** | ✅ (768–1366px) | ✅ (768–1366px) | ❌ (3 fixed sizes) |
-| **Max prompt** | 32K tokens | 32K tokens | 4K tokens |
-| **Status** | Preview | Preview | Preview |
-
-**Key takeaway:** GPT-Image-1.5 at `quality=low` is the fastest (13.3s) **and** cheapest per image (USD 0.015) with competitive quality. MAI-Image-2e offers the lowest per-token price (USD 19.50/1M) but generates more tokens per image than GPT-low, resulting in higher per-image cost (~USD 0.020). MAI-Image-2 has the highest per-image cost (USD 0.034) with no speed advantage over GPT-medium. Choose based on your priority: speed+cost → GPT-low, first-party independence → MAI-2e, editing → GPT.
-
-> *MAI-Image-2e does not return token count in API response. Cost estimated using MAI-Image-2's fixed 1,024 output tokens at 1024×1024.
-
-> **Sources:** MAI API — [Microsoft Learn](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai?tabs=python) | MAI-Image-2 pricing — [Tech Community 2026-04-02](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-mai-transcribe-1-mai-voice-1-and-mai-image-2-in-microsoft-foundry/4507787) | MAI-Image-2e pricing — [Tech Community 2026-04-14](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-mai-image-2-efficient-faster-more-efficient-image-generation/4510918) | GPT-Image-1.5 pricing — [Azure OpenAI Pricing](https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/)
-
----
-
-A comprehensive latency benchmark comparing **5 configurations** of Azure image generation models: **MAI-Image-2**, **MAI-Image-2e** (Efficient), and **GPT-Image-1.5** at three quality levels (low / medium / high), using identical prompts and resolution.
-
-## Key Results
-
-| Model | Quality | Avg Latency | Output Tokens | Cost/Image | Pass Rate |
-|-------|:-------:|:-----------:|:-------------:|:----------:|:---------:|
-| GPT-Image-1.5 | low | **13.3s** | 479 | **USD 0.015** | 22/22 |
-| MAI-Image-2e | N/A (single tier) | **17.2s** | N/A | ~USD 0.020* | 22/22 |
-| MAI-Image-2 | N/A (single tier) | 20.1s | 1,024 (fixed) | USD 0.034 | 22/22 |
-| GPT-Image-1.5 | medium | 22.8s | 1,473 | USD 0.047 | 22/22 |
-| GPT-Image-1.5 | high | 46.3s | 4,573 | USD 0.146 | 22/22 |
-
-> **Pass Rate** = successful API calls / total attempts (11 prompts × 2 rounds = 22 calls per model).
->
-> *MAI-Image-2e API does not return output token count. Cost estimated using MAI-Image-2's fixed 1,024 tokens.
->
-> - GPT-Image-1.5 (low) is the fastest (13.3s) **and** cheapest per image (USD 0.015).
-> - MAI-Image-2 output tokens are fixed at 1,024 regardless of prompt — cost is deterministic.
-> - GPT output tokens vary by quality tier: low ~479, medium ~1,473, high ~4,573.
-
-## Fair Comparison Design
-
-### Alignment Dimensions
-
-| Dimension | All 5 Groups | Status |
-|-----------|:------------:|:------:|
-| Prompt | Same 11 Surreal-style prompts | ✅ Aligned |
-| Resolution | 1024×1024 | ✅ Aligned |
-| Output Format | PNG (b64_json) | ✅ Aligned |
-| Network | Same machine (East US) | ✅ Aligned |
-| Test Date | 2026-04-19 | ✅ Aligned |
-| Warmup | 1 throwaway request per group | ✅ Aligned |
-| Inter-call Wait | 5s between every API call (symmetric) | ✅ Aligned |
-| **Quality** | MAI: not applicable / GPT: low, medium, high | 🔀 **Difference** |
-| **Model** | MAI-Image-2 / MAI-Image-2e / GPT-Image-1.5 | 🔀 Variable |
-
-### Why Quality Is a Difference, Not an Alignment
-
-MAI-Image-2 and MAI-Image-2e accept only 4 API parameters: `model`, `prompt`, `width`, `height`. **There is no `quality` parameter** ([source](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai?tabs=python)). GPT-Image-1.5 supports `quality` with values `low`, `medium`, `high`, which controls the number of output image tokens (more tokens = more detail = slower). To fairly assess where MAI's fixed quality falls relative to GPT's tiers, we test GPT at all three levels.
-
-### Fairness Controls
-
-- **Warmup**: 1 throwaway request per model/quality group before timing starts
-- **Order reversal**: Round 1 runs groups A→E, Round 2 runs E→A
-- **Symmetric wait**: 5s between every API call regardless of model
-- **2 rounds**: Each data point is the average of 2 measurements
-
-## Per-Prompt Latency Comparison
-
-| # | Prompt | MAI-2 | MAI-2e | GPT low | GPT med | GPT high |
-|:-:|:-------|:-----:|:------:|:-------:|:-------:|:--------:|
-| 1 | Chrome kimono metallic maiden | 19.9s | 16.9s | 12.8s | 21.4s | 45.0s |
-| 2 | Portal into mythical forest | 21.7s | 17.0s | 13.8s | 22.3s | 44.2s |
-| 3 | Tiny astronaut hatching on moon | 20.2s | 15.6s | 13.1s | 20.6s | 44.2s |
-| 4 | LOTR tiny red dragon macro | 20.3s | 17.5s | 12.8s | 22.3s | 44.1s |
-| 5 | Fluffy creature fantasy | 18.7s | 15.5s | 12.1s | 21.6s | 46.6s |
-| 6 | Hidden jungle cenote | 20.8s | 18.5s | 14.2s | 24.5s | 45.6s |
-| 7 | Tech-savvy girl holographic UI | 20.1s | 16.8s | 12.6s | 23.1s | 49.8s |
-| 8 | Universe fractal worlds | 21.5s | 20.2s | 14.0s | 23.4s | 48.3s |
-| 9 | Fractal mythical creature | 19.7s | 17.3s | 12.3s | 23.0s | 48.2s |
-| 10 | Angry cat playing drums | 18.4s | 16.9s | 15.2s | 22.5s | 47.3s |
-| 11 | Monkey playing music | 20.0s | 17.2s | 13.8s | 25.8s | 46.3s |
-| **AVG** | | **20.1s** | **17.2s** | **13.3s** | **22.8s** | **46.3s** |
-
-> Each cell is the average of 2 rounds. Round 1 order: A→E. Round 2 order: E→A (reversed).
+Evidence directory: [data/paired-all-quality-20260907](data/paired-all-quality-20260907). Contains original images, measurement records, attempts, response metadata and a redacted public source copy. Non-financial measurement fields and image bytes are unchanged; original execution hashes and published-file hashes are recorded separately in [provenance](data/paired-all-quality-20260907/provenance.json). Prompt SHA-256: `be3d628c66a1e4d535d06bcc84246a04aad11f35a48f3133d451fe86283782ce`.
 
 ## Side-by-Side Image Comparison
 
-**First column: MAI-Image-2.6, measured September 7, 2026. The other five columns are the April 19, 2026 historical samples.** Images share the same prompt and round number, but the runs used different dates and clients; this is a cross-date visual comparison, not a contemporaneous latency test. Click any image to inspect the original PNG.
+Every scenario and round compares only MAI-Image-2.6 with GPT-Image-2 low, medium and high. Images come from this four-configuration run; missing images retain their failure record. Click an image for the original 1024x1024 PNG.
 
 ### Test 1: Chrome Kimono Metallic Maiden
 
@@ -245,16 +211,17 @@ MAI-Image-2 and MAI-Image-2e accept only 4 API parameters: `model`, `prompt`, `w
 
 **Round 1:**
 
-| **MAI-Image-2.6**<br>2026-09-07<br>37.0s, 1772 KiB | MAI-Image-2 (21.2s, 1821KB) | MAI-Image-2e (15.9s, 1494KB) | GPT-1.5 low (14.4s, 1724KB) | GPT-1.5 med (20.7s, 1899KB) | GPT-1.5 high (43.9s, 2137KB) |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| ![MAI-Image-2.6 prompt 1 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/01_test.png) | ![](images/mai-image-2/r1/01_test.png) | ![](images/mai-image-2e/r1/01_test.png) | ![](images/gpt-image-1.5-low/r1/01_test.png) | ![](images/gpt-image-1.5-medium/r1/01_test.png) | ![](images/gpt-image-1.5-high/r1/01_test.png) |
+| MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 1, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/01_test.png) | ![GPT-Image-2 low, prompt 1, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/01_test.png) | ![GPT-Image-2 medium, prompt 1, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/01_test.png) | No image returned |
+| 38.82 s<br>1856 KiB | 51.44 s<br>1636 KiB | 78.13 s<br>1504 KiB | 3 attempts; logical duration 322.06 s |
 
 **Round 2:**
 
-| **MAI-Image-2.6**<br>2026-09-07<br>34.3s, 1813 KiB | MAI-Image-2 (18.6s, 1467KB) | MAI-Image-2e (17.9s, 1723KB) | GPT-1.5 low (11.1s, 1884KB) | GPT-1.5 med (22.0s, 1901KB) | GPT-1.5 high (46.0s, 2026KB) |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| ![MAI-Image-2.6 prompt 1 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/01_test.png) | ![](images/mai-image-2/r2/01_test.png) | ![](images/mai-image-2e/r2/01_test.png) | ![](images/gpt-image-1.5-low/r2/01_test.png) | ![](images/gpt-image-1.5-medium/r2/01_test.png) | ![](images/gpt-image-1.5-high/r2/01_test.png) |
-
+| MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 1, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/01_test.png) | ![GPT-Image-2 low, prompt 1, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/01_test.png) | ![GPT-Image-2 medium, prompt 1, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/01_test.png) | ![GPT-Image-2 high, prompt 1, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/01_test.png) |
+| 33.96 s<br>1699 KiB | 26.25 s<br>1641 KiB | 63.52 s<br>1704 KiB | 182.78 s<br>1531 KiB |
 
 ### Test 2: Portal into Mythical Forest
 
@@ -262,16 +229,17 @@ MAI-Image-2 and MAI-Image-2e accept only 4 API parameters: `model`, `prompt`, `w
 
 **Round 1:**
 
-| **MAI-Image-2.6**<br>2026-09-07<br>36.8s, 1679 KiB | MAI-Image-2 (21.9s, 1597KB) | MAI-Image-2e (16.7s, 1706KB) | GPT-1.5 low (14.5s, 1859KB) | GPT-1.5 med (22.5s, 2128KB) | GPT-1.5 high (42.3s, 2242KB) |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| ![MAI-Image-2.6 prompt 2 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/02_test.png) | ![](images/mai-image-2/r1/02_test.png) | ![](images/mai-image-2e/r1/02_test.png) | ![](images/gpt-image-1.5-low/r1/02_test.png) | ![](images/gpt-image-1.5-medium/r1/02_test.png) | ![](images/gpt-image-1.5-high/r1/02_test.png) |
+| MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 2, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/02_test.png) | ![GPT-Image-2 low, prompt 2, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/02_test.png) | ![GPT-Image-2 medium, prompt 2, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/02_test.png) | ![GPT-Image-2 high, prompt 2, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/02_test.png) |
+| 65.12 s<br>1676 KiB | 41.67 s<br>1438 KiB | 74.93 s<br>1477 KiB | 176.78 s<br>1727 KiB |
 
 **Round 2:**
 
-| **MAI-Image-2.6**<br>2026-09-07<br>37.1s, 1758 KiB | MAI-Image-2 (21.5s, 1577KB) | MAI-Image-2e (17.2s, 1484KB) | GPT-1.5 low (13.1s, 1968KB) | GPT-1.5 med (22.1s, 2127KB) | GPT-1.5 high (46.1s, 2280KB) |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| ![MAI-Image-2.6 prompt 2 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/02_test.png) | ![](images/mai-image-2/r2/02_test.png) | ![](images/mai-image-2e/r2/02_test.png) | ![](images/gpt-image-1.5-low/r2/02_test.png) | ![](images/gpt-image-1.5-medium/r2/02_test.png) | ![](images/gpt-image-1.5-high/r2/02_test.png) |
-
+| MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 2, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/02_test.png) | ![GPT-Image-2 low, prompt 2, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/02_test.png) | ![GPT-Image-2 medium, prompt 2, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/02_test.png) | ![GPT-Image-2 high, prompt 2, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/02_test.png) |
+| 37.43 s<br>1721 KiB | 28.50 s<br>1491 KiB | 60.23 s<br>1489 KiB | 170.60 s<br>1619 KiB |
 
 ### Test 3: Tiny Astronaut on Moon
 
@@ -279,16 +247,17 @@ MAI-Image-2 and MAI-Image-2e accept only 4 API parameters: `model`, `prompt`, `w
 
 **Round 1:**
 
-| **MAI-Image-2.6**<br>2026-09-07<br>34.8s, 1615 KiB | MAI-Image-2 (19.8s, 1311KB) | MAI-Image-2e (14.6s, 1330KB) | GPT-1.5 low (13.7s, 1758KB) | GPT-1.5 med (19.9s, 1526KB) | GPT-1.5 high (44.4s, 1625KB) |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| ![MAI-Image-2.6 prompt 3 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/03_test.png) | ![](images/mai-image-2/r1/03_test.png) | ![](images/mai-image-2e/r1/03_test.png) | ![](images/gpt-image-1.5-low/r1/03_test.png) | ![](images/gpt-image-1.5-medium/r1/03_test.png) | ![](images/gpt-image-1.5-high/r1/03_test.png) |
+| MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 3, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/03_test.png) | ![GPT-Image-2 low, prompt 3, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/03_test.png) | ![GPT-Image-2 medium, prompt 3, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/03_test.png) | ![GPT-Image-2 high, prompt 3, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/03_test.png) |
+| 32.29 s<br>1387 KiB | 82.39 s<br>1354 KiB | 68.42 s<br>1499 KiB | 170.29 s<br>1543 KiB |
 
 **Round 2:**
 
-| **MAI-Image-2.6**<br>2026-09-07<br>33.4s, 1450 KiB | MAI-Image-2 (20.6s, 1532KB) | MAI-Image-2e (16.6s, 1279KB) | GPT-1.5 low (12.5s, 1567KB) | GPT-1.5 med (21.2s, 1662KB) | GPT-1.5 high (44.0s, 1771KB) |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| ![MAI-Image-2.6 prompt 3 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/03_test.png) | ![](images/mai-image-2/r2/03_test.png) | ![](images/mai-image-2e/r2/03_test.png) | ![](images/gpt-image-1.5-low/r2/03_test.png) | ![](images/gpt-image-1.5-medium/r2/03_test.png) | ![](images/gpt-image-1.5-high/r2/03_test.png) |
-
+| MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 3, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/03_test.png) | ![GPT-Image-2 low, prompt 3, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/03_test.png) | ![GPT-Image-2 medium, prompt 3, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/03_test.png) | ![GPT-Image-2 high, prompt 3, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/03_test.png) |
+| 32.19 s<br>1539 KiB | 23.61 s<br>1295 KiB | 59.58 s<br>1428 KiB | 152.75 s<br>1457 KiB |
 
 ### Test 4: LOTR Tiny Red Dragon
 
@@ -296,16 +265,17 @@ MAI-Image-2 and MAI-Image-2e accept only 4 API parameters: `model`, `prompt`, `w
 
 **Round 1:**
 
-| **MAI-Image-2.6**<br>2026-09-07<br>40.5s, 1676 KiB | MAI-Image-2 (19.3s, 1424KB) | MAI-Image-2e (17.8s, 1506KB) | GPT-1.5 low (14.7s, 1521KB) | GPT-1.5 med (22.5s, 1645KB) | GPT-1.5 high (43.9s, 1593KB) |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| ![MAI-Image-2.6 prompt 4 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/04_test.png) | ![](images/mai-image-2/r1/04_test.png) | ![](images/mai-image-2e/r1/04_test.png) | ![](images/gpt-image-1.5-low/r1/04_test.png) | ![](images/gpt-image-1.5-medium/r1/04_test.png) | ![](images/gpt-image-1.5-high/r1/04_test.png) |
+| MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 4, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/04_test.png) | ![GPT-Image-2 low, prompt 4, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/04_test.png) | ![GPT-Image-2 medium, prompt 4, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/04_test.png) | ![GPT-Image-2 high, prompt 4, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/04_test.png) |
+| 38.63 s<br>1589 KiB | 47.05 s<br>1382 KiB | 65.18 s<br>1457 KiB | 192.56 s<br>1443 KiB |
 
 **Round 2:**
 
-| **MAI-Image-2.6**<br>2026-09-07<br>36.1s, 1537 KiB | MAI-Image-2 (21.2s, 1441KB) | MAI-Image-2e (17.1s, 1439KB) | GPT-1.5 low (10.8s, 1518KB) | GPT-1.5 med (22.1s, 1555KB) | GPT-1.5 high (44.2s, 1574KB) |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| ![MAI-Image-2.6 prompt 4 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/04_test.png) | ![](images/mai-image-2/r2/04_test.png) | ![](images/mai-image-2e/r2/04_test.png) | ![](images/gpt-image-1.5-low/r2/04_test.png) | ![](images/gpt-image-1.5-medium/r2/04_test.png) | ![](images/gpt-image-1.5-high/r2/04_test.png) |
-
+| MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 4, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/04_test.png) | ![GPT-Image-2 low, prompt 4, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/04_test.png) | ![GPT-Image-2 medium, prompt 4, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/04_test.png) | ![GPT-Image-2 high, prompt 4, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/04_test.png) |
+| 34.69 s<br>1585 KiB | 23.98 s<br>1366 KiB | 59.51 s<br>1485 KiB | 171.26 s<br>1402 KiB |
 
 ### Test 5: Fluffy Fantasy Creature
 
@@ -313,16 +283,17 @@ MAI-Image-2 and MAI-Image-2e accept only 4 API parameters: `model`, `prompt`, `w
 
 **Round 1:**
 
-| **MAI-Image-2.6**<br>2026-09-07<br>35.1s, 1459 KiB | MAI-Image-2 (19.6s, 1048KB) | MAI-Image-2e (14.8s, 1202KB) | GPT-1.5 low (11.7s, 1438KB) | GPT-1.5 med (20.4s, 1691KB) | GPT-1.5 high (45.7s, 1526KB) |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| ![MAI-Image-2.6 prompt 5 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/05_test.png) | ![](images/mai-image-2/r1/05_test.png) | ![](images/mai-image-2e/r1/05_test.png) | ![](images/gpt-image-1.5-low/r1/05_test.png) | ![](images/gpt-image-1.5-medium/r1/05_test.png) | ![](images/gpt-image-1.5-high/r1/05_test.png) |
+| MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 5, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/05_test.png) | ![GPT-Image-2 low, prompt 5, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/05_test.png) | ![GPT-Image-2 medium, prompt 5, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/05_test.png) | ![GPT-Image-2 high, prompt 5, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/05_test.png) |
+| 60.09 s<br>1435 KiB | 29.09 s<br>1673 KiB | 69.86 s<br>1450 KiB | 187.57 s<br>1526 KiB |
 
 **Round 2:**
 
-| **MAI-Image-2.6**<br>2026-09-07<br>52.6s, 1461 KiB | MAI-Image-2 (17.8s, 965KB) | MAI-Image-2e (16.1s, 1107KB) | GPT-1.5 low (12.4s, 1518KB) | GPT-1.5 med (22.8s, 1593KB) | GPT-1.5 high (47.5s, 1669KB) |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| ![MAI-Image-2.6 prompt 5 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/05_test.png) | ![](images/mai-image-2/r2/05_test.png) | ![](images/mai-image-2e/r2/05_test.png) | ![](images/gpt-image-1.5-low/r2/05_test.png) | ![](images/gpt-image-1.5-medium/r2/05_test.png) | ![](images/gpt-image-1.5-high/r2/05_test.png) |
-
+| MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 5, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/05_test.png) | ![GPT-Image-2 low, prompt 5, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/05_test.png) | ![GPT-Image-2 medium, prompt 5, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/05_test.png) | ![GPT-Image-2 high, prompt 5, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/05_test.png) |
+| 38.42 s<br>1417 KiB | 24.80 s<br>1622 KiB | 63.22 s<br>1437 KiB | 163.33 s<br>1586 KiB |
 
 ### Test 6: Hidden Jungle Cenote
 
@@ -330,16 +301,17 @@ MAI-Image-2 and MAI-Image-2e accept only 4 API parameters: `model`, `prompt`, `w
 
 **Round 1:**
 
-| **MAI-Image-2.6**<br>2026-09-07<br>39.4s, 2110 KiB | MAI-Image-2 (20.0s, 1953KB) | MAI-Image-2e (19.6s, 2255KB) | GPT-1.5 low (12.9s, 2173KB) | GPT-1.5 med (24.3s, 2529KB) | GPT-1.5 high (42.9s, 2502KB) |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| ![MAI-Image-2.6 prompt 6 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/06_test.png) | ![](images/mai-image-2/r1/06_test.png) | ![](images/mai-image-2e/r1/06_test.png) | ![](images/gpt-image-1.5-low/r1/06_test.png) | ![](images/gpt-image-1.5-medium/r1/06_test.png) | ![](images/gpt-image-1.5-high/r1/06_test.png) |
+| MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 6, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/06_test.png) | ![GPT-Image-2 low, prompt 6, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/06_test.png) | ![GPT-Image-2 medium, prompt 6, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/06_test.png) | ![GPT-Image-2 high, prompt 6, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/06_test.png) |
+| 80.54 s<br>2149 KiB | 62.70 s<br>2088 KiB | 71.35 s<br>2110 KiB | 190.79 s<br>2024 KiB |
 
 **Round 2:**
 
-| **MAI-Image-2.6**<br>2026-09-07<br>45.5s, 2142 KiB | MAI-Image-2 (21.6s, 2052KB) | MAI-Image-2e (17.3s, 2192KB) | GPT-1.5 low (15.4s, 2162KB) | GPT-1.5 med (24.7s, 2320KB) | GPT-1.5 high (48.3s, 2464KB) |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| ![MAI-Image-2.6 prompt 6 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/06_test.png) | ![](images/mai-image-2/r2/06_test.png) | ![](images/mai-image-2e/r2/06_test.png) | ![](images/gpt-image-1.5-low/r2/06_test.png) | ![](images/gpt-image-1.5-medium/r2/06_test.png) | ![](images/gpt-image-1.5-high/r2/06_test.png) |
-
+| MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 6, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/06_test.png) | ![GPT-Image-2 low, prompt 6, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/06_test.png) | ![GPT-Image-2 medium, prompt 6, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/06_test.png) | ![GPT-Image-2 high, prompt 6, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/06_test.png) |
+| 32.25 s<br>2131 KiB | 35.88 s<br>2042 KiB | 65.19 s<br>2151 KiB | 185.09 s<br>1979 KiB |
 
 ### Test 7: Tech-Savvy Girl with Holographic UI
 
@@ -347,16 +319,17 @@ MAI-Image-2 and MAI-Image-2e accept only 4 API parameters: `model`, `prompt`, `w
 
 **Round 1:**
 
-| **MAI-Image-2.6**<br>2026-09-07<br>48.2s, 1590 KiB | MAI-Image-2 (21.3s, 1283KB) | MAI-Image-2e (16.5s, 1485KB) | GPT-1.5 low (13.6s, 1636KB) | GPT-1.5 med (22.8s, 1790KB) | GPT-1.5 high (47.4s, 1870KB) |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| ![MAI-Image-2.6 prompt 7 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/07_test.png) | ![](images/mai-image-2/r1/07_test.png) | ![](images/mai-image-2e/r1/07_test.png) | ![](images/gpt-image-1.5-low/r1/07_test.png) | ![](images/gpt-image-1.5-medium/r1/07_test.png) | ![](images/gpt-image-1.5-high/r1/07_test.png) |
+| MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 7, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/07_test.png) | ![GPT-Image-2 low, prompt 7, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/07_test.png) | ![GPT-Image-2 medium, prompt 7, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/07_test.png) | ![GPT-Image-2 high, prompt 7, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/07_test.png) |
+| 54.92 s<br>1556 KiB | 33.29 s<br>1543 KiB | 67.74 s<br>1520 KiB | 177.19 s<br>1538 KiB |
 
 **Round 2:**
 
-| **MAI-Image-2.6**<br>2026-09-07<br>36.9s, 1530 KiB | MAI-Image-2 (18.9s, 1312KB) | MAI-Image-2e (17.0s, 1415KB) | GPT-1.5 low (11.5s, 1590KB) | GPT-1.5 med (23.4s, 1788KB) | GPT-1.5 high (52.2s, 1834KB) |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| ![MAI-Image-2.6 prompt 7 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/07_test.png) | ![](images/mai-image-2/r2/07_test.png) | ![](images/mai-image-2e/r2/07_test.png) | ![](images/gpt-image-1.5-low/r2/07_test.png) | ![](images/gpt-image-1.5-medium/r2/07_test.png) | ![](images/gpt-image-1.5-high/r2/07_test.png) |
-
+| MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 7, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/07_test.png) | ![GPT-Image-2 low, prompt 7, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/07_test.png) | ![GPT-Image-2 medium, prompt 7, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/07_test.png) | ![GPT-Image-2 high, prompt 7, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/07_test.png) |
+| 37.63 s<br>1495 KiB | 35.08 s<br>1548 KiB | 66.85 s<br>1529 KiB | 170.62 s<br>1648 KiB |
 
 ### Test 8: Universe Fractal Worlds
 
@@ -364,16 +337,17 @@ MAI-Image-2 and MAI-Image-2e accept only 4 API parameters: `model`, `prompt`, `w
 
 **Round 1:**
 
-| **MAI-Image-2.6**<br>2026-09-07<br>37.0s, 2251 KiB | MAI-Image-2 (21.4s, 2379KB) | MAI-Image-2e (20.4s, 2528KB) | GPT-1.5 low (13.1s, 2667KB) | GPT-1.5 med (23.9s, 2630KB) | GPT-1.5 high (46.3s, 2621KB) |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| ![MAI-Image-2.6 prompt 8 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/08_test.png) | ![](images/mai-image-2/r1/08_test.png) | ![](images/mai-image-2e/r1/08_test.png) | ![](images/gpt-image-1.5-low/r1/08_test.png) | ![](images/gpt-image-1.5-medium/r1/08_test.png) | ![](images/gpt-image-1.5-high/r1/08_test.png) |
+| MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 8, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/08_test.png) | ![GPT-Image-2 low, prompt 8, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/08_test.png) | ![GPT-Image-2 medium, prompt 8, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/08_test.png) | ![GPT-Image-2 high, prompt 8, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/08_test.png) |
+| 36.49 s<br>2305 KiB | 35.03 s<br>2175 KiB | 68.73 s<br>2270 KiB | 174.50 s<br>2250 KiB |
 
 **Round 2:**
 
-| **MAI-Image-2.6**<br>2026-09-07<br>52.7s, 2286 KiB | MAI-Image-2 (21.6s, 2305KB) | MAI-Image-2e (20.0s, 2509KB) | GPT-1.5 low (14.9s, 2598KB) | GPT-1.5 med (22.9s, 2649KB) | GPT-1.5 high (50.2s, 2634KB) |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| ![MAI-Image-2.6 prompt 8 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/08_test.png) | ![](images/mai-image-2/r2/08_test.png) | ![](images/mai-image-2e/r2/08_test.png) | ![](images/gpt-image-1.5-low/r2/08_test.png) | ![](images/gpt-image-1.5-medium/r2/08_test.png) | ![](images/gpt-image-1.5-high/r2/08_test.png) |
-
+| MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 8, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/08_test.png) | ![GPT-Image-2 low, prompt 8, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/08_test.png) | ![GPT-Image-2 medium, prompt 8, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/08_test.png) | ![GPT-Image-2 high, prompt 8, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/08_test.png) |
+| 106.81 s<br>2356 KiB | 99.08 s<br>2441 KiB | 72.83 s<br>2337 KiB | 215.09 s<br>2270 KiB |
 
 ### Test 9: Fractal Mythical Creature
 
@@ -381,16 +355,17 @@ MAI-Image-2 and MAI-Image-2e accept only 4 API parameters: `model`, `prompt`, `w
 
 **Round 1:**
 
-| **MAI-Image-2.6**<br>2026-09-07<br>36.9s, 1802 KiB | MAI-Image-2 (18.9s, 1463KB) | MAI-Image-2e (17.2s, 1510KB) | GPT-1.5 low (11.5s, 2029KB) | GPT-1.5 med (22.5s, 2108KB) | GPT-1.5 high (48.5s, 2193KB) |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| ![MAI-Image-2.6 prompt 9 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/09_test.png) | ![](images/mai-image-2/r1/09_test.png) | ![](images/mai-image-2e/r1/09_test.png) | ![](images/gpt-image-1.5-low/r1/09_test.png) | ![](images/gpt-image-1.5-medium/r1/09_test.png) | ![](images/gpt-image-1.5-high/r1/09_test.png) |
+| MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 9, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/09_test.png) | ![GPT-Image-2 low, prompt 9, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/09_test.png) | ![GPT-Image-2 medium, prompt 9, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/09_test.png) | ![GPT-Image-2 high, prompt 9, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/09_test.png) |
+| 49.96 s<br>1767 KiB | 37.29 s<br>1871 KiB | 61.67 s<br>1731 KiB | 169.84 s<br>1686 KiB |
 
 **Round 2:**
 
-| **MAI-Image-2.6**<br>2026-09-07<br>35.9s, 1852 KiB | MAI-Image-2 (20.4s, 1407KB) | MAI-Image-2e (17.3s, 1679KB) | GPT-1.5 low (13.1s, 1937KB) | GPT-1.5 med (23.5s, 2244KB) | GPT-1.5 high (47.8s, 2103KB) |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| ![MAI-Image-2.6 prompt 9 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/09_test.png) | ![](images/mai-image-2/r2/09_test.png) | ![](images/mai-image-2e/r2/09_test.png) | ![](images/gpt-image-1.5-low/r2/09_test.png) | ![](images/gpt-image-1.5-medium/r2/09_test.png) | ![](images/gpt-image-1.5-high/r2/09_test.png) |
-
+| MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 9, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/09_test.png) | ![GPT-Image-2 low, prompt 9, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/09_test.png) | ![GPT-Image-2 medium, prompt 9, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/09_test.png) | ![GPT-Image-2 high, prompt 9, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/09_test.png) |
+| 41.92 s<br>1737 KiB | 25.10 s<br>1840 KiB | 60.62 s<br>1747 KiB | 241.38 s<br>1666 KiB |
 
 ### Test 10: Angry Cat Playing Drums
 
@@ -398,16 +373,17 @@ MAI-Image-2 and MAI-Image-2e accept only 4 API parameters: `model`, `prompt`, `w
 
 **Round 1:**
 
-| **MAI-Image-2.6**<br>2026-09-07<br>38.1s, 1570 KiB | MAI-Image-2 (18.7s, 1551KB) | MAI-Image-2e (16.5s, 1370KB) | GPT-1.5 low (16.7s, 1810KB) | GPT-1.5 med (22.9s, 1825KB) | GPT-1.5 high (44.3s, 1780KB) |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| ![MAI-Image-2.6 prompt 10 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/10_test.png) | ![](images/mai-image-2/r1/10_test.png) | ![](images/mai-image-2e/r1/10_test.png) | ![](images/gpt-image-1.5-low/r1/10_test.png) | ![](images/gpt-image-1.5-medium/r1/10_test.png) | ![](images/gpt-image-1.5-high/r1/10_test.png) |
+| MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 10, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/10_test.png) | ![GPT-Image-2 low, prompt 10, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/10_test.png) | ![GPT-Image-2 medium, prompt 10, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/10_test.png) | ![GPT-Image-2 high, prompt 10, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/10_test.png) |
+| 32.92 s<br>1606 KiB | 28.74 s<br>1460 KiB | 57.93 s<br>1603 KiB | 139.24 s<br>1511 KiB |
 
 **Round 2:**
 
-| **MAI-Image-2.6**<br>2026-09-07<br>34.9s, 1633 KiB | MAI-Image-2 (18.1s, 1409KB) | MAI-Image-2e (17.2s, 1546KB) | GPT-1.5 low (13.7s, 1860KB) | GPT-1.5 med (22.0s, 1895KB) | GPT-1.5 high (50.2s, 1945KB) |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| ![MAI-Image-2.6 prompt 10 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/10_test.png) | ![](images/mai-image-2/r2/10_test.png) | ![](images/mai-image-2e/r2/10_test.png) | ![](images/gpt-image-1.5-low/r2/10_test.png) | ![](images/gpt-image-1.5-medium/r2/10_test.png) | ![](images/gpt-image-1.5-high/r2/10_test.png) |
-
+| MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 10, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/10_test.png) | ![GPT-Image-2 low, prompt 10, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/10_test.png) | ![GPT-Image-2 medium, prompt 10, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/10_test.png) | ![GPT-Image-2 high, prompt 10, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/10_test.png) |
+| 42.97 s<br>1652 KiB | 25.43 s<br>1611 KiB | 64.09 s<br>1581 KiB | 153.85 s<br>1592 KiB |
 
 ### Test 11: Monkey Playing Music
 
@@ -415,105 +391,14 @@ MAI-Image-2 and MAI-Image-2e accept only 4 API parameters: `model`, `prompt`, `w
 
 **Round 1:**
 
-| **MAI-Image-2.6**<br>2026-09-07<br>35.4s, 1824 KiB | MAI-Image-2 (20.1s, 1755KB) | MAI-Image-2e (17.3s, 1780KB) | GPT-1.5 low (14.0s, 1711KB) | GPT-1.5 med (25.8s, 1973KB) | GPT-1.5 high (48.7s, 2016KB) |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| ![MAI-Image-2.6 prompt 11 round 1](data/mai-image-2.6-20260907/mai-image-2.6/r1/11_test.png) | ![](images/mai-image-2/r1/11_test.png) | ![](images/mai-image-2e/r1/11_test.png) | ![](images/gpt-image-1.5-low/r1/11_test.png) | ![](images/gpt-image-1.5-medium/r1/11_test.png) | ![](images/gpt-image-1.5-high/r1/11_test.png) |
+| MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 11, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/11_test.png) | ![GPT-Image-2 low, prompt 11, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/11_test.png) | ![GPT-Image-2 medium, prompt 11, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/11_test.png) | ![GPT-Image-2 high, prompt 11, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/11_test.png) |
+| 33.49 s<br>1833 KiB | 27.58 s<br>1671 KiB | 56.04 s<br>1612 KiB | 140.32 s<br>1632 KiB |
 
 **Round 2:**
 
-| **MAI-Image-2.6**<br>2026-09-07<br>33.5s, 1653 KiB | MAI-Image-2 (19.9s, 1679KB) | MAI-Image-2e (17.1s, 1880KB) | GPT-1.5 low (13.5s, 1671KB) | GPT-1.5 med (25.8s, 1940KB) | GPT-1.5 high (43.9s, 2019KB) |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| ![MAI-Image-2.6 prompt 11 round 2](data/mai-image-2.6-20260907/mai-image-2.6/r2/11_test.png) | ![](images/mai-image-2/r2/11_test.png) | ![](images/mai-image-2e/r2/11_test.png) | ![](images/gpt-image-1.5-low/r2/11_test.png) | ![](images/gpt-image-1.5-medium/r2/11_test.png) | ![](images/gpt-image-1.5-high/r2/11_test.png) |
-
-
-## API Comparison
-
-### Request Parameters
-
-| Feature | MAI-Image-2 / MAI-Image-2e | GPT-Image-1.5 |
-|---------|:---------------------------:|:-------------:|
-| API Path | `/mai/v1/images/generations` | `/openai/deployments/{name}/images/generations` |
-| Auth | Entra ID + API Key | API Key + Entra ID |
-| Parameters | `model`, `prompt`, `width`, `height` | `prompt`, `n`, `size`, `quality` |
-| Quality control | **Not available** (single fixed tier) | `low` / `medium` / `high` |
-| Resolution | Flexible: W≥768, H≥768, W×H≤1,048,576 | Fixed: 1024×1024 / 1792×1024 / 1024×1792 |
-| Output format | PNG only | PNG / URL |
-| Output count | 1 (fixed) | 1–10 |
-| Max prompt | 32,000 tokens | 4,000 tokens |
-
-> **Source**: MAI parameters from [Microsoft Learn](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai?tabs=python). GPT parameters from [Azure OpenAI docs](https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/dall-e).
-
-### Capability Comparison
-
-| Capability | MAI-Image-2 | MAI-Image-2e | GPT-Image-1.5 |
-|---|:---:|:---:|:---:|
-| Text-to-image | ✅ | ✅ | ✅ |
-| Image editing | ❌ | ❌ | ✅ |
-| Inpainting | ❌ | ❌ | ✅ |
-| Flexible aspect ratio | ✅ | ✅ | ❌ (fixed sizes) |
-| Quality tiers | ❌ (single tier) | ❌ (single tier) | ✅ (low/med/high) |
-
-### Pricing
-
-| Model | Text Input | Image Output | Source |
-|-------|:----------:|:------------:|:------:|
-| MAI-Image-2 | USD 5 / 1M tokens | USD 33 / 1M tokens | [Tech Community 2026-04-02](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-mai-transcribe-1-mai-voice-1-and-mai-image-2-in-microsoft-foundry/4507787) |
-| MAI-Image-2e | USD 5 / 1M tokens | USD 19.50 / 1M tokens | [Tech Community 2026-04-14](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-mai-image-2-efficient-faster-more-efficient-image-generation/4510918) |
-| GPT-Image-1.5 | USD 5 / 1M tokens | USD 32 / 1M tokens | [Azure OpenAI Pricing](https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/) |
-
-> GPT-Image-1.5 charges per token — `quality=low` generates fewer tokens (cheaper per image), `quality=high` generates more tokens (more expensive per image). MAI models have a single fixed tier.
-
-### Rate Limits
-
-| Model | Tier 1 RPM | Tier 6 RPM |
-|-------|:----------:|:----------:|
-| MAI-Image-2 | 9 | 90 |
-| MAI-Image-2e | 18 | 180 |
-
-> Source: [Microsoft Learn](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai?tabs=python)
-
-## Choosing the Right Model
-
-| Use Case | Recommended | Why |
-|----------|:-----------:|-----|
-| Fastest generation | GPT-Image-1.5 (low) | 13.3s avg, USD 0.015/image |
-| Speed + Microsoft first-party | MAI-Image-2e | 17.2s, no OpenAI dependency |
-| Maximum detail | GPT-Image-1.5 (high) | Most output tokens, but 46s |
-| Image editing / inpainting | GPT-Image-1.5 | MAI has no editing API |
-| Flexible aspect ratios | MAI-Image-2 / 2e | Any W×H within pixel budget |
-| Long prompts (>4K tokens) | MAI-Image-2 / 2e | 32K token prompt support |
-| Lowest per-token price | MAI-Image-2e | USD 19.50/1M tokens (but ~USD 0.020/image vs GPT-low USD 0.015) |
-
-## How to Reproduce
-
-### Prerequisites
-
-- Azure subscription with Azure AI Services resource
-- Deployments: MAI-Image-2, MAI-Image-2e (AI Services), gpt-image-1.5 (Azure OpenAI)
-- Python 3.x with `requests`
-- Azure CLI (`az`) logged in
-
-### Run
-
-```bash
-git clone https://github.com/david-share/Multimodal-Models.git
-cd Multimodal-Models/MAI-Image-2-vs-GPT-Image-Benchmark
-
-# Edit scripts/benchmark_5way_v2.py — set your endpoints and credentials
-pip install requests
-python scripts/benchmark_5way_v2.py
-```
-
-## Repository Structure
-
-```
-.
-```
-
-## Known Limitations
-
-- **Sample size**: 11 prompts (Surreal style only). Results may vary with different prompt types (e.g., product photography, diagrams, text rendering).
-- **Single resolution**: All tests at 1024×1024. Latency and cost may differ at other resolutions.
-- **2 rounds**: Statistical power is limited with N=2 per data point. Trends are consistent across rounds (<6% variance) but a larger N would strengthen confidence.
-- **Preview models**: All models are in Preview as of April 2026. Performance and pricing may change at GA.
-- **Region**: Tested from East US only. Latency may vary by region.
+| MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 11, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/11_test.png) | ![GPT-Image-2 low, prompt 11, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/11_test.png) | ![GPT-Image-2 medium, prompt 11, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/11_test.png) | ![GPT-Image-2 high, prompt 11, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/11_test.png) |
+| 35.77 s<br>1725 KiB | 27.29 s<br>1615 KiB | 56.27 s<br>1541 KiB | 152.77 s<br>1715 KiB |

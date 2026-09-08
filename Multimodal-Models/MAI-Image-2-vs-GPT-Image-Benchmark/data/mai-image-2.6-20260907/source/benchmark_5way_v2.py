@@ -1,12 +1,11 @@
 """
-5-Way Benchmark V2: Latency + Token Usage + Cost Analysis
+5-Way Benchmark V2: Latency + Token Usage
 Author: Xinyu Wei (魏新宇)
 Date: 2026-04-19
 
 Changes from V1:
   - Records token usage from API responses (MAI: num_output_tokens, GPT: usage.*)
   - Saves images per round (r1/ and r2/ subdirectories, no overwrite)
-  - Calculates per-image cost
 
 API Sources:
   MAI: https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai?tabs=python
@@ -35,11 +34,11 @@ OUT_BASE = Path(__file__).parent.parent / "5way-benchmark-v2"
 RESULTS_JSON = OUT_BASE / "5way_v2_results.json"
 
 GROUPS = [
-    {"id": "mai-image-2",         "type": "mai", "model": "MAI-Image-2",  "quality": None,     "price_out": 33.0},
-    {"id": "mai-image-2e",        "type": "mai", "model": "MAI-Image-2e", "quality": None,     "price_out": 19.5},
-    {"id": "gpt-image-1.5-low",   "type": "gpt", "model": None,          "quality": "low",    "price_out": 32.0},
-    {"id": "gpt-image-1.5-medium","type": "gpt", "model": None,          "quality": "medium", "price_out": 32.0},
-    {"id": "gpt-image-1.5-high",  "type": "gpt", "model": None,          "quality": "high",   "price_out": 32.0},
+    {"id": "mai-image-2",         "type": "mai", "model": "MAI-Image-2",  "quality": None},
+    {"id": "mai-image-2e",        "type": "mai", "model": "MAI-Image-2e", "quality": None},
+    {"id": "gpt-image-1.5-low",   "type": "gpt", "model": None,          "quality": "low"},
+    {"id": "gpt-image-1.5-medium","type": "gpt", "model": None,          "quality": "medium"},
+    {"id": "gpt-image-1.5-high",  "type": "gpt", "model": None,          "quality": "high"},
 ]
 INTER_CALL_WAIT = 5
 REQUEST_CONTEXT = {}
@@ -202,7 +201,7 @@ def main():
         raise SystemExit("Set MAI_ENDPOINT to the resource origin before running.")
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print("=" * 75, flush=True)
-    print("5-Way Benchmark V2 (Latency + Tokens + Cost)", flush=True)
+    print("5-Way Benchmark V2 (Latency + Tokens)", flush=True)
     print(f"Date: {ts}", flush=True)
     print(f"Groups: {len(GROUPS)} | Prompts: 11 | Rounds: 2", flush=True)
     print("=" * 75, flush=True)
@@ -305,19 +304,10 @@ def main():
                     out_path.write_bytes(img)
                     size_bytes = len(img)
 
-                # Calculate cost
-                cost = None
-                if g["type"] == "mai" and token_info.get("num_output_tokens") and g["price_out"] is not None:
-                    cost = token_info["num_output_tokens"] / 1_000_000 * g["price_out"]
-                elif g["type"] == "gpt" and token_info.get("output_tokens"):
-                    cost = token_info["output_tokens"] / 1_000_000 * g["price_out"]
-
                 status = f"OK {elapsed:.1f}s {size_bytes/1024:.0f}KB"
                 if token_info.get("output_tokens") or token_info.get("num_output_tokens"):
                     out_tok = token_info.get("output_tokens") or token_info.get("num_output_tokens")
                     status += f" tok={out_tok}"
-                if cost is not None:
-                    status += f" ${cost:.4f}"
                 if not ok:
                     status = "FAIL"
                 print(f" {status}", flush=True)
@@ -326,7 +316,7 @@ def main():
                     "round": round_num, "prompt_idx": i+1, "prompt_short": short,
                     "group": gid, "group_type": g["type"], "quality": g.get("quality"),
                     "ok": ok, "time": elapsed, "size_bytes": size_bytes,
-                    "token_info": token_info, "cost_usd": cost,
+                    "token_info": token_info,
                     "started_at_utc": sample_started_at, "ended_at_utc": utc_now(),
                     "logical_request_seconds": logical_seconds,
                     "attempt_count": len(LAST_ATTEMPTS) if g["type"] == "mai" else None,
@@ -345,14 +335,12 @@ def main():
 
     # SUMMARY
     print(f"\n{'='*75}\nSUMMARY\n{'='*75}", flush=True)
-    print(f"{'Group':<28} {'Latency':>8} {'OutTok':>8} {'Cost/img':>10} {'Pass':>6}", flush=True)
+    print(f"{'Group':<28} {'Latency':>8} {'OutTok':>8} {'Pass':>6}", flush=True)
     print("-" * 65, flush=True)
     for g in GROUPS:
         entries = [d for d in all_data if d["group"]==g["id"] and d["ok"]]
         if entries:
             avg_t = sum(d["time"] for d in entries)/len(entries)
-            costs = [d["cost_usd"] for d in entries if d["cost_usd"] is not None]
-            avg_cost = sum(costs)/len(costs) if costs else None
             # output tokens
             if g["type"] == "gpt":
                 toks = [d["token_info"].get("output_tokens",0) for d in entries if d["token_info"].get("output_tokens")]
@@ -360,8 +348,7 @@ def main():
                 toks = [d["token_info"].get("num_output_tokens",0) for d in entries if d["token_info"].get("num_output_tokens")]
             avg_tok = sum(toks)/len(toks) if toks else None
             tok_str = f"{avg_tok:.0f}" if avg_tok else "N/A"
-            cost_str = f"${avg_cost:.4f}" if avg_cost else "N/A"
-            print(f"{g['id']:<28} {avg_t:>7.1f}s {tok_str:>8} {cost_str:>10} {len(entries)}/22", flush=True)
+            print(f"{g['id']:<28} {avg_t:>7.1f}s {tok_str:>8} {len(entries)}/22", flush=True)
 
     RUN_RECORD["ended_at_utc"] = utc_now()
     RUN_RECORD["current_sample"] = None
@@ -379,7 +366,7 @@ if __name__ == "__main__":
     RESUME = options.resume
     if options.mai_model:
         GROUPS = [{"id": options.mai_model.lower(), "type": "mai", "model": options.mai_model,
-                   "quality": None, "price_out": None}]
+                   "quality": None}]
     if options.output:
         OUT_BASE = options.output.resolve()
         RESULTS_JSON = OUT_BASE / "5way_v2_results.json"

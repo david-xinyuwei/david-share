@@ -20,17 +20,6 @@ class SummaryTests(unittest.TestCase):
         self.assertAlmostEqual(result["p95_seconds"], 2.9)
         self.assertEqual(result["sample_stddev_seconds"], 1)
 
-    def test_missing_usage_does_not_become_zero_cost(self):
-        prices = {"text_input": 5, "image_input": 8, "image_output": 38}
-        self.assertIsNone(SUMMARY.usage_cost({}, prices))
-        self.assertIsNone(SUMMARY.usage_cost(None, prices))
-        self.assertIsNone(SUMMARY.usage_cost({"num_output_tokens": 1024}, prices))
-
-    def test_cost_includes_returned_input_and_output_usage(self):
-        prices = {"text_input": 5, "image_input": 8, "image_output": 38}
-        usage = {"num_input_text_tokens": 43, "num_input_image_tokens": 0, "num_output_tokens": 1024}
-        self.assertAlmostEqual(SUMMARY.usage_cost(usage, prices), 0.039127)
-
     def test_running_measurement_cannot_be_a_final_report(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -38,7 +27,7 @@ class SummaryTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "terminal state"):
                 SUMMARY.summarize(root, root / "prompts.csv")
 
-    def test_price_schedule_rejects_another_model(self):
+    def test_summary_rejects_another_model(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             record = {"state": "COMPLETED", "config": {"groups": ["mai-image-2.6-flash"]}}

@@ -9,9 +9,6 @@ from datetime import datetime
 from pathlib import Path
 
 
-PRICE_SOURCE = "https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/mai-image-2-6-and-mai-image-2-6-flash-quality-and-speed-at-production-scale/4550970"
-
-
 def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -38,23 +35,13 @@ def latency_statistics(values):
     }
 
 
-def usage_cost(usage, prices):
-    if not isinstance(usage, dict):
-        return None
-    fields = ("num_input_text_tokens", "num_input_image_tokens", "num_output_tokens")
-    if any(not isinstance(usage.get(field), (int, float)) for field in fields):
-        return None
-    return (usage[fields[0]] * prices["text_input"] + usage[fields[1]] * prices["image_input"]
-            + usage[fields[2]] * prices["image_output"]) / 1_000_000
-
-
 def summarize(run_directory, prompts_path, historical_path=None):
     result_path = run_directory / "5way_v2_results.json"
     result = json.loads(result_path.read_text(encoding="utf-8"))
     if result["state"] not in {"COMPLETED", "COMPLETED_WITH_FAILURES"}:
         raise ValueError("The run has not reached a terminal state; no final summary was generated.")
     if result["config"]["groups"] != ["mai-image-2.6"]:
-        raise ValueError("This price schedule and summary are scoped to MAI-Image-2.6 only.")
+        raise ValueError("This summary is scoped to MAI-Image-2.6 only.")
     with prompts_path.open(encoding="utf-8-sig", newline="") as prompt_file:
         reader = csv.reader(prompt_file)
         next(reader)
@@ -90,9 +77,6 @@ def summarize(run_directory, prompts_path, historical_path=None):
             if content[:8] != b"\x89PNG\r\n\x1a\n" or struct.unpack(">II", content[16:24]) != (1024, 1024):
                 raise ValueError("An image does not have the expected PNG header and dimensions.")
             image_inventory.append({"path": row["image"], "bytes": len(content), "sha256": row["image_sha256"]})
-    prices = {"text_input": 5.0, "image_input": 8.0, "image_output": 38.0}
-    formal_costs = [usage_cost(row["token_info"].get("usage"), prices) for row in successful]
-    warmup_costs = [usage_cost(row["token_info"].get("usage"), prices) for row in result["warmup"] if row["ok"]]
     formal_start = min(datetime.fromisoformat(row["started_at_utc"]) for row in rows)
     formal_end = max(datetime.fromisoformat(row["ended_at_utc"]) for row in rows)
     formal_wall_seconds = (formal_end - formal_start).total_seconds()
@@ -131,12 +115,6 @@ def summarize(run_directory, prompts_path, historical_path=None):
         "observed_serial_images_per_minute_including_waits": len(successful) * 60 / formal_wall_seconds,
         "per_round": [{"round": round_number, "latency": latency_statistics([row["time"] for row in successful if row["round"] == round_number])}
                       for round_number in range(1, rounds + 1)],
-        "price_estimate": {"source": PRICE_SOURCE, "price_date": "2026-09-04",
-                           "usd_per_million_tokens": prices, "known_usage_samples": sum(cost is not None for cost in formal_costs),
-                           "formal_total_usd": sum(cost for cost in formal_costs if cost is not None),
-                           "formal_mean_usd": statistics.mean(cost for cost in formal_costs if cost is not None) if any(cost is not None for cost in formal_costs) else None,
-                           "warmup_total_usd": sum(cost for cost in warmup_costs if cost is not None),
-                           "scope": "Published list price times returned usage, not an invoice. Charges without returned usage are not inferred."},
         "per_prompt": per_prompt,
         "images": image_inventory,
         "percentile_method": "Linear interpolation at (n-1)*p; small-sample descriptive P95, not a production guarantee.",
