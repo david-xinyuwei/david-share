@@ -69,6 +69,29 @@ class RequestEvidenceTests(unittest.TestCase):
         self.assertEqual(tokens["usage"], usage)
         self.assertEqual(len(runner.LAST_ATTEMPTS), 1)
 
+    def test_mai_grounding_pair_changes_only_grounding(self):
+        requests_sent = []
+        for grounding in (False, True):
+            with self.subTest(web_grounding=grounding):
+                group = {"type": "mai", "model": "MAI-Image-2.6", "web_grounding": grounding}
+                with patch.object(runner.requests, "post", return_value=self.response({})) as post:
+                    succeeded, _, image, _ = runner.call_group(group, "identical prompt", None)
+                self.assertTrue(succeeded)
+                self.assertEqual(image, self.image)
+                payload = post.call_args.kwargs["json"]
+                self.assertIs(payload["web_grounding"], grounding)
+                self.assertIs(payload["auto_aspect_ratio"], False)
+                self.assertEqual(runner.LAST_ATTEMPTS[0]["request"], payload)
+                requests_sent.append(payload)
+        self.assertEqual({key: value for key, value in requests_sent[0].items() if key != "web_grounding"},
+                         {key: value for key, value in requests_sent[1].items() if key != "web_grounding"})
+
+    def test_mai_grounding_rejects_string_boolean(self):
+        with patch.object(runner.requests, "post") as post:
+            with self.assertRaises(ValueError):
+                runner.generate_mai("MAI-Image-2.6", "prompt", None, web_grounding="false")
+        post.assert_not_called()
+
     def test_gpt_rate_limit_is_recorded_before_success(self):
         limited = Mock(status_code=429, headers={"retry-after": "1"}, content=b"rate limited")
         with patch.object(runner.requests, "post", side_effect=[limited, self.response({})]), \

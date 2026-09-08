@@ -2,6 +2,8 @@
 
 > **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
 
+**Supplement: [MAI web-grounding on/off examples for Lenovo products](data/lenovo-web-grounding-20260908/README.md).** Two scenarios selected for improved text facts, with both rounds shown. Separate from the two-model benchmark below; selection scope, latency and timeouts are disclosed.
+
 ## Current Run: Both Models and All Quality Tiers
 
 [中文](README-CN.md) | [Side-by-side images](#side-by-side-image-comparison) | [Measurements](data/paired-all-quality-20260907/5way_v2_results.json) | [Metrics](data/paired-all-quality-20260907/summary.json) | [Attempts](data/paired-all-quality-20260907/attempts.jsonl)

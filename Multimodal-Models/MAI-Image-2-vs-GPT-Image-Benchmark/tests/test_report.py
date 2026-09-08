@@ -116,6 +116,8 @@ class ComparisonReportTests(unittest.TestCase):
             self.assertEqual(generated.count("### Test "), 11)
             self.assertEqual(generated.count("**Round "), 22)
             self.assertEqual(generated.count("!["), 88)
+            supplement_page = "README-CN.md" if language == "zh" else "README.md"
+            self.assertIn(f"data/lenovo-web-grounding-20260908/{supplement_page}", generated)
 
 
 if __name__ == "__main__":

@@ -314,7 +314,14 @@ def update_document(text, summary, quality, archive_path, language):
     comparison_heading = "## 并排图片对比" if chinese else "## Side-by-Side Image Comparison"
     description = ("每个场景、每一轮只展示 MAI-Image-2.6 与 GPT-Image-2 low、medium、high。图片来自本次四组测试，未返回图片的格子保留失败说明。点击图片查看原始 1024x1024 PNG。"
                    if chinese else "Every scenario and round compares only MAI-Image-2.6 with GPT-Image-2 low, medium and high. Images come from this four-configuration run; missing images retain their failure record. Click an image for the original 1024x1024 PNG.")
-    sections = [title, author.group(), content.strip(), comparison_heading, description]
+    supplement = (
+        "**补充选例：[联想新品的 MAI 联网开／关对照](data/lenovo-web-grounding-20260908/README-CN.md)。** "
+        "展示两个有文字事实改善的场景及全部两轮原图；独立于下方双模型测试，包含选例范围、耗时和超时记录。"
+        if chinese else
+        "**Supplement: [MAI web-grounding on/off examples for Lenovo products](data/lenovo-web-grounding-20260908/README.md).** "
+        "Two scenarios selected for improved text facts, with both rounds shown. Separate from the two-model benchmark below; selection scope, latency and timeouts are disclosed."
+    )
+    sections = [title, author.group(), supplement, content.strip(), comparison_heading, description]
     for prompt_record in summary["per_prompt"]:
         prompt_index = prompt_record["prompt_index"]
         sections.extend([f"### Test {prompt_index}: {titles[prompt_index]}",

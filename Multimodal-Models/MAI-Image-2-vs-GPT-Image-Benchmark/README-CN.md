@@ -2,6 +2,8 @@
 
 > **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
 
+**补充选例：[联想新品的 MAI 联网开／关对照](data/lenovo-web-grounding-20260908/README-CN.md)。** 展示两个有文字事实改善的场景及全部两轮原图；独立于下方双模型测试，包含选例范围、耗时和超时记录。
+
 ## 本轮：两模型与全部质量档位
 
 [English](README.md) | [逐题图片](#并排图片对比) | [测量记录](data/paired-all-quality-20260907/5way_v2_results.json) | [指标](data/paired-all-quality-20260907/summary.json) | [请求记录](data/paired-all-quality-20260907/attempts.jsonl)
