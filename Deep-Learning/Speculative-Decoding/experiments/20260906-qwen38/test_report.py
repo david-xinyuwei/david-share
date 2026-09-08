@@ -196,8 +196,8 @@ class ReportIntegrityTests(unittest.TestCase):
         validate_report.verify_local_links(self.root)
 
     def test_required_reader_sections_cannot_be_removed(self):
-        for filename, headings in (("README.md", ("## What You Can Do With This Repository", "## Repository Layout", "## Tests and Offline Replay")),
-                                   ("README_CN.md", ("## 你能用它做什么", "## 仓库目录", "## 测试与离线复算"))):
+        for filename, headings in (("README.md", ("## What You Can Do With This Repository", "## Repository Layout", "## Tests and Offline Replay", "## Applicability and Fine-Tuned Models")),
+                                   ("README_CN.md", ("## 你能用它做什么", "## 仓库目录", "## 测试与离线复算", "## 适用范围与微调模型"))):
             for heading in headings:
                 with self.subTest(filename=filename, heading=heading):
                     original = self.rewrite_readme(lambda text: text.replace(heading + "\n", heading + " (removed)\n", 1), filename)

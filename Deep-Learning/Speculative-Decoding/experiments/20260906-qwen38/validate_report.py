@@ -224,6 +224,7 @@ def verify_local_links(root):
             require(marker not in text, "INTERNAL_MAINTENANCE_IN_READER_PAGE:" + filename)
         require(has_heading(text, "## 你能用它做什么" if chinese else "## What You Can Do With This Repository"), "CUSTOMER_VALUE_ENTRY_MISSING:" + filename)
         require(has_heading(text, "## 仓库目录" if chinese else "## Repository Layout"), "REPOSITORY_LAYOUT_MISSING:" + filename)
+        require(has_heading(text, "## 适用范围与微调模型" if chinese else "## Applicability and Fine-Tuned Models"), "APPLICABILITY_SECTION_MISSING:" + filename)
         require(has_heading(text, "## 测试与离线复算" if chinese else "## Tests and Offline Replay"), "TEST_DOCUMENTATION_MISSING:" + filename)
         flow = f"]({experiment}images/test-flow-{'cn' if chinese else 'en'}.png)"
         require(flow in text and (root / f"images/test-flow-{'cn' if chinese else 'en'}.png").is_file(), "TEST_FLOW_MISSING:" + filename)
