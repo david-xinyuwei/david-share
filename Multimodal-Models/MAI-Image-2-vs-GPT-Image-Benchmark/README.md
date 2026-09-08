@@ -135,12 +135,40 @@ AI-assisted, unblinded inspection only. Each cell describes observed image diffe
 
 This section tests web grounding as a general image-generation capability: identical prompts are sent to MAI-Image-2.6 with `web_grounding=false/true` to compare text factual accuracy and latency. Public product announcements supply the test subjects; this is not a customer project or adoption case.
 
+**What we asked the model**
+
+Both subjects ask the model to put real product information into a poster. Subject 1 asks for every officially announced colour name and the screen-size options; subject 2 asks for the product name, screen size, computing platform, the officially named convertible modes and which surfaces accept pen input. The prompts only instruct the model to follow the official announcement; no correct answer is supplied in the prompt itself.
+
+<details><summary>Subject 1: New-product colours and sizes — expand for the exact prompt sent</summary>
+
+```text
+Create a polished square English-language launch poster for the Lenovo IdeaPad Vibe series announced at Lenovo Innovation World in September 2026. Present the official launch colour lineup as clearly separated colour swatches, each with its exact official colour name, and include the official screen-size options. Use a restrained stylized laptop silhouette and prioritize readable product information. Base factual claims on Lenovo's announcement; do not substitute colours or models from older IdeaPad products. Do not include prices, purchase links or unsupported specifications.
+```
+
+</details>
+
+<details><summary>Subject 2: Product specifications and usage modes — expand for the exact prompt sent</summary>
+
+```text
+Create a polished square English-language creator poster for the Lenovo Yoga 9n 2-in-1 announced at Lenovo Innovation World in September 2026. Include its exact product name, screen size and computing platform. Illustrate and label its officially named convertible usage modes, and describe which surfaces support pen input. Use a simple stylized device illustration with clear readable labels and generous spacing. Base the facts on Lenovo's announcement rather than specifications from older Yoga 9i products. Preserve qualifiers for optional features. Do not include prices or invented specifications.
+```
+
+</details>
+
+**Controlled variable**
+
+The only thing that changes is the `web_grounding` switch. Prompt, dimensions, model version, deployment and round count are identical.
+
 The complete supplement contains 12 formal samples and 2 excluded warmups. Two subjects were selected after observing improved text facts; all off/on results from both rounds are shown, 8 original images and 4 samples per setting. The table covers only these examples, not an overall improvement rate. No GPT comparison was performed in this section, so it does not establish superiority over GPT-Image-2.
+
+**Text-fact findings**
 
 | Test subject | Grounding off | Grounding on |
 | --- | --- | --- |
 | New-product colours and sizes | Both rounds used unofficial colour names and incorrect screen options | Both matched all seven official colour names and the 14/15-inch options |
 | Product specifications and usage modes | Screen size and computing platform were wrong; Canvas mode was missing | Both matched 16 inches, NVIDIA RTX Spark, five mode names and the pen-input surfaces |
+
+**Latency and request outcomes**
 
 | Metric | Grounding off | Grounding on |
 | --- | --- | --- |
@@ -187,6 +215,96 @@ Full original evidence is retained without rewriting previous runs. This section
 Result SHA-256: `669617dd5d59d0748a0fc398d98ec4c59cb4b26cc9655138edf9b6c9622f3c1b`.
 
 Official references: [IdeaPad Vibe](https://news.lenovo.com/pressroom/press-releases/colorful-ideapad-vibe-series-all-in-one-ai-pcs/) | [Yoga](https://news.lenovo.com/pressroom/press-releases/yoga-portfolio-new-ai-pcs-and-tablets/) | [MAI API](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image#request-parameters)
+
+### Multi-Image Input Edit Test
+
+**What this section determines**
+
+The question is how many reference images this edit endpoint accepts in one call, and whether an extra image is actually used. The official documentation does not say, so the answer below comes from real calls.
+
+This section measures how many reference images `/mai/v1/images/edits` accepts. The official parameter table types `image` as a `string` described as "the image", with no multi-image statement and no count limit, so the counts and field rules below come from the service's own validation messages. They are measured behaviour, not an official support commitment.
+
+**The two input images**
+
+Both images are model outputs from the web-grounding section above, reused here as input material. The left one is a dark colour-lineup infographic containing four colour dots, 14/16-inch labels and a purple laptop. The right one is a light specification infographic containing a brown laptop, on-screen text and a row of four usage modes, one of which holds a pen. They are generated content, not official assets, and their colour names and specification text do not represent official product information.
+
+| Input image 1, colour-lineup infographic | Input image 2, specification infographic |
+| --- | --- |
+| ![Input image 1](data/lenovo-web-grounding-20260908/mai-image-2.6-web-off/r1/01_test.png) | ![Input image 2](data/lenovo-web-grounding-20260908/mai-image-2.6-web-off/r1/02_test.png) |
+
+**Group 1: what each usage returns**
+
+The capability group gives each input count a prompt it can satisfy: a singular instruction for one image and a plural instruction for two. The prompts differ, so this group shows what each usage returns and cannot attribute a difference to the second image.
+
+Prompt sent with one image:
+
+```text
+Show the laptop from the reference image alone on a plain white studio background as a clean product photograph.
+```
+
+Prompt sent with two images:
+
+```text
+Show the laptops from both reference images together on one plain white studio background as a clean product photograph.
+```
+
+| Input | Request latency | Output size |
+| --- | --- | --- |
+| One image, `image` x 1 | 31.619 s | 920,112 bytes |
+| Two images, `image` x 2 | 38.455 s | 932,695 bytes |
+
+| One-image output | Two-image output |
+| --- | --- |
+| ![Single-image edit output](data/mai-multi-image-edit-20260908/01_single_image_matched_prompt.png) | ![Two-image edit output](data/mai-multi-image-edit-20260908/02_two_images_matched_prompt.png) |
+
+**Group 2: was the second image actually used**
+
+The attribution group holds one prompt constant and changes only the images, keeping both single-image arms so the comparison is symmetric. That prompt is under-determined for a single input, so this group measures attribution only and is not evidence of single-image edit quality.
+
+All three calls in this group use this one prompt:
+
+```text
+Place every laptop that appears in the reference images on one plain white studio background as a clean product photograph.
+```
+
+| Input combination | Images | Request latency | Observed result |
+| --- | --- | --- | --- |
+| Image 1 only | 1 | 31.783 s | Purple chassis only, no elements from image 2 |
+| Image 2 only | 1 | 33.511 s | Only the image-2 device, no purple chassis |
+| Both images | 2 | 41.639 s | Devices and mode row from both images appear together |
+
+| Image 1 only | Image 2 only |
+| --- | --- |
+| ![Attribution, image 1 only](data/mai-multi-image-edit-20260908/attribution_01_single_image.png) | ![Attribution, image 2 only](data/mai-multi-image-edit-20260908/03_fixed_prompt_image_two_only.png) |
+
+| Both input images |
+| --- |
+| ![Attribution, both images](data/mai-multi-image-edit-20260908/attribution_02_two_image_fields.png) |
+
+Each image's unique elements appear only when that image is present, so the second image was read and influenced the result rather than being silently ignored.
+
+**Group 3: how many images, and how the field must be named**
+
+Terminology: `HTTP 429` means the quota was exhausted (two requests per minute on this deployment), so the request was never processed. That differs from the endpoint refusing an image count, which returns `HTTP 400`.
+
+| Multipart field | Status | Service response |
+| --- | --- | --- |
+| `image` x 1 | 200 | Returned an image |
+| `image` x 2 | 200 | Returned an image; the second image took effect |
+| `image` x 3, 5 | 429 | Quota limit (2 RPM on this deployment); neither a capability refutation nor proof of support |
+| `image` x 9 | 400 | `Only 1 to 5 image files are supported for edit requests.` |
+| No image field | 400 | `Only 1 to 5 image files are supported for edit requests.` |
+| `image[]`, `images`, `image1`+`image2`, `image_a`+`image_b`, `reference` | 400 | `File must be attached in a form field with a name starting with 'image'.` |
+
+The service says the field name must start with `image`, yet `image1`, `image_a`, `image[]` and `images` were all rejected, so only repeated fields named `image` are accepted. The 1–5 range comes from the service message; no successful sample was obtained for 3 or 5 images because of the quota.
+
+**Is this a cutout**
+
+All three outputs are PNG colour type 2 with no alpha channel and opaque near-white corners. The white background is drawn by the model, not transparency, so compositing still requires a separate cutout. The API exposes no `background` or `output_format` parameter to request transparency and no `mask` parameter to select which part of each input is used; the output is a regenerated image, not a composite.
+
+Each combination was called once with no repeatability check. `MAI-Image-2.6` is in preview with no SLA and its behaviour may change. Latency is client-side `requests.post` round-trip time, not server-side inference duration.
+
+[Capability and third attribution arm](data/mai-multi-image-edit-20260908/clean-results.json) | [Field shapes](data/mai-multi-image-edit-20260908/field-shape-results.json) | [Validation and limit](data/mai-multi-image-edit-20260908/limit-probe-results.json) | [Probe scripts](data/mai-multi-image-edit-20260908/source)
 
 ### Measured API Settings
 
@@ -255,6 +373,15 @@ The web-grounding test needs only the MAI deployment. The first command verifies
 python scripts/summarize_web_grounding.py data/lenovo-web-grounding-20260908 --require-complete --check
 python data/lenovo-web-grounding-20260908/source/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --mai-web-grounding both --prompts-csv data/lenovo-web-grounding-20260908/source/prompts.csv --output runs/web-grounding-reproduction --dry-run
 python data/lenovo-web-grounding-20260908/source/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --mai-web-grounding both --prompts-csv data/lenovo-web-grounding-20260908/source/prompts.csv --output runs/web-grounding-reproduction
+```
+
+The multi-image test needs only the MAI deployment. The first command verifies the saved evidence and checks whether the PNGs carry an alpha channel; the remaining three call the API to rerun the capability group, the field validation and the count probe into their own output directories.
+
+```powershell
+python scripts/summarize_multi_image_edit.py data/mai-multi-image-edit-20260908 --check
+python data/mai-multi-image-edit-20260908/source/probe_multi_image_clean.py
+python data/mai-multi-image-edit-20260908/source/probe_multi_image_limit.py
+python data/mai-multi-image-edit-20260908/source/check_alpha_and_cutout.py
 ```
 
 Runner: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py); offline summary: [summarize_paired_run.py](scripts/summarize_paired_run.py); report rendering: [render_paired_report.py](scripts/render_paired_report.py); regressions: [tests](tests).

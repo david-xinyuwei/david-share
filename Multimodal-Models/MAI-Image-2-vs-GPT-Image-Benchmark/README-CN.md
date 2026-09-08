@@ -135,12 +135,40 @@ token 用量取自接口返回的 usage，不从模型或档位推算。没有�
 
 本节测试通用的联网信息补充能力：在相同提示词下，对比 MAI-Image-2.6 的 `web_grounding=false/true`，观察文字事实准确性与生成耗时。公开新品资料只是测试题材，不是客户项目或客户采纳案例。
 
+**我们向模型提出的问题**
+
+两个题目都要求模型把真实产品信息画进海报：题目 1 要求列出官方发布的全部配色名与屏幕尺寸选项，题目 2 要求写出产品名、屏幕尺寸、计算平台，并标出官方命名的翻转使用模式与支持笔输入的表面。提示词只要求以官方发布信息为准，没有把正确答案写进提示词。
+
+<details><summary>题目 1：新品配色与尺寸 — 展开查看发给模型的完整提示词</summary>
+
+```text
+Create a polished square English-language launch poster for the Lenovo IdeaPad Vibe series announced at Lenovo Innovation World in September 2026. Present the official launch colour lineup as clearly separated colour swatches, each with its exact official colour name, and include the official screen-size options. Use a restrained stylized laptop silhouette and prioritize readable product information. Base factual claims on Lenovo's announcement; do not substitute colours or models from older IdeaPad products. Do not include prices, purchase links or unsupported specifications.
+```
+
+</details>
+
+<details><summary>题目 2：产品规格与使用模式 — 展开查看发给模型的完整提示词</summary>
+
+```text
+Create a polished square English-language creator poster for the Lenovo Yoga 9n 2-in-1 announced at Lenovo Innovation World in September 2026. Include its exact product name, screen size and computing platform. Illustrate and label its officially named convertible usage modes, and describe which surfaces support pen input. Use a simple stylized device illustration with clear readable labels and generous spacing. Base the facts on Lenovo's announcement rather than specifications from older Yoga 9i products. Preserve qualifiers for optional features. Do not include prices or invented specifications.
+```
+
+</details>
+
+**受控变量**
+
+唯一变化的是 `web_grounding` 开关。提示词、尺寸、模型版本、部署与轮数完全相同。
+
 完整补测为 12 个正式样本，另有 2 次预热。按已观察到的文字事实改善选取两个题目，保留全部两轮开／关对照，共 8 张原图，每组 4 个样本。下表仅统计这些选例，不是全量提升率。本节没有 GPT 对照，不能据此得出相对 GPT-Image-2 的优势结论。
+
+**文字事实核对结果**
 
 | 测试项 | 关闭联网 | 开启联网 |
 | --- | --- | --- |
 | 新品配色与尺寸 | 两轮均出现非官方配色名和错误屏幕选项 | 两轮均匹配七种官方配色名及 14/15 英寸选项 |
 | 产品规格与使用模式 | 屏幕尺寸和计算平台错误，均漏掉 Canvas 模式 | 两轮均写对 16 英寸、NVIDIA RTX Spark、五种模式及笔输入表面 |
+
+**耗时与请求情况**
 
 | 指标 | 关闭联网 | 开启联网 |
 | --- | --- | --- |
@@ -187,6 +215,96 @@ token 用量取自接口返回的 usage，不从模型或档位推算。没有�
 结果 SHA-256: `669617dd5d59d0748a0fc398d98ec4c59cb4b26cc9655138edf9b6c9622f3c1b`.
 
 官方参考：[IdeaPad Vibe](https://news.lenovo.com/pressroom/press-releases/colorful-ideapad-vibe-series-all-in-one-ai-pcs/) | [Yoga](https://news.lenovo.com/pressroom/press-releases/yoga-portfolio-new-ai-pcs-and-tablets/) | [MAI API](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image#request-parameters)
+
+### 多图输入编辑测试
+
+**要回答什么**
+
+要回答的问题是：这个编辑接口一次能接受几张参考图，多传的那张会不会真的被用上。官方文档没有答案，所以下面用实际调用来定。
+
+本节测试 `/mai/v1/images/edits` 接受几张参考图。官方参数表把 `image` 标为 `string`、描述为 the image，既没有多图说明也没有张数上限，因此下列张数与字段规则取自服务端自身的校验消息，属实测结果，不是官方支持承诺。
+
+**两张输入图**
+
+两张图都取自上文联网补测的模型输出，在这里复用为输入素材。左图是一张深色配色信息图，画面里有四个配色圆点、14/16 英寸标注和一台紫色笔记本；右图是一张浅色规格信息图，有一台棕色笔记本、屏幕文字和下排四种使用模式（其中平板模式带手写笔）。它们是模型生成内容，不是官方素材，图中的配色名与规格文字不代表官方产品信息。
+
+| 输入图 1（深色配色信息图） | 输入图 2（浅色规格信息图） |
+| --- | --- |
+| ![Input image 1](data/lenovo-web-grounding-20260908/mai-image-2.6-web-off/r1/01_test.png) | ![Input image 2](data/lenovo-web-grounding-20260908/mai-image-2.6-web-off/r1/02_test.png) |
+
+**第一组：各自用法的实际效果**
+
+能力组给每种输入配一条它能满足的提示词：单图用单数指令，双图用双数指令。两次提示词不同，因此本组只展示各自用法的实际效果，不能把差异归因于第二张图。
+
+单图提示词（发送 1 张图时）：
+
+```text
+Show the laptop from the reference image alone on a plain white studio background as a clean product photograph.
+```
+
+双图提示词（发送 2 张图时）：
+
+```text
+Show the laptops from both reference images together on one plain white studio background as a clean product photograph.
+```
+
+| 输入 | 请求耗时 | 输出大小 |
+| --- | --- | --- |
+| 单图输入 `image` x 1 | 31.619 s | 920,112 bytes |
+| 双图输入 `image` x 2 | 38.455 s | 932,695 bytes |
+
+| 单图输入的输出 | 双图输入的输出 |
+| --- | --- |
+| ![Single-image edit output](data/mai-multi-image-edit-20260908/01_single_image_matched_prompt.png) | ![Two-image edit output](data/mai-multi-image-edit-20260908/02_two_images_matched_prompt.png) |
+
+**第二组：第二张图到底有没有被用上**
+
+归因组固定同一条提示词，只更换输入图，并同时保留两条单图臂，使对照对称。该提示词对单张输入是欠定的，因此本组只用于归因，不代表单图编辑质量。
+
+本组三次调用都用这一条提示词：
+
+```text
+Place every laptop that appears in the reference images on one plain white studio background as a clean product photograph.
+```
+
+| 输入组合 | 张数 | 请求耗时 | 画面结果 |
+| --- | --- | --- | --- |
+| 只给输入图 1 | 1 | 31.783 s | 仅紫色机身，无第二张图元素 |
+| 只给输入图 2 | 1 | 33.511 s | 仅输入图 2 的设备，无紫色机身 |
+| 同时给两张 | 2 | 41.639 s | 两张图各自的设备与模式排列同时出现 |
+
+| 只给输入图 1 | 只给输入图 2 |
+| --- | --- |
+| ![Attribution, image 1 only](data/mai-multi-image-edit-20260908/attribution_01_single_image.png) | ![Attribution, image 2 only](data/mai-multi-image-edit-20260908/03_fixed_prompt_image_two_only.png) |
+
+| 同时给两张输入图 |
+| --- |
+| ![Attribution, both images](data/mai-multi-image-edit-20260908/attribution_02_two_image_fields.png) |
+
+每张输入图的独有元素只在该图在场时出现，因此第二张图被读取并影响了生成结果，不是被静默忽略。
+
+**第三组：能传几张，字段该怎么写**
+
+术语说明：`HTTP 429` 是配额用尽（本部署每分钟 2 次请求），表示请求没被处理，与接口拒绝某个张数是两件事；`HTTP 400` 才是接口明确拒绝。
+
+| multipart 字段 | 状态 | 服务端返回 |
+| --- | --- | --- |
+| `image` x 1 | 200 | 返回图片 |
+| `image` x 2 | 200 | 返回图片，第二张图生效 |
+| `image` x 3, 5 | 429 | 配额限制（本部署 2 RPM），既非能力否证也非支持证明 |
+| `image` x 9 | 400 | `Only 1 to 5 image files are supported for edit requests.` |
+| 不传图片 | 400 | `Only 1 to 5 image files are supported for edit requests.` |
+| `image[]`, `images`, `image1`+`image2`, `image_a`+`image_b`, `reference` | 400 | `File must be attached in a form field with a name starting with 'image'.` |
+
+服务端提示字段名需以 `image` 开头，但 `image1`、`image_a`、`image[]`、`images` 实测均被拒，实际只接受重复命名为 `image` 的字段。上限 1–5 取自服务端消息；3 与 5 张因配额未取得成功样本。
+
+**是否等于抠图**
+
+三张输出均为 PNG colour type 2，文件不含 alpha 通道，四角为不透明近白像素。因此白色背景是模型画出来的背景，不是透明区域，用于合成仍需另行抠图。接口没有 `background` 或 `output_format` 参数可要求透明输出，也没有 `mask` 参数，无法指定各输入图的哪一部分进入结果；输出是重新生成的画面，不是图像拼接。
+
+每种组合各调用一次，未做重复性验证；`MAI-Image-2.6` 为 Preview，无 SLA，接口行为可能变化。耗时为客户端 `requests.post` 往返时间，不是服务端推理时长。
+
+[能力组与归因组第三臂](data/mai-multi-image-edit-20260908/clean-results.json) | [字段形式](data/mai-multi-image-edit-20260908/field-shape-results.json) | [校验与上限](data/mai-multi-image-edit-20260908/limit-probe-results.json) | [探测脚本](data/mai-multi-image-edit-20260908/source)
 
 ### 本轮实际接口设置
 
@@ -255,6 +373,15 @@ python -m unittest discover -s tests -v
 python scripts/summarize_web_grounding.py data/lenovo-web-grounding-20260908 --require-complete --check
 python data/lenovo-web-grounding-20260908/source/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --mai-web-grounding both --prompts-csv data/lenovo-web-grounding-20260908/source/prompts.csv --output runs/web-grounding-reproduction --dry-run
 python data/lenovo-web-grounding-20260908/source/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --mai-web-grounding both --prompts-csv data/lenovo-web-grounding-20260908/source/prompts.csv --output runs/web-grounding-reproduction
+```
+
+多图输入测试只需 MAI 部署。第一条只读核验已有证据并检查 PNG 是否含 alpha 通道；后三条会真实调用接口重跑能力组、字段校验与张数探测，并写入各自的输出目录。
+
+```powershell
+python scripts/summarize_multi_image_edit.py data/mai-multi-image-edit-20260908 --check
+python data/mai-multi-image-edit-20260908/source/probe_multi_image_clean.py
+python data/mai-multi-image-edit-20260908/source/probe_multi_image_limit.py
+python data/mai-multi-image-edit-20260908/source/check_alpha_and_cutout.py
 ```
 
 执行脚本: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py); 离线汇总: [summarize_paired_run.py](scripts/summarize_paired_run.py); 报告生成: [render_paired_report.py](scripts/render_paired_report.py); 回归测试: [tests](tests).

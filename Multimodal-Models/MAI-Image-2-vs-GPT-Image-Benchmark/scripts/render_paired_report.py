@@ -6,10 +6,12 @@ from pathlib import Path
 
 from summarize_paired_run import GROUPS, summarize
 from summarize_web_grounding import summarize as summarize_grounding
+from summarize_multi_image_edit import summarize as summarize_multi_image
 
 
 LABELS = ("MAI-Image-2.6", "GPT-Image-2 low", "GPT-Image-2 medium", "GPT-Image-2 high")
 GROUNDING_ARCHIVE = "data/lenovo-web-grounding-20260908"
+MULTI_IMAGE_ARCHIVE = "data/mai-multi-image-edit-20260908"
 
 
 def table(headers, rows):
@@ -126,7 +128,7 @@ def exception_section(summary, language):
     return text + "\n\n" + table(headers, rows)
 
 
-def reproduction_section(archive_path, language, grounding_archive=None):
+def reproduction_section(archive_path, language, grounding_archive=None, multi_image_archive=None):
     intro = ("需要可用的 MAI-Image-2.6 和 GPT-Image-2 部署。部署身份由您查询确认，不能仅凭 deployment 名称判断底层模型。先克隆仓库、拉取本项目的 Git LFS 文件，并在 Python 环境安装 requests："
              if language == "zh" else
              "Supply accessible MAI-Image-2.6 and GPT-Image-2 deployments. Verify their underlying model versions; deployment names alone are not model identity. Clone the repository, fetch this project's Git LFS inputs, and install requests in your Python environment:")
@@ -146,6 +148,16 @@ def reproduction_section(archive_path, language, grounding_archive=None):
              if language == "zh" else
              "The web-grounding test needs only the MAI deployment. The first command verifies the existing archive without writing; the second checks parameters without network calls; only the third reruns all three subjects into a new directory, leaving published data unchanged."),
             grounding_reproduction_commands(grounding_archive)])
+    multi_image = ""
+    if multi_image_archive:
+        multi_image = "\n\n".join([
+            ("多图输入测试只需 MAI 部署。第一条只读核验已有证据并检查 PNG 是否含 alpha 通道；"
+             "后三条会真实调用接口重跑能力组、字段校验与张数探测，并写入各自的输出目录。"
+             if language == "zh" else
+             "The multi-image test needs only the MAI deployment. The first command verifies the saved evidence "
+             "and checks whether the PNGs carry an alpha channel; the remaining three call the API to rerun the "
+             "capability group, the field validation and the count probe into their own output directories."),
+            multi_image_reproduction_commands(multi_image_archive)])
     return f"""## {'复现与测试' if language == 'zh' else 'Reproduction and Tests'}
 
 {intro}
@@ -199,11 +211,14 @@ python -m unittest discover -s tests -v
 
 {grounding}
 
+{multi_image}
+
 {'执行脚本' if language == 'zh' else 'Runner'}: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py); {'离线汇总' if language == 'zh' else 'offline summary'}: [summarize_paired_run.py](scripts/summarize_paired_run.py); {'报告生成' if language == 'zh' else 'report rendering'}: [render_paired_report.py](scripts/render_paired_report.py); {'回归测试' if language == 'zh' else 'regressions'}: [tests](tests).
 """
 
 
-def render_overview(summary, quality, archive_path, language, grounding_section=""):
+def render_overview(summary, quality, archive_path, language, grounding_section="",
+                    multi_image_section=""):
     chinese = language == "zh"
     metadata = summary["config"]["group_configurations"]
     if [group["group"] for group in summary["groups"]] != list(GROUPS):
@@ -299,11 +314,13 @@ flowchart LR
 
 {grounding_section}
 
+{multi_image_section}
+
 ### {heading('Measured API Settings', '本轮实际接口设置')}
 
 {api}
 
-{reproduction_section(archive_path, language, GROUNDING_ARCHIVE if grounding_section else None)}
+{reproduction_section(archive_path, language, GROUNDING_ARCHIVE if grounding_section else None, MULTI_IMAGE_ARCHIVE if multi_image_section else None)}
 
 ### {heading('Limits', '结论边界')}
 
@@ -311,6 +328,191 @@ flowchart LR
 
 {'证据目录' if chinese else 'Evidence directory'}: [{archive_path}]({archive_path}). {'包含原始图片、测量记录、逐次请求、响应元数据及删减后的公开源码副本。非财务测量字段和图片保持不变；原始执行哈希与公开文件哈希分别记录于' if chinese else 'Contains original images, measurement records, attempts, response metadata and a redacted public source copy. Non-financial measurement fields and image bytes are unchanged; original execution hashes and published-file hashes are recorded separately in'} [{'来源说明' if chinese else 'provenance'}]({archive_path}/provenance.json). {'提示词 SHA-256' if chinese else 'Prompt SHA-256'}: `{summary['prompts_sha256']}`.
 """
+
+
+def render_multi_image_section(summary, archive_path, language):
+    """Render the input-count section: capability arms first, then attribution."""
+    chinese = language == "zh"
+    if summary["transparent_cutout_supported"]:
+        raise ValueError("Alpha channel found; the cutout wording below would be wrong")
+    capability = {entry["image_count"]: entry for entry in summary["capability"]}
+    attribution = {entry["label"]: entry for entry in summary["attribution"]}
+    limit = summary["contract"]["service_limit_message"]
+    quota = summary["contract"]["quota_limited_counts"]
+
+    intro = (
+        "本节测试 `/mai/v1/images/edits` 接受几张参考图。官方参数表把 `image` 标为 `string`、"
+        "描述为 the image，既没有多图说明也没有张数上限，因此下列张数与字段规则取自服务端自身的校验消息，"
+        "属实测结果，不是官方支持承诺。"
+        if chinese else
+        "This section measures how many reference images `/mai/v1/images/edits` accepts. The official parameter "
+        "table types `image` as a `string` described as \"the image\", with no multi-image statement and no count "
+        "limit, so the counts and field rules below come from the service's own validation messages. They are "
+        "measured behaviour, not an official support commitment."
+    )
+    capability_note = (
+        "能力组给每种输入配一条它能满足的提示词：单图用单数指令，双图用双数指令。"
+        "两次提示词不同，因此本组只展示各自用法的实际效果，不能把差异归因于第二张图。"
+        if chinese else
+        "The capability group gives each input count a prompt it can satisfy: a singular instruction for one image "
+        "and a plural instruction for two. The prompts differ, so this group shows what each usage returns and "
+        "cannot attribute a difference to the second image."
+    )
+    capability_rows = [
+        [("单图输入 `image` x 1" if chinese else "One image, `image` x 1"),
+         f"`{capability[1]['prompt']}`", f"{capability[1]['request_seconds']} s",
+         f"{capability[1]['png']['bytes']:,} bytes"],
+        [("双图输入 `image` x 2" if chinese else "Two images, `image` x 2"),
+         f"`{capability[2]['prompt']}`", f"{capability[2]['request_seconds']} s",
+         f"{capability[2]['png']['bytes']:,} bytes"],
+    ]
+    attribution_note = (
+        "归因组固定同一条提示词，只更换输入图，并同时保留两条单图臂，使对照对称。"
+        "该提示词对单张输入是欠定的，因此本组只用于归因，不代表单图编辑质量。"
+        if chinese else
+        "The attribution group holds one prompt constant and changes only the images, keeping both single-image "
+        "arms so the comparison is symmetric. That prompt is under-determined for a single input, so this group "
+        "measures attribution only and is not evidence of single-image edit quality."
+    )
+    attribution_rows = [
+        [("只给输入图 1" if chinese else "Image 1 only"), "1",
+         f"{attribution['single_image']['request_seconds']} s",
+         ("仅紫色机身，无第二张图元素" if chinese else "Purple chassis only, no elements from image 2")],
+        [("只给输入图 2" if chinese else "Image 2 only"), "1",
+         f"{attribution['fixed_prompt_image_two_only']['request_seconds']} s",
+         ("仅输入图 2 的设备，无紫色机身" if chinese else "Only the image-2 device, no purple chassis")],
+        [("同时给两张" if chinese else "Both images"), "2",
+         f"{attribution['two_image_fields']['request_seconds']} s",
+         ("两张图各自的设备与模式排列同时出现" if chinese else
+          "Devices and mode row from both images appear together")],
+    ]
+    attribution_prompt = summary["attribution_prompts"][0]
+    attribution_finding = (
+        "每张输入图的独有元素只在该图在场时出现，因此第二张图被读取并影响了生成结果，不是被静默忽略。"
+        if chinese else
+        "Each image's unique elements appear only when that image is present, so the second image was read and "
+        "influenced the result rather than being silently ignored."
+    )
+    contract_rows = [
+        ["`image` x 1", "200", ("返回图片" if chinese else "Returned an image")],
+        ["`image` x 2", "200", ("返回图片，第二张图生效" if chinese else "Returned an image; the second image took effect")],
+        [f"`image` x {', '.join(str(count) for count in sorted(quota))}", "429",
+         ("配额限制（本部署 2 RPM），既非能力否证也非支持证明" if chinese else
+          "Quota limit (2 RPM on this deployment); neither a capability refutation nor proof of support")],
+        ["`image` x 9", "400", f"`{limit}`"],
+        [("不传图片" if chinese else "No image field"), "400", f"`{limit}`"],
+        ["`image[]`, `images`, `image1`+`image2`, `image_a`+`image_b`, `reference`", "400",
+         f"`{summary['contract']['field_prefix_message']}`"],
+    ]
+    field_boundary = (
+        "服务端提示字段名需以 `image` 开头，但 `image1`、`image_a`、`image[]`、`images` 实测均被拒，"
+        "实际只接受重复命名为 `image` 的字段。上限 1–5 取自服务端消息；3 与 5 张因配额未取得成功样本。"
+        if chinese else
+        "The service says the field name must start with `image`, yet `image1`, `image_a`, `image[]` and `images` "
+        "were all rejected, so only repeated fields named `image` are accepted. The 1–5 range comes from the "
+        "service message; no successful sample was obtained for 3 or 5 images because of the quota."
+    )
+    cutout_boundary = (
+        f"三张输出均为 PNG colour type {capability[1]['png']['colour_type']}，文件不含 alpha 通道，"
+        "四角为不透明近白像素。因此白色背景是模型画出来的背景，不是透明区域，用于合成仍需另行抠图。"
+        "接口没有 `background` 或 `output_format` 参数可要求透明输出，也没有 `mask` 参数，"
+        "无法指定各输入图的哪一部分进入结果；输出是重新生成的画面，不是图像拼接。"
+        if chinese else
+        f"All three outputs are PNG colour type {capability[1]['png']['colour_type']} with no alpha channel and "
+        "opaque near-white corners. The white background is drawn by the model, not transparency, so compositing "
+        "still requires a separate cutout. The API exposes no `background` or `output_format` parameter to request "
+        "transparency and no `mask` parameter to select which part of each input is used; the output is a "
+        "regenerated image, not a composite."
+    )
+    repeatability = (
+        "每种组合各调用一次，未做重复性验证；`MAI-Image-2.6` 为 Preview，无 SLA，接口行为可能变化。"
+        "耗时为客户端 `requests.post` 往返时间，不是服务端推理时长。"
+        if chinese else
+        "Each combination was called once with no repeatability check. `MAI-Image-2.6` is in preview with no SLA "
+        "and its behaviour may change. Latency is client-side `requests.post` round-trip time, not server-side "
+        "inference duration."
+    )
+    question = (
+        "要回答的问题是：这个编辑接口一次能接受几张参考图，多传的那张会不会真的被用上。"
+        "官方文档没有答案，所以下面用实际调用来定。"
+        if chinese else
+        "The question is how many reference images this edit endpoint accepts in one call, and whether an extra "
+        "image is actually used. The official documentation does not say, so the answer below comes from real calls."
+    )
+    quota_note = (
+        "术语说明：`HTTP 429` 是配额用尽（本部署每分钟 2 次请求），表示请求没被处理，"
+        "与接口拒绝某个张数是两件事；`HTTP 400` 才是接口明确拒绝。"
+        if chinese else
+        "Terminology: `HTTP 429` means the quota was exhausted (two requests per minute on this deployment), so the "
+        "request was never processed. That differs from the endpoint refusing an image count, which returns "
+        "`HTTP 400`."
+    )
+    sections = [
+        f"### {'多图输入编辑测试' if chinese else 'Multi-Image Input Edit Test'}",
+        f"**{'要回答什么' if chinese else 'What this section determines'}**", question, intro,
+        f"**{'两张输入图' if chinese else 'The two input images'}**",
+        ("两张图都取自上文联网补测的模型输出，在这里复用为输入素材。左图是一张深色配色信息图，"
+         "画面里有四个配色圆点、14/16 英寸标注和一台紫色笔记本；右图是一张浅色规格信息图，"
+         "有一台棕色笔记本、屏幕文字和下排四种使用模式（其中平板模式带手写笔）。"
+         "它们是模型生成内容，不是官方素材，图中的配色名与规格文字不代表官方产品信息。"
+         if chinese else
+         "Both images are model outputs from the web-grounding section above, reused here as input material. The "
+         "left one is a dark colour-lineup infographic containing four colour dots, 14/16-inch labels and a purple "
+         "laptop. The right one is a light specification infographic containing a brown laptop, on-screen text and "
+         "a row of four usage modes, one of which holds a pen. They are generated content, not official assets, and "
+         "their colour names and specification text do not represent official product information."),
+        table([("输入图 1（深色配色信息图）" if chinese else "Input image 1, colour-lineup infographic"),
+               ("输入图 2（浅色规格信息图）" if chinese else "Input image 2, specification infographic")],
+              [[f"![Input image 1]({GROUNDING_ARCHIVE}/mai-image-2.6-web-off/r1/01_test.png)",
+                f"![Input image 2]({GROUNDING_ARCHIVE}/mai-image-2.6-web-off/r1/02_test.png)"]]),
+        f"**{'第一组：各自用法的实际效果' if chinese else 'Group 1: what each usage returns'}**", capability_note,
+        (f"单图提示词（发送 1 张图时）：\n\n```text\n{capability[1]['prompt']}\n```\n\n"
+         f"双图提示词（发送 2 张图时）：\n\n```text\n{capability[2]['prompt']}\n```"
+         if chinese else
+         f"Prompt sent with one image:\n\n```text\n{capability[1]['prompt']}\n```\n\n"
+         f"Prompt sent with two images:\n\n```text\n{capability[2]['prompt']}\n```"),
+        table(([ "输入", "请求耗时", "输出大小"] if chinese else
+               ["Input", "Request latency", "Output size"]),
+              [[row[0], row[2], row[3]] for row in capability_rows]),
+        table([("单图输入的输出" if chinese else "One-image output"),
+               ("双图输入的输出" if chinese else "Two-image output")],
+              [[f"![Single-image edit output]({archive_path}/{capability[1]['output']})",
+                f"![Two-image edit output]({archive_path}/{capability[2]['output']})"]]),
+        f"**{'第二组：第二张图到底有没有被用上' if chinese else 'Group 2: was the second image actually used'}**",
+        attribution_note,
+        (f"本组三次调用都用这一条提示词：\n\n```text\n{attribution_prompt}\n```"
+         if chinese else
+         f"All three calls in this group use this one prompt:\n\n```text\n{attribution_prompt}\n```"),
+        table(([ "输入组合", "张数", "请求耗时", "画面结果"] if chinese else
+               ["Input combination", "Images", "Request latency", "Observed result"]), attribution_rows),
+        table([("只给输入图 1" if chinese else "Image 1 only"),
+               ("只给输入图 2" if chinese else "Image 2 only")],
+              [[f"![Attribution, image 1 only]({archive_path}/{attribution['single_image']['output']})",
+                f"![Attribution, image 2 only]({archive_path}/{attribution['fixed_prompt_image_two_only']['output']})"]]),
+        table([("同时给两张输入图" if chinese else "Both input images")],
+              [[f"![Attribution, both images]({archive_path}/{attribution['two_image_fields']['output']})"]]),
+        attribution_finding,
+        f"**{'第三组：能传几张，字段该怎么写' if chinese else 'Group 3: how many images, and how the field must be named'}**",
+        quota_note,
+        table(([ "multipart 字段", "状态", "服务端返回"] if chinese else
+               ["Multipart field", "Status", "Service response"]), contract_rows),
+        field_boundary,
+        f"**{'是否等于抠图' if chinese else 'Is this a cutout'}**", cutout_boundary, repeatability,
+        " | ".join([
+            f"[{'能力组与归因组第三臂' if chinese else 'Capability and third attribution arm'}]({archive_path}/clean-results.json)",
+            f"[{'字段形式' if chinese else 'Field shapes'}]({archive_path}/field-shape-results.json)",
+            f"[{'校验与上限' if chinese else 'Validation and limit'}]({archive_path}/limit-probe-results.json)",
+            f"[{'探测脚本' if chinese else 'Probe scripts'}]({archive_path}/source)",
+        ]),
+    ]
+    return "\n\n".join(sections)
+
+
+def multi_image_reproduction_commands(archive_path):
+    return (f"```powershell\npython scripts/summarize_multi_image_edit.py {archive_path} --check\n"
+            f"python {archive_path}/source/probe_multi_image_clean.py\n"
+            f"python {archive_path}/source/probe_multi_image_limit.py\n"
+            f"python {archive_path}/source/check_alpha_and_cutout.py\n```")
 
 
 def grounding_reproduction_commands(archive_path):
@@ -409,8 +611,39 @@ def render_grounding_section(summary, archive_path, language):
         "with few repetitions, not human preference voting or a statistically significant result. Responses included "
         "no search queries, source URLs or retrieval traces; usage changes do not identify retrieval sources."
     )
-    sections = [f"### {'联网信息补充测试' if chinese else 'Web Grounding Test'}", intro, scope,
+    subject_labels = ("新品配色与尺寸", "产品规格与使用模式") if chinese else (
+        "New-product colours and sizes", "Product specifications and usage modes")
+    prompt_block = []
+    for index, label in enumerate(subject_labels):
+        prompt_text = summary["prompts"][index]
+        opened = "<details><summary>" + (
+            f"题目 {index + 1}：{label} — 展开查看发给模型的完整提示词" if chinese else
+            f"Subject {index + 1}: {label} — expand for the exact prompt sent") + "</summary>\n\n"
+        prompt_block.append(opened + "```text\n" + prompt_text + "\n```\n\n</details>")
+    asked = (
+        "两个题目都要求模型把真实产品信息画进海报：题目 1 要求列出官方发布的全部配色名与屏幕尺寸选项，"
+        "题目 2 要求写出产品名、屏幕尺寸、计算平台，并标出官方命名的翻转使用模式与支持笔输入的表面。"
+        "提示词只要求以官方发布信息为准，没有把正确答案写进提示词。"
+        if chinese else
+        "Both subjects ask the model to put real product information into a poster. Subject 1 asks for every "
+        "officially announced colour name and the screen-size options; subject 2 asks for the product name, screen "
+        "size, computing platform, the officially named convertible modes and which surfaces accept pen input. The "
+        "prompts only instruct the model to follow the official announcement; no correct answer is supplied in the "
+        "prompt itself."
+    )
+    controlled = (
+        "唯一变化的是 `web_grounding` 开关。提示词、尺寸、模型版本、部署与轮数完全相同。"
+        if chinese else
+        "The only thing that changes is the `web_grounding` switch. Prompt, dimensions, model version, deployment "
+        "and round count are identical."
+    )
+    sections = [f"### {'联网信息补充测试' if chinese else 'Web Grounding Test'}", intro,
+                f"**{'我们向模型提出的问题' if chinese else 'What we asked the model'}**", asked,
+                *prompt_block,
+                f"**{'受控变量' if chinese else 'Controlled variable'}**", controlled, scope,
+                f"**{'文字事实核对结果' if chinese else 'Text-fact findings'}**",
                 table(["测试项", "关闭联网", "开启联网"] if chinese else ["Test subject", "Grounding off", "Grounding on"], findings),
+                f"**{'耗时与请求情况' if chinese else 'Latency and request outcomes'}**",
                 table(headers, metrics), boundaries, quality_boundary]
     for prompt_index, subject in ((1, "新品配色与尺寸" if chinese else "New-product colours and sizes"),
                                   (2, "产品规格与使用模式" if chinese else "Product specifications and usage modes")):
@@ -440,7 +673,8 @@ def render_grounding_section(summary, archive_path, language):
     return "\n\n".join(sections)
 
 
-def update_document(text, summary, quality, archive_path, language, grounding_section=""):
+def update_document(text, summary, quality, archive_path, language, grounding_section="",
+                    multi_image_section=""):
     chinese = language == "zh"
     title = ("# MAI-Image-2.6 与 GPT-Image-2：全质量档位图像生成对比" if chinese else
              "# MAI-Image-2.6 vs GPT-Image-2: All Quality Tiers")
@@ -451,7 +685,8 @@ def update_document(text, summary, quality, archive_path, language, grounding_se
               re.findall(r"(?m)^### Test (\d+): ([^\n]+)$", text)}
     if set(titles) != set(range(1, 12)) or [item["prompt_index"] for item in summary["per_prompt"]] != list(range(1, 12)):
         raise ValueError("All eleven original scenarios are required")
-    content = render_overview(summary, quality, archive_path, language, grounding_section)
+    content = render_overview(summary, quality, archive_path, language, grounding_section,
+                              multi_image_section)
     comparison_heading = "## 并排图片对比" if chinese else "## Side-by-Side Image Comparison"
     description = ("每个场景、每一轮只展示 MAI-Image-2.6 与 GPT-Image-2 low、medium、high。图片来自本次四组测试，未返回图片的格子保留失败说明。点击图片查看原始 1024x1024 PNG。"
                    if chinese else "Every scenario and round compares only MAI-Image-2.6 with GPT-Image-2 low, medium and high. Images come from this four-configuration run; missing images retain their failure record. Click an image for the original 1024x1024 PNG.")
@@ -499,12 +734,15 @@ def main():
         return
     archive_path = run_directory.relative_to(root).as_posix()
     grounding_summary = summarize_grounding(root / GROUNDING_ARCHIVE)
+    multi_image_summary = summarize_multi_image(root / MULTI_IMAGE_ARCHIVE)
     documents = []
     for filename, language in (("README.md", "en"), ("README-CN.md", "zh")):
         path = root / filename
         original = path.read_text("utf-8")
-        generated = update_document(original, summary, quality, archive_path, language,
-                                    render_grounding_section(grounding_summary, GROUNDING_ARCHIVE, language))
+        generated = update_document(
+            original, summary, quality, archive_path, language,
+            render_grounding_section(grounding_summary, GROUNDING_ARCHIVE, language),
+            render_multi_image_section(multi_image_summary, MULTI_IMAGE_ARCHIVE, language))
         documents.append((path, original, generated))
     if arguments.check:
         changed = [path.name for path, original, generated in documents if original != generated]
