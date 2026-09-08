@@ -123,7 +123,9 @@ class ComparisonReportTests(unittest.TestCase):
             self.assertNotIn("web-grounding-20260908/README", generated)
             self.assertNotIn("Supplement", generated)
             self.assertNotIn("Lenovo products", generated)
-            self.assertLess(generated.index("Offline grounding evidence"), generated.index("### Test 1:"))
+            # Images now precede the metrics body, so the overview content that
+            # carries the grounding section appears after the scenario comparisons.
+            self.assertLess(generated.index("### Test 1:"), generated.index("Offline grounding evidence"))
 
 
 if __name__ == "__main__":

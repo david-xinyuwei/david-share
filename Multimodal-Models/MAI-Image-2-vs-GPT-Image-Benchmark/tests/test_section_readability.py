@@ -72,11 +72,26 @@ class SectionReadabilityTests(unittest.TestCase):
             for prompt in prompts:
                 self.assertIn(normalize(prompt), body, f"{name}: prompt not quoted verbatim")
 
-    def test_no_collapsed_blocks_hide_the_input(self):
-        """A collapsed block hides the actual prompt behind an extra click."""
-        for name in SECTIONS:
-            self.assertNotIn("<details", self.documents[name], f"{name}: collapsed block found")
-            self.assertNotIn("<summary", self.documents[name], f"{name}: collapsed block found")
+    def test_our_own_inputs_and_results_are_never_collapsed(self):
+        """External reference material may fold; this project's evidence may not.
+
+        A collapsed block costs the reader a click, which is acceptable for
+        borrowed vendor context but not for the prompts, measurements or claim
+        boundaries this repository is delivering.
+        """
+        for name, labels in SECTIONS.items():
+            text = self.documents[name]
+            for label in ("grounding", "multi_image"):
+                body = section_text(text, labels[label])
+                self.assertNotIn("<details", body,
+                                 f"{name}: our own measurement section must not be collapsed")
+            collapsed = re.findall(r"<details>(.*?)</details>", text, re.S)
+            for block in collapsed:
+                self.assertNotIn("请求耗时" if name.endswith("CN.md") else "Request latency", block,
+                                 f"{name}: our own latency table was hidden in a collapsed block")
+                for prompt in self.grounding_prompts[:2]:
+                    self.assertNotIn(normalize(prompt), normalize(block),
+                                     f"{name}: our own prompt was hidden in a collapsed block")
 
     def test_opening_states_capabilities_before_any_measurement_section(self):
         """A reader must learn what the model can do before reading test detail."""
@@ -105,6 +120,30 @@ class SectionReadabilityTests(unittest.TestCase):
             text = self.documents[name]
             self.assertLess(text.index(labels["comparison"]), text.index(labels["grounding"]))
             self.assertLess(text.index(labels["grounding"]), text.index(labels["multi_image"]))
+
+    def test_generated_images_appear_before_the_metrics_body(self):
+        """Readers judge generated pictures by seeing them, not by reading timings first."""
+        for name, labels in SECTIONS.items():
+            text = self.documents[name]
+            metrics_body = ("## 本轮：两模型与全部质量档位" if name.endswith("CN.md")
+                            else "## Current Run: Both Models and All Quality Tiers")
+            self.assertIn(metrics_body, text)
+            self.assertLess(text.index(labels["comparison"]), text.index(metrics_body),
+                            f"{name}: image comparison must precede the metrics body")
+
+    def test_quality_observations_lead_with_countable_outcomes(self):
+        """A prose wall is unreadable without the scale of the outcome first."""
+        for name in SECTIONS:
+            text = self.documents[name]
+            heading = ("### 逐场景画面观察" if name.endswith("CN.md") else "### Quality Observations")
+            body = text[text.index(heading):]
+            body = body[:body.index("\n### ", 4)] if "\n### " in body[4:] else body
+            counted = ("返回图片 / 计划样本" if name.endswith("CN.md") else "Images returned / planned")
+            self.assertIn(counted, body, f"{name}: countable summary missing")
+            prose_marker = ("以下为逐场景画面差异描述" if name.endswith("CN.md")
+                            else "The per-scenario descriptions follow")
+            self.assertLess(body.index(counted), body.index(prose_marker),
+                            f"{name}: prose appears before the countable summary")
 
     def test_input_precedes_the_first_metric_table(self):
         """A reader who cannot see the input cannot judge the number."""

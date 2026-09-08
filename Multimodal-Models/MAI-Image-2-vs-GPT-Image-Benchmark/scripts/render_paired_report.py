@@ -217,6 +217,38 @@ python -m unittest discover -s tests -v
 """
 
 
+def quality_counts_table(summary, quality, language):
+    """Countable outcomes first, so a reader sees scale before reading prose.
+
+    The counts come from the recorded observation text for each configuration.
+    They describe how often a defect wording appears, which is a tally of this
+    unblinded review, not a quality score or a defect rate for the model.
+    """
+    chinese = language == "zh"
+    markers = (
+        (("裁切" if chinese else "Cropped or clipped subject"), ("裁切", "截断"), ("crop", "clipp", "truncat")),
+        (("未请求的文字" if chinese else "Unrequested text added"), ("未请求", "额外", "增加", "添加", "标语"),
+         ("unrequested", "extra text", "added", "slogan", "brand")),
+        (("局部难辨或模糊" if chinese else "Illegible or blurred detail"), ("难辨", "模糊", "不易辨"),
+         ("illegible", "blur", "hard to read", "difficult")),
+    )
+    rows = []
+    for label, zh_terms, en_terms in markers:
+        counts = []
+        for group in GROUPS:
+            terms = zh_terms if chinese else en_terms
+            hits = sum(1 for item in quality["per_prompt"]
+                       if any(term in item["observations"][group][language].lower()
+                              for term in (t.lower() for t in terms)))
+            counts.append(f"{hits}/{len(quality['per_prompt'])}")
+        rows.append([label, *counts])
+    returned = []
+    for group, metrics in zip(GROUPS, summary["groups"]):
+        returned.append(f"{metrics['successful_samples']}/{metrics['planned_samples']}")
+    rows.insert(0, [("返回图片 / 计划样本" if chinese else "Images returned / planned"), *returned])
+    return table([("观测项" if chinese else "Observed outcome"), *LABELS], rows)
+
+
 def render_highlights(summary, language, has_grounding, has_multi_image):
     """Open with what this run establishes about MAI-Image-2.6, at evidence strength.
 
@@ -299,24 +331,22 @@ def render_vendor_charts(language, mai_p50, medium_p50, low_p50, high_p50):
     heading = ("### 厂商公布的性能图表与本轮实测的关系" if chinese else
                "### Vendor Performance Charts And How This Run Relates To Them")
     intro = (
-        f"下面三张图取自微软官网 MAI-Image-2.6 页面的 Performance 区（抓取于 2026-09-08，"
-        f"页面标注最后更新 2026-09-04），图内数据出处由厂商在图上标明。"
-        "它们是厂商声明，测量条件与本仓库不同，因此与我们的实测互不验证；此处并列展示，供对照阅读。"
+        "以下图表取自微软官网 MAI-Image-2.6 页面的 Performance 区（抓取于 2026-09-08）。"
+        "它们是厂商声明，测量条件与本仓库不同，与我们的实测互不验证。"
         if chinese else
-        "The three charts below come from the Performance area of the vendor's MAI-Image-2.6 page "
-        "(captured 2026-09-08; the page reports itself last modified 2026-09-04), with the data source "
-        "annotated inside each chart by the vendor. They are vendor claims measured under different "
-        "conditions from this repository, so they do not validate our measurements; they appear here "
-        "side by side for reference."
+        "The charts below come from the Performance area of the vendor's MAI-Image-2.6 page "
+        "(captured 2026-09-08). They are vendor claims measured under different conditions from this "
+        "repository and do not validate our measurements."
     )
     charts = [
         (("文生图排行榜前十" if chinese else "Text-to-Image Arena top ten"),
          "arena-text-to-image-top10.png",
          ("厂商标注 MAI-Image-2.6 位列第 2（1,336），第 1 名是 GPT Image 2 Medium（1,381）。"
-          "这是全提示词类别的总分排名，不等于逐场景画质判定。"
+          "这是 Arena 全提示词类别的总分排名，不等于逐场景画质判定，本仓库也没有复现该分数。"
           if chinese else
           "The vendor annotates MAI-Image-2.6 as ranked #2 (1,336), behind GPT Image 2 Medium at #1 "
-          "(1,381). This is an aggregate score across prompt categories, not a per-scenario quality verdict.")),
+          "(1,381). This is an aggregate Arena score across prompt categories, not a per-scenario "
+          "quality verdict, and this repository did not reproduce the score.")),
         (("文生图速度对比" if chinese else "Text-to-image speed comparison"),
          "speed-vs-gpt-image-2-medium.png",
          ("厂商脚注写明：内部压测，100 RPM，1024x1024，取中位数，误差带到 P90。"
@@ -338,9 +368,15 @@ def render_vendor_charts(language, mai_p50, medium_p50, low_p50, high_p50):
           "leaderboard above. Prices are third-party reference figures, not a Microsoft quote and not any "
           "customer's contracted price.")),
     ]
-    blocks = []
-    for label, filename, note in charts:
-        blocks.append(f"**{label}**\n\n![{label}]({assets}/{filename})\n\n{note}")
+    # Chart 1 stays open because it is the single most load-bearing vendor claim.
+    # The remaining vendor material is collapsed so the reader reaches this
+    # repository's own measurements quickly. Only external reference material is
+    # collapsed; this project's inputs and results are never hidden behind a click.
+    lead_label, lead_file, lead_note = charts[0]
+    blocks = [f"![{lead_label}]({assets}/{lead_file})", lead_note]
+    rest = []
+    for label, filename, note in charts[1:]:
+        rest.append(f"**{label}**\n\n![{label}]({assets}/{filename})\n\n{note}")
     ours = (
         f"本轮实测的同一统计量（成功请求耗时 P50，客户端记录）："
         f"MAI-Image-2.6 {mai_p50:.2f} 秒；GPT-Image-2 low {low_p50:.2f} 秒、medium {medium_p50:.2f} 秒、"
@@ -373,7 +409,15 @@ def render_vendor_charts(language, mai_p50, medium_p50, low_p50, high_p50):
     source = (f"[{'图表来源与逐项读数' if chinese else 'Chart provenance and per-item readings'}]"
               f"({assets}/provenance.json) | "
               f"[{'厂商页面' if chinese else 'Vendor page'}](https://microsoft.ai/models/mai-image-2-6/)")
-    return "\n\n".join([heading, intro] + blocks + [ours, boundary, source])
+    folded = "\n\n".join([
+        "<details>",
+        "<summary>" + ("另外两张厂商图表（速度、质量与价格前沿）与完整口径说明"
+                       if chinese else
+                       "Two further vendor charts (speed, quality versus price) and the full measurement notes")
+        + "</summary>",
+        *rest, boundary, source, "</details>",
+    ])
+    return "\n\n".join([heading, intro] + blocks + [ours, folded])
 
 
 def render_overview(summary, quality, archive_path, language, has_grounding=False,
@@ -403,6 +447,7 @@ def render_overview(summary, quality, archive_path, language, has_grounding=Fals
     observation_rows = [[str(item["prompt_index"]), *(item["observations"][group][language] for group in GROUPS)]
                         for item in quality["per_prompt"]]
     observations = table(row_names, observation_rows)
+    observation_counts = quality_counts_table(summary, quality, language)
     api = table(["接口项目" if chinese else "API item", "MAI-Image-2.6", "GPT-Image-2"], [
         ["POST", "`/mai/v1/images/generations`", "`/openai/deployments/{deployment}/images/generations?api-version=2025-04-01-preview`"],
         ["Payload", "`model`, `prompt`, `width=1024`, `height=1024`", "`prompt`, `n=1`, `size=1024x1024`, `quality=low/medium/high`"],
@@ -467,7 +512,11 @@ flowchart LR
 
 ### {heading('Quality Observations', '逐场景画面观察')}
 
-{'仅为 AI 辅助非盲评。每格记录实际画面差异，不生成数值质量评分。' if chinese else 'AI-assisted, unblinded inspection only. Each cell describes observed image differences, not a numeric quality score.'} [{'检查记录' if chinese else 'Inspection record'}]({archive_path}/quality-review.json).
+{'先看可计数的结果，再读逐场景描述。下表统计本次观察记录中出现某类问题的场景数，是这次非盲评的措辞计数，不是模型的缺陷率，也不是质量评分。' if chinese else 'Countable outcomes first, then the per-scenario prose. The table counts how many scenarios mention each kind of issue in this review, which is a tally of this unblinded inspection rather than a defect rate or a quality score.'}
+
+{observation_counts}
+
+{'以下为逐场景画面差异描述。仅为 AI 辅助非盲评，不生成数值质量评分。' if chinese else 'The per-scenario descriptions follow. AI-assisted, unblinded inspection only, with no numeric quality score.'} [{'检查记录' if chinese else 'Inspection record'}]({archive_path}/quality-review.json).
 
 {observations}
 
@@ -847,10 +896,12 @@ def update_document(text, summary, quality, archive_path, language, grounding_se
     comparison_heading = "## 并排图片对比" if chinese else "## Side-by-Side Image Comparison"
     description = ("每个场景、每一轮只展示 MAI-Image-2.6 与 GPT-Image-2 low、medium、high。图片来自本次四组测试，未返回图片的格子保留失败说明。点击图片查看原始 1024x1024 PNG。"
                    if chinese else "Every scenario and round compares only MAI-Image-2.6 with GPT-Image-2 low, medium and high. Images come from this four-configuration run; missing images retain their failure record. Click an image for the original 1024x1024 PNG.")
+    # Images come before the metrics body: a reader judges generated pictures by
+    # looking at them, and the timing and token tables only make sense afterwards.
     sections = [title, author.group(),
                 render_highlights(summary, language, bool(grounding_section),
                                   bool(multi_image_section)),
-                content.strip(), comparison_heading, description]
+                comparison_heading, description]
     for prompt_record in summary["per_prompt"]:
         prompt_index = prompt_record["prompt_index"]
         sections.extend([f"### Test {prompt_index}: {titles[prompt_index]}",
@@ -858,6 +909,7 @@ def update_document(text, summary, quality, archive_path, language, grounding_se
         for round_number in (1, 2):
             sections.extend([f"**Round {round_number}:**",
                              comparison_table(prompt_record, round_number, archive_path, language)])
+    sections.append(content.strip())
     # The two capability tests follow the image comparison, in the order a reader
     # meets them: what the model knows, then how many images it accepts.
     if grounding_section:
