@@ -1,6 +1,16 @@
 # MAI-Image-2.6 与 GPT-Image-2：全质量档位图像生成对比
 
+[![Models](https://img.shields.io/badge/Models-MAI--Image--2.6%20vs%20GPT--Image--2-0067b8)](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image) [![Samples](https://img.shields.io/badge/Samples-87%2F88%20returned-2e7d32)](data/paired-all-quality-20260907/5way_v2_results.json) ![Resolution](https://img.shields.io/badge/Resolution-1024%C3%971024-455a64) ![MAI version](https://img.shields.io/badge/MAI%20version-2026--07--31-6a1b9a) [![Status](https://img.shields.io/badge/Status-Preview%20%C2%B7%20no%20SLA-b26500)](https://azure.microsoft.com/support/legal/preview-supplemental-terms/) [![Tests](https://img.shields.io/badge/Tests-53%20offline-00695c)](tests)
+
+同一台客户端交替调用 MAI-Image-2.6 与 GPT-Image-2 的 low、medium、high 三档，11 个文生图场景各两轮，共 88 个正式样本，保留全部原图、逐次请求记录与失败样本。另有联网信息补充（`web_grounding`）与多图输入编辑两项能力实测。所有画面判断为非盲评的差异描述，不产出质量评分或偏好胜负。
+
 > **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+
+[English](README.md) | [中文](README-CN.md)
+
+[逐题图片](#并排图片对比) · [耗时与请求](#耗时与请求成功情况) · [联网补测](#联网信息补充测试) · [图像编辑](#test-12-换帽子图像编辑) · [复现](#复现与测试) · [原始证据](data/paired-all-quality-20260907)
+
+---
 
 ## MAI-Image-2.6 在本轮中体现的能力
 
@@ -8,7 +18,7 @@
 
 1. **11 个场景与 GPT-Image-2 三档并排可比。** 本轮 87/88 个正式样本返回图片，两轮结果和原图全部保留在下方，可以逐题自行比较画面。逐图观察为非盲评的差异描述，没有评出优劣胜负，因此本文不声称画质优于或等同 GPT-Image-2。
 
-2. **一次编辑可以传多张参考图。** 服务端声明 `Only 1 to 5 image files are supported for edit requests.`，实测两张同时传入时第二张图的内容确实进入了输出。官方参数表把 `image` 标为单个 `string`，没有写这项能力。
+2. **图像编辑按指令只改一处，其余保持原图。** 第 12 题把同一张真实照片交给四个配置，只要求把头饰换成博士帽：MAI 的输出在人脸、龙袍、侍卫、标题印章和原图宽高比上逐项与输入一致，GPT 三档都换上了帽子但整幅重新生成。逐项核对见第 12 题。
 
 3. **`web_grounding=true` 可以在生成时补充联网信息。** 开启后模型会从 Bing Search 检索当前信息作为额外上下文，实测让两个题目的产品文字事实从错误变为与官方发布一致；代价是首试成功率下降、耗时明显上升。这与视觉领域的 dense grounding（密集视觉定位）不是同一件事。
 
@@ -46,7 +56,7 @@
 
 ## 并排图片对比
 
-每个场景、每一轮只展示 MAI-Image-2.6 与 GPT-Image-2 low、medium、high。图片来自本次四组测试，未返回图片的格子保留失败说明。点击图片查看原始 1024x1024 PNG。
+第 1–11 题为文生图，每个场景、每一轮只展示 MAI-Image-2.6 与 GPT-Image-2 low、medium、high。图片来自本次四组测试，未返回图片的格子保留失败说明。点击图片查看原始 1024x1024 PNG。第 12 题为图像编辑，输入为一张真实照片。
 
 ### Test 1: 金属和服少女
 
@@ -246,6 +256,84 @@
 | ![MAI-Image-2.6, prompt 11, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/11_test.png) | ![GPT-Image-2 low, prompt 11, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/11_test.png) | ![GPT-Image-2 medium, prompt 11, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/11_test.png) | ![GPT-Image-2 high, prompt 11, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/11_test.png) |
 | 35.77 s<br>1725 KiB | 27.29 s<br>1615 KiB | 56.27 s<br>1541 KiB | 152.77 s<br>1715 KiB |
 
+### Test 12: 换帽子（图像编辑）
+
+前 11 题都是纯文生图。第 12 题改为图像编辑：把同一张真实照片交给四个配置的编辑接口，只要求改一处，并明确列出必须保持不变的内容。因此每张输出都能按清单逐项核对，不需要审美打分。与前 11 题相同，本题跑 2 轮，第二轮配置顺序反转。
+
+输入为一张 553x311 的 JPEG 照片（39,539 字节，SHA-256 `2f15a826dbc5d0e9…`）：前景人物头戴冕冠，身着刺绣龙袍，左侧持戈侍卫，右侧紫衣人物与门廊建筑，左上角有剧名标题与印章。
+
+发给四个配置的提示词完全相同：
+
+> Replace only the headwear worn by the man in the foreground with a black academic graduation cap with a tassel. Keep his face, beard, expression and pose exactly as they are. Keep his embroidered robe, the courtyard and every other person unchanged.
+
+**受控变量**
+
+MAI 走 `/mai/v1/images/edits`，GPT 走 `/openai/deployments/gpt-image-2/images/edits`，GPT 三档只改 `quality`，并按其接口要求传 `size=1024x1024`；MAI 接口没有尺寸参数，输出尺寸由服务决定。每轮每个配置各调用一次，共 2 轮。
+
+| 输入图 |
+| --- |
+| ![Input photograph](data/edit-hat-swap-20260908/input.jpg) |
+
+**第1轮:**
+
+| MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, edit round 1](data/edit-hat-swap-20260908/01_mai-image-2.6.png) | ![GPT-Image-2 low, edit round 1](data/edit-hat-swap-20260908/02_gpt-image-2-low.png) | ![GPT-Image-2 medium, edit round 1](data/edit-hat-swap-20260908/03_gpt-image-2-medium.png) | ![GPT-Image-2 high, edit round 1](data/edit-hat-swap-20260908/04_gpt-image-2-high.png) |
+| 34.94 s<br>1585 KiB<br>1360x768 | 29.55 s<br>1725 KiB<br>1024x1024 | 57.71 s<br>1641 KiB<br>1024x1024 | 162.65 s<br>1566 KiB<br>1024x1024 |
+
+| 核对项 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- | --- |
+| 保持项命中 | 5/5 | 0/5 | 1/5 | 0/5 |
+| 换成博士帽 | 是 | 是 | 是 | 是 |
+| 人脸与胡须保留 | 是 | 否 | 否 | 否 |
+| 龙袍纹样保留 | 是 | 否 | 否 | 否 |
+| 侍卫与背景不变 | 是 | 否 | 否 | 否 |
+| 标题与印章保留 | 是 | 否 | 是 | 否 |
+| 保持原图宽高比 | 是 | 否 | 否 | 否 |
+
+| 配置 | 画面观察 |
+| --- | --- |
+| MAI-Image-2.6 | 冕冠换成带流苏的黑色博士帽。人脸、胡须、神情、龙袍纹样、左侧持戈侍卫、右侧紫衣人物、门廊建筑和左上角剧名标题与印章全部与原图一致，输出保持原图 16:9 横幅比例（1360x768）。画面外观与局部重绘一致。 |
+| GPT-Image-2 low | 博士帽出现，但整幅画面被重新构图为 1024x1024 方图：主体放大居中，面部特征与原图不同，龙袍纹样重新绘制，左侧侍卫队列改为红黑相间的另一组人，右侧紫衣人物与门廊消失，左上角标题与印章消失。 |
+| GPT-Image-2 medium | 博士帽出现，左上角剧名标题与印章被保留，构图比 low 更接近原图。但面部与胡须被重绘，龙袍纹样不同，左侧侍卫重新排列，右侧人物与建筑与原图不一致，输出为 1024x1024 方图。 |
+| GPT-Image-2 high | 博士帽出现，龙袍金线刺绣渲染最精细，但整幅重新生成：人物改为正面站姿、面部不同，左侧侍卫换成不同队列，新增两名红衣侍从，背景建筑与原图不符，左上角标题与印章消失，输出为 1024x1024 方图。 |
+
+**第2轮:**
+
+| MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, edit round 2](data/edit-hat-swap-20260908/r2/04_mai-image-2.6.png) | ![GPT-Image-2 low, edit round 2](data/edit-hat-swap-20260908/r2/03_gpt-image-2-low.png) | ![GPT-Image-2 medium, edit round 2](data/edit-hat-swap-20260908/r2/02_gpt-image-2-medium.png) | ![GPT-Image-2 high, edit round 2](data/edit-hat-swap-20260908/r2/01_gpt-image-2-high.png) |
+| 36.91 s<br>1618 KiB<br>1360x768 | 27.73 s<br>1748 KiB<br>1024x1024 | 58.61 s<br>1478 KiB<br>1024x1024 | 165.15 s<br>1672 KiB<br>1024x1024 |
+
+| 核对项 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- | --- |
+| 保持项命中 | 5/5 | 0/5 | 0/5 | 0/5 |
+| 换成博士帽 | 是 | 是 | 是 | 是 |
+| 人脸与胡须保留 | 是 | 否 | 否 | 否 |
+| 龙袍纹样保留 | 是 | 否 | 否 | 否 |
+| 侍卫与背景不变 | 是 | 否 | 否 | 否 |
+| 标题与印章保留 | 是 | 否 | 否 | 否 |
+| 保持原图宽高比 | 是 | 否 | 否 | 否 |
+
+| 配置 | 画面观察 |
+| --- | --- |
+| MAI-Image-2.6 | 冕冠换成带流苏的黑色博士帽。人脸、胡须、神情、龙袍纹样、左侧持戈侍卫、右侧紫衣人物、门廊建筑和左上角剧名标题与印章都与原图位置一致，输出保持原图 16:9 横幅比例（1360x768）。标题字形因放大略有软化但仍在原位。与第一轮 MAI 输出结果一致。 |
+| GPT-Image-2 low | 博士帽出现。输出为 1024x1024 方图，构图与第二轮 medium、high 相近：人物正面站姿、面部与胡须重绘，龙袍纹样不同，左侧侍卫为绿金冠饰队列，右侧黑衣人群与紫衣人物，左上角标题与印章消失。第一轮 low 把主体放大居中且侍卫改为红黑队列，第二轮构图更接近原图，说明 low 的输出在两轮之间并不稳定。 |
+| GPT-Image-2 medium | 博士帽出现。输出为 1024x1024 方图，构图与第二轮 high 相近：人物正面站姿、面部与胡须重绘，龙袍纹样不同，左侧侍卫换成绿金冠饰队列，右侧为黑衣人群与紫衣人物，左上角标题与印章消失。第一轮 medium 保留了标题与印章，第二轮没有。 |
+| GPT-Image-2 high | 博士帽出现。整幅重新生成为 1024x1024 方图：人物改为正面站姿、面部与胡须与原图不同，龙袍纹样重绘，左侧侍卫换成头戴绿金冠饰的另一队列，右侧改为黑衣人群与一名紫衣人物，背景门廊与灯笼与原图不符，左上角标题与印章消失。与第一轮 high 相比构图相近但细节不同。 |
+
+| 跨轮汇总 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- | --- |
+| 保持项命中（每轮） | 5/5 / 5/5 | 0/5 / 0/5 | 1/5 / 0/5 | 0/5 / 0/5 |
+| 请求耗时（每轮） | 34.94 s / 36.91 s | 29.55 s / 27.73 s | 57.71 s / 58.61 s | 162.65 s / 165.15 s |
+| 换成博士帽 | 2/2 | 2/2 | 2/2 | 2/2 |
+
+四个配置在每一轮都换上了博士帽。差别在其余部分：MAI 两轮输出都与原图逐项一致，外观符合局部重绘；GPT 三档没有一轮保住全部保持项，都围绕主题重新生成整幅画面。本题提示词要求保持原图，所以偏离就是未按指令执行；若提示词要求重新演绎，同样这些图会得到不同的评价。
+
+共 2 轮，每轮每个配置一次调用，两轮只说明结果是否重复出现，不构成统计样本；观察为非盲评，只描述与原图的差异，不是画质评分。耗时为客户端 `requests.post` 往返时间，GPT 部署在 East US 2、MAI 在 Sweden Central，客户端为同一台工作站，区域差异未剥离。输出 PNG 均无 alpha 通道。
+
+[请求记录 第1轮](data/edit-hat-swap-20260908/edit-results.json) | [逐图核对 第1轮](data/edit-hat-swap-20260908/edit-review.json) | [请求记录 第2轮](data/edit-hat-swap-20260908/r2/edit-results.json) | [逐图核对 第2轮](data/edit-hat-swap-20260908/r2/edit-review.json) | [探测脚本](data/edit-hat-swap-20260908/source/probe_edit_hat_swap.py)
+
 ## 本轮：两模型与全部质量档位
 
 [English](README.md) | [逐题图片](#并排图片对比) | [测量记录](data/paired-all-quality-20260907/5way_v2_results.json) | [指标](data/paired-all-quality-20260907/summary.json) | [请求记录](data/paired-all-quality-20260907/attempts.jsonl)
@@ -368,8 +456,6 @@ token 用量取自接口返回的 usage，不从模型或档位推算。没有�
 | 未请求的文字 | 8/11 | 5/11 | 6/11 | 4/11 |
 | 局部难辨或模糊 | 1/11 | 3/11 | 3/11 | 2/11 |
 
-以下为逐场景画面差异描述。仅为 AI 辅助非盲评，不生成数值质量评分。 [检查记录](data/paired-all-quality-20260907/quality-review.json).
-
 | 场景 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
 | --- | --- | --- | --- | --- |
 | 1 | 两轮都有蓝色金属和服、花卉与前景虚化；R1背景明亮，R2转为暗调，均未见额外文字。 | 两轮都以紧凑人像和金属花饰为主，画面偏暗；R2衣料更像银色皱箔，高曝光效果不明显。 | 两轮金属花卉与蓝银服饰清楚，整体偏暗；R2面部较光滑、衣料偏硬壳质感。 | R1未返回图片；R2回眸人物与银色金属花饰清楚，顶部发饰被裁切，未见额外文字。 |
@@ -383,6 +469,8 @@ token 用量取自接口返回的 usage，不从模型或档位推算。没有�
 | 9 | 两轮银灰龙形侧脸布满螺旋，表面偏雕刻或骨瓷质感，背景虚化；R2另有月下城堡。 | 两轮蓝金镂空龙形近景有清晰眼部和卷须，R1顶部角被裁切，密集装饰的局部连接难辨。 | 两轮蓝金龙首覆盖大小螺旋，浅景深明确，皮肤更像金属雕饰，未见文字。 | R1蓝紫生物有圆瞳与珠粒状螺旋皮肤，卷须交叠处难辨；R2橙眼和多尺度螺旋清楚，未见文字。 |
 | 10 | 两轮猫都露齿持双槌打鼓，握槌明显拟人化；鼓组与海报添加英文，R2底鼓和下方文字被裁切。 | 两轮猫露齿举槌，部分前爪有动作模糊；衣服与鼓面增加英文，R2底鼓下缘被裁切。 | 两轮鼓手居中，毛发和镀铬反光清楚；增加I HATE MONDAYS或PAWS OF FURY等文字，部分爪槌边缘模糊。 | 两轮龇牙表情与双槌姿态明确，前景鼓组被画框裁切，另加HISS OFF或BAD KITTY等文字。 |
 | 11 | R1猴子弹梨形弦乐器，R2坐在石板路弹吉他；毛发与木纹清楚，书脊或小费碗另有未请求文字。 | 两轮主体弹吉他并增加演出文字，R1脸型偏幼猿，R2琴头被裁切；R1首次输出审核拦截后重试才返回此图。 | 两轮戴草帽猴子弹吉他，背景增加演出文字；R2拨弦手模糊、琴头右端被裁切。 | R1猴子在复古麦克风旁弹吉他，R2闭眼盘腿演奏；材质清楚，背景均有额外英文。 |
+
+逐场景描述来自 [检查记录](data/paired-all-quality-20260907/quality-review.json).
 
 ### 本轮实际接口设置
 
@@ -453,13 +541,12 @@ python data/lenovo-web-grounding-20260908/source/benchmark_5way_v2.py --mai-mode
 python data/lenovo-web-grounding-20260908/source/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --mai-web-grounding both --prompts-csv data/lenovo-web-grounding-20260908/source/prompts.csv --output runs/web-grounding-reproduction
 ```
 
-多图输入测试只需 MAI 部署。第一条只读核验已有证据并检查 PNG 是否含 alpha 通道；后三条会真实调用接口重跑能力组、字段校验与张数探测，并写入各自的输出目录。
+第 12 题图像编辑需要 MAI 与 GPT 两个部署。第一条只读核验已发布的输入图、四张输出与请求记录的哈希；第二条会真实调用四个配置的编辑接口重跑一遍，结果写入新目录，不覆盖已发布数据。
 
 ```powershell
-python scripts/summarize_multi_image_edit.py data/mai-multi-image-edit-20260908 --check
-python data/mai-multi-image-edit-20260908/source/probe_multi_image_clean.py
-python data/mai-multi-image-edit-20260908/source/probe_multi_image_limit.py
-python data/mai-multi-image-edit-20260908/source/check_alpha_and_cutout.py
+python scripts/summarize_edit_hat_swap.py data/edit-hat-swap-20260908 --check
+python data/edit-hat-swap-20260908/source/probe_edit_hat_swap.py --round 1
+python data/edit-hat-swap-20260908/source/probe_edit_hat_swap.py --round 2
 ```
 
 执行脚本: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py); 离线汇总: [summarize_paired_run.py](scripts/summarize_paired_run.py); 报告生成: [render_paired_report.py](scripts/render_paired_report.py); 回归测试: [tests](tests).
@@ -547,87 +634,3 @@ python data/mai-multi-image-edit-20260908/source/check_alpha_and_cutout.py
 结果 SHA-256: `669617dd5d59d0748a0fc398d98ec4c59cb4b26cc9655138edf9b6c9622f3c1b`.
 
 官方参考：[IdeaPad Vibe](https://news.lenovo.com/pressroom/press-releases/colorful-ideapad-vibe-series-all-in-one-ai-pcs/) | [Yoga](https://news.lenovo.com/pressroom/press-releases/yoga-portfolio-new-ai-pcs-and-tablets/) | [MAI API](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image#request-parameters)
-
-## 多图输入编辑测试
-
-**要回答什么**
-
-要回答的问题是：这个编辑接口一次能接受几张参考图，多传的那张会不会真的被用上。官方文档没有答案，所以下面用实际调用来定。
-
-本节测试 `/mai/v1/images/edits` 接受几张参考图。官方参数表把 `image` 标为 `string`、描述为 the image，既没有多图说明也没有张数上限，因此下列张数与字段规则取自服务端自身的校验消息，属实测结果，不是官方支持承诺。
-
-**两张输入图**
-
-两张图都取自上文联网补测的模型输出，在这里复用为输入素材。左图是一张深色配色信息图，画面里有四个配色圆点、14/16 英寸标注和一台紫色笔记本；右图是一张浅色规格信息图，有一台棕色笔记本、屏幕文字和下排四种使用模式（其中平板模式带手写笔）。它们是模型生成内容，不是官方素材，图中的配色名与规格文字不代表官方产品信息。
-
-| 输入图 1（深色配色信息图） | 输入图 2（浅色规格信息图） |
-| --- | --- |
-| ![Input image 1](data/lenovo-web-grounding-20260908/mai-image-2.6-web-off/r1/01_test.png) | ![Input image 2](data/lenovo-web-grounding-20260908/mai-image-2.6-web-off/r1/02_test.png) |
-
-**第一组：各自用法的实际效果**
-
-能力组给每种输入配一条它能满足的提示词：单图用单数指令，双图用双数指令。两次提示词不同，因此本组只展示各自用法的实际效果，不能把差异归因于第二张图。
-
-发送 1 张图时的提示词：
-
-> Show the laptop from the reference image alone on a plain white studio background as a clean product photograph.
-
-发送 2 张图时的提示词：
-
-> Show the laptops from both reference images together on one plain white studio background as a clean product photograph.
-
-| 输入 | 请求耗时 | 输出大小 |
-| --- | --- | --- |
-| 单图输入 `image` x 1 | 31.619 s | 920,112 bytes |
-| 双图输入 `image` x 2 | 38.455 s | 932,695 bytes |
-
-| 单图输入的输出 | 双图输入的输出 |
-| --- | --- |
-| ![Single-image edit output](data/mai-multi-image-edit-20260908/01_single_image_matched_prompt.png) | ![Two-image edit output](data/mai-multi-image-edit-20260908/02_two_images_matched_prompt.png) |
-
-**第二组：第二张图到底有没有被用上**
-
-归因组固定同一条提示词，只更换输入图，并同时保留两条单图臂，使对照对称。该提示词对单张输入是欠定的，因此本组只用于归因，不代表单图编辑质量。
-
-本组三次调用都用同一条提示词：
-
-> Place every laptop that appears in the reference images on one plain white studio background as a clean product photograph.
-
-| 输入组合 | 张数 | 请求耗时 | 画面结果 |
-| --- | --- | --- | --- |
-| 只给输入图 1 | 1 | 31.783 s | 仅紫色机身，无第二张图元素 |
-| 只给输入图 2 | 1 | 33.511 s | 仅输入图 2 的设备，无紫色机身 |
-| 同时给两张 | 2 | 41.639 s | 两张图各自的设备与模式排列同时出现 |
-
-| 只给输入图 1 | 只给输入图 2 |
-| --- | --- |
-| ![Attribution, image 1 only](data/mai-multi-image-edit-20260908/attribution_01_single_image.png) | ![Attribution, image 2 only](data/mai-multi-image-edit-20260908/03_fixed_prompt_image_two_only.png) |
-
-| 同时给两张输入图 |
-| --- |
-| ![Attribution, both images](data/mai-multi-image-edit-20260908/attribution_02_two_image_fields.png) |
-
-每张输入图的独有元素只在该图在场时出现，因此第二张图被读取并影响了生成结果，不是被静默忽略。
-
-**第三组：能传几张，字段该怎么写**
-
-术语说明：`HTTP 429` 是配额用尽（本部署每分钟 2 次请求），表示请求没被处理，与接口拒绝某个张数是两件事；`HTTP 400` 才是接口明确拒绝。
-
-| multipart 字段 | 状态 | 服务端返回 |
-| --- | --- | --- |
-| `image` x 1 | 200 | 返回图片 |
-| `image` x 2 | 200 | 返回图片，第二张图生效 |
-| `image` x 3, 5 | 429 | 配额限制（本部署 2 RPM），既非能力否证也非支持证明 |
-| `image` x 9 | 400 | `Only 1 to 5 image files are supported for edit requests.` |
-| 不传图片 | 400 | `Only 1 to 5 image files are supported for edit requests.` |
-| `image[]`, `images`, `image1`+`image2`, `image_a`+`image_b`, `reference` | 400 | `File must be attached in a form field with a name starting with 'image'.` |
-
-服务端提示字段名需以 `image` 开头，但 `image1`、`image_a`、`image[]`、`images` 实测均被拒，实际只接受重复命名为 `image` 的字段。上限 1–5 取自服务端消息；3 与 5 张因配额未取得成功样本。
-
-**是否等于抠图**
-
-三张输出均为 PNG colour type 2，文件不含 alpha 通道，四角为不透明近白像素。因此白色背景是模型画出来的背景，不是透明区域，用于合成仍需另行抠图。接口没有 `background` 或 `output_format` 参数可要求透明输出，也没有 `mask` 参数，无法指定各输入图的哪一部分进入结果；输出是重新生成的画面，不是图像拼接。
-
-每种组合各调用一次，未做重复性验证；`MAI-Image-2.6` 为 Preview，无 SLA，接口行为可能变化。耗时为客户端 `requests.post` 往返时间，不是服务端推理时长。
-
-[能力组与归因组第三臂](data/mai-multi-image-edit-20260908/clean-results.json) | [字段形式](data/mai-multi-image-edit-20260908/field-shape-results.json) | [校验与上限](data/mai-multi-image-edit-20260908/limit-probe-results.json) | [探测脚本](data/mai-multi-image-edit-20260908/source)

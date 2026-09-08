@@ -6,12 +6,12 @@ from pathlib import Path
 
 from summarize_paired_run import GROUPS, summarize
 from summarize_web_grounding import summarize as summarize_grounding
-from summarize_multi_image_edit import summarize as summarize_multi_image
+from summarize_edit_hat_swap import summarize as summarize_edit
 
 
 LABELS = ("MAI-Image-2.6", "GPT-Image-2 low", "GPT-Image-2 medium", "GPT-Image-2 high")
 GROUNDING_ARCHIVE = "data/lenovo-web-grounding-20260908"
-MULTI_IMAGE_ARCHIVE = "data/mai-multi-image-edit-20260908"
+EDIT_ARCHIVE = "data/edit-hat-swap-20260908"
 
 
 def table(headers, rows):
@@ -128,7 +128,7 @@ def exception_section(summary, language):
     return text + "\n\n" + table(headers, rows)
 
 
-def reproduction_section(archive_path, language, grounding_archive=None, multi_image_archive=None):
+def reproduction_section(archive_path, language, grounding_archive=None, edit_archive=None):
     intro = ("需要可用的 MAI-Image-2.6 和 GPT-Image-2 部署。部署身份由您查询确认，不能仅凭 deployment 名称判断底层模型。先克隆仓库、拉取本项目的 Git LFS 文件，并在 Python 环境安装 requests："
              if language == "zh" else
              "Supply accessible MAI-Image-2.6 and GPT-Image-2 deployments. Verify their underlying model versions; deployment names alone are not model identity. Clone the repository, fetch this project's Git LFS inputs, and install requests in your Python environment:")
@@ -149,15 +149,15 @@ def reproduction_section(archive_path, language, grounding_archive=None, multi_i
              "The web-grounding test needs only the MAI deployment. The first command verifies the existing archive without writing; the second checks parameters without network calls; only the third reruns all three subjects into a new directory, leaving published data unchanged."),
             grounding_reproduction_commands(grounding_archive)])
     multi_image = ""
-    if multi_image_archive:
+    if edit_archive:
         multi_image = "\n\n".join([
-            ("多图输入测试只需 MAI 部署。第一条只读核验已有证据并检查 PNG 是否含 alpha 通道；"
-             "后三条会真实调用接口重跑能力组、字段校验与张数探测，并写入各自的输出目录。"
+            ("第 12 题图像编辑需要 MAI 与 GPT 两个部署。第一条只读核验已发布的输入图、四张输出与请求记录的哈希；"
+             "第二条会真实调用四个配置的编辑接口重跑一遍，结果写入新目录，不覆盖已发布数据。"
              if language == "zh" else
-             "The multi-image test needs only the MAI deployment. The first command verifies the saved evidence "
-             "and checks whether the PNGs carry an alpha channel; the remaining three call the API to rerun the "
-             "capability group, the field validation and the count probe into their own output directories."),
-            multi_image_reproduction_commands(multi_image_archive)])
+             "Scenario 12 needs both the MAI and GPT deployments. The first command verifies the published input, "
+             "the four outputs and the request records by hash without network calls; the second calls all four "
+             "edit endpoints again into a new directory, leaving published data unchanged."),
+            edit_reproduction_commands(edit_archive)])
     return f"""## {'复现与测试' if language == 'zh' else 'Reproduction and Tests'}
 
 {intro}
@@ -217,6 +217,61 @@ python -m unittest discover -s tests -v
 """
 
 
+def render_masthead(summary, author_line, language):
+    """First screen: factual badges, one scope paragraph, author, language, navigation.
+
+    Every badge states something this run actually recorded or that the vendor
+    documents, so a reader can check each one. No badge asserts a quality ranking,
+    because the visual review is unblinded and produces no score.
+    """
+    chinese = language == "zh"
+    configurations = summary.get("config", {}).get("group_configurations", ())
+    versions = {item["model_version"] for item in configurations
+                if item.get("provider") == "mai" and item.get("model_version")}
+    mai_version = sorted(versions)[0] if versions else "2026-07-31"
+    returned = summary.get("successful_samples", 0)
+    planned = summary.get("formal_samples", 0)
+    badges = [
+        ("Models", "MAI--Image--2.6%20vs%20GPT--Image--2", "0067b8",
+         "https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image"),
+        ("Samples", f"{returned}%2F{planned}%20returned", "2e7d32",
+         "data/paired-all-quality-20260907/5way_v2_results.json"),
+        ("Resolution", "1024%C3%971024", "455a64", None),
+        ("MAI version", mai_version.replace("-", "--"), "6a1b9a", None),
+        ("Status", "Preview%20%C2%B7%20no%20SLA", "b26500",
+         "https://azure.microsoft.com/support/legal/preview-supplemental-terms/"),
+        ("Tests", "53%20offline", "00695c", "tests"),
+    ]
+    rendered = []
+    for label, value, colour, link in badges:
+        image = f"https://img.shields.io/badge/{label.replace(' ', '%20')}-{value}-{colour}"
+        rendered.append(f"[![{label}]({image})]({link})" if link else f"![{label}]({image})")
+    scope = (
+        f"同一台客户端交替调用 MAI-Image-2.6 与 GPT-Image-2 的 low、medium、high 三档，"
+        f"11 个文生图场景各两轮，共 {planned} 个正式样本，"
+        f"保留全部原图、逐次请求记录与失败样本。另有联网信息补充（`web_grounding`）与"
+        "多图输入编辑两项能力实测。所有画面判断为非盲评的差异描述，不产出质量评分或偏好胜负。"
+        if chinese else
+        f"One client interleaved calls to MAI-Image-2.6 and GPT-Image-2 at low, medium and high across "
+        f"11 text-to-image scenarios in two rounds, {planned} formal samples in total, "
+        "keeping every original PNG, per-attempt record and failed sample. Two capability tests are "
+        "included: web grounding (`web_grounding`) and multi-image input editing. Image judgements are "
+        "unblinded difference descriptions and produce no quality score or preference verdict."
+    )
+    nav = " · ".join([
+        f"[{'逐题图片' if chinese else 'Side-by-side images'}](#{'并排图片对比' if chinese else 'side-by-side-image-comparison'})",
+        f"[{'耗时与请求' if chinese else 'Latency and requests'}](#{'耗时与请求成功情况' if chinese else 'performance-and-reliability'})",
+        f"[{'联网补测' if chinese else 'Web grounding'}](#{'联网信息补充测试' if chinese else 'web-grounding-test'})",
+        f"[{'图像编辑' if chinese else 'Image edit'}](#{'test-12-换帽子图像编辑' if chinese else 'test-12-headwear-swap-image-edit'})",
+        f"[{'复现' if chinese else 'Reproduction'}](#{'复现与测试' if chinese else 'reproduction-and-tests'})",
+        f"[{'原始证据' if chinese else 'Raw evidence'}](data/paired-all-quality-20260907)",
+    ])
+    language_switch = (f"[English](README.md) | [{'中文'}](README-CN.md)" if chinese
+                       else "[English](README.md) | [中文](README-CN.md)")
+    return "\n\n".join([" ".join(rendered), scope, f"> {author_line.lstrip('> ')}",
+                        language_switch, nav, "---"])
+
+
 def quality_counts_table(summary, quality, language):
     """Countable outcomes first, so a reader sees scale before reading prose.
 
@@ -249,7 +304,7 @@ def quality_counts_table(summary, quality, language):
     return table([("观测项" if chinese else "Observed outcome"), *LABELS], rows)
 
 
-def render_highlights(summary, language, has_grounding, has_multi_image):
+def render_highlights(summary, language, has_grounding, has_edit):
     """Open with what this run establishes about MAI-Image-2.6, at evidence strength.
 
     Image quality is reported as an outcome a reader can inspect, not as a win.
@@ -282,16 +337,17 @@ def render_highlights(summary, language, has_grounding, has_multi_image):
           "observations describe differences without ranking them, so this report does not claim MAI "
           "image quality beats or matches GPT-Image-2.")),
     ]
-    if has_multi_image:
+    if has_edit:
         items.append(
-            ("**一次编辑可以传多张参考图。** 服务端声明 `Only 1 to 5 image files are supported for "
-             "edit requests.`，实测两张同时传入时第二张图的内容确实进入了输出。"
-             "官方参数表把 `image` 标为单个 `string`，没有写这项能力。"
+            ("**图像编辑按指令只改一处，其余保持原图。** 第 12 题把同一张真实照片交给四个配置，"
+             "只要求把头饰换成博士帽：MAI 的输出在人脸、龙袍、侍卫、标题印章和原图宽高比上逐项与输入一致，"
+             "GPT 三档都换上了帽子但整幅重新生成。逐项核对见第 12 题。"
              if chinese else
-             "**One edit request accepts several reference images.** The service states `Only 1 to 5 image "
-             "files are supported for edit requests.`, and with two images the second image's content "
-             "verifiably reached the output. The official parameter table types `image` as a single "
-             "`string` and does not mention this."))
+             "**An edit changes the one thing asked for and keeps the rest of the photo.** Scenario 12 sends "
+             "one real photograph to all four configurations asking only for the headwear to become a "
+             "graduation cap: the MAI output matches the input item by item on face, robe, bystanders, title "
+             "and aspect ratio, while all three GPT tiers add the cap but regenerate the whole frame. The "
+             "checklist is in Scenario 12."))
     if has_grounding:
         items.append(
             ("**`web_grounding=true` 可以在生成时补充联网信息。** 开启后模型会从 Bing Search 检索当前信息"
@@ -421,7 +477,7 @@ def render_vendor_charts(language, mai_p50, medium_p50, low_p50, high_p50):
 
 
 def render_overview(summary, quality, archive_path, language, has_grounding=False,
-                    has_multi_image=False):
+                    has_edit=False):
     chinese = language == "zh"
     metadata = summary["config"]["group_configurations"]
     if [group["group"] for group in summary["groups"]] != list(GROUPS):
@@ -516,15 +572,15 @@ flowchart LR
 
 {observation_counts}
 
-{'以下为逐场景画面差异描述。仅为 AI 辅助非盲评，不生成数值质量评分。' if chinese else 'The per-scenario descriptions follow. AI-assisted, unblinded inspection only, with no numeric quality score.'} [{'检查记录' if chinese else 'Inspection record'}]({archive_path}/quality-review.json).
-
 {observations}
+
+{'逐场景描述来自' if chinese else 'Per-scenario descriptions come from'} [{'检查记录' if chinese else 'the inspection record'}]({archive_path}/quality-review.json).
 
 ### {heading('Measured API Settings', '本轮实际接口设置')}
 
 {api}
 
-{reproduction_section(archive_path, language, GROUNDING_ARCHIVE if has_grounding else None, MULTI_IMAGE_ARCHIVE if has_multi_image else None)}
+{reproduction_section(archive_path, language, GROUNDING_ARCHIVE if has_grounding else None, EDIT_ARCHIVE if has_edit else None)}
 
 ### {heading('Limits', '结论边界')}
 
@@ -534,189 +590,146 @@ flowchart LR
 """
 
 
-def render_multi_image_section(summary, archive_path, language):
-    """Render the input-count section: capability arms first, then attribution."""
+def render_edit_scenario(edit, archive_path, language):
+    """Test 12: one real photo, one requested change, four configurations.
+
+    Shown in the same order as the eleven text-to-image scenarios so a reader can
+    compare it directly. The prompt names exactly one edit and lists what must stay
+    the same, so each output is judged on checkable preservation items rather than
+    on taste; the per-item checklist and the prose come from the review record.
+    """
     chinese = language == "zh"
-    if summary["transparent_cutout_supported"]:
-        raise ValueError("Alpha channel found; the cutout wording below would be wrong")
-    capability = {entry["image_count"]: entry for entry in summary["capability"]}
-    attribution = {entry["label"]: entry for entry in summary["attribution"]}
-    limit = summary["contract"]["service_limit_message"]
-    quota = summary["contract"]["quota_limited_counts"]
+    rounds = edit["rounds"]
+    source = edit["source"]
+    lead = (
+        f"前 11 题都是纯文生图。第 12 题改为图像编辑：把同一张真实照片交给四个配置的编辑接口，"
+        f"只要求改一处，并明确列出必须保持不变的内容。因此每张输出都能按清单逐项核对，不需要审美打分。"
+        f"与前 11 题相同，本题跑 {len(rounds)} 轮，第二轮配置顺序反转。"
+        if chinese else
+        f"The first eleven scenarios are pure text-to-image. Scenario 12 switches to image editing: the "
+        f"same real photograph goes to each configuration's edit endpoint with a prompt that asks for "
+        f"exactly one change and lists what must stay the same, so every output can be checked item by "
+        f"item without an aesthetic score. As in the first eleven scenarios it runs {len(rounds)} rounds, "
+        f"with the configuration order reversed in round 2."
+    )
+    input_note = (
+        f"输入为一张 {source['width']}x{source['height']} 的 JPEG 照片（{source['bytes']:,} 字节，"
+        f"SHA-256 `{source['sha256'][:16]}…`）：前景人物头戴冕冠，身着刺绣龙袍，左侧持戈侍卫，"
+        "右侧紫衣人物与门廊建筑，左上角有剧名标题与印章。"
+        if chinese else
+        f"The input is one {source['width']}x{source['height']} JPEG photograph ({source['bytes']:,} bytes, "
+        f"SHA-256 `{source['sha256'][:16]}…`): a foreground figure in a crown and embroidered robe, "
+        "spear-bearing guards on the left, a purple-robed figure and gallery on the right, and a title "
+        "with a seal in the top-left."
+    )
+    prompt_line = ("发给四个配置的提示词完全相同：" if chinese else
+                   "The identical prompt sent to all four configurations:")
+    prompt_quote = "> " + " ".join(edit["prompt"].split())
+    controlled = (
+        "MAI 走 `/mai/v1/images/edits`，GPT 走 `/openai/deployments/gpt-image-2/images/edits`，"
+        "GPT 三档只改 `quality`，并按其接口要求传 `size=1024x1024`；MAI 接口没有尺寸参数，输出尺寸由服务决定。"
+        f"每轮每个配置各调用一次，共 {len(rounds)} 轮。"
+        if chinese else
+        "MAI uses `/mai/v1/images/edits` and GPT uses `/openai/deployments/gpt-image-2/images/edits`; the "
+        "three GPT tiers differ only in `quality` and pass `size=1024x1024` as that endpoint requires, while "
+        "the MAI endpoint has no size parameter and the service chose the output dimensions. Each "
+        f"configuration was called once per round, over {len(rounds)} rounds."
+    )
+    check_labels = [
+        ("headwear_replaced_with_graduation_cap", "换成博士帽" if chinese else "Headwear became a graduation cap"),
+        ("face_and_beard_preserved", "人脸与胡须保留" if chinese else "Face and beard preserved"),
+        ("robe_embroidery_preserved", "龙袍纹样保留" if chinese else "Robe embroidery preserved"),
+        ("bystanders_and_background_unchanged", "侍卫与背景不变" if chinese else "Bystanders and background unchanged"),
+        ("title_and_seal_preserved", "标题与印章保留" if chinese else "Title and seal preserved"),
+        ("input_aspect_ratio_preserved", "保持原图宽高比" if chinese else "Input aspect ratio kept"),
+    ]
+    yes, no = ("是", "否") if chinese else ("yes", "no")
+    # The input image is shown once, as the eleven scenarios show their prompt once.
+    input_image = table([("输入图" if chinese else "Input photograph")],
+                        [[f"![Input photograph]({archive_path}/{source['file']})"]])
+    round_blocks = []
+    for round_item in rounds:
+        by_group = {item["group"]: item for item in round_item["outputs"]}
+        number = round_item["round"]
+        # Same shape as Tests 1-11: one image row, then `latency<br>size` under each.
+        images = table(LABELS, [
+            [f"![{label}, edit round {number}]({archive_path}/{by_group[g]['output']})"
+             for g, label in zip(GROUPS, LABELS)],
+            [f"{by_group[g]['request_seconds']:.2f} s<br>{by_group[g]['output_kib']:.0f} KiB<br>"
+             f"{by_group[g]['width']}x{by_group[g]['height']}" for g in GROUPS],
+        ])
+        check_rows = [[("保持项命中" if chinese else "Preservation items kept"),
+                       *(f"{by_group[g]['preserved_count']}/{by_group[g]['preserved_total']}" for g in GROUPS)]]
+        for key, label in check_labels:
+            check_rows.append([label, *(yes if by_group[g]["checks"][key] else no for g in GROUPS)])
+        checks = table([("核对项" if chinese else "Checklist"), *LABELS], check_rows)
+        prose = table([("配置" if chinese else "Configuration"), ("画面观察" if chinese else "Observation")],
+                      [[label, by_group[g]["observation"][language]] for g, label in zip(GROUPS, LABELS)])
+        round_blocks.extend([f"**{'第' + str(number) + '轮' if chinese else 'Round ' + str(number)}:**",
+                             images, checks, prose])
 
-    intro = (
-        "本节测试 `/mai/v1/images/edits` 接受几张参考图。官方参数表把 `image` 标为 `string`、"
-        "描述为 the image，既没有多图说明也没有张数上限，因此下列张数与字段规则取自服务端自身的校验消息，"
-        "属实测结果，不是官方支持承诺。"
+    # Countable outcome across rounds: how often each configuration kept all items.
+    per_group_kept = {g: [item["preserved_count"] for r in rounds for item in r["outputs"] if item["group"] == g]
+                      for g in GROUPS}
+    total = rounds[0]["outputs"][0]["preserved_total"]
+    kept_summary = table(
+        [("跨轮汇总" if chinese else "Across rounds"), *LABELS],
+        [[("保持项命中（每轮）" if chinese else "Items kept (per round)"),
+          *(" / ".join(f"{k}/{total}" for k in per_group_kept[g]) for g in GROUPS)],
+         [("请求耗时（每轮）" if chinese else "Latency per round"),
+          *(" / ".join(f"{item['request_seconds']:.2f} s" for r in rounds for item in r["outputs"]
+                       if item["group"] == g) for g in GROUPS)],
+         [("换成博士帽" if chinese else "Graduation cap present"),
+          *(f"{sum(1 for r in rounds for item in r['outputs'] if item['group'] == g and item['checks']['headwear_replaced_with_graduation_cap'])}/{len(rounds)}"
+            for g in GROUPS)]])
+    mai_all = all(k == total for k in per_group_kept["mai-image-2.6"])
+    gpt_any_full = any(k == total for g in GROUPS[1:] for k in per_group_kept[g])
+    reading = (
+        ("四个配置在每一轮都换上了博士帽。差别在其余部分："
+         + ("MAI 两轮输出都与原图逐项一致，外观符合局部重绘；" if mai_all else
+            "MAI 并非每轮都保住全部保持项；")
+         + ("GPT 三档没有一轮保住全部保持项，都围绕主题重新生成整幅画面。" if not gpt_any_full else
+            "GPT 至少有一轮保住了全部保持项。")
+         + "本题提示词要求保持原图，所以偏离就是未按指令执行；若提示词要求重新演绎，同样这些图会得到不同的评价。")
         if chinese else
-        "This section measures how many reference images `/mai/v1/images/edits` accepts. The official parameter "
-        "table types `image` as a `string` described as \"the image\", with no multi-image statement and no count "
-        "limit, so the counts and field rules below come from the service's own validation messages. They are "
-        "measured behaviour, not an official support commitment."
+        ("Every configuration produced the graduation cap in every round. The difference is in everything else: "
+         + ("the MAI output matches the input item by item in both rounds and looks like a local repaint; "
+            if mai_all else "MAI did not keep every preservation item in every round; ")
+         + ("no GPT tier kept every preservation item in any round; all three regenerate the whole frame around "
+            "the theme. " if not gpt_any_full else "at least one GPT round kept every preservation item. ")
+         + "This prompt asked to preserve the input, so departure is non-compliance here; a prompt asking for a "
+           "reinterpretation would judge these same images differently.")
     )
-    capability_note = (
-        "能力组给每种输入配一条它能满足的提示词：单图用单数指令，双图用双数指令。"
-        "两次提示词不同，因此本组只展示各自用法的实际效果，不能把差异归因于第二张图。"
+    boundary = (
+        f"共 {len(rounds)} 轮，每轮每个配置一次调用，两轮只说明结果是否重复出现，不构成统计样本；"
+        "观察为非盲评，只描述与原图的差异，不是画质评分。"
+        "耗时为客户端 `requests.post` 往返时间，GPT 部署在 East US 2、MAI 在 Sweden Central，客户端为同一台工作站，区域差异未剥离。"
+        "输出 PNG 均无 alpha 通道。"
         if chinese else
-        "The capability group gives each input count a prompt it can satisfy: a singular instruction for one image "
-        "and a plural instruction for two. The prompts differ, so this group shows what each usage returns and "
-        "cannot attribute a difference to the second image."
+        f"{len(rounds)} rounds with one call per configuration per round; two rounds show whether the outcome "
+        "repeats and are not a statistical sample. Observations are unblinded and describe departures from the "
+        "input, not image quality. Latency is client-side `requests.post` round-trip time; GPT ran in East US 2 "
+        "and MAI in Sweden Central from the same workstation, so region is not separated out. No output PNG "
+        "carries an alpha channel."
     )
-    capability_rows = [
-        [("单图输入 `image` x 1" if chinese else "One image, `image` x 1"),
-         f"`{capability[1]['prompt']}`", f"{capability[1]['request_seconds']} s",
-         f"{capability[1]['png']['bytes']:,} bytes"],
-        [("双图输入 `image` x 2" if chinese else "Two images, `image` x 2"),
-         f"`{capability[2]['prompt']}`", f"{capability[2]['request_seconds']} s",
-         f"{capability[2]['png']['bytes']:,} bytes"],
-    ]
-    attribution_note = (
-        "归因组固定同一条提示词，只更换输入图，并同时保留两条单图臂，使对照对称。"
-        "该提示词对单张输入是欠定的，因此本组只用于归因，不代表单图编辑质量。"
-        if chinese else
-        "The attribution group holds one prompt constant and changes only the images, keeping both single-image "
-        "arms so the comparison is symmetric. That prompt is under-determined for a single input, so this group "
-        "measures attribution only and is not evidence of single-image edit quality."
-    )
-    attribution_rows = [
-        [("只给输入图 1" if chinese else "Image 1 only"), "1",
-         f"{attribution['single_image']['request_seconds']} s",
-         ("仅紫色机身，无第二张图元素" if chinese else "Purple chassis only, no elements from image 2")],
-        [("只给输入图 2" if chinese else "Image 2 only"), "1",
-         f"{attribution['fixed_prompt_image_two_only']['request_seconds']} s",
-         ("仅输入图 2 的设备，无紫色机身" if chinese else "Only the image-2 device, no purple chassis")],
-        [("同时给两张" if chinese else "Both images"), "2",
-         f"{attribution['two_image_fields']['request_seconds']} s",
-         ("两张图各自的设备与模式排列同时出现" if chinese else
-          "Devices and mode row from both images appear together")],
-    ]
-    attribution_prompt = summary["attribution_prompts"][0]
-    attribution_finding = (
-        "每张输入图的独有元素只在该图在场时出现，因此第二张图被读取并影响了生成结果，不是被静默忽略。"
-        if chinese else
-        "Each image's unique elements appear only when that image is present, so the second image was read and "
-        "influenced the result rather than being silently ignored."
-    )
-    contract_rows = [
-        ["`image` x 1", "200", ("返回图片" if chinese else "Returned an image")],
-        ["`image` x 2", "200", ("返回图片，第二张图生效" if chinese else "Returned an image; the second image took effect")],
-        [f"`image` x {', '.join(str(count) for count in sorted(quota))}", "429",
-         ("配额限制（本部署 2 RPM），既非能力否证也非支持证明" if chinese else
-          "Quota limit (2 RPM on this deployment); neither a capability refutation nor proof of support")],
-        ["`image` x 9", "400", f"`{limit}`"],
-        [("不传图片" if chinese else "No image field"), "400", f"`{limit}`"],
-        ["`image[]`, `images`, `image1`+`image2`, `image_a`+`image_b`, `reference`", "400",
-         f"`{summary['contract']['field_prefix_message']}`"],
-    ]
-    field_boundary = (
-        "服务端提示字段名需以 `image` 开头，但 `image1`、`image_a`、`image[]`、`images` 实测均被拒，"
-        "实际只接受重复命名为 `image` 的字段。上限 1–5 取自服务端消息；3 与 5 张因配额未取得成功样本。"
-        if chinese else
-        "The service says the field name must start with `image`, yet `image1`, `image_a`, `image[]` and `images` "
-        "were all rejected, so only repeated fields named `image` are accepted. The 1–5 range comes from the "
-        "service message; no successful sample was obtained for 3 or 5 images because of the quota."
-    )
-    cutout_boundary = (
-        f"三张输出均为 PNG colour type {capability[1]['png']['colour_type']}，文件不含 alpha 通道，"
-        "四角为不透明近白像素。因此白色背景是模型画出来的背景，不是透明区域，用于合成仍需另行抠图。"
-        "接口没有 `background` 或 `output_format` 参数可要求透明输出，也没有 `mask` 参数，"
-        "无法指定各输入图的哪一部分进入结果；输出是重新生成的画面，不是图像拼接。"
-        if chinese else
-        f"All three outputs are PNG colour type {capability[1]['png']['colour_type']} with no alpha channel and "
-        "opaque near-white corners. The white background is drawn by the model, not transparency, so compositing "
-        "still requires a separate cutout. The API exposes no `background` or `output_format` parameter to request "
-        "transparency and no `mask` parameter to select which part of each input is used; the output is a "
-        "regenerated image, not a composite."
-    )
-    repeatability = (
-        "每种组合各调用一次，未做重复性验证；`MAI-Image-2.6` 为 Preview，无 SLA，接口行为可能变化。"
-        "耗时为客户端 `requests.post` 往返时间，不是服务端推理时长。"
-        if chinese else
-        "Each combination was called once with no repeatability check. `MAI-Image-2.6` is in preview with no SLA "
-        "and its behaviour may change. Latency is client-side `requests.post` round-trip time, not server-side "
-        "inference duration."
-    )
-    question = (
-        "要回答的问题是：这个编辑接口一次能接受几张参考图，多传的那张会不会真的被用上。"
-        "官方文档没有答案，所以下面用实际调用来定。"
-        if chinese else
-        "The question is how many reference images this edit endpoint accepts in one call, and whether an extra "
-        "image is actually used. The official documentation does not say, so the answer below comes from real calls."
-    )
-    quota_note = (
-        "术语说明：`HTTP 429` 是配额用尽（本部署每分钟 2 次请求），表示请求没被处理，"
-        "与接口拒绝某个张数是两件事；`HTTP 400` 才是接口明确拒绝。"
-        if chinese else
-        "Terminology: `HTTP 429` means the quota was exhausted (two requests per minute on this deployment), so the "
-        "request was never processed. That differs from the endpoint refusing an image count, which returns "
-        "`HTTP 400`."
-    )
-    sections = [
-        f"## {'多图输入编辑测试' if chinese else 'Multi-Image Input Edit Test'}",
-        f"**{'要回答什么' if chinese else 'What this section determines'}**", question, intro,
-        f"**{'两张输入图' if chinese else 'The two input images'}**",
-        ("两张图都取自上文联网补测的模型输出，在这里复用为输入素材。左图是一张深色配色信息图，"
-         "画面里有四个配色圆点、14/16 英寸标注和一台紫色笔记本；右图是一张浅色规格信息图，"
-         "有一台棕色笔记本、屏幕文字和下排四种使用模式（其中平板模式带手写笔）。"
-         "它们是模型生成内容，不是官方素材，图中的配色名与规格文字不代表官方产品信息。"
-         if chinese else
-         "Both images are model outputs from the web-grounding section above, reused here as input material. The "
-         "left one is a dark colour-lineup infographic containing four colour dots, 14/16-inch labels and a purple "
-         "laptop. The right one is a light specification infographic containing a brown laptop, on-screen text and "
-         "a row of four usage modes, one of which holds a pen. They are generated content, not official assets, and "
-         "their colour names and specification text do not represent official product information."),
-        table([("输入图 1（深色配色信息图）" if chinese else "Input image 1, colour-lineup infographic"),
-               ("输入图 2（浅色规格信息图）" if chinese else "Input image 2, specification infographic")],
-              [[f"![Input image 1]({GROUNDING_ARCHIVE}/mai-image-2.6-web-off/r1/01_test.png)",
-                f"![Input image 2]({GROUNDING_ARCHIVE}/mai-image-2.6-web-off/r1/02_test.png)"]]),
-        f"**{'第一组：各自用法的实际效果' if chinese else 'Group 1: what each usage returns'}**", capability_note,
-        (f"发送 1 张图时的提示词：\n\n> {' '.join(capability[1]['prompt'].split())}\n\n"
-         f"发送 2 张图时的提示词：\n\n> {' '.join(capability[2]['prompt'].split())}"
-         if chinese else
-         f"The prompt sent with one image:\n\n> {' '.join(capability[1]['prompt'].split())}\n\n"
-         f"The prompt sent with two images:\n\n> {' '.join(capability[2]['prompt'].split())}"),
-        table(([ "输入", "请求耗时", "输出大小"] if chinese else
-               ["Input", "Request latency", "Output size"]),
-              [[row[0], row[2], row[3]] for row in capability_rows]),
-        table([("单图输入的输出" if chinese else "One-image output"),
-               ("双图输入的输出" if chinese else "Two-image output")],
-              [[f"![Single-image edit output]({archive_path}/{capability[1]['output']})",
-                f"![Two-image edit output]({archive_path}/{capability[2]['output']})"]]),
-        f"**{'第二组：第二张图到底有没有被用上' if chinese else 'Group 2: was the second image actually used'}**",
-        attribution_note,
-        (f"本组三次调用都用同一条提示词：\n\n> {' '.join(attribution_prompt.split())}"
-         if chinese else
-         f"All three calls in this group use the same prompt:\n\n> {' '.join(attribution_prompt.split())}"),
-        table(([ "输入组合", "张数", "请求耗时", "画面结果"] if chinese else
-               ["Input combination", "Images", "Request latency", "Observed result"]), attribution_rows),
-        table([("只给输入图 1" if chinese else "Image 1 only"),
-               ("只给输入图 2" if chinese else "Image 2 only")],
-              [[f"![Attribution, image 1 only]({archive_path}/{attribution['single_image']['output']})",
-                f"![Attribution, image 2 only]({archive_path}/{attribution['fixed_prompt_image_two_only']['output']})"]]),
-        table([("同时给两张输入图" if chinese else "Both input images")],
-              [[f"![Attribution, both images]({archive_path}/{attribution['two_image_fields']['output']})"]]),
-        attribution_finding,
-        f"**{'第三组：能传几张，字段该怎么写' if chinese else 'Group 3: how many images, and how the field must be named'}**",
-        quota_note,
-        table(([ "multipart 字段", "状态", "服务端返回"] if chinese else
-               ["Multipart field", "Status", "Service response"]), contract_rows),
-        field_boundary,
-        f"**{'是否等于抠图' if chinese else 'Is this a cutout'}**", cutout_boundary, repeatability,
-        " | ".join([
-            f"[{'能力组与归因组第三臂' if chinese else 'Capability and third attribution arm'}]({archive_path}/clean-results.json)",
-            f"[{'字段形式' if chinese else 'Field shapes'}]({archive_path}/field-shape-results.json)",
-            f"[{'校验与上限' if chinese else 'Validation and limit'}]({archive_path}/limit-probe-results.json)",
-            f"[{'探测脚本' if chinese else 'Probe scripts'}]({archive_path}/source)",
-        ]),
-    ]
-    return "\n\n".join(sections)
+    link_items = []
+    for round_item in rounds:
+        sub = "" if round_item["round"] == 1 else f"r{round_item['round']}/"
+        tag = (f"第{round_item['round']}轮" if chinese else f"round {round_item['round']}")
+        link_items.append(f"[{'请求记录' if chinese else 'Request records'} {tag}]({archive_path}/{sub}edit-results.json)")
+        link_items.append(f"[{'逐图核对' if chinese else 'Per-image checklist'} {tag}]({archive_path}/{sub}edit-review.json)")
+    link_items.append(f"[{'探测脚本' if chinese else 'Probe script'}]({archive_path}/source/probe_edit_hat_swap.py)")
+    links = " | ".join(link_items)
+    title = "### Test 12: 换帽子（图像编辑）" if chinese else "### Test 12: Headwear Swap (Image Edit)"
+    return "\n\n".join([title, lead, input_note, prompt_line, prompt_quote,
+                        f"**{'受控变量' if chinese else 'Controlled variables'}**", controlled,
+                        input_image, *round_blocks, kept_summary, reading, boundary, links])
 
 
-def multi_image_reproduction_commands(archive_path):
-    return (f"```powershell\npython scripts/summarize_multi_image_edit.py {archive_path} --check\n"
-            f"python {archive_path}/source/probe_multi_image_clean.py\n"
-            f"python {archive_path}/source/probe_multi_image_limit.py\n"
-            f"python {archive_path}/source/check_alpha_and_cutout.py\n```")
+def edit_reproduction_commands(archive_path):
+    return (f"```powershell\npython scripts/summarize_edit_hat_swap.py {archive_path} --check\n"
+            f"python {archive_path}/source/probe_edit_hat_swap.py --round 1\n"
+            f"python {archive_path}/source/probe_edit_hat_swap.py --round 2\n```")
 
 
 def grounding_reproduction_commands(archive_path):
@@ -880,27 +893,29 @@ def render_grounding_section(summary, archive_path, language):
 
 
 def update_document(text, summary, quality, archive_path, language, grounding_section="",
-                    multi_image_section=""):
+                    edit_section=""):
     chinese = language == "zh"
     title = ("# MAI-Image-2.6 与 GPT-Image-2：全质量档位图像生成对比" if chinese else
              "# MAI-Image-2.6 vs GPT-Image-2: All Quality Tiers")
     author = re.search(r"(?m)^> \*\*(?:Author|作者)\*\*:[^\n]+", text)
     if author is None:
         raise ValueError("Existing report author attribution was not found")
+    # Scenario titles 1-11 are preserved from the existing document; Test 12 is
+    # rendered from its own evidence and is not required to pre-exist.
     titles = {int(index): heading.strip() for index, heading in
               re.findall(r"(?m)^### Test (\d+): ([^\n]+)$", text)}
-    if set(titles) != set(range(1, 12)) or [item["prompt_index"] for item in summary["per_prompt"]] != list(range(1, 12)):
+    if not set(range(1, 12)) <= set(titles) or [item["prompt_index"] for item in summary["per_prompt"]] != list(range(1, 12)):
         raise ValueError("All eleven original scenarios are required")
     content = render_overview(summary, quality, archive_path, language,
-                              bool(grounding_section), bool(multi_image_section))
+                              bool(grounding_section), bool(edit_section))
     comparison_heading = "## 并排图片对比" if chinese else "## Side-by-Side Image Comparison"
-    description = ("每个场景、每一轮只展示 MAI-Image-2.6 与 GPT-Image-2 low、medium、high。图片来自本次四组测试，未返回图片的格子保留失败说明。点击图片查看原始 1024x1024 PNG。"
-                   if chinese else "Every scenario and round compares only MAI-Image-2.6 with GPT-Image-2 low, medium and high. Images come from this four-configuration run; missing images retain their failure record. Click an image for the original 1024x1024 PNG.")
+    description = ("第 1–11 题为文生图，每个场景、每一轮只展示 MAI-Image-2.6 与 GPT-Image-2 low、medium、high。图片来自本次四组测试，未返回图片的格子保留失败说明。点击图片查看原始 1024x1024 PNG。第 12 题为图像编辑，输入为一张真实照片。"
+                   if chinese else "Scenarios 1-11 are text-to-image; every scenario and round compares only MAI-Image-2.6 with GPT-Image-2 low, medium and high. Images come from this four-configuration run; missing images retain their failure record. Click an image for the original 1024x1024 PNG. Scenario 12 is an image edit of one real photograph.")
     # Images come before the metrics body: a reader judges generated pictures by
     # looking at them, and the timing and token tables only make sense afterwards.
-    sections = [title, author.group(),
+    sections = [title, render_masthead(summary, author.group(), language),
                 render_highlights(summary, language, bool(grounding_section),
-                                  bool(multi_image_section)),
+                                  bool(edit_section)),
                 comparison_heading, description]
     for prompt_record in summary["per_prompt"]:
         prompt_index = prompt_record["prompt_index"]
@@ -909,13 +924,12 @@ def update_document(text, summary, quality, archive_path, language, grounding_se
         for round_number in (1, 2):
             sections.extend([f"**Round {round_number}:**",
                              comparison_table(prompt_record, round_number, archive_path, language)])
+    # Test 12 sits with the other scenarios so the reader meets it in sequence.
+    if edit_section:
+        sections.append(edit_section)
     sections.append(content.strip())
-    # The two capability tests follow the image comparison, in the order a reader
-    # meets them: what the model knows, then how many images it accepts.
     if grounding_section:
         sections.append(grounding_section)
-    if multi_image_section:
-        sections.append(multi_image_section)
     return "\n\n".join(sections) + "\n"
 
 
@@ -952,7 +966,7 @@ def main():
         return
     archive_path = run_directory.relative_to(root).as_posix()
     grounding_summary = summarize_grounding(root / GROUNDING_ARCHIVE)
-    multi_image_summary = summarize_multi_image(root / MULTI_IMAGE_ARCHIVE)
+    edit_summary = summarize_edit(root / EDIT_ARCHIVE)
     documents = []
     for filename, language in (("README.md", "en"), ("README-CN.md", "zh")):
         path = root / filename
@@ -960,7 +974,7 @@ def main():
         generated = update_document(
             original, summary, quality, archive_path, language,
             render_grounding_section(grounding_summary, GROUNDING_ARCHIVE, language),
-            render_multi_image_section(multi_image_summary, MULTI_IMAGE_ARCHIVE, language))
+            render_edit_scenario(edit_summary, EDIT_ARCHIVE, language))
         documents.append((path, original, generated))
     if arguments.check:
         changed = [path.name for path, original, generated in documents if original != generated]

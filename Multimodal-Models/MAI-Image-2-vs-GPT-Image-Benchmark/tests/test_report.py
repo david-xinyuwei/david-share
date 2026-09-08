@@ -1,3 +1,4 @@
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -118,7 +119,10 @@ class ComparisonReportTests(unittest.TestCase):
             self.assertIn("> **Author**: Existing Author", generated)
             self.assertEqual(generated.count("### Test "), 11)
             self.assertEqual(generated.count("**Round "), 22)
-            self.assertEqual(generated.count("!["), 88)
+            # Count only scenario comparison images, so masthead badges cannot mask a
+            # missing or duplicated per-scenario picture.
+            scenario_images = len(re.findall(r"!\[[^\]]*\]\(data/offline-fixture/[^)]+\)", generated))
+            self.assertEqual(scenario_images, 88)
             self.assertIn("### Web Grounding Test\n\nOffline grounding evidence", generated)
             self.assertNotIn("web-grounding-20260908/README", generated)
             self.assertNotIn("Supplement", generated)

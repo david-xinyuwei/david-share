@@ -1,6 +1,16 @@
 # MAI-Image-2.6 vs GPT-Image-2: All Quality Tiers
 
+[![Models](https://img.shields.io/badge/Models-MAI--Image--2.6%20vs%20GPT--Image--2-0067b8)](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image) [![Samples](https://img.shields.io/badge/Samples-87%2F88%20returned-2e7d32)](data/paired-all-quality-20260907/5way_v2_results.json) ![Resolution](https://img.shields.io/badge/Resolution-1024%C3%971024-455a64) ![MAI version](https://img.shields.io/badge/MAI%20version-2026--07--31-6a1b9a) [![Status](https://img.shields.io/badge/Status-Preview%20%C2%B7%20no%20SLA-b26500)](https://azure.microsoft.com/support/legal/preview-supplemental-terms/) [![Tests](https://img.shields.io/badge/Tests-53%20offline-00695c)](tests)
+
+One client interleaved calls to MAI-Image-2.6 and GPT-Image-2 at low, medium and high across 11 text-to-image scenarios in two rounds, 88 formal samples in total, keeping every original PNG, per-attempt record and failed sample. Two capability tests are included: web grounding (`web_grounding`) and multi-image input editing. Image judgements are unblinded difference descriptions and produce no quality score or preference verdict.
+
 > **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
+[English](README.md) | [中文](README-CN.md)
+
+[Side-by-side images](#side-by-side-image-comparison) · [Latency and requests](#performance-and-reliability) · [Web grounding](#web-grounding-test) · [Image edit](#test-12-headwear-swap-image-edit) · [Reproduction](#reproduction-and-tests) · [Raw evidence](data/paired-all-quality-20260907)
+
+---
 
 ## What This Run Shows About MAI-Image-2.6
 
@@ -8,7 +18,7 @@ All three items rest on the measurements in this repository. `MAI-Image-2.6` is 
 
 1. **11 scenarios sit side by side with all three GPT-Image-2 tiers.** This run returned images for 87/88 formal samples, Both rounds plus the original PNGs are kept below so you can compare each scenario yourself. The per-image observations describe differences without ranking them, so this report does not claim MAI image quality beats or matches GPT-Image-2.
 
-2. **One edit request accepts several reference images.** The service states `Only 1 to 5 image files are supported for edit requests.`, and with two images the second image's content verifiably reached the output. The official parameter table types `image` as a single `string` and does not mention this.
+2. **An edit changes the one thing asked for and keeps the rest of the photo.** Scenario 12 sends one real photograph to all four configurations asking only for the headwear to become a graduation cap: the MAI output matches the input item by item on face, robe, bystanders, title and aspect ratio, while all three GPT tiers add the cap but regenerate the whole frame. The checklist is in Scenario 12.
 
 3. **`web_grounding=true` adds current web information at generation time.** The model retrieves current information from Bing Search as extra context, which moved the product text facts in two subjects from wrong to matching the official announcement. The cost is a lower first-attempt success rate and clearly higher latency. This is not the same thing as dense visual grounding.
 
@@ -46,7 +56,7 @@ Neither validates the other: the vendor measured a 100 RPM load test while this 
 
 ## Side-by-Side Image Comparison
 
-Every scenario and round compares only MAI-Image-2.6 with GPT-Image-2 low, medium and high. Images come from this four-configuration run; missing images retain their failure record. Click an image for the original 1024x1024 PNG.
+Scenarios 1-11 are text-to-image; every scenario and round compares only MAI-Image-2.6 with GPT-Image-2 low, medium and high. Images come from this four-configuration run; missing images retain their failure record. Click an image for the original 1024x1024 PNG. Scenario 12 is an image edit of one real photograph.
 
 ### Test 1: Chrome Kimono Metallic Maiden
 
@@ -246,6 +256,84 @@ Every scenario and round compares only MAI-Image-2.6 with GPT-Image-2 low, mediu
 | ![MAI-Image-2.6, prompt 11, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/11_test.png) | ![GPT-Image-2 low, prompt 11, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/11_test.png) | ![GPT-Image-2 medium, prompt 11, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/11_test.png) | ![GPT-Image-2 high, prompt 11, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/11_test.png) |
 | 35.77 s<br>1725 KiB | 27.29 s<br>1615 KiB | 56.27 s<br>1541 KiB | 152.77 s<br>1715 KiB |
 
+### Test 12: Headwear Swap (Image Edit)
+
+The first eleven scenarios are pure text-to-image. Scenario 12 switches to image editing: the same real photograph goes to each configuration's edit endpoint with a prompt that asks for exactly one change and lists what must stay the same, so every output can be checked item by item without an aesthetic score. As in the first eleven scenarios it runs 2 rounds, with the configuration order reversed in round 2.
+
+The input is one 553x311 JPEG photograph (39,539 bytes, SHA-256 `2f15a826dbc5d0e9…`): a foreground figure in a crown and embroidered robe, spear-bearing guards on the left, a purple-robed figure and gallery on the right, and a title with a seal in the top-left.
+
+The identical prompt sent to all four configurations:
+
+> Replace only the headwear worn by the man in the foreground with a black academic graduation cap with a tassel. Keep his face, beard, expression and pose exactly as they are. Keep his embroidered robe, the courtyard and every other person unchanged.
+
+**Controlled variables**
+
+MAI uses `/mai/v1/images/edits` and GPT uses `/openai/deployments/gpt-image-2/images/edits`; the three GPT tiers differ only in `quality` and pass `size=1024x1024` as that endpoint requires, while the MAI endpoint has no size parameter and the service chose the output dimensions. Each configuration was called once per round, over 2 rounds.
+
+| Input photograph |
+| --- |
+| ![Input photograph](data/edit-hat-swap-20260908/input.jpg) |
+
+**Round 1:**
+
+| MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, edit round 1](data/edit-hat-swap-20260908/01_mai-image-2.6.png) | ![GPT-Image-2 low, edit round 1](data/edit-hat-swap-20260908/02_gpt-image-2-low.png) | ![GPT-Image-2 medium, edit round 1](data/edit-hat-swap-20260908/03_gpt-image-2-medium.png) | ![GPT-Image-2 high, edit round 1](data/edit-hat-swap-20260908/04_gpt-image-2-high.png) |
+| 34.94 s<br>1585 KiB<br>1360x768 | 29.55 s<br>1725 KiB<br>1024x1024 | 57.71 s<br>1641 KiB<br>1024x1024 | 162.65 s<br>1566 KiB<br>1024x1024 |
+
+| Checklist | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- | --- |
+| Preservation items kept | 5/5 | 0/5 | 1/5 | 0/5 |
+| Headwear became a graduation cap | yes | yes | yes | yes |
+| Face and beard preserved | yes | no | no | no |
+| Robe embroidery preserved | yes | no | no | no |
+| Bystanders and background unchanged | yes | no | no | no |
+| Title and seal preserved | yes | no | yes | no |
+| Input aspect ratio kept | yes | no | no | no |
+
+| Configuration | Observation |
+| --- | --- |
+| MAI-Image-2.6 | The crown becomes a black graduation cap with a tassel. Face, beard, expression, robe embroidery, the spear-bearing guards on the left, the purple-robed figure on the right, the gallery architecture and the title and seal in the top-left all match the input, and the output keeps the input's 16:9 framing (1360x768). The appearance is consistent with a local repaint. |
+| GPT-Image-2 low | A graduation cap appears, but the whole frame is recomposed as a 1024x1024 square: the subject is enlarged and centred, the facial features differ from the input, the robe embroidery is redrawn, the guard column on the left is replaced by a different red-and-black group, the purple-robed figure and the gallery on the right are gone, and the title and seal are gone. |
+| GPT-Image-2 medium | A graduation cap appears and the title and seal in the top-left survive, with framing closer to the input than the low tier. But the face and beard are redrawn, the robe embroidery differs, the guards on the left are rearranged, the figures and architecture on the right do not match the input, and the output is a 1024x1024 square. |
+| GPT-Image-2 high | A graduation cap appears and the gold robe embroidery is the most finely rendered of the four, but the frame is regenerated: the subject now stands frontally with a different face, the guards on the left are a different column, two red-robed attendants are added, the background architecture does not match the input, the title and seal are gone, and the output is a 1024x1024 square. |
+
+**Round 2:**
+
+| MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, edit round 2](data/edit-hat-swap-20260908/r2/04_mai-image-2.6.png) | ![GPT-Image-2 low, edit round 2](data/edit-hat-swap-20260908/r2/03_gpt-image-2-low.png) | ![GPT-Image-2 medium, edit round 2](data/edit-hat-swap-20260908/r2/02_gpt-image-2-medium.png) | ![GPT-Image-2 high, edit round 2](data/edit-hat-swap-20260908/r2/01_gpt-image-2-high.png) |
+| 36.91 s<br>1618 KiB<br>1360x768 | 27.73 s<br>1748 KiB<br>1024x1024 | 58.61 s<br>1478 KiB<br>1024x1024 | 165.15 s<br>1672 KiB<br>1024x1024 |
+
+| Checklist | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- | --- |
+| Preservation items kept | 5/5 | 0/5 | 0/5 | 0/5 |
+| Headwear became a graduation cap | yes | yes | yes | yes |
+| Face and beard preserved | yes | no | no | no |
+| Robe embroidery preserved | yes | no | no | no |
+| Bystanders and background unchanged | yes | no | no | no |
+| Title and seal preserved | yes | no | no | no |
+| Input aspect ratio kept | yes | no | no | no |
+
+| Configuration | Observation |
+| --- | --- |
+| MAI-Image-2.6 | The crown becomes a black graduation cap with a tassel. Face, beard, expression, robe embroidery, the spear-bearing guards on the left, the purple-robed figure on the right, the gallery architecture and the title and seal in the top-left all sit where the input has them, and the output keeps the input's 16:9 framing (1360x768). The title glyphs are slightly softened by the upscale but remain in place. The outcome repeats the round-1 MAI output. |
+| GPT-Image-2 low | A graduation cap appears. The output is a 1024x1024 square with a composition close to the round-2 medium and high outputs: frontal pose, redrawn face and beard, different robe embroidery, a green-and-gold guard column on the left, a black-robed crowd plus a purple-robed figure on the right, and the title and seal are gone. Round-1 low enlarged and centred the subject with a red-and-black guard column; round 2 sits closer to the input framing, so the low tier's output is not stable across rounds. |
+| GPT-Image-2 medium | A graduation cap appears. The output is a 1024x1024 square with a composition close to the round-2 high output: frontal pose, redrawn face and beard, different robe embroidery, the left guards become a green-and-gold column, the right side is a black-robed crowd plus a purple-robed figure, and the title and seal are gone. Round-1 medium kept the title and seal; round 2 did not. |
+| GPT-Image-2 high | A graduation cap appears. The frame is regenerated as a 1024x1024 square: the subject now stands frontally with a different face and beard, the robe embroidery is redrawn, the guards on the left become a different column in green-and-gold headdresses, the right side becomes a black-robed crowd plus one purple-robed figure, the gallery and lantern do not match the input, and the title and seal are gone. Composition is close to the round-1 high output but the details differ. |
+
+| Across rounds | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- | --- |
+| Items kept (per round) | 5/5 / 5/5 | 0/5 / 0/5 | 1/5 / 0/5 | 0/5 / 0/5 |
+| Latency per round | 34.94 s / 36.91 s | 29.55 s / 27.73 s | 57.71 s / 58.61 s | 162.65 s / 165.15 s |
+| Graduation cap present | 2/2 | 2/2 | 2/2 | 2/2 |
+
+Every configuration produced the graduation cap in every round. The difference is in everything else: the MAI output matches the input item by item in both rounds and looks like a local repaint; no GPT tier kept every preservation item in any round; all three regenerate the whole frame around the theme. This prompt asked to preserve the input, so departure is non-compliance here; a prompt asking for a reinterpretation would judge these same images differently.
+
+2 rounds with one call per configuration per round; two rounds show whether the outcome repeats and are not a statistical sample. Observations are unblinded and describe departures from the input, not image quality. Latency is client-side `requests.post` round-trip time; GPT ran in East US 2 and MAI in Sweden Central from the same workstation, so region is not separated out. No output PNG carries an alpha channel.
+
+[Request records round 1](data/edit-hat-swap-20260908/edit-results.json) | [Per-image checklist round 1](data/edit-hat-swap-20260908/edit-review.json) | [Request records round 2](data/edit-hat-swap-20260908/r2/edit-results.json) | [Per-image checklist round 2](data/edit-hat-swap-20260908/r2/edit-review.json) | [Probe script](data/edit-hat-swap-20260908/source/probe_edit_hat_swap.py)
+
 ## Current Run: Both Models and All Quality Tiers
 
 [中文](README-CN.md) | [Side-by-side images](#side-by-side-image-comparison) | [Measurements](data/paired-all-quality-20260907/5way_v2_results.json) | [Metrics](data/paired-all-quality-20260907/summary.json) | [Attempts](data/paired-all-quality-20260907/attempts.jsonl)
@@ -368,8 +456,6 @@ Countable outcomes first, then the per-scenario prose. The table counts how many
 | Unrequested text added | 5/11 | 4/11 | 5/11 | 4/11 |
 | Illegible or blurred detail | 2/11 | 2/11 | 2/11 | 0/11 |
 
-The per-scenario descriptions follow. AI-assisted, unblinded inspection only, with no numeric quality score. [Inspection record](data/paired-all-quality-20260907/quality-review.json).
-
 | Scenario | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
 | --- | --- | --- | --- | --- |
 | 1 | Both rounds include blue metallic clothing, flowers and foreground blur; R1 has a bright background, R2 is dark, with no visible added text. | Both use tightly framed portraits and metallic flowers in dark scenes; R2 clothing resembles wrinkled silver foil, with little sense of high exposure. | Metallic flowers and blue-silver clothing are clear in both dark-toned images; R2 has a smoothed face and shell-like fabric. | R1 returned no image. R2 shows a backward-looking portrait and silver metallic flowers, with cropped upper hair ornaments and no visible added text. |
@@ -383,6 +469,8 @@ The per-scenario descriptions follow. AI-assisted, unblinded inspection only, wi
 | 9 | Both show silver-gray dragon profiles covered in spirals with carved or porcelain-like surfaces and blurred backgrounds; R2 adds moonlit castles. | Both use blue-gold openwork dragon close-ups with clear eyes and tendrils; R1 crops the upper horn, and some dense ornamental connections are hard to distinguish. | Both blue-gold dragon heads carry differently sized spirals in shallow focus; the skin resembles metallic filigree, with no visible text. | R1 uses a round-eyed blue-purple creature with beaded spiral skin and ambiguous tendril overlaps; R2 has a clear orange eye and multiscale spirals, without visible text. |
 | 10 | Both cats bare their teeth and drum with human-like two-stick grips; drums and posters add English text, with R2 cropping the bass drum and lower lettering. | Both cats bare their teeth and raise sticks, with some paw motion blur; shirts and drums add English, and R2 crops the bass drum's lower edge. | Both center the drummer with clear fur and chrome highlights, adding slogans such as I HATE MONDAYS or PAWS OF FURY and some blurred paw/stick edges. | Both clearly depict snarling faces and two-stick poses, with cropped foreground drums and added wording such as HISS OFF or BAD KITTY. |
 | 11 | R1's monkey plays a pear-shaped string instrument, R2's plays guitar on stone paving; fur and wood are clear, with unrequested text on a book or tip bowl. | Both subjects play guitar with added performance lettering; R1 looks young-ape-like and R2 crops the headstock. R1's image followed an output-moderation rejection and retry. | Both straw-hatted monkeys play guitar against added performance lettering; R2 has a blurred strumming hand and a cropped right-hand headstock. | R1's monkey plays beside a vintage microphone, R2's sits cross-legged with closed eyes; materials are distinct, with added English signage in both. |
+
+Per-scenario descriptions come from [the inspection record](data/paired-all-quality-20260907/quality-review.json).
 
 ### Measured API Settings
 
@@ -453,13 +541,12 @@ python data/lenovo-web-grounding-20260908/source/benchmark_5way_v2.py --mai-mode
 python data/lenovo-web-grounding-20260908/source/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --mai-web-grounding both --prompts-csv data/lenovo-web-grounding-20260908/source/prompts.csv --output runs/web-grounding-reproduction
 ```
 
-The multi-image test needs only the MAI deployment. The first command verifies the saved evidence and checks whether the PNGs carry an alpha channel; the remaining three call the API to rerun the capability group, the field validation and the count probe into their own output directories.
+Scenario 12 needs both the MAI and GPT deployments. The first command verifies the published input, the four outputs and the request records by hash without network calls; the second calls all four edit endpoints again into a new directory, leaving published data unchanged.
 
 ```powershell
-python scripts/summarize_multi_image_edit.py data/mai-multi-image-edit-20260908 --check
-python data/mai-multi-image-edit-20260908/source/probe_multi_image_clean.py
-python data/mai-multi-image-edit-20260908/source/probe_multi_image_limit.py
-python data/mai-multi-image-edit-20260908/source/check_alpha_and_cutout.py
+python scripts/summarize_edit_hat_swap.py data/edit-hat-swap-20260908 --check
+python data/edit-hat-swap-20260908/source/probe_edit_hat_swap.py --round 1
+python data/edit-hat-swap-20260908/source/probe_edit_hat_swap.py --round 2
 ```
 
 Runner: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py); offline summary: [summarize_paired_run.py](scripts/summarize_paired_run.py); report rendering: [render_paired_report.py](scripts/render_paired_report.py); regressions: [tests](tests).
@@ -547,87 +634,3 @@ Full original evidence is retained without rewriting previous runs. This section
 Result SHA-256: `669617dd5d59d0748a0fc398d98ec4c59cb4b26cc9655138edf9b6c9622f3c1b`.
 
 Official references: [IdeaPad Vibe](https://news.lenovo.com/pressroom/press-releases/colorful-ideapad-vibe-series-all-in-one-ai-pcs/) | [Yoga](https://news.lenovo.com/pressroom/press-releases/yoga-portfolio-new-ai-pcs-and-tablets/) | [MAI API](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image#request-parameters)
-
-## Multi-Image Input Edit Test
-
-**What this section determines**
-
-The question is how many reference images this edit endpoint accepts in one call, and whether an extra image is actually used. The official documentation does not say, so the answer below comes from real calls.
-
-This section measures how many reference images `/mai/v1/images/edits` accepts. The official parameter table types `image` as a `string` described as "the image", with no multi-image statement and no count limit, so the counts and field rules below come from the service's own validation messages. They are measured behaviour, not an official support commitment.
-
-**The two input images**
-
-Both images are model outputs from the web-grounding section above, reused here as input material. The left one is a dark colour-lineup infographic containing four colour dots, 14/16-inch labels and a purple laptop. The right one is a light specification infographic containing a brown laptop, on-screen text and a row of four usage modes, one of which holds a pen. They are generated content, not official assets, and their colour names and specification text do not represent official product information.
-
-| Input image 1, colour-lineup infographic | Input image 2, specification infographic |
-| --- | --- |
-| ![Input image 1](data/lenovo-web-grounding-20260908/mai-image-2.6-web-off/r1/01_test.png) | ![Input image 2](data/lenovo-web-grounding-20260908/mai-image-2.6-web-off/r1/02_test.png) |
-
-**Group 1: what each usage returns**
-
-The capability group gives each input count a prompt it can satisfy: a singular instruction for one image and a plural instruction for two. The prompts differ, so this group shows what each usage returns and cannot attribute a difference to the second image.
-
-The prompt sent with one image:
-
-> Show the laptop from the reference image alone on a plain white studio background as a clean product photograph.
-
-The prompt sent with two images:
-
-> Show the laptops from both reference images together on one plain white studio background as a clean product photograph.
-
-| Input | Request latency | Output size |
-| --- | --- | --- |
-| One image, `image` x 1 | 31.619 s | 920,112 bytes |
-| Two images, `image` x 2 | 38.455 s | 932,695 bytes |
-
-| One-image output | Two-image output |
-| --- | --- |
-| ![Single-image edit output](data/mai-multi-image-edit-20260908/01_single_image_matched_prompt.png) | ![Two-image edit output](data/mai-multi-image-edit-20260908/02_two_images_matched_prompt.png) |
-
-**Group 2: was the second image actually used**
-
-The attribution group holds one prompt constant and changes only the images, keeping both single-image arms so the comparison is symmetric. That prompt is under-determined for a single input, so this group measures attribution only and is not evidence of single-image edit quality.
-
-All three calls in this group use the same prompt:
-
-> Place every laptop that appears in the reference images on one plain white studio background as a clean product photograph.
-
-| Input combination | Images | Request latency | Observed result |
-| --- | --- | --- | --- |
-| Image 1 only | 1 | 31.783 s | Purple chassis only, no elements from image 2 |
-| Image 2 only | 1 | 33.511 s | Only the image-2 device, no purple chassis |
-| Both images | 2 | 41.639 s | Devices and mode row from both images appear together |
-
-| Image 1 only | Image 2 only |
-| --- | --- |
-| ![Attribution, image 1 only](data/mai-multi-image-edit-20260908/attribution_01_single_image.png) | ![Attribution, image 2 only](data/mai-multi-image-edit-20260908/03_fixed_prompt_image_two_only.png) |
-
-| Both input images |
-| --- |
-| ![Attribution, both images](data/mai-multi-image-edit-20260908/attribution_02_two_image_fields.png) |
-
-Each image's unique elements appear only when that image is present, so the second image was read and influenced the result rather than being silently ignored.
-
-**Group 3: how many images, and how the field must be named**
-
-Terminology: `HTTP 429` means the quota was exhausted (two requests per minute on this deployment), so the request was never processed. That differs from the endpoint refusing an image count, which returns `HTTP 400`.
-
-| Multipart field | Status | Service response |
-| --- | --- | --- |
-| `image` x 1 | 200 | Returned an image |
-| `image` x 2 | 200 | Returned an image; the second image took effect |
-| `image` x 3, 5 | 429 | Quota limit (2 RPM on this deployment); neither a capability refutation nor proof of support |
-| `image` x 9 | 400 | `Only 1 to 5 image files are supported for edit requests.` |
-| No image field | 400 | `Only 1 to 5 image files are supported for edit requests.` |
-| `image[]`, `images`, `image1`+`image2`, `image_a`+`image_b`, `reference` | 400 | `File must be attached in a form field with a name starting with 'image'.` |
-
-The service says the field name must start with `image`, yet `image1`, `image_a`, `image[]` and `images` were all rejected, so only repeated fields named `image` are accepted. The 1–5 range comes from the service message; no successful sample was obtained for 3 or 5 images because of the quota.
-
-**Is this a cutout**
-
-All three outputs are PNG colour type 2 with no alpha channel and opaque near-white corners. The white background is drawn by the model, not transparency, so compositing still requires a separate cutout. The API exposes no `background` or `output_format` parameter to request transparency and no `mask` parameter to select which part of each input is used; the output is a regenerated image, not a composite.
-
-Each combination was called once with no repeatability check. `MAI-Image-2.6` is in preview with no SLA and its behaviour may change. Latency is client-side `requests.post` round-trip time, not server-side inference duration.
-
-[Capability and third attribution arm](data/mai-multi-image-edit-20260908/clean-results.json) | [Field shapes](data/mai-multi-image-edit-20260908/field-shape-results.json) | [Validation and limit](data/mai-multi-image-edit-20260908/limit-probe-results.json) | [Probe scripts](data/mai-multi-image-edit-20260908/source)
