@@ -69,12 +69,12 @@
       "sha256": "b322b92867a37c5097e31112f3831176499a5a6d511bb886ed9323153ea4dea5"
     },
     "test_report.py": {
-      "bytes": 18154,
-      "sha256": "05aa2bf27fef405c816e1f096d55bfdb7c2f4de3658b0fa12a905d97ad9ce9d0"
+      "bytes": 18675,
+      "sha256": "25420d039cf83ab1fff8505ca9db27ae23b93f3b8ffde848e1fdb07a5364ace7"
     },
     "validate_report.py": {
-      "bytes": 20205,
-      "sha256": "1ec5731766161053b4be37525494a4b421d2b2275a4014cf2a76fa9e6b5e9121"
+      "bytes": 20985,
+      "sha256": "745e873c8d25a5047adcccdc3932e5abe8bff34bda98ff7ac335fd581b3e847a"
     }
   },
   "scope": "Published experiment files; generated rule results and this manifest excluded."

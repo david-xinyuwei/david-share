@@ -1,6 +1,7 @@
 """Validate the saved experiment, generated report blocks and published hashes."""
 
 import argparse
+from collections import Counter
 import hashlib
 import json
 import math
@@ -16,11 +17,32 @@ ROOT = Path(__file__).resolve().parent
 MANIFEST = "evidence/files.json"
 RULES = "evidence/rule-results.json"
 IGNORED_PARTS = {"__pycache__", ".venv", "regenerated", ".pytest_cache"}
-READMES = ("README.md", "README-CN.md")
+README = "README.md"
+LANGUAGES = ((False, ""), (True, "_CN"))
 
 
 def topic_dir(root):
     return root.parent.parent
+
+
+def heading_anchor(title):
+    text = re.sub(r"[^\w\- ]", "", title.strip().lower())
+    return text.replace(" ", "-")
+
+
+def has_heading(text, heading):
+    return re.search("^" + re.escape(heading) + r"\s*$", text, re.M) is not None
+
+
+def verify_page_anchors(text):
+    body = re.sub(r"```.*?```", "", text, flags=re.S)
+    headings = [heading_anchor(re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", title))
+                for title in re.findall(r"^#{1,6} (.+?)\s*$", body, re.M)]
+    explicit = re.findall(r'<a id="([^"]+)"></a>', body)
+    for anchor, count in Counter(headings + explicit).items():
+        require(count == 1, "DUPLICATE_PAGE_ANCHOR:" + anchor)
+    for link in re.findall(r"\]\(#([^)]+)\)", body):
+        require(unquote(link) in headings or unquote(link) in explicit, "BROKEN_PAGE_ANCHOR:" + link)
 
 
 def read_json(path):
@@ -177,36 +199,37 @@ def verify_manifest(root):
 def verify_local_links(root):
     topic = topic_dir(root).resolve()
     experiment = f"experiments/{root.name}/"
-    for filename in READMES:
-        text = (topic / filename).read_text(encoding="utf-8")
-        for link in re.findall(r"!?\[[^\]]*\]\(([^)]+)\)", text):
-            target = urlsplit(link)
-            if target.scheme or link.startswith("#"):
-                continue
-            path = (topic / unquote(target.path)).resolve()
-            require(path.is_relative_to(topic) and path.exists(), "BROKEN_LOCAL_LINK:" + target.path)
-            require(path.suffix.lower() != ".md" or target.path in READMES, "NESTED_MARKDOWN_LINK:" + target.path)
-        require(text.count("```") % 2 == 0, "UNPAIRED_CODE_FENCE")
-        require(f"python {experiment}validate_report.py" in text, "REPLAY_ENTRY_MISSING")
-        opening = text.split("\n## ", 1)[0]
-        badges = re.findall(r"\[!\[[^\]]*\]\((https?://[^)]+)\)\]\([^)]+\)", opening)
-        for signature in ("img.shields.io/badge/vLLM-", "img.shields.io/badge/GPU-",
-                          "github.com/david-xinyuwei/david-share/actions/workflows/speculative-decoding-ci.yml/badge.svg"):
-            require(any(signature in badge for badge in badges), "READER_BADGE_MISSING:" + filename)
-        for marker in ("validate_report.py --refresh", "--figure ", "重新生成图片和报告", "Regenerating figures and report content",
-                       "本次文档修订", "documentation revision"):
-            require(marker not in text, "INTERNAL_MAINTENANCE_IN_READER_PAGE:" + filename)
-        chinese = filename == "README-CN.md"
-        require(("## 你能用它做什么" if chinese else "## What You Can Do With This Repository") in text, "CUSTOMER_VALUE_ENTRY_MISSING")
+    text = (topic / README).read_text(encoding="utf-8")
+    for link in re.findall(r"!?\[[^\]]*\]\(([^)]+)\)", text):
+        target = urlsplit(link)
+        if target.scheme or link.startswith("#"):
+            continue
+        path = (topic / unquote(target.path)).resolve()
+        require(path.is_relative_to(topic) and path.exists(), "BROKEN_LOCAL_LINK:" + target.path)
+        require(path.suffix.lower() != ".md", "NESTED_MARKDOWN_LINK:" + target.path)
+    require(text.count("```") % 2 == 0, "UNPAIRED_CODE_FENCE")
+    require(text.count(f"python {experiment}validate_report.py") == len(LANGUAGES), "REPLAY_ENTRY_MISSING")
+    opening = text.split("\n## ", 1)[0]
+    badges = re.findall(r"\[!\[[^\]]*\]\((https?://[^)]+)\)\]\([^)]+\)", opening)
+    for signature in ("img.shields.io/badge/vLLM-", "img.shields.io/badge/GPU-",
+                      "github.com/david-xinyuwei/david-share/actions/workflows/speculative-decoding-ci.yml/badge.svg"):
+        require(any(signature in badge for badge in badges), "READER_BADGE_MISSING")
+    for marker in ("validate_report.py --refresh", "--figure ", "重新生成图片和报告", "Regenerating figures and report content",
+                   "本次文档修订", "documentation revision"):
+        require(marker not in text, "INTERNAL_MAINTENANCE_IN_READER_PAGE")
+    require('<a id="chinese"></a>' in text and "[中文](#chinese)" in opening, "CHINESE_SECTION_ENTRY_MISSING")
+    for chinese, _suffix in LANGUAGES:
+        require(has_heading(text, "## 你能用它做什么" if chinese else "## What You Can Do With This Repository"), "CUSTOMER_VALUE_ENTRY_MISSING")
         flow = f"]({experiment}images/test-flow-{'cn' if chinese else 'en'}.png)"
         require(flow in text and (root / f"images/test-flow-{'cn' if chinese else 'en'}.png").is_file(), "TEST_FLOW_MISSING")
         duration_heading = "### 各阶段测试耗时" if chinese else "### Measured Duration by Stage"
-        require(duration_heading in text, "STAGE_DURATION_SECTION_MISSING")
+        require(has_heading(text, duration_heading), "STAGE_DURATION_SECTION_MISSING")
         for collapsed in re.findall(r"<details\b[^>]*>.*?</details>", text, re.S | re.I):
             require(duration_heading not in collapsed, "STAGE_DURATIONS_COLLAPSED")
+    verify_page_anchors(text)
     for path in topic.rglob("*.md"):
         relative = path.relative_to(topic).as_posix()
-        require(relative in READMES or set(path.relative_to(topic).parts) & IGNORED_PARTS, "NESTED_MARKDOWN_FILE:" + relative)
+        require(relative == README or set(path.relative_to(topic).parts) & IGNORED_PARTS, "NESTED_MARKDOWN_FILE:" + relative)
 
 
 def validate_data(root):
@@ -265,15 +288,15 @@ def validate_data(root):
 def validate(root=ROOT, *, refresh=False):
     root = root.resolve()
     groups, summary, run = validate_data(root)
-    for filename, chinese in (("README.md", False), ("README-CN.md", True)):
-        path = topic_dir(root) / filename
-        text = path.read_text(encoding="utf-8")
+    path = topic_dir(root) / README
+    text = path.read_text(encoding="utf-8")
+    for chinese, suffix in LANGUAGES:
         for name, value in (("RESULT_TABLE", result_table(summary, chinese)),
                             ("LATENCY_TABLE", latency_table(groups, summary, chinese)),
                             ("COUNTEREXAMPLE", counterexample(groups, chinese))):
-            text = generated_block(text, name, value, refresh=refresh)
-        if refresh:
-            path.write_text(text, encoding="utf-8")
+            text = generated_block(text, name + suffix, value, refresh=refresh)
+    if refresh:
+        path.write_text(text, encoding="utf-8")
     verify_local_links(root)
     if refresh:
         dump_json(root / MANIFEST, file_manifest(root))
@@ -284,9 +307,9 @@ def validate(root=ROOT, *, refresh=False):
             ("recorded-group-score-and-token-reconciliation", ["data/groups.json", "data/summary.json"]),
             ("run-id-measurement-duration-and-coverage", ["evidence/run.json", "data/groups.json"]),
             ("actual-request-and-executed-source-hashes", ["evidence/request-examples.json", "source/"]),
-            ("generated-bilingual-result-tables", ["../../README.md", "../../README-CN.md"]),
-            ("local-links-and-reader-entry", ["../../README.md", "../../README-CN.md"]),
-            ("single-readme-layout-and-maintenance-boundary", ["../../README.md", "../../README-CN.md"]),
+            ("generated-bilingual-result-tables", ["../../README.md"]),
+            ("local-links-and-reader-entry", ["../../README.md"]),
+            ("single-readme-layout-and-maintenance-boundary", ["../../README.md"]),
             ("published-file-integrity", [MANIFEST]),
         )
     ]

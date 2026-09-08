@@ -26,26 +26,32 @@ class ReportIntegrityTests(unittest.TestCase):
         self.root = Path(self.temporary.name) / "topic" / "experiments" / ROOT.name
         self.topic = self.root.parent.parent
         shutil.copytree(ROOT, self.root, ignore=shutil.ignore_patterns("__pycache__", "regenerated"))
-        for language in validate_report.READMES:
-            shutil.copyfile(TOPIC / language, self.topic / language)
+        shutil.copyfile(TOPIC / validate_report.README, self.topic / validate_report.README)
+        self.readme = self.topic / validate_report.README
         self.mirror_link_targets()
 
     def mirror_link_targets(self):
-        for language in validate_report.READMES:
-            text = (self.topic / language).read_text(encoding="utf-8")
-            for link in re.findall(r"!?\[[^\]]*\]\(([^)]+)\)", text):
-                target = urlsplit(link)
-                if target.scheme or link.startswith("#"):
-                    continue
-                relative = unquote(target.path)
-                source, destination = TOPIC / relative, self.topic / relative
-                if destination.exists() or not source.exists():
-                    continue
-                if source.is_dir():
-                    destination.mkdir(parents=True, exist_ok=True)
-                else:
-                    destination.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copyfile(source, destination)
+        text = self.readme.read_text(encoding="utf-8")
+        for link in re.findall(r"!?\[[^\]]*\]\(([^)]+)\)", text):
+            target = urlsplit(link)
+            if target.scheme or link.startswith("#"):
+                continue
+            relative = unquote(target.path)
+            source, destination = TOPIC / relative, self.topic / relative
+            if destination.exists() or not source.exists():
+                continue
+            if source.is_dir():
+                destination.mkdir(parents=True, exist_ok=True)
+            else:
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(source, destination)
+
+    def rewrite_readme(self, transform):
+        original = self.readme.read_text(encoding="utf-8")
+        changed = transform(original)
+        self.assertNotEqual(changed, original)
+        self.readme.write_text(changed, encoding="utf-8")
+        return original
 
     def mutate_json(self, relative, mutate):
         path = self.root / relative
@@ -88,8 +94,7 @@ class ReportIntegrityTests(unittest.TestCase):
             validate_report.validate_data(self.root)
 
     def test_table_change_is_rejected(self):
-        path = self.topic / "README.md"
-        path.write_text(path.read_text(encoding="utf-8").replace("150.51", "151.51"), encoding="utf-8")
+        self.rewrite_readme(lambda text: text.replace("150.51", "151.51"))
         with self.assertRaisesRegex(ValueError, "REPORT_DATA_DRIFT:RESULT_TABLE"):
             validate_report.validate(self.root)
 
@@ -98,9 +103,16 @@ class ReportIntegrityTests(unittest.TestCase):
             validate_report.generated_block("<!-- BEGIN RESULT_TABLE -->" * 2 + "<!-- END RESULT_TABLE -->", "RESULT_TABLE", "", refresh=False)
 
     def test_counterexample_ratio_drift_is_rejected(self):
-        path = self.topic / "README.md"
-        path.write_text(path.read_text(encoding="utf-8").replace("0.8713", "1.1640"), encoding="utf-8")
+        self.rewrite_readme(lambda text: text.replace("0.8713", "1.1640"))
         with self.assertRaisesRegex(ValueError, "REPORT_DATA_DRIFT:COUNTEREXAMPLE"):
+            validate_report.validate(self.root)
+
+    def test_chinese_tables_are_validated_separately(self):
+        original = self.readme.read_text(encoding="utf-8")
+        start = original.index("<!-- BEGIN RESULT_TABLE_CN -->")
+        self.assertIn("| 1 | 基线 | 53.40 | 3458.61 |", original[start:])
+        self.readme.write_text(original[:start] + original[start:].replace("| 1 | 基线 | 53.40 |", "| 1 | 基线 | 54.40 |", 1), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "REPORT_DATA_DRIFT:RESULT_TABLE_CN"):
             validate_report.validate(self.root)
 
     def test_latency_uses_median_of_group_percentiles(self):
@@ -156,14 +168,12 @@ class ReportIntegrityTests(unittest.TestCase):
         self.assertIn("| MTP7 / 1 | tpot_s | 31 | 1 |", table)
 
     def test_public_reports_omit_internal_timeline(self):
-        for filename in validate_report.READMES:
-            text = (self.topic / filename).read_text(encoding="utf-8")
-            for internal_content in ("run-timeline.png", "BEGIN RUN_LOG", "--timeline"):
-                self.assertNotIn(internal_content, text)
+        text = self.readme.read_text(encoding="utf-8")
+        for internal_content in ("run-timeline.png", "BEGIN RUN_LOG", "--timeline"):
+            self.assertNotIn(internal_content, text)
 
     def test_replay_entry_removal_is_rejected(self):
-        path = self.topic / "README.md"
-        path.write_text(path.read_text(encoding="utf-8").replace("python experiments/20260906-qwen38/validate_report.py", "omitted"), encoding="utf-8")
+        self.rewrite_readme(lambda text: text.replace("python experiments/20260906-qwen38/validate_report.py", "omitted", 1))
         with self.assertRaisesRegex(ValueError, "REPLAY_ENTRY_MISSING"):
             validate_report.validate(self.root)
 
@@ -174,80 +184,77 @@ class ReportIntegrityTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "NESTED_MARKDOWN_FILE"):
                 validate_report.verify_local_links(self.root)
         with self.subTest(case="link"):
-            path = self.topic / "README.md"
-            original = path.read_text(encoding="utf-8")
-            path.write_text(original + "\n[notes](experiments/20260906-qwen38/NOTES.md)\n", encoding="utf-8")
+            original = self.rewrite_readme(lambda text: text + "\n[notes](experiments/20260906-qwen38/NOTES.md)\n")
             with self.assertRaisesRegex(ValueError, "NESTED_MARKDOWN_LINK"):
                 validate_report.verify_local_links(self.root)
-            path.write_text(original, encoding="utf-8")
+            self.readme.write_text(original, encoding="utf-8")
         nested.unlink()
         validate_report.verify_local_links(self.root)
 
+    def test_page_anchor_conflicts_are_rejected(self):
+        with self.subTest(case="duplicate heading"):
+            original = self.rewrite_readme(lambda text: text.replace("\n## 测试方法\n", "\n## Test Method\n", 1))
+            with self.assertRaisesRegex(ValueError, "DUPLICATE_PAGE_ANCHOR:test-method"):
+                validate_report.verify_local_links(self.root)
+            self.readme.write_text(original, encoding="utf-8")
+        with self.subTest(case="broken anchor"):
+            original = self.rewrite_readme(lambda text: text.replace("(#how-to-run-cn)", "(#how-to-run-zh)", 1))
+            with self.assertRaisesRegex(ValueError, "BROKEN_PAGE_ANCHOR:how-to-run-zh"):
+                validate_report.verify_local_links(self.root)
+            self.readme.write_text(original, encoding="utf-8")
+        with self.subTest(case="chinese entry"):
+            original = self.rewrite_readme(lambda text: text.replace("[中文](#chinese)", "中文", 1))
+            with self.assertRaisesRegex(ValueError, "CHINESE_SECTION_ENTRY_MISSING"):
+                validate_report.verify_local_links(self.root)
+            self.readme.write_text(original, encoding="utf-8")
+
     def test_missing_reader_badges_are_rejected(self):
-        for filename in validate_report.READMES:
-            path = self.topic / filename
-            original = path.read_text(encoding="utf-8")
-            for signature in ("/badge/vLLM-", "/badge/GPU-", "/speculative-decoding-ci.yml/badge.svg"):
-                with self.subTest(page=filename, badge=signature):
-                    changed = "".join(line for line in original.splitlines(keepends=True) if signature not in line)
-                    self.assertNotEqual(changed, original)
-                    path.write_text(changed, encoding="utf-8")
-                    with self.assertRaisesRegex(ValueError, "READER_BADGE_MISSING"):
-                        validate_report.verify_local_links(self.root)
-                    path.write_text(original, encoding="utf-8")
+        for signature in ("/badge/vLLM-", "/badge/GPU-", "/speculative-decoding-ci.yml/badge.svg"):
+            with self.subTest(badge=signature):
+                original = self.rewrite_readme(lambda text: "".join(line for line in text.splitlines(keepends=True) if signature not in line))
+                with self.assertRaisesRegex(ValueError, "READER_BADGE_MISSING"):
+                    validate_report.verify_local_links(self.root)
+                self.readme.write_text(original, encoding="utf-8")
 
     def test_internal_report_maintenance_is_rejected(self):
-        for filename in validate_report.READMES:
-            with self.subTest(filename=filename):
-                path = self.topic / filename
-                original = path.read_text(encoding="utf-8")
-                path.write_text(original + "\npython validate_report.py --refresh\n", encoding="utf-8")
-                with self.assertRaisesRegex(ValueError, "INTERNAL_MAINTENANCE_IN_READER_PAGE"):
-                    validate_report.verify_local_links(self.root)
-                path.write_text(original, encoding="utf-8")
+        original = self.rewrite_readme(lambda text: text + "\npython validate_report.py --refresh\n")
+        with self.assertRaisesRegex(ValueError, "INTERNAL_MAINTENANCE_IN_READER_PAGE"):
+            validate_report.verify_local_links(self.root)
+        self.readme.write_text(original, encoding="utf-8")
 
     def test_stage_durations_cannot_be_hidden(self):
-        for filename, heading in (("README.md", "### Measured Duration by Stage"),
-                                  ("README-CN.md", "### 各阶段测试耗时")):
-            with self.subTest(filename=filename):
-                path = self.topic / filename
-                original = path.read_text(encoding="utf-8")
-                section = heading + original.split(heading, 1)[1].split("\n<a id=", 1)[0]
-                hidden = "<details>\n<summary>Stage durations</summary>\n\n" + section + "\n</details>\n"
-                path.write_text(original.replace(section, hidden), encoding="utf-8")
+        for heading in ("### Measured Duration by Stage", "### 各阶段测试耗时"):
+            with self.subTest(heading=heading):
+                def hide(text):
+                    section = heading + text.split(heading, 1)[1].split("\n<a id=", 1)[0]
+                    return text.replace(section, "<details>\n<summary>Stage durations</summary>\n\n" + section + "\n</details>\n")
+                original = self.rewrite_readme(hide)
                 with self.assertRaisesRegex(ValueError, "STAGE_DURATIONS_COLLAPSED"):
                     validate_report.verify_local_links(self.root)
-                path.write_text(original, encoding="utf-8")
+                self.readme.write_text(original, encoding="utf-8")
 
     def test_customer_value_section_cannot_be_removed(self):
-        for filename, heading in (("README.md", "## What You Can Do With This Repository"),
-                                  ("README-CN.md", "## 你能用它做什么")):
-            with self.subTest(filename=filename):
-                path = self.topic / filename
-                original = path.read_text(encoding="utf-8")
-                path.write_text(original.replace(heading, ""), encoding="utf-8")
+        for heading in ("## What You Can Do With This Repository", "## 你能用它做什么"):
+            with self.subTest(heading=heading):
+                original = self.rewrite_readme(lambda text: text.replace(heading, "## " + heading[3:].upper() + " (removed)"))
                 with self.assertRaisesRegex(ValueError, "CUSTOMER_VALUE_ENTRY_MISSING"):
                     validate_report.verify_local_links(self.root)
-                path.write_text(original, encoding="utf-8")
+                self.readme.write_text(original, encoding="utf-8")
 
     def test_test_flow_cannot_be_removed(self):
-        for filename in validate_report.READMES:
-            with self.subTest(filename=filename):
-                path = self.topic / filename
-                original = path.read_text(encoding="utf-8")
-                changed = re.sub(r"!\[[^\]]*\]\([^)]*test-flow-[a-z]+\.png\)", "", original)
-                self.assertNotEqual(changed, original)
-                path.write_text(changed, encoding="utf-8")
+        for language in ("en", "cn"):
+            with self.subTest(language=language):
+                original = self.rewrite_readme(lambda text: re.sub(r"!\[[^\]]*\]\([^)]*test-flow-" + language + r"\.png\)", "", text))
                 with self.assertRaisesRegex(ValueError, "TEST_FLOW_MISSING"):
                     validate_report.verify_local_links(self.root)
-                path.write_text(original, encoding="utf-8")
+                self.readme.write_text(original, encoding="utf-8")
 
-    def how_to_run_blocks(self, filename):
-        text = (self.topic / filename).read_text(encoding="utf-8")
-        heading = "启动与调用" if filename == "README-CN.md" else "How to Run"
+    def how_to_run_blocks(self, chinese):
+        text = self.readme.read_text(encoding="utf-8")
+        heading = "启动与调用" if chinese else "How to Run"
         self.assertEqual(text.count(f"\n## {heading}\n"), 1)
-        if filename == "README-CN.md":
-            self.assertIn('<a id="how-to-run"></a>', text)
+        if chinese:
+            self.assertIn('<a id="how-to-run-cn"></a>', text)
         section = text.split(f"\n## {heading}\n", 1)[1].split("\n## ", 1)[0]
         blocks = re.findall(r"```bash\n(.*?)\n```", section, re.S)
         self.assertEqual(len(blocks), 6)
@@ -255,8 +262,8 @@ class ReportIntegrityTests(unittest.TestCase):
         return blocks
 
     def test_how_to_run_matches_recorded_launch_contract(self):
-        blocks = self.how_to_run_blocks("README.md")
-        self.assertEqual(blocks, self.how_to_run_blocks("README-CN.md"))
+        blocks = self.how_to_run_blocks(False)
+        self.assertEqual(blocks, self.how_to_run_blocks(True))
         config = validate_report.read_json(self.root / "evidence/configuration.json")
         serving = config["serving"]
         for role in ("target", "draft"):
@@ -298,7 +305,7 @@ class ReportIntegrityTests(unittest.TestCase):
             self.assertEqual(actual, expected_spec)
 
     def test_documented_client_extracts_actual_request(self):
-        block = self.how_to_run_blocks("README.md")[-1]
+        block = self.how_to_run_blocks(False)[-1]
         arguments = shlex.split(block.replace("\\\n", ""))
         code = arguments[arguments.index("-c") + 1]
         result = subprocess.run([sys.executable, "-B", "-X", "utf8", "-c", code],
