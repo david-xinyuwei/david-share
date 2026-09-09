@@ -1,14 +1,14 @@
 # MAI-Image-2.6 vs GPT-Image-2: All Quality Tiers
 
-[![Models](https://img.shields.io/badge/Models-MAI--Image--2.6%20vs%20GPT--Image--2-0067b8)](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image) [![Samples](https://img.shields.io/badge/Samples-87%2F88%20returned-2e7d32)](data/paired-all-quality-20260907/5way_v2_results.json) ![Resolution](https://img.shields.io/badge/Resolution-1024%C3%971024-455a64) ![MAI version](https://img.shields.io/badge/MAI%20version-2026--07--31-6a1b9a) [![Status](https://img.shields.io/badge/Status-Preview%20%C2%B7%20no%20SLA-b26500)](https://azure.microsoft.com/support/legal/preview-supplemental-terms/) [![Tests](https://img.shields.io/badge/Tests-53%20offline-00695c)](tests)
+[![Models](https://img.shields.io/badge/Models-MAI--Image--2.6%20vs%20GPT--Image--2-0067b8)](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image) [![Samples](https://img.shields.io/badge/Samples-87%2F88%20returned-2e7d32)](data/paired-all-quality-20260907/5way_v2_results.json) ![Resolution](https://img.shields.io/badge/Resolution-1024%C3%971024-455a64) ![MAI version](https://img.shields.io/badge/MAI%20version-2026--07--31-6a1b9a) [![Status](https://img.shields.io/badge/Status-Preview%20%C2%B7%20no%20SLA-b26500)](https://azure.microsoft.com/support/legal/preview-supplemental-terms/) [![Tests](https://img.shields.io/badge/Tests-61%20offline-00695c)](tests)
 
-One client interleaved calls to MAI-Image-2.6 and GPT-Image-2 at low, medium and high across 11 text-to-image scenarios in two rounds, 88 formal samples in total, keeping every original PNG, per-attempt record and failed sample. Two capability tests are included: web grounding (`web_grounding`) and multi-image input editing. Image judgements are unblinded difference descriptions and produce no quality score or preference verdict.
+One client interleaved calls to MAI-Image-2.6 and GPT-Image-2 at low, medium and high across 11 text-to-image scenarios in two rounds, 88 formal samples in total, keeping every original PNG, per-attempt record and failed sample. Two capability tests are included: web grounding (`web_grounding`) and single-image editing. Image judgements are unblinded difference descriptions and produce no quality score or preference verdict.
 
 > **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
 
 [English](README.md) | [中文](README-CN.md)
 
-[Side-by-side images](#side-by-side-image-comparison) · [Latency and requests](#performance-and-reliability) · [Web grounding](#web-grounding-test) · [Image edit](#test-12-headwear-swap-image-edit) · [Reproduction](#reproduction-and-tests) · [Raw evidence](data/paired-all-quality-20260907)
+[Side-by-side images](#side-by-side-image-comparison) · [Latency and requests](#performance-and-reliability) · [Web grounding](#web-grounding-test) · [Image edit](#test-12-headwear-swap-image-edit) · [Reproduction](#reproduction-how-to) · [Raw evidence](data/paired-all-quality-20260907)
 
 ---
 
@@ -18,7 +18,7 @@ All three items rest on the measurements in this repository. `MAI-Image-2.6` is 
 
 1. **11 scenarios sit side by side with all three GPT-Image-2 tiers.** This run returned images for 87/88 formal samples, Both rounds plus the original PNGs are kept below so you can compare each scenario yourself. The per-image observations describe differences without ranking them, so this report does not claim MAI image quality beats or matches GPT-Image-2.
 
-2. **An edit changes the one thing asked for and keeps the rest of the photo.** Scenario 12 sends one real photograph to all four configurations asking only for the headwear to become a graduation cap: the MAI output matches the input item by item on face, robe, bystanders, title and aspect ratio, while all three GPT tiers add the cap but regenerate the whole frame. The checklist is in Scenario 12.
+2. **Under the symmetric `size=auto` protocol, all four configurations complete the local edit.** Scenario 12 asks only for a graduation cap; MAI and all three GPT tiers add it in both rounds while keeping the face, robe, bystanders, title and aspect ratio present, in place and recognisable, for 5/5 on the checklist. Title glyph fidelity and output resolution still differ; Scenario 12 contains the per-image record and the correction to the first square-output protocol.
 
 3. **`web_grounding=true` adds current web information at generation time.** The model retrieves current information from Bing Search as extra context, which moved the product text facts in two subjects from wrong to matching the official announcement. The cost is a lower first-attempt success rate and clearly higher latency. This is not the same thing as dense visual grounding.
 
@@ -486,6 +486,7 @@ Per-scenario descriptions come from [the inspection record](data/paired-all-qual
 | Output | `data[0].b64_json`, PNG | `data[0].b64_json`, PNG |
 | Usage | `usage.num_input_text_tokens`, `usage.num_output_tokens` | `usage.input_tokens_details`, `usage.output_tokens_details` |
 
+<a id="reproduction-how-to"></a>
 ## Reproduction How-to and Tests
 
 | Goal | Entry | Credentials / billing | Done when |

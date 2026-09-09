@@ -103,6 +103,17 @@ class PublicEditRunnerTests(unittest.TestCase):
         self.assertIn("单独报告的 `size=auto` 图像编辑测试", chinese)
         self.assertNotIn("不包括 2K、图像编辑", chinese)
 
+    def test_opening_uses_corrected_result_and_stable_how_to_anchor(self):
+        for filename in ("README.md", "README-CN.md"):
+            text = (ROOT / filename).read_text("utf-8")
+            self.assertIn('<a id="reproduction-how-to"></a>', text, filename)
+            self.assertIn("](#reproduction-how-to)", text, filename)
+            self.assertIn("Tests-61%20offline", text, filename)
+            self.assertNotIn("multi-image input editing", text, filename)
+            self.assertNotIn("多图输入编辑两项能力实测", text, filename)
+            self.assertNotIn("all three GPT tiers add the cap but regenerate the whole frame", text, filename)
+            self.assertNotIn("GPT 三档都换上了帽子但整幅重新生成", text, filename)
+
 
 if __name__ == "__main__":
     unittest.main()

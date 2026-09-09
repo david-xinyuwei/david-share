@@ -181,7 +181,8 @@ def reproduction_section(archive_path, language, grounding_archive=None, edit_ar
              "hashes. This does not create a subjective review automatically; quality conclusions still require "
              "inspection under the published review method."),
             edit_reproduction_commands(edit_archive)])
-    return f"""## {'复现方法（How-to）与测试' if language == 'zh' else 'Reproduction How-to and Tests'}
+    return f"""<a id="reproduction-how-to"></a>
+## {'复现方法（How-to）与测试' if language == 'zh' else 'Reproduction How-to and Tests'}
 
 {route_table}
 
@@ -273,7 +274,7 @@ def render_masthead(summary, author_line, language):
         ("MAI version", mai_version.replace("-", "--"), "6a1b9a", None),
         ("Status", "Preview%20%C2%B7%20no%20SLA", "b26500",
          "https://azure.microsoft.com/support/legal/preview-supplemental-terms/"),
-        ("Tests", "53%20offline", "00695c", "tests"),
+        ("Tests", "61%20offline", "00695c", "tests"),
     ]
     rendered = []
     for label, value, colour, link in badges:
@@ -283,12 +284,12 @@ def render_masthead(summary, author_line, language):
         f"同一台客户端交替调用 MAI-Image-2.6 与 GPT-Image-2 的 low、medium、high 三档，"
         f"11 个文生图场景各两轮，共 {planned} 个正式样本，"
         f"保留全部原图、逐次请求记录与失败样本。另有联网信息补充（`web_grounding`）与"
-        "多图输入编辑两项能力实测。所有画面判断为非盲评的差异描述，不产出质量评分或偏好胜负。"
+        "单图编辑两项能力实测。所有画面判断为非盲评的差异描述，不产出质量评分或偏好胜负。"
         if chinese else
         f"One client interleaved calls to MAI-Image-2.6 and GPT-Image-2 at low, medium and high across "
         f"11 text-to-image scenarios in two rounds, {planned} formal samples in total, "
         "keeping every original PNG, per-attempt record and failed sample. Two capability tests are "
-        "included: web grounding (`web_grounding`) and multi-image input editing. Image judgements are "
+        "included: web grounding (`web_grounding`) and single-image editing. Image judgements are "
         "unblinded difference descriptions and produce no quality score or preference verdict."
     )
     nav = " · ".join([
@@ -296,7 +297,7 @@ def render_masthead(summary, author_line, language):
         f"[{'耗时与请求' if chinese else 'Latency and requests'}](#{'耗时与请求成功情况' if chinese else 'performance-and-reliability'})",
         f"[{'联网补测' if chinese else 'Web grounding'}](#{'联网信息补充测试' if chinese else 'web-grounding-test'})",
         f"[{'图像编辑' if chinese else 'Image edit'}](#{'test-12-换帽子图像编辑' if chinese else 'test-12-headwear-swap-image-edit'})",
-        f"[{'复现' if chinese else 'Reproduction'}](#{'复现与测试' if chinese else 'reproduction-and-tests'})",
+        f"[{'复现' if chinese else 'Reproduction'}](#reproduction-how-to)",
         f"[{'原始证据' if chinese else 'Raw evidence'}](data/paired-all-quality-20260907)",
     ])
     language_switch = (f"[English](README.md) | [{'中文'}](README-CN.md)" if chinese
@@ -372,15 +373,15 @@ def render_highlights(summary, language, has_grounding, has_edit):
     ]
     if has_edit:
         items.append(
-            ("**图像编辑按指令只改一处，其余保持原图。** 第 12 题把同一张真实照片交给四个配置，"
-             "只要求把头饰换成博士帽：MAI 的输出在人脸、龙袍、侍卫、标题印章和原图宽高比上逐项与输入一致，"
-             "GPT 三档都换上了帽子但整幅重新生成。逐项核对见第 12 题。"
+            ("**在对称的 `size=auto` 协议下，四个配置都完成了局部编辑。** 第 12 题只要求把头饰换成博士帽；"
+             "MAI 与 GPT 三档两轮都换上了帽子，并让人脸、龙袍、侍卫、标题印章和原图宽高比保持在位且可辨，"
+             "清单均为 5/5。标题字形与输出分辨率仍有差异，逐图记录和第一次方图协议的更正见第 12 题。"
              if chinese else
-             "**An edit changes the one thing asked for and keeps the rest of the photo.** Scenario 12 sends "
-             "one real photograph to all four configurations asking only for the headwear to become a "
-             "graduation cap: the MAI output matches the input item by item on face, robe, bystanders, title "
-             "and aspect ratio, while all three GPT tiers add the cap but regenerate the whole frame. The "
-             "checklist is in Scenario 12."))
+             "**Under the symmetric `size=auto` protocol, all four configurations complete the local edit.** "
+             "Scenario 12 asks only for a graduation cap; MAI and all three GPT tiers add it in both rounds "
+             "while keeping the face, robe, bystanders, title and aspect ratio present, in place and recognisable, "
+             "for 5/5 on the checklist. Title glyph fidelity and output resolution still differ; Scenario 12 "
+             "contains the per-image record and the correction to the first square-output protocol."))
     if has_grounding:
         items.append(
             ("**`web_grounding=true` 可以在生成时补充联网信息。** 开启后模型会从 Bing Search 检索当前信息"
