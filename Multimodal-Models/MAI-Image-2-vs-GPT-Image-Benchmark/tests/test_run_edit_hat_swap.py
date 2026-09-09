@@ -1,5 +1,6 @@
 import hashlib
 import json
+import re
 import struct
 import sys
 import tempfile
@@ -103,17 +104,24 @@ class PublicEditRunnerTests(unittest.TestCase):
         self.assertIn("单独报告的 `size=auto` 图像编辑测试", chinese)
         self.assertNotIn("不包括 2K、图像编辑", chinese)
 
-    def test_protocol_comparison_figure_is_published_and_shown(self):
-        """The correction is easiest to see as a picture, so it must survive regeneration."""
-        figure = ROOT / "data" / "edit-hat-swap-20260909-auto" / "figures" / "size-protocol-comparison.png"
-        generator = figure.with_name("build_size_protocol_comparison.py")
+    def test_result_figure_is_published_and_shows_only_the_valid_protocol(self):
+        """The figure must show measured model behaviour, never our own parameter mistake.
+
+        The forced-square outputs came from this test passing `size=1024x1024` to GPT
+        alone. Rendering them beside the models would attribute our defect to GPT, so
+        they must stay out of the figure and out of every image reference in Test 12.
+        """
+        figures = ROOT / "data" / "edit-hat-swap-20260909-auto" / "figures"
+        figure = figures / "scenario12-auto-results.png"
         self.assertTrue(figure.is_file(), figure)
-        self.assertTrue(generator.is_file(), "the figure must ship with its generator")
+        self.assertTrue((figures / "build_scenario12_figure.py").is_file(),
+                        "the figure must ship with its generator")
         self.assertGreater(figure.stat().st_size, 100_000)
+        self.assertFalse((figures / "size-protocol-comparison.png").exists(),
+                         "the superseded figure containing forced squares must not remain")
         for filename in ("README.md", "README-CN.md"):
             text = (ROOT / filename).read_text("utf-8")
-            reference = "data/edit-hat-swap-20260909-auto/figures/size-protocol-comparison.png"
-            self.assertIn(reference, text, filename)
+            reference = "data/edit-hat-swap-20260909-auto/figures/scenario12-auto-results.png"
             heading = ("### Test 12: Headwear Swap (Image Edit)" if filename == "README.md"
                        else "### Test 12: 换帽子（图像编辑）")
             following = ("## Current Run: Both Models and All Quality Tiers" if filename == "README.md"
@@ -123,6 +131,11 @@ class PublicEditRunnerTests(unittest.TestCase):
             correction = ("Protocol correction" if filename == "README.md" else "协议更正")
             self.assertLess(body.index(correction), body.index(reference),
                             f"{filename}: the figure must follow the correction it illustrates")
+            # No image in Test 12 may come from the superseded square-output archive.
+            for target in re.findall(r"!\[[^\]]*\]\(([^)]+)\)", body):
+                self.assertNotIn("edit-hat-swap-20260908", target,
+                                 f"{filename}: forced-square output rendered in the comparison")
+            self.assertNotIn("size-protocol-comparison", text, filename)
 
     def test_opening_uses_corrected_result_and_stable_how_to_anchor(self):
         for filename in ("README.md", "README-CN.md"):

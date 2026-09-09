@@ -687,22 +687,24 @@ def render_edit_scenario(edit, archive_path, language):
     if edit.get("supersedes"):
         reason = edit["supersedes"]["reason"][language]
         correction = f"**{'协议更正' if chinese else 'Protocol correction'}**\n\n{reason}"
-        # The figure carries the correction: both protocols side by side, with each
-        # cell's real resolution and checklist count read from the archives.
-        figure = f"{archive_path}/figures/size-protocol-comparison.png"
+        # The figure shows only the valid protocol. The forced-square outputs were
+        # produced by this test's own parameter, not by the models, so putting them
+        # in a model comparison would misattribute our mistake to GPT.
+        figure = f"{archive_path}/figures/scenario12-auto-results.png"
         if (Path(__file__).resolve().parents[1] / figure).is_file():
             caption = (
-                "下图把两种协议放在一起：上排为固定 `size=1024x1024`，下排为 `size=auto`，"
-                "每格标注实际输出分辨率与 5 项保持内容的命中数。看 GPT 三格的左上角即可发现，"
-                "方图协议下剧名与印章整块消失，`auto` 下与原图一致。"
+                "下图汇总本题在 `size=auto` 下的结果：输入原图、提示词、尺寸参数说明，"
+                "以及四个配置各自的输出、实际分辨率与 5 项保持内容的命中数。"
+                "被作废的方图输出不在图中——它们是本测试参数设置的产物，不是模型行为，"
+                "放进模型对比会把我们的错误归因给模型；原始运行仍保留在归档中。"
                 if chinese else
-                "The figure below places both protocols together: the top row is the fixed "
-                "`size=1024x1024`, the bottom row is `size=auto`, and each cell states its real output "
-                "resolution and its count on the five preservation items. Looking at the top-left corner of "
-                "the three GPT cells is enough: the title and seal disappear entirely under the square "
-                "protocol and match the input under `auto`.")
-            alt = ("两种尺寸协议的换帽编辑对比" if chinese else
-                   "Headwear-swap edit under two size protocols")
+                "The figure below summarises this scenario under `size=auto`: the input, the prompt, how the "
+                "size parameter was set, and each configuration's output with its real resolution and count "
+                "on the five preservation items. The superseded square outputs are not shown — they were "
+                "produced by this test's own parameter rather than by the models, so placing them in a model "
+                "comparison would attribute our mistake to GPT; the original run remains in the archive.")
+            alt = ("第 12 题 size=auto 结果汇总" if chinese else
+                   "Scenario 12 results under size=auto")
             correction += f"\n\n![{alt}]({figure})\n\n{caption}"
     check_labels = [
         ("headwear_replaced_with_graduation_cap", "换成博士帽" if chinese else "Headwear became a graduation cap"),
