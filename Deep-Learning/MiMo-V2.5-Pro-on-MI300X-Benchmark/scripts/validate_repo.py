@@ -21,10 +21,21 @@ ROOT = Path(__file__).resolve().parents[1]
 READMES = (ROOT / "README.md", ROOT / "README-CN.md")
 
 BILINGUAL_HEADING_PAIRS = (
-    ('# MiMo-V2.5-Pro on AMD MI300X — Benchmark Report', '# MiMo-V2.5-Pro 在 AMD MI300X 上的 Benchmark 报告'),
+    ('# MiMo-V2.5-Pro on AMD MI300X — Benchmark, Tuning and SWE-bench Report', '# MiMo-V2.5-Pro 在 AMD MI300X 上的 Benchmark、调优与 SWE-bench 报告'),
+    ('## Start Here', '## 从这里开始'),
+    ('## What This Repo Does And Provides', '## 本仓库做了什么、提供什么'),
     ('## Executive Summary', '## 执行摘要'),
+    ('### SWE-bench Verified Accuracy', '### SWE-bench Verified 准确率'),
+    ('### Throughput Status', '### 吞吐状态'),
     ('### Relative Status at a Glance', '### 核心指标对比'),
     ('## Architecture', '## 架构'),
+    ('### Test Topology', '### 测试拓扑'),
+    ('## How We Tuned It: Key Technical Points', '## 我们是怎么调的：关键技术点'),
+    ('### From Bring-Up to Deliverable', '### 从能跑到可交付'),
+    ('### The Thirteen Switches in the Serving Command', '### 服务命令里的十三个开关'),
+    ('### Long-Context Method: Five Steps Before a Number Is Reported', '### 长上下文方法：报数之前的五步'),
+    ('### Parallelism Decision: TP8 First', '### 并行策略决策：TP8 优先'),
+    ('### SWE-bench Engineering: What Broke and What Fixed It', '### SWE-bench 工程化：坏在哪里、怎么修的'),
     ('## Scalability & Long-Context Extension', '## 扩展性与长上下文测试'),
     ('### Test Matrix', '### 测试矩阵'),
     ('### ISL=8K', '### ISL=8K'),
@@ -85,8 +96,11 @@ BILINGUAL_HEADING_PAIRS = (
     ('### Pull and Start the Runtime — Both Nodes', '### 在两个节点拉取并启动 Runtime'),
     ('### 1P1D', '### 1P1D'),
     ('### DP=2 Two-Node Prefill', '### 双节点 Prefill（DP=2）'),
+    ('### SWE-bench Accuracy Route (Single-Node TP8)', '### SWE-bench 准确率路线（单节点 TP8）'),
     ('### Cleanup', '### 清理'),
     ('## Required Runtime Settings', '## 必要的运行设置'),
+    ('## Test Guide', '## 测试说明'),
+    ('## Repository Layout', '## 仓库目录'),
     ('## References', '## 参考资料'),
 )
 
@@ -281,6 +295,26 @@ def check_readmes() -> None:
             "write_distribution.py",
             "CodeQL passed" if path.name == "README.md" else "CodeQL 已通过",
             "without a matching `.gitmodules` URL" if path.name == "README.md" else "缺少对应的 `.gitmodules` URL",
+            # SOP-94 mandatory elements added 2026-09-09
+            "data/swebench/summary.json",
+            "data/swebench/exp_stats-output.txt",
+            "scripts/swebench/launch_mtp_nongreedy_wrapper.sh",
+            "scripts/swebench/launch_tp8_no_mtp_accuracy.sh",
+            "scripts/swebench/verify_runtime_contract.py",
+            "scripts/swebench/runtime-recipe/",
+            "summarize_swebench_swelog.py --check data/swebench",
+            "SWEBENCH_RUNTIME_CONTRACT=PASS",
+            "REPO_VALIDATION=PASS",
+            "SWEBENCH_SUMMARY=PASS",
+            "scripts/validate_repo.py",
+            "SGLANG_MIMO_EAGLE_HIP_NONGREEDY_VERIFY=1",
+            "ROCM_QUICK_REDUCE_QUANTIZATION=NONE",
+            "SGLANG_SCHEDULER_SKIP_ALL_GATHER=1",
+            "is not an A/B measurement of MTP" if path.name == "README.md" else "不构成对 MTP 的 A/B 测量",
+            "reported, not measured here" if path.name == "README.md" else "是对方自报值，本仓库没有测量",
+            "Neither run measures throughput" if path.name == "README.md" else "两轮都不测吞吐",
+            "not a controlled speed-up waterfall" if path.name == "README.md" else "不是受控的加速叠加瀑布",
+            "REJECTED_BOUNDARY",
         ):
             assert required in text, f"Missing README requirement in {path.name}: {required}"
     assert shapes[0] == shapes[1], f"Bilingual README structure mismatch: {shapes}"
@@ -1136,8 +1170,15 @@ def check_full_long_isl_matrix() -> None:
 
     assert "not used to fill this rejected full-matrix row" in readmes[0]
     assert "不能用于回填本次被拒绝的完整矩阵行" in readmes[1]
-    for readme in readmes:
-        for line in readme.splitlines():
+    for readme, start_marker, end_marker in zip(
+        readmes,
+        ("## Scalability & Long-Context Extension", "## 扩展性与长上下文测试"),
+        ("## Hardware & Software Stack", "## 硬件与软件栈"),
+    ):
+        # Result and deep-dive tables must never mix ISLs in one row; the topology and
+        # tuning-history tables above this region legitimately span several ISLs.
+        result_region = readme[readme.index(start_marker):readme.index(end_marker)]
+        for line in result_region.splitlines():
             if not line.startswith("|"):
                 continue
             labels = sum(label in line for label in ("128K", "192K", "256K"))
@@ -1874,6 +1915,85 @@ def check_fixed_batch_decode() -> None:
         assert value in bundle_readme
 
 
+def check_swebench_accuracy() -> None:
+    """README SWE-bench headline numbers must equal the committed, recomputable summary."""
+    directory = ROOT / "data/swebench"
+    replay = subprocess.run(
+        [sys.executable, str(ROOT / "scripts/summarize_swebench_swelog.py"), "--check", str(directory)],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert replay.returncode == 0, replay.stdout + replay.stderr
+    assert "SWEBENCH_SUMMARY=PASS" in replay.stdout
+    summary = load_json(directory / "summary.json")
+    runs = summary["runs"]
+    assert set(runs) == {"mtp-on-nongreedy-verifier-499", "mtp-off-499"}
+    on, off = runs["mtp-on-nongreedy-verifier-499"], runs["mtp-off-499"]
+    assert (on["passed"], on["failed"], on["cases"], on["pass_ratio_pct"], on["average_steps"]) == (366, 133, 499, 73.35, 79.1)
+    assert (off["passed"], off["failed"], off["cases"], off["pass_ratio_pct"], off["average_steps"]) == (370, 129, 499, 74.15, 77.62)
+    assert on["limits_exceeded"] == off["limits_exceeded"] == 0
+    assert summary["method"]["scored_cases"] == 499 and summary["method"]["dataset_rows"] == 500
+    assert summary["method"]["customer_files_modified"] is False
+    for run in (on, off):
+        assert re.fullmatch(r"[0-9a-f]{64}", run["delivered_package_sha256"])
+        assert len(load_tsv(directory / run["cases_tsv"])) == 499
+    scorer_output = (directory / "exp_stats-output.txt").read_text(encoding="utf-8")
+    assert "Passed: 370 / 499 (74.15%)" in scorer_output and "Average steps: 77.62" in scorer_output
+
+    on_row_en = "| **366** | 133 | **73.35%** | 79.10 | `mimo-mi300x-20260809.tar.gz` |"
+    off_row_en = "| **370** | 129 | **74.15%** | 77.62 | `mimo-mi300x-swelog.tar.gz` |"
+    for path in READMES:
+        text = path.read_text(encoding="utf-8")
+        assert on_row_en in text and off_row_en in text, f"SWE-bench table rows missing in {path.name}"
+        assert text.count("366/499") >= 2 and text.count("370/499") >= 2
+        assert "73.5%" in text and "71.80%" in text
+        assert "15 h 41 min 12 s" in text and "31.8" in text
+        assert "Passed: 370 / 499 (74.15%)" in text
+        # Negative guards: superseded or forbidden phrasings must not return.
+        for forbidden in ("pass@2", "best-of-2", "367/499", "73.40%", "370/500", "366/500"):
+            assert forbidden not in text, f"forbidden SWE-bench phrasing in {path.name}: {forbidden}"
+        # The accuracy subsection must precede the throughput subsection and the headline table.
+        accuracy_marker = "### SWE-bench Verified Accuracy" if path.name == "README.md" else "### SWE-bench Verified 准确率"
+        throughput_marker = "### Throughput Status" if path.name == "README.md" else "### 吞吐状态"
+        assert text.index(accuracy_marker) < text.index(throughput_marker) < text.index("### Relative Status at a Glance" if path.name == "README.md" else "### 核心指标对比")
+        # Own results and boundaries are never collapsed.
+        accuracy_section = text[text.index(accuracy_marker):text.index(throughput_marker)]
+        assert "<details" not in accuracy_section
+
+    bundle = ROOT / "scripts/swebench"
+    manifest_names = {line.split(maxsplit=1)[1] for line in (bundle / "SHA256SUMS.txt").read_text(encoding="utf-8").splitlines()}
+    assert manifest_names == {
+        "launch_mtp_nongreedy_wrapper.sh",
+        "launch_tp8_noep_aiter_mtp_accuracy.sh",
+        "launch_tp8_no_mtp_accuracy.sh",
+        "verify_runtime_contract.py",
+        "runtime-recipe/Dockerfile",
+        "runtime-recipe/docker-run.sh",
+        "runtime-recipe/STACK.txt",
+        "runtime-recipe/ck_tile.patch",
+    }
+    check_hash_manifest(bundle)
+    for path in sorted(bundle.rglob("*.sh")):
+        subprocess.run(["bash", "-n"], input=path.read_text(encoding="utf-8"), text=True, check=True)
+    wrapper = (bundle / "launch_mtp_nongreedy_wrapper.sh").read_text(encoding="utf-8")
+    amd_launcher = (bundle / "launch_tp8_noep_aiter_mtp_accuracy.sh").read_text(encoding="utf-8")
+    no_mtp = (bundle / "launch_tp8_no_mtp_accuracy.sh").read_text(encoding="utf-8")
+    for gate in ("SGLANG_MIMO_EAGLE_HIP_NONGREEDY_VERIFY=1", "ROCM_QUICK_REDUCE_QUANTIZATION=NONE", "SGLANG_SCHEDULER_SKIP_ALL_GATHER=1", "SGLANG_ENABLE_HEALTH_ENDPOINT_GENERATION=0"):
+        assert gate in wrapper
+    for flag in ("--speculative-algorithm EAGLE", "--speculative-num-steps 3", "--speculative-eagle-topk 1", "--speculative-num-draft-tokens 4", "--enable-multi-layer-eagle", "unset SGLANG_SIMULATE_ACC_LEN SGLANG_SIMULATE_ACC_METHOD"):
+        assert flag in amd_launcher
+    no_mtp_code = "\n".join(line for line in no_mtp.splitlines() if not line.lstrip().startswith("#"))
+    assert "--speculative" not in no_mtp_code and "unset SGLANG_SIMULATE_ACC_LEN SGLANG_SIMULATE_ACC_METHOD" in no_mtp_code
+    for shared in ("--kv-cache-dtype fp8_e4m3", "--page-size", "--chunked-prefill-size 65536", "--context-length 1048576", "SGLANG_AITER_PA_DECODE_IMPL=flydsl", "SGLANG_AITER_KV_CACHE_LAYOUT=vectorized_5d"):
+        assert shared in amd_launcher and shared in no_mtp
+    stack = (bundle / "runtime-recipe/STACK.txt").read_text(encoding="utf-8")
+    dockerfile = (bundle / "runtime-recipe/Dockerfile").read_text(encoding="utf-8")
+    assert "878fff15647fe3dabb32aa3a335b0ad16e3ee878" in stack and "3f4ab482a2986919c784e469e23cfac7f93bb153" in stack
+    assert dockerfile.startswith("# MiMo-V2.5-Pro serving stack") and "FROM rocm/sgl-dev@sha256:" in dockerfile
+
+
 def main() -> None:
     if not __debug__ or sys.flags.optimize:
         raise RuntimeError(
@@ -1893,6 +2013,7 @@ def main() -> None:
         ("long_context_decode", check_long_context_decode),
         ("fixed_batch_decode", check_fixed_batch_decode),
         ("provenance", check_provenance),
+        ("swebench_accuracy", check_swebench_accuracy),
         ("optimization_evolution", check_optimization_evolution),
         ("code_and_assets", check_code_and_assets),
         ("public_boundary", check_public_boundary),

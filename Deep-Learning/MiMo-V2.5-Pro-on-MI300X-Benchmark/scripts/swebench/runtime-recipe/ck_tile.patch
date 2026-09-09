@@ -1,0 +1,21 @@
+diff --git a/example/ck_tile/01_fmha/codegen/ops/fmha_batch_prefill.py b/example/ck_tile/01_fmha/codegen/ops/fmha_batch_prefill.py
+index 475631a88..cbef600e5 100644
+--- a/example/ck_tile/01_fmha/codegen/ops/fmha_batch_prefill.py
++++ b/example/ck_tile/01_fmha/codegen/ops/fmha_batch_prefill.py
+@@ -682,7 +682,15 @@ class KernelComponentFactory:
+         elif dtype in ["fp8bf16"]:
+             return {
+                 128 : [FmhaFwdTileSize(128, 128, 32, 128, 32,  128,  4, 1, 1,  4, 1, 1,  32, 32, 32,  32, 32, 32,  -1)],
+-                256 : [FmhaFwdTileSize(128, 128, 32, 256, 32,  256,  4, 1, 1,  4, 1, 1,  32, 32, 32,  32, 32, 32,  -1)],
++                #256 : [FmhaFwdTileSize(128, 128, 32, 256, 32,  256,  4, 1, 1,  4, 1, 1,  32, 32, 32,  32, 32, 32,  -1)],
++                256 : [
++                    FmhaFwdTileSize(128,  64, 32, 256, 32,  256,  4, 1, 1,  4, 1, 1,  32, 32, 32,  32, 32, 32,  2),
++                    FmhaFwdTileSize(128, 128, 32, 256, 32,  256,  4, 1, 1,  4, 1, 1,  32, 32, 32,  32, 32, 32,  -1),
++                ],
++                192 :  [
++                    FmhaFwdTileSize(128,  64, 32, 192, 32,  192,  4, 1, 1,  4, 1, 1,  32, 32, 32,  32, 32, 32,  2),
++                    FmhaFwdTileSize(128, 128, 32, 192, 32,  192,  4, 1, 1,  4, 1, 1,  32, 32, 32,  32, 32, 32,  -1),
++                ],
+             }  # fmt: skip
+         else:
+             return None

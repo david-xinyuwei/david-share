@@ -1,25 +1,71 @@
-# MiMo-V2.5-Pro 在 AMD MI300X 上的 Benchmark 报告
+# MiMo-V2.5-Pro 在 AMD MI300X 上的 Benchmark、调优与 SWE-bench 报告
 
 [![MI300X](https://img.shields.io/badge/GPU-AMD%20MI300X-ed1c24)](https://www.amd.com/en/products/accelerators/instinct/mi300/mi300x.html)
 [![MiMo](https://img.shields.io/badge/Model-MiMo--V2.5--Pro-blue)](https://huggingface.co/XiaomiMiMo/MiMo-V2.5-Pro)
 [![SGLang](https://img.shields.io/badge/Engine-SGLang-green)](https://github.com/sgl-project/sglang)
 [![ROCm](https://img.shields.io/badge/ROCm-7.2.0-orange)](https://rocm.docs.amd.com/)
 
-本报告记录 **小米 MiMo-V2.5-Pro（1.02T MoE / 42B 活跃参数 / FP8）** 在 Azure **AMD Instinct MI300X** 上的性能测试结果。推理引擎采用 SGLang，关键优化包括 AMD CK A8W8 blockwise GEMM、AITER、MTP/EAGLE，以及针对该模型的 fused-MoE tuning；小米 H200 数据作为独立参考列示。
+**客户的问题。** 小米 **MiMo-V2.5-Pro（1.02T MoE / 42B 活跃参数 / FP8）** 能否在 Azure AMD Instinct MI300X 节点上以 H200 参考部署同等的准确率提供服务？长上下文吞吐又能接近到什么程度？
 
-本仓库面向客户，包含核心对比结果、微软补充的扩展性测试、唯一受支持的复现代码和必要的运行环境元数据。本文保留 Prefill（预填充阶段）、Decode（解码阶段）、TTFT（首 Token 时延）、TPOT（单 Token 生成时延）等常用工程术语，首次出现时给出中文解释，后文沿用英文名称。采用 PD 分离时，Decode 容器必须能够访问 RDMA 设备（`--privileged`、`/dev/mem`、`CAP_SYS_ADMIN`）；否则 Mooncake 会回退到 TCP，高并发吞吐数据无效。
+**本仓库给出的答案。** 在 SGLang 之上叠加 AMD AITER kernel、CK A8W8 blockwise GEMM、FP8 KV cache、FlyDSL Paged Attention 与 EAGLE 多 Token 预测（MTP）后，两台各自独立的单节点 TP8 服务用客户自己的评测框架跑完 SWE-bench Verified：MTP 开启为 **366/499 = 73.35%**，MTP 关闭为 **370/499 = 74.15%**；客户自报其 H200 部署为 73.5%。吞吐方面，8K–256K 输入的 Prefill 达到客户单节点 H200 参考的 63.6%–73.9%，近似对齐的 8K Decode 测点达到 H200 单副本的 95.6%，TPOT 还低 6.6%。
+
+**主要边界。** 所有对 H200 的百分比都取自客户工作簿、按每 8 张 GPU 份额折算的方向性比值，不是同拓扑硬件排名；每个准确率数字都是 temperature 1.0 下的单轮结果。采用 PD 分离时，Decode 容器必须能够访问 RDMA 设备（`--privileged`、`/dev/mem`、`CAP_SYS_ADMIN`）；否则 Mooncake 会回退到 TCP，高并发吞吐数据无效。
 
 > 作者：魏新宇（Xinyu Wei）— Microsoft AI and Apps Global Black Belt（GBB）
 >
-> 最后验证时间：2026-07-21
+> 最后验证时间：2026-09-09（仓库自检）；测量时间 2026-07-13 → 2026-08-10
 
-[English](README.md) | 中文 | [验证证据](data/validation/)
+[English](README.md) | 中文 | [验证证据](data/validation/) | [SWE-bench 证据](data/swebench/) | 优化演进专题：[English](docs/optimization-evolution.md) / [中文](docs/optimization-evolution-CN.md)
 
-> **优化演进专题：** [English deep dive](docs/optimization-evolution.md) | [中文深度解析](docs/optimization-evolution-CN.md) 解释 AITER、CK、Tuned MoE、长上下文 Paged Attention、Parallelism 与 EAGLE Correctness 为什么必须按特定顺序引入。
+## 从这里开始
+
+| 目标 | 入口 |
+|---|---|
+| 看最终数字和它们的边界 | 下文 **执行摘要**：先准确率，再吞吐状态表 |
+| 理解这套栈是怎么调出来的、每个开关管什么 | **我们是怎么调的：关键技术点**，再看 [docs/optimization-evolution.md](docs/optimization-evolution.md)（[中文](docs/optimization-evolution-CN.md)）里按因果排序的演进图 |
+| 在两台 MI300X 节点上复现吞吐 benchmark | **在 Azure 上运行并复现结果**，启动与压测脚本在 [scripts/amd-latest/](scripts/amd-latest/) |
+| 在一台 MI300X 节点上复现 SWE-bench 准确率 | **SWE-bench 准确率路线**，运行时配方与启动器在 [scripts/swebench/](scripts/swebench/) |
+| 不用 GPU 就核对已保存的证据 | **测试说明**：`python3 scripts/validate_repo.py` 与 `python3 scripts/summarize_swebench_swelog.py --check data/swebench` |
+
+## 本仓库做了什么、提供什么
+
+| 参与方 | 在这项工作中的职责 |
+|---|---|
+| Azure | 同一 VMSS placement group 内的两台 `Standard_ND96isr_MI300X_v5` 节点（每台 8× MI300X，每卡 192 GB HBM3），每节点 8× 400G InfiniBand |
+| AMD 工程团队 | ROCm 服务栈：SGLang 分支、AITER 分支、CK A8W8 kernel、FlyDSL Paged Attention kernel、MiMo 专用 tuned fused-MoE 表、EAGLE non-greedy verifier 修复，以及封存的启动脚本 |
+| 微软（本仓库） | 独立复现、长上下文扩展性测试、fail-closed 正确性门禁、双节点 SWE-bench 评测框架工程化、证据脱敏与双语报告 |
+| 客户（小米） | 模型权重、H200 参考工作簿、SWE-bench 评测框架镜像、`swe_flash.yaml` 与 `exp_stats.py` 计分规则；这些文件均未被修改 |
+
+本仓库提供：带逐点哈希的 Prefill/Decode 实测矩阵、SWE-bench 逐题结果与汇总、脱敏后的启动与压测脚本、服务准确率运行的容器配方、可离线重算每个 headline 的分析脚本，以及仓库校验器。
+
+本仓库不提供：模型权重、数据集、私有容器镜像及其拉取凭据、两个 AMD FlyDSL wheel、客户的评测框架镜像，以及除下文 SWE-bench 分数之外的任何输出质量声明。
 
 ![MiMo-V2.5-Pro MI300X 优化演进](images/optimization-evolution.png)
 
 ## 执行摘要
+
+本报告交付两件事：客户的验收基准（SWE-bench Verified 准确率）和长上下文吞吐矩阵。每个 headline 都带着自己的输入、受控变量和边界。
+
+### SWE-bench Verified 准确率
+
+**问题。** 在客户生产环境使用的投机解码路径（MTP）开启的前提下，MI300X 服务栈能否保住 MiMo-V2.5-Pro 的编码 Agent 准确率？
+
+**输入，取自运行记录。** 客户自己的 mini-swe-agent 1.9.0 镜像（`sha256:72f500dc…830d09`）、其 `example_configs/swe_flash.yaml`（SHA-256 `859ac49e…26fdb`，`temperature: 1.0`）、其 `run_batch_flash.sh` 驱动脚本和 `scripts/exp_stats.py` 计分脚本，以及 SWE-bench Verified parquet（`d78ad3a2…a2c31`，500 行）。驱动脚本固定排除 `sphinx-doc__sphinx-9320`，因此**计分题目为 499 题**。以上客户文件均未改动。每个节点运行一个由表中启动器拉起的 TP8 服务，评测框架指向 `http://<node>:30001/v1`，题目按 250 / 249 拆到两个节点，每节点 5 个评测 worker。
+
+**变量。** 只有投机解码路径不同。两轮运行共享 TP8、AITER attention、FP8 E4M3 KV cache、`vectorized_5d` 布局、16 分区的 FlyDSL Paged Attention、page size 64、1M 上下文与 65,536 的 chunked prefill；MTP 开启那轮关闭了 INT8 Quick Reduce，两轮都不模拟接受率。
+
+| 运行（对 499 题各做一次同质完整遍历） | 服务启动器 | Pass | Fail | 得分 | 平均 Agent 步数 | 交付包 |
+|---|---|---:|---:|---:|---:|---|
+| MTP 开启 — EAGLE 3 步、top-k 1、HIP non-greedy verifier `878fff156` | [`launch_mtp_nongreedy_wrapper.sh`](scripts/swebench/launch_mtp_nongreedy_wrapper.sh) | **366** | 133 | **73.35%** | 79.10 | `mimo-mi300x-20260809.tar.gz` |
+| MTP 关闭 — 同一套栈，去掉全部 `--speculative-*` 参数 | [`launch_tp8_no_mtp_accuracy.sh`](scripts/swebench/launch_tp8_no_mtp_accuracy.sh) | **370** | 129 | **74.15%** | 77.62 | `mimo-mi300x-swelog.tar.gz` |
+| 客户 H200 参考（客户自报，同一评测框架 lineage） | — | — | — | 73.5% | — | — |
+| AMD MI300X TP8 参考（AMD 自报，mini-swe-agent 2.4.6，500 题分母） | — | 359 | — | 71.80% | — | — |
+
+两轮运行中每一题都以 `Submitted - Pass` 或 `Submitted - Fail` 结束，`LimitsExceeded` 为 **0**。MTP 关闭那轮 499 题在两个节点上的总耗时为 **15 h 41 min 12 s**（合计 31.8 题/小时），期间模型自动恢复 37 次，没有丢失任何已完成题目。逐题结果、交付包的 SHA-256 与方法哈希见 [`data/swebench/summary.json`](data/swebench/summary.json)；`python3 scripts/summarize_swebench_swelog.py --check data/swebench` 会从已提交的逐题 TSV 重算两个分数。
+
+**边界。** 每个分数都是 temperature 1.0 下的单轮结果，两轮之间 4 题的差距落在轮间波动范围内，不构成对 MTP 的 A/B 测量。客户的 73.5% 与 AMD 的 71.80% 是对方自报值，本仓库没有测量；AMD 使用了不同的 Agent 版本和 500 题分母。MTP 开启那轮采用了客户要求的准确率安全配置（不用 INT8 Quick Reduce、真实 MTP 接受）；MTP 关闭那轮的容器级环境变量没有留在交付证据里。两轮都不测吞吐。
+
+### 吞吐状态
 
 > **Prefill（预填充阶段）：** 在 64K 输入、客户端并发 4 的条件下，MI300X 达到 **18,983.91 input tok/s**。客户提供的 H200 饱和吞吐参考为 **27,400 input tok/s**，但对应的 H200 工作簿未记录客户端并发，因此这里只能作为方向性参考。
 >
@@ -78,6 +124,84 @@ No-CK 与优化路径 A/B 测试的原始样本分别记录在 [`data/validation
 ![双节点 MI300X 1P1D Prefill-Decode 架构](images/pd_architecture.png)
 
 *图 1：最终双节点 MI300X 1P1D 拓扑、Mooncake KV transfer 路径与已验证运行时栈。*
+
+### 测试拓扑
+
+上图是接近生产形态的 PD 部署。本报告的数字来自四种实测布置，它们之间不能互换。
+
+| 结果 lineage | 实测布置 | 压测客户端 | 测量点 | 运行时 |
+|---|---|---|---|---|
+| 8K–256K 吞吐矩阵 | 双节点 1P1D：Prefill 服务在节点 A，Decode 服务在节点 B，SGLang router 在节点 A，KV 由 Mooncake 经每节点 8 个 InfiniBand 端口传输 | router 节点上的 `sglang.bench_serving` | `bench_serving` 报告的客户端 TTFT（首 Token 时延）/ TPOT / E2E tok/s；Decode scheduler 日志中的 `#running-req` 与 `gen throughput` 给出实际 Decode batch；`/server_info` 给出容量 | 不可变的 AMD 7/13 派生镜像：SGLang `2f9b9aedf`、AITER `00e94abf`、ROCm 7.2.0、`launch_pd_*.sh` |
+| 单节点固定 batch Decode；受控 128K/192K 测点 | 单节点、TP8、非 PD；用 `--max-running-requests` 钉住 batch | 同节点上的 `bench_serving` | 满 batch 下 scheduler 稳态 `gen throughput`；客户端 TPOT | 同一镜像，`launch_single_node_decode.sh` |
+| DP=2 Prefill | 一个 router 后面两个完整的 TP8 副本 | node0 上的 `bench_serving` | 聚合 input tok/s；按 `POST /generate` 计数得到的逐 worker 请求分布 | 同一镜像，`launch_dp2_*.sh` |
+| SWE-bench 准确率 | 两台各自独立的单节点 TP8 服务，无 PD、无 router，各承担 250 / 249 题 | 同节点上客户的 mini-swe-agent 容器，每节点 5 个 worker | 每题 `exit_status` 由客户的 `exp_stats.py` 计分；运行时合同从服务进程命令行与 `/proc/<pid>/environ` 读取 | `sglang_0625` 容器：SGLang `878fff156`、AITER `3f4ab482a`、FlyDSL 0.2.4，可由 [scripts/swebench/runtime-recipe/](scripts/swebench/runtime-recipe/) 重建 |
+
+---
+
+## 我们是怎么调的：关键技术点
+
+性能不是靠某一个开关提上来的，而是让模型路径、算子覆盖、KV cache 组织、并行拓扑、KV 传输和测试口径一次只改一个变量地逐步收敛。本节逐个说明每个开关在 MI300X 上改变了什么、我们如何确认它真的生效；各阶段之间的因果顺序见 [docs/optimization-evolution.md](docs/optimization-evolution.md)。
+
+### 从能跑到可交付
+
+| 阶段 | 运行时变化 | Prefill 对客户单节点 H200 参考 | Decode 对 H200 | 这一步真正换来什么 |
+|---|---|---|---|---|
+| 2026 年五月初，可行性 | SGLang v0.5.11、Triton attention、TP8，没有 MiMo 专用配方 | 16K：16,576 对 49,767 tok/s（0.33×）；32K：13,341 对 48,316（0.28×）— 客户早期表格，参考模型是 MiMo-V2-Flash，口径未对齐 | BS32–BS128 下 TPOT 慢 2.77×–3.32× | 证明模型能跑；数字还不可比 |
+| 五月中旬，同模型基线 | 运行时不变；改用客户的 MiMo-V2.5-Pro H200 表格、单节点口径 | 8K 与 64K Prefill 为 H200 EP16/DP2 单节点参考的 51%–52% | 最近的 TPOT 测点约慢 4× | 这是方法学收益而非 kernel 收益：同一模型、同一单节点口径 |
+| 六月，AITER 路径 | 支持 hybrid SWA + GQA 的 AITER attention、带 `vectorized_5d` 的 FP8 E4M3 KV、FlyDSL Paged Attention decode、跨 8 个 IB 端口的 Mooncake RDMA、MTP accept length 1.6 → 2.4 | 共同测点约 42%–53% | 8K 高 batch TPOT 比 H200 低 3%–17% | 算子覆盖；同时找出一个错误关闭 CUDA graph 的配置——它曾把 Decode TPOT 推到约 120 ms，修正后回到约 23 ms |
+| 七月，按模型 shape 定制 kernel | 带 B preshuffle 的 CK A8W8 block-scale GEMM、覆盖 token batch 2048–32768 的 MiMo tuned fused-MoE 表、长上下文边界门禁 | 63.6%（8K）、69.3%（64K）、73.9%（256K） | 8K c16 吞吐达 95.6%，TPOT 低 6.6%；精确 64K BS16 从 743.12 → 933.75 tok/s（+25.7%） | 算子路径稳定之后，模型 shape 调优才测得出来 |
+| 七月下旬到八月，长上下文 Decode 与准确率 | 16 分区的 FlyDSL PA、`--swa-full-tokens-ratio 0.01`、overlap schedule、HIP non-greedy EAGLE verifier `878fff156` | 128K / 192K / 256K Prefill 为 16,711.96 / 14,402.00 / 12,725.25 input tok/s | 128K–256K Decode 在实际 batch 1 下 scheduler gen 125.04–140.72 tok/s | SWE-bench 366/499 与 370/499 都在这套栈上完成 |
+
+表中百分比都是按每 8 张 GPU 份额对客户工作簿的方向性比值；前两行之间参考模型和拓扑都变了，所以这张表是一段历史，不是受控的加速叠加瀑布。
+
+### 服务命令里的十三个开关
+
+| # | 层 | 开关 | 在 MI300X 上改变了什么 | 我们怎么确认它生效 |
+|---:|---|---|---|---|
+| 1 | Kernel | `--attention-backend aiter` + `SGLANG_USE_AITER=1` | 把 Triton 的 attention、MoE 与 normalisation 路径换成为 CDNA3 MFMA 编写的 AMD AITER kernel；这是该模型在 TP8 下唯一持续稳定的路径 | 看服务日志中的 kernel 名；核对 import 根目录是否为 `/sgl-workspace/aiter_0625`——同一个包版本从另一个 import 根加载时曾表现不同 |
+| 2 | Kernel | `SGLANG_AITER_PA_DECODE_IMPL=flydsl` + `SGLANG_FLYDSL_PA_NUM_PARTITIONS=16` | 为 MiMo 的 head 布局编译的 FlyDSL Paged Attention decode kernel；16 个分区在 64K–1M 上下文下填满 MI300X 的计算单元（AMD 自报单 kernel 约 14×、比 Gluon PA kernel 约 1.5×） | 两个变量必须一起设；accept length 约 2.4；128K–256K 在 batch 1 下 scheduler gen 125.04–140.72 tok/s |
+| 3 | Kernel | 来自 AITER `d725746` 的 `mimo_v2_5_pro_b16_tuned_fmoe.csv` | 为 token batch 2048–32768 的 fused-MoE grouped GEMM 逐 shape 选 kernel；模型数学不变 | 启动日志必须打印该 CSV 文件名；其 SHA-256 `2c87ff1f…80ea7` 纳入运行时身份 |
+| 4 | Kernel | `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1` | 权重预先重排成 MFMA 友好布局的 CK A8W8 block-scale GEMM；Prefill 是算力瓶颈，8-bit GEMM 的收益在这里 | 日志中的 `module_gemm_a8w8_blockscale_bpreshuffle` 标记；同镜像 A/B 743.12 → 933.75 tok/s |
+| 5 | Memory | `--kv-cache-dtype fp8_e4m3` | KV 字节数减半；这是 TP8 在每卡 192 GB 内同时装下权重与 1M 上下文的唯一办法（memory fraction 0.90 时实测容量 575,360 token） | `/server_info` 中的 `max_total_num_tokens`；容量门禁 524,288 token |
+| 6 | Memory | `SGLANG_AITER_KV_CACHE_LAYOUT=vectorized_5d` | 与 `global_load_dwordx4` wavefront lane 对齐的向量化 5D KV 布局；FlyDSL kernel 的前置条件——FP8 KV、5D 布局与 FlyDSL PA 永远成套出现 | 三者只改其一，要么启动失败，要么静默回退 |
+| 7 | Memory | PD 启动器用 `--page-size 32`，准确率启动器用 `--page-size 64` | 更大的页减少页表开销，并让 Mooncake KV 传输批量化；`ck_tile.patch` 补上 page-64 / head-192 的 prefill tile | 两个 PD 角色取值一致；JIT 对象列表里能看到该 tile 名 |
+| 8 | 算法 | `--speculative-algorithm EAGLE --speculative-num-steps 3 --speculative-eagle-topk 1 --speculative-num-draft-tokens 4 --enable-multi-layer-eagle` | MiMo 自带的 3 层 MTP draft；准确率运行用真实接受率，`SGLANG_SIMULATE_ACC_LEN=3` 只用于吞吐运行 | scheduler 日志中的 `accept len`；准确率启动器里模拟变量已 unset |
+| 9 | 算法 | `--chunked-prefill-size` 在 Prefill 角色为 32768、Decode 角色为 16384、统一准确率服务为 65536 | 限制 Prefill 峰值，让 256K prompt 不会耗尽显存；取值必须满足运行时的 dispatch 上限——照抄 H200 的值在启动时直接失败 | `--max-prefill-tokens` 与 `/server_info` |
+| 10 | 系统 | `--disaggregation-mode prefill` / `decode`、`--disaggregation-transfer-backend mooncake`、`--disaggregation-ib-device mlx5_ib0…mlx5_ib7` | Prefill 的 KV 经 RDMA 传到 Decode 节点 | 日志出现八行 `RDMA device: mlx5_ib*` 且没有 `fallback` 到 TCP 的标记——TCP 回退会让吞吐掉到约三分之一，却不报任何错 |
+| 11 | 系统 | `SGLANG_MOE_PADDING=1`、`SGLANG_SET_CPU_AFFINITY=1`、`HSA_NO_SCRATCH_RECLAIM=1`、`MC_GID_INDEX=3` | expert 维度 padding、NUMA 绑核、长跑期间禁止 HSA scratch 回收、Mooncake GID 选择 | 每次做差分前先比对容器内 `env`；少一个变量的表现就是"能跑但慢" |
+| 12 | 系统 | PD 启动器用 `--disable-overlap-schedule`；准确率启动器开启 overlap | overlap 路径在 Prefill 角色触发过 HIP 崩溃；崩溃处关闭，稳定处保留 | 在 Prefill 角色上做差分 |
+| 13 | 系统 | MTP 开启的准确率 wrapper 里设 `SGLANG_SCHEDULER_SKIP_ALL_GATHER=1` | 跳过 data-parallel 为 1 时每步 7 个整数的 scheduler all-gather，它曾在约 200K token 处超时；这是从 SGLang 源码里找到的开关，不是补丁 | 完整运行中不再出现 `_ALLGATHER_BASE` 超时 |
+
+### 长上下文方法：报数之前的五步
+
+1. **冻结 workload 语义。** Prefill 为 262,144 个输入 token 加 1 个输出 token；Decode 为 261,120 输入加 1,024 输出；`--random-range-ratio 1.0`、固定 seed 与 `--tokenize-prompt`，并且客户端启动前 `/server_info` 必须显示 `max_req_input_len` 不低于 262,145。
+2. **压住 Prefill 峰值。** chunked prefill 按运行时约束取值，而不是照抄 H200 配置。
+3. **确认的是容量，不是并发。** 读实时 `max_total_num_tokens`、记录 KV 使用峰值、从 `#running-req` 读实际 Decode batch；256K 下客户端并发 4 仍只跑出 batch 1，因为 KV 才是上限。
+4. **两个热点一起调。** 长输入抬高 attention 占比，所以 AITER attention 与 FlyDSL PA 重要；大 Prefill token batch 让 grouped GEMM 占比居高不下，所以 tuned MoE 表仍然有效。
+5. **把"kernel 能跑"和"PD 链路可持续"分开。** 每个上下文长度依次做单请求、顺序多请求、并发请求、fresh-service 复测；256K Prefill c4 两次都触发 AMDGPU page fault，因此按 `REJECTED_BOUNDARY` 发布，而不是填一个估计值。
+
+### 并行策略决策：TP8 优先
+
+| 场景 | 本项目的选择 | 原因 |
+|---|---|---|
+| 单节点、稳定优先 | TP8 | 每节点 8 张 GPU，`num_key_value_heads=8` 可以整齐切分，AITER / MTP / Paged Attention 在这个形态上验证最充分 |
+| 单节点、MoE 高并发 | TP8 加本地 EP8 做 A/B | 五月的一次 MORI-EP8 探测把 BS32 TPOT 从 52.98 ms 改善到 47.87 ms（约 10%），但只在路由稳定时成立 |
+| 双节点、扩 Prefill | 每节点 TP8，前置一个 router（DP=2） | 故障域清晰；热路径上没有跨节点 collective |
+| 双节点、跨节点 EP | 不作为默认生产路线 | TCPStore 解析、MORI 共享内存 heap、RCCL 超时、HIP graph capture 冲突全都遇到过；H200 的 EP16 / EP32 是全局拓扑字段，不能直接映射成 SGLang 本地的 `--ep-size` |
+
+### SWE-bench 工程化：坏在哪里、怎么修的
+
+| 观察到的故障 | 根因 | 进入正式运行的修法 |
+|---|---|---|
+| 反复探测健康端点后 Prefill detokenizer 停滞 | SGLang 默认 `SGLANG_ENABLE_HEALTH_ENDPOINT_GENERATION=True`，每次 `/health` 探测都真的生成一个 token | 设为 `0`；用不生成 token 的 `/server_info` 做监控 |
+| 加载权重时 TP rank 卡在 ROCm `wait_on_page_bit_common` | HMM 上的多线程 safetensors 加载；不写这个选项并不等于关闭 | PD 角色上加 `--model-loader-extra-config '{"enable_multithread_load": false}'` |
+| Prefill 角色的 overlap scheduler 路径出现 HIP illegal address | 该模型在 ROCm 上的 overlap 调度 | 崩溃处加 `--disable-overlap-schedule`（见开关 12） |
+| 一段 351,703 token 的对话在 `max_req_input_len=348,538` 处被截断 | GPU KV 池装不下一条活跃的 Agent 对话；主机侧 cache 不会放大它 | memory fraction 0.85 → 0.90，实测容量 575,360 token，启动门禁 524,288 |
+| scheduler 在约 200K token 处 `_ALLGATHER_BASE` 超时 | data-parallel 为 1 时每步 7 个整数的状态 all-gather | `SGLANG_SCHEDULER_SKIP_ALL_GATHER=1`（开关 13） |
+| `temperature=1.0` 的请求在 HIP 上被按 greedy 验证 | HIP 的 EAGLE 路径没有随机 verifier，静默回退 | 可选的 Torch 随机 verifier，分支 commit `878fff156`，由 `SGLANG_MIMO_EAGLE_HIP_NONGREEDY_VERIFY=1` 启用 |
+| 准确率运行里出现有损的 INT8 collective | ROCm Quick Reduce 默认 INT8 压缩 | 准确率 wrapper 里设 `ROCM_QUICK_REDUCE_QUANTIZATION=NONE` |
+| verifier 修复之前，MTP 开启时 Agent 在 500 步上限处死循环 | 5 题隔离实验中，关闭 MTP 把平均 Agent 调用从 500 降到 95.3，同时原始 decode 吞吐下降 40%–54% | MTP 关闭与带 verifier 的 MTP 开启两轮完整运行都以 0 `LimitsExceeded` 收尾；这里真正重要的指标是每小时完成的 Agent 任务数，不是每秒 token 数 |
+| 节点崩溃后整轮空转数小时 | 没有 supervisor，一条 shell 命令管着 499 题 | 每节点 systemd guard：重启模型、重新验证运行时合同、从 `results.json` 续跑、绝不重算已完成题——MTP 关闭那轮恢复 37 次，没有丢题 |
 
 ---
 
@@ -796,6 +920,7 @@ Decode 测点使用 `SGLANG_SIMULATE_ACC_LEN=3` 和 `match-expected`；scheduler
 | GEMM 路径 | **CK A8W8 blockwise bpreshuffle** | `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1` |
 | Mooncake | `0.3.7.post2` | PD 分离中的 KV cache（KV 缓存）传输 |
 | PyTorch | 2.9.1+rocm7.2.0 | ROCm 后端 |
+| 准确率运行时（SWE-bench 路线） | `sglang_0625` 容器：SGLang 分支 `878fff156`、AITER 分支 `3f4ab482a`、FlyDSL `0.2.4`、`mimo-flydsl-kernels 0.1.0+c99d5cd` | 由 [scripts/swebench/runtime-recipe/](scripts/swebench/runtime-recipe/) 重建；基础镜像按 digest 钉死 |
 
 ### 模型
 
@@ -1015,6 +1140,69 @@ python3 validate_service_logs.py \
 
 只有 client gate（客户端校验门）通过、两个 worker delta（请求数增量）都为正且总和为 33（32 measured + 1 warmup），并且 service-log gate（服务日志校验门）通过时，该 DP=2 测点才可写入报告。
 
+### SWE-bench 准确率路线（单节点 TP8）
+
+这条路线复现执行摘要中的准确率运行。它需要每个服务一台 MI300X 节点（正式运行用两台节点只是为了把总耗时减半）、放在 `/data/models/MiMo-V2.5-Pro` 的模型权重、客户的 mini-swe-agent 镜像及其 `run_batch_flash.sh`、`swe_flash.yaml` 与 `exp_stats.py`，以及 2026-08-10 交付的运行时 bundle（提供两个私有 FlyDSL wheel 和预编译的 AITER JIT 目录树）。其余内容都在 [scripts/swebench/](scripts/swebench/)。
+
+**1. 重建并启动服务容器。** Dockerfile 按 digest 钉死基础镜像，叠加 `878fff156` 的 SGLang 分支、`3f4ab482a` 的 AITER 分支与 CK 的 page-64 / head-192 tile；`docker-run.sh` 应用 AITER 路径需要的宿主机设置（`--privileged`、`/dev/mem`、`CAP_SYS_ADMIN`——缺了它们吞吐会掉到大约三分之一）。
+
+```bash
+cd scripts/swebench/runtime-recipe
+sha256sum -c ../SHA256SUMS.txt
+# Place the delivered runtime/, decode_server_scripts/ and swebench/ trees next to the Dockerfile first.
+docker build -t mimo-mi300x:20260810 .
+# The /data bind mount hides the image's copy of the AMD scripts; keep a host copy where the wrapper expects it.
+mkdir -p /data/xisun && cp -r decode_server_scripts /data/xisun/
+IMAGE=mimo-mi300x:20260810 NAME=sglang DATA=/data bash docker-run.sh
+docker exec sglang bash -lc 'test "$(git -C /sgl-workspace/sglang_0625 rev-parse --short=9 HEAD)" = 878fff156 && test "$(git -C /sgl-workspace/aiter_0625 rev-parse --short=9 HEAD)" = 3f4ab482a && python3 -c "import importlib.metadata as m; print(m.version(\"flydsl\"), m.version(\"mimo-flydsl-kernels\"))"'
+```
+
+预期：最后一行输出 `0.2.4 0.1.0+c99d5cd`；任一 `test` 失败就在这里停下。
+
+**2. 按要复现的模式启动服务。** 在仓库根目录执行。两个启动器都监听 `30001` 端口，日志写到 `LOG_DIR` / `MODEL_LOG`。
+
+```bash
+# MTP on (366/499 run): AMD accuracy launcher behind the wrapper that enables the
+# non-greedy verifier and the accuracy-safe collectives.
+docker exec -d -e NODE_ID=node-a -e RUN_ID=repro-$(date -u +%Y%m%dT%H%M%SZ) \
+  -e MODEL_LOG=/data/logs/mtp-on/server.log sglang \
+  /bin/bash /opt/mimo-swebench/launch_mtp_nongreedy_wrapper.sh
+
+# MTP off (370/499 run): same stack without --speculative-* flags.
+docker cp scripts/swebench/launch_tp8_no_mtp_accuracy.sh sglang:/opt/mimo-swebench/
+docker exec -d -e MODEL_LOG=/data/logs/mtp-off/server.log sglang \
+  /bin/bash /opt/mimo-swebench/launch_tp8_no_mtp_accuracy.sh
+```
+
+页面缓存热的情况下模型加载约 3 分钟，冷盘会更长。等到 `curl -s http://127.0.0.1:30001/v1/models` 返回 HTTP 200 再继续；MTP 关闭模式没有禁用健康端点的生成行为，不要轮询 `/health`。
+
+**3. 在评测框架启动之前验证运行时合同。** 在服务宿主机上执行，这样才能看到服务进程的 `/proc`：
+
+```bash
+python3 scripts/swebench/verify_runtime_contract.py --mode mtp-on  --url http://127.0.0.1:30001
+python3 scripts/swebench/verify_runtime_contract.py --mode mtp-off --url http://127.0.0.1:30001
+```
+
+预期：`server_info.*` 各行之后打印 `SWEBENCH_RUNTIME_CONTRACT=PASS mode=<mode> port=30001`；出现任何 `FAIL` 行都表示当前服务不是正式运行的那套配置。
+
+**4. 不改客户的评测框架，直接指向这个端点跑。** 在客户的 mini-swe-agent 容器里，把 OpenAI 兼容的 base URL 指向 `http://<node-ip>:30001/v1`，模型名使用服务实际上报的名字（AMD 启动器下为 `/data/models/MiMo-V2.5-Pro`），`example_configs/swe_flash.yaml` 与 `run_batch_flash.sh` 保持原样，给这次运行一个新的输出名。正式运行每节点用 5 个 worker，并把 499 题按 250 / 249 拆到两个服务；单台服务也可以用同样的 `--workers 5` 一次跑完 499 题。输出落在 `outputs/<run-name>/<instance_id>/` 下，包含 `<instance_id>.traj.json`、`<instance_id>.log` 和 `reward_extra_info.json`。
+
+**5. 用客户的规则计分，再交叉核对。**
+
+```bash
+# Inside the customer's mini-swe-agent container, from the repository root of that image:
+RUN_NAME=my-mi300x-run
+python scripts/exp_stats.py "$RUN_NAME"
+# Expected shape of the summary block: "Passed: <n> / 499 (<pct>%)" and "Average steps: <x>".
+
+# From this repository, after packing outputs/$RUN_NAME as swelog/$RUN_NAME/... into a tar.gz:
+python3 scripts/summarize_swebench_swelog.py --tarball "swelog-$RUN_NAME.tar.gz" --label "$RUN_NAME" --output-dir /tmp/swebench-repro
+```
+
+MTP 关闭那轮的计分器原始输出保存在 [`data/swebench/exp_stats-output.txt`](data/swebench/exp_stats-output.txt)：`Passed: 370 / 499 (74.15%)`，`Average steps: 77.62`。temperature 1.0 下的新一轮运行不会逐题复现这些计数；请把你的分数与两轮正式结果以及它们之间 4 题的差距一起对照。
+
+**停止。** `docker rm -f sglang` 会停止服务并释放 GPU；评测框架的容器会自行退出。
+
 ### 清理
 
 ```bash
@@ -1033,6 +1221,42 @@ docker rm -f mimo-mi300x
 
 ---
 
+## 测试说明
+
+下面的检查在一台没有 GPU、没有凭据、不联网的笔记本上就能跑；它们验证的是已提交的证据和脚本，不是在线服务。在线服务只能由上文的复现路线验证。克隆前请先安装 Git LFS（`git clone` 之前执行 `git lfs install`）：本 monorepo 把所有 `*.json` 与 `*.tsv` 证据文件存放在 LFS 中，没有 LFS 的克隆只会得到指针文件，下面的检查会直接拒绝。
+
+| 检查 | 命令（在本目录执行） | 证明了什么 | 预期的最后一行 |
+|---|---|---|---|
+| 仓库校验器 | `python3 scripts/validate_repo.py` | README 与 README-CN 携带同一组表格、数字、链接与命令；每个吞吐 headline 都等于它的 TSV / JSON 来源；哈希清单匹配；bash 代码块可解析；没有私有标识；单元测试通过 | `REPO_VALIDATION=PASS` |
+| SWE-bench 汇总重算 | `python3 scripts/summarize_swebench_swelog.py --check data/swebench` | 两个分数、Fail 数与平均步数从已提交的逐题 TSV 重算后与 `summary.json` 一致；TSV 被改动会在哈希检查失败 | `SWEBENCH_SUMMARY=PASS` |
+| 精确 64K A/B 重算 | `python3 scripts/analyze_exact64_evidence.py` | 从脱敏后的 scheduler 窗口重建 933.75 / 743.12 tok/s 与 25.7% 的提升 | 带 `"status": "PASS"` 的 JSON |
+| 受控 ISL 重算 | `python3 scripts/analyze_controlled_isl_evidence.py` | 从已提交的客户端与 scheduler 窗口重建 128K → 192K 的变化量 | 带 `"status": "PASS"` 的 JSON |
+| 优化演进数据 | `python3 scripts/validate_optimization_evolution.py` | 演进文档与图由 `data/optimization-evolution.json` 重新生成后与已提交文件一致 | `OPTIMIZATION_EVOLUTION_DATA=PASS` |
+| 单元测试 | `python3 -m unittest discover -s tests -p 'test_*.py'` | 哈希工具与演进渲染器的行为与文档一致 | `OK` |
+| 脚本 bundle | `(cd scripts/amd-latest && sha256sum -c SHA256SUMS.txt)` 与 `(cd scripts/swebench && sha256sum -c SHA256SUMS.txt)` | 启动与压测脚本就是已发布的字节；请在 LF 换行的检出上执行，`validate_repo.py` 做的是同一项检查但会先做 LF 归一化，原生 `sha256sum` 不会 | 每行都是 `OK` |
+
+这些检查不覆盖：GPU 执行、私有容器镜像、FlyDSL wheel、客户的评测框架镜像，以及 temperature 1.0 采样的轮间波动。校验器是 fail-closed 的：第一个不成立的断言就会以非零退出码结束，并且必须在普通 Python 模式下运行（不能带 `-O`）。
+
+---
+
+## 仓库目录
+
+| 路径 | 作用 |
+|---|---|
+| [README.md](README.md) / [README-CN.md](README-CN.md) | 本报告的英文版与中文版，由校验器保持结构与数字一致 |
+| [docs/optimization-evolution.md](docs/optimization-evolution.md)、[docs/optimization-evolution-CN.md](docs/optimization-evolution-CN.md) | 服务栈按因果排序的演进图与公开来源绑定；由 `data/optimization-evolution.json` 生成 |
+| [data/final-results.tsv](data/final-results.tsv)、[data/scalability-results.tsv](data/scalability-results.tsv)、[data/long-isl/](data/long-isl/) | headline 与完整矩阵的吞吐行，带逐点哈希 |
+| [data/validation/](data/validation/) | 容器身份、`/server_info` 抓取、服务日志审计、H200 参考摘录、精确 token 的 256K 证据 |
+| [data/evidence/](data/evidence/) | 精确 64K A/B 与受控 128K / 192K 测点背后脱敏的客户端与 scheduler 窗口 |
+| [data/swebench/](data/swebench/) | 两轮 SWE-bench 的逐题结果、带方法哈希的汇总，以及客户计分器的原始输出 |
+| [scripts/amd-latest/](scripts/amd-latest/) | 1P1D、DP=2 与单节点吞吐路线的启动、压测与校验脚本 |
+| [scripts/swebench/](scripts/swebench/) | SWE-bench 路线的容器配方、准确率启动器与运行时合同校验器 |
+| [scripts/](scripts/) | 分析脚本、图表生成器、演进渲染器与 `validate_repo.py` |
+| [tests/](tests/) | 由校验器执行的单元测试 |
+| [images/](images/) | 架构、组批与演进图 |
+
+---
+
 ## 参考资料
 
 - [Azure ND-MI300X-v5 规格系列](https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/ndmi300xv5-series)
@@ -1041,4 +1265,8 @@ docker rm -f mimo-mi300x
 - [AMD SGLang Fork（分支）— `mimo_aiter_attn`](https://github.com/sammysun0711/sglang/tree/mimo_aiter_attn)
 - [AMD aiter (ROCm)](https://github.com/ROCm/aiter)
 - [MiMo 模型专用 fused-MoE tuning — `aiter@d725746`](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9)
+- [HIP non-greedy EAGLE verifier 修复 — `sglang@878fff156`](https://github.com/sammysun0711/sglang/commit/878fff15647fe3dabb32aa3a335b0ad16e3ee878)
+- [MiMo SWE-bench 评测默认值 — `sglang@b0f860b8`](https://github.com/sammysun0711/sglang/commit/b0f860b81104eb3e9aae40cce391e56443e2d688)
+- [SWE-bench Verified](https://huggingface.co/datasets/princeton-nlp/SWE-bench_Verified)
+- [mini-swe-agent](https://github.com/SWE-agent/mini-swe-agent)
 - [SGLang PD Disaggregation Docs（文档）](https://docs.sglang.io/docs/advanced_features/pd_disaggregation.md)

@@ -1,25 +1,71 @@
-# MiMo-V2.5-Pro on AMD MI300X — Benchmark Report
+# MiMo-V2.5-Pro on AMD MI300X — Benchmark, Tuning and SWE-bench Report
 
 [![MI300X](https://img.shields.io/badge/GPU-AMD%20MI300X-ed1c24)](https://www.amd.com/en/products/accelerators/instinct/mi300/mi300x.html)
 [![MiMo](https://img.shields.io/badge/Model-MiMo--V2.5--Pro-blue)](https://huggingface.co/XiaomiMiMo/MiMo-V2.5-Pro)
 [![SGLang](https://img.shields.io/badge/Engine-SGLang-green)](https://github.com/sgl-project/sglang)
 [![ROCm](https://img.shields.io/badge/ROCm-7.2.0-orange)](https://rocm.docs.amd.com/)
 
-Running **Xiaomi MiMo-V2.5-Pro (1.02T MoE / 42B active / FP8)** on Azure **AMD Instinct MI300X** with SGLang + AMD CK A8W8 blockwise GEMM + AITER + MTP/EAGLE + model-specific fused-MoE tuning, shown alongside Xiaomi's H200 reference data.
+**Customer question.** Can Xiaomi's **MiMo-V2.5-Pro (1.02T MoE / 42B active / FP8)** be served on Azure AMD Instinct MI300X nodes at the accuracy of its H200 reference, and how close does long-context throughput get?
 
-This customer-facing repo contains the headline comparison, the complete Microsoft-run scalability extension, one supported reproduction bundle, and compact runtime metadata. For PD-separated decode, the container must expose RDMA devices (`--privileged`, `/dev/mem`, and `CAP_SYS_ADMIN`); otherwise Mooncake falls back to TCP and high-concurrency throughput results are invalid.
+**What this repository shows.** With SGLang plus AMD AITER kernels, CK A8W8 blockwise GEMM, FP8 KV cache, FlyDSL Paged Attention and EAGLE multi-token prediction (MTP), two independent single-node TP8 servers completed SWE-bench Verified in the customer's own harness at **366/499 = 73.35%** with MTP on and **370/499 = 74.15%** with MTP off; the customer reports 73.5% for its H200 deployment. On throughput, Prefill reaches 63.6%–73.9% of the customer's per-node H200 reference across 8K–256K input, and the near-aligned 8K Decode point reaches 95.6% of the H200 replica with 6.6% lower TPOT.
+
+**Main limit.** Every H200 percentage is a per-8-GPU-share directional ratio taken from the customer's worksheet, not a same-topology hardware ranking, and each accuracy figure is one run at temperature 1.0. For PD-separated decode, the container must expose RDMA devices (`--privileged`, `/dev/mem`, and `CAP_SYS_ADMIN`); otherwise Mooncake falls back to TCP and high-concurrency throughput results are invalid.
 
 > Author: 魏新宇 (Xinyu Wei) — Microsoft AI and Apps Global Black Belt (GBB)
 >
-> Last validated: 2026-07-21
+> Last validated: 2026-09-09 (repository checks); measurements 2026-07-13 → 2026-08-10
 
-English | [中文版](README-CN.md) | [Validation Evidence](data/validation/)
+English | [中文版](README-CN.md) | [Validation Evidence](data/validation/) | [SWE-bench Evidence](data/swebench/) | Optimization evolution deep dive: [English](docs/optimization-evolution.md) / [中文](docs/optimization-evolution-CN.md)
 
-> **Optimization evolution:** [English deep dive](docs/optimization-evolution.md) | [中文深度解析](docs/optimization-evolution-CN.md) explains why AITER, CK, tuned MoE, long-context Paged Attention, parallelism, and EAGLE correctness must be introduced in a specific order.
+## Start Here
+
+| Goal | Entry |
+|---|---|
+| Read the final numbers and their boundaries | **Executive Summary** below: accuracy first, then the throughput status table |
+| Understand how the stack was tuned and which switch does what | **How We Tuned It: Key Technical Points**, then the ordered evolution map in [docs/optimization-evolution.md](docs/optimization-evolution.md) ([中文](docs/optimization-evolution-CN.md)) |
+| Reproduce the throughput benchmark on two MI300X nodes | **Running on Azure and Reproducing Final Results** with the launch and benchmark bundle in [scripts/amd-latest/](scripts/amd-latest/) |
+| Reproduce the SWE-bench accuracy run on one MI300X node | **SWE-bench Accuracy Route** with the runtime recipe and launchers in [scripts/swebench/](scripts/swebench/) |
+| Check the saved evidence without a GPU | **Test Guide**: `python3 scripts/validate_repo.py` and `python3 scripts/summarize_swebench_swelog.py --check data/swebench` |
+
+## What This Repo Does And Provides
+
+| Party | Responsibility in this work |
+|---|---|
+| Azure | Two `Standard_ND96isr_MI300X_v5` nodes (8× MI300X, 192 GB HBM3 each) in one VMSS placement group with 8× 400G InfiniBand per node |
+| AMD engineering | The ROCm serving stack: SGLang fork, AITER fork, CK A8W8 kernels, FlyDSL Paged Attention kernels, the MiMo tuned fused-MoE table, the EAGLE non-greedy verifier fix, and the sealed launch scripts |
+| Microsoft (this repository) | Independent reproduction, the long-context scalability extension, fail-closed correctness gates, the two-node SWE-bench harness engineering, evidence sanitization and the bilingual report |
+| Customer (Xiaomi) | The model weights, the H200 reference worksheet, the SWE-bench harness image, `swe_flash.yaml` and the `exp_stats.py` scoring rule; none of these files were modified |
+
+Provided here: the measured Prefill/Decode matrices with per-point hashes, the SWE-bench per-case results and summary, sanitized launch and benchmark scripts, the container recipe that served the accuracy runs, analyzers that recompute every headline offline, and the repository validator.
+
+Not provided: model weights, datasets, the private container image and its pull credentials, the two AMD FlyDSL wheels, the customer's harness image, and any output-quality claim beyond the SWE-bench scores recorded below.
 
 ![MiMo-V2.5-Pro MI300X optimization evolution](images/optimization-evolution.png)
 
 ## Executive Summary
+
+Two deliverables are reported: the customer's acceptance benchmark (SWE-bench Verified accuracy) and the long-context throughput matrices. Each headline carries its own input, controlled variable and boundary.
+
+### SWE-bench Verified Accuracy
+
+**Question.** Does the MI300X serving stack preserve MiMo-V2.5-Pro's coding-agent accuracy, with the speculative-decoding path the customer runs in production (MTP) switched on?
+
+**Input, taken from the run record.** The customer's own mini-swe-agent 1.9.0 image (`sha256:72f500dc…830d09`), its `example_configs/swe_flash.yaml` (SHA-256 `859ac49e…26fdb`, `temperature: 1.0`), its `run_batch_flash.sh` driver and `scripts/exp_stats.py` scorer, and the SWE-bench Verified parquet (`d78ad3a2…a2c31`, 500 rows). The driver's fixed exclusion of `sphinx-doc__sphinx-9320` leaves **499 scored cases**. None of these customer files were modified. Each node ran one TP8 server started by the launcher named in the table, the harness was pointed at `http://<node>:30001/v1`, and the cases were split 250 / 249 across the two nodes with 5 harness workers per node.
+
+**What varied.** Only the speculative-decoding path. Both runs share TP8, AITER attention, FP8 E4M3 KV cache, `vectorized_5d` layout, FlyDSL Paged Attention with 16 partitions, page size 64, 1M context and chunked prefill 65,536; INT8 Quick Reduce is disabled in the MTP-on run and no run simulates acceptance.
+
+| Run (one homogeneous pass over 499 cases) | Server launcher | Pass | Fail | Score | Average agent steps | Delivered package |
+|---|---|---:|---:|---:|---:|---|
+| MTP on — EAGLE 3 steps, top-k 1, HIP non-greedy verifier `878fff156` | [`launch_mtp_nongreedy_wrapper.sh`](scripts/swebench/launch_mtp_nongreedy_wrapper.sh) | **366** | 133 | **73.35%** | 79.10 | `mimo-mi300x-20260809.tar.gz` |
+| MTP off — same stack, no `--speculative-*` flags | [`launch_tp8_no_mtp_accuracy.sh`](scripts/swebench/launch_tp8_no_mtp_accuracy.sh) | **370** | 129 | **74.15%** | 77.62 | `mimo-mi300x-swelog.tar.gz` |
+| Customer H200 reference (customer-reported, same harness lineage) | — | — | — | 73.5% | — | — |
+| AMD MI300X TP8 reference (AMD-reported, mini-swe-agent 2.4.6, 500-case denominator) | — | 359 | — | 71.80% | — | — |
+
+Every case in both runs ended in `Submitted - Pass` or `Submitted - Fail`; there were **0** `LimitsExceeded` outcomes. The MTP-off run took **15 h 41 min 12 s** wall-clock for 499 cases across the two nodes (31.8 cases per hour aggregate) with 37 automatic model recoveries and no completed case lost. Per-case rows, the delivered-package SHA-256 values and the method hashes are in [`data/swebench/summary.json`](data/swebench/summary.json); `python3 scripts/summarize_swebench_swelog.py --check data/swebench` recomputes both scores from the committed per-case TSVs.
+
+**Boundary.** Each score is a single run at temperature 1.0, so the 4-case gap between the two runs is within run-to-run variation and is not an A/B measurement of MTP. The customer's 73.5% and AMD's 71.80% are reported, not measured here; AMD's figure uses a different agent version and a 500-case denominator. The MTP-on run applies the accuracy-safe settings the customer asked for (no INT8 Quick Reduce, real MTP acceptance); the MTP-off run's container-level environment was not captured in the delivered evidence. Neither run measures throughput.
+
+### Throughput Status
 
 > **Comparison status:** on the input side, MI300X reaches **18,983.91 input tok/s** at 64K and concurrency 4 versus the customer H200 saturation reference of **27,400 input tok/s**; the H200 workbook does not record the matching input concurrency. On the output side, the final AMD 7/13-derived AITER/CK path reaches **933.75 scheduler gen tok/s** in a **single-node, non-PD**, exact-64K, fixed-BS16, **fixed-acceptance performance benchmark**, the mean of two fresh-service runs (**931.58 / 935.92 tok/s**, **0.47%** repeat delta), with an implied TPOT of **17.14 ms**. This is a **70.0% worksheet-local directional arithmetic ratio** against the customer workbook's 64K BS16 row and **25.7% above** the same-image exact no-CK baseline. It is not the 1P1D PD c16 record, not a natural-MTP-acceptance result, and not an output-quality result. The H200 workbook has no row-level output length, its Column J scope is ambiguous, and topology, routing, acceptance method, and metric scope differ. Higher batch sizes (BS32–96) still require an EP/multi-node Decode deployment and carry no hardware ratio.
 
@@ -74,6 +120,84 @@ The no-CK and optimized A/B source samples are recorded under `headline_exact.sa
 ![Two-node MI300X 1P1D Prefill-Decode architecture](images/pd_architecture.png)
 
 *Figure 1. Final two-node MI300X 1P1D topology, Mooncake KV transfer path, and validated runtime stack.*
+
+### Test Topology
+
+The architecture above is the production-shaped PD deployment. Four measured arrangements produced the numbers in this report; they are not interchangeable.
+
+| Result lineage | Measured arrangement | Load generator | Measurement point | Runtime |
+|---|---|---|---|---|
+| Throughput matrices, 8K–256K | Two nodes, 1P1D: Prefill server on node A, Decode server on node B, SGLang router on node A, KV moved by Mooncake over 8 InfiniBand ports per node | `sglang.bench_serving` on the router node | Client TTFT / TPOT / E2E tok/s from `bench_serving`; actual Decode batch from `#running-req` and `gen throughput` in the Decode scheduler log; capacity from `/server_info` | Immutable AMD 7/13-derived image: SGLang `2f9b9aedf`, AITER `00e94abf`, ROCm 7.2.0, `launch_pd_*.sh` |
+| Single-node fixed-batch Decode; controlled 128K/192K points | One node, TP8, non-PD; batch pinned through `--max-running-requests` | `bench_serving` on the same node | Steady-state scheduler `gen throughput` at full batch; client TPOT | Same image, `launch_single_node_decode.sh` |
+| DP=2 Prefill | Two complete TP8 replicas behind one router | `bench_serving` on node0 | Aggregate input tok/s; per-worker request distribution from `POST /generate` counts | Same image, `launch_dp2_*.sh` |
+| SWE-bench accuracy | Two independent single-node TP8 servers, no PD, no router, 250 / 249 cases each | The customer's mini-swe-agent containers on the same node, 5 workers per node | `exit_status` per case scored by the customer's `exp_stats.py`; runtime contract read from the server command line and `/proc/<pid>/environ` | `sglang_0625` container: SGLang `878fff156`, AITER `3f4ab482a`, FlyDSL 0.2.4, rebuilt by [scripts/swebench/runtime-recipe/](scripts/swebench/runtime-recipe/) |
+
+---
+
+## How We Tuned It: Key Technical Points
+
+The gains did not come from one flag. They came from making the model path, the operator coverage, the KV-cache organisation, the parallel topology, the KV transport and the test protocol converge, one variable at a time. This section names each switch, what it changes on MI300X and how we confirmed it was live; the causal order between stages is in [docs/optimization-evolution.md](docs/optimization-evolution.md).
+
+### From Bring-Up to Deliverable
+
+| Stage | Runtime change | Prefill vs the customer's per-node H200 reference | Decode vs H200 | What the step actually bought |
+|---|---|---|---|---|
+| Early May 2026, feasibility | SGLang v0.5.11, Triton attention, TP8, no MiMo-specific recipe | 16K: 16,576 vs 49,767 tok/s (0.33×); 32K: 13,341 vs 48,316 (0.28×) — early customer table, reference model was MiMo-V2-Flash, not method-matched | TPOT 2.77×–3.32× slower at BS32–BS128 | Proved the model runs; numbers not yet comparable |
+| Mid May, same-model baseline | Same runtime; customer's MiMo-V2.5-Pro H200 table, per-node scope | 8K and 64K Prefill at 51%–52% of the H200 EP16/DP2 per-node reference | Nearest TPOT point about 4× slower | A methodology gain, not a kernel gain: same model and same per-node scope |
+| June, AITER path | AITER attention for hybrid SWA + GQA, FP8 E4M3 KV with `vectorized_5d`, FlyDSL Paged Attention decode, Mooncake RDMA over 8 IB ports, MTP accept length 1.6 → 2.4 | About 42%–53% at the common points | 8K high-batch TPOT 3%–17% below the H200 value | Operator coverage; a mis-set CUDA graph flag that had pushed Decode TPOT to about 120 ms was found and TPOT returned to about 23 ms |
+| July, shape-specific kernels | CK A8W8 block-scale GEMM with B preshuffle, MiMo tuned fused-MoE table for token batches 2048–32768, long-context boundary gates | 63.6% (8K), 69.3% (64K), 73.9% (256K) | 8K c16 at 95.6% throughput with 6.6% lower TPOT; exact 64K BS16 743.12 → 933.75 tok/s (+25.7%) | Model-shape tuning became measurable once the operator path was stable |
+| Late July to August, long-context Decode and accuracy | FlyDSL PA with 16 partitions, `--swa-full-tokens-ratio 0.01`, overlap schedule, HIP non-greedy EAGLE verifier `878fff156` | 128K / 192K / 256K Prefill 16,711.96 / 14,402.00 / 12,725.25 input tok/s | 128K–256K Decode 125.04–140.72 scheduler gen tok/s at actual batch 1 | SWE-bench 366/499 and 370/499 completed on this stack |
+
+The percentages in this table are per-8-GPU-share directional ratios against the customer worksheet; the reference model and topology changed between the first two rows, so the rows are a history, not a controlled speed-up waterfall.
+
+### The Thirteen Switches in the Serving Command
+
+| # | Layer | Switch | What it changes on MI300X | How we confirmed it was live |
+|---:|---|---|---|---|
+| 1 | Kernel | `--attention-backend aiter` + `SGLANG_USE_AITER=1` | Replaces the Triton attention, MoE and normalisation paths with AMD AITER kernels written for CDNA3 MFMA; the only path that stayed stable at TP8 for this model | Kernel names in the server log; import root checked against `/sgl-workspace/aiter_0625` — the same package version loaded from a different import root once behaved differently |
+| 2 | Kernel | `SGLANG_AITER_PA_DECODE_IMPL=flydsl` + `SGLANG_FLYDSL_PA_NUM_PARTITIONS=16` | FlyDSL Paged Attention decode kernel compiled for MiMo's head layout; 16 partitions fill the MI300X compute units for 64K–1M contexts (AMD reports about 14× on the single kernel and about 1.5× over the Gluon PA kernel) | The two variables are set together; accept length about 2.4; 125.04–140.72 scheduler gen tok/s at batch 1 for 128K–256K |
+| 3 | Kernel | `mimo_v2_5_pro_b16_tuned_fmoe.csv` from AITER `d725746` | Per-shape kernel selection for the fused-MoE grouped GEMM at token batches 2048–32768; the model math is unchanged | The start-up log must name the CSV; its SHA-256 `2c87ff1f…80ea7` is part of the runtime identity |
+| 4 | Kernel | `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1` | CK A8W8 block-scale GEMM with weights pre-shuffled into an MFMA-friendly layout; Prefill is compute-bound, so this is where 8-bit GEMM pays | `module_gemm_a8w8_blockscale_bpreshuffle` marker in the log; same-image A/B 743.12 → 933.75 tok/s |
+| 5 | Memory | `--kv-cache-dtype fp8_e4m3` | Halves KV bytes; the only way TP8 fits the weights plus a 1M context in 192 GB per GPU (live capacity 575,360 tokens at memory fraction 0.90) | `max_total_num_tokens` in `/server_info`; capacity gate at 524,288 tokens |
+| 6 | Memory | `SGLANG_AITER_KV_CACHE_LAYOUT=vectorized_5d` | Vectorised 5D KV layout aligned to `global_load_dwordx4` wavefront lanes; prerequisite of the FlyDSL kernel — FP8 KV, the 5D layout and FlyDSL PA always appear together | Changing any one of the three alone fails at start-up or silently falls back |
+| 7 | Memory | `--page-size 32` in the PD launchers, `--page-size 64` in the accuracy launchers | Larger pages cut page-table overhead and batch the Mooncake KV transfer; `ck_tile.patch` adds the page-64 / head-192 prefill tile | Same value on both PD roles; tile name in the JIT object list |
+| 8 | Algorithm | `--speculative-algorithm EAGLE --speculative-num-steps 3 --speculative-eagle-topk 1 --speculative-num-draft-tokens 4 --enable-multi-layer-eagle` | MiMo's own 3-layer MTP draft; real acceptance in accuracy runs, `SGLANG_SIMULATE_ACC_LEN=3` only in throughput runs | `accept len` in the scheduler log; the simulation variables are unset in the accuracy launchers |
+| 9 | Algorithm | `--chunked-prefill-size` 32768 on the Prefill role, 16384 on the Decode role, 65536 in the unified accuracy server | Bounds the Prefill peak so 256K prompts do not run out of memory; the value must satisfy the runtime's dispatch limits — copying the H200 value verbatim failed at start-up | `--max-prefill-tokens` and `/server_info` |
+| 10 | System | `--disaggregation-mode prefill` / `decode`, `--disaggregation-transfer-backend mooncake`, `--disaggregation-ib-device mlx5_ib0…mlx5_ib7` | Prefill KV moves to the Decode node over RDMA | Eight `RDMA device: mlx5_ib*` lines and no `fallback` to TCP marker — the TCP fallback cuts throughput to about one third without raising an error |
+| 11 | System | `SGLANG_MOE_PADDING=1`, `SGLANG_SET_CPU_AFFINITY=1`, `HSA_NO_SCRATCH_RECLAIM=1`, `MC_GID_INDEX=3` | Expert-dimension padding, NUMA pinning, no HSA scratch reclaim during long runs, Mooncake GID selection | `env` inside the container compared before every differential; a missing variable shows up as "runs but slow" |
+| 12 | System | `--disable-overlap-schedule` in the PD launchers; overlap enabled in the accuracy launchers | The overlap path hit a HIP crash on the Prefill role; disabled where it crashed, kept where it was stable | Differential on the Prefill role |
+| 13 | System | `SGLANG_SCHEDULER_SKIP_ALL_GATHER=1` in the MTP-on accuracy wrapper | Skips the per-step 7-int scheduler all-gather that timed out near 200K tokens at data-parallel 1; located in SGLang source, not a patch | No `_ALLGATHER_BASE` timeout in the full run |
+
+### Long-Context Method: Five Steps Before a Number Is Reported
+
+1. **Freeze the workload semantics.** Prefill is 262,144 input tokens plus 1 output token; Decode is 261,120 input plus 1,024 output; `--random-range-ratio 1.0`, a fixed seed and `--tokenize-prompt`, and `/server_info` must show `max_req_input_len` at or above 262,145 before the client starts.
+2. **Bound the Prefill peak** with chunked prefill sized for the runtime, not copied from the H200 configuration.
+3. **Confirm capacity, not concurrency.** Read live `max_total_num_tokens`, record peak KV usage and read the actual Decode batch from `#running-req`; at 256K a client concurrency of 4 still ran at batch 1 because KV was the limit.
+4. **Tune both hot spots.** Long inputs raise attention share, so AITER attention and FlyDSL PA matter; large Prefill token batches keep the grouped GEMM share high, so the tuned MoE table still matters.
+5. **Separate "kernel runs" from "PD path sustains".** Each context length is tested as one request, then sequential requests, then concurrent requests, then a fresh-service repeat; 256K Prefill c4 failed twice with AMDGPU page faults and is published as `REJECTED_BOUNDARY` instead of an estimate.
+
+### Parallelism Decision: TP8 First
+
+| Situation | Choice made here | Reason |
+|---|---|---|
+| One node, stability first | TP8 | 8 GPUs per node, `num_key_value_heads=8` maps cleanly, AITER / MTP / Paged Attention were validated most on this shape |
+| One node, MoE at high concurrency | TP8 plus local EP8 as an A/B | A May MORI-EP8 probe improved BS32 TPOT from 52.98 ms to 47.87 ms (about 10%), but only under stable routing |
+| Two nodes, more Prefill | TP8 per node behind a router (DP=2) | Clear failure domains; no cross-node collective in the hot path |
+| Two nodes, cross-node EP | Not a default production route | TCPStore resolution, MORI shared-memory heap, RCCL timeouts and HIP graph capture conflicts were all hit; H200's EP16 / EP32 are global topology fields and do not map to SGLang's local `--ep-size` |
+
+### SWE-bench Engineering: What Broke and What Fixed It
+
+| Failure observed | Root cause | Fix carried into the recorded runs |
+|---|---|---|
+| Prefill detokenizer stalled after repeated health polling | SGLang defaults `SGLANG_ENABLE_HEALTH_ENDPOINT_GENERATION=True`, so every `/health` probe generated a real token | Set it to `0`; monitor with the non-generating `/server_info` |
+| TP ranks stuck in ROCm `wait_on_page_bit_common` during weight load | Multithreaded safetensors loading on HMM; omitting the option does not disable it | `--model-loader-extra-config '{"enable_multithread_load": false}'` on the PD roles |
+| HIP illegal address in the overlap scheduler path on the Prefill role | Overlap scheduling on ROCm for this model | `--disable-overlap-schedule` where it crashed (see switch 12) |
+| A 351,703-token conversation truncated at `max_req_input_len=348,538` | GPU KV pool too small for one active agent conversation; host-side cache does not enlarge it | Memory fraction 0.85 → 0.90, live capacity 575,360 tokens, start-up gate at 524,288 |
+| Scheduler `_ALLGATHER_BASE` timeout near 200K tokens | Per-step 7-int state all-gather at data-parallel 1 | `SGLANG_SCHEDULER_SKIP_ALL_GATHER=1` (switch 13) |
+| Requests with `temperature=1.0` were verified greedily on HIP | The HIP EAGLE path had no stochastic verifier and fell back silently | Opt-in Torch stochastic verifier, fork commit `878fff156`, enabled by `SGLANG_MIMO_EAGLE_HIP_NONGREEDY_VERIFY=1` |
+| Lossy INT8 collective in accuracy runs | ROCm Quick Reduce defaults to INT8 compression | `ROCM_QUICK_REDUCE_QUANTIZATION=NONE` in the accuracy wrapper |
+| Agent loops at the 500-step limit with MTP on before the verifier fix | In a 5-case isolation probe, turning MTP off cut average agent calls from 500 to 95.3 while raw decode throughput fell 40%–54% | Both MTP-off and MTP-on-with-verifier full runs finished with 0 `LimitsExceeded`; agent tasks per hour, not tokens per second, is the metric that matters here |
+| Node crash left the run idle for hours | No supervisor; a single shell command owned 499 cases | Per-node systemd guards: restart the model, re-verify the runtime contract, resume from `results.json`, never rescore a completed case — 37 recoveries during the MTP-off run with no case lost |
 
 ---
 
@@ -792,6 +916,7 @@ The two diagrams are reproducible with `python3 scripts/generate_batching_diagra
 | GEMM path | **CK A8W8 blockwise bpreshuffle** | `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1` |
 | Mooncake | `0.3.7.post2` | KV cache transfer for PD disaggregation |
 | PyTorch | 2.9.1+rocm7.2.0 | ROCm backend |
+| Accuracy runtime (SWE-bench route) | `sglang_0625` container: SGLang fork `878fff156`, AITER fork `3f4ab482a`, FlyDSL `0.2.4`, `mimo-flydsl-kernels 0.1.0+c99d5cd` | Rebuilt from [scripts/swebench/runtime-recipe/](scripts/swebench/runtime-recipe/); base image pinned by digest |
 
 ### Model
 
@@ -1011,6 +1136,69 @@ python3 validate_service_logs.py \
 
 A DP=2 point is reportable only when the client gate passes, both worker deltas are positive and sum to 33 requests (32 measured + 1 warmup), and the service-log gate passes.
 
+### SWE-bench Accuracy Route (Single-Node TP8)
+
+This route reproduces the accuracy runs in the Executive Summary. It needs one MI300X node per server (the recorded runs used two nodes only to halve wall-clock), the model weights under `/data/models/MiMo-V2.5-Pro`, the customer's mini-swe-agent image with its `run_batch_flash.sh`, `swe_flash.yaml` and `exp_stats.py`, and the runtime bundle delivered on 2026-08-10 for the two private FlyDSL wheels and the prebuilt AITER JIT tree. Everything else is in [scripts/swebench/](scripts/swebench/).
+
+**1. Rebuild and start the serving container.** The Dockerfile pins the base image by digest and layers the SGLang fork at `878fff156`, the AITER fork at `3f4ab482a` and the CK page-64 / head-192 tile; `docker-run.sh` applies the host settings the AITER path needs (`--privileged`, `/dev/mem`, `CAP_SYS_ADMIN` — without them throughput drops to roughly one third).
+
+```bash
+cd scripts/swebench/runtime-recipe
+sha256sum -c ../SHA256SUMS.txt
+# Place the delivered runtime/, decode_server_scripts/ and swebench/ trees next to the Dockerfile first.
+docker build -t mimo-mi300x:20260810 .
+# The /data bind mount hides the image's copy of the AMD scripts; keep a host copy where the wrapper expects it.
+mkdir -p /data/xisun && cp -r decode_server_scripts /data/xisun/
+IMAGE=mimo-mi300x:20260810 NAME=sglang DATA=/data bash docker-run.sh
+docker exec sglang bash -lc 'test "$(git -C /sgl-workspace/sglang_0625 rev-parse --short=9 HEAD)" = 878fff156 && test "$(git -C /sgl-workspace/aiter_0625 rev-parse --short=9 HEAD)" = 3f4ab482a && python3 -c "import importlib.metadata as m; print(m.version(\"flydsl\"), m.version(\"mimo-flydsl-kernels\"))"'
+```
+
+Expected: `0.2.4 0.1.0+c99d5cd` on the last line; any failed `test` stops here.
+
+**2. Start the server in the mode you want to reproduce.** Run from the repository root. Both launchers listen on port `30001` and log to `LOG_DIR` / `MODEL_LOG`.
+
+```bash
+# MTP on (366/499 run): AMD accuracy launcher behind the wrapper that enables the
+# non-greedy verifier and the accuracy-safe collectives.
+docker exec -d -e NODE_ID=node-a -e RUN_ID=repro-$(date -u +%Y%m%dT%H%M%SZ) \
+  -e MODEL_LOG=/data/logs/mtp-on/server.log sglang \
+  /bin/bash /opt/mimo-swebench/launch_mtp_nongreedy_wrapper.sh
+
+# MTP off (370/499 run): same stack without --speculative-* flags.
+docker cp scripts/swebench/launch_tp8_no_mtp_accuracy.sh sglang:/opt/mimo-swebench/
+docker exec -d -e MODEL_LOG=/data/logs/mtp-off/server.log sglang \
+  /bin/bash /opt/mimo-swebench/launch_tp8_no_mtp_accuracy.sh
+```
+
+Model load takes about 3 minutes from a warm page cache and longer from cold disk. Wait until `curl -s http://127.0.0.1:30001/v1/models` returns HTTP 200; do not poll `/health` in the MTP-off mode, where health generation is not disabled.
+
+**3. Verify the runtime contract before the harness starts.** Run on the serving host so `/proc` of the server process is visible:
+
+```bash
+python3 scripts/swebench/verify_runtime_contract.py --mode mtp-on  --url http://127.0.0.1:30001
+python3 scripts/swebench/verify_runtime_contract.py --mode mtp-off --url http://127.0.0.1:30001
+```
+
+Expected: `SWEBENCH_RUNTIME_CONTRACT=PASS mode=<mode> port=30001` after the `server_info.*` lines; any `FAIL` line means the running server is not the recorded configuration.
+
+**4. Run the customer's harness unchanged against the endpoint.** Inside the customer's mini-swe-agent container, point the OpenAI-compatible base URL at `http://<node-ip>:30001/v1` with the model name the server reports (`/data/models/MiMo-V2.5-Pro` for the AMD launcher), keep `example_configs/swe_flash.yaml` and `run_batch_flash.sh` as shipped, and give the run a fresh output name. The recorded runs used 5 workers per node and split the 499 instances 250 / 249 across two servers; a single server can take all 499 with the same `--workers 5`. Outputs land in `outputs/<run-name>/<instance_id>/` as `<instance_id>.traj.json`, `<instance_id>.log` and `reward_extra_info.json`.
+
+**5. Score with the customer's rule, then cross-check.**
+
+```bash
+# Inside the customer's mini-swe-agent container, from the repository root of that image:
+RUN_NAME=my-mi300x-run
+python scripts/exp_stats.py "$RUN_NAME"
+# Expected shape of the summary block: "Passed: <n> / 499 (<pct>%)" and "Average steps: <x>".
+
+# From this repository, after packing outputs/$RUN_NAME as swelog/$RUN_NAME/... into a tar.gz:
+python3 scripts/summarize_swebench_swelog.py --tarball "swelog-$RUN_NAME.tar.gz" --label "$RUN_NAME" --output-dir /tmp/swebench-repro
+```
+
+The recorded scorer output for the MTP-off run is in [`data/swebench/exp_stats-output.txt`](data/swebench/exp_stats-output.txt): `Passed: 370 / 499 (74.15%)`, `Average steps: 77.62`. A fresh run at temperature 1.0 will not reproduce these counts case for case; compare your score with both recorded runs and with the 4-case spread between them.
+
+**Stop.** `docker rm -f sglang` stops the server and releases the GPUs; the harness containers exit on their own.
+
 ### Cleanup
 
 ```bash
@@ -1029,6 +1217,42 @@ docker rm -f mimo-mi300x
 
 ---
 
+## Test Guide
+
+All checks below run on a laptop without a GPU, credentials or network access; they verify the committed evidence and the scripts, not live serving. Live serving is verified only by the reproduction routes above. Clone with Git LFS installed (`git lfs install` before `git clone`): the monorepo stores every `*.json` and `*.tsv` evidence file in LFS, and a clone without LFS leaves pointer files that the checks below reject.
+
+| Check | Command (from this directory) | What it proves | Expected terminal line |
+|---|---|---|---|
+| Repository validator | `python3 scripts/validate_repo.py` | README and README-CN carry the same tables, numbers, links and commands; every throughput headline equals its TSV / JSON source; hash manifests match; bash blocks parse; no private identifiers; unit tests pass | `REPO_VALIDATION=PASS` |
+| SWE-bench summary replay | `python3 scripts/summarize_swebench_swelog.py --check data/swebench` | Both scores, fail counts and average steps are recomputed from the committed per-case TSVs and equal `summary.json`; a changed TSV fails the hash check | `SWEBENCH_SUMMARY=PASS` |
+| Exact 64K A/B replay | `python3 scripts/analyze_exact64_evidence.py` | Rebuilds 933.75 / 743.12 tok/s and the 25.7% uplift from the sanitized scheduler windows | JSON with `"status": "PASS"` |
+| Controlled ISL replay | `python3 scripts/analyze_controlled_isl_evidence.py` | Rebuilds the 128K → 192K deltas from the committed client and scheduler windows | JSON with `"status": "PASS"` |
+| Optimization-evolution data | `python3 scripts/validate_optimization_evolution.py` | The evolution documents and diagram are regenerated from `data/optimization-evolution.json` and match the committed files | `OPTIMIZATION_EVOLUTION_DATA=PASS` |
+| Unit tests | `python3 -m unittest discover -s tests -p 'test_*.py'` | Hash helper and evolution renderer behave as documented | `OK` |
+| Script bundles | `(cd scripts/amd-latest && sha256sum -c SHA256SUMS.txt)` and `(cd scripts/swebench && sha256sum -c SHA256SUMS.txt)` | The launch and benchmark scripts are the published bytes; run on a checkout with LF line endings, because `validate_repo.py` applies the same check with LF normalisation while raw `sha256sum` does not | every line `OK` |
+
+Not covered by these checks: GPU execution, the private container image, the FlyDSL wheels, the customer's harness image, and run-to-run variance of temperature 1.0 sampling. The validator is fail-closed: it exits non-zero on the first assertion that does not hold and must run under normal Python (not `-O`).
+
+---
+
+## Repository Layout
+
+| Path | Role |
+|---|---|
+| [README.md](README.md) / [README-CN.md](README-CN.md) | This report in English and Chinese, kept in structural and numeric parity by the validator |
+| [docs/optimization-evolution.md](docs/optimization-evolution.md), [docs/optimization-evolution-CN.md](docs/optimization-evolution-CN.md) | Ordered evolution map of the serving stack with public source bindings; generated from `data/optimization-evolution.json` |
+| [data/final-results.tsv](data/final-results.tsv), [data/scalability-results.tsv](data/scalability-results.tsv), [data/long-isl/](data/long-isl/) | Headline and full-matrix throughput rows with per-point hashes |
+| [data/validation/](data/validation/) | Container identity, `/server_info` captures, service-log audits, H200 reference excerpts, exact-token 256K evidence |
+| [data/evidence/](data/evidence/) | Sanitized client and scheduler windows behind the exact 64K A/B and the controlled 128K / 192K points |
+| [data/swebench/](data/swebench/) | Per-case SWE-bench results for both runs, the aggregate summary with method hashes, and the customer scorer's recorded output |
+| [scripts/amd-latest/](scripts/amd-latest/) | Launch, benchmark and validation scripts for the 1P1D, DP=2 and single-node throughput routes |
+| [scripts/swebench/](scripts/swebench/) | Container recipe, accuracy launchers and the runtime-contract verifier for the SWE-bench route |
+| [scripts/](scripts/) | Analyzers, diagram generators, the evolution renderer and `validate_repo.py` |
+| [tests/](tests/) | Unit tests executed by the validator |
+| [images/](images/) | Architecture, batching and evolution diagrams |
+
+---
+
 ## References
 
 - [Azure ND-MI300X-v5 size series](https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/ndmi300xv5-series)
@@ -1037,4 +1261,8 @@ docker rm -f mimo-mi300x
 - [AMD SGLang Fork — `mimo_aiter_attn` branch](https://github.com/sammysun0711/sglang/tree/mimo_aiter_attn)
 - [AMD aiter (ROCm)](https://github.com/ROCm/aiter)
 - [MiMo model-specific fused-MoE tuning — `aiter@d725746`](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9)
+- [HIP non-greedy EAGLE verifier fix — `sglang@878fff156`](https://github.com/sammysun0711/sglang/commit/878fff15647fe3dabb32aa3a335b0ad16e3ee878)
+- [MiMo SWE-bench evaluation defaults — `sglang@b0f860b8`](https://github.com/sammysun0711/sglang/commit/b0f860b81104eb3e9aae40cce391e56443e2d688)
+- [SWE-bench Verified](https://huggingface.co/datasets/princeton-nlp/SWE-bench_Verified)
+- [mini-swe-agent](https://github.com/SWE-agent/mini-swe-agent)
 - [SGLang PD Disaggregation Docs](https://docs.sglang.io/docs/advanced_features/pd_disaggregation.md)
