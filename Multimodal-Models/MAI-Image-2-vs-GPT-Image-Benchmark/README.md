@@ -272,7 +272,7 @@ MAI uses `/mai/v1/images/edits` and GPT uses `/openai/deployments/gpt-image-2/im
 
 **Protocol correction**
 
-The first run passed `size=1024x1024` to the three GPT tiers. That is not an endpoint requirement — the gpt-image-2 edit endpoint accepts arbitrary resolutions and `auto` — it was this test's default. It forced the 16:9 input into a square, so GPT recomposed and repainted the whole frame and kept 0/5, 1/5, 0/5, 0/5, 0/5, 0/5 preservation items across six calls. That result measured the parameter, not the model. MAI's edit endpoint has no size parameter, so it was never under that constraint. This run sets GPT to `size=auto` so both sides let the service choose, which is the only symmetric contract. The original run is kept as evidence of the confound.
+The first run passed `size=1024x1024` to the three GPT tiers, forcing the 16:9 input into a square. MAI's edit endpoint has no size parameter and was never under that constraint, so this was a one-sided constraint and the two baselines were not comparable. Those outputs reflect a parameter this test filled in wrongly rather than model behaviour; their 0/5, 1/5, 0/5, 0/5, 0/5, 0/5 preservation counts across six calls are superseded in full and are kept out of the model comparison. This run sets GPT to `size=auto`, matching MAI's service-chosen sizing, which is the only symmetric contract. The original run remains archived as the record of that parameter mistake.
 
 ![Scenario 12 results under size=auto](data/edit-hat-swap-20260909-auto/figures/scenario12-auto-results.png)
 
