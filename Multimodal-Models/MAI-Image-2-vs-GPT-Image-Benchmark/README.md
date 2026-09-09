@@ -268,71 +268,75 @@ The identical prompt sent to all four configurations:
 
 **Controlled variables**
 
-MAI uses `/mai/v1/images/edits` and GPT uses `/openai/deployments/gpt-image-2/images/edits`; the three GPT tiers differ only in `quality` and pass `size=1024x1024` as that endpoint requires, while the MAI endpoint has no size parameter and the service chose the output dimensions. Each configuration was called once per round, over 2 rounds.
+MAI uses `/mai/v1/images/edits` and GPT uses `/openai/deployments/gpt-image-2/images/edits`. The three GPT tiers differ only in `quality` and pass `size=auto`, so the service chooses the output dimensions; the MAI edit endpoint has no size parameter and the service likewise chooses. Both sides are therefore under the same contract: neither was told to produce a fixed size. Each configuration was called once per round, over 2 rounds.
+
+**Protocol correction**
+
+The first run passed `size=1024x1024` to the three GPT tiers. That is not an endpoint requirement — the gpt-image-2 edit endpoint accepts arbitrary resolutions and `auto` — it was this test's default. It forced the 16:9 input into a square, so GPT recomposed and repainted the whole frame and kept 0/5, 1/5, 0/5, 0/5, 0/5, 0/5 preservation items across six calls. That result measured the parameter, not the model. MAI's edit endpoint has no size parameter, so it was never under that constraint. This run sets GPT to `size=auto` so both sides let the service choose, which is the only symmetric contract. The original run is kept as evidence of the confound.
 
 | Input photograph |
 | --- |
-| ![Input photograph](data/edit-hat-swap-20260908/input.jpg) |
+| ![Input photograph](data/edit-hat-swap-20260909-auto/input.jpg) |
 
 **Round 1:**
 
 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
 | --- | --- | --- | --- |
-| ![MAI-Image-2.6, edit round 1](data/edit-hat-swap-20260908/01_mai-image-2.6.png) | ![GPT-Image-2 low, edit round 1](data/edit-hat-swap-20260908/02_gpt-image-2-low.png) | ![GPT-Image-2 medium, edit round 1](data/edit-hat-swap-20260908/03_gpt-image-2-medium.png) | ![GPT-Image-2 high, edit round 1](data/edit-hat-swap-20260908/04_gpt-image-2-high.png) |
-| 34.94 s<br>1585 KiB<br>1360x768 | 29.55 s<br>1725 KiB<br>1024x1024 | 57.71 s<br>1641 KiB<br>1024x1024 | 162.65 s<br>1566 KiB<br>1024x1024 |
+| ![MAI-Image-2.6, edit round 1](data/edit-hat-swap-20260909-auto/01_mai-image-2.6.png) | ![GPT-Image-2 low, edit round 1](data/edit-hat-swap-20260909-auto/02_gpt-image-2-low.png) | ![GPT-Image-2 medium, edit round 1](data/edit-hat-swap-20260909-auto/03_gpt-image-2-medium.png) | ![GPT-Image-2 high, edit round 1](data/edit-hat-swap-20260909-auto/04_gpt-image-2-high.png) |
+| 34.94 s<br>1585 KiB<br>1360x768 | 32.89 s<br>2411 KiB<br>1672x941 | 44.77 s<br>2373 KiB<br>1672x941 | 109.48 s<br>2167 KiB<br>1672x941 |
 
 | Checklist | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
 | --- | --- | --- | --- | --- |
-| Preservation items kept | 5/5 | 0/5 | 1/5 | 0/5 |
+| Preservation items kept | 5/5 | 5/5 | 5/5 | 5/5 |
 | Headwear became a graduation cap | yes | yes | yes | yes |
-| Face and beard preserved | yes | no | no | no |
-| Robe embroidery preserved | yes | no | no | no |
-| Bystanders and background unchanged | yes | no | no | no |
-| Title and seal preserved | yes | no | yes | no |
-| Input aspect ratio kept | yes | no | no | no |
+| Face and beard preserved | yes | yes | yes | yes |
+| Robe embroidery preserved | yes | yes | yes | yes |
+| Bystanders and background unchanged | yes | yes | yes | yes |
+| Title and seal preserved | yes | yes | yes | yes |
+| Input aspect ratio kept | yes | yes | yes | yes |
 
 | Configuration | Observation |
 | --- | --- |
-| MAI-Image-2.6 | The crown becomes a black graduation cap with a tassel. Face, beard, expression, robe embroidery, the spear-bearing guards on the left, the purple-robed figure on the right, the gallery architecture and the title and seal in the top-left all match the input, and the output keeps the input's 16:9 framing (1360x768). The appearance is consistent with a local repaint. |
-| GPT-Image-2 low | A graduation cap appears, but the whole frame is recomposed as a 1024x1024 square: the subject is enlarged and centred, the facial features differ from the input, the robe embroidery is redrawn, the guard column on the left is replaced by a different red-and-black group, the purple-robed figure and the gallery on the right are gone, and the title and seal are gone. |
-| GPT-Image-2 medium | A graduation cap appears and the title and seal in the top-left survive, with framing closer to the input than the low tier. But the face and beard are redrawn, the robe embroidery differs, the guards on the left are rearranged, the figures and architecture on the right do not match the input, and the output is a 1024x1024 square. |
-| GPT-Image-2 high | A graduation cap appears and the gold robe embroidery is the most finely rendered of the four, but the frame is regenerated: the subject now stands frontally with a different face, the guards on the left are a different column, two red-robed attendants are added, the background architecture does not match the input, the title and seal are gone, and the output is a 1024x1024 square. |
+| MAI-Image-2.6 | The crown becomes a black graduation cap with a tassel. Face, beard, expression, robe embroidery, the spear-bearing guards on the left, the purple-robed figure on the right and the gallery are all in place; the output keeps 16:9 (1360×768). The title and seal sit in the top-left; THE ADVISORS ALLIANCE is legible but its strokes are softened and the four Chinese characters are distorted. Record and PNG carried over unchanged from the 2026-09-08 round 1. |
+| GPT-Image-2 low | Graduation cap present. Face, beard, robe embroidery, the guard column on the left, the purple-robed figure and gallery on the right are all in place; output 1672×941, same aspect ratio as the input. THE ADVISORS ALLIANCE reads letter-for-letter, the four Chinese characters are close to the input, and the seal is in place. |
+| GPT-Image-2 medium | Graduation cap present. Subject, robe, guards, right-side figures and architecture all in place; output 1672×941. The Latin title is reproduced letter-for-letter, the Chinese characters are close to the input, and the seal is in place. |
+| GPT-Image-2 high | Graduation cap present. Subject, robe, guards, right-side figures and architecture all in place; output 1672×941. The Latin title is reproduced letter-for-letter, the Chinese characters are close to the input, and the seal is in place. The gold embroidery is sharper than the input, which is a consequence of upscaled regeneration. |
 
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
 | --- | --- | --- | --- |
-| ![MAI-Image-2.6, edit round 2](data/edit-hat-swap-20260908/r2/04_mai-image-2.6.png) | ![GPT-Image-2 low, edit round 2](data/edit-hat-swap-20260908/r2/03_gpt-image-2-low.png) | ![GPT-Image-2 medium, edit round 2](data/edit-hat-swap-20260908/r2/02_gpt-image-2-medium.png) | ![GPT-Image-2 high, edit round 2](data/edit-hat-swap-20260908/r2/01_gpt-image-2-high.png) |
-| 36.91 s<br>1618 KiB<br>1360x768 | 27.73 s<br>1748 KiB<br>1024x1024 | 58.61 s<br>1478 KiB<br>1024x1024 | 165.15 s<br>1672 KiB<br>1024x1024 |
+| ![MAI-Image-2.6, edit round 2](data/edit-hat-swap-20260909-auto/r2/04_mai-image-2.6.png) | ![GPT-Image-2 low, edit round 2](data/edit-hat-swap-20260909-auto/r2/03_gpt-image-2-low.png) | ![GPT-Image-2 medium, edit round 2](data/edit-hat-swap-20260909-auto/r2/02_gpt-image-2-medium.png) | ![GPT-Image-2 high, edit round 2](data/edit-hat-swap-20260909-auto/r2/01_gpt-image-2-high.png) |
+| 36.91 s<br>1618 KiB<br>1360x768 | 27.91 s<br>2406 KiB<br>1672x940 | 46.36 s<br>2388 KiB<br>1672x940 | 110.84 s<br>2119 KiB<br>1672x941 |
 
 | Checklist | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
 | --- | --- | --- | --- | --- |
-| Preservation items kept | 5/5 | 0/5 | 0/5 | 0/5 |
+| Preservation items kept | 5/5 | 5/5 | 5/5 | 5/5 |
 | Headwear became a graduation cap | yes | yes | yes | yes |
-| Face and beard preserved | yes | no | no | no |
-| Robe embroidery preserved | yes | no | no | no |
-| Bystanders and background unchanged | yes | no | no | no |
-| Title and seal preserved | yes | no | no | no |
-| Input aspect ratio kept | yes | no | no | no |
+| Face and beard preserved | yes | yes | yes | yes |
+| Robe embroidery preserved | yes | yes | yes | yes |
+| Bystanders and background unchanged | yes | yes | yes | yes |
+| Title and seal preserved | yes | yes | yes | yes |
+| Input aspect ratio kept | yes | yes | yes | yes |
 
 | Configuration | Observation |
 | --- | --- |
-| MAI-Image-2.6 | The crown becomes a black graduation cap with a tassel. Face, beard, expression, robe embroidery, the spear-bearing guards on the left, the purple-robed figure on the right, the gallery architecture and the title and seal in the top-left all sit where the input has them, and the output keeps the input's 16:9 framing (1360x768). The title glyphs are slightly softened by the upscale but remain in place. The outcome repeats the round-1 MAI output. |
-| GPT-Image-2 low | A graduation cap appears. The output is a 1024x1024 square with a composition close to the round-2 medium and high outputs: frontal pose, redrawn face and beard, different robe embroidery, a green-and-gold guard column on the left, a black-robed crowd plus a purple-robed figure on the right, and the title and seal are gone. Round-1 low enlarged and centred the subject with a red-and-black guard column; round 2 sits closer to the input framing, so the low tier's output is not stable across rounds. |
-| GPT-Image-2 medium | A graduation cap appears. The output is a 1024x1024 square with a composition close to the round-2 high output: frontal pose, redrawn face and beard, different robe embroidery, the left guards become a green-and-gold column, the right side is a black-robed crowd plus a purple-robed figure, and the title and seal are gone. Round-1 medium kept the title and seal; round 2 did not. |
-| GPT-Image-2 high | A graduation cap appears. The frame is regenerated as a 1024x1024 square: the subject now stands frontally with a different face and beard, the robe embroidery is redrawn, the guards on the left become a different column in green-and-gold headdresses, the right side becomes a black-robed crowd plus one purple-robed figure, the gallery and lantern do not match the input, and the title and seal are gone. Composition is close to the round-1 high output but the details differ. |
+| MAI-Image-2.6 | The crown becomes a black graduation cap with a tassel. Face, beard, robe embroidery, guards, right-side figures and gallery are all in place; the output keeps 16:9 (1360×768). Title and seal in place; the word ALLIANCE has visibly softened, near-merged strokes and the four Chinese characters are distorted. Record and PNG carried over unchanged from the 2026-09-08 round 2. |
+| GPT-Image-2 low | Graduation cap present. Subject, robe, guards, right-side figures and architecture all in place; output 1672×940, with slightly greyer temples. The title renders ADVISORS as ASVISORS, the Chinese characters are slightly distorted, and the seal is in place. |
+| GPT-Image-2 medium | Graduation cap present. Subject, robe, guards, right-side figures and architecture all in place; output 1672×940. The title gains an apostrophe and reads THE ADVISOR'S ALLIANCE; the Chinese characters are close to the input and the seal is in place. |
+| GPT-Image-2 high | Graduation cap present. Subject, robe, guards, right-side figures and architecture all in place; output 1672×941. Latin title letter-for-letter, Chinese characters close to the input, seal in place. Consistent with round-1 high. |
 
 | Across rounds | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
 | --- | --- | --- | --- | --- |
-| Items kept (per round) | 5/5 / 5/5 | 0/5 / 0/5 | 1/5 / 0/5 | 0/5 / 0/5 |
-| Latency per round | 34.94 s / 36.91 s | 29.55 s / 27.73 s | 57.71 s / 58.61 s | 162.65 s / 165.15 s |
+| Items kept (per round) | 5/5 / 5/5 | 5/5 / 5/5 | 5/5 / 5/5 | 5/5 / 5/5 |
+| Latency per round | 34.94 s / 36.91 s | 32.89 s / 27.91 s | 44.77 s / 46.36 s | 109.48 s / 110.84 s |
 | Graduation cap present | 2/2 | 2/2 | 2/2 | 2/2 |
 
-Every configuration produced the graduation cap in every round. The difference is in everything else: the MAI output matches the input item by item in both rounds and looks like a local repaint; no GPT tier kept every preservation item in any round; all three regenerate the whole frame around the theme. This prompt asked to preserve the input, so departure is non-compliance here; a prompt asking for a reinterpretation would judge these same images differently.
+All four configurations produced the graduation cap in both rounds and kept every one of the five preservation items — face, robe, bystanders and background, title and seal, input aspect ratio — so all eight outputs score 5/5. Three differences remain. Output resolution: the GPT tiers chose 1672×941 (about 1.57 MP) while MAI returned 1360×768 (1.04 MP, the endpoint's 1,048,576-pixel ceiling). Title glyphs: GPT medium and high reproduce the Latin title letter-for-letter in both rounds; GPT low round 2 renders ADVISORS as ASVISORS and GPT medium round 2 adds an apostrophe; MAI keeps the Latin text legible but softens the strokes and visibly distorts the four Chinese characters in both rounds. Latency: MAI about 35 s; GPT low 28–33 s, medium 45–46 s, high 109–111 s. The prompt asked to preserve the input, and on the five-item checklist the eight outputs do not differ; title glyph fidelity is outside the checklist and is reported as an observation only.
 
 2 rounds with one call per configuration per round; two rounds show whether the outcome repeats and are not a statistical sample. Observations are unblinded and describe departures from the input, not image quality. Latency is client-side `requests.post` round-trip time; GPT ran in East US 2 and MAI in Sweden Central from the same workstation, so region is not separated out. No output PNG carries an alpha channel.
 
-[Request records round 1](data/edit-hat-swap-20260908/edit-results.json) | [Per-image checklist round 1](data/edit-hat-swap-20260908/edit-review.json) | [Request records round 2](data/edit-hat-swap-20260908/r2/edit-results.json) | [Per-image checklist round 2](data/edit-hat-swap-20260908/r2/edit-review.json) | [Probe script](data/edit-hat-swap-20260908/source/probe_edit_hat_swap.py)
+[Request records round 1](data/edit-hat-swap-20260909-auto/edit-results.json) | [Per-image checklist round 1](data/edit-hat-swap-20260909-auto/edit-review.json) | [Request records round 2](data/edit-hat-swap-20260909-auto/r2/edit-results.json) | [Per-image checklist round 2](data/edit-hat-swap-20260909-auto/r2/edit-review.json) | [Title-region contact sheet](data/edit-hat-swap-20260909-auto/title-corner-contact-sheet.png) | [Public reproduction runner](scripts/run_edit_hat_swap.py)
 
 ## Current Run: Both Models and All Quality Tiers
 
@@ -482,7 +486,16 @@ Per-scenario descriptions come from [the inspection record](data/paired-all-qual
 | Output | `data[0].b64_json`, PNG | `data[0].b64_json`, PNG |
 | Usage | `usage.num_input_text_tokens`, `usage.num_output_tokens` | `usage.input_tokens_details`, `usage.output_tokens_details` |
 
-## Reproduction and Tests
+## Reproduction How-to and Tests
+
+| Goal | Entry | Credentials / billing | Done when |
+| --- | --- | --- | --- |
+| Verify published evidence | Step 4 | None / no | summaries and regressions return `PASS` |
+| Rerun 11 text-to-image scenarios | Step 3 | MAI + GPT / yes | all 88 formal samples are recorded |
+| Rerun web-grounding comparison | Step 5 | MAI / yes | new directory contains both rounds, off and on |
+| Rerun headwear-swap edit | Step 6 | MAI + GPT / yes | eight PNGs across two rounds pass hash checks |
+
+### 1. Clone and install dependencies
 
 Supply accessible MAI-Image-2.6 and GPT-Image-2 deployments. Verify their underlying model versions; deployment names alone are not model identity. Clone the repository, fetch this project's Git LFS inputs, and install requests in your Python environment:
 
@@ -493,6 +506,8 @@ git lfs install
 git lfs pull --include="Multimodal-Models/MAI-Image-2-vs-GPT-Image-Benchmark/**"
 python -m pip install requests==2.34.2
 ```
+
+### 2. Configure your deployments
 
 Replace the two resource origins and GPT deployment name below. Supply `AZURE_API_KEY` (MAI) and `AZURE_OPENAI_API_KEY` (GPT) in the process through your secret-management mechanism, never source control. Model version, region, SKU and rate-limit metadata must match your verified deployments; the values below describe this measurement, not your resources.
 
@@ -513,6 +528,8 @@ $env:BENCHMARK_CLIENT_LOCATION = 'Describe your actual client location'
 python scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --gpt-model gpt-image-2 --gpt-quality all --dry-run
 ```
 
+### 3. Rerun the 11 text-to-image scenarios
+
 The first model command runs four warmups; the second continues the same output directory through the formal matrix. Both consume Azure service usage. Existing results are not overwritten and recorded samples are not rerun. Resume requires unchanged script, prompts, endpoints and configuration. An interrupted in-flight request may already have reached the service. Save the script and CSV before each new run and keep them unchanged during execution.
 
 ```powershell
@@ -525,6 +542,8 @@ python -u scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --gpt-model gpt
 python scripts/summarize_paired_run.py $run
 ```
 
+### 4. Verify published evidence without model calls
+
 These commands validate saved evidence without model calls. Regressions cover request tiers, failure denominators, original usage, image ownership and report coverage. HTTP mocks exist only in offline tests and do not establish image quality. A new run cannot produce its final summary until every planned sample is recorded.
 
 ```powershell
@@ -532,6 +551,8 @@ python scripts/summarize_paired_run.py data/paired-all-quality-20260907
 python scripts/render_paired_report.py data/paired-all-quality-20260907 --check
 python -m unittest discover -s tests -v
 ```
+
+### 5. Rerun the web-grounding comparison
 
 The web-grounding test needs only the MAI deployment. The first command verifies the existing archive without writing; the second checks parameters without network calls; only the third reruns all three subjects into a new directory, leaving published data unchanged.
 
@@ -541,20 +562,24 @@ python data/lenovo-web-grounding-20260908/source/benchmark_5way_v2.py --mai-mode
 python data/lenovo-web-grounding-20260908/source/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --mai-web-grounding both --prompts-csv data/lenovo-web-grounding-20260908/source/prompts.csv --output runs/web-grounding-reproduction
 ```
 
-Scenario 12 needs both the MAI and GPT deployments. The first command verifies the published input, the four outputs and the request records by hash without network calls; the second calls all four edit endpoints again into a new directory, leaving published data unchanged.
+### 6. Rerun the headwear-swap image edit
+
+Scenario 12 needs both deployments. The first command verifies the eight published outputs across two rounds. The second is a credential-free, network-free, write-free dry run. The third and fourth perform the two live rounds into a new directory; the fifth checks order, `size=auto`, input and output hashes. This does not create a subjective review automatically; quality conclusions still require inspection under the published review method.
 
 ```powershell
-python scripts/summarize_edit_hat_swap.py data/edit-hat-swap-20260908 --check
-python data/edit-hat-swap-20260908/source/probe_edit_hat_swap.py --round 1
-python data/edit-hat-swap-20260908/source/probe_edit_hat_swap.py --round 2
+python scripts/summarize_edit_hat_swap.py data/edit-hat-swap-20260909-auto --check
+python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-20260909-auto/input.jpg --output runs/edit-hat-swap-reproduction --round 1 --gpt-size auto --dry-run
+python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-20260909-auto/input.jpg --output runs/edit-hat-swap-reproduction --round 1 --gpt-size auto
+python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-20260909-auto/input.jpg --output runs/edit-hat-swap-reproduction --round 2 --gpt-size auto
+python scripts/run_edit_hat_swap.py --output runs/edit-hat-swap-reproduction --check
 ```
 
-Runner: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py); offline summary: [summarize_paired_run.py](scripts/summarize_paired_run.py); report rendering: [render_paired_report.py](scripts/render_paired_report.py); regressions: [tests](tests).
+Text-to-image runner: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py); Edit runner: [run_edit_hat_swap.py](scripts/run_edit_hat_swap.py); offline summary: [summarize_paired_run.py](scripts/summarize_paired_run.py); report rendering: [render_paired_report.py](scripts/render_paired_report.py); regressions: [tests](tests).
 
 
 ### Limits
 
-This report compares only MAI-Image-2.6 and GPT-Image-2 at low, medium and high. Scope is eleven text-to-image scenarios at 1024x1024, excluding 2K, editing, multiple reference images, exact-text accuracy, concurrency capacity and other authentication modes. MAI sends no quality parameter and is not labeled as equivalent to GPT high. Every metric uses this four-configuration run only.
+This report compares only MAI-Image-2.6 with GPT-Image-2 low, medium and high. The aggregate metrics come from eleven 1024x1024 text-to-image scenarios; Scenario 12 is a separately reported `size=auto` image-edit test and is excluded from the first eleven scenarios' latency and quality counts. The report does not cover 2K, multiple reference images, exact-text accuracy, concurrency capacity or other authentication modes. MAI sends no quality parameter and is not labeled as equivalent to GPT high.
 
 Evidence directory: [data/paired-all-quality-20260907](data/paired-all-quality-20260907). Contains original images, measurement records, attempts, response metadata and a redacted public source copy. Non-financial measurement fields and image bytes are unchanged; original execution hashes and published-file hashes are recorded separately in [provenance](data/paired-all-quality-20260907/provenance.json). Prompt SHA-256: `be3d628c66a1e4d535d06bcc84246a04aad11f35a48f3133d451fe86283782ce`.
 

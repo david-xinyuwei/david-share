@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 GROUNDING_ARCHIVE = ROOT / "data" / "lenovo-web-grounding-20260908"
-EDIT_ARCHIVE = ROOT / "data" / "edit-hat-swap-20260908"
+EDIT_ARCHIVE = ROOT / "data" / "edit-hat-swap-20260909-auto"
 
 SECTIONS = {
     "README.md": {

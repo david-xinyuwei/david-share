@@ -15,7 +15,7 @@ from summarize_paired_run import GROUPS
 class EditHatSwapEvidenceTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.archive = ROOT / "data" / "edit-hat-swap-20260908"
+        cls.archive = ROOT / "data" / "edit-hat-swap-20260909-auto"
         cls.prefix = f"data/{cls.archive.name}/"
         cls.summary = module.summarize(cls.archive)
 
@@ -49,6 +49,7 @@ class EditHatSwapEvidenceTests(unittest.TestCase):
         return [item for r in self.summary["rounds"] for item in r["outputs"]]
 
     def test_checklist_covers_every_item_in_every_round(self):
+        self.assertEqual(self.summary["gpt_size_parameter"], "auto")
         for item in self._all_outputs():
             self.assertEqual(set(item["checks"]), set(module.REVIEW_CHECKS), item["group"])
             self.assertEqual(item["preserved_total"], 5)
@@ -70,7 +71,7 @@ class EditHatSwapEvidenceTests(unittest.TestCase):
         finally:
             module.hashlib.sha256 = original
 
-    def test_reports_render_test_12_after_test_11_with_all_five_images(self):
+    def test_reports_render_test_12_after_test_11_with_both_rounds(self):
         for filename, heading, previous, following in (
                 ("README.md", "### Test 12: Headwear Swap (Image Edit)", "### Test 11:",
                  "## Current Run: Both Models and All Quality Tiers"),
@@ -98,6 +99,10 @@ class EditHatSwapEvidenceTests(unittest.TestCase):
                 # Same cell format as Tests 1-11: latency, size in KiB, plus pixel size.
                 self.assertIn(f"{item['request_seconds']:.2f} s<br>{item['output_kib']:.0f} KiB<br>"
                               f"{item['width']}x{item['height']}", body, item["group"])
+            self.assertIn("size=auto" if not filename.endswith("CN.md") else "`size` 传 `auto`", body)
+            self.assertIn("Protocol correction" if not filename.endswith("CN.md") else "协议更正", body)
+            self.assertIn(f"{self.prefix}title-corner-contact-sheet.png", body)
+            self.assertNotIn("data/edit-hat-swap-20260908/", body)
             self.assertNotIn("<details", body)
 
     def test_superseded_multi_image_section_is_gone(self):

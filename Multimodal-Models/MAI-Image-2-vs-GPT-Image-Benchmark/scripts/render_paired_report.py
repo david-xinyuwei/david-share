@@ -11,7 +11,7 @@ from summarize_edit_hat_swap import summarize as summarize_edit
 
 LABELS = ("MAI-Image-2.6", "GPT-Image-2 low", "GPT-Image-2 medium", "GPT-Image-2 high")
 GROUNDING_ARCHIVE = "data/lenovo-web-grounding-20260908"
-EDIT_ARCHIVE = "data/edit-hat-swap-20260908"
+EDIT_ARCHIVE = "data/edit-hat-swap-20260909-auto"
 
 
 def table(headers, rows):
@@ -141,9 +141,27 @@ def reproduction_section(archive_path, language, grounding_archive=None, edit_ar
     tests = ("以下命令只重算已保存结果，不调用模型。回归覆盖四档请求、失败分母、原始 usage、图片归属和报告覆盖；模拟 HTTP 只用于离线单元测试，不是图像质量证据。新测批次的汇总与发布必须等全部计划样本结束。"
              if language == "zh" else
              "These commands validate saved evidence without model calls. Regressions cover request tiers, failure denominators, original usage, image ownership and report coverage. HTTP mocks exist only in offline tests and do not establish image quality. A new run cannot produce its final summary until every planned sample is recorded.")
+    route_table = table(
+        [("目标" if language == "zh" else "Goal"),
+         ("入口" if language == "zh" else "Entry"),
+         ("凭据 / 计费" if language == "zh" else "Credentials / billing"),
+         ("完成标志" if language == "zh" else "Done when")],
+        ([
+            ["只读核验已发布证据", "步骤 4", "不需要 / 不计费", "汇总器与回归测试返回 `PASS`"],
+            ["重跑 11 个文生图场景", "步骤 3", "MAI + GPT / 会计费", "88 个正式样本全部记录"],
+            ["重跑联网信息补充测试", "步骤 5", "MAI / 会计费", "新目录包含开／关两轮结果"],
+            ["重跑换帽图像编辑", "步骤 6", "MAI + GPT / 会计费", "两轮 8 张 PNG 通过 hash 检查"],
+        ] if language == "zh" else [
+            ["Verify published evidence", "Step 4", "None / no", "summaries and regressions return `PASS`"],
+            ["Rerun 11 text-to-image scenarios", "Step 3", "MAI + GPT / yes", "all 88 formal samples are recorded"],
+            ["Rerun web-grounding comparison", "Step 5", "MAI / yes", "new directory contains both rounds, off and on"],
+            ["Rerun headwear-swap edit", "Step 6", "MAI + GPT / yes", "eight PNGs across two rounds pass hash checks"],
+        ]))
     grounding = ""
     if grounding_archive:
         grounding = "\n\n".join([
+            ("### 5. 重跑联网信息补充测试" if language == "zh" else
+             "### 5. Rerun the web-grounding comparison"),
             ("联网信息补充测试只需 MAI 部署。第一条只读核验已有归档；第二条只检查参数；第三条才真实重跑完整三题，结果写入新目录，不覆盖已发布数据。"
              if language == "zh" else
              "The web-grounding test needs only the MAI deployment. The first command verifies the existing archive without writing; the second checks parameters without network calls; only the third reruns all three subjects into a new directory, leaving published data unchanged."),
@@ -151,14 +169,23 @@ def reproduction_section(archive_path, language, grounding_archive=None, edit_ar
     multi_image = ""
     if edit_archive:
         multi_image = "\n\n".join([
-            ("第 12 题图像编辑需要 MAI 与 GPT 两个部署。第一条只读核验已发布的输入图、四张输出与请求记录的哈希；"
-             "第二条会真实调用四个配置的编辑接口重跑一遍，结果写入新目录，不覆盖已发布数据。"
+            ("### 6. 重跑换帽图像编辑" if language == "zh" else
+             "### 6. Rerun the headwear-swap image edit"),
+            ("第 12 题需要 MAI 与 GPT 两个部署。第一条只读核验已发布的两轮 8 张输出；第二条是无凭据、无网络、无写入的 dry-run；"
+             "第三、四条分别真实执行两轮并写入新目录；第五条只核对配置顺序、`size=auto`、输入与输出 hash。"
+             "这一步不自动生成主观核对清单，图像质量结论仍需按已发布 review 的方法人工检查。"
              if language == "zh" else
-             "Scenario 12 needs both the MAI and GPT deployments. The first command verifies the published input, "
-             "the four outputs and the request records by hash without network calls; the second calls all four "
-             "edit endpoints again into a new directory, leaving published data unchanged."),
+             "Scenario 12 needs both deployments. The first command verifies the eight published outputs across "
+             "two rounds. The second is a credential-free, network-free, write-free dry run. The third and fourth "
+             "perform the two live rounds into a new directory; the fifth checks order, `size=auto`, input and output "
+             "hashes. This does not create a subjective review automatically; quality conclusions still require "
+             "inspection under the published review method."),
             edit_reproduction_commands(edit_archive)])
-    return f"""## {'复现与测试' if language == 'zh' else 'Reproduction and Tests'}
+    return f"""## {'复现方法（How-to）与测试' if language == 'zh' else 'Reproduction How-to and Tests'}
+
+{route_table}
+
+### {'1. 克隆并安装依赖' if language == 'zh' else '1. Clone and install dependencies'}
 
 {intro}
 
@@ -169,6 +196,8 @@ git lfs install
 git lfs pull --include="Multimodal-Models/MAI-Image-2-vs-GPT-Image-Benchmark/**"
 python -m pip install requests==2.34.2
 ```
+
+### {'2. 配置自己的部署' if language == 'zh' else '2. Configure your deployments'}
 
 {credentials}
 
@@ -189,6 +218,8 @@ $env:BENCHMARK_CLIENT_LOCATION = 'Describe your actual client location'
 python scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --gpt-model gpt-image-2 --gpt-quality all --dry-run
 ```
 
+### {'3. 重跑 11 个文生图场景' if language == 'zh' else '3. Rerun the 11 text-to-image scenarios'}
+
 {continuation}
 
 ```powershell
@@ -200,6 +231,8 @@ python -u scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --gpt-model gpt
 python -u scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --gpt-model gpt-image-2 --gpt-quality all --output $run --resume
 python scripts/summarize_paired_run.py $run
 ```
+
+### {'4. 只读核验已发布证据' if language == 'zh' else '4. Verify published evidence without model calls'}
 
 {tests}
 
@@ -213,7 +246,7 @@ python -m unittest discover -s tests -v
 
 {multi_image}
 
-{'执行脚本' if language == 'zh' else 'Runner'}: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py); {'离线汇总' if language == 'zh' else 'offline summary'}: [summarize_paired_run.py](scripts/summarize_paired_run.py); {'报告生成' if language == 'zh' else 'report rendering'}: [render_paired_report.py](scripts/render_paired_report.py); {'回归测试' if language == 'zh' else 'regressions'}: [tests](tests).
+{'文生图执行脚本' if language == 'zh' else 'Text-to-image runner'}: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py); {'改图执行脚本' if language == 'zh' else 'Edit runner'}: [run_edit_hat_swap.py](scripts/run_edit_hat_swap.py); {'离线汇总' if language == 'zh' else 'offline summary'}: [summarize_paired_run.py](scripts/summarize_paired_run.py); {'报告生成' if language == 'zh' else 'report rendering'}: [render_paired_report.py](scripts/render_paired_report.py); {'回归测试' if language == 'zh' else 'regressions'}: [tests](tests).
 """
 
 
@@ -511,8 +544,8 @@ def render_overview(summary, quality, archive_path, language, has_grounding=Fals
         ["Output", "`data[0].b64_json`, PNG", "`data[0].b64_json`, PNG"],
         ["Usage", "`usage.num_input_text_tokens`, `usage.num_output_tokens`", "`usage.input_tokens_details`, `usage.output_tokens_details`"],
     ])
-    limits = ("本报告只对比 MAI-Image-2.6 与 GPT-Image-2 的 low、medium、high 三档。范围为 11 个文生图场景与 1024x1024，不包括 2K、图像编辑、多图参考、文字准确率专项、并发压测或其他认证方式。MAI 没有传质量参数，不能称为 GPT high 的等价档位。所有指标只使用本次四组测试的数据。"
-              if chinese else "This report compares only MAI-Image-2.6 and GPT-Image-2 at low, medium and high. Scope is eleven text-to-image scenarios at 1024x1024, excluding 2K, editing, multiple reference images, exact-text accuracy, concurrency capacity and other authentication modes. MAI sends no quality parameter and is not labeled as equivalent to GPT high. Every metric uses this four-configuration run only.")
+    limits = ("本报告只对比 MAI-Image-2.6 与 GPT-Image-2 的 low、medium、high 三档。主要聚合统计来自 11 个 1024x1024 文生图场景；第 12 题是单独报告的 `size=auto` 图像编辑测试，不进入前 11 题的耗时与质量计数。本报告不覆盖 2K、多图参考、文字准确率专项、并发压测或其他认证方式。MAI 没有传质量参数，不能称为 GPT high 的等价档位。"
+              if chinese else "This report compares only MAI-Image-2.6 with GPT-Image-2 low, medium and high. The aggregate metrics come from eleven 1024x1024 text-to-image scenarios; Scenario 12 is a separately reported `size=auto` image-edit test and is excluded from the first eleven scenarios' latency and quality counts. The report does not cover 2K, multiple reference images, exact-text accuracy, concurrency capacity or other authentication modes. MAI sends no quality parameter and is not labeled as equivalent to GPT high.")
     heading = lambda english, localized: localized if chinese else english
     return f"""## {title}
 
@@ -625,16 +658,34 @@ def render_edit_scenario(edit, archive_path, language):
     prompt_line = ("发给四个配置的提示词完全相同：" if chinese else
                    "The identical prompt sent to all four configurations:")
     prompt_quote = "> " + " ".join(edit["prompt"].split())
+    gpt_size = edit["gpt_size_parameter"]
+    size_note = (
+        (f"GPT 三档只改 `quality`，`size` 传 `{gpt_size}`，即由服务自选输出尺寸；MAI 的编辑接口没有尺寸参数，"
+         "输出尺寸同样由服务决定。两边因此处于同一合同：都没有被要求输出某个固定尺寸。"
+         if gpt_size == "auto" else
+         f"GPT 三档只改 `quality`，`size` 被本测试固定为 `{gpt_size}`；MAI 的编辑接口没有尺寸参数，输出尺寸由服务决定。"
+         "注意这个 `size` 是本测试的选择，不是接口要求——gpt-image-2 的编辑接口接受任意分辩率和 `auto`。")
+        if chinese else
+        (f"The three GPT tiers differ only in `quality` and pass `size={gpt_size}`, so the service chooses the "
+         "output dimensions; the MAI edit endpoint has no size parameter and the service likewise chooses. Both "
+         "sides are therefore under the same contract: neither was told to produce a fixed size."
+         if gpt_size == "auto" else
+         f"The three GPT tiers differ only in `quality`; `size` was fixed by this test to `{gpt_size}`, while the "
+         "MAI edit endpoint has no size parameter and the service chose the dimensions. That `size` is this "
+         "test's choice, not an endpoint requirement: the gpt-image-2 edit endpoint accepts arbitrary "
+         "resolutions and `auto`.")
+    )
     controlled = (
-        "MAI 走 `/mai/v1/images/edits`，GPT 走 `/openai/deployments/gpt-image-2/images/edits`，"
-        "GPT 三档只改 `quality`，并按其接口要求传 `size=1024x1024`；MAI 接口没有尺寸参数，输出尺寸由服务决定。"
+        f"MAI 走 `/mai/v1/images/edits`，GPT 走 `/openai/deployments/gpt-image-2/images/edits`。{size_note}"
         f"每轮每个配置各调用一次，共 {len(rounds)} 轮。"
         if chinese else
-        "MAI uses `/mai/v1/images/edits` and GPT uses `/openai/deployments/gpt-image-2/images/edits`; the "
-        "three GPT tiers differ only in `quality` and pass `size=1024x1024` as that endpoint requires, while "
-        "the MAI endpoint has no size parameter and the service chose the output dimensions. Each "
-        f"configuration was called once per round, over {len(rounds)} rounds."
+        f"MAI uses `/mai/v1/images/edits` and GPT uses `/openai/deployments/gpt-image-2/images/edits`. {size_note} "
+        f"Each configuration was called once per round, over {len(rounds)} rounds."
     )
+    correction = ""
+    if edit.get("supersedes"):
+        reason = edit["supersedes"]["reason"][language]
+        correction = f"**{'协议更正' if chinese else 'Protocol correction'}**\n\n{reason}"
     check_labels = [
         ("headwear_replaced_with_graduation_cap", "换成博士帽" if chinese else "Headwear became a graduation cap"),
         ("face_and_beard_preserved", "人脸与胡须保留" if chinese else "Face and beard preserved"),
@@ -684,7 +735,7 @@ def render_edit_scenario(edit, archive_path, language):
             for g in GROUPS)]])
     mai_all = all(k == total for k in per_group_kept["mai-image-2.6"])
     gpt_any_full = any(k == total for g in GROUPS[1:] for k in per_group_kept[g])
-    reading = (
+    reading = edit.get("summary_observation", {}).get(language) or (
         ("四个配置在每一轮都换上了博士帽。差别在其余部分："
          + ("MAI 两轮输出都与原图逐项一致，外观符合局部重绘；" if mai_all else
             "MAI 并非每轮都保住全部保持项；")
@@ -718,18 +769,28 @@ def render_edit_scenario(edit, archive_path, language):
         tag = (f"第{round_item['round']}轮" if chinese else f"round {round_item['round']}")
         link_items.append(f"[{'请求记录' if chinese else 'Request records'} {tag}]({archive_path}/{sub}edit-results.json)")
         link_items.append(f"[{'逐图核对' if chinese else 'Per-image checklist'} {tag}]({archive_path}/{sub}edit-review.json)")
-    link_items.append(f"[{'探测脚本' if chinese else 'Probe script'}]({archive_path}/source/probe_edit_hat_swap.py)")
+    if edit.get("summary_observation"):
+        link_items.append(f"[{'标题区域对照图' if chinese else 'Title-region contact sheet'}]({archive_path}/title-corner-contact-sheet.png)")
+    link_items.append(f"[{'公开复现脚本' if chinese else 'Public reproduction runner'}](scripts/run_edit_hat_swap.py)")
     links = " | ".join(link_items)
     title = "### Test 12: 换帽子（图像编辑）" if chinese else "### Test 12: Headwear Swap (Image Edit)"
-    return "\n\n".join([title, lead, input_note, prompt_line, prompt_quote,
-                        f"**{'受控变量' if chinese else 'Controlled variables'}**", controlled,
-                        input_image, *round_blocks, kept_summary, reading, boundary, links])
+    parts = [title, lead, input_note, prompt_line, prompt_quote,
+             f"**{'受控变量' if chinese else 'Controlled variables'}**", controlled]
+    if correction:
+        parts.append(correction)
+    parts.extend([input_image, *round_blocks, kept_summary, reading, boundary, links])
+    return "\n\n".join(parts)
 
 
 def edit_reproduction_commands(archive_path):
+    output = "runs/edit-hat-swap-reproduction"
+    input_path = f"{archive_path}/input.jpg"
+    runner = "python scripts/run_edit_hat_swap.py"
     return (f"```powershell\npython scripts/summarize_edit_hat_swap.py {archive_path} --check\n"
-            f"python {archive_path}/source/probe_edit_hat_swap.py --round 1\n"
-            f"python {archive_path}/source/probe_edit_hat_swap.py --round 2\n```")
+            f"{runner} --input {input_path} --output {output} --round 1 --gpt-size auto --dry-run\n"
+            f"{runner} --input {input_path} --output {output} --round 1 --gpt-size auto\n"
+            f"{runner} --input {input_path} --output {output} --round 2 --gpt-size auto\n"
+            f"{runner} --output {output} --check\n```")
 
 
 def grounding_reproduction_commands(archive_path):

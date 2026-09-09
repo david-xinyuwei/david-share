@@ -7,6 +7,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 FINANCIAL_FIELD = re.compile(r"price|pricing|cost|usd", re.IGNORECASE)
+PRIVATE_EXECUTION_MARKERS = (
+    r"C:\\Users\\",
+    ".azure-",
+    'WORKSPACE / "password"',
+    "gpt-deployment-discovery.json",
+)
 
 
 class PublicArtifactTests(unittest.TestCase):
@@ -32,6 +38,13 @@ class PublicArtifactTests(unittest.TestCase):
                 source = path.read_text("utf-8")
                 ast.parse(source)
                 self.assertIsNone(FINANCIAL_FIELD.search(source))
+
+    def test_archived_source_has_no_author_machine_or_credential_dependencies(self):
+        for path in (ROOT / "data").rglob("*.py"):
+            with self.subTest(path=path.relative_to(ROOT)):
+                source = path.read_text("utf-8")
+                for marker in PRIVATE_EXECUTION_MARKERS:
+                    self.assertNotIn(marker, source, f"{path}: private execution marker {marker}")
 
 
 if __name__ == "__main__":

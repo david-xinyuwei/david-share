@@ -120,6 +120,9 @@ def summarize(archive):
         key=lambda item: item[1])
     rounds = []
     prompt = None
+    gpt_size = None
+    supersedes = None
+    summary_observation = None
     for relative_dir, number in round_dirs:
         base = archive / relative_dir if relative_dir else archive
         results = json.loads((base / "edit-results.json").read_text("utf-8"))
@@ -130,6 +133,18 @@ def summarize(archive):
             raise ValueError(f"{relative_dir}: prompt differs from round 1")
         if results.get("round", 1) != number:
             raise ValueError(f"{relative_dir}: record says round {results.get('round', 1)}")
+        # The size parameter sent to GPT is part of the protocol; it must be recorded
+        # and identical across rounds, otherwise rounds are not comparable.
+        this_size = results.get("gpt_size_parameter")
+        if this_size is None:
+            raise ValueError(f"{relative_dir or 'round 1'}: record does not state the GPT size parameter")
+        if gpt_size is None:
+            gpt_size = this_size
+        elif this_size != gpt_size:
+            raise ValueError(f"{relative_dir}: GPT size parameter {this_size!r} differs from round 1 {gpt_size!r}")
+        if number == 1:
+            supersedes = review.get("supersedes")
+            summary_observation = review.get("summary_observation")
         rounds.append({
             "round": number,
             "order_sent": [attempt["label"] for attempt in results["attempts"]],
@@ -144,6 +159,9 @@ def summarize(archive):
     return {
         "archive": archive.as_posix(),
         "prompt": prompt,
+        "gpt_size_parameter": gpt_size,
+        "supersedes": supersedes,
+        "summary_observation": summary_observation,
         "source": {"file": source.name, "sha256": source_sha, "bytes": source.stat().st_size,
                    "width": source_w, "height": source_h},
         "rounds": rounds,

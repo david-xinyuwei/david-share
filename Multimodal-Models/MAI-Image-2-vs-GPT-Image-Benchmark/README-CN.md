@@ -268,71 +268,75 @@
 
 **受控变量**
 
-MAI 走 `/mai/v1/images/edits`，GPT 走 `/openai/deployments/gpt-image-2/images/edits`，GPT 三档只改 `quality`，并按其接口要求传 `size=1024x1024`；MAI 接口没有尺寸参数，输出尺寸由服务决定。每轮每个配置各调用一次，共 2 轮。
+MAI 走 `/mai/v1/images/edits`，GPT 走 `/openai/deployments/gpt-image-2/images/edits`。GPT 三档只改 `quality`，`size` 传 `auto`，即由服务自选输出尺寸；MAI 的编辑接口没有尺寸参数，输出尺寸同样由服务决定。两边因此处于同一合同：都没有被要求输出某个固定尺寸。每轮每个配置各调用一次，共 2 轮。
+
+**协议更正**
+
+第一次运行给 GPT 三档传了 `size=1024x1024`。这不是接口要求——gpt-image-2 的编辑接口接受任意分辨率和 `auto`——而是本测试的默认值。它把 16:9 的输入压成 1:1，GPT 因此重新构图、整图重绘，六轮里保持项只有 0/5、1/5、0/5、0/5、0/5、0/5。那个结果度量的是参数，不是模型。MAI 的编辑接口没有尺寸参数，所以它从未受此约束。本轮把 GPT 改为 `size=auto`，两边都由服务自选尺寸，协议才对称。原运行保留为该混淆因素的证据。
 
 | 输入图 |
 | --- |
-| ![Input photograph](data/edit-hat-swap-20260908/input.jpg) |
+| ![Input photograph](data/edit-hat-swap-20260909-auto/input.jpg) |
 
 **第1轮:**
 
 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
 | --- | --- | --- | --- |
-| ![MAI-Image-2.6, edit round 1](data/edit-hat-swap-20260908/01_mai-image-2.6.png) | ![GPT-Image-2 low, edit round 1](data/edit-hat-swap-20260908/02_gpt-image-2-low.png) | ![GPT-Image-2 medium, edit round 1](data/edit-hat-swap-20260908/03_gpt-image-2-medium.png) | ![GPT-Image-2 high, edit round 1](data/edit-hat-swap-20260908/04_gpt-image-2-high.png) |
-| 34.94 s<br>1585 KiB<br>1360x768 | 29.55 s<br>1725 KiB<br>1024x1024 | 57.71 s<br>1641 KiB<br>1024x1024 | 162.65 s<br>1566 KiB<br>1024x1024 |
+| ![MAI-Image-2.6, edit round 1](data/edit-hat-swap-20260909-auto/01_mai-image-2.6.png) | ![GPT-Image-2 low, edit round 1](data/edit-hat-swap-20260909-auto/02_gpt-image-2-low.png) | ![GPT-Image-2 medium, edit round 1](data/edit-hat-swap-20260909-auto/03_gpt-image-2-medium.png) | ![GPT-Image-2 high, edit round 1](data/edit-hat-swap-20260909-auto/04_gpt-image-2-high.png) |
+| 34.94 s<br>1585 KiB<br>1360x768 | 32.89 s<br>2411 KiB<br>1672x941 | 44.77 s<br>2373 KiB<br>1672x941 | 109.48 s<br>2167 KiB<br>1672x941 |
 
 | 核对项 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
 | --- | --- | --- | --- | --- |
-| 保持项命中 | 5/5 | 0/5 | 1/5 | 0/5 |
+| 保持项命中 | 5/5 | 5/5 | 5/5 | 5/5 |
 | 换成博士帽 | 是 | 是 | 是 | 是 |
-| 人脸与胡须保留 | 是 | 否 | 否 | 否 |
-| 龙袍纹样保留 | 是 | 否 | 否 | 否 |
-| 侍卫与背景不变 | 是 | 否 | 否 | 否 |
-| 标题与印章保留 | 是 | 否 | 是 | 否 |
-| 保持原图宽高比 | 是 | 否 | 否 | 否 |
+| 人脸与胡须保留 | 是 | 是 | 是 | 是 |
+| 龙袍纹样保留 | 是 | 是 | 是 | 是 |
+| 侍卫与背景不变 | 是 | 是 | 是 | 是 |
+| 标题与印章保留 | 是 | 是 | 是 | 是 |
+| 保持原图宽高比 | 是 | 是 | 是 | 是 |
 
 | 配置 | 画面观察 |
 | --- | --- |
-| MAI-Image-2.6 | 冕冠换成带流苏的黑色博士帽。人脸、胡须、神情、龙袍纹样、左侧持戈侍卫、右侧紫衣人物、门廊建筑和左上角剧名标题与印章全部与原图一致，输出保持原图 16:9 横幅比例（1360x768）。画面外观与局部重绘一致。 |
-| GPT-Image-2 low | 博士帽出现，但整幅画面被重新构图为 1024x1024 方图：主体放大居中，面部特征与原图不同，龙袍纹样重新绘制，左侧侍卫队列改为红黑相间的另一组人，右侧紫衣人物与门廊消失，左上角标题与印章消失。 |
-| GPT-Image-2 medium | 博士帽出现，左上角剧名标题与印章被保留，构图比 low 更接近原图。但面部与胡须被重绘，龙袍纹样不同，左侧侍卫重新排列，右侧人物与建筑与原图不一致，输出为 1024x1024 方图。 |
-| GPT-Image-2 high | 博士帽出现，龙袍金线刺绣渲染最精细，但整幅重新生成：人物改为正面站姿、面部不同，左侧侍卫换成不同队列，新增两名红衣侍从，背景建筑与原图不符，左上角标题与印章消失，输出为 1024x1024 方图。 |
+| MAI-Image-2.6 | 冕冠换成带流苏的黑色博士帽。人脸、胡须、神情、龙袍纹样、左侧持戈侍卫、右侧紫衣人物、门廊建筑全部在原位，输出保持 16:9（1360×768）。左上角标题与印章在原位，英文 THE ADVISORS ALLIANCE 可读但笔画发软，中文四字变形。记录与 PNG 自 2026-09-08 第一轮原样带入。 |
+| GPT-Image-2 low | 博士帽换上。人脸、胡须、龙袍纹样、左侧侍卫队列、右侧紫衣人物与门廊建筑全部在原位，输出 1672×941，宽高比与输入一致。标题 THE ADVISORS ALLIANCE 逐字可读，中文四字接近原图，印章在位。 |
+| GPT-Image-2 medium | 博士帽换上。人物、龙袍、侍卫、右侧人物与建筑全部在原位，输出 1672×941。标题英文逐字复现，中文接近原图，印章在位。 |
+| GPT-Image-2 high | 博士帽换上。人物、龙袍、侍卫、右侧人物与建筑全部在原位，输出 1672×941。标题英文逐字复现，中文接近原图，印章在位。龙袍金线细节比输入更锐，属于放大重绘的结果。 |
 
 **第2轮:**
 
 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
 | --- | --- | --- | --- |
-| ![MAI-Image-2.6, edit round 2](data/edit-hat-swap-20260908/r2/04_mai-image-2.6.png) | ![GPT-Image-2 low, edit round 2](data/edit-hat-swap-20260908/r2/03_gpt-image-2-low.png) | ![GPT-Image-2 medium, edit round 2](data/edit-hat-swap-20260908/r2/02_gpt-image-2-medium.png) | ![GPT-Image-2 high, edit round 2](data/edit-hat-swap-20260908/r2/01_gpt-image-2-high.png) |
-| 36.91 s<br>1618 KiB<br>1360x768 | 27.73 s<br>1748 KiB<br>1024x1024 | 58.61 s<br>1478 KiB<br>1024x1024 | 165.15 s<br>1672 KiB<br>1024x1024 |
+| ![MAI-Image-2.6, edit round 2](data/edit-hat-swap-20260909-auto/r2/04_mai-image-2.6.png) | ![GPT-Image-2 low, edit round 2](data/edit-hat-swap-20260909-auto/r2/03_gpt-image-2-low.png) | ![GPT-Image-2 medium, edit round 2](data/edit-hat-swap-20260909-auto/r2/02_gpt-image-2-medium.png) | ![GPT-Image-2 high, edit round 2](data/edit-hat-swap-20260909-auto/r2/01_gpt-image-2-high.png) |
+| 36.91 s<br>1618 KiB<br>1360x768 | 27.91 s<br>2406 KiB<br>1672x940 | 46.36 s<br>2388 KiB<br>1672x940 | 110.84 s<br>2119 KiB<br>1672x941 |
 
 | 核对项 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
 | --- | --- | --- | --- | --- |
-| 保持项命中 | 5/5 | 0/5 | 0/5 | 0/5 |
+| 保持项命中 | 5/5 | 5/5 | 5/5 | 5/5 |
 | 换成博士帽 | 是 | 是 | 是 | 是 |
-| 人脸与胡须保留 | 是 | 否 | 否 | 否 |
-| 龙袍纹样保留 | 是 | 否 | 否 | 否 |
-| 侍卫与背景不变 | 是 | 否 | 否 | 否 |
-| 标题与印章保留 | 是 | 否 | 否 | 否 |
-| 保持原图宽高比 | 是 | 否 | 否 | 否 |
+| 人脸与胡须保留 | 是 | 是 | 是 | 是 |
+| 龙袍纹样保留 | 是 | 是 | 是 | 是 |
+| 侍卫与背景不变 | 是 | 是 | 是 | 是 |
+| 标题与印章保留 | 是 | 是 | 是 | 是 |
+| 保持原图宽高比 | 是 | 是 | 是 | 是 |
 
 | 配置 | 画面观察 |
 | --- | --- |
-| MAI-Image-2.6 | 冕冠换成带流苏的黑色博士帽。人脸、胡须、神情、龙袍纹样、左侧持戈侍卫、右侧紫衣人物、门廊建筑和左上角剧名标题与印章都与原图位置一致，输出保持原图 16:9 横幅比例（1360x768）。标题字形因放大略有软化但仍在原位。与第一轮 MAI 输出结果一致。 |
-| GPT-Image-2 low | 博士帽出现。输出为 1024x1024 方图，构图与第二轮 medium、high 相近：人物正面站姿、面部与胡须重绘，龙袍纹样不同，左侧侍卫为绿金冠饰队列，右侧黑衣人群与紫衣人物，左上角标题与印章消失。第一轮 low 把主体放大居中且侍卫改为红黑队列，第二轮构图更接近原图，说明 low 的输出在两轮之间并不稳定。 |
-| GPT-Image-2 medium | 博士帽出现。输出为 1024x1024 方图，构图与第二轮 high 相近：人物正面站姿、面部与胡须重绘，龙袍纹样不同，左侧侍卫换成绿金冠饰队列，右侧为黑衣人群与紫衣人物，左上角标题与印章消失。第一轮 medium 保留了标题与印章，第二轮没有。 |
-| GPT-Image-2 high | 博士帽出现。整幅重新生成为 1024x1024 方图：人物改为正面站姿、面部与胡须与原图不同，龙袍纹样重绘，左侧侍卫换成头戴绿金冠饰的另一队列，右侧改为黑衣人群与一名紫衣人物，背景门廊与灯笼与原图不符，左上角标题与印章消失。与第一轮 high 相比构图相近但细节不同。 |
+| MAI-Image-2.6 | 冕冠换成带流苏的黑色博士帽。人脸、胡须、龙袍纹样、侍卫、右侧人物、门廊建筑全部在原位，输出保持 16:9（1360×768）。标题与印章在原位，英文 ALLIANCE 一词笔画明显发软、近乎粘连，中文四字变形。记录与 PNG 自 2026-09-08 第二轮原样带入。 |
+| GPT-Image-2 low | 博士帽换上。人物、龙袍、侍卫、右侧人物与建筑全部在原位，输出 1672×940，鬓角略显灰白。标题把 ADVISORS 写成 ASVISORS，中文略有变形，印章在位。 |
+| GPT-Image-2 medium | 博士帽换上。人物、龙袍、侍卫、右侧人物与建筑全部在原位，输出 1672×940。标题多了一个撇号，写成 THE ADVISOR'S ALLIANCE；中文接近原图，印章在位。 |
+| GPT-Image-2 high | 博士帽换上。人物、龙袍、侍卫、右侧人物与建筑全部在原位，输出 1672×941。标题英文逐字复现，中文接近原图，印章在位。与第一轮 high 结果一致。 |
 
 | 跨轮汇总 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
 | --- | --- | --- | --- | --- |
-| 保持项命中（每轮） | 5/5 / 5/5 | 0/5 / 0/5 | 1/5 / 0/5 | 0/5 / 0/5 |
-| 请求耗时（每轮） | 34.94 s / 36.91 s | 29.55 s / 27.73 s | 57.71 s / 58.61 s | 162.65 s / 165.15 s |
+| 保持项命中（每轮） | 5/5 / 5/5 | 5/5 / 5/5 | 5/5 / 5/5 | 5/5 / 5/5 |
+| 请求耗时（每轮） | 34.94 s / 36.91 s | 32.89 s / 27.91 s | 44.77 s / 46.36 s | 109.48 s / 110.84 s |
 | 换成博士帽 | 2/2 | 2/2 | 2/2 | 2/2 |
 
-四个配置在每一轮都换上了博士帽。差别在其余部分：MAI 两轮输出都与原图逐项一致，外观符合局部重绘；GPT 三档没有一轮保住全部保持项，都围绕主题重新生成整幅画面。本题提示词要求保持原图，所以偏离就是未按指令执行；若提示词要求重新演绎，同样这些图会得到不同的评价。
+四个配置在两轮里都换上了博士帽，并且都保住了全部 5 个保持项：人脸、龙袍、侍卫与背景、标题印章、原图宽高比，8 张输出全是 5/5。区别只剩三处。输出分辨率：GPT 三档自选 1672×941（约 157 万像素），MAI 为 1360×768（104 万像素，接口上限 1,048,576）。标题字形：GPT medium 与 high 两轮都把英文标题逐字复现；GPT low 第二轮把 ADVISORS 写成 ASVISORS，GPT medium 第二轮多了一个撇号；MAI 两轮英文可读但笔画发软，中文"军师联盟"四字明显变形。耗时：MAI 约 35 s，GPT low 28–33 s、medium 45–46 s、high 109–111 s。本题提示词要求保持原图，8 张输出在 5 项清单上无差别；标题字形保真度不在清单内，只作观察。
 
 共 2 轮，每轮每个配置一次调用，两轮只说明结果是否重复出现，不构成统计样本；观察为非盲评，只描述与原图的差异，不是画质评分。耗时为客户端 `requests.post` 往返时间，GPT 部署在 East US 2、MAI 在 Sweden Central，客户端为同一台工作站，区域差异未剥离。输出 PNG 均无 alpha 通道。
 
-[请求记录 第1轮](data/edit-hat-swap-20260908/edit-results.json) | [逐图核对 第1轮](data/edit-hat-swap-20260908/edit-review.json) | [请求记录 第2轮](data/edit-hat-swap-20260908/r2/edit-results.json) | [逐图核对 第2轮](data/edit-hat-swap-20260908/r2/edit-review.json) | [探测脚本](data/edit-hat-swap-20260908/source/probe_edit_hat_swap.py)
+[请求记录 第1轮](data/edit-hat-swap-20260909-auto/edit-results.json) | [逐图核对 第1轮](data/edit-hat-swap-20260909-auto/edit-review.json) | [请求记录 第2轮](data/edit-hat-swap-20260909-auto/r2/edit-results.json) | [逐图核对 第2轮](data/edit-hat-swap-20260909-auto/r2/edit-review.json) | [标题区域对照图](data/edit-hat-swap-20260909-auto/title-corner-contact-sheet.png) | [公开复现脚本](scripts/run_edit_hat_swap.py)
 
 ## 本轮：两模型与全部质量档位
 
@@ -482,7 +486,16 @@ token 用量取自接口返回的 usage，不从模型或档位推算。没有�
 | Output | `data[0].b64_json`, PNG | `data[0].b64_json`, PNG |
 | Usage | `usage.num_input_text_tokens`, `usage.num_output_tokens` | `usage.input_tokens_details`, `usage.output_tokens_details` |
 
-## 复现与测试
+## 复现方法（How-to）与测试
+
+| 目标 | 入口 | 凭据 / 计费 | 完成标志 |
+| --- | --- | --- | --- |
+| 只读核验已发布证据 | 步骤 4 | 不需要 / 不计费 | 汇总器与回归测试返回 `PASS` |
+| 重跑 11 个文生图场景 | 步骤 3 | MAI + GPT / 会计费 | 88 个正式样本全部记录 |
+| 重跑联网信息补充测试 | 步骤 5 | MAI / 会计费 | 新目录包含开／关两轮结果 |
+| 重跑换帽图像编辑 | 步骤 6 | MAI + GPT / 会计费 | 两轮 8 张 PNG 通过 hash 检查 |
+
+### 1. 克隆并安装依赖
 
 需要可用的 MAI-Image-2.6 和 GPT-Image-2 部署。部署身份由您查询确认，不能仅凭 deployment 名称判断底层模型。先克隆仓库、拉取本项目的 Git LFS 文件，并在 Python 环境安装 requests：
 
@@ -493,6 +506,8 @@ git lfs install
 git lfs pull --include="Multimodal-Models/MAI-Image-2-vs-GPT-Image-Benchmark/**"
 python -m pip install requests==2.34.2
 ```
+
+### 2. 配置自己的部署
 
 下列两个资源根地址和 GPT deployment 名称由您填写。通过自己的秘密管理机制在当前进程提供 `AZURE_API_KEY`（MAI）和 `AZURE_OPENAI_API_KEY`（GPT），不要把值写入源码或 Git。各模型的版本、区域、SKU 和限额环境变量必须填写实际查询结果；下面展示本次实测元数据，不代表您的资源设置。
 
@@ -513,6 +528,8 @@ $env:BENCHMARK_CLIENT_LOCATION = 'Describe your actual client location'
 python scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --gpt-model gpt-image-2 --gpt-quality all --dry-run
 ```
 
+### 3. 重跑 11 个文生图场景
+
 第一条模型命令只预热四组，第二条从同一输出目录继续正式矩阵；均会消耗 Azure 服务用量。已有结果不会覆盖，已记录样本不会重跑。续跑要求同一脚本、提示词、端点和配置；中断时在途请求可能已被服务接收。新测试应在执行前保存脚本与 CSV，运行期间不得修改。
 
 ```powershell
@@ -525,6 +542,8 @@ python -u scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --gpt-model gpt
 python scripts/summarize_paired_run.py $run
 ```
 
+### 4. 只读核验已发布证据
+
 以下命令只重算已保存结果，不调用模型。回归覆盖四档请求、失败分母、原始 usage、图片归属和报告覆盖；模拟 HTTP 只用于离线单元测试，不是图像质量证据。新测批次的汇总与发布必须等全部计划样本结束。
 
 ```powershell
@@ -532,6 +551,8 @@ python scripts/summarize_paired_run.py data/paired-all-quality-20260907
 python scripts/render_paired_report.py data/paired-all-quality-20260907 --check
 python -m unittest discover -s tests -v
 ```
+
+### 5. 重跑联网信息补充测试
 
 联网信息补充测试只需 MAI 部署。第一条只读核验已有归档；第二条只检查参数；第三条才真实重跑完整三题，结果写入新目录，不覆盖已发布数据。
 
@@ -541,20 +562,24 @@ python data/lenovo-web-grounding-20260908/source/benchmark_5way_v2.py --mai-mode
 python data/lenovo-web-grounding-20260908/source/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --mai-web-grounding both --prompts-csv data/lenovo-web-grounding-20260908/source/prompts.csv --output runs/web-grounding-reproduction
 ```
 
-第 12 题图像编辑需要 MAI 与 GPT 两个部署。第一条只读核验已发布的输入图、四张输出与请求记录的哈希；第二条会真实调用四个配置的编辑接口重跑一遍，结果写入新目录，不覆盖已发布数据。
+### 6. 重跑换帽图像编辑
+
+第 12 题需要 MAI 与 GPT 两个部署。第一条只读核验已发布的两轮 8 张输出；第二条是无凭据、无网络、无写入的 dry-run；第三、四条分别真实执行两轮并写入新目录；第五条只核对配置顺序、`size=auto`、输入与输出 hash。这一步不自动生成主观核对清单，图像质量结论仍需按已发布 review 的方法人工检查。
 
 ```powershell
-python scripts/summarize_edit_hat_swap.py data/edit-hat-swap-20260908 --check
-python data/edit-hat-swap-20260908/source/probe_edit_hat_swap.py --round 1
-python data/edit-hat-swap-20260908/source/probe_edit_hat_swap.py --round 2
+python scripts/summarize_edit_hat_swap.py data/edit-hat-swap-20260909-auto --check
+python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-20260909-auto/input.jpg --output runs/edit-hat-swap-reproduction --round 1 --gpt-size auto --dry-run
+python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-20260909-auto/input.jpg --output runs/edit-hat-swap-reproduction --round 1 --gpt-size auto
+python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-20260909-auto/input.jpg --output runs/edit-hat-swap-reproduction --round 2 --gpt-size auto
+python scripts/run_edit_hat_swap.py --output runs/edit-hat-swap-reproduction --check
 ```
 
-执行脚本: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py); 离线汇总: [summarize_paired_run.py](scripts/summarize_paired_run.py); 报告生成: [render_paired_report.py](scripts/render_paired_report.py); 回归测试: [tests](tests).
+文生图执行脚本: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py); 改图执行脚本: [run_edit_hat_swap.py](scripts/run_edit_hat_swap.py); 离线汇总: [summarize_paired_run.py](scripts/summarize_paired_run.py); 报告生成: [render_paired_report.py](scripts/render_paired_report.py); 回归测试: [tests](tests).
 
 
 ### 结论边界
 
-本报告只对比 MAI-Image-2.6 与 GPT-Image-2 的 low、medium、high 三档。范围为 11 个文生图场景与 1024x1024，不包括 2K、图像编辑、多图参考、文字准确率专项、并发压测或其他认证方式。MAI 没有传质量参数，不能称为 GPT high 的等价档位。所有指标只使用本次四组测试的数据。
+本报告只对比 MAI-Image-2.6 与 GPT-Image-2 的 low、medium、high 三档。主要聚合统计来自 11 个 1024x1024 文生图场景；第 12 题是单独报告的 `size=auto` 图像编辑测试，不进入前 11 题的耗时与质量计数。本报告不覆盖 2K、多图参考、文字准确率专项、并发压测或其他认证方式。MAI 没有传质量参数，不能称为 GPT high 的等价档位。
 
 证据目录: [data/paired-all-quality-20260907](data/paired-all-quality-20260907). 包含原始图片、测量记录、逐次请求、响应元数据及删减后的公开源码副本。非财务测量字段和图片保持不变；原始执行哈希与公开文件哈希分别记录于 [来源说明](data/paired-all-quality-20260907/provenance.json). 提示词 SHA-256: `be3d628c66a1e4d535d06bcc84246a04aad11f35a48f3133d451fe86283782ce`.
 
