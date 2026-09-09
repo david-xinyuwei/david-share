@@ -274,6 +274,10 @@ MAI uses `/mai/v1/images/edits` and GPT uses `/openai/deployments/gpt-image-2/im
 
 The first run passed `size=1024x1024` to the three GPT tiers. That is not an endpoint requirement — the gpt-image-2 edit endpoint accepts arbitrary resolutions and `auto` — it was this test's default. It forced the 16:9 input into a square, so GPT recomposed and repainted the whole frame and kept 0/5, 1/5, 0/5, 0/5, 0/5, 0/5 preservation items across six calls. That result measured the parameter, not the model. MAI's edit endpoint has no size parameter, so it was never under that constraint. This run sets GPT to `size=auto` so both sides let the service choose, which is the only symmetric contract. The original run is kept as evidence of the confound.
 
+![Headwear-swap edit under two size protocols](data/edit-hat-swap-20260909-auto/figures/size-protocol-comparison.png)
+
+The figure below places both protocols together: the top row is the fixed `size=1024x1024`, the bottom row is `size=auto`, and each cell states its real output resolution and its count on the five preservation items. Looking at the top-left corner of the three GPT cells is enough: the title and seal disappear entirely under the square protocol and match the input under `auto`.
+
 | Input photograph |
 | --- |
 | ![Input photograph](data/edit-hat-swap-20260909-auto/input.jpg) |

@@ -687,6 +687,23 @@ def render_edit_scenario(edit, archive_path, language):
     if edit.get("supersedes"):
         reason = edit["supersedes"]["reason"][language]
         correction = f"**{'协议更正' if chinese else 'Protocol correction'}**\n\n{reason}"
+        # The figure carries the correction: both protocols side by side, with each
+        # cell's real resolution and checklist count read from the archives.
+        figure = f"{archive_path}/figures/size-protocol-comparison.png"
+        if (Path(__file__).resolve().parents[1] / figure).is_file():
+            caption = (
+                "下图把两种协议放在一起：上排为固定 `size=1024x1024`，下排为 `size=auto`，"
+                "每格标注实际输出分辨率与 5 项保持内容的命中数。看 GPT 三格的左上角即可发现，"
+                "方图协议下剧名与印章整块消失，`auto` 下与原图一致。"
+                if chinese else
+                "The figure below places both protocols together: the top row is the fixed "
+                "`size=1024x1024`, the bottom row is `size=auto`, and each cell states its real output "
+                "resolution and its count on the five preservation items. Looking at the top-left corner of "
+                "the three GPT cells is enough: the title and seal disappear entirely under the square "
+                "protocol and match the input under `auto`.")
+            alt = ("两种尺寸协议的换帽编辑对比" if chinese else
+                   "Headwear-swap edit under two size protocols")
+            correction += f"\n\n![{alt}]({figure})\n\n{caption}"
     check_labels = [
         ("headwear_replaced_with_graduation_cap", "换成博士帽" if chinese else "Headwear became a graduation cap"),
         ("face_and_beard_preserved", "人脸与胡须保留" if chinese else "Face and beard preserved"),

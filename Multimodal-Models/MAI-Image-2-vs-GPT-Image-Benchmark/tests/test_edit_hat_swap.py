@@ -83,8 +83,13 @@ class EditHatSwapEvidenceTests(unittest.TestCase):
             self.assertLess(text.index(heading), text.index(following), filename)
             body = text[text.index(heading):text.index(following)]
             images = re.findall(r"!\[[^\]]*\]\(([^)]+)\)", body)
-            # Input once, then four outputs per round — the Test 1-11 shape plus the input.
-            self.assertEqual(len(images), 1 + 4 * len(self.summary["rounds"]), filename)
+            # Separate the measured artefacts from explanatory figures: the input plus
+            # four outputs per round must all be present, and a figure that summarises
+            # the protocols is allowed alongside them but never instead of them.
+            figures = [t for t in images if "/figures/" in t]
+            outputs = [t for t in images if "/figures/" not in t]
+            self.assertEqual(len(outputs), 1 + 4 * len(self.summary["rounds"]), filename)
+            self.assertLessEqual(len(figures), 1, f"{filename}: one explanatory figure is enough")
             for target in images:
                 self.assertTrue(target.startswith(self.prefix), target)
                 self.assertTrue((ROOT / target).is_file(), target)

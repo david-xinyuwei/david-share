@@ -103,6 +103,27 @@ class PublicEditRunnerTests(unittest.TestCase):
         self.assertIn("单独报告的 `size=auto` 图像编辑测试", chinese)
         self.assertNotIn("不包括 2K、图像编辑", chinese)
 
+    def test_protocol_comparison_figure_is_published_and_shown(self):
+        """The correction is easiest to see as a picture, so it must survive regeneration."""
+        figure = ROOT / "data" / "edit-hat-swap-20260909-auto" / "figures" / "size-protocol-comparison.png"
+        generator = figure.with_name("build_size_protocol_comparison.py")
+        self.assertTrue(figure.is_file(), figure)
+        self.assertTrue(generator.is_file(), "the figure must ship with its generator")
+        self.assertGreater(figure.stat().st_size, 100_000)
+        for filename in ("README.md", "README-CN.md"):
+            text = (ROOT / filename).read_text("utf-8")
+            reference = "data/edit-hat-swap-20260909-auto/figures/size-protocol-comparison.png"
+            self.assertIn(reference, text, filename)
+            heading = ("### Test 12: Headwear Swap (Image Edit)" if filename == "README.md"
+                       else "### Test 12: 换帽子（图像编辑）")
+            following = ("## Current Run: Both Models and All Quality Tiers" if filename == "README.md"
+                         else "## 本轮：两模型与全部质量档位")
+            body = text[text.index(heading):text.index(following)]
+            self.assertIn(reference, body, f"{filename}: figure must sit inside Test 12")
+            correction = ("Protocol correction" if filename == "README.md" else "协议更正")
+            self.assertLess(body.index(correction), body.index(reference),
+                            f"{filename}: the figure must follow the correction it illustrates")
+
     def test_opening_uses_corrected_result_and_stable_how_to_anchor(self):
         for filename in ("README.md", "README-CN.md"):
             text = (ROOT / filename).read_text("utf-8")
