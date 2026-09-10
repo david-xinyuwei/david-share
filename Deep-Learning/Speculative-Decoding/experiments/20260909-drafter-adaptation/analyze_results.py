@@ -1,0 +1,316 @@
+"""Recompute the drafter-adaptation summary from the exported result files.
+
+Every number the README shows for this experiment is derived here from the
+per-request records, never copied from a log line. Three measurements are kept
+apart because they answer different questions:
+
+* agreement   - teacher-forced: both drafters read the same frozen target text and
+                are asked, block by block, what the target's next tokens are.
+                Round 4 records the leading-correct run per anchor, so a joint-prefix
+                acceptance length ``1 + mean(run)`` and a prompt-level paired bootstrap
+                are available. Round 3 recorded only per-offset marginal hit rates;
+                their product is NOT reported because it assumes independence.
+* acceptance  - end-to-end ``dflash_generate``: each drafter actually drafts and the
+                target verifies. Different drafters produce different texts, so this
+                is a real-use measurement, not a paired one.
+* serving     - vLLM client throughput at fixed concurrency, one execution per route.
+"""
+
+import argparse
+import hashlib
+import json
+from pathlib import Path
+import random
+import statistics
+
+
+ROOT = Path(__file__).resolve().parent
+BOOTSTRAP_RESAMPLES = 2000
+BOOTSTRAP_SEED = 20260910
+
+
+def require(condition, message):
+    if not condition:
+        raise ValueError(message)
+
+
+def read_json(path):
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def dump_json(path, value):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def digest_file(path):
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def bootstrap_interval(identifiers, statistic, resamples=BOOTSTRAP_RESAMPLES, seed=BOOTSTRAP_SEED):
+    generator = random.Random(seed)
+    differences = sorted(statistic(generator.choices(identifiers, k=len(identifiers))) for _ in range(resamples))
+    lower = differences[int(0.025 * (resamples - 1))]
+    upper = differences[int(0.975 * (resamples - 1))]
+    return [round(lower, 4), round(upper, 4)], ("positive" if lower > 0 else "negative" if upper < 0 else "inconclusive")
+
+
+def agreement_summary(record):
+    rows = record["per_request"]
+    require(rows, "AGREEMENT_EMPTY")
+    offsets = len(rows[0]["hits"])
+    hits = [sum(row["hits"][offset] for row in rows) for offset in range(offsets)]
+    trials = [sum(row["trials"][offset] for row in rows) for offset in range(offsets)]
+    require(all(trials), "AGREEMENT_OFFSET_WITHOUT_TRIALS")
+    for row in rows:
+        require(len(set(row["trials"])) == 1 and row["trials"][0] == row["anchors"], "AGREEMENT_TRIAL_ANCHOR_MISMATCH")
+    marginal = [hits[offset] / trials[offset] for offset in range(offsets)]
+    require(all(abs(a - b) < 1e-9 for a, b in zip(marginal, record["drafter_agreement_by_offset"])),
+            "AGREEMENT_MARGINAL_MISMATCH")
+    summary = {
+        "sequences": len(rows),
+        "anchors": sum(row["anchors"] for row in rows),
+        "marginal_hit_rate_by_offset": [round(value, 4) for value in marginal],
+        "first_offset_hit_rate": round(marginal[0], 4),
+        "mean_target_top1_prob": round(statistics.mean(row["mean_target_top1_prob"] for row in rows), 4),
+        "mean_target_entropy": round(statistics.mean(row["mean_target_entropy"] for row in rows), 4),
+    }
+    if "prefix_lengths" in rows[0]:
+        require(record.get("metric_version") == "joint-prefix-v2", "JOINT_PREFIX_VERSION_MISSING")
+        runs = [value for row in rows for value in row["prefix_lengths"]]
+        require(len(runs) == summary["anchors"], "PREFIX_RUN_COUNT_MISMATCH")
+        joint = 1.0 + sum(runs) / len(runs)
+        require(abs(joint - record["teacher_forced_acceptance_length"]) < 1e-9, "JOINT_PREFIX_MISMATCH")
+        summary["joint_prefix_acceptance_length"] = round(joint, 4)
+        summary["requested_sequences"] = record["requested_sequences"]
+        summary["skipped_requests"] = record["skipped_requests"]
+    else:
+        summary["joint_prefix_acceptance_length"] = None
+        summary["joint_prefix_note"] = ("Per-anchor leading-correct runs were not recorded in this round; only marginal "
+                                        "per-offset rates are available. The product of marginals is not reported because "
+                                        "it assumes independence across offsets.")
+    return summary
+
+
+def paired_agreement(reference, candidate):
+    before = {row["id"]: row for row in reference["per_request"]}
+    after = {row["id"]: row for row in candidate["per_request"]}
+    require(set(before) == set(after) and before, "AGREEMENT_PROMPT_SETS_DIFFER")
+    identifiers = sorted(before)
+    text_key = "completion_ids_sha256" if "completion_ids_sha256" in before[identifiers[0]] else "completion_sha256"
+    same_text = [identifier for identifier in identifiers
+                 if before[identifier][text_key] == after[identifier][text_key]
+                 and before[identifier]["anchors"] == after[identifier]["anchors"]]
+    if len(same_text) != len(identifiers):
+        return {
+            "status": "NOT_PAIRED",
+            "reason": "target text was regenerated per run; greedy decoding under batched bf16 does not reproduce byte-identical completions",
+            "prompts": len(identifiers),
+            "prompts_with_identical_text": len(same_text),
+        }
+    if reference.get("cache_sha256"):
+        require(reference["cache_sha256"] == candidate.get("cache_sha256"), "AGREEMENT_CACHE_DIFFERS")
+
+    def first_rate(rows):
+        return sum(row["hits"][0] for row in rows) / sum(row["trials"][0] for row in rows)
+
+    result = {"status": "PAIRED", "paired_prompts": len(identifiers), "same_target_text": True,
+              "bootstrap_unit": "prompt", "bootstrap_resamples": BOOTSTRAP_RESAMPLES}
+    metrics = {"first_offset_hit_rate": first_rate}
+    if "prefix_lengths" in before[identifiers[0]]:
+        def joint(rows):
+            runs = [value for row in rows for value in row["prefix_lengths"]]
+            return 1.0 + sum(runs) / len(runs)
+        metrics["joint_prefix_acceptance_length"] = joint
+    for name, statistic in metrics.items():
+        reference_value = statistic([before[i] for i in identifiers])
+        candidate_value = statistic([after[i] for i in identifiers])
+        interval, verdict = bootstrap_interval(
+            identifiers, lambda chosen: statistic([after[i] for i in chosen]) - statistic([before[i] for i in chosen]))
+        result[name] = {"reference": round(reference_value, 4), "candidate": round(candidate_value, 4),
+                        "difference": round(candidate_value - reference_value, 4),
+                        "bootstrap_95_percent_interval": interval, "interpretation": verdict}
+    return result
+
+
+def acceptance_summary(record):
+    rows = record["per_request"]
+    lengths = [value for row in rows for value in row["acceptance_lengths"]]
+    require(lengths, "ACCEPTANCE_EMPTY")
+    macro = statistics.mean(row["mean_acceptance_length"] for row in rows)
+    micro = statistics.mean(lengths)
+    require(abs(macro - record["macro_mean_acceptance_length"]) < 1e-9, "ACCEPTANCE_MACRO_MISMATCH")
+    require(abs(micro - record["micro_mean_acceptance_length"]) < 1e-9, "ACCEPTANCE_MICRO_MISMATCH")
+    require(sum(row["num_output_tokens"] for row in rows) == record["total_output_tokens"], "ACCEPTANCE_TOKEN_MISMATCH")
+    return {
+        "prompts": len(rows),
+        "macro_mean_acceptance_length": round(macro, 4),
+        "micro_mean_acceptance_length": round(micro, 4),
+        "verification_steps": len(lengths),
+        "output_tokens": record["total_output_tokens"],
+        "full_block_fraction": round(sum(1 for value in lengths if value >= record["block_size"]) / len(lengths), 4),
+        "max_new_tokens": record["max_new_tokens"],
+        "capped_prompts": sum(1 for row in rows if row["num_output_tokens"] >= record["max_new_tokens"]),
+    }
+
+
+def text_overlap(left, right):
+    left_rows = {row["id"]: row["completion_sha256"] for row in left["per_request"]}
+    right_rows = {row["id"]: row["completion_sha256"] for row in right["per_request"]}
+    require(set(left_rows) == set(right_rows), "ACCEPTANCE_PROMPT_SETS_DIFFER")
+    return {"identical_completions": sum(1 for identifier in left_rows if left_rows[identifier] == right_rows[identifier]),
+            "prompts": len(left_rows)}
+
+
+def hf_summary(record):
+    configs = {config["summary"]["label"]: config for config in record["configs"]}
+    require(set(configs) == {"autoregressive", "released", "v3"}, "HF_CONFIGS_MISSING")
+    reference = {row["index"]: row["text_sha256"] for row in configs["autoregressive"]["per_request"]}
+    result = {}
+    for label, config in configs.items():
+        rows = config["per_request"]
+        tokens = sum(row["new_tokens"] for row in rows)
+        seconds = sum(row["seconds"] for row in rows)
+        require(abs(tokens / seconds - config["summary"]["tokens_per_second"]) < 0.01, "HF_THROUGHPUT_MISMATCH:" + label)
+        result[label] = {
+            "requests": len(rows),
+            "new_tokens": tokens,
+            "seconds": round(seconds, 2),
+            "tokens_per_second": round(tokens / seconds, 2),
+            "identical_text_to_autoregressive": sum(1 for row in rows if reference[row["index"]] == row["text_sha256"]),
+        }
+    return result
+
+
+def vllm_summary(records, routes):
+    result = {}
+    for route in routes:
+        record = records[route]
+        levels = {}
+        for level in record["levels"]:
+            rows = level["per_request"]
+            tokens = sum(row["completion_tokens"] for row in rows)
+            require(tokens == level["completion_tokens"], "VLLM_TOKEN_MISMATCH:" + route)
+            # The client rounded wall time to 0.01 s before saving; the recorded rate used the
+            # unrounded wall time, so allow the rounding-induced relative error.
+            rounding_error = tokens * 0.005 / level["wall_seconds"] ** 2 + 0.005
+            require(abs(tokens / level["wall_seconds"] - level["tokens_per_second"]) <= rounding_error,
+                    "VLLM_THROUGHPUT_MISMATCH:" + route)
+            levels[str(level["concurrency"])] = {
+                "requests": level["requests"],
+                "completion_tokens": tokens,
+                "wall_seconds": level["wall_seconds"],
+                "tokens_per_second": level["tokens_per_second"],
+                "median_request_seconds": level["median_request_seconds"],
+                "length_stops": level["finish_length"],
+            }
+        result[route] = {"max_tokens": record["max_tokens"], "prompts": record["num_prompts"], "levels": levels}
+    baseline = result[routes[0]]["levels"]
+    for route in routes[1:]:
+        for concurrency, level in result[route]["levels"].items():
+            level["speedup_vs_baseline"] = round(level["tokens_per_second"] / baseline[concurrency]["tokens_per_second"], 3)
+    return result
+
+
+def gate_summary(record):
+    rows = record["per_request"]
+    verdict = record["verdict"]
+    mean_repeat = statistics.mean(row["repeat_4gram"] for row in rows)
+    loops = sum(1 for row in rows if row["max_4gram_count"] >= 3)
+    capped = sum(1 for row in rows if row["hit_cap"]) / len(rows)
+    require(abs(round(mean_repeat, 4) - verdict["mean_repeat_4gram"]) < 1e-9, "GATE_REPEAT_MISMATCH")
+    require(loops == verdict["loop_prompts"], "GATE_LOOP_MISMATCH")
+    require(abs(round(capped, 3) - verdict["cap_fraction"]) < 1e-9, "GATE_CAP_MISMATCH")
+    return {
+        "prompts": len(rows),
+        "mean_repeat_4gram": verdict["mean_repeat_4gram"],
+        "loop_prompts": loops,
+        "cap_fraction": verdict["cap_fraction"],
+        "mean_new_tokens": verdict["mean_new_tokens"],
+        "mean_top1": verdict["mean_top1"],
+        "thresholds": verdict["thresholds"],
+        "passed": verdict["pass"],
+        "repetition_unit": verdict.get("repetition_unit", "word"),
+    }
+
+
+def summarize_round3(results):
+    agreement = {name: read_json(results / "agreement" / f"{name}.json")
+                 for name in ("released_selector", "released_argmax", "v3_selector", "v3_argmax")}
+    acceptance = {name: read_json(results / "acceptance" / f"{name}.json") for name in agreement}
+    prompts_hash = {record["prompts_sha256"] for record in acceptance.values()}
+    require(len(prompts_hash) == 1, "ACCEPTANCE_PROMPT_FILE_DIFFERS")
+    hf = read_json(results / "hf-throughput.json")
+    require(hf["prompts_sha256"] in prompts_hash, "HF_PROMPT_FILE_DIFFERS")
+    routes = ("baseline", "dflash_released", "dflash_v3")
+    return {
+        "scope": "English medical prompts; target = Qwen3.8-27B + LoRA r16 attention-only (1 epoch); drafters = released DFlash 2 vs continuation-trained v3.",
+        "eval_prompts_sha256": next(iter(prompts_hash)),
+        "target_gates": {name: gate_summary(read_json(results / "gates" / f"{name}.json")) for name in ("target_v2", "base_target")},
+        "agreement": {name: agreement_summary(record) for name, record in agreement.items()},
+        "agreement_paired": {f"v3_minus_released_{path}": paired_agreement(agreement[f"released_{path}"], agreement[f"v3_{path}"])
+                             for path in ("selector", "argmax")},
+        "acceptance": {name: acceptance_summary(record) for name, record in acceptance.items()},
+        "acceptance_text_overlap": {
+            "released_selector_vs_v3_selector": text_overlap(acceptance["released_selector"], acceptance["v3_selector"]),
+            "released_argmax_vs_v3_argmax": text_overlap(acceptance["released_argmax"], acceptance["v3_argmax"]),
+            "released_selector_vs_released_argmax": text_overlap(acceptance["released_selector"], acceptance["released_argmax"]),
+        },
+        "hf_reference_path": hf_summary(hf),
+        "vllm": vllm_summary({route: read_json(results / "vllm" / f"{route}.json") for route in routes}, routes),
+    }
+
+
+def summarize_round4(results):
+    names = ("base_zh_released", "ftzh_released", "ftzh_released_argmax", "ftzh_ours", "ftzh_ours_argmax",
+             "en200_released", "en200_v3_seed0", "en200_v3_seed1", "en200_v3_seed2")
+    agreement = {name: read_json(results / "agreement" / f"{name}.json") for name in names}
+    acceptance = {name: read_json(results / "acceptance" / f"{name}.json") for name in ("ftzh_released", "ftzh_ours")}
+    require(len({record["prompts_sha256"] for record in acceptance.values()}) == 1, "ACCEPTANCE_PROMPT_FILE_DIFFERS")
+    routes = ("baseline", "dflash_released", "dflash_ours")
+    paired = {
+        "chinese_ours_minus_released_selector": paired_agreement(agreement["ftzh_released"], agreement["ftzh_ours"]),
+        "chinese_ours_minus_released_argmax": paired_agreement(agreement["ftzh_released_argmax"], agreement["ftzh_ours_argmax"]),
+    }
+    for seed in (0, 1, 2):
+        paired[f"english_v3_seed{seed}_minus_released"] = paired_agreement(agreement["en200_released"], agreement[f"en200_v3_seed{seed}"])
+    return {
+        "scope": "Chinese medical prompts; target = Qwen3.8-27B + LoRA r128 all-modules (2 epochs); drafters = released DFlash 2 vs continuation-trained zh. English 200-prompt re-test of Round 3 with three training seeds.",
+        "target_gates": {name: gate_summary(read_json(results / "gates" / f"{name}.json")) for name in ("target_zh", "base_target_zh")},
+        "agreement": {name: agreement_summary(record) for name, record in agreement.items()},
+        "agreement_paired": paired,
+        "acceptance": {name: acceptance_summary(record) for name, record in acceptance.items()},
+        "acceptance_text_overlap": {"ftzh_released_vs_ftzh_ours": text_overlap(acceptance["ftzh_released"], acceptance["ftzh_ours"])},
+        "vllm": vllm_summary({route: read_json(results / "vllm" / f"{route}.json") for route in routes}, routes),
+    }
+
+
+def summarize(root):
+    results = root / "results"
+    return {
+        "scope": "Continuation training of the released DFlash 2 drafter against LoRA-fine-tuned Qwen3.8-27B targets. Not training from scratch. Two drift regimes.",
+        "round3": summarize_round3(results / "round3"),
+        "round4": summarize_round4(results / "round4"),
+        "answer_quality": "NOT_MEASURED: no grader was run on these medical prompt sets; agreement and acceptance describe drafting, not answer correctness.",
+        "statistics_boundary": "PAIRED agreement comparisons share byte-identical target text and use a prompt-level bootstrap. Acceptance and vLLM figures are single executions on different generated texts; no significance claim.",
+    }
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, default=ROOT)
+    parser.add_argument("--output", type=Path, default=None)
+    args = parser.parse_args()
+    summary = summarize(args.root)
+    output = args.output or (args.root / "data" / "summary.json")
+    dump_json(output, summary)
+    print("SUMMARY_WRITTEN", output)
+
+
+if __name__ == "__main__":
+    main()

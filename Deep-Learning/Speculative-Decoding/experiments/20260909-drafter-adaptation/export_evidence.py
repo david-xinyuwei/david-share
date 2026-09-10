@@ -1,0 +1,351 @@
+"""Project the author's private drafter-adaptation archive into public evidence.
+
+The private archive holds raw run directories with host names, absolute paths and
+full generated text. This exporter copies only an allowlist of result files, removes
+host and path fields, truncates generated text to a short head, and records the
+SHA-256 of every source file so the public projection can be traced back without
+redistributing the private material.
+
+Run manually by the author; never runs in CI. Use ``analyze_results.py`` and
+``validate_report.py`` on the exported files.
+"""
+
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+
+from analyze_results import dump_json, require
+
+
+ROOT = Path(__file__).resolve().parent
+HOST_FIELDS = ("host", "gpu_name", "base_url")
+PATH_FIELDS = ("target", "adapter", "drafter", "drafter_path", "prompts", "prompts_file", "output", "data")
+TEXT_HEAD = 80
+ROUND3_RESULT_FILES = {
+    "acceptance/released_selector.json": "results/r3_acc_released_selector.json",
+    "acceptance/released_argmax.json": "results/r3_acc_released_argmax.json",
+    "acceptance/v3_selector.json": "results/r3_acc_v3_selector.json",
+    "acceptance/v3_argmax.json": "results/r3_acc_v3_argmax.json",
+    "agreement/released_selector.json": "results/r3_pred_released_selector.json",
+    "agreement/released_argmax.json": "results/r3_pred_released_argmax.json",
+    "agreement/v3_selector.json": "results/r3_pred_v3_selector.json",
+    "agreement/v3_argmax.json": "results/r3_pred_v3_argmax.json",
+    "hf-throughput.json": "results/r3_hf_throughput.json",
+    "vllm/baseline.json": "results/r3_vllm_baseline.json",
+    "vllm/dflash_released.json": "results/r3_vllm_dflash_released.json",
+    "vllm/dflash_v3.json": "results/r3_vllm_dflash_v3.json",
+    "gates/target_v2.json": "results/degeneration_target_v2.json",
+    "gates/base_target.json": "results/degeneration_base.json",
+}
+ROUND4_RESULT_FILES = {
+    "agreement/base_zh_released.json": "results/r4_pred_base_zh_released.json",
+    "agreement/ftzh_released.json": "results/r4_pred_ftzh_released.json",
+    "agreement/ftzh_released_argmax.json": "results/r4_pred_ftzh_released_argmax.json",
+    "agreement/ftzh_ours.json": "results/r4_pred_ftzh_ours.json",
+    "agreement/ftzh_ours_argmax.json": "results/r4_pred_ftzh_ours_argmax.json",
+    "agreement/en200_released.json": "results/r4_pred_en200_released.json",
+    "agreement/en200_v3_seed0.json": "results/r4_pred_en200_v3s0.json",
+    "agreement/en200_v3_seed1.json": "results/r4_pred_en200_v3s1.json",
+    "agreement/en200_v3_seed2.json": "results/r4_pred_en200_v3s2.json",
+    "acceptance/ftzh_released.json": "results/r4_acc_ftzh_released.json",
+    "acceptance/ftzh_ours.json": "results/r4_acc_ftzh_ours.json",
+    "vllm/baseline.json": "results/r4_vllm_zh_baseline.json",
+    "vllm/dflash_released.json": "results/r4_vllm_zh_dflash_released.json",
+    "vllm/dflash_ours.json": "results/r4_vllm_zh_dflash_ours.json",
+    "gates/target_zh.json": "results/r4_degeneration_zh.json",
+    "gates/base_target_zh.json": "results/r4_degeneration_base_zh.json",
+    "training/adapter_zh_summary.json": "results/r4_finetune_zh_summary.json",
+    "training/drafter_zh_history.json": "results/r4_drafter_zh_history.json",
+}
+SOURCE_FILES = {
+    "prepare_domain_data.py": "scripts/prepare_domain_data.py",
+    "finetune_target.py": "scripts/finetune_target.py",
+    "check_degeneration.py": "scripts/check_degeneration.py",
+    "generate_responses.py": "scripts/generate_responses.py",
+    "train_drafter.py": "scripts/train_drafter.py",
+    "analyze_predictability.py": "scripts/analyze_predictability.py",
+    "measure_acceptance.py": "scripts/measure_acceptance.py",
+    "bench_throughput.py": "scripts/bench_throughput.py",
+    "export_drafter_for_vllm.py": "scripts/export_drafter_for_vllm.py",
+    "vllm_client_bench.py": "scripts/vllm_client_bench.py",
+}
+# Orchestration shells embed private host paths; they are hashed, not published.
+ORCHESTRATION_FILES = {
+    "round3_phase_a.sh": "scripts/round3_phase_a.sh",
+    "round3_phase_b.sh": "scripts/round3_phase_b.sh",
+    "round3_phase_c.sh": "scripts/round3_phase_c.sh",
+}
+ROUND4_SOURCE_FILES = {
+    "prepare_domain_data.py": "prepare_domain_data.py",
+    "finetune_target.py": "finetune_target.py",
+    "check_degeneration.py": "check_degeneration.py",
+    "generate_responses.py": "generate_responses.py",
+    "train_drafter.py": "train_drafter.py",
+    "draft_metrics.py": "draft_metrics.py",
+    "analyze_predictability.py": "analyze_predictability.py",
+    "measure_acceptance.py": "measure_acceptance.py",
+    "export_drafter_for_vllm.py": "export_drafter_for_vllm.py",
+    "vllm_client_bench.py": "vllm_client_bench.py",
+}
+ROUND4_ARTIFACT_FILES = {
+    "adapter-zh/adapter_model.safetensors": "out/adapter-zh/adapter_model.safetensors",
+    "adapter-zh/adapter_config.json": "out/adapter-zh/adapter_config.json",
+    "drafter-zh/model.safetensors": "out/drafter-zh/model.safetensors",
+    "drafter-zh/config.json": "out/drafter-zh/config.json",
+    "drafter-v3-seed1/model.safetensors": "out/drafter-v3-seed1/model.safetensors",
+    "drafter-v3-seed2/model.safetensors": "out/drafter-v3-seed2/model.safetensors",
+    "data_zh/train.jsonl": "data_zh/train.jsonl",
+    "data_zh/eval_prompts.jsonl": "data_zh/eval_prompts.jsonl",
+    "data_zh/corpus.jsonl": "data_zh/corpus.jsonl",
+    "data_zh/split_manifest.json": "data_zh/split_manifest.json",
+    "data_en/eval_prompts.jsonl": "data_en/eval_prompts.jsonl",
+    "data_en/split_manifest.json": "data_en/split_manifest.json",
+}
+ROUND4_LOG_FILES = {
+    "round4": "logs/round4-resume.log",
+    "vllm_baseline": "logs/r4_vllm_baseline_server.log",
+    "vllm_dflash_released": "logs/r4_vllm_dflash_released_server.log",
+    "vllm_dflash_ours": "logs/r4_vllm_dflash_ours_server.log",
+}
+ARTIFACT_FILES = {
+    "adapter-v2/adapter_model.safetensors": "checkpoints/adapter-v2/adapter_model.safetensors",
+    "adapter-v2/adapter_config.json": "checkpoints/adapter-v2/adapter_config.json",
+    "adapter-v2/training_summary.json": "checkpoints/adapter-v2/training_summary.json",
+    "drafter-v3/model.safetensors": "checkpoints/drafter-v3/model.safetensors",
+    "drafter-v3/config.json": "checkpoints/drafter-v3/config.json",
+    "drafter-v3/training-history.json": "checkpoints/drafter-v3/training-history.json",
+    "data/train.jsonl": "data_v2/train.jsonl",
+    "data/eval_prompts.jsonl": "data_v2/eval_prompts.jsonl",
+    "data/corpus.jsonl": "data_v2/corpus.jsonl",
+    "data/split_manifest.json": "data_v2/split_manifest.json",
+    "data/corpus.jsonl.manifest.json": "data_v2/corpus.jsonl.manifest.json",
+}
+LOG_FILES = {
+    "phase_a": "round3/round3_phase_a.log",
+    "phase_b": "round3/round3_phase_b.log",
+    "phase_c": "round3/round3_phase_c.log",
+    "vllm_baseline": "logs/vllm_baseline_server.log",
+    "vllm_dflash_released": "logs/vllm_dflash_released_server.log",
+    "vllm_dflash_v3": "logs/vllm_dflash_v3_server.log",
+}
+STAGE_LINE = re.compile(r"^===== (\S+).*?(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z) =====$")
+ARCHITECTURE_LINE = re.compile(r"INFO (\d\d-\d\d \d\d:\d\d:\d\d).*?Resolved architecture: (\w+)")
+SPEC_LINE = re.compile(r"speculative_config=SpeculativeConfig\((.*?)\)")
+SPEC_METRICS = re.compile(r"Mean acceptance length: ([\d.]+), Accepted throughput: [\d.]+ tokens/s, "
+                          r"Drafted throughput: [\d.]+ tokens/s, Accepted: (\d+) tokens, Drafted: (\d+) tokens")
+# Generic private-identifier shapes; the author's exact host and account strings are
+# supplied through PRIVATE_MARKERS_FILE (one per line) and never published.
+GENERIC_PRIVATE_PATTERNS = (
+    re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}\b"),
+    re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.I),
+    re.compile(r"/home/|/mnt/|/root/|[A-Za-z]:\\\\"),
+)
+
+
+def private_markers():
+    path = os.environ.get("PRIVATE_MARKERS_FILE")
+    if not path:
+        return ()
+    return tuple(line.strip() for line in Path(path).read_text(encoding="utf-8").splitlines() if line.strip())
+
+
+def find_private(text, markers):
+    for pattern in GENERIC_PRIVATE_PATTERNS:
+        match = pattern.search(text)
+        if match:
+            return match.group(0)
+    for marker in markers:
+        if marker in text:
+            return "<private marker>"
+    return None
+
+
+def digest_bytes(raw):
+    return hashlib.sha256(raw).hexdigest()
+
+
+def digest_file(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def scrub(value, key=None):
+    if isinstance(value, dict):
+        return {name: scrub(item, name) for name, item in value.items() if name not in HOST_FIELDS}
+    if isinstance(value, list):
+        return [scrub(item, key) for item in value]
+    if isinstance(value, str):
+        if key in PATH_FIELDS:
+            return Path(value).name
+        if key in ("completion", "completion_head", "text_head"):
+            return value[:TEXT_HEAD]
+        if value.startswith("/"):
+            return Path(value).name
+    return value
+
+
+def project_result(source_path):
+    raw = source_path.read_bytes()
+    content = json.loads(raw)
+    projected = scrub(content)
+    rows = content.get("per_request") or []
+    if rows and isinstance(rows[0], dict) and "completion" in rows[0]:
+        for original, row in zip(rows, projected["per_request"]):
+            row["completion_sha256"] = digest_bytes(original["completion"].encode("utf-8"))
+            row.pop("completion_ids", None)
+    return projected, {"bytes": len(raw), "sha256": digest_bytes(raw)}
+
+
+def read_log(path):
+    return path.read_text(encoding="utf-8", errors="replace")
+
+
+def stage_timeline(text):
+    stages = []
+    for line in text.splitlines():
+        match = STAGE_LINE.match(line.strip())
+        if match:
+            stages.append({"stage": match.group(1), "utc": match.group(2)})
+    return stages
+
+
+def server_activation(text):
+    architectures = [{"log_clock": clock, "architecture": name} for clock, name in ARCHITECTURE_LINE.findall(text)]
+    spec = SPEC_LINE.search(text)
+    metrics = SPEC_METRICS.findall(text)
+    return {
+        "resolved_architectures": architectures,
+        "speculative_config": spec.group(1) if spec else None,
+        "server_metric_intervals": len(metrics),
+        "accepted_tokens_logged": sum(int(item[1]) for item in metrics),
+        "drafted_tokens_logged": sum(int(item[2]) for item in metrics),
+        "last_logged_mean_acceptance_length": float(metrics[-1][0]) if metrics else None,
+    }
+
+
+def marker_lines(text, markers):
+    found = {}
+    for line in text.splitlines():
+        for marker in markers:
+            if line.startswith(marker):
+                found[marker] = found.get(marker, 0) + 1
+    return found
+
+
+def training_windows(history_path):
+    training = json.loads(history_path.read_text(encoding="utf-8"))
+    history, selector = training["history"], training["selector_history"]
+    window = max(1, len(history) // 10)
+    return {
+        "args": {key: value for key, value in training["args"].items()
+                 if key not in ("target", "adapter", "drafter", "data", "output", "config", "smoke")},
+        "steps": len(history),
+        "backbone_loss_first_window": round(sum(history[:window]) / window, 4),
+        "backbone_loss_last_window": round(sum(history[-window:]) / window, 4),
+        "selector_loss_first_window": round(sum(selector[:window]) / window, 4),
+        "selector_loss_last_window": round(sum(selector[-window:]) / window, 4),
+        "window_steps": window,
+    }
+
+
+ADAPTER_FIELDS = ("sequences", "epochs", "optimizer_steps", "lr", "lora_rank", "lora_alpha", "target_modules",
+                  "dropped_long", "max_length", "seed", "first_logged_loss", "last_logged_loss",
+                  "wall_clock_seconds", "peak_gpu_gib")
+PHASE_MARKERS = ("FINETUNE_TARGET=", "DEGENERATION_GATE=", "TRAIN=", "MEASURE_ACCEPTANCE=", "ANALYSE_PREDICTABILITY=",
+                 "VLLM_CLIENT_BENCH=", "MERGED_TARGET_V2", "MERGED_TARGET_ZH", "EXPORT_DRAFTER=", "RESUMED_WITH_QUALITY_WARNING",
+                 "BASE_ANALYSIS_REUSED", "ADOPTED_TRAIN_EXIT_CODE=", "===== ROUND4_COMPLETE", "===== ROUND4_EXIT")
+
+
+def export_round(round_name, source, destination, results, sources, artifacts, logs_map, log_kind, markers):
+    record = {"results": {}, "source": {}, "artifacts": {}, "logs": {}}
+    for public, private in results.items():
+        projected, identity = project_result(source / private)
+        target = destination / "results" / round_name / public
+        target.parent.mkdir(parents=True, exist_ok=True)
+        dump_json(target, projected)
+        record["results"][public] = dict(identity, source=private)
+    for public, private in sources.items():
+        raw = (source / private).read_bytes()
+        text = raw.decode("utf-8")
+        require(find_private(text, markers) is None, "PRIVATE_IDENTIFIER_IN_SOURCE:" + public)
+        target = destination / "source" / round_name / public
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(raw.replace(b"\r\n", b"\n"))
+        record["source"][public] = {"bytes": len(raw), "sha256": digest_bytes(raw), "source": private}
+    for public, private in artifacts.items():
+        path = source / private
+        record["artifacts"][public] = {"bytes": path.stat().st_size, "sha256": digest_file(path),
+                                       "published": False, "source": private}
+    for name, private in logs_map.items():
+        text = read_log(source / private)
+        entry = {"bytes": len(text.encode("utf-8")), "sha256": digest_file(source / private), "source": private}
+        if log_kind(name) == "pipeline":
+            entry["stages"] = stage_timeline(text)
+            entry["markers"] = marker_lines(text, PHASE_MARKERS)
+        else:
+            entry["activation"] = server_activation(text)
+        record["logs"][name] = entry
+    return record
+
+
+def export(source, round4_source, destination):
+    source = source.resolve()
+    round4_source = round4_source.resolve()
+    destination = destination.resolve()
+    require(source.is_dir() and round4_source.is_dir(), "PRIVATE_ARCHIVE_MISSING")
+    markers = private_markers()
+
+    round3 = export_round("round3", source, destination, ROUND3_RESULT_FILES, SOURCE_FILES, ARTIFACT_FILES,
+                          LOG_FILES, lambda name: "pipeline" if name.startswith("phase") else "server", markers)
+    for public, private in ORCHESTRATION_FILES.items():
+        path = source / private
+        round3["source"][public] = {"bytes": path.stat().st_size, "sha256": digest_file(path), "published": False,
+                                    "source": private, "reason": "orchestration shell with private host paths; commands are transcribed in the README"}
+    round3["training"] = {
+        "target_adapter": {key: json.loads((source / ARTIFACT_FILES["adapter-v2/training_summary.json"]).read_text(encoding="utf-8"))[key]
+                           for key in ADAPTER_FIELDS},
+        "drafter_v3": training_windows(source / ARTIFACT_FILES["drafter-v3/training-history.json"]),
+    }
+
+    round4 = export_round("round4", round4_source, destination, ROUND4_RESULT_FILES, ROUND4_SOURCE_FILES,
+                          ROUND4_ARTIFACT_FILES, ROUND4_LOG_FILES,
+                          lambda name: "pipeline" if name == "round4" else "server", markers)
+    adapter_zh = json.loads((round4_source / "results/r4_finetune_zh_summary.json").read_text(encoding="utf-8"))
+    round4["training"] = {
+        "target_adapter_zh": {key: adapter_zh[key] for key in ADAPTER_FIELDS},
+        "drafter_zh": training_windows(round4_source / "results/r4_drafter_zh_history.json"),
+        "drafter_v3_seed1": training_windows(round4_source / "out/drafter-v3-seed1/training-history.json"),
+        "drafter_v3_seed2": training_windows(round4_source / "out/drafter-v3-seed2/training-history.json"),
+    }
+    round4["source"]["round4.sh"] = {"published": False,
+                                     "reason": "orchestration shell with private host paths; commands are transcribed in the README"}
+
+    provenance = {
+        "scope": "Allowlisted projection of the author's private archive; hashes trace each public file to its private source.",
+        "round3": round3,
+        "round4": round4,
+    }
+    dump_json(destination / "evidence" / "provenance.json", provenance)
+    for path in sorted(destination.rglob("*.json")):
+        text = path.read_text(encoding="utf-8")
+        require(find_private(text, markers) is None, "PRIVATE_MARKER_IN_PUBLIC_RESULT:" + path.name)
+    print("EXPORT=DONE", "round3_results=" + str(len(round3["results"])), "round4_results=" + str(len(round4["results"])))
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--source", required=True, type=Path, help="private archive root (gpu-run-20260908)")
+    parser.add_argument("--round4-source", required=True, type=Path, help="Round 4 raw workspace copy")
+    parser.add_argument("--destination", type=Path, default=ROOT)
+    args = parser.parse_args()
+    export(args.source, args.round4_source, args.destination)
+
+
+if __name__ == "__main__":
+    main()

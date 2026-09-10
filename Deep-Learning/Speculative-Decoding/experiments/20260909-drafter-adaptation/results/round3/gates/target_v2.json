@@ -1,0 +1,383 @@
+{
+  "adapter": "adapter-v2",
+  "decoding": "HF generate, pure greedy",
+  "label": "target_v2",
+  "num_prompts": 40,
+  "per_request": [
+    {
+      "completion_head": "C. Mammography",
+      "hit_cap": false,
+      "id": "eval-0",
+      "max_4gram_count": 0,
+      "mean_top1": 0.8868265300989151,
+      "new_tokens": 6,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "In the case of an 8-year-old boy experiencing frequent severe bleeding from mino",
+      "hit_cap": false,
+      "id": "eval-1",
+      "max_4gram_count": 2,
+      "mean_top1": 0.8435911411658311,
+      "new_tokens": 195,
+      "repeat_4gram": 0.007575757575757569
+    },
+    {
+      "completion_head": "Based on the clinical findings and laboratory results, the most likely diagnosis",
+      "hit_cap": false,
+      "id": "eval-2",
+      "max_4gram_count": 1,
+      "mean_top1": 0.8222996695142872,
+      "new_tokens": 106,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "The phenomenon you're describing, where a small target oscillated in front of a ",
+      "hit_cap": false,
+      "id": "eval-3",
+      "max_4gram_count": 1,
+      "mean_top1": 0.828464440535754,
+      "new_tokens": 96,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "Given the location of the stab wound slightly right of the midline on the back, ",
+      "hit_cap": false,
+      "id": "eval-4",
+      "max_4gram_count": 2,
+      "mean_top1": 0.8125746396798936,
+      "new_tokens": 126,
+      "repeat_4gram": 0.09090909090909094
+    },
+    {
+      "completion_head": "A. An ECG",
+      "hit_cap": false,
+      "id": "eval-5",
+      "max_4gram_count": 0,
+      "mean_top1": 0.8661823322375616,
+      "new_tokens": 6,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "Several antihypertensive drugs are known to be beneficial or have a neutral effe",
+      "hit_cap": false,
+      "id": "eval-6",
+      "max_4gram_count": 3,
+      "mean_top1": 0.8042589880038644,
+      "new_tokens": 214,
+      "repeat_4gram": 0.0757575757575758
+    },
+    {
+      "completion_head": "The post coital test showing non-motile sperms in the cervical smear and motile ",
+      "hit_cap": false,
+      "id": "eval-7",
+      "max_4gram_count": 1,
+      "mean_top1": 0.8031708114855999,
+      "new_tokens": 74,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "If left untreated, the next clinical stage of syphilis, following the primary st",
+      "hit_cap": false,
+      "id": "eval-8",
+      "max_4gram_count": 1,
+      "mean_top1": 0.7834053666968095,
+      "new_tokens": 114,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "The most likely underlying cause of the abdominal aortic aneurysm in this 58-yea",
+      "hit_cap": false,
+      "id": "eval-9",
+      "max_4gram_count": 1,
+      "mean_top1": 0.7735595699445701,
+      "new_tokens": 81,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "According to the World Health Organization's criteria for determining xerophthal",
+      "hit_cap": false,
+      "id": "eval-10",
+      "max_4gram_count": 1,
+      "mean_top1": 0.9085221670567989,
+      "new_tokens": 40,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "The recommended single massive dose of vitamin A given every 6 months to prevent",
+      "hit_cap": false,
+      "id": "eval-11",
+      "max_4gram_count": 1,
+      "mean_top1": 0.850845117254981,
+      "new_tokens": 56,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "To calculate the glomerular filtration rate (GFR) using inulin clearance, we use",
+      "hit_cap": true,
+      "id": "eval-12",
+      "max_4gram_count": 2,
+      "mean_top1": 0.9589351783506572,
+      "new_tokens": 256,
+      "repeat_4gram": 0.06451612903225812
+    },
+    {
+      "completion_head": "The symptoms and context you've described are highly suggestive of a rotavirus i",
+      "hit_cap": true,
+      "id": "eval-13",
+      "max_4gram_count": 2,
+      "mean_top1": 0.7466876073158346,
+      "new_tokens": 256,
+      "repeat_4gram": 0.005617977528089901
+    },
+    {
+      "completion_head": "The patient is at increased risk for cardiac tamponade. The symptoms and finding",
+      "hit_cap": false,
+      "id": "eval-14",
+      "max_4gram_count": 1,
+      "mean_top1": 0.7972099664555469,
+      "new_tokens": 142,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "The virus known to cause neonatal infections, infections in immunocompromised pa",
+      "hit_cap": false,
+      "id": "eval-15",
+      "max_4gram_count": 1,
+      "mean_top1": 0.9341443804594186,
+      "new_tokens": 65,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "The cytokine most likely directly responsible for the cachexia and systemic symp",
+      "hit_cap": false,
+      "id": "eval-16",
+      "max_4gram_count": 1,
+      "mean_top1": 0.7419393417303977,
+      "new_tokens": 92,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "For a patient on Warfarin with an INR of 8, the recommended course of action is ",
+      "hit_cap": false,
+      "id": "eval-17",
+      "max_4gram_count": 1,
+      "mean_top1": 0.7705453680111811,
+      "new_tokens": 78,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "The strongest predisposing factor for a bleeding gastric ulcer in a patient pres",
+      "hit_cap": false,
+      "id": "eval-18",
+      "max_4gram_count": 1,
+      "mean_top1": 0.7788223820590527,
+      "new_tokens": 107,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "If pre-surgical movement of maxillary segments is indicated in a cleft infant, i",
+      "hit_cap": false,
+      "id": "eval-19",
+      "max_4gram_count": 2,
+      "mean_top1": 0.8353075059254964,
+      "new_tokens": 75,
+      "repeat_4gram": 0.036363636363636376
+    },
+    {
+      "completion_head": "Based on the radiographic findings described, the most likely type of bone lesio",
+      "hit_cap": false,
+      "id": "eval-20",
+      "max_4gram_count": 1,
+      "mean_top1": 0.8439090236440882,
+      "new_tokens": 77,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "The most likely cause of this woman's anemia is hemolytic anemia. The laboratory",
+      "hit_cap": false,
+      "id": "eval-21",
+      "max_4gram_count": 1,
+      "mean_top1": 0.7657546332500277,
+      "new_tokens": 137,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "During cardiac surgery, if a surgeon places their fingers in the transverse peri",
+      "hit_cap": false,
+      "id": "eval-22",
+      "max_4gram_count": 1,
+      "mean_top1": 0.7919086954810403,
+      "new_tokens": 55,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "The type of hearing loss characterized by the ability to understand shouted or a",
+      "hit_cap": false,
+      "id": "eval-23",
+      "max_4gram_count": 2,
+      "mean_top1": 0.7883860678150413,
+      "new_tokens": 89,
+      "repeat_4gram": 0.01388888888888884
+    },
+    {
+      "completion_head": "To calculate the Maternal Mortality Rate (MMR) for the community, we need to det",
+      "hit_cap": true,
+      "id": "eval-24",
+      "max_4gram_count": 2,
+      "mean_top1": 0.916290977387689,
+      "new_tokens": 256,
+      "repeat_4gram": 0.04587155963302747
+    },
+    {
+      "completion_head": "Sarcoma botryoides, a subtype of embryonal rhabdomyosarcoma, is characterized by",
+      "hit_cap": false,
+      "id": "eval-25",
+      "max_4gram_count": 1,
+      "mean_top1": 0.7253447030254496,
+      "new_tokens": 123,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "The most likely intervention to help with this patient's presentation is D. Vita",
+      "hit_cap": false,
+      "id": "eval-26",
+      "max_4gram_count": 1,
+      "mean_top1": 0.7599559657427729,
+      "new_tokens": 98,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "The most appropriate next step in the management of this 11-month-old boy with s",
+      "hit_cap": false,
+      "id": "eval-27",
+      "max_4gram_count": 1,
+      "mean_top1": 0.7793754433490792,
+      "new_tokens": 98,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "The hormone used to induce labor in this scenario is oxytocin, which is produced",
+      "hit_cap": false,
+      "id": "eval-28",
+      "max_4gram_count": 1,
+      "mean_top1": 0.8339848549615952,
+      "new_tokens": 124,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "The skin lesion described in the scenario is consistent with melanoma, a type of",
+      "hit_cap": false,
+      "id": "eval-29",
+      "max_4gram_count": 2,
+      "mean_top1": 0.8154075177092301,
+      "new_tokens": 133,
+      "repeat_4gram": 0.010101010101010055
+    },
+    {
+      "completion_head": "The translocation that confirms the diagnosis of Burkitt's Lymphoma is t(8:14). ",
+      "hit_cap": false,
+      "id": "eval-30",
+      "max_4gram_count": 1,
+      "mean_top1": 0.8903015339985872,
+      "new_tokens": 78,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "In the test of well water using Horrock's apparatus, if a blue color is observed",
+      "hit_cap": false,
+      "id": "eval-31",
+      "max_4gram_count": 2,
+      "mean_top1": 0.8255179939901127,
+      "new_tokens": 85,
+      "repeat_4gram": 0.016949152542372836
+    },
+    {
+      "completion_head": "The laboratory test that can help to make the diagnosis in this case is the Dire",
+      "hit_cap": false,
+      "id": "eval-32",
+      "max_4gram_count": 1,
+      "mean_top1": 0.8098454148249519,
+      "new_tokens": 133,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "The most likely bacterial cause of the patient's infection is Shigella. Shigella",
+      "hit_cap": false,
+      "id": "eval-33",
+      "max_4gram_count": 1,
+      "mean_top1": 0.8106743033975363,
+      "new_tokens": 40,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "The symptoms described—lateral and downward deviation of the right eye, complete",
+      "hit_cap": false,
+      "id": "eval-34",
+      "max_4gram_count": 1,
+      "mean_top1": 0.7939473641189662,
+      "new_tokens": 110,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "The clinical manifestations described in the 26-year-old female patient, includi",
+      "hit_cap": false,
+      "id": "eval-35",
+      "max_4gram_count": 1,
+      "mean_top1": 0.8164919060055572,
+      "new_tokens": 101,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "In the case of an injury to the C8-T1 spinal nerve roots, the specific part of t",
+      "hit_cap": false,
+      "id": "eval-36",
+      "max_4gram_count": 1,
+      "mean_top1": 0.814169476589849,
+      "new_tokens": 93,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "The nasopharynx is the uppermost part of the pharynx, located behind the nasal c",
+      "hit_cap": false,
+      "id": "eval-37",
+      "max_4gram_count": 2,
+      "mean_top1": 0.8184058992526471,
+      "new_tokens": 195,
+      "repeat_4gram": 0.007246376811594235
+    },
+    {
+      "completion_head": "When administered in small doses for mild cholinomimetic stimulation following s",
+      "hit_cap": true,
+      "id": "eval-38",
+      "max_4gram_count": 2,
+      "mean_top1": 0.774154378566891,
+      "new_tokens": 256,
+      "repeat_4gram": 0.005780346820809301
+    },
+    {
+      "completion_head": "In the scenario of a 57-year-old man with congestive heart failure who has not t",
+      "hit_cap": true,
+      "id": "eval-39",
+      "max_4gram_count": 2,
+      "mean_top1": 0.7588577727437951,
+      "new_tokens": 256,
+      "repeat_4gram": 0.00540540540540535
+    }
+  ],
+  "prompts": "eval_prompts.jsonl",
+  "target": "target",
+  "verdict": {
+    "cap_fraction": 0.125,
+    "loop_prompts": 1,
+    "mean_new_tokens": 118.0,
+    "mean_repeat_4gram": 0.0096,
+    "mean_top1": 0.817,
+    "pass": true,
+    "thresholds": {
+      "max_cap_fraction": 0.5,
+      "max_loop_prompts": 2,
+      "max_mean_repeat": 0.03
+    }
+  }
+}

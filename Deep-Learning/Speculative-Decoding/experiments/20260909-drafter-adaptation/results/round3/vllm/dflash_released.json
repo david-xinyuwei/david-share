@@ -1,0 +1,672 @@
+{
+  "decoding": "temperature 0.0 via OpenAI chat completions, enable_thinking=false",
+  "label": "dflash_released",
+  "levels": [
+    {
+      "completion_tokens": 4842,
+      "concurrency": 1,
+      "finish_length": 3,
+      "median_request_seconds": 0.693,
+      "per_request": [
+        {
+          "completion_tokens": 6,
+          "finish_reason": "stop",
+          "prompt_tokens": 216,
+          "seconds": 0.1029,
+          "text_head": "C. Mammography",
+          "text_sha256": "f0bb570d3a1c8ed4c04534c302060b284027c210a5617bc5780e964dfb5ff3f8"
+        },
+        {
+          "completion_tokens": 195,
+          "finish_reason": "stop",
+          "prompt_tokens": 63,
+          "seconds": 1.0324,
+          "text_head": "In the case of an 8-year-old boy experiencing frequent severe bleeding from mino",
+          "text_sha256": "240d2821638dc8887790de9ebe3ea6511d2d477b88749375bc3ef3fceef5d833"
+        },
+        {
+          "completion_tokens": 112,
+          "finish_reason": "stop",
+          "prompt_tokens": 119,
+          "seconds": 0.7141,
+          "text_head": "Based on the clinical findings and laboratory results, the most likely diagnosis",
+          "text_sha256": "7ec2d8a241e721fbcdc387b5a515b3ce31c91016fb729fbead651e6471ec7942"
+        },
+        {
+          "completion_tokens": 96,
+          "finish_reason": "stop",
+          "prompt_tokens": 84,
+          "seconds": 0.5845,
+          "text_head": "The phenomenon you're describing, where a small target oscillated in front of a ",
+          "text_sha256": "bb629cb575346d65c1461c3f01d8f51ae3d12b7a07a37108dcec3ef66dc65876"
+        },
+        {
+          "completion_tokens": 126,
+          "finish_reason": "stop",
+          "prompt_tokens": 68,
+          "seconds": 0.7382,
+          "text_head": "Given the location of the stab wound slightly right of the midline on the back, ",
+          "text_sha256": "10073cb11e0c6ba261022984c84d8d25e80b6bf3d5107ef18171cb53d3a6643f"
+        },
+        {
+          "completion_tokens": 6,
+          "finish_reason": "stop",
+          "prompt_tokens": 116,
+          "seconds": 0.1043,
+          "text_head": "A. An ECG",
+          "text_sha256": "643625dc37b33383df847547715c8dcb1a4ebaab58ef9cf6cb276007b1923983"
+        },
+        {
+          "completion_tokens": 214,
+          "finish_reason": "stop",
+          "prompt_tokens": 33,
+          "seconds": 1.3598,
+          "text_head": "Several antihypertensive drugs are known to be beneficial or have a neutral effe",
+          "text_sha256": "1c591ac8f3e96474fb17895e43dc315ac4d6edfacd1be95bed57aa62a32204d0"
+        },
+        {
+          "completion_tokens": 74,
+          "finish_reason": "stop",
+          "prompt_tokens": 68,
+          "seconds": 0.5309,
+          "text_head": "The post coital test showing non-motile sperms in the cervical smear and motile ",
+          "text_sha256": "4c5458a06bc23e52297c73ef91504caf7f3bbd11dcd666d722a4c083f77e4f0b"
+        },
+        {
+          "completion_tokens": 114,
+          "finish_reason": "stop",
+          "prompt_tokens": 59,
+          "seconds": 0.8543,
+          "text_head": "If left untreated, the next clinical stage of syphilis, following the primary st",
+          "text_sha256": "5a31b4ce92fdc383e882a7d7abb0eb85b6c993ec1cdee88f6addfdab18933df1"
+        },
+        {
+          "completion_tokens": 81,
+          "finish_reason": "stop",
+          "prompt_tokens": 74,
+          "seconds": 0.6011,
+          "text_head": "The most likely underlying cause of the abdominal aortic aneurysm in this 58-yea",
+          "text_sha256": "60316acbcf061ffbffd7bb21a8000708314ecc370bcdc1b3c9739c767cda1780"
+        },
+        {
+          "completion_tokens": 41,
+          "finish_reason": "stop",
+          "prompt_tokens": 51,
+          "seconds": 0.2168,
+          "text_head": "According to the World Health Organization's criteria, the threshold percentage ",
+          "text_sha256": "417c8c34de68ff206316162439d321ba9947b498e75b363c944b98693a100ce3"
+        },
+        {
+          "completion_tokens": 56,
+          "finish_reason": "stop",
+          "prompt_tokens": 40,
+          "seconds": 0.3282,
+          "text_head": "The recommended single massive dose of vitamin A given every 6 months to prevent",
+          "text_sha256": "c1b0e28a6c6182bf4f8b6c62dba7d731e0ba1ada21fb2ed9170c429c3e9028ac"
+        },
+        {
+          "completion_tokens": 256,
+          "finish_reason": "length",
+          "prompt_tokens": 63,
+          "seconds": 0.9933,
+          "text_head": "To calculate the glomerular filtration rate (GFR) using inulin clearance, we use",
+          "text_sha256": "427fa4d8a557024fb3c93973062592ed858d070c026a27ec2507b21c515b91dd"
+        },
+        {
+          "completion_tokens": 245,
+          "finish_reason": "stop",
+          "prompt_tokens": 66,
+          "seconds": 1.7921,
+          "text_head": "The symptoms and context you've described are highly suggestive of a rotavirus i",
+          "text_sha256": "df0e1cc62748b488d038fbcfb1c3f401dfdca0935924250a632157382636eec7"
+        },
+        {
+          "completion_tokens": 142,
+          "finish_reason": "stop",
+          "prompt_tokens": 302,
+          "seconds": 0.9473,
+          "text_head": "The patient is at increased risk for cardiac tamponade. The symptoms and finding",
+          "text_sha256": "4efdf6428213ad1ccde441d62f5edef4582e4a362f0fdbbc70848e4e4483198d"
+        },
+        {
+          "completion_tokens": 64,
+          "finish_reason": "stop",
+          "prompt_tokens": 67,
+          "seconds": 0.308,
+          "text_head": "The virus known to cause neonatal infections, infections in immunocompromised pa",
+          "text_sha256": "9adde2d594e886fb833122c76750dd235bd16bfa5e51530f109f66c03467a050"
+        },
+        {
+          "completion_tokens": 96,
+          "finish_reason": "stop",
+          "prompt_tokens": 94,
+          "seconds": 0.7409,
+          "text_head": "The cytokine most likely directly responsible for the cachexia and systemic symp",
+          "text_sha256": "0c57808182315286c0142f1d520a9bf61cf279e0663bb2461fdb9bffa72aa89d"
+        },
+        {
+          "completion_tokens": 78,
+          "finish_reason": "stop",
+          "prompt_tokens": 34,
+          "seconds": 0.5117,
+          "text_head": "For a patient on Warfarin with an INR of 8, the recommended course of action is ",
+          "text_sha256": "d0f88c7b6c4def817928272a59a57c593ccb6bde2e00b3e9b76bb72070fa893b"
+        },
+        {
+          "completion_tokens": 107,
+          "finish_reason": "stop",
+          "prompt_tokens": 56,
+          "seconds": 0.604,
+          "text_head": "The strongest predisposing factor for a bleeding gastric ulcer in a patient pres",
+          "text_sha256": "6a3333701229e3cc69ef841f8d342a3ce3671d448b838b10c4ef7264c0949bc0"
+        },
+        {
+          "completion_tokens": 75,
+          "finish_reason": "stop",
+          "prompt_tokens": 83,
+          "seconds": 0.5108,
+          "text_head": "If pre-surgical movement of maxillary segments is indicated in a cleft infant, i",
+          "text_sha256": "13fee355f8d86d2e7a92ae5ac12300cb7008c5ab0c15d8e4b700cbaeb728dee8"
+        },
+        {
+          "completion_tokens": 77,
+          "finish_reason": "stop",
+          "prompt_tokens": 80,
+          "seconds": 0.4645,
+          "text_head": "Based on the radiographic findings described, the most likely type of bone lesio",
+          "text_sha256": "69dc5cc82e7b2cd46e1b0a4b2d58556f83680d6c86060f82fd2fe020d4c33a1a"
+        },
+        {
+          "completion_tokens": 239,
+          "finish_reason": "stop",
+          "prompt_tokens": 103,
+          "seconds": 1.2478,
+          "text_head": "Based on the laboratory results and clinical presentation, the most likely cause",
+          "text_sha256": "14e1c61ae2196c7d5e5e6eb715968a0ed77e656b4306f98c00145fff5cd48bfe"
+        },
+        {
+          "completion_tokens": 55,
+          "finish_reason": "stop",
+          "prompt_tokens": 55,
+          "seconds": 0.373,
+          "text_head": "During cardiac surgery, if a surgeon places their fingers in the transverse peri",
+          "text_sha256": "cca8840056b0132ab5894102235e42ede16315146a11bcc7844b6b6003515f1b"
+        },
+        {
+          "completion_tokens": 89,
+          "finish_reason": "stop",
+          "prompt_tokens": 36,
+          "seconds": 0.6244,
+          "text_head": "The type of hearing loss characterized by the ability to understand shouted or a",
+          "text_sha256": "a596f437de57d26a6e5643d2e8301f4d8b64baaef24d55b74fb43dc81ad08414"
+        },
+        {
+          "completion_tokens": 256,
+          "finish_reason": "length",
+          "prompt_tokens": 67,
+          "seconds": 1.0148,
+          "text_head": "To calculate the Maternal Mortality Rate (MMR) for the community, we need to det",
+          "text_sha256": "4b4ee3060c6068dee69b0cffa16a9039c36cec20cb98cdbd4893fead80528a6c"
+        },
+        {
+          "completion_tokens": 132,
+          "finish_reason": "stop",
+          "prompt_tokens": 45,
+          "seconds": 0.9211,
+          "text_head": "Sarcoma botryoides, a subtype of embryonal rhabdomyosarcoma, is characterized by",
+          "text_sha256": "91c1514d23bd3a00ffbb4e32b340006f811f67400298d49922ab7ccee870ae75"
+        },
+        {
+          "completion_tokens": 98,
+          "finish_reason": "stop",
+          "prompt_tokens": 300,
+          "seconds": 0.7567,
+          "text_head": "The most likely intervention to help with this patient's presentation is D. Vita",
+          "text_sha256": "807da7406961ce192d83e480a94ee5c35fef00906be8771faf740473180d7e5a"
+        },
+        {
+          "completion_tokens": 98,
+          "finish_reason": "stop",
+          "prompt_tokens": 99,
+          "seconds": 0.7216,
+          "text_head": "The most appropriate next step in the management of this 11-month-old boy with s",
+          "text_sha256": "bbfac8ca6ee651093015ec19e1ad208d76d06646d8be60ed808d5bb76ec80211"
+        },
+        {
+          "completion_tokens": 130,
+          "finish_reason": "stop",
+          "prompt_tokens": 94,
+          "seconds": 0.6717,
+          "text_head": "The hormone used to induce labor in this scenario is oxytocin, which is produced",
+          "text_sha256": "2a6ff36b0aadfdf20acc57802c286e6f663132f6715535eebe31812ba13743cb"
+        },
+        {
+          "completion_tokens": 133,
+          "finish_reason": "stop",
+          "prompt_tokens": 133,
+          "seconds": 0.789,
+          "text_head": "The skin lesion described in the scenario is consistent with melanoma, a type of",
+          "text_sha256": "85cc71f3a020d36e820de4d9e9a2bb41316557559a4141d88d469d8597337c3f"
+        },
+        {
+          "completion_tokens": 78,
+          "finish_reason": "stop",
+          "prompt_tokens": 79,
+          "seconds": 0.4211,
+          "text_head": "The translocation that confirms the diagnosis of Burkitt's Lymphoma is t(8:14). ",
+          "text_sha256": "6970f5280eabd7186ddb42eb60d90d8065e1edabac148bf4ab2df3502445d305"
+        },
+        {
+          "completion_tokens": 85,
+          "finish_reason": "stop",
+          "prompt_tokens": 54,
+          "seconds": 0.4864,
+          "text_head": "In the test of well water using Horrock's apparatus, if a blue color is observed",
+          "text_sha256": "c855d17edd2fb13c983f9f9b98c9bf22da41effae149f8ec6e6e9f860f43e8b6"
+        },
+        {
+          "completion_tokens": 127,
+          "finish_reason": "stop",
+          "prompt_tokens": 326,
+          "seconds": 0.7901,
+          "text_head": "The laboratory test that can help to make the diagnosis in this scenario is the ",
+          "text_sha256": "5fe5d40d596770453afed5528649e8d517165c1cd1c30618cf6f875b14314e75"
+        },
+        {
+          "completion_tokens": 51,
+          "finish_reason": "stop",
+          "prompt_tokens": 49,
+          "seconds": 0.351,
+          "text_head": "The most likely bacterial cause of the patient's infection is Shigella. Shigella",
+          "text_sha256": "915fc378b22cda5d6ebf74f7ec4be6da212571bbd7a84e912109247ecce6c9fc"
+        },
+        {
+          "completion_tokens": 110,
+          "finish_reason": "stop",
+          "prompt_tokens": 88,
+          "seconds": 0.861,
+          "text_head": "The symptoms described—lateral and downward deviation of the right eye, complete",
+          "text_sha256": "a356ee4616ee87a5196ac0f0a263407d0765bdd2ab6d67dc0229d67bdc5acf57"
+        },
+        {
+          "completion_tokens": 101,
+          "finish_reason": "stop",
+          "prompt_tokens": 60,
+          "seconds": 0.6021,
+          "text_head": "The clinical manifestations described in the 26-year-old female patient, includi",
+          "text_sha256": "c546b69a28117e55eb618e4d81c28f922bba52d89aa8a6bbfa568fd74cc8a708"
+        },
+        {
+          "completion_tokens": 93,
+          "finish_reason": "stop",
+          "prompt_tokens": 59,
+          "seconds": 0.631,
+          "text_head": "In the case of an injury to the C8-T1 spinal nerve roots, the specific part of t",
+          "text_sha256": "557af80e92999102d87213454bc6a7b517a3a3d5b673a57461d609593c6f7399"
+        },
+        {
+          "completion_tokens": 205,
+          "finish_reason": "stop",
+          "prompt_tokens": 37,
+          "seconds": 1.2997,
+          "text_head": "The nasopharynx is the uppermost part of the pharynx, located behind the nasal c",
+          "text_sha256": "25aef6105c41e9915e69b9c7ffd900face2d979fd9c4b1e96d20b580180ef677"
+        },
+        {
+          "completion_tokens": 245,
+          "finish_reason": "stop",
+          "prompt_tokens": 56,
+          "seconds": 1.6217,
+          "text_head": "When administered in small doses for mild cholinomimetic stimulation following s",
+          "text_sha256": "4a7288f7a6afc0ff6ca3a5b9376ca5a7c7212736fc66670727dd253746672862"
+        },
+        {
+          "completion_tokens": 256,
+          "finish_reason": "length",
+          "prompt_tokens": 98,
+          "seconds": 1.6243,
+          "text_head": "In the scenario described, the 57-year-old man with congestive heart failure who",
+          "text_sha256": "b01d53a54ba1d50e4500c7dc7b7c5abe6f85ecb635b6e2d4c704868ffd4f1bc7"
+        }
+      ],
+      "requests": 40,
+      "tokens_per_second": 162.19,
+      "wall_seconds": 29.85
+    },
+    {
+      "completion_tokens": 4848,
+      "concurrency": 4,
+      "finish_length": 3,
+      "median_request_seconds": 0.878,
+      "per_request": [
+        {
+          "completion_tokens": 6,
+          "finish_reason": "stop",
+          "prompt_tokens": 216,
+          "seconds": 0.1233,
+          "text_head": "C. Mammography",
+          "text_sha256": "f0bb570d3a1c8ed4c04534c302060b284027c210a5617bc5780e964dfb5ff3f8"
+        },
+        {
+          "completion_tokens": 195,
+          "finish_reason": "stop",
+          "prompt_tokens": 63,
+          "seconds": 1.2579,
+          "text_head": "In the case of an 8-year-old boy experiencing frequent severe bleeding from mino",
+          "text_sha256": "240d2821638dc8887790de9ebe3ea6511d2d477b88749375bc3ef3fceef5d833"
+        },
+        {
+          "completion_tokens": 112,
+          "finish_reason": "stop",
+          "prompt_tokens": 119,
+          "seconds": 1.0167,
+          "text_head": "Based on the clinical findings and laboratory results, the most likely diagnosis",
+          "text_sha256": "72f9897d4a13614a4f3b267d35145f39788aaa18322fed4a9816e250e86134be"
+        },
+        {
+          "completion_tokens": 96,
+          "finish_reason": "stop",
+          "prompt_tokens": 84,
+          "seconds": 0.6863,
+          "text_head": "The phenomenon you're describing, where a small target oscillated in front of a ",
+          "text_sha256": "bb629cb575346d65c1461c3f01d8f51ae3d12b7a07a37108dcec3ef66dc65876"
+        },
+        {
+          "completion_tokens": 126,
+          "finish_reason": "stop",
+          "prompt_tokens": 68,
+          "seconds": 0.8943,
+          "text_head": "Given the location of the stab wound slightly right of the midline on the back, ",
+          "text_sha256": "10073cb11e0c6ba261022984c84d8d25e80b6bf3d5107ef18171cb53d3a6643f"
+        },
+        {
+          "completion_tokens": 6,
+          "finish_reason": "stop",
+          "prompt_tokens": 116,
+          "seconds": 0.1278,
+          "text_head": "A. An ECG",
+          "text_sha256": "643625dc37b33383df847547715c8dcb1a4ebaab58ef9cf6cb276007b1923983"
+        },
+        {
+          "completion_tokens": 214,
+          "finish_reason": "stop",
+          "prompt_tokens": 33,
+          "seconds": 1.5335,
+          "text_head": "Several antihypertensive drugs are known to be beneficial or have a neutral effe",
+          "text_sha256": "1c591ac8f3e96474fb17895e43dc315ac4d6edfacd1be95bed57aa62a32204d0"
+        },
+        {
+          "completion_tokens": 74,
+          "finish_reason": "stop",
+          "prompt_tokens": 68,
+          "seconds": 0.6199,
+          "text_head": "The post coital test showing non-motile sperms in the cervical smear and motile ",
+          "text_sha256": "4c5458a06bc23e52297c73ef91504caf7f3bbd11dcd666d722a4c083f77e4f0b"
+        },
+        {
+          "completion_tokens": 114,
+          "finish_reason": "stop",
+          "prompt_tokens": 59,
+          "seconds": 1.085,
+          "text_head": "If left untreated, the next clinical stage of syphilis, following the primary st",
+          "text_sha256": "5a31b4ce92fdc383e882a7d7abb0eb85b6c993ec1cdee88f6addfdab18933df1"
+        },
+        {
+          "completion_tokens": 81,
+          "finish_reason": "stop",
+          "prompt_tokens": 74,
+          "seconds": 0.742,
+          "text_head": "The most likely underlying cause of the abdominal aortic aneurysm in this 58-yea",
+          "text_sha256": "60316acbcf061ffbffd7bb21a8000708314ecc370bcdc1b3c9739c767cda1780"
+        },
+        {
+          "completion_tokens": 41,
+          "finish_reason": "stop",
+          "prompt_tokens": 51,
+          "seconds": 0.2548,
+          "text_head": "According to the World Health Organization's criteria, the threshold percentage ",
+          "text_sha256": "417c8c34de68ff206316162439d321ba9947b498e75b363c944b98693a100ce3"
+        },
+        {
+          "completion_tokens": 56,
+          "finish_reason": "stop",
+          "prompt_tokens": 40,
+          "seconds": 0.4313,
+          "text_head": "The recommended single massive dose of vitamin A given every 6 months to prevent",
+          "text_sha256": "c1b0e28a6c6182bf4f8b6c62dba7d731e0ba1ada21fb2ed9170c429c3e9028ac"
+        },
+        {
+          "completion_tokens": 256,
+          "finish_reason": "length",
+          "prompt_tokens": 63,
+          "seconds": 1.2665,
+          "text_head": "To calculate the glomerular filtration rate (GFR) using inulin clearance, we use",
+          "text_sha256": "427fa4d8a557024fb3c93973062592ed858d070c026a27ec2507b21c515b91dd"
+        },
+        {
+          "completion_tokens": 245,
+          "finish_reason": "stop",
+          "prompt_tokens": 66,
+          "seconds": 2.2593,
+          "text_head": "The symptoms and context you've described are highly suggestive of a rotavirus i",
+          "text_sha256": "df0e1cc62748b488d038fbcfb1c3f401dfdca0935924250a632157382636eec7"
+        },
+        {
+          "completion_tokens": 142,
+          "finish_reason": "stop",
+          "prompt_tokens": 302,
+          "seconds": 1.1764,
+          "text_head": "The patient is at increased risk for cardiac tamponade. The symptoms and finding",
+          "text_sha256": "4efdf6428213ad1ccde441d62f5edef4582e4a362f0fdbbc70848e4e4483198d"
+        },
+        {
+          "completion_tokens": 64,
+          "finish_reason": "stop",
+          "prompt_tokens": 67,
+          "seconds": 0.4379,
+          "text_head": "The virus known to cause neonatal infections, infections in immunocompromised pa",
+          "text_sha256": "9adde2d594e886fb833122c76750dd235bd16bfa5e51530f109f66c03467a050"
+        },
+        {
+          "completion_tokens": 96,
+          "finish_reason": "stop",
+          "prompt_tokens": 94,
+          "seconds": 0.8912,
+          "text_head": "The cytokine most likely directly responsible for the cachexia and systemic symp",
+          "text_sha256": "0c57808182315286c0142f1d520a9bf61cf279e0663bb2461fdb9bffa72aa89d"
+        },
+        {
+          "completion_tokens": 78,
+          "finish_reason": "stop",
+          "prompt_tokens": 34,
+          "seconds": 0.6385,
+          "text_head": "For a patient on Warfarin with an INR of 8, the recommended course of action is ",
+          "text_sha256": "d0f88c7b6c4def817928272a59a57c593ccb6bde2e00b3e9b76bb72070fa893b"
+        },
+        {
+          "completion_tokens": 107,
+          "finish_reason": "stop",
+          "prompt_tokens": 56,
+          "seconds": 0.7331,
+          "text_head": "The strongest predisposing factor for a bleeding gastric ulcer in a patient pres",
+          "text_sha256": "6a3333701229e3cc69ef841f8d342a3ce3671d448b838b10c4ef7264c0949bc0"
+        },
+        {
+          "completion_tokens": 75,
+          "finish_reason": "stop",
+          "prompt_tokens": 83,
+          "seconds": 0.6587,
+          "text_head": "If pre-surgical movement of maxillary segments is indicated in a cleft infant, i",
+          "text_sha256": "13fee355f8d86d2e7a92ae5ac12300cb7008c5ab0c15d8e4b700cbaeb728dee8"
+        },
+        {
+          "completion_tokens": 77,
+          "finish_reason": "stop",
+          "prompt_tokens": 80,
+          "seconds": 0.6349,
+          "text_head": "Based on the radiographic findings described, the most likely type of bone lesio",
+          "text_sha256": "69dc5cc82e7b2cd46e1b0a4b2d58556f83680d6c86060f82fd2fe020d4c33a1a"
+        },
+        {
+          "completion_tokens": 251,
+          "finish_reason": "stop",
+          "prompt_tokens": 103,
+          "seconds": 1.8545,
+          "text_head": "Based on the laboratory results and clinical presentation, the most likely cause",
+          "text_sha256": "5addbbfbe711361b046855fa8415f119930b3f091b08dcbcba960acece43c779"
+        },
+        {
+          "completion_tokens": 55,
+          "finish_reason": "stop",
+          "prompt_tokens": 55,
+          "seconds": 0.5045,
+          "text_head": "During cardiac surgery, if a surgeon places their fingers in the transverse peri",
+          "text_sha256": "cca8840056b0132ab5894102235e42ede16315146a11bcc7844b6b6003515f1b"
+        },
+        {
+          "completion_tokens": 89,
+          "finish_reason": "stop",
+          "prompt_tokens": 36,
+          "seconds": 0.807,
+          "text_head": "The type of hearing loss characterized by the ability to understand shouted or a",
+          "text_sha256": "a596f437de57d26a6e5643d2e8301f4d8b64baaef24d55b74fb43dc81ad08414"
+        },
+        {
+          "completion_tokens": 256,
+          "finish_reason": "length",
+          "prompt_tokens": 67,
+          "seconds": 1.2144,
+          "text_head": "To calculate the Maternal Mortality Rate (MMR) for the community, we need to det",
+          "text_sha256": "4b4ee3060c6068dee69b0cffa16a9039c36cec20cb98cdbd4893fead80528a6c"
+        },
+        {
+          "completion_tokens": 132,
+          "finish_reason": "stop",
+          "prompt_tokens": 45,
+          "seconds": 1.1174,
+          "text_head": "Sarcoma botryoides, a subtype of embryonal rhabdomyosarcoma, is characterized by",
+          "text_sha256": "91c1514d23bd3a00ffbb4e32b340006f811f67400298d49922ab7ccee870ae75"
+        },
+        {
+          "completion_tokens": 98,
+          "finish_reason": "stop",
+          "prompt_tokens": 300,
+          "seconds": 0.9189,
+          "text_head": "The most likely intervention to help with this patient's presentation is D. Vita",
+          "text_sha256": "807da7406961ce192d83e480a94ee5c35fef00906be8771faf740473180d7e5a"
+        },
+        {
+          "completion_tokens": 98,
+          "finish_reason": "stop",
+          "prompt_tokens": 99,
+          "seconds": 0.8639,
+          "text_head": "The most appropriate next step in the management of this 11-month-old boy with s",
+          "text_sha256": "bbfac8ca6ee651093015ec19e1ad208d76d06646d8be60ed808d5bb76ec80211"
+        },
+        {
+          "completion_tokens": 124,
+          "finish_reason": "stop",
+          "prompt_tokens": 94,
+          "seconds": 0.9309,
+          "text_head": "The hormone used to induce labor in this scenario is oxytocin, which is produced",
+          "text_sha256": "4ef0bf67333db48714cd7611eef9926946789cf95bf50e889e69c42117356e6a"
+        },
+        {
+          "completion_tokens": 133,
+          "finish_reason": "stop",
+          "prompt_tokens": 133,
+          "seconds": 1.0037,
+          "text_head": "The skin lesion described in the scenario is consistent with melanoma, a type of",
+          "text_sha256": "85cc71f3a020d36e820de4d9e9a2bb41316557559a4141d88d469d8597337c3f"
+        },
+        {
+          "completion_tokens": 78,
+          "finish_reason": "stop",
+          "prompt_tokens": 79,
+          "seconds": 0.5058,
+          "text_head": "The translocation that confirms the diagnosis of Burkitt's Lymphoma is t(8;14). ",
+          "text_sha256": "baabdbd0af0c215e196052935669f0dfe85dac8e5ee52d18667647be4d039cc3"
+        },
+        {
+          "completion_tokens": 85,
+          "finish_reason": "stop",
+          "prompt_tokens": 54,
+          "seconds": 0.6997,
+          "text_head": "In the test of well water using Horrock's apparatus, if a blue color is observed",
+          "text_sha256": "c855d17edd2fb13c983f9f9b98c9bf22da41effae149f8ec6e6e9f860f43e8b6"
+        },
+        {
+          "completion_tokens": 127,
+          "finish_reason": "stop",
+          "prompt_tokens": 326,
+          "seconds": 1.0542,
+          "text_head": "The laboratory test that can help to make the diagnosis in this scenario is the ",
+          "text_sha256": "5fe5d40d596770453afed5528649e8d517165c1cd1c30618cf6f875b14314e75"
+        },
+        {
+          "completion_tokens": 51,
+          "finish_reason": "stop",
+          "prompt_tokens": 49,
+          "seconds": 0.4285,
+          "text_head": "The most likely bacterial cause of the patient's infection is Shigella. Shigella",
+          "text_sha256": "915fc378b22cda5d6ebf74f7ec4be6da212571bbd7a84e912109247ecce6c9fc"
+        },
+        {
+          "completion_tokens": 110,
+          "finish_reason": "stop",
+          "prompt_tokens": 88,
+          "seconds": 1.086,
+          "text_head": "The symptoms described—lateral and downward deviation of the right eye, complete",
+          "text_sha256": "a356ee4616ee87a5196ac0f0a263407d0765bdd2ab6d67dc0229d67bdc5acf57"
+        },
+        {
+          "completion_tokens": 101,
+          "finish_reason": "stop",
+          "prompt_tokens": 60,
+          "seconds": 0.7575,
+          "text_head": "The clinical manifestations described in the 26-year-old female patient, includi",
+          "text_sha256": "c546b69a28117e55eb618e4d81c28f922bba52d89aa8a6bbfa568fd74cc8a708"
+        },
+        {
+          "completion_tokens": 93,
+          "finish_reason": "stop",
+          "prompt_tokens": 59,
+          "seconds": 0.8347,
+          "text_head": "In the case of an injury to the C8-T1 spinal nerve roots, the specific part of t",
+          "text_sha256": "557af80e92999102d87213454bc6a7b517a3a3d5b673a57461d609593c6f7399"
+        },
+        {
+          "completion_tokens": 205,
+          "finish_reason": "stop",
+          "prompt_tokens": 37,
+          "seconds": 1.4754,
+          "text_head": "The nasopharynx is the uppermost part of the pharynx, located behind the nasal c",
+          "text_sha256": "25aef6105c41e9915e69b9c7ffd900face2d979fd9c4b1e96d20b580180ef677"
+        },
+        {
+          "completion_tokens": 245,
+          "finish_reason": "stop",
+          "prompt_tokens": 56,
+          "seconds": 1.7718,
+          "text_head": "When administered in small doses for mild cholinomimetic stimulation following s",
+          "text_sha256": "4a7288f7a6afc0ff6ca3a5b9376ca5a7c7212736fc66670727dd253746672862"
+        },
+        {
+          "completion_tokens": 256,
+          "finish_reason": "length",
+          "prompt_tokens": 98,
+          "seconds": 1.739,
+          "text_head": "In the scenario described, the 57-year-old man with congestive heart failure who",
+          "text_sha256": "b01d53a54ba1d50e4500c7dc7b7c5abe6f85ecb635b6e2d4c704868ffd4f1bc7"
+        }
+      ],
+      "requests": 40,
+      "tokens_per_second": 490.04,
+      "wall_seconds": 9.89
+    }
+  ],
+  "max_tokens": 256,
+  "model": "Qwen/Qwen3.8-27B",
+  "num_prompts": 40,
+  "prompts": "eval_prompts.jsonl"
+}

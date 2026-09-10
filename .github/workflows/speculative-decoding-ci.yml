@@ -36,6 +36,10 @@ jobs:
         run: python -m unittest discover -s experiments/20260906-qwen38 -p "test_*.py" -v
       - name: Validate latest bilingual report
         run: python experiments/20260906-qwen38/validate_report.py
+      - name: Test drafter-adaptation evidence and refusal paths
+        run: python -m unittest discover -s experiments/20260909-drafter-adaptation -p "test_*.py" -v
+      - name: Validate drafter-adaptation summary and README table
+        run: python experiments/20260909-drafter-adaptation/validate_report.py
       - name: Reconcile previous complete-answer experiment
         if: matrix.python-version == '3.12'
         run: python experiments/20260905-quality/src/analyze_results.py --root experiments/20260905-quality --output out/20260905-replayed.json --matrix

@@ -35,6 +35,8 @@
 | 理解两种起草方式的区别 | [MTP 和 DFlash 差在哪里](#mtp-和-dflash-差在哪里) |
 | 回看首代 DFlash 的并发异常 | [上一轮实验](#previous-experiment) |
 | 判断这个草稿模型适不适用于你自己的模型 | [适用范围与微调模型](#适用范围与微调模型) |
+| 看微调之后草稿模型会怎样、重训它有没有用 | [微调目标后的草稿模型再适配](#微调目标后的草稿模型再适配) |
+| 判断从零训练一个草稿模型需要什么 | [从零训练需要什么](#从零训练需要什么) |
 
 ## 你能用它做什么
 
@@ -45,6 +47,8 @@
 | 核对选型依据 | 逐组数据、评分接入源码、分析程序和测试 | 能检查报告数字从何而来，再为自己的业务设计验收 |
 
 这里提供的是部署参考和测试依据，不是经过生产验收的托管服务。完整 27 组实验的准备与调度尚未提供独立运行入口，边界见[复现范围](#复现范围)。
+
+本仓库的贡献是受控对照、测量代码和可追溯证据。MTP、DFlash 算法及发布版权重属于上游工作。跑通官方草稿的推理，不等于已经掌握从零训练草稿模型，也不能证明再适配后有提升；[再适配实验](#微调目标后的草稿模型再适配)在两种漂移强度下直接实测了后一个问题。
 
 ## 本次实测说明了什么
 
@@ -398,31 +402,129 @@ F 阶段计划让三条路线在并发 1 和 8 下，分别完成全部 164 道 
 
 ## 适用范围与微调模型
 
-一个草稿模型只绑定一个具体的目标模型版本，而不是一个模型系列。本次使用的 DFlash 2 草稿模型是为 `Qwen/Qwen3.8-27B` 发布的，不适用于 Qwen3.6-27B，也不能原样用在微调过的 Qwen3.8-27B 上。MTP 同样受限，但原因不同：MTP 权重是和基座模型一起训练、随模型一同发布的，所以本身没带 MTP 的模型事后也补不上。
+**目标模型微调后，草稿模型一定要重训吗？不一定。** 本次使用的 `incoai/Qwen3.8-27B-DFlash2` 是为 `Qwen/Qwen3.8-27B` 发布的。换目标模型前，需要核对架构、tokenizer、隐藏特征和输出头是否兼容，再用实际负载验证。同属一个模型系列不能证明兼容；做过微调也不能直接证明不兼容。
 
-这种绑定是结构性的，不是巧合。按 [DFlash 论文](https://arxiv.org/abs/2602.06036)，草稿模型是对着一个冻结的目标模型这样训出来的：
+原生 MTP 也需要模型架构、MTP 权重和推理引擎共同支持。打开一个服务参数，不等于能为模型生成原本缺失的 MTP 权重。
 
-| 训练要素 | 公开方法的做法 |
+**DFlash 论文的标题是 DFlash: Block Diffusion for Flash Speculative Decoding。** 它用轻量块扩散模型并行预测多个 token，并读取目标模型的隐藏特征作为条件。微调草稿模型时，老师是实际要部署的目标模型，包括它的 Adapter；学生从已有草稿权重开始。问题来自目标业务，老师负责生成回答。训练时老师不动，只更新草稿模型。这是对现有草稿模型的继续训练，不是从零训练。
+
+下面概括 [DFlash 论文第 4.2 节和附录 A.1](https://arxiv.org/html/2602.06036v2#S4.SS2) 的方法，不表示本仓库复现了 DFlash 2 的完整训练配方。
+
+- **训练回答**：论文使用约 80 万条 Nemotron Post-Training V2 和 CodeAlpaca 样本，以目标模型生成的回答训练。这是该实验的规模，不是所有再适配任务的最低要求。
+- **条件信息**：从目标模型第 2 层到倒数第 3 层之间均匀取 5 层的隐藏状态，拼接后投影一次，注入每个草稿层的 key 和 value。
+- **分块方式**：从回答中随机采样锚点 token 作为块首，块内其余位置打 mask，并行预测。
+- **损失**：交叉熵按块内位置 `k` 加权 `exp(-(k-1)/gamma)`，因为块内靠前的错误会让后面全部作废。
+- **共享参数**：目标模型及其 token embedding、语言模型头保持冻结，训练更新的是草稿模型。
+
+微调可能改变目标模型的特征和 token 预测，但具体改动取决于训练配方；Adapter 不一定更新 embedding 或输出头的权重。因此需要做对照，不能直接推断“官方草稿一定失配”或“再适配一定有提升”。
+
+**三个结果要分开看。** 草稿命中率看“猜得像不像目标模型”；答案质量看“最终回答是否完成任务”；吞吐和延迟看“实际服务是否更快”。训练 loss 下降或草稿命中率上升，不能替代答案评分和服务性能测试。推测解码保持输出分布的理论保证，以正确实现验证和采样为前提，不能代替对具体引擎、精度和缓存路径的验收。
+
+论文给出了一个再适配案例：[第 5.4 节表 4](https://arxiv.org/html/2602.06036v2#S5.SS4) 使用 1,600 条 LongAlign-10K 样本，对 Qwen3.5-27B 的 DFlash 草稿模型训练 3 个 epoch。在 HotpotQA、16K 上下文下，接受长度从 3.61 变为 6.05。这是作者的长上下文实验，不是本仓库的 Qwen3.8-27B 微调目标实验，也不是通用的时长或成本承诺。
+
+| 情形 | 采用前要验证什么 |
 |---|---|
-| 训练回答 | 约 80 万条样本，取自 Nemotron Post-Training V2 和 CodeAlpaca，但**把原始答案换成目标模型自己生成的回答** |
-| 条件信息 | 从目标模型第 2 层到倒数第 3 层之间均匀取 5 层的 hidden states，拼接后投影一次，注入**每一个草稿层**的 key 和 value |
-| 分块方式 | 从回答中随机采样锚点 token 作为块首，块内其余位置打 mask，并行预测 |
-| 损失 | 交叉熵按块内位置 `k` 加权 `exp(-(k-1)/gamma)`，因为块内靠前的错误会让后面全部作废 |
-| 共享参数 | 草稿模型共用目标模型的 token embedding 和语言模型头并保持冻结，只训草稿 Transformer 层 |
+| 已有为目标模型发布的草稿模型 | 在相同负载、并发和答案质量标准下，对比不开推测解码与使用官方草稿 |
+| 目标已微调，已有兼容的官方草稿 | 先测官方草稿。需要再适配时，两份草稿必须对着同一个冻结目标比较；新权重保存并重载后再评测 |
+| 没有兼容的草稿权重 | 把新建草稿模型作为独立任务；现有权重的微调结果不能证明从零训练能力 |
 
-所以草稿模型同时依赖目标模型的**内部表示、输出头和输出分布**，而微调会同时改变这三项。论文自己的对照实验能看出这个依赖有多重：同样五层的扩散草稿模型，**不注入目标特征**时只有约 2～3 倍加速，注入后为约 4.9 倍。
+**本仓库已发布的证据对应上面的推理实验，不是一套已验收的草稿训练配方。** 不能据此声称再适配有提升、跨模型普遍兼容，或客户永远无需重训。[启动与调用](#how-to-run)只覆盖已公布的推理配置；[离线测试](#测试与离线复算)只核对已保存证据，不是训练实跑或答案质量认证。下一节直接实测这个问题。
 
-**失配损失的是速度，不是正确性。** 每个草稿 token 仍然由目标模型验证，被拒绝的草稿进不了输出。失配只会拉低接受长度；最坏的情况是白付了起草开销，吞吐反而低于不开推测解码。DFlash 2 模型卡上已经出现这个区间：并发 32 时，MTP 在多个数据集上为 0.77～0.94 倍。
+## 微调目标后的草稿模型再适配
 
-**对已有草稿模型做再适配的成本相对很低。** 论文的长上下文实验用 1,600 条样本、训了 3 个 epoch，就把 16K 上下文的接受长度从 3.61 提到 6.05。这是对已训好的草稿模型做适配，不是从头训。
+部署团队真正会问的是：**我把 Qwen3.8-27B 微调之后，官方 DFlash 2 草稿模型还能用吗？重训它有没有用？** 本实验在同一张 H100 NVL 上、用与上文相同的发布版权重，在两种漂移强度下回答这个问题。执行日期：2026-09-09（边界 A）、2026-09-10（边界 B）。完整文件在 [`experiments/20260909-drafter-adaptation/`](experiments/20260909-drafter-adaptation/)。
 
-| 情形 | 可行路径 |
-|---|---|
-| 目标是公开模型且已有对应草稿模型 | 直接用，但需先在自己的并发下验证 |
-| 目标已微调，或没有已发布的草稿模型 | 公开的 `dflash` 包只含推理和 benchmark 代码，**不包含训练代码和数据配方**。Inco AI 声明可以为客户自己运行的模型（包括微调模型）训草稿模型 |
-| 需要一个自己能训的草稿模型 | EAGLE3 类草稿头的训练代码是公开的，代价是加速低于专门训练的 DFlash 草稿模型 |
+**设置。** 目标模型是 `Qwen/Qwen3.8-27B`（版本 `1d4bf0f2`）加一个在 [medical-o1-reasoning-SFT](https://huggingface.co/datasets/FreedomIntelligence/medical-o1-reasoning-SFT)（Apache-2.0）上训练的 LoRA Adapter：边界 A 用英文子集，rank 16，仅注意力投影，1 个 epoch；边界 B 用中文子集，rank 128，全部 7 个投影模块，2 个 epoch。再适配的草稿模型从 `incoai/Qwen3.8-27B-DFlash2`（版本 `dedf8df6`）出发，用微调后目标模型自己对训练集问题生成的 1,200 条回答训练 2 个 epoch，更新 5 个草稿层和 DFlash 2 的候选选择器；目标模型、其 embedding 和输出头保持冻结。这是**对发布版权重的继续训练**，不是从零训练草稿模型。选择器的训练目标是作者自行构造的，DFlash 2 发布方没有公开选择器训练代码。
 
-**本节依据的是公开方法和发布方自己的测量数据；本仓库没有实测过微调后的目标模型。** 在改动过的模型上启用任何草稿模型之前，请在自己的生产并发下实测接受长度、吞吐和评分后的答案质量，方法见[启动与调用](#how-to-run)和[测试与离线复算](#测试与离线复算)。
+**三个分开的测量。** 草稿命中率让两个草稿模型看同一份冻结的目标输出，逐块问：目标的下一批 token 是什么？*首位命中率*是块首 token 猜对的比例；*联合前缀接受长度*是 1 加上"从块首起连续全对的位置数"的均值，也就是验证会放行的长度。两个草稿读的是同一份文本，所以差异的按提示 bootstrap 区间是有意义的。端到端接受长度让每个草稿模型真的上场起草，文本随之不同，因此只是观测值，不是成对检验。vLLM 吞吐是客户最终看到的服务结果。三者都不评判答案对错。
+
+<!-- BEGIN ADAPTATION_TABLE -->
+| 测量 | 边界 A：漂移小（英文，LoRA r16 仅注意力） | 边界 B：漂移大（中文，LoRA r128 全模块） |
+| --- | --- | --- |
+| 目标微调后，官方草稿首位命中（同一份目标文本） | 0.857（200 条提示中 193 条可评） | 0.677（基座目标上为 0.720；200 条提示） |
+| 再训草稿首位命中，及与官方草稿的成对差异（95% 区间） | 种子 0：0.848（-0.019, +0.002）；种子 1：0.845（-0.024, +0.000）；种子 2：0.840（-0.029, -0.005） | 0.707（+0.015, +0.044） |
+| 联合前缀接受长度：官方 → 再训（95% 区间） | 种子 0：4.33 → 4.33（-0.056, +0.069）；种子 1：4.33 → 4.35（-0.044, +0.088）；种子 2：4.33 → 4.35（-0.042, +0.095） | 2.85 → 3.08（+0.163, +0.295）；基座目标上官方草稿为 3.24 |
+| vLLM 0.28.0 吞吐（tok/s），并发 1：不开推测 / 官方草稿 / 再训草稿 | 53.5 / 162.2 / 158.0 | 53.6 / 97.1 / 106.0 |
+| vLLM 0.28.0 吞吐（tok/s），并发 4：不开推测 / 官方草稿 / 再训草稿 | 184.7 / 490.0 / 485.3 | 194.5 / 323.6 / 349.4 |
+| 判读 | 官方草稿未受损，再训无可测收益 | 官方草稿命中率下降，再训收回一部分，服务吞吐随之提高 |
+
+成对差异按提示做 2,000 次 bootstrap，区间不含 0 才计为方向明确。vLLM 每条路线只执行一次，40 条中文提示或 40 条英文提示，`max_tokens=256`，无显著性声明。答案质量未评分。
+<!-- END ADAPTATION_TABLE -->
+
+**两种边界说明了什么。** 轻量的仅注意力 LoRA（边界 A）下，官方草稿的首位命中率保持在 0.857，再训草稿在三个训练种子上都没有更好；两个草稿在两档并发下的 vLLM 吞吐相差不到 3%。中文数据上的全模块重 LoRA（边界 B）下，官方草稿的首位命中率从基座目标上的 0.720 降到微调目标上的 0.678，联合前缀接受长度从 3.24 降到 2.85；再适配把它们拉回 0.707 和 3.08，区间不含 0；vLLM 吞吐并发 1 从 97 升到 106 tok/s，并发 4 从 324 升到 349 tok/s。基座到微调的下降里有一部分是目标本身变得更难预测（它对自己输出的 top-1 概率从 0.835 降到 0.754），所以基座目标上的官方数值并不是恢复的上限。
+
+**保留一条方向相反的测量。** 边界 B 里 40 条提示的端到端接受长度：官方草稿 3.12，再训草稿 2.91，方向与成对命中率和 vLLM 结果相反。两个草稿在 40 条提示上没有一条产出逐字相同的回答，因此这是不同文本上的单次执行、小分母比较；照实报告，不做解释性抹平。
+
+**边界。** 一个目标模型系列、一个数据集系列、每种边界一种 Adapter 配方、一张 GPU。两种漂移强度是作者选定的，不是"何时需要重训"的标定阈值。边界 B 的微调目标没有通过作者的 token 级重复筛查（40 条里 11 条某个 4-gram 出现至少 3 次，筛查上限是 2 条），而基座目标在同一筛查上因长度截断也没有通过，所以该筛查只是启发式，两个目标的答案质量都没有评分。第三轮的命中率记录只保存了逐位置的边际命中率，且每次运行重新生成了目标文本，因此它的差异不带区间。权重不随仓库分发；权重 SHA-256 和数据切分清单在 [provenance.json](experiments/20260909-drafter-adaptation/evidence/provenance.json)。
+
+### 从零训练需要什么
+
+本仓库**没有**从零训练过 DFlash 草稿模型，上面所有结果都从发布版权重出发。唯一一次随机初始化运行是 CPU 上的玩具配置（隐藏维度 128，词表 512）：30 步，loss 6.24 → 3.88。它只说明梯度能到达草稿层、目标特征融合投影和归一化层，而冻结的目标模型没有梯度；不说明真实规模的草稿模型能收敛，也不是从零训练能力的证据。
+
+论文配方（[第 5 节与附录 A.1](https://arxiv.org/html/2602.06036v2#A1.SS1)）：约 80 万条来自 Nemotron Post-Training V2 和 CodeAlpaca 的提示，回答由目标模型重新生成；6 个 epoch，AdamW 学习率 6e-4，余弦调度、4% 预热，序列最长 3,072 token，每条序列 512 个锚点通过一个稀疏注意力掩码一次联合训练。论文的消融实验用 10 万条样本达到全量加速的约四分之三（Qwen3-4B 在 MATH-500 上 4.71× 对 6.09×）。论文写明用 H200，但没有给出 GPU 数量和训练小时数。
+
+本仓库的代码距离这套配方还差什么，按成本排序：
+
+1. `dflash` 0.1.0 用 `torch.empty` 构造 `GroupedDynamicCausalConv.base_kernel`。从配置而不是 checkpoint 构建时，第一次前向就是 NaN。CPU 玩具测试把它初始化为恒等抽头；这个修法没有在真实规模上验证过。
+2. `train_drafter.py` 每条序列取 8 个锚点、逐块前向。论文每条序列 512 个锚点、一次稀疏注意力前向，等于每次目标前向多出约 64 倍的草稿监督。用现在的循环做论文规模，要几千 GPU 小时。
+3. DFlash 2 候选选择器的训练目标是作者自行构造的，只从发布版权重出发跑过。从零试点应当选论文的 DFlash 结构（不带选择器），z-lab 公开了该结构的参考权重可以对照。
+4. `generate_responses.py` 用 Hugging Face `generate`、batch 8，在 27B 目标上约每秒 70 个输出 token。论文规模的数据需要服务引擎生成。
+5. 只支持单卡，没有数据并行训练。
+
+下面是量级估算，从实测的每步 0.61 秒和上文 vLLM 吞吐外推，并假设第 1–5 项先做完：
+
+| 运行 | 目标模型 | 数据 | GPU | 时间 |
+|---|---|---|---|---|
+| 最小可辩护的从零试点 | Qwen3-8B，对照 z-lab 公开的 DFlash 权重 | 10 万条提示，自生成回答，6 个 epoch | 1–2 张 H100 级 | 生成半天到一天，单卡训练两到四天 |
+| 论文规模 | Qwen3-8B | 80 万条，6 个 epoch | 约 8 张 | 三到四天 |
+| 论文规模 | Qwen3.8-27B | 80 万条，6 个 epoch | 至少 8 张、每张显存大于 94 GB（论文用 H200） | 4 卡生成约 1.5 天，训练约一周；一张 94 GB 卡在序列长度 1,024 时峰值已到 86 GB |
+
+这些是估算，不是测量。今天能站住的说法是：再适配路径已实测；训练目标已实现，并证明能提高成对草稿命中率；真实规模的从零训练尚未演示。
+
+### 复现再适配
+
+执行过的脚本以快照形式发布在 [`source/`](experiments/20260909-drafter-adaptation/source/)；编排用的 shell 含私有主机路径，以哈希和下面的命令代表。需要一张 80 GB 级 GPU、Python 3.12、`torch==2.13.0`、`transformers==5.16.1`、`peft==0.20.0`、`dflash==0.1.0`、`datasets`、`huggingface_hub`，服务步骤另建环境安装 `vllm==0.28.0`。草稿模型主权重用 float32 时训练峰值显存 86 GB。
+
+```bash
+set -euo pipefail
+W="$HOME/drafter-adaptation"; mkdir -p "$W" && cd "$W"
+SRC="<clone>/Deep-Learning/Speculative-Decoding/experiments/20260909-drafter-adaptation/source/round4"
+python3.12 -m venv venv && . venv/bin/activate
+pip install torch==2.13.0 transformers==5.16.1 peft==0.20.0 dflash==0.1.0 datasets huggingface_hub
+hf download Qwen/Qwen3.8-27B --revision 1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0 --local-dir models/target
+hf download incoai/Qwen3.8-27B-DFlash2 --revision dedf8df68adfb1afeaf7b7480c0a0243108177b4 --local-dir models/draft
+cp "$SRC"/*.py .
+# 1. 固定切分：2,000 条训练问题，200 条留出提示（此处为边界 B；边界 A 用 --config en --eval-size 200）
+python prepare_domain_data.py --dataset FreedomIntelligence/medical-o1-reasoning-SFT --config zh \
+  --question-field Question --response-field Response --instruction-field "" \
+  --train-size 2000 --eval-size 200 --seed 20260909 --max-output-chars 1000000 --out-dir data_zh
+# 2. 微调目标（边界 B 配方；边界 A：--epochs 1 --lr 5e-5 --lora-rank 16 --lora-alpha 32 --target-modules attention）
+python finetune_target.py --target models/target --data data_zh/train.jsonl --output out/adapter-zh \
+  --epochs 2 --grad-accum 8 --max-length 1024 --lr 1e-4 --lora-rank 128 --lora-alpha 256 --target-modules all
+# 3. 微调目标的重复筛查（启发式；只记录判定，不评答案）
+python check_degeneration.py --target models/target --adapter out/adapter-zh --prompts data_zh/eval_prompts.jsonl \
+  --output results/degeneration_zh.json --label target_zh --limit 40 --max-new-tokens 256 --repetition-unit token || true
+# 4. 官方草稿在微调目标上的教师强制测量，目标文本写入缓存以便成对比较
+python analyze_predictability.py --target models/target --adapter out/adapter-zh --prompts data_zh/eval_prompts.jsonl \
+  --cache cache/ft_zh.pt --drafter models/draft --draft-path selector --output results/pred_released.json --label released
+# 5. 微调目标自生成语料，然后对发布版草稿继续训练
+python generate_responses.py --target models/target --adapter out/adapter-zh --prompts data_zh/train.jsonl \
+  --output data_zh/corpus.jsonl --limit 1200 --max-new-tokens 320 --batch-size 8
+python train_drafter.py --target models/target --adapter out/adapter-zh --drafter models/draft \
+  --data data_zh/corpus.jsonl --output out/drafter-zh --epochs 2 --limit 1200 --anchors-per-sequence 8 --block 8 \
+  --max-length 1024 --lr 1e-4 --weight-decay 0.0 --warmup-fraction 0.05 --drafter-dtype float32 --train-selector
+# 6. 再训草稿在同一份缓存文本上的测量，再对两个草稿做端到端接受长度
+python analyze_predictability.py --target models/target --adapter out/adapter-zh --prompts data_zh/eval_prompts.jsonl \
+  --cache cache/ft_zh.pt --drafter out/drafter-zh --draft-path selector --output results/pred_ours.json --label ours
+python measure_acceptance.py --target models/target --adapter out/adapter-zh --prompts data_zh/eval_prompts.jsonl \
+  --limit 40 --max-new-tokens 256 --drafter models/draft --output results/acc_released.json --label released
+python measure_acceptance.py --target models/target --adapter out/adapter-zh --prompts data_zh/eval_prompts.jsonl \
+  --limit 40 --max-new-tokens 256 --drafter out/drafter-zh --output results/acc_ours.json --label ours
+# 7. 合并 Adapter，把再训草稿导出为发布版的权重键布局，在 vLLM 里逐路线启动并测量
+python export_drafter_for_vllm.py --source out/drafter-zh --reference models/draft --output served/draft-zh
+```
+
+合并步骤（`PeftModel.merge_and_unload()` 再 `save_pretrained`）和三次 `vllm serve` 使用与[启动与调用](#how-to-run)第 4 步相同的参数，`--model` 指向合并后的目标，`--speculative-config '{"method":"dflash","model":"<草稿目录>","num_speculative_tokens":7,"rejection_sample_method":"standard"}'`；客户端为 `vllm_client_bench.py --concurrency 1 4 --max-tokens 256`。生成 token 数、采样设置和停止符都记录在各结果文件内。换硬件或驱动版本时具体数字会漂移；成对命中率区间就是为此设计的比较方式。
 
 <a id="previous-experiment"></a>
 
@@ -526,6 +628,7 @@ printf '{"phase":"COMPLETE","exit_code":0}\n' > "$DFLASH_RUN_ROOT/state/campaign
 | 路径 | 内容 |
 |---|---|
 | [`experiments/20260906-qwen38/`](experiments/20260906-qwen38/) | 本次实验：逐组记录、数值汇总、证据、执行源码快照、分析程序、验收程序、测试和测试流程图 |
+| [`experiments/20260909-drafter-adaptation/`](experiments/20260909-drafter-adaptation/) | 草稿再适配实验：两种漂移边界的逐请求结果、执行脚本快照、来源哈希、分析程序、验收程序和测试 |
 | [`experiments/20260905-quality/`](experiments/20260905-quality/) | 上一轮完整答案评测：原始响应、官方评分、逐题对照、分析代码和图 |
 | [`images/`](images/) | 本文使用的中文结果图 |
 | [`tools/make_readme_figures.py`](tools/make_readme_figures.py) | 从两轮实验的已发布汇总数据重新生成上述中文图，需要中文字体和[固定版本的 Matplotlib](experiments/20260906-qwen38/requirements-figures.txt) |
@@ -542,6 +645,7 @@ printf '{"phase":"COMPLETE","exit_code":0}\n' > "$DFLASH_RUN_ROOT/state/campaign
 | [逐组记录](experiments/20260906-qwen38/data/groups.json)、[数值汇总](experiments/20260906-qwen38/data/summary.json) | 题目 ID、已存评分、计时、计数和配对结果 |
 | [分析程序](experiments/20260906-qwen38/analyze_results.py)、[验收程序](experiments/20260906-qwen38/validate_report.py)、[测试](experiments/20260906-qwen38/test_report.py) | 重新汇总数字，检查本文表格、链接、徽章和证据是否一致 |
 | [上一轮分析](experiments/20260905-quality/analysis/)、[上一轮结果](experiments/20260905-quality/results/)、[上一轮源码](experiments/20260905-quality/src/) | 2026-09-05 的逐题对照、原始响应、官方评分和分析程序 |
+| [再适配结果](experiments/20260909-drafter-adaptation/results/)、[汇总](experiments/20260909-drafter-adaptation/data/summary.json)、[来源清单](experiments/20260909-drafter-adaptation/evidence/provenance.json)、[脚本](experiments/20260909-drafter-adaptation/source/) | 两种边界下逐请求的草稿命中、接受长度和 vLLM 记录；权重、数据和日志哈希；实际执行的训练与测量脚本 |
 
 这些源码是实际执行版本的归档，不是从零部署 GPU 的完整安装包。**完整原始回答和 SSE 流仍在作者的私有归档中，没有在此重新分发。** 公开文件不含基础设施定位信息或凭据；归档及成员哈希说明来源，但不能独立证明运行行为。
 
@@ -555,6 +659,7 @@ printf '{"phase":"COMPLETE","exit_code":0}\n' > "$DFLASH_RUN_ROOT/state/campaign
 | 漂移与拒绝测试 | `unittest discover` | 全部测试通过；每个注入的缺陷（改表格数值、改请求、改图片字节、改归档源码、伪造验收记录、删徽章、折叠必需章节、新增嵌套 Markdown）都被对应错误拦住 |
 | 独立重算汇总 | `analyze_results.py --groups` | 重新生成的 `summary.json` 与已发布版本相同 |
 | 上一轮实验复算 | `analyze_results.py --root ... --matrix` | 全部 3,100 个请求、冻结题集和评分绑定均能对上 |
+| 再适配汇总与表格 | `experiments/20260909-drafter-adaptation/validate_report.py` | 从逐请求记录重算全部再适配数字，成对 bootstrap 只允许在逐字相同的目标文本上运行，扫描私有标识，输出 `ADAPTATION_GATE=PASS` |
 
 前置条件：Python 3.10+ 标准库，在 `Deep-Learning/Speculative-Decoding` 目录执行；上一轮实验的复算需要 Python 3.12。不需要 GPU、网络、凭据或额外依赖。专用 CI 在 Windows 和 Linux 的 Python 3.10、3.12 上执行前两项，在 Python 3.12 上执行上一轮复算。
 
@@ -563,9 +668,11 @@ printf '{"phase":"COMPLETE","exit_code":0}\n' > "$DFLASH_RUN_ROOT/state/campaign
 ```bash
 python experiments/20260906-qwen38/validate_report.py
 python -m unittest discover -s experiments/20260906-qwen38 -p "test_*.py"
+python experiments/20260909-drafter-adaptation/validate_report.py
+python -m unittest discover -s experiments/20260909-drafter-adaptation -p "test_*.py"
 ```
 
-验收应输出 `REPORT_GATE=PASS`，测试全部通过，两条命令的退出码都为 0。它们检查本文表格、已保存的评分和文件哈希是否一致。
+验收应输出 `REPORT_GATE=PASS` 和 `ADAPTATION_GATE=PASS`，测试全部通过，每条命令的退出码都为 0。它们检查本文表格、已保存的评分和文件哈希是否一致。
 
 要从逐组数据独立核对汇总数字，可执行：
 

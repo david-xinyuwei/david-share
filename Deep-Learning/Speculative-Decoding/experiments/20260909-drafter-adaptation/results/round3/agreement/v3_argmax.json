@@ -1,0 +1,1142 @@
+{
+  "adapter": "adapter-v2",
+  "block_size": 8,
+  "draft_path": "argmax",
+  "drafter": "drafter-v3",
+  "drafter_agreement_by_offset": [
+    0.864406779661017,
+    0.7050847457627119,
+    0.588135593220339,
+    0.5322033898305085,
+    0.45932203389830506,
+    0.3677966101694915,
+    0.34576271186440677
+  ],
+  "expected_acceptance_prefix": [
+    0.864406779661017,
+    0.6094800344728526,
+    0.35845690163064386,
+    0.1907719781559698,
+    0.08762577301740307,
+    0.032228462279282145,
+    0.011143400516904335
+  ],
+  "label": "v3_argmax",
+  "max_repeat_4gram": 0.09090909090909094,
+  "mean_generated_tokens": 128.8684210526316,
+  "mean_repeat_4gram": 0.011347936877966258,
+  "mean_target_chosen_prob": 0.8132983053985395,
+  "mean_target_entropy": 0.5819247321862924,
+  "mean_target_top1_prob": 0.8134293101335827,
+  "num_sequences": 38,
+  "per_request": [
+    {
+      "anchors": 24,
+      "completion": "In the case of an 8-year-old boy experiencing frequent severe bleeding from mino",
+      "completion_sha256": "240d2821638dc8887790de9ebe3ea6511d2d477b88749375bc3ef3fceef5d833",
+      "generated_tokens": 195,
+      "hits": [
+        22,
+        21,
+        17,
+        13,
+        10,
+        10,
+        12
+      ],
+      "id": "eval-1",
+      "mean_target_chosen_prob": 0.8443813323974609,
+      "mean_target_entropy": 0.5022487640380859,
+      "mean_target_top1_prob": 0.8443813323974609,
+      "repeat_4gram": 0.007575757575757569,
+      "trials": [
+        24,
+        24,
+        24,
+        24,
+        24,
+        24,
+        24
+      ]
+    },
+    {
+      "anchors": 14,
+      "completion": "Based on the clinical findings and laboratory results, the most likely diagnosis",
+      "completion_sha256": "a132c6ad6d9178b2fc0247d20d17d67afd46fd1f91e0c44002dfae748b2deadd",
+      "generated_tokens": 113,
+      "hits": [
+        13,
+        8,
+        8,
+        6,
+        4,
+        2,
+        3
+      ],
+      "id": "eval-2",
+      "mean_target_chosen_prob": 0.7759911417961121,
+      "mean_target_entropy": 0.6666991710662842,
+      "mean_target_top1_prob": 0.7763686776161194,
+      "repeat_4gram": 0.0,
+      "trials": [
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14
+      ]
+    },
+    {
+      "anchors": 15,
+      "completion": "Given the location of the stab wound slightly right of the midline on the back, ",
+      "completion_sha256": "10073cb11e0c6ba261022984c84d8d25e80b6bf3d5107ef18171cb53d3a6643f",
+      "generated_tokens": 126,
+      "hits": [
+        12,
+        10,
+        7,
+        7,
+        10,
+        4,
+        4
+      ],
+      "id": "eval-4",
+      "mean_target_chosen_prob": 0.8125773668289185,
+      "mean_target_entropy": 0.6069680452346802,
+      "mean_target_top1_prob": 0.8125773668289185,
+      "repeat_4gram": 0.09090909090909094,
+      "trials": [
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15
+      ]
+    },
+    {
+      "anchors": 13,
+      "completion": "In this scenario, the most appropriate initial investigation for the 70-year-old",
+      "completion_sha256": "e6e9e53531abdfbc432d1f23a2d559e6bcfb8820c8c11fa75edab8dcb7ad1353",
+      "generated_tokens": 108,
+      "hits": [
+        9,
+        8,
+        10,
+        7,
+        4,
+        3,
+        3
+      ],
+      "id": "eval-5",
+      "mean_target_chosen_prob": 0.7723879218101501,
+      "mean_target_entropy": 0.700718343257904,
+      "mean_target_top1_prob": 0.7723879218101501,
+      "repeat_4gram": 0.0,
+      "trials": [
+        13,
+        13,
+        13,
+        13,
+        13,
+        13,
+        13
+      ]
+    },
+    {
+      "anchors": 26,
+      "completion": "Several antihypertensive drugs are known to be beneficial or have a neutral effe",
+      "completion_sha256": "1c591ac8f3e96474fb17895e43dc315ac4d6edfacd1be95bed57aa62a32204d0",
+      "generated_tokens": 214,
+      "hits": [
+        22,
+        19,
+        17,
+        13,
+        9,
+        7,
+        6
+      ],
+      "id": "eval-6",
+      "mean_target_chosen_prob": 0.8039389848709106,
+      "mean_target_entropy": 0.5983397364616394,
+      "mean_target_top1_prob": 0.8039389848709106,
+      "repeat_4gram": 0.0757575757575758,
+      "trials": [
+        26,
+        26,
+        26,
+        26,
+        26,
+        26,
+        26
+      ]
+    },
+    {
+      "anchors": 9,
+      "completion": "The post coital test showing non-motile sperms in the cervical smear and motile ",
+      "completion_sha256": "4c5458a06bc23e52297c73ef91504caf7f3bbd11dcd666d722a4c083f77e4f0b",
+      "generated_tokens": 74,
+      "hits": [
+        8,
+        5,
+        4,
+        4,
+        5,
+        5,
+        4
+      ],
+      "id": "eval-7",
+      "mean_target_chosen_prob": 0.803309977054596,
+      "mean_target_entropy": 0.624880313873291,
+      "mean_target_top1_prob": 0.803309977054596,
+      "repeat_4gram": 0.0,
+      "trials": [
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9
+      ]
+    },
+    {
+      "anchors": 14,
+      "completion": "If left untreated, the next clinical stage of syphilis, following the primary st",
+      "completion_sha256": "5a31b4ce92fdc383e882a7d7abb0eb85b6c993ec1cdee88f6addfdab18933df1",
+      "generated_tokens": 114,
+      "hits": [
+        10,
+        10,
+        4,
+        4,
+        2,
+        3,
+        2
+      ],
+      "id": "eval-8",
+      "mean_target_chosen_prob": 0.7825201749801636,
+      "mean_target_entropy": 0.6813967823982239,
+      "mean_target_top1_prob": 0.7825201749801636,
+      "repeat_4gram": 0.0,
+      "trials": [
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14
+      ]
+    },
+    {
+      "anchors": 10,
+      "completion": "The most likely underlying cause of the abdominal aortic aneurysm in this 58-yea",
+      "completion_sha256": "60316acbcf061ffbffd7bb21a8000708314ecc370bcdc1b3c9739c767cda1780",
+      "generated_tokens": 81,
+      "hits": [
+        10,
+        6,
+        5,
+        4,
+        3,
+        2,
+        2
+      ],
+      "id": "eval-9",
+      "mean_target_chosen_prob": 0.7758418917655945,
+      "mean_target_entropy": 0.6640529036521912,
+      "mean_target_top1_prob": 0.7758418917655945,
+      "repeat_4gram": 0.0,
+      "trials": [
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10
+      ]
+    },
+    {
+      "anchors": 4,
+      "completion": "According to the World Health Organization's criteria for determining xerophthal",
+      "completion_sha256": "5ce588ec96c78216e524a54c6fa674f75f576982f0202253a121b272d536b472",
+      "generated_tokens": 40,
+      "hits": [
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        2
+      ],
+      "id": "eval-10",
+      "mean_target_chosen_prob": 0.9069511294364929,
+      "mean_target_entropy": 0.29828372597694397,
+      "mean_target_top1_prob": 0.9069511294364929,
+      "repeat_4gram": 0.0,
+      "trials": [
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4
+      ]
+    },
+    {
+      "anchors": 6,
+      "completion": "The recommended single massive dose of vitamin A given every 6 months to prevent",
+      "completion_sha256": "c1b0e28a6c6182bf4f8b6c62dba7d731e0ba1ada21fb2ed9170c429c3e9028ac",
+      "generated_tokens": 56,
+      "hits": [
+        5,
+        5,
+        5,
+        4,
+        4,
+        4,
+        3
+      ],
+      "id": "eval-11",
+      "mean_target_chosen_prob": 0.8505250215530396,
+      "mean_target_entropy": 0.47831693291664124,
+      "mean_target_top1_prob": 0.8505250215530396,
+      "repeat_4gram": 0.0,
+      "trials": [
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6
+      ]
+    },
+    {
+      "anchors": 31,
+      "completion": "To calculate the glomerular filtration rate (GFR) using inulin clearance, we use",
+      "completion_sha256": "427fa4d8a557024fb3c93973062592ed858d070c026a27ec2507b21c515b91dd",
+      "generated_tokens": 256,
+      "hits": [
+        30,
+        28,
+        26,
+        27,
+        27,
+        23,
+        25
+      ],
+      "id": "eval-12",
+      "mean_target_chosen_prob": 0.958720326423645,
+      "mean_target_entropy": 0.11835534870624542,
+      "mean_target_top1_prob": 0.958720326423645,
+      "repeat_4gram": 0.06451612903225812,
+      "trials": [
+        31,
+        31,
+        31,
+        31,
+        31,
+        31,
+        31
+      ]
+    },
+    {
+      "anchors": 30,
+      "completion": "The symptoms and context you've described are highly indicative of a rotavirus i",
+      "completion_sha256": "295c4aba2ff46237dfe5fe5c398d0b66b779f6d13d1ec6d71dffc62cd326240a",
+      "generated_tokens": 244,
+      "hits": [
+        24,
+        14,
+        8,
+        10,
+        4,
+        4,
+        7
+      ],
+      "id": "eval-13",
+      "mean_target_chosen_prob": 0.7600997686386108,
+      "mean_target_entropy": 0.7019158601760864,
+      "mean_target_top1_prob": 0.7600997686386108,
+      "repeat_4gram": 0.005813953488372103,
+      "trials": [
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30
+      ]
+    },
+    {
+      "anchors": 17,
+      "completion": "The patient is at increased risk for cardiac tamponade. The symptoms and finding",
+      "completion_sha256": "4efdf6428213ad1ccde441d62f5edef4582e4a362f0fdbbc70848e4e4483198d",
+      "generated_tokens": 142,
+      "hits": [
+        14,
+        12,
+        8,
+        8,
+        5,
+        5,
+        1
+      ],
+      "id": "eval-14",
+      "mean_target_chosen_prob": 0.7973119020462036,
+      "mean_target_entropy": 0.6291258931159973,
+      "mean_target_top1_prob": 0.7973119020462036,
+      "repeat_4gram": 0.0,
+      "trials": [
+        17,
+        17,
+        17,
+        17,
+        17,
+        17,
+        17
+      ]
+    },
+    {
+      "anchors": 8,
+      "completion": "The virus known to cause neonatal infections, infections in immunocompromised pa",
+      "completion_sha256": "505958f4c089b13e4f49d026ab4b365819ec5eb4b38e4397fbeaa17b6713710e",
+      "generated_tokens": 65,
+      "hits": [
+        8,
+        8,
+        8,
+        8,
+        8,
+        7,
+        7
+      ],
+      "id": "eval-15",
+      "mean_target_chosen_prob": 0.9339802265167236,
+      "mean_target_entropy": 0.192667156457901,
+      "mean_target_top1_prob": 0.9339802265167236,
+      "repeat_4gram": 0.0,
+      "trials": [
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8
+      ]
+    },
+    {
+      "anchors": 11,
+      "completion": "The cytokine most likely directly responsible for the cachexia and systemic symp",
+      "completion_sha256": "c67cff53d14d69cba210d7ee70ac39fefdc7ca41a7c6641e1579c004d34a3167",
+      "generated_tokens": 92,
+      "hits": [
+        9,
+        6,
+        5,
+        5,
+        4,
+        2,
+        1
+      ],
+      "id": "eval-16",
+      "mean_target_chosen_prob": 0.7413480281829834,
+      "mean_target_entropy": 0.8276318311691284,
+      "mean_target_top1_prob": 0.741693913936615,
+      "repeat_4gram": 0.0,
+      "trials": [
+        11,
+        11,
+        11,
+        11,
+        11,
+        11,
+        11
+      ]
+    },
+    {
+      "anchors": 9,
+      "completion": "For a patient on Warfarin with an INR of 8, the recommended course of action is ",
+      "completion_sha256": "d0f88c7b6c4def817928272a59a57c593ccb6bde2e00b3e9b76bb72070fa893b",
+      "generated_tokens": 78,
+      "hits": [
+        9,
+        6,
+        6,
+        4,
+        5,
+        5,
+        4
+      ],
+      "id": "eval-17",
+      "mean_target_chosen_prob": 0.7703558206558228,
+      "mean_target_entropy": 0.7580147385597229,
+      "mean_target_top1_prob": 0.7703558206558228,
+      "repeat_4gram": 0.0,
+      "trials": [
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9
+      ]
+    },
+    {
+      "anchors": 13,
+      "completion": "The strongest predisposing factor for a bleeding gastric ulcer in a patient pres",
+      "completion_sha256": "6a3333701229e3cc69ef841f8d342a3ce3671d448b838b10c4ef7264c0949bc0",
+      "generated_tokens": 107,
+      "hits": [
+        11,
+        9,
+        8,
+        6,
+        5,
+        5,
+        5
+      ],
+      "id": "eval-18",
+      "mean_target_chosen_prob": 0.7794961929321289,
+      "mean_target_entropy": 0.694878101348877,
+      "mean_target_top1_prob": 0.7794961929321289,
+      "repeat_4gram": 0.0,
+      "trials": [
+        13,
+        13,
+        13,
+        13,
+        13,
+        13,
+        13
+      ]
+    },
+    {
+      "anchors": 9,
+      "completion": "If pre-surgical movement of maxillary segments is indicated in a cleft infant, i",
+      "completion_sha256": "13fee355f8d86d2e7a92ae5ac12300cb7008c5ab0c15d8e4b700cbaeb728dee8",
+      "generated_tokens": 75,
+      "hits": [
+        8,
+        7,
+        5,
+        6,
+        5,
+        7,
+        5
+      ],
+      "id": "eval-19",
+      "mean_target_chosen_prob": 0.8353399634361267,
+      "mean_target_entropy": 0.5288168787956238,
+      "mean_target_top1_prob": 0.8353399634361267,
+      "repeat_4gram": 0.036363636363636376,
+      "trials": [
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9
+      ]
+    },
+    {
+      "anchors": 9,
+      "completion": "Based on the radiographic findings described, the most likely type of bone lesio",
+      "completion_sha256": "69dc5cc82e7b2cd46e1b0a4b2d58556f83680d6c86060f82fd2fe020d4c33a1a",
+      "generated_tokens": 77,
+      "hits": [
+        7,
+        6,
+        5,
+        6,
+        6,
+        3,
+        5
+      ],
+      "id": "eval-20",
+      "mean_target_chosen_prob": 0.8430778384208679,
+      "mean_target_entropy": 0.4712735414505005,
+      "mean_target_top1_prob": 0.8430778384208679,
+      "repeat_4gram": 0.0,
+      "trials": [
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9
+      ]
+    },
+    {
+      "anchors": 30,
+      "completion": "Based on the laboratory results and clinical presentation, the most likely cause",
+      "completion_sha256": "552ec5e37506622d942b6ca4f11e441b475867a59864668784c5c27596e6a00c",
+      "generated_tokens": 248,
+      "hits": [
+        26,
+        19,
+        18,
+        16,
+        18,
+        10,
+        10
+      ],
+      "id": "eval-21",
+      "mean_target_chosen_prob": 0.8380205631256104,
+      "mean_target_entropy": 0.47567832469940186,
+      "mean_target_top1_prob": 0.83819979429245,
+      "repeat_4gram": 0.013157894736842146,
+      "trials": [
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30
+      ]
+    },
+    {
+      "anchors": 5,
+      "completion": "During cardiac surgery, placing fingers in the transverse pericardial sinus allo",
+      "completion_sha256": "ddeecf5a3760d8fad61afed687d6caf8f15218d39454b352997785a20e24d096",
+      "generated_tokens": 47,
+      "hits": [
+        5,
+        4,
+        3,
+        3,
+        2,
+        1,
+        2
+      ],
+      "id": "eval-22",
+      "mean_target_chosen_prob": 0.7878798246383667,
+      "mean_target_entropy": 0.6825465559959412,
+      "mean_target_top1_prob": 0.7878798246383667,
+      "repeat_4gram": 0.0,
+      "trials": [
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5
+      ]
+    },
+    {
+      "anchors": 11,
+      "completion": "The type of hearing loss characterized by the ability to understand shouted or a",
+      "completion_sha256": "a596f437de57d26a6e5643d2e8301f4d8b64baaef24d55b74fb43dc81ad08414",
+      "generated_tokens": 89,
+      "hits": [
+        10,
+        11,
+        9,
+        7,
+        5,
+        6,
+        2
+      ],
+      "id": "eval-23",
+      "mean_target_chosen_prob": 0.7879127860069275,
+      "mean_target_entropy": 0.6601490378379822,
+      "mean_target_top1_prob": 0.7879127860069275,
+      "repeat_4gram": 0.01388888888888884,
+      "trials": [
+        11,
+        11,
+        11,
+        11,
+        11,
+        11,
+        11
+      ]
+    },
+    {
+      "anchors": 31,
+      "completion": "To calculate the Maternal Mortality Rate (MMR) for the community, we need to det",
+      "completion_sha256": "4b4ee3060c6068dee69b0cffa16a9039c36cec20cb98cdbd4893fead80528a6c",
+      "generated_tokens": 256,
+      "hits": [
+        29,
+        30,
+        25,
+        26,
+        23,
+        20,
+        19
+      ],
+      "id": "eval-24",
+      "mean_target_chosen_prob": 0.9177476167678833,
+      "mean_target_entropy": 0.2317616045475006,
+      "mean_target_top1_prob": 0.9177476167678833,
+      "repeat_4gram": 0.048387096774193505,
+      "trials": [
+        31,
+        31,
+        31,
+        31,
+        31,
+        31,
+        31
+      ]
+    },
+    {
+      "anchors": 16,
+      "completion": "Sarcoma botryoides, a subtype of embryonal rhabdomyosarcoma, is characterized by",
+      "completion_sha256": "91c1514d23bd3a00ffbb4e32b340006f811f67400298d49922ab7ccee870ae75",
+      "generated_tokens": 132,
+      "hits": [
+        11,
+        7,
+        5,
+        5,
+        5,
+        6,
+        4
+      ],
+      "id": "eval-25",
+      "mean_target_chosen_prob": 0.72480708360672,
+      "mean_target_entropy": 0.917565643787384,
+      "mean_target_top1_prob": 0.72480708360672,
+      "repeat_4gram": 0.0,
+      "trials": [
+        16,
+        16,
+        16,
+        16,
+        16,
+        16,
+        16
+      ]
+    },
+    {
+      "anchors": 12,
+      "completion": "The most likely intervention to help with this patient's presentation is D. Vita",
+      "completion_sha256": "8d606b65f671ce286df0386c721e0b88fa5e3a0d9584a580fe4c02a187a1c586",
+      "generated_tokens": 97,
+      "hits": [
+        12,
+        7,
+        5,
+        5,
+        4,
+        3,
+        2
+      ],
+      "id": "eval-26",
+      "mean_target_chosen_prob": 0.7539461255073547,
+      "mean_target_entropy": 0.7681129574775696,
+      "mean_target_top1_prob": 0.7539461255073547,
+      "repeat_4gram": 0.0,
+      "trials": [
+        12,
+        12,
+        12,
+        12,
+        12,
+        12,
+        12
+      ]
+    },
+    {
+      "anchors": 12,
+      "completion": "The most appropriate next step in the management of this 11-month-old boy with s",
+      "completion_sha256": "bbfac8ca6ee651093015ec19e1ad208d76d06646d8be60ed808d5bb76ec80211",
+      "generated_tokens": 98,
+      "hits": [
+        10,
+        7,
+        7,
+        6,
+        3,
+        5,
+        4
+      ],
+      "id": "eval-27",
+      "mean_target_chosen_prob": 0.7787097096443176,
+      "mean_target_entropy": 0.6952540874481201,
+      "mean_target_top1_prob": 0.7787097096443176,
+      "repeat_4gram": 0.0,
+      "trials": [
+        12,
+        12,
+        12,
+        12,
+        12,
+        12,
+        12
+      ]
+    },
+    {
+      "anchors": 15,
+      "completion": "The hormone used to induce labor in this scenario is oxytocin, which is produced",
+      "completion_sha256": "4ef0bf67333db48714cd7611eef9926946789cf95bf50e889e69c42117356e6a",
+      "generated_tokens": 124,
+      "hits": [
+        15,
+        12,
+        10,
+        6,
+        4,
+        4,
+        3
+      ],
+      "id": "eval-28",
+      "mean_target_chosen_prob": 0.8346766233444214,
+      "mean_target_entropy": 0.5092630386352539,
+      "mean_target_top1_prob": 0.8346766233444214,
+      "repeat_4gram": 0.0,
+      "trials": [
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15
+      ]
+    },
+    {
+      "anchors": 16,
+      "completion": "The skin lesion described in the scenario is consistent with melanoma, a type of",
+      "completion_sha256": "85cc71f3a020d36e820de4d9e9a2bb41316557559a4141d88d469d8597337c3f",
+      "generated_tokens": 133,
+      "hits": [
+        13,
+        12,
+        8,
+        7,
+        6,
+        2,
+        3
+      ],
+      "id": "eval-29",
+      "mean_target_chosen_prob": 0.8144323825836182,
+      "mean_target_entropy": 0.5770782232284546,
+      "mean_target_top1_prob": 0.8144323825836182,
+      "repeat_4gram": 0.010101010101010055,
+      "trials": [
+        16,
+        16,
+        16,
+        16,
+        16,
+        16,
+        16
+      ]
+    },
+    {
+      "anchors": 9,
+      "completion": "The translocation that confirms the diagnosis of Burkitt's Lymphoma is t(8:14). ",
+      "completion_sha256": "6970f5280eabd7186ddb42eb60d90d8065e1edabac148bf4ab2df3502445d305",
+      "generated_tokens": 78,
+      "hits": [
+        7,
+        5,
+        7,
+        6,
+        5,
+        5,
+        4
+      ],
+      "id": "eval-30",
+      "mean_target_chosen_prob": 0.8885224461555481,
+      "mean_target_entropy": 0.31428271532058716,
+      "mean_target_top1_prob": 0.8901153802871704,
+      "repeat_4gram": 0.0,
+      "trials": [
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9
+      ]
+    },
+    {
+      "anchors": 10,
+      "completion": "In the test of well water using Horrock's apparatus, if a blue color is observed",
+      "completion_sha256": "c855d17edd2fb13c983f9f9b98c9bf22da41effae149f8ec6e6e9f860f43e8b6",
+      "generated_tokens": 85,
+      "hits": [
+        7,
+        8,
+        7,
+        6,
+        5,
+        5,
+        5
+      ],
+      "id": "eval-31",
+      "mean_target_chosen_prob": 0.8260002136230469,
+      "mean_target_entropy": 0.5936288237571716,
+      "mean_target_top1_prob": 0.8260002136230469,
+      "repeat_4gram": 0.016949152542372836,
+      "trials": [
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10
+      ]
+    },
+    {
+      "anchors": 14,
+      "completion": "The laboratory test that can help to make the diagnosis in this case is the Dire",
+      "completion_sha256": "a6bad5fe3560e5b7f07aaf631ec3e8b5a8c6e26df5475d114ed7bfb7bd527981",
+      "generated_tokens": 115,
+      "hits": [
+        13,
+        12,
+        7,
+        7,
+        7,
+        6,
+        2
+      ],
+      "id": "eval-32",
+      "mean_target_chosen_prob": 0.8102618455886841,
+      "mean_target_entropy": 0.5895999670028687,
+      "mean_target_top1_prob": 0.8112411499023438,
+      "repeat_4gram": 0.0,
+      "trials": [
+        14,
+        14,
+        14,
+        14,
+        14,
+        14,
+        14
+      ]
+    },
+    {
+      "anchors": 6,
+      "completion": "The most likely bacterial cause of the patient's infection is Shigella. Shigella",
+      "completion_sha256": "f663bfff4e2af503e7c23e2fe438c257eaf7ad95e38196b903f8735d354cce8c",
+      "generated_tokens": 56,
+      "hits": [
+        5,
+        5,
+        5,
+        5,
+        4,
+        2,
+        3
+      ],
+      "id": "eval-33",
+      "mean_target_chosen_prob": 0.7870582938194275,
+      "mean_target_entropy": 0.6255443692207336,
+      "mean_target_top1_prob": 0.7875691056251526,
+      "repeat_4gram": 0.0,
+      "trials": [
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6
+      ]
+    },
+    {
+      "anchors": 22,
+      "completion": "The symptoms you've described—lateral and downward deviation of the right eye, c",
+      "completion_sha256": "31b6b940e97953dfe4d5f441d10352763d6e4e0fde47f9fd98459e48496c0a26",
+      "generated_tokens": 181,
+      "hits": [
+        18,
+        11,
+        10,
+        9,
+        7,
+        4,
+        6
+      ],
+      "id": "eval-34",
+      "mean_target_chosen_prob": 0.8065266013145447,
+      "mean_target_entropy": 0.6021339297294617,
+      "mean_target_top1_prob": 0.8068198561668396,
+      "repeat_4gram": 0.022727272727272707,
+      "trials": [
+        22,
+        22,
+        22,
+        22,
+        22,
+        22,
+        22
+      ]
+    },
+    {
+      "anchors": 12,
+      "completion": "The clinical manifestations described in the 26-year-old female patient, includi",
+      "completion_sha256": "c546b69a28117e55eb618e4d81c28f922bba52d89aa8a6bbfa568fd74cc8a708",
+      "generated_tokens": 101,
+      "hits": [
+        10,
+        8,
+        7,
+        5,
+        5,
+        3,
+        5
+      ],
+      "id": "eval-35",
+      "mean_target_chosen_prob": 0.8172796964645386,
+      "mean_target_entropy": 0.5241202712059021,
+      "mean_target_top1_prob": 0.8172796964645386,
+      "repeat_4gram": 0.0,
+      "trials": [
+        12,
+        12,
+        12,
+        12,
+        12,
+        12,
+        12
+      ]
+    },
+    {
+      "anchors": 11,
+      "completion": "In the case of an injury to the C8-T1 spinal nerve roots, the specific part of t",
+      "completion_sha256": "557af80e92999102d87213454bc6a7b517a3a3d5b673a57461d609593c6f7399",
+      "generated_tokens": 93,
+      "hits": [
+        9,
+        7,
+        5,
+        6,
+        5,
+        1,
+        6
+      ],
+      "id": "eval-36",
+      "mean_target_chosen_prob": 0.8132115602493286,
+      "mean_target_entropy": 0.5943605303764343,
+      "mean_target_top1_prob": 0.8132115602493286,
+      "repeat_4gram": 0.0,
+      "trials": [
+        11,
+        11,
+        11,
+        11,
+        11,
+        11,
+        11
+      ]
+    },
+    {
+      "anchors": 24,
+      "completion": "The nasopharynx is the uppermost part of the pharynx, located behind the nasal c",
+      "completion_sha256": "6ea9ae8ddf7b8ea80f5cfa1fb67773a4d99e250356498cd82fddc3016061eb3f",
+      "generated_tokens": 195,
+      "hits": [
+        23,
+        19,
+        12,
+        10,
+        8,
+        7,
+        6
+      ],
+      "id": "eval-37",
+      "mean_target_chosen_prob": 0.817494809627533,
+      "mean_target_entropy": 0.6031743288040161,
+      "mean_target_top1_prob": 0.8176904320716858,
+      "repeat_4gram": 0.007246376811594235,
+      "trials": [
+        24,
+        24,
+        24,
+        24,
+        24,
+        24,
+        24
+      ]
+    },
+    {
+      "anchors": 31,
+      "completion": "When administered in small doses for mild cholinomimetic stimulation following s",
+      "completion_sha256": "2d387e71199d8618341d455f28feb0626e5f9ac774b7729817c218b8c02494c9",
+      "generated_tokens": 256,
+      "hits": [
+        25,
+        23,
+        22,
+        17,
+        17,
+        15,
+        9
+      ],
+      "id": "eval-38",
+      "mean_target_chosen_prob": 0.7935294508934021,
+      "mean_target_entropy": 0.6357479095458984,
+      "mean_target_top1_prob": 0.7939079999923706,
+      "repeat_4gram": 0.012422360248447228,
+      "trials": [
+        31,
+        31,
+        31,
+        31,
+        31,
+        31,
+        31
+      ]
+    },
+    {
+      "anchors": 31,
+      "completion": "In the scenario of a 57-year-old man with congestive heart failure who has not t",
+      "completion_sha256": "6c4bd6b5d22e4b4c7f106dfcf90ae5ac2143685a8f537aa9747a04e0756dc342",
+      "generated_tokens": 256,
+      "hits": [
+        27,
+        17,
+        15,
+        16,
+        14,
+        7,
+        8
+      ],
+      "id": "eval-39",
+      "mean_target_chosen_prob": 0.759162962436676,
+      "mean_target_entropy": 0.7685534358024597,
+      "mean_target_top1_prob": 0.7592880129814148,
+      "repeat_4gram": 0.00540540540540535,
+      "trials": [
+        31,
+        31,
+        31,
+        31,
+        31,
+        31,
+        31
+      ]
+    }
+  ],
+  "prompts": "eval_prompts.jsonl",
+  "stride": 8,
+  "target": "target",
+  "teacher_forced_acceptance_length": 3.1541133297340727,
+  "total_anchors": 590,
+  "wall_clock_seconds": 112.8
+}

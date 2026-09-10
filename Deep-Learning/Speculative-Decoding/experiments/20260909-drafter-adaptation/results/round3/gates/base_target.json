@@ -1,0 +1,383 @@
+{
+  "adapter": null,
+  "decoding": "HF generate, pure greedy",
+  "label": "base_target",
+  "num_prompts": 40,
+  "per_request": [
+    {
+      "completion_head": "Based on the patient's age, gender, and medical history, we need to determine th",
+      "hit_cap": true,
+      "id": "eval-0",
+      "max_4gram_count": 1,
+      "mean_top1": 0.8628936045570299,
+      "new_tokens": 256,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "Based on the clinical presentation of an 8-year-old boy with frequent severe ble",
+      "hit_cap": true,
+      "id": "eval-1",
+      "max_4gram_count": 2,
+      "mean_top1": 0.8855424540815875,
+      "new_tokens": 256,
+      "repeat_4gram": 0.006172839506172867
+    },
+    {
+      "completion_head": "Based on the clinical presentation and laboratory findings, we can deduce the di",
+      "hit_cap": true,
+      "id": "eval-2",
+      "max_4gram_count": 1,
+      "mean_top1": 0.8629913072800264,
+      "new_tokens": 256,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "The phenomenon described, where a small target oscillated in front of a patient ",
+      "hit_cap": true,
+      "id": "eval-3",
+      "max_4gram_count": 2,
+      "mean_top1": 0.7861084967735223,
+      "new_tokens": 256,
+      "repeat_4gram": 0.010582010582010581
+    },
+    {
+      "completion_head": "Based on the clinical presentation, the patient has sustained a **Brown-Séquard ",
+      "hit_cap": true,
+      "id": "eval-4",
+      "max_4gram_count": 2,
+      "mean_top1": 0.8389117532642558,
+      "new_tokens": 256,
+      "repeat_4gram": 0.012903225806451646
+    },
+    {
+      "completion_head": "Based on the clinical presentation, this patient is a 70-year-old male with acut",
+      "hit_cap": true,
+      "id": "eval-5",
+      "max_4gram_count": 1,
+      "mean_top1": 0.8412339424248785,
+      "new_tokens": 256,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "When selecting antihypertensive medications, it is important to consider their i",
+      "hit_cap": true,
+      "id": "eval-6",
+      "max_4gram_count": 1,
+      "mean_top1": 0.8334538165363483,
+      "new_tokens": 256,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "The Post Coital Test (PCT), also known as the Huhner test, is used to evaluate t",
+      "hit_cap": true,
+      "id": "eval-7",
+      "max_4gram_count": 1,
+      "mean_top1": 0.8007282415637746,
+      "new_tokens": 256,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "Based on the clinical presentation and laboratory results, the patient is suffer",
+      "hit_cap": true,
+      "id": "eval-8",
+      "max_4gram_count": 1,
+      "mean_top1": 0.9031282599898987,
+      "new_tokens": 256,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "Based on the clinical presentation and angiographic findings, here is the step-b",
+      "hit_cap": true,
+      "id": "eval-9",
+      "max_4gram_count": 1,
+      "mean_top1": 0.8398456245195121,
+      "new_tokens": 256,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "According to the World Health Organization (WHO) criteria for assessing vitamin ",
+      "hit_cap": true,
+      "id": "eval-10",
+      "max_4gram_count": 1,
+      "mean_top1": 0.8184827349032275,
+      "new_tokens": 256,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "The recommended single massive dose of vitamin A for preschool children aged 1 t",
+      "hit_cap": true,
+      "id": "eval-11",
+      "max_4gram_count": 2,
+      "mean_top1": 0.8430946478038095,
+      "new_tokens": 256,
+      "repeat_4gram": 0.006993006993006978
+    },
+    {
+      "completion_head": "To calculate the Glomerular Filtration Rate (GFR) using inulin clearance, we use",
+      "hit_cap": true,
+      "id": "eval-12",
+      "max_4gram_count": 2,
+      "mean_top1": 0.9575913471635431,
+      "new_tokens": 256,
+      "repeat_4gram": 0.021582733812949617
+    },
+    {
+      "completion_head": "Based on the clinical presentation and epidemiological history, the child is suf",
+      "hit_cap": true,
+      "id": "eval-13",
+      "max_4gram_count": 1,
+      "mean_top1": 0.8510748887783848,
+      "new_tokens": 256,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "Based on the clinical presentation, this patient is suffering from **acute peric",
+      "hit_cap": true,
+      "id": "eval-14",
+      "max_4gram_count": 1,
+      "mean_top1": 0.8840209187474102,
+      "new_tokens": 256,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "Based on the clinical presentation and patient population described, the virus i",
+      "hit_cap": true,
+      "id": "eval-15",
+      "max_4gram_count": 2,
+      "mean_top1": 0.8967029604827985,
+      "new_tokens": 256,
+      "repeat_4gram": 0.007518796992481258
+    },
+    {
+      "completion_head": "The clinical presentation of this patient—specifically the combination of advanc",
+      "hit_cap": true,
+      "id": "eval-16",
+      "max_4gram_count": 1,
+      "mean_top1": 0.8328195791691542,
+      "new_tokens": 256,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "**Disclaimer:** *The following information is for educational purposes only and ",
+      "hit_cap": true,
+      "id": "eval-17",
+      "max_4gram_count": 1,
+      "mean_top1": 0.8562200565356761,
+      "new_tokens": 256,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "Based on the clinical presentation of black, tarry stools (melena) and epigastri",
+      "hit_cap": true,
+      "id": "eval-18",
+      "max_4gram_count": 1,
+      "mean_top1": 0.8908032335457392,
+      "new_tokens": 256,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "Nasolabial Leverage (NPL) or pre-surgical orthopedic treatment for cleft lip and",
+      "hit_cap": true,
+      "id": "eval-19",
+      "max_4gram_count": 1,
+      "mean_top1": 0.7725928129511885,
+      "new_tokens": 256,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "Based on the clinical presentation and specific radiographic findings, the most ",
+      "hit_cap": true,
+      "id": "eval-20",
+      "max_4gram_count": 2,
+      "mean_top1": 0.8932602254208177,
+      "new_tokens": 256,
+      "repeat_4gram": 0.006756756756756799
+    },
+    {
+      "completion_head": "Based on the laboratory results provided, we can systematically analyze the type",
+      "hit_cap": true,
+      "id": "eval-21",
+      "max_4gram_count": 1,
+      "mean_top1": 0.8941343028564006,
+      "new_tokens": 256,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "The transverse pericardial sinus is a potential space located behind the ascendi",
+      "hit_cap": false,
+      "id": "eval-22",
+      "max_4gram_count": 2,
+      "mean_top1": 0.787732061285239,
+      "new_tokens": 195,
+      "repeat_4gram": 0.0357142857142857
+    },
+    {
+      "completion_head": "Based on the symptoms described, the type of hearing loss is **Conductive Hearin",
+      "hit_cap": true,
+      "id": "eval-23",
+      "max_4gram_count": 2,
+      "mean_top1": 0.8379007752519101,
+      "new_tokens": 256,
+      "repeat_4gram": 0.0060240963855421326
+    },
+    {
+      "completion_head": "To calculate the Maternal Mortality Rate (MMR), we need to determine the number ",
+      "hit_cap": true,
+      "id": "eval-24",
+      "max_4gram_count": 3,
+      "mean_top1": 0.9499444091925398,
+      "new_tokens": 256,
+      "repeat_4gram": 0.07826086956521738
+    },
+    {
+      "completion_head": "Sarcoma botryoides, also known as **embryonal rhabdomyosarcoma** (specifically t",
+      "hit_cap": true,
+      "id": "eval-25",
+      "max_4gram_count": 1,
+      "mean_top1": 0.8313156079384498,
+      "new_tokens": 256,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "Based on the clinical presentation, this patient is exhibiting signs of cognitiv",
+      "hit_cap": true,
+      "id": "eval-26",
+      "max_4gram_count": 1,
+      "mean_top1": 0.8003318626433611,
+      "new_tokens": 256,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "Based on the clinical presentation and diagnostic findings, this patient is suff",
+      "hit_cap": true,
+      "id": "eval-27",
+      "max_4gram_count": 1,
+      "mean_top1": 0.8643341092392802,
+      "new_tokens": 256,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "Based on the clinical vignette, the hormone described is **oxytocin**.\n\n### Step",
+      "hit_cap": true,
+      "id": "eval-28",
+      "max_4gram_count": 2,
+      "mean_top1": 0.8918962345924228,
+      "new_tokens": 256,
+      "repeat_4gram": 0.04379562043795615
+    },
+    {
+      "completion_head": "Based on the clinical presentation and histological findings, the patient is suf",
+      "hit_cap": true,
+      "id": "eval-29",
+      "max_4gram_count": 1,
+      "mean_top1": 0.8685627649538219,
+      "new_tokens": 256,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "Burkitt's Lymphoma is a highly aggressive B-cell non-Hodgkin lymphoma that is st",
+      "hit_cap": true,
+      "id": "eval-30",
+      "max_4gram_count": 2,
+      "mean_top1": 0.906769503140822,
+      "new_tokens": 256,
+      "repeat_4gram": 0.024793388429752095
+    },
+    {
+      "completion_head": "To determine the amount of bleaching powder needed, we must understand the princ",
+      "hit_cap": true,
+      "id": "eval-31",
+      "max_4gram_count": 3,
+      "mean_top1": 0.7950138765736483,
+      "new_tokens": 256,
+      "repeat_4gram": 0.016304347826086918
+    },
+    {
+      "completion_head": "Based on the clinical presentation, this patient is suffering from **Autoimmune ",
+      "hit_cap": true,
+      "id": "eval-32",
+      "max_4gram_count": 1,
+      "mean_top1": 0.8794706400949508,
+      "new_tokens": 256,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "Based on the clinical presentation and laboratory findings, here is the step-by-",
+      "hit_cap": true,
+      "id": "eval-33",
+      "max_4gram_count": 1,
+      "mean_top1": 0.858050903712865,
+      "new_tokens": 256,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "Based on the clinical presentation, the patient is exhibiting the classic signs ",
+      "hit_cap": true,
+      "id": "eval-34",
+      "max_4gram_count": 1,
+      "mean_top1": 0.886340843164362,
+      "new_tokens": 256,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "Based on the clinical presentation described, the patient is exhibiting classic ",
+      "hit_cap": true,
+      "id": "eval-35",
+      "max_4gram_count": 1,
+      "mean_top1": 0.9045129645382985,
+      "new_tokens": 256,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "To determine the specific area of sensory loss, we must look at the dermatomal m",
+      "hit_cap": true,
+      "id": "eval-36",
+      "max_4gram_count": 4,
+      "mean_top1": 0.8442654476384632,
+      "new_tokens": 256,
+      "repeat_4gram": 0.08235294117647063
+    },
+    {
+      "completion_head": "To understand the true anatomical characteristics of the nasopharynx regarding i",
+      "hit_cap": true,
+      "id": "eval-37",
+      "max_4gram_count": 2,
+      "mean_top1": 0.8373482244205661,
+      "new_tokens": 256,
+      "repeat_4gram": 0.007194244604316502
+    },
+    {
+      "completion_head": "To determine the significant physiological difference between physostigmine and ",
+      "hit_cap": true,
+      "id": "eval-38",
+      "max_4gram_count": 1,
+      "mean_top1": 0.8927605182398111,
+      "new_tokens": 256,
+      "repeat_4gram": 0.0
+    },
+    {
+      "completion_head": "Based on the clinical presentation of decompensated congestive heart failure (CH",
+      "hit_cap": true,
+      "id": "eval-39",
+      "max_4gram_count": 2,
+      "mean_top1": 0.8438823139294982,
+      "new_tokens": 256,
+      "repeat_4gram": 0.007042253521126751
+    }
+  ],
+  "prompts": "eval_prompts.jsonl",
+  "target": "target",
+  "verdict": {
+    "cap_fraction": 0.975,
+    "loop_prompts": 3,
+    "mean_new_tokens": 254.5,
+    "mean_repeat_4gram": 0.0093,
+    "mean_top1": 0.8582,
+    "pass": false,
+    "thresholds": {
+      "max_cap_fraction": 0.5,
+      "max_loop_prompts": 2,
+      "max_mean_repeat": 0.03
+    }
+  }
+}

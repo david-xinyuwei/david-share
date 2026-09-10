@@ -35,6 +35,8 @@ Run date: 2026-09-06. Run ID: `qwen38-quality-20260906`.
 | Understand the drafting difference | [How MTP and DFlash differ](#how-mtp-and-dflash-differ) |
 | Inspect the first-generation DFlash concurrency failure | [Previous experiment](#previous-experiment) |
 | Judge whether a drafter applies to your own model | [Applicability and fine-tuned models](#applicability-and-fine-tuned-models) |
+| See what happens to the drafter after fine-tuning, and whether retraining it helps | [Adapting the drafter to a fine-tuned target](#adapting-the-drafter-to-a-fine-tuned-target) |
+| Judge what training a drafter from scratch would need | [What training from scratch would take](#what-training-from-scratch-would-take) |
 
 ## What You Can Do With This Repository
 
@@ -45,6 +47,8 @@ Run date: 2026-09-06. Run ID: `qwen38-quality-20260906`.
 | Check the selection evidence | Per-group records, grader integration, analysis and tests | Trace the reported numbers and design acceptance tests for your own workload |
 
 This is a deployment reference and test evidence, not a production-validated hosted service. Preparation and scheduling for the full 27-group experiment do not yet have a standalone public entry point; see [reproduction scope](#reproduction-scope).
+
+The contribution of this repository is the controlled comparison, measurement code and traceable evidence. MTP, DFlash and the released model checkpoints are upstream work. Running an upstream drafter successfully does not demonstrate from-scratch draft training or show that adaptation improves serving performance; the [adaptation experiment](#adapting-the-drafter-to-a-fine-tuned-target) measures the second question directly under two drift regimes.
 
 ## What the Current Run Shows
 
@@ -396,31 +400,129 @@ These sum measured group times from request dispatch to response completion, exc
 
 ## Applicability and Fine-Tuned Models
 
-A drafter is bound to one specific target checkpoint, not to a model family. The DFlash 2 drafter used here was published for `Qwen/Qwen3.8-27B`. It does not apply to Qwen3.6-27B, and it does not apply unchanged to a fine-tuned Qwen3.8-27B. Native MTP carries the same restriction for a different reason: those weights are trained together with the base model and ship inside it, so a model that does not already include MTP cannot be given MTP afterwards.
+**Does modifying the target require retraining its drafter? Not automatically.** The published checkpoint used here is `incoai/Qwen3.8-27B-DFlash2`, intended for `Qwen/Qwen3.8-27B`. Reuse with another target needs compatible architecture, tokenizer, hidden features and output head, followed by workload-specific evaluation. A shared family name does not establish compatibility; fine-tuning alone does not establish incompatibility.
 
-The coupling is structural rather than incidental. According to the [DFlash paper](https://arxiv.org/abs/2602.06036), a drafter is trained against a frozen target as follows.
+Native MTP likewise needs compatible model architecture, MTP weights and engine support. Enabling a serving flag is not a method for creating missing MTP weights.
 
-| Training element | What the published method does |
+**DFlash: Block Diffusion for Flash Speculative Decoding** uses a small block-diffusion model to draft several tokens in parallel, conditioned on the target's hidden features. For adaptation, the teacher is the exact target that will serve requests, including any adapter. The starting student is an existing draft checkpoint. Prompts come from the intended workload; the teacher generates responses, and its parameters remain frozen while the draft parameters are updated. This is continuation training, not training a drafter from scratch.
+
+The following describes the [DFlash paper, Sections 4.2 and A.1](https://arxiv.org/html/2602.06036v2#S4.SS2), not a reproduction of the complete DFlash 2 training recipe.
+
+- **Training responses:** The paper uses about 800K samples from Nemotron Post-Training V2 and CodeAlpaca, with target-generated responses. That is its experimental scale, not a demonstrated minimum for every adaptation.
+- **Conditioning:** Hidden states from five target layers, sampled between the second and the third-to-last layer, are concatenated, projected once, and injected into the key and value entries of every draft layer.
+- **Block construction:** Anchor tokens are sampled at random from the response; the remaining positions of each block are masked and predicted in parallel.
+- **Loss:** Cross-entropy is weighted by `exp(-(k-1)/gamma)` over the position `k` inside a block, because an error early in a block invalidates every later position.
+- **Shared parameters:** The target, its token embedding and its language-model head remain frozen; training updates the draft model rather than the target.
+
+Fine-tuning can change the target's features and token predictions. Which parameters change depends on the tuning recipe; an adapter does not necessarily update the embedding or output-head weights. These dependencies motivate a comparison, not a conclusion that the released drafter must fail or that adaptation must improve it.
+
+**Measure three different outcomes.** Draft-token agreement measures how well the draft predicts the target; answer quality measures whether the final response solves the task; throughput and latency measure the actual service. A lower training loss or higher draft agreement cannot substitute for graded answers and faster serving. Speculative decoding's theoretical output-distribution guarantee assumes a correct verification and sampling implementation. It is not evidence that a particular engine, precision or cache path preserves answers.
+
+The paper provides one adaptation example: [Section 5.4, Table 4](https://arxiv.org/html/2602.06036v2#S5.SS4) adapts a Qwen3.5-27B DFlash drafter using 1.6K LongAlign-10K samples for three epochs. On HotpotQA at 16K context, acceptance length changes from 3.61 to 6.05. This is the authors' long-context result, not this repository's Qwen3.8-27B fine-tuned-target result or a general time/cost guarantee.
+
+| Situation | What to establish before adoption |
 |---|---|
-| Training responses | About 800K samples drawn from Nemotron Post-Training V2 and CodeAlpaca, with the original answers replaced by responses generated by the target model itself |
-| Conditioning | Hidden states from five target layers, sampled between the second and the third-to-last layer, are concatenated, projected once, and injected into the key and value entries of every draft layer |
-| Block construction | Anchor tokens are sampled at random from the response; the remaining positions of each block are masked and predicted in parallel |
-| Loss | Cross-entropy weighted by `exp(-(k-1)/gamma)` over the position `k` inside a block, because an error early in a block invalidates every later position |
-| Shared parameters | The drafter shares the target's token embedding and language-model head and keeps both frozen; only the draft transformer layers are trained |
+| Target with an intended released drafter | Compare no speculation and the released drafter under the same workload, concurrency and output-quality criteria |
+| Fine-tuned target with a compatible released drafter | Test the released drafter first. If adapting it, compare both draft checkpoints against the same frozen target; save and reload the adapted checkpoint before evaluation |
+| No compatible draft checkpoint | Treat training a new drafter as a separate project. An existing-checkpoint adaptation result does not demonstrate from-scratch training capability |
 
-The drafter therefore depends on the target's internal representations, its output head and its output distribution. Fine-tuning the target moves all three. The paper's own ablation shows how much of the benefit comes from that dependency: the same five-layer diffusion drafter trained **without** target-feature conditioning reaches only about 2-3x, against about 4.9x with it.
+**The published evidence in this repository covers the inference experiments above, not a validated drafter-training recipe.** Do not use these results to claim improved adaptation, universal compatibility, or that customers never need to retrain. The [How to Run](#how-to-run) commands exercise the published inference configurations; the [offline tests](#tests-and-offline-replay) check saved evidence and are not a live training or quality certification. The next section measures the question directly.
 
-**What a mismatch degrades is speed, not correctness.** The target still verifies every drafted token, so rejected drafts cannot reach the output. A mismatched drafter lowers the acceptance length, and in the worst case the drafting cost is paid for nothing and throughput falls below plain autoregressive decoding. The DFlash 2 model card already shows that regime at high concurrency: at concurrency 32, native MTP reaches 0.77x to 0.94x on several datasets.
+## Adapting the Drafter to a Fine-Tuned Target
 
-**Re-adapting an existing drafter is comparatively cheap.** The paper's long-context experiment fine-tuned an existing drafter with 1.6K samples for three epochs and raised acceptance length at 16K context from 3.61 to 6.05. That is adaptation of a trained drafter, not training one from scratch.
+The question a deployment team actually asks is: **after I fine-tune Qwen3.8-27B, does the released DFlash 2 drafter still work, and does retraining it help?** This experiment answers it under two drift regimes on one H100 NVL, using the same released checkpoints as the run above. Run dates: 2026-09-09 (Regime A) and 2026-09-10 (Regime B). Full files are in [`experiments/20260909-drafter-adaptation/`](experiments/20260909-drafter-adaptation/).
 
-| Situation | Available path |
-|---|---|
-| Published target with a published drafter | Use it directly, and validate at your own concurrency before adoption |
-| Fine-tuned target, or no published drafter | The public `dflash` package ships inference and benchmark code only; it contains no training code or data recipe. Inco AI states it will train drafters for models you run, including your own fine-tunes |
-| You need a drafter you can train yourself | EAGLE3-style draft heads have public training code, at a lower speedup than a purpose-built DFlash drafter |
+**Setup.** The target is `Qwen/Qwen3.8-27B` (revision `1d4bf0f2`) with a LoRA adapter trained on [medical-o1-reasoning-SFT](https://huggingface.co/datasets/FreedomIntelligence/medical-o1-reasoning-SFT) (Apache-2.0): Regime A uses the English split, rank 16, attention projections only, one epoch; Regime B uses the Chinese split, rank 128, all seven projection modules, two epochs. The adapted drafter starts from `incoai/Qwen3.8-27B-DFlash2` (revision `dedf8df6`) and is trained for two epochs on 1,200 responses that the fine-tuned target itself generated for held-in prompts, updating the five draft layers and the DFlash 2 candidate selector while the target, its embedding and its output head stay frozen. This is **continuation training of a released checkpoint**, not training a drafter from scratch. The selector objective is the author's construction; the DFlash 2 publisher has not released selector training code.
 
-**This section is derived from the published method and the publishers' own measurements. This repository has not measured a fine-tuned target.** Before adopting any drafter on a modified model, measure acceptance length, throughput and graded answer quality at your production concurrency, using the launch path in [How to Run](#how-to-run) and the checks in [Tests and Offline Replay](#tests-and-offline-replay).
+**Three separate measurements.** Draft agreement asks both drafters the same question on the same frozen target text: given the target's own response, which next tokens would you draft? *First-offset hit rate* is the share of blocks whose first drafted token matches; *joint-prefix acceptance length* is one plus the mean number of leading positions that are all correct, which is what verification would accept. Because both drafters read identical text, prompt-level bootstrap intervals on the difference are meaningful. End-to-end acceptance lets each drafter really draft; the texts then differ, so those numbers are observations, not paired tests. vLLM throughput is the serving result a customer sees. None of these grades answers.
+
+<!-- BEGIN ADAPTATION_TABLE -->
+| Measurement | Regime A: small drift (English, LoRA r16 attention-only) | Regime B: large drift (Chinese, LoRA r128 all modules) |
+| --- | --- | --- |
+| Released drafter first-offset hit rate on the fine-tuned target (same target text) | 0.857 (193 of 200 prompts evaluable) | 0.677 (was 0.720 on the base target; 200 prompts) |
+| Adapted drafter first-offset hit rate, paired difference vs released (95% interval) | seed 0: 0.848 (-0.019, +0.002); seed 1: 0.845 (-0.024, +0.000); seed 2: 0.840 (-0.029, -0.005) | 0.707 (+0.015, +0.044) |
+| Joint-prefix acceptance length: released → adapted (95% interval) | seed 0: 4.33 → 4.33 (-0.056, +0.069); seed 1: 4.33 → 4.35 (-0.044, +0.088); seed 2: 4.33 → 4.35 (-0.042, +0.095) | 2.85 → 3.08 (+0.163, +0.295); released drafter on the base target: 3.24 |
+| vLLM 0.28.0 throughput (tok/s), concurrency 1: no speculation / released / adapted | 53.5 / 162.2 / 158.0 | 53.6 / 97.1 / 106.0 |
+| vLLM 0.28.0 throughput (tok/s), concurrency 4: no speculation / released / adapted | 184.7 / 490.0 / 485.3 | 194.5 / 323.6 / 349.4 |
+| Reading | Released drafter not degraded; adaptation shows no measurable gain | Released drafter loses hit rate; adaptation recovers part of it and serving throughput rises |
+
+Paired differences use a 2,000-resample prompt-level bootstrap; a direction is claimed only when the interval excludes 0. Each vLLM route ran once on 40 Chinese or 40 English prompts with `max_tokens=256`; no significance claim. Answer quality was not graded.
+<!-- END ADAPTATION_TABLE -->
+
+**What the two regimes show.** With light attention-only LoRA (Regime A), the released drafter keeps a first-offset hit rate of 0.857 and the adapted drafter is not better on any of three training seeds; vLLM throughput of the two drafters is within 3% at both concurrencies. With heavy all-module LoRA on Chinese data (Regime B), the released drafter's hit rate falls from 0.720 on the base target to 0.678 on the fine-tuned one and its joint-prefix acceptance length from 3.24 to 2.85. Adaptation raises them to 0.707 and 3.08 with intervals that exclude zero, and vLLM throughput rises from 97 to 106 tok/s at concurrency 1 and from 324 to 349 tok/s at concurrency 4. Part of the base-to-fine-tuned drop is the target itself becoming less predictable (its own top-1 probability falls from 0.835 to 0.754), so the released value on the base target is not the ceiling for recovery.
+
+**A contradicting measurement is kept.** In Regime B the end-to-end acceptance length on 40 prompts was 3.12 for the released drafter and 2.91 for the adapted one, the opposite direction from the paired agreement and the vLLM result. The two drafters produced byte-identical completions on 0 of 40 prompts, so this is a single-execution comparison on different texts with a small denominator; it is reported, not explained away.
+
+**Boundaries.** One target family, one dataset family, one adapter recipe per regime, one GPU. The drift regimes were chosen by the author; they are not calibrated thresholds for when retraining is needed. Regime B's fine-tuned target failed the author's token-level repetition screen (11 of 40 prompts repeated a 4-gram at least three times; the screen's limit was 2), and the base target failed the same screen on length stops, so the screen is a heuristic and neither target's answer quality has been graded. Round 3's agreement records stored only marginal per-offset rates and regenerated target text per run, so its differences are reported without intervals. Weights are not redistributed; their SHA-256 values and the data split manifests are in [provenance.json](experiments/20260909-drafter-adaptation/evidence/provenance.json).
+
+### What Training From Scratch Would Take
+
+This repository has **not** trained a DFlash drafter from scratch. Everything above starts from the released checkpoint. The only random-initialization run was a CPU canary on a toy configuration (hidden size 128, vocabulary 512): 30 steps, loss 6.24 → 3.88. It shows that gradients reach the draft layers, the fused target-feature projection and the norms while the frozen target receives none. It does not show that a real-size drafter converges, and it is not evidence of from-scratch capability.
+
+The paper's recipe ([Section 5 and Appendix A.1](https://arxiv.org/html/2602.06036v2#A1.SS1)): about 800K prompts from Nemotron Post-Training V2 and CodeAlpaca with responses regenerated by the target; 6 epochs, AdamW at 6e-4, cosine schedule with 4% warmup, sequences up to 3,072 tokens, and 512 anchor positions per sequence trained jointly through one sparse attention mask. The paper's ablations use 100K samples and reach roughly three quarters of the full-data speedup (Qwen3-4B on MATH-500: 4.71× versus 6.09×). The paper names H200 GPUs but not the GPU count or training hours.
+
+What the code in this repository lacks for that recipe, in order of cost:
+
+1. `dflash` 0.1.0 constructs `GroupedDynamicCausalConv.base_kernel` with `torch.empty`. Built from a config instead of a checkpoint, the first forward pass is NaN. The canary initializes it as an identity tap; that fix has not been exercised at real size.
+2. `train_drafter.py` processes 8 anchors per sequence, one block per forward pass. The paper's 512 anchors through one sparse-attention pass is about 64× more draft supervision per target forward. On this loop, paper-scale training would cost thousands of GPU-hours.
+3. The DFlash 2 candidate-selector objective is the author's construction and has only run from released weights. A from-scratch pilot should target the paper's DFlash architecture without the selector, for which z-lab publishes reference checkpoints to compare against.
+4. `generate_responses.py` uses Hugging Face `generate` at batch 8, about 70 output tokens per second on the 27B target. Paper-scale data needs a serving engine.
+5. Single GPU only; no data-parallel training.
+
+Order-of-magnitude estimates, extrapolated from the measured 0.61 s per training step and the vLLM throughput above, and assuming items 1–5 are done first:
+
+| Run | Target | Data | GPUs | Time |
+|---|---|---|---|---|
+| Smallest defensible from-scratch pilot | Qwen3-8B, compared against z-lab's public DFlash checkpoint | 100K prompts, self-generated responses, 6 epochs | 1–2 H100-class | About half a day to one day of generation, then two to four days of training on one GPU |
+| Paper scale | Qwen3-8B | 800K prompts, 6 epochs | About 8 | Three to four days |
+| Paper scale | Qwen3.8-27B | 800K prompts, 6 epochs | At least 8, each with more than 94 GB (the paper used H200) | About 1.5 days of generation on 4 GPUs, then about a week of training; one 94 GB GPU already peaked at 86 GB at sequence length 1,024 |
+
+These are estimates, not measurements. The defensible statement today: the adaptation path is measured; the training objective is implemented and shown to raise paired draft agreement; from-scratch training at real size has not been demonstrated.
+
+### Reproducing the Adaptation
+
+The executed scripts are published as snapshots under [`source/`](experiments/20260909-drafter-adaptation/source/); the orchestration shells contained private host paths and are represented by their hashes and by the commands below. Requires one 80 GB-class GPU, Python 3.12, `torch==2.13.0`, `transformers==5.16.1`, `peft==0.20.0`, `dflash==0.1.0`, `datasets`, `huggingface_hub`, and `vllm==0.28.0` in a separate environment for the serving step. Peak training memory was 86 GB with float32 drafter master weights.
+
+```bash
+set -euo pipefail
+W="$HOME/drafter-adaptation"; mkdir -p "$W" && cd "$W"
+SRC="<clone>/Deep-Learning/Speculative-Decoding/experiments/20260909-drafter-adaptation/source/round4"
+python3.12 -m venv venv && . venv/bin/activate
+pip install torch==2.13.0 transformers==5.16.1 peft==0.20.0 dflash==0.1.0 datasets huggingface_hub
+hf download Qwen/Qwen3.8-27B --revision 1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0 --local-dir models/target
+hf download incoai/Qwen3.8-27B-DFlash2 --revision dedf8df68adfb1afeaf7b7480c0a0243108177b4 --local-dir models/draft
+cp "$SRC"/*.py .
+# 1. Frozen split: 2,000 training questions, 200 held-out prompts (Regime B shown; use --config en --eval-size 200 for Regime A)
+python prepare_domain_data.py --dataset FreedomIntelligence/medical-o1-reasoning-SFT --config zh \
+  --question-field Question --response-field Response --instruction-field "" \
+  --train-size 2000 --eval-size 200 --seed 20260909 --max-output-chars 1000000 --out-dir data_zh
+# 2. Fine-tune the target (Regime B recipe; Regime A: --epochs 1 --lr 5e-5 --lora-rank 16 --lora-alpha 32 --target-modules attention)
+python finetune_target.py --target models/target --data data_zh/train.jsonl --output out/adapter-zh \
+  --epochs 2 --grad-accum 8 --max-length 1024 --lr 1e-4 --lora-rank 128 --lora-alpha 256 --target-modules all
+# 3. Repetition screen on the fine-tuned target (heuristic; records a verdict, does not grade answers)
+python check_degeneration.py --target models/target --adapter out/adapter-zh --prompts data_zh/eval_prompts.jsonl \
+  --output results/degeneration_zh.json --label target_zh --limit 40 --max-new-tokens 256 --repetition-unit token || true
+# 4. Released drafter on the fine-tuned target, teacher-forced on cached target text (the cache freezes the text for pairing)
+python analyze_predictability.py --target models/target --adapter out/adapter-zh --prompts data_zh/eval_prompts.jsonl \
+  --cache cache/ft_zh.pt --drafter models/draft --draft-path selector --output results/pred_released.json --label released
+# 5. Self-generated corpus from the fine-tuned target, then continuation training of the released drafter
+python generate_responses.py --target models/target --adapter out/adapter-zh --prompts data_zh/train.jsonl \
+  --output data_zh/corpus.jsonl --limit 1200 --max-new-tokens 320 --batch-size 8
+python train_drafter.py --target models/target --adapter out/adapter-zh --drafter models/draft \
+  --data data_zh/corpus.jsonl --output out/drafter-zh --epochs 2 --limit 1200 --anchors-per-sequence 8 --block 8 \
+  --max-length 1024 --lr 1e-4 --weight-decay 0.0 --warmup-fraction 0.05 --drafter-dtype float32 --train-selector
+# 6. Adapted drafter on the same cached text, then end-to-end acceptance for both drafters
+python analyze_predictability.py --target models/target --adapter out/adapter-zh --prompts data_zh/eval_prompts.jsonl \
+  --cache cache/ft_zh.pt --drafter out/drafter-zh --draft-path selector --output results/pred_ours.json --label ours
+python measure_acceptance.py --target models/target --adapter out/adapter-zh --prompts data_zh/eval_prompts.jsonl \
+  --limit 40 --max-new-tokens 256 --drafter models/draft --output results/acc_released.json --label released
+python measure_acceptance.py --target models/target --adapter out/adapter-zh --prompts data_zh/eval_prompts.jsonl \
+  --limit 40 --max-new-tokens 256 --drafter out/drafter-zh --output results/acc_ours.json --label ours
+# 7. Merge the adapter, export the adapted drafter in the released key layout, serve each route in vLLM and measure
+python export_drafter_for_vllm.py --source out/drafter-zh --reference models/draft --output served/draft-zh
+```
+
+The merge step (`PeftModel.merge_and_unload()` then `save_pretrained`) and the three `vllm serve` invocations use the same arguments as [How to Run](#how-to-run) step 4 with `--model` pointing at the merged target and `--speculative-config '{"method":"dflash","model":"<drafter>","num_speculative_tokens":7,"rejection_sample_method":"standard"}'`; the client is `vllm_client_bench.py --concurrency 1 4 --max-tokens 256`. The generated token counts, sampling settings and stop tokens are recorded inside each result file. Expect drift in exact numbers on different hardware or driver versions; the paired agreement intervals are the comparison designed to survive that.
 
 <a id="previous-experiment"></a>
 
@@ -524,6 +626,7 @@ The generation CLI stops only its own model server and does not release the host
 | Path | Contents |
 |---|---|
 | [`experiments/20260906-qwen38/`](experiments/20260906-qwen38/) | The current run: group records, summary, evidence, executed source snapshots, analyzer, validator, tests and the test-flow diagram |
+| [`experiments/20260909-drafter-adaptation/`](experiments/20260909-drafter-adaptation/) | The drafter-adaptation experiment: exported per-request results for both drift regimes, executed script snapshots, provenance hashes, analyzer, validator and tests |
 | [`experiments/20260905-quality/`](experiments/20260905-quality/) | The previous complete-answer run: raw responses, official grades, per-task comparisons, analysis code and figures |
 | [`images/`](images/) | The Chinese result figures used by [README_CN.md](README_CN.md) |
 | [`tools/make_readme_figures.py`](tools/make_readme_figures.py) | Regenerates those Chinese figures from both experiments' published summaries; needs a CJK font and [the pinned Matplotlib](experiments/20260906-qwen38/requirements-figures.txt) |
@@ -540,6 +643,7 @@ The generation CLI stops only its own model server and does not release the host
 | [Groups](experiments/20260906-qwen38/data/groups.json), [summary](experiments/20260906-qwen38/data/summary.json) | Task IDs, saved scores, timing, counters and matched comparisons |
 | [Analyzer](experiments/20260906-qwen38/analyze_results.py), [validator](experiments/20260906-qwen38/validate_report.py), [tests](experiments/20260906-qwen38/test_report.py) | Reaggregation and checks that this document's tables, links, badges and evidence agree |
 | [Previous analysis](experiments/20260905-quality/analysis/), [previous results](experiments/20260905-quality/results/), [previous source](experiments/20260905-quality/src/) | 2026-09-05 per-task comparisons, raw responses, official grades and analysis code |
+| [Adaptation results](experiments/20260909-drafter-adaptation/results/), [summary](experiments/20260909-drafter-adaptation/data/summary.json), [provenance](experiments/20260909-drafter-adaptation/evidence/provenance.json), [scripts](experiments/20260909-drafter-adaptation/source/) | Per-request drafter agreement, acceptance and vLLM records for both regimes; weight, data and log hashes; the training and measurement scripts as executed |
 
 These are snapshots of the executed source, not a complete fresh-GPU installation bundle. **Complete raw answers and SSE streams remain privately archived by the author and are not redistributed here.** The public files exclude infrastructure locators and credentials. Archive and member hashes describe provenance, not independent proof of runtime behavior.
 
@@ -553,6 +657,7 @@ Every check below is offline: it reads saved records and this document. None of 
 | Drift and refusal tests | `unittest discover` | All tests pass; each injected defect (changed table value, altered request, edited image, stale source, forged validation record, missing badge, collapsed section, nested Markdown) is rejected with its own error |
 | Independent reaggregation | `analyze_results.py --groups` | The regenerated `summary.json` equals the published one |
 | Previous experiment replay | `analyze_results.py --root ... --matrix` | All 3,100 requests, the frozen task set and grade bindings resolve |
+| Adaptation summary and table | `experiments/20260909-drafter-adaptation/validate_report.py` | Recomputes every adaptation number from per-request records, requires the paired bootstrap to run only on byte-identical target text, scans for private identifiers and prints `ADAPTATION_GATE=PASS` |
 
 Prerequisites: Python 3.10+ and its standard library, run from `Deep-Learning/Speculative-Decoding`. The previous-experiment replay requires Python 3.12. No GPU, network, credentials or extra packages are needed. The dedicated CI runs the first two checks on Windows and Linux with Python 3.10 and 3.12, and the replay on Python 3.12.
 
@@ -561,9 +666,11 @@ Not covered by these tests: fresh inference, official regrading, GPU-kernel beha
 ```bash
 python experiments/20260906-qwen38/validate_report.py
 python -m unittest discover -s experiments/20260906-qwen38 -p "test_*.py"
+python experiments/20260909-drafter-adaptation/validate_report.py
+python -m unittest discover -s experiments/20260909-drafter-adaptation -p "test_*.py"
 ```
 
-Validation should print `REPORT_GATE=PASS`, all tests should pass, and both commands should exit with code 0. They check that this document's tables, saved scores and file hashes agree.
+Validation should print `REPORT_GATE=PASS` and `ADAPTATION_GATE=PASS`, all tests should pass, and every command should exit with code 0. They check that this document's tables, saved scores and file hashes agree.
 
 To independently check summary values from the per-group records:
 

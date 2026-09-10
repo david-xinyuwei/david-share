@@ -1,0 +1,869 @@
+{
+  "answer_quality": "NOT_MEASURED: no grader was run on these medical prompt sets; agreement and acceptance describe drafting, not answer correctness.",
+  "round3": {
+    "acceptance": {
+      "released_argmax": {
+        "capped_prompts": 4,
+        "full_block_fraction": 0.212,
+        "macro_mean_acceptance_length": 4.0675,
+        "max_new_tokens": 256,
+        "micro_mean_acceptance_length": 4.1549,
+        "output_tokens": 4116,
+        "prompts": 40,
+        "verification_steps": 981
+      },
+      "released_selector": {
+        "capped_prompts": 1,
+        "full_block_fraction": 0.1565,
+        "macro_mean_acceptance_length": 3.9524,
+        "max_new_tokens": 256,
+        "micro_mean_acceptance_length": 3.7786,
+        "output_tokens": 3709,
+        "prompts": 40,
+        "verification_steps": 971
+      },
+      "v3_argmax": {
+        "capped_prompts": 4,
+        "full_block_fraction": 0.1786,
+        "macro_mean_acceptance_length": 4.0127,
+        "max_new_tokens": 256,
+        "micro_mean_acceptance_length": 3.8812,
+        "output_tokens": 3929,
+        "prompts": 40,
+        "verification_steps": 1002
+      },
+      "v3_selector": {
+        "capped_prompts": 2,
+        "full_block_fraction": 0.1429,
+        "macro_mean_acceptance_length": 3.7826,
+        "max_new_tokens": 256,
+        "micro_mean_acceptance_length": 3.6382,
+        "output_tokens": 3529,
+        "prompts": 40,
+        "verification_steps": 959
+      }
+    },
+    "acceptance_text_overlap": {
+      "released_argmax_vs_v3_argmax": {
+        "identical_completions": 3,
+        "prompts": 40
+      },
+      "released_selector_vs_released_argmax": {
+        "identical_completions": 3,
+        "prompts": 40
+      },
+      "released_selector_vs_v3_selector": {
+        "identical_completions": 3,
+        "prompts": 40
+      }
+    },
+    "agreement": {
+      "released_argmax": {
+        "anchors": 577,
+        "first_offset_hit_rate": 0.8925,
+        "joint_prefix_acceptance_length": null,
+        "joint_prefix_note": "Per-anchor leading-correct runs were not recorded in this round; only marginal per-offset rates are available. The product of marginals is not reported because it assumes independence across offsets.",
+        "marginal_hit_rate_by_offset": [
+          0.8925,
+          0.7262,
+          0.6014,
+          0.5407,
+          0.4593,
+          0.3726,
+          0.3397
+        ],
+        "mean_target_entropy": 0.587,
+        "mean_target_top1_prob": 0.8126,
+        "sequences": 38
+      },
+      "released_selector": {
+        "anchors": 593,
+        "first_offset_hit_rate": 0.8735,
+        "joint_prefix_acceptance_length": null,
+        "joint_prefix_note": "Per-anchor leading-correct runs were not recorded in this round; only marginal per-offset rates are available. The product of marginals is not reported because it assumes independence across offsets.",
+        "marginal_hit_rate_by_offset": [
+          0.8735,
+          0.7386,
+          0.6105,
+          0.5447,
+          0.4486,
+          0.3727,
+          0.3322
+        ],
+        "mean_target_entropy": 0.5862,
+        "mean_target_top1_prob": 0.8124,
+        "sequences": 38
+      },
+      "v3_argmax": {
+        "anchors": 590,
+        "first_offset_hit_rate": 0.8644,
+        "joint_prefix_acceptance_length": null,
+        "joint_prefix_note": "Per-anchor leading-correct runs were not recorded in this round; only marginal per-offset rates are available. The product of marginals is not reported because it assumes independence across offsets.",
+        "marginal_hit_rate_by_offset": [
+          0.8644,
+          0.7051,
+          0.5881,
+          0.5322,
+          0.4593,
+          0.3678,
+          0.3458
+        ],
+        "mean_target_entropy": 0.5819,
+        "mean_target_top1_prob": 0.8134,
+        "sequences": 38
+      },
+      "v3_selector": {
+        "anchors": 586,
+        "first_offset_hit_rate": 0.8618,
+        "joint_prefix_acceptance_length": null,
+        "joint_prefix_note": "Per-anchor leading-correct runs were not recorded in this round; only marginal per-offset rates are available. The product of marginals is not reported because it assumes independence across offsets.",
+        "marginal_hit_rate_by_offset": [
+          0.8618,
+          0.7253,
+          0.6092,
+          0.5307,
+          0.4539,
+          0.3686,
+          0.314
+        ],
+        "mean_target_entropy": 0.585,
+        "mean_target_top1_prob": 0.8126,
+        "sequences": 38
+      }
+    },
+    "agreement_paired": {
+      "v3_minus_released_argmax": {
+        "prompts": 38,
+        "prompts_with_identical_text": 27,
+        "reason": "target text was regenerated per run; greedy decoding under batched bf16 does not reproduce byte-identical completions",
+        "status": "NOT_PAIRED"
+      },
+      "v3_minus_released_selector": {
+        "prompts": 38,
+        "prompts_with_identical_text": 26,
+        "reason": "target text was regenerated per run; greedy decoding under batched bf16 does not reproduce byte-identical completions",
+        "status": "NOT_PAIRED"
+      }
+    },
+    "eval_prompts_sha256": "4c75d04a63064878c62e720291d3f5cd4d0cdbf1ea62e46d17b29d7c2de5c09d",
+    "hf_reference_path": {
+      "autoregressive": {
+        "identical_text_to_autoregressive": 40,
+        "new_tokens": 4703,
+        "requests": 40,
+        "seconds": 283.11,
+        "tokens_per_second": 16.61
+      },
+      "released": {
+        "identical_text_to_autoregressive": 2,
+        "new_tokens": 3709,
+        "requests": 40,
+        "seconds": 238.03,
+        "tokens_per_second": 15.58
+      },
+      "v3": {
+        "identical_text_to_autoregressive": 3,
+        "new_tokens": 3529,
+        "requests": 40,
+        "seconds": 220.76,
+        "tokens_per_second": 15.99
+      }
+    },
+    "scope": "English medical prompts; target = Qwen3.8-27B + LoRA r16 attention-only (1 epoch); drafters = released DFlash 2 vs continuation-trained v3.",
+    "target_gates": {
+      "base_target": {
+        "cap_fraction": 0.975,
+        "loop_prompts": 3,
+        "mean_new_tokens": 254.5,
+        "mean_repeat_4gram": 0.0093,
+        "mean_top1": 0.8582,
+        "passed": false,
+        "prompts": 40,
+        "repetition_unit": "word",
+        "thresholds": {
+          "max_cap_fraction": 0.5,
+          "max_loop_prompts": 2,
+          "max_mean_repeat": 0.03
+        }
+      },
+      "target_v2": {
+        "cap_fraction": 0.125,
+        "loop_prompts": 1,
+        "mean_new_tokens": 118.0,
+        "mean_repeat_4gram": 0.0096,
+        "mean_top1": 0.817,
+        "passed": true,
+        "prompts": 40,
+        "repetition_unit": "word",
+        "thresholds": {
+          "max_cap_fraction": 0.5,
+          "max_loop_prompts": 2,
+          "max_mean_repeat": 0.03
+        }
+      }
+    },
+    "vllm": {
+      "baseline": {
+        "levels": {
+          "1": {
+            "completion_tokens": 4936,
+            "length_stops": 4,
+            "median_request_seconds": 1.943,
+            "requests": 40,
+            "tokens_per_second": 53.5,
+            "wall_seconds": 92.26
+          },
+          "4": {
+            "completion_tokens": 4990,
+            "length_stops": 4,
+            "median_request_seconds": 2.035,
+            "requests": 40,
+            "tokens_per_second": 184.74,
+            "wall_seconds": 27.01
+          }
+        },
+        "max_tokens": 256,
+        "prompts": 40
+      },
+      "dflash_released": {
+        "levels": {
+          "1": {
+            "completion_tokens": 4842,
+            "length_stops": 3,
+            "median_request_seconds": 0.693,
+            "requests": 40,
+            "speedup_vs_baseline": 3.032,
+            "tokens_per_second": 162.19,
+            "wall_seconds": 29.85
+          },
+          "4": {
+            "completion_tokens": 4848,
+            "length_stops": 3,
+            "median_request_seconds": 0.878,
+            "requests": 40,
+            "speedup_vs_baseline": 2.653,
+            "tokens_per_second": 490.04,
+            "wall_seconds": 9.89
+          }
+        },
+        "max_tokens": 256,
+        "prompts": 40
+      },
+      "dflash_v3": {
+        "levels": {
+          "1": {
+            "completion_tokens": 4842,
+            "length_stops": 3,
+            "median_request_seconds": 0.703,
+            "requests": 40,
+            "speedup_vs_baseline": 2.954,
+            "tokens_per_second": 158.04,
+            "wall_seconds": 30.64
+          },
+          "4": {
+            "completion_tokens": 4865,
+            "length_stops": 4,
+            "median_request_seconds": 0.898,
+            "requests": 40,
+            "speedup_vs_baseline": 2.627,
+            "tokens_per_second": 485.34,
+            "wall_seconds": 10.02
+          }
+        },
+        "max_tokens": 256,
+        "prompts": 40
+      }
+    }
+  },
+  "round4": {
+    "acceptance": {
+      "ftzh_ours": {
+        "capped_prompts": 8,
+        "full_block_fraction": 0.1376,
+        "macro_mean_acceptance_length": 2.9088,
+        "max_new_tokens": 256,
+        "micro_mean_acceptance_length": 3.073,
+        "output_tokens": 4462,
+        "prompts": 40,
+        "verification_steps": 1439
+      },
+      "ftzh_released": {
+        "capped_prompts": 12,
+        "full_block_fraction": 0.1729,
+        "macro_mean_acceptance_length": 3.1208,
+        "max_new_tokens": 256,
+        "micro_mean_acceptance_length": 3.2335,
+        "output_tokens": 5482,
+        "prompts": 40,
+        "verification_steps": 1683
+      }
+    },
+    "acceptance_text_overlap": {
+      "ftzh_released_vs_ftzh_ours": {
+        "identical_completions": 0,
+        "prompts": 40
+      }
+    },
+    "agreement": {
+      "base_zh_released": {
+        "anchors": 6115,
+        "first_offset_hit_rate": 0.72,
+        "joint_prefix_acceptance_length": 3.2417,
+        "marginal_hit_rate_by_offset": [
+          0.72,
+          0.5526,
+          0.441,
+          0.3596,
+          0.2953,
+          0.2417,
+          0.2059
+        ],
+        "mean_target_entropy": 0.5179,
+        "mean_target_top1_prob": 0.8354,
+        "requested_sequences": 200,
+        "sequences": 200,
+        "skipped_requests": []
+      },
+      "en200_released": {
+        "anchors": 2498,
+        "first_offset_hit_rate": 0.8567,
+        "joint_prefix_acceptance_length": 4.3263,
+        "marginal_hit_rate_by_offset": [
+          0.8567,
+          0.713,
+          0.5825,
+          0.4904,
+          0.4155,
+          0.3511,
+          0.303
+        ],
+        "mean_target_entropy": 0.6468,
+        "mean_target_top1_prob": 0.7957,
+        "requested_sequences": 200,
+        "sequences": 193,
+        "skipped_requests": [
+          {
+            "generated_tokens": 6,
+            "id": "eval-0",
+            "reason": "completion_too_short"
+          },
+          {
+            "generated_tokens": 7,
+            "id": "eval-3",
+            "reason": "completion_too_short"
+          },
+          {
+            "generated_tokens": 5,
+            "id": "eval-82",
+            "reason": "completion_too_short"
+          },
+          {
+            "generated_tokens": 7,
+            "id": "eval-101",
+            "reason": "completion_too_short"
+          },
+          {
+            "generated_tokens": 6,
+            "id": "eval-118",
+            "reason": "completion_too_short"
+          },
+          {
+            "generated_tokens": 9,
+            "id": "eval-124",
+            "reason": "completion_too_short"
+          },
+          {
+            "generated_tokens": 8,
+            "id": "eval-164",
+            "reason": "completion_too_short"
+          }
+        ]
+      },
+      "en200_v3_seed0": {
+        "anchors": 2498,
+        "first_offset_hit_rate": 0.8475,
+        "joint_prefix_acceptance_length": 4.3331,
+        "marginal_hit_rate_by_offset": [
+          0.8475,
+          0.709,
+          0.5809,
+          0.4904,
+          0.4267,
+          0.3531,
+          0.311
+        ],
+        "mean_target_entropy": 0.6468,
+        "mean_target_top1_prob": 0.7957,
+        "requested_sequences": 200,
+        "sequences": 193,
+        "skipped_requests": [
+          {
+            "generated_tokens": 6,
+            "id": "eval-0",
+            "reason": "completion_too_short"
+          },
+          {
+            "generated_tokens": 7,
+            "id": "eval-3",
+            "reason": "completion_too_short"
+          },
+          {
+            "generated_tokens": 5,
+            "id": "eval-82",
+            "reason": "completion_too_short"
+          },
+          {
+            "generated_tokens": 7,
+            "id": "eval-101",
+            "reason": "completion_too_short"
+          },
+          {
+            "generated_tokens": 6,
+            "id": "eval-118",
+            "reason": "completion_too_short"
+          },
+          {
+            "generated_tokens": 9,
+            "id": "eval-124",
+            "reason": "completion_too_short"
+          },
+          {
+            "generated_tokens": 8,
+            "id": "eval-164",
+            "reason": "completion_too_short"
+          }
+        ]
+      },
+      "en200_v3_seed1": {
+        "anchors": 2498,
+        "first_offset_hit_rate": 0.8451,
+        "joint_prefix_acceptance_length": 4.3483,
+        "marginal_hit_rate_by_offset": [
+          0.8451,
+          0.7174,
+          0.5897,
+          0.4844,
+          0.4131,
+          0.3499,
+          0.2958
+        ],
+        "mean_target_entropy": 0.6468,
+        "mean_target_top1_prob": 0.7957,
+        "requested_sequences": 200,
+        "sequences": 193,
+        "skipped_requests": [
+          {
+            "generated_tokens": 6,
+            "id": "eval-0",
+            "reason": "completion_too_short"
+          },
+          {
+            "generated_tokens": 7,
+            "id": "eval-3",
+            "reason": "completion_too_short"
+          },
+          {
+            "generated_tokens": 5,
+            "id": "eval-82",
+            "reason": "completion_too_short"
+          },
+          {
+            "generated_tokens": 7,
+            "id": "eval-101",
+            "reason": "completion_too_short"
+          },
+          {
+            "generated_tokens": 6,
+            "id": "eval-118",
+            "reason": "completion_too_short"
+          },
+          {
+            "generated_tokens": 9,
+            "id": "eval-124",
+            "reason": "completion_too_short"
+          },
+          {
+            "generated_tokens": 8,
+            "id": "eval-164",
+            "reason": "completion_too_short"
+          }
+        ]
+      },
+      "en200_v3_seed2": {
+        "anchors": 2498,
+        "first_offset_hit_rate": 0.8395,
+        "joint_prefix_acceptance_length": 4.3519,
+        "marginal_hit_rate_by_offset": [
+          0.8395,
+          0.7074,
+          0.5913,
+          0.5004,
+          0.4335,
+          0.3551,
+          0.3078
+        ],
+        "mean_target_entropy": 0.6468,
+        "mean_target_top1_prob": 0.7957,
+        "requested_sequences": 200,
+        "sequences": 193,
+        "skipped_requests": [
+          {
+            "generated_tokens": 6,
+            "id": "eval-0",
+            "reason": "completion_too_short"
+          },
+          {
+            "generated_tokens": 7,
+            "id": "eval-3",
+            "reason": "completion_too_short"
+          },
+          {
+            "generated_tokens": 5,
+            "id": "eval-82",
+            "reason": "completion_too_short"
+          },
+          {
+            "generated_tokens": 7,
+            "id": "eval-101",
+            "reason": "completion_too_short"
+          },
+          {
+            "generated_tokens": 6,
+            "id": "eval-118",
+            "reason": "completion_too_short"
+          },
+          {
+            "generated_tokens": 9,
+            "id": "eval-124",
+            "reason": "completion_too_short"
+          },
+          {
+            "generated_tokens": 8,
+            "id": "eval-164",
+            "reason": "completion_too_short"
+          }
+        ]
+      },
+      "ftzh_ours": {
+        "anchors": 2843,
+        "first_offset_hit_rate": 0.7066,
+        "joint_prefix_acceptance_length": 3.0781,
+        "marginal_hit_rate_by_offset": [
+          0.7066,
+          0.5382,
+          0.407,
+          0.3229,
+          0.2592,
+          0.2139,
+          0.1769
+        ],
+        "mean_target_entropy": 0.8303,
+        "mean_target_top1_prob": 0.7538,
+        "requested_sequences": 200,
+        "sequences": 200,
+        "skipped_requests": []
+      },
+      "ftzh_ours_argmax": {
+        "anchors": 2843,
+        "first_offset_hit_rate": 0.7179,
+        "joint_prefix_acceptance_length": 2.9951,
+        "marginal_hit_rate_by_offset": [
+          0.7179,
+          0.5399,
+          0.4298,
+          0.3563,
+          0.2761,
+          0.2329,
+          0.1987
+        ],
+        "mean_target_entropy": 0.8303,
+        "mean_target_top1_prob": 0.7538,
+        "requested_sequences": 200,
+        "sequences": 200,
+        "skipped_requests": []
+      },
+      "ftzh_released": {
+        "anchors": 2843,
+        "first_offset_hit_rate": 0.6775,
+        "joint_prefix_acceptance_length": 2.8466,
+        "marginal_hit_rate_by_offset": [
+          0.6775,
+          0.4991,
+          0.375,
+          0.2926,
+          0.2339,
+          0.1843,
+          0.1505
+        ],
+        "mean_target_entropy": 0.8303,
+        "mean_target_top1_prob": 0.7538,
+        "requested_sequences": 200,
+        "sequences": 200,
+        "skipped_requests": []
+      },
+      "ftzh_released_argmax": {
+        "anchors": 2843,
+        "first_offset_hit_rate": 0.6848,
+        "joint_prefix_acceptance_length": 2.7812,
+        "marginal_hit_rate_by_offset": [
+          0.6848,
+          0.4974,
+          0.3925,
+          0.3204,
+          0.2571,
+          0.2198,
+          0.1896
+        ],
+        "mean_target_entropy": 0.8303,
+        "mean_target_top1_prob": 0.7538,
+        "requested_sequences": 200,
+        "sequences": 200,
+        "skipped_requests": []
+      }
+    },
+    "agreement_paired": {
+      "chinese_ours_minus_released_argmax": {
+        "bootstrap_resamples": 2000,
+        "bootstrap_unit": "prompt",
+        "first_offset_hit_rate": {
+          "bootstrap_95_percent_interval": [
+            0.0189,
+            0.048
+          ],
+          "candidate": 0.7179,
+          "difference": 0.0331,
+          "interpretation": "positive",
+          "reference": 0.6848
+        },
+        "joint_prefix_acceptance_length": {
+          "bootstrap_95_percent_interval": [
+            0.1567,
+            0.2735
+          ],
+          "candidate": 2.9951,
+          "difference": 0.2139,
+          "interpretation": "positive",
+          "reference": 2.7812
+        },
+        "paired_prompts": 200,
+        "same_target_text": true,
+        "status": "PAIRED"
+      },
+      "chinese_ours_minus_released_selector": {
+        "bootstrap_resamples": 2000,
+        "bootstrap_unit": "prompt",
+        "first_offset_hit_rate": {
+          "bootstrap_95_percent_interval": [
+            0.0151,
+            0.0437
+          ],
+          "candidate": 0.7066,
+          "difference": 0.0292,
+          "interpretation": "positive",
+          "reference": 0.6775
+        },
+        "joint_prefix_acceptance_length": {
+          "bootstrap_95_percent_interval": [
+            0.1628,
+            0.2947
+          ],
+          "candidate": 3.0781,
+          "difference": 0.2314,
+          "interpretation": "positive",
+          "reference": 2.8466
+        },
+        "paired_prompts": 200,
+        "same_target_text": true,
+        "status": "PAIRED"
+      },
+      "english_v3_seed0_minus_released": {
+        "bootstrap_resamples": 2000,
+        "bootstrap_unit": "prompt",
+        "first_offset_hit_rate": {
+          "bootstrap_95_percent_interval": [
+            -0.0195,
+            0.0016
+          ],
+          "candidate": 0.8475,
+          "difference": -0.0092,
+          "interpretation": "inconclusive",
+          "reference": 0.8567
+        },
+        "joint_prefix_acceptance_length": {
+          "bootstrap_95_percent_interval": [
+            -0.0555,
+            0.0693
+          ],
+          "candidate": 4.3331,
+          "difference": 0.0068,
+          "interpretation": "inconclusive",
+          "reference": 4.3263
+        },
+        "paired_prompts": 193,
+        "same_target_text": true,
+        "status": "PAIRED"
+      },
+      "english_v3_seed1_minus_released": {
+        "bootstrap_resamples": 2000,
+        "bootstrap_unit": "prompt",
+        "first_offset_hit_rate": {
+          "bootstrap_95_percent_interval": [
+            -0.0235,
+            0.0004
+          ],
+          "candidate": 0.8451,
+          "difference": -0.0116,
+          "interpretation": "inconclusive",
+          "reference": 0.8567
+        },
+        "joint_prefix_acceptance_length": {
+          "bootstrap_95_percent_interval": [
+            -0.0444,
+            0.0876
+          ],
+          "candidate": 4.3483,
+          "difference": 0.022,
+          "interpretation": "inconclusive",
+          "reference": 4.3263
+        },
+        "paired_prompts": 193,
+        "same_target_text": true,
+        "status": "PAIRED"
+      },
+      "english_v3_seed2_minus_released": {
+        "bootstrap_resamples": 2000,
+        "bootstrap_unit": "prompt",
+        "first_offset_hit_rate": {
+          "bootstrap_95_percent_interval": [
+            -0.0285,
+            -0.0054
+          ],
+          "candidate": 0.8395,
+          "difference": -0.0172,
+          "interpretation": "negative",
+          "reference": 0.8567
+        },
+        "joint_prefix_acceptance_length": {
+          "bootstrap_95_percent_interval": [
+            -0.042,
+            0.0947
+          ],
+          "candidate": 4.3519,
+          "difference": 0.0256,
+          "interpretation": "inconclusive",
+          "reference": 4.3263
+        },
+        "paired_prompts": 193,
+        "same_target_text": true,
+        "status": "PAIRED"
+      }
+    },
+    "scope": "Chinese medical prompts; target = Qwen3.8-27B + LoRA r128 all-modules (2 epochs); drafters = released DFlash 2 vs continuation-trained zh. English 200-prompt re-test of Round 3 with three training seeds.",
+    "target_gates": {
+      "base_target_zh": {
+        "cap_fraction": 0.975,
+        "loop_prompts": 38,
+        "mean_new_tokens": 255.3,
+        "mean_repeat_4gram": 0.0644,
+        "mean_top1": 0.8357,
+        "passed": false,
+        "prompts": 40,
+        "repetition_unit": "token",
+        "thresholds": {
+          "max_cap_fraction": 0.5,
+          "max_loop_prompts": 2,
+          "max_mean_repeat": 0.03
+        }
+      },
+      "target_zh": {
+        "cap_fraction": 0.05,
+        "loop_prompts": 11,
+        "mean_new_tokens": 121.0,
+        "mean_repeat_4gram": 0.0175,
+        "mean_top1": 0.7528,
+        "passed": false,
+        "prompts": 40,
+        "repetition_unit": "token",
+        "thresholds": {
+          "max_cap_fraction": 0.5,
+          "max_loop_prompts": 2,
+          "max_mean_repeat": 0.03
+        }
+      }
+    },
+    "vllm": {
+      "baseline": {
+        "levels": {
+          "1": {
+            "completion_tokens": 4776,
+            "length_stops": 2,
+            "median_request_seconds": 2.023,
+            "requests": 40,
+            "tokens_per_second": 53.57,
+            "wall_seconds": 89.15
+          },
+          "4": {
+            "completion_tokens": 4758,
+            "length_stops": 1,
+            "median_request_seconds": 2.057,
+            "requests": 40,
+            "tokens_per_second": 194.53,
+            "wall_seconds": 24.46
+          }
+        },
+        "max_tokens": 256,
+        "prompts": 40
+      },
+      "dflash_ours": {
+        "levels": {
+          "1": {
+            "completion_tokens": 4697,
+            "length_stops": 1,
+            "median_request_seconds": 0.937,
+            "requests": 40,
+            "speedup_vs_baseline": 1.979,
+            "tokens_per_second": 105.99,
+            "wall_seconds": 44.32
+          },
+          "4": {
+            "completion_tokens": 4643,
+            "length_stops": 1,
+            "median_request_seconds": 1.161,
+            "requests": 40,
+            "speedup_vs_baseline": 1.796,
+            "tokens_per_second": 349.41,
+            "wall_seconds": 13.29
+          }
+        },
+        "max_tokens": 256,
+        "prompts": 40
+      },
+      "dflash_released": {
+        "levels": {
+          "1": {
+            "completion_tokens": 4697,
+            "length_stops": 1,
+            "median_request_seconds": 0.946,
+            "requests": 40,
+            "speedup_vs_baseline": 1.812,
+            "tokens_per_second": 97.06,
+            "wall_seconds": 48.39
+          },
+          "4": {
+            "completion_tokens": 4699,
+            "length_stops": 1,
+            "median_request_seconds": 1.113,
+            "requests": 40,
+            "speedup_vs_baseline": 1.663,
+            "tokens_per_second": 323.57,
+            "wall_seconds": 14.52
+          }
+        },
+        "max_tokens": 256,
+        "prompts": 40
+      }
+    }
+  },
+  "scope": "Continuation training of the released DFlash 2 drafter against LoRA-fine-tuned Qwen3.8-27B targets. Not training from scratch. Two drift regimes.",
+  "statistics_boundary": "PAIRED agreement comparisons share byte-identical target text and use a prompt-level bootstrap. Acceptance and vLLM figures are single executions on different generated texts; no significance claim."
+}

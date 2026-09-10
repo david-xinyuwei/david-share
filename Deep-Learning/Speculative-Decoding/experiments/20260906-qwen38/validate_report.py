@@ -19,6 +19,16 @@ RULES = "evidence/rule-results.json"
 IGNORED_PARTS = {"__pycache__", ".venv", "regenerated", ".pytest_cache"}
 READMES = {"README.md": False, "README_CN.md": True}
 LANGUAGE_SWITCH = "[English](README.md) | [中文](README_CN.md)"
+RETIRED_ADAPTATION_CLAIMS = (
+    "does not apply unchanged to a fine-tuned Qwen3.8-27B",
+    "a model that does not already include MTP cannot be given MTP afterwards",
+    "Fine-tuning the target moves all three",
+    "What a mismatch degrades is speed, not correctness",
+    "也不能原样用在微调过的 Qwen3.8-27B 上",
+    "本身没带 MTP 的模型事后也补不上",
+    "微调会同时改变这三项",
+    "失配损失的是速度，不是正确性",
+)
 
 
 def topic_dir(root):
@@ -225,6 +235,8 @@ def verify_local_links(root):
         require(has_heading(text, "## 你能用它做什么" if chinese else "## What You Can Do With This Repository"), "CUSTOMER_VALUE_ENTRY_MISSING:" + filename)
         require(has_heading(text, "## 仓库目录" if chinese else "## Repository Layout"), "REPOSITORY_LAYOUT_MISSING:" + filename)
         require(has_heading(text, "## 适用范围与微调模型" if chinese else "## Applicability and Fine-Tuned Models"), "APPLICABILITY_SECTION_MISSING:" + filename)
+        for claim in RETIRED_ADAPTATION_CLAIMS:
+            require(claim.casefold() not in text.casefold(), "RETIRED_ADAPTATION_CLAIM:" + filename)
         require(has_heading(text, "## 测试与离线复算" if chinese else "## Tests and Offline Replay"), "TEST_DOCUMENTATION_MISSING:" + filename)
         flow = f"]({experiment}images/test-flow-{'cn' if chinese else 'en'}.png)"
         require(flow in text and (root / f"images/test-flow-{'cn' if chinese else 'en'}.png").is_file(), "TEST_FLOW_MISSING:" + filename)
@@ -232,7 +244,12 @@ def verify_local_links(root):
         verify_page_anchors(text)
     for path in topic.iterdir():
         name = path.name
-        if name.startswith(".") or name in READMES:
+        if name.startswith(".") or name in READMES or name in IGNORED_PARTS:
+            continue
+        if path.is_dir() and not any(
+                entry.is_file() and not set(entry.relative_to(topic).parts) & IGNORED_PARTS
+                and entry.suffix not in {".pyc", ".pyo", ".log"}
+                for entry in path.rglob("*")):
             continue
         require(name in documented, "UNDOCUMENTED_REPOSITORY_ENTRY:" + name)
     for path in topic.rglob("*.md"):

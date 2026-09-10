@@ -1,0 +1,44 @@
+{
+  "checks": [
+    {
+      "evidence": [
+        "results/",
+        "data/summary.json"
+      ],
+      "id": "summary-recomputed-from-per-request-records",
+      "status": "PASS"
+    },
+    {
+      "evidence": [
+        "results/round4/agreement/",
+        "results/round3/agreement/"
+      ],
+      "id": "paired-bootstrap-only-on-identical-target-text",
+      "status": "PASS"
+    },
+    {
+      "evidence": [
+        "evidence/provenance.json"
+      ],
+      "id": "provenance-hashes-and-private-marker-scan",
+      "status": "PASS"
+    },
+    {
+      "evidence": [
+        "../../README.md",
+        "../../README_CN.md"
+      ],
+      "id": "generated-bilingual-adaptation-table",
+      "status": "PASS"
+    },
+    {
+      "evidence": [
+        "evidence/files.json"
+      ],
+      "id": "published-file-integrity",
+      "status": "PASS"
+    }
+  ],
+  "manifest_sha256": "12de1d33823903f5cb2676c90566ffd3dafc02bbae0f6850653a31c1a9badf1a",
+  "scope": "Offline verification of exported evidence; not fresh GPU execution, regrading or a quality certification."
+}

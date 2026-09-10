@@ -195,6 +195,27 @@ class ReportIntegrityTests(unittest.TestCase):
         shutil.rmtree(orphan)
         validate_report.verify_local_links(self.root)
 
+    def test_local_logs_and_bytecode_are_not_reader_deliverables(self):
+        logs = self.topic / "logs"
+        logs.mkdir()
+        (logs / "server_startup.log").write_text("local runtime log\n", encoding="utf-8")
+        cached = self.topic / "scripts" / "__pycache__"
+        cached.mkdir(parents=True)
+        (cached / "sample.pyc").write_bytes(b"bytecode fixture")
+        validate_report.verify_local_links(self.root)
+        (self.topic / "scripts" / "undocumented.py").write_text("raise SystemExit(0)\n", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "UNDOCUMENTED_REPOSITORY_ENTRY:scripts"):
+            validate_report.verify_local_links(self.root)
+
+    def test_retired_adaptation_guarantees_are_rejected(self):
+        for filename in validate_report.READMES:
+            for claim in validate_report.RETIRED_ADAPTATION_CLAIMS:
+                with self.subTest(filename=filename, claim=claim):
+                    original = self.rewrite_readme(lambda text: text + "\n" + claim + "\n", filename)
+                    with self.assertRaisesRegex(ValueError, "RETIRED_ADAPTATION_CLAIM"):
+                        validate_report.verify_local_links(self.root)
+                    (self.topic / filename).write_text(original, encoding="utf-8")
+
     def test_required_reader_sections_cannot_be_removed(self):
         for filename, headings in (("README.md", ("## What You Can Do With This Repository", "## Repository Layout", "## Tests and Offline Replay", "## Applicability and Fine-Tuned Models")),
                                    ("README_CN.md", ("## 你能用它做什么", "## 仓库目录", "## 测试与离线复算", "## 适用范围与微调模型"))):
