@@ -392,18 +392,18 @@ class ReaderLayoutTests(unittest.TestCase):
             validate_report.verify_reader_workflows(arranged, chinese)
 
     def test_client_cannot_be_appended_to_blocking_server(self):
-        text = validate_report.arrange_report((TOPIC / "README.md").read_text(), False)
+        text = validate_report.arrange_report((TOPIC / "README.md").read_text(encoding="utf-8"), False)
         text = text.replace("export ROUTE=baseline", "export ROUTE=baseline\npython -m vllm.entrypoints.openai.api_server")
         with self.assertRaisesRegex(ValueError, "SERVER_CLIENT_IN_SAME_BLOCK"):
             validate_report.verify_reader_workflows(text, False)
 
     def test_selector_training_command_cannot_disappear(self):
-        text = validate_report.arrange_report((TOPIC / "README.md").read_text(), False)
+        text = validate_report.arrange_report((TOPIC / "README.md").read_text(encoding="utf-8"), False)
         with self.assertRaisesRegex(ValueError, "ADAPTATION_COMMAND_MISSING:--train-selector"):
             validate_report.verify_reader_workflows(text.replace("--train-selector", ""), False)
 
     def test_reader_order_cannot_regress(self):
-        text = validate_report.arrange_report((TOPIC / "README.md").read_text(), False)
+        text = validate_report.arrange_report((TOPIC / "README.md").read_text(encoding="utf-8"), False)
         text = text.replace("## How to Run", "## Undocumented Workflow", 1)
         with self.assertRaisesRegex(ValueError, "READER_SECTION_ORDER"):
             validate_report.verify_reader_workflows(text, False)

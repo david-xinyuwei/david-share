@@ -69,8 +69,8 @@
       "sha256": "b322b92867a37c5097e31112f3831176499a5a6d511bb886ed9323153ea4dea5"
     },
     "test_report.py": {
-      "bytes": 23807,
-      "sha256": "f6435c1974f86b14842e5646541196c66cc1cb1c313bc37e43a2c32d874a67e3"
+      "bytes": 23855,
+      "sha256": "d265883f4a4ce6842358666bb444167c6b8ca92851cc96dcf15828c8d0b55b2f"
     },
     "validate_report.py": {
       "bytes": 29048,
