@@ -436,30 +436,31 @@ F 阶段计划让三条路线在并发 1 和 8 下，分别完成全部 164 道 
 
 **设置。** 目标模型是 `Qwen/Qwen3.8-27B`（版本 `1d4bf0f2`）加一个在 [medical-o1-reasoning-SFT](https://huggingface.co/datasets/FreedomIntelligence/medical-o1-reasoning-SFT)（Apache-2.0）上训练的 LoRA Adapter：边界 A 用英文子集，rank 16，仅注意力投影，1 个 epoch；边界 B 用中文子集，rank 128，全部 7 个投影模块，2 个 epoch。再适配的草稿模型从 `incoai/Qwen3.8-27B-DFlash2`（版本 `dedf8df6`）出发，用微调后目标模型自己对训练集问题生成的 1,200 条回答训练 2 个 epoch，更新 5 个草稿层和 DFlash 2 的候选选择器；目标模型、其 embedding 和输出头保持冻结。这是**对发布版权重的继续训练**，不是从零训练草稿模型。选择器的训练目标是作者自行构造的，DFlash 2 发布方没有公开选择器训练代码。
 
-**三个分开的测量。** 草稿命中率让两个草稿模型看同一份冻结的目标输出，逐块问：目标的下一批 token 是什么？*首位命中率*是块首 token 猜对的比例；*联合前缀接受长度*是 1 加上"从块首起连续全对的位置数"的均值，也就是验证会放行的长度。两个草稿读的是同一份文本，所以差异的按提示 bootstrap 区间是有意义的。端到端接受长度让每个草稿模型真的上场起草，文本随之不同，因此只是观测值，不是成对检验。vLLM 吞吐是客户最终看到的服务结果。三者都不评判答案对错。
+**三个分开的测量。** 草稿命中率让两个草稿模型看同一份冻结的目标输出，逐块问：目标的下一批 token 是什么？*首位命中率*是块首 token 猜对的比例；*联合前缀接受长度*是 1 加上"从块首起连续全对的位置数"的均值，是验证放行长度的教师强制类比。锚点按每 8 个回答 token 固定网格取，而真实解码时锚点落在上一块被截断的位置，两者相关但不相等。两个草稿读的是同一份文本，所以差异的按提示 bootstrap 区间是有意义的。端到端接受长度让每个草稿模型真的上场起草，文本随之不同，因此只是观测值，不是成对检验。vLLM 吞吐是客户最终看到的服务结果；vLLM 服务端自己的 accepted/drafted 计数则给出第二个、引擎侧的接受长度。三者都不评判答案对错。
 
 <!-- BEGIN ADAPTATION_TABLE -->
 | 测量 | 边界 A：漂移小（英文，LoRA r16 仅注意力） | 边界 B：漂移大（中文，LoRA r128 全模块） |
 | --- | --- | --- |
 | 目标微调后，官方草稿首位命中（同一份目标文本） | 0.857（200 条提示中 193 条可评） | 0.677（基座目标上为 0.720；200 条提示） |
-| 再训草稿首位命中，及与官方草稿的成对差异（95% 区间） | 种子 0：0.848（-0.019, +0.002）；种子 1：0.845（-0.024, +0.000）；种子 2：0.840（-0.029, -0.005） | 0.707（+0.015, +0.044） |
-| 联合前缀接受长度：官方 → 再训（95% 区间） | 种子 0：4.33 → 4.33（-0.056, +0.069）；种子 1：4.33 → 4.35（-0.044, +0.088）；种子 2：4.33 → 4.35（-0.042, +0.095） | 2.85 → 3.08（+0.163, +0.295）；基座目标上官方草稿为 3.24 |
+| 再训草稿首位命中，及与官方草稿的成对差异（95% 区间） | 种子 20260908：0.848（-0.019, +0.002）；种子 1：0.845（-0.024, +0.000）；种子 2：0.840（-0.029, -0.005） | 0.707（+0.015, +0.044） |
+| 联合前缀接受长度：官方 → 再训（95% 区间） | 种子 20260908：4.33 → 4.33（-0.056, +0.069）；种子 1：4.33 → 4.35（-0.044, +0.088）；种子 2：4.33 → 4.35（-0.042, +0.095） | 2.85 → 3.08（+0.163, +0.295）；基座目标上官方草稿为 3.24（不同文本，无区间） |
+| vLLM 服务端日志累计的接受长度：官方 / 再训 | 4.19 / 4.06 | 2.39 / 2.61 |
 | vLLM 0.28.0 吞吐（tok/s），并发 1：不开推测 / 官方草稿 / 再训草稿 | 53.5 / 162.2 / 158.0 | 53.6 / 97.1 / 106.0 |
 | vLLM 0.28.0 吞吐（tok/s），并发 4：不开推测 / 官方草稿 / 再训草稿 | 184.7 / 490.0 / 485.3 | 194.5 / 323.6 / 349.4 |
-| 判读 | 官方草稿未受损，再训无可测收益 | 官方草稿命中率下降，再训收回一部分，服务吞吐随之提高 |
+| 判读 | 再训无可测收益；官方草稿在该微调目标上已有约 3 倍服务加速。本轮未在同一批提示上测量基座目标，故不能断言官方草稿有没有受损 | 官方草稿命中率低于基座目标上的水平，再训收回一部分，服务端接受长度与吞吐同向提高 |
 
-成对差异按提示做 2,000 次 bootstrap，区间不含 0 才计为方向明确。vLLM 每条路线只执行一次，40 条中文提示或 40 条英文提示，`max_tokens=256`，无显著性声明。答案质量未评分。
+成对差异按提示做 2,000 次 bootstrap，区间不含 0 才计为方向明确；五个区间未做多重比较修正。vLLM 每条路线只执行一次，40 条中文提示或 40 条英文提示，`max_tokens=256`，无显著性声明；服务端接受长度由日志累计的 accepted/drafted 推导，覆盖含预热的全部请求。答案质量未评分。
 <!-- END ADAPTATION_TABLE -->
 
-**两种边界说明了什么。** 轻量的仅注意力 LoRA（边界 A）下，官方草稿的首位命中率保持在 0.857，再训草稿在三个训练种子上都没有更好；两个草稿在两档并发下的 vLLM 吞吐相差不到 3%。中文数据上的全模块重 LoRA（边界 B）下，官方草稿的首位命中率从基座目标上的 0.720 降到微调目标上的 0.678，联合前缀接受长度从 3.24 降到 2.85；再适配把它们拉回 0.707 和 3.08，区间不含 0；vLLM 吞吐并发 1 从 97 升到 106 tok/s，并发 4 从 324 升到 349 tok/s。基座到微调的下降里有一部分是目标本身变得更难预测（它对自己输出的 top-1 概率从 0.835 降到 0.754），所以基座目标上的官方数值并不是恢复的上限。
+**两种边界说明了什么。** 轻量的仅注意力 LoRA（边界 A）下，官方草稿在微调目标上的首位命中率为 0.857，再训草稿在三个训练种子上都没有更好；两个草稿在两档并发下的 vLLM 吞吐相差不到 3%，官方草稿已经比不开推测快约 3 倍。这批英文提示上**没有**测过官方草稿在基座目标上的值，所以边界 A 说明的是"再适配没有可加的东西"，而不是"微调没有动到草稿"。中文数据上的全模块重 LoRA（边界 B）下，官方草稿在微调目标上的首位命中率是 0.677，基座目标上是 0.720；联合前缀接受长度 2.85 对 3.24。基座与微调的这组比较是跨不同生成文本的、无区间：基座目标的回答平均 252 个 token，40 条中 39 条顶到 256 上限；微调目标平均 119 个；基座文本的 token 级重复率也更高（0.054 对 0.021），重复文本更容易被猜中。再适配在同一份文本上测，把官方草稿的 0.677 和 2.85 拉到 0.707 和 3.08，区间不含 0。vLLM 服务端自己的计数同向：全部请求上官方草稿接受长度 2.39，再训 2.61；客户端吞吐并发 1 从 97 升到 106 tok/s，并发 4 从 324 升到 349 tok/s。
 
-**保留一条方向相反的测量。** 边界 B 里 40 条提示的端到端接受长度：官方草稿 3.12，再训草稿 2.91，方向与成对命中率和 vLLM 结果相反。两个草稿在 40 条提示上没有一条产出逐字相同的回答，因此这是不同文本上的单次执行、小分母比较；照实报告，不做解释性抹平。
+**保留一条方向相反的测量。** 边界 B 里 Hugging Face 参考路径（`dflash_generate`，40 条提示，一次运行）的端到端接受长度：官方草稿 3.12，再训草稿 2.91，方向与成对命中率、vLLM 服务端计数和 vLLM 吞吐三者相反。两个草稿在 40 条提示上没有一条产出逐字相同的回答，因此这是不同文本上的单次执行、小分母比较；照实报告，不做解释性抹平。旁边还有一个未解的问题：同一对草稿与目标，参考路径的接受长度约 3.1，vLLM 计数约 2.4–2.6。两个引擎没有在相同的批处理、精度和缓存路径下对比过，这个差距没有查。
 
-**边界。** 一个目标模型系列、一个数据集系列、每种边界一种 Adapter 配方、一张 GPU。两种漂移强度是作者选定的，不是"何时需要重训"的标定阈值。边界 B 的微调目标没有通过作者的 token 级重复筛查（40 条里 11 条某个 4-gram 出现至少 3 次，筛查上限是 2 条），而基座目标在同一筛查上因长度截断也没有通过，所以该筛查只是启发式，两个目标的答案质量都没有评分。第三轮的命中率记录只保存了逐位置的边际命中率，且每次运行重新生成了目标文本，因此它的差异不带区间。权重不随仓库分发；权重 SHA-256 和数据切分清单在 [provenance.json](experiments/20260909-drafter-adaptation/evidence/provenance.json)。
+**边界。** 一个目标模型系列、一个数据集系列、每种边界一种 Adapter 配方、一张 GPU。边界 A 与边界 B 除 Adapter 强度外语言也不同，两列是两个设置，不是同一条漂移轴上的两个点。两种漂移强度是作者选定的，不是"何时需要重训"的标定阈值。边界 B 的微调目标没有通过作者的 token 级重复筛查（40 条里 11 条某个 4-gram 出现至少 3 次，筛查上限是 2 条），流水线按设计在此停下；作者在发现基座目标在同一筛查上更差（40 条里 38 条重复触发、39 条长度截断）后手动恢复。因此该筛查对中文 token 级文本没有区分力，两个目标的答案质量都没有评分。五个成对区间没有做多重比较修正；中文的区间离 0 很远，英文的不是。两种语言各 200 条留出提示和切分清单已发布在 [`inputs/`](experiments/20260909-drafter-adaptation/inputs/)，并与运行记录中的 hash 核对；下载时没有固定数据集 revision，重新运行 `prepare_domain_data.py` 必须复现这些 hash 才能对比。第三轮的命中率记录只保存了逐位置的边际命中率，且每次运行重新生成了目标文本，因此它的差异不带区间。权重不随仓库分发；权重 SHA-256 在 [provenance.json](experiments/20260909-drafter-adaptation/evidence/provenance.json)。
 
 ### 从零训练需要什么
 
-本仓库**没有**从零训练过 DFlash 草稿模型，上面所有结果都从发布版权重出发。唯一一次随机初始化运行是 CPU 上的玩具配置（隐藏维度 128，词表 512）：30 步，loss 6.24 → 3.88。它只说明梯度能到达草稿层、目标特征融合投影和归一化层，而冻结的目标模型没有梯度；不说明真实规模的草稿模型能收敛，也不是从零训练能力的证据。
+本仓库**没有**从零训练过 DFlash 草稿模型，上面所有结果都从发布版权重出发。唯一一次随机初始化运行是 CPU 上的玩具配置（隐藏维度 128，词表 512），脚本为 [`stage0_gradient_canary.py`](experiments/20260909-drafter-adaptation/source/round4/stage0_gradient_canary.py)：30 步，loss 6.24 → 3.88，来自作者的单次运行，日志未存档。它只说明梯度能到达草稿层、目标特征融合投影和归一化层，而冻结的目标模型没有梯度；不说明真实规模的草稿模型能收敛，也不是从零训练能力的证据。
 
 论文配方（[第 5 节与附录 A.1](https://arxiv.org/html/2602.06036v2#A1.SS1)）：约 80 万条来自 Nemotron Post-Training V2 和 CodeAlpaca 的提示，回答由目标模型重新生成；6 个 epoch，AdamW 学习率 6e-4，余弦调度、4% 预热，序列最长 3,072 token，每条序列 512 个锚点通过一个稀疏注意力掩码一次联合训练。论文的消融实验用 10 万条样本达到全量加速的约四分之三（Qwen3-4B 在 MATH-500 上 4.71× 对 6.09×）。论文写明用 H200，但没有给出 GPU 数量和训练小时数。
 
@@ -477,13 +478,13 @@ F 阶段计划让三条路线在并发 1 和 8 下，分别完成全部 164 道 
 |---|---|---|---|---|
 | 最小可辩护的从零试点 | Qwen3-8B，对照 z-lab 公开的 DFlash 权重 | 10 万条提示，自生成回答，6 个 epoch | 1–2 张 H100 级 | 生成半天到一天，单卡训练两到四天 |
 | 论文规模 | Qwen3-8B | 80 万条，6 个 epoch | 约 8 张 | 三到四天 |
-| 论文规模 | Qwen3.8-27B | 80 万条，6 个 epoch | 至少 8 张、每张显存大于 94 GB（论文用 H200） | 4 卡生成约 1.5 天，训练约一周；一张 94 GB 卡在序列长度 1,024 时峰值已到 86 GB |
+| 论文规模 | Qwen3.8-27B | 80 万条，6 个 epoch | 至少 8 张、每张显存大于 94 GiB（论文用 H200） | 4 卡生成约 1.5 天，训练约一周；一张 94 GiB 卡在序列长度 1,024 时峰值已到 86 GiB |
 
 这些是估算，不是测量。今天能站住的说法是：再适配路径已实测；训练目标已实现，并证明能提高成对草稿命中率；真实规模的从零训练尚未演示。
 
 ### 复现再适配
 
-执行过的脚本以快照形式发布在 [`source/`](experiments/20260909-drafter-adaptation/source/)；编排用的 shell 含私有主机路径，以哈希和下面的命令代表。需要一张 80 GB 级 GPU、Python 3.12、`torch==2.13.0`、`transformers==5.16.1`、`peft==0.20.0`、`dflash==0.1.0`、`datasets`、`huggingface_hub`，服务步骤另建环境安装 `vllm==0.28.0`。草稿模型主权重用 float32 时训练峰值显存 86 GB。
+执行过的脚本以快照形式发布在 [`source/`](experiments/20260909-drafter-adaptation/source/)；编排用的 shell 含私有主机路径，以哈希和下面的命令代表。需要一张 80 GB 级 GPU、Python 3.12、`torch==2.13.0`、`transformers==5.16.1`、`peft==0.20.0`、`dflash==0.1.0`、`datasets`、`huggingface_hub`，服务步骤另建环境安装 `vllm==0.28.0`。草稿模型主权重用 float32 时训练峰值显存 86 GiB。
 
 ```bash
 set -euo pipefail
@@ -522,9 +523,32 @@ python measure_acceptance.py --target models/target --adapter out/adapter-zh --p
   --limit 40 --max-new-tokens 256 --drafter out/drafter-zh --output results/acc_ours.json --label ours
 # 7. 合并 Adapter，把再训草稿导出为发布版的权重键布局，在 vLLM 里逐路线启动并测量
 python export_drafter_for_vllm.py --source out/drafter-zh --reference models/draft --output served/draft-zh
+python - <<'PY'
+import shutil, torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from peft import PeftModel
+model = AutoModelForCausalLM.from_pretrained("models/target", dtype=torch.bfloat16, device_map="cuda")
+model = PeftModel.from_pretrained(model, "out/adapter-zh").merge_and_unload()
+shutil.move("models/target", "served/target-zh")          # 复用下载目录，合并后的分片覆写它
+model.save_pretrained("served/target-zh", safe_serialization=True, max_shard_size="5GB")
+AutoTokenizer.from_pretrained("served/target-zh").save_pretrained("served/target-zh")
+PY
+ln -s ../models/draft served/draft-released
+python3.12 -m venv venv-vllm && venv-vllm/bin/pip install vllm==0.28.0
+# 每次只启一个服务；按下面两种 --speculative-config 变体各跑一次，每次启动后跑客户端。
+VLLM_USE_V2_MODEL_RUNNER=1 HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 venv-vllm/bin/python -m vllm.entrypoints.openai.api_server \
+  --model served/target-zh --served-model-name Qwen/Qwen3.8-27B --dtype bfloat16 --tensor-parallel-size 1 \
+  --max-model-len 8192 --max-num-seqs 16 --max-num-batched-tokens 16384 --gpu-memory-utilization 0.9 \
+  --no-enable-prefix-caching --kv-cache-dtype auto --attention-backend FLASH_ATTN --mamba-ssm-cache-dtype float32 \
+  --reasoning-parser qwen3 --generation-config vllm --seed 20260909 --limit-mm-per-prompt '{"image":0,"video":0,"audio":0}' \
+  --host 127.0.0.1 --port 18080 \
+  --speculative-config '{"method":"dflash","model":"served/draft-zh","num_speculative_tokens":7,"rejection_sample_method":"standard"}'
+#   基线：不带 --speculative-config     官方草稿："model":"served/draft-released"
+python vllm_client_bench.py --prompts data_zh/eval_prompts.jsonl --limit 40 --max-tokens 256 --concurrency 1 4 --warmup 2 \
+  --output results/vllm_dflash_ours.json --label dflash_ours
 ```
 
-合并步骤（`PeftModel.merge_and_unload()` 再 `save_pretrained`）和三次 `vllm serve` 使用与[启动与调用](#how-to-run)第 4 步相同的参数，`--model` 指向合并后的目标，`--speculative-config '{"method":"dflash","model":"<草稿目录>","num_speculative_tokens":7,"rejection_sample_method":"standard"}'`；客户端为 `vllm_client_bench.py --concurrency 1 4 --max-tokens 256`。生成 token 数、采样设置和停止符都记录在各结果文件内。换硬件或驱动版本时具体数字会漂移；成对命中率区间就是为此设计的比较方式。
+生成 token 数、采样设置和停止符都记录在各结果文件内。换硬件或驱动版本时具体数字会漂移；成对命中率区间就是为此设计的比较方式。
 
 <a id="previous-experiment"></a>
 

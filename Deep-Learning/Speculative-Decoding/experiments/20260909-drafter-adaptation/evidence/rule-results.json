@@ -18,6 +18,15 @@
     },
     {
       "evidence": [
+        "inputs/",
+        "results/round4/acceptance/",
+        "results/round3/acceptance/"
+      ],
+      "id": "published-prompts-hash-to-recorded-inputs",
+      "status": "PASS"
+    },
+    {
+      "evidence": [
         "evidence/provenance.json"
       ],
       "id": "provenance-hashes-and-private-marker-scan",
@@ -39,6 +48,6 @@
       "status": "PASS"
     }
   ],
-  "manifest_sha256": "12de1d33823903f5cb2676c90566ffd3dafc02bbae0f6850653a31c1a9badf1a",
+  "manifest_sha256": "042864faab7df4abe4a27646c6de944d545074c1f497b28b53d6bdbbaeb37743",
   "scope": "Offline verification of exported evidence; not fresh GPU execution, regrading or a quality certification."
 }

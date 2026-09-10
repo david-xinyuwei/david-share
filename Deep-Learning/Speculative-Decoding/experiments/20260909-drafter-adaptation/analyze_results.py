@@ -217,6 +217,42 @@ def vllm_summary(records, routes):
     return result
 
 
+def vllm_server_acceptance(provenance_round, routes, speculative_tokens=7):
+    """Acceptance length recomputed from the server's own logged totals.
+
+    vLLM logs ``Accepted: N tokens, Drafted: M tokens`` per metrics interval. Each
+    verification step drafts ``speculative_tokens`` tokens, so ``M / speculative_tokens``
+    is the step count and ``1 + N / steps`` is the mean acceptance length including the
+    bonus token, the same definition as ``dflash_generate``. This covers every request
+    the server saw during the run, including warmup, so it is a corroborating aggregate
+    rather than a per-prompt measurement.
+    """
+    result = {}
+    for route in routes:
+        activation = provenance_round["logs"]["vllm_" + route]["activation"]
+        accepted, drafted = activation["accepted_tokens_logged"], activation["drafted_tokens_logged"]
+        require(drafted % speculative_tokens == 0 and drafted > 0, "SERVER_DRAFT_COUNT_NOT_MULTIPLE_OF_BLOCK:" + route)
+        steps = drafted // speculative_tokens
+        result[route] = {
+            "accepted_tokens": accepted,
+            "drafted_tokens": drafted,
+            "verification_steps": steps,
+            "derived_mean_acceptance_length": round(1.0 + accepted / steps, 4),
+            "last_logged_interval_value": activation["last_logged_mean_acceptance_length"],
+            "logged_intervals": activation["server_metric_intervals"],
+        }
+    return result
+
+
+def verify_inputs(root, round_name, expected):
+    """Published prompt files must hash to the prompts_sha256 the run recorded."""
+    for filename, recorded in expected.items():
+        path = root / "inputs" / round_name / filename
+        require(path.is_file(), "PUBLISHED_INPUT_MISSING:" + filename)
+        require(digest_file(path) == recorded, "INPUT_HASH_MISMATCH:" + filename)
+    return {filename: recorded for filename, recorded in expected.items()}
+
+
 def gate_summary(record):
     rows = record["per_request"]
     verdict = record["verdict"]
@@ -239,7 +275,7 @@ def gate_summary(record):
     }
 
 
-def summarize_round3(results):
+def summarize_round3(results, root, provenance):
     agreement = {name: read_json(results / "agreement" / f"{name}.json")
                  for name in ("released_selector", "released_argmax", "v3_selector", "v3_argmax")}
     acceptance = {name: read_json(results / "acceptance" / f"{name}.json") for name in agreement}
@@ -251,6 +287,7 @@ def summarize_round3(results):
     return {
         "scope": "English medical prompts; target = Qwen3.8-27B + LoRA r16 attention-only (1 epoch); drafters = released DFlash 2 vs continuation-trained v3.",
         "eval_prompts_sha256": next(iter(prompts_hash)),
+        "published_inputs": verify_inputs(root, "round3", {"eval_prompts_en40.jsonl": next(iter(prompts_hash))}),
         "target_gates": {name: gate_summary(read_json(results / "gates" / f"{name}.json")) for name in ("target_v2", "base_target")},
         "agreement": {name: agreement_summary(record) for name, record in agreement.items()},
         "agreement_paired": {f"v3_minus_released_{path}": paired_agreement(agreement[f"released_{path}"], agreement[f"v3_{path}"])
@@ -263,15 +300,21 @@ def summarize_round3(results):
         },
         "hf_reference_path": hf_summary(hf),
         "vllm": vllm_summary({route: read_json(results / "vllm" / f"{route}.json") for route in routes}, routes),
+        "vllm_server_acceptance": vllm_server_acceptance(provenance["round3"], routes[1:]),
     }
 
 
-def summarize_round4(results):
+def summarize_round4(results, root, provenance):
     names = ("base_zh_released", "ftzh_released", "ftzh_released_argmax", "ftzh_ours", "ftzh_ours_argmax",
              "en200_released", "en200_v3_seed0", "en200_v3_seed1", "en200_v3_seed2")
     agreement = {name: read_json(results / "agreement" / f"{name}.json") for name in names}
     acceptance = {name: read_json(results / "acceptance" / f"{name}.json") for name in ("ftzh_released", "ftzh_ours")}
-    require(len({record["prompts_sha256"] for record in acceptance.values()}) == 1, "ACCEPTANCE_PROMPT_FILE_DIFFERS")
+    zh_hash = {record["prompts_sha256"] for record in acceptance.values()}
+    require(len(zh_hash) == 1, "ACCEPTANCE_PROMPT_FILE_DIFFERS")
+    zh_hash = next(iter(zh_hash))
+    for name in ("base_zh_released", "ftzh_released", "ftzh_ours"):
+        require(agreement[name]["generation_contract"]["prompts_sha256"] == zh_hash, "AGREEMENT_PROMPT_FILE_DIFFERS:" + name)
+    en_hash = agreement["en200_released"]["generation_contract"]["prompts_sha256"]
     routes = ("baseline", "dflash_released", "dflash_ours")
     paired = {
         "chinese_ours_minus_released_selector": paired_agreement(agreement["ftzh_released"], agreement["ftzh_ours"]),
@@ -281,21 +324,25 @@ def summarize_round4(results):
         paired[f"english_v3_seed{seed}_minus_released"] = paired_agreement(agreement["en200_released"], agreement[f"en200_v3_seed{seed}"])
     return {
         "scope": "Chinese medical prompts; target = Qwen3.8-27B + LoRA r128 all-modules (2 epochs); drafters = released DFlash 2 vs continuation-trained zh. English 200-prompt re-test of Round 3 with three training seeds.",
+        "eval_prompts_sha256": {"zh200": zh_hash, "en200": en_hash},
+        "published_inputs": verify_inputs(root, "round4", {"eval_prompts_zh200.jsonl": zh_hash, "eval_prompts_en200.jsonl": en_hash}),
         "target_gates": {name: gate_summary(read_json(results / "gates" / f"{name}.json")) for name in ("target_zh", "base_target_zh")},
         "agreement": {name: agreement_summary(record) for name, record in agreement.items()},
         "agreement_paired": paired,
         "acceptance": {name: acceptance_summary(record) for name, record in acceptance.items()},
         "acceptance_text_overlap": {"ftzh_released_vs_ftzh_ours": text_overlap(acceptance["ftzh_released"], acceptance["ftzh_ours"])},
         "vllm": vllm_summary({route: read_json(results / "vllm" / f"{route}.json") for route in routes}, routes),
+        "vllm_server_acceptance": vllm_server_acceptance(provenance["round4"], routes[1:]),
     }
 
 
 def summarize(root):
     results = root / "results"
+    provenance = read_json(root / "evidence" / "provenance.json")
     return {
         "scope": "Continuation training of the released DFlash 2 drafter against LoRA-fine-tuned Qwen3.8-27B targets. Not training from scratch. Two drift regimes.",
-        "round3": summarize_round3(results / "round3"),
-        "round4": summarize_round4(results / "round4"),
+        "round3": summarize_round3(results / "round3", root, provenance),
+        "round4": summarize_round4(results / "round4", root, provenance),
         "answer_quality": "NOT_MEASURED: no grader was run on these medical prompt sets; agreement and acceptance describe drafting, not answer correctness.",
         "statistics_boundary": "PAIRED agreement comparisons share byte-identical target text and use a prompt-level bootstrap. Acceptance and vLLM figures are single executions on different generated texts; no significance claim.",
     }

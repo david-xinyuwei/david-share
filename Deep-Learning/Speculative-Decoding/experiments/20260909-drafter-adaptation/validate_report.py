@@ -24,7 +24,7 @@ BLOCK = "ADAPTATION_TABLE"
 # Shapes that must never appear in published evidence: IPv4 addresses, UUIDs
 # (cloud subscription/tenant identifiers) and absolute home, mount or drive paths.
 PRIVATE_SHAPES = (
-    re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}\b"),
+    re.compile(r"\b(?!127\.)(?!0\.0\.0\.0\b)\d{1,3}(?:\.\d{1,3}){3}\b"),
     re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.I),
     re.compile(r"/home/|/mnt/|/root/|[A-Za-z]:\\\\"),
 )
@@ -48,7 +48,9 @@ def adaptation_table(summary, chinese):
     r3, r4 = summary["round3"], summary["round4"]
     zh_sel = r4["agreement_paired"]["chinese_ours_minus_released_selector"]
     en = [r4["agreement_paired"][f"english_v3_seed{seed}_minus_released"] for seed in (0, 1, 2)]
+    seed_labels = ("20260908", "1", "2")
     r4_vllm, r3_vllm = r4["vllm"], r3["vllm"]
+    r4_srv, r3_srv = r4["vllm_server_acceptance"], r3["vllm_server_acceptance"]
 
     def pct(value):
         return f"{value:.3f}"
@@ -60,21 +62,24 @@ def adaptation_table(summary, chinese):
              f"{en[0]['first_offset_hit_rate']['reference']:.3f}（200 条提示中 193 条可评）",
              f"{zh_sel['first_offset_hit_rate']['reference']:.3f}（基座目标上为 {r4['agreement']['base_zh_released']['first_offset_hit_rate']:.3f}；200 条提示）"],
             ["再训草稿首位命中，及与官方草稿的成对差异（95% 区间）",
-             "；".join(f"种子 {seed}：{item['first_offset_hit_rate']['candidate']:.3f}（{interval(item['first_offset_hit_rate'])}）" for seed, item in zip((0, 1, 2), en)),
+             "；".join(f"种子 {seed}：{item['first_offset_hit_rate']['candidate']:.3f}（{interval(item['first_offset_hit_rate'])}）" for seed, item in zip(seed_labels, en)),
              f"{zh_sel['first_offset_hit_rate']['candidate']:.3f}（{interval(zh_sel['first_offset_hit_rate'])}）"],
             ["联合前缀接受长度：官方 → 再训（95% 区间）",
-             "；".join(f"种子 {seed}：{item['joint_prefix_acceptance_length']['reference']:.2f} → {item['joint_prefix_acceptance_length']['candidate']:.2f}（{interval(item['joint_prefix_acceptance_length'])}）" for seed, item in zip((0, 1, 2), en)),
-             f"{zh_sel['joint_prefix_acceptance_length']['reference']:.2f} → {zh_sel['joint_prefix_acceptance_length']['candidate']:.2f}（{interval(zh_sel['joint_prefix_acceptance_length'])}）；基座目标上官方草稿为 {r4['agreement']['base_zh_released']['joint_prefix_acceptance_length']:.2f}"],
+             "；".join(f"种子 {seed}：{item['joint_prefix_acceptance_length']['reference']:.2f} → {item['joint_prefix_acceptance_length']['candidate']:.2f}（{interval(item['joint_prefix_acceptance_length'])}）" for seed, item in zip(seed_labels, en)),
+             f"{zh_sel['joint_prefix_acceptance_length']['reference']:.2f} → {zh_sel['joint_prefix_acceptance_length']['candidate']:.2f}（{interval(zh_sel['joint_prefix_acceptance_length'])}）；基座目标上官方草稿为 {r4['agreement']['base_zh_released']['joint_prefix_acceptance_length']:.2f}（不同文本，无区间）"],
+            ["vLLM 服务端日志累计的接受长度：官方 / 再训",
+             f"{r3_srv['dflash_released']['derived_mean_acceptance_length']:.2f} / {r3_srv['dflash_v3']['derived_mean_acceptance_length']:.2f}",
+             f"{r4_srv['dflash_released']['derived_mean_acceptance_length']:.2f} / {r4_srv['dflash_ours']['derived_mean_acceptance_length']:.2f}"],
             ["vLLM 0.28.0 吞吐（tok/s），并发 1：不开推测 / 官方草稿 / 再训草稿",
              f"{r3_vllm['baseline']['levels']['1']['tokens_per_second']:.1f} / {r3_vllm['dflash_released']['levels']['1']['tokens_per_second']:.1f} / {r3_vllm['dflash_v3']['levels']['1']['tokens_per_second']:.1f}",
              f"{r4_vllm['baseline']['levels']['1']['tokens_per_second']:.1f} / {r4_vllm['dflash_released']['levels']['1']['tokens_per_second']:.1f} / {r4_vllm['dflash_ours']['levels']['1']['tokens_per_second']:.1f}"],
             ["vLLM 0.28.0 吞吐（tok/s），并发 4：不开推测 / 官方草稿 / 再训草稿",
              f"{r3_vllm['baseline']['levels']['4']['tokens_per_second']:.1f} / {r3_vllm['dflash_released']['levels']['4']['tokens_per_second']:.1f} / {r3_vllm['dflash_v3']['levels']['4']['tokens_per_second']:.1f}",
              f"{r4_vllm['baseline']['levels']['4']['tokens_per_second']:.1f} / {r4_vllm['dflash_released']['levels']['4']['tokens_per_second']:.1f} / {r4_vllm['dflash_ours']['levels']['4']['tokens_per_second']:.1f}"],
-            ["判读", "官方草稿未受损，再训无可测收益", "官方草稿命中率下降，再训收回一部分，服务吞吐随之提高"],
+            ["判读", "再训无可测收益；官方草稿在该微调目标上已有约 3 倍服务加速。本轮未在同一批提示上测量基座目标，故不能断言官方草稿有没有受损", "官方草稿命中率低于基座目标上的水平，再训收回一部分，服务端接受长度与吞吐同向提高"],
         ]
-        note = ("成对差异按提示做 2,000 次 bootstrap，区间不含 0 才计为方向明确。vLLM 每条路线只执行一次，40 条中文提示或 40 条英文提示，"
-                "`max_tokens=256`，无显著性声明。答案质量未评分。")
+        note = ("成对差异按提示做 2,000 次 bootstrap，区间不含 0 才计为方向明确；五个区间未做多重比较修正。vLLM 每条路线只执行一次，40 条中文提示或 40 条英文提示，"
+                "`max_tokens=256`，无显著性声明；服务端接受长度由日志累计的 accepted/drafted 推导，覆盖含预热的全部请求。答案质量未评分。")
     else:
         headers = ["Measurement", "Regime A: small drift (English, LoRA r16 attention-only)", "Regime B: large drift (Chinese, LoRA r128 all modules)"]
         rows = [
@@ -82,21 +87,24 @@ def adaptation_table(summary, chinese):
              f"{en[0]['first_offset_hit_rate']['reference']:.3f} (193 of 200 prompts evaluable)",
              f"{zh_sel['first_offset_hit_rate']['reference']:.3f} (was {r4['agreement']['base_zh_released']['first_offset_hit_rate']:.3f} on the base target; 200 prompts)"],
             ["Adapted drafter first-offset hit rate, paired difference vs released (95% interval)",
-             "; ".join(f"seed {seed}: {item['first_offset_hit_rate']['candidate']:.3f} ({interval(item['first_offset_hit_rate'])})" for seed, item in zip((0, 1, 2), en)),
+             "; ".join(f"seed {seed}: {item['first_offset_hit_rate']['candidate']:.3f} ({interval(item['first_offset_hit_rate'])})" for seed, item in zip(seed_labels, en)),
              f"{zh_sel['first_offset_hit_rate']['candidate']:.3f} ({interval(zh_sel['first_offset_hit_rate'])})"],
             ["Joint-prefix acceptance length: released → adapted (95% interval)",
-             "; ".join(f"seed {seed}: {item['joint_prefix_acceptance_length']['reference']:.2f} → {item['joint_prefix_acceptance_length']['candidate']:.2f} ({interval(item['joint_prefix_acceptance_length'])})" for seed, item in zip((0, 1, 2), en)),
-             f"{zh_sel['joint_prefix_acceptance_length']['reference']:.2f} → {zh_sel['joint_prefix_acceptance_length']['candidate']:.2f} ({interval(zh_sel['joint_prefix_acceptance_length'])}); released drafter on the base target: {r4['agreement']['base_zh_released']['joint_prefix_acceptance_length']:.2f}"],
+             "; ".join(f"seed {seed}: {item['joint_prefix_acceptance_length']['reference']:.2f} → {item['joint_prefix_acceptance_length']['candidate']:.2f} ({interval(item['joint_prefix_acceptance_length'])})" for seed, item in zip(seed_labels, en)),
+             f"{zh_sel['joint_prefix_acceptance_length']['reference']:.2f} → {zh_sel['joint_prefix_acceptance_length']['candidate']:.2f} ({interval(zh_sel['joint_prefix_acceptance_length'])}); released drafter on the base target: {r4['agreement']['base_zh_released']['joint_prefix_acceptance_length']:.2f} (different text, no interval)"],
+            ["vLLM server-logged acceptance length: released / adapted",
+             f"{r3_srv['dflash_released']['derived_mean_acceptance_length']:.2f} / {r3_srv['dflash_v3']['derived_mean_acceptance_length']:.2f}",
+             f"{r4_srv['dflash_released']['derived_mean_acceptance_length']:.2f} / {r4_srv['dflash_ours']['derived_mean_acceptance_length']:.2f}"],
             ["vLLM 0.28.0 throughput (tok/s), concurrency 1: no speculation / released / adapted",
              f"{r3_vllm['baseline']['levels']['1']['tokens_per_second']:.1f} / {r3_vllm['dflash_released']['levels']['1']['tokens_per_second']:.1f} / {r3_vllm['dflash_v3']['levels']['1']['tokens_per_second']:.1f}",
              f"{r4_vllm['baseline']['levels']['1']['tokens_per_second']:.1f} / {r4_vllm['dflash_released']['levels']['1']['tokens_per_second']:.1f} / {r4_vllm['dflash_ours']['levels']['1']['tokens_per_second']:.1f}"],
             ["vLLM 0.28.0 throughput (tok/s), concurrency 4: no speculation / released / adapted",
              f"{r3_vllm['baseline']['levels']['4']['tokens_per_second']:.1f} / {r3_vllm['dflash_released']['levels']['4']['tokens_per_second']:.1f} / {r3_vllm['dflash_v3']['levels']['4']['tokens_per_second']:.1f}",
              f"{r4_vllm['baseline']['levels']['4']['tokens_per_second']:.1f} / {r4_vllm['dflash_released']['levels']['4']['tokens_per_second']:.1f} / {r4_vllm['dflash_ours']['levels']['4']['tokens_per_second']:.1f}"],
-            ["Reading", "Released drafter not degraded; adaptation shows no measurable gain", "Released drafter loses hit rate; adaptation recovers part of it and serving throughput rises"],
+            ["Reading", "Adaptation shows no measurable gain; the released drafter already serves this fine-tuned target at about 3×. No base-target measurement exists on these prompts, so whether the released drafter lost anything is not established", "Released drafter hit rate is below its base-target level; adaptation recovers part of it, and server-side acceptance and throughput rise together"],
         ]
-        note = ("Paired differences use a 2,000-resample prompt-level bootstrap; a direction is claimed only when the interval excludes 0. "
-                "Each vLLM route ran once on 40 Chinese or 40 English prompts with `max_tokens=256`; no significance claim. Answer quality was not graded.")
+        note = ("Paired differences use a 2,000-resample prompt-level bootstrap; a direction is claimed only when the interval excludes 0; the five intervals carry no multiple-comparison correction. "
+                "Each vLLM route ran once on 40 Chinese or 40 English prompts with `max_tokens=256`; no significance claim. Server-logged acceptance length is derived from the server's cumulative accepted/drafted counts and covers every request including warmup. Answer quality was not graded.")
     return markdown_table(headers, rows) + "\n\n" + note
 
 
@@ -143,6 +151,8 @@ def verify_provenance(root):
         for public, entry in record["source"].items():
             if entry.get("published", True):
                 require((root / "source" / round_name / public).is_file(), "PROVENANCE_SOURCE_MISSING:" + public)
+        for public, entry in record["inputs"].items():
+            require((root / "inputs" / round_name / public).is_file(), "PROVENANCE_INPUT_MISSING:" + public)
         for public, entry in record["artifacts"].items():
             require(entry["published"] is False and len(entry["sha256"]) == 64, "ARTIFACT_PROVENANCE_INCOMPLETE:" + public)
     for text_path in root.rglob("*.json"):
@@ -173,6 +183,7 @@ def validate(root=ROOT, *, refresh=False):
     records = [{"id": name, "status": "PASS", "evidence": evidence} for name, evidence in (
         ("summary-recomputed-from-per-request-records", ["results/", "data/summary.json"]),
         ("paired-bootstrap-only-on-identical-target-text", ["results/round4/agreement/", "results/round3/agreement/"]),
+        ("published-prompts-hash-to-recorded-inputs", ["inputs/", "results/round4/acceptance/", "results/round3/acceptance/"]),
         ("provenance-hashes-and-private-marker-scan", ["evidence/provenance.json"]),
         ("generated-bilingual-adaptation-table", ["../../README.md", "../../README_CN.md"]),
         ("published-file-integrity", [MANIFEST]),

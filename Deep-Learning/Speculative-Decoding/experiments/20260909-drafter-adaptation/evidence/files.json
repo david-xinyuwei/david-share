@@ -1,20 +1,44 @@
 {
   "files": {
     "analyze_results.py": {
-      "bytes": 17215,
-      "sha256": "6fe2108fa3b2fb4596cd137212dbffac1d66155861ec26c10679e2cb1c097978"
+      "bytes": 20093,
+      "sha256": "6465a5ed160d75927474c76a0e23e119b53dd541330b6c2277b2c9265b03c9df"
     },
     "data/summary.json": {
-      "bytes": 25361,
-      "sha256": "70ff3b787c4d3cb473de86bf900e263a270477390da5497400cee605eff3212b"
+      "bytes": 27045,
+      "sha256": "73a14c07e2ecc01777367a5bb2bd54aae8050ceff72316706b69c49874f2f589"
     },
     "evidence/provenance.json": {
-      "bytes": 31678,
-      "sha256": "3b7b281b87ed201675bf64927d813785656aa00f7dfb92b65e5445255b35c484"
+      "bytes": 31901,
+      "sha256": "ff479d2cb8bea89870ed1fb5075369d4bb33b958d6366a4f5fa15273bbc2017a"
     },
     "export_evidence.py": {
-      "bytes": 17320,
-      "sha256": "c4353e5e4ee033478f14b09475f8cf877e671d3fc32d15a56baa9a08b4725ba3"
+      "bytes": 18330,
+      "sha256": "eed747ef6c6f30c5a074d0143f618a67f9ea3bdebf3b1363fc18b2910224e6e6"
+    },
+    "inputs/round3/eval_prompts_en40.jsonl": {
+      "bytes": 43475,
+      "sha256": "4c75d04a63064878c62e720291d3f5cd4d0cdbf1ea62e46d17b29d7c2de5c09d"
+    },
+    "inputs/round3/split_manifest_en.json": {
+      "bytes": 651,
+      "sha256": "2420a6847cc1e63cab32523405fbf2ab45730d4cfca47c03665255a7fc44bd9a"
+    },
+    "inputs/round4/eval_prompts_en200.jsonl": {
+      "bytes": 194882,
+      "sha256": "f2ecf936fae7fc7e719f37b8c3c24b76df90bbded169b273fb45eb87ebcf7beb"
+    },
+    "inputs/round4/eval_prompts_zh200.jsonl": {
+      "bytes": 197535,
+      "sha256": "ee8381e8c3767d583f753688141554c37377475a56b42d5e446f8f46991ace9f"
+    },
+    "inputs/round4/split_manifest_en.json": {
+      "bytes": 652,
+      "sha256": "684b7c8ce521dad38e3760cc561675ae2423609df5e2311f30e651a780b64d77"
+    },
+    "inputs/round4/split_manifest_zh.json": {
+      "bytes": 652,
+      "sha256": "04c417ff6b93fe886b8fcc873465abf1ae7b37bfd67ba1b7bef3cf1b80618fb0"
     },
     "results/round3/acceptance/released_argmax.json": {
       "bytes": 29084,
@@ -216,6 +240,10 @@
       "bytes": 4690,
       "sha256": "8a095258d3df235230b60ddf9fb40c703d627e43664c2af026013556d63ce28e"
     },
+    "source/round4/stage0_gradient_canary.py": {
+      "bytes": 6439,
+      "sha256": "eb3a8ead80c6108b2656e100e6c6c08fca83c2dcb40d68bff3a396f9191199c3"
+    },
     "source/round4/train_drafter.py": {
       "bytes": 18294,
       "sha256": "47a681fbe9a76bd2c0cb1c280caef45a952049ba3dc8d4f3cf19469913f97830"
@@ -225,12 +253,12 @@
       "sha256": "0e43ba79eef993ff2df54ed595d87d95595dd8c4c1f1be3986319214e47c76cd"
     },
     "test_adaptation.py": {
-      "bytes": 7149,
-      "sha256": "0448dbcfb292727a984e7ac33a6ad3dfe93c3d29db1ab391575e111970784c21"
+      "bytes": 8141,
+      "sha256": "25d574df7cfaa6058476bd2cf81912e02bba6ddcbf19a1b44e5d093d862212b4"
     },
     "validate_report.py": {
-      "bytes": 12968,
-      "sha256": "7b98c803cd3f44af52b353981f54fd102380885e1189cc101792788e39d1e3b2"
+      "bytes": 14936,
+      "sha256": "e4eb01c5305139dce237bc2d0b70f8e46e71fda52470d65bd46d58e2f3ea62e2"
     }
   },
   "scope": "Published experiment files; generated rule results and this manifest excluded."

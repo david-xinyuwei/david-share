@@ -24,10 +24,14 @@ RETIRED_ADAPTATION_CLAIMS = (
     "a model that does not already include MTP cannot be given MTP afterwards",
     "Fine-tuning the target moves all three",
     "What a mismatch degrades is speed, not correctness",
+    "Released drafter not degraded",
+    "failed the same screen on length stops",
     "也不能原样用在微调过的 Qwen3.8-27B 上",
     "本身没带 MTP 的模型事后也补不上",
     "微调会同时改变这三项",
     "失配损失的是速度，不是正确性",
+    "官方草稿未受损",
+    "因长度截断也没有通过",
 )
 
 

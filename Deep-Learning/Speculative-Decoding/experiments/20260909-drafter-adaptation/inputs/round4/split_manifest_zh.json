@@ -1,0 +1,27 @@
+{
+  "dataset": "FreedomIntelligence/medical-o1-reasoning-SFT",
+  "config": "zh",
+  "split": "train",
+  "fields": {
+    "question": "Question",
+    "response": "Response",
+    "instruction": null
+  },
+  "seed": 20260909,
+  "shuffled": true,
+  "train_index_range": [
+    0,
+    1999
+  ],
+  "eval_index_range": [
+    2000,
+    2199
+  ],
+  "disjoint": true,
+  "train_file": "data_zh/train.jsonl",
+  "train_rows": 2000,
+  "train_sha256": "831eecb2d287cdea9f8cd82734d982389e1c79f48cc1aae861c9292bb9947b9b",
+  "eval_file": "data_zh/eval_prompts.jsonl",
+  "eval_rows": 200,
+  "eval_sha256": "ee8381e8c3767d583f753688141554c37377475a56b42d5e446f8f46991ace9f"
+}

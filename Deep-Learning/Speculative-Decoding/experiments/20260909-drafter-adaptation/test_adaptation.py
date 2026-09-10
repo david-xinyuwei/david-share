@@ -106,6 +106,21 @@ class AdaptationEvidenceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "PUBLISHED_FILE_HASH_OR_SET_MISMATCH"):
             validate_report.verify_manifest(self.root)
 
+    def test_tampered_published_prompts_are_rejected(self):
+        prompts = self.root / "inputs/round4/eval_prompts_zh200.jsonl"
+        prompts.write_bytes(prompts.read_bytes() + b"\n")
+        with self.assertRaisesRegex(ValueError, "INPUT_HASH_MISMATCH:eval_prompts_zh200.jsonl"):
+            analyze_results.summarize(self.root)
+
+    def test_server_acceptance_is_derived_from_logged_totals(self):
+        summary = json.loads((self.root / "data/summary.json").read_text(encoding="utf-8"))
+        for round_name in ("round3", "round4"):
+            for route, entry in summary[round_name]["vllm_server_acceptance"].items():
+                with self.subTest(round=round_name, route=route):
+                    self.assertEqual(entry["drafted_tokens"], entry["verification_steps"] * 7)
+                    self.assertAlmostEqual(entry["derived_mean_acceptance_length"],
+                                           1.0 + entry["accepted_tokens"] / entry["verification_steps"], places=4)
+
     def test_forged_rule_record_is_rejected(self):
         self.mutate_json(validate_report.RULES, lambda value: value["checks"].append({"id": "extra", "status": "PASS", "evidence": []}))
         with self.assertRaisesRegex(ValueError, "VALIDATION_RECORD_DRIFT"):

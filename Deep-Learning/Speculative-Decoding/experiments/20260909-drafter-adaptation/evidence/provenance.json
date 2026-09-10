@@ -31,18 +31,6 @@
         "sha256": "8c753b9a999de7bdff8b7e7866bfe61d5b775e466a3a71d078d23bc3286cdaec",
         "source": "data_v2/corpus.jsonl.manifest.json"
       },
-      "data/eval_prompts.jsonl": {
-        "bytes": 43475,
-        "published": false,
-        "sha256": "4c75d04a63064878c62e720291d3f5cd4d0cdbf1ea62e46d17b29d7c2de5c09d",
-        "source": "data_v2/eval_prompts.jsonl"
-      },
-      "data/split_manifest.json": {
-        "bytes": 650,
-        "published": false,
-        "sha256": "f9d885a958b333384fa0691b59418049fb05ee1251f0c476b0203b455759db5c",
-        "source": "data_v2/split_manifest.json"
-      },
       "data/train.jsonl": {
         "bytes": 1966288,
         "published": false,
@@ -66,6 +54,20 @@
         "published": false,
         "sha256": "e8831c37bda7e4ecb2e07efd2517bc044cebd19b704edb9c4e5aa20d64600b5a",
         "source": "checkpoints/drafter-v3/training-history.json"
+      }
+    },
+    "inputs": {
+      "eval_prompts_en40.jsonl": {
+        "bytes": 43475,
+        "published": true,
+        "sha256": "4c75d04a63064878c62e720291d3f5cd4d0cdbf1ea62e46d17b29d7c2de5c09d",
+        "source": "data_v2/eval_prompts.jsonl"
+      },
+      "split_manifest_en.json": {
+        "bytes": 650,
+        "published": true,
+        "sha256": "f9d885a958b333384fa0691b59418049fb05ee1251f0c476b0203b455759db5c",
+        "source": "data_v2/split_manifest.json"
       }
     },
     "logs": {
@@ -445,35 +447,11 @@
         "sha256": "a2e2768e7d0618d82721640ff31b2b722a7cd8971aac055a93cb5d329ba3ff2f",
         "source": "out/adapter-zh/adapter_model.safetensors"
       },
-      "data_en/eval_prompts.jsonl": {
-        "bytes": 194882,
-        "published": false,
-        "sha256": "f2ecf936fae7fc7e719f37b8c3c24b76df90bbded169b273fb45eb87ebcf7beb",
-        "source": "data_en/eval_prompts.jsonl"
-      },
-      "data_en/split_manifest.json": {
-        "bytes": 651,
-        "published": false,
-        "sha256": "a84e03834be5e1a367c8a497a167698e4fbc63fde59f1084da0f2883312408ae",
-        "source": "data_en/split_manifest.json"
-      },
       "data_zh/corpus.jsonl": {
         "bytes": 1082276,
         "published": false,
         "sha256": "8b8b8a6dc2d107bf2d2b19167dee829c7b4d72e69707722c8ec21edebc29e1df",
         "source": "data_zh/corpus.jsonl"
-      },
-      "data_zh/eval_prompts.jsonl": {
-        "bytes": 197535,
-        "published": false,
-        "sha256": "ee8381e8c3767d583f753688141554c37377475a56b42d5e446f8f46991ace9f",
-        "source": "data_zh/eval_prompts.jsonl"
-      },
-      "data_zh/split_manifest.json": {
-        "bytes": 651,
-        "published": false,
-        "sha256": "3b0a6aba46096a993305bb494e6fc695c417e92769e47a4058f271285a7f4feb",
-        "source": "data_zh/split_manifest.json"
       },
       "data_zh/train.jsonl": {
         "bytes": 2030092,
@@ -504,6 +482,32 @@
         "published": false,
         "sha256": "cbe5c675bd62f41a76c21e2af3349969c32b2c93a64fc7fe119d54d55d7a7a4c",
         "source": "out/drafter-zh/model.safetensors"
+      }
+    },
+    "inputs": {
+      "eval_prompts_en200.jsonl": {
+        "bytes": 194882,
+        "published": true,
+        "sha256": "f2ecf936fae7fc7e719f37b8c3c24b76df90bbded169b273fb45eb87ebcf7beb",
+        "source": "data_en/eval_prompts.jsonl"
+      },
+      "eval_prompts_zh200.jsonl": {
+        "bytes": 197535,
+        "published": true,
+        "sha256": "ee8381e8c3767d583f753688141554c37377475a56b42d5e446f8f46991ace9f",
+        "source": "data_zh/eval_prompts.jsonl"
+      },
+      "split_manifest_en.json": {
+        "bytes": 651,
+        "published": true,
+        "sha256": "a84e03834be5e1a367c8a497a167698e4fbc63fde59f1084da0f2883312408ae",
+        "source": "data_en/split_manifest.json"
+      },
+      "split_manifest_zh.json": {
+        "bytes": 651,
+        "published": true,
+        "sha256": "3b0a6aba46096a993305bb494e6fc695c417e92769e47a4058f271285a7f4feb",
+        "source": "data_zh/split_manifest.json"
       }
     },
     "logs": {
@@ -794,6 +798,11 @@
       "round4.sh": {
         "published": false,
         "reason": "orchestration shell with private host paths; commands are transcribed in the README"
+      },
+      "stage0_gradient_canary.py": {
+        "bytes": 6439,
+        "sha256": "eb3a8ead80c6108b2656e100e6c6c08fca83c2dcb40d68bff3a396f9191199c3",
+        "source": "stage0_gradient_canary.py"
       },
       "train_drafter.py": {
         "bytes": 18294,

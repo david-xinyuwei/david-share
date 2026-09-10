@@ -89,6 +89,18 @@ ROUND4_SOURCE_FILES = {
     "measure_acceptance.py": "measure_acceptance.py",
     "export_drafter_for_vllm.py": "export_drafter_for_vllm.py",
     "vllm_client_bench.py": "vllm_client_bench.py",
+    "stage0_gradient_canary.py": "stage0_gradient_canary.py",
+}
+# Held-out prompt sets and split manifests are public-dataset derivatives; published verbatim.
+ROUND3_INPUT_FILES = {
+    "eval_prompts_en40.jsonl": "data_v2/eval_prompts.jsonl",
+    "split_manifest_en.json": "data_v2/split_manifest.json",
+}
+ROUND4_INPUT_FILES = {
+    "eval_prompts_zh200.jsonl": "data_zh/eval_prompts.jsonl",
+    "split_manifest_zh.json": "data_zh/split_manifest.json",
+    "eval_prompts_en200.jsonl": "data_en/eval_prompts.jsonl",
+    "split_manifest_en.json": "data_en/split_manifest.json",
 }
 ROUND4_ARTIFACT_FILES = {
     "adapter-zh/adapter_model.safetensors": "out/adapter-zh/adapter_model.safetensors",
@@ -98,11 +110,7 @@ ROUND4_ARTIFACT_FILES = {
     "drafter-v3-seed1/model.safetensors": "out/drafter-v3-seed1/model.safetensors",
     "drafter-v3-seed2/model.safetensors": "out/drafter-v3-seed2/model.safetensors",
     "data_zh/train.jsonl": "data_zh/train.jsonl",
-    "data_zh/eval_prompts.jsonl": "data_zh/eval_prompts.jsonl",
     "data_zh/corpus.jsonl": "data_zh/corpus.jsonl",
-    "data_zh/split_manifest.json": "data_zh/split_manifest.json",
-    "data_en/eval_prompts.jsonl": "data_en/eval_prompts.jsonl",
-    "data_en/split_manifest.json": "data_en/split_manifest.json",
 }
 ROUND4_LOG_FILES = {
     "round4": "logs/round4-resume.log",
@@ -118,9 +126,7 @@ ARTIFACT_FILES = {
     "drafter-v3/config.json": "checkpoints/drafter-v3/config.json",
     "drafter-v3/training-history.json": "checkpoints/drafter-v3/training-history.json",
     "data/train.jsonl": "data_v2/train.jsonl",
-    "data/eval_prompts.jsonl": "data_v2/eval_prompts.jsonl",
     "data/corpus.jsonl": "data_v2/corpus.jsonl",
-    "data/split_manifest.json": "data_v2/split_manifest.json",
     "data/corpus.jsonl.manifest.json": "data_v2/corpus.jsonl.manifest.json",
 }
 LOG_FILES = {
@@ -139,7 +145,7 @@ SPEC_METRICS = re.compile(r"Mean acceptance length: ([\d.]+), Accepted throughpu
 # Generic private-identifier shapes; the author's exact host and account strings are
 # supplied through PRIVATE_MARKERS_FILE (one per line) and never published.
 GENERIC_PRIVATE_PATTERNS = (
-    re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}\b"),
+    re.compile(r"\b(?!127\.)(?!0\.0\.0\.0\b)\d{1,3}(?:\.\d{1,3}){3}\b"),
     re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.I),
     re.compile(r"/home/|/mnt/|/root/|[A-Za-z]:\\\\"),
 )
@@ -262,8 +268,8 @@ PHASE_MARKERS = ("FINETUNE_TARGET=", "DEGENERATION_GATE=", "TRAIN=", "MEASURE_AC
                  "BASE_ANALYSIS_REUSED", "ADOPTED_TRAIN_EXIT_CODE=", "===== ROUND4_COMPLETE", "===== ROUND4_EXIT")
 
 
-def export_round(round_name, source, destination, results, sources, artifacts, logs_map, log_kind, markers):
-    record = {"results": {}, "source": {}, "artifacts": {}, "logs": {}}
+def export_round(round_name, source, destination, results, sources, inputs, artifacts, logs_map, log_kind, markers):
+    record = {"results": {}, "source": {}, "inputs": {}, "artifacts": {}, "logs": {}}
     for public, private in results.items():
         projected, identity = project_result(source / private)
         target = destination / "results" / round_name / public
@@ -278,6 +284,18 @@ def export_round(round_name, source, destination, results, sources, artifacts, l
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(raw.replace(b"\r\n", b"\n"))
         record["source"][public] = {"bytes": len(raw), "sha256": digest_bytes(raw), "source": private}
+    for public, private in inputs.items():
+        raw = (source / private).read_bytes()
+        text = raw.decode("utf-8")
+        if public.endswith(".json"):
+            text = json.dumps(scrub(json.loads(text)), ensure_ascii=False, indent=2) + "\n"
+            raw = text.encode("utf-8")
+        require(find_private(text, markers) is None, "PRIVATE_IDENTIFIER_IN_INPUT:" + public)
+        target = destination / "inputs" / round_name / public
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(raw)
+        record["inputs"][public] = {"bytes": (source / private).stat().st_size, "sha256": digest_file(source / private),
+                                    "published": True, "source": private}
     for public, private in artifacts.items():
         path = source / private
         record["artifacts"][public] = {"bytes": path.stat().st_size, "sha256": digest_file(path),
@@ -301,8 +319,8 @@ def export(source, round4_source, destination):
     require(source.is_dir() and round4_source.is_dir(), "PRIVATE_ARCHIVE_MISSING")
     markers = private_markers()
 
-    round3 = export_round("round3", source, destination, ROUND3_RESULT_FILES, SOURCE_FILES, ARTIFACT_FILES,
-                          LOG_FILES, lambda name: "pipeline" if name.startswith("phase") else "server", markers)
+    round3 = export_round("round3", source, destination, ROUND3_RESULT_FILES, SOURCE_FILES, ROUND3_INPUT_FILES,
+                          ARTIFACT_FILES, LOG_FILES, lambda name: "pipeline" if name.startswith("phase") else "server", markers)
     for public, private in ORCHESTRATION_FILES.items():
         path = source / private
         round3["source"][public] = {"bytes": path.stat().st_size, "sha256": digest_file(path), "published": False,
@@ -314,7 +332,7 @@ def export(source, round4_source, destination):
     }
 
     round4 = export_round("round4", round4_source, destination, ROUND4_RESULT_FILES, ROUND4_SOURCE_FILES,
-                          ROUND4_ARTIFACT_FILES, ROUND4_LOG_FILES,
+                          ROUND4_INPUT_FILES, ROUND4_ARTIFACT_FILES, ROUND4_LOG_FILES,
                           lambda name: "pipeline" if name == "round4" else "server", markers)
     adapter_zh = json.loads((round4_source / "results/r4_finetune_zh_summary.json").read_text(encoding="utf-8"))
     round4["training"] = {
