@@ -112,6 +112,9 @@ def verify_reader_workflows(text, chinese):
     introduction = text.split("\n## ", 1)[0]
     require("selector" in introduction and ("继续训练" if chinese else "continued training") in introduction,
             "TRAINING_VALUE_MISSING_FROM_OPENING")
+    training_image = f"experiments/20260909-drafter-adaptation/images/training-flow-{'cn' if chinese else 'en'}.png"
+    require(f"]({training_image})" in text, "TRAINING_FLOW_IMAGE_MISSING")
+    require('training_data["' not in text, "RETIRED_INLINE_TRAINING_DIAGRAM")
     heading = "### 复现再适配" if chinese else "### Reproducing the Adaptation"
     require(text.count(heading) == 1, "ADAPTATION_REPRODUCTION_MISSING")
     section = re.split(r"^## ", text.split(heading, 1)[1], maxsplit=1, flags=re.M)[0]

@@ -1,0 +1,12 @@
+{
+  "scope": "Original explanatory diagram of the archived training workflow, not runtime evidence.",
+  "steps": [
+    {"en": "Training questions\nand reference answers", "cn": "训练切分\n问题与参考回答", "source": "source/round4/prepare_domain_data.py"},
+    {"en": "Fine-tune target with LoRA\nFreeze target afterward", "cn": "目标 LoRA 微调\n随后冻结目标", "source": "source/round4/finetune_target.py"},
+    {"en": "Target-generated responses\nand target hidden features", "cn": "目标自生成回答\n提取目标隐藏特征", "source": "source/round4/generate_responses.py"},
+    {"en": "Train draft backbone + selector\nRecord both losses", "cn": "训练草稿骨干与 selector\n分别记录两类 loss", "source": "source/round4/train_drafter.py"},
+    {"en": "Save and reload checkpoint\nExport serving weights", "cn": "保存并重载 checkpoint\n导出服务权重", "source": "source/round4/export_drafter_for_vllm.py"},
+    {"en": "Paired draft measurements\nSeparate HF / vLLM checks", "cn": "同文本成对测量\nHF 与 vLLM 分别验证", "source": "source/round4/analyze_predictability.py"}
+  ],
+  "held_out": {"en": "Held-out\nprompts\nNo training", "cn": "留出问题\n不进入训练"}
+}

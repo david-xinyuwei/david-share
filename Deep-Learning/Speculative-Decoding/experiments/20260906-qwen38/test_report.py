@@ -370,6 +370,13 @@ class ReportIntegrityTests(unittest.TestCase):
 
 
 class ReaderLayoutTests(unittest.TestCase):
+    def test_training_diagram_cannot_disappear_or_revert_to_inline(self):
+        text = (TOPIC / "README.md").read_text(encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "TRAINING_FLOW_IMAGE_MISSING"):
+            validate_report.verify_reader_workflows(text.replace("training-flow-en.png", "omitted.png"), False)
+        with self.assertRaisesRegex(ValueError, "RETIRED_INLINE_TRAINING_DIAGRAM"):
+            validate_report.verify_reader_workflows(text + '\n```mermaid\ntraining_data["old"]\n```\n', False)
+
     def test_actual_input_is_visible_before_results(self):
         validate_report.verify_local_links(ROOT)
         samples = validate_report.read_json(ROOT / "evidence/request-examples.json")

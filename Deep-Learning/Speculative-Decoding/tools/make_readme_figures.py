@@ -10,6 +10,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib import font_manager
+from matplotlib.patches import FancyBboxPatch
 
 
 TOPIC = Path(__file__).resolve().parent.parent
@@ -163,6 +164,39 @@ def draw_adaptation_losses(histories, path, chinese):
     plt.close(figure)
 
 
+def draw_adaptation_flow(flow, path, chinese):
+    figure, axis = plt.subplots(figsize=(8, 9), dpi=180)
+    axis.set(xlim=(0, 1), ylim=(0, 1))
+    axis.axis("off")
+    language = "cn" if chinese else "en"
+    colors = ("#EDF1F3", "#E5F2F0", "#E5F2F0", "#FFF2D7", "#EDF1F3", "#E5F2F0")
+    positions = [0.88 - index * 0.14 for index in range(len(flow["steps"]))]
+    for index, (step, position, color) in enumerate(zip(flow["steps"], positions, colors)):
+        axis.add_patch(FancyBboxPatch((0.04, position - 0.052), 0.67, 0.104,
+                                     boxstyle="round,pad=0.007,rounding_size=0.008",
+                                     facecolor=color, edgecolor="#63777B", linewidth=1.2))
+        axis.text(0.375, position, step[language], ha="center", va="center", fontsize=16,
+                  linespacing=1.45, color=TEXT)
+        if index:
+            axis.annotate("", xy=(0.375, position + 0.059), xytext=(0.375, positions[index - 1] - 0.059),
+                          arrowprops={"arrowstyle": "->", "color": "#63777B", "lw": 1.5})
+    axis.add_patch(FancyBboxPatch((0.79, positions[-1] - 0.057), 0.19, 0.114,
+                                 boxstyle="round,pad=0.007,rounding_size=0.008",
+                                 facecolor="#F5E8EC", edgecolor="#9A596C", linewidth=1.2))
+    axis.text(0.885, positions[-1], flow["held_out"][language], ha="center", va="center", fontsize=12)
+    axis.annotate("", xy=(0.723, positions[-1]), xytext=(0.782, positions[-1]),
+                  arrowprops={"arrowstyle": "->", "color": "#9A596C", "lw": 1.5})
+    figure.suptitle("草稿再适配：数据与模型流" if chinese else "Drafter adaptation: data and models",
+                   fontsize=20, y=0.985)
+    figure.text(0.055, 0.026,
+                "单张 GPU 分阶段执行；训练、重载、效果分别验收。" if chinese else
+                "One GPU, staged execution. Training, reload and outcomes are separate checks.",
+                fontsize=10.5, color=MUTED)
+    figure.subplots_adjust(left=0.025, right=0.98, top=0.93, bottom=0.05)
+    figure.savefig(path, facecolor="white")
+    plt.close(figure)
+
+
 def render_adaptation(output):
     summary = read_json(ADAPTATION / "data/summary.json")
     histories, sources = {}, {}
@@ -180,6 +214,17 @@ def render_adaptation(output):
     for chinese, name in ((False, "training-loss-en.png"), (True, "training-loss-cn.png")):
         path = output / name
         draw_adaptation_losses(histories, path, chinese)
+        pixels = plt.imread(path)
+        record["figures"][name] = {"sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                                   "width": pixels.shape[1], "height": pixels.shape[0]}
+    flow_path = ADAPTATION / "images/training-flow.json"
+    flow = read_json(flow_path)
+    record["diagram_scope"] = flow["scope"]
+    for relative in ("images/training-flow.json", *(step["source"] for step in flow["steps"])):
+        record["sources"][relative] = hashlib.sha256((ADAPTATION / relative).read_bytes()).hexdigest()
+    for chinese, name in ((False, "training-flow-en.png"), (True, "training-flow-cn.png")):
+        path = output / name
+        draw_adaptation_flow(flow, path, chinese)
         pixels = plt.imread(path)
         record["figures"][name] = {"sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
                                    "width": pixels.shape[1], "height": pixels.shape[0]}

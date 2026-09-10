@@ -59,24 +59,9 @@ The client and inference service share one host and communicate over loopback. O
 
 Drafter adaptation follows a separate training path. Its stages also run on one GPU, without keeping the inference server resident during training:
 
-```mermaid
-flowchart TB
-	training_data["Training split<br/>Questions and reference answers"]
-	target["Target LoRA fine-tuning<br/>Freeze target afterward"]
-	corpus["Frozen target generates responses<br/>Extract target hidden features"]
-	draft["Train draft backbone and selector<br/>Record both losses separately"]
-	checkpoint["Save and reload checkpoint<br/>Export serving weights"]
-	evaluation["Same-text paired measurements<br/>Separate HF and vLLM checks"]
-	heldout["Independent held-out prompts<br/>Excluded from training"]
-	training_data --> target
-	target --> corpus
-	corpus --> draft
-	draft --> checkpoint
-	checkpoint --> evaluation
-	heldout --> evaluation
-```
+![Drafter-adaptation data and model flow](experiments/20260909-drafter-adaptation/images/training-flow-en.png)
 
-*Original training-flow diagram based on [target training](experiments/20260909-drafter-adaptation/source/round4/finetune_target.py), [corpus generation](experiments/20260909-drafter-adaptation/source/round4/generate_responses.py), [draft training](experiments/20260909-drafter-adaptation/source/round4/train_drafter.py) and [paired measurement](experiments/20260909-drafter-adaptation/source/round4/analyze_predictability.py). Training, save/reload and outcome evaluation are separate checks; the diagram is not runtime proof.*
+*Original training-flow diagram based on [target training](experiments/20260909-drafter-adaptation/source/round4/finetune_target.py), [corpus generation](experiments/20260909-drafter-adaptation/source/round4/generate_responses.py), [draft training](experiments/20260909-drafter-adaptation/source/round4/train_drafter.py) and [paired measurement](experiments/20260909-drafter-adaptation/source/round4/analyze_predictability.py). The same figure generator renders the [diagram source](experiments/20260909-drafter-adaptation/images/training-flow.json). Training, save/reload and outcome evaluation are separate checks; the diagram is not runtime proof.*
 
 ## Inference Comparison: MTP and DFlash 2
 

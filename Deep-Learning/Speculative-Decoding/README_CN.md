@@ -59,24 +59,9 @@ MTP、DFlash 算法及发布版权重属于上游工作；本仓库贡献的是�
 
 草稿再适配走另一条训练路径，同样在单张 GPU 上按阶段执行，不与推理服务同时驻留：
 
-```mermaid
-flowchart TB
-	training_data["训练切分<br/>问题与参考回答"]
-	target["目标 LoRA 微调<br/>随后冻结目标"]
-	corpus["冻结目标自生成回答<br/>提取目标隐藏特征"]
-	draft["训练草稿 backbone 与 selector<br/>分别记录两类 loss"]
-	checkpoint["保存与重载 checkpoint<br/>导出服务权重"]
-	evaluation["同文本成对比较<br/>HF 与 vLLM 分别验证"]
-	heldout["独立留出问题<br/>不进入训练"]
-	training_data --> target
-	target --> corpus
-	corpus --> draft
-	draft --> checkpoint
-	checkpoint --> evaluation
-	heldout --> evaluation
-```
+![草稿再适配的数据与模型流](experiments/20260909-drafter-adaptation/images/training-flow-cn.png)
 
-*原创训练流程图，依据 [目标训练](experiments/20260909-drafter-adaptation/source/round4/finetune_target.py)、[语料生成](experiments/20260909-drafter-adaptation/source/round4/generate_responses.py)、[草稿训练](experiments/20260909-drafter-adaptation/source/round4/train_drafter.py)和 [成对测量](experiments/20260909-drafter-adaptation/source/round4/analyze_predictability.py)。训练、保存重载和效果验证是三个独立检查点，流程图本身不是运行证明。*
+*原创训练流程图，依据 [目标训练](experiments/20260909-drafter-adaptation/source/round4/finetune_target.py)、[语料生成](experiments/20260909-drafter-adaptation/source/round4/generate_responses.py)、[草稿训练](experiments/20260909-drafter-adaptation/source/round4/train_drafter.py)和 [成对测量](experiments/20260909-drafter-adaptation/source/round4/analyze_predictability.py)。[图源](experiments/20260909-drafter-adaptation/images/training-flow.json)由同一绘图程序渲染。训练、保存重载和效果验证是三个独立检查点，流程图本身不是运行证明。*
 
 ## 推理对比：MTP 与 DFlash 2
 
