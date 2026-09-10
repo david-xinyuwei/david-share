@@ -50,6 +50,14 @@
       ]
     },
     {
+      "id": "customer-workflow-order-and-separate-command-blocks",
+      "status": "PASS",
+      "evidence": [
+        "../../README.md",
+        "../../README_CN.md"
+      ]
+    },
+    {
       "id": "published-file-integrity",
       "status": "PASS",
       "evidence": [
@@ -57,5 +65,5 @@
       ]
     }
   ],
-  "manifest_sha256": "637b843abd54990beacc3258ed95154bd97ca7716fabfa2dd682024d44a399e6"
+  "manifest_sha256": "b43d9a93a79ee3004b8070bf4eca3587fc2ba11600dd78f0ba20392a169750b4"
 }

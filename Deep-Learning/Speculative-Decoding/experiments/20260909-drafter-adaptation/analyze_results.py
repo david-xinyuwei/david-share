@@ -19,6 +19,7 @@ apart because they answer different questions:
 import argparse
 import hashlib
 import json
+import math
 from pathlib import Path
 import random
 import statistics
@@ -336,6 +337,43 @@ def summarize_round4(results, root, provenance):
     }
 
 
+def training_statistics(training):
+    history, selector = training["history"], training["selector_history"]
+    require(bool(history) and len(history) == len(selector), "TRAINING_HISTORY_LENGTH_MISMATCH")
+    require(all(math.isfinite(value) for value in history + selector), "NONFINITE_TRAINING_LOSS")
+    window = max(1, len(history) // 10)
+    return {
+        "args": {key: value for key, value in training["args"].items()
+                 if key not in ("target", "adapter", "drafter", "data", "output", "config", "smoke")},
+        "steps": len(history),
+        "backbone_loss_first_window": round(sum(history[:window]) / window, 4),
+        "backbone_loss_last_window": round(sum(history[-window:]) / window, 4),
+        "selector_loss_first_window": round(sum(selector[:window]) / window, 4),
+        "selector_loss_last_window": round(sum(selector[-window:]) / window, 4),
+        "window_steps": window,
+    }
+
+
+def training_summary(root, provenance):
+    result = {}
+    for name, round_name, training_key, filename in (
+        ("english_seed20260908", "round3", "drafter_v3", "drafter_v3_history.json"),
+        ("english_seed1", "round4", "drafter_v3_seed1", "drafter_v3_seed1_history.json"),
+        ("english_seed2", "round4", "drafter_v3_seed2", "drafter_v3_seed2_history.json"),
+        ("chinese_seed20260908", "round4", "drafter_zh", "drafter_zh_history.json"),
+    ):
+        relative = f"results/{round_name}/training/{filename}"
+        path = root / relative
+        require(path.is_file(), "TRAINING_HISTORY_MISSING:" + filename)
+        identity = provenance[round_name]["results"]["training/" + filename]
+        checksum = digest_file(path)
+        require(checksum == identity["published_sha256"], "TRAINING_HISTORY_HASH_MISMATCH:" + filename)
+        measured = training_statistics(read_json(path))
+        require(measured == provenance[round_name]["training"][training_key], "TRAINING_WINDOW_MISMATCH:" + filename)
+        result[name] = dict(measured, history_path=relative, history_sha256=checksum)
+    return result
+
+
 def summarize(root):
     results = root / "results"
     provenance = read_json(root / "evidence" / "provenance.json")
@@ -343,6 +381,7 @@ def summarize(root):
         "scope": "Continuation training of the released DFlash 2 drafter against LoRA-fine-tuned Qwen3.8-27B targets. Not training from scratch. Two drift regimes.",
         "round3": summarize_round3(results / "round3", root, provenance),
         "round4": summarize_round4(results / "round4", root, provenance),
+        "training": training_summary(root, provenance),
         "answer_quality": "NOT_MEASURED: no grader was run on these medical prompt sets; agreement and acceptance describe drafting, not answer correctness.",
         "statistics_boundary": "PAIRED agreement comparisons share byte-identical target text and use a prompt-level bootstrap. Acceptance and vLLM figures are single executions on different generated texts; no significance claim.",
     }

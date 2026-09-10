@@ -1,0 +1,100 @@
+===== Z2_REUSED_QUALITY_WARNING: prior failure retained; no target retraining 2026-09-09T23:04:53Z =====
+DEGENERATION_GATE=FAIL
+===== Z3_RELEASED_DRAFTER_ON_ZH base vs finetuned (200 prompts, cached completions) 2026-09-09T23:15:04Z =====
+ANALYSE_PREDICTABILITY=PASS
+ADOPTED_TRAIN_EXIT_CODE=0
+===== Z2_REUSED_QUALITY_WARNING: prior failure retained; no target retraining 2026-09-09T23:23:37Z =====
+===== Z3_RELEASED_DRAFTER_ON_ZH base vs finetuned (200 prompts, cached completions) 2026-09-09T23:23:37Z =====
+BASE_ANALYSIS_REUSED: no repeated generation
+ANALYSE_PREDICTABILITY=PASS
+ANALYSE_PREDICTABILITY=PASS
+===== Z4_CORPUS_ZH 1200 2026-09-09T23:32:14Z =====
+===== Z5_TRAIN_DRAFTER_ZH backbone+selector fp32 2026-09-10T00:04:52Z =====
+{"step": 50, "loss_50": 3.4566, "selector_loss_50": 1.4103, "lr": 4.2857142857142856e-05, "sec_per_step": 0.99, "gpu_gib": 86.0}
+{"step": 100, "loss_50": 3.0913, "selector_loss_50": 1.3793, "lr": 8.487394957983193e-05, "sec_per_step": 0.84, "gpu_gib": 86.0}
+{"step": 150, "loss_50": 3.0134, "selector_loss_50": 1.4071, "lr": 9.99543534036196e-05, "sec_per_step": 0.77, "gpu_gib": 86.0}
+{"step": 200, "loss_50": 3.3105, "selector_loss_50": 1.4254, "lr": 9.96886349382088e-05, "sec_per_step": 0.74, "gpu_gib": 86.0}
+{"step": 250, "loss_50": 3.2232, "selector_loss_50": 1.5031, "lr": 9.918695764405914e-05, "sec_per_step": 0.71, "gpu_gib": 86.0}
+{"step": 300, "loss_50": 3.0832, "selector_loss_50": 1.4525, "lr": 9.845170386044959e-05, "sec_per_step": 0.7, "gpu_gib": 86.0}
+{"step": 350, "loss_50": 3.02, "selector_loss_50": 1.4129, "lr": 9.748636512265423e-05, "sec_per_step": 0.69, "gpu_gib": 86.0}
+{"step": 400, "loss_50": 3.1244, "selector_loss_50": 1.4909, "lr": 9.62955255815194e-05, "sec_per_step": 0.68, "gpu_gib": 86.0}
+{"step": 450, "loss_50": 3.1003, "selector_loss_50": 1.5785, "lr": 9.488484023448448e-05, "sec_per_step": 0.67, "gpu_gib": 86.0}
+{"step": 500, "loss_50": 3.0131, "selector_loss_50": 1.4793, "lr": 9.32610080714215e-05, "sec_per_step": 0.66, "gpu_gib": 86.0}
+{"step": 550, "loss_50": 3.0951, "selector_loss_50": 1.4637, "lr": 9.143174026281727e-05, "sec_per_step": 0.66, "gpu_gib": 86.0}
+{"step": 600, "loss_50": 3.1822, "selector_loss_50": 1.4982, "lr": 8.940572354136434e-05, "sec_per_step": 0.65, "gpu_gib": 86.0}
+{"step": 650, "loss_50": 2.9434, "selector_loss_50": 1.4143, "lr": 8.719257895085265e-05, "sec_per_step": 0.65, "gpu_gib": 86.0}
+{"step": 700, "loss_50": 2.9874, "selector_loss_50": 1.3531, "lr": 8.480281615825237e-05, "sec_per_step": 0.64, "gpu_gib": 86.0}
+{"step": 750, "loss_50": 3.0703, "selector_loss_50": 1.4714, "lr": 8.224778354594932e-05, "sec_per_step": 0.64, "gpu_gib": 86.0}
+{"step": 800, "loss_50": 3.0277, "selector_loss_50": 1.3358, "lr": 7.953961432113134e-05, "sec_per_step": 0.64, "gpu_gib": 86.0}
+{"step": 850, "loss_50": 2.8733, "selector_loss_50": 1.3686, "lr": 7.669116889823955e-05, "sec_per_step": 0.63, "gpu_gib": 86.0}
+{"step": 900, "loss_50": 3.1334, "selector_loss_50": 1.4371, "lr": 7.371597382809476e-05, "sec_per_step": 0.63, "gpu_gib": 86.0}
+{"step": 950, "loss_50": 3.26, "selector_loss_50": 1.5209, "lr": 7.062815756371032e-05, "sec_per_step": 0.63, "gpu_gib": 86.0}
+{"step": 1000, "loss_50": 2.7184, "selector_loss_50": 1.2498, "lr": 6.74423833678225e-05, "sec_per_step": 0.63, "gpu_gib": 86.0}
+{"step": 1050, "loss_50": 2.9669, "selector_loss_50": 1.4167, "lr": 6.417377968074412e-05, "sec_per_step": 0.63, "gpu_gib": 86.0}
+{"step": 1100, "loss_50": 2.7375, "selector_loss_50": 1.3574, "lr": 6.0837868279206876e-05, "sec_per_step": 0.63, "gpu_gib": 86.0}
+{"step": 1150, "loss_50": 2.7127, "selector_loss_50": 1.2936, "lr": 5.7450490567348015e-05, "sec_per_step": 0.63, "gpu_gib": 86.0}
+{"epoch": 0, "steps": 1199, "loss_first_window": 3.2293, "loss_last_window": 2.7837, "selector_first_window": 1.395, "selector_last_window": 1.3371, "lr": 5.40964293149102e-05}
+{"step": 1200, "loss_50": 2.872, "selector_loss_50": 1.3839, "lr": 5.402773234986675e-05, "sec_per_step": 0.62, "gpu_gib": 86.0}
+{"step": 1250, "loss_50": 2.7105, "selector_loss_50": 1.3121, "lr": 5.0585847444583926e-05, "sec_per_step": 0.62, "gpu_gib": 86.0}
+{"step": 1300, "loss_50": 2.5554, "selector_loss_50": 1.188, "lr": 4.714118049714969e-05, "sec_per_step": 0.62, "gpu_gib": 86.0}
+{"step": 1350, "loss_50": 2.3864, "selector_loss_50": 1.0803, "lr": 4.37100893644326e-05, "sec_per_step": 0.62, "gpu_gib": 86.0}
+{"step": 1400, "loss_50": 2.8188, "selector_loss_50": 1.2917, "lr": 4.0308867435171924e-05, "sec_per_step": 0.62, "gpu_gib": 86.0}
+{"step": 1450, "loss_50": 2.4529, "selector_loss_50": 1.236, "lr": 3.6953666256772954e-05, "sec_per_step": 0.62, "gpu_gib": 86.0}
+{"step": 1500, "loss_50": 2.4754, "selector_loss_50": 1.1301, "lr": 3.3660418835671135e-05, "sec_per_step": 0.62, "gpu_gib": 86.0}
+{"step": 1550, "loss_50": 2.4226, "selector_loss_50": 1.1823, "lr": 3.0444763975492208e-05, "sec_per_step": 0.62, "gpu_gib": 86.0}
+{"step": 1600, "loss_50": 2.3759, "selector_loss_50": 1.1608, "lr": 2.7321972012307586e-05, "sec_per_step": 0.62, "gpu_gib": 86.0}
+{"step": 1650, "loss_50": 2.2821, "selector_loss_50": 1.1484, "lr": 2.4306872299649424e-05, "sec_per_step": 0.61, "gpu_gib": 86.0}
+{"step": 1700, "loss_50": 2.5193, "selector_loss_50": 1.1746, "lr": 2.1413782787640812e-05, "sec_per_step": 0.61, "gpu_gib": 86.0}
+{"step": 1750, "loss_50": 2.5142, "selector_loss_50": 1.1472, "lr": 1.8656442030652155e-05, "sec_per_step": 0.61, "gpu_gib": 86.0}
+{"step": 1800, "loss_50": 2.3984, "selector_loss_50": 1.0937, "lr": 1.6047943946362255e-05, "sec_per_step": 0.61, "gpu_gib": 86.0}
+{"step": 1850, "loss_50": 2.3943, "selector_loss_50": 1.1517, "lr": 1.3600675636036874e-05, "sec_per_step": 0.61, "gpu_gib": 86.0}
+{"step": 1900, "loss_50": 2.1849, "selector_loss_50": 1.0505, "lr": 1.1326258561300623e-05, "sec_per_step": 0.61, "gpu_gib": 86.0}
+{"step": 1950, "loss_50": 2.3943, "selector_loss_50": 1.1314, "lr": 9.235493356738972e-06, "sec_per_step": 0.61, "gpu_gib": 86.0}
+{"step": 2000, "loss_50": 2.4762, "selector_loss_50": 1.1724, "lr": 7.338308540401373e-06, "sec_per_step": 0.61, "gpu_gib": 86.0}
+{"step": 2050, "loss_50": 2.3227, "selector_loss_50": 1.0287, "lr": 5.643713365766428e-06, "sec_per_step": 0.61, "gpu_gib": 86.0}
+{"step": 2100, "loss_50": 2.4606, "selector_loss_50": 1.1692, "lr": 5e-06, "sec_per_step": 0.61, "gpu_gib": 86.0}
+{"step": 2150, "loss_50": 2.2506, "selector_loss_50": 1.0466, "lr": 5e-06, "sec_per_step": 0.61, "gpu_gib": 86.0}
+{"step": 2200, "loss_50": 2.1815, "selector_loss_50": 1.0109, "lr": 5e-06, "sec_per_step": 0.61, "gpu_gib": 86.0}
+{"step": 2250, "loss_50": 2.3372, "selector_loss_50": 1.0425, "lr": 5e-06, "sec_per_step": 0.61, "gpu_gib": 86.0}
+{"step": 2300, "loss_50": 2.1156, "selector_loss_50": 0.9885, "lr": 5e-06, "sec_per_step": 0.61, "gpu_gib": 86.0}
+{"step": 2350, "loss_50": 2.4369, "selector_loss_50": 1.1437, "lr": 5e-06, "sec_per_step": 0.61, "gpu_gib": 86.0}
+{"epoch": 1, "steps": 2398, "loss_first_window": 3.2293, "loss_last_window": 2.3355, "selector_first_window": 1.395, "selector_last_window": 1.092, "lr": 5e-06}
+{"loss_first_window": 3.2205, "loss_last_window": 2.2704, "steps": 2398, "sec_per_step": 0.61, "peak_gpu_gib": 86.0, "checks": {"loss_finite": true, "loss_decreased": true, "checkpoint_reloads": true}}
+TRAIN=PASS
+===== Z6_EVAL_DRAFTER_ZH 2026-09-10T00:29:21Z =====
+ANALYSE_PREDICTABILITY=PASS
+ANALYSE_PREDICTABILITY=PASS
+MEASURE_ACCEPTANCE=PASS
+MEASURE_ACCEPTANCE=PASS
+===== E1_TRAIN_V3_SEEDS 1 and 2 2026-09-10T00:45:01Z =====
+{"epoch": 0, "steps": 1160, "loss_first_window": 2.027, "loss_last_window": 1.9355, "selector_first_window": 0.787, "selector_last_window": 0.7772, "lr": 5.4128967273616625e-05}
+{"epoch": 1, "steps": 2320, "loss_first_window": 2.027, "loss_last_window": 1.5347, "selector_first_window": 0.787, "selector_last_window": 0.6059, "lr": 5e-06}
+{"loss_first_window": 2.0318, "loss_last_window": 1.5081, "steps": 2320, "sec_per_step": 0.61, "peak_gpu_gib": 86.1, "checks": {"loss_finite": true, "loss_decreased": true, "checkpoint_reloads": true}}
+TRAIN=PASS
+{"epoch": 0, "steps": 1160, "loss_first_window": 1.991, "loss_last_window": 1.999, "selector_first_window": 0.7702, "selector_last_window": 0.8302, "lr": 5.4128967273616625e-05}
+{"epoch": 1, "steps": 2320, "loss_first_window": 1.991, "loss_last_window": 1.6135, "selector_first_window": 0.7702, "selector_last_window": 0.6293, "lr": 5e-06}
+{"loss_first_window": 2.0126, "loss_last_window": 1.5282, "steps": 2320, "sec_per_step": 0.61, "peak_gpu_gib": 86.1, "checks": {"loss_finite": true, "loss_decreased": true, "checkpoint_reloads": true}}
+TRAIN=PASS
+===== E2_EVAL_EN_200 released + v3 seeds 0/1/2 (cached completions) 2026-09-10T01:32:22Z =====
+ANALYSE_PREDICTABILITY=PASS
+ANALYSE_PREDICTABILITY=PASS
+ANALYSE_PREDICTABILITY=PASS
+ANALYSE_PREDICTABILITY=PASS
+===== V1_MERGE_EXPORT_FREE_DISK 2026-09-10T01:43:09Z =====
+MERGED_TARGET_ZH
+EXPORT_DRAFTER=PASS
+===== V2_INSTALL_VLLM 2026-09-10T01:43:45Z =====
+===== V3_VLLM_ZH_BASELINE 2026-09-10T01:47:25Z =====
+(APIServer pid=77035) INFO 09-10 01:47:31 [model.py:672] Resolved architecture: Qwen3_5ForCausalLM
+VLLM_CLIENT_BENCH=PASS
+===== V4_VLLM_ZH_RELEASED 2026-09-10T01:51:29Z =====
+(APIServer pid=78320) INFO 09-10 01:51:35 [model.py:672] Resolved architecture: Qwen3_5ForCausalLM
+(APIServer pid=78320) INFO 09-10 01:51:35 [model.py:672] Resolved architecture: DFlash2DraftModel
+VLLM_CLIENT_BENCH=PASS
+===== V5_VLLM_ZH_OURS 2026-09-10T01:54:17Z =====
+(APIServer pid=79530) INFO 09-10 01:54:23 [model.py:672] Resolved architecture: Qwen3_5ForCausalLM
+(APIServer pid=79530) INFO 09-10 01:54:23 [model.py:672] Resolved architecture: DFlash2DraftModel
+VLLM_CLIENT_BENCH=PASS
+===== COLLECT 2026-09-10T01:56:59Z =====
+===== ROUND4_COMPLETE 2026-09-10T01:57:06Z =====
+===== ROUND4_EXIT code=0 utc=2026-09-10T01:57:06Z =====

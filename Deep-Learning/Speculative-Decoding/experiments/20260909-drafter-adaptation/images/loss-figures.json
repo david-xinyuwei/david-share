@@ -1,0 +1,22 @@
+{
+  "aggregation": "Consecutive groups of 50 steps; final partial group retained.",
+  "figures": {
+    "training-loss-cn.png": {
+      "height": 1620,
+      "sha256": "fbf9dcded47dce9cc839ffd9eb00929322f5d4e1baa0403a73e02135f2624199",
+      "width": 1800
+    },
+    "training-loss-en.png": {
+      "height": 1620,
+      "sha256": "3825664ba6afbf582c2780130957530abf359392241814130565a541d9617ccb",
+      "width": 1800
+    }
+  },
+  "scope": "Four archived training runs; grouped loss means, not a quality comparison.",
+  "sources": {
+    "results/round3/training/drafter_v3_history.json": "42dd79c19b0ff1534df40cc50c874247a0261a01a06dc22108facbf05c924636",
+    "results/round4/training/drafter_v3_seed1_history.json": "106ba669cc9df5516e16caee8526eda464b6d96087e38704c05cd5392063cb7f",
+    "results/round4/training/drafter_v3_seed2_history.json": "a80cb3e74737f9d5926d7fd8a35d9d6880321d971bee14f20020e811153e948c",
+    "results/round4/training/drafter_zh_history.json": "dbd2265502609c5ecb0abfe4fc70007354f54b7e8c267c5bff8f3599bd4893e6"
+  }
+}

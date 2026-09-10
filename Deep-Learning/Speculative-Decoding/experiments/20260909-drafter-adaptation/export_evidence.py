@@ -11,13 +11,14 @@ Run manually by the author; never runs in CI. Use ``analyze_results.py`` and
 """
 
 import argparse
+import ast
 import hashlib
 import json
 import os
 from pathlib import Path
 import re
 
-from analyze_results import dump_json, require
+from analyze_results import dump_json, require, training_statistics
 
 
 ROOT = Path(__file__).resolve().parent
@@ -39,6 +40,8 @@ ROUND3_RESULT_FILES = {
     "vllm/dflash_v3.json": "results/r3_vllm_dflash_v3.json",
     "gates/target_v2.json": "results/degeneration_target_v2.json",
     "gates/base_target.json": "results/degeneration_base.json",
+    "training/adapter_v2_summary.json": "checkpoints/adapter-v2/training_summary.json",
+    "training/drafter_v3_history.json": "checkpoints/drafter-v3/training-history.json",
 }
 ROUND4_RESULT_FILES = {
     "agreement/base_zh_released.json": "results/r4_pred_base_zh_released.json",
@@ -59,6 +62,8 @@ ROUND4_RESULT_FILES = {
     "gates/base_target_zh.json": "results/r4_degeneration_base_zh.json",
     "training/adapter_zh_summary.json": "results/r4_finetune_zh_summary.json",
     "training/drafter_zh_history.json": "results/r4_drafter_zh_history.json",
+    "training/drafter_v3_seed1_history.json": "out/drafter-v3-seed1/training-history.json",
+    "training/drafter_v3_seed2_history.json": "out/drafter-v3-seed2/training-history.json",
 }
 SOURCE_FILES = {
     "prepare_domain_data.py": "scripts/prepare_domain_data.py",
@@ -85,6 +90,7 @@ ROUND4_SOURCE_FILES = {
     "generate_responses.py": "generate_responses.py",
     "train_drafter.py": "train_drafter.py",
     "draft_metrics.py": "draft_metrics.py",
+    "bench_throughput.py": "bench_throughput.py",
     "analyze_predictability.py": "analyze_predictability.py",
     "measure_acceptance.py": "measure_acceptance.py",
     "export_drafter_for_vllm.py": "export_drafter_for_vllm.py",
@@ -114,6 +120,7 @@ ROUND4_ARTIFACT_FILES = {
 }
 ROUND4_LOG_FILES = {
     "round4": "logs/round4-resume.log",
+    "round4_initial": "logs/round4-terminal.log",
     "vllm_baseline": "logs/r4_vllm_baseline_server.log",
     "vllm_dflash_released": "logs/r4_vllm_dflash_released_server.log",
     "vllm_dflash_ours": "logs/r4_vllm_dflash_ours_server.log",
@@ -138,6 +145,7 @@ LOG_FILES = {
     "vllm_dflash_v3": "logs/vllm_dflash_v3_server.log",
 }
 STAGE_LINE = re.compile(r"^===== (\S+).*?(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z) =====$")
+TARGET_LOSS_LINE = re.compile(r"^step \d+/\d+ loss [\d.e+-]+ lr [\d.e+-]+ gpu [\d.]+G elapsed \d+s$")
 ARCHITECTURE_LINE = re.compile(r"INFO (\d\d-\d\d \d\d:\d\d:\d\d).*?Resolved architecture: (\w+)")
 SPEC_LINE = re.compile(r"speculative_config=SpeculativeConfig\((.*?)\)")
 SPEC_METRICS = re.compile(r"Mean acceptance length: ([\d.]+), Accepted throughput: [\d.]+ tokens/s, "
@@ -212,6 +220,33 @@ def read_log(path):
     return path.read_text(encoding="utf-8", errors="replace")
 
 
+def project_log(text, markers):
+    loss_keys = {"loss", "loss_50", "selector_loss_50", "loss_first_window",
+                 "loss_last_window", "train_loss", "first_logged_loss", "checks"}
+    lines, line_numbers = [], []
+    for number, line in enumerate(text.splitlines(), 1):
+        candidate = line.strip()
+        if candidate.startswith("{"):
+            try:
+                record = json.loads(candidate)
+            except json.JSONDecodeError:
+                try:
+                    record = ast.literal_eval(candidate)
+                except (ValueError, SyntaxError):
+                    continue
+            if not isinstance(record, dict) or not loss_keys.intersection(record):
+                continue
+            candidate = json.dumps(scrub(record), ensure_ascii=False)
+        elif not (STAGE_LINE.match(candidate) or TARGET_LOSS_LINE.fullmatch(candidate) or candidate.startswith(PHASE_MARKERS)
+                  or ARCHITECTURE_LINE.search(candidate) or SPEC_METRICS.search(candidate)):
+            continue
+        require(find_private(candidate, markers) is None, "PRIVATE_IDENTIFIER_IN_LOG_RECORD")
+        lines.append(candidate)
+        line_numbers.append(number)
+    require(bool(lines), "NO_PUBLISHABLE_LOG_RECORDS")
+    return "\n".join(lines) + "\n", line_numbers
+
+
 def stage_timeline(text):
     stages = []
     for line in text.splitlines():
@@ -246,18 +281,7 @@ def marker_lines(text, markers):
 
 def training_windows(history_path):
     training = json.loads(history_path.read_text(encoding="utf-8"))
-    history, selector = training["history"], training["selector_history"]
-    window = max(1, len(history) // 10)
-    return {
-        "args": {key: value for key, value in training["args"].items()
-                 if key not in ("target", "adapter", "drafter", "data", "output", "config", "smoke")},
-        "steps": len(history),
-        "backbone_loss_first_window": round(sum(history[:window]) / window, 4),
-        "backbone_loss_last_window": round(sum(history[-window:]) / window, 4),
-        "selector_loss_first_window": round(sum(selector[:window]) / window, 4),
-        "selector_loss_last_window": round(sum(selector[-window:]) / window, 4),
-        "window_steps": window,
-    }
+    return training_statistics(training)
 
 
 ADAPTER_FIELDS = ("sequences", "epochs", "optimizer_steps", "lr", "lora_rank", "lora_alpha", "target_modules",
@@ -275,7 +299,8 @@ def export_round(round_name, source, destination, results, sources, inputs, arti
         target = destination / "results" / round_name / public
         target.parent.mkdir(parents=True, exist_ok=True)
         dump_json(target, projected)
-        record["results"][public] = dict(identity, source=private)
+        record["results"][public] = dict(identity, source=private,
+                         published_sha256=digest_file(target), published_bytes=target.stat().st_size)
     for public, private in sources.items():
         raw = (source / private).read_bytes()
         text = raw.decode("utf-8")
@@ -308,8 +333,44 @@ def export_round(round_name, source, destination, results, sources, inputs, arti
             entry["markers"] = marker_lines(text, PHASE_MARKERS)
         else:
             entry["activation"] = server_activation(text)
+        projected, line_numbers = project_log(text, markers)
+        target = destination / "logs" / round_name / (name + ".log")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        raw = projected.encode("utf-8")
+        target.write_bytes(raw)
+        entry.update(published=True, published_sha256=digest_bytes(raw),
+                     published_bytes=len(raw), source_line_numbers=line_numbers,
+                     projection="Training metric records, stage/terminal markers and server counters; "
+                                "JSON formatting and path fields normalized, other lines retained only in the private raw log.")
         record["logs"][name] = entry
     return record
+
+
+def export_training(source, round4_source, destination):
+    provenance_path = destination / "evidence/provenance.json"
+    require(provenance_path.is_file(), "FULL_EXPORT_REQUIRED_FIRST")
+    provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
+    markers = private_markers()
+    for round_name, archive, results, sources, logs, log_kind in (
+        ("round3", source, ROUND3_RESULT_FILES, SOURCE_FILES, LOG_FILES,
+         lambda name: "pipeline" if name.startswith("phase") else "server"),
+        ("round4", round4_source, ROUND4_RESULT_FILES, ROUND4_SOURCE_FILES, ROUND4_LOG_FILES,
+         lambda name: "pipeline" if name.startswith("round4") else "server"),
+    ):
+        previous = provenance[round_name]
+        for name, entry in previous["source"].items():
+            if entry.get("published", True):
+                require(digest_file(archive / entry["source"]) == entry["sha256"],
+                        "ARCHIVED_SOURCE_CHANGED:" + name)
+        for name, entry in previous["logs"].items():
+            require(digest_file(archive / entry["source"]) == entry["sha256"],
+                    "ARCHIVED_LOG_CHANGED:" + name)
+        histories = {name: path for name, path in results.items() if name.startswith("training/")}
+        exported = export_round(round_name, archive, destination, histories, sources, {}, {}, logs, log_kind, markers)
+        for collection in ("results", "source", "logs"):
+            previous[collection].update(exported[collection])
+    dump_json(provenance_path, provenance)
+    print("TRAINING_EXPORT=PASS histories=4 logs=" + str(len(LOG_FILES) + len(ROUND4_LOG_FILES)))
 
 
 def export(source, round4_source, destination):
@@ -333,7 +394,7 @@ def export(source, round4_source, destination):
 
     round4 = export_round("round4", round4_source, destination, ROUND4_RESULT_FILES, ROUND4_SOURCE_FILES,
                           ROUND4_INPUT_FILES, ROUND4_ARTIFACT_FILES, ROUND4_LOG_FILES,
-                          lambda name: "pipeline" if name == "round4" else "server", markers)
+                          lambda name: "pipeline" if name.startswith("round4") else "server", markers)
     adapter_zh = json.loads((round4_source / "results/r4_finetune_zh_summary.json").read_text(encoding="utf-8"))
     round4["training"] = {
         "target_adapter_zh": {key: adapter_zh[key] for key in ADAPTER_FIELDS},
@@ -361,8 +422,13 @@ def main():
     parser.add_argument("--source", required=True, type=Path, help="private archive root (gpu-run-20260908)")
     parser.add_argument("--round4-source", required=True, type=Path, help="Round 4 raw workspace copy")
     parser.add_argument("--destination", type=Path, default=ROOT)
+    parser.add_argument("--training-only", action="store_true",
+                        help="Add training histories, source and readable logs to an existing export without rereading weights")
     args = parser.parse_args()
-    export(args.source, args.round4_source, args.destination)
+    if args.training_only:
+        export_training(args.source, args.round4_source, args.destination)
+    else:
+        export(args.source, args.round4_source, args.destination)
 
 
 if __name__ == "__main__":

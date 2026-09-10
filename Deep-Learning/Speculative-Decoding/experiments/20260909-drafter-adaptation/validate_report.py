@@ -46,66 +46,65 @@ def interval(entry):
 
 def adaptation_table(summary, chinese):
     r3, r4 = summary["round3"], summary["round4"]
-    zh_sel = r4["agreement_paired"]["chinese_ours_minus_released_selector"]
-    en = [r4["agreement_paired"][f"english_v3_seed{seed}_minus_released"] for seed in (0, 1, 2)]
     seed_labels = ("20260908", "1", "2")
-    r4_vllm, r3_vllm = r4["vllm"], r3["vllm"]
-    r4_srv, r3_srv = r4["vllm_server_acceptance"], r3["vllm_server_acceptance"]
+    comparisons = [(f"A / seed {label}", r4["agreement_paired"][f"english_v3_seed{index}_minus_released"])
+                   for index, label in enumerate(seed_labels)]
+    comparisons.extend((
+        ("B / selector", r4["agreement_paired"]["chinese_ours_minus_released_selector"]),
+        ("B / argmax", r4["agreement_paired"]["chinese_ours_minus_released_argmax"]),
+    ))
+    headers = (["设置 / 草稿路径", "发布版 / 再训", "差值的 95% 区间", "成对提示"] if chinese else
+               ["Setting / draft path", "Released / adapted", "95% interval of difference", "Paired prompts"])
+    sections = []
+    for metric, title, places in (
+        ("first_offset_hit_rate", "#### 首位命中率" if chinese else "#### First-Offset Agreement", 3),
+        ("joint_prefix_acceptance_length", "#### 联合前缀接受长度" if chinese else "#### Joint-Prefix Acceptance Length", 2),
+    ):
+        rows = []
+        for label, comparison in comparisons:
+            entry = comparison[metric]
+            rows.append([label, f"{entry['reference']:.{places}f} / {entry['candidate']:.{places}f}",
+                         interval(entry), comparison["paired_prompts"]])
+        sections.extend([title, markdown_table(headers, rows)])
+    sections.append(
+        "每种语言请求 200 条提示；表中显示实际可成对评估数，短输出的排除项仍在记录中。A 使用 selector；B 的 argmax 行是在相同训练权重上禁用 selector 的诊断，不是单独的训练消融。五组比较、每组两项指标，共十个区间；按提示 bootstrap 2,000 次，未作多重比较修正。" if chinese else
+        "Each language requested 200 prompts; the table shows evaluable pairs, with short-output exclusions retained in the records. A uses the selector. B's argmax row disables it on the same trained weights; this is not a training ablation. Five comparisons with two metrics give ten intervals, using 2,000 prompt-level bootstrap resamples without multiplicity correction.")
+    sections.append("#### vLLM 服务测量" if chinese else "#### vLLM Serving Measurements")
+    sections.append(
+        "同一个微调目标分别配不开推测、发布版草稿、再训草稿，每条路线只执行一次；每档并发测 40 条提示，`max_tokens=256`。A 的服务测试只覆盖 seed 20260908，另两个种子未做服务测试。" if chinese else
+        "Each fine-tuned target is served without speculation, with the released drafter and with the adapted drafter, once per route. Each concurrency level measures 40 prompts with `max_tokens=256`. A's serving run covers only seed 20260908; the other two seeds were not serving-tested.")
+    serving_headers = ["指标" if chinese else "Metric", "A / en", "B / zh"]
+    rows = []
+    for concurrency in ("1", "4"):
+        cells = []
+        for setting, adapted in ((r3, "dflash_v3"), (r4, "dflash_ours")):
+            cells.append(" / ".join(f"{setting['vllm'][route]['levels'][concurrency]['tokens_per_second']:.1f}"
+                                    for route in ("baseline", "dflash_released", adapted)))
+        rows.append([("吞吐 tok/s，并发 " if chinese else "Throughput tok/s, concurrency ") + concurrency, *cells])
+    cells = []
+    for setting, adapted in ((r3, "dflash_v3"), (r4, "dflash_ours")):
+        cells.append(" / ".join(f"{setting['vllm_server_acceptance'][route]['derived_mean_acceptance_length']:.2f}"
+                                for route in ("dflash_released", adapted)))
+    rows.append(["服务端接受长度" if chinese else "Server acceptance length", *cells])
+    sections.append(markdown_table(serving_headers, rows))
+    sections.append(
+        "吞吐列依次为不开推测 / 发布版 / 再训；接受长度列为发布版 / 再训。接受长度由日志累计 accepted/drafted 推导，含预热与两档并发，不是同一个测量分母。服务性能不作显著性声明；答案质量未评分。" if chinese else
+        "Throughput cells list no speculation / released / adapted; acceptance cells list released / adapted. Acceptance is derived from cumulative logged accepted/drafted counts, including warmup and both concurrency levels, so its denominator differs. No serving-significance claim is made; answer quality was not graded.")
+    return "\n\n".join(sections)
 
-    def pct(value):
-        return f"{value:.3f}"
 
-    if chinese:
-        headers = ["测量", "边界 A：漂移小（英文，LoRA r16 仅注意力）", "边界 B：漂移大（中文，LoRA r128 全模块）"]
-        rows = [
-            ["目标微调后，官方草稿首位命中（同一份目标文本）",
-             f"{en[0]['first_offset_hit_rate']['reference']:.3f}（200 条提示中 193 条可评）",
-             f"{zh_sel['first_offset_hit_rate']['reference']:.3f}（基座目标上为 {r4['agreement']['base_zh_released']['first_offset_hit_rate']:.3f}；200 条提示）"],
-            ["再训草稿首位命中，及与官方草稿的成对差异（95% 区间）",
-             "；".join(f"种子 {seed}：{item['first_offset_hit_rate']['candidate']:.3f}（{interval(item['first_offset_hit_rate'])}）" for seed, item in zip(seed_labels, en)),
-             f"{zh_sel['first_offset_hit_rate']['candidate']:.3f}（{interval(zh_sel['first_offset_hit_rate'])}）"],
-            ["联合前缀接受长度：官方 → 再训（95% 区间）",
-             "；".join(f"种子 {seed}：{item['joint_prefix_acceptance_length']['reference']:.2f} → {item['joint_prefix_acceptance_length']['candidate']:.2f}（{interval(item['joint_prefix_acceptance_length'])}）" for seed, item in zip(seed_labels, en)),
-             f"{zh_sel['joint_prefix_acceptance_length']['reference']:.2f} → {zh_sel['joint_prefix_acceptance_length']['candidate']:.2f}（{interval(zh_sel['joint_prefix_acceptance_length'])}）；基座目标上官方草稿为 {r4['agreement']['base_zh_released']['joint_prefix_acceptance_length']:.2f}（不同文本，无区间）"],
-            ["vLLM 服务端日志累计的接受长度：官方 / 再训",
-             f"{r3_srv['dflash_released']['derived_mean_acceptance_length']:.2f} / {r3_srv['dflash_v3']['derived_mean_acceptance_length']:.2f}",
-             f"{r4_srv['dflash_released']['derived_mean_acceptance_length']:.2f} / {r4_srv['dflash_ours']['derived_mean_acceptance_length']:.2f}"],
-            ["vLLM 0.28.0 吞吐（tok/s），并发 1：不开推测 / 官方草稿 / 再训草稿",
-             f"{r3_vllm['baseline']['levels']['1']['tokens_per_second']:.1f} / {r3_vllm['dflash_released']['levels']['1']['tokens_per_second']:.1f} / {r3_vllm['dflash_v3']['levels']['1']['tokens_per_second']:.1f}",
-             f"{r4_vllm['baseline']['levels']['1']['tokens_per_second']:.1f} / {r4_vllm['dflash_released']['levels']['1']['tokens_per_second']:.1f} / {r4_vllm['dflash_ours']['levels']['1']['tokens_per_second']:.1f}"],
-            ["vLLM 0.28.0 吞吐（tok/s），并发 4：不开推测 / 官方草稿 / 再训草稿",
-             f"{r3_vllm['baseline']['levels']['4']['tokens_per_second']:.1f} / {r3_vllm['dflash_released']['levels']['4']['tokens_per_second']:.1f} / {r3_vllm['dflash_v3']['levels']['4']['tokens_per_second']:.1f}",
-             f"{r4_vllm['baseline']['levels']['4']['tokens_per_second']:.1f} / {r4_vllm['dflash_released']['levels']['4']['tokens_per_second']:.1f} / {r4_vllm['dflash_ours']['levels']['4']['tokens_per_second']:.1f}"],
-            ["判读", "再训无可测收益；官方草稿在该微调目标上已有约 3 倍服务加速。本轮未在同一批提示上测量基座目标，故不能断言官方草稿有没有受损", "官方草稿命中率低于基座目标上的水平，再训收回一部分，服务端接受长度与吞吐同向提高"],
-        ]
-        note = ("成对差异按提示做 2,000 次 bootstrap，区间不含 0 才计为方向明确；五个区间未做多重比较修正。vLLM 每条路线只执行一次，40 条中文提示或 40 条英文提示，"
-                "`max_tokens=256`，无显著性声明；服务端接受长度由日志累计的 accepted/drafted 推导，覆盖含预热的全部请求。答案质量未评分。")
-    else:
-        headers = ["Measurement", "Regime A: small drift (English, LoRA r16 attention-only)", "Regime B: large drift (Chinese, LoRA r128 all modules)"]
-        rows = [
-            ["Released drafter first-offset hit rate on the fine-tuned target (same target text)",
-             f"{en[0]['first_offset_hit_rate']['reference']:.3f} (193 of 200 prompts evaluable)",
-             f"{zh_sel['first_offset_hit_rate']['reference']:.3f} (was {r4['agreement']['base_zh_released']['first_offset_hit_rate']:.3f} on the base target; 200 prompts)"],
-            ["Adapted drafter first-offset hit rate, paired difference vs released (95% interval)",
-             "; ".join(f"seed {seed}: {item['first_offset_hit_rate']['candidate']:.3f} ({interval(item['first_offset_hit_rate'])})" for seed, item in zip(seed_labels, en)),
-             f"{zh_sel['first_offset_hit_rate']['candidate']:.3f} ({interval(zh_sel['first_offset_hit_rate'])})"],
-            ["Joint-prefix acceptance length: released → adapted (95% interval)",
-             "; ".join(f"seed {seed}: {item['joint_prefix_acceptance_length']['reference']:.2f} → {item['joint_prefix_acceptance_length']['candidate']:.2f} ({interval(item['joint_prefix_acceptance_length'])})" for seed, item in zip(seed_labels, en)),
-             f"{zh_sel['joint_prefix_acceptance_length']['reference']:.2f} → {zh_sel['joint_prefix_acceptance_length']['candidate']:.2f} ({interval(zh_sel['joint_prefix_acceptance_length'])}); released drafter on the base target: {r4['agreement']['base_zh_released']['joint_prefix_acceptance_length']:.2f} (different text, no interval)"],
-            ["vLLM server-logged acceptance length: released / adapted",
-             f"{r3_srv['dflash_released']['derived_mean_acceptance_length']:.2f} / {r3_srv['dflash_v3']['derived_mean_acceptance_length']:.2f}",
-             f"{r4_srv['dflash_released']['derived_mean_acceptance_length']:.2f} / {r4_srv['dflash_ours']['derived_mean_acceptance_length']:.2f}"],
-            ["vLLM 0.28.0 throughput (tok/s), concurrency 1: no speculation / released / adapted",
-             f"{r3_vllm['baseline']['levels']['1']['tokens_per_second']:.1f} / {r3_vllm['dflash_released']['levels']['1']['tokens_per_second']:.1f} / {r3_vllm['dflash_v3']['levels']['1']['tokens_per_second']:.1f}",
-             f"{r4_vllm['baseline']['levels']['1']['tokens_per_second']:.1f} / {r4_vllm['dflash_released']['levels']['1']['tokens_per_second']:.1f} / {r4_vllm['dflash_ours']['levels']['1']['tokens_per_second']:.1f}"],
-            ["vLLM 0.28.0 throughput (tok/s), concurrency 4: no speculation / released / adapted",
-             f"{r3_vllm['baseline']['levels']['4']['tokens_per_second']:.1f} / {r3_vllm['dflash_released']['levels']['4']['tokens_per_second']:.1f} / {r3_vllm['dflash_v3']['levels']['4']['tokens_per_second']:.1f}",
-             f"{r4_vllm['baseline']['levels']['4']['tokens_per_second']:.1f} / {r4_vllm['dflash_released']['levels']['4']['tokens_per_second']:.1f} / {r4_vllm['dflash_ours']['levels']['4']['tokens_per_second']:.1f}"],
-            ["Reading", "Adaptation shows no measurable gain; the released drafter already serves this fine-tuned target at about 3×. No base-target measurement exists on these prompts, so whether the released drafter lost anything is not established", "Released drafter hit rate is below its base-target level; adaptation recovers part of it, and server-side acceptance and throughput rise together"],
-        ]
-        note = ("Paired differences use a 2,000-resample prompt-level bootstrap; a direction is claimed only when the interval excludes 0; the five intervals carry no multiple-comparison correction. "
-                "Each vLLM route ran once on 40 Chinese or 40 English prompts with `max_tokens=256`; no significance claim. Server-logged acceptance length is derived from the server's cumulative accepted/drafted counts and covers every request including warmup. Answer quality was not graded.")
-    return markdown_table(headers, rows) + "\n\n" + note
+def training_loss_table(summary, chinese):
+    headers = (["训练运行", "步数 / 窗口", "Backbone loss：首 / 尾", "Selector loss：首 / 尾"] if chinese else
+               ["Training run", "Steps / window", "Backbone loss: first / last", "Selector loss: first / last"])
+    rows = []
+    for name, entry in summary["training"].items():
+        language = ("中文" if chinese else "Chinese") if name.startswith("chinese") else ("英文" if chinese else "English")
+        label = f"{language} seed {entry['args']['seed']}"
+        link = f"experiments/20260909-drafter-adaptation/{entry['history_path']}"
+        rows.append([f"[{label}]({link})", f"{entry['steps']} / {entry['window_steps']}",
+                     f"{entry['backbone_loss_first_window']:.4f} / {entry['backbone_loss_last_window']:.4f}",
+                     f"{entry['selector_loss_first_window']:.4f} / {entry['selector_loss_last_window']:.4f}"])
+    return markdown_table(headers, rows)
 
 
 def generated_block(text, key, body, *, refresh):
@@ -117,6 +116,29 @@ def generated_block(text, key, body, *, refresh):
     if not refresh:
         require(old == expected, "REPORT_DATA_DRIFT:" + key)
     return before + start + expected + end + after
+
+
+def loss_source_excerpts(text, source, chinese, *, refresh):
+    heading = "### 损失函数与 selector" if chinese else "### Loss Functions and the Selector"
+    require(text.count(heading) == 1, "LOSS_DOCUMENTATION_MISSING")
+    before, section = text.split(heading)
+    section, separator, after = section.partition("\n### ")
+    lines = source.splitlines()
+    excerpts = []
+    for first, last in (("    per_token = ", "    return backbone, selector"),
+                        ("        pairwise = ", "        scores = ")):
+        start = next(index for index, line in enumerate(lines) if line.startswith(first))
+        end = next(index for index in range(start, len(lines)) if lines[index].startswith(last))
+        excerpts.append("\n".join(lines[start:end + 1]) + "\n")
+    pattern = r"^```python\n(.*?)^```"
+    existing = re.findall(pattern, section, re.S | re.M)
+    require(len(existing) == len(excerpts), "LOSS_SOURCE_EXCERPT_MISSING")
+    if refresh:
+        expected = iter(excerpts)
+        section = re.sub(pattern, lambda match: "```python\n" + next(expected) + "```", section, flags=re.S | re.M)
+    else:
+        require(existing == excerpts, "LOSS_SOURCE_EXCERPT_DRIFT")
+    return before + heading + section + separator + after
 
 
 def published_files(root):
@@ -155,7 +177,35 @@ def verify_provenance(root):
             require((root / "inputs" / round_name / public).is_file(), "PROVENANCE_INPUT_MISSING:" + public)
         for public, entry in record["artifacts"].items():
             require(entry["published"] is False and len(entry["sha256"]) == 64, "ARTIFACT_PROVENANCE_INCOMPLETE:" + public)
-    for text_path in root.rglob("*.json"):
+        for name, entry in record["logs"].items():
+            path = root / "logs" / round_name / (name + ".log")
+            require(entry.get("published") and path.is_file(), "PUBLISHED_LOG_MISSING:" + name)
+            require(digest_file(path) == entry["published_sha256"], "PUBLISHED_LOG_HASH_MISMATCH:" + name)
+            require(len(path.read_text(encoding="utf-8").splitlines()) == len(entry["source_line_numbers"]),
+                    "PUBLISHED_LOG_LINE_COUNT_MISMATCH:" + name)
+    history = read_json(root / "results/round4/training/drafter_zh_history.json")
+    logged_steps = []
+    for line in (root / "logs/round4/round4.log").read_text(encoding="utf-8").splitlines():
+        if not line.startswith("{"):
+            continue
+        item = json.loads(line)
+        if "loss_50" not in item:
+            continue
+        step = item["step"]
+        require(50 <= step <= len(history["history"]) and step % 50 == 0, "TRAINING_LOG_STEP_INVALID")
+        for field, logged in (("history", "loss_50"), ("selector_history", "selector_loss_50")):
+            expected = round(sum(history[field][step - 50:step]) / 50, 4)
+            require(item[logged] == expected, "TRAINING_LOG_WINDOW_MISMATCH:" + field)
+        logged_steps.append(step)
+    require(logged_steps == list(range(50, len(history["history"]) + 1, 50)), "TRAINING_LOG_STEPS_MISSING")
+    figures = read_json(root / "images/loss-figures.json")
+    for name, checksum in figures["sources"].items():
+        require(digest_file(root / name) == checksum, "TRAINING_FIGURE_SOURCE_MISMATCH:" + name)
+    for name, entry in figures["figures"].items():
+        require(digest_file(root / "images" / name) == entry["sha256"], "TRAINING_FIGURE_HASH_MISMATCH:" + name)
+    for text_path in root.rglob("*"):
+        if not text_path.is_file() or text_path.suffix not in {".json", ".jsonl", ".log"}:
+            continue
         if set(text_path.relative_to(root).parts) & IGNORED_PARTS:
             continue
         text = text_path.read_text(encoding="utf-8")
@@ -174,6 +224,9 @@ def validate(root=ROOT, *, refresh=False):
         path = topic_dir(root) / filename
         text = path.read_text(encoding="utf-8")
         text = generated_block(text, BLOCK, adaptation_table(summary, chinese), refresh=refresh)
+        text = generated_block(text, "TRAINING_LOSS", training_loss_table(summary, chinese), refresh=refresh)
+        source = (root / "source/round4/train_drafter.py").read_text(encoding="utf-8")
+        text = loss_source_excerpts(text, source, chinese, refresh=refresh)
         if refresh:
             path.write_text(text, encoding="utf-8")
         require(f"python experiments/{root.name}/validate_report.py" in text, "REPLAY_ENTRY_MISSING:" + filename)
@@ -184,6 +237,7 @@ def validate(root=ROOT, *, refresh=False):
         ("summary-recomputed-from-per-request-records", ["results/", "data/summary.json"]),
         ("paired-bootstrap-only-on-identical-target-text", ["results/round4/agreement/", "results/round3/agreement/"]),
         ("published-prompts-hash-to-recorded-inputs", ["inputs/", "results/round4/acceptance/", "results/round3/acceptance/"]),
+        ("training-history-and-readable-log-integrity", ["results/round3/training/", "results/round4/training/", "logs/"]),
         ("provenance-hashes-and-private-marker-scan", ["evidence/provenance.json"]),
         ("generated-bilingual-adaptation-table", ["../../README.md", "../../README_CN.md"]),
         ("published-file-integrity", [MANIFEST]),

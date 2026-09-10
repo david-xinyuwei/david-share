@@ -1,6 +1,7 @@
 """Reject drift in the public report, event lineage and evidence inventory."""
 
 import copy
+from collections import Counter
 import json
 from pathlib import Path
 import re
@@ -250,7 +251,7 @@ class ReportIntegrityTests(unittest.TestCase):
 
     def test_page_anchor_conflicts_are_rejected(self):
         with self.subTest(case="duplicate heading"):
-            original = self.rewrite_readme(lambda text: text.replace("\n## Client Latency\n", "\n## Test Method\n", 1))
+            original = self.rewrite_readme(lambda text: text.replace("\n### Client Latency\n", "\n### Test Method\n", 1))
             with self.assertRaisesRegex(ValueError, "DUPLICATE_PAGE_ANCHOR:test-method"):
                 validate_report.verify_local_links(self.root)
             self.readme.write_text(original, encoding="utf-8")
@@ -290,6 +291,8 @@ class ReportIntegrityTests(unittest.TestCase):
         heading = "启动与调用" if filename == "README_CN.md" else "How to Run"
         self.assertEqual(text.count(f"\n## {heading}\n"), 1)
         section = text.split(f"\n## {heading}\n", 1)[1].split("\n## ", 1)[0]
+        adaptation = "复现再适配" if filename == "README_CN.md" else "Reproducing the Adaptation"
+        section = section.split(f"\n### {adaptation}\n", 1)[0]
         blocks = re.findall(r"```bash\n(.*?)\n```", section, re.S)
         self.assertEqual(len(blocks), 6)
         self.assertIn(f"experiments/{self.root.name}/evidence/request-examples.json", blocks[-1])
@@ -364,6 +367,46 @@ class ReportIntegrityTests(unittest.TestCase):
         self.mutate_json(validate_report.RULES, lambda value: value["checks"].append(copy.deepcopy(value["checks"][0])))
         with self.assertRaisesRegex(ValueError, "VALIDATION_RECORD_DRIFT"):
             validate_report.validate(self.root)
+
+
+class ReaderLayoutTests(unittest.TestCase):
+    def test_actual_input_is_visible_before_results(self):
+        validate_report.verify_local_links(ROOT)
+        samples = validate_report.read_json(ROOT / "evidence/request-examples.json")
+        sample = next(record for record in samples if record["dataset"] == "humaneval_plus")
+        example = next(line.strip() for line in sample["request"]["messages"][0]["content"].splitlines()
+                       if line.strip().startswith("search("))
+        for filename, chinese in validate_report.READMES.items():
+            text = (TOPIC / filename).read_text(encoding="utf-8")
+            section = text.split("## " + validate_report.reader_titles(chinese)[3] + "\n", 1)[1]
+            self.assertIn(example, section.split("\n|", 1)[0])
+
+    def test_reorganization_is_idempotent_and_preserves_code_and_images(self):
+        for filename, chinese in validate_report.READMES.items():
+            original = (TOPIC / filename).read_text(encoding="utf-8")
+            arranged = validate_report.arrange_report(original, chinese)
+            self.assertEqual(arranged, validate_report.arrange_report(arranged, chinese))
+            for pattern in (r"^```[^\n]*\n.*?^```", r"!\[[^\]]*\]\([^)]+\)"):
+                self.assertEqual(Counter(re.findall(pattern, original, re.M | re.S)),
+                                 Counter(re.findall(pattern, arranged, re.M | re.S)))
+            validate_report.verify_reader_workflows(arranged, chinese)
+
+    def test_client_cannot_be_appended_to_blocking_server(self):
+        text = validate_report.arrange_report((TOPIC / "README.md").read_text(), False)
+        text = text.replace("export ROUTE=baseline", "export ROUTE=baseline\npython -m vllm.entrypoints.openai.api_server")
+        with self.assertRaisesRegex(ValueError, "SERVER_CLIENT_IN_SAME_BLOCK"):
+            validate_report.verify_reader_workflows(text, False)
+
+    def test_selector_training_command_cannot_disappear(self):
+        text = validate_report.arrange_report((TOPIC / "README.md").read_text(), False)
+        with self.assertRaisesRegex(ValueError, "ADAPTATION_COMMAND_MISSING:--train-selector"):
+            validate_report.verify_reader_workflows(text.replace("--train-selector", ""), False)
+
+    def test_reader_order_cannot_regress(self):
+        text = validate_report.arrange_report((TOPIC / "README.md").read_text(), False)
+        text = text.replace("## How to Run", "## Undocumented Workflow", 1)
+        with self.assertRaisesRegex(ValueError, "READER_SECTION_ORDER"):
+            validate_report.verify_reader_workflows(text, False)
 
 
 if __name__ == "__main__":

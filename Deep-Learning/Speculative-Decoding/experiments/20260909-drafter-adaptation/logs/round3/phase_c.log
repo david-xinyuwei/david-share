@@ -1,0 +1,16 @@
+===== C0_FREE_DISK 2026-09-09T08:21:46Z =====
+===== C1_INSTALL_VLLM 2026-09-09T08:21:49Z =====
+===== C2_VLLM_BASELINE 2026-09-09T08:24:38Z =====
+VLLM_CLIENT_BENCH=PASS
+===== C3_VLLM_DFLASH_RELEASED 2026-09-09T08:28:57Z =====
+(APIServer pid=49113) INFO 09-09 08:29:11 [model.py:672] Resolved architecture: DFlash2DraftModel
+VLLM_CLIENT_BENCH=PASS
+(APIServer pid=49113) INFO 09-09 08:31:15 [metrics.py:120] SpecDecoding metrics: Mean acceptance length: 4.21, Accepted throughput: 125.60 tokens/s, Drafted throughput: 273.69 tokens/s, Accepted: 1256 tokens, Drafted: 2737 tokens, Per-position acceptance rate: 0.854, 0.696, 0.537, 0.409, 0.317, 0.228, 0.171, Avg Draft acceptance rate: 45.9%
+(APIServer pid=49113) INFO 09-09 08:31:25 [metrics.py:120] SpecDecoding metrics: Mean acceptance length: 4.12, Accepted throughput: 301.88 tokens/s, Drafted throughput: 676.85 tokens/s, Accepted: 3019 tokens, Drafted: 6769 tokens, Per-position acceptance rate: 0.834, 0.666, 0.497, 0.389, 0.304, 0.242, 0.190, Avg Draft acceptance rate: 44.6%
+===== C4_VLLM_DFLASH_V3 2026-09-09T08:31:32Z =====
+(APIServer pid=50121) INFO 09-09 08:31:38 [model.py:672] Resolved architecture: DFlash2DraftModel
+VLLM_CLIENT_BENCH=PASS
+(APIServer pid=50121) INFO 09-09 08:33:42 [metrics.py:120] SpecDecoding metrics: Mean acceptance length: 4.20, Accepted throughput: 124.30 tokens/s, Drafted throughput: 271.60 tokens/s, Accepted: 1243 tokens, Drafted: 2716 tokens, Per-position acceptance rate: 0.835, 0.680, 0.528, 0.418, 0.302, 0.242, 0.198, Avg Draft acceptance rate: 45.8%
+(APIServer pid=50121) INFO 09-09 08:33:52 [metrics.py:120] SpecDecoding metrics: Mean acceptance length: 3.97, Accepted throughput: 206.99 tokens/s, Drafted throughput: 488.58 tokens/s, Accepted: 2070 tokens, Drafted: 4886 tokens, Per-position acceptance rate: 0.812, 0.623, 0.487, 0.378, 0.291, 0.215, 0.159, Avg Draft acceptance rate: 42.4%
+===== C5_COLLECT 2026-09-09T08:34:02Z =====
+===== ROUND3_COMPLETE 2026-09-09T08:36:06Z =====

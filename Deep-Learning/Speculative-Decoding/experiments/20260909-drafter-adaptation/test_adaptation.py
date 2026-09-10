@@ -8,6 +8,7 @@ import tempfile
 import unittest
 
 import analyze_results
+import export_evidence
 import validate_report
 
 
@@ -112,6 +113,25 @@ class AdaptationEvidenceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "INPUT_HASH_MISMATCH:eval_prompts_zh200.jsonl"):
             analyze_results.summarize(self.root)
 
+    def test_tampered_training_history_is_rejected(self):
+        self.mutate_json("results/round4/training/drafter_zh_history.json",
+                         lambda value: value["history"].__setitem__(0, 999.0))
+        with self.assertRaisesRegex(ValueError, "TRAINING_HISTORY_HASH_MISMATCH"):
+            analyze_results.training_summary(self.root, validate_report.read_json(self.root / "evidence/provenance.json"))
+
+    def test_tampered_public_log_is_rejected(self):
+        path = self.root / "logs/round4/round4.log"
+        path.write_bytes(path.read_bytes() + b"TRAIN=PASS\n")
+        with self.assertRaisesRegex(ValueError, "PUBLISHED_LOG_HASH_MISMATCH"):
+            validate_report.verify_provenance(self.root)
+
+    def test_modified_loss_excerpt_is_rejected(self):
+        path = self.topic / "README.md"
+        text = path.read_text(encoding="utf-8")
+        path.write_text(text.replace("hidden.detach(), logits.detach()", "hidden, logits", 1), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "LOSS_SOURCE_EXCERPT_DRIFT"):
+            validate_report.validate(self.root)
+
     def test_server_acceptance_is_derived_from_logged_totals(self):
         summary = json.loads((self.root / "data/summary.json").read_text(encoding="utf-8"))
         for round_name in ("round3", "round4"):
@@ -144,6 +164,46 @@ class AdaptationEvidenceTests(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertEqual(first["status"], "PAIRED")
         self.assertEqual(first["first_offset_hit_rate"]["interpretation"], "positive")
+
+
+class TrainingExportTests(unittest.TestCase):
+    def test_training_windows_are_recomputed(self):
+        training = {"history": list(range(20)), "selector_history": [0.5] * 20, "args": {"gamma": "7.0"}}
+        measured = analyze_results.training_statistics(training)
+        self.assertEqual(measured["window_steps"], 2)
+        self.assertEqual(measured["backbone_loss_first_window"], 0.5)
+        self.assertEqual(measured["backbone_loss_last_window"], 18.5)
+        self.assertEqual(measured["selector_loss_last_window"], 0.5)
+        training["selector_history"].pop()
+        with self.assertRaisesRegex(ValueError, "TRAINING_HISTORY_LENGTH_MISMATCH"):
+            analyze_results.training_statistics(training)
+
+    def test_target_loss_text_is_preserved(self):
+        text = "step 10/120 loss 2.5000 lr 1.00e-04 gpu 60.1G elapsed 40s"
+        projected, positions = export_evidence.project_log(text, ())
+        self.assertEqual(projected, text + "\n")
+        self.assertEqual(positions, [1])
+
+    def test_loss_values_and_failed_verdict_survive_log_projection(self):
+        text = '\n'.join((
+            'private startup at /home/operator/run',
+            '{"step": 50, "loss_50": 3.4566, "selector_loss_50": 1.4103, "lr": 0.00004}',
+            "{'loss': 0.75, 'epoch': 1.0}",
+            '{"checks": {"checkpoint_reloads": false}, "adapter": "/home/operator/model"}',
+            'TRAIN=FAIL',
+        ))
+        projected, positions = export_evidence.project_log(text, ())
+        self.assertEqual(positions, [2, 3, 4, 5])
+        records = projected.splitlines()
+        self.assertEqual(json.loads(records[0])["selector_loss_50"], 1.4103)
+        self.assertEqual(json.loads(records[1])["loss"], 0.75)
+        self.assertFalse(json.loads(records[2])["checks"]["checkpoint_reloads"])
+        self.assertEqual(records[-1], "TRAIN=FAIL")
+        self.assertNotIn("/home/", projected)
+
+    def test_private_metric_record_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "PRIVATE_IDENTIFIER_IN_LOG_RECORD"):
+            export_evidence.project_log('{"loss": 1.0, "note": "private-workload"}', ("private-workload",))
 
 
 if __name__ == "__main__":

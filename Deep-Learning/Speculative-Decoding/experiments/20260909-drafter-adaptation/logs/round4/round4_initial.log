@@ -1,0 +1,34 @@
+===== S0_SETUP 2026-09-09T15:54:57Z =====
+===== S1_DATA en(eval200) + zh(train2000,eval200) 2026-09-09T15:58:19Z =====
+===== Z1_FINETUNE_ZH r128 all-modules lr1e-4 2ep 2026-09-09T15:58:28Z =====
+step 20/500 loss 1.5656 lr 1.00e-04 gpu 62.5G elapsed 323s
+step 40/500 loss 1.4139 lr 9.94e-05 gpu 62.5G elapsed 642s
+step 60/500 loss 1.4503 lr 9.80e-05 gpu 62.5G elapsed 953s
+step 80/500 loss 1.3624 lr 9.57e-05 gpu 62.5G elapsed 1263s
+step 100/500 loss 1.3605 lr 9.28e-05 gpu 62.5G elapsed 1565s
+step 120/500 loss 1.4031 lr 8.90e-05 gpu 62.5G elapsed 1868s
+step 140/500 loss 1.4103 lr 8.47e-05 gpu 62.5G elapsed 2167s
+step 160/500 loss 1.3493 lr 7.97e-05 gpu 62.5G elapsed 2466s
+step 180/500 loss 1.3668 lr 7.42e-05 gpu 62.5G elapsed 2769s
+step 200/500 loss 1.4247 lr 6.84e-05 gpu 62.5G elapsed 3073s
+step 220/500 loss 1.3619 lr 6.22e-05 gpu 62.5G elapsed 3377s
+step 240/500 loss 1.4046 lr 5.58e-05 gpu 62.5G elapsed 3681s
+step 260/500 loss 1.0562 lr 4.94e-05 gpu 62.5G elapsed 3982s
+step 280/500 loss 1.0191 lr 4.29e-05 gpu 62.5G elapsed 4284s
+step 300/500 loss 0.9883 lr 3.65e-05 gpu 62.5G elapsed 4582s
+step 320/500 loss 0.9942 lr 3.04e-05 gpu 62.5G elapsed 4878s
+step 340/500 loss 0.9393 lr 2.46e-05 gpu 62.5G elapsed 5175s
+step 360/500 loss 0.9747 lr 1.93e-05 gpu 62.5G elapsed 5476s
+step 380/500 loss 0.9862 lr 1.44e-05 gpu 62.5G elapsed 5775s
+step 400/500 loss 0.9189 lr 1.02e-05 gpu 62.5G elapsed 6072s
+step 420/500 loss 0.9480 lr 6.59e-06 gpu 62.5G elapsed 6371s
+step 440/500 loss 1.0249 lr 3.74e-06 gpu 62.5G elapsed 6670s
+step 460/500 loss 0.9704 lr 1.68e-06 gpu 62.5G elapsed 6968s
+step 480/500 loss 0.8652 lr 4.21e-07 gpu 62.5G elapsed 7262s
+step 500/500 loss 0.9535 lr 0.00e+00 gpu 62.5G elapsed 7560s
+FINETUNE_TARGET=PASS
+ADOPTED_TRAIN_EXIT_CODE=0
+===== Z2_GATE_ZH 2026-09-09T18:04:42Z =====
+DEGENERATION_GATE=FAIL
+===== ROUND4_STOPPED zh_gate_failed 2026-09-09T18:09:48Z =====
+===== ROUND4_EXIT code=0 utc=2026-09-09T18:09:48Z =====

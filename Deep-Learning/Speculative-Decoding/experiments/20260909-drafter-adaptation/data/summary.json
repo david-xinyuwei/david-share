@@ -912,5 +912,107 @@
     }
   },
   "scope": "Continuation training of the released DFlash 2 drafter against LoRA-fine-tuned Qwen3.8-27B targets. Not training from scratch. Two drift regimes.",
-  "statistics_boundary": "PAIRED agreement comparisons share byte-identical target text and use a prompt-level bootstrap. Acceptance and vLLM figures are single executions on different generated texts; no significance claim."
+  "statistics_boundary": "PAIRED agreement comparisons share byte-identical target text and use a prompt-level bootstrap. Acceptance and vLLM figures are single executions on different generated texts; no significance claim.",
+  "training": {
+    "chinese_seed20260908": {
+      "args": {
+        "anchors_per_sequence": "8",
+        "block": "8",
+        "drafter_dtype": "float32",
+        "epochs": "2",
+        "gamma": "7.0",
+        "limit": "1200",
+        "lr": "0.0001",
+        "max_length": "1024",
+        "seed": "20260908",
+        "selector_weight": "1.0",
+        "train_selector": "True",
+        "warmup_fraction": "0.05",
+        "weight_decay": "0.0"
+      },
+      "backbone_loss_first_window": 3.2205,
+      "backbone_loss_last_window": 2.2704,
+      "history_path": "results/round4/training/drafter_zh_history.json",
+      "history_sha256": "dbd2265502609c5ecb0abfe4fc70007354f54b7e8c267c5bff8f3599bd4893e6",
+      "selector_loss_first_window": 1.4236,
+      "selector_loss_last_window": 1.0523,
+      "steps": 2398,
+      "window_steps": 239
+    },
+    "english_seed1": {
+      "args": {
+        "anchors_per_sequence": "8",
+        "block": "8",
+        "drafter_dtype": "float32",
+        "epochs": "2",
+        "gamma": "7.0",
+        "limit": "1200",
+        "lr": "0.0001",
+        "max_length": "1024",
+        "seed": "1",
+        "selector_weight": "1.0",
+        "train_selector": "True",
+        "warmup_fraction": "0.05",
+        "weight_decay": "0.0"
+      },
+      "backbone_loss_first_window": 2.0318,
+      "backbone_loss_last_window": 1.5081,
+      "history_path": "results/round4/training/drafter_v3_seed1_history.json",
+      "history_sha256": "106ba669cc9df5516e16caee8526eda464b6d96087e38704c05cd5392063cb7f",
+      "selector_loss_first_window": 0.8103,
+      "selector_loss_last_window": 0.5854,
+      "steps": 2320,
+      "window_steps": 232
+    },
+    "english_seed2": {
+      "args": {
+        "anchors_per_sequence": "8",
+        "block": "8",
+        "drafter_dtype": "float32",
+        "epochs": "2",
+        "gamma": "7.0",
+        "limit": "1200",
+        "lr": "0.0001",
+        "max_length": "1024",
+        "seed": "2",
+        "selector_weight": "1.0",
+        "train_selector": "True",
+        "warmup_fraction": "0.05",
+        "weight_decay": "0.0"
+      },
+      "backbone_loss_first_window": 2.0126,
+      "backbone_loss_last_window": 1.5282,
+      "history_path": "results/round4/training/drafter_v3_seed2_history.json",
+      "history_sha256": "a80cb3e74737f9d5926d7fd8a35d9d6880321d971bee14f20020e811153e948c",
+      "selector_loss_first_window": 0.7989,
+      "selector_loss_last_window": 0.6043,
+      "steps": 2320,
+      "window_steps": 232
+    },
+    "english_seed20260908": {
+      "args": {
+        "anchors_per_sequence": "8",
+        "block": "8",
+        "drafter_dtype": "float32",
+        "epochs": "2",
+        "gamma": "7.0",
+        "limit": "1200",
+        "lr": "0.0001",
+        "max_length": "1024",
+        "seed": "20260908",
+        "selector_weight": "1.0",
+        "train_selector": "True",
+        "warmup_fraction": "0.05",
+        "weight_decay": "0.0"
+      },
+      "backbone_loss_first_window": 2.0278,
+      "backbone_loss_last_window": 1.5448,
+      "history_path": "results/round3/training/drafter_v3_history.json",
+      "history_sha256": "42dd79c19b0ff1534df40cc50c874247a0261a01a06dc22108facbf05c924636",
+      "selector_loss_first_window": 0.8209,
+      "selector_loss_last_window": 0.6064,
+      "steps": 2320,
+      "window_steps": 232
+    }
+  }
 }

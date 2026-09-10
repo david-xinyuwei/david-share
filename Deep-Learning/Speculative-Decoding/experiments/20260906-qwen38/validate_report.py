@@ -48,6 +48,90 @@ def has_heading(text, heading):
     return re.search("^" + re.escape(heading) + r"\s*$", text, re.M) is not None
 
 
+def shift_headings(text):
+    fenced = False
+    lines = []
+    for line in text.splitlines():
+        if line.startswith("```"):
+            fenced = not fenced
+        if not fenced and re.match(r"^#{1,5} ", line):
+            line = "#" + line
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def reader_titles(chinese):
+    return (["从这里开始", "你能用它做什么", "架构与测试流程", "推理对比：MTP 与 DFlash 2",
+             "微调目标后的草稿模型再适配", "启动与调用", "测试与离线复算", "适用范围与微调模型",
+             "上一轮实验：Qwen3.6-27B 与首代 DFlash（2026-09-05）", "仓库目录", "官方资料"] if chinese else
+            ["Start Here", "What You Can Do With This Repository", "Architecture and Test Flow",
+             "Inference Comparison: MTP and DFlash 2", "Adapting the Drafter to a Fine-Tuned Target",
+             "How to Run", "Tests and Offline Replay", "Applicability and Fine-Tuned Models",
+             "Previous Experiment: Qwen3.6-27B and First-Generation DFlash (2026-09-05)",
+             "Repository Layout", "Official Sources"])
+
+
+def arrange_report(text, chinese):
+    titles = reader_titles(chinese)
+    if has_heading(text, "## " + titles[3]):
+        return text
+    text = re.sub(r'(<a id="[^"]+"></a>)\n\n(## [^\n]+)', r'\2\n\n\1', text)
+    parts = re.split(r"(?=^## )", text, flags=re.M)
+    sections = {part.splitlines()[0][3:]: part.rstrip() for part in parts[1:]}
+    source_titles = (["本次实测说明了什么", "测试方法", "吞吐与答案质量", "客户端延迟", "测试覆盖与未执行项"] if chinese else
+                     ["What the Current Run Shows", "Test Method", "Throughput and Answer Quality",
+                      "Client Latency", "Coverage and Unexecuted Work"])
+    mechanism = "MTP 和 DFlash 差在哪里" if chinese else "How MTP and DFlash Differ"
+    scope = "结论适用到哪里" if chinese else "Scope of the Conclusion"
+    evidence = "证据与代码" if chinese else "Evidence and Code"
+    expected = set(titles) - {titles[3]} | set(source_titles) | {mechanism, scope, evidence}
+    require(set(sections) == expected, "UNMAPPED_READER_SECTION")
+    adaptation = sections[titles[4]]
+    scratch_heading = "### 从零训练需要什么" if chinese else "### What Training From Scratch Would Take"
+    reproduction_heading = "### 复现再适配" if chinese else "### Reproducing the Adaptation"
+    before, separator, remainder = adaptation.partition(scratch_heading)
+    require(bool(separator), "FROM_SCRATCH_SECTION_MISSING")
+    scratch, separator, reproduction = remainder.partition(reproduction_heading)
+    require(bool(separator), "ADAPTATION_REPRODUCTION_MISSING")
+    sections[titles[4]] = before.rstrip()
+    sections[titles[3]] = "## " + titles[3] + "\n\n" + "\n\n".join(
+        shift_headings(sections.pop(title)) for title in source_titles)
+    run_header, run_body = sections[titles[5]].split("\n", 1)
+    inference_heading = "### 推理服务与请求" if chinese else "### Inference Serving and Requests"
+    sections[titles[5]] = (run_header + "\n\n" + inference_heading + "\n" + shift_headings(run_body)
+                          + "\n\n" + reproduction_heading + reproduction)
+    sections[titles[7]] += ("\n\n" + shift_headings(sections.pop(mechanism)) + "\n\n"
+                           + shift_headings(sections.pop(scope)) + "\n\n" + scratch_heading + scratch)
+    sections[titles[9]] += "\n\n" + shift_headings(sections.pop(evidence))
+    return parts[0].rstrip() + "\n\n" + "\n\n".join(sections[title].rstrip() for title in titles) + "\n"
+
+
+def verify_reader_workflows(text, chinese):
+    body = re.sub(r"```.*?```", "", text, flags=re.S)
+    require(re.findall(r"^## (.+?)\s*$", body, re.M) == reader_titles(chinese), "READER_SECTION_ORDER")
+    introduction = text.split("\n## ", 1)[0]
+    require("selector" in introduction and ("继续训练" if chinese else "continued training") in introduction,
+            "TRAINING_VALUE_MISSING_FROM_OPENING")
+    heading = "### 复现再适配" if chinese else "### Reproducing the Adaptation"
+    require(text.count(heading) == 1, "ADAPTATION_REPRODUCTION_MISSING")
+    section = re.split(r"^## ", text.split(heading, 1)[1], maxsplit=1, flags=re.M)[0]
+    require(re.findall(r"^#### (\d+)\.", section, re.M) == [str(number) for number in range(1, 11)],
+            "ADAPTATION_STEPS_NOT_SEPARATE")
+    blocks = re.findall(r"^```bash\n(.*?)^```", section, re.S | re.M)
+    for block in blocks:
+        require(not ("vllm.entrypoints.openai.api_server" in block and "vllm_client_bench.py" in block),
+                "SERVER_CLIENT_IN_SAME_BLOCK")
+    require(sum("vllm.entrypoints.openai.api_server" in block for block in blocks) == 3,
+            "ADAPTATION_SERVER_ROUTE_MISSING")
+    commands = "\n".join(blocks)
+    for token in ("--train-selector", "--selector-weight 1.0", "--gamma 7", "--seed 20260908",
+                  "--max-new-tokens 256", "--warmup 2", "--concurrency 1 4"):
+        require(token in commands, "ADAPTATION_COMMAND_MISSING:" + token)
+    for retired in ("|| true", "shutil.move", "<clone>"):
+        require(retired not in commands, "UNSAFE_ADAPTATION_COMMAND:" + retired)
+    return blocks
+
+
 def verify_page_anchors(text):
     body = re.sub(r"```.*?```", "", text, flags=re.S)
     headings = [heading_anchor(re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", title))
@@ -106,7 +190,7 @@ def result_table(summary, chinese):
         else:
             sections.extend(["Normal-stop-correct counts are shown separately and must not be replaced by raw-correct counts:", markdown_table(accuracy_header, normal_accuracy)])
         sections.append("### Length Stops Across the Three Runs\n\n" + markdown_table(truncation_header, truncation) + "\n\nLength-stopped responses remain in each 32-task denominator.")
-    return "\n\n".join(sections)
+    return shift_headings("\n\n".join(sections))
 
 
 def latency_table(groups, summary, chinese):
@@ -144,7 +228,7 @@ def latency_table(groups, summary, chinese):
     else:
         count_headers = ["路线 / 并发", "指标", "有效", "缺失"] if chinese else ["Route / concurrency", "Metric", "Valid", "Missing"]
         note = markdown_table(count_headers, observations)
-    return "\n\n".join([*sections, note])
+    return shift_headings("\n\n".join([*sections, note]))
 
 
 def counterexample(groups, chinese):
@@ -214,6 +298,7 @@ def verify_local_links(root):
     topic = topic_dir(root).resolve()
     experiment = f"experiments/{root.name}/"
     documented = set()
+    workflows = []
     for filename, chinese in READMES.items():
         text = (topic / filename).read_text(encoding="utf-8")
         for link in re.findall(r"!?\[[^\]]*\]\(([^)]+)\)", text):
@@ -244,8 +329,16 @@ def verify_local_links(root):
         require(has_heading(text, "## 测试与离线复算" if chinese else "## Tests and Offline Replay"), "TEST_DOCUMENTATION_MISSING:" + filename)
         flow = f"]({experiment}images/test-flow-{'cn' if chinese else 'en'}.png)"
         require(flow in text and (root / f"images/test-flow-{'cn' if chinese else 'en'}.png").is_file(), "TEST_FLOW_MISSING:" + filename)
-        require(has_heading(text, "### 各阶段测试耗时" if chinese else "### Measured Duration by Stage"), "STAGE_DURATION_SECTION_MISSING:" + filename)
+        require(has_heading(text, "#### 各阶段测试耗时" if chinese else "#### Measured Duration by Stage"), "STAGE_DURATION_SECTION_MISSING:" + filename)
         verify_page_anchors(text)
+        workflows.append(verify_reader_workflows(text, chinese))
+        samples = read_json(root / "evidence/request-examples.json")
+        code_sample = next(sample for sample in samples if sample["dataset"] == "humaneval_plus")
+        example = next(line.strip() for line in code_sample["request"]["messages"][0]["content"].splitlines()
+                   if line.strip().startswith("search("))
+        inference = text.split("## " + reader_titles(chinese)[3] + "\n", 1)[1].split("\n## ", 1)[0]
+        require(example in inference.split("\n|", 1)[0], "ACTUAL_INPUT_MISSING_BEFORE_RESULTS")
+    require(workflows[0] == workflows[1], "BILINGUAL_ADAPTATION_COMMAND_DRIFT")
     for path in topic.iterdir():
         name = path.name
         if name.startswith(".") or name in READMES or name in IGNORED_PARTS:
@@ -320,6 +413,8 @@ def validate(root=ROOT, *, refresh=False):
     for filename, chinese in READMES.items():
         path = topic_dir(root) / filename
         text = path.read_text(encoding="utf-8")
+        if refresh:
+            text = arrange_report(text, chinese)
         for name, value in (("RESULT_TABLE", result_table(summary, chinese)),
                             ("LATENCY_TABLE", latency_table(groups, summary, chinese)),
                             ("COUNTEREXAMPLE", counterexample(groups, chinese))):
@@ -339,6 +434,7 @@ def validate(root=ROOT, *, refresh=False):
             ("generated-bilingual-result-tables", ["../../README.md", "../../README_CN.md"]),
             ("local-links-and-reader-entry", ["../../README.md", "../../README_CN.md"]),
             ("single-readme-layout-and-maintenance-boundary", ["../../README.md", "../../README_CN.md"]),
+            ("customer-workflow-order-and-separate-command-blocks", ["../../README.md", "../../README_CN.md"]),
             ("published-file-integrity", [MANIFEST]),
         )
     ]

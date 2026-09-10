@@ -10,3 +10,10 @@ build/
 .idea/
 .vscode/
 .ipynb_checkpoints/
+!/experiments/20260909-drafter-adaptation/logs/
+!/experiments/20260909-drafter-adaptation/logs/round3/
+!/experiments/20260909-drafter-adaptation/logs/round4/
+!/experiments/20260909-drafter-adaptation/logs/round3/phase_*.log
+!/experiments/20260909-drafter-adaptation/logs/round3/vllm_*.log
+!/experiments/20260909-drafter-adaptation/logs/round4/round4*.log
+!/experiments/20260909-drafter-adaptation/logs/round4/vllm_*.log
