@@ -718,6 +718,13 @@ class HttpSurface(unittest.TestCase):
         self.assertEqual(status, 400)
         self.assertIn("Origin", body["error"])
 
+    def test_matching_attacker_origin_and_host_are_still_rejected(self):
+        status, body = self.post(
+            "/api/run", {"items": ["NM01"]},
+            headers={"Origin": "http://malicious.example", "Host": "malicious.example"})
+        self.assertEqual(status, 400)
+        self.assertIn("Origin", body["error"])
+
 
 class ActiveRunLimit(unittest.TestCase):
     def setUp(self):

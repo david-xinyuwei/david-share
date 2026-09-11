@@ -34,6 +34,30 @@ ARCHIVE_SHA256 = {
     "e3ed47adfa25c0da1234496095436a880fa0d16a168ed6aecf0efa0eb64a94a8":
         "public (transcript prompts withheld, numbers unchanged)",
 }
+ARCHIVE_SOURCE_SHA256 = {
+    "harness.py": "466d6dd74f15f1e95c01d7a073d750b41209eaf46825777b2c49e18180863529",
+    "datasets/qira_scenarios.jsonl":
+        "30d4958301ba6321f455211a6be463c8bdfb30c78416493efdd4136721656cd6",
+}
+PUBLIC_BUILD_INPUT_SHA256 = {
+    "harness.py": "50fdc233bd841cad54ae8b7f9ee7d7fb4b866e2da3e141e213c3ab9ef68ecce3",
+    "analyze.py": "48411387d4e1b10582d992437f8b3b1a9526ac2fff039aa2174210bd4e47b32c",
+    "config/models.json":
+        "380259c3eb57e8d2b1c86f2c2c0a5134d3acb920c86739fb92de24c97bb7749f",
+    "config/pricing.json":
+        "9c5ddf0050b4ae5e6cc1fcb3a07313f711c67229d2d922382cc55e6d7ffeefed",
+    "datasets/qira_scenarios.jsonl":
+        "f6087d40482d7749c4fe8398dbbb583447fe78bc77d1cf87b23c039f6c066c21",
+}
+
+
+def validate_sources(provenance):
+    if provenance.get("source_sha256") != ARCHIVE_SOURCE_SHA256:
+        raise ValueError("Archive source hashes differ from the pinned executed run.")
+    for name, expected in PUBLIC_BUILD_INPUT_SHA256.items():
+        actual = hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
+        if actual != expected:
+            raise ValueError(f"Public build input differs from its pinned hash: {name}")
 
 
 def mean(rows, field):
@@ -57,6 +81,7 @@ def main():
     evidence = json.loads(lzma.decompress(payload))
     if evidence["provenance"]["vm_metadata"]["location"].casefold() != "swedencentral":
         raise ValueError("IMDS does not confirm the benchmark VM region.")
+    validate_sources(evidence["provenance"])
     records = [
         dict(zip(evidence["performance_columns"], values, strict=True))
         for values in evidence["performance_values"]

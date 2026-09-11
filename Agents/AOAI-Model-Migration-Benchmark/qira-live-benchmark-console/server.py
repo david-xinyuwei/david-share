@@ -52,6 +52,11 @@ MAX_BODY_BYTES = 1 << 20
 RUN_RETENTION = 8
 HISTORY_RETENTION = 200
 MAX_ACTIVE_RUNS = int(os.environ.get("QIRA_MAX_ACTIVE_RUNS", "2"))
+ALLOWED_ORIGINS = {
+    origin.strip().rstrip("/")
+    for origin in os.environ.get("QIRA_ALLOWED_ORIGIN", "").split(",")
+    if origin.strip()
+}
 
 _runs: dict[str, dict] = {}
 _runs_lock = threading.Lock()
@@ -107,7 +112,7 @@ def runner_json(method: str, path: str, payload: dict | None = None) -> tuple[in
     except URLError as exc:
         raise ConsoleError(
             "The Sweden Central benchmark runner is offline. Start qira-bench-vm "
-            "and verify qira-benchmark-tunnel.service on the portal VM."
+            "and verify qira-benchmark-reverse-tunnel.service on the runner VM."
         ) from exc
 
 
@@ -476,11 +481,7 @@ class Handler(BaseHTTPRequestHandler):
         origin = self.headers.get("Origin")
         if not origin:
             return
-        expected = os.environ.get("QIRA_ALLOWED_ORIGIN", "").rstrip("/")
-        if not expected:
-            scheme = self.headers.get("X-Forwarded-Proto", "http").split(",", 1)[0].strip()
-            expected = f"{scheme}://{self.headers.get('Host', '')}".rstrip("/")
-        if origin.rstrip("/") != expected:
+        if origin.rstrip("/") not in ALLOWED_ORIGINS:
             raise ConsoleError("Request Origin does not match this portal.")
 
     def _serve_static(self, relative: str):
@@ -672,6 +673,11 @@ def main() -> int:
                         help="Bind address. Use 0.0.0.0 only behind a locked-down NSG.")
     parser.add_argument("--port", type=int, default=8080)
     args = parser.parse_args()
+    if not ALLOWED_ORIGINS:
+        ALLOWED_ORIGINS.update({
+            f"http://127.0.0.1:{args.port}",
+            f"http://localhost:{args.port}",
+        })
 
     mode = server_mode()
     print(f"Qira live benchmark console - mode: {mode}")
