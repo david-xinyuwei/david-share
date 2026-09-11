@@ -1,0 +1,28 @@
+region=swedencentral endpoint=YOUR-ENDPOINT.cognitiveservices.azure.com client=swedencentral-linux-vm rtt=1.3ms
+arms=['gpt-4o-mini-bench', 'gpt-5-mini@minimal', 'gpt-5.6-luna@none', 'router-sol-luna-balanced'] levels=[1, 4, 8, 16] requests/level=48
+tools: NONE; sdk retries: 0 (every 429/5xx is recorded, never silently retried)
+writing /home/azureuser/bench/outputs/loadtest_20260910_085128.jsonl
+
+== gpt-4o-mini-bench (responses)
+  level  1: ok  48/48  429=0  wall= 191.9s req/s=0.25   agg out tok/s=35.6     TTFT p50/p90=441.3/1246.0ms E2E p50/p90=2765.0/5853.4ms
+  level  4: ok  48/48  429=0  wall=  49.4s req/s=0.972  agg out tok/s=129.8    TTFT p50/p90=483.2/1245.4ms E2E p50/p90=2721.4/5107.6ms
+  level  8: ok  48/48  429=0  wall=  30.0s req/s=1.599  agg out tok/s=223.1    TTFT p50/p90=442.9/1880.6ms E2E p50/p90=2744.7/7922.5ms
+  level 16: ok  48/48  429=0  wall=  18.1s req/s=2.647  agg out tok/s=355.3    TTFT p50/p90=526.8/2214.1ms E2E p50/p90=2646.5/5514.9ms
+== gpt-5-mini@minimal (responses)
+  level  1: ok  48/48  429=0  wall= 167.8s req/s=0.286  agg out tok/s=80.5     TTFT p50/p90=628.0/1342.3ms E2E p50/p90=2092.9/5098.5ms
+  level  4: ok  48/48  429=0  wall=  51.0s req/s=0.942  agg out tok/s=276.9    TTFT p50/p90=689.8/1499.1ms E2E p50/p90=2652.8/7417.4ms
+  level  8: ok  48/48  429=0  wall=  33.2s req/s=1.447  agg out tok/s=420.4    TTFT p50/p90=897.2/1832.3ms E2E p50/p90=2893.9/10901.8ms
+  level 16: ok  48/48  429=0  wall=  21.4s req/s=2.242  agg out tok/s=620.1    TTFT p50/p90=773.5/1575.7ms E2E p50/p90=2382.9/5163.5ms
+== gpt-5.6-luna@none (responses)
+  level  1: ok  48/48  429=0  wall= 171.2s req/s=0.28   agg out tok/s=70.2     TTFT p50/p90=1066.9/1518.6ms E2E p50/p90=2479.6/4390.1ms
+  level  4: ok  48/48  429=0  wall=  60.2s req/s=0.797  agg out tok/s=213.6    TTFT p50/p90=892.6/1735.3ms E2E p50/p90=2162.1/6913.1ms
+  level  8: ok  48/48  429=0  wall=  39.1s req/s=1.228  agg out tok/s=331.8    TTFT p50/p90=980.4/1848.3ms E2E p50/p90=2536.6/5598.1ms
+  level 16: ok  48/48  429=0  wall=  33.1s req/s=1.448  agg out tok/s=385.9    TTFT p50/p90=906.2/1432.2ms E2E p50/p90=2545.3/5723.2ms
+== router-sol-luna-balanced (chat)
+  level  1: ok  48/48  429=0  wall= 196.6s req/s=0.244  agg out tok/s=74.6     TTFT p50/p90=1739.5/3513.7ms E2E p50/p90=2916.7/5830.2ms
+  level  4: ok  48/48  429=0  wall=  49.5s req/s=0.97   agg out tok/s=291.2    TTFT p50/p90=1810.3/3483.4ms E2E p50/p90=2723.1/5151.8ms
+  level  8: ok  48/48  429=0  wall=  31.7s req/s=1.514  agg out tok/s=464.8    TTFT p50/p90=1705.8/3108.1ms E2E p50/p90=2467.8/4985.0ms
+  level 16: ok  48/48  429=0  wall=  23.6s req/s=2.036  agg out tok/s=603.5    TTFT p50/p90=1970.4/3519.5ms E2E p50/p90=2630.3/5060.3ms
+
+Done. records → /home/azureuser/bench/outputs/loadtest_20260910_085128.jsonl
+summary → /home/azureuser/bench/outputs/loadtest_20260910_085128.summary.json
