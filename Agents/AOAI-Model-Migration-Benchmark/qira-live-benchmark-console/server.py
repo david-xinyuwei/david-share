@@ -401,6 +401,11 @@ CONTENT_TYPES = {
     ".json": "application/json; charset=utf-8",
     ".svg": "image/svg+xml",
 }
+STATIC_FILES = {
+    "index.html": (STATIC / "index.html", CONTENT_TYPES[".html"]),
+    "app.js": (STATIC / "app.js", CONTENT_TYPES[".js"]),
+    "styles.css": (STATIC / "styles.css", CONTENT_TYPES[".css"]),
+}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -441,17 +446,13 @@ class Handler(BaseHTTPRequestHandler):
         return json.loads(self.rfile.read(length).decode("utf-8"))
 
     def _serve_static(self, relative: str):
-        # Resolve and confine to static/ so a crafted path cannot walk out.
-        target = (STATIC / relative).resolve()
-        try:
-            target.relative_to(STATIC.resolve())
-        except ValueError:
+        # The UI has three immutable assets. A fixed map is simpler and leaves
+        # no request-controlled value in a filesystem expression.
+        entry = STATIC_FILES.get(relative)
+        if entry is None:
             self._send_json({"error": "Not found"}, 404)
             return
-        if not target.is_file():
-            self._send_json({"error": "Not found"}, 404)
-            return
-        content_type = CONTENT_TYPES.get(target.suffix, "application/octet-stream")
+        target, content_type = entry
         self._send_text(target.read_text(encoding="utf-8"), content_type)
 
     # -- routes ----------------------------------------------------------
