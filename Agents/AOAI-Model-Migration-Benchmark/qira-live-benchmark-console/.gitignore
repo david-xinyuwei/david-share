@@ -1,0 +1,7 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+
+# Runs saved by the console belong to whoever operated it, not to the repo.
+history/

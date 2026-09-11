@@ -1,0 +1,13 @@
+region=swedencentral endpoint=YOUR-ENDPOINT.cognitiveservices.azure.com client=swedencentral-linux-vm rtt=3.24ms
+chain=['gpt-5.6-luna-lowcap', 'gpt-5.6-luna'] policies=['none', 'reactive', 'proactive'] level=8 duration=75.0s ramp=15.0s api=responses
+tools: NONE; sdk retries: 0; Retry-After recorded, never slept on
+
+== policy=none
+  counted 375 ok 10 (0.0267) rate-limit-failed=365 primary-rate-limited=365 phases={'stream': 365} by-fallback=0 in-stream-fallbacks=0 proactive-skips=0 retry-after p50=Nones TTFT p50 primary/fallback=440.0/Nonems overhead p50=Nonems
+== policy=reactive
+  counted 118 ok 118 (1.0) rate-limit-failed=0 primary-rate-limited=108 phases={'stream': 108} by-fallback=108 in-stream-fallbacks=108 proactive-skips=0 retry-after p50=Nones TTFT p50 primary/fallback=475.6/1027.3ms overhead p50=411.1ms
+== policy=proactive
+  counted 131 ok 131 (1.0) rate-limit-failed=0 primary-rate-limited=0 phases={} by-fallback=122 in-stream-fallbacks=0 proactive-skips=122 retry-after p50=Nones TTFT p50 primary/fallback=450.6/761.8ms overhead p50=Nonems
+
+Done. records → /home/azureuser/bench/outputs/resilience_20260911_024156.jsonl
+summary → /home/azureuser/bench/outputs/resilience_20260911_024156.summary.json

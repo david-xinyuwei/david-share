@@ -1,0 +1,101 @@
+<!--
+  APIM Policy: Proactive PTU -> PAYGO Routing
+  ===========================================
+  Reads x-ratelimit-remaining-tokens from PTU response headers.
+  When utilization exceeds threshold, routes the next request to PAYGO.
+
+  429 safety net uses APIM's backend retry pattern.
+  Source: https://learn.microsoft.com/en-us/azure/api-management/retry-policy
+  Source: https://learn.microsoft.com/en-us/azure/api-management/forward-request-policy
+
+  Prerequisites:
+  - Two APIM backends configured: "ptu-backend" and "paygo-backend"
+  - Named value: "ptu-routing-threshold" = "95" (percent)
+  - Named value: "ptu-deployment" = deployment name (e.g. "gpt-5.4-nano")
+
+  How it works:
+  1. APIM reads cached "ptu-utilization" from the previous PTU response.
+  2. If utilization >= threshold, route to PAYGO; otherwise route to PTU.
+  3. Backend retry forwards the request and retries once on PAYGO if PTU returns 429.
+  4. PTU responses update utilization cache for the next request.
+  5. Streaming/SSE uses buffer-response="false" to preserve TTFT behavior.
+-->
+
+<policies>
+    <inbound>
+        <base />
+        <cache-lookup-value key="ptu-utilization" variable-name="cachedUtilization" default-value="0" />
+        <choose>
+            <when condition="@(double.Parse((string)context.Variables[&quot;cachedUtilization&quot;]) &gt;= double.Parse(&quot;{{ptu-routing-threshold}}&quot;))">
+                <set-variable name="routingDecision" value="@(&quot;paygo-proactive&quot;)" />
+                <set-backend-service backend-id="paygo-backend" />
+            </when>
+            <otherwise>
+                <set-variable name="routingDecision" value="@(&quot;ptu&quot;)" />
+                <set-backend-service backend-id="ptu-backend" />
+            </otherwise>
+        </choose>
+    </inbound>
+    <backend>
+        <retry condition="@(context.Response != null &amp;&amp; context.Response.StatusCode == 429)" count="1" interval="1" first-fast-retry="true">
+            <set-variable name="attempt-count" value="@(context.Variables.GetValueOrDefault&lt;int&gt;(&quot;attempt-count&quot;, 0) + 1)" />
+            <choose>
+                <when condition="@(context.Variables.GetValueOrDefault&lt;int&gt;(&quot;attempt-count&quot;, 0) &gt; 1)">
+                    <set-variable name="routingDecision" value="@(&quot;paygo-429-retry&quot;)" />
+                    <set-backend-service backend-id="paygo-backend" />
+                </when>
+            </choose>
+            <forward-request buffer-request-body="true" buffer-response="false" />
+        </retry>
+    </backend>
+    <outbound>
+        <base />
+        <set-header name="X-Routing-Decision" exists-action="override">
+            <value>@((string)context.Variables[&quot;routingDecision&quot;])</value>
+        </set-header>
+        <choose>
+            <when condition="@((string)context.Variables[&quot;routingDecision&quot;] == &quot;ptu&quot; &amp;&amp; context.Response != null &amp;&amp; context.Response.Headers.ContainsKey(&quot;x-ratelimit-remaining-tokens&quot;) &amp;&amp; context.Response.Headers.ContainsKey(&quot;x-ratelimit-limit-tokens&quot;))">
+                <set-variable name="remainingTokens" value="@(context.Response.Headers.GetValueOrDefault(&quot;x-ratelimit-remaining-tokens&quot;, &quot;0&quot;))" />
+                <set-variable name="limitTokens" value="@(context.Response.Headers.GetValueOrDefault(&quot;x-ratelimit-limit-tokens&quot;, &quot;1&quot;))" />
+                <set-variable name="currentUtilization" value="@{
+                    double remaining = double.Parse((string)context.Variables[&quot;remainingTokens&quot;]);
+                    double limit = double.Parse((string)context.Variables[&quot;limitTokens&quot;]);
+                    if (limit == 0) return &quot;0&quot;;
+                    double utilization = ((limit - remaining) / limit) * 100;
+                    return utilization.ToString(&quot;F2&quot;);
+                }" />
+                <cache-store-value key="ptu-utilization" value="@((string)context.Variables[&quot;currentUtilization&quot;])" duration="60" />
+                <set-header name="X-PTU-Utilization" exists-action="override">
+                    <value>@((string)context.Variables[&quot;currentUtilization&quot;])%</value>
+                </set-header>
+                <set-header name="X-PTU-Remaining-Tokens" exists-action="override">
+                    <value>@((string)context.Variables[&quot;remainingTokens&quot;])</value>
+                </set-header>
+                <emit-metric name="PTU Utilization" value="@(double.Parse((string)context.Variables[&quot;currentUtilization&quot;]))" namespace="AOAI-PTU">
+                    <dimension name="deployment" value="{{ptu-deployment}}" />
+                    <dimension name="backend" value="@((string)context.Variables[&quot;routingDecision&quot;])" />
+                </emit-metric>
+            </when>
+            <when condition="@((string)context.Variables[&quot;routingDecision&quot;] == &quot;paygo-429-retry&quot;)">
+                <cache-store-value key="ptu-utilization" value="100" duration="60" />
+                <set-header name="X-PTU-Utilization" exists-action="override">
+                    <value>100%</value>
+                </set-header>
+            </when>
+            <otherwise>
+                <set-header name="X-PTU-Utilization" exists-action="override">
+                    <value>@((string)context.Variables[&quot;cachedUtilization&quot;])%</value>
+                </set-header>
+            </otherwise>
+        </choose>
+    </outbound>
+    <on-error>
+        <base />
+        <set-header name="X-Routing-Decision" exists-action="override">
+            <value>apim-policy-error</value>
+        </set-header>
+        <set-header name="X-APIM-Error-Reason" exists-action="override">
+            <value>@(context.LastError?.Reason ?? &quot;unknown&quot;)</value>
+        </set-header>
+    </on-error>
+</policies>
