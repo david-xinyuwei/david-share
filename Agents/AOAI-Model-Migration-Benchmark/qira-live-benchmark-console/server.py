@@ -1,0 +1,648 @@
+"""
+Live benchmark console for the Qira model comparison.
+
+A single-file HTTP server (standard library only) that drives the study
+harness in this folder tree and streams each measurement to a browser as it
+completes. It exists because a 1,400-line report is the wrong artefact for a
+workshop room: the same numbers, produced live and plotted, are easier to
+trust and much easier to discuss.
+
+Two modes:
+  live    AZURE_OPENAI_ENDPOINT is set, requests go to the real deployments.
+  replay  No endpoint configured. The console serves the recorded runs in
+          replay/ so the UI is fully demonstrable with no credentials and no
+          network. Replay data is clearly labelled as such in the UI.
+
+No tools and no web search are attached in either mode.
+
+Usage:
+    python server.py --port 8080 [--host 0.0.0.0]
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import io
+import json
+import os
+import queue
+import re
+import secrets
+import threading
+import time
+import traceback
+from datetime import datetime, timezone
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from urllib.parse import parse_qs, urlparse
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
+
+import bench_core
+from bench_core import ConsoleError
+
+ROOT = Path(__file__).resolve().parent
+STATIC = ROOT / "static"
+REPLAY = ROOT / "replay"
+HISTORY = Path(os.environ.get("QIRA_HISTORY_DIR", ROOT / "history"))
+RUNNER_URL = os.environ.get("QIRA_RUNNER_URL", "").rstrip("/")
+
+MAX_BODY_BYTES = 1 << 20
+RUN_RETENTION = 8
+HISTORY_RETENTION = 200
+
+_runs: dict[str, dict] = {}
+_runs_lock = threading.Lock()
+
+
+# --------------------------------------------------------------------------
+# Mode
+# --------------------------------------------------------------------------
+
+def endpoint_configured() -> bool:
+    return bool(os.environ.get("AZURE_OPENAI_ENDPOINT", "").strip())
+
+
+def runner_configured() -> bool:
+    return bool(RUNNER_URL)
+
+
+def server_mode() -> str:
+    return "live" if endpoint_configured() or runner_configured() else "replay"
+
+
+def endpoint_label() -> str | None:
+    """Host only. The full endpoint is a resource identifier, not a secret,
+    but there is no reason to project it on a screen either."""
+    raw = os.environ.get("AZURE_OPENAI_ENDPOINT", "").strip()
+    if not raw:
+        return os.environ.get("QIRA_RUNNER_LABEL") if runner_configured() else None
+    host = urlparse(raw).hostname or raw
+    parts = host.split(".")
+    if len(parts) > 2:
+        return f"{parts[0][:3]}***.{'.'.join(parts[1:])}"
+    return host
+
+
+def runner_json(method: str, path: str, payload: dict | None = None) -> tuple[int, dict]:
+    """Call the same-region runner through the local SSH tunnel."""
+    body = None if payload is None else json.dumps(payload).encode("utf-8")
+    request = Request(
+        RUNNER_URL + path,
+        data=body,
+        method=method,
+        headers={"Content-Type": "application/json"} if body is not None else {},
+    )
+    try:
+        with urlopen(request, timeout=30) as response:
+            return response.status, json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        raw = exc.read().decode("utf-8", errors="replace")
+        try:
+            return exc.code, json.loads(raw)
+        except json.JSONDecodeError:
+            return exc.code, {"error": raw or exc.reason}
+    except URLError as exc:
+        raise ConsoleError(
+            "The Sweden Central benchmark runner is offline. Start qira-bench-vm "
+            "and verify qira-benchmark-tunnel.service on the portal VM."
+        ) from exc
+
+
+# --------------------------------------------------------------------------
+# Run lifecycle
+# --------------------------------------------------------------------------
+
+def _prune_runs() -> None:
+    if len(_runs) <= RUN_RETENTION:
+        return
+    finished = [(r["finished_at"], rid) for rid, r in _runs.items() if r.get("finished_at")]
+    finished.sort()
+    for _, rid in finished[: max(0, len(_runs) - RUN_RETENTION)]:
+        _runs.pop(rid, None)
+
+
+def start_run(request: dict) -> str:
+    catalog_data = bench_core.catalog()
+    plan = bench_core.build_plan(request, catalog_data)
+    if server_mode() != "live":
+        raise ConsoleError(
+            "This console is running in replay mode: AZURE_OPENAI_ENDPOINT is not set, "
+            "so there is nothing to measure against. Load your .env and restart to run live."
+        )
+
+    run_id = secrets.token_hex(8)
+    events: queue.Queue = queue.Queue()
+    state = {
+        "run_id": run_id,
+        "plan": plan,
+        "cancel": threading.Event(),
+        "events": events,
+        "records": [],
+        "summaries": [],
+        "started_at": time.time(),
+        "finished_at": None,
+        "error": None,
+    }
+    with _runs_lock:
+        _prune_runs()
+        _runs[run_id] = state
+
+    thread = threading.Thread(target=_run_worker, args=(state,), daemon=True)
+    thread.start()
+    return run_id
+
+
+def _run_worker(state: dict) -> None:
+    plan = state["plan"]
+    events = state["events"]
+
+    def emit(kind: str, payload: dict) -> None:
+        if kind == "record":
+            state["records"].append(payload)
+        elif kind == "arm_summary":
+            state["summaries"].append(payload)
+        events.put({"type": kind, **payload})
+
+    try:
+        harness = bench_core.load_harness()
+        pricing = bench_core.load_pricing()
+        registry = bench_core.load_registry()
+        client, _ = harness.build_client()
+        emit("run_start", {
+            "total": plan.total_calls,
+            "measured": plan.measured_calls,
+            "arms": [a.name for a in plan.arms],
+            "items": [i["id"] for i in plan.items],
+            "iterations": plan.iterations,
+            "concurrency": plan.concurrency,
+            "max_output_tokens": plan.max_output_tokens,
+            "headroom": plan.headroom,
+            "warmup": plan.warmup,
+            "api": plan.arms[0].api if plan.arms else "responses",
+        })
+        bench_core.execute_plan(plan, client, pricing, registry, harness,
+                                emit, state["cancel"])
+        summaries = state["summaries"]
+        priced = [s["cost_per_1k_requests"] for s in summaries if s.get("cost_per_1k_requests")]
+        baseline = max(priced) if priced else None
+        for s in summaries:
+            s["value_ratio"] = bench_core.value_score(s, baseline)
+        state["finished_at"] = time.time()
+        saved = save_history(state)
+        events.put({
+            "type": "done",
+            "cancelled": state["cancel"].is_set(),
+            "summaries": summaries,
+            "totals": run_totals(summaries),
+            "saved": bool(saved),
+            "records": len(state["records"]),
+        })
+    except Exception as exc:  # noqa: BLE001 - surface any failure in the UI
+        state["error"] = f"{type(exc).__name__}: {exc}"
+        traceback.print_exc()
+        events.put({"type": "error", "message": state["error"]})
+    finally:
+        state["finished_at"] = state.get("finished_at") or time.time()
+        events.put(None)
+
+
+# --------------------------------------------------------------------------
+# Run history
+# --------------------------------------------------------------------------
+
+RUN_ID_RE = re.compile(r"^[0-9a-f]{8,32}$")
+
+
+def run_totals(summaries: list[dict]) -> dict:
+    """What this session actually consumed and what it would be billed."""
+    priced = [s["cost_usd_total"] for s in summaries if s.get("cost_usd_total") is not None]
+    return {
+        "ok": sum(s.get("ok") or 0 for s in summaries),
+        "errors": sum(s.get("errors") or 0 for s in summaries),
+        "truncated": sum(s.get("truncated") or 0 for s in summaries),
+        "prompt_tokens": sum(s.get("prompt_tokens_total") or 0 for s in summaries),
+        "cached_tokens": sum(s.get("cached_tokens_total") or 0 for s in summaries),
+        "reasoning_tokens": sum(s.get("reasoning_tokens_total") or 0 for s in summaries),
+        "output_tokens": sum(s.get("output_tokens_total") or 0 for s in summaries),
+        "total_tokens": sum(s.get("total_tokens") or 0 for s in summaries),
+        "cost_usd": round(sum(priced), 8) if priced else None,
+        # True only when every arm in the run had a confirmed list price.
+        "cost_complete": bool(summaries) and len(priced) == len(summaries),
+    }
+
+
+def save_history(state: dict) -> Path | None:
+    """
+    Persist a finished run so it can be reopened later.
+
+    Each run is one self-contained JSON file: the customer gets a portal that
+    shows what was measured before as well as what is being measured now, and
+    every past run stays separately inspectable instead of being averaged into
+    a single rolling view.
+    """
+    summaries = state.get("summaries") or []
+    if not summaries:
+        return None
+    plan = state["plan"]
+    started = state.get("started_at") or time.time()
+    finished = state.get("finished_at") or time.time()
+    record = {
+        "run_id": state["run_id"],
+        "started_at": datetime.fromtimestamp(started, tz=timezone.utc).isoformat(),
+        "finished_at": datetime.fromtimestamp(finished, tz=timezone.utc).isoformat(),
+        "duration_s": round(finished - started, 1),
+        "mode": "live",
+        "cancelled": state["cancel"].is_set(),
+        "endpoint": endpoint_label(),
+        "regions": bench_core.load_deployment_facts()["regions"],
+        "dataset": plan.dataset,
+        "arms": [a.name for a in plan.arms],
+        "items": [i["id"] for i in plan.items],
+        "iterations": plan.iterations,
+        "concurrency": plan.concurrency,
+        "warmup": plan.warmup,
+        "headroom": plan.headroom,
+        "max_output_tokens": plan.max_output_tokens,
+        "api": plan.arms[0].api if plan.arms else "responses",
+        "records": len(state["records"]),
+        "totals": run_totals(summaries),
+        "summaries": summaries,
+        "rows": state["records"],
+    }
+    HISTORY.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.fromtimestamp(started, tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
+    path = HISTORY / f"run_{stamp}_{state['run_id']}.json"
+    path.write_text(json.dumps(record, ensure_ascii=False, indent=2, default=str) + "\n",
+                    encoding="utf-8", newline="\n")
+    _prune_history()
+    return path
+
+
+def _prune_history() -> None:
+    files = sorted(HISTORY.glob("run_*.json"))
+    for path in files[:max(0, len(files) - HISTORY_RETENTION)]:
+        path.unlink(missing_ok=True)
+
+
+def history_index() -> list[dict]:
+    """Metadata for every saved run, newest first. Never loads the rows."""
+    entries = []
+    if not HISTORY.is_dir():
+        return entries
+    for path in sorted(HISTORY.glob("run_*.json"), reverse=True):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            continue
+        entries.append({k: data.get(k) for k in (
+            "run_id", "started_at", "finished_at", "duration_s", "mode", "dataset",
+            "arms", "items", "iterations", "concurrency", "records", "totals",
+            "cancelled", "endpoint", "regions", "api")})
+    return entries
+
+
+def history_run(run_id: str) -> dict | None:
+    if not RUN_ID_RE.match(run_id or ""):
+        return None
+    for path in HISTORY.glob(f"run_*_{run_id}.json"):
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return None
+    return None
+
+
+def delete_history_run(run_id: str) -> bool:
+    if not RUN_ID_RE.match(run_id or ""):
+        return False
+    removed = False
+    for path in HISTORY.glob(f"run_*_{run_id}.json"):
+        path.unlink(missing_ok=True)
+        removed = True
+    return removed
+
+
+def import_runner_history(run_id: str) -> Path | None:
+    """Mirror a completed runner record onto the portal VM."""
+    status, record = runner_json("GET", f"/api/history/{run_id}")
+    if status != 200 or not record or record.get("run_id") != run_id:
+        return None
+    HISTORY.mkdir(parents=True, exist_ok=True)
+    try:
+        started = datetime.fromisoformat(record["started_at"].replace("Z", "+00:00"))
+    except (KeyError, ValueError):
+        started = datetime.now(timezone.utc)
+    stamp = started.astimezone(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    path = HISTORY / f"run_{stamp}_{run_id}.json"
+    path.write_text(
+        json.dumps(record, ensure_ascii=False, indent=2, default=str) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    _prune_history()
+    return path
+
+
+# --------------------------------------------------------------------------
+# Replay
+# --------------------------------------------------------------------------
+
+def load_replay() -> dict:
+    path = REPLAY / "replay_pack.json"
+    if not path.is_file():
+        return {"available": False, "runs": []}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["available"] = True
+    return data
+
+
+# --------------------------------------------------------------------------
+# CSV export
+# --------------------------------------------------------------------------
+
+CSV_COLUMNS = [
+    "arm", "deployment", "effort", "item_id", "scenario", "iteration", "billing_model",
+    "model_actually_served", "ttft_ms", "e2e_ms", "decode_ms", "tpot_ms",
+    "decode_tps", "prompt_tokens", "cached_tokens", "reasoning_tokens",
+    "completion_tokens", "answer_budget", "max_output_tokens", "cost_usd",
+    "status", "truncated", "error",
+]
+
+
+def records_to_csv(records: list[dict]) -> str:
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=CSV_COLUMNS, extrasaction="ignore",
+                            lineterminator="\n")
+    writer.writeheader()
+    for record in records:
+        writer.writerow(record)
+    return buffer.getvalue()
+
+
+# --------------------------------------------------------------------------
+# HTTP
+# --------------------------------------------------------------------------
+
+CONTENT_TYPES = {
+    ".html": "text/html; charset=utf-8",
+    ".js": "application/javascript; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    ".json": "application/json; charset=utf-8",
+    ".svg": "image/svg+xml",
+}
+
+
+class Handler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+    server_version = "QiraLiveConsole/1.0"
+
+    def log_message(self, fmt, *args):  # noqa: A003 - quieter console output
+        if self.path.startswith("/api/events"):
+            return
+        super().log_message(fmt, *args)
+
+    # -- helpers ---------------------------------------------------------
+    def _send_json(self, payload, status=200):
+        body = json.dumps(payload, ensure_ascii=False, default=str).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _send_text(self, body: str, content_type: str, status=200, filename=None):
+        data = body.encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(data)))
+        if filename:
+            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+        self.end_headers()
+        self.wfile.write(data)
+
+    def _read_json(self) -> dict:
+        length = int(self.headers.get("Content-Length") or 0)
+        if length <= 0:
+            return {}
+        if length > MAX_BODY_BYTES:
+            raise ConsoleError("Request body too large.")
+        return json.loads(self.rfile.read(length).decode("utf-8"))
+
+    def _serve_static(self, relative: str):
+        # Resolve and confine to static/ so a crafted path cannot walk out.
+        target = (STATIC / relative).resolve()
+        try:
+            target.relative_to(STATIC.resolve())
+        except ValueError:
+            self._send_json({"error": "Not found"}, 404)
+            return
+        if not target.is_file():
+            self._send_json({"error": "Not found"}, 404)
+            return
+        content_type = CONTENT_TYPES.get(target.suffix, "application/octet-stream")
+        self._send_text(target.read_text(encoding="utf-8"), content_type)
+
+    # -- routes ----------------------------------------------------------
+    def do_GET(self):  # noqa: N802 - BaseHTTPRequestHandler API
+        parsed = urlparse(self.path)
+        route = parsed.path
+        try:
+            if route in ("/", "/index.html"):
+                self._serve_static("index.html")
+            elif route.startswith("/static/"):
+                self._serve_static(route[len("/static/"):])
+            elif route == "/api/catalog":
+                data = bench_core.catalog()
+                data["mode"] = server_mode()
+                data["endpoint"] = endpoint_label()
+                data["runner"] = "remote" if runner_configured() else "local"
+                data["replay"] = load_replay().get("available", False)
+                self._send_json(data)
+            elif route == "/api/replay":
+                self._send_json(load_replay())
+            elif route == "/api/history":
+                self._send_json({"runs": history_index()})
+            elif route.startswith("/api/history/"):
+                run = history_run(route[len("/api/history/"):])
+                self._send_json(run or {"error": "Unknown run"}, 200 if run else 404)
+            elif route == "/api/events":
+                self._stream_events(parse_qs(parsed.query).get("run_id", [""])[0])
+            elif route == "/api/export":
+                self._export(parse_qs(parsed.query).get("run_id", [""])[0])
+            else:
+                self._send_json({"error": "Not found"}, 404)
+        except ConsoleError as exc:
+            self._send_json({"error": str(exc)}, 400)
+        except BrokenPipeError:
+            pass
+        except Exception as exc:  # noqa: BLE001
+            traceback.print_exc()
+            self._send_json({"error": f"{type(exc).__name__}: {exc}"}, 500)
+
+    def do_POST(self):  # noqa: N802 - BaseHTTPRequestHandler API
+        route = urlparse(self.path).path
+        try:
+            if route == "/api/run":
+                payload = self._read_json()
+                if runner_configured():
+                    status, response = runner_json("POST", "/api/run", payload)
+                    self._send_json(response, status)
+                else:
+                    run_id = start_run(payload)
+                    self._send_json({"run_id": run_id})
+            elif route == "/api/cancel":
+                run_id = (self._read_json() or {}).get("run_id", "")
+                if runner_configured():
+                    status, response = runner_json(
+                        "POST", "/api/cancel", {"run_id": run_id})
+                    self._send_json(response, status)
+                else:
+                    state = _runs.get(run_id)
+                    if state:
+                        state["cancel"].set()
+                    self._send_json({"ok": bool(state)})
+            else:
+                self._send_json({"error": "Not found"}, 404)
+        except ConsoleError as exc:
+            self._send_json({"error": str(exc)}, 400)
+        except Exception as exc:  # noqa: BLE001
+            traceback.print_exc()
+            self._send_json({"error": f"{type(exc).__name__}: {exc}"}, 500)
+
+    def do_DELETE(self):  # noqa: N802 - BaseHTTPRequestHandler API
+        route = urlparse(self.path).path
+        try:
+            if route.startswith("/api/history/"):
+                removed = delete_history_run(route[len("/api/history/"):])
+                self._send_json({"ok": removed}, 200 if removed else 404)
+            else:
+                self._send_json({"error": "Not found"}, 404)
+        except Exception as exc:  # noqa: BLE001
+            traceback.print_exc()
+            self._send_json({"error": f"{type(exc).__name__}: {exc}"}, 500)
+
+    def _export(self, run_id: str):
+        state = _runs.get(run_id)
+        records = state["records"] if state else None
+        if records is None:
+            saved = history_run(run_id)
+            records = saved.get("rows") if saved else None
+        if records is None:
+            self._send_json({"error": "Unknown run"}, 404)
+            return
+        self._send_text(records_to_csv(records), "text/csv; charset=utf-8",
+                        filename=f"qira-live-{run_id}.csv")
+
+    def _stream_events(self, run_id: str):
+        state = _runs.get(run_id)
+        if not state:
+            if runner_configured():
+                self._stream_runner_events(run_id)
+                return
+            self._send_json({"error": "Unknown run"}, 404)
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "close")
+        self.end_headers()
+        events: queue.Queue = state["events"]
+        try:
+            while True:
+                try:
+                    event = events.get(timeout=15)
+                except queue.Empty:
+                    self.wfile.write(b": keep-alive\n\n")
+                    self.wfile.flush()
+                    continue
+                if event is None:
+                    break
+                payload = json.dumps(event, ensure_ascii=False, default=str)
+                self.wfile.write(f"data: {payload}\n\n".encode("utf-8"))
+                self.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError):
+            state["cancel"].set()
+        finally:
+            self.close_connection = True
+
+    def _stream_runner_events(self, run_id: str):
+        """Pass runner SSE through and mirror the finished run locally."""
+        request = Request(
+            RUNNER_URL + f"/api/events?run_id={run_id}",
+            method="GET",
+            headers={"Accept": "text/event-stream"},
+        )
+        try:
+            remote = urlopen(request, timeout=3700)
+        except HTTPError as exc:
+            self._send_json({"error": exc.reason}, exc.code)
+            return
+        except URLError as exc:
+            raise ConsoleError(
+                "The Sweden Central benchmark runner is offline."
+            ) from exc
+
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "close")
+        self.end_headers()
+        try:
+            for line in remote:
+                if line.startswith(b"data: "):
+                    try:
+                        event = json.loads(line[6:].decode("utf-8"))
+                    except json.JSONDecodeError:
+                        event = {}
+                    if event.get("type") == "done":
+                        # The runner writes history before emitting done. Mirror
+                        # it before the browser refreshes its Past runs list.
+                        import_runner_history(run_id)
+                self.wfile.write(line)
+                self.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError):
+            try:
+                runner_json("POST", "/api/cancel", {"run_id": run_id})
+            except ConsoleError:
+                pass
+        finally:
+            remote.close()
+            self.close_connection = True
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("--host", default="127.0.0.1",
+                        help="Bind address. Use 0.0.0.0 only behind a locked-down NSG.")
+    parser.add_argument("--port", type=int, default=8080)
+    args = parser.parse_args()
+
+    mode = server_mode()
+    print(f"Qira live benchmark console - mode: {mode}")
+    if mode == "live":
+        print(f"  endpoint: {endpoint_label()}")
+        try:
+            harness_path = bench_core.find_harness()
+            print(f"  harness:  {harness_path.parent.name}/harness.py")
+        except ConsoleError as exc:
+            print(f"  [warn] {exc}")
+    else:
+        print("  AZURE_OPENAI_ENDPOINT is not set; serving recorded runs only.")
+    print(f"  open:     http://{'localhost' if args.host == '127.0.0.1' else args.host}:{args.port}/")
+
+    server = ThreadingHTTPServer((args.host, args.port), Handler)
+    server.daemon_threads = True
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nstopping")
+    finally:
+        server.server_close()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

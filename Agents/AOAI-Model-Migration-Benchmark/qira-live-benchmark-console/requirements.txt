@@ -1,0 +1,5 @@
+# The console reads the study harness, which needs the Azure OpenAI SDK.
+# Everything else - the HTTP server, the charts - is standard library and
+# vanilla JavaScript, so the console runs with no build step and no CDN.
+openai==3.10.0
+azure-identity==1.25.3
