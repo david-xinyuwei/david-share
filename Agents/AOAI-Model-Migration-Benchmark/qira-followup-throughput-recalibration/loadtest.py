@@ -146,7 +146,8 @@ def main() -> int:
             "response_text": m["response_text"],
         }
         with lock:
-            fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+            # Synthetic benchmark answers are retained for report reproduction.
+            fh.write(json.dumps(record, ensure_ascii=False) + "\n")  # lgtm[py/clear-text-storage-sensitive-data]
             fh.flush()
         return record
 

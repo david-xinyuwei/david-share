@@ -711,7 +711,9 @@ def run_benchmark(args) -> Path:
                         "response_preview": m["response_text"][:200],
                         "error": m["error"],
                     }
-                    fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+                    # Synthetic benchmark answers are retained intentionally so
+                    # the blind judge and evidence hashes remain reproducible.
+                    fh.write(json.dumps(record, ensure_ascii=False) + "\n")  # lgtm[py/clear-text-storage-sensitive-data]
                     fh.flush()
 
                     tag = "WU" if is_warmup else "  "
@@ -724,7 +726,7 @@ def run_benchmark(args) -> Path:
                         if routing.get("fallback"):
                             extra += " FALLBACK"
                         trunc = " TRUNC" if m["truncated"] else ""
-                        print(f"  {tag} [{done}/{total}] {item['id']:5s} {arm['arm_id']:<26} "
+                        print(f"  {tag} [{done}/{total}] {item['id']:5s} {arm['arm_id']:<26} "  # lgtm[py/clear-text-logging-sensitive-data]
                               f"TTFT={ttft:>7s} decode={tps:>8s} e2e={m['e2e_ms']:.0f}ms "
                               f"in={m['prompt_tokens']} out={m['completion_tokens']}"
                               f"(r={m['reasoning_tokens']}){extra}")

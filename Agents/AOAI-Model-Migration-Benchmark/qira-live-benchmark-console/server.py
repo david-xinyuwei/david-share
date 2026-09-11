@@ -306,11 +306,13 @@ def history_index() -> list[dict]:
 def history_run(run_id: str) -> dict | None:
     if not RUN_ID_RE.match(run_id or ""):
         return None
-    for path in HISTORY.glob(f"run_*_{run_id}.json"):
+    for path in HISTORY.glob("run_*.json"):
         try:
-            return json.loads(path.read_text(encoding="utf-8"))
+            record = json.loads(path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
-            return None
+            continue
+        if record.get("run_id") == run_id:
+            return record
     return None
 
 
@@ -318,9 +320,14 @@ def delete_history_run(run_id: str) -> bool:
     if not RUN_ID_RE.match(run_id or ""):
         return False
     removed = False
-    for path in HISTORY.glob(f"run_*_{run_id}.json"):
-        path.unlink(missing_ok=True)
-        removed = True
+    for path in HISTORY.glob("run_*.json"):
+        try:
+            record = json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            continue
+        if record.get("run_id") == run_id:
+            path.unlink(missing_ok=True)
+            removed = True
     return removed
 
 
@@ -335,7 +342,9 @@ def import_runner_history(run_id: str) -> Path | None:
     except (KeyError, ValueError):
         started = datetime.now(timezone.utc)
     stamp = started.astimezone(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    path = HISTORY / f"run_{stamp}_{run_id}.json"
+    # The remote run id came from an HTTP response. Keep it in the JSON record,
+    # not in a filesystem expression; the random suffix is local.
+    path = HISTORY / f"run_{stamp}_{secrets.token_hex(8)}.json"
     path.write_text(
         json.dumps(record, ensure_ascii=False, indent=2, default=str) + "\n",
         encoding="utf-8",
@@ -533,8 +542,9 @@ class Handler(BaseHTTPRequestHandler):
         if records is None:
             self._send_json({"error": "Unknown run"}, 404)
             return
+        # Do not reflect a query-string value into Content-Disposition.
         self._send_text(records_to_csv(records), "text/csv; charset=utf-8",
-                        filename=f"qira-live-{run_id}.csv")
+                        filename=f"qira-live-{secrets.token_hex(4)}.csv")
 
     def _stream_events(self, run_id: str):
         state = _runs.get(run_id)
