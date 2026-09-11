@@ -4,6 +4,7 @@ import copy
 import importlib.util
 import json
 import statistics
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -17,7 +18,7 @@ class RouterEvidenceTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         archive = ROOT / "outputs" / f"evidence_router_{REPORT.RUN}.json.xz"
-        cls.evidence, cls.records, cls.quality, cls.digest = REPORT.load_evidence(archive, None)
+        cls.evidence, cls.records, cls.quality, cls.digest = REPORT.load_evidence(archive)
         cls.dataset = [
             json.loads(line)
             for line in (ROOT / "datasets" / "router_taskb.jsonl").read_text(encoding="utf-8").splitlines()
@@ -125,8 +126,14 @@ class RouterEvidenceTests(unittest.TestCase):
                 self.reject(quality=changed)
 
     def test_archive_checksum(self):
-        with self.assertRaises(ValueError):
-            REPORT.load_evidence(ROOT / "outputs" / f"evidence_router_{REPORT.RUN}.json.xz", "0" * 64)
+        source = ROOT / "outputs" / f"evidence_router_{REPORT.RUN}.json.xz"
+        with tempfile.TemporaryDirectory() as tmp:
+            changed = Path(tmp) / source.name
+            payload = bytearray(source.read_bytes())
+            payload[-1] ^= 1
+            changed.write_bytes(payload)
+            with self.assertRaisesRegex(ValueError, "pinned checksum"):
+                REPORT.load_evidence(changed)
 
     def test_cached_and_reasoning_tokens_not_double_billed(self):
         pricing = {"test-model": {"input": 5, "cached": 0.5, "output": 30}}

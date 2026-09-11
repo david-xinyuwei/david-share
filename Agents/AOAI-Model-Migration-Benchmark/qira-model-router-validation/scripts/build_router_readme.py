@@ -112,7 +112,7 @@ def load_evidence(root: Path = ROOT) -> Evidence:
     require(bool(provenance.get("archive_sha256")), "Provenance has no archive SHA256")
     require(len(report.RUN_SOURCES) == 7 and set(provenance.get("source_sha256", {})) == set(report.RUN_SOURCES),
             "Provenance must identify exactly the seven executed run-source files")
-    _, records, quality, _ = report.load_evidence(required[1], provenance["archive_sha256"])
+    _, records, quality, _ = report.load_evidence(required[1])
     report.validate_sources(provenance)
     dataset_rows = [json.loads(line) for line in required[0].read_text(encoding="utf-8").splitlines() if line.strip()]
     report.validate(records, quality, dataset_rows)

@@ -113,18 +113,22 @@ ssh -L 8080:127.0.0.1:8080 <user>@<vm-ip>
 浏览器
   -> Linux Work VM nginx /qira-benchmark/（Basic Auth）
   -> Portal 服务 127.0.0.1:8513
-  -> 加密 SSH 隧道 127.0.0.1:8514
+  -> 反向隧道监听 127.0.0.1:8514
+       <- 由 Sweden Central Runner 主动建立加密 SSH
   -> Sweden Central Runner 127.0.0.1:8513
   -> Sweden Central Azure OpenAI 资源
 ```
 
 Portal 与持久化历史记录位于 Linux Work VM，并和其他 Demo 应用一起注册；请求计时进程
 则位于 Sweden Central 压测 VM。因此把 UI 放到 East Asia 不会把地理距离混进模型时延。
-Runner 不开放任何公网应用端口：两端只通过出站 SSH 隧道通信。nginx 路径沿用 Portal
-现有的 Basic Auth，应用进程本身只监听 loopback。
+Runner 不开放任何公网应用端口：它主动连接 Work VM 已有的 SSH 入口，建立反向隧道。
+两个应用进程和映射端口都只监听 loopback。SSH 服务端主机密钥通过 Azure 控制平面固定，
+专用隧道账号只能监听 `127.0.0.1:8514`。nginx 路径沿用 Portal 现有的 Basic Auth。
 
-Work VM 上端口明确错开：`8513` 是 Portal，`8514` 是隧道。两个 systemd 单元、Runner
-单元和 nginx location 均在 `deploy/`。
+Work VM 上端口明确错开：`8513` 是 Portal，`8514` 是反向隧道。Portal、Runner、
+反向隧道三个 systemd 单元和 nginx location 均在 `deploy/`。两个服务均使用
+`StateDirectory=qira-benchmark`，不需要写 `/opt`。变更接口只接受同源 JSON，Runner
+同时最多接受两个付费运行。
 
 ### 在笔记本上、没有凭据时
 
@@ -137,6 +141,8 @@ python server.py --port 8080
 没有 `AZURE_OPENAI_ENDPOINT` 时，控制台进入**回放模式**：运行按钮禁用，
 `replay/replay_pack.json` 用已记录的研究数据喂同样的图表。适合彩排，也适合
 会议室 WiFi 掉线的那一刻。回放视图在界面上有明确标注。
+回放包内嵌自己的模型/场景目录，并且明确不进入 Git LFS，因此没有执行
+`git lfs pull` 的 clone 同样可以使用回放模式。
 
 ---
 

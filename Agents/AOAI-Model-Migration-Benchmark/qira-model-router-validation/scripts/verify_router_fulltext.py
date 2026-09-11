@@ -13,6 +13,7 @@ Author: Xinyu Wei (魏新宇)
 
 import hashlib
 import json
+import lzma
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -23,6 +24,13 @@ KEY = ("arm", "question_id", "iteration")
 # Fields the builder adds or derives; they do not exist in the raw harness output.
 IGNORED = {"response_text", "response_preview", "response_sha256", "cost_usd",
            "total_tokens", "visible_output_tokens_estimate", "category", "source"}
+WITHHELD_IDS = {"PA01", "PA03"}
+MARKER = ("[withheld in the public copy: this cell reproduced an internal meeting "
+          "transcript; see outputs/public_redaction.json]")
+PUBLIC_ARCHIVE_SHA256 = "37e5dfa30117d687f175ed4bcae748bb4bba432484bdd493324cba7cd45c4061"
+PUBLIC_NUMERIC_SHA256 = "2c7996682fd5091c8509c1eb107cc57b6cbfa6b6b6af33c814516c7e9713b589"
+PUBLIC_FULLTEXT_SHA256 = "0d0b56d0f4678eaff18e09b9f4697edfac7fb0194b43c378f113aee293d6d1b6"
+PUBLIC_QUALITY_SHA256 = "c1ef3d4909816c8a335280a7cc5173aef13aaf3c523fc91ea3554c87abbdb453"
 
 
 def load(path: Path) -> dict:
@@ -34,37 +42,44 @@ def load(path: Path) -> dict:
 
 
 def main() -> None:
-    provenance = json.loads((OUTPUT / f"provenance_router_{RUN}.json").read_text(encoding="utf-8"))
-    redaction_path = OUTPUT / "public_redaction.json"
-    redaction = json.loads(redaction_path.read_text(encoding="utf-8")) if redaction_path.exists() else None
-    withheld_ids = set(redaction["withheld_question_ids"]) if redaction else set()
-    marker = redaction["marker"] if redaction else None
-
-    def accepted(rel: str, *expected: str) -> set:
-        """Hashes a file may legitimately carry: the recorded ones plus the public-redaction hash if recorded."""
-        values = {e for e in expected if e}
-        if redaction and rel in redaction["files"] and redaction["files"][rel]["original_sha256"] in values:
-            values.add(redaction["files"][rel]["redacted_sha256"])
-        return values
-
+    archive_path = OUTPUT / f"evidence_router_{RUN}.json.xz"
+    numeric_path = OUTPUT / f"router_{RUN}.metrics.jsonl"
     raw_path = OUTPUT / f"raw_fulltext/router_{RUN}.jsonl"
-    raw_digest = hashlib.sha256(raw_path.read_bytes()).hexdigest()
-    if raw_digest not in accepted(f"outputs/raw_fulltext/router_{RUN}.jsonl", provenance.get("retained_raw_sha256"), provenance["raw_sha256"]):
-        raise ValueError("Full-text file SHA256 differs from provenance.")
     quality_path = OUTPUT / f"raw_fulltext/quality_{RUN}.jsonl"
-    if hashlib.sha256(quality_path.read_bytes()).hexdigest() not in accepted(f"outputs/raw_fulltext/quality_{RUN}.jsonl", provenance["quality_sha256"]):
-        raise ValueError("Raw quality file SHA256 differs from the VM export.")
+    generated_quality_path = OUTPUT / f"quality_router_{RUN}.jsonl"
+    for path, expected in (
+        (archive_path, PUBLIC_ARCHIVE_SHA256),
+        (numeric_path, PUBLIC_NUMERIC_SHA256),
+        (raw_path, PUBLIC_FULLTEXT_SHA256),
+        (quality_path, PUBLIC_QUALITY_SHA256),
+        (generated_quality_path, PUBLIC_QUALITY_SHA256),
+    ):
+        actual = hashlib.sha256(path.read_bytes()).hexdigest()
+        if actual != expected:
+            raise ValueError(f"{path.name}: SHA256 {actual} differs from pinned public evidence.")
     if load(quality_path) != load(OUTPUT / f"quality_router_{RUN}.jsonl"):
         raise ValueError("Retained judge scores differ from the generated quality file.")
-    numeric = load(OUTPUT / f"router_{RUN}.metrics.jsonl")
+    evidence = json.loads(lzma.decompress(archive_path.read_bytes()))
+    archived = {
+        tuple(row[k] for k in KEY): row
+        for row in (
+            dict(zip(evidence["performance_columns"], values, strict=True))
+            for values in evidence["performance_values"]
+        )
+    }
+    numeric = load(numeric_path)
     fulltext = load(raw_path)
     if set(numeric) != set(fulltext) or len(numeric) != EXPECTED:
         raise ValueError(f"Full-text and numerical files do not cover the same {EXPECTED} cells.")
+    if set(numeric) != set(archived):
+        raise ValueError("Numerical evidence and the pinned archive cover different cells.")
     mismatched_hash, mismatched_fields, withheld = [], [], 0
     for key, record in numeric.items():
         answer = fulltext[key]
-        if key[1] in withheld_ids:
-            if answer.get("response_text") != marker:
+        if record["response_sha256"] != archived[key]["response_sha256"]:
+            mismatched_hash.append(key)
+        if key[1] in WITHHELD_IDS:
+            if answer.get("response_text") != MARKER:
                 raise ValueError(f"withheld cell {key} does not carry the public-redaction marker")
             withheld += 1
         elif hashlib.sha256((answer.get("response_text") or "").encode()).hexdigest() != record["response_sha256"]:
@@ -74,9 +89,9 @@ def main() -> None:
                 mismatched_fields.append((key, field))
     if mismatched_hash or mismatched_fields:
         raise ValueError(f"hash mismatches={mismatched_hash[:5]} field mismatches={mismatched_fields[:5]}")
-    chars = sum(len(a["response_text"]) for k, a in fulltext.items() if k[1] not in withheld_ids)
+    chars = sum(len(a["response_text"]) for k, a in fulltext.items() if k[1] not in WITHHELD_IDS)
     served = sum(1 for a in fulltext.values() if a.get("served_model_family") == "gpt-5.6-sol")
-    note = f"; {withheld} answers to {sorted(withheld_ids)} withheld in the public copy (numbers and hashes kept)" if withheld else ""
+    note = f"; {withheld} answers to {sorted(WITHHELD_IDS)} withheld in the public copy (hashes anchored in the archive)" if withheld else ""
     print(f"VERIFIED: {EXPECTED - withheld} answers match their SHA256 and numerical fields; "
           f"{chars:,} characters of model output retained; {served} answers were served by gpt-5.6-sol{note}.")
 

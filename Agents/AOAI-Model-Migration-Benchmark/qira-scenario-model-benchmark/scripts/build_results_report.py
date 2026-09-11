@@ -27,21 +27,13 @@ SCENARIOS = (
     "NextMove", "WriteForMe", "CatchMeUp", "PayAttention",
     "LiveInteraction", "CreatorZone",
 )
-# SHA256 of the evidence archive. The first value was recorded on the VM right
-# after export; the second is the committed copy after scripts/redact_endpoint.py
-# replaced the real endpoint host with a placeholder (numerical content identical).
+# SHA256 of the public evidence archive. The public builder intentionally
+# accepts only this digest: accepting a known pre-publication archive would
+# allow the withdrawn transcript text to be reintroduced while still passing.
 ARCHIVE_SHA256 = {
-    "7ec395596868e5d8b911a8f8b713f787a5572085b6885c7d38da05fe4b890c3b": "original (VM export)",
-    "764f5a4239c06a80305f9fda97a02b5399110c3e18361b89cfde42a830df5476": "redacted (committed)",
+    "e3ed47adfa25c0da1234496095436a880fa0d16a168ed6aecf0efa0eb64a94a8":
+        "public (transcript prompts withheld, numbers unchanged)",
 }
-# In the public copy two transcript prompts are withheld (outputs/public_redaction.json); the archive's
-# judge justifications for those cells are replaced by a marker, so its hash differs from both values above.
-PUBLIC_REDACTION = OUTPUT / "public_redaction.json"
-if PUBLIC_REDACTION.exists():
-    _pr = json.loads(PUBLIC_REDACTION.read_text(encoding="utf-8"))
-    _entry = _pr["files"].get(f"outputs/evidence_{RUN}.json.xz")
-    if _entry:
-        ARCHIVE_SHA256[_entry["redacted_sha256"]] = "public (transcript prompts withheld, numbers unchanged)"
 
 
 def mean(rows, field):

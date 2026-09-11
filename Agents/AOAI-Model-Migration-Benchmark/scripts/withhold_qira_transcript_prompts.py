@@ -7,11 +7,14 @@ and every judge justification about them are replaced by MARKER. Nothing numeric
 token counts, latency, cost, scores and the per-answer response_sha256 stay exactly as measured,
 so the withheld cells remain in every aggregate and every matrix check still passes.
 
-The verifiers in each study folder read outputs/public_redaction.json (written here) and:
-  - skip the response-text hash check only for the withheld cells (and assert the MARKER is there),
-  - accept the recorded post-redaction SHA256 for the files this script rewrote.
+The evidence builders and full-text verifiers pin the public archive and file
+digests independently. For withheld cells they assert MARKER and compare the
+retained response_sha256 with the same cell in the pinned archive.
 
-Idempotent: rows already carrying MARKER are left alone and re-recorded.
+Idempotent: rows already carrying MARKER are left alone and re-recorded. Source
+metadata was sanitized before publication; its original/public digests remain
+in the existing manifests, but this public script does not contain the source
+strings that were removed.
 
 Usage (from Agents/AOAI-Model-Migration-Benchmark):
     python scripts/withhold_qira_transcript_prompts.py
@@ -36,32 +39,6 @@ REASON = ("Prompts PA01 and PA03 were a synthetic meeting transcript naming coll
           "planning discussion. Their prompt text, the model answers to them and the judge justifications about them "
           "are withheld from the public copy. All numerical fields, scores and response_sha256 values are unchanged, "
           "so every aggregate and matrix check still covers these cells.")
-PUBLIC_TEXT_REPLACEMENTS = {
-    "Unified benchmark harness — Qira (Lenovo) Chicago Workshop prep.":
-        "Unified benchmark harness for the Qira scenario studies.",
-    "its choice and the fallback plan in Xinyu-工作计划.md applies.":
-        "its choice and the documented fallback plan applies.",
-    "and the fallback plan in Xinyu-工作计划.md applies.":
-        "and the documented fallback plan applies.",
-    "Apply the fallback in Xinyu-工作计划.md: infer from latency banding and":
-        "Apply the documented fallback: infer from latency banding and",
-    "Xinyu-工作计划.md lists this as the first risk of the router workstream. Before":
-        "The missing served-model identity is the first risk of the router workstream. Before",
-    "AOAI-Model-Migration-Benchmark + Chicago workshop scope":
-        "AOAI-Model-Migration-Benchmark + Qira study scope",
-    "Chicago workshop scope - CONFIRM the minimum supported effort value before the real run":
-        "Qira study scope - CONFIRM the minimum supported effort value before the real run",
-    "Chicago workshop scope, Task B high-capability tier - CONFIRM minimum supported effort":
-        "Qira study scope, router high-capability tier - CONFIRM minimum supported effort",
-    "Chicago workshop scope, Task B high-capability tier":
-        "Qira study scope, router high-capability tier",
-    "Chicago workshop scope - deployment of gpt-4o-mini in swedencentral for the same-region matrix":
-        "Qira study scope - deployment of gpt-4o-mini in swedencentral for the same-region matrix",
-}
-PUBLIC_SOURCE_GLOBS = (
-    "harness.py", "analyze.py", "probe_router.py", "config/models.json",
-    "outputs/source_snapshot/harness.py", "outputs/source_snapshot/analyze.py",
-)
 
 
 def sha(data: bytes) -> str:
@@ -116,30 +93,6 @@ def process_archive(path: Path, base: Path, record: dict) -> None:
                    "rows_withheld": sum(1 for r in evidence.get("quality", []) if qid(r) in WITHHELD_IDS)}
 
 
-def process_public_source(path: Path, base: Path, record: dict) -> None:
-    """Remove internal planning references while preserving a hash audit trail."""
-    if not path.is_file():
-        return
-    original = path.read_bytes()
-    text = original.decode("utf-8")
-    replacements = 0
-    for old, new in PUBLIC_TEXT_REPLACEMENTS.items():
-        count = text.count(old)
-        if count:
-            text = text.replace(old, new)
-            replacements += count
-    rel = path.relative_to(base).as_posix()
-    if replacements == 0 and rel not in record:
-        return
-    if replacements:
-        path.write_text(text, encoding="utf-8", newline="\n")
-    record[rel] = {
-        "original_sha256": record.get(rel, {}).get("original_sha256") or sha(original),
-        "redacted_sha256": sha(path.read_bytes()),
-        "metadata_replacements": replacements or record.get(rel, {}).get("metadata_replacements", 0),
-    }
-
-
 def main() -> None:
     for folder in FOLDERS:
         base = ROOT / folder
@@ -152,8 +105,6 @@ def main() -> None:
             process_jsonl(path, base, record)
         for path in sorted((base / "outputs").rglob("*.xz")):
             process_archive(path, base, record)
-        for rel in PUBLIC_SOURCE_GLOBS:
-            process_public_source(base / rel, base, record)
         redaction_path.write_text(json.dumps({
             "marker": MARKER, "withheld_question_ids": sorted(WITHHELD_IDS), "reason": REASON,
             "files": dict(sorted(record.items())),

@@ -123,6 +123,9 @@ def main() -> int:
     pack = {
         "_comment": "Recorded runs re-aggregated by bench_core.summarize_arm. "
                     "Replayed measurements, not a live test.",
+        # Kept in the non-LFS pack so a clone without git-lfs can still open
+        # replay mode. Live mode continues to read the sibling study assets.
+        "catalog": bench_core.catalog(),
         "runs": runs,
     }
     rendered = json.dumps(pack, ensure_ascii=False, indent=2) + "\n"

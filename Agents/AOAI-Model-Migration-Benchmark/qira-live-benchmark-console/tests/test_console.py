@@ -266,6 +266,11 @@ class Plans(unittest.TestCase):
     def test_headroom_is_clamped(self):
         self.assertEqual(self.plan(headroom=999999).headroom, 32768)
 
+    def test_zero_headroom_keeps_the_prompt_answer_budget(self):
+        plan = self.plan(items=["NM01"], headroom=0)
+        self.assertEqual(plan.headroom, 0)
+        self.assertEqual(plan.cap_for(plan.items[0]), 400)
+
 
 class FakeHarness:
     """Stands in for harness.py: same call signature, deterministic output."""
@@ -361,6 +366,16 @@ class Execution(unittest.TestCase):
         plan, records, _ = self.run_plan(fake, concurrency=4)
         self.assertEqual(plan.concurrency, 4)
         self.assertEqual(len(records), plan.measured_calls)
+
+    def test_warmup_duration_is_excluded_from_measured_throughput(self):
+        fake = FakeHarness()
+        # warm-up starts at 0; measured pass starts at 100 and ends at 102.
+        with patch.object(bench_core.time, "perf_counter", side_effect=[0.0, 100.0, 102.0]):
+            _, _, events = self.run_plan(
+                fake, items=["NM01"], iterations=1, concurrency=2, warmup=True)
+        summary = next(payload for kind, payload in events if kind == "arm_summary")
+        self.assertEqual(summary["run_output_tps"], 60.0)  # 120 measured tokens / 2 seconds
+        self.assertEqual(summary["run_rps"], 0.5)
 
 
 class Totals(unittest.TestCase):
@@ -584,6 +599,14 @@ class Replay(unittest.TestCase):
                             "output_tokens_mean", "ok"):
                     self.assertIn(key, summary)
 
+    def test_pack_embeds_catalog_for_a_clone_without_git_lfs(self):
+        pack = server.load_replay()
+        self.assertTrue(pack["catalog"]["arms"])
+        self.assertTrue(pack["catalog"]["scenarios"])
+        with patch.object(bench_core, "catalog", side_effect=ConsoleError("LFS pointer")), \
+                patch.object(server, "server_mode", return_value="replay"):
+            self.assertEqual(server.load_catalog(), pack["catalog"])
+
 
 class HttpSurface(unittest.TestCase):
     @classmethod
@@ -607,11 +630,12 @@ class HttpSurface(unittest.TestCase):
         connection.close()
         return response.status, body
 
-    def post(self, path, payload):
+    def post(self, path, payload, headers=None):
         connection = http.client.HTTPConnection("127.0.0.1", self.port, timeout=20)
         body = json.dumps(payload)
-        connection.request("POST", path, body=body,
-                           headers={"Content-Type": "application/json"})
+        request_headers = {"Content-Type": "application/json"}
+        request_headers.update(headers or {})
+        connection.request("POST", path, body=body, headers=request_headers)
         response = connection.getresponse()
         text = response.read().decode("utf-8")
         connection.close()
@@ -674,6 +698,43 @@ class HttpSurface(unittest.TestCase):
         status, body = self.post("/api/cancel", {"run_id": "deadbeef"})
         self.assertEqual(status, 200)
         self.assertFalse(body["ok"])
+
+    def test_text_plain_cannot_start_a_paid_run(self):
+        status, body = self.post(
+            "/api/run", {"items": ["NM01"]}, headers={"Content-Type": "text/plain"})
+        self.assertEqual(status, 400)
+        self.assertIn("application/json", body["error"])
+
+    def test_cross_site_post_is_rejected(self):
+        status, body = self.post(
+            "/api/run", {"items": ["NM01"]},
+            headers={"Origin": "https://malicious.example", "Host": "portal.example"})
+        self.assertEqual(status, 400)
+        self.assertIn("Origin", body["error"])
+
+
+class ActiveRunLimit(unittest.TestCase):
+    def setUp(self):
+        self.original_runs = server._runs.copy()
+        server._runs.clear()
+
+    def tearDown(self):
+        server._runs.clear()
+        server._runs.update(self.original_runs)
+
+    def test_active_run_limit_rejects_additional_paid_work(self):
+        server._runs["already-running"] = {"finished_at": None}
+        request = {
+            "dataset": "scenarios",
+            "arms": [{"deployment": "gpt-5.6-luna-dz"}],
+            "items": ["NM01"],
+            "iterations": 1,
+            "warmup": False,
+        }
+        with patch.object(server, "server_mode", return_value="live"), \
+                patch.object(server, "MAX_ACTIVE_RUNS", 1), \
+                self.assertRaisesRegex(ConsoleError, "already active"):
+            server.start_run(request)
 
 
 class ModeLabels(unittest.TestCase):

@@ -45,6 +45,28 @@ TIERS = ("simple", "moderate", "complex")
 MODE_OF = {"router-sol-luna-balanced": "balanced", "router-sol-luna-cost": "cost", "router-sol-luna-quality": "quality"}
 RUN_SOURCES = ("harness.py", "judge.py", "analyze.py", "config/models.json", "config/pricing.json",
                "datasets/router_taskb.jsonl", "scripts/build_router_dataset.py")
+PUBLIC_SOURCE_SHA256 = {
+    "harness.py": (
+        "72ff098339ad9f21e17a6a532e5cbba0cd54113010377d24503e903a9ea24453",
+        "995eebb5b2a5c3a34d4fda6aacfac7dac2529ddca89b7eb435e0dc40ba04c211",
+    ),
+    "analyze.py": (
+        "e45debeab571b4dc8a4b63711c860371ff95886ab8822869e3de010f653f3a91",
+        "1cedc02e7e96f652ea7041be216702de4ffea0c4182e6c5a9a7616e21b16327f",
+    ),
+    "config/models.json": (
+        "364369d7a90c229a3fd2363176d728740f63321d54598268f74d11e6722946ff",
+        "18aed9fede9f2d969c4b40fcab7b785e7b20b9eb132fc98a4b8260a28d4d8747",
+    ),
+    "datasets/router_taskb.jsonl": (
+        "0e002a575c180c91da6cf6c98251a8faec0562ae1edba96b6e6f8c228185df54",
+        "1cf7d872ea8b9506b466d83eb543614d0ac6988b69efe7c3cfd5bcd07cfc0ebd",
+    ),
+}
+ARCHIVE_SHA256 = {
+    "37e5dfa30117d687f175ed4bcae748bb4bba432484bdd493324cba7cd45c4061":
+        "public (transcript prompts withheld, numbers unchanged)",
+}
 
 
 def arm_name(deployment: str, effort: str | None) -> str:
@@ -66,11 +88,12 @@ def share(rows, family):
     return sum(1 for r in rows if r["served_model_family"] == family) / len(rows) if rows else None
 
 
-def load_evidence(archive: Path, expected_sha256: str | None):
+def load_evidence(archive: Path):
     payload = archive.read_bytes()
     digest = hashlib.sha256(payload).hexdigest()
-    if expected_sha256 and digest != expected_sha256:
-        raise ValueError(f"Evidence archive SHA256 {digest} does not match the verified remote checksum.")
+    if digest not in ARCHIVE_SHA256:
+        raise ValueError(
+            f"Evidence archive SHA256 {digest} does not match any pinned checksum.")
     evidence = json.loads(lzma.decompress(payload))
     if evidence.get("task") != "B-model-router" or evidence.get("run_id") != RUN:
         raise ValueError("Archive is not the Task B run this builder was written for.")
@@ -156,32 +179,21 @@ def validate(records, quality, dataset):
 
 
 def validate_sources(provenance):
-    # The public copy withholds two transcript prompts in the dataset (outputs/public_redaction.json);
-    # the recorded post-redaction hash is the only alternative accepted for that file.
-    redaction_path = OUTPUT / "public_redaction.json"
-    accepted_public = {}
-    if redaction_path.exists():
-        for rel, entry in json.loads(redaction_path.read_text(encoding="utf-8"))["files"].items():
-            accepted_public[rel] = (entry["original_sha256"], entry["redacted_sha256"])
     for name in RUN_SOURCES:
         expected = provenance["source_sha256"].get(name)
         snapshot = ROOT / "outputs" / "source_snapshot" / name
         source = snapshot if snapshot.is_file() else ROOT / name
         actual = hashlib.sha256(source.read_bytes()).hexdigest()
         if not expected or actual != expected:
-            rel = source.relative_to(ROOT).as_posix()
-            original, redacted = accepted_public.get(
-                rel, accepted_public.get(name, (None, None)))
-            if not (expected == original and actual == redacted):
+            original, public = PUBLIC_SOURCE_SHA256.get(name, (None, None))
+            if not (expected == original and actual == public):
                 raise ValueError(f"Source differs from the executed run: {name}")
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("--sha256", default=None, help="expected SHA256 of the evidence archive (printed by the VM export)")
-    args = parser.parse_args()
-
-    evidence, records, quality, digest = load_evidence(OUTPUT / f"evidence_router_{RUN}.json.xz", args.sha256)
+    argparse.ArgumentParser(description=__doc__.split("\n\n")[0]).parse_args()
+    evidence, records, quality, digest = load_evidence(
+        OUTPUT / f"evidence_router_{RUN}.json.xz")
     validate_sources(evidence["provenance"])
     dataset = [json.loads(line) for line in (ROOT / "datasets" / "router_taskb.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
     item_of = {item["id"]: item for item in dataset}

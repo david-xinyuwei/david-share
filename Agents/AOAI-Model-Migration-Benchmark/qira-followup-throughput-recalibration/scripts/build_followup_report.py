@@ -63,6 +63,18 @@ def sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def validate_input_manifest():
+    manifest = json.loads((INPUTS / "manifest.json").read_text(encoding="utf-8"))
+    for name, entry in manifest["files"].items():
+        path = INPUTS / name
+        if not path.is_file():
+            raise ValueError(f"Historical input is missing: {name}")
+        actual = sha(path)
+        if actual != entry["sha256"]:
+            raise ValueError(
+                f"Historical input {name} has SHA256 {actual}; expected {entry['sha256']}.")
+
+
 def find_run(prefix: str) -> str:
     runs = sorted(p.name[len(prefix) + 1:-6] for p in RAW.glob(f"{prefix}_*.jsonl"))
     if len(runs) != 1:
@@ -112,7 +124,8 @@ def direct_comparison(pricing, registry):
     bad = [r for r in new if not valid(r)]
     if bad:
         raise ValueError(f"{len(bad)} invalid records in the re-measure: {[(r['arm'], r['question_id'], r['error']) for r in bad[:3]]}")
-    old = list(csv.DictReader((INPUTS / f"chat_direct_requests_{RUN_B}.csv").open(encoding="utf-8")))
+    with (INPUTS / f"chat_direct_requests_{RUN_B}.csv").open(encoding="utf-8") as stream:
+        old = list(csv.DictReader(stream))
     for r in old:
         for k in ("ttft_ms", "e2e_ms", "decode_ms", "tpot_ms", "decode_tps"):
             r[k] = float(r[k]) if r[k] not in ("", "None") else None
@@ -413,6 +426,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--check", action="store_true", help="fail if the READMEs would change")
     args = parser.parse_args()
+    validate_input_manifest()
     registry = analyze.load_registry(ROOT / "config" / "models.json")
     pricing = analyze.load_pricing(ROOT / "config" / "pricing.json")
     before = {n: (ROOT / n).read_text(encoding="utf-8") if (ROOT / n).exists() else None for n in ("README.md", "README-CN.md")}

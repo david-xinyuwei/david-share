@@ -51,6 +51,7 @@ RUNNER_URL = os.environ.get("QIRA_RUNNER_URL", "").rstrip("/")
 MAX_BODY_BYTES = 1 << 20
 RUN_RETENTION = 8
 HISTORY_RETENTION = 200
+MAX_ACTIVE_RUNS = int(os.environ.get("QIRA_MAX_ACTIVE_RUNS", "2"))
 
 _runs: dict[str, dict] = {}
 _runs_lock = threading.Lock()
@@ -124,13 +125,13 @@ def _prune_runs() -> None:
 
 
 def start_run(request: dict) -> str:
-    catalog_data = bench_core.catalog()
-    plan = bench_core.build_plan(request, catalog_data)
     if server_mode() != "live":
         raise ConsoleError(
             "This console is running in replay mode: AZURE_OPENAI_ENDPOINT is not set, "
             "so there is nothing to measure against. Load your .env and restart to run live."
         )
+    catalog_data = bench_core.catalog()
+    plan = bench_core.build_plan(request, catalog_data)
 
     run_id = secrets.token_hex(8)
     events: queue.Queue = queue.Queue()
@@ -146,6 +147,12 @@ def start_run(request: dict) -> str:
         "error": None,
     }
     with _runs_lock:
+        active = sum(1 for run in _runs.values() if run.get("finished_at") is None)
+        if active >= MAX_ACTIVE_RUNS:
+            raise ConsoleError(
+                f"{active} benchmark run(s) are already active; the service limit is "
+                f"{MAX_ACTIVE_RUNS}. Wait for one to finish or stop it before starting another."
+            )
         _prune_runs()
         _runs[run_id] = state
 
@@ -367,6 +374,20 @@ def load_replay() -> dict:
     return data
 
 
+def load_catalog() -> dict:
+    """Use the live study catalog, or the embedded catalog in no-LFS replay mode."""
+    try:
+        return bench_core.catalog()
+    except ConsoleError:
+        if server_mode() != "replay":
+            raise
+        replay = load_replay()
+        catalog = replay.get("catalog")
+        if not catalog:
+            raise
+        return catalog
+
+
 # --------------------------------------------------------------------------
 # CSV export
 # --------------------------------------------------------------------------
@@ -439,11 +460,28 @@ class Handler(BaseHTTPRequestHandler):
 
     def _read_json(self) -> dict:
         length = int(self.headers.get("Content-Length") or 0)
-        if length <= 0:
-            return {}
         if length > MAX_BODY_BYTES:
             raise ConsoleError("Request body too large.")
-        return json.loads(self.rfile.read(length).decode("utf-8"))
+        body = self.rfile.read(length) if length > 0 else b""
+        content_type = self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+        if content_type != "application/json":
+            raise ConsoleError("State-changing requests require Content-Type: application/json.")
+        if length <= 0:
+            return {}
+        return json.loads(body.decode("utf-8"))
+
+    def _require_same_site(self):
+        if self.headers.get("Sec-Fetch-Site", "").lower() == "cross-site":
+            raise ConsoleError("Cross-site state-changing requests are not allowed.")
+        origin = self.headers.get("Origin")
+        if not origin:
+            return
+        expected = os.environ.get("QIRA_ALLOWED_ORIGIN", "").rstrip("/")
+        if not expected:
+            scheme = self.headers.get("X-Forwarded-Proto", "http").split(",", 1)[0].strip()
+            expected = f"{scheme}://{self.headers.get('Host', '')}".rstrip("/")
+        if origin.rstrip("/") != expected:
+            raise ConsoleError("Request Origin does not match this portal.")
 
     def _serve_static(self, relative: str):
         # The UI has three immutable assets. A fixed map is simpler and leaves
@@ -465,7 +503,7 @@ class Handler(BaseHTTPRequestHandler):
             elif route.startswith("/static/"):
                 self._serve_static(route[len("/static/"):])
             elif route == "/api/catalog":
-                data = bench_core.catalog()
+                data = load_catalog()
                 data["mode"] = server_mode()
                 data["endpoint"] = endpoint_label()
                 data["runner"] = "remote" if runner_configured() else "local"
@@ -497,6 +535,7 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if route == "/api/run":
                 payload = self._read_json()
+                self._require_same_site()
                 if runner_configured():
                     status, response = runner_json("POST", "/api/run", payload)
                     self._send_json(response, status)
@@ -504,7 +543,9 @@ class Handler(BaseHTTPRequestHandler):
                     run_id = start_run(payload)
                     self._send_json({"run_id": run_id})
             elif route == "/api/cancel":
-                run_id = (self._read_json() or {}).get("run_id", "")
+                payload = self._read_json()
+                self._require_same_site()
+                run_id = (payload or {}).get("run_id", "")
                 if runner_configured():
                     status, response = runner_json(
                         "POST", "/api/cancel", {"run_id": run_id})
@@ -525,6 +566,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_DELETE(self):  # noqa: N802 - BaseHTTPRequestHandler API
         route = urlparse(self.path).path
         try:
+            self._require_same_site()
             if route.startswith("/api/history/"):
                 removed = delete_history_run(route[len("/api/history/"):])
                 self._send_json({"ok": removed}, 200 if removed else 404)

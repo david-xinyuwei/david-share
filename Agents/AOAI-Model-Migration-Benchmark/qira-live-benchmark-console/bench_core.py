@@ -557,7 +557,7 @@ def build_plan(request: dict, catalog_data: dict) -> RunPlan:
     max_output = max(64, min(int(request.get("max_output_tokens") or DEFAULT_MAX_OUTPUT_TOKENS), 32768))
     warmup = bool(request.get("warmup", True))
     headroom = request.get("headroom")
-    if headroom not in (None, "", False):
+    if headroom is not None and headroom != "":
         headroom = max(0, min(int(headroom), 32768))
     else:
         headroom = None
@@ -618,11 +618,12 @@ def execute_plan(plan: RunPlan, client, pricing: dict, registry: dict, harness,
             passes.append((0, True))
         passes.extend((i + 1, False) for i in range(plan.iterations))
 
-        arm_started = time.perf_counter()
+        measured_wall = 0.0
         for iteration, is_warmup in passes:
             if cancel.is_set():
                 break
             batch = [(item, iteration, is_warmup) for item in plan.items]
+            pass_started = time.perf_counter()
             with ThreadPoolExecutor(max_workers=plan.concurrency) as pool:
                 futures = [
                     pool.submit(_one_call, harness, client, arm, item, plan,
@@ -639,8 +640,10 @@ def execute_plan(plan: RunPlan, client, pricing: dict, registry: dict, harness,
                         all_records.append(record)
                     emit("record", {**record, "progress": round(done / total, 4),
                                     "done": done, "total": total})
-        arm_wall = time.perf_counter() - arm_started
-        emit("arm_summary", summarize_arm(arm.name, arm_records, arm_wall if plan.concurrency > 1 else None))
+            if not is_warmup:
+                measured_wall += time.perf_counter() - pass_started
+        emit("arm_summary", summarize_arm(
+            arm.name, arm_records, measured_wall if plan.concurrency > 1 else None))
 
     return all_records
 

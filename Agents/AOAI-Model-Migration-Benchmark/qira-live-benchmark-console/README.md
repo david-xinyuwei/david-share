@@ -126,7 +126,8 @@ The delivered deployment separates presentation from measurement:
 browser
   -> Linux Work VM nginx /qira-benchmark/ (Basic Auth)
   -> portal service 127.0.0.1:8513
-  -> encrypted SSH tunnel 127.0.0.1:8514
+  -> reverse-tunnel listener 127.0.0.1:8514
+       <- encrypted SSH initiated by the Sweden Central runner
   -> Sweden Central runner 127.0.0.1:8513
   -> Sweden Central Azure OpenAI resource
 ```
@@ -135,13 +136,18 @@ The portal and its durable history live on the Linux Work VM, where it is
 registered alongside the other demo applications. The request-timing process
 lives on the Sweden Central benchmark VM, so moving the UI to East Asia does
 not turn geography into model latency. No runner port is opened to the
-internet: the two services communicate over an outbound SSH tunnel. The nginx
-route reuses the portal's existing Basic Auth; the application itself listens
-on loopback only.
+internet: the runner initiates a reverse SSH tunnel to the Work VM's existing
+SSH endpoint. Both applications and the forwarded port listen on loopback
+only. The SSH server host key is pinned from the Azure control plane, and the
+dedicated tunnel account is restricted to listening on `127.0.0.1:8514`. The
+nginx route reuses the portal's existing Basic Auth.
 
 Ports are deliberately unique on the Work VM: `8513` for the portal and
-`8514` for the tunnel. See `deploy/` for the two systemd units, the runner unit
-and the nginx location.
+`8514` for the reverse tunnel. See `deploy/` for the portal, runner and
+reverse-tunnel systemd units plus the nginx location. Both services use
+`StateDirectory=qira-benchmark`; no writable path under `/opt` is required.
+State-changing endpoints require JSON from the same origin, and the runner
+accepts at most two active paid runs at once.
 
 ### On a laptop, with no credentials
 
@@ -155,6 +161,8 @@ With no `AZURE_OPENAI_ENDPOINT` the console starts in **replay mode**: the run
 button is disabled, and `replay/replay_pack.json` feeds the same charts from
 the recorded study runs. Useful for rehearsing, and for the moment the
 conference-room wifi dies. Replayed views are labelled as such on screen.
+The pack embeds its own model/scenario catalog and is deliberately not in Git
+LFS, so replay mode also works in a clone made without `git lfs pull`.
 
 ---
 

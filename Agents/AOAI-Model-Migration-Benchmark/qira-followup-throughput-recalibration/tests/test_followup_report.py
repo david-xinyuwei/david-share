@@ -4,6 +4,7 @@ import copy
 import importlib.util
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -32,6 +33,24 @@ class FollowupBuilderTests(unittest.TestCase):
             return copy.deepcopy(rows) if path.name.startswith(name) else real(path)
         with patch.object(FU, "load_jsonl", fake):
             return fn()
+
+    def test_input_manifest_matches_every_committed_input(self):
+        FU.validate_input_manifest()
+
+    def test_input_manifest_rejects_a_modified_public_input(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest = json.loads(
+                (FU.INPUTS / "manifest.json").read_text(encoding="utf-8"))
+            (root / "manifest.json").write_text(
+                json.dumps(manifest), encoding="utf-8")
+            for name in manifest["files"]:
+                (root / name).write_bytes((FU.INPUTS / name).read_bytes())
+            target = root / "quality_v1_20260909_120534.jsonl"
+            target.write_bytes(target.read_bytes() + b" ")
+            with patch.object(FU, "INPUTS", root), \
+                    self.assertRaisesRegex(ValueError, "SHA256"):
+                FU.validate_input_manifest()
 
     def test_direct_full_matrix_and_all_valid(self):
         run, records, rows = FU.direct_comparison(self.pricing, self.registry)
