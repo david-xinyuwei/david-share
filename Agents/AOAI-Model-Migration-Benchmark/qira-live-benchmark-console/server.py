@@ -379,7 +379,7 @@ def load_catalog() -> dict:
     try:
         return bench_core.catalog()
     except ConsoleError:
-        if server_mode() != "replay":
+        if server_mode() != "replay" and not runner_configured():
             raise
         replay = load_replay()
         catalog = replay.get("catalog")

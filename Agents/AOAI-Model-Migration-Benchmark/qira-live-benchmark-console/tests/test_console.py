@@ -607,6 +607,12 @@ class Replay(unittest.TestCase):
                 patch.object(server, "server_mode", return_value="replay"):
             self.assertEqual(server.load_catalog(), pack["catalog"])
 
+    def test_remote_portal_can_use_embedded_catalog_without_sibling_assets(self):
+        pack = server.load_replay()
+        with patch.object(bench_core, "catalog", side_effect=ConsoleError("missing siblings")), \
+                patch.object(server, "RUNNER_URL", "http://127.0.0.1:8514"):
+            self.assertEqual(server.load_catalog(), pack["catalog"])
+
 
 class HttpSurface(unittest.TestCase):
     @classmethod
