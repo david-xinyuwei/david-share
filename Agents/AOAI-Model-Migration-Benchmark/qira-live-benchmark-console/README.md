@@ -149,6 +149,11 @@ reverse-tunnel systemd units plus the nginx location. Both services use
 State-changing endpoints require JSON from the same origin, and the runner
 accepts at most two active paid runs at once.
 
+Copy the three `deploy/*.env.example` files to the paths named by the systemd
+units. In particular, `portal.env` must list the exact HTTP and/or HTTPS
+browser origins in `QIRA_ALLOWED_ORIGIN`; the server never trusts the request's
+`Host` header to establish an allowed origin.
+
 ### On a laptop, with no credentials
 
 Start it anyway:

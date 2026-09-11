@@ -130,6 +130,10 @@ Work VM 上端口明确错开：`8513` 是 Portal，`8514` 是反向隧道。Por
 `StateDirectory=qira-benchmark`，不需要写 `/opt`。变更接口只接受同源 JSON，Runner
 同时最多接受两个付费运行。
 
+把三个 `deploy/*.env.example` 复制到 systemd 单元指定的路径。尤其是 `portal.env`
+必须在 `QIRA_ALLOWED_ORIGIN` 中明确列出实际使用的 HTTP 和/或 HTTPS 浏览器 Origin；
+服务端绝不根据请求的 `Host` header 推导允许来源。
+
 ### 在笔记本上、没有凭据时
 
 照样可以启动：

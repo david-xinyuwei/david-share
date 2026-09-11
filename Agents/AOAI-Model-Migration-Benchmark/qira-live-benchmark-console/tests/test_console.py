@@ -725,6 +725,16 @@ class HttpSurface(unittest.TestCase):
         self.assertEqual(status, 400)
         self.assertIn("Origin", body["error"])
 
+    def test_explicit_https_portal_origin_is_accepted(self):
+        with patch.object(server, "ALLOWED_ORIGINS", {"https://portal.example"}):
+            status, body = self.post(
+                "/api/run",
+                {"arms": [{"deployment": "gpt-5.6-luna-dz"}], "items": []},
+                headers={"Origin": "https://portal.example", "Host": "portal.example"},
+            )
+        self.assertEqual(status, 400)
+        self.assertIn("at least one prompt", body["error"])
+
 
 class ActiveRunLimit(unittest.TestCase):
     def setUp(self):
