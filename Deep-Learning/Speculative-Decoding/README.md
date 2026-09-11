@@ -1,4 +1,4 @@
-# Speculative Decoding: MTP, DFlash 2 and Drafter Adaptation
+# Speculative Decoding for OSS Model Deployment: MTP, DFlash 2 and Draft Model Adaptation
 
 [![vLLM](https://img.shields.io/badge/vLLM-0.28.0-0078D4.svg)](https://github.com/vllm-project/vllm/releases/tag/v0.28.0)
 [![GPU](https://img.shields.io/badge/GPU-H100%20NVL-76B900.svg?logo=nvidia&logoColor=white)](#test-method)
@@ -6,41 +6,94 @@
 [![Test scope](https://img.shields.io/badge/Scope-64%20tasks%20repeated-D97706.svg)](#coverage-and-unexecuted-work)
 [![Evidence CI](https://github.com/david-xinyuwei/david-share/actions/workflows/speculative-decoding-ci.yml/badge.svg?branch=master)](https://github.com/david-xinyuwei/david-share/actions/workflows/speculative-decoding-ci.yml)
 
-How do you choose between MTP and DFlash 2 for Qwen3.8-27B, and decide whether to retrain the drafter after fine-tuning the target? This repository connects **inference comparisons, target fine-tuning, continued training of the drafter and its candidate selector, checkpoint reload, held-out evaluation and vLLM serving checks.**
+When you deploy an open-source model, deciding whether to enable speculative decoding — and which route to use — comes down to three questions:
 
-Reusable assets include startup and request configurations for three inference routes, drafter-adaptation scripts, the implemented selector objective, fixed-split and paired-comparison methods, and results with offline replay tests. The inference experiment observed higher DFlash 2 throughput than MTP7. The adaptation experiment retains both a setting without observed gains and a setting with higher draft agreement and serving throughput.
+- **Which route is available.** Does the target checkpoint ship MTP weights, or is a matching DFlash 2 draft model published separately? The prerequisites differ.
+- **How much does it change.** On the same tasks and request settings, how far do throughput, latency and answer scores move, and at what cost.
+- **What happens after fine-tuning.** Once the target is fine-tuned for your domain, can the released draft model still be used, or should the draft model and its selector receive continued training.
 
-These are author-run experiments on one H100 NVL, not general quality or production guarantees. The selector objective is the author's implementation, not an official training recipe. Training starts from released draft weights; **from-scratch training has not been demonstrated**. The full-dataset inference stage was not run, and answer quality was not graded in the adaptation experiment.
+This repository answers all three on one H100 NVL with offline replay: inference comparison, target fine-tuning, continued training of the draft model and selector, checkpoint reload, held-out evaluation and vLLM serving checks.
 
 > Author: Xinyu Wei (魏新宇)
 
 [English](README.md) | [中文](README_CN.md)
 
-[Start Here](#start-here) · [Inference Results](#throughput-and-answer-quality) · [Draft Training](#adapting-the-drafter-to-a-fine-tuned-target) · [Reproduce](#how-to-run) · [Tests](#tests-and-offline-replay)
+[Choosing a Route](#choosing-between-mtp-and-dflash-2) · [Measured Comparison](#measured-comparison-mtp-and-dflash-2) · [After Fine-Tuning](#after-fine-tuning-adapting-the-draft-model) · [Quick Start](#quick-start) · [Tests](#tests-and-offline-replay)
 
-Inference comparison: 2026-09-06, `qwen38-quality-20260906`; drafter adaptation: 2026-09-09 through 2026-09-10. The Qwen3.6 experiment remains separate from both.
+Inference comparison: 2026-09-06, `qwen38-quality-20260906`; draft model adaptation: 2026-09-09 through 2026-09-10. The Qwen3.6 experiment remains separate from both.
+
+**Scope:** These are author-run experiments on one H100 NVL, not general quality or production guarantees. The selector objective is the author's implementation, not an official training recipe. Training starts from released draft weights; **from-scratch training has not been demonstrated**. The full-dataset inference stage was not run, and answer quality was not graded in the adaptation experiment.
 
 ---
 
 ## Start Here
 
-| Goal | Read |
+| What you want | Go to |
 |---|---|
-| Understand delivered assets and responsibilities | [What you can do with this repository](#what-you-can-do-with-this-repository) |
-| Compare MTP and DFlash 2 performance and answer quality | [What the current run shows](#what-the-current-run-shows) |
-| Understand draft and selector training and their losses | [Loss Functions and the Selector](#loss-functions-and-the-selector) |
+| Choose between MTP and DFlash 2 | [Choosing Between MTP and DFlash 2](#choosing-between-mtp-and-dflash-2) |
+| Understand delivered assets and responsibilities | [What This Repository Delivers](#what-this-repository-delivers) |
+| Inspect raw throughput, latency and score data | [Measured Comparison: MTP and DFlash 2](#measured-comparison-mtp-and-dflash-2) |
+| Understand draft model and selector training and their losses | [Loss Functions and the Selector](#loss-functions-and-the-selector) |
 | Assess adaptation results | [Held-Out and Serving Evaluation](#held-out-and-serving-evaluation) |
-| Start inference or adaptation on your own GPU | [How to Run](#how-to-run), [Reproducing the Adaptation](#reproducing-the-adaptation) |
+| Start inference or adaptation on your own GPU | [Quick Start](#quick-start), [Reproducing the Adaptation](#reproducing-the-adaptation) |
 | Inspect logs, code and saved results without a GPU | [Training Logs and Code](#training-logs-and-code), [Tests and Offline Replay](#tests-and-offline-replay) |
-| Check compatibility, from-scratch scope and earlier failures | [Applicability](#applicability-and-fine-tuned-models), [Previous Experiment](#previous-experiment) |
+| Check compatibility, from-scratch scope and earlier failures | [Compatibility and Limits](#compatibility-and-limits) |
 
-## What You Can Do With This Repository
+## Choosing Between MTP and DFlash 2
+
+### 1. Determine which route is available
+
+| Your situation | Route | Prerequisite |
+|---|---|---|
+| The target checkpoint ships MTP weights | MTP | No extra weight file; enable the serving flag |
+| Upstream published a matching DFlash 2 draft model | DFlash 2 | Download the roughly 3.8 GB draft model; architecture and tokenizer must match the target |
+| Both are available | Test both | Run your own workload through each and read throughput and answer quality together |
+| Neither is available | Do not enable speculative decoding yet | Training a new draft model is a separate project; see [What Training From Scratch Would Take](#what-training-from-scratch-would-take) |
+
+Enabling a serving flag does not create missing MTP weights. A DFlash 2 draft model only fits the target it was published for; changing the target requires rechecking architecture, tokenizer, hidden size and output head. Full launch commands for all three routes are in [Quick Start](#quick-start).
+
+### 2. Measured Differences Between the Two Routes
+
+<!-- BEGIN DECISION_TABLE -->
+| Comparison | MTP7 | DFlash 2-7 |
+| --- | --- | --- |
+| Output tok/s (concurrency 1 / 4 / 8) | 113.3 / 382.9 / 565.2 | 150.5 / 451.7 / 741.1 |
+| Speedup over no speculation (concurrency 1 / 4 / 8) | 2.12× / 2.01× / 1.96× | 2.82× / 2.38× / 2.58× |
+| Time per output token, ms (concurrency 1 / 4 / 8) | 8.01 / 8.55 / 10.04 | 5.87 / 6.74 / 7.89 |
+| Code score across 9 paired groups | Reference | 2 higher / 2 lower / 5 tied |
+| Math score across 9 paired groups | Reference | 6 higher / 2 lower / 1 tied |
+
+Throughput and latency are medians across three seeds. Scores are compared per matched concurrency and seed; repeats are not independent tasks.
+<!-- END DECISION_TABLE -->
+
+**Speed reads directly; accuracy does not.** DFlash 2 produced higher throughput than MTP7 in all nine matched groups, so that direction is consistent. Answer scores moved in both directions with no systematic decline, but each dataset has only 32 distinct tasks repeated three times, which is not enough to establish non-inferiority. Treating the score differences as noise, or as quality regression, is equally unsupported today.
+
+**Faster tokens do not mean faster correct answers.** In one concurrency-4 run, DFlash 2 emitted tokens faster yet finished the same task group more slowly, and its normal-stop correct-answer rate was also lower than MTP7's. The full data for this counterexample is in [Measured Comparison](#measured-comparison-mtp-and-dflash-2).
+
+In practice, treat DFlash 2 as a throughput candidate: retest answer quality on your own tasks and acceptance criteria before deploying, rather than citing the scores here as an acceptance result.
+
+### 3. Adjusting the Draft Model After the Target Is Fine-Tuned
+
+A draft model is trained against the target's hidden features, so fine-tuning the target can shift its predictions. This repository measured two fine-tuning settings:
+
+| Your fine-tuning | Recommended action | Measured basis |
+|---|---|---|
+| Any fine-tuning | **Test the released draft model first; do not retrain by default** | In setting A all three seeds lowered training loss, yet paired agreement did not improve |
+| Light LoRA (attention projections only, low rank) | The released draft model is likely reusable | Setting A: rank 16, attention only, 1 epoch; retraining produced no measurable gain |
+| Heavy LoRA (all projections, high rank, different language) | A single adaptation pass is worth trying | Setting B: rank 128, 7 projection modules, Chinese corpus; retraining raised first-offset agreement and serving throughput |
+| Either way | Accept on your own held-out set and answer-quality criteria | This experiment measured agreement and throughput only, and did not grade answer quality |
+
+**These two settings are not a clean intensity control.** Setting A is an English attention LoRA and setting B is a Chinese all-module LoRA, so language and parameters differ at the same time. The table is a starting point for selection, not evidence that heavier fine-tuning always requires adaptation.
+
+**Do not accept on training loss.** Setting A's loss did fall while agreement and serving throughput did not improve. The full flow, loss functions and per-item numbers are in [After Fine-Tuning: Adapting the Draft Model](#after-fine-tuning-adapting-the-draft-model).
+
+## What This Repository Delivers
 
 | Goal | Provided assets | Practical benefit |
 |---|---|---|
 | Start all three inference routes | Pinned weights, complete launch commands and identical request examples | Avoid assembling MTP, DFlash and client settings from scratch |
 | Select a route for further evaluation | Throughput, latency, correct counts and length stops on the same tasks | Compare speed and quality together, including cases where faster tokens do not deliver correct answers sooner |
-| Adapt a draft model | Target LoRA, self-generated corpus, draft training, checkpoint reload and serving export | Compare keeping the released drafter with retraining instead of assuming retraining is necessary |
+| Adapt a draft model | Target LoRA, self-generated corpus, draft training, checkpoint reload and serving export | Compare keeping the released draft model with retraining instead of assuming retraining is necessary |
 | Train the selector | `selector_loss()`, `--train-selector`, training histories and executed code | Understand candidate rescoring and gradient boundaries without attributing joint-training gains to one component |
 | Reuse the training method | Fixed splits, frozen targets, same-text pairing, separate loss histories and serving rechecks | Do not replace answer-quality acceptance with lower training loss or higher draft agreement |
 | Check the selection evidence | Per-group records, grader integration, analysis and tests | Trace the reported numbers and design acceptance tests for your own workload |
@@ -49,21 +102,7 @@ This is a deployment reference and test evidence, not a production-validated hos
 
 MTP, DFlash and the released checkpoints are upstream work. This repository contributes training and measurement implementations, controlled comparisons and traceable evidence. Customers supply compatible hardware, workload data and answer-quality criteria. Trained weights are not redistributed; code and loss histories are inspectable.
 
-## Architecture and Test Flow
-
-The client and inference service share one host and communicate over loopback. Only one server mode runs at a time: baseline, MTP or DFlash. Switching modes keeps the client API unchanged. Client-side timing and grading of complete answers are separate from model inference.
-
-![Test flow: client, inference service, draft model, records, grading and summaries](experiments/20260906-qwen38/images/test-flow-en.png)
-
-*Original test-flow diagram based on the executed [runner](experiments/20260906-qwen38/source/campaign_runner.py), [stream timing](experiments/20260906-qwen38/source/stream_metrics.py) and [grader integration](experiments/20260906-qwen38/source/scoring.py); source in [test-flow-en.mmd](experiments/20260906-qwen38/images/test-flow-en.mmd). It separates inference, client measurements and grading; the three server modes do not run simultaneously.*
-
-Drafter adaptation follows a separate training path. Its stages also run on one GPU, without keeping the inference server resident during training:
-
-![Drafter-adaptation data and model flow](experiments/20260909-drafter-adaptation/images/training-flow-en.png)
-
-*Original training-flow diagram based on [target training](experiments/20260909-drafter-adaptation/source/round4/finetune_target.py), [corpus generation](experiments/20260909-drafter-adaptation/source/round4/generate_responses.py), [draft training](experiments/20260909-drafter-adaptation/source/round4/train_drafter.py) and [paired measurement](experiments/20260909-drafter-adaptation/source/round4/analyze_predictability.py). The same figure generator renders the [diagram source](experiments/20260909-drafter-adaptation/images/training-flow.json). Training, save/reload and outcome evaluation are separate checks; the diagram is not runtime proof.*
-
-## Inference Comparison: MTP and DFlash 2
+## Measured Comparison: MTP and DFlash 2
 
 This experiment asks whether changing the drafting route improves serving performance and changes answer scores while holding target weights, tasks and requests fixed. Inputs are 32 HumanEval+ tasks and 32 MATH-500 tasks, not free-form chat load.
 
@@ -90,7 +129,7 @@ A throughput advantage does not replace accuracy, latency and error-rate accepta
 
 The three routes keep the target model, precision, tasks, output budget and sampling fixed while switching speculative configuration. Settings come from the [saved configuration](experiments/20260906-qwen38/evidence/configuration.json); observed loading checks are in `activation` in the [run evidence](experiments/20260906-qwen38/evidence/run.json).
 
-See [architecture and test flow](#architecture-and-test-flow) for the client, inference service and graders. Client and server share one host. Timing covers request dispatch through streamed response completion, excluding model startup and offline grading.
+See [architecture and test setup](#architecture-and-test-setup) for the client, inference service and graders. Client and server share one host. Timing covers request dispatch through streamed response completion, excluding model startup and offline grading.
 
 | Setting | This run |
 |---|---|
@@ -264,9 +303,9 @@ F would run all three routes at concurrency 1 and 8 over all 164 HumanEval+ and 
 
 These sum measured group times from request dispatch to response completion, excluding model downloads, server startup, warmup and grading. Values are rounded to two decimals; exact values remain in [run evidence](experiments/20260906-qwen38/evidence/run.json). Complete describes execution, not perfect correctness.
 
-## Adapting the Drafter to a Fine-Tuned Target
+## After Fine-Tuning: Adapting the Draft Model
 
-**Does the released DFlash 2 drafter remain useful after target fine-tuning, and does retraining the drafter and selector help?** This experiment compares English attention-only LoRA (setting A) and Chinese all-module LoRA (setting B) on one H100 NVL. Language and adapter parameters both change; these settings do not isolate fine-tuning strength.
+**Does the released DFlash 2 draft model remain useful after target fine-tuning, and does retraining the draft model and selector help?** This experiment compares English attention-only LoRA (setting A) and Chinese all-module LoRA (setting B) on one H100 NVL. Language and adapter parameters both change; these settings do not isolate fine-tuning strength.
 
 ### Data and Training Flow
 
@@ -339,7 +378,7 @@ Target LoRA has separate [English loss records](experiments/20260909-drafter-ada
 
 ### Held-Out and Serving Evaluation
 
-**Same-text draft comparison:** both drafters read identical cached target answers. First-offset agreement checks the first prediction in each block; joint-prefix acceptance length is one plus the mean leading-correct run. The fixed eight-token anchor grid differs from runtime re-anchoring after rejection, so these are teacher-forced metrics. Only matching cache and text hashes permit a paired bootstrap.
+**Same-text draft comparison:** both draft models read identical cached target answers. First-offset agreement checks the first prediction in each block; joint-prefix acceptance length is one plus the mean leading-correct run. The fixed eight-token anchor grid differs from runtime re-anchoring after rejection, so these are teacher-forced metrics. Only matching cache and text hashes permit a paired bootstrap.
 
 **Runtime checks:** the HF reference decoder and vLLM each perform real drafting and verification. End-to-end acceptance, server accepted/drafted counters and client throughput remain separate measurements, none a substitute for answer grading.
 
@@ -368,7 +407,7 @@ Each language requested 200 prompts; the table shows evaluable pairs, with short
 
 #### vLLM Serving Measurements
 
-Each fine-tuned target is served without speculation, with the released drafter and with the adapted drafter, once per route. Each concurrency level measures 40 prompts with `max_tokens=256`. A's serving run covers only seed 20260908; the other two seeds were not serving-tested.
+Each fine-tuned target is served without speculation, with the released draft model and with the adapted draft model, once per route. Each concurrency level measures 40 prompts with `max_tokens=256`. A's serving run covers only seed 20260908; the other two seeds were not serving-tested.
 
 | Metric | A / en | B / zh |
 | --- | --- | --- |
@@ -379,13 +418,13 @@ Each fine-tuned target is served without speculation, with the released drafter 
 Throughput cells list no speculation / released / adapted; acceptance cells list released / adapted. Acceptance is derived from cumulative logged accepted/drafted counts, including warmup and both concurrency levels, so its denominator differs. No serving-significance claim is made; answer quality was not graded.
 <!-- END ADAPTATION_TABLE -->
 
-**Setting A:** paired measurements show no draft-agreement improvement across the three training seeds. Only seed 20260908 was compared in vLLM, with no observed throughput gain. There is no matching base-target measurement on these English prompts, so whether fine-tuning harmed the released drafter is not established.
+**Setting A:** paired measurements show no draft-agreement improvement across the three training seeds. Only seed 20260908 was compared in vLLM, with no observed throughput gain. There is no matching base-target measurement on these English prompts, so whether fine-tuning harmed the released draft model is not established.
 
 **Setting B:** same-text pairing shows higher draft agreement and joint-prefix acceptance, alongside higher vLLM server counters and throughput. This is a joint-training result; the selector training contribution was not isolated.
 
-The base-target comparison is a separate cross-text diagnostic. The released drafter scores 0.720 first-offset agreement and 3.24 joint-prefix length on base-target outputs. Those outputs differ from the fine-tuned target's, so this comparison does not define a paired recovery fraction. In the 40-output screen, base answers average 252 tokens with 39 reaching the 256-token cap; fine-tuned answers average 119. Token-level repeated 4-gram fractions are 0.054 and 0.021 respectively. These are confounders, not demonstrated causes of the agreement difference.
+The base-target comparison is a separate cross-text diagnostic. The released draft model scores 0.720 first-offset agreement and 3.24 joint-prefix length on base-target outputs. Those outputs differ from the fine-tuned target's, so this comparison does not define a paired recovery fraction. In the 40-output screen, base answers average 252 tokens with 39 reaching the 256-token cap; fine-tuned answers average 119. Token-level repeated 4-gram fractions are 0.054 and 0.021 respectively. These are confounders, not demonstrated causes of the agreement difference.
 
-**The opposing result remains.** In setting B, one 40-prompt run of the HF reference path `dflash_generate` gives end-to-end acceptance length 3.12 for the released drafter and 2.91 for the adapted one, opposite to the paired measurements and vLLM results. None of the 40 completions is byte-identical across drafters. That prevents same-text pairing; it does not justify discarding the result.
+**The opposing result remains.** In setting B, one 40-prompt run of the HF reference path `dflash_generate` gives end-to-end acceptance length 3.12 for the released draft model and 2.91 for the adapted one, opposite to the paired measurements and vLLM results. None of the 40 completions is byte-identical across draft models. That prevents same-text pairing; it does not justify discarding the result.
 
 There is also a cross-engine acceptance gap between HF and vLLM. Batching, precision and cache paths were not aligned between engines, and the cause remains uninvestigated.
 
@@ -397,13 +436,27 @@ The Chinese fine-tuned target failed the token-repetition screen: 11 of 40 respo
 
 ### Reusable Training Practices
 
-1. **Measure the released drafter first.** All three English seeds reduced loss without improving paired agreement. Only seed 20260908 was serving-tested, with no observed throughput gain. Lower loss alone does not justify replacement.
+1. **Measure the released draft model first.** All three English seeds reduced loss without improving paired agreement. Only seed 20260908 was serving-tested, with no observed throughput gain. Lower loss alone does not justify replacement.
 2. **Train against the target that will serve.** Generate responses and extract hidden features, embeddings and output-head predictions from the same adapted target, not a mixture of base and fine-tuned targets.
 3. **Record both losses.** Preserve `history`, `selector_history`, `gamma` and `selector_weight`. Falling backbone loss does not prove useful selector ranking.
 4. **Save, reload, then evaluate.** Retain the checkpoint reload check, same-text held-out comparisons and all three vLLM routes.
 5. **Keep failures in the evidence.** Screen failures, the opposing HF result, short-text exclusions and ungraded outcomes remain visible. Backbone and selector were trained together, so the experiment does not isolate the selector's contribution to gains.
 
-## How to Run
+## Architecture and Test Setup
+
+The client and inference service share one host and communicate over loopback. Only one server mode runs at a time: baseline, MTP or DFlash. Switching modes keeps the client API unchanged. Client-side timing and grading of complete answers are separate from model inference.
+
+![Test flow: client, inference service, draft model, records, grading and summaries](experiments/20260906-qwen38/images/test-flow-en.png)
+
+*Original test-flow diagram based on the executed [runner](experiments/20260906-qwen38/source/campaign_runner.py), [stream timing](experiments/20260906-qwen38/source/stream_metrics.py) and [grader integration](experiments/20260906-qwen38/source/scoring.py); source in [test-flow-en.mmd](experiments/20260906-qwen38/images/test-flow-en.mmd). It separates inference, client measurements and grading; the three server modes do not run simultaneously.*
+
+Draft Model adaptation follows a separate training path. Its stages also run on one GPU, without keeping the inference server resident during training:
+
+![Draft Model-adaptation data and model flow](experiments/20260909-drafter-adaptation/images/training-flow-en.png)
+
+*Original training-flow diagram based on [target training](experiments/20260909-drafter-adaptation/source/round4/finetune_target.py), [corpus generation](experiments/20260909-drafter-adaptation/source/round4/generate_responses.py), [draft training](experiments/20260909-drafter-adaptation/source/round4/train_drafter.py) and [paired measurement](experiments/20260909-drafter-adaptation/source/round4/analyze_predictability.py). The same figure generator renders the [diagram source](experiments/20260909-drafter-adaptation/images/training-flow.json). Training, save/reload and outcome evaluation are separate checks; the diagram is not runtime proof.*
+
+## Quick Start
 
 ### Inference Serving and Requests
 
@@ -633,7 +686,7 @@ esac
 
 Check `FINETUNE_TARGET=PASS`, the adapter weights and `out/adapter/training_summary.json`. The summary preserves actual sample counts, dropped long samples, logged losses and memory. Split size is not necessarily training size.
 
-#### 4. Screen Target Outputs and Record the Released Drafter
+#### 4. Screen Target Outputs and Record the Released Draft Model
 
 The screen is a heuristic, not answer grading. The archived Chinese run returned `DEGENERATION_GATE=FAIL` here. Inspect failures before deciding whether to continue solely as a drafting study; do not silently ignore them or label quality as passing.
 
@@ -646,7 +699,7 @@ The screen is a heuristic, not answer grading. The archived Chinese run returned
 	2>&1 | tee "$ADAPT_RUN/logs/target-screen.log"
 ```
 
-After the screen passes, or after explicitly accepting an ungraded-answer research boundary, record the released drafter and cache the target responses that both drafters will share.
+After the screen passes, or after explicitly accepting an ungraded-answer research boundary, record the released draft model and cache the target responses that both draft models will share.
 
 ```bash
 "$TRAIN_PYTHON" "$ADAPT_SOURCE/analyze_predictability.py" \
@@ -657,7 +710,7 @@ After the screen passes, or after explicitly accepting an ungraded-answer resear
 	2>&1 | tee "$ADAPT_RUN/logs/agreement-released.log"
 ```
 
-#### 5. Generate Responses and Train the Drafter and Selector
+#### 5. Generate Responses and Train the Draft Model and Selector
 
 Questions come from the training split; the adapted target generates their responses. Do not replace these responses with dataset reference answers or include held-out prompts in draft training.
 
@@ -686,7 +739,7 @@ Check `TRAIN=PASS`; `checkpoint_reloads=true` records a save/reload weight-equal
 
 #### 6. Evaluate Reloaded Draft Weights
 
-Both drafters consume the same `target.pt`. Check cache and per-prompt text hashes before interpreting paired differences. Save HF end-to-end acceptance separately.
+Both draft models consume the same `target.pt`. Check cache and per-prompt text hashes before interpreting paired differences. Save HF end-to-end acceptance separately.
 
 ```bash
 "$TRAIN_PYTHON" "$ADAPT_SOURCE/analyze_predictability.py" \
@@ -750,14 +803,14 @@ ADAPT_SERVER_ARGS=(
 )
 ```
 
-Baseline: the same fine-tuned target without a drafter.
+Baseline: the same fine-tuned target without a draft model.
 
 ```bash
 "$SERVE_PYTHON" -m vllm.entrypoints.openai.api_server "${ADAPT_SERVER_ARGS[@]}" \
 	2>&1 | tee "$ADAPT_RUN/logs/server-baseline.log"
 ```
 
-Released drafter: finish baseline client measurements and stop its server before running this block.
+Released draft model: finish baseline client measurements and stop its server before running this block.
 
 ```bash
 "$SERVE_PYTHON" -m vllm.entrypoints.openai.api_server "${ADAPT_SERVER_ARGS[@]}" \
@@ -766,7 +819,7 @@ Released drafter: finish baseline client measurements and stop its server before
 	2>&1 | tee "$ADAPT_RUN/logs/server-released.log"
 ```
 
-Adapted drafter: stop the released-drafter server before running this block.
+Adapted draft model: stop the released-draft model server before running this block.
 
 ```bash
 "$SERVE_PYTHON" -m vllm.entrypoints.openai.api_server "${ADAPT_SERVER_ARGS[@]}" \
@@ -837,13 +890,13 @@ Replaying the previous experiment requires Python 3.12. It checks all 3,100 requ
 python experiments/20260905-quality/src/analyze_results.py --root experiments/20260905-quality --output out/20260905-replayed.json --matrix
 ```
 
-## Applicability and Fine-Tuned Models
+## Compatibility and Limits
 
-**Does modifying the target require retraining its drafter? Not automatically.** The published checkpoint used here is `incoai/Qwen3.8-27B-DFlash2`, intended for `Qwen/Qwen3.8-27B`. Reuse with another target needs compatible architecture, tokenizer, hidden features and output head, followed by workload-specific evaluation. A shared family name does not establish compatibility; fine-tuning alone does not establish incompatibility.
+**Does modifying the target require retraining its draft model? Not automatically.** The published checkpoint used here is `incoai/Qwen3.8-27B-DFlash2`, intended for `Qwen/Qwen3.8-27B`. Reuse with another target needs compatible architecture, tokenizer, hidden features and output head, followed by workload-specific evaluation. A shared family name does not establish compatibility; fine-tuning alone does not establish incompatibility.
 
 Native MTP likewise needs compatible model architecture, MTP weights and engine support. Enabling a serving flag is not a method for creating missing MTP weights.
 
-**DFlash: Block Diffusion for Flash Speculative Decoding** uses a small block-diffusion model to draft several tokens in parallel, conditioned on the target's hidden features. For adaptation, the teacher is the exact target that will serve requests, including any adapter. The starting student is an existing draft checkpoint. Prompts come from the intended workload; the teacher generates responses, and its parameters remain frozen while the draft parameters are updated. This is continuation training, not training a drafter from scratch.
+**DFlash: Block Diffusion for Flash Speculative Decoding** uses a small block-diffusion model to draft several tokens in parallel, conditioned on the target's hidden features. For adaptation, the teacher is the exact target that will serve requests, including any adapter. The starting student is an existing draft checkpoint. Prompts come from the intended workload; the teacher generates responses, and its parameters remain frozen while the draft parameters are updated. This is continuation training, not training a draft model from scratch.
 
 The following describes the [DFlash paper, Sections 4.2 and A.1](https://arxiv.org/html/2602.06036v2#S4.SS2), not a reproduction of the complete DFlash 2 training recipe.
 
@@ -853,19 +906,19 @@ The following describes the [DFlash paper, Sections 4.2 and A.1](https://arxiv.o
 - **Loss:** Cross-entropy is weighted by `exp(-(k-1)/gamma)` over the position `k` inside a block, because an error early in a block invalidates every later position.
 - **Shared parameters:** The target, its token embedding and its language-model head remain frozen; training updates the draft model rather than the target.
 
-Fine-tuning can change the target's features and token predictions. Which parameters change depends on the tuning recipe; an adapter does not necessarily update the embedding or output-head weights. These dependencies motivate a comparison, not a conclusion that the released drafter must fail or that adaptation must improve it.
+Fine-tuning can change the target's features and token predictions. Which parameters change depends on the tuning recipe; an adapter does not necessarily update the embedding or output-head weights. These dependencies motivate a comparison, not a conclusion that the released draft model must fail or that adaptation must improve it.
 
 **Measure three different outcomes.** Draft-token agreement measures how well the draft predicts the target; answer quality measures whether the final response solves the task; throughput and latency measure the actual service. A lower training loss or higher draft agreement cannot substitute for graded answers and faster serving. Speculative decoding's theoretical output-distribution guarantee assumes a correct verification and sampling implementation. It is not evidence that a particular engine, precision or cache path preserves answers.
 
-The paper provides one adaptation example: [Section 5.4, Table 4](https://arxiv.org/html/2602.06036v2#S5.SS4) adapts a Qwen3.5-27B DFlash drafter using 1.6K LongAlign-10K samples for three epochs. On HotpotQA at 16K context, acceptance length changes from 3.61 to 6.05. This is the authors' long-context result, not this repository's Qwen3.8-27B fine-tuned-target result or a general time/cost guarantee.
+The paper provides one adaptation example: [Section 5.4, Table 4](https://arxiv.org/html/2602.06036v2#S5.SS4) adapts a Qwen3.5-27B DFlash draft model using 1.6K LongAlign-10K samples for three epochs. On HotpotQA at 16K context, acceptance length changes from 3.61 to 6.05. This is the authors' long-context result, not this repository's Qwen3.8-27B fine-tuned-target result or a general time/cost guarantee.
 
 | Situation | What to establish before adoption |
 |---|---|
-| Target with an intended released drafter | Compare no speculation and the released drafter under the same workload, concurrency and output-quality criteria |
-| Fine-tuned target with a compatible released drafter | Test the released drafter first. If adapting it, compare both draft checkpoints against the same frozen target; save and reload the adapted checkpoint before evaluation |
-| No compatible draft checkpoint | Treat training a new drafter as a separate project. An existing-checkpoint adaptation result does not demonstrate from-scratch training capability |
+| Target with an intended released draft model | Compare no speculation and the released draft model under the same workload, concurrency and output-quality criteria |
+| Fine-tuned target with a compatible released draft model | Test the released draft model first. If adapting it, compare both draft checkpoints against the same frozen target; save and reload the adapted checkpoint before evaluation |
+| No compatible draft checkpoint | Treat training a new draft model as a separate project. An existing-checkpoint adaptation result does not demonstrate from-scratch training capability |
 
-The repository keeps inference-comparison and drafter-adaptation evidence separately. Continuation training was executed and evaluated for the recorded target and data settings, not validated as a universal recipe. Offline checks verify saved records; they do not certify training or answer quality in a fresh environment.
+The repository keeps inference-comparison and draft model-adaptation evidence separately. Continuation training was executed and evaluated for the recorded target and data settings, not validated as a universal recipe. Offline checks verify saved records; they do not certify training or answer quality in a fresh environment.
 
 ### How MTP and DFlash Differ
 
@@ -892,7 +945,7 @@ See the [DFlash paper](https://arxiv.org/abs/2602.06036) and [pinned vLLM source
 
 ### What Training From Scratch Would Take
 
-This repository has **not** trained a DFlash drafter from scratch. Everything above starts from the released checkpoint. The only random-initialization run was a CPU canary on a toy configuration (hidden size 128, vocabulary 512), using [`stage0_gradient_canary.py`](experiments/20260909-drafter-adaptation/source/round4/stage0_gradient_canary.py): 30 steps, loss 6.24 → 3.88 in the author's single run, whose log was not archived. It shows that gradients reach the draft layers, the fused target-feature projection and the norms while the frozen target receives none. It does not show that a real-size drafter converges, and it is not evidence of from-scratch capability.
+This repository has **not** trained a DFlash draft model from scratch. Everything above starts from the released checkpoint. The only random-initialization run was a CPU canary on a toy configuration (hidden size 128, vocabulary 512), using [`stage0_gradient_canary.py`](experiments/20260909-drafter-adaptation/source/round4/stage0_gradient_canary.py): 30 steps, loss 6.24 → 3.88 in the author's single run, whose log was not archived. It shows that gradients reach the draft layers, the fused target-feature projection and the norms while the frozen target receives none. It does not show that a real-size draft model converges, and it is not evidence of from-scratch capability.
 
 The paper's recipe ([Section 5 and Appendix A.1](https://arxiv.org/html/2602.06036v2#A1.SS1)): about 800K prompts from Nemotron Post-Training V2 and CodeAlpaca with responses regenerated by the target; 6 epochs, AdamW at 6e-4, cosine schedule with 4% warmup, sequences up to 3,072 tokens, and 512 anchor positions per sequence trained jointly through one sparse attention mask. The paper's ablations use 100K samples and reach roughly three quarters of the full-data speedup (Qwen3-4B on MATH-500: 4.71× versus 6.09×). The paper names H200 GPUs but not the GPU count or training hours.
 
@@ -914,7 +967,7 @@ Order-of-magnitude estimates, extrapolated from the measured 0.61 s per training
 
 These are estimates, not measurements. The defensible statement today: the adaptation path is measured; the training objective is implemented and shown to raise paired draft agreement; from-scratch training at real size has not been demonstrated.
 
-## Previous Experiment: Qwen3.6-27B and First-Generation DFlash (2026-09-05)
+### Previous Experiment: Qwen3.6-27B and First-Generation DFlash (2026-09-05)
 
 <a id="previous-experiment"></a>
 
@@ -922,7 +975,7 @@ The previous run used Qwen3.6-27B, the first-generation DFlash draft model and v
 
 The two runs differ in target model, draft model, engine, task scope and sampling. Not reproducing the old failure in the newer combination does not establish that the old defect was fixed.
 
-### Primary Evaluation: Full Datasets, Once per Task
+#### Primary Evaluation: Full Datasets, Once per Task
 
 Code had to pass both the base and extended official EvalPlus tests; math was graded by the pinned official Math-Verify script. Length-stopped responses stay in the denominator.
 
@@ -938,7 +991,7 @@ Median code request times for Baseline, MTP5 and DFlash15 were 4.393, 1.175 and 
 
 *Author's measurements, run dflash-quality-20260905, 164 code and 500 math tasks per route, once each. Values come from the [per-task replay summary](experiments/20260905-quality/analysis/summary.json). Total request time over all answers, not isolated decode-kernel time.*
 
-### Concurrency Quality Did Not Pass
+#### Concurrency Quality Did Not Pass
 
 Each level used the first 32 code and first 32 math tasks of the frozen manifest, once each. Concurrency is the number of in-flight requests from the same-host client, not an arrival rate.
 
@@ -962,7 +1015,7 @@ HumanEval/2 is a concrete example: the normalized request hash is identical at a
 
 Each primary route has 1,012 responses (664 primary, 48 same-seed repeats, 48 streaming, 192 concurrency, 48 random sampling, 12 synthetic retrieval); with 64 matched-window DFlash5 responses, the total is **3,100 responses across 25 route/scenario combinations**. DFlash5 scored 32/32 on both code and math; its concurrency was not tested.
 
-### Previous Run: Fixed Method
+#### Previous Run: Fixed Method
 
 | Item | Recorded value |
 |---|---|
@@ -978,7 +1031,7 @@ Each primary route has 1,012 responses (664 primary, 48 same-seed repeats, 48 st
 
 File hashes for the model, configuration and tokenizer, plus package versions, are in [inputs.json](experiments/20260905-quality/metadata/inputs.json). The [public protocol](experiments/20260905-quality/src/experiment.json) only removes private resource-management objects; the [projection record](experiments/20260905-quality/metadata/protocol-public-projection.json) records hashes before and after. Code grading ran in an offline, unprivileged Docker container.
 
-### Rerunning the Previous Generation
+#### Rerunning the Previous Generation
 
 Requires Linux, Python 3.12, a compatible H100 NVL environment and disk space for both weight snapshots and dependencies. The grading container runs as UID/GID 1000 and the host must allow `sudo -n` Docker calls. Start from `experiments/20260905-quality`, create a new run directory and do not overwrite the provided evidence.
 
@@ -1011,12 +1064,12 @@ printf '{"phase":"COMPLETE","exit_code":0}\n' > "$DFLASH_RUN_ROOT/state/campaign
 
 The generation CLI stops only its own model server and does not release the host. Compare against the [grader dependency versions](experiments/20260905-quality/metadata/evaluator-requirements-frozen.txt) and the [original image ID](experiments/20260905-quality/metadata/evaluator-image-id.txt) when rerunning; even with pinned grader commits, Docker base tags and system packages can change. vLLM 0.21.0 accepts `standard` but not `strict`, and a target path containing `dflash` can trigger a wrong method inference.
 
-## Repository Layout
+## Tools and Evidence
 
 | Path | Contents |
 |---|---|
 | [`experiments/20260906-qwen38/`](experiments/20260906-qwen38/) | The current run: group records, summary, evidence, executed source snapshots, analyzer, validator, tests and the test-flow diagram |
-| [`experiments/20260909-drafter-adaptation/`](experiments/20260909-drafter-adaptation/) | The drafter-adaptation experiment: exported per-request results for both drift regimes, executed script snapshots, provenance hashes, analyzer, validator and tests |
+| [`experiments/20260909-drafter-adaptation/`](experiments/20260909-drafter-adaptation/) | The draft model-adaptation experiment: exported per-request results for both drift regimes, executed script snapshots, provenance hashes, analyzer, validator and tests |
 | [`experiments/20260905-quality/`](experiments/20260905-quality/) | The previous complete-answer run: raw responses, official grades, per-task comparisons, analysis code and figures |
 | [`images/`](images/) | The Chinese result figures used by [README_CN.md](README_CN.md) |
 | [`tools/make_readme_figures.py`](tools/make_readme_figures.py) | Regenerates those Chinese figures from both experiments' published summaries; needs a CJK font and [the pinned Matplotlib](experiments/20260906-qwen38/requirements-figures.txt) |
@@ -1033,11 +1086,11 @@ The generation CLI stops only its own model server and does not release the host
 | [Groups](experiments/20260906-qwen38/data/groups.json), [summary](experiments/20260906-qwen38/data/summary.json) | Task IDs, saved scores, timing, counters and matched comparisons |
 | [Analyzer](experiments/20260906-qwen38/analyze_results.py), [validator](experiments/20260906-qwen38/validate_report.py), [tests](experiments/20260906-qwen38/test_report.py) | Reaggregation and checks that this document's tables, links, badges and evidence agree |
 | [Previous analysis](experiments/20260905-quality/analysis/), [previous results](experiments/20260905-quality/results/), [previous source](experiments/20260905-quality/src/) | 2026-09-05 per-task comparisons, raw responses, official grades and analysis code |
-| [Adaptation results](experiments/20260909-drafter-adaptation/results/), [summary](experiments/20260909-drafter-adaptation/data/summary.json), [provenance](experiments/20260909-drafter-adaptation/evidence/provenance.json), [scripts](experiments/20260909-drafter-adaptation/source/) | Per-request drafter agreement, acceptance and vLLM records for both regimes; weight, data and log hashes; the training and measurement scripts as executed |
+| [Adaptation results](experiments/20260909-drafter-adaptation/results/), [summary](experiments/20260909-drafter-adaptation/data/summary.json), [provenance](experiments/20260909-drafter-adaptation/evidence/provenance.json), [scripts](experiments/20260909-drafter-adaptation/source/) | Per-request draft model agreement, acceptance and vLLM records for both regimes; weight, data and log hashes; the training and measurement scripts as executed |
 
 These are snapshots of the executed source, not a complete fresh-GPU installation bundle. **Complete raw answers and SSE streams remain privately archived by the author and are not redistributed here.** The public files exclude infrastructure locators and credentials. Archive and member hashes describe provenance, not independent proof of runtime behavior.
 
-## Official Sources
+### Official Sources
 
 - [Classical speculative decoding](https://proceedings.mlr.press/v202/leviathan23a.html)
 - [DFlash paper](https://arxiv.org/abs/2602.06036) and [project source](https://github.com/z-lab/dflash)

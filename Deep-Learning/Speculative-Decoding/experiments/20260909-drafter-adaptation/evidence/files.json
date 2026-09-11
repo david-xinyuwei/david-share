@@ -345,8 +345,8 @@
       "sha256": "ac32901a59efddec4a7d2d71e8b37a8a0f17001b9b3e613550d67256b55bf612"
     },
     "validate_report.py": {
-      "bytes": 15581,
-      "sha256": "430ae7ea4ac89baccb4d61656395e570ce0ef43fe05d6dee19f367012243e14f"
+      "bytes": 15607,
+      "sha256": "d34185b2ef610943a29e0df334ee72a659e29d3faa6fe06d62feba1879758254"
     }
   },
   "scope": "Published experiment files; generated rule results and this manifest excluded."

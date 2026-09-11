@@ -218,8 +218,8 @@ class ReportIntegrityTests(unittest.TestCase):
                     (self.topic / filename).write_text(original, encoding="utf-8")
 
     def test_required_reader_sections_cannot_be_removed(self):
-        for filename, headings in (("README.md", ("## What You Can Do With This Repository", "## Repository Layout", "## Tests and Offline Replay", "## Applicability and Fine-Tuned Models")),
-                                   ("README_CN.md", ("## 你能用它做什么", "## 仓库目录", "## 测试与离线复算", "## 适用范围与微调模型"))):
+        for filename, headings in (("README.md", ("## What This Repository Delivers", "## Tools and Evidence", "## Tests and Offline Replay", "## Compatibility and Limits")),
+                                   ("README_CN.md", ("## 这个 Repo 交付什么", "## 工具与证据", "## 测试与离线复算", "## 兼容性与边界"))):
             for heading in headings:
                 with self.subTest(filename=filename, heading=heading):
                     original = self.rewrite_readme(lambda text: text.replace(heading + "\n", heading + " (removed)\n", 1), filename)
@@ -256,8 +256,8 @@ class ReportIntegrityTests(unittest.TestCase):
                 validate_report.verify_local_links(self.root)
             self.readme.write_text(original, encoding="utf-8")
         with self.subTest(case="broken anchor"):
-            original = self.rewrite_readme(lambda text: text.replace("(#how-to-run)", "(#how-to-run-zh)", 1))
-            with self.assertRaisesRegex(ValueError, "BROKEN_PAGE_ANCHOR:how-to-run-zh"):
+            original = self.rewrite_readme(lambda text: text.replace("(#quick-start)", "(#quick-start-zh)", 1))
+            with self.assertRaisesRegex(ValueError, "BROKEN_PAGE_ANCHOR:quick-start-zh"):
                 validate_report.verify_local_links(self.root)
             self.readme.write_text(original, encoding="utf-8")
 
@@ -288,7 +288,7 @@ class ReportIntegrityTests(unittest.TestCase):
 
     def how_to_run_blocks(self, filename):
         text = (self.topic / filename).read_text(encoding="utf-8")
-        heading = "启动与调用" if filename == "README_CN.md" else "How to Run"
+        heading = "快速上手" if filename == "README_CN.md" else "Quick Start"
         self.assertEqual(text.count(f"\n## {heading}\n"), 1)
         section = text.split(f"\n## {heading}\n", 1)[1].split("\n## ", 1)[0]
         adaptation = "复现再适配" if filename == "README_CN.md" else "Reproducing the Adaptation"
@@ -388,30 +388,51 @@ class ReaderLayoutTests(unittest.TestCase):
             section = text.split("## " + validate_report.reader_titles(chinese)[3] + "\n", 1)[1]
             self.assertIn(example, section.split("\n|", 1)[0])
 
-    def test_reorganization_is_idempotent_and_preserves_code_and_images(self):
+    def test_generated_blocks_are_idempotent_and_preserve_code_and_images(self):
+        groups, summary, _ = validate_report.validate_data(ROOT)
         for filename, chinese in validate_report.READMES.items():
             original = (TOPIC / filename).read_text(encoding="utf-8")
-            arranged = validate_report.arrange_report(original, chinese)
-            self.assertEqual(arranged, validate_report.arrange_report(arranged, chinese))
+
+            def rebuild(text, chinese=chinese):
+                for name, value in (("DECISION_TABLE", validate_report.decision_table(groups, summary, chinese)),
+                                    ("RESULT_TABLE", validate_report.result_table(summary, chinese)),
+                                    ("LATENCY_TABLE", validate_report.latency_table(groups, summary, chinese)),
+                                    ("COUNTEREXAMPLE", validate_report.counterexample(groups, chinese))):
+                    text = validate_report.generated_block(text, name, value, refresh=True)
+                return text
+
+            once = rebuild(original)
+            self.assertEqual(once, original)
+            self.assertEqual(once, rebuild(once))
             for pattern in (r"^```[^\n]*\n.*?^```", r"!\[[^\]]*\]\([^)]+\)"):
                 self.assertEqual(Counter(re.findall(pattern, original, re.M | re.S)),
-                                 Counter(re.findall(pattern, arranged, re.M | re.S)))
-            validate_report.verify_reader_workflows(arranged, chinese)
+                                 Counter(re.findall(pattern, once, re.M | re.S)))
+            validate_report.verify_reader_workflows(once, chinese)
+
+    def test_retired_draft_terminology_is_rejected(self):
+        english = (TOPIC / "README.md").read_text(encoding="utf-8")
+        chinese = (TOPIC / "README_CN.md").read_text(encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "RETIRED_DRAFT_TERM:drafter"):
+            validate_report.verify_reader_workflows(english + "\nThe drafter is reused.\n", False)
+        with self.assertRaisesRegex(ValueError, "RETIRED_DRAFT_TERM:草稿模型"):
+            validate_report.verify_reader_workflows(chinese + "\n草稿模型可以复用。\n", True)
+        with self.assertRaisesRegex(ValueError, "MISSING_LATIN_TERM_SPACING"):
+            validate_report.verify_reader_workflows(chinese + "\n补充 draft model说明。\n", True)
 
     def test_client_cannot_be_appended_to_blocking_server(self):
-        text = validate_report.arrange_report((TOPIC / "README.md").read_text(encoding="utf-8"), False)
+        text = (TOPIC / "README.md").read_text(encoding="utf-8")
         text = text.replace("export ROUTE=baseline", "export ROUTE=baseline\npython -m vllm.entrypoints.openai.api_server")
         with self.assertRaisesRegex(ValueError, "SERVER_CLIENT_IN_SAME_BLOCK"):
             validate_report.verify_reader_workflows(text, False)
 
     def test_selector_training_command_cannot_disappear(self):
-        text = validate_report.arrange_report((TOPIC / "README.md").read_text(encoding="utf-8"), False)
+        text = (TOPIC / "README.md").read_text(encoding="utf-8")
         with self.assertRaisesRegex(ValueError, "ADAPTATION_COMMAND_MISSING:--train-selector"):
             validate_report.verify_reader_workflows(text.replace("--train-selector", ""), False)
 
     def test_reader_order_cannot_regress(self):
-        text = validate_report.arrange_report((TOPIC / "README.md").read_text(encoding="utf-8"), False)
-        text = text.replace("## How to Run", "## Undocumented Workflow", 1)
+        text = (TOPIC / "README.md").read_text(encoding="utf-8")
+        text = text.replace("## Quick Start", "## Undocumented Workflow", 1)
         with self.assertRaisesRegex(ValueError, "READER_SECTION_ORDER"):
             validate_report.verify_reader_workflows(text, False)
 

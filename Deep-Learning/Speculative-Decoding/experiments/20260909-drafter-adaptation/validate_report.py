@@ -53,7 +53,7 @@ def adaptation_table(summary, chinese):
         ("B / selector", r4["agreement_paired"]["chinese_ours_minus_released_selector"]),
         ("B / argmax", r4["agreement_paired"]["chinese_ours_minus_released_argmax"]),
     ))
-    headers = (["设置 / 草稿路径", "发布版 / 再训", "差值的 95% 区间", "成对提示"] if chinese else
+    headers = (["设置 / draft model 路径", "发布版 / 再训", "差值的 95% 区间", "成对提示"] if chinese else
                ["Setting / draft path", "Released / adapted", "95% interval of difference", "Paired prompts"])
     sections = []
     for metric, title, places in (
@@ -71,8 +71,8 @@ def adaptation_table(summary, chinese):
         "Each language requested 200 prompts; the table shows evaluable pairs, with short-output exclusions retained in the records. A uses the selector. B's argmax row disables it on the same trained weights; this is not a training ablation. Five comparisons with two metrics give ten intervals, using 2,000 prompt-level bootstrap resamples without multiplicity correction.")
     sections.append("#### vLLM 服务测量" if chinese else "#### vLLM Serving Measurements")
     sections.append(
-        "同一个微调目标分别配不开推测、发布版草稿、再训草稿，每条路线只执行一次；每档并发测 40 条提示，`max_tokens=256`。A 的服务测试只覆盖 seed 20260908，另两个种子未做服务测试。" if chinese else
-        "Each fine-tuned target is served without speculation, with the released drafter and with the adapted drafter, once per route. Each concurrency level measures 40 prompts with `max_tokens=256`. A's serving run covers only seed 20260908; the other two seeds were not serving-tested.")
+        "同一个微调目标分别配不开推测、发布版 draft model、再训 draft model，每条路线只执行一次；每档并发测 40 条提示，`max_tokens=256`。A 的服务测试只覆盖 seed 20260908，另两个种子未做服务测试。" if chinese else
+        "Each fine-tuned target is served without speculation, with the released draft model and with the adapted draft model, once per route. Each concurrency level measures 40 prompts with `max_tokens=256`. A's serving run covers only seed 20260908; the other two seeds were not serving-tested.")
     serving_headers = ["指标" if chinese else "Metric", "A / en", "B / zh"]
     rows = []
     for concurrency in ("1", "4"):

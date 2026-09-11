@@ -61,49 +61,13 @@ def shift_headings(text):
 
 
 def reader_titles(chinese):
-    return (["从这里开始", "你能用它做什么", "架构与测试流程", "推理对比：MTP 与 DFlash 2",
-             "微调目标后的草稿模型再适配", "启动与调用", "测试与离线复算", "适用范围与微调模型",
-             "上一轮实验：Qwen3.6-27B 与首代 DFlash（2026-09-05）", "仓库目录", "官方资料"] if chinese else
-            ["Start Here", "What You Can Do With This Repository", "Architecture and Test Flow",
-             "Inference Comparison: MTP and DFlash 2", "Adapting the Drafter to a Fine-Tuned Target",
-             "How to Run", "Tests and Offline Replay", "Applicability and Fine-Tuned Models",
-             "Previous Experiment: Qwen3.6-27B and First-Generation DFlash (2026-09-05)",
-             "Repository Layout", "Official Sources"])
-
-
-def arrange_report(text, chinese):
-    titles = reader_titles(chinese)
-    if has_heading(text, "## " + titles[3]):
-        return text
-    text = re.sub(r'(<a id="[^"]+"></a>)\n\n(## [^\n]+)', r'\2\n\n\1', text)
-    parts = re.split(r"(?=^## )", text, flags=re.M)
-    sections = {part.splitlines()[0][3:]: part.rstrip() for part in parts[1:]}
-    source_titles = (["本次实测说明了什么", "测试方法", "吞吐与答案质量", "客户端延迟", "测试覆盖与未执行项"] if chinese else
-                     ["What the Current Run Shows", "Test Method", "Throughput and Answer Quality",
-                      "Client Latency", "Coverage and Unexecuted Work"])
-    mechanism = "MTP 和 DFlash 差在哪里" if chinese else "How MTP and DFlash Differ"
-    scope = "结论适用到哪里" if chinese else "Scope of the Conclusion"
-    evidence = "证据与代码" if chinese else "Evidence and Code"
-    expected = set(titles) - {titles[3]} | set(source_titles) | {mechanism, scope, evidence}
-    require(set(sections) == expected, "UNMAPPED_READER_SECTION")
-    adaptation = sections[titles[4]]
-    scratch_heading = "### 从零训练需要什么" if chinese else "### What Training From Scratch Would Take"
-    reproduction_heading = "### 复现再适配" if chinese else "### Reproducing the Adaptation"
-    before, separator, remainder = adaptation.partition(scratch_heading)
-    require(bool(separator), "FROM_SCRATCH_SECTION_MISSING")
-    scratch, separator, reproduction = remainder.partition(reproduction_heading)
-    require(bool(separator), "ADAPTATION_REPRODUCTION_MISSING")
-    sections[titles[4]] = before.rstrip()
-    sections[titles[3]] = "## " + titles[3] + "\n\n" + "\n\n".join(
-        shift_headings(sections.pop(title)) for title in source_titles)
-    run_header, run_body = sections[titles[5]].split("\n", 1)
-    inference_heading = "### 推理服务与请求" if chinese else "### Inference Serving and Requests"
-    sections[titles[5]] = (run_header + "\n\n" + inference_heading + "\n" + shift_headings(run_body)
-                          + "\n\n" + reproduction_heading + reproduction)
-    sections[titles[7]] += ("\n\n" + shift_headings(sections.pop(mechanism)) + "\n\n"
-                           + shift_headings(sections.pop(scope)) + "\n\n" + scratch_heading + scratch)
-    sections[titles[9]] += "\n\n" + shift_headings(sections.pop(evidence))
-    return parts[0].rstrip() + "\n\n" + "\n\n".join(sections[title].rstrip() for title in titles) + "\n"
+    return (["从这里开始", "如何选择：MTP 还是 DFlash 2", "这个 Repo 交付什么",
+             "实测对比：MTP 与 DFlash 2", "微调之后：如何调整 draft model",
+             "架构与测试环境", "快速上手", "测试与离线复算", "兼容性与边界", "工具与证据"] if chinese else
+            ["Start Here", "Choosing Between MTP and DFlash 2", "What This Repository Delivers",
+             "Measured Comparison: MTP and DFlash 2", "After Fine-Tuning: Adapting the Draft Model",
+             "Architecture and Test Setup", "Quick Start", "Tests and Offline Replay",
+             "Compatibility and Limits", "Tools and Evidence"])
 
 
 def verify_reader_workflows(text, chinese):
@@ -112,6 +76,14 @@ def verify_reader_workflows(text, chinese):
     introduction = text.split("\n## ", 1)[0]
     require("selector" in introduction and ("继续训练" if chinese else "continued training") in introduction,
             "TRAINING_VALUE_MISSING_FROM_OPENING")
+    prose = re.sub(r"\]\([^)]*\)", "]", re.sub(r"`[^`]*`", "", body))
+    require(not re.search(r"(?<![\w/-])drafters?(?![\w./-])", prose, re.I), "RETIRED_DRAFT_TERM:drafter")
+    if chinese:
+        for retired in ("草稿模型", "草稿命中", "候选选择器"):
+            require(retired not in prose, "RETIRED_DRAFT_TERM:" + retired)
+        require(not re.search(r"[\u4e00-\u9fff](?:draft model|selector|checkpoint)"
+                              r"|(?:draft model|selector|checkpoint)[\u4e00-\u9fff]", prose),
+                "MISSING_LATIN_TERM_SPACING")
     training_image = f"experiments/20260909-drafter-adaptation/images/training-flow-{'cn' if chinese else 'en'}.png"
     require(f"]({training_image})" in text, "TRAINING_FLOW_IMAGE_MISSING")
     require('training_data["' not in text, "RETIRED_INLINE_TRAINING_DIAGRAM")
@@ -158,6 +130,63 @@ def markdown_table(headers, rows):
 def display_route(route, chinese):
     labels = {"baseline": "基线" if chinese else "Baseline", "mtp7": "MTP7", "dflash2_7": "DFlash 2-7"}
     return labels.get(route, route)
+
+
+def score_comparison(groups, candidate="dflash2_7", reference="mtp7"):
+    scored = {(group["concurrency"], group["base_seed"], group["route"]): group
+              for group in groups if group["stage"] == "S"}
+    pairs = sorted({key[:2] for key in scored if key[2] == candidate})
+    require(pairs and all((*pair, reference) in scored for pair in pairs), "UNPAIRED_SCORE_COMPARISON")
+    tally = {}
+    for dataset in ("humaneval_plus", "math_500"):
+        outcomes = [(scored[(*pair, candidate)]["scores"]["datasets"][dataset]["normal_correct"],
+                     scored[(*pair, reference)]["scores"]["datasets"][dataset]["normal_correct"])
+                    for pair in pairs]
+        tally[dataset] = {"higher": sum(one > two for one, two in outcomes),
+                          "lower": sum(one < two for one, two in outcomes),
+                          "tied": sum(one == two for one, two in outcomes),
+                          "pairs": len(outcomes)}
+    return tally
+
+
+def decision_table(groups, summary, chinese):
+    cells = {(cell["concurrency"], cell["route"]): cell for cell in summary["matched_summary"]}
+    levels = sorted({cell["concurrency"] for cell in summary["matched_summary"]})
+    by_id = {group["group_id"]: group for group in groups}
+    routes = ("mtp7", "dflash2_7")
+
+    def joined(route, render):
+        return " / ".join(render(cells[(level, route)], level) for level in levels)
+
+    def throughput(cell, _level):
+        return f"{cell['throughput_tok_s']['median']:.1f}"
+
+    def speedup(cell, level):
+        base = cells[(level, "baseline")]["throughput_tok_s"]["median"]
+        return f"{cell['throughput_tok_s']['median'] / base:.2f}×"
+
+    def tpot(cell, _level):
+        clients = [by_id[name]["client"]["all"] for name in cell["source_groups"]]
+        return f"{median(client['tpot_s']['p50'] for client in clients) * 1000:.2f}"
+
+    tally = score_comparison(groups)
+    span = " / ".join(str(level) for level in levels)
+    rows = [[label] + [joined(route, render) for route in routes] for label, render in (
+        ((f"输出吞吐 tok/s（并发 {span}）" if chinese else f"Output tok/s (concurrency {span})"), throughput),
+        ((f"相对不开推测的倍数（并发 {span}）" if chinese else f"Speedup over no speculation (concurrency {span})"), speedup),
+        ((f"token 交付间隔 TPOT ms（并发 {span}）" if chinese else f"Time per output token, ms (concurrency {span})"), tpot))]
+    for dataset, name in (("humaneval_plus", "代码答对数" if chinese else "Code score"),
+                          ("math_500", "数学答对数" if chinese else "Math score")):
+        counts = tally[dataset]
+        verdict = (f"高 {counts['higher']} 组 / 低 {counts['lower']} 组 / 平 {counts['tied']} 组" if chinese else
+                   f"{counts['higher']} higher / {counts['lower']} lower / {counts['tied']} tied")
+        label = (f"{name}：{counts['pairs']} 组配对比较" if chinese else
+                 f"{name} across {counts['pairs']} paired groups")
+        rows.append([label, "参照" if chinese else "Reference", verdict])
+    headers = (["对比项", "MTP7", "DFlash 2-7"] if chinese else ["Comparison", "MTP7", "DFlash 2-7"])
+    note = ("吞吐与延迟取三个随机种子的中位数；得分按“同一并发 + 同一种子”逐组配对比较，不把三次重复当成独立题目。" if chinese else
+            "Throughput and latency are medians across three seeds. Scores are compared per matched concurrency and seed; repeats are not independent tasks.")
+    return markdown_table(headers, rows) + "\n\n" + note
 
 
 def result_table(summary, chinese):
@@ -324,9 +353,9 @@ def verify_local_links(root):
         for marker in ("validate_report.py --refresh", "--figure ", "重新生成图片和报告", "Regenerating figures and report content",
                        "本次文档修订", "documentation revision"):
             require(marker not in text, "INTERNAL_MAINTENANCE_IN_READER_PAGE:" + filename)
-        require(has_heading(text, "## 你能用它做什么" if chinese else "## What You Can Do With This Repository"), "CUSTOMER_VALUE_ENTRY_MISSING:" + filename)
-        require(has_heading(text, "## 仓库目录" if chinese else "## Repository Layout"), "REPOSITORY_LAYOUT_MISSING:" + filename)
-        require(has_heading(text, "## 适用范围与微调模型" if chinese else "## Applicability and Fine-Tuned Models"), "APPLICABILITY_SECTION_MISSING:" + filename)
+        require(has_heading(text, "## 这个 Repo 交付什么" if chinese else "## What This Repository Delivers"), "CUSTOMER_VALUE_ENTRY_MISSING:" + filename)
+        require(has_heading(text, "## 工具与证据" if chinese else "## Tools and Evidence"), "REPOSITORY_LAYOUT_MISSING:" + filename)
+        require(has_heading(text, "## 兼容性与边界" if chinese else "## Compatibility and Limits"), "APPLICABILITY_SECTION_MISSING:" + filename)
         for claim in RETIRED_ADAPTATION_CLAIMS:
             require(claim.casefold() not in text.casefold(), "RETIRED_ADAPTATION_CLAIM:" + filename)
         require(has_heading(text, "## 测试与离线复算" if chinese else "## Tests and Offline Replay"), "TEST_DOCUMENTATION_MISSING:" + filename)
@@ -416,9 +445,8 @@ def validate(root=ROOT, *, refresh=False):
     for filename, chinese in READMES.items():
         path = topic_dir(root) / filename
         text = path.read_text(encoding="utf-8")
-        if refresh:
-            text = arrange_report(text, chinese)
-        for name, value in (("RESULT_TABLE", result_table(summary, chinese)),
+        for name, value in (("DECISION_TABLE", decision_table(groups, summary, chinese)),
+                            ("RESULT_TABLE", result_table(summary, chinese)),
                             ("LATENCY_TABLE", latency_table(groups, summary, chinese)),
                             ("COUNTEREXAMPLE", counterexample(groups, chinese))):
             text = generated_block(text, name, value, refresh=refresh)
