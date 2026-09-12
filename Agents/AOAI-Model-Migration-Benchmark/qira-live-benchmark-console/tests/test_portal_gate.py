@@ -148,6 +148,12 @@ class RedirectSafety(unittest.TestCase):
                       "/ok\rX-Injected: 1", "/ok\x00", "/ok\x7f"):
             self.assertEqual(GATE.safe_next(value), "/")
 
+    def test_a_trailing_newline_does_not_slip_past_the_allowlist(self):
+        # Python's `$` also matches before a trailing newline, so the pattern
+        # must be anchored with \Z or "/foo\n" would be accepted.
+        for value in ("/foo\n", "/\n", "/a/b/\n"):
+            self.assertEqual(GATE.safe_next(value), "/")
+
     def test_only_valid_url_path_characters_are_accepted(self):
         for value in ("/a b", "/tab\there", "/quote\"x", "/angle<x>", "/back\\slash"):
             self.assertEqual(GATE.safe_next(value), "/")

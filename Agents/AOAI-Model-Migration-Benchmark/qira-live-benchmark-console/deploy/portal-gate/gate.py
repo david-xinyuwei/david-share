@@ -61,8 +61,10 @@ MAX_BODY_BYTES = 16 * 1024
 
 # Only the characters a URL path and query may legitimately contain. An
 # allowlist is used rather than stripping bad characters, so a redirect target
-# can never carry a control character into a response header.
-SAFE_NEXT_PATTERN = re.compile(r"^/[A-Za-z0-9._~!$&'()*+,;=:@%/?-]*$")
+# can never carry a control character into a response header. The pattern is
+# anchored with \A and \Z rather than ^ and $, because in Python `$` also
+# matches just before a trailing newline and would let "/path\n" through.
+SAFE_NEXT_PATTERN = re.compile(r"\A/[A-Za-z0-9._~!$&'()*+,;=:@%/?-]*\Z")
 
 # A failed sign-in must not be cheap to retry, and it must not reveal whether
 # the user name exists. This is a deadline rather than an added pause: every
