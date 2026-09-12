@@ -142,10 +142,13 @@ Work VM 上端口明确错开：`8513` 是 Portal，`8514` 是反向隧道。Por
 ```
 
 网关校验的是 nginx 原来使用的同一批 htpasswd 文件，因此现有 Portal 密码继续有效：
-Apache `apr1` 哈希用纯 Python 校验，bcrypt 交给系统 `htpasswd` 程序。登录成功后
+Apache `apr1` 哈希用纯 Python 校验，bcrypt 交给系统 `htpasswd` 程序，并通过标准输入
+传递密码，绝不作为命令行参数（否则会经 `/proc` 泄露给本机其他账号）。登录成功后
 签发 HMAC-SHA256 会话 Cookie，带 `HttpOnly`、`SameSite=Lax` 并有有效期；一次登录
-即可覆盖 Portal 首页和所有反向代理的应用。`nginx-default.deployed.conf` 记录了
-Work VM 上当前实际运行的配置。
+即可覆盖 Portal 首页和所有反向代理的应用。跳转目标由 URL 字符白名单正则限制；登录
+失败统一等待到固定截止时间，避免泄露用户名是否存在。
+`nginx-default.deployed.conf` 记录了 Work VM 上当前实际运行的配置，被替换的旧配置
+保留在 VM 的 `/etc/nginx/backups/default.pre-portal-gate`。
 
 把三个 `deploy/*.env.example` 复制到 systemd 单元指定的路径。尤其是 `portal.env`
 必须在 `QIRA_ALLOWED_ORIGIN` 中明确列出实际使用的 HTTP 和/或 HTTPS 浏览器 Origin；

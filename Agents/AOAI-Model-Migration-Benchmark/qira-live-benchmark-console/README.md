@@ -162,11 +162,16 @@ signed in         -> nginx auth_request -> 204 -> the portal or the console
 
 The gate verifies credentials against the same htpasswd files nginx used, so
 existing portal passwords keep working; Apache `apr1` hashes are checked in
-pure Python and bcrypt entries are delegated to the `htpasswd` binary. A
-successful sign-in issues an HMAC-SHA256 session cookie that is `HttpOnly`,
-`SameSite=Lax` and time limited, and one sign-in covers the portal home page
-and every proxied application. `nginx-default.deployed.conf` records the
-configuration currently running on the Work VM.
+pure Python and bcrypt entries are delegated to the `htpasswd` binary with the
+password supplied on stdin, never as a command-line argument that `/proc`
+would expose. A successful sign-in issues an HMAC-SHA256 session cookie that is
+`HttpOnly`, `SameSite=Lax` and time limited, and one sign-in covers the portal
+home page and every proxied application. Redirect targets are restricted by an
+anchored allowlist of URL characters, and failed sign-ins are held to a fixed
+deadline so they do not reveal whether a user name exists.
+`nginx-default.deployed.conf` records the configuration currently running on
+the Work VM; the configuration it replaced is kept on the VM at
+`/etc/nginx/backups/default.pre-portal-gate`.
 
 Copy the three `deploy/*.env.example` files to the paths named by the systemd
 units. In particular, `portal.env` must list the exact HTTP and/or HTTPS
