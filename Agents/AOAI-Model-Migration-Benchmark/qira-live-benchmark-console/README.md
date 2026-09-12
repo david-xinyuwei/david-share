@@ -149,6 +149,30 @@ reverse-tunnel systemd units plus the nginx location. Both services use
 State-changing endpoints require JSON from the same origin, and the runner
 accepts at most two active paid runs at once.
 
+### In-page sign-in instead of the browser popup
+
+`deploy/portal-gate/` turns the Demo Portal's Basic-Auth dialog into a themed
+sign-in page. nginx still enforces access, but through `auth_request` against a
+small local service on `127.0.0.1:8515`:
+
+```text
+anonymous request -> nginx auth_request -> 401 -> 302 /portal-login (themed form)
+signed in         -> nginx auth_request -> 204 -> the portal or the console
+```
+
+The gate verifies credentials against the same htpasswd files nginx used, so
+existing portal passwords keep working; Apache `apr1` hashes are checked in
+pure Python and bcrypt entries are delegated to the `htpasswd` binary with the
+password supplied on stdin, never as a command-line argument that `/proc`
+would expose. A successful sign-in issues an HMAC-SHA256 session cookie that is
+`HttpOnly`, `SameSite=Lax` and time limited, and one sign-in covers the portal
+home page and every proxied application. Redirect targets are restricted by an
+anchored allowlist of URL characters, and failed sign-ins are held to a fixed
+deadline so they do not reveal whether a user name exists.
+`nginx-default.deployed.conf` records the configuration currently running on
+the Work VM; the configuration it replaced is kept on the VM at
+`/etc/nginx/backups/default.pre-portal-gate`.
+
 Copy the three `deploy/*.env.example` files to the paths named by the systemd
 units. In particular, `portal.env` must list the exact HTTP and/or HTTPS
 browser origins in `QIRA_ALLOWED_ORIGIN`; the server never trusts the request's
@@ -272,6 +296,7 @@ comparable too.
 | `bench_core.py` | Loads the study harness; planning, execution, aggregation |
 | `static/` | Responsive warm-light UI with dark-mode adaptation; dependency-free HTML/CSS/JS and SVG charts |
 | `deploy/demo-portal-card.html` | Canonical first-card registration for the Linux Work VM Demo Portal |
+| `deploy/portal-gate/` | In-page sign-in gate: service, systemd unit, and nginx `auth_request` wiring |
 | `scripts/build_replay_pack.py` | Rebuilds `replay/replay_pack.json`; `--check` verifies it |
 | `replay/replay_pack.json` | Recorded study runs for credential-free demonstration |
 | `history/` | One JSON per completed run; git-ignored, created on first run |
