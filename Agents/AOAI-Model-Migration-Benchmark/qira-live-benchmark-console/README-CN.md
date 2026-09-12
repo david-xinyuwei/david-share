@@ -130,6 +130,23 @@ Work VM 上端口明确错开：`8513` 是 Portal，`8514` 是反向隧道。Por
 `StateDirectory=qira-benchmark`，不需要写 `/opt`。变更接口只接受同源 JSON，Runner
 同时最多接受两个付费运行。
 
+### 页面内登录，取代浏览器弹窗
+
+`deploy/portal-gate/` 把 Demo Portal 的 Basic-Auth 弹窗换成与界面同风格的登录页。
+访问控制仍由 nginx 强制执行，只是改用 `auth_request` 询问本机 `127.0.0.1:8515`
+上的小服务：
+
+```text
+未登录请求 -> nginx auth_request -> 401 -> 302 跳转 /portal-login（登录页）
+已登录     -> nginx auth_request -> 204 -> 正常进入 Portal 或控制台
+```
+
+网关校验的是 nginx 原来使用的同一批 htpasswd 文件，因此现有 Portal 密码继续有效：
+Apache `apr1` 哈希用纯 Python 校验，bcrypt 交给系统 `htpasswd` 程序。登录成功后
+签发 HMAC-SHA256 会话 Cookie，带 `HttpOnly`、`SameSite=Lax` 并有有效期；一次登录
+即可覆盖 Portal 首页和所有反向代理的应用。`nginx-default.deployed.conf` 记录了
+Work VM 上当前实际运行的配置。
+
 把三个 `deploy/*.env.example` 复制到 systemd 单元指定的路径。尤其是 `portal.env`
 必须在 `QIRA_ALLOWED_ORIGIN` 中明确列出实际使用的 HTTP 和/或 HTTPS 浏览器 Origin；
 服务端绝不根据请求的 `Host` header 推导允许来源。
@@ -228,6 +245,7 @@ python server.py --port 8080
 | `bench_core.py` | 加载研究 harness；计划、执行、聚合 |
 | `static/` | 响应式暖色浅色界面并自动适配深色；零依赖 HTML/CSS/JS 与 SVG 图表 |
 | `deploy/demo-portal-card.html` | Linux Work VM Demo Portal 第一张卡片的标准注册片段 |
+| `deploy/portal-gate/` | 页面内登录网关：服务、systemd 单元与 nginx `auth_request` 配置 |
 | `scripts/build_replay_pack.py` | 重建 `replay/replay_pack.json`；`--check` 做校验 |
 | `replay/replay_pack.json` | 已记录的研究运行，用于无凭据演示 |
 | `history/` | 每次跑完的运行一个 JSON；已 git 忽略，首次运行时自动创建 |
