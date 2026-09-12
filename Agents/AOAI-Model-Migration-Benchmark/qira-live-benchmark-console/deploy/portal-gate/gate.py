@@ -430,11 +430,16 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         for key, value in headers or []:
-            # Defence in depth: a header value that still carried a control
-            # character would split the response, so refuse to emit one.
-            if any(ord(ch) < 0x20 or ord(ch) == 0x7F for ch in value):
+            # Defence in depth. A control character left in a header value would
+            # split the response, so build the emitted value by filtering rather
+            # than by trusting the caller, and refuse the request if anything had
+            # to be removed.
+            filtered = "".join(
+                ch for ch in value if 0x20 <= ord(ch) != 0x7F
+            )
+            if filtered != value:
                 raise ValueError(f"refusing to send a control character in header {key}")
-            self.send_header(key, value)
+            self.send_header(key, filtered)
         self.end_headers()
         if body:
             self.wfile.write(body)
