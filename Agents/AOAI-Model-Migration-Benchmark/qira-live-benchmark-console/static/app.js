@@ -7,7 +7,10 @@
  */
 'use strict';
 
-const PALETTE = ['#4da3ff', '#3ddc97', '#ffb454', '#ff6b6b', '#b07cff', '#5ad1e6', '#f78fb3', '#9ad14b'];
+const PALETTE = [
+  '--cp-accent', '--cp-success', '--cp-warning', '--cp-danger',
+  '--cp-link', '--cp-text-soft', '--cp-border-strong', '--cp-text-muted'
+];
 const APP_BASE = location.pathname.replace(/\/(?:index\.html)?$/, '');
 const apiUrl = (path) => APP_BASE + path;
 
@@ -27,12 +30,14 @@ const state = {
 };
 
 const $ = (id) => document.getElementById(id);
+const themeColor = (token) =>
+  getComputedStyle(document.documentElement).getPropertyValue(token).trim();
 
 // ---------------------------------------------------------------- utilities
 
 function colorFor(name) {
   if (!state.colors.has(name)) {
-    state.colors.set(name, PALETTE[state.colors.size % PALETTE.length]);
+    state.colors.set(name, themeColor(PALETTE[state.colors.size % PALETTE.length]));
   }
   return state.colors.get(name);
 }
@@ -131,11 +136,11 @@ function axes(svg, geo, ticks, formatter) {
     const y = top + height - (t / max) * height;
     svg.appendChild(el('line', {
       x1: left, x2: left + width, y1: y, y2: y,
-      stroke: '#2a3547', 'stroke-width': 1
+      stroke: themeColor('--cp-border'), 'stroke-width': 1
     }));
     svg.appendChild(el('text', {
       x: left - 8, y: y + 4, 'text-anchor': 'end',
-      fill: '#93a3bb', 'font-size': 10
+      fill: themeColor('--cp-text-muted'), 'font-size': 10
     }, formatter ? formatter(t) : fmt(t)));
   });
   return max;
@@ -147,7 +152,7 @@ function xLabels(svg, geo, labels, bandWidth) {
     const x = left + bandWidth * (i + 0.5);
     const text = el('text', {
       x, y: top + height + 14, 'text-anchor': 'end',
-      fill: '#93a3bb', 'font-size': 10,
+      fill: themeColor('--cp-text-muted'), 'font-size': 10,
       transform: `rotate(-28 ${x} ${top + height + 14})`
     }, shortLabel(label));
     text.appendChild(el('title', {}, label));
@@ -197,7 +202,7 @@ function groupedBars(container, labels, series, formatter) {
       if (series.length <= 2 && barW > 22) {
         svg.appendChild(el('text', {
           x: x + barW / 2 - 1, y: geo.top + geo.height - h - 4,
-          'text-anchor': 'middle', fill: '#93a3bb', 'font-size': 9
+          'text-anchor': 'middle', fill: themeColor('--cp-text-muted'), 'font-size': 9
         }, formatter ? formatter(value) : fmt(value)));
       }
     });
@@ -205,7 +210,7 @@ function groupedBars(container, labels, series, formatter) {
 
   svg.appendChild(el('line', {
     x1: geo.left, x2: geo.left + geo.width, y1: geo.top + geo.height, y2: geo.top + geo.height,
-    stroke: '#2a3547'
+    stroke: themeColor('--cp-border')
   }));
   xLabels(svg, geo, labels, band);
   if (series.length > 1) legend(container, series.map((s) => ({ label: s.name, color: s.color })));
@@ -242,7 +247,7 @@ function stackedBars(container, labels, series, formatter) {
 
   svg.appendChild(el('line', {
     x1: geo.left, x2: geo.left + geo.width, y1: geo.top + geo.height, y2: geo.top + geo.height,
-    stroke: '#2a3547'
+    stroke: themeColor('--cp-border')
   }));
   xLabels(svg, geo, labels, band);
   legend(container, series.map((s) => ({ label: s.name, color: s.color })));
@@ -275,11 +280,11 @@ function scatter(container, points, xLabel, yLabel) {
     if (px(v) < geo.left - 1 || px(v) > geo.left + geo.width + 1) continue;
     svg.appendChild(el('line', {
       x1: px(v), x2: px(v), y1: geo.top, y2: geo.top + geo.height,
-      stroke: '#2a3547', 'stroke-dasharray': '2 3'
+      stroke: themeColor('--cp-border'), 'stroke-dasharray': '2 3'
     }));
     svg.appendChild(el('text', {
       x: px(v), y: geo.top + geo.height + 14, 'text-anchor': 'middle',
-      fill: '#93a3bb', 'font-size': 10
+      fill: themeColor('--cp-text-muted'), 'font-size': 10
     }, fmtMoney(v)));
   }
 
@@ -290,7 +295,7 @@ function scatter(container, points, xLabel, yLabel) {
     const cx = px(p.x), cy = py(p.y);
     const circle = el('circle', {
       cx, cy, r, fill: colorFor(p.label), opacity: .75,
-      stroke: '#0f1420', 'stroke-width': 1.5
+      stroke: themeColor('--cp-surface'), 'stroke-width': 1.5
     });
     circle.appendChild(el('title', {},
       `${p.label}\n${xLabel}: ${fmtMoney(p.x)}\n${yLabel}: ${fmt(p.y)} ms\nmean output: ${fmt(p.size)} tokens`));
@@ -308,7 +313,7 @@ function scatter(container, points, xLabel, yLabel) {
       if (!clash) {
         placed.push(box);
         svg.appendChild(el('text', {
-          x: cx, y, 'text-anchor': 'middle', fill: '#e6ecf5', 'font-size': 9
+          x: cx, y, 'text-anchor': 'middle', fill: themeColor('--cp-text'), 'font-size': 9
         }, text));
         break;
       }
@@ -317,11 +322,11 @@ function scatter(container, points, xLabel, yLabel) {
 
   svg.appendChild(el('text', {
     x: geo.left + geo.width / 2, y: H - 6, 'text-anchor': 'middle',
-    fill: '#93a3bb', 'font-size': 10
+    fill: themeColor('--cp-text-muted'), 'font-size': 10
   }, xLabel + ' (log scale)'));
   svg.appendChild(el('text', {
     x: 12, y: geo.top + geo.height / 2, 'text-anchor': 'middle',
-    fill: '#93a3bb', 'font-size': 10,
+    fill: themeColor('--cp-text-muted'), 'font-size': 10,
     transform: `rotate(-90 12 ${geo.top + geo.height / 2})`
   }, yLabel));
 }
@@ -333,12 +338,12 @@ function renderCharts() {
   const labels = rows.map((s) => s.arm);
 
   groupedBars($('chartTtft'), labels, [
-    { name: 'p50', values: rows.map((s) => s.ttft_p50_ms), color: '#4da3ff' },
-    { name: 'p90', values: rows.map((s) => s.ttft_p90_ms), color: '#24557f' }
+    { name: 'p50', values: rows.map((s) => s.ttft_p50_ms), color: themeColor('--cp-accent') },
+    { name: 'p90', values: rows.map((s) => s.ttft_p90_ms), color: themeColor('--cp-link') }
   ], (v) => fmt(v) + ' ms');
 
   groupedBars($('chartTps'), labels, [
-    { name: 'p50 tok/s', values: rows.map((s) => s.decode_tps_p50), color: '#3ddc97' }
+    { name: 'p50 tok/s', values: rows.map((s) => s.decode_tps_p50), color: themeColor('--cp-success') }
   ], (v) => fmt(v, 1));
   const burstOnly = rows.filter((s) => s.paced_n === 0 && s.bursts > 0);
   const partial = rows.filter((s) => s.paced_n > 0 && s.bursts > 0);
@@ -361,7 +366,7 @@ function renderCharts() {
   const priced = rows.filter((s) => s.cost_per_1k_requests !== null);
   if (priced.length) {
     groupedBars($('chartCost'), priced.map((s) => s.arm), [
-      { name: 'USD / 1k requests', values: priced.map((s) => s.cost_per_1k_requests), color: '#ffb454' }
+      { name: 'USD / 1k requests', values: priced.map((s) => s.cost_per_1k_requests), color: themeColor('--cp-warning') }
     ], (v) => fmtMoney(v));
   } else {
     emptyChart($('chartCost'), 'No arm in this run has confirmed list pricing.');
@@ -375,9 +380,9 @@ function renderCharts() {
   })), 'USD per 1,000 requests', 'TTFT p50');
 
   stackedBars($('chartTokens'), labels, [
-    { name: 'prompt', values: rows.map((s) => s.prompt_tokens_mean || 0), color: '#33507a' },
-    { name: 'reasoning (billed, hidden)', values: rows.map((s) => s.reasoning_tokens_mean || 0), color: '#b07cff' },
-    { name: 'emitted text', values: rows.map((s) => s.emitted_tokens_mean || 0), color: '#3ddc97' }
+    { name: 'prompt', values: rows.map((s) => s.prompt_tokens_mean || 0), color: themeColor('--cp-link') },
+    { name: 'reasoning (billed, hidden)', values: rows.map((s) => s.reasoning_tokens_mean || 0), color: themeColor('--cp-accent') },
+    { name: 'emitted text', values: rows.map((s) => s.emitted_tokens_mean || 0), color: themeColor('--cp-success') }
   ], (v) => fmt(v));
 
   renderRouter(rows);
@@ -394,7 +399,7 @@ function renderRouter(rows) {
   const models = [...new Set(routed.flatMap((s) => Object.keys(s.served_split)))].sort();
   const series = models.map((m, i) => ({
     name: m,
-    color: PALETTE[i % PALETTE.length],
+    color: themeColor(PALETTE[i % PALETTE.length]),
     values: routed.map((s) => {
       const total = Object.values(s.served_split).reduce((a, b) => a + b, 0) || 1;
       return ((s.served_split[m] || 0) / total) * 100;
@@ -665,7 +670,7 @@ function updateEstimate() {
   const limit = state.catalog?.limits?.max_requests ?? 400;
   const over = total > limit;
   $('estimate').innerHTML = over
-    ? `<b style="color:#ff6b6b">${total} requests</b> exceeds the ${limit}-request cap for one run. Reduce prompts, arms or iterations.`
+    ? `<b class="estimate-error">${total} requests</b> exceeds the ${limit}-request cap for one run. Reduce prompts, arms or iterations.`
     : `<b>${total}</b> requests (${measured} measured${warmup ? ` + ${total - measured} warm-up` : ''}) across <b>${arms}</b> arm(s) &times; <b>${items}</b> prompt(s).`;
   $('runBtn').disabled = over || !arms || !items || state.runId !== null
     || state.catalog?.mode !== 'live';
