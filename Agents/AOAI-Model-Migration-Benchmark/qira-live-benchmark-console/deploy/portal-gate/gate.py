@@ -31,6 +31,7 @@ import hashlib
 import hmac
 import html
 import os
+import re
 import secrets
 import shutil
 import subprocess
@@ -58,9 +59,16 @@ PORTAL_SUBTITLE = os.environ.get(
 )
 MAX_BODY_BYTES = 16 * 1024
 
-# A wrong password must not be cheap to guess in bulk, and it must not reveal
-# whether the user name exists. Every failure takes the same visible time.
-FAILURE_DELAY_SECONDS = 0.4
+# Only the characters a URL path and query may legitimately contain. An
+# allowlist is used rather than stripping bad characters, so a redirect target
+# can never carry a control character into a response header.
+SAFE_NEXT_PATTERN = re.compile(r"^/[A-Za-z0-9._~!$&'()*+,;=:@%/?-]*$")
+
+# A failed sign-in must not be cheap to retry, and it must not reveal whether
+# the user name exists. This is a deadline rather than an added pause: every
+# rejection returns after the same elapsed time regardless of which check
+# failed or how expensive the hash comparison was.
+FAILURE_DEADLINE_SECONDS = float(os.environ.get("PORTAL_GATE_FAILURE_DEADLINE", "0.5"))
 
 
 # --------------------------------------------------------------------------
@@ -171,13 +179,21 @@ def apr1_hash(password: bytes, salt: bytes) -> str:
 
 
 def _verify_with_htpasswd(path: Path, user: str, password: str) -> bool:
-    """Delegate bcrypt/SHA entries to the htpasswd binary already on the VM."""
+    """
+    Delegate bcrypt/SHA entries to the htpasswd binary already on the VM.
+
+    The password is written to stdin rather than passed as an argument: argv is
+    world-readable through /proc/<pid>/cmdline and is recorded by process
+    accounting, so `-b` would expose every signed-in user's password to any
+    local account. Apache's own documentation warns about exactly this.
+    """
     binary = shutil.which("htpasswd")
     if not binary:
         return False
     try:
         result = subprocess.run(
-            [binary, "-vb", str(path), user, password],
+            [binary, "-vi", str(path), user],
+            input=password.encode("utf-8"),
             capture_output=True,
             timeout=10,
             check=False,
@@ -225,13 +241,13 @@ def safe_next(raw: str | None) -> str:
     The value reaches us through parse_qs, which decodes percent escapes, so a
     caller can smuggle real control characters (``%0d%0a``) into it. Those must
     never reach a response header or they would split it, letting an attacker
-    append headers of their own to the redirect.
+    append headers of their own to the redirect. Rather than removing bad
+    characters, this accepts only the characters a URL path and query may
+    contain, so anything unexpected falls back to the portal home page.
     """
-    if not raw:
+    if not raw or not SAFE_NEXT_PATTERN.match(raw):
         return "/"
-    if any(ord(ch) < 0x20 or ord(ch) == 0x7F for ch in raw):
-        return "/"
-    if not raw.startswith("/") or raw.startswith("//") or raw.startswith("/\\"):
+    if raw.startswith("//") or raw.startswith("/\\"):
         return "/"
     if raw.startswith("/portal-login") or raw.startswith("/portal-logout"):
         return "/"
@@ -496,6 +512,7 @@ class Handler(BaseHTTPRequestHandler):
         if length > MAX_BODY_BYTES:
             self._send(413, b"Too large", "text/plain; charset=utf-8")
             return
+        started = time.monotonic()
         raw = self.rfile.read(length).decode("utf-8", errors="replace") if length else ""
         form = parse_qs(raw, keep_blank_values=True)
         target = safe_next(form.get("next", [None])[0])
@@ -512,7 +529,11 @@ class Handler(BaseHTTPRequestHandler):
             )
             return
 
-        time.sleep(FAILURE_DELAY_SECONDS)
+        # Hold every rejection to the same deadline, so an unknown user and a
+        # wrong password for a known user are indistinguishable by timing.
+        remaining = FAILURE_DEADLINE_SECONDS - (time.monotonic() - started)
+        if remaining > 0:
+            time.sleep(remaining)
         self._send_page(
             401, login_page(target, "That user name and password did not match.")
         )

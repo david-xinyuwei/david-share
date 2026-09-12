@@ -10,7 +10,6 @@ import unittest
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from unittest.mock import patch
-
 GATE_PATH = Path(__file__).resolve().parents[1] / "deploy" / "portal-gate" / "gate.py"
 _SECRET_DIR = tempfile.TemporaryDirectory()
 os.environ.setdefault("PORTAL_GATE_SECRET", str(Path(_SECRET_DIR.name) / "secret"))
@@ -61,6 +60,50 @@ class Apr1Verification(unittest.TestCase):
             self.assertFalse(GATE.check_credentials("demo", "correct-horse"))
 
 
+class HtpasswdDelegation(unittest.TestCase):
+    """Non-apr1 entries are delegated; the password must stay off the argv."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.path = Path(self.tmp.name) / ".htpasswd"
+        # A bcrypt-looking entry forces the delegated branch.
+        self.path.write_text("bcryptuser:$2y$05$abcdefghijklmnopqrstuv\n", encoding="utf-8")
+        self.patcher = patch.object(GATE, "USER_FILES", [self.path])
+        self.patcher.start()
+
+    def tearDown(self):
+        self.patcher.stop()
+        self.tmp.cleanup()
+
+    def test_password_is_piped_on_stdin_not_passed_as_an_argument(self):
+        captured = {}
+
+        def fake_run(cmd, **kwargs):
+            captured["cmd"] = cmd
+            captured["input"] = kwargs.get("input")
+            return subprocess.CompletedProcess(cmd, 0)
+
+        with patch.object(GATE.shutil, "which", return_value="/usr/bin/htpasswd"), \
+                patch.object(GATE.subprocess, "run", fake_run):
+            self.assertTrue(GATE.check_credentials("bcryptuser", "s3cr3t-value"))
+
+        self.assertIn("-vi", captured["cmd"])
+        self.assertNotIn("-vb", captured["cmd"])
+        self.assertEqual(captured["input"], b"s3cr3t-value")
+        # /proc/<pid>/cmdline exposes argv to every local account.
+        self.assertNotIn("s3cr3t-value", captured["cmd"])
+
+    def test_a_nonzero_exit_is_a_rejected_password(self):
+        with patch.object(GATE.shutil, "which", return_value="/usr/bin/htpasswd"), \
+                patch.object(GATE.subprocess, "run",
+                             lambda cmd, **kw: subprocess.CompletedProcess(cmd, 1)):
+            self.assertFalse(GATE.check_credentials("bcryptuser", "wrong"))
+
+    def test_a_missing_htpasswd_binary_rejects_rather_than_crashes(self):
+        with patch.object(GATE.shutil, "which", return_value=None):
+            self.assertFalse(GATE.check_credentials("bcryptuser", "anything"))
+
+
 class Sessions(unittest.TestCase):
     def test_issued_token_round_trips(self):
         self.assertEqual(GATE.verify_token(GATE.issue_token("demo")), "demo")
@@ -105,6 +148,13 @@ class RedirectSafety(unittest.TestCase):
                       "/ok\rX-Injected: 1", "/ok\x00", "/ok\x7f"):
             self.assertEqual(GATE.safe_next(value), "/")
 
+    def test_only_valid_url_path_characters_are_accepted(self):
+        for value in ("/a b", "/tab\there", "/quote\"x", "/angle<x>", "/back\\slash"):
+            self.assertEqual(GATE.safe_next(value), "/")
+        for value in ("/qira-benchmark/api/catalog?run_id=abc123",
+                      "/path_with.dots~and-dashes/", "/a%20b", "/x?y=1&z=2"):
+            self.assertEqual(GATE.safe_next(value), value)
+
 
 class SecretFile(unittest.TestCase):
     def test_secret_is_created_private_without_a_permissions_window(self):
@@ -134,7 +184,7 @@ class HttpSurface(unittest.TestCase):
         path.write_text(APR1_LINE + "\n", encoding="utf-8")
         cls.files_patch = patch.object(GATE, "USER_FILES", [path])
         cls.files_patch.start()
-        cls.delay_patch = patch.object(GATE, "FAILURE_DELAY_SECONDS", 0)
+        cls.delay_patch = patch.object(GATE, "FAILURE_DEADLINE_SECONDS", 0)
         cls.delay_patch.start()
         cls.server = ThreadingHTTPServer(("127.0.0.1", 0), GATE.Handler)
         cls.server.daemon_threads = True
