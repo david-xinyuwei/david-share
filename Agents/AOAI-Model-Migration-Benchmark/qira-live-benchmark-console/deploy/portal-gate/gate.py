@@ -74,8 +74,13 @@ def load_secret() -> bytes:
             return value
     secret = base64.urlsafe_b64encode(secrets.token_bytes(48))
     SECRET_PATH.parent.mkdir(parents=True, exist_ok=True)
-    SECRET_PATH.write_bytes(secret + b"\n")
-    SECRET_PATH.chmod(0o600)
+    # Create the file already private. Writing first and calling chmod after
+    # would leave the signing key world-readable for that window.
+    handle = os.open(SECRET_PATH, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    try:
+        os.write(handle, secret + b"\n")
+    finally:
+        os.close(handle)
     return secret
 
 
@@ -214,8 +219,17 @@ def check_credentials(user: str, password: str) -> bool:
 # --------------------------------------------------------------------------
 
 def safe_next(raw: str | None) -> str:
-    """Only allow same-site paths, so the form cannot become an open redirect."""
+    """
+    Only allow same-site paths, so the form cannot become an open redirect.
+
+    The value reaches us through parse_qs, which decodes percent escapes, so a
+    caller can smuggle real control characters (``%0d%0a``) into it. Those must
+    never reach a response header or they would split it, letting an attacker
+    append headers of their own to the redirect.
+    """
     if not raw:
+        return "/"
+    if any(ord(ch) < 0x20 or ord(ch) == 0x7F for ch in raw):
         return "/"
     if not raw.startswith("/") or raw.startswith("//") or raw.startswith("/\\"):
         return "/"
@@ -416,6 +430,10 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         for key, value in headers or []:
+            # Defence in depth: a header value that still carried a control
+            # character would split the response, so refuse to emit one.
+            if any(ord(ch) < 0x20 or ord(ch) == 0x7F for ch in value):
+                raise ValueError(f"refusing to send a control character in header {key}")
             self.send_header(key, value)
         self.end_headers()
         if body:

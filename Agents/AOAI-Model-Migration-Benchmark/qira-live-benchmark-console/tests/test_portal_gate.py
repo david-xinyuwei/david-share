@@ -98,6 +98,33 @@ class RedirectSafety(unittest.TestCase):
         self.assertEqual(GATE.safe_next("/portal-login?next=/"), "/")
         self.assertEqual(GATE.safe_next("/portal-logout"), "/")
 
+    def test_control_characters_cannot_reach_a_response_header(self):
+        # parse_qs decodes %0d%0a, so a smuggled CRLF would otherwise be
+        # written straight into the Location header and split the response.
+        for value in ("/ok\r\nX-Injected: 1", "/ok\nX-Injected: 1",
+                      "/ok\rX-Injected: 1", "/ok\x00", "/ok\x7f"):
+            self.assertEqual(GATE.safe_next(value), "/")
+
+
+class SecretFile(unittest.TestCase):
+    def test_secret_is_created_private_without_a_permissions_window(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "nested" / "portal-gate.secret"
+            with patch.object(GATE, "SECRET_PATH", target):
+                secret = GATE.load_secret()
+            self.assertTrue(secret)
+            self.assertTrue(target.is_file())
+            if os.name == "posix":
+                self.assertEqual(target.stat().st_mode & 0o777, 0o600)
+
+    def test_existing_secret_is_reused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "portal-gate.secret"
+            with patch.object(GATE, "SECRET_PATH", target):
+                first = GATE.load_secret()
+                second = GATE.load_secret()
+            self.assertEqual(first, second)
+
 
 class HttpSurface(unittest.TestCase):
     @classmethod
@@ -177,6 +204,20 @@ class HttpSurface(unittest.TestCase):
     def test_off_site_next_is_neutralised_on_success(self):
         _, headers, _ = self.sign_in(next_url="https://malicious.example")
         self.assertEqual(headers["Location"], "/")
+
+    def test_crlf_in_next_cannot_split_the_redirect_response(self):
+        status, headers, body = self.sign_in(next_url="/ok%0d%0aX-Injected:%201")
+        self.assertEqual(status, 303)
+        self.assertEqual(headers["Location"], "/")
+        self.assertNotIn("X-Injected", headers)
+        self.assertNotIn("X-Injected", body)
+
+    def test_crlf_in_a_login_page_request_is_not_reflected(self):
+        status, headers, body = self.request(
+            "GET", "/portal-login?next=/ok%0d%0aX-Injected:%201")
+        self.assertEqual(status, 200)
+        self.assertNotIn("X-Injected", headers)
+        self.assertNotIn("X-Injected", body)
 
     def test_logout_clears_the_cookie(self):
         status, headers, _ = self.request("GET", "/portal-logout")
