@@ -4,12 +4,22 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Qira live model benchmark console</title>
+<script>
+  (() => {
+    const param = new URLSearchParams(window.location.search).get("clawpilotTheme");
+    const theme =
+      param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", theme);
+  })();
+</script>
 <link rel="stylesheet" href="static/styles.css">
 </head>
 <body>
 
 <header>
-  <div>
+  <div class="brand-mark" aria-hidden="true">Q</div>
+  <div class="brand-copy">
+    <div class="eyebrow">Microsoft Foundry · native model evaluation</div>
     <h1>Qira live model benchmark console</h1>
     <div class="sub">TTFT / TPOT / tokens per second / cost, measured live on the deployments themselves</div>
   </div>

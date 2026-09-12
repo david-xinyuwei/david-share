@@ -154,6 +154,10 @@ units. In particular, `portal.env` must list the exact HTTP and/or HTTPS
 browser origins in `QIRA_ALLOWED_ORIGIN`; the server never trusts the request's
 `Host` header to establish an allowed origin.
 
+`deploy/demo-portal-card.html` is the canonical card for the Linux Work VM
+Demo Portal. Keep it as the first card in the portal grid and increment the
+portal's active-service count when registering a fresh installation.
+
 ### On a laptop, with no credentials
 
 Start it anyway:
@@ -266,7 +270,8 @@ comparable too.
 |---|---|
 | `server.py` | Standard-library HTTP server, SSE event stream, CSV export |
 | `bench_core.py` | Loads the study harness; planning, execution, aggregation |
-| `static/` | The UI: one HTML file, one stylesheet, one dependency-free JS file |
+| `static/` | Responsive warm-light UI with dark-mode adaptation; dependency-free HTML/CSS/JS and SVG charts |
+| `deploy/demo-portal-card.html` | Canonical first-card registration for the Linux Work VM Demo Portal |
 | `scripts/build_replay_pack.py` | Rebuilds `replay/replay_pack.json`; `--check` verifies it |
 | `replay/replay_pack.json` | Recorded study runs for credential-free demonstration |
 | `history/` | One JSON per completed run; git-ignored, created on first run |

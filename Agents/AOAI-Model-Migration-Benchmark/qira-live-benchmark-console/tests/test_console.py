@@ -652,6 +652,16 @@ class HttpSurface(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn("Qira live model benchmark console", body)
 
+    def test_index_initializes_the_shared_light_theme(self):
+        status, body = self.get("/")
+        self.assertEqual(status, 200)
+        self.assertIn('get("clawpilotTheme")', body)
+        self.assertIn('setAttribute("data-theme", theme)', body)
+        status, css = self.get("/static/styles.css")
+        self.assertEqual(status, 200)
+        self.assertIn("--cp-bg: #f7f4ef", css)
+        self.assertIn('font-family: "Segoe UI", Aptos, Calibri', css)
+
     def test_catalog_reports_the_mode(self):
         status, body = self.get("/api/catalog")
         self.assertEqual(status, 200)

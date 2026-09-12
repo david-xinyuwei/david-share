@@ -134,6 +134,9 @@ Work VM 上端口明确错开：`8513` 是 Portal，`8514` 是反向隧道。Por
 必须在 `QIRA_ALLOWED_ORIGIN` 中明确列出实际使用的 HTTP 和/或 HTTPS 浏览器 Origin；
 服务端绝不根据请求的 `Host` header 推导允许来源。
 
+`deploy/demo-portal-card.html` 是 Linux Work VM Demo Portal 的标准卡片。新安装时应将
+其放在 Portal 网格第一位，并同步增加 active-service 计数。
+
 ### 在笔记本上、没有凭据时
 
 照样可以启动：
@@ -223,7 +226,8 @@ python server.py --port 8080
 |---|---|
 | `server.py` | 纯标准库 HTTP 服务、SSE 事件流、CSV 导出 |
 | `bench_core.py` | 加载研究 harness；计划、执行、聚合 |
-| `static/` | 界面：一个 HTML、一个样式表、一个零依赖 JS |
+| `static/` | 响应式暖色浅色界面并自动适配深色；零依赖 HTML/CSS/JS 与 SVG 图表 |
+| `deploy/demo-portal-card.html` | Linux Work VM Demo Portal 第一张卡片的标准注册片段 |
 | `scripts/build_replay_pack.py` | 重建 `replay/replay_pack.json`；`--check` 做校验 |
 | `replay/replay_pack.json` | 已记录的研究运行，用于无凭据演示 |
 | `history/` | 每次跑完的运行一个 JSON；已 git 忽略，首次运行时自动创建 |
