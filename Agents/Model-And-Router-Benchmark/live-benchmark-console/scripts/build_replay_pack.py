@@ -63,6 +63,22 @@ SOURCES = [
 ]
 
 
+# Fields added after the recorded runs were pinned. They are computed live on
+# every running console; the embedded copy omits them so the pinned evidence
+# pack stays byte-identical.
+POST_PIN_ARM_FIELDS = ("price_cache_write",)
+POST_PIN_SUMMARY_FIELDS = ("cache_write_tokens_total",)
+
+
+def embedded_catalog(catalog: dict) -> dict:
+    arms = [{k: v for k, v in arm.items() if k not in POST_PIN_ARM_FIELDS} for arm in catalog["arms"]]
+    return {**catalog, "arms": arms}
+
+
+def embedded_summaries(summaries: list[dict]) -> list[dict]:
+    return [{k: v for k, v in s.items() if k not in POST_PIN_SUMMARY_FIELDS} for s in summaries]
+
+
 def load_records(path: Path) -> list[dict]:
     records = []
     for line in path.read_text(encoding="utf-8").splitlines():
@@ -105,7 +121,7 @@ def build_run(source: dict) -> dict | None:
         "folder": source["folder"],
         "files": [f.name for f in files],
         "records": len(measured),
-        "summaries": summaries,
+        "summaries": embedded_summaries(summaries),
     }
 
 
@@ -125,9 +141,10 @@ def main() -> int:
                     "Replayed measurements, not a live test.",
         # Kept in the non-LFS pack so a clone without git-lfs can still open
         # replay mode. Live mode continues to read the sibling study assets.
-        # Preserve the original evidence-pack shape. The server filters
-        # unverified registry-only entries at read time.
-        "catalog": bench_core.catalog(include_unverified=True),
+        # The pack is pinned evidence, so catalog fields introduced after the
+        # recorded runs are left out of the embedded copy; a live catalog
+        # always carries them.
+        "catalog": embedded_catalog(bench_core.catalog(include_unverified=True)),
         "runs": runs,
     }
     rendered = json.dumps(pack, ensure_ascii=False, indent=2) + "\n"

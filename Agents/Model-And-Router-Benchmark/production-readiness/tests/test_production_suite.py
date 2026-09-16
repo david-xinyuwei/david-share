@@ -52,6 +52,43 @@ def http_error(cls, status, headers=None):
 
 
 class HarnessHistoryTests(unittest.TestCase):
+    def test_cache_write_tokens_are_extracted_on_both_surfaces(self):
+        chat = chat_stream()
+        chunks = list(chat)
+        chunks[-1].usage.prompt_tokens_details = NS(cached_tokens=0, cache_write_tokens=1889)
+        chunks[-1].usage.prompt_tokens = 1892
+        create = Mock(return_value=iter(chunks))
+        with patch.object(harness.time, "perf_counter", side_effect=[0, 1, 2, 2.1]):
+            record = harness.run_one(NS(chat=NS(completions=NS(create=create))), "d", {"text": "q"}, 9000, None, api="chat")
+        self.assertEqual((record["prompt_tokens"], record["cached_tokens"], record["cache_write_tokens"]), (1892, 0, 1889))
+        events = list(responses_stream())
+        events[-1].response.usage.input_tokens_details = NS(cached_tokens=1889, cache_write_tokens=0)
+        rcreate = Mock(return_value=iter(events))
+        with patch.object(harness.time, "perf_counter", side_effect=[0, 1, 2, 2.1]):
+            record = harness.run_one(NS(responses=NS(create=rcreate)), "d", {"text": "q"}, 9000, None, api="responses")
+        self.assertEqual((record["cached_tokens"], record["cache_write_tokens"]), (1889, 0))
+        # Older API shapes carry no cache_write_tokens attribute; the record still says 0.
+        with patch.object(harness.time, "perf_counter", side_effect=[0, 1, 2, 2.1]):
+            record = harness.run_one(NS(chat=NS(completions=NS(create=Mock(return_value=chat_stream())))), "d", {"text": "q"}, 9000, None, api="chat")
+        self.assertEqual(record["cache_write_tokens"], 0)
+
+    def test_cache_writes_are_priced_only_where_the_model_charges_for_them(self):
+        pricing = {"gpt-5.6-luna": {"input": 0.20, "cached": 0.02, "cache_write": 0.25, "output": 1.20},
+                   "gpt-4o-mini": {"input": 0.15, "cached": 0.075, "output": 0.60}}
+        # 1,892 prompt tokens of which 1,889 were written: 3 at input, 1,889 at cache-write, 4 output.
+        luna = harness.compute_cost(pricing, "gpt-5.6-luna", 1892, 0, 4, cache_write_tokens=1889)
+        self.assertAlmostEqual(luna, (3 * 0.20 + 1889 * 0.25 + 4 * 1.20) / 1e6, places=10)
+        # The repeat of the same prefix reads 1,889 from the cache instead.
+        repeat = harness.compute_cost(pricing, "gpt-5.6-luna", 1892, 1889, 4, cache_write_tokens=0)
+        self.assertAlmostEqual(repeat, (3 * 0.20 + 1889 * 0.02 + 4 * 1.20) / 1e6, places=10)
+        self.assertLess(repeat, luna)
+        # A model without a cache-write price bills written tokens as ordinary input.
+        mini = harness.compute_cost(pricing, "gpt-4o-mini", 1892, 0, 4, cache_write_tokens=1889)
+        self.assertAlmostEqual(mini, (1892 * 0.15 + 4 * 0.60) / 1e6, places=10)
+        # Omitting the argument keeps the historical three-price result unchanged.
+        self.assertEqual(harness.compute_cost(pricing, "gpt-5.6-luna", 100, 40, 30),
+                         round((60 * 0.20 + 40 * 0.02 + 30 * 1.20) / 1e6, 8))
+
     def test_history_is_inserted_between_system_and_user_on_both_surfaces(self):
         history = [{"role": "user", "content": "q1"}, {"role": "assistant", "content": "a1"}]
         create = Mock(return_value=chat_stream())
