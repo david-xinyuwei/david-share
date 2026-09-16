@@ -652,7 +652,23 @@ def load_replay() -> dict:
 
 
 def load_catalog() -> dict:
-    """Use the live study catalog, or the embedded catalog in no-LFS replay mode."""
+    """
+    Use the live study catalog, or the embedded catalog in no-LFS replay mode.
+
+    A portal that relays to a same-region runner has no sibling study assets
+    of its own, so it asks the runner for the catalog first: that copy is
+    computed from the runner's registry, pricing and deployment records, so a
+    price or deployment change shows up on the portal without a redeploy. The
+    embedded replay catalog remains the fallback when the runner is unreachable.
+    """
+    if runner_configured():
+        try:
+            status, remote = runner_json("GET", "/api/catalog", timeout=RECONCILE_TIMEOUT_SECONDS)
+        except (ConsoleError, OSError):
+            status, remote = None, None
+        if status == 200 and isinstance(remote, dict) and remote.get("arms"):
+            return {k: v for k, v in remote.items()
+                    if k not in ("mode", "endpoint", "runner", "replay")}
     try:
         return bench_core.catalog()
     except ConsoleError:
@@ -672,7 +688,7 @@ def load_catalog() -> dict:
 CSV_COLUMNS = [
     "arm", "deployment", "effort", "item_id", "scenario", "iteration", "billing_model",
     "model_actually_served", "ttft_ms", "e2e_ms", "decode_ms", "tpot_ms",
-    "decode_tps", "prompt_tokens", "cached_tokens", "reasoning_tokens",
+    "decode_tps", "prompt_tokens", "cached_tokens", "cache_write_tokens", "reasoning_tokens",
     "completion_tokens", "answer_budget", "max_output_tokens", "cost_usd",
     "status", "truncated", "error",
 ]

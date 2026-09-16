@@ -118,13 +118,21 @@ def load_model_registry(path: Path) -> dict:
 
 
 def compute_cost(pricing: dict, model: str, prompt_tokens: int,
-                 cached_tokens: int, completion_tokens: int, registry: dict | None = None):
+                 cached_tokens: int, completion_tokens: int, registry: dict | None = None,
+                 cache_write_tokens: int = 0):
     """
     Return USD cost, or None when this model has no confirmed pricing.
 
     Deployment names need not match billing model names (a deployment called
     gpt-4o-mini-bench still bills as gpt-4o-mini), so the registry's model_name
     is consulted before giving up.
+
+    Four prices can apply. Prompt tokens read from the cache bill at the cached
+    price; prompt tokens written to the cache bill at the cache-write price when
+    the model has one (the GPT-5.6 family does; earlier families do not charge
+    for writes, so their pricing carries no cache_write and written tokens fall
+    back to the input price); the remaining prompt tokens bill at the input
+    price; completion tokens, reasoning included, bill at the output price.
     """
     key = _normalize(model)
     entry = pricing.get(key)
@@ -136,10 +144,15 @@ def compute_cost(pricing: dict, model: str, prompt_tokens: int,
         return None
     if any(entry.get(k) is None for k in ("input", "cached", "output")):
         return None
-    fresh_input = max(prompt_tokens - cached_tokens, 0)
+    cache_write_tokens = cache_write_tokens or 0
+    write_price = entry.get("cache_write")
+    if write_price is None:
+        write_price = entry["input"]
+    fresh_input = max(prompt_tokens - cached_tokens - cache_write_tokens, 0)
     cost = (
         fresh_input / 1_000_000 * entry["input"]
         + cached_tokens / 1_000_000 * entry["cached"]
+        + cache_write_tokens / 1_000_000 * write_price
         + completion_tokens / 1_000_000 * entry["output"]
     )
     return round(cost, 8)
@@ -218,7 +231,7 @@ def _extract_usage(resp):
     billed and generated as output tokens but never surface as text deltas, so
     a naive tokens-per-second figure would be wrong.
     """
-    prompt = completion = cached = reasoning = 0
+    prompt = completion = cached = reasoning = written = 0
     usage = getattr(resp, "usage", None)
     if usage:
         prompt = getattr(usage, "input_tokens", 0) or 0
@@ -226,10 +239,11 @@ def _extract_usage(resp):
         in_details = getattr(usage, "input_tokens_details", None)
         if in_details:
             cached = getattr(in_details, "cached_tokens", 0) or 0
+            written = getattr(in_details, "cache_write_tokens", 0) or 0
         out_details = getattr(usage, "output_tokens_details", None)
         if out_details:
             reasoning = getattr(out_details, "reasoning_tokens", 0) or 0
-    return prompt, completion, cached, reasoning
+    return prompt, completion, cached, reasoning, written
 
 
 def _extract_served_model(resp) -> str | None:
@@ -365,7 +379,7 @@ def run_one(client, deployment: str, item: dict, max_output_tokens: int,
     ttft = None
     last_delta_at = None
     text_parts: list[str] = []
-    prompt_tokens = completion_tokens = cached_tokens = reasoning_tokens = 0
+    prompt_tokens = completion_tokens = cached_tokens = reasoning_tokens = cache_write_tokens = 0
     served_model = None
     error = None
     status = None
@@ -400,8 +414,8 @@ def run_one(client, deployment: str, item: dict, max_output_tokens: int,
                 # the high-reasoning-effort case we most need to measure.
                 resp = getattr(event, "response", None)
                 if resp is not None:
-                    (prompt_tokens, completion_tokens,
-                     cached_tokens, reasoning_tokens) = _extract_usage(resp)
+                    (prompt_tokens, completion_tokens, cached_tokens,
+                     reasoning_tokens, cache_write_tokens) = _extract_usage(resp)
                     served_model = _extract_served_model(resp)
                     status = getattr(resp, "status", None)
                     details = getattr(resp, "incomplete_details", None)
@@ -439,6 +453,7 @@ def run_one(client, deployment: str, item: dict, max_output_tokens: int,
         "decode_tps": decode_tps,
         "prompt_tokens": prompt_tokens,
         "cached_tokens": cached_tokens,
+        "cache_write_tokens": cache_write_tokens,
         "completion_tokens": completion_tokens,
         "reasoning_tokens": reasoning_tokens,
         "status": status,
@@ -458,7 +473,7 @@ def _run_one_chat(client, deployment: str, item: dict, max_output_tokens: int,
     ttft = None
     last_delta_at = None
     text_parts: list[str] = []
-    prompt_tokens = completion_tokens = cached_tokens = reasoning_tokens = 0
+    prompt_tokens = completion_tokens = cached_tokens = reasoning_tokens = cache_write_tokens = 0
     served_model = None
     routing = None
     error = None
@@ -506,6 +521,7 @@ def _run_one_chat(client, deployment: str, item: dict, max_output_tokens: int,
                 pd = getattr(usage, "prompt_tokens_details", None)
                 if pd is not None:
                     cached_tokens = getattr(pd, "cached_tokens", 0) or 0
+                    cache_write_tokens = getattr(pd, "cache_write_tokens", 0) or 0
                 cd = getattr(usage, "completion_tokens_details", None)
                 if cd is not None:
                     reasoning_tokens = getattr(cd, "reasoning_tokens", 0) or 0
@@ -541,6 +557,7 @@ def _run_one_chat(client, deployment: str, item: dict, max_output_tokens: int,
         "decode_tps": decode_tps,
         "prompt_tokens": prompt_tokens,
         "cached_tokens": cached_tokens,
+        "cache_write_tokens": cache_write_tokens,
         "completion_tokens": completion_tokens,
         "reasoning_tokens": reasoning_tokens,
         "status": ("incomplete" if truncated else "completed") if not error else None,
@@ -708,12 +725,13 @@ def run_benchmark(args) -> Path:
                         "finish_reason": m.get("finish_reason"),
                         "prompt_tokens": m["prompt_tokens"],
                         "cached_tokens": m["cached_tokens"],
+                        "cache_write_tokens": m.get("cache_write_tokens", 0),
                         "completion_tokens": m["completion_tokens"],
                         "reasoning_tokens": m["reasoning_tokens"],
                         "cost_usd": compute_cost(
                             pricing, billing_model or deployment,
                             m["prompt_tokens"], m["cached_tokens"], m["completion_tokens"],
-                            registry),
+                            registry, cache_write_tokens=m.get("cache_write_tokens", 0)),
                         "response_chars": len(m["response_text"]),
                         "response_text": m["response_text"],
                         "response_preview": m["response_text"][:200],

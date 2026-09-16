@@ -502,9 +502,15 @@ function armRow(arm) {
     if (arm.router_subset) bits.push(arm.router_subset.join(' + '));
   } else {
     bits.push(arm.family || 'unknown');
-    bits.push(arm.priced
-      ? `$${arm.price_input}/$${arm.price_output} per 1M in/out`
-      : 'no confirmed price');
+    if (arm.priced) {
+      // Four prices can apply; the cache-write price exists only for the GPT-5.6
+      // family, so it is shown only when the pricing carries it.
+      let price = `$${arm.price_input} in · $${arm.price_cached} cached · $${arm.price_output} out per 1M`;
+      if (arm.price_cache_write != null) price += ` · $${arm.price_cache_write} cache write`;
+      bits.push(price);
+    } else {
+      bits.push('no confirmed price');
+    }
   }
   if (arm.region) bits.push(arm.region);
   if (arm.sku) bits.push(arm.sku);

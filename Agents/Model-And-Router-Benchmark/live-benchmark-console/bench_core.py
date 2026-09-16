@@ -332,6 +332,9 @@ def catalog(*, include_unverified: bool = False) -> dict:
             "price_input": (price or {}).get("input"),
             "price_output": (price or {}).get("output"),
             "price_cached": (price or {}).get("cached"),
+            # Only the GPT-5.6 family charges for writing to the prompt cache;
+            # earlier families carry no cache_write price and pay the input price.
+            "price_cache_write": (price or {}).get("cache_write"),
             "priced": price is not None,
             "region": fact.get("region"),
             "sku": fact.get("sku"),
@@ -451,6 +454,7 @@ def summarize_arm(arm: str, records: list[dict], wall_clock_s: float | None = No
         # what it would be billed, as opposed to the per-1,000 projection.
         "prompt_tokens_total": sum(r.get("prompt_tokens") or 0 for r in ok),
         "cached_tokens_total": sum(r.get("cached_tokens") or 0 for r in ok),
+        "cache_write_tokens_total": sum(r.get("cache_write_tokens") or 0 for r in ok),
         "reasoning_tokens_total": sum(r.get("reasoning_tokens") or 0 for r in ok),
         "output_tokens_total": total_output,
         "total_tokens": sum((r.get("prompt_tokens") or 0) + (r.get("completion_tokens") or 0)
@@ -709,6 +713,7 @@ def _one_call(harness, client, arm: ArmSpec, item: dict, plan: RunPlan,
         result.get("cached_tokens") or 0,
         result.get("completion_tokens") or 0,
         registry,
+        cache_write_tokens=result.get("cache_write_tokens") or 0,
     )
     routing = result.get("routing") or {}
     return {

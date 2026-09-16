@@ -247,6 +247,13 @@ class Catalog(unittest.TestCase):
         self.assertTrue(arm["priced"])
         self.assertEqual(arm["api"], "responses")
 
+    def test_cache_write_price_is_exposed_only_for_models_that_charge_it(self):
+        by_name = {a["deployment"]: a for a in self.catalog["arms"]}
+        self.assertEqual(by_name["gpt-5.6-luna"]["price_cache_write"], 0.25)
+        self.assertEqual(by_name["gpt-5.6-sol-dz"]["price_cache_write"], 6.25)
+        self.assertIsNone(by_name["gpt-5-mini"]["price_cache_write"])
+        self.assertIsNone(by_name["gpt-4o-mini-bench"]["price_cache_write"])
+
 
 class Plans(unittest.TestCase):
     @classmethod
@@ -353,7 +360,7 @@ class FakeHarness:
         return served
 
     @staticmethod
-    def compute_cost(pricing, model, prompt, cached, completion, registry=None):
+    def compute_cost(pricing, model, prompt, cached, completion, registry=None, cache_write_tokens=0):
         return round(prompt * 1e-6 + completion * 5e-6, 8)
 
 
@@ -595,6 +602,12 @@ class FakeRunnerHandler(BaseHTTPRequestHandler):
             if type(self).late_ready:
                 runs.append({"run_id": "cafebabe"})
             self._json(200, {"runs": runs})
+        elif self.path == "/api/catalog":
+            self._json(200, {"mode": "live", "endpoint": "run***", "runner": "local", "replay": True,
+                             "arms": [{"deployment": "from-runner", "is_study_model": True, "verified": True,
+                                       "price_cache_write": 0.25}],
+                             "scenarios": [], "router_tiers": [], "study_models": ["from-runner"],
+                             "scenario_order": [], "regions": ["swedencentral"], "defaults": {}, "limits": {}})
         elif self.path == "/api/history/feedface":
             if type(self).slow_detail:
                 time.sleep(type(self).slow_detail)
@@ -661,6 +674,22 @@ class RemoteRunner(unittest.TestCase):
         with patch.dict("os.environ", {"AZURE_OPENAI_ENDPOINT": ""}):
             self.assertTrue(server.runner_configured())
             self.assertEqual(server.server_mode(), "live")
+
+    def test_portal_takes_its_catalog_from_the_runner(self):
+        # The runner computes the catalog from its own registry and pricing, so a
+        # price such as the GPT-5.6 cache-write rate reaches the portal without
+        # the portal holding any study assets or a regenerated replay pack.
+        catalog = server.load_catalog()
+        self.assertEqual([a["deployment"] for a in catalog["arms"]], ["from-runner"])
+        self.assertEqual(catalog["arms"][0]["price_cache_write"], 0.25)
+        for key in ("mode", "endpoint", "runner", "replay"):
+            self.assertNotIn(key, catalog)
+
+    def test_portal_falls_back_when_the_runner_catalog_is_unreachable(self):
+        with patch.object(server, "RUNNER_URL", "http://127.0.0.1:1"), \
+                patch.object(bench_core, "catalog", side_effect=ConsoleError("missing siblings")):
+            catalog = server.load_catalog()
+        self.assertEqual(catalog, server.load_replay()["catalog"])
 
     def test_runner_json_forwards_a_run_request(self):
         status, payload = server.runner_json("POST", "/api/run", {"items": ["NM01"]})
