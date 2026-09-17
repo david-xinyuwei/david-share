@@ -33,6 +33,21 @@ RETIRED_ADAPTATION_CLAIMS = (
     "官方草稿未受损",
     "因长度截断也没有通过",
 )
+# The 2026-09-05 Qwen3.6 / first-generation DFlash run is archived evidence, not part of the DFlash 2 comparison;
+# none of its headings, figures, replay commands or route labels may return to a reader page.
+RETIRED_PREVIOUS_RUN_MARKERS = (
+    "### Previous Experiment",
+    "### 上一轮实验",
+    'id="previous-experiment"',
+    "analysis/figures/primary-latency.png",
+    "analysis/figures/concurrency-quality.png",
+    "images/previous-latency-cn.png",
+    "images/previous-concurrency-cn.png",
+    "20260905-quality/src/analyze_results.py",
+    "20260905-quality/results/",
+    "DFlash15",
+    "MTP5",
+)
 
 
 def topic_dir(root):
@@ -358,6 +373,8 @@ def verify_local_links(root):
         require(has_heading(text, "## 兼容性与边界" if chinese else "## Compatibility and Limits"), "APPLICABILITY_SECTION_MISSING:" + filename)
         for claim in RETIRED_ADAPTATION_CLAIMS:
             require(claim.casefold() not in text.casefold(), "RETIRED_ADAPTATION_CLAIM:" + filename)
+        for marker in RETIRED_PREVIOUS_RUN_MARKERS:
+            require(marker not in text, "RETIRED_PREVIOUS_RUN_CONTENT:" + marker)
         require(has_heading(text, "## 测试与离线复算" if chinese else "## Tests and Offline Replay"), "TEST_DOCUMENTATION_MISSING:" + filename)
         flow = f"]({experiment}images/test-flow-{'cn' if chinese else 'en'}.png)"
         require(flow in text and (root / f"images/test-flow-{'cn' if chinese else 'en'}.png").is_file(), "TEST_FLOW_MISSING:" + filename)

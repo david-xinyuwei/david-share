@@ -20,7 +20,7 @@ This repository answers all three on one H100 NVL with offline replay: inference
 
 [Choosing a Route](#choosing-between-mtp-and-dflash-2) · [Measured Comparison](#measured-comparison-mtp-and-dflash-2) · [After Fine-Tuning](#after-fine-tuning-adapting-the-draft-model) · [Quick Start](#quick-start) · [Tests](#tests-and-offline-replay)
 
-Inference comparison: 2026-09-06, `qwen38-quality-20260906`; draft model adaptation: 2026-09-09 through 2026-09-10, with the setting B serving throughput re-tested on 2026-09-13 and swept across prompt blocks and concurrency levels on 2026-09-14. The Qwen3.6 experiment remains separate from both.
+Inference comparison: 2026-09-06, `qwen38-quality-20260906`; draft model adaptation: 2026-09-09 through 2026-09-10, with the setting B serving throughput re-tested on 2026-09-13 and swept across prompt blocks and concurrency levels on 2026-09-14.
 
 **Scope:** These are author-run experiments on one H100 NVL, not general quality or production guarantees. The selector objective is the author's implementation, not an official training recipe. Training starts from released draft weights; **from-scratch training has not been demonstrated**. The full-dataset inference stage was not run, and answer quality was not graded in the adaptation experiment. Setting B's serving throughput was re-measured four times on the same 40 prompts; the ranges bound timing jitter, not prompt-set sampling variance. It was then measured once on each of five disjoint 40-prompt blocks: the adapted draft model's gain over the released one averages +6% to +9% with per-block values from +2% to +14%, positive in all 20 block×concurrency cells; do not quote block 0, the high end, alone. Concurrency was measured up to 16, where the released draft model's speedup falls from 1.81× at concurrency 1 to 1.36×. The adaptation gain under thinking mode is unverified: one attempt returned no text to the client and is invalid. On vLLM 0.28.0 in bf16, greedy speculative output is not byte-identical to greedy autoregressive output: 20–24 of every 40 responses match across the five blocks, and the divergence reproduces deterministically. The publisher's model card states that "greedy output matches the target model exactly"; that was not observed on this engine, and whether the cause is the algorithm or the engine's numeric path was not isolated.
 
@@ -894,10 +894,9 @@ Every check below is offline: it reads saved records and this document. None of 
 | Report and evidence consistency | `validate_report.py` | Prints `REPORT_GATE=PASS` with one `RULE ... PASS` line per rule and exits 0 |
 | Drift and refusal tests | `unittest discover` | All tests pass; each injected defect (changed table value, altered request, edited image, stale source, forged validation record, missing badge, collapsed section, nested Markdown) is rejected with its own error |
 | Independent reaggregation | `analyze_results.py --groups` | The regenerated `summary.json` equals the published one |
-| Previous experiment replay | `analyze_results.py --root ... --matrix` | All 3,100 requests, the frozen task set and grade bindings resolve |
 | Adaptation summary and table | `experiments/20260909-drafter-adaptation/validate_report.py` | Recomputes every adaptation number from per-request records, requires the paired bootstrap to run only on byte-identical target text, scans for private identifiers and prints `ADAPTATION_GATE=PASS` |
 
-Prerequisites: Python 3.10+ and its standard library, run from `Deep-Learning/Speculative-Decoding`. The previous-experiment replay requires Python 3.12. No GPU, network, credentials or extra packages are needed. The dedicated CI runs the first two checks on Windows and Linux with Python 3.10 and 3.12, and the replay on Python 3.12.
+Prerequisites: Python 3.10+ and its standard library, run from `Deep-Learning/Speculative-Decoding`. No GPU, network, credentials or extra packages are needed. The dedicated CI runs these checks on Windows and Linux with Python 3.10 and 3.12.
 
 Not covered by these tests: fresh inference, official regrading, GPU-kernel behavior, and the figure generator, which needs Matplotlib and a CJK font and is therefore run manually.
 
@@ -917,12 +916,6 @@ python experiments/20260906-qwen38/analyze_results.py --groups experiments/20260
 ```
 
 Compare `summary.json` in the output directory with the [published summary](experiments/20260906-qwen38/data/summary.json). The program only reads saved grades, counts and timing; it does not execute generated answers.
-
-Replaying the previous experiment requires Python 3.12. It checks all 3,100 requests, the frozen task set, task/repeat counts and grade binding; missing or mismatched items fail instead of shrinking the denominator:
-
-```bash
-python experiments/20260905-quality/src/analyze_results.py --root experiments/20260905-quality --output out/20260905-replayed.json --matrix
-```
 
 ## Compatibility and Limits
 
@@ -975,7 +968,7 @@ See the [DFlash paper](https://arxiv.org/abs/2602.06036) and [pinned vLLM source
 
 - Results describe this fixed configuration and subset; they do not prove statistical significance, distribution equivalence or formal noninferiority.
 - Throughput, client latency and correct-answer delivery measure different things. They are not interchangeable and do not establish isolated GPU-kernel performance.
-- The model, checkpoint and engine changed. This run does not establish that the previous DFlash concurrency failure was fixed. The experiments remain separate.
+- `LOCAL_MEASUREMENT`, different combination: on 2026-09-05 the author measured the first-generation `z-lab/Qwen3.6-27B-DFlash` draft model (15 draft tokens) with `Qwen/Qwen3.6-27B` on vLLM 0.21.0. It passed the full HumanEval+ and MATH-500 sets at concurrency 1 but lost most correct answers on the same 32 code and 32 math tasks at concurrency 4 and 8, and the cause was never identified. That is not the DFlash 2 checkpoint, target or engine measured here; its records stay in [`experiments/20260905-quality/`](experiments/20260905-quality/) as archived evidence, not as a bound on the results above.
 
 ### What Training From Scratch Would Take
 
@@ -1001,112 +994,15 @@ Order-of-magnitude estimates, extrapolated from the measured 0.61 s per training
 
 These are estimates, not measurements. The defensible statement today: the adaptation path is measured; the training objective is implemented and shown to raise paired draft agreement; from-scratch training at real size has not been demonstrated.
 
-### Previous Experiment: Qwen3.6-27B and First-Generation DFlash (2026-09-05)
-
-<a id="previous-experiment"></a>
-
-The previous run used Qwen3.6-27B, the first-generation DFlash draft model and vLLM 0.21.0 on the same H100 NVL, and completed all 164 HumanEval+ and 500 MATH-500 tasks with complete answers. **DFlash15 was faster per request and its primary scores were close to the baseline, but at concurrency 4 and 8 answer quality on the same 32 code and 32 math tasks regressed substantially.** The cause has not been identified, and no fixed configuration has been retested.
-
-The two runs differ in target model, draft model, engine, task scope and sampling. Not reproducing the old failure in the newer combination does not establish that the old defect was fixed.
-
-#### Primary Evaluation: Full Datasets, Once per Task
-
-Code had to pass both the base and extended official EvalPlus tests; math was graded by the pinned official Math-Verify script. Length-stopped responses stay in the denominator.
-
-| Route | HumanEval+ | MATH-500 | Code base tests | Math length stops |
-|---|---:|---:|---:|---:|
-| Baseline | 152/164 (92.68%) | 489/500 (97.80%) | 159/164 | 4 |
-| MTP5 | 155/164 (94.51%) | 494/500 (98.80%) | 162/164 | 2 |
-| DFlash15 | 153/164 (93.29%) | 490/500 (98.00%) | 160/164 | 3 |
-
-Median code request times for Baseline, MTP5 and DFlash15 were 4.393, 1.175 and 0.660 seconds; math 15.666, 4.542 and 2.980 seconds. Median code output rates were 53.61, 196.01 and 367.52 tok/s; math 54.05, 187.60 and 281.77 tok/s. Timing includes prefill and same-host client overhead and excludes server startup. Computing MTP5 time divided by DFlash15 time per task and then taking the median gives 1.861 for code and 1.498 for math. Five versus fifteen draft tokens is not an equal compute budget, nor a tuned best configuration per route.
-
-![Previous run: complete-answer request time](experiments/20260905-quality/analysis/figures/primary-latency.png)
-
-*Author's measurements, run dflash-quality-20260905, 164 code and 500 math tasks per route, once each. Values come from the [per-task replay summary](experiments/20260905-quality/analysis/summary.json). Total request time over all answers, not isolated decode-kernel time.*
-
-#### Concurrency Quality Did Not Pass
-
-Each level used the first 32 code and first 32 math tasks of the frozen manifest, once each. Concurrency is the number of in-flight requests from the same-host client, not an arrival rate.
-
-| Route | Concurrency | HumanEval+ | Math subset | Length stops (code/math) |
-|---|---:|---:|---:|---:|
-| Baseline | 1 | 32/32 | 32/32 | 0/0 |
-| Baseline | 4 | 32/32 | 30/32 | 0/0 |
-| Baseline | 8 | 32/32 | 31/32 | 0/0 |
-| MTP5 | 1 | 32/32 | 31/32 | 0/0 |
-| MTP5 | 4 | 32/32 | 31/32 | 0/0 |
-| MTP5 | 8 | 32/32 | 32/32 | 0/0 |
-| DFlash15 | 1 | 32/32 | 31/32 | 0/1 |
-| DFlash15 | 4 | 11/32 | 13/32 | 8/17 |
-| DFlash15 | 8 | 10/32 | 12/32 | 13/20 |
-
-![Previous run: correct answers under concurrency on the same tasks](experiments/20260905-quality/analysis/figures/concurrency-quality.png)
-
-*Author's measurements, the same 32+32 tasks, once per level. Raw responses and official grades are in the [results directory](experiments/20260905-quality/results/); the summary is in the [analysis output](experiments/20260905-quality/analysis/summary.json). The anomaly is bound to that tested combination; the curves are not a root-cause proof.*
-
-HumanEval/2 is a concrete example: the normalized request hash is identical at all three levels. [Concurrency 1](experiments/20260905-quality/results/dflash15/concurrency-1/repeat-0/HumanEval_2.json) returned a correct function; [concurrency 4](experiments/20260905-quality/results/dflash15/concurrency-4/repeat-0/HumanEval_2.json) returned an empty definition and a JSON fragment; [concurrency 8](experiments/20260905-quality/results/dflash15/concurrency-8/repeat-0/HumanEval_2.json) produced unrelated function names and repeated text until the 4,096-token limit. That DFlash15 configuration cannot carry concurrent traffic on the strength of single-request results, and the evidence does not attribute the cause to a vLLM component, floating-point error, DFlash theory, the H100 or the cloud platform.
-
-Each primary route has 1,012 responses (664 primary, 48 same-seed repeats, 48 streaming, 192 concurrency, 48 random sampling, 12 synthetic retrieval); with 64 matched-window DFlash5 responses, the total is **3,100 responses across 25 route/scenario combinations**. DFlash5 scored 32/32 on both code and math; its concurrency was not tested.
-
-#### Previous Run: Fixed Method
-
-| Item | Recorded value |
-|---|---|
-| GPU | One NVIDIA H100 NVL, 95,830 MiB; driver 610.57.04 |
-| Target | `Qwen/Qwen3.6-27B` @ `6a9e13bd6fc8f0983b9b99948120bc37f49c13e9`, BF16 |
-| Draft model | `z-lab/Qwen3.6-27B-DFlash` @ `0919688658996800f86b895034249700e9481106` |
-| Generation environment | vLLM 0.21.0, PyTorch 2.11.0, transformers 4.57.6 |
-| Graders | EvalPlus @ `26d6d00bb1fd0fa37f39c99d5290da67891d1c5e`; Math-Verify @ `ba3d3aaff23b3f4cac7a14672b4f6e293d97c98b` |
-| Datasets | HumanEval+ v0.1.10; MATH-500 @ `6e4ed1a2a79af7d8630a6b768ec859cb5af4d3be` |
-| Primary sampling | temperature 0, top_p 1, top_k -1, seed 20260905; `enable_thinking=false` |
-| Server settings | max_model_len 40960, max_num_seqs 16, max_num_batched_tokens 8192, GPU memory utilization 0.9, prefix caching disabled |
-| Output budget | Code 4096, math 8192 |
-
-File hashes for the model, configuration and tokenizer, plus package versions, are in [inputs.json](experiments/20260905-quality/metadata/inputs.json). The [public protocol](experiments/20260905-quality/src/experiment.json) only removes private resource-management objects; the [projection record](experiments/20260905-quality/metadata/protocol-public-projection.json) records hashes before and after. Code grading ran in an offline, unprivileged Docker container.
-
-#### Rerunning the Previous Generation
-
-Requires Linux, Python 3.12, a compatible H100 NVL environment and disk space for both weight snapshots and dependencies. The grading container runs as UID/GID 1000 and the host must allow `sudo -n` Docker calls. Start from `experiments/20260905-quality`, create a new run directory and do not overwrite the provided evidence.
-
-```bash
-set -euo pipefail
-SOURCE="$PWD"
-export DFLASH_RUN_ROOT="$(mktemp -d "$HOME/quality-replay-XXXXXXXX")"
-export DFLASH_CACHE_ROOT="$DFLASH_RUN_ROOT/cache"
-export DFLASH_TARGET_PATH="$DFLASH_CACHE_ROOT/target"
-[[ "${DFLASH_TARGET_PATH,,}" != *dflash* ]]
-mkdir -p "$DFLASH_RUN_ROOT"/{src,data,metadata,logs,results,state,upstream}
-cp src/quality_runner.py src/prepare_data.py src/experiment.json "$DFLASH_RUN_ROOT/src/"
-cp data/math500.jsonl data/humaneval_plus.jsonl "$DFLASH_RUN_ROOT/data/"
-python3.12 -m venv "$DFLASH_CACHE_ROOT/venv"
-PYTHON="$DFLASH_CACHE_ROOT/venv/bin/python"
-"$PYTHON" -m pip install -r "$SOURCE/metadata/requirements-frozen.txt"
-"$DFLASH_CACHE_ROOT/venv/bin/hf" download Qwen/Qwen3.6-27B --revision 6a9e13bd6fc8f0983b9b99948120bc37f49c13e9 --local-dir "$DFLASH_CACHE_ROOT/target"
-"$DFLASH_CACHE_ROOT/venv/bin/hf" download z-lab/Qwen3.6-27B-DFlash --revision 0919688658996800f86b895034249700e9481106 --local-dir "$DFLASH_CACHE_ROOT/draft"
-curl --fail --location 'https://raw.githubusercontent.com/huggingface/Math-Verify/ba3d3aaff23b3f4cac7a14672b4f6e293d97c98b/evaluate_model_outputs.py' -o "$DFLASH_RUN_ROOT/upstream/math-verify-evaluate.py"
-curl --fail --location 'https://github.com/evalplus/mbppplus_release/releases/download/v0.2.0/MbppPlus.jsonl.gz' -o "$DFLASH_RUN_ROOT/upstream/mbpp-plus-v0.2.0.jsonl.gz"
-gzip -dc "$DFLASH_RUN_ROOT/upstream/mbpp-plus-v0.2.0.jsonl.gz" > "$DFLASH_RUN_ROOT/upstream/mbpp-plus-v0.2.0.jsonl"
-HUMANEVAL_OVERRIDE_PATH="$DFLASH_RUN_ROOT/data/humaneval_plus.jsonl" "$PYTHON" src/prepare_data.py --root "$DFLASH_RUN_ROOT" --cache "$DFLASH_CACHE_ROOT"
-sudo -n docker build -f src/Dockerfile.eval -t dflash-quality-eval:20260905 .
-"$PYTHON" "$DFLASH_RUN_ROOT/src/quality_runner.py" --phase canary
-"$PYTHON" "$DFLASH_RUN_ROOT/src/quality_runner.py" --phase full
-"$PYTHON" "$DFLASH_RUN_ROOT/src/quality_runner.py" --phase full --route dflash5
-printf '{"phase":"COMPLETE","exit_code":0}\n' > "$DFLASH_RUN_ROOT/state/campaign.json"
-"$PYTHON" "$SOURCE/src/analyze_results.py" --root "$DFLASH_RUN_ROOT" --output "$DFLASH_RUN_ROOT/analysis/summary.json" --matrix
-```
-
-The generation CLI stops only its own model server and does not release the host. Compare against the [grader dependency versions](experiments/20260905-quality/metadata/evaluator-requirements-frozen.txt) and the [original image ID](experiments/20260905-quality/metadata/evaluator-image-id.txt) when rerunning; even with pinned grader commits, Docker base tags and system packages can change. vLLM 0.21.0 accepts `standard` but not `strict`, and a target path containing `dflash` can trigger a wrong method inference.
-
 ## Tools and Evidence
 
 | Path | Contents |
 |---|---|
 | [`experiments/20260906-qwen38/`](experiments/20260906-qwen38/) | The current run: group records, summary, evidence, executed source snapshots, analyzer, validator, tests and the test-flow diagram |
 | [`experiments/20260909-drafter-adaptation/`](experiments/20260909-drafter-adaptation/) | The draft model-adaptation experiment: exported per-request results for both drift regimes, executed script snapshots, provenance hashes, analyzer, validator and tests |
-| [`experiments/20260905-quality/`](experiments/20260905-quality/) | The previous complete-answer run: raw responses, official grades, per-task comparisons, analysis code and figures |
-| [`images/`](images/) | The Chinese result figures used by [README_CN.md](README_CN.md) |
-| [`tools/make_readme_figures.py`](tools/make_readme_figures.py) | Regenerates those Chinese figures from both experiments' published summaries; needs a CJK font and [the pinned Matplotlib](experiments/20260906-qwen38/requirements-figures.txt) |
+| [`experiments/20260905-quality/`](experiments/20260905-quality/) | Archived 2026-09-05 run of `Qwen3.6-27B` with the first-generation DFlash draft model on vLLM 0.21.0: raw responses, official grades, per-task comparisons and analysis code; not part of the DFlash 2 comparison and not rendered in this document |
+| [`images/`](images/) | The Chinese result figure used by [README_CN.md](README_CN.md) |
+| [`tools/make_readme_figures.py`](tools/make_readme_figures.py) | Regenerates that Chinese figure from the published inference summary; needs a CJK font and [the pinned Matplotlib](experiments/20260906-qwen38/requirements-figures.txt) |
 | [`LICENSE`](LICENSE) | License covering this directory |
 
 ### Evidence and Code
@@ -1119,7 +1015,6 @@ The generation CLI stops only its own model server and does not release the host
 | [Experiment record](experiments/20260906-qwen38/evidence/run.json) | Coverage, activation checks, measured durations and source-member hashes |
 | [Groups](experiments/20260906-qwen38/data/groups.json), [summary](experiments/20260906-qwen38/data/summary.json) | Task IDs, saved scores, timing, counters and matched comparisons |
 | [Analyzer](experiments/20260906-qwen38/analyze_results.py), [validator](experiments/20260906-qwen38/validate_report.py), [tests](experiments/20260906-qwen38/test_report.py) | Reaggregation and checks that this document's tables, links, badges and evidence agree |
-| [Previous analysis](experiments/20260905-quality/analysis/), [previous results](experiments/20260905-quality/results/), [previous source](experiments/20260905-quality/src/) | 2026-09-05 per-task comparisons, raw responses, official grades and analysis code |
 | [Adaptation results](experiments/20260909-drafter-adaptation/results/), [summary](experiments/20260909-drafter-adaptation/data/summary.json), [provenance](experiments/20260909-drafter-adaptation/evidence/provenance.json), [scripts](experiments/20260909-drafter-adaptation/source/) | Per-request draft model agreement, acceptance and vLLM records for both regimes; weight, data and log hashes; the training and measurement scripts as executed |
 
 These are snapshots of the executed source, not a complete fresh-GPU installation bundle. **Complete raw answers and SSE streams remain privately archived by the author and are not redistributed here.** The public files exclude infrastructure locators and credentials. Archive and member hashes describe provenance, not independent proof of runtime behavior.

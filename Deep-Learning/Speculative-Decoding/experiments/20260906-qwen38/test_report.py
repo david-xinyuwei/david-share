@@ -217,6 +217,17 @@ class ReportIntegrityTests(unittest.TestCase):
                         validate_report.verify_local_links(self.root)
                     (self.topic / filename).write_text(original, encoding="utf-8")
 
+    def test_previous_run_content_cannot_return_to_reader_pages(self):
+        # Retired 2026-09-17: the Qwen3.6 / first-generation DFlash section is archived evidence only.
+        for filename in validate_report.READMES:
+            self.assertNotIn("previous-experiment", (self.topic / filename).read_text(encoding="utf-8"))
+            for marker in validate_report.RETIRED_PREVIOUS_RUN_MARKERS:
+                with self.subTest(filename=filename, marker=marker):
+                    original = self.rewrite_readme(lambda text: text + "\n" + marker + "\n", filename)
+                    with self.assertRaisesRegex(ValueError, "RETIRED_PREVIOUS_RUN_CONTENT"):
+                        validate_report.verify_local_links(self.root)
+                    (self.topic / filename).write_text(original, encoding="utf-8")
+
     def test_required_reader_sections_cannot_be_removed(self):
         for filename, headings in (("README.md", ("## What This Repository Delivers", "## Tools and Evidence", "## Tests and Offline Replay", "## Compatibility and Limits")),
                                    ("README_CN.md", ("## 这个 Repo 交付什么", "## 工具与证据", "## 测试与离线复算", "## 兼容性与边界"))):

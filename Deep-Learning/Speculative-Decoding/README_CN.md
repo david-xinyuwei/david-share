@@ -20,7 +20,7 @@
 
 [如何选择](#如何选择mtp-还是-dflash-2) · [实测对比](#实测对比mtp-与-dflash-2) · [微调之后](#微调之后如何调整-draft-model) · [快速上手](#快速上手) · [测试](#测试与离线复算)
 
-推理对比：2026-09-06，`qwen38-quality-20260906`；draft model 再适配：2026-09-09 至 2026-09-10，设置 B 的服务吞吐于 2026-09-13 复测、2026-09-14 按提示块与并发档扩测。Qwen3.6 历史实验单独保留，不与这两项实验混算。
+推理对比：2026-09-06，`qwen38-quality-20260906`；draft model 再适配：2026-09-09 至 2026-09-10，设置 B 的服务吞吐于 2026-09-13 复测、2026-09-14 按提示块与并发档扩测。
 
 **结论边界：** 这些是单张 H100 NVL 上的工程实测，不是普遍的质量或生产保证。selector 的训练目标由作者实现，并非官方训练配方；训练从发布版 draft model 权重开始，**不代表已完成从零训练**。推理全量题集阶段未执行，再适配实验未对答案质量评分。设置 B 的服务吞吐在同一 40 条提示上复测了 4 次，极差表示计时抖动，不表示提示集抽样方差；另在 5 个不重叠的 40 条提示块上各测一次，再训相对发布版的增益均值为 +6%～+9%、逐块 +2%～+14%，5 块 × 4 档并发共 20 格全为正；引用时不应单取偏高的 block 0。并发最高测到 16，发布版 draft model 的加速从并发 1 的 1.81× 衰减到并受 16 的 1.36×。thinking 模式下的再适配收益未验证：一次尝试因客户端未取回任何文本而无效。在 vLLM 0.28.0 bf16 上，greedy 推测解码的输出与 greedy 自回归不是逐字相同的：每 40 条中 20～24 条相同（五块），且差异可硬确定性复现。发布方模型卡写的“greedy output matches the target model exactly”在本引擎上未观察到；是算法还是引擎数值路径造成，未隔离。
 
@@ -896,10 +896,9 @@ curl --fail http://127.0.0.1:18080/v1/models
 | 报告与证据一致性 | `validate_report.py` | 输出 `REPORT_GATE=PASS`，每条规则各一行 `RULE ... PASS`，退出码 0 |
 | 漂移与拒绝测试 | `unittest discover` | 全部测试通过；每个注入的缺陷（改表格数值、改请求、改图片字节、改归档源码、伪造验收记录、删徽章、折叠必需章节、新增嵌套 Markdown）都被对应错误拦住 |
 | 独立重算汇总 | `analyze_results.py --groups` | 重新生成的 `summary.json` 与已发布版本相同 |
-| 上一轮实验复算 | `analyze_results.py --root ... --matrix` | 全部 3,100 个请求、冻结题集和评分绑定均能对上 |
 | 再适配汇总与表格 | `experiments/20260909-drafter-adaptation/validate_report.py` | 从逐请求记录重算全部再适配数字，成对 bootstrap 只允许在逐字相同的目标文本上运行，扫描私有标识，输出 `ADAPTATION_GATE=PASS` |
 
-前置条件：Python 3.10+ 标准库，在 `Deep-Learning/Speculative-Decoding` 目录执行；上一轮实验的复算需要 Python 3.12。不需要 GPU、网络、凭据或额外依赖。专用 CI 在 Windows 和 Linux 的 Python 3.10、3.12 上执行前两项，在 Python 3.12 上执行上一轮复算。
+前置条件：Python 3.10+ 标准库，在 `Deep-Learning/Speculative-Decoding` 目录执行。不需要 GPU、网络、凭据或额外依赖。专用 CI 在 Windows 和 Linux 的 Python 3.10、3.12 上执行这些检查。
 
 这些测试不覆盖：新的推理、官方重新评分、GPU kernel 行为，以及需要 Matplotlib 和中文字体、因而手动执行的绘图脚本。
 
@@ -919,12 +918,6 @@ python experiments/20260906-qwen38/analyze_results.py --groups experiments/20260
 ```
 
 输出目录中的 `summary.json` 可与[已发布汇总](experiments/20260906-qwen38/data/summary.json)对照。程序只读取已保存的评分、计数和计时，不执行生成的答案。
-
-上一轮实验的复算需要 Python 3.12，检查全部 3,100 个请求、固定题集、题目/重复次数和评分绑定；缺题或错配会失败，不会缩小分母后报分：
-
-```bash
-python experiments/20260905-quality/src/analyze_results.py --root experiments/20260905-quality --output out/20260905-replayed.json --matrix
-```
 
 ## 兼容性与边界
 
@@ -977,7 +970,7 @@ python experiments/20260905-quality/src/analyze_results.py --root experiments/20
 
 - 可以说明本次固定配置、固定子集中的性能和得分，不能证明统计显著性、分布等价或正式非劣效。
 - 吞吐、客户端延迟、正确答案交付速度是不同指标，不能互相替代，也不能据此推断 GPU kernel 的独立性能。
-- 本轮换了模型、权重版本和引擎，不能据此认定上一轮 DFlash 的并发故障已修复。两轮结果独立保留。
+- `LOCAL_MEASUREMENT`，不同组合：2026-09-05 作者曾用首代 `z-lab/Qwen3.6-27B-DFlash` draft model（15 个草稿 token）配 `Qwen/Qwen3.6-27B` 在 vLLM 0.21.0 上实测。它在并发 1 通过了全部 HumanEval+ 和 MATH-500 题目，但在并发 4、8 时，相同 32 道代码题和 32 道数学题的正确数大幅下降，根因始终没有定位。那不是本文测的 DFlash 2 权重、目标模型和引擎；其记录保留在 [`experiments/20260905-quality/`](experiments/20260905-quality/) 作为归档证据，不构成对上文结果的边界。
 
 ### 从零训练需要什么
 
@@ -1003,112 +996,15 @@ python experiments/20260905-quality/src/analyze_results.py --root experiments/20
 
 这些是估算，不是测量。今天能站住的说法是：再适配路径已实测；训练目标已实现，并证明能提高成对命中率；真实规模的从零训练尚未演示。
 
-### 上一轮实验：Qwen3.6-27B 与首代 DFlash（2026-09-05）
-
-<a id="previous-experiment"></a>
-
-上一轮使用 Qwen3.6-27B、首代 DFlash draft model 和 vLLM 0.21.0，在同一张 H100 NVL 上完成了全部 164 道 HumanEval+ 和 500 道 MATH-500 的完整答案评测。**DFlash15 单请求更快，主分数与基线相近；但并发 4、8 时，相同 32 道代码题和 32 道数学题的答案质量明显回退。** 根因尚未定位，也未完成修复后复测。
-
-两轮的目标模型、draft model、引擎、题目范围和采样设置都不同。本轮新组合没有复现旧组合的严重回退，不能据此认定旧问题已经修好。
-
-#### 主评测：完整题集，每题一次
-
-代码需要同时通过官方 EvalPlus 的基础与增强测试，数学由固定版本的官方 Math-Verify 脚本判分。截断回答仍留在分母内。
-
-| 路线 | HumanEval+ | MATH-500 | 代码基础测试 | 数学长度截断 |
-|---|---:|---:|---:|---:|
-| Baseline | 152/164 (92.68%) | 489/500 (97.80%) | 159/164 | 4 |
-| MTP5 | 155/164 (94.51%) | 494/500 (98.80%) | 162/164 | 2 |
-| DFlash15 | 153/164 (93.29%) | 490/500 (98.00%) | 160/164 | 3 |
-
-Baseline、MTP5、DFlash15 的代码请求耗时中位数为 4.393、1.175、0.660 秒，数学为 15.666、4.542、2.980 秒；代码输出速率中位数为 53.61、196.01、367.52 tok/s，数学为 54.05、187.60、281.77 tok/s。计时含预填充和同机客户端开销，不含服务启动。先对每一题计算 MTP5 耗时/DFlash15 耗时再取中位数，代码为 1.861 倍、数学为 1.498 倍。5 与 15 个draft token不代表相同计算预算，也不是各路线调优后的最佳配置。
-
-![上一轮完整答案请求耗时](images/previous-latency-cn.png)
-
-*作者实测，运行编号 dflash-quality-20260905，每路线代码 164 题、数学 500 题，每题一次。图值来自[逐题复算汇总](experiments/20260905-quality/analysis/summary.json)，由[绘图脚本](tools/make_readme_figures.py)生成。统计所有答案的请求总耗时，不是单独解码算子的时间。*
-
-#### 并发质量不能放行
-
-每档使用冻结题目清单的前 32 道代码题和前 32 道数学题，各执行一次。并发数是同机客户端同时在途的请求数，不是每秒到达率。
-
-| 路线 | 并发 | HumanEval+ | 数学子集 | 长度截断（代码/数学） |
-|---|---:|---:|---:|---:|
-| Baseline | 1 | 32/32 | 32/32 | 0/0 |
-| Baseline | 4 | 32/32 | 30/32 | 0/0 |
-| Baseline | 8 | 32/32 | 31/32 | 0/0 |
-| MTP5 | 1 | 32/32 | 31/32 | 0/0 |
-| MTP5 | 4 | 32/32 | 31/32 | 0/0 |
-| MTP5 | 8 | 32/32 | 32/32 | 0/0 |
-| DFlash15 | 1 | 32/32 | 31/32 | 0/1 |
-| DFlash15 | 4 | 11/32 | 13/32 | 8/17 |
-| DFlash15 | 8 | 10/32 | 12/32 | 13/20 |
-
-![上一轮相同题目下的并发正确数](images/previous-concurrency-cn.png)
-
-*作者实测，相同 32+32 题，每档一次。原始响应和官方评分在[结果目录](experiments/20260905-quality/results/)，汇总在[分析结果](experiments/20260905-quality/analysis/summary.json)，图由[绘图脚本](tools/make_readme_figures.py)生成。异常只绑定该轮已测组合，曲线不提供根因证明。*
-
-HumanEval/2 是一个具体例子：三个并发档的规范化请求哈希相同，[并发 1](experiments/20260905-quality/results/dflash15/concurrency-1/repeat-0/HumanEval_2.json) 返回正确函数；[并发 4](experiments/20260905-quality/results/dflash15/concurrency-4/repeat-0/HumanEval_2.json) 返回空定义和 JSON 片段；[并发 8](experiments/20260905-quality/results/dflash15/concurrency-8/repeat-0/HumanEval_2.json) 出现无关函数名和重复文本，耗尽 4,096 个词元后截断。这套 DFlash15 配置不能凭单请求结果直接承载并发流量；现有证据也不能把原因归结为某个 vLLM 组件、浮点误差、DFlash 理论、H100 或云平台。
-
-三条主路线各 1,012 份响应（主评测 664、同种子重复 48、流式 48、并发 192、随机采样 48、合成检索 12），加上 DFlash5 的 64 份同窗口结果，合计 **3,100 份响应、25 个路线/场景组合**。DFlash5 代码和数学均为 32/32，其并发未测试。
-
-#### 上一轮的固定方法
-
-| 项目 | 记录值 |
-|---|---|
-| GPU | 一张 NVIDIA H100 NVL，95,830 MiB；驱动 610.57.04 |
-| 目标模型 | `Qwen/Qwen3.6-27B` @ `6a9e13bd6fc8f0983b9b99948120bc37f49c13e9`，BF16 |
-| draft model | `z-lab/Qwen3.6-27B-DFlash` @ `0919688658996800f86b895034249700e9481106` |
-| 生成环境 | vLLM 0.21.0，PyTorch 2.11.0，transformers 4.57.6 |
-| 评分器 | EvalPlus @ `26d6d00bb1fd0fa37f39c99d5290da67891d1c5e`；Math-Verify @ `ba3d3aaff23b3f4cac7a14672b4f6e293d97c98b` |
-| 数据集 | HumanEval+ v0.1.10；MATH-500 @ `6e4ed1a2a79af7d8630a6b768ec859cb5af4d3be` |
-| 主评测采样 | temperature 0，top_p 1，top_k -1，seed 20260905；`enable_thinking=false` |
-| 服务参数 | max_model_len 40960，max_num_seqs 16，max_num_batched_tokens 8192，显存比例 0.9，关闭 prefix caching |
-| 输出预算 | 代码 4096，数学 8192 |
-
-模型、配置和分词器的文件哈希及包版本在 [inputs.json](experiments/20260905-quality/metadata/inputs.json)；[公开协议](experiments/20260905-quality/src/experiment.json)仅移除了私有资源管理对象，[投影说明](experiments/20260905-quality/metadata/protocol-public-projection.json)记录变更前后哈希。代码评分在无网络、非特权 Docker 容器内执行。
-
-#### 在新目录重跑上一轮生成
-
-需要 Linux、Python 3.12、兼容的 H100 NVL 环境及容纳两个权重快照和依赖的磁盘空间。评分容器按 UID/GID 1000 执行，宿主需要能用 `sudo -n` 调用 Docker。从 `experiments/20260905-quality` 目录开始，新建运行目录，不覆盖提供的证据。
-
-```bash
-set -euo pipefail
-SOURCE="$PWD"
-export DFLASH_RUN_ROOT="$(mktemp -d "$HOME/quality-replay-XXXXXXXX")"
-export DFLASH_CACHE_ROOT="$DFLASH_RUN_ROOT/cache"
-export DFLASH_TARGET_PATH="$DFLASH_CACHE_ROOT/target"
-[[ "${DFLASH_TARGET_PATH,,}" != *dflash* ]]
-mkdir -p "$DFLASH_RUN_ROOT"/{src,data,metadata,logs,results,state,upstream}
-cp src/quality_runner.py src/prepare_data.py src/experiment.json "$DFLASH_RUN_ROOT/src/"
-cp data/math500.jsonl data/humaneval_plus.jsonl "$DFLASH_RUN_ROOT/data/"
-python3.12 -m venv "$DFLASH_CACHE_ROOT/venv"
-PYTHON="$DFLASH_CACHE_ROOT/venv/bin/python"
-"$PYTHON" -m pip install -r "$SOURCE/metadata/requirements-frozen.txt"
-"$DFLASH_CACHE_ROOT/venv/bin/hf" download Qwen/Qwen3.6-27B --revision 6a9e13bd6fc8f0983b9b99948120bc37f49c13e9 --local-dir "$DFLASH_CACHE_ROOT/target"
-"$DFLASH_CACHE_ROOT/venv/bin/hf" download z-lab/Qwen3.6-27B-DFlash --revision 0919688658996800f86b895034249700e9481106 --local-dir "$DFLASH_CACHE_ROOT/draft"
-curl --fail --location 'https://raw.githubusercontent.com/huggingface/Math-Verify/ba3d3aaff23b3f4cac7a14672b4f6e293d97c98b/evaluate_model_outputs.py' -o "$DFLASH_RUN_ROOT/upstream/math-verify-evaluate.py"
-curl --fail --location 'https://github.com/evalplus/mbppplus_release/releases/download/v0.2.0/MbppPlus.jsonl.gz' -o "$DFLASH_RUN_ROOT/upstream/mbpp-plus-v0.2.0.jsonl.gz"
-gzip -dc "$DFLASH_RUN_ROOT/upstream/mbpp-plus-v0.2.0.jsonl.gz" > "$DFLASH_RUN_ROOT/upstream/mbpp-plus-v0.2.0.jsonl"
-HUMANEVAL_OVERRIDE_PATH="$DFLASH_RUN_ROOT/data/humaneval_plus.jsonl" "$PYTHON" src/prepare_data.py --root "$DFLASH_RUN_ROOT" --cache "$DFLASH_CACHE_ROOT"
-sudo -n docker build -f src/Dockerfile.eval -t dflash-quality-eval:20260905 .
-"$PYTHON" "$DFLASH_RUN_ROOT/src/quality_runner.py" --phase canary
-"$PYTHON" "$DFLASH_RUN_ROOT/src/quality_runner.py" --phase full
-"$PYTHON" "$DFLASH_RUN_ROOT/src/quality_runner.py" --phase full --route dflash5
-printf '{"phase":"COMPLETE","exit_code":0}\n' > "$DFLASH_RUN_ROOT/state/campaign.json"
-"$PYTHON" "$SOURCE/src/analyze_results.py" --root "$DFLASH_RUN_ROOT" --output "$DFLASH_RUN_ROOT/analysis/summary.json" --matrix
-```
-
-生成 CLI 只停止自己的模型服务，不会释放宿主机。复跑时应对照[评分依赖版本](experiments/20260905-quality/metadata/evaluator-requirements-frozen.txt)和[原镜像 ID](experiments/20260905-quality/metadata/evaluator-image-id.txt)；即使评分源码 commit 固定，Docker 基础标签和系统包仍可能变化。vLLM 0.21.0 接受 `standard`、不接受 `strict`；目标路径若含 `dflash` 可能触发方法推断误判。
-
 ## 工具与证据
 
 | 路径 | 内容 |
 |---|---|
 | [`experiments/20260906-qwen38/`](experiments/20260906-qwen38/) | 本次实验：逐组记录、数值汇总、证据、执行源码快照、分析程序、验收程序、测试和测试流程图 |
 | [`experiments/20260909-drafter-adaptation/`](experiments/20260909-drafter-adaptation/) | draft model 再适配实验：两种漂移边界的逐请求结果、执行脚本快照、来源哈希、分析程序、验收程序和测试 |
-| [`experiments/20260905-quality/`](experiments/20260905-quality/) | 上一轮完整答案评测：原始响应、官方评分、逐题对照、分析代码和图 |
+| [`experiments/20260905-quality/`](experiments/20260905-quality/) | 2026-09-05 归档运行：`Qwen3.6-27B` 配首代 DFlash draft model、vLLM 0.21.0 的原始响应、官方评分、逐题对照和分析代码；不属于 DFlash 2 对比，本文不渲染其内容 |
 | [`images/`](images/) | 本文使用的中文结果图 |
-| [`tools/make_readme_figures.py`](tools/make_readme_figures.py) | 从两轮实验的已发布汇总数据重新生成上述中文图，需要中文字体和[固定版本的 Matplotlib](experiments/20260906-qwen38/requirements-figures.txt) |
+| [`tools/make_readme_figures.py`](tools/make_readme_figures.py) | 从已发布的推理汇总数据重新生成上述中文图，需要中文字体和[固定版本的 Matplotlib](experiments/20260906-qwen38/requirements-figures.txt) |
 | [`LICENSE`](LICENSE) | 本目录适用的许可证 |
 
 ### 证据与代码
@@ -1121,7 +1017,6 @@ printf '{"phase":"COMPLETE","exit_code":0}\n' > "$DFLASH_RUN_ROOT/state/campaign
 | [实验记录](experiments/20260906-qwen38/evidence/run.json) | 测试覆盖、加载检查、测量耗时及来源成员哈希 |
 | [逐组记录](experiments/20260906-qwen38/data/groups.json)、[数值汇总](experiments/20260906-qwen38/data/summary.json) | 题目 ID、已存评分、计时、计数和配对结果 |
 | [分析程序](experiments/20260906-qwen38/analyze_results.py)、[验收程序](experiments/20260906-qwen38/validate_report.py)、[测试](experiments/20260906-qwen38/test_report.py) | 重新汇总数字，检查本文表格、链接、徽章和证据是否一致 |
-| [上一轮分析](experiments/20260905-quality/analysis/)、[上一轮结果](experiments/20260905-quality/results/)、[上一轮源码](experiments/20260905-quality/src/) | 2026-09-05 的逐题对照、原始响应、官方评分和分析程序 |
 | [再适配结果](experiments/20260909-drafter-adaptation/results/)、[汇总](experiments/20260909-drafter-adaptation/data/summary.json)、[来源清单](experiments/20260909-drafter-adaptation/evidence/provenance.json)、[脚本](experiments/20260909-drafter-adaptation/source/) | 两种边界下逐请求的命中率、接受长度和 vLLM 记录；权重、数据和日志哈希；实际执行的训练与测量脚本 |
 
 这些源码是实际执行版本的归档，不是从零部署 GPU 的完整安装包。**完整原始回答和 SSE 流仍在作者的私有归档中，没有在此重新分发。** 公开文件不含基础设施定位信息或凭据；归档及成员哈希说明来源，但不能独立证明运行行为。

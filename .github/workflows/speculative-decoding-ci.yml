@@ -40,9 +40,9 @@ jobs:
         run: python -m unittest discover -s experiments/20260909-drafter-adaptation -p "test_*.py" -v
       - name: Validate drafter-adaptation summary and README table
         run: python experiments/20260909-drafter-adaptation/validate_report.py
-      - name: Reconcile previous complete-answer experiment
+      - name: Reconcile archived 2026-09-05 Qwen3.6 evidence (not rendered in the READMEs)
         if: matrix.python-version == '3.12'
         run: python experiments/20260905-quality/src/analyze_results.py --root experiments/20260905-quality --output out/20260905-replayed.json --matrix
-      - name: Compare previous summary without changing its evidence
+      - name: Compare archived summary without changing its evidence
         if: matrix.python-version == '3.12'
         run: python -c "import json; from pathlib import Path; expected=json.loads(Path('experiments/20260905-quality/analysis/summary.json').read_text(encoding='utf-8')); actual=json.loads(Path('out/20260905-replayed.json').read_text(encoding='utf-8')); assert expected == actual, 'PREVIOUS_SUMMARY_MISMATCH'"

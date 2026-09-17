@@ -1,4 +1,4 @@
-"""Render README figures from published inference summaries or adaptation histories."""
+"""Render README figures from the published inference summary or adaptation histories."""
 
 import argparse
 import hashlib
@@ -15,7 +15,6 @@ from matplotlib.patches import FancyBboxPatch
 
 TOPIC = Path(__file__).resolve().parent.parent
 LATEST = TOPIC / "experiments/20260906-qwen38/data/summary.json"
-PREVIOUS = TOPIC / "experiments/20260905-quality/analysis/summary.json"
 ADAPTATION = TOPIC / "experiments/20260909-drafter-adaptation"
 CJK_FONTS = ("Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", "PingFang SC", "SimHei")
 TEXT = "#182529"
@@ -64,69 +63,6 @@ def draw_latest_throughput(summary, path):
                 ha="center", fontsize=11, color=MUTED)
     figure.subplots_adjust(left=0.065, right=0.975, bottom=0.18, top=0.77, wspace=0.34)
     figure.savefig(path, facecolor="white")
-    plt.close(figure)
-
-
-PREVIOUS_ROUTES = ("baseline", "mtp5", "dflash15")
-PREVIOUS_COLORS = {"baseline": "#68747b", "mtp5": "#057d73", "dflash15": "#b12b52"}
-PREVIOUS_LABELS = {"baseline": "基线", "mtp5": "MTP / 5", "dflash15": "DFlash / 15"}
-DATASETS = (("humaneval_plus", "HumanEval+（需通过全部测试）"), ("math_500", "MATH-500"))
-
-
-def draw_previous_latency(result, path):
-    summaries = {route: result["routes"][route]["primary"]["quality_and_latency"] for route in PREVIOUS_ROUTES}
-    figure, axes = plt.subplots(2, 1, figsize=(7.4, 8.8), dpi=180)
-    figure.subplots_adjust(left=0.24, right=0.94, top=0.80, bottom=0.22, hspace=0.72)
-    figure.text(0.06, 0.95, "完整答案的请求耗时", fontsize=21, weight="bold")
-    figure.text(0.06, 0.907, "H100 NVL | Qwen3.6-27B BF16 | 贪心解码", fontsize=13, color=MUTED)
-    for axis, (dataset, label) in zip(axes, DATASETS):
-        values = [summaries[route][dataset]["median_total_s"] for route in PREVIOUS_ROUTES]
-        positions = list(range(len(PREVIOUS_ROUTES)))
-        axis.barh(positions, values, color=[PREVIOUS_COLORS[route] for route in PREVIOUS_ROUTES], height=0.58, zorder=3)
-        axis.set_yticks(positions, [PREVIOUS_LABELS[route] for route in PREVIOUS_ROUTES], fontsize=14)
-        axis.invert_yaxis()
-        axis.tick_params(axis="y", length=0, pad=10)
-        axis.spines[["top", "right", "left"]].set_visible(False)
-        axis.grid(axis="x", color="#e4e8e8", linewidth=0.8, zorder=0)
-        axis.set_title(label, loc="left", pad=13, fontsize=17, weight="bold")
-        maximum = max(values) * 1.26
-        axis.set_xlim(0, maximum)
-        axis.set_xlabel("请求耗时中位数（秒）", fontsize=13, labelpad=8)
-        for position, value in zip(positions, values):
-            axis.text(value + maximum * 0.02, position, f"{value:.2f} 秒", ha="left", va="center", fontsize=13, weight="bold")
-    figure.text(0.06, 0.045, "含预填充和同机客户端开销，不含服务启动。\n统计全部答案；各路线的输出长度可能不同。",
-                fontsize=11.5, color=MUTED, linespacing=1.55)
-    figure.savefig(path, dpi=180, facecolor="white")
-    plt.close(figure)
-
-
-def draw_previous_concurrency(result, path):
-    figure, axes = plt.subplots(2, 1, figsize=(7.4, 8.8), dpi=180)
-    figure.subplots_adjust(left=0.14, right=0.91, top=0.77, bottom=0.21, hspace=0.65)
-    figure.text(0.06, 0.95, "并发下的答对数", fontsize=21, weight="bold")
-    figure.text(0.06, 0.907, "每档使用相同的 32 道代码题和 32 道数学题", fontsize=13, color=MUTED)
-    for axis, (dataset, label) in zip(axes, (DATASETS[0], ("math_500", "MATH-500 子集"))):
-        for route in PREVIOUS_ROUTES:
-            values = [result["routes"][route][f"concurrency-{level}"]["quality_and_latency"][dataset]["correct"] for level in (1, 4, 8)]
-            axis.plot((1, 4, 8), values, marker="o", linewidth=2.5, markersize=7, color=PREVIOUS_COLORS[route], label=PREVIOUS_LABELS[route])
-            if route == "dflash15":
-                for level, correct in zip((4, 8), values[1:]):
-                    axis.annotate(f"{correct}/32", (level, correct), xytext=(0, 12), textcoords="offset points",
-                                  ha="center", fontsize=13, color=PREVIOUS_COLORS[route], weight="bold")
-        axis.set_title(label, loc="left", pad=12, fontsize=17, weight="bold")
-        axis.set_xlim(0.6, 8.4)
-        axis.set_ylim(0, 35)
-        axis.set_xticks((1, 4, 8))
-        axis.set_yticks((0, 8, 16, 24, 32))
-        axis.set_ylabel("答对数 / 32", fontsize=13)
-        axis.set_xlabel("并发请求数", fontsize=13, labelpad=6)
-        axis.spines[["top", "right"]].set_visible(False)
-        axis.grid(color="#e4e8e8", linewidth=0.8)
-    handles, labels = axes[0].get_legend_handles_labels()
-    figure.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.52, 0.885), ncol=3, frameon=False, fontsize=12)
-    figure.text(0.06, 0.043, "每档只运行一次，不是对算法整体的结论。\nDFlash15 的回退尚未定位根因，也未修复。",
-                fontsize=11.5, color=MUTED, linespacing=1.55)
-    figure.savefig(path, dpi=180, facecolor="white")
     plt.close(figure)
 
 
@@ -245,21 +181,14 @@ def main():
         return
     args.output = args.output or TOPIC / "images"
     args.output.mkdir(parents=True, exist_ok=True)
-    latest, previous = read_json(LATEST), read_json(PREVIOUS)
-    if previous["scope"] != "complete_frozen_matrix":
-        raise SystemExit("PREVIOUS_SUMMARY_SCOPE_MISMATCH")
-    outputs = {
-        "throughput-cn.png": (draw_latest_throughput, latest),
-        "previous-latency-cn.png": (draw_previous_latency, previous),
-        "previous-concurrency-cn.png": (draw_previous_concurrency, previous),
-    }
+    latest = read_json(LATEST)
+    outputs = {"throughput-cn.png": (draw_latest_throughput, latest)}
     report = {"font": plt.rcParams["font.family"], "figures": {}}
     for name, (draw, data) in outputs.items():
         path = args.output / name
         draw(data, path)
         report["figures"][name] = hashlib.sha256(path.read_bytes()).hexdigest()
-    report["sources"] = {LATEST.relative_to(TOPIC).as_posix(): hashlib.sha256(LATEST.read_bytes()).hexdigest(),
-                         PREVIOUS.relative_to(TOPIC).as_posix(): hashlib.sha256(PREVIOUS.read_bytes()).hexdigest()}
+    report["sources"] = {LATEST.relative_to(TOPIC).as_posix(): hashlib.sha256(LATEST.read_bytes()).hexdigest()}
     print(json.dumps(report, ensure_ascii=False, indent=2))
 
 
