@@ -12,6 +12,44 @@ from summarize_edit_hat_swap import summarize as summarize_edit
 LABELS = ("MAI-Image-2.6", "GPT-Image-2 low", "GPT-Image-2 medium", "GPT-Image-2 high")
 GROUNDING_ARCHIVE = "data/lenovo-web-grounding-20260908"
 EDIT_ARCHIVE = "data/edit-hat-swap-20260909-auto"
+# Later run measured with the same client, prompts and runner; its columns join the same tables
+# but carry their own date and region because they are not the same session as the primary run.
+SUPPLEMENT_ARCHIVE = "data/gpt25-paired-20260917"
+
+
+def label_for(configuration):
+    """Human-readable column label from a group configuration, e.g. gpt-image-2.5-flare/low -> GPT-Image-2.5 Flare low."""
+    model = configuration["model"]
+    if configuration["provider"] == "mai":
+        return model
+    parts = model.split("-")
+    if len(parts) < 3 or parts[0] != "gpt" or parts[1] != "image":
+        raise ValueError(f"Unrecognised GPT image model name: {model}")
+    name = f"GPT-Image-{parts[2]}" + (" " + parts[3].capitalize() if len(parts) > 3 else "")
+    return f"{name} {configuration['quality']}"
+
+
+def load_supplement(root, prompts_path, archive=SUPPLEMENT_ARCHIVE):
+    """Validated supplement run, or None when the archive is absent; nothing here is optional once present."""
+    directory = root / archive
+    if not directory.is_dir():
+        return None
+    summary = summarize(directory, prompts_path)
+    regions = {group["configuration"].get("deployment_region") for group in summary["groups"]}
+    if len(regions) != 1:
+        raise ValueError("Supplement configurations must share one deployment region")
+    return {"summary": summary, "archive": archive,
+            "groups": [group["group"] for group in summary["groups"]],
+            "labels": [label_for(group["configuration"]) for group in summary["groups"]],
+            "date": summary["formal_started_at_utc"][:10], "region": regions.pop()}
+
+
+def supplement_prompt(supplement, prompt_record):
+    """The supplement's record for the same scenario; prompt text must match byte for byte."""
+    matches = [item for item in supplement["summary"]["per_prompt"] if item["prompt_index"] == prompt_record["prompt_index"]]
+    if len(matches) != 1 or matches[0]["prompt"] != prompt_record["prompt"]:
+        raise ValueError("Supplement scenario does not match the primary prompt")
+    return matches[0]
 
 
 def table(headers, rows):
@@ -22,10 +60,11 @@ def table(headers, rows):
                       *("| " + " | ".join(str(value) for value in row) + " |" for row in rows)])
 
 
-def round_rows(prompt_record, round_number):
+def round_rows(prompt_record, round_number, groups=GROUPS):
     configurations = prompt_record["configurations"]
-    if [item["group"] for item in configurations] != list(GROUPS):
-        raise ValueError("Every scenario must contain all four configurations in display order")
+    if [item["group"] for item in configurations] != list(groups):
+        count = {4: "four", 6: "six"}.get(len(groups), str(len(groups)))
+        raise ValueError(f"Every scenario must contain all {count} configurations in display order")
     selected = []
     for configuration in configurations:
         matches = [row for row in configuration["rounds"] if row["round"] == round_number]
@@ -35,16 +74,16 @@ def round_rows(prompt_record, round_number):
     return selected
 
 
-def comparison_table(prompt_record, round_number, archive_path, language):
-    rows = round_rows(prompt_record, round_number)
+def comparison_table(prompt_record, round_number, archive_path, language, groups=GROUPS, labels=LABELS):
+    rows = round_rows(prompt_record, round_number, groups)
     images = []
     details = []
-    for label, row in zip(LABELS, rows):
+    for label, row in zip(labels, rows):
         if row["ok"]:
             if not row["image"]:
                 raise ValueError("Successful sample is missing its original image")
             image_path = row["image"]
-            expected_path = f"{GROUPS[len(images)]}/r{round_number}/{prompt_record['prompt_index']:02d}_test.png"
+            expected_path = f"{groups[len(images)]}/r{round_number}/{prompt_record['prompt_index']:02d}_test.png"
             if image_path != expected_path:
                 raise ValueError("Displayed image does not belong to its configuration")
             alt = f"{label}, prompt {prompt_record['prompt_index']}, round {round_number}"
@@ -57,15 +96,19 @@ def comparison_table(prompt_record, round_number, archive_path, language):
             details.append((f"{row['attempts']} 次尝试；任务耗时 {row['logical_request_seconds']:.2f} s"
                             if language == "zh" else
                             f"{row['attempts']} attempts; logical duration {row['logical_request_seconds']:.2f} s"))
-    return table(LABELS, [images, details])
+    return table(list(labels), [images, details])
 
 
-def prompt_latency_table(summary, language):
+def prompt_latency_table(summary, language, supplement=None):
     headers = ["场景 / 轮次" if language == "zh" else "Scenario / round", *LABELS]
+    if supplement:
+        headers.extend(supplement["labels"])
     rows = []
     for prompt_record in summary["per_prompt"]:
         for round_number in (1, 2):
             values = round_rows(prompt_record, round_number)
+            if supplement:
+                values = values + round_rows(supplement_prompt(supplement, prompt_record), round_number, supplement["groups"])
             rows.append([f"{prompt_record['prompt_index']:02d} / R{round_number}",
                          *(f"{row['request_seconds']:.2f}" if row["ok"] else
                            ("失败" if language == "zh" else "Failed") for row in values)])
@@ -76,8 +119,12 @@ def number(value, decimals=2):
     return "N/A" if value is None else f"{value:,.{decimals}f}"
 
 
-def metrics_table(summary, language):
-    groups = summary["groups"]
+def metrics_table(summary, language, supplement=None):
+    groups = list(summary["groups"])
+    labels = list(LABELS)
+    if supplement:
+        groups.extend(supplement["summary"]["groups"])
+        labels.extend(supplement["labels"])
     definitions = [
         ("成功 / 计划样本", "Successful / planned samples", lambda group: f"{group['successful_samples']} / {group['planned_samples']}"),
         ("首试成功 / 计划样本", "First-attempt successes / planned", lambda group: f"{group['first_attempt_successful_samples']} / {group['planned_samples']}"),
@@ -96,12 +143,15 @@ def metrics_table(summary, language):
     for chinese, english, value in definitions:
         rows.append([chinese if language == "zh" else english,
                      *(value(group) for group in groups)])
-    return table(["指标" if language == "zh" else "Metric", *LABELS], rows)
+    return table(["指标" if language == "zh" else "Metric", *labels], rows)
 
 
-def usage_table(summary, language):
+def usage_table(summary, language, supplement=None):
     rows = []
-    for label, group in zip(LABELS, summary["groups"]):
+    pairs = list(zip(LABELS, summary["groups"]))
+    if supplement:
+        pairs.extend(zip(supplement["labels"], supplement["summary"]["groups"]))
+    for label, group in pairs:
         tokens = group["returned_output_tokens"]
         token_label = str(tokens[0]) if len(tokens) == 1 else (f"{min(tokens)}-{max(tokens)}" if tokens else "N/A")
         rows.append([label, token_label, f"{group['successful_samples']}/{group['planned_samples']}"])
@@ -110,8 +160,10 @@ def usage_table(summary, language):
     return table(headers, rows)
 
 
-def exception_section(summary, language):
-    attempts = summary["unsuccessful_attempts"]
+def exception_section(summary, language, supplement=None):
+    attempts = list(summary["unsuccessful_attempts"])
+    if supplement:
+        attempts.extend(supplement["summary"]["unsuccessful_attempts"])
     if not attempts:
         return "本轮未记录失败尝试。" if language == "zh" else "No unsuccessful attempts were recorded."
     headers = (["样本", "尝试", "HTTP / 异常类型", "客户端耗时 (s)", "开始 (UTC)", "结束 (UTC)"]
@@ -128,7 +180,7 @@ def exception_section(summary, language):
     return text + "\n\n" + table(headers, rows)
 
 
-def reproduction_section(archive_path, language, grounding_archive=None, edit_archive=None):
+def reproduction_section(archive_path, language, grounding_archive=None, edit_archive=None, supplement_archive=None):
     intro = ("需要可用的 MAI-Image-2.6 和 GPT-Image-2 部署。部署身份由您查询确认，不能仅凭 deployment 名称判断底层模型。先克隆仓库、拉取本项目的 Git LFS 文件，并在 Python 环境安装 requests："
              if language == "zh" else
              "Supply accessible MAI-Image-2.6 and GPT-Image-2 deployments. Verify their underlying model versions; deployment names alone are not model identity. Clone the repository, fetch this project's Git LFS inputs, and install requests in your Python environment:")
@@ -141,12 +193,7 @@ def reproduction_section(archive_path, language, grounding_archive=None, edit_ar
     tests = ("以下命令只重算已保存结果，不调用模型。回归覆盖四档请求、失败分母、原始 usage、图片归属和报告覆盖；模拟 HTTP 只用于离线单元测试，不是图像质量证据。新测批次的汇总与发布必须等全部计划样本结束。"
              if language == "zh" else
              "These commands validate saved evidence without model calls. Regressions cover request tiers, failure denominators, original usage, image ownership and report coverage. HTTP mocks exist only in offline tests and do not establish image quality. A new run cannot produce its final summary until every planned sample is recorded.")
-    route_table = table(
-        [("目标" if language == "zh" else "Goal"),
-         ("入口" if language == "zh" else "Entry"),
-         ("凭据 / 计费" if language == "zh" else "Credentials / billing"),
-         ("完成标志" if language == "zh" else "Done when")],
-        ([
+    route_rows = ([
             ["只读核验已发布证据", "步骤 4", "不需要 / 不计费", "汇总器与回归测试返回 `PASS`"],
             ["重跑 11 个文生图场景", "步骤 3", "MAI + GPT / 会计费", "88 个正式样本全部记录"],
             ["重跑联网信息补充测试", "步骤 5", "MAI / 会计费", "新目录包含开／关两轮结果"],
@@ -156,7 +203,17 @@ def reproduction_section(archive_path, language, grounding_archive=None, edit_ar
             ["Rerun 11 text-to-image scenarios", "Step 3", "MAI + GPT / yes", "all 88 formal samples are recorded"],
             ["Rerun web-grounding comparison", "Step 5", "MAI / yes", "new directory contains both rounds, off and on"],
             ["Rerun headwear-swap edit", "Step 6", "MAI + GPT / yes", "eight PNGs across two rounds pass hash checks"],
-        ]))
+        ])
+    if supplement_archive:
+        route_rows.append(["重跑 GPT-Image-2.5 六档补测", "步骤 7", "GPT-2.5 两个部署 / 会计费", "132 个正式样本全部记录"]
+                          if language == "zh" else
+                          ["Rerun the GPT-Image-2.5 six-tier supplement", "Step 7", "two GPT-2.5 deployments / yes", "all 132 formal samples are recorded"])
+    route_table = table(
+        [("目标" if language == "zh" else "Goal"),
+         ("入口" if language == "zh" else "Entry"),
+         ("凭据 / 计费" if language == "zh" else "Credentials / billing"),
+         ("完成标志" if language == "zh" else "Done when")],
+        route_rows)
     grounding = ""
     if grounding_archive:
         grounding = "\n\n".join([
@@ -181,6 +238,23 @@ def reproduction_section(archive_path, language, grounding_archive=None, edit_ar
              "hashes. This does not create a subjective review automatically; quality conclusions still require "
              "inspection under the published review method."),
             edit_reproduction_commands(edit_archive)])
+    supplement = ""
+    if supplement_archive:
+        supplement = "\n\n".join([
+            ("### 7. 重跑 GPT-Image-2.5 六档补测" if language == "zh" else
+             "### 7. Rerun the GPT-Image-2.5 six-tier supplement"),
+            ("这一步需要 `gpt-image-2.5-flare` 和 `gpt-image-2.5-sunburst` 两个部署，部署名就是模型名；`--gpt-model` 可重复传入，每个部署展开为 low、medium、high 三组。执行脚本对同一部署每 60 秒最多起请 2 次，与 2 RPM 的部署配额对齐；若你的配额更高，可以改 `RATE_PACING`。第一条只读核验已发布归档；后两条真实调用模型并写入新目录。"
+             if language == "zh" else
+             "This step needs the `gpt-image-2.5-flare` and `gpt-image-2.5-sunburst` deployments, named after their models; `--gpt-model` may be repeated and each deployment expands to low, medium and high. The runner starts at most 2 requests per 60 seconds per deployment to match the 2 RPM deployment quota; raise `RATE_PACING` if your quota is higher. The first command verifies the published archive without model calls; the next two call the models and write a new directory."),
+            f"""```powershell
+python scripts/summarize_paired_run.py {supplement_archive}
+$run = 'runs/gpt25-paired-new-run'
+New-Item -ItemType Directory -Path "$run/source" -ErrorAction Stop
+Copy-Item -LiteralPath scripts/benchmark_5way_v2.py -Destination "$run/source/benchmark_5way_v2.py"
+Copy-Item -LiteralPath prompts.csv -Destination "$run/source/prompts.csv"
+python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-model gpt-image-2.5-sunburst --gpt-quality all --output $run --warmup-only
+python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-model gpt-image-2.5-sunburst --gpt-quality all --output $run --resume
+```"""])
     return f"""<a id="reproduction-how-to"></a>
 ## {'复现方法（How-to）与测试' if language == 'zh' else 'Reproduction How-to and Tests'}
 
@@ -243,15 +317,13 @@ python scripts/render_paired_report.py {archive_path} --check
 python -m unittest discover -s tests -v
 ```
 
-{grounding}
-
-{multi_image}
+{"\n\n".join(part for part in (grounding, multi_image, supplement) if part)}
 
 {'文生图执行脚本' if language == 'zh' else 'Text-to-image runner'}: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py); {'改图执行脚本' if language == 'zh' else 'Edit runner'}: [run_edit_hat_swap.py](scripts/run_edit_hat_swap.py); {'离线汇总' if language == 'zh' else 'offline summary'}: [summarize_paired_run.py](scripts/summarize_paired_run.py); {'报告生成' if language == 'zh' else 'report rendering'}: [render_paired_report.py](scripts/render_paired_report.py); {'回归测试' if language == 'zh' else 'regressions'}: [tests](tests).
 """
 
 
-def render_masthead(summary, author_line, language):
+def render_masthead(summary, author_line, language, supplement=None):
     """First screen: factual badges, one scope paragraph, author, language, navigation.
 
     Every badge states something this run actually recorded or that the vendor
@@ -265,10 +337,16 @@ def render_masthead(summary, author_line, language):
     mai_version = sorted(versions)[0] if versions else "2026-07-31"
     returned = summary.get("successful_samples", 0)
     planned = summary.get("formal_samples", 0)
+    samples_badge = f"{returned}%2F{planned}%20returned"
+    models_badge = "MAI--Image--2.6%20vs%20GPT--Image--2"
+    if supplement:
+        extra = supplement["summary"]
+        samples_badge = f"{returned}%2F{planned}%20%2B%20{extra['successful_samples']}%2F{extra['formal_samples']}%20returned"
+        models_badge = "MAI--Image--2.6%20vs%20GPT--Image--2%20%2F%202.5"
     badges = [
-        ("Models", "MAI--Image--2.6%20vs%20GPT--Image--2", "0067b8",
+        ("Models", models_badge, "0067b8",
          "https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image"),
-        ("Samples", f"{returned}%2F{planned}%20returned", "2e7d32",
+        ("Samples", samples_badge, "2e7d32",
          "data/paired-all-quality-20260907/5way_v2_results.json"),
         ("Resolution", "1024%C3%971024", "455a64", None),
         ("MAI version", mai_version.replace("-", "--"), "6a1b9a", None),
@@ -292,6 +370,11 @@ def render_masthead(summary, author_line, language):
         "included: web grounding (`web_grounding`) and single-image editing. Image judgements are "
         "unblinded difference descriptions and produce no quality score or preference verdict."
     )
+    if supplement:
+        extra = supplement["summary"]
+        scope += (f" {supplement['date']} 另用同一客户端、同一份提示词补测了 GPT-Image-2.5 Flare 与 Sunburst 各三档，共 {extra['formal_samples']} 个正式样本，并入同一套图片、耗时与 token 表。"
+                  if chinese else
+                  f" On {supplement['date']} the same client and prompt file also measured GPT-Image-2.5 Flare and Sunburst at all three tiers, {extra['formal_samples']} formal samples, merged into the same image, latency and token tables.")
     nav = " · ".join([
         f"[{'逐题图片' if chinese else 'Side-by-side images'}](#{'并排图片对比' if chinese else 'side-by-side-image-comparison'})",
         f"[{'耗时与请求' if chinese else 'Latency and requests'}](#{'耗时与请求成功情况' if chinese else 'performance-and-reliability'})",
@@ -338,7 +421,7 @@ def quality_counts_table(summary, quality, language):
     return table([("观测项" if chinese else "Observed outcome"), *LABELS], rows)
 
 
-def render_highlights(summary, language, has_grounding, has_edit):
+def render_highlights(summary, language, has_grounding, has_edit, supplement=None):
     """Open with what this run establishes about MAI-Image-2.6, at evidence strength.
 
     Image quality is reported as an outcome a reader can inspect, not as a win.
@@ -371,6 +454,9 @@ def render_highlights(summary, language, has_grounding, has_edit):
           "observations describe differences without ranking them, so this report does not claim MAI "
           "image quality beats or matches GPT-Image-2.")),
     ]
+    token_item = token_highlight(summary, language, supplement)
+    if token_item:
+        items.append(token_item)
     if has_edit:
         items.append(
             ("**在对称的 `size=auto` 协议下，四个配置都完成了局部编辑。** 第 12 题只要求把头饰换成博士帽；"
@@ -394,9 +480,9 @@ def render_highlights(summary, language, has_grounding, has_edit):
              "first-attempt success rate and clearly higher latency. This is not the same thing as dense "
              "visual grounding."))
     heading = "## MAI-Image-2.6 在本轮中体现的能力" if chinese else "## What This Run Shows About MAI-Image-2.6"
-    scope = ("以下三条都只依据本仓库的实测记录，`MAI-Image-2.6` 处于 Preview，无 SLA。"
+    scope = (f"以下{'四' if len(items) == 4 else '三' if len(items) == 3 else str(len(items))}条都只依据本仓库的实测记录，`MAI-Image-2.6` 处于 Preview，无 SLA。"
              if chinese else
-             "All three items rest on the measurements in this repository. `MAI-Image-2.6` is in preview "
+             f"All {'four' if len(items) == 4 else 'three' if len(items) == 3 else len(items)} items rest on the measurements in this repository. `MAI-Image-2.6` is in preview "
              "with no SLA.")
     parts = [heading, scope] + [f"{index}. {text}" for index, text in enumerate(items, 1)]
     # The vendor charts only appear when this run actually measured the same models,
@@ -404,6 +490,51 @@ def render_highlights(summary, language, has_grounding, has_edit):
     if None not in (mai_p50, low_p50, medium_p50, high_p50):
         parts.append(render_vendor_charts(language, mai_p50, medium_p50, low_p50, high_p50))
     return "\n\n".join(parts)
+
+
+def token_highlight(summary, language, supplement=None):
+    """One checkable sentence on output tokens per image, built only from returned usage.
+
+    Each group's returned_output_tokens must be a single constant value across its
+    successful samples; otherwise the sentence is omitted rather than averaged.
+    """
+    chinese = language == "zh"
+    tokens = {}
+    for group in summary.get("groups", ()):
+        values = group.get("returned_output_tokens") or []
+        if len(values) != 1:
+            return None
+        tokens[group["group"]] = values[0]
+    needed = ("mai-image-2.6", "gpt-image-2-low", "gpt-image-2-medium", "gpt-image-2-high")
+    if any(key not in tokens for key in needed):
+        return None
+    mai, low, medium, high = (tokens[key] for key in needed)
+    if not (low < mai < medium):
+        return None
+    text = ((f"**每张 1024×1024 图的 output token：MAI-Image-2.6 固定 {mai:,}，介于 GPT-Image-2 low（{low:,}）与 medium（{medium:,}）之间，是 high（{high:,}）的 {mai / high:.0%}。** "
+             "数值全部取自接口返回的 usage，每组所有成功样本完全一致。token 不是金额，两家的费率不同，本仓库不计价；GPT 的档位也不对应 MAI 的任何质量设置。")
+            if chinese else
+            (f"**Output tokens per 1024×1024 image: MAI-Image-2.6 is a constant {mai:,}, between GPT-Image-2 low ({low:,}) and medium ({medium:,}), and {mai / high:.0%} of high ({high:,}).** "
+             "Every figure comes from returned usage and is identical across each group's successful samples. Tokens are not money: the two vendors bill different rates, this repository does not price them, and GPT tiers do not map to any MAI quality setting."))
+    if supplement:
+        extra = {}
+        for group in supplement["summary"]["groups"]:
+            values = group.get("returned_output_tokens") or []
+            if len(values) != 1:
+                return text
+            extra[group["group"]] = values[0]
+        by_model = {}
+        for group_id, value in extra.items():
+            model, tier = group_id.rsplit("-", 1)
+            by_model.setdefault(model, {})[tier] = value
+        parts = []
+        for model, tiers in by_model.items():
+            label = label_for({"provider": "gpt", "model": model, "quality": ""}).strip()
+            parts.append(f"{label} {tiers.get('low', '?'):,} / {tiers.get('medium', '?'):,} / {tiers.get('high', '?'):,}")
+        text += ((" GPT-Image-2.5 的 low / medium / high 为：" + "；".join(parts) + f"，来自 {supplement['date']} 的补测。")
+                 if chinese else
+                 (" GPT-Image-2.5 low / medium / high: " + "; ".join(parts) + f", from the {supplement['date']} supplement."))
+    return text
 
 
 def render_vendor_charts(language, mai_p50, medium_p50, low_p50, high_p50):
@@ -511,7 +642,7 @@ def render_vendor_charts(language, mai_p50, medium_p50, low_p50, high_p50):
 
 
 def render_overview(summary, quality, archive_path, language, has_grounding=False,
-                    has_edit=False):
+                    has_edit=False, supplement=None):
     chinese = language == "zh"
     metadata = summary["config"]["group_configurations"]
     if [group["group"] for group in summary["groups"]] != list(GROUPS):
@@ -519,16 +650,40 @@ def render_overview(summary, quality, archive_path, language, has_grounding=Fals
     title = "本轮：两模型与全部质量档位" if chinese else "Current Run: Both Models and All Quality Tiers"
     outcome = (f"本轮 {summary['successful_samples']}/{summary['formal_samples']} 个正式样本返回图片，{summary['failed_samples']} 个未返回图片；另有 {summary['warmup_samples']} 次预热，不计入正式分母。"
                if chinese else f"This run returned images for {summary['successful_samples']}/{summary['formal_samples']} formal samples; {summary['failed_samples']} returned no image. The {summary['warmup_samples']} warmups are excluded from the formal denominator.")
+    if supplement:
+        extra = supplement["summary"]
+        outcome += (f" GPT-Image-2.5 补测 {extra['successful_samples']}/{extra['formal_samples']} 个正式样本返回图片，{extra['failed_samples']} 个未返回；预热 {extra['warmup_samples']} 次，同样不计入分母。"
+                    if chinese else f" The GPT-Image-2.5 supplement returned images for {extra['successful_samples']}/{extra['formal_samples']} formal samples; {extra['failed_samples']} returned no image, and its {extra['warmup_samples']} warmups are likewise excluded.")
     boundary = ("同一客户端交替调用，提示词、尺寸和轮数相同；部署区域不同，不能把端到端耗时差全部归因于模型。质量是非盲评的具体画面观察，不是官方 benchmark 分数、人类偏好胜率或生产可靠性证明。"
                 if chinese else "Requests were interleaved on the same client with identical prompts, dimensions and repetitions. Deployment regions differ, so end-to-end latency differences cannot be attributed solely to the models. Quality observations are unblinded, not an official benchmark score, human-preference win rate or production reliability claim.")
+    if supplement:
+        boundary += (f" GPT-Image-2.5 Flare 与 Sunburst 六列来自 {supplement['date']} 的独立运行：同一客户端、同一份提示词与同一个执行脚本，部署在 {supplement['region']}（与 MAI 同区域）。它与前四列不是同一时段，跨列看耗时要连带日期和区域一起看；token 数由服务端计算，不受这两点影响。"
+                     if chinese else f" The six GPT-Image-2.5 Flare and Sunburst columns come from a separate run on {supplement['date']} with the same client, prompt file and runner, deployed in {supplement['region']} (the MAI region). They are not the same session as the first four columns, so read latency across them together with date and region; token counts are computed server-side and are unaffected.")
+    date_header = "测量日期" if chinese else "Measured on"
+    contract_rows = [
+        [label, item.get("model_version") or "not recorded", item["quality"] or ("未传入" if chinese else "omitted"),
+         "1024x1024", item.get("deployment_region") or "not recorded", str(group["planned_samples"]),
+         summary["formal_started_at_utc"][:10]]
+        for label, item, group in zip(LABELS, metadata, summary["groups"])]
+    if supplement:
+        contract_rows.extend(
+            [label, item["configuration"].get("model_version") or "not recorded", item["configuration"]["quality"],
+             "1024x1024", item["configuration"].get("deployment_region") or "not recorded", str(item["planned_samples"]),
+             supplement["date"]]
+            for label, item in zip(supplement["labels"], supplement["summary"]["groups"]))
     contract = table(["配置" if chinese else "Configuration", "模型版本" if chinese else "Model version",
                       "质量参数" if chinese else "Quality field", "尺寸" if chinese else "Dimensions",
-                      "区域" if chinese else "Resource region", "正式样本" if chinese else "Formal samples"], [
-        [label, item.get("model_version") or "not recorded", item["quality"] or ("未传入" if chinese else "omitted"),
-         "1024x1024", item.get("deployment_region") or "not recorded", str(group["planned_samples"])]
-        for label, item, group in zip(LABELS, metadata, summary["groups"])])
+                      "区域" if chinese else "Resource region", "正式样本" if chinese else "Formal samples", date_header],
+                     contract_rows)
     procedure = ("输入是原报告同一份 11 题 CSV。每组先用 `blue circle` 预热一次；第一轮每题依次调用 MAI、GPT low、medium、high，第二轮反转。并发为 1，每次逻辑调用后间隔 5 秒，最多尝试 3 次，沿用原重试退避。两个 GlobalStandard 部署各配置每分钟 2 次请求；GPT 三档共享同一部署和限额。MAI 请求超时 180 秒，GPT 为 300 秒。"
                  if chinese else "The original eleven-prompt CSV is unchanged. Each configuration receives one `blue circle` warmup. Each prompt runs MAI, GPT low, medium, high in round 1, with reversed configuration order in round 2. Concurrency is 1, with 5 seconds after each logical call and at most 3 attempts under the original retry backoff. Each GlobalStandard deployment is configured for 2 requests/minute; GPT tiers share one deployment and limit. Request timeouts are 180 seconds for MAI and 300 for GPT.")
+    if supplement:
+        pacing = (supplement["summary"]["config"].get("rate_pacing") or {})
+        procedure += ((f" GPT-Image-2.5 补测另起一轮：Flare 与 Sunburst 各自一个 GlobalStandard 部署，每题依次 Flare low、medium、high、Sunburst low、medium、high，第二轮反转；并发、间隔、重试与超时与上述相同。"
+                       f"因为 2.5 的 low/medium 约 15–20 秒就能返回，三档连续调用会在 60 秒内对同一部署发起第三次请求而触发自己的配额，所以这轮在计时区之外加了客户端限速：同一部署任意 {pacing.get('window_seconds', 60)} 秒内最多起请 {pacing.get('max_requests', 2)} 次，等待时长逐样本记在 `pacing_wait_seconds`，不进入请求耗时。")
+                      if chinese else
+                      (f" The GPT-Image-2.5 supplement is its own run: Flare and Sunburst each have one GlobalStandard deployment, every prompt calls Flare low, medium, high, then Sunburst low, medium, high, with the order reversed in round 2; concurrency, spacing, retries and timeouts are unchanged. "
+                       f"Because 2.5 low and medium return in roughly 15-20 seconds, three consecutive tiers would issue a third request to one deployment inside 60 seconds and trip this project's own quota, so this run adds client-side pacing outside the timed region: at most {pacing.get('max_requests', 2)} request starts per {pacing.get('window_seconds', 60)} seconds per deployment, with the wait recorded per sample as `pacing_wait_seconds` and excluded from request latency."))
     timing = ("请求耗时从 `requests.post` 调用前到完整 HTTP 响应返回，只统计有图片的成功尝试，不包含后续 JSON/base64 处理和文件写盘。任务耗时覆盖失败尝试、重试等待和响应处理，按全部计划样本统计。失败不以 0 秒进入速度平均值，也不从成功率分母删除。P95 为每组最多 22 个值的描述性线性插值，不是生产尾延迟保证。"
               if chinese else "Request latency measures `requests.post` through receipt of the complete HTTP response, before JSON/base64 processing and file writes, for successful image-producing attempts only. Logical duration includes failed attempts, retry waits and response processing across all planned samples. Failures are not averaged as zero-second responses or removed from the success-rate denominator. P95 is descriptive linear interpolation over at most 22 observations per group, not a production tail guarantee.")
     usage_scope = ("token 用量取自接口返回的 usage，不从模型或档位推算。没有返回值的样本不补零。输出 token 数和 PNG 文件大小都不能单独证明画质。"
@@ -538,7 +693,12 @@ def render_overview(summary, quality, archive_path, language, has_grounding=Fals
                         for item in quality["per_prompt"]]
     observations = table(row_names, observation_rows)
     observation_counts = quality_counts_table(summary, quality, language)
-    api = table(["接口项目" if chinese else "API item", "MAI-Image-2.6", "GPT-Image-2"], [
+    observation_scope = ""
+    if supplement:
+        observation_scope = ("GPT-Image-2.5 的图片已在上方并排展示，但未纳入本节的画面观察计数；下表仍只覆盖前四个配置。"
+                             if chinese else "GPT-Image-2.5 images are shown side by side above but are not part of this section's observation tally; the tables below still cover only the first four configurations.")
+    api_gpt_header = "GPT-Image-2 / 2.5" if supplement else "GPT-Image-2"
+    api = table(["接口项目" if chinese else "API item", "MAI-Image-2.6", api_gpt_header], [
         ["POST", "`/mai/v1/images/generations`", "`/openai/deployments/{deployment}/images/generations?api-version=2025-04-01-preview`"],
         ["Payload", "`model`, `prompt`, `width=1024`, `height=1024`", "`prompt`, `n=1`, `size=1024x1024`, `quality=low/medium/high`"],
         ["Auth", "`api-key`", "`api-key`"],
@@ -547,7 +707,17 @@ def render_overview(summary, quality, archive_path, language, has_grounding=Fals
     ])
     limits = ("本报告只对比 MAI-Image-2.6 与 GPT-Image-2 的 low、medium、high 三档。主要聚合统计来自 11 个 1024x1024 文生图场景；第 12 题是单独报告的 `size=auto` 图像编辑测试，不进入前 11 题的耗时与质量计数。本报告不覆盖 2K、多图参考、文字准确率专项、并发压测或其他认证方式。MAI 没有传质量参数，不能称为 GPT high 的等价档位。"
               if chinese else "This report compares only MAI-Image-2.6 with GPT-Image-2 low, medium and high. The aggregate metrics come from eleven 1024x1024 text-to-image scenarios; Scenario 12 is a separately reported `size=auto` image-edit test and is excluded from the first eleven scenarios' latency and quality counts. The report does not cover 2K, multiple reference images, exact-text accuracy, concurrency capacity or other authentication modes. MAI sends no quality parameter and is not labeled as equivalent to GPT high.")
+    if supplement:
+        limits = ("本报告对比 MAI-Image-2.6、GPT-Image-2 三档，以及 GPT-Image-2.5 Flare 与 Sunburst 各三档；2.5 另有 xhigh、max、auto 档，本轮没有测。主要聚合统计来自 11 个 1024x1024 文生图场景；第 12 题是单独报告的 `size=auto` 图像编辑测试，不进入前 11 题的耗时与质量计数，也没有 2.5 的编辑结果。本报告不覆盖 2K、多图参考、文字准确率专项、并发压测或其他认证方式。MAI 没有传质量参数，不能称为任何 GPT 档位的等价档。"
+                  if chinese else "This report compares MAI-Image-2.6, the three GPT-Image-2 tiers, and the three measured tiers of GPT-Image-2.5 Flare and Sunburst; 2.5 also offers xhigh, max and auto, which were not run. The aggregate metrics come from eleven 1024x1024 text-to-image scenarios; Scenario 12 is a separately reported `size=auto` image-edit test, excluded from the first eleven scenarios' latency and quality counts, and it has no GPT-Image-2.5 results. The report does not cover 2K, multiple reference images, exact-text accuracy, concurrency capacity or other authentication modes. MAI sends no quality parameter and is not labeled as equivalent to any GPT tier.")
     heading = lambda english, localized: localized if chinese else english
+    supplement_interval = ""
+    gpt25_node = ""
+    if supplement:
+        extra = supplement["summary"]
+        supplement_interval = (f"\n\n{'GPT-Image-2.5 补测正式起止时间 (UTC)' if chinese else 'GPT-Image-2.5 supplement formal interval (UTC)'}: `{extra['formal_started_at_utc']}` to `{extra['formal_ended_at_utc']}`. "
+                               f"{'正式窗口含等待' if chinese else 'Formal window including waits'}: **{number(extra['formal_window_seconds_including_waits'])} s**.")
+        gpt25_node = f"\n    runner --> gpt25[\"GPT-Image-2.5 Flare + Sunburst / {supplement['region']} / low, medium, high ({supplement['date']})\"]\n    gpt25 --> evidence"
     return f"""## {title}
 
 [{'English' if chinese else '中文'}]({'README.md' if chinese else 'README-CN.md'}) | [{'逐题图片' if chinese else 'Side-by-side images'}](#{'并排图片对比' if chinese else 'side-by-side-image-comparison'}) | [{'测量记录' if chinese else 'Measurements'}]({archive_path}/5way_v2_results.json) | [{'指标' if chinese else 'Metrics'}]({archive_path}/summary.json) | [{'请求记录' if chinese else 'Attempts'}]({archive_path}/attempts.jsonl)
@@ -562,7 +732,7 @@ def render_overview(summary, quality, archive_path, language, has_grounding=Fals
 
 {'客户端' if chinese else 'Client'}: {summary['environment']['platform']}, {summary['environment']['architecture']}, Python {summary['environment']['python']}, requests {summary['environment']['requests']}.
 
-{'正式起止时间 (UTC)' if chinese else 'Formal interval (UTC)'}: `{summary['formal_started_at_utc']}` to `{summary['formal_ended_at_utc']}`. {'正式窗口含等待' if chinese else 'Formal window including waits'}: **{number(summary['formal_window_seconds_including_waits'])} s**. {'四组合计观测完成速率' if chinese else 'Observed mixed-workload completion rate'}: **{number(summary['mixed_workload_observed_images_per_minute'])} {'张/分钟' if chinese else 'images/min'}** ({'不是单模型或最大吞吐' if chinese else 'not per-model or maximum throughput'}).
+{'正式起止时间 (UTC)' if chinese else 'Formal interval (UTC)'}: `{summary['formal_started_at_utc']}` to `{summary['formal_ended_at_utc']}`. {'正式窗口含等待' if chinese else 'Formal window including waits'}: **{number(summary['formal_window_seconds_including_waits'])} s**. {'四组合计观测完成速率' if chinese else 'Observed mixed-workload completion rate'}: **{number(summary['mixed_workload_observed_images_per_minute'])} {'张/分钟' if chinese else 'images/min'}** ({'不是单模型或最大吞吐' if chinese else 'not per-model or maximum throughput'}).{supplement_interval}
 
 ### {heading('Architecture and Measurement Boundary', '调用链与计时边界')}
 
@@ -570,7 +740,7 @@ def render_overview(summary, quality, archive_path, language, has_grounding=Fals
 flowchart LR
     prompts["Original 11 prompts"] --> runner["Local Windows Python runner"]
     runner --> mai["MAI-Image-2.6 / Sweden Central"]
-    runner --> gpt["GPT-Image-2 / East US 2 / low, medium, high"]
+    runner --> gpt["GPT-Image-2 / East US 2 / low, medium, high"]{gpt25_node}
     mai --> evidence["PNG, usage, request IDs, timestamps, failures"]
     gpt --> evidence
     evidence --> summary["Offline validation and report"]
@@ -580,17 +750,17 @@ flowchart LR
 
 ### {heading('Performance and Reliability', '耗时与请求成功情况')}
 
-{metrics_table(summary, language)}
+{metrics_table(summary, language, supplement)}
 
 {timing}
 
 ### {heading('Exceptions and Waiting', '异常与等待')}
 
-{exception_section(summary, language)}
+{exception_section(summary, language, supplement)}
 
 ### {heading('Token Usage', 'Token 用量')}
 
-{usage_table(summary, language)}
+{usage_table(summary, language, supplement)}
 
 {usage_scope}
 
@@ -598,11 +768,11 @@ flowchart LR
 
 {'单位为秒；失败格对应原始请求记录，不用其他轮次替换。' if chinese else 'Seconds; failed cells remain tied to their original requests and are not replaced by another round.'}
 
-{prompt_latency_table(summary, language)}
+{prompt_latency_table(summary, language, supplement)}
 
 ### {heading('Quality Observations', '逐场景画面观察')}
 
-{'先看可计数的结果，再读逐场景描述。下表统计本次观察记录中出现某类问题的场景数，是这次非盲评的措辞计数，不是模型的缺陷率，也不是质量评分。' if chinese else 'Countable outcomes first, then the per-scenario prose. The table counts how many scenarios mention each kind of issue in this review, which is a tally of this unblinded inspection rather than a defect rate or a quality score.'}
+{'先看可计数的结果，再读逐场景描述。下表统计本次观察记录中出现某类问题的场景数，是这次非盲评的措辞计数，不是模型的缺陷率，也不是质量评分。' if chinese else 'Countable outcomes first, then the per-scenario prose. The table counts how many scenarios mention each kind of issue in this review, which is a tally of this unblinded inspection rather than a defect rate or a quality score.'}{(' ' + observation_scope) if observation_scope else ''}
 
 {observation_counts}
 
@@ -614,7 +784,7 @@ flowchart LR
 
 {api}
 
-{reproduction_section(archive_path, language, GROUNDING_ARCHIVE if has_grounding else None, EDIT_ARCHIVE if has_edit else None)}
+{reproduction_section(archive_path, language, GROUNDING_ARCHIVE if has_grounding else None, EDIT_ARCHIVE if has_edit else None, supplement["archive"] if supplement else None)}
 
 ### {heading('Limits', '结论边界')}
 
@@ -974,10 +1144,14 @@ def render_grounding_section(summary, archive_path, language):
 
 
 def update_document(text, summary, quality, archive_path, language, grounding_section="",
-                    edit_section=""):
+                    edit_section="", supplement=None):
     chinese = language == "zh"
-    title = ("# MAI-Image-2.6 与 GPT-Image-2：全质量档位图像生成对比" if chinese else
-             "# MAI-Image-2.6 vs GPT-Image-2: All Quality Tiers")
+    if supplement:
+        title = ("# MAI-Image-2.6 与 GPT-Image-2 / 2.5：全质量档位图像生成对比" if chinese else
+                 "# MAI-Image-2.6 vs GPT-Image-2 / 2.5: All Quality Tiers")
+    else:
+        title = ("# MAI-Image-2.6 与 GPT-Image-2：全质量档位图像生成对比" if chinese else
+                 "# MAI-Image-2.6 vs GPT-Image-2: All Quality Tiers")
     author = re.search(r"(?m)^> \*\*(?:Author|作者)\*\*:[^\n]+", text)
     if author is None:
         raise ValueError("Existing report author attribution was not found")
@@ -988,15 +1162,19 @@ def update_document(text, summary, quality, archive_path, language, grounding_se
     if not set(range(1, 12)) <= set(titles) or [item["prompt_index"] for item in summary["per_prompt"]] != list(range(1, 12)):
         raise ValueError("All eleven original scenarios are required")
     content = render_overview(summary, quality, archive_path, language,
-                              bool(grounding_section), bool(edit_section))
+                              bool(grounding_section), bool(edit_section), supplement)
     comparison_heading = "## 并排图片对比" if chinese else "## Side-by-Side Image Comparison"
     description = ("第 1–11 题为文生图，每个场景、每一轮只展示 MAI-Image-2.6 与 GPT-Image-2 low、medium、high。图片来自本次四组测试，未返回图片的格子保留失败说明。点击图片查看原始 1024x1024 PNG。第 12 题为图像编辑，输入为一张真实照片。"
                    if chinese else "Scenarios 1-11 are text-to-image; every scenario and round compares only MAI-Image-2.6 with GPT-Image-2 low, medium and high. Images come from this four-configuration run; missing images retain their failure record. Click an image for the original 1024x1024 PNG. Scenario 12 is an image edit of one real photograph.")
+    if supplement:
+        description = ((f"第 1–11 题为文生图。每个场景每一轮有两行图：第一行是 {summary['formal_started_at_utc'][:10]} 测的 MAI-Image-2.6 与 GPT-Image-2 low、medium、high；第二行是 {supplement['date']} 用同一客户端、同一提示词补测的 GPT-Image-2.5 Flare 与 Sunburst 各三档，部署在 {supplement['region']}。两行不是同一时段，图下的耗时要连带日期看。未返回图片的格子保留失败说明。点击图片查看原始 1024x1024 PNG。第 12 题为图像编辑，输入为一张真实照片，没有 2.5 的结果。")
+                       if chinese else
+                       (f"Scenarios 1-11 are text-to-image. Each scenario and round has two image rows: the first is MAI-Image-2.6 with GPT-Image-2 low, medium and high measured on {summary['formal_started_at_utc'][:10]}; the second is GPT-Image-2.5 Flare and Sunburst at all three tiers, measured on {supplement['date']} with the same client and prompt file and deployed in {supplement['region']}. The rows are not the same session, so read the latencies under the images together with their dates. Missing images retain their failure record. Click an image for the original 1024x1024 PNG. Scenario 12 is an image edit of one real photograph and has no 2.5 results."))
     # Images come before the metrics body: a reader judges generated pictures by
     # looking at them, and the timing and token tables only make sense afterwards.
-    sections = [title, render_masthead(summary, author.group(), language),
+    sections = [title, render_masthead(summary, author.group(), language, supplement),
                 render_highlights(summary, language, bool(grounding_section),
-                                  bool(edit_section)),
+                                  bool(edit_section), supplement),
                 comparison_heading, description]
     for prompt_record in summary["per_prompt"]:
         prompt_index = prompt_record["prompt_index"]
@@ -1005,6 +1183,10 @@ def update_document(text, summary, quality, archive_path, language, grounding_se
         for round_number in (1, 2):
             sections.extend([f"**Round {round_number}:**",
                              comparison_table(prompt_record, round_number, archive_path, language)])
+            if supplement:
+                sections.append(comparison_table(supplement_prompt(supplement, prompt_record), round_number,
+                                                 supplement["archive"], language,
+                                                 supplement["groups"], supplement["labels"]))
     # Test 12 sits with the other scenarios so the reader meets it in sequence.
     if edit_section:
         sections.append(edit_section)
@@ -1048,6 +1230,7 @@ def main():
     archive_path = run_directory.relative_to(root).as_posix()
     grounding_summary = summarize_grounding(root / GROUNDING_ARCHIVE)
     edit_summary = summarize_edit(root / EDIT_ARCHIVE)
+    supplement = load_supplement(root, root / "prompts.csv")
     documents = []
     for filename, language in (("README.md", "en"), ("README-CN.md", "zh")):
         path = root / filename
@@ -1055,7 +1238,7 @@ def main():
         generated = update_document(
             original, summary, quality, archive_path, language,
             render_grounding_section(grounding_summary, GROUNDING_ARCHIVE, language),
-            render_edit_scenario(edit_summary, EDIT_ARCHIVE, language))
+            render_edit_scenario(edit_summary, EDIT_ARCHIVE, language), supplement)
         documents.append((path, original, generated))
     if arguments.check:
         changed = [path.name for path, original, generated in documents if original != generated]
@@ -1065,7 +1248,9 @@ def main():
         for path, _, generated in documents:
             path.write_text(generated, encoding="utf-8")
     print(json.dumps({"status": "PASS", "formal_samples": summary["formal_samples"],
-                      "configurations": len(GROUPS), "scenario_round_tables_per_language": len(summary["per_prompt"]) * 2}))
+                      "configurations": len(GROUPS) + (len(supplement["groups"]) if supplement else 0),
+                      "supplement": supplement["archive"] if supplement else None,
+                      "scenario_round_tables_per_language": len(summary["per_prompt"]) * (4 if supplement else 2)}))
 
 
 if __name__ == "__main__":

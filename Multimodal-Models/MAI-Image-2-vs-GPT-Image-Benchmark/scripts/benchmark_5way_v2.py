@@ -33,6 +33,11 @@ GPT_API_VERSION = os.environ.get("GPT_API_VERSION", "2025-04-01-preview")
 GPT_URL = f"{GPT_ENDPOINT}/openai/deployments/{GPT_DEPLOYMENT}/images/generations?api-version={GPT_API_VERSION}"
 GPT_API_KEY = os.environ.get("AZURE_OPENAI_API_KEY")
 
+
+def gpt_url(deployment=None):
+    """Per-deployment generations URL; a group without a model falls back to GPT_DEPLOYMENT."""
+    return f"{GPT_ENDPOINT}/openai/deployments/{deployment or GPT_DEPLOYMENT}/images/generations?api-version={GPT_API_VERSION}"
+
 OUT_BASE = Path(__file__).parent.parent / "5way-benchmark-v2"
 RESULTS_JSON = OUT_BASE / "5way_v2_results.json"
 
@@ -44,6 +49,12 @@ GROUPS = [
     {"id": "gpt-image-1.5-high",  "type": "gpt", "model": None,          "quality": "high"},
 ]
 INTER_CALL_WAIT = 5
+# Every deployment used here is provisioned at 2 requests/minute; fast models would otherwise
+# trip the client's own quota on the third consecutive tier and record a 429 that says nothing
+# about the service.
+RATE_PACING = {"max_requests": 2, "window_seconds": 60}
+PACING_HISTORY = {}
+LAST_PACING_WAIT = 0.0
 REQUEST_CONTEXT = {}
 LAST_ATTEMPTS = []
 RUN_RECORD = {}
@@ -173,17 +184,18 @@ def generate_mai(model_name, prompt, token, max_retries=3, *, web_grounding=None
             record_attempt(attempt_record)
     return False, 0, None, {}
 
-def generate_gpt(prompt, quality, max_retries=3):
+def generate_gpt(prompt, quality, deployment=None, max_retries=3):
     """GPT API — source: https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/dall-e"""
     headers = {"Content-Type": "application/json", "api-key": GPT_API_KEY}
     payload = {"prompt": prompt, "n": 1, "size": "1024x1024", "quality": quality}
+    url = gpt_url(deployment)
     LAST_ATTEMPTS.clear()
     for attempt in range(max_retries):
         attempt_record = {**REQUEST_CONTEXT, "attempt": attempt + 1, "started_at_utc": utc_now(),
                           "request": payload, "ok": False}
         try:
             start = time.time()
-            r = requests.post(GPT_URL, headers=headers, json=payload, timeout=300)
+            r = requests.post(url, headers=headers, json=payload, timeout=300)
             elapsed = time.time() - start
             attempt_record.update({"http_status": r.status_code, "request_seconds": elapsed,
                                    "response_received_at_utc": utc_now(),
@@ -227,18 +239,37 @@ def generate_gpt(prompt, quality, max_retries=3):
             record_attempt(attempt_record)
     return False, 0, None, {}
 
+def pace(group):
+    """Sleep just long enough to stay within RATE_PACING for this group's deployment; returns seconds waited."""
+    global LAST_PACING_WAIT
+    key = ("mai:" + str(group["model"])) if group["type"] == "mai" else ("gpt:" + str(group.get("model") or GPT_DEPLOYMENT))
+    history = PACING_HISTORY.setdefault(key, [])
+    now = time.monotonic()
+    history[:] = [started for started in history if now - started < RATE_PACING["window_seconds"]]
+    waited = 0.0
+    if len(history) >= RATE_PACING["max_requests"]:
+        waited = RATE_PACING["window_seconds"] - (now - history[0]) + 1.0
+        print(f" pacing {waited:.0f}s", end="", flush=True)
+        time.sleep(waited)
+    history.append(time.monotonic())
+    LAST_PACING_WAIT = waited
+    return waited
+
+
 def call_group(group, prompt, token):
     if group["type"] == "mai":
         return generate_mai(group["model"], prompt, token, web_grounding=group.get("web_grounding"))
     else:
-        return generate_gpt(prompt, group["quality"])
+        return generate_gpt(prompt, group["quality"], group.get("model"))
 
 def main():
     if any(group["type"] == "mai" for group in GROUPS) and ("<" in MAI_URL or not MAI_URL.startswith("https://")):
         raise SystemExit("Set MAI_ENDPOINT to the resource origin before running.")
     if any(group["type"] == "gpt" for group in GROUPS):
-        if "<" in GPT_URL or not GPT_URL.startswith("https://") or not GPT_API_KEY:
-            raise SystemExit("Set GPT_ENDPOINT, GPT_DEPLOYMENT and AZURE_OPENAI_API_KEY before running.")
+        if "<" in GPT_ENDPOINT or not GPT_ENDPOINT.startswith("https://") or not GPT_API_KEY:
+            raise SystemExit("Set GPT_ENDPOINT and AZURE_OPENAI_API_KEY before running.")
+        if any(group["type"] == "gpt" and "<" in (group.get("model") or GPT_DEPLOYMENT) for group in GROUPS):
+            raise SystemExit("Set GPT_DEPLOYMENT or pass --gpt-model before running.")
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print("=" * 75, flush=True)
     print("Image Benchmark (Latency + Tokens)", flush=True)
@@ -265,12 +296,13 @@ def main():
             "request_timeout_seconds": 180 if group["type"] == "mai" else 300,
             "api_version": GPT_API_VERSION if group["type"] == "gpt" else None,
             "endpoint_fingerprint": hashlib.sha256(
-                (MAI_URL if group["type"] == "mai" else GPT_URL).encode("utf-8")).hexdigest(),
+                (MAI_URL if group["type"] == "mai" else gpt_url(group.get("model"))).encode("utf-8")).hexdigest(),
         })
         if "web_grounding" in group:
             group_configs[-1].update({"web_grounding": group["web_grounding"], "auto_aspect_ratio": False})
     config = {"groups": [group["id"] for group in GROUPS], "rounds": 2,
               "resolution": "1024x1024", "inter_call_wait": INTER_CALL_WAIT,
+              "rate_pacing": dict(RATE_PACING),
               "prompts_sha256": hashlib.sha256(CSV_PATH.read_bytes()).hexdigest(),
               "formal_sample_count": len(prompts) * len(GROUPS) * 2,
               "group_configurations": group_configs,
@@ -316,6 +348,7 @@ def main():
         REQUEST_CONTEXT.update({"sample_id": "warmup-" + g["id"], "phase": "warmup", "group": g["id"]})
         checkpoint("WARMUP")
         print(f"  {g['id']}...", end="", flush=True)
+        pace(g)
         ok, t, warmup_image, ti = call_group(g, "blue circle", token)
         if ok and warmup_image:
             (OUT_BASE / ("warmup-" + g["id"] + ".png")).write_bytes(warmup_image)
@@ -354,6 +387,7 @@ def main():
                 RUN_RECORD["current_sample"] = dict(REQUEST_CONTEXT)
                 checkpoint("RUNNING")
                 print(f"    {gid}...", end="", flush=True)
+                pace(g)
                 sample_started_at = utc_now()
                 sample_started = time.perf_counter()
                 ok, elapsed, img, token_info = call_group(g, prompt, token)
@@ -379,6 +413,7 @@ def main():
                     "token_info": token_info,
                     "started_at_utc": sample_started_at, "ended_at_utc": utc_now(),
                     "logical_request_seconds": logical_seconds,
+                    "pacing_wait_seconds": LAST_PACING_WAIT,
                     "attempt_count": len(LAST_ATTEMPTS),
                     "first_attempt_ok": LAST_ATTEMPTS[0]["ok"] if LAST_ATTEMPTS else None,
                     "prompt_sha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
@@ -422,7 +457,8 @@ if __name__ == "__main__":
     parser.add_argument("--mai-web-grounding", choices=("off", "on", "both"),
                         help="Explicit MAI web grounding at fixed aspect ratio; omitted preserves the original request.")
     parser.add_argument("--prompts-csv", type=Path, help="Prompt CSV for an independent supplemental run.")
-    parser.add_argument("--gpt-model", help="Select this verified GPT image model using GPT_DEPLOYMENT.")
+    parser.add_argument("--gpt-model", action="append",
+                        help="Select this GPT image deployment; repeat the flag to interleave several deployments.")
     parser.add_argument("--gpt-quality", choices=("low", "medium", "high", "all"), default="medium")
     parser.add_argument("--output", type=Path, help="Directory for this independent measurement run.")
     parser.add_argument("--dry-run", action="store_true", help="Validate inputs without network calls.")
@@ -448,9 +484,9 @@ if __name__ == "__main__":
                            "quality": None})
     if options.gpt_model:
         qualities = ("low", "medium", "high") if options.gpt_quality == "all" else (options.gpt_quality,)
-        GROUPS.extend({"id": f"{options.gpt_model.lower()}-{quality}", "type": "gpt",
-                       "model": options.gpt_model, "quality": quality}
-                      for quality in qualities)
+        GROUPS.extend({"id": f"{model.lower()}-{quality}", "type": "gpt",
+                       "model": model, "quality": quality}
+                      for model in options.gpt_model for quality in qualities)
     if options.output:
         OUT_BASE = options.output.resolve()
         RESULTS_JSON = OUT_BASE / "5way_v2_results.json"

@@ -12,6 +12,40 @@ from summarize_mai_run import digest, latency_statistics
 
 
 GROUPS = ("mai-image-2.6", "gpt-image-2-low", "gpt-image-2-medium", "gpt-image-2-high")
+GPT_QUALITIES = ("low", "medium", "high")
+
+
+def expected_request_for(configuration, prompt):
+    """The exact request body the frozen runner sends for this configuration."""
+    if configuration["provider"] == "mai":
+        return {"model": configuration["model"], "prompt": prompt, "width": 1024, "height": 1024}
+    return {"prompt": prompt, "n": 1, "size": "1024x1024", "quality": configuration["quality"]}
+
+
+def output_token_key(configuration):
+    return "num_output_tokens" if configuration["provider"] == "mai" else "output_tokens"
+
+
+def load_configurations(config):
+    """Ordered group configurations, validated against the frozen id/provider/model/quality contract."""
+    groups = tuple(config["groups"])
+    configurations = config["group_configurations"]
+    if not groups or len(configurations) != len(groups) or [item["id"] for item in configurations] != list(groups):
+        raise ValueError("Configuration identities are missing or duplicated")
+    by_id = {}
+    for item in configurations:
+        provider, model, quality = item["provider"], item["model"], item["quality"]
+        if provider == "mai":
+            valid = quality is None and isinstance(model, str) and model.lower() == item["id"]
+        elif provider == "gpt":
+            valid = (quality in GPT_QUALITIES and isinstance(model, str)
+                     and item["id"] == f"{model.lower()}-{quality}")
+        else:
+            valid = False
+        if not valid or item["deployment_sku"] != "GlobalStandard":
+            raise ValueError("Configuration provider/model/quality/SKU differs from the measured matrix")
+        by_id[item["id"]] = item
+    return groups, by_id
 
 
 def token_count(value):
@@ -45,7 +79,7 @@ def validate_image(directory, relative_path, expected_hash):
     return {"path": relative_path, "bytes": len(content), "sha256": expected_hash}
 
 
-def validate_attempts(directory, matching, group, prompt, expected_count, expected_success):
+def validate_attempts(directory, matching, configuration, prompt, expected_count, expected_success):
     if not matching or len(matching) != expected_count or len(matching) > 3:
         raise ValueError("Attempt count does not reconcile")
     if [attempt["attempt"] for attempt in matching] != list(range(1, len(matching) + 1)):
@@ -54,9 +88,7 @@ def validate_attempts(directory, matching, group, prompt, expected_count, expect
         raise ValueError("Logical result and attempt outcomes disagree")
     if any(attempt["ok"] for attempt in matching[:-1]) or matching[-1]["ok"] is not expected_success:
         raise ValueError("The retry sequence must end immediately after success")
-    expected_request = ({"model": "MAI-Image-2.6", "prompt": prompt, "width": 1024, "height": 1024}
-                        if group == GROUPS[0] else
-                        {"prompt": prompt, "n": 1, "size": "1024x1024", "quality": group.removeprefix("gpt-image-2-")})
+    expected_request = expected_request_for(configuration, prompt)
     for attempt in matching:
         if attempt["request"] != expected_request:
             raise ValueError("Recorded request differs from the frozen model/quality/resolution contract")
@@ -80,10 +112,11 @@ def summarize(run_directory, prompts_path):
     if result["state"] not in {"COMPLETED", "COMPLETED_WITH_FAILURES"}:
         raise ValueError("The paired run has not reached a terminal state")
     config = result["config"]
-    if tuple(config["groups"]) != GROUPS or config["rounds"] != 2 or config["resolution"] != "1024x1024":
-        raise ValueError("This summary requires the four frozen model/quality configurations")
+    if config["rounds"] != 2 or config["resolution"] != "1024x1024":
+        raise ValueError("This summary requires the two-round 1024x1024 procedure")
     if config["concurrency"] != 1 or config["inter_call_wait"] != 5:
         raise ValueError("The measurement schedule differs from the original serial procedure")
+    groups, configurations_by_id = load_configurations(config)
     if digest(prompts_path) != config["prompts_sha256"]:
         raise ValueError("Prompt source differs from the measured source")
     validate_source_snapshot(run_directory, result)
@@ -98,22 +131,12 @@ def summarize(run_directory, prompts_path):
     expected_order = [(round_number, prompt_index, group)
                       for round_number in (1, 2)
                       for prompt_index in range(1, len(prompts) + 1)
-                      for group in (GROUPS if round_number == 1 else tuple(reversed(GROUPS)))]
+                      for group in (groups if round_number == 1 else tuple(reversed(groups)))]
     rows = result["raw_data"]
     actual_order = [(row["round"], row["prompt_idx"], row["group"]) for row in rows]
     if actual_order != expected_order or len(rows) != config["formal_sample_count"]:
-        raise ValueError("Formal samples do not match the complete ordered 88-sample matrix")
-    expected_quality = {group: None if group == GROUPS[0] else group.removeprefix("gpt-image-2-") for group in GROUPS}
-    configurations = config["group_configurations"]
-    if len(configurations) != len(GROUPS) or [item["id"] for item in configurations] != list(GROUPS):
-        raise ValueError("Configuration identities are missing or duplicated")
-    for item in configurations:
-        is_mai = item["id"] == GROUPS[0]
-        if (item["quality"] != expected_quality[item["id"]]
-                or item["provider"] != ("mai" if is_mai else "gpt")
-                or item["model"] != ("MAI-Image-2.6" if is_mai else "gpt-image-2")
-                or item["deployment_sku"] != "GlobalStandard"):
-            raise ValueError("Configuration provider/model/quality/SKU differs from the measured matrix")
+        raise ValueError(f"Formal samples do not match the complete ordered {len(expected_order)}-sample matrix")
+    expected_quality = {group: configurations_by_id[group]["quality"] for group in groups}
     attempts_path = run_directory / "attempts.jsonl"
     attempts = [json.loads(line) for line in attempts_path.read_text("utf-8").splitlines() if line]
     formal_attempts = [attempt for attempt in attempts if attempt["phase"] == "formal"]
@@ -132,7 +155,8 @@ def summarize(run_directory, prompts_path):
         matching = [attempt for attempt in formal_attempts if
                     (attempt["round"], attempt["prompt_idx"], attempt["group"]) ==
                     (row["round"], row["prompt_idx"], row["group"])]
-        succeeded = validate_attempts(run_directory, matching, row["group"], prompt, row["attempt_count"], row["ok"])
+        succeeded = validate_attempts(run_directory, matching, configurations_by_id[row["group"]], prompt,
+                                      row["attempt_count"], row["ok"])
         if row["first_attempt_ok"] is not matching[0]["ok"]:
             raise ValueError("First-attempt outcome does not reconcile")
         if not token_count(row["time"]) or not token_count(row["logical_request_seconds"]):
@@ -154,11 +178,15 @@ def summarize(run_directory, prompts_path):
               or row["size_bytes"] != 0 or row["time"] != 0):
             raise ValueError("A failed sample cannot contain inferred output or usage")
     warmups = result["warmup"]
-    if [row["group"] for row in warmups] != list(GROUPS) or not all(row["ok"] for row in warmups):
+    successful_warmups = [row for row in warmups if row["ok"]]
+    if [row["group"] for row in successful_warmups] != list(groups):
         raise ValueError("Exactly one successful warmup per configuration is required")
-    for row in warmups:
-        matching = [attempt for attempt in warmup_attempts if attempt["group"] == row["group"]]
-        succeeded = validate_attempts(run_directory, matching, row["group"], "blue circle", row["attempt_count"], True)
+    for row in successful_warmups:
+        # A warmup that failed its whole retry budget is kept as its own record; only the successful
+        # warmup's attempts are reconciled here.
+        matching = [attempt for attempt in warmup_attempts if attempt["group"] == row["group"]][-row["attempt_count"]:]
+        succeeded = validate_attempts(run_directory, matching, configurations_by_id[row["group"]], "blue circle",
+                                      row["attempt_count"], True)
         metadata = json.loads((run_directory / succeeded["response_metadata"]).read_text("utf-8"))
         if row["token_info"].get("usage") != metadata.get("usage") or row["time"] != succeeded["request_seconds"]:
             raise ValueError("Warmup usage or duration differs from its original response")
@@ -166,11 +194,12 @@ def summarize(run_directory, prompts_path):
     if sum(row["attempt_count"] for row in warmups) != len(warmup_attempts):
         raise ValueError("Warmup attempt count does not reconcile")
     metrics = []
-    for group in GROUPS:
+    for group in groups:
         group_rows = [row for row in rows if row["group"] == group]
         successful = [row for row in group_rows if row["ok"]]
         group_attempts = [attempt for attempt in formal_attempts if attempt["group"] == group]
-        configuration = next(item for item in config["group_configurations"] if item["id"] == group)
+        configuration = configurations_by_id[group]
+        token_key = output_token_key(configuration)
         metrics.append({"group": group, "configuration": configuration, "planned_samples": len(group_rows),
                         "successful_samples": len(successful), "failed_samples": len(group_rows) - len(successful),
                         "first_attempt_successful_samples": sum(row["first_attempt_ok"] for row in group_rows),
@@ -181,9 +210,8 @@ def summarize(run_directory, prompts_path):
                         "successful_request_latency": latency_statistics([row["time"] for row in successful]),
                         "logical_request_latency_all_samples": latency_statistics([row["logical_request_seconds"] for row in group_rows]),
                         "mean_image_kib": statistics.mean(row["size_bytes"] / 1024 for row in successful) if successful else None,
-                        "returned_output_tokens": sorted(set(row["token_info"].get("usage", {}).get(
-                            "num_output_tokens" if group == GROUPS[0] else "output_tokens") for row in successful
-                            if row["token_info"].get("usage", {}).get("num_output_tokens" if group == GROUPS[0] else "output_tokens") is not None)),
+                        "returned_output_tokens": sorted(set(row["token_info"].get("usage", {}).get(token_key) for row in successful
+                            if row["token_info"].get("usage", {}).get(token_key) is not None)),
                         "per_round": [{"round": round_number, "latency": latency_statistics(
                             [row["time"] for row in successful if row["round"] == round_number])} for round_number in (1, 2)]})
     formal_start = min(datetime.fromisoformat(row["started_at_utc"]) for row in rows)
@@ -202,7 +230,7 @@ def summarize(run_directory, prompts_path):
                        for row in rows if row["prompt_idx"] == prompt_index and row["group"] == group],
                        "latency": latency_statistics([row["time"] for row in rows
                            if row["prompt_idx"] == prompt_index and row["group"] == group and row["ok"]])}
-                       for group in GROUPS]} for prompt_index, prompt in enumerate(prompts, 1)]
+                       for group in groups]} for prompt_index, prompt in enumerate(prompts, 1)]
     return {"run_id": run_directory.name, "validation_status": "PASS", "state": result["state"],
             "result_sha256": digest(result_path), "attempts_sha256": digest(attempts_path),
             "prompts_sha256": digest(prompts_path), "script_sha256": result["script_sha256"],

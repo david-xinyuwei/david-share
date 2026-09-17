@@ -1,8 +1,8 @@
-# MAI-Image-2.6 与 GPT-Image-2：全质量档位图像生成对比
+# MAI-Image-2.6 与 GPT-Image-2 / 2.5：全质量档位图像生成对比
 
-[![Models](https://img.shields.io/badge/Models-MAI--Image--2.6%20vs%20GPT--Image--2-0067b8)](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image) [![Samples](https://img.shields.io/badge/Samples-87%2F88%20returned-2e7d32)](data/paired-all-quality-20260907/5way_v2_results.json) ![Resolution](https://img.shields.io/badge/Resolution-1024%C3%971024-455a64) ![MAI version](https://img.shields.io/badge/MAI%20version-2026--07--31-6a1b9a) [![Status](https://img.shields.io/badge/Status-Preview%20%C2%B7%20no%20SLA-b26500)](https://azure.microsoft.com/support/legal/preview-supplemental-terms/) [![Tests](https://img.shields.io/badge/Tests-61%20offline-00695c)](tests)
+[![Models](https://img.shields.io/badge/Models-MAI--Image--2.6%20vs%20GPT--Image--2%20%2F%202.5-0067b8)](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image) [![Samples](https://img.shields.io/badge/Samples-87%2F88%20%2B%20132%2F132%20returned-2e7d32)](data/paired-all-quality-20260907/5way_v2_results.json) ![Resolution](https://img.shields.io/badge/Resolution-1024%C3%971024-455a64) ![MAI version](https://img.shields.io/badge/MAI%20version-2026--07--31-6a1b9a) [![Status](https://img.shields.io/badge/Status-Preview%20%C2%B7%20no%20SLA-b26500)](https://azure.microsoft.com/support/legal/preview-supplemental-terms/) [![Tests](https://img.shields.io/badge/Tests-61%20offline-00695c)](tests)
 
-同一台客户端交替调用 MAI-Image-2.6 与 GPT-Image-2 的 low、medium、high 三档，11 个文生图场景各两轮，共 88 个正式样本，保留全部原图、逐次请求记录与失败样本。另有联网信息补充（`web_grounding`）与单图编辑两项能力实测。所有画面判断为非盲评的差异描述，不产出质量评分或偏好胜负。
+同一台客户端交替调用 MAI-Image-2.6 与 GPT-Image-2 的 low、medium、high 三档，11 个文生图场景各两轮，共 88 个正式样本，保留全部原图、逐次请求记录与失败样本。另有联网信息补充（`web_grounding`）与单图编辑两项能力实测。所有画面判断为非盲评的差异描述，不产出质量评分或偏好胜负。 2026-09-17 另用同一客户端、同一份提示词补测了 GPT-Image-2.5 Flare 与 Sunburst 各三档，共 132 个正式样本，并入同一套图片、耗时与 token 表。
 
 > **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
 
@@ -14,13 +14,15 @@
 
 ## MAI-Image-2.6 在本轮中体现的能力
 
-以下三条都只依据本仓库的实测记录，`MAI-Image-2.6` 处于 Preview，无 SLA。
+以下四条都只依据本仓库的实测记录，`MAI-Image-2.6` 处于 Preview，无 SLA。
 
 1. **11 个场景与 GPT-Image-2 三档并排可比。** 本轮 87/88 个正式样本返回图片，两轮结果和原图全部保留在下方，可以逐题自行比较画面。逐图观察为非盲评的差异描述，没有评出优劣胜负，因此本文不声称画质优于或等同 GPT-Image-2。
 
-2. **在对称的 `size=auto` 协议下，四个配置都完成了局部编辑。** 第 12 题只要求把头饰换成博士帽；MAI 与 GPT 三档两轮都换上了帽子，并让人脸、龙袍、侍卫、标题印章和原图宽高比保持在位且可辨，清单均为 5/5。标题字形与输出分辨率仍有差异，逐图记录和第一次方图协议的更正见第 12 题。
+2. **每张 1024×1024 图的 output token：MAI-Image-2.6 固定 1,024，介于 GPT-Image-2 low（196）与 medium（1,756）之间，是 high（7,024）的 15%。** 数值全部取自接口返回的 usage，每组所有成功样本完全一致。token 不是金额，两家的费率不同，本仓库不计价；GPT 的档位也不对应 MAI 的任何质量设置。 GPT-Image-2.5 的 low / medium / high 为：GPT-Image-2.5 Flare 196 / 439 / 1,756；GPT-Image-2.5 Sunburst 196 / 439 / 1,756，来自 2026-09-17 的补测。
 
-3. **`web_grounding=true` 可以在生成时补充联网信息。** 开启后模型会从 Bing Search 检索当前信息作为额外上下文，实测让两个题目的产品文字事实从错误变为与官方发布一致；代价是首试成功率下降、耗时明显上升。这与视觉领域的 dense grounding（密集视觉定位）不是同一件事。
+3. **在对称的 `size=auto` 协议下，四个配置都完成了局部编辑。** 第 12 题只要求把头饰换成博士帽；MAI 与 GPT 三档两轮都换上了帽子，并让人脸、龙袍、侍卫、标题印章和原图宽高比保持在位且可辨，清单均为 5/5。标题字形与输出分辨率仍有差异，逐图记录和第一次方图协议的更正见第 12 题。
+
+4. **`web_grounding=true` 可以在生成时补充联网信息。** 开启后模型会从 Bing Search 检索当前信息作为额外上下文，实测让两个题目的产品文字事实从错误变为与官方发布一致；代价是首试成功率下降、耗时明显上升。这与视觉领域的 dense grounding（密集视觉定位）不是同一件事。
 
 ### 厂商公布的性能图表与本轮实测的关系
 
@@ -56,7 +58,7 @@
 
 ## 并排图片对比
 
-第 1–11 题为文生图，每个场景、每一轮只展示 MAI-Image-2.6 与 GPT-Image-2 low、medium、high。图片来自本次四组测试，未返回图片的格子保留失败说明。点击图片查看原始 1024x1024 PNG。第 12 题为图像编辑，输入为一张真实照片。
+第 1–11 题为文生图。每个场景每一轮有两行图：第一行是 2026-09-07 测的 MAI-Image-2.6 与 GPT-Image-2 low、medium、high；第二行是 2026-09-17 用同一客户端、同一提示词补测的 GPT-Image-2.5 Flare 与 Sunburst 各三档，部署在 swedencentral。两行不是同一时段，图下的耗时要连带日期看。未返回图片的格子保留失败说明。点击图片查看原始 1024x1024 PNG。第 12 题为图像编辑，输入为一张真实照片，没有 2.5 的结果。
 
 ### Test 1: 金属和服少女
 
@@ -69,12 +71,22 @@
 | ![MAI-Image-2.6, prompt 1, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/01_test.png) | ![GPT-Image-2 low, prompt 1, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/01_test.png) | ![GPT-Image-2 medium, prompt 1, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/01_test.png) | 未返回图片 |
 | 38.82 s<br>1856 KiB | 51.44 s<br>1636 KiB | 78.13 s<br>1504 KiB | 3 次尝试；任务耗时 322.06 s |
 
+| GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Sunburst low | GPT-Image-2.5 Sunburst medium | GPT-Image-2.5 Sunburst high |
+| --- | --- | --- | --- | --- | --- |
+| ![GPT-Image-2.5 Flare low, prompt 1, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/01_test.png) | ![GPT-Image-2.5 Flare medium, prompt 1, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-medium/r1/01_test.png) | ![GPT-Image-2.5 Flare high, prompt 1, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-high/r1/01_test.png) | ![GPT-Image-2.5 Sunburst low, prompt 1, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-low/r1/01_test.png) | ![GPT-Image-2.5 Sunburst medium, prompt 1, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-medium/r1/01_test.png) | ![GPT-Image-2.5 Sunburst high, prompt 1, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-high/r1/01_test.png) |
+| 21.93 s<br>1631 KiB | 21.65 s<br>1652 KiB | 39.92 s<br>1661 KiB | 33.75 s<br>1665 KiB | 39.18 s<br>1738 KiB | 79.29 s<br>1668 KiB |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
 | --- | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 1, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/01_test.png) | ![GPT-Image-2 low, prompt 1, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/01_test.png) | ![GPT-Image-2 medium, prompt 1, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/01_test.png) | ![GPT-Image-2 high, prompt 1, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/01_test.png) |
 | 33.96 s<br>1699 KiB | 26.25 s<br>1641 KiB | 63.52 s<br>1704 KiB | 182.78 s<br>1531 KiB |
+
+| GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Sunburst low | GPT-Image-2.5 Sunburst medium | GPT-Image-2.5 Sunburst high |
+| --- | --- | --- | --- | --- | --- |
+| ![GPT-Image-2.5 Flare low, prompt 1, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/01_test.png) | ![GPT-Image-2.5 Flare medium, prompt 1, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-medium/r2/01_test.png) | ![GPT-Image-2.5 Flare high, prompt 1, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-high/r2/01_test.png) | ![GPT-Image-2.5 Sunburst low, prompt 1, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-low/r2/01_test.png) | ![GPT-Image-2.5 Sunburst medium, prompt 1, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-medium/r2/01_test.png) | ![GPT-Image-2.5 Sunburst high, prompt 1, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-high/r2/01_test.png) |
+| 17.66 s<br>1546 KiB | 22.85 s<br>1614 KiB | 30.23 s<br>1780 KiB | 30.74 s<br>1566 KiB | 40.55 s<br>1704 KiB | 75.43 s<br>1608 KiB |
 
 ### Test 2: 森林传送门
 
@@ -87,12 +99,22 @@
 | ![MAI-Image-2.6, prompt 2, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/02_test.png) | ![GPT-Image-2 low, prompt 2, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/02_test.png) | ![GPT-Image-2 medium, prompt 2, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/02_test.png) | ![GPT-Image-2 high, prompt 2, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/02_test.png) |
 | 65.12 s<br>1676 KiB | 41.67 s<br>1438 KiB | 74.93 s<br>1477 KiB | 176.78 s<br>1727 KiB |
 
+| GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Sunburst low | GPT-Image-2.5 Sunburst medium | GPT-Image-2.5 Sunburst high |
+| --- | --- | --- | --- | --- | --- |
+| ![GPT-Image-2.5 Flare low, prompt 2, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/02_test.png) | ![GPT-Image-2.5 Flare medium, prompt 2, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-medium/r1/02_test.png) | ![GPT-Image-2.5 Flare high, prompt 2, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-high/r1/02_test.png) | ![GPT-Image-2.5 Sunburst low, prompt 2, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-low/r1/02_test.png) | ![GPT-Image-2.5 Sunburst medium, prompt 2, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-medium/r1/02_test.png) | ![GPT-Image-2.5 Sunburst high, prompt 2, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-high/r1/02_test.png) |
+| 20.45 s<br>1429 KiB | 20.34 s<br>1457 KiB | 32.41 s<br>1577 KiB | 34.85 s<br>1445 KiB | 37.45 s<br>1401 KiB | 79.97 s<br>1518 KiB |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
 | --- | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 2, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/02_test.png) | ![GPT-Image-2 low, prompt 2, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/02_test.png) | ![GPT-Image-2 medium, prompt 2, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/02_test.png) | ![GPT-Image-2 high, prompt 2, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/02_test.png) |
 | 37.43 s<br>1721 KiB | 28.50 s<br>1491 KiB | 60.23 s<br>1489 KiB | 170.60 s<br>1619 KiB |
+
+| GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Sunburst low | GPT-Image-2.5 Sunburst medium | GPT-Image-2.5 Sunburst high |
+| --- | --- | --- | --- | --- | --- |
+| ![GPT-Image-2.5 Flare low, prompt 2, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/02_test.png) | ![GPT-Image-2.5 Flare medium, prompt 2, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-medium/r2/02_test.png) | ![GPT-Image-2.5 Flare high, prompt 2, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-high/r2/02_test.png) | ![GPT-Image-2.5 Sunburst low, prompt 2, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-low/r2/02_test.png) | ![GPT-Image-2.5 Sunburst medium, prompt 2, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-medium/r2/02_test.png) | ![GPT-Image-2.5 Sunburst high, prompt 2, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-high/r2/02_test.png) |
+| 22.78 s<br>1401 KiB | 27.23 s<br>1499 KiB | 34.63 s<br>1525 KiB | 30.09 s<br>1506 KiB | 40.22 s<br>1569 KiB | 72.24 s<br>1380 KiB |
 
 ### Test 3: 月球宇航员
 
@@ -105,12 +127,22 @@
 | ![MAI-Image-2.6, prompt 3, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/03_test.png) | ![GPT-Image-2 low, prompt 3, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/03_test.png) | ![GPT-Image-2 medium, prompt 3, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/03_test.png) | ![GPT-Image-2 high, prompt 3, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/03_test.png) |
 | 32.29 s<br>1387 KiB | 82.39 s<br>1354 KiB | 68.42 s<br>1499 KiB | 170.29 s<br>1543 KiB |
 
+| GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Sunburst low | GPT-Image-2.5 Sunburst medium | GPT-Image-2.5 Sunburst high |
+| --- | --- | --- | --- | --- | --- |
+| ![GPT-Image-2.5 Flare low, prompt 3, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/03_test.png) | ![GPT-Image-2.5 Flare medium, prompt 3, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-medium/r1/03_test.png) | ![GPT-Image-2.5 Flare high, prompt 3, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-high/r1/03_test.png) | ![GPT-Image-2.5 Sunburst low, prompt 3, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-low/r1/03_test.png) | ![GPT-Image-2.5 Sunburst medium, prompt 3, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-medium/r1/03_test.png) | ![GPT-Image-2.5 Sunburst high, prompt 3, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-high/r1/03_test.png) |
+| 48.27 s<br>1596 KiB | 21.54 s<br>1499 KiB | 32.30 s<br>1520 KiB | 28.35 s<br>1436 KiB | 36.46 s<br>1410 KiB | 70.93 s<br>1434 KiB |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
 | --- | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 3, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/03_test.png) | ![GPT-Image-2 low, prompt 3, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/03_test.png) | ![GPT-Image-2 medium, prompt 3, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/03_test.png) | ![GPT-Image-2 high, prompt 3, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/03_test.png) |
 | 32.19 s<br>1539 KiB | 23.61 s<br>1295 KiB | 59.58 s<br>1428 KiB | 152.75 s<br>1457 KiB |
+
+| GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Sunburst low | GPT-Image-2.5 Sunburst medium | GPT-Image-2.5 Sunburst high |
+| --- | --- | --- | --- | --- | --- |
+| ![GPT-Image-2.5 Flare low, prompt 3, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/03_test.png) | ![GPT-Image-2.5 Flare medium, prompt 3, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-medium/r2/03_test.png) | ![GPT-Image-2.5 Flare high, prompt 3, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-high/r2/03_test.png) | ![GPT-Image-2.5 Sunburst low, prompt 3, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-low/r2/03_test.png) | ![GPT-Image-2.5 Sunburst medium, prompt 3, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-medium/r2/03_test.png) | ![GPT-Image-2.5 Sunburst high, prompt 3, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-high/r2/03_test.png) |
+| 20.04 s<br>1576 KiB | 22.78 s<br>1585 KiB | 33.99 s<br>1507 KiB | 33.48 s<br>1403 KiB | 36.23 s<br>1481 KiB | 74.38 s<br>1428 KiB |
 
 ### Test 4: LOTR 小红龙
 
@@ -123,12 +155,22 @@
 | ![MAI-Image-2.6, prompt 4, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/04_test.png) | ![GPT-Image-2 low, prompt 4, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/04_test.png) | ![GPT-Image-2 medium, prompt 4, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/04_test.png) | ![GPT-Image-2 high, prompt 4, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/04_test.png) |
 | 38.63 s<br>1589 KiB | 47.05 s<br>1382 KiB | 65.18 s<br>1457 KiB | 192.56 s<br>1443 KiB |
 
+| GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Sunburst low | GPT-Image-2.5 Sunburst medium | GPT-Image-2.5 Sunburst high |
+| --- | --- | --- | --- | --- | --- |
+| ![GPT-Image-2.5 Flare low, prompt 4, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/04_test.png) | ![GPT-Image-2.5 Flare medium, prompt 4, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-medium/r1/04_test.png) | ![GPT-Image-2.5 Flare high, prompt 4, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-high/r1/04_test.png) | ![GPT-Image-2.5 Sunburst low, prompt 4, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-low/r1/04_test.png) | ![GPT-Image-2.5 Sunburst medium, prompt 4, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-medium/r1/04_test.png) | ![GPT-Image-2.5 Sunburst high, prompt 4, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-high/r1/04_test.png) |
+| 22.31 s<br>1536 KiB | 18.22 s<br>1440 KiB | 31.36 s<br>1383 KiB | 26.78 s<br>1523 KiB | 43.88 s<br>1622 KiB | 81.83 s<br>1630 KiB |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
 | --- | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 4, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/04_test.png) | ![GPT-Image-2 low, prompt 4, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/04_test.png) | ![GPT-Image-2 medium, prompt 4, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/04_test.png) | ![GPT-Image-2 high, prompt 4, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/04_test.png) |
 | 34.69 s<br>1585 KiB | 23.98 s<br>1366 KiB | 59.51 s<br>1485 KiB | 171.26 s<br>1402 KiB |
+
+| GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Sunburst low | GPT-Image-2.5 Sunburst medium | GPT-Image-2.5 Sunburst high |
+| --- | --- | --- | --- | --- | --- |
+| ![GPT-Image-2.5 Flare low, prompt 4, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/04_test.png) | ![GPT-Image-2.5 Flare medium, prompt 4, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-medium/r2/04_test.png) | ![GPT-Image-2.5 Flare high, prompt 4, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-high/r2/04_test.png) | ![GPT-Image-2.5 Sunburst low, prompt 4, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-low/r2/04_test.png) | ![GPT-Image-2.5 Sunburst medium, prompt 4, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-medium/r2/04_test.png) | ![GPT-Image-2.5 Sunburst high, prompt 4, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-high/r2/04_test.png) |
+| 18.24 s<br>1381 KiB | 26.90 s<br>1432 KiB | 27.99 s<br>1404 KiB | 36.29 s<br>1557 KiB | 38.24 s<br>1647 KiB | 71.88 s<br>1613 KiB |
 
 ### Test 5: 梦幻生物
 
@@ -141,12 +183,22 @@
 | ![MAI-Image-2.6, prompt 5, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/05_test.png) | ![GPT-Image-2 low, prompt 5, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/05_test.png) | ![GPT-Image-2 medium, prompt 5, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/05_test.png) | ![GPT-Image-2 high, prompt 5, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/05_test.png) |
 | 60.09 s<br>1435 KiB | 29.09 s<br>1673 KiB | 69.86 s<br>1450 KiB | 187.57 s<br>1526 KiB |
 
+| GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Sunburst low | GPT-Image-2.5 Sunburst medium | GPT-Image-2.5 Sunburst high |
+| --- | --- | --- | --- | --- | --- |
+| ![GPT-Image-2.5 Flare low, prompt 5, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/05_test.png) | ![GPT-Image-2.5 Flare medium, prompt 5, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-medium/r1/05_test.png) | ![GPT-Image-2.5 Flare high, prompt 5, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-high/r1/05_test.png) | ![GPT-Image-2.5 Sunburst low, prompt 5, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-low/r1/05_test.png) | ![GPT-Image-2.5 Sunburst medium, prompt 5, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-medium/r1/05_test.png) | ![GPT-Image-2.5 Sunburst high, prompt 5, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-high/r1/05_test.png) |
+| 22.87 s<br>1484 KiB | 24.71 s<br>1635 KiB | 35.22 s<br>1601 KiB | 35.94 s<br>1676 KiB | 40.73 s<br>1685 KiB | 82.79 s<br>1768 KiB |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
 | --- | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 5, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/05_test.png) | ![GPT-Image-2 low, prompt 5, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/05_test.png) | ![GPT-Image-2 medium, prompt 5, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/05_test.png) | ![GPT-Image-2 high, prompt 5, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/05_test.png) |
 | 38.42 s<br>1417 KiB | 24.80 s<br>1622 KiB | 63.22 s<br>1437 KiB | 163.33 s<br>1586 KiB |
+
+| GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Sunburst low | GPT-Image-2.5 Sunburst medium | GPT-Image-2.5 Sunburst high |
+| --- | --- | --- | --- | --- | --- |
+| ![GPT-Image-2.5 Flare low, prompt 5, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/05_test.png) | ![GPT-Image-2.5 Flare medium, prompt 5, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-medium/r2/05_test.png) | ![GPT-Image-2.5 Flare high, prompt 5, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-high/r2/05_test.png) | ![GPT-Image-2.5 Sunburst low, prompt 5, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-low/r2/05_test.png) | ![GPT-Image-2.5 Sunburst medium, prompt 5, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-medium/r2/05_test.png) | ![GPT-Image-2.5 Sunburst high, prompt 5, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-high/r2/05_test.png) |
+| 26.37 s<br>1693 KiB | 25.03 s<br>1708 KiB | 30.08 s<br>1650 KiB | 33.82 s<br>1671 KiB | 48.76 s<br>1730 KiB | 78.02 s<br>1723 KiB |
 
 ### Test 6: 丛林天坑
 
@@ -159,12 +211,22 @@
 | ![MAI-Image-2.6, prompt 6, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/06_test.png) | ![GPT-Image-2 low, prompt 6, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/06_test.png) | ![GPT-Image-2 medium, prompt 6, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/06_test.png) | ![GPT-Image-2 high, prompt 6, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/06_test.png) |
 | 80.54 s<br>2149 KiB | 62.70 s<br>2088 KiB | 71.35 s<br>2110 KiB | 190.79 s<br>2024 KiB |
 
+| GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Sunburst low | GPT-Image-2.5 Sunburst medium | GPT-Image-2.5 Sunburst high |
+| --- | --- | --- | --- | --- | --- |
+| ![GPT-Image-2.5 Flare low, prompt 6, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/06_test.png) | ![GPT-Image-2.5 Flare medium, prompt 6, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-medium/r1/06_test.png) | ![GPT-Image-2.5 Flare high, prompt 6, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-high/r1/06_test.png) | ![GPT-Image-2.5 Sunburst low, prompt 6, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-low/r1/06_test.png) | ![GPT-Image-2.5 Sunburst medium, prompt 6, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-medium/r1/06_test.png) | ![GPT-Image-2.5 Sunburst high, prompt 6, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-high/r1/06_test.png) |
+| 20.62 s<br>2095 KiB | 23.65 s<br>2199 KiB | 29.70 s<br>2186 KiB | 31.22 s<br>2178 KiB | 41.48 s<br>2142 KiB | 72.25 s<br>2116 KiB |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
 | --- | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 6, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/06_test.png) | ![GPT-Image-2 low, prompt 6, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/06_test.png) | ![GPT-Image-2 medium, prompt 6, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/06_test.png) | ![GPT-Image-2 high, prompt 6, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/06_test.png) |
 | 32.25 s<br>2131 KiB | 35.88 s<br>2042 KiB | 65.19 s<br>2151 KiB | 185.09 s<br>1979 KiB |
+
+| GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Sunburst low | GPT-Image-2.5 Sunburst medium | GPT-Image-2.5 Sunburst high |
+| --- | --- | --- | --- | --- | --- |
+| ![GPT-Image-2.5 Flare low, prompt 6, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/06_test.png) | ![GPT-Image-2.5 Flare medium, prompt 6, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-medium/r2/06_test.png) | ![GPT-Image-2.5 Flare high, prompt 6, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-high/r2/06_test.png) | ![GPT-Image-2.5 Sunburst low, prompt 6, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-low/r2/06_test.png) | ![GPT-Image-2.5 Sunburst medium, prompt 6, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-medium/r2/06_test.png) | ![GPT-Image-2.5 Sunburst high, prompt 6, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-high/r2/06_test.png) |
+| 24.02 s<br>2151 KiB | 24.58 s<br>2188 KiB | 30.02 s<br>2193 KiB | 29.72 s<br>2084 KiB | 39.82 s<br>2205 KiB | 72.77 s<br>2163 KiB |
 
 ### Test 7: 科技少女
 
@@ -177,12 +239,22 @@
 | ![MAI-Image-2.6, prompt 7, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/07_test.png) | ![GPT-Image-2 low, prompt 7, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/07_test.png) | ![GPT-Image-2 medium, prompt 7, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/07_test.png) | ![GPT-Image-2 high, prompt 7, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/07_test.png) |
 | 54.92 s<br>1556 KiB | 33.29 s<br>1543 KiB | 67.74 s<br>1520 KiB | 177.19 s<br>1538 KiB |
 
+| GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Sunburst low | GPT-Image-2.5 Sunburst medium | GPT-Image-2.5 Sunburst high |
+| --- | --- | --- | --- | --- | --- |
+| ![GPT-Image-2.5 Flare low, prompt 7, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/07_test.png) | ![GPT-Image-2.5 Flare medium, prompt 7, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-medium/r1/07_test.png) | ![GPT-Image-2.5 Flare high, prompt 7, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-high/r1/07_test.png) | ![GPT-Image-2.5 Sunburst low, prompt 7, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-low/r1/07_test.png) | ![GPT-Image-2.5 Sunburst medium, prompt 7, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-medium/r1/07_test.png) | ![GPT-Image-2.5 Sunburst high, prompt 7, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-high/r1/07_test.png) |
+| 24.69 s<br>1587 KiB | 30.05 s<br>1572 KiB | 39.26 s<br>1578 KiB | 47.64 s<br>1567 KiB | 44.40 s<br>1529 KiB | 83.86 s<br>1448 KiB |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
 | --- | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 7, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/07_test.png) | ![GPT-Image-2 low, prompt 7, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/07_test.png) | ![GPT-Image-2 medium, prompt 7, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/07_test.png) | ![GPT-Image-2 high, prompt 7, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/07_test.png) |
 | 37.63 s<br>1495 KiB | 35.08 s<br>1548 KiB | 66.85 s<br>1529 KiB | 170.62 s<br>1648 KiB |
+
+| GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Sunburst low | GPT-Image-2.5 Sunburst medium | GPT-Image-2.5 Sunburst high |
+| --- | --- | --- | --- | --- | --- |
+| ![GPT-Image-2.5 Flare low, prompt 7, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/07_test.png) | ![GPT-Image-2.5 Flare medium, prompt 7, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-medium/r2/07_test.png) | ![GPT-Image-2.5 Flare high, prompt 7, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-high/r2/07_test.png) | ![GPT-Image-2.5 Sunburst low, prompt 7, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-low/r2/07_test.png) | ![GPT-Image-2.5 Sunburst medium, prompt 7, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-medium/r2/07_test.png) | ![GPT-Image-2.5 Sunburst high, prompt 7, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-high/r2/07_test.png) |
+| 23.76 s<br>1542 KiB | 26.14 s<br>1555 KiB | 36.52 s<br>1544 KiB | 42.77 s<br>1660 KiB | 47.67 s<br>1509 KiB | 89.34 s<br>1530 KiB |
 
 ### Test 8: 迷幻宇宙
 
@@ -195,12 +267,22 @@
 | ![MAI-Image-2.6, prompt 8, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/08_test.png) | ![GPT-Image-2 low, prompt 8, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/08_test.png) | ![GPT-Image-2 medium, prompt 8, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/08_test.png) | ![GPT-Image-2 high, prompt 8, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/08_test.png) |
 | 36.49 s<br>2305 KiB | 35.03 s<br>2175 KiB | 68.73 s<br>2270 KiB | 174.50 s<br>2250 KiB |
 
+| GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Sunburst low | GPT-Image-2.5 Sunburst medium | GPT-Image-2.5 Sunburst high |
+| --- | --- | --- | --- | --- | --- |
+| ![GPT-Image-2.5 Flare low, prompt 8, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/08_test.png) | ![GPT-Image-2.5 Flare medium, prompt 8, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-medium/r1/08_test.png) | ![GPT-Image-2.5 Flare high, prompt 8, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-high/r1/08_test.png) | ![GPT-Image-2.5 Sunburst low, prompt 8, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-low/r1/08_test.png) | ![GPT-Image-2.5 Sunburst medium, prompt 8, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-medium/r1/08_test.png) | ![GPT-Image-2.5 Sunburst high, prompt 8, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-high/r1/08_test.png) |
+| 21.65 s<br>2262 KiB | 23.34 s<br>2217 KiB | 30.04 s<br>2280 KiB | 37.12 s<br>2159 KiB | 43.32 s<br>2346 KiB | 78.61 s<br>2363 KiB |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
 | --- | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 8, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/08_test.png) | ![GPT-Image-2 low, prompt 8, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/08_test.png) | ![GPT-Image-2 medium, prompt 8, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/08_test.png) | ![GPT-Image-2 high, prompt 8, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/08_test.png) |
 | 106.81 s<br>2356 KiB | 99.08 s<br>2441 KiB | 72.83 s<br>2337 KiB | 215.09 s<br>2270 KiB |
+
+| GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Sunburst low | GPT-Image-2.5 Sunburst medium | GPT-Image-2.5 Sunburst high |
+| --- | --- | --- | --- | --- | --- |
+| ![GPT-Image-2.5 Flare low, prompt 8, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/08_test.png) | ![GPT-Image-2.5 Flare medium, prompt 8, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-medium/r2/08_test.png) | ![GPT-Image-2.5 Flare high, prompt 8, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-high/r2/08_test.png) | ![GPT-Image-2.5 Sunburst low, prompt 8, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-low/r2/08_test.png) | ![GPT-Image-2.5 Sunburst medium, prompt 8, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-medium/r2/08_test.png) | ![GPT-Image-2.5 Sunburst high, prompt 8, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-high/r2/08_test.png) |
+| 25.37 s<br>2217 KiB | 26.48 s<br>2253 KiB | 32.88 s<br>2246 KiB | 32.81 s<br>2265 KiB | 45.98 s<br>2401 KiB | 75.23 s<br>2334 KiB |
 
 ### Test 9: 分形生物
 
@@ -213,12 +295,22 @@
 | ![MAI-Image-2.6, prompt 9, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/09_test.png) | ![GPT-Image-2 low, prompt 9, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/09_test.png) | ![GPT-Image-2 medium, prompt 9, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/09_test.png) | ![GPT-Image-2 high, prompt 9, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/09_test.png) |
 | 49.96 s<br>1767 KiB | 37.29 s<br>1871 KiB | 61.67 s<br>1731 KiB | 169.84 s<br>1686 KiB |
 
+| GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Sunburst low | GPT-Image-2.5 Sunburst medium | GPT-Image-2.5 Sunburst high |
+| --- | --- | --- | --- | --- | --- |
+| ![GPT-Image-2.5 Flare low, prompt 9, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/09_test.png) | ![GPT-Image-2.5 Flare medium, prompt 9, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-medium/r1/09_test.png) | ![GPT-Image-2.5 Flare high, prompt 9, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-high/r1/09_test.png) | ![GPT-Image-2.5 Sunburst low, prompt 9, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-low/r1/09_test.png) | ![GPT-Image-2.5 Sunburst medium, prompt 9, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-medium/r1/09_test.png) | ![GPT-Image-2.5 Sunburst high, prompt 9, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-high/r1/09_test.png) |
+| 21.77 s<br>1581 KiB | 23.08 s<br>1833 KiB | 29.63 s<br>1805 KiB | 26.27 s<br>1637 KiB | 51.02 s<br>1797 KiB | 76.49 s<br>1646 KiB |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
 | --- | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 9, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/09_test.png) | ![GPT-Image-2 low, prompt 9, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/09_test.png) | ![GPT-Image-2 medium, prompt 9, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/09_test.png) | ![GPT-Image-2 high, prompt 9, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/09_test.png) |
 | 41.92 s<br>1737 KiB | 25.10 s<br>1840 KiB | 60.62 s<br>1747 KiB | 241.38 s<br>1666 KiB |
+
+| GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Sunburst low | GPT-Image-2.5 Sunburst medium | GPT-Image-2.5 Sunburst high |
+| --- | --- | --- | --- | --- | --- |
+| ![GPT-Image-2.5 Flare low, prompt 9, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/09_test.png) | ![GPT-Image-2.5 Flare medium, prompt 9, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-medium/r2/09_test.png) | ![GPT-Image-2.5 Flare high, prompt 9, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-high/r2/09_test.png) | ![GPT-Image-2.5 Sunburst low, prompt 9, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-low/r2/09_test.png) | ![GPT-Image-2.5 Sunburst medium, prompt 9, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-medium/r2/09_test.png) | ![GPT-Image-2.5 Sunburst high, prompt 9, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-high/r2/09_test.png) |
+| 16.93 s<br>1761 KiB | 23.64 s<br>1689 KiB | 29.72 s<br>1622 KiB | 31.72 s<br>1763 KiB | 34.80 s<br>1551 KiB | 73.62 s<br>1526 KiB |
 
 ### Test 10: 愤怒猫鼓手
 
@@ -231,12 +323,22 @@
 | ![MAI-Image-2.6, prompt 10, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/10_test.png) | ![GPT-Image-2 low, prompt 10, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/10_test.png) | ![GPT-Image-2 medium, prompt 10, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/10_test.png) | ![GPT-Image-2 high, prompt 10, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/10_test.png) |
 | 32.92 s<br>1606 KiB | 28.74 s<br>1460 KiB | 57.93 s<br>1603 KiB | 139.24 s<br>1511 KiB |
 
+| GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Sunburst low | GPT-Image-2.5 Sunburst medium | GPT-Image-2.5 Sunburst high |
+| --- | --- | --- | --- | --- | --- |
+| ![GPT-Image-2.5 Flare low, prompt 10, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/10_test.png) | ![GPT-Image-2.5 Flare medium, prompt 10, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-medium/r1/10_test.png) | ![GPT-Image-2.5 Flare high, prompt 10, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-high/r1/10_test.png) | ![GPT-Image-2.5 Sunburst low, prompt 10, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-low/r1/10_test.png) | ![GPT-Image-2.5 Sunburst medium, prompt 10, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-medium/r1/10_test.png) | ![GPT-Image-2.5 Sunburst high, prompt 10, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-high/r1/10_test.png) |
+| 19.46 s<br>1587 KiB | 22.89 s<br>1490 KiB | 44.71 s<br>1399 KiB | 32.57 s<br>1519 KiB | 38.38 s<br>1511 KiB | 75.67 s<br>1486 KiB |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
 | --- | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 10, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/10_test.png) | ![GPT-Image-2 low, prompt 10, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/10_test.png) | ![GPT-Image-2 medium, prompt 10, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/10_test.png) | ![GPT-Image-2 high, prompt 10, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/10_test.png) |
 | 42.97 s<br>1652 KiB | 25.43 s<br>1611 KiB | 64.09 s<br>1581 KiB | 153.85 s<br>1592 KiB |
+
+| GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Sunburst low | GPT-Image-2.5 Sunburst medium | GPT-Image-2.5 Sunburst high |
+| --- | --- | --- | --- | --- | --- |
+| ![GPT-Image-2.5 Flare low, prompt 10, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/10_test.png) | ![GPT-Image-2.5 Flare medium, prompt 10, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-medium/r2/10_test.png) | ![GPT-Image-2.5 Flare high, prompt 10, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-high/r2/10_test.png) | ![GPT-Image-2.5 Sunburst low, prompt 10, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-low/r2/10_test.png) | ![GPT-Image-2.5 Sunburst medium, prompt 10, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-medium/r2/10_test.png) | ![GPT-Image-2.5 Sunburst high, prompt 10, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-high/r2/10_test.png) |
+| 24.01 s<br>1482 KiB | 28.90 s<br>1394 KiB | 39.20 s<br>1401 KiB | 31.10 s<br>1432 KiB | 42.36 s<br>1501 KiB | 70.54 s<br>1434 KiB |
 
 ### Test 11: 猴子音乐家
 
@@ -249,12 +351,22 @@
 | ![MAI-Image-2.6, prompt 11, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/11_test.png) | ![GPT-Image-2 low, prompt 11, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/11_test.png) | ![GPT-Image-2 medium, prompt 11, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/11_test.png) | ![GPT-Image-2 high, prompt 11, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/11_test.png) |
 | 33.49 s<br>1833 KiB | 27.58 s<br>1671 KiB | 56.04 s<br>1612 KiB | 140.32 s<br>1632 KiB |
 
+| GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Sunburst low | GPT-Image-2.5 Sunburst medium | GPT-Image-2.5 Sunburst high |
+| --- | --- | --- | --- | --- | --- |
+| ![GPT-Image-2.5 Flare low, prompt 11, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/11_test.png) | ![GPT-Image-2.5 Flare medium, prompt 11, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-medium/r1/11_test.png) | ![GPT-Image-2.5 Flare high, prompt 11, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-high/r1/11_test.png) | ![GPT-Image-2.5 Sunburst low, prompt 11, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-low/r1/11_test.png) | ![GPT-Image-2.5 Sunburst medium, prompt 11, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-medium/r1/11_test.png) | ![GPT-Image-2.5 Sunburst high, prompt 11, round 1](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-high/r1/11_test.png) |
+| 20.30 s<br>1682 KiB | 21.21 s<br>1654 KiB | 34.86 s<br>1531 KiB | 32.52 s<br>1670 KiB | 45.18 s<br>1715 KiB | 80.64 s<br>1563 KiB |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
 | --- | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 11, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/11_test.png) | ![GPT-Image-2 low, prompt 11, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/11_test.png) | ![GPT-Image-2 medium, prompt 11, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/11_test.png) | ![GPT-Image-2 high, prompt 11, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/11_test.png) |
 | 35.77 s<br>1725 KiB | 27.29 s<br>1615 KiB | 56.27 s<br>1541 KiB | 152.77 s<br>1715 KiB |
+
+| GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Sunburst low | GPT-Image-2.5 Sunburst medium | GPT-Image-2.5 Sunburst high |
+| --- | --- | --- | --- | --- | --- |
+| ![GPT-Image-2.5 Flare low, prompt 11, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/11_test.png) | ![GPT-Image-2.5 Flare medium, prompt 11, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-medium/r2/11_test.png) | ![GPT-Image-2.5 Flare high, prompt 11, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-high/r2/11_test.png) | ![GPT-Image-2.5 Sunburst low, prompt 11, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-low/r2/11_test.png) | ![GPT-Image-2.5 Sunburst medium, prompt 11, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-medium/r2/11_test.png) | ![GPT-Image-2.5 Sunburst high, prompt 11, round 2](data/gpt25-paired-20260917/gpt-image-2.5-sunburst-high/r2/11_test.png) |
+| 17.81 s<br>1624 KiB | 23.97 s<br>1538 KiB | 38.62 s<br>1549 KiB | 30.58 s<br>1545 KiB | 38.63 s<br>1728 KiB | 81.37 s<br>1609 KiB |
 
 ### Test 12: 换帽子（图像编辑）
 
@@ -346,22 +458,30 @@ MAI 走 `/mai/v1/images/edits`，GPT 走 `/openai/deployments/gpt-image-2/images
 
 [English](README.md) | [逐题图片](#并排图片对比) | [测量记录](data/paired-all-quality-20260907/5way_v2_results.json) | [指标](data/paired-all-quality-20260907/summary.json) | [请求记录](data/paired-all-quality-20260907/attempts.jsonl)
 
-**本轮 87/88 个正式样本返回图片，1 个未返回图片；另有 4 次预热，不计入正式分母。** 同一客户端交替调用，提示词、尺寸和轮数相同；部署区域不同，不能把端到端耗时差全部归因于模型。质量是非盲评的具体画面观察，不是官方 benchmark 分数、人类偏好胜率或生产可靠性证明。
+**本轮 87/88 个正式样本返回图片，1 个未返回图片；另有 4 次预热，不计入正式分母。 GPT-Image-2.5 补测 132/132 个正式样本返回图片，0 个未返回；预热 7 次，同样不计入分母。** 同一客户端交替调用，提示词、尺寸和轮数相同；部署区域不同，不能把端到端耗时差全部归因于模型。质量是非盲评的具体画面观察，不是官方 benchmark 分数、人类偏好胜率或生产可靠性证明。 GPT-Image-2.5 Flare 与 Sunburst 六列来自 2026-09-17 的独立运行：同一客户端、同一份提示词与同一个执行脚本，部署在 swedencentral（与 MAI 同区域）。它与前四列不是同一时段，跨列看耗时要连带日期和区域一起看；token 数由服务端计算，不受这两点影响。
 
 ### 测试口径
 
-| 配置 | 模型版本 | 质量参数 | 尺寸 | 区域 | 正式样本 |
-| --- | --- | --- | --- | --- | --- |
-| MAI-Image-2.6 | 2026-07-31 | 未传入 | 1024x1024 | swedencentral | 22 |
-| GPT-Image-2 low | 2026-04-21 | low | 1024x1024 | eastus2 | 22 |
-| GPT-Image-2 medium | 2026-04-21 | medium | 1024x1024 | eastus2 | 22 |
-| GPT-Image-2 high | 2026-04-21 | high | 1024x1024 | eastus2 | 22 |
+| 配置 | 模型版本 | 质量参数 | 尺寸 | 区域 | 正式样本 | 测量日期 |
+| --- | --- | --- | --- | --- | --- | --- |
+| MAI-Image-2.6 | 2026-07-31 | 未传入 | 1024x1024 | swedencentral | 22 | 2026-09-07 |
+| GPT-Image-2 low | 2026-04-21 | low | 1024x1024 | eastus2 | 22 | 2026-09-07 |
+| GPT-Image-2 medium | 2026-04-21 | medium | 1024x1024 | eastus2 | 22 | 2026-09-07 |
+| GPT-Image-2 high | 2026-04-21 | high | 1024x1024 | eastus2 | 22 | 2026-09-07 |
+| GPT-Image-2.5 Flare low | 2026-09-08 | low | 1024x1024 | swedencentral | 22 | 2026-09-17 |
+| GPT-Image-2.5 Flare medium | 2026-09-08 | medium | 1024x1024 | swedencentral | 22 | 2026-09-17 |
+| GPT-Image-2.5 Flare high | 2026-09-08 | high | 1024x1024 | swedencentral | 22 | 2026-09-17 |
+| GPT-Image-2.5 Sunburst low | 2026-09-08 | low | 1024x1024 | swedencentral | 22 | 2026-09-17 |
+| GPT-Image-2.5 Sunburst medium | 2026-09-08 | medium | 1024x1024 | swedencentral | 22 | 2026-09-17 |
+| GPT-Image-2.5 Sunburst high | 2026-09-08 | high | 1024x1024 | swedencentral | 22 | 2026-09-17 |
 
-输入是原报告同一份 11 题 CSV。每组先用 `blue circle` 预热一次；第一轮每题依次调用 MAI、GPT low、medium、high，第二轮反转。并发为 1，每次逻辑调用后间隔 5 秒，最多尝试 3 次，沿用原重试退避。两个 GlobalStandard 部署各配置每分钟 2 次请求；GPT 三档共享同一部署和限额。MAI 请求超时 180 秒，GPT 为 300 秒。
+输入是原报告同一份 11 题 CSV。每组先用 `blue circle` 预热一次；第一轮每题依次调用 MAI、GPT low、medium、high，第二轮反转。并发为 1，每次逻辑调用后间隔 5 秒，最多尝试 3 次，沿用原重试退避。两个 GlobalStandard 部署各配置每分钟 2 次请求；GPT 三档共享同一部署和限额。MAI 请求超时 180 秒，GPT 为 300 秒。 GPT-Image-2.5 补测另起一轮：Flare 与 Sunburst 各自一个 GlobalStandard 部署，每题依次 Flare low、medium、high、Sunburst low、medium、high，第二轮反转；并发、间隔、重试与超时与上述相同。因为 2.5 的 low/medium 约 15–20 秒就能返回，三档连续调用会在 60 秒内对同一部署发起第三次请求而触发自己的配额，所以这轮在计时区之外加了客户端限速：同一部署任意 60 秒内最多起请 2 次，等待时长逐样本记在 `pacing_wait_seconds`，不进入请求耗时。
 
 客户端: Windows-11-10.0.26200-SP0, ARM64, Python 3.13.15, requests 2.34.2.
 
 正式起止时间 (UTC): `2026-09-07T12:32:56.332837+00:00` to `2026-09-07T16:24:46.795573+00:00`. 正式窗口含等待: **13,910.46 s**. 四组合计观测完成速率: **0.38 张/分钟** (不是单模型或最大吞吐).
+
+GPT-Image-2.5 补测正式起止时间 (UTC): `2026-09-17T12:55:11.090492+00:00` to `2026-09-17T15:20:19.735788+00:00`. 正式窗口含等待: **8,708.65 s**.
 
 ### 调用链与计时边界
 
@@ -370,6 +490,8 @@ flowchart LR
     prompts["Original 11 prompts"] --> runner["Local Windows Python runner"]
     runner --> mai["MAI-Image-2.6 / Sweden Central"]
     runner --> gpt["GPT-Image-2 / East US 2 / low, medium, high"]
+    runner --> gpt25["GPT-Image-2.5 Flare + Sunburst / swedencentral / low, medium, high (2026-09-17)"]
+    gpt25 --> evidence
     mai --> evidence["PNG, usage, request IDs, timestamps, failures"]
     gpt --> evidence
     evidence --> summary["Offline validation and report"]
@@ -379,20 +501,20 @@ flowchart LR
 
 ### 耗时与请求成功情况
 
-| 指标 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
-| --- | --- | --- | --- | --- |
-| 成功 / 计划样本 | 22 / 22 | 22 / 22 | 22 / 22 | 21 / 22 |
-| 首试成功 / 计划样本 | 20 / 22 | 20 / 22 | 20 / 22 | 20 / 22 |
-| HTTP 尝试次数 / 429 | 24 / 0 | 24 / 0 | 24 / 0 | 25 / 0 |
-| 未成功的 HTTP 尝试 | 2 | 2 | 2 | 4 |
-| 未成功尝试累计耗时 (s) | 192.56 | 329.49 | 5,291.35 | 604.30 |
-| 平均请求耗时 (s) | 45.33 | 38.69 | 65.09 | 175.17 |
-| P50 / 描述性 P95 (s) | 38.03 / 79.77 | 31.19 / 81.41 | 64.64 / 74.82 | 171.26 / 215.09 |
-| 样本标准差 (s) | 18.56 | 19.69 | 6.01 | 23.51 |
-| 最小 / 最大请求耗时 (s) | 32.19 / 106.81 | 23.61 / 99.08 | 56.04 / 78.13 | 139.24 / 241.38 |
-| 第一轮 / 第二轮平均 (s) | 47.57 / 43.09 | 43.30 / 34.09 | 67.27 / 62.90 | 171.91 / 178.14 |
-| 全部样本平均任务耗时 (s) | 55.06 | 54.65 | 306.58 | 196.12 |
-| 成功图片平均大小 (KiB) | 1,737 | 1,673 | 1,666 | 1,683 |
+| 指标 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high | GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Sunburst low | GPT-Image-2.5 Sunburst medium | GPT-Image-2.5 Sunburst high |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 成功 / 计划样本 | 22 / 22 | 22 / 22 | 22 / 22 | 21 / 22 | 22 / 22 | 22 / 22 | 22 / 22 | 22 / 22 | 22 / 22 | 22 / 22 |
+| 首试成功 / 计划样本 | 20 / 22 | 20 / 22 | 20 / 22 | 20 / 22 | 21 / 22 | 22 / 22 | 20 / 22 | 22 / 22 | 22 / 22 | 22 / 22 |
+| HTTP 尝试次数 / 429 | 24 / 0 | 24 / 0 | 24 / 0 | 25 / 0 | 23 / 0 | 22 / 0 | 24 / 2 | 22 / 0 | 22 / 0 | 22 / 0 |
+| 未成功的 HTTP 尝试 | 2 | 2 | 2 | 4 | 1 | 0 | 2 | 0 | 0 | 0 |
+| 未成功尝试累计耗时 (s) | 192.56 | 329.49 | 5,291.35 | 604.30 | 2,829.85 | 0.00 | 6.57 | 0.00 | 0.00 | 0.00 |
+| 平均请求耗时 (s) | 45.33 | 38.69 | 65.09 | 175.17 | 22.79 | 24.05 | 33.79 | 33.19 | 41.58 | 77.14 |
+| P50 / 描述性 P95 (s) | 38.03 / 79.77 | 31.19 / 81.41 | 64.64 / 74.82 | 171.26 / 215.09 | 21.85 / 26.32 | 23.64 / 28.82 | 32.64 / 39.89 | 32.54 / 42.49 | 40.64 / 48.71 | 76.08 / 83.81 |
+| 样本标准差 (s) | 18.56 | 19.69 | 6.01 | 23.51 | 6.25 | 2.79 | 4.37 | 4.86 | 4.30 | 4.88 |
+| 最小 / 最大请求耗时 (s) | 32.19 / 106.81 | 23.61 / 99.08 | 56.04 / 78.13 | 139.24 / 241.38 | 16.93 / 48.27 | 18.22 / 30.05 | 27.99 / 44.71 | 26.27 / 47.64 | 34.80 / 51.02 | 70.54 / 89.34 |
+| 第一轮 / 第二轮平均 (s) | 47.57 / 43.09 | 43.30 / 34.09 | 67.27 / 62.90 | 171.91 / 178.14 | 24.03 / 21.54 | 22.79 / 25.32 | 34.49 / 33.08 | 33.36 / 33.01 | 41.95 / 41.21 | 78.39 / 75.89 |
+| 全部样本平均任务耗时 (s) | 55.06 | 54.65 | 306.58 | 196.12 | 151.93 | 24.13 | 34.72 | 33.24 | 41.63 | 77.19 |
+| 成功图片平均大小 (KiB) | 1,737 | 1,673 | 1,666 | 1,683 | 1,675 | 1,687 | 1,679 | 1,678 | 1,724 | 1,681 |
 
 请求耗时从 `requests.post` 调用前到完整 HTTP 响应返回，只统计有图片的成功尝试，不包含后续 JSON/base64 处理和文件写盘。任务耗时覆盖失败尝试、重试等待和响应处理，按全部计划样本统计。失败不以 0 秒进入速度平均值，也不从成功率分母删除。P95 为每组最多 22 个值的描述性线性插值，不是生产尾延迟保证。
 
@@ -412,6 +534,9 @@ flowchart LR
 | mai-image-2.6-r2-p08 | 1 | ReadTimeout | 192.56 | 2026-09-07T15:52:16.770891+00:00 | 2026-09-07T15:55:39.334382+00:00 |
 | gpt-image-2-medium-r2-p09 | 1 | ReadTimeout | 322.63 | 2026-09-07T16:01:37.758367+00:00 | 2026-09-07T16:07:10.387228+00:00 |
 | gpt-image-2-low-r2-p09 | 1 | ReadTimeout | 309.00 | 2026-09-07T16:08:16.133855+00:00 | 2026-09-07T16:13:35.129678+00:00 |
+| gpt-image-2.5-flare-low-r1-p03 | 1 | ConnectionError | 2,829.85 | 2026-09-17T13:04:10.443459+00:00 | 2026-09-17T13:51:30.305674+00:00 |
+| gpt-image-2.5-flare-high-r1-p03 | 1 | 429 | 3.28 | 2026-09-17T13:52:50.417450+00:00 | 2026-09-17T13:53:00.695202+00:00 |
+| gpt-image-2.5-flare-high-r1-p09 | 1 | 429 | 3.29 | 2026-09-17T14:19:57.895521+00:00 | 2026-09-17T14:20:07.190937+00:00 |
 
 ### Token 用量
 
@@ -421,6 +546,12 @@ flowchart LR
 | GPT-Image-2 low | 196 | 22/22 |
 | GPT-Image-2 medium | 1756 | 22/22 |
 | GPT-Image-2 high | 7024 | 21/22 |
+| GPT-Image-2.5 Flare low | 196 | 22/22 |
+| GPT-Image-2.5 Flare medium | 439 | 22/22 |
+| GPT-Image-2.5 Flare high | 1756 | 22/22 |
+| GPT-Image-2.5 Sunburst low | 196 | 22/22 |
+| GPT-Image-2.5 Sunburst medium | 439 | 22/22 |
+| GPT-Image-2.5 Sunburst high | 1756 | 22/22 |
 
 token 用量取自接口返回的 usage，不从模型或档位推算。没有返回值的样本不补零。输出 token 数和 PNG 文件大小都不能单独证明画质。
 
@@ -428,34 +559,34 @@ token 用量取自接口返回的 usage，不从模型或档位推算。没有�
 
 单位为秒；失败格对应原始请求记录，不用其他轮次替换。
 
-| 场景 / 轮次 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
-| --- | --- | --- | --- | --- |
-| 01 / R1 | 38.82 | 51.44 | 78.13 | 失败 |
-| 01 / R2 | 33.96 | 26.25 | 63.52 | 182.78 |
-| 02 / R1 | 65.12 | 41.67 | 74.93 | 176.78 |
-| 02 / R2 | 37.43 | 28.50 | 60.23 | 170.60 |
-| 03 / R1 | 32.29 | 82.39 | 68.42 | 170.29 |
-| 03 / R2 | 32.19 | 23.61 | 59.58 | 152.75 |
-| 04 / R1 | 38.63 | 47.05 | 65.18 | 192.56 |
-| 04 / R2 | 34.69 | 23.98 | 59.51 | 171.26 |
-| 05 / R1 | 60.09 | 29.09 | 69.86 | 187.57 |
-| 05 / R2 | 38.42 | 24.80 | 63.22 | 163.33 |
-| 06 / R1 | 80.54 | 62.70 | 71.35 | 190.79 |
-| 06 / R2 | 32.25 | 35.88 | 65.19 | 185.09 |
-| 07 / R1 | 54.92 | 33.29 | 67.74 | 177.19 |
-| 07 / R2 | 37.63 | 35.08 | 66.85 | 170.62 |
-| 08 / R1 | 36.49 | 35.03 | 68.73 | 174.50 |
-| 08 / R2 | 106.81 | 99.08 | 72.83 | 215.09 |
-| 09 / R1 | 49.96 | 37.29 | 61.67 | 169.84 |
-| 09 / R2 | 41.92 | 25.10 | 60.62 | 241.38 |
-| 10 / R1 | 32.92 | 28.74 | 57.93 | 139.24 |
-| 10 / R2 | 42.97 | 25.43 | 64.09 | 153.85 |
-| 11 / R1 | 33.49 | 27.58 | 56.04 | 140.32 |
-| 11 / R2 | 35.77 | 27.29 | 56.27 | 152.77 |
+| 场景 / 轮次 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high | GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Sunburst low | GPT-Image-2.5 Sunburst medium | GPT-Image-2.5 Sunburst high |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 01 / R1 | 38.82 | 51.44 | 78.13 | 失败 | 21.93 | 21.65 | 39.92 | 33.75 | 39.18 | 79.29 |
+| 01 / R2 | 33.96 | 26.25 | 63.52 | 182.78 | 17.66 | 22.85 | 30.23 | 30.74 | 40.55 | 75.43 |
+| 02 / R1 | 65.12 | 41.67 | 74.93 | 176.78 | 20.45 | 20.34 | 32.41 | 34.85 | 37.45 | 79.97 |
+| 02 / R2 | 37.43 | 28.50 | 60.23 | 170.60 | 22.78 | 27.23 | 34.63 | 30.09 | 40.22 | 72.24 |
+| 03 / R1 | 32.29 | 82.39 | 68.42 | 170.29 | 48.27 | 21.54 | 32.30 | 28.35 | 36.46 | 70.93 |
+| 03 / R2 | 32.19 | 23.61 | 59.58 | 152.75 | 20.04 | 22.78 | 33.99 | 33.48 | 36.23 | 74.38 |
+| 04 / R1 | 38.63 | 47.05 | 65.18 | 192.56 | 22.31 | 18.22 | 31.36 | 26.78 | 43.88 | 81.83 |
+| 04 / R2 | 34.69 | 23.98 | 59.51 | 171.26 | 18.24 | 26.90 | 27.99 | 36.29 | 38.24 | 71.88 |
+| 05 / R1 | 60.09 | 29.09 | 69.86 | 187.57 | 22.87 | 24.71 | 35.22 | 35.94 | 40.73 | 82.79 |
+| 05 / R2 | 38.42 | 24.80 | 63.22 | 163.33 | 26.37 | 25.03 | 30.08 | 33.82 | 48.76 | 78.02 |
+| 06 / R1 | 80.54 | 62.70 | 71.35 | 190.79 | 20.62 | 23.65 | 29.70 | 31.22 | 41.48 | 72.25 |
+| 06 / R2 | 32.25 | 35.88 | 65.19 | 185.09 | 24.02 | 24.58 | 30.02 | 29.72 | 39.82 | 72.77 |
+| 07 / R1 | 54.92 | 33.29 | 67.74 | 177.19 | 24.69 | 30.05 | 39.26 | 47.64 | 44.40 | 83.86 |
+| 07 / R2 | 37.63 | 35.08 | 66.85 | 170.62 | 23.76 | 26.14 | 36.52 | 42.77 | 47.67 | 89.34 |
+| 08 / R1 | 36.49 | 35.03 | 68.73 | 174.50 | 21.65 | 23.34 | 30.04 | 37.12 | 43.32 | 78.61 |
+| 08 / R2 | 106.81 | 99.08 | 72.83 | 215.09 | 25.37 | 26.48 | 32.88 | 32.81 | 45.98 | 75.23 |
+| 09 / R1 | 49.96 | 37.29 | 61.67 | 169.84 | 21.77 | 23.08 | 29.63 | 26.27 | 51.02 | 76.49 |
+| 09 / R2 | 41.92 | 25.10 | 60.62 | 241.38 | 16.93 | 23.64 | 29.72 | 31.72 | 34.80 | 73.62 |
+| 10 / R1 | 32.92 | 28.74 | 57.93 | 139.24 | 19.46 | 22.89 | 44.71 | 32.57 | 38.38 | 75.67 |
+| 10 / R2 | 42.97 | 25.43 | 64.09 | 153.85 | 24.01 | 28.90 | 39.20 | 31.10 | 42.36 | 70.54 |
+| 11 / R1 | 33.49 | 27.58 | 56.04 | 140.32 | 20.30 | 21.21 | 34.86 | 32.52 | 45.18 | 80.64 |
+| 11 / R2 | 35.77 | 27.29 | 56.27 | 152.77 | 17.81 | 23.97 | 38.62 | 30.58 | 38.63 | 81.37 |
 
 ### 逐场景画面观察
 
-先看可计数的结果，再读逐场景描述。下表统计本次观察记录中出现某类问题的场景数，是这次非盲评的措辞计数，不是模型的缺陷率，也不是质量评分。
+先看可计数的结果，再读逐场景描述。下表统计本次观察记录中出现某类问题的场景数，是这次非盲评的措辞计数，不是模型的缺陷率，也不是质量评分。 GPT-Image-2.5 的图片已在上方并排展示，但未纳入本节的画面观察计数；下表仍只覆盖前四个配置。
 
 | 观测项 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
 | --- | --- | --- | --- | --- |
@@ -482,7 +613,7 @@ token 用量取自接口返回的 usage，不从模型或档位推算。没有�
 
 ### 本轮实际接口设置
 
-| 接口项目 | MAI-Image-2.6 | GPT-Image-2 |
+| 接口项目 | MAI-Image-2.6 | GPT-Image-2 / 2.5 |
 | --- | --- | --- |
 | POST | `/mai/v1/images/generations` | `/openai/deployments/{deployment}/images/generations?api-version=2025-04-01-preview` |
 | Payload | `model`, `prompt`, `width=1024`, `height=1024` | `prompt`, `n=1`, `size=1024x1024`, `quality=low/medium/high` |
@@ -499,6 +630,7 @@ token 用量取自接口返回的 usage，不从模型或档位推算。没有�
 | 重跑 11 个文生图场景 | 步骤 3 | MAI + GPT / 会计费 | 88 个正式样本全部记录 |
 | 重跑联网信息补充测试 | 步骤 5 | MAI / 会计费 | 新目录包含开／关两轮结果 |
 | 重跑换帽图像编辑 | 步骤 6 | MAI + GPT / 会计费 | 两轮 8 张 PNG 通过 hash 检查 |
+| 重跑 GPT-Image-2.5 六档补测 | 步骤 7 | GPT-2.5 两个部署 / 会计费 | 132 个正式样本全部记录 |
 
 ### 1. 克隆并安装依赖
 
@@ -579,12 +711,26 @@ python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-20260909-auto/inp
 python scripts/run_edit_hat_swap.py --output runs/edit-hat-swap-reproduction --check
 ```
 
+### 7. 重跑 GPT-Image-2.5 六档补测
+
+这一步需要 `gpt-image-2.5-flare` 和 `gpt-image-2.5-sunburst` 两个部署，部署名就是模型名；`--gpt-model` 可重复传入，每个部署展开为 low、medium、high 三组。执行脚本对同一部署每 60 秒最多起请 2 次，与 2 RPM 的部署配额对齐；若你的配额更高，可以改 `RATE_PACING`。第一条只读核验已发布归档；后两条真实调用模型并写入新目录。
+
+```powershell
+python scripts/summarize_paired_run.py data/gpt25-paired-20260917
+$run = 'runs/gpt25-paired-new-run'
+New-Item -ItemType Directory -Path "$run/source" -ErrorAction Stop
+Copy-Item -LiteralPath scripts/benchmark_5way_v2.py -Destination "$run/source/benchmark_5way_v2.py"
+Copy-Item -LiteralPath prompts.csv -Destination "$run/source/prompts.csv"
+python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-model gpt-image-2.5-sunburst --gpt-quality all --output $run --warmup-only
+python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-model gpt-image-2.5-sunburst --gpt-quality all --output $run --resume
+```
+
 文生图执行脚本: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py); 改图执行脚本: [run_edit_hat_swap.py](scripts/run_edit_hat_swap.py); 离线汇总: [summarize_paired_run.py](scripts/summarize_paired_run.py); 报告生成: [render_paired_report.py](scripts/render_paired_report.py); 回归测试: [tests](tests).
 
 
 ### 结论边界
 
-本报告只对比 MAI-Image-2.6 与 GPT-Image-2 的 low、medium、high 三档。主要聚合统计来自 11 个 1024x1024 文生图场景；第 12 题是单独报告的 `size=auto` 图像编辑测试，不进入前 11 题的耗时与质量计数。本报告不覆盖 2K、多图参考、文字准确率专项、并发压测或其他认证方式。MAI 没有传质量参数，不能称为 GPT high 的等价档位。
+本报告对比 MAI-Image-2.6、GPT-Image-2 三档，以及 GPT-Image-2.5 Flare 与 Sunburst 各三档；2.5 另有 xhigh、max、auto 档，本轮没有测。主要聚合统计来自 11 个 1024x1024 文生图场景；第 12 题是单独报告的 `size=auto` 图像编辑测试，不进入前 11 题的耗时与质量计数，也没有 2.5 的编辑结果。本报告不覆盖 2K、多图参考、文字准确率专项、并发压测或其他认证方式。MAI 没有传质量参数，不能称为任何 GPT 档位的等价档。
 
 证据目录: [data/paired-all-quality-20260907](data/paired-all-quality-20260907). 包含原始图片、测量记录、逐次请求、响应元数据及删减后的公开源码副本。非财务测量字段和图片保持不变；原始执行哈希与公开文件哈希分别记录于 [来源说明](data/paired-all-quality-20260907/provenance.json). 提示词 SHA-256: `be3d628c66a1e4d535d06bcc84246a04aad11f35a48f3133d451fe86283782ce`.
 
