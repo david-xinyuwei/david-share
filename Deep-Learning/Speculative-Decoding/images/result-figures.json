@@ -1,3 +1,49 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:f1051a9fef2c51bfae28509986e4f71a30d30ba1c86393a405c3afbceadd0c03
-size 1720
+{
+  "figures": {
+    "accuracy-alignment-cn.png": {
+      "height": 960,
+      "sha256": "8ddb401db6ee8676269e3eb544befb09d4ecb66635d4b7883351f70ba99ed423",
+      "width": 2100
+    },
+    "accuracy-alignment-en.png": {
+      "height": 960,
+      "sha256": "4ddea30484a41461353354d7759e59c7f7c0c9d161fccef51d97600bfc266ce2",
+      "width": 2100
+    },
+    "finetuned-alignment-cn.png": {
+      "height": 930,
+      "sha256": "0eb85e98ca5c10002ce96dc6881934946041f8aee9835fd3197242521cac8807",
+      "width": 2100
+    },
+    "finetuned-alignment-en.png": {
+      "height": 930,
+      "sha256": "d4a4cc25bf72f03b74b17f35acd76eba2ef481752d9f3af4fa8ddf9314d2b48f",
+      "width": 2100
+    },
+    "finetuned-throughput-cn.png": {
+      "height": 990,
+      "sha256": "52afc028c34869bea6f2b1448aca7a24c1b7cc50319c36fdd56bf3aa11a69d9a",
+      "width": 2250
+    },
+    "finetuned-throughput-en.png": {
+      "height": 990,
+      "sha256": "edac42a161f89c0d2f16a900c31adcce8631b0125ad334dac1679df9df8af27d",
+      "width": 2250
+    },
+    "readapted-gain-cn.png": {
+      "height": 960,
+      "sha256": "2713b1877bd2470eba50af515e035f23b721033514eee82b5aed23d3e6646052",
+      "width": 2250
+    },
+    "readapted-gain-en.png": {
+      "height": 960,
+      "sha256": "276e7d75daf798df0add31abf1f71791f6a6a4a128653e40e3e0bc904352c0ad",
+      "width": 2250
+    }
+  },
+  "scope": "Rendered from the two published summary.json files only; no new measurement.",
+  "sources": {
+    "experiments/20260906-qwen38/data/summary.json": "b5ba463a0f65b870ed6db74090e973f4409c37c3d832d615565907032c96203d",
+    "experiments/20260909-drafter-adaptation/data/summary.json": "65c228f987d5a5b433f24b86e1562353369f5bb394bd41d461349034d7ca0b8f"
+  }
+}

@@ -1,0 +1,3 @@
+* -filter -text
+*.json diff merge=text
+*.png -diff

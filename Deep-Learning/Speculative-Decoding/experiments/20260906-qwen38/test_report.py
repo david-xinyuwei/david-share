@@ -230,6 +230,22 @@ class ReportIntegrityTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "RESULT_FIGURE_NOT_REFERENCED:readapted-gain-cn.png"):
             validate_report.verify_local_links(self.root)
 
+    def test_figure_assets_are_committed_as_real_bytes_not_lfs_pointers(self):
+        # 2026-09-18: the repository-level `*.json filter=lfs` rule turned images/result-figures.json into a
+        # 129-byte LFS pointer on GitHub while the working copy looked fine, so the live README could not be
+        # validated. Every reader-facing asset under images/ must be stored in git as its real content.
+        if shutil.which("git") is None or not (TOPIC.parent.parent / ".git").exists():
+            self.skipTest("git checkout not available")
+        for path in sorted((TOPIC / "images").iterdir()):
+            if path.name.startswith("."):
+                continue
+            with self.subTest(asset=path.name):
+                attributes = subprocess.run(["git", "check-attr", "filter", "--", path.relative_to(TOPIC.parent.parent).as_posix()],
+                                            cwd=TOPIC.parent.parent, capture_output=True, encoding="utf-8", check=True).stdout
+                self.assertNotRegex(attributes, r"filter:\s*lfs\s*$", f"{path.name} would be committed as an LFS pointer")
+                self.assertFalse(path.read_bytes().startswith(b"version https://git-lfs.github.com/spec/v1"),
+                                 f"{path.name} is an LFS pointer in the working copy")
+
     def test_previous_run_content_cannot_return_to_reader_pages(self):
         # Removed 2026-09-17: the Qwen3.6 / first-generation DFlash run is out of scope; only DFlash 2 remains.
         self.assertFalse((TOPIC / "experiments" / "20260905-quality").exists())
