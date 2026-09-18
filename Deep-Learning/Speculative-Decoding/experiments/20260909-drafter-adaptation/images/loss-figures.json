@@ -1,7 +1,18 @@
 {
   "aggregation": "Consecutive groups of 50 steps; final partial group retained.",
+  "architecture_scope": "Original explanatory diagram of the executed draft re-adaptation step: teacher, student, trainable parameters and gradient boundaries. Every label was checked against source/round4/train_drafter.py and the released draft config; it is not runtime evidence.",
   "diagram_scope": "Original explanatory diagram of the archived training workflow, not runtime evidence.",
   "figures": {
+    "training-architecture-cn.png": {
+      "height": 1290,
+      "sha256": "e5cef3f1fbbbeeb344ab806148256939103078e494797a7cc2c7e026dce80850",
+      "width": 1950
+    },
+    "training-architecture-en.png": {
+      "height": 1290,
+      "sha256": "4eff0236cc992fca83dbefa8f960949b65431f64ce304cfac3f33e80fa7a9638",
+      "width": 1950
+    },
     "training-flow-cn.png": {
       "height": 1620,
       "sha256": "e38552025918771b8b0ec851a4d1eb0d0aa3db798564aabd913a1f38da72e262",
@@ -25,6 +36,7 @@
   },
   "scope": "Four archived training runs; grouped loss means, not a quality comparison.",
   "sources": {
+    "images/training-architecture.json": "850d1cd780a123577d3e63d824832cfbb6bb0f99eb21a84be717c0e51a450660",
     "images/training-flow.json": "ce989c58bf81e1676a69dd9dbaa93661a2e4e61fcb9d1b723cd19fb4fb633a1c",
     "results/round3/training/drafter_v3_history.json": "42dd79c19b0ff1534df40cc50c874247a0261a01a06dc22108facbf05c924636",
     "results/round4/training/drafter_v3_seed1_history.json": "106ba669cc9df5516e16caee8526eda464b6d96087e38704c05cd5392063cb7f",

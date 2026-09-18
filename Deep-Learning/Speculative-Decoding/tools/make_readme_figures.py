@@ -133,6 +133,104 @@ def draw_adaptation_flow(flow, path, chinese):
     plt.close(figure)
 
 
+def _box(axis, x, y, w, h, text, face, edge, fontsize=11.5, weight="normal", color=TEXT, dashed=False, lw=1.3):
+    axis.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.004,rounding_size=0.012", facecolor=face,
+                                  edgecolor=edge, linewidth=lw, linestyle="--" if dashed else "-", zorder=2))
+    axis.text(x + w / 2, y + h / 2, text, ha="center", va="center", fontsize=fontsize, weight=weight, color=color,
+              linespacing=1.4, zorder=3)
+
+
+def _arrow(axis, xy_from, xy_to, color, text=None, lw=1.6, style="->", dashed=False, text_dx=0.0, text_dy=0.012, fontsize=9.5,
+           connection="arc3,rad=0"):
+    axis.annotate("", xy=xy_to, xytext=xy_from,
+                  arrowprops={"arrowstyle": style, "color": color, "lw": lw, "linestyle": "--" if dashed else "-",
+                              "connectionstyle": connection, "shrinkA": 0, "shrinkB": 0}, zorder=4)
+    if text:
+        mx, my = (xy_from[0] + xy_to[0]) / 2 + text_dx, (xy_from[1] + xy_to[1]) / 2 + text_dy
+        axis.text(mx, my, text, ha="center", va="bottom", fontsize=fontsize, color=color, zorder=5,
+                  bbox={"boxstyle": "round,pad=0.15", "facecolor": "white", "edgecolor": "none", "alpha": 0.92})
+
+
+def draw_adaptation_architecture(architecture, path, chinese):
+    """Figure: who is the teacher, what is the student, which parameters move, where gradients stop.
+
+    Every label is read from images/training-architecture.json, whose values were checked against
+    source/round4/train_drafter.py (anchor_loss, selector_loss, target.requires_grad_(False)) and the
+    released draft config (target_layer_ids, block_size)."""
+    L = lambda pair: pair["cn"] if chinese else pair["en"]  # noqa: E731
+    figure, axis = plt.subplots(figsize=(13, 8.6), dpi=150)
+    axis.set(xlim=(0, 1), ylim=(0, 1))
+    axis.axis("off")
+    FROZEN_FACE, FROZEN_EDGE = "#EEF1F3", "#7A8A90"
+    TRAIN_FACE, TRAIN_EDGE = "#E3F3EF", "#16836F"
+    SEL_FACE, SEL_EDGE = "#FFF1D6", "#C68118"
+    DATA_FACE, DATA_EDGE = "#F7F7F7", "#8E9AA0"
+    LOSS_FACE, LOSS_EDGE = "#F9E9EC", "#B64C53"
+    GRAD = "#B64C53"
+    # --- top row: data ---------------------------------------------------------------------------
+    _box(axis, 0.06, 0.80, 0.34, 0.11, L(architecture["data"]["responses"]), DATA_FACE, DATA_EDGE, fontsize=10.5)
+    _box(axis, 0.58, 0.80, 0.36, 0.11, L(architecture["data"]["block"]), DATA_FACE, DATA_EDGE, fontsize=10.5)
+    # --- left column: frozen teacher ---------------------------------------------------------------
+    axis.add_patch(FancyBboxPatch((0.03, 0.22), 0.40, 0.50, boxstyle="round,pad=0.004,rounding_size=0.016",
+                                  facecolor="none", edgecolor=FROZEN_EDGE, linewidth=1.4, linestyle="--", zorder=1))
+    axis.text(0.10, 0.745, L(architecture["teacher"]["title"]), ha="center", va="center", fontsize=13, weight="bold", color=MUTED)
+    _box(axis, 0.06, 0.57, 0.34, 0.12, L(architecture["teacher"]["target"]), FROZEN_FACE, FROZEN_EDGE, fontsize=10.5)
+    _box(axis, 0.06, 0.40, 0.34, 0.12, L(architecture["teacher"]["taps"]), FROZEN_FACE, FROZEN_EDGE, fontsize=10.5)
+    _box(axis, 0.06, 0.25, 0.16, 0.09, L(architecture["teacher"]["head"]), FROZEN_FACE, FROZEN_EDGE, fontsize=10)
+    _box(axis, 0.24, 0.25, 0.16, 0.09, L(architecture["teacher"]["embedding"]), FROZEN_FACE, FROZEN_EDGE, fontsize=10)
+    _arrow(axis, (0.23, 0.80), (0.23, 0.69), FROZEN_EDGE, L(architecture["edges"]["text_to_target"]), text_dx=0.085, text_dy=-0.03)
+    _arrow(axis, (0.23, 0.57), (0.23, 0.52), FROZEN_EDGE)
+    axis.text(0.23, 0.19, L(architecture["teacher"]["no_grad"]), ha="center", va="center", fontsize=10.5, color=GRAD, weight="bold")
+    # --- right column: trainable student -----------------------------------------------------------
+    axis.add_patch(FancyBboxPatch((0.55, 0.22), 0.42, 0.50, boxstyle="round,pad=0.004,rounding_size=0.016",
+                                  facecolor="none", edgecolor=TRAIN_EDGE, linewidth=1.6, zorder=1))
+    axis.text(0.90, 0.745, L(architecture["student"]["title"]), ha="center", va="center", fontsize=13, weight="bold", color=TRAIN_EDGE)
+    _box(axis, 0.58, 0.49, 0.36, 0.20, L(architecture["student"]["backbone"]), TRAIN_FACE, TRAIN_EDGE, fontsize=10.5, lw=1.6)
+    _box(axis, 0.58, 0.25, 0.36, 0.16, L(architecture["student"]["selector"]), SEL_FACE, SEL_EDGE, fontsize=10.5, lw=1.6)
+    _arrow(axis, (0.76, 0.80), (0.76, 0.69), TRAIN_EDGE, L(architecture["edges"]["block_to_draft"]), text_dx=-0.075, text_dy=-0.03)
+    # teacher -> student: context features into K/V, embeddings for the masked block
+    _arrow(axis, (0.40, 0.46), (0.58, 0.60), FROZEN_EDGE, L(architecture["edges"]["taps_to_draft"]), text_dx=-0.005, text_dy=0.012)
+    _arrow(axis, (0.40, 0.295), (0.58, 0.515), FROZEN_EDGE, L(architecture["edges"]["embedding_to_draft"]), text_dx=0.045, text_dy=-0.045,
+           connection="arc3,rad=0.1")
+    # student hidden -> frozen head -> logits
+    _arrow(axis, (0.58, 0.545), (0.20, 0.34), FROZEN_EDGE, L(architecture["edges"]["hidden_to_head"]), text_dx=0.0, text_dy=0.02,
+           connection="arc3,rad=-0.28")
+    # backbone -> selector, detached
+    _arrow(axis, (0.76, 0.49), (0.76, 0.41), SEL_EDGE, L(architecture["edges"]["detach"]), text_dx=0.0, text_dy=-0.01)
+    # --- bottom row: losses ------------------------------------------------------------------------
+    _box(axis, 0.58, 0.04, 0.17, 0.11, L(architecture["losses"]["backbone"]), LOSS_FACE, LOSS_EDGE, fontsize=10)
+    _box(axis, 0.77, 0.04, 0.17, 0.11, L(architecture["losses"]["selector"]), LOSS_FACE, LOSS_EDGE, fontsize=10)
+    # true next tokens -> both losses
+    _arrow(axis, (0.44, 0.80), (0.44, 0.095), DATA_EDGE, connection="arc3,rad=0")
+    _arrow(axis, (0.44, 0.095), (0.58, 0.095), DATA_EDGE)
+    axis.text(0.455, 0.115, L(architecture["edges"]["truth_to_loss"]), ha="left", va="bottom", fontsize=9.5, color=DATA_EDGE,
+              bbox={"boxstyle": "round,pad=0.15", "facecolor": "white", "edgecolor": "none", "alpha": 0.92}, zorder=5)
+    # gradients: backbone loss -> backbone (routes outside the selector box), selector loss -> selector
+    _arrow(axis, (0.665, 0.15), (0.665, 0.20), GRAD, dashed=True, lw=1.5)
+    _arrow(axis, (0.665, 0.20), (0.665, 0.47), GRAD, dashed=True, lw=1.5, connection="arc3,rad=0")
+    _arrow(axis, (0.855, 0.15), (0.855, 0.25), GRAD, dashed=True, lw=1.5)
+    axis.text(0.665, 0.215, L(architecture["edges"]["grad_backbone"]), ha="center", va="bottom", fontsize=9, color=GRAD,
+              bbox={"boxstyle": "round,pad=0.12", "facecolor": "white", "edgecolor": "none", "alpha": 0.95}, zorder=6)
+    axis.text(0.855, 0.19, L(architecture["edges"]["grad_selector"]), ha="center", va="center", fontsize=9, color=GRAD,
+              bbox={"boxstyle": "round,pad=0.12", "facecolor": "white", "edgecolor": "none", "alpha": 0.95}, zorder=6)
+    # legend (bottom-left, below the teacher box)
+    lx, ly = 0.04, 0.125
+    for face, edge, label in ((FROZEN_FACE, FROZEN_EDGE, architecture["legend"]["frozen"]),
+                              (TRAIN_FACE, TRAIN_EDGE, architecture["legend"]["trainable"]),
+                              (SEL_FACE, SEL_EDGE, architecture["legend"]["selector"])):
+        axis.add_patch(FancyBboxPatch((lx, ly), 0.022, 0.026, boxstyle="round,pad=0.002", facecolor=face, edgecolor=edge, linewidth=1.2))
+        axis.text(lx + 0.03, ly + 0.013, L(label), ha="left", va="center", fontsize=9.5, color=MUTED)
+        ly -= 0.036
+    axis.plot([lx, lx + 0.022], [ly + 0.013, ly + 0.013], color=GRAD, linestyle="--", linewidth=1.5)
+    axis.text(lx + 0.03, ly + 0.013, L(architecture["legend"]["gradient"]), ha="left", va="center", fontsize=9.5, color=MUTED)
+    figure.suptitle(L(architecture["title"]), fontsize=19, y=0.985)
+    figure.text(0.5, 0.93, L(architecture["subtitle"]), ha="center", fontsize=11, color=MUTED)
+    figure.text(0.5, 0.012, L(architecture["footer"]), ha="center", fontsize=9.5, color=MUTED, linespacing=1.45)
+    figure.subplots_adjust(left=0.01, right=0.99, top=0.9, bottom=0.075)
+    figure.savefig(path, facecolor="white")
+    plt.close(figure)
+
+
 ROUTE_LABELS = {"baseline": ("Autoregressive", "自回归"), "mtp7": ("MTP7", "MTP7"), "dflash2_7": ("DFlash 2-7", "DFlash 2-7")}
 ROUTE_COLORS = {"baseline": "#637078", "mtp7": "#C68118", "dflash2_7": "#16836F"}
 DATASET_LABELS = {"humaneval_plus": ("HumanEval+", "HumanEval+"), "math_500": ("MATH-500 subset", "MATH-500 子集")}
@@ -407,6 +505,17 @@ def render_adaptation(output):
     for chinese, name in ((False, "training-flow-en.png"), (True, "training-flow-cn.png")):
         path = output / name
         draw_adaptation_flow(flow, path, chinese)
+        pixels = plt.imread(path)
+        record["figures"][name] = {"sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                                   "width": pixels.shape[1], "height": pixels.shape[0]}
+    architecture_path = ADAPTATION / "images/training-architecture.json"
+    architecture = read_json(architecture_path)
+    record["architecture_scope"] = architecture["scope"]
+    for relative in ("images/training-architecture.json", *architecture["sources"]):
+        record["sources"][relative] = hashlib.sha256((ADAPTATION / relative).read_bytes()).hexdigest()
+    for chinese, name in ((False, "training-architecture-en.png"), (True, "training-architecture-cn.png")):
+        path = output / name
+        draw_adaptation_architecture(architecture, path, chinese)
         pixels = plt.imread(path)
         record["figures"][name] = {"sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
                                    "width": pixels.shape[1], "height": pixels.shape[0]}

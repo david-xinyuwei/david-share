@@ -361,6 +361,10 @@ Candidate rescoring uses these actual lines:
 
 This is the author's selector objective, not the official DFlash 2 training recipe. The snapshot's module header retains an obsolete statement that the selector is not trained; the later `selector_loss()` implementation, `--train-selector` flag and saved arguments identify the executed behavior. Archived source is unchanged.
 
+<img src="experiments/20260909-drafter-adaptation/images/training-architecture-en.png" width="900" alt="Re-adapting the DFlash 2 draft model: frozen fine-tuned target as teacher, trainable five-layer draft backbone and selector as student, two separate losses">
+
+*Original architecture diagram of the executed training step. Teacher: the fine-tuned target with its LoRA merged, frozen; its hidden states from layers 5, 19, 33, 47 and 61 are concatenated and projected once, and its token embedding and output head are reused without updates. Student: the five draft layers continue from the released checkpoint and receive the teacher features in every layer's key and value; the selector re-ranks the backbone's top-k candidates and is trained on detached inputs, so the two losses never move each other's parameters. Labels are read from the [diagram source](experiments/20260909-drafter-adaptation/images/training-architecture.json), checked against [train_drafter.py](experiments/20260909-drafter-adaptation/source/round4/train_drafter.py); the figure is an explanation, not runtime evidence.*
+
 ### Training Logs and Code
 
 All four draft-training runs preserve per-step backbone and selector losses. This table is generated from the full histories, comparing the first and last 10% of steps with `max(1, steps // 10)` as the window. Loss trends describe optimization, not held-out quality or serving performance.
@@ -494,13 +498,13 @@ The Chinese fine-tuned target failed the token-repetition screen: 11 of 40 respo
 
 The client and inference service share one host and communicate over loopback. Only one server mode runs at a time: baseline, MTP or DFlash. Switching modes keeps the client API unchanged. Client-side timing and grading of complete answers are separate from model inference.
 
-![Test flow: client, inference service, draft model, records, grading and summaries](experiments/20260906-qwen38/images/test-flow-en.png)
+<img src="experiments/20260906-qwen38/images/test-flow-en.png" width="420" alt="Test flow: client, inference service, draft model, records, grading and summaries">
 
 *Original test-flow diagram based on the executed [runner](experiments/20260906-qwen38/source/campaign_runner.py), [stream timing](experiments/20260906-qwen38/source/stream_metrics.py) and [grader integration](experiments/20260906-qwen38/source/scoring.py); source in [test-flow-en.mmd](experiments/20260906-qwen38/images/test-flow-en.mmd). It separates inference, client measurements and grading; the three server modes do not run simultaneously.*
 
 Draft Model adaptation follows a separate training path. Its stages also run on one GPU, without keeping the inference server resident during training:
 
-![Draft Model-adaptation data and model flow](experiments/20260909-drafter-adaptation/images/training-flow-en.png)
+<img src="experiments/20260909-drafter-adaptation/images/training-flow-en.png" width="420" alt="Draft Model-adaptation data and model flow">
 
 *Original training-flow diagram based on [target training](experiments/20260909-drafter-adaptation/source/round4/finetune_target.py), [corpus generation](experiments/20260909-drafter-adaptation/source/round4/generate_responses.py), [draft training](experiments/20260909-drafter-adaptation/source/round4/train_drafter.py) and [paired measurement](experiments/20260909-drafter-adaptation/source/round4/analyze_predictability.py). The same figure generator renders the [diagram source](experiments/20260909-drafter-adaptation/images/training-flow.json). Training, save/reload and outcome evaluation are separate checks; the diagram is not runtime proof.*
 

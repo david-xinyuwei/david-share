@@ -361,6 +361,10 @@ selector 给候选 $c$ 的分数为 $s_{k,c}=z_{k,c}+\langle E_{\mathrm{prev}}(y
 
 此 selector 目标是作者实现，不是 DFlash 2 官方训练配方。执行快照的文件头仍有早期“不训练 selector”的旧说明；后续的 `selector_loss()`、`--train-selector` 和保存的训练实参记录了实际行为，归档源码保持原样。
 
+<img src="experiments/20260909-drafter-adaptation/images/training-architecture-cn.png" width="900" alt="再训 DFlash 2 draft model 的架构：冻结的微调目标模型当老师，可训练的 5 层 draft backbone 与 selector 当学生，两个独立损失">
+
+*原创架构图，对应实际执行的训练步骤。老师：合并 LoRA 后的微调目标模型，全部冻结；取其第 5、19、33、47、61 层隐藏状态拼接后投影一次，token embedding 与输出头只借用、不更新。学生：5 层 draft backbone 从发布版权重继续训练，老师特征注入每一层的 key 与 value；selector 给 backbone 的 top-k 候选重排序，其输入已 detach，因此两个损失互不改动对方的参数。图中文字取自[图源](experiments/20260909-drafter-adaptation/images/training-architecture.json)，已逐项对照 [train_drafter.py](experiments/20260909-drafter-adaptation/source/round4/train_drafter.py)；本图是解释，不是运行证据。*
+
 ### 训练日志与代码
 
 四次 draft model 训练均保留了每步 backbone 与 selector loss。下表从完整 history 生成，比较各次运行最前与最后 10% 步数的均值，窗口取 `max(1, steps // 10)`。数值只说明训练目标变化，不代表留出集质量或服务性能。
@@ -494,13 +498,13 @@ HF 与 vLLM 的接受长度还存在跨引擎差距。两者未在相同批处�
 
 客户端与推理服务运行在同一台机器上，通过回环地址通信。服务端每次只启动基线、MTP 或 DFlash 中的一种模式；切换模式不改变客户端 API。客户端记录请求耗时，评分程序检查生成的完整答案。
 
-![测试流程：客户端、推理服务、draft model、记录、评分与汇总](experiments/20260906-qwen38/images/test-flow-cn.png)
+<img src="experiments/20260906-qwen38/images/test-flow-cn.png" width="420" alt="测试流程：客户端、推理服务、draft model、记录、评分与汇总">
 
 *原创测试流程图，依据本次[执行程序](experiments/20260906-qwen38/source/campaign_runner.py)、[流式计时](experiments/20260906-qwen38/source/stream_metrics.py)与[评分接入](experiments/20260906-qwen38/source/scoring.py)绘制；图源为 [test-flow-cn.mmd](experiments/20260906-qwen38/images/test-flow-cn.mmd)。图中区分推理、客户端测量和评分；三种模式并非同时运行。*
 
 draft model 再适配走另一条训练路径，同样在单张 GPU 上按阶段执行，不与推理服务同时驻留：
 
-![draft model 再适配的数据与模型流](experiments/20260909-drafter-adaptation/images/training-flow-cn.png)
+<img src="experiments/20260909-drafter-adaptation/images/training-flow-cn.png" width="420" alt="draft model 再适配的数据与模型流">
 
 *原创训练流程图，依据 [目标训练](experiments/20260909-drafter-adaptation/source/round4/finetune_target.py)、[语料生成](experiments/20260909-drafter-adaptation/source/round4/generate_responses.py)、[draft model 训练](experiments/20260909-drafter-adaptation/source/round4/train_drafter.py)和 [成对测量](experiments/20260909-drafter-adaptation/source/round4/analyze_predictability.py)。[图源](experiments/20260909-drafter-adaptation/images/training-flow.json)由同一绘图程序渲染。训练、保存重载和效果验证是三个独立检查点，流程图本身不是运行证明。*
 

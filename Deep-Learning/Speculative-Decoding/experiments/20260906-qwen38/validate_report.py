@@ -58,6 +58,14 @@ def topic_dir(root):
     return root.parent.parent
 
 
+def references_image(text, relative):
+    """True when a reader page shows `relative` either as Markdown `![alt](path)` or as HTML `<img src="path" width=...>`.
+
+    Tall diagrams (test flow, training flow, architecture) use the HTML form so GitHub renders them at a fixed
+    width instead of the full column width; both forms count as reader-visible references."""
+    return f"]({relative})" in text or f'<img src="{relative}"' in text
+
+
 def heading_anchor(title):
     text = re.sub(r"[^\w\- ]", "", title.strip().lower())
     return text.replace(" ", "-")
@@ -104,7 +112,9 @@ def verify_reader_workflows(text, chinese):
                               r"|(?:draft model|selector|checkpoint)[\u4e00-\u9fff]", prose),
                 "MISSING_LATIN_TERM_SPACING")
     training_image = f"experiments/20260909-drafter-adaptation/images/training-flow-{'cn' if chinese else 'en'}.png"
-    require(f"]({training_image})" in text, "TRAINING_FLOW_IMAGE_MISSING")
+    require(references_image(text, training_image), "TRAINING_FLOW_IMAGE_MISSING")
+    architecture_image = f"experiments/20260909-drafter-adaptation/images/training-architecture-{'cn' if chinese else 'en'}.png"
+    require(references_image(text, architecture_image), "TRAINING_ARCHITECTURE_IMAGE_MISSING")
     require('training_data["' not in text, "RETIRED_INLINE_TRAINING_DIAGRAM")
     heading = "### 复现再适配" if chinese else "### Reproducing the Adaptation"
     require(text.count(heading) == 1, "ADAPTATION_REPRODUCTION_MISSING")
@@ -368,7 +378,7 @@ def verify_local_links(root):
     workflows = []
     for filename, chinese in READMES.items():
         text = (topic / filename).read_text(encoding="utf-8")
-        for link in re.findall(r"!?\[[^\]]*\]\(([^)]+)\)", text):
+        for link in re.findall(r"!?\[[^\]]*\]\(([^)]+)\)", text) + re.findall(r'<img\s+src="([^"]+)"', text):
             target = urlsplit(link)
             if target.scheme or link.startswith("#"):
                 continue
@@ -396,8 +406,8 @@ def verify_local_links(root):
         for marker in RETIRED_PREVIOUS_RUN_MARKERS:
             require(marker not in text, "RETIRED_PREVIOUS_RUN_CONTENT:" + marker)
         require(has_heading(text, "## 测试与离线复算" if chinese else "## Tests and Offline Replay"), "TEST_DOCUMENTATION_MISSING:" + filename)
-        flow = f"]({experiment}images/test-flow-{'cn' if chinese else 'en'}.png)"
-        require(flow in text and (root / f"images/test-flow-{'cn' if chinese else 'en'}.png").is_file(), "TEST_FLOW_MISSING:" + filename)
+        flow = f"{experiment}images/test-flow-{'cn' if chinese else 'en'}.png"
+        require(references_image(text, flow) and (root / f"images/test-flow-{'cn' if chinese else 'en'}.png").is_file(), "TEST_FLOW_MISSING:" + filename)
         verify_result_figures(topic, text, chinese)
         require(has_heading(text, "#### 各阶段测试耗时" if chinese else "#### Measured Duration by Stage"), "STAGE_DURATION_SECTION_MISSING:" + filename)
         verify_page_anchors(text)

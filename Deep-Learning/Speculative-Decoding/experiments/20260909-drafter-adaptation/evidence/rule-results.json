@@ -74,6 +74,6 @@
       "status": "PASS"
     }
   ],
-  "manifest_sha256": "b8dda571c3c1c9f49aca540f33822002492557b71d4553a90617642ecdc39f7b",
+  "manifest_sha256": "296879f05ee15ccfb34aaf6914a9327c304f33623234169c4632499a8739f53b",
   "scope": "Offline verification of exported evidence; not fresh GPU execution, regrading or a quality certification."
 }

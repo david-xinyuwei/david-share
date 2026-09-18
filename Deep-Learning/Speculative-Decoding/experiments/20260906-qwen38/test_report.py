@@ -35,7 +35,8 @@ class ReportIntegrityTests(unittest.TestCase):
     def mirror_link_targets(self):
         for filename in validate_report.READMES:
             text = (self.topic / filename).read_text(encoding="utf-8")
-            for link in re.findall(r"!?\[[^\]]*\]\(([^)]+)\)", text):
+            # same two reference forms the validator accepts: Markdown links/images and sized <img> tags
+            for link in re.findall(r"!?\[[^\]]*\]\(([^)]+)\)", text) + re.findall(r'<img\s+src="([^"]+)"', text):
                 target = urlsplit(link)
                 if target.scheme or link.startswith("#"):
                     continue
@@ -322,7 +323,10 @@ class ReportIntegrityTests(unittest.TestCase):
     def test_test_flow_cannot_be_removed(self):
         for filename, language in (("README.md", "en"), ("README_CN.md", "cn")):
             with self.subTest(filename=filename):
-                original = self.rewrite_readme(lambda text: re.sub(r"!\[[^\]]*\]\([^)]*test-flow-" + language + r"\.png\)", "", text), filename)
+                # the diagram may be embedded as Markdown or as a sized <img>; removing either form must be caught
+                pattern = (r"!\[[^\]]*\]\([^)]*test-flow-" + language + r"\.png\)"
+                           r'|<img src="[^"]*test-flow-' + language + r'\.png"[^>]*>')
+                original = self.rewrite_readme(lambda text: re.sub(pattern, "", text), filename)
                 with self.assertRaisesRegex(ValueError, "TEST_FLOW_MISSING"):
                     validate_report.verify_local_links(self.root)
                 (self.topic / filename).write_text(original, encoding="utf-8")
@@ -417,6 +421,25 @@ class ReaderLayoutTests(unittest.TestCase):
             validate_report.verify_reader_workflows(text.replace("training-flow-en.png", "omitted.png"), False)
         with self.assertRaisesRegex(ValueError, "RETIRED_INLINE_TRAINING_DIAGRAM"):
             validate_report.verify_reader_workflows(text + '\n```mermaid\ntraining_data["old"]\n```\n', False)
+
+    def test_training_architecture_diagram_is_present_and_sized(self):
+        # Added 2026-09-18 after the user asked "who is the teacher, what gets trained": the loss section
+        # now carries an architecture figure, and the tall diagrams use <img width> so GitHub does not
+        # render them at full column width. Both README forms must be accepted by the validator.
+        for filename, chinese in validate_report.READMES.items():
+            text = (TOPIC / filename).read_text(encoding="utf-8")
+            suffix = "cn" if chinese else "en"
+            with self.subTest(filename=filename):
+                for stem in ("test-flow", "training-flow", "training-architecture"):
+                    tag = re.search(rf'<img src="[^"]*/{stem}-{suffix}\.png" width="(\d+)"', text)
+                    self.assertIsNotNone(tag, f"{stem} must be embedded with an explicit width")
+                    self.assertLessEqual(int(tag.group(1)), 900)
+                with self.assertRaisesRegex(ValueError, "TRAINING_ARCHITECTURE_IMAGE_MISSING"):
+                    validate_report.verify_reader_workflows(text.replace(f"training-architecture-{suffix}.png", "omitted.png"), chinese)
+                # the architecture figure is hash-bound through the adaptation record like the other training figures
+                record = validate_report.read_json(TOPIC / "experiments/20260909-drafter-adaptation/images/loss-figures.json")
+                self.assertIn(f"training-architecture-{suffix}.png", record["figures"])
+                self.assertIn("images/training-architecture.json", record["sources"])
 
     def test_actual_input_is_visible_before_results(self):
         validate_report.verify_local_links(ROOT)

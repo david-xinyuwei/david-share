@@ -17,8 +17,20 @@
       "sha256": "943675e61541cfe31607e36ef00342b3c829e8e89a04b59a960506d036bfddbf"
     },
     "images/loss-figures.json": {
-      "bytes": 2245,
-      "sha256": "9aafcf9ad3257520d694e92eb4d226e3a374f95a6e7272dcb979f21f3693aae3"
+      "bytes": 2980,
+      "sha256": "8361d77bea9ac69f912939fa789ecc21156a4bd924aa8719ce02992cd14f0720"
+    },
+    "images/training-architecture-cn.png": {
+      "bytes": 406768,
+      "sha256": "e5cef3f1fbbbeeb344ab806148256939103078e494797a7cc2c7e026dce80850"
+    },
+    "images/training-architecture-en.png": {
+      "bytes": 377796,
+      "sha256": "4eff0236cc992fca83dbefa8f960949b65431f64ce304cfac3f33e80fa7a9638"
+    },
+    "images/training-architecture.json": {
+      "bytes": 5219,
+      "sha256": "850d1cd780a123577d3e63d824832cfbb6bb0f99eb21a84be717c0e51a450660"
     },
     "images/training-flow-cn.png": {
       "bytes": 170178,
