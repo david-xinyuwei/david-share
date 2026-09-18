@@ -217,8 +217,22 @@ class ReportIntegrityTests(unittest.TestCase):
                         validate_report.verify_local_links(self.root)
                     (self.topic / filename).write_text(original, encoding="utf-8")
 
+    def test_result_figures_are_hash_bound_and_referenced(self):
+        # Figures 2-4 (accuracy alignment, fine-tuned throughput/alignment, re-adapted gain) in both languages.
+        validate_report.verify_local_links(self.root)
+        figure = self.topic / "images" / "accuracy-alignment-en.png"
+        original = figure.read_bytes()
+        figure.write_bytes(original + b"\n")
+        with self.assertRaisesRegex(ValueError, "RESULT_FIGURE_HASH_MISMATCH:accuracy-alignment-en.png"):
+            validate_report.verify_local_links(self.root)
+        figure.write_bytes(original)
+        self.rewrite_readme(lambda text: re.sub(r"^!\[[^\]]*\]\(images/readapted-gain-cn\.png\)\n", "", text, count=1, flags=re.M), "README_CN.md")
+        with self.assertRaisesRegex(ValueError, "RESULT_FIGURE_NOT_REFERENCED:readapted-gain-cn.png"):
+            validate_report.verify_local_links(self.root)
+
     def test_previous_run_content_cannot_return_to_reader_pages(self):
-        # Retired 2026-09-17: the Qwen3.6 / first-generation DFlash section is archived evidence only.
+        # Removed 2026-09-17: the Qwen3.6 / first-generation DFlash run is out of scope; only DFlash 2 remains.
+        self.assertFalse((TOPIC / "experiments" / "20260905-quality").exists())
         for filename in validate_report.READMES:
             self.assertNotIn("previous-experiment", (self.topic / filename).read_text(encoding="utf-8"))
             for marker in validate_report.RETIRED_PREVIOUS_RUN_MARKERS:

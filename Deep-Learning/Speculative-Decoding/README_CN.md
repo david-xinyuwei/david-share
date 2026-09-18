@@ -224,6 +224,10 @@ MTP、DFlash 算法及发布版权重属于上游工作；本仓库贡献的是�
 
 以上各表对应[数值汇总](experiments/20260906-qwen38/data/summary.json)。吞吐按“服务端确认的输出 token 总数 ÷ 整组耗时”计算，**包含思考过程、错答和截断回答中的 token**。计时从首个测量请求派发，到最后一个请求的终止事件接收完成；不含模型下载、启动、预热和评分。这不是 GPU 纯解码吞吐。
 
+![三条路线在同一批 32 道代码题和 32 道数学题上的答对数，三个随机种子，并发 1、4、8](images/accuracy-alignment-cn.png)
+
+*作者实测，运行编号 `qwen38-quality-20260906`。柱形是上表三个种子的平均答对数，误差线为最小与最大种子。图由[绘图脚本](tools/make_readme_figures.py)从[数值汇总](experiments/20260906-qwen38/data/summary.json)生成；虚线 32 表示全对。基线自身在不同并发档之间也有 1–2 题的波动，这就是解读任何路线间差异时的噪声下限。*
+
 #### 为什么还要看正确答案的交付速度
 
 <!-- BEGIN COUNTEREXAMPLE -->
@@ -449,6 +453,18 @@ Round 5 的极差只覆盖计时抖动。为了看换一批提示后增益是否
 
 同日对 block 0 另做了一次 `enable_thinking=true`、`max_tokens=2048` 的尝试（并发 4/8）。服务端生成并计费了每条约 130 个 token，但客户端取回的 `content` 全为空且 `reasoning_content` 为零字符；模型实际运行的模式无法确认，逐字一致数也只是空串对空串。这次尝试的文件仍在 [results/round6/vllm/](experiments/20260909-drafter-adaptation/results/round6/vllm/) 中发布，但**不作为 thinking 模式的任何结论**；thinking 下的再适配收益仍未验证。
 <!-- END ADAPTATION_TABLE -->
+
+![微调后的目标模型用三种方式服务：自回归、发布版 DFlash 2、再训 DFlash 2，并发 1、4、8](images/finetuned-throughput-cn.png)
+
+*设置 B，Round 5。微调后的目标模型（Qwen3.8-27B + 中文全模块 LoRA）分别以自回归、发布版 draft model 和再训 draft model 服务，同一批 40 条中文提示；每格 4 次观测，误差线为计时抖动的最小到最大，柱内数字是相对自回归的加速倍数。图由[绘图脚本](tools/make_readme_figures.py)从[再适配汇总](experiments/20260909-drafter-adaptation/data/summary.json)生成。*
+
+![发布版与再训 draft model 对微调目标的逐位置命中率与成对差异](images/finetuned-alignment-cn.png)
+
+*设置 B，Round 4。在逐字相同的目标文本和同一批位置上做教师强制，200 条序列，selector 路径。左：每个草稿位置上 draft token 命中目标 argmax 的比例；右：k=1 命中率和联合前缀接受长度，标注成对差异及其 95% 提示级 bootstrap 区间。这些量描述的是 draft 猜中目标的能力，不是答案正确率。图由同一汇总生成。*
+
+![再训 DFlash 2 相对发布版的吞吐增益：5 个提示块 × 4 档并发，以及加速随并发的衰减](images/readapted-gain-cn.png)
+
+*设置 B，Round 6。左：再训 draft model 相对发布版的逐块增益，5 个不重叠的 40 条提示块，并发 1、4、8、16，每格一次，红线为均值。右：两个 draft model 相对自回归解码的五块均值加速。图由[绘图脚本](tools/make_readme_figures.py)从[再适配汇总](experiments/20260909-drafter-adaptation/data/summary.json)生成；不含 thinking 模式数据。*
 
 **设置 A：** 三个训练种子的成对测量均未显示命中率改善；只有 seed 20260908 做过 vLLM 服务对比，该次未观察到吞吐收益。这批英文提示没有基座目标的对应测量，不能断言微调是否损害了发布版 draft model。
 
@@ -970,7 +986,6 @@ python experiments/20260906-qwen38/analyze_results.py --groups experiments/20260
 
 - 可以说明本次固定配置、固定子集中的性能和得分，不能证明统计显著性、分布等价或正式非劣效。
 - 吞吐、客户端延迟、正确答案交付速度是不同指标，不能互相替代，也不能据此推断 GPU kernel 的独立性能。
-- `LOCAL_MEASUREMENT`，不同组合：2026-09-05 作者曾用首代 `z-lab/Qwen3.6-27B-DFlash` draft model（15 个草稿 token）配 `Qwen/Qwen3.6-27B` 在 vLLM 0.21.0 上实测。它在并发 1 通过了全部 HumanEval+ 和 MATH-500 题目，但在并发 4、8 时，相同 32 道代码题和 32 道数学题的正确数大幅下降，根因始终没有定位。那不是本文测的 DFlash 2 权重、目标模型和引擎；其记录保留在 [`experiments/20260905-quality/`](experiments/20260905-quality/) 作为归档证据，不构成对上文结果的边界。
 
 ### 从零训练需要什么
 
@@ -1002,9 +1017,8 @@ python experiments/20260906-qwen38/analyze_results.py --groups experiments/20260
 |---|---|
 | [`experiments/20260906-qwen38/`](experiments/20260906-qwen38/) | 本次实验：逐组记录、数值汇总、证据、执行源码快照、分析程序、验收程序、测试和测试流程图 |
 | [`experiments/20260909-drafter-adaptation/`](experiments/20260909-drafter-adaptation/) | draft model 再适配实验：两种漂移边界的逐请求结果、执行脚本快照、来源哈希、分析程序、验收程序和测试 |
-| [`experiments/20260905-quality/`](experiments/20260905-quality/) | 2026-09-05 归档运行：`Qwen3.6-27B` 配首代 DFlash draft model、vLLM 0.21.0 的原始响应、官方评分、逐题对照和分析代码；不属于 DFlash 2 对比，本文不渲染其内容 |
-| [`images/`](images/) | 本文使用的中文结果图 |
-| [`tools/make_readme_figures.py`](tools/make_readme_figures.py) | 从已发布的推理汇总数据重新生成上述中文图，需要中文字体和[固定版本的 Matplotlib](experiments/20260906-qwen38/requirements-figures.txt) |
+| [`images/`](images/) | 两份 README 使用的结果图：中文吞吐图，以及双语的答案正确数、微调后吞吐、微调后对齐、再训增益四组图及其[哈希记录](images/result-figures.json) |
+| [`tools/make_readme_figures.py`](tools/make_readme_figures.py) | 从两份已发布汇总重新生成上述全部图（`--results-only`、`--adaptation-only`），需要中文字体和[固定版本的 Matplotlib](experiments/20260906-qwen38/requirements-figures.txt) |
 | [`LICENSE`](LICENSE) | 本目录适用的许可证 |
 
 ### 证据与代码

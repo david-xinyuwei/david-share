@@ -224,6 +224,10 @@ Length-stopped responses remain in each 32-task denominator.
 
 These tables correspond to the [saved summary](experiments/20260906-qwen38/data/summary.json). Throughput is server-confirmed output tokens divided by entire-group wall time, **including thinking, incorrect and length-stopped responses**. Timing runs from the first measured request dispatch to the last request's terminal event; it excludes model download, startup, warmup and grading. This is not raw GPU decode throughput.
 
+![Correct answers by route on the same 32 code and 32 math tasks, three seeds, concurrency 1, 4 and 8](images/accuracy-alignment-en.png)
+
+*Author's measurements, run `qwen38-quality-20260906`. Bars are the three-seed mean of the score table above; whiskers show the minimum and maximum seed. Rendered from the [saved summary](experiments/20260906-qwen38/data/summary.json) by [`tools/make_readme_figures.py`](tools/make_readme_figures.py); the dashed line is 32 = all correct. The baseline itself moves by 1–2 tasks between concurrency levels, which sets the noise floor for reading any route-to-route difference.*
+
 #### Why Correct-Answer Delivery Also Matters
 
 <!-- BEGIN COUNTEREXAMPLE -->
@@ -449,6 +453,18 @@ The gain is positive in all 20 block×concurrency cells, but its size depends on
 
 A block-0 attempt with `enable_thinking=true` and `max_tokens=2048` (concurrency 4/8) was also made the same day. The server generated and billed roughly 130 tokens per response, but the client received empty `content` and zero `reasoning_content` characters for every response; the mode the model actually ran in cannot be confirmed, and any byte-identity count would compare empty strings. The files are published under [results/round6/vllm/](experiments/20260909-drafter-adaptation/results/round6/vllm/) but **support no conclusion about thinking mode**; the adaptation gain under thinking remains unverified.
 <!-- END ADAPTATION_TABLE -->
+
+![Fine-tuned target served three ways: autoregressive, released DFlash 2 and re-adapted DFlash 2, concurrency 1, 4 and 8](images/finetuned-throughput-en.png)
+
+*Setting B, Round 5. The fine-tuned target (Qwen3.8-27B + Chinese all-module LoRA) served autoregressively, with the released draft model and with the re-adapted one, on the same 40 Chinese prompts; four observations per cell, whiskers show min–max timing jitter, numbers inside bars are the speedup over autoregressive. Rendered from the [adaptation summary](experiments/20260909-drafter-adaptation/data/summary.json).*
+
+![Per-position hit rate and paired difference of the released and re-adapted draft models against the fine-tuned target](images/finetuned-alignment-en.png)
+
+*Setting B, Round 4. Teacher-forced on byte-identical target text and positions, 200 sequences, selector path. Left: the fraction of draft tokens matching the target's argmax at each position; right: k=1 hit rate and joint-prefix acceptance length with the paired difference and its 95% prompt-level bootstrap interval. These describe drafting, not answer correctness. Rendered from the same summary.*
+
+![Re-adapted DFlash 2 throughput gain over the released draft across five prompt blocks and four concurrency levels, and speedup versus concurrency](images/readapted-gain-en.png)
+
+*Setting B, Round 6. Left: per-block gain of the re-adapted draft model over the released one, five disjoint 40-prompt blocks at concurrency 1, 4, 8 and 16, one run per cell, red line = mean. Right: the five-block mean speedup of each draft model over autoregressive decoding. Rendered from the [adaptation summary](experiments/20260909-drafter-adaptation/data/summary.json); no thinking-mode data is included.*
 
 **Setting A:** paired measurements show no draft-agreement improvement across the three training seeds. Only seed 20260908 was compared in vLLM, with no observed throughput gain. There is no matching base-target measurement on these English prompts, so whether fine-tuning harmed the released draft model is not established.
 
@@ -968,7 +984,6 @@ See the [DFlash paper](https://arxiv.org/abs/2602.06036) and [pinned vLLM source
 
 - Results describe this fixed configuration and subset; they do not prove statistical significance, distribution equivalence or formal noninferiority.
 - Throughput, client latency and correct-answer delivery measure different things. They are not interchangeable and do not establish isolated GPU-kernel performance.
-- `LOCAL_MEASUREMENT`, different combination: on 2026-09-05 the author measured the first-generation `z-lab/Qwen3.6-27B-DFlash` draft model (15 draft tokens) with `Qwen/Qwen3.6-27B` on vLLM 0.21.0. It passed the full HumanEval+ and MATH-500 sets at concurrency 1 but lost most correct answers on the same 32 code and 32 math tasks at concurrency 4 and 8, and the cause was never identified. That is not the DFlash 2 checkpoint, target or engine measured here; its records stay in [`experiments/20260905-quality/`](experiments/20260905-quality/) as archived evidence, not as a bound on the results above.
 
 ### What Training From Scratch Would Take
 
@@ -1000,9 +1015,8 @@ These are estimates, not measurements. The defensible statement today: the adapt
 |---|---|
 | [`experiments/20260906-qwen38/`](experiments/20260906-qwen38/) | The current run: group records, summary, evidence, executed source snapshots, analyzer, validator, tests and the test-flow diagram |
 | [`experiments/20260909-drafter-adaptation/`](experiments/20260909-drafter-adaptation/) | The draft model-adaptation experiment: exported per-request results for both drift regimes, executed script snapshots, provenance hashes, analyzer, validator and tests |
-| [`experiments/20260905-quality/`](experiments/20260905-quality/) | Archived 2026-09-05 run of `Qwen3.6-27B` with the first-generation DFlash draft model on vLLM 0.21.0: raw responses, official grades, per-task comparisons and analysis code; not part of the DFlash 2 comparison and not rendered in this document |
-| [`images/`](images/) | The Chinese result figure used by [README_CN.md](README_CN.md) |
-| [`tools/make_readme_figures.py`](tools/make_readme_figures.py) | Regenerates that Chinese figure from the published inference summary; needs a CJK font and [the pinned Matplotlib](experiments/20260906-qwen38/requirements-figures.txt) |
+| [`images/`](images/) | Result figures for both READMEs: the Chinese throughput figure, and the bilingual accuracy-alignment, fine-tuned-throughput, fine-tuned-alignment and re-adapted-gain figures with their [hash record](images/result-figures.json) |
+| [`tools/make_readme_figures.py`](tools/make_readme_figures.py) | Regenerates every figure above from the two published summaries (`--results-only`, `--adaptation-only`); needs a CJK font and [the pinned Matplotlib](experiments/20260906-qwen38/requirements-figures.txt) |
 | [`LICENSE`](LICENSE) | License covering this directory |
 
 ### Evidence and Code

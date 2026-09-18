@@ -33,9 +33,11 @@ RETIRED_ADAPTATION_CLAIMS = (
     "官方草稿未受损",
     "因长度截断也没有通过",
 )
-# The 2026-09-05 Qwen3.6 / first-generation DFlash run is archived evidence, not part of the DFlash 2 comparison;
-# none of its headings, figures, replay commands or route labels may return to a reader page.
+# The 2026-09-05 Qwen3.6 / first-generation DFlash run was removed from this repository on 2026-09-17
+# (user ruling: only DFlash 2 is in scope). Its directory, headings, figures, commands, model and route
+# names may not return to a reader page.
 RETIRED_PREVIOUS_RUN_MARKERS = (
+    "20260905-quality",
     "### Previous Experiment",
     "### 上一轮实验",
     'id="previous-experiment"',
@@ -43,8 +45,10 @@ RETIRED_PREVIOUS_RUN_MARKERS = (
     "analysis/figures/concurrency-quality.png",
     "images/previous-latency-cn.png",
     "images/previous-concurrency-cn.png",
-    "20260905-quality/src/analyze_results.py",
-    "20260905-quality/results/",
+    "Qwen3.6-27B",
+    "Qwen3.6-27B-DFlash",
+    "first-generation DFlash",
+    "首代 DFlash",
     "DFlash15",
     "MTP5",
 )
@@ -341,6 +345,22 @@ def verify_manifest(root):
     require(saved == file_manifest(root), "PUBLISHED_FILE_HASH_OR_SET_MISMATCH")
 
 
+RESULT_FIGURE_STEMS = ("accuracy-alignment", "finetuned-throughput", "finetuned-alignment", "readapted-gain")
+
+
+def verify_result_figures(topic, text, chinese):
+    """Figures 2-4 exist, are referenced by the page, and match the hash record written by the generator."""
+    record = read_json(topic / "images/result-figures.json")
+    for stem in RESULT_FIGURE_STEMS:
+        name = f"{stem}-{'cn' if chinese else 'en'}.png"
+        path = topic / "images" / name
+        require(f"](images/{name})" in text, "RESULT_FIGURE_NOT_REFERENCED:" + name)
+        require(path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() == record["figures"][name]["sha256"],
+                "RESULT_FIGURE_HASH_MISMATCH:" + name)
+    for relative, digest in record["sources"].items():
+        require(hashlib.sha256((topic / relative).read_bytes()).hexdigest() == digest, "RESULT_FIGURE_SOURCE_STALE:" + relative)
+
+
 def verify_local_links(root):
     topic = topic_dir(root).resolve()
     experiment = f"experiments/{root.name}/"
@@ -378,6 +398,7 @@ def verify_local_links(root):
         require(has_heading(text, "## 测试与离线复算" if chinese else "## Tests and Offline Replay"), "TEST_DOCUMENTATION_MISSING:" + filename)
         flow = f"]({experiment}images/test-flow-{'cn' if chinese else 'en'}.png)"
         require(flow in text and (root / f"images/test-flow-{'cn' if chinese else 'en'}.png").is_file(), "TEST_FLOW_MISSING:" + filename)
+        verify_result_figures(topic, text, chinese)
         require(has_heading(text, "#### 各阶段测试耗时" if chinese else "#### Measured Duration by Stage"), "STAGE_DURATION_SECTION_MISSING:" + filename)
         verify_page_anchors(text)
         workflows.append(verify_reader_workflows(text, chinese))
