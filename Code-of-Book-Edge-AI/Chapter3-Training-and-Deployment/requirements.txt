@@ -1,0 +1,10 @@
+torch
+transformers
+datasets
+peft
+trl
+bitsandbytes
+vllm
+unsloth
+openai
+huggingface_hub

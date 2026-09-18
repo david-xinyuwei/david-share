@@ -1,0 +1,10 @@
+<reasoning>
+...
+</reasoning>
+<answer>
+...
+</answer>
+<aha>
+No no no, this is my real answer:
+...
+</aha>

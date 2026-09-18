@@ -1,0 +1,2 @@
+<|user|>\n<|image_1|>What is shown in this image?<|end|><|assistant|>\n
+Product: {title}, Category: {category3_code}, Full Price: {full_price}<|end|>

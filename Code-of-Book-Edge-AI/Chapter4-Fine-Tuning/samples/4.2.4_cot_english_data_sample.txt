@@ -1,0 +1,19 @@
+Prompt: How to use ABC SDK to obtain the English name of ABC User for .NET Framework project?
+Completion（示例代码及解析）:
+**Step-by-Step Analysis:**
+1. **Define Purpose**: The code aims to use ABC SDK by retrieving data based on the user's identity.
+2. **Code Structure**: Imports necessary namespaces and defines an MVC controller with authorization.
+**Augmented Code Sample:**
+using System;
+using System.Web;
+using System.Web.Mvc;
+public class HomeController : Controller
+{
+    [Authorize]
+    // Retrieve data using authenticated User Identity
+    public ActionResult Index()
+    {
+        var campEnglishName = User.Identity.GetCampEnglishName();
+        return View();
+    }
+}

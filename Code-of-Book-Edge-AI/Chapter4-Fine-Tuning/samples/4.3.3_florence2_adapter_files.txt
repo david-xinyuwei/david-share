@@ -1,0 +1,14 @@
+!ls -la /content/florence2-lora/
+total 12848
+drwxr-xr-x 2 root root    4096 Mar 17 14:41 .
+drwxr-xr-x 4 root root    4096 Mar 17 14:41 ..
+-rw-r--r-- 1 root root    5102 Mar 17 14:41 README.md
+-rw-r--r-- 1 root root     817 Mar 17 14:41 adapter_config.json
+-rw-r--r-- 1 root root 7747264 Mar 17 14:41 adapter_model.safetensors
+-rw-r--r-- 1 root root   22410 Mar 17 14:41 added_tokens.json
+-rw-r--r-- 1 root root  456318 Mar 17 14:41 merges.txt
+-rw-r--r-- 1 root root     633 Mar 17 14:41 preprocessor_config.json
+-rw-r--r-- 1 root root  146627 Mar 17 14:41 special_tokens_map.json
+-rw-r--r-- 1 root root 3747961 Mar 17 14:41 tokenizer.json
+-rw-r--r-- 1 root root  197689 Mar 17 14:41 tokenizer_config.json
+-rw-r--r-- 1 root root  798293 Mar 17 14:41 vocab.json

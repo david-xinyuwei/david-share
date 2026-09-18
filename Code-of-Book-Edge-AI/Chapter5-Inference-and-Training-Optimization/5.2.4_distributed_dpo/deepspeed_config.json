@@ -1,0 +1,17 @@
+{
+  "zero_optimization": {
+    "stage": 3,
+    "overlap_comm": true,
+    "contiguous_gradients": true,
+    "reduce_bucket_size": 104857600,
+    "stage3_prefetch_bucket_size": 104857600,
+    "stage3_param_persistence_threshold": 1048576
+  },
+  "bf16": {
+    "enabled": true
+  },
+  "train_micro_batch_size_per_gpu": 1,
+  "gradient_accumulation_steps": 16,
+  "steps_per_print": 10,
+  "wall_clock_breakdown": false
+}

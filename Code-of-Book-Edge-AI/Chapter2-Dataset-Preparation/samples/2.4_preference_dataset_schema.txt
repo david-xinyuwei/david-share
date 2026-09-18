@@ -1,0 +1,9 @@
+{
+  "input": {
+    "messages": {"role": "system", "content": ...},
+    "tools": [...],
+    "parallel_tool_calls": true
+  },
+  "preferred_output": [{"role": "assistant", "content": ...}],
+  "non_preferred_output": [{"role": "assistant", "content": ...}]
+}

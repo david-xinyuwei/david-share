@@ -1,0 +1,9 @@
+torch
+transformers
+datasets
+peft
+pandas
+roboflow
+supervision
+pillow
+tqdm

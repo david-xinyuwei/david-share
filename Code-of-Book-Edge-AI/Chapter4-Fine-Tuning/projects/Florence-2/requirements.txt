@@ -1,0 +1,11 @@
+IPython
+Pillow
+datasets
+matplotlib
+numpy
+peft
+roboflow
+supervision
+torch
+tqdm
+transformers

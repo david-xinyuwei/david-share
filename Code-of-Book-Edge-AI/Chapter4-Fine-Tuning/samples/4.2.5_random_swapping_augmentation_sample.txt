@@ -1,0 +1,15 @@
+Random Swapping
+using System;
+using System.Web;
+using System.Web.Mvc;
+public class HomeController : Controller
+{
+  [Authorize]
+  // Retrieve data using authenticated User Identity
+  {
+    public ActionResult Index()
+    // Swapped the comment and the variable declaration
+    var campEnglishName = User.Identity.GetCampEnglishName();
+    // Retrieve data using authenticated User Identity
+  }
+}

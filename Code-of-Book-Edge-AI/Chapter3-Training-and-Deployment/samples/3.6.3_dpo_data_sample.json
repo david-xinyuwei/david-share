@@ -1,0 +1,23 @@
+{
+  "prompt": "什么是 AI PC？",
+  "chosen": [
+    {
+      "role": "user",
+      "content": "什么是 AI PC？"
+    },
+    {
+      "role": "assistant",
+      "content": "AI PC 是集成了 NPU 的个人电脑，支持本地 AI 推理。核心特征：1) 专用 AI 芯片 2) 低功耗高效能 3) 隐私数据本地处理。"
+    }
+  ],
+  "rejected": [
+    {
+      "role": "user",
+      "content": "什么是 AI PC？"
+    },
+    {
+      "role": "assistant",
+      "content": "AI PC（人工智能个人电脑）是一种新兴的计算设备类别，它代表了个人电脑发展的最新方向。从技术角度来看，AI PC 的核心特征是集成了专门用于人工智能计算的硬件单元...[300+ 字冗长回答]"
+    }
+  ]
+}

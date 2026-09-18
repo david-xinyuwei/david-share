@@ -1,0 +1,3 @@
+指令：[instruction内容]
+输入：[input内容]
+回答：[output内容]

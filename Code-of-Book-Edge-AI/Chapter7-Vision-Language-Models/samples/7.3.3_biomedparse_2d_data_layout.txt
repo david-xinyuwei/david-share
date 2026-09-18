@@ -1,0 +1,19 @@
+data_dir/
+├── train/
+│   ├── slice001_left_kidney.png      # 提示词: "left kidney"
+│   ├── slice001_right_kidney.png     # 提示词: "right kidney"
+│   ├── slice002_liver.png            # 提示词: "liver"
+│   ├── slice003_left_kidney.png
+│   └── ...                            #共18张训练影像
+├── train_mask/
+│   ├── slice001_left_kidney_mask.png
+│   ├── slice001_right_kidney_mask.png
+│   ├── slice002_liver_mask.png
+│   └── ...
+├── test/
+│   ├── slice025_left_kidney.png
+│   ├── slice030_liver.png
+│   └── ...                        #共6张测试影像
+└── test_mask/
+    ├── slice025_left_kidney_mask.png
+    └── ...

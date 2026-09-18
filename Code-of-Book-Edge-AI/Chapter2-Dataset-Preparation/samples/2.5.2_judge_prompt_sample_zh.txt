@@ -1,0 +1,5 @@
+提示：气候变化的主要原因是什么？
+回答A:[气候变化的主要原因是人类活动所导致的温室气体排放增加，包括燃烧煤炭、石油和天然气等化石燃料，导致大量二氧化碳（CO₂）排放到大气中。 此外，森林砍伐、土地利用变化以及工业化农业过程也排放了大量的温室气体，如甲烷（CH₄）和氧化亚氮（N₂O）。 这些温室气体大量积聚在大气中，加强了温室效应，捕获更多的热量，导致全球气温上升和一系列相关气候问题，如极端天气、海平面上升和生态系统破坏等。]
+回答B：[气候变化主要是自然变化的结果，比如太阳辐射变化或火山活动频繁造成的，与人类活动并没有太大的关系。全球气候变暖只是自然周期中的一部分，并非由工业排放或人类活动主导。]
+问题:Evaluate the models on the basis of the quality and relevance of their results, and select the model that generated the best result. Reply with the identifier of the best model.Our evaluation will only take into account the first character of your answer, so make sure it contains only one of the identifiers and nothing else (no quotation marks, no spaces, no new lines, ...).
+请仅输出回答编号（“A”或“B”）。

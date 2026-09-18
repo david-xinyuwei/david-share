@@ -1,0 +1,2 @@
+Prompt: .NET Framework 中如何使用ABC.SDK
+Completion: 使用 Qu.PaaS; using (var scope = new ABC.ContextScope (User)) { PaasContext context = 范围。上下文;// .... }

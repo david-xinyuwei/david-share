@@ -1,0 +1,5 @@
+🚀 Starting SFT Training...
+[Epoch 1/3] Loss: 1.234 | Eval Loss: 1.156
+[Epoch 2/3] Loss: 0.876 | Eval Loss: 0.823
+[Epoch 3/3] Loss: 0.654 | Eval Loss: 0.612
+✅ Training complete. Model saved to checkpoints/aipc_sft_v1

@@ -1,0 +1,5 @@
+OCR this passport image. Extract ALL 13 fields and return as JSON:
+{"Type": "", "Code": "", "Passport_No": "", "Surname": "", "Given_Names": "",
+"Nationality": "", "Date_of_birth": "", "Place_of_birth": "", "Date_of_issue": "",
+"Date_of_expiration": "", "Sex": "", "Authority": "", "Endorsements": ""}
+Only return the JSON, no explanation.

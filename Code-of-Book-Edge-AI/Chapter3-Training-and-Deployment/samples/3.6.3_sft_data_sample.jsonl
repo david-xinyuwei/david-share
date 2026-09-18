@@ -1,0 +1,2 @@
+{"prompt": "在 Windows Studio Effects 中启用背景虚化后视频会议出现掉帧，如何排查？", "completion": "针对 Windows Studio Effects 视频掉帧问题，建议按以下步骤排查：\n1. 检查 NPU 驱动版本..."}
+{"prompt": "AI PC 的 NPU 和 GPU 有什么区别？", "completion": "NPU（神经网络处理器）与 GPU 的核心区别在于架构设计目标..."}

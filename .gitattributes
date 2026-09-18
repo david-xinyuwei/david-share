@@ -46,3 +46,4 @@ LICENSE text eol=lf
 Agents/Foundry-Long-Running-Agent-Resilience/*.md text eol=lf
 Agents/Foundry-Long-Running-Agent-Resilience/LICENSE text eol=lf
 Agents/Foundry-Long-Running-Agent-Resilience/images/*.png binary
+Code-of-Book-Edge-AI/**/*.json !filter !diff !merge text eol=lf

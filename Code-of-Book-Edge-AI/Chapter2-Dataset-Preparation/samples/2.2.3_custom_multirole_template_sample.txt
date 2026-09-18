@@ -1,0 +1,4 @@
+<|start_header_id|>user<|end_header_id|>
+我的电脑无法开机了，怎么办？<|eot_id|>
+<|start_header_id|>tech_support<|end_header_id|>
+请问您的电脑按下电源键后有什么反应？比如风扇是否转动，屏幕是否亮起？<|eot_id|>
