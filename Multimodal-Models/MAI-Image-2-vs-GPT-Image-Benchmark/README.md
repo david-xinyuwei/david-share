@@ -1,6 +1,6 @@
 # MAI-Image-2.6 vs GPT-Image-2 / 2.5: All Quality Tiers
 
-[![Models](https://img.shields.io/badge/Models-MAI--Image--2.6%20vs%20GPT--Image--2%20%2F%202.5-0067b8)](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image) [![Samples](https://img.shields.io/badge/Samples-87%2F88%20%2B%20132%2F132%20returned-2e7d32)](data/paired-all-quality-20260907/5way_v2_results.json) ![Resolution](https://img.shields.io/badge/Resolution-1024%C3%971024-455a64) ![MAI version](https://img.shields.io/badge/MAI%20version-2026--07--31-6a1b9a) ![Data through](https://img.shields.io/badge/Data%20through-2026--09--20-37474f) [![Status](https://img.shields.io/badge/Status-Preview%20%C2%B7%20no%20SLA-b26500)](https://azure.microsoft.com/support/legal/preview-supplemental-terms/) [![Tests](https://img.shields.io/badge/Tests-73%20offline-00695c)](tests)
+[![Models](https://img.shields.io/badge/Models-MAI--Image--2.6%20vs%20GPT--Image--2%20%2F%202.5-0067b8)](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image) [![Samples](https://img.shields.io/badge/Samples-87%2F88%20%2B%20132%2F132%20returned-2e7d32)](data/paired-all-quality-20260907/5way_v2_results.json) ![Resolution](https://img.shields.io/badge/Resolution-1024%C3%971024-455a64) ![MAI version](https://img.shields.io/badge/MAI%20version-2026--07--31-6a1b9a) ![Data through](https://img.shields.io/badge/Data%20through-2026--09--20-37474f) [![Status](https://img.shields.io/badge/Status-Preview%20%C2%B7%20no%20SLA-b26500)](https://azure.microsoft.com/support/legal/preview-supplemental-terms/) [![Tests](https://img.shields.io/badge/Tests-85%20offline-00695c)](tests)
 
 One client interleaved calls to MAI-Image-2.6 and GPT-Image-2 at low, medium and high across 11 text-to-image scenarios in two rounds, 88 formal samples in total, keeping every original PNG, per-attempt record and failed sample. Two capability tests are included: web grounding (`web_grounding`) and single-image editing. Image judgements are unblinded difference descriptions and produce no quality score or preference verdict. On 2026-09-17 the same client and prompt file also measured GPT-Image-2.5 Flare and Sunburst at all three tiers, 132 formal samples, merged into the same image, latency and token tables.
 
@@ -384,7 +384,7 @@ MAI uses `/mai/v1/images/edits` and GPT uses `/openai/deployments/gpt-image-2/im
 
 **Protocol correction**
 
-The first run passed `size=1024x1024` to the three GPT tiers, forcing the 16:9 input into a square. MAI's edit endpoint has no size parameter and was never under that constraint, so this was a one-sided constraint and the two baselines were not comparable. Those outputs reflect a parameter this test filled in wrongly rather than model behaviour; their 0/5, 1/5, 0/5, 0/5, 0/5, 0/5 preservation counts across six calls are superseded in full and are kept out of the model comparison. This run sets GPT to `size=auto`, matching MAI's service-chosen sizing, which is the only symmetric contract. The original run remains archived as the record of that parameter mistake.
+The first run passed `size=1024x1024` to the three GPT tiers, forcing the 16:9 input into a square. MAI's edit endpoint has no size parameter and was never under that constraint, so this was a one-sided constraint and the two baselines were not comparable. Those outputs reflect a parameter this test filled in wrongly rather than model behaviour; their 0/5, 1/5, 0/5, 0/5, 0/5, 0/5 preservation counts across six calls are superseded in full and are kept out of the model comparison. This run sets GPT to `size=auto`, matching MAI's service-chosen sizing, which is the only symmetric contract. The original run remains archived as the record of that parameter mistake. Superseded run: [data/edit-hat-swap-20260908](data/edit-hat-swap-20260908). The round 1 and 2 MAI-Image-2.6 images were not new calls: they are that run's `edit-hat-swap-20260908/01_mai-image-2.6.png`, `edit-hat-swap-20260908/r2/04_mai-image-2.6.png` (requested 2026-09-08). MAI's edit endpoint has no size parameter, so its calls were unaffected by the mistake and were not repeated; their latency is not the same session as the GPT tiers in the same round, so read each round's latencies together with their dates.
 
 ![Scenario 12 results under size=auto](data/edit-hat-swap-20260909-auto/figures/scenario12-auto-results.png)
 
@@ -630,7 +630,11 @@ Per-scenario descriptions come from [the inspection record](data/paired-all-qual
 | Rerun 11 text-to-image scenarios | Step 3 | MAI + GPT / yes | all 88 formal samples are recorded |
 | Rerun web-grounding comparison | Step 5 | MAI / yes | new directory contains both rounds, off and on |
 | Rerun headwear-swap edit | Step 6 | MAI + GPT / yes | eight PNGs across two rounds pass hash checks |
-| Rerun the GPT-Image-2.5 six-tier supplement | Step 7 | two GPT-2.5 deployments / yes | all 132 formal samples are recorded |
+| Rerun GPT-Image-2.5 low/medium/high | Step 7 | two GPT-2.5 deployments / yes | all 132 formal samples are recorded |
+| Rerun GPT-Image-2.5 xhigh/max/auto | Step 8 | two GPT-2.5 deployments / yes | all 132 formal samples are recorded |
+| Rerun the same-session MAI vs 2.5 comparison | Step 9 | MAI + GPT-2.5 flare / yes | all 66 formal samples are recorded |
+| Rerun text rendering and score it | Step 10 | four image deployments + one vision judge / yes | every shard recorded; `--check` returns PASS |
+| Recompute cost from your own invoice | Step 11 | az login / no | `--check` returns PASS |
 
 ### 1. Clone and install dependencies
 
@@ -711,9 +715,9 @@ python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-20260909-auto/inp
 python scripts/run_edit_hat_swap.py --output runs/edit-hat-swap-reproduction --check
 ```
 
-### 7. Rerun the GPT-Image-2.5 six-tier supplement
+### 7. Rerun GPT-Image-2.5 low/medium/high
 
-This step needs the `gpt-image-2.5-flare` and `gpt-image-2.5-sunburst` deployments, named after their models; `--gpt-model` may be repeated and each deployment expands to low, medium and high. The runner starts at most 2 requests per 60 seconds per deployment to match the 2 RPM deployment quota; raise `RATE_PACING` if your quota is higher. The first command verifies the published archive without model calls; the next two call the models and write a new directory.
+This step needs the `gpt-image-2.5-flare` and `gpt-image-2.5-sunburst` deployments, named after their models; `--gpt-model` may be repeated, and `--gpt-quality all` expands to low, medium and high (the three tiers gpt-image-2 also accepts; that token's meaning is fixed). The runner starts at most 2 requests per 60 seconds per deployment to match the 2 RPM deployment quota; raise `RATE_PACING` if your quota is higher. The first command verifies the published archive without model calls; the next two call the models and write a new directory.
 
 ```powershell
 python scripts/summarize_paired_run.py data/gpt25-paired-20260917
@@ -725,14 +729,71 @@ python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-mod
 python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-model gpt-image-2.5-sunburst --gpt-quality all --output $run --resume
 ```
 
-Text-to-image runner: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py); Edit runner: [run_edit_hat_swap.py](scripts/run_edit_hat_swap.py); offline summary: [summarize_paired_run.py](scripts/summarize_paired_run.py); report rendering: [render_paired_report.py](scripts/render_paired_report.py); regressions: [tests](tests).
+### 8. Rerun GPT-Image-2.5 xhigh/max/auto
+
+Only gpt-image-2.5-* accepts these three tiers; gpt-image-2 rejects them. `--gpt-quality` may be repeated for single tiers; `all25` expands to all six at once. A single sunburst max request measured 229 s, so the runner's request timeout is 900 s. `auto` lets the service choose a tier per request; the tier it used is recorded per attempt as `service_quality`.
+
+```powershell
+python scripts/summarize_paired_run.py data/gpt25-tiers-20260918
+$run = 'runs/gpt25-tiers-new-run'
+New-Item -ItemType Directory -Path "$run/source" -ErrorAction Stop
+Copy-Item -LiteralPath scripts/benchmark_5way_v2.py -Destination "$run/source/benchmark_5way_v2.py"
+Copy-Item -LiteralPath prompts.csv -Destination "$run/source/prompts.csv"
+python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-model gpt-image-2.5-sunburst --gpt-quality xhigh --gpt-quality max --gpt-quality auto --output $run --warmup-only
+python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-model gpt-image-2.5-sunburst --gpt-quality xhigh --gpt-quality max --gpt-quality auto --output $run --resume
+```
+
+### 9. Rerun the same-session MAI vs GPT-Image-2.5 comparison
+
+Three configurations interleaved in one run. `--gpt-model` accepts `deployment:tier,tier` to pin tiers to one deployment, because gpt-image-2 rejects the 2.5-only tiers and different deployments need different tier sets. MAI takes no quality parameter.
+
+```powershell
+python scripts/summarize_paired_run.py data/mai-vs-gpt25-20260920
+$run = 'runs/mai-vs-gpt25-new-run'
+New-Item -ItemType Directory -Path "$run/source" -ErrorAction Stop
+Copy-Item -LiteralPath scripts/benchmark_5way_v2.py -Destination "$run/source/benchmark_5way_v2.py"
+Copy-Item -LiteralPath prompts.csv -Destination "$run/source/prompts.csv"
+python -u scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --gpt-model gpt-image-2.5-flare:medium,high --output $run --warmup-only
+python -u scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --gpt-model gpt-image-2.5-flare:medium,high --output $run --resume
+```
+
+### 10. Rerun text rendering and score it
+
+Text rendering uses its own prompt file (`--prompts-csv`): the first five columns are prompt, pair id, language, target string (multi-line targets use `|`) and character count; the runner reads only the first column. Each deployment has its own quota, so shards run in parallel per deployment and are merged at scoring with repeated `--run`; the scorer refuses shards whose frozen prompt file differs. Scoring needs a vision-capable chat deployment via `JUDGE_ENDPOINT`, `JUDGE_DEPLOYMENT` and `AZURE_OPENAI_API_KEY`; run `calibrate_text_judge.py` first to confirm it reads real-font renders of the targets at 100%, or its errors will be attributed to the image models. `--check` recomputes every score from the transcriptions saved in an archive and calls no model.
+
+```powershell
+python scripts/score_text_rendering.py --check data/text-rendering-20260918/text-scoring.json
+python scripts/score_text_rendering.py --check data/text-hard-20260919/text-scoring.json
+python scripts/calibrate_text_judge.py --check data/text-rendering-20260918/judge-calibration/calibration.json
+python scripts/calibrate_text_judge.py --check data/text-hard-20260919/judge-calibration/calibration.json
+$env:JUDGE_ENDPOINT = 'https://<openai-resource>.openai.azure.com'
+$env:JUDGE_DEPLOYMENT = '<vision-capable-chat-deployment>'
+python scripts/calibrate_text_judge.py --prompts data/text-rendering-20260918/prompts-text-rendering.csv --out runs/judge-calibration
+$run = 'runs/text-new-run-mai'
+New-Item -ItemType Directory -Path "$run/source" -ErrorAction Stop
+Copy-Item -LiteralPath scripts/benchmark_5way_v2.py -Destination "$run/source/benchmark_5way_v2.py"
+Copy-Item -LiteralPath data/text-rendering-20260918/prompts-text-rendering.csv -Destination "$run/source/prompts-text-rendering.csv"
+python -u scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --prompts-csv "$run/source/prompts-text-rendering.csv" --output $run
+python scripts/score_text_rendering.py --run $run --prompts data/text-rendering-20260918/prompts-text-rendering.csv --out runs/text-new-run-scored
+```
+
+### 11. Recompute cost per image from your own invoice
+
+Every price in the cost section comes from the Cost Management response in this archive. The first command recomputes `effective-prices.json` from the archived response and compares, offline; the second issues the same query against your own account (needs `az login`; the query itself is free) and writes a new archive, after which re-rendering the report reads your invoice instead of ours.
+
+```powershell
+python scripts/effective_prices.py data/billing-20260920 --check
+python scripts/effective_prices.py data/billing-<date> --query --subscription <id> --resource-group <rg> --account <cognitive-services-account>
+```
+
+Text-to-image runner: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py); Edit runner: [run_edit_hat_swap.py](scripts/run_edit_hat_swap.py); offline summary: [summarize_paired_run.py](scripts/summarize_paired_run.py); text scoring: [score_text_rendering.py](scripts/score_text_rendering.py); judge calibration: [calibrate_text_judge.py](scripts/calibrate_text_judge.py); invoice derivation: [effective_prices.py](scripts/effective_prices.py); report rendering: [render_paired_report.py](scripts/render_paired_report.py); regressions: [tests](tests).
 
 
 ### Limits
 
-This report compares MAI-Image-2.6, the three GPT-Image-2 tiers, and GPT-Image-2.5 Flare and Sunburst at low, medium, high, xhigh, max, auto. The aggregate metrics come from eleven 1024x1024 text-to-image scenarios; Scenario 12 is a separately reported `size=auto` image-edit test, excluded from the first eleven scenarios' latency and quality counts, and it has no GPT-Image-2.5 results. The report does not cover 2K, multiple reference images, exact-text accuracy, concurrency capacity or other authentication modes. MAI sends no quality parameter and is not labeled as equivalent to any GPT tier.
+This report compares MAI-Image-2.6, the three GPT-Image-2 tiers, and GPT-Image-2.5 Flare and Sunburst at low, medium, high, xhigh, max, auto. The aggregate metrics come from eleven 1024x1024 text-to-image scenarios; Scenario 12 is a separately reported `size=auto` image-edit test, excluded from the first eleven scenarios' latency and quality counts, and it has no GPT-Image-2.5 results. The latency tables in this section are not a same-session MAI vs 2.5 comparison; that comparison has its own section below. The report does not cover 2K, multiple reference images, concurrency capacity or other authentication modes; exact-text accuracy covers only the scenes and characters listed in the two text-rendering sections. MAI sends no quality parameter and is not labeled as equivalent to any GPT tier.
 
-Evidence directory: [data/paired-all-quality-20260907](data/paired-all-quality-20260907). Contains original images, measurement records, attempts, response metadata and a redacted public source copy. Non-financial measurement fields and image bytes are unchanged; original execution hashes and published-file hashes are recorded separately in [provenance](data/paired-all-quality-20260907/provenance.json). Prompt SHA-256: `be3d628c66a1e4d535d06bcc84246a04aad11f35a48f3133d451fe86283782ce`.
+Evidence directory: [data/paired-all-quality-20260907](data/paired-all-quality-20260907). Contains original images, measurement records, attempts, response metadata and a redacted public source copy. Non-financial measurement fields and image bytes are unchanged; original execution hashes and published-file hashes are recorded separately in [provenance](data/paired-all-quality-20260907/provenance.json). Prompt SHA-256: `be3d628c66a1e4d535d06bcc84246a04aad11f35a48f3133d451fe86283782ce`. An earlier MAI-Image-2.6-only pass of 22 samples over the same prompt file with the same runner, made the same day, is archived at [data/mai-image-2.6-20260907](data/mai-image-2.6-20260907); it preceded the paired run, is kept as evidence only, and feeds no table in this report.
 
 ## The Six GPT-Image-2.5 Quality Tiers
 
@@ -763,8 +824,8 @@ Evidence directory: [data/paired-all-quality-20260907](data/paired-all-quality-2
 
 | Model | Billed USD per 1M output-image tokens |
 | --- | --- |
-| gpt-image-2.5-flare | $30.00 |
 | gpt-image-2 | $30.00 |
+| gpt-image-2.5-flare | $30.00 |
 | gpt-image-2.5-sunburst | $30.00 |
 | MAI-Image-2.6 | $38.00 |
 
@@ -971,7 +1032,7 @@ Denominators are fixed per round: 79 English characters and 34 Chinese character
 
 **Scoring correction**: the first pass matched each target against a **single transcribed line**. The judge emits one line per visual text block, so a model that wrapped a phrase onto two lines was scored as misspelling it; the penalty grew with target length, and the English targets are two to four times longer than the Chinese ones, so English was systematically understated in exactly the direction this test was meant to examine. 61 samples were affected. The corrected rule ignores whitespace and matches anywhere in the transcription; the first-pass scores are kept as [`text-scoring-line-anchored.json`](data/text-rendering-20260918/text-scoring-line-anchored.json) rather than deleted.
 
-**The judge's own error floor**: rendering the same targets with Microsoft YaHei and asking the judge to read them back scores 100% for both scripts (calibration counted raw characters: 91/91 English, 37/37 Chinese). The judge therefore has no systematic bias against Chinese, and the gaps above are attributable to the image models. Boundary: this only establishes that the judge reads clean renders; distorted or stylised text in generated images is harder, so the table may understate accuracy and will not overstate it. Per-group contact sheets in the evidence directory allow every image to be checked by eye.
+**The judge's own error floor**: rendering this section's targets with Microsoft YaHei and asking the judge to read them back scores 79/79 (100.0%) for English and 34/34 (100.0%) for Chinese under the same scoring rule as the table. The judge therefore has no systematic bias against these characters, and the gaps above are attributable to the image models. Boundary: this only establishes that the judge reads clean horizontal renders; distorted, stylised or vertical text in generated images is harder, so the table may understate accuracy and will not overstate it. The renders and transcriptions are in [judge-calibration](data/text-rendering-20260918/judge-calibration) and `calibrate_text_judge.py --check` recomputes them offline; per-group contact sheets in the evidence directory allow every image to be checked by eye.
 
 **Boundary**: 120 successful samples across 5 scenes and 2 rounds. This measures spelling accuracy for a specified string, not typographic quality, font choice or design appeal. MAI-Image-2.6 takes no quality parameter and therefore has a single row. **Declared support**: the Foundry model documentation lists MAI-Image-2.6 Languages as `en`; Chinese is outside its declared scope. The Chinese results here are observed behaviour outside that scope, not a product commitment, and should not be cited as a supported capability.
 
@@ -1021,7 +1082,7 @@ Denominators are fixed per round: 131 English characters and 43 Chinese characte
 
 **How it was judged**: each image is transcribed by `gpt-5.6-terra` and compared with the target string programmatically, ignoring all whitespace. Two denominators are reported: character accuracy scores the best-matching window of equal length anywhere in the transcription, character by character; exact segments requires the target to appear verbatim as a substring, with no partial credit. This is model-judged, not a blind human study. The judge is an OpenAI-family model and some of the judged images come from OpenAI image models; the calibration below rules out an inability to read Chinese, not a lenience toward one vendor's style, which is why every group has a contact sheet for human review.
 
-**The judge's own error floor**: rendering the same targets with Microsoft YaHei and asking the judge to read them back scores 100% for both scripts (calibration counted raw characters: 91/91 English, 37/37 Chinese). The judge therefore has no systematic bias against Chinese, and the gaps above are attributable to the image models. Boundary: this only establishes that the judge reads clean renders; distorted or stylised text in generated images is harder, so the table may understate accuracy and will not overstate it. Per-group contact sheets in the evidence directory allow every image to be checked by eye.
+**The judge's own error floor**: rendering this section's targets with Microsoft YaHei and asking the judge to read them back scores 131/131 (100.0%) for English and 43/43 (100.0%) for Chinese under the same scoring rule as the table. The judge therefore has no systematic bias against these characters, and the gaps above are attributable to the image models. Boundary: this only establishes that the judge reads clean horizontal renders; distorted, stylised or vertical text in generated images is harder, so the table may understate accuracy and will not overstate it. The renders and transcriptions are in [judge-calibration](data/text-hard-20260919/judge-calibration) and `calibrate_text_judge.py --check` recomputes them offline; per-group contact sheets in the evidence directory allow every image to be checked by eye.
 
 **Boundary**: 382 successful samples across 6 scenes and 2 rounds. This measures spelling accuracy for a specified string, not typographic quality, font choice or design appeal. MAI-Image-2.6 takes no quality parameter and therefore has a single row. **Declared support**: the Foundry model documentation lists MAI-Image-2.6 Languages as `en`; Chinese is outside its declared scope. The Chinese results here are observed behaviour outside that scope, not a product commitment, and should not be cited as a supported capability.
 

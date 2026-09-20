@@ -13,6 +13,8 @@ from summarize_edit_hat_swap import summarize as summarize_edit
 LABELS = ("MAI-Image-2.6", "GPT-Image-2 low", "GPT-Image-2 medium", "GPT-Image-2 high")
 GROUNDING_ARCHIVE = "data/lenovo-web-grounding-20260908"
 EDIT_ARCHIVE = "data/edit-hat-swap-20260909-auto"
+# MAI-only pass over the same prompts made earlier the same day as the paired run; evidence only.
+MAI_ONLY_ARCHIVE = "data/mai-image-2.6-20260907"
 # Later run measured with the same client, prompts and runner; its columns join the same tables
 # but carry their own date and region because they are not the same session as the primary run.
 SUPPLEMENT_ARCHIVE = "data/gpt25-paired-20260917"
@@ -229,7 +231,10 @@ def load_text_study(root, archive="data/text-rendering-20260918", prompts_name="
                 prompts.append({"prompt": row[0], "pair_id": row[1], "language": row[2],
                                 "target": row[3], "chars": int(row[4]), "scene": row[5],
                                 "tests": row[6] if len(row) > 6 else ""})
-    return {**data, "archive": archive, "prompts": prompts, "kind": kind}
+    calibration_path = directory / "judge-calibration" / "calibration.json"
+    calibration = json.loads(calibration_path.read_text("utf-8")) if calibration_path.is_file() else None
+    return {**data, "archive": archive, "prompts": prompts, "kind": kind, "prompts_name": prompts_name,
+            "calibration": calibration}
 
 
 def render_text_section(study, language):
@@ -350,18 +355,36 @@ def render_text_section(study, language):
                       "The corrected rule ignores whitespace and matches anywhere in the transcription; the first-pass "
                       f"scores are kept as [`{superseded['file']}`]({study['archive']}/{superseded['file']}) rather "
                       "than deleted.")
-    calibration = ("**判读器的误差下限**：把同样的目标文字用微软雅黑渲染成图再让判读器读回来，两种语言都是 100%"
-                   "（校准按原始字符数计，英文 91/91、中文 37/37）。也就是说判读器对中文没有系统性偏见，"
-                   "上表的差距可以归到生成模型。边界：这只证明判读器能读清晰渲染的文字；生成图里扭曲或艺术化的字更难读，"
-                   "所以上表可能低估、不会高估。每组的拼图见证据目录，可以逐张核对。"
-                   if chinese else
-                   "**The judge's own error floor**: rendering the same targets with Microsoft YaHei and asking the "
-                   "judge to read them back scores 100% for both scripts (calibration counted raw characters: "
-                   "91/91 English, 37/37 Chinese). The judge therefore has no systematic bias against Chinese, and "
-                   "the gaps above are attributable to the image models. Boundary: this only establishes that the "
-                   "judge reads clean renders; distorted or stylised text in generated images is harder, so the table "
-                   "may understate accuracy and will not overstate it. Per-group contact sheets in the evidence "
-                   "directory allow every image to be checked by eye.")
+    cal = study.get("calibration")
+    if cal:
+        en_cal, zh_cal = cal["summary"]["en"], cal["summary"]["zh"]
+        font = cal.get("font", "msyh.ttc")
+        font_name = "微软雅黑" if font.lower().startswith("msyh") else font
+        font_name_en = "Microsoft YaHei" if font.lower().startswith("msyh") else font
+        calibration = (f"**判读器的误差下限**：把本节同样的目标文字用{font_name}渲染成图再让判读器读回来，英文 "
+                       f"{en_cal['matched_chars']}/{en_cal['total_chars']}（{en_cal['char_accuracy']:.1%}），中文 "
+                       f"{zh_cal['matched_chars']}/{zh_cal['total_chars']}（{zh_cal['char_accuracy']:.1%}），与上表同一套评分规则。"
+                       "也就是说判读器对这些字符没有系统性偏见，上表的差距可以归到生成模型。边界：这只证明判读器能读清晰的横排文字；"
+                       "生成图里扭曲、艺术化或竖排的字更难读，所以上表可能低估、不会高估。校准的渲染图与转录在 "
+                       f"[judge-calibration]({study['archive']}/judge-calibration)，`calibrate_text_judge.py --check` 可离线重算；"
+                       "每组的拼图见证据目录，可以逐张核对。"
+                       if chinese else
+                       f"**The judge's own error floor**: rendering this section's targets with {font_name_en} and asking "
+                       f"the judge to read them back scores {en_cal['matched_chars']}/{en_cal['total_chars']} "
+                       f"({en_cal['char_accuracy']:.1%}) for English and {zh_cal['matched_chars']}/{zh_cal['total_chars']} "
+                       f"({zh_cal['char_accuracy']:.1%}) for Chinese under the same scoring rule as the table. The judge "
+                       "therefore has no systematic bias against these characters, and the gaps above are attributable "
+                       "to the image models. Boundary: this only establishes that the judge reads clean horizontal "
+                       "renders; distorted, stylised or vertical text in generated images is harder, so the table may "
+                       "understate accuracy and will not overstate it. The renders and transcriptions are in "
+                       f"[judge-calibration]({study['archive']}/judge-calibration) and `calibrate_text_judge.py --check` "
+                       "recomputes them offline; per-group contact sheets in the evidence directory allow every image "
+                       "to be checked by eye.")
+    else:
+        calibration = ("**判读器的误差下限**：本节的目标文字没有做判读器校准，上表的差距里包含未知大小的判读误差。"
+                       if chinese else
+                       "**The judge's own error floor**: the judge was not calibrated on this section's targets, so the "
+                       "gaps above include a judging error of unknown size.")
     boundary = (f"**结论边界**：{study['scored_samples']} 个成功样本，覆盖 {scene_count} 个场景、2 轮。"
                 "这是指定字符串的拼写准确率，不是排版美观度、字体质量或中文设计感的评价。"
                 "MAI-Image-2.6 不接受质量参数，它的行只有一个配置。"
@@ -704,7 +727,9 @@ def exception_section(summary, language, supplement=None):
     return text + "\n\n" + table(headers, rows)
 
 
-def reproduction_section(archive_path, language, grounding_archive=None, edit_archive=None, supplement_archive=None):
+def reproduction_section(archive_path, language, grounding_archive=None, edit_archive=None, supplement_archive=None,
+                         tier_archive=None, head_archive=None, text_archives=(), billing_archive=None):
+    zh = language == "zh"
     intro = ("需要可用的 MAI-Image-2.6 和 GPT-Image-2 部署。部署身份由您查询确认，不能仅凭 deployment 名称判断底层模型。先克隆仓库、拉取本项目的 Git LFS 文件，并在 Python 环境安装 requests："
              if language == "zh" else
              "Supply accessible MAI-Image-2.6 and GPT-Image-2 deployments. Verify their underlying model versions; deployment names alone are not model identity. Clone the repository, fetch this project's Git LFS inputs, and install requests in your Python environment:")
@@ -729,9 +754,25 @@ def reproduction_section(archive_path, language, grounding_archive=None, edit_ar
             ["Rerun headwear-swap edit", "Step 6", "MAI + GPT / yes", "eight PNGs across two rounds pass hash checks"],
         ])
     if supplement_archive:
-        route_rows.append(["重跑 GPT-Image-2.5 六档补测", "步骤 7", "GPT-2.5 两个部署 / 会计费", "132 个正式样本全部记录"]
-                          if language == "zh" else
-                          ["Rerun the GPT-Image-2.5 six-tier supplement", "Step 7", "two GPT-2.5 deployments / yes", "all 132 formal samples are recorded"])
+        route_rows.append(["重跑 GPT-Image-2.5 low/medium/high 补测", "步骤 7", "GPT-2.5 两个部署 / 会计费", "132 个正式样本全部记录"]
+                          if zh else
+                          ["Rerun GPT-Image-2.5 low/medium/high", "Step 7", "two GPT-2.5 deployments / yes", "all 132 formal samples are recorded"])
+    if tier_archive:
+        route_rows.append(["重跑 GPT-Image-2.5 xhigh/max/auto 补测", "步骤 8", "GPT-2.5 两个部署 / 会计费", "132 个正式样本全部记录"]
+                          if zh else
+                          ["Rerun GPT-Image-2.5 xhigh/max/auto", "Step 8", "two GPT-2.5 deployments / yes", "all 132 formal samples are recorded"])
+    if head_archive:
+        route_rows.append(["重跑 MAI 对 2.5 同会话对比", "步骤 9", "MAI + GPT-2.5 flare / 会计费", "66 个正式样本全部记录"]
+                          if zh else
+                          ["Rerun the same-session MAI vs 2.5 comparison", "Step 9", "MAI + GPT-2.5 flare / yes", "all 66 formal samples are recorded"])
+    if text_archives:
+        route_rows.append(["重跑中英文文字渲染并判读", "步骤 10", "四个图像部署 + 一个视觉判读部署 / 会计费", "每个分片全部记录，`--check` 返回 PASS"]
+                          if zh else
+                          ["Rerun text rendering and score it", "Step 10", "four image deployments + one vision judge / yes", "every shard recorded; `--check` returns PASS"])
+    if billing_archive:
+        route_rows.append(["从自己的账单重算成本", "步骤 11", "az 登录 / 不计费", "`--check` 返回 PASS"]
+                          if zh else
+                          ["Recompute cost from your own invoice", "Step 11", "az login / no", "`--check` returns PASS"])
     route_table = table(
         [("目标" if language == "zh" else "Goal"),
          ("入口" if language == "zh" else "Entry"),
@@ -765,11 +806,11 @@ def reproduction_section(archive_path, language, grounding_archive=None, edit_ar
     supplement = ""
     if supplement_archive:
         supplement = "\n\n".join([
-            ("### 7. 重跑 GPT-Image-2.5 六档补测" if language == "zh" else
-             "### 7. Rerun the GPT-Image-2.5 six-tier supplement"),
-            ("这一步需要 `gpt-image-2.5-flare` 和 `gpt-image-2.5-sunburst` 两个部署，部署名就是模型名；`--gpt-model` 可重复传入，每个部署展开为 low、medium、high 三组。执行脚本对同一部署每 60 秒最多起请 2 次，与 2 RPM 的部署配额对齐；若你的配额更高，可以改 `RATE_PACING`。第一条只读核验已发布归档；后两条真实调用模型并写入新目录。"
-             if language == "zh" else
-             "This step needs the `gpt-image-2.5-flare` and `gpt-image-2.5-sunburst` deployments, named after their models; `--gpt-model` may be repeated and each deployment expands to low, medium and high. The runner starts at most 2 requests per 60 seconds per deployment to match the 2 RPM deployment quota; raise `RATE_PACING` if your quota is higher. The first command verifies the published archive without model calls; the next two call the models and write a new directory."),
+            ("### 7. 重跑 GPT-Image-2.5 low/medium/high 补测" if zh else
+             "### 7. Rerun GPT-Image-2.5 low/medium/high"),
+            ("这一步需要 `gpt-image-2.5-flare` 和 `gpt-image-2.5-sunburst` 两个部署，部署名就是模型名；`--gpt-model` 可重复传入，`--gpt-quality all` 展开为 low、medium、high 三组（这是 gpt-image-2 也接受的三档，含义固定不变）。执行脚本对同一部署每 60 秒最多起请 2 次，与 2 RPM 的部署配额对齐；若你的配额更高，可以改 `RATE_PACING`。第一条只读核验已发布归档；后两条真实调用模型并写入新目录。"
+             if zh else
+             "This step needs the `gpt-image-2.5-flare` and `gpt-image-2.5-sunburst` deployments, named after their models; `--gpt-model` may be repeated, and `--gpt-quality all` expands to low, medium and high (the three tiers gpt-image-2 also accepts; that token's meaning is fixed). The runner starts at most 2 requests per 60 seconds per deployment to match the 2 RPM deployment quota; raise `RATE_PACING` if your quota is higher. The first command verifies the published archive without model calls; the next two call the models and write a new directory."),
             f"""```powershell
 python scripts/summarize_paired_run.py {supplement_archive}
 $run = 'runs/gpt25-paired-new-run'
@@ -778,6 +819,77 @@ Copy-Item -LiteralPath scripts/benchmark_5way_v2.py -Destination "$run/source/be
 Copy-Item -LiteralPath prompts.csv -Destination "$run/source/prompts.csv"
 python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-model gpt-image-2.5-sunburst --gpt-quality all --output $run --warmup-only
 python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-model gpt-image-2.5-sunburst --gpt-quality all --output $run --resume
+```"""])
+    tiers = ""
+    if tier_archive:
+        tiers = "\n\n".join([
+            ("### 8. 重跑 GPT-Image-2.5 xhigh/max/auto 补测" if zh else
+             "### 8. Rerun GPT-Image-2.5 xhigh/max/auto"),
+            ("这三档只有 gpt-image-2.5-* 接受，gpt-image-2 会拒绝。`--gpt-quality` 可重复传入单个档位；`all25` 一次展开全部六档。sunburst 的 max 档单次请求实测 229 秒，执行脚本的请求超时为 900 秒。`auto` 由服务按请求自选档位，它实际使用的档位记在每次尝试的 `service_quality` 字段里。"
+             if zh else
+             "Only gpt-image-2.5-* accepts these three tiers; gpt-image-2 rejects them. `--gpt-quality` may be repeated for single tiers; `all25` expands to all six at once. A single sunburst max request measured 229 s, so the runner's request timeout is 900 s. `auto` lets the service choose a tier per request; the tier it used is recorded per attempt as `service_quality`."),
+            f"""```powershell
+python scripts/summarize_paired_run.py {tier_archive}
+$run = 'runs/gpt25-tiers-new-run'
+New-Item -ItemType Directory -Path "$run/source" -ErrorAction Stop
+Copy-Item -LiteralPath scripts/benchmark_5way_v2.py -Destination "$run/source/benchmark_5way_v2.py"
+Copy-Item -LiteralPath prompts.csv -Destination "$run/source/prompts.csv"
+python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-model gpt-image-2.5-sunburst --gpt-quality xhigh --gpt-quality max --gpt-quality auto --output $run --warmup-only
+python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-model gpt-image-2.5-sunburst --gpt-quality xhigh --gpt-quality max --gpt-quality auto --output $run --resume
+```"""])
+    head = ""
+    if head_archive:
+        head = "\n\n".join([
+            ("### 9. 重跑 MAI 对 GPT-Image-2.5 的同会话对比" if zh else
+             "### 9. Rerun the same-session MAI vs GPT-Image-2.5 comparison"),
+            ("三个配置在一个 run 里交错调用。`--gpt-model` 支持 `部署名:档位,档位` 写法，把档位固定到单个部署——因为 gpt-image-2 不接受 2.5 的高档，不同部署需要不同档位集。MAI 不接受质量参数。"
+             if zh else
+             "Three configurations interleaved in one run. `--gpt-model` accepts `deployment:tier,tier` to pin tiers to one deployment, because gpt-image-2 rejects the 2.5-only tiers and different deployments need different tier sets. MAI takes no quality parameter."),
+            f"""```powershell
+python scripts/summarize_paired_run.py {head_archive}
+$run = 'runs/mai-vs-gpt25-new-run'
+New-Item -ItemType Directory -Path "$run/source" -ErrorAction Stop
+Copy-Item -LiteralPath scripts/benchmark_5way_v2.py -Destination "$run/source/benchmark_5way_v2.py"
+Copy-Item -LiteralPath prompts.csv -Destination "$run/source/prompts.csv"
+python -u scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --gpt-model gpt-image-2.5-flare:medium,high --output $run --warmup-only
+python -u scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --gpt-model gpt-image-2.5-flare:medium,high --output $run --resume
+```"""])
+    text = ""
+    if text_archives:
+        easy = text_archives[0]
+        check_lines = "\n".join(f"python scripts/score_text_rendering.py --check {s['archive']}/text-scoring.json"
+                                for s in text_archives)
+        check_lines += "".join(f"\npython scripts/calibrate_text_judge.py --check {s['archive']}/judge-calibration/calibration.json"
+                               for s in text_archives if s.get("calibration"))
+        text = "\n\n".join([
+            ("### 10. 重跑中英文文字渲染并判读" if zh else
+             "### 10. Rerun text rendering and score it"),
+            ("文字渲染用自己的提示词文件（`--prompts-csv`），前五列分别是提示词、配对 ID、语言、目标字串（多行用 `|` 分隔）和字符数；执行脚本只读第一列。每个部署各自有配额，所以按部署分片并行跑，判读时用多个 `--run` 合并；判读器会拒绝合并提示词文件不一致的分片。判读需要一个支持图像输入的 chat 部署，通过 `JUDGE_ENDPOINT`、`JUDGE_DEPLOYMENT` 和 `AZURE_OPENAI_API_KEY` 提供；先用 `calibrate_text_judge.py` 确认它能 100% 读回用真字体渲染的目标文字，否则它的误差会被误认为模型的误差。`--check` 用归档里保存的转录重算全部分数，不调用任何模型。"
+             if zh else
+             "Text rendering uses its own prompt file (`--prompts-csv`): the first five columns are prompt, pair id, language, target string (multi-line targets use `|`) and character count; the runner reads only the first column. Each deployment has its own quota, so shards run in parallel per deployment and are merged at scoring with repeated `--run`; the scorer refuses shards whose frozen prompt file differs. Scoring needs a vision-capable chat deployment via `JUDGE_ENDPOINT`, `JUDGE_DEPLOYMENT` and `AZURE_OPENAI_API_KEY`; run `calibrate_text_judge.py` first to confirm it reads real-font renders of the targets at 100%, or its errors will be attributed to the image models. `--check` recomputes every score from the transcriptions saved in an archive and calls no model."),
+            f"""```powershell
+{check_lines}
+$env:JUDGE_ENDPOINT = 'https://<openai-resource>.openai.azure.com'
+$env:JUDGE_DEPLOYMENT = '<vision-capable-chat-deployment>'
+python scripts/calibrate_text_judge.py --prompts {easy['archive']}/{easy['prompts_name']} --out runs/judge-calibration
+$run = 'runs/text-new-run-mai'
+New-Item -ItemType Directory -Path "$run/source" -ErrorAction Stop
+Copy-Item -LiteralPath scripts/benchmark_5way_v2.py -Destination "$run/source/benchmark_5way_v2.py"
+Copy-Item -LiteralPath {easy['archive']}/{easy['prompts_name']} -Destination "$run/source/{easy['prompts_name']}"
+python -u scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --prompts-csv "$run/source/{easy['prompts_name']}" --output $run
+python scripts/score_text_rendering.py --run $run --prompts {easy['archive']}/{easy['prompts_name']} --out runs/text-new-run-scored
+```"""])
+    billing = ""
+    if billing_archive:
+        billing = "\n\n".join([
+            ("### 11. 从自己的账单重算每张图成本" if zh else
+             "### 11. Recompute cost per image from your own invoice"),
+            ("成本小节的全部单价都来自这个归档里的 Cost Management 响应。第一条从已归档响应重算 `effective-prices.json` 并核对，不联网；第二条对你自己的账户发同样的查询（需要 `az login`，查询本身不计费），写入新归档；之后重新渲染报告，成本小节就会读你的账单而不是我们的。"
+             if zh else
+             "Every price in the cost section comes from the Cost Management response in this archive. The first command recomputes `effective-prices.json` from the archived response and compares, offline; the second issues the same query against your own account (needs `az login`; the query itself is free) and writes a new archive, after which re-rendering the report reads your invoice instead of ours."),
+            f"""```powershell
+python scripts/effective_prices.py {billing_archive} --check
+python scripts/effective_prices.py data/billing-<date> --query --subscription <id> --resource-group <rg> --account <cognitive-services-account>
 ```"""])
     return f"""<a id="reproduction-how-to"></a>
 ## {'复现方法（How-to）与测试' if language == 'zh' else 'Reproduction How-to and Tests'}
@@ -841,9 +953,9 @@ python scripts/render_paired_report.py {archive_path} --check
 python -m unittest discover -s tests -v
 ```
 
-{"\n\n".join(part for part in (grounding, multi_image, supplement) if part)}
+{"\n\n".join(part for part in (grounding, multi_image, supplement, tiers, head, text, billing) if part)}
 
-{'文生图执行脚本' if language == 'zh' else 'Text-to-image runner'}: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py); {'改图执行脚本' if language == 'zh' else 'Edit runner'}: [run_edit_hat_swap.py](scripts/run_edit_hat_swap.py); {'离线汇总' if language == 'zh' else 'offline summary'}: [summarize_paired_run.py](scripts/summarize_paired_run.py); {'报告生成' if language == 'zh' else 'report rendering'}: [render_paired_report.py](scripts/render_paired_report.py); {'回归测试' if language == 'zh' else 'regressions'}: [tests](tests).
+{'文生图执行脚本' if zh else 'Text-to-image runner'}: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py); {'改图执行脚本' if zh else 'Edit runner'}: [run_edit_hat_swap.py](scripts/run_edit_hat_swap.py); {'离线汇总' if zh else 'offline summary'}: [summarize_paired_run.py](scripts/summarize_paired_run.py); {'文字判读' if zh else 'text scoring'}: [score_text_rendering.py](scripts/score_text_rendering.py); {'判读器校准' if zh else 'judge calibration'}: [calibrate_text_judge.py](scripts/calibrate_text_judge.py); {'账单折算' if zh else 'invoice derivation'}: [effective_prices.py](scripts/effective_prices.py); {'报告生成' if zh else 'report rendering'}: [render_paired_report.py](scripts/render_paired_report.py); {'回归测试' if zh else 'regressions'}: [tests](tests).
 """
 
 
@@ -1176,7 +1288,7 @@ def render_vendor_charts(language, mai_p50, medium_p50, low_p50, high_p50):
 
 
 def render_overview(summary, quality, archive_path, language, has_grounding=False,
-                    has_edit=False, supplement=None, tier=None):
+                    has_edit=False, supplement=None, tier=None, head=None, text_studies=(), billing=None):
     chinese = language == "zh"
     metadata = summary["config"]["group_configurations"]
     if [group["group"] for group in summary["groups"]] != list(GROUPS):
@@ -1255,10 +1367,23 @@ def render_overview(summary, quality, archive_path, language, has_grounding=Fals
         untested_cn = f"；2.5 另有 {'、'.join(absent)} 档，本轮没有测" if absent else ""
         untested_en = (f"; 2.5 also offers {', '.join(absent)}, which were not run" if absent else "")
         count_cn = {3: "三", 6: "六"}.get(len(supplement_tiers), str(len(supplement_tiers)))
-        limits = (f"本报告对比 MAI-Image-2.6、GPT-Image-2 三档，以及 GPT-Image-2.5 Flare 与 Sunburst 各{count_cn}档（{'、'.join(supplement_tiers)}）{untested_cn}。主要聚合统计来自 11 个 1024x1024 文生图场景；第 12 题是单独报告的 `size=auto` 图像编辑测试，不进入前 11 题的耗时与质量计数，也没有 2.5 的编辑结果。本报告不覆盖 2K、多图参考、文字准确率专项、并发压测或其他认证方式。MAI 没有传质量参数，不能称为任何 GPT 档位的等价档。"
+        limits = (f"本报告对比 MAI-Image-2.6、GPT-Image-2 三档，以及 GPT-Image-2.5 Flare 与 Sunburst 各{count_cn}档（{'、'.join(supplement_tiers)}）{untested_cn}。主要聚合统计来自 11 个 1024x1024 文生图场景；第 12 题是单独报告的 `size=auto` 图像编辑测试，不进入前 11 题的耗时与质量计数，也没有 2.5 的编辑结果。本节的耗时表不是 MAI 与 2.5 的同会话对比，那一对比在后文单独一节。本报告不覆盖 2K、多图参考、并发压测或其他认证方式；文字准确率只覆盖后文两节列出的场景与字符。MAI 没有传质量参数，不能称为任何 GPT 档位的等价档。"
                   if chinese else
-                  f"This report compares MAI-Image-2.6, the three GPT-Image-2 tiers, and GPT-Image-2.5 Flare and Sunburst at {', '.join(supplement_tiers)}{untested_en}. The aggregate metrics come from eleven 1024x1024 text-to-image scenarios; Scenario 12 is a separately reported `size=auto` image-edit test, excluded from the first eleven scenarios' latency and quality counts, and it has no GPT-Image-2.5 results. The report does not cover 2K, multiple reference images, exact-text accuracy, concurrency capacity or other authentication modes. MAI sends no quality parameter and is not labeled as equivalent to any GPT tier.")
+                  f"This report compares MAI-Image-2.6, the three GPT-Image-2 tiers, and GPT-Image-2.5 Flare and Sunburst at {', '.join(supplement_tiers)}{untested_en}. The aggregate metrics come from eleven 1024x1024 text-to-image scenarios; Scenario 12 is a separately reported `size=auto` image-edit test, excluded from the first eleven scenarios' latency and quality counts, and it has no GPT-Image-2.5 results. The latency tables in this section are not a same-session MAI vs 2.5 comparison; that comparison has its own section below. The report does not cover 2K, multiple reference images, concurrency capacity or other authentication modes; exact-text accuracy covers only the scenes and characters listed in the two text-rendering sections. MAI sends no quality parameter and is not labeled as equivalent to any GPT tier.")
     heading = lambda english, localized: localized if chinese else english
+    # An earlier MAI-only pass over the same prompts is archived beside the paired run. It feeds no
+    # table, so say what it is rather than leave an unexplained directory in data/.
+    mai_only_note = ""
+    mai_only = Path(__file__).resolve().parents[1] / MAI_ONLY_ARCHIVE
+    if (mai_only / "provenance.json").is_file():
+        mai_only_results = json.loads((mai_only / "5way_v2_results.json").read_text("utf-8"))
+        mai_only_count = mai_only_results["config"]["formal_sample_count"]
+        mai_only_note = ((f" 同一天早些时候还有一次只跑 MAI-Image-2.6 的 {mai_only_count} 样本运行，用同一份提示词与同一执行脚本："
+                          f"[{MAI_ONLY_ARCHIVE}]({MAI_ONLY_ARCHIVE})。它先于配对运行，只作为归档证据保留，不进入本报告任何表格。")
+                         if chinese else
+                         (f" An earlier MAI-Image-2.6-only pass of {mai_only_count} samples over the same prompt file with the "
+                          f"same runner, made the same day, is archived at [{MAI_ONLY_ARCHIVE}]({MAI_ONLY_ARCHIVE}); it "
+                          "preceded the paired run, is kept as evidence only, and feeds no table in this report."))
     supplement_interval = ""
     gpt25_node = ""
     if supplement:
@@ -1332,13 +1457,13 @@ flowchart LR
 
 {api}
 
-{reproduction_section(archive_path, language, GROUNDING_ARCHIVE if has_grounding else None, EDIT_ARCHIVE if has_edit else None, supplement["archive"] if supplement else None)}
+{reproduction_section(archive_path, language, GROUNDING_ARCHIVE if has_grounding else None, EDIT_ARCHIVE if has_edit else None, supplement["archive"] if supplement else None, tier["archive"] if tier else None, head["archive"] if head else None, [s for s in text_studies if s], billing["archive"] if billing else None)}
 
 ### {heading('Limits', '结论边界')}
 
 {limits}
 
-{'证据目录' if chinese else 'Evidence directory'}: [{archive_path}]({archive_path}). {'包含原始图片、测量记录、逐次请求、响应元数据及删减后的公开源码副本。非财务测量字段和图片保持不变；原始执行哈希与公开文件哈希分别记录于' if chinese else 'Contains original images, measurement records, attempts, response metadata and a redacted public source copy. Non-financial measurement fields and image bytes are unchanged; original execution hashes and published-file hashes are recorded separately in'} [{'来源说明' if chinese else 'provenance'}]({archive_path}/provenance.json). {'提示词 SHA-256' if chinese else 'Prompt SHA-256'}: `{summary['prompts_sha256']}`.
+{'证据目录' if chinese else 'Evidence directory'}: [{archive_path}]({archive_path}). {'包含原始图片、测量记录、逐次请求、响应元数据及删减后的公开源码副本。非财务测量字段和图片保持不变；原始执行哈希与公开文件哈希分别记录于' if chinese else 'Contains original images, measurement records, attempts, response metadata and a redacted public source copy. Non-financial measurement fields and image bytes are unchanged; original execution hashes and published-file hashes are recorded separately in'} [{'来源说明' if chinese else 'provenance'}]({archive_path}/provenance.json). {'提示词 SHA-256' if chinese else 'Prompt SHA-256'}: `{summary['prompts_sha256']}`.{mai_only_note}
 """
 
 
@@ -1404,6 +1529,26 @@ def render_edit_scenario(edit, archive_path, language):
     correction = ""
     if edit.get("supersedes"):
         reason = edit["supersedes"]["reason"][language]
+        superseded_archive = edit["supersedes"].get("archive")
+        if superseded_archive:
+            reason += (f" 被作废的运行：[{superseded_archive}]({superseded_archive})。" if chinese else
+                       f" Superseded run: [{superseded_archive}]({superseded_archive}).")
+        carried = [(r["round"], item) for r in rounds for item in r["outputs"] if item.get("carried_from")]
+        if carried:
+            labels = sorted({LABELS[GROUPS.index(item["group"])] for _, item in carried})
+            files = "、".join(f"`{item['carried_from']}`" for _, item in carried) if chinese else \
+                ", ".join(f"`{item['carried_from']}`" for _, item in carried)
+            dates = sorted({(item.get("requested_at_utc") or "")[:10] for _, item in carried})
+            rounds_text = ("、".join(str(r) for r, _ in carried) if chinese else
+                           " and ".join(str(r) for r, _ in carried))
+            reason += ((f" 第 {rounds_text} 轮的 {'、'.join(labels)} 图不是重新调用的：它们就是那次运行的 {files}"
+                        f"（请求于 {'、'.join(dates)}）。MAI 的编辑接口没有尺寸参数，它的调用不受这个参数错误影响，所以没有重跑；"
+                        f"它的耗时与同轮 GPT 三档不是同一时段，读每轮耗时要连带日期。")
+                       if chinese else
+                       (f" The round {rounds_text} {' and '.join(labels)} images were not new calls: they are that run's "
+                        f"{files} (requested {', '.join(dates)}). MAI's edit endpoint has no size parameter, so its calls "
+                        f"were unaffected by the mistake and were not repeated; their latency is not the same session as "
+                        f"the GPT tiers in the same round, so read each round's latencies together with their dates."))
         correction = f"**{'协议更正' if chinese else 'Protocol correction'}**\n\n{reason}"
         # The figure shows only the valid protocol. The forced-square outputs were
         # produced by this test's own parameter, not by the models, so putting them
@@ -1722,7 +1867,8 @@ def update_document(text, summary, quality, archive_path, language, grounding_se
     if not set(range(1, 12)) <= set(titles) or [item["prompt_index"] for item in summary["per_prompt"]] != list(range(1, 12)):
         raise ValueError("All eleven original scenarios are required")
     content = render_overview(summary, quality, archive_path, language,
-                              bool(grounding_section), bool(edit_section), supplement, tier)
+                              bool(grounding_section), bool(edit_section), supplement, tier,
+                              head, (text_study, hard_study), billing)
     comparison_heading = "## 并排图片对比" if chinese else "## Side-by-Side Image Comparison"
     description = ("第 1–11 题为文生图，每个场景、每一轮只展示 MAI-Image-2.6 与 GPT-Image-2 low、medium、high。图片来自本次四组测试，未返回图片的格子保留失败说明。点击图片查看原始 1024x1024 PNG。第 12 题为图像编辑，输入为一张真实照片。"
                    if chinese else "Scenarios 1-11 are text-to-image; every scenario and round compares only MAI-Image-2.6 with GPT-Image-2 low, medium and high. Images come from this four-configuration run; missing images retain their failure record. Click an image for the original 1024x1024 PNG. Scenario 12 is an image edit of one real photograph.")

@@ -108,7 +108,11 @@ class EditHatSwapEvidenceTests(unittest.TestCase):
             self.assertIn("size=auto" if not filename.endswith("CN.md") else "`size` 传 `auto`", body)
             self.assertIn("Protocol correction" if not filename.endswith("CN.md") else "协议更正", body)
             self.assertIn(f"{self.prefix}title-corner-contact-sheet.png", body)
-            self.assertNotIn("data/edit-hat-swap-20260908/", body)
+            # The superseded square-output run may be named as the record of the mistake, but no image
+            # rendered in the comparison may come from it.
+            for target in re.findall(r"!\[[^\]]*\]\(([^)]+)\)", body):
+                self.assertNotIn("edit-hat-swap-20260908", target, filename)
+            self.assertIn("[data/edit-hat-swap-20260908](data/edit-hat-swap-20260908)", body, filename)
             self.assertNotIn("<details", body)
 
     def test_superseded_multi_image_section_is_gone(self):

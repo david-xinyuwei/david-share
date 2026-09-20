@@ -1,6 +1,6 @@
 # MAI-Image-2.6 与 GPT-Image-2 / 2.5：全质量档位图像生成对比
 
-[![Models](https://img.shields.io/badge/Models-MAI--Image--2.6%20vs%20GPT--Image--2%20%2F%202.5-0067b8)](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image) [![Samples](https://img.shields.io/badge/Samples-87%2F88%20%2B%20132%2F132%20returned-2e7d32)](data/paired-all-quality-20260907/5way_v2_results.json) ![Resolution](https://img.shields.io/badge/Resolution-1024%C3%971024-455a64) ![MAI version](https://img.shields.io/badge/MAI%20version-2026--07--31-6a1b9a) ![Data through](https://img.shields.io/badge/Data%20through-2026--09--20-37474f) [![Status](https://img.shields.io/badge/Status-Preview%20%C2%B7%20no%20SLA-b26500)](https://azure.microsoft.com/support/legal/preview-supplemental-terms/) [![Tests](https://img.shields.io/badge/Tests-73%20offline-00695c)](tests)
+[![Models](https://img.shields.io/badge/Models-MAI--Image--2.6%20vs%20GPT--Image--2%20%2F%202.5-0067b8)](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image) [![Samples](https://img.shields.io/badge/Samples-87%2F88%20%2B%20132%2F132%20returned-2e7d32)](data/paired-all-quality-20260907/5way_v2_results.json) ![Resolution](https://img.shields.io/badge/Resolution-1024%C3%971024-455a64) ![MAI version](https://img.shields.io/badge/MAI%20version-2026--07--31-6a1b9a) ![Data through](https://img.shields.io/badge/Data%20through-2026--09--20-37474f) [![Status](https://img.shields.io/badge/Status-Preview%20%C2%B7%20no%20SLA-b26500)](https://azure.microsoft.com/support/legal/preview-supplemental-terms/) [![Tests](https://img.shields.io/badge/Tests-85%20offline-00695c)](tests)
 
 同一台客户端交替调用 MAI-Image-2.6 与 GPT-Image-2 的 low、medium、high 三档，11 个文生图场景各两轮，共 88 个正式样本，保留全部原图、逐次请求记录与失败样本。另有联网信息补充（`web_grounding`）与单图编辑两项能力实测。所有画面判断为非盲评的差异描述，不产出质量评分或偏好胜负。 2026-09-17 另用同一客户端、同一份提示词补测了 GPT-Image-2.5 Flare 与 Sunburst 各三档，共 132 个正式样本，并入同一套图片、耗时与 token 表。
 
@@ -384,7 +384,7 @@ MAI 走 `/mai/v1/images/edits`，GPT 走 `/openai/deployments/gpt-image-2/images
 
 **协议更正**
 
-第一次运行给 GPT 三档传了 `size=1024x1024`，把 16:9 的输入压成方图。MAI 的编辑接口没有尺寸参数，从未受此约束，所以那是只作用于一方的单边约束，两边的基线并不可比。那批输出反映的是本测试填错的参数，不是模型行为，六轮保持项只有 0/5、1/5、0/5、0/5、0/5、0/5，已整体作废，也不放入模型对比。本轮把 GPT 改为 `size=auto`，与 MAI 同为服务自选尺寸，协议才对称。原运行仍保留在归档中，作为该次参数错误的记录。
+第一次运行给 GPT 三档传了 `size=1024x1024`，把 16:9 的输入压成方图。MAI 的编辑接口没有尺寸参数，从未受此约束，所以那是只作用于一方的单边约束，两边的基线并不可比。那批输出反映的是本测试填错的参数，不是模型行为，六轮保持项只有 0/5、1/5、0/5、0/5、0/5、0/5，已整体作废，也不放入模型对比。本轮把 GPT 改为 `size=auto`，与 MAI 同为服务自选尺寸，协议才对称。原运行仍保留在归档中，作为该次参数错误的记录。 被作废的运行：[data/edit-hat-swap-20260908](data/edit-hat-swap-20260908)。 第 1、2 轮的 MAI-Image-2.6 图不是重新调用的：它们就是那次运行的 `edit-hat-swap-20260908/01_mai-image-2.6.png`、`edit-hat-swap-20260908/r2/04_mai-image-2.6.png`（请求于 2026-09-08）。MAI 的编辑接口没有尺寸参数，它的调用不受这个参数错误影响，所以没有重跑；它的耗时与同轮 GPT 三档不是同一时段，读每轮耗时要连带日期。
 
 ![第 12 题 size=auto 结果汇总](data/edit-hat-swap-20260909-auto/figures/scenario12-auto-results.png)
 
@@ -630,7 +630,11 @@ token 用量取自接口返回的 usage，不从模型或档位推算。没有�
 | 重跑 11 个文生图场景 | 步骤 3 | MAI + GPT / 会计费 | 88 个正式样本全部记录 |
 | 重跑联网信息补充测试 | 步骤 5 | MAI / 会计费 | 新目录包含开／关两轮结果 |
 | 重跑换帽图像编辑 | 步骤 6 | MAI + GPT / 会计费 | 两轮 8 张 PNG 通过 hash 检查 |
-| 重跑 GPT-Image-2.5 六档补测 | 步骤 7 | GPT-2.5 两个部署 / 会计费 | 132 个正式样本全部记录 |
+| 重跑 GPT-Image-2.5 low/medium/high 补测 | 步骤 7 | GPT-2.5 两个部署 / 会计费 | 132 个正式样本全部记录 |
+| 重跑 GPT-Image-2.5 xhigh/max/auto 补测 | 步骤 8 | GPT-2.5 两个部署 / 会计费 | 132 个正式样本全部记录 |
+| 重跑 MAI 对 2.5 同会话对比 | 步骤 9 | MAI + GPT-2.5 flare / 会计费 | 66 个正式样本全部记录 |
+| 重跑中英文文字渲染并判读 | 步骤 10 | 四个图像部署 + 一个视觉判读部署 / 会计费 | 每个分片全部记录，`--check` 返回 PASS |
+| 从自己的账单重算成本 | 步骤 11 | az 登录 / 不计费 | `--check` 返回 PASS |
 
 ### 1. 克隆并安装依赖
 
@@ -711,9 +715,9 @@ python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-20260909-auto/inp
 python scripts/run_edit_hat_swap.py --output runs/edit-hat-swap-reproduction --check
 ```
 
-### 7. 重跑 GPT-Image-2.5 六档补测
+### 7. 重跑 GPT-Image-2.5 low/medium/high 补测
 
-这一步需要 `gpt-image-2.5-flare` 和 `gpt-image-2.5-sunburst` 两个部署，部署名就是模型名；`--gpt-model` 可重复传入，每个部署展开为 low、medium、high 三组。执行脚本对同一部署每 60 秒最多起请 2 次，与 2 RPM 的部署配额对齐；若你的配额更高，可以改 `RATE_PACING`。第一条只读核验已发布归档；后两条真实调用模型并写入新目录。
+这一步需要 `gpt-image-2.5-flare` 和 `gpt-image-2.5-sunburst` 两个部署，部署名就是模型名；`--gpt-model` 可重复传入，`--gpt-quality all` 展开为 low、medium、high 三组（这是 gpt-image-2 也接受的三档，含义固定不变）。执行脚本对同一部署每 60 秒最多起请 2 次，与 2 RPM 的部署配额对齐；若你的配额更高，可以改 `RATE_PACING`。第一条只读核验已发布归档；后两条真实调用模型并写入新目录。
 
 ```powershell
 python scripts/summarize_paired_run.py data/gpt25-paired-20260917
@@ -725,14 +729,71 @@ python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-mod
 python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-model gpt-image-2.5-sunburst --gpt-quality all --output $run --resume
 ```
 
-文生图执行脚本: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py); 改图执行脚本: [run_edit_hat_swap.py](scripts/run_edit_hat_swap.py); 离线汇总: [summarize_paired_run.py](scripts/summarize_paired_run.py); 报告生成: [render_paired_report.py](scripts/render_paired_report.py); 回归测试: [tests](tests).
+### 8. 重跑 GPT-Image-2.5 xhigh/max/auto 补测
+
+这三档只有 gpt-image-2.5-* 接受，gpt-image-2 会拒绝。`--gpt-quality` 可重复传入单个档位；`all25` 一次展开全部六档。sunburst 的 max 档单次请求实测 229 秒，执行脚本的请求超时为 900 秒。`auto` 由服务按请求自选档位，它实际使用的档位记在每次尝试的 `service_quality` 字段里。
+
+```powershell
+python scripts/summarize_paired_run.py data/gpt25-tiers-20260918
+$run = 'runs/gpt25-tiers-new-run'
+New-Item -ItemType Directory -Path "$run/source" -ErrorAction Stop
+Copy-Item -LiteralPath scripts/benchmark_5way_v2.py -Destination "$run/source/benchmark_5way_v2.py"
+Copy-Item -LiteralPath prompts.csv -Destination "$run/source/prompts.csv"
+python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-model gpt-image-2.5-sunburst --gpt-quality xhigh --gpt-quality max --gpt-quality auto --output $run --warmup-only
+python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-model gpt-image-2.5-sunburst --gpt-quality xhigh --gpt-quality max --gpt-quality auto --output $run --resume
+```
+
+### 9. 重跑 MAI 对 GPT-Image-2.5 的同会话对比
+
+三个配置在一个 run 里交错调用。`--gpt-model` 支持 `部署名:档位,档位` 写法，把档位固定到单个部署——因为 gpt-image-2 不接受 2.5 的高档，不同部署需要不同档位集。MAI 不接受质量参数。
+
+```powershell
+python scripts/summarize_paired_run.py data/mai-vs-gpt25-20260920
+$run = 'runs/mai-vs-gpt25-new-run'
+New-Item -ItemType Directory -Path "$run/source" -ErrorAction Stop
+Copy-Item -LiteralPath scripts/benchmark_5way_v2.py -Destination "$run/source/benchmark_5way_v2.py"
+Copy-Item -LiteralPath prompts.csv -Destination "$run/source/prompts.csv"
+python -u scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --gpt-model gpt-image-2.5-flare:medium,high --output $run --warmup-only
+python -u scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --gpt-model gpt-image-2.5-flare:medium,high --output $run --resume
+```
+
+### 10. 重跑中英文文字渲染并判读
+
+文字渲染用自己的提示词文件（`--prompts-csv`），前五列分别是提示词、配对 ID、语言、目标字串（多行用 `|` 分隔）和字符数；执行脚本只读第一列。每个部署各自有配额，所以按部署分片并行跑，判读时用多个 `--run` 合并；判读器会拒绝合并提示词文件不一致的分片。判读需要一个支持图像输入的 chat 部署，通过 `JUDGE_ENDPOINT`、`JUDGE_DEPLOYMENT` 和 `AZURE_OPENAI_API_KEY` 提供；先用 `calibrate_text_judge.py` 确认它能 100% 读回用真字体渲染的目标文字，否则它的误差会被误认为模型的误差。`--check` 用归档里保存的转录重算全部分数，不调用任何模型。
+
+```powershell
+python scripts/score_text_rendering.py --check data/text-rendering-20260918/text-scoring.json
+python scripts/score_text_rendering.py --check data/text-hard-20260919/text-scoring.json
+python scripts/calibrate_text_judge.py --check data/text-rendering-20260918/judge-calibration/calibration.json
+python scripts/calibrate_text_judge.py --check data/text-hard-20260919/judge-calibration/calibration.json
+$env:JUDGE_ENDPOINT = 'https://<openai-resource>.openai.azure.com'
+$env:JUDGE_DEPLOYMENT = '<vision-capable-chat-deployment>'
+python scripts/calibrate_text_judge.py --prompts data/text-rendering-20260918/prompts-text-rendering.csv --out runs/judge-calibration
+$run = 'runs/text-new-run-mai'
+New-Item -ItemType Directory -Path "$run/source" -ErrorAction Stop
+Copy-Item -LiteralPath scripts/benchmark_5way_v2.py -Destination "$run/source/benchmark_5way_v2.py"
+Copy-Item -LiteralPath data/text-rendering-20260918/prompts-text-rendering.csv -Destination "$run/source/prompts-text-rendering.csv"
+python -u scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --prompts-csv "$run/source/prompts-text-rendering.csv" --output $run
+python scripts/score_text_rendering.py --run $run --prompts data/text-rendering-20260918/prompts-text-rendering.csv --out runs/text-new-run-scored
+```
+
+### 11. 从自己的账单重算每张图成本
+
+成本小节的全部单价都来自这个归档里的 Cost Management 响应。第一条从已归档响应重算 `effective-prices.json` 并核对，不联网；第二条对你自己的账户发同样的查询（需要 `az login`，查询本身不计费），写入新归档；之后重新渲染报告，成本小节就会读你的账单而不是我们的。
+
+```powershell
+python scripts/effective_prices.py data/billing-20260920 --check
+python scripts/effective_prices.py data/billing-<date> --query --subscription <id> --resource-group <rg> --account <cognitive-services-account>
+```
+
+文生图执行脚本: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py); 改图执行脚本: [run_edit_hat_swap.py](scripts/run_edit_hat_swap.py); 离线汇总: [summarize_paired_run.py](scripts/summarize_paired_run.py); 文字判读: [score_text_rendering.py](scripts/score_text_rendering.py); 判读器校准: [calibrate_text_judge.py](scripts/calibrate_text_judge.py); 账单折算: [effective_prices.py](scripts/effective_prices.py); 报告生成: [render_paired_report.py](scripts/render_paired_report.py); 回归测试: [tests](tests).
 
 
 ### 结论边界
 
-本报告对比 MAI-Image-2.6、GPT-Image-2 三档，以及 GPT-Image-2.5 Flare 与 Sunburst 各六档（low、medium、high、xhigh、max、auto）。主要聚合统计来自 11 个 1024x1024 文生图场景；第 12 题是单独报告的 `size=auto` 图像编辑测试，不进入前 11 题的耗时与质量计数，也没有 2.5 的编辑结果。本报告不覆盖 2K、多图参考、文字准确率专项、并发压测或其他认证方式。MAI 没有传质量参数，不能称为任何 GPT 档位的等价档。
+本报告对比 MAI-Image-2.6、GPT-Image-2 三档，以及 GPT-Image-2.5 Flare 与 Sunburst 各六档（low、medium、high、xhigh、max、auto）。主要聚合统计来自 11 个 1024x1024 文生图场景；第 12 题是单独报告的 `size=auto` 图像编辑测试，不进入前 11 题的耗时与质量计数，也没有 2.5 的编辑结果。本节的耗时表不是 MAI 与 2.5 的同会话对比，那一对比在后文单独一节。本报告不覆盖 2K、多图参考、并发压测或其他认证方式；文字准确率只覆盖后文两节列出的场景与字符。MAI 没有传质量参数，不能称为任何 GPT 档位的等价档。
 
-证据目录: [data/paired-all-quality-20260907](data/paired-all-quality-20260907). 包含原始图片、测量记录、逐次请求、响应元数据及删减后的公开源码副本。非财务测量字段和图片保持不变；原始执行哈希与公开文件哈希分别记录于 [来源说明](data/paired-all-quality-20260907/provenance.json). 提示词 SHA-256: `be3d628c66a1e4d535d06bcc84246a04aad11f35a48f3133d451fe86283782ce`.
+证据目录: [data/paired-all-quality-20260907](data/paired-all-quality-20260907). 包含原始图片、测量记录、逐次请求、响应元数据及删减后的公开源码副本。非财务测量字段和图片保持不变；原始执行哈希与公开文件哈希分别记录于 [来源说明](data/paired-all-quality-20260907/provenance.json). 提示词 SHA-256: `be3d628c66a1e4d535d06bcc84246a04aad11f35a48f3133d451fe86283782ce`. 同一天早些时候还有一次只跑 MAI-Image-2.6 的 22 样本运行，用同一份提示词与同一执行脚本：[data/mai-image-2.6-20260907](data/mai-image-2.6-20260907)。它先于配对运行，只作为归档证据保留，不进入本报告任何表格。
 
 ## GPT-Image-2.5 的六个质量档位
 
@@ -763,8 +824,8 @@ python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-mod
 
 | 模型 | 实际计费 USD / 1M 输出图 token |
 | --- | --- |
-| gpt-image-2.5-flare | $30.00 |
 | gpt-image-2 | $30.00 |
+| gpt-image-2.5-flare | $30.00 |
 | gpt-image-2.5-sunburst | $30.00 |
 | MAI-Image-2.6 | $38.00 |
 
@@ -971,7 +1032,7 @@ python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-mod
 
 **口径更正**：第一版评分把每个目标串只与转录中的**单独一行**比对。判读器每个视觉文字块输出一行，所以模型把一句话分两行排版就被判成拼写错误；这个惩罚随目标长度增长，而英文目标是中文的 2–4 倍长，于是英文被系统性低估——正好落在本测试要检验的方向上。61 个样本受影响。更正后的规则忽略空白、在整段转录中匹配；第一版结果保留为 [`text-scoring-line-anchored.json`](data/text-rendering-20260918/text-scoring-line-anchored.json)，不删除。
 
-**判读器的误差下限**：把同样的目标文字用微软雅黑渲染成图再让判读器读回来，两种语言都是 100%（校准按原始字符数计，英文 91/91、中文 37/37）。也就是说判读器对中文没有系统性偏见，上表的差距可以归到生成模型。边界：这只证明判读器能读清晰渲染的文字；生成图里扭曲或艺术化的字更难读，所以上表可能低估、不会高估。每组的拼图见证据目录，可以逐张核对。
+**判读器的误差下限**：把本节同样的目标文字用微软雅黑渲染成图再让判读器读回来，英文 79/79（100.0%），中文 34/34（100.0%），与上表同一套评分规则。也就是说判读器对这些字符没有系统性偏见，上表的差距可以归到生成模型。边界：这只证明判读器能读清晰的横排文字；生成图里扭曲、艺术化或竖排的字更难读，所以上表可能低估、不会高估。校准的渲染图与转录在 [judge-calibration](data/text-rendering-20260918/judge-calibration)，`calibrate_text_judge.py --check` 可离线重算；每组的拼图见证据目录，可以逐张核对。
 
 **结论边界**：120 个成功样本，覆盖 5 个场景、2 轮。这是指定字符串的拼写准确率，不是排版美观度、字体质量或中文设计感的评价。MAI-Image-2.6 不接受质量参数，它的行只有一个配置。**官方支持范围**：Foundry 模型文档将 MAI-Image-2.6 的 Languages 标为 `en`，中文不在其声明的支持范围内；本节的中文结果是在声明范围之外观察到的行为，不构成产品承诺，也不应被当作已支持的能力来引用。
 
@@ -1021,7 +1082,7 @@ python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-mod
 
 **判读方法**：每张图交给 `gpt-5.6-terra` 读出图中文字，再与目标字符串程序化比对，比对时忽略全部空白。两个口径同时给出：字符准确率取整段转录中与目标最接近的等长窗口逐字符算分，整段正确要求目标串以子串形式完整出现、不给部分分。这是模型判读，不是人工盲评。判读器是 OpenAI 系列模型，而被判的一方也包括 OpenAI 的图像模型；下面的校准只能排除它读不清中文，不能排除它对某一家的风格更宽容，所以每组都附拼图供人眼复核。
 
-**判读器的误差下限**：把同样的目标文字用微软雅黑渲染成图再让判读器读回来，两种语言都是 100%（校准按原始字符数计，英文 91/91、中文 37/37）。也就是说判读器对中文没有系统性偏见，上表的差距可以归到生成模型。边界：这只证明判读器能读清晰渲染的文字；生成图里扭曲或艺术化的字更难读，所以上表可能低估、不会高估。每组的拼图见证据目录，可以逐张核对。
+**判读器的误差下限**：把本节同样的目标文字用微软雅黑渲染成图再让判读器读回来，英文 131/131（100.0%），中文 43/43（100.0%），与上表同一套评分规则。也就是说判读器对这些字符没有系统性偏见，上表的差距可以归到生成模型。边界：这只证明判读器能读清晰的横排文字；生成图里扭曲、艺术化或竖排的字更难读，所以上表可能低估、不会高估。校准的渲染图与转录在 [judge-calibration](data/text-hard-20260919/judge-calibration)，`calibrate_text_judge.py --check` 可离线重算；每组的拼图见证据目录，可以逐张核对。
 
 **结论边界**：382 个成功样本，覆盖 6 个场景、2 轮。这是指定字符串的拼写准确率，不是排版美观度、字体质量或中文设计感的评价。MAI-Image-2.6 不接受质量参数，它的行只有一个配置。**官方支持范围**：Foundry 模型文档将 MAI-Image-2.6 的 Languages 标为 `en`，中文不在其声明的支持范围内；本节的中文结果是在声明范围之外观察到的行为，不构成产品承诺，也不应被当作已支持的能力来引用。
 

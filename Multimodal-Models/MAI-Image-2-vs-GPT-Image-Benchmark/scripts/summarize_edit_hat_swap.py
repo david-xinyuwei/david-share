@@ -91,6 +91,9 @@ def _round_outputs(archive, results, review, relative_dir, source_sha, source_w,
         outputs.append({
             "group": group,
             "request_seconds": attempt["request_seconds"],
+            "requested_at_utc": attempt.get("requested_at_utc"),
+            # Set when this round reused a file from an earlier run instead of calling the model again.
+            "carried_from": attempt.get("carried_from"),
             "status_code": attempt["status_code"],
             "attempts_used": attempt.get("attempts_used", 1),
             "output": relative,
