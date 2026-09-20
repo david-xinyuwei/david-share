@@ -1,6 +1,6 @@
 # MAI-Image-2.6 与 GPT-Image-2 / 2.5：全质量档位图像生成对比
 
-[![Models](https://img.shields.io/badge/Models-MAI--Image--2.6%20vs%20GPT--Image--2%20%2F%202.5-0067b8)](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image) [![Samples](https://img.shields.io/badge/Samples-87%2F88%20%2B%20132%2F132%20returned-2e7d32)](data/paired-all-quality-20260907/5way_v2_results.json) ![Resolution](https://img.shields.io/badge/Resolution-1024%C3%971024-455a64) ![MAI version](https://img.shields.io/badge/MAI%20version-2026--07--31-6a1b9a) [![Status](https://img.shields.io/badge/Status-Preview%20%C2%B7%20no%20SLA-b26500)](https://azure.microsoft.com/support/legal/preview-supplemental-terms/) [![Tests](https://img.shields.io/badge/Tests-61%20offline-00695c)](tests)
+[![Models](https://img.shields.io/badge/Models-MAI--Image--2.6%20vs%20GPT--Image--2%20%2F%202.5-0067b8)](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image) [![Samples](https://img.shields.io/badge/Samples-87%2F88%20%2B%20132%2F132%20returned-2e7d32)](data/paired-all-quality-20260907/5way_v2_results.json) ![Resolution](https://img.shields.io/badge/Resolution-1024%C3%971024-455a64) ![MAI version](https://img.shields.io/badge/MAI%20version-2026--07--31-6a1b9a) ![Data through](https://img.shields.io/badge/Data%20through-2026--09--20-37474f) [![Status](https://img.shields.io/badge/Status-Preview%20%C2%B7%20no%20SLA-b26500)](https://azure.microsoft.com/support/legal/preview-supplemental-terms/) [![Tests](https://img.shields.io/badge/Tests-73%20offline-00695c)](tests)
 
 同一台客户端交替调用 MAI-Image-2.6 与 GPT-Image-2 的 low、medium、high 三档，11 个文生图场景各两轮，共 88 个正式样本，保留全部原图、逐次请求记录与失败样本。另有联网信息补充（`web_grounding`）与单图编辑两项能力实测。所有画面判断为非盲评的差异描述，不产出质量评分或偏好胜负。 2026-09-17 另用同一客户端、同一份提示词补测了 GPT-Image-2.5 Flare 与 Sunburst 各三档，共 132 个正式样本，并入同一套图片、耗时与 token 表。
 
@@ -490,7 +490,7 @@ flowchart LR
     prompts["Original 11 prompts"] --> runner["Local Windows Python runner"]
     runner --> mai["MAI-Image-2.6 / Sweden Central"]
     runner --> gpt["GPT-Image-2 / East US 2 / low, medium, high"]
-    runner --> gpt25["GPT-Image-2.5 Flare + Sunburst / swedencentral / low, medium, high (2026-09-17)"]
+    runner --> gpt25["GPT-Image-2.5 Flare + Sunburst / swedencentral / low, medium, high, xhigh, max, auto (2026-09-17)"]
     gpt25 --> evidence
     mai --> evidence["PNG, usage, request IDs, timestamps, failures"]
     gpt --> evidence
@@ -730,9 +730,302 @@ python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-mod
 
 ### 结论边界
 
-本报告对比 MAI-Image-2.6、GPT-Image-2 三档，以及 GPT-Image-2.5 Flare 与 Sunburst 各三档；2.5 另有 xhigh、max、auto 档，本轮没有测。主要聚合统计来自 11 个 1024x1024 文生图场景；第 12 题是单独报告的 `size=auto` 图像编辑测试，不进入前 11 题的耗时与质量计数，也没有 2.5 的编辑结果。本报告不覆盖 2K、多图参考、文字准确率专项、并发压测或其他认证方式。MAI 没有传质量参数，不能称为任何 GPT 档位的等价档。
+本报告对比 MAI-Image-2.6、GPT-Image-2 三档，以及 GPT-Image-2.5 Flare 与 Sunburst 各六档（low、medium、high、xhigh、max、auto）。主要聚合统计来自 11 个 1024x1024 文生图场景；第 12 题是单独报告的 `size=auto` 图像编辑测试，不进入前 11 题的耗时与质量计数，也没有 2.5 的编辑结果。本报告不覆盖 2K、多图参考、文字准确率专项、并发压测或其他认证方式。MAI 没有传质量参数，不能称为任何 GPT 档位的等价档。
 
 证据目录: [data/paired-all-quality-20260907](data/paired-all-quality-20260907). 包含原始图片、测量记录、逐次请求、响应元数据及删减后的公开源码副本。非财务测量字段和图片保持不变；原始执行哈希与公开文件哈希分别记录于 [来源说明](data/paired-all-quality-20260907/provenance.json). 提示词 SHA-256: `be3d628c66a1e4d535d06bcc84246a04aad11f35a48f3133d451fe86283782ce`.
+
+## GPT-Image-2.5 的六个质量档位
+
+`gpt-image-2.5-flare` 和 `gpt-image-2.5-sunburst` 接受六个质量档位，`gpt-image-2` 只接受前三个。low、medium、high 来自 2026-09-17 的补测，xhigh、max、auto 来自 2026-09-18 的补测，两次使用同一客户端、同一提示词文件和同一部署。显式指定某一档时，输出 token 是固定值，两个部署完全一致；`auto` 不是这样，见表下说明。
+
+| 配置 | 成功 / 计划 | 返回的输出 token | 平均耗时 (s) | P50 (s) | 描述性 P95 (s) | 平均 PNG (KiB) |
+| --- | --- | --- | --- | --- | --- | --- |
+| GPT-Image-2.5 Flare low | 22 / 22 | 196 | 22.79 | 21.85 | 26.32 | 1,675 |
+| GPT-Image-2.5 Flare medium | 22 / 22 | 439 | 24.05 | 23.64 | 28.82 | 1,687 |
+| GPT-Image-2.5 Flare high | 22 / 22 | 1756 | 33.79 | 32.64 | 39.89 | 1,679 |
+| GPT-Image-2.5 Flare xhigh | 22 / 22 | 3122 | 44.33 | 43.40 | 56.88 | 1,654 |
+| GPT-Image-2.5 Flare max | 22 / 22 | 7024 | 72.23 | 73.47 | 79.51 | 1,602 |
+| GPT-Image-2.5 Flare auto | 22 / 22 | 196–781 (low x12, medium x10 [439/781]) | 23.84 | 22.25 | 30.22 | 1,680 |
+| GPT-Image-2.5 Sunburst low | 22 / 22 | 196 | 33.19 | 32.54 | 42.49 | 1,678 |
+| GPT-Image-2.5 Sunburst medium | 22 / 22 | 439 | 41.58 | 40.64 | 48.71 | 1,724 |
+| GPT-Image-2.5 Sunburst high | 22 / 22 | 1756 | 77.14 | 76.08 | 83.81 | 1,681 |
+| GPT-Image-2.5 Sunburst xhigh | 22 / 22 | 3122 | 112.68 | 111.55 | 120.37 | 1,681 |
+| GPT-Image-2.5 Sunburst max | 22 / 22 | 7024 | 223.41 | 223.51 | 229.90 | 1,671 |
+| GPT-Image-2.5 Sunburst auto | 22 / 22 | 196–781 (low x12, medium x10 [439/781]) | 37.28 | 33.74 | 52.61 | 1,675 |
+
+`auto` 不是一个固定档位。服务按请求自行选择，并在响应里回显它实际使用的档位。上表的 `auto` 行在括号中列出服务自报的档位及次数，取自响应字段，不是我们指定的。另外，`auto` 自报为某一档时，返回的 output token 不一定等于显式请求该档时的固定值：本轮出现了 781 这样的值，而显式请求同一档位在 22/22 个样本上都返回同一个固定值。也就是说 `auto` 并不等同于替你选了某个档位，它的开销无法由自报档位推算。因此 `auto` 的耗时和 token 反映的是服务的选择行为，不能当作一个质量水平来比较。
+
+## 每张图的实际成本（来自本账户账单）
+
+**问题**：MAI-Image-2.6 到底贵不贵。答案取决于跟 GPT 的哪个质量档位比，而档位之间的算力相差 36 倍。
+
+**数据来源**：Azure Cost Management 对运行本仓库全部测试的账户（Sweden Central）的实际计费查询，周期 2026-09-04..2026-09-20，字段 `PreTaxCost`。每个模型的输出图 token 单独计费，把金额除以计费 token 数得到实际单价。GPT-Image-2 的账单单价与公布价 $30/1M 完全一致，说明账单读数准确。GPT-Image-2.5 的价格在定价页上尚未公布，账单是目前唯一的官方数据。
+
+| 模型 | 实际计费 USD / 1M 输出图 token |
+| --- | --- |
+| gpt-image-2.5-flare | $30.00 |
+| gpt-image-2 | $30.00 |
+| gpt-image-2.5-sunburst | $30.00 |
+| MAI-Image-2.6 | $38.00 |
+
+| 配置 | token / 张 | USD / 1,000 张 | 相对 MAI |
+| --- | --- | --- | --- |
+| gpt-image-2 low | 196 | $5.88 | 0.15x |
+| gpt-image-2.5 low | 196 | $5.88 | 0.15x |
+| gpt-image-2.5 medium | 439 | $13.17 | 0.34x |
+| MAI-Image-2.6 **(MAI)** | 1,024 | $38.91 | 1.00x |
+| gpt-image-2 medium | 1,756 | $52.68 | 1.35x |
+| gpt-image-2.5 high | 1,756 | $52.68 | 1.35x |
+| gpt-image-2.5 xhigh | 3,122 | $93.66 | 2.41x |
+| gpt-image-2 high | 7,024 | $210.72 | 5.42x |
+| gpt-image-2.5 max | 7,024 | $210.72 | 5.42x |
+
+**怎么读**：按单 token 计，MAI 比 GPT 系列贵 27%（$38 对 $30）。但 MAI 每张固定 1,024 token，而 GPT 的算力随档位变化。于是 MAI 每千张 $38.91：比 GPT-2.5 medium（$13.17）贵 3.0 倍，比 GPT-2.5 high 和 GPT-2 medium（$52.68）便宜 26%，比 GPT-2 high（$210.72）便宜 82%。「贵」这个词只有先绑定对比档位才有意义。哪一档与 MAI 质量相当，由本报告的并排图和人工复核回答，不由价格回答。
+
+**边界**：单价是本账户 GlobalStandard 按需计费的实际值，不含协议折扣；token 数是各配置在本仓库全部测试中恒定不变的实测值；不含输入文本 token（每张不到 $0.001）。这是按 token 的成本，不是按质量的成本。
+
+证据：[data/billing-20260920](data/billing-20260920)（原始 Cost Management 响应与反算脚本）。
+
+## MAI-Image-2.6 对 GPT-Image-2.5：同一会话直接对比
+
+**问题**：把 MAI-Image-2.6 和当前主流的 GPT-Image-2.5 放进同一个 run，交错调用，出图速度和成本各是多少。选 flare 的 medium 与 high，因为它们是 token 上紧贴 MAI 下方（439）和上方（1,756）的两档。
+
+**受控变量**：一个客户端、一个账户、一个区域（Sweden Central）、同一 11 条提示词、1024x1024、两轮，三组按固定顺序交错，2026-09-20 单次会话完成。这消除了本报告其他 2.5 数据所带的「不同日期」注释。
+
+| 配置 | 成功 / 计划 | 输出 token | 平均耗时 (s) | P50 (s) | 描述性 P95 (s) | USD / 1,000 张 |
+| --- | --- | --- | --- | --- | --- | --- |
+| MAI-Image-2.6 | 22 / 22 | 1024 | 34.66 | 31.61 | 48.38 | $38.91 |
+| GPT-Image-2.5 Flare medium | 22 / 22 | 439 | 24.24 | 22.24 | 38.71 | $13.17 |
+| GPT-Image-2.5 Flare high | 22 / 22 | 1756 | 32.03 | 32.11 | 35.78 | $52.68 |
+
+**怎么读**：同一会话里，MAI 的 P50 是 31.61 s，2.5 medium 是 22.24 s（MAI 慢 1.42 倍），2.5 high 是 32.11 s（持平）。在速度和每张成本上，2.5 medium 都优于 MAI；对 2.5 high，MAI 速度持平、每张便宜 26%。MAI 的位置取决于画质：如果 medium 的画质够用，MAI 没有优势；如果需要 high 的画质，MAI 是更便宜的选择。每个场景的三张图并排在下方，读者自己判断。
+
+**第 1题** — Chrome kimono, a maiden surrounded by metallic flowers, earrings, ornate, dark blue, exqui…
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 1, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/01_test.png) | ![GPT-Image-2.5 Flare medium, prompt 1, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/01_test.png) | ![GPT-Image-2.5 Flare high, prompt 1, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/01_test.png) |
+| 46.69 s<br>1687 KiB | 20.50 s<br>1715 KiB | 31.45 s<br>1783 KiB |
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 1, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/01_test.png) | ![GPT-Image-2.5 Flare medium, prompt 1, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/01_test.png) | ![GPT-Image-2.5 Flare high, prompt 1, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/01_test.png) |
+| 31.04 s<br>1644 KiB | 25.36 s<br>1801 KiB | 28.44 s<br>1693 KiB |
+
+**第 2题** — a portal into a mythical forest on the wall of my small messy bedroom
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 2, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/02_test.png) | ![GPT-Image-2.5 Flare medium, prompt 2, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/02_test.png) | ![GPT-Image-2.5 Flare high, prompt 2, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/02_test.png) |
+| 36.52 s<br>1740 KiB | 20.86 s<br>1397 KiB | 30.36 s<br>1488 KiB |
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 2, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/02_test.png) | ![GPT-Image-2.5 Flare medium, prompt 2, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/02_test.png) | ![GPT-Image-2.5 Flare high, prompt 2, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/02_test.png) |
+| 32.08 s<br>1723 KiB | 20.92 s<br>1570 KiB | 30.67 s<br>1446 KiB |
+
+**第 3题** — a tiny astronaut hatching from an egg on the moon
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 3, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/03_test.png) | ![GPT-Image-2.5 Flare medium, prompt 3, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/03_test.png) | ![GPT-Image-2.5 Flare high, prompt 3, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/03_test.png) |
+| 30.92 s<br>1593 KiB | 27.00 s<br>1531 KiB | 33.09 s<br>1482 KiB |
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 3, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/03_test.png) | ![GPT-Image-2.5 Flare medium, prompt 3, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/03_test.png) | ![GPT-Image-2.5 Flare high, prompt 3, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/03_test.png) |
+| 29.44 s<br>1586 KiB | 22.24 s<br>1573 KiB | 33.76 s<br>1483 KiB |
+
+**第 4题** — Photo realistic scene inspired by LOTR: [A tiny red dragon in a nest on a medieval wizard'…
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 4, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/04_test.png) | ![GPT-Image-2.5 Flare medium, prompt 4, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/04_test.png) | ![GPT-Image-2.5 Flare high, prompt 4, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/04_test.png) |
+| 48.47 s<br>1581 KiB | 21.39 s<br>1451 KiB | 31.54 s<br>1447 KiB |
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 4, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/04_test.png) | ![GPT-Image-2.5 Flare medium, prompt 4, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/04_test.png) | ![GPT-Image-2.5 Flare high, prompt 4, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/04_test.png) |
+| 34.71 s<br>1622 KiB | 17.74 s<br>1405 KiB | 30.32 s<br>1363 KiB |
+
+**第 5题** — Cute and adorable fluffy cute creature fantasy, dreamlike, surrealism, super cute, trendin…
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 5, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/05_test.png) | ![GPT-Image-2.5 Flare medium, prompt 5, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/05_test.png) | ![GPT-Image-2.5 Flare high, prompt 5, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/05_test.png) |
+| 52.27 s<br>1651 KiB | 24.92 s<br>1613 KiB | 32.86 s<br>1669 KiB |
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 5, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/05_test.png) | ![GPT-Image-2.5 Flare medium, prompt 5, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/05_test.png) | ![GPT-Image-2.5 Flare high, prompt 5, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/05_test.png) |
+| 33.10 s<br>1499 KiB | 21.48 s<br>1567 KiB | 33.54 s<br>1714 KiB |
+
+**第 6题** — A hidden cenote in the heart of a lush jungle beckons with crystalline turquoise waters. V…
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 6, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/06_test.png) | ![GPT-Image-2.5 Flare medium, prompt 6, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/06_test.png) | ![GPT-Image-2.5 Flare high, prompt 6, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/06_test.png) |
+| 30.25 s<br>2116 KiB | 23.38 s<br>2179 KiB | 36.32 s<br>2224 KiB |
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 6, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/06_test.png) | ![GPT-Image-2.5 Flare medium, prompt 6, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/06_test.png) | ![GPT-Image-2.5 Flare high, prompt 6, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/06_test.png) |
+| 30.44 s<br>2205 KiB | 27.87 s<br>2142 KiB | 32.69 s<br>2263 KiB |
+
+**第 7题** — A charming, tech-savvy [girl with short, silver pixie-cut] hair and vibrant [blue] eyes, w…
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 7, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/07_test.png) | ![GPT-Image-2.5 Flare medium, prompt 7, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/07_test.png) | ![GPT-Image-2.5 Flare high, prompt 7, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/07_test.png) |
+| 35.10 s<br>1555 KiB | 24.40 s<br>1487 KiB | 35.81 s<br>1494 KiB |
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 7, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/07_test.png) | ![GPT-Image-2.5 Flare medium, prompt 7, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/07_test.png) | ![GPT-Image-2.5 Flare high, prompt 7, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/07_test.png) |
+| 35.41 s<br>1534 KiB | 39.28 s<br>1548 KiB | 35.26 s<br>1525 KiB |
+
+**第 8题** — Universe, LSD, Fractal Worlds, Giant Eyes
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 8, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/08_test.png) | ![GPT-Image-2.5 Flare medium, prompt 8, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/08_test.png) | ![GPT-Image-2.5 Flare high, prompt 8, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/08_test.png) |
+| 40.90 s<br>2298 KiB | 22.24 s<br>2288 KiB | 32.68 s<br>2283 KiB |
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 8, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/08_test.png) | ![GPT-Image-2.5 Flare medium, prompt 8, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/08_test.png) | ![GPT-Image-2.5 Flare high, prompt 8, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/08_test.png) |
+| 31.14 s<br>2310 KiB | 22.63 s<br>2339 KiB | 29.75 s<br>2216 KiB |
+
+**第 9题** — close up dof render of a mythical creature made of detailed spiraling fractals and tendril…
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 9, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/09_test.png) | ![GPT-Image-2.5 Flare medium, prompt 9, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/09_test.png) | ![GPT-Image-2.5 Flare high, prompt 9, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/09_test.png) |
+| 31.08 s<br>1693 KiB | 20.36 s<br>1747 KiB | 29.97 s<br>1676 KiB |
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 9, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/09_test.png) | ![GPT-Image-2.5 Flare medium, prompt 9, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/09_test.png) | ![GPT-Image-2.5 Flare high, prompt 9, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/09_test.png) |
+| 30.97 s<br>1729 KiB | 19.52 s<br>1852 KiB | 35.19 s<br>1605 KiB |
+
+**第 10题** — an angry cat playing drums
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 10, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/10_test.png) | ![GPT-Image-2.5 Flare medium, prompt 10, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/10_test.png) | ![GPT-Image-2.5 Flare high, prompt 10, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/10_test.png) |
+| 30.62 s<br>1655 KiB | 24.75 s<br>1458 KiB | 29.98 s<br>1440 KiB |
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 10, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/10_test.png) | ![GPT-Image-2.5 Flare medium, prompt 10, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/10_test.png) | ![GPT-Image-2.5 Flare high, prompt 10, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/10_test.png) |
+| 32.59 s<br>1673 KiB | 20.83 s<br>1478 KiB | 28.20 s<br>1377 KiB |
+
+**第 11题** — A monkey playing music
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 11, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/11_test.png) | ![GPT-Image-2.5 Flare medium, prompt 11, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/11_test.png) | ![GPT-Image-2.5 Flare high, prompt 11, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/11_test.png) |
+| 28.70 s<br>1796 KiB | 44.42 s<br>1626 KiB | 29.81 s<br>1631 KiB |
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 11, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/11_test.png) | ![GPT-Image-2.5 Flare medium, prompt 11, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/11_test.png) | ![GPT-Image-2.5 Flare high, prompt 11, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/11_test.png) |
+| 30.08 s<br>1717 KiB | 21.21 s<br>1619 KiB | 33.07 s<br>1501 KiB |
+
+**边界**：这是三组配置在一个会话内的直接测量。图像质量没有数值分数：并排图是证据，读者的判断是结论。2.5 的价格取自本账户账单（见上一节），定价页尚未公布。
+
+证据目录：[data/mai-vs-gpt25-20260920](data/mai-vs-gpt25-20260920)。
+
+## 中英文文字渲染
+
+**问题**：同一个场景，只把要写的文字从英文换成中文，模型把字写对的比例差多少。
+
+**真实输入**：五个场景，每个写成中英两版，除了要求写的文字之外场景描述一致。例如 P1 的两版提示词：
+
+> A photograph of a small bakery storefront at dusk. The sign above the door reads exactly "GOLDEN CRUST".
+>
+> 黄昏时一家小面包店的门面照片，门上方的招牌上准确写着"金麦坊"。
+
+每轮的分母是固定的：英文 79 个字符，中文 34 个字符。中文表达同样内容用字更少，所以两种语言各按自己的分母计算，不互相通分。
+
+| 场景 | 画面 | 英文目标 | 中文目标 |
+| --- | --- | --- | --- |
+| P1 | storefront sign | `GOLDEN CRUST` | `金麦坊` |
+| P2 | product label | `JASMINE GREEN TEA` | `茉莉绿茶` |
+| P3 | poster headline | `ANNUAL DESIGN SUMMIT 2026` | `2026年度设计峰会` |
+| P4 | handwritten note | `Meeting at 3 PM` | `下午三点开会` |
+| P5 | multi-line menu | `COFFEE 25 / TEA 18 / CAKE 32` | `咖啡 25 / 茶 18 / 蛋糕 32` |
+
+**受控变量**：同一客户端、同一账户、同一区域（Sweden Central）、同一 GlobalStandard 部署配额、同一 1024x1024 分辨率、两轮。配对内唯一变化的是文字的语言。
+
+| 配置 | 英文字符准确率 | 英文整段正确 | 中文字符准确率 | 中文整段正确 |
+| --- | --- | --- | --- | --- |
+| gpt-image-2-high | 158/158 = 100% | 14/14 = 100% | 68/68 = 100% | 14/14 = 100% |
+| gpt-image-2.5-flare-high | 158/158 = 100% | 14/14 = 100% | 68/68 = 100% | 14/14 = 100% |
+| gpt-image-2.5-flare-max | 158/158 = 100% | 14/14 = 100% | 67/68 = 99% | 13/14 = 93% |
+| gpt-image-2.5-sunburst-high | 158/158 = 100% | 14/14 = 100% | 67/68 = 99% | 13/14 = 93% |
+| gpt-image-2.5-sunburst-max | 158/158 = 100% | 14/14 = 100% | 68/68 = 100% | 14/14 = 100% |
+| mai-image-2.6 | 158/158 = 100% | 14/14 = 100% | 68/68 = 100% | 14/14 = 100% |
+
+**判读方法**：每张图交给 `gpt-5.6-terra` 读出图中文字，再与目标字符串程序化比对，比对时忽略全部空白。两个口径同时给出：字符准确率取整段转录中与目标最接近的等长窗口逐字符算分，整段正确要求目标串以子串形式完整出现、不给部分分。这是模型判读，不是人工盲评。判读器是 OpenAI 系列模型，而被判的一方也包括 OpenAI 的图像模型；下面的校准只能排除它读不清中文，不能排除它对某一家的风格更宽容，所以每组都附拼图供人眼复核。
+
+**口径更正**：第一版评分把每个目标串只与转录中的**单独一行**比对。判读器每个视觉文字块输出一行，所以模型把一句话分两行排版就被判成拼写错误；这个惩罚随目标长度增长，而英文目标是中文的 2–4 倍长，于是英文被系统性低估——正好落在本测试要检验的方向上。61 个样本受影响。更正后的规则忽略空白、在整段转录中匹配；第一版结果保留为 [`text-scoring-line-anchored.json`](data/text-rendering-20260918/text-scoring-line-anchored.json)，不删除。
+
+**判读器的误差下限**：把同样的目标文字用微软雅黑渲染成图再让判读器读回来，两种语言都是 100%（校准按原始字符数计，英文 91/91、中文 37/37）。也就是说判读器对中文没有系统性偏见，上表的差距可以归到生成模型。边界：这只证明判读器能读清晰渲染的文字；生成图里扭曲或艺术化的字更难读，所以上表可能低估、不会高估。每组的拼图见证据目录，可以逐张核对。
+
+**结论边界**：120 个成功样本，覆盖 5 个场景、2 轮。这是指定字符串的拼写准确率，不是排版美观度、字体质量或中文设计感的评价。MAI-Image-2.6 不接受质量参数，它的行只有一个配置。**官方支持范围**：Foundry 模型文档将 MAI-Image-2.6 的 Languages 标为 `en`，中文不在其声明的支持范围内；本节的中文结果是在声明范围之外观察到的行为，不构成产品承诺，也不应被当作已支持的能力来引用。
+
+证据目录：[data/text-rendering-20260918](data/text-rendering-20260918)。提示词 SHA-256：`51585dcf118fec7b6164eea9fc1115cfd44718035f82c4e9a2252fb45ee4d3a4`。
+
+## 中英文文字渲染：难题集，全部 16 个配置
+
+**问题**：上一节的短词每个模型都接近满分，没有区分度。换成专门针对中文难点的题目——长句、简繁体陷阱、数字混排、竖排、多行、手写——且每个部署的每个档位都测，差距会在哪里出现。
+
+**真实输入**：六个场景，每个写成中英两版，除了要求写的文字之外场景描述一致。例如 H1 的两版提示词：
+
+> A bookstore banner photo. The banner reads exactly "READING LIGHTS THE ROAD AHEAD".
+>
+> 书店横幅照片，横幅上准确写着"阅读照亮前行的道路"。
+
+每轮的分母是固定的：英文 131 个字符，中文 43 个字符。中文表达同样内容用字更少，所以两种语言各按自己的分母计算，不互相通分。
+
+| 场景 | 画面 | 针对的难点 | 英文目标 | 中文目标 |
+| --- | --- | --- | --- | --- |
+| H1 | bookstore banner | long string | `READING LIGHTS THE ROAD AHEAD` | `阅读照亮前行的道路` |
+| H2 | tea packaging | simplified vs traditional | `GREEN TEA FROM YUNNAN CLOUDS` | `云南绿茶发源地` |
+| H3 | street plaque | digits mixed with script | `EAST GATE No. 18 THIRD FLOOR` | `东门大街18号三楼` |
+| H4 | calligraphy scroll | vertical layout | `STILL WATERS RUN DEEP` | `宁静致远` |
+| H5 | conference badge | multi-line | `ZHANG WEI / SENIOR ARCHITECT` | `张伟 / 高级架构师` |
+| H6 | handwritten whiteboard | handwriting | `SHIP IT BY FRIDAY NOON` | `周五中午前发布` |
+
+**受控变量**：同一客户端、同一账户、同一区域（Sweden Central）、同一 GlobalStandard 部署配额、同一 1024x1024 分辨率、两轮。配对内唯一变化的是文字的语言。
+
+| 配置 | 英文字符准确率 | 英文整段正确 | 中文字符准确率 | 中文整段正确 |
+| --- | --- | --- | --- | --- |
+| gpt-image-2-high | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
+| gpt-image-2-low | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
+| gpt-image-2-medium | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
+| gpt-image-2.5-flare-auto | 262/262 = 100% | 14/14 = 100% | 85/86 = 99% | 13/14 = 93% |
+| gpt-image-2.5-flare-high | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
+| gpt-image-2.5-flare-low | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
+| gpt-image-2.5-flare-max | 237/239 = 99% | 12/13 = 92% | 82/82 = 100% | 13/13 = 100% |
+| gpt-image-2.5-flare-medium | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
+| gpt-image-2.5-flare-xhigh | 260/262 = 99% | 13/14 = 93% | 86/86 = 100% | 14/14 = 100% |
+| gpt-image-2.5-sunburst-auto | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
+| gpt-image-2.5-sunburst-high | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
+| gpt-image-2.5-sunburst-low | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
+| gpt-image-2.5-sunburst-max | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
+| gpt-image-2.5-sunburst-medium | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
+| gpt-image-2.5-sunburst-xhigh | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
+| mai-image-2.6 | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
+
+**判读方法**：每张图交给 `gpt-5.6-terra` 读出图中文字，再与目标字符串程序化比对，比对时忽略全部空白。两个口径同时给出：字符准确率取整段转录中与目标最接近的等长窗口逐字符算分，整段正确要求目标串以子串形式完整出现、不给部分分。这是模型判读，不是人工盲评。判读器是 OpenAI 系列模型，而被判的一方也包括 OpenAI 的图像模型；下面的校准只能排除它读不清中文，不能排除它对某一家的风格更宽容，所以每组都附拼图供人眼复核。
+
+**判读器的误差下限**：把同样的目标文字用微软雅黑渲染成图再让判读器读回来，两种语言都是 100%（校准按原始字符数计，英文 91/91、中文 37/37）。也就是说判读器对中文没有系统性偏见，上表的差距可以归到生成模型。边界：这只证明判读器能读清晰渲染的文字；生成图里扭曲或艺术化的字更难读，所以上表可能低估、不会高估。每组的拼图见证据目录，可以逐张核对。
+
+**结论边界**：382 个成功样本，覆盖 6 个场景、2 轮。这是指定字符串的拼写准确率，不是排版美观度、字体质量或中文设计感的评价。MAI-Image-2.6 不接受质量参数，它的行只有一个配置。**官方支持范围**：Foundry 模型文档将 MAI-Image-2.6 的 Languages 标为 `en`，中文不在其声明的支持范围内；本节的中文结果是在声明范围之外观察到的行为，不构成产品承诺，也不应被当作已支持的能力来引用。
+
+证据目录：[data/text-hard-20260919](data/text-hard-20260919)。提示词 SHA-256：`ccc4d655f4df2c664f261bb5d42277d7ecfb1f351cf0bf23c7a74bd77790d48b`。
 
 ## 联网信息补充测试
 

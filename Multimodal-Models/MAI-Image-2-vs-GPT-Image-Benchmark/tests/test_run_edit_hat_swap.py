@@ -124,8 +124,8 @@ class PublicEditRunnerTests(unittest.TestCase):
             reference = "data/edit-hat-swap-20260909-auto/figures/scenario12-auto-results.png"
             heading = ("### Test 12: Headwear Swap (Image Edit)" if filename == "README.md"
                        else "### Test 12: 换帽子（图像编辑）")
-            following = ("## Current Run: Both Models and All Quality Tiers" if filename == "README.md"
-                         else "## 本轮：两模型与全部质量档位")
+            following = ("## Current Run: Both Models and" if filename == "README.md"
+                         else "## 本轮：两模型与")
             body = text[text.index(heading):text.index(following)]
             self.assertIn(reference, body, f"{filename}: figure must sit inside Test 12")
             correction = ("Protocol correction" if filename == "README.md" else "协议更正")
@@ -138,11 +138,15 @@ class PublicEditRunnerTests(unittest.TestCase):
             self.assertNotIn("size-protocol-comparison", text, filename)
 
     def test_opening_uses_corrected_result_and_stable_how_to_anchor(self):
+        # The badge is derived from the number of test functions under tests/, so assert the
+        # derivation rather than a literal that drifts every time a test is added.
+        expected_count = sum(len(re.findall(r"(?m)^\s+def test_", p.read_text("utf-8")))
+                             for p in (ROOT / "tests").glob("test_*.py"))
         for filename in ("README.md", "README-CN.md"):
             text = (ROOT / filename).read_text("utf-8")
             self.assertIn('<a id="reproduction-how-to"></a>', text, filename)
             self.assertIn("](#reproduction-how-to)", text, filename)
-            self.assertIn("Tests-61%20offline", text, filename)
+            self.assertIn(f"Tests-{expected_count}%20offline", text, filename)
             self.assertNotIn("multi-image input editing", text, filename)
             self.assertNotIn("多图输入编辑两项能力实测", text, filename)
             self.assertNotIn("all three GPT tiers add the cap but regenerate the whole frame", text, filename)

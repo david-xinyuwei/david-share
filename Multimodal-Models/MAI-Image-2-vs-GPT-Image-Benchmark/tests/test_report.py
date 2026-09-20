@@ -132,5 +132,77 @@ class ComparisonReportTests(unittest.TestCase):
             self.assertLess(generated.index("### Test 1:"), generated.index("Offline grounding evidence"))
 
 
+class TierCoverageClaimTests(unittest.TestCase):
+    """The title may claim full tier coverage only when the data covers every accepted tier.
+
+    The 2026-09-17 publication shipped a title reading "All Quality Tiers" while the run covered
+    low/medium/high only: the runner's tier list had been written for gpt-image-2, and
+    gpt-image-2.5-* accepts three more. These assertions tie the claim to the measurements.
+    """
+
+    def summary(self, *pairs):
+        return {"config": {"group_configurations": [
+            {"provider": "gpt", "model": model, "quality": quality} for model, quality in pairs]}}
+
+    def test_three_tiers_on_a_six_tier_model_is_not_full_coverage(self):
+        coverage = report.tier_coverage(self.summary(
+            *(("gpt-image-2.5-flare", tier) for tier in ("low", "medium", "high"))))
+        self.assertFalse(coverage["complete"])
+        self.assertEqual(coverage["missing"]["gpt-image-2.5-flare"], ["xhigh", "max", "auto"])
+
+    def test_every_accepted_tier_is_full_coverage(self):
+        coverage = report.tier_coverage(self.summary(
+            *(("gpt-image-2.5-flare", tier)
+              for tier in ("low", "medium", "high", "xhigh", "max", "auto")),
+            *(("gpt-image-2", tier) for tier in ("low", "medium", "high"))))
+        self.assertTrue(coverage["complete"])
+        self.assertEqual(coverage["missing"], {})
+
+    def test_gpt_image_2_is_complete_at_three_tiers(self):
+        """gpt-image-2 does not accept xhigh/max/auto, so three tiers is all of them."""
+        self.assertTrue(report.tier_coverage(self.summary(
+            *(("gpt-image-2", tier) for tier in ("low", "medium", "high"))))["complete"])
+
+    def test_coverage_spans_the_primary_run_and_the_supplement(self):
+        coverage = report.tier_coverage(
+            self.summary(*(("gpt-image-2", tier) for tier in ("low", "medium", "high"))),
+            self.summary(*(("gpt-image-2.5-flare", tier)
+                           for tier in ("low", "medium", "high", "xhigh", "max", "auto"))))
+        self.assertTrue(coverage["complete"])
+
+    def test_an_unknown_model_cannot_silently_claim_coverage(self):
+        with self.assertRaisesRegex(ValueError, "official tier list"):
+            report.tier_coverage(self.summary(("gpt-image-9-unknown", "low")))
+
+    def test_mai_has_no_tiers_and_does_not_affect_coverage(self):
+        coverage = report.tier_coverage({"config": {"group_configurations": [
+            {"provider": "mai", "model": "MAI-Image-2.6", "quality": None},
+            *({"provider": "gpt", "model": "gpt-image-2", "quality": tier}
+              for tier in ("low", "medium", "high"))]}})
+        self.assertTrue(coverage["complete"])
+        self.assertNotIn("MAI-Image-2.6", coverage["measured"])
+
+
+class AutoTierAttributionTests(unittest.TestCase):
+    """quality=auto must be reported as what the service said, not inferred from tokens.
+
+    Measured 2026-09-18 over 132 samples: every explicitly requested tier returned one constant
+    output-token count across all 22 of its samples, but auto's self-reported medium came back at
+    both 439 and 781 tokens. Token counts therefore do not identify a tier under auto, and the
+    renderer must read the echoed quality instead.
+    """
+
+    def test_tokens_are_not_used_to_infer_the_tier(self):
+        self.assertFalse(hasattr(report, "TOKENS_TO_TIER"),
+                         "token-to-tier inference is unsound under quality=auto")
+
+    def test_auto_is_an_accepted_tier_but_never_a_coverage_signature(self):
+        for model, tiers in report.OFFICIAL_TIERS.items():
+            if "auto" in tiers:
+                self.assertIn("xhigh", tiers, f"{model} lists auto without the explicit tiers")
+        self.assertEqual(report.TIER_ORDER[-1], "auto",
+                         "auto sorts last because it is not a quality level")
+
+
 if __name__ == "__main__":
     unittest.main()

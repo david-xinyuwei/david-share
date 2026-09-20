@@ -12,7 +12,10 @@ from summarize_mai_run import digest, latency_statistics
 
 
 GROUPS = ("mai-image-2.6", "gpt-image-2-low", "gpt-image-2-medium", "gpt-image-2-high")
-GPT_QUALITIES = ("low", "medium", "high")
+# gpt-image-2 accepts the first three; gpt-image-2.5-* also accepts xhigh, max and auto
+# (verified against the live service 2026-09-18). auto lets the service pick per request, and the
+# tier it chose is recorded per attempt as service_quality.
+GPT_QUALITIES = ("low", "medium", "high", "xhigh", "max", "auto")
 
 
 def expected_request_for(configuration, prompt):
@@ -120,14 +123,18 @@ def summarize(run_directory, prompts_path):
     if digest(prompts_path) != config["prompts_sha256"]:
         raise ValueError("Prompt source differs from the measured source")
     validate_source_snapshot(run_directory, result)
-    if digest(run_directory / "source" / "prompts.csv") != config["prompts_sha256"]:
+    if digest(run_directory / "source" / prompts_path.name) != config["prompts_sha256"]:
         raise ValueError("Prompt snapshot hash does not match")
     with prompts_path.open(encoding="utf-8-sig", newline="") as source:
         reader = csv.reader(source)
         next(reader)
         prompts = [row[0].strip() for row in reader if row and row[0].strip()]
-    if len(prompts) != 11:
-        raise ValueError("The original eleven scenarios are required")
+    # Derived from the run itself rather than fixed at eleven, so supplemental studies with their
+    # own prompt sets are still checked for the same all-groups-two-rounds completeness.
+    expected_prompts, remainder = divmod(config["formal_sample_count"], len(groups) * 2)
+    if remainder or len(prompts) != expected_prompts:
+        raise ValueError(f"Prompt count {len(prompts)} does not match the recorded matrix "
+                         f"({config['formal_sample_count']} samples over {len(groups)} groups, 2 rounds)")
     expected_order = [(round_number, prompt_index, group)
                       for round_number in (1, 2)
                       for prompt_index in range(1, len(prompts) + 1)
@@ -146,6 +153,7 @@ def summarize(run_directory, prompts_path):
     if any((attempt["round"], attempt["prompt_idx"], attempt["group"]) not in expected_order for attempt in formal_attempts):
         raise ValueError("An attempt is outside the frozen formal matrix")
     images = []
+    clock_adjusted_samples = []
     for row in rows:
         prompt = prompts[row["prompt_idx"] - 1]
         if hashlib.sha256(prompt.encode("utf-8")).hexdigest() != row["prompt_sha256"]:
@@ -162,8 +170,20 @@ def summarize(run_directory, prompts_path):
         if not token_count(row["time"]) or not token_count(row["logical_request_seconds"]):
             raise ValueError("Sample duration is not a finite nonnegative value")
         sample_wall_seconds = (datetime.fromisoformat(row["ended_at_utc"]) - datetime.fromisoformat(row["started_at_utc"])).total_seconds()
-        if row["logical_request_seconds"] > sample_wall_seconds + 0.1:
-            raise ValueError("Logical duration exceeds the recorded sample interval")
+        # logical_request_seconds comes from a monotonic clock while the timestamps come from the
+        # wall clock, so a host clock correction during a sample makes the interval look shorter
+        # than the measured duration. That is a clock event, not a bad measurement: the monotonic
+        # figure still has to cover its own HTTP attempts, which is checked immediately below.
+        # A large or widespread gap is still refused, since that would indicate real corruption.
+        wall_shortfall = row["logical_request_seconds"] - sample_wall_seconds
+        if wall_shortfall > 0.1:
+            if wall_shortfall > 60:
+                raise ValueError("Logical duration exceeds the recorded sample interval")
+            clock_adjusted_samples.append(
+                {"sample": f"{row['group']}-r{row['round']}-p{row['prompt_idx']:02d}",
+                 "logical_request_seconds": row["logical_request_seconds"],
+                 "wall_interval_seconds": round(sample_wall_seconds, 3),
+                 "shortfall_seconds": round(wall_shortfall, 3)})
         if row["logical_request_seconds"] < sum(attempt["request_seconds"] for attempt in matching) - 0.01:
             raise ValueError("Logical request duration is shorter than its HTTP attempts")
         if succeeded:
@@ -246,12 +266,17 @@ def summarize(run_directory, prompts_path):
             "unsuccessful_attempts": unsuccessful_attempts,
             "mixed_workload_observed_images_per_minute": sum(row["ok"] for row in rows) * 60 / formal_seconds,
             "groups": metrics, "per_prompt": per_prompt, "images": images,
+            "clock_adjusted_samples": clock_adjusted_samples,
             "limitations": ["Single 1024x1024 resolution, eleven prompts, two rounds, one serial run; P95 is descriptive.",
                             "Same client and interleaved schedule, but deployment regions and per-request timeouts differ.",
                             "GPT quality labels are not matched to a MAI quality tier; MAI sends no quality field.",
                             "Observed mixed-workload rate includes waits/retries and is not per-model or maximum service throughput.",
                             "Full images and unblinded observations are not a human preference study or automated quality score.",
-                            "Earlier April and September measurements are separate cohorts, not pooled samples."]}
+                            "Earlier April and September measurements are separate cohorts, not pooled samples."]
+                           + ([f"{len(clock_adjusted_samples)} sample(s) show a host clock correction during the "
+                               "request: the monotonic duration exceeds the wall-clock interval. Latency figures "
+                               "come from the monotonic clock and still cover their own HTTP attempts."]
+                              if clock_adjusted_samples else [])}
 
 
 if __name__ == "__main__":

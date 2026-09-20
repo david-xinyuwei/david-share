@@ -48,6 +48,37 @@ GROUPS = [
     {"id": "gpt-image-1.5-medium","type": "gpt", "model": None,          "quality": "medium"},
     {"id": "gpt-image-1.5-high",  "type": "gpt", "model": None,          "quality": "high"},
 ]
+QUALITY_ALIASES = {
+    # Pinned to the three tiers gpt-image-2 supports; published archives reproduce with this token,
+    # so its meaning must not widen when a newer model adds tiers.
+    "all": ("low", "medium", "high"),
+    # gpt-image-2.5-flare / -sunburst additionally accept these three (verified 2026-09-18).
+    "all25": ("low", "medium", "high", "xhigh", "max", "auto"),
+}
+# Single source for both the actual call and the recorded configuration, so the archived metadata
+# cannot drift from what the client really allowed.
+MAI_REQUEST_TIMEOUT = 180
+GPT_REQUEST_TIMEOUT = 900
+
+
+def model_version_for(prefix, deployment):
+    """Model version for one deployment.
+
+    A run may interleave deployments of different vintages behind a single credential prefix
+    (gpt-image-2 is 2026-04-21 while gpt-image-2.5-* is 2026-09-08), so a per-deployment map
+    takes precedence over the single-value variable used when a run has one deployment.
+    """
+    overrides = os.environ.get(prefix + "_MODEL_VERSIONS")
+    if overrides and deployment:
+        try:
+            mapped = json.loads(overrides).get(deployment)
+        except json.JSONDecodeError:
+            mapped = None
+        if mapped:
+            return mapped
+    return os.environ.get(prefix + "_MODEL_VERSION")
+
+
 INTER_CALL_WAIT = 5
 # Every deployment used here is provisioned at 2 requests/minute; fast models would otherwise
 # trip the client's own quota on the third consecutive tier and record a 429 that says nothing
@@ -147,7 +178,7 @@ def generate_mai(model_name, prompt, token, max_retries=3, *, web_grounding=None
                           "request": payload, "ok": False}
         try:
             start = time.time()
-            r = requests.post(MAI_URL, headers=headers, json=payload, timeout=180)
+            r = requests.post(MAI_URL, headers=headers, json=payload, timeout=MAI_REQUEST_TIMEOUT)
             elapsed = time.time() - start
             attempt_record.update({"http_status": r.status_code, "request_seconds": elapsed,
                                    "response_received_at_utc": utc_now(),
@@ -195,7 +226,9 @@ def generate_gpt(prompt, quality, deployment=None, max_retries=3):
                           "request": payload, "ok": False}
         try:
             start = time.time()
-            r = requests.post(url, headers=headers, json=payload, timeout=300)
+            # gpt-image-2.5-sunburst at quality=max measured 229s on a single request,
+            # so the ceiling is well above the 300s that sufficed for low/medium/high.
+            r = requests.post(url, headers=headers, json=payload, timeout=GPT_REQUEST_TIMEOUT)
             elapsed = time.time() - start
             attempt_record.update({"http_status": r.status_code, "request_seconds": elapsed,
                                    "response_received_at_utc": utc_now(),
@@ -210,6 +243,10 @@ def generate_gpt(prompt, quality, deployment=None, max_retries=3):
                     result, REQUEST_CONTEXT.get("sample_id", "gpt-" + quality), attempt + 1)
                 attempt_record.update(image_record)
                 usage = result.get("usage") or {}
+                # quality=auto lets the service pick a tier per request, and it echoes the tier it
+                # actually used. Without this the auto group's latency/token numbers are unreadable.
+                service_quality = result.get("quality")
+                attempt_record["service_quality"] = service_quality
                 token_info = {
                     "input_tokens": usage.get("input_tokens"),
                     "output_tokens": usage.get("output_tokens"),
@@ -217,6 +254,8 @@ def generate_gpt(prompt, quality, deployment=None, max_retries=3):
                     "output_text_tokens": usage.get("output_tokens_details", {}).get("text_tokens"),
                     "total_tokens": usage.get("total_tokens"),
                     "usage": usage,
+                    "requested_quality": quality,
+                    "service_quality": service_quality,
                 }
                 return True, elapsed, img, token_info
             elif r.status_code == 429:
@@ -288,12 +327,13 @@ def main():
         prefix = "MAI" if group["type"] == "mai" else "GPT"
         group_configs.append({
             "id": group["id"], "provider": group["type"], "model": group["model"],
-            "quality": group["quality"], "model_version": os.environ.get(prefix + "_MODEL_VERSION"),
+            "quality": group["quality"],
+            "model_version": model_version_for(prefix, group["model"]),
             "deployment_sku": os.environ.get(prefix + "_DEPLOYMENT_SKU"),
             "deployment_region": os.environ.get(prefix + "_DEPLOYMENT_REGION"),
             "request_rate_limit_per_minute": os.environ.get(prefix + "_RATE_LIMIT_RPM"),
             "auth": "api-key" if group["type"] == "gpt" or MAI_API_KEY else "Entra ID",
-            "request_timeout_seconds": 180 if group["type"] == "mai" else 300,
+            "request_timeout_seconds": MAI_REQUEST_TIMEOUT if group["type"] == "mai" else GPT_REQUEST_TIMEOUT,
             "api_version": GPT_API_VERSION if group["type"] == "gpt" else None,
             "endpoint_fingerprint": hashlib.sha256(
                 (MAI_URL if group["type"] == "mai" else gpt_url(group.get("model"))).encode("utf-8")).hexdigest(),
@@ -458,8 +498,15 @@ if __name__ == "__main__":
                         help="Explicit MAI web grounding at fixed aspect ratio; omitted preserves the original request.")
     parser.add_argument("--prompts-csv", type=Path, help="Prompt CSV for an independent supplemental run.")
     parser.add_argument("--gpt-model", action="append",
-                        help="Select this GPT image deployment; repeat the flag to interleave several deployments.")
-    parser.add_argument("--gpt-quality", choices=("low", "medium", "high", "all"), default="medium")
+                        help="Select this GPT image deployment; repeat the flag to interleave several "
+                             "deployments. Append ':tier' or ':tier,tier' to pin tiers to one "
+                             "deployment when models accept different tiers.")
+    parser.add_argument("--gpt-quality", action="append",
+                        choices=("low", "medium", "high", "xhigh", "max", "auto", "all", "all25"),
+                        help="Quality tier; repeat the flag to combine tiers. "
+                             "'all' stays low/medium/high (the tiers gpt-image-2 supports, used by "
+                             "published archives); 'all25' adds xhigh/max/auto, which only "
+                             "gpt-image-2.5-* accept. Default medium.")
     parser.add_argument("--output", type=Path, help="Directory for this independent measurement run.")
     parser.add_argument("--dry-run", action="store_true", help="Validate inputs without network calls.")
     parser.add_argument("--resume", action="store_true", help="Continue an interrupted run without rerunning recorded samples.")
@@ -483,10 +530,23 @@ if __name__ == "__main__":
             GROUPS.append({"id": options.mai_model.lower(), "type": "mai", "model": options.mai_model,
                            "quality": None})
     if options.gpt_model:
-        qualities = ("low", "medium", "high") if options.gpt_quality == "all" else (options.gpt_quality,)
-        GROUPS.extend({"id": f"{model.lower()}-{quality}", "type": "gpt",
-                       "model": model, "quality": quality}
-                      for model in options.gpt_model for quality in qualities)
+        def expand(tokens):
+            qualities = []
+            for token in tokens:
+                for quality in QUALITY_ALIASES.get(token, (token,)):
+                    if quality not in qualities:
+                        qualities.append(quality)
+            return qualities
+
+        shared = expand(options.gpt_quality or ["medium"])
+        for entry in options.gpt_model:
+            # "deployment:tier,tier" pins tiers to one deployment, because models of different
+            # vintages accept different tiers: gpt-image-2 rejects xhigh/max/auto, gpt-image-2.5-*
+            # accepts them. Without the suffix the deployment uses the shared --gpt-quality set.
+            model, _, pinned = entry.partition(":")
+            for quality in (expand(pinned.split(",")) if pinned else shared):
+                GROUPS.append({"id": f"{model.lower()}-{quality}", "type": "gpt",
+                               "model": model, "quality": quality})
     if options.output:
         OUT_BASE = options.output.resolve()
         RESULTS_JSON = OUT_BASE / "5way_v2_results.json"

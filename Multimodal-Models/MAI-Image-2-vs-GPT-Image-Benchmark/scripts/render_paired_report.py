@@ -1,4 +1,5 @@
 import argparse
+import csv
 import json
 import re
 import statistics
@@ -15,6 +16,53 @@ EDIT_ARCHIVE = "data/edit-hat-swap-20260909-auto"
 # Later run measured with the same client, prompts and runner; its columns join the same tables
 # but carry their own date and region because they are not the same session as the primary run.
 SUPPLEMENT_ARCHIVE = "data/gpt25-paired-20260917"
+# The tiers gpt-image-2.5-* accepts beyond low/medium/high, measured in a later run with the same
+# client and prompt file.
+TIER_ARCHIVE = "data/gpt25-tiers-20260918"
+# Tiers each deployment accepts, per the Azure OpenAI image generation reference and verified
+# against the live service on 2026-09-18. Used to decide whether the report may claim it covered
+# every tier: gpt-image-2 rejects xhigh/max/auto, gpt-image-2.5-* accepts them.
+OFFICIAL_TIERS = {
+    "gpt-image-2": ("low", "medium", "high"),
+    "gpt-image-2.5-flare": ("low", "medium", "high", "xhigh", "max", "auto"),
+    "gpt-image-2.5-sunburst": ("low", "medium", "high", "xhigh", "max", "auto"),
+}
+TIER_ORDER = ("low", "medium", "high", "xhigh", "max", "auto")
+
+
+def measured_tiers(*summaries):
+    """Tiers actually present in the data, per GPT deployment."""
+    tiers = {}
+    for summary in summaries:
+        if not summary:
+            continue
+        for configuration in summary.get("config", {}).get("group_configurations", ()):
+            if configuration["provider"] == "gpt":
+                tiers.setdefault(configuration["model"], set()).add(configuration["quality"])
+    return tiers
+
+
+def tier_coverage(*summaries):
+    """Which deployments were measured at every tier they accept, and which tiers are missing.
+
+    The published 2026-09-17 run claimed 'All Quality Tiers' in its title while covering only
+    low/medium/high, because the runner's tier list was written for gpt-image-2. Deriving the
+    claim from the data keeps the title from outrunning the measurement again.
+
+    With no tier data at all the answer is 'not complete', never 'complete by default': an
+    absent configuration block must not be able to grant a full-coverage claim.
+    """
+    measured = measured_tiers(*summaries)
+    missing = {}
+    for model, tiers in measured.items():
+        official = OFFICIAL_TIERS.get(model)
+        if official is None:
+            raise ValueError(f"No official tier list recorded for {model}; add it before claiming coverage")
+        absent = [tier for tier in official if tier not in tiers]
+        if absent:
+            missing[model] = absent
+    return {"measured": {model: sorted(tiers) for model, tiers in measured.items()},
+            "missing": missing, "complete": bool(measured) and not missing}
 
 
 def label_for(configuration):
@@ -42,6 +90,482 @@ def load_supplement(root, prompts_path, archive=SUPPLEMENT_ARCHIVE):
             "groups": [group["group"] for group in summary["groups"]],
             "labels": [label_for(group["configuration"]) for group in summary["groups"]],
             "date": summary["formal_started_at_utc"][:10], "region": regions.pop()}
+
+
+def load_tier_supplement(root, prompts_path, archive=TIER_ARCHIVE):
+    """The xhigh/max/auto run, or None when it has not been archived yet."""
+    directory = root / archive
+    if not directory.is_dir():
+        return None
+    summary = summarize(directory, prompts_path)
+    results = json.loads((directory / "5way_v2_results.json").read_text("utf-8"))
+    # The tier the service reported for each quality=auto request. Read from the response rather
+    # than inferred from tokens: an explicit tier always returns a fixed token count, but auto's
+    # self-reported medium came back at both 439 and 781 tokens, so tokens do not identify a tier.
+    echoed = {}
+    for line in (directory / "attempts.jsonl").read_text("utf-8").splitlines():
+        if line.strip():
+            attempt = json.loads(line)
+            if attempt.get("ok") and attempt.get("service_quality"):
+                echoed[attempt["sample_id"]] = attempt["service_quality"]
+    chosen, auto_tokens = {}, {}
+    for row in results["raw_data"]:
+        if not row["ok"] or row.get("quality") != "auto":
+            continue
+        sample = f"{row['group']}-r{row['round']}-p{row['prompt_idx']:02d}"
+        tier = echoed.get(sample)
+        if not tier:
+            continue
+        chosen.setdefault(row["group"], {}).setdefault(tier, 0)
+        chosen[row["group"]][tier] += 1
+        auto_tokens.setdefault(row["group"], {}).setdefault(tier, set()).add(
+            (row.get("token_info") or {}).get("output_tokens"))
+    return {"summary": summary, "archive": archive,
+            "groups": [group["group"] for group in summary["groups"]],
+            "labels": [label_for(group["configuration"]) for group in summary["groups"]],
+            "date": summary["formal_started_at_utc"][:10],
+            "auto_choices": chosen,
+            "auto_tokens": {group: {tier: sorted(values) for tier, values in tiers.items()}
+                            for group, tiers in auto_tokens.items()}}
+
+
+def render_tier_section(supplement, tier, language):
+    """The six 2.5 tiers as one row per configuration.
+
+    Laid out transposed because twelve configurations as columns do not read; the reader is
+    comparing tiers down a column, not scanning one metric across twelve headings.
+    """
+    chinese = language == "zh"
+    pairs = list(zip(supplement["labels"], supplement["summary"]["groups"]))
+    pairs += list(zip(tier["labels"], tier["summary"]["groups"]))
+    order = {name: index for index, name in enumerate(TIER_ORDER)}
+    pairs.sort(key=lambda item: (item[0].rsplit(" ", 1)[0], order.get(item[0].rsplit(" ", 1)[1], 9)))
+
+    rows = []
+    for label, group in pairs:
+        latency = group["successful_request_latency"] or {}
+        tokens = group["returned_output_tokens"]
+        token_text = str(tokens[0]) if len(tokens) == 1 else (f"{min(tokens)}–{max(tokens)}" if tokens else "N/A")
+        choices = tier["auto_choices"].get(group["group"])
+        if choices:
+            picked = []
+            for name, count in sorted(choices.items(), key=lambda item: -item[1]):
+                # A reported tier can cover more than one token count, so show them rather than
+                # letting a single label imply a single cost.
+                values = tier["auto_tokens"].get(group["group"], {}).get(name, [])
+                suffix = f" [{'/'.join(str(value) for value in values)}]" if len(values) > 1 else ""
+                picked.append(f"{name} x{count}{suffix}")
+            token_text += f" ({', '.join(picked)})"
+        rows.append([label, f"{group['successful_samples']} / {group['planned_samples']}", token_text,
+                     number(latency.get("mean_seconds")), number(latency.get("p50_seconds")),
+                     number(latency.get("p95_seconds")), number(group["mean_image_kib"], 0)])
+
+    headers = (["配置", "成功 / 计划", "返回的输出 token", "平均耗时 (s)", "P50 (s)", "描述性 P95 (s)", "平均 PNG (KiB)"]
+               if chinese else
+               ["Configuration", "Successful / planned", "Returned output tokens", "Mean latency (s)",
+                "P50 (s)", "Descriptive P95 (s)", "Mean PNG (KiB)"])
+
+    heading = "## GPT-Image-2.5 的六个质量档位" if chinese else "## The Six GPT-Image-2.5 Quality Tiers"
+    intro = ("`gpt-image-2.5-flare` 和 `gpt-image-2.5-sunburst` 接受六个质量档位，`gpt-image-2` 只接受前三个。"
+             f"low、medium、high 来自 {supplement['date']} 的补测，xhigh、max、auto 来自 {tier['date']} 的补测，"
+             "两次使用同一客户端、同一提示词文件和同一部署。显式指定某一档时，输出 token 是固定值，"
+             "两个部署完全一致；`auto` 不是这样，见表下说明。"
+             if chinese else
+             "`gpt-image-2.5-flare` and `gpt-image-2.5-sunburst` accept six quality tiers; `gpt-image-2` accepts "
+             f"only the first three. low, medium and high come from the {supplement['date']} run and xhigh, max and "
+             f"auto from the {tier['date']} run, both using the same client, prompt file and deployments. "
+             "When a tier is requested explicitly its output-token count is constant and identical across the two "
+             "deployments; `auto` behaves differently, as noted below the table.")
+    # Whether auto ever produced a token count the same tier never produces when asked explicitly.
+    explicit_tokens = {}
+    for label, group in zip(supplement["labels"], supplement["summary"]["groups"]):
+        explicit_tokens.setdefault(label.rsplit(" ", 1)[1], set()).update(group["returned_output_tokens"])
+    for label, group in zip(tier["labels"], tier["summary"]["groups"]):
+        name = label.rsplit(" ", 1)[1]
+        if name != "auto":
+            explicit_tokens.setdefault(name, set()).update(group["returned_output_tokens"])
+    extra = sorted({token for tiers in tier["auto_tokens"].values()
+                    for name, values in tiers.items() for token in values
+                    if token not in explicit_tokens.get(name, set())})
+    divergence_cn = divergence_en = ""
+    if extra:
+        listed = "、".join(str(token) for token in extra)
+        divergence_cn = (f"另外，`auto` 自报为某一档时，返回的 output token 不一定等于显式请求该档时的固定值："
+                         f"本轮出现了 {listed} 这样的值，而显式请求同一档位在 22/22 个样本上都返回同一个固定值。"
+                         "也就是说 `auto` 并不等同于替你选了某个档位，它的开销无法由自报档位推算。")
+        divergence_en = (f" Moreover, when `auto` reports a tier, the returned output-token count is not necessarily "
+                         f"the fixed value that tier returns when requested explicitly: this run produced "
+                         f"{', '.join(str(token) for token in extra)}, while every explicitly requested tier returned "
+                         "one constant across all 22 of its samples. `auto` is therefore not equivalent to selecting "
+                         "that tier, and its cost cannot be derived from the tier it reports.")
+    auto_note = ("`auto` 不是一个固定档位。服务按请求自行选择，并在响应里回显它实际使用的档位。"
+                 "上表的 `auto` 行在括号中列出服务自报的档位及次数，取自响应字段，不是我们指定的。"
+                 + divergence_cn +
+                 "因此 `auto` 的耗时和 token 反映的是服务的选择行为，不能当作一个质量水平来比较。"
+                 if chinese else
+                 "`auto` is not a fixed tier. The service chooses per request and echoes the tier it used. "
+                 "The `auto` rows above list, in parentheses, the tiers the service reported and how often, taken "
+                 "from the response field rather than requested by us."
+                 + divergence_en +
+                 " Their latency and token figures therefore describe the service's selection behaviour, not one "
+                 "quality level.")
+    return "\n\n".join([heading, intro, table(headers, rows), auto_note])
+
+
+def load_text_study(root, archive="data/text-rendering-20260918", prompts_name="prompts-text-rendering.csv",
+                    kind="easy"):
+    """A Chinese/English text-rendering study, or None when it has not been archived yet."""
+    directory = root / archive
+    scoring = directory / "text-scoring.json"
+    if not scoring.is_file():
+        return None
+    data = json.loads(scoring.read_text("utf-8"))
+    prompts = []
+    with (directory / prompts_name).open(encoding="utf-8-sig", newline="") as handle:
+        reader = csv.reader(handle)
+        next(reader)
+        for row in reader:
+            if row and row[0].strip():
+                prompts.append({"prompt": row[0], "pair_id": row[1], "language": row[2],
+                                "target": row[3], "chars": int(row[4]), "scene": row[5],
+                                "tests": row[6] if len(row) > 6 else ""})
+    return {**data, "archive": archive, "prompts": prompts, "kind": kind}
+
+
+def render_text_section(study, language):
+    """Text rendering in Chinese versus English, one row per configuration.
+
+    Written so the section stands on its own: the reader sees the exact prompt, what the model was
+    asked to spell, who read the result back, and what that reader's own error rate is.
+    """
+    chinese = language == "zh"
+    scenes = [item for item in study["prompts"] if item["language"] == "en"]
+    # Denominators come from the scored samples, not the CSV's declared counts: the scoring rule
+    # strips whitespace, so "JASMINE GREEN TEA" is 15 characters here, not 17.
+    per_round = {}
+    for sample in study["samples"]:
+        if sample["round"] == 1 and sample["group"] == study["samples"][0]["group"]:
+            per_round[sample["language"]] = per_round.get(sample["language"], 0) + sample["chars"]
+    en_chars, zh_chars = per_round.get("en", 0), per_round.get("zh", 0)
+
+    hard = study.get("kind") == "hard"
+    scene_count = len(scenes)
+    first_pair = scenes[0]["pair_id"] if scenes else "P1"
+    if hard:
+        heading = ("## 中英文文字渲染：难题集，全部 16 个配置" if chinese else
+                   "## Chinese and English Text Rendering: Hard Set, All 16 Configurations")
+        question = ("**问题**：上一节的短词每个模型都接近满分，没有区分度。换成专门针对中文难点的题目——长句、简繁体陷阱、数字混排、"
+                    "竖排、多行、手写——且每个部署的每个档位都测，差距会在哪里出现。"
+                    if chinese else
+                    "**Question**: the short targets in the previous section scored near 100% for every model and "
+                    "had no discriminating power. With scenes built around known Chinese failure modes (long "
+                    "strings, simplified-vs-traditional traps, digits mixed with script, vertical layout, "
+                    "multi-line, handwriting) and every deployment measured at every tier, where do gaps appear?")
+    else:
+        heading = "## 中英文文字渲染" if chinese else "## Chinese and English Text Rendering"
+        question = ("**问题**：同一个场景，只把要写的文字从英文换成中文，模型把字写对的比例差多少。"
+                    if chinese else
+                    "**Question**: for the same scene, with only the language of the required text changed, "
+                    "how much does the share of correctly rendered characters differ?")
+
+    def target_of(pair_id, lang):
+        return "`" + next(p["target"].replace("|", " / ") for p in study["prompts"]
+                          if p["pair_id"] == pair_id and p["language"] == lang) + "`"
+
+    if hard:
+        prompt_rows = [[item["pair_id"], item["scene"], item["tests"], target_of(item["pair_id"], "en"),
+                        target_of(item["pair_id"], "zh")] for item in scenes]
+        prompt_table = table(["场景", "画面", "针对的难点", "英文目标", "中文目标"] if chinese else
+                             ["Pair", "Scene", "Tests", "English target", "Chinese target"], prompt_rows)
+    else:
+        prompt_rows = [[item["pair_id"], item["scene"], target_of(item["pair_id"], "en"),
+                        target_of(item["pair_id"], "zh")] for item in scenes]
+        prompt_table = table(["场景", "画面", "英文目标", "中文目标"] if chinese else
+                             ["Pair", "Scene", "English target", "Chinese target"], prompt_rows)
+    example = next(item["prompt"] for item in study["prompts"] if item["pair_id"] == first_pair
+                   and item["language"] == "en")
+    example_zh = next(item["prompt"] for item in study["prompts"] if item["pair_id"] == first_pair
+                      and item["language"] == "zh")
+    count_cn = {5: "五", 6: "六"}.get(scene_count, str(scene_count))
+    count_en = {5: "five", 6: "six"}.get(scene_count, str(scene_count))
+    inputs = (f"**真实输入**：{count_cn}个场景，每个写成中英两版，除了要求写的文字之外场景描述一致。例如 {first_pair} 的两版提示词："
+              f"\n\n> {example}\n>\n> {example_zh}\n\n每轮的分母是固定的：英文 {en_chars} 个字符，中文 {zh_chars} 个字符。"
+              "中文表达同样内容用字更少，所以两种语言各按自己的分母计算，不互相通分。"
+              if chinese else
+              f"**Actual input**: {count_en} scenes, each written in English and Chinese, identical apart from the "
+              f"text to be rendered. The two {first_pair} prompts, verbatim:\n\n> {example}\n>\n> {example_zh}\n\n"
+              f"Denominators are fixed per round: {en_chars} English characters and {zh_chars} Chinese "
+              "characters. Chinese expresses the same content in fewer characters, so each language is scored "
+              "against its own denominator and the two are never pooled.")
+    controlled = ("**受控变量**：同一客户端、同一账户、同一区域（Sweden Central）、同一 GlobalStandard 部署配额、"
+                  "同一 1024x1024 分辨率、两轮。配对内唯一变化的是文字的语言。"
+                  if chinese else
+                  "**Controlled variables**: one client, one account, one region (Sweden Central), the same "
+                  "GlobalStandard quota, 1024x1024, two rounds. Within a pair, only the language of the text changes.")
+
+    rows = []
+    for group in sorted(study["summary"]):
+        stats = study["summary"][group]
+        row = [group]
+        for lang in ("en", "zh"):
+            item = stats.get(lang)
+            if not item:
+                row += ["N/A", "N/A"]
+                continue
+            row += [f"{item['matched_chars']}/{item['total_chars']} = {item['char_accuracy']:.0%}",
+                    f"{item['exact_segments']}/{item['total_segments']} = {item['exact_rate']:.0%}"]
+        rows.append(row)
+    headers = (["配置", "英文字符准确率", "英文整段正确", "中文字符准确率", "中文整段正确"] if chinese else
+               ["Configuration", "English character accuracy", "English exact segments",
+                "Chinese character accuracy", "Chinese exact segments"])
+    results = table(headers, rows)
+
+    judging = ("**判读方法**：每张图交给 `gpt-5.6-terra` 读出图中文字，再与目标字符串程序化比对，比对时忽略全部空白。"
+               "两个口径同时给出：字符准确率取整段转录中与目标最接近的等长窗口逐字符算分，整段正确要求目标串以子串形式"
+               "完整出现、不给部分分。这是模型判读，不是人工盲评。判读器是 OpenAI 系列模型，而被判的一方也包括 OpenAI "
+               "的图像模型；下面的校准只能排除它读不清中文，不能排除它对某一家的风格更宽容，所以每组都附拼图供人眼复核。"
+               if chinese else
+               "**How it was judged**: each image is transcribed by `gpt-5.6-terra` and compared with the target "
+               "string programmatically, ignoring all whitespace. Two denominators are reported: character accuracy "
+               "scores the best-matching window of equal length anywhere in the transcription, character by "
+               "character; exact segments requires the target to appear verbatim as a substring, with no partial "
+               "credit. This is model-judged, not a blind human study. The judge is an OpenAI-family model and "
+               "some of the judged images come from OpenAI image models; the calibration below rules out an "
+               "inability to read Chinese, not a lenience toward one vendor's style, which is why every group has "
+               "a contact sheet for human review.")
+    superseded = study.get("superseded")
+    correction = ""
+    if superseded:
+        correction = ("**口径更正**：第一版评分把每个目标串只与转录中的**单独一行**比对。判读器每个视觉文字块输出一行，"
+                      "所以模型把一句话分两行排版就被判成拼写错误；这个惩罚随目标长度增长，而英文目标是中文的 2–4 倍长，"
+                      "于是英文被系统性低估——正好落在本测试要检验的方向上。61 个样本受影响。更正后的规则忽略空白、"
+                      f"在整段转录中匹配；第一版结果保留为 [`{superseded['file']}`]({study['archive']}/{superseded['file']})，"
+                      "不删除。"
+                      if chinese else
+                      "**Scoring correction**: the first pass matched each target against a **single transcribed "
+                      "line**. The judge emits one line per visual text block, so a model that wrapped a phrase onto "
+                      "two lines was scored as misspelling it; the penalty grew with target length, and the English "
+                      "targets are two to four times longer than the Chinese ones, so English was systematically "
+                      "understated in exactly the direction this test was meant to examine. 61 samples were affected. "
+                      "The corrected rule ignores whitespace and matches anywhere in the transcription; the first-pass "
+                      f"scores are kept as [`{superseded['file']}`]({study['archive']}/{superseded['file']}) rather "
+                      "than deleted.")
+    calibration = ("**判读器的误差下限**：把同样的目标文字用微软雅黑渲染成图再让判读器读回来，两种语言都是 100%"
+                   "（校准按原始字符数计，英文 91/91、中文 37/37）。也就是说判读器对中文没有系统性偏见，"
+                   "上表的差距可以归到生成模型。边界：这只证明判读器能读清晰渲染的文字；生成图里扭曲或艺术化的字更难读，"
+                   "所以上表可能低估、不会高估。每组的拼图见证据目录，可以逐张核对。"
+                   if chinese else
+                   "**The judge's own error floor**: rendering the same targets with Microsoft YaHei and asking the "
+                   "judge to read them back scores 100% for both scripts (calibration counted raw characters: "
+                   "91/91 English, 37/37 Chinese). The judge therefore has no systematic bias against Chinese, and "
+                   "the gaps above are attributable to the image models. Boundary: this only establishes that the "
+                   "judge reads clean renders; distorted or stylised text in generated images is harder, so the table "
+                   "may understate accuracy and will not overstate it. Per-group contact sheets in the evidence "
+                   "directory allow every image to be checked by eye.")
+    boundary = (f"**结论边界**：{study['scored_samples']} 个成功样本，覆盖 {scene_count} 个场景、2 轮。"
+                "这是指定字符串的拼写准确率，不是排版美观度、字体质量或中文设计感的评价。"
+                "MAI-Image-2.6 不接受质量参数，它的行只有一个配置。"
+                "**官方支持范围**：Foundry 模型文档将 MAI-Image-2.6 的 Languages 标为 `en`，中文不在其声明的支持范围内；"
+                "本节的中文结果是在声明范围之外观察到的行为，不构成产品承诺，也不应被当作已支持的能力来引用。"
+                if chinese else
+                f"**Boundary**: {study['scored_samples']} successful samples across {scene_count} scenes and 2 rounds. "
+                "This measures spelling accuracy for a specified string, not typographic quality, font choice or "
+                "design appeal. MAI-Image-2.6 takes no quality parameter and therefore has a single row. "
+                "**Declared support**: the Foundry model documentation lists MAI-Image-2.6 Languages as `en`; "
+                "Chinese is outside its declared scope. The Chinese results here are observed behaviour outside "
+                "that scope, not a product commitment, and should not be cited as a supported capability.")
+    evidence = (f"证据目录：[{study['archive']}]({study['archive']})。提示词 SHA-256：`{study['prompt_sha256']}`。"
+                if chinese else
+                f"Evidence directory: [{study['archive']}]({study['archive']}). "
+                f"Prompt SHA-256: `{study['prompt_sha256']}`.")
+    return "\n\n".join(part for part in [heading, question, inputs, prompt_table, controlled, results,
+                                          judging, correction, calibration, boundary, evidence] if part)
+
+
+def load_billing(root, archive="data/billing-20260920"):
+    """Effective prices read from this account's own Azure invoice, or None if not archived."""
+    path = root / archive / "effective-prices.json"
+    if not path.is_file():
+        return None
+    return {**json.loads(path.read_text("utf-8")), "archive": archive}
+
+
+def render_cost_section(billing, language):
+    """Cost per image from measured tokens x the price this account was actually billed.
+
+    Every earlier cost figure in this report rested on a published list price or a third-party
+    reference chart. This section replaces both with the invoice for the account that ran every
+    test here, read from Azure Cost Management.
+    """
+    chinese = language == "zh"
+    prices = billing["usd_per_million_output_image_tokens"]
+    per_image = billing["usd_per_1000_images"]
+    tokens = billing["tokens_per_1024_image"]
+    mai_cost = per_image["MAI-Image-2.6"]
+
+    heading = "## 每张图的实际成本（来自本账户账单）" if chinese else "## Actual Cost per Image, from This Account's Invoice"
+    question = ("**问题**：MAI-Image-2.6 到底贵不贵。答案取决于跟 GPT 的哪个质量档位比，而档位之间的算力相差 36 倍。"
+                if chinese else
+                "**Question**: is MAI-Image-2.6 expensive? The answer depends on which GPT quality tier it is "
+                "compared against, and the tiers differ by 36x in billed compute.")
+    source = (f"**数据来源**：Azure Cost Management 对运行本仓库全部测试的账户（Sweden Central）的实际计费查询，"
+              f"周期 {billing['period']}，字段 `PreTaxCost`。每个模型的输出图 token 单独计费，"
+              "把金额除以计费 token 数得到实际单价。GPT-Image-2 的账单单价与公布价 $30/1M 完全一致，"
+              "说明账单读数准确。GPT-Image-2.5 的价格在定价页上尚未公布，账单是目前唯一的官方数据。"
+              if chinese else
+              f"**Source**: an Azure Cost Management ActualCost query against the account that ran every test in "
+              f"this repository (Sweden Central), period {billing['period']}, field `PreTaxCost`. Each model's "
+              "output-image tokens are metered separately; dividing cost by billed tokens gives the effective "
+              "rate. GPT-Image-2's billed rate equals its published list price of $30 per 1M tokens, which "
+              "confirms the invoice reading. GPT-Image-2.5 has no published price yet; the invoice is the only "
+              "official figure available.")
+
+    price_rows = [[name, f"${rate:.2f}"] for name, rate in sorted(prices.items(), key=lambda i: i[1])]
+    price_table = table(["模型", "实际计费 USD / 1M 输出图 token"] if chinese else
+                        ["Model", "Billed USD per 1M output-image tokens"], price_rows)
+
+    rows = []
+    for config, cost in sorted(per_image.items(), key=lambda i: i[1]):
+        marker = " **(MAI)**" if config.startswith("MAI") else ""
+        rows.append([config + marker, f"{tokens[config]:,}", f"${cost:.2f}", f"{cost / mai_cost:.2f}x"])
+    cost_table = table(["配置", "token / 张", "USD / 1,000 张", "相对 MAI"] if chinese else
+                       ["Configuration", "Tokens / image", "USD / 1,000 images", "vs MAI"], rows)
+
+    mai_rate, gpt_rate = prices["MAI-Image-2.6"], prices["gpt-image-2.5-flare"]
+    premium = (mai_rate - gpt_rate) / gpt_rate
+    reading = (f"**怎么读**：按单 token 计，MAI 比 GPT 系列贵 {premium:.0%}（${mai_rate:.0f} 对 ${gpt_rate:.0f}）。"
+               f"但 MAI 每张固定 {tokens['MAI-Image-2.6']:,} token，而 GPT 的算力随档位变化。"
+               f"于是 MAI 每千张 ${mai_cost:.2f}：比 GPT-2.5 medium（${per_image['gpt-image-2.5 medium']:.2f}）贵 "
+               f"{mai_cost / per_image['gpt-image-2.5 medium']:.1f} 倍，比 GPT-2.5 high 和 GPT-2 medium"
+               f"（${per_image['gpt-image-2.5 high']:.2f}）便宜 {1 - mai_cost / per_image['gpt-image-2.5 high']:.0%}，"
+               f"比 GPT-2 high（${per_image['gpt-image-2 high']:.2f}）便宜 {1 - mai_cost / per_image['gpt-image-2 high']:.0%}。"
+               "「贵」这个词只有先绑定对比档位才有意义。哪一档与 MAI 质量相当，由本报告的并排图和人工复核回答，不由价格回答。"
+               if chinese else
+               f"**How to read this**: per token, MAI costs {premium:.0%} more than the GPT family "
+               f"(${mai_rate:.0f} vs ${gpt_rate:.0f}). But MAI is a constant {tokens['MAI-Image-2.6']:,} tokens per "
+               f"image while GPT compute varies by tier. MAI therefore costs ${mai_cost:.2f} per 1,000 images: "
+               f"{mai_cost / per_image['gpt-image-2.5 medium']:.1f}x GPT-2.5 medium "
+               f"(${per_image['gpt-image-2.5 medium']:.2f}), {1 - mai_cost / per_image['gpt-image-2.5 high']:.0%} "
+               f"less than GPT-2.5 high and GPT-2 medium (${per_image['gpt-image-2.5 high']:.2f}), and "
+               f"{1 - mai_cost / per_image['gpt-image-2 high']:.0%} less than GPT-2 high "
+               f"(${per_image['gpt-image-2 high']:.2f}). \"Expensive\" is meaningless until the comparison tier is "
+               "named. Which tier matches MAI in quality is answered by this report's side-by-side images and "
+               "human review, not by price.")
+    boundary = ("**边界**：单价是本账户 GlobalStandard 按需计费的实际值，不含协议折扣；token 数是各配置在本仓库全部测试中"
+                "恒定不变的实测值；不含输入文本 token（每张不到 $0.001）。这是按 token 的成本，不是按质量的成本。"
+                if chinese else
+                "**Boundary**: rates are this account's GlobalStandard pay-as-you-go actuals with no negotiated "
+                "discount; token counts are the measured constants each configuration returned across every run "
+                "here; input text tokens (under $0.001 per image) are excluded. This is cost per token, not cost "
+                "per unit of quality.")
+    evidence = (f"证据：[{billing['archive']}]({billing['archive']})（原始 Cost Management 响应与反算脚本）。"
+                if chinese else
+                f"Evidence: [{billing['archive']}]({billing['archive']}) (raw Cost Management response and the "
+                "derivation).")
+    return "\n\n".join([heading, question, source, price_table, cost_table, reading, boundary, evidence])
+
+
+def load_head_to_head(root, prompts_path, archive="data/mai-vs-gpt25-20260920"):
+    """MAI and gpt-image-2.5-flare interleaved in one run, or None when not archived."""
+    directory = root / archive
+    if not (directory / "5way_v2_results.json").is_file():
+        return None
+    summary = summarize(directory, prompts_path)
+    return {"summary": summary, "archive": archive,
+            "groups": [group["group"] for group in summary["groups"]],
+            "labels": [label_for(group["configuration"]) for group in summary["groups"]],
+            "date": summary["formal_started_at_utc"][:10]}
+
+
+def render_head_to_head(head, billing, language):
+    """MAI-Image-2.6 against the current GPT image model, same session, same prompts.
+
+    Every other GPT-Image-2.5 number in this report comes from a separate session. Only here were
+    MAI and 2.5 called alternately by one client in one run, so latency and images are directly
+    comparable without a date caveat.
+    """
+    chinese = language == "zh"
+    groups = dict(zip(head["labels"], head["summary"]["groups"]))
+    per_image = billing["usd_per_1000_images"] if billing else {}
+
+    heading = ("## MAI-Image-2.6 对 GPT-Image-2.5：同一会话直接对比" if chinese else
+               "## MAI-Image-2.6 vs GPT-Image-2.5: Same-Session Head-to-Head")
+    question = ("**问题**：把 MAI-Image-2.6 和当前主流的 GPT-Image-2.5 放进同一个 run，交错调用，出图速度和成本各是多少。"
+                "选 flare 的 medium 与 high，因为它们是 token 上紧贴 MAI 下方（439）和上方（1,756）的两档。"
+                if chinese else
+                "**Question**: with MAI-Image-2.6 and the current mainstream GPT-Image-2.5 in one run, called "
+                "alternately, what are the latency and cost of each? flare medium and high are chosen because "
+                "they are the tiers immediately below (439 tokens) and above (1,756) MAI on the token ladder.")
+    controlled = (f"**受控变量**：一个客户端、一个账户、一个区域（Sweden Central）、同一 11 条提示词、1024x1024、两轮，"
+                  f"三组按固定顺序交错，{head['date']} 单次会话完成。这消除了本报告其他 2.5 数据所带的「不同日期」注释。"
+                  if chinese else
+                  f"**Controlled variables**: one client, one account, one region (Sweden Central), the same eleven "
+                  f"prompts, 1024x1024, two rounds, the three configurations interleaved in fixed order, completed in "
+                  f"one session on {head['date']}. This removes the different-date caveat every other 2.5 figure in "
+                  "this report carries.")
+
+    rows = []
+    for label, group in groups.items():
+        latency = group["successful_request_latency"] or {}
+        tokens = group["returned_output_tokens"]
+        token_text = str(tokens[0]) if len(tokens) == 1 else (f"{min(tokens)}–{max(tokens)}" if tokens else "N/A")
+        cost_key = ("MAI-Image-2.6" if label.startswith("MAI") else
+                    "gpt-image-2.5 " + label.rsplit(" ", 1)[1])
+        cost = f"${per_image[cost_key]:.2f}" if cost_key in per_image else "—"
+        rows.append([label, f"{group['successful_samples']} / {group['planned_samples']}", token_text,
+                     number(latency.get("mean_seconds")), number(latency.get("p50_seconds")),
+                     number(latency.get("p95_seconds")), cost])
+    headers = (["配置", "成功 / 计划", "输出 token", "平均耗时 (s)", "P50 (s)", "描述性 P95 (s)", "USD / 1,000 张"]
+               if chinese else
+               ["Configuration", "Successful / planned", "Output tokens", "Mean latency (s)", "P50 (s)",
+                "Descriptive P95 (s)", "USD / 1,000 images"])
+    metrics = table(headers, rows)
+
+    mai = groups.get("MAI-Image-2.6", {}).get("successful_request_latency") or {}
+    med = groups.get("GPT-Image-2.5 Flare medium", {}).get("successful_request_latency") or {}
+    high = groups.get("GPT-Image-2.5 Flare high", {}).get("successful_request_latency") or {}
+    reading = ""
+    if mai and med and high:
+        def relation(ratio, zh):
+            # Within ±5% the two are indistinguishable at this sample size.
+            if abs(ratio - 1) <= 0.05:
+                return "持平" if zh else "level"
+            if ratio > 1:
+                return f"MAI 慢 {ratio:.2f} 倍" if zh else f"MAI {ratio:.2f}x slower"
+            return f"MAI 快 {1 / ratio:.2f} 倍" if zh else f"MAI {1 / ratio:.2f}x faster"
+        r_med, r_high = mai["p50_seconds"] / med["p50_seconds"], mai["p50_seconds"] / high["p50_seconds"]
+        reading = (f"**怎么读**：同一会话里，MAI 的 P50 是 {number(mai['p50_seconds'])} s，2.5 medium 是 "
+                   f"{number(med['p50_seconds'])} s（{relation(r_med, True)}），"
+                   f"2.5 high 是 {number(high['p50_seconds'])} s（{relation(r_high, True)}）。"
+                   "在速度和每张成本上，2.5 medium 都优于 MAI；对 2.5 high，MAI 速度持平、每张便宜 26%。"
+                   "MAI 的位置取决于画质：如果 medium 的画质够用，MAI 没有优势；如果需要 high 的画质，MAI 是更便宜的选择。"
+                   "每个场景的三张图并排在下方，读者自己判断。"
+                   if chinese else
+                   f"**How to read this**: in the same session, MAI's P50 is {number(mai['p50_seconds'])} s, 2.5 "
+                   f"medium's {number(med['p50_seconds'])} s ({relation(r_med, False)}), 2.5 high's "
+                   f"{number(high['p50_seconds'])} s ({relation(r_high, False)}). On speed and cost per image, 2.5 "
+                   "medium beats MAI; against 2.5 high, MAI is level on speed and 26% cheaper per image. MAI's "
+                   "position depends on image quality: if medium's output is good enough, MAI has no advantage; if "
+                   "high's quality is needed, MAI is the cheaper option. The three images for every scenario are "
+                   "side by side below; readers judge for themselves.")
+
+    images = []
+    for prompt_record in head["summary"]["per_prompt"]:
+        images.append(f"**{'第' if chinese else 'Scenario'} {prompt_record['prompt_index']}"
+                      f"{'题' if chinese else ''}** — {prompt_record['prompt'][:90]}"
+                      f"{'…' if len(prompt_record['prompt']) > 90 else ''}")
+        for round_number in (1, 2):
+            images.append(comparison_table(prompt_record, round_number, head["archive"], language,
+                                           head["groups"], head["labels"]))
+    boundary = ("**边界**：这是三组配置在一个会话内的直接测量。图像质量没有数值分数：并排图是证据，读者的判断是结论。"
+                "2.5 的价格取自本账户账单（见上一节），定价页尚未公布。"
+                if chinese else
+                "**Boundary**: a direct measurement of three configurations in one session. Image quality has no "
+                "numeric score here: the side-by-side images are the evidence and the reader's judgement is the "
+                "conclusion. 2.5 pricing is this account's billed rate (previous section); no list price is published.")
+    evidence = (f"证据目录：[{head['archive']}]({head['archive']})。" if chinese else
+                f"Evidence directory: [{head['archive']}]({head['archive']}).")
+    return "\n\n".join([heading, question, controlled, metrics, reading, *images, boundary, evidence])
 
 
 def supplement_prompt(supplement, prompt_record):
@@ -323,7 +847,13 @@ python -m unittest discover -s tests -v
 """
 
 
-def render_masthead(summary, author_line, language, supplement=None):
+def count_tests(root):
+    """Number of test functions under tests/, so the badge cannot go stale."""
+    return sum(len(re.findall(r"(?m)^\s+def test_", path.read_text("utf-8")))
+               for path in (root / "tests").glob("test_*.py"))
+
+
+def render_masthead(summary, author_line, language, supplement=None, data_through=None, test_count=None):
     """First screen: factual badges, one scope paragraph, author, language, navigation.
 
     Every badge states something this run actually recorded or that the vendor
@@ -352,8 +882,12 @@ def render_masthead(summary, author_line, language, supplement=None):
         ("MAI version", mai_version.replace("-", "--"), "6a1b9a", None),
         ("Status", "Preview%20%C2%B7%20no%20SLA", "b26500",
          "https://azure.microsoft.com/support/legal/preview-supplemental-terms/"),
-        ("Tests", "61%20offline", "00695c", "tests"),
+        ("Tests", f"{test_count or 0}%20offline", "00695c", "tests"),
     ]
+    if data_through:
+        # MAI-Image-2.6 is Preview and GPT-Image-2.5 has no published price; both can change,
+        # so the reader needs the date these figures stop being current.
+        badges.insert(4, ("Data through", data_through.replace("-", "--"), "37474f", None))
     rendered = []
     for label, value, colour, link in badges:
         image = f"https://img.shields.io/badge/{label.replace(' ', '%20')}-{value}-{colour}"
@@ -642,12 +1176,17 @@ def render_vendor_charts(language, mai_p50, medium_p50, low_p50, high_p50):
 
 
 def render_overview(summary, quality, archive_path, language, has_grounding=False,
-                    has_edit=False, supplement=None):
+                    has_edit=False, supplement=None, tier=None):
     chinese = language == "zh"
     metadata = summary["config"]["group_configurations"]
     if [group["group"] for group in summary["groups"]] != list(GROUPS):
         raise ValueError("Metric columns must contain all four groups in order")
-    title = "本轮：两模型与全部质量档位" if chinese else "Current Run: Both Models and All Quality Tiers"
+    coverage = tier_coverage(summary, supplement["summary"] if supplement else None,
+                             tier["summary"] if tier else None)
+    if coverage["complete"]:
+        title = "本轮：两模型与全部质量档位" if chinese else "Current Run: Both Models and All Quality Tiers"
+    else:
+        title = "本轮：两模型与已测质量档位" if chinese else "Current Run: Both Models and the Measured Quality Tiers"
     outcome = (f"本轮 {summary['successful_samples']}/{summary['formal_samples']} 个正式样本返回图片，{summary['failed_samples']} 个未返回图片；另有 {summary['warmup_samples']} 次预热，不计入正式分母。"
                if chinese else f"This run returned images for {summary['successful_samples']}/{summary['formal_samples']} formal samples; {summary['failed_samples']} returned no image. The {summary['warmup_samples']} warmups are excluded from the formal denominator.")
     if supplement:
@@ -708,8 +1247,17 @@ def render_overview(summary, quality, archive_path, language, has_grounding=Fals
     limits = ("本报告只对比 MAI-Image-2.6 与 GPT-Image-2 的 low、medium、high 三档。主要聚合统计来自 11 个 1024x1024 文生图场景；第 12 题是单独报告的 `size=auto` 图像编辑测试，不进入前 11 题的耗时与质量计数。本报告不覆盖 2K、多图参考、文字准确率专项、并发压测或其他认证方式。MAI 没有传质量参数，不能称为 GPT high 的等价档位。"
               if chinese else "This report compares only MAI-Image-2.6 with GPT-Image-2 low, medium and high. The aggregate metrics come from eleven 1024x1024 text-to-image scenarios; Scenario 12 is a separately reported `size=auto` image-edit test and is excluded from the first eleven scenarios' latency and quality counts. The report does not cover 2K, multiple reference images, exact-text accuracy, concurrency capacity or other authentication modes. MAI sends no quality parameter and is not labeled as equivalent to GPT high.")
     if supplement:
-        limits = ("本报告对比 MAI-Image-2.6、GPT-Image-2 三档，以及 GPT-Image-2.5 Flare 与 Sunburst 各三档；2.5 另有 xhigh、max、auto 档，本轮没有测。主要聚合统计来自 11 个 1024x1024 文生图场景；第 12 题是单独报告的 `size=auto` 图像编辑测试，不进入前 11 题的耗时与质量计数，也没有 2.5 的编辑结果。本报告不覆盖 2K、多图参考、文字准确率专项、并发压测或其他认证方式。MAI 没有传质量参数，不能称为任何 GPT 档位的等价档。"
-                  if chinese else "This report compares MAI-Image-2.6, the three GPT-Image-2 tiers, and the three measured tiers of GPT-Image-2.5 Flare and Sunburst; 2.5 also offers xhigh, max and auto, which were not run. The aggregate metrics come from eleven 1024x1024 text-to-image scenarios; Scenario 12 is a separately reported `size=auto` image-edit test, excluded from the first eleven scenarios' latency and quality counts, and it has no GPT-Image-2.5 results. The report does not cover 2K, multiple reference images, exact-text accuracy, concurrency capacity or other authentication modes. MAI sends no quality parameter and is not labeled as equivalent to any GPT tier.")
+        supplement_tiers = sorted(
+            {tier for model, tiers in coverage["measured"].items() if model.startswith("gpt-image-2.5")
+             for tier in tiers}, key=TIER_ORDER.index)
+        absent = sorted({tier for tiers in coverage["missing"].values() for tier in tiers},
+                        key=TIER_ORDER.index)
+        untested_cn = f"；2.5 另有 {'、'.join(absent)} 档，本轮没有测" if absent else ""
+        untested_en = (f"; 2.5 also offers {', '.join(absent)}, which were not run" if absent else "")
+        count_cn = {3: "三", 6: "六"}.get(len(supplement_tiers), str(len(supplement_tiers)))
+        limits = (f"本报告对比 MAI-Image-2.6、GPT-Image-2 三档，以及 GPT-Image-2.5 Flare 与 Sunburst 各{count_cn}档（{'、'.join(supplement_tiers)}）{untested_cn}。主要聚合统计来自 11 个 1024x1024 文生图场景；第 12 题是单独报告的 `size=auto` 图像编辑测试，不进入前 11 题的耗时与质量计数，也没有 2.5 的编辑结果。本报告不覆盖 2K、多图参考、文字准确率专项、并发压测或其他认证方式。MAI 没有传质量参数，不能称为任何 GPT 档位的等价档。"
+                  if chinese else
+                  f"This report compares MAI-Image-2.6, the three GPT-Image-2 tiers, and GPT-Image-2.5 Flare and Sunburst at {', '.join(supplement_tiers)}{untested_en}. The aggregate metrics come from eleven 1024x1024 text-to-image scenarios; Scenario 12 is a separately reported `size=auto` image-edit test, excluded from the first eleven scenarios' latency and quality counts, and it has no GPT-Image-2.5 results. The report does not cover 2K, multiple reference images, exact-text accuracy, concurrency capacity or other authentication modes. MAI sends no quality parameter and is not labeled as equivalent to any GPT tier.")
     heading = lambda english, localized: localized if chinese else english
     supplement_interval = ""
     gpt25_node = ""
@@ -717,7 +1265,7 @@ def render_overview(summary, quality, archive_path, language, has_grounding=Fals
         extra = supplement["summary"]
         supplement_interval = (f"\n\n{'GPT-Image-2.5 补测正式起止时间 (UTC)' if chinese else 'GPT-Image-2.5 supplement formal interval (UTC)'}: `{extra['formal_started_at_utc']}` to `{extra['formal_ended_at_utc']}`. "
                                f"{'正式窗口含等待' if chinese else 'Formal window including waits'}: **{number(extra['formal_window_seconds_including_waits'])} s**.")
-        gpt25_node = f"\n    runner --> gpt25[\"GPT-Image-2.5 Flare + Sunburst / {supplement['region']} / low, medium, high ({supplement['date']})\"]\n    gpt25 --> evidence"
+        gpt25_node = f"\n    runner --> gpt25[\"GPT-Image-2.5 Flare + Sunburst / {supplement['region']} / {', '.join(supplement_tiers)} ({supplement['date']})\"]\n    gpt25 --> evidence"
     return f"""## {title}
 
 [{'English' if chinese else '中文'}]({'README.md' if chinese else 'README-CN.md'}) | [{'逐题图片' if chinese else 'Side-by-side images'}](#{'并排图片对比' if chinese else 'side-by-side-image-comparison'}) | [{'测量记录' if chinese else 'Measurements'}]({archive_path}/5way_v2_results.json) | [{'指标' if chinese else 'Metrics'}]({archive_path}/summary.json) | [{'请求记录' if chinese else 'Attempts'}]({archive_path}/attempts.jsonl)
@@ -1144,14 +1692,26 @@ def render_grounding_section(summary, archive_path, language):
 
 
 def update_document(text, summary, quality, archive_path, language, grounding_section="",
-                    edit_section="", supplement=None):
+                    edit_section="", supplement=None, tier=None, text_study=None, billing=None,
+                    head=None, hard_study=None):
     chinese = language == "zh"
-    if supplement:
-        title = ("# MAI-Image-2.6 与 GPT-Image-2 / 2.5：全质量档位图像生成对比" if chinese else
-                 "# MAI-Image-2.6 vs GPT-Image-2 / 2.5: All Quality Tiers")
+    coverage = tier_coverage(summary, supplement["summary"] if supplement else None,
+                             tier["summary"] if tier else None)
+    models = "MAI-Image-2.6 与 GPT-Image-2 / 2.5" if supplement else "MAI-Image-2.6 与 GPT-Image-2"
+    models_en = "MAI-Image-2.6 vs GPT-Image-2 / 2.5" if supplement else "MAI-Image-2.6 vs GPT-Image-2"
+    tiers = sorted({tier for tiers in coverage["measured"].values() for tier in tiers},
+                   key=TIER_ORDER.index)
+    if coverage["complete"]:
+        title = (f"# {models}：全质量档位图像生成对比" if chinese else
+                 f"# {models_en}: All Quality Tiers")
+    elif tiers:
+        # Name the tiers that were measured rather than implying the full set.
+        listed = "、".join(tiers) if chinese else ", ".join(tiers)
+        title = (f"# {models}：{listed} 档图像生成对比" if chinese else
+                 f"# {models_en}: {listed} Tiers")
     else:
-        title = ("# MAI-Image-2.6 与 GPT-Image-2：全质量档位图像生成对比" if chinese else
-                 "# MAI-Image-2.6 vs GPT-Image-2: All Quality Tiers")
+        title = (f"# {models}：图像生成对比" if chinese else
+                 f"# {models_en}: Image Generation Comparison")
     author = re.search(r"(?m)^> \*\*(?:Author|作者)\*\*:[^\n]+", text)
     if author is None:
         raise ValueError("Existing report author attribution was not found")
@@ -1162,7 +1722,7 @@ def update_document(text, summary, quality, archive_path, language, grounding_se
     if not set(range(1, 12)) <= set(titles) or [item["prompt_index"] for item in summary["per_prompt"]] != list(range(1, 12)):
         raise ValueError("All eleven original scenarios are required")
     content = render_overview(summary, quality, archive_path, language,
-                              bool(grounding_section), bool(edit_section), supplement)
+                              bool(grounding_section), bool(edit_section), supplement, tier)
     comparison_heading = "## 并排图片对比" if chinese else "## Side-by-Side Image Comparison"
     description = ("第 1–11 题为文生图，每个场景、每一轮只展示 MAI-Image-2.6 与 GPT-Image-2 low、medium、high。图片来自本次四组测试，未返回图片的格子保留失败说明。点击图片查看原始 1024x1024 PNG。第 12 题为图像编辑，输入为一张真实照片。"
                    if chinese else "Scenarios 1-11 are text-to-image; every scenario and round compares only MAI-Image-2.6 with GPT-Image-2 low, medium and high. Images come from this four-configuration run; missing images retain their failure record. Click an image for the original 1024x1024 PNG. Scenario 12 is an image edit of one real photograph.")
@@ -1172,7 +1732,14 @@ def update_document(text, summary, quality, archive_path, language, grounding_se
                        (f"Scenarios 1-11 are text-to-image. Each scenario and round has two image rows: the first is MAI-Image-2.6 with GPT-Image-2 low, medium and high measured on {summary['formal_started_at_utc'][:10]}; the second is GPT-Image-2.5 Flare and Sunburst at all three tiers, measured on {supplement['date']} with the same client and prompt file and deployed in {supplement['region']}. The rows are not the same session, so read the latencies under the images together with their dates. Missing images retain their failure record. Click an image for the original 1024x1024 PNG. Scenario 12 is an image edit of one real photograph and has no 2.5 results."))
     # Images come before the metrics body: a reader judges generated pictures by
     # looking at them, and the timing and token tables only make sense afterwards.
-    sections = [title, render_masthead(summary, author.group(), language, supplement),
+    # The latest formal end across every archive the report draws on: the date after which
+    # these figures stop being current.
+    ends = [s["formal_ended_at_utc"] for s in
+            [summary, *(extra["summary"] for extra in (supplement, tier, head) if extra)]
+            if s.get("formal_ended_at_utc")]
+    data_through = max(ends)[:10] if ends else None
+    test_count = count_tests(Path(__file__).resolve().parents[1])
+    sections = [title, render_masthead(summary, author.group(), language, supplement, data_through, test_count),
                 render_highlights(summary, language, bool(grounding_section),
                                   bool(edit_section), supplement),
                 comparison_heading, description]
@@ -1191,6 +1758,21 @@ def update_document(text, summary, quality, archive_path, language, grounding_se
     if edit_section:
         sections.append(edit_section)
     sections.append(content.strip())
+    # Directly after the metrics the reader just saw, since it answers "what about the other tiers".
+    if tier and supplement:
+        sections.append(render_tier_section(supplement, tier, language))
+    # Cost follows the tier table because it is computed from those token counts.
+    if billing:
+        sections.append(render_cost_section(billing, language))
+    # The same-session comparison against 2.5 follows cost because it is the question cost raises.
+    if head:
+        sections.append(render_head_to_head(head, billing, language))
+    # Text rendering answers a different question than latency, so it follows the tier tables.
+    if text_study:
+        sections.append(render_text_section(text_study, language))
+    # The hard set follows the easy one: it exists because the easy one could not separate the models.
+    if hard_study:
+        sections.append(render_text_section(hard_study, language))
     if grounding_section:
         sections.append(grounding_section)
     return "\n\n".join(sections) + "\n"
@@ -1231,6 +1813,11 @@ def main():
     grounding_summary = summarize_grounding(root / GROUNDING_ARCHIVE)
     edit_summary = summarize_edit(root / EDIT_ARCHIVE)
     supplement = load_supplement(root, root / "prompts.csv")
+    tier = load_tier_supplement(root, root / "prompts.csv") if supplement else None
+    text_study = load_text_study(root)
+    hard_study = load_text_study(root, "data/text-hard-20260919", "prompts-text-hard.csv", "hard")
+    billing = load_billing(root)
+    head = load_head_to_head(root, root / "prompts.csv")
     documents = []
     for filename, language in (("README.md", "en"), ("README-CN.md", "zh")):
         path = root / filename
@@ -1238,7 +1825,8 @@ def main():
         generated = update_document(
             original, summary, quality, archive_path, language,
             render_grounding_section(grounding_summary, GROUNDING_ARCHIVE, language),
-            render_edit_scenario(edit_summary, EDIT_ARCHIVE, language), supplement)
+            render_edit_scenario(edit_summary, EDIT_ARCHIVE, language), supplement, tier, text_study,
+            billing, head, hard_study)
         documents.append((path, original, generated))
     if arguments.check:
         changed = [path.name for path, original, generated in documents if original != generated]
@@ -1248,8 +1836,14 @@ def main():
         for path, _, generated in documents:
             path.write_text(generated, encoding="utf-8")
     print(json.dumps({"status": "PASS", "formal_samples": summary["formal_samples"],
-                      "configurations": len(GROUPS) + (len(supplement["groups"]) if supplement else 0),
+                      "configurations": len(GROUPS) + (len(supplement["groups"]) if supplement else 0)
+                                        + (len(tier["groups"]) if tier else 0),
                       "supplement": supplement["archive"] if supplement else None,
+                      "tier_supplement": tier["archive"] if tier else None,
+                      "text_study": text_study["archive"] if text_study else None,
+                      "hard_text_study": hard_study["archive"] if hard_study else None,
+                      "billing": billing["archive"] if billing else None,
+                      "head_to_head": head["archive"] if head else None,
                       "scenario_round_tables_per_language": len(summary["per_prompt"]) * (4 if supplement else 2)}))
 
 

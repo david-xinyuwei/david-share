@@ -39,7 +39,7 @@ class RequestEvidenceTests(unittest.TestCase):
         usage = {"input_tokens": 43, "output_tokens": 100,
                  "input_tokens_details": {"text_tokens": 43, "image_tokens": 0},
                  "total_tokens": 143}
-        for quality in ("low", "medium", "high"):
+        for quality in ("low", "medium", "high", "xhigh", "max", "auto"):
             with self.subTest(quality=quality):
                 runner.REQUEST_CONTEXT.update({"sample_id": "offline-" + quality, "group": "gpt-image-2-" + quality})
                 with patch.object(runner.requests, "post", return_value=self.response(usage)) as post:
@@ -49,13 +49,35 @@ class RequestEvidenceTests(unittest.TestCase):
                 self.assertEqual(image, self.image)
                 self.assertEqual(post.call_args.kwargs["json"],
                                  {"prompt": "original prompt", "n": 1, "size": "1024x1024", "quality": quality})
-                self.assertEqual(post.call_args.kwargs["timeout"], 300)
+                # Raised from 300s after gpt-image-2.5-sunburst at quality=max measured 229s
+                # on a single request (canary, 2026-09-18), leaving only 70s of headroom.
+                self.assertEqual(post.call_args.kwargs["timeout"], 900)
                 self.assertEqual(tokens["usage"], usage)
+                self.assertEqual(tokens["requested_quality"], quality)
                 self.assertEqual(len(runner.LAST_ATTEMPTS), 1)
                 self.assertEqual(runner.LAST_ATTEMPTS[0]["image_sha256"], hashlib.sha256(self.image).hexdigest())
                 metadata = json.loads((self.output / runner.LAST_ATTEMPTS[0]["response_metadata"]).read_text("utf-8"))
                 self.assertEqual(metadata["usage"], usage)
                 self.assertNotIn("b64_json", metadata["data"][0])
+
+    def test_auto_quality_records_the_tier_the_service_actually_used(self):
+        """quality=auto lets the service choose per request and echoes its choice.
+
+        Both 2.5 deployments answered a canary prompt with quality=low at 196 output tokens,
+        so without capturing the echo the auto group's numbers cannot be attributed to a tier.
+        """
+        usage = {"input_tokens": 43, "output_tokens": 196, "total_tokens": 239}
+        response = self.response(usage)
+        body = response.json.return_value
+        body["quality"] = "low"
+        response.content = json.dumps(body).encode("utf-8")
+        runner.REQUEST_CONTEXT.update({"sample_id": "offline-auto", "group": "gpt-image-2.5-flare-auto"})
+        with patch.object(runner.requests, "post", return_value=response):
+            succeeded, _, _, tokens = runner.generate_gpt("original prompt", "auto")
+        self.assertTrue(succeeded)
+        self.assertEqual(tokens["requested_quality"], "auto")
+        self.assertEqual(tokens["service_quality"], "low")
+        self.assertEqual(runner.LAST_ATTEMPTS[0]["service_quality"], "low")
 
     def test_mai_request_has_no_quality_parameter(self):
         usage = {"num_input_text_tokens": 43, "num_input_image_tokens": 0, "num_output_tokens": 1024}

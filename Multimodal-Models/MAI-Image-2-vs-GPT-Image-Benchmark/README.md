@@ -1,6 +1,6 @@
 # MAI-Image-2.6 vs GPT-Image-2 / 2.5: All Quality Tiers
 
-[![Models](https://img.shields.io/badge/Models-MAI--Image--2.6%20vs%20GPT--Image--2%20%2F%202.5-0067b8)](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image) [![Samples](https://img.shields.io/badge/Samples-87%2F88%20%2B%20132%2F132%20returned-2e7d32)](data/paired-all-quality-20260907/5way_v2_results.json) ![Resolution](https://img.shields.io/badge/Resolution-1024%C3%971024-455a64) ![MAI version](https://img.shields.io/badge/MAI%20version-2026--07--31-6a1b9a) [![Status](https://img.shields.io/badge/Status-Preview%20%C2%B7%20no%20SLA-b26500)](https://azure.microsoft.com/support/legal/preview-supplemental-terms/) [![Tests](https://img.shields.io/badge/Tests-61%20offline-00695c)](tests)
+[![Models](https://img.shields.io/badge/Models-MAI--Image--2.6%20vs%20GPT--Image--2%20%2F%202.5-0067b8)](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image) [![Samples](https://img.shields.io/badge/Samples-87%2F88%20%2B%20132%2F132%20returned-2e7d32)](data/paired-all-quality-20260907/5way_v2_results.json) ![Resolution](https://img.shields.io/badge/Resolution-1024%C3%971024-455a64) ![MAI version](https://img.shields.io/badge/MAI%20version-2026--07--31-6a1b9a) ![Data through](https://img.shields.io/badge/Data%20through-2026--09--20-37474f) [![Status](https://img.shields.io/badge/Status-Preview%20%C2%B7%20no%20SLA-b26500)](https://azure.microsoft.com/support/legal/preview-supplemental-terms/) [![Tests](https://img.shields.io/badge/Tests-73%20offline-00695c)](tests)
 
 One client interleaved calls to MAI-Image-2.6 and GPT-Image-2 at low, medium and high across 11 text-to-image scenarios in two rounds, 88 formal samples in total, keeping every original PNG, per-attempt record and failed sample. Two capability tests are included: web grounding (`web_grounding`) and single-image editing. Image judgements are unblinded difference descriptions and produce no quality score or preference verdict. On 2026-09-17 the same client and prompt file also measured GPT-Image-2.5 Flare and Sunburst at all three tiers, 132 formal samples, merged into the same image, latency and token tables.
 
@@ -490,7 +490,7 @@ flowchart LR
     prompts["Original 11 prompts"] --> runner["Local Windows Python runner"]
     runner --> mai["MAI-Image-2.6 / Sweden Central"]
     runner --> gpt["GPT-Image-2 / East US 2 / low, medium, high"]
-    runner --> gpt25["GPT-Image-2.5 Flare + Sunburst / swedencentral / low, medium, high (2026-09-17)"]
+    runner --> gpt25["GPT-Image-2.5 Flare + Sunburst / swedencentral / low, medium, high, xhigh, max, auto (2026-09-17)"]
     gpt25 --> evidence
     mai --> evidence["PNG, usage, request IDs, timestamps, failures"]
     gpt --> evidence
@@ -730,9 +730,302 @@ Text-to-image runner: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py); Edit
 
 ### Limits
 
-This report compares MAI-Image-2.6, the three GPT-Image-2 tiers, and the three measured tiers of GPT-Image-2.5 Flare and Sunburst; 2.5 also offers xhigh, max and auto, which were not run. The aggregate metrics come from eleven 1024x1024 text-to-image scenarios; Scenario 12 is a separately reported `size=auto` image-edit test, excluded from the first eleven scenarios' latency and quality counts, and it has no GPT-Image-2.5 results. The report does not cover 2K, multiple reference images, exact-text accuracy, concurrency capacity or other authentication modes. MAI sends no quality parameter and is not labeled as equivalent to any GPT tier.
+This report compares MAI-Image-2.6, the three GPT-Image-2 tiers, and GPT-Image-2.5 Flare and Sunburst at low, medium, high, xhigh, max, auto. The aggregate metrics come from eleven 1024x1024 text-to-image scenarios; Scenario 12 is a separately reported `size=auto` image-edit test, excluded from the first eleven scenarios' latency and quality counts, and it has no GPT-Image-2.5 results. The report does not cover 2K, multiple reference images, exact-text accuracy, concurrency capacity or other authentication modes. MAI sends no quality parameter and is not labeled as equivalent to any GPT tier.
 
 Evidence directory: [data/paired-all-quality-20260907](data/paired-all-quality-20260907). Contains original images, measurement records, attempts, response metadata and a redacted public source copy. Non-financial measurement fields and image bytes are unchanged; original execution hashes and published-file hashes are recorded separately in [provenance](data/paired-all-quality-20260907/provenance.json). Prompt SHA-256: `be3d628c66a1e4d535d06bcc84246a04aad11f35a48f3133d451fe86283782ce`.
+
+## The Six GPT-Image-2.5 Quality Tiers
+
+`gpt-image-2.5-flare` and `gpt-image-2.5-sunburst` accept six quality tiers; `gpt-image-2` accepts only the first three. low, medium and high come from the 2026-09-17 run and xhigh, max and auto from the 2026-09-18 run, both using the same client, prompt file and deployments. When a tier is requested explicitly its output-token count is constant and identical across the two deployments; `auto` behaves differently, as noted below the table.
+
+| Configuration | Successful / planned | Returned output tokens | Mean latency (s) | P50 (s) | Descriptive P95 (s) | Mean PNG (KiB) |
+| --- | --- | --- | --- | --- | --- | --- |
+| GPT-Image-2.5 Flare low | 22 / 22 | 196 | 22.79 | 21.85 | 26.32 | 1,675 |
+| GPT-Image-2.5 Flare medium | 22 / 22 | 439 | 24.05 | 23.64 | 28.82 | 1,687 |
+| GPT-Image-2.5 Flare high | 22 / 22 | 1756 | 33.79 | 32.64 | 39.89 | 1,679 |
+| GPT-Image-2.5 Flare xhigh | 22 / 22 | 3122 | 44.33 | 43.40 | 56.88 | 1,654 |
+| GPT-Image-2.5 Flare max | 22 / 22 | 7024 | 72.23 | 73.47 | 79.51 | 1,602 |
+| GPT-Image-2.5 Flare auto | 22 / 22 | 196–781 (low x12, medium x10 [439/781]) | 23.84 | 22.25 | 30.22 | 1,680 |
+| GPT-Image-2.5 Sunburst low | 22 / 22 | 196 | 33.19 | 32.54 | 42.49 | 1,678 |
+| GPT-Image-2.5 Sunburst medium | 22 / 22 | 439 | 41.58 | 40.64 | 48.71 | 1,724 |
+| GPT-Image-2.5 Sunburst high | 22 / 22 | 1756 | 77.14 | 76.08 | 83.81 | 1,681 |
+| GPT-Image-2.5 Sunburst xhigh | 22 / 22 | 3122 | 112.68 | 111.55 | 120.37 | 1,681 |
+| GPT-Image-2.5 Sunburst max | 22 / 22 | 7024 | 223.41 | 223.51 | 229.90 | 1,671 |
+| GPT-Image-2.5 Sunburst auto | 22 / 22 | 196–781 (low x12, medium x10 [439/781]) | 37.28 | 33.74 | 52.61 | 1,675 |
+
+`auto` is not a fixed tier. The service chooses per request and echoes the tier it used. The `auto` rows above list, in parentheses, the tiers the service reported and how often, taken from the response field rather than requested by us. Moreover, when `auto` reports a tier, the returned output-token count is not necessarily the fixed value that tier returns when requested explicitly: this run produced 781, while every explicitly requested tier returned one constant across all 22 of its samples. `auto` is therefore not equivalent to selecting that tier, and its cost cannot be derived from the tier it reports. Their latency and token figures therefore describe the service's selection behaviour, not one quality level.
+
+## Actual Cost per Image, from This Account's Invoice
+
+**Question**: is MAI-Image-2.6 expensive? The answer depends on which GPT quality tier it is compared against, and the tiers differ by 36x in billed compute.
+
+**Source**: an Azure Cost Management ActualCost query against the account that ran every test in this repository (Sweden Central), period 2026-09-04..2026-09-20, field `PreTaxCost`. Each model's output-image tokens are metered separately; dividing cost by billed tokens gives the effective rate. GPT-Image-2's billed rate equals its published list price of $30 per 1M tokens, which confirms the invoice reading. GPT-Image-2.5 has no published price yet; the invoice is the only official figure available.
+
+| Model | Billed USD per 1M output-image tokens |
+| --- | --- |
+| gpt-image-2.5-flare | $30.00 |
+| gpt-image-2 | $30.00 |
+| gpt-image-2.5-sunburst | $30.00 |
+| MAI-Image-2.6 | $38.00 |
+
+| Configuration | Tokens / image | USD / 1,000 images | vs MAI |
+| --- | --- | --- | --- |
+| gpt-image-2 low | 196 | $5.88 | 0.15x |
+| gpt-image-2.5 low | 196 | $5.88 | 0.15x |
+| gpt-image-2.5 medium | 439 | $13.17 | 0.34x |
+| MAI-Image-2.6 **(MAI)** | 1,024 | $38.91 | 1.00x |
+| gpt-image-2 medium | 1,756 | $52.68 | 1.35x |
+| gpt-image-2.5 high | 1,756 | $52.68 | 1.35x |
+| gpt-image-2.5 xhigh | 3,122 | $93.66 | 2.41x |
+| gpt-image-2 high | 7,024 | $210.72 | 5.42x |
+| gpt-image-2.5 max | 7,024 | $210.72 | 5.42x |
+
+**How to read this**: per token, MAI costs 27% more than the GPT family ($38 vs $30). But MAI is a constant 1,024 tokens per image while GPT compute varies by tier. MAI therefore costs $38.91 per 1,000 images: 3.0x GPT-2.5 medium ($13.17), 26% less than GPT-2.5 high and GPT-2 medium ($52.68), and 82% less than GPT-2 high ($210.72). "Expensive" is meaningless until the comparison tier is named. Which tier matches MAI in quality is answered by this report's side-by-side images and human review, not by price.
+
+**Boundary**: rates are this account's GlobalStandard pay-as-you-go actuals with no negotiated discount; token counts are the measured constants each configuration returned across every run here; input text tokens (under $0.001 per image) are excluded. This is cost per token, not cost per unit of quality.
+
+Evidence: [data/billing-20260920](data/billing-20260920) (raw Cost Management response and the derivation).
+
+## MAI-Image-2.6 vs GPT-Image-2.5: Same-Session Head-to-Head
+
+**Question**: with MAI-Image-2.6 and the current mainstream GPT-Image-2.5 in one run, called alternately, what are the latency and cost of each? flare medium and high are chosen because they are the tiers immediately below (439 tokens) and above (1,756) MAI on the token ladder.
+
+**Controlled variables**: one client, one account, one region (Sweden Central), the same eleven prompts, 1024x1024, two rounds, the three configurations interleaved in fixed order, completed in one session on 2026-09-20. This removes the different-date caveat every other 2.5 figure in this report carries.
+
+| Configuration | Successful / planned | Output tokens | Mean latency (s) | P50 (s) | Descriptive P95 (s) | USD / 1,000 images |
+| --- | --- | --- | --- | --- | --- | --- |
+| MAI-Image-2.6 | 22 / 22 | 1024 | 34.66 | 31.61 | 48.38 | $38.91 |
+| GPT-Image-2.5 Flare medium | 22 / 22 | 439 | 24.24 | 22.24 | 38.71 | $13.17 |
+| GPT-Image-2.5 Flare high | 22 / 22 | 1756 | 32.03 | 32.11 | 35.78 | $52.68 |
+
+**How to read this**: in the same session, MAI's P50 is 31.61 s, 2.5 medium's 22.24 s (MAI 1.42x slower), 2.5 high's 32.11 s (level). On speed and cost per image, 2.5 medium beats MAI; against 2.5 high, MAI is level on speed and 26% cheaper per image. MAI's position depends on image quality: if medium's output is good enough, MAI has no advantage; if high's quality is needed, MAI is the cheaper option. The three images for every scenario are side by side below; readers judge for themselves.
+
+**Scenario 1** — Chrome kimono, a maiden surrounded by metallic flowers, earrings, ornate, dark blue, exqui…
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 1, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/01_test.png) | ![GPT-Image-2.5 Flare medium, prompt 1, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/01_test.png) | ![GPT-Image-2.5 Flare high, prompt 1, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/01_test.png) |
+| 46.69 s<br>1687 KiB | 20.50 s<br>1715 KiB | 31.45 s<br>1783 KiB |
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 1, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/01_test.png) | ![GPT-Image-2.5 Flare medium, prompt 1, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/01_test.png) | ![GPT-Image-2.5 Flare high, prompt 1, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/01_test.png) |
+| 31.04 s<br>1644 KiB | 25.36 s<br>1801 KiB | 28.44 s<br>1693 KiB |
+
+**Scenario 2** — a portal into a mythical forest on the wall of my small messy bedroom
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 2, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/02_test.png) | ![GPT-Image-2.5 Flare medium, prompt 2, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/02_test.png) | ![GPT-Image-2.5 Flare high, prompt 2, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/02_test.png) |
+| 36.52 s<br>1740 KiB | 20.86 s<br>1397 KiB | 30.36 s<br>1488 KiB |
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 2, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/02_test.png) | ![GPT-Image-2.5 Flare medium, prompt 2, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/02_test.png) | ![GPT-Image-2.5 Flare high, prompt 2, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/02_test.png) |
+| 32.08 s<br>1723 KiB | 20.92 s<br>1570 KiB | 30.67 s<br>1446 KiB |
+
+**Scenario 3** — a tiny astronaut hatching from an egg on the moon
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 3, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/03_test.png) | ![GPT-Image-2.5 Flare medium, prompt 3, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/03_test.png) | ![GPT-Image-2.5 Flare high, prompt 3, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/03_test.png) |
+| 30.92 s<br>1593 KiB | 27.00 s<br>1531 KiB | 33.09 s<br>1482 KiB |
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 3, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/03_test.png) | ![GPT-Image-2.5 Flare medium, prompt 3, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/03_test.png) | ![GPT-Image-2.5 Flare high, prompt 3, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/03_test.png) |
+| 29.44 s<br>1586 KiB | 22.24 s<br>1573 KiB | 33.76 s<br>1483 KiB |
+
+**Scenario 4** — Photo realistic scene inspired by LOTR: [A tiny red dragon in a nest on a medieval wizard'…
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 4, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/04_test.png) | ![GPT-Image-2.5 Flare medium, prompt 4, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/04_test.png) | ![GPT-Image-2.5 Flare high, prompt 4, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/04_test.png) |
+| 48.47 s<br>1581 KiB | 21.39 s<br>1451 KiB | 31.54 s<br>1447 KiB |
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 4, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/04_test.png) | ![GPT-Image-2.5 Flare medium, prompt 4, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/04_test.png) | ![GPT-Image-2.5 Flare high, prompt 4, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/04_test.png) |
+| 34.71 s<br>1622 KiB | 17.74 s<br>1405 KiB | 30.32 s<br>1363 KiB |
+
+**Scenario 5** — Cute and adorable fluffy cute creature fantasy, dreamlike, surrealism, super cute, trendin…
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 5, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/05_test.png) | ![GPT-Image-2.5 Flare medium, prompt 5, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/05_test.png) | ![GPT-Image-2.5 Flare high, prompt 5, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/05_test.png) |
+| 52.27 s<br>1651 KiB | 24.92 s<br>1613 KiB | 32.86 s<br>1669 KiB |
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 5, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/05_test.png) | ![GPT-Image-2.5 Flare medium, prompt 5, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/05_test.png) | ![GPT-Image-2.5 Flare high, prompt 5, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/05_test.png) |
+| 33.10 s<br>1499 KiB | 21.48 s<br>1567 KiB | 33.54 s<br>1714 KiB |
+
+**Scenario 6** — A hidden cenote in the heart of a lush jungle beckons with crystalline turquoise waters. V…
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 6, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/06_test.png) | ![GPT-Image-2.5 Flare medium, prompt 6, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/06_test.png) | ![GPT-Image-2.5 Flare high, prompt 6, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/06_test.png) |
+| 30.25 s<br>2116 KiB | 23.38 s<br>2179 KiB | 36.32 s<br>2224 KiB |
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 6, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/06_test.png) | ![GPT-Image-2.5 Flare medium, prompt 6, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/06_test.png) | ![GPT-Image-2.5 Flare high, prompt 6, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/06_test.png) |
+| 30.44 s<br>2205 KiB | 27.87 s<br>2142 KiB | 32.69 s<br>2263 KiB |
+
+**Scenario 7** — A charming, tech-savvy [girl with short, silver pixie-cut] hair and vibrant [blue] eyes, w…
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 7, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/07_test.png) | ![GPT-Image-2.5 Flare medium, prompt 7, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/07_test.png) | ![GPT-Image-2.5 Flare high, prompt 7, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/07_test.png) |
+| 35.10 s<br>1555 KiB | 24.40 s<br>1487 KiB | 35.81 s<br>1494 KiB |
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 7, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/07_test.png) | ![GPT-Image-2.5 Flare medium, prompt 7, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/07_test.png) | ![GPT-Image-2.5 Flare high, prompt 7, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/07_test.png) |
+| 35.41 s<br>1534 KiB | 39.28 s<br>1548 KiB | 35.26 s<br>1525 KiB |
+
+**Scenario 8** — Universe, LSD, Fractal Worlds, Giant Eyes
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 8, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/08_test.png) | ![GPT-Image-2.5 Flare medium, prompt 8, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/08_test.png) | ![GPT-Image-2.5 Flare high, prompt 8, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/08_test.png) |
+| 40.90 s<br>2298 KiB | 22.24 s<br>2288 KiB | 32.68 s<br>2283 KiB |
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 8, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/08_test.png) | ![GPT-Image-2.5 Flare medium, prompt 8, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/08_test.png) | ![GPT-Image-2.5 Flare high, prompt 8, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/08_test.png) |
+| 31.14 s<br>2310 KiB | 22.63 s<br>2339 KiB | 29.75 s<br>2216 KiB |
+
+**Scenario 9** — close up dof render of a mythical creature made of detailed spiraling fractals and tendril…
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 9, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/09_test.png) | ![GPT-Image-2.5 Flare medium, prompt 9, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/09_test.png) | ![GPT-Image-2.5 Flare high, prompt 9, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/09_test.png) |
+| 31.08 s<br>1693 KiB | 20.36 s<br>1747 KiB | 29.97 s<br>1676 KiB |
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 9, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/09_test.png) | ![GPT-Image-2.5 Flare medium, prompt 9, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/09_test.png) | ![GPT-Image-2.5 Flare high, prompt 9, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/09_test.png) |
+| 30.97 s<br>1729 KiB | 19.52 s<br>1852 KiB | 35.19 s<br>1605 KiB |
+
+**Scenario 10** — an angry cat playing drums
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 10, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/10_test.png) | ![GPT-Image-2.5 Flare medium, prompt 10, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/10_test.png) | ![GPT-Image-2.5 Flare high, prompt 10, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/10_test.png) |
+| 30.62 s<br>1655 KiB | 24.75 s<br>1458 KiB | 29.98 s<br>1440 KiB |
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 10, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/10_test.png) | ![GPT-Image-2.5 Flare medium, prompt 10, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/10_test.png) | ![GPT-Image-2.5 Flare high, prompt 10, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/10_test.png) |
+| 32.59 s<br>1673 KiB | 20.83 s<br>1478 KiB | 28.20 s<br>1377 KiB |
+
+**Scenario 11** — A monkey playing music
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 11, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/11_test.png) | ![GPT-Image-2.5 Flare medium, prompt 11, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/11_test.png) | ![GPT-Image-2.5 Flare high, prompt 11, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/11_test.png) |
+| 28.70 s<br>1796 KiB | 44.42 s<br>1626 KiB | 29.81 s<br>1631 KiB |
+
+| MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
+| --- | --- | --- |
+| ![MAI-Image-2.6, prompt 11, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/11_test.png) | ![GPT-Image-2.5 Flare medium, prompt 11, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/11_test.png) | ![GPT-Image-2.5 Flare high, prompt 11, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/11_test.png) |
+| 30.08 s<br>1717 KiB | 21.21 s<br>1619 KiB | 33.07 s<br>1501 KiB |
+
+**Boundary**: a direct measurement of three configurations in one session. Image quality has no numeric score here: the side-by-side images are the evidence and the reader's judgement is the conclusion. 2.5 pricing is this account's billed rate (previous section); no list price is published.
+
+Evidence directory: [data/mai-vs-gpt25-20260920](data/mai-vs-gpt25-20260920).
+
+## Chinese and English Text Rendering
+
+**Question**: for the same scene, with only the language of the required text changed, how much does the share of correctly rendered characters differ?
+
+**Actual input**: five scenes, each written in English and Chinese, identical apart from the text to be rendered. The two P1 prompts, verbatim:
+
+> A photograph of a small bakery storefront at dusk. The sign above the door reads exactly "GOLDEN CRUST".
+>
+> 黄昏时一家小面包店的门面照片，门上方的招牌上准确写着"金麦坊"。
+
+Denominators are fixed per round: 79 English characters and 34 Chinese characters. Chinese expresses the same content in fewer characters, so each language is scored against its own denominator and the two are never pooled.
+
+| Pair | Scene | English target | Chinese target |
+| --- | --- | --- | --- |
+| P1 | storefront sign | `GOLDEN CRUST` | `金麦坊` |
+| P2 | product label | `JASMINE GREEN TEA` | `茉莉绿茶` |
+| P3 | poster headline | `ANNUAL DESIGN SUMMIT 2026` | `2026年度设计峰会` |
+| P4 | handwritten note | `Meeting at 3 PM` | `下午三点开会` |
+| P5 | multi-line menu | `COFFEE 25 / TEA 18 / CAKE 32` | `咖啡 25 / 茶 18 / 蛋糕 32` |
+
+**Controlled variables**: one client, one account, one region (Sweden Central), the same GlobalStandard quota, 1024x1024, two rounds. Within a pair, only the language of the text changes.
+
+| Configuration | English character accuracy | English exact segments | Chinese character accuracy | Chinese exact segments |
+| --- | --- | --- | --- | --- |
+| gpt-image-2-high | 158/158 = 100% | 14/14 = 100% | 68/68 = 100% | 14/14 = 100% |
+| gpt-image-2.5-flare-high | 158/158 = 100% | 14/14 = 100% | 68/68 = 100% | 14/14 = 100% |
+| gpt-image-2.5-flare-max | 158/158 = 100% | 14/14 = 100% | 67/68 = 99% | 13/14 = 93% |
+| gpt-image-2.5-sunburst-high | 158/158 = 100% | 14/14 = 100% | 67/68 = 99% | 13/14 = 93% |
+| gpt-image-2.5-sunburst-max | 158/158 = 100% | 14/14 = 100% | 68/68 = 100% | 14/14 = 100% |
+| mai-image-2.6 | 158/158 = 100% | 14/14 = 100% | 68/68 = 100% | 14/14 = 100% |
+
+**How it was judged**: each image is transcribed by `gpt-5.6-terra` and compared with the target string programmatically, ignoring all whitespace. Two denominators are reported: character accuracy scores the best-matching window of equal length anywhere in the transcription, character by character; exact segments requires the target to appear verbatim as a substring, with no partial credit. This is model-judged, not a blind human study. The judge is an OpenAI-family model and some of the judged images come from OpenAI image models; the calibration below rules out an inability to read Chinese, not a lenience toward one vendor's style, which is why every group has a contact sheet for human review.
+
+**Scoring correction**: the first pass matched each target against a **single transcribed line**. The judge emits one line per visual text block, so a model that wrapped a phrase onto two lines was scored as misspelling it; the penalty grew with target length, and the English targets are two to four times longer than the Chinese ones, so English was systematically understated in exactly the direction this test was meant to examine. 61 samples were affected. The corrected rule ignores whitespace and matches anywhere in the transcription; the first-pass scores are kept as [`text-scoring-line-anchored.json`](data/text-rendering-20260918/text-scoring-line-anchored.json) rather than deleted.
+
+**The judge's own error floor**: rendering the same targets with Microsoft YaHei and asking the judge to read them back scores 100% for both scripts (calibration counted raw characters: 91/91 English, 37/37 Chinese). The judge therefore has no systematic bias against Chinese, and the gaps above are attributable to the image models. Boundary: this only establishes that the judge reads clean renders; distorted or stylised text in generated images is harder, so the table may understate accuracy and will not overstate it. Per-group contact sheets in the evidence directory allow every image to be checked by eye.
+
+**Boundary**: 120 successful samples across 5 scenes and 2 rounds. This measures spelling accuracy for a specified string, not typographic quality, font choice or design appeal. MAI-Image-2.6 takes no quality parameter and therefore has a single row. **Declared support**: the Foundry model documentation lists MAI-Image-2.6 Languages as `en`; Chinese is outside its declared scope. The Chinese results here are observed behaviour outside that scope, not a product commitment, and should not be cited as a supported capability.
+
+Evidence directory: [data/text-rendering-20260918](data/text-rendering-20260918). Prompt SHA-256: `51585dcf118fec7b6164eea9fc1115cfd44718035f82c4e9a2252fb45ee4d3a4`.
+
+## Chinese and English Text Rendering: Hard Set, All 16 Configurations
+
+**Question**: the short targets in the previous section scored near 100% for every model and had no discriminating power. With scenes built around known Chinese failure modes (long strings, simplified-vs-traditional traps, digits mixed with script, vertical layout, multi-line, handwriting) and every deployment measured at every tier, where do gaps appear?
+
+**Actual input**: six scenes, each written in English and Chinese, identical apart from the text to be rendered. The two H1 prompts, verbatim:
+
+> A bookstore banner photo. The banner reads exactly "READING LIGHTS THE ROAD AHEAD".
+>
+> 书店横幅照片，横幅上准确写着"阅读照亮前行的道路"。
+
+Denominators are fixed per round: 131 English characters and 43 Chinese characters. Chinese expresses the same content in fewer characters, so each language is scored against its own denominator and the two are never pooled.
+
+| Pair | Scene | Tests | English target | Chinese target |
+| --- | --- | --- | --- | --- |
+| H1 | bookstore banner | long string | `READING LIGHTS THE ROAD AHEAD` | `阅读照亮前行的道路` |
+| H2 | tea packaging | simplified vs traditional | `GREEN TEA FROM YUNNAN CLOUDS` | `云南绿茶发源地` |
+| H3 | street plaque | digits mixed with script | `EAST GATE No. 18 THIRD FLOOR` | `东门大街18号三楼` |
+| H4 | calligraphy scroll | vertical layout | `STILL WATERS RUN DEEP` | `宁静致远` |
+| H5 | conference badge | multi-line | `ZHANG WEI / SENIOR ARCHITECT` | `张伟 / 高级架构师` |
+| H6 | handwritten whiteboard | handwriting | `SHIP IT BY FRIDAY NOON` | `周五中午前发布` |
+
+**Controlled variables**: one client, one account, one region (Sweden Central), the same GlobalStandard quota, 1024x1024, two rounds. Within a pair, only the language of the text changes.
+
+| Configuration | English character accuracy | English exact segments | Chinese character accuracy | Chinese exact segments |
+| --- | --- | --- | --- | --- |
+| gpt-image-2-high | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
+| gpt-image-2-low | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
+| gpt-image-2-medium | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
+| gpt-image-2.5-flare-auto | 262/262 = 100% | 14/14 = 100% | 85/86 = 99% | 13/14 = 93% |
+| gpt-image-2.5-flare-high | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
+| gpt-image-2.5-flare-low | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
+| gpt-image-2.5-flare-max | 237/239 = 99% | 12/13 = 92% | 82/82 = 100% | 13/13 = 100% |
+| gpt-image-2.5-flare-medium | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
+| gpt-image-2.5-flare-xhigh | 260/262 = 99% | 13/14 = 93% | 86/86 = 100% | 14/14 = 100% |
+| gpt-image-2.5-sunburst-auto | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
+| gpt-image-2.5-sunburst-high | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
+| gpt-image-2.5-sunburst-low | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
+| gpt-image-2.5-sunburst-max | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
+| gpt-image-2.5-sunburst-medium | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
+| gpt-image-2.5-sunburst-xhigh | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
+| mai-image-2.6 | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
+
+**How it was judged**: each image is transcribed by `gpt-5.6-terra` and compared with the target string programmatically, ignoring all whitespace. Two denominators are reported: character accuracy scores the best-matching window of equal length anywhere in the transcription, character by character; exact segments requires the target to appear verbatim as a substring, with no partial credit. This is model-judged, not a blind human study. The judge is an OpenAI-family model and some of the judged images come from OpenAI image models; the calibration below rules out an inability to read Chinese, not a lenience toward one vendor's style, which is why every group has a contact sheet for human review.
+
+**The judge's own error floor**: rendering the same targets with Microsoft YaHei and asking the judge to read them back scores 100% for both scripts (calibration counted raw characters: 91/91 English, 37/37 Chinese). The judge therefore has no systematic bias against Chinese, and the gaps above are attributable to the image models. Boundary: this only establishes that the judge reads clean renders; distorted or stylised text in generated images is harder, so the table may understate accuracy and will not overstate it. Per-group contact sheets in the evidence directory allow every image to be checked by eye.
+
+**Boundary**: 382 successful samples across 6 scenes and 2 rounds. This measures spelling accuracy for a specified string, not typographic quality, font choice or design appeal. MAI-Image-2.6 takes no quality parameter and therefore has a single row. **Declared support**: the Foundry model documentation lists MAI-Image-2.6 Languages as `en`; Chinese is outside its declared scope. The Chinese results here are observed behaviour outside that scope, not a product commitment, and should not be cited as a supported capability.
+
+Evidence directory: [data/text-hard-20260919](data/text-hard-20260919). Prompt SHA-256: `ccc4d655f4df2c664f261bb5d42277d7ecfb1f351cf0bf23c7a74bd77790d48b`.
 
 ## Web Grounding Test
 

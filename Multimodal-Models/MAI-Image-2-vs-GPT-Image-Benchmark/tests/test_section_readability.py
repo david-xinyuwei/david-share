@@ -13,6 +13,8 @@ GROUNDING_ARCHIVE = ROOT / "data" / "lenovo-web-grounding-20260908"
 EDIT_ARCHIVE = ROOT / "data" / "edit-hat-swap-20260909-auto"
 
 SECTIONS = {
+    # The metrics heading ends with either "All Quality Tiers" or "the Measured Quality Tiers"
+    # depending on whether every tier was measured, so anchor on the stable prefix.
     "README.md": {
         "grounding": "## Web Grounding Test",
         "edit": "### Test 12: Headwear Swap (Image Edit)",
@@ -20,7 +22,7 @@ SECTIONS = {
         "controlled": "Controlled variable",
         "highlights": "## What This Run Shows About MAI-Image-2.6",
         "comparison": "## Side-by-Side Image Comparison",
-        "metrics_body": "## Current Run: Both Models and All Quality Tiers",
+        "metrics_body": "## Current Run: Both Models and",
     },
     "README-CN.md": {
         "grounding": "## 联网信息补充测试",
@@ -29,7 +31,7 @@ SECTIONS = {
         "controlled": "受控变量",
         "highlights": "## MAI-Image-2.6 在本轮中体现的能力",
         "comparison": "## 并排图片对比",
-        "metrics_body": "## 本轮：两模型与全部质量档位",
+        "metrics_body": "## 本轮：两模型与",
     },
 }
 

@@ -72,11 +72,12 @@ class EditHatSwapEvidenceTests(unittest.TestCase):
             module.hashlib.sha256 = original
 
     def test_reports_render_test_12_after_test_11_with_both_rounds(self):
+        # The metrics heading names the measured tiers, so match its stable prefix.
         for filename, heading, previous, following in (
                 ("README.md", "### Test 12: Headwear Swap (Image Edit)", "### Test 11:",
-                 "## Current Run: Both Models and All Quality Tiers"),
+                 "## Current Run: Both Models and"),
                 ("README-CN.md", "### Test 12: 换帽子（图像编辑）", "### Test 11:",
-                 "## 本轮：两模型与全部质量档位")):
+                 "## 本轮：两模型与")):
             text = (ROOT / filename).read_text("utf-8")
             self.assertEqual(text.count(heading), 1, filename)
             self.assertLess(text.index(previous), text.index(heading), filename)
