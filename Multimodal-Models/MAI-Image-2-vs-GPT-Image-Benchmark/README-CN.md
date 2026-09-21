@@ -1,34 +1,36 @@
-# MAI-Image-2.6 与 GPT-Image-2.5：全质量档位图像生成对比
+# MAI-Image-2.6 与 GPT-Image-2 / 2.5：全质量档位图像生成对比
 
-[![Models](https://img.shields.io/badge/Models-MAI--Image--2.6%20vs%20GPT--Image--2.5-0067b8)](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image) [![Samples](https://img.shields.io/badge/Samples-850%20measured-2e7d32)](data) ![Resolution](https://img.shields.io/badge/Resolution-1024%C3%971024-455a64) ![MAI version](https://img.shields.io/badge/MAI%20version-2026--07--31-6a1b9a) ![Data through](https://img.shields.io/badge/Data%20through-2026--09--21-37474f) [![Status](https://img.shields.io/badge/Status-Preview%20%C2%B7%20no%20SLA-b26500)](https://azure.microsoft.com/support/legal/preview-supplemental-terms/) [![Tests](https://img.shields.io/badge/Tests-87%20offline-00695c)](tests)
+[![Models](https://img.shields.io/badge/Models-MAI--Image--2.6%20vs%20GPT--Image--2%20%2F%202.5-0067b8)](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image) [![Samples](https://img.shields.io/badge/Samples-946%20measured-2e7d32)](data) ![Resolution](https://img.shields.io/badge/Resolution-1024%C3%971024-455a64) ![MAI version](https://img.shields.io/badge/MAI%20version-2026--07--31-6a1b9a) ![Data through](https://img.shields.io/badge/Data%20through-2026--09--21-37474f) [![Status](https://img.shields.io/badge/Status-Preview%20%C2%B7%20no%20SLA-b26500)](https://azure.microsoft.com/support/legal/preview-supplemental-terms/) [![Tests](https://img.shields.io/badge/Tests-87%20offline-00695c)](tests)
 
-MAI-Image-2.6 对 GPT-Image-2.5 的实测对比：同一客户端、同一账户、同一区域（swedencentral）。主线是 2026-09-20 的同会话运行——MAI 与 2.5 flare 的 medium、high 在 11 个文生图场景上交错调用两轮；其余档位、图像编辑、中英文文字渲染、账单成本和联网信息补充各有自己的小节与证据目录。所有画面判断为非盲评的差异描述，不产出质量评分或偏好胜负。
+MAI-Image-2.6 对 GPT-Image-2 与 GPT-Image-2.5 的实测对比。主线是 2026-09-20 的同会话运行——同一客户端、同一账户、同一区域（Sweden Central），MAI 与 2.5 flare 的 medium、high 在 11 个文生图场景上交错调用两轮；GPT-Image-2 三档来自 2026-09-07 的会话，2.5 其余档位、图像编辑、中英文文字渲染、账单成本和联网信息补充各有自己的小节与证据目录。所有画面判断为非盲评的差异描述，不产出质量评分或偏好胜负。
 
 > **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
 
 [English](README.md) | [中文](README-CN.md)
 
-[逐题图片](#并排图片对比) · [图像编辑](#test-12-换帽子图像编辑) · [耗时与请求](#耗时与请求成功情况) · [六个档位](#gpt-image-25-的六个质量档位) · [成本](#每张图的实际成本来自本账户账单) · [文字渲染](#中英文文字渲染) · [联网补测](#联网信息补充测试) · [复现](#reproduction-how-to) · [原始证据](data/mai-vs-gpt25-20260920)
+[逐题图片](#并排图片对比) · [图像编辑](#test-12-换帽子图像编辑) · [耗时与请求](#耗时与请求成功情况) · [GPT-Image-2 会话](#gpt-image-2-会话mai-image-26-对-gpt-image-2) · [六个档位](#gpt-image-25-的六个质量档位) · [成本](#每张图的实际成本来自本账户账单) · [文字渲染](#中英文文字渲染) · [联网补测](#联网信息补充测试) · [复现](#reproduction-how-to) · [原始证据](data/mai-vs-gpt25-20260920)
 
 ---
 
 ## 本仓库实测说明了什么
 
-以下 5 条都只依据本仓库的实测记录；MAI-Image-2.6 处于 Preview，无 SLA。画质没有数值分数：并排图是证据，读者的判断是结论。
+以下 6 条都只依据本仓库的实测记录；MAI-Image-2.6 处于 Preview，无 SLA。画质没有数值分数：并排图是证据，读者的判断是结论。
 
 1. **同一会话里，MAI 的出图速度与 2.5 high 持平、慢于 2.5 medium。** 66/66 个样本返回图片；P50：MAI 31.61 s，2.5 medium 22.24 s（MAI 慢 1.42 倍），2.5 high 32.11 s（持平）。三组由同一客户端交错调用，没有区域或日期差。 2.5 low 在 2026-09-17 自己的会话里 P50 21.85 s，快于 MAI，但不是同一时段。
 
 2. **按本账户账单，MAI 每千张 $38.91：是 2.5 low（$5.88）的 6.6 倍、2.5 medium（$13.17）的 3.0 倍，比 2.5 high（$52.68）便宜 26%。** 单价来自 Azure Cost Management 的实际计费，不是定价页；2.5 尚无公布价。「贵」只有先说清对比档位才成立；各档的画面差异在并排图里。
 
-3. **难题集文字渲染：MAI 中英文都 100%，含简繁体陷阱。** 6 个场景 × 2 语言 × 2 轮，由校准过的视觉判读器读回：GPT-Image-2.5 Flare auto 漏 1 处（H3 zh r2）；GPT-Image-2.5 Flare max 漏 1 处（H4 en r2）；GPT-Image-2.5 Flare xhigh 漏 1 处（H4 en r2）。官方文档把 MAI 的 Languages 标为 `en`，中文结果是声明范围之外的观察。
+3. **对上一代 GPT-Image-2（2026-09-07 会话）：MAI 快于其 medium 与 high，慢于 low。** P50：MAI 38.03 s，GPT-Image-2 low 31.19 s（MAI 慢 1.22 倍）、medium 64.64 s（MAI 快 1.70 倍）、high 171.26 s（MAI 快 4.50 倍）。GPT-Image-2 部署在 East US 2、另一个账户，耗时差里含区域因素，不能全归为模型。 每千张成本：MAI $38.91，比 GPT-Image-2 medium（$52.68）便宜 26%，比 high（$210.72）便宜 82%。
 
-4. **图像编辑：三个配置两轮都换上博士帽并保住全部 5 个保持项。** MAI 输出（1360×768）色彩与取景几乎等同原图，像只重绘了头部；2.5（1674×940）是整幅重生成，构图保持但纹理重绘，2.5 medium 两轮都把标题 ADVISORS 拼成 ASVISORS。逐图清单见第 12 题。
+4. **难题集文字渲染：MAI 中英文都 100%，含简繁体陷阱。** 6 个场景 × 2 语言 × 2 轮，由校准过的视觉判读器读回：GPT-Image-2.5 Flare auto 漏 1 处（H3 zh r2）；GPT-Image-2.5 Flare max 漏 1 处（H4 en r2）；GPT-Image-2.5 Flare xhigh 漏 1 处（H4 en r2）。官方文档把 MAI 的 Languages 标为 `en`，中文结果是声明范围之外的观察。
 
-5. **`web_grounding=true` 可以在生成时补充联网信息。** 开启后模型从 Bing Search 检索当前信息作为额外上下文，实测让两个题目的产品文字事实从错误变为与官方发布一致；代价是首试成功率下降、耗时明显上升。这是 MAI 独有参数，无 GPT 对照。
+5. **图像编辑：三个模型都换上了博士帽，14 张输出全部保住 5/5 保持项。** 可测的差别在分辨率与标题字形：MAI 输出 1360×768（端点 1,048,576 像素上限），色彩与取景几乎等同原图，像只重绘了头部，但拉丁字母笔画变软、四个汉字变形；GPT 侧（GPT-Image-2 1672×941、GPT-Image-2.5 1674×940）分辨率更高，整幅重生成，构图与身份保持但纹理与色彩重绘，2.5 medium 两轮都把标题 ADVISORS 拼成 ASVISORS。逐图清单见第 12 题。
+
+6. **`web_grounding=true` 可以在生成时补充联网信息。** 开启后模型从 Bing Search 检索当前信息作为额外上下文，实测让两个题目的产品文字事实从错误变为与官方发布一致；代价是首试成功率下降、耗时明显上升。这是 MAI 独有参数，无 GPT 对照。
 
 ## 并排图片对比
 
-第 1–11 题为文生图，每题两轮。每轮第一行是 2026-09-20 同一会话交错调用的 MAI-Image-2.6、GPT-Image-2.5 Flare medium、GPT-Image-2.5 Flare high；第二行是 GPT-Image-2.5 Flare 其余档位，来自 2026-09-17、2026-09-18 用同一客户端、同一提示词文件的测量，日期标在表头。两行不是同一时段，图下耗时要连带日期看。Sunburst 是同一模型的第二个部署，图片留在证据目录，数字在后面的档位表里。点击图片查看原始 1024x1024 PNG。第 12 题为图像编辑，输入为一张真实照片。
+第 1–11 题为文生图，每题两轮。每轮第一行是 2026-09-20 同一会话交错调用的 MAI-Image-2.6、GPT-Image-2.5 Flare medium、GPT-Image-2.5 Flare high；第二行是 GPT-Image-2.5 Flare 其余档位，来自 2026-09-17、2026-09-18 用同一客户端、同一提示词文件的测量，日期标在表头。Sunburst 是同一模型的第二个部署，图片留在证据目录，数字在后面的档位表里；第三行是 2026-09-07 的 GPT-Image-2 会话：同一客户端交错调用 MAI 与 GPT-Image-2 的 low、medium、high，但 GPT-Image-2 部署在 East US 2、另一个账户，耗时差里含区域因素，表头标了各自区域。三行不是同一时段，图下耗时要连带日期看。点击图片查看原始 1024x1024 PNG。第 12 题为图像编辑，输入为一张真实照片。
 
 ### Test 1: 金属和服少女
 
@@ -46,6 +48,11 @@ MAI-Image-2.6 对 GPT-Image-2.5 的实测对比：同一客户端、同一账户
 | ![GPT-Image-2.5 Flare low, prompt 1, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/01_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 1, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/01_test.png) | ![GPT-Image-2.5 Flare max, prompt 1, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/01_test.png) | ![GPT-Image-2.5 Flare auto, prompt 1, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/01_test.png) |
 | 21.93 s<br>1631 KiB | 43.22 s<br>1697 KiB | 66.83 s<br>1683 KiB | 19.37 s<br>1658 KiB |
 
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 1, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/01_test.png) | ![GPT-Image-2 low, prompt 1, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/01_test.png) | ![GPT-Image-2 medium, prompt 1, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/01_test.png) | 未返回图片 |
+| 38.82 s<br>1856 KiB | 51.44 s<br>1636 KiB | 78.13 s<br>1504 KiB | 3 次尝试；任务耗时 322.06 s |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
@@ -57,6 +64,11 @@ MAI-Image-2.6 对 GPT-Image-2.5 的实测对比：同一客户端、同一账户
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 1, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/01_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 1, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/01_test.png) | ![GPT-Image-2.5 Flare max, prompt 1, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/01_test.png) | ![GPT-Image-2.5 Flare auto, prompt 1, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/01_test.png) |
 | 17.66 s<br>1546 KiB | 40.05 s<br>1753 KiB | 73.42 s<br>1631 KiB | 21.75 s<br>1695 KiB |
+
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 1, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/01_test.png) | ![GPT-Image-2 low, prompt 1, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/01_test.png) | ![GPT-Image-2 medium, prompt 1, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/01_test.png) | ![GPT-Image-2 high, prompt 1, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/01_test.png) |
+| 33.96 s<br>1699 KiB | 26.25 s<br>1641 KiB | 63.52 s<br>1704 KiB | 182.78 s<br>1531 KiB |
 
 ### Test 2: 森林传送门
 
@@ -74,6 +86,11 @@ MAI-Image-2.6 对 GPT-Image-2.5 的实测对比：同一客户端、同一账户
 | ![GPT-Image-2.5 Flare low, prompt 2, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/02_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 2, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/02_test.png) | ![GPT-Image-2.5 Flare max, prompt 2, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/02_test.png) | ![GPT-Image-2.5 Flare auto, prompt 2, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/02_test.png) |
 | 20.45 s<br>1429 KiB | 36.59 s<br>1542 KiB | 73.53 s<br>1509 KiB | 20.00 s<br>1424 KiB |
 
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 2, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/02_test.png) | ![GPT-Image-2 low, prompt 2, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/02_test.png) | ![GPT-Image-2 medium, prompt 2, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/02_test.png) | ![GPT-Image-2 high, prompt 2, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/02_test.png) |
+| 65.12 s<br>1676 KiB | 41.67 s<br>1438 KiB | 74.93 s<br>1477 KiB | 176.78 s<br>1727 KiB |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
@@ -85,6 +102,11 @@ MAI-Image-2.6 对 GPT-Image-2.5 的实测对比：同一客户端、同一账户
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 2, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/02_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 2, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/02_test.png) | ![GPT-Image-2.5 Flare max, prompt 2, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/02_test.png) | ![GPT-Image-2.5 Flare auto, prompt 2, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/02_test.png) |
 | 22.78 s<br>1401 KiB | 46.70 s<br>1535 KiB | 73.52 s<br>1330 KiB | 21.22 s<br>1515 KiB |
+
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 2, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/02_test.png) | ![GPT-Image-2 low, prompt 2, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/02_test.png) | ![GPT-Image-2 medium, prompt 2, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/02_test.png) | ![GPT-Image-2 high, prompt 2, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/02_test.png) |
+| 37.43 s<br>1721 KiB | 28.50 s<br>1491 KiB | 60.23 s<br>1489 KiB | 170.60 s<br>1619 KiB |
 
 ### Test 3: 月球宇航员
 
@@ -102,6 +124,11 @@ MAI-Image-2.6 对 GPT-Image-2.5 的实测对比：同一客户端、同一账户
 | ![GPT-Image-2.5 Flare low, prompt 3, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/03_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 3, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/03_test.png) | ![GPT-Image-2.5 Flare max, prompt 3, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/03_test.png) | ![GPT-Image-2.5 Flare auto, prompt 3, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/03_test.png) |
 | 48.27 s<br>1596 KiB | 40.06 s<br>1517 KiB | 68.61 s<br>1402 KiB | 20.84 s<br>1498 KiB |
 
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 3, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/03_test.png) | ![GPT-Image-2 low, prompt 3, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/03_test.png) | ![GPT-Image-2 medium, prompt 3, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/03_test.png) | ![GPT-Image-2 high, prompt 3, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/03_test.png) |
+| 32.29 s<br>1387 KiB | 82.39 s<br>1354 KiB | 68.42 s<br>1499 KiB | 170.29 s<br>1543 KiB |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
@@ -113,6 +140,11 @@ MAI-Image-2.6 对 GPT-Image-2.5 的实测对比：同一客户端、同一账户
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 3, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/03_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 3, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/03_test.png) | ![GPT-Image-2.5 Flare max, prompt 3, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/03_test.png) | ![GPT-Image-2.5 Flare auto, prompt 3, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/03_test.png) |
 | 20.04 s<br>1576 KiB | 45.34 s<br>1466 KiB | 77.89 s<br>1465 KiB | 22.10 s<br>1460 KiB |
+
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 3, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/03_test.png) | ![GPT-Image-2 low, prompt 3, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/03_test.png) | ![GPT-Image-2 medium, prompt 3, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/03_test.png) | ![GPT-Image-2 high, prompt 3, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/03_test.png) |
+| 32.19 s<br>1539 KiB | 23.61 s<br>1295 KiB | 59.58 s<br>1428 KiB | 152.75 s<br>1457 KiB |
 
 ### Test 4: LOTR 小红龙
 
@@ -130,6 +162,11 @@ MAI-Image-2.6 对 GPT-Image-2.5 的实测对比：同一客户端、同一账户
 | ![GPT-Image-2.5 Flare low, prompt 4, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/04_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 4, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/04_test.png) | ![GPT-Image-2.5 Flare max, prompt 4, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/04_test.png) | ![GPT-Image-2.5 Flare auto, prompt 4, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/04_test.png) |
 | 22.31 s<br>1536 KiB | 36.94 s<br>1379 KiB | 63.49 s<br>1308 KiB | 19.95 s<br>1524 KiB |
 
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 4, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/04_test.png) | ![GPT-Image-2 low, prompt 4, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/04_test.png) | ![GPT-Image-2 medium, prompt 4, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/04_test.png) | ![GPT-Image-2 high, prompt 4, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/04_test.png) |
+| 38.63 s<br>1589 KiB | 47.05 s<br>1382 KiB | 65.18 s<br>1457 KiB | 192.56 s<br>1443 KiB |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
@@ -141,6 +178,11 @@ MAI-Image-2.6 对 GPT-Image-2.5 的实测对比：同一客户端、同一账户
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 4, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/04_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 4, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/04_test.png) | ![GPT-Image-2.5 Flare max, prompt 4, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/04_test.png) | ![GPT-Image-2.5 Flare auto, prompt 4, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/04_test.png) |
 | 18.24 s<br>1381 KiB | 44.01 s<br>1449 KiB | 65.18 s<br>1409 KiB | 26.41 s<br>1333 KiB |
+
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 4, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/04_test.png) | ![GPT-Image-2 low, prompt 4, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/04_test.png) | ![GPT-Image-2 medium, prompt 4, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/04_test.png) | ![GPT-Image-2 high, prompt 4, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/04_test.png) |
+| 34.69 s<br>1585 KiB | 23.98 s<br>1366 KiB | 59.51 s<br>1485 KiB | 171.26 s<br>1402 KiB |
 
 ### Test 5: 梦幻生物
 
@@ -158,6 +200,11 @@ MAI-Image-2.6 对 GPT-Image-2.5 的实测对比：同一客户端、同一账户
 | ![GPT-Image-2.5 Flare low, prompt 5, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/05_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 5, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/05_test.png) | ![GPT-Image-2.5 Flare max, prompt 5, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/05_test.png) | ![GPT-Image-2.5 Flare auto, prompt 5, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/05_test.png) |
 | 22.87 s<br>1484 KiB | 60.20 s<br>1597 KiB | 68.71 s<br>1512 KiB | 24.54 s<br>1545 KiB |
 
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 5, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/05_test.png) | ![GPT-Image-2 low, prompt 5, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/05_test.png) | ![GPT-Image-2 medium, prompt 5, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/05_test.png) | ![GPT-Image-2 high, prompt 5, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/05_test.png) |
+| 60.09 s<br>1435 KiB | 29.09 s<br>1673 KiB | 69.86 s<br>1450 KiB | 187.57 s<br>1526 KiB |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
@@ -169,6 +216,11 @@ MAI-Image-2.6 对 GPT-Image-2.5 的实测对比：同一客户端、同一账户
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 5, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/05_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 5, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/05_test.png) | ![GPT-Image-2.5 Flare max, prompt 5, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/05_test.png) | ![GPT-Image-2.5 Flare auto, prompt 5, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/05_test.png) |
 | 26.37 s<br>1693 KiB | 43.51 s<br>1622 KiB | 70.75 s<br>1544 KiB | 23.13 s<br>1656 KiB |
+
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 5, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/05_test.png) | ![GPT-Image-2 low, prompt 5, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/05_test.png) | ![GPT-Image-2 medium, prompt 5, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/05_test.png) | ![GPT-Image-2 high, prompt 5, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/05_test.png) |
+| 38.42 s<br>1417 KiB | 24.80 s<br>1622 KiB | 63.22 s<br>1437 KiB | 163.33 s<br>1586 KiB |
 
 ### Test 6: 丛林天坑
 
@@ -186,6 +238,11 @@ MAI-Image-2.6 对 GPT-Image-2.5 的实测对比：同一客户端、同一账户
 | ![GPT-Image-2.5 Flare low, prompt 6, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/06_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 6, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/06_test.png) | ![GPT-Image-2.5 Flare max, prompt 6, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/06_test.png) | ![GPT-Image-2.5 Flare auto, prompt 6, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/06_test.png) |
 | 20.62 s<br>2095 KiB | 42.70 s<br>2127 KiB | 71.24 s<br>2091 KiB | 22.84 s<br>2127 KiB |
 
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 6, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/06_test.png) | ![GPT-Image-2 low, prompt 6, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/06_test.png) | ![GPT-Image-2 medium, prompt 6, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/06_test.png) | ![GPT-Image-2 high, prompt 6, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/06_test.png) |
+| 80.54 s<br>2149 KiB | 62.70 s<br>2088 KiB | 71.35 s<br>2110 KiB | 190.79 s<br>2024 KiB |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
@@ -197,6 +254,11 @@ MAI-Image-2.6 对 GPT-Image-2.5 的实测对比：同一客户端、同一账户
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 6, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/06_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 6, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/06_test.png) | ![GPT-Image-2.5 Flare max, prompt 6, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/06_test.png) | ![GPT-Image-2.5 Flare auto, prompt 6, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/06_test.png) |
 | 24.02 s<br>2151 KiB | 43.28 s<br>2147 KiB | 74.58 s<br>2131 KiB | 25.91 s<br>2156 KiB |
+
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 6, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/06_test.png) | ![GPT-Image-2 low, prompt 6, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/06_test.png) | ![GPT-Image-2 medium, prompt 6, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/06_test.png) | ![GPT-Image-2 high, prompt 6, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/06_test.png) |
+| 32.25 s<br>2131 KiB | 35.88 s<br>2042 KiB | 65.19 s<br>2151 KiB | 185.09 s<br>1979 KiB |
 
 ### Test 7: 科技少女
 
@@ -214,6 +276,11 @@ MAI-Image-2.6 对 GPT-Image-2.5 的实测对比：同一客户端、同一账户
 | ![GPT-Image-2.5 Flare low, prompt 7, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/07_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 7, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/07_test.png) | ![GPT-Image-2.5 Flare max, prompt 7, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/07_test.png) | ![GPT-Image-2.5 Flare auto, prompt 7, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/07_test.png) |
 | 24.69 s<br>1587 KiB | 47.53 s<br>1555 KiB | 76.86 s<br>1472 KiB | 29.02 s<br>1534 KiB |
 
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 7, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/07_test.png) | ![GPT-Image-2 low, prompt 7, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/07_test.png) | ![GPT-Image-2 medium, prompt 7, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/07_test.png) | ![GPT-Image-2 high, prompt 7, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/07_test.png) |
+| 54.92 s<br>1556 KiB | 33.29 s<br>1543 KiB | 67.74 s<br>1520 KiB | 177.19 s<br>1538 KiB |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
@@ -225,6 +292,11 @@ MAI-Image-2.6 对 GPT-Image-2.5 的实测对比：同一客户端、同一账户
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 7, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/07_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 7, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/07_test.png) | ![GPT-Image-2.5 Flare max, prompt 7, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/07_test.png) | ![GPT-Image-2.5 Flare auto, prompt 7, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/07_test.png) |
 | 23.76 s<br>1542 KiB | 57.35 s<br>1521 KiB | 79.60 s<br>1472 KiB | 30.29 s<br>1533 KiB |
+
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 7, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/07_test.png) | ![GPT-Image-2 low, prompt 7, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/07_test.png) | ![GPT-Image-2 medium, prompt 7, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/07_test.png) | ![GPT-Image-2 high, prompt 7, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/07_test.png) |
+| 37.63 s<br>1495 KiB | 35.08 s<br>1548 KiB | 66.85 s<br>1529 KiB | 170.62 s<br>1648 KiB |
 
 ### Test 8: 迷幻宇宙
 
@@ -242,6 +314,11 @@ MAI-Image-2.6 对 GPT-Image-2.5 的实测对比：同一客户端、同一账户
 | ![GPT-Image-2.5 Flare low, prompt 8, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/08_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 8, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/08_test.png) | ![GPT-Image-2.5 Flare max, prompt 8, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/08_test.png) | ![GPT-Image-2.5 Flare auto, prompt 8, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/08_test.png) |
 | 21.65 s<br>2262 KiB | 41.24 s<br>2254 KiB | 79.96 s<br>2206 KiB | 24.28 s<br>2230 KiB |
 
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 8, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/08_test.png) | ![GPT-Image-2 low, prompt 8, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/08_test.png) | ![GPT-Image-2 medium, prompt 8, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/08_test.png) | ![GPT-Image-2 high, prompt 8, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/08_test.png) |
+| 36.49 s<br>2305 KiB | 35.03 s<br>2175 KiB | 68.73 s<br>2270 KiB | 174.50 s<br>2250 KiB |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
@@ -253,6 +330,11 @@ MAI-Image-2.6 对 GPT-Image-2.5 的实测对比：同一客户端、同一账户
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 8, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/08_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 8, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/08_test.png) | ![GPT-Image-2.5 Flare max, prompt 8, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/08_test.png) | ![GPT-Image-2.5 Flare auto, prompt 8, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/08_test.png) |
 | 25.37 s<br>2217 KiB | 44.08 s<br>2187 KiB | 75.92 s<br>2162 KiB | 40.38 s<br>2322 KiB |
+
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 8, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/08_test.png) | ![GPT-Image-2 low, prompt 8, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/08_test.png) | ![GPT-Image-2 medium, prompt 8, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/08_test.png) | ![GPT-Image-2 high, prompt 8, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/08_test.png) |
+| 106.81 s<br>2356 KiB | 99.08 s<br>2441 KiB | 72.83 s<br>2337 KiB | 215.09 s<br>2270 KiB |
 
 ### Test 9: 分形生物
 
@@ -270,6 +352,11 @@ MAI-Image-2.6 对 GPT-Image-2.5 的实测对比：同一客户端、同一账户
 | ![GPT-Image-2.5 Flare low, prompt 9, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/09_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 9, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/09_test.png) | ![GPT-Image-2.5 Flare max, prompt 9, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/09_test.png) | ![GPT-Image-2.5 Flare auto, prompt 9, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/09_test.png) |
 | 21.77 s<br>1581 KiB | 47.98 s<br>1734 KiB | 72.54 s<br>1575 KiB | 22.40 s<br>1769 KiB |
 
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 9, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/09_test.png) | ![GPT-Image-2 low, prompt 9, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/09_test.png) | ![GPT-Image-2 medium, prompt 9, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/09_test.png) | ![GPT-Image-2 high, prompt 9, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/09_test.png) |
+| 49.96 s<br>1767 KiB | 37.29 s<br>1871 KiB | 61.67 s<br>1731 KiB | 169.84 s<br>1686 KiB |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
@@ -281,6 +368,11 @@ MAI-Image-2.6 对 GPT-Image-2.5 的实测对比：同一客户端、同一账户
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 9, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/09_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 9, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/09_test.png) | ![GPT-Image-2.5 Flare max, prompt 9, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/09_test.png) | ![GPT-Image-2.5 Flare auto, prompt 9, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/09_test.png) |
 | 16.93 s<br>1761 KiB | 41.72 s<br>1502 KiB | 77.44 s<br>1597 KiB | 27.98 s<br>1696 KiB |
+
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 9, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/09_test.png) | ![GPT-Image-2 low, prompt 9, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/09_test.png) | ![GPT-Image-2 medium, prompt 9, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/09_test.png) | ![GPT-Image-2 high, prompt 9, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/09_test.png) |
+| 41.92 s<br>1737 KiB | 25.10 s<br>1840 KiB | 60.62 s<br>1747 KiB | 241.38 s<br>1666 KiB |
 
 ### Test 10: 愤怒猫鼓手
 
@@ -298,6 +390,11 @@ MAI-Image-2.6 对 GPT-Image-2.5 的实测对比：同一客户端、同一账户
 | ![GPT-Image-2.5 Flare low, prompt 10, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/10_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 10, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/10_test.png) | ![GPT-Image-2.5 Flare max, prompt 10, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/10_test.png) | ![GPT-Image-2.5 Flare auto, prompt 10, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/10_test.png) |
 | 19.46 s<br>1587 KiB | 43.69 s<br>1392 KiB | 62.97 s<br>1371 KiB | 19.49 s<br>1563 KiB |
 
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 10, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/10_test.png) | ![GPT-Image-2 low, prompt 10, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/10_test.png) | ![GPT-Image-2 medium, prompt 10, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/10_test.png) | ![GPT-Image-2 high, prompt 10, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/10_test.png) |
+| 32.92 s<br>1606 KiB | 28.74 s<br>1460 KiB | 57.93 s<br>1603 KiB | 139.24 s<br>1511 KiB |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
@@ -309,6 +406,11 @@ MAI-Image-2.6 对 GPT-Image-2.5 的实测对比：同一客户端、同一账户
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 10, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/10_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 10, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/10_test.png) | ![GPT-Image-2.5 Flare max, prompt 10, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/10_test.png) | ![GPT-Image-2.5 Flare auto, prompt 10, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/10_test.png) |
 | 24.01 s<br>1482 KiB | 46.16 s<br>1388 KiB | 74.30 s<br>1403 KiB | 21.49 s<br>1496 KiB |
+
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 10, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/10_test.png) | ![GPT-Image-2 low, prompt 10, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/10_test.png) | ![GPT-Image-2 medium, prompt 10, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/10_test.png) | ![GPT-Image-2 high, prompt 10, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/10_test.png) |
+| 42.97 s<br>1652 KiB | 25.43 s<br>1611 KiB | 64.09 s<br>1581 KiB | 153.85 s<br>1592 KiB |
 
 ### Test 11: 猴子音乐家
 
@@ -326,6 +428,11 @@ MAI-Image-2.6 对 GPT-Image-2.5 的实测对比：同一客户端、同一账户
 | ![GPT-Image-2.5 Flare low, prompt 11, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/11_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 11, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/11_test.png) | ![GPT-Image-2.5 Flare max, prompt 11, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/11_test.png) | ![GPT-Image-2.5 Flare auto, prompt 11, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/11_test.png) |
 | 20.30 s<br>1682 KiB | 43.26 s<br>1467 KiB | 76.03 s<br>1433 KiB | 20.47 s<br>1629 KiB |
 
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 11, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/11_test.png) | ![GPT-Image-2 low, prompt 11, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/11_test.png) | ![GPT-Image-2 medium, prompt 11, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/11_test.png) | ![GPT-Image-2 high, prompt 11, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/11_test.png) |
+| 33.49 s<br>1833 KiB | 27.58 s<br>1671 KiB | 56.04 s<br>1612 KiB | 140.32 s<br>1632 KiB |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
@@ -338,9 +445,14 @@ MAI-Image-2.6 对 GPT-Image-2.5 的实测对比：同一客户端、同一账户
 | ![GPT-Image-2.5 Flare low, prompt 11, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/11_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 11, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/11_test.png) | ![GPT-Image-2.5 Flare max, prompt 11, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/11_test.png) | ![GPT-Image-2.5 Flare auto, prompt 11, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/11_test.png) |
 | 17.81 s<br>1624 KiB | 39.73 s<br>1556 KiB | 65.76 s<br>1538 KiB | 20.74 s<br>1601 KiB |
 
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 11, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/11_test.png) | ![GPT-Image-2 low, prompt 11, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/11_test.png) | ![GPT-Image-2 medium, prompt 11, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/11_test.png) | ![GPT-Image-2 high, prompt 11, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/11_test.png) |
+| 35.77 s<br>1725 KiB | 27.29 s<br>1615 KiB | 56.27 s<br>1541 KiB | 152.77 s<br>1715 KiB |
+
 ### Test 12: 换帽子（图像编辑）
 
-前 11 题都是纯文生图。第 12 题改为图像编辑：把同一张真实照片交给 3 个配置的编辑接口，只要求改一处，并明确列出必须保持不变的内容。因此每张输出都能按清单逐项核对，不需要审美打分。与前 11 题相同，本题跑 2 轮，第二轮配置顺序反转。
+前 11 题都是纯文生图。第 12 题改为图像编辑：同一张真实照片、同一条提示词，分别交给 MAI 与 GPT-Image-2、GPT-Image-2.5 的编辑接口，只要求改一处，并明确列出必须保持不变的内容。因此每张输出都能按清单逐项核对，不需要审美打分。每一代 GPT 各是一次独立运行，都含 MAI，都跑 2 轮，第二轮配置顺序反转。
 
 输入为一张 553x311 的 JPEG 照片（39,539 字节，SHA-256 `2f15a826dbc5d0e9…`）：前景人物头戴冕冠，身着刺绣龙袍，左侧持戈侍卫，右侧紫衣人物与门廊建筑，左上角有剧名标题与印章。
 
@@ -348,13 +460,80 @@ MAI-Image-2.6 对 GPT-Image-2.5 的实测对比：同一客户端、同一账户
 
 > Replace only the headwear worn by the man in the foreground with a black academic graduation cap with a tassel. Keep his face, beard, expression and pose exactly as they are. Keep his embroidered robe, the courtyard and every other person unchanged.
 
-**受控变量**
-
-MAI 走 `/mai/v1/images/edits`，GPT 走 `/openai/deployments/gpt-image-2.5-flare/images/edits`。GPT 各档只在 `quality` 上不同，`size` 传 `auto` 由服务自选输出尺寸；MAI 编辑接口没有尺寸参数，同样由服务自选。两边因此处于同一契约：都没有被要求固定尺寸。每轮每个配置各调用一次，共 2 轮，同一账户同一区域同一会话。
-
 | 输入图 |
 | --- |
 | ![Input photograph](data/edit-hat-swap-gpt25-20260921/input.jpg) |
+
+#### MAI-Image-2.6 对 GPT-Image-2（2026-09-09）
+
+**受控变量**
+
+MAI 走 `/mai/v1/images/edits`，GPT 走 `/openai/deployments/gpt-image-2/images/edits`。GPT 各档只在 `quality` 上不同，`size` 传 `auto` 由服务自选输出尺寸；MAI 编辑接口没有尺寸参数，同样由服务自选。两边因此处于同一契约：都没有被要求固定尺寸。每轮每个配置各调用一次，共 2 轮；GPT-Image-2 部署在 East US 2、另一个账户，MAI 在 Sweden Central，客户端为同一台工作站；耗时差里含区域因素。
+
+**协议更正**
+
+第一次运行给 GPT 三档传了 `size=1024x1024`，把 16:9 的输入压成方图。MAI 的编辑接口没有尺寸参数，从未受此约束，所以那是只作用于一方的单边约束，两边的基线并不可比。那批输出反映的是本测试填错的参数，不是模型行为，六轮保持项只有 0/5、1/5、0/5、0/5、0/5、0/5，已整体作废，也不放入模型对比。本轮把 GPT 改为 `size=auto`，与 MAI 同为服务自选尺寸，协议才对称。原运行仍保留在归档中，作为该次参数错误的记录。 被作废的运行：[data/edit-hat-swap-20260908](data/edit-hat-swap-20260908)。 本轮的 MAI 图不是重新调用的：它们就是那次运行的 `edit-hat-swap-20260908/01_mai-image-2.6.png`、`edit-hat-swap-20260908/r2/04_mai-image-2.6.png`（请求于 2026-09-08）。MAI 的编辑接口没有尺寸参数，它的调用不受这个参数错误影响，所以没有重跑；它的耗时与同轮 GPT 三档不是同一时段。
+
+**第1轮:**
+
+| MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, edit round 1](data/edit-hat-swap-20260909-auto/01_mai-image-2.6.png) | ![GPT-Image-2 low, edit round 1](data/edit-hat-swap-20260909-auto/02_gpt-image-2-low.png) | ![GPT-Image-2 medium, edit round 1](data/edit-hat-swap-20260909-auto/03_gpt-image-2-medium.png) | ![GPT-Image-2 high, edit round 1](data/edit-hat-swap-20260909-auto/04_gpt-image-2-high.png) |
+| 34.94 s<br>1585 KiB<br>1360x768 | 32.89 s<br>2411 KiB<br>1672x941 | 44.77 s<br>2373 KiB<br>1672x941 | 109.48 s<br>2167 KiB<br>1672x941 |
+
+| 核对项 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- | --- |
+| 保持项命中 | 5/5 | 5/5 | 5/5 | 5/5 |
+| 换成博士帽 | 是 | 是 | 是 | 是 |
+| 人脸与胡须保留 | 是 | 是 | 是 | 是 |
+| 龙袍纹样保留 | 是 | 是 | 是 | 是 |
+| 侍卫与背景不变 | 是 | 是 | 是 | 是 |
+| 标题与印章保留 | 是 | 是 | 是 | 是 |
+| 保持原图宽高比 | 是 | 是 | 是 | 是 |
+
+| 配置 | 画面观察 |
+| --- | --- |
+| MAI-Image-2.6 | 冕冠换成带流苏的黑色博士帽。人脸、胡须、神情、龙袍纹样、左侧持戈侍卫、右侧紫衣人物、门廊建筑全部在原位，输出保持 16:9（1360×768）。左上角标题与印章在原位，英文 THE ADVISORS ALLIANCE 可读但笔画发软，中文四字变形。记录与 PNG 自 2026-09-08 第一轮原样带入。 |
+| GPT-Image-2 low | 博士帽换上。人脸、胡须、龙袍纹样、左侧侍卫队列、右侧紫衣人物与门廊建筑全部在原位，输出 1672×941，宽高比与输入一致。标题 THE ADVISORS ALLIANCE 逐字可读，中文四字接近原图，印章在位。 |
+| GPT-Image-2 medium | 博士帽换上。人物、龙袍、侍卫、右侧人物与建筑全部在原位，输出 1672×941。标题英文逐字复现，中文接近原图，印章在位。 |
+| GPT-Image-2 high | 博士帽换上。人物、龙袍、侍卫、右侧人物与建筑全部在原位，输出 1672×941。标题英文逐字复现，中文接近原图，印章在位。龙袍金线细节比输入更锐，属于放大重绘的结果。 |
+
+**第2轮:**
+
+| MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, edit round 2](data/edit-hat-swap-20260909-auto/r2/04_mai-image-2.6.png) | ![GPT-Image-2 low, edit round 2](data/edit-hat-swap-20260909-auto/r2/03_gpt-image-2-low.png) | ![GPT-Image-2 medium, edit round 2](data/edit-hat-swap-20260909-auto/r2/02_gpt-image-2-medium.png) | ![GPT-Image-2 high, edit round 2](data/edit-hat-swap-20260909-auto/r2/01_gpt-image-2-high.png) |
+| 36.91 s<br>1618 KiB<br>1360x768 | 27.91 s<br>2406 KiB<br>1672x940 | 46.36 s<br>2388 KiB<br>1672x940 | 110.84 s<br>2119 KiB<br>1672x941 |
+
+| 核对项 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- | --- |
+| 保持项命中 | 5/5 | 5/5 | 5/5 | 5/5 |
+| 换成博士帽 | 是 | 是 | 是 | 是 |
+| 人脸与胡须保留 | 是 | 是 | 是 | 是 |
+| 龙袍纹样保留 | 是 | 是 | 是 | 是 |
+| 侍卫与背景不变 | 是 | 是 | 是 | 是 |
+| 标题与印章保留 | 是 | 是 | 是 | 是 |
+| 保持原图宽高比 | 是 | 是 | 是 | 是 |
+
+| 配置 | 画面观察 |
+| --- | --- |
+| MAI-Image-2.6 | 冕冠换成带流苏的黑色博士帽。人脸、胡须、龙袍纹样、侍卫、右侧人物、门廊建筑全部在原位，输出保持 16:9（1360×768）。标题与印章在原位，英文 ALLIANCE 一词笔画明显发软、近乎粘连，中文四字变形。记录与 PNG 自 2026-09-08 第二轮原样带入。 |
+| GPT-Image-2 low | 博士帽换上。人物、龙袍、侍卫、右侧人物与建筑全部在原位，输出 1672×940，鬓角略显灰白。标题把 ADVISORS 写成 ASVISORS，中文略有变形，印章在位。 |
+| GPT-Image-2 medium | 博士帽换上。人物、龙袍、侍卫、右侧人物与建筑全部在原位，输出 1672×940。标题多了一个撇号，写成 THE ADVISOR'S ALLIANCE；中文接近原图，印章在位。 |
+| GPT-Image-2 high | 博士帽换上。人物、龙袍、侍卫、右侧人物与建筑全部在原位，输出 1672×941。标题英文逐字复现，中文接近原图，印章在位。与第一轮 high 结果一致。 |
+
+| 跨轮汇总 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- | --- |
+| 保持项命中（每轮） | 5/5 / 5/5 | 5/5 / 5/5 | 5/5 / 5/5 | 5/5 / 5/5 |
+| 请求耗时（每轮） | 34.94 s / 36.91 s | 32.89 s / 27.91 s | 44.77 s / 46.36 s | 109.48 s / 110.84 s |
+
+**怎么读**: 四个配置在两轮里都换上了博士帽，并且都保住了全部 5 个保持项：人脸、龙袍、侍卫与背景、标题印章、原图宽高比，8 张输出全是 5/5。区别只剩三处。输出分辨率：GPT 三档自选 1672×941（约 157 万像素），MAI 为 1360×768（104 万像素，接口上限 1,048,576）。标题字形：GPT medium 与 high 两轮都把英文标题逐字复现；GPT low 第二轮把 ADVISORS 写成 ASVISORS，GPT medium 第二轮多了一个撇号；MAI 两轮英文可读但笔画发软，中文"军师联盟"四字明显变形。耗时：MAI 约 35 s，GPT low 28–33 s、medium 45–46 s、high 109–111 s。本题提示词要求保持原图，8 张输出在 5 项清单上无差别；标题字形保真度不在清单内，只作观察。
+
+#### MAI-Image-2.6 对 GPT-Image-2.5（2026-09-21）
+
+**受控变量**
+
+MAI 走 `/mai/v1/images/edits`，GPT 走 `/openai/deployments/gpt-image-2.5-flare/images/edits`。GPT 各档只在 `quality` 上不同，`size` 传 `auto` 由服务自选输出尺寸；MAI 编辑接口没有尺寸参数，同样由服务自选。两边因此处于同一契约：都没有被要求固定尺寸。每轮每个配置各调用一次，共 2 轮；同一账户、同一区域（Sweden Central）、每轮同一会话。
 
 **第1轮:**
 
@@ -409,9 +588,9 @@ MAI 走 `/mai/v1/images/edits`，GPT 走 `/openai/deployments/gpt-image-2.5-flar
 
 **怎么读**: 三个配置在两轮里都换上了博士帽，并且都保住了全部 5 个保持项：人脸、龙袍、侍卫与背景、标题印章、原图宽高比，6 张输出全是 5/5。区别在三处。保真程度：MAI 两张输出的色彩、取景与原图几乎一致，看起来像只重绘了头部；2.5 两档的输出是整幅重新生成，构图与人物身份保持，但纹理和色彩有重绘痕迹。标题字形：2.5 high 两轮都把 THE ADVISORS ALLIANCE 逐字复现；2.5 medium 两轮都把 ADVISORS 写成 ASVISORS，第二轮还把 ALLIANCE 改写成无法辨认的词；MAI 两轮英文逐字可读但笔画偏软。三个配置都没有保住中文"軍師聯盟"四字的字形。输出分辩率：2.5 自选 1674×940（约 157 万像素），MAI 为 1360×768（104 万像素，接口上限 1,048,576）。耗时：MAI 24.8 / 39.6 s，2.5 medium 25.6 / 29.7 s，2.5 high 30.2 / 29.6 s。本题提示词要求保持原图，6 张输出在 5 项清单上无差别；标题字形保真度不在清单内，只作观察。
 
-共 2 轮，每轮每个配置一次调用，两轮只说明结果是否重复出现，不构成统计样本；观察为非盲评，只描述与原图的差异，不是画质评分。每张输出都是重新生成，「保留」指元素在位且可辨，不是像素相同。耗时为客户端 `requests.post` 往返时间。输出 PNG 均无 alpha 通道。
+每次运行 2 轮，每轮每个配置一次调用，两轮只说明结果是否重复出现，不构成统计样本；观察为非盲评，只描述与原图的差异，不是画质评分。每张输出都是重新生成，「保留」指元素在位且可辨，不是像素相同。两次运行不是同一时段，GPT 两代之间的耗时不直接可比。耗时为客户端 `requests.post` 往返时间。输出 PNG 均无 alpha 通道。
 
-[请求记录 第1轮](data/edit-hat-swap-gpt25-20260921/edit-results.json) | [逐图核对 第1轮](data/edit-hat-swap-gpt25-20260921/edit-review.json) | [请求记录 第2轮](data/edit-hat-swap-gpt25-20260921/r2/edit-results.json) | [逐图核对 第2轮](data/edit-hat-swap-gpt25-20260921/r2/edit-review.json) | [标题区域对照图](data/edit-hat-swap-gpt25-20260921/review-compact.png) | [公开复现脚本](scripts/run_edit_hat_swap.py)
+[请求记录 GPT-Image-2 第1轮](data/edit-hat-swap-20260909-auto/edit-results.json) | [逐图核对 GPT-Image-2 第1轮](data/edit-hat-swap-20260909-auto/edit-review.json) | [请求记录 GPT-Image-2 第2轮](data/edit-hat-swap-20260909-auto/r2/edit-results.json) | [逐图核对 GPT-Image-2 第2轮](data/edit-hat-swap-20260909-auto/r2/edit-review.json) | [请求记录 GPT-Image-2.5 第1轮](data/edit-hat-swap-gpt25-20260921/edit-results.json) | [逐图核对 GPT-Image-2.5 第1轮](data/edit-hat-swap-gpt25-20260921/edit-review.json) | [请求记录 GPT-Image-2.5 第2轮](data/edit-hat-swap-gpt25-20260921/r2/edit-results.json) | [逐图核对 GPT-Image-2.5 第2轮](data/edit-hat-swap-gpt25-20260921/r2/edit-review.json) | [标题区域对照图 GPT-Image-2.5](data/edit-hat-swap-gpt25-20260921/review-compact.png) | [公开复现脚本](scripts/run_edit_hat_swap.py)
 
 ## 同会话运行：MAI-Image-2.6 对 GPT-Image-2.5
 
@@ -572,21 +751,49 @@ python data/lenovo-web-grounding-20260908/source/benchmark_5way_v2.py --mai-mode
 python data/lenovo-web-grounding-20260908/source/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --mai-web-grounding both --prompts-csv data/lenovo-web-grounding-20260908/source/prompts.csv --output runs/web-grounding-reproduction
 ```
 
-### 6. 重跑换帽图像编辑
+### 6. 重跑换帽图像编辑（GPT-Image-2）
 
-把 `GPT_DEPLOYMENT` 设为 2.5 部署（本次为 `gpt-image-2.5-flare`），用 `--gpt-quality` 指定档位。第一条只读核验已发布输出；第二条是无凭据 dry-run；接下来两条真实执行两轮；最后一条核对顺序、`size=auto` 与 hash。逐图清单需按已发布方法人工复核，不会自动生成。
+把 `GPT_DEPLOYMENT` 设为要测的部署（本次为 `gpt-image-2`），用 `--gpt-quality` 指定档位。第一条只读核验已发布输出；第二条是无凭据 dry-run；接下来两条真实执行两轮；最后一条核对顺序、`size=auto` 与 hash。逐图清单需按已发布方法人工复核，不会自动生成。
+
+```powershell
+python scripts/summarize_edit_hat_swap.py data/edit-hat-swap-20260909-auto --check
+$env:GPT_DEPLOYMENT = 'gpt-image-2'
+$out = 'runs/edit-hat-swap-gpt-image-2-reproduction'
+python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-20260909-auto/input.jpg --output $out --round 1 --gpt-size auto --gpt-quality low --gpt-quality medium --gpt-quality high --dry-run
+python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-20260909-auto/input.jpg --output $out --round 1 --gpt-size auto --gpt-quality low --gpt-quality medium --gpt-quality high
+python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-20260909-auto/input.jpg --output $out --round 2 --gpt-size auto --gpt-quality low --gpt-quality medium --gpt-quality high
+python scripts/run_edit_hat_swap.py --output $out --check
+```
+
+### 7. 重跑换帽图像编辑（GPT-Image-2.5）
+
+把 `GPT_DEPLOYMENT` 设为要测的部署（本次为 `gpt-image-2.5-flare`），用 `--gpt-quality` 指定档位。第一条只读核验已发布输出；第二条是无凭据 dry-run；接下来两条真实执行两轮；最后一条核对顺序、`size=auto` 与 hash。逐图清单需按已发布方法人工复核，不会自动生成。
 
 ```powershell
 python scripts/summarize_edit_hat_swap.py data/edit-hat-swap-gpt25-20260921 --check
 $env:GPT_DEPLOYMENT = 'gpt-image-2.5-flare'
-$out = 'runs/edit-hat-swap-reproduction'
+$out = 'runs/edit-hat-swap-gpt-image-2.5-flare-reproduction'
 python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-gpt25-20260921/input.jpg --output $out --round 1 --gpt-size auto --gpt-quality medium --gpt-quality high --dry-run
 python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-gpt25-20260921/input.jpg --output $out --round 1 --gpt-size auto --gpt-quality medium --gpt-quality high
 python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-gpt25-20260921/input.jpg --output $out --round 2 --gpt-size auto --gpt-quality medium --gpt-quality high
 python scripts/run_edit_hat_swap.py --output $out --check
 ```
 
-### 7. 重跑 GPT-Image-2.5 两个部署的 low/medium/high
+### 8. 重跑 GPT-Image-2 会话
+
+`--gpt-quality all` 展开为 gpt-image-2 接受的三档。把 `GPT_ENDPOINT`、`GPT_DEPLOYMENT` 指向您的 gpt-image-2 部署；若它与 MAI 不同区域，需在报告里声明，本轮就是这样做的。
+
+```powershell
+python scripts/summarize_paired_run.py data/paired-all-quality-20260907
+$run = 'runs/gpt2-paired-new-run'
+New-Item -ItemType Directory -Path "$run/source" -ErrorAction Stop
+Copy-Item -LiteralPath scripts/benchmark_5way_v2.py -Destination "$run/source/benchmark_5way_v2.py"
+Copy-Item -LiteralPath prompts.csv -Destination "$run/source/prompts.csv"
+python -u scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --gpt-model gpt-image-2 --gpt-quality all --output $run --warmup-only
+python -u scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --gpt-model gpt-image-2 --gpt-quality all --output $run --resume
+```
+
+### 9. 重跑 GPT-Image-2.5 两个部署的 low/medium/high
 
 `--gpt-model` 可重复传入；`--gpt-quality all` 展开为 low、medium、high。客户端对同一部署每 60 秒最多起请 2 次，与 2 RPM 配额对齐；配额更高可改 `RATE_PACING`。
 
@@ -600,7 +807,7 @@ python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-mod
 python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-model gpt-image-2.5-sunburst --gpt-quality all --output $run --resume
 ```
 
-### 8. 重跑 xhigh/max/auto
+### 10. 重跑 xhigh/max/auto
 
 只有 gpt-image-2.5-* 接受这三档。max 单次请求实测 229 秒，执行脚本的请求超时为 900 秒。`auto` 由服务按请求自选档位，实际使用的档位记在每次尝试的 `service_quality`。
 
@@ -614,7 +821,7 @@ python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-mod
 python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-model gpt-image-2.5-sunburst --gpt-quality xhigh --gpt-quality max --gpt-quality auto --output $run --resume
 ```
 
-### 9. 重跑中英文文字渲染并判读
+### 11. 重跑中英文文字渲染并判读
 
 文字渲染用自己的提示词文件（`--prompts-csv`），执行脚本只读第一列。每个部署各自有配额，所以按部署分片跑，判读时用多个 `--run` 合并；判读器拒绝提示词文件不一致的分片。判读需要支持图像输入的 chat 部署，通过 `JUDGE_ENDPOINT`、`JUDGE_DEPLOYMENT`、`AZURE_OPENAI_API_KEY` 提供；先校准，否则它的误差会被算到图像模型头上。`--check` 用归档里的转录重算全部分数，不调用模型。
 
@@ -634,7 +841,7 @@ python -u scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --prompts-csv "
 python scripts/score_text_rendering.py --run $run --prompts data/text-rendering-20260918/prompts-text-rendering.csv --out runs/text-new-run-scored
 ```
 
-### 10. 从自己的账单重算每张图成本
+### 12. 从自己的账单重算每张图成本
 
 第一条从已归档的 Cost Management 响应离线重算 `effective-prices.json`；第二条对您自己的账户发同样的查询（需 `az login`，查询不计费）写入新归档，之后重新渲染就读您的账单。
 
@@ -647,9 +854,26 @@ python scripts/effective_prices.py data/billing-<date> --query --subscription <i
 
 ### 结论边界
 
-本报告只对比 MAI-Image-2.6 与 GPT-Image-2.5（flare 与 sunburst 两个部署，low、medium、high、xhigh、max、auto 档）。耗时与并排图的主线来自同一会话；其余档位来自另外两个日期的会话，表头带日期。MAI 没有传质量参数，不能称为任何 GPT 档位的等价档。11 个场景没有逐图文字评述，画质由读者从并排图判断；文字准确率只覆盖后文两节列出的场景与字符。不覆盖 2K、多图参考、并发压测或其他认证方式。本报告早先版本对比的是 GPT-Image-2；那些归档仍保留为证据（[data/paired-all-quality-20260907](data/paired-all-quality-20260907), [data/mai-image-2.6-20260907](data/mai-image-2.6-20260907), [data/edit-hat-swap-20260908](data/edit-hat-swap-20260908), [data/edit-hat-swap-20260909-auto](data/edit-hat-swap-20260909-auto)），不进入任何表格。
+本报告对比 MAI-Image-2.6、GPT-Image-2（low、medium、high）与 GPT-Image-2.5（flare 与 sunburst 两个部署，low、medium、high、xhigh、max、auto 档）。耗时与并排图的主线来自同一会话；2.5 其余档位来自另外两个日期的会话，表头带日期。GPT-Image-2 的 low、medium、high 来自 2026-09-07 的单独会话，部署在 East US 2、另一个账户，其耗时差含区域因素，不能全归为模型。MAI 没有传质量参数，不能称为任何 GPT 档位的等价档。11 个场景没有逐图文字评述，画质由读者从并排图判断；文字准确率只覆盖后文两节列出的场景与字符。不覆盖 2K、多图参考、并发压测或其他认证方式。以下归档只作证据、不进入任何表格：[data/mai-image-2.6-20260907](data/mai-image-2.6-20260907), [data/edit-hat-swap-20260908](data/edit-hat-swap-20260908)。
 
 证据目录: [data/mai-vs-gpt25-20260920](data/mai-vs-gpt25-20260920). 含原始图片、测量记录、逐次请求、响应元数据和执行时的源码副本；提示词 SHA-256: `be3d628c66a1e4d535d06bcc84246a04aad11f35a48f3133d451fe86283782ce`.
+
+## GPT-Image-2 会话：MAI-Image-2.6 对 GPT-Image-2
+
+**问题**：GPT-Image-2 是上一代，也是目前唯一有公布价格的 GPT 图像模型。MAI 对它的三个档位，出图速度和 token 各是多少。
+
+**受控变量**：同一客户端、同一份 11 题提示词、1024x1024、两轮、四组按固定顺序交错，2026-09-07 单次会话完成。**未受控**：MAI 部署在 Sweden Central，GPT-Image-2 在 East US 2 的另一个账户；耗时差里包含区域与网络因素，无法从本轮数据里剔除。后文 2.5 的同会话运行没有这个问题（同一账户、同一区域）。
+
+| 配置 | 区域 | 成功 / 计划 | 输出 token | 平均耗时 (s) | P50 (s) | 描述性 P95 (s) | USD / 1,000 张 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| MAI-Image-2.6 | Sweden Central | 22 / 22 | 1024 | 45.33 | 38.03 | 79.77 | $38.91 |
+| GPT-Image-2 low | East US 2 | 22 / 22 | 196 | 38.69 | 31.19 | 81.41 | $5.88 |
+| GPT-Image-2 medium | East US 2 | 22 / 22 | 1756 | 65.09 | 64.64 | 74.82 | $52.68 |
+| GPT-Image-2 high | East US 2 | 21 / 22 | 7024 | 175.17 | 171.26 | 215.09 | $210.72 |
+
+**怎么读**：P50 上 MAI 38.03 s 介于 GPT-Image-2 low（31.19 s）与 medium（64.64 s）之间，比 high（171.26 s）快 4.50 倍。token 上 MAI 固定 1,024，同样在 low（196）与 medium（1,756）之间。这两条方向一致，但耗时含区域差，token 不含。
+
+证据目录：[data/paired-all-quality-20260907](data/paired-all-quality-20260907)。提示词 SHA-256：`be3d628c66a1e4d535d06bcc84246a04aad11f35a48f3133d451fe86283782ce`。
 
 ## GPT-Image-2.5 的六个质量档位
 
@@ -676,7 +900,7 @@ python scripts/effective_prices.py data/billing-<date> --query --subscription <i
 
 ## 每张图的实际成本（来自本账户账单）
 
-**问题**：MAI-Image-2.6 到底贵不贵。答案取决于跟 2.5 的哪个质量档位比，而档位之间的算力相差 36 倍。
+**问题**：MAI-Image-2.6 到底贵不贵。答案取决于跟哪个模型的哪个质量档位比，而档位之间的算力相差 36 倍。
 
 **数据来源**：Azure Cost Management 对运行本仓库全部测试的账户（Sweden Central）的实际计费查询，周期 2026-09-04..2026-09-20，字段 `PreTaxCost`。每个模型的输出图 token 单独计费，金额除以计费 token 数得到实际单价。同一账单上 gpt-image-2 的单价与其公布价 $30/1M 完全一致，说明读数准确；GPT-Image-2.5 的价格在定价页上尚未公布，账单是目前唯一的官方数据。
 
@@ -689,11 +913,14 @@ python scripts/effective_prices.py data/billing-<date> --query --subscription <i
 
 | 配置 | token / 张 | USD / 1,000 张 | 相对 MAI |
 | --- | --- | --- | --- |
+| gpt-image-2 low | 196 | $5.88 | 0.15x |
 | gpt-image-2.5 low | 196 | $5.88 | 0.15x |
 | gpt-image-2.5 medium | 439 | $13.17 | 0.34x |
 | MAI-Image-2.6 **(MAI)** | 1,024 | $38.91 | 1.00x |
+| gpt-image-2 medium | 1,756 | $52.68 | 1.35x |
 | gpt-image-2.5 high | 1,756 | $52.68 | 1.35x |
 | gpt-image-2.5 xhigh | 3,122 | $93.66 | 2.41x |
+| gpt-image-2 high | 7,024 | $210.72 | 5.42x |
 | gpt-image-2.5 max | 7,024 | $210.72 | 5.42x |
 
 **怎么读**：按单 token 计，MAI 比 2.5 贵 27%（$38 对 $30）。但 MAI 每张固定 1,024 token，而 2.5 的算力随档位变化。于是 MAI 每千张 $38.91：是 2.5 low（$5.88）的 6.6 倍、medium（$13.17）的 3.0 倍，比 high（$52.68）便宜 26%，比 max（$210.72）便宜 82%。「贵」这个词只有先绑定对比档位才有意义；哪一档与 MAI 画质相当，由并排图回答，不由价格回答。
@@ -726,6 +953,7 @@ python scripts/effective_prices.py data/billing-<date> --query --subscription <i
 
 | 配置 | 英文字符准确率 | 英文整段正确 | 中文字符准确率 | 中文整段正确 |
 | --- | --- | --- | --- | --- |
+| GPT-Image-2 high | 158/158 = 100% | 14/14 = 100% | 68/68 = 100% | 14/14 = 100% |
 | GPT-Image-2.5 Flare high | 158/158 = 100% | 14/14 = 100% | 68/68 = 100% | 14/14 = 100% |
 | GPT-Image-2.5 Flare max | 158/158 = 100% | 14/14 = 100% | 67/68 = 99% | 13/14 = 93% |
 | GPT-Image-2.5 Sunburst high | 158/158 = 100% | 14/14 = 100% | 67/68 = 99% | 13/14 = 93% |
@@ -734,52 +962,52 @@ python scripts/effective_prices.py data/billing-<date> --query --subscription <i
 
 **实际输出**
 
-下面每个场景一张表：列是配置（MAI 与 GPT-Image-2.5 Flare 各档，sunburst 的图在证据目录），行是英文版与中文版；图下给两轮的字符得分和判读器读到的内容。默认展示第一轮的图；若只有第二轮出错，则展示第二轮并标注 (r2)。点击图片看原图。
+下面每个场景一张表：列是本次展示的配置（MAI-Image-2.6、GPT-Image-2 high、GPT-Image-2.5 Flare high、GPT-Image-2.5 Flare max；sunburst 的图在证据目录），行是英文版与中文版；图下给两轮的字符得分和判读器读到的内容。默认展示第一轮的图；若只有第二轮出错，则展示第二轮并标注 (r2)。点击图片看原图。
 
 **P1 — storefront sign**: `GOLDEN CRUST` / `金麦坊`
 
-| 语言 | MAI-Image-2.6 | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare max |
-| --- | --- | --- | --- |
-| 英文 | ![mai-image-2.6 P1 en round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/01_test.png) | ![gpt-image-2.5-flare-high P1 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/01_test.png) | ![gpt-image-2.5-flare-max P1 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/01_test.png) |
-|  | r1 11/11 · r2 11/11<br>完整正确 | r1 11/11 · r2 11/11<br>完整正确 | r1 11/11 · r2 11/11<br>完整正确 |
-| 中文 | ![mai-image-2.6 P1 zh round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/02_test.png) | ![gpt-image-2.5-flare-high P1 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/02_test.png) | ![gpt-image-2.5-flare-max P1 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/02_test.png) |
-|  | r1 3/3 · r2 3/3<br>完整正确 | r1 3/3 · r2 3/3<br>完整正确 | r1 3/3 · r2 3/3<br>完整正确 |
+| 语言 | MAI-Image-2.6 | GPT-Image-2 high | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare max |
+| --- | --- | --- | --- | --- |
+| 英文 | ![mai-image-2.6 P1 en round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/01_test.png) | ![gpt-image-2-high P1 en round 1](data/text-rendering-20260918/gpt-image-2/gpt-image-2-high/r1/01_test.png) | ![gpt-image-2.5-flare-high P1 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/01_test.png) | ![gpt-image-2.5-flare-max P1 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/01_test.png) |
+|  | r1 11/11 · r2 11/11<br>完整正确 | r1 11/11 · r2 11/11<br>完整正确 | r1 11/11 · r2 11/11<br>完整正确 | r1 11/11 · r2 11/11<br>完整正确 |
+| 中文 | ![mai-image-2.6 P1 zh round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/02_test.png) | ![gpt-image-2-high P1 zh round 1](data/text-rendering-20260918/gpt-image-2/gpt-image-2-high/r1/02_test.png) | ![gpt-image-2.5-flare-high P1 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/02_test.png) | ![gpt-image-2.5-flare-max P1 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/02_test.png) |
+|  | r1 3/3 · r2 3/3<br>完整正确 | r1 3/3 · r2 3/3<br>完整正确 | r1 3/3 · r2 3/3<br>完整正确 | r1 3/3 · r2 3/3<br>完整正确 |
 
 **P2 — product label**: `JASMINE GREEN TEA` / `茉莉绿茶`
 
-| 语言 | MAI-Image-2.6 | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare max |
-| --- | --- | --- | --- |
-| 英文 | ![mai-image-2.6 P2 en round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/03_test.png) | ![gpt-image-2.5-flare-high P2 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/03_test.png) | ![gpt-image-2.5-flare-max P2 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/03_test.png) |
-|  | r1 15/15 · r2 15/15<br>完整正确 | r1 15/15 · r2 15/15<br>完整正确 | r1 15/15 · r2 15/15<br>完整正确 |
-| 中文 | ![mai-image-2.6 P2 zh round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/04_test.png) | ![gpt-image-2.5-flare-high P2 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/04_test.png) | ![gpt-image-2.5-flare-max P2 zh round 2](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r2/04_test.png) |
-|  | r1 4/4 · r2 4/4<br>完整正确 | r1 4/4 · r2 4/4<br>完整正确 | r1 4/4 · r2 3/4<br>读到 `茉莉綠茶` (r2) |
+| 语言 | MAI-Image-2.6 | GPT-Image-2 high | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare max |
+| --- | --- | --- | --- | --- |
+| 英文 | ![mai-image-2.6 P2 en round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/03_test.png) | ![gpt-image-2-high P2 en round 1](data/text-rendering-20260918/gpt-image-2/gpt-image-2-high/r1/03_test.png) | ![gpt-image-2.5-flare-high P2 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/03_test.png) | ![gpt-image-2.5-flare-max P2 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/03_test.png) |
+|  | r1 15/15 · r2 15/15<br>完整正确 | r1 15/15 · r2 15/15<br>完整正确 | r1 15/15 · r2 15/15<br>完整正确 | r1 15/15 · r2 15/15<br>完整正确 |
+| 中文 | ![mai-image-2.6 P2 zh round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/04_test.png) | ![gpt-image-2-high P2 zh round 1](data/text-rendering-20260918/gpt-image-2/gpt-image-2-high/r1/04_test.png) | ![gpt-image-2.5-flare-high P2 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/04_test.png) | ![gpt-image-2.5-flare-max P2 zh round 2](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r2/04_test.png) |
+|  | r1 4/4 · r2 4/4<br>完整正确 | r1 4/4 · r2 4/4<br>完整正确 | r1 4/4 · r2 4/4<br>完整正确 | r1 4/4 · r2 3/4<br>读到 `茉莉綠茶` (r2) |
 
 **P3 — poster headline**: `ANNUAL DESIGN SUMMIT 2026` / `2026年度设计峰会`
 
-| 语言 | MAI-Image-2.6 | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare max |
-| --- | --- | --- | --- |
-| 英文 | ![mai-image-2.6 P3 en round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/05_test.png) | ![gpt-image-2.5-flare-high P3 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/05_test.png) | ![gpt-image-2.5-flare-max P3 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/05_test.png) |
-|  | r1 22/22 · r2 22/22<br>完整正确 | r1 22/22 · r2 22/22<br>完整正确 | r1 22/22 · r2 22/22<br>完整正确 |
-| 中文 | ![mai-image-2.6 P3 zh round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/06_test.png) | ![gpt-image-2.5-flare-high P3 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/06_test.png) | ![gpt-image-2.5-flare-max P3 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/06_test.png) |
-|  | r1 10/10 · r2 10/10<br>完整正确 | r1 10/10 · r2 10/10<br>完整正确 | r1 10/10 · r2 10/10<br>完整正确 |
+| 语言 | MAI-Image-2.6 | GPT-Image-2 high | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare max |
+| --- | --- | --- | --- | --- |
+| 英文 | ![mai-image-2.6 P3 en round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/05_test.png) | ![gpt-image-2-high P3 en round 1](data/text-rendering-20260918/gpt-image-2/gpt-image-2-high/r1/05_test.png) | ![gpt-image-2.5-flare-high P3 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/05_test.png) | ![gpt-image-2.5-flare-max P3 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/05_test.png) |
+|  | r1 22/22 · r2 22/22<br>完整正确 | r1 22/22 · r2 22/22<br>完整正确 | r1 22/22 · r2 22/22<br>完整正确 | r1 22/22 · r2 22/22<br>完整正确 |
+| 中文 | ![mai-image-2.6 P3 zh round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/06_test.png) | ![gpt-image-2-high P3 zh round 1](data/text-rendering-20260918/gpt-image-2/gpt-image-2-high/r1/06_test.png) | ![gpt-image-2.5-flare-high P3 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/06_test.png) | ![gpt-image-2.5-flare-max P3 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/06_test.png) |
+|  | r1 10/10 · r2 10/10<br>完整正确 | r1 10/10 · r2 10/10<br>完整正确 | r1 10/10 · r2 10/10<br>完整正确 | r1 10/10 · r2 10/10<br>完整正确 |
 
 **P4 — handwritten note**: `Meeting at 3 PM` / `下午三点开会`
 
-| 语言 | MAI-Image-2.6 | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare max |
-| --- | --- | --- | --- |
-| 英文 | ![mai-image-2.6 P4 en round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/07_test.png) | ![gpt-image-2.5-flare-high P4 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/07_test.png) | ![gpt-image-2.5-flare-max P4 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/07_test.png) |
-|  | r1 12/12 · r2 12/12<br>完整正确 | r1 12/12 · r2 12/12<br>完整正确 | r1 12/12 · r2 12/12<br>完整正确 |
-| 中文 | ![mai-image-2.6 P4 zh round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/08_test.png) | ![gpt-image-2.5-flare-high P4 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/08_test.png) | ![gpt-image-2.5-flare-max P4 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/08_test.png) |
-|  | r1 6/6 · r2 6/6<br>完整正确 | r1 6/6 · r2 6/6<br>完整正确 | r1 6/6 · r2 6/6<br>完整正确 |
+| 语言 | MAI-Image-2.6 | GPT-Image-2 high | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare max |
+| --- | --- | --- | --- | --- |
+| 英文 | ![mai-image-2.6 P4 en round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/07_test.png) | ![gpt-image-2-high P4 en round 1](data/text-rendering-20260918/gpt-image-2/gpt-image-2-high/r1/07_test.png) | ![gpt-image-2.5-flare-high P4 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/07_test.png) | ![gpt-image-2.5-flare-max P4 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/07_test.png) |
+|  | r1 12/12 · r2 12/12<br>完整正确 | r1 12/12 · r2 12/12<br>完整正确 | r1 12/12 · r2 12/12<br>完整正确 | r1 12/12 · r2 12/12<br>完整正确 |
+| 中文 | ![mai-image-2.6 P4 zh round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/08_test.png) | ![gpt-image-2-high P4 zh round 1](data/text-rendering-20260918/gpt-image-2/gpt-image-2-high/r1/08_test.png) | ![gpt-image-2.5-flare-high P4 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/08_test.png) | ![gpt-image-2.5-flare-max P4 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/08_test.png) |
+|  | r1 6/6 · r2 6/6<br>完整正确 | r1 6/6 · r2 6/6<br>完整正确 | r1 6/6 · r2 6/6<br>完整正确 | r1 6/6 · r2 6/6<br>完整正确 |
 
 **P5 — multi-line menu**: `COFFEE 25 / TEA 18 / CAKE 32` / `咖啡 25 / 茶 18 / 蛋糕 32`
 
-| 语言 | MAI-Image-2.6 | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare max |
-| --- | --- | --- | --- |
-| 英文 | ![mai-image-2.6 P5 en round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/09_test.png) | ![gpt-image-2.5-flare-high P5 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/09_test.png) | ![gpt-image-2.5-flare-max P5 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/09_test.png) |
-|  | r1 19/19 · r2 19/19<br>完整正确 | r1 19/19 · r2 19/19<br>完整正确 | r1 19/19 · r2 19/19<br>完整正确 |
-| 中文 | ![mai-image-2.6 P5 zh round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/10_test.png) | ![gpt-image-2.5-flare-high P5 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/10_test.png) | ![gpt-image-2.5-flare-max P5 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/10_test.png) |
-|  | r1 11/11 · r2 11/11<br>完整正确 | r1 11/11 · r2 11/11<br>完整正确 | r1 11/11 · r2 11/11<br>完整正确 |
+| 语言 | MAI-Image-2.6 | GPT-Image-2 high | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare max |
+| --- | --- | --- | --- | --- |
+| 英文 | ![mai-image-2.6 P5 en round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/09_test.png) | ![gpt-image-2-high P5 en round 1](data/text-rendering-20260918/gpt-image-2/gpt-image-2-high/r1/09_test.png) | ![gpt-image-2.5-flare-high P5 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/09_test.png) | ![gpt-image-2.5-flare-max P5 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/09_test.png) |
+|  | r1 19/19 · r2 19/19<br>完整正确 | r1 19/19 · r2 19/19<br>完整正确 | r1 19/19 · r2 19/19<br>完整正确 | r1 19/19 · r2 19/19<br>完整正确 |
+| 中文 | ![mai-image-2.6 P5 zh round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/10_test.png) | ![gpt-image-2-high P5 zh round 1](data/text-rendering-20260918/gpt-image-2/gpt-image-2-high/r1/10_test.png) | ![gpt-image-2.5-flare-high P5 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/10_test.png) | ![gpt-image-2.5-flare-max P5 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/10_test.png) |
+|  | r1 11/11 · r2 11/11<br>完整正确 | r1 11/11 · r2 11/11<br>完整正确 | r1 11/11 · r2 11/11<br>完整正确 | r1 11/11 · r2 11/11<br>完整正确 |
 
 **判读方法**：每张图交给 `gpt-5.6-terra` 读出图中文字，再与目标字符串程序化比对，比对时忽略全部空白。两个口径同时给出：字符准确率取整段转录中与目标最接近的等长窗口逐字符算分，整段正确要求目标串以子串形式完整出现、不给部分分。这是模型判读，不是人工盲评。判读器是 OpenAI 系列模型，而被判的一方也包括 OpenAI 的图像模型；下面的校准只能排除它读不清中文，不能排除它对某一家的风格更宽容，所以每张图都附在下方供人眼复核。
 
@@ -787,7 +1015,7 @@ python scripts/effective_prices.py data/billing-<date> --query --subscription <i
 
 **判读器的误差下限**：把本节同样的目标文字用微软雅黑渲染成图再让判读器读回来，英文 79/79（100.0%），中文 34/34（100.0%），与上表同一套评分规则。也就是说判读器对这些字符没有系统性偏见，上表的差距可以归到生成模型。边界：这只证明判读器能读清晰的横排文字；生成图里扭曲、艺术化或竖排的字更难读，所以上表可能低估、不会高估。校准的渲染图与转录在 [judge-calibration](data/text-rendering-20260918/judge-calibration)，`calibrate_text_judge.py --check` 可离线重算。
 
-**结论边界**：100 个成功样本，覆盖 5 个场景、2 轮、5 个配置。这是指定字符串的拼写准确率，不是排版美观度、字体质量或中文设计感的评价。MAI-Image-2.6 不接受质量参数，它的行只有一个配置。**官方支持范围**：Foundry 模型文档将 MAI-Image-2.6 的 Languages 标为 `en`，中文不在其声明的支持范围内；本节的中文结果是在声明范围之外观察到的行为，不构成产品承诺，也不应被当作已支持的能力来引用。
+**结论边界**：120 个成功样本，覆盖 5 个场景、2 轮、6 个配置。这是指定字符串的拼写准确率，不是排版美观度、字体质量或中文设计感的评价。MAI-Image-2.6 不接受质量参数，它的行只有一个配置。**官方支持范围**：Foundry 模型文档将 MAI-Image-2.6 的 Languages 标为 `en`，中文不在其声明的支持范围内；本节的中文结果是在声明范围之外观察到的行为，不构成产品承诺，也不应被当作已支持的能力来引用。
 
 证据目录：[data/text-rendering-20260918](data/text-rendering-20260918)（含每组拼图 `review/`）。提示词 SHA-256：`51585dcf118fec7b6164eea9fc1115cfd44718035f82c4e9a2252fb45ee4d3a4`。
 
@@ -816,6 +1044,9 @@ python scripts/effective_prices.py data/billing-<date> --query --subscription <i
 
 | 配置 | 英文字符准确率 | 英文整段正确 | 中文字符准确率 | 中文整段正确 |
 | --- | --- | --- | --- | --- |
+| GPT-Image-2 high | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
+| GPT-Image-2 low | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
+| GPT-Image-2 medium | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
 | GPT-Image-2.5 Flare auto | 262/262 = 100% | 14/14 = 100% | 85/86 = 99% | 13/14 = 93% |
 | GPT-Image-2.5 Flare high | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
 | GPT-Image-2.5 Flare low | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
@@ -832,67 +1063,67 @@ python scripts/effective_prices.py data/billing-<date> --query --subscription <i
 
 **实际输出**
 
-下面每个场景一张表：列是配置（MAI 与 GPT-Image-2.5 Flare 各档，sunburst 的图在证据目录），行是英文版与中文版；图下给两轮的字符得分和判读器读到的内容。默认展示第一轮的图；若只有第二轮出错，则展示第二轮并标注 (r2)。点击图片看原图。
+下面每个场景一张表：列是本次展示的配置（MAI-Image-2.6、GPT-Image-2 low、GPT-Image-2 medium、GPT-Image-2 high、GPT-Image-2.5 Flare low、GPT-Image-2.5 Flare medium、GPT-Image-2.5 Flare high、GPT-Image-2.5 Flare xhigh、GPT-Image-2.5 Flare max、GPT-Image-2.5 Flare auto；sunburst 的图在证据目录），行是英文版与中文版；图下给两轮的字符得分和判读器读到的内容。默认展示第一轮的图；若只有第二轮出错，则展示第二轮并标注 (r2)。点击图片看原图。
 
 **H1 — bookstore banner**: `READING LIGHTS THE ROAD AHEAD` / `阅读照亮前行的道路`
 
-| 语言 | MAI-Image-2.6 | GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare xhigh | GPT-Image-2.5 Flare max | GPT-Image-2.5 Flare auto |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 英文 | ![mai-image-2.6 H1 en round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/01_test.png) | ![gpt-image-2.5-flare-low H1 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/01_test.png) | ![gpt-image-2.5-flare-medium H1 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/01_test.png) | ![gpt-image-2.5-flare-high H1 en round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/01_test.png) | ![gpt-image-2.5-flare-xhigh H1 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/01_test.png) | ![gpt-image-2.5-flare-max H1 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/01_test.png) | ![gpt-image-2.5-flare-auto H1 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/01_test.png) |
-|  | r1 25/25 · r2 25/25<br>完整正确 | r1 25/25 · r2 25/25<br>完整正确 | r1 25/25 · r2 25/25<br>完整正确 | r1 25/25 · r2 25/25<br>完整正确 | r1 25/25 · r2 25/25<br>完整正确 | r1 25/25 · r2 25/25<br>完整正确 | r1 25/25 · r2 25/25<br>完整正确 |
-| 中文 | ![mai-image-2.6 H1 zh round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/02_test.png) | ![gpt-image-2.5-flare-low H1 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/02_test.png) | ![gpt-image-2.5-flare-medium H1 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/02_test.png) | ![gpt-image-2.5-flare-high H1 zh round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/02_test.png) | ![gpt-image-2.5-flare-xhigh H1 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/02_test.png) | ![gpt-image-2.5-flare-max H1 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/02_test.png) | ![gpt-image-2.5-flare-auto H1 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/02_test.png) |
-|  | r1 9/9 · r2 9/9<br>完整正确 | r1 9/9 · r2 9/9<br>完整正确 | r1 9/9 · r2 9/9<br>完整正确 | r1 9/9 · r2 9/9<br>完整正确 | r1 9/9 · r2 9/9<br>完整正确 | r1 9/9 · r2 9/9<br>完整正确 | r1 9/9 · r2 9/9<br>完整正确 |
+| 语言 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high | GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare xhigh | GPT-Image-2.5 Flare max | GPT-Image-2.5 Flare auto |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 英文 | ![mai-image-2.6 H1 en round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/01_test.png) | ![gpt-image-2-low H1 en round 1](data/text-hard-20260919/fill-gpt-image-2/gpt-image-2-low/r1/01_test.png) | ![gpt-image-2-medium H1 en round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-medium/r1/01_test.png) | ![gpt-image-2-high H1 en round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-high/r1/01_test.png) | ![gpt-image-2.5-flare-low H1 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/01_test.png) | ![gpt-image-2.5-flare-medium H1 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/01_test.png) | ![gpt-image-2.5-flare-high H1 en round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/01_test.png) | ![gpt-image-2.5-flare-xhigh H1 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/01_test.png) | ![gpt-image-2.5-flare-max H1 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/01_test.png) | ![gpt-image-2.5-flare-auto H1 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/01_test.png) |
+|  | r1 25/25 · r2 25/25<br>完整正确 | r1 25/25 · r2 25/25<br>完整正确 | r1 25/25 · r2 25/25<br>完整正确 | r1 25/25 · r2 25/25<br>完整正确 | r1 25/25 · r2 25/25<br>完整正确 | r1 25/25 · r2 25/25<br>完整正确 | r1 25/25 · r2 25/25<br>完整正确 | r1 25/25 · r2 25/25<br>完整正确 | r1 25/25 · r2 25/25<br>完整正确 | r1 25/25 · r2 25/25<br>完整正确 |
+| 中文 | ![mai-image-2.6 H1 zh round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/02_test.png) | ![gpt-image-2-low H1 zh round 1](data/text-hard-20260919/fill-gpt-image-2/gpt-image-2-low/r1/02_test.png) | ![gpt-image-2-medium H1 zh round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-medium/r1/02_test.png) | ![gpt-image-2-high H1 zh round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-high/r1/02_test.png) | ![gpt-image-2.5-flare-low H1 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/02_test.png) | ![gpt-image-2.5-flare-medium H1 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/02_test.png) | ![gpt-image-2.5-flare-high H1 zh round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/02_test.png) | ![gpt-image-2.5-flare-xhigh H1 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/02_test.png) | ![gpt-image-2.5-flare-max H1 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/02_test.png) | ![gpt-image-2.5-flare-auto H1 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/02_test.png) |
+|  | r1 9/9 · r2 9/9<br>完整正确 | r1 9/9 · r2 9/9<br>完整正确 | r1 9/9 · r2 9/9<br>完整正确 | r1 9/9 · r2 9/9<br>完整正确 | r1 9/9 · r2 9/9<br>完整正确 | r1 9/9 · r2 9/9<br>完整正确 | r1 9/9 · r2 9/9<br>完整正确 | r1 9/9 · r2 9/9<br>完整正确 | r1 9/9 · r2 9/9<br>完整正确 | r1 9/9 · r2 9/9<br>完整正确 |
 
 **H2 — tea packaging**: `GREEN TEA FROM YUNNAN CLOUDS` / `云南绿茶发源地`
 
-| 语言 | MAI-Image-2.6 | GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare xhigh | GPT-Image-2.5 Flare max | GPT-Image-2.5 Flare auto |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 英文 | ![mai-image-2.6 H2 en round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/03_test.png) | ![gpt-image-2.5-flare-low H2 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/03_test.png) | ![gpt-image-2.5-flare-medium H2 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/03_test.png) | ![gpt-image-2.5-flare-high H2 en round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/03_test.png) | ![gpt-image-2.5-flare-xhigh H2 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/03_test.png) | ![gpt-image-2.5-flare-max H2 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/03_test.png) | ![gpt-image-2.5-flare-auto H2 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/03_test.png) |
-|  | r1 24/24 · r2 24/24<br>完整正确 | r1 24/24 · r2 24/24<br>完整正确 | r1 24/24 · r2 24/24<br>完整正确 | r1 24/24 · r2 24/24<br>完整正确 | r1 24/24 · r2 24/24<br>完整正确 | r1 24/24 · r2 24/24<br>完整正确 | r1 24/24 · r2 24/24<br>完整正确 |
-| 中文 | ![mai-image-2.6 H2 zh round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/04_test.png) | ![gpt-image-2.5-flare-low H2 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/04_test.png) | ![gpt-image-2.5-flare-medium H2 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/04_test.png) | ![gpt-image-2.5-flare-high H2 zh round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/04_test.png) | ![gpt-image-2.5-flare-xhigh H2 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/04_test.png) | ![gpt-image-2.5-flare-max H2 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/04_test.png) | ![gpt-image-2.5-flare-auto H2 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/04_test.png) |
-|  | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 |
+| 语言 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high | GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare xhigh | GPT-Image-2.5 Flare max | GPT-Image-2.5 Flare auto |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 英文 | ![mai-image-2.6 H2 en round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/03_test.png) | ![gpt-image-2-low H2 en round 1](data/text-hard-20260919/fill-gpt-image-2/gpt-image-2-low/r1/03_test.png) | ![gpt-image-2-medium H2 en round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-medium/r1/03_test.png) | ![gpt-image-2-high H2 en round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-high/r1/03_test.png) | ![gpt-image-2.5-flare-low H2 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/03_test.png) | ![gpt-image-2.5-flare-medium H2 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/03_test.png) | ![gpt-image-2.5-flare-high H2 en round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/03_test.png) | ![gpt-image-2.5-flare-xhigh H2 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/03_test.png) | ![gpt-image-2.5-flare-max H2 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/03_test.png) | ![gpt-image-2.5-flare-auto H2 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/03_test.png) |
+|  | r1 24/24 · r2 24/24<br>完整正确 | r1 24/24 · r2 24/24<br>完整正确 | r1 24/24 · r2 24/24<br>完整正确 | r1 24/24 · r2 24/24<br>完整正确 | r1 24/24 · r2 24/24<br>完整正确 | r1 24/24 · r2 24/24<br>完整正确 | r1 24/24 · r2 24/24<br>完整正确 | r1 24/24 · r2 24/24<br>完整正确 | r1 24/24 · r2 24/24<br>完整正确 | r1 24/24 · r2 24/24<br>完整正确 |
+| 中文 | ![mai-image-2.6 H2 zh round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/04_test.png) | ![gpt-image-2-low H2 zh round 1](data/text-hard-20260919/fill-gpt-image-2/gpt-image-2-low/r1/04_test.png) | ![gpt-image-2-medium H2 zh round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-medium/r1/04_test.png) | ![gpt-image-2-high H2 zh round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-high/r1/04_test.png) | ![gpt-image-2.5-flare-low H2 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/04_test.png) | ![gpt-image-2.5-flare-medium H2 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/04_test.png) | ![gpt-image-2.5-flare-high H2 zh round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/04_test.png) | ![gpt-image-2.5-flare-xhigh H2 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/04_test.png) | ![gpt-image-2.5-flare-max H2 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/04_test.png) | ![gpt-image-2.5-flare-auto H2 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/04_test.png) |
+|  | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 |
 
 **H3 — street plaque**: `EAST GATE No. 18 THIRD FLOOR` / `东门大街18号三楼`
 
-| 语言 | MAI-Image-2.6 | GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare xhigh | GPT-Image-2.5 Flare max | GPT-Image-2.5 Flare auto |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 英文 | ![mai-image-2.6 H3 en round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/05_test.png) | ![gpt-image-2.5-flare-low H3 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/05_test.png) | ![gpt-image-2.5-flare-medium H3 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/05_test.png) | ![gpt-image-2.5-flare-high H3 en round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/05_test.png) | ![gpt-image-2.5-flare-xhigh H3 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/05_test.png) | ![gpt-image-2.5-flare-max H3 en round 2](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r2/05_test.png) | ![gpt-image-2.5-flare-auto H3 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/05_test.png) |
-|  | r1 23/23 · r2 23/23<br>完整正确 | r1 23/23 · r2 23/23<br>完整正确 | r1 23/23 · r2 23/23<br>完整正确 | r1 23/23 · r2 23/23<br>完整正确 | r1 23/23 · r2 23/23<br>完整正确 | r2 23/23<br>完整正确 (r2) | r1 23/23 · r2 23/23<br>完整正确 |
-| 中文 | ![mai-image-2.6 H3 zh round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/06_test.png) | ![gpt-image-2.5-flare-low H3 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/06_test.png) | ![gpt-image-2.5-flare-medium H3 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/06_test.png) | ![gpt-image-2.5-flare-high H3 zh round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/06_test.png) | ![gpt-image-2.5-flare-xhigh H3 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/06_test.png) | ![gpt-image-2.5-flare-max H3 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/06_test.png) | ![gpt-image-2.5-flare-auto H3 zh round 2](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r2/06_test.png) |
-|  | r1 9/9 · r2 9/9<br>完整正确 | r1 9/9 · r2 9/9<br>完整正确 | r1 9/9 · r2 9/9<br>完整正确 | r1 9/9 · r2 9/9<br>完整正确 | r1 9/9 · r2 9/9<br>完整正确 | r1 9/9 · r2 9/9<br>完整正确 | r1 9/9 · r2 8/9<br>读到 `东门大街18号二楼` (r2) |
+| 语言 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high | GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare xhigh | GPT-Image-2.5 Flare max | GPT-Image-2.5 Flare auto |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 英文 | ![mai-image-2.6 H3 en round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/05_test.png) | ![gpt-image-2-low H3 en round 1](data/text-hard-20260919/fill-gpt-image-2/gpt-image-2-low/r1/05_test.png) | ![gpt-image-2-medium H3 en round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-medium/r1/05_test.png) | ![gpt-image-2-high H3 en round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-high/r1/05_test.png) | ![gpt-image-2.5-flare-low H3 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/05_test.png) | ![gpt-image-2.5-flare-medium H3 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/05_test.png) | ![gpt-image-2.5-flare-high H3 en round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/05_test.png) | ![gpt-image-2.5-flare-xhigh H3 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/05_test.png) | ![gpt-image-2.5-flare-max H3 en round 2](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r2/05_test.png) | ![gpt-image-2.5-flare-auto H3 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/05_test.png) |
+|  | r1 23/23 · r2 23/23<br>完整正确 | r1 23/23 · r2 23/23<br>完整正确 | r1 23/23 · r2 23/23<br>完整正确 | r1 23/23 · r2 23/23<br>完整正确 | r1 23/23 · r2 23/23<br>完整正确 | r1 23/23 · r2 23/23<br>完整正确 | r1 23/23 · r2 23/23<br>完整正确 | r1 23/23 · r2 23/23<br>完整正确 | r2 23/23<br>完整正确 (r2) | r1 23/23 · r2 23/23<br>完整正确 |
+| 中文 | ![mai-image-2.6 H3 zh round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/06_test.png) | ![gpt-image-2-low H3 zh round 1](data/text-hard-20260919/fill-gpt-image-2/gpt-image-2-low/r1/06_test.png) | ![gpt-image-2-medium H3 zh round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-medium/r1/06_test.png) | ![gpt-image-2-high H3 zh round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-high/r1/06_test.png) | ![gpt-image-2.5-flare-low H3 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/06_test.png) | ![gpt-image-2.5-flare-medium H3 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/06_test.png) | ![gpt-image-2.5-flare-high H3 zh round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/06_test.png) | ![gpt-image-2.5-flare-xhigh H3 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/06_test.png) | ![gpt-image-2.5-flare-max H3 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/06_test.png) | ![gpt-image-2.5-flare-auto H3 zh round 2](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r2/06_test.png) |
+|  | r1 9/9 · r2 9/9<br>完整正确 | r1 9/9 · r2 9/9<br>完整正确 | r1 9/9 · r2 9/9<br>完整正确 | r1 9/9 · r2 9/9<br>完整正确 | r1 9/9 · r2 9/9<br>完整正确 | r1 9/9 · r2 9/9<br>完整正确 | r1 9/9 · r2 9/9<br>完整正确 | r1 9/9 · r2 9/9<br>完整正确 | r1 9/9 · r2 9/9<br>完整正确 | r1 9/9 · r2 8/9<br>读到 `东门大街18号二楼` (r2) |
 
 **H4 — calligraphy scroll**: `STILL WATERS RUN DEEP` / `宁静致远`
 
-| 语言 | MAI-Image-2.6 | GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare xhigh | GPT-Image-2.5 Flare max | GPT-Image-2.5 Flare auto |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 英文 | ![mai-image-2.6 H4 en round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/07_test.png) | ![gpt-image-2.5-flare-low H4 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/07_test.png) | ![gpt-image-2.5-flare-medium H4 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/07_test.png) | ![gpt-image-2.5-flare-high H4 en round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/07_test.png) | ![gpt-image-2.5-flare-xhigh H4 en round 2](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r2/07_test.png) | ![gpt-image-2.5-flare-max H4 en round 2](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r2/07_test.png) | ![gpt-image-2.5-flare-auto H4 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/07_test.png) |
-|  | r1 18/18 · r2 18/18<br>完整正确 | r1 18/18 · r2 18/18<br>完整正确 | r1 18/18 · r2 18/18<br>完整正确 | r1 18/18 · r2 18/18<br>完整正确 | r1 18/18 · r2 16/18<br>读到 `STILLWATERDEEP` (r2) | r1 18/18 · r2 16/18<br>读到 `STILLWATERSDEEP` (r2) | r1 18/18 · r2 18/18<br>完整正确 |
-| 中文 | ![mai-image-2.6 H4 zh round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/08_test.png) | ![gpt-image-2.5-flare-low H4 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/08_test.png) | ![gpt-image-2.5-flare-medium H4 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/08_test.png) | ![gpt-image-2.5-flare-high H4 zh round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/08_test.png) | ![gpt-image-2.5-flare-xhigh H4 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/08_test.png) | ![gpt-image-2.5-flare-max H4 zh round 2](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r2/08_test.png) | ![gpt-image-2.5-flare-auto H4 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/08_test.png) |
-|  | r1 4/4 · r2 4/4<br>完整正确 | r1 4/4 · r2 4/4<br>完整正确 | r1 4/4 · r2 4/4<br>完整正确 | r1 4/4 · r2 4/4<br>完整正确 | r1 4/4 · r2 4/4<br>完整正确 | r2 4/4<br>完整正确 (r2) | r1 4/4 · r2 4/4<br>完整正确 |
+| 语言 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high | GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare xhigh | GPT-Image-2.5 Flare max | GPT-Image-2.5 Flare auto |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 英文 | ![mai-image-2.6 H4 en round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/07_test.png) | ![gpt-image-2-low H4 en round 1](data/text-hard-20260919/fill-gpt-image-2/gpt-image-2-low/r1/07_test.png) | ![gpt-image-2-medium H4 en round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-medium/r1/07_test.png) | ![gpt-image-2-high H4 en round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-high/r1/07_test.png) | ![gpt-image-2.5-flare-low H4 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/07_test.png) | ![gpt-image-2.5-flare-medium H4 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/07_test.png) | ![gpt-image-2.5-flare-high H4 en round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/07_test.png) | ![gpt-image-2.5-flare-xhigh H4 en round 2](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r2/07_test.png) | ![gpt-image-2.5-flare-max H4 en round 2](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r2/07_test.png) | ![gpt-image-2.5-flare-auto H4 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/07_test.png) |
+|  | r1 18/18 · r2 18/18<br>完整正确 | r1 18/18 · r2 18/18<br>完整正确 | r1 18/18 · r2 18/18<br>完整正确 | r1 18/18 · r2 18/18<br>完整正确 | r1 18/18 · r2 18/18<br>完整正确 | r1 18/18 · r2 18/18<br>完整正确 | r1 18/18 · r2 18/18<br>完整正确 | r1 18/18 · r2 16/18<br>读到 `STILLWATERDEEP` (r2) | r1 18/18 · r2 16/18<br>读到 `STILLWATERSDEEP` (r2) | r1 18/18 · r2 18/18<br>完整正确 |
+| 中文 | ![mai-image-2.6 H4 zh round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/08_test.png) | ![gpt-image-2-low H4 zh round 1](data/text-hard-20260919/fill-gpt-image-2/gpt-image-2-low/r1/08_test.png) | ![gpt-image-2-medium H4 zh round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-medium/r1/08_test.png) | ![gpt-image-2-high H4 zh round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-high/r1/08_test.png) | ![gpt-image-2.5-flare-low H4 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/08_test.png) | ![gpt-image-2.5-flare-medium H4 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/08_test.png) | ![gpt-image-2.5-flare-high H4 zh round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/08_test.png) | ![gpt-image-2.5-flare-xhigh H4 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/08_test.png) | ![gpt-image-2.5-flare-max H4 zh round 2](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r2/08_test.png) | ![gpt-image-2.5-flare-auto H4 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/08_test.png) |
+|  | r1 4/4 · r2 4/4<br>完整正确 | r1 4/4 · r2 4/4<br>完整正确 | r1 4/4 · r2 4/4<br>完整正确 | r1 4/4 · r2 4/4<br>完整正确 | r1 4/4 · r2 4/4<br>完整正确 | r1 4/4 · r2 4/4<br>完整正确 | r1 4/4 · r2 4/4<br>完整正确 | r1 4/4 · r2 4/4<br>完整正确 | r2 4/4<br>完整正确 (r2) | r1 4/4 · r2 4/4<br>完整正确 |
 
 **H5 — conference badge**: `ZHANG WEI / SENIOR ARCHITECT` / `张伟 / 高级架构师`
 
-| 语言 | MAI-Image-2.6 | GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare xhigh | GPT-Image-2.5 Flare max | GPT-Image-2.5 Flare auto |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 英文 | ![mai-image-2.6 H5 en round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/09_test.png) | ![gpt-image-2.5-flare-low H5 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/09_test.png) | ![gpt-image-2.5-flare-medium H5 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/09_test.png) | ![gpt-image-2.5-flare-high H5 en round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/09_test.png) | ![gpt-image-2.5-flare-xhigh H5 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/09_test.png) | ![gpt-image-2.5-flare-max H5 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/09_test.png) | ![gpt-image-2.5-flare-auto H5 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/09_test.png) |
-|  | r1 23/23 · r2 23/23<br>完整正确 | r1 23/23 · r2 23/23<br>完整正确 | r1 23/23 · r2 23/23<br>完整正确 | r1 23/23 · r2 23/23<br>完整正确 | r1 23/23 · r2 23/23<br>完整正确 | r1 23/23 · r2 23/23<br>完整正确 | r1 23/23 · r2 23/23<br>完整正确 |
-| 中文 | ![mai-image-2.6 H5 zh round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/10_test.png) | ![gpt-image-2.5-flare-low H5 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/10_test.png) | ![gpt-image-2.5-flare-medium H5 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/10_test.png) | ![gpt-image-2.5-flare-high H5 zh round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/10_test.png) | ![gpt-image-2.5-flare-xhigh H5 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/10_test.png) | ![gpt-image-2.5-flare-max H5 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/10_test.png) | ![gpt-image-2.5-flare-auto H5 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/10_test.png) |
-|  | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 |
+| 语言 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high | GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare xhigh | GPT-Image-2.5 Flare max | GPT-Image-2.5 Flare auto |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 英文 | ![mai-image-2.6 H5 en round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/09_test.png) | ![gpt-image-2-low H5 en round 1](data/text-hard-20260919/fill-gpt-image-2/gpt-image-2-low/r1/09_test.png) | ![gpt-image-2-medium H5 en round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-medium/r1/09_test.png) | ![gpt-image-2-high H5 en round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-high/r1/09_test.png) | ![gpt-image-2.5-flare-low H5 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/09_test.png) | ![gpt-image-2.5-flare-medium H5 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/09_test.png) | ![gpt-image-2.5-flare-high H5 en round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/09_test.png) | ![gpt-image-2.5-flare-xhigh H5 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/09_test.png) | ![gpt-image-2.5-flare-max H5 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/09_test.png) | ![gpt-image-2.5-flare-auto H5 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/09_test.png) |
+|  | r1 23/23 · r2 23/23<br>完整正确 | r1 23/23 · r2 23/23<br>完整正确 | r1 23/23 · r2 23/23<br>完整正确 | r1 23/23 · r2 23/23<br>完整正确 | r1 23/23 · r2 23/23<br>完整正确 | r1 23/23 · r2 23/23<br>完整正确 | r1 23/23 · r2 23/23<br>完整正确 | r1 23/23 · r2 23/23<br>完整正确 | r1 23/23 · r2 23/23<br>完整正确 | r1 23/23 · r2 23/23<br>完整正确 |
+| 中文 | ![mai-image-2.6 H5 zh round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/10_test.png) | ![gpt-image-2-low H5 zh round 1](data/text-hard-20260919/fill-gpt-image-2/gpt-image-2-low/r1/10_test.png) | ![gpt-image-2-medium H5 zh round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-medium/r1/10_test.png) | ![gpt-image-2-high H5 zh round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-high/r1/10_test.png) | ![gpt-image-2.5-flare-low H5 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/10_test.png) | ![gpt-image-2.5-flare-medium H5 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/10_test.png) | ![gpt-image-2.5-flare-high H5 zh round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/10_test.png) | ![gpt-image-2.5-flare-xhigh H5 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/10_test.png) | ![gpt-image-2.5-flare-max H5 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/10_test.png) | ![gpt-image-2.5-flare-auto H5 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/10_test.png) |
+|  | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 |
 
 **H6 — handwritten whiteboard**: `SHIP IT BY FRIDAY NOON` / `周五中午前发布`
 
-| 语言 | MAI-Image-2.6 | GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare xhigh | GPT-Image-2.5 Flare max | GPT-Image-2.5 Flare auto |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 英文 | ![mai-image-2.6 H6 en round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/11_test.png) | ![gpt-image-2.5-flare-low H6 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/11_test.png) | ![gpt-image-2.5-flare-medium H6 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/11_test.png) | ![gpt-image-2.5-flare-high H6 en round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/11_test.png) | ![gpt-image-2.5-flare-xhigh H6 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/11_test.png) | ![gpt-image-2.5-flare-max H6 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/11_test.png) | ![gpt-image-2.5-flare-auto H6 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/11_test.png) |
-|  | r1 18/18 · r2 18/18<br>完整正确 | r1 18/18 · r2 18/18<br>完整正确 | r1 18/18 · r2 18/18<br>完整正确 | r1 18/18 · r2 18/18<br>完整正确 | r1 18/18 · r2 18/18<br>完整正确 | r1 18/18 · r2 18/18<br>完整正确 | r1 18/18 · r2 18/18<br>完整正确 |
-| 中文 | ![mai-image-2.6 H6 zh round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/12_test.png) | ![gpt-image-2.5-flare-low H6 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/12_test.png) | ![gpt-image-2.5-flare-medium H6 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/12_test.png) | ![gpt-image-2.5-flare-high H6 zh round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/12_test.png) | ![gpt-image-2.5-flare-xhigh H6 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/12_test.png) | ![gpt-image-2.5-flare-max H6 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/12_test.png) | ![gpt-image-2.5-flare-auto H6 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/12_test.png) |
-|  | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 |
+| 语言 | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high | GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare xhigh | GPT-Image-2.5 Flare max | GPT-Image-2.5 Flare auto |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 英文 | ![mai-image-2.6 H6 en round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/11_test.png) | ![gpt-image-2-low H6 en round 1](data/text-hard-20260919/fill-gpt-image-2/gpt-image-2-low/r1/11_test.png) | ![gpt-image-2-medium H6 en round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-medium/r1/11_test.png) | ![gpt-image-2-high H6 en round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-high/r1/11_test.png) | ![gpt-image-2.5-flare-low H6 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/11_test.png) | ![gpt-image-2.5-flare-medium H6 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/11_test.png) | ![gpt-image-2.5-flare-high H6 en round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/11_test.png) | ![gpt-image-2.5-flare-xhigh H6 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/11_test.png) | ![gpt-image-2.5-flare-max H6 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/11_test.png) | ![gpt-image-2.5-flare-auto H6 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/11_test.png) |
+|  | r1 18/18 · r2 18/18<br>完整正确 | r1 18/18 · r2 18/18<br>完整正确 | r1 18/18 · r2 18/18<br>完整正确 | r1 18/18 · r2 18/18<br>完整正确 | r1 18/18 · r2 18/18<br>完整正确 | r1 18/18 · r2 18/18<br>完整正确 | r1 18/18 · r2 18/18<br>完整正确 | r1 18/18 · r2 18/18<br>完整正确 | r1 18/18 · r2 18/18<br>完整正确 | r1 18/18 · r2 18/18<br>完整正确 |
+| 中文 | ![mai-image-2.6 H6 zh round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/12_test.png) | ![gpt-image-2-low H6 zh round 1](data/text-hard-20260919/fill-gpt-image-2/gpt-image-2-low/r1/12_test.png) | ![gpt-image-2-medium H6 zh round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-medium/r1/12_test.png) | ![gpt-image-2-high H6 zh round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-high/r1/12_test.png) | ![gpt-image-2.5-flare-low H6 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/12_test.png) | ![gpt-image-2.5-flare-medium H6 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/12_test.png) | ![gpt-image-2.5-flare-high H6 zh round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/12_test.png) | ![gpt-image-2.5-flare-xhigh H6 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/12_test.png) | ![gpt-image-2.5-flare-max H6 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/12_test.png) | ![gpt-image-2.5-flare-auto H6 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/12_test.png) |
+|  | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 | r1 7/7 · r2 7/7<br>完整正确 |
 
 **判读方法**：每张图交给 `gpt-5.6-terra` 读出图中文字，再与目标字符串程序化比对，比对时忽略全部空白。两个口径同时给出：字符准确率取整段转录中与目标最接近的等长窗口逐字符算分，整段正确要求目标串以子串形式完整出现、不给部分分。这是模型判读，不是人工盲评。判读器是 OpenAI 系列模型，而被判的一方也包括 OpenAI 的图像模型；下面的校准只能排除它读不清中文，不能排除它对某一家的风格更宽容，所以每张图都附在下方供人眼复核。
 
 **判读器的误差下限**：把本节同样的目标文字用微软雅黑渲染成图再让判读器读回来，英文 131/131（100.0%），中文 43/43（100.0%），与上表同一套评分规则。也就是说判读器对这些字符没有系统性偏见，上表的差距可以归到生成模型。边界：这只证明判读器能读清晰的横排文字；生成图里扭曲、艺术化或竖排的字更难读，所以上表可能低估、不会高估。校准的渲染图与转录在 [judge-calibration](data/text-hard-20260919/judge-calibration)，`calibrate_text_judge.py --check` 可离线重算。
 
-**结论边界**：310 个成功样本，覆盖 6 个场景、2 轮、13 个配置。这是指定字符串的拼写准确率，不是排版美观度、字体质量或中文设计感的评价。MAI-Image-2.6 不接受质量参数，它的行只有一个配置。**官方支持范围**：Foundry 模型文档将 MAI-Image-2.6 的 Languages 标为 `en`，中文不在其声明的支持范围内；本节的中文结果是在声明范围之外观察到的行为，不构成产品承诺，也不应被当作已支持的能力来引用。
+**结论边界**：382 个成功样本，覆盖 6 个场景、2 轮、16 个配置。这是指定字符串的拼写准确率，不是排版美观度、字体质量或中文设计感的评价。MAI-Image-2.6 不接受质量参数，它的行只有一个配置。**官方支持范围**：Foundry 模型文档将 MAI-Image-2.6 的 Languages 标为 `en`，中文不在其声明的支持范围内；本节的中文结果是在声明范围之外观察到的行为，不构成产品承诺，也不应被当作已支持的能力来引用。
 
 证据目录：[data/text-hard-20260919](data/text-hard-20260919)（含每组拼图 `review/`）。提示词 SHA-256：`ccc4d655f4df2c664f261bb5d42277d7ecfb1f351cf0bf23c7a74bd77790d48b`。
 

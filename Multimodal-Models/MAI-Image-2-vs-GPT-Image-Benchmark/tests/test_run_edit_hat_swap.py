@@ -99,9 +99,11 @@ class PublicEditRunnerTests(unittest.TestCase):
             text = (ROOT / filename).read_text("utf-8")
             self.assertIn(heading, text, filename)
             self.assertIn("scripts/run_edit_hat_swap.py", text, filename)
+            # One reproduction block per GPT generation that was measured.
             self.assertIn("$env:GPT_DEPLOYMENT = 'gpt-image-2.5-flare'", text, filename)
+            self.assertIn("$env:GPT_DEPLOYMENT = 'gpt-image-2'", text, filename)
             self.assertIn("--gpt-size auto --gpt-quality medium --gpt-quality high --dry-run", text, filename)
-            self.assertIn("--round 2 --gpt-size auto --gpt-quality medium --gpt-quality high", text, filename)
+            self.assertIn("--gpt-size auto --gpt-quality low --gpt-quality medium --gpt-quality high", text, filename)
             self.assertIn("--output $out --check", text, filename)
 
     def test_edit_scenario_is_not_excluded_by_the_report_boundary(self):
@@ -111,13 +113,12 @@ class PublicEditRunnerTests(unittest.TestCase):
             self.assertNotIn("excluding 2K, editing", text, filename)
             self.assertNotIn("不包括 2K、图像编辑", text, filename)
 
-    def test_retired_gpt_image_2_edit_outputs_are_not_rendered(self):
-        """The GPT-Image-2 edit runs (including the forced-square mistake) are evidence only."""
+    def test_forced_square_edit_outputs_are_never_rendered(self):
+        """The square outputs came from this test's own parameter; only the size=auto runs are shown."""
         for filename in ("README.md", "README-CN.md"):
             text = (ROOT / filename).read_text("utf-8")
             for target in re.findall(r"!\[[^\]]*\]\(([^)]+)\)", text):
-                self.assertNotIn("edit-hat-swap-20260908", target, filename)
-                self.assertNotIn("edit-hat-swap-20260909-auto", target, filename)
+                self.assertNotIn("edit-hat-swap-20260908/", target, filename)
             self.assertNotIn("size-protocol-comparison", text, filename)
 
     def test_opening_uses_corrected_result_and_stable_how_to_anchor(self):
@@ -132,8 +133,6 @@ class PublicEditRunnerTests(unittest.TestCase):
             self.assertIn(f"Tests-{expected_count}%20offline", text, filename)
             self.assertNotIn("multi-image input editing", text, filename)
             self.assertNotIn("多图输入编辑两项能力实测", text, filename)
-            self.assertNotIn("GPT-Image-2 low", text, filename)
-            self.assertNotIn("GPT-Image-2 / 2.5", text, filename)
 
 
 if __name__ == "__main__":

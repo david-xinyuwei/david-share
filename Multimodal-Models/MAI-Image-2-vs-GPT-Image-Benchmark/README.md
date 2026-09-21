@@ -1,34 +1,36 @@
-# MAI-Image-2.6 vs GPT-Image-2.5: All Quality Tiers
+# MAI-Image-2.6 vs GPT-Image-2 / 2.5: All Quality Tiers
 
-[![Models](https://img.shields.io/badge/Models-MAI--Image--2.6%20vs%20GPT--Image--2.5-0067b8)](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image) [![Samples](https://img.shields.io/badge/Samples-850%20measured-2e7d32)](data) ![Resolution](https://img.shields.io/badge/Resolution-1024%C3%971024-455a64) ![MAI version](https://img.shields.io/badge/MAI%20version-2026--07--31-6a1b9a) ![Data through](https://img.shields.io/badge/Data%20through-2026--09--21-37474f) [![Status](https://img.shields.io/badge/Status-Preview%20%C2%B7%20no%20SLA-b26500)](https://azure.microsoft.com/support/legal/preview-supplemental-terms/) [![Tests](https://img.shields.io/badge/Tests-87%20offline-00695c)](tests)
+[![Models](https://img.shields.io/badge/Models-MAI--Image--2.6%20vs%20GPT--Image--2%20%2F%202.5-0067b8)](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image) [![Samples](https://img.shields.io/badge/Samples-946%20measured-2e7d32)](data) ![Resolution](https://img.shields.io/badge/Resolution-1024%C3%971024-455a64) ![MAI version](https://img.shields.io/badge/MAI%20version-2026--07--31-6a1b9a) ![Data through](https://img.shields.io/badge/Data%20through-2026--09--21-37474f) [![Status](https://img.shields.io/badge/Status-Preview%20%C2%B7%20no%20SLA-b26500)](https://azure.microsoft.com/support/legal/preview-supplemental-terms/) [![Tests](https://img.shields.io/badge/Tests-87%20offline-00695c)](tests)
 
-A measured comparison of MAI-Image-2.6 against GPT-Image-2.5 from one client, one account and one region (swedencentral). The spine is the same-session run of 2026-09-20, in which MAI and 2.5 flare medium and high were called alternately over 11 text-to-image scenarios in two rounds; the remaining tiers, image editing, Chinese/English text rendering, invoice cost and web grounding each have their own section and evidence directory. Image judgements are unblinded difference descriptions and produce no quality score or preference verdict.
+A measured comparison of MAI-Image-2.6 against GPT-Image-2 and GPT-Image-2.5. The spine is the same-session run of 2026-09-20 from one client, one account and one region (Sweden Central), in which MAI and 2.5 flare medium and high were called alternately over 11 text-to-image scenarios in two rounds; the three GPT-Image-2 tiers come from the 2026-09-07 session, and the remaining 2.5 tiers, image editing, Chinese/English text rendering, invoice cost and web grounding each have their own section and evidence directory. Image judgements are unblinded difference descriptions and produce no quality score or preference verdict.
 
 > **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
 
 [English](README.md) | [中文](README-CN.md)
 
-[Side-by-side images](#side-by-side-image-comparison) · [Image edit](#test-12-headwear-swap-image-edit) · [Latency and requests](#performance-and-reliability) · [Six tiers](#the-six-gpt-image-25-quality-tiers) · [Cost](#actual-cost-per-image-from-this-accounts-invoice) · [Text rendering](#chinese-and-english-text-rendering) · [Web grounding](#web-grounding-test) · [Reproduction](#reproduction-how-to) · [Raw evidence](data/mai-vs-gpt25-20260920)
+[Side-by-side images](#side-by-side-image-comparison) · [Image edit](#test-12-headwear-swap-image-edit) · [Latency and requests](#performance-and-reliability) · [GPT-Image-2 session](#gpt-image-2-session-mai-image-26-vs-gpt-image-2) · [Six tiers](#the-six-gpt-image-25-quality-tiers) · [Cost](#actual-cost-per-image-from-this-accounts-invoice) · [Text rendering](#chinese-and-english-text-rendering) · [Web grounding](#web-grounding-test) · [Reproduction](#reproduction-how-to) · [Raw evidence](data/mai-vs-gpt25-20260920)
 
 ---
 
 ## What the Measurements Show
 
-All 5 items rest on the measurements in this repository; MAI-Image-2.6 is in preview with no SLA. Image quality has no numeric score: the side-by-side images are the evidence and the reader's judgement is the conclusion.
+All 6 items rest on the measurements in this repository; MAI-Image-2.6 is in preview with no SLA. Image quality has no numeric score: the side-by-side images are the evidence and the reader's judgement is the conclusion.
 
 1. **In one session, MAI is level with 2.5 high on speed and slower than 2.5 medium.** 66/66 samples returned images; P50: MAI 31.61 s, 2.5 medium 22.24 s (MAI 1.42x slower), 2.5 high 32.11 s (level). The three were called alternately by one client, with no region or date difference. 2.5 low, in its own session on 2026-09-17, had a P50 of 21.85 s, faster than MAI but not the same session.
 
 2. **On this account's invoice, MAI costs $38.91 per 1,000 images: 6.6x 2.5 low ($5.88), 3.0x 2.5 medium ($13.17) and 26% less than 2.5 high ($52.68).** Rates come from Azure Cost Management actuals, not a price page; 2.5 has no published price. "Expensive" only holds once the comparison tier is named; what each tier's images look like is in the side-by-side tables.
 
-3. **Hard-set text rendering: MAI scores 100% in both languages, including the simplified-vs-traditional trap.** 6 scenes × 2 languages × 2 rounds, read back by a calibrated vision judge: GPT-Image-2.5 Flare auto missed 1 (H3 zh r2); GPT-Image-2.5 Flare max missed 1 (H4 en r2); GPT-Image-2.5 Flare xhigh missed 1 (H4 en r2). The documentation lists MAI's Languages as `en`; the Chinese result is an observation outside that declared scope.
+3. **Against the previous generation, GPT-Image-2 (2026-09-07 session): MAI is faster than its medium and high tiers and slower than low.** P50: MAI 38.03 s; GPT-Image-2 low 31.19 s (MAI 1.22x slower), medium 64.64 s (MAI 1.70x faster), high 171.26 s (MAI 4.50x faster). GPT-Image-2 was deployed in East US 2 on a separate account, so the latency gap includes a region difference and is not attributable to the models alone. Cost per 1,000 images: MAI $38.91, 26% less than GPT-Image-2 medium ($52.68) and 82% less than high ($210.72).
 
-4. **Image edit: all three configurations add the graduation cap and keep all 5 preservation items in both rounds.** MAI's output (1360×768) matches the input in colour and framing and reads as a head-only repaint; 2.5 (1674×940) regenerates the whole frame, keeping composition but re-rendering texture, and 2.5 medium misspells the title ADVISORS as ASVISORS in both rounds. Per-image checklist in Scenario 12.
+4. **Hard-set text rendering: MAI scores 100% in both languages, including the simplified-vs-traditional trap.** 6 scenes × 2 languages × 2 rounds, read back by a calibrated vision judge: GPT-Image-2.5 Flare auto missed 1 (H3 zh r2); GPT-Image-2.5 Flare max missed 1 (H4 en r2); GPT-Image-2.5 Flare xhigh missed 1 (H4 en r2). The documentation lists MAI's Languages as `en`; the Chinese result is an observation outside that declared scope.
 
-5. **`web_grounding=true` adds current web information at generation time.** The model retrieves current information from Bing Search as extra context, which moved the product text facts in two subjects from wrong to matching the official announcement; the cost is a lower first-attempt success rate and clearly higher latency. This is a MAI-only parameter with no GPT counterpart.
+5. **Image edit: all three models add the graduation cap, and all 14 outputs keep every preservation item.** The measurable differences are resolution and title glyphs: MAI returns 1360×768 (the endpoint's 1,048,576-pixel ceiling), matching the input in colour and framing and reading as a head-only repaint, but softening the Latin strokes and distorting the four Chinese characters; the GPT runs (GPT-Image-2 1672×941, GPT-Image-2.5 1674×940) return a higher resolution and regenerate the whole frame, keeping composition and identity but re-rendering texture and colour, and 2.5 medium misspells the title ADVISORS as ASVISORS in both rounds. Per-image checklists in Scenario 12.
+
+6. **`web_grounding=true` adds current web information at generation time.** The model retrieves current information from Bing Search as extra context, which moved the product text facts in two subjects from wrong to matching the official announcement; the cost is a lower first-attempt success rate and clearly higher latency. This is a MAI-only parameter with no GPT counterpart.
 
 ## Side-by-Side Image Comparison
 
-Scenarios 1-11 are text-to-image, two rounds each. In every round the first row is MAI-Image-2.6, GPT-Image-2.5 Flare medium, GPT-Image-2.5 Flare high, called alternately in one session on 2026-09-20; the second row is the remaining GPT-Image-2.5 Flare tiers, measured on 2026-09-17 and 2026-09-18 with the same client and prompt file, dated in the header. The rows are not the same session, so read the latencies under the images together with their dates. Sunburst is a second deployment of the same model; its images stay in the evidence directory and its numbers are in the tier table below. Click an image for the original 1024x1024 PNG. Scenario 12 is an image edit of one real photograph.
+Scenarios 1-11 are text-to-image, two rounds each. In every round the first row is MAI-Image-2.6, GPT-Image-2.5 Flare medium, GPT-Image-2.5 Flare high, called alternately in one session on 2026-09-20; the second row is the remaining GPT-Image-2.5 Flare tiers, measured on 2026-09-17 and 2026-09-18 with the same client and prompt file, dated in the header. Sunburst is a second deployment of the same model; its images stay in the evidence directory and its numbers are in the tier table below; the third row is the GPT-Image-2 session of 2026-09-07, in which one client interleaved MAI with GPT-Image-2 low, medium and high, but GPT-Image-2 was deployed in East US 2 on a separate account, so its latency gap includes a region difference (each header names its region). The rows are not the same session, so read the latencies under the images together with their dates. Click an image for the original 1024x1024 PNG. Scenario 12 is an image edit of one real photograph.
 
 ### Test 1: Chrome Kimono Metallic Maiden
 
@@ -46,6 +48,11 @@ Scenarios 1-11 are text-to-image, two rounds each. In every round the first row 
 | ![GPT-Image-2.5 Flare low, prompt 1, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/01_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 1, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/01_test.png) | ![GPT-Image-2.5 Flare max, prompt 1, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/01_test.png) | ![GPT-Image-2.5 Flare auto, prompt 1, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/01_test.png) |
 | 21.93 s<br>1631 KiB | 43.22 s<br>1697 KiB | 66.83 s<br>1683 KiB | 19.37 s<br>1658 KiB |
 
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 1, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/01_test.png) | ![GPT-Image-2 low, prompt 1, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/01_test.png) | ![GPT-Image-2 medium, prompt 1, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/01_test.png) | No image returned |
+| 38.82 s<br>1856 KiB | 51.44 s<br>1636 KiB | 78.13 s<br>1504 KiB | 3 attempts; logical duration 322.06 s |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
@@ -57,6 +64,11 @@ Scenarios 1-11 are text-to-image, two rounds each. In every round the first row 
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 1, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/01_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 1, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/01_test.png) | ![GPT-Image-2.5 Flare max, prompt 1, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/01_test.png) | ![GPT-Image-2.5 Flare auto, prompt 1, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/01_test.png) |
 | 17.66 s<br>1546 KiB | 40.05 s<br>1753 KiB | 73.42 s<br>1631 KiB | 21.75 s<br>1695 KiB |
+
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 1, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/01_test.png) | ![GPT-Image-2 low, prompt 1, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/01_test.png) | ![GPT-Image-2 medium, prompt 1, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/01_test.png) | ![GPT-Image-2 high, prompt 1, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/01_test.png) |
+| 33.96 s<br>1699 KiB | 26.25 s<br>1641 KiB | 63.52 s<br>1704 KiB | 182.78 s<br>1531 KiB |
 
 ### Test 2: Portal into Mythical Forest
 
@@ -74,6 +86,11 @@ Scenarios 1-11 are text-to-image, two rounds each. In every round the first row 
 | ![GPT-Image-2.5 Flare low, prompt 2, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/02_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 2, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/02_test.png) | ![GPT-Image-2.5 Flare max, prompt 2, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/02_test.png) | ![GPT-Image-2.5 Flare auto, prompt 2, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/02_test.png) |
 | 20.45 s<br>1429 KiB | 36.59 s<br>1542 KiB | 73.53 s<br>1509 KiB | 20.00 s<br>1424 KiB |
 
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 2, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/02_test.png) | ![GPT-Image-2 low, prompt 2, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/02_test.png) | ![GPT-Image-2 medium, prompt 2, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/02_test.png) | ![GPT-Image-2 high, prompt 2, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/02_test.png) |
+| 65.12 s<br>1676 KiB | 41.67 s<br>1438 KiB | 74.93 s<br>1477 KiB | 176.78 s<br>1727 KiB |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
@@ -85,6 +102,11 @@ Scenarios 1-11 are text-to-image, two rounds each. In every round the first row 
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 2, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/02_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 2, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/02_test.png) | ![GPT-Image-2.5 Flare max, prompt 2, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/02_test.png) | ![GPT-Image-2.5 Flare auto, prompt 2, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/02_test.png) |
 | 22.78 s<br>1401 KiB | 46.70 s<br>1535 KiB | 73.52 s<br>1330 KiB | 21.22 s<br>1515 KiB |
+
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 2, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/02_test.png) | ![GPT-Image-2 low, prompt 2, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/02_test.png) | ![GPT-Image-2 medium, prompt 2, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/02_test.png) | ![GPT-Image-2 high, prompt 2, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/02_test.png) |
+| 37.43 s<br>1721 KiB | 28.50 s<br>1491 KiB | 60.23 s<br>1489 KiB | 170.60 s<br>1619 KiB |
 
 ### Test 3: Tiny Astronaut on Moon
 
@@ -102,6 +124,11 @@ Scenarios 1-11 are text-to-image, two rounds each. In every round the first row 
 | ![GPT-Image-2.5 Flare low, prompt 3, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/03_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 3, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/03_test.png) | ![GPT-Image-2.5 Flare max, prompt 3, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/03_test.png) | ![GPT-Image-2.5 Flare auto, prompt 3, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/03_test.png) |
 | 48.27 s<br>1596 KiB | 40.06 s<br>1517 KiB | 68.61 s<br>1402 KiB | 20.84 s<br>1498 KiB |
 
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 3, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/03_test.png) | ![GPT-Image-2 low, prompt 3, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/03_test.png) | ![GPT-Image-2 medium, prompt 3, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/03_test.png) | ![GPT-Image-2 high, prompt 3, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/03_test.png) |
+| 32.29 s<br>1387 KiB | 82.39 s<br>1354 KiB | 68.42 s<br>1499 KiB | 170.29 s<br>1543 KiB |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
@@ -113,6 +140,11 @@ Scenarios 1-11 are text-to-image, two rounds each. In every round the first row 
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 3, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/03_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 3, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/03_test.png) | ![GPT-Image-2.5 Flare max, prompt 3, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/03_test.png) | ![GPT-Image-2.5 Flare auto, prompt 3, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/03_test.png) |
 | 20.04 s<br>1576 KiB | 45.34 s<br>1466 KiB | 77.89 s<br>1465 KiB | 22.10 s<br>1460 KiB |
+
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 3, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/03_test.png) | ![GPT-Image-2 low, prompt 3, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/03_test.png) | ![GPT-Image-2 medium, prompt 3, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/03_test.png) | ![GPT-Image-2 high, prompt 3, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/03_test.png) |
+| 32.19 s<br>1539 KiB | 23.61 s<br>1295 KiB | 59.58 s<br>1428 KiB | 152.75 s<br>1457 KiB |
 
 ### Test 4: LOTR Tiny Red Dragon
 
@@ -130,6 +162,11 @@ Scenarios 1-11 are text-to-image, two rounds each. In every round the first row 
 | ![GPT-Image-2.5 Flare low, prompt 4, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/04_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 4, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/04_test.png) | ![GPT-Image-2.5 Flare max, prompt 4, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/04_test.png) | ![GPT-Image-2.5 Flare auto, prompt 4, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/04_test.png) |
 | 22.31 s<br>1536 KiB | 36.94 s<br>1379 KiB | 63.49 s<br>1308 KiB | 19.95 s<br>1524 KiB |
 
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 4, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/04_test.png) | ![GPT-Image-2 low, prompt 4, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/04_test.png) | ![GPT-Image-2 medium, prompt 4, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/04_test.png) | ![GPT-Image-2 high, prompt 4, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/04_test.png) |
+| 38.63 s<br>1589 KiB | 47.05 s<br>1382 KiB | 65.18 s<br>1457 KiB | 192.56 s<br>1443 KiB |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
@@ -141,6 +178,11 @@ Scenarios 1-11 are text-to-image, two rounds each. In every round the first row 
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 4, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/04_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 4, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/04_test.png) | ![GPT-Image-2.5 Flare max, prompt 4, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/04_test.png) | ![GPT-Image-2.5 Flare auto, prompt 4, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/04_test.png) |
 | 18.24 s<br>1381 KiB | 44.01 s<br>1449 KiB | 65.18 s<br>1409 KiB | 26.41 s<br>1333 KiB |
+
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 4, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/04_test.png) | ![GPT-Image-2 low, prompt 4, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/04_test.png) | ![GPT-Image-2 medium, prompt 4, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/04_test.png) | ![GPT-Image-2 high, prompt 4, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/04_test.png) |
+| 34.69 s<br>1585 KiB | 23.98 s<br>1366 KiB | 59.51 s<br>1485 KiB | 171.26 s<br>1402 KiB |
 
 ### Test 5: Fluffy Fantasy Creature
 
@@ -158,6 +200,11 @@ Scenarios 1-11 are text-to-image, two rounds each. In every round the first row 
 | ![GPT-Image-2.5 Flare low, prompt 5, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/05_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 5, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/05_test.png) | ![GPT-Image-2.5 Flare max, prompt 5, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/05_test.png) | ![GPT-Image-2.5 Flare auto, prompt 5, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/05_test.png) |
 | 22.87 s<br>1484 KiB | 60.20 s<br>1597 KiB | 68.71 s<br>1512 KiB | 24.54 s<br>1545 KiB |
 
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 5, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/05_test.png) | ![GPT-Image-2 low, prompt 5, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/05_test.png) | ![GPT-Image-2 medium, prompt 5, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/05_test.png) | ![GPT-Image-2 high, prompt 5, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/05_test.png) |
+| 60.09 s<br>1435 KiB | 29.09 s<br>1673 KiB | 69.86 s<br>1450 KiB | 187.57 s<br>1526 KiB |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
@@ -169,6 +216,11 @@ Scenarios 1-11 are text-to-image, two rounds each. In every round the first row 
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 5, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/05_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 5, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/05_test.png) | ![GPT-Image-2.5 Flare max, prompt 5, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/05_test.png) | ![GPT-Image-2.5 Flare auto, prompt 5, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/05_test.png) |
 | 26.37 s<br>1693 KiB | 43.51 s<br>1622 KiB | 70.75 s<br>1544 KiB | 23.13 s<br>1656 KiB |
+
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 5, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/05_test.png) | ![GPT-Image-2 low, prompt 5, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/05_test.png) | ![GPT-Image-2 medium, prompt 5, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/05_test.png) | ![GPT-Image-2 high, prompt 5, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/05_test.png) |
+| 38.42 s<br>1417 KiB | 24.80 s<br>1622 KiB | 63.22 s<br>1437 KiB | 163.33 s<br>1586 KiB |
 
 ### Test 6: Hidden Jungle Cenote
 
@@ -186,6 +238,11 @@ Scenarios 1-11 are text-to-image, two rounds each. In every round the first row 
 | ![GPT-Image-2.5 Flare low, prompt 6, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/06_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 6, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/06_test.png) | ![GPT-Image-2.5 Flare max, prompt 6, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/06_test.png) | ![GPT-Image-2.5 Flare auto, prompt 6, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/06_test.png) |
 | 20.62 s<br>2095 KiB | 42.70 s<br>2127 KiB | 71.24 s<br>2091 KiB | 22.84 s<br>2127 KiB |
 
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 6, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/06_test.png) | ![GPT-Image-2 low, prompt 6, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/06_test.png) | ![GPT-Image-2 medium, prompt 6, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/06_test.png) | ![GPT-Image-2 high, prompt 6, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/06_test.png) |
+| 80.54 s<br>2149 KiB | 62.70 s<br>2088 KiB | 71.35 s<br>2110 KiB | 190.79 s<br>2024 KiB |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
@@ -197,6 +254,11 @@ Scenarios 1-11 are text-to-image, two rounds each. In every round the first row 
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 6, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/06_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 6, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/06_test.png) | ![GPT-Image-2.5 Flare max, prompt 6, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/06_test.png) | ![GPT-Image-2.5 Flare auto, prompt 6, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/06_test.png) |
 | 24.02 s<br>2151 KiB | 43.28 s<br>2147 KiB | 74.58 s<br>2131 KiB | 25.91 s<br>2156 KiB |
+
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 6, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/06_test.png) | ![GPT-Image-2 low, prompt 6, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/06_test.png) | ![GPT-Image-2 medium, prompt 6, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/06_test.png) | ![GPT-Image-2 high, prompt 6, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/06_test.png) |
+| 32.25 s<br>2131 KiB | 35.88 s<br>2042 KiB | 65.19 s<br>2151 KiB | 185.09 s<br>1979 KiB |
 
 ### Test 7: Tech-Savvy Girl with Holographic UI
 
@@ -214,6 +276,11 @@ Scenarios 1-11 are text-to-image, two rounds each. In every round the first row 
 | ![GPT-Image-2.5 Flare low, prompt 7, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/07_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 7, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/07_test.png) | ![GPT-Image-2.5 Flare max, prompt 7, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/07_test.png) | ![GPT-Image-2.5 Flare auto, prompt 7, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/07_test.png) |
 | 24.69 s<br>1587 KiB | 47.53 s<br>1555 KiB | 76.86 s<br>1472 KiB | 29.02 s<br>1534 KiB |
 
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 7, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/07_test.png) | ![GPT-Image-2 low, prompt 7, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/07_test.png) | ![GPT-Image-2 medium, prompt 7, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/07_test.png) | ![GPT-Image-2 high, prompt 7, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/07_test.png) |
+| 54.92 s<br>1556 KiB | 33.29 s<br>1543 KiB | 67.74 s<br>1520 KiB | 177.19 s<br>1538 KiB |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
@@ -225,6 +292,11 @@ Scenarios 1-11 are text-to-image, two rounds each. In every round the first row 
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 7, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/07_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 7, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/07_test.png) | ![GPT-Image-2.5 Flare max, prompt 7, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/07_test.png) | ![GPT-Image-2.5 Flare auto, prompt 7, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/07_test.png) |
 | 23.76 s<br>1542 KiB | 57.35 s<br>1521 KiB | 79.60 s<br>1472 KiB | 30.29 s<br>1533 KiB |
+
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 7, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/07_test.png) | ![GPT-Image-2 low, prompt 7, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/07_test.png) | ![GPT-Image-2 medium, prompt 7, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/07_test.png) | ![GPT-Image-2 high, prompt 7, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/07_test.png) |
+| 37.63 s<br>1495 KiB | 35.08 s<br>1548 KiB | 66.85 s<br>1529 KiB | 170.62 s<br>1648 KiB |
 
 ### Test 8: Universe Fractal Worlds
 
@@ -242,6 +314,11 @@ Scenarios 1-11 are text-to-image, two rounds each. In every round the first row 
 | ![GPT-Image-2.5 Flare low, prompt 8, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/08_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 8, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/08_test.png) | ![GPT-Image-2.5 Flare max, prompt 8, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/08_test.png) | ![GPT-Image-2.5 Flare auto, prompt 8, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/08_test.png) |
 | 21.65 s<br>2262 KiB | 41.24 s<br>2254 KiB | 79.96 s<br>2206 KiB | 24.28 s<br>2230 KiB |
 
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 8, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/08_test.png) | ![GPT-Image-2 low, prompt 8, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/08_test.png) | ![GPT-Image-2 medium, prompt 8, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/08_test.png) | ![GPT-Image-2 high, prompt 8, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/08_test.png) |
+| 36.49 s<br>2305 KiB | 35.03 s<br>2175 KiB | 68.73 s<br>2270 KiB | 174.50 s<br>2250 KiB |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
@@ -253,6 +330,11 @@ Scenarios 1-11 are text-to-image, two rounds each. In every round the first row 
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 8, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/08_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 8, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/08_test.png) | ![GPT-Image-2.5 Flare max, prompt 8, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/08_test.png) | ![GPT-Image-2.5 Flare auto, prompt 8, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/08_test.png) |
 | 25.37 s<br>2217 KiB | 44.08 s<br>2187 KiB | 75.92 s<br>2162 KiB | 40.38 s<br>2322 KiB |
+
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 8, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/08_test.png) | ![GPT-Image-2 low, prompt 8, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/08_test.png) | ![GPT-Image-2 medium, prompt 8, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/08_test.png) | ![GPT-Image-2 high, prompt 8, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/08_test.png) |
+| 106.81 s<br>2356 KiB | 99.08 s<br>2441 KiB | 72.83 s<br>2337 KiB | 215.09 s<br>2270 KiB |
 
 ### Test 9: Fractal Mythical Creature
 
@@ -270,6 +352,11 @@ Scenarios 1-11 are text-to-image, two rounds each. In every round the first row 
 | ![GPT-Image-2.5 Flare low, prompt 9, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/09_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 9, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/09_test.png) | ![GPT-Image-2.5 Flare max, prompt 9, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/09_test.png) | ![GPT-Image-2.5 Flare auto, prompt 9, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/09_test.png) |
 | 21.77 s<br>1581 KiB | 47.98 s<br>1734 KiB | 72.54 s<br>1575 KiB | 22.40 s<br>1769 KiB |
 
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 9, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/09_test.png) | ![GPT-Image-2 low, prompt 9, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/09_test.png) | ![GPT-Image-2 medium, prompt 9, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/09_test.png) | ![GPT-Image-2 high, prompt 9, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/09_test.png) |
+| 49.96 s<br>1767 KiB | 37.29 s<br>1871 KiB | 61.67 s<br>1731 KiB | 169.84 s<br>1686 KiB |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
@@ -281,6 +368,11 @@ Scenarios 1-11 are text-to-image, two rounds each. In every round the first row 
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 9, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/09_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 9, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/09_test.png) | ![GPT-Image-2.5 Flare max, prompt 9, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/09_test.png) | ![GPT-Image-2.5 Flare auto, prompt 9, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/09_test.png) |
 | 16.93 s<br>1761 KiB | 41.72 s<br>1502 KiB | 77.44 s<br>1597 KiB | 27.98 s<br>1696 KiB |
+
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 9, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/09_test.png) | ![GPT-Image-2 low, prompt 9, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/09_test.png) | ![GPT-Image-2 medium, prompt 9, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/09_test.png) | ![GPT-Image-2 high, prompt 9, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/09_test.png) |
+| 41.92 s<br>1737 KiB | 25.10 s<br>1840 KiB | 60.62 s<br>1747 KiB | 241.38 s<br>1666 KiB |
 
 ### Test 10: Angry Cat Playing Drums
 
@@ -298,6 +390,11 @@ Scenarios 1-11 are text-to-image, two rounds each. In every round the first row 
 | ![GPT-Image-2.5 Flare low, prompt 10, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/10_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 10, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/10_test.png) | ![GPT-Image-2.5 Flare max, prompt 10, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/10_test.png) | ![GPT-Image-2.5 Flare auto, prompt 10, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/10_test.png) |
 | 19.46 s<br>1587 KiB | 43.69 s<br>1392 KiB | 62.97 s<br>1371 KiB | 19.49 s<br>1563 KiB |
 
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 10, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/10_test.png) | ![GPT-Image-2 low, prompt 10, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/10_test.png) | ![GPT-Image-2 medium, prompt 10, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/10_test.png) | ![GPT-Image-2 high, prompt 10, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/10_test.png) |
+| 32.92 s<br>1606 KiB | 28.74 s<br>1460 KiB | 57.93 s<br>1603 KiB | 139.24 s<br>1511 KiB |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
@@ -309,6 +406,11 @@ Scenarios 1-11 are text-to-image, two rounds each. In every round the first row 
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 10, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/10_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 10, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/10_test.png) | ![GPT-Image-2.5 Flare max, prompt 10, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/10_test.png) | ![GPT-Image-2.5 Flare auto, prompt 10, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/10_test.png) |
 | 24.01 s<br>1482 KiB | 46.16 s<br>1388 KiB | 74.30 s<br>1403 KiB | 21.49 s<br>1496 KiB |
+
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 10, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/10_test.png) | ![GPT-Image-2 low, prompt 10, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/10_test.png) | ![GPT-Image-2 medium, prompt 10, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/10_test.png) | ![GPT-Image-2 high, prompt 10, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/10_test.png) |
+| 42.97 s<br>1652 KiB | 25.43 s<br>1611 KiB | 64.09 s<br>1581 KiB | 153.85 s<br>1592 KiB |
 
 ### Test 11: Monkey Playing Music
 
@@ -326,6 +428,11 @@ Scenarios 1-11 are text-to-image, two rounds each. In every round the first row 
 | ![GPT-Image-2.5 Flare low, prompt 11, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/11_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 11, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/11_test.png) | ![GPT-Image-2.5 Flare max, prompt 11, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/11_test.png) | ![GPT-Image-2.5 Flare auto, prompt 11, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/11_test.png) |
 | 20.30 s<br>1682 KiB | 43.26 s<br>1467 KiB | 76.03 s<br>1433 KiB | 20.47 s<br>1629 KiB |
 
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 11, round 1](data/paired-all-quality-20260907/mai-image-2.6/r1/11_test.png) | ![GPT-Image-2 low, prompt 11, round 1](data/paired-all-quality-20260907/gpt-image-2-low/r1/11_test.png) | ![GPT-Image-2 medium, prompt 11, round 1](data/paired-all-quality-20260907/gpt-image-2-medium/r1/11_test.png) | ![GPT-Image-2 high, prompt 11, round 1](data/paired-all-quality-20260907/gpt-image-2-high/r1/11_test.png) |
+| 33.49 s<br>1833 KiB | 27.58 s<br>1671 KiB | 56.04 s<br>1612 KiB | 140.32 s<br>1632 KiB |
+
 **Round 2:**
 
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
@@ -338,9 +445,14 @@ Scenarios 1-11 are text-to-image, two rounds each. In every round the first row 
 | ![GPT-Image-2.5 Flare low, prompt 11, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/11_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 11, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/11_test.png) | ![GPT-Image-2.5 Flare max, prompt 11, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/11_test.png) | ![GPT-Image-2.5 Flare auto, prompt 11, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/11_test.png) |
 | 17.81 s<br>1624 KiB | 39.73 s<br>1556 KiB | 65.76 s<br>1538 KiB | 20.74 s<br>1601 KiB |
 
+| MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, prompt 11, round 2](data/paired-all-quality-20260907/mai-image-2.6/r2/11_test.png) | ![GPT-Image-2 low, prompt 11, round 2](data/paired-all-quality-20260907/gpt-image-2-low/r2/11_test.png) | ![GPT-Image-2 medium, prompt 11, round 2](data/paired-all-quality-20260907/gpt-image-2-medium/r2/11_test.png) | ![GPT-Image-2 high, prompt 11, round 2](data/paired-all-quality-20260907/gpt-image-2-high/r2/11_test.png) |
+| 35.77 s<br>1725 KiB | 27.29 s<br>1615 KiB | 56.27 s<br>1541 KiB | 152.77 s<br>1715 KiB |
+
 ### Test 12: Headwear Swap (Image Edit)
 
-The first eleven scenarios are pure text-to-image. Scenario 12 switches to image editing: the same real photograph goes to each of the 3 configurations' edit endpoints with a prompt that asks for exactly one change and lists what must stay the same, so every output can be checked item by item without an aesthetic score. As in the first eleven scenarios it runs 2 rounds, with the configuration order reversed in round 2.
+The first eleven scenarios are pure text-to-image. Scenario 12 switches to image editing: the same real photograph and the same prompt go to the edit endpoints of MAI and of GPT-Image-2 and GPT-Image-2.5, asking for exactly one change and listing what must stay the same, so every output can be checked item by item without an aesthetic score. Each GPT generation is its own run that includes MAI; each runs 2 rounds with the configuration order reversed in round 2.
 
 The input is one 553x311 JPEG photograph (39,539 bytes, SHA-256 `2f15a826dbc5d0e9…`): a foreground figure in a crown and embroidered robe, spear-bearing guards on the left, a purple-robed figure and gallery on the right, and a title with a seal in the top-left.
 
@@ -348,13 +460,80 @@ The input is one 553x311 JPEG photograph (39,539 bytes, SHA-256 `2f15a826dbc5d0e
 
 > Replace only the headwear worn by the man in the foreground with a black academic graduation cap with a tassel. Keep his face, beard, expression and pose exactly as they are. Keep his embroidered robe, the courtyard and every other person unchanged.
 
-**Controlled variables**
-
-MAI uses `/mai/v1/images/edits` and GPT uses `/openai/deployments/gpt-image-2.5-flare/images/edits`. The GPT tiers differ only in `quality` and pass `size=auto`, so the service chooses the output dimensions; the MAI edit endpoint has no size parameter and the service likewise chooses. Both sides are therefore under the same contract: neither was told to produce a fixed size. Each configuration was called once per round over 2 rounds, on one account, in one region, in one session per round.
-
 | Input photograph |
 | --- |
 | ![Input photograph](data/edit-hat-swap-gpt25-20260921/input.jpg) |
+
+#### MAI-Image-2.6 vs GPT-Image-2 (2026-09-09)
+
+**Controlled variables**
+
+MAI uses `/mai/v1/images/edits` and GPT uses `/openai/deployments/gpt-image-2/images/edits`. The GPT tiers differ only in `quality` and pass `size=auto`, so the service chooses the output dimensions; the MAI edit endpoint has no size parameter and the service likewise chooses. Both sides are therefore under the same contract: neither was told to produce a fixed size. Each configuration was called once per round over 2 rounds; GPT-Image-2 ran in East US 2 on a separate account and MAI in Sweden Central from the same workstation, so the latency gap includes a region difference.
+
+**Protocol correction**
+
+The first run passed `size=1024x1024` to the three GPT tiers, forcing the 16:9 input into a square. MAI's edit endpoint has no size parameter and was never under that constraint, so this was a one-sided constraint and the two baselines were not comparable. Those outputs reflect a parameter this test filled in wrongly rather than model behaviour; their 0/5, 1/5, 0/5, 0/5, 0/5, 0/5 preservation counts across six calls are superseded in full and are kept out of the model comparison. This run sets GPT to `size=auto`, matching MAI's service-chosen sizing, which is the only symmetric contract. The original run remains archived as the record of that parameter mistake. Superseded run: [data/edit-hat-swap-20260908](data/edit-hat-swap-20260908). The MAI images in this run were not new calls: they are that run's `edit-hat-swap-20260908/01_mai-image-2.6.png`, `edit-hat-swap-20260908/r2/04_mai-image-2.6.png` (requested 2026-09-08). MAI's edit endpoint has no size parameter, so its calls were unaffected by the mistake and were not repeated; their latency is not the same session as the GPT tiers in the same round.
+
+**Round 1:**
+
+| MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, edit round 1](data/edit-hat-swap-20260909-auto/01_mai-image-2.6.png) | ![GPT-Image-2 low, edit round 1](data/edit-hat-swap-20260909-auto/02_gpt-image-2-low.png) | ![GPT-Image-2 medium, edit round 1](data/edit-hat-swap-20260909-auto/03_gpt-image-2-medium.png) | ![GPT-Image-2 high, edit round 1](data/edit-hat-swap-20260909-auto/04_gpt-image-2-high.png) |
+| 34.94 s<br>1585 KiB<br>1360x768 | 32.89 s<br>2411 KiB<br>1672x941 | 44.77 s<br>2373 KiB<br>1672x941 | 109.48 s<br>2167 KiB<br>1672x941 |
+
+| Checklist | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- | --- |
+| Preservation items kept | 5/5 | 5/5 | 5/5 | 5/5 |
+| Headwear became a graduation cap | yes | yes | yes | yes |
+| Face and beard preserved | yes | yes | yes | yes |
+| Robe embroidery preserved | yes | yes | yes | yes |
+| Bystanders and background unchanged | yes | yes | yes | yes |
+| Title and seal preserved | yes | yes | yes | yes |
+| Input aspect ratio kept | yes | yes | yes | yes |
+
+| Configuration | Observation |
+| --- | --- |
+| MAI-Image-2.6 | The crown becomes a black graduation cap with a tassel. Face, beard, expression, robe embroidery, the spear-bearing guards on the left, the purple-robed figure on the right and the gallery are all in place; the output keeps 16:9 (1360×768). The title and seal sit in the top-left; THE ADVISORS ALLIANCE is legible but its strokes are softened and the four Chinese characters are distorted. Record and PNG carried over unchanged from the 2026-09-08 round 1. |
+| GPT-Image-2 low | Graduation cap present. Face, beard, robe embroidery, the guard column on the left, the purple-robed figure and gallery on the right are all in place; output 1672×941, same aspect ratio as the input. THE ADVISORS ALLIANCE reads letter-for-letter, the four Chinese characters are close to the input, and the seal is in place. |
+| GPT-Image-2 medium | Graduation cap present. Subject, robe, guards, right-side figures and architecture all in place; output 1672×941. The Latin title is reproduced letter-for-letter, the Chinese characters are close to the input, and the seal is in place. |
+| GPT-Image-2 high | Graduation cap present. Subject, robe, guards, right-side figures and architecture all in place; output 1672×941. The Latin title is reproduced letter-for-letter, the Chinese characters are close to the input, and the seal is in place. The gold embroidery is sharper than the input, which is a consequence of upscaled regeneration. |
+
+**Round 2:**
+
+| MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- |
+| ![MAI-Image-2.6, edit round 2](data/edit-hat-swap-20260909-auto/r2/04_mai-image-2.6.png) | ![GPT-Image-2 low, edit round 2](data/edit-hat-swap-20260909-auto/r2/03_gpt-image-2-low.png) | ![GPT-Image-2 medium, edit round 2](data/edit-hat-swap-20260909-auto/r2/02_gpt-image-2-medium.png) | ![GPT-Image-2 high, edit round 2](data/edit-hat-swap-20260909-auto/r2/01_gpt-image-2-high.png) |
+| 36.91 s<br>1618 KiB<br>1360x768 | 27.91 s<br>2406 KiB<br>1672x940 | 46.36 s<br>2388 KiB<br>1672x940 | 110.84 s<br>2119 KiB<br>1672x941 |
+
+| Checklist | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- | --- |
+| Preservation items kept | 5/5 | 5/5 | 5/5 | 5/5 |
+| Headwear became a graduation cap | yes | yes | yes | yes |
+| Face and beard preserved | yes | yes | yes | yes |
+| Robe embroidery preserved | yes | yes | yes | yes |
+| Bystanders and background unchanged | yes | yes | yes | yes |
+| Title and seal preserved | yes | yes | yes | yes |
+| Input aspect ratio kept | yes | yes | yes | yes |
+
+| Configuration | Observation |
+| --- | --- |
+| MAI-Image-2.6 | The crown becomes a black graduation cap with a tassel. Face, beard, robe embroidery, guards, right-side figures and gallery are all in place; the output keeps 16:9 (1360×768). Title and seal in place; the word ALLIANCE has visibly softened, near-merged strokes and the four Chinese characters are distorted. Record and PNG carried over unchanged from the 2026-09-08 round 2. |
+| GPT-Image-2 low | Graduation cap present. Subject, robe, guards, right-side figures and architecture all in place; output 1672×940, with slightly greyer temples. The title renders ADVISORS as ASVISORS, the Chinese characters are slightly distorted, and the seal is in place. |
+| GPT-Image-2 medium | Graduation cap present. Subject, robe, guards, right-side figures and architecture all in place; output 1672×940. The title gains an apostrophe and reads THE ADVISOR'S ALLIANCE; the Chinese characters are close to the input and the seal is in place. |
+| GPT-Image-2 high | Graduation cap present. Subject, robe, guards, right-side figures and architecture all in place; output 1672×941. Latin title letter-for-letter, Chinese characters close to the input, seal in place. Consistent with round-1 high. |
+
+| Across rounds | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high |
+| --- | --- | --- | --- | --- |
+| Items kept (per round) | 5/5 / 5/5 | 5/5 / 5/5 | 5/5 / 5/5 | 5/5 / 5/5 |
+| Latency per round | 34.94 s / 36.91 s | 32.89 s / 27.91 s | 44.77 s / 46.36 s | 109.48 s / 110.84 s |
+
+**How to read this**: All four configurations produced the graduation cap in both rounds and kept every one of the five preservation items — face, robe, bystanders and background, title and seal, input aspect ratio — so all eight outputs score 5/5. Three differences remain. Output resolution: the GPT tiers chose 1672×941 (about 1.57 MP) while MAI returned 1360×768 (1.04 MP, the endpoint's 1,048,576-pixel ceiling). Title glyphs: GPT medium and high reproduce the Latin title letter-for-letter in both rounds; GPT low round 2 renders ADVISORS as ASVISORS and GPT medium round 2 adds an apostrophe; MAI keeps the Latin text legible but softens the strokes and visibly distorts the four Chinese characters in both rounds. Latency: MAI about 35 s; GPT low 28–33 s, medium 45–46 s, high 109–111 s. The prompt asked to preserve the input, and on the five-item checklist the eight outputs do not differ; title glyph fidelity is outside the checklist and is reported as an observation only.
+
+#### MAI-Image-2.6 vs GPT-Image-2.5 (2026-09-21)
+
+**Controlled variables**
+
+MAI uses `/mai/v1/images/edits` and GPT uses `/openai/deployments/gpt-image-2.5-flare/images/edits`. The GPT tiers differ only in `quality` and pass `size=auto`, so the service chooses the output dimensions; the MAI edit endpoint has no size parameter and the service likewise chooses. Both sides are therefore under the same contract: neither was told to produce a fixed size. Each configuration was called once per round over 2 rounds; on one account, in one region (Sweden Central), in one session per round.
 
 **Round 1:**
 
@@ -409,9 +588,9 @@ MAI uses `/mai/v1/images/edits` and GPT uses `/openai/deployments/gpt-image-2.5-
 
 **How to read this**: All three configurations produced the graduation cap in both rounds and kept every one of the five preservation items — face, robe, bystanders and background, title and seal, input aspect ratio — so all six outputs score 5/5. Three differences remain. Fidelity: the two MAI outputs match the input in colour and framing almost exactly and read as a repaint of the head only; the 2.5 outputs are whole-frame regenerations that keep composition and identity but re-render textures and colours. Title glyphs: 2.5 high reproduces THE ADVISORS ALLIANCE letter-for-letter in both rounds; 2.5 medium writes ADVISORS as ASVISORS in both rounds and in round 2 rewrites ALLIANCE into an unreadable word; MAI keeps the Latin text legible in both rounds with softened strokes. No configuration preserves the shapes of the four Chinese characters 軍師聯盟. Output resolution: 2.5 chose 1674×940 (about 1.57 MP) while MAI returned 1360×768 (1.04 MP, the endpoint's 1,048,576-pixel ceiling). Latency: MAI 24.8 / 39.6 s, 2.5 medium 25.6 / 29.7 s, 2.5 high 30.2 / 29.6 s. The prompt asked to preserve the input, and on the five-item checklist the six outputs do not differ; title glyph fidelity is outside the checklist and is reported as an observation only.
 
-2 rounds with one call per configuration per round; two rounds show whether the outcome repeats and are not a statistical sample. Observations are unblinded and describe departures from the input, not image quality. Every output is a regeneration: 'preserved' means present, in place and recognisable, not pixel-identical. Latency is client-side `requests.post` round-trip time. No output PNG carries an alpha channel.
+Each run has 2 rounds with one call per configuration per round; two rounds show whether the outcome repeats and are not a statistical sample. Observations are unblinded and describe departures from the input, not image quality. Every output is a regeneration: 'preserved' means present, in place and recognisable, not pixel-identical. The two runs are not the same session, so latency is not directly comparable between the GPT generations. Latency is client-side `requests.post` round-trip time. No output PNG carries an alpha channel.
 
-[Request records round 1](data/edit-hat-swap-gpt25-20260921/edit-results.json) | [Per-image checklist round 1](data/edit-hat-swap-gpt25-20260921/edit-review.json) | [Request records round 2](data/edit-hat-swap-gpt25-20260921/r2/edit-results.json) | [Per-image checklist round 2](data/edit-hat-swap-gpt25-20260921/r2/edit-review.json) | [Title-corner contact sheet](data/edit-hat-swap-gpt25-20260921/review-compact.png) | [Public reproduction runner](scripts/run_edit_hat_swap.py)
+[Request records GPT-Image-2 round 1](data/edit-hat-swap-20260909-auto/edit-results.json) | [Per-image checklist GPT-Image-2 round 1](data/edit-hat-swap-20260909-auto/edit-review.json) | [Request records GPT-Image-2 round 2](data/edit-hat-swap-20260909-auto/r2/edit-results.json) | [Per-image checklist GPT-Image-2 round 2](data/edit-hat-swap-20260909-auto/r2/edit-review.json) | [Request records GPT-Image-2.5 round 1](data/edit-hat-swap-gpt25-20260921/edit-results.json) | [Per-image checklist GPT-Image-2.5 round 1](data/edit-hat-swap-gpt25-20260921/edit-review.json) | [Request records GPT-Image-2.5 round 2](data/edit-hat-swap-gpt25-20260921/r2/edit-results.json) | [Per-image checklist GPT-Image-2.5 round 2](data/edit-hat-swap-gpt25-20260921/r2/edit-review.json) | [Title-corner contact sheet GPT-Image-2.5](data/edit-hat-swap-gpt25-20260921/review-compact.png) | [Public reproduction runner](scripts/run_edit_hat_swap.py)
 
 ## Same-Session Run: MAI-Image-2.6 vs GPT-Image-2.5
 
@@ -572,21 +751,49 @@ python data/lenovo-web-grounding-20260908/source/benchmark_5way_v2.py --mai-mode
 python data/lenovo-web-grounding-20260908/source/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --mai-web-grounding both --prompts-csv data/lenovo-web-grounding-20260908/source/prompts.csv --output runs/web-grounding-reproduction
 ```
 
-### 6. Rerun the headwear-swap image edit
+### 6. Rerun the headwear-swap edit against GPT-Image-2
 
-Set `GPT_DEPLOYMENT` to the 2.5 deployment (`gpt-image-2.5-flare` here) and name the tiers with `--gpt-quality`. The first command verifies the published outputs; the second is a credential-free dry run; the next two perform the live rounds; the last checks order, `size=auto` and hashes. The per-image checklist is a manual review under the published method, not generated automatically.
+Set `GPT_DEPLOYMENT` to the deployment under test (`gpt-image-2` here) and name its tiers with `--gpt-quality`. The first command verifies the published outputs; the second is a credential-free dry run; the next two perform the live rounds; the last checks order, `size=auto` and hashes. The per-image checklist is a manual review under the published method, not generated automatically.
+
+```powershell
+python scripts/summarize_edit_hat_swap.py data/edit-hat-swap-20260909-auto --check
+$env:GPT_DEPLOYMENT = 'gpt-image-2'
+$out = 'runs/edit-hat-swap-gpt-image-2-reproduction'
+python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-20260909-auto/input.jpg --output $out --round 1 --gpt-size auto --gpt-quality low --gpt-quality medium --gpt-quality high --dry-run
+python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-20260909-auto/input.jpg --output $out --round 1 --gpt-size auto --gpt-quality low --gpt-quality medium --gpt-quality high
+python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-20260909-auto/input.jpg --output $out --round 2 --gpt-size auto --gpt-quality low --gpt-quality medium --gpt-quality high
+python scripts/run_edit_hat_swap.py --output $out --check
+```
+
+### 7. Rerun the headwear-swap edit against GPT-Image-2.5
+
+Set `GPT_DEPLOYMENT` to the deployment under test (`gpt-image-2.5-flare` here) and name its tiers with `--gpt-quality`. The first command verifies the published outputs; the second is a credential-free dry run; the next two perform the live rounds; the last checks order, `size=auto` and hashes. The per-image checklist is a manual review under the published method, not generated automatically.
 
 ```powershell
 python scripts/summarize_edit_hat_swap.py data/edit-hat-swap-gpt25-20260921 --check
 $env:GPT_DEPLOYMENT = 'gpt-image-2.5-flare'
-$out = 'runs/edit-hat-swap-reproduction'
+$out = 'runs/edit-hat-swap-gpt-image-2.5-flare-reproduction'
 python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-gpt25-20260921/input.jpg --output $out --round 1 --gpt-size auto --gpt-quality medium --gpt-quality high --dry-run
 python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-gpt25-20260921/input.jpg --output $out --round 1 --gpt-size auto --gpt-quality medium --gpt-quality high
 python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-gpt25-20260921/input.jpg --output $out --round 2 --gpt-size auto --gpt-quality medium --gpt-quality high
 python scripts/run_edit_hat_swap.py --output $out --check
 ```
 
-### 7. Rerun GPT-Image-2.5 low/medium/high on both deployments
+### 8. Rerun the GPT-Image-2 session
+
+`--gpt-quality all` expands to the three tiers gpt-image-2 accepts. Point `GPT_ENDPOINT` and `GPT_DEPLOYMENT` at your gpt-image-2 deployment; if it is in a different region from MAI, say so in the report, as this run does.
+
+```powershell
+python scripts/summarize_paired_run.py data/paired-all-quality-20260907
+$run = 'runs/gpt2-paired-new-run'
+New-Item -ItemType Directory -Path "$run/source" -ErrorAction Stop
+Copy-Item -LiteralPath scripts/benchmark_5way_v2.py -Destination "$run/source/benchmark_5way_v2.py"
+Copy-Item -LiteralPath prompts.csv -Destination "$run/source/prompts.csv"
+python -u scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --gpt-model gpt-image-2 --gpt-quality all --output $run --warmup-only
+python -u scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --gpt-model gpt-image-2 --gpt-quality all --output $run --resume
+```
+
+### 9. Rerun GPT-Image-2.5 low/medium/high on both deployments
 
 `--gpt-model` may be repeated; `--gpt-quality all` expands to low, medium and high. The client starts at most 2 requests per 60 seconds per deployment to match the 2 RPM quota; raise `RATE_PACING` if yours is higher.
 
@@ -600,7 +807,7 @@ python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-mod
 python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-model gpt-image-2.5-sunburst --gpt-quality all --output $run --resume
 ```
 
-### 8. Rerun xhigh/max/auto
+### 10. Rerun xhigh/max/auto
 
 Only gpt-image-2.5-* accepts these tiers. A single max request measured 229 s, so the runner's request timeout is 900 s. `auto` lets the service choose per request; the tier it used is recorded per attempt as `service_quality`.
 
@@ -614,7 +821,7 @@ python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-mod
 python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-model gpt-image-2.5-sunburst --gpt-quality xhigh --gpt-quality max --gpt-quality auto --output $run --resume
 ```
 
-### 9. Rerun text rendering and score it
+### 11. Rerun text rendering and score it
 
 Text rendering uses its own prompt file (`--prompts-csv`); the runner reads only the first column. Each deployment has its own quota, so shards run per deployment and are merged at scoring with repeated `--run`; the scorer refuses shards whose frozen prompt file differs. Scoring needs a vision-capable chat deployment via `JUDGE_ENDPOINT`, `JUDGE_DEPLOYMENT` and `AZURE_OPENAI_API_KEY`; calibrate it first, or its errors will be attributed to the image models. `--check` recomputes every score from saved transcriptions with no model calls.
 
@@ -634,7 +841,7 @@ python -u scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --prompts-csv "
 python scripts/score_text_rendering.py --run $run --prompts data/text-rendering-20260918/prompts-text-rendering.csv --out runs/text-new-run-scored
 ```
 
-### 10. Recompute cost per image from your own invoice
+### 12. Recompute cost per image from your own invoice
 
 The first command recomputes `effective-prices.json` from the archived Cost Management response, offline. The second issues the same query against your own account (needs `az login`; the query is free) and writes a new archive; re-rendering then reads your invoice instead of ours.
 
@@ -647,9 +854,26 @@ Scripts: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py) · [run_edit_hat_s
 
 ### Limits
 
-This report compares only MAI-Image-2.6 with GPT-Image-2.5 (the flare and sunburst deployments at low, medium, high, xhigh, max, auto). The latency and side-by-side spine comes from one session; the remaining tiers come from sessions on two other dates and carry their dates in the headers. MAI sends no quality parameter and is not labeled as equivalent to any GPT tier. The eleven scenarios carry no per-image prose review; image quality is for the reader to judge from the side-by-side images, and exact-text accuracy covers only the scenes and characters listed in the two text-rendering sections. Not covered: 2K, multiple reference images, concurrency capacity or other authentication modes. Earlier versions of this report compared GPT-Image-2; those archives remain as evidence ([data/paired-all-quality-20260907](data/paired-all-quality-20260907), [data/mai-image-2.6-20260907](data/mai-image-2.6-20260907), [data/edit-hat-swap-20260908](data/edit-hat-swap-20260908), [data/edit-hat-swap-20260909-auto](data/edit-hat-swap-20260909-auto)) and feed no table.
+This report compares MAI-Image-2.6, GPT-Image-2 (low, medium, high) and GPT-Image-2.5 (the flare and sunburst deployments at low, medium, high, xhigh, max, auto). The latency and side-by-side spine comes from one session; the remaining 2.5 tiers come from sessions on two other dates and carry their dates in the headers. GPT-Image-2 low, medium and high come from the separate 2026-09-07 session, deployed in East US 2 on another account, so their latency gap includes a region difference and is not attributable to the models alone. MAI sends no quality parameter and is not labeled as equivalent to any GPT tier. The eleven scenarios carry no per-image prose review; image quality is for the reader to judge from the side-by-side images, and exact-text accuracy covers only the scenes and characters listed in the two text-rendering sections. Not covered: 2K, multiple reference images, concurrency capacity or other authentication modes. These archives are evidence only and feed no table: [data/mai-image-2.6-20260907](data/mai-image-2.6-20260907), [data/edit-hat-swap-20260908](data/edit-hat-swap-20260908).
 
 Evidence directory: [data/mai-vs-gpt25-20260920](data/mai-vs-gpt25-20260920). Original images, measurement records, attempts, response metadata and the source snapshot that ran; prompt SHA-256: `be3d628c66a1e4d535d06bcc84246a04aad11f35a48f3133d451fe86283782ce`.
+
+## GPT-Image-2 Session: MAI-Image-2.6 vs GPT-Image-2
+
+**Question**: GPT-Image-2 is the previous generation and the only GPT image model with a published price. Against its three tiers, what are MAI's latency and token counts?
+
+**Controlled**: one client, the same eleven prompts, 1024x1024, two rounds, four configurations interleaved in fixed order, completed in one session on 2026-09-07. **Not controlled**: MAI is deployed in Sweden Central and GPT-Image-2 in East US 2 on another account, so the latency gap contains region and transport effects that cannot be separated from this run's data. The 2.5 same-session run above does not have this problem (one account, one region).
+
+| Configuration | Region | Successful / planned | Output tokens | Mean latency (s) | P50 (s) | Descriptive P95 (s) | USD / 1,000 images |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| MAI-Image-2.6 | Sweden Central | 22 / 22 | 1024 | 45.33 | 38.03 | 79.77 | $38.91 |
+| GPT-Image-2 low | East US 2 | 22 / 22 | 196 | 38.69 | 31.19 | 81.41 | $5.88 |
+| GPT-Image-2 medium | East US 2 | 22 / 22 | 1756 | 65.09 | 64.64 | 74.82 | $52.68 |
+| GPT-Image-2 high | East US 2 | 21 / 22 | 7024 | 175.17 | 171.26 | 215.09 | $210.72 |
+
+**How to read this**: on P50, MAI at 38.03 s sits between GPT-Image-2 low (31.19 s) and medium (64.64 s), and is 4.50x faster than high (171.26 s). On tokens, MAI's constant 1,024 likewise sits between low (196) and medium (1,756). The two agree in direction, but the latency figure contains a region difference and the token figure does not.
+
+Evidence directory: [data/paired-all-quality-20260907](data/paired-all-quality-20260907). Prompt SHA-256: `be3d628c66a1e4d535d06bcc84246a04aad11f35a48f3133d451fe86283782ce`.
 
 ## The Six GPT-Image-2.5 Quality Tiers
 
@@ -676,7 +900,7 @@ Evidence directories: [data/gpt25-paired-20260917](data/gpt25-paired-20260917), 
 
 ## Actual Cost per Image, from This Account's Invoice
 
-**Question**: is MAI-Image-2.6 expensive? The answer depends on which 2.5 quality tier it is compared against, and the tiers differ by 36x in billed compute.
+**Question**: is MAI-Image-2.6 expensive? The answer depends on which model and which quality tier it is compared against, and the tiers differ by 36x in billed compute.
 
 **Source**: an Azure Cost Management ActualCost query against the account that ran every test in this repository (Sweden Central), period 2026-09-04..2026-09-20, field `PreTaxCost`. Each model's output-image tokens are metered separately; dividing cost by billed tokens gives the effective rate. On the same invoice gpt-image-2 bills at exactly its published $30 per 1M tokens, which confirms the reading; GPT-Image-2.5 has no published price yet, so the invoice is the only official figure.
 
@@ -689,11 +913,14 @@ Evidence directories: [data/gpt25-paired-20260917](data/gpt25-paired-20260917), 
 
 | Configuration | Tokens / image | USD / 1,000 images | vs MAI |
 | --- | --- | --- | --- |
+| gpt-image-2 low | 196 | $5.88 | 0.15x |
 | gpt-image-2.5 low | 196 | $5.88 | 0.15x |
 | gpt-image-2.5 medium | 439 | $13.17 | 0.34x |
 | MAI-Image-2.6 **(MAI)** | 1,024 | $38.91 | 1.00x |
+| gpt-image-2 medium | 1,756 | $52.68 | 1.35x |
 | gpt-image-2.5 high | 1,756 | $52.68 | 1.35x |
 | gpt-image-2.5 xhigh | 3,122 | $93.66 | 2.41x |
+| gpt-image-2 high | 7,024 | $210.72 | 5.42x |
 | gpt-image-2.5 max | 7,024 | $210.72 | 5.42x |
 
 **How to read this**: per token, MAI costs 27% more than 2.5 ($38 vs $30). But MAI is a constant 1,024 tokens per image while 2.5 compute varies by tier. MAI therefore costs $38.91 per 1,000 images: 6.6x 2.5 low ($5.88), 3.0x medium ($13.17), 26% less than high ($52.68) and 82% less than max ($210.72). "Expensive" is meaningless until the comparison tier is named; which tier matches MAI in quality is answered by the side-by-side images, not by price.
@@ -726,6 +953,7 @@ Denominators are fixed per round: 79 English characters and 34 Chinese character
 
 | Configuration | English character accuracy | English exact segments | Chinese character accuracy | Chinese exact segments |
 | --- | --- | --- | --- | --- |
+| GPT-Image-2 high | 158/158 = 100% | 14/14 = 100% | 68/68 = 100% | 14/14 = 100% |
 | GPT-Image-2.5 Flare high | 158/158 = 100% | 14/14 = 100% | 68/68 = 100% | 14/14 = 100% |
 | GPT-Image-2.5 Flare max | 158/158 = 100% | 14/14 = 100% | 67/68 = 99% | 13/14 = 93% |
 | GPT-Image-2.5 Sunburst high | 158/158 = 100% | 14/14 = 100% | 67/68 = 99% | 13/14 = 93% |
@@ -734,52 +962,52 @@ Denominators are fixed per round: 79 English characters and 34 Chinese character
 
 **Actual outputs**
 
-One table per scene: columns are configurations (MAI and each GPT-Image-2.5 Flare tier; sunburst images are in the evidence directory), rows are the English and Chinese versions, with both rounds' character scores and what the judge read under each image. Round 1 is shown by default; when only round 2 missed, round 2 is shown and marked (r2). Click an image for the original.
+One table per scene: the columns are the configurations shown here (MAI-Image-2.6, GPT-Image-2 high, GPT-Image-2.5 Flare high, GPT-Image-2.5 Flare max; sunburst images are in the evidence directory), rows are the English and Chinese versions, with both rounds' character scores and what the judge read under each image. Round 1 is shown by default; when only round 2 missed, round 2 is shown and marked (r2). Click an image for the original.
 
 **P1 — storefront sign**: `GOLDEN CRUST` / `金麦坊`
 
-| Language | MAI-Image-2.6 | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare max |
-| --- | --- | --- | --- |
-| English | ![mai-image-2.6 P1 en round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/01_test.png) | ![gpt-image-2.5-flare-high P1 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/01_test.png) | ![gpt-image-2.5-flare-max P1 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/01_test.png) |
-|  | r1 11/11 · r2 11/11<br>exact | r1 11/11 · r2 11/11<br>exact | r1 11/11 · r2 11/11<br>exact |
-| Chinese | ![mai-image-2.6 P1 zh round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/02_test.png) | ![gpt-image-2.5-flare-high P1 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/02_test.png) | ![gpt-image-2.5-flare-max P1 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/02_test.png) |
-|  | r1 3/3 · r2 3/3<br>exact | r1 3/3 · r2 3/3<br>exact | r1 3/3 · r2 3/3<br>exact |
+| Language | MAI-Image-2.6 | GPT-Image-2 high | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare max |
+| --- | --- | --- | --- | --- |
+| English | ![mai-image-2.6 P1 en round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/01_test.png) | ![gpt-image-2-high P1 en round 1](data/text-rendering-20260918/gpt-image-2/gpt-image-2-high/r1/01_test.png) | ![gpt-image-2.5-flare-high P1 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/01_test.png) | ![gpt-image-2.5-flare-max P1 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/01_test.png) |
+|  | r1 11/11 · r2 11/11<br>exact | r1 11/11 · r2 11/11<br>exact | r1 11/11 · r2 11/11<br>exact | r1 11/11 · r2 11/11<br>exact |
+| Chinese | ![mai-image-2.6 P1 zh round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/02_test.png) | ![gpt-image-2-high P1 zh round 1](data/text-rendering-20260918/gpt-image-2/gpt-image-2-high/r1/02_test.png) | ![gpt-image-2.5-flare-high P1 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/02_test.png) | ![gpt-image-2.5-flare-max P1 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/02_test.png) |
+|  | r1 3/3 · r2 3/3<br>exact | r1 3/3 · r2 3/3<br>exact | r1 3/3 · r2 3/3<br>exact | r1 3/3 · r2 3/3<br>exact |
 
 **P2 — product label**: `JASMINE GREEN TEA` / `茉莉绿茶`
 
-| Language | MAI-Image-2.6 | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare max |
-| --- | --- | --- | --- |
-| English | ![mai-image-2.6 P2 en round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/03_test.png) | ![gpt-image-2.5-flare-high P2 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/03_test.png) | ![gpt-image-2.5-flare-max P2 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/03_test.png) |
-|  | r1 15/15 · r2 15/15<br>exact | r1 15/15 · r2 15/15<br>exact | r1 15/15 · r2 15/15<br>exact |
-| Chinese | ![mai-image-2.6 P2 zh round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/04_test.png) | ![gpt-image-2.5-flare-high P2 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/04_test.png) | ![gpt-image-2.5-flare-max P2 zh round 2](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r2/04_test.png) |
-|  | r1 4/4 · r2 4/4<br>exact | r1 4/4 · r2 4/4<br>exact | r1 4/4 · r2 3/4<br>read `茉莉綠茶` (r2) |
+| Language | MAI-Image-2.6 | GPT-Image-2 high | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare max |
+| --- | --- | --- | --- | --- |
+| English | ![mai-image-2.6 P2 en round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/03_test.png) | ![gpt-image-2-high P2 en round 1](data/text-rendering-20260918/gpt-image-2/gpt-image-2-high/r1/03_test.png) | ![gpt-image-2.5-flare-high P2 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/03_test.png) | ![gpt-image-2.5-flare-max P2 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/03_test.png) |
+|  | r1 15/15 · r2 15/15<br>exact | r1 15/15 · r2 15/15<br>exact | r1 15/15 · r2 15/15<br>exact | r1 15/15 · r2 15/15<br>exact |
+| Chinese | ![mai-image-2.6 P2 zh round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/04_test.png) | ![gpt-image-2-high P2 zh round 1](data/text-rendering-20260918/gpt-image-2/gpt-image-2-high/r1/04_test.png) | ![gpt-image-2.5-flare-high P2 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/04_test.png) | ![gpt-image-2.5-flare-max P2 zh round 2](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r2/04_test.png) |
+|  | r1 4/4 · r2 4/4<br>exact | r1 4/4 · r2 4/4<br>exact | r1 4/4 · r2 4/4<br>exact | r1 4/4 · r2 3/4<br>read `茉莉綠茶` (r2) |
 
 **P3 — poster headline**: `ANNUAL DESIGN SUMMIT 2026` / `2026年度设计峰会`
 
-| Language | MAI-Image-2.6 | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare max |
-| --- | --- | --- | --- |
-| English | ![mai-image-2.6 P3 en round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/05_test.png) | ![gpt-image-2.5-flare-high P3 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/05_test.png) | ![gpt-image-2.5-flare-max P3 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/05_test.png) |
-|  | r1 22/22 · r2 22/22<br>exact | r1 22/22 · r2 22/22<br>exact | r1 22/22 · r2 22/22<br>exact |
-| Chinese | ![mai-image-2.6 P3 zh round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/06_test.png) | ![gpt-image-2.5-flare-high P3 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/06_test.png) | ![gpt-image-2.5-flare-max P3 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/06_test.png) |
-|  | r1 10/10 · r2 10/10<br>exact | r1 10/10 · r2 10/10<br>exact | r1 10/10 · r2 10/10<br>exact |
+| Language | MAI-Image-2.6 | GPT-Image-2 high | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare max |
+| --- | --- | --- | --- | --- |
+| English | ![mai-image-2.6 P3 en round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/05_test.png) | ![gpt-image-2-high P3 en round 1](data/text-rendering-20260918/gpt-image-2/gpt-image-2-high/r1/05_test.png) | ![gpt-image-2.5-flare-high P3 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/05_test.png) | ![gpt-image-2.5-flare-max P3 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/05_test.png) |
+|  | r1 22/22 · r2 22/22<br>exact | r1 22/22 · r2 22/22<br>exact | r1 22/22 · r2 22/22<br>exact | r1 22/22 · r2 22/22<br>exact |
+| Chinese | ![mai-image-2.6 P3 zh round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/06_test.png) | ![gpt-image-2-high P3 zh round 1](data/text-rendering-20260918/gpt-image-2/gpt-image-2-high/r1/06_test.png) | ![gpt-image-2.5-flare-high P3 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/06_test.png) | ![gpt-image-2.5-flare-max P3 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/06_test.png) |
+|  | r1 10/10 · r2 10/10<br>exact | r1 10/10 · r2 10/10<br>exact | r1 10/10 · r2 10/10<br>exact | r1 10/10 · r2 10/10<br>exact |
 
 **P4 — handwritten note**: `Meeting at 3 PM` / `下午三点开会`
 
-| Language | MAI-Image-2.6 | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare max |
-| --- | --- | --- | --- |
-| English | ![mai-image-2.6 P4 en round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/07_test.png) | ![gpt-image-2.5-flare-high P4 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/07_test.png) | ![gpt-image-2.5-flare-max P4 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/07_test.png) |
-|  | r1 12/12 · r2 12/12<br>exact | r1 12/12 · r2 12/12<br>exact | r1 12/12 · r2 12/12<br>exact |
-| Chinese | ![mai-image-2.6 P4 zh round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/08_test.png) | ![gpt-image-2.5-flare-high P4 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/08_test.png) | ![gpt-image-2.5-flare-max P4 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/08_test.png) |
-|  | r1 6/6 · r2 6/6<br>exact | r1 6/6 · r2 6/6<br>exact | r1 6/6 · r2 6/6<br>exact |
+| Language | MAI-Image-2.6 | GPT-Image-2 high | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare max |
+| --- | --- | --- | --- | --- |
+| English | ![mai-image-2.6 P4 en round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/07_test.png) | ![gpt-image-2-high P4 en round 1](data/text-rendering-20260918/gpt-image-2/gpt-image-2-high/r1/07_test.png) | ![gpt-image-2.5-flare-high P4 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/07_test.png) | ![gpt-image-2.5-flare-max P4 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/07_test.png) |
+|  | r1 12/12 · r2 12/12<br>exact | r1 12/12 · r2 12/12<br>exact | r1 12/12 · r2 12/12<br>exact | r1 12/12 · r2 12/12<br>exact |
+| Chinese | ![mai-image-2.6 P4 zh round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/08_test.png) | ![gpt-image-2-high P4 zh round 1](data/text-rendering-20260918/gpt-image-2/gpt-image-2-high/r1/08_test.png) | ![gpt-image-2.5-flare-high P4 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/08_test.png) | ![gpt-image-2.5-flare-max P4 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/08_test.png) |
+|  | r1 6/6 · r2 6/6<br>exact | r1 6/6 · r2 6/6<br>exact | r1 6/6 · r2 6/6<br>exact | r1 6/6 · r2 6/6<br>exact |
 
 **P5 — multi-line menu**: `COFFEE 25 / TEA 18 / CAKE 32` / `咖啡 25 / 茶 18 / 蛋糕 32`
 
-| Language | MAI-Image-2.6 | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare max |
-| --- | --- | --- | --- |
-| English | ![mai-image-2.6 P5 en round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/09_test.png) | ![gpt-image-2.5-flare-high P5 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/09_test.png) | ![gpt-image-2.5-flare-max P5 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/09_test.png) |
-|  | r1 19/19 · r2 19/19<br>exact | r1 19/19 · r2 19/19<br>exact | r1 19/19 · r2 19/19<br>exact |
-| Chinese | ![mai-image-2.6 P5 zh round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/10_test.png) | ![gpt-image-2.5-flare-high P5 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/10_test.png) | ![gpt-image-2.5-flare-max P5 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/10_test.png) |
-|  | r1 11/11 · r2 11/11<br>exact | r1 11/11 · r2 11/11<br>exact | r1 11/11 · r2 11/11<br>exact |
+| Language | MAI-Image-2.6 | GPT-Image-2 high | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare max |
+| --- | --- | --- | --- | --- |
+| English | ![mai-image-2.6 P5 en round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/09_test.png) | ![gpt-image-2-high P5 en round 1](data/text-rendering-20260918/gpt-image-2/gpt-image-2-high/r1/09_test.png) | ![gpt-image-2.5-flare-high P5 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/09_test.png) | ![gpt-image-2.5-flare-max P5 en round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/09_test.png) |
+|  | r1 19/19 · r2 19/19<br>exact | r1 19/19 · r2 19/19<br>exact | r1 19/19 · r2 19/19<br>exact | r1 19/19 · r2 19/19<br>exact |
+| Chinese | ![mai-image-2.6 P5 zh round 1](data/text-rendering-20260918/mai/mai-image-2.6/r1/10_test.png) | ![gpt-image-2-high P5 zh round 1](data/text-rendering-20260918/gpt-image-2/gpt-image-2-high/r1/10_test.png) | ![gpt-image-2.5-flare-high P5 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/10_test.png) | ![gpt-image-2.5-flare-max P5 zh round 1](data/text-rendering-20260918/gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/10_test.png) |
+|  | r1 11/11 · r2 11/11<br>exact | r1 11/11 · r2 11/11<br>exact | r1 11/11 · r2 11/11<br>exact | r1 11/11 · r2 11/11<br>exact |
 
 **How it was judged**: each image is transcribed by `gpt-5.6-terra` and compared with the target string programmatically, ignoring all whitespace. Two denominators are reported: character accuracy scores the best-matching window of equal length anywhere in the transcription, character by character; exact segments requires the target to appear verbatim as a substring, with no partial credit. This is model-judged, not a blind human study. The judge is an OpenAI-family model and some of the judged images come from OpenAI image models; the calibration below rules out an inability to read Chinese, not a lenience toward one vendor's style, which is why every image is shown below for human review.
 
@@ -787,7 +1015,7 @@ One table per scene: columns are configurations (MAI and each GPT-Image-2.5 Flar
 
 **The judge's own error floor**: rendering this section's targets with Microsoft YaHei and asking the judge to read them back scores 79/79 (100.0%) for English and 34/34 (100.0%) for Chinese under the same scoring rule as the table. The judge therefore has no systematic bias against these characters, and the gaps above are attributable to the image models. Boundary: this only establishes that the judge reads clean horizontal renders; distorted, stylised or vertical text in generated images is harder, so the table may understate accuracy and will not overstate it. The renders and transcriptions are in [judge-calibration](data/text-rendering-20260918/judge-calibration) and `calibrate_text_judge.py --check` recomputes them offline.
 
-**Boundary**: 100 successful samples across 5 scenes, 2 rounds and 5 configurations. This measures spelling accuracy for a specified string, not typographic quality, font choice or design appeal. MAI-Image-2.6 takes no quality parameter and therefore has a single row. **Declared support**: the Foundry model documentation lists MAI-Image-2.6 Languages as `en`; Chinese is outside its declared scope. The Chinese results here are observed behaviour outside that scope, not a product commitment, and should not be cited as a supported capability.
+**Boundary**: 120 successful samples across 5 scenes, 2 rounds and 6 configurations. This measures spelling accuracy for a specified string, not typographic quality, font choice or design appeal. MAI-Image-2.6 takes no quality parameter and therefore has a single row. **Declared support**: the Foundry model documentation lists MAI-Image-2.6 Languages as `en`; Chinese is outside its declared scope. The Chinese results here are observed behaviour outside that scope, not a product commitment, and should not be cited as a supported capability.
 
 Evidence directory: [data/text-rendering-20260918](data/text-rendering-20260918) (per-group contact sheets in `review/`). Prompt SHA-256: `51585dcf118fec7b6164eea9fc1115cfd44718035f82c4e9a2252fb45ee4d3a4`.
 
@@ -816,6 +1044,9 @@ Denominators are fixed per round: 131 English characters and 43 Chinese characte
 
 | Configuration | English character accuracy | English exact segments | Chinese character accuracy | Chinese exact segments |
 | --- | --- | --- | --- | --- |
+| GPT-Image-2 high | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
+| GPT-Image-2 low | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
+| GPT-Image-2 medium | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
 | GPT-Image-2.5 Flare auto | 262/262 = 100% | 14/14 = 100% | 85/86 = 99% | 13/14 = 93% |
 | GPT-Image-2.5 Flare high | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
 | GPT-Image-2.5 Flare low | 262/262 = 100% | 14/14 = 100% | 86/86 = 100% | 14/14 = 100% |
@@ -832,67 +1063,67 @@ Denominators are fixed per round: 131 English characters and 43 Chinese characte
 
 **Actual outputs**
 
-One table per scene: columns are configurations (MAI and each GPT-Image-2.5 Flare tier; sunburst images are in the evidence directory), rows are the English and Chinese versions, with both rounds' character scores and what the judge read under each image. Round 1 is shown by default; when only round 2 missed, round 2 is shown and marked (r2). Click an image for the original.
+One table per scene: the columns are the configurations shown here (MAI-Image-2.6, GPT-Image-2 low, GPT-Image-2 medium, GPT-Image-2 high, GPT-Image-2.5 Flare low, GPT-Image-2.5 Flare medium, GPT-Image-2.5 Flare high, GPT-Image-2.5 Flare xhigh, GPT-Image-2.5 Flare max, GPT-Image-2.5 Flare auto; sunburst images are in the evidence directory), rows are the English and Chinese versions, with both rounds' character scores and what the judge read under each image. Round 1 is shown by default; when only round 2 missed, round 2 is shown and marked (r2). Click an image for the original.
 
 **H1 — bookstore banner**: `READING LIGHTS THE ROAD AHEAD` / `阅读照亮前行的道路`
 
-| Language | MAI-Image-2.6 | GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare xhigh | GPT-Image-2.5 Flare max | GPT-Image-2.5 Flare auto |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| English | ![mai-image-2.6 H1 en round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/01_test.png) | ![gpt-image-2.5-flare-low H1 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/01_test.png) | ![gpt-image-2.5-flare-medium H1 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/01_test.png) | ![gpt-image-2.5-flare-high H1 en round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/01_test.png) | ![gpt-image-2.5-flare-xhigh H1 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/01_test.png) | ![gpt-image-2.5-flare-max H1 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/01_test.png) | ![gpt-image-2.5-flare-auto H1 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/01_test.png) |
-|  | r1 25/25 · r2 25/25<br>exact | r1 25/25 · r2 25/25<br>exact | r1 25/25 · r2 25/25<br>exact | r1 25/25 · r2 25/25<br>exact | r1 25/25 · r2 25/25<br>exact | r1 25/25 · r2 25/25<br>exact | r1 25/25 · r2 25/25<br>exact |
-| Chinese | ![mai-image-2.6 H1 zh round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/02_test.png) | ![gpt-image-2.5-flare-low H1 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/02_test.png) | ![gpt-image-2.5-flare-medium H1 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/02_test.png) | ![gpt-image-2.5-flare-high H1 zh round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/02_test.png) | ![gpt-image-2.5-flare-xhigh H1 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/02_test.png) | ![gpt-image-2.5-flare-max H1 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/02_test.png) | ![gpt-image-2.5-flare-auto H1 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/02_test.png) |
-|  | r1 9/9 · r2 9/9<br>exact | r1 9/9 · r2 9/9<br>exact | r1 9/9 · r2 9/9<br>exact | r1 9/9 · r2 9/9<br>exact | r1 9/9 · r2 9/9<br>exact | r1 9/9 · r2 9/9<br>exact | r1 9/9 · r2 9/9<br>exact |
+| Language | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high | GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare xhigh | GPT-Image-2.5 Flare max | GPT-Image-2.5 Flare auto |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| English | ![mai-image-2.6 H1 en round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/01_test.png) | ![gpt-image-2-low H1 en round 1](data/text-hard-20260919/fill-gpt-image-2/gpt-image-2-low/r1/01_test.png) | ![gpt-image-2-medium H1 en round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-medium/r1/01_test.png) | ![gpt-image-2-high H1 en round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-high/r1/01_test.png) | ![gpt-image-2.5-flare-low H1 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/01_test.png) | ![gpt-image-2.5-flare-medium H1 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/01_test.png) | ![gpt-image-2.5-flare-high H1 en round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/01_test.png) | ![gpt-image-2.5-flare-xhigh H1 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/01_test.png) | ![gpt-image-2.5-flare-max H1 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/01_test.png) | ![gpt-image-2.5-flare-auto H1 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/01_test.png) |
+|  | r1 25/25 · r2 25/25<br>exact | r1 25/25 · r2 25/25<br>exact | r1 25/25 · r2 25/25<br>exact | r1 25/25 · r2 25/25<br>exact | r1 25/25 · r2 25/25<br>exact | r1 25/25 · r2 25/25<br>exact | r1 25/25 · r2 25/25<br>exact | r1 25/25 · r2 25/25<br>exact | r1 25/25 · r2 25/25<br>exact | r1 25/25 · r2 25/25<br>exact |
+| Chinese | ![mai-image-2.6 H1 zh round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/02_test.png) | ![gpt-image-2-low H1 zh round 1](data/text-hard-20260919/fill-gpt-image-2/gpt-image-2-low/r1/02_test.png) | ![gpt-image-2-medium H1 zh round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-medium/r1/02_test.png) | ![gpt-image-2-high H1 zh round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-high/r1/02_test.png) | ![gpt-image-2.5-flare-low H1 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/02_test.png) | ![gpt-image-2.5-flare-medium H1 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/02_test.png) | ![gpt-image-2.5-flare-high H1 zh round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/02_test.png) | ![gpt-image-2.5-flare-xhigh H1 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/02_test.png) | ![gpt-image-2.5-flare-max H1 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/02_test.png) | ![gpt-image-2.5-flare-auto H1 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/02_test.png) |
+|  | r1 9/9 · r2 9/9<br>exact | r1 9/9 · r2 9/9<br>exact | r1 9/9 · r2 9/9<br>exact | r1 9/9 · r2 9/9<br>exact | r1 9/9 · r2 9/9<br>exact | r1 9/9 · r2 9/9<br>exact | r1 9/9 · r2 9/9<br>exact | r1 9/9 · r2 9/9<br>exact | r1 9/9 · r2 9/9<br>exact | r1 9/9 · r2 9/9<br>exact |
 
 **H2 — tea packaging**: `GREEN TEA FROM YUNNAN CLOUDS` / `云南绿茶发源地`
 
-| Language | MAI-Image-2.6 | GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare xhigh | GPT-Image-2.5 Flare max | GPT-Image-2.5 Flare auto |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| English | ![mai-image-2.6 H2 en round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/03_test.png) | ![gpt-image-2.5-flare-low H2 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/03_test.png) | ![gpt-image-2.5-flare-medium H2 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/03_test.png) | ![gpt-image-2.5-flare-high H2 en round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/03_test.png) | ![gpt-image-2.5-flare-xhigh H2 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/03_test.png) | ![gpt-image-2.5-flare-max H2 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/03_test.png) | ![gpt-image-2.5-flare-auto H2 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/03_test.png) |
-|  | r1 24/24 · r2 24/24<br>exact | r1 24/24 · r2 24/24<br>exact | r1 24/24 · r2 24/24<br>exact | r1 24/24 · r2 24/24<br>exact | r1 24/24 · r2 24/24<br>exact | r1 24/24 · r2 24/24<br>exact | r1 24/24 · r2 24/24<br>exact |
-| Chinese | ![mai-image-2.6 H2 zh round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/04_test.png) | ![gpt-image-2.5-flare-low H2 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/04_test.png) | ![gpt-image-2.5-flare-medium H2 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/04_test.png) | ![gpt-image-2.5-flare-high H2 zh round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/04_test.png) | ![gpt-image-2.5-flare-xhigh H2 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/04_test.png) | ![gpt-image-2.5-flare-max H2 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/04_test.png) | ![gpt-image-2.5-flare-auto H2 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/04_test.png) |
-|  | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact |
+| Language | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high | GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare xhigh | GPT-Image-2.5 Flare max | GPT-Image-2.5 Flare auto |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| English | ![mai-image-2.6 H2 en round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/03_test.png) | ![gpt-image-2-low H2 en round 1](data/text-hard-20260919/fill-gpt-image-2/gpt-image-2-low/r1/03_test.png) | ![gpt-image-2-medium H2 en round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-medium/r1/03_test.png) | ![gpt-image-2-high H2 en round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-high/r1/03_test.png) | ![gpt-image-2.5-flare-low H2 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/03_test.png) | ![gpt-image-2.5-flare-medium H2 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/03_test.png) | ![gpt-image-2.5-flare-high H2 en round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/03_test.png) | ![gpt-image-2.5-flare-xhigh H2 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/03_test.png) | ![gpt-image-2.5-flare-max H2 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/03_test.png) | ![gpt-image-2.5-flare-auto H2 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/03_test.png) |
+|  | r1 24/24 · r2 24/24<br>exact | r1 24/24 · r2 24/24<br>exact | r1 24/24 · r2 24/24<br>exact | r1 24/24 · r2 24/24<br>exact | r1 24/24 · r2 24/24<br>exact | r1 24/24 · r2 24/24<br>exact | r1 24/24 · r2 24/24<br>exact | r1 24/24 · r2 24/24<br>exact | r1 24/24 · r2 24/24<br>exact | r1 24/24 · r2 24/24<br>exact |
+| Chinese | ![mai-image-2.6 H2 zh round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/04_test.png) | ![gpt-image-2-low H2 zh round 1](data/text-hard-20260919/fill-gpt-image-2/gpt-image-2-low/r1/04_test.png) | ![gpt-image-2-medium H2 zh round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-medium/r1/04_test.png) | ![gpt-image-2-high H2 zh round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-high/r1/04_test.png) | ![gpt-image-2.5-flare-low H2 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/04_test.png) | ![gpt-image-2.5-flare-medium H2 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/04_test.png) | ![gpt-image-2.5-flare-high H2 zh round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/04_test.png) | ![gpt-image-2.5-flare-xhigh H2 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/04_test.png) | ![gpt-image-2.5-flare-max H2 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/04_test.png) | ![gpt-image-2.5-flare-auto H2 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/04_test.png) |
+|  | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact |
 
 **H3 — street plaque**: `EAST GATE No. 18 THIRD FLOOR` / `东门大街18号三楼`
 
-| Language | MAI-Image-2.6 | GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare xhigh | GPT-Image-2.5 Flare max | GPT-Image-2.5 Flare auto |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| English | ![mai-image-2.6 H3 en round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/05_test.png) | ![gpt-image-2.5-flare-low H3 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/05_test.png) | ![gpt-image-2.5-flare-medium H3 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/05_test.png) | ![gpt-image-2.5-flare-high H3 en round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/05_test.png) | ![gpt-image-2.5-flare-xhigh H3 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/05_test.png) | ![gpt-image-2.5-flare-max H3 en round 2](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r2/05_test.png) | ![gpt-image-2.5-flare-auto H3 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/05_test.png) |
-|  | r1 23/23 · r2 23/23<br>exact | r1 23/23 · r2 23/23<br>exact | r1 23/23 · r2 23/23<br>exact | r1 23/23 · r2 23/23<br>exact | r1 23/23 · r2 23/23<br>exact | r2 23/23<br>exact (r2) | r1 23/23 · r2 23/23<br>exact |
-| Chinese | ![mai-image-2.6 H3 zh round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/06_test.png) | ![gpt-image-2.5-flare-low H3 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/06_test.png) | ![gpt-image-2.5-flare-medium H3 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/06_test.png) | ![gpt-image-2.5-flare-high H3 zh round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/06_test.png) | ![gpt-image-2.5-flare-xhigh H3 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/06_test.png) | ![gpt-image-2.5-flare-max H3 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/06_test.png) | ![gpt-image-2.5-flare-auto H3 zh round 2](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r2/06_test.png) |
-|  | r1 9/9 · r2 9/9<br>exact | r1 9/9 · r2 9/9<br>exact | r1 9/9 · r2 9/9<br>exact | r1 9/9 · r2 9/9<br>exact | r1 9/9 · r2 9/9<br>exact | r1 9/9 · r2 9/9<br>exact | r1 9/9 · r2 8/9<br>read `东门大街18号二楼` (r2) |
+| Language | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high | GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare xhigh | GPT-Image-2.5 Flare max | GPT-Image-2.5 Flare auto |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| English | ![mai-image-2.6 H3 en round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/05_test.png) | ![gpt-image-2-low H3 en round 1](data/text-hard-20260919/fill-gpt-image-2/gpt-image-2-low/r1/05_test.png) | ![gpt-image-2-medium H3 en round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-medium/r1/05_test.png) | ![gpt-image-2-high H3 en round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-high/r1/05_test.png) | ![gpt-image-2.5-flare-low H3 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/05_test.png) | ![gpt-image-2.5-flare-medium H3 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/05_test.png) | ![gpt-image-2.5-flare-high H3 en round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/05_test.png) | ![gpt-image-2.5-flare-xhigh H3 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/05_test.png) | ![gpt-image-2.5-flare-max H3 en round 2](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r2/05_test.png) | ![gpt-image-2.5-flare-auto H3 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/05_test.png) |
+|  | r1 23/23 · r2 23/23<br>exact | r1 23/23 · r2 23/23<br>exact | r1 23/23 · r2 23/23<br>exact | r1 23/23 · r2 23/23<br>exact | r1 23/23 · r2 23/23<br>exact | r1 23/23 · r2 23/23<br>exact | r1 23/23 · r2 23/23<br>exact | r1 23/23 · r2 23/23<br>exact | r2 23/23<br>exact (r2) | r1 23/23 · r2 23/23<br>exact |
+| Chinese | ![mai-image-2.6 H3 zh round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/06_test.png) | ![gpt-image-2-low H3 zh round 1](data/text-hard-20260919/fill-gpt-image-2/gpt-image-2-low/r1/06_test.png) | ![gpt-image-2-medium H3 zh round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-medium/r1/06_test.png) | ![gpt-image-2-high H3 zh round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-high/r1/06_test.png) | ![gpt-image-2.5-flare-low H3 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/06_test.png) | ![gpt-image-2.5-flare-medium H3 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/06_test.png) | ![gpt-image-2.5-flare-high H3 zh round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/06_test.png) | ![gpt-image-2.5-flare-xhigh H3 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/06_test.png) | ![gpt-image-2.5-flare-max H3 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/06_test.png) | ![gpt-image-2.5-flare-auto H3 zh round 2](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r2/06_test.png) |
+|  | r1 9/9 · r2 9/9<br>exact | r1 9/9 · r2 9/9<br>exact | r1 9/9 · r2 9/9<br>exact | r1 9/9 · r2 9/9<br>exact | r1 9/9 · r2 9/9<br>exact | r1 9/9 · r2 9/9<br>exact | r1 9/9 · r2 9/9<br>exact | r1 9/9 · r2 9/9<br>exact | r1 9/9 · r2 9/9<br>exact | r1 9/9 · r2 8/9<br>read `东门大街18号二楼` (r2) |
 
 **H4 — calligraphy scroll**: `STILL WATERS RUN DEEP` / `宁静致远`
 
-| Language | MAI-Image-2.6 | GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare xhigh | GPT-Image-2.5 Flare max | GPT-Image-2.5 Flare auto |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| English | ![mai-image-2.6 H4 en round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/07_test.png) | ![gpt-image-2.5-flare-low H4 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/07_test.png) | ![gpt-image-2.5-flare-medium H4 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/07_test.png) | ![gpt-image-2.5-flare-high H4 en round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/07_test.png) | ![gpt-image-2.5-flare-xhigh H4 en round 2](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r2/07_test.png) | ![gpt-image-2.5-flare-max H4 en round 2](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r2/07_test.png) | ![gpt-image-2.5-flare-auto H4 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/07_test.png) |
-|  | r1 18/18 · r2 18/18<br>exact | r1 18/18 · r2 18/18<br>exact | r1 18/18 · r2 18/18<br>exact | r1 18/18 · r2 18/18<br>exact | r1 18/18 · r2 16/18<br>read `STILLWATERDEEP` (r2) | r1 18/18 · r2 16/18<br>read `STILLWATERSDEEP` (r2) | r1 18/18 · r2 18/18<br>exact |
-| Chinese | ![mai-image-2.6 H4 zh round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/08_test.png) | ![gpt-image-2.5-flare-low H4 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/08_test.png) | ![gpt-image-2.5-flare-medium H4 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/08_test.png) | ![gpt-image-2.5-flare-high H4 zh round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/08_test.png) | ![gpt-image-2.5-flare-xhigh H4 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/08_test.png) | ![gpt-image-2.5-flare-max H4 zh round 2](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r2/08_test.png) | ![gpt-image-2.5-flare-auto H4 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/08_test.png) |
-|  | r1 4/4 · r2 4/4<br>exact | r1 4/4 · r2 4/4<br>exact | r1 4/4 · r2 4/4<br>exact | r1 4/4 · r2 4/4<br>exact | r1 4/4 · r2 4/4<br>exact | r2 4/4<br>exact (r2) | r1 4/4 · r2 4/4<br>exact |
+| Language | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high | GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare xhigh | GPT-Image-2.5 Flare max | GPT-Image-2.5 Flare auto |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| English | ![mai-image-2.6 H4 en round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/07_test.png) | ![gpt-image-2-low H4 en round 1](data/text-hard-20260919/fill-gpt-image-2/gpt-image-2-low/r1/07_test.png) | ![gpt-image-2-medium H4 en round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-medium/r1/07_test.png) | ![gpt-image-2-high H4 en round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-high/r1/07_test.png) | ![gpt-image-2.5-flare-low H4 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/07_test.png) | ![gpt-image-2.5-flare-medium H4 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/07_test.png) | ![gpt-image-2.5-flare-high H4 en round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/07_test.png) | ![gpt-image-2.5-flare-xhigh H4 en round 2](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r2/07_test.png) | ![gpt-image-2.5-flare-max H4 en round 2](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r2/07_test.png) | ![gpt-image-2.5-flare-auto H4 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/07_test.png) |
+|  | r1 18/18 · r2 18/18<br>exact | r1 18/18 · r2 18/18<br>exact | r1 18/18 · r2 18/18<br>exact | r1 18/18 · r2 18/18<br>exact | r1 18/18 · r2 18/18<br>exact | r1 18/18 · r2 18/18<br>exact | r1 18/18 · r2 18/18<br>exact | r1 18/18 · r2 16/18<br>read `STILLWATERDEEP` (r2) | r1 18/18 · r2 16/18<br>read `STILLWATERSDEEP` (r2) | r1 18/18 · r2 18/18<br>exact |
+| Chinese | ![mai-image-2.6 H4 zh round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/08_test.png) | ![gpt-image-2-low H4 zh round 1](data/text-hard-20260919/fill-gpt-image-2/gpt-image-2-low/r1/08_test.png) | ![gpt-image-2-medium H4 zh round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-medium/r1/08_test.png) | ![gpt-image-2-high H4 zh round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-high/r1/08_test.png) | ![gpt-image-2.5-flare-low H4 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/08_test.png) | ![gpt-image-2.5-flare-medium H4 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/08_test.png) | ![gpt-image-2.5-flare-high H4 zh round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/08_test.png) | ![gpt-image-2.5-flare-xhigh H4 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/08_test.png) | ![gpt-image-2.5-flare-max H4 zh round 2](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r2/08_test.png) | ![gpt-image-2.5-flare-auto H4 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/08_test.png) |
+|  | r1 4/4 · r2 4/4<br>exact | r1 4/4 · r2 4/4<br>exact | r1 4/4 · r2 4/4<br>exact | r1 4/4 · r2 4/4<br>exact | r1 4/4 · r2 4/4<br>exact | r1 4/4 · r2 4/4<br>exact | r1 4/4 · r2 4/4<br>exact | r1 4/4 · r2 4/4<br>exact | r2 4/4<br>exact (r2) | r1 4/4 · r2 4/4<br>exact |
 
 **H5 — conference badge**: `ZHANG WEI / SENIOR ARCHITECT` / `张伟 / 高级架构师`
 
-| Language | MAI-Image-2.6 | GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare xhigh | GPT-Image-2.5 Flare max | GPT-Image-2.5 Flare auto |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| English | ![mai-image-2.6 H5 en round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/09_test.png) | ![gpt-image-2.5-flare-low H5 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/09_test.png) | ![gpt-image-2.5-flare-medium H5 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/09_test.png) | ![gpt-image-2.5-flare-high H5 en round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/09_test.png) | ![gpt-image-2.5-flare-xhigh H5 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/09_test.png) | ![gpt-image-2.5-flare-max H5 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/09_test.png) | ![gpt-image-2.5-flare-auto H5 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/09_test.png) |
-|  | r1 23/23 · r2 23/23<br>exact | r1 23/23 · r2 23/23<br>exact | r1 23/23 · r2 23/23<br>exact | r1 23/23 · r2 23/23<br>exact | r1 23/23 · r2 23/23<br>exact | r1 23/23 · r2 23/23<br>exact | r1 23/23 · r2 23/23<br>exact |
-| Chinese | ![mai-image-2.6 H5 zh round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/10_test.png) | ![gpt-image-2.5-flare-low H5 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/10_test.png) | ![gpt-image-2.5-flare-medium H5 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/10_test.png) | ![gpt-image-2.5-flare-high H5 zh round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/10_test.png) | ![gpt-image-2.5-flare-xhigh H5 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/10_test.png) | ![gpt-image-2.5-flare-max H5 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/10_test.png) | ![gpt-image-2.5-flare-auto H5 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/10_test.png) |
-|  | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact |
+| Language | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high | GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare xhigh | GPT-Image-2.5 Flare max | GPT-Image-2.5 Flare auto |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| English | ![mai-image-2.6 H5 en round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/09_test.png) | ![gpt-image-2-low H5 en round 1](data/text-hard-20260919/fill-gpt-image-2/gpt-image-2-low/r1/09_test.png) | ![gpt-image-2-medium H5 en round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-medium/r1/09_test.png) | ![gpt-image-2-high H5 en round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-high/r1/09_test.png) | ![gpt-image-2.5-flare-low H5 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/09_test.png) | ![gpt-image-2.5-flare-medium H5 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/09_test.png) | ![gpt-image-2.5-flare-high H5 en round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/09_test.png) | ![gpt-image-2.5-flare-xhigh H5 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/09_test.png) | ![gpt-image-2.5-flare-max H5 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/09_test.png) | ![gpt-image-2.5-flare-auto H5 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/09_test.png) |
+|  | r1 23/23 · r2 23/23<br>exact | r1 23/23 · r2 23/23<br>exact | r1 23/23 · r2 23/23<br>exact | r1 23/23 · r2 23/23<br>exact | r1 23/23 · r2 23/23<br>exact | r1 23/23 · r2 23/23<br>exact | r1 23/23 · r2 23/23<br>exact | r1 23/23 · r2 23/23<br>exact | r1 23/23 · r2 23/23<br>exact | r1 23/23 · r2 23/23<br>exact |
+| Chinese | ![mai-image-2.6 H5 zh round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/10_test.png) | ![gpt-image-2-low H5 zh round 1](data/text-hard-20260919/fill-gpt-image-2/gpt-image-2-low/r1/10_test.png) | ![gpt-image-2-medium H5 zh round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-medium/r1/10_test.png) | ![gpt-image-2-high H5 zh round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-high/r1/10_test.png) | ![gpt-image-2.5-flare-low H5 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/10_test.png) | ![gpt-image-2.5-flare-medium H5 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/10_test.png) | ![gpt-image-2.5-flare-high H5 zh round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/10_test.png) | ![gpt-image-2.5-flare-xhigh H5 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/10_test.png) | ![gpt-image-2.5-flare-max H5 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/10_test.png) | ![gpt-image-2.5-flare-auto H5 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/10_test.png) |
+|  | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact |
 
 **H6 — handwritten whiteboard**: `SHIP IT BY FRIDAY NOON` / `周五中午前发布`
 
-| Language | MAI-Image-2.6 | GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare xhigh | GPT-Image-2.5 Flare max | GPT-Image-2.5 Flare auto |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| English | ![mai-image-2.6 H6 en round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/11_test.png) | ![gpt-image-2.5-flare-low H6 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/11_test.png) | ![gpt-image-2.5-flare-medium H6 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/11_test.png) | ![gpt-image-2.5-flare-high H6 en round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/11_test.png) | ![gpt-image-2.5-flare-xhigh H6 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/11_test.png) | ![gpt-image-2.5-flare-max H6 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/11_test.png) | ![gpt-image-2.5-flare-auto H6 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/11_test.png) |
-|  | r1 18/18 · r2 18/18<br>exact | r1 18/18 · r2 18/18<br>exact | r1 18/18 · r2 18/18<br>exact | r1 18/18 · r2 18/18<br>exact | r1 18/18 · r2 18/18<br>exact | r1 18/18 · r2 18/18<br>exact | r1 18/18 · r2 18/18<br>exact |
-| Chinese | ![mai-image-2.6 H6 zh round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/12_test.png) | ![gpt-image-2.5-flare-low H6 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/12_test.png) | ![gpt-image-2.5-flare-medium H6 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/12_test.png) | ![gpt-image-2.5-flare-high H6 zh round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/12_test.png) | ![gpt-image-2.5-flare-xhigh H6 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/12_test.png) | ![gpt-image-2.5-flare-max H6 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/12_test.png) | ![gpt-image-2.5-flare-auto H6 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/12_test.png) |
-|  | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact |
+| Language | MAI-Image-2.6 | GPT-Image-2 low | GPT-Image-2 medium | GPT-Image-2 high | GPT-Image-2.5 Flare low | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high | GPT-Image-2.5 Flare xhigh | GPT-Image-2.5 Flare max | GPT-Image-2.5 Flare auto |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| English | ![mai-image-2.6 H6 en round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/11_test.png) | ![gpt-image-2-low H6 en round 1](data/text-hard-20260919/fill-gpt-image-2/gpt-image-2-low/r1/11_test.png) | ![gpt-image-2-medium H6 en round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-medium/r1/11_test.png) | ![gpt-image-2-high H6 en round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-high/r1/11_test.png) | ![gpt-image-2.5-flare-low H6 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/11_test.png) | ![gpt-image-2.5-flare-medium H6 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/11_test.png) | ![gpt-image-2.5-flare-high H6 en round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/11_test.png) | ![gpt-image-2.5-flare-xhigh H6 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/11_test.png) | ![gpt-image-2.5-flare-max H6 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/11_test.png) | ![gpt-image-2.5-flare-auto H6 en round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/11_test.png) |
+|  | r1 18/18 · r2 18/18<br>exact | r1 18/18 · r2 18/18<br>exact | r1 18/18 · r2 18/18<br>exact | r1 18/18 · r2 18/18<br>exact | r1 18/18 · r2 18/18<br>exact | r1 18/18 · r2 18/18<br>exact | r1 18/18 · r2 18/18<br>exact | r1 18/18 · r2 18/18<br>exact | r1 18/18 · r2 18/18<br>exact | r1 18/18 · r2 18/18<br>exact |
+| Chinese | ![mai-image-2.6 H6 zh round 1](data/text-hard-20260919/first-mai/mai-image-2.6/r1/12_test.png) | ![gpt-image-2-low H6 zh round 1](data/text-hard-20260919/fill-gpt-image-2/gpt-image-2-low/r1/12_test.png) | ![gpt-image-2-medium H6 zh round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-medium/r1/12_test.png) | ![gpt-image-2-high H6 zh round 1](data/text-hard-20260919/first-gpt-image-2/gpt-image-2-high/r1/12_test.png) | ![gpt-image-2.5-flare-low H6 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-low/r1/12_test.png) | ![gpt-image-2.5-flare-medium H6 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-medium/r1/12_test.png) | ![gpt-image-2.5-flare-high H6 zh round 1](data/text-hard-20260919/first-gpt-image-2.5-flare/gpt-image-2.5-flare-high/r1/12_test.png) | ![gpt-image-2.5-flare-xhigh H6 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-xhigh/r1/12_test.png) | ![gpt-image-2.5-flare-max H6 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-max/r1/12_test.png) | ![gpt-image-2.5-flare-auto H6 zh round 1](data/text-hard-20260919/fill-gpt-image-2.5-flare/gpt-image-2.5-flare-auto/r1/12_test.png) |
+|  | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact | r1 7/7 · r2 7/7<br>exact |
 
 **How it was judged**: each image is transcribed by `gpt-5.6-terra` and compared with the target string programmatically, ignoring all whitespace. Two denominators are reported: character accuracy scores the best-matching window of equal length anywhere in the transcription, character by character; exact segments requires the target to appear verbatim as a substring, with no partial credit. This is model-judged, not a blind human study. The judge is an OpenAI-family model and some of the judged images come from OpenAI image models; the calibration below rules out an inability to read Chinese, not a lenience toward one vendor's style, which is why every image is shown below for human review.
 
 **The judge's own error floor**: rendering this section's targets with Microsoft YaHei and asking the judge to read them back scores 131/131 (100.0%) for English and 43/43 (100.0%) for Chinese under the same scoring rule as the table. The judge therefore has no systematic bias against these characters, and the gaps above are attributable to the image models. Boundary: this only establishes that the judge reads clean horizontal renders; distorted, stylised or vertical text in generated images is harder, so the table may understate accuracy and will not overstate it. The renders and transcriptions are in [judge-calibration](data/text-hard-20260919/judge-calibration) and `calibrate_text_judge.py --check` recomputes them offline.
 
-**Boundary**: 310 successful samples across 6 scenes, 2 rounds and 13 configurations. This measures spelling accuracy for a specified string, not typographic quality, font choice or design appeal. MAI-Image-2.6 takes no quality parameter and therefore has a single row. **Declared support**: the Foundry model documentation lists MAI-Image-2.6 Languages as `en`; Chinese is outside its declared scope. The Chinese results here are observed behaviour outside that scope, not a product commitment, and should not be cited as a supported capability.
+**Boundary**: 382 successful samples across 6 scenes, 2 rounds and 16 configurations. This measures spelling accuracy for a specified string, not typographic quality, font choice or design appeal. MAI-Image-2.6 takes no quality parameter and therefore has a single row. **Declared support**: the Foundry model documentation lists MAI-Image-2.6 Languages as `en`; Chinese is outside its declared scope. The Chinese results here are observed behaviour outside that scope, not a product commitment, and should not be cited as a supported capability.
 
 Evidence directory: [data/text-hard-20260919](data/text-hard-20260919) (per-group contact sheets in `review/`). Prompt SHA-256: `ccc4d655f4df2c664f261bb5d42277d7ecfb1f351cf0bf23c7a74bd77790d48b`.
 

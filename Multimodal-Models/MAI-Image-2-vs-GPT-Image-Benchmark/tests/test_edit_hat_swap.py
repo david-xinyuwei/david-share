@@ -86,10 +86,13 @@ class EditHatSwapEvidenceTests(unittest.TestCase):
             self.assertLess(text.index(heading), text.index(following), filename)
             body = text[text.index(heading):text.index(following)]
             images = re.findall(r"!\[[^\]]*\]\(([^)]+)\)", body)
-            # The input plus one output per configuration per round, nothing borrowed from another run.
-            self.assertEqual(len(images), 1 + len(GROUPS) * len(self.summary["rounds"]), filename)
+            outputs = {f"{self.prefix}{item['output']}" for r in self.summary["rounds"] for item in r["outputs"]}
+            # This archive contributes one output per configuration per round. Both generations edit the same
+            # photograph, so the input is rendered once for the whole scenario.
+            self.assertEqual({t for t in images if t.startswith(self.prefix)} - {f"{self.prefix}input.jpg"},
+                             outputs, filename)
+            self.assertEqual(len([t for t in images if t.endswith("/input.jpg")]), 1, filename)
             for target in images:
-                self.assertTrue(target.startswith(self.prefix), target)
                 self.assertTrue((ROOT / target).is_file(), target)
             collapsed = " ".join(body.split())
             self.assertIn(" ".join(self.summary["prompt"].split()), collapsed, filename)
@@ -104,17 +107,15 @@ class EditHatSwapEvidenceTests(unittest.TestCase):
                               f"{item['width']}x{item['height']}", body, item["group"])
             self.assertIn("size=auto" if not filename.endswith("CN.md") else "`size` 传 `auto`", body)
             self.assertIn(f"{self.prefix}review-compact.png", body)
-            for old in ("gpt-image-2-low", "gpt-image-2-medium", "gpt-image-2-high", "GPT-Image-2 "):
-                self.assertNotIn(old, body, f"{filename}: retired GPT-Image-2 configuration in Test 12")
             self.assertNotIn("<details", body)
 
-    def test_retired_gpt_image_2_edit_archives_are_named_only_as_evidence(self):
+    def test_superseded_square_output_run_is_named_but_never_rendered(self):
+        """The forced-square run stays citable as the record of that parameter mistake, not as a result."""
         for filename in ("README.md", "README-CN.md"):
             text = (ROOT / filename).read_text("utf-8")
-            for archive in ("edit-hat-swap-20260908", "edit-hat-swap-20260909-auto"):
-                for target in re.findall(r"!\[[^\]]*\]\(([^)]+)\)", text):
-                    self.assertNotIn(archive, target, f"{filename}: image rendered from a retired archive")
-                self.assertIn(f"[data/{archive}](data/{archive})", text, f"{filename}: retired archive not named as evidence")
+            for target in re.findall(r"!\[[^\]]*\]\(([^)]+)\)", text):
+                self.assertNotIn("edit-hat-swap-20260908/", target, f"{filename}: forced-square output rendered")
+            self.assertIn("[data/edit-hat-swap-20260908](data/edit-hat-swap-20260908)", text, filename)
 
     def test_superseded_multi_image_section_is_gone(self):
         for filename in ("README.md", "README-CN.md"):

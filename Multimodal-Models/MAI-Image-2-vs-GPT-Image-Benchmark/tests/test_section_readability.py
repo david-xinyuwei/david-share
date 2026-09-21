@@ -142,8 +142,7 @@ class SectionReadabilityTests(unittest.TestCase):
                 self.assertGreater(len(images), 0, f"{name}: {heading} renders no result image")
                 for target in images:
                     self.assertTrue((ROOT / target).is_file(), target)
-                    self.assertNotIn("gpt-image-2-", target, f"{name}: retired GPT-Image-2 image shown")
-                self.assertNotIn("| gpt-image-2-", body, f"{name}: retired GPT-Image-2 row in the score table")
+                    self.assertNotIn("sunburst", target, f"{name}: sunburst images stay in the evidence directory")
                 self.assertIn("| --- |", body)
                 self.assertLess(body.index("**"), body.index("| --- |"), f"{name}: table before the question")
 
@@ -161,8 +160,11 @@ class SectionReadabilityTests(unittest.TestCase):
             edit = section_text(self.documents[name], labels["edit"])
             self.assertLess(edit.index("\n> "), edit.index("| ---"),
                             f"{name}: Test 12 table appears before its prompt")
-            self.assertLess(edit.index(labels["controlled"]), edit.index("| ---"),
-                            f"{name}: Test 12 table appears before the controlled variables")
+            # Each generation's sub-block states its controlled variables before its own first table.
+            for block in re.split(r"(?m)^#### ", edit)[1:]:
+                self.assertIn(labels["controlled"], block, f"{name}: Test 12 sub-block without controlled variables")
+                self.assertLess(block.index(labels["controlled"]), block.index("| ---"),
+                                f"{name}: Test 12 table appears before the controlled variables")
 
     def test_edit_scenario_states_what_a_departure_means(self):
         """The conclusion rests on 'preserve the input'; the text must say so."""

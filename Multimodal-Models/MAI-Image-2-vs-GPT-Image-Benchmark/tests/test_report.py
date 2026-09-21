@@ -79,24 +79,31 @@ class ComparisonReportTests(unittest.TestCase):
         primary = {"archive": "data/offline-fixture", "region": "swedencentral"}
         supplement = {"archive": "data/offline-supplement"}
         tier = {"archive": "data/offline-tiers"}
-        edit = {"archive": "data/offline-edit", "gpt_deployment": "gpt-image-2.5-flare",
-                "groups": ["mai-image-2.6", "gpt-image-2.5-flare-medium", "gpt-image-2.5-flare-high"]}
+        gpt2 = {"archive": "data/offline-gpt2"}
+        edits = [({"archive": "data/offline-edit-gpt2", "gpt_deployment": "gpt-image-2",
+                   "groups": ["mai-image-2.6", "gpt-image-2-low", "gpt-image-2-high"]}, "GPT-Image-2"),
+                 ({"archive": "data/offline-edit", "gpt_deployment": "gpt-image-2.5-flare",
+                   "groups": ["mai-image-2.6", "gpt-image-2.5-flare-medium", "gpt-image-2.5-flare-high"]}, "GPT-Image-2.5")]
         study = {"archive": "data/offline-text", "prompts_name": "prompts-text.csv", "calibration": {"summary": {}}}
         billing = {"archive": "data/offline-billing"}
         for language in ("en", "zh"):
-            section = report.reproduction_section(primary, supplement, tier, edit, {"complete": True}, (study, None), billing, language)
+            section = report.reproduction_section(primary, supplement, tier, gpt2, edits, {"complete": True}, (study, None), billing, language)
             self.assertIn("--mai-model MAI-Image-2.6 --gpt-model gpt-image-2.5-flare:medium,high", section)
             self.assertIn("--warmup-only", section)
             self.assertIn("--resume", section)
-            for archive in ("data/offline-fixture", "data/offline-supplement", "data/offline-tiers", "data/offline-edit",
-                            "data/offline-text", "data/offline-billing"):
+            for archive in ("data/offline-fixture", "data/offline-supplement", "data/offline-tiers", "data/offline-gpt2",
+                            "data/offline-edit-gpt2", "data/offline-edit", "data/offline-text", "data/offline-billing"):
                 self.assertIn(archive, section, archive)
+            # Each generation keeps its own deployment and its own tier list; neither is inherited from the other.
             self.assertIn("--gpt-quality medium --gpt-quality high", section)
+            self.assertIn("--gpt-quality low --gpt-quality high", section)
+            self.assertIn("$env:GPT_DEPLOYMENT = 'gpt-image-2'", section)
+            self.assertIn("$env:GPT_DEPLOYMENT = 'gpt-image-2.5-flare'", section)
+            self.assertIn("--gpt-model gpt-image-2 --gpt-quality all", section)
             self.assertIn("score_text_rendering.py --check data/offline-text/text-scoring.json", section)
             self.assertIn("calibrate_text_judge.py --check data/offline-text/judge-calibration/calibration.json", section)
             self.assertIn("effective_prices.py data/offline-billing --check", section)
             self.assertIn("AZURE_OPENAI_API_KEY", section)
-            self.assertNotIn("gpt-image-2 ", section)
 
     def test_exception_section_keeps_failures_in_the_denominator(self):
         run = {"summary": {"unsuccessful_attempts": [{"sample_id": "offline-sample", "attempt": 1,
@@ -127,8 +134,8 @@ class ComparisonReportTests(unittest.TestCase):
             grounding = "## Web Grounding Test\n\nOffline grounding evidence"
             with patch.object(report, "render_overview", return_value="## Same-Session Run\n\nOffline metrics"), \
                     patch.object(report, "render_grounding_section", return_value=grounding):
-                generated = report.update_document(original, primary, None, None, None, {"planned_samples": 12}, (None, None), None, language, 7)
-                regenerated = report.update_document(generated, primary, None, None, None, {"planned_samples": 12}, (None, None), None, language, 7)
+                generated = report.update_document(original, primary, None, None, None, [], {"planned_samples": 12}, (None, None), None, language, 7)
+                regenerated = report.update_document(generated, primary, None, None, None, [], {"planned_samples": 12}, (None, None), None, language, 7)
             self.assertEqual(generated, regenerated)
             self.assertNotIn("MAI-Image-2e", generated)
             self.assertNotIn("GPT-Image-1.5", generated)
