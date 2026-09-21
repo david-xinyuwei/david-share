@@ -293,6 +293,7 @@ def render_side_by_side(primary, supplement, tier, gpt2, titles, language):
                      f"header. Sunburst is a second deployment of the same model; its images stay in the evidence directory and its numbers are in the tier table below"
                      if other_dates else "")
     third_row_cn = third_row_en = ""
+    gpt2_region = ""
     if gpt2:
         gpt2_region = region_label(next((r for g, r in gpt2["group_regions"].items() if g != "mai-image-2.6"), None))
         third_row_cn = (f"；第三行是 {gpt2['date']} 的 GPT-Image-2 会话：同一客户端交错调用 MAI 与 GPT-Image-2 的 low、medium、high，"
@@ -301,11 +302,25 @@ def render_side_by_side(primary, supplement, tier, gpt2, titles, language):
                         f"high, but GPT-Image-2 was deployed in {gpt2_region} on a separate account, so its latency gap includes a region difference (each header names its region)")
     description = (
         f"第 1–11 题为文生图，每题两轮。每轮第一行是 {primary['date']} 同一会话交错调用的 {'、'.join(primary['labels'])}{second_row_cn}{third_row_cn}。"
-        "三行不是同一时段，图下耗时要连带日期看。点击图片查看原始 1024x1024 PNG。第 12 题为图像编辑，输入为一张真实照片。"
+        "每一行都是一次独立会话，所以 MAI-Image-2.6 会在两行里各出现一次——那是两次独立测量，不是同一张图重复贴；"
+        "耗时只在同一行内部可直接比较。点击图片查看原始 1024x1024 PNG。第 12 题为图像编辑，输入为一张真实照片。"
         if chinese else
         f"Scenarios 1-11 are text-to-image, two rounds each. In every round the first row is {', '.join(primary['labels'])}, called alternately "
-        f"in one session on {primary['date']}{second_row_en}{third_row_en}. The rows are not the same session, so read the latencies under the "
-        "images together with their dates. Click an image for the original 1024x1024 PNG. Scenario 12 is an image edit of one real photograph.")
+        f"in one session on {primary['date']}{second_row_en}{third_row_en}. Each row is one session, so MAI-Image-2.6 appears once in two of them: those "
+        "are two independent measurements, not the same image shown twice, and latency is directly comparable only within a row. Click an image for the "
+        "original 1024x1024 PNG. Scenario 12 is an image edit of one real photograph.")
+    primary_note = (f"*同会话 {primary['date']}：{'、'.join(primary['labels'])} 由同一客户端交错调用，本行内部耗时可直接比较。*"
+                    if chinese else
+                    f"*Same session, {primary['date']}: {', '.join(primary['labels'])}, called alternately by one client; latency is comparable within this row.*")
+    others_note = ((f"*{shown} 其余档位（{other_dates}，各自独立会话）。本行没有 MAI 单元格，因为它们不是与 MAI 同会话测的。*"
+                    if chinese else
+                    f"*The remaining {shown} tiers ({other_dates}, separate sessions). This row has no MAI cell because these tiers were not measured in the "
+                    "same session as MAI.*") if other_dates else "")
+    gpt2_note = (f"*GPT-Image-2 会话 {gpt2['date']}：这一轮自带一份 MAI 基线，这就是 MAI 在本题出现第二次的原因——独立的另一次测量。"
+                 f"GPT-Image-2 在 {gpt2_region}、另一个账户，耗时差含区域因素。*"
+                 if chinese else
+                 f"*GPT-Image-2 session, {gpt2['date']}: this run carries its own MAI baseline, which is why MAI appears a second time here — a separate "
+                 f"measurement. GPT-Image-2 ran in {gpt2_region} on another account, so its latency gap includes a region difference.*") if gpt2 else ""
     sections = [heading, description]
     for prompt_record in primary["summary"]["per_prompt"]:
         index = prompt_record["prompt_index"]
@@ -318,11 +333,11 @@ def render_side_by_side(primary, supplement, tier, gpt2, titles, language):
             record = scenario_record(gpt2, index, prompt_record["prompt"])
             gpt2_cells = [(label, gpt2, record, group) for label, group in zip(gpt2["labels"], gpt2["groups"])]
         for round_number in (1, 2):
-            sections.extend([f"**Round {round_number}:**", image_table(primary_cells, round_number, language)])
+            sections.extend([f"**Round {round_number}:**", primary_note, image_table(primary_cells, round_number, language)])
             if others:
-                sections.append(image_table(others, round_number, language, show_date=True))
+                sections.extend([others_note, image_table(others, round_number, language, show_date=True)])
             if gpt2_cells:
-                sections.append(image_table(gpt2_cells, round_number, language, show_date=True))
+                sections.extend([gpt2_note, image_table(gpt2_cells, round_number, language, show_date=True)])
     return sections
 
 
@@ -990,6 +1005,30 @@ def render_cost_section(billing, language):
                f"{mai_cost / low:.1f}x 2.5 low (${low:.2f}), {mai_cost / med:.1f}x medium (${med:.2f}), {1 - mai_cost / high:.0%} less than high (${high:.2f}) and "
                f"{1 - mai_cost / per_image['gpt-image-2.5 max']:.0%} less than max (${per_image['gpt-image-2.5 max']:.2f}). \"Expensive\" is meaningless "
                "until the comparison tier is named; which tier matches MAI in quality is answered by the side-by-side images, not by price.")
+    # The two generations reuse the same tier words for different amounts of compute; the reader has to be told.
+    gen2 = {name.split(" ", 1)[1]: count for name, count in tokens.items() if name.startswith("gpt-image-2 ")}
+    gen25 = {name.split(" ", 1)[1]: count for name, count in tokens.items() if name.startswith("gpt-image-2.5 ")}
+    alignment = []
+    if gen2 and gen25:
+        matched = [(a, b, n) for a, n in sorted(gen2.items(), key=lambda item: item[1]) for b, m in gen25.items() if m == n]
+        renamed = [f"the {a} of the previous generation is the 2.5 {b}" for a, b, _ in matched if a != b]
+        only25 = sorted(((b, m) for b, m in gen25.items() if m not in gen2.values()), key=lambda item: item[1])
+        only_en = [f"{b} ({m:,})" for b, m in only25]
+        listed = [p[0] if len(p) == 1 else ", ".join(p[:-1]) + " and " + p[-1] for p in (renamed, only_en)]
+        alignment = [
+            ("**同名档位跨代不是一回事。** 按各配置实测返回的 token 对齐："
+             + "、".join(f"gpt-image-2 {a} = 2.5 {b}（{n:,} token）" for a, b, n in matched)
+             + "。" + (f"也就是说 {'、'.join(f'2 代的 {a} 相当于 2.5 的 {b}' for a, b, _ in matched if a != b)}，计费算力与单价完全相同，只是换了名字。" if renamed else "")
+             + (f"2.5 的 {'、'.join(f'{b}（{m:,}）' for b, m in only25)} 在 gpt-image-2 上没有对应档位；" if only25 else "")
+             + f"MAI 没有 quality 参数，恒定 {tokens['MAI-Image-2.6']:,} token。"
+             "所以「三个模型都取 high 来比」并不是一个有定义的操作，上面这张表按计费算力排序正是因为这个。"
+             if chinese else
+             "**Tier names do not carry across generations.** Aligned by the tokens each configuration actually returned: "
+             + ", ".join(f"gpt-image-2 {a} = 2.5 {b} ({n:,} tokens)" for a, b, n in matched)
+             + ". " + (f"So {listed[0]}: the same billed compute at the same rate under a different name. " if renamed else "")
+             + (f"2.5's {listed[1]} {'has' if len(only25) == 1 else 'have'} no gpt-image-2 counterpart. " if only25 else "")
+             + f"MAI has no quality parameter at all and always returns {tokens['MAI-Image-2.6']:,} tokens. "
+             "\"Compare all three models at high\" is therefore not a defined operation, which is why the table above is ordered by billed compute.")]
     boundary = ("**边界**：单价是本账户 GlobalStandard 按需计费的实际值，不含协议折扣；token 数是各配置在本仓库全部测试中恒定不变的实测值，`auto` 因 token 不固定不列；"
                 "不含输入文本 token（每张不到 $0.001）。这是按 token 的成本，不是按质量的成本。"
                 if chinese else
@@ -999,7 +1038,7 @@ def render_cost_section(billing, language):
     evidence = (f"证据：[{billing['archive']}]({billing['archive']})（原始 Cost Management 响应；`scripts/effective_prices.py --check` 可离线重算）。"
                 if chinese else
                 f"Evidence: [{billing['archive']}]({billing['archive']}) (raw Cost Management response; `scripts/effective_prices.py --check` recomputes it offline).")
-    return "\n\n".join([heading, question, source, price_table, cost_table, reading, boundary, evidence])
+    return "\n\n".join([heading, question, source, price_table, cost_table, reading, *alignment, boundary, evidence])
 
 
 # --------------------------------------------------------------------------------------------------

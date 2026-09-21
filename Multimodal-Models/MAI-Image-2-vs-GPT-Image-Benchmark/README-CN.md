@@ -30,7 +30,7 @@ MAI-Image-2.6 对 GPT-Image-2 与 GPT-Image-2.5 的实测对比。主线是 2026
 
 ## 并排图片对比
 
-第 1–11 题为文生图，每题两轮。每轮第一行是 2026-09-20 同一会话交错调用的 MAI-Image-2.6、GPT-Image-2.5 Flare medium、GPT-Image-2.5 Flare high；第二行是 GPT-Image-2.5 Flare 其余档位，来自 2026-09-17、2026-09-18 用同一客户端、同一提示词文件的测量，日期标在表头。Sunburst 是同一模型的第二个部署，图片留在证据目录，数字在后面的档位表里；第三行是 2026-09-07 的 GPT-Image-2 会话：同一客户端交错调用 MAI 与 GPT-Image-2 的 low、medium、high，但 GPT-Image-2 部署在 East US 2、另一个账户，耗时差里含区域因素，表头标了各自区域。三行不是同一时段，图下耗时要连带日期看。点击图片查看原始 1024x1024 PNG。第 12 题为图像编辑，输入为一张真实照片。
+第 1–11 题为文生图，每题两轮。每轮第一行是 2026-09-20 同一会话交错调用的 MAI-Image-2.6、GPT-Image-2.5 Flare medium、GPT-Image-2.5 Flare high；第二行是 GPT-Image-2.5 Flare 其余档位，来自 2026-09-17、2026-09-18 用同一客户端、同一提示词文件的测量，日期标在表头。Sunburst 是同一模型的第二个部署，图片留在证据目录，数字在后面的档位表里；第三行是 2026-09-07 的 GPT-Image-2 会话：同一客户端交错调用 MAI 与 GPT-Image-2 的 low、medium、high，但 GPT-Image-2 部署在 East US 2、另一个账户，耗时差里含区域因素，表头标了各自区域。每一行都是一次独立会话，所以 MAI-Image-2.6 会在两行里各出现一次——那是两次独立测量，不是同一张图重复贴；耗时只在同一行内部可直接比较。点击图片查看原始 1024x1024 PNG。第 12 题为图像编辑，输入为一张真实照片。
 
 ### Test 1: 金属和服少女
 
@@ -38,15 +38,21 @@ MAI-Image-2.6 对 GPT-Image-2 与 GPT-Image-2.5 的实测对比。主线是 2026
 
 **Round 1:**
 
+*同会话 2026-09-20：MAI-Image-2.6、GPT-Image-2.5 Flare medium、GPT-Image-2.5 Flare high 由同一客户端交错调用，本行内部耗时可直接比较。*
+
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
 | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 1, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/01_test.png) | ![GPT-Image-2.5 Flare medium, prompt 1, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/01_test.png) | ![GPT-Image-2.5 Flare high, prompt 1, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/01_test.png) |
 | 46.69 s<br>1687 KiB | 20.50 s<br>1715 KiB | 31.45 s<br>1783 KiB |
 
+*GPT-Image-2.5 Flare 其余档位（2026-09-17、2026-09-18，各自独立会话）。本行没有 MAI 单元格，因为它们不是与 MAI 同会话测的。*
+
 | GPT-Image-2.5 Flare low<br>(2026-09-17) | GPT-Image-2.5 Flare xhigh<br>(2026-09-18) | GPT-Image-2.5 Flare max<br>(2026-09-18) | GPT-Image-2.5 Flare auto<br>(2026-09-18) |
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 1, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/01_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 1, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/01_test.png) | ![GPT-Image-2.5 Flare max, prompt 1, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/01_test.png) | ![GPT-Image-2.5 Flare auto, prompt 1, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/01_test.png) |
 | 21.93 s<br>1631 KiB | 43.22 s<br>1697 KiB | 66.83 s<br>1683 KiB | 19.37 s<br>1658 KiB |
+
+*GPT-Image-2 会话 2026-09-07：这一轮自带一份 MAI 基线，这就是 MAI 在本题出现第二次的原因——独立的另一次测量。GPT-Image-2 在 East US 2、另一个账户，耗时差含区域因素。*
 
 | MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
 | --- | --- | --- | --- |
@@ -55,15 +61,21 @@ MAI-Image-2.6 对 GPT-Image-2 与 GPT-Image-2.5 的实测对比。主线是 2026
 
 **Round 2:**
 
+*同会话 2026-09-20：MAI-Image-2.6、GPT-Image-2.5 Flare medium、GPT-Image-2.5 Flare high 由同一客户端交错调用，本行内部耗时可直接比较。*
+
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
 | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 1, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/01_test.png) | ![GPT-Image-2.5 Flare medium, prompt 1, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/01_test.png) | ![GPT-Image-2.5 Flare high, prompt 1, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/01_test.png) |
 | 31.04 s<br>1644 KiB | 25.36 s<br>1801 KiB | 28.44 s<br>1693 KiB |
 
+*GPT-Image-2.5 Flare 其余档位（2026-09-17、2026-09-18，各自独立会话）。本行没有 MAI 单元格，因为它们不是与 MAI 同会话测的。*
+
 | GPT-Image-2.5 Flare low<br>(2026-09-17) | GPT-Image-2.5 Flare xhigh<br>(2026-09-18) | GPT-Image-2.5 Flare max<br>(2026-09-18) | GPT-Image-2.5 Flare auto<br>(2026-09-18) |
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 1, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/01_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 1, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/01_test.png) | ![GPT-Image-2.5 Flare max, prompt 1, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/01_test.png) | ![GPT-Image-2.5 Flare auto, prompt 1, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/01_test.png) |
 | 17.66 s<br>1546 KiB | 40.05 s<br>1753 KiB | 73.42 s<br>1631 KiB | 21.75 s<br>1695 KiB |
+
+*GPT-Image-2 会话 2026-09-07：这一轮自带一份 MAI 基线，这就是 MAI 在本题出现第二次的原因——独立的另一次测量。GPT-Image-2 在 East US 2、另一个账户，耗时差含区域因素。*
 
 | MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
 | --- | --- | --- | --- |
@@ -76,15 +88,21 @@ MAI-Image-2.6 对 GPT-Image-2 与 GPT-Image-2.5 的实测对比。主线是 2026
 
 **Round 1:**
 
+*同会话 2026-09-20：MAI-Image-2.6、GPT-Image-2.5 Flare medium、GPT-Image-2.5 Flare high 由同一客户端交错调用，本行内部耗时可直接比较。*
+
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
 | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 2, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/02_test.png) | ![GPT-Image-2.5 Flare medium, prompt 2, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/02_test.png) | ![GPT-Image-2.5 Flare high, prompt 2, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/02_test.png) |
 | 36.52 s<br>1740 KiB | 20.86 s<br>1397 KiB | 30.36 s<br>1488 KiB |
 
+*GPT-Image-2.5 Flare 其余档位（2026-09-17、2026-09-18，各自独立会话）。本行没有 MAI 单元格，因为它们不是与 MAI 同会话测的。*
+
 | GPT-Image-2.5 Flare low<br>(2026-09-17) | GPT-Image-2.5 Flare xhigh<br>(2026-09-18) | GPT-Image-2.5 Flare max<br>(2026-09-18) | GPT-Image-2.5 Flare auto<br>(2026-09-18) |
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 2, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/02_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 2, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/02_test.png) | ![GPT-Image-2.5 Flare max, prompt 2, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/02_test.png) | ![GPT-Image-2.5 Flare auto, prompt 2, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/02_test.png) |
 | 20.45 s<br>1429 KiB | 36.59 s<br>1542 KiB | 73.53 s<br>1509 KiB | 20.00 s<br>1424 KiB |
+
+*GPT-Image-2 会话 2026-09-07：这一轮自带一份 MAI 基线，这就是 MAI 在本题出现第二次的原因——独立的另一次测量。GPT-Image-2 在 East US 2、另一个账户，耗时差含区域因素。*
 
 | MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
 | --- | --- | --- | --- |
@@ -93,15 +111,21 @@ MAI-Image-2.6 对 GPT-Image-2 与 GPT-Image-2.5 的实测对比。主线是 2026
 
 **Round 2:**
 
+*同会话 2026-09-20：MAI-Image-2.6、GPT-Image-2.5 Flare medium、GPT-Image-2.5 Flare high 由同一客户端交错调用，本行内部耗时可直接比较。*
+
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
 | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 2, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/02_test.png) | ![GPT-Image-2.5 Flare medium, prompt 2, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/02_test.png) | ![GPT-Image-2.5 Flare high, prompt 2, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/02_test.png) |
 | 32.08 s<br>1723 KiB | 20.92 s<br>1570 KiB | 30.67 s<br>1446 KiB |
 
+*GPT-Image-2.5 Flare 其余档位（2026-09-17、2026-09-18，各自独立会话）。本行没有 MAI 单元格，因为它们不是与 MAI 同会话测的。*
+
 | GPT-Image-2.5 Flare low<br>(2026-09-17) | GPT-Image-2.5 Flare xhigh<br>(2026-09-18) | GPT-Image-2.5 Flare max<br>(2026-09-18) | GPT-Image-2.5 Flare auto<br>(2026-09-18) |
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 2, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/02_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 2, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/02_test.png) | ![GPT-Image-2.5 Flare max, prompt 2, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/02_test.png) | ![GPT-Image-2.5 Flare auto, prompt 2, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/02_test.png) |
 | 22.78 s<br>1401 KiB | 46.70 s<br>1535 KiB | 73.52 s<br>1330 KiB | 21.22 s<br>1515 KiB |
+
+*GPT-Image-2 会话 2026-09-07：这一轮自带一份 MAI 基线，这就是 MAI 在本题出现第二次的原因——独立的另一次测量。GPT-Image-2 在 East US 2、另一个账户，耗时差含区域因素。*
 
 | MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
 | --- | --- | --- | --- |
@@ -114,15 +138,21 @@ MAI-Image-2.6 对 GPT-Image-2 与 GPT-Image-2.5 的实测对比。主线是 2026
 
 **Round 1:**
 
+*同会话 2026-09-20：MAI-Image-2.6、GPT-Image-2.5 Flare medium、GPT-Image-2.5 Flare high 由同一客户端交错调用，本行内部耗时可直接比较。*
+
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
 | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 3, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/03_test.png) | ![GPT-Image-2.5 Flare medium, prompt 3, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/03_test.png) | ![GPT-Image-2.5 Flare high, prompt 3, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/03_test.png) |
 | 30.92 s<br>1593 KiB | 27.00 s<br>1531 KiB | 33.09 s<br>1482 KiB |
 
+*GPT-Image-2.5 Flare 其余档位（2026-09-17、2026-09-18，各自独立会话）。本行没有 MAI 单元格，因为它们不是与 MAI 同会话测的。*
+
 | GPT-Image-2.5 Flare low<br>(2026-09-17) | GPT-Image-2.5 Flare xhigh<br>(2026-09-18) | GPT-Image-2.5 Flare max<br>(2026-09-18) | GPT-Image-2.5 Flare auto<br>(2026-09-18) |
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 3, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/03_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 3, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/03_test.png) | ![GPT-Image-2.5 Flare max, prompt 3, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/03_test.png) | ![GPT-Image-2.5 Flare auto, prompt 3, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/03_test.png) |
 | 48.27 s<br>1596 KiB | 40.06 s<br>1517 KiB | 68.61 s<br>1402 KiB | 20.84 s<br>1498 KiB |
+
+*GPT-Image-2 会话 2026-09-07：这一轮自带一份 MAI 基线，这就是 MAI 在本题出现第二次的原因——独立的另一次测量。GPT-Image-2 在 East US 2、另一个账户，耗时差含区域因素。*
 
 | MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
 | --- | --- | --- | --- |
@@ -131,15 +161,21 @@ MAI-Image-2.6 对 GPT-Image-2 与 GPT-Image-2.5 的实测对比。主线是 2026
 
 **Round 2:**
 
+*同会话 2026-09-20：MAI-Image-2.6、GPT-Image-2.5 Flare medium、GPT-Image-2.5 Flare high 由同一客户端交错调用，本行内部耗时可直接比较。*
+
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
 | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 3, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/03_test.png) | ![GPT-Image-2.5 Flare medium, prompt 3, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/03_test.png) | ![GPT-Image-2.5 Flare high, prompt 3, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/03_test.png) |
 | 29.44 s<br>1586 KiB | 22.24 s<br>1573 KiB | 33.76 s<br>1483 KiB |
 
+*GPT-Image-2.5 Flare 其余档位（2026-09-17、2026-09-18，各自独立会话）。本行没有 MAI 单元格，因为它们不是与 MAI 同会话测的。*
+
 | GPT-Image-2.5 Flare low<br>(2026-09-17) | GPT-Image-2.5 Flare xhigh<br>(2026-09-18) | GPT-Image-2.5 Flare max<br>(2026-09-18) | GPT-Image-2.5 Flare auto<br>(2026-09-18) |
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 3, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/03_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 3, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/03_test.png) | ![GPT-Image-2.5 Flare max, prompt 3, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/03_test.png) | ![GPT-Image-2.5 Flare auto, prompt 3, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/03_test.png) |
 | 20.04 s<br>1576 KiB | 45.34 s<br>1466 KiB | 77.89 s<br>1465 KiB | 22.10 s<br>1460 KiB |
+
+*GPT-Image-2 会话 2026-09-07：这一轮自带一份 MAI 基线，这就是 MAI 在本题出现第二次的原因——独立的另一次测量。GPT-Image-2 在 East US 2、另一个账户，耗时差含区域因素。*
 
 | MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
 | --- | --- | --- | --- |
@@ -152,15 +188,21 @@ MAI-Image-2.6 对 GPT-Image-2 与 GPT-Image-2.5 的实测对比。主线是 2026
 
 **Round 1:**
 
+*同会话 2026-09-20：MAI-Image-2.6、GPT-Image-2.5 Flare medium、GPT-Image-2.5 Flare high 由同一客户端交错调用，本行内部耗时可直接比较。*
+
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
 | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 4, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/04_test.png) | ![GPT-Image-2.5 Flare medium, prompt 4, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/04_test.png) | ![GPT-Image-2.5 Flare high, prompt 4, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/04_test.png) |
 | 48.47 s<br>1581 KiB | 21.39 s<br>1451 KiB | 31.54 s<br>1447 KiB |
 
+*GPT-Image-2.5 Flare 其余档位（2026-09-17、2026-09-18，各自独立会话）。本行没有 MAI 单元格，因为它们不是与 MAI 同会话测的。*
+
 | GPT-Image-2.5 Flare low<br>(2026-09-17) | GPT-Image-2.5 Flare xhigh<br>(2026-09-18) | GPT-Image-2.5 Flare max<br>(2026-09-18) | GPT-Image-2.5 Flare auto<br>(2026-09-18) |
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 4, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/04_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 4, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/04_test.png) | ![GPT-Image-2.5 Flare max, prompt 4, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/04_test.png) | ![GPT-Image-2.5 Flare auto, prompt 4, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/04_test.png) |
 | 22.31 s<br>1536 KiB | 36.94 s<br>1379 KiB | 63.49 s<br>1308 KiB | 19.95 s<br>1524 KiB |
+
+*GPT-Image-2 会话 2026-09-07：这一轮自带一份 MAI 基线，这就是 MAI 在本题出现第二次的原因——独立的另一次测量。GPT-Image-2 在 East US 2、另一个账户，耗时差含区域因素。*
 
 | MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
 | --- | --- | --- | --- |
@@ -169,15 +211,21 @@ MAI-Image-2.6 对 GPT-Image-2 与 GPT-Image-2.5 的实测对比。主线是 2026
 
 **Round 2:**
 
+*同会话 2026-09-20：MAI-Image-2.6、GPT-Image-2.5 Flare medium、GPT-Image-2.5 Flare high 由同一客户端交错调用，本行内部耗时可直接比较。*
+
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
 | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 4, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/04_test.png) | ![GPT-Image-2.5 Flare medium, prompt 4, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/04_test.png) | ![GPT-Image-2.5 Flare high, prompt 4, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/04_test.png) |
 | 34.71 s<br>1622 KiB | 17.74 s<br>1405 KiB | 30.32 s<br>1363 KiB |
 
+*GPT-Image-2.5 Flare 其余档位（2026-09-17、2026-09-18，各自独立会话）。本行没有 MAI 单元格，因为它们不是与 MAI 同会话测的。*
+
 | GPT-Image-2.5 Flare low<br>(2026-09-17) | GPT-Image-2.5 Flare xhigh<br>(2026-09-18) | GPT-Image-2.5 Flare max<br>(2026-09-18) | GPT-Image-2.5 Flare auto<br>(2026-09-18) |
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 4, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/04_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 4, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/04_test.png) | ![GPT-Image-2.5 Flare max, prompt 4, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/04_test.png) | ![GPT-Image-2.5 Flare auto, prompt 4, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/04_test.png) |
 | 18.24 s<br>1381 KiB | 44.01 s<br>1449 KiB | 65.18 s<br>1409 KiB | 26.41 s<br>1333 KiB |
+
+*GPT-Image-2 会话 2026-09-07：这一轮自带一份 MAI 基线，这就是 MAI 在本题出现第二次的原因——独立的另一次测量。GPT-Image-2 在 East US 2、另一个账户，耗时差含区域因素。*
 
 | MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
 | --- | --- | --- | --- |
@@ -190,15 +238,21 @@ MAI-Image-2.6 对 GPT-Image-2 与 GPT-Image-2.5 的实测对比。主线是 2026
 
 **Round 1:**
 
+*同会话 2026-09-20：MAI-Image-2.6、GPT-Image-2.5 Flare medium、GPT-Image-2.5 Flare high 由同一客户端交错调用，本行内部耗时可直接比较。*
+
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
 | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 5, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/05_test.png) | ![GPT-Image-2.5 Flare medium, prompt 5, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/05_test.png) | ![GPT-Image-2.5 Flare high, prompt 5, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/05_test.png) |
 | 52.27 s<br>1651 KiB | 24.92 s<br>1613 KiB | 32.86 s<br>1669 KiB |
 
+*GPT-Image-2.5 Flare 其余档位（2026-09-17、2026-09-18，各自独立会话）。本行没有 MAI 单元格，因为它们不是与 MAI 同会话测的。*
+
 | GPT-Image-2.5 Flare low<br>(2026-09-17) | GPT-Image-2.5 Flare xhigh<br>(2026-09-18) | GPT-Image-2.5 Flare max<br>(2026-09-18) | GPT-Image-2.5 Flare auto<br>(2026-09-18) |
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 5, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/05_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 5, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/05_test.png) | ![GPT-Image-2.5 Flare max, prompt 5, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/05_test.png) | ![GPT-Image-2.5 Flare auto, prompt 5, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/05_test.png) |
 | 22.87 s<br>1484 KiB | 60.20 s<br>1597 KiB | 68.71 s<br>1512 KiB | 24.54 s<br>1545 KiB |
+
+*GPT-Image-2 会话 2026-09-07：这一轮自带一份 MAI 基线，这就是 MAI 在本题出现第二次的原因——独立的另一次测量。GPT-Image-2 在 East US 2、另一个账户，耗时差含区域因素。*
 
 | MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
 | --- | --- | --- | --- |
@@ -207,15 +261,21 @@ MAI-Image-2.6 对 GPT-Image-2 与 GPT-Image-2.5 的实测对比。主线是 2026
 
 **Round 2:**
 
+*同会话 2026-09-20：MAI-Image-2.6、GPT-Image-2.5 Flare medium、GPT-Image-2.5 Flare high 由同一客户端交错调用，本行内部耗时可直接比较。*
+
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
 | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 5, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/05_test.png) | ![GPT-Image-2.5 Flare medium, prompt 5, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/05_test.png) | ![GPT-Image-2.5 Flare high, prompt 5, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/05_test.png) |
 | 33.10 s<br>1499 KiB | 21.48 s<br>1567 KiB | 33.54 s<br>1714 KiB |
 
+*GPT-Image-2.5 Flare 其余档位（2026-09-17、2026-09-18，各自独立会话）。本行没有 MAI 单元格，因为它们不是与 MAI 同会话测的。*
+
 | GPT-Image-2.5 Flare low<br>(2026-09-17) | GPT-Image-2.5 Flare xhigh<br>(2026-09-18) | GPT-Image-2.5 Flare max<br>(2026-09-18) | GPT-Image-2.5 Flare auto<br>(2026-09-18) |
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 5, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/05_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 5, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/05_test.png) | ![GPT-Image-2.5 Flare max, prompt 5, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/05_test.png) | ![GPT-Image-2.5 Flare auto, prompt 5, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/05_test.png) |
 | 26.37 s<br>1693 KiB | 43.51 s<br>1622 KiB | 70.75 s<br>1544 KiB | 23.13 s<br>1656 KiB |
+
+*GPT-Image-2 会话 2026-09-07：这一轮自带一份 MAI 基线，这就是 MAI 在本题出现第二次的原因——独立的另一次测量。GPT-Image-2 在 East US 2、另一个账户，耗时差含区域因素。*
 
 | MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
 | --- | --- | --- | --- |
@@ -228,15 +288,21 @@ MAI-Image-2.6 对 GPT-Image-2 与 GPT-Image-2.5 的实测对比。主线是 2026
 
 **Round 1:**
 
+*同会话 2026-09-20：MAI-Image-2.6、GPT-Image-2.5 Flare medium、GPT-Image-2.5 Flare high 由同一客户端交错调用，本行内部耗时可直接比较。*
+
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
 | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 6, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/06_test.png) | ![GPT-Image-2.5 Flare medium, prompt 6, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/06_test.png) | ![GPT-Image-2.5 Flare high, prompt 6, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/06_test.png) |
 | 30.25 s<br>2116 KiB | 23.38 s<br>2179 KiB | 36.32 s<br>2224 KiB |
 
+*GPT-Image-2.5 Flare 其余档位（2026-09-17、2026-09-18，各自独立会话）。本行没有 MAI 单元格，因为它们不是与 MAI 同会话测的。*
+
 | GPT-Image-2.5 Flare low<br>(2026-09-17) | GPT-Image-2.5 Flare xhigh<br>(2026-09-18) | GPT-Image-2.5 Flare max<br>(2026-09-18) | GPT-Image-2.5 Flare auto<br>(2026-09-18) |
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 6, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/06_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 6, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/06_test.png) | ![GPT-Image-2.5 Flare max, prompt 6, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/06_test.png) | ![GPT-Image-2.5 Flare auto, prompt 6, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/06_test.png) |
 | 20.62 s<br>2095 KiB | 42.70 s<br>2127 KiB | 71.24 s<br>2091 KiB | 22.84 s<br>2127 KiB |
+
+*GPT-Image-2 会话 2026-09-07：这一轮自带一份 MAI 基线，这就是 MAI 在本题出现第二次的原因——独立的另一次测量。GPT-Image-2 在 East US 2、另一个账户，耗时差含区域因素。*
 
 | MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
 | --- | --- | --- | --- |
@@ -245,15 +311,21 @@ MAI-Image-2.6 对 GPT-Image-2 与 GPT-Image-2.5 的实测对比。主线是 2026
 
 **Round 2:**
 
+*同会话 2026-09-20：MAI-Image-2.6、GPT-Image-2.5 Flare medium、GPT-Image-2.5 Flare high 由同一客户端交错调用，本行内部耗时可直接比较。*
+
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
 | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 6, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/06_test.png) | ![GPT-Image-2.5 Flare medium, prompt 6, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/06_test.png) | ![GPT-Image-2.5 Flare high, prompt 6, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/06_test.png) |
 | 30.44 s<br>2205 KiB | 27.87 s<br>2142 KiB | 32.69 s<br>2263 KiB |
 
+*GPT-Image-2.5 Flare 其余档位（2026-09-17、2026-09-18，各自独立会话）。本行没有 MAI 单元格，因为它们不是与 MAI 同会话测的。*
+
 | GPT-Image-2.5 Flare low<br>(2026-09-17) | GPT-Image-2.5 Flare xhigh<br>(2026-09-18) | GPT-Image-2.5 Flare max<br>(2026-09-18) | GPT-Image-2.5 Flare auto<br>(2026-09-18) |
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 6, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/06_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 6, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/06_test.png) | ![GPT-Image-2.5 Flare max, prompt 6, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/06_test.png) | ![GPT-Image-2.5 Flare auto, prompt 6, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/06_test.png) |
 | 24.02 s<br>2151 KiB | 43.28 s<br>2147 KiB | 74.58 s<br>2131 KiB | 25.91 s<br>2156 KiB |
+
+*GPT-Image-2 会话 2026-09-07：这一轮自带一份 MAI 基线，这就是 MAI 在本题出现第二次的原因——独立的另一次测量。GPT-Image-2 在 East US 2、另一个账户，耗时差含区域因素。*
 
 | MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
 | --- | --- | --- | --- |
@@ -266,15 +338,21 @@ MAI-Image-2.6 对 GPT-Image-2 与 GPT-Image-2.5 的实测对比。主线是 2026
 
 **Round 1:**
 
+*同会话 2026-09-20：MAI-Image-2.6、GPT-Image-2.5 Flare medium、GPT-Image-2.5 Flare high 由同一客户端交错调用，本行内部耗时可直接比较。*
+
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
 | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 7, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/07_test.png) | ![GPT-Image-2.5 Flare medium, prompt 7, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/07_test.png) | ![GPT-Image-2.5 Flare high, prompt 7, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/07_test.png) |
 | 35.10 s<br>1555 KiB | 24.40 s<br>1487 KiB | 35.81 s<br>1494 KiB |
 
+*GPT-Image-2.5 Flare 其余档位（2026-09-17、2026-09-18，各自独立会话）。本行没有 MAI 单元格，因为它们不是与 MAI 同会话测的。*
+
 | GPT-Image-2.5 Flare low<br>(2026-09-17) | GPT-Image-2.5 Flare xhigh<br>(2026-09-18) | GPT-Image-2.5 Flare max<br>(2026-09-18) | GPT-Image-2.5 Flare auto<br>(2026-09-18) |
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 7, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/07_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 7, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/07_test.png) | ![GPT-Image-2.5 Flare max, prompt 7, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/07_test.png) | ![GPT-Image-2.5 Flare auto, prompt 7, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/07_test.png) |
 | 24.69 s<br>1587 KiB | 47.53 s<br>1555 KiB | 76.86 s<br>1472 KiB | 29.02 s<br>1534 KiB |
+
+*GPT-Image-2 会话 2026-09-07：这一轮自带一份 MAI 基线，这就是 MAI 在本题出现第二次的原因——独立的另一次测量。GPT-Image-2 在 East US 2、另一个账户，耗时差含区域因素。*
 
 | MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
 | --- | --- | --- | --- |
@@ -283,15 +361,21 @@ MAI-Image-2.6 对 GPT-Image-2 与 GPT-Image-2.5 的实测对比。主线是 2026
 
 **Round 2:**
 
+*同会话 2026-09-20：MAI-Image-2.6、GPT-Image-2.5 Flare medium、GPT-Image-2.5 Flare high 由同一客户端交错调用，本行内部耗时可直接比较。*
+
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
 | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 7, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/07_test.png) | ![GPT-Image-2.5 Flare medium, prompt 7, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/07_test.png) | ![GPT-Image-2.5 Flare high, prompt 7, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/07_test.png) |
 | 35.41 s<br>1534 KiB | 39.28 s<br>1548 KiB | 35.26 s<br>1525 KiB |
 
+*GPT-Image-2.5 Flare 其余档位（2026-09-17、2026-09-18，各自独立会话）。本行没有 MAI 单元格，因为它们不是与 MAI 同会话测的。*
+
 | GPT-Image-2.5 Flare low<br>(2026-09-17) | GPT-Image-2.5 Flare xhigh<br>(2026-09-18) | GPT-Image-2.5 Flare max<br>(2026-09-18) | GPT-Image-2.5 Flare auto<br>(2026-09-18) |
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 7, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/07_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 7, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/07_test.png) | ![GPT-Image-2.5 Flare max, prompt 7, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/07_test.png) | ![GPT-Image-2.5 Flare auto, prompt 7, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/07_test.png) |
 | 23.76 s<br>1542 KiB | 57.35 s<br>1521 KiB | 79.60 s<br>1472 KiB | 30.29 s<br>1533 KiB |
+
+*GPT-Image-2 会话 2026-09-07：这一轮自带一份 MAI 基线，这就是 MAI 在本题出现第二次的原因——独立的另一次测量。GPT-Image-2 在 East US 2、另一个账户，耗时差含区域因素。*
 
 | MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
 | --- | --- | --- | --- |
@@ -304,15 +388,21 @@ MAI-Image-2.6 对 GPT-Image-2 与 GPT-Image-2.5 的实测对比。主线是 2026
 
 **Round 1:**
 
+*同会话 2026-09-20：MAI-Image-2.6、GPT-Image-2.5 Flare medium、GPT-Image-2.5 Flare high 由同一客户端交错调用，本行内部耗时可直接比较。*
+
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
 | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 8, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/08_test.png) | ![GPT-Image-2.5 Flare medium, prompt 8, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/08_test.png) | ![GPT-Image-2.5 Flare high, prompt 8, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/08_test.png) |
 | 40.90 s<br>2298 KiB | 22.24 s<br>2288 KiB | 32.68 s<br>2283 KiB |
 
+*GPT-Image-2.5 Flare 其余档位（2026-09-17、2026-09-18，各自独立会话）。本行没有 MAI 单元格，因为它们不是与 MAI 同会话测的。*
+
 | GPT-Image-2.5 Flare low<br>(2026-09-17) | GPT-Image-2.5 Flare xhigh<br>(2026-09-18) | GPT-Image-2.5 Flare max<br>(2026-09-18) | GPT-Image-2.5 Flare auto<br>(2026-09-18) |
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 8, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/08_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 8, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/08_test.png) | ![GPT-Image-2.5 Flare max, prompt 8, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/08_test.png) | ![GPT-Image-2.5 Flare auto, prompt 8, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/08_test.png) |
 | 21.65 s<br>2262 KiB | 41.24 s<br>2254 KiB | 79.96 s<br>2206 KiB | 24.28 s<br>2230 KiB |
+
+*GPT-Image-2 会话 2026-09-07：这一轮自带一份 MAI 基线，这就是 MAI 在本题出现第二次的原因——独立的另一次测量。GPT-Image-2 在 East US 2、另一个账户，耗时差含区域因素。*
 
 | MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
 | --- | --- | --- | --- |
@@ -321,15 +411,21 @@ MAI-Image-2.6 对 GPT-Image-2 与 GPT-Image-2.5 的实测对比。主线是 2026
 
 **Round 2:**
 
+*同会话 2026-09-20：MAI-Image-2.6、GPT-Image-2.5 Flare medium、GPT-Image-2.5 Flare high 由同一客户端交错调用，本行内部耗时可直接比较。*
+
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
 | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 8, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/08_test.png) | ![GPT-Image-2.5 Flare medium, prompt 8, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/08_test.png) | ![GPT-Image-2.5 Flare high, prompt 8, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/08_test.png) |
 | 31.14 s<br>2310 KiB | 22.63 s<br>2339 KiB | 29.75 s<br>2216 KiB |
 
+*GPT-Image-2.5 Flare 其余档位（2026-09-17、2026-09-18，各自独立会话）。本行没有 MAI 单元格，因为它们不是与 MAI 同会话测的。*
+
 | GPT-Image-2.5 Flare low<br>(2026-09-17) | GPT-Image-2.5 Flare xhigh<br>(2026-09-18) | GPT-Image-2.5 Flare max<br>(2026-09-18) | GPT-Image-2.5 Flare auto<br>(2026-09-18) |
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 8, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/08_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 8, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/08_test.png) | ![GPT-Image-2.5 Flare max, prompt 8, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/08_test.png) | ![GPT-Image-2.5 Flare auto, prompt 8, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/08_test.png) |
 | 25.37 s<br>2217 KiB | 44.08 s<br>2187 KiB | 75.92 s<br>2162 KiB | 40.38 s<br>2322 KiB |
+
+*GPT-Image-2 会话 2026-09-07：这一轮自带一份 MAI 基线，这就是 MAI 在本题出现第二次的原因——独立的另一次测量。GPT-Image-2 在 East US 2、另一个账户，耗时差含区域因素。*
 
 | MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
 | --- | --- | --- | --- |
@@ -342,15 +438,21 @@ MAI-Image-2.6 对 GPT-Image-2 与 GPT-Image-2.5 的实测对比。主线是 2026
 
 **Round 1:**
 
+*同会话 2026-09-20：MAI-Image-2.6、GPT-Image-2.5 Flare medium、GPT-Image-2.5 Flare high 由同一客户端交错调用，本行内部耗时可直接比较。*
+
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
 | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 9, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/09_test.png) | ![GPT-Image-2.5 Flare medium, prompt 9, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/09_test.png) | ![GPT-Image-2.5 Flare high, prompt 9, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/09_test.png) |
 | 31.08 s<br>1693 KiB | 20.36 s<br>1747 KiB | 29.97 s<br>1676 KiB |
 
+*GPT-Image-2.5 Flare 其余档位（2026-09-17、2026-09-18，各自独立会话）。本行没有 MAI 单元格，因为它们不是与 MAI 同会话测的。*
+
 | GPT-Image-2.5 Flare low<br>(2026-09-17) | GPT-Image-2.5 Flare xhigh<br>(2026-09-18) | GPT-Image-2.5 Flare max<br>(2026-09-18) | GPT-Image-2.5 Flare auto<br>(2026-09-18) |
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 9, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/09_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 9, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/09_test.png) | ![GPT-Image-2.5 Flare max, prompt 9, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/09_test.png) | ![GPT-Image-2.5 Flare auto, prompt 9, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/09_test.png) |
 | 21.77 s<br>1581 KiB | 47.98 s<br>1734 KiB | 72.54 s<br>1575 KiB | 22.40 s<br>1769 KiB |
+
+*GPT-Image-2 会话 2026-09-07：这一轮自带一份 MAI 基线，这就是 MAI 在本题出现第二次的原因——独立的另一次测量。GPT-Image-2 在 East US 2、另一个账户，耗时差含区域因素。*
 
 | MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
 | --- | --- | --- | --- |
@@ -359,15 +461,21 @@ MAI-Image-2.6 对 GPT-Image-2 与 GPT-Image-2.5 的实测对比。主线是 2026
 
 **Round 2:**
 
+*同会话 2026-09-20：MAI-Image-2.6、GPT-Image-2.5 Flare medium、GPT-Image-2.5 Flare high 由同一客户端交错调用，本行内部耗时可直接比较。*
+
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
 | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 9, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/09_test.png) | ![GPT-Image-2.5 Flare medium, prompt 9, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/09_test.png) | ![GPT-Image-2.5 Flare high, prompt 9, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/09_test.png) |
 | 30.97 s<br>1729 KiB | 19.52 s<br>1852 KiB | 35.19 s<br>1605 KiB |
 
+*GPT-Image-2.5 Flare 其余档位（2026-09-17、2026-09-18，各自独立会话）。本行没有 MAI 单元格，因为它们不是与 MAI 同会话测的。*
+
 | GPT-Image-2.5 Flare low<br>(2026-09-17) | GPT-Image-2.5 Flare xhigh<br>(2026-09-18) | GPT-Image-2.5 Flare max<br>(2026-09-18) | GPT-Image-2.5 Flare auto<br>(2026-09-18) |
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 9, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/09_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 9, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/09_test.png) | ![GPT-Image-2.5 Flare max, prompt 9, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/09_test.png) | ![GPT-Image-2.5 Flare auto, prompt 9, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/09_test.png) |
 | 16.93 s<br>1761 KiB | 41.72 s<br>1502 KiB | 77.44 s<br>1597 KiB | 27.98 s<br>1696 KiB |
+
+*GPT-Image-2 会话 2026-09-07：这一轮自带一份 MAI 基线，这就是 MAI 在本题出现第二次的原因——独立的另一次测量。GPT-Image-2 在 East US 2、另一个账户，耗时差含区域因素。*
 
 | MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
 | --- | --- | --- | --- |
@@ -380,15 +488,21 @@ MAI-Image-2.6 对 GPT-Image-2 与 GPT-Image-2.5 的实测对比。主线是 2026
 
 **Round 1:**
 
+*同会话 2026-09-20：MAI-Image-2.6、GPT-Image-2.5 Flare medium、GPT-Image-2.5 Flare high 由同一客户端交错调用，本行内部耗时可直接比较。*
+
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
 | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 10, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/10_test.png) | ![GPT-Image-2.5 Flare medium, prompt 10, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/10_test.png) | ![GPT-Image-2.5 Flare high, prompt 10, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/10_test.png) |
 | 30.62 s<br>1655 KiB | 24.75 s<br>1458 KiB | 29.98 s<br>1440 KiB |
 
+*GPT-Image-2.5 Flare 其余档位（2026-09-17、2026-09-18，各自独立会话）。本行没有 MAI 单元格，因为它们不是与 MAI 同会话测的。*
+
 | GPT-Image-2.5 Flare low<br>(2026-09-17) | GPT-Image-2.5 Flare xhigh<br>(2026-09-18) | GPT-Image-2.5 Flare max<br>(2026-09-18) | GPT-Image-2.5 Flare auto<br>(2026-09-18) |
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 10, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/10_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 10, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/10_test.png) | ![GPT-Image-2.5 Flare max, prompt 10, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/10_test.png) | ![GPT-Image-2.5 Flare auto, prompt 10, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/10_test.png) |
 | 19.46 s<br>1587 KiB | 43.69 s<br>1392 KiB | 62.97 s<br>1371 KiB | 19.49 s<br>1563 KiB |
+
+*GPT-Image-2 会话 2026-09-07：这一轮自带一份 MAI 基线，这就是 MAI 在本题出现第二次的原因——独立的另一次测量。GPT-Image-2 在 East US 2、另一个账户，耗时差含区域因素。*
 
 | MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
 | --- | --- | --- | --- |
@@ -397,15 +511,21 @@ MAI-Image-2.6 对 GPT-Image-2 与 GPT-Image-2.5 的实测对比。主线是 2026
 
 **Round 2:**
 
+*同会话 2026-09-20：MAI-Image-2.6、GPT-Image-2.5 Flare medium、GPT-Image-2.5 Flare high 由同一客户端交错调用，本行内部耗时可直接比较。*
+
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
 | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 10, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/10_test.png) | ![GPT-Image-2.5 Flare medium, prompt 10, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/10_test.png) | ![GPT-Image-2.5 Flare high, prompt 10, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/10_test.png) |
 | 32.59 s<br>1673 KiB | 20.83 s<br>1478 KiB | 28.20 s<br>1377 KiB |
 
+*GPT-Image-2.5 Flare 其余档位（2026-09-17、2026-09-18，各自独立会话）。本行没有 MAI 单元格，因为它们不是与 MAI 同会话测的。*
+
 | GPT-Image-2.5 Flare low<br>(2026-09-17) | GPT-Image-2.5 Flare xhigh<br>(2026-09-18) | GPT-Image-2.5 Flare max<br>(2026-09-18) | GPT-Image-2.5 Flare auto<br>(2026-09-18) |
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 10, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/10_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 10, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/10_test.png) | ![GPT-Image-2.5 Flare max, prompt 10, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/10_test.png) | ![GPT-Image-2.5 Flare auto, prompt 10, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/10_test.png) |
 | 24.01 s<br>1482 KiB | 46.16 s<br>1388 KiB | 74.30 s<br>1403 KiB | 21.49 s<br>1496 KiB |
+
+*GPT-Image-2 会话 2026-09-07：这一轮自带一份 MAI 基线，这就是 MAI 在本题出现第二次的原因——独立的另一次测量。GPT-Image-2 在 East US 2、另一个账户，耗时差含区域因素。*
 
 | MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
 | --- | --- | --- | --- |
@@ -418,15 +538,21 @@ MAI-Image-2.6 对 GPT-Image-2 与 GPT-Image-2.5 的实测对比。主线是 2026
 
 **Round 1:**
 
+*同会话 2026-09-20：MAI-Image-2.6、GPT-Image-2.5 Flare medium、GPT-Image-2.5 Flare high 由同一客户端交错调用，本行内部耗时可直接比较。*
+
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
 | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 11, round 1](data/mai-vs-gpt25-20260920/mai-image-2.6/r1/11_test.png) | ![GPT-Image-2.5 Flare medium, prompt 11, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r1/11_test.png) | ![GPT-Image-2.5 Flare high, prompt 11, round 1](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r1/11_test.png) |
 | 28.70 s<br>1796 KiB | 44.42 s<br>1626 KiB | 29.81 s<br>1631 KiB |
 
+*GPT-Image-2.5 Flare 其余档位（2026-09-17、2026-09-18，各自独立会话）。本行没有 MAI 单元格，因为它们不是与 MAI 同会话测的。*
+
 | GPT-Image-2.5 Flare low<br>(2026-09-17) | GPT-Image-2.5 Flare xhigh<br>(2026-09-18) | GPT-Image-2.5 Flare max<br>(2026-09-18) | GPT-Image-2.5 Flare auto<br>(2026-09-18) |
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 11, round 1](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r1/11_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 11, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r1/11_test.png) | ![GPT-Image-2.5 Flare max, prompt 11, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r1/11_test.png) | ![GPT-Image-2.5 Flare auto, prompt 11, round 1](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r1/11_test.png) |
 | 20.30 s<br>1682 KiB | 43.26 s<br>1467 KiB | 76.03 s<br>1433 KiB | 20.47 s<br>1629 KiB |
+
+*GPT-Image-2 会话 2026-09-07：这一轮自带一份 MAI 基线，这就是 MAI 在本题出现第二次的原因——独立的另一次测量。GPT-Image-2 在 East US 2、另一个账户，耗时差含区域因素。*
 
 | MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
 | --- | --- | --- | --- |
@@ -435,15 +561,21 @@ MAI-Image-2.6 对 GPT-Image-2 与 GPT-Image-2.5 的实测对比。主线是 2026
 
 **Round 2:**
 
+*同会话 2026-09-20：MAI-Image-2.6、GPT-Image-2.5 Flare medium、GPT-Image-2.5 Flare high 由同一客户端交错调用，本行内部耗时可直接比较。*
+
 | MAI-Image-2.6 | GPT-Image-2.5 Flare medium | GPT-Image-2.5 Flare high |
 | --- | --- | --- |
 | ![MAI-Image-2.6, prompt 11, round 2](data/mai-vs-gpt25-20260920/mai-image-2.6/r2/11_test.png) | ![GPT-Image-2.5 Flare medium, prompt 11, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-medium/r2/11_test.png) | ![GPT-Image-2.5 Flare high, prompt 11, round 2](data/mai-vs-gpt25-20260920/gpt-image-2.5-flare-high/r2/11_test.png) |
 | 30.08 s<br>1717 KiB | 21.21 s<br>1619 KiB | 33.07 s<br>1501 KiB |
 
+*GPT-Image-2.5 Flare 其余档位（2026-09-17、2026-09-18，各自独立会话）。本行没有 MAI 单元格，因为它们不是与 MAI 同会话测的。*
+
 | GPT-Image-2.5 Flare low<br>(2026-09-17) | GPT-Image-2.5 Flare xhigh<br>(2026-09-18) | GPT-Image-2.5 Flare max<br>(2026-09-18) | GPT-Image-2.5 Flare auto<br>(2026-09-18) |
 | --- | --- | --- | --- |
 | ![GPT-Image-2.5 Flare low, prompt 11, round 2](data/gpt25-paired-20260917/gpt-image-2.5-flare-low/r2/11_test.png) | ![GPT-Image-2.5 Flare xhigh, prompt 11, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-xhigh/r2/11_test.png) | ![GPT-Image-2.5 Flare max, prompt 11, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-max/r2/11_test.png) | ![GPT-Image-2.5 Flare auto, prompt 11, round 2](data/gpt25-tiers-20260918/gpt-image-2.5-flare-auto/r2/11_test.png) |
 | 17.81 s<br>1624 KiB | 39.73 s<br>1556 KiB | 65.76 s<br>1538 KiB | 20.74 s<br>1601 KiB |
+
+*GPT-Image-2 会话 2026-09-07：这一轮自带一份 MAI 基线，这就是 MAI 在本题出现第二次的原因——独立的另一次测量。GPT-Image-2 在 East US 2、另一个账户，耗时差含区域因素。*
 
 | MAI-Image-2.6<br>(2026-09-07, Sweden Central) | GPT-Image-2 low<br>(2026-09-07, East US 2) | GPT-Image-2 medium<br>(2026-09-07, East US 2) | GPT-Image-2 high<br>(2026-09-07, East US 2) |
 | --- | --- | --- | --- |
@@ -924,6 +1056,8 @@ python scripts/effective_prices.py data/billing-<date> --query --subscription <i
 | gpt-image-2.5 max | 7,024 | $210.72 | 5.42x |
 
 **怎么读**：按单 token 计，MAI 比 2.5 贵 27%（$38 对 $30）。但 MAI 每张固定 1,024 token，而 2.5 的算力随档位变化。于是 MAI 每千张 $38.91：是 2.5 low（$5.88）的 6.6 倍、medium（$13.17）的 3.0 倍，比 high（$52.68）便宜 26%，比 max（$210.72）便宜 82%。「贵」这个词只有先绑定对比档位才有意义；哪一档与 MAI 画质相当，由并排图回答，不由价格回答。
+
+**同名档位跨代不是一回事。** 按各配置实测返回的 token 对齐：gpt-image-2 low = 2.5 low（196 token）、gpt-image-2 medium = 2.5 high（1,756 token）、gpt-image-2 high = 2.5 max（7,024 token）。也就是说 2 代的 medium 相当于 2.5 的 high、2 代的 high 相当于 2.5 的 max，计费算力与单价完全相同，只是换了名字。2.5 的 medium（439）、xhigh（3,122） 在 gpt-image-2 上没有对应档位；MAI 没有 quality 参数，恒定 1,024 token。所以「三个模型都取 high 来比」并不是一个有定义的操作，上面这张表按计费算力排序正是因为这个。
 
 **边界**：单价是本账户 GlobalStandard 按需计费的实际值，不含协议折扣；token 数是各配置在本仓库全部测试中恒定不变的实测值，`auto` 因 token 不固定不列；不含输入文本 token（每张不到 $0.001）。这是按 token 的成本，不是按质量的成本。
 
