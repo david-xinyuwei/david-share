@@ -17,9 +17,6 @@ import struct
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from summarize_paired_run import GROUPS
-
 REVIEW_CHECKS = (
     "headwear_replaced_with_graduation_cap",
     "face_and_beard_preserved",
@@ -57,8 +54,16 @@ def jpeg_dimensions(path):
     raise ValueError("JPEG SOF marker not found")
 
 
-def _round_outputs(archive, results, review, relative_dir, source_sha, source_w, source_h):
-    """Tie one round's PNGs to its request records and review, in GROUPS order.
+def configuration_order(results):
+    """MAI first, then the GPT tiers in the order round 1 sent them (round 2 reverses that order)."""
+    labels = [attempt["label"] for attempt in results["attempts"]]
+    if results.get("round", 1) == 2:
+        labels.reverse()
+    return tuple(labels)
+
+
+def _round_outputs(archive, results, review, relative_dir, source_sha, source_w, source_h, groups):
+    """Tie one round's PNGs to its request records and review, in configuration order.
 
     `relative_dir` is "" for round 1 (flat archive root, the original layout) and
     "r2" for the repeat, so every published path stays relative to the archive.
@@ -68,13 +73,13 @@ def _round_outputs(archive, results, review, relative_dir, source_sha, source_w,
     if not review["input_sha256"] or not source_sha.startswith(review["input_sha256"]):
         raise ValueError(f"{relative_dir or 'round 1'}: review does not refer to the published input")
     by_label = {attempt["label"]: attempt for attempt in results["attempts"]}
-    if set(by_label) != set(GROUPS):
-        raise ValueError(f"Expected one attempt per configuration, found {sorted(by_label)}")
-    if set(review["per_output"]) != set(GROUPS):
+    if set(by_label) != set(groups):
+        raise ValueError(f"Expected one attempt per configuration {sorted(groups)}, found {sorted(by_label)}")
+    if set(review["per_output"]) != set(groups):
         raise ValueError("Review must cover every configuration")
 
     outputs = []
-    for group in GROUPS:
+    for group in groups:
         attempt = by_label[group]
         if attempt.get("outcome") != "RETURNED_IMAGE":
             raise ValueError(f"{group} returned no image")
@@ -124,6 +129,7 @@ def summarize(archive):
     rounds = []
     prompt = None
     gpt_size = None
+    groups = None
     supersedes = None
     summary_observation = None
     for relative_dir, number in round_dirs:
@@ -136,6 +142,10 @@ def summarize(archive):
             raise ValueError(f"{relative_dir}: prompt differs from round 1")
         if results.get("round", 1) != number:
             raise ValueError(f"{relative_dir}: record says round {results.get('round', 1)}")
+        if groups is None:
+            groups = configuration_order(results)
+        elif configuration_order(results) != groups:
+            raise ValueError(f"{relative_dir}: configurations differ from round 1")
         # The size parameter sent to GPT is part of the protocol; it must be recorded
         # and identical across rounds, otherwise rounds are not comparable.
         this_size = results.get("gpt_size_parameter")
@@ -153,7 +163,7 @@ def summarize(archive):
             "order_sent": [attempt["label"] for attempt in results["attempts"]],
             "measured_at_utc": [results["started_at_utc"], results.get("ended_at_utc")],
             "outputs": _round_outputs(archive, results, review, relative_dir,
-                                      source_sha, source_w, source_h),
+                                      source_sha, source_w, source_h, groups),
             "review_method": review["method"],
             "boundary": review["boundary"],
         })
@@ -162,6 +172,8 @@ def summarize(archive):
     return {
         "archive": archive.as_posix(),
         "prompt": prompt,
+        "groups": list(groups),
+        "gpt_deployment": results.get("gpt_deployment", "gpt-image-2"),
         "gpt_size_parameter": gpt_size,
         "supersedes": supersedes,
         "summary_observation": summary_observation,

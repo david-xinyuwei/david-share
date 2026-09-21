@@ -8,128 +8,142 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import render_paired_report as report
 
+GROUPS = ("mai-image-2.6", "gpt-image-2.5-flare-medium", "gpt-image-2.5-flare-high")
+LABELS = ("MAI-Image-2.6", "GPT-Image-2.5 Flare medium", "GPT-Image-2.5 Flare high")
+
 
 class ComparisonReportTests(unittest.TestCase):
-    def prompt(self):
-        return {"prompt_index": 1, "configurations": [
+    def prompt(self, index=1):
+        return {"prompt_index": index, "prompt": f"Original prompt {index}", "configurations": [
             {"group": group, "rounds": [
                 {"round": round_number, "ok": True, "request_seconds": 1.25,
-                 "image": f"{group}/r{round_number}/01_test.png", "image_kib": 512,
+                 "image": f"{group}/r{round_number}/{index:02d}_test.png", "image_kib": 512,
                  "attempts": 1, "logical_request_seconds": 1.5}
-                for round_number in (1, 2)]} for group in report.GROUPS]}
+                for round_number in (1, 2)]} for group in GROUPS]}
 
-    def test_all_four_configurations_appear_in_each_round(self):
+    def run_fixture(self, prompt):
+        return {"archive": "data/offline-fixture", "date": "2026-01-01", "region": "swedencentral",
+                "groups": list(GROUPS), "labels": list(LABELS), "summary": {"per_prompt": [prompt]}}
+
+    def cells(self, prompt):
+        run = self.run_fixture(prompt)
+        return [(label, run, prompt, group) for label, group in zip(LABELS, GROUPS)]
+
+    def test_every_configuration_appears_in_each_round(self):
         for round_number in (1, 2):
-            rendered = report.comparison_table(self.prompt(), round_number, "data/offline-fixture", "en")
-            for group in report.GROUPS:
+            rendered = report.image_table(self.cells(self.prompt()), round_number, "en")
+            for group in GROUPS:
                 self.assertIn(f"data/offline-fixture/{group}/r{round_number}/01_test.png", rendered)
-            self.assertEqual(rendered.count("!["), 4)
+            self.assertEqual(rendered.count("!["), len(GROUPS))
 
-    def test_failed_high_sample_is_not_replaced_by_old_image(self):
+    def test_failed_sample_is_not_replaced_by_old_image(self):
         prompt = self.prompt()
-        prompt["configurations"][3]["rounds"][0].update({"ok": False, "image": None, "attempts": 3})
-        rendered = report.comparison_table(prompt, 1, "data/offline-fixture", "en")
+        prompt["configurations"][2]["rounds"][0].update({"ok": False, "image": None, "attempts": 3})
+        rendered = report.image_table(self.cells(prompt), 1, "en")
         self.assertIn("No image returned", rendered)
         self.assertIn("3 attempts", rendered)
-        self.assertEqual(rendered.count("!["), 3)
-        self.assertNotIn("gpt-image-2-high/r1", rendered)
+        self.assertEqual(rendered.count("!["), len(GROUPS) - 1)
+        self.assertNotIn("gpt-image-2.5-flare-high/r1", rendered)
 
     def test_a_missing_configuration_is_rejected(self):
         prompt = self.prompt()
         prompt["configurations"].pop()
-        with self.assertRaisesRegex(ValueError, "four configurations"):
-            report.comparison_table(prompt, 1, "data/offline-fixture", "en")
+        with self.assertRaisesRegex(ValueError, "no configuration"):
+            report.image_table(self.cells(prompt), 1, "en")
 
     def test_image_from_another_quality_is_rejected(self):
         prompt = self.prompt()
-        prompt["configurations"][1]["rounds"][0]["image"] = "gpt-image-2-high/r1/01_test.png"
+        prompt["configurations"][1]["rounds"][0]["image"] = "gpt-image-2.5-flare-high/r1/01_test.png"
         with self.assertRaisesRegex(ValueError, "configuration"):
-            report.comparison_table(prompt, 1, "data/offline-fixture", "en")
+            report.image_table(self.cells(prompt), 1, "en")
+
+    def test_image_from_another_round_is_rejected(self):
+        prompt = self.prompt()
+        prompt["configurations"][1]["rounds"][0]["image"] = "gpt-image-2.5-flare-medium/r2/01_test.png"
+        with self.assertRaisesRegex(ValueError, "configuration"):
+            report.image_table(self.cells(prompt), 1, "en")
+
+    def test_dated_headers_mark_cells_from_another_session(self):
+        rendered = report.image_table(self.cells(self.prompt()), 1, "en", show_date=True)
+        self.assertIn("MAI-Image-2.6<br>(2026-01-01)", rendered)
 
     def test_latency_table_shows_both_rounds_and_failed_cell(self):
         prompt = self.prompt()
-        prompt["configurations"][3]["rounds"][0]["ok"] = False
-        rendered = report.prompt_latency_table({"per_prompt": [prompt]}, "zh")
+        prompt["configurations"][2]["rounds"][0]["ok"] = False
+        rendered = report.prompt_latency_table(self.run_fixture(prompt), "zh")
         self.assertIn("01 / R1", rendered)
         self.assertIn("01 / R2", rendered)
         self.assertIn("失败", rendered)
 
-    def test_image_from_another_round_is_rejected(self):
-        prompt = self.prompt()
-        prompt["configurations"][1]["rounds"][0]["image"] = "gpt-image-2-low/r2/01_test.png"
-        with self.assertRaisesRegex(ValueError, "configuration"):
-            report.comparison_table(prompt, 1, "data/offline-fixture", "en")
-
-    def test_reproduction_covers_all_quality_settings_and_offline_check(self):
+    def test_reproduction_covers_every_archive_and_the_offline_check(self):
+        primary = {"archive": "data/offline-fixture", "region": "swedencentral"}
+        supplement = {"archive": "data/offline-supplement"}
+        tier = {"archive": "data/offline-tiers"}
+        edit = {"archive": "data/offline-edit", "gpt_deployment": "gpt-image-2.5-flare",
+                "groups": ["mai-image-2.6", "gpt-image-2.5-flare-medium", "gpt-image-2.5-flare-high"]}
+        study = {"archive": "data/offline-text", "prompts_name": "prompts-text.csv", "calibration": {"summary": {}}}
+        billing = {"archive": "data/offline-billing"}
         for language in ("en", "zh"):
-            section = report.reproduction_section("data/offline-fixture", language)
-            self.assertIn("--mai-model MAI-Image-2.6 --gpt-model gpt-image-2 --gpt-quality all", section)
+            section = report.reproduction_section(primary, supplement, tier, edit, {"complete": True}, (study, None), billing, language)
+            self.assertIn("--mai-model MAI-Image-2.6 --gpt-model gpt-image-2.5-flare:medium,high", section)
             self.assertIn("--warmup-only", section)
             self.assertIn("--resume", section)
-            self.assertIn("summarize_paired_run.py data/offline-fixture", section)
+            for archive in ("data/offline-fixture", "data/offline-supplement", "data/offline-tiers", "data/offline-edit",
+                            "data/offline-text", "data/offline-billing"):
+                self.assertIn(archive, section, archive)
+            self.assertIn("--gpt-quality medium --gpt-quality high", section)
+            self.assertIn("score_text_rendering.py --check data/offline-text/text-scoring.json", section)
+            self.assertIn("calibrate_text_judge.py --check data/offline-text/judge-calibration/calibration.json", section)
+            self.assertIn("effective_prices.py data/offline-billing --check", section)
             self.assertIn("AZURE_OPENAI_API_KEY", section)
+            self.assertNotIn("gpt-image-2 ", section)
 
-    def test_quality_review_cannot_use_a_previous_run(self):
-        with self.assertRaisesRegex(ValueError, "current measured results"):
-            report.validate_quality({"result_sha256": "new-run"}, {"result_sha256": "old-run"})
-
-    def test_token_table_needs_no_financial_fields(self):
-        summary = {"groups": [{"returned_output_tokens": [tokens], "successful_samples": successes,
-                               "planned_samples": 22} for tokens, successes in
-                              ((1024, 22), (196, 22), (1756, 22), (7024, 21))]}
-        for language in ("en", "zh"):
-            rendered = report.usage_table(summary, language)
-            self.assertIn("7024", rendered)
-            self.assertIn("21/22", rendered)
-            self.assertNotRegex(rendered.lower(), r"usd|price|cost|价格|费用|美元")
-
-    def test_connection_wait_is_disclosed_separately_from_inference(self):
-        summary = {"unsuccessful_attempts": [{"sample_id": "offline-sample", "attempt": 1,
-                    "exception_type": "ConnectionError", "http_status": None, "request_seconds": 90.25,
-                    "started_at_utc": "2026-01-01T00:00:00+00:00", "finished_at_utc": "2026-01-01T00:01:31+00:00"}]}
-        rendered = report.exception_section(summary, "en")
+    def test_exception_section_keeps_failures_in_the_denominator(self):
+        run = {"summary": {"unsuccessful_attempts": [{"sample_id": "offline-sample", "attempt": 1,
+               "exception_type": "ConnectionError", "http_status": None, "request_seconds": 90.25,
+               "started_at_utc": "2026-01-01T00:00:00+00:00", "finished_at_utc": "2026-01-01T00:01:31+00:00"}]}}
+        rendered = report.exception_section(run, "en")
         self.assertIn("ConnectionError", rendered)
         self.assertIn("90.25", rendered)
-        self.assertIn("not server-side GPU inference duration", rendered)
         self.assertIn("planned denominator", rendered)
 
+    def test_group_labels_are_human_readable(self):
+        self.assertEqual(report.group_label("gpt-image-2.5-flare-medium"), "GPT-Image-2.5 Flare medium")
+        self.assertEqual(report.group_label("gpt-image-2.5-sunburst-auto"), "GPT-Image-2.5 Sunburst auto")
+        self.assertEqual(report.group_label("mai-image-2.6"), "MAI-Image-2.6")
+
     def test_document_removes_other_models_and_preserves_all_scenarios(self):
-        original = "# Old report\n\n> **Author**: Existing Author\n\nMAI-Image-2e GPT-Image-1.5 MAI-Image-2\n"
+        original = "# Old report\n\n> **Author**: Existing Author\n\nMAI-Image-2e GPT-Image-1.5 GPT-Image-2 low\n"
         prompts = []
-        for prompt_index in range(1, 12):
-            original += f"\n### Test {prompt_index}: Original scenario {prompt_index}\nold measurements\n"
-            prompt = self.prompt()
-            prompt.update({"prompt_index": prompt_index, "prompt": f"Original prompt {prompt_index}"})
-            for configuration in prompt["configurations"]:
-                for row in configuration["rounds"]:
-                    row["image"] = f"{configuration['group']}/r{row['round']}/{prompt_index:02d}_test.png"
-            prompts.append(prompt)
+        for index in range(1, 12):
+            original += f"\n### Test {index}: Original scenario {index}\nold measurements\n"
+            prompts.append(self.prompt(index))
+        primary = self.run_fixture(prompts[0])
+        primary["summary"] = {"per_prompt": prompts, "formal_ended_at_utc": "2026-01-01T02:00:00+00:00",
+                              "formal_samples": 66, "successful_samples": 66,
+                              "config": {"group_configurations": [{"provider": "mai", "model_version": "2026-07-31"}]},
+                              "groups": [{"group": g, "successful_request_latency": {"p50_seconds": 30.0}} for g in GROUPS]}
         for language in ("en", "zh"):
-            grounding = "### Web Grounding Test\n\nOffline grounding evidence"
-            with patch.object(report, "render_overview",
-                              side_effect=lambda *_args, section=grounding, **_kwargs:
-                              "Current four-configuration evidence\n\n" + section):
-                generated = report.update_document(original, {"per_prompt": prompts}, {}, "data/offline-fixture", language, grounding)
-                regenerated = report.update_document(generated, {"per_prompt": prompts}, {}, "data/offline-fixture", language, grounding)
+            grounding = "## Web Grounding Test\n\nOffline grounding evidence"
+            with patch.object(report, "render_overview", return_value="## Same-Session Run\n\nOffline metrics"), \
+                    patch.object(report, "render_grounding_section", return_value=grounding):
+                generated = report.update_document(original, primary, None, None, None, {"planned_samples": 12}, (None, None), None, language, 7)
+                regenerated = report.update_document(generated, primary, None, None, None, {"planned_samples": 12}, (None, None), None, language, 7)
             self.assertEqual(generated, regenerated)
             self.assertNotIn("MAI-Image-2e", generated)
             self.assertNotIn("GPT-Image-1.5", generated)
+            self.assertNotIn("GPT-Image-2 low", generated)
             self.assertNotIn("old measurements", generated)
             self.assertNotIn("<details>", generated)
             self.assertIn("> **Author**: Existing Author", generated)
             self.assertEqual(generated.count("### Test "), 11)
             self.assertEqual(generated.count("**Round "), 22)
-            # Count only scenario comparison images, so masthead badges cannot mask a
-            # missing or duplicated per-scenario picture.
             scenario_images = len(re.findall(r"!\[[^\]]*\]\(data/offline-fixture/[^)]+\)", generated))
-            self.assertEqual(scenario_images, 88)
-            self.assertIn("### Web Grounding Test\n\nOffline grounding evidence", generated)
-            self.assertNotIn("web-grounding-20260908/README", generated)
-            self.assertNotIn("Supplement", generated)
-            self.assertNotIn("Lenovo products", generated)
-            # Images now precede the metrics body, so the overview content that
-            # carries the grounding section appears after the scenario comparisons.
-            self.assertLess(generated.index("### Test 1:"), generated.index("Offline grounding evidence"))
+            self.assertEqual(scenario_images, 11 * 2 * len(GROUPS))
+            self.assertIn("Tests-7%20offline", generated)
+            self.assertIn("Offline grounding evidence", generated)
+            self.assertLess(generated.index("### Test 1:"), generated.index("Offline metrics"))
+            self.assertLess(generated.index("Offline metrics"), generated.index("Offline grounding evidence"))
 
 
 class TierCoverageClaimTests(unittest.TestCase):

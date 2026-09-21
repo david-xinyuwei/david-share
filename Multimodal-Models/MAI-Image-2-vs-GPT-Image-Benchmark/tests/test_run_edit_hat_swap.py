@@ -15,13 +15,22 @@ import run_edit_hat_swap as runner
 
 class PublicEditRunnerTests(unittest.TestCase):
     def test_round_order_is_reversed_and_only_gpt_gets_size(self):
-        round_one = runner.make_specs(1)
-        round_two = runner.make_specs(2)
-        self.assertEqual([item["label"] for item in round_one], list(runner.GROUPS))
-        self.assertEqual([item["label"] for item in round_two], list(reversed(runner.GROUPS)))
+        round_one = runner.make_specs(1, gpt_deployment="gpt-image-2.5-flare", gpt_qualities=("medium", "high"))
+        round_two = runner.make_specs(2, gpt_deployment="gpt-image-2.5-flare", gpt_qualities=("medium", "high"))
+        expected = ["mai-image-2.6", "gpt-image-2.5-flare-medium", "gpt-image-2.5-flare-high"]
+        self.assertEqual([item["label"] for item in round_one], expected)
+        self.assertEqual([item["label"] for item in round_two], list(reversed(expected)))
         self.assertNotIn("size", round_one[0]["data"])
         for item in round_one[1:]:
             self.assertEqual(item["data"]["size"], "auto")
+            self.assertEqual(item["data"]["model"], "gpt-image-2.5-flare")
+
+    def test_default_tiers_reproduce_the_original_gpt_image_2_labels(self):
+        """Archives before 2026-09-21 recorded no deployment; their labels must still verify."""
+        self.assertEqual([item["label"] for item in runner.make_specs(1)],
+                         ["mai-image-2.6", "gpt-image-2-low", "gpt-image-2-medium", "gpt-image-2-high"])
+        self.assertEqual(runner.check_output(ROOT / "data" / "edit-hat-swap-20260909-auto")["outputs"], 8)
+        self.assertEqual(runner.check_output(ROOT / "data" / "edit-hat-swap-gpt25-20260921")["outputs"], 6)
 
     def test_validate_input_rejects_non_jpeg(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -85,56 +94,30 @@ class PublicEditRunnerTests(unittest.TestCase):
                 runner.check_output(root)
 
     def test_readmes_expose_a_complete_edit_how_to(self):
-        for filename, heading in (("README.md", "## Reproduction How-to and Tests"),
-                                  ("README-CN.md", "## 复现方法（How-to）与测试")):
+        for filename, heading in (("README.md", "### Reproduction and Tests"),
+                                  ("README-CN.md", "### 复现与测试")):
             text = (ROOT / filename).read_text("utf-8")
             self.assertIn(heading, text, filename)
             self.assertIn("scripts/run_edit_hat_swap.py", text, filename)
-            self.assertIn("--gpt-size auto --dry-run", text, filename)
-            self.assertIn("--round 2 --gpt-size auto", text, filename)
-            self.assertIn("--output runs/edit-hat-swap-reproduction --check", text, filename)
-            self.assertIn("Credentials / billing" if filename == "README.md" else "凭据 / 计费",
-                          text, filename)
+            self.assertIn("$env:GPT_DEPLOYMENT = 'gpt-image-2.5-flare'", text, filename)
+            self.assertIn("--gpt-size auto --gpt-quality medium --gpt-quality high --dry-run", text, filename)
+            self.assertIn("--round 2 --gpt-size auto --gpt-quality medium --gpt-quality high", text, filename)
+            self.assertIn("--output $out --check", text, filename)
 
     def test_edit_scenario_is_not_excluded_by_the_report_boundary(self):
-        english = (ROOT / "README.md").read_text("utf-8")
-        chinese = (ROOT / "README-CN.md").read_text("utf-8")
-        self.assertIn("separately reported `size=auto` image-edit test", english)
-        self.assertNotIn("excluding 2K, editing", english)
-        self.assertIn("单独报告的 `size=auto` 图像编辑测试", chinese)
-        self.assertNotIn("不包括 2K、图像编辑", chinese)
+        for filename, marker in (("README.md", "Scenario 12 is an image edit"), ("README-CN.md", "第 12 题为图像编辑")):
+            text = (ROOT / filename).read_text("utf-8")
+            self.assertIn(marker, text, filename)
+            self.assertNotIn("excluding 2K, editing", text, filename)
+            self.assertNotIn("不包括 2K、图像编辑", text, filename)
 
-    def test_result_figure_is_published_and_shows_only_the_valid_protocol(self):
-        """The figure must show measured model behaviour, never our own parameter mistake.
-
-        The forced-square outputs came from this test passing `size=1024x1024` to GPT
-        alone. Rendering them beside the models would attribute our defect to GPT, so
-        they must stay out of the figure and out of every image reference in Test 12.
-        """
-        figures = ROOT / "data" / "edit-hat-swap-20260909-auto" / "figures"
-        figure = figures / "scenario12-auto-results.png"
-        self.assertTrue(figure.is_file(), figure)
-        self.assertTrue((figures / "build_scenario12_figure.py").is_file(),
-                        "the figure must ship with its generator")
-        self.assertGreater(figure.stat().st_size, 100_000)
-        self.assertFalse((figures / "size-protocol-comparison.png").exists(),
-                         "the superseded figure containing forced squares must not remain")
+    def test_retired_gpt_image_2_edit_outputs_are_not_rendered(self):
+        """The GPT-Image-2 edit runs (including the forced-square mistake) are evidence only."""
         for filename in ("README.md", "README-CN.md"):
             text = (ROOT / filename).read_text("utf-8")
-            reference = "data/edit-hat-swap-20260909-auto/figures/scenario12-auto-results.png"
-            heading = ("### Test 12: Headwear Swap (Image Edit)" if filename == "README.md"
-                       else "### Test 12: 换帽子（图像编辑）")
-            following = ("## Current Run: Both Models and" if filename == "README.md"
-                         else "## 本轮：两模型与")
-            body = text[text.index(heading):text.index(following)]
-            self.assertIn(reference, body, f"{filename}: figure must sit inside Test 12")
-            correction = ("Protocol correction" if filename == "README.md" else "协议更正")
-            self.assertLess(body.index(correction), body.index(reference),
-                            f"{filename}: the figure must follow the correction it illustrates")
-            # No image in Test 12 may come from the superseded square-output archive.
-            for target in re.findall(r"!\[[^\]]*\]\(([^)]+)\)", body):
-                self.assertNotIn("edit-hat-swap-20260908", target,
-                                 f"{filename}: forced-square output rendered in the comparison")
+            for target in re.findall(r"!\[[^\]]*\]\(([^)]+)\)", text):
+                self.assertNotIn("edit-hat-swap-20260908", target, filename)
+                self.assertNotIn("edit-hat-swap-20260909-auto", target, filename)
             self.assertNotIn("size-protocol-comparison", text, filename)
 
     def test_opening_uses_corrected_result_and_stable_how_to_anchor(self):
@@ -149,8 +132,8 @@ class PublicEditRunnerTests(unittest.TestCase):
             self.assertIn(f"Tests-{expected_count}%20offline", text, filename)
             self.assertNotIn("multi-image input editing", text, filename)
             self.assertNotIn("多图输入编辑两项能力实测", text, filename)
-            self.assertNotIn("all three GPT tiers add the cap but regenerate the whole frame", text, filename)
-            self.assertNotIn("GPT 三档都换上了帽子但整幅重新生成", text, filename)
+            self.assertNotIn("GPT-Image-2 low", text, filename)
+            self.assertNotIn("GPT-Image-2 / 2.5", text, filename)
 
 
 if __name__ == "__main__":

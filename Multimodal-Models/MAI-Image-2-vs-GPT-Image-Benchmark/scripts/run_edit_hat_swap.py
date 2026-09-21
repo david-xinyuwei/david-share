@@ -20,12 +20,7 @@ from pathlib import Path
 import requests
 
 
-GROUPS = (
-    "mai-image-2.6",
-    "gpt-image-2-low",
-    "gpt-image-2-medium",
-    "gpt-image-2-high",
-)
+DEFAULT_GPT_QUALITIES = ("low", "medium", "high")
 DEFAULT_PROMPT = (
     "Replace only the headwear worn by the man in the foreground with a black "
     "academic graduation cap with a tassel. Keep his face, beard, expression and "
@@ -59,15 +54,16 @@ def validate_input(path):
 
 
 def make_specs(round_number, prompt=DEFAULT_PROMPT, gpt_size="auto",
-               mai_model="MAI-Image-2.6", gpt_deployment="gpt-image-2"):
+               mai_model="MAI-Image-2.6", gpt_deployment="gpt-image-2", gpt_qualities=DEFAULT_GPT_QUALITIES):
+    """One MAI call plus one GPT call per requested tier; labels follow the text-to-image group names."""
     specs = [{
         "label": "mai-image-2.6",
         "provider": "mai",
         "data": {"model": mai_model, "prompt": prompt},
     }]
-    for quality in ("low", "medium", "high"):
+    for quality in gpt_qualities:
         specs.append({
-            "label": f"gpt-image-2-{quality}",
+            "label": f"{gpt_deployment}-{quality}",
             "provider": "gpt",
             "data": {"model": gpt_deployment, "prompt": prompt, "n": "1",
                      "size": gpt_size, "quality": quality},
@@ -172,11 +168,14 @@ def run_round(args):
 
     credentials = credentials_from_environment()
     specs = make_specs(args.round, args.prompt, args.gpt_size,
-                       os.environ.get("MAI_MODEL", "MAI-Image-2.6"), credentials["GPT_DEPLOYMENT"])
+                       os.environ.get("MAI_MODEL", "MAI-Image-2.6"), credentials["GPT_DEPLOYMENT"],
+                       tuple(args.gpt_quality))
     results = {
         "purpose": "Replace headwear in one supplied photo and compare edit behaviour",
         "round": args.round,
         "gpt_size_parameter": args.gpt_size,
+        "gpt_deployment": credentials["GPT_DEPLOYMENT"],
+        "gpt_qualities": list(args.gpt_quality),
         "prompt": args.prompt,
         "source_image": "input.jpg",
         "source_sha256": source_sha,
@@ -199,16 +198,16 @@ def run_round(args):
             record["output_path"] = filename
         results["attempts"].append(record)
         write_json(results_path, results)
-        print(f"[{index}/4] {spec['label']}: {record.get('status_code')} {record['outcome']} ",
+        print(f"[{index}/{len(specs)}] {spec['label']}: {record.get('status_code')} {record['outcome']} ",
               f"{record.get('request_seconds')}s", flush=True)
         if index < len(specs):
             time.sleep(args.inter_call_wait)
     results["ended_at_utc"] = utc_now()
     write_json(results_path, results)
     returned = sum(item.get("outcome") == "RETURNED_IMAGE" for item in results["attempts"])
-    print(json.dumps({"status": "PASS" if returned == 4 else "FAIL",
+    print(json.dumps({"status": "PASS" if returned == len(specs) else "FAIL",
                       "round": args.round, "outputs": returned, "directory": str(round_dir)}))
-    return 0 if returned == 4 else 1
+    return 0 if returned == len(specs) else 1
 
 
 def check_output(output_root):
@@ -220,7 +219,10 @@ def check_output(output_root):
     for round_number, relative in ((1, ""), (2, "r2")):
         base = output_root / relative
         results = json.loads((base / "edit-results.json").read_text("utf-8"))
-        expected = [spec["label"] for spec in make_specs(round_number)]
+        # Archives before 2026-09-21 did not record the deployment; they were all gpt-image-2 at three tiers.
+        expected = [spec["label"] for spec in make_specs(
+            round_number, gpt_deployment=results.get("gpt_deployment", "gpt-image-2"),
+            gpt_qualities=tuple(results.get("gpt_qualities", DEFAULT_GPT_QUALITIES)))]
         actual = [attempt["label"] for attempt in results.get("attempts", [])]
         if actual != expected:
             raise ValueError(f"round {round_number} order/configurations differ: {actual}")
@@ -251,6 +253,9 @@ def parse_args():
     parser.add_argument("--round", type=int, choices=(1, 2), default=1)
     parser.add_argument("--prompt", default=DEFAULT_PROMPT)
     parser.add_argument("--gpt-size", default="auto")
+    parser.add_argument("--gpt-quality", action="append", default=None,
+                        choices=("low", "medium", "high", "xhigh", "max", "auto"),
+                        help="GPT tier to call; repeat for several. Default: low, medium, high.")
     parser.add_argument("--timeout", type=float, default=300)
     parser.add_argument("--max-attempts", type=int, default=3)
     parser.add_argument("--retry-wait", type=float, default=35)
@@ -262,13 +267,17 @@ def parse_args():
 
 def main():
     args = parse_args()
+    if args.gpt_quality is None:
+        args.gpt_quality = list(DEFAULT_GPT_QUALITIES)
     if args.check:
         print(json.dumps(check_output(args.output)))
         return 0
     if args.input is None:
         raise SystemExit("--input is required unless --check is used")
     source_sha, source_bytes = validate_input(args.input)
-    specs = make_specs(args.round, args.prompt, args.gpt_size)
+    specs = make_specs(args.round, args.prompt, args.gpt_size,
+                       gpt_deployment=os.environ.get("GPT_DEPLOYMENT", "gpt-image-2") or "gpt-image-2",
+                       gpt_qualities=tuple(args.gpt_quality))
     if args.dry_run:
         print(json.dumps({"status": "PASS", "mode": "DRY_RUN", "round": args.round,
                           "input_sha256": source_sha, "input_bytes": source_bytes,

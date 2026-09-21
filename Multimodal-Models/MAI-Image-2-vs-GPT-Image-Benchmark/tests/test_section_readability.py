@@ -10,28 +10,28 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 GROUNDING_ARCHIVE = ROOT / "data" / "lenovo-web-grounding-20260908"
-EDIT_ARCHIVE = ROOT / "data" / "edit-hat-swap-20260909-auto"
+EDIT_ARCHIVE = ROOT / "data" / "edit-hat-swap-gpt25-20260921"
 
 SECTIONS = {
-    # The metrics heading ends with either "All Quality Tiers" or "the Measured Quality Tiers"
-    # depending on whether every tier was measured, so anchor on the stable prefix.
     "README.md": {
         "grounding": "## Web Grounding Test",
         "edit": "### Test 12: Headwear Swap (Image Edit)",
         "asked": "What we asked the model",
         "controlled": "Controlled variable",
-        "highlights": "## What This Run Shows About MAI-Image-2.6",
+        "highlights": "## What the Measurements Show",
         "comparison": "## Side-by-Side Image Comparison",
-        "metrics_body": "## Current Run: Both Models and",
+        "metrics_body": "## Same-Session Run:",
+        "text": "## Chinese and English Text Rendering",
     },
     "README-CN.md": {
         "grounding": "## 联网信息补充测试",
         "edit": "### Test 12: 换帽子（图像编辑）",
         "asked": "我们向模型提出的问题",
         "controlled": "受控变量",
-        "highlights": "## MAI-Image-2.6 在本轮中体现的能力",
+        "highlights": "## 本仓库实测说明了什么",
         "comparison": "## 并排图片对比",
-        "metrics_body": "## 本轮：两模型与",
+        "metrics_body": "## 同会话运行：",
+        "text": "## 中英文文字渲染",
     },
 }
 
@@ -106,14 +106,14 @@ class SectionReadabilityTests(unittest.TestCase):
             edit_marker = ("第 12 题" if name.endswith("CN.md") else "Scenario 12")
             self.assertIn(edit_marker, opening, f"{name}: edit capability not stated")
             # A sentence that denies a ranking is required; only an asserted ranking is a defect.
-            asserted = ((r"(?<!不声称画质)(?<!没有评出)优于", r"毫不逊色", r"(?<!不)领先")
+            asserted = ((r"画质优于", r"毫不逊色", r"(?<!不)领先")
                         if name.endswith("CN.md")
-                        else (r"(?<!does not claim MAI image quality )beats", r"outperforms"))
+                        else (r"quality beats", r"outperforms"))
             for pattern in asserted:
                 self.assertIsNone(re.search(pattern, opening),
                                   f"{name}: unsupported quality ranking claimed")
-            denial = ("不声称画质优于或等同" if name.endswith("CN.md")
-                      else "does not claim MAI image quality beats or matches")
+            denial = ("画质没有数值分数" if name.endswith("CN.md")
+                      else "Image quality has no numeric score")
             self.assertIn(denial, opening, f"{name}: quality-ranking boundary missing")
 
     def test_scenarios_then_metrics_then_grounding(self):
@@ -132,18 +132,20 @@ class SectionReadabilityTests(unittest.TestCase):
             self.assertLess(text.index(labels["comparison"]), text.index(labels["metrics_body"]),
                             f"{name}: image comparison must precede the metrics body")
 
-    def test_quality_observations_lead_with_countable_outcomes(self):
-        """A prose wall is unreadable without the scale of the outcome first."""
-        for name in SECTIONS:
+    def test_text_rendering_shows_the_images_it_scores(self):
+        """A percentage without the picture behind it cannot be checked by the reader."""
+        for name, labels in SECTIONS.items():
             text = self.documents[name]
-            heading = ("### 逐场景画面观察" if name.endswith("CN.md") else "### Quality Observations")
-            body = section_text(text, heading)
-            counted = ("返回图片 / 计划样本" if name.endswith("CN.md") else "Images returned / planned")
-            self.assertIn(counted, body, f"{name}: countable summary missing")
-            prose_header = ("| 场景 |" if name.endswith("CN.md") else "| Scenario |")
-            self.assertIn(prose_header, body, f"{name}: per-scenario table missing")
-            self.assertLess(body.index(counted), body.index(prose_header),
-                            f"{name}: prose table appears before the countable summary")
+            for heading in [m.group(0) for m in re.finditer(r"(?m)^" + re.escape(labels["text"]) + r".*$", text)]:
+                body = section_text(text, heading)
+                images = re.findall(r"!\[[^\]]*\]\(([^)]+)\)", body)
+                self.assertGreater(len(images), 0, f"{name}: {heading} renders no result image")
+                for target in images:
+                    self.assertTrue((ROOT / target).is_file(), target)
+                    self.assertNotIn("gpt-image-2-", target, f"{name}: retired GPT-Image-2 image shown")
+                self.assertNotIn("| gpt-image-2-", body, f"{name}: retired GPT-Image-2 row in the score table")
+                self.assertIn("| --- |", body)
+                self.assertLess(body.index("**"), body.index("| --- |"), f"{name}: table before the question")
 
     def test_input_precedes_the_first_metric_table(self):
         """A reader who cannot see the input cannot judge the number."""
@@ -174,10 +176,11 @@ class SectionReadabilityTests(unittest.TestCase):
     def test_named_subjects_carry_human_readable_labels(self):
         for name, labels in SECTIONS.items():
             edit = section_text(self.documents[name], labels["edit"])
-            for label in (("输入图", "MAI-Image-2.6", "GPT-Image-2 high") if name.endswith("CN.md")
-                          else ("Input", "MAI-Image-2.6", "GPT-Image-2 high")):
+            for label in (("输入图", "MAI-Image-2.6", "GPT-Image-2.5 Flare high") if name.endswith("CN.md")
+                          else ("Input", "MAI-Image-2.6", "GPT-Image-2.5 Flare high")):
                 self.assertIn(label, edit, f"{name}: readable column label missing")
             self.assertNotIn("prompt_idx", edit)
+            self.assertNotIn("gpt-image-2.5-flare-high |", edit, f"{name}: raw group id used as a column label")
 
     def test_input_artifact_is_identified_by_hash(self):
         for name, labels in SECTIONS.items():

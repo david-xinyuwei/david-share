@@ -9,19 +9,22 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 import summarize_edit_hat_swap as module
-from summarize_paired_run import GROUPS
+
+GROUPS = ("mai-image-2.6", "gpt-image-2.5-flare-medium", "gpt-image-2.5-flare-high")
 
 
 class EditHatSwapEvidenceTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.archive = ROOT / "data" / "edit-hat-swap-20260909-auto"
+        cls.archive = ROOT / "data" / "edit-hat-swap-gpt25-20260921"
         cls.prefix = f"data/{cls.archive.name}/"
         cls.summary = module.summarize(cls.archive)
 
     def test_two_rounds_each_with_one_image_per_configuration(self):
         """Same protocol as Tests 1-11: two rounds, round 2 in reversed order."""
         self.assertEqual([r["round"] for r in self.summary["rounds"]], [1, 2])
+        self.assertEqual(self.summary["groups"], list(GROUPS))
+        self.assertEqual(self.summary["gpt_deployment"], "gpt-image-2.5-flare")
         for round_item in self.summary["rounds"]:
             groups = [item["group"] for item in round_item["outputs"]]
             self.assertEqual(groups, list(GROUPS))
@@ -72,25 +75,19 @@ class EditHatSwapEvidenceTests(unittest.TestCase):
             module.hashlib.sha256 = original
 
     def test_reports_render_test_12_after_test_11_with_both_rounds(self):
-        # The metrics heading names the measured tiers, so match its stable prefix.
         for filename, heading, previous, following in (
                 ("README.md", "### Test 12: Headwear Swap (Image Edit)", "### Test 11:",
-                 "## Current Run: Both Models and"),
+                 "## Same-Session Run:"),
                 ("README-CN.md", "### Test 12: 换帽子（图像编辑）", "### Test 11:",
-                 "## 本轮：两模型与")):
+                 "## 同会话运行：")):
             text = (ROOT / filename).read_text("utf-8")
             self.assertEqual(text.count(heading), 1, filename)
             self.assertLess(text.index(previous), text.index(heading), filename)
             self.assertLess(text.index(heading), text.index(following), filename)
             body = text[text.index(heading):text.index(following)]
             images = re.findall(r"!\[[^\]]*\]\(([^)]+)\)", body)
-            # Separate the measured artefacts from explanatory figures: the input plus
-            # four outputs per round must all be present, and a figure that summarises
-            # the protocols is allowed alongside them but never instead of them.
-            figures = [t for t in images if "/figures/" in t]
-            outputs = [t for t in images if "/figures/" not in t]
-            self.assertEqual(len(outputs), 1 + 4 * len(self.summary["rounds"]), filename)
-            self.assertLessEqual(len(figures), 1, f"{filename}: one explanatory figure is enough")
+            # The input plus one output per configuration per round, nothing borrowed from another run.
+            self.assertEqual(len(images), 1 + len(GROUPS) * len(self.summary["rounds"]), filename)
             for target in images:
                 self.assertTrue(target.startswith(self.prefix), target)
                 self.assertTrue((ROOT / target).is_file(), target)
@@ -106,14 +103,18 @@ class EditHatSwapEvidenceTests(unittest.TestCase):
                 self.assertIn(f"{item['request_seconds']:.2f} s<br>{item['output_kib']:.0f} KiB<br>"
                               f"{item['width']}x{item['height']}", body, item["group"])
             self.assertIn("size=auto" if not filename.endswith("CN.md") else "`size` 传 `auto`", body)
-            self.assertIn("Protocol correction" if not filename.endswith("CN.md") else "协议更正", body)
-            self.assertIn(f"{self.prefix}title-corner-contact-sheet.png", body)
-            # The superseded square-output run may be named as the record of the mistake, but no image
-            # rendered in the comparison may come from it.
-            for target in re.findall(r"!\[[^\]]*\]\(([^)]+)\)", body):
-                self.assertNotIn("edit-hat-swap-20260908", target, filename)
-            self.assertIn("[data/edit-hat-swap-20260908](data/edit-hat-swap-20260908)", body, filename)
+            self.assertIn(f"{self.prefix}review-compact.png", body)
+            for old in ("gpt-image-2-low", "gpt-image-2-medium", "gpt-image-2-high", "GPT-Image-2 "):
+                self.assertNotIn(old, body, f"{filename}: retired GPT-Image-2 configuration in Test 12")
             self.assertNotIn("<details", body)
+
+    def test_retired_gpt_image_2_edit_archives_are_named_only_as_evidence(self):
+        for filename in ("README.md", "README-CN.md"):
+            text = (ROOT / filename).read_text("utf-8")
+            for archive in ("edit-hat-swap-20260908", "edit-hat-swap-20260909-auto"):
+                for target in re.findall(r"!\[[^\]]*\]\(([^)]+)\)", text):
+                    self.assertNotIn(archive, target, f"{filename}: image rendered from a retired archive")
+                self.assertIn(f"[data/{archive}](data/{archive})", text, f"{filename}: retired archive not named as evidence")
 
     def test_superseded_multi_image_section_is_gone(self):
         for filename in ("README.md", "README-CN.md"):
