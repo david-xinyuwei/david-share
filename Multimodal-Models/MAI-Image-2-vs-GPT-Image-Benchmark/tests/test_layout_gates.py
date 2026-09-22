@@ -99,6 +99,14 @@ class LayoutGateTests(unittest.TestCase):
                     self.assertNotIn(token, (ROOT / name).read_text("utf-8"),
                                      f"{name} still refers to retired material {token}")
 
+    def test_every_delivered_script_is_named_by_the_readme(self):
+        """An untracked helper swept in by `git add -A -- scripts` ships silently otherwise (2026-09-22)."""
+        described = (ROOT / "README.md").read_text("utf-8")
+        for script in sorted((ROOT / "scripts").glob("*.py")):
+            with self.subTest(script=script.name):
+                self.assertIn(f"scripts/{script.name}", described,
+                              f"{script.name} is delivered but the README never names it")
+
     def test_every_top_level_entry_is_described_by_the_readme(self):
         """SOP-94 L9: a delivered directory nobody references is an undocumented repository entry."""
         described = (ROOT / "README.md").read_text("utf-8")

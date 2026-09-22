@@ -1496,7 +1496,8 @@ def reproduction_section(primary, supplement, tier, gpt2, edits, grounding, text
              "Every data directory maps to one step below: step 4 makes no model calls, the rest consume Azure usage. All runners, summarizers and the judge live in "
              "`scripts/`; reproduction uses the same code that produced this report.")
     tools = (f"{'脚本' if zh else 'Scripts'}: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py) · [run_edit_hat_swap.py](scripts/run_edit_hat_swap.py) · "
-             "[summarize_paired_run.py](scripts/summarize_paired_run.py) · [summarize_edit_hat_swap.py](scripts/summarize_edit_hat_swap.py) · "
+             "[summarize_paired_run.py](scripts/summarize_paired_run.py) · [summarize_mai_run.py](scripts/summarize_mai_run.py) · "
+             "[summarize_edit_hat_swap.py](scripts/summarize_edit_hat_swap.py) · [summarize_web_grounding.py](scripts/summarize_web_grounding.py) · "
              "[score_text_rendering.py](scripts/score_text_rendering.py) · [calibrate_text_judge.py](scripts/calibrate_text_judge.py) · "
              "[effective_prices.py](scripts/effective_prices.py) · [render_paired_report.py](scripts/render_paired_report.py) · [tests](tests).")
     return "\n\n".join([f"## {'客户复现' if zh else 'Reproduction'}", intro, *steps, tools])

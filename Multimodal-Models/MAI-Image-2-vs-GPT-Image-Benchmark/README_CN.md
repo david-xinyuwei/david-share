@@ -1,6 +1,6 @@
 # MAI-Image-2.6 与 GPT-Image-2 / 2.5：全质量档位图像生成对比
 
-[![Models](https://img.shields.io/badge/Models-MAI--Image--2.6%20vs%20GPT--Image--2%20%2F%202.5-0067b8)](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image) [![Samples](https://img.shields.io/badge/Samples-946%20measured-2e7d32)](data) ![Resolution](https://img.shields.io/badge/Resolution-1024%C3%971024-455a64) ![MAI version](https://img.shields.io/badge/MAI%20version-2026--07--31-6a1b9a) ![Data through](https://img.shields.io/badge/Data%20through-2026--09--21-37474f) [![Status](https://img.shields.io/badge/Status-Preview%20%C2%B7%20no%20SLA-b26500)](https://azure.microsoft.com/support/legal/preview-supplemental-terms/) [![Tests](https://img.shields.io/badge/Tests-94%20offline-00695c)](tests)
+[![Models](https://img.shields.io/badge/Models-MAI--Image--2.6%20vs%20GPT--Image--2%20%2F%202.5-0067b8)](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image) [![Samples](https://img.shields.io/badge/Samples-946%20measured-2e7d32)](data) ![Resolution](https://img.shields.io/badge/Resolution-1024%C3%971024-455a64) ![MAI version](https://img.shields.io/badge/MAI%20version-2026--07--31-6a1b9a) ![Data through](https://img.shields.io/badge/Data%20through-2026--09--21-37474f) [![Status](https://img.shields.io/badge/Status-Preview%20%C2%B7%20no%20SLA-b26500)](https://azure.microsoft.com/support/legal/preview-supplemental-terms/) [![Tests](https://img.shields.io/badge/Tests-95%20offline-00695c)](tests)
 
 MAI-Image-2.6 对 GPT-Image-2 与 GPT-Image-2.5 的实测对比。主线是 2026-09-20 的同会话运行——同一客户端、同一账户、同一区域（Sweden Central），MAI 与 2.5 flare 的 medium、high 在 11 个文生图场景上交错调用两轮；GPT-Image-2 三档来自 2026-09-07 的会话，2.5 其余档位、图像编辑、中英文文字渲染、账单成本和联网信息补充各有自己的小节与证据目录。所有画面判断为非盲评的差异描述，不产出质量评分或偏好胜负。
 
@@ -1016,7 +1016,7 @@ python scripts/effective_prices.py data/billing-20260920 --check
 python scripts/effective_prices.py data/billing-<date> --query --subscription <id> --resource-group <rg> --account <cognitive-services-account>
 ```
 
-脚本: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py) · [run_edit_hat_swap.py](scripts/run_edit_hat_swap.py) · [summarize_paired_run.py](scripts/summarize_paired_run.py) · [summarize_edit_hat_swap.py](scripts/summarize_edit_hat_swap.py) · [score_text_rendering.py](scripts/score_text_rendering.py) · [calibrate_text_judge.py](scripts/calibrate_text_judge.py) · [effective_prices.py](scripts/effective_prices.py) · [render_paired_report.py](scripts/render_paired_report.py) · [tests](tests).
+脚本: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py) · [run_edit_hat_swap.py](scripts/run_edit_hat_swap.py) · [summarize_paired_run.py](scripts/summarize_paired_run.py) · [summarize_mai_run.py](scripts/summarize_mai_run.py) · [summarize_edit_hat_swap.py](scripts/summarize_edit_hat_swap.py) · [summarize_web_grounding.py](scripts/summarize_web_grounding.py) · [score_text_rendering.py](scripts/score_text_rendering.py) · [calibrate_text_judge.py](scripts/calibrate_text_judge.py) · [effective_prices.py](scripts/effective_prices.py) · [render_paired_report.py](scripts/render_paired_report.py) · [tests](tests).
 
 证据目录: [data/mai-vs-gpt25-20260920](data/mai-vs-gpt25-20260920). 含原始图片、测量记录、逐次请求、响应元数据和执行时的源码副本；提示词 SHA-256: `be3d628c66a1e4d535d06bcc84246a04aad11f35a48f3133d451fe86283782ce`.
 
@@ -1573,11 +1573,11 @@ python scripts/effective_prices.py data/billing-20260920 --check
 python scripts/effective_prices.py data/billing-<date> --query --subscription <id> --resource-group <rg> --account <cognitive-services-account>
 ```
 
-脚本: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py) · [run_edit_hat_swap.py](scripts/run_edit_hat_swap.py) · [summarize_paired_run.py](scripts/summarize_paired_run.py) · [summarize_edit_hat_swap.py](scripts/summarize_edit_hat_swap.py) · [score_text_rendering.py](scripts/score_text_rendering.py) · [calibrate_text_judge.py](scripts/calibrate_text_judge.py) · [effective_prices.py](scripts/effective_prices.py) · [render_paired_report.py](scripts/render_paired_report.py) · [tests](tests).
+脚本: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py) · [run_edit_hat_swap.py](scripts/run_edit_hat_swap.py) · [summarize_paired_run.py](scripts/summarize_paired_run.py) · [summarize_mai_run.py](scripts/summarize_mai_run.py) · [summarize_edit_hat_swap.py](scripts/summarize_edit_hat_swap.py) · [summarize_web_grounding.py](scripts/summarize_web_grounding.py) · [score_text_rendering.py](scripts/score_text_rendering.py) · [calibrate_text_judge.py](scripts/calibrate_text_judge.py) · [effective_prices.py](scripts/effective_prices.py) · [render_paired_report.py](scripts/render_paired_report.py) · [tests](tests).
 
 ## 测试与离线核验
 
-全部 94 个测试和上面所有 `--check` 都不调用模型、不需要凭据、不联网，只需 Python 和已 `git lfs pull` 的工作区。`--check` 只读不写：任何 hash 不匹配、配置缺失，或重新渲染的结果与已提交文件不同，都以非零退出码失败。
+全部 95 个测试和上面所有 `--check` 都不调用模型、不需要凭据、不联网，只需 Python 和已 `git lfs pull` 的工作区。`--check` 只读不写：任何 hash 不匹配、配置缺失，或重新渲染的结果与已提交文件不同，都以非零退出码失败。
 
 ```powershell
 python -m pytest tests -q

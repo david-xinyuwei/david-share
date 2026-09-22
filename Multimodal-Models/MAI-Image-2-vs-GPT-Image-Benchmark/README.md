@@ -1,6 +1,6 @@
 # MAI-Image-2.6 vs GPT-Image-2 / 2.5: All Quality Tiers
 
-[![Models](https://img.shields.io/badge/Models-MAI--Image--2.6%20vs%20GPT--Image--2%20%2F%202.5-0067b8)](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image) [![Samples](https://img.shields.io/badge/Samples-946%20measured-2e7d32)](data) ![Resolution](https://img.shields.io/badge/Resolution-1024%C3%971024-455a64) ![MAI version](https://img.shields.io/badge/MAI%20version-2026--07--31-6a1b9a) ![Data through](https://img.shields.io/badge/Data%20through-2026--09--21-37474f) [![Status](https://img.shields.io/badge/Status-Preview%20%C2%B7%20no%20SLA-b26500)](https://azure.microsoft.com/support/legal/preview-supplemental-terms/) [![Tests](https://img.shields.io/badge/Tests-94%20offline-00695c)](tests)
+[![Models](https://img.shields.io/badge/Models-MAI--Image--2.6%20vs%20GPT--Image--2%20%2F%202.5-0067b8)](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image) [![Samples](https://img.shields.io/badge/Samples-946%20measured-2e7d32)](data) ![Resolution](https://img.shields.io/badge/Resolution-1024%C3%971024-455a64) ![MAI version](https://img.shields.io/badge/MAI%20version-2026--07--31-6a1b9a) ![Data through](https://img.shields.io/badge/Data%20through-2026--09--21-37474f) [![Status](https://img.shields.io/badge/Status-Preview%20%C2%B7%20no%20SLA-b26500)](https://azure.microsoft.com/support/legal/preview-supplemental-terms/) [![Tests](https://img.shields.io/badge/Tests-95%20offline-00695c)](tests)
 
 A measured comparison of MAI-Image-2.6 against GPT-Image-2 and GPT-Image-2.5. The spine is the same-session run of 2026-09-20 from one client, one account and one region (Sweden Central), in which MAI and 2.5 flare medium and high were called alternately over 11 text-to-image scenarios in two rounds; the three GPT-Image-2 tiers come from the 2026-09-07 session, and the remaining 2.5 tiers, image editing, Chinese/English text rendering, invoice cost and web grounding each have their own section and evidence directory. Image judgements are unblinded difference descriptions and produce no quality score or preference verdict.
 
@@ -1016,7 +1016,7 @@ python scripts/effective_prices.py data/billing-20260920 --check
 python scripts/effective_prices.py data/billing-<date> --query --subscription <id> --resource-group <rg> --account <cognitive-services-account>
 ```
 
-Scripts: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py) · [run_edit_hat_swap.py](scripts/run_edit_hat_swap.py) · [summarize_paired_run.py](scripts/summarize_paired_run.py) · [summarize_edit_hat_swap.py](scripts/summarize_edit_hat_swap.py) · [score_text_rendering.py](scripts/score_text_rendering.py) · [calibrate_text_judge.py](scripts/calibrate_text_judge.py) · [effective_prices.py](scripts/effective_prices.py) · [render_paired_report.py](scripts/render_paired_report.py) · [tests](tests).
+Scripts: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py) · [run_edit_hat_swap.py](scripts/run_edit_hat_swap.py) · [summarize_paired_run.py](scripts/summarize_paired_run.py) · [summarize_mai_run.py](scripts/summarize_mai_run.py) · [summarize_edit_hat_swap.py](scripts/summarize_edit_hat_swap.py) · [summarize_web_grounding.py](scripts/summarize_web_grounding.py) · [score_text_rendering.py](scripts/score_text_rendering.py) · [calibrate_text_judge.py](scripts/calibrate_text_judge.py) · [effective_prices.py](scripts/effective_prices.py) · [render_paired_report.py](scripts/render_paired_report.py) · [tests](tests).
 
 Evidence directory: [data/mai-vs-gpt25-20260920](data/mai-vs-gpt25-20260920). Original images, measurement records, attempts, response metadata and the source snapshot that ran; prompt SHA-256: `be3d628c66a1e4d535d06bcc84246a04aad11f35a48f3133d451fe86283782ce`.
 
@@ -1573,11 +1573,11 @@ python scripts/effective_prices.py data/billing-20260920 --check
 python scripts/effective_prices.py data/billing-<date> --query --subscription <id> --resource-group <rg> --account <cognitive-services-account>
 ```
 
-Scripts: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py) · [run_edit_hat_swap.py](scripts/run_edit_hat_swap.py) · [summarize_paired_run.py](scripts/summarize_paired_run.py) · [summarize_edit_hat_swap.py](scripts/summarize_edit_hat_swap.py) · [score_text_rendering.py](scripts/score_text_rendering.py) · [calibrate_text_judge.py](scripts/calibrate_text_judge.py) · [effective_prices.py](scripts/effective_prices.py) · [render_paired_report.py](scripts/render_paired_report.py) · [tests](tests).
+Scripts: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py) · [run_edit_hat_swap.py](scripts/run_edit_hat_swap.py) · [summarize_paired_run.py](scripts/summarize_paired_run.py) · [summarize_mai_run.py](scripts/summarize_mai_run.py) · [summarize_edit_hat_swap.py](scripts/summarize_edit_hat_swap.py) · [summarize_web_grounding.py](scripts/summarize_web_grounding.py) · [score_text_rendering.py](scripts/score_text_rendering.py) · [calibrate_text_judge.py](scripts/calibrate_text_judge.py) · [effective_prices.py](scripts/effective_prices.py) · [render_paired_report.py](scripts/render_paired_report.py) · [tests](tests).
 
 ## Tests and Offline Checks
 
-All 94 tests and every `--check` above call no model, need no credentials and require no network: Python and a worktree after `git lfs pull` are enough. `--check` is read-only and fails with a non-zero exit code on any hash mismatch, missing configuration, or difference between a fresh render and the committed files.
+All 95 tests and every `--check` above call no model, need no credentials and require no network: Python and a worktree after `git lfs pull` are enough. `--check` is read-only and fails with a non-zero exit code on any hash mismatch, missing configuration, or difference between a fresh render and the committed files.
 
 ```powershell
 python -m pytest tests -q
