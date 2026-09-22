@@ -73,10 +73,15 @@ def model_version_for(prefix, deployment):
         try:
             mapped = json.loads(overrides).get(deployment)
         except json.JSONDecodeError:
-            mapped = None
+            raise SystemExit(f"{prefix}_MODEL_VERSIONS is not valid JSON; it must map each deployment to its verified model version.")
         if mapped:
             return mapped
-    return os.environ.get(prefix + "_MODEL_VERSION")
+    single = os.environ.get(prefix + "_MODEL_VERSION")
+    if not single:
+        # A deployment name is not model identity, so an archive with no version cannot be compared later.
+        raise SystemExit(f"No model version for deployment {deployment!r}. Set {prefix}_MODEL_VERSIONS "
+                         f"(a JSON map) or {prefix}_MODEL_VERSION to the version you verified.")
+    return single
 
 
 INTER_CALL_WAIT = 5

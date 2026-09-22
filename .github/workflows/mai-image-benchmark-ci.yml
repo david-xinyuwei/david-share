@@ -1,0 +1,52 @@
+name: MAI-Image-2.6 vs GPT-Image benchmark
+
+# The report is generated from the archives in data/, so CI proves two things on every change:
+# the committed README files are exactly what the current evidence renders, and every offline
+# check a reader is told to run actually passes.
+
+on:
+  push:
+    paths:
+      - 'Multimodal-Models/MAI-Image-2-vs-GPT-Image-Benchmark/**'
+      - '.github/workflows/mai-image-benchmark-ci.yml'
+  pull_request:
+    paths:
+      - 'Multimodal-Models/MAI-Image-2-vs-GPT-Image-Benchmark/**'
+  workflow_dispatch:
+
+jobs:
+  offline-checks:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Multimodal-Models/MAI-Image-2-vs-GPT-Image-Benchmark
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install the pinned runtime dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt pytest
+
+      - name: Offline tests
+        run: python -m pytest tests -q
+
+      - name: The committed report matches the archived evidence
+        run: python scripts/render_paired_report.py --check
+
+      - name: Recompute prices from the archived invoice
+        run: python scripts/effective_prices.py data/billing-20260920 --check
+
+      - name: Recompute the text-rendering scores
+        run: |
+          python scripts/score_text_rendering.py --check data/text-rendering-20260918/text-scoring.json
+          python scripts/score_text_rendering.py --check data/text-hard-20260919/text-scoring.json
+
+      - name: Verify the published edit outputs
+        run: |
+          python scripts/summarize_edit_hat_swap.py data/edit-hat-swap-20260909-auto --check
+          python scripts/summarize_edit_hat_swap.py data/edit-hat-swap-gpt25-20260921 --check

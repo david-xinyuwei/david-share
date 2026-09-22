@@ -1,22 +1,49 @@
 # MAI-Image-2.6 与 GPT-Image-2 / 2.5：全质量档位图像生成对比
 
-[![Models](https://img.shields.io/badge/Models-MAI--Image--2.6%20vs%20GPT--Image--2%20%2F%202.5-0067b8)](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image) [![Samples](https://img.shields.io/badge/Samples-946%20measured-2e7d32)](data) ![Resolution](https://img.shields.io/badge/Resolution-1024%C3%971024-455a64) ![MAI version](https://img.shields.io/badge/MAI%20version-2026--07--31-6a1b9a) ![Data through](https://img.shields.io/badge/Data%20through-2026--09--21-37474f) [![Status](https://img.shields.io/badge/Status-Preview%20%C2%B7%20no%20SLA-b26500)](https://azure.microsoft.com/support/legal/preview-supplemental-terms/) [![Tests](https://img.shields.io/badge/Tests-87%20offline-00695c)](tests)
+[![Models](https://img.shields.io/badge/Models-MAI--Image--2.6%20vs%20GPT--Image--2%20%2F%202.5-0067b8)](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image) [![Samples](https://img.shields.io/badge/Samples-946%20measured-2e7d32)](data) ![Resolution](https://img.shields.io/badge/Resolution-1024%C3%971024-455a64) ![MAI version](https://img.shields.io/badge/MAI%20version-2026--07--31-6a1b9a) ![Data through](https://img.shields.io/badge/Data%20through-2026--09--21-37474f) [![Status](https://img.shields.io/badge/Status-Preview%20%C2%B7%20no%20SLA-b26500)](https://azure.microsoft.com/support/legal/preview-supplemental-terms/) [![Tests](https://img.shields.io/badge/Tests-94%20offline-00695c)](tests)
 
 MAI-Image-2.6 对 GPT-Image-2 与 GPT-Image-2.5 的实测对比。主线是 2026-09-20 的同会话运行——同一客户端、同一账户、同一区域（Sweden Central），MAI 与 2.5 flare 的 medium、high 在 11 个文生图场景上交错调用两轮；GPT-Image-2 三档来自 2026-09-07 的会话，2.5 其余档位、图像编辑、中英文文字渲染、账单成本和联网信息补充各有自己的小节与证据目录。所有画面判断为非盲评的差异描述，不产出质量评分或偏好胜负。
 
 > **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
 
-[English](README.md) | [中文](README-CN.md)
+[English](README.md) | [中文](README_CN.md)
 
-[逐题图片](#并排图片对比) · [图像编辑](#test-12-换帽子图像编辑) · [耗时与请求](#耗时与请求成功情况) · [GPT-Image-2 会话](#gpt-image-2-会话mai-image-26-对-gpt-image-2) · [六个档位](#gpt-image-25-的六个质量档位) · [成本](#每张图的实际成本来自本账户账单) · [文字渲染](#中英文文字渲染) · [联网补测](#联网信息补充测试) · [复现](#reproduction-how-to) · [原始证据](data/mai-vs-gpt25-20260920)
+[从哪里开始](#从哪里开始) · [选哪个模型和档位](#选哪个模型和哪个档位) · [逐题图片](#并排图片对比) · [图像编辑](#test-12-换帽子图像编辑) · [耗时与请求](#耗时与请求成功情况) · [成本](#每张图的实际成本来自本账户账单) · [文字渲染](#中英文文字渲染) · [架构与测试拓扑](#架构与测试拓扑) · [客户复现](#客户复现) · [结论边界](#结论边界)
 
 ---
+
+## 从哪里开始
+
+| 目标 | 入口 | 前置 |
+| --- | --- | --- |
+| 看结论：哪个模型、哪个档位适合我 | [选哪个模型和哪个档位](#选哪个模型和哪个档位) | 不需要任何环境 |
+| 看图自己判画质 | [并排图片对比](#并排图片对比) | 本报告不给画质评分 |
+| 在自己的部署上重跑 | [客户复现](#客户复现) | 需自备部署与密钥，会产生 Azure 用量 |
+| 不调用模型，只核已发布证据 | [测试与离线核验](#测试与离线核验) | 只需 Python 与 Git LFS |
+| 看原始测量记录 | [data/mai-vs-gpt25-20260920](data/mai-vs-gpt25-20260920) | 图片、逐次请求、响应元数据 |
+
+## 选哪个模型和哪个档位
+
+下表只用本仓库的实测回答「选哪个」。画质不在表内：本报告不给画质评分，请直接看并排图自己判断。
+
+| 客户目标 | 选哪个 | 实测依据 |
+| --- | --- | --- |
+| 每张成本最低 | gpt-image-2 low | $5.88 / 1,000 张，是 MAI 的 0.15 倍 |
+| 单张返回最快 | GPT-Image-2.5 Flare low | P50 21.85 s，MAI 为 31.61 s；跨部署差异见表下说明 |
+| 成本必须可预测 | MAI-Image-2.6 | 每张恒定 1,024 token，不随档位变；$38.91 / 1,000 张 |
+| 图中中英文必须逐字正确 | MAI-Image-2.6、GPT-Image-2 low、GPT-Image-2 medium、GPT-Image-2 high、GPT-Image-2.5 Flare low、GPT-Image-2.5 Flare medium、GPT-Image-2.5 Flare high | 难题集 6 场景 × 2 语言 × 2 轮全对 |
+| 改图要贴近原图 | MAI-Image-2.6 | 色彩与取景几乎等同原图；GPT 两代都是整幅重生成 |
+| 生成时需要当前联网信息 | MAI-Image-2.6 | `web_grounding=true` 为 MAI 独有，GPT 无对应参数 |
+
+两条路线的前置不同：MAI-Image-2.6 处于 Preview、无 SLA、文档标注的 Languages 为 `en`；GPT-Image-2.5 尚未公布价格，本报告的单价来自本账户账单。两者都需要您自己的部署与配额。
+
+**读速度行时的前提**：同一个 2.5 模型的两个部署（flare 和 sunburst，同账户、同区域、返回 token 常数完全相同）在本仓库实测的 P50 相差 1.49–3.04 倍（max 档：73.47 s 对 223.51 s）。因此跨模型的倍数只对本次测的部署成立，不构成模型级的速度排序。
 
 ## 本仓库实测说明了什么
 
 以下 6 条都只依据本仓库的实测记录；MAI-Image-2.6 处于 Preview，无 SLA。画质没有数值分数：并排图是证据，读者的判断是结论。
 
-1. **同一会话里，MAI 的出图速度与 2.5 high 持平、慢于 2.5 medium。** 66/66 个样本返回图片；P50：MAI 31.61 s，2.5 medium 22.24 s（MAI 慢 1.42 倍），2.5 high 32.11 s（持平）。三组由同一客户端交错调用，没有区域或日期差。 2.5 low 在 2026-09-17 自己的会话里 P50 21.85 s，快于 MAI，但不是同一时段。
+1. **同一会话里，MAI 的出图速度与 2.5 high 持平、慢于 2.5 medium；但这个倍数只对本次测的部署成立。** 66/66 个样本返回图片；P50：MAI 31.61 s，2.5 medium 22.24 s（MAI 慢 1.42 倍），2.5 high 32.11 s（持平）。三组由同一客户端交错调用，没有区域或日期差。 2.5 low 在 2026-09-17 自己的会话里 P50 21.85 s，快于 MAI，但不是同一时段。 同一个 2.5 模型的两个部署（flare 和 sunburst，同账户、同区域、返回 token 常数完全相同）在本仓库实测的 P50 相差 1.49–3.04 倍（max 档：73.47 s 对 223.51 s）。因此跨模型的倍数只对本次测的部署成立，不构成模型级的速度排序。
 
 2. **按本账户账单，MAI 每千张 $38.91：是 2.5 low（$5.88）的 6.6 倍、2.5 medium（$13.17）的 3.0 倍，比 2.5 high（$52.68）便宜 26%。** 单价来自 Azure Cost Management 的实际计费，不是定价页；2.5 尚无公布价。「贵」只有先说清对比档位才成立；各档的画面差异在并排图里。
 
@@ -27,6 +54,15 @@ MAI-Image-2.6 对 GPT-Image-2 与 GPT-Image-2.5 的实测对比。主线是 2026
 5. **图像编辑：三个模型都换上了博士帽，14 张输出全部保住 5/5 保持项。** 可测的差别在分辨率与标题字形：MAI 输出 1360×768（端点 1,048,576 像素上限），色彩与取景几乎等同原图，像只重绘了头部，但拉丁字母笔画变软、四个汉字变形；GPT 侧（GPT-Image-2 1672×941、GPT-Image-2.5 1674×940）分辨率更高，整幅重生成，构图与身份保持但纹理与色彩重绘，2.5 medium 两轮都把标题 ADVISORS 拼成 ASVISORS。逐图清单见第 12 题。
 
 6. **`web_grounding=true` 可以在生成时补充联网信息。** 开启后模型从 Bing Search 检索当前信息作为额外上下文，实测让两个题目的产品文字事实从错误变为与官方发布一致；代价是首试成功率下降、耗时明显上升。这是 MAI 独有参数，无 GPT 对照。
+
+## 本仓库交付什么
+
+| 责任方 | 内容 |
+| --- | --- |
+| Azure 平台提供 | MAI-Image-2.6 与 GPT-Image-2 / 2.5 的托管推理端点、配额、计费与模型版本 |
+| 本仓库提供 | 执行脚本、汇总器、文字判读器与报告渲染器（`scripts/`）、离线测试（`tests/`）、418 个正式样本的原始图片与请求记录（`data/`），以及由这些证据单向生成的本报告 |
+| 您需要自备 | 自己的 MAI 与 GPT 部署、密钥、配额，以及文字打分用的视觉模型部署 |
+| 本仓库不承诺 | 画质评分或胜负判定、生产 SLA 与尾延迟保证、在您的区域与配额下重现相同数字、或任何未列出的能力 |
 
 ## 并排图片对比
 
@@ -813,21 +849,19 @@ flowchart LR
 | Output | `data[0].b64_json`, PNG | `data[0].b64_json`, PNG |
 | Usage | `usage.num_input_text_tokens`, `usage.num_output_tokens` | `usage.input_tokens_details`, `usage.output_tokens_details` |
 
-### 复现与测试
-
-<a id="reproduction-how-to"></a>
+## 客户复现
 
 每个数据目录都对应下面的一步：第 4 步不调用模型，其余会消耗 Azure 用量。所有执行脚本、汇总器和判读器都在 `scripts/`，复现用的就是产出本报告的同一套代码。
 
 ### 1. 克隆并安装依赖
 
-本仓库的 JSON 与 CSV 由 Git LFS 存储，核验前先拉取。
+本仓库的 JSON 与 CSV 由 Git LFS 存储，核验前先拉取。证据图片约 1.8 GB，只看本项目时用 blobless clone 更快。`requirements.txt` 锁定了执行脚本实际 import 的两个包。
 
 ```powershell
-git clone https://github.com/david-xinyuwei/david-share.git
+git clone --filter=blob:none https://github.com/david-xinyuwei/david-share.git
 cd david-share/Multimodal-Models/MAI-Image-2-vs-GPT-Image-Benchmark
 git lfs pull --include "Multimodal-Models/MAI-Image-2-vs-GPT-Image-Benchmark/**"
-python -m pip install requests pillow
+python -m pip install -r requirements.txt
 ```
 
 ### 2. 配置自己的部署
@@ -838,7 +872,7 @@ python -m pip install requests pillow
 $env:MAI_ENDPOINT = 'https://<your-mai-resource>.services.ai.azure.com'
 $env:GPT_ENDPOINT = 'https://<your-openai-resource>.openai.azure.com'
 $env:MAI_MODEL_VERSION = '2026-07-31'
-$env:GPT_MODEL_VERSIONS = '{"gpt-image-2.5-flare": "2026-09-08", "gpt-image-2.5-sunburst": "2026-09-08"}'
+$env:GPT_MODEL_VERSIONS = '{"gpt-image-2": "2026-04-21", "gpt-image-2.5-flare": "2026-09-08", "gpt-image-2.5-sunburst": "2026-09-08"}'
 $env:MAI_DEPLOYMENT_REGION = 'swedencentral'
 $env:GPT_DEPLOYMENT_REGION = 'swedencentral'
 $env:MAI_DEPLOYMENT_SKU = 'GlobalStandard'
@@ -983,10 +1017,6 @@ python scripts/effective_prices.py data/billing-<date> --query --subscription <i
 ```
 
 脚本: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py) · [run_edit_hat_swap.py](scripts/run_edit_hat_swap.py) · [summarize_paired_run.py](scripts/summarize_paired_run.py) · [summarize_edit_hat_swap.py](scripts/summarize_edit_hat_swap.py) · [score_text_rendering.py](scripts/score_text_rendering.py) · [calibrate_text_judge.py](scripts/calibrate_text_judge.py) · [effective_prices.py](scripts/effective_prices.py) · [render_paired_report.py](scripts/render_paired_report.py) · [tests](tests).
-
-### 结论边界
-
-本报告对比 MAI-Image-2.6、GPT-Image-2（low、medium、high）与 GPT-Image-2.5（flare 与 sunburst 两个部署，low、medium、high、xhigh、max、auto 档）。耗时与并排图的主线来自同一会话；2.5 其余档位来自另外两个日期的会话，表头带日期。GPT-Image-2 的 low、medium、high 来自 2026-09-07 的单独会话，部署在 East US 2、另一个账户，其耗时差含区域因素，不能全归为模型。MAI 没有传质量参数，不能称为任何 GPT 档位的等价档。11 个场景没有逐图文字评述，画质由读者从并排图判断；文字准确率只覆盖后文两节列出的场景与字符。不覆盖 2K、多图参考、并发压测或其他认证方式。以下归档只作证据、不进入任何表格：[data/mai-image-2.6-20260907](data/mai-image-2.6-20260907), [data/edit-hat-swap-20260908](data/edit-hat-swap-20260908)。
 
 证据目录: [data/mai-vs-gpt25-20260920](data/mai-vs-gpt25-20260920). 含原始图片、测量记录、逐次请求、响应元数据和执行时的源码副本；提示词 SHA-256: `be3d628c66a1e4d535d06bcc84246a04aad11f35a48f3133d451fe86283782ce`.
 
@@ -1331,3 +1361,271 @@ python scripts/effective_prices.py data/billing-<date> --query --subscription <i
 [原始结果](data/lenovo-web-grounding-20260908/5way_v2_results.json) | [全部请求](data/lenovo-web-grounding-20260908/attempts.jsonl) | [逐图观察](data/lenovo-web-grounding-20260908/visual-review.json) | [完整12样本统计](data/lenovo-web-grounding-20260908/web-grounding-summary.json) | [出处与哈希](data/lenovo-web-grounding-20260908/provenance.json)
 
 结果 SHA-256: `669617dd5d59d0748a0fc398d98ec4c59cb4b26cc9655138edf9b6c9622f3c1b`. 官方参考：[IdeaPad Vibe](https://news.lenovo.com/pressroom/press-releases/colorful-ideapad-vibe-series-all-in-one-ai-pcs/) | [Yoga](https://news.lenovo.com/pressroom/press-releases/yoga-portfolio-new-ai-pcs-and-tablets/) | [MAI API](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image#request-parameters)
+
+## 架构与测试拓扑
+
+**调用与证据路径**
+
+```mermaid
+flowchart LR
+    csv["prompts.csv"] --> runner["benchmark_5way_v2.py"]
+    runner -->|"POST images/generations"| mai["MAI-Image-2.6"]
+    runner -->|"POST images/generations"| gpt["GPT-Image-2 / 2.5"]
+    mai --> raw["PNG + usage + attempts + timestamps"]
+    gpt --> raw
+    raw --> summarizer["summarize_*.py, hash-bound"]
+    summarizer --> archive["data/archive/summary.json"]
+    archive --> renderer["render_paired_report.py"]
+    renderer --> readme["README.md and README_CN.md"]
+    archive --> tests["tests/"]
+    readme --> tests
+```
+
+读法：只有 runner 调用模型，之后每一步都是离线的。汇总器对每张图做 hash 绑定，hash 不匹配即报错；报告由归档单向生成，不允许手改；测试读的是渲染后的 README 文件，而不是生成器内部函数。
+
+**实际测量拓扑**
+
+```mermaid
+flowchart TB
+    subgraph client["Client: one Windows workstation, ARM64, Python 3.13.15"]
+        run["benchmark_5way_v2.py, concurrency 1"]
+    end
+    subgraph accountA["Azure account A, Sweden Central"]
+        m["MAI-Image-2.6, GlobalStandard 2 RPM"]
+        f["gpt-image-2.5-flare"]
+        s["gpt-image-2.5-sunburst"]
+    end
+    subgraph accountB["Azure account B, East US 2"]
+        g2["gpt-image-2"]
+    end
+    run --> m
+    run --> f
+    run --> s
+    run -.->|"crosses account and region"| g2
+```
+
+测量点在客户端：耗时从 `requests.post` 调用前到完整 HTTP 响应返回，包含网络往返，不是服务端推理时间。实线部分在同一账户、同一区域，跨模型耗时可直接比；虚线部分跨账户、跨区域，其耗时差含区域与网络因素。并发为 1，因此本报告不包含并发容量或尾延迟结论。文字渲染、图像编辑和联网补测用同一台客户端和同一套部署，只更换端点与提示词文件。
+
+## 客户复现
+
+每个数据目录都对应下面的一步：第 4 步不调用模型，其余会消耗 Azure 用量。所有执行脚本、汇总器和判读器都在 `scripts/`，复现用的就是产出本报告的同一套代码。
+
+### 1. 克隆并安装依赖
+
+本仓库的 JSON 与 CSV 由 Git LFS 存储，核验前先拉取。证据图片约 1.8 GB，只看本项目时用 blobless clone 更快。`requirements.txt` 锁定了执行脚本实际 import 的两个包。
+
+```powershell
+git clone --filter=blob:none https://github.com/david-xinyuwei/david-share.git
+cd david-share/Multimodal-Models/MAI-Image-2-vs-GPT-Image-Benchmark
+git lfs pull --include "Multimodal-Models/MAI-Image-2-vs-GPT-Image-Benchmark/**"
+python -m pip install -r requirements.txt
+```
+
+### 2. 配置自己的部署
+
+需要一个 MAI-Image-2.6 部署和要测的 GPT-Image-2.5 部署，都在您自己的账户下。部署身份由您查询确认，不能仅凭 deployment 名称判断底层模型。`AZURE_API_KEY`（MAI）和 `AZURE_OPENAI_API_KEY`（GPT）通过您自己的秘密管理机制提供，不进源码和 Git。元数据变量必须填您查到的实际值；下面是本次实测的值。
+
+```powershell
+$env:MAI_ENDPOINT = 'https://<your-mai-resource>.services.ai.azure.com'
+$env:GPT_ENDPOINT = 'https://<your-openai-resource>.openai.azure.com'
+$env:MAI_MODEL_VERSION = '2026-07-31'
+$env:GPT_MODEL_VERSIONS = '{"gpt-image-2": "2026-04-21", "gpt-image-2.5-flare": "2026-09-08", "gpt-image-2.5-sunburst": "2026-09-08"}'
+$env:MAI_DEPLOYMENT_REGION = 'swedencentral'
+$env:GPT_DEPLOYMENT_REGION = 'swedencentral'
+$env:MAI_DEPLOYMENT_SKU = 'GlobalStandard'
+$env:GPT_DEPLOYMENT_SKU = 'GlobalStandard'
+$env:MAI_RATE_LIMIT_RPM = '2.0'
+$env:GPT_RATE_LIMIT_RPM = '2.0'
+$env:BENCHMARK_CLIENT_LOCATION = 'Describe your actual client location'
+python scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --gpt-model gpt-image-2.5-flare:medium,high --dry-run
+```
+
+### 3. 重跑同会话对比
+
+主线运行：MAI 与 2.5 flare 的 medium、high 在 11 题上交错调用。`--gpt-model` 接受 `部署名:档位,档位`。第一条每组预热一次；第二条从同一输出目录继续正式矩阵。已有结果不覆盖，已记录样本不重跑。开跑前把脚本和 CSV 存进 run 目录，运行期间不得修改。
+
+```powershell
+python scripts/summarize_paired_run.py data/mai-vs-gpt25-20260920
+$run = 'runs/mai-vs-gpt25-new-run'
+New-Item -ItemType Directory -Path "$run/source" -ErrorAction Stop
+Copy-Item -LiteralPath scripts/benchmark_5way_v2.py -Destination "$run/source/benchmark_5way_v2.py"
+Copy-Item -LiteralPath prompts.csv -Destination "$run/source/prompts.csv"
+python -u scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --gpt-model gpt-image-2.5-flare:medium,high --output $run --warmup-only
+python -u scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --gpt-model gpt-image-2.5-flare:medium,high --output $run --resume
+python scripts/summarize_paired_run.py $run
+```
+
+### 4. 只读核验已发布证据
+
+从原始记录重算每个归档并确认两份 README 与之一致；回归覆盖请求契约、失败分母、图片归属、评分规则、账单反算和报告覆盖。模拟 HTTP 只用于离线单元测试。
+
+```powershell
+python scripts/render_paired_report.py data/mai-vs-gpt25-20260920 --check
+python -m unittest discover -s tests -v
+```
+
+### 5. 重跑联网信息补充测试
+
+只需 MAI 部署。第一条只读核验归档；第二条离线检查参数；第三条真实重跑三题写入新目录。
+
+```powershell
+python scripts/summarize_web_grounding.py data/lenovo-web-grounding-20260908 --require-complete --check
+python data/lenovo-web-grounding-20260908/source/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --mai-web-grounding both --prompts-csv data/lenovo-web-grounding-20260908/source/prompts.csv --output runs/web-grounding-reproduction --dry-run
+python data/lenovo-web-grounding-20260908/source/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --mai-web-grounding both --prompts-csv data/lenovo-web-grounding-20260908/source/prompts.csv --output runs/web-grounding-reproduction
+```
+
+### 6. 重跑换帽图像编辑（GPT-Image-2）
+
+把 `GPT_DEPLOYMENT` 设为要测的部署（本次为 `gpt-image-2`），用 `--gpt-quality` 指定档位。第一条只读核验已发布输出；第二条是无凭据 dry-run；接下来两条真实执行两轮；最后一条核对顺序、`size=auto` 与 hash。逐图清单需按已发布方法人工复核，不会自动生成。
+
+```powershell
+python scripts/summarize_edit_hat_swap.py data/edit-hat-swap-20260909-auto --check
+$env:GPT_DEPLOYMENT = 'gpt-image-2'
+$out = 'runs/edit-hat-swap-gpt-image-2-reproduction'
+python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-20260909-auto/input.jpg --output $out --round 1 --gpt-size auto --gpt-quality low --gpt-quality medium --gpt-quality high --dry-run
+python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-20260909-auto/input.jpg --output $out --round 1 --gpt-size auto --gpt-quality low --gpt-quality medium --gpt-quality high
+python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-20260909-auto/input.jpg --output $out --round 2 --gpt-size auto --gpt-quality low --gpt-quality medium --gpt-quality high
+python scripts/run_edit_hat_swap.py --output $out --check
+```
+
+### 7. 重跑换帽图像编辑（GPT-Image-2.5）
+
+把 `GPT_DEPLOYMENT` 设为要测的部署（本次为 `gpt-image-2.5-flare`），用 `--gpt-quality` 指定档位。第一条只读核验已发布输出；第二条是无凭据 dry-run；接下来两条真实执行两轮；最后一条核对顺序、`size=auto` 与 hash。逐图清单需按已发布方法人工复核，不会自动生成。
+
+```powershell
+python scripts/summarize_edit_hat_swap.py data/edit-hat-swap-gpt25-20260921 --check
+$env:GPT_DEPLOYMENT = 'gpt-image-2.5-flare'
+$out = 'runs/edit-hat-swap-gpt-image-2.5-flare-reproduction'
+python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-gpt25-20260921/input.jpg --output $out --round 1 --gpt-size auto --gpt-quality medium --gpt-quality high --dry-run
+python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-gpt25-20260921/input.jpg --output $out --round 1 --gpt-size auto --gpt-quality medium --gpt-quality high
+python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-gpt25-20260921/input.jpg --output $out --round 2 --gpt-size auto --gpt-quality medium --gpt-quality high
+python scripts/run_edit_hat_swap.py --output $out --check
+```
+
+### 8. 重跑 GPT-Image-2 会话
+
+`--gpt-quality all` 展开为 gpt-image-2 接受的三档。把 `GPT_ENDPOINT`、`GPT_DEPLOYMENT` 指向您的 gpt-image-2 部署；若它与 MAI 不同区域，需在报告里声明，本轮就是这样做的。
+
+```powershell
+python scripts/summarize_paired_run.py data/paired-all-quality-20260907
+$run = 'runs/gpt2-paired-new-run'
+New-Item -ItemType Directory -Path "$run/source" -ErrorAction Stop
+Copy-Item -LiteralPath scripts/benchmark_5way_v2.py -Destination "$run/source/benchmark_5way_v2.py"
+Copy-Item -LiteralPath prompts.csv -Destination "$run/source/prompts.csv"
+python -u scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --gpt-model gpt-image-2 --gpt-quality all --output $run --warmup-only
+python -u scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --gpt-model gpt-image-2 --gpt-quality all --output $run --resume
+```
+
+### 9. 重跑 GPT-Image-2.5 两个部署的 low/medium/high
+
+`--gpt-model` 可重复传入；`--gpt-quality all` 展开为 low、medium、high。客户端对同一部署每 60 秒最多起请 2 次，与 2 RPM 配额对齐；配额更高可改 `RATE_PACING`。
+
+```powershell
+python scripts/summarize_paired_run.py data/gpt25-paired-20260917
+$run = 'runs/gpt25-paired-new-run'
+New-Item -ItemType Directory -Path "$run/source" -ErrorAction Stop
+Copy-Item -LiteralPath scripts/benchmark_5way_v2.py -Destination "$run/source/benchmark_5way_v2.py"
+Copy-Item -LiteralPath prompts.csv -Destination "$run/source/prompts.csv"
+python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-model gpt-image-2.5-sunburst --gpt-quality all --output $run --warmup-only
+python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-model gpt-image-2.5-sunburst --gpt-quality all --output $run --resume
+```
+
+### 10. 重跑 xhigh/max/auto
+
+只有 gpt-image-2.5-* 接受这三档。max 单次请求实测 229 秒，执行脚本的请求超时为 900 秒。`auto` 由服务按请求自选档位，实际使用的档位记在每次尝试的 `service_quality`。
+
+```powershell
+python scripts/summarize_paired_run.py data/gpt25-tiers-20260918
+$run = 'runs/gpt25-tiers-new-run'
+New-Item -ItemType Directory -Path "$run/source" -ErrorAction Stop
+Copy-Item -LiteralPath scripts/benchmark_5way_v2.py -Destination "$run/source/benchmark_5way_v2.py"
+Copy-Item -LiteralPath prompts.csv -Destination "$run/source/prompts.csv"
+python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-model gpt-image-2.5-sunburst --gpt-quality xhigh --gpt-quality max --gpt-quality auto --output $run --warmup-only
+python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-model gpt-image-2.5-sunburst --gpt-quality xhigh --gpt-quality max --gpt-quality auto --output $run --resume
+```
+
+### 11. 重跑中英文文字渲染并判读
+
+文字渲染用自己的提示词文件（`--prompts-csv`），执行脚本只读第一列。每个部署各自有配额，所以按部署分片跑，判读时用多个 `--run` 合并；判读器拒绝提示词文件不一致的分片。判读需要支持图像输入的 chat 部署，通过 `JUDGE_ENDPOINT`、`JUDGE_DEPLOYMENT`、`AZURE_OPENAI_API_KEY` 提供；先校准，否则它的误差会被算到图像模型头上。`--check` 用归档里的转录重算全部分数，不调用模型。
+
+```powershell
+python scripts/score_text_rendering.py --check data/text-rendering-20260918/text-scoring.json
+python scripts/score_text_rendering.py --check data/text-hard-20260919/text-scoring.json
+python scripts/calibrate_text_judge.py --check data/text-rendering-20260918/judge-calibration/calibration.json
+python scripts/calibrate_text_judge.py --check data/text-hard-20260919/judge-calibration/calibration.json
+$env:JUDGE_ENDPOINT = 'https://<openai-resource>.openai.azure.com'
+$env:JUDGE_DEPLOYMENT = '<vision-capable-chat-deployment>'
+python scripts/calibrate_text_judge.py --prompts data/text-rendering-20260918/prompts-text-rendering.csv --out runs/judge-calibration
+$run = 'runs/text-new-run-mai'
+New-Item -ItemType Directory -Path "$run/source" -ErrorAction Stop
+Copy-Item -LiteralPath scripts/benchmark_5way_v2.py -Destination "$run/source/benchmark_5way_v2.py"
+Copy-Item -LiteralPath data/text-rendering-20260918/prompts-text-rendering.csv -Destination "$run/source/prompts-text-rendering.csv"
+python -u scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --prompts-csv "$run/source/prompts-text-rendering.csv" --output $run
+python scripts/score_text_rendering.py --run $run --prompts data/text-rendering-20260918/prompts-text-rendering.csv --out runs/text-new-run-scored
+```
+
+### 12. 从自己的账单重算每张图成本
+
+第一条从已归档的 Cost Management 响应离线重算 `effective-prices.json`；第二条对您自己的账户发同样的查询（需 `az login`，查询不计费）写入新归档，之后重新渲染就读您的账单。
+
+```powershell
+python scripts/effective_prices.py data/billing-20260920 --check
+python scripts/effective_prices.py data/billing-<date> --query --subscription <id> --resource-group <rg> --account <cognitive-services-account>
+```
+
+脚本: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py) · [run_edit_hat_swap.py](scripts/run_edit_hat_swap.py) · [summarize_paired_run.py](scripts/summarize_paired_run.py) · [summarize_edit_hat_swap.py](scripts/summarize_edit_hat_swap.py) · [score_text_rendering.py](scripts/score_text_rendering.py) · [calibrate_text_judge.py](scripts/calibrate_text_judge.py) · [effective_prices.py](scripts/effective_prices.py) · [render_paired_report.py](scripts/render_paired_report.py) · [tests](tests).
+
+## 测试与离线核验
+
+全部 94 个测试和上面所有 `--check` 都不调用模型、不需要凭据、不联网，只需 Python 和已 `git lfs pull` 的工作区。`--check` 只读不写：任何 hash 不匹配、配置缺失，或重新渲染的结果与已提交文件不同，都以非零退出码失败。
+
+```powershell
+python -m pytest tests -q
+python scripts/render_paired_report.py --check
+python scripts/effective_prices.py data/billing-20260920 --check
+python scripts/score_text_rendering.py --check data/text-rendering-20260918/text-scoring.json
+python scripts/summarize_edit_hat_swap.py data/edit-hat-swap-gpt25-20260921 --check
+```
+
+| 测什么 | 在哪里 | 范围与验收 |
+| --- | --- | --- |
+| 渲染后的 README 符合版式契约 | `tests/test_section_readability.py`, `tests/test_report.py` | 读 `README.md` / `README_CN.md` 本身：真实输入先于首个表格、无折叠块、图片链接存在、已退役内容不再出现 |
+| 汇总器与归档一致 | `tests/test_paired_summary.py`, `tests/test_summary.py`, `tests/test_edit_hat_swap.py` | 每张图的 SHA-256、轮次顺序、成功/计划分母与原始请求记录逐项对应 |
+| 评分与价格可离线重算 | `tests/test_scoring_and_prices.py` | 文字得分按归档的评分规则重算，单价由账单 `PreTaxCost` 除以计费 token 重算 |
+| 公开边界 | `tests/test_public_artifacts.py` | 测量归档里不得出现金额字段，归档源码里不得出现本机路径或凭据定位符 |
+| 执行器契约 | `tests/test_runner.py`, `tests/test_run_edit_hat_swap.py`, `tests/test_web_grounding.py` | 档位映射、请求体形状、缺少模型版本时 fail closed、重试与计数语义 |
+
+未覆盖：测试不证明图好不好看，不证明数字在您的区域会重现，也不替代人读。它们只证明一件事——发布的报告与归档证据一致，且版式契约未被破坏。
+
+## 结论边界
+
+本报告对比 MAI-Image-2.6、GPT-Image-2（low、medium、high）与 GPT-Image-2.5（flare 与 sunburst 两个部署，low、medium、high、xhigh、max、auto 档）。耗时与并排图的主线来自同一会话；2.5 其余档位来自另外两个日期的会话，表头带日期。GPT-Image-2 的 low、medium、high 来自 2026-09-07 的单独会话，部署在 East US 2、另一个账户，其耗时差含区域因素，不能全归为模型。MAI 没有传质量参数，不能称为任何 GPT 档位的等价档。11 个场景没有逐图文字评述，画质由读者从并排图判断；文字准确率只覆盖后文两节列出的场景与字符。不覆盖 2K、多图参考、并发压测或其他认证方式。以下归档只作证据、不进入任何表格：[data/mai-image-2.6-20260907](data/mai-image-2.6-20260907), [data/edit-hat-swap-20260908](data/edit-hat-swap-20260908)。
+
+**同一模型不同部署的耗时差**：同一个 2.5 模型的两个部署（flare 和 sunburst，同账户、同区域、返回 token 常数完全相同）在本仓库实测的 P50 相差 1.49–3.04 倍（max 档：73.47 s 对 223.51 s）。因此跨模型的倍数只对本次测的部署成立，不构成模型级的速度排序。
+
+## 仓库资产与证据
+
+| 路径 | 职责 |
+| --- | --- |
+| `scripts/` | 执行器、汇总器、文字判读器、价格重算与报告渲染器 |
+| `tests/` | 离线测试，读归档与渲染后的 README |
+| `data/` | 全部原始证据：图片、逐次请求、响应元数据与执行时源码快照 |
+| `prompts.csv` | 11 题主提示词文件（Git LFS） |
+| `requirements.txt` | 执行脚本实际 import 的包与版本 |
+
+**证据目录**
+
+| 目录 | 内容 |
+| --- | --- |
+| [data/mai-vs-gpt25-20260920](data/mai-vs-gpt25-20260920) | 66 个正式样本 |
+| [data/gpt25-paired-20260917](data/gpt25-paired-20260917) | 132 个正式样本 |
+| [data/gpt25-tiers-20260918](data/gpt25-tiers-20260918) | 132 个正式样本 |
+| [data/paired-all-quality-20260907](data/paired-all-quality-20260907) | 88 个正式样本 |
+| [data/text-rendering-20260918](data/text-rendering-20260918) | 120 张打分图 |
+| [data/text-hard-20260919](data/text-hard-20260919) | 382 张打分图 |
+| [data/edit-hat-swap-20260909-auto](data/edit-hat-swap-20260909-auto) | 图像编辑 · GPT-Image-2 |
+| [data/edit-hat-swap-gpt25-20260921](data/edit-hat-swap-gpt25-20260921) | 图像编辑 · GPT-Image-2.5 |
+| [data/lenovo-web-grounding-20260908](data/lenovo-web-grounding-20260908) | web_grounding 开关对比 |
+| [data/billing-20260920](data/billing-20260920) | Cost Management 原始响应 |
+| [data/mai-image-2.6-20260907](data/mai-image-2.6-20260907) | 只作证据，不进任何表格 |
+| [data/edit-hat-swap-20260908](data/edit-hat-swap-20260908) | 只作证据，不进任何表格 |

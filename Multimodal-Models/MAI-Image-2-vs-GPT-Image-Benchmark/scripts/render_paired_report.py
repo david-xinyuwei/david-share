@@ -1,4 +1,4 @@
-"""Render README.md and README-CN.md from the archived MAI-Image-2.6 vs GPT-Image-2.5 evidence.
+"""Render README.md and README_CN.md from the archived MAI-Image-2.6 vs GPT-Image-2 / 2.5 evidence.
 
 The same-session run (MAI, 2.5 flare medium, 2.5 flare high interleaved by one client) is the spine
 of the report. The other 2.5 tiers, the edit test, text rendering, the invoice and web grounding are
@@ -386,19 +386,55 @@ def render_masthead(primary, author_line, language, data_through, test_count, sa
         "2.5 tiers, image editing, Chinese/English text rendering, invoice cost and web grounding each have their own section and evidence "
         "directory. Image judgements are unblinded difference descriptions and produce no quality score or preference verdict.")
     nav = " · ".join([
+        f"[{'从哪里开始' if chinese else 'Start here'}](#{'从哪里开始' if chinese else 'start-here'})",
+        f"[{'选哪个模型和档位' if chinese else 'Which model and tier'}](#{'选哪个模型和哪个档位' if chinese else 'which-model-and-which-tier'})",
         f"[{'逐题图片' if chinese else 'Side-by-side images'}](#{'并排图片对比' if chinese else 'side-by-side-image-comparison'})",
         f"[{'图像编辑' if chinese else 'Image edit'}](#{'test-12-换帽子图像编辑' if chinese else 'test-12-headwear-swap-image-edit'})",
         f"[{'耗时与请求' if chinese else 'Latency and requests'}](#{'耗时与请求成功情况' if chinese else 'performance-and-reliability'})",
-        f"[{'GPT-Image-2 会话' if chinese else 'GPT-Image-2 session'}](#{'gpt-image-2-会话mai-image-26-对-gpt-image-2' if chinese else 'gpt-image-2-session-mai-image-26-vs-gpt-image-2'})",
-        f"[{'六个档位' if chinese else 'Six tiers'}](#{'gpt-image-25-的六个质量档位' if chinese else 'the-six-gpt-image-25-quality-tiers'})",
         f"[{'成本' if chinese else 'Cost'}](#{'每张图的实际成本来自本账户账单' if chinese else 'actual-cost-per-image-from-this-accounts-invoice'})",
         f"[{'文字渲染' if chinese else 'Text rendering'}](#{'中英文文字渲染' if chinese else 'chinese-and-english-text-rendering'})",
-        f"[{'联网补测' if chinese else 'Web grounding'}](#{'联网信息补充测试' if chinese else 'web-grounding-test'})",
-        f"[{'复现' if chinese else 'Reproduction'}](#reproduction-how-to)",
-        f"[{'原始证据' if chinese else 'Raw evidence'}]({primary['archive']})",
+        f"[{'架构与测试拓扑' if chinese else 'Architecture and test topology'}](#{'架构与测试拓扑' if chinese else 'architecture-and-test-topology'})",
+        f"[{'客户复现' if chinese else 'Reproduction'}](#{'客户复现' if chinese else 'reproduction'})",
+        f"[{'结论边界' if chinese else 'Limits'}](#{'结论边界' if chinese else 'limits-and-boundaries'})",
     ])
     return "\n\n".join([" ".join(rendered), scope, f"> {author_line.lstrip('> ')}",
-                        "[English](README.md) | [中文](README-CN.md)", nav, "---"])
+                        "[English](README.md) | [中文](README_CN.md)", nav, "---"])
+
+
+def deployment_spread(supplement, tier):
+    """Same model, same account, same region, two deployments: the ratio between their P50s per tier.
+
+    This is the factor the cross-model latency claims have to be read against, so it is computed
+    rather than described.
+    """
+    spread = {}
+    for run in (supplement, tier):
+        if not run:
+            continue
+        p50 = p50_by_group(run)
+        for group, value in p50.items():
+            if not group.startswith(SHOWN_GPT_MODEL) or not value:
+                continue
+            quality = group.rsplit("-", 1)[1]
+            other = p50.get(f"gpt-image-2.5-sunburst-{quality}")
+            if other:
+                spread[quality] = (value, other, other / value)
+    return dict(sorted(spread.items(), key=lambda item: TIER_ORDER.index(item[0])))
+
+
+def spread_sentence(spread, language):
+    if not spread:
+        return ""
+    ratios = [r for _, _, r in spread.values()]
+    low, high = min(ratios), max(ratios)
+    worst = max(spread.items(), key=lambda item: item[1][2])
+    if language == "zh":
+        return (f"同一个 2.5 模型的两个部署（flare 和 sunburst，同账户、同区域、返回 token 常数完全相同）在本仓库实测的 P50 相差 "
+                f"{low:.2f}–{high:.2f} 倍（{worst[0]} 档：{worst[1][0]:.2f} s 对 {worst[1][1]:.2f} s）。因此跨模型的倍数只对本次测的部署成立，"
+                "不构成模型级的速度排序。")
+    return (f"Two deployments of the same 2.5 model (flare and sunburst, one account, one region, identical returned token constants) differ by "
+            f"{low:.2f}-{high:.2f}x in measured P50 here ({worst[0]}: {worst[1][0]:.2f} s versus {worst[1][1]:.2f} s). A cross-model ratio therefore "
+            "holds for the deployments measured, not as a model-level speed ranking.")
 
 
 def relation(ratio, chinese):
@@ -424,7 +460,7 @@ def text_misses(study):
     return {group: sorted(items) for group, items in sorted(misses.items())}
 
 
-def render_highlights(primary, supplement, gpt2, billing, hard_study, edits, has_grounding, language):
+def render_highlights(primary, supplement, gpt2, billing, hard_study, edits, has_grounding, language, spread=""):
     chinese = language == "zh"
     p50 = p50_by_group(primary)
     mai, med, high = p50.get("mai-image-2.6"), p50.get(f"{SHOWN_GPT_MODEL}-medium"), p50.get(f"{SHOWN_GPT_MODEL}-high")
@@ -435,14 +471,14 @@ def render_highlights(primary, supplement, gpt2, billing, hard_study, edits, has
         low_cn = f" 2.5 low 在 {supplement['date']} 自己的会话里 P50 {low:.2f} s，快于 MAI，但不是同一时段。" if low else ""
         low_en = f" 2.5 low, in its own session on {supplement['date']}, had a P50 of {low:.2f} s, faster than MAI but not the same session." if low else ""
         items.append(
-            (f"**同一会话里，MAI 的出图速度与 2.5 high 持平、慢于 2.5 medium。** {returned}/{planned} 个样本返回图片；"
+            (f"**同一会话里，MAI 的出图速度与 2.5 high 持平、慢于 2.5 medium；但这个倍数只对本次测的部署成立。** {returned}/{planned} 个样本返回图片；"
              f"P50：MAI {mai:.2f} s，2.5 medium {med:.2f} s（{relation(mai / med, True)}），2.5 high {high:.2f} s（{relation(mai / high, True)}）。"
-             f"三组由同一客户端交错调用，没有区域或日期差。{low_cn}"
+             f"三组由同一客户端交错调用，没有区域或日期差。{low_cn}{(' ' + spread) if spread else ''}"
              if chinese else
-             f"**In one session, MAI is level with 2.5 high on speed and slower than 2.5 medium.** {returned}/{planned} "
-             f"samples returned images; P50: MAI {mai:.2f} s, 2.5 medium {med:.2f} s ({relation(mai / med, False)}), "
+             f"**In one session, MAI is level with 2.5 high on speed and slower than 2.5 medium; the ratio holds for the deployments measured.** "
+             f"{returned}/{planned} samples returned images; P50: MAI {mai:.2f} s, 2.5 medium {med:.2f} s ({relation(mai / med, False)}), "
              f"2.5 high {high:.2f} s ({relation(mai / high, False)}). The three were called alternately by one client, "
-             f"with no region or date difference.{low_en}"))
+             f"with no region or date difference.{low_en}{(' ' + spread) if spread else ''}"))
     if billing:
         per = billing["usd_per_1000_images"]
         mai_cost, low_cost, med_cost, high_cost = (per["MAI-Image-2.6"], per["gpt-image-2.5 low"], per["gpt-image-2.5 medium"],
@@ -784,6 +820,9 @@ def render_overview(primary, supplement, tier, gpt2, billing, edits, text_studie
         "covers only the scenes and characters listed in the two text-rendering sections. Not covered: 2K, multiple reference images, concurrency capacity or "
         "other authentication modes."
         + (f" These archives are evidence only and feed no table: {retired}." if retired else ""))
+    spread = spread_sentence(deployment_spread(supplement, tier), language)
+    if spread:
+        limits += ("\n\n" + ("**同一模型不同部署的耗时差**：" if chinese else "**Latency spread between two deployments of one model**: ") + spread)
     body = f"""## {heading('Same-Session Run: MAI-Image-2.6 vs GPT-Image-2.5', '同会话运行：MAI-Image-2.6 对 GPT-Image-2.5')}
 
 [{'逐题图片' if chinese else 'Side-by-side images'}](#{'并排图片对比' if chinese else 'side-by-side-image-comparison'}) | [{'测量记录' if chinese else 'Measurements'}]({primary['archive']}/5way_v2_results.json) | [{'指标' if chinese else 'Metrics'}]({primary['archive']}/summary.json) | [{'请求记录' if chinese else 'Attempts'}]({primary['archive']}/attempts.jsonl)
@@ -830,13 +869,9 @@ flowchart LR
 
 {reproduction_section(primary, supplement, tier, gpt2, edits, grounding, text_studies, billing, language)}
 
-### {heading('Limits', '结论边界')}
-
-{limits}
-
 {'证据目录' if chinese else 'Evidence directory'}: [{primary['archive']}]({primary['archive']}). {'含原始图片、测量记录、逐次请求、响应元数据和执行时的源码副本；' if chinese else 'Original images, measurement records, attempts, response metadata and the source snapshot that ran; '}{'提示词 SHA-256' if chinese else 'prompt SHA-256'}: `{summary['prompts_sha256']}`.
 """
-    return body
+    return body, limits
 
 
 # --------------------------------------------------------------------------------------------------
@@ -1340,10 +1375,12 @@ def reproduction_section(primary, supplement, tier, gpt2, edits, grounding, text
         steps.append("\n\n".join([f"### {number}. {title_zh if zh else title_en}", body_zh if zh else body_en, f"```powershell\n{commands}\n```"]))
 
     step(1, "Clone and install dependencies", "克隆并安装依赖",
-         "JSON and CSV in this repository are stored with Git LFS; fetch them before validating anything.",
-         "本仓库的 JSON 与 CSV 由 Git LFS 存储，核验前先拉取。",
-         "git clone https://github.com/david-xinyuwei/david-share.git\ncd david-share/Multimodal-Models/MAI-Image-2-vs-GPT-Image-Benchmark\n"
-         "git lfs pull --include \"Multimodal-Models/MAI-Image-2-vs-GPT-Image-Benchmark/**\"\npython -m pip install requests pillow")
+         "JSON and CSV in this repository are stored with Git LFS; fetch them before validating anything. The tree carries about 1.8 GB of evidence images, so "
+         "a blobless clone is faster if you only need this project. `requirements.txt` pins the two packages the runners import.",
+         "本仓库的 JSON 与 CSV 由 Git LFS 存储，核验前先拉取。证据图片约 1.8 GB，只看本项目时用 blobless clone 更快。"
+         "`requirements.txt` 锁定了执行脚本实际 import 的两个包。",
+         "git clone --filter=blob:none https://github.com/david-xinyuwei/david-share.git\ncd david-share/Multimodal-Models/MAI-Image-2-vs-GPT-Image-Benchmark\n"
+         "git lfs pull --include \"Multimodal-Models/MAI-Image-2-vs-GPT-Image-Benchmark/**\"\npython -m pip install -r requirements.txt")
     step(2, "Configure your deployments", "配置自己的部署",
          "One MAI-Image-2.6 deployment and the GPT-Image-2.5 deployments you want to measure, on accounts you control. Verify the underlying model "
          "versions; deployment names alone are not model identity. Supply `AZURE_API_KEY` (MAI) and `AZURE_OPENAI_API_KEY` (GPT) through your own "
@@ -1351,7 +1388,7 @@ def reproduction_section(primary, supplement, tier, gpt2, edits, grounding, text
          "需要一个 MAI-Image-2.6 部署和要测的 GPT-Image-2.5 部署，都在您自己的账户下。部署身份由您查询确认，不能仅凭 deployment 名称判断底层模型。"
          "`AZURE_API_KEY`（MAI）和 `AZURE_OPENAI_API_KEY`（GPT）通过您自己的秘密管理机制提供，不进源码和 Git。元数据变量必须填您查到的实际值；下面是本次实测的值。",
          "$env:MAI_ENDPOINT = 'https://<your-mai-resource>.services.ai.azure.com'\n$env:GPT_ENDPOINT = 'https://<your-openai-resource>.openai.azure.com'\n"
-         "$env:MAI_MODEL_VERSION = '2026-07-31'\n$env:GPT_MODEL_VERSIONS = '{\"gpt-image-2.5-flare\": \"2026-09-08\", \"gpt-image-2.5-sunburst\": \"2026-09-08\"}'\n"
+         "$env:MAI_MODEL_VERSION = '2026-07-31'\n$env:GPT_MODEL_VERSIONS = '{\"gpt-image-2\": \"2026-04-21\", \"gpt-image-2.5-flare\": \"2026-09-08\", \"gpt-image-2.5-sunburst\": \"2026-09-08\"}'\n"
          f"$env:MAI_DEPLOYMENT_REGION = '{primary['region']}'\n$env:GPT_DEPLOYMENT_REGION = '{primary['region']}'\n$env:MAI_DEPLOYMENT_SKU = 'GlobalStandard'\n"
          "$env:GPT_DEPLOYMENT_SKU = 'GlobalStandard'\n$env:MAI_RATE_LIMIT_RPM = '2.0'\n$env:GPT_RATE_LIMIT_RPM = '2.0'\n"
          "$env:BENCHMARK_CLIENT_LOCATION = 'Describe your actual client location'\n"
@@ -1462,7 +1499,255 @@ def reproduction_section(primary, supplement, tier, gpt2, edits, grounding, text
              "[summarize_paired_run.py](scripts/summarize_paired_run.py) · [summarize_edit_hat_swap.py](scripts/summarize_edit_hat_swap.py) · "
              "[score_text_rendering.py](scripts/score_text_rendering.py) · [calibrate_text_judge.py](scripts/calibrate_text_judge.py) · "
              "[effective_prices.py](scripts/effective_prices.py) · [render_paired_report.py](scripts/render_paired_report.py) · [tests](tests).")
-    return "\n\n".join([f"### {'复现与测试' if zh else 'Reproduction and Tests'}\n\n<a id=\"reproduction-how-to\"></a>", intro, *steps, tools])
+    return "\n\n".join([f"## {'客户复现' if zh else 'Reproduction'}", intro, *steps, tools])
+
+
+# --------------------------------------------------------------------------------------------------
+# Start Here, decision, scope, architecture, test documentation and assets
+# --------------------------------------------------------------------------------------------------
+
+def render_start_here(primary, language):
+    zh = language == "zh"
+    rows = [
+        ("看结论：哪个模型、哪个档位适合我", "Read the finding: which model and tier fits me",
+         f"[{'选哪个模型和哪个档位' if zh else 'Which Model and Which Tier'}](#{'选哪个模型和哪个档位' if zh else 'which-model-and-which-tier'})",
+         "不需要任何环境", "No environment needed"),
+        ("看图自己判画质", "Judge image quality yourself",
+         f"[{'并排图片对比' if zh else 'Side-by-Side Image Comparison'}](#{'并排图片对比' if zh else 'side-by-side-image-comparison'})",
+         "本报告不给画质评分", "This report assigns no quality score"),
+        ("在自己的部署上重跑", "Run it against your own deployments",
+         f"[{'客户复现' if zh else 'Reproduction'}](#{'客户复现' if zh else 'reproduction'})",
+         "需自备部署与密钥，会产生 Azure 用量", "Needs your own deployments and keys; consumes Azure usage"),
+        ("不调用模型，只核已发布证据", "Check the published evidence without calling a model",
+         f"[{'测试与离线核验' if zh else 'Tests and Offline Checks'}](#{'测试与离线核验' if zh else 'tests-and-offline-checks'})",
+         "只需 Python 与 Git LFS", "Python and Git LFS only"),
+        ("看原始测量记录", "Open the raw measurement records",
+         f"[{primary['archive']}]({primary['archive']})", "图片、逐次请求、响应元数据", "Images, attempts, response metadata"),
+    ]
+    body = table(["目标", "入口", "前置"] if zh else ["Goal", "Entry", "Prerequisite"],
+                 [[z if zh else e, link, pz if zh else pe] for z, e, link, pz, pe in rows])
+    return "\n\n".join([f"## {'从哪里开始' if zh else 'Start Here'}", body])
+
+
+def render_decision(primary, supplement, tier, billing, edits, text_studies, language):
+    """The choice a customer has to make, answered only from measurements in this repository."""
+    zh = language == "zh"
+    per_image = billing["usd_per_1000_images"] if billing else {}
+    tokens = billing["tokens_per_1024_image"] if billing else {}
+    p50 = {**p50_by_group(primary), **(p50_by_group(supplement) if supplement else {}), **(p50_by_group(tier) if tier else {})}
+    mai_p50 = p50.get("mai-image-2.6")
+    mai_cost = per_image.get("MAI-Image-2.6")
+    cheapest = min(((n, c) for n, c in per_image.items() if n != "MAI-Image-2.6"), key=lambda i: i[1], default=None)
+    fastest = min(((g, v) for g, v in p50.items() if g.startswith(SHOWN_GPT_MODEL) and v), key=lambda i: i[1], default=None)
+    hard = next((s for s in text_studies if s and s.get("kind") == "hard"), None)
+    rows = []
+    if cheapest and mai_cost:
+        rows.append(("每张成本最低", "Lowest cost per image", cheapest[0],
+                     f"${cheapest[1]:.2f} / 1,000 张，是 MAI 的 {cheapest[1] / mai_cost:.2f} 倍",
+                     f"${cheapest[1]:.2f} per 1,000, {cheapest[1] / mai_cost:.2f}x MAI"))
+    if fastest and mai_p50:
+        rows.append(("单张返回最快", "Fastest single image", group_label(fastest[0]),
+                     f"P50 {fastest[1]:.2f} s，MAI 为 {mai_p50:.2f} s；跨部署差异见表下说明",
+                     f"P50 {fastest[1]:.2f} s versus MAI at {mai_p50:.2f} s; see the deployment caveat below"))
+    if mai_cost and tokens.get("MAI-Image-2.6"):
+        rows.append(("成本必须可预测", "Cost must be predictable", "MAI-Image-2.6",
+                     f"每张恒定 {tokens['MAI-Image-2.6']:,} token，不随档位变；${mai_cost:.2f} / 1,000 张",
+                     f"A constant {tokens['MAI-Image-2.6']:,} tokens per image regardless of tier; ${mai_cost:.2f} per 1,000"))
+    if hard:
+        missed = text_misses(hard)
+        clean = [g for g in shown_text_groups(hard) if g not in missed]
+        if clean:
+            rows.append(("图中中英文必须逐字正确", "Exact Chinese or English text inside the image",
+                         "、".join(group_label(g) for g in clean) if zh else ", ".join(group_label(g) for g in clean),
+                         "难题集 6 场景 × 2 语言 × 2 轮全对", "Perfect on the hard set: 6 scenes x 2 languages x 2 rounds"))
+    if edits:
+        rows.append(("改图要贴近原图", "An edit must stay close to the input", "MAI-Image-2.6",
+                     "色彩与取景几乎等同原图；GPT 两代都是整幅重生成",
+                     "Colour and framing almost identical to the input; both GPT generations regenerate the whole frame"))
+    rows.append(("生成时需要当前联网信息", "Needs current web information at generation time", "MAI-Image-2.6",
+                 "`web_grounding=true` 为 MAI 独有，GPT 无对应参数",
+                 "`web_grounding=true` is MAI-only; GPT has no counterpart"))
+    lead = ("下表只用本仓库的实测回答「选哪个」。画质不在表内：本报告不给画质评分，请直接看并排图自己判断。"
+            if zh else
+            "This table answers \"which one\" only from measurements in this repository. Image quality is deliberately absent: this report "
+            "assigns no quality score, so judge it from the side-by-side images yourself.")
+    prereq = ("两条路线的前置不同：MAI-Image-2.6 处于 Preview、无 SLA、文档标注的 Languages 为 `en`；GPT-Image-2.5 尚未公布价格，"
+              "本报告的单价来自本账户账单。两者都需要您自己的部署与配额。"
+              if zh else
+              "The two routes have different prerequisites: MAI-Image-2.6 is in preview with no SLA and its documented Languages field is `en`; "
+              "GPT-Image-2.5 has no published price, so the rates here come from this account's own invoice. Both need your own deployment and quota.")
+    parts = [f"## {'选哪个模型和哪个档位' if zh else 'Which Model and Which Tier'}", lead,
+             table(["客户目标", "选哪个", "实测依据"] if zh else ["If your goal is", "Pick", "Measured basis"],
+                   [[z if zh else e, pick, bz if zh else be] for z, e, pick, bz, be in rows]),
+             prereq]
+    caveat = spread_sentence(deployment_spread(supplement, tier), language)
+    if caveat:
+        parts.append(("**读速度行时的前提**：" if zh else "**Reading the speed row**: ") + caveat)
+    return "\n\n".join(parts)
+
+
+def render_deliverables(runs, language):
+    zh = language == "zh"
+    measured = sum(run["summary"]["formal_samples"] for run in runs if run)
+    rows = [
+        ("Azure 平台提供", "The Azure platform provides",
+         "MAI-Image-2.6 与 GPT-Image-2 / 2.5 的托管推理端点、配额、计费与模型版本",
+         "Hosted inference endpoints for MAI-Image-2.6 and GPT-Image-2 / 2.5, quota, billing and model versions"),
+        ("本仓库提供", "This repository provides",
+         f"执行脚本、汇总器、文字判读器与报告渲染器（`scripts/`）、离线测试（`tests/`）、{measured} 个正式样本的原始图片与请求记录（`data/`），"
+         "以及由这些证据单向生成的本报告",
+         f"Runners, summarizers, the text judge and the renderer (`scripts/`), offline tests (`tests/`), the original images and request records "
+         f"for {measured} formal samples (`data/`), and this report, generated one-way from that evidence"),
+        ("您需要自备", "You supply",
+         "自己的 MAI 与 GPT 部署、密钥、配额，以及文字打分用的视觉模型部署",
+         "Your own MAI and GPT deployments, keys and quota, plus a vision-capable deployment for text scoring"),
+        ("本仓库不承诺", "This repository does not promise",
+         "画质评分或胜负判定、生产 SLA 与尾延迟保证、在您的区域与配额下重现相同数字、或任何未列出的能力",
+         "A quality score or a winner, a production SLA or tail-latency guarantee, the same numbers under your region and quota, or any capability "
+         "not listed here"),
+    ]
+    return "\n\n".join([f"## {'本仓库交付什么' if zh else 'What This Repository Delivers'}",
+                        table(["责任方", "内容"] if zh else ["Responsibility", "Content"],
+                              [[z if zh else e, cz if zh else ce] for z, e, cz, ce in rows])])
+
+
+def render_architecture(primary, gpt2, language):
+    """L3 call path and L4 measured topology, stated as two separate diagrams."""
+    zh = language == "zh"
+    env = primary["summary"]["environment"]
+    gpt2_region = region_label(next((r for g, r in gpt2["group_regions"].items() if g != "mai-image-2.6"), None)) if gpt2 else None
+    architecture = """```mermaid
+flowchart LR
+    csv["prompts.csv"] --> runner["benchmark_5way_v2.py"]
+    runner -->|"POST images/generations"| mai["MAI-Image-2.6"]
+    runner -->|"POST images/generations"| gpt["GPT-Image-2 / 2.5"]
+    mai --> raw["PNG + usage + attempts + timestamps"]
+    gpt --> raw
+    raw --> summarizer["summarize_*.py, hash-bound"]
+    summarizer --> archive["data/archive/summary.json"]
+    archive --> renderer["render_paired_report.py"]
+    renderer --> readme["README.md and README_CN.md"]
+    archive --> tests["tests/"]
+    readme --> tests
+```"""
+    arch_note = ("读法：只有 runner 调用模型，之后每一步都是离线的。汇总器对每张图做 hash 绑定，hash 不匹配即报错；报告由归档单向生成，不允许手改；"
+                 "测试读的是渲染后的 README 文件，而不是生成器内部函数。"
+                 if zh else
+                 "How to read it: only the runner calls a model; every step after it is offline. The summarizer binds each image by hash and fails on a "
+                 "mismatch; the report is generated one-way from the archive and is never hand-edited; the tests read the rendered README files rather "
+                 "than the generator's internal functions.")
+    topology = f"""```mermaid
+flowchart TB
+    subgraph client["Client: one Windows workstation, {env['architecture']}, Python {env['python']}"]
+        run["benchmark_5way_v2.py, concurrency 1"]
+    end
+    subgraph accountA["Azure account A, {region_label(primary['region'])}"]
+        m["MAI-Image-2.6, GlobalStandard 2 RPM"]
+        f["gpt-image-2.5-flare"]
+        s["gpt-image-2.5-sunburst"]
+    end
+    subgraph accountB["Azure account B, {gpt2_region or 'separate region'}"]
+        g2["gpt-image-2"]
+    end
+    run --> m
+    run --> f
+    run --> s
+    run -.->|"crosses account and region"| g2
+```"""
+    topo = ("测量点在客户端：耗时从 `requests.post` 调用前到完整 HTTP 响应返回，包含网络往返，不是服务端推理时间。实线部分在同一账户、同一区域，"
+            "跨模型耗时可直接比；虚线部分跨账户、跨区域，其耗时差含区域与网络因素。并发为 1，因此本报告不包含并发容量或尾延迟结论。"
+            "文字渲染、图像编辑和联网补测用同一台客户端和同一套部署，只更换端点与提示词文件。"
+            if zh else
+            "The measurement point is the client: latency runs from before `requests.post` to receipt of the complete HTTP response, so it includes the "
+            "network round trip and is not server-side inference time. The solid edges are one account in one region, so their latencies are directly "
+            "comparable; the dashed edge crosses account and region, so its gap contains region and transport effects. Concurrency is 1, so this report "
+            "establishes nothing about concurrent capacity or tail latency. Text rendering, image editing and web grounding use the same client and the "
+            "same deployments, changing only the endpoint and the prompt file.")
+    return "\n\n".join([f"## {'架构与测试拓扑' if zh else 'Architecture and Test Topology'}",
+                        f"**{'调用与证据路径' if zh else 'Call and evidence path'}**", architecture, arch_note,
+                        f"**{'实际测量拓扑' if zh else 'The arrangement that was actually measured'}**", topology, topo])
+
+
+def render_tests_doc(test_count, billing, text_studies, edits, language):
+    zh = language == "zh"
+    easy = next((s for s in text_studies if s and s.get("kind") == "easy"), None)
+    rows = [
+        ("渲染后的 README 符合版式契约", "The rendered README honours the layout contract",
+         "`tests/test_section_readability.py`, `tests/test_report.py`",
+         "读 `README.md` / `README_CN.md` 本身：真实输入先于首个表格、无折叠块、图片链接存在、已退役内容不再出现",
+         "Reads the rendered `README.md` / `README_CN.md`: the real input precedes the first table, no collapsed blocks, every image link resolves, "
+         "retired content does not reappear"),
+        ("汇总器与归档一致", "Summaries match their archives",
+         "`tests/test_paired_summary.py`, `tests/test_summary.py`, `tests/test_edit_hat_swap.py`",
+         "每张图的 SHA-256、轮次顺序、成功/计划分母与原始请求记录逐项对应",
+         "Per-image SHA-256, round ordering and successful/planned denominators are checked against the raw request records"),
+        ("评分与价格可离线重算", "Scores and prices recompute offline",
+         "`tests/test_scoring_and_prices.py`",
+         "文字得分按归档的评分规则重算，单价由账单 `PreTaxCost` 除以计费 token 重算",
+         "Text scores recompute under the archived scoring rule; rates recompute as invoice `PreTaxCost` divided by billed tokens"),
+        ("公开边界", "Public boundary", "`tests/test_public_artifacts.py`",
+         "测量归档里不得出现金额字段，归档源码里不得出现本机路径或凭据定位符",
+         "Measurement archives carry no monetary fields; archived source carries no local paths or credential locators"),
+        ("执行器契约", "Runner contract",
+         "`tests/test_runner.py`, `tests/test_run_edit_hat_swap.py`, `tests/test_web_grounding.py`",
+         "档位映射、请求体形状、缺少模型版本时 fail closed、重试与计数语义",
+         "Tier mapping, request-body shape, fail-closed behaviour on a missing model version, retry and counting semantics"),
+    ]
+    command = ("python -m pytest tests -q\npython scripts/render_paired_report.py --check\n"
+               + (f"python scripts/effective_prices.py {billing['archive']} --check\n" if billing else "")
+               + (f"python scripts/score_text_rendering.py --check {easy['archive']}/text-scoring.json\n" if easy else "")
+               + (f"python scripts/summarize_edit_hat_swap.py {edits[-1][0]['archive']} --check" if edits else ""))
+    prereq = (f"全部 {test_count} 个测试和上面所有 `--check` 都不调用模型、不需要凭据、不联网，只需 Python 和已 `git lfs pull` 的工作区。"
+              "`--check` 只读不写：任何 hash 不匹配、配置缺失，或重新渲染的结果与已提交文件不同，都以非零退出码失败。"
+              if zh else
+              f"All {test_count} tests and every `--check` above call no model, need no credentials and require no network: Python and a worktree "
+              "after `git lfs pull` are enough. `--check` is read-only and fails with a non-zero exit code on any hash mismatch, missing configuration, "
+              "or difference between a fresh render and the committed files.")
+    untested = ("未覆盖：测试不证明图好不好看，不证明数字在您的区域会重现，也不替代人读。它们只证明一件事——发布的报告与归档证据一致，且版式契约未被破坏。"
+                if zh else
+                "Not covered: the tests say nothing about whether an image looks good or whether the numbers reproduce in your region, and they do not "
+                "replace a human read-through. They establish one thing: the published report matches the archived evidence and the layout contract "
+                "still holds.")
+    return "\n\n".join([f"## {'测试与离线核验' if zh else 'Tests and Offline Checks'}", prereq,
+                        f"```powershell\n{command.strip()}\n```",
+                        table(["测什么", "在哪里", "范围与验收"] if zh else ["What is tested", "Where", "Scope and acceptance"],
+                              [[z if zh else e, where, sz if zh else se] for z, e, where, sz, se in rows]),
+                        untested])
+
+
+def render_limits(limits, language):
+    return "\n\n".join([f"## {'结论边界' if language == 'zh' else 'Limits and Boundaries'}", limits])
+
+
+def render_assets(runs, text_studies, edits, grounding, billing, language):
+    zh = language == "zh"
+    root = Path(__file__).resolve().parents[1]
+    archives = [(run["archive"], f"{run['summary']['formal_samples']} 个正式样本" if zh else
+                 f"{run['summary']['formal_samples']} formal samples") for run in runs if run]
+    archives += [(s["archive"], f"{s['scored_samples']} 张打分图" if zh else f"{s['scored_samples']} scored images")
+                 for s in text_studies if s]
+    archives += [(e["archive"], f"{'图像编辑' if zh else 'image edit'} · {label}") for e, label in edits]
+    if grounding:
+        archives.append((GROUNDING_ARCHIVE, "web_grounding 开关对比" if zh else "web_grounding on/off comparison"))
+    if billing:
+        archives.append((billing["archive"], "Cost Management 原始响应" if zh else "raw Cost Management response"))
+    archives += [(a, "只作证据，不进任何表格" if zh else "evidence only, feeds no table")
+                 for a in RETIRED_ARCHIVES if (root / a).is_dir()]
+    tree = [
+        ("`scripts/`", "执行器、汇总器、文字判读器、价格重算与报告渲染器",
+         "Runners, summarizers, the text judge, the price recomputation and the report renderer"),
+        ("`tests/`", "离线测试，读归档与渲染后的 README", "Offline tests that read the archives and the rendered READMEs"),
+        ("`data/`", "全部原始证据：图片、逐次请求、响应元数据与执行时源码快照",
+         "All raw evidence: images, attempts, response metadata and the source snapshot that ran"),
+        ("`prompts.csv`", "11 题主提示词文件（Git LFS）", "The eleven-prompt input file (Git LFS)"),
+        ("`requirements.txt`", "执行脚本实际 import 的包与版本", "The packages and versions the runners actually import"),
+    ]
+    return "\n\n".join([f"## {'仓库资产与证据' if zh else 'Assets and Evidence'}",
+                        table(["路径", "职责"] if zh else ["Path", "Responsibility"],
+                              [[path, cz if zh else ce] for path, cz, ce in tree]),
+                        f"**{'证据目录' if zh else 'Evidence directories'}**",
+                        table(["目录", "内容"] if zh else ["Directory", "Contents"],
+                              [[f"[{path}]({path})", note] for path, note in archives])])
 
 
 # --------------------------------------------------------------------------------------------------
@@ -1495,11 +1780,16 @@ def update_document(text, primary, supplement, tier, gpt2, edits, grounding, tex
     sections = [title,
                 render_masthead(primary, author.group(), language, data_through, test_count,
                                 total_samples((primary, supplement, tier, gpt2), text_studies, edits, grounding), bool(gpt2)),
-                render_highlights(primary, supplement, gpt2, billing, hard_study, edits, bool(grounding), language),
+                render_start_here(primary, language),
+                render_decision(primary, supplement, tier, billing, edits, text_studies, language),
+                render_highlights(primary, supplement, gpt2, billing, hard_study, edits, bool(grounding), language,
+                                  spread_sentence(deployment_spread(supplement, tier), language)),
+                render_deliverables((primary, supplement, tier, gpt2), language),
                 *render_side_by_side(primary, supplement, tier, gpt2, titles, language)]
     if edits:
         sections.append(render_edit_scenario(edits, language))
-    sections.append(render_overview(primary, supplement, tier, gpt2, billing, edits, text_studies, grounding, language).strip())
+    body, limits = render_overview(primary, supplement, tier, gpt2, billing, edits, text_studies, grounding, language)
+    sections.append(body.strip())
     if gpt2:
         sections.append(render_gpt2_section(gpt2, billing, language))
     if supplement and tier:
@@ -1511,6 +1801,11 @@ def update_document(text, primary, supplement, tier, gpt2, edits, grounding, tex
             sections.append(render_text_section(study, language))
     if grounding:
         sections.append(render_grounding_section(grounding, GROUNDING_ARCHIVE, language))
+    sections.append(render_architecture(primary, gpt2, language))
+    sections.append(reproduction_section(primary, supplement, tier, gpt2, edits, grounding, text_studies, billing, language))
+    sections.append(render_tests_doc(test_count, billing, text_studies, edits, language))
+    sections.append(render_limits(limits, language))
+    sections.append(render_assets((primary, supplement, tier, gpt2), text_studies, edits, grounding, billing, language))
     return "\n\n".join(sections) + "\n"
 
 
@@ -1547,7 +1842,7 @@ def main():
     primary, supplement, tier, gpt2, edits, grounding, text_studies, billing = load_everything(root)
     test_count = count_tests(root)
     documents = []
-    for filename, language in (("README.md", "en"), ("README-CN.md", "zh")):
+    for filename, language in (("README.md", "en"), ("README_CN.md", "zh")):
         path = root / filename
         original = path.read_text("utf-8")
         generated = update_document(original, primary, supplement, tier, gpt2, edits, grounding, text_studies, billing, language, test_count)

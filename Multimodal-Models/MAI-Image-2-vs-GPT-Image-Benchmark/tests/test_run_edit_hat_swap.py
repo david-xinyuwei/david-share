@@ -94,8 +94,8 @@ class PublicEditRunnerTests(unittest.TestCase):
                 runner.check_output(root)
 
     def test_readmes_expose_a_complete_edit_how_to(self):
-        for filename, heading in (("README.md", "### Reproduction and Tests"),
-                                  ("README-CN.md", "### 复现与测试")):
+        for filename, heading in (("README.md", "## Reproduction"),
+                                  ("README_CN.md", "## 客户复现")):
             text = (ROOT / filename).read_text("utf-8")
             self.assertIn(heading, text, filename)
             self.assertIn("scripts/run_edit_hat_swap.py", text, filename)
@@ -107,7 +107,7 @@ class PublicEditRunnerTests(unittest.TestCase):
             self.assertIn("--output $out --check", text, filename)
 
     def test_edit_scenario_is_not_excluded_by_the_report_boundary(self):
-        for filename, marker in (("README.md", "Scenario 12 is an image edit"), ("README-CN.md", "第 12 题为图像编辑")):
+        for filename, marker in (("README.md", "Scenario 12 is an image edit"), ("README_CN.md", "第 12 题为图像编辑")):
             text = (ROOT / filename).read_text("utf-8")
             self.assertIn(marker, text, filename)
             self.assertNotIn("excluding 2K, editing", text, filename)
@@ -115,7 +115,7 @@ class PublicEditRunnerTests(unittest.TestCase):
 
     def test_forced_square_edit_outputs_are_never_rendered(self):
         """The square outputs came from this test's own parameter; only the size=auto runs are shown."""
-        for filename in ("README.md", "README-CN.md"):
+        for filename in ("README.md", "README_CN.md"):
             text = (ROOT / filename).read_text("utf-8")
             for target in re.findall(r"!\[[^\]]*\]\(([^)]+)\)", text):
                 self.assertNotIn("edit-hat-swap-20260908/", target, filename)
@@ -126,10 +126,13 @@ class PublicEditRunnerTests(unittest.TestCase):
         # derivation rather than a literal that drifts every time a test is added.
         expected_count = sum(len(re.findall(r"(?m)^\s+def test_", p.read_text("utf-8")))
                              for p in (ROOT / "tests").glob("test_*.py"))
-        for filename in ("README.md", "README-CN.md"):
+        for filename in ("README.md", "README_CN.md"):
             text = (ROOT / filename).read_text("utf-8")
-            self.assertIn('<a id="reproduction-how-to"></a>', text, filename)
-            self.assertIn("](#reproduction-how-to)", text, filename)
+            # Reproduction is a top-level section reached by its own heading slug, so the navigation
+            # link works in any Markdown renderer instead of relying on GitHub's user-content rewrite.
+            anchor = "#客户复现" if filename.endswith("_CN.md") else "#reproduction"
+            self.assertIn(f"]({anchor})", text, filename)
+            self.assertNotIn('<a id="reproduction-how-to"></a>', text, filename)
             self.assertIn(f"Tests-{expected_count}%20offline", text, filename)
             self.assertNotIn("multi-image input editing", text, filename)
             self.assertNotIn("多图输入编辑两项能力实测", text, filename)

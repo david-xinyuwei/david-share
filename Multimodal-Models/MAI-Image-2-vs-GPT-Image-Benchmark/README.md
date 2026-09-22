@@ -1,22 +1,49 @@
 # MAI-Image-2.6 vs GPT-Image-2 / 2.5: All Quality Tiers
 
-[![Models](https://img.shields.io/badge/Models-MAI--Image--2.6%20vs%20GPT--Image--2%20%2F%202.5-0067b8)](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image) [![Samples](https://img.shields.io/badge/Samples-946%20measured-2e7d32)](data) ![Resolution](https://img.shields.io/badge/Resolution-1024%C3%971024-455a64) ![MAI version](https://img.shields.io/badge/MAI%20version-2026--07--31-6a1b9a) ![Data through](https://img.shields.io/badge/Data%20through-2026--09--21-37474f) [![Status](https://img.shields.io/badge/Status-Preview%20%C2%B7%20no%20SLA-b26500)](https://azure.microsoft.com/support/legal/preview-supplemental-terms/) [![Tests](https://img.shields.io/badge/Tests-87%20offline-00695c)](tests)
+[![Models](https://img.shields.io/badge/Models-MAI--Image--2.6%20vs%20GPT--Image--2%20%2F%202.5-0067b8)](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image) [![Samples](https://img.shields.io/badge/Samples-946%20measured-2e7d32)](data) ![Resolution](https://img.shields.io/badge/Resolution-1024%C3%971024-455a64) ![MAI version](https://img.shields.io/badge/MAI%20version-2026--07--31-6a1b9a) ![Data through](https://img.shields.io/badge/Data%20through-2026--09--21-37474f) [![Status](https://img.shields.io/badge/Status-Preview%20%C2%B7%20no%20SLA-b26500)](https://azure.microsoft.com/support/legal/preview-supplemental-terms/) [![Tests](https://img.shields.io/badge/Tests-94%20offline-00695c)](tests)
 
 A measured comparison of MAI-Image-2.6 against GPT-Image-2 and GPT-Image-2.5. The spine is the same-session run of 2026-09-20 from one client, one account and one region (Sweden Central), in which MAI and 2.5 flare medium and high were called alternately over 11 text-to-image scenarios in two rounds; the three GPT-Image-2 tiers come from the 2026-09-07 session, and the remaining 2.5 tiers, image editing, Chinese/English text rendering, invoice cost and web grounding each have their own section and evidence directory. Image judgements are unblinded difference descriptions and produce no quality score or preference verdict.
 
 > **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
 
-[English](README.md) | [中文](README-CN.md)
+[English](README.md) | [中文](README_CN.md)
 
-[Side-by-side images](#side-by-side-image-comparison) · [Image edit](#test-12-headwear-swap-image-edit) · [Latency and requests](#performance-and-reliability) · [GPT-Image-2 session](#gpt-image-2-session-mai-image-26-vs-gpt-image-2) · [Six tiers](#the-six-gpt-image-25-quality-tiers) · [Cost](#actual-cost-per-image-from-this-accounts-invoice) · [Text rendering](#chinese-and-english-text-rendering) · [Web grounding](#web-grounding-test) · [Reproduction](#reproduction-how-to) · [Raw evidence](data/mai-vs-gpt25-20260920)
+[Start here](#start-here) · [Which model and tier](#which-model-and-which-tier) · [Side-by-side images](#side-by-side-image-comparison) · [Image edit](#test-12-headwear-swap-image-edit) · [Latency and requests](#performance-and-reliability) · [Cost](#actual-cost-per-image-from-this-accounts-invoice) · [Text rendering](#chinese-and-english-text-rendering) · [Architecture and test topology](#architecture-and-test-topology) · [Reproduction](#reproduction) · [Limits](#limits-and-boundaries)
 
 ---
+
+## Start Here
+
+| Goal | Entry | Prerequisite |
+| --- | --- | --- |
+| Read the finding: which model and tier fits me | [Which Model and Which Tier](#which-model-and-which-tier) | No environment needed |
+| Judge image quality yourself | [Side-by-Side Image Comparison](#side-by-side-image-comparison) | This report assigns no quality score |
+| Run it against your own deployments | [Reproduction](#reproduction) | Needs your own deployments and keys; consumes Azure usage |
+| Check the published evidence without calling a model | [Tests and Offline Checks](#tests-and-offline-checks) | Python and Git LFS only |
+| Open the raw measurement records | [data/mai-vs-gpt25-20260920](data/mai-vs-gpt25-20260920) | Images, attempts, response metadata |
+
+## Which Model and Which Tier
+
+This table answers "which one" only from measurements in this repository. Image quality is deliberately absent: this report assigns no quality score, so judge it from the side-by-side images yourself.
+
+| If your goal is | Pick | Measured basis |
+| --- | --- | --- |
+| Lowest cost per image | gpt-image-2 low | $5.88 per 1,000, 0.15x MAI |
+| Fastest single image | GPT-Image-2.5 Flare low | P50 21.85 s versus MAI at 31.61 s; see the deployment caveat below |
+| Cost must be predictable | MAI-Image-2.6 | A constant 1,024 tokens per image regardless of tier; $38.91 per 1,000 |
+| Exact Chinese or English text inside the image | MAI-Image-2.6, GPT-Image-2 low, GPT-Image-2 medium, GPT-Image-2 high, GPT-Image-2.5 Flare low, GPT-Image-2.5 Flare medium, GPT-Image-2.5 Flare high | Perfect on the hard set: 6 scenes x 2 languages x 2 rounds |
+| An edit must stay close to the input | MAI-Image-2.6 | Colour and framing almost identical to the input; both GPT generations regenerate the whole frame |
+| Needs current web information at generation time | MAI-Image-2.6 | `web_grounding=true` is MAI-only; GPT has no counterpart |
+
+The two routes have different prerequisites: MAI-Image-2.6 is in preview with no SLA and its documented Languages field is `en`; GPT-Image-2.5 has no published price, so the rates here come from this account's own invoice. Both need your own deployment and quota.
+
+**Reading the speed row**: Two deployments of the same 2.5 model (flare and sunburst, one account, one region, identical returned token constants) differ by 1.49-3.04x in measured P50 here (max: 73.47 s versus 223.51 s). A cross-model ratio therefore holds for the deployments measured, not as a model-level speed ranking.
 
 ## What the Measurements Show
 
 All 6 items rest on the measurements in this repository; MAI-Image-2.6 is in preview with no SLA. Image quality has no numeric score: the side-by-side images are the evidence and the reader's judgement is the conclusion.
 
-1. **In one session, MAI is level with 2.5 high on speed and slower than 2.5 medium.** 66/66 samples returned images; P50: MAI 31.61 s, 2.5 medium 22.24 s (MAI 1.42x slower), 2.5 high 32.11 s (level). The three were called alternately by one client, with no region or date difference. 2.5 low, in its own session on 2026-09-17, had a P50 of 21.85 s, faster than MAI but not the same session.
+1. **In one session, MAI is level with 2.5 high on speed and slower than 2.5 medium; the ratio holds for the deployments measured.** 66/66 samples returned images; P50: MAI 31.61 s, 2.5 medium 22.24 s (MAI 1.42x slower), 2.5 high 32.11 s (level). The three were called alternately by one client, with no region or date difference. 2.5 low, in its own session on 2026-09-17, had a P50 of 21.85 s, faster than MAI but not the same session. Two deployments of the same 2.5 model (flare and sunburst, one account, one region, identical returned token constants) differ by 1.49-3.04x in measured P50 here (max: 73.47 s versus 223.51 s). A cross-model ratio therefore holds for the deployments measured, not as a model-level speed ranking.
 
 2. **On this account's invoice, MAI costs $38.91 per 1,000 images: 6.6x 2.5 low ($5.88), 3.0x 2.5 medium ($13.17) and 26% less than 2.5 high ($52.68).** Rates come from Azure Cost Management actuals, not a price page; 2.5 has no published price. "Expensive" only holds once the comparison tier is named; what each tier's images look like is in the side-by-side tables.
 
@@ -27,6 +54,15 @@ All 6 items rest on the measurements in this repository; MAI-Image-2.6 is in pre
 5. **Image edit: all three models add the graduation cap, and all 14 outputs keep every preservation item.** The measurable differences are resolution and title glyphs: MAI returns 1360×768 (the endpoint's 1,048,576-pixel ceiling), matching the input in colour and framing and reading as a head-only repaint, but softening the Latin strokes and distorting the four Chinese characters; the GPT runs (GPT-Image-2 1672×941, GPT-Image-2.5 1674×940) return a higher resolution and regenerate the whole frame, keeping composition and identity but re-rendering texture and colour, and 2.5 medium misspells the title ADVISORS as ASVISORS in both rounds. Per-image checklists in Scenario 12.
 
 6. **`web_grounding=true` adds current web information at generation time.** The model retrieves current information from Bing Search as extra context, which moved the product text facts in two subjects from wrong to matching the official announcement; the cost is a lower first-attempt success rate and clearly higher latency. This is a MAI-only parameter with no GPT counterpart.
+
+## What This Repository Delivers
+
+| Responsibility | Content |
+| --- | --- |
+| The Azure platform provides | Hosted inference endpoints for MAI-Image-2.6 and GPT-Image-2 / 2.5, quota, billing and model versions |
+| This repository provides | Runners, summarizers, the text judge and the renderer (`scripts/`), offline tests (`tests/`), the original images and request records for 418 formal samples (`data/`), and this report, generated one-way from that evidence |
+| You supply | Your own MAI and GPT deployments, keys and quota, plus a vision-capable deployment for text scoring |
+| This repository does not promise | A quality score or a winner, a production SLA or tail-latency guarantee, the same numbers under your region and quota, or any capability not listed here |
 
 ## Side-by-Side Image Comparison
 
@@ -813,21 +849,19 @@ Seconds; failed cells remain tied to their original requests and are not replace
 | Output | `data[0].b64_json`, PNG | `data[0].b64_json`, PNG |
 | Usage | `usage.num_input_text_tokens`, `usage.num_output_tokens` | `usage.input_tokens_details`, `usage.output_tokens_details` |
 
-### Reproduction and Tests
-
-<a id="reproduction-how-to"></a>
+## Reproduction
 
 Every data directory maps to one step below: step 4 makes no model calls, the rest consume Azure usage. All runners, summarizers and the judge live in `scripts/`; reproduction uses the same code that produced this report.
 
 ### 1. Clone and install dependencies
 
-JSON and CSV in this repository are stored with Git LFS; fetch them before validating anything.
+JSON and CSV in this repository are stored with Git LFS; fetch them before validating anything. The tree carries about 1.8 GB of evidence images, so a blobless clone is faster if you only need this project. `requirements.txt` pins the two packages the runners import.
 
 ```powershell
-git clone https://github.com/david-xinyuwei/david-share.git
+git clone --filter=blob:none https://github.com/david-xinyuwei/david-share.git
 cd david-share/Multimodal-Models/MAI-Image-2-vs-GPT-Image-Benchmark
 git lfs pull --include "Multimodal-Models/MAI-Image-2-vs-GPT-Image-Benchmark/**"
-python -m pip install requests pillow
+python -m pip install -r requirements.txt
 ```
 
 ### 2. Configure your deployments
@@ -838,7 +872,7 @@ One MAI-Image-2.6 deployment and the GPT-Image-2.5 deployments you want to measu
 $env:MAI_ENDPOINT = 'https://<your-mai-resource>.services.ai.azure.com'
 $env:GPT_ENDPOINT = 'https://<your-openai-resource>.openai.azure.com'
 $env:MAI_MODEL_VERSION = '2026-07-31'
-$env:GPT_MODEL_VERSIONS = '{"gpt-image-2.5-flare": "2026-09-08", "gpt-image-2.5-sunburst": "2026-09-08"}'
+$env:GPT_MODEL_VERSIONS = '{"gpt-image-2": "2026-04-21", "gpt-image-2.5-flare": "2026-09-08", "gpt-image-2.5-sunburst": "2026-09-08"}'
 $env:MAI_DEPLOYMENT_REGION = 'swedencentral'
 $env:GPT_DEPLOYMENT_REGION = 'swedencentral'
 $env:MAI_DEPLOYMENT_SKU = 'GlobalStandard'
@@ -983,10 +1017,6 @@ python scripts/effective_prices.py data/billing-<date> --query --subscription <i
 ```
 
 Scripts: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py) · [run_edit_hat_swap.py](scripts/run_edit_hat_swap.py) · [summarize_paired_run.py](scripts/summarize_paired_run.py) · [summarize_edit_hat_swap.py](scripts/summarize_edit_hat_swap.py) · [score_text_rendering.py](scripts/score_text_rendering.py) · [calibrate_text_judge.py](scripts/calibrate_text_judge.py) · [effective_prices.py](scripts/effective_prices.py) · [render_paired_report.py](scripts/render_paired_report.py) · [tests](tests).
-
-### Limits
-
-This report compares MAI-Image-2.6, GPT-Image-2 (low, medium, high) and GPT-Image-2.5 (the flare and sunburst deployments at low, medium, high, xhigh, max, auto). The latency and side-by-side spine comes from one session; the remaining 2.5 tiers come from sessions on two other dates and carry their dates in the headers. GPT-Image-2 low, medium and high come from the separate 2026-09-07 session, deployed in East US 2 on another account, so their latency gap includes a region difference and is not attributable to the models alone. MAI sends no quality parameter and is not labeled as equivalent to any GPT tier. The eleven scenarios carry no per-image prose review; image quality is for the reader to judge from the side-by-side images, and exact-text accuracy covers only the scenes and characters listed in the two text-rendering sections. Not covered: 2K, multiple reference images, concurrency capacity or other authentication modes. These archives are evidence only and feed no table: [data/mai-image-2.6-20260907](data/mai-image-2.6-20260907), [data/edit-hat-swap-20260908](data/edit-hat-swap-20260908).
 
 Evidence directory: [data/mai-vs-gpt25-20260920](data/mai-vs-gpt25-20260920). Original images, measurement records, attempts, response metadata and the source snapshot that ran; prompt SHA-256: `be3d628c66a1e4d535d06bcc84246a04aad11f35a48f3133d451fe86283782ce`.
 
@@ -1331,3 +1361,271 @@ Both settings used 1024x1024, `auto_aspect_ratio=false`, model version 2026-07-3
 [Raw results](data/lenovo-web-grounding-20260908/5way_v2_results.json) | [All attempts](data/lenovo-web-grounding-20260908/attempts.jsonl) | [Visual observations](data/lenovo-web-grounding-20260908/visual-review.json) | [Full 12-sample statistics](data/lenovo-web-grounding-20260908/web-grounding-summary.json) | [Provenance and hashes](data/lenovo-web-grounding-20260908/provenance.json)
 
 Result SHA-256: `669617dd5d59d0748a0fc398d98ec4c59cb4b26cc9655138edf9b6c9622f3c1b`. Official references: [IdeaPad Vibe](https://news.lenovo.com/pressroom/press-releases/colorful-ideapad-vibe-series-all-in-one-ai-pcs/) | [Yoga](https://news.lenovo.com/pressroom/press-releases/yoga-portfolio-new-ai-pcs-and-tablets/) | [MAI API](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai-image#request-parameters)
+
+## Architecture and Test Topology
+
+**Call and evidence path**
+
+```mermaid
+flowchart LR
+    csv["prompts.csv"] --> runner["benchmark_5way_v2.py"]
+    runner -->|"POST images/generations"| mai["MAI-Image-2.6"]
+    runner -->|"POST images/generations"| gpt["GPT-Image-2 / 2.5"]
+    mai --> raw["PNG + usage + attempts + timestamps"]
+    gpt --> raw
+    raw --> summarizer["summarize_*.py, hash-bound"]
+    summarizer --> archive["data/archive/summary.json"]
+    archive --> renderer["render_paired_report.py"]
+    renderer --> readme["README.md and README_CN.md"]
+    archive --> tests["tests/"]
+    readme --> tests
+```
+
+How to read it: only the runner calls a model; every step after it is offline. The summarizer binds each image by hash and fails on a mismatch; the report is generated one-way from the archive and is never hand-edited; the tests read the rendered README files rather than the generator's internal functions.
+
+**The arrangement that was actually measured**
+
+```mermaid
+flowchart TB
+    subgraph client["Client: one Windows workstation, ARM64, Python 3.13.15"]
+        run["benchmark_5way_v2.py, concurrency 1"]
+    end
+    subgraph accountA["Azure account A, Sweden Central"]
+        m["MAI-Image-2.6, GlobalStandard 2 RPM"]
+        f["gpt-image-2.5-flare"]
+        s["gpt-image-2.5-sunburst"]
+    end
+    subgraph accountB["Azure account B, East US 2"]
+        g2["gpt-image-2"]
+    end
+    run --> m
+    run --> f
+    run --> s
+    run -.->|"crosses account and region"| g2
+```
+
+The measurement point is the client: latency runs from before `requests.post` to receipt of the complete HTTP response, so it includes the network round trip and is not server-side inference time. The solid edges are one account in one region, so their latencies are directly comparable; the dashed edge crosses account and region, so its gap contains region and transport effects. Concurrency is 1, so this report establishes nothing about concurrent capacity or tail latency. Text rendering, image editing and web grounding use the same client and the same deployments, changing only the endpoint and the prompt file.
+
+## Reproduction
+
+Every data directory maps to one step below: step 4 makes no model calls, the rest consume Azure usage. All runners, summarizers and the judge live in `scripts/`; reproduction uses the same code that produced this report.
+
+### 1. Clone and install dependencies
+
+JSON and CSV in this repository are stored with Git LFS; fetch them before validating anything. The tree carries about 1.8 GB of evidence images, so a blobless clone is faster if you only need this project. `requirements.txt` pins the two packages the runners import.
+
+```powershell
+git clone --filter=blob:none https://github.com/david-xinyuwei/david-share.git
+cd david-share/Multimodal-Models/MAI-Image-2-vs-GPT-Image-Benchmark
+git lfs pull --include "Multimodal-Models/MAI-Image-2-vs-GPT-Image-Benchmark/**"
+python -m pip install -r requirements.txt
+```
+
+### 2. Configure your deployments
+
+One MAI-Image-2.6 deployment and the GPT-Image-2.5 deployments you want to measure, on accounts you control. Verify the underlying model versions; deployment names alone are not model identity. Supply `AZURE_API_KEY` (MAI) and `AZURE_OPENAI_API_KEY` (GPT) through your own secret management, never source control. The metadata variables must state your verified deployments; the values below describe ours.
+
+```powershell
+$env:MAI_ENDPOINT = 'https://<your-mai-resource>.services.ai.azure.com'
+$env:GPT_ENDPOINT = 'https://<your-openai-resource>.openai.azure.com'
+$env:MAI_MODEL_VERSION = '2026-07-31'
+$env:GPT_MODEL_VERSIONS = '{"gpt-image-2": "2026-04-21", "gpt-image-2.5-flare": "2026-09-08", "gpt-image-2.5-sunburst": "2026-09-08"}'
+$env:MAI_DEPLOYMENT_REGION = 'swedencentral'
+$env:GPT_DEPLOYMENT_REGION = 'swedencentral'
+$env:MAI_DEPLOYMENT_SKU = 'GlobalStandard'
+$env:GPT_DEPLOYMENT_SKU = 'GlobalStandard'
+$env:MAI_RATE_LIMIT_RPM = '2.0'
+$env:GPT_RATE_LIMIT_RPM = '2.0'
+$env:BENCHMARK_CLIENT_LOCATION = 'Describe your actual client location'
+python scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --gpt-model gpt-image-2.5-flare:medium,high --dry-run
+```
+
+### 3. Rerun the same-session comparison
+
+The primary run: MAI and 2.5 flare medium and high interleaved on the eleven prompts. `--gpt-model` accepts `deployment:tier,tier`. The first command runs one warmup per configuration; the second continues the same output directory through the formal matrix. Existing results are never overwritten and recorded samples are not rerun. Save the script and CSV into the run before starting and keep them unchanged during execution.
+
+```powershell
+python scripts/summarize_paired_run.py data/mai-vs-gpt25-20260920
+$run = 'runs/mai-vs-gpt25-new-run'
+New-Item -ItemType Directory -Path "$run/source" -ErrorAction Stop
+Copy-Item -LiteralPath scripts/benchmark_5way_v2.py -Destination "$run/source/benchmark_5way_v2.py"
+Copy-Item -LiteralPath prompts.csv -Destination "$run/source/prompts.csv"
+python -u scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --gpt-model gpt-image-2.5-flare:medium,high --output $run --warmup-only
+python -u scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --gpt-model gpt-image-2.5-flare:medium,high --output $run --resume
+python scripts/summarize_paired_run.py $run
+```
+
+### 4. Verify published evidence without model calls
+
+Recomputes every archive from its raw records and confirms both READMEs match; regressions cover request contracts, failure denominators, image ownership, the scoring rule, the invoice derivation and report coverage. HTTP mocks exist only in offline tests.
+
+```powershell
+python scripts/render_paired_report.py data/mai-vs-gpt25-20260920 --check
+python -m unittest discover -s tests -v
+```
+
+### 5. Rerun the web-grounding comparison
+
+Needs only the MAI deployment. The first command verifies the archive; the second checks parameters offline; the third reruns all three subjects into a new directory.
+
+```powershell
+python scripts/summarize_web_grounding.py data/lenovo-web-grounding-20260908 --require-complete --check
+python data/lenovo-web-grounding-20260908/source/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --mai-web-grounding both --prompts-csv data/lenovo-web-grounding-20260908/source/prompts.csv --output runs/web-grounding-reproduction --dry-run
+python data/lenovo-web-grounding-20260908/source/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --mai-web-grounding both --prompts-csv data/lenovo-web-grounding-20260908/source/prompts.csv --output runs/web-grounding-reproduction
+```
+
+### 6. Rerun the headwear-swap edit against GPT-Image-2
+
+Set `GPT_DEPLOYMENT` to the deployment under test (`gpt-image-2` here) and name its tiers with `--gpt-quality`. The first command verifies the published outputs; the second is a credential-free dry run; the next two perform the live rounds; the last checks order, `size=auto` and hashes. The per-image checklist is a manual review under the published method, not generated automatically.
+
+```powershell
+python scripts/summarize_edit_hat_swap.py data/edit-hat-swap-20260909-auto --check
+$env:GPT_DEPLOYMENT = 'gpt-image-2'
+$out = 'runs/edit-hat-swap-gpt-image-2-reproduction'
+python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-20260909-auto/input.jpg --output $out --round 1 --gpt-size auto --gpt-quality low --gpt-quality medium --gpt-quality high --dry-run
+python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-20260909-auto/input.jpg --output $out --round 1 --gpt-size auto --gpt-quality low --gpt-quality medium --gpt-quality high
+python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-20260909-auto/input.jpg --output $out --round 2 --gpt-size auto --gpt-quality low --gpt-quality medium --gpt-quality high
+python scripts/run_edit_hat_swap.py --output $out --check
+```
+
+### 7. Rerun the headwear-swap edit against GPT-Image-2.5
+
+Set `GPT_DEPLOYMENT` to the deployment under test (`gpt-image-2.5-flare` here) and name its tiers with `--gpt-quality`. The first command verifies the published outputs; the second is a credential-free dry run; the next two perform the live rounds; the last checks order, `size=auto` and hashes. The per-image checklist is a manual review under the published method, not generated automatically.
+
+```powershell
+python scripts/summarize_edit_hat_swap.py data/edit-hat-swap-gpt25-20260921 --check
+$env:GPT_DEPLOYMENT = 'gpt-image-2.5-flare'
+$out = 'runs/edit-hat-swap-gpt-image-2.5-flare-reproduction'
+python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-gpt25-20260921/input.jpg --output $out --round 1 --gpt-size auto --gpt-quality medium --gpt-quality high --dry-run
+python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-gpt25-20260921/input.jpg --output $out --round 1 --gpt-size auto --gpt-quality medium --gpt-quality high
+python scripts/run_edit_hat_swap.py --input data/edit-hat-swap-gpt25-20260921/input.jpg --output $out --round 2 --gpt-size auto --gpt-quality medium --gpt-quality high
+python scripts/run_edit_hat_swap.py --output $out --check
+```
+
+### 8. Rerun the GPT-Image-2 session
+
+`--gpt-quality all` expands to the three tiers gpt-image-2 accepts. Point `GPT_ENDPOINT` and `GPT_DEPLOYMENT` at your gpt-image-2 deployment; if it is in a different region from MAI, say so in the report, as this run does.
+
+```powershell
+python scripts/summarize_paired_run.py data/paired-all-quality-20260907
+$run = 'runs/gpt2-paired-new-run'
+New-Item -ItemType Directory -Path "$run/source" -ErrorAction Stop
+Copy-Item -LiteralPath scripts/benchmark_5way_v2.py -Destination "$run/source/benchmark_5way_v2.py"
+Copy-Item -LiteralPath prompts.csv -Destination "$run/source/prompts.csv"
+python -u scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --gpt-model gpt-image-2 --gpt-quality all --output $run --warmup-only
+python -u scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --gpt-model gpt-image-2 --gpt-quality all --output $run --resume
+```
+
+### 9. Rerun GPT-Image-2.5 low/medium/high on both deployments
+
+`--gpt-model` may be repeated; `--gpt-quality all` expands to low, medium and high. The client starts at most 2 requests per 60 seconds per deployment to match the 2 RPM quota; raise `RATE_PACING` if yours is higher.
+
+```powershell
+python scripts/summarize_paired_run.py data/gpt25-paired-20260917
+$run = 'runs/gpt25-paired-new-run'
+New-Item -ItemType Directory -Path "$run/source" -ErrorAction Stop
+Copy-Item -LiteralPath scripts/benchmark_5way_v2.py -Destination "$run/source/benchmark_5way_v2.py"
+Copy-Item -LiteralPath prompts.csv -Destination "$run/source/prompts.csv"
+python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-model gpt-image-2.5-sunburst --gpt-quality all --output $run --warmup-only
+python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-model gpt-image-2.5-sunburst --gpt-quality all --output $run --resume
+```
+
+### 10. Rerun xhigh/max/auto
+
+Only gpt-image-2.5-* accepts these tiers. A single max request measured 229 s, so the runner's request timeout is 900 s. `auto` lets the service choose per request; the tier it used is recorded per attempt as `service_quality`.
+
+```powershell
+python scripts/summarize_paired_run.py data/gpt25-tiers-20260918
+$run = 'runs/gpt25-tiers-new-run'
+New-Item -ItemType Directory -Path "$run/source" -ErrorAction Stop
+Copy-Item -LiteralPath scripts/benchmark_5way_v2.py -Destination "$run/source/benchmark_5way_v2.py"
+Copy-Item -LiteralPath prompts.csv -Destination "$run/source/prompts.csv"
+python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-model gpt-image-2.5-sunburst --gpt-quality xhigh --gpt-quality max --gpt-quality auto --output $run --warmup-only
+python -u scripts/benchmark_5way_v2.py --gpt-model gpt-image-2.5-flare --gpt-model gpt-image-2.5-sunburst --gpt-quality xhigh --gpt-quality max --gpt-quality auto --output $run --resume
+```
+
+### 11. Rerun text rendering and score it
+
+Text rendering uses its own prompt file (`--prompts-csv`); the runner reads only the first column. Each deployment has its own quota, so shards run per deployment and are merged at scoring with repeated `--run`; the scorer refuses shards whose frozen prompt file differs. Scoring needs a vision-capable chat deployment via `JUDGE_ENDPOINT`, `JUDGE_DEPLOYMENT` and `AZURE_OPENAI_API_KEY`; calibrate it first, or its errors will be attributed to the image models. `--check` recomputes every score from saved transcriptions with no model calls.
+
+```powershell
+python scripts/score_text_rendering.py --check data/text-rendering-20260918/text-scoring.json
+python scripts/score_text_rendering.py --check data/text-hard-20260919/text-scoring.json
+python scripts/calibrate_text_judge.py --check data/text-rendering-20260918/judge-calibration/calibration.json
+python scripts/calibrate_text_judge.py --check data/text-hard-20260919/judge-calibration/calibration.json
+$env:JUDGE_ENDPOINT = 'https://<openai-resource>.openai.azure.com'
+$env:JUDGE_DEPLOYMENT = '<vision-capable-chat-deployment>'
+python scripts/calibrate_text_judge.py --prompts data/text-rendering-20260918/prompts-text-rendering.csv --out runs/judge-calibration
+$run = 'runs/text-new-run-mai'
+New-Item -ItemType Directory -Path "$run/source" -ErrorAction Stop
+Copy-Item -LiteralPath scripts/benchmark_5way_v2.py -Destination "$run/source/benchmark_5way_v2.py"
+Copy-Item -LiteralPath data/text-rendering-20260918/prompts-text-rendering.csv -Destination "$run/source/prompts-text-rendering.csv"
+python -u scripts/benchmark_5way_v2.py --mai-model MAI-Image-2.6 --prompts-csv "$run/source/prompts-text-rendering.csv" --output $run
+python scripts/score_text_rendering.py --run $run --prompts data/text-rendering-20260918/prompts-text-rendering.csv --out runs/text-new-run-scored
+```
+
+### 12. Recompute cost per image from your own invoice
+
+The first command recomputes `effective-prices.json` from the archived Cost Management response, offline. The second issues the same query against your own account (needs `az login`; the query is free) and writes a new archive; re-rendering then reads your invoice instead of ours.
+
+```powershell
+python scripts/effective_prices.py data/billing-20260920 --check
+python scripts/effective_prices.py data/billing-<date> --query --subscription <id> --resource-group <rg> --account <cognitive-services-account>
+```
+
+Scripts: [benchmark_5way_v2.py](scripts/benchmark_5way_v2.py) · [run_edit_hat_swap.py](scripts/run_edit_hat_swap.py) · [summarize_paired_run.py](scripts/summarize_paired_run.py) · [summarize_edit_hat_swap.py](scripts/summarize_edit_hat_swap.py) · [score_text_rendering.py](scripts/score_text_rendering.py) · [calibrate_text_judge.py](scripts/calibrate_text_judge.py) · [effective_prices.py](scripts/effective_prices.py) · [render_paired_report.py](scripts/render_paired_report.py) · [tests](tests).
+
+## Tests and Offline Checks
+
+All 94 tests and every `--check` above call no model, need no credentials and require no network: Python and a worktree after `git lfs pull` are enough. `--check` is read-only and fails with a non-zero exit code on any hash mismatch, missing configuration, or difference between a fresh render and the committed files.
+
+```powershell
+python -m pytest tests -q
+python scripts/render_paired_report.py --check
+python scripts/effective_prices.py data/billing-20260920 --check
+python scripts/score_text_rendering.py --check data/text-rendering-20260918/text-scoring.json
+python scripts/summarize_edit_hat_swap.py data/edit-hat-swap-gpt25-20260921 --check
+```
+
+| What is tested | Where | Scope and acceptance |
+| --- | --- | --- |
+| The rendered README honours the layout contract | `tests/test_section_readability.py`, `tests/test_report.py` | Reads the rendered `README.md` / `README_CN.md`: the real input precedes the first table, no collapsed blocks, every image link resolves, retired content does not reappear |
+| Summaries match their archives | `tests/test_paired_summary.py`, `tests/test_summary.py`, `tests/test_edit_hat_swap.py` | Per-image SHA-256, round ordering and successful/planned denominators are checked against the raw request records |
+| Scores and prices recompute offline | `tests/test_scoring_and_prices.py` | Text scores recompute under the archived scoring rule; rates recompute as invoice `PreTaxCost` divided by billed tokens |
+| Public boundary | `tests/test_public_artifacts.py` | Measurement archives carry no monetary fields; archived source carries no local paths or credential locators |
+| Runner contract | `tests/test_runner.py`, `tests/test_run_edit_hat_swap.py`, `tests/test_web_grounding.py` | Tier mapping, request-body shape, fail-closed behaviour on a missing model version, retry and counting semantics |
+
+Not covered: the tests say nothing about whether an image looks good or whether the numbers reproduce in your region, and they do not replace a human read-through. They establish one thing: the published report matches the archived evidence and the layout contract still holds.
+
+## Limits and Boundaries
+
+This report compares MAI-Image-2.6, GPT-Image-2 (low, medium, high) and GPT-Image-2.5 (the flare and sunburst deployments at low, medium, high, xhigh, max, auto). The latency and side-by-side spine comes from one session; the remaining 2.5 tiers come from sessions on two other dates and carry their dates in the headers. GPT-Image-2 low, medium and high come from the separate 2026-09-07 session, deployed in East US 2 on another account, so their latency gap includes a region difference and is not attributable to the models alone. MAI sends no quality parameter and is not labeled as equivalent to any GPT tier. The eleven scenarios carry no per-image prose review; image quality is for the reader to judge from the side-by-side images, and exact-text accuracy covers only the scenes and characters listed in the two text-rendering sections. Not covered: 2K, multiple reference images, concurrency capacity or other authentication modes. These archives are evidence only and feed no table: [data/mai-image-2.6-20260907](data/mai-image-2.6-20260907), [data/edit-hat-swap-20260908](data/edit-hat-swap-20260908).
+
+**Latency spread between two deployments of one model**: Two deployments of the same 2.5 model (flare and sunburst, one account, one region, identical returned token constants) differ by 1.49-3.04x in measured P50 here (max: 73.47 s versus 223.51 s). A cross-model ratio therefore holds for the deployments measured, not as a model-level speed ranking.
+
+## Assets and Evidence
+
+| Path | Responsibility |
+| --- | --- |
+| `scripts/` | Runners, summarizers, the text judge, the price recomputation and the report renderer |
+| `tests/` | Offline tests that read the archives and the rendered READMEs |
+| `data/` | All raw evidence: images, attempts, response metadata and the source snapshot that ran |
+| `prompts.csv` | The eleven-prompt input file (Git LFS) |
+| `requirements.txt` | The packages and versions the runners actually import |
+
+**Evidence directories**
+
+| Directory | Contents |
+| --- | --- |
+| [data/mai-vs-gpt25-20260920](data/mai-vs-gpt25-20260920) | 66 formal samples |
+| [data/gpt25-paired-20260917](data/gpt25-paired-20260917) | 132 formal samples |
+| [data/gpt25-tiers-20260918](data/gpt25-tiers-20260918) | 132 formal samples |
+| [data/paired-all-quality-20260907](data/paired-all-quality-20260907) | 88 formal samples |
+| [data/text-rendering-20260918](data/text-rendering-20260918) | 120 scored images |
+| [data/text-hard-20260919](data/text-hard-20260919) | 382 scored images |
+| [data/edit-hat-swap-20260909-auto](data/edit-hat-swap-20260909-auto) | image edit · GPT-Image-2 |
+| [data/edit-hat-swap-gpt25-20260921](data/edit-hat-swap-gpt25-20260921) | image edit · GPT-Image-2.5 |
+| [data/lenovo-web-grounding-20260908](data/lenovo-web-grounding-20260908) | web_grounding on/off comparison |
+| [data/billing-20260920](data/billing-20260920) | raw Cost Management response |
+| [data/mai-image-2.6-20260907](data/mai-image-2.6-20260907) | evidence only, feeds no table |
+| [data/edit-hat-swap-20260908](data/edit-hat-swap-20260908) | evidence only, feeds no table |

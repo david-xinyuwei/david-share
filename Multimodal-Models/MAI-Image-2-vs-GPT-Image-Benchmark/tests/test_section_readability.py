@@ -23,7 +23,7 @@ SECTIONS = {
         "metrics_body": "## Same-Session Run:",
         "text": "## Chinese and English Text Rendering",
     },
-    "README-CN.md": {
+    "README_CN.md": {
         "grounding": "## 联网信息补充测试",
         "edit": "### Test 12: 换帽子（图像编辑）",
         "asked": "我们向模型提出的问题",

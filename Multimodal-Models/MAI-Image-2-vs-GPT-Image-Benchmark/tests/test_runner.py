@@ -23,7 +23,7 @@ class RequestEvidenceTests(unittest.TestCase):
         self.output_patch = patch.object(runner, "OUT_BASE", self.output)
         self.output_patch.start()
         self.addCleanup(self.output_patch.stop)
-        self.image = (ROOT / "images" / "mai-image-2" / "r1" / "01_test.png").read_bytes()
+        self.image = (ROOT / "tests" / "fixtures" / "sample-1024x1024.png").read_bytes()
         runner.REQUEST_CONTEXT.clear()
         runner.LAST_ATTEMPTS.clear()
 

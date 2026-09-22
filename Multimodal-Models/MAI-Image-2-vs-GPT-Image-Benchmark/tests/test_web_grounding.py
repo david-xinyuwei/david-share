@@ -32,12 +32,12 @@ class GroundingPublicationTests(unittest.TestCase):
 
     def test_grounding_rendered_inside_main_reports_without_separate_pages(self):
         self.assertFalse((self.archive / "README.md").exists())
-        self.assertFalse((self.archive / "README-CN.md").exists())
+        self.assertFalse((self.archive / "README_CN.md").exists())
         expected = {self.archive_prefix + sample["image"] for sample in self.selected}
         self.assertEqual(len(expected), 8)
         for filename, heading, previous in (
                 ("README.md", "## Web Grounding Test", "## Side-by-Side Image Comparison"),
-                ("README-CN.md", "## 联网信息补充测试", "## 并排图片对比")):
+                ("README_CN.md", "## 联网信息补充测试", "## 并排图片对比")):
             text = (ROOT / filename).read_text("utf-8")
             self.assertEqual(text.count(heading), 1)
             self.assertLess(text.index(previous), text.index(heading))
@@ -59,7 +59,7 @@ class GroundingPublicationTests(unittest.TestCase):
         for statistic, field in ((statistics.mean, "time"), (statistics.median, "time"),
                                  (statistics.mean, "logical_request_seconds")):
             values.append([f"{statistic(sample[field] for sample in rows):.2f}" for rows in rows_by_setting])
-        for filename, unit in (("README.md", "s"), ("README-CN.md", "秒")):
+        for filename, unit in (("README.md", "s"), ("README_CN.md", "秒")):
             text = (ROOT / filename).read_text("utf-8")
             for off, on in values:
                 self.assertIn(f"| {off} {unit} | {on} {unit} |", text)

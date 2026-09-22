@@ -43,7 +43,7 @@ class CompleteMatrixTests(unittest.TestCase):
         (self.root / "source" / "prompts.csv").write_bytes(prompts_bytes)
         source_bytes = b"offline fixture; never executed\n"
         (self.root / "source" / "benchmark_5way_v2.py").write_bytes(source_bytes)
-        self.image = (report / "images" / "mai-image-2" / "r1" / "01_test.png").read_bytes()
+        self.image = (report / "tests" / "fixtures" / "sample-1024x1024.png").read_bytes()
         (self.root / "fixture.png").write_bytes(self.image)
         self.image_hash = hashlib.sha256(self.image).hexdigest()
         self.record = {

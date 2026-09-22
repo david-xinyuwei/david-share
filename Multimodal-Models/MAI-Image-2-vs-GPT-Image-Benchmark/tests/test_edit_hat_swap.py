@@ -78,7 +78,7 @@ class EditHatSwapEvidenceTests(unittest.TestCase):
         for filename, heading, previous, following in (
                 ("README.md", "### Test 12: Headwear Swap (Image Edit)", "### Test 11:",
                  "## Same-Session Run:"),
-                ("README-CN.md", "### Test 12: 换帽子（图像编辑）", "### Test 11:",
+                ("README_CN.md", "### Test 12: 换帽子（图像编辑）", "### Test 11:",
                  "## 同会话运行：")):
             text = (ROOT / filename).read_text("utf-8")
             self.assertEqual(text.count(heading), 1, filename)
@@ -111,14 +111,14 @@ class EditHatSwapEvidenceTests(unittest.TestCase):
 
     def test_superseded_square_output_run_is_named_but_never_rendered(self):
         """The forced-square run stays citable as the record of that parameter mistake, not as a result."""
-        for filename in ("README.md", "README-CN.md"):
+        for filename in ("README.md", "README_CN.md"):
             text = (ROOT / filename).read_text("utf-8")
             for target in re.findall(r"!\[[^\]]*\]\(([^)]+)\)", text):
                 self.assertNotIn("edit-hat-swap-20260908/", target, f"{filename}: forced-square output rendered")
             self.assertIn("[data/edit-hat-swap-20260908](data/edit-hat-swap-20260908)", text, filename)
 
     def test_superseded_multi_image_section_is_gone(self):
-        for filename in ("README.md", "README-CN.md"):
+        for filename in ("README.md", "README_CN.md"):
             text = (ROOT / filename).read_text("utf-8")
             self.assertNotIn("mai-multi-image-edit-20260908", text, filename)
             self.assertNotIn("Multi-Image Input Edit Test", text, filename)

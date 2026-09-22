@@ -132,7 +132,12 @@ class ComparisonReportTests(unittest.TestCase):
                               "groups": [{"group": g, "successful_request_latency": {"p50_seconds": 30.0}} for g in GROUPS]}
         for language in ("en", "zh"):
             grounding = "## Web Grounding Test\n\nOffline grounding evidence"
-            with patch.object(report, "render_overview", return_value="## Same-Session Run\n\nOffline metrics"), \
+            # The sections that need a full environment/billing fixture are stubbed; this test is about
+            # scenario preservation and idempotence, not their content.
+            with patch.object(report, "render_overview", return_value=("## Same-Session Run\n\nOffline metrics", "Offline limits")), \
+                    patch.object(report, "render_architecture", return_value="## Architecture and Test Topology"), \
+                    patch.object(report, "render_tests_doc", return_value="## Tests and Offline Checks"), \
+                    patch.object(report, "render_assets", return_value="## Assets and Evidence"), \
                     patch.object(report, "render_grounding_section", return_value=grounding):
                 generated = report.update_document(original, primary, None, None, None, [], {"planned_samples": 12}, (None, None), None, language, 7)
                 regenerated = report.update_document(generated, primary, None, None, None, [], {"planned_samples": 12}, (None, None), None, language, 7)
