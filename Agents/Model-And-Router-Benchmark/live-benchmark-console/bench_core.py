@@ -51,9 +51,18 @@ SCENARIO_NOTES = {
     "CreatorZone": "Prompt and edit-intent parsing only; image generation quality itself was not tested.",
 }
 
-# The three candidate models the written study compares. Everything else in the
+# The candidate models the written studies compare. Everything else in the
 # registry is a baseline, a router, or a deployment kept for another study.
-STUDY_MODELS = ("gpt-4o-mini-bench", "gpt-5-mini", "gpt-5.6-luna")
+# GPT-6 Luna joined in the 2026-09-26 same-session follow-up.
+STUDY_MODELS = ("gpt-4o-mini-bench", "gpt-5-mini", "gpt-5.6-luna", "gpt-6-luna")
+
+# Follow-up runs that brought a deployment the pinned study configs predate.
+# Each folder carries its own models.json, pricing.json and deployment record;
+# their entries are added only where the study config has none, so a follow-up
+# can extend the catalog but never rewrite a pinned price or registry entry.
+FOLLOW_UP_RUNS = (
+    ("scenario-model-benchmark", "outputs/gpt6-luna-20260926"),
+)
 EFFORT_ORDER = {
     "": -1,
     "none": 0,
@@ -170,15 +179,33 @@ def read_json_asset(path: Path) -> dict:
     return json.loads(text)
 
 
+def follow_up_assets(filename: str) -> list[Path]:
+    """The given file in every follow-up run folder that has one, in declared order."""
+    paths = []
+    for study, relative in FOLLOW_UP_RUNS:
+        candidate = study_root(study) / relative / filename
+        if candidate.is_file():
+            paths.append(candidate)
+    return paths
+
+
 def load_pricing() -> dict:
     path = _first_existing("config/pricing.json")
-    return read_json_asset(path).get("models", {})
+    prices = dict(read_json_asset(path).get("models", {}))
+    for extra in follow_up_assets("pricing.json"):
+        for model, price in read_json_asset(extra).get("models", {}).items():
+            prices.setdefault(model, price)
+    return prices
 
 
 def load_registry() -> dict:
     path = _first_existing("config/models.json")
     data = read_json_asset(path).get("models", {})
-    return {k.strip().lower(): v for k, v in data.items()}
+    registry = {k.strip().lower(): v for k, v in data.items()}
+    for extra in follow_up_assets("models.json"):
+        for name, entry in read_json_asset(extra).get("models", {}).items():
+            registry.setdefault(name.strip().lower(), entry)
+    return registry
 
 
 def load_scenarios() -> list[dict]:
@@ -265,31 +292,35 @@ def load_deployment_facts() -> dict:
     """
     facts: dict[str, dict] = {}
     regions: set[str] = set()
+    paths: list[tuple[Path, bool]] = []
     for name in STUDY_FOLDERS:
         folder = study_root(name)
-        if not folder.is_dir():
+        if folder.is_dir():
+            paths.extend((p, False) for p in sorted(folder.glob("outputs/deployment_verification*.json")))
+    # A follow-up record only adds deployments the studies never verified; it
+    # does not rewrite what a pinned record says about an existing one.
+    paths.extend((p, True) for p in follow_up_assets("deployment_verification.json"))
+    for path, additive_only in paths:
+        try:
+            data = read_json_asset(path)
+        except (ConsoleError, json.JSONDecodeError):
             continue
-        for path in sorted(folder.glob("outputs/deployment_verification*.json")):
-            try:
-                data = read_json_asset(path)
-            except (ConsoleError, json.JSONDecodeError):
+        if isinstance(data, dict):
+            region = data.get("region")
+            entries = data.get("deployments") or []
+        else:
+            region = None
+            entries = data
+        if region:
+            regions.add(region)
+        for entry in entries:
+            deployment = (entry.get("deployment") or "").strip().lower()
+            if not deployment or (additive_only and deployment in facts):
                 continue
-            if isinstance(data, dict):
-                region = data.get("region")
-                entries = data.get("deployments") or []
-            else:
-                region = None
-                entries = data
+            facts.setdefault(deployment, {})
+            facts[deployment].update({k: v for k, v in entry.items() if k != "deployment"})
             if region:
-                regions.add(region)
-            for entry in entries:
-                deployment = (entry.get("deployment") or "").strip().lower()
-                if not deployment:
-                    continue
-                facts.setdefault(deployment, {})
-                facts[deployment].update({k: v for k, v in entry.items() if k != "deployment"})
-                if region:
-                    facts[deployment].setdefault("region", region)
+                facts[deployment].setdefault("region", region)
     return {"deployments": facts, "regions": sorted(regions)}
 
 

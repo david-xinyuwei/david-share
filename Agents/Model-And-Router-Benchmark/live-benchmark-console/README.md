@@ -48,15 +48,19 @@ Six charts: TTFT, decode speed, cost per 1,000 requests, cost against latency
 The console offers the same arms and prompts the written scenario study used,
 so a live number can be put next to a printed one:
 
-- **Three candidate models**, flagged *in the report*: `gpt-4o-mini-bench`,
-  `gpt-5-mini`, `gpt-5.6-luna`. Every other deployment in the registry is
-  shown separately as a baseline, a router, or a deployment kept for one of
-  the other studies.
+- **Four candidate models**, flagged *in the report*: `gpt-4o-mini-bench`,
+  `gpt-5-mini`, `gpt-5.6-luna` and, since the 2026-09-26 follow-up,
+  `gpt-6-luna`. GPT-6 Luna's registry entry, price and deployment record come
+  from that run's folder (`scenario-model-benchmark/outputs/gpt6-luna-20260926/`)
+  and are only added where the pinned study configs have none, so a follow-up
+  extends the catalog without rewriting a pinned entry. Every other deployment
+  in the registry is shown separately as a baseline, a router, or a deployment
+  kept for one of the other studies.
 - **Every reasoning effort is its own arm.** Effort is picked with chips, not
   a dropdown, because a reasoning model is not one arm but one arm per effort
   and comparing those permutations is the point. The **README matrix** preset
-  selects exactly the study's shape: 11 model×effort arms across every assistant
-  prompt.
+  selects exactly the study's shape: every candidate model at every effort it
+  supports (17 arms with GPT-6 Luna) across every assistant prompt.
 - **Six assistant task scenarios**, 17 prompts, shown under their report names:
   Next Move, Write For Me, Catch Me Up, Pay Attention, Live Interaction,
   Creator Zone. The last three carry a *text proxy* marker: speech-to-text,
@@ -79,7 +83,8 @@ Tuesday" and "what is this doing right now" are both answerable, and any past
 run can still be exported to CSV or deleted.
 
 `history/` is git-ignored: those runs belong to whoever operated the console,
-not to the repository. The recorded study runs ship in `replay/replay_pack.json`.
+not to the repository. The recorded study runs ship in `replay/replay_pack.json`;
+runs recorded after that pack was pinned ship in `replay/replay_followups.json`.
 
 When the console drives the same-region runner, a run executes in Sweden
 Central while the history the room reads lives on the portal VM. Capturing it
@@ -204,8 +209,9 @@ python server.py --port 8080
 ```
 
 With no `AZURE_OPENAI_ENDPOINT` the console starts in **replay mode**: the run
-button is disabled, and `replay/replay_pack.json` feeds the same charts from
-the recorded study runs. Useful for rehearsing, and for the moment the
+button is disabled, and `replay/replay_pack.json` plus `replay/replay_followups.json`
+feed the same charts from the recorded study runs, including the 2026-09-26
+same-session run with GPT-6 Luna. Useful for rehearsing, and for the moment the
 conference-room wifi dies. Replayed views are labelled as such on screen.
 The pack embeds its own model/scenario catalog and is deliberately not in Git
 LFS, so replay mode also works in a clone made without `git lfs pull`.
@@ -310,10 +316,12 @@ comparable too.
 | `static/` | Responsive warm-light UI with dark-mode adaptation; dependency-free HTML/CSS/JS and SVG charts |
 | `deploy/demo-portal-card.html` | Canonical first-card registration for the Linux Work VM Demo Portal |
 | `deploy/portal-gate/` | In-page sign-in gate: service, systemd unit, and nginx `auth_request` wiring |
-| `scripts/build_replay_pack.py` | Rebuilds `replay/replay_pack.json`; `--check` verifies it |
-| `replay/replay_pack.json` | Recorded study runs for credential-free demonstration |
+| `scripts/build_replay_pack.py` | Rebuilds both replay packs; `--check` verifies them |
+| `replay/replay_pack.json` | Recorded study runs for credential-free demonstration (pinned) |
+| `replay/replay_followups.json` | Runs recorded after the pin, merged at load time; currently the GPT-6 Luna same-session run |
 | `history/` | One JSON per completed run; git-ignored, created on first run |
 | `tests/test_console.py` | Offline tests: statistics, planning, execution, history, HTTP surface |
+| `tests/test_gpt6_luna_console.py` | GPT-6 Luna in the catalog and the follow-up replay pack |
 | `run_on_vm.sh` | Starts the console on the benchmark VM, bound to localhost |
 
 Run the tests with:

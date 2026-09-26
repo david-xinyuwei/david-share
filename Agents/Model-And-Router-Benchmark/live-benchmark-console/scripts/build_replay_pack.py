@@ -68,11 +68,34 @@ SOURCES = [
 # pack stays byte-identical.
 POST_PIN_ARM_FIELDS = ("price_cache_write",)
 POST_PIN_SUMMARY_FIELDS = ("cache_write_tokens_total",)
+# Deployments added after the pin (see bench_core.FOLLOW_UP_RUNS). The pinned
+# pack embeds the catalog as it was; the follow-up pack carries these arms.
+POST_PIN_DEPLOYMENTS = ("gpt-6-luna",)
+
+# Runs recorded after the pack was pinned. They go into their own pack so the
+# pinned one never changes; server.load_replay() merges both.
+OUT_FOLLOW_UPS = ROOT / "replay" / "replay_followups.json"
+FOLLOW_UP_SOURCES = [
+    {
+        "id": "gpt6-luna-same-session",
+        "folder": "scenario-model-benchmark",
+        "glob": "outputs/gpt6-luna-20260926/direct_*.metrics.jsonl",
+        "title": "GPT-6 Luna and every earlier arm, re-measured in one session (2026-09-26)",
+        "description": "17 arms incl. GPT-6 Luna at every effort, same VM, prompts and resource as the scenario matrix, "
+                       "single-turn, concurrency 1, no tools.",
+    },
+]
 
 
 def embedded_catalog(catalog: dict) -> dict:
-    arms = [{k: v for k, v in arm.items() if k not in POST_PIN_ARM_FIELDS} for arm in catalog["arms"]]
-    return {**catalog, "arms": arms}
+    arms = [{k: v for k, v in arm.items() if k not in POST_PIN_ARM_FIELDS} for arm in catalog["arms"]
+            if arm["deployment"] not in POST_PIN_DEPLOYMENTS]
+    study_models = [m for m in catalog.get("study_models", []) if m not in POST_PIN_DEPLOYMENTS]
+    return {**catalog, "arms": arms, "study_models": study_models}
+
+
+def follow_up_catalog_arms(catalog: dict) -> list[dict]:
+    return [arm for arm in catalog["arms"] if arm["deployment"] in POST_PIN_DEPLOYMENTS]
 
 
 def embedded_summaries(summaries: list[dict]) -> list[dict]:
@@ -88,7 +111,7 @@ def load_records(path: Path) -> list[dict]:
     return records
 
 
-def build_run(source: dict) -> dict | None:
+def build_run(source: dict, *, pinned: bool = True) -> dict | None:
     folder = PARENT / source["folder"]
     if not folder.is_dir():
         return None
@@ -121,8 +144,25 @@ def build_run(source: dict) -> dict | None:
         "folder": source["folder"],
         "files": [f.name for f in files],
         "records": len(measured),
-        "summaries": embedded_summaries(summaries),
+        # the follow-up pack is not pinned, so it keeps every current summary field
+        "summaries": embedded_summaries(summaries) if pinned else summaries,
     }
+
+
+def check_or_write(path: Path, rendered: str, check: bool, label: str) -> int:
+    if check:
+        if not path.is_file():
+            print(f"MISSING: {path.relative_to(ROOT)} has not been built.")
+            return 1
+        if path.read_text(encoding="utf-8") != rendered:
+            print(f"STALE: {path.relative_to(ROOT)} differs from the recorded runs. Re-run without --check.")
+            return 1
+        print(f"VERIFIED: {label}")
+        return 0
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(rendered, encoding="utf-8", newline="\n")
+    print(f"Wrote {path.relative_to(ROOT)}: {label}")
+    return 0
 
 
 def main() -> int:
@@ -136,6 +176,7 @@ def main() -> int:
         print("No recorded study runs found next to the console; nothing to build.")
         return 1
 
+    catalog = bench_core.catalog(include_unverified=True)
     pack = {
         "_comment": "Recorded runs re-aggregated by bench_core.summarize_arm. "
                     "Replayed measurements, not a live test.",
@@ -144,28 +185,24 @@ def main() -> int:
         # The pack is pinned evidence, so catalog fields introduced after the
         # recorded runs are left out of the embedded copy; a live catalog
         # always carries them.
-        "catalog": embedded_catalog(bench_core.catalog(include_unverified=True)),
+        "catalog": embedded_catalog(catalog),
         "runs": runs,
     }
-    rendered = json.dumps(pack, ensure_ascii=False, indent=2) + "\n"
+    status = check_or_write(OUT, json.dumps(pack, ensure_ascii=False, indent=2) + "\n", args.check,
+                            f"{len(runs)} recorded run(s), {sum(len(r['summaries']) for r in runs)} arm summaries.")
 
-    if args.check:
-        if not OUT.is_file():
-            print(f"MISSING: {OUT.relative_to(ROOT)} has not been built.")
-            return 1
-        if OUT.read_text(encoding="utf-8") != rendered:
-            print(f"STALE: {OUT.relative_to(ROOT)} differs from the recorded runs. Re-run without --check.")
-            return 1
-        print(f"VERIFIED: {len(runs)} recorded run(s), "
-              f"{sum(len(r['summaries']) for r in runs)} arm summaries.")
-        return 0
-
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(rendered, encoding="utf-8", newline="\n")
-    for run in runs:
-        print(f"  {run['id']:<26} {run['records']:>6} records  {len(run['summaries']):>2} arms")
-    print(f"Wrote {OUT.relative_to(ROOT)}")
-    return 0
+    follow_runs = [run for run in (build_run(s, pinned=False) for s in FOLLOW_UP_SOURCES) if run]
+    follow_pack = {
+        "_comment": "Runs recorded after replay_pack.json was pinned, re-aggregated by bench_core.summarize_arm. "
+                    "Replayed measurements, not a live test. server.load_replay() merges this into the pinned pack.",
+        "catalog_arms": follow_up_catalog_arms(catalog),
+        "study_models": [m for m in catalog.get("study_models", []) if m in POST_PIN_DEPLOYMENTS],
+        "runs": follow_runs,
+    }
+    status |= check_or_write(OUT_FOLLOW_UPS, json.dumps(follow_pack, ensure_ascii=False, indent=2) + "\n",
+                             args.check, f"{len(follow_runs)} follow-up run(s), "
+                                         f"{sum(len(r['summaries']) for r in follow_runs)} arm summaries.")
+    return status
 
 
 if __name__ == "__main__":

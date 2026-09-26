@@ -36,6 +36,7 @@ FILES = (("direct_{run}.metrics.jsonl", "every matrix request, numbers only"),
          ("quality_opus55_{run}.jsonl", "Judge A scores"),
          ("quality_opus46_{run}.jsonl", "Judge B scores"),
          ("deployment_verification.json", "deployments read back from Azure"),
+         ("pricing.json", "list prices used for cost_usd"),
          ("provenance.json", "client, executed-source hashes, redaction record"))
 
 
@@ -148,7 +149,7 @@ def render() -> str:
     if problems:
         raise ValueError("evidence incomplete:\n  " + "\n  ".join(problems))
     prov = json.loads((RUN_DIR / "provenance.json").read_text(encoding="utf-8"))
-    deploy = json.loads((RUN_DIR / "deployment_verification.json").read_text(encoding="utf-8"))
+    deploy = json.loads((RUN_DIR / "deployment_verification.json").read_text(encoding="utf-8"))["deployments"]
     S = arm_stats(records)
     base = arm_stats(load_jsonl(BASELINE)) if BASELINE.is_file() else {}
     m55 = {a: statistics.mean(v for (x, _), v in q55.items() if x == a) for a in ARM_ORDER}

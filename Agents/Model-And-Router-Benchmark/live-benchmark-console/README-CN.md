@@ -44,13 +44,15 @@ token 构成、Router 模型分流。
 控制台提供的实验组和题目，与书面场景研究所用的完全一致，因此现场跑出来的数字可以
 直接和报告里印的放在一起看：
 
-- **三个候选模型**，标注为 *in the report*：`gpt-4o-mini-bench`、`gpt-5-mini`、
-  `gpt-5.6-luna`。注册表里其他部署单独分组显示，它们是基线、Router，或为其他研究
-  保留的部署。
+- **四个候选模型**，标注为 *in the report*：`gpt-4o-mini-bench`、`gpt-5-mini`、
+  `gpt-5.6-luna`，以及 2026-09-26 同批复测加入的 `gpt-6-luna`。GPT-6 Luna 的注册表条目、
+  价格和部署记录来自该次运行的目录（`scenario-model-benchmark/outputs/gpt6-luna-20260926/`），
+  只在已钉住的研究配置里没有时才补充，因此后续运行只扩展目录，不改写已钉住的条目。
+  注册表里其他部署单独分组显示，它们是基线、Router，或为其他研究保留的部署。
 - **每一档 reasoning effort 各算一个实验组。** effort 用小标签（chip）多选而不是
   下拉单选，因为推理模型不是一个实验组，而是每档 effort 一个实验组，比较这些排列
-  组合正是重点。**README matrix** 预设会精确选出研究的形状：11 个 模型×effort
-  实验组 × 全部 助手题目。
+  组合正是重点。**README matrix** 预设会精确选出研究的形状：每个候选模型的全部受支持 effort（加入 GPT-6 Luna 后共 17 个
+  实验组）× 全部 助手题目。
 - **6 个助手任务场景**、17 道题，按报告里的名称显示：Next Move、Write For Me、
   Catch Me Up、Pay Attention、Live Interaction、Creator Zone。后三个带 *text proxy*
   标记：语音转文字、实时语音链路和图像生成本身不在范围内，文本得分不等于语音时延
@@ -69,7 +71,8 @@ token 构成、Router 模型分流。
 正在跑什么”都能回答；任何一条历史运行仍可导出 CSV 或删除。
 
 `history/` 已加入 git 忽略：这些运行属于操作控制台的人，不属于仓库。随仓库交付的
-已记录研究运行在 `replay/replay_pack.json` 里。
+已记录研究运行在 `replay/replay_pack.json` 里；该回放包钉住之后记录的运行放在
+`replay/replay_followups.json`。
 
 当控制台驱动同区域 runner 时，运行在 Sweden Central 执行，而现场要看的历史记录存
 在 Portal VM 上。回写不依赖有没有人盯着页面：提交运行时会启动一个后台 worker，轮询
@@ -175,7 +178,8 @@ python server.py --port 8080
 ```
 
 没有 `AZURE_OPENAI_ENDPOINT` 时，控制台进入**回放模式**：运行按钮禁用，
-`replay/replay_pack.json` 用已记录的研究数据喂同样的图表。适合彩排，也适合
+`replay/replay_pack.json` 和 `replay/replay_followups.json` 用已记录的研究数据喂同样的图表，
+包括 2026-09-26 加入 GPT-6 Luna 的同批运行。适合彩排，也适合
 会议室 WiFi 掉线的那一刻。回放视图在界面上有明确标注。
 回放包内嵌自己的模型/场景目录，并且明确不进入 Git LFS，因此没有执行
 `git lfs pull` 的 clone 同样可以使用回放模式。
@@ -258,10 +262,12 @@ python server.py --port 8080
 | `static/` | 响应式暖色浅色界面并自动适配深色；零依赖 HTML/CSS/JS 与 SVG 图表 |
 | `deploy/demo-portal-card.html` | Linux Work VM Demo Portal 第一张卡片的标准注册片段 |
 | `deploy/portal-gate/` | 页面内登录网关：服务、systemd 单元与 nginx `auth_request` 配置 |
-| `scripts/build_replay_pack.py` | 重建 `replay/replay_pack.json`；`--check` 做校验 |
-| `replay/replay_pack.json` | 已记录的研究运行，用于无凭据演示 |
+| `scripts/build_replay_pack.py` | 重建两个回放包；`--check` 做校验 |
+| `replay/replay_pack.json` | 已记录的研究运行，用于无凭据演示（已钉住） |
+| `replay/replay_followups.json` | 钉住之后记录的运行，加载时合并；目前是 GPT-6 Luna 同批运行 |
 | `history/` | 每次跑完的运行一个 JSON；已 git 忽略，首次运行时自动创建 |
 | `tests/test_console.py` | 离线测试：统计、计划、执行、历史记录、HTTP 接口 |
+| `tests/test_gpt6_luna_console.py` | GPT-6 Luna 的目录条目与后续回放包 |
 | `run_on_vm.sh` | 在压测 VM 上启动控制台，只绑定 localhost |
 
 运行测试：

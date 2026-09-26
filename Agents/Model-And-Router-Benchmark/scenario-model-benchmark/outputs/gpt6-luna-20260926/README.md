@@ -118,7 +118,8 @@ No row is significant for both judges, and none survives a six-comparison correc
 | [`paired_gpt-6-luna_vs_gpt-5.6-luna_20260926_143407.summary.json`](paired_gpt-6-luna_vs_gpt-5.6-luna_20260926_143407.summary.json) | A/B statistics as printed above | `9405810811b59c4a…` |
 | [`quality_opus55_20260926_131212.jsonl`](quality_opus55_20260926_131212.jsonl) | Judge A scores | `fe2d16b0afa0ee9c…` |
 | [`quality_opus46_20260926_131212.jsonl`](quality_opus46_20260926_131212.jsonl) | Judge B scores | `177ce33cf20b3dda…` |
-| [`deployment_verification.json`](deployment_verification.json) | deployments read back from Azure | `a66fc7d68ba8dceb…` |
+| [`deployment_verification.json`](deployment_verification.json) | deployments read back from Azure | `dcae3d1110342f46…` |
+| [`pricing.json`](pricing.json) | list prices used for cost_usd | `9d4ee231fcdfe327…` |
 | [`provenance.json`](provenance.json) | client, executed-source hashes, redaction record | `f5ec46c2cc582787…` |
 
 ## Reproduce

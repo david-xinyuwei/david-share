@@ -640,6 +640,19 @@ def load_replay() -> dict:
     if not path.is_file():
         return {"available": False, "runs": []}
     data = json.loads(path.read_text(encoding="utf-8"))
+    # Runs recorded after the pack was pinned live in their own pack, so the
+    # pinned evidence never changes; merge them in here.
+    follow_path = REPLAY / "replay_followups.json"
+    if follow_path.is_file():
+        follow = json.loads(follow_path.read_text(encoding="utf-8"))
+        data["runs"] = data.get("runs", []) + follow.get("runs", [])
+        if data.get("catalog"):
+            known = {arm["deployment"] for arm in data["catalog"].get("arms", [])}
+            data["catalog"]["arms"] = data["catalog"].get("arms", []) + [
+                arm for arm in follow.get("catalog_arms", []) if arm["deployment"] not in known]
+            studies = data["catalog"].get("study_models", [])
+            data["catalog"]["study_models"] = studies + [
+                m for m in follow.get("study_models", []) if m not in studies]
     if data.get("catalog"):
         data["catalog"] = bench_core.visible_catalog(data["catalog"])
     for run in data.get("runs", []):
