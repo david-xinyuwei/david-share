@@ -25,6 +25,8 @@ Model Router 模式对比各自的直连基线，再补上试点通常要到生�
 <a id="executive-summary"></a>
 ## 执行摘要
 
+> **2026-09-26 更新：GPT-6 Luna。** 在同一台 VM、同一资源、同一批提示词上，把所有组合连同 GPT-6 Luna 在同一时段重测了一遍。85 组背靠背交错配对中，GPT-6 Luna `none` 首 Token P50 为 **544 ms**，GPT-5.6 Luna `none` 为 **743 ms**（比值 95% CI 0.69–0.78），每请求成本低 **65%**；两个跨厂商盲评评委判定质量持平。它取代 GPT-5.6 Luna `none` 成为默认低延迟档位。下方表格是 2026-09-09 的原始结果：同一个 GPT-5.6 Luna 部署在 2026-09-26 快了 23–28%，因此只能在同一时段内比较各组合。→ [同批报告（英文）](scenario-model-benchmark/outputs/gpt6-luna-20260926/README.md)
+
 **没有单一赢家。请按产品面，用绝对质量底线、TTFT 预算和真实请求量来选——在这批任务
 上，"提高 reasoning effort"并没有换来更好的回答。**
 

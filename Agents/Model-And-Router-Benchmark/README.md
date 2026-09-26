@@ -29,6 +29,8 @@ configuration rather than by model name.
 <a id="executive-summary"></a>
 ## Executive Summary
 
+> **Update 2026-09-26 — GPT-6 Luna.** Every arm was re-measured together with GPT-6 Luna in one session on the same VM, prompts and resource. In 85 interleaved back-to-back pairs, GPT-6 Luna `none` reached the first token in **544 ms vs 743 ms** for GPT-5.6 Luna `none` (P50; 95% CI of the ratio 0.69–0.78) and cost **65% less** per request; two cross-vendor blind judges found quality on par. It replaces GPT-5.6 Luna `none` as the default low-latency tier. The tables below are the original 2026-09-09 run: the same GPT-5.6 Luna deployment measured 23–28% faster on 2026-09-26, so compare arms only within one session. → [Same-session report](scenario-model-benchmark/outputs/gpt6-luna-20260926/README.md)
+
 **No single model wins. Pick per surface against an absolute quality bar, a TTFT
 budget and real request volume — "higher reasoning effort" did not buy better
 answers on these tasks.**
