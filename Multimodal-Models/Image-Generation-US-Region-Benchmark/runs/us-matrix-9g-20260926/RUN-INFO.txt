@@ -1,0 +1,9 @@
+started_local=2026-09-26T10:00:43
+runner_sha256=24f2e805681cd69ed8f3823b140ec00fb8ec93c32c8028a766db88c5df3ab9c3
+prompts_sha256=80ccc57bd44c1f37a6231a63dd45491de8a6effde6b07e0d9dd8870571f75538
+client_location=Xinyu SURFACE-2 laptop; resources East US (MAI) / East US 2 (GPT); Entra bearer auth
+auth_mode=entra-bearer
+az_profile=<isolated Azure CLI profile dir; tenant/subscription not recorded here>
+gpt_endpoint_host=xinyuwei-2026-resource.cognitiveservices.azure.com
+mai_endpoint_host=xinyuwei-2026-eastus-img.cognitiveservices.azure.com
+command=testpack\source\benchmark_5way_v2.py --mai-model MAI-Image-2.6 --gpt-model gpt-image-2:low,high --gpt-model gpt-image-2.5-flare:auto,low,high --gpt-model gpt-image-2.5-sunburst:auto,low,high --prompts-csv testpack\source\prompts.csv --output runs\us-matrix-9g-20260926 --resume
