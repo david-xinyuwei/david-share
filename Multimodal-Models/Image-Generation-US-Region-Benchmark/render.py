@@ -69,6 +69,17 @@ def cost_usd(model, tin, tout):
     return tin / 1e6 * price["input_text"] + tout / 1e6 * price["output_image"]
 
 
+def image_caption(rec, model):
+    """'29.7 s · $0.0391' — this request's wall-clock seconds and its own cost from the tokens it returned.
+    auto groups append the tier the service chose, e.g. '23.9 s · $0.0133 · medium'. '$ n/a' when the price is unverified."""
+    tin, tout = tokens(rec)
+    usd = cost_usd(model, tin, tout)
+    cap = f"{rec['time']:.1f} s · " + (f"${usd:.4f}" if usd is not None else "$ n/a")
+    if rec.get("quality") == "auto":
+        cap += f" · {(rec.get('token_info') or {}).get('service_quality') or 'tier not echoed'}"
+    return cap
+
+
 def echoed_tiers(records):
     """For quality=auto the service picks a tier per request and echoes it; return e.g. 'low ×12, medium ×5'."""
     counts = {}
@@ -277,8 +288,11 @@ def render(run_dir):
     # ---- per-prompt image grid ----
     w("## Images")
     w("")
-    w("Round 1 outputs. Each row is one prompt; each column is one configuration. Click any image for full size.")
+    w("Round 1 outputs. Each row is one prompt; each column is one configuration. Under each image: the seconds that "
+      "request took and what that one image cost — its own returned token counts × the verified price, not a tier average. "
+      "For `auto`, the tier the service chose for that request is shown too. Click any image for full size.")
     w("")
+    model_of = {g[0]: g[2] for g in GROUP_ORDER}
     for idx in sorted(prompts):
         p = prompts[idx]
         w(f"### {p.get('prompt_id', f'P{idx:02d}')} · {p.get('scenario', '')}")
@@ -292,7 +306,7 @@ def render(run_dir):
             path = images.get((gid, 1, idx))
             rec = next((r for r in by_group[gid] if r["round"] == 1 and r["prompt_idx"] == idx), None)
             if path and rec:
-                cells.append(f'<a href="{path}"><img src="{path}" width="160"></a><br>{rec["time"]:.1f} s')
+                cells.append(f'<a href="{path}"><img src="{path}" width="160"></a><br>{image_caption(rec, model_of[gid])}')
             else:
                 cells.append("—")
         w("| " + " | ".join(cells) + " |")

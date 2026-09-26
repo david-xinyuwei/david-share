@@ -158,6 +158,25 @@ def test_every_linked_image_exists_and_matches_record_hash(readme, results):
         assert hashlib.sha256(path.read_bytes()).hexdigest() == rec["image_sha256"], rel
 
 
+def test_every_image_caption_shows_its_own_seconds_and_cost(readme, results):
+    """Each thumbnail caption is '<s> s · $<usd>' recomputed from that record's own time and returned tokens;
+    auto captions also carry the tier the service echoed for that request."""
+    pricing = json.loads((ROOT / "pricing.json").read_text(encoding="utf-8"))
+    model_of = {gc["id"]: gc["model"] for gc in results["config"]["group_configurations"]}
+    by_key = {(r["group"], r["round"], r["prompt_idx"]): r for r in results["raw_data"] if r.get("ok")}
+    cells = re.findall(r'<img src="images/(.+?)-r(\d)-p(\d+)\.png" width="160"></a><br>([^|]+?) \|', readme)
+    assert cells, "no captioned images"
+    for gid, rnd, idx, caption in cells:
+        rec = by_key[(gid, int(rnd), int(idx))]
+        price = pricing.get(model_of[gid]) or {}
+        tin, tout = _tokens(rec)
+        expected = f"{rec['time']:.1f} s · "
+        expected += f"${tin / 1e6 * price['input_text'] + tout / 1e6 * price['output_image']:.4f}" if price.get("verified") else "$ n/a"
+        if rec.get("quality") == "auto":
+            expected += f" · {(rec.get('token_info') or {}).get('service_quality') or 'tier not echoed'}"
+        assert caption.strip() == expected, f"{gid} r{rnd} p{idx}: caption {caption.strip()!r} != {expected!r}"
+
+
 def test_no_secrets_or_subscription_ids(readme):
     assert not re.search(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", readme), "GUID in README"
     assert not re.search(r"api-key|AZURE_API_KEY=|AZURE_OPENAI_API_KEY=", readme), "key material in README"
