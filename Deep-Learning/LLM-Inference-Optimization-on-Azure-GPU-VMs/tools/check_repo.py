@@ -91,11 +91,14 @@ def check_order(lang: str, text: str, errors: list[str]) -> None:
 
 
 def _rows(body: str) -> list[list[str]]:
-    """Numbers per table row (header and separator excluded); code blocks compare as whole text."""
+    """Numbers per table row or list item; code blocks compare as whole text."""
     lines = [l for l in body.splitlines() if l.startswith("|")]
-    if not lines:
-        return [[body.split("```", 1)[1] if "```" in body else ""]]
-    return [NUMBER.findall(l) for l in lines[2:]]
+    if lines:
+        return [NUMBER.findall(l) for l in lines[2:]]
+    items = [l for l in body.splitlines() if l.startswith("- ")]
+    if items:
+        return [NUMBER.findall(l) for l in items]
+    return [[body.split("```", 1)[1] if "```" in body else ""]]
 
 
 def check_bilingual(errors: list[str]) -> None:

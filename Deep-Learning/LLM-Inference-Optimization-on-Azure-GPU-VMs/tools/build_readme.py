@@ -133,7 +133,7 @@ def _ab_names(lang: str) -> list[str]:
 def ab_table(lang: str) -> str:
     ab = _json("evidence/measurements.json")["ab_ck_unified_verify_64k"]
     n = _ab_names(lang)
-    head = ["Arm", "Run 1 (tok/s)", "Run 2 (tok/s)", "Mean (tok/s)"] if lang == "en" else ["组别", "第 1 次（tok/s）", "第 2 次（tok/s）", "均值（tok/s）"]
+    head = ["Arm", "Run 1", "Run 2", "Mean"] if lang == "en" else ["组别", "第 1 次", "第 2 次", "均值"]
     rows = [
         [n[0], _n(ab["baseline_run_means_tok_s"][0]), _n(ab["baseline_run_means_tok_s"][1]), _n(ab["baseline_mean_tok_s"])],
         [n[1], _n(ab["optimized_run_means_tok_s"][0]), _n(ab["optimized_run_means_tok_s"][1]), _n(ab["optimized_mean_tok_s"])],
@@ -145,7 +145,7 @@ def ab_table(lang: str) -> str:
 def ab_tpot(lang: str) -> str:
     ab = _json("evidence/measurements.json")["ab_ck_unified_verify_64k"]
     n = _ab_names(lang)
-    head = ["Arm", "Implied TPOT at batch 16 (ms)"] if lang == "en" else ["组别", "batch 16 下折算 TPOT（ms）"]
+    head = ["Arm", "Implied TPOT (ms)"] if lang == "en" else ["组别", "折算 TPOT（ms）"]
     rows = [[n[0], _n(ab["baseline_implied_tpot_ms"])], [n[1], _n(ab["optimized_implied_tpot_ms"])],
             [n[2], f"**{_pct(ab['implied_tpot_delta_pct'])}**"]]
     return _table(head, rows, ["l", "r"])
@@ -153,8 +153,7 @@ def ab_tpot(lang: str) -> str:
 
 def stage_prefill(lang: str) -> str:
     st = _json("evidence/measurements.json")["tuned_moe_stage"]
-    head = (["Input tokens", "Before (input tok/s)", "After (input tok/s)", "Change"]
-            if lang == "en" else ["输入 token", "优化前（input tok/s）", "优化后（input tok/s）", "变化"])
+    head = (["Input tokens", "Before", "After", "Change"] if lang == "en" else ["输入 token", "优化前", "优化后", "变化"])
     rows = [[_i(r["input_tokens"]), _n(r["before_input_tok_s"]), _n(r["after_input_tok_s"]),
              f"**{_pct(r['input_tok_s_delta_pct'])}**"] for r in st["prefill"]]
     return _table(head, rows, ["r", "r", "r", "r"])
@@ -162,8 +161,7 @@ def stage_prefill(lang: str) -> str:
 
 def stage_prefill_ttft(lang: str) -> str:
     st = _json("evidence/measurements.json")["tuned_moe_stage"]
-    head = (["Input tokens", "Before (mean TTFT, s)", "After (mean TTFT, s)", "Change"]
-            if lang == "en" else ["输入 token", "优化前（平均 TTFT，s）", "优化后（平均 TTFT，s）", "变化"])
+    head = (["Input tokens", "Before", "After", "Change"] if lang == "en" else ["输入 token", "优化前", "优化后", "变化"])
     rows = [[_i(r["input_tokens"]), _n(r["before_mean_ttft_ms"] / 1000.0), _n(r["after_mean_ttft_ms"] / 1000.0),
              _pct(r["mean_ttft_delta_pct"])] for r in st["prefill"]]
     return _table(head, rows, ["r", "r", "r", "r"])
@@ -171,8 +169,7 @@ def stage_prefill_ttft(lang: str) -> str:
 
 def stage_decode(lang: str) -> str:
     st = _json("evidence/measurements.json")["tuned_moe_stage"]
-    head = (["Concurrency", "Before (output tok/s)", "After (output tok/s)", "Change"]
-            if lang == "en" else ["并发", "优化前（output tok/s）", "优化后（output tok/s）", "变化"])
+    head = (["Concurrency", "Before", "After", "Change"] if lang == "en" else ["并发", "优化前", "优化后", "变化"])
     rows = [[str(r["concurrency"]), _n(r["before_output_tok_s"]), _n(r["after_output_tok_s"]),
              f"**{_pct(r['output_tok_s_delta_pct'])}**"] for r in st["decode"]]
     return _table(head, rows, ["r", "r", "r", "r"])
@@ -180,8 +177,7 @@ def stage_decode(lang: str) -> str:
 
 def stage_decode_tpot(lang: str) -> str:
     st = _json("evidence/measurements.json")["tuned_moe_stage"]
-    head = (["Concurrency", "Before (mean TPOT, ms)", "After (mean TPOT, ms)", "Change"]
-            if lang == "en" else ["并发", "优化前（平均 TPOT，ms）", "优化后（平均 TPOT，ms）", "变化"])
+    head = (["Concurrency", "Before", "After", "Change"] if lang == "en" else ["并发", "优化前", "优化后", "变化"])
     rows = [[str(r["concurrency"]), _n(r["before_mean_tpot_ms"]), _n(r["after_mean_tpot_ms"]),
              _pct(r["mean_tpot_delta_pct"])] for r in st["decode"]]
     return _table(head, rows, ["r", "r", "r", "r"])
@@ -189,8 +185,7 @@ def stage_decode_tpot(lang: str) -> str:
 
 def ladder(lang: str) -> str:
     rows_in = _json("evidence/measurements.json")["concurrency_ladder_8k1k"]
-    head = (["Configured", "Observed", "Output tok/s", "Mean TPOT (ms)"]
-            if lang == "en" else ["配置并发", "实测并发", "Output tok/s", "平均 TPOT（ms）"])
+    head = (["Configured", "Observed", "Output tok/s", "TPOT (ms)"] if lang == "en" else ["配置并发", "实测并发", "Output tok/s", "TPOT（ms）"])
     rows = [[str(r["concurrency"]), _n(r["observed_concurrency"]), _n(r["output_tok_s"]), _n(r["mean_tpot_ms"])] for r in rows_in]
     return _table(head, rows, ["r", "r", "r", "r"])
 
@@ -204,16 +199,14 @@ def ladder_ttft(lang: str) -> str:
 
 def snapshot(lang: str) -> str:
     snap = _json("evidence/measurements.json")["stack_snapshot"]
-    head = (["Concurrency", "2026-05-09 output tok/s (16K in)", "2026-07-13 output tok/s (8K in)"]
-            if lang == "en" else ["并发", "2026-05-09 output tok/s（16K 输入）", "2026-07-13 output tok/s（8K 输入）"])
+    head = (["Concurrency", "2026-05-09 (16K in)", "2026-07-13 (8K in)"] if lang == "en" else ["并发", "2026-05-09（16K 输入）", "2026-07-13（8K 输入）"])
     rows = [[str(r["concurrency"]), _i(r["early_output_tok_s"]), _n(r["late_output_tok_s"])] for r in snap["decode"]]
     return _table(head, rows, ["r", "r", "r"])
 
 
 def snapshot_tpot(lang: str) -> str:
     snap = _json("evidence/measurements.json")["stack_snapshot"]
-    head = (["Concurrency", "2026-05-09 mean TPOT (ms)", "2026-07-13 mean TPOT (ms)"]
-            if lang == "en" else ["并发", "2026-05-09 平均 TPOT（ms）", "2026-07-13 平均 TPOT（ms）"])
+    head = (["Concurrency", "2026-05-09", "2026-07-13"] if lang == "en" else ["并发", "2026-05-09", "2026-07-13"])
     rows = [[str(r["concurrency"]), _n(r["early_mean_tpot_ms"]), _n(r["late_mean_tpot_ms"])] for r in snap["decode"]]
     return _table(head, rows, ["r", "r", "r"])
 
@@ -229,20 +222,21 @@ EVIDENCE_LABEL = {
 
 
 def technique_map(lang: str) -> str:
+    """One heading per layer, one entry per technique; lists instead of tables so long switch names wrap on phones."""
     cat = _json("profiles/techniques.json")
     lock = _lock()
-    head = (["Technique", "Switch: MI300X / NVIDIA", "Code", "Evidence"]
-            if lang == "en" else ["技术", "开关：MI300X / NVIDIA", "代码", "证据"])
+    lab = ({"mi": "MI300X", "nv": "NVIDIA", "code": "Code", "ev": "Evidence", "none": "no code change (configuration only)"}
+           if lang == "en" else {"mi": "MI300X", "nv": "NVIDIA", "code": "代码", "ev": "证据", "none": "无代码改动（仅配置）"})
     out = []
     for layer in ("framework", "operator", "workload"):
-        rows = []
+        out.append(f"**{cat['layers'][layer][lang]}**\n")
         for t in cat["techniques"]:
             if t["layer"] != layer:
                 continue
-            codes = ", ".join(f"[{lock[p]['commit'][:7]}]({lock[p]['url']})" for p in t["patches"]) or "—"
+            codes = ", ".join(f"[{lock[p]['commit'][:7]}]({lock[p]['url']})" for p in t["patches"]) or lab["none"]
             label = t["evidence_note"][lang] if "evidence_note" in t else EVIDENCE_LABEL[lang][t["evidence"]]
-            rows.append([t[lang], f"MI300X: {t['rocm']}<br>NVIDIA: {t['cuda']}", codes, label])
-        out.append(f"**{cat['layers'][layer][lang]}**\n\n" + _table(head, rows, ["l", "l", "l", "l"]))
+            out.append(f"- **{t[lang]}**  \n  {lab['mi']}: {t['rocm']}  \n  {lab['nv']}: {t['cuda']}  \n  {lab['code']}: {codes}  \n  {lab['ev']}: {label}")
+        out.append("")
     return "\n".join(out)
 
 
@@ -256,11 +250,10 @@ STACK_LABEL = {
 
 def upstream_table(lang: str) -> str:
     lock = _json("upstream/SOURCES.lock.json")
-    head = (["Commit", "Subject", "Layer", "Status"] if lang == "en" else ["Commit", "提交标题", "层", "状态"])
     cat = _json("profiles/techniques.json")["layers"]
-    rows = [[f"[{e['repository']}@{e['commit'][:7]}]({e['url']})", e["subject"], cat[e["layer"]][lang],
-             STACK_LABEL[lang][e["stack_status"]]] for e in lock["patches"]]
-    return _table(head, rows, ["l", "l", "l", "l"])
+    lines = [f"- [`{e['repository']}@{e['commit'][:7]}`]({e['url']}) — {e['subject']}  \n  {cat[e['layer']][lang]} · {STACK_LABEL[lang][e['stack_status']]}"
+             for e in lock["patches"]]
+    return "\n".join(lines) + "\n"
 
 
 BLOCKS = {
