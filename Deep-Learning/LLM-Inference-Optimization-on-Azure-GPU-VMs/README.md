@@ -40,9 +40,9 @@ Every row compares MI300X with MI300X. The evidence column says how strong the c
 <!-- BEGIN GENERATED: headline -->
 | What changed | Before → after | Change | Evidence |
 |---|---|---:|---|
-| CK FP8 GEMM + unified verify<br>64K in / 1K out, batch 16, one VM | 743.12 → 933.75 gen tok/s | **+25.65%** | A/B, two switches, N=2 per arm |
-| Tuned fused-MoE table<br>8K prefill, concurrency 4, 1P1D | 16,715.80 → 20,780.79 input tok/s | **+24.32%** | stage pair, N=1 |
-| Tuned fused-MoE table<br>8K/1K decode, concurrency 128, 1P1D | 2,209.43 → 2,486.89 output tok/s | **+12.56%** | stage pair, N=1 |
+| CK FP8 GEMM + unified verify<br>64K in / 1K out, batch 16, one VM | 743 → 934 gen tok/s | **+25.65%** | A/B, two switches, N=2 per arm |
+| Tuned fused-MoE table<br>8K prefill, concurrency 4, 1P1D | 16,716 → 20,781 input tok/s | **+24.32%** | stage pair, N=1 |
+| Tuned fused-MoE table<br>8K/1K decode, concurrency 128, 1P1D | 2,209 → 2,487 output tok/s | **+12.56%** | stage pair, N=1 |
 <!-- END GENERATED: headline -->
 
 ### Controlled A/B: block-scale FP8 GEMM path at 64K context
@@ -83,13 +83,13 @@ The implied TPOT is `1000 × 16 / tok/s`, not a client-measured latency.
 
 **What varied.** AITER moved from `fc96a4f` to a build that adds the tuned table from [`d725746`](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9) (the served CSV has the same SHA-256 as the file in that commit). The prefill launch script, the router script and both benchmark scripts have the same SHA-256 on both dates, and the captured environment lines of the decode server match. The full decode launch script was hashed only on the second date, and the sglang commit only on the first, so the attribution to the table is strong but not proven by an in-session A/B.
 
-Prefill input throughput in tokens per second, measured at the client:
+Prefill input throughput in tokens per second (rounded to whole tokens; exact values in `evidence/measurements.json`), measured at the client:
 
 <!-- BEGIN GENERATED: stage-prefill -->
 | Input tokens | Before | After | Change |
 |---:|---:|---:|---:|
-| 8,192 | 16,715.80 | 20,780.79 | **+24.32%** |
-| 65,536 | 17,254.14 | 19,022.57 | **+10.25%** |
+| 8,192 | 16,716 | 20,781 | **+24.32%** |
+| 65,536 | 17,254 | 19,023 | **+10.25%** |
 <!-- END GENERATED: stage-prefill -->
 
 Prefill mean time to first token in seconds, same runs:
@@ -101,15 +101,15 @@ Prefill mean time to first token in seconds, same runs:
 | 65,536 | 14.11 | 12.79 | -9.36% |
 <!-- END GENERATED: stage-prefill-ttft -->
 
-Decode output throughput in tokens per second, measured at the client:
+Decode output throughput in tokens per second (rounded; exact values in `evidence/measurements.json`), measured at the client:
 
 <!-- BEGIN GENERATED: stage-decode -->
 | Concurrency | Before | After | Change |
 |---:|---:|---:|---:|
-| 16 | 1,299.18 | 1,331.98 | **+2.52%** |
-| 32 | 1,910.75 | 1,936.24 | **+1.33%** |
-| 64 | 2,188.05 | 2,457.73 | **+12.33%** |
-| 128 | 2,209.43 | 2,486.89 | **+12.56%** |
+| 16 | 1,299 | 1,332 | **+2.52%** |
+| 32 | 1,911 | 1,936 | **+1.33%** |
+| 64 | 2,188 | 2,458 | **+12.33%** |
+| 128 | 2,209 | 2,487 | **+12.56%** |
 <!-- END GENERATED: stage-decode -->
 
 Decode mean time per output token in milliseconds, same runs:

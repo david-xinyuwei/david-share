@@ -31,6 +31,11 @@ def _n(value: float, digits: int = 2) -> str:
     return f"{value:,.{digits}f}"
 
 
+def _c(value: float) -> str:
+    """Compact throughput: no decimals, so before/after pairs fit a phone column."""
+    return f"{value:,.0f}"
+
+
 def _i(value: float) -> str:
     return f"{value:,.0f}"
 
@@ -110,9 +115,9 @@ def headline(lang: str) -> str:
     st = m["tuned_moe_stage"]
     pre = {r["input_tokens"]: r for r in st["prefill"]}
     dec = {r["concurrency"]: r for r in st["decode"]}
-    ab_val = f"{_n(ab['baseline_mean_tok_s'])} → {_n(ab['optimized_mean_tok_s'])} gen tok/s"
-    pre_val = f"{_n(pre[8192]['before_input_tok_s'])} → {_n(pre[8192]['after_input_tok_s'])} input tok/s"
-    dec_val = f"{_n(dec[128]['before_output_tok_s'])} → {_n(dec[128]['after_output_tok_s'])} output tok/s"
+    ab_val = f"{_c(ab['baseline_mean_tok_s'])} → {_c(ab['optimized_mean_tok_s'])} gen tok/s"
+    pre_val = f"{_c(pre[8192]['before_input_tok_s'])} → {_c(pre[8192]['after_input_tok_s'])} input tok/s"
+    dec_val = f"{_c(dec[128]['before_output_tok_s'])} → {_c(dec[128]['after_output_tok_s'])} output tok/s"
     if lang == "en":
         head = ["What changed", "Before → after", "Change", "Evidence"]
         rows = [
@@ -158,7 +163,7 @@ def ab_tpot(lang: str) -> str:
 def stage_prefill(lang: str) -> str:
     st = _json("evidence/measurements.json")["tuned_moe_stage"]
     head = (["Input tokens", "Before", "After", "Change"] if lang == "en" else ["输入 token", "优化前", "优化后", "变化"])
-    rows = [[_i(r["input_tokens"]), _n(r["before_input_tok_s"]), _n(r["after_input_tok_s"]),
+    rows = [[_i(r["input_tokens"]), _c(r["before_input_tok_s"]), _c(r["after_input_tok_s"]),
              f"**{_pct(r['input_tok_s_delta_pct'])}**"] for r in st["prefill"]]
     return _table(head, rows, ["r", "r", "r", "r"])
 
@@ -174,7 +179,7 @@ def stage_prefill_ttft(lang: str) -> str:
 def stage_decode(lang: str) -> str:
     st = _json("evidence/measurements.json")["tuned_moe_stage"]
     head = (["Concurrency", "Before", "After", "Change"] if lang == "en" else ["并发", "优化前", "优化后", "变化"])
-    rows = [[str(r["concurrency"]), _n(r["before_output_tok_s"]), _n(r["after_output_tok_s"]),
+    rows = [[str(r["concurrency"]), _c(r["before_output_tok_s"]), _c(r["after_output_tok_s"]),
              f"**{_pct(r['output_tok_s_delta_pct'])}**"] for r in st["decode"]]
     return _table(head, rows, ["r", "r", "r", "r"])
 

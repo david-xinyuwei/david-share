@@ -40,9 +40,9 @@
 <!-- BEGIN GENERATED: headline -->
 | 改了什么 | 优化前 → 优化后 | 变化 | 证据 |
 |---|---|---:|---|
-| CK FP8 GEMM + unified verify<br>64K 输入 / 1K 输出，batch 16，单机 | 743.12 → 933.75 gen tok/s | **+25.65%** | 两开关 A/B，各 2 次 |
-| 调优 fused-MoE 表<br>8K prefill，并发 4，1P1D | 16,715.80 → 20,780.79 input tok/s | **+24.32%** | 阶段对比，各 1 次 |
-| 调优 fused-MoE 表<br>8K/1K decode，并发 128，1P1D | 2,209.43 → 2,486.89 output tok/s | **+12.56%** | 阶段对比，各 1 次 |
+| CK FP8 GEMM + unified verify<br>64K 输入 / 1K 输出，batch 16，单机 | 743 → 934 gen tok/s | **+25.65%** | 两开关 A/B，各 2 次 |
+| 调优 fused-MoE 表<br>8K prefill，并发 4，1P1D | 16,716 → 20,781 input tok/s | **+24.32%** | 阶段对比，各 1 次 |
+| 调优 fused-MoE 表<br>8K/1K decode，并发 128，1P1D | 2,209 → 2,487 output tok/s | **+12.56%** | 阶段对比，各 1 次 |
 <!-- END GENERATED: headline -->
 
 ### 受控 A/B：64K 上下文下的 block-scale FP8 GEMM 路径
@@ -83,13 +83,13 @@
 
 **变量。** AITER 从 `fc96a4f` 升级到加入了 [`d725746`](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9) 调优表的版本（实际加载的 CSV 与该 commit 中的文件 SHA-256 相同）。两个日期的 prefill 启动脚本、router 脚本和两份压测脚本 SHA-256 完全一致，decode 服务记录下来的环境变量行也一致。decode 启动脚本的完整哈希只在第二个日期记录过，sglang commit 只在第一个日期记录过，所以把差异归到这张表上证据很强，但还没有同一轮内的 A/B 来证明。
 
-Prefill 输入吞吐（tok/s），客户端测得：
+Prefill 输入吞吐（tok/s，取整；精确值见 `evidence/measurements.json`），客户端测得：
 
 <!-- BEGIN GENERATED: stage-prefill -->
 | 输入 token | 优化前 | 优化后 | 变化 |
 |---:|---:|---:|---:|
-| 8,192 | 16,715.80 | 20,780.79 | **+24.32%** |
-| 65,536 | 17,254.14 | 19,022.57 | **+10.25%** |
+| 8,192 | 16,716 | 20,781 | **+24.32%** |
+| 65,536 | 17,254 | 19,023 | **+10.25%** |
 <!-- END GENERATED: stage-prefill -->
 
 同一批运行的 prefill 平均首 token 时间（秒）：
@@ -101,15 +101,15 @@ Prefill 输入吞吐（tok/s），客户端测得：
 | 65,536 | 14.11 | 12.79 | -9.36% |
 <!-- END GENERATED: stage-prefill-ttft -->
 
-Decode 输出吞吐（tok/s），客户端测得：
+Decode 输出吞吐（tok/s，取整；精确值见 `evidence/measurements.json`），客户端测得：
 
 <!-- BEGIN GENERATED: stage-decode -->
 | 并发 | 优化前 | 优化后 | 变化 |
 |---:|---:|---:|---:|
-| 16 | 1,299.18 | 1,331.98 | **+2.52%** |
-| 32 | 1,910.75 | 1,936.24 | **+1.33%** |
-| 64 | 2,188.05 | 2,457.73 | **+12.33%** |
-| 128 | 2,209.43 | 2,486.89 | **+12.56%** |
+| 16 | 1,299 | 1,332 | **+2.52%** |
+| 32 | 1,911 | 1,936 | **+1.33%** |
+| 64 | 2,188 | 2,458 | **+12.33%** |
+| 128 | 2,209 | 2,487 | **+12.56%** |
 <!-- END GENERATED: stage-decode -->
 
 同一批运行的 decode 平均单 token 时间（毫秒）：
