@@ -1,6 +1,6 @@
 # Deep Learning
 
-A comprehensive collection of 77 projects covering quantization, fine-tuning, inference optimization, training parallelism, GPU benchmarks, and more.
+A comprehensive collection of 78 projects covering quantization, fine-tuning, inference optimization, training parallelism, GPU benchmarks, and more.
 
 > Projects marked with ⭐ were consolidated from multiple related projects during the 2026-02 restructuring.
 
@@ -13,7 +13,7 @@ A comprehensive collection of 77 projects covering quantization, fine-tuning, in
 | 1 | [Quantization & Data Types](#1-quantization--data-types) | 6 |
 | 2 | [Fine-Tuning & Training Techniques](#2-fine-tuning--training-techniques) | 20 |
 | 3 | [RLHF, Alignment & Reasoning](#3-rlhf-alignment--reasoning) | 4 |
-| 4 | [Inference Optimization](#4-inference-optimization) | 17 |
+| 4 | [Inference Optimization](#4-inference-optimization) | 18 |
 | 5 | [Training Parallelism & Distributed Systems](#5-training-parallelism--distributed-systems) | 7 |
 | 6 | [GPU Benchmarks & Hardware](#6-gpu-benchmarks--hardware) | 9 |
 | 7 | [Model Architecture & Understanding](#7-model-architecture--understanding) | 14 |
@@ -89,6 +89,7 @@ vLLM, FlashAttention, KV cache, speculative decoding, and serving frameworks.
 | [FlashAttention-3](FlashAttention-3/) | FlashAttention 3 analysis |
 | [FlashInfer-vs-FlashAttention-Benchmark](FlashInfer-vs-FlashAttention-Benchmark/) | FlashInfer vs FlashAttention benchmark |
 | [KV-Cache-Quantization](KV-Cache-Quantization/) | KV cache quantization techniques |
+| [LLM-Inference-Optimization-on-Azure-GPU-VMs](LLM-Inference-Optimization-on-Azure-GPU-VMs/) | Inference optimization in three layers (serving framework, kernels, PD and fake-prefill workload) for MiMo-V2.5-Pro on Azure ND MI300X v5: public commit diffs, MI300X-vs-MI300X measured gains, and a mapping to NVIDIA GPUs |
 | [LLM-Inference-performance-test](LLM-Inference-performance-test/) | LLM inference performance testing |
 | ⭐ [LLM-Memory-Estimation](LLM-Memory-Estimation/) | Inference memory estimation tool + training/inference memory consumption theory |
 | [MInference](MInference/) | MInference for long-context acceleration |

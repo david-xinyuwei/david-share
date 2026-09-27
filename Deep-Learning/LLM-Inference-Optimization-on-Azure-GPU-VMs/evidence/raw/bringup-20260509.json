@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "kind": "summary-report-projection",
+  "source": {
+    "name": "daily_report_20260509_wechat.txt",
+    "sha256": "05b5ab7d17e32c699602b71629ab0aaf2f9a70d067ab20934d51bac442670fd8",
+    "public": false
+  },
+  "date": "2026-05-09",
+  "decode_workload": {
+    "input_tokens": 16384,
+    "output_tokens": 1024
+  },
+  "decode": [
+    {
+      "concurrency": 32,
+      "output_tok_s": 519,
+      "mean_tpot_ms": 44.79
+    },
+    {
+      "concurrency": 48,
+      "output_tok_s": 577,
+      "mean_tpot_ms": 59.09
+    },
+    {
+      "concurrency": 64,
+      "output_tok_s": 542,
+      "mean_tpot_ms": 61.58
+    },
+    {
+      "concurrency": 96,
+      "output_tok_s": 569,
+      "mean_tpot_ms": 63.76
+    },
+    {
+      "concurrency": 128,
+      "output_tok_s": 576,
+      "mean_tpot_ms": 64.56
+    }
+  ],
+  "prefill": [
+    {
+      "input_tokens": 4096,
+      "input_tok_s": 17192
+    },
+    {
+      "input_tokens": 8192,
+      "input_tok_s": 15928
+    },
+    {
+      "input_tokens": 16384,
+      "input_tok_s": 16576
+    },
+    {
+      "input_tokens": 32768,
+      "input_tok_s": 13341
+    }
+  ]
+}

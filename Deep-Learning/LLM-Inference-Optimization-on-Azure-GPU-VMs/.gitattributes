@@ -1,0 +1,4 @@
+* text eol=lf
+*.json !filter !diff !merge text eol=lf
+*.patch text eol=lf -whitespace
+*.png binary

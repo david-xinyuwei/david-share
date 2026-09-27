@@ -1,0 +1,59 @@
+name: LLM Inference Optimization CI
+
+on:
+  push:
+    paths:
+      - "Deep-Learning/LLM-Inference-Optimization-on-Azure-GPU-VMs/**"
+      - ".github/workflows/llm-inference-optimization-ci.yml"
+  pull_request:
+    paths:
+      - "Deep-Learning/LLM-Inference-Optimization-on-Azure-GPU-VMs/**"
+      - ".github/workflows/llm-inference-optimization-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+  CHECK_MONOREPO_LINKS: "1"
+
+jobs:
+  validate:
+    name: Validate (${{ matrix.os }}, Python ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.10", "3.12"]
+    defaults:
+      run:
+        working-directory: Deep-Learning/LLM-Inference-Optimization-on-Azure-GPU-VMs
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          lfs: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: No compiled files are tracked
+        shell: bash
+        run: |
+          if git ls-files -- . | grep -E '__pycache__|\.pyc$'; then echo 'compiled files are tracked'; exit 1; fi
+      - name: Compile Python
+        run: python -m compileall -q tools tests
+      - name: Run tests
+        run: python -m unittest discover -s tests -v
+      - name: Evidence is current
+        run: python tools/build_evidence.py --check
+      - name: READMEs are current
+        run: python tools/build_readme.py --check
+      - name: Diagrams match their ledger
+        run: python tools/draw_diagrams.py --check
+      - name: Public-content audit
+        run: python tools/check_repo.py
+      - name: Launch profiles render
+        run: python tools/render_launch.py --list

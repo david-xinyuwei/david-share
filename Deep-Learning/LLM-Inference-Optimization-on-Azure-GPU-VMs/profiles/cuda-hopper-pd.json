@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "profile": "cuda-hopper-pd",
+  "status": "TEMPLATE_NOT_MEASURED",
+  "measured_runs": [],
+  "description": "The same three-layer method mapped to an NVIDIA Hopper-class PD pair with upstream SGLang. Every switch below is an upstream SGLang flag or environment variable; none of it was run for this repository. Re-tune the fused-MoE configs and the page/SWA sizing on the target GPU before trusting any number.",
+  "variables": {
+    "MODEL_PATH": "local path of the model checkpoint",
+    "PREFILL_HOST": "address of the prefill node on the RDMA network",
+    "DECODE_HOST": "address of the decode node on the RDMA network",
+    "IB_DEVICES": "comma-separated RDMA devices, e.g. mlx5_0,...,mlx5_7",
+    "CONCURRENCY": "client concurrency",
+    "INPUT_LEN": "prefill input length"
+  },
+  "platform_env": {},
+  "roles": {
+    "prefill": {
+      "command": ["python3", "-u", "-m", "sglang.launch_server"],
+      "args": ["--model-path", "${MODEL_PATH}", "--tp-size", "8", "--host", "0.0.0.0", "--port", "30000", "--trust-remote-code", "--disable-radix-cache", "--context-length", "262144", "--max-running-requests", "128"]
+    },
+    "decode": {
+      "command": ["python3", "-u", "-m", "sglang.launch_server"],
+      "args": ["--model-path", "${MODEL_PATH}", "--tp-size", "8", "--host", "0.0.0.0", "--port", "30001", "--trust-remote-code", "--disable-radix-cache", "--context-length", "262144", "--max-running-requests", "128"]
+    },
+    "router": {
+      "command": ["python3", "-m", "sglang_router.launch_router"],
+      "args": ["--pd-disaggregation", "--prefill", "http://${PREFILL_HOST}:30000", "--decode", "http://${DECODE_HOST}:30001", "--host", "0.0.0.0", "--port", "40000"]
+    },
+    "bench-decode": {
+      "command": ["python3", "-m", "sglang.bench_serving"],
+      "args": ["--backend", "sglang", "--model", "${MODEL_PATH}", "--host", "0.0.0.0", "--port", "40000", "--dataset-name", "random", "--random-input-len", "8192", "--random-output-len", "1024", "--random-range-ratio", "1.0", "--flush-cache", "--seed", "12345", "--num-prompts", "256", "--warmup-requests", "32", "--max-concurrency", "${CONCURRENCY}", "--pd-separated"]
+    },
+    "bench-prefill": {
+      "command": ["python3", "-m", "sglang.bench_serving"],
+      "args": ["--backend", "sglang", "--model", "${MODEL_PATH}", "--host", "0.0.0.0", "--port", "40000", "--dataset-name", "random", "--random-input-len", "${INPUT_LEN}", "--random-output-len", "1", "--random-range-ratio", "1.0", "--flush-cache", "--seed", "12345", "--num-prompts", "16", "--warmup-requests", "1", "--max-concurrency", "4", "--pd-separated"]
+    }
+  },
+  "techniques": {
+    "attention-dispatch": {
+      "prefill": {"args": ["--attention-backend", "fa3"]},
+      "decode": {"args": ["--attention-backend", "fa3"]}
+    },
+    "memory-sizing": {
+      "prefill": {"args": ["--chunked-prefill-size", "32768", "--page-size", "64"]},
+      "decode": {"args": ["--chunked-prefill-size", "32768", "--page-size", "64"]}
+    },
+    "fp8-kv-5d": {
+      "prefill": {"args": ["--kv-cache-dtype", "fp8_e4m3"]},
+      "decode": {"args": ["--kv-cache-dtype", "fp8_e4m3"]}
+    },
+    "pd-disaggregation": {
+      "prefill": {"args": ["--disaggregation-mode", "prefill", "--disaggregation-transfer-backend", "mooncake", "--disaggregation-ib-device", "${IB_DEVICES}"]},
+      "decode": {"args": ["--disaggregation-mode", "decode", "--disaggregation-transfer-backend", "mooncake", "--disaggregation-ib-device", "${IB_DEVICES}"]}
+    },
+    "eagle-mtp": {
+      "prefill": {"args": ["--speculative-algorithm", "EAGLE", "--speculative-num-steps", "3", "--speculative-eagle-topk", "1", "--speculative-num-draft-tokens", "4", "--enable-multi-layer-eagle"]},
+      "decode": {"args": ["--speculative-algorithm", "EAGLE", "--speculative-num-steps", "3", "--speculative-eagle-topk", "1", "--speculative-num-draft-tokens", "4", "--enable-multi-layer-eagle"]}
+    },
+    "simulated-acceptance": {
+      "prefill": {"env": {"SGLANG_SIMULATE_ACC_LEN": "3", "SGLANG_SIMULATE_ACC_METHOD": "match-expected"}},
+      "decode": {"env": {"SGLANG_SIMULATE_ACC_LEN": "3", "SGLANG_SIMULATE_ACC_METHOD": "match-expected"}}
+    },
+    "ck-a8w8-gemm": {
+      "prefill": {"env": {"SGLANG_ENABLE_JIT_DEEPGEMM": "1"}},
+      "decode": {"env": {"SGLANG_ENABLE_JIT_DEEPGEMM": "1"}}
+    },
+    "tuned-fused-moe": {
+      "prefill": {"note": "generate the Triton fused-MoE JSON with benchmark/kernels/fused_moe_triton/tuning_fused_moe_triton.py and place it in SGLang's fused_moe_triton configs directory"},
+      "decode": {"note": "same JSON on the decode node"}
+    }
+  }
+}

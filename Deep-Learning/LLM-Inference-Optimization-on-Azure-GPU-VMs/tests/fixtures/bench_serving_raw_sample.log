@@ -1,0 +1,28 @@
+Synthetic test input for tests/test_bench_log.py. It imitates the layout of
+sglang.bench_serving output; the numbers are made up and are not evidence.
+benchmark_args=Namespace(backend='sglang', base_url=None, host='0.0.0.0', port=40000, dataset_name='random', dataset_path='/srv/private/ShareGPT.json', model='/srv/private/model', num_prompts=256, random_input_len=8192, random_output_len=1024, random_range_ratio=1.0, request_rate=inf, max_concurrency=64, warmup_requests=32, flush_cache=True, seed=12345, tokenize_prompt=False, pd_separated=True, fake_prefill=False)
+Waiting up to 60s for http://0.0.0.0:40000/v1/models to become ready...
+
+============ Serving Benchmark Result ============
+Backend:                                 sglang
+Traffic request rate:                    inf
+Max request concurrency:                 64
+Successful requests:                     256
+Benchmark duration (s):                  100.00
+Total input tokens:                      2097152
+Total generated tokens:                  262144
+Request throughput (req/s):              2.56
+Input token throughput (tok/s):          20971.52
+Output token throughput (tok/s):         1234.50
+Concurrency:                             60.00
+----------------End-to-End Latency----------------
+Mean E2E Latency (ms):                   20000.00
+---------------Time to First Token----------------
+Mean TTFT (ms):                          5000.00
+Median TTFT (ms):                        4000.00
+P99 TTFT (ms):                           9000.00
+-----Time per Output Token (excl. 1st token)------
+Mean TPOT (ms):                          12.25
+Median TPOT (ms):                        12.00
+P99 TPOT (ms):                           14.00
+==================================================

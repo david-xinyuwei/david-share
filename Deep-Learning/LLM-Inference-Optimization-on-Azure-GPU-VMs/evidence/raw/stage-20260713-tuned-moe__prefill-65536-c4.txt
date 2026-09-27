@@ -1,0 +1,44 @@
+# args: dataset_name=random fake_prefill=False flush_cache=True max_concurrency=4 num_prompts=16 pd_separated=True random_input_len=65536 random_output_len=1 random_range_ratio=1.0 request_rate=inf seed=12345 tokenize_prompt=False warmup_requests=1
+============ Serving Benchmark Result ============
+Backend:                                 sglang
+Traffic request rate:                    inf
+Max request concurrency:                 4
+Successful requests:                     16
+Benchmark duration (s):                  55.12
+Total input tokens:                      1048576
+Total input text tokens:                 1048576
+Total generated tokens:                  16
+Total generated tokens (retokenized):    16
+Request throughput (req/s):              0.29
+Input token throughput (tok/s):          19022.57
+Output token throughput (tok/s):         0.29
+Peak output token throughput (tok/s):    1.00
+Peak concurrent requests:                5
+Total token throughput (tok/s):          19022.86
+Concurrency:                             3.71
+----------------End-to-End Latency----------------
+Mean E2E Latency (ms):                   12786.75
+Median E2E Latency (ms):                 13883.65
+P90 E2E Latency (ms):                    14060.64
+P95 E2E Latency (ms):                    14286.52
+P99 E2E Latency (ms):                    14814.03
+---------------Time to First Token----------------
+Mean TTFT (ms):                          12786.72
+Median TTFT (ms):                        13883.63
+P90 TTFT (ms):                           14060.52
+P95 TTFT (ms):                           14286.35
+P99 TTFT (ms):                           14813.98
+-----Time per Output Token (excl. 1st token)------
+Mean TPOT (ms):                          0.00
+Median TPOT (ms):                        0.00
+P90 TPOT (ms):                           0.00
+P95 TPOT (ms):                           0.00
+P99 TPOT (ms):                           0.00
+---------------Inter-Token Latency----------------
+Mean ITL (ms):                           0.00
+Median ITL (ms):                         0.00
+P90 ITL (ms):                            0.00
+P95 ITL (ms):                            0.00
+P99 ITL (ms):                            0.00
+Max ITL (ms):                            0.00
+==================================================

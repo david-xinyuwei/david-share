@@ -1,0 +1,315 @@
+From 3f4ab482a2986919c784e469e23cfac7f93bb153 Mon Sep 17 00:00:00 2001
+From: Xiake Sun <xiake.sun@amd.com>
+Date: Fri, 31 Jul 2026 02:15:25 +0000
+Subject: [PATCH] feat (MHA): Optimize MiMo FP8 page-64 batch prefill with a
+ head-192 CK specialization
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- Add the validated (192,96) FP8/BF16 batch-prefill tile for MiMo’s head-192, vectorized page-64 KV cache via a temporary CK patch.
+- Restrict dispatch to the exact supported contract, preserve the padded head-256 fallback, add AITER coverage for non-contiguous pages, ragged contexts, numerical accuracy, and fully written outputs.
+
+Signed-off-by: Xiake Sun <xiake.sun@amd.com>
+---
+ op_tests/test_batch_prefill.py                | 133 ++++++++++++++++++
+ patches/composable_kernel/README.md           |  58 ++++++++
+ ...imo_fp8_page64_head192_batch_prefill.patch |  80 +++++++++++
+ 3 files changed, 271 insertions(+)
+ create mode 100644 patches/composable_kernel/README.md
+ create mode 100644 patches/composable_kernel/mimo_fp8_page64_head192_batch_prefill.patch
+
+diff --git a/op_tests/test_batch_prefill.py b/op_tests/test_batch_prefill.py
+index 06612617d89..66b37245449 100644
+--- a/op_tests/test_batch_prefill.py
++++ b/op_tests/test_batch_prefill.py
+@@ -1552,6 +1552,139 @@ def test_batch_prefill_linear_vs_vectorized(
+     )
+ 
+ 
++@pytest.mark.parametrize(
++    "batch_size,qo_len,kv_len",
++    [(1, 128, 256), (4, 127, 4097)],
++)
++def test_batch_prefill_mimo_fp8_vectorized_page64(
++    batch_size, qo_len, kv_len
++):
++    """Cover MiMo's direct cached-prefill contract and ragged last pages."""
++    torch.manual_seed(20260730)
++    num_qo_heads, num_kv_heads = 16, 1
++    head_dim, page_size = 192, 64
++    pages_per_seq = math.ceil(kv_len / page_size)
++    num_pages = batch_size * pages_per_seq
++
++    q_bf16 = torch.randn(
++        batch_size * qo_len,
++        num_qo_heads,
++        head_dim,
++        device="cuda",
++        dtype=torch.bfloat16,
++    ) * 0.25
++    k_bf16 = torch.randn(
++        num_pages,
++        page_size,
++        num_kv_heads,
++        head_dim,
++        device="cuda",
++        dtype=torch.bfloat16,
++    ) * 0.25
++    v_bf16 = torch.randn_like(k_bf16) * 0.25
++    q_fp8, q_descale = per_tensor_quant(q_bf16, quant_dtype=dtypes.fp8)
++    k_fp8, k_descale = per_tensor_quant(k_bf16, quant_dtype=dtypes.fp8)
++    v_fp8, v_descale = per_tensor_quant(v_bf16, quant_dtype=dtypes.fp8)
++
++    # Reverse each request's physical pages so a linear-addressing accident
++    # cannot pass while still keeping page ownership disjoint across requests.
++    page_table = torch.arange(num_pages, dtype=torch.int32).view(
++        batch_size, pages_per_seq
++    )
++    page_table = page_table.flip(1).contiguous()
++    kv_page_indices = torch.nn.functional.pad(
++        page_table.flatten(), (0, 256), value=0
++    ).to("cuda")
++    cu_seqlens_q = torch.arange(
++        0,
++        (batch_size + 1) * qo_len,
++        qo_len,
++        dtype=torch.int32,
++        device="cuda",
++    )
++    kv_indptr = torch.arange(
++        0,
++        (batch_size + 1) * pages_per_seq,
++        pages_per_seq,
++        dtype=torch.int32,
++        device="cuda",
++    )
++    kv_last_page_lens = torch.full(
++        (batch_size,),
++        (kv_len - 1) % page_size + 1,
++        dtype=torch.int32,
++        device="cuda",
++    )
++    k_vec, v_vec = apply_kv_layout(
++        k_fp8,
++        v_fp8,
++        num_kv_heads,
++        head_dim,
++        page_size,
++        get_vector_size(dtypes.fp8),
++        "vectorized",
++    )
++
++    # Use a NaN sentinel so a tile that silently leaves any token/head lane
++    # unwritten cannot pass merely because zero is inside the loose FP8
++    # absolute-error threshold.
++    out = torch.full(
++        (batch_size * qo_len, num_qo_heads, head_dim),
++        float("nan"),
++        device="cuda",
++        dtype=torch.bfloat16,
++    )
++    out = aiter.mha_batch_prefill_func(
++        q_fp8,
++        k_vec,
++        v_vec,
++        cu_seqlens_q,
++        kv_indptr,
++        kv_page_indices,
++        max_seqlen_q=qo_len,
++        max_seqlen_k=kv_len,
++        causal=True,
++        q_descale=q_descale,
++        k_descale=k_descale,
++        v_descale=v_descale,
++        kv_last_page_lens=kv_last_page_lens,
++        out=out,
++    )
++    torch.cuda.synchronize()
++    assert torch.isfinite(out).all()
++
++    q_ref = q_fp8.float() * q_descale
++    refs = []
++    for batch_idx in range(batch_size):
++        pages = page_table[batch_idx].long().to("cuda")
++        k_ref = (k_fp8[pages].reshape(-1, num_kv_heads, head_dim)[:kv_len].float())
++        v_ref = (v_fp8[pages].reshape(-1, num_kv_heads, head_dim)[:kv_len].float())
++        k_ref = (k_ref * k_descale).repeat_interleave(
++            num_qo_heads // num_kv_heads, dim=1
++        )
++        v_ref = (v_ref * v_descale).repeat_interleave(
++            num_qo_heads // num_kv_heads, dim=1
++        )
++        q_ref_batch = q_ref[
++            batch_idx * qo_len : (batch_idx + 1) * qo_len
++        ]
++        rows = torch.arange(qo_len, device="cuda").unsqueeze(1)
++        cols = torch.arange(kv_len, device="cuda").unsqueeze(0)
++        causal_mask = cols <= (kv_len - qo_len + rows)
++        refs.append(
++            torch.nn.functional.scaled_dot_product_attention(
++                q_ref_batch.transpose(0, 1).unsqueeze(0),
++                k_ref.transpose(0, 1).unsqueeze(0),
++                v_ref.transpose(0, 1).unsqueeze(0),
++                attn_mask=causal_mask,
++            )
++            .squeeze(0)
++            .transpose(0, 1)
++        )
++    reference = torch.cat(refs, dim=0)
++    verify_fp8_output(out.float(), reference.float(), threshold=0.055)
++
++
+ def per_page_quant(tensor, page_size, quant_dtype):
+     """
+     Quantize tensor with per-page scale.
+diff --git a/patches/composable_kernel/README.md b/patches/composable_kernel/README.md
+new file mode 100644
+index 00000000000..f667110c1f8
+--- /dev/null
++++ b/patches/composable_kernel/README.md
+@@ -0,0 +1,58 @@
++# Temporary Composable Kernel patch
++
++This directory carries the temporary CK portion of the MiMo-V2.5-Pro cached
++prefill optimization while the corresponding `ROCm/rocm-libraries` change is
++not yet available through AITER's pinned `ROCm/composable_kernel` submodule.
++
++The patch targets the CK revision currently pinned by this AITER fork:
++
++```text
++af7118e342580ecd3f71edce7b1d0ba465012ecf
++```
++
++It adds the guarded FP8/BF16, head-192, vectorized page-64 batch-prefill
++specialization used by MiMo. The patch should be removed after AITER is moved
++to the official exported CK commit containing the same change.
++
++## Apply
++
++Run these commands from the AITER repository root:
++
++```bash
++git submodule update --init 3rdparty/composable_kernel
++git -C 3rdparty/composable_kernel apply --check \
++  < patches/composable_kernel/mimo_fp8_page64_head192_batch_prefill.patch
++git -C 3rdparty/composable_kernel apply \
++  < patches/composable_kernel/mimo_fp8_page64_head192_batch_prefill.patch
++```
++
++If `git apply --check` reports that the patch does not apply, first inspect the
++submodule state. Do not blindly apply it to a different CK revision:
++
++```bash
++git -C 3rdparty/composable_kernel rev-parse HEAD
++git -C 3rdparty/composable_kernel status --short
++```
++
++## Verify or remove
++
++Check that the patch is already present:
++
++```bash
++git -C 3rdparty/composable_kernel apply --reverse --check \
++  < patches/composable_kernel/mimo_fp8_page64_head192_batch_prefill.patch
++```
++
++Remove the temporary patch from the submodule working tree:
++
++```bash
++git -C 3rdparty/composable_kernel apply --reverse \
++  < patches/composable_kernel/mimo_fp8_page64_head192_batch_prefill.patch
++```
++
++Run the focused AITER regression after rebuilding the generated CK extension:
++
++```bash
++python -m pytest -q op_tests/test_batch_prefill.py \
++  -k mimo_fp8_vectorized_page64
++```
+diff --git a/patches/composable_kernel/mimo_fp8_page64_head192_batch_prefill.patch b/patches/composable_kernel/mimo_fp8_page64_head192_batch_prefill.patch
+new file mode 100644
+index 00000000000..c4db9efaf2a
+--- /dev/null
++++ b/patches/composable_kernel/mimo_fp8_page64_head192_batch_prefill.patch
+@@ -0,0 +1,80 @@
++diff --git a/example/ck_tile/01_fmha/codegen/ops/fmha_batch_prefill.py b/example/ck_tile/01_fmha/codegen/ops/fmha_batch_prefill.py
++index 475631a88..4fba587a2 100644
++--- a/example/ck_tile/01_fmha/codegen/ops/fmha_batch_prefill.py
+++++ b/example/ck_tile/01_fmha/codegen/ops/fmha_batch_prefill.py
++@@ -220,7 +220,7 @@ FMHA_FWD_API_PER_DTYPE = """    {F_if}(t.data_type.compare(\"{F_dtype}\") == 0){
++ {F_hdim_case}
++     }}
++ """
++-FMHA_FWD_API_PER_HDIM_CASE = """        {F_if} (t.hdim_q <= {F_hdim} && t.hdim_v <= {F_hdim_v}) {{
+++FMHA_FWD_API_PER_HDIM_CASE = """        {F_if} ({F_hdim_check}) {{
++ {F_inner_dispatch}
++         }}
++ """
++@@ -509,8 +509,22 @@ class FmhaFwdApiPool:
++                         F_kv_load_mode=KV_LOAD_MODE_ENUM_MAP[trait.use_global_load],
++                     )
++                 if_j = "if" if j == 0 else "else if"
+++                hdim_check = f"t.hdim_q <= {hdim} && t.hdim_v <= {trait.bn1}"
+++                if dtype == "fp8bf16" and int(hdim) == 192:
+++                    # The MiMo specialization is deliberately sparse.  Put
+++                    # the cache contract in the outer head-dimension branch
+++                    # so unsupported D=192 variants fall through to the
+++                    # existing padded D=256 bucket instead of returning -1.
+++                    hdim_check = (
+++                        "t.hdim_q == 192 && t.hdim_v == 192 && "
+++                        "t.kv_memory_layout == "
+++                        "ck_tile::BlockAttentionKVCacheMemoryLayoutEnum::VECTORIZED_LAYOUT && "
+++                        "t.kv_lookup_table == "
+++                        "ck_tile::BlockAttentionKVCacheLookupTableEnum::SGLANG_PAGE_TABLE_1D && "
+++                        "t.page_size == 64"
+++                    )
++                 per_hdim_case = per_hdim_case + FMHA_FWD_API_PER_HDIM_CASE.format(
++-                    F_if=if_j, F_hdim=hdim, F_hdim_v=trait.bn1, F_inner_dispatch=inners
+++                    F_if=if_j, F_hdim_check=hdim_check, F_inner_dispatch=inners
++                 )
++             if_i = "if" if i == 0 else "else if"
++             per_dtypes = per_dtypes + FMHA_FWD_API_PER_DTYPE.format(
++@@ -682,6 +696,19 @@ class KernelComponentFactory:
++         elif dtype in ["fp8bf16"]:
++             return {
++                 128 : [FmhaFwdTileSize(128, 128, 32, 128, 32,  128,  4, 1, 1,  4, 1, 1,  32, 32, 32,  32, 32, 32,  -1)],
+++                # MiMo-V2.5-Pro TP8: 16Q/1KV, logical/padded Dq=Dv=192.
+++                # The (192, 96) configuration is the fastest long-context tile
+++                # that overwrites every output head.  The nominally faster
+++                # (192, 128) tile leaves some GQA heads untouched; zero-filled
+++                # benchmark output hid that coverage bug behind the FP8 error
+++                # tolerance.  The faster 8K
+++                # (64, 96) tile is intentionally not promoted yet: batch
+++                # prefill does not currently carry a host-visible logical
+++                # max_seqlen_k in its dispatch args, so it cannot be selected
+++                # safely for a small query appended to a long cached prefix.
+++                192 : [
+++                    FmhaFwdTileSize(192, 96, 32, 192, 32, 192,  6, 1, 1,  6, 1, 1,  32, 32, 32,  32, 32, 32,  -1),
+++                ],
++                 256 : [FmhaFwdTileSize(128, 128, 32, 256, 32,  256,  4, 1, 1,  4, 1, 1,  32, 32, 32,  32, 32, 32,  -1)],
++             }  # fmt: skip
++         else:
++@@ -815,8 +842,20 @@ def get_fwd_blobs(
++                 ):
++                     continue
++ 
++-                # Generate kernels for both page_size=16 and page_size=1024
++-                for page_size in SUPPORTED_PAGE_SIZE:
+++                # Keep the tuned head-192 specialization exact: page-64,
+++                # vectorized SGLang cache only.  Other page/layout/table
+++                # combinations continue to use the padded head-256 kernels.
+++                # Besides avoiding a broad JIT-matrix expansion, the tuned
+++                # tile is not compile-valid for page-64 LINEAR_LAYOUT.
+++                page_sizes = SUPPORTED_PAGE_SIZE
+++                if dtype == "fp8bf16" and hdim == 192:
+++                    if (
+++                        pipeline.F_kv_memory_layout != "vectorized"
+++                        or pipeline.F_kv_lookup_table != "sglang"
+++                    ):
+++                        continue
+++                    page_sizes = [64]
+++                for page_size in page_sizes:
++                     if page_size == 1 and pipeline.F_kv_memory_layout != "linear":
++                         continue
++                     # kv_blockscale requires page_size >= kN0 (tile.F_bn0)

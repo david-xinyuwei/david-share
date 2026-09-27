@@ -1,0 +1,169 @@
+From a2fd773ab43f960f5f2c29b5c592b0ca43c5ba8f Mon Sep 17 00:00:00 2001
+From: Xiake Sun <xiake.sun@amd.com>
+Date: Tue, 28 Jul 2026 06:26:32 +0000
+Subject: [PATCH] feat(flydsl pa decode): add configurable FlyDSL partition
+ counts
+
+Support configurable FlyDSL partition counts (8/16/24/32) through SGLANG_FLYDSL_PA_NUM_PARTITIONS, defaulting to 8.
+
+Signed-off-by: Xiake Sun <xiake.sun@amd.com>
+---
+ .../srt/layers/attention/aiter_backend.py     | 15 ++++++---
+ .../srt/layers/attention/aiter_utils.py       | 32 ++++++++++++++++---
+ 2 files changed, 38 insertions(+), 9 deletions(-)
+
+diff --git a/python/sglang/srt/layers/attention/aiter_backend.py b/python/sglang/srt/layers/attention/aiter_backend.py
+index 24560808aa98..db7e4089885a 100755
+--- a/python/sglang/srt/layers/attention/aiter_backend.py
++++ b/python/sglang/srt/layers/attention/aiter_backend.py
+@@ -62,14 +62,15 @@
+ 
+ from sglang.srt.configs.model_config import AttentionArch
+ from sglang.srt.layers.attention.aiter_utils import (
++    FLYDSL_MIMO_DEFAULT_NUM_PARTITIONS,
+     FLYDSL_MIMO_EQUIVALENT_GROUP_SIZE,
+     FLYDSL_MIMO_HEAD_DIM,
+     FLYDSL_MIMO_KV_HEADS,
+-    FLYDSL_MIMO_NUM_PARTITIONS,
+     forward_decode_vectorized_5d,
+     forward_extend_vectorized_5d,
+     forward_target_verify_flydsl_5d,
+     forward_target_verify_vectorized_5d,
++    get_flydsl_mimo_num_partitions,
+     load_flydsl_pa_decode_kernels,
+ )
+ from sglang.srt.layers.attention.utils import (
+@@ -299,6 +300,7 @@ def _pool_is_vec5d(pool):
+         self._flydsl_pa_decode_pout = None
+         self._flydsl_pa_decode_context_lengths = None
+         self._flydsl_pa_decode_workspace_max_bs = 0
++        self._flydsl_pa_decode_num_partitions = FLYDSL_MIMO_DEFAULT_NUM_PARTITIONS
+         self._flydsl_pa_decode_compiled = False
+         self._configure_flydsl_pa_decode(max_bs)
+ 
+@@ -370,6 +372,8 @@ def _configure_flydsl_pa_decode(self, max_bs: int) -> None:
+         if not self._use_flydsl_pa_decode:
+             return
+ 
++        self._flydsl_pa_decode_num_partitions = get_flydsl_mimo_num_partitions()
++
+         incompatibilities = []
+         if self.use_mla:
+             incompatibilities.append("MLA is unsupported")
+@@ -412,10 +416,11 @@ def _configure_flydsl_pa_decode(self, max_bs: int) -> None:
+             "Enabled MiMo FlyDSL PA decode on target worker: full "
+             "TARGET_VERIFY=FlyDSL, SWA/sink TARGET_VERIFY=AITER, "
+             "ordinary decode=AITER; runtime=%s (%s), kernel=%s, "
+-            "workspace_max_bs=%d",
++            "partitions=%d, workspace_max_bs=%d",
+             kernels.version,
+             kernels.runtime_path,
+             kernels.kernel_path,
++            self._flydsl_pa_decode_num_partitions,
+             self._flydsl_pa_decode_workspace_max_bs,
+         )
+ 
+@@ -432,7 +437,7 @@ def _ensure_flydsl_pa_decode_workspace(self, max_bs: int) -> None:
+         scalar_numel = (
+             max_bs
+             * FLYDSL_MIMO_KV_HEADS
+-            * FLYDSL_MIMO_NUM_PARTITIONS
++            * self._flydsl_pa_decode_num_partitions
+             * FLYDSL_MIMO_EQUIVALENT_GROUP_SIZE
+         )
+         self._flydsl_pa_decode_pmax = torch.empty(
+@@ -461,7 +466,7 @@ def _compile_flydsl_pa_decode(self) -> None:
+             head_dim=192,
+             query_group_size=16,
+             block_size=64,
+-            num_partitions=8,
++            num_partitions=self._flydsl_pa_decode_num_partitions,
+             softmax_scale=192**-0.5,
+             query_dtype="bf16",
+             per_token_kv=False,
+@@ -469,7 +474,7 @@ def _compile_flydsl_pa_decode(self) -> None:
+             trans_v=True,
+         )
+         self._flydsl_compile_pa_decode_reduce(
+-            max_context_partition_num=8,
++            max_context_partition_num=self._flydsl_pa_decode_num_partitions,
+             query_seq_len=4,
+             query_group_size=16,
+             head_size=192,
+diff --git a/python/sglang/srt/layers/attention/aiter_utils.py b/python/sglang/srt/layers/attention/aiter_utils.py
+index a9178352c936..2c222b234ec1 100644
+--- a/python/sglang/srt/layers/attention/aiter_utils.py
++++ b/python/sglang/srt/layers/attention/aiter_utils.py
+@@ -15,6 +15,7 @@
+ from __future__ import annotations
+ 
+ import importlib
++import os
+ from dataclasses import dataclass
+ from functools import lru_cache
+ from typing import TYPE_CHECKING, Callable
+@@ -50,10 +51,32 @@
+ FLYDSL_MIMO_KV_HEADS = 1
+ FLYDSL_MIMO_HEAD_DIM = 192
+ FLYDSL_MIMO_PAGE_SIZE = 64
+-FLYDSL_MIMO_NUM_PARTITIONS = 8
++FLYDSL_MIMO_DEFAULT_NUM_PARTITIONS = 8
++FLYDSL_MIMO_SUPPORTED_NUM_PARTITIONS = (8, 16, 24, 32)
++FLYDSL_MIMO_NUM_PARTITIONS_ENV = "SGLANG_FLYDSL_PA_NUM_PARTITIONS"
+ FLYDSL_MIMO_EQUIVALENT_GROUP_SIZE = 64
+ 
+ 
++def get_flydsl_mimo_num_partitions() -> int:
++    raw_value = os.getenv(
++        FLYDSL_MIMO_NUM_PARTITIONS_ENV,
++        str(FLYDSL_MIMO_DEFAULT_NUM_PARTITIONS),
++    )
++    try:
++        num_partitions = int(raw_value)
++    except ValueError as exc:
++        raise ValueError(
++            f"{FLYDSL_MIMO_NUM_PARTITIONS_ENV} must be one of "
++            f"{FLYDSL_MIMO_SUPPORTED_NUM_PARTITIONS}; got {raw_value!r}"
++        ) from exc
++    if num_partitions not in FLYDSL_MIMO_SUPPORTED_NUM_PARTITIONS:
++        raise ValueError(
++            f"{FLYDSL_MIMO_NUM_PARTITIONS_ENV} must be one of "
++            f"{FLYDSL_MIMO_SUPPORTED_NUM_PARTITIONS}; got {num_partitions}"
++        )
++    return num_partitions
++
++
+ @dataclass(frozen=True)
+ class FlyDSLPADecodeKernels:
+     pa_decode_tile: Callable
+@@ -379,10 +402,11 @@ def _get_flydsl_workspace_views(
+     backend: AiterAttnBackend,
+     batch_size: int,
+ ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
++    num_partitions = backend._flydsl_pa_decode_num_partitions
+     scalar_numel = (
+         batch_size
+         * FLYDSL_MIMO_KV_HEADS
+-        * FLYDSL_MIMO_NUM_PARTITIONS
++        * num_partitions
+         * FLYDSL_MIMO_EQUIVALENT_GROUP_SIZE
+     )
+     output_numel = scalar_numel * FLYDSL_MIMO_HEAD_DIM
+@@ -403,7 +427,7 @@ def _get_flydsl_workspace_views(
+     scalar_shape = (
+         batch_size,
+         FLYDSL_MIMO_KV_HEADS,
+-        FLYDSL_MIMO_NUM_PARTITIONS,
++        num_partitions,
+         FLYDSL_MIMO_EQUIVALENT_GROUP_SIZE,
+     )
+     pmax = backend._flydsl_pa_decode_pmax[:scalar_numel].view(scalar_shape)
+@@ -623,7 +647,7 @@ def forward_target_verify_flydsl_5d(
+         key_scale=key_scale,
+         value_scale=value_scale,
+         softmax_scale=layer.scaling,
+-        num_partitions=FLYDSL_MIMO_NUM_PARTITIONS,
++        num_partitions=backend._flydsl_pa_decode_num_partitions,
+         pmax=pmax,
+         psum=psum,
+         pout=pout,

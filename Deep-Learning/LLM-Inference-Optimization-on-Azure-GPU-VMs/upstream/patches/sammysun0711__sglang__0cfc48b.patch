@@ -1,0 +1,406 @@
+From 0cfc48b0e374d7e84c122f739182a39feea56d46 Mon Sep 17 00:00:00 2001
+From: Xiake Sun <xiake.sun@amd.com>
+Date: Fri, 31 Jul 2026 01:49:12 +0000
+Subject: [PATCH] feat(MHA): Route MiMo cached prefill directly to AITER
+ page-64 attention
+
+- Build ragged page metadata for MiMo cached-prefill batches and pass the vectorized 5D FP8 KV cache directly to AITER for tuned CK FP8 mha batch prefill 16Q/1KV, head-192, page-64 configuration.
+- This avoids the expensive KV gather-and-linearize path while retaining existing BF16 fresh-prefill and SWA/sink/unsupported-shape fallbacks.
+- Required related AITER CK dependency update.
+
+Signed-off-by: Xiake Sun <xiake.sun@amd.com>
+---
+ .../srt/layers/attention/aiter_backend.py     |  74 +++++++++
+ .../srt/layers/attention/aiter_utils.py       | 157 +++++++++++++++---
+ .../triton_ops/aiter_unified_attention.py     |  36 ++++
+ 3 files changed, 241 insertions(+), 26 deletions(-)
+
+diff --git a/python/sglang/srt/layers/attention/aiter_backend.py b/python/sglang/srt/layers/attention/aiter_backend.py
+index db7e4089885a..ebdbe837c0c1 100755
+--- a/python/sglang/srt/layers/attention/aiter_backend.py
++++ b/python/sglang/srt/layers/attention/aiter_backend.py
+@@ -15,6 +15,7 @@
+ from sglang.srt.environ import envs
+ from sglang.srt.layers.attention.base_attn_backend import AttentionBackend
+ from sglang.srt.layers.attention.triton_ops.aiter_unified_attention import (
++    scatter_ragged_to_paged_kv_kernel,
+     scatter_ragged_to_page_table_kernel,
+     scatter_req_to_token_to_page_table_kernel,
+ )
+@@ -127,6 +128,9 @@ class ForwardMetadata:
+     max_extend_len: Optional[int] = None
+     fp8_prefill_kv_indices: Optional[torch.Tensor] = None
+     swa_page_table: Optional[torch.Tensor] = None
++    paged_kv_indptr: Optional[torch.Tensor] = None
++    paged_kv_indices: Optional[torch.Tensor] = None
++    paged_kv_last_page_len: Optional[torch.Tensor] = None
+     # full->SWA translated out_cache_loc (SWA KV-store write target)
+     swa_out_cache_loc: Optional[torch.Tensor] = None
+ 
+@@ -1540,6 +1544,11 @@ def init_forward_metadata(self, forward_batch: ForwardBatch):
+                     max(forward_batch.extend_seq_lens_cpu),
+                     forward_batch.seq_lens_cpu.max().item(),
+                     swa_page_table=swa_page_table,
++                    paged_kv_indptr=self.indices_updater_prefill.paged_kv_indptr,
++                    paged_kv_indices=self.indices_updater_prefill.paged_kv_indices,
++                    paged_kv_last_page_len=(
++                        self.indices_updater_prefill.paged_kv_last_page_len
++                    ),
+                     swa_out_cache_loc=swa_out_cache_loc,
+                 )
+ 
+@@ -2946,6 +2955,9 @@ def __init__(self, model_runner: ModelRunner, attn_backend: AttentionBackend):
+         self.update = self.update_single_wrapper
+ 
+         self.kv_indices = None
++        self.paged_kv_indptr = None
++        self.paged_kv_indices = None
++        self.paged_kv_last_page_len = None
+         self.max_q_len = 0
+         self.max_kv_len = 0
+ 
+@@ -2977,6 +2989,10 @@ def update_single_wrapper(
+         paged_kernel_lens = seq_lens
+         paged_kernel_lens_sum = seq_lens_sum
+ 
++        self.paged_kv_indptr = None
++        self.paged_kv_indices = None
++        self.paged_kv_last_page_len = None
++
+         bs = len(req_pool_indices)
+         if spec_info is None:
+             # Normal extend
+@@ -3012,6 +3028,64 @@ def update_single_wrapper(
+             qo_indptr[1 : bs + 1] = torch.cumsum(extend_lens, dim=0)
+             qo_indptr = qo_indptr[: bs + 1]
+             custom_mask = None
++
++            if (
++                self.attn_backend.kv_cache_is_vectorized_5d
++                and self.attn_backend.page_size == 64
++                and self.data_type == fp8_dtype
++                and self.q_data_type == torch.bfloat16
++                and self.num_qo_heads == 16
++                and self.num_kv_heads == 1
++                and self.head_dim == 192
++            ):
++                page_size = self.attn_backend.page_size
++                page_lens = torch.div(
++                    seq_lens + page_size - 1,
++                    page_size,
++                    rounding_mode="floor",
++                ).to(torch.int32)
++                paged_kv_indptr = torch.empty(
++                    bs + 1, dtype=torch.int32, device=req_pool_indices.device
++                )
++                paged_kv_indptr[0] = 0
++                torch.cumsum(page_lens, dim=0, out=paged_kv_indptr[1:])
++
++                # sum(ceil(seq_i / page_size)) is bounded by
++                # ceil(sum(seq_i) / page_size) + batch_size - 1.  Keep 256
++                # zero page ids after the valid region because CK may issue a
++                # speculative page-table vector load before applying bounds.
++                max_page_entries = (
++                    (paged_kernel_lens_sum + page_size - 1) // page_size
++                    + max(bs - 1, 0)
++                )
++                paged_kv_indices = torch.zeros(
++                    max_page_entries + 256,
++                    dtype=torch.int32,
++                    device=req_pool_indices.device,
++                )
++                block_size = 256
++                max_pages_per_seq = (
++                    self.attn_backend.max_context_len + page_size - 1
++                ) // page_size
++                grid = (
++                    bs,
++                    triton.cdiv(max(max_pages_per_seq, 1), block_size),
++                )
++                scatter_ragged_to_paged_kv_kernel[grid](
++                    kv_indices,
++                    kv_indptr,
++                    paged_kv_indptr,
++                    paged_kv_indices,
++                    PAGE_SIZE=page_size,
++                    BLOCK_SIZE=block_size,
++                )
++                paged_kv_last_page_len = (
++                    torch.remainder(seq_lens - 1, page_size) + 1
++                ).to(torch.int32)
++
++                self.paged_kv_indptr = paged_kv_indptr
++                self.paged_kv_indices = paged_kv_indices
++                self.paged_kv_last_page_len = paged_kv_last_page_len
+         else:
+             kv_indices, kv_indptr, qo_indptr, custom_mask = (
+                 spec_info.generate_attn_arg_prefill(
+diff --git a/python/sglang/srt/layers/attention/aiter_utils.py b/python/sglang/srt/layers/attention/aiter_utils.py
+index 2c222b234ec1..a4793153fa9d 100644
+--- a/python/sglang/srt/layers/attention/aiter_utils.py
++++ b/python/sglang/srt/layers/attention/aiter_utils.py
+@@ -56,6 +56,11 @@
+ FLYDSL_MIMO_NUM_PARTITIONS_ENV = "SGLANG_FLYDSL_PA_NUM_PARTITIONS"
+ FLYDSL_MIMO_EQUIVALENT_GROUP_SIZE = 64
+ 
++CK_MIMO_PREFILL_QUERY_HEADS = 16
++CK_MIMO_PREFILL_KV_HEADS = 1
++CK_MIMO_PREFILL_HEAD_DIM = 192
++CK_MIMO_PREFILL_PAGE_SIZE = 64
++
+ 
+ def get_flydsl_mimo_num_partitions() -> int:
+     raw_value = os.getenv(
+@@ -144,8 +149,7 @@ def forward_extend_vectorized_5d(
+ ) -> torch.Tensor:
+     """``forward_extend`` specialization for the SHUFFLE 5D KV pool.
+ 
+-    Two sub-paths, both routing through aiter's 3D LINEAR-mode
+-    ``mha_batch_prefill_func`` (page_size=1):
++    Three sub-paths route through ``mha_batch_prefill_func``:
+ 
+     1. Fresh-prompt shortcut: when every request in the batch has zero
+        ``extend_prefix_lens`` (first chunk of a fresh prompt, or any
+@@ -154,7 +158,11 @@ def forward_extend_vectorized_5d(
+        ``(k, v)`` directly. No descales needed since no data is read
+        from the (possibly fp8) cache.
+ 
+-    2. Gather-and-linearize: otherwise gather the per-token K/V from the
++    2. Direct paged FP8: cached full-attention MiMo chunks with the proven
++       ``16Q/1KV, Dq=Dv=192, page=64`` contract pass the SHUFFLE 5D cache and
++       flat ragged page table directly to the tuned CK kernel.
++
++    3. Gather-and-linearize: every unsupported case gathers per-token K/V from the
+        SHUFFLE 5D pool via ``launch_gather_shuffle_5d_to_linear``
+        (triton inverse of the SHUFFLE writer) into a contiguous
+        ``(T, H, D)`` buffer in the cache's ``store_dtype``, then run the
+@@ -162,10 +170,8 @@ def forward_extend_vectorized_5d(
+        raw fp8 with the per-tensor descales — aiter's LINEAR-mode kernel
+        supports fp8 K/V/Q natively, so no host-side dequant is needed.
+ 
+-    The fallback exists because aiter's paged ``mha_batch_prefill_func``
+-    lacks a compiled kernel for our
+-    ``(page_size=64, bf16/fp8, SHUFFLE 5D)`` configuration; calling it
+-    from the 5D pool aborts with ``"no matching kernel found"``.
++    The direct path is deliberately narrow. SWA/sink, non-FP8, other head
++    shapes, and missing page metadata retain the established linear fallback.
+ 
+     Returns the ``(T, H_q * D_v)`` attention output, ready to be
+     returned from ``AiterAttnBackend.forward_extend``.
+@@ -175,7 +181,12 @@ def forward_extend_vectorized_5d(
+         forward_batch.extend_prefix_lens_cpu
+     )
+     if extend_no_prefix:
+-        k_lin = k.contiguous().view(-1, layer.tp_k_head_num, layer.qk_head_dim)
++        # Q and K are head-aligned views whose last dimension is contiguous.
++        # AITER's LINEAR prefill kernel accepts their token stride directly, so
++        # avoid materializing full-token copies for the fresh-prompt chunk.
++        k_lin = k.view(-1, layer.tp_k_head_num, layer.qk_head_dim)
++        # MiMo V is different: F.pad materializes its 128 -> 192 expansion, so
++        # keeping contiguous() here is both harmless and explicit.
+         v_lin = v.contiguous().view(-1, layer.tp_v_head_num, layer.v_head_dim)
+         total_tokens = k_lin.shape[0]
+         kv_indices_lin = torch.arange(
+@@ -184,7 +195,7 @@ def forward_extend_vectorized_5d(
+         kv_indptr_lin = backend.qo_indptr[:bs0]
+         max_q = int(backend.forward_metadata.max_q_len)
+         o = mha_batch_prefill_func(
+-            q.contiguous().view(-1, layer.tp_q_head_num, layer.head_dim),
++            q.view(-1, layer.tp_q_head_num, layer.head_dim),
+             k_lin,
+             v_lin,
+             backend.qo_indptr[:bs0],
+@@ -204,28 +215,13 @@ def forward_extend_vectorized_5d(
+             o = o.to(backend.input_dtype)
+         return o.view(-1, layer.tp_q_head_num * layer.v_head_dim)
+ 
+-    # Path 2: gather-and-linearize.
+-    # SWA layers gather from the SWA sub-pool via swa_page_table;
+-    # full-attn layers gather from the full sub-pool via kv_indices.
+-    # Both are per-TOKEN slot id lists populated by
+-    # ``create_flashinfer_kv_indices_triton`` from ``req_to_token`` (one
+-    # slot id per logical token), so the first ``seq_lens_sum`` entries
+-    # of either tensor are exactly the per-token absolute pool slot ids
+-    # in request-major order — no per-token gather metadata to build on
+-    # host.
++    # Resolve the raw 5D K/V buffer for this layer (going through the
++    # SWA->sub-pool mapping when applicable).
+     is_swa_layer = (
+         layer.sliding_window_size is not None
+         and layer.sliding_window_size > -1
+         and backend.forward_metadata.swa_page_table is not None
+     )
+-    total_kv = int(forward_batch.seq_lens_sum)
+-    if is_swa_layer:
+-        slot_ids = backend.forward_metadata.swa_page_table[:total_kv]
+-    else:
+-        slot_ids = backend.forward_metadata.kv_indices[:total_kv]
+-
+-    # Resolve the raw 5D K/V buffer for this layer (going through the
+-    # SWA→sub-pool mapping when applicable).
+     pool = backend.token_to_kv_pool
+     if hasattr(pool, "layers_mapping"):
+         sub_layer_id, sub_is_swa = pool.layers_mapping[layer.layer_id]
+@@ -236,6 +232,115 @@ def forward_extend_vectorized_5d(
+     k_buf = sub_pool.k_buffer[sub_layer_id - sub_pool.start_layer]
+     v_buf = sub_pool.v_buffer[sub_layer_id - sub_pool.start_layer]
+ 
++    metadata = backend.forward_metadata
++    has_paged_metadata = all(
++        getattr(metadata, name, None) is not None
++        for name in (
++            "paged_kv_indptr",
++            "paged_kv_indices",
++            "paged_kv_last_page_len",
++        )
++    )
++    expected_k_tail = (
++        CK_MIMO_PREFILL_KV_HEADS,
++        CK_MIMO_PREFILL_HEAD_DIM // 16,
++        CK_MIMO_PREFILL_PAGE_SIZE,
++        16,
++    )
++    expected_v_tail = (
++        CK_MIMO_PREFILL_KV_HEADS,
++        CK_MIMO_PREFILL_PAGE_SIZE // 16,
++        CK_MIMO_PREFILL_HEAD_DIM,
++        16,
++    )
++    use_direct_paged = (
++        mha_batch_prefill_func is not None
++        and not is_swa_layer
++        and sinks is None
++        and tuple(window_size) == (-1, -1)
++        and backend.input_dtype == torch.bfloat16
++        and backend.kv_cache_dtype == fp8_dtype
++        and sub_pool.dtype == fp8_dtype
++        and backend.page_size == CK_MIMO_PREFILL_PAGE_SIZE
++        and layer.tp_q_head_num == CK_MIMO_PREFILL_QUERY_HEADS
++        and layer.tp_k_head_num == CK_MIMO_PREFILL_KV_HEADS
++        and layer.tp_v_head_num == CK_MIMO_PREFILL_KV_HEADS
++        and layer.qk_head_dim == CK_MIMO_PREFILL_HEAD_DIM
++        and layer.v_head_dim == CK_MIMO_PREFILL_HEAD_DIM
++        and layer.head_dim == CK_MIMO_PREFILL_HEAD_DIM
++        and float(backend.logits_soft_cap) == 0.0
++        and has_paged_metadata
++        and k_buf.ndim == 5
++        and v_buf.ndim == 5
++        and tuple(k_buf.shape[1:]) == expected_k_tail
++        and tuple(v_buf.shape[1:]) == expected_v_tail
++        and k_buf.shape[0] == v_buf.shape[0]
++        and k_buf.element_size() == 1
++        and v_buf.element_size() == 1
++    )
++
++    if use_direct_paged:
++        # FP8 pools may expose uint8 storage because some PyTorch indexing
++        # operations do not implement float8. Reinterpret the identical bytes
++        # without copying before handing the physical 5D cache to AITER.
++        k_paged = (
++            k_buf.view(sub_pool.dtype)
++            if sub_pool.store_dtype != sub_pool.dtype
++            else k_buf
++        )
++        v_paged = (
++            v_buf.view(sub_pool.dtype)
++            if sub_pool.store_dtype != sub_pool.dtype
++            else v_buf
++        )
++        q_local = q.to(fp8_dtype)
++        q_descale_local = (
++            layer.k_scale if layer.k_scale is not None else backend.k_scale
++        )
++        k_descale_local = (
++            layer.k_scale if layer.k_scale is not None else backend.k_scale
++        )
++        v_descale_local = (
++            layer.v_scale if layer.v_scale is not None else backend.v_scale
++        )
++        max_kv = int(metadata.max_kv_len)
++        max_q = int(metadata.max_q_len)
++        o = mha_batch_prefill_func(
++            q_local.contiguous().view(
++                -1, layer.tp_q_head_num, layer.qk_head_dim
++            ),
++            k_paged,
++            v_paged,
++            backend.qo_indptr[:bs0],
++            metadata.paged_kv_indptr[:bs0],
++            metadata.paged_kv_indices,
++            max_q,
++            max_kv,
++            causal=True,
++            logits_soft_cap=0.0,
++            alibi_slopes=None,
++            return_lse=False,
++            return_attn_probs=False,
++            window_size=(-1, -1),
++            sink_ptr=None,
++            q_descale=q_descale_local,
++            k_descale=k_descale_local,
++            v_descale=v_descale_local,
++            kv_last_page_lens=metadata.paged_kv_last_page_len,
++        )
++        if o.dtype != backend.input_dtype:
++            o = o.to(backend.input_dtype)
++        return o.view(-1, layer.tp_q_head_num * layer.v_head_dim)
++
++    # Path 3: gather-and-linearize. SWA layers gather from the SWA sub-pool;
++    # full-attention layers gather from the full pool. Both metadata tensors
++    # contain per-token absolute slots in request-major order.
++    total_kv = int(forward_batch.seq_lens_sum)
++    if is_swa_layer:
++        slot_ids = metadata.swa_page_table[:total_kv]
++    else:
++        slot_ids = metadata.kv_indices[:total_kv]
++
+     k_lin, v_lin = launch_gather_shuffle_5d_to_linear(k_buf, v_buf, slot_ids)
+     # k_lin / v_lin come out in ``store_dtype`` (uint8 for fp8 pools
+     # because ``Tensor.index_put`` isn't implemented for fp8 — see
+diff --git a/python/sglang/srt/layers/attention/triton_ops/aiter_unified_attention.py b/python/sglang/srt/layers/attention/triton_ops/aiter_unified_attention.py
+index ed790a483dfc..6b52872629a0 100644
+--- a/python/sglang/srt/layers/attention/triton_ops/aiter_unified_attention.py
++++ b/python/sglang/srt/layers/attention/triton_ops/aiter_unified_attention.py
+@@ -45,6 +45,42 @@ def scatter_ragged_to_page_table_kernel(
+         )
+ 
+ 
++@triton.jit
++def scatter_ragged_to_paged_kv_kernel(
++    token_indices_ptr,
++    token_indptr_ptr,
++    page_indptr_ptr,
++    page_indices_ptr,
++    PAGE_SIZE: tl.constexpr,
++    BLOCK_SIZE: tl.constexpr,
++):
++    """Convert flat ragged token slots to flat ragged physical page ids."""
++    pid = tl.program_id(0)
++    block_id = tl.program_id(1)
++
++    token_start = tl.load(token_indptr_ptr + pid).to(tl.int64)
++    page_start = tl.load(page_indptr_ptr + pid).to(tl.int64)
++    num_pages = (
++        tl.load(page_indptr_ptr + pid + 1).to(tl.int64) - page_start
++    )
++
++    offsets = block_id * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
++    if block_id * BLOCK_SIZE >= num_pages:
++        return
++    mask = offsets < num_pages
++    token_offsets = offsets.to(tl.int64) * PAGE_SIZE
++    token_slots = tl.load(
++        token_indices_ptr + token_start + token_offsets,
++        mask=mask,
++        other=0,
++    )
++    tl.store(
++        page_indices_ptr + page_start + offsets,
++        token_slots // PAGE_SIZE,
++        mask=mask,
++    )
++
++
+ @triton.jit
+ def scatter_req_to_token_to_page_table_kernel(
+     req_to_token_ptr,

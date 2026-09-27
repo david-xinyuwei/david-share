@@ -1,0 +1,280 @@
+From 878fff15647fe3dabb32aa3a335b0ad16e3ee878 Mon Sep 17 00:00:00 2001
+From: Xiake Sun <xiake.sun@amd.com>
+Date: Sun, 9 Aug 2026 04:39:29 -0500
+Subject: [PATCH] bugfix(MTP): Fix HIP non-greedy EAGLE verification for MTP
+ topk=1 (tree_topk) speculative decoding
+
+This change fixes a MiMo accuracy issue on ROCm/HIP where non-greedy EAGLE verification was
+silently forced through the greedy verifier. For validated speculative_eagle_topk=1 path, the
+patch adds an opt-in HIP Python/Torch target-only stochastic verifier enabled by
+SGLANG_MIMO_EAGLE_HIP_NONGREEDY_VERIFY=1.
+
+- Adds one env gate SGLANG_MIMO_EAGLE_HIP_NONGREEDY_VERIFY in environ.py.
+- Adds the HIP non-greedy topk=1 verifier path in eagle_utils.py.
+- Preserves existing default behavior when the env gate is disabled.
+
+Signed-off-by: Xiake Sun <xiake.sun@amd.com>
+---
+ python/sglang/srt/environ.py                 |   4 +
+ python/sglang/srt/speculative/eagle_utils.py | 212 ++++++++++++++++++-
+ 2 files changed, 215 insertions(+), 1 deletion(-)
+
+diff --git a/python/sglang/srt/environ.py b/python/sglang/srt/environ.py
+index 392d86e55ca3..b7b9e0a55b9a 100644
+--- a/python/sglang/srt/environ.py
++++ b/python/sglang/srt/environ.py
+@@ -644,6 +644,10 @@ class Envs:
+ 
+     # Spec Config
+     SGLANG_SPEC_ENABLE_STRICT_FILTER_CHECK = EnvBool(True)
++    # On HIP, use a torch/Python implementation of CUDA's target-only
++    # stochastic EAGLE verifier for non-greedy topk=1 trees instead of forcing
++    # greedy verification. Default keeps existing behavior unchanged.
++    SGLANG_MIMO_EAGLE_HIP_NONGREEDY_VERIFY = EnvBool(False)
+     # Skip draft_extend while adaptive spec is at steps=0 (drafting disabled).
+     # Saves the per-step draft forward, but the draft KV goes stale: an upshift
+     # back to steps>0 starts from a cold draft state (low accept until it recovers).
+diff --git a/python/sglang/srt/speculative/eagle_utils.py b/python/sglang/srt/speculative/eagle_utils.py
+index d647f53195f8..f91c4fa7fa8f 100644
+--- a/python/sglang/srt/speculative/eagle_utils.py
++++ b/python/sglang/srt/speculative/eagle_utils.py
+@@ -6,6 +6,7 @@
+ 
+ import torch
+ 
++from sglang.srt.environ import envs
+ from sglang.srt.utils import is_cuda, is_hip, is_musa, is_npu
+ from sglang.srt.utils.async_probe import maybe_detect_oob
+ 
+@@ -354,6 +355,166 @@ def eagle_prepare_for_verify(
+     return verify_forward_batch, can_run_cuda_graph
+ 
+ 
++def _renorm_target_probs_torch(
++    probs: torch.Tensor,
++    top_ks: torch.Tensor,
++    top_ps: torch.Tensor,
++) -> torch.Tensor:
++    """Torch fallback for top-k/top-p probability renormalization.
++
++    Mirrors the CUDA target-only path order: apply top-k renorm first, then
++    apply top-p renorm. This helper is intentionally used only by the HIP
++    non-greedy topk=1 verifier below.
++    """
++
++    vocab_size = probs.shape[-1]
++    top_ks = top_ks.to(device=probs.device, dtype=torch.int64).view(-1)
++    top_ps = top_ps.to(device=probs.device, dtype=probs.dtype).view(-1)
++
++    need_top_k = torch.any(top_ks < vocab_size)
++    need_top_p = torch.any(top_ps < 1.0)
++    if not need_top_k and not need_top_p:
++        return probs
++
++    probs_sort, probs_idx = probs.sort(dim=-1, descending=True)
++
++    if need_top_k:
++        clamped_top_ks = top_ks.clamp(min=1, max=vocab_size)
++        ranks = torch.arange(vocab_size, device=probs.device).view(1, -1)
++        probs_sort = probs_sort.masked_fill(ranks >= clamped_top_ks.view(-1, 1), 0.0)
++        renorm = probs_sort.sum(dim=-1, keepdim=True)
++        probs_sort = probs_sort / renorm.clamp_min(torch.finfo(probs_sort.dtype).tiny)
++
++    if need_top_p:
++        probs_sum = torch.cumsum(probs_sort, dim=-1)
++        probs_sort = probs_sort.masked_fill(
++            (probs_sum - probs_sort) > top_ps.view(-1, 1), 0.0
++        )
++        renorm = probs_sort.sum(dim=-1, keepdim=True)
++        probs_sort = probs_sort / renorm.clamp_min(torch.finfo(probs_sort.dtype).tiny)
++
++    out = torch.zeros_like(probs)
++    out.scatter_(dim=-1, index=probs_idx, src=probs_sort)
++    return out
++
++
++def _sample_from_weights_with_coin(
++    weights: torch.Tensor,
++    coins: torch.Tensor,
++) -> torch.Tensor:
++    """Sample one token per row using pre-generated [0, 1) coins."""
++
++    weights = weights.clamp_min(0.0)
++    sums = weights.sum(dim=-1, keepdim=True)
++    empty = sums.squeeze(-1) <= 0
++    if torch.any(empty):
++        weights = weights.clone()
++        weights[empty] = 0.0
++        weights[empty, -1] = 1.0
++        sums = weights.sum(dim=-1, keepdim=True)
++
++    cdf = torch.cumsum(weights, dim=-1)
++    thresholds = coins.to(device=weights.device, dtype=weights.dtype).view(-1, 1) * sums
++    sampled = (cdf <= thresholds).sum(dim=-1)
++    return sampled.clamp(max=weights.shape[-1] - 1).to(torch.int64)
++
++
++def _tree_speculative_sampling_target_only_topk1_torch(
++    *,
++    predict: torch.Tensor,
++    accept_index: torch.Tensor,
++    num_correct_drafts: torch.Tensor,
++    candidates: torch.Tensor,
++    retrieve_index: torch.Tensor,
++    retrieve_next_token: torch.Tensor,
++    target_probs: torch.Tensor,
++    draft_probs: torch.Tensor,
++    uniform_samples: torch.Tensor,
++    uniform_samples_for_final_sampling: torch.Tensor,
++    threshold_single: float,
++    threshold_acc: float,
++) -> None:
++    """Torch/Python implementation of target-only verification for topk=1.
++
++    MiMo's validated SWE-bench launch uses `speculative_eagle_topk=1`, so the
++    draft tree is a single chain. Keep this helper narrow and mutate the same
++    output tensors as `tree_speculative_sampling_target_only`.
++    """
++
++    bs, _ = candidates.shape
++    max_tree_depth = accept_index.shape[1]
++    device = candidates.device
++    row_ids = torch.arange(bs, device=device, dtype=torch.long)
++
++    threshold_acc = max(float(threshold_acc), 1e-9)
++    threshold_single = float(threshold_single)
++
++    accept_index.fill_(-1)
++    num_correct_drafts.zero_()
++    accept_index[:, 0] = retrieve_index[:, 0].to(torch.int32)
++
++    cur_index = torch.zeros((bs,), dtype=torch.long, device=device)
++    last_accepted_retrieve_idx = retrieve_index[:, 0].to(torch.long)
++    prob_acc = torch.zeros((bs,), dtype=target_probs.dtype, device=device)
++    active = torch.ones((bs,), dtype=torch.bool, device=device)
++
++    for depth in range(1, max_tree_depth):
++        next_index = retrieve_next_token[row_ids, cur_index].to(torch.long)
++        can_test = active & (next_index >= 0)
++        if not torch.any(can_test):
++            break
++
++        safe_next_index = next_index.clamp(min=0)
++        draft_token_ids = candidates[row_ids, safe_next_index].to(torch.long)
++        target_prob_single = target_probs[row_ids, cur_index, draft_token_ids]
++        prob_acc = torch.where(can_test, prob_acc + target_prob_single, prob_acc)
++
++        coins = uniform_samples[row_ids, cur_index].to(dtype=target_probs.dtype)
++        accept = can_test & (
++            (coins <= (prob_acc / threshold_acc))
++            | (target_prob_single >= threshold_single)
++        )
++
++        if torch.any(accept):
++            accept_rows = row_ids[accept]
++            accepted_retrieve_idx = retrieve_index[
++                accept_rows, safe_next_index[accept]
++            ].to(torch.long)
++            accepted_token_ids = draft_token_ids[accept].to(torch.int32)
++            predict[last_accepted_retrieve_idx[accept]] = accepted_token_ids
++            num_correct_drafts[accept] += 1
++            accept_index[accept, depth] = accepted_retrieve_idx.to(torch.int32)
++            last_accepted_retrieve_idx[accept] = accepted_retrieve_idx
++            cur_index[accept] = safe_next_index[accept]
++            prob_acc[accept] = 0.0
++
++        reject = can_test & ~accept
++        if torch.any(reject):
++            reject_rows = row_ids[reject]
++            draft_probs[
++                reject_rows, cur_index[reject], draft_token_ids[reject]
++            ] = target_prob_single[reject]
++            # topk=1 has no sibling to try after rejection.
++            active[reject] = False
++
++        active = active & (next_index >= 0)
++
++    final_weights = target_probs[row_ids, cur_index]
++    accepted_all_drafts = num_correct_drafts == (max_tree_depth - 1)
++    if not torch.all(accepted_all_drafts):
++        final_weights = torch.where(
++            accepted_all_drafts.view(-1, 1),
++            final_weights,
++            (final_weights - draft_probs[row_ids, cur_index]).clamp_min(0.0),
++        )
++
++    sampled_ids = _sample_from_weights_with_coin(
++        final_weights,
++        uniform_samples_for_final_sampling,
++    ).to(torch.int32)
++    predict[last_accepted_retrieve_idx] = sampled_ids
++
++
+ def eagle_sample(
+     verify_input: EagleVerifyInput,
+     batch: ScheduleBatch,
+@@ -434,7 +595,16 @@ def eagle_sample(
+     num_correct_drafts = torch.empty((bs,), dtype=torch.int32, device=device)
+ 
+     # Sample tokens
+-    if sampling_info.is_all_greedy or _is_npu or _is_hip:
++    use_hip_py_stochastic_verify = (
++        _is_hip
++        and not sampling_info.is_all_greedy
++        and envs.SGLANG_MIMO_EAGLE_HIP_NONGREEDY_VERIFY.get()
++        and verify_input.tree_topk == 1
++    )
++
++    if sampling_info.is_all_greedy or _is_npu or (
++        _is_hip and not use_hip_py_stochastic_verify
++    ):
+         target_predict = torch.argmax(next_token_logits, dim=-1)
+         target_predict = target_predict.reshape(bs, verify_input.draft_token_num)
+         predict, accept_index, num_correct_drafts = verify_tree_greedy_func(
+@@ -448,6 +618,46 @@ def eagle_sample(
+             target_predict=target_predict,
+             topk=verify_input.tree_topk,
+         )
++    elif use_hip_py_stochastic_verify:
++        # HIP lacks the CUDA target-only stochastic verifier in this codebase.
++        # Avoid silently changing non-greedy requests into greedy verification
++        # for MiMo's topk=1 EAGLE tree.
++        expanded_temperature = torch.repeat_interleave(
++            sampling_info.temperatures, verify_input.draft_token_num, dim=0
++        )
++        target_probs = F.softmax(next_token_logits / expanded_temperature, dim=-1)
++        maybe_detect_nan(target_probs, "v2 verify: hip target_probs after softmax")
++        target_probs = _renorm_target_probs_torch(
++            target_probs,
++            torch.repeat_interleave(
++                sampling_info.top_ks, verify_input.draft_token_num, dim=0
++            ),
++            torch.repeat_interleave(
++                sampling_info.top_ps, verify_input.draft_token_num, dim=0
++            ),
++        )
++        maybe_detect_nan(target_probs, "v2 verify: hip target_probs after top-k/top-p")
++        target_probs = target_probs.reshape(bs, verify_input.draft_token_num, -1)
++        draft_probs = torch.zeros_like(target_probs)
++
++        _tree_speculative_sampling_target_only_topk1_torch(
++            predict=predict,
++            accept_index=accept_index,
++            num_correct_drafts=num_correct_drafts,
++            candidates=candidates,
++            retrieve_index=verify_input.retrieve_index,
++            retrieve_next_token=verify_input.retrieve_next_token,
++            target_probs=target_probs,
++            draft_probs=draft_probs,
++            uniform_samples=torch.rand_like(
++                candidates, dtype=torch.float32, device=device
++            ),
++            uniform_samples_for_final_sampling=torch.rand(
++                (bs,), dtype=torch.float32, device=device
++            ),
++            threshold_single=get_global_server_args().speculative_accept_threshold_single,
++            threshold_acc=get_global_server_args().speculative_accept_threshold_acc,
++        )
+     else:
+         from sgl_kernel import (
+             top_k_renorm_prob,

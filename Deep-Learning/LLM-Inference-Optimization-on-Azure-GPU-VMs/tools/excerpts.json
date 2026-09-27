@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "excerpts": {
+    "flydsl-query-load": {"patch": "sammysun0711__FlyDSL__c99d5cd.patch", "start": "         # Per-lane Q chunk (QCHUNK 16-bit elems) fetched in QLOAD_UNIT-wide", "lines": 11, "path": "kernels/attention/pa_decode_tile.py"},
+    "flydsl-int64-offset": {"patch": "sammysun0711__FlyDSL__c99d5cd.patch", "start": "         def _k_ops(phys, a):", "lines": 5, "path": "kernels/attention/pa_decode_tile.py"},
+    "flydsl-dispatch-gate": {"patch": "sammysun0711__sglang__ba15db1.patch", "start": "+        incompatibilities = []", "lines": 32, "path": "python/sglang/srt/layers/attention/aiter_backend.py"},
+    "flydsl-layer-split": {"patch": "sammysun0711__sglang__ba15db1.patch", "start": "+                    is_swa_layer = (", "lines": 14, "path": "python/sglang/srt/layers/attention/aiter_backend.py"},
+    "kv-5d-vector-width": {"patch": "sammysun0711__sglang__78cd40c.patch", "start": "+        if layout == \"vectorized_5d\":", "lines": 6, "path": "python/sglang/srt/mem_cache/memory_pool.py"},
+    "ck-gemm-select": {"patch": "sammysun0711__sglang__2f9b9ae.patch", "start": "     elif _use_aiter_gfx95:", "lines": 14, "path": "python/sglang/srt/layers/quantization/fp8_utils.py"},
+    "router-gate": {"patch": "sammysun0711__sglang__1f9bb2b.patch", "start": "     def forward(self, hidden_states):", "lines": 12, "path": "python/sglang/srt/models/mimo_v2.py"},
+    "router-kernel-dot": {"patch": "sammysun0711__sglang__1f9bb2b.patch", "start": "+    accumulator = tl.zeros((BLOCK_M, BLOCK_N), dtype=tl.float32)", "lines": 17, "path": "python/sglang/srt/layers/moe/mixed_router_gemm.py"}
+  }
+}

@@ -1,0 +1,355 @@
+From 78cd40c7a5102524536daf9a3178426777174d2d Mon Sep 17 00:00:00 2001
+From: Xiake Sun <xiake.sun@amd.com>
+Date: Mon, 27 Jul 2026 02:49:08 +0000
+Subject: [PATCH] fix(speculative): isolate AITER MTP draft KV layout and graph
+ metadata
+
+- Fix MiMo-V2.5-Pro MTP accuracy with AITER Gluon target verification by keeping target KV caches in SHUFFLE 5D while allocating draft caches in NHD.
+- Propagate the correct 4/5/6-token graph metadata and acceptance state, prevent stale metadata reuse, and reject unsafe eager draft fallbacks.
+
+Signed-off-by: Xiake Sun <xiake.sun@amd.com>
+---
+ .../srt/layers/attention/aiter_backend.py     | 39 +++++++++--
+ python/sglang/srt/mem_cache/memory_pool.py    | 68 ++++++++++++-------
+ .../model_runner_kv_cache_mixin.py            | 34 +++++++++-
+ .../srt/speculative/base_spec_worker.py       |  8 +++
+ ...er_eagle_draft_extend_cuda_graph_runner.py |  2 +
+ .../multi_layer_eagle_worker_v2.py            | 23 +++++--
+ 6 files changed, 133 insertions(+), 41 deletions(-)
+
+diff --git a/python/sglang/srt/layers/attention/aiter_backend.py b/python/sglang/srt/layers/attention/aiter_backend.py
+index 209f3fa1a6c1..f10a683b0431 100755
+--- a/python/sglang/srt/layers/attention/aiter_backend.py
++++ b/python/sglang/srt/layers/attention/aiter_backend.py
+@@ -681,9 +681,19 @@ def _resolve_v2_num_draft_tokens(
+         self,
+         extend_seq_lens: Optional[torch.Tensor] = None,
+         extend_seq_lens_cpu: Optional[list[int]] = None,
++        spec_info: Optional[SpecInput] = None,
+     ) -> int:
+         """Resolve fixed per-request extend length for DRAFT_EXTEND_V2."""
+-        num_draft_tokens = self.num_draft_tokens
++        spec_num_tokens = (
++            getattr(spec_info, "num_tokens_per_req", -1)
++            if spec_info is not None
++            else -1
++        )
++        num_draft_tokens = (
++            spec_num_tokens
++            if spec_num_tokens is not None and spec_num_tokens > 0
++            else self.num_draft_tokens
++        )
+         if num_draft_tokens is None:
+             if extend_seq_lens is not None and extend_seq_lens.numel() > 0:
+                 # Avoid list scans in hot path when tensor lengths are already available.
+@@ -1036,7 +1046,9 @@ def init_forward_metadata(self, forward_batch: ForwardBatch):
+             self._ensure_spec_v2_topk_supported()
+             if self.use_mla:
+                 device = forward_batch.seq_lens.device
+-                num_draft_tokens = self._resolve_v2_num_draft_tokens()
++                num_draft_tokens = self._resolve_v2_num_draft_tokens(
++                    spec_info=spec_info
++                )
+                 qo_indptr = self._set_uniform_qo_indptr(bs, num_draft_tokens, device)
+ 
+                 kv_indptr = self.kv_indptr[: bs + 1]
+@@ -1809,7 +1821,7 @@ def _apply_cuda_graph_metadata(
+             # EAGLE V2: Fixed num_draft_tokens per batch
+             self._ensure_spec_v2_topk_supported()
+             seq_lens = seq_lens[:bs]
+-            num_tokens_per_bs = self._resolve_v2_num_draft_tokens()
++            num_tokens_per_bs = self._resolve_v2_num_draft_tokens(spec_info=spec_info)
+ 
+             qo_indptr = self.qo_indptr[: bs + 1]
+             qo_indptr[: bs + 1] = torch.arange(
+@@ -2396,6 +2408,23 @@ def forward_extend(
+                 forward_batch.forward_mode.is_draft_extend_v2()
+                 and self.use_triton_unified_attention
+             ):
++                if self.kv_cache_is_vectorized_5d:
++                    raise RuntimeError(
++                        "AITER DRAFT_EXTEND_V2 unified attention requires an NHD "
++                        "draft KV cache; SHUFFLE 5D is reserved for the target "
++                        "worker."
++                    )
++
++                max_q_len = self.forward_metadata.max_q_len
++                expected_num_queries = forward_batch.batch_size * max_q_len
++                if q.shape[0] != expected_num_queries:
++                    raise RuntimeError(
++                        "AITER DRAFT_EXTEND_V2 metadata/query mismatch: "
++                        f"q.shape[0]={q.shape[0]}, batch_size="
++                        f"{forward_batch.batch_size}, max_q_len={max_q_len}, "
++                        f"expected {expected_num_queries} queries."
++                    )
++
+                 if layer.qk_head_dim != layer.v_head_dim:
+                     o = q.new_empty(
+                         (q.shape[0], layer.tp_q_head_num * layer.v_head_dim)
+@@ -2403,9 +2432,7 @@ def forward_extend(
+                 else:
+                     o = torch.empty_like(q)
+ 
+-                k_cache, v_cache = self.token_to_kv_pool.get_kv_buffer(
+-                    layer.layer_id
+-                )
++                k_cache, v_cache = self.token_to_kv_pool.get_kv_buffer(layer.layer_id)
+                 page_table = self.forward_metadata.kv_indices
+                 max_kv_len = page_table.shape[1] * self.page_size
+ 
+diff --git a/python/sglang/srt/mem_cache/memory_pool.py b/python/sglang/srt/mem_cache/memory_pool.py
+index 31db39e25a32..23361402926b 100644
+--- a/python/sglang/srt/mem_cache/memory_pool.py
++++ b/python/sglang/srt/mem_cache/memory_pool.py
+@@ -961,6 +961,7 @@ def __init__(
+         end_layer: Optional[int] = None,
+         enable_alt_stream: bool = True,
+         enable_kv_cache_copy: bool = False,
++        kv_cache_layout: Optional[str] = None,
+     ):
+         super().__init__(
+             size,
+@@ -987,32 +988,47 @@ def __init__(
+         #   V shape: (num_blocks, H, page // X, D_v, X)   where X = 16 / dtype_bytes
+         # aiter `mha_batch_prefill_func` consumes these 5D shapes natively and
+         # aiter `pa_decode_gluon` reads SHUFFLE blocks directly during decode.
+-        # An explicit `kv_cache_layout=` argument always wins (e.g. SWAKVPool
+-        # passes "nhd" to keep its SWA sub-pool on the legacy layout); on
+-        # non-AITER platforms the env var is ignored and NHD is forced since
+-        # no consumer kernel exists for SHUFFLE 5D outside the AITER backend.
+-        self.kv_cache_layout = "nhd"
+-        if _use_aiter:
+-            layout = envs.SGLANG_AITER_KV_CACHE_LAYOUT.get().lower()
+-            if layout not in ("nhd", "vectorized_5d"):
+-                raise ValueError(
+-                    f"Unsupported SGLANG_AITER_KV_CACHE_LAYOUT={layout!r}; "
+-                    "expected 'nhd' or 'vectorized_5d'."
+-                )
+-            self.kv_cache_layout = layout
+-            if layout == "vectorized_5d":
+-                # X is the inner vectorization width in the SHUFFLE layout,
+-                # determined by the STORAGE dtype (not the compute dtype) since
+-                # it controls how many elements fit in 16 bytes of the on-pool
+-                # tensor. For fp8 storage X=16, for bf16/fp16 X=8.
+-                self._kv_vector_x = 16 // self.store_dtype.itemsize
+-                assert (self.size + self.page_size) % self.page_size == 0
+-                assert self.page_size % self._kv_vector_x == 0, (
+-                    f"page_size={self.page_size} must be divisible by "
+-                    f"X={self._kv_vector_x} for vectorized_5d layout"
+-                )
+-                assert self.head_dim % self._kv_vector_x == 0
+-                assert self.v_head_dim % self._kv_vector_x == 0
++        # An explicit `kv_cache_layout=` argument always wins. This lets the
++        # target model keep SHUFFLE 5D while a speculative draft pool selects
++        # NHD for kernels that only understand ordinary token-major storage.
++        # On non-AITER platforms the environment variable is ignored and NHD
++        # remains the default because SHUFFLE 5D has no consumer there.
++        if kv_cache_layout is None:
++            layout = (
++                envs.SGLANG_AITER_KV_CACHE_LAYOUT.get().lower() if _use_aiter else "nhd"
++            )
++        else:
++            layout = kv_cache_layout.lower()
++
++        if layout not in ("nhd", "vectorized_5d"):
++            source = (
++                "kv_cache_layout"
++                if kv_cache_layout is not None
++                else "SGLANG_AITER_KV_CACHE_LAYOUT"
++            )
++            raise ValueError(
++                f"Unsupported {source}={layout!r}; expected 'nhd' or "
++                "'vectorized_5d'."
++            )
++        if layout == "vectorized_5d" and not _use_aiter:
++            raise ValueError(
++                "kv_cache_layout='vectorized_5d' requires the ROCm AITER backend."
++            )
++
++        self.kv_cache_layout = layout
++        if layout == "vectorized_5d":
++            # X is the inner vectorization width in the SHUFFLE layout,
++            # determined by the STORAGE dtype (not the compute dtype) since
++            # it controls how many elements fit in 16 bytes of the on-pool
++            # tensor. For fp8 storage X=16, for bf16/fp16 X=8.
++            self._kv_vector_x = 16 // self.store_dtype.itemsize
++            assert (self.size + self.page_size) % self.page_size == 0
++            assert self.page_size % self._kv_vector_x == 0, (
++                f"page_size={self.page_size} must be divisible by "
++                f"X={self._kv_vector_x} for vectorized_5d layout"
++            )
++            assert self.head_dim % self._kv_vector_x == 0
++            assert self.v_head_dim % self._kv_vector_x == 0
+ 
+         self._create_buffers()
+ 
+diff --git a/python/sglang/srt/model_executor/model_runner_kv_cache_mixin.py b/python/sglang/srt/model_executor/model_runner_kv_cache_mixin.py
+index 12c0e5ce91b0..49021a20706d 100644
+--- a/python/sglang/srt/model_executor/model_runner_kv_cache_mixin.py
++++ b/python/sglang/srt/model_executor/model_runner_kv_cache_mixin.py
+@@ -312,10 +312,34 @@ def _validate_prefill_only_disable_kv_cache_pool_family(
+                 "attention, no HiSparse, and --kv-cache-dtype != fp4_e2m1."
+             )
+ 
++    def _get_mha_kv_cache_layout_override(self: ModelRunner):
++        """Keep AITER multi-layer draft caches on their supported NHD layout."""
++        if not (
++            self.is_draft_worker
++            and _is_hip
++            and envs.SGLANG_USE_AITER.get()
++            and envs.SGLANG_AITER_KV_CACHE_LAYOUT.get().lower() == "vectorized_5d"
++        ):
++            return None
++
++        logger.info_once(
++            "Using NHD KV cache layout for the speculative draft worker; "
++            "the target worker remains on AITER SHUFFLE 5D."
++        )
++        return "nhd"
++
+     def _init_pools(self: ModelRunner):
+         """Initialize the memory pools."""
+         max_num_reqs = self.max_running_requests
+ 
++        # SHUFFLE 5D is consumed by the target model's AITER prefill/decode and
++        # Gluon verification kernels. Multi-layer EAGLE draft extend still
++        # consumes its cache as ordinary NHD, so sharing the global layout
++        # choice with the draft worker corrupts attention. Keep the override
++        # local to draft MHA pools; the target pool continues to follow the
++        # environment setting.
++        mha_kv_cache_layout = self._get_mha_kv_cache_layout_override()
++
+         # Initialize req_to_token_pool
+         if self.req_to_token_pool is None:
+             max_spec_draft_tokens = self.server_args.max_speculative_num_draft_tokens
+@@ -523,7 +547,9 @@ def _init_pools(self: ModelRunner):
+                         "v_head_dim": self.model_config.hf_text_config.v_head_dim,
+                     }
+                     if self.server_args.attention_backend == "aiter":
+-                        kwargs["swa_v_head_dim"] = self.model_config.hf_text_config.swa_head_dim
++                        kwargs["swa_v_head_dim"] = (
++                            self.model_config.hf_text_config.swa_head_dim
++                        )
+                         kwargs["v_head_dim"] = self.model_config.head_dim
+                 self.token_to_kv_pool = SWAKVPool(
+                     size=self.full_max_total_num_tokens,
+@@ -651,7 +677,9 @@ def _init_pools(self: ModelRunner):
+                     # Aiter paged kernels require K/V to have matching head dims.
+                     # The model zero-pads V from v_head_dim to head_dim before caching.
+                     if self.server_args.attention_backend == "aiter":
+-                        kwargs["swa_v_head_dim"] = self.model_config.hf_text_config.swa_head_dim
++                        kwargs["swa_v_head_dim"] = (
++                            self.model_config.hf_text_config.swa_head_dim
++                        )
+                         kwargs["v_head_dim"] = self.model_config.head_dim
+                 self.token_to_kv_pool = SWAKVPool(
+                     size=self.full_max_total_num_tokens,
+@@ -669,6 +697,7 @@ def _init_pools(self: ModelRunner):
+                     enable_kv_cache_copy=(
+                         self.server_args.speculative_algorithm is not None
+                     ),
++                    kv_cache_layout=mha_kv_cache_layout,
+                     **kwargs,
+                 )
+             elif config := self.mambaish_config:
+@@ -752,6 +781,7 @@ def _init_pools(self: ModelRunner):
+                         enable_kv_cache_copy=(
+                             self.server_args.speculative_algorithm is not None
+                         ),
++                        kv_cache_layout=mha_kv_cache_layout,
+                     )
+ 
+         # Initialize token_to_kv_pool_allocator
+diff --git a/python/sglang/srt/speculative/base_spec_worker.py b/python/sglang/srt/speculative/base_spec_worker.py
+index bd31aa349cb4..2e405dba9c66 100644
+--- a/python/sglang/srt/speculative/base_spec_worker.py
++++ b/python/sglang/srt/speculative/base_spec_worker.py
+@@ -96,6 +96,7 @@ def prepare_for_draft_extend(
+         num_draft_tokens: int,
+         draft_model_runner: Any,
+         cuda_graph_runner: Any,
++        require_cuda_graph: bool = False,
+     ):
+         from sglang.srt.model_executor.forward_batch_info import (
+             CaptureHiddenMode,
+@@ -155,6 +156,13 @@ def prepare_for_draft_extend(
+             # backend max() reads from list without a per-iter D2H sync.
+             forward_batch.extend_seq_lens_cpu = [num_draft_tokens] * bs
+         can_cuda_graph = cuda_graph_runner and cuda_graph_runner.can_run(forward_batch)
++        if require_cuda_graph and not can_cuda_graph:
++            raise RuntimeError(
++                "AITER multi-layer EAGLE draft extend requires CUDA graph replay; "
++                "the eager path does not preserve per-step variable query lengths "
++                "safely. Enable CUDA graphs and ensure the batch size is covered by "
++                "the capture buckets."
++            )
+         if not batch.forward_mode.is_idle() and not can_cuda_graph:
+             draft_model_runner.attn_backend.init_forward_metadata(forward_batch)
+             # Planned pre-pad; do NOT opt into post-pad re-plan. DSA's indexer
+diff --git a/python/sglang/srt/speculative/multi_layer_eagle_draft_extend_cuda_graph_runner.py b/python/sglang/srt/speculative/multi_layer_eagle_draft_extend_cuda_graph_runner.py
+index f08e9c1a189f..74e52f7afd04 100644
+--- a/python/sglang/srt/speculative/multi_layer_eagle_draft_extend_cuda_graph_runner.py
++++ b/python/sglang/srt/speculative/multi_layer_eagle_draft_extend_cuda_graph_runner.py
+@@ -362,6 +362,8 @@ def get_forward_batch(self, bs: int) -> ForwardBatch:
+             hidden_states=hidden_states,
+             num_correct_drafts=num_correct_drafts,
+             num_accept_tokens=num_accept_tokens,
++            num_tokens_per_req=self.num_tokens_per_bs,
++            num_tokens_for_logprob_per_req=1,
+         )
+         spec_info.positions = None
+ 
+diff --git a/python/sglang/srt/speculative/multi_layer_eagle_worker_v2.py b/python/sglang/srt/speculative/multi_layer_eagle_worker_v2.py
+index 92d99231a6ee..5dd4f8955e10 100644
+--- a/python/sglang/srt/speculative/multi_layer_eagle_worker_v2.py
++++ b/python/sglang/srt/speculative/multi_layer_eagle_worker_v2.py
+@@ -517,12 +517,22 @@ def _draft_extend_for_decode(
+         # Batch 2: Draft extend
+         draft_extend_input = EagleDraftExtendInput(
+             hidden_states=batch_result.logits_output.hidden_states,
++            # accept_lens includes the bonus token; correct drafts exclude it.
++            # The graph runner copies these into its stable per-step buffers.
++            num_correct_drafts=batch_result.accept_lens - 1,
++            num_accept_tokens=batch_result.accept_lens,
+             num_tokens_per_req=self.speculative_num_steps + 1,
+             num_tokens_for_logprob_per_req=1,
+         )
+ 
+         # Prepare for draft extend in a separate stream
+         # Notice that here we use batch_result.next_token_ids as the input ids
++        require_cuda_graph = any(
++            backend.__class__.__module__ == "sglang.srt.layers.attention.aiter_backend"
++            and backend.__class__.__name__ == "AiterAttnBackend"
++            for backend in self.draft_extend_attn_backend_list
++            if backend is not None
++        )
+         with self.plan_stream_ctx:
+             forward_batch = self.prepare_for_draft_extend(
+                 draft_extend_input,
+@@ -531,6 +541,7 @@ def _draft_extend_for_decode(
+                 self.speculative_num_draft_tokens,
+                 self.draft_runner_list[0],
+                 self.cuda_graph_runner_for_draft_extend,
++                require_cuda_graph=require_cuda_graph,
+             )
+             forward_batch.return_hidden_states_before_norm = True
+ 
+@@ -839,13 +850,11 @@ def verify(
+                     else None
+                 ),
+             )
+-        # NOTE: metadata init is skipped here unconditionally, although
+-        # eagle_prepare_for_verify only plans when cuda-graph replay_prepare ran.
+-        # eagle_worker_v2 re-inits the non-graph path instead (post-pad); this
+-        # worker has not adopted that fix, so preserve its behavior verbatim.
+-        # On NPU with --disable-cuda-graph, non-graph verify needs metadata init
+-        # in forward_extend (post-pad); only mark ready for the cuda-graph path.
+-        if not _is_npu or can_run_cuda_graph:
++        # replay_prepare is the only out-of-forward planning action here. If a
++        # batch misses the graph, leave it unmarked so forward_extend builds
++        # fresh target-verification metadata instead of inheriting the final
++        # draft step's metadata.
++        if can_run_cuda_graph:
+             verify_forward_batch.mark_forward_metadata_ready()
+         # Run target verify batch in the main compute stream
+         forward_batch_output = self.target_worker.forward_batch_generation(

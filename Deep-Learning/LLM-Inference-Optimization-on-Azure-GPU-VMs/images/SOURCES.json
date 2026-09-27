@@ -1,0 +1,41 @@
+{
+  "schema": 1,
+  "images": [
+    {
+      "file": "architecture-en.png",
+      "language": "en",
+      "kind": "original diagram",
+      "generator": "tools/draw_diagrams.py",
+      "sha256": "53a0e52e43fd829c026fa598fe67a56b9f7c2d348d7c1b099d0b90c646d4dc51",
+      "shows": "architecture of the three optimization layers",
+      "does_not_show": "measured traffic, latency or production readiness"
+    },
+    {
+      "file": "architecture-cn.png",
+      "language": "cn",
+      "kind": "original diagram",
+      "generator": "tools/draw_diagrams.py",
+      "sha256": "10a9f628672ce13c03c5dfc88430fe2af7eacf16e13ddce8428e3d5ba1174018",
+      "shows": "architecture of the three optimization layers",
+      "does_not_show": "measured traffic, latency or production readiness"
+    },
+    {
+      "file": "test-topology-en.png",
+      "language": "en",
+      "kind": "original diagram",
+      "generator": "tools/draw_diagrams.py",
+      "sha256": "c412eb6721f7b8548854aea01a1097a10d3876f2577be0bf62374fd79b406ba4",
+      "shows": "measured 1P1D test topology and measurement points",
+      "does_not_show": "measured traffic, latency or production readiness"
+    },
+    {
+      "file": "test-topology-cn.png",
+      "language": "cn",
+      "kind": "original diagram",
+      "generator": "tools/draw_diagrams.py",
+      "sha256": "f8158ae6815f8542f030168632827378e5dcb1a5e5fc83c3de9f97c5f05a8b5c",
+      "shows": "measured 1P1D test topology and measurement points",
+      "does_not_show": "measured traffic, latency or production readiness"
+    }
+  ]
+}

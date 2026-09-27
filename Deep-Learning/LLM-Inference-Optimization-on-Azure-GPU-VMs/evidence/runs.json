@@ -1,0 +1,121 @@
+{
+  "schema": 1,
+  "compared_objects": {
+    "model": "MiMo-V2.5-Pro (FP8 block-scale checkpoint, hybrid SWA + GQA attention, 384-expert MoE)",
+    "hardware": "Azure ND MI300X v5 VM: 8x AMD Instinct MI300X (gfx942, 304 CUs, 192 GB HBM3 each), 8x InfiniBand ports",
+    "serving_engine": "SGLang (sammysun0711/sglang fork) with AITER, Composable Kernel and FlyDSL kernels",
+    "comparison_rule": "Every percentage on the reader page compares MI300X with MI300X. No other accelerator is compared."
+  },
+  "runs": {
+    "bringup-20260509": {
+      "producer": "Microsoft",
+      "date": "2026-05-09",
+      "evidence_level": "SUMMARY_REPORT_PROJECTION",
+      "topology": "1 VM, TP8, prefill and decode collocated in one server",
+      "runtime": "SGLang v0.5.11 (e299ec1bf + cherry-picked PR #24652), Triton attention and Triton W8A8 FP8 GEMM, no speculative decoding",
+      "decode_workload": "16K input / 1K output, random dataset, configured concurrency 32-128",
+      "prefill_workload": "input only (output 1)",
+      "notes": [
+        "KV capacity was 937K tokens, so concurrency above about 50 queued instead of decoding; output throughput plateaued near 570 tok/s."
+      ],
+      "raw": [
+        "bringup-20260509.json"
+      ]
+    },
+    "stage-20260707-ck": {
+      "producer": "Microsoft",
+      "date": "2026-07-07",
+      "evidence_level": "PROJECTED_RAW_LOG",
+      "topology": "1P1D: prefill server TP8 on VM A, decode server TP8 on VM B, KV transfer over Mooncake RDMA on 8 IB ports, router and benchmark client on VM A",
+      "runtime": {
+        "sglang": "2f9b9aedf (editable, sammysun0711/sglang)",
+        "aiter": "fc96a4f9f (sammysun0711/aiter)",
+        "torch": "2.9.1+rocm7.2.0",
+        "mooncake": "0.3.7.post2"
+      },
+      "server_flags": "--tp-size 8 --attention-backend aiter --kv-cache-dtype fp8_e4m3 --page-size 32 --chunked-prefill-size 32768 --context-length 262144 --max-running-requests 128 --mem-fraction-static 0.85 --disable-radix-cache --disable-overlap-schedule --speculative-algorithm EAGLE --speculative-num-steps 3 --speculative-eagle-topk 1 --speculative-num-draft-tokens 4 --enable-multi-layer-eagle; the prefill server adds --disable-cuda-graph --disaggregation-mode prefill, the decode server --disaggregation-mode decode, both --disaggregation-transfer-backend mooncake",
+      "server_env": "both servers: SGLANG_USE_AITER=1 SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1 SGLANG_SIMULATE_ACC_LEN=3 SGLANG_SIMULATE_ACC_METHOD=match-expected; decode server also SGLANG_AITER_UNIFIED_VERIFY=1",
+      "script_sha256": {
+        "prefill_launch": "c226a0eb4ef96ba481f54c8d02d6c666b5d0a90dfc1143320e385a82ae1c46f1",
+        "router_launch": "2415387db6093171c67a2b5a62d184017d02efdd8f7ac763d6068399ca7f9688",
+        "decode_benchmark": "fdb022f90c67c43ecf1b8196bc6edf6985e05160abbc1a8df5b42b1438278b74",
+        "prefill_benchmark": "4e45f486751acb1aa3334308b6e16a2f05315bcf032f1a44f6f44b08b5eab9af",
+        "decode_launch": "file hash not captured on the decode VM; its captured environment lines match the 2026-07-13 decode script"
+      },
+      "raw": [
+        "stage-20260707-ck__decode-8k1k.txt",
+        "stage-20260707-ck__prefill.txt"
+      ],
+      "server_context_length": 262144,
+      "special_tokens_per_request": 4
+    },
+    "stage-20260713-tuned-moe": {
+      "producer": "Microsoft",
+      "date": "2026-07-13",
+      "evidence_level": "PROJECTED_RAW_LOG",
+      "topology": "same as stage-20260707-ck",
+      "runtime": {
+        "sglang": "same container image as stage-20260707-ck (commit not re-captured)",
+        "aiter": "00e94abf1 = fc96a4f9f + tuned fused-MoE table",
+        "tuned_fmoe_csv_sha256": "2c87ff1fa062c73e1941962f8630a335ea1e39d2dbb5b0c2d4971bcd55880ea7",
+        "tuned_fmoe_csv_public_commit": "sammysun0711/aiter@d725746a0f8c233d8e46e2771a7c8dbcd06e40d9"
+      },
+      "server_flags": "same as stage-20260707-ck",
+      "server_env": "same as stage-20260707-ck",
+      "script_sha256": {
+        "prefill_launch": "c226a0eb4ef96ba481f54c8d02d6c666b5d0a90dfc1143320e385a82ae1c46f1",
+        "router_launch": "2415387db6093171c67a2b5a62d184017d02efdd8f7ac763d6068399ca7f9688",
+        "decode_benchmark": "fdb022f90c67c43ecf1b8196bc6edf6985e05160abbc1a8df5b42b1438278b74",
+        "prefill_benchmark": "4e45f486751acb1aa3334308b6e16a2f05315bcf032f1a44f6f44b08b5eab9af",
+        "decode_launch": "f996898cee3761562714096f496262329ae6ee01889ffa460ab6d9c392c89e32"
+      },
+      "raw": [
+        "stage-20260713-tuned-moe__decode-8k1k-c16.txt",
+        "stage-20260713-tuned-moe__decode-8k1k-c32.txt",
+        "stage-20260713-tuned-moe__decode-8k1k-c64.txt",
+        "stage-20260713-tuned-moe__decode-8k1k-c128.txt",
+        "stage-20260713-tuned-moe__prefill-8192-c4.txt",
+        "stage-20260713-tuned-moe__prefill-65536-c4.txt",
+        "stage-20260713-tuned-moe__prefill-262144-c4.txt"
+      ],
+      "server_context_length": 262144,
+      "special_tokens_per_request": 4
+    },
+    "ladder-20260708-ck": {
+      "producer": "Microsoft",
+      "date": "2026-07-08",
+      "evidence_level": "PROJECTED_RAW_LOG",
+      "topology": "same as stage-20260707-ck",
+      "runtime": "same as stage-20260707-ck",
+      "raw": [
+        "ladder-20260708-ck__decode-8k1k-c16.txt",
+        "ladder-20260708-ck__decode-8k1k-c32.txt",
+        "ladder-20260708-ck__decode-8k1k-c64.txt",
+        "ladder-20260708-ck__decode-8k1k-c96.txt",
+        "ladder-20260708-ck__decode-8k1k-c128.txt",
+        "ladder-20260708-ck__decode-8k1k-c192.txt",
+        "ladder-20260708-ck__decode-8k1k-c256.txt"
+      ],
+      "server_context_length": 262144,
+      "special_tokens_per_request": 4
+    },
+    "ab-20260718-64k-bs16": {
+      "producer": "Microsoft",
+      "date": "2026-07-17/18",
+      "evidence_level": "PUBLIC_AUDIT_PROJECTION",
+      "topology": "1 VM, TP8, one server doing both prefill and decode (no PD), exact 64K input token IDs, 1K server-accounted output, 16 requests in flight, fixed MTP acceptance of 3 draft tokens",
+      "runtime": {
+        "image": "2026-07-13-derived single-VM image",
+        "sglang": "2f9b9aedf",
+        "aiter": "00e94abf1 (tuned fused-MoE table included)",
+        "kv_pool": "--mem-fraction-static 0.95 so that sixteen 64K-context requests fit (full-attention KV pool 1,442,464 tokens)"
+      },
+      "controlled": "same host, running container, immutable image, model, benchmark command, TP8 topology, KV-pool setting, server flags and transition rule; two fresh-service repetitions per arm, run back-to-back",
+      "varied": "optimized arm adds SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1 and SGLANG_AITER_UNIFIED_VERIFY=1",
+      "metric": "steady-state scheduler generation throughput (tok/s) at batch 16; the first full-batch sample of each run is a transition sample and is excluded",
+      "raw": [
+        "ab-20260718-64k-bs16.json"
+      ]
+    }
+  }
+}

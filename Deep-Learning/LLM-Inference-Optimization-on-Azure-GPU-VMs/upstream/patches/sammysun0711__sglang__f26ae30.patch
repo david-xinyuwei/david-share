@@ -1,0 +1,57 @@
+From f26ae30063143411f3ae552af1830fa46e3ee0fd Mon Sep 17 00:00:00 2001
+From: Xiake Sun <xiake.sun@amd.com>
+Date: Mon, 27 Jul 2026 07:00:11 +0000
+Subject: [PATCH] fix(EAGLE verification): sync result across TP ranks
+
+Broadcast EAGLE verification outputs from TP rank 0 after both greedy/HIP and stochastic sampling, including simulated acceptance. This keeps predict, accept_index, and
+num_correct_drafts identical across TP ranks before scheduler bookkeeping, preventing request-state divergence and mismatched RCCL collectives during MTP decoding.
+
+Signed-off-by: Xiake Sun <xiake.sun@amd.com>
+---
+ python/sglang/srt/speculative/eagle_utils.py | 26 +++++++++++---------
+ 1 file changed, 14 insertions(+), 12 deletions(-)
+
+diff --git a/python/sglang/srt/speculative/eagle_utils.py b/python/sglang/srt/speculative/eagle_utils.py
+index 31330bf307be..d647f53195f8 100644
+--- a/python/sglang/srt/speculative/eagle_utils.py
++++ b/python/sglang/srt/speculative/eagle_utils.py
+@@ -504,18 +504,6 @@ def eagle_sample(
+             deterministic=True,
+         )
+ 
+-        # Sync sampling results across TP ranks: different GPUs may
+-        # produce slightly different target_probs due to floating-point
+-        # non-determinism in softmax/top_k/top_p, causing different
+-        # sampled tokens. Broadcast from rank 0 to ensure consistency.
+-        tp_group = (
+-            get_attention_tp_group() if is_dp_attention_enabled() else get_tp_group()
+-        )
+-        if tp_group.world_size > 1:
+-            tp_group.broadcast(predict, src=0)
+-            tp_group.broadcast(accept_index, src=0)
+-            tp_group.broadcast(num_correct_drafts, src=0)
+-
+     if SIMULATE_ACC_LEN > 0:
+         # Do simulation. The helper builds (and returns) a replacement
+         # accept_index of width spec_steps + 1, so pass max_tree_depth - 1
+@@ -529,6 +517,20 @@ def eagle_sample(
+             spec_steps=verify_input.max_tree_depth - 1,
+         )
+ 
++    # Keep the final verification result identical across TP ranks for both
++    # stochastic sampling and the greedy path (which is forced on HIP/NPU).
++    # Even a one-token rank-local difference changes accept_lens/new_seq_lens
++    # and can make schedulers select different requests, eventually deadlocking
++    # a model collective. Run this after simulated acceptance as well so only
++    # rank 0's final state can reach scheduler bookkeeping.
++    tp_group = (
++        get_attention_tp_group() if is_dp_attention_enabled() else get_tp_group()
++    )
++    if tp_group.world_size > 1:
++        tp_group.broadcast(predict, src=0)
++        tp_group.broadcast(accept_index, src=0)
++        tp_group.broadcast(num_correct_drafts, src=0)
++
+     # `num_correct_drafts` stays drafts-only inside this function; the returned
+     # tensor includes the trailing/bonus token via out-of-place +1 so the
+     # name no longer flips semantics mid-function (naming doc C2).

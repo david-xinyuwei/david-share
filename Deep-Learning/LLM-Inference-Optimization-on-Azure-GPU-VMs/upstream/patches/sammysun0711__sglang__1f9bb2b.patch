@@ -1,0 +1,233 @@
+From 1f9bb2b4c55cdc7bd5de1ac7977f76afab101a97 Mon Sep 17 00:00:00 2001
+From: Xiake Sun <xiake.sun@amd.com>
+Date: Thu, 6 Aug 2026 07:22:18 +0000
+Subject: [PATCH] (feat): Add opt-in mixed-precision Triton router GEMM for
+ MiMo prefill
+
+Add an opt-in Triton router GEMM for large MiMo-V2.5-Pro prefill
+- Triton kernel consumes BF16 activations and cached FP16 router weights,
+  converts activation tiles to FP16 in registers, and preserves FP32 accumulation and output.
+- Enable with SGLANG_MIMO_MIXED_ROUTER=1 for router batches with at least 2,048 tokens.
+
+Signed-off-by: Xiake Sun <xiake.sun@amd.com>
+---
+ .../launch_tp8_noep_aiter_mtp_accuracy.sh     |  21 ++--
+ .../srt/layers/moe/mixed_router_gemm.py       | 109 ++++++++++++++++++
+ python/sglang/srt/models/mimo_v2.py           |  14 +++
+ 3 files changed, 134 insertions(+), 10 deletions(-)
+ create mode 100644 python/sglang/srt/layers/moe/mixed_router_gemm.py
+
+diff --git a/evaluation/launch_tp8_noep_aiter_mtp_accuracy.sh b/evaluation/launch_tp8_noep_aiter_mtp_accuracy.sh
+index 8c1d7891e81d..60787269a413 100755
+--- a/evaluation/launch_tp8_noep_aiter_mtp_accuracy.sh
++++ b/evaluation/launch_tp8_noep_aiter_mtp_accuracy.sh
+@@ -11,6 +11,7 @@ export SGLANG_SPEC_NAN_DETECTION=1
+ export SGLANG_SPEC_OOB_DETECTION=1
+ export SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1
+ export ROCM_QUICK_REDUCE_QUANTIZATION="${ROCM_QUICK_REDUCE_QUANTIZATION:-INT8}"
++export SGLANG_MIMO_MIXED_ROUTER="${SGLANG_MIMO_MIXED_ROUTER:-1}"
+ 
+ export TORCH_ALLOW_TF32_CUBLAS_OVERRIDE=1
+ export SGLANG_AITER_KV_CACHE_LAYOUT=vectorized_5d
+@@ -19,10 +20,10 @@ export SGLANG_AITER_PA_DECODE_IMPL="${SGLANG_AITER_PA_DECODE_IMPL:-flydsl}"
+ export SGLANG_FLYDSL_PA_NUM_PARTITIONS="${SGLANG_FLYDSL_PA_NUM_PARTITIONS:-16}"
+ export CUDA_GRAPH_BACKEND_DECODE="${CUDA_GRAPH_BACKEND_DECODE:-full}"
+ export CUDA_GRAPH_BS_DECODE="${CUDA_GRAPH_BS_DECODE:-}"
+-export MAX_RUNNING_REQUESTS=128
+-export PAGE_SIZE=64
+-export MEM_FRACTION_STATIC=0.90
+-export SWA_FULL_TOKENS_RATIO=0.01
++export MAX_RUNNING_REQUESTS="${MAX_RUNNING_REQUESTS:-96}"
++export MEM_FRACTION_STATIC="${MEM_FRACTION_STATIC:-0.90}"
++export SWA_FULL_TOKENS_RATIO="${SWA_FULL_TOKENS_RATIO:-0.01}"
++export CHUNKED_PREFILL_SIZE="${CHUNKED_PREFILL_SIZE:-65536}"
+ 
+ export SGLANG_MIMO_FUSED_RMS_MOE_QUANT=1
+ export SGLANG_MIMO_FUSED_RMS_QKV_QUANT=1
+@@ -38,9 +39,9 @@ export LOG_DIR="${LOG_DIR:-./logs/accuracy_${RUN_ID}}"
+ export LOG_FILE="${LOG_FILE:-server_tp8_flydsl_accuracy.log}"
+ 
+ echo "Attention hybrid: prefill-flydsl=${SGLANG_FLYDSL_MIMO_PREFILL}, target-verify=${SGLANG_AITER_PA_DECODE_IMPL}, SWA/sink and ordinary decode=AITER/Gluon"
+-echo "Configuration: max-running=${MAX_RUNNING_REQUESTS}, page=${PAGE_SIZE}, partitions=${SGLANG_FLYDSL_PA_NUM_PARTITIONS}, mem=${MEM_FRACTION_STATIC}, swa=${SWA_FULL_TOKENS_RATIO}, quick-ar=${ROCM_QUICK_REDUCE_QUANTIZATION}, decode-graph=${CUDA_GRAPH_BACKEND_DECODE}, decode-graph-bs=${CUDA_GRAPH_BS_DECODE:-default}, overlap=enabled"
+-echo "MTP acceptance: real"
++echo "Configuration: max-running=${MAX_RUNNING_REQUESTS}, page=64, chunked-prefill=${CHUNKED_PREFILL_SIZE}, ep=1, partitions=${SGLANG_FLYDSL_PA_NUM_PARTITIONS}, mem=${MEM_FRACTION_STATIC}, swa=${SWA_FULL_TOKENS_RATIO}, quick-ar=${ROCM_QUICK_REDUCE_QUANTIZATION}, mixed-router=${SGLANG_MIMO_MIXED_ROUTER}, mtp=1, aiter-ar-fusion=0, decode-graph=${CUDA_GRAPH_BACKEND_DECODE}, decode-graph-bs=${CUDA_GRAPH_BS_DECODE:-default}, overlap=enabled"
+ echo "Server log: ${LOG_DIR}/${LOG_FILE}"
++echo "MTP: EAGLE, steps=3, top-k=1, draft-tokens=4, multi-layer=enabled"
+ 
+ mkdir -p ${LOG_DIR}
+ 
+@@ -53,16 +54,16 @@ fi
+ python3 -u -m sglang.launch_server \
+   --model-path /models/MiMo-V2.5-Pro/ \
+   --tp-size 8 \
+-  --max-running-requests 96 \
++  --max-running-requests "${MAX_RUNNING_REQUESTS}" \
+   --host 0.0.0.0 \
+   --port 30001 \
+   --trust-remote-code \
+   --reasoning-parser mimo \
+   --tool-call-parser mimo \
+-  --mem-fraction-static 0.90 \
+-  --swa-full-tokens-ratio 0.01 \
++  --mem-fraction-static "${MEM_FRACTION_STATIC}" \
++  --swa-full-tokens-ratio "${SWA_FULL_TOKENS_RATIO}" \
+   --context-length 1048576 \
+-  --chunked-prefill-size 32768 \
++  --chunked-prefill-size "${CHUNKED_PREFILL_SIZE}" \
+   --max-prefill-tokens 1048576 \
+   --attention-backend aiter \
+   --kv-cache-dtype fp8_e4m3 \
+diff --git a/python/sglang/srt/layers/moe/mixed_router_gemm.py b/python/sglang/srt/layers/moe/mixed_router_gemm.py
+new file mode 100644
+index 000000000000..979491674b51
+--- /dev/null
++++ b/python/sglang/srt/layers/moe/mixed_router_gemm.py
+@@ -0,0 +1,109 @@
++"""Mixed-input router GEMM optimized for large MiMo prefill batches on ROCm."""
++
++import torch
++import triton
++import triton.language as tl
++
++
++@triton.jit(do_not_specialize=["M"])
++def _mixed_router_gemm_kernel(
++    x_ptr,
++    weight_ptr,
++    out_ptr,
++    M,
++    N: tl.constexpr,
++    K: tl.constexpr,
++    stride_xm: tl.constexpr,
++    stride_xk: tl.constexpr,
++    stride_wn: tl.constexpr,
++    stride_wk: tl.constexpr,
++    stride_om: tl.constexpr,
++    stride_on: tl.constexpr,
++    BLOCK_M: tl.constexpr,
++    BLOCK_N: tl.constexpr,
++    BLOCK_K: tl.constexpr,
++    GROUP_M: tl.constexpr,
++):
++    pid = tl.program_id(0)
++    num_pid_m = tl.cdiv(M, BLOCK_M)
++    num_pid_n = tl.cdiv(N, BLOCK_N)
++    num_pid_in_group = GROUP_M * num_pid_n
++    group_id = pid // num_pid_in_group
++    first_pid_m = group_id * GROUP_M
++    group_size_m = tl.minimum(num_pid_m - first_pid_m, GROUP_M)
++    pid_m = first_pid_m + (pid % num_pid_in_group) % group_size_m
++    pid_n = (pid % num_pid_in_group) // group_size_m
++
++    offs_m = pid_m * BLOCK_M + tl.arange(0, BLOCK_M)
++    offs_n = pid_n * BLOCK_N + tl.arange(0, BLOCK_N)
++    offs_k = tl.arange(0, BLOCK_K)
++    x_ptrs = x_ptr + offs_m[:, None] * stride_xm + offs_k[None, :] * stride_xk
++    weight_ptrs = (
++        weight_ptr + offs_n[None, :] * stride_wn + offs_k[:, None] * stride_wk
++    )
++
++    accumulator = tl.zeros((BLOCK_M, BLOCK_N), dtype=tl.float32)
++    for k_start in range(0, K, BLOCK_K):
++        x = tl.load(
++            x_ptrs,
++            mask=(offs_m[:, None] < M) & (k_start + offs_k[None, :] < K),
++            other=0.0,
++        )
++        weight = tl.load(
++            weight_ptrs,
++            mask=(offs_n[None, :] < N) & (k_start + offs_k[:, None] < K),
++            other=0.0,
++        )
++        accumulator = tl.dot(
++            x.to(tl.float16), weight, acc=accumulator, out_dtype=tl.float32
++        )
++        x_ptrs += BLOCK_K * stride_xk
++        weight_ptrs += BLOCK_K * stride_wk
++
++    out_ptrs = out_ptr + offs_m[:, None] * stride_om + offs_n[None, :] * stride_on
++    tl.store(
++        out_ptrs,
++        accumulator,
++        mask=(offs_m[:, None] < M) & (offs_n[None, :] < N),
++    )
++
++
++def mixed_router_gemm(x: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
++    """Compute ``x @ weight.T`` with BF16 activations and FP16 weights.
++
++    Accumulation and output remain FP32. Converting the BF16 activation tile to
++    FP16 in registers avoids materializing the full FP32 router input.
++    """
++    assert x.ndim == 2 and weight.ndim == 2
++    assert x.shape[1] == weight.shape[1]
++    assert x.dtype == torch.bfloat16 and weight.dtype == torch.float16
++    assert x.is_contiguous() and weight.is_contiguous()
++
++    m, k = x.shape
++    n = weight.shape[0]
++    out = torch.empty((m, n), device=x.device, dtype=torch.float32)
++
++    block_m = 128
++    block_n = 128
++    grid = (triton.cdiv(m, block_m) * triton.cdiv(n, block_n),)
++    _mixed_router_gemm_kernel[grid](
++        x,
++        weight,
++        out,
++        M=m,
++        N=n,
++        K=k,
++        stride_xm=x.stride(0),
++        stride_xk=x.stride(1),
++        stride_wn=weight.stride(0),
++        stride_wk=weight.stride(1),
++        stride_om=out.stride(0),
++        stride_on=out.stride(1),
++        BLOCK_M=block_m,
++        BLOCK_N=block_n,
++        BLOCK_K=64,
++        GROUP_M=8,
++        num_warps=8,
++        num_stages=2,
++    )
++    return out
+diff --git a/python/sglang/srt/models/mimo_v2.py b/python/sglang/srt/models/mimo_v2.py
+index 6a7f5d07dcf6..d1d7c087f78a 100644
+--- a/python/sglang/srt/models/mimo_v2.py
++++ b/python/sglang/srt/models/mimo_v2.py
+@@ -85,6 +85,7 @@
+ from sglang.srt.utils import (
+     LazyValue,
+     add_prefix,
++    get_bool_env_var,
+     is_gfx95_supported,
+     is_non_idle_and_non_empty,
+     make_layers,
+@@ -214,6 +215,7 @@ def __init__(
+         self.weight = nn.Parameter(
+             torch.empty((config.n_routed_experts, config.hidden_size), dtype=self.dtype)
+         )
++        self._mixed_router_weight = None
+         if config.topk_method == "noaux_tc":
+             correction_bias_dtype = (
+                 torch.bfloat16
+@@ -229,6 +231,18 @@ def __init__(
+             self.e_score_correction_bias = None
+ 
+     def forward(self, hidden_states):
++        if (
++            get_bool_env_var("SGLANG_MIMO_MIXED_ROUTER")
++            and hidden_states.is_cuda
++            and hidden_states.dtype == torch.bfloat16
++            and hidden_states.shape[0] >= 2048
++        ):
++            from sglang.srt.layers.moe.mixed_router_gemm import mixed_router_gemm
++
++            if self._mixed_router_weight is None:
++                self._mixed_router_weight = self.weight.detach().to(torch.float16)
++            return mixed_router_gemm(hidden_states, self._mixed_router_weight)
++
+         logits = F.linear(hidden_states.to(self.dtype), self.weight, None)
+ 
+         return logits

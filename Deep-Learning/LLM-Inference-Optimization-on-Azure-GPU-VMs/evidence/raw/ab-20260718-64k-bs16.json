@@ -1,0 +1,64 @@
+{
+  "schema": 1,
+  "kind": "public-audit-projection",
+  "source": {
+    "repository": "david-xinyuwei/david-share",
+    "path": "Deep-Learning/MiMo-V2.5-Pro-on-MI300X-Benchmark/data/validation/decode-fixed-batch-audit.json",
+    "lfs_oid_sha256": "9af3291cd7e59b305996f90d950377f81540ca0db1f0fafe881e0d53992699c5",
+    "fields": [
+      "headline_exact.same_image_exact_no_ck.points[].used_gen_tok_s",
+      "headline_exact.points[].steady_state.used_gen_tok_s"
+    ]
+  },
+  "measured_at_utc": "2026-07-17T16:37:20Z to 2026-07-17T22:54:35Z",
+  "metric": "scheduler generation throughput (tok/s) with 16 running requests; first full-batch transition sample excluded",
+  "baseline": {
+    "env_added": {},
+    "runs": [
+      [
+        747.76,
+        743.87,
+        739.16,
+        739.21,
+        738.66,
+        736.13,
+        737.22
+      ],
+      [
+        749.58,
+        747.52,
+        745.58,
+        747.15,
+        745.5,
+        742.96,
+        743.39
+      ]
+    ]
+  },
+  "optimized": {
+    "env_added": {
+      "SGLANG_AITER_UNIFIED_VERIFY": "1",
+      "SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE": "1"
+    },
+    "runs": [
+      [
+        948.58,
+        939.8,
+        930.66,
+        927.71,
+        927.45,
+        923.8,
+        923.06
+      ],
+      [
+        951.02,
+        944.17,
+        938.87,
+        934.32,
+        930.1,
+        926.41,
+        926.52
+      ]
+    ]
+  }
+}

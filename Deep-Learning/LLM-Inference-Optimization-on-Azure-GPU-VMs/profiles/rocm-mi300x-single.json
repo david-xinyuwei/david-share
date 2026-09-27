@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "profile": "rocm-mi300x-single",
+  "status": "PINNED_RUNTIME",
+  "measured_runs": [],
+  "description": "One Azure ND MI300X v5 VM, the final runtime pinned in upstream/SOURCES.lock.json (sglang 878fff15, aiter 3f4ab482, FlyDSL kernels c99d5cd), copied from the launch scripts sealed with that runtime. The decode role uses the fake transfer backend so decode can be measured without a prefill server. This repository publishes no Microsoft throughput run of this exact runtime; the 64K fixed-batch A/B in evidence/runs.json used the earlier 2026-07-13-derived single-VM image.",
+  "variables": {
+    "MODEL_PATH": "local path of the MiMo-V2.5-Pro checkpoint",
+    "INPUT_IDS": "input length passed to bench_serving; MiMo adds four special tokens, so 65532 gives exactly 65536 server-side tokens",
+    "CONCURRENCY": "client concurrency"
+  },
+  "platform_env": {
+    "SGLANG_MOE_PADDING": "1",
+    "SGLANG_SET_CPU_AFFINITY": "1",
+    "HSA_NO_SCRATCH_RECLAIM": "1",
+    "TORCH_ALLOW_TF32_CUBLAS_OVERRIDE": "1",
+    "SGLANG_SPEC_NAN_DETECTION": "1",
+    "SGLANG_SPEC_OOB_DETECTION": "1"
+  },
+  "roles": {
+    "decode": {
+      "command": ["python3", "-u", "-m", "sglang.launch_server"],
+      "args": ["--model-path", "${MODEL_PATH}", "--tp-size", "8", "--max-running-requests", "96", "--host", "0.0.0.0", "--port", "30001", "--trust-remote-code", "--reasoning-parser", "mimo", "--tool-call-parser", "mimo", "--mem-fraction-static", "1.0", "--context-length", "1048576", "--max-prefill-tokens", "1048576"]
+    },
+    "server": {
+      "command": ["python3", "-u", "-m", "sglang.launch_server"],
+      "env": {"ROCM_QUICK_REDUCE_QUANTIZATION": "NONE", "SGLANG_SCHEDULER_SKIP_ALL_GATHER": "1", "SGLANG_ENABLE_HEALTH_ENDPOINT_GENERATION": "0"},
+      "args": ["--model-path", "${MODEL_PATH}", "--tp-size", "8", "--max-running-requests", "96", "--host", "0.0.0.0", "--port", "30001", "--trust-remote-code", "--reasoning-parser", "mimo", "--tool-call-parser", "mimo", "--mem-fraction-static", "0.95", "--context-length", "1048576", "--max-prefill-tokens", "1048576"]
+    },
+    "bench-decode": {
+      "command": ["python3", "-m", "sglang.bench_serving"],
+      "args": ["--backend", "sglang", "--model", "${MODEL_PATH}", "--host", "0.0.0.0", "--port", "30001", "--dataset-name", "random", "--random-input-len", "${INPUT_IDS}", "--random-output-len", "1024", "--random-range-ratio", "1.0", "--flush-cache", "--seed", "12345", "--num-prompts", "256", "--warmup-requests", "32", "--max-concurrency", "${CONCURRENCY}", "--tokenize-prompt"]
+    }
+  },
+  "techniques": {
+    "attention-dispatch": {
+      "decode": {"env": {"SGLANG_USE_AITER": "1"}, "args": ["--attention-backend", "aiter"]},
+      "server": {"env": {"SGLANG_USE_AITER": "1"}, "args": ["--attention-backend", "aiter"]}
+    },
+    "memory-sizing": {
+      "decode": {"args": ["--swa-full-tokens-ratio", "0.01", "--chunked-prefill-size", "65536", "--page-size", "64"]},
+      "server": {"args": ["--swa-full-tokens-ratio", "0.01", "--chunked-prefill-size", "65536", "--page-size", "64"]}
+    },
+    "fp8-kv-5d": {
+      "decode": {"env": {"SGLANG_AITER_KV_CACHE_LAYOUT": "vectorized_5d"}, "args": ["--kv-cache-dtype", "fp8_e4m3"]},
+      "server": {"env": {"SGLANG_AITER_KV_CACHE_LAYOUT": "vectorized_5d"}, "args": ["--kv-cache-dtype", "fp8_e4m3"]}
+    },
+    "flydsl-pa-decode": {
+      "decode": {"env": {"SGLANG_AITER_PA_DECODE_IMPL": "flydsl", "SGLANG_FLYDSL_PA_NUM_PARTITIONS": "16"}},
+      "server": {"env": {"SGLANG_AITER_PA_DECODE_IMPL": "flydsl", "SGLANG_FLYDSL_PA_NUM_PARTITIONS": "16"}}
+    },
+    "ck-a8w8-gemm": {
+      "decode": {"env": {"SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE": "1"}},
+      "server": {"env": {"SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE": "1"}}
+    },
+    "eagle-mtp": {
+      "decode": {"args": ["--speculative-algorithm", "EAGLE", "--speculative-num-steps", "3", "--speculative-eagle-topk", "1", "--speculative-num-draft-tokens", "4", "--enable-multi-layer-eagle"]},
+      "server": {"env": {"SGLANG_MIMO_EAGLE_HIP_NONGREEDY_VERIFY": "1"}, "args": ["--speculative-algorithm", "EAGLE", "--speculative-num-steps", "3", "--speculative-eagle-topk", "1", "--speculative-num-draft-tokens", "4", "--enable-multi-layer-eagle"]}
+    },
+    "fake-prefill": {
+      "decode": {"args": ["--disaggregation-mode", "decode", "--disaggregation-transfer-backend", "fake"]},
+      "bench-decode": {"args": ["--fake-prefill"]}
+    },
+    "simulated-acceptance": {
+      "decode": {"env": {"SGLANG_SIMULATE_ACC_LEN": "3", "SGLANG_SIMULATE_ACC_METHOD": "match-expected"}}
+    }
+  }
+}

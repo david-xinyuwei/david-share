@@ -1,0 +1,132 @@
+{
+  "schema": 1,
+  "note": "Raw sglang.bench_serving logs and the bring-up summary report stay in the private project; the A/B source is a public file. This manifest records the SHA-256 of every source and of the projection committed here.",
+  "files": [
+    {
+      "projected_file": "stage-20260707-ck__decode-8k1k.txt",
+      "projected_sha256": "d5e32a2707f4a83f4942b295b56782682451e360db3ecda860fb8513e599fb77",
+      "raw_log_name": "decode_full.out",
+      "raw_log_sha256": "b3eeed84f915fcc3f3ebb7ddbbf86c195434ccfe39f4be5bf31ccf1ef6a5490c",
+      "raw_log_bytes": 65686
+    },
+    {
+      "projected_file": "stage-20260707-ck__prefill.txt",
+      "projected_sha256": "33bc3193fbe95ddd9272596eeb735d57bceb7dbd592b077cfbdaebdfb57bb53e",
+      "raw_log_name": "prefill_full.out",
+      "raw_log_sha256": "b730f5ae926fbb7d26bd8e2f600cb51e8da24c868f6f9a3827d9c7499995388b",
+      "raw_log_bytes": 23568
+    },
+    {
+      "projected_file": "stage-20260713-tuned-moe__decode-8k1k-c16.txt",
+      "projected_sha256": "4aadcd883c703fe5eb02f7772b1e3a2c981f1e93628d6886cd259b7644339bc8",
+      "raw_log_name": "benchmark_8192_con16.log",
+      "raw_log_sha256": "69313313479cc4bca4221d69a52d0b90a6a094fb34c92eb9a04e2f85d7335664",
+      "raw_log_bytes": 21309
+    },
+    {
+      "projected_file": "stage-20260713-tuned-moe__decode-8k1k-c32.txt",
+      "projected_sha256": "c14cfe96440b6191ecf8d9494d51040c0f12593d282499e5d16e17b59f996f29",
+      "raw_log_name": "benchmark_8192_con32.log",
+      "raw_log_sha256": "c62aa0c52b697c24f3e09538746f04b36f53eb439f3549ad1e732536a2064903",
+      "raw_log_bytes": 16876
+    },
+    {
+      "projected_file": "stage-20260713-tuned-moe__decode-8k1k-c64.txt",
+      "projected_sha256": "5e550772120e2f0a525cf5070a11d1fd979501cf6bbc649c019f89db728d40d6",
+      "raw_log_name": "benchmark_8192_con64.log",
+      "raw_log_sha256": "4b81c1cc1eaeb3843c787b7868b546a7736137cad23ef328b903e2bdcd963123",
+      "raw_log_bytes": 13633
+    },
+    {
+      "projected_file": "stage-20260713-tuned-moe__decode-8k1k-c128.txt",
+      "projected_sha256": "f54a7654e5e8a104f2fd3ddbf1c4eed63dbb3b666442b37f4e17e8c775d10877",
+      "raw_log_name": "benchmark_8192_con128.log",
+      "raw_log_sha256": "dfcf0a8f96d962251f98efd51d00365eb4de13bc412c4523608e37c919f7d6d3",
+      "raw_log_bytes": 13581
+    },
+    {
+      "projected_file": "stage-20260713-tuned-moe__prefill-8192-c4.txt",
+      "projected_sha256": "941a27d5bff2cd3b3fa725b1399cef8dd5354d8a39cbbe99e1c214ca31c3653a",
+      "raw_log_name": "benchmark_8192_con4.log",
+      "raw_log_sha256": "a2ec6385ff483e7531008eb4c224265f8a3bf22501b61fa5317adac8055f85be",
+      "raw_log_bytes": 7304
+    },
+    {
+      "projected_file": "stage-20260713-tuned-moe__prefill-65536-c4.txt",
+      "projected_sha256": "07f7ddb0fa26156704c54988655045be11a192b299adaf315a88ff5f985ad92c",
+      "raw_log_name": "benchmark_65536_con4.log",
+      "raw_log_sha256": "8ab45cd9afbddf5fd8b605d9e110f9934225bfed70513cf29b1324da64f70e1a",
+      "raw_log_bytes": 7676
+    },
+    {
+      "projected_file": "stage-20260713-tuned-moe__prefill-262144-c4.txt",
+      "projected_sha256": "5c8ca4011b26ff894025e1a6517037616d731fc53e75d2a06cc3f0158f03f063",
+      "raw_log_name": "benchmark_262144_con4.log",
+      "raw_log_sha256": "cdede9920b1baa6e7d35e06cd16d0ad1457f9e652d1153058484208085c985d3",
+      "raw_log_bytes": 7678
+    },
+    {
+      "projected_file": "ladder-20260708-ck__decode-8k1k-c16.txt",
+      "projected_sha256": "d35bab40922a41abad1dec8cc6c2c20405f4fbf642e03a0322d50fbd63f55058",
+      "raw_log_name": "decode_8192_out1024_con16.log",
+      "raw_log_sha256": "db3050a9206fe21cda01822c14fe413b56bdccadf815cbd5310bfb518219d264",
+      "raw_log_bytes": 20899
+    },
+    {
+      "projected_file": "ladder-20260708-ck__decode-8k1k-c32.txt",
+      "projected_sha256": "bd6280c553327106d2ae2a8831d5711ad8606287c304969bc4db406d587ddfbc",
+      "raw_log_name": "decode_8192_out1024_con32.log",
+      "raw_log_sha256": "0f7dbc61891c6a74460d3d36b36abcd308e2e5af0d62d8a99f80d4adee6aca6f",
+      "raw_log_bytes": 16086
+    },
+    {
+      "projected_file": "ladder-20260708-ck__decode-8k1k-c64.txt",
+      "projected_sha256": "29f01654e2a045d80cc2c7252d54c087018d874ccdbca6122ea3beeeaf88c16b",
+      "raw_log_name": "decode_8192_out1024_con64.log",
+      "raw_log_sha256": "fdbcaf1604d347615d6bcc27dac31bfdb37c4102c4843372032af0936f0c5d6c",
+      "raw_log_bytes": 14369
+    },
+    {
+      "projected_file": "ladder-20260708-ck__decode-8k1k-c96.txt",
+      "projected_sha256": "88e9268ed983695d3ebe58f44781d3e09be4ff2886db8abe65dc3a17edccd73c",
+      "raw_log_name": "decode_8192_out1024_con96.log",
+      "raw_log_sha256": "33b916afe7732389cf623e036cc939897cf12f0a13aaa45606f266597695977e",
+      "raw_log_bytes": 14418
+    },
+    {
+      "projected_file": "ladder-20260708-ck__decode-8k1k-c128.txt",
+      "projected_sha256": "ffa7926bc327ca1b4a2bc68fbfb889ceb359235c3b10c52fc28d3e97c17fe9c3",
+      "raw_log_name": "decode_8192_out1024_con128.log",
+      "raw_log_sha256": "e20918b9792c8c1108c3092ffa075fa411ddb8e752880b576f23d2deb0aa2f24",
+      "raw_log_bytes": 14490
+    },
+    {
+      "projected_file": "ladder-20260708-ck__decode-8k1k-c192.txt",
+      "projected_sha256": "d1cc93b39a4689a7316c355bbae891a937634923c8fa37364aa7aeed00eee6d9",
+      "raw_log_name": "decode_8192_out1024_con192.log",
+      "raw_log_sha256": "f86b9167dc204350fc11913cf2b6175f02d0367a71b475b4fa0b6e7fa087001e",
+      "raw_log_bytes": 14401
+    },
+    {
+      "projected_file": "ladder-20260708-ck__decode-8k1k-c256.txt",
+      "projected_sha256": "f6446bfe64a946b6583edfe60d45916703ca115f6d2ebbc14e098ce8bf8bd862",
+      "raw_log_name": "decode_8192_out1024_con256.log",
+      "raw_log_sha256": "9cb7a2ba88d10bd8904adfe17ae895e2866901325b36803651ab05651c074374",
+      "raw_log_bytes": 14431
+    },
+    {
+      "projected_file": "ab-20260718-64k-bs16.json",
+      "projected_sha256": "ef7987db5d125f8ab2320f59babc4de8f255204484f2cf47b98489914cd0f7ae",
+      "raw_log_name": "decode-fixed-batch-audit.json (public, david-share)",
+      "raw_log_sha256": "9af3291cd7e59b305996f90d950377f81540ca0db1f0fafe881e0d53992699c5",
+      "raw_log_bytes": 14392
+    },
+    {
+      "projected_file": "bringup-20260509.json",
+      "projected_sha256": "01bc0effddfac713aa9c42b1733303888862471eacbe656ad6506540ccf60b25",
+      "raw_log_name": "daily_report_20260509_wechat.txt",
+      "raw_log_sha256": "05b5ab7d17e32c699602b71629ab0aaf2f9a70d067ab20934d51bac442670fd8",
+      "raw_log_bytes": 3791
+    }
+  ]
+}

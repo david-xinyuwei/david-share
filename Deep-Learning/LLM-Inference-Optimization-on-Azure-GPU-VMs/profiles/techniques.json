@@ -1,0 +1,231 @@
+{
+  "schema": 1,
+  "layers": {
+    "framework": {
+      "en": "Serving-framework layer",
+      "cn": "推理框架层"
+    },
+    "operator": {
+      "en": "Operator (kernel) layer",
+      "cn": "算子层"
+    },
+    "workload": {
+      "en": "Workload and deployment layer",
+      "cn": "负载与部署层"
+    }
+  },
+  "techniques": [
+    {
+      "id": "attention-dispatch",
+      "layer": "framework",
+      "en": "Per-layer attention dispatch for hybrid SWA + GQA",
+      "cn": "混合 SWA + GQA 的逐层 attention 分派",
+      "rocm": "`--attention-backend aiter`; full-attention verify goes to FlyDSL, SWA/sink layers and plain decode stay on AITER",
+      "cuda": "`--attention-backend fa3` or `flashinfer`; split per layer wherever one kernel does not cover both window types",
+      "patches": [
+        "sammysun0711__sglang__ba15db1.patch",
+        "sammysun0711__sglang__0cfc48b.patch"
+      ],
+      "stack": "pinned-runtime",
+      "evidence": "ON_IN_MEASURED_RUN",
+      "evidence_note": {
+        "en": "AITER backend on in measured runs; FlyDSL split only in the pinned runtime",
+        "cn": "测量时已开 AITER 后端；FlyDSL 分派只在固定 runtime 中"
+      }
+    },
+    {
+      "id": "fp8-kv-5d",
+      "layer": "framework",
+      "en": "FP8 KV cache in a vectorized 5D page layout",
+      "cn": "FP8 KV cache + 向量化 5D 分页布局",
+      "rocm": "`--kv-cache-dtype fp8_e4m3` + `SGLANG_AITER_KV_CACHE_LAYOUT=vectorized_5d`",
+      "cuda": "`--kv-cache-dtype fp8_e4m3`; FA3/FlashInfer paged layouts already keep a 16-byte inner vector",
+      "patches": [
+        "sammysun0711__sglang__78cd40c.patch",
+        "sammysun0711__sglang__e11c515.patch",
+        "sammysun0711__aiter__10a9401.patch"
+      ],
+      "stack": "pinned-runtime",
+      "evidence": "ON_IN_MEASURED_RUN",
+      "evidence_note": {
+        "en": "FP8 KV on in measured runs; 5D layout only in the pinned runtime",
+        "cn": "测量时已开 FP8 KV；5D 布局只在固定 runtime 中"
+      }
+    },
+    {
+      "id": "unified-verify",
+      "layer": "framework",
+      "en": "AITER unified attention for MTP target verify",
+      "cn": "MTP target verify 使用 AITER unified attention",
+      "rocm": "`SGLANG_AITER_UNIFIED_VERIFY=1` on the decode server",
+      "cuda": "not needed; CUDA attention backends verify with their own kernels",
+      "patches": [],
+      "stack": "measured-run",
+      "evidence": "LOCAL_AB",
+      "evidence_note": {
+        "en": "measured A/B, together with the CK GEMM path",
+        "cn": "实测 A/B，与 CK GEMM 路径一起打开"
+      }
+    },
+    {
+      "id": "eagle-mtp",
+      "layer": "framework",
+      "en": "Multi-layer EAGLE MTP speculative decoding and verifier fixes",
+      "cn": "多层 EAGLE MTP 投机解码及校验修复",
+      "rocm": "`--speculative-algorithm EAGLE --speculative-num-steps 3 --speculative-eagle-topk 1 --speculative-num-draft-tokens 4 --enable-multi-layer-eagle`",
+      "cuda": "same flags",
+      "patches": [
+        "sammysun0711__sglang__db840d9.patch",
+        "sammysun0711__sglang__f26ae30.patch",
+        "sammysun0711__sglang__878fff1.patch"
+      ],
+      "stack": "measured-run",
+      "evidence": "ON_IN_MEASURED_RUN",
+      "evidence_note": {
+        "en": "on in measured runs (fixed acceptance); f26ae30 and 878fff1 only in the pinned runtime",
+        "cn": "测量时已开（固定接受长度）；f26ae30、878fff1 只在固定 runtime 中"
+      }
+    },
+    {
+      "id": "memory-sizing",
+      "layer": "framework",
+      "en": "Chunked prefill, page size and SWA pool sizing",
+      "cn": "Chunked prefill、page size 与 SWA 池容量",
+      "rocm": "`--chunked-prefill-size 65536 --page-size 64 --swa-full-tokens-ratio 0.01`",
+      "cuda": "same flags; re-derive the values from HBM size and kernel page support",
+      "patches": [],
+      "stack": "pinned-runtime",
+      "evidence": "PINNED_NOT_MEASURED",
+      "evidence_note": {
+        "en": "measured runs used chunk 32768 and page 32",
+        "cn": "实测时为 chunk 32768、page 32"
+      }
+    },
+    {
+      "id": "flydsl-pa-decode",
+      "layer": "operator",
+      "en": "FlyDSL paged-attention decode kernel (head 192, page 64)",
+      "cn": "FlyDSL paged-attention decode kernel（head 192，page 64）",
+      "rocm": "`SGLANG_AITER_PA_DECODE_IMPL=flydsl` + `SGLANG_FLYDSL_PA_NUM_PARTITIONS=16`",
+      "cuda": "CuTe DSL or FlashInfer decode; partitions correspond to split-KV",
+      "patches": [
+        "sammysun0711__FlyDSL__c99d5cd.patch",
+        "sammysun0711__sglang__ba15db1.patch",
+        "sammysun0711__sglang__a2fd773.patch"
+      ],
+      "stack": "pinned-runtime",
+      "evidence": "KERNEL_NOT_ISOLATED"
+    },
+    {
+      "id": "ck-a8w8-gemm",
+      "layer": "operator",
+      "en": "Block-scale FP8 GEMM with pre-shuffled weights",
+      "cn": "权重预重排的 block-scale FP8 GEMM",
+      "rocm": "`SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1`",
+      "cuda": "DeepGEMM (`SGLANG_ENABLE_JIT_DEEPGEMM=1`) or CUTLASS block-scale GEMM",
+      "patches": [
+        "sammysun0711__sglang__2f9b9ae.patch",
+        "sammysun0711__aiter__fc96a4f.patch"
+      ],
+      "stack": "measured-run",
+      "evidence": "LOCAL_AB",
+      "evidence_note": {
+        "en": "measured A/B, together with unified verify",
+        "cn": "实测 A/B，与 unified verify 一起打开"
+      }
+    },
+    {
+      "id": "tuned-fused-moe",
+      "layer": "operator",
+      "en": "Shape-tuned fused-MoE kernel table",
+      "cn": "按 shape 调优的 fused-MoE kernel 表",
+      "rocm": "`mimo_v2_5_pro_b16_tuned_fmoe.csv` in AITER",
+      "cuda": "Triton fused-MoE JSON from `tuning_fused_moe_triton.py`",
+      "patches": [
+        "sammysun0711__aiter__d725746.patch"
+      ],
+      "stack": "measured-run",
+      "evidence": "LOCAL_STAGE"
+    },
+    {
+      "id": "ck-prefill-tile",
+      "layer": "operator",
+      "en": "Head-192, page-64 FP8 batch-prefill tile",
+      "cn": "head 192、page 64 的 FP8 batch-prefill tile",
+      "rocm": "CK patch shipped in AITER `3f4ab48`, dispatched only for the exact shape",
+      "cuda": "check that the paged prefill path does not fall back to gather-then-dense",
+      "patches": [
+        "sammysun0711__aiter__3f4ab48.patch",
+        "sammysun0711__sglang__0cfc48b.patch"
+      ],
+      "stack": "pinned-runtime",
+      "evidence": "PINNED_NOT_MEASURED"
+    },
+    {
+      "id": "mixed-router-gemm",
+      "layer": "operator",
+      "en": "Mixed-precision Triton router (MoE gate) GEMM",
+      "cn": "混合精度 Triton router（MoE gate）GEMM",
+      "rocm": "`SGLANG_MIMO_MIXED_ROUTER=1` for router batches of at least 2,048 tokens",
+      "cuda": "the same Triton kernel compiles for CUDA; re-tune block sizes",
+      "patches": [
+        "sammysun0711__sglang__1f9bb2b.patch"
+      ],
+      "stack": "later",
+      "evidence": "NOT_MEASURED"
+    },
+    {
+      "id": "pd-disaggregation",
+      "layer": "workload",
+      "en": "Prefill/decode disaggregation (1P1D) over RDMA",
+      "cn": "Prefill/Decode 分离（1P1D），KV 走 RDMA",
+      "rocm": "`--disaggregation-mode prefill|decode --disaggregation-transfer-backend mooncake` + `sglang_router --pd-disaggregation`",
+      "cuda": "same flags; mooncake or nixl over GPUDirect RDMA",
+      "patches": [],
+      "stack": "measured-run",
+      "evidence": "ON_IN_MEASURED_RUN"
+    },
+    {
+      "id": "fake-prefill",
+      "layer": "workload",
+      "en": "Fake prefill for decode-only measurement",
+      "cn": "Fake prefill：只测 decode",
+      "rocm": "decode server `--disaggregation-transfer-backend fake`; client `--fake-prefill`",
+      "cuda": "same upstream SGLang feature",
+      "patches": [],
+      "stack": "pinned-runtime",
+      "evidence": "PINNED_NOT_MEASURED",
+      "evidence_note": {
+        "en": "in the pinned runtime's scripts; not used in the published runs",
+        "cn": "在固定 runtime 的脚本里；已发布的测试没有用到"
+      }
+    },
+    {
+      "id": "simulated-acceptance",
+      "layer": "workload",
+      "en": "Fixed MTP acceptance for performance runs",
+      "cn": "性能测试固定 MTP 接受长度",
+      "rocm": "`SGLANG_SIMULATE_ACC_LEN=3 SGLANG_SIMULATE_ACC_METHOD=match-expected`",
+      "cuda": "same upstream SGLang variables",
+      "patches": [],
+      "stack": "measured-run",
+      "evidence": "ON_IN_MEASURED_RUN"
+    },
+    {
+      "id": "concurrency-ladder",
+      "layer": "workload",
+      "en": "Concurrency ladder against the saturation point",
+      "cn": "按饱和点设计并发阶梯",
+      "rocm": "`bench_serving --max-concurrency 16 ... 256` with fixed prompts, warmup and seed",
+      "cuda": "same client",
+      "patches": [],
+      "stack": "measured-run",
+      "evidence": "LOCAL_LADDER"
+    }
+  ],
+  "stack_values": {
+    "measured-run": "switched on in the published Microsoft runs",
+    "pinned-runtime": "present in the final pinned runtime, not throughput-tested here",
+    "later": "on a later branch, in no runtime described here"
+  }
+}
