@@ -35,14 +35,14 @@ Not provided: model weights, the private raw logs behind the projected evidence 
 
 ## Measured Results on MI300X
 
-Every row compares MI300X with MI300X. The evidence column says how strong the comparison is: an A/B changes named switches inside one session; a stage pair repeats the same captured launch and benchmark scripts on two dates around one library update. Throughput was measured with a fixed MTP acceptance of three draft tokens, a benchmark method that is more favorable than real traffic, so read these values as relative gains, not as production throughput.
+Every row compares MI300X with MI300X. The evidence column says how strong the comparison is: an A/B changes named switches inside one session; a stage pair repeats the same captured launch and benchmark scripts on two dates around one library update. Throughput was measured with a fixed MTP acceptance of three draft tokens, a benchmark method that is more favorable than real traffic, so read these values as relative gains, not as production throughput. The first row is scheduler generation throughput; the other two are client-side input and output throughput.
 
 <!-- BEGIN GENERATED: headline -->
-| What changed | Before → after | Change | Evidence |
+| What changed | Before → after (tok/s) | Change | Evidence |
 |---|---|---:|---|
-| CK FP8 GEMM + unified verify<br>64K in / 1K out, batch 16, one VM | 743 → 934 gen tok/s | **+25.65%** | A/B, two switches, N=2 per arm |
-| Tuned fused-MoE table<br>8K prefill, concurrency 4, 1P1D | 16,716 → 20,781 input tok/s | **+24.32%** | stage pair, N=1 |
-| Tuned fused-MoE table<br>8K/1K decode, concurrency 128, 1P1D | 2,209 → 2,487 output tok/s | **+12.56%** | stage pair, N=1 |
+| CK FP8 GEMM + unified verify<br>64K/1K decode, batch 16, one VM | 743 → 934 | **+25.65%** | A/B, two switches, N=2 |
+| Tuned fused-MoE table<br>8K prefill, c4, 1P1D | 16,716 → 20,781 | **+24.32%** | stage pair, N=1 |
+| Tuned fused-MoE table<br>8K/1K decode, c128, 1P1D | 2,209 → 2,487 | **+12.56%** | stage pair, N=1 |
 <!-- END GENERATED: headline -->
 
 ### Controlled A/B: block-scale FP8 GEMM path at 64K context

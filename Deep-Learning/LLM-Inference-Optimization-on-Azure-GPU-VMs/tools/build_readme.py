@@ -115,20 +115,20 @@ def headline(lang: str) -> str:
     st = m["tuned_moe_stage"]
     pre = {r["input_tokens"]: r for r in st["prefill"]}
     dec = {r["concurrency"]: r for r in st["decode"]}
-    ab_val = f"{_c(ab['baseline_mean_tok_s'])} → {_c(ab['optimized_mean_tok_s'])} gen tok/s"
-    pre_val = f"{_c(pre[8192]['before_input_tok_s'])} → {_c(pre[8192]['after_input_tok_s'])} input tok/s"
-    dec_val = f"{_c(dec[128]['before_output_tok_s'])} → {_c(dec[128]['after_output_tok_s'])} output tok/s"
+    ab_val = f"{_c(ab['baseline_mean_tok_s'])} → {_c(ab['optimized_mean_tok_s'])}"
+    pre_val = f"{_c(pre[8192]['before_input_tok_s'])} → {_c(pre[8192]['after_input_tok_s'])}"
+    dec_val = f"{_c(dec[128]['before_output_tok_s'])} → {_c(dec[128]['after_output_tok_s'])}"
     if lang == "en":
-        head = ["What changed", "Before → after", "Change", "Evidence"]
+        head = ["What changed", "Before → after (tok/s)", "Change", "Evidence"]
         rows = [
-            ["CK FP8 GEMM + unified verify<br>64K in / 1K out, batch 16, one VM", ab_val, f"**{_pct(ab['throughput_delta_pct'])}**", "A/B, two switches, N=2 per arm"],
-            ["Tuned fused-MoE table<br>8K prefill, concurrency 4, 1P1D", pre_val, f"**{_pct(pre[8192]['input_tok_s_delta_pct'])}**", "stage pair, N=1"],
-            ["Tuned fused-MoE table<br>8K/1K decode, concurrency 128, 1P1D", dec_val, f"**{_pct(dec[128]['output_tok_s_delta_pct'])}**", "stage pair, N=1"],
+            ["CK FP8 GEMM + unified verify<br>64K/1K decode, batch 16, one VM", ab_val, f"**{_pct(ab['throughput_delta_pct'])}**", "A/B, two switches, N=2"],
+            ["Tuned fused-MoE table<br>8K prefill, c4, 1P1D", pre_val, f"**{_pct(pre[8192]['input_tok_s_delta_pct'])}**", "stage pair, N=1"],
+            ["Tuned fused-MoE table<br>8K/1K decode, c128, 1P1D", dec_val, f"**{_pct(dec[128]['output_tok_s_delta_pct'])}**", "stage pair, N=1"],
         ]
     else:
-        head = ["改了什么", "优化前 → 优化后", "变化", "证据"]
+        head = ["改了什么", "优化前 → 优化后（tok/s）", "变化", "证据"]
         rows = [
-            ["CK FP8 GEMM + unified verify<br>64K 输入 / 1K 输出，batch 16，单机", ab_val, f"**{_pct(ab['throughput_delta_pct'])}**", "两开关 A/B，各 2 次"],
+            ["CK FP8 GEMM + unified verify<br>64K/1K decode，batch 16，单机", ab_val, f"**{_pct(ab['throughput_delta_pct'])}**", "两开关 A/B，各 2 次"],
             ["调优 fused-MoE 表<br>8K prefill，并发 4，1P1D", pre_val, f"**{_pct(pre[8192]['input_tok_s_delta_pct'])}**", "阶段对比，各 1 次"],
             ["调优 fused-MoE 表<br>8K/1K decode，并发 128，1P1D", dec_val, f"**{_pct(dec[128]['output_tok_s_delta_pct'])}**", "阶段对比，各 1 次"],
         ]
