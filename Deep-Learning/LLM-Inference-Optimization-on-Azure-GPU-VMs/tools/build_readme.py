@@ -244,7 +244,10 @@ def technique_map(lang: str) -> str:
                 continue
             codes = ", ".join(f"[{lock[p]['commit'][:7]}]({lock[p]['url']})" for p in t["patches"]) or lab["none"]
             label = t["evidence_note"][lang] if "evidence_note" in t else EVIDENCE_LABEL[lang][t["evidence"]]
-            out.append(f"- **{t[lang]}**  \n  {lab['mi']}: {t['rocm']}  \n  {lab['nv']}: {t['cuda']}  \n  {lab['code']}: {codes}  \n  {lab['ev']}: {label}")
+            rocm = t["rocm"] if lang == "en" else t["rocm_cn"]
+            cuda = t["cuda"] if lang == "en" else t["cuda_cn"]
+            sep = ": " if lang == "en" else "："
+            out.append(f"- **{t[lang]}**  \n  {lab['mi']}{sep}{rocm}  \n  {lab['nv']}{sep}{cuda}  \n  {lab['code']}{sep}{codes}  \n  {lab['ev']}{sep}{label}")
         out.append("")
     return "\n".join(out)
 

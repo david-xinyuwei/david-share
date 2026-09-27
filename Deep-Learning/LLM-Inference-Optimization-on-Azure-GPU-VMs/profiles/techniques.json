@@ -31,7 +31,9 @@
       "evidence_note": {
         "en": "AITER backend on in measured runs; FlyDSL split only in the pinned runtime",
         "cn": "测量时已开 AITER 后端；FlyDSL 分派只在固定 runtime 中"
-      }
+      },
+      "rocm_cn": "`--attention-backend aiter`；全注意力层的 verify 走 FlyDSL，SWA/sink 层和普通 decode 留在 AITER",
+      "cuda_cn": "`--attention-backend fa3` 或 `flashinfer`；凡是一个 kernel 覆盖不了两种窗口类型的地方，都按层拆开"
     },
     {
       "id": "fp8-kv-5d",
@@ -50,7 +52,9 @@
       "evidence_note": {
         "en": "FP8 KV on in measured runs; 5D layout only in the pinned runtime",
         "cn": "测量时已开 FP8 KV；5D 布局只在固定 runtime 中"
-      }
+      },
+      "rocm_cn": "`--kv-cache-dtype fp8_e4m3` + `SGLANG_AITER_KV_CACHE_LAYOUT=vectorized_5d`",
+      "cuda_cn": "`--kv-cache-dtype fp8_e4m3`；FA3/FlashInfer 的分页布局本来就保留 16 字节内层向量"
     },
     {
       "id": "unified-verify",
@@ -65,7 +69,9 @@
       "evidence_note": {
         "en": "measured A/B, together with the CK GEMM path",
         "cn": "实测 A/B，与 CK GEMM 路径一起打开"
-      }
+      },
+      "rocm_cn": "decode 服务上设 `SGLANG_AITER_UNIFIED_VERIFY=1`",
+      "cuda_cn": "不需要；CUDA 的 attention 后端用自己的 kernel 做 verify"
     },
     {
       "id": "eagle-mtp",
@@ -84,7 +90,9 @@
       "evidence_note": {
         "en": "on in measured runs (fixed acceptance); f26ae30 and 878fff1 only in the pinned runtime",
         "cn": "测量时已开（固定接受长度）；f26ae30、878fff1 只在固定 runtime 中"
-      }
+      },
+      "rocm_cn": "`--speculative-algorithm EAGLE --speculative-num-steps 3 --speculative-eagle-topk 1 --speculative-num-draft-tokens 4 --enable-multi-layer-eagle`",
+      "cuda_cn": "同一组开关"
     },
     {
       "id": "memory-sizing",
@@ -99,7 +107,9 @@
       "evidence_note": {
         "en": "measured runs used chunk 32768 and page 32",
         "cn": "实测时为 chunk 32768、page 32"
-      }
+      },
+      "rocm_cn": "`--chunked-prefill-size 65536 --page-size 64 --swa-full-tokens-ratio 0.01`",
+      "cuda_cn": "同一组开关；具体数值按 HBM 容量和 kernel 支持的 page size 重新推算"
     },
     {
       "id": "flydsl-pa-decode",
@@ -114,7 +124,9 @@
         "sammysun0711__sglang__a2fd773.patch"
       ],
       "stack": "pinned-runtime",
-      "evidence": "KERNEL_NOT_ISOLATED"
+      "evidence": "KERNEL_NOT_ISOLATED",
+      "rocm_cn": "`SGLANG_AITER_PA_DECODE_IMPL=flydsl` + `SGLANG_FLYDSL_PA_NUM_PARTITIONS=16`",
+      "cuda_cn": "CuTe DSL 或 FlashInfer 的 decode kernel；partition 数对应 split-KV"
     },
     {
       "id": "ck-a8w8-gemm",
@@ -132,7 +144,9 @@
       "evidence_note": {
         "en": "measured A/B, together with unified verify",
         "cn": "实测 A/B，与 unified verify 一起打开"
-      }
+      },
+      "rocm_cn": "`SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1`",
+      "cuda_cn": "DeepGEMM（`SGLANG_ENABLE_JIT_DEEPGEMM=1`）或 CUTLASS 的 block-scale GEMM"
     },
     {
       "id": "tuned-fused-moe",
@@ -145,7 +159,9 @@
         "sammysun0711__aiter__d725746.patch"
       ],
       "stack": "measured-run",
-      "evidence": "LOCAL_STAGE"
+      "evidence": "LOCAL_STAGE",
+      "rocm_cn": "AITER 里的 `mimo_v2_5_pro_b16_tuned_fmoe.csv`",
+      "cuda_cn": "用 `tuning_fused_moe_triton.py` 生成的 Triton fused-MoE JSON"
     },
     {
       "id": "ck-prefill-tile",
@@ -159,7 +175,9 @@
         "sammysun0711__sglang__0cfc48b.patch"
       ],
       "stack": "pinned-runtime",
-      "evidence": "PINNED_NOT_MEASURED"
+      "evidence": "PINNED_NOT_MEASURED",
+      "rocm_cn": "AITER `3f4ab48` 自带的 CK patch，只对这个精确 shape 分派",
+      "cuda_cn": "确认分页 prefill 路径没有退回到「先 gather 再算稠密 attention」"
     },
     {
       "id": "mixed-router-gemm",
@@ -172,7 +190,9 @@
         "sammysun0711__sglang__1f9bb2b.patch"
       ],
       "stack": "later",
-      "evidence": "NOT_MEASURED"
+      "evidence": "NOT_MEASURED",
+      "rocm_cn": "`SGLANG_MIMO_MIXED_ROUTER=1`，用于 token 数不少于 2,048 的 router batch",
+      "cuda_cn": "同一个 Triton kernel 在 CUDA 上也能编译；重新调 block 大小即可"
     },
     {
       "id": "pd-disaggregation",
@@ -183,7 +203,9 @@
       "cuda": "same flags; mooncake or nixl over GPUDirect RDMA",
       "patches": [],
       "stack": "measured-run",
-      "evidence": "ON_IN_MEASURED_RUN"
+      "evidence": "ON_IN_MEASURED_RUN",
+      "rocm_cn": "`--disaggregation-mode prefill|decode --disaggregation-transfer-backend mooncake` + `sglang_router --pd-disaggregation`",
+      "cuda_cn": "同一组开关；通过 GPUDirect RDMA 使用 mooncake 或 nixl"
     },
     {
       "id": "fake-prefill",
@@ -198,7 +220,9 @@
       "evidence_note": {
         "en": "in the pinned runtime's scripts; not used in the published runs",
         "cn": "在固定 runtime 的脚本里；已发布的测试没有用到"
-      }
+      },
+      "rocm_cn": "decode 服务 `--disaggregation-transfer-backend fake`；客户端 `--fake-prefill`",
+      "cuda_cn": "上游 SGLang 的同一功能"
     },
     {
       "id": "simulated-acceptance",
@@ -209,7 +233,9 @@
       "cuda": "same upstream SGLang variables",
       "patches": [],
       "stack": "measured-run",
-      "evidence": "ON_IN_MEASURED_RUN"
+      "evidence": "ON_IN_MEASURED_RUN",
+      "rocm_cn": "`SGLANG_SIMULATE_ACC_LEN=3 SGLANG_SIMULATE_ACC_METHOD=match-expected`",
+      "cuda_cn": "上游 SGLang 的同一组变量"
     },
     {
       "id": "concurrency-ladder",
@@ -220,7 +246,9 @@
       "cuda": "same client",
       "patches": [],
       "stack": "measured-run",
-      "evidence": "LOCAL_LADDER"
+      "evidence": "LOCAL_LADDER",
+      "rocm_cn": "`bench_serving --max-concurrency 16 ... 256`，固定 prompt、预热请求和 seed",
+      "cuda_cn": "同一个客户端"
     }
   ],
   "stack_values": {

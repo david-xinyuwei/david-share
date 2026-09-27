@@ -211,81 +211,81 @@ FlyDSL paged-attention decode kernel、向量化 5D KV 布局、page 64 和 head
 **推理框架层**
 
 - **混合 SWA + GQA 的逐层 attention 分派**  
-  MI300X: `--attention-backend aiter`; full-attention verify goes to FlyDSL, SWA/sink layers and plain decode stay on AITER  
-  NVIDIA: `--attention-backend fa3` or `flashinfer`; split per layer wherever one kernel does not cover both window types  
-  代码: [ba15db1](https://github.com/sammysun0711/sglang/commit/ba15db1a576dcdc8d51ba15bd069b9fd1f748d97), [0cfc48b](https://github.com/sammysun0711/sglang/commit/0cfc48b0e374d7e84c122f739182a39feea56d46)  
-  证据: 测量时已开 AITER 后端；FlyDSL 分派只在固定 runtime 中
+  MI300X：`--attention-backend aiter`；全注意力层的 verify 走 FlyDSL，SWA/sink 层和普通 decode 留在 AITER  
+  NVIDIA：`--attention-backend fa3` 或 `flashinfer`；凡是一个 kernel 覆盖不了两种窗口类型的地方，都按层拆开  
+  代码：[ba15db1](https://github.com/sammysun0711/sglang/commit/ba15db1a576dcdc8d51ba15bd069b9fd1f748d97), [0cfc48b](https://github.com/sammysun0711/sglang/commit/0cfc48b0e374d7e84c122f739182a39feea56d46)  
+  证据：测量时已开 AITER 后端；FlyDSL 分派只在固定 runtime 中
 - **FP8 KV cache + 向量化 5D 分页布局**  
-  MI300X: `--kv-cache-dtype fp8_e4m3` + `SGLANG_AITER_KV_CACHE_LAYOUT=vectorized_5d`  
-  NVIDIA: `--kv-cache-dtype fp8_e4m3`; FA3/FlashInfer paged layouts already keep a 16-byte inner vector  
-  代码: [78cd40c](https://github.com/sammysun0711/sglang/commit/78cd40c7a5102524536daf9a3178426777174d2d), [e11c515](https://github.com/sammysun0711/sglang/commit/e11c5155f0845079211c2a4d0b8a4ab3669039f9), [10a9401](https://github.com/sammysun0711/aiter/commit/10a94012efc1260dfdf16ba2f52fbda40a518a17)  
-  证据: 测量时已开 FP8 KV；5D 布局只在固定 runtime 中
+  MI300X：`--kv-cache-dtype fp8_e4m3` + `SGLANG_AITER_KV_CACHE_LAYOUT=vectorized_5d`  
+  NVIDIA：`--kv-cache-dtype fp8_e4m3`；FA3/FlashInfer 的分页布局本来就保留 16 字节内层向量  
+  代码：[78cd40c](https://github.com/sammysun0711/sglang/commit/78cd40c7a5102524536daf9a3178426777174d2d), [e11c515](https://github.com/sammysun0711/sglang/commit/e11c5155f0845079211c2a4d0b8a4ab3669039f9), [10a9401](https://github.com/sammysun0711/aiter/commit/10a94012efc1260dfdf16ba2f52fbda40a518a17)  
+  证据：测量时已开 FP8 KV；5D 布局只在固定 runtime 中
 - **MTP target verify 使用 AITER unified attention**  
-  MI300X: `SGLANG_AITER_UNIFIED_VERIFY=1` on the decode server  
-  NVIDIA: not needed; CUDA attention backends verify with their own kernels  
-  代码: 无代码改动（仅配置）  
-  证据: 实测 A/B，与 CK GEMM 路径一起打开
+  MI300X：decode 服务上设 `SGLANG_AITER_UNIFIED_VERIFY=1`  
+  NVIDIA：不需要；CUDA 的 attention 后端用自己的 kernel 做 verify  
+  代码：无代码改动（仅配置）  
+  证据：实测 A/B，与 CK GEMM 路径一起打开
 - **多层 EAGLE MTP 投机解码及校验修复**  
-  MI300X: `--speculative-algorithm EAGLE --speculative-num-steps 3 --speculative-eagle-topk 1 --speculative-num-draft-tokens 4 --enable-multi-layer-eagle`  
-  NVIDIA: same flags  
-  代码: [db840d9](https://github.com/sammysun0711/sglang/commit/db840d935a9f7097dbeb5f1b0dba4d261057a2bd), [f26ae30](https://github.com/sammysun0711/sglang/commit/f26ae30063143411f3ae552af1830fa46e3ee0fd), [878fff1](https://github.com/sammysun0711/sglang/commit/878fff15647fe3dabb32aa3a335b0ad16e3ee878)  
-  证据: 测量时已开（固定接受长度）；f26ae30、878fff1 只在固定 runtime 中
+  MI300X：`--speculative-algorithm EAGLE --speculative-num-steps 3 --speculative-eagle-topk 1 --speculative-num-draft-tokens 4 --enable-multi-layer-eagle`  
+  NVIDIA：同一组开关  
+  代码：[db840d9](https://github.com/sammysun0711/sglang/commit/db840d935a9f7097dbeb5f1b0dba4d261057a2bd), [f26ae30](https://github.com/sammysun0711/sglang/commit/f26ae30063143411f3ae552af1830fa46e3ee0fd), [878fff1](https://github.com/sammysun0711/sglang/commit/878fff15647fe3dabb32aa3a335b0ad16e3ee878)  
+  证据：测量时已开（固定接受长度）；f26ae30、878fff1 只在固定 runtime 中
 - **Chunked prefill、page size 与 SWA 池容量**  
-  MI300X: `--chunked-prefill-size 65536 --page-size 64 --swa-full-tokens-ratio 0.01`  
-  NVIDIA: same flags; re-derive the values from HBM size and kernel page support  
-  代码: 无代码改动（仅配置）  
-  证据: 实测时为 chunk 32768、page 32
+  MI300X：`--chunked-prefill-size 65536 --page-size 64 --swa-full-tokens-ratio 0.01`  
+  NVIDIA：同一组开关；具体数值按 HBM 容量和 kernel 支持的 page size 重新推算  
+  代码：无代码改动（仅配置）  
+  证据：实测时为 chunk 32768、page 32
 
 **算子层**
 
 - **FlyDSL paged-attention decode kernel（head 192，page 64）**  
-  MI300X: `SGLANG_AITER_PA_DECODE_IMPL=flydsl` + `SGLANG_FLYDSL_PA_NUM_PARTITIONS=16`  
-  NVIDIA: CuTe DSL or FlashInfer decode; partitions correspond to split-KV  
-  代码: [c99d5cd](https://github.com/sammysun0711/FlyDSL/commit/c99d5cd97864c11e459cff9169d387d312790782), [ba15db1](https://github.com/sammysun0711/sglang/commit/ba15db1a576dcdc8d51ba15bd069b9fd1f748d97), [a2fd773](https://github.com/sammysun0711/sglang/commit/a2fd773ab43f960f5f2c29b5c592b0ca43c5ba8f)  
-  证据: 在固定 runtime 中；kernel 未单独测试
+  MI300X：`SGLANG_AITER_PA_DECODE_IMPL=flydsl` + `SGLANG_FLYDSL_PA_NUM_PARTITIONS=16`  
+  NVIDIA：CuTe DSL 或 FlashInfer 的 decode kernel；partition 数对应 split-KV  
+  代码：[c99d5cd](https://github.com/sammysun0711/FlyDSL/commit/c99d5cd97864c11e459cff9169d387d312790782), [ba15db1](https://github.com/sammysun0711/sglang/commit/ba15db1a576dcdc8d51ba15bd069b9fd1f748d97), [a2fd773](https://github.com/sammysun0711/sglang/commit/a2fd773ab43f960f5f2c29b5c592b0ca43c5ba8f)  
+  证据：在固定 runtime 中；kernel 未单独测试
 - **权重预重排的 block-scale FP8 GEMM**  
-  MI300X: `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1`  
-  NVIDIA: DeepGEMM (`SGLANG_ENABLE_JIT_DEEPGEMM=1`) or CUTLASS block-scale GEMM  
-  代码: [2f9b9ae](https://github.com/sammysun0711/sglang/commit/2f9b9aedf32977bc5d088a86ec0a73bcf432a4d0), [fc96a4f](https://github.com/sammysun0711/aiter/commit/fc96a4f9f5f3e931cbb9de275c8aa01136417500)  
-  证据: 实测 A/B，与 unified verify 一起打开
+  MI300X：`SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1`  
+  NVIDIA：DeepGEMM（`SGLANG_ENABLE_JIT_DEEPGEMM=1`）或 CUTLASS 的 block-scale GEMM  
+  代码：[2f9b9ae](https://github.com/sammysun0711/sglang/commit/2f9b9aedf32977bc5d088a86ec0a73bcf432a4d0), [fc96a4f](https://github.com/sammysun0711/aiter/commit/fc96a4f9f5f3e931cbb9de275c8aa01136417500)  
+  证据：实测 A/B，与 unified verify 一起打开
 - **按 shape 调优的 fused-MoE kernel 表**  
-  MI300X: `mimo_v2_5_pro_b16_tuned_fmoe.csv` in AITER  
-  NVIDIA: Triton fused-MoE JSON from `tuning_fused_moe_triton.py`  
-  代码: [d725746](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9)  
-  证据: 实测阶段对比
+  MI300X：AITER 里的 `mimo_v2_5_pro_b16_tuned_fmoe.csv`  
+  NVIDIA：用 `tuning_fused_moe_triton.py` 生成的 Triton fused-MoE JSON  
+  代码：[d725746](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9)  
+  证据：实测阶段对比
 - **head 192、page 64 的 FP8 batch-prefill tile**  
-  MI300X: CK patch shipped in AITER `3f4ab48`, dispatched only for the exact shape  
-  NVIDIA: check that the paged prefill path does not fall back to gather-then-dense  
-  代码: [3f4ab48](https://github.com/sammysun0711/aiter/commit/3f4ab482a2986919c784e469e23cfac7f93bb153), [0cfc48b](https://github.com/sammysun0711/sglang/commit/0cfc48b0e374d7e84c122f739182a39feea56d46)  
-  证据: 在固定 runtime 中，本仓库未测吞吐
+  MI300X：AITER `3f4ab48` 自带的 CK patch，只对这个精确 shape 分派  
+  NVIDIA：确认分页 prefill 路径没有退回到「先 gather 再算稠密 attention」  
+  代码：[3f4ab48](https://github.com/sammysun0711/aiter/commit/3f4ab482a2986919c784e469e23cfac7f93bb153), [0cfc48b](https://github.com/sammysun0711/sglang/commit/0cfc48b0e374d7e84c122f739182a39feea56d46)  
+  证据：在固定 runtime 中，本仓库未测吞吐
 - **混合精度 Triton router（MoE gate）GEMM**  
-  MI300X: `SGLANG_MIMO_MIXED_ROUTER=1` for router batches of at least 2,048 tokens  
-  NVIDIA: the same Triton kernel compiles for CUDA; re-tune block sizes  
-  代码: [1f9bb2b](https://github.com/sammysun0711/sglang/commit/1f9bb2b4c55cdc7bd5de1ac7977f76afab101a97)  
-  证据: 后续提交，未实测
+  MI300X：`SGLANG_MIMO_MIXED_ROUTER=1`，用于 token 数不少于 2,048 的 router batch  
+  NVIDIA：同一个 Triton kernel 在 CUDA 上也能编译；重新调 block 大小即可  
+  代码：[1f9bb2b](https://github.com/sammysun0711/sglang/commit/1f9bb2b4c55cdc7bd5de1ac7977f76afab101a97)  
+  证据：后续提交，未实测
 
 **负载与部署层**
 
 - **Prefill/Decode 分离（1P1D），KV 走 RDMA**  
-  MI300X: `--disaggregation-mode prefill|decode --disaggregation-transfer-backend mooncake` + `sglang_router --pd-disaggregation`  
-  NVIDIA: same flags; mooncake or nixl over GPUDirect RDMA  
-  代码: 无代码改动（仅配置）  
-  证据: 实测时已打开，未单独拆分
+  MI300X：`--disaggregation-mode prefill|decode --disaggregation-transfer-backend mooncake` + `sglang_router --pd-disaggregation`  
+  NVIDIA：同一组开关；通过 GPUDirect RDMA 使用 mooncake 或 nixl  
+  代码：无代码改动（仅配置）  
+  证据：实测时已打开，未单独拆分
 - **Fake prefill：只测 decode**  
-  MI300X: decode server `--disaggregation-transfer-backend fake`; client `--fake-prefill`  
-  NVIDIA: same upstream SGLang feature  
-  代码: 无代码改动（仅配置）  
-  证据: 在固定 runtime 的脚本里；已发布的测试没有用到
+  MI300X：decode 服务 `--disaggregation-transfer-backend fake`；客户端 `--fake-prefill`  
+  NVIDIA：上游 SGLang 的同一功能  
+  代码：无代码改动（仅配置）  
+  证据：在固定 runtime 的脚本里；已发布的测试没有用到
 - **性能测试固定 MTP 接受长度**  
-  MI300X: `SGLANG_SIMULATE_ACC_LEN=3 SGLANG_SIMULATE_ACC_METHOD=match-expected`  
-  NVIDIA: same upstream SGLang variables  
-  代码: 无代码改动（仅配置）  
-  证据: 实测时已打开，未单独拆分
+  MI300X：`SGLANG_SIMULATE_ACC_LEN=3 SGLANG_SIMULATE_ACC_METHOD=match-expected`  
+  NVIDIA：上游 SGLang 的同一组变量  
+  代码：无代码改动（仅配置）  
+  证据：实测时已打开，未单独拆分
 - **按饱和点设计并发阶梯**  
-  MI300X: `bench_serving --max-concurrency 16 ... 256` with fixed prompts, warmup and seed  
-  NVIDIA: same client  
-  代码: 无代码改动（仅配置）  
-  证据: 实测并发阶梯
+  MI300X：`bench_serving --max-concurrency 16 ... 256`，固定 prompt、预热请求和 seed  
+  NVIDIA：同一个客户端  
+  代码：无代码改动（仅配置）  
+  证据：实测并发阶梯
 <!-- END GENERATED: technique-map -->
 
 「实测时已打开」指这个开关在微软已发布的测试中是打开的，但没有单独拆出它的贡献；「固定 runtime」指它属于最终 runtime，而本仓库没有发布这个 runtime 的吞吐数据。

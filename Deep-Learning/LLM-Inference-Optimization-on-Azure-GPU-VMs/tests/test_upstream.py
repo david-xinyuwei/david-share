@@ -37,6 +37,9 @@ class UpstreamTests(unittest.TestCase):
         for t in catalog["techniques"]:
             for patch in t["patches"]:
                 self.assertIn(patch, locked, t["id"])
+            for key in ("en", "cn", "rocm", "cuda", "rocm_cn", "cuda_cn"):
+                self.assertTrue(t.get(key), f"{t['id']} missing {key}")
+            self.assertRegex(t["cn"] + t["rocm_cn"] + t["cuda_cn"], r"[\u4e00-\u9fff]", t["id"])
 
     def test_readme_excerpts_are_byte_identical_to_the_patch(self):
         spec = json.loads((ROOT / "tools/excerpts.json").read_text(encoding="utf-8"))["excerpts"]
