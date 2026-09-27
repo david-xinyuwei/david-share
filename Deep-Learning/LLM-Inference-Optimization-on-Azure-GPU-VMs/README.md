@@ -23,13 +23,13 @@ Author: Xinyu Wei · [中文](README_CN.md) · [Results](#measured-results-on-mi
 
 ## What This Repository Delivers
 
-| Part | Owner | What you get here |
-|---|---|---|
-| Serving engine and kernels | Upstream SGLang, AMD AITER, Composable Kernel and FlyDSL projects; the MiMo-specific commits are AMD engineering work in public forks | Pinned commit identities and the full patch of every commit discussed ([`upstream/`](upstream/)) |
-| Optimization method and measurements | This repository | Measured MI300X before/after comparisons with projected raw benchmark output ([`evidence/`](evidence/)), a per-technique explanation with code excerpts, and the boundaries of every number |
-| Launch configuration | This repository | Machine-readable profiles for the measured MI300X stack and an NVIDIA template ([`profiles/`](profiles/)), rendered into commands with single-technique ablation ([`tools/render_launch.py`](tools/render_launch.py)) |
-| Runtime rebuild | This repository | A Dockerfile that rebuilds the pinned runtime from public sources ([`docker/`](docker/)) |
-| Checks | This repository | Offline tests and CI that recompute every published number from the committed evidence |
+| Part | What you get here |
+|---|---|
+| Serving engine and kernels — owned by the upstream SGLang, AMD AITER, Composable Kernel and FlyDSL projects; the MiMo-specific commits are AMD engineering work in public forks | Pinned commit identities and the full patch of every commit discussed ([`upstream/`](upstream/)) |
+| Optimization method and measurements — this repository | Measured MI300X before/after comparisons with projected raw benchmark output ([`evidence/`](evidence/)), a per-technique explanation with code excerpts, and the boundaries of every number |
+| Launch configuration — this repository | Machine-readable profiles for the measured MI300X stack and an NVIDIA template ([`profiles/`](profiles/)), rendered into commands with single-technique ablation ([`tools/render_launch.py`](tools/render_launch.py)) |
+| Runtime rebuild — this repository | A Dockerfile that rebuilds the pinned runtime from public sources ([`docker/`](docker/)) |
+| Checks — this repository | Offline tests and CI that recompute every published number from the committed evidence |
 
 You supply: Azure ND MI300X v5 capacity (two VMs for the PD path, one for the single-VM path), the MiMo-V2.5-Pro checkpoint, and a container host with RDMA access.
 
@@ -40,11 +40,11 @@ Not provided: model weights, the private raw logs behind the projected evidence 
 Every row compares MI300X with MI300X. The evidence column says how strong the comparison is: an A/B changes named switches inside one session; a stage pair repeats the same captured launch and benchmark scripts on two dates around one library update. Throughput was measured with a fixed MTP acceptance of three draft tokens, a benchmark method that is more favorable than real traffic, so read these values as relative gains, not as production throughput.
 
 <!-- BEGIN GENERATED: headline -->
-| What changed | Workload | Before → after (MI300X) | Change | Evidence |
-|---|---|---|---:|---|
-| CK block-scale FP8 GEMM + unified verify (two switches) | 64K in / 1K out, 16 in flight, single VM | 743.12 → 933.75 gen tok/s | **+25.65%** | two-switch A/B, same image, back-to-back, N=2 each |
-| Shape-tuned fused-MoE table | 8K prefill, concurrency 4, 1P1D | 16,715.80 → 20,780.79 input tok/s | **+24.32%** | stage pair, N=1 each |
-| Shape-tuned fused-MoE table | 8K in / 1K out, concurrency 128, 1P1D | 2,209.43 → 2,486.89 output tok/s | **+12.56%** | stage pair, N=1 each |
+| What changed / workload | Before → after (MI300X) | Change | Evidence |
+|---|---|---:|---|
+| CK block-scale FP8 GEMM + unified verify (two switches)<br>64K in / 1K out, 16 in flight, single VM | 743.12 → 933.75 gen tok/s | **+25.65%** | two-switch A/B, same image, back-to-back, N=2 each |
+| Shape-tuned fused-MoE table<br>8K prefill, concurrency 4, 1P1D | 16,715.80 → 20,780.79 input tok/s | **+24.32%** | stage pair, N=1 each |
+| Shape-tuned fused-MoE table<br>8K in / 1K out, concurrency 128, 1P1D | 2,209.43 → 2,486.89 output tok/s | **+12.56%** | stage pair, N=1 each |
 <!-- END GENERATED: headline -->
 
 ### Controlled A/B: block-scale FP8 GEMM path at 64K context
@@ -56,14 +56,24 @@ Every row compares MI300X with MI300X. The evidence column says how strong the c
 **What varied.** Two environment variables, switched together: the optimized arm adds `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1` and `SGLANG_AITER_UNIFIED_VERIFY=1`. Host, container, image, model, flags, benchmark command and KV setting are identical, each arm gets two fresh-service runs, and the two arms ran back-to-back.
 
 <!-- BEGIN GENERATED: ab-table -->
-| Arm | Run 1 (tok/s) | Run 2 (tok/s) | Mean (tok/s) | Implied TPOT at batch 16 (ms) |
-|---|---:|---:|---:|---:|
-| Baseline | 740.29 | 745.95 | 743.12 | 21.53 |
-| Optimized | 931.58 | 935.92 | 933.75 | 17.14 |
-| Change |  |  | **+25.65%** | **-20.42%** |
+| Arm | Run 1 (tok/s) | Run 2 (tok/s) | Mean (tok/s) |
+|---|---:|---:|---:|
+| Baseline | 740.29 | 745.95 | 743.12 |
+| Optimized | 931.58 | 935.92 | 933.75 |
+| Change |  |  | **+25.65%** |
 <!-- END GENERATED: ab-table -->
 
-The two runs of each arm agree within 1%, so the difference is far outside run-to-run noise. The implied TPOT is `1000 × 16 / tok/s`, not a client-measured latency.
+The two runs of each arm agree within 1%, so the difference is far outside run-to-run noise. Dividing the batch by the throughput gives the time each of the 16 requests waits per token:
+
+<!-- BEGIN GENERATED: ab-tpot -->
+| Arm | Implied TPOT at batch 16 (ms) |
+|---|---:|
+| Baseline | 21.53 |
+| Optimized | 17.14 |
+| Change | **-20.42%** |
+<!-- END GENERATED: ab-tpot -->
+
+The implied TPOT is `1000 × 16 / tok/s`, not a client-measured latency.
 
 **Boundary.** The two variables were switched together, so the gain belongs to the pair, not to either flag alone. The run is single-VM with prefill and decode in one server; it says nothing about PD deployments. The raw samples are in [`evidence/raw/ab-20260718-64k-bs16.json`](evidence/raw/ab-20260718-64k-bs16.json) and trace back to the public audit file named there.
 
@@ -75,25 +85,45 @@ The two runs of each arm agree within 1%, so the difference is far outside run-t
 
 **What varied.** AITER moved from `fc96a4f` to a build that adds the tuned table from [`d725746`](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9) (the served CSV has the same SHA-256 as the file in that commit). The prefill launch script, the router script and both benchmark scripts have the same SHA-256 on both dates, and the captured environment lines of the decode server match. The full decode launch script was hashed only on the second date, and the sglang commit only on the first, so the attribution to the table is strong but not proven by an in-session A/B.
 
-Prefill, measured at the client:
+Prefill input throughput, measured at the client:
 
 <!-- BEGIN GENERATED: stage-prefill -->
-| Input tokens | Concurrency | Before (input tok/s) | After (input tok/s) | Throughput | Mean TTFT |
-|---:|---:|---:|---:|---:|---:|
-| 8,192 | 4 | 16,715.80 | 20,780.79 | **+24.32%** | -15.15% |
-| 65,536 | 4 | 17,254.14 | 19,022.57 | **+10.25%** | -9.36% |
+| Input tokens | Before (input tok/s) | After (input tok/s) | Change |
+|---:|---:|---:|---:|
+| 8,192 | 16,715.80 | 20,780.79 | **+24.32%** |
+| 65,536 | 17,254.14 | 19,022.57 | **+10.25%** |
 <!-- END GENERATED: stage-prefill -->
 
-Decode, measured at the client:
+Prefill time to first token, same runs:
+
+<!-- BEGIN GENERATED: stage-prefill-ttft -->
+| Input tokens | Before (mean TTFT, s) | After (mean TTFT, s) | Change |
+|---:|---:|---:|---:|
+| 8,192 | 1.85 | 1.57 | -15.15% |
+| 65,536 | 14.11 | 12.79 | -9.36% |
+<!-- END GENERATED: stage-prefill-ttft -->
+
+Decode output throughput, measured at the client:
 
 <!-- BEGIN GENERATED: stage-decode -->
-| Concurrency | Before (output tok/s) | After (output tok/s) | Throughput | Mean TPOT before → after (ms) | TPOT |
-|---:|---:|---:|---:|---:|---:|
-| 16 | 1,299.18 | 1,331.98 | **+2.52%** | 10.64 → 10.83 | +1.79% |
-| 32 | 1,910.75 | 1,936.24 | **+1.33%** | 13.50 → 13.65 | +1.11% |
-| 64 | 2,188.05 | 2,457.73 | **+12.33%** | 15.10 → 17.00 | +12.58% |
-| 128 | 2,209.43 | 2,486.89 | **+12.56%** | 14.52 → 16.56 | +14.05% |
+| Concurrency | Before (output tok/s) | After (output tok/s) | Change |
+|---:|---:|---:|---:|
+| 16 | 1,299.18 | 1,331.98 | **+2.52%** |
+| 32 | 1,910.75 | 1,936.24 | **+1.33%** |
+| 64 | 2,188.05 | 2,457.73 | **+12.33%** |
+| 128 | 2,209.43 | 2,486.89 | **+12.56%** |
 <!-- END GENERATED: stage-decode -->
+
+Decode time per output token, same runs:
+
+<!-- BEGIN GENERATED: stage-decode-tpot -->
+| Concurrency | Before (mean TPOT, ms) | After (mean TPOT, ms) | Change |
+|---:|---:|---:|---:|
+| 16 | 10.64 | 10.83 | +1.79% |
+| 32 | 13.50 | 13.65 | +1.11% |
+| 64 | 15.10 | 17.00 | +12.58% |
+| 128 | 14.52 | 16.56 | +14.05% |
+<!-- END GENERATED: stage-decode-tpot -->
 
 Prefill gains come with shorter time to first token. At decode concurrency 64 and 128 the table raises output throughput by about an eighth while TPOT rises by a similar amount: the server holds more requests per step, so each request waits a little longer per token but the batch as a whole finishes sooner.
 
@@ -106,16 +136,30 @@ Prefill gains come with shorter time to first token. At decode concurrency 64 an
 **Input.** The same 8K-in / 1K-out decode workload and stack as the first date above, 256 prompts per point, client concurrency 16 to 256.
 
 <!-- BEGIN GENERATED: ladder -->
-| Configured concurrency | Observed concurrency | Output tok/s | Mean TPOT (ms) | Mean TTFT (s) | P99 TTFT (s) |
-|---:|---:|---:|---:|---:|---:|
-| 16 | 15.78 | 1,321.50 | 10.79 | 1.2 | 7.1 |
-| 32 | 30.89 | 1,914.27 | 13.37 | 2.8 | 14.1 |
-| 64 | 59.47 | 2,198.77 | 15.49 | 11.9 | 27.6 |
-| 96 | 83.97 | 2,200.63 | 15.06 | 23.7 | 40.8 |
-| 128 | 104.60 | 2,203.65 | 14.83 | 33.4 | 54.4 |
-| 192 | 135.44 | 2,202.57 | 14.72 | 47.9 | 81.3 |
-| 256 | 151.81 | 2,207.97 | 14.60 | 55.5 | 107.3 |
+| Configured | Observed | Output tok/s | Mean TPOT (ms) |
+|---:|---:|---:|---:|
+| 16 | 15.78 | 1,321.50 | 10.79 |
+| 32 | 30.89 | 1,914.27 | 13.37 |
+| 64 | 59.47 | 2,198.77 | 15.49 |
+| 96 | 83.97 | 2,200.63 | 15.06 |
+| 128 | 104.60 | 2,203.65 | 14.83 |
+| 192 | 135.44 | 2,202.57 | 14.72 |
+| 256 | 151.81 | 2,207.97 | 14.60 |
 <!-- END GENERATED: ladder -->
+
+Queueing cost of the same points:
+
+<!-- BEGIN GENERATED: ladder-ttft -->
+| Configured | Mean TTFT (s) | P99 TTFT (s) |
+|---:|---:|---:|
+| 16 | 1.2 | 7.1 |
+| 32 | 2.8 | 14.1 |
+| 64 | 11.9 | 27.6 |
+| 96 | 23.7 | 40.8 |
+| 128 | 33.4 | 54.4 |
+| 192 | 47.9 | 81.3 |
+| 256 | 55.5 | 107.3 |
+<!-- END GENERATED: ladder-ttft -->
 
 Throughput reaches its plateau at concurrency 64. Above that, TPOT stays flat while mean and P99 time to first token keep growing, because the additional requests only wait in the queue. Observed concurrency also stops following the configured value, which shows where the server's running-request limit and KV capacity take over.
 
@@ -128,12 +172,20 @@ Throughput reaches its plateau at concurrency 64. Above that, TPOT stays flat wh
 **Input.** Early point (2026-05-09): one VM, TP8, prefill and decode in one server, Triton attention and Triton FP8 GEMM, no speculative decoding, decode with 16K input / 1K output. Late point (2026-07-13): the PD stack of the stage pair above, decode with 8K input / 1K output and MTP at a fixed acceptance of three tokens.
 
 <!-- BEGIN GENERATED: snapshot -->
-| Concurrency | 2026-05-09 output tok/s (16K in) | 2026-07-13 output tok/s (8K in) | 2026-05-09 TPOT (ms) | 2026-07-13 TPOT (ms) |
-|---:|---:|---:|---:|---:|
-| 32 | 519 | 1,936.24 | 44.79 | 13.65 |
-| 64 | 542 | 2,457.73 | 61.58 | 17.00 |
-| 128 | 576 | 2,486.89 | 64.56 | 16.56 |
+| Concurrency | 2026-05-09 output tok/s (16K in) | 2026-07-13 output tok/s (8K in) |
+|---:|---:|---:|
+| 32 | 519 | 1,936.24 |
+| 64 | 542 | 2,457.73 |
+| 128 | 576 | 2,486.89 |
 <!-- END GENERATED: snapshot -->
+
+<!-- BEGIN GENERATED: snapshot-tpot -->
+| Concurrency | 2026-05-09 mean TPOT (ms) | 2026-07-13 mean TPOT (ms) |
+|---:|---:|---:|
+| 32 | 44.79 | 13.65 |
+| 64 | 61.58 | 17.00 |
+| 128 | 64.56 | 16.56 |
+<!-- END GENERATED: snapshot-tpot -->
 
 **Boundary.** These are two historical observations, not a comparison: input length, topology, attention kernels, GEMM kernels, speculative decoding and the MTP acceptance setting all differ, and a fixed acceptance of three is more favorable than real traffic. The early values come from a summary report, not a projected log. No speed-up factor is derived from this table.
 
@@ -154,22 +206,34 @@ The stage pair and the concurrency ladder ran on two ND MI300X v5 VMs: VM A host
 ## The Three Optimization Layers
 
 <!-- BEGIN GENERATED: technique-map -->
-| Layer | Technique | MI300X switch | NVIDIA counterpart | Code | Evidence |
-|---|---|---|---|---|---|
-| Serving-framework layer | Per-layer attention dispatch for hybrid SWA + GQA | `--attention-backend aiter`; full-attention verify goes to FlyDSL, SWA/sink layers and plain decode stay on AITER | `--attention-backend fa3` or `flashinfer`; split per layer wherever one kernel does not cover both window types | [ba15db1](https://github.com/sammysun0711/sglang/commit/ba15db1a576dcdc8d51ba15bd069b9fd1f748d97), [0cfc48b](https://github.com/sammysun0711/sglang/commit/0cfc48b0e374d7e84c122f739182a39feea56d46) | AITER backend on in measured runs; FlyDSL split only in the pinned runtime |
-| Serving-framework layer | FP8 KV cache in a vectorized 5D page layout | `--kv-cache-dtype fp8_e4m3` + `SGLANG_AITER_KV_CACHE_LAYOUT=vectorized_5d` | `--kv-cache-dtype fp8_e4m3`; FA3/FlashInfer paged layouts already keep a 16-byte inner vector | [78cd40c](https://github.com/sammysun0711/sglang/commit/78cd40c7a5102524536daf9a3178426777174d2d), [e11c515](https://github.com/sammysun0711/sglang/commit/e11c5155f0845079211c2a4d0b8a4ab3669039f9), [10a9401](https://github.com/sammysun0711/aiter/commit/10a94012efc1260dfdf16ba2f52fbda40a518a17) | FP8 KV on in measured runs; 5D layout only in the pinned runtime |
-| Serving-framework layer | AITER unified attention for MTP target verify | `SGLANG_AITER_UNIFIED_VERIFY=1` on the decode server | not needed; CUDA attention backends verify with their own kernels | — | measured A/B, together with the CK GEMM path |
-| Serving-framework layer | Multi-layer EAGLE MTP speculative decoding and verifier fixes | `--speculative-algorithm EAGLE --speculative-num-steps 3 --speculative-eagle-topk 1 --speculative-num-draft-tokens 4 --enable-multi-layer-eagle` | same flags | [db840d9](https://github.com/sammysun0711/sglang/commit/db840d935a9f7097dbeb5f1b0dba4d261057a2bd), [f26ae30](https://github.com/sammysun0711/sglang/commit/f26ae30063143411f3ae552af1830fa46e3ee0fd), [878fff1](https://github.com/sammysun0711/sglang/commit/878fff15647fe3dabb32aa3a335b0ad16e3ee878) | on in measured runs (fixed acceptance); f26ae30 and 878fff1 only in the pinned runtime |
-| Serving-framework layer | Chunked prefill, page size and SWA pool sizing | `--chunked-prefill-size 65536 --page-size 64 --swa-full-tokens-ratio 0.01` | same flags; re-derive the values from HBM size and kernel page support | — | measured runs used chunk 32768 and page 32 |
-| Operator (kernel) layer | FlyDSL paged-attention decode kernel (head 192, page 64) | `SGLANG_AITER_PA_DECODE_IMPL=flydsl` + `SGLANG_FLYDSL_PA_NUM_PARTITIONS=16` | CuTe DSL or FlashInfer decode; partitions correspond to split-KV | [c99d5cd](https://github.com/sammysun0711/FlyDSL/commit/c99d5cd97864c11e459cff9169d387d312790782), [ba15db1](https://github.com/sammysun0711/sglang/commit/ba15db1a576dcdc8d51ba15bd069b9fd1f748d97), [a2fd773](https://github.com/sammysun0711/sglang/commit/a2fd773ab43f960f5f2c29b5c592b0ca43c5ba8f) | pinned runtime; kernel not measured in isolation |
-| Operator (kernel) layer | Block-scale FP8 GEMM with pre-shuffled weights | `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1` | DeepGEMM (`SGLANG_ENABLE_JIT_DEEPGEMM=1`) or CUTLASS block-scale GEMM | [2f9b9ae](https://github.com/sammysun0711/sglang/commit/2f9b9aedf32977bc5d088a86ec0a73bcf432a4d0), [fc96a4f](https://github.com/sammysun0711/aiter/commit/fc96a4f9f5f3e931cbb9de275c8aa01136417500) | measured A/B, together with unified verify |
-| Operator (kernel) layer | Shape-tuned fused-MoE kernel table | `mimo_v2_5_pro_b16_tuned_fmoe.csv` in AITER | Triton fused-MoE JSON from `tuning_fused_moe_triton.py` | [d725746](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9) | measured stage pair |
-| Operator (kernel) layer | Head-192, page-64 FP8 batch-prefill tile | CK patch shipped in AITER `3f4ab48`, dispatched only for the exact shape | check that the paged prefill path does not fall back to gather-then-dense | [3f4ab48](https://github.com/sammysun0711/aiter/commit/3f4ab482a2986919c784e469e23cfac7f93bb153), [0cfc48b](https://github.com/sammysun0711/sglang/commit/0cfc48b0e374d7e84c122f739182a39feea56d46) | pinned runtime, not throughput-tested here |
-| Operator (kernel) layer | Mixed-precision Triton router (MoE gate) GEMM | `SGLANG_MIMO_MIXED_ROUTER=1` for router batches of at least 2,048 tokens | the same Triton kernel compiles for CUDA; re-tune block sizes | [1f9bb2b](https://github.com/sammysun0711/sglang/commit/1f9bb2b4c55cdc7bd5de1ac7977f76afab101a97) | later commit, not measured |
-| Workload and deployment layer | Prefill/decode disaggregation (1P1D) over RDMA | `--disaggregation-mode prefill\|decode --disaggregation-transfer-backend mooncake` + `sglang_router --pd-disaggregation` | same flags; mooncake or nixl over GPUDirect RDMA | — | on in measured runs, not isolated |
-| Workload and deployment layer | Fake prefill for decode-only measurement | decode server `--disaggregation-transfer-backend fake`; client `--fake-prefill` | same upstream SGLang feature | — | in the pinned runtime's scripts; not used in the published runs |
-| Workload and deployment layer | Fixed MTP acceptance for performance runs | `SGLANG_SIMULATE_ACC_LEN=3 SGLANG_SIMULATE_ACC_METHOD=match-expected` | same upstream SGLang variables | — | on in measured runs, not isolated |
-| Workload and deployment layer | Concurrency ladder against the saturation point | `bench_serving --max-concurrency 16 ... 256` with fixed prompts, warmup and seed | same client | — | measured ladder |
+**Serving-framework layer**
+
+| Technique | Switch: MI300X / NVIDIA | Code | Evidence |
+|---|---|---|---|
+| Per-layer attention dispatch for hybrid SWA + GQA | MI300X: `--attention-backend aiter`; full-attention verify goes to FlyDSL, SWA/sink layers and plain decode stay on AITER<br>NVIDIA: `--attention-backend fa3` or `flashinfer`; split per layer wherever one kernel does not cover both window types | [ba15db1](https://github.com/sammysun0711/sglang/commit/ba15db1a576dcdc8d51ba15bd069b9fd1f748d97), [0cfc48b](https://github.com/sammysun0711/sglang/commit/0cfc48b0e374d7e84c122f739182a39feea56d46) | AITER backend on in measured runs; FlyDSL split only in the pinned runtime |
+| FP8 KV cache in a vectorized 5D page layout | MI300X: `--kv-cache-dtype fp8_e4m3` + `SGLANG_AITER_KV_CACHE_LAYOUT=vectorized_5d`<br>NVIDIA: `--kv-cache-dtype fp8_e4m3`; FA3/FlashInfer paged layouts already keep a 16-byte inner vector | [78cd40c](https://github.com/sammysun0711/sglang/commit/78cd40c7a5102524536daf9a3178426777174d2d), [e11c515](https://github.com/sammysun0711/sglang/commit/e11c5155f0845079211c2a4d0b8a4ab3669039f9), [10a9401](https://github.com/sammysun0711/aiter/commit/10a94012efc1260dfdf16ba2f52fbda40a518a17) | FP8 KV on in measured runs; 5D layout only in the pinned runtime |
+| AITER unified attention for MTP target verify | MI300X: `SGLANG_AITER_UNIFIED_VERIFY=1` on the decode server<br>NVIDIA: not needed; CUDA attention backends verify with their own kernels | — | measured A/B, together with the CK GEMM path |
+| Multi-layer EAGLE MTP speculative decoding and verifier fixes | MI300X: `--speculative-algorithm EAGLE --speculative-num-steps 3 --speculative-eagle-topk 1 --speculative-num-draft-tokens 4 --enable-multi-layer-eagle`<br>NVIDIA: same flags | [db840d9](https://github.com/sammysun0711/sglang/commit/db840d935a9f7097dbeb5f1b0dba4d261057a2bd), [f26ae30](https://github.com/sammysun0711/sglang/commit/f26ae30063143411f3ae552af1830fa46e3ee0fd), [878fff1](https://github.com/sammysun0711/sglang/commit/878fff15647fe3dabb32aa3a335b0ad16e3ee878) | on in measured runs (fixed acceptance); f26ae30 and 878fff1 only in the pinned runtime |
+| Chunked prefill, page size and SWA pool sizing | MI300X: `--chunked-prefill-size 65536 --page-size 64 --swa-full-tokens-ratio 0.01`<br>NVIDIA: same flags; re-derive the values from HBM size and kernel page support | — | measured runs used chunk 32768 and page 32 |
+
+**Operator (kernel) layer**
+
+| Technique | Switch: MI300X / NVIDIA | Code | Evidence |
+|---|---|---|---|
+| FlyDSL paged-attention decode kernel (head 192, page 64) | MI300X: `SGLANG_AITER_PA_DECODE_IMPL=flydsl` + `SGLANG_FLYDSL_PA_NUM_PARTITIONS=16`<br>NVIDIA: CuTe DSL or FlashInfer decode; partitions correspond to split-KV | [c99d5cd](https://github.com/sammysun0711/FlyDSL/commit/c99d5cd97864c11e459cff9169d387d312790782), [ba15db1](https://github.com/sammysun0711/sglang/commit/ba15db1a576dcdc8d51ba15bd069b9fd1f748d97), [a2fd773](https://github.com/sammysun0711/sglang/commit/a2fd773ab43f960f5f2c29b5c592b0ca43c5ba8f) | pinned runtime; kernel not measured in isolation |
+| Block-scale FP8 GEMM with pre-shuffled weights | MI300X: `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1`<br>NVIDIA: DeepGEMM (`SGLANG_ENABLE_JIT_DEEPGEMM=1`) or CUTLASS block-scale GEMM | [2f9b9ae](https://github.com/sammysun0711/sglang/commit/2f9b9aedf32977bc5d088a86ec0a73bcf432a4d0), [fc96a4f](https://github.com/sammysun0711/aiter/commit/fc96a4f9f5f3e931cbb9de275c8aa01136417500) | measured A/B, together with unified verify |
+| Shape-tuned fused-MoE kernel table | MI300X: `mimo_v2_5_pro_b16_tuned_fmoe.csv` in AITER<br>NVIDIA: Triton fused-MoE JSON from `tuning_fused_moe_triton.py` | [d725746](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9) | measured stage pair |
+| Head-192, page-64 FP8 batch-prefill tile | MI300X: CK patch shipped in AITER `3f4ab48`, dispatched only for the exact shape<br>NVIDIA: check that the paged prefill path does not fall back to gather-then-dense | [3f4ab48](https://github.com/sammysun0711/aiter/commit/3f4ab482a2986919c784e469e23cfac7f93bb153), [0cfc48b](https://github.com/sammysun0711/sglang/commit/0cfc48b0e374d7e84c122f739182a39feea56d46) | pinned runtime, not throughput-tested here |
+| Mixed-precision Triton router (MoE gate) GEMM | MI300X: `SGLANG_MIMO_MIXED_ROUTER=1` for router batches of at least 2,048 tokens<br>NVIDIA: the same Triton kernel compiles for CUDA; re-tune block sizes | [1f9bb2b](https://github.com/sammysun0711/sglang/commit/1f9bb2b4c55cdc7bd5de1ac7977f76afab101a97) | later commit, not measured |
+
+**Workload and deployment layer**
+
+| Technique | Switch: MI300X / NVIDIA | Code | Evidence |
+|---|---|---|---|
+| Prefill/decode disaggregation (1P1D) over RDMA | MI300X: `--disaggregation-mode prefill\|decode --disaggregation-transfer-backend mooncake` + `sglang_router --pd-disaggregation`<br>NVIDIA: same flags; mooncake or nixl over GPUDirect RDMA | — | on in measured runs, not isolated |
+| Fake prefill for decode-only measurement | MI300X: decode server `--disaggregation-transfer-backend fake`; client `--fake-prefill`<br>NVIDIA: same upstream SGLang feature | — | in the pinned runtime's scripts; not used in the published runs |
+| Fixed MTP acceptance for performance runs | MI300X: `SGLANG_SIMULATE_ACC_LEN=3 SGLANG_SIMULATE_ACC_METHOD=match-expected`<br>NVIDIA: same upstream SGLang variables | — | on in measured runs, not isolated |
+| Concurrency ladder against the saturation point | MI300X: `bench_serving --max-concurrency 16 ... 256` with fixed prompts, warmup and seed<br>NVIDIA: same client | — | measured ladder |
 <!-- END GENERATED: technique-map -->
 
 "On in measured runs" means the switch was on during the published Microsoft runs but its own share was not isolated; "pinned runtime" means it is part of the final runtime whose throughput this repository does not report.
@@ -345,13 +409,15 @@ AITER [`fc96a4f`](https://github.com/sammysun0711/aiter/commit/fc96a4f9f5f3e931c
 A MoE layer's cost depends on how many tokens land in one batch. AITER can pick a different fused-MoE kernel per token count, and [`d725746`](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9) records the winner of an offline search for MiMo's expert shape (hidden size 6,144, expert intermediate size 256 per TP rank, 384 experts, top-8):
 
 <!-- BEGIN GENERATED: moe-table -->
-| Tokens in the MoE batch | Selected kernel | block_m | Tuned time (µs) | TFLOPS |
-|---:|---|---:|---:|---:|
-| 2,048 | `fmoe_bf16_blockscaleFp8_g1u1_vs_silu_64x256` | 64 | 703.2 | 219.9 |
-| 4,096 | `fmoe_bf16_blockscaleFp8_g1u1_vs_ps_silu_64x256` | 64 | 1,069.8 | 289.1 |
-| 8,192 | `fmoe_bf16_blockscaleFp8_g1u1_vs_ps_silu_64x256` | 64 | 1,412.0 | 438.0 |
-| 16,384 | `fmoe_bf16_blockscaleFp8_g1u1_vs_ps_silu_64x256` | 64 | 2,680.7 | 461.4 |
-| 32,768 | `fmoe_bf16_blockscaleFp8_g1u1_vs_ps_silu_64x256` | 64 | 4,816.4 | 513.6 |
+| Tokens in the MoE batch | Selected kernel | Tuned time (µs) | TFLOPS |
+|---:|---|---:|---:|
+| 2,048 | `fmoe_bf16_blockscaleFp8_g1u1_vs_silu_64x256` | 703.2 | 219.9 |
+| 4,096 | `fmoe_bf16_blockscaleFp8_g1u1_vs_ps_silu_64x256` | 1,069.8 | 289.1 |
+| 8,192 | `fmoe_bf16_blockscaleFp8_g1u1_vs_ps_silu_64x256` | 1,412.0 | 438.0 |
+| 16,384 | `fmoe_bf16_blockscaleFp8_g1u1_vs_ps_silu_64x256` | 2,680.7 | 461.4 |
+| 32,768 | `fmoe_bf16_blockscaleFp8_g1u1_vs_ps_silu_64x256` | 4,816.4 | 513.6 |
+
+Every row uses block_m = 64; the columns are the tuner's own measurement at each token count.
 <!-- END GENERATED: moe-table -->
 
 From 4,096 tokens on, the search picks the `_ps_` variant of the kernel, and achieved TFLOPS keep rising with batch size. The table changes only which kernel runs, not the model math. The NVIDIA equivalent is SGLang's Triton fused-MoE configuration, generated per expert count, size, dtype and GPU with `benchmark/kernels/fused_moe_triton/tuning_fused_moe_triton.py`.
@@ -521,13 +587,13 @@ Steps 2 to 5 were assembled from the recorded runtime identity and the measured 
 
 ## Tests and Offline Checks
 
-| Check | Command | What it proves |
-|---|---|---|
-| Unit and contract tests | `python -m unittest discover -s tests -v` | Upstream patches match their SHA-256 lock; every projected log parses and matches the manifest; published deltas recompute from absolute values; launch rendering and ablation behave as documented on both platforms; READMEs contain no private or out-of-scope content |
-| Evidence is current | `python tools/build_evidence.py --check` | `evidence/measurements.json` equals a fresh build from `evidence/raw/` and `evidence/runs.json` |
-| READMEs are current | `python tools/build_readme.py --check` | Every generated table and code excerpt in both READMEs equals a fresh render from the evidence and the pinned patches |
-| Diagrams match their ledger | `python tools/draw_diagrams.py --check` | The committed PNGs have the SHA-256 recorded in `images/SOURCES.json` |
-| Public-content audit | `python tools/check_repo.py` | Links and images resolve, headings follow the reader order, English and Chinese generated blocks carry the same numbers, no private paths, hosts or out-of-scope comparisons appear |
+| Command | What it proves |
+|---|---|
+| `python -m unittest discover -s tests -v` | Upstream patches match their SHA-256 lock; every projected log parses and matches the manifest; published deltas recompute from absolute values; launch rendering and ablation behave as documented on both platforms; READMEs contain no private or out-of-scope content |
+| `python tools/build_evidence.py --check` | `evidence/measurements.json` equals a fresh build from `evidence/raw/` and `evidence/runs.json` |
+| `python tools/build_readme.py --check` | Every generated table and code excerpt in both READMEs equals a fresh render from the evidence and the pinned patches |
+| `python tools/draw_diagrams.py --check` | The committed PNGs have the SHA-256 recorded in `images/SOURCES.json` |
+| `python tools/check_repo.py` | Links and images resolve, headings follow the reader order, every table has at most four columns, English and Chinese generated blocks carry the same numbers, no private paths, hosts or out-of-scope comparisons appear |
 
 The same commands run in CI on Ubuntu and Windows with Python 3.10 and 3.12 ([workflow](../../.github/workflows/llm-inference-optimization-ci.yml)). None of these checks starts a GPU or a server: they prove that the published numbers follow from the committed evidence, not that a new run would reproduce them. The GPU path in the previous section is the only fresh execution route.
 
@@ -559,25 +625,25 @@ The same commands run in CI on Ubuntu and Windows with Python 3.10 and 3.12 ([wo
 **Upstream commits.**
 
 <!-- BEGIN GENERATED: upstream-table -->
-| Repository | Commit | Subject | Layer | In pinned runtime |
-|---|---|---|---|---|
-| ROCm/FlyDSL | [e46db60](https://github.com/ROCm/FlyDSL/commit/e46db6020b4560de82a7136d78cc33a5186338f4) | [Kernel][PA] Support BF16 vectorized KV with asymmetric K/V head dim (#1065) | Operator (kernel) layer | no |
-| ROCm/FlyDSL | [ed9885e](https://github.com/ROCm/FlyDSL/commit/ed9885eca4ffc45e2ec1dc45fa00824baa6b56d3) | [Bugfix][PA] Fix D192 query staging and 64-bit cache offsets (#1064) | Operator (kernel) layer | no |
-| sammysun0711/FlyDSL | [c99d5cd](https://github.com/sammysun0711/FlyDSL/commit/c99d5cd97864c11e459cff9169d387d312790782) | Fix head-192 PA decode accuracy and long-context for MiMo-V2.5-Pro | Operator (kernel) layer | yes |
-| sammysun0711/aiter | [10a9401](https://github.com/sammysun0711/aiter/commit/10a94012efc1260dfdf16ba2f52fbda40a518a17) | fix(pa_decode_gluon): correct head-192 persistent MTP decode | Operator (kernel) layer | yes |
-| sammysun0711/aiter | [3f4ab48](https://github.com/sammysun0711/aiter/commit/3f4ab482a2986919c784e469e23cfac7f93bb153) | feat (MHA): Optimize MiMo FP8 page-64 batch prefill with a head-192 CK specialization | Operator (kernel) layer | yes |
-| sammysun0711/aiter | [d725746](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9) | add tuend moe (#5) | Operator (kernel) layer | yes |
-| sammysun0711/aiter | [fc96a4f](https://github.com/sammysun0711/aiter/commit/fc96a4f9f5f3e931cbb9de275c8aa01136417500) | Add MiMO-v2.5-Pro ck a8w8 blockscale gemm tuned config on MI300X (gfx942 304 CU) | Operator (kernel) layer | yes |
-| sammysun0711/sglang | [0cfc48b](https://github.com/sammysun0711/sglang/commit/0cfc48b0e374d7e84c122f739182a39feea56d46) | feat(MHA): Route MiMo cached prefill directly to AITER page-64 attention | Serving-framework layer | yes |
-| sammysun0711/sglang | [1f9bb2b](https://github.com/sammysun0711/sglang/commit/1f9bb2b4c55cdc7bd5de1ac7977f76afab101a97) | (feat): Add opt-in mixed-precision Triton router GEMM for MiMo prefill | Operator (kernel) layer | no |
-| sammysun0711/sglang | [2f9b9ae](https://github.com/sammysun0711/sglang/commit/2f9b9aedf32977bc5d088a86ec0a73bcf432a4d0) | Add env variable SGLANG_USE_AITER_CK_BLOCKSCALE and SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE to use ck a8w8 gemm on gfx942 instead of triton a8w8 gemm | Serving-framework layer | yes |
-| sammysun0711/sglang | [78cd40c](https://github.com/sammysun0711/sglang/commit/78cd40c7a5102524536daf9a3178426777174d2d) | fix(speculative): isolate AITER MTP draft KV layout and graph metadata | Serving-framework layer | yes |
-| sammysun0711/sglang | [878fff1](https://github.com/sammysun0711/sglang/commit/878fff15647fe3dabb32aa3a335b0ad16e3ee878) | bugfix(MTP): Fix HIP non-greedy EAGLE verification for MTP topk=1 (tree_topk) speculative decoding | Serving-framework layer | yes |
-| sammysun0711/sglang | [a2fd773](https://github.com/sammysun0711/sglang/commit/a2fd773ab43f960f5f2c29b5c592b0ca43c5ba8f) | feat(flydsl pa decode): add configurable FlyDSL partition counts | Serving-framework layer | yes |
-| sammysun0711/sglang | [ba15db1](https://github.com/sammysun0711/sglang/commit/ba15db1a576dcdc8d51ba15bd069b9fd1f748d97) | feat: Add opt-in FlyDSL paged decode for MiMo EAGLE verification | Serving-framework layer | yes |
-| sammysun0711/sglang | [db840d9](https://github.com/sammysun0711/sglang/commit/db840d935a9f7097dbeb5f1b0dba4d261057a2bd) | [AMD] Fix aiter SWA handling in draft_extend_v2 for MTP speculative decoding | Serving-framework layer | yes |
-| sammysun0711/sglang | [e11c515](https://github.com/sammysun0711/sglang/commit/e11c5155f0845079211c2a4d0b8a4ab3669039f9) | feat(aiter attention backend): use Gluon PA for vectorized-5D target verification | Serving-framework layer | yes |
-| sammysun0711/sglang | [f26ae30](https://github.com/sammysun0711/sglang/commit/f26ae30063143411f3ae552af1830fa46e3ee0fd) | fix(EAGLE verification): sync result across TP ranks | Serving-framework layer | yes |
+| Commit | Subject | Layer | Status |
+|---|---|---|---|
+| [ROCm/FlyDSL@e46db60](https://github.com/ROCm/FlyDSL/commit/e46db6020b4560de82a7136d78cc33a5186338f4) | [Kernel][PA] Support BF16 vectorized KV with asymmetric K/V head dim (#1065) | Operator (kernel) layer | upstream follow-up, not in the pinned runtime |
+| [ROCm/FlyDSL@ed9885e](https://github.com/ROCm/FlyDSL/commit/ed9885eca4ffc45e2ec1dc45fa00824baa6b56d3) | [Bugfix][PA] Fix D192 query staging and 64-bit cache offsets (#1064) | Operator (kernel) layer | upstream follow-up, not in the pinned runtime |
+| [sammysun0711/FlyDSL@c99d5cd](https://github.com/sammysun0711/FlyDSL/commit/c99d5cd97864c11e459cff9169d387d312790782) | Fix head-192 PA decode accuracy and long-context for MiMo-V2.5-Pro | Operator (kernel) layer | pinned runtime, not throughput-tested here |
+| [sammysun0711/aiter@10a9401](https://github.com/sammysun0711/aiter/commit/10a94012efc1260dfdf16ba2f52fbda40a518a17) | fix(pa_decode_gluon): correct head-192 persistent MTP decode | Operator (kernel) layer | pinned runtime, not throughput-tested here |
+| [sammysun0711/aiter@3f4ab48](https://github.com/sammysun0711/aiter/commit/3f4ab482a2986919c784e469e23cfac7f93bb153) | feat (MHA): Optimize MiMo FP8 page-64 batch prefill with a head-192 CK specialization | Operator (kernel) layer | pinned runtime, not throughput-tested here |
+| [sammysun0711/aiter@d725746](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9) | add tuend moe (#5) | Operator (kernel) layer | in the measured runs |
+| [sammysun0711/aiter@fc96a4f](https://github.com/sammysun0711/aiter/commit/fc96a4f9f5f3e931cbb9de275c8aa01136417500) | Add MiMO-v2.5-Pro ck a8w8 blockscale gemm tuned config on MI300X (gfx942 304 CU) | Operator (kernel) layer | in the measured runs |
+| [sammysun0711/sglang@0cfc48b](https://github.com/sammysun0711/sglang/commit/0cfc48b0e374d7e84c122f739182a39feea56d46) | feat(MHA): Route MiMo cached prefill directly to AITER page-64 attention | Serving-framework layer | pinned runtime, not throughput-tested here |
+| [sammysun0711/sglang@1f9bb2b](https://github.com/sammysun0711/sglang/commit/1f9bb2b4c55cdc7bd5de1ac7977f76afab101a97) | (feat): Add opt-in mixed-precision Triton router GEMM for MiMo prefill | Operator (kernel) layer | later branch, not in any runtime here |
+| [sammysun0711/sglang@2f9b9ae](https://github.com/sammysun0711/sglang/commit/2f9b9aedf32977bc5d088a86ec0a73bcf432a4d0) | Add env variable SGLANG_USE_AITER_CK_BLOCKSCALE and SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE to use ck a8w8 gemm on gfx942 instead of triton a8w8 gemm | Serving-framework layer | in the measured runs |
+| [sammysun0711/sglang@78cd40c](https://github.com/sammysun0711/sglang/commit/78cd40c7a5102524536daf9a3178426777174d2d) | fix(speculative): isolate AITER MTP draft KV layout and graph metadata | Serving-framework layer | pinned runtime, not throughput-tested here |
+| [sammysun0711/sglang@878fff1](https://github.com/sammysun0711/sglang/commit/878fff15647fe3dabb32aa3a335b0ad16e3ee878) | bugfix(MTP): Fix HIP non-greedy EAGLE verification for MTP topk=1 (tree_topk) speculative decoding | Serving-framework layer | pinned runtime, not throughput-tested here |
+| [sammysun0711/sglang@a2fd773](https://github.com/sammysun0711/sglang/commit/a2fd773ab43f960f5f2c29b5c592b0ca43c5ba8f) | feat(flydsl pa decode): add configurable FlyDSL partition counts | Serving-framework layer | pinned runtime, not throughput-tested here |
+| [sammysun0711/sglang@ba15db1](https://github.com/sammysun0711/sglang/commit/ba15db1a576dcdc8d51ba15bd069b9fd1f748d97) | feat: Add opt-in FlyDSL paged decode for MiMo EAGLE verification | Serving-framework layer | pinned runtime, not throughput-tested here |
+| [sammysun0711/sglang@db840d9](https://github.com/sammysun0711/sglang/commit/db840d935a9f7097dbeb5f1b0dba4d261057a2bd) | [AMD] Fix aiter SWA handling in draft_extend_v2 for MTP speculative decoding | Serving-framework layer | in the measured runs |
+| [sammysun0711/sglang@e11c515](https://github.com/sammysun0711/sglang/commit/e11c5155f0845079211c2a4d0b8a4ab3669039f9) | feat(aiter attention backend): use Gluon PA for vectorized-5D target verification | Serving-framework layer | pinned runtime, not throughput-tested here |
+| [sammysun0711/sglang@f26ae30](https://github.com/sammysun0711/sglang/commit/f26ae30063143411f3ae552af1830fa46e3ee0fd) | fix(EAGLE verification): sync result across TP ranks | Serving-framework layer | pinned runtime, not throughput-tested here |
 <!-- END GENERATED: upstream-table -->
 
 **Sources.** [SGLang](https://github.com/sgl-project/sglang) · [AITER](https://github.com/ROCm/aiter) · [FlyDSL](https://github.com/ROCm/FlyDSL) · [Composable Kernel](https://github.com/ROCm/composable_kernel) · [Mooncake](https://github.com/kvcache-ai/Mooncake) · [Azure ND MI300X v5 series](https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/ndmi300xv5-series). Patches keep their upstream licenses (Apache-2.0 for SGLang and FlyDSL, MIT for AITER); see [`upstream/SOURCES.lock.json`](upstream/SOURCES.lock.json).

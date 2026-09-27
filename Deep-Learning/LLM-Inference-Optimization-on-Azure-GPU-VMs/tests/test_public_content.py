@@ -71,6 +71,12 @@ class ReadmeTests(unittest.TestCase):
             check_repo.check_table_shape(lang, path.read_text(encoding="utf-8"), errors)
             self.assertEqual(errors, [])
 
+    def test_tables_wider_than_four_columns_are_rejected(self):
+        wide = "| a | b | c | d | e |\n|---|---|---|---|---|\n| 1 | 2 | 3 | 4 | 5 |\n"
+        errors = []
+        check_repo.check_table_shape("en", wide, errors)
+        self.assertTrue(any(e.startswith("en: TABLE_TOO_WIDE") for e in errors), errors)
+
     def test_bilingual_number_mismatch_is_detected(self):
         with tempfile.TemporaryDirectory() as tmp:
             copy = Path(tmp) / ROOT.name

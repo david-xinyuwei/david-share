@@ -23,13 +23,13 @@
 
 ## 本仓库做了什么、提供什么
 
-| 部分 | 归属 | 这里提供的内容 |
-|---|---|---|
-| 推理引擎与 kernel | 上游 SGLang、AMD AITER、Composable Kernel、FlyDSL 项目；MiMo 专用的提交是 AMD 工程师在公开 fork 中完成的 | 固定的 commit 身份，以及文中讨论的每个 commit 的完整 patch（[`upstream/`](upstream/)） |
-| 优化方法与实测数据 | 本仓库 | MI300X 优化前后的实测对比，附原始压测输出的公开投影（[`evidence/`](evidence/)）；逐项技术解读和代码摘录；每个数字的适用边界 |
-| 启动配置 | 本仓库 | 实测 MI300X 栈的机器可读 profile 和一份 NVIDIA 模板（[`profiles/`](profiles/)），可渲染成启动命令，并支持单项消融（[`tools/render_launch.py`](tools/render_launch.py)） |
-| Runtime 重建 | 本仓库 | 从公开源码重建固定版本 runtime 的 Dockerfile（[`docker/`](docker/)） |
-| 校验 | 本仓库 | 离线测试和 CI，从已提交的证据重新算出每个发布的数字 |
+| 部分 | 这里提供的内容 |
+|---|---|
+| 推理引擎与 kernel——归上游 SGLang、AMD AITER、Composable Kernel、FlyDSL 项目；MiMo 专用的提交是 AMD 工程师在公开 fork 中完成的 | 固定的 commit 身份，以及文中讨论的每个 commit 的完整 patch（[`upstream/`](upstream/)） |
+| 优化方法与实测数据——本仓库 | MI300X 优化前后的实测对比，附原始压测输出的公开投影（[`evidence/`](evidence/)）；逐项技术解读和代码摘录；每个数字的适用边界 |
+| 启动配置——本仓库 | 实测 MI300X 栈的机器可读 profile 和一份 NVIDIA 模板（[`profiles/`](profiles/)），可渲染成启动命令，并支持单项消融（[`tools/render_launch.py`](tools/render_launch.py)） |
+| Runtime 重建——本仓库 | 从公开源码重建固定版本 runtime 的 Dockerfile（[`docker/`](docker/)） |
+| 校验——本仓库 | 离线测试和 CI，从已提交的证据重新算出每个发布的数字 |
 
 你需要自备：Azure ND MI300X v5 容量（PD 路线两台，单机路线一台）、MiMo-V2.5-Pro 权重，以及能访问 RDMA 的容器宿主机。
 
@@ -40,11 +40,11 @@
 每一行都是 MI300X 和 MI300X 自己比。「证据类型」一列说明对比有多硬：A/B 是同一轮测试里只改指定的开关；阶段对比是两个日期重复同一套已记录的启动和压测脚本，中间只更新了一个库。吞吐是在 MTP 固定接受 3 个草稿 token 的条件下测的，这种测法比真实流量更乐观，所以这些数值应当看作相对提升，而不是生产吞吐。
 
 <!-- BEGIN GENERATED: headline -->
-| 改了什么 | 负载 | 优化前 → 优化后（MI300X） | 变化 | 证据类型 |
-|---|---|---|---:|---|
-| CK block-scale FP8 GEMM + unified verify（两个开关） | 64K 输入 / 1K 输出，16 个请求并发，单机 | 743.12 → 933.75 gen tok/s | **+25.65%** | 两开关 A/B：同一镜像、背靠背，各 2 次 |
-| 按 shape 调优的 fused-MoE 表 | 8K prefill，并发 4，1P1D | 16,715.80 → 20,780.79 input tok/s | **+24.32%** | 阶段对比，各 1 次 |
-| 按 shape 调优的 fused-MoE 表 | 8K 输入 / 1K 输出，并发 128，1P1D | 2,209.43 → 2,486.89 output tok/s | **+12.56%** | 阶段对比，各 1 次 |
+| 改了什么 / 负载 | 优化前 → 优化后（MI300X） | 变化 | 证据类型 |
+|---|---|---:|---|
+| CK block-scale FP8 GEMM + unified verify（两个开关）<br>64K 输入 / 1K 输出，16 个请求并发，单机 | 743.12 → 933.75 gen tok/s | **+25.65%** | 两开关 A/B：同一镜像、背靠背，各 2 次 |
+| 按 shape 调优的 fused-MoE 表<br>8K prefill，并发 4，1P1D | 16,715.80 → 20,780.79 input tok/s | **+24.32%** | 阶段对比，各 1 次 |
+| 按 shape 调优的 fused-MoE 表<br>8K 输入 / 1K 输出，并发 128，1P1D | 2,209.43 → 2,486.89 output tok/s | **+12.56%** | 阶段对比，各 1 次 |
 <!-- END GENERATED: headline -->
 
 ### 受控 A/B：64K 上下文下的 block-scale FP8 GEMM 路径
@@ -56,14 +56,24 @@
 **变量。** 两个环境变量，一起打开：优化组加上 `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1` 和 `SGLANG_AITER_UNIFIED_VERIFY=1`。主机、容器、镜像、模型、启动参数、压测命令和 KV 设置完全相同；每组各起两次全新服务，两组背靠背连续跑完。
 
 <!-- BEGIN GENERATED: ab-table -->
-| 组别 | 第 1 次（tok/s） | 第 2 次（tok/s） | 均值（tok/s） | batch 16 下折算 TPOT（ms） |
-|---|---:|---:|---:|---:|
-| 基线 | 740.29 | 745.95 | 743.12 | 21.53 |
-| 优化后 | 931.58 | 935.92 | 933.75 | 17.14 |
-| 变化 |  |  | **+25.65%** | **-20.42%** |
+| 组别 | 第 1 次（tok/s） | 第 2 次（tok/s） | 均值（tok/s） |
+|---|---:|---:|---:|
+| 基线 | 740.29 | 745.95 | 743.12 |
+| 优化后 | 931.58 | 935.92 | 933.75 |
+| 变化 |  |  | **+25.65%** |
 <!-- END GENERATED: ab-table -->
 
-每组两次运行之间差异都在 1% 以内，而两组差距远超这个波动。折算 TPOT 按 `1000 × 16 / tok/s` 计算，不是客户端实测的延迟。
+每组两次运行之间差异都在 1% 以内，而两组差距远超这个波动。用 batch 除以吞吐，就是 16 个请求里每一个等一个 token 的时间：
+
+<!-- BEGIN GENERATED: ab-tpot -->
+| 组别 | batch 16 下折算 TPOT（ms） |
+|---|---:|
+| 基线 | 21.53 |
+| 优化后 | 17.14 |
+| 变化 | **-20.42%** |
+<!-- END GENERATED: ab-tpot -->
+
+折算 TPOT 按 `1000 × 16 / tok/s` 计算，不是客户端实测的延迟。
 
 **边界。** 两个变量是一起打开的，收益属于这一对开关，不能拆给其中任何一个。测试是单机、prefill 和 decode 在同一个服务里完成，不能推到 PD 部署上。原始采样值在 [`evidence/raw/ab-20260718-64k-bs16.json`](evidence/raw/ab-20260718-64k-bs16.json)，可以追溯到其中登记的公开审计文件。
 
@@ -75,25 +85,45 @@
 
 **变量。** AITER 从 `fc96a4f` 升级到加入了 [`d725746`](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9) 调优表的版本（实际加载的 CSV 与该 commit 中的文件 SHA-256 相同）。两个日期的 prefill 启动脚本、router 脚本和两份压测脚本 SHA-256 完全一致，decode 服务记录下来的环境变量行也一致。decode 启动脚本的完整哈希只在第二个日期记录过，sglang commit 只在第一个日期记录过，所以把差异归到这张表上证据很强，但还没有同一轮内的 A/B 来证明。
 
-Prefill，客户端测得：
+Prefill 输入吞吐，客户端测得：
 
 <!-- BEGIN GENERATED: stage-prefill -->
-| 输入 token | 并发 | 优化前（input tok/s） | 优化后（input tok/s） | 吞吐变化 | 平均 TTFT 变化 |
-|---:|---:|---:|---:|---:|---:|
-| 8,192 | 4 | 16,715.80 | 20,780.79 | **+24.32%** | -15.15% |
-| 65,536 | 4 | 17,254.14 | 19,022.57 | **+10.25%** | -9.36% |
+| 输入 token | 优化前（input tok/s） | 优化后（input tok/s） | 变化 |
+|---:|---:|---:|---:|
+| 8,192 | 16,715.80 | 20,780.79 | **+24.32%** |
+| 65,536 | 17,254.14 | 19,022.57 | **+10.25%** |
 <!-- END GENERATED: stage-prefill -->
 
-Decode，客户端测得：
+同一批运行的 prefill 首 token 时间：
+
+<!-- BEGIN GENERATED: stage-prefill-ttft -->
+| 输入 token | 优化前（平均 TTFT，s） | 优化后（平均 TTFT，s） | 变化 |
+|---:|---:|---:|---:|
+| 8,192 | 1.85 | 1.57 | -15.15% |
+| 65,536 | 14.11 | 12.79 | -9.36% |
+<!-- END GENERATED: stage-prefill-ttft -->
+
+Decode 输出吞吐，客户端测得：
 
 <!-- BEGIN GENERATED: stage-decode -->
-| 并发 | 优化前（output tok/s） | 优化后（output tok/s） | 吞吐变化 | 平均 TPOT 优化前 → 后（ms） | TPOT 变化 |
-|---:|---:|---:|---:|---:|---:|
-| 16 | 1,299.18 | 1,331.98 | **+2.52%** | 10.64 → 10.83 | +1.79% |
-| 32 | 1,910.75 | 1,936.24 | **+1.33%** | 13.50 → 13.65 | +1.11% |
-| 64 | 2,188.05 | 2,457.73 | **+12.33%** | 15.10 → 17.00 | +12.58% |
-| 128 | 2,209.43 | 2,486.89 | **+12.56%** | 14.52 → 16.56 | +14.05% |
+| 并发 | 优化前（output tok/s） | 优化后（output tok/s） | 变化 |
+|---:|---:|---:|---:|
+| 16 | 1,299.18 | 1,331.98 | **+2.52%** |
+| 32 | 1,910.75 | 1,936.24 | **+1.33%** |
+| 64 | 2,188.05 | 2,457.73 | **+12.33%** |
+| 128 | 2,209.43 | 2,486.89 | **+12.56%** |
 <!-- END GENERATED: stage-decode -->
+
+同一批运行的 decode 单 token 时间：
+
+<!-- BEGIN GENERATED: stage-decode-tpot -->
+| 并发 | 优化前（平均 TPOT，ms） | 优化后（平均 TPOT，ms） | 变化 |
+|---:|---:|---:|---:|
+| 16 | 10.64 | 10.83 | +1.79% |
+| 32 | 13.50 | 13.65 | +1.11% |
+| 64 | 15.10 | 17.00 | +12.58% |
+| 128 | 14.52 | 16.56 | +14.05% |
+<!-- END GENERATED: stage-decode-tpot -->
 
 Prefill 吞吐上去的同时，首 token 时间也缩短了。Decode 在并发 64 和 128 时，输出吞吐提升了约八分之一，TPOT 也差不多涨了同样的幅度：服务每一步同时处理的请求更多，单个请求每个 token 多等一点，但整批完成得更快。
 
@@ -106,16 +136,30 @@ Prefill 吞吐上去的同时，首 token 时间也缩短了。Decode 在并发 
 **输入。** 与上面阶段对比第一个日期相同的负载（8K 输入 / 1K 输出）和相同的栈，每个点 256 个 prompt，客户端并发 16 到 256。
 
 <!-- BEGIN GENERATED: ladder -->
-| 配置并发 | 实测并发 | Output tok/s | 平均 TPOT（ms） | 平均 TTFT（s） | P99 TTFT（s） |
-|---:|---:|---:|---:|---:|---:|
-| 16 | 15.78 | 1,321.50 | 10.79 | 1.2 | 7.1 |
-| 32 | 30.89 | 1,914.27 | 13.37 | 2.8 | 14.1 |
-| 64 | 59.47 | 2,198.77 | 15.49 | 11.9 | 27.6 |
-| 96 | 83.97 | 2,200.63 | 15.06 | 23.7 | 40.8 |
-| 128 | 104.60 | 2,203.65 | 14.83 | 33.4 | 54.4 |
-| 192 | 135.44 | 2,202.57 | 14.72 | 47.9 | 81.3 |
-| 256 | 151.81 | 2,207.97 | 14.60 | 55.5 | 107.3 |
+| 配置并发 | 实测并发 | Output tok/s | 平均 TPOT（ms） |
+|---:|---:|---:|---:|
+| 16 | 15.78 | 1,321.50 | 10.79 |
+| 32 | 30.89 | 1,914.27 | 13.37 |
+| 64 | 59.47 | 2,198.77 | 15.49 |
+| 96 | 83.97 | 2,200.63 | 15.06 |
+| 128 | 104.60 | 2,203.65 | 14.83 |
+| 192 | 135.44 | 2,202.57 | 14.72 |
+| 256 | 151.81 | 2,207.97 | 14.60 |
 <!-- END GENERATED: ladder -->
+
+同一组测点的排队代价：
+
+<!-- BEGIN GENERATED: ladder-ttft -->
+| 配置并发 | 平均 TTFT（s） | P99 TTFT（s） |
+|---:|---:|---:|
+| 16 | 1.2 | 7.1 |
+| 32 | 2.8 | 14.1 |
+| 64 | 11.9 | 27.6 |
+| 96 | 23.7 | 40.8 |
+| 128 | 33.4 | 54.4 |
+| 192 | 47.9 | 81.3 |
+| 256 | 55.5 | 107.3 |
+<!-- END GENERATED: ladder-ttft -->
 
 并发到 64 时吞吐进入平台期。再往上，TPOT 基本不变，平均和 P99 首 token 时间却一直增长，因为多出来的请求只是在排队。实测并发也不再跟随配置值增长，说明服务端的最大运行请求数和 KV 容量开始起作用。
 
@@ -128,12 +172,20 @@ Prefill 吞吐上去的同时，首 token 时间也缩短了。Decode 在并发 
 **输入。** 早期点（2026-05-09）：单机 TP8，prefill 和 decode 在同一个服务里，Triton attention 和 Triton FP8 GEMM，没有投机解码，decode 负载为 16K 输入 / 1K 输出。后期点（2026-07-13）：上面阶段对比用的 PD 栈，decode 负载为 8K 输入 / 1K 输出，MTP 固定接受 3 个 token。
 
 <!-- BEGIN GENERATED: snapshot -->
-| 并发 | 2026-05-09 output tok/s（16K 输入） | 2026-07-13 output tok/s（8K 输入） | 2026-05-09 TPOT（ms） | 2026-07-13 TPOT（ms） |
-|---:|---:|---:|---:|---:|
-| 32 | 519 | 1,936.24 | 44.79 | 13.65 |
-| 64 | 542 | 2,457.73 | 61.58 | 17.00 |
-| 128 | 576 | 2,486.89 | 64.56 | 16.56 |
+| 并发 | 2026-05-09 output tok/s（16K 输入） | 2026-07-13 output tok/s（8K 输入） |
+|---:|---:|---:|
+| 32 | 519 | 1,936.24 |
+| 64 | 542 | 2,457.73 |
+| 128 | 576 | 2,486.89 |
 <!-- END GENERATED: snapshot -->
+
+<!-- BEGIN GENERATED: snapshot-tpot -->
+| 并发 | 2026-05-09 平均 TPOT（ms） | 2026-07-13 平均 TPOT（ms） |
+|---:|---:|---:|
+| 32 | 44.79 | 13.65 |
+| 64 | 61.58 | 17.00 |
+| 128 | 64.56 | 16.56 |
+<!-- END GENERATED: snapshot-tpot -->
 
 **边界。** 这是两个历史观测点，不是对比：输入长度、拓扑、attention kernel、GEMM kernel、是否投机解码以及 MTP 接受长度的设置都不同，固定接受 3 个 token 也比真实流量更乐观。早期数值来自一份汇总报告，而不是日志投影。本表不推导任何加速倍数。
 
@@ -154,22 +206,34 @@ FlyDSL paged-attention decode kernel、向量化 5D KV 布局、page 64 和 head
 ## 三层优化逐项拆解
 
 <!-- BEGIN GENERATED: technique-map -->
-| 层 | 技术 | MI300X 开关 | NVIDIA 对应 | 代码 | 证据 |
-|---|---|---|---|---|---|
-| 推理框架层 | 混合 SWA + GQA 的逐层 attention 分派 | `--attention-backend aiter`; full-attention verify goes to FlyDSL, SWA/sink layers and plain decode stay on AITER | `--attention-backend fa3` or `flashinfer`; split per layer wherever one kernel does not cover both window types | [ba15db1](https://github.com/sammysun0711/sglang/commit/ba15db1a576dcdc8d51ba15bd069b9fd1f748d97), [0cfc48b](https://github.com/sammysun0711/sglang/commit/0cfc48b0e374d7e84c122f739182a39feea56d46) | 测量时已开 AITER 后端；FlyDSL 分派只在固定 runtime 中 |
-| 推理框架层 | FP8 KV cache + 向量化 5D 分页布局 | `--kv-cache-dtype fp8_e4m3` + `SGLANG_AITER_KV_CACHE_LAYOUT=vectorized_5d` | `--kv-cache-dtype fp8_e4m3`; FA3/FlashInfer paged layouts already keep a 16-byte inner vector | [78cd40c](https://github.com/sammysun0711/sglang/commit/78cd40c7a5102524536daf9a3178426777174d2d), [e11c515](https://github.com/sammysun0711/sglang/commit/e11c5155f0845079211c2a4d0b8a4ab3669039f9), [10a9401](https://github.com/sammysun0711/aiter/commit/10a94012efc1260dfdf16ba2f52fbda40a518a17) | 测量时已开 FP8 KV；5D 布局只在固定 runtime 中 |
-| 推理框架层 | MTP target verify 使用 AITER unified attention | `SGLANG_AITER_UNIFIED_VERIFY=1` on the decode server | not needed; CUDA attention backends verify with their own kernels | — | 实测 A/B，与 CK GEMM 路径一起打开 |
-| 推理框架层 | 多层 EAGLE MTP 投机解码及校验修复 | `--speculative-algorithm EAGLE --speculative-num-steps 3 --speculative-eagle-topk 1 --speculative-num-draft-tokens 4 --enable-multi-layer-eagle` | same flags | [db840d9](https://github.com/sammysun0711/sglang/commit/db840d935a9f7097dbeb5f1b0dba4d261057a2bd), [f26ae30](https://github.com/sammysun0711/sglang/commit/f26ae30063143411f3ae552af1830fa46e3ee0fd), [878fff1](https://github.com/sammysun0711/sglang/commit/878fff15647fe3dabb32aa3a335b0ad16e3ee878) | 测量时已开（固定接受长度）；f26ae30、878fff1 只在固定 runtime 中 |
-| 推理框架层 | Chunked prefill、page size 与 SWA 池容量 | `--chunked-prefill-size 65536 --page-size 64 --swa-full-tokens-ratio 0.01` | same flags; re-derive the values from HBM size and kernel page support | — | 实测时为 chunk 32768、page 32 |
-| 算子层 | FlyDSL paged-attention decode kernel（head 192，page 64） | `SGLANG_AITER_PA_DECODE_IMPL=flydsl` + `SGLANG_FLYDSL_PA_NUM_PARTITIONS=16` | CuTe DSL or FlashInfer decode; partitions correspond to split-KV | [c99d5cd](https://github.com/sammysun0711/FlyDSL/commit/c99d5cd97864c11e459cff9169d387d312790782), [ba15db1](https://github.com/sammysun0711/sglang/commit/ba15db1a576dcdc8d51ba15bd069b9fd1f748d97), [a2fd773](https://github.com/sammysun0711/sglang/commit/a2fd773ab43f960f5f2c29b5c592b0ca43c5ba8f) | 在固定 runtime 中；kernel 未单独测试 |
-| 算子层 | 权重预重排的 block-scale FP8 GEMM | `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1` | DeepGEMM (`SGLANG_ENABLE_JIT_DEEPGEMM=1`) or CUTLASS block-scale GEMM | [2f9b9ae](https://github.com/sammysun0711/sglang/commit/2f9b9aedf32977bc5d088a86ec0a73bcf432a4d0), [fc96a4f](https://github.com/sammysun0711/aiter/commit/fc96a4f9f5f3e931cbb9de275c8aa01136417500) | 实测 A/B，与 unified verify 一起打开 |
-| 算子层 | 按 shape 调优的 fused-MoE kernel 表 | `mimo_v2_5_pro_b16_tuned_fmoe.csv` in AITER | Triton fused-MoE JSON from `tuning_fused_moe_triton.py` | [d725746](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9) | 实测阶段对比 |
-| 算子层 | head 192、page 64 的 FP8 batch-prefill tile | CK patch shipped in AITER `3f4ab48`, dispatched only for the exact shape | check that the paged prefill path does not fall back to gather-then-dense | [3f4ab48](https://github.com/sammysun0711/aiter/commit/3f4ab482a2986919c784e469e23cfac7f93bb153), [0cfc48b](https://github.com/sammysun0711/sglang/commit/0cfc48b0e374d7e84c122f739182a39feea56d46) | 在固定 runtime 中，本仓库未测吞吐 |
-| 算子层 | 混合精度 Triton router（MoE gate）GEMM | `SGLANG_MIMO_MIXED_ROUTER=1` for router batches of at least 2,048 tokens | the same Triton kernel compiles for CUDA; re-tune block sizes | [1f9bb2b](https://github.com/sammysun0711/sglang/commit/1f9bb2b4c55cdc7bd5de1ac7977f76afab101a97) | 后续提交，未实测 |
-| 负载与部署层 | Prefill/Decode 分离（1P1D），KV 走 RDMA | `--disaggregation-mode prefill\|decode --disaggregation-transfer-backend mooncake` + `sglang_router --pd-disaggregation` | same flags; mooncake or nixl over GPUDirect RDMA | — | 实测时已打开，未单独拆分 |
-| 负载与部署层 | Fake prefill：只测 decode | decode server `--disaggregation-transfer-backend fake`; client `--fake-prefill` | same upstream SGLang feature | — | 在固定 runtime 的脚本里；已发布的测试没有用到 |
-| 负载与部署层 | 性能测试固定 MTP 接受长度 | `SGLANG_SIMULATE_ACC_LEN=3 SGLANG_SIMULATE_ACC_METHOD=match-expected` | same upstream SGLang variables | — | 实测时已打开，未单独拆分 |
-| 负载与部署层 | 按饱和点设计并发阶梯 | `bench_serving --max-concurrency 16 ... 256` with fixed prompts, warmup and seed | same client | — | 实测并发阶梯 |
+**推理框架层**
+
+| 技术 | 开关：MI300X / NVIDIA | 代码 | 证据 |
+|---|---|---|---|
+| 混合 SWA + GQA 的逐层 attention 分派 | MI300X: `--attention-backend aiter`; full-attention verify goes to FlyDSL, SWA/sink layers and plain decode stay on AITER<br>NVIDIA: `--attention-backend fa3` or `flashinfer`; split per layer wherever one kernel does not cover both window types | [ba15db1](https://github.com/sammysun0711/sglang/commit/ba15db1a576dcdc8d51ba15bd069b9fd1f748d97), [0cfc48b](https://github.com/sammysun0711/sglang/commit/0cfc48b0e374d7e84c122f739182a39feea56d46) | 测量时已开 AITER 后端；FlyDSL 分派只在固定 runtime 中 |
+| FP8 KV cache + 向量化 5D 分页布局 | MI300X: `--kv-cache-dtype fp8_e4m3` + `SGLANG_AITER_KV_CACHE_LAYOUT=vectorized_5d`<br>NVIDIA: `--kv-cache-dtype fp8_e4m3`; FA3/FlashInfer paged layouts already keep a 16-byte inner vector | [78cd40c](https://github.com/sammysun0711/sglang/commit/78cd40c7a5102524536daf9a3178426777174d2d), [e11c515](https://github.com/sammysun0711/sglang/commit/e11c5155f0845079211c2a4d0b8a4ab3669039f9), [10a9401](https://github.com/sammysun0711/aiter/commit/10a94012efc1260dfdf16ba2f52fbda40a518a17) | 测量时已开 FP8 KV；5D 布局只在固定 runtime 中 |
+| MTP target verify 使用 AITER unified attention | MI300X: `SGLANG_AITER_UNIFIED_VERIFY=1` on the decode server<br>NVIDIA: not needed; CUDA attention backends verify with their own kernels | — | 实测 A/B，与 CK GEMM 路径一起打开 |
+| 多层 EAGLE MTP 投机解码及校验修复 | MI300X: `--speculative-algorithm EAGLE --speculative-num-steps 3 --speculative-eagle-topk 1 --speculative-num-draft-tokens 4 --enable-multi-layer-eagle`<br>NVIDIA: same flags | [db840d9](https://github.com/sammysun0711/sglang/commit/db840d935a9f7097dbeb5f1b0dba4d261057a2bd), [f26ae30](https://github.com/sammysun0711/sglang/commit/f26ae30063143411f3ae552af1830fa46e3ee0fd), [878fff1](https://github.com/sammysun0711/sglang/commit/878fff15647fe3dabb32aa3a335b0ad16e3ee878) | 测量时已开（固定接受长度）；f26ae30、878fff1 只在固定 runtime 中 |
+| Chunked prefill、page size 与 SWA 池容量 | MI300X: `--chunked-prefill-size 65536 --page-size 64 --swa-full-tokens-ratio 0.01`<br>NVIDIA: same flags; re-derive the values from HBM size and kernel page support | — | 实测时为 chunk 32768、page 32 |
+
+**算子层**
+
+| 技术 | 开关：MI300X / NVIDIA | 代码 | 证据 |
+|---|---|---|---|
+| FlyDSL paged-attention decode kernel（head 192，page 64） | MI300X: `SGLANG_AITER_PA_DECODE_IMPL=flydsl` + `SGLANG_FLYDSL_PA_NUM_PARTITIONS=16`<br>NVIDIA: CuTe DSL or FlashInfer decode; partitions correspond to split-KV | [c99d5cd](https://github.com/sammysun0711/FlyDSL/commit/c99d5cd97864c11e459cff9169d387d312790782), [ba15db1](https://github.com/sammysun0711/sglang/commit/ba15db1a576dcdc8d51ba15bd069b9fd1f748d97), [a2fd773](https://github.com/sammysun0711/sglang/commit/a2fd773ab43f960f5f2c29b5c592b0ca43c5ba8f) | 在固定 runtime 中；kernel 未单独测试 |
+| 权重预重排的 block-scale FP8 GEMM | MI300X: `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1`<br>NVIDIA: DeepGEMM (`SGLANG_ENABLE_JIT_DEEPGEMM=1`) or CUTLASS block-scale GEMM | [2f9b9ae](https://github.com/sammysun0711/sglang/commit/2f9b9aedf32977bc5d088a86ec0a73bcf432a4d0), [fc96a4f](https://github.com/sammysun0711/aiter/commit/fc96a4f9f5f3e931cbb9de275c8aa01136417500) | 实测 A/B，与 unified verify 一起打开 |
+| 按 shape 调优的 fused-MoE kernel 表 | MI300X: `mimo_v2_5_pro_b16_tuned_fmoe.csv` in AITER<br>NVIDIA: Triton fused-MoE JSON from `tuning_fused_moe_triton.py` | [d725746](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9) | 实测阶段对比 |
+| head 192、page 64 的 FP8 batch-prefill tile | MI300X: CK patch shipped in AITER `3f4ab48`, dispatched only for the exact shape<br>NVIDIA: check that the paged prefill path does not fall back to gather-then-dense | [3f4ab48](https://github.com/sammysun0711/aiter/commit/3f4ab482a2986919c784e469e23cfac7f93bb153), [0cfc48b](https://github.com/sammysun0711/sglang/commit/0cfc48b0e374d7e84c122f739182a39feea56d46) | 在固定 runtime 中，本仓库未测吞吐 |
+| 混合精度 Triton router（MoE gate）GEMM | MI300X: `SGLANG_MIMO_MIXED_ROUTER=1` for router batches of at least 2,048 tokens<br>NVIDIA: the same Triton kernel compiles for CUDA; re-tune block sizes | [1f9bb2b](https://github.com/sammysun0711/sglang/commit/1f9bb2b4c55cdc7bd5de1ac7977f76afab101a97) | 后续提交，未实测 |
+
+**负载与部署层**
+
+| 技术 | 开关：MI300X / NVIDIA | 代码 | 证据 |
+|---|---|---|---|
+| Prefill/Decode 分离（1P1D），KV 走 RDMA | MI300X: `--disaggregation-mode prefill\|decode --disaggregation-transfer-backend mooncake` + `sglang_router --pd-disaggregation`<br>NVIDIA: same flags; mooncake or nixl over GPUDirect RDMA | — | 实测时已打开，未单独拆分 |
+| Fake prefill：只测 decode | MI300X: decode server `--disaggregation-transfer-backend fake`; client `--fake-prefill`<br>NVIDIA: same upstream SGLang feature | — | 在固定 runtime 的脚本里；已发布的测试没有用到 |
+| 性能测试固定 MTP 接受长度 | MI300X: `SGLANG_SIMULATE_ACC_LEN=3 SGLANG_SIMULATE_ACC_METHOD=match-expected`<br>NVIDIA: same upstream SGLang variables | — | 实测时已打开，未单独拆分 |
+| 按饱和点设计并发阶梯 | MI300X: `bench_serving --max-concurrency 16 ... 256` with fixed prompts, warmup and seed<br>NVIDIA: same client | — | 实测并发阶梯 |
 <!-- END GENERATED: technique-map -->
 
 「实测时已打开」指这个开关在微软已发布的测试中是打开的，但没有单独拆出它的贡献；「固定 runtime」指它属于最终 runtime，而本仓库没有发布这个 runtime 的吞吐数据。
@@ -345,13 +409,15 @@ AITER [`fc96a4f`](https://github.com/sammysun0711/aiter/commit/fc96a4f9f5f3e931c
 MoE 层的开销取决于一个 batch 里落了多少 token。AITER 可以按 token 数选用不同的 fused-MoE kernel，[`d725746`](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9) 记录的是针对 MiMo 专家 shape（hidden size 6,144，单个 TP rank 看到的专家中间维度 256，384 个专家，top-8）离线搜索出的最优结果：
 
 <!-- BEGIN GENERATED: moe-table -->
-| MoE batch token 数 | 选中的 kernel | block_m | 调优实测耗时（µs） | TFLOPS |
-|---:|---|---:|---:|---:|
-| 2,048 | `fmoe_bf16_blockscaleFp8_g1u1_vs_silu_64x256` | 64 | 703.2 | 219.9 |
-| 4,096 | `fmoe_bf16_blockscaleFp8_g1u1_vs_ps_silu_64x256` | 64 | 1,069.8 | 289.1 |
-| 8,192 | `fmoe_bf16_blockscaleFp8_g1u1_vs_ps_silu_64x256` | 64 | 1,412.0 | 438.0 |
-| 16,384 | `fmoe_bf16_blockscaleFp8_g1u1_vs_ps_silu_64x256` | 64 | 2,680.7 | 461.4 |
-| 32,768 | `fmoe_bf16_blockscaleFp8_g1u1_vs_ps_silu_64x256` | 64 | 4,816.4 | 513.6 |
+| MoE batch token 数 | 选中的 kernel | 调优实测耗时（µs） | TFLOPS |
+|---:|---|---:|---:|
+| 2,048 | `fmoe_bf16_blockscaleFp8_g1u1_vs_silu_64x256` | 703.2 | 219.9 |
+| 4,096 | `fmoe_bf16_blockscaleFp8_g1u1_vs_ps_silu_64x256` | 1,069.8 | 289.1 |
+| 8,192 | `fmoe_bf16_blockscaleFp8_g1u1_vs_ps_silu_64x256` | 1,412.0 | 438.0 |
+| 16,384 | `fmoe_bf16_blockscaleFp8_g1u1_vs_ps_silu_64x256` | 2,680.7 | 461.4 |
+| 32,768 | `fmoe_bf16_blockscaleFp8_g1u1_vs_ps_silu_64x256` | 4,816.4 | 513.6 |
+
+每一行的 block_m 都是 64；后两列是调优器自己在每个 token 数下测到的值。
 <!-- END GENERATED: moe-table -->
 
 从 4,096 个 token 起，搜索都选中了带 `_ps_` 的 kernel 变体，而且 batch 越大实际 TFLOPS 越高。这张表只改变跑哪个 kernel，不改变模型计算。NVIDIA 上的对应做法是 SGLang 的 Triton fused-MoE 配置，用 `benchmark/kernels/fused_moe_triton/tuning_fused_moe_triton.py` 按专家数、尺寸、数据类型和 GPU 分别生成。
@@ -521,13 +587,13 @@ python tools/render_launch.py --profile rocm-mi300x-pd --role decode --ablate si
 
 ## 测试与离线校验
 
-| 检查 | 命令 | 证明了什么 |
-|---|---|---|
-| 单元与契约测试 | `python -m unittest discover -s tests -v` | 上游 patch 与 SHA-256 锁一致；每份日志投影都能解析且与清单一致；发布的变化率能从绝对值重算；启动命令渲染和消融在两个平台上都符合文档；README 不含私有内容或超出范围的比较 |
-| 证据是最新的 | `python tools/build_evidence.py --check` | `evidence/measurements.json` 与从 `evidence/raw/`、`evidence/runs.json` 重新构建的结果完全一致 |
-| README 是最新的 | `python tools/build_readme.py --check` | 两份 README 里每张生成的表和每段代码摘录，都与从证据和固定 patch 重新渲染的结果一致 |
-| 图与台账一致 | `python tools/draw_diagrams.py --check` | 已提交的 PNG 的 SHA-256 与 `images/SOURCES.json` 记录一致 |
-| 公开内容审计 | `python tools/check_repo.py` | 链接和图片都能解析，标题顺序符合读者动线，中英文生成块里的数字一致，没有私有路径、主机名或超出范围的比较 |
+| 命令 | 证明了什么 |
+|---|---|
+| `python -m unittest discover -s tests -v` | 上游 patch 与 SHA-256 锁一致；每份日志投影都能解析且与清单一致；发布的变化率能从绝对值重算；启动命令渲染和消融在两个平台上都符合文档；README 不含私有内容或超出范围的比较 |
+| `python tools/build_evidence.py --check` | `evidence/measurements.json` 与从 `evidence/raw/`、`evidence/runs.json` 重新构建的结果完全一致 |
+| `python tools/build_readme.py --check` | 两份 README 里每张生成的表和每段代码摘录，都与从证据和固定 patch 重新渲染的结果一致 |
+| `python tools/draw_diagrams.py --check` | 已提交的 PNG 的 SHA-256 与 `images/SOURCES.json` 记录一致 |
+| `python tools/check_repo.py` | 链接和图片都能解析，标题顺序符合读者动线，每张表最多四列，中英文生成块里的数字一致，没有私有路径、主机名或超出范围的比较 |
 
 CI 在 Ubuntu 和 Windows、Python 3.10 与 3.12 上运行同一组命令（[workflow](../../.github/workflows/llm-inference-optimization-ci.yml)）。这些检查都不会启动 GPU 或服务：它们证明的是「已发布的数字确实来自已提交的证据」，而不是「重新跑一遍能得到同样的结果」。上一节的 GPU 路径才是唯一的重新执行途径。
 
@@ -559,25 +625,25 @@ CI 在 Ubuntu 和 Windows、Python 3.10 与 3.12 上运行同一组命令（[wor
 **上游提交。**
 
 <!-- BEGIN GENERATED: upstream-table -->
-| 仓库 | Commit | 提交标题 | 层 | 在固定 runtime 中 |
-|---|---|---|---|---|
-| ROCm/FlyDSL | [e46db60](https://github.com/ROCm/FlyDSL/commit/e46db6020b4560de82a7136d78cc33a5186338f4) | [Kernel][PA] Support BF16 vectorized KV with asymmetric K/V head dim (#1065) | 算子层 | 否 |
-| ROCm/FlyDSL | [ed9885e](https://github.com/ROCm/FlyDSL/commit/ed9885eca4ffc45e2ec1dc45fa00824baa6b56d3) | [Bugfix][PA] Fix D192 query staging and 64-bit cache offsets (#1064) | 算子层 | 否 |
-| sammysun0711/FlyDSL | [c99d5cd](https://github.com/sammysun0711/FlyDSL/commit/c99d5cd97864c11e459cff9169d387d312790782) | Fix head-192 PA decode accuracy and long-context for MiMo-V2.5-Pro | 算子层 | 是 |
-| sammysun0711/aiter | [10a9401](https://github.com/sammysun0711/aiter/commit/10a94012efc1260dfdf16ba2f52fbda40a518a17) | fix(pa_decode_gluon): correct head-192 persistent MTP decode | 算子层 | 是 |
-| sammysun0711/aiter | [3f4ab48](https://github.com/sammysun0711/aiter/commit/3f4ab482a2986919c784e469e23cfac7f93bb153) | feat (MHA): Optimize MiMo FP8 page-64 batch prefill with a head-192 CK specialization | 算子层 | 是 |
-| sammysun0711/aiter | [d725746](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9) | add tuend moe (#5) | 算子层 | 是 |
-| sammysun0711/aiter | [fc96a4f](https://github.com/sammysun0711/aiter/commit/fc96a4f9f5f3e931cbb9de275c8aa01136417500) | Add MiMO-v2.5-Pro ck a8w8 blockscale gemm tuned config on MI300X (gfx942 304 CU) | 算子层 | 是 |
-| sammysun0711/sglang | [0cfc48b](https://github.com/sammysun0711/sglang/commit/0cfc48b0e374d7e84c122f739182a39feea56d46) | feat(MHA): Route MiMo cached prefill directly to AITER page-64 attention | 推理框架层 | 是 |
-| sammysun0711/sglang | [1f9bb2b](https://github.com/sammysun0711/sglang/commit/1f9bb2b4c55cdc7bd5de1ac7977f76afab101a97) | (feat): Add opt-in mixed-precision Triton router GEMM for MiMo prefill | 算子层 | 否 |
-| sammysun0711/sglang | [2f9b9ae](https://github.com/sammysun0711/sglang/commit/2f9b9aedf32977bc5d088a86ec0a73bcf432a4d0) | Add env variable SGLANG_USE_AITER_CK_BLOCKSCALE and SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE to use ck a8w8 gemm on gfx942 instead of triton a8w8 gemm | 推理框架层 | 是 |
-| sammysun0711/sglang | [78cd40c](https://github.com/sammysun0711/sglang/commit/78cd40c7a5102524536daf9a3178426777174d2d) | fix(speculative): isolate AITER MTP draft KV layout and graph metadata | 推理框架层 | 是 |
-| sammysun0711/sglang | [878fff1](https://github.com/sammysun0711/sglang/commit/878fff15647fe3dabb32aa3a335b0ad16e3ee878) | bugfix(MTP): Fix HIP non-greedy EAGLE verification for MTP topk=1 (tree_topk) speculative decoding | 推理框架层 | 是 |
-| sammysun0711/sglang | [a2fd773](https://github.com/sammysun0711/sglang/commit/a2fd773ab43f960f5f2c29b5c592b0ca43c5ba8f) | feat(flydsl pa decode): add configurable FlyDSL partition counts | 推理框架层 | 是 |
-| sammysun0711/sglang | [ba15db1](https://github.com/sammysun0711/sglang/commit/ba15db1a576dcdc8d51ba15bd069b9fd1f748d97) | feat: Add opt-in FlyDSL paged decode for MiMo EAGLE verification | 推理框架层 | 是 |
-| sammysun0711/sglang | [db840d9](https://github.com/sammysun0711/sglang/commit/db840d935a9f7097dbeb5f1b0dba4d261057a2bd) | [AMD] Fix aiter SWA handling in draft_extend_v2 for MTP speculative decoding | 推理框架层 | 是 |
-| sammysun0711/sglang | [e11c515](https://github.com/sammysun0711/sglang/commit/e11c5155f0845079211c2a4d0b8a4ab3669039f9) | feat(aiter attention backend): use Gluon PA for vectorized-5D target verification | 推理框架层 | 是 |
-| sammysun0711/sglang | [f26ae30](https://github.com/sammysun0711/sglang/commit/f26ae30063143411f3ae552af1830fa46e3ee0fd) | fix(EAGLE verification): sync result across TP ranks | 推理框架层 | 是 |
+| Commit | 提交标题 | 层 | 状态 |
+|---|---|---|---|
+| [ROCm/FlyDSL@e46db60](https://github.com/ROCm/FlyDSL/commit/e46db6020b4560de82a7136d78cc33a5186338f4) | [Kernel][PA] Support BF16 vectorized KV with asymmetric K/V head dim (#1065) | 算子层 | 上游后续提交，不在固定 runtime 中 |
+| [ROCm/FlyDSL@ed9885e](https://github.com/ROCm/FlyDSL/commit/ed9885eca4ffc45e2ec1dc45fa00824baa6b56d3) | [Bugfix][PA] Fix D192 query staging and 64-bit cache offsets (#1064) | 算子层 | 上游后续提交，不在固定 runtime 中 |
+| [sammysun0711/FlyDSL@c99d5cd](https://github.com/sammysun0711/FlyDSL/commit/c99d5cd97864c11e459cff9169d387d312790782) | Fix head-192 PA decode accuracy and long-context for MiMo-V2.5-Pro | 算子层 | 在固定 runtime 中，本仓库未测吞吐 |
+| [sammysun0711/aiter@10a9401](https://github.com/sammysun0711/aiter/commit/10a94012efc1260dfdf16ba2f52fbda40a518a17) | fix(pa_decode_gluon): correct head-192 persistent MTP decode | 算子层 | 在固定 runtime 中，本仓库未测吞吐 |
+| [sammysun0711/aiter@3f4ab48](https://github.com/sammysun0711/aiter/commit/3f4ab482a2986919c784e469e23cfac7f93bb153) | feat (MHA): Optimize MiMo FP8 page-64 batch prefill with a head-192 CK specialization | 算子层 | 在固定 runtime 中，本仓库未测吞吐 |
+| [sammysun0711/aiter@d725746](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9) | add tuend moe (#5) | 算子层 | 在实测 runtime 中 |
+| [sammysun0711/aiter@fc96a4f](https://github.com/sammysun0711/aiter/commit/fc96a4f9f5f3e931cbb9de275c8aa01136417500) | Add MiMO-v2.5-Pro ck a8w8 blockscale gemm tuned config on MI300X (gfx942 304 CU) | 算子层 | 在实测 runtime 中 |
+| [sammysun0711/sglang@0cfc48b](https://github.com/sammysun0711/sglang/commit/0cfc48b0e374d7e84c122f739182a39feea56d46) | feat(MHA): Route MiMo cached prefill directly to AITER page-64 attention | 推理框架层 | 在固定 runtime 中，本仓库未测吞吐 |
+| [sammysun0711/sglang@1f9bb2b](https://github.com/sammysun0711/sglang/commit/1f9bb2b4c55cdc7bd5de1ac7977f76afab101a97) | (feat): Add opt-in mixed-precision Triton router GEMM for MiMo prefill | 算子层 | 后续分支，不在任何 runtime 中 |
+| [sammysun0711/sglang@2f9b9ae](https://github.com/sammysun0711/sglang/commit/2f9b9aedf32977bc5d088a86ec0a73bcf432a4d0) | Add env variable SGLANG_USE_AITER_CK_BLOCKSCALE and SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE to use ck a8w8 gemm on gfx942 instead of triton a8w8 gemm | 推理框架层 | 在实测 runtime 中 |
+| [sammysun0711/sglang@78cd40c](https://github.com/sammysun0711/sglang/commit/78cd40c7a5102524536daf9a3178426777174d2d) | fix(speculative): isolate AITER MTP draft KV layout and graph metadata | 推理框架层 | 在固定 runtime 中，本仓库未测吞吐 |
+| [sammysun0711/sglang@878fff1](https://github.com/sammysun0711/sglang/commit/878fff15647fe3dabb32aa3a335b0ad16e3ee878) | bugfix(MTP): Fix HIP non-greedy EAGLE verification for MTP topk=1 (tree_topk) speculative decoding | 推理框架层 | 在固定 runtime 中，本仓库未测吞吐 |
+| [sammysun0711/sglang@a2fd773](https://github.com/sammysun0711/sglang/commit/a2fd773ab43f960f5f2c29b5c592b0ca43c5ba8f) | feat(flydsl pa decode): add configurable FlyDSL partition counts | 推理框架层 | 在固定 runtime 中，本仓库未测吞吐 |
+| [sammysun0711/sglang@ba15db1](https://github.com/sammysun0711/sglang/commit/ba15db1a576dcdc8d51ba15bd069b9fd1f748d97) | feat: Add opt-in FlyDSL paged decode for MiMo EAGLE verification | 推理框架层 | 在固定 runtime 中，本仓库未测吞吐 |
+| [sammysun0711/sglang@db840d9](https://github.com/sammysun0711/sglang/commit/db840d935a9f7097dbeb5f1b0dba4d261057a2bd) | [AMD] Fix aiter SWA handling in draft_extend_v2 for MTP speculative decoding | 推理框架层 | 在实测 runtime 中 |
+| [sammysun0711/sglang@e11c515](https://github.com/sammysun0711/sglang/commit/e11c5155f0845079211c2a4d0b8a4ab3669039f9) | feat(aiter attention backend): use Gluon PA for vectorized-5D target verification | 推理框架层 | 在固定 runtime 中，本仓库未测吞吐 |
+| [sammysun0711/sglang@f26ae30](https://github.com/sammysun0711/sglang/commit/f26ae30063143411f3ae552af1830fa46e3ee0fd) | fix(EAGLE verification): sync result across TP ranks | 推理框架层 | 在固定 runtime 中，本仓库未测吞吐 |
 <!-- END GENERATED: upstream-table -->
 
 **资料。** [SGLang](https://github.com/sgl-project/sglang) · [AITER](https://github.com/ROCm/aiter) · [FlyDSL](https://github.com/ROCm/FlyDSL) · [Composable Kernel](https://github.com/ROCm/composable_kernel) · [Mooncake](https://github.com/kvcache-ai/Mooncake) · [Azure ND MI300X v5 系列](https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/ndmi300xv5-series)。各 patch 保留其上游许可证（SGLang 与 FlyDSL 为 Apache-2.0，AITER 为 MIT），详见 [`upstream/SOURCES.lock.json`](upstream/SOURCES.lock.json)。

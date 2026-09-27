@@ -25,6 +25,7 @@ READER_ORDER = {
     "cn": ["从这里开始", "本仓库做了什么、提供什么", "MI300X 实测结果", "架构与测试环境", "三层优化逐项拆解",
            "客户如何复现", "测试与离线校验", "边界、目录与资料"],
 }
+MAX_TABLE_COLUMNS = 4  # five-column tables overflow a 390px viewport on GitHub
 TOP_LEVEL_EXEMPT = {".gitattributes", ".gitignore", "README.md", "__pycache__"}
 FORBIDDEN = [
     (re.compile(r"\b(?:H20|H100|H200|H800|A100|A800|L20|L40S?|B100|B200|GB200|GB300|MI250X?|MI325X|MI35\dX?|TPU|Gaudi\d?)\b"), "named comparison accelerator"),
@@ -121,9 +122,11 @@ def check_table_shape(lang: str, text: str, errors: list[str]) -> None:
             rows.append(line)
             continue
         if rows:
-            widths = {len(re.split(r"(?<!\\)\|", r)) for r in rows}
+            widths = {len(re.split(r"(?<!\\)\|", r)) - 2 for r in rows}
             if len(widths) != 1:
                 errors.append(f"{lang}: TABLE_SHAPE {rows[0][:60]!r}")
+            elif next(iter(widths)) > MAX_TABLE_COLUMNS:
+                errors.append(f"{lang}: TABLE_TOO_WIDE {next(iter(widths))} columns: {rows[0][:60]!r}")
             rows = []
 
 
