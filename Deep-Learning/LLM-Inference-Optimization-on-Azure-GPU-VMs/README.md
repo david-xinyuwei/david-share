@@ -23,13 +23,11 @@ Author: Xinyu Wei · [中文](README_CN.md) · [Results](#measured-results-on-mi
 
 ## What This Repository Delivers
 
-| Part | What you get here |
-|---|---|
-| Serving engine and kernels — owned by the upstream SGLang, AMD AITER, Composable Kernel and FlyDSL projects; the MiMo-specific commits are AMD engineering work in public forks | Pinned commit identities and the full patch of every commit discussed ([`upstream/`](upstream/)) |
-| Optimization method and measurements — this repository | Measured MI300X before/after comparisons with projected raw benchmark output ([`evidence/`](evidence/)), a per-technique explanation with code excerpts, and the boundaries of every number |
-| Launch configuration — this repository | Machine-readable profiles for the measured MI300X stack and an NVIDIA template ([`profiles/`](profiles/)), rendered into commands with single-technique ablation ([`tools/render_launch.py`](tools/render_launch.py)) |
-| Runtime rebuild — this repository | A Dockerfile that rebuilds the pinned runtime from public sources ([`docker/`](docker/)) |
-| Checks — this repository | Offline tests and CI that recompute every published number from the committed evidence |
+- **Serving engine and kernels** — owned by the upstream SGLang, AMD AITER, Composable Kernel and FlyDSL projects; the MiMo-specific commits are AMD engineering work in public forks. Here: pinned commit identities and the full patch of every commit discussed ([`upstream/`](upstream/)).
+- **Optimization method and measurements** — this repository. Measured MI300X before/after comparisons with projected raw benchmark output ([`evidence/`](evidence/)), a per-technique explanation with code excerpts, and the boundaries of every number.
+- **Launch configuration** — this repository. Machine-readable profiles for the measured MI300X stack and an NVIDIA template ([`profiles/`](profiles/)), rendered into commands with single-technique ablation ([`tools/render_launch.py`](tools/render_launch.py)).
+- **Runtime rebuild** — this repository. A Dockerfile that rebuilds the pinned runtime from public sources ([`docker/`](docker/)).
+- **Checks** — this repository. Offline tests and CI that recompute every published number from the committed evidence.
 
 You supply: Azure ND MI300X v5 capacity (two VMs for the PD path, one for the single-VM path), the MiMo-V2.5-Pro checkpoint, and a container host with RDMA access.
 
@@ -40,11 +38,11 @@ Not provided: model weights, the private raw logs behind the projected evidence 
 Every row compares MI300X with MI300X. The evidence column says how strong the comparison is: an A/B changes named switches inside one session; a stage pair repeats the same captured launch and benchmark scripts on two dates around one library update. Throughput was measured with a fixed MTP acceptance of three draft tokens, a benchmark method that is more favorable than real traffic, so read these values as relative gains, not as production throughput.
 
 <!-- BEGIN GENERATED: headline -->
-| What changed / workload | Before → after (MI300X) | Change | Evidence |
+| What changed | Before → after | Change | Evidence |
 |---|---|---:|---|
-| CK block-scale FP8 GEMM + unified verify (two switches)<br>64K in / 1K out, 16 in flight, single VM | 743.12 → 933.75 gen tok/s | **+25.65%** | two-switch A/B, same image, back-to-back, N=2 each |
-| Shape-tuned fused-MoE table<br>8K prefill, concurrency 4, 1P1D | 16,715.80 → 20,780.79 input tok/s | **+24.32%** | stage pair, N=1 each |
-| Shape-tuned fused-MoE table<br>8K in / 1K out, concurrency 128, 1P1D | 2,209.43 → 2,486.89 output tok/s | **+12.56%** | stage pair, N=1 each |
+| CK FP8 GEMM + unified verify<br>64K in / 1K out, batch 16, one VM | 743.12 → 933.75 gen tok/s | **+25.65%** | A/B, two switches, N=2 per arm |
+| Tuned fused-MoE table<br>8K prefill, concurrency 4, 1P1D | 16,715.80 → 20,780.79 input tok/s | **+24.32%** | stage pair, N=1 |
+| Tuned fused-MoE table<br>8K/1K decode, concurrency 128, 1P1D | 2,209.43 → 2,486.89 output tok/s | **+12.56%** | stage pair, N=1 |
 <!-- END GENERATED: headline -->
 
 ### Controlled A/B: block-scale FP8 GEMM path at 64K context
@@ -463,18 +461,21 @@ AITER [`fc96a4f`](https://github.com/sammysun0711/aiter/commit/fc96a4f9f5f3e931c
 A MoE layer's cost depends on how many tokens land in one batch. AITER can pick a different fused-MoE kernel per token count, and [`d725746`](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9) records the winner of an offline search for MiMo's expert shape (hidden size 6,144, expert intermediate size 256 per TP rank, 384 experts, top-8):
 
 <!-- BEGIN GENERATED: moe-table -->
-| Tokens in the MoE batch | Selected kernel | Tuned time (µs) | TFLOPS |
+| Tokens | Kernel | Time (µs) | TFLOPS |
 |---:|---|---:|---:|
-| 2,048 | `fmoe_bf16_blockscaleFp8_g1u1_vs_silu_64x256` | 703.2 | 219.9 |
-| 4,096 | `fmoe_bf16_blockscaleFp8_g1u1_vs_ps_silu_64x256` | 1,069.8 | 289.1 |
-| 8,192 | `fmoe_bf16_blockscaleFp8_g1u1_vs_ps_silu_64x256` | 1,412.0 | 438.0 |
-| 16,384 | `fmoe_bf16_blockscaleFp8_g1u1_vs_ps_silu_64x256` | 2,680.7 | 461.4 |
-| 32,768 | `fmoe_bf16_blockscaleFp8_g1u1_vs_ps_silu_64x256` | 4,816.4 | 513.6 |
+| 2,048 | A | 703.2 | 219.9 |
+| 4,096 | B | 1,069.8 | 289.1 |
+| 8,192 | B | 1,412.0 | 438.0 |
+| 16,384 | B | 2,680.7 | 461.4 |
+| 32,768 | B | 4,816.4 | 513.6 |
 
-Every row uses block_m = 64; the columns are the tuner's own measurement at each token count.
+Every row uses block_m = 64; time and TFLOPS are the tuner's own measurement at each token count. Kernel letters:
+
+- A = `fmoe_bf16_blockscaleFp8_g1u1_vs_silu_64x256`
+- B = `fmoe_bf16_blockscaleFp8_g1u1_vs_ps_silu_64x256`
 <!-- END GENERATED: moe-table -->
 
-From 4,096 tokens on, the search picks the `_ps_` variant of the kernel, and achieved TFLOPS keep rising with batch size. The table changes only which kernel runs, not the model math. The NVIDIA equivalent is SGLang's Triton fused-MoE configuration, generated per expert count, size, dtype and GPU with `benchmark/kernels/fused_moe_triton/tuning_fused_moe_triton.py`.
+From 4,096 tokens on, the search picks kernel B (the `_ps_` variant), and achieved TFLOPS keep rising with batch size. The table changes only which kernel runs, not the model math. The NVIDIA equivalent is SGLang's Triton fused-MoE configuration, generated per expert count, size, dtype and GPU with `benchmark/kernels/fused_moe_triton/tuning_fused_moe_triton.py`.
 
 #### Head-192, page-64 FP8 batch prefill
 
@@ -661,18 +662,16 @@ The same commands run in CI on Ubuntu and Windows with Python 3.10 and 3.12 ([wo
 
 **Assets.**
 
-| Path | Content |
-|---|---|
-| [`evidence/runs.json`](evidence/runs.json) | Run identities, topology, controlled variables and script hashes |
-| [`evidence/raw/`](evidence/raw/) | Projected sources: `sglang.bench_serving` output (workload arguments and result block of every run), the A/B samples from the public audit file and the bring-up summary |
-| [`evidence/raw-manifest.json`](evidence/raw-manifest.json) | SHA-256 of each private raw log and of its public projection |
-| [`evidence/measurements.json`](evidence/measurements.json) | All comparisons, built by `tools/build_evidence.py` |
-| [`upstream/`](upstream/) | Full patches of every commit discussed and `SOURCES.lock.json` (hash, license, layer, whether it is in the pinned runtime) |
-| [`profiles/`](profiles/) | Technique catalog, measured MI300X profiles and the NVIDIA template |
-| [`tools/`](tools/) | Log projection and parsing, evidence and README builders, launch renderer, diagram generator, public-content audit |
-| [`tests/`](tests/) | Offline tests |
-| [`docker/`](docker/) | Runtime rebuild from public sources and the container start script |
-| [`images/`](images/) | Diagrams and their hash ledger |
+- [`evidence/runs.json`](evidence/runs.json) — run identities, topology, controlled variables and script hashes.
+- [`evidence/raw/`](evidence/raw/) — projected sources: `sglang.bench_serving` output (workload arguments and result block of every run), the A/B samples from the public audit file and the bring-up summary.
+- [`evidence/raw-manifest.json`](evidence/raw-manifest.json) — SHA-256 of each private raw log and of its public projection.
+- [`evidence/measurements.json`](evidence/measurements.json) — all comparisons, built by `tools/build_evidence.py`.
+- [`upstream/`](upstream/) — full patches of every commit discussed and `SOURCES.lock.json` (hash, license, layer, whether it is in the pinned runtime).
+- [`profiles/`](profiles/) — technique catalog, measured MI300X profiles and the NVIDIA template.
+- [`tools/`](tools/) — log projection and parsing, evidence and README builders, launch renderer, diagram generator, public-content audit.
+- [`tests/`](tests/) — offline tests.
+- [`docker/`](docker/) — runtime rebuild from public sources and the container start script.
+- [`images/`](images/) — diagrams and their hash ledger.
 
 **Upstream commits.**
 

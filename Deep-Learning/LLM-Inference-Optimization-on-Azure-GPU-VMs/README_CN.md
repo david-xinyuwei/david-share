@@ -23,13 +23,11 @@
 
 ## 本仓库做了什么、提供什么
 
-| 部分 | 这里提供的内容 |
-|---|---|
-| 推理引擎与 kernel——归上游 SGLang、AMD AITER、Composable Kernel、FlyDSL 项目；MiMo 专用的提交是 AMD 工程师在公开 fork 中完成的 | 固定的 commit 身份，以及文中讨论的每个 commit 的完整 patch（[`upstream/`](upstream/)） |
-| 优化方法与实测数据——本仓库 | MI300X 优化前后的实测对比，附原始压测输出的公开投影（[`evidence/`](evidence/)）；逐项技术解读和代码摘录；每个数字的适用边界 |
-| 启动配置——本仓库 | 实测 MI300X 栈的机器可读 profile 和一份 NVIDIA 模板（[`profiles/`](profiles/)），可渲染成启动命令，并支持单项消融（[`tools/render_launch.py`](tools/render_launch.py)） |
-| Runtime 重建——本仓库 | 从公开源码重建固定版本 runtime 的 Dockerfile（[`docker/`](docker/)） |
-| 校验——本仓库 | 离线测试和 CI，从已提交的证据重新算出每个发布的数字 |
+- **推理引擎与 kernel**——归上游 SGLang、AMD AITER、Composable Kernel、FlyDSL 项目；MiMo 专用的提交是 AMD 工程师在公开 fork 中完成的。这里提供固定的 commit 身份，以及文中讨论的每个 commit 的完整 patch（[`upstream/`](upstream/)）。
+- **优化方法与实测数据**——本仓库。MI300X 优化前后的实测对比，附原始压测输出的公开投影（[`evidence/`](evidence/)）；逐项技术解读和代码摘录；每个数字的适用边界。
+- **启动配置**——本仓库。实测 MI300X 栈的机器可读 profile 和一份 NVIDIA 模板（[`profiles/`](profiles/)），可渲染成启动命令，并支持单项消融（[`tools/render_launch.py`](tools/render_launch.py)）。
+- **Runtime 重建**——本仓库。从公开源码重建固定版本 runtime 的 Dockerfile（[`docker/`](docker/)）。
+- **校验**——本仓库。离线测试和 CI，从已提交的证据重新算出每个发布的数字。
 
 你需要自备：Azure ND MI300X v5 容量（PD 路线两台，单机路线一台）、MiMo-V2.5-Pro 权重，以及能访问 RDMA 的容器宿主机。
 
@@ -40,11 +38,11 @@
 每一行都是 MI300X 和 MI300X 自己比。「证据类型」一列说明对比有多硬：A/B 是同一轮测试里只改指定的开关；阶段对比是两个日期重复同一套已记录的启动和压测脚本，中间只更新了一个库。吞吐是在 MTP 固定接受 3 个草稿 token 的条件下测的，这种测法比真实流量更乐观，所以这些数值应当看作相对提升，而不是生产吞吐。
 
 <!-- BEGIN GENERATED: headline -->
-| 改了什么 / 负载 | 优化前 → 优化后（MI300X） | 变化 | 证据类型 |
+| 改了什么 | 优化前 → 优化后 | 变化 | 证据 |
 |---|---|---:|---|
-| CK block-scale FP8 GEMM + unified verify（两个开关）<br>64K 输入 / 1K 输出，16 个请求并发，单机 | 743.12 → 933.75 gen tok/s | **+25.65%** | 两开关 A/B：同一镜像、背靠背，各 2 次 |
-| 按 shape 调优的 fused-MoE 表<br>8K prefill，并发 4，1P1D | 16,715.80 → 20,780.79 input tok/s | **+24.32%** | 阶段对比，各 1 次 |
-| 按 shape 调优的 fused-MoE 表<br>8K 输入 / 1K 输出，并发 128，1P1D | 2,209.43 → 2,486.89 output tok/s | **+12.56%** | 阶段对比，各 1 次 |
+| CK FP8 GEMM + unified verify<br>64K 输入 / 1K 输出，batch 16，单机 | 743.12 → 933.75 gen tok/s | **+25.65%** | 两开关 A/B，各 2 次 |
+| 调优 fused-MoE 表<br>8K prefill，并发 4，1P1D | 16,715.80 → 20,780.79 input tok/s | **+24.32%** | 阶段对比，各 1 次 |
+| 调优 fused-MoE 表<br>8K/1K decode，并发 128，1P1D | 2,209.43 → 2,486.89 output tok/s | **+12.56%** | 阶段对比，各 1 次 |
 <!-- END GENERATED: headline -->
 
 ### 受控 A/B：64K 上下文下的 block-scale FP8 GEMM 路径
@@ -463,18 +461,21 @@ AITER [`fc96a4f`](https://github.com/sammysun0711/aiter/commit/fc96a4f9f5f3e931c
 MoE 层的开销取决于一个 batch 里落了多少 token。AITER 可以按 token 数选用不同的 fused-MoE kernel，[`d725746`](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9) 记录的是针对 MiMo 专家 shape（hidden size 6,144，单个 TP rank 看到的专家中间维度 256，384 个专家，top-8）离线搜索出的最优结果：
 
 <!-- BEGIN GENERATED: moe-table -->
-| MoE batch token 数 | 选中的 kernel | 调优实测耗时（µs） | TFLOPS |
+| Token 数 | Kernel | 耗时（µs） | TFLOPS |
 |---:|---|---:|---:|
-| 2,048 | `fmoe_bf16_blockscaleFp8_g1u1_vs_silu_64x256` | 703.2 | 219.9 |
-| 4,096 | `fmoe_bf16_blockscaleFp8_g1u1_vs_ps_silu_64x256` | 1,069.8 | 289.1 |
-| 8,192 | `fmoe_bf16_blockscaleFp8_g1u1_vs_ps_silu_64x256` | 1,412.0 | 438.0 |
-| 16,384 | `fmoe_bf16_blockscaleFp8_g1u1_vs_ps_silu_64x256` | 2,680.7 | 461.4 |
-| 32,768 | `fmoe_bf16_blockscaleFp8_g1u1_vs_ps_silu_64x256` | 4,816.4 | 513.6 |
+| 2,048 | A | 703.2 | 219.9 |
+| 4,096 | B | 1,069.8 | 289.1 |
+| 8,192 | B | 1,412.0 | 438.0 |
+| 16,384 | B | 2,680.7 | 461.4 |
+| 32,768 | B | 4,816.4 | 513.6 |
 
-每一行的 block_m 都是 64；后两列是调优器自己在每个 token 数下测到的值。
+每一行的 block_m 都是 64；耗时和 TFLOPS 是调优器自己在每个 token 数下测到的值。Kernel 字母含义：
+
+- A = `fmoe_bf16_blockscaleFp8_g1u1_vs_silu_64x256`
+- B = `fmoe_bf16_blockscaleFp8_g1u1_vs_ps_silu_64x256`
 <!-- END GENERATED: moe-table -->
 
-从 4,096 个 token 起，搜索都选中了带 `_ps_` 的 kernel 变体，而且 batch 越大实际 TFLOPS 越高。这张表只改变跑哪个 kernel，不改变模型计算。NVIDIA 上的对应做法是 SGLang 的 Triton fused-MoE 配置，用 `benchmark/kernels/fused_moe_triton/tuning_fused_moe_triton.py` 按专家数、尺寸、数据类型和 GPU 分别生成。
+从 4,096 个 token 起，搜索都选中了 kernel B（带 `_ps_` 的变体），而且 batch 越大实际 TFLOPS 越高。这张表只改变跑哪个 kernel，不改变模型计算。NVIDIA 上的对应做法是 SGLang 的 Triton fused-MoE 配置，用 `benchmark/kernels/fused_moe_triton/tuning_fused_moe_triton.py` 按专家数、尺寸、数据类型和 GPU 分别生成。
 
 #### head 192、page 64 的 FP8 batch prefill
 
@@ -661,18 +662,16 @@ CI 在 Ubuntu 和 Windows、Python 3.10 与 3.12 上运行同一组命令（[wor
 
 **目录。**
 
-| 路径 | 内容 |
-|---|---|
-| [`evidence/runs.json`](evidence/runs.json) | 每次运行的身份、拓扑、控制变量和脚本哈希 |
-| [`evidence/raw/`](evidence/raw/) | 各数据源的投影：`sglang.bench_serving` 输出（每次运行的负载参数和结果块）、公开审计文件中的 A/B 采样值，以及 bring-up 汇总 |
-| [`evidence/raw-manifest.json`](evidence/raw-manifest.json) | 每份私有原始日志及其公开投影的 SHA-256 |
-| [`evidence/measurements.json`](evidence/measurements.json) | 全部对比结果，由 `tools/build_evidence.py` 生成 |
-| [`upstream/`](upstream/) | 文中讨论的每个 commit 的完整 patch，以及 `SOURCES.lock.json`（哈希、许可证、所属层、是否在固定 runtime 中） |
-| [`profiles/`](profiles/) | 技术目录、实测的 MI300X profile 和 NVIDIA 模板 |
-| [`tools/`](tools/) | 日志投影与解析、证据和 README 生成器、启动命令渲染、画图、公开内容审计 |
-| [`tests/`](tests/) | 离线测试 |
-| [`docker/`](docker/) | 从公开源码重建 runtime 以及启动容器的脚本 |
-| [`images/`](images/) | 示意图及其哈希台账 |
+- [`evidence/runs.json`](evidence/runs.json)——每次运行的身份、拓扑、控制变量和脚本哈希。
+- [`evidence/raw/`](evidence/raw/)——各数据源的投影：`sglang.bench_serving` 输出（每次运行的负载参数和结果块）、公开审计文件中的 A/B 采样值，以及 bring-up 汇总。
+- [`evidence/raw-manifest.json`](evidence/raw-manifest.json)——每份私有原始日志及其公开投影的 SHA-256。
+- [`evidence/measurements.json`](evidence/measurements.json)——全部对比结果，由 `tools/build_evidence.py` 生成。
+- [`upstream/`](upstream/)——文中讨论的每个 commit 的完整 patch，以及 `SOURCES.lock.json`（哈希、许可证、所属层、是否在固定 runtime 中）。
+- [`profiles/`](profiles/)——技术目录、实测的 MI300X profile 和 NVIDIA 模板。
+- [`tools/`](tools/)——日志投影与解析、证据和 README 生成器、启动命令渲染、画图、公开内容审计。
+- [`tests/`](tests/)——离线测试。
+- [`docker/`](docker/)——从公开源码重建 runtime 以及启动容器的脚本。
+- [`images/`](images/)——示意图及其哈希台账。
 
 **上游提交。**
 

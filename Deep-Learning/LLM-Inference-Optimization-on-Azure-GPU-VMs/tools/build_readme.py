@@ -86,18 +86,22 @@ def moe_table(lang: str) -> str:
     block_m = {r["block_m"] for r in reader}
     if len(block_m) != 1:
         raise SystemExit(f"MOE_BLOCK_M not constant: {block_m}")
+    kernels = []
     out = []
     for r in reader:
         kernel = re.sub(r"^_ZN5aiter\d+", "", r["kernelName1"]).rstrip("E")
-        out.append([_i(int(r["token"])), f"`{kernel}`", _n(float(r["us"]), 1), _n(float(r["tflops"]), 1)])
+        if kernel not in kernels:
+            kernels.append(kernel)
+        out.append([_i(int(r["token"])), chr(ord("A") + kernels.index(kernel)), _n(float(r["us"]), 1), _n(float(r["tflops"]), 1)])
     bm = next(iter(block_m))
+    legend = "\n".join(f"- {chr(ord('A') + i)} = `{k}`" for i, k in enumerate(kernels))
     if lang == "en":
-        head = ["Tokens in the MoE batch", "Selected kernel", "Tuned time (µs)", "TFLOPS"]
-        caption = f"Every row uses block_m = {bm}; the columns are the tuner's own measurement at each token count."
+        head = ["Tokens", "Kernel", "Time (µs)", "TFLOPS"]
+        caption = f"Every row uses block_m = {bm}; time and TFLOPS are the tuner's own measurement at each token count. Kernel letters:"
     else:
-        head = ["MoE batch token 数", "选中的 kernel", "调优实测耗时（µs）", "TFLOPS"]
-        caption = f"每一行的 block_m 都是 {bm}；后两列是调优器自己在每个 token 数下测到的值。"
-    return _table(head, out, ["r", "l", "r", "r"]) + "\n" + caption + "\n"
+        head = ["Token 数", "Kernel", "耗时（µs）", "TFLOPS"]
+        caption = f"每一行的 block_m 都是 {bm}；耗时和 TFLOPS 是调优器自己在每个 token 数下测到的值。Kernel 字母含义："
+    return _table(head, out, ["r", "l", "r", "r"]) + "\n" + caption + "\n\n" + legend + "\n"
 
 
 def headline(lang: str) -> str:
@@ -110,18 +114,18 @@ def headline(lang: str) -> str:
     pre_val = f"{_n(pre[8192]['before_input_tok_s'])} → {_n(pre[8192]['after_input_tok_s'])} input tok/s"
     dec_val = f"{_n(dec[128]['before_output_tok_s'])} → {_n(dec[128]['after_output_tok_s'])} output tok/s"
     if lang == "en":
-        head = ["What changed / workload", "Before → after (MI300X)", "Change", "Evidence"]
+        head = ["What changed", "Before → after", "Change", "Evidence"]
         rows = [
-            ["CK block-scale FP8 GEMM + unified verify (two switches)<br>64K in / 1K out, 16 in flight, single VM", ab_val, f"**{_pct(ab['throughput_delta_pct'])}**", "two-switch A/B, same image, back-to-back, N=2 each"],
-            ["Shape-tuned fused-MoE table<br>8K prefill, concurrency 4, 1P1D", pre_val, f"**{_pct(pre[8192]['input_tok_s_delta_pct'])}**", "stage pair, N=1 each"],
-            ["Shape-tuned fused-MoE table<br>8K in / 1K out, concurrency 128, 1P1D", dec_val, f"**{_pct(dec[128]['output_tok_s_delta_pct'])}**", "stage pair, N=1 each"],
+            ["CK FP8 GEMM + unified verify<br>64K in / 1K out, batch 16, one VM", ab_val, f"**{_pct(ab['throughput_delta_pct'])}**", "A/B, two switches, N=2 per arm"],
+            ["Tuned fused-MoE table<br>8K prefill, concurrency 4, 1P1D", pre_val, f"**{_pct(pre[8192]['input_tok_s_delta_pct'])}**", "stage pair, N=1"],
+            ["Tuned fused-MoE table<br>8K/1K decode, concurrency 128, 1P1D", dec_val, f"**{_pct(dec[128]['output_tok_s_delta_pct'])}**", "stage pair, N=1"],
         ]
     else:
-        head = ["改了什么 / 负载", "优化前 → 优化后（MI300X）", "变化", "证据类型"]
+        head = ["改了什么", "优化前 → 优化后", "变化", "证据"]
         rows = [
-            ["CK block-scale FP8 GEMM + unified verify（两个开关）<br>64K 输入 / 1K 输出，16 个请求并发，单机", ab_val, f"**{_pct(ab['throughput_delta_pct'])}**", "两开关 A/B：同一镜像、背靠背，各 2 次"],
-            ["按 shape 调优的 fused-MoE 表<br>8K prefill，并发 4，1P1D", pre_val, f"**{_pct(pre[8192]['input_tok_s_delta_pct'])}**", "阶段对比，各 1 次"],
-            ["按 shape 调优的 fused-MoE 表<br>8K 输入 / 1K 输出，并发 128，1P1D", dec_val, f"**{_pct(dec[128]['output_tok_s_delta_pct'])}**", "阶段对比，各 1 次"],
+            ["CK FP8 GEMM + unified verify<br>64K 输入 / 1K 输出，batch 16，单机", ab_val, f"**{_pct(ab['throughput_delta_pct'])}**", "两开关 A/B，各 2 次"],
+            ["调优 fused-MoE 表<br>8K prefill，并发 4，1P1D", pre_val, f"**{_pct(pre[8192]['input_tok_s_delta_pct'])}**", "阶段对比，各 1 次"],
+            ["调优 fused-MoE 表<br>8K/1K decode，并发 128，1P1D", dec_val, f"**{_pct(dec[128]['output_tok_s_delta_pct'])}**", "阶段对比，各 1 次"],
         ]
     return _table(head, rows, ["l", "l", "r", "l"])
 
