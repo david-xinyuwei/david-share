@@ -41,8 +41,8 @@ Every row compares MI300X with MI300X. The evidence column says how strong the c
 | What changed | Before → after (tok/s) | Change | Evidence |
 |---|---|---:|---|
 | CK FP8 GEMM + unified verify<br>64K/1K decode, batch 16, one VM | 743 → 934 | **+25.65%** | A/B, two switches, N=2 |
-| Tuned fused-MoE table<br>8K prefill, c4, 1P1D | 16,716 → 20,781 | **+24.32%** | stage pair, N=1 |
-| Tuned fused-MoE table<br>8K/1K decode, c128, 1P1D | 2,209 → 2,487 | **+12.56%** | stage pair, N=1 |
+| Tuned fused-MoE table<br>8K prefill, concurrency 4, 1P1D | 16,716 → 20,781 | **+24.32%** | stage pair, N=1 |
+| Tuned fused-MoE table<br>8K/1K decode, concurrency 128, 1P1D | 2,209 → 2,487 | **+12.56%** | stage pair, N=1 |
 <!-- END GENERATED: headline -->
 
 ### Controlled A/B: block-scale FP8 GEMM path at 64K context

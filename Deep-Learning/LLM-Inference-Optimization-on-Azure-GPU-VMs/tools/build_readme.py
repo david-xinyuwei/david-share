@@ -122,8 +122,8 @@ def headline(lang: str) -> str:
         head = ["What changed", "Before → after (tok/s)", "Change", "Evidence"]
         rows = [
             ["CK FP8 GEMM + unified verify<br>64K/1K decode, batch 16, one VM", ab_val, f"**{_pct(ab['throughput_delta_pct'])}**", "A/B, two switches, N=2"],
-            ["Tuned fused-MoE table<br>8K prefill, c4, 1P1D", pre_val, f"**{_pct(pre[8192]['input_tok_s_delta_pct'])}**", "stage pair, N=1"],
-            ["Tuned fused-MoE table<br>8K/1K decode, c128, 1P1D", dec_val, f"**{_pct(dec[128]['output_tok_s_delta_pct'])}**", "stage pair, N=1"],
+            ["Tuned fused-MoE table<br>8K prefill, concurrency 4, 1P1D", pre_val, f"**{_pct(pre[8192]['input_tok_s_delta_pct'])}**", "stage pair, N=1"],
+            ["Tuned fused-MoE table<br>8K/1K decode, concurrency 128, 1P1D", dec_val, f"**{_pct(dec[128]['output_tok_s_delta_pct'])}**", "stage pair, N=1"],
         ]
     else:
         head = ["改了什么", "优化前 → 优化后（tok/s）", "变化", "证据"]
