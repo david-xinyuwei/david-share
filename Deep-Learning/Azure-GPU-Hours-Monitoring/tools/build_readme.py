@@ -94,9 +94,8 @@ DCGM_USE = {
 
 def dcgm_fields(lang: str) -> str:
     import gpu_collector as c
-    head = {"en": ["Field", "DCGM name", "Column", "Used for"], "cn": ["字段 ID", "DCGM 名称", "列", "用途"]}[lang]
-    rows = [[str(f), f"`{DCGM_NAMES[f]}`", f"`{k}`", DCGM_USE[lang][k]] for f, k in c.FIELDS]
-    return _table(head, rows, ["r", "l", "l", "l"])
+    sep = {"en": ": ", "cn": "："}[lang]
+    return "".join(f"- `{f}` `{DCGM_NAMES[f]}` → `{k}`{sep}{DCGM_USE[lang][k]}\n" for f, k in c.FIELDS)
 
 
 def json_line(lang: str) -> str:
@@ -145,10 +144,11 @@ VIEW_TEXT = {
 
 def views(lang: str) -> str:
     kql = _json("evidence/runs/validation-1/kql-results.json")
-    head = {"en": ["View", "Rows", "Columns"], "cn": ["查询", "行", "输出列"]}[lang]
-    rows = [[f"[`kql/{v}.kql`](kql/{v}.kql)", VIEW_TEXT[lang][v], ", ".join(f"`{c}`" for c in kql[v][0])]
-            for v in ("summary", "per_vm", "per_hour", "per_day", "per_user")]
-    return _table(head, rows, ["l", "l", "l"])
+    sep, comma = {"en": (", ", ": "), "cn": ("，", "：")}[lang]
+    joiner = {"en": ", ", "cn": "、"}[lang]
+    return "".join(f"- [`kql/{v}.kql`](kql/{v}.kql){sep}{VIEW_TEXT[lang][v]}{comma}"
+                   + joiner.join(f"`{c}`" for c in kql[v][0]) + "\n"
+                   for v in ("summary", "per_vm", "per_hour", "per_day", "per_user"))
 
 
 def per_user_json(lang: str) -> str:
@@ -193,12 +193,12 @@ STEP_TEXT = {
     "cn": ["工作区、表、DCE、DCR", "接入 VM", "首批数据", "两个用户的负载", "查询：CLI 与客户端", "下线"],
 }
 CHECK_TEXT = {
-    "en": ["table 23 columns, 90-day retention; rule reads /var/log/gpumon/*.json",
+    "en": ["Table 23 columns, 90-day retention; rule reads /var/log/gpumon/*.json",
            "gpumon.service active, running dcgmi dmon",
            "Heartbeat about 8 min, GpuMetrics_CL about 11 min after onboarding",
            "2 processes of 21 GiB each on the GPU",
            "CLI and client return the same per-owner values",
-           "no agent, association or collector left; resource group deleted"],
+           "No agent, association or collector left; resource group deleted"],
     "cn": ["表 23 列，保留 90 天；规则读取 /var/log/gpumon/*.json",
            "gpumon.service 运行中，执行 dcgmi dmon",
            "接入后约 8 分钟出现 Heartbeat，约 11 分钟出现 GpuMetrics_CL",
@@ -210,10 +210,16 @@ CHECK_TEXT = {
 
 def replay_steps(lang: str) -> str:
     steps = _runs()["replay-1"]["steps"]
-    head = {"en": ["Step", "Exit", "Seconds", "Checked"], "cn": ["步骤", "退出码", "耗时（秒）", "验证内容"]}[lang]
-    rows = [[f"{i + 1} {STEP_TEXT[lang][i]}", str(s["exit"]), str(s["seconds"]) if s["seconds"] is not None else "–",
-             CHECK_TEXT[lang][i]] for i, s in enumerate(steps)]
-    return _table(head, rows, ["l", "r", "r", "l"])
+    out = []
+    for i, s in enumerate(steps):
+        took = ""
+        if s["seconds"] is not None:
+            took = {"en": f", {s['seconds']} s", "cn": f"，{s['seconds']} 秒"}[lang]
+        if lang == "en":
+            out.append(f"- **{i + 1} {STEP_TEXT[lang][i]}**: exit {s['exit']}{took}. {CHECK_TEXT[lang][i]}.\n")
+        else:
+            out.append(f"- **{i + 1} {STEP_TEXT[lang][i]}**：退出码 {s['exit']}{took}。{CHECK_TEXT[lang][i]}。\n")
+    return "".join(out)
 
 
 def owners(lang: str) -> str:

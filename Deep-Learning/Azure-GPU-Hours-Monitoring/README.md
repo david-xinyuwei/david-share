@@ -67,17 +67,15 @@ That is nine DCGM fields sampled every 10 s. Every minute, the collector average
 It then appends one line per GPU to `/var/log/gpumon/gpu_metrics_<day>.json` and deletes files older than three days.
 
 <!-- BEGIN GENERATED: dcgm-fields -->
-| Field | DCGM name | Column | Used for |
-|---:|---|---|---|
-| 203 | `DCGM_FI_DEV_GPU_UTIL` | `GpuUtil` | busy threshold |
-| 1001 | `DCGM_FI_PROF_GR_ENGINE_ACTIVE` | `GrActive` | reference |
-| 1002 | `DCGM_FI_PROF_SM_ACTIVE` | `SmActive` | effective GPU-hours |
-| 1004 | `DCGM_FI_PROF_PIPE_TENSOR_ACTIVE` | `TensorActive` | reference |
-| 1005 | `DCGM_FI_PROF_DRAM_ACTIVE` | `DramActive` | reference |
-| 252 | `DCGM_FI_DEV_FB_USED` | `FbUsedMiB` | memory in use |
-| 250 | `DCGM_FI_DEV_FB_TOTAL` | `FbTotalMiB` | memory size |
-| 155 | `DCGM_FI_DEV_POWER_USAGE` | `PowerW` | reference |
-| 150 | `DCGM_FI_DEV_GPU_TEMP` | `TempC` | reference |
+- `203` `DCGM_FI_DEV_GPU_UTIL` → `GpuUtil`: busy threshold
+- `1001` `DCGM_FI_PROF_GR_ENGINE_ACTIVE` → `GrActive`: reference
+- `1002` `DCGM_FI_PROF_SM_ACTIVE` → `SmActive`: effective GPU-hours
+- `1004` `DCGM_FI_PROF_PIPE_TENSOR_ACTIVE` → `TensorActive`: reference
+- `1005` `DCGM_FI_PROF_DRAM_ACTIVE` → `DramActive`: reference
+- `252` `DCGM_FI_DEV_FB_USED` → `FbUsedMiB`: memory in use
+- `250` `DCGM_FI_DEV_FB_TOTAL` → `FbTotalMiB`: memory size
+- `155` `DCGM_FI_DEV_POWER_USAGE` → `PowerW`: reference
+- `150` `DCGM_FI_DEV_GPU_TEMP` → `TempC`: reference
 <!-- END GENERATED: dcgm-fields -->
 
 One line of that file, from the measured VM (names replaced):
@@ -228,13 +226,11 @@ Each view in [`kql/`](kql/) is a complete query. The time window is the query's 
 - `Computers`: VM names to include, empty means all.
 
 <!-- BEGIN GENERATED: views -->
-| View | Rows | Columns |
-|---|---|---|
-| [`kql/summary.kql`](kql/summary.kql) | all selected VMs together | `AllocatedGpuHours`, `BusyGpuHours`, `EffectiveGpuHours`, `IdleGpuHours`, `Vms`, `Gpus`, `UtilizationPct` |
-| [`kql/per_vm.kql`](kql/per_vm.kql) | one row per VM | `Computer`, `VmSize`, `GpuName`, `Gpus`, `RunningHours`, `AllocatedGpuHours`, `BusyGpuHours`, `EffectiveGpuHours`, `IdleGpuHours`, `UtilizationPct` |
-| [`kql/per_hour.kql`](kql/per_hour.kql) | one row per local hour | `Hour`, `AllocatedGpuHours`, `BusyGpuHours`, `EffectiveGpuHours`, `IdleGpuHours`, `UtilizationPct` |
-| [`kql/per_day.kql`](kql/per_day.kql) | one row per local day | `Day`, `AllocatedGpuHours`, `BusyGpuHours`, `EffectiveGpuHours`, `IdleGpuHours`, `UtilizationPct` |
-| [`kql/per_user.kql`](kql/per_user.kql) | one row per process owner and VM | `User`, `Computer`, `BusyGpuHours`, `EffectiveGpuHours`, `AvgSmActivePct`, `PeakMemoryGiB`, `Processes` |
+- [`kql/summary.kql`](kql/summary.kql), all selected VMs together: `AllocatedGpuHours`, `BusyGpuHours`, `EffectiveGpuHours`, `IdleGpuHours`, `Vms`, `Gpus`, `UtilizationPct`
+- [`kql/per_vm.kql`](kql/per_vm.kql), one row per VM: `Computer`, `VmSize`, `GpuName`, `Gpus`, `RunningHours`, `AllocatedGpuHours`, `BusyGpuHours`, `EffectiveGpuHours`, `IdleGpuHours`, `UtilizationPct`
+- [`kql/per_hour.kql`](kql/per_hour.kql), one row per local hour: `Hour`, `AllocatedGpuHours`, `BusyGpuHours`, `EffectiveGpuHours`, `IdleGpuHours`, `UtilizationPct`
+- [`kql/per_day.kql`](kql/per_day.kql), one row per local day: `Day`, `AllocatedGpuHours`, `BusyGpuHours`, `EffectiveGpuHours`, `IdleGpuHours`, `UtilizationPct`
+- [`kql/per_user.kql`](kql/per_user.kql), one row per process owner and VM: `User`, `Computer`, `BusyGpuHours`, `EffectiveGpuHours`, `AvgSmActivePct`, `PeakMemoryGiB`, `Processes`
 <!-- END GENERATED: views -->
 
 **From a shell.** The `@` prefix makes the Azure CLI read the query from the file. `-t` takes an ISO 8601 duration such as `P1D`, or an interval `<start>/<end>`. The CLI returns every value as a string and adds a `TableName` column.
@@ -372,14 +368,12 @@ print("done")
 **Result.**
 
 <!-- BEGIN GENERATED: replay-steps -->
-| Step | Exit | Seconds | Checked |
-|---|---:|---:|---|
-| 1 workspace, table, DCE, DCR | 0 | 181 | table 23 columns, 90-day retention; rule reads /var/log/gpumon/*.json |
-| 2 VM onboarding | 0 | 102 | gpumon.service active, running dcgmi dmon |
-| 3 first rows | 0 | – | Heartbeat about 8 min, GpuMetrics_CL about 11 min after onboarding |
-| 4 two-user load | 0 | 213 | 2 processes of 21 GiB each on the GPU |
-| 5 queries: CLI and client | 0 | – | CLI and client return the same per-owner values |
-| 6 removal | 0 | 98 | no agent, association or collector left; resource group deleted |
+- **1 workspace, table, DCE, DCR**: exit 0, 181 s. Table 23 columns, 90-day retention; rule reads /var/log/gpumon/*.json.
+- **2 VM onboarding**: exit 0, 102 s. gpumon.service active, running dcgmi dmon.
+- **3 first rows**: exit 0. Heartbeat about 8 min, GpuMetrics_CL about 11 min after onboarding.
+- **4 two-user load**: exit 0, 213 s. 2 processes of 21 GiB each on the GPU.
+- **5 queries: CLI and client**: exit 0. CLI and client return the same per-owner values.
+- **6 removal**: exit 0, 98 s. No agent, association or collector left; resource group deleted.
 <!-- END GENERATED: replay-steps -->
 
 <img src="images/owners-en.png" width="900" alt="Per-minute owner shares of replay-1: one minute user-1 only, three minutes shared half and half, one minute user-2 only">

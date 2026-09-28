@@ -79,17 +79,15 @@ dcgmi dmon -e 203,1001,1002,1004,1005,252,250,155,150 -d 10000
 4. 每张卡一行，追加到 `/var/log/gpumon/gpu_metrics_<day>.json`，并删除三天前的文件。
 
 <!-- BEGIN GENERATED: dcgm-fields -->
-| 字段 ID | DCGM 名称 | 列 | 用途 |
-|---:|---|---|---|
-| 203 | `DCGM_FI_DEV_GPU_UTIL` | `GpuUtil` | 占用判定阈值 |
-| 1001 | `DCGM_FI_PROF_GR_ENGINE_ACTIVE` | `GrActive` | 参考 |
-| 1002 | `DCGM_FI_PROF_SM_ACTIVE` | `SmActive` | 有效计算卡时 |
-| 1004 | `DCGM_FI_PROF_PIPE_TENSOR_ACTIVE` | `TensorActive` | 参考 |
-| 1005 | `DCGM_FI_PROF_DRAM_ACTIVE` | `DramActive` | 参考 |
-| 252 | `DCGM_FI_DEV_FB_USED` | `FbUsedMiB` | 显存占用 |
-| 250 | `DCGM_FI_DEV_FB_TOTAL` | `FbTotalMiB` | 显存容量 |
-| 155 | `DCGM_FI_DEV_POWER_USAGE` | `PowerW` | 参考 |
-| 150 | `DCGM_FI_DEV_GPU_TEMP` | `TempC` | 参考 |
+- `203` `DCGM_FI_DEV_GPU_UTIL` → `GpuUtil`：占用判定阈值
+- `1001` `DCGM_FI_PROF_GR_ENGINE_ACTIVE` → `GrActive`：参考
+- `1002` `DCGM_FI_PROF_SM_ACTIVE` → `SmActive`：有效计算卡时
+- `1004` `DCGM_FI_PROF_PIPE_TENSOR_ACTIVE` → `TensorActive`：参考
+- `1005` `DCGM_FI_PROF_DRAM_ACTIVE` → `DramActive`：参考
+- `252` `DCGM_FI_DEV_FB_USED` → `FbUsedMiB`：显存占用
+- `250` `DCGM_FI_DEV_FB_TOTAL` → `FbTotalMiB`：显存容量
+- `155` `DCGM_FI_DEV_POWER_USAGE` → `PowerW`：参考
+- `150` `DCGM_FI_DEV_GPU_TEMP` → `TempC`：参考
 <!-- END GENERATED: dcgm-fields -->
 
 被测 VM 上这个文件里的一行（名称已替换）：
@@ -248,13 +246,11 @@ az vm extension delete -g "$RG" --vm-name "$VM" -n AzureMonitorLinuxAgent -o non
 - `Computers`：只统计这些 VM，留空表示全部。
 
 <!-- BEGIN GENERATED: views -->
-| 查询 | 行 | 输出列 |
-|---|---|---|
-| [`kql/summary.kql`](kql/summary.kql) | 所选 VM 合计 | `AllocatedGpuHours`, `BusyGpuHours`, `EffectiveGpuHours`, `IdleGpuHours`, `Vms`, `Gpus`, `UtilizationPct` |
-| [`kql/per_vm.kql`](kql/per_vm.kql) | 每台 VM 一行 | `Computer`, `VmSize`, `GpuName`, `Gpus`, `RunningHours`, `AllocatedGpuHours`, `BusyGpuHours`, `EffectiveGpuHours`, `IdleGpuHours`, `UtilizationPct` |
-| [`kql/per_hour.kql`](kql/per_hour.kql) | 每个本地小时一行 | `Hour`, `AllocatedGpuHours`, `BusyGpuHours`, `EffectiveGpuHours`, `IdleGpuHours`, `UtilizationPct` |
-| [`kql/per_day.kql`](kql/per_day.kql) | 每个本地日一行 | `Day`, `AllocatedGpuHours`, `BusyGpuHours`, `EffectiveGpuHours`, `IdleGpuHours`, `UtilizationPct` |
-| [`kql/per_user.kql`](kql/per_user.kql) | 每个进程属主、每台 VM 一行 | `User`, `Computer`, `BusyGpuHours`, `EffectiveGpuHours`, `AvgSmActivePct`, `PeakMemoryGiB`, `Processes` |
+- [`kql/summary.kql`](kql/summary.kql)，所选 VM 合计：`AllocatedGpuHours`、`BusyGpuHours`、`EffectiveGpuHours`、`IdleGpuHours`、`Vms`、`Gpus`、`UtilizationPct`
+- [`kql/per_vm.kql`](kql/per_vm.kql)，每台 VM 一行：`Computer`、`VmSize`、`GpuName`、`Gpus`、`RunningHours`、`AllocatedGpuHours`、`BusyGpuHours`、`EffectiveGpuHours`、`IdleGpuHours`、`UtilizationPct`
+- [`kql/per_hour.kql`](kql/per_hour.kql)，每个本地小时一行：`Hour`、`AllocatedGpuHours`、`BusyGpuHours`、`EffectiveGpuHours`、`IdleGpuHours`、`UtilizationPct`
+- [`kql/per_day.kql`](kql/per_day.kql)，每个本地日一行：`Day`、`AllocatedGpuHours`、`BusyGpuHours`、`EffectiveGpuHours`、`IdleGpuHours`、`UtilizationPct`
+- [`kql/per_user.kql`](kql/per_user.kql)，每个进程属主、每台 VM 一行：`User`、`Computer`、`BusyGpuHours`、`EffectiveGpuHours`、`AvgSmActivePct`、`PeakMemoryGiB`、`Processes`
 <!-- END GENERATED: views -->
 
 **命令行。** `@` 前缀让 Azure CLI 从文件读取查询。`-t` 接受 ISO 8601 时长（如 `P1D`）或时间区间 `<开始>/<结束>`。它会把所有值都返回成字符串，并多出一列 `TableName`。
@@ -405,14 +401,12 @@ print("done")
 **结果。**
 
 <!-- BEGIN GENERATED: replay-steps -->
-| 步骤 | 退出码 | 耗时（秒） | 验证内容 |
-|---|---:|---:|---|
-| 1 工作区、表、DCE、DCR | 0 | 181 | 表 23 列，保留 90 天；规则读取 /var/log/gpumon/*.json |
-| 2 接入 VM | 0 | 102 | gpumon.service 运行中，执行 dcgmi dmon |
-| 3 首批数据 | 0 | – | 接入后约 8 分钟出现 Heartbeat，约 11 分钟出现 GpuMetrics_CL |
-| 4 两个用户的负载 | 0 | 213 | GPU 上 2 个进程，各 21 GiB |
-| 5 查询：CLI 与客户端 | 0 | – | CLI 与客户端返回的属主数值相同 |
-| 6 下线 | 0 | 98 | 代理、关联、采集器全部移除；资源组已删除 |
+- **1 工作区、表、DCE、DCR**：退出码 0，181 秒。表 23 列，保留 90 天；规则读取 /var/log/gpumon/*.json。
+- **2 接入 VM**：退出码 0，102 秒。gpumon.service 运行中，执行 dcgmi dmon。
+- **3 首批数据**：退出码 0。接入后约 8 分钟出现 Heartbeat，约 11 分钟出现 GpuMetrics_CL。
+- **4 两个用户的负载**：退出码 0，213 秒。GPU 上 2 个进程，各 21 GiB。
+- **5 查询：CLI 与客户端**：退出码 0。CLI 与客户端返回的属主数值相同。
+- **6 下线**：退出码 0，98 秒。代理、关联、采集器全部移除；资源组已删除。
 <!-- END GENERATED: replay-steps -->
 
 <img src="images/owners-cn.png" width="900" alt="replay-1 每分钟的属主份额：1 分钟只有 user-1，3 分钟两人各一半，1 分钟只有 user-2">

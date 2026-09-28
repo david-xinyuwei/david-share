@@ -1,4 +1,5 @@
 """Shell scripts: syntax, strict mode, rule-file placeholder and referenced files."""
+import os
 import re
 import shutil
 import subprocess
@@ -7,6 +8,16 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = sorted([*ROOT.glob("scripts/*.sh"), *ROOT.glob("vm/*.sh"), *ROOT.glob("tests/load/*.sh")])
+
+
+def _bash():
+    """A real bash. On Windows, System32\\bash.exe is the WSL launcher, so use Git for Windows' bash."""
+    if os.name == "nt":
+        for candidate in (r"C:\Program Files\Git\bin\bash.exe", r"C:\Program Files\Git\usr\bin\bash.exe"):
+            if Path(candidate).is_file():
+                return candidate
+        return None
+    return shutil.which("bash")
 
 
 class ScriptTests(unittest.TestCase):
@@ -18,11 +29,11 @@ class ScriptTests(unittest.TestCase):
                 self.assertRegex(data.decode("utf-8").splitlines()[0], r"^#!/(usr/bin/env bash|bin/bash)$")
                 self.assertIn("set -euo pipefail", data.decode("utf-8"))
 
-    @unittest.skipUnless(shutil.which("bash"), "bash not available")
+    @unittest.skipUnless(_bash(), "bash not available")
     def test_bash_syntax(self):
         for path in SCRIPTS:
             with self.subTest(script=path.name):
-                res = subprocess.run(["bash", "-n", path.name], cwd=path.parent, capture_output=True, text=True,
+                res = subprocess.run([_bash(), "-n", path.name], cwd=path.parent, capture_output=True, text=True,
                                      encoding="utf-8")
                 self.assertEqual(res.returncode, 0, res.stderr)
 
