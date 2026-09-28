@@ -162,15 +162,15 @@ Prefill gains come with shorter time to first token. At decode concurrency 64 an
 **Input.** The same 8K-in / 1K-out decode workload and stack as the first date above, 256 prompts per point, client concurrency 16 to 256.
 
 <!-- BEGIN GENERATED: ladder -->
-| Concurrency<br>(observed) | Output<br>tok/s | TPOT<br>(ms) | TTFT (s)<br>mean / P99 |
+| In flight<br>(observed) | Output<br>tok/s | TPOT<br>(ms) | TTFT (s)<br>mean / P99 |
 |---:|---:|---:|---:|
-| 16 (15.8) | 1,322 | 10.79 | 1.2 / 7.1 |
-| 32 (30.9) | 1,914 | 13.37 | 2.8 / 14.1 |
-| 64 (59.5) | 2,199 | 15.49 | 11.9 / 27.6 |
-| 96 (84.0) | 2,201 | 15.06 | 23.7 / 40.8 |
-| 128 (104.6) | 2,204 | 14.83 | 33.4 / 54.4 |
-| 192 (135.4) | 2,203 | 14.72 | 47.9 / 81.3 |
-| 256 (151.8) | 2,208 | 14.60 | 55.5 / 107.3 |
+| 16<br>(15.8) | 1,322 | 10.79 | 1.2 / 7.1 |
+| 32<br>(30.9) | 1,914 | 13.37 | 2.8 / 14.1 |
+| 64<br>(59.5) | 2,199 | 15.49 | 11.9 / 27.6 |
+| 96<br>(84.0) | 2,201 | 15.06 | 23.7 / 40.8 |
+| 128<br>(104.6) | 2,204 | 14.83 | 33.4 / 54.4 |
+| 192<br>(135.4) | 2,203 | 14.72 | 47.9 / 81.3 |
+| 256<br>(151.8) | 2,208 | 14.60 | 55.5 / 107.3 |
 <!-- END GENERATED: ladder -->
 
 Throughput reaches its plateau at concurrency 64. Above that, TPOT stays flat while mean and P99 time to first token keep growing: additional requests wait longer before their first token instead of adding throughput. The observed concurrency (in brackets, the client's time-averaged number of requests in flight) also stops following the configured value. That is consistent with the server's running-request limit and KV capacity taking over, but these runs have no scheduler trace to confirm it.

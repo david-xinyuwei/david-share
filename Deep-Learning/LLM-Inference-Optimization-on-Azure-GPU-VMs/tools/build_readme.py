@@ -179,9 +179,9 @@ def stage_decode(lang: str) -> str:
 
 def ladder(lang: str) -> str:
     rows_in = _json("evidence/measurements.json")["concurrency_ladder_8k1k"]
-    head = (["Concurrency<br>(observed)", "Output<br>tok/s", "TPOT<br>(ms)", "TTFT (s)<br>mean / P99"] if lang == "en"
+    head = (["In flight<br>(observed)", "Output<br>tok/s", "TPOT<br>(ms)", "TTFT (s)<br>mean / P99"] if lang == "en"
             else ["并发<br>（实测）", "Output<br>tok/s", "TPOT<br>（ms）", "TTFT（s）<br>均值 / P99"])
-    rows = [[f"{r['concurrency']} ({_n(r['observed_concurrency'], 1)})", _c(r["output_tok_s"]), _n(r["mean_tpot_ms"]),
+    rows = [[f"{r['concurrency']}<br>({_n(r['observed_concurrency'], 1)})", _c(r["output_tok_s"]), _n(r["mean_tpot_ms"]),
              f"{_n(r['mean_ttft_ms'] / 1000.0, 1)} / {_n(r['p99_ttft_ms'] / 1000.0, 1)}"] for r in rows_in]
     return _table(head, rows, ["r", "r", "r", "r"])
 
