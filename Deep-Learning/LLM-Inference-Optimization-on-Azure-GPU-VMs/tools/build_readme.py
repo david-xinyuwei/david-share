@@ -119,20 +119,20 @@ def headline(lang: str) -> str:
     pre_val = f"{_c(pre[8192]['before_input_tok_s'])} → {_c(pre[8192]['after_input_tok_s'])}"
     dec_val = f"{_c(dec[128]['before_output_tok_s'])} → {_c(dec[128]['after_output_tok_s'])}"
     if lang == "en":
-        head = ["What changed", "Before → after (tok/s)", "Change", "Evidence"]
+        head = ["What changed", "Before → after (tok/s)", "Change"]
         rows = [
-            ["CK FP8 GEMM + unified verify<br>64K/1K decode, batch 16, one VM", ab_val, f"**{_pct(ab['throughput_delta_pct'])}**", "A/B, two switches, N=2"],
-            ["Tuned fused-MoE table<br>8K prefill, concurrency 4, 1P1D", pre_val, f"**{_pct(pre[8192]['input_tok_s_delta_pct'])}**", "stage pair, N=1"],
-            ["Tuned fused-MoE table<br>8K/1K decode, concurrency 128, 1P1D", dec_val, f"**{_pct(dec[128]['output_tok_s_delta_pct'])}**", "stage pair, N=1"],
+            ["CK FP8 GEMM + unified verify<br>64K/1K decode, batch 16, one VM<br>*A/B, two switches, N=2*", ab_val, f"**{_pct(ab['throughput_delta_pct'])}**"],
+            ["Tuned fused-MoE table<br>8K prefill, concurrency 4, 1P1D<br>*stage pair, N=1*", pre_val, f"**{_pct(pre[8192]['input_tok_s_delta_pct'])}**"],
+            ["Tuned fused-MoE table<br>8K/1K decode, concurrency 128, 1P1D<br>*stage pair, N=1*", dec_val, f"**{_pct(dec[128]['output_tok_s_delta_pct'])}**"],
         ]
     else:
-        head = ["改了什么", "优化前 → 优化后（tok/s）", "变化", "证据"]
+        head = ["改了什么", "优化前 → 优化后（tok/s）", "变化"]
         rows = [
-            ["CK FP8 GEMM + unified verify<br>64K/1K decode，batch 16，单机", ab_val, f"**{_pct(ab['throughput_delta_pct'])}**", "两开关 A/B，各 2 次"],
-            ["调优 fused-MoE 表<br>8K prefill，并发 4，1P1D", pre_val, f"**{_pct(pre[8192]['input_tok_s_delta_pct'])}**", "阶段对比，各 1 次"],
-            ["调优 fused-MoE 表<br>8K/1K decode，并发 128，1P1D", dec_val, f"**{_pct(dec[128]['output_tok_s_delta_pct'])}**", "阶段对比，各 1 次"],
+            ["CK FP8 GEMM + unified verify<br>64K/1K decode，batch 16，单机<br>*两开关 A/B，各 2 次*", ab_val, f"**{_pct(ab['throughput_delta_pct'])}**"],
+            ["调优 fused-MoE 表<br>8K prefill，并发 4，1P1D<br>*阶段对比，各 1 次*", pre_val, f"**{_pct(pre[8192]['input_tok_s_delta_pct'])}**"],
+            ["调优 fused-MoE 表<br>8K/1K decode，并发 128，1P1D<br>*阶段对比，各 1 次*", dec_val, f"**{_pct(dec[128]['output_tok_s_delta_pct'])}**"],
         ]
-    return _table(head, rows, ["l", "l", "r", "l"])
+    return _table(head, rows, ["l", "l", "r"])
 
 
 def _ab_names(lang: str) -> list[str]:

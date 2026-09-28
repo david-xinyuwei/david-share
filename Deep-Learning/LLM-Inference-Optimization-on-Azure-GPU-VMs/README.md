@@ -38,11 +38,11 @@ Not provided: model weights, the private raw logs behind the projected evidence 
 Every row compares MI300X with MI300X. The evidence column says how strong the comparison is: an A/B changes named switches inside one session; a stage pair repeats the same captured launch and benchmark scripts on two dates around one library update. Throughput was measured with a fixed MTP acceptance of three draft tokens, a benchmark method that is more favorable than real traffic, so read these values as relative gains, not as production throughput. Two lossy switches were also on — the FP8 KV cache and INT8 Quick Reduce — and their accuracy effect is not measured here; see [Which optimizations can change model output](#which-optimizations-can-change-model-output). The first row is scheduler generation throughput; the other two are client-side input and output throughput.
 
 <!-- BEGIN GENERATED: headline -->
-| What changed | Before → after (tok/s) | Change | Evidence |
-|---|---|---:|---|
-| CK FP8 GEMM + unified verify<br>64K/1K decode, batch 16, one VM | 743 → 934 | **+25.65%** | A/B, two switches, N=2 |
-| Tuned fused-MoE table<br>8K prefill, concurrency 4, 1P1D | 16,716 → 20,781 | **+24.32%** | stage pair, N=1 |
-| Tuned fused-MoE table<br>8K/1K decode, concurrency 128, 1P1D | 2,209 → 2,487 | **+12.56%** | stage pair, N=1 |
+| What changed | Before → after (tok/s) | Change |
+|---|---|---:|
+| CK FP8 GEMM + unified verify<br>64K/1K decode, batch 16, one VM<br>*A/B, two switches, N=2* | 743 → 934 | **+25.65%** |
+| Tuned fused-MoE table<br>8K prefill, concurrency 4, 1P1D<br>*stage pair, N=1* | 16,716 → 20,781 | **+24.32%** |
+| Tuned fused-MoE table<br>8K/1K decode, concurrency 128, 1P1D<br>*stage pair, N=1* | 2,209 → 2,487 | **+12.56%** |
 <!-- END GENERATED: headline -->
 
 ### Controlled A/B: block-scale FP8 GEMM path at 64K context
@@ -629,13 +629,11 @@ Run arm A twice first. The difference between those two runs is a rough noise fl
 
 ### Common misconceptions
 
-| Misconception | What the code and measurements show |
-|---|---|
-| "A faster kernel makes the model that much faster." | The FlyDSL kernel only runs for full-attention layers during target verification (see the dispatch excerpt); SWA and sink layers and the other operators keep their old cost, so any kernel speed-up is diluted by that share. |
-| "The tuned MoE table improves both throughput and latency." | At decode concurrency 64 and 128 throughput rose by about 12% while TPOT also rose by 12.6–14.1%: the table trades per-token latency for batch throughput. |
-| "More client concurrency means more throughput." | The ladder plateaus at concurrency 64; beyond it only time to first token grows. |
-| "If the launch script does not set a precision switch, it is off." | `ROCM_QUICK_REDUCE_QUANTIZATION=INT8` comes from the base image's ENV and was on in the measured runs although none of their launch scripts sets it. Read the process environment, not the script. |
-| "A 100% success count means every request worked." | With too small a `--context-length`, oversized prompts can return error payloads that the client counts as successes; the context headroom rule catches this. |
+- **"A faster kernel makes the model that much faster."** The FlyDSL kernel only runs for full-attention layers during target verification (see the dispatch excerpt); SWA and sink layers and the other operators keep their old cost, so any kernel speed-up is diluted by that share.
+- **"The tuned MoE table improves both throughput and latency."** At decode concurrency 64 and 128 throughput rose by about 12% while TPOT also rose by 12.6–14.1%: the table trades per-token latency for batch throughput.
+- **"More client concurrency means more throughput."** The ladder plateaus at concurrency 64; beyond it only time to first token grows.
+- **"If the launch script does not set a precision switch, it is off."** `ROCM_QUICK_REDUCE_QUANTIZATION=INT8` comes from the base image's ENV and was on in the measured runs although none of their launch scripts sets it. Read the process environment, not the script.
+- **"A 100% success count means every request worked."** With too small a `--context-length`, oversized prompts can return error payloads that the client counts as successes; the context headroom rule catches this.
 
 ### Porting the method to NVIDIA GPUs
 
