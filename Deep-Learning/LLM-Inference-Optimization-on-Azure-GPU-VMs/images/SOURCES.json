@@ -2,11 +2,31 @@
   "schema": 1,
   "images": [
     {
+      "file": "cumulative-gain-en.png",
+      "language": "en",
+      "kind": "original chart",
+      "generator": "tools/draw_diagrams.py",
+      "sha256": "1fb60c906c5dab41e130a58fc13284aa66f15bc304bc4ea366aa369435ff7284",
+      "shows": "measured MI300X-to-MI300X gain factors from evidence/measurements.json (cumulative section)",
+      "does_not_show": "any other accelerator, production throughput or accuracy",
+      "data_sha256": "4fdf86fa0e5a06b4f4ff30df9144eb2d98c763842ab21c502da99c5e39f33a75"
+    },
+    {
+      "file": "cumulative-gain-cn.png",
+      "language": "cn",
+      "kind": "original chart",
+      "generator": "tools/draw_diagrams.py",
+      "sha256": "036da911a93fa66e439381df93747b932b918529098b9a5b049b46f4829a5dd2",
+      "shows": "measured MI300X-to-MI300X gain factors from evidence/measurements.json (cumulative section)",
+      "does_not_show": "any other accelerator, production throughput or accuracy",
+      "data_sha256": "4fdf86fa0e5a06b4f4ff30df9144eb2d98c763842ab21c502da99c5e39f33a75"
+    },
+    {
       "file": "architecture-en.png",
       "language": "en",
       "kind": "original diagram",
       "generator": "tools/draw_diagrams.py",
-      "sha256": "53a0e52e43fd829c026fa598fe67a56b9f7c2d348d7c1b099d0b90c646d4dc51",
+      "sha256": "8135922c2b04e7f406a7c213374fab5df2e3db7109487707bd6e28e79439552d",
       "shows": "architecture of the three optimization layers",
       "does_not_show": "measured traffic, latency or production readiness"
     },
@@ -15,7 +35,7 @@
       "language": "cn",
       "kind": "original diagram",
       "generator": "tools/draw_diagrams.py",
-      "sha256": "10a9f628672ce13c03c5dfc88430fe2af7eacf16e13ddce8428e3d5ba1174018",
+      "sha256": "00085774eb173638409c7ba8c6bd7e2e6f9c6a1217796ef4d9bef5a6588b018d",
       "shows": "architecture of the three optimization layers",
       "does_not_show": "measured traffic, latency or production readiness"
     },

@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "note": "Raw sglang.bench_serving logs and the bring-up summary report stay in the private project; the A/B source is a public file. This manifest records the SHA-256 of every source and of the projection committed here.",
+  "note": "Raw sglang.bench_serving logs, the bring-up summary reports and the long-context results table stay in the private project; the 64K A/B source and the 2026-05-08 bring-up files are public. This manifest records the SHA-256 of every source and of the projection committed here.",
   "files": [
     {
       "projected_file": "stage-20260707-ck__decode-8k1k.txt",
@@ -122,11 +122,53 @@
       "raw_log_bytes": 14392
     },
     {
-      "projected_file": "bringup-20260509.json",
-      "projected_sha256": "01bc0effddfac713aa9c42b1733303888862471eacbe656ad6506540ccf60b25",
-      "raw_log_name": "daily_report_20260509_wechat.txt",
-      "raw_log_sha256": "05b5ab7d17e32c699602b71629ab0aaf2f9a70d067ab20934d51bac442670fd8",
-      "raw_log_bytes": 3791
+      "projected_file": "realacc-20260714__decode-8k1k-c16.txt",
+      "projected_sha256": "f67230bd2a3fcfa262926d04d7a12f4699e0d7a57391f23dcc082d46198d2cb3",
+      "raw_log_name": "benchmark_8192_con16.log",
+      "raw_log_sha256": "aa6aa9971959f7eec4aa3e5fb5a1d5abe3d963624cd86743d049b4b9188bf483",
+      "raw_log_bytes": 21609
+    },
+    {
+      "projected_file": "realacc-20260714__decode-8k1k-c32.txt",
+      "projected_sha256": "7a0b00220e17fcda6e149eca0e0dcc4f478ad7640ed11726c405531fee4d2a4a",
+      "raw_log_name": "benchmark_8192_con32.log",
+      "raw_log_sha256": "bffcd466430b38b558f068e2da8d930117da636891f00164b87fc524066a545d",
+      "raw_log_bytes": 21291
+    },
+    {
+      "projected_file": "realacc-20260714__decode-8k1k-c64.txt",
+      "projected_sha256": "2b839c11299c3031d0fae4927331d12e7fcf68921969f73e643b6980f063efcc",
+      "raw_log_name": "benchmark_8192_con64.log",
+      "raw_log_sha256": "c93f9df1dacf2a99edc07650d56f53c12b0401195b955d91b52c5a7f248dc72b",
+      "raw_log_bytes": 20023
+    },
+    {
+      "projected_file": "realacc-20260714__decode-8k1k-c128.txt",
+      "projected_sha256": "432e0115b5a5298ffaba07423716629ca4cebedd0c35845cee5055c510319195",
+      "raw_log_name": "benchmark_8192_con128.log",
+      "raw_log_sha256": "99c9dadb9b713bb76a56a9a38b66e5ecc3673ad0f14f780963f2095e5aafc872",
+      "raw_log_bytes": 19697
+    },
+    {
+      "projected_file": "bringup-20260508-pd.json",
+      "projected_sha256": "202a1808201225f74aebbbb5a754f1f8ddef871a12536943c83bf34ae1cf059e",
+      "raw_log_name": "bench_pd.tar.gz (public; holds the four JSON files whose SHA-256 is listed in the projection)",
+      "raw_log_sha256": "66111e8a42b0b14d87cd8c2f6c839245ca56c41463e60d2da015633e7eef924a",
+      "raw_log_bytes": 3446
+    },
+    {
+      "projected_file": "bringup-20260510-pd.json",
+      "projected_sha256": "8d2a61201304dc81ec3b8f2b922a83b5df0ff6a22f67256a6f19d3b8288be272",
+      "raw_log_name": "daily_report_20260510_wechat.txt",
+      "raw_log_sha256": "f8e0fe3dacc99b344cfa9fe0dddf556d54a8bb77251fc1c0210ae0e0bcac508b",
+      "raw_log_bytes": 2551
+    },
+    {
+      "projected_file": "long-20260720-128k-prefill.json",
+      "projected_sha256": "d87c0e4d8c676da56be0212de49a662b4c106f97c5c5954c3b0bd06809620811",
+      "raw_log_name": "prefill-results.tsv",
+      "raw_log_sha256": "a41a9b3cd61605d0935622be54f96f6a1c2680d79e7c6e473747ef09f5944480",
+      "raw_log_bytes": 3949
     }
   ]
 }

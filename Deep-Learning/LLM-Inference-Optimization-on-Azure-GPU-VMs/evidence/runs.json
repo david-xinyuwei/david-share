@@ -7,21 +7,6 @@
     "comparison_rule": "Every percentage on the reader page compares MI300X with MI300X. No other accelerator is compared."
   },
   "runs": {
-    "bringup-20260509": {
-      "producer": "Microsoft",
-      "date": "2026-05-09",
-      "evidence_level": "SUMMARY_REPORT_PROJECTION",
-      "topology": "1 VM, TP8, prefill and decode collocated in one server",
-      "runtime": "SGLang v0.5.11 (e299ec1bf + cherry-picked PR #24652), Triton attention and Triton W8A8 FP8 GEMM, no speculative decoding",
-      "decode_workload": "16K input / 1K output, random dataset, configured concurrency 32-128",
-      "prefill_workload": "input only (output 1)",
-      "notes": [
-        "KV capacity was 937K tokens, so concurrency above about 50 queued instead of decoding; output throughput plateaued near 570 tok/s."
-      ],
-      "raw": [
-        "bringup-20260509.json"
-      ]
-    },
     "stage-20260707-ck": {
       "producer": "Microsoft",
       "date": "2026-07-07",
@@ -125,6 +110,69 @@
       "metric": "steady-state scheduler generation throughput (tok/s) at batch 16; the first full-batch sample of each run is a transition sample and is excluded",
       "raw": [
         "ab-20260718-64k-bs16.json"
+      ]
+    },
+    "bringup-20260508-pd": {
+      "producer": "Microsoft",
+      "date": "2026-05-08",
+      "evidence_level": "PUBLIC_RAW_PROJECTION",
+      "topology": "1P1D: prefill server TP8 on one VM, decode server TP8 on a second VM, Mooncake KV transfer over one InfiniBand port, router in front",
+      "runtime": "SGLang v0.5.11 bring-up build; prefill with --attention-backend aiter; decode with Triton attention; Triton W8A8 FP8 GEMM; default KV cache dtype (no --kv-cache-dtype); no speculative decoding",
+      "client": "custom asyncio client of the bring-up repository (p50 latency, completion count and token throughput per run), not sglang.bench_serving",
+      "graph_capture_ab": "same session and servers; the only change is removing --disable-cuda-graph from the decode server so that decode steps replay as captured HIP graphs",
+      "notes": [
+        "Requests stopped at about 340 of the 1,024 requested output tokens in both graph arms, so their throughput compares with each other, not with bench_serving runs."
+      ],
+      "raw": [
+        "bringup-20260508-pd.json"
+      ]
+    },
+    "bringup-20260510-pd": {
+      "producer": "Microsoft",
+      "date": "2026-05-10",
+      "evidence_level": "SUMMARY_REPORT_PROJECTION",
+      "topology": "1P1D on two VMs, same layout as bringup-20260508-pd",
+      "runtime": "SGLang v0.5.11 bring-up build, Triton attention on both servers, Triton W8A8 FP8 GEMM, no speculative decoding, decode graph capture on",
+      "decode_workload": "16K input / 1K output, random dataset, client concurrency 32-96",
+      "notes": [
+        "The single-VM prefill range in the same report ends at 128K = 6,915 tok/s (single stream, TP8, Triton attention)."
+      ],
+      "raw": [
+        "bringup-20260510-pd.json"
+      ]
+    },
+    "realacc-20260714": {
+      "producer": "Microsoft",
+      "date": "2026-07-14",
+      "evidence_level": "PROJECTED_RAW_LOG",
+      "topology": "same as stage-20260707-ck",
+      "runtime": {
+        "sglang": "2f9b9aedf (server-reported version 0.0.0.dev14147+g2f9b9aedf)",
+        "aiter": "2026-06-25 build (no tuned fused-MoE table)"
+      },
+      "server_flags": "--tp-size 8 --attention-backend aiter --kv-cache-dtype fp8_e4m3 --page-size 32 --chunked-prefill-size 16384 --context-length 262144 --max-running-requests 128 --mem-fraction-static 0.85 --disable-radix-cache --disable-overlap-schedule --speculative-algorithm EAGLE --speculative-num-steps 3 --speculative-eagle-topk 1 --speculative-num-draft-tokens 4 --enable-multi-layer-eagle",
+      "server_env": "SGLANG_USE_AITER=1 SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1 SGLANG_ENABLE_SPEC_V2=1; no SGLANG_SIMULATE_ACC_* variable and no SGLANG_AITER_UNIFIED_VERIFY, so MTP acceptance is whatever the draft model achieves on random prompts",
+      "raw": [
+        "realacc-20260714__decode-8k1k-c16.txt",
+        "realacc-20260714__decode-8k1k-c32.txt",
+        "realacc-20260714__decode-8k1k-c64.txt",
+        "realacc-20260714__decode-8k1k-c128.txt"
+      ],
+      "server_context_length": 262144,
+      "special_tokens_per_request": 4
+    },
+    "long-20260720-128k": {
+      "producer": "Microsoft",
+      "date": "2026-07-20",
+      "evidence_level": "RESULTS_TABLE_PROJECTION",
+      "topology": "same as stage-20260707-ck",
+      "runtime": "immutable image built from the stage-20260713-tuned-moe runtime; --context-length 262151",
+      "prefill_workload": "131,072 input tokens, output 1, 16 requests per point, client concurrency 1 and 2",
+      "notes": [
+        "The run set a fixed MTP acceptance of three; with output 1 no draft token is verified, so the setting does not enter the prefill rate."
+      ],
+      "raw": [
+        "long-20260720-128k-prefill.json"
       ]
     }
   }

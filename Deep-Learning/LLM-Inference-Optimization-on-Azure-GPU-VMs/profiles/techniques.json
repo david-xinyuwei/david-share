@@ -137,6 +137,28 @@
       }
     },
     {
+      "id": "decode-graph-capture",
+      "layer": "framework",
+      "en": "Decode graph capture (HIP graphs)",
+      "cn": "Decode 图捕获（HIP graph）",
+      "rocm": "on by default on the decode server: do not pass `--disable-cuda-graph` there (the prefill server keeps it)",
+      "cuda": "same default with CUDA graphs; `--cuda-graph-max-bs` bounds the captured batch sizes",
+      "patches": [],
+      "stack": "measured-run",
+      "evidence": "LOCAL_AB",
+      "evidence_note": {
+        "en": "measured A/B at bring-up (Triton attention, no MTP)",
+        "cn": "bring-up 阶段实测 A/B（Triton attention，无 MTP）"
+      },
+      "rocm_cn": "decode 服务上默认打开：不要给 decode 服务传 `--disable-cuda-graph`（prefill 服务保留该参数）",
+      "cuda_cn": "默认行为相同，使用 CUDA graph；`--cuda-graph-max-bs` 限定捕获的 batch 上限",
+      "precision": {
+        "class": "same-math",
+        "en": "The captured graph replays the same kernels; it removes launch overhead, not arithmetic.",
+        "cn": "捕获的图重放的是同一批 kernel；省掉的是 launch 开销，算术不变。"
+      }
+    },
+    {
       "id": "flydsl-pa-decode",
       "layer": "operator",
       "en": "FlyDSL paged-attention decode kernel (head 192, page 64)",

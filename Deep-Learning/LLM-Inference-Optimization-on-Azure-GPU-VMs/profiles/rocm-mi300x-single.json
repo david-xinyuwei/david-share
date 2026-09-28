@@ -273,6 +273,14 @@
           "ROCM_QUICK_REDUCE_QUANTIZATION": "NONE"
         }
       }
+    },
+    "decode-graph-capture": {
+      "decode": {
+        "note": "decode steps replay as captured graphs (the SGLang default); ablate adds --disable-cuda-graph",
+        "ablate_args": [
+          "--disable-cuda-graph"
+        ]
+      }
     }
   }
 }

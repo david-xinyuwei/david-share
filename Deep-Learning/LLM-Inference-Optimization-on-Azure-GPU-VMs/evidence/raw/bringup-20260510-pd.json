@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "kind": "summary-report-projection",
+  "source": {
+    "name": "daily_report_20260510_wechat.txt",
+    "sha256": "f8e0fe3dacc99b344cfa9fe0dddf556d54a8bb77251fc1c0210ae0e0bcac508b",
+    "public": false
+  },
+  "date": "2026-05-10",
+  "decode_workload": {
+    "input_tokens": 16384,
+    "output_tokens": 1024
+  },
+  "pd_decode": [
+    {
+      "concurrency": 32,
+      "output_tok_s": 658,
+      "mean_tpot_ms": 29.41
+    },
+    {
+      "concurrency": 48,
+      "output_tok_s": 740,
+      "mean_tpot_ms": 29.07
+    },
+    {
+      "concurrency": 64,
+      "output_tok_s": 1396,
+      "mean_tpot_ms": 45.86
+    },
+    {
+      "concurrency": 96,
+      "output_tok_s": 1766,
+      "mean_tpot_ms": 54.36
+    }
+  ],
+  "single_vm_prefill_range": {
+    "input_tokens_low": 4096,
+    "input_tok_s_low": 17192,
+    "input_tokens_high": 131072,
+    "input_tok_s_high": 6915,
+    "note": "the report gives the single-VM prefill range as 4K-128K input, 17192-6915 tok/s; 4K = 17192 is confirmed by the 2026-05-09 report, so 128K = 6915; the 64K/128K points were re-run as a single stream"
+  }
+}

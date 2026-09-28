@@ -32,6 +32,15 @@ class ReadmeTests(unittest.TestCase):
                 self.assertIn("**Input.**", sub[:first_table])
                 self.assertIn("**Boundary.**", sub)
 
+    def test_every_technique_has_a_card_under_its_own_heading(self):
+        import json
+        cat = json.loads((ROOT / "profiles" / "techniques.json").read_text(encoding="utf-8"))
+        for lang, path in build_readme.READMES.items():
+            text = path.read_text(encoding="utf-8")
+            for t in cat["techniques"]:
+                with self.subTest(lang=lang, technique=t["id"]):
+                    self.assertIn(f"#### {t[lang]}\n\n<!-- BEGIN GENERATED: card-{t['id']} -->", text)
+
     def test_images_match_ledger(self):
         self.assertEqual(draw_diagrams.main(["--check"]), 0)
 
@@ -74,7 +83,9 @@ class ReadmeTests(unittest.TestCase):
     def test_accuracy_section_lists_every_lossy_switch_in_both_languages(self):
         for lang, path in build_readme.READMES.items():
             text = path.read_text(encoding="utf-8")
-            block = text.split("<!-- BEGIN GENERATED: precision-map -->", 1)[1].split("<!-- END GENERATED: precision-map -->", 1)[0]
+            block = text.split("<!-- BEGIN GENERATED: precision-summary -->", 1)[1].split("<!-- END GENERATED: precision-summary -->", 1)[0]
+            lossy = [l for l in block.splitlines() if l.startswith("- **")][0]
+            block = lossy
             for needle in ("FP8", "INT8 Quick Reduce", "router"):
                 self.assertIn(needle, block, (lang, needle))
             self.assertIn("ROCM_QUICK_REDUCE_QUANTIZATION=INT8", text, lang)

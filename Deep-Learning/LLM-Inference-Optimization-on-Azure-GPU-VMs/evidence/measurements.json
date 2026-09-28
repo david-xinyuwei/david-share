@@ -165,37 +165,89 @@
       "p99_ttft_ms": 107251.46
     }
   ],
-  "stack_snapshot": {
-    "early_run": "bringup-20260509",
-    "late_run": "stage-20260713-tuned-moe",
-    "decode": [
-      {
-        "concurrency": 32,
-        "early_output_tok_s": 519,
-        "late_output_tok_s": 1936.24,
-        "early_mean_tpot_ms": 44.79,
-        "late_mean_tpot_ms": 13.65
+  "cumulative": {
+    "early_decode_workload": {
+      "input_tokens": 16384,
+      "output_tokens": 1024
+    },
+    "late_decode_workload": {
+      "input_tokens": 8192,
+      "output_tokens": 1024
+    },
+    "graph_capture": {
+      "run": "bringup-20260508-pd",
+      "workload": {
+        "input_len_target": 16384,
+        "output_len_target": 1024,
+        "concurrency": 16,
+        "requests": 48
       },
-      {
-        "concurrency": 64,
-        "early_output_tok_s": 542,
-        "late_output_tok_s": 2457.73,
-        "early_mean_tpot_ms": 61.58,
-        "late_mean_tpot_ms": 17.0
-      },
-      {
-        "concurrency": 128,
-        "early_output_tok_s": 576,
-        "late_output_tok_s": 2486.89,
-        "early_mean_tpot_ms": 64.56,
-        "late_mean_tpot_ms": 16.56
-      }
-    ],
+      "off_output_tok_s": 107.4,
+      "on_output_tok_s": 334.0,
+      "output_tok_s_factor": 3.11,
+      "off_p50_latency_s": 41.81,
+      "on_p50_latency_s": 14.41,
+      "p50_latency_factor": 2.9
+    },
     "prefill": [
       {
         "input_tokens": 8192,
-        "early_input_tok_s": 15928,
-        "late_input_tok_s": 20780.79
+        "concurrency": 4,
+        "early_avg_prompt_tokens": 7791.5,
+        "early_run": "bringup-20260508-pd",
+        "early_input_tok_s": 16643.9,
+        "late_run": "stage-20260713-tuned-moe",
+        "late_input_tok_s": 20780.79,
+        "factor": 1.25
+      },
+      {
+        "input_tokens": 65536,
+        "concurrency": 4,
+        "early_avg_prompt_tokens": 60610.4,
+        "early_run": "bringup-20260508-pd",
+        "early_input_tok_s": 13919.4,
+        "late_run": "stage-20260713-tuned-moe",
+        "late_input_tok_s": 19022.57,
+        "factor": 1.37
+      },
+      {
+        "input_tokens": 131072,
+        "concurrency": 1,
+        "early_topology": "one VM, TP8, prefill and decode in one server",
+        "late_topology": "1P1D prefill server, TP8",
+        "early_run": "bringup-20260510-pd",
+        "early_input_tok_s": 6915,
+        "late_run": "long-20260720-128k",
+        "late_input_tok_s": 16389.66,
+        "factor": 2.37
+      }
+    ],
+    "decode": [
+      {
+        "concurrency": 32,
+        "early_mean_tpot_ms": 29.41,
+        "early_output_tok_s": 658,
+        "real_mean_tpot_ms": 23.2,
+        "real_output_tok_s": 1238.06,
+        "fixed_mean_tpot_ms": 13.65,
+        "fixed_output_tok_s": 1936.24,
+        "real_tpot_factor": 1.27,
+        "fixed_tpot_factor": 2.15,
+        "real_output_factor": 1.88,
+        "fixed_output_factor": 2.94
+      },
+      {
+        "concurrency": 64,
+        "early_mean_tpot_ms": 45.86,
+        "early_output_tok_s": 1396,
+        "real_mean_tpot_ms": 30.07,
+        "real_output_tok_s": 1644.54,
+        "fixed_mean_tpot_ms": 17.0,
+        "fixed_output_tok_s": 2457.73,
+        "real_tpot_factor": 1.53,
+        "fixed_tpot_factor": 2.7,
+        "real_output_factor": 1.18,
+        "fixed_output_factor": 1.76
       }
     ]
   }

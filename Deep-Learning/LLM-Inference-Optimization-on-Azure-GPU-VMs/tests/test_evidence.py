@@ -96,9 +96,33 @@ class EvidenceTests(unittest.TestCase):
         finally:
             stray.unlink()
 
-    def test_snapshot_carries_no_speedup_factor(self):
-        for row in self.m["stack_snapshot"]["decode"]:
-            self.assertFalse(any("ratio" in k for k in row))
+    def test_cumulative_factors_recompute_from_absolute_values(self):
+        cu = self.m["cumulative"]
+        g = cu["graph_capture"]
+        self.assertEqual(g["output_tok_s_factor"], round(g["on_output_tok_s"] / g["off_output_tok_s"], 2))
+        for row in cu["prefill"]:
+            self.assertEqual(row["factor"], round(row["late_input_tok_s"] / row["early_input_tok_s"], 2))
+        for row in cu["decode"]:
+            self.assertEqual(row["real_tpot_factor"], round(row["early_mean_tpot_ms"] / row["real_mean_tpot_ms"], 2))
+            self.assertEqual(row["fixed_tpot_factor"], round(row["early_mean_tpot_ms"] / row["fixed_mean_tpot_ms"], 2))
+            self.assertEqual(row["real_output_factor"], round(row["real_output_tok_s"] / row["early_output_tok_s"], 2))
+
+    def test_cumulative_shows_real_acceptance_next_to_fixed(self):
+        """The favorable fixed-acceptance factor must never appear without the real-acceptance one."""
+        for row in self.m["cumulative"]["decode"]:
+            self.assertLess(row["real_tpot_factor"], row["fixed_tpot_factor"])
+        real = self.runs["runs"]["realacc-20260714"]
+        self.assertIn("no SGLANG_SIMULATE_ACC_", real["server_env"])
+        for name in real["raw"]:
+            self.assertNotIn("SIMULATE", (ROOT / "evidence" / "raw" / name).read_text(encoding="utf-8"))
+
+    def test_cumulative_workload_difference_is_recorded(self):
+        cu = self.m["cumulative"]
+        self.assertEqual(cu["early_decode_workload"]["input_tokens"], 16384)
+        self.assertEqual(cu["late_decode_workload"]["input_tokens"], 8192)
+        for row in cu["prefill"]:
+            self.assertIn(row["early_run"], self.runs["runs"])
+            self.assertIn(row["late_run"], self.runs["runs"])
 
     def test_every_comparison_is_mi300x_only(self):
         self.assertIn("MI300X with MI300X", self.runs["compared_objects"]["comparison_rule"])

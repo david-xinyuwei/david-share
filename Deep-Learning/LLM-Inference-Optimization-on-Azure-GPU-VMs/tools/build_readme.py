@@ -162,62 +162,107 @@ def ab_tpot(lang: str) -> str:
 
 def stage_prefill(lang: str) -> str:
     st = _json("evidence/measurements.json")["tuned_moe_stage"]
-    head = (["Input tokens", "Before", "After", "Change"] if lang == "en" else ["输入 token", "优化前", "优化后", "变化"])
-    rows = [[_i(r["input_tokens"]), _c(r["before_input_tok_s"]), _c(r["after_input_tok_s"]),
-             f"**{_pct(r['input_tok_s_delta_pct'])}**"] for r in st["prefill"]]
-    return _table(head, rows, ["r", "r", "r", "r"])
-
-
-def stage_prefill_ttft(lang: str) -> str:
-    st = _json("evidence/measurements.json")["tuned_moe_stage"]
-    head = (["Input tokens", "Before", "After", "Change"] if lang == "en" else ["输入 token", "优化前", "优化后", "变化"])
-    rows = [[_i(r["input_tokens"]), _n(r["before_mean_ttft_ms"] / 1000.0), _n(r["after_mean_ttft_ms"] / 1000.0),
-             _pct(r["mean_ttft_delta_pct"])] for r in st["prefill"]]
+    head = (["Input tokens", "tok/s before → after", "Change", "TTFT change"] if lang == "en"
+            else ["输入 token", "tok/s 优化前 → 后", "变化", "TTFT 变化"])
+    rows = [[_i(r["input_tokens"]), f"{_c(r['before_input_tok_s'])} → {_c(r['after_input_tok_s'])}",
+             f"**{_pct(r['input_tok_s_delta_pct'])}**", _pct(r["mean_ttft_delta_pct"])] for r in st["prefill"]]
     return _table(head, rows, ["r", "r", "r", "r"])
 
 
 def stage_decode(lang: str) -> str:
     st = _json("evidence/measurements.json")["tuned_moe_stage"]
-    head = (["Concurrency", "Before", "After", "Change"] if lang == "en" else ["并发", "优化前", "优化后", "变化"])
-    rows = [[str(r["concurrency"]), _c(r["before_output_tok_s"]), _c(r["after_output_tok_s"]),
-             f"**{_pct(r['output_tok_s_delta_pct'])}**"] for r in st["decode"]]
-    return _table(head, rows, ["r", "r", "r", "r"])
-
-
-def stage_decode_tpot(lang: str) -> str:
-    st = _json("evidence/measurements.json")["tuned_moe_stage"]
-    head = (["Concurrency", "Before", "After", "Change"] if lang == "en" else ["并发", "优化前", "优化后", "变化"])
-    rows = [[str(r["concurrency"]), _n(r["before_mean_tpot_ms"]), _n(r["after_mean_tpot_ms"]),
-             _pct(r["mean_tpot_delta_pct"])] for r in st["decode"]]
+    head = (["Concurrency", "tok/s before → after", "Change", "TPOT change"] if lang == "en"
+            else ["并发", "tok/s 优化前 → 后", "变化", "TPOT 变化"])
+    rows = [[str(r["concurrency"]), f"{_c(r['before_output_tok_s'])} → {_c(r['after_output_tok_s'])}",
+             f"**{_pct(r['output_tok_s_delta_pct'])}**", _pct(r["mean_tpot_delta_pct"])] for r in st["decode"]]
     return _table(head, rows, ["r", "r", "r", "r"])
 
 
 def ladder(lang: str) -> str:
     rows_in = _json("evidence/measurements.json")["concurrency_ladder_8k1k"]
-    head = (["Configured", "Observed", "Output tok/s", "TPOT (ms)"] if lang == "en" else ["配置并发", "实测并发", "Output tok/s", "TPOT（ms）"])
-    rows = [[str(r["concurrency"]), _n(r["observed_concurrency"]), _n(r["output_tok_s"]), _n(r["mean_tpot_ms"])] for r in rows_in]
+    head = (["Concurrency (observed)", "Output tok/s", "TPOT (ms)", "TTFT mean / P99 (s)"] if lang == "en"
+            else ["并发（实测）", "Output tok/s", "TPOT（ms）", "TTFT 均值 / P99（s）"])
+    rows = [[f"{r['concurrency']} ({_n(r['observed_concurrency'], 1)})", _c(r["output_tok_s"]), _n(r["mean_tpot_ms"]),
+             f"{_n(r['mean_ttft_ms'] / 1000.0, 1)} / {_n(r['p99_ttft_ms'] / 1000.0, 1)}"] for r in rows_in]
     return _table(head, rows, ["r", "r", "r", "r"])
 
 
-def ladder_ttft(lang: str) -> str:
-    rows_in = _json("evidence/measurements.json")["concurrency_ladder_8k1k"]
-    head = (["Configured", "Mean TTFT (s)", "P99 TTFT (s)"] if lang == "en" else ["配置并发", "平均 TTFT（s）", "P99 TTFT（s）"])
-    rows = [[str(r["concurrency"]), _n(r["mean_ttft_ms"] / 1000.0, 1), _n(r["p99_ttft_ms"] / 1000.0, 1)] for r in rows_in]
-    return _table(head, rows, ["r", "r", "r"])
+def _x(value: float) -> str:
+    return f"{value:.2f}×"
 
 
-def snapshot(lang: str) -> str:
-    snap = _json("evidence/measurements.json")["stack_snapshot"]
-    head = (["Concurrency", "2026-05-09 (16K in)", "2026-07-13 (8K in)"] if lang == "en" else ["并发", "2026-05-09（16K 输入）", "2026-07-13（8K 输入）"])
-    rows = [[str(r["concurrency"]), _i(r["early_output_tok_s"]), _n(r["late_output_tok_s"])] for r in snap["decode"]]
-    return _table(head, rows, ["r", "r", "r"])
+def cumulative(lang: str) -> str:
+    cu = _json("evidence/measurements.json")["cumulative"]
+    g = cu["graph_capture"]
+    pre = {r["input_tokens"]: r for r in cu["prefill"]}
+    d64 = next(r for r in cu["decode"] if r["concurrency"] == 64)
+    rows_spec = [
+        (("Decode graph capture, one switch<br>16K/1K, 16 in flight, bring-up", "Decode 图捕获，单开关<br>16K/1K，16 路并发，bring-up"),
+         f"{_n(g['off_output_tok_s'], 1)} → {_n(g['on_output_tok_s'], 1)} tok/s", g["output_tok_s_factor"]),
+        (("128K prefill, 1 request, 8 GPUs<br>one VM → 1P1D prefill server", "128K prefill，1 个请求，8 张 GPU<br>单机 → 1P1D 的 prefill 服务"),
+         f"{_c(pre[131072]['early_input_tok_s'])} → {_c(pre[131072]['late_input_tok_s'])} tok/s", pre[131072]["factor"]),
+        (("Decode time per token, 64 in flight<br>MTP at fixed acceptance 3, lower is better", "Decode 每 token 耗时，64 路并发<br>MTP 固定接受长度 3，越低越好"),
+         f"{_n(d64['early_mean_tpot_ms'])} → {_n(d64['fixed_mean_tpot_ms'])} ms", d64["fixed_tpot_factor"]),
+        (("Decode time per token, 64 in flight<br>MTP at actual acceptance, lower is better", "Decode 每 token 耗时，64 路并发<br>MTP 按实际接受，越低越好"),
+         f"{_n(d64['early_mean_tpot_ms'])} → {_n(d64['real_mean_tpot_ms'])} ms", d64["real_tpot_factor"]),
+        ((f"64K prefill, 4 in flight<br>bring-up prompts averaged {_c(pre[65536]['early_avg_prompt_tokens'])} tokens",
+          f"64K prefill，4 路并发<br>bring-up 的 prompt 平均 {_c(pre[65536]['early_avg_prompt_tokens'])} token"),
+         f"{_c(pre[65536]['early_input_tok_s'])} → {_c(pre[65536]['late_input_tok_s'])} tok/s", pre[65536]["factor"]),
+        ((f"8K prefill, 4 in flight<br>bring-up prompts averaged {_c(pre[8192]['early_avg_prompt_tokens'])} tokens",
+          f"8K prefill，4 路并发<br>bring-up 的 prompt 平均 {_c(pre[8192]['early_avg_prompt_tokens'])} token"),
+         f"{_c(pre[8192]['early_input_tok_s'])} → {_c(pre[8192]['late_input_tok_s'])} tok/s", pre[8192]["factor"]),
+    ]
+    head = ["Measured on MI300X", "Before → after", "Factor"] if lang == "en" else ["MI300X 上实测", "优化前 → 后", "倍数"]
+    rows = [[label[0 if lang == "en" else 1], val, f"**{_x(f)}**"] for label, val, f in rows_spec]
+    return _table(head, rows, ["l", "l", "r"])
 
 
-def snapshot_tpot(lang: str) -> str:
-    snap = _json("evidence/measurements.json")["stack_snapshot"]
-    head = (["Concurrency", "2026-05-09", "2026-07-13"] if lang == "en" else ["并发", "2026-05-09", "2026-07-13"])
-    rows = [[str(r["concurrency"]), _n(r["early_mean_tpot_ms"]), _n(r["late_mean_tpot_ms"])] for r in snap["decode"]]
-    return _table(head, rows, ["r", "r", "r"])
+def cumulative_decode(lang: str) -> str:
+    cu = _json("evidence/measurements.json")["cumulative"]
+    if lang == "en":
+        head = ["Metric, concurrency", "Bring-up, 16K in", "Actual acceptance", "Fixed acceptance 3"]
+        names = ("TPOT (ms), {c}", "Output tok/s, {c}")
+    else:
+        head = ["指标，并发", "Bring-up，16K 输入", "按实际接受", "固定接受长度 3"]
+        names = ("TPOT（ms），{c}", "Output tok/s，{c}")
+    rows = []
+    for r in cu["decode"]:
+        rows.append([names[0].format(c=r["concurrency"]), _n(r["early_mean_tpot_ms"]),
+                     f"{_n(r['real_mean_tpot_ms'])} ({_x(r['real_tpot_factor'])})",
+                     f"{_n(r['fixed_mean_tpot_ms'])} ({_x(r['fixed_tpot_factor'])})"])
+    for r in cu["decode"]:
+        rows.append([names[1].format(c=r["concurrency"]), _c(r["early_output_tok_s"]),
+                     f"{_c(r['real_output_tok_s'])} ({_x(r['real_output_factor'])})",
+                     f"{_c(r['fixed_output_tok_s'])} ({_x(r['fixed_output_factor'])})"])
+    return _table(head, rows, ["l", "r", "r", "r"])
+
+
+def glance(lang: str) -> str:
+    m = _json("evidence/measurements.json")
+    cu, ab, st = m["cumulative"], m["ab_ck_unified_verify_64k"], m["tuned_moe_stage"]
+    pre = {r["input_tokens"]: r for r in cu["prefill"]}
+    d64 = next(r for r in cu["decode"] if r["concurrency"] == 64)
+    p8 = next(r for r in st["prefill"] if r["input_tokens"] == 8192)
+    g = cu["graph_capture"]
+    if lang == "en":
+        return "\n".join([
+            f"- From bring-up in May to the optimized stack in July: **128K prefill {_x(pre[131072]['factor'])} faster** on 8 GPUs; "
+            f"**decode time per token {_n(d64['early_mean_tpot_ms'])} → {_n(d64['fixed_mean_tpot_ms'])} ms ({_x(d64['fixed_tpot_factor'])} lower)** "
+            f"at 64 in flight with MTP at a fixed acceptance of 3 ({_n(d64['real_mean_tpot_ms'])} ms, {_x(d64['real_tpot_factor'])} lower, in a reference run with actual acceptance).",
+            f"- **{_x(g['output_tok_s_factor'])} decode throughput** from one switch at bring-up: letting the decode server replay HIP graphs.",
+            f"- At 64K context, decode **{_pct(ab['throughput_delta_pct'])}** from the block-scale FP8 GEMM and unified-verify switches (in-session A/B); "
+            f"8K prefill **{_pct(p8['input_tok_s_delta_pct'])}** from a shape-tuned fused-MoE table.",
+            "- The factors do not multiply: each compares a different pair of runs. No performance number compares MI300X with another accelerator.",
+        ]) + "\n"
+    return "\n".join([
+        f"- 从 bring-up 到优化后的栈：**128K prefill 提速 {_x(pre[131072]['factor'])}**（8 张 GPU）；"
+        f"**decode 每 token 耗时 {_n(d64['early_mean_tpot_ms'])} → {_n(d64['fixed_mean_tpot_ms'])} ms（缩短 {_x(d64['fixed_tpot_factor'])}）**，"
+        f"64 路并发、MTP 固定接受长度 3（按实际接受的参考运行为 {_n(d64['real_mean_tpot_ms'])} ms，缩短 {_x(d64['real_tpot_factor'])}）。",
+        f"- bring-up 阶段一个开关带来 **{_x(g['output_tok_s_factor'])} decode 吞吐**：让 decode 服务重放 HIP graph。",
+        f"- block-scale FP8 GEMM 与 unified verify 两个开关让 64K 上下文 decode **{_pct(ab['throughput_delta_pct'])}**（同一会话 A/B）；"
+        f"按 shape 调优的 fused-MoE 表让 8K prefill **{_pct(p8['input_tok_s_delta_pct'])}**。",
+        "- 这些倍数不能相乘：每个倍数比较的是不同的一对运行。本页没有任何性能数字拿 MI300X 和其他加速器比较。",
+    ]) + "\n"
 
 
 EVIDENCE_LABEL = {
@@ -230,28 +275,6 @@ EVIDENCE_LABEL = {
 }
 
 
-def technique_map(lang: str) -> str:
-    """One heading per layer, one entry per technique; lists instead of tables so long switch names wrap on phones."""
-    cat = _json("profiles/techniques.json")
-    lock = _lock()
-    lab = ({"mi": "MI300X", "nv": "NVIDIA", "code": "Code", "ev": "Evidence", "none": "no code change (configuration only)"}
-           if lang == "en" else {"mi": "MI300X", "nv": "NVIDIA", "code": "代码", "ev": "证据", "none": "无代码改动（仅配置）"})
-    out = []
-    for layer in ("framework", "operator", "workload"):
-        out.append(f"**{cat['layers'][layer][lang]}**\n")
-        for t in cat["techniques"]:
-            if t["layer"] != layer:
-                continue
-            codes = ", ".join(f"[{lock[p]['commit'][:7]}]({lock[p]['url']})" for p in t["patches"]) or lab["none"]
-            label = t["evidence_note"][lang] if "evidence_note" in t else EVIDENCE_LABEL[lang][t["evidence"]]
-            rocm = t["rocm"] if lang == "en" else t["rocm_cn"]
-            cuda = t["cuda"] if lang == "en" else t["cuda_cn"]
-            sep = ": " if lang == "en" else "："
-            out.append(f"- **{t[lang]}**  \n  {lab['mi']}{sep}{rocm}  \n  {lab['nv']}{sep}{cuda}  \n  {lab['code']}{sep}{codes}  \n  {lab['ev']}{sep}{label}")
-        out.append("")
-    return "\n".join(out)
-
-
 PRECISION_ORDER = ("lossy", "output-contract", "same-math", "measurement-only")
 PRECISION_TITLE = {
     "en": {"lossy": "Lossy — check accuracy before production", "output-contract": "Output-preserving only if the implementation is correct",
@@ -259,28 +282,91 @@ PRECISION_TITLE = {
     "cn": {"lossy": "有损——上线前必须核对准确率", "output-contract": "只有实现正确时才不改变输出",
            "same-math": "算术不变，只换 kernel 或布局", "measurement-only": "测试方法——生成内容不能算分"},
 }
+PRECISION_SHORT = {
+    "en": {"lossy": "lossy", "output-contract": "exact if correct", "same-math": "same math", "measurement-only": "test method only"},
+    "cn": {"lossy": "有损", "output-contract": "实现正确则不变", "same-math": "算术不变", "measurement-only": "仅测试方法"},
+}
 
 
-def precision_map(lang: str) -> str:
+def slug(heading: str) -> str:
+    text = heading.strip().lower()
+    text = re.sub(r"[^\w\- ]", "", text)
+    return text.replace(" ", "-")
+
+
+def _measured(t: dict, lang: str) -> str:
+    """Short 'what it did' cell: a measured number where one exists, otherwise the evidence status."""
+    m = _json("evidence/measurements.json")
+    ab, st, cu = m["ab_ck_unified_verify_64k"], m["tuned_moe_stage"], m["cumulative"]
+    p8 = next(r for r in st["prefill"] if r["input_tokens"] == 8192)
+    d128 = next(r for r in st["decode"] if r["concurrency"] == 128)
+    en = lang == "en"
+    special = {
+        "decode-graph-capture": (f"{_x(cu['graph_capture']['output_tok_s_factor'])} decode (A/B)", f"decode {_x(cu['graph_capture']['output_tok_s_factor'])}（A/B）"),
+        "ck-a8w8-gemm": (f"{_pct(ab['throughput_delta_pct'])} decode, with unified verify (A/B)", f"decode {_pct(ab['throughput_delta_pct'])}，与 unified verify 合计（A/B）"),
+        "unified-verify": (f"{_pct(ab['throughput_delta_pct'])} decode, with CK GEMM (A/B)", f"decode {_pct(ab['throughput_delta_pct'])}，与 CK GEMM 合计（A/B）"),
+        "tuned-fused-moe": (f"8K prefill {_pct(p8['input_tok_s_delta_pct'])}, decode {_pct(d128['output_tok_s_delta_pct'])} (stage pair)",
+                            f"8K prefill {_pct(p8['input_tok_s_delta_pct'])}，decode {_pct(d128['output_tok_s_delta_pct'])}（阶段对比）"),
+        "concurrency-ladder": ("finds the plateau (ladder)", "找到饱和点（并发阶梯）"),
+    }
+    if t["id"] in special:
+        return special[t["id"]][0 if en else 1]
+    if t["id"] == "fake-prefill":
+        return "not used in the published runs" if en else "已发布的测试中未使用"
+    if t["evidence"] == "ON_IN_MEASURED_RUN":
+        partly = t["stack"] == "pinned-runtime"
+        return (("partly on, not isolated" if partly else "on, not isolated") if en
+                else ("部分已打开，未单独拆分" if partly else "已打开，未单独拆分"))
+    short = {"NOT_MEASURED": ("later commit, not measured", "后续提交，未实测")}
+    return short.get(t["evidence"], ("final runtime, not measured", "在最终 runtime 中，未实测"))[0 if en else 1]
+
+
+def technique_overview(lang: str) -> str:
+    cat = _json("profiles/techniques.json")
+    head = ["Technique", "What it did on MI300X", "Output"] if lang == "en" else ["优化手段", "在 MI300X 上的效果", "对输出"]
+    out = []
+    for layer in ("framework", "operator", "workload"):
+        out.append(f"**{cat['layers'][layer][lang]}**\n")
+        rows = [[f"[{t[lang]}](#{slug(t[lang])})", _measured(t, lang), PRECISION_SHORT[lang][t["precision"]["class"]]]
+                for t in cat["techniques"] if t["layer"] == layer]
+        out.append(_table(head, rows, ["l", "l", "l"]))
+    return "\n".join(out)
+
+
+def card(tid: str, lang: str) -> str:
+    cat = _json("profiles/techniques.json")
+    t = next(x for x in cat["techniques"] if x["id"] == tid)
+    lock = _lock()
+    en = lang == "en"
+    lab = ({"mi": "Switch on MI300X", "nv": "On NVIDIA", "code": "Code", "ev": "Evidence", "out": "Effect on output",
+            "none": "no code change (configuration only)"} if en else
+           {"mi": "MI300X 上的开关", "nv": "NVIDIA 上", "code": "代码", "ev": "证据", "out": "对输出的影响",
+            "none": "无代码改动（仅配置）"})
+    codes = ", ".join(f"[{lock[p]['commit'][:7]}]({lock[p]['url']})" for p in t["patches"]) or lab["none"]
+    label = t["evidence_note"][lang] if "evidence_note" in t else EVIDENCE_LABEL[lang][t["evidence"]]
+    sep = ": " if en else "："
+    cls = t["precision"]["class"]
+    return "\n".join([
+        f"- **{lab['mi']}**{sep}{t['rocm'] if en else t['rocm_cn']}",
+        f"- **{lab['nv']}**{sep}{t['cuda'] if en else t['cuda_cn']}",
+        f"- **{lab['code']}**{sep}{codes}",
+        f"- **{lab['ev']}**{sep}{label}",
+        f"- **{lab['out']}**{sep}{PRECISION_SHORT[lang][cls]}{'. ' if en else '。'}{t['precision'][lang]}",
+    ]) + "\n"
+
+
+def precision_summary(lang: str) -> str:
     cat = _json("profiles/techniques.json")
     classes = cat["precision_classes"]
-    stack = {"measured-run": ("on in the measured runs", "实测时已打开"),
-             "pinned-runtime": ("in the pinned runtime only", "只在固定 runtime 中"),
-             "later": ("later commit, in no runtime here", "后续提交，不在任何 runtime 中")}
     out = []
     for cls in PRECISION_ORDER:
         items = [t for t in cat["techniques"] if t["precision"]["class"] == cls]
         if not items:
             continue
-        stop = "." if lang == "en" else "。"
-        out.append(f"**{PRECISION_TITLE[lang][cls]}{stop}** {classes[cls][lang]}\n")
-        for t in items:
-            where = t["evidence_note"][lang] if "evidence_note" in t else stack[t["stack"]][0 if lang == "en" else 1]
-            sep = " — " if lang == "en" else "——"
-            out.append(f"- **{t[lang]}** ({where}){sep}{t['precision'][lang]}" if lang == "en"
-                       else f"- **{t[lang]}**（{where}）{sep}{t['precision'][lang]}")
-        out.append("")
-    return "\n".join(out)
+        names = ("; " if lang == "en" else "；").join(f"[{t[lang]}](#{slug(t[lang])})" for t in items)
+        stop = ". " if lang == "en" else "。"
+        out.append(f"- **{PRECISION_TITLE[lang][cls]}**{stop}{classes[cls][lang]} {names}")
+    return "\n".join(out) + "\n"
 
 
 def numerical_tests(lang: str) -> str:
@@ -321,23 +407,23 @@ def upstream_table(lang: str) -> str:
 
 
 BLOCKS = {
+    "glance": glance,
+    "cumulative": cumulative,
+    "cumulative-decode": cumulative_decode,
     "headline": headline,
     "ab-table": ab_table,
     "ab-tpot": ab_tpot,
     "stage-prefill": stage_prefill,
-    "stage-prefill-ttft": stage_prefill_ttft,
     "stage-decode": stage_decode,
-    "stage-decode-tpot": stage_decode_tpot,
     "ladder": ladder,
-    "ladder-ttft": ladder_ttft,
-    "snapshot": snapshot,
-    "snapshot-tpot": snapshot_tpot,
-    "technique-map": technique_map,
-    "precision-map": precision_map,
+    "technique-overview": technique_overview,
+    "precision-summary": precision_summary,
     "numerical-tests": numerical_tests,
     "moe-table": moe_table,
     "upstream-table": upstream_table,
 }
+for _t in _json("profiles/techniques.json")["techniques"]:
+    BLOCKS[f"card-{_t['id']}"] = (lambda i: (lambda lang: card(i, lang)))(_t["id"])
 for _name in _json("tools/excerpts.json")["excerpts"]:
     BLOCKS[f"excerpt-{_name}"] = (lambda n: (lambda lang: excerpt(n, lang)))(_name)
 

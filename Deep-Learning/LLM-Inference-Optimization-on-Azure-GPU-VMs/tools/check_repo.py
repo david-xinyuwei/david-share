@@ -45,6 +45,7 @@ SCAN_SKIP_DIRS = {"upstream", "__pycache__"}
 SCAN_SKIP_FILES = {"check_repo.py", "test_public_content.py", "test_bench_log.py"}  # files that hold guard probes
 LINK = re.compile(r"(?<!!)\[[^\]]*\]\(([^)\s]+)\)|!\[[^\]]*\]\(([^)\s]+)\)|<img\s+[^>]*src=\"([^\"]+)\"")
 GENERATED = re.compile(r"<!-- BEGIN GENERATED: (?P<name>[a-z0-9-]+) -->\n(?P<body>.*?)<!-- END GENERATED: (?P=name) -->", re.S)
+LINK_TARGET = re.compile(r"\]\([^)]*\)")
 NUMBER = re.compile(r"(?<![A-Za-z_\d])[+\-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?")
 
 
@@ -93,10 +94,11 @@ def check_order(lang: str, text: str, errors: list[str]) -> None:
 
 def _rows(body: str) -> list[list[str]]:
     """Numbers per table row or list item; code blocks compare as whole text."""
-    lines = [l for l in body.splitlines() if l.startswith("|")]
+    visible = [LINK_TARGET.sub("]", l) for l in body.splitlines()]  # anchors and URLs are not reader-visible numbers
+    lines = [l for l in visible if l.startswith("|")]
     if lines:
         return [NUMBER.findall(l) for l in lines[2:]]
-    items = [l for l in body.splitlines() if l.startswith("- ")]
+    items = [l for l in visible if l.startswith("- ")]
     if items:
         return [NUMBER.findall(l) for l in items]
     return [[body.split("```", 1)[1] if "```" in body else ""]]

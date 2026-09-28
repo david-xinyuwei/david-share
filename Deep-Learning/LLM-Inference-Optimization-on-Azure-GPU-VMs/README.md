@@ -5,9 +5,18 @@
 [![Comparison](https://img.shields.io/badge/comparison-MI300X%20vs%20MI300X-6A1B9A)](#measured-results-on-mi300x)
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/llm-inference-optimization-ci.yml/badge.svg)](https://github.com/david-xinyuwei/david-share/actions/workflows/llm-inference-optimization-ci.yml)
 
-**How much faster can a 1M-context MoE model be served on the same GPUs, and which layer does the work?** This repository takes MiMo-V2.5-Pro (384 routed experts, hybrid sliding-window + grouped-query attention, 3-layer MTP) on Azure ND MI300X v5 VMs and walks through every optimization that went into its serving stack, grouped into three layers: the serving framework, the operator (kernel) layer, and the workload and deployment layer. Each technique is shown as the real code change in a pinned public commit, the switch that turns it on, and — where we measured it — how far it moved MI300X throughput against MI300X itself.
+**How much faster can a 1M-context MoE model be served on the same GPUs, and which layer does the work?** This repository takes MiMo-V2.5-Pro (384 routed experts, hybrid sliding-window + grouped-query attention, 3-layer MTP) on Azure ND MI300X v5 VMs and shows every optimization in its serving stack. The optimizations fall into three layers: the serving framework, the operator (kernel) layer, and the workload and deployment layer. For each one you get the switch that turns it on, the code change in a pinned public commit where there is one, what it does to model output, and, where it was measured, how far it moved MI300X against MI300X itself.
 
-The measured gains are controlled comparisons on the same hardware: switching on the block-scale FP8 GEMM and unified-verify path raised steady decode throughput by about a quarter at 64K context, and a shape-tuned fused-MoE table raised 8K prefill by about a quarter. Where the bring-up stack plateaued below 600 output tokens per second, the tuned PD stack decodes at about 2,500 on its (different) workload. No other accelerator is compared on this page. The method is written so that the framework and workload layers transfer unchanged to NVIDIA GPUs, and each operator-layer technique names its CUDA counterpart.
+<img src="images/cumulative-gain-en.png" width="900" alt="Gain factors on MI300X from bring-up to the optimized stack: decode graph capture 3.11x, 128K prefill 2.37x, decode time per token 2.70x at fixed MTP acceptance and 1.53x at real acceptance, 64K prefill 1.37x, 8K prefill 1.25x">
+
+<!-- BEGIN GENERATED: glance -->
+- From bring-up in May to the optimized stack in July: **128K prefill 2.37× faster** on 8 GPUs; **decode time per token 45.86 → 17.00 ms (2.70× lower)** at 64 in flight with MTP at a fixed acceptance of 3 (30.07 ms, 1.53× lower, in a reference run with actual acceptance).
+- **3.11× decode throughput** from one switch at bring-up: letting the decode server replay HIP graphs.
+- At 64K context, decode **+25.65%** from the block-scale FP8 GEMM and unified-verify switches (in-session A/B); 8K prefill **+24.32%** from a shape-tuned fused-MoE table.
+- The factors do not multiply: each compares a different pair of runs. No performance number compares MI300X with another accelerator.
+<!-- END GENERATED: glance -->
+
+The framework and workload layers transfer unchanged to NVIDIA GPUs, and each operator-layer technique names its CUDA counterpart.
 
 Author: Xinyu Wei · [中文](README_CN.md) · [Results](#measured-results-on-mi300x) · [Three layers](#the-three-optimization-layers) · [Reproduce](#reproduce-in-your-environment) · [Tests](#tests-and-offline-checks)
 
@@ -15,8 +24,9 @@ Author: Xinyu Wei · [中文](README_CN.md) · [Results](#measured-results-on-mi
 
 | Goal | Entry |
 |---|---|
-| See how much each optimization moved throughput | [Measured Results on MI300X](#measured-results-on-mi300x) |
-| Understand what changed in the code, layer by layer | [The Three Optimization Layers](#the-three-optimization-layers) |
+| See the total gain from bring-up to the optimized stack | [Bring-up to optimized stack](#bring-up-to-optimized-stack-the-cumulative-gain) |
+| See what single optimizations added | [What single optimizations added](#what-single-optimizations-added) |
+| Find one technique: switch, code, evidence, effect on output | [The Three Optimization Layers](#the-three-optimization-layers) |
 | Apply the same method on NVIDIA GPUs | [Porting the method to NVIDIA GPUs](#porting-the-method-to-nvidia-gpus) and `python tools/render_launch.py --profile cuda-hopper-pd --role prefill` |
 | Rebuild the runtime and rerun a benchmark on MI300X | [Reproduce in Your Environment](#reproduce-in-your-environment) |
 | Check the published numbers without a GPU | `python -m unittest discover -s tests -v`, then [Tests and Offline Checks](#tests-and-offline-checks) |
@@ -35,7 +45,43 @@ Not provided: model weights, the private raw logs behind the projected evidence 
 
 ## Measured Results on MI300X
 
-Every row compares MI300X with MI300X. The evidence column says how strong the comparison is: an A/B changes named switches inside one session; a stage pair repeats the same captured launch and benchmark scripts on two dates around one library update. Throughput was measured with a fixed MTP acceptance of three draft tokens, a benchmark method that is more favorable than real traffic, so read these values as relative gains, not as production throughput. Two lossy switches were also on — the FP8 KV cache and INT8 Quick Reduce — and their accuracy effect is not measured here; see [Which optimizations can change model output](#which-optimizations-can-change-model-output). The first row is scheduler generation throughput; the other two are client-side input and output throughput.
+Every number compares MI300X with MI300X. Read this section top-down: first the total gain from the first working deployment to the optimized stack, then what single optimizations added, then the detail of each comparison. The FP8 KV cache was on in the optimized runs, and the captured environment of the stage-pair runs shows INT8 Quick Reduce on. Both are lossy, and their accuracy effect is not measured here; see [Which optimizations can change model output](#which-optimizations-can-change-model-output).
+
+### Bring-up to optimized stack: the cumulative gain
+
+**Question.** With every optimization on, how much faster is the same model on the same MI300X VMs than on the first stack that served it?
+
+**Input.** Bring-up (2026-05-08 to 05-10): SGLang v0.5.11 with Triton FP8 GEMM, no speculative decoding and the default KV cache type. Decode and the 128K prefill point used Triton attention; the early 8K/64K prefill points already used AITER attention. The early 128K prefill point ran on one VM; all other early points ran on the same two-VM 1P1D layout as the optimized runs. Optimized (2026-07-13 to 07-20): the stack of the [stage pair](#stage-pair-shape-tuned-fused-moe-table) below, with AITER attention, the CK FP8 GEMM, FP8 KV, EAGLE MTP, the tuned fused-MoE table and 1P1D over eight InfiniBand ports. The one-switch row compares two bring-up runs from the same session.
+
+<!-- BEGIN GENERATED: cumulative -->
+| Measured on MI300X | Before → after | Factor |
+|---|---|---:|
+| Decode graph capture, one switch<br>16K/1K, 16 in flight, bring-up | 107.4 → 334.0 tok/s | **3.11×** |
+| 128K prefill, 1 request, 8 GPUs<br>one VM → 1P1D prefill server | 6,915 → 16,390 tok/s | **2.37×** |
+| Decode time per token, 64 in flight<br>MTP at fixed acceptance 3, lower is better | 45.86 → 17.00 ms | **2.70×** |
+| Decode time per token, 64 in flight<br>MTP at actual acceptance, lower is better | 45.86 → 30.07 ms | **1.53×** |
+| 64K prefill, 4 in flight<br>bring-up prompts averaged 60,610 tokens | 13,919 → 19,023 tok/s | **1.37×** |
+| 8K prefill, 4 in flight<br>bring-up prompts averaged 7,792 tokens | 16,644 → 20,781 tok/s | **1.25×** |
+<!-- END GENERATED: cumulative -->
+
+The decode factor depends strongly on how often MTP draft tokens are accepted. The optimized throughput runs fixed the acceptance at three tokens per step, which is favorable. A related run on an older build of the same stack, with the acceptance the draft model actually achieved on the same random prompts, gives a reference point. Both are shown per point:
+
+<!-- BEGIN GENERATED: cumulative-decode -->
+| Metric, concurrency | Bring-up, 16K in | Actual acceptance | Fixed acceptance 3 |
+|---|---:|---:|---:|
+| TPOT (ms), 32 | 29.41 | 23.20 (1.27×) | 13.65 (2.15×) |
+| TPOT (ms), 64 | 45.86 | 30.07 (1.53×) | 17.00 (2.70×) |
+| Output tok/s, 32 | 658 | 1,238 (1.88×) | 1,936 (2.94×) |
+| Output tok/s, 64 | 1,396 | 1,645 (1.18×) | 2,458 (1.76×) |
+<!-- END GENERATED: cumulative-decode -->
+
+**Boundary.** This is a before/after across two months, not an A/B: kernels, library versions and launch settings changed together, so the factors belong to the whole stack, not to one change. The bring-up decode used 16K input tokens and the optimized runs 8K. A shorter context makes each decode step cheaper, so part of the decode factor comes from the workload, not the stack. The actual-acceptance run used the 2026-06-25 AITER build without the tuned fused-MoE table and without unified verify, and random prompts are hard to draft, so it says little about acceptance on real traffic. The bring-up 8K and 64K prompts averaged 7,792 and 60,610 tokens against exactly 8,192 and 65,536 in July, so those two factors are approximate. The early 128K point ran on one VM with prefill and decode in one server, the July point on the prefill server of 1P1D; both prefill on 8 GPUs. The bring-up decode and 128K values come from summary reports. The graph-capture pair and the early 8K/64K prefill points are public raw client output. The client of the bring-up runs stopped requests at about 340 of 1,024 output tokens, so the graph-capture factor compares those two runs with each other only. Sources and hashes are in [`evidence/runs.json`](evidence/runs.json) and [`evidence/raw-manifest.json`](evidence/raw-manifest.json).
+
+### What single optimizations added
+
+Each row isolates one change on an otherwise fixed stack. An A/B changes named switches inside one session. A stage pair repeats the same captured launch and benchmark scripts on two dates around one library update. These runs fixed MTP acceptance at three draft tokens, so read them as relative gains, not as production throughput. The first row is scheduler generation throughput; the other two are client-side input and output throughput.
+
+**Input.** Each row names its workload, concurrency and topology; the full input of each comparison is in its own section below.
 
 <!-- BEGIN GENERATED: headline -->
 | What changed | Before → after (tok/s) | Change |
@@ -44,6 +90,8 @@ Every row compares MI300X with MI300X. The evidence column says how strong the c
 | Tuned fused-MoE table<br>8K prefill, concurrency 4, 1P1D<br>*stage pair, N=1* | 16,716 → 20,781 | **+24.32%** |
 | Tuned fused-MoE table<br>8K/1K decode, concurrency 128, 1P1D<br>*stage pair, N=1* | 2,209 → 2,487 | **+12.56%** |
 <!-- END GENERATED: headline -->
+
+**Boundary.** Each gain belongs to the change named in its row, on the stack it was measured on. The rows were measured on different stacks and workloads, so they do not multiply into the cumulative factors above.
 
 ### Controlled A/B: block-scale FP8 GEMM path at 64K context
 
@@ -83,45 +131,25 @@ The implied TPOT is `1000 × 16 / tok/s`, not a client-measured latency.
 
 **What varied.** AITER moved from `fc96a4f` to a build that adds the tuned table from [`d725746`](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9) (the served CSV has the same SHA-256 as the file in that commit). The prefill launch script, the router script and both benchmark scripts have the same SHA-256 on both dates, and the captured environment lines of the decode server match. The full decode launch script was hashed only on the second date, and the sglang commit only on the first, so the attribution to the table is strong but not proven by an in-session A/B.
 
-Prefill input throughput in tokens per second (rounded to whole tokens; exact values in `evidence/measurements.json`), measured at the client:
+Prefill, measured at the client (throughput rounded to whole tokens; exact values in `evidence/measurements.json`):
 
 <!-- BEGIN GENERATED: stage-prefill -->
-| Input tokens | Before | After | Change |
+| Input tokens | tok/s before → after | Change | TTFT change |
 |---:|---:|---:|---:|
-| 8,192 | 16,716 | 20,781 | **+24.32%** |
-| 65,536 | 17,254 | 19,023 | **+10.25%** |
+| 8,192 | 16,716 → 20,781 | **+24.32%** | -15.15% |
+| 65,536 | 17,254 → 19,023 | **+10.25%** | -9.36% |
 <!-- END GENERATED: stage-prefill -->
 
-Prefill mean time to first token in seconds, same runs:
-
-<!-- BEGIN GENERATED: stage-prefill-ttft -->
-| Input tokens | Before | After | Change |
-|---:|---:|---:|---:|
-| 8,192 | 1.85 | 1.57 | -15.15% |
-| 65,536 | 14.11 | 12.79 | -9.36% |
-<!-- END GENERATED: stage-prefill-ttft -->
-
-Decode output throughput in tokens per second (rounded; exact values in `evidence/measurements.json`), measured at the client:
+Decode, same runs:
 
 <!-- BEGIN GENERATED: stage-decode -->
-| Concurrency | Before | After | Change |
+| Concurrency | tok/s before → after | Change | TPOT change |
 |---:|---:|---:|---:|
-| 16 | 1,299 | 1,332 | **+2.52%** |
-| 32 | 1,911 | 1,936 | **+1.33%** |
-| 64 | 2,188 | 2,458 | **+12.33%** |
-| 128 | 2,209 | 2,487 | **+12.56%** |
+| 16 | 1,299 → 1,332 | **+2.52%** | +1.79% |
+| 32 | 1,911 → 1,936 | **+1.33%** | +1.11% |
+| 64 | 2,188 → 2,458 | **+12.33%** | +12.58% |
+| 128 | 2,209 → 2,487 | **+12.56%** | +14.05% |
 <!-- END GENERATED: stage-decode -->
-
-Decode mean time per output token in milliseconds, same runs:
-
-<!-- BEGIN GENERATED: stage-decode-tpot -->
-| Concurrency | Before | After | Change |
-|---:|---:|---:|---:|
-| 16 | 10.64 | 10.83 | +1.79% |
-| 32 | 13.50 | 13.65 | +1.11% |
-| 64 | 15.10 | 17.00 | +12.58% |
-| 128 | 14.52 | 16.56 | +14.05% |
-<!-- END GENERATED: stage-decode-tpot -->
 
 Prefill gains come with shorter time to first token. At decode concurrency 64 and 128 the table raises output throughput by about an eighth while TPOT rises by a similar amount: the server holds more requests per step, so each request waits a little longer per token but the batch as a whole finishes sooner.
 
@@ -134,66 +162,24 @@ Prefill gains come with shorter time to first token. At decode concurrency 64 an
 **Input.** The same 8K-in / 1K-out decode workload and stack as the first date above, 256 prompts per point, client concurrency 16 to 256.
 
 <!-- BEGIN GENERATED: ladder -->
-| Configured | Observed | Output tok/s | TPOT (ms) |
+| Concurrency (observed) | Output tok/s | TPOT (ms) | TTFT mean / P99 (s) |
 |---:|---:|---:|---:|
-| 16 | 15.78 | 1,321.50 | 10.79 |
-| 32 | 30.89 | 1,914.27 | 13.37 |
-| 64 | 59.47 | 2,198.77 | 15.49 |
-| 96 | 83.97 | 2,200.63 | 15.06 |
-| 128 | 104.60 | 2,203.65 | 14.83 |
-| 192 | 135.44 | 2,202.57 | 14.72 |
-| 256 | 151.81 | 2,207.97 | 14.60 |
+| 16 (15.8) | 1,322 | 10.79 | 1.2 / 7.1 |
+| 32 (30.9) | 1,914 | 13.37 | 2.8 / 14.1 |
+| 64 (59.5) | 2,199 | 15.49 | 11.9 / 27.6 |
+| 96 (84.0) | 2,201 | 15.06 | 23.7 / 40.8 |
+| 128 (104.6) | 2,204 | 14.83 | 33.4 / 54.4 |
+| 192 (135.4) | 2,203 | 14.72 | 47.9 / 81.3 |
+| 256 (151.8) | 2,208 | 14.60 | 55.5 / 107.3 |
 <!-- END GENERATED: ladder -->
 
-Queueing cost of the same points:
-
-<!-- BEGIN GENERATED: ladder-ttft -->
-| Configured | Mean TTFT (s) | P99 TTFT (s) |
-|---:|---:|---:|
-| 16 | 1.2 | 7.1 |
-| 32 | 2.8 | 14.1 |
-| 64 | 11.9 | 27.6 |
-| 96 | 23.7 | 40.8 |
-| 128 | 33.4 | 54.4 |
-| 192 | 47.9 | 81.3 |
-| 256 | 55.5 | 107.3 |
-<!-- END GENERATED: ladder-ttft -->
-
-Throughput reaches its plateau at concurrency 64. Above that, TPOT stays flat while mean and P99 time to first token keep growing, because the additional requests only wait in the queue. Observed concurrency also stops following the configured value, which shows where the server's running-request limit and KV capacity take over.
+Throughput reaches its plateau at concurrency 64. Above that, TPOT stays flat while mean and P99 time to first token keep growing: additional requests wait longer before their first token instead of adding throughput. The observed concurrency (in brackets, the client's time-averaged number of requests in flight) also stops following the configured value. That is consistent with the server's running-request limit and KV capacity taking over, but these runs have no scheduler trace to confirm it.
 
 **Boundary.** One run per point on the stack before the tuned MoE table. The saturation point moves with context length, KV capacity and `--max-running-requests`, so measure it again for any other configuration.
 
-### Where the stack started: bring-up snapshot
-
-**Question.** Where did decode throughput stand when the model was first served, and where did the tuned PD stack end up?
-
-**Input.** Early point (2026-05-09): one VM, TP8, prefill and decode in one server, Triton attention and Triton FP8 GEMM, no speculative decoding, decode with 16K input / 1K output. Late point (2026-07-13): the PD stack of the stage pair above, decode with 8K input / 1K output and MTP at a fixed acceptance of three tokens.
-
-Output tokens per second:
-
-<!-- BEGIN GENERATED: snapshot -->
-| Concurrency | 2026-05-09 (16K in) | 2026-07-13 (8K in) |
-|---:|---:|---:|
-| 32 | 519 | 1,936.24 |
-| 64 | 542 | 2,457.73 |
-| 128 | 576 | 2,486.89 |
-<!-- END GENERATED: snapshot -->
-
-Mean TPOT in milliseconds:
-
-<!-- BEGIN GENERATED: snapshot-tpot -->
-| Concurrency | 2026-05-09 | 2026-07-13 |
-|---:|---:|---:|
-| 32 | 44.79 | 13.65 |
-| 64 | 61.58 | 17.00 |
-| 128 | 64.56 | 16.56 |
-<!-- END GENERATED: snapshot-tpot -->
-
-**Boundary.** These are two historical observations, not a comparison: input length, topology, attention kernels, GEMM kernels, speculative decoding and the MTP acceptance setting all differ, and a fixed acceptance of three is more favorable than real traffic. The early values come from a summary report, not a projected log. No speed-up factor is derived from this table.
-
 ### What is not measured here
 
-The FlyDSL paged-attention decode kernel, the vectorized 5D KV layout, page 64 and the head-192 prefill tile are part of the final pinned runtime, but no published Microsoft run isolates them, so this page reports no speed-up for them. Their code changes are explained in [The Three Optimization Layers](#the-three-optimization-layers); measuring them follows the same A/B method on the single-VM profile.
+Decode graph capture was measured only at bring-up, before MTP and the AITER kernels; its share in the optimized stack is not isolated. The FlyDSL paged-attention decode kernel, the vectorized 5D KV layout, page 64 and the head-192 prefill tile are part of the final pinned runtime, but no published Microsoft run isolates them, so this page reports no speed-up for them. Their code changes are explained in [The Three Optimization Layers](#the-three-optimization-layers); measuring them follows the same A/B method on the single-VM profile.
 
 ## Architecture and Test Setup
 
@@ -207,97 +193,54 @@ The stage pair and the concurrency ladder ran on two ND MI300X v5 VMs: VM A host
 
 ## The Three Optimization Layers
 
-<!-- BEGIN GENERATED: technique-map -->
+Start with the overview: one row per technique, with what it did on MI300X and whether it can change model output. Each name links to a card with the switch, the NVIDIA counterpart, the code, the evidence and the effect on output, followed by an explanation and, where there is one, the real diff.
+
+<!-- BEGIN GENERATED: technique-overview -->
 **Serving-framework layer**
 
-- **Per-layer attention dispatch for hybrid SWA + GQA**  
-  MI300X: `--attention-backend aiter`; full-attention verify goes to FlyDSL, SWA/sink layers and plain decode stay on AITER  
-  NVIDIA: `--attention-backend fa3` or `flashinfer`; split per layer wherever one kernel does not cover both window types  
-  Code: [ba15db1](https://github.com/sammysun0711/sglang/commit/ba15db1a576dcdc8d51ba15bd069b9fd1f748d97), [0cfc48b](https://github.com/sammysun0711/sglang/commit/0cfc48b0e374d7e84c122f739182a39feea56d46)  
-  Evidence: AITER backend on in measured runs; FlyDSL split only in the pinned runtime
-- **FP8 KV cache in a vectorized 5D page layout**  
-  MI300X: `--kv-cache-dtype fp8_e4m3` + `SGLANG_AITER_KV_CACHE_LAYOUT=vectorized_5d`  
-  NVIDIA: `--kv-cache-dtype fp8_e4m3`; FA3/FlashInfer paged layouts already keep a 16-byte inner vector  
-  Code: [78cd40c](https://github.com/sammysun0711/sglang/commit/78cd40c7a5102524536daf9a3178426777174d2d), [e11c515](https://github.com/sammysun0711/sglang/commit/e11c5155f0845079211c2a4d0b8a4ab3669039f9), [10a9401](https://github.com/sammysun0711/aiter/commit/10a94012efc1260dfdf16ba2f52fbda40a518a17)  
-  Evidence: FP8 KV on in measured runs; 5D layout only in the pinned runtime
-- **AITER unified attention for MTP target verify**  
-  MI300X: `SGLANG_AITER_UNIFIED_VERIFY=1` on the decode server  
-  NVIDIA: not needed; CUDA attention backends verify with their own kernels  
-  Code: no code change (configuration only)  
-  Evidence: measured A/B, together with the CK GEMM path
-- **Multi-layer EAGLE MTP speculative decoding and verifier fixes**  
-  MI300X: `--speculative-algorithm EAGLE --speculative-num-steps 3 --speculative-eagle-topk 1 --speculative-num-draft-tokens 4 --enable-multi-layer-eagle`  
-  NVIDIA: same flags  
-  Code: [db840d9](https://github.com/sammysun0711/sglang/commit/db840d935a9f7097dbeb5f1b0dba4d261057a2bd), [f26ae30](https://github.com/sammysun0711/sglang/commit/f26ae30063143411f3ae552af1830fa46e3ee0fd), [878fff1](https://github.com/sammysun0711/sglang/commit/878fff15647fe3dabb32aa3a335b0ad16e3ee878)  
-  Evidence: on in measured runs with fixed acceptance; f26ae30 and 878fff1 only in the pinned runtime
-- **Chunked prefill, page size and SWA pool sizing**  
-  MI300X: `--chunked-prefill-size 65536 --page-size 64 --swa-full-tokens-ratio 0.01`  
-  NVIDIA: same flags; re-derive the values from HBM size and kernel page support  
-  Code: no code change (configuration only)  
-  Evidence: measured runs used chunk 32768 and page 32
+| Technique | What it did on MI300X | Output |
+|---|---|---|
+| [Per-layer attention dispatch for hybrid SWA + GQA](#per-layer-attention-dispatch-for-hybrid-swa--gqa) | partly on, not isolated | same math |
+| [FP8 KV cache in a vectorized 5D page layout](#fp8-kv-cache-in-a-vectorized-5d-page-layout) | partly on, not isolated | lossy |
+| [AITER unified attention for MTP target verify](#aiter-unified-attention-for-mtp-target-verify) | +25.65% decode, with CK GEMM (A/B) | same math |
+| [Multi-layer EAGLE MTP speculative decoding and verifier fixes](#multi-layer-eagle-mtp-speculative-decoding-and-verifier-fixes) | on, not isolated | exact if correct |
+| [Chunked prefill, page size and SWA pool sizing](#chunked-prefill-page-size-and-swa-pool-sizing) | final runtime, not measured | same math |
+| [Decode graph capture (HIP graphs)](#decode-graph-capture-hip-graphs) | 3.11× decode (A/B) | same math |
 
 **Operator (kernel) layer**
 
-- **FlyDSL paged-attention decode kernel (head 192, page 64)**  
-  MI300X: `SGLANG_AITER_PA_DECODE_IMPL=flydsl` + `SGLANG_FLYDSL_PA_NUM_PARTITIONS=16`  
-  NVIDIA: CuTe DSL or FlashInfer decode; partitions correspond to split-KV  
-  Code: [c99d5cd](https://github.com/sammysun0711/FlyDSL/commit/c99d5cd97864c11e459cff9169d387d312790782), [ba15db1](https://github.com/sammysun0711/sglang/commit/ba15db1a576dcdc8d51ba15bd069b9fd1f748d97), [a2fd773](https://github.com/sammysun0711/sglang/commit/a2fd773ab43f960f5f2c29b5c592b0ca43c5ba8f)  
-  Evidence: pinned runtime; kernel not measured in isolation
-- **Block-scale FP8 GEMM with pre-shuffled weights**  
-  MI300X: `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1`  
-  NVIDIA: DeepGEMM (`SGLANG_ENABLE_JIT_DEEPGEMM=1`) or CUTLASS block-scale GEMM  
-  Code: [2f9b9ae](https://github.com/sammysun0711/sglang/commit/2f9b9aedf32977bc5d088a86ec0a73bcf432a4d0), [fc96a4f](https://github.com/sammysun0711/aiter/commit/fc96a4f9f5f3e931cbb9de275c8aa01136417500)  
-  Evidence: measured A/B, together with unified verify
-- **INT8 Quick Reduce for tensor-parallel all-reduce**  
-  MI300X: `ROCM_QUICK_REDUCE_QUANTIZATION=INT8` (set by the base image; `NONE` turns it off)  
-  NVIDIA: no default equivalent; NCCL and the SGLang custom all-reduce sum in full precision  
-  Code: no code change (configuration only)  
-  Evidence: on in the measured throughput runs, inherited from the base image; not isolated
-- **Shape-tuned fused-MoE kernel table**  
-  MI300X: `mimo_v2_5_pro_b16_tuned_fmoe.csv` in AITER  
-  NVIDIA: Triton fused-MoE JSON from `tuning_fused_moe_triton.py`  
-  Code: [d725746](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9)  
-  Evidence: measured stage pair
-- **Head-192, page-64 FP8 batch-prefill tile**  
-  MI300X: CK patch shipped in AITER `3f4ab48`, dispatched only for the exact shape  
-  NVIDIA: check that the paged prefill path does not fall back to gather-then-dense  
-  Code: [3f4ab48](https://github.com/sammysun0711/aiter/commit/3f4ab482a2986919c784e469e23cfac7f93bb153), [0cfc48b](https://github.com/sammysun0711/sglang/commit/0cfc48b0e374d7e84c122f739182a39feea56d46)  
-  Evidence: pinned runtime, not throughput-tested here
-- **Mixed-precision Triton router (MoE gate) GEMM**  
-  MI300X: `SGLANG_MIMO_MIXED_ROUTER=1` for router batches of at least 2,048 tokens  
-  NVIDIA: the same Triton kernel compiles for CUDA; re-tune block sizes  
-  Code: [1f9bb2b](https://github.com/sammysun0711/sglang/commit/1f9bb2b4c55cdc7bd5de1ac7977f76afab101a97)  
-  Evidence: later commit, not measured
+| Technique | What it did on MI300X | Output |
+|---|---|---|
+| [FlyDSL paged-attention decode kernel (head 192, page 64)](#flydsl-paged-attention-decode-kernel-head-192-page-64) | final runtime, not measured | same math |
+| [Block-scale FP8 GEMM with pre-shuffled weights](#block-scale-fp8-gemm-with-pre-shuffled-weights) | +25.65% decode, with unified verify (A/B) | same math |
+| [INT8 Quick Reduce for tensor-parallel all-reduce](#int8-quick-reduce-for-tensor-parallel-all-reduce) | on, not isolated | lossy |
+| [Shape-tuned fused-MoE kernel table](#shape-tuned-fused-moe-kernel-table) | 8K prefill +24.32%, decode +12.56% (stage pair) | same math |
+| [Head-192, page-64 FP8 batch-prefill tile](#head-192-page-64-fp8-batch-prefill-tile) | final runtime, not measured | same math |
+| [Mixed-precision Triton router (MoE gate) GEMM](#mixed-precision-triton-router-moe-gate-gemm) | later commit, not measured | lossy |
 
 **Workload and deployment layer**
 
-- **Prefill/decode disaggregation (1P1D) over RDMA**  
-  MI300X: `--disaggregation-mode prefill|decode --disaggregation-transfer-backend mooncake` + `sglang_router --pd-disaggregation`  
-  NVIDIA: same flags; mooncake or nixl over GPUDirect RDMA  
-  Code: no code change (configuration only)  
-  Evidence: on in measured runs, not isolated
-- **Fake prefill for decode-only measurement**  
-  MI300X: decode server `--disaggregation-transfer-backend fake`; client `--fake-prefill`  
-  NVIDIA: same upstream SGLang feature  
-  Code: no code change (configuration only)  
-  Evidence: in the pinned runtime's scripts; not used in the published runs
-- **Fixed MTP acceptance for performance runs**  
-  MI300X: `SGLANG_SIMULATE_ACC_LEN=3 SGLANG_SIMULATE_ACC_METHOD=match-expected`  
-  NVIDIA: same upstream SGLang variables  
-  Code: no code change (configuration only)  
-  Evidence: on in measured runs, not isolated
-- **Concurrency ladder against the saturation point**  
-  MI300X: `bench_serving --max-concurrency 16 ... 256` with fixed prompts, warmup and seed  
-  NVIDIA: same client  
-  Code: no code change (configuration only)  
-  Evidence: measured ladder
-<!-- END GENERATED: technique-map -->
+| Technique | What it did on MI300X | Output |
+|---|---|---|
+| [Prefill/decode disaggregation (1P1D) over RDMA](#prefilldecode-disaggregation-1p1d-over-rdma) | on, not isolated | same math |
+| [Fake prefill for decode-only measurement](#fake-prefill-for-decode-only-measurement) | not used in the published runs | test method only |
+| [Fixed MTP acceptance for performance runs](#fixed-mtp-acceptance-for-performance-runs) | on, not isolated | test method only |
+| [Concurrency ladder against the saturation point](#concurrency-ladder-against-the-saturation-point) | finds the plateau (ladder) | test method only |
+<!-- END GENERATED: technique-overview -->
 
-"On in measured runs" means the switch was on during the published Microsoft runs but its own share was not isolated; "pinned runtime" means it is part of the final runtime whose throughput this repository does not report.
+"On, not isolated" means the switch was on in the published runs but its own share was not measured; "partly on" means only part of it was, for example the AITER backend but not the FlyDSL split; "final runtime, not measured" means it is in the pinned runtime whose throughput this repository does not report.
 
 ### Serving-framework layer
 
 #### Per-layer attention dispatch for hybrid SWA + GQA
+
+<!-- BEGIN GENERATED: card-attention-dispatch -->
+- **Switch on MI300X**: `--attention-backend aiter`; full-attention verify goes to FlyDSL, SWA/sink layers and plain decode stay on AITER
+- **On NVIDIA**: `--attention-backend fa3` or `flashinfer`; split per layer wherever one kernel does not cover both window types
+- **Code**: [ba15db1](https://github.com/sammysun0711/sglang/commit/ba15db1a576dcdc8d51ba15bd069b9fd1f748d97), [0cfc48b](https://github.com/sammysun0711/sglang/commit/0cfc48b0e374d7e84c122f739182a39feea56d46)
+- **Evidence**: AITER backend on in measured runs; FlyDSL split only in the pinned runtime
+- **Effect on output**: same math. Different kernels for full and sliding-window layers; each computes exact attention.
+<!-- END GENERATED: card-attention-dispatch -->
 
 MiMo-V2.5-Pro mixes full-attention layers with sliding-window layers that also carry attention sinks. No single paged-attention kernel was fastest for both, so the backend decides per layer. During MTP target verification, full-attention layers go to the FlyDSL kernel while SWA and sink layers stay on the AITER path:
 
@@ -326,6 +269,14 @@ The same idea removes a copy on the prefill side: commit [`0cfc48b`](https://git
 
 #### FP8 KV cache in a vectorized 5D page layout
 
+<!-- BEGIN GENERATED: card-fp8-kv-5d -->
+- **Switch on MI300X**: `--kv-cache-dtype fp8_e4m3` + `SGLANG_AITER_KV_CACHE_LAYOUT=vectorized_5d`
+- **On NVIDIA**: `--kv-cache-dtype fp8_e4m3`; FA3/FlashInfer paged layouts already keep a 16-byte inner vector
+- **Code**: [78cd40c](https://github.com/sammysun0711/sglang/commit/78cd40c7a5102524536daf9a3178426777174d2d), [e11c515](https://github.com/sammysun0711/sglang/commit/e11c5155f0845079211c2a4d0b8a4ab3669039f9), [10a9401](https://github.com/sammysun0711/aiter/commit/10a94012efc1260dfdf16ba2f52fbda40a518a17)
+- **Evidence**: FP8 KV on in measured runs; 5D layout only in the pinned runtime
+- **Effect on output**: lossy. K and V are stored in FP8 E4M3 (3 mantissa bits) with one scale per tensor, so every cached token loses precision; the 5D layout itself only reorders bytes.
+<!-- END GENERATED: card-fp8-kv-5d -->
+
 At 1M context the KV cache, not the weights, decides how many requests fit. FP8 E4M3 storage halves the bytes per token. The vectorized 5D layout then reorders each page so that the innermost dimension is exactly one 16-byte vector, which lets every lane of a wavefront load its slice with one wide instruction:
 
 <!-- BEGIN GENERATED: excerpt-kv-5d-vector-width -->
@@ -343,17 +294,65 @@ Diff excerpt from [`sammysun0711/sglang@78cd40c`](https://github.com/sammysun071
 
 The same commit lets the MTP draft model keep an ordinary token-major (NHD) pool while the target model uses the 5D pool, because the draft kernels do not read the 5D layout. On NVIDIA the flag `--kv-cache-dtype fp8_e4m3` is identical and the paged layouts of FA3 and FlashInfer already keep a 16-byte inner vector for 128-bit loads, so only the principle carries over, not the flag.
 
-#### Multi-layer EAGLE MTP and verifier correctness
+#### AITER unified attention for MTP target verify
+
+<!-- BEGIN GENERATED: card-unified-verify -->
+- **Switch on MI300X**: `SGLANG_AITER_UNIFIED_VERIFY=1` on the decode server
+- **On NVIDIA**: not needed; CUDA attention backends verify with their own kernels
+- **Code**: no code change (configuration only)
+- **Evidence**: measured A/B, together with the CK GEMM path
+- **Effect on output**: same math. Selects which attention kernel verifies draft tokens; same exact attention.
+<!-- END GENERATED: card-unified-verify -->
+
+During MTP target verification, the decode server checks four positions per request at once. `SGLANG_AITER_UNIFIED_VERIFY=1` sends that step to AITER's unified attention kernel instead of the generic path. It is configuration only, and it was switched together with the CK GEMM path in the 64K A/B, so the gain belongs to the pair.
+
+#### Multi-layer EAGLE MTP speculative decoding and verifier fixes
+
+<!-- BEGIN GENERATED: card-eagle-mtp -->
+- **Switch on MI300X**: `--speculative-algorithm EAGLE --speculative-num-steps 3 --speculative-eagle-topk 1 --speculative-num-draft-tokens 4 --enable-multi-layer-eagle`
+- **On NVIDIA**: same flags
+- **Code**: [db840d9](https://github.com/sammysun0711/sglang/commit/db840d935a9f7097dbeb5f1b0dba4d261057a2bd), [f26ae30](https://github.com/sammysun0711/sglang/commit/f26ae30063143411f3ae552af1830fa46e3ee0fd), [878fff1](https://github.com/sammysun0711/sglang/commit/878fff15647fe3dabb32aa3a335b0ad16e3ee878)
+- **Evidence**: on in measured runs with fixed acceptance; f26ae30 and 878fff1 only in the pinned runtime
+- **Effect on output**: exact if correct. Speculative decoding keeps the target model's output distribution only if verification is right. On HIP, sampled verification silently fell back to greedy until 878fff1, so temperature had no effect.
+<!-- END GENERATED: card-eagle-mtp -->
 
 MiMo ships three MTP layers, so each decode step drafts three tokens and verifies four. Speculative decoding only pays if the draft and target agree often, and on ROCm three bugs kept agreement low or results wrong: the draft-extend step read the full-attention pool instead of the SWA pool and used a different kernel than target verify ([`db840d9`](https://github.com/sammysun0711/sglang/commit/db840d935a9f7097dbeb5f1b0dba4d261057a2bd)); verification results could differ between TP ranks and desynchronize collectives ([`f26ae30`](https://github.com/sammysun0711/sglang/commit/f26ae30063143411f3ae552af1830fa46e3ee0fd)); and on HIP, sampled (non-greedy) verification silently fell back to the greedy verifier, so `temperature` had no effect ([`878fff1`](https://github.com/sammysun0711/sglang/commit/878fff15647fe3dabb32aa3a335b0ad16e3ee878), opt-in through `SGLANG_MIMO_EAGLE_HIP_NONGREEDY_VERIFY=1`). The flags are the same on CUDA.
 
 #### Chunked prefill, page size and SWA pool sizing
 
+<!-- BEGIN GENERATED: card-memory-sizing -->
+- **Switch on MI300X**: `--chunked-prefill-size 65536 --page-size 64 --swa-full-tokens-ratio 0.01`
+- **On NVIDIA**: same flags; re-derive the values from HBM size and kernel page support
+- **Code**: no code change (configuration only)
+- **Evidence**: measured runs used chunk 32768 and page 32
+- **Effect on output**: same math. Chunk and page sizes change how work is split, not what is computed; the SWA ratio only sizes the pool.
+<!-- END GENERATED: card-memory-sizing -->
+
 These are configuration, not code, but they decide whether the kernels above run at all. The final runtime uses `--chunked-prefill-size 65536`, `--page-size 64` (the page size the FlyDSL and CK kernels were written for) and `--swa-full-tokens-ratio 0.01`, which shrinks the sliding-window pool to 1% of the full-attention pool because SWA layers only ever need the last window of tokens. The freed HBM goes to the full-attention KV pool and therefore to longer contexts.
+
+#### Decode graph capture (HIP graphs)
+
+<!-- BEGIN GENERATED: card-decode-graph-capture -->
+- **Switch on MI300X**: on by default on the decode server: do not pass `--disable-cuda-graph` there (the prefill server keeps it)
+- **On NVIDIA**: same default with CUDA graphs; `--cuda-graph-max-bs` bounds the captured batch sizes
+- **Code**: no code change (configuration only)
+- **Evidence**: measured A/B at bring-up (Triton attention, no MTP)
+- **Effect on output**: same math. The captured graph replays the same kernels; it removes launch overhead, not arithmetic.
+<!-- END GENERATED: card-decode-graph-capture -->
+
+A decode step runs hundreds of small kernels, and at small batch the time to launch them is comparable to the time they run. SGLang captures each decode batch size once as a HIP graph (a CUDA graph on NVIDIA) and afterwards replays the whole step with one launch. Early MI300X bring-up turned this off with `--disable-cuda-graph` to work around a multi-node hang; putting it back on the decode server was the largest single step measured here, while the prefill server keeps `--disable-cuda-graph` because prefill batches are large and irregular. The capture needs HBM for each captured batch size, so it competes with the KV pool.
 
 ### Operator layer
 
-#### FlyDSL paged-attention decode: what changed in the kernel
+#### FlyDSL paged-attention decode kernel (head 192, page 64)
+
+<!-- BEGIN GENERATED: card-flydsl-pa-decode -->
+- **Switch on MI300X**: `SGLANG_AITER_PA_DECODE_IMPL=flydsl` + `SGLANG_FLYDSL_PA_NUM_PARTITIONS=16`
+- **On NVIDIA**: CuTe DSL or FlashInfer decode; partitions correspond to split-KV
+- **Code**: [c99d5cd](https://github.com/sammysun0711/FlyDSL/commit/c99d5cd97864c11e459cff9169d387d312790782), [ba15db1](https://github.com/sammysun0711/sglang/commit/ba15db1a576dcdc8d51ba15bd069b9fd1f748d97), [a2fd773](https://github.com/sammysun0711/sglang/commit/a2fd773ab43f960f5f2c29b5c592b0ca43c5ba8f)
+- **Evidence**: pinned runtime; kernel not measured in isolation
+- **Effect on output**: same math. Exact paged attention. The two fixed defects (unstaged query elements, 32-bit offset overflow) produced wrong output, not small drift, which is why the kernel refuses untested shapes.
+<!-- END GENERATED: card-flydsl-pa-decode -->
 
 FlyDSL is a Python DSL on MLIR in which a kernel is written as layouts (how a tensor is split across lanes, waves and tiles) rather than as index arithmetic; the compiler generates the addressing. The MiMo decode kernel had two defects at MiMo's shape, both fixed in [`c99d5cd`](https://github.com/sammysun0711/FlyDSL/commit/c99d5cd97864c11e459cff9169d387d312790782) and later merged upstream in ROCm/FlyDSL [#1064](https://github.com/ROCm/FlyDSL/commit/ed9885eca4ffc45e2ec1dc45fa00824baa6b56d3).
 
@@ -436,6 +435,14 @@ Diff excerpt from [`sammysun0711/sglang@ba15db1`](https://github.com/sammysun071
 
 #### Block-scale FP8 GEMM with pre-shuffled weights
 
+<!-- BEGIN GENERATED: card-ck-a8w8-gemm -->
+- **Switch on MI300X**: `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1`
+- **On NVIDIA**: DeepGEMM (`SGLANG_ENABLE_JIT_DEEPGEMM=1`) or CUTLASS block-scale GEMM
+- **Code**: [2f9b9ae](https://github.com/sammysun0711/sglang/commit/2f9b9aedf32977bc5d088a86ec0a73bcf432a4d0), [fc96a4f](https://github.com/sammysun0711/aiter/commit/fc96a4f9f5f3e931cbb9de275c8aa01136417500)
+- **Evidence**: measured A/B, together with unified verify
+- **Effect on output**: same math. Both the Triton path and the CK path quantize activations to FP8 per 1x128 block against the same FP8 block-scale checkpoint; the switch changes the kernel, not the precision.
+<!-- END GENERATED: card-ck-a8w8-gemm -->
+
 MiMo's linear layers are FP8 with one scale per 128-wide block. On gfx942 SGLang used a Triton kernel for this GEMM. Commit [`2f9b9ae`](https://github.com/sammysun0711/sglang/commit/2f9b9aedf32977bc5d088a86ec0a73bcf432a4d0) adds a switch that selects AITER's Composable Kernel implementation instead, with the weights shuffled once at load time into the layout the matrix cores read:
 
 <!-- BEGIN GENERATED: excerpt-ck-gemm-select -->
@@ -461,7 +468,27 @@ Diff excerpt from [`sammysun0711/sglang@2f9b9ae`](https://github.com/sammysun071
 
 AITER [`fc96a4f`](https://github.com/sammysun0711/aiter/commit/fc96a4f9f5f3e931cbb9de275c8aa01136417500) adds per-shape tile configurations for MiMo's GEMM sizes on a 304-CU MI300X. This path is one of the two switches in the measured A/B above; the other is unified verify, so the gain is not attributed to the GEMM alone. On NVIDIA the same role is played by DeepGEMM (`SGLANG_ENABLE_JIT_DEEPGEMM=1`) or CUTLASS block-scale FP8 GEMM, whose pre-packed weights correspond to the pre-shuffle.
 
-#### Shape-tuned fused MoE
+#### INT8 Quick Reduce for tensor-parallel all-reduce
+
+<!-- BEGIN GENERATED: card-int8-quick-reduce -->
+- **Switch on MI300X**: `ROCM_QUICK_REDUCE_QUANTIZATION=INT8` (set by the base image; `NONE` turns it off)
+- **On NVIDIA**: no default equivalent; NCCL and the SGLang custom all-reduce sum in full precision
+- **Code**: no code change (configuration only)
+- **Evidence**: on in the measured throughput runs, inherited from the base image; not isolated
+- **Effect on output**: lossy. Tensor-parallel all-reduces that go through Quick Reduce are quantized to INT8 before the partial sums from the 8 GPUs are added.
+<!-- END GENERATED: card-int8-quick-reduce -->
+
+Tensor parallelism sums partial results from the 8 GPUs after every attention and MoE block. Quick Reduce is an all-reduce for ROCm in SGLang's custom all-reduce path; with `ROCM_QUICK_REDUCE_QUANTIZATION=INT8` it quantizes what it sends to INT8, so fewer bytes cross the GPU links. The captured environment of the stage-pair runs shows it on; the base image sets it, not a launch script; see the warning in [Which optimizations can change model output](#which-optimizations-can-change-model-output).
+
+#### Shape-tuned fused-MoE kernel table
+
+<!-- BEGIN GENERATED: card-tuned-fused-moe -->
+- **Switch on MI300X**: `mimo_v2_5_pro_b16_tuned_fmoe.csv` in AITER
+- **On NVIDIA**: Triton fused-MoE JSON from `tuning_fused_moe_triton.py`
+- **Code**: [d725746](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9)
+- **Evidence**: measured stage pair
+- **Effect on output**: same math. Chooses among existing fused-MoE kernels per token count; the model math is unchanged.
+<!-- END GENERATED: card-tuned-fused-moe -->
 
 A MoE layer's cost depends on how many tokens land in one batch. AITER can pick a different fused-MoE kernel per token count, and [`d725746`](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9) records the winner of an offline search for MiMo's expert shape (hidden size 6,144, expert intermediate size 256 per TP rank, 384 experts, top-8):
 
@@ -482,11 +509,27 @@ Every row uses block_m = 64; time and TFLOPS are the tuner's own measurement at 
 
 From 4,096 tokens on, the search picks kernel B (the `_ps_` variant), and achieved TFLOPS keep rising with batch size. The table changes only which kernel runs, not the model math. The NVIDIA equivalent is SGLang's Triton fused-MoE configuration, generated per expert count, size, dtype and GPU with `benchmark/kernels/fused_moe_triton/tuning_fused_moe_triton.py`.
 
-#### Head-192, page-64 FP8 batch prefill
+#### Head-192, page-64 FP8 batch-prefill tile
+
+<!-- BEGIN GENERATED: card-ck-prefill-tile -->
+- **Switch on MI300X**: CK patch shipped in AITER `3f4ab48`, dispatched only for the exact shape
+- **On NVIDIA**: check that the paged prefill path does not fall back to gather-then-dense
+- **Code**: [3f4ab48](https://github.com/sammysun0711/aiter/commit/3f4ab482a2986919c784e469e23cfac7f93bb153), [0cfc48b](https://github.com/sammysun0711/sglang/commit/0cfc48b0e374d7e84c122f739182a39feea56d46)
+- **Evidence**: pinned runtime, not throughput-tested here
+- **Effect on output**: same math. Replaces the padded head-256 path with an exact head-192 tile.
+<!-- END GENERATED: card-ck-prefill-tile -->
 
 [`3f4ab48`](https://github.com/sammysun0711/aiter/commit/3f4ab482a2986919c784e469e23cfac7f93bb153) ships a temporary Composable Kernel patch that adds a batch-prefill tile for exactly MiMo's shape (head 192, FP8 or BF16, page 64, vectorized layout) and keeps the padded head-256 path as the fallback. Together with the cached-prefill route in the framework layer, long cached prefixes are read in place from the paged cache.
 
-#### Mixed-precision router GEMM (later commit, not measured)
+#### Mixed-precision Triton router (MoE gate) GEMM
+
+<!-- BEGIN GENERATED: card-mixed-router-gemm -->
+- **Switch on MI300X**: `SGLANG_MIMO_MIXED_ROUTER=1` for router batches of at least 2,048 tokens
+- **On NVIDIA**: the same Triton kernel compiles for CUDA; re-tune block sizes
+- **Code**: [1f9bb2b](https://github.com/sammysun0711/sglang/commit/1f9bb2b4c55cdc7bd5de1ac7977f76afab101a97)
+- **Evidence**: later commit, not measured
+- **Effect on output**: lossy. Router weights drop from FP32 to FP16 and activations from BF16 to FP16 before accumulation. Router logits pick the top-8 experts, so a small change can flip which experts a token uses.
+<!-- END GENERATED: card-mixed-router-gemm -->
 
 The MoE router multiplies every token's hidden state by a 384 × 6,144 weight in FP32. [`1f9bb2b`](https://github.com/sammysun0711/sglang/commit/1f9bb2b4c55cdc7bd5de1ac7977f76afab101a97) adds an opt-in Triton kernel for batches of at least 2,048 tokens that keeps a cached FP16 copy of the router weight, converts BF16 activation tiles to FP16 in registers, and still accumulates and returns FP32:
 
@@ -537,17 +580,53 @@ This commit sits on a later branch and is not in the pinned runtime, so no numbe
 
 ### Workload and deployment layer
 
-#### Prefill/decode disaggregation
+#### Prefill/decode disaggregation (1P1D) over RDMA
+
+<!-- BEGIN GENERATED: card-pd-disaggregation -->
+- **Switch on MI300X**: `--disaggregation-mode prefill|decode --disaggregation-transfer-backend mooncake` + `sglang_router --pd-disaggregation`
+- **On NVIDIA**: same flags; mooncake or nixl over GPUDirect RDMA
+- **Code**: no code change (configuration only)
+- **Evidence**: on in measured runs, not isolated
+- **Effect on output**: same math. The KV cache is copied between servers byte for byte.
+<!-- END GENERATED: card-pd-disaggregation -->
 
 Prefill is compute-bound and decode is memory-bound, and a long prefill stalls every decode step that shares its GPUs. The PD deployment gives each phase its own TP8 server and moves the KV cache with Mooncake over eight InfiniBand ports. Two operational facts matter more than the flags: the container needs `--privileged`, `/dev/mem` and `CAP_SYS_ADMIN`, otherwise Mooncake silently falls back from RDMA to TCP; and the router must only be started after both servers report ready. The flags are identical on NVIDIA with the `mooncake` or `nixl` transfer backend.
 
 #### Fake prefill for decode-only measurement
 
+<!-- BEGIN GENERATED: card-fake-prefill -->
+- **Switch on MI300X**: decode server `--disaggregation-transfer-backend fake`; client `--fake-prefill`
+- **On NVIDIA**: same upstream SGLang feature
+- **Code**: no code change (configuration only)
+- **Evidence**: in the pinned runtime's scripts; not used in the published runs
+- **Effect on output**: test method only. The decode server starts from a KV cache that was never computed from the prompt.
+<!-- END GENERATED: card-fake-prefill -->
+
 To study the decode kernels without a prefill server, the decode server runs with `--disaggregation-mode decode --disaggregation-transfer-backend fake` and the client adds `--fake-prefill`. The decode server then starts every request as if the KV had arrived. This isolates decode throughput at long context, where a real prefill would dominate the wall time, and it is an upstream SGLang feature on both platforms.
 
-#### Fixed acceptance for performance, real acceptance for accuracy
+#### Fixed MTP acceptance for performance runs
+
+<!-- BEGIN GENERATED: card-simulated-acceptance -->
+- **Switch on MI300X**: `SGLANG_SIMULATE_ACC_LEN=3 SGLANG_SIMULATE_ACC_METHOD=match-expected`
+- **On NVIDIA**: same upstream SGLang variables
+- **Code**: no code change (configuration only)
+- **Evidence**: on in measured runs, not isolated
+- **Effect on output**: test method only. Draft tokens are accepted by rule, not by the model, so the generated text is not the model's output.
+<!-- END GENERATED: card-simulated-acceptance -->
 
 `SGLANG_SIMULATE_ACC_LEN=3` makes every MTP step accept exactly three draft tokens. That removes acceptance noise from kernel measurements and makes runs comparable across days, but it overstates throughput for a real workload. Accuracy runs must unset both variables, and throughput measured with a fixed acceptance should never be quoted as production throughput.
+
+#### Concurrency ladder against the saturation point
+
+<!-- BEGIN GENERATED: card-concurrency-ladder -->
+- **Switch on MI300X**: `bench_serving --max-concurrency 16 ... 256` with fixed prompts, warmup and seed
+- **On NVIDIA**: same client
+- **Code**: no code change (configuration only)
+- **Evidence**: measured ladder
+- **Effect on output**: test method only. A load pattern, not a model change.
+<!-- END GENERATED: card-concurrency-ladder -->
+
+Throughput only means something at a stated load. Sweep client concurrency with fixed prompts, warmup and seed until output throughput stops rising, then report that plateau together with its TTFT; the [ladder above](#where-decode-saturates-concurrency-ladder) is an example. Past the plateau, extra concurrency only adds queueing time.
 
 #### Exact inputs and context headroom
 
@@ -559,36 +638,16 @@ Every accepted A/B arm is run twice on a freshly started server. Agreement withi
 
 ### Which optimizations can change model output
 
-A throughput gain only counts if the answers stay the same. Every technique above does one of four things to the numbers, and the class decides what has to be checked before it goes to production. The throughput runs on this page had FP8 KV, INT8 Quick Reduce and fixed MTP acceptance on; this repository publishes no accuracy result for that configuration.
+A throughput gain only counts if the answers stay the same. Every technique above does one of four things to the numbers, and the class decides what has to be checked before it goes to production. The optimized throughput runs had FP8 KV and fixed MTP acceptance on, and the stage-pair runs record INT8 Quick Reduce on; this repository publishes no accuracy result for that configuration.
 
-<!-- BEGIN GENERATED: precision-map -->
-**Lossy — check accuracy before production.** Fewer bits somewhere on the data path. Can shift outputs systematically and must be checked with an accuracy benchmark before production.
+Each card above ends with the technique's effect on output. Grouped by class:
 
-- **FP8 KV cache in a vectorized 5D page layout** (FP8 KV on in measured runs; 5D layout only in the pinned runtime) — K and V are stored in FP8 E4M3 (3 mantissa bits) with one scale per tensor, so every cached token loses precision; the 5D layout itself only reorders bytes.
-- **INT8 Quick Reduce for tensor-parallel all-reduce** (on in the measured throughput runs, inherited from the base image; not isolated) — Tensor-parallel all-reduces that go through Quick Reduce are quantized to INT8 before the partial sums from the 8 GPUs are added.
-- **Mixed-precision Triton router (MoE gate) GEMM** (later commit, in no runtime here) — Router weights drop from FP32 to FP16 and activations from BF16 to FP16 before accumulation. Router logits pick the top-8 experts, so a small change can flip which experts a token uses.
-
-**Output-preserving only if the implementation is correct.** Designed to leave the output distribution unchanged, but only if the implementation is correct; a bug changes outputs without any error message.
-
-- **Multi-layer EAGLE MTP speculative decoding and verifier fixes** (on in measured runs with fixed acceptance; f26ae30 and 878fff1 only in the pinned runtime) — Speculative decoding keeps the target model's output distribution only if verification is right. On HIP, sampled verification silently fell back to greedy until 878fff1, so temperature had no effect.
-
-**Same arithmetic, different kernel or layout.** Same arithmetic contract; only kernel, layout or schedule changes. Results can differ in the last bits because the summation order changes, not systematically.
-
-- **Per-layer attention dispatch for hybrid SWA + GQA** (AITER backend on in measured runs; FlyDSL split only in the pinned runtime) — Different kernels for full and sliding-window layers; each computes exact attention.
-- **AITER unified attention for MTP target verify** (measured A/B, together with the CK GEMM path) — Selects which attention kernel verifies draft tokens; same exact attention.
-- **Chunked prefill, page size and SWA pool sizing** (measured runs used chunk 32768 and page 32) — Chunk and page sizes change how work is split, not what is computed; the SWA ratio only sizes the pool.
-- **FlyDSL paged-attention decode kernel (head 192, page 64)** (in the pinned runtime only) — Exact paged attention. The two fixed defects (unstaged query elements, 32-bit offset overflow) produced wrong output, not small drift, which is why the kernel refuses untested shapes.
-- **Block-scale FP8 GEMM with pre-shuffled weights** (measured A/B, together with unified verify) — Both the Triton path and the CK path quantize activations to FP8 per 1x128 block against the same FP8 block-scale checkpoint; the switch changes the kernel, not the precision.
-- **Shape-tuned fused-MoE kernel table** (on in the measured runs) — Chooses among existing fused-MoE kernels per token count; the model math is unchanged.
-- **Head-192, page-64 FP8 batch-prefill tile** (in the pinned runtime only) — Replaces the padded head-256 path with an exact head-192 tile.
-- **Prefill/decode disaggregation (1P1D) over RDMA** (on in the measured runs) — The KV cache is copied between servers byte for byte.
-
-**Benchmark methods — never score their output.** Outputs produced in this mode are not model answers and must never be scored for accuracy.
-
-- **Fake prefill for decode-only measurement** (in the pinned runtime's scripts; not used in the published runs) — The decode server starts from a KV cache that was never computed from the prompt.
-- **Fixed MTP acceptance for performance runs** (on in the measured runs) — Draft tokens are accepted by rule, not by the model, so the generated text is not the model's output.
-- **Concurrency ladder against the saturation point** (on in the measured runs) — A load pattern, not a model change.
-<!-- END GENERATED: precision-map -->
+<!-- BEGIN GENERATED: precision-summary -->
+- **Lossy — check accuracy before production**. Fewer bits somewhere on the data path. Can shift outputs systematically and must be checked with an accuracy benchmark before production. [FP8 KV cache in a vectorized 5D page layout](#fp8-kv-cache-in-a-vectorized-5d-page-layout); [INT8 Quick Reduce for tensor-parallel all-reduce](#int8-quick-reduce-for-tensor-parallel-all-reduce); [Mixed-precision Triton router (MoE gate) GEMM](#mixed-precision-triton-router-moe-gate-gemm)
+- **Output-preserving only if the implementation is correct**. Designed to leave the output distribution unchanged, but only if the implementation is correct; a bug changes outputs without any error message. [Multi-layer EAGLE MTP speculative decoding and verifier fixes](#multi-layer-eagle-mtp-speculative-decoding-and-verifier-fixes)
+- **Same arithmetic, different kernel or layout**. Same arithmetic contract; only kernel, layout or schedule changes. Results can differ in the last bits because the summation order changes, not systematically. [Per-layer attention dispatch for hybrid SWA + GQA](#per-layer-attention-dispatch-for-hybrid-swa--gqa); [AITER unified attention for MTP target verify](#aiter-unified-attention-for-mtp-target-verify); [Chunked prefill, page size and SWA pool sizing](#chunked-prefill-page-size-and-swa-pool-sizing); [Decode graph capture (HIP graphs)](#decode-graph-capture-hip-graphs); [FlyDSL paged-attention decode kernel (head 192, page 64)](#flydsl-paged-attention-decode-kernel-head-192-page-64); [Block-scale FP8 GEMM with pre-shuffled weights](#block-scale-fp8-gemm-with-pre-shuffled-weights); [Shape-tuned fused-MoE kernel table](#shape-tuned-fused-moe-kernel-table); [Head-192, page-64 FP8 batch-prefill tile](#head-192-page-64-fp8-batch-prefill-tile); [Prefill/decode disaggregation (1P1D) over RDMA](#prefilldecode-disaggregation-1p1d-over-rdma)
+- **Benchmark methods — never score their output**. Outputs produced in this mode are not model answers and must never be scored for accuracy. [Fake prefill for decode-only measurement](#fake-prefill-for-decode-only-measurement); [Fixed MTP acceptance for performance runs](#fixed-mtp-acceptance-for-performance-runs); [Concurrency ladder against the saturation point](#concurrency-ladder-against-the-saturation-point)
+<!-- END GENERATED: precision-summary -->
 
 INT8 Quick Reduce deserves a separate warning. None of the launch scripts used in the measured runs sets it: the `rocm/sgl-dev` base image exports `ROCM_QUICK_REDUCE_QUANTIZATION=INT8`, the captured environment of the measured runs shows it (hash in [`evidence/runs.json`](evidence/runs.json)), and every server started from that image inherits it. The profiles in this repository export it explicitly so that the inherited value is visible and can be ablated; the accuracy role of the pinned runtime sets it back to `NONE`. The same base-image ENV mechanism also silently overrode a Dockerfile ARG during the clean build, which is why every pin there carries a `PIN_` prefix.
 

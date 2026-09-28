@@ -173,31 +173,91 @@ def ab_64k(meta: dict) -> dict:
     }
 
 
-def stack_snapshot(meta: dict, stage: dict) -> dict:
-    early = _raw_json(meta["runs"]["bringup-20260509"]["raw"][0])
-    early_decode = {r["concurrency"]: r for r in early["decode"]}
-    rows = []
-    for row in stage["decode"]:
-        c = row["concurrency"]
-        if c not in early_decode:
-            continue
-        e = early_decode[c]
-        rows.append({
-            "concurrency": c,
-            "early_output_tok_s": e["output_tok_s"], "late_output_tok_s": row["after_output_tok_s"],
-            "early_mean_tpot_ms": e["mean_tpot_ms"], "late_mean_tpot_ms": row["after_mean_tpot_ms"],
-        })
-    early_prefill = {r["input_tokens"]: r for r in early["prefill"]}
+def _factor(after: float, before: float) -> float:
+    return round(after / before, 2)
+
+
+def cumulative(meta: dict, stage: dict) -> dict:
+    """Bring-up (May) against the optimized stack (July) on the same MI300X VMs and 1P1D layout."""
+    may8 = _raw_json(meta["runs"]["bringup-20260508-pd"]["raw"][0])
+    may10 = _raw_json(meta["runs"]["bringup-20260510-pd"]["raw"][0])
+    long128 = _raw_json(meta["runs"]["long-20260720-128k"]["raw"][0])
+
+    ab = may8["graph_capture_ab"]
+    off, on = ab["graph_off"], ab["graph_on"]
+    if off["failed"] or on["failed"]:
+        raise SystemExit("GRAPH_AB_FAILED_REQUESTS")
+    graph = {
+        "run": "bringup-20260508-pd", "workload": ab["workload"],
+        "off_output_tok_s": off["output_tok_s"], "on_output_tok_s": on["output_tok_s"],
+        "output_tok_s_factor": _factor(on["output_tok_s"], off["output_tok_s"]),
+        "off_p50_latency_s": off["p50_latency_s"], "on_p50_latency_s": on["p50_latency_s"],
+        "p50_latency_factor": _factor(off["p50_latency_s"], on["p50_latency_s"]),
+    }
+
+    late_prefill = {r["input_tokens"]: r for r in stage["prefill"]}
     prefill = []
-    for row in stage["prefill"]:
-        e = early_prefill.get(row["input_tokens"])
-        if e:
-            prefill.append({
-                "input_tokens": row["input_tokens"],
-                "early_input_tok_s": e["input_tok_s"], "late_input_tok_s": row["after_input_tok_s"],
-            })
-    return {"early_run": "bringup-20260509", "late_run": "stage-20260713-tuned-moe",
-            "decode": rows, "prefill": prefill}
+    for early in may8["prefill"]:
+        n = early["input_len_target"]
+        late = late_prefill.get(n)
+        if late is None or late["concurrency"] != early["concurrency"] or early["failed"]:
+            raise SystemExit(f"CUMULATIVE_PREFILL_UNPAIRED {n}")
+        # the bring-up client sampled prompt lengths below the target; keep the pair only while the gap stays small
+        if not 0.9 * n <= early["avg_prompt_tokens"] <= n:
+            raise SystemExit(f"CUMULATIVE_PREFILL_LENGTH {n}: early prompts averaged {early['avg_prompt_tokens']}")
+        prefill.append({
+            "input_tokens": n, "concurrency": early["concurrency"],
+            "early_avg_prompt_tokens": early["avg_prompt_tokens"],
+            "early_run": "bringup-20260508-pd", "early_input_tok_s": early["input_tok_s"],
+            "late_run": "stage-20260713-tuned-moe", "late_input_tok_s": late["after_input_tok_s"],
+            "factor": _factor(late["after_input_tok_s"], early["input_tok_s"]),
+        })
+    rng = may10["single_vm_prefill_range"]
+    point = next(p for p in long128["points"] if p["concurrency"] == 1)
+    if point["status"] != "VALIDATED" or point["successful_requests"] != long128["workload"]["requests_per_point"]:
+        raise SystemExit("LONG_128K_POINT_NOT_VALIDATED")
+    if rng["input_tokens_high"] != long128["workload"]["input_tokens"]:
+        raise SystemExit("LONG_128K_INPUT_DIFFERS")
+    prefill.append({
+        "input_tokens": rng["input_tokens_high"], "concurrency": 1,
+        "early_topology": "one VM, TP8, prefill and decode in one server",
+        "late_topology": "1P1D prefill server, TP8",
+        "early_run": "bringup-20260510-pd", "early_input_tok_s": rng["input_tok_s_high"],
+        "late_run": "long-20260720-128k", "late_input_tok_s": point["input_tok_s"],
+        "factor": _factor(point["input_tok_s"], rng["input_tok_s_high"]),
+    })
+
+    real = {}
+    for run in _parsed(meta["runs"]["realacc-20260714"]["raw"]):
+        _check_success(run)
+        a = run["args"]
+        if (a["random_input_len"], a["random_output_len"]) != (8192, 1024):
+            raise SystemExit(f"REALACC_WORKLOAD {run['source']}")
+        real[a["max_concurrency"]] = run["metrics"]
+    fixed = {r["concurrency"]: r for r in stage["decode"]}
+    decode = []
+    for early in may10["pd_decode"]:
+        c = early["concurrency"]
+        if c not in real or c not in fixed:
+            continue
+        r, f = real[c], fixed[c]
+        decode.append({
+            "concurrency": c,
+            "early_mean_tpot_ms": early["mean_tpot_ms"], "early_output_tok_s": early["output_tok_s"],
+            "real_mean_tpot_ms": r["mean_tpot_ms"], "real_output_tok_s": r["output_tok_s"],
+            "fixed_mean_tpot_ms": f["after_mean_tpot_ms"], "fixed_output_tok_s": f["after_output_tok_s"],
+            "real_tpot_factor": _factor(early["mean_tpot_ms"], r["mean_tpot_ms"]),
+            "fixed_tpot_factor": _factor(early["mean_tpot_ms"], f["after_mean_tpot_ms"]),
+            "real_output_factor": _factor(r["output_tok_s"], early["output_tok_s"]),
+            "fixed_output_factor": _factor(f["after_output_tok_s"], early["output_tok_s"]),
+        })
+    if [d["concurrency"] for d in decode] != [32, 64]:
+        raise SystemExit(f"CUMULATIVE_DECODE_POINTS {[d['concurrency'] for d in decode]}")
+    return {
+        "early_decode_workload": may10["decode_workload"],
+        "late_decode_workload": {"input_tokens": 8192, "output_tokens": 1024},
+        "graph_capture": graph, "prefill": prefill, "decode": decode,
+    }
 
 
 def build() -> dict:
@@ -210,7 +270,7 @@ def build() -> dict:
         "tuned_moe_stage": stage,
         "ab_ck_unified_verify_64k": ab_64k(meta),
         "concurrency_ladder_8k1k": concurrency_ladder(meta),
-        "stack_snapshot": stack_snapshot(meta, stage),
+        "cumulative": cumulative(meta, stage),
     }
 
 

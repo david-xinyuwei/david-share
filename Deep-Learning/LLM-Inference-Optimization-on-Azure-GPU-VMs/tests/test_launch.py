@@ -48,6 +48,15 @@ class LaunchTests(unittest.TestCase):
         self.assertEqual(argv_on, argv_off)
         self.assertEqual({k: v for k, v in env_on.items() if k != "SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE"}, env_off)
 
+    def test_ablating_graph_capture_disables_it_on_decode_only(self):
+        profile = render_launch.load_profile("rocm-mi300x-pd")
+        _, on, _ = render_launch.compose(profile, "decode", [])
+        _, off, _ = render_launch.compose(profile, "decode", ["decode-graph-capture"])
+        self.assertNotIn("--disable-cuda-graph", on)
+        self.assertEqual(off, on + ["--disable-cuda-graph"])
+        _, prefill, _ = render_launch.compose(profile, "prefill", [])
+        self.assertIn("--disable-cuda-graph", prefill)
+
     def test_ablating_tuned_moe_sets_the_bypass_switch(self):
         env, _, _ = render_launch.compose(render_launch.load_profile("rocm-mi300x-pd"), "prefill", ["tuned-fused-moe"])
         self.assertEqual(env["AITER_BYPASS_TUNE_CONFIG"], "1")

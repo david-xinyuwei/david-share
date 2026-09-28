@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
-"""Draw the architecture and test-topology diagrams (English and Chinese).
+"""Draw the cumulative-gain chart and the architecture and test-topology diagrams (English and Chinese).
 
     python tools/draw_diagrams.py            # write images/*.png and images/SOURCES.json
-    python tools/draw_diagrams.py --check    # verify committed images against the ledger
+    python tools/draw_diagrams.py --check    # verify committed images and chart data against the ledger
+
+The chart is drawn from the `cumulative` section of evidence/measurements.json;
+the ledger records a hash of that section, so a chart that no longer matches
+the evidence fails the check.
 
 Chinese figures need a CJK font (Microsoft YaHei, SimHei, Noto Sans CJK or
 Source Han Sans). The generator fails instead of falling back to a font that
@@ -28,7 +32,7 @@ TEXT = {
         "operator": "Operator\n(kernel) layer",
         "hw": "Azure ND MI300X v5 VM: 8x MI300X (gfx942, 192 GB HBM3), 8x InfiniBand",
         "w": ["Benchmark client\nsglang.bench_serving", "PD router\nsglang_router", "Measurement modes\nfake prefill, fixed acceptance"],
-        "f": ["Scheduler\nchunked prefill 64K", "EAGLE MTP\n3 steps, multi-layer", "KV cache manager\nFP8, vectorized 5D, SWA pool", "Attention dispatch\nfull vs SWA/sink layers", "PD KV transfer\nMooncake over RDMA"],
+        "f": ["Scheduler\nchunked prefill 64K", "EAGLE MTP\n3 steps, multi-layer", "KV cache manager\nFP8, vectorized 5D, SWA pool", "Attention dispatch\nfull vs SWA/sink layers", "PD KV transfer\nMooncake over RDMA", "Decode graph capture\nHIP graphs"],
         "o": ["FlyDSL PA decode\nhead 192, page 64", "AITER / Gluon PA\nSWA and plain decode", "CK batch prefill\nhead 192, page 64", "CK A8W8 GEMM\nblock-scale, preshuffled", "Fused-MoE\nshape-tuned table", "Triton router GEMM\nlater, not measured"],
         "note": "Framework and workload switches are upstream SGLang and run on CUDA as well; operator kernels have CUDA counterparts.",
         "topo_title": "Measured test topology",
@@ -46,7 +50,7 @@ TEXT = {
         "operator": "算子层（kernel）",
         "hw": "Azure ND MI300X v5 虚拟机：8 张 MI300X（gfx942，192 GB HBM3），8 路 InfiniBand",
         "w": ["压测客户端\nsglang.bench_serving", "PD 路由\nsglang_router", "测量模式\nfake prefill、固定接受长度"],
-        "f": ["调度器\nchunked prefill 64K", "EAGLE MTP\n3 步、多层", "KV cache 管理\nFP8、向量化 5D、SWA 池", "Attention 分派\n全注意力层 / SWA 层", "PD KV 传输\nMooncake over RDMA"],
+        "f": ["调度器\nchunked prefill 64K", "EAGLE MTP\n3 步、多层", "KV cache 管理\nFP8、向量化 5D、SWA 池", "Attention 分派\n全注意力层 / SWA 层", "PD KV 传输\nMooncake over RDMA", "Decode 图捕获\nHIP graph"],
         "o": ["FlyDSL PA decode\nhead 192，page 64", "AITER / Gluon PA\nSWA 与普通 decode", "CK batch prefill\nhead 192，page 64", "CK A8W8 GEMM\nblock-scale、权重预重排", "Fused-MoE\n按 shape 调优表", "Triton router GEMM\n后续提交，未实测"],
         "note": "框架层与负载层的开关都是上游 SGLang 功能，在 CUDA 上同样可用；算子层 kernel 在 NVIDIA 上有对应实现。",
         "topo_title": "实测拓扑",
@@ -149,7 +153,61 @@ def topology(lang: str, out: Path) -> None:
     plt.close(fig)
 
 
+CHART_TEXT = {
+    "en": {
+        "title": "Measured gain factors on MI300X (MI300X against itself)",
+        "x": "factor: after ÷ before for throughput, before ÷ after for time per token",
+        "rows": ["Bring-up A/B: decode graph capture", "May → July: 128K prefill, 1 request", "May → July: decode time per token\n64 in flight, fixed MTP acceptance 3",
+                 "May → July: decode time per token\n64 in flight, actual MTP acceptance", "May → July: 64K prefill, 4 in flight", "May → July: 8K prefill, 4 in flight"],
+        "note": "Same model on Azure ND MI300X v5. Bars do not multiply: each compares a different pair of runs. Workload and topology notes are in the README.",
+    },
+    "cn": {
+        "title": "MI300X 上实测的提升倍数（MI300X 自己和自己比）",
+        "x": "倍数：吞吐为 后 ÷ 前，每 token 耗时为 前 ÷ 后",
+        "rows": ["Bring-up A/B：decode 图捕获", "5 月 → 7 月：128K prefill，1 个请求", "5 月 → 7 月：decode 每 token 耗时\n64 路并发，MTP 固定接受长度 3",
+                 "5 月 → 7 月：decode 每 token 耗时\n64 路并发，MTP 按实际接受", "5 月 → 7 月：64K prefill，4 路并发", "5 月 → 7 月：8K prefill，4 路并发"],
+        "note": "同一模型，Azure ND MI300X v5。各柱不能相乘：每根柱比较的是不同的一对运行。负载与拓扑说明见 README。",
+    },
+}
+
+
+def _chart_data() -> tuple[list[float], str]:
+    cu = json.loads((ROOT / "evidence" / "measurements.json").read_text(encoding="utf-8"))["cumulative"]
+    pre = {r["input_tokens"]: r for r in cu["prefill"]}
+    d64 = next(r for r in cu["decode"] if r["concurrency"] == 64)
+    values = [cu["graph_capture"]["output_tok_s_factor"], pre[131072]["factor"], d64["fixed_tpot_factor"],
+              d64["real_tpot_factor"], pre[65536]["factor"], pre[8192]["factor"]]
+    digest = hashlib.sha256(json.dumps(cu, sort_keys=True).encode("utf-8")).hexdigest()
+    return values, digest
+
+
+def gain_chart(lang: str, out: Path) -> None:
+    plt = _setup(lang)
+    t = CHART_TEXT[lang]
+    values, _ = _chart_data()
+    fig = plt.figure(figsize=(12, 5.6), dpi=100)
+    ax = fig.add_axes([0.3, 0.16, 0.66, 0.72])
+    ys = list(range(len(values)))[::-1]
+    colors = ["#1F77B4" if v >= 2 else "#7FB3E0" for v in values]
+    ax.barh(ys, values, color=colors, height=0.62)
+    ax.axvline(1.0, color="#444444", lw=1)
+    for y, v in zip(ys, values):
+        ax.text(v + 0.04, y, f"{v:.2f}×", va="center", fontsize=12, fontweight="bold")
+    ax.set_yticks(ys)
+    ax.set_yticklabels(t["rows"], fontsize=11)
+    ax.set_xlim(0, max(values) * 1.18)
+    ax.set_xlabel(t["x"], fontsize=11)
+    for side in ("top", "right"):
+        ax.spines[side].set_visible(False)
+    fig.text(0.5, 0.94, t["title"], ha="center", fontsize=15, fontweight="bold")
+    fig.text(0.5, 0.04, t["note"], ha="center", fontsize=9.5, color="#333333")
+    fig.savefig(out, dpi=100, metadata={"Software": None})
+    plt.close(fig)
+
+
 FIGURES = {
+    "cumulative-gain-en.png": (gain_chart, "en"),
+    "cumulative-gain-cn.png": (gain_chart, "cn"),
     "architecture-en.png": (architecture, "en"),
     "architecture-cn.png": (architecture, "cn"),
     "test-topology-en.png": (topology, "en"),
@@ -170,6 +228,10 @@ def main(argv: list[str] | None = None) -> int:
                 bad.append(item["file"])
         if set(i["file"] for i in ledger["images"]) != set(FIGURES):
             bad.append("ledger/figure list mismatch")
+        _, digest = _chart_data()
+        for item in ledger["images"]:
+            if item["file"].startswith("cumulative-gain") and item.get("data_sha256") != digest:
+                bad.append(f"{item['file']} (chart data changed; rerun tools/draw_diagrams.py)")
         if bad:
             print("IMAGE_LEDGER_MISMATCH " + ", ".join(bad))
             return 1
@@ -180,13 +242,18 @@ def main(argv: list[str] | None = None) -> int:
     for name, (fn, lang) in FIGURES.items():
         out = IMAGES / name
         fn(lang, out)
-        items.append({
+        item = {
             "file": name, "language": lang, "kind": "original diagram",
             "generator": "tools/draw_diagrams.py",
             "sha256": hashlib.sha256(out.read_bytes()).hexdigest(),
             "shows": "architecture of the three optimization layers" if name.startswith("architecture") else "measured 1P1D test topology and measurement points",
             "does_not_show": "measured traffic, latency or production readiness",
-        })
+        }
+        if name.startswith("cumulative-gain"):
+            item.update({"kind": "original chart", "data_sha256": _chart_data()[1],
+                         "shows": "measured MI300X-to-MI300X gain factors from evidence/measurements.json (cumulative section)",
+                         "does_not_show": "any other accelerator, production throughput or accuracy"})
+        items.append(item)
     LEDGER.write_text(json.dumps({"schema": 1, "images": items}, indent=2, ensure_ascii=False) + "\n",
                       encoding="utf-8", newline="\n")
     print(f"wrote {len(items)} images")

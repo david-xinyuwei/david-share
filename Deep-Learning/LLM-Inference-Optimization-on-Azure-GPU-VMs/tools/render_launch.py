@@ -9,7 +9,7 @@
 A profile is a JSON file in profiles/. Each role has a base command; each
 technique adds environment variables and arguments to the roles it touches.
 `--ablate <technique>` removes exactly that technique's contribution (and adds
-its `ablate_env`, if any), which is how a single-variable A/B is set up. The
+its `ablate_env` and `ablate_args`, if any), which is how a single-variable A/B is set up. The
 script only prints a bash snippet; it never starts a process.
 """
 from __future__ import annotations
@@ -70,6 +70,7 @@ def compose(profile: dict, role: str, ablate: list[str]) -> tuple[dict[str, str]
             continue
         if tech in ablate:
             env.update(part.get("ablate_env", {}))
+            argv.extend(part.get("ablate_args", []))
             continue
         env.update(part.get("env", {}))
         argv.extend(part.get("args", []))

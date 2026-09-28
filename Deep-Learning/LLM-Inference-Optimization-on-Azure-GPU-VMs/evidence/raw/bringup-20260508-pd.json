@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "kind": "public-raw-projection",
+  "source": {
+    "repository": "xinyuwei-david/MiMo-V2.5-Pro-MI300X-Bringup",
+    "commit": "e41bdc8cbc4c0efa48750eee94fdd2fde06949ea",
+    "directory": "data/pd_disagg_20260508/bench_pd",
+    "files": {
+      "aiter_prefill_8192.json": "864a6974b9bf073c3d9e9b52d0759035a619a7a97121ba5d6fc05dd14ce4c1cc",
+      "aiter_prefill_65536.json": "992da8ecf2535b764d802a4f4bba5d274ae1403fe69ecbf71fbd61a20dcca8e9",
+      "bs16.json": "ab4ce1809bd946a25bec61b75746f5e4b7f955912a7f7ed8948ead783ff72bc0",
+      "cg_bs16.json": "6a4901e4bf089d0b97119df07408122c1127e4801b452a61ad81940dc0b29014"
+    },
+    "public": true,
+    "archive": {
+      "path": "data/pd_disagg_20260508/bench_pd.tar.gz",
+      "sha256": "66111e8a42b0b14d87cd8c2f6c839245ca56c41463e60d2da015633e7eef924a"
+    }
+  },
+  "date": "2026-05-08",
+  "client": "custom asyncio client of the bring-up repository, not sglang.bench_serving",
+  "prefill": [
+    {
+      "file": "aiter_prefill_8192.json",
+      "input_len_target": 8192,
+      "avg_prompt_tokens": 7791.5,
+      "concurrency": 4,
+      "requests": 30,
+      "failed": 0,
+      "input_tok_s": 16643.9
+    },
+    {
+      "file": "aiter_prefill_65536.json",
+      "input_len_target": 65536,
+      "avg_prompt_tokens": 60610.4,
+      "concurrency": 4,
+      "requests": 30,
+      "failed": 0,
+      "input_tok_s": 13919.4
+    }
+  ],
+  "graph_capture_ab": {
+    "workload": {
+      "input_len_target": 16384,
+      "output_len_target": 1024,
+      "concurrency": 16,
+      "requests": 48
+    },
+    "graph_off": {
+      "file": "bs16.json",
+      "failed": 0,
+      "avg_completion_tokens": 335.2,
+      "p50_latency_s": 41.81,
+      "output_tok_s": 107.4,
+      "total_tok_s": 5021.3
+    },
+    "graph_on": {
+      "file": "cg_bs16.json",
+      "failed": 0,
+      "avg_completion_tokens": 351.7,
+      "p50_latency_s": 14.41,
+      "output_tok_s": 334.0,
+      "total_tok_s": 14901.9
+    }
+  }
+}
