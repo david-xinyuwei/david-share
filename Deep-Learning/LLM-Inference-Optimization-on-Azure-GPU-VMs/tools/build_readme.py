@@ -252,6 +252,58 @@ def technique_map(lang: str) -> str:
     return "\n".join(out)
 
 
+PRECISION_ORDER = ("lossy", "output-contract", "same-math", "measurement-only")
+PRECISION_TITLE = {
+    "en": {"lossy": "Lossy — check accuracy before production", "output-contract": "Output-preserving only if the implementation is correct",
+           "same-math": "Same arithmetic, different kernel or layout", "measurement-only": "Benchmark methods — never score their output"},
+    "cn": {"lossy": "有损——上线前必须核对准确率", "output-contract": "只有实现正确时才不改变输出",
+           "same-math": "算术不变，只换 kernel 或布局", "measurement-only": "测试方法——生成内容不能算分"},
+}
+
+
+def precision_map(lang: str) -> str:
+    cat = _json("profiles/techniques.json")
+    classes = cat["precision_classes"]
+    stack = {"measured-run": ("on in the measured runs", "实测时已打开"),
+             "pinned-runtime": ("in the pinned runtime only", "只在固定 runtime 中"),
+             "later": ("later commit, in no runtime here", "后续提交，不在任何 runtime 中")}
+    out = []
+    for cls in PRECISION_ORDER:
+        items = [t for t in cat["techniques"] if t["precision"]["class"] == cls]
+        if not items:
+            continue
+        stop = "." if lang == "en" else "。"
+        out.append(f"**{PRECISION_TITLE[lang][cls]}{stop}** {classes[cls][lang]}\n")
+        for t in items:
+            where = t["evidence_note"][lang] if "evidence_note" in t else stack[t["stack"]][0 if lang == "en" else 1]
+            sep = " — " if lang == "en" else "——"
+            out.append(f"- **{t[lang]}** ({where}){sep}{t['precision'][lang]}" if lang == "en"
+                       else f"- **{t[lang]}**（{where}）{sep}{t['precision'][lang]}")
+        out.append("")
+    return "\n".join(out)
+
+
+def numerical_tests(lang: str) -> str:
+    lock = _json("upstream/SOURCES.lock.json")
+    lines = []
+    for e in lock["patches"]:
+        text = (ROOT / "upstream" / "patches" / e["file"]).read_text(encoding="utf-8")
+        current = None
+        tests = []
+        for line in text.split("\n"):
+            m = re.match(r"^\+\+\+ b/(.+)$", line)
+            if m:
+                current = m.group(1)
+            m = re.match(r"^\+def (test_\w+)\(", line)
+            if m and current:
+                tests.append((current, m.group(1)))
+        for path, name in tests:
+            lines.append(f"- [`{e['repository']}@{e['commit'][:7]}`]({e['url']}) `{path}::{name}`")
+    if not lines:
+        raise SystemExit("NO_UPSTREAM_TESTS found in the pinned patches")
+    return "\n".join(lines) + "\n"
+
+
 STACK_LABEL = {
     "en": {"measured_run": "in the measured runs", "pinned_runtime_not_throughput_tested": "pinned runtime, not throughput-tested here",
            "later_branch": "later branch, not in any runtime here", "upstreamed_later": "upstream follow-up, not in the pinned runtime"},
@@ -281,6 +333,8 @@ BLOCKS = {
     "snapshot": snapshot,
     "snapshot-tpot": snapshot_tpot,
     "technique-map": technique_map,
+    "precision-map": precision_map,
+    "numerical-tests": numerical_tests,
     "moe-table": moe_table,
     "upstream-table": upstream_table,
 }

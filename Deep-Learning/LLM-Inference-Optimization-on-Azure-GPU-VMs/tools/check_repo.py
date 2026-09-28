@@ -31,6 +31,7 @@ FORBIDDEN = [
     (re.compile(r"\b(?:H20|H100|H200|H800|A100|A800|L20|L40S?|B100|B200|GB200|GB300|MI250X?|MI325X|MI35\dX?|TPU|Gaudi\d?)\b"), "named comparison accelerator"),
     (re.compile(r"(?i)\bxiaomi\b|小米"), "customer or publisher name outside the model id"),
     (re.compile(r"exp_stats|swe_flash", re.I), "customer evaluation material"),
+    (re.compile(r"(?i)swe-?bench"), "agentic benchmark run that used customer material"),
     (re.compile(r"xisun|azureuser|winvm2|/data/models/(?!MiMo-V2\.5-Pro\b)", re.I), "private host, user or path"),
     (re.compile(r"(?i)\b[A-Z]:\\Users\\|/home/[\w.-]+/|/Users/[\w.-]+/|\\\\[\w.-]+\\"), "user or network path"),
     (re.compile(r"\b[\w.+-]+@(?!users\.noreply\.github\.com)[\w-]+\.[\w.-]+\b"), "e-mail address"),

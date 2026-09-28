@@ -340,6 +340,24 @@
           "AITER_BYPASS_TUNE_CONFIG": "1"
         }
       }
+    },
+    "int8-quick-reduce": {
+      "prefill": {
+        "env": {
+          "ROCM_QUICK_REDUCE_QUANTIZATION": "INT8"
+        },
+        "ablate_env": {
+          "ROCM_QUICK_REDUCE_QUANTIZATION": "NONE"
+        }
+      },
+      "decode": {
+        "env": {
+          "ROCM_QUICK_REDUCE_QUANTIZATION": "INT8"
+        },
+        "ablate_env": {
+          "ROCM_QUICK_REDUCE_QUANTIZATION": "NONE"
+        }
+      }
     }
   }
 }

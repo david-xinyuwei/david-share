@@ -60,6 +60,27 @@ class LaunchTests(unittest.TestCase):
             text = " ".join(argv) + " " + " ".join(env)
             self.assertNotRegex(text, r"AITER|ROCM|HSA_|aiter|flydsl", role)
 
+    def test_int8_quick_reduce_is_explicit_and_ablatable(self):
+        profile = render_launch.load_profile("rocm-mi300x-pd")
+        env_on, _, _ = render_launch.compose(profile, "decode", [])
+        env_off, _, _ = render_launch.compose(profile, "decode", ["int8-quick-reduce"])
+        self.assertEqual(env_on["ROCM_QUICK_REDUCE_QUANTIZATION"], "INT8")
+        self.assertEqual(env_off["ROCM_QUICK_REDUCE_QUANTIZATION"], "NONE")
+
+    def test_accuracy_role_runs_real_acceptance_and_full_precision_reduce(self):
+        env, _, _ = render_launch.compose(render_launch.load_profile("rocm-mi300x-single"), "server", [])
+        self.assertEqual(env["ROCM_QUICK_REDUCE_QUANTIZATION"], "NONE")
+        self.assertNotIn("SGLANG_SIMULATE_ACC_LEN", env)
+        self.assertEqual(env["SGLANG_MIMO_EAGLE_HIP_NONGREEDY_VERIFY"], "1")
+
+    def test_ablating_fp8_kv_requires_ablating_flydsl(self):
+        profile = render_launch.load_profile("rocm-mi300x-single")
+        with self.assertRaises(SystemExit):
+            render_launch.compose(profile, "server", ["fp8-kv-5d"])
+        env, argv, _ = render_launch.compose(profile, "server", ["fp8-kv-5d", "flydsl-pa-decode"])
+        self.assertNotIn("--kv-cache-dtype", argv)
+        self.assertNotIn("SGLANG_AITER_PA_DECODE_IMPL", env)
+
     def test_unknown_technique_and_role_are_rejected(self):
         profile = render_launch.load_profile("rocm-mi300x-pd")
         with self.assertRaises(SystemExit):

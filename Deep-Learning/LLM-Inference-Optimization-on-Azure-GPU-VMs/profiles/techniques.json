@@ -30,10 +30,15 @@
       "evidence": "ON_IN_MEASURED_RUN",
       "evidence_note": {
         "en": "AITER backend on in measured runs; FlyDSL split only in the pinned runtime",
-        "cn": "测量时已开 AITER 后端；FlyDSL 分派只在固定 runtime 中"
+        "cn": "实测时已开 AITER 后端；FlyDSL 分派只在固定 runtime 中"
       },
       "rocm_cn": "`--attention-backend aiter`；全注意力层的 verify 走 FlyDSL，SWA/sink 层和普通 decode 留在 AITER",
-      "cuda_cn": "`--attention-backend fa3` 或 `flashinfer`；凡是一个 kernel 覆盖不了两种窗口类型的地方，都按层拆开"
+      "cuda_cn": "`--attention-backend fa3` 或 `flashinfer`；凡是一个 kernel 覆盖不了两种窗口类型的地方，都按层拆开",
+      "precision": {
+        "class": "same-math",
+        "en": "Different kernels for full and sliding-window layers; each computes exact attention.",
+        "cn": "全注意力层和滑动窗口层用不同 kernel，每个都计算精确 attention。"
+      }
     },
     {
       "id": "fp8-kv-5d",
@@ -51,10 +56,15 @@
       "evidence": "ON_IN_MEASURED_RUN",
       "evidence_note": {
         "en": "FP8 KV on in measured runs; 5D layout only in the pinned runtime",
-        "cn": "测量时已开 FP8 KV；5D 布局只在固定 runtime 中"
+        "cn": "实测时已开 FP8 KV；5D 布局只在固定 runtime 中"
       },
       "rocm_cn": "`--kv-cache-dtype fp8_e4m3` + `SGLANG_AITER_KV_CACHE_LAYOUT=vectorized_5d`",
-      "cuda_cn": "`--kv-cache-dtype fp8_e4m3`；FA3/FlashInfer 的分页布局本来就保留 16 字节内层向量"
+      "cuda_cn": "`--kv-cache-dtype fp8_e4m3`；FA3/FlashInfer 的分页布局本来就保留 16 字节内层向量",
+      "precision": {
+        "class": "lossy",
+        "en": "K and V are stored in FP8 E4M3 (3 mantissa bits) with one scale per tensor, so every cached token loses precision; the 5D layout itself only reorders bytes.",
+        "cn": "K、V 以 FP8 E4M3（3 位尾数）存储，每个张量一个缩放系数，每个缓存 token 都会损失精度；5D 布局本身只是重排字节。"
+      }
     },
     {
       "id": "unified-verify",
@@ -71,7 +81,12 @@
         "cn": "实测 A/B，与 CK GEMM 路径一起打开"
       },
       "rocm_cn": "decode 服务上设 `SGLANG_AITER_UNIFIED_VERIFY=1`",
-      "cuda_cn": "不需要；CUDA 的 attention 后端用自己的 kernel 做 verify"
+      "cuda_cn": "不需要；CUDA 的 attention 后端用自己的 kernel 做 verify",
+      "precision": {
+        "class": "same-math",
+        "en": "Selects which attention kernel verifies draft tokens; same exact attention.",
+        "cn": "只决定用哪个 attention kernel 校验草稿 token，计算的仍是精确 attention。"
+      }
     },
     {
       "id": "eagle-mtp",
@@ -88,11 +103,16 @@
       "stack": "measured-run",
       "evidence": "ON_IN_MEASURED_RUN",
       "evidence_note": {
-        "en": "on in measured runs (fixed acceptance); f26ae30 and 878fff1 only in the pinned runtime",
-        "cn": "测量时已开（固定接受长度）；f26ae30、878fff1 只在固定 runtime 中"
+        "en": "on in measured runs with fixed acceptance; f26ae30 and 878fff1 only in the pinned runtime",
+        "cn": "实测时以固定接受长度打开；f26ae30、878fff1 只在固定 runtime 中"
       },
       "rocm_cn": "`--speculative-algorithm EAGLE --speculative-num-steps 3 --speculative-eagle-topk 1 --speculative-num-draft-tokens 4 --enable-multi-layer-eagle`",
-      "cuda_cn": "同一组开关"
+      "cuda_cn": "同一组开关",
+      "precision": {
+        "class": "output-contract",
+        "en": "Speculative decoding keeps the target model's output distribution only if verification is right. On HIP, sampled verification silently fell back to greedy until 878fff1, so temperature had no effect.",
+        "cn": "投机解码只有在校验正确时才保持目标模型的输出分布。在 HIP 上，878fff1 之前采样校验会悄悄退回贪心，temperature 实际不起作用。"
+      }
     },
     {
       "id": "memory-sizing",
@@ -109,7 +129,12 @@
         "cn": "实测时为 chunk 32768、page 32"
       },
       "rocm_cn": "`--chunked-prefill-size 65536 --page-size 64 --swa-full-tokens-ratio 0.01`",
-      "cuda_cn": "同一组开关；具体数值按 HBM 容量和 kernel 支持的 page size 重新推算"
+      "cuda_cn": "同一组开关；具体数值按 HBM 容量和 kernel 支持的 page size 重新推算",
+      "precision": {
+        "class": "same-math",
+        "en": "Chunk and page sizes change how work is split, not what is computed; the SWA ratio only sizes the pool.",
+        "cn": "chunk 和 page 大小改变的是切分方式，不是计算内容；SWA 比例只决定池子大小。"
+      }
     },
     {
       "id": "flydsl-pa-decode",
@@ -126,7 +151,15 @@
       "stack": "pinned-runtime",
       "evidence": "KERNEL_NOT_ISOLATED",
       "rocm_cn": "`SGLANG_AITER_PA_DECODE_IMPL=flydsl` + `SGLANG_FLYDSL_PA_NUM_PARTITIONS=16`",
-      "cuda_cn": "CuTe DSL 或 FlashInfer 的 decode kernel；partition 数对应 split-KV"
+      "cuda_cn": "CuTe DSL 或 FlashInfer 的 decode kernel；partition 数对应 split-KV",
+      "precision": {
+        "class": "same-math",
+        "en": "Exact paged attention. The two fixed defects (unstaged query elements, 32-bit offset overflow) produced wrong output, not small drift, which is why the kernel refuses untested shapes.",
+        "cn": "精确 paged attention。已修复的两个缺陷（query 元素未搬入、32 位偏移溢出）产生的是错误输出，而不是小幅漂移，所以这个 kernel 会拒绝没测过的 shape。"
+      },
+      "requires": [
+        "fp8-kv-5d"
+      ]
     },
     {
       "id": "ck-a8w8-gemm",
@@ -146,7 +179,34 @@
         "cn": "实测 A/B，与 unified verify 一起打开"
       },
       "rocm_cn": "`SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1`",
-      "cuda_cn": "DeepGEMM（`SGLANG_ENABLE_JIT_DEEPGEMM=1`）或 CUTLASS 的 block-scale GEMM"
+      "cuda_cn": "DeepGEMM（`SGLANG_ENABLE_JIT_DEEPGEMM=1`）或 CUTLASS 的 block-scale GEMM",
+      "precision": {
+        "class": "same-math",
+        "en": "Both the Triton path and the CK path quantize activations to FP8 per 1x128 block against the same FP8 block-scale checkpoint; the switch changes the kernel, not the precision.",
+        "cn": "Triton 路径和 CK 路径都按 1x128 块把激活量化成 FP8，权重都是同一份 FP8 block-scale checkpoint；这个开关换的是 kernel，不是精度。"
+      }
+    },
+    {
+      "id": "int8-quick-reduce",
+      "layer": "operator",
+      "en": "INT8 Quick Reduce for tensor-parallel all-reduce",
+      "cn": "张量并行 all-reduce 使用 INT8 Quick Reduce",
+      "rocm": "`ROCM_QUICK_REDUCE_QUANTIZATION=INT8` (set by the base image; `NONE` turns it off)",
+      "cuda": "no default equivalent; NCCL and the SGLang custom all-reduce sum in full precision",
+      "rocm_cn": "`ROCM_QUICK_REDUCE_QUANTIZATION=INT8`（基础镜像默认设置；设为 `NONE` 即关闭）",
+      "cuda_cn": "默认没有对应功能；NCCL 和 SGLang 自定义 all-reduce 都按全精度求和",
+      "patches": [],
+      "stack": "measured-run",
+      "evidence": "ON_IN_MEASURED_RUN",
+      "evidence_note": {
+        "en": "on in the measured throughput runs, inherited from the base image; not isolated",
+        "cn": "实测吞吐时已打开，继承自基础镜像；未单独拆分"
+      },
+      "precision": {
+        "class": "lossy",
+        "en": "Tensor-parallel all-reduces that go through Quick Reduce are quantized to INT8 before the partial sums from the 8 GPUs are added.",
+        "cn": "走 Quick Reduce 的张量并行 all-reduce，会先把各卡的部分和量化成 INT8，再在 8 张卡之间相加。"
+      }
     },
     {
       "id": "tuned-fused-moe",
@@ -161,7 +221,12 @@
       "stack": "measured-run",
       "evidence": "LOCAL_STAGE",
       "rocm_cn": "AITER 里的 `mimo_v2_5_pro_b16_tuned_fmoe.csv`",
-      "cuda_cn": "用 `tuning_fused_moe_triton.py` 生成的 Triton fused-MoE JSON"
+      "cuda_cn": "用 `tuning_fused_moe_triton.py` 生成的 Triton fused-MoE JSON",
+      "precision": {
+        "class": "same-math",
+        "en": "Chooses among existing fused-MoE kernels per token count; the model math is unchanged.",
+        "cn": "按 token 数在已有 fused-MoE kernel 中选择，模型计算不变。"
+      }
     },
     {
       "id": "ck-prefill-tile",
@@ -177,7 +242,12 @@
       "stack": "pinned-runtime",
       "evidence": "PINNED_NOT_MEASURED",
       "rocm_cn": "AITER `3f4ab48` 自带的 CK patch，只对这个精确 shape 分派",
-      "cuda_cn": "确认分页 prefill 路径没有退回到「先 gather 再算稠密 attention」"
+      "cuda_cn": "确认分页 prefill 路径没有退回到「先 gather 再算稠密 attention」",
+      "precision": {
+        "class": "same-math",
+        "en": "Replaces the padded head-256 path with an exact head-192 tile.",
+        "cn": "去掉补齐到 head 256 的路径，改用精确的 head-192 tile。"
+      }
     },
     {
       "id": "mixed-router-gemm",
@@ -192,7 +262,12 @@
       "stack": "later",
       "evidence": "NOT_MEASURED",
       "rocm_cn": "`SGLANG_MIMO_MIXED_ROUTER=1`，用于 token 数不少于 2,048 的 router batch",
-      "cuda_cn": "同一个 Triton kernel 在 CUDA 上也能编译；重新调 block 大小即可"
+      "cuda_cn": "同一个 Triton kernel 在 CUDA 上也能编译；重新调 block 大小即可",
+      "precision": {
+        "class": "lossy",
+        "en": "Router weights drop from FP32 to FP16 and activations from BF16 to FP16 before accumulation. Router logits pick the top-8 experts, so a small change can flip which experts a token uses.",
+        "cn": "router 权重从 FP32 降到 FP16，激活从 BF16 转成 FP16 后再累加。router logits 决定选哪 8 个专家，微小变化就可能换掉 token 用的专家。"
+      }
     },
     {
       "id": "pd-disaggregation",
@@ -205,7 +280,12 @@
       "stack": "measured-run",
       "evidence": "ON_IN_MEASURED_RUN",
       "rocm_cn": "`--disaggregation-mode prefill|decode --disaggregation-transfer-backend mooncake` + `sglang_router --pd-disaggregation`",
-      "cuda_cn": "同一组开关；通过 GPUDirect RDMA 使用 mooncake 或 nixl"
+      "cuda_cn": "同一组开关；通过 GPUDirect RDMA 使用 mooncake 或 nixl",
+      "precision": {
+        "class": "same-math",
+        "en": "The KV cache is copied between servers byte for byte.",
+        "cn": "KV cache 在两个服务之间逐字节拷贝。"
+      }
     },
     {
       "id": "fake-prefill",
@@ -222,7 +302,12 @@
         "cn": "在固定 runtime 的脚本里；已发布的测试没有用到"
       },
       "rocm_cn": "decode 服务 `--disaggregation-transfer-backend fake`；客户端 `--fake-prefill`",
-      "cuda_cn": "上游 SGLang 的同一功能"
+      "cuda_cn": "上游 SGLang 的同一功能",
+      "precision": {
+        "class": "measurement-only",
+        "en": "The decode server starts from a KV cache that was never computed from the prompt.",
+        "cn": "decode 服务从一份并非由 prompt 算出来的 KV cache 开始。"
+      }
     },
     {
       "id": "simulated-acceptance",
@@ -235,7 +320,12 @@
       "stack": "measured-run",
       "evidence": "ON_IN_MEASURED_RUN",
       "rocm_cn": "`SGLANG_SIMULATE_ACC_LEN=3 SGLANG_SIMULATE_ACC_METHOD=match-expected`",
-      "cuda_cn": "上游 SGLang 的同一组变量"
+      "cuda_cn": "上游 SGLang 的同一组变量",
+      "precision": {
+        "class": "measurement-only",
+        "en": "Draft tokens are accepted by rule, not by the model, so the generated text is not the model's output.",
+        "cn": "草稿 token 按规则被接受，而不是由模型决定，生成的文本不是模型的输出。"
+      }
     },
     {
       "id": "concurrency-ladder",
@@ -248,12 +338,35 @@
       "stack": "measured-run",
       "evidence": "LOCAL_LADDER",
       "rocm_cn": "`bench_serving --max-concurrency 16 ... 256`，固定 prompt、预热请求和 seed",
-      "cuda_cn": "同一个客户端"
+      "cuda_cn": "同一个客户端",
+      "precision": {
+        "class": "measurement-only",
+        "en": "A load pattern, not a model change.",
+        "cn": "一种加载方式，不改变模型。"
+      }
     }
   ],
   "stack_values": {
     "measured-run": "switched on in the published Microsoft runs",
     "pinned-runtime": "present in the final pinned runtime, not throughput-tested here",
     "later": "on a later branch, in no runtime described here"
+  },
+  "precision_classes": {
+    "same-math": {
+      "en": "Same arithmetic contract; only kernel, layout or schedule changes. Results can differ in the last bits because the summation order changes, not systematically.",
+      "cn": "算术约定不变，只换 kernel、布局或调度。求和顺序变了，结果可能在最后几位有差异，但不是系统性偏差。"
+    },
+    "lossy": {
+      "en": "Fewer bits somewhere on the data path. Can shift outputs systematically and must be checked with an accuracy benchmark before production.",
+      "cn": "数据通路上某处用了更少的比特，可能让输出产生系统性偏移，上线前必须用准确率基准核对。"
+    },
+    "output-contract": {
+      "en": "Designed to leave the output distribution unchanged, but only if the implementation is correct; a bug changes outputs without any error message.",
+      "cn": "设计上不改变输出分布，但前提是实现正确；一旦有 bug，输出会变而且不报错。"
+    },
+    "measurement-only": {
+      "en": "Outputs produced in this mode are not model answers and must never be scored for accuracy.",
+      "cn": "这种模式下生成的内容不是模型的回答，绝不能拿来算准确率。"
+    }
   }
 }

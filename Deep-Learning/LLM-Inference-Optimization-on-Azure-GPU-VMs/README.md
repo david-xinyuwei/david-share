@@ -31,11 +31,11 @@ Author: Xinyu Wei · [中文](README_CN.md) · [Results](#measured-results-on-mi
 
 You supply: Azure ND MI300X v5 capacity (two VMs for the PD path, one for the single-VM path), the MiMo-V2.5-Pro checkpoint, and a container host with RDMA access.
 
-Not provided: model weights, the private raw logs behind the projected evidence (their SHA-256 is recorded), comparisons with other accelerators, accuracy results (the SWE-bench accuracy of this runtime is published separately in [MiMo-V2.5-Pro-on-MI300X-Benchmark](../MiMo-V2.5-Pro-on-MI300X-Benchmark/)), and any measured NVIDIA run.
+Not provided: model weights, the private raw logs behind the projected evidence (their SHA-256 is recorded), comparisons with other accelerators, end-to-end accuracy results for this stack, and any measured NVIDIA run. What each optimization can do to accuracy, and how to check it, is covered in [Which optimizations can change model output](#which-optimizations-can-change-model-output).
 
 ## Measured Results on MI300X
 
-Every row compares MI300X with MI300X. The evidence column says how strong the comparison is: an A/B changes named switches inside one session; a stage pair repeats the same captured launch and benchmark scripts on two dates around one library update. Throughput was measured with a fixed MTP acceptance of three draft tokens, a benchmark method that is more favorable than real traffic, so read these values as relative gains, not as production throughput. The first row is scheduler generation throughput; the other two are client-side input and output throughput.
+Every row compares MI300X with MI300X. The evidence column says how strong the comparison is: an A/B changes named switches inside one session; a stage pair repeats the same captured launch and benchmark scripts on two dates around one library update. Throughput was measured with a fixed MTP acceptance of three draft tokens, a benchmark method that is more favorable than real traffic, so read these values as relative gains, not as production throughput. Two lossy switches were also on — the FP8 KV cache and INT8 Quick Reduce — and their accuracy effect is not measured here; see [Which optimizations can change model output](#which-optimizations-can-change-model-output). The first row is scheduler generation throughput; the other two are client-side input and output throughput.
 
 <!-- BEGIN GENERATED: headline -->
 | What changed | Before → after (tok/s) | Change | Evidence |
@@ -229,7 +229,7 @@ The stage pair and the concurrency ladder ran on two ND MI300X v5 VMs: VM A host
   MI300X: `--speculative-algorithm EAGLE --speculative-num-steps 3 --speculative-eagle-topk 1 --speculative-num-draft-tokens 4 --enable-multi-layer-eagle`  
   NVIDIA: same flags  
   Code: [db840d9](https://github.com/sammysun0711/sglang/commit/db840d935a9f7097dbeb5f1b0dba4d261057a2bd), [f26ae30](https://github.com/sammysun0711/sglang/commit/f26ae30063143411f3ae552af1830fa46e3ee0fd), [878fff1](https://github.com/sammysun0711/sglang/commit/878fff15647fe3dabb32aa3a335b0ad16e3ee878)  
-  Evidence: on in measured runs (fixed acceptance); f26ae30 and 878fff1 only in the pinned runtime
+  Evidence: on in measured runs with fixed acceptance; f26ae30 and 878fff1 only in the pinned runtime
 - **Chunked prefill, page size and SWA pool sizing**  
   MI300X: `--chunked-prefill-size 65536 --page-size 64 --swa-full-tokens-ratio 0.01`  
   NVIDIA: same flags; re-derive the values from HBM size and kernel page support  
@@ -248,6 +248,11 @@ The stage pair and the concurrency ladder ran on two ND MI300X v5 VMs: VM A host
   NVIDIA: DeepGEMM (`SGLANG_ENABLE_JIT_DEEPGEMM=1`) or CUTLASS block-scale GEMM  
   Code: [2f9b9ae](https://github.com/sammysun0711/sglang/commit/2f9b9aedf32977bc5d088a86ec0a73bcf432a4d0), [fc96a4f](https://github.com/sammysun0711/aiter/commit/fc96a4f9f5f3e931cbb9de275c8aa01136417500)  
   Evidence: measured A/B, together with unified verify
+- **INT8 Quick Reduce for tensor-parallel all-reduce**  
+  MI300X: `ROCM_QUICK_REDUCE_QUANTIZATION=INT8` (set by the base image; `NONE` turns it off)  
+  NVIDIA: no default equivalent; NCCL and the SGLang custom all-reduce sum in full precision  
+  Code: no code change (configuration only)  
+  Evidence: on in the measured throughput runs, inherited from the base image; not isolated
 - **Shape-tuned fused-MoE kernel table**  
   MI300X: `mimo_v2_5_pro_b16_tuned_fmoe.csv` in AITER  
   NVIDIA: Triton fused-MoE JSON from `tuning_fused_moe_triton.py`  
@@ -552,6 +557,76 @@ Random-prompt benchmarks re-tokenize text, so the server-side length can drift. 
 
 Every accepted A/B arm is run twice on a freshly started server. Agreement within about 1% (see the A/B table) is what allows a 25% difference to be called real; a single run per arm would not.
 
+### Which optimizations can change model output
+
+A throughput gain only counts if the answers stay the same. Every technique above does one of four things to the numbers, and the class decides what has to be checked before it goes to production. The throughput runs on this page had FP8 KV, INT8 Quick Reduce and fixed MTP acceptance on; this repository publishes no accuracy result for that configuration.
+
+<!-- BEGIN GENERATED: precision-map -->
+**Lossy — check accuracy before production.** Fewer bits somewhere on the data path. Can shift outputs systematically and must be checked with an accuracy benchmark before production.
+
+- **FP8 KV cache in a vectorized 5D page layout** (FP8 KV on in measured runs; 5D layout only in the pinned runtime) — K and V are stored in FP8 E4M3 (3 mantissa bits) with one scale per tensor, so every cached token loses precision; the 5D layout itself only reorders bytes.
+- **INT8 Quick Reduce for tensor-parallel all-reduce** (on in the measured throughput runs, inherited from the base image; not isolated) — Tensor-parallel all-reduces that go through Quick Reduce are quantized to INT8 before the partial sums from the 8 GPUs are added.
+- **Mixed-precision Triton router (MoE gate) GEMM** (later commit, in no runtime here) — Router weights drop from FP32 to FP16 and activations from BF16 to FP16 before accumulation. Router logits pick the top-8 experts, so a small change can flip which experts a token uses.
+
+**Output-preserving only if the implementation is correct.** Designed to leave the output distribution unchanged, but only if the implementation is correct; a bug changes outputs without any error message.
+
+- **Multi-layer EAGLE MTP speculative decoding and verifier fixes** (on in measured runs with fixed acceptance; f26ae30 and 878fff1 only in the pinned runtime) — Speculative decoding keeps the target model's output distribution only if verification is right. On HIP, sampled verification silently fell back to greedy until 878fff1, so temperature had no effect.
+
+**Same arithmetic, different kernel or layout.** Same arithmetic contract; only kernel, layout or schedule changes. Results can differ in the last bits because the summation order changes, not systematically.
+
+- **Per-layer attention dispatch for hybrid SWA + GQA** (AITER backend on in measured runs; FlyDSL split only in the pinned runtime) — Different kernels for full and sliding-window layers; each computes exact attention.
+- **AITER unified attention for MTP target verify** (measured A/B, together with the CK GEMM path) — Selects which attention kernel verifies draft tokens; same exact attention.
+- **Chunked prefill, page size and SWA pool sizing** (measured runs used chunk 32768 and page 32) — Chunk and page sizes change how work is split, not what is computed; the SWA ratio only sizes the pool.
+- **FlyDSL paged-attention decode kernel (head 192, page 64)** (in the pinned runtime only) — Exact paged attention. The two fixed defects (unstaged query elements, 32-bit offset overflow) produced wrong output, not small drift, which is why the kernel refuses untested shapes.
+- **Block-scale FP8 GEMM with pre-shuffled weights** (measured A/B, together with unified verify) — Both the Triton path and the CK path quantize activations to FP8 per 1x128 block against the same FP8 block-scale checkpoint; the switch changes the kernel, not the precision.
+- **Shape-tuned fused-MoE kernel table** (on in the measured runs) — Chooses among existing fused-MoE kernels per token count; the model math is unchanged.
+- **Head-192, page-64 FP8 batch-prefill tile** (in the pinned runtime only) — Replaces the padded head-256 path with an exact head-192 tile.
+- **Prefill/decode disaggregation (1P1D) over RDMA** (on in the measured runs) — The KV cache is copied between servers byte for byte.
+
+**Benchmark methods — never score their output.** Outputs produced in this mode are not model answers and must never be scored for accuracy.
+
+- **Fake prefill for decode-only measurement** (in the pinned runtime's scripts; not used in the published runs) — The decode server starts from a KV cache that was never computed from the prompt.
+- **Fixed MTP acceptance for performance runs** (on in the measured runs) — Draft tokens are accepted by rule, not by the model, so the generated text is not the model's output.
+- **Concurrency ladder against the saturation point** (on in the measured runs) — A load pattern, not a model change.
+<!-- END GENERATED: precision-map -->
+
+INT8 Quick Reduce deserves a separate warning. None of the launch scripts used in the measured runs sets it: the `rocm/sgl-dev` base image exports `ROCM_QUICK_REDUCE_QUANTIZATION=INT8`, the captured environment of the measured runs shows it (hash in [`evidence/runs.json`](evidence/runs.json)), and every server started from that image inherits it. The profiles in this repository export it explicitly so that the inherited value is visible and can be ablated; the accuracy role of the pinned runtime sets it back to `NONE`. The same base-image ENV mechanism also silently overrode a Dockerfile ARG during the clean build, which is why every pin there carries a `PIN_` prefix.
+
+**Kernel-level numerical checks.** The upstream commits add tests that compare each MiMo-specific kernel with a PyTorch reference at MiMo's shape (head 192, page 64, FP8 KV, query length 4), including a 2 GiB offset case. They need an MI300X to run and were not run for this repository:
+
+<!-- BEGIN GENERATED: numerical-tests -->
+- [`ROCm/FlyDSL@e46db60`](https://github.com/ROCm/FlyDSL/commit/e46db6020b4560de82a7136d78cc33a5186338f4) `tests/kernels/test_pa.py::test_tile_pa_vectorized_5d_matches_torch`
+- [`ROCm/FlyDSL@e46db60`](https://github.com/ROCm/FlyDSL/commit/e46db6020b4560de82a7136d78cc33a5186338f4) `tests/kernels/test_pa.py::test_pa_decode_ps_rejects_unsupported_bf16_asymmetric_paths`
+- [`ROCm/FlyDSL@e46db60`](https://github.com/ROCm/FlyDSL/commit/e46db6020b4560de82a7136d78cc33a5186338f4) `tests/kernels/test_pa.py::test_pa_decode_ps_rejects_non_divisible_gqa_heads`
+- [`ROCm/FlyDSL@ed9885e`](https://github.com/ROCm/FlyDSL/commit/ed9885eca4ffc45e2ec1dc45fa00824baa6b56d3) `tests/kernels/test_pa.py::test_fp8_head_dim_192_matches_torch`
+- [`ROCm/FlyDSL@ed9885e`](https://github.com/ROCm/FlyDSL/commit/ed9885eca4ffc45e2ec1dc45fa00824baa6b56d3) `tests/kernels/test_pa.py::test_fp8_cache_offset_above_2gib`
+- [`sammysun0711/FlyDSL@c99d5cd`](https://github.com/sammysun0711/FlyDSL/commit/c99d5cd97864c11e459cff9169d387d312790782) `tests/kernels/test_pa.py::test_mimo_v25_pro_head_192_accuracy`
+- [`sammysun0711/aiter@10a9401`](https://github.com/sammysun0711/aiter/commit/10a94012efc1260dfdf16ba2f52fbda40a518a17) `op_tests/triton_tests/test_pa_decode_gluon.py::test_mimo_head_192_full_context_regression`
+- [`sammysun0711/aiter@3f4ab48`](https://github.com/sammysun0711/aiter/commit/3f4ab482a2986919c784e469e23cfac7f93bb153) `op_tests/test_batch_prefill.py::test_batch_prefill_mimo_fp8_vectorized_page64`
+<!-- END GENERATED: numerical-tests -->
+
+A kernel test proves the kernel matches its reference on the tested shapes. It does not measure how FP8 storage or INT8 reduction moves end-to-end answers; that needs a model-level check.
+
+**How to check a lossy switch on your model (not run here).** Use the accuracy role of the pinned runtime, which runs with real MTP acceptance and Quick Reduce off, and change one lossy switch per arm. The FP8 KV arm is not strictly single-variable: FlyDSL decode only works with FP8 KV, so that arm also moves the target-verify kernel back to AITER.
+
+```bash
+# Arm A: FP8 KV cache (as served)
+python tools/render_launch.py --profile rocm-mi300x-single --role server > arm_a.sh
+# Arm B: BF16 KV cache. FlyDSL decode requires FP8 KV, so the renderer makes you remove both.
+python tools/render_launch.py --profile rocm-mi300x-single --role server --ablate fp8-kv-5d --ablate flydsl-pa-decode > arm_b.sh
+# Quick Reduce: run arm A a second time with ROCM_QUICK_REDUCE_QUANTIZATION=INT8 exported before the server command.
+```
+
+Against each arm, run the evaluation tools shipped in the pinned SGLang, at temperature 0, on public datasets:
+
+```bash
+python3 -m sglang.test.run_eval --port 30001 --eval-name gsm8k --num-examples 1319
+python3 -m sglang.test.run_eval --port 30001 --eval-name mmlu --num-examples 2000
+python3 -m sglang.test.run_eval --port 30001 --eval-name gpqa
+```
+
+Run arm A twice first. The difference between those two runs is a rough noise floor for screening; a gap between arms that stays inside it is not an effect of the switch. Before publishing a conclusion, repeat each arm several times and report a confidence interval. Do not score anything produced with `fake-prefill` or `simulated-acceptance` switched on.
+
 ### Common misconceptions
 
 | Misconception | What the code and measurements show |
@@ -559,6 +634,7 @@ Every accepted A/B arm is run twice on a freshly started server. Agreement withi
 | "A faster kernel makes the model that much faster." | The FlyDSL kernel only runs for full-attention layers during target verification (see the dispatch excerpt); SWA and sink layers and the other operators keep their old cost, so any kernel speed-up is diluted by that share. |
 | "The tuned MoE table improves both throughput and latency." | At decode concurrency 64 and 128 throughput rose by about 12% while TPOT also rose by 12.6–14.1%: the table trades per-token latency for batch throughput. |
 | "More client concurrency means more throughput." | The ladder plateaus at concurrency 64; beyond it only time to first token grows. |
+| "If the launch script does not set a precision switch, it is off." | `ROCM_QUICK_REDUCE_QUANTIZATION=INT8` comes from the base image's ENV and was on in the measured runs although none of their launch scripts sets it. Read the process environment, not the script. |
 | "A 100% success count means every request worked." | With too small a `--context-length`, oversized prompts can return error payloads that the client counts as successes; the context headroom rule catches this. |
 
 ### Porting the method to NVIDIA GPUs
@@ -657,6 +733,7 @@ The same commands run in CI on Ubuntu and Windows with Python 3.10 and 3.12 ([wo
 - `LOCAL_MEASUREMENT`: the A/B and the stage pair each cover one workload shape. Other context lengths, concurrencies and batch compositions were not measured with the same controls.
 - `LOCAL_MEASUREMENT`: throughput was measured with a fixed MTP acceptance of three tokens. Real workloads accept fewer draft tokens on average, so their throughput is lower.
 - `NOT_MEASURED`: the final runtime (FlyDSL decode, vectorized 5D KV, page 64, 1M context) has no Microsoft throughput run published here, and neither does the mixed-precision router GEMM.
+- `NOT_MEASURED`: the accuracy effect of the lossy switches (FP8 KV cache, INT8 Quick Reduce, mixed-precision router) was not measured; the throughput runs had the first two on. The procedure above covers FP8 KV and Quick Reduce; the router change needs its own A/B on a runtime that contains commit `1f9bb2b`.
 - `NOT_MEASURED`: nothing here was run on NVIDIA GPUs. The CUDA profile is a mapping of upstream switches.
 - `SOURCE_FACT`: the FlyDSL, CK and MTP shape gates in the excerpts limit each kernel to MiMo's shape (16 query heads and 1 KV head per rank, head 192, page 64, gfx942). Another model needs its own validation, not just the flags.
 

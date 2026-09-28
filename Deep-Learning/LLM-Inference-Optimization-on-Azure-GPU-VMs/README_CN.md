@@ -31,11 +31,11 @@
 
 你需要自备：Azure ND MI300X v5 容量（PD 路线两台，单机路线一台）、MiMo-V2.5-Pro 权重，以及能访问 RDMA 的容器宿主机。
 
-不提供：模型权重；证据投影背后的私有原始日志（只记录其 SHA-256）；与其他加速卡的比较；准确率结果（这套 runtime 的 SWE-bench 准确率另见 [MiMo-V2.5-Pro-on-MI300X-Benchmark](../MiMo-V2.5-Pro-on-MI300X-Benchmark/)）；任何 NVIDIA 上的实测。
+不提供：模型权重；证据投影背后的私有原始日志（只记录其 SHA-256）；与其他加速卡的比较；这套栈的端到端准确率结果；任何 NVIDIA 上的实测。每项优化会对准确率产生什么影响、怎么核对，见[哪些优化可能改变模型输出](#哪些优化可能改变模型输出)。
 
 ## MI300X 实测结果
 
-每一行都是 MI300X 和 MI300X 自己比。「证据类型」一列说明对比有多硬：A/B 是同一轮测试里只改指定的开关；阶段对比是两个日期重复同一套已记录的启动和压测脚本，中间只更新了一个库。吞吐是在 MTP 固定接受 3 个草稿 token 的条件下测的，这种测法比真实流量更乐观，所以这些数值应当看作相对提升，而不是生产吞吐。第一行是调度器的生成吞吐，后两行是客户端测得的输入和输出吞吐。
+每一行都是 MI300X 和 MI300X 自己比。「证据类型」一列说明对比有多硬：A/B 是同一轮测试里只改指定的开关；阶段对比是两个日期重复同一套已记录的启动和压测脚本，中间只更新了一个库。吞吐是在 MTP 固定接受 3 个草稿 token 的条件下测的，这种测法比真实流量更乐观，所以这些数值应当看作相对提升，而不是生产吞吐。测试时还打开了两个有损开关——FP8 KV cache 和 INT8 Quick Reduce——它们对准确率的影响本仓库没有测，见[哪些优化可能改变模型输出](#哪些优化可能改变模型输出)。第一行是调度器的生成吞吐，后两行是客户端测得的输入和输出吞吐。
 
 <!-- BEGIN GENERATED: headline -->
 | 改了什么 | 优化前 → 优化后（tok/s） | 变化 | 证据 |
@@ -214,12 +214,12 @@ FlyDSL paged-attention decode kernel、向量化 5D KV 布局、page 64 和 head
   MI300X：`--attention-backend aiter`；全注意力层的 verify 走 FlyDSL，SWA/sink 层和普通 decode 留在 AITER  
   NVIDIA：`--attention-backend fa3` 或 `flashinfer`；凡是一个 kernel 覆盖不了两种窗口类型的地方，都按层拆开  
   代码：[ba15db1](https://github.com/sammysun0711/sglang/commit/ba15db1a576dcdc8d51ba15bd069b9fd1f748d97), [0cfc48b](https://github.com/sammysun0711/sglang/commit/0cfc48b0e374d7e84c122f739182a39feea56d46)  
-  证据：测量时已开 AITER 后端；FlyDSL 分派只在固定 runtime 中
+  证据：实测时已开 AITER 后端；FlyDSL 分派只在固定 runtime 中
 - **FP8 KV cache + 向量化 5D 分页布局**  
   MI300X：`--kv-cache-dtype fp8_e4m3` + `SGLANG_AITER_KV_CACHE_LAYOUT=vectorized_5d`  
   NVIDIA：`--kv-cache-dtype fp8_e4m3`；FA3/FlashInfer 的分页布局本来就保留 16 字节内层向量  
   代码：[78cd40c](https://github.com/sammysun0711/sglang/commit/78cd40c7a5102524536daf9a3178426777174d2d), [e11c515](https://github.com/sammysun0711/sglang/commit/e11c5155f0845079211c2a4d0b8a4ab3669039f9), [10a9401](https://github.com/sammysun0711/aiter/commit/10a94012efc1260dfdf16ba2f52fbda40a518a17)  
-  证据：测量时已开 FP8 KV；5D 布局只在固定 runtime 中
+  证据：实测时已开 FP8 KV；5D 布局只在固定 runtime 中
 - **MTP target verify 使用 AITER unified attention**  
   MI300X：decode 服务上设 `SGLANG_AITER_UNIFIED_VERIFY=1`  
   NVIDIA：不需要；CUDA 的 attention 后端用自己的 kernel 做 verify  
@@ -229,7 +229,7 @@ FlyDSL paged-attention decode kernel、向量化 5D KV 布局、page 64 和 head
   MI300X：`--speculative-algorithm EAGLE --speculative-num-steps 3 --speculative-eagle-topk 1 --speculative-num-draft-tokens 4 --enable-multi-layer-eagle`  
   NVIDIA：同一组开关  
   代码：[db840d9](https://github.com/sammysun0711/sglang/commit/db840d935a9f7097dbeb5f1b0dba4d261057a2bd), [f26ae30](https://github.com/sammysun0711/sglang/commit/f26ae30063143411f3ae552af1830fa46e3ee0fd), [878fff1](https://github.com/sammysun0711/sglang/commit/878fff15647fe3dabb32aa3a335b0ad16e3ee878)  
-  证据：测量时已开（固定接受长度）；f26ae30、878fff1 只在固定 runtime 中
+  证据：实测时以固定接受长度打开；f26ae30、878fff1 只在固定 runtime 中
 - **Chunked prefill、page size 与 SWA 池容量**  
   MI300X：`--chunked-prefill-size 65536 --page-size 64 --swa-full-tokens-ratio 0.01`  
   NVIDIA：同一组开关；具体数值按 HBM 容量和 kernel 支持的 page size 重新推算  
@@ -248,6 +248,11 @@ FlyDSL paged-attention decode kernel、向量化 5D KV 布局、page 64 和 head
   NVIDIA：DeepGEMM（`SGLANG_ENABLE_JIT_DEEPGEMM=1`）或 CUTLASS 的 block-scale GEMM  
   代码：[2f9b9ae](https://github.com/sammysun0711/sglang/commit/2f9b9aedf32977bc5d088a86ec0a73bcf432a4d0), [fc96a4f](https://github.com/sammysun0711/aiter/commit/fc96a4f9f5f3e931cbb9de275c8aa01136417500)  
   证据：实测 A/B，与 unified verify 一起打开
+- **张量并行 all-reduce 使用 INT8 Quick Reduce**  
+  MI300X：`ROCM_QUICK_REDUCE_QUANTIZATION=INT8`（基础镜像默认设置；设为 `NONE` 即关闭）  
+  NVIDIA：默认没有对应功能；NCCL 和 SGLang 自定义 all-reduce 都按全精度求和  
+  代码：无代码改动（仅配置）  
+  证据：实测吞吐时已打开，继承自基础镜像；未单独拆分
 - **按 shape 调优的 fused-MoE kernel 表**  
   MI300X：AITER 里的 `mimo_v2_5_pro_b16_tuned_fmoe.csv`  
   NVIDIA：用 `tuning_fused_moe_triton.py` 生成的 Triton fused-MoE JSON  
@@ -552,6 +557,76 @@ Prefill 受算力限制，decode 受访存限制；一次长 prefill 会拖住�
 
 每个被采纳的 A/B 组都在全新启动的服务上跑两次。两次结果相差约 1% 以内（见 A/B 表），才能说 25% 的差距是真的；每组只跑一次是说明不了问题的。
 
+### 哪些优化可能改变模型输出
+
+吞吐提升的前提是答案不变。上面每一项技术对数值的影响可以归成四类，类别决定了上线前要核对什么。本页的吞吐测试打开了 FP8 KV、INT8 Quick Reduce 和固定 MTP 接受长度；本仓库没有发布这套配置的准确率结果。
+
+<!-- BEGIN GENERATED: precision-map -->
+**有损——上线前必须核对准确率。** 数据通路上某处用了更少的比特，可能让输出产生系统性偏移，上线前必须用准确率基准核对。
+
+- **FP8 KV cache + 向量化 5D 分页布局**（实测时已开 FP8 KV；5D 布局只在固定 runtime 中）——K、V 以 FP8 E4M3（3 位尾数）存储，每个张量一个缩放系数，每个缓存 token 都会损失精度；5D 布局本身只是重排字节。
+- **张量并行 all-reduce 使用 INT8 Quick Reduce**（实测吞吐时已打开，继承自基础镜像；未单独拆分）——走 Quick Reduce 的张量并行 all-reduce，会先把各卡的部分和量化成 INT8，再在 8 张卡之间相加。
+- **混合精度 Triton router（MoE gate）GEMM**（后续提交，不在任何 runtime 中）——router 权重从 FP32 降到 FP16，激活从 BF16 转成 FP16 后再累加。router logits 决定选哪 8 个专家，微小变化就可能换掉 token 用的专家。
+
+**只有实现正确时才不改变输出。** 设计上不改变输出分布，但前提是实现正确；一旦有 bug，输出会变而且不报错。
+
+- **多层 EAGLE MTP 投机解码及校验修复**（实测时以固定接受长度打开；f26ae30、878fff1 只在固定 runtime 中）——投机解码只有在校验正确时才保持目标模型的输出分布。在 HIP 上，878fff1 之前采样校验会悄悄退回贪心，temperature 实际不起作用。
+
+**算术不变，只换 kernel 或布局。** 算术约定不变，只换 kernel、布局或调度。求和顺序变了，结果可能在最后几位有差异，但不是系统性偏差。
+
+- **混合 SWA + GQA 的逐层 attention 分派**（实测时已开 AITER 后端；FlyDSL 分派只在固定 runtime 中）——全注意力层和滑动窗口层用不同 kernel，每个都计算精确 attention。
+- **MTP target verify 使用 AITER unified attention**（实测 A/B，与 CK GEMM 路径一起打开）——只决定用哪个 attention kernel 校验草稿 token，计算的仍是精确 attention。
+- **Chunked prefill、page size 与 SWA 池容量**（实测时为 chunk 32768、page 32）——chunk 和 page 大小改变的是切分方式，不是计算内容；SWA 比例只决定池子大小。
+- **FlyDSL paged-attention decode kernel（head 192，page 64）**（只在固定 runtime 中）——精确 paged attention。已修复的两个缺陷（query 元素未搬入、32 位偏移溢出）产生的是错误输出，而不是小幅漂移，所以这个 kernel 会拒绝没测过的 shape。
+- **权重预重排的 block-scale FP8 GEMM**（实测 A/B，与 unified verify 一起打开）——Triton 路径和 CK 路径都按 1x128 块把激活量化成 FP8，权重都是同一份 FP8 block-scale checkpoint；这个开关换的是 kernel，不是精度。
+- **按 shape 调优的 fused-MoE kernel 表**（实测时已打开）——按 token 数在已有 fused-MoE kernel 中选择，模型计算不变。
+- **head 192、page 64 的 FP8 batch-prefill tile**（只在固定 runtime 中）——去掉补齐到 head 256 的路径，改用精确的 head-192 tile。
+- **Prefill/Decode 分离（1P1D），KV 走 RDMA**（实测时已打开）——KV cache 在两个服务之间逐字节拷贝。
+
+**测试方法——生成内容不能算分。** 这种模式下生成的内容不是模型的回答，绝不能拿来算准确率。
+
+- **Fake prefill：只测 decode**（在固定 runtime 的脚本里；已发布的测试没有用到）——decode 服务从一份并非由 prompt 算出来的 KV cache 开始。
+- **性能测试固定 MTP 接受长度**（实测时已打开）——草稿 token 按规则被接受，而不是由模型决定，生成的文本不是模型的输出。
+- **按饱和点设计并发阶梯**（实测时已打开）——一种加载方式，不改变模型。
+<!-- END GENERATED: precision-map -->
+
+INT8 Quick Reduce 要单独提醒。实测时用的启动脚本都没有设置它：`rocm/sgl-dev` 基础镜像自带 `ROCM_QUICK_REDUCE_QUANTIZATION=INT8`，实测时记录下来的容器环境里就有它（哈希见 [`evidence/runs.json`](evidence/runs.json)），从这个镜像启动的每个服务都会继承。本仓库的 profile 把它显式写了出来，让这个继承值可见、可以消融；固定 runtime 的准确率角色把它重新设成 `NONE`。在干净构建时，同样的基础镜像 ENV 机制还悄悄覆盖了 Dockerfile 的一个 ARG，所以那里的每个版本参数都加了 `PIN_` 前缀。
+
+**kernel 级数值检查。** 上游提交为每个 MiMo 专用 kernel 加了测试，在 MiMo 的 shape（head 192、page 64、FP8 KV、query 长度 4）上与 PyTorch 参考实现比对，其中包括 2 GiB 偏移的用例。这些测试需要 MI300X，本仓库没有运行：
+
+<!-- BEGIN GENERATED: numerical-tests -->
+- [`ROCm/FlyDSL@e46db60`](https://github.com/ROCm/FlyDSL/commit/e46db6020b4560de82a7136d78cc33a5186338f4) `tests/kernels/test_pa.py::test_tile_pa_vectorized_5d_matches_torch`
+- [`ROCm/FlyDSL@e46db60`](https://github.com/ROCm/FlyDSL/commit/e46db6020b4560de82a7136d78cc33a5186338f4) `tests/kernels/test_pa.py::test_pa_decode_ps_rejects_unsupported_bf16_asymmetric_paths`
+- [`ROCm/FlyDSL@e46db60`](https://github.com/ROCm/FlyDSL/commit/e46db6020b4560de82a7136d78cc33a5186338f4) `tests/kernels/test_pa.py::test_pa_decode_ps_rejects_non_divisible_gqa_heads`
+- [`ROCm/FlyDSL@ed9885e`](https://github.com/ROCm/FlyDSL/commit/ed9885eca4ffc45e2ec1dc45fa00824baa6b56d3) `tests/kernels/test_pa.py::test_fp8_head_dim_192_matches_torch`
+- [`ROCm/FlyDSL@ed9885e`](https://github.com/ROCm/FlyDSL/commit/ed9885eca4ffc45e2ec1dc45fa00824baa6b56d3) `tests/kernels/test_pa.py::test_fp8_cache_offset_above_2gib`
+- [`sammysun0711/FlyDSL@c99d5cd`](https://github.com/sammysun0711/FlyDSL/commit/c99d5cd97864c11e459cff9169d387d312790782) `tests/kernels/test_pa.py::test_mimo_v25_pro_head_192_accuracy`
+- [`sammysun0711/aiter@10a9401`](https://github.com/sammysun0711/aiter/commit/10a94012efc1260dfdf16ba2f52fbda40a518a17) `op_tests/triton_tests/test_pa_decode_gluon.py::test_mimo_head_192_full_context_regression`
+- [`sammysun0711/aiter@3f4ab48`](https://github.com/sammysun0711/aiter/commit/3f4ab482a2986919c784e469e23cfac7f93bb153) `op_tests/test_batch_prefill.py::test_batch_prefill_mimo_fp8_vectorized_page64`
+<!-- END GENERATED: numerical-tests -->
+
+kernel 测试证明的是 kernel 在测过的 shape 上与参考实现一致，并不能衡量 FP8 存储或 INT8 求和对端到端答案的影响；那需要模型级的检查。
+
+**如何在你的模型上检查一个有损开关（本仓库未运行）。** 用固定 runtime 的准确率角色（真实 MTP 接受、Quick Reduce 关闭），每组只改一个有损开关。FP8 KV 这一组不是严格的单变量：FlyDSL decode 只支持 FP8 KV，所以这组同时把 target verify 的 kernel 换回了 AITER。
+
+```bash
+# A 组：FP8 KV cache（线上配置）
+python tools/render_launch.py --profile rocm-mi300x-single --role server > arm_a.sh
+# B 组：BF16 KV cache。FlyDSL decode 依赖 FP8 KV，渲染器会要求两者一起去掉。
+python tools/render_launch.py --profile rocm-mi300x-single --role server --ablate fp8-kv-5d --ablate flydsl-pa-decode > arm_b.sh
+# Quick Reduce：在启动命令前 export ROCM_QUICK_REDUCE_QUANTIZATION=INT8，再跑一次 A 组。
+```
+
+对每一组，用固定版本 SGLang 自带的评测工具、temperature 0、在公开数据集上跑：
+
+```bash
+python3 -m sglang.test.run_eval --port 30001 --eval-name gsm8k --num-examples 1319
+python3 -m sglang.test.run_eval --port 30001 --eval-name mmlu --num-examples 2000
+python3 -m sglang.test.run_eval --port 30001 --eval-name gpqa
+```
+
+先把 A 组跑两遍，两遍之间的差可以当作初筛用的粗略噪声下限；两组之间的差落在这个范围内，就不能算是开关带来的影响。要发布结论，每组应重复多次并给出置信区间。打开 `fake-prefill` 或 `simulated-acceptance` 时生成的任何内容都不能拿来算分。
+
 ### 常见误解
 
 | 误解 | 代码和实测给出的事实 |
@@ -559,6 +634,7 @@ Prefill 受算力限制，decode 受访存限制；一次长 prefill 会拖住�
 | 「kernel 快多少倍，模型就快多少倍。」 | FlyDSL kernel 只在 target verify 阶段的全注意力层上运行（见上面的分派代码），SWA 层、sink 层和其他算子的开销没变，kernel 的加速会被这部分占比稀释。 |
 | 「调优 MoE 表同时改善了吞吐和延迟。」 | decode 并发 64 和 128 时吞吐提升约 12%，TPOT 同时上升 12.6%–14.1%：这张表是用单 token 延迟换整批吞吐。 |
 | 「客户端并发越高，吞吐越高。」 | 并发阶梯在 64 就到平台期，再往上只有首 token 时间在增长。 |
+| 「启动脚本没设的精度开关，就是关着的。」 | `ROCM_QUICK_REDUCE_QUANTIZATION=INT8` 来自基础镜像的 ENV，实测时用的启动脚本都没有设置它，但它是打开的。要看进程环境，而不是看脚本。 |
 | 「成功数 100% 就说明每个请求都正常。」 | `--context-length` 太小时，超长 prompt 可能返回错误内容却被客户端记为成功；上下文余量规则就是为了拦住这种情况。 |
 
 ### 迁移到 NVIDIA GPU
@@ -657,6 +733,7 @@ CI 在 Ubuntu 和 Windows、Python 3.10 与 3.12 上运行同一组命令（[wor
 - `LOCAL_MEASUREMENT`：A/B 和阶段对比各自只覆盖一种负载 shape，其他上下文长度、并发和 batch 组成没有在同样的控制条件下测过。
 - `LOCAL_MEASUREMENT`：吞吐是在 MTP 固定接受 3 个 token 的条件下测的。真实负载平均接受的草稿 token 更少，吞吐会更低。
 - `NOT_MEASURED`：最终 runtime（FlyDSL decode、向量化 5D KV、page 64、1M 上下文）没有在这里发布微软自己的吞吐测试，混合精度 router GEMM 也没有。
+- `NOT_MEASURED`：有损开关（FP8 KV cache、INT8 Quick Reduce、混合精度 router）对准确率的影响没有测；吞吐测试时前两个是打开的。上面的步骤覆盖 FP8 KV 和 Quick Reduce；router 的改动需要在包含提交 `1f9bb2b` 的 runtime 上单独做 A/B。
 - `NOT_MEASURED`：这里没有任何内容在 NVIDIA GPU 上跑过，CUDA profile 只是上游开关的对应关系。
 - `SOURCE_FACT`：摘录中 FlyDSL、CK 和 MTP 的 shape 检查把每个 kernel 限定在 MiMo 的 shape 上（每个 rank 16 个 query head、1 个 KV head，head 192，page 64，gfx942）。换一个模型需要重新验证，不是改改开关就行。
 

@@ -19,50 +19,260 @@
   },
   "roles": {
     "decode": {
-      "command": ["python3", "-u", "-m", "sglang.launch_server"],
-      "args": ["--model-path", "${MODEL_PATH}", "--tp-size", "8", "--max-running-requests", "96", "--host", "0.0.0.0", "--port", "30001", "--trust-remote-code", "--reasoning-parser", "mimo", "--tool-call-parser", "mimo", "--mem-fraction-static", "1.0", "--context-length", "1048576", "--max-prefill-tokens", "1048576"]
+      "command": [
+        "python3",
+        "-u",
+        "-m",
+        "sglang.launch_server"
+      ],
+      "args": [
+        "--model-path",
+        "${MODEL_PATH}",
+        "--tp-size",
+        "8",
+        "--max-running-requests",
+        "96",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "30001",
+        "--trust-remote-code",
+        "--reasoning-parser",
+        "mimo",
+        "--tool-call-parser",
+        "mimo",
+        "--mem-fraction-static",
+        "1.0",
+        "--context-length",
+        "1048576",
+        "--max-prefill-tokens",
+        "1048576"
+      ]
     },
     "server": {
-      "command": ["python3", "-u", "-m", "sglang.launch_server"],
-      "env": {"ROCM_QUICK_REDUCE_QUANTIZATION": "NONE", "SGLANG_SCHEDULER_SKIP_ALL_GATHER": "1", "SGLANG_ENABLE_HEALTH_ENDPOINT_GENERATION": "0"},
-      "args": ["--model-path", "${MODEL_PATH}", "--tp-size", "8", "--max-running-requests", "96", "--host", "0.0.0.0", "--port", "30001", "--trust-remote-code", "--reasoning-parser", "mimo", "--tool-call-parser", "mimo", "--mem-fraction-static", "0.95", "--context-length", "1048576", "--max-prefill-tokens", "1048576"]
+      "command": [
+        "python3",
+        "-u",
+        "-m",
+        "sglang.launch_server"
+      ],
+      "env": {
+        "ROCM_QUICK_REDUCE_QUANTIZATION": "NONE",
+        "SGLANG_SCHEDULER_SKIP_ALL_GATHER": "1",
+        "SGLANG_ENABLE_HEALTH_ENDPOINT_GENERATION": "0"
+      },
+      "args": [
+        "--model-path",
+        "${MODEL_PATH}",
+        "--tp-size",
+        "8",
+        "--max-running-requests",
+        "96",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "30001",
+        "--trust-remote-code",
+        "--reasoning-parser",
+        "mimo",
+        "--tool-call-parser",
+        "mimo",
+        "--mem-fraction-static",
+        "0.95",
+        "--context-length",
+        "1048576",
+        "--max-prefill-tokens",
+        "1048576"
+      ]
     },
     "bench-decode": {
-      "command": ["python3", "-m", "sglang.bench_serving"],
-      "args": ["--backend", "sglang", "--model", "${MODEL_PATH}", "--host", "0.0.0.0", "--port", "30001", "--dataset-name", "random", "--random-input-len", "${INPUT_IDS}", "--random-output-len", "1024", "--random-range-ratio", "1.0", "--flush-cache", "--seed", "12345", "--num-prompts", "256", "--warmup-requests", "32", "--max-concurrency", "${CONCURRENCY}", "--tokenize-prompt"]
+      "command": [
+        "python3",
+        "-m",
+        "sglang.bench_serving"
+      ],
+      "args": [
+        "--backend",
+        "sglang",
+        "--model",
+        "${MODEL_PATH}",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "30001",
+        "--dataset-name",
+        "random",
+        "--random-input-len",
+        "${INPUT_IDS}",
+        "--random-output-len",
+        "1024",
+        "--random-range-ratio",
+        "1.0",
+        "--flush-cache",
+        "--seed",
+        "12345",
+        "--num-prompts",
+        "256",
+        "--warmup-requests",
+        "32",
+        "--max-concurrency",
+        "${CONCURRENCY}",
+        "--tokenize-prompt"
+      ]
     }
   },
   "techniques": {
     "attention-dispatch": {
-      "decode": {"env": {"SGLANG_USE_AITER": "1"}, "args": ["--attention-backend", "aiter"]},
-      "server": {"env": {"SGLANG_USE_AITER": "1"}, "args": ["--attention-backend", "aiter"]}
+      "decode": {
+        "env": {
+          "SGLANG_USE_AITER": "1"
+        },
+        "args": [
+          "--attention-backend",
+          "aiter"
+        ]
+      },
+      "server": {
+        "env": {
+          "SGLANG_USE_AITER": "1"
+        },
+        "args": [
+          "--attention-backend",
+          "aiter"
+        ]
+      }
     },
     "memory-sizing": {
-      "decode": {"args": ["--swa-full-tokens-ratio", "0.01", "--chunked-prefill-size", "65536", "--page-size", "64"]},
-      "server": {"args": ["--swa-full-tokens-ratio", "0.01", "--chunked-prefill-size", "65536", "--page-size", "64"]}
+      "decode": {
+        "args": [
+          "--swa-full-tokens-ratio",
+          "0.01",
+          "--chunked-prefill-size",
+          "65536",
+          "--page-size",
+          "64"
+        ]
+      },
+      "server": {
+        "args": [
+          "--swa-full-tokens-ratio",
+          "0.01",
+          "--chunked-prefill-size",
+          "65536",
+          "--page-size",
+          "64"
+        ]
+      }
     },
     "fp8-kv-5d": {
-      "decode": {"env": {"SGLANG_AITER_KV_CACHE_LAYOUT": "vectorized_5d"}, "args": ["--kv-cache-dtype", "fp8_e4m3"]},
-      "server": {"env": {"SGLANG_AITER_KV_CACHE_LAYOUT": "vectorized_5d"}, "args": ["--kv-cache-dtype", "fp8_e4m3"]}
+      "decode": {
+        "env": {
+          "SGLANG_AITER_KV_CACHE_LAYOUT": "vectorized_5d"
+        },
+        "args": [
+          "--kv-cache-dtype",
+          "fp8_e4m3"
+        ]
+      },
+      "server": {
+        "env": {
+          "SGLANG_AITER_KV_CACHE_LAYOUT": "vectorized_5d"
+        },
+        "args": [
+          "--kv-cache-dtype",
+          "fp8_e4m3"
+        ]
+      }
     },
     "flydsl-pa-decode": {
-      "decode": {"env": {"SGLANG_AITER_PA_DECODE_IMPL": "flydsl", "SGLANG_FLYDSL_PA_NUM_PARTITIONS": "16"}},
-      "server": {"env": {"SGLANG_AITER_PA_DECODE_IMPL": "flydsl", "SGLANG_FLYDSL_PA_NUM_PARTITIONS": "16"}}
+      "decode": {
+        "env": {
+          "SGLANG_AITER_PA_DECODE_IMPL": "flydsl",
+          "SGLANG_FLYDSL_PA_NUM_PARTITIONS": "16"
+        }
+      },
+      "server": {
+        "env": {
+          "SGLANG_AITER_PA_DECODE_IMPL": "flydsl",
+          "SGLANG_FLYDSL_PA_NUM_PARTITIONS": "16"
+        }
+      }
     },
     "ck-a8w8-gemm": {
-      "decode": {"env": {"SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE": "1"}},
-      "server": {"env": {"SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE": "1"}}
+      "decode": {
+        "env": {
+          "SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE": "1"
+        }
+      },
+      "server": {
+        "env": {
+          "SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE": "1"
+        }
+      }
     },
     "eagle-mtp": {
-      "decode": {"args": ["--speculative-algorithm", "EAGLE", "--speculative-num-steps", "3", "--speculative-eagle-topk", "1", "--speculative-num-draft-tokens", "4", "--enable-multi-layer-eagle"]},
-      "server": {"env": {"SGLANG_MIMO_EAGLE_HIP_NONGREEDY_VERIFY": "1"}, "args": ["--speculative-algorithm", "EAGLE", "--speculative-num-steps", "3", "--speculative-eagle-topk", "1", "--speculative-num-draft-tokens", "4", "--enable-multi-layer-eagle"]}
+      "decode": {
+        "args": [
+          "--speculative-algorithm",
+          "EAGLE",
+          "--speculative-num-steps",
+          "3",
+          "--speculative-eagle-topk",
+          "1",
+          "--speculative-num-draft-tokens",
+          "4",
+          "--enable-multi-layer-eagle"
+        ]
+      },
+      "server": {
+        "env": {
+          "SGLANG_MIMO_EAGLE_HIP_NONGREEDY_VERIFY": "1"
+        },
+        "args": [
+          "--speculative-algorithm",
+          "EAGLE",
+          "--speculative-num-steps",
+          "3",
+          "--speculative-eagle-topk",
+          "1",
+          "--speculative-num-draft-tokens",
+          "4",
+          "--enable-multi-layer-eagle"
+        ]
+      }
     },
     "fake-prefill": {
-      "decode": {"args": ["--disaggregation-mode", "decode", "--disaggregation-transfer-backend", "fake"]},
-      "bench-decode": {"args": ["--fake-prefill"]}
+      "decode": {
+        "args": [
+          "--disaggregation-mode",
+          "decode",
+          "--disaggregation-transfer-backend",
+          "fake"
+        ]
+      },
+      "bench-decode": {
+        "args": [
+          "--fake-prefill"
+        ]
+      }
     },
     "simulated-acceptance": {
-      "decode": {"env": {"SGLANG_SIMULATE_ACC_LEN": "3", "SGLANG_SIMULATE_ACC_METHOD": "match-expected"}}
+      "decode": {
+        "env": {
+          "SGLANG_SIMULATE_ACC_LEN": "3",
+          "SGLANG_SIMULATE_ACC_METHOD": "match-expected"
+        }
+      }
+    },
+    "int8-quick-reduce": {
+      "decode": {
+        "env": {
+          "ROCM_QUICK_REDUCE_QUANTIZATION": "INT8"
+        },
+        "ablate_env": {
+          "ROCM_QUICK_REDUCE_QUANTIZATION": "NONE"
+        }
+      }
     }
   }
 }

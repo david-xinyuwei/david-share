@@ -73,6 +73,22 @@ class UpstreamTests(unittest.TestCase):
             self.assertTrue(name.startswith("PIN_"), f"ARG {name} can be shadowed by a base-image ENV")
         self.assertRegex(docker, r"FROM rocm/sgl-dev@sha256:[0-9a-f]{64}")
 
+    def test_every_technique_has_a_precision_class(self):
+        catalog = json.loads((ROOT / "profiles/techniques.json").read_text(encoding="utf-8"))
+        classes = set(catalog["precision_classes"])
+        lossy = set()
+        for t in catalog["techniques"]:
+            self.assertIn(t["precision"]["class"], classes, t["id"])
+            self.assertTrue(t["precision"]["en"] and t["precision"]["cn"], t["id"])
+            if t["precision"]["class"] == "lossy":
+                lossy.add(t["id"])
+        self.assertEqual(lossy, {"fp8-kv-5d", "int8-quick-reduce", "mixed-router-gemm"})
+
+    def test_quick_reduce_state_of_measured_runs_is_recorded(self):
+        runs = json.loads((ROOT / "evidence/runs.json").read_text(encoding="utf-8"))["runs"]
+        for name in ("stage-20260707-ck", "stage-20260713-tuned-moe"):
+            self.assertEqual(runs[name]["inherited_env"]["ROCM_QUICK_REDUCE_QUANTIZATION"], "INT8", name)
+
     def test_clean_build_receipt_matches_current_dockerfile(self):
         receipt = json.loads((ROOT / "evidence/docker-build-20260928.json").read_text(encoding="utf-8"))
         text = (ROOT / "docker/Dockerfile").read_text(encoding="utf-8")

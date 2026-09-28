@@ -47,7 +47,13 @@
         "stage-20260707-ck__prefill.txt"
       ],
       "server_context_length": 262144,
-      "special_tokens_per_request": 4
+      "special_tokens_per_request": 4,
+      "inherited_env": {
+        "ROCM_QUICK_REDUCE_QUANTIZATION": "INT8",
+        "source": "sorted environment captured inside the prefill container during the run",
+        "source_sha256": "d0a73607185083687bd2dff4a5cc095a21134932011b998df6b43f76a0f4341c",
+        "origin": "ENV of the rocm/sgl-dev base image; the launch scripts do not set it"
+      }
     },
     "stage-20260713-tuned-moe": {
       "producer": "Microsoft",
@@ -79,7 +85,11 @@
         "stage-20260713-tuned-moe__prefill-262144-c4.txt"
       ],
       "server_context_length": 262144,
-      "special_tokens_per_request": 4
+      "special_tokens_per_request": 4,
+      "inherited_env": {
+        "ROCM_QUICK_REDUCE_QUANTIZATION": "INT8",
+        "origin": "same container image and launch scripts as stage-20260707-ck"
+      }
     },
     "ladder-20260708-ck": {
       "producer": "Microsoft",

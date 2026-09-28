@@ -31,9 +31,12 @@ def load_profile(name: str) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _catalog() -> dict:
+    return json.loads((PROFILES / "techniques.json").read_text(encoding="utf-8"))
+
+
 def known_techniques() -> set[str]:
-    catalog = json.loads((PROFILES / "techniques.json").read_text(encoding="utf-8"))
-    return {t["id"] for t in catalog["techniques"]}
+    return {t["id"] for t in _catalog()["techniques"]}
 
 
 def compose(profile: dict, role: str, ablate: list[str]) -> tuple[dict[str, str], list[str], list[str]]:
@@ -46,6 +49,12 @@ def compose(profile: dict, role: str, ablate: list[str]) -> tuple[dict[str, str]
             raise SystemExit(f"unknown technique {tech!r}")
         if tech not in profile["techniques"]:
             raise SystemExit(f"technique {tech!r} is not part of profile {profile['profile']}")
+    requires = {t["id"]: t.get("requires", []) for t in _catalog()["techniques"]}
+    for tech, deps in requires.items():
+        if tech in profile["techniques"] and tech not in ablate:
+            missing = [d for d in deps if d in ablate]
+            if missing:
+                raise SystemExit(f"technique {tech!r} requires {missing}; ablate {tech!r} as well")
     spec = profile["roles"][role]
     env: dict[str, str] = {}
     if spec["command"][-1] == "sglang.launch_server":

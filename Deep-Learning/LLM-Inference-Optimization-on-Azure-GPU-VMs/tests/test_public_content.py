@@ -59,7 +59,7 @@ class ReadmeTests(unittest.TestCase):
                     self.assertTrue(any(e.startswith("FORBIDDEN") for e in errors), errors)
 
     def test_each_forbidden_category_is_detected(self):
-        samples = ["versus A100", "on MI350X", "on MI355X", "xiaomi customer", "C:\\Users\\someone\\", "person@example.com", "10.2.3.4",
+        samples = ["versus A100", "on MI350X", "on MI355X", "SWE-bench Verified", "swebench run", "xiaomi customer", "C:\\Users\\someone\\", "person@example.com", "10.2.3.4",
                    "12345678-1234-1234-1234-123456789abc", "<details>", "from Jessica"]
         for sample in samples:
             with self.subTest(sample=sample):
@@ -70,6 +70,14 @@ class ReadmeTests(unittest.TestCase):
             errors = []
             check_repo.check_table_shape(lang, path.read_text(encoding="utf-8"), errors)
             self.assertEqual(errors, [])
+
+    def test_accuracy_section_lists_every_lossy_switch_in_both_languages(self):
+        for lang, path in build_readme.READMES.items():
+            text = path.read_text(encoding="utf-8")
+            block = text.split("<!-- BEGIN GENERATED: precision-map -->", 1)[1].split("<!-- END GENERATED: precision-map -->", 1)[0]
+            for needle in ("FP8", "INT8 Quick Reduce", "router"):
+                self.assertIn(needle, block, (lang, needle))
+            self.assertIn("ROCM_QUICK_REDUCE_QUANTIZATION=INT8", text, lang)
 
     def test_tables_wider_than_four_columns_are_rejected(self):
         wide = "| a | b | c | d | e |\n|---|---|---|---|---|\n| 1 | 2 | 3 | 4 | 5 |\n"
