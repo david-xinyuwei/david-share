@@ -62,11 +62,15 @@ class UpstreamTests(unittest.TestCase):
     def test_dockerfile_pins_the_locked_heads(self):
         docker = (ROOT / "docker/Dockerfile").read_text(encoding="utf-8")
         args = dict(re.findall(r"^ARG (\w+)=(\S+)$", docker, re.M))
-        self.assertEqual(args["SGLANG_COMMIT"], LOCK["pinned_heads"]["sammysun0711/sglang"]["commit"])
-        self.assertEqual(args["AITER_COMMIT"], LOCK["pinned_heads"]["sammysun0711/aiter"]["commit"])
-        self.assertEqual(args["FLYDSL_KERNELS_COMMIT"], LOCK["pinned_heads"]["sammysun0711/FlyDSL"]["commit"])
-        self.assertRegex(args["FLYDSL_WHEEL_SHA256"], r"^[0-9a-f]{64}$")
+        self.assertEqual(args["PIN_SGLANG_COMMIT"], LOCK["pinned_heads"]["sammysun0711/sglang"]["commit"])
+        self.assertEqual(args["PIN_AITER_COMMIT"], LOCK["pinned_heads"]["sammysun0711/aiter"]["commit"])
+        self.assertEqual(args["PIN_FLYDSL_KERNELS_COMMIT"], LOCK["pinned_heads"]["sammysun0711/FlyDSL"]["commit"])
+        self.assertRegex(args["PIN_FLYDSL_WHEEL_SHA256"], r"^[0-9a-f]{64}$")
         self.assertIn("sha256sum -c", docker)
+        # The base image exports ENV AITER_COMMIT and many SGLANG_* names; an inherited
+        # ENV overrides an ARG of the same name, so every build ARG must be PIN_-prefixed.
+        for name in args:
+            self.assertTrue(name.startswith("PIN_"), f"ARG {name} can be shadowed by a base-image ENV")
         self.assertRegex(docker, r"FROM rocm/sgl-dev@sha256:[0-9a-f]{64}")
 
     def test_stack_status_separates_measured_from_pinned(self):
