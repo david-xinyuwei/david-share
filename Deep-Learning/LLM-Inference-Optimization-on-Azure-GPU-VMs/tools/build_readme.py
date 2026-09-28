@@ -142,13 +142,14 @@ def _ab_names(lang: str) -> list[str]:
 def ab_table(lang: str) -> str:
     ab = _json("evidence/measurements.json")["ab_ck_unified_verify_64k"]
     n = _ab_names(lang)
-    head = ["Arm", "Run 1", "Run 2", "Mean"] if lang == "en" else ["组别", "第 1 次", "第 2 次", "均值"]
+    head = ["Arm", "Run 1, run 2", "Mean"] if lang == "en" else ["组别", "第 1、2 次", "均值"]
+    sep = ", " if lang == "en" else "、"
     rows = [
-        [n[0], _n(ab["baseline_run_means_tok_s"][0]), _n(ab["baseline_run_means_tok_s"][1]), _n(ab["baseline_mean_tok_s"])],
-        [n[1], _n(ab["optimized_run_means_tok_s"][0]), _n(ab["optimized_run_means_tok_s"][1]), _n(ab["optimized_mean_tok_s"])],
-        [n[2], "", "", f"**{_pct(ab['throughput_delta_pct'])}**"],
+        [n[0], sep.join(_n(x) for x in ab["baseline_run_means_tok_s"]), _n(ab["baseline_mean_tok_s"])],
+        [n[1], sep.join(_n(x) for x in ab["optimized_run_means_tok_s"]), _n(ab["optimized_mean_tok_s"])],
+        [n[2], "", f"**{_pct(ab['throughput_delta_pct'])}**"],
     ]
-    return _table(head, rows, ["l", "r", "r", "r"])
+    return _table(head, rows, ["l", "r", "r"])
 
 
 def ab_tpot(lang: str) -> str:
@@ -162,26 +163,24 @@ def ab_tpot(lang: str) -> str:
 
 def stage_prefill(lang: str) -> str:
     st = _json("evidence/measurements.json")["tuned_moe_stage"]
-    head = (["Input tokens", "tok/s before → after", "Change", "TTFT change"] if lang == "en"
-            else ["输入 token", "tok/s 优化前 → 后", "变化", "TTFT 变化"])
+    head = (["Input tokens", "tok/s before → after", "Change"] if lang == "en" else ["输入 token", "tok/s 优化前 → 后", "变化"])
     rows = [[_i(r["input_tokens"]), f"{_c(r['before_input_tok_s'])} → {_c(r['after_input_tok_s'])}",
-             f"**{_pct(r['input_tok_s_delta_pct'])}**", _pct(r["mean_ttft_delta_pct"])] for r in st["prefill"]]
-    return _table(head, rows, ["r", "r", "r", "r"])
+             f"**{_pct(r['input_tok_s_delta_pct'])}**<br>TTFT {_pct(r['mean_ttft_delta_pct'])}"] for r in st["prefill"]]
+    return _table(head, rows, ["r", "r", "r"])
 
 
 def stage_decode(lang: str) -> str:
     st = _json("evidence/measurements.json")["tuned_moe_stage"]
-    head = (["Concurrency", "tok/s before → after", "Change", "TPOT change"] if lang == "en"
-            else ["并发", "tok/s 优化前 → 后", "变化", "TPOT 变化"])
+    head = (["Concurrency", "tok/s before → after", "Change"] if lang == "en" else ["并发", "tok/s 优化前 → 后", "变化"])
     rows = [[str(r["concurrency"]), f"{_c(r['before_output_tok_s'])} → {_c(r['after_output_tok_s'])}",
-             f"**{_pct(r['output_tok_s_delta_pct'])}**", _pct(r["mean_tpot_delta_pct"])] for r in st["decode"]]
-    return _table(head, rows, ["r", "r", "r", "r"])
+             f"**{_pct(r['output_tok_s_delta_pct'])}**<br>TPOT {_pct(r['mean_tpot_delta_pct'])}"] for r in st["decode"]]
+    return _table(head, rows, ["r", "r", "r"])
 
 
 def ladder(lang: str) -> str:
     rows_in = _json("evidence/measurements.json")["concurrency_ladder_8k1k"]
-    head = (["Concurrency (observed)", "Output tok/s", "TPOT (ms)", "TTFT mean / P99 (s)"] if lang == "en"
-            else ["并发（实测）", "Output tok/s", "TPOT（ms）", "TTFT 均值 / P99（s）"])
+    head = (["Concurrency<br>(observed)", "Output<br>tok/s", "TPOT<br>(ms)", "TTFT (s)<br>mean / P99"] if lang == "en"
+            else ["并发<br>（实测）", "Output<br>tok/s", "TPOT<br>（ms）", "TTFT（s）<br>均值 / P99"])
     rows = [[f"{r['concurrency']} ({_n(r['observed_concurrency'], 1)})", _c(r["output_tok_s"]), _n(r["mean_tpot_ms"]),
              f"{_n(r['mean_ttft_ms'] / 1000.0, 1)} / {_n(r['p99_ttft_ms'] / 1000.0, 1)}"] for r in rows_in]
     return _table(head, rows, ["r", "r", "r", "r"])
@@ -220,20 +219,20 @@ def cumulative(lang: str) -> str:
 def cumulative_decode(lang: str) -> str:
     cu = _json("evidence/measurements.json")["cumulative"]
     if lang == "en":
-        head = ["Metric, concurrency", "Bring-up, 16K in", "Actual acceptance", "Fixed acceptance 3"]
-        names = ("TPOT (ms), {c}", "Output tok/s, {c}")
+        head = ["Metric", "Bring-up<br>16K in", "Actual<br>acceptance", "Fixed<br>acceptance 3"]
+        names = ("TPOT ms<br>at {c}", "tok/s<br>at {c}")
     else:
-        head = ["指标，并发", "Bring-up，16K 输入", "按实际接受", "固定接受长度 3"]
-        names = ("TPOT（ms），{c}", "Output tok/s，{c}")
+        head = ["指标", "Bring-up<br>16K 输入", "按实际<br>接受", "固定接受<br>长度 3"]
+        names = ("TPOT ms<br>并发 {c}", "tok/s<br>并发 {c}")
     rows = []
     for r in cu["decode"]:
         rows.append([names[0].format(c=r["concurrency"]), _n(r["early_mean_tpot_ms"]),
-                     f"{_n(r['real_mean_tpot_ms'])} ({_x(r['real_tpot_factor'])})",
-                     f"{_n(r['fixed_mean_tpot_ms'])} ({_x(r['fixed_tpot_factor'])})"])
+                     f"{_n(r['real_mean_tpot_ms'])}<br>{_x(r['real_tpot_factor'])}",
+                     f"{_n(r['fixed_mean_tpot_ms'])}<br>{_x(r['fixed_tpot_factor'])}"])
     for r in cu["decode"]:
         rows.append([names[1].format(c=r["concurrency"]), _c(r["early_output_tok_s"]),
-                     f"{_c(r['real_output_tok_s'])} ({_x(r['real_output_factor'])})",
-                     f"{_c(r['fixed_output_tok_s'])} ({_x(r['fixed_output_factor'])})"])
+                     f"{_c(r['real_output_tok_s'])}<br>{_x(r['real_output_factor'])}",
+                     f"{_c(r['fixed_output_tok_s'])}<br>{_x(r['fixed_output_factor'])}"])
     return _table(head, rows, ["l", "r", "r", "r"])
 
 

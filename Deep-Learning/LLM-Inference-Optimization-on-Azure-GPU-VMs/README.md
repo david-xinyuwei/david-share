@@ -27,9 +27,9 @@ Author: Xinyu Wei · [中文](README_CN.md) · [Results](#measured-results-on-mi
 | See the total gain from bring-up to the optimized stack | [Bring-up to optimized stack](#bring-up-to-optimized-stack-the-cumulative-gain) |
 | See what single optimizations added | [What single optimizations added](#what-single-optimizations-added) |
 | Find one technique: switch, code, evidence, effect on output | [The Three Optimization Layers](#the-three-optimization-layers) |
-| Apply the same method on NVIDIA GPUs | [Porting the method to NVIDIA GPUs](#porting-the-method-to-nvidia-gpus) and `python tools/render_launch.py --profile cuda-hopper-pd --role prefill` |
+| Apply the same method on NVIDIA GPUs | [Porting the method to NVIDIA GPUs](#porting-the-method-to-nvidia-gpus) and the `cuda-hopper-pd` profile |
 | Rebuild the runtime and rerun a benchmark on MI300X | [Reproduce in Your Environment](#reproduce-in-your-environment) |
-| Check the published numbers without a GPU | `python -m unittest discover -s tests -v`, then [Tests and Offline Checks](#tests-and-offline-checks) |
+| Check the published numbers without a GPU | [Tests and Offline Checks](#tests-and-offline-checks) |
 
 ## What This Repository Delivers
 
@@ -67,12 +67,12 @@ Every number compares MI300X with MI300X. Read this section top-down: first the 
 The decode factor depends strongly on how often MTP draft tokens are accepted. The optimized throughput runs fixed the acceptance at three tokens per step, which is favorable. A related run on an older build of the same stack, with the acceptance the draft model actually achieved on the same random prompts, gives a reference point. Both are shown per point:
 
 <!-- BEGIN GENERATED: cumulative-decode -->
-| Metric, concurrency | Bring-up, 16K in | Actual acceptance | Fixed acceptance 3 |
+| Metric | Bring-up<br>16K in | Actual<br>acceptance | Fixed<br>acceptance 3 |
 |---|---:|---:|---:|
-| TPOT (ms), 32 | 29.41 | 23.20 (1.27×) | 13.65 (2.15×) |
-| TPOT (ms), 64 | 45.86 | 30.07 (1.53×) | 17.00 (2.70×) |
-| Output tok/s, 32 | 658 | 1,238 (1.88×) | 1,936 (2.94×) |
-| Output tok/s, 64 | 1,396 | 1,645 (1.18×) | 2,458 (1.76×) |
+| TPOT ms<br>at 32 | 29.41 | 23.20<br>1.27× | 13.65<br>2.15× |
+| TPOT ms<br>at 64 | 45.86 | 30.07<br>1.53× | 17.00<br>2.70× |
+| tok/s<br>at 32 | 658 | 1,238<br>1.88× | 1,936<br>2.94× |
+| tok/s<br>at 64 | 1,396 | 1,645<br>1.18× | 2,458<br>1.76× |
 <!-- END GENERATED: cumulative-decode -->
 
 **Boundary.** This is a before/after across two months, not an A/B: kernels, library versions and launch settings changed together, so the factors belong to the whole stack, not to one change. The bring-up decode used 16K input tokens and the optimized runs 8K. A shorter context makes each decode step cheaper, so part of the decode factor comes from the workload, not the stack. The actual-acceptance run used the 2026-06-25 AITER build without the tuned fused-MoE table and without unified verify, and random prompts are hard to draft, so it says little about acceptance on real traffic. The bring-up 8K and 64K prompts averaged 7,792 and 60,610 tokens against exactly 8,192 and 65,536 in July, so those two factors are approximate. The early 128K point ran on one VM with prefill and decode in one server, the July point on the prefill server of 1P1D; both prefill on 8 GPUs. The bring-up decode and 128K values come from summary reports. The graph-capture pair and the early 8K/64K prefill points are public raw client output. The client of the bring-up runs stopped requests at about 340 of 1,024 output tokens, so the graph-capture factor compares those two runs with each other only. Sources and hashes are in [`evidence/runs.json`](evidence/runs.json) and [`evidence/raw-manifest.json`](evidence/raw-manifest.json).
@@ -102,11 +102,11 @@ Each row isolates one change on an otherwise fixed stack. An A/B changes named s
 **What varied.** Two environment variables, switched together: the optimized arm adds `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1` and `SGLANG_AITER_UNIFIED_VERIFY=1`. Host, container, image, model, flags, benchmark command and KV setting are identical, each arm gets two fresh-service runs, and the two arms ran back-to-back.
 
 <!-- BEGIN GENERATED: ab-table -->
-| Arm | Run 1 | Run 2 | Mean |
-|---|---:|---:|---:|
-| Baseline | 740.29 | 745.95 | 743.12 |
-| Optimized | 931.58 | 935.92 | 933.75 |
-| Change |  |  | **+25.65%** |
+| Arm | Run 1, run 2 | Mean |
+|---|---:|---:|
+| Baseline | 740.29, 745.95 | 743.12 |
+| Optimized | 931.58, 935.92 | 933.75 |
+| Change |  | **+25.65%** |
 <!-- END GENERATED: ab-table -->
 
 The two runs of each arm agree within 1%, so the difference is far outside run-to-run noise. Both arms in scheduler generation tokens per second. Dividing the batch by the throughput gives the time each of the 16 requests waits per token:
@@ -134,21 +134,21 @@ The implied TPOT is `1000 × 16 / tok/s`, not a client-measured latency.
 Prefill, measured at the client (throughput rounded to whole tokens; exact values in `evidence/measurements.json`):
 
 <!-- BEGIN GENERATED: stage-prefill -->
-| Input tokens | tok/s before → after | Change | TTFT change |
-|---:|---:|---:|---:|
-| 8,192 | 16,716 → 20,781 | **+24.32%** | -15.15% |
-| 65,536 | 17,254 → 19,023 | **+10.25%** | -9.36% |
+| Input tokens | tok/s before → after | Change |
+|---:|---:|---:|
+| 8,192 | 16,716 → 20,781 | **+24.32%**<br>TTFT -15.15% |
+| 65,536 | 17,254 → 19,023 | **+10.25%**<br>TTFT -9.36% |
 <!-- END GENERATED: stage-prefill -->
 
 Decode, same runs:
 
 <!-- BEGIN GENERATED: stage-decode -->
-| Concurrency | tok/s before → after | Change | TPOT change |
-|---:|---:|---:|---:|
-| 16 | 1,299 → 1,332 | **+2.52%** | +1.79% |
-| 32 | 1,911 → 1,936 | **+1.33%** | +1.11% |
-| 64 | 2,188 → 2,458 | **+12.33%** | +12.58% |
-| 128 | 2,209 → 2,487 | **+12.56%** | +14.05% |
+| Concurrency | tok/s before → after | Change |
+|---:|---:|---:|
+| 16 | 1,299 → 1,332 | **+2.52%**<br>TPOT +1.79% |
+| 32 | 1,911 → 1,936 | **+1.33%**<br>TPOT +1.11% |
+| 64 | 2,188 → 2,458 | **+12.33%**<br>TPOT +12.58% |
+| 128 | 2,209 → 2,487 | **+12.56%**<br>TPOT +14.05% |
 <!-- END GENERATED: stage-decode -->
 
 Prefill gains come with shorter time to first token. At decode concurrency 64 and 128 the table raises output throughput by about an eighth while TPOT rises by a similar amount: the server holds more requests per step, so each request waits a little longer per token but the batch as a whole finishes sooner.
@@ -162,7 +162,7 @@ Prefill gains come with shorter time to first token. At decode concurrency 64 an
 **Input.** The same 8K-in / 1K-out decode workload and stack as the first date above, 256 prompts per point, client concurrency 16 to 256.
 
 <!-- BEGIN GENERATED: ladder -->
-| Concurrency (observed) | Output tok/s | TPOT (ms) | TTFT mean / P99 (s) |
+| Concurrency<br>(observed) | Output<br>tok/s | TPOT<br>(ms) | TTFT (s)<br>mean / P99 |
 |---:|---:|---:|---:|
 | 16 (15.8) | 1,322 | 10.79 | 1.2 / 7.1 |
 | 32 (30.9) | 1,914 | 13.37 | 2.8 / 14.1 |
