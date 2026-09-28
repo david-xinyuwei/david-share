@@ -1,0 +1,188 @@
+{
+ "schema": 1,
+ "idle_pct": 5,
+ "runs": {
+  "validation-1": {
+   "run": "validation-1",
+   "hardware": {
+    "vm_size": "Standard_NC40ads_H100_v5",
+    "gpus": 1,
+    "gpu": "NVIDIA H100 NVL",
+    "gpu_memory_mib": 95830,
+    "azure_region": "Spain Central"
+   },
+   "window_minutes": 190,
+   "heartbeat_minutes": 163,
+   "first_heartbeat_minute": 10,
+   "first_gpu_minute": 11,
+   "gpu_rows": 162,
+   "summary": {
+    "AllocatedGpuHours": 2.717,
+    "BusyGpuHours": 0.283,
+    "EffectiveGpuHours": 0.157,
+    "IdleGpuHours": 2.433,
+    "Gpus": 1,
+    "Vms": 1,
+    "UtilizationPct": 5.797
+   },
+   "busy_minutes": 17,
+   "owner_minutes": 16,
+   "unattributed_busy_minutes": 1,
+   "per_user": [
+    {
+     "User": "user-1",
+     "Computer": "gpu-vm-1",
+     "BusyGpuHours": 0.267,
+     "EffectiveGpuHours": 0.152
+    }
+   ],
+   "phases": [
+    {
+     "phase": "held",
+     "first_minute": 13,
+     "minutes": 1,
+     "mean_sm_active_pct": 0.0,
+     "mean_gpu_util_pct": 0.2,
+     "mean_power_w": 65.0,
+     "max_memory_gib": 0.1,
+     "owner_minutes": 1,
+     "shared_minutes": 0
+    },
+    {
+     "phase": "full",
+     "first_minute": 14,
+     "minutes": 8,
+     "mean_sm_active_pct": 96.3,
+     "mean_gpu_util_pct": 100.0,
+     "mean_power_w": 398.1,
+     "max_memory_gib": 21.1,
+     "owner_minutes": 8,
+     "shared_minutes": 0
+    },
+    {
+     "phase": "held",
+     "first_minute": 22,
+     "minutes": 3,
+     "mean_sm_active_pct": 0.2,
+     "mean_gpu_util_pct": 0.0,
+     "mean_power_w": 107.2,
+     "max_memory_gib": 21.1,
+     "owner_minutes": 3,
+     "shared_minutes": 0
+    },
+    {
+     "phase": "partial",
+     "first_minute": 25,
+     "minutes": 5,
+     "mean_sm_active_pct": 34.7,
+     "mean_gpu_util_pct": 51.3,
+     "mean_power_w": 280.0,
+     "max_memory_gib": 21.1,
+     "owner_minutes": 4,
+     "shared_minutes": 0
+    }
+   ],
+   "kql_vs_python": {
+    "compared_values": 13,
+    "max_abs_diff": 0.0
+   },
+   "ingestion_delay_seconds": {
+    "median": 76,
+    "p95": 125,
+    "max": 494
+   },
+   "billed_bytes_per_row": {
+    "gpu_median": 343.0,
+    "gpu_max": 394,
+    "heartbeat_median": 547
+   },
+   "derived_mb_per_vm_day": {
+    "1_gpu": 1.28,
+    "8_gpu": 4.74
+   }
+  },
+  "replay-1": {
+   "run": "replay-1",
+   "hardware": {
+    "vm_size": "Standard_NC40ads_H100_v5",
+    "gpus": 1,
+    "gpu": "NVIDIA H100 NVL",
+    "gpu_memory_mib": 95830,
+    "azure_region": "Spain Central"
+   },
+   "window_minutes": 32,
+   "heartbeat_minutes": 21,
+   "first_heartbeat_minute": 10,
+   "first_gpu_minute": 11,
+   "gpu_rows": 19,
+   "summary": {
+    "AllocatedGpuHours": 0.35,
+    "BusyGpuHours": 0.1,
+    "EffectiveGpuHours": 0.087,
+    "IdleGpuHours": 0.25,
+    "Gpus": 1,
+    "Vms": 1,
+    "UtilizationPct": 24.875
+   },
+   "busy_minutes": 6,
+   "owner_minutes": 5,
+   "unattributed_busy_minutes": 1,
+   "per_user": [
+    {
+     "User": "user-1",
+     "Computer": "gpu-vm-1",
+     "BusyGpuHours": 0.042,
+     "EffectiveGpuHours": 0.036
+    },
+    {
+     "User": "user-2",
+     "Computer": "gpu-vm-1",
+     "BusyGpuHours": 0.042,
+     "EffectiveGpuHours": 0.038
+    }
+   ],
+   "phases": [
+    {
+     "phase": "full",
+     "first_minute": 19,
+     "minutes": 5,
+     "mean_sm_active_pct": 89.0,
+     "mean_gpu_util_pct": 100.0,
+     "mean_power_w": 398.4,
+     "max_memory_gib": 42.0,
+     "owner_minutes": 5,
+     "shared_minutes": 3
+    },
+    {
+     "phase": "partial",
+     "first_minute": 24,
+     "minutes": 1,
+     "mean_sm_active_pct": 77.1,
+     "mean_gpu_util_pct": 66.7,
+     "mean_power_w": 298.3,
+     "max_memory_gib": 14.0,
+     "owner_minutes": 0,
+     "shared_minutes": 0
+    }
+   ],
+   "kql_vs_python": {
+    "compared_values": 15,
+    "max_abs_diff": 0.0
+   },
+   "ingestion_delay_seconds": {
+    "median": 87,
+    "p95": 424,
+    "max": 445
+   },
+   "billed_bytes_per_row": {
+    "gpu_median": 348,
+    "gpu_max": 405,
+    "heartbeat_median": 547
+   },
+   "derived_mb_per_vm_day": {
+    "1_gpu": 1.29,
+    "8_gpu": 4.8
+   }
+  }
+ }
+}

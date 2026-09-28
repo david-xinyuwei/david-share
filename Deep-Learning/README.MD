@@ -128,7 +128,7 @@ Performance benchmarks, GPU selection guides, and hardware-specific tests.
 |---------|-------------|
 | [AI-Foundry-Model-Performance](AI-Foundry-Model-Performance/) | AI Foundry model performance testing |
 | [AI-on-PC](AI-on-PC/) | Running AI models on PC hardware |
-| [Azure-GPU-Hours-Monitoring](Azure-GPU-Hours-Monitoring/) | Allocated vs. actually-used GPU-hours per VM/user/day — DCGM + Azure Monitor Agent + Log Analytics, Workbook + optional Web UI/API, no custom storage |
+| [Azure-GPU-Hours-Monitoring](Azure-GPU-Hours-Monitoring/) | Allocated vs. actually used GPU-hours per VM, owner, hour and day on Azure GPU VMs: DCGM collector, Azure Monitor Agent and Log Analytics configured with az commands, five KQL views for your API |
 | ⭐ [Azure-AMD-MI300X-Guide](Azure-AMD-MI300X-Guide/) | AMD MI300X benchmarks + inference + PoC deployment handbook |
 | ⭐ [NC-RTX-Pro-6000V6-BSE-Benchmark](NC-RTX-Pro-6000V6-BSE-Benchmark/) | Azure GPU VM selection guide + H100/A100/RTX6000/A10 FP8 benchmark + NC RTX Pro 6000 BSE benchmark |
 | [CPU2GPU](CPU2GPU/) | CPU to GPU migration guide |

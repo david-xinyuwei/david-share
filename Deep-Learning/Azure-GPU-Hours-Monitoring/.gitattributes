@@ -1,6 +1,5 @@
-*.sh text eol=lf
-*.py text eol=lf
-*.json text eol=lf
-*.kql text eol=lf
-*.md text
+# Byte-stable checkout on every OS: evidence hashes, scripts and generated READMEs must stay LF.
+* text=auto eol=lf
+# The repository root sends *.json through Git LFS; keep these as plain files so a clone without git-lfs works.
+*.json !filter !diff !merge text eol=lf
 *.png binary

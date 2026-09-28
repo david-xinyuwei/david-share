@@ -1,4 +1,0 @@
-flask==3.*
-gunicorn==23.*
-azure-identity>=1.17
-azure-monitor-query>=1.4

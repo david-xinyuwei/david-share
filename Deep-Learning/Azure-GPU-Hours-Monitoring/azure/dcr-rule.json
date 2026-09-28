@@ -1,0 +1,57 @@
+{
+ "properties": {
+  "description": "Collect the gpumon JSON lines (/var/log/gpumon/*.json) into the GpuMetrics_CL table",
+  "streamDeclarations": {
+   "Custom-Json-GpuMetrics": {
+    "columns": [
+     {"name": "TimeGenerated", "type": "datetime"},
+     {"name": "FilePath", "type": "string"},
+     {"name": "Computer", "type": "string"},
+     {"name": "VmName", "type": "string"},
+     {"name": "VmSize", "type": "string"},
+     {"name": "VmResourceId", "type": "string"},
+     {"name": "Tags", "type": "string"},
+     {"name": "GpuId", "type": "int"},
+     {"name": "GpuUuid", "type": "string"},
+     {"name": "GpuName", "type": "string"},
+     {"name": "Samples", "type": "int"},
+     {"name": "GpuUtil", "type": "real"},
+     {"name": "GrActive", "type": "real"},
+     {"name": "SmActive", "type": "real"},
+     {"name": "TensorActive", "type": "real"},
+     {"name": "DramActive", "type": "real"},
+     {"name": "FbUsedMiB", "type": "real"},
+     {"name": "FbTotalMiB", "type": "real"},
+     {"name": "PowerW", "type": "real"},
+     {"name": "TempC", "type": "real"},
+     {"name": "ProcCount", "type": "int"},
+     {"name": "Users", "type": "string"},
+     {"name": "Processes", "type": "string"}
+    ]
+   }
+  },
+  "dataSources": {
+   "logFiles": [
+    {
+     "name": "gpumonJson",
+     "streams": ["Custom-Json-GpuMetrics"],
+     "filePatterns": ["/var/log/gpumon/*.json"],
+     "format": "json"
+    }
+   ]
+  },
+  "destinations": {
+   "logAnalytics": [
+    {"name": "law", "workspaceResourceId": "__WORKSPACE_RESOURCE_ID__"}
+   ]
+  },
+  "dataFlows": [
+   {
+    "streams": ["Custom-Json-GpuMetrics"],
+    "destinations": ["law"],
+    "transformKql": "source",
+    "outputStream": "Custom-GpuMetrics_CL"
+   }
+  ]
+ }
+}

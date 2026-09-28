@@ -1,0 +1,86 @@
+{
+ "schema": 1,
+ "runs": {
+  "validation-1": {
+   "question": "Does the pipeline classify every GPU-minute of a known load correctly, attribute it to the process owner and count allocated time from VM running time?",
+   "hardware": {
+    "vm_size": "Standard_NC40ads_H100_v5",
+    "gpus": 1,
+    "gpu": "NVIDIA H100 NVL",
+    "gpu_memory_mib": 95830,
+    "azure_region": "Spain Central"
+   },
+   "software": {
+    "os": "Ubuntu 24.04.5 LTS",
+    "nvidia_driver": "615.71.09",
+    "dcgm": "datacenter-gpu-manager 3.3.9 (nvidia-dcgm.service)",
+    "azure_monitor_agent": "AzureMonitorLinuxAgent 1.45",
+    "load_runtime": "system Python 3.12.3 with PyTorch 2.12.0+cu130"
+   },
+   "collector": "vm/gpu_collector.py as installed by vm/install_collector.sh; this run used the revision before parse_dmon_line and build_record were extracted as functions (same fields, sampling and aggregation)",
+   "load": {
+    "user": "user-1 (the VM's administrator account, projected)",
+    "launch": "systemd-run --unit=gpuload-demo --uid=<admin user> --working-directory=/tmp /usr/bin/python3 /tmp/gpuload.py",
+    "script_verbatim": "# Demo load: 8 min heavy bf16 matmul, 3 min idle (process holds memory), 5 min ~50% duty cycle\nimport time, torch\na = torch.randn(8192, 8192, device=\"cuda\", dtype=torch.bfloat16)\nb = torch.randn(8192, 8192, device=\"cuda\", dtype=torch.bfloat16)\nbuf = torch.empty(20 * 1024**3 // 2, device=\"cuda\", dtype=torch.bfloat16)  # hold ~20GB\ndef run(sec, duty=1.0):\n    end = time.time() + sec\n    while time.time() < end:\n        t0 = time.time()\n        while time.time() - t0 < duty:\n            for _ in range(20): c = a @ b\n            torch.cuda.synchronize()\n        if duty < 1.0: time.sleep(1.0 - duty)\nrun(480); time.sleep(180); run(300, 0.5)\nprint(\"done\")\n",
+    "schedule": [
+     {"phase": "full", "seconds": 480, "what": "bf16 8192x8192 matmul, back to back"},
+     {"phase": "held", "seconds": 180, "what": "process alive, 20 GiB buffer allocated, no kernels"},
+     {"phase": "partial", "seconds": 300, "what": "same matmul 0.5 s on, 0.5 s sleep"}
+    ]
+   },
+   "controlled": "one VM, one GPU, one process, busy threshold GPU util >= 5 %",
+   "varied": "the load phase",
+   "measurement": "gpumon samples dcgmi dmon every 10 s and writes one row per GPU per minute; Azure Monitor Agent ingests the rows into GpuMetrics_CL and sends Heartbeat every minute; the numbers below come from the committed rows (tools/build_evidence.py) and from the queries in azure/queries.kql run on the same window",
+   "observed_events": [
+    {"minute": 5, "event": "gpumon.service started (systemctl status); its rows for minutes 5-10 were written before the agent began collecting and were not ingested"},
+    {"minute": 10, "event": "first Heartbeat"},
+    {"minute": 11, "event": "first GpuMetrics_CL row"},
+    {"minute": 13, "event": "load process visible on the GPU"},
+    {"minute": 173, "event": "last Heartbeat; the VM was deallocated"}
+   ]
+  },
+  "replay-1": {
+   "question": "Do the published configuration steps work verbatim from a clean copy against a new resource group, and does per-owner attribution split a shared GPU-minute 1/N?",
+   "hardware": {
+    "vm_size": "Standard_NC40ads_H100_v5",
+    "gpus": 1,
+    "gpu": "NVIDIA H100 NVL",
+    "gpu_memory_mib": 95830,
+    "azure_region": "Spain Central"
+   },
+   "software": {
+    "os": "Ubuntu 24.04.5 LTS",
+    "nvidia_driver": "615.71.09",
+    "dcgm": "datacenter-gpu-manager 3.3.9 (nvidia-dcgm.service)",
+    "azure_monitor_agent": "AzureMonitorLinuxAgent 1.45",
+    "operator_shell": "Git Bash on Windows with Azure CLI 2.88.0, monitor-control-service 1.2.0, log-analytics 1.0.0b2",
+    "load_runtime": "system Python 3.12.3 with PyTorch 2.12.0+cu130"
+   },
+   "collector": "vm/gpu_collector.py and vm/install_collector.sh from the committed tree, installed by scripts/onboard-vm.sh",
+   "load": {
+    "users": "user-1 and user-2 (two OS users created for the test, projected)",
+    "launch": "tests/load/run-load.sh -g <vm-rg> -n <vm-name> -u <user-1>,<user-2> -p \"--phase full:240\" -D 120",
+    "schedule": [
+     {"phase": "full", "seconds": 240, "what": "user-1: bf16 8192x8192 matmul"},
+     {"phase": "full", "seconds": 240, "what": "user-2: the same, started 120 s after user-1"}
+    ]
+   },
+   "controlled": "one VM, one GPU, busy threshold GPU util >= 5 %, the same collector and queries as a customer uses",
+   "varied": "the number of process owners on the GPU",
+   "measurement": "the rows the new workspace received from the steps in the README, read back with the five views and recomputed in Python",
+   "steps": [
+    {"step": "1 scripts/setup-workspace.sh -g rg-gpu-hours-replay -l spaincentral", "exit": 0, "seconds": 181,
+     "verified": "GpuMetrics_CL: 23 columns, Analytics plan, 90-day retention; DCR kind Linux, file pattern /var/log/gpumon/*.json, output stream Custom-GpuMetrics_CL, endpoint set"},
+    {"step": "2 scripts/onboard-vm.sh -g <vm-rg> -n <vm-name> -d <DCR_ID> -e <DCE_ID>", "exit": 0, "seconds": 102,
+     "verified": "gpumon.service active, running dcgmi dmon -e 203,1001,1002,1004,1005,252,250,155,150 -d 10000"},
+    {"step": "3 first rows", "exit": 0, "seconds": null,
+     "verified": "first Heartbeat about 8 minutes and first GpuMetrics_CL rows about 11 minutes after onboarding finished"},
+    {"step": "4 tests/load/run-load.sh (two users)", "exit": 0, "seconds": 213, "verified": "two processes of 21 GiB each on the GPU"},
+    {"step": "5 az monitor log-analytics query --analytics-query @kql/<view>.kql for summary, per_vm, per_user, per_hour; examples/gpu_hours_client.py --view per_user", "exit": 0, "seconds": null,
+     "verified": "the CLI and the reference client returned the same per-owner values"},
+    {"step": "6 scripts/offboard-vm.sh -g <vm-rg> -n <vm-name>; az group delete -n rg-gpu-hours-replay", "exit": 0, "seconds": 98,
+     "verified": "no Azure Monitor Agent extension and no rule or endpoint association left on the VM; gpumon inactive and /opt/gpumon removed; resource group deleted"}
+   ]
+  }
+ }
+}

@@ -1,0 +1,14 @@
+{
+ "window_minutes": 32,
+ "private_sources_sha256": {
+  "gpu_metrics.json": "8e8414e81880e82ff1907b9675134102d56ab446d882ac9010fd3614835ca74b",
+  "heartbeat.json": "1a7f46c6dd541240cb20dcc22a24100d21941ed6028dd07243dc241a0e0db14d",
+  "kql-results.json": "6d02972f859c3c8d4b3e99f920ad88e14e65d9b71299ed366b7dd98d4d87b45a"
+ },
+ "public_projection_sha256": {
+  "gpu-metrics.jsonl": "67460bfba20e625e80ce3bfc7d3db04fd20cf54b238bd4bef01e3ef324f7f741",
+  "heartbeat.jsonl": "b0964b6ba216c3584e86039f9310373f4f3f387116b7af837ea990d1f289083a",
+  "kql-results.json": "f2d6492bd71e7d50d7d49e6abfb636f3d041f760a0ab255da39d54c7836cc232"
+ },
+ "projection": "Computer/VmName -> gpu-vm-N; Users -> user-N; TimeGenerated -> Minute since window start; IngestionTime -> IngestionDelaySeconds; dropped VmResourceId, GpuUuid, Tags, TenantId, _ResourceId; Hour/Day labels -> ordinal"
+}

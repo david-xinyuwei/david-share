@@ -1,0 +1,73 @@
+{
+ "schema": 1,
+ "images": [
+  {
+   "file": "architecture-en.png",
+   "language": "en",
+   "generator": "tools/draw_diagrams.py",
+   "shows": "components and data path of the monitoring pipeline",
+   "sha256": "564fddea8f65b3a5d7c148363425238e93d10db2531f73c6bbc9804585dafd0c",
+   "does_not_show": "measured traffic, latency or production readiness"
+  },
+  {
+   "file": "architecture-cn.png",
+   "language": "cn",
+   "generator": "tools/draw_diagrams.py",
+   "shows": "components and data path of the monitoring pipeline",
+   "sha256": "5f91ba9fb69469531e331b3992cc21f9e0c5b9ebc76fcb17ec9842d57d43de31",
+   "does_not_show": "measured traffic, latency or production readiness"
+  },
+  {
+   "file": "test-topology-en.png",
+   "language": "en",
+   "generator": "tools/draw_diagrams.py",
+   "shows": "where the measured VM, the workspace and the operator ran",
+   "sha256": "08e6dd14f0af1cf0339d6c88d3b31dc5d7937bad32e6bdb32b62c58392989e7c",
+   "does_not_show": "measured traffic, latency or production readiness"
+  },
+  {
+   "file": "test-topology-cn.png",
+   "language": "cn",
+   "generator": "tools/draw_diagrams.py",
+   "shows": "where the measured VM, the workspace and the operator ran",
+   "sha256": "9c3bf3ff4cc323aa5912a13c9c767ef1f2ddfc018dadb9152fabcc99f5d0f8f0",
+   "does_not_show": "measured traffic, latency or production readiness"
+  },
+  {
+   "file": "gpu-minutes-en.png",
+   "language": "en",
+   "generator": "tools/draw_diagrams.py",
+   "shows": "per-minute class and SM active of validation-1",
+   "sha256": "ddc99af3cfe41660a841ccf1fb029ebf7ebf4bec401425633424063d37c9da23",
+   "data_sha256": "2eac89dee689b0c1fbf068f95e8288d03e6625ab111d381d369dd92ea4481d5a",
+   "does_not_show": "any run other than validation-1"
+  },
+  {
+   "file": "gpu-minutes-cn.png",
+   "language": "cn",
+   "generator": "tools/draw_diagrams.py",
+   "shows": "per-minute class and SM active of validation-1",
+   "sha256": "64d08894c156a0d1cca10d2d8dd842280ed592089714aa0b7242ed56f04623f3",
+   "data_sha256": "2eac89dee689b0c1fbf068f95e8288d03e6625ab111d381d369dd92ea4481d5a",
+   "does_not_show": "any run other than validation-1"
+  },
+  {
+   "file": "owners-en.png",
+   "language": "en",
+   "generator": "tools/draw_diagrams.py",
+   "shows": "per-minute owner shares of replay-1",
+   "sha256": "f5f20b0cf489d5ab5ef7f57a16df47965c7eb8a48033f7c637ae4d9531e204c0",
+   "data_sha256": "67460bfba20e625e80ce3bfc7d3db04fd20cf54b238bd4bef01e3ef324f7f741",
+   "does_not_show": "any run other than replay-1"
+  },
+  {
+   "file": "owners-cn.png",
+   "language": "cn",
+   "generator": "tools/draw_diagrams.py",
+   "shows": "per-minute owner shares of replay-1",
+   "sha256": "74d5cbed5c1a99ceceb96acfb04adced119fe37f3ffd99672f663f5358e149ee",
+   "data_sha256": "67460bfba20e625e80ce3bfc7d3db04fd20cf54b238bd4bef01e3ef324f7f741",
+   "does_not_show": "any run other than replay-1"
+  }
+ ]
+}

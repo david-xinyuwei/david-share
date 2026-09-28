@@ -1,7 +1,7 @@
 __pycache__/
 *.pyc
 .venv/
-*.zip
-# never commit deployment outputs that carry real IDs
-*.env
-deploy-output*.txt
+# temporary files the scripts create in the working directory and delete when they finish
+dcr-rule.*.json
+run-command.*.sh
+run-load.*.sh

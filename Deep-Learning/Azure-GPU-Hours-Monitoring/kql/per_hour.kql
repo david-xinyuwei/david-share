@@ -1,0 +1,21 @@
+// GPU hours per local hour for all selected VMs together.
+//   az monitor log-analytics query -w <workspace-guid> --analytics-query @kql/per_hour.kql -t P1D
+// The time window is the query timespan (-t, or "timespan" in the REST request body).
+let IdlePct = 5;              // a GPU-minute is busy when a compute process runs or GPU util >= IdlePct
+let TzOffset = 8h;            // UTC offset of the reporting time zone (8h = Beijing time)
+let Computers = dynamic([]);  // VM names to include; empty = all VMs that report GPU metrics
+let gpu = GpuMetrics_CL | where array_length(Computers) == 0 or Computer in (Computers);
+let gpus = gpu | summarize Gpus = dcount(GpuId) by Computer;
+let heartbeat = Heartbeat | where Computer in ((gpus | project Computer));
+heartbeat
+| summarize RunningMinutes = dcount(bin(TimeGenerated, 1m)) by Computer, B = bin(TimeGenerated + TzOffset, 1h)
+| join kind=inner gpus on Computer
+| summarize AllocatedGpuHours = sum(RunningMinutes * Gpus) / 60.0 by B
+| join kind=leftouter (gpu
+    | summarize BusyGpuHours = countif(ProcCount > 0 or GpuUtil >= IdlePct) / 60.0,
+                EffectiveGpuHours = sum(coalesce(SmActive, 0.0)) / 60.0 by B = bin(TimeGenerated + TzOffset, 1h)) on B
+| project B, AllocatedGpuHours, BusyGpuHours = coalesce(BusyGpuHours, 0.0), EffectiveGpuHours = coalesce(EffectiveGpuHours, 0.0)
+| extend IdleGpuHours = max_of(AllocatedGpuHours - BusyGpuHours, 0.0),
+         UtilizationPct = iff(AllocatedGpuHours > 0, 100.0 * EffectiveGpuHours / AllocatedGpuHours, 0.0)
+| order by B asc
+| project Hour = format_datetime(B, 'yyyy-MM-dd HH:mm'), AllocatedGpuHours, BusyGpuHours, EffectiveGpuHours, IdleGpuHours, UtilizationPct

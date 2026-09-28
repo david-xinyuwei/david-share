@@ -1,0 +1,16 @@
+// GPU hours per process owner (Linux user of the compute process on the GPU).
+//   az monitor log-analytics query -w <workspace-guid> --analytics-query @kql/per_user.kql -t P1D
+// The time window is the query timespan (-t, or "timespan" in the REST request body).
+// A GPU-minute shared by N owners counts 1/N for each, so the owners' busy hours add up to the
+// busy hours that have an owner. Busy minutes with no visible process owner are not attributed.
+let Computers = dynamic([]);  // VM names to include; empty = all VMs that report GPU metrics
+let gpu = GpuMetrics_CL | where array_length(Computers) == 0 or Computer in (Computers);
+gpu
+| where isnotempty(Users)
+| extend Owners = split(Users, ','), N = array_length(split(Users, ','))
+| mv-expand User = Owners to typeof(string)
+| summarize BusyGpuHours = sum(1.0 / N) / 60.0, EffectiveGpuHours = sum(coalesce(SmActive, 0.0) / N) / 60.0,
+            AvgSmActivePct = 100.0 * avg(SmActive), PeakMemoryGiB = max(FbUsedMiB) / 1024.0,
+            Processes = strcat_array(make_set(Processes, 10), ',')
+          by User, Computer
+| order by BusyGpuHours desc, User asc

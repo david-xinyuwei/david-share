@@ -1,0 +1,82 @@
+{
+ "summary": [
+  {
+   "AllocatedGpuHours": 2.716666666666667,
+   "BusyGpuHours": 0.2833333333333333,
+   "EffectiveGpuHours": 0.15748499999999999,
+   "IdleGpuHours": 2.4333333333333336,
+   "Vms": 1,
+   "Gpus": 1,
+   "UtilizationPct": 5.796993865030674
+  }
+ ],
+ "per_vm": [
+  {
+   "Computer": "gpu-vm-1",
+   "VmSize": "Standard_NC40ads_H100_v5",
+   "GpuName": "NVIDIA H100 NVL",
+   "Gpus": 1,
+   "RunningHours": 2.716666666666667,
+   "AllocatedGpuHours": 2.716666666666667,
+   "BusyGpuHours": 0.2833333333333333,
+   "EffectiveGpuHours": 0.15748499999999999,
+   "IdleGpuHours": 2.4333333333333336,
+   "UtilizationPct": 5.796993865030674
+  }
+ ],
+ "per_hour": [
+  {
+   "Hour": "hour 1",
+   "AllocatedGpuHours": 0.48333333333333334,
+   "BusyGpuHours": 0.2833333333333333,
+   "EffectiveGpuHours": 0.15748499999999999,
+   "IdleGpuHours": 0.2,
+   "UtilizationPct": 32.58310344827586
+  },
+  {
+   "Hour": "hour 2",
+   "AllocatedGpuHours": 0.9833333333333333,
+   "BusyGpuHours": 0,
+   "EffectiveGpuHours": 0,
+   "IdleGpuHours": 0.9833333333333333,
+   "UtilizationPct": 0
+  },
+  {
+   "Hour": "hour 3",
+   "AllocatedGpuHours": 1,
+   "BusyGpuHours": 0,
+   "EffectiveGpuHours": 0,
+   "IdleGpuHours": 1,
+   "UtilizationPct": 0
+  },
+  {
+   "Hour": "hour 4",
+   "AllocatedGpuHours": 0.25,
+   "BusyGpuHours": 0,
+   "EffectiveGpuHours": 0,
+   "IdleGpuHours": 0.25,
+   "UtilizationPct": 0
+  }
+ ],
+ "per_day": [
+  {
+   "Day": "day 1",
+   "AllocatedGpuHours": 2.716666666666667,
+   "BusyGpuHours": 0.2833333333333333,
+   "EffectiveGpuHours": 0.15748499999999999,
+   "IdleGpuHours": 2.4333333333333336,
+   "UtilizationPct": 5.796993865030674
+  }
+ ],
+ "per_user": [
+  {
+   "User": "user-1",
+   "Computer": "gpu-vm-1",
+   "BusyGpuHours": 0.26666666666666666,
+   "EffectiveGpuHours": 0.151635,
+   "AvgSmActivePct": 56.86312499999999,
+   "PeakMemoryGiB": 21.111328125,
+   "Processes": "python3"
+  }
+ ]
+}
