@@ -73,6 +73,16 @@ class UpstreamTests(unittest.TestCase):
             self.assertTrue(name.startswith("PIN_"), f"ARG {name} can be shadowed by a base-image ENV")
         self.assertRegex(docker, r"FROM rocm/sgl-dev@sha256:[0-9a-f]{64}")
 
+    def test_clean_build_receipt_matches_current_dockerfile(self):
+        receipt = json.loads((ROOT / "evidence/docker-build-20260928.json").read_text(encoding="utf-8"))
+        text = (ROOT / "docker/Dockerfile").read_text(encoding="utf-8")
+        lines = [l.rstrip() for l in text.split("\n") if l.strip() and not l.lstrip().startswith("#")]
+        self.assertEqual(hashlib.sha256("\n".join(lines).encode()).hexdigest(), receipt["dockerfile_instructions_sha256"])
+        self.assertEqual(receipt["exit_code"], 0)
+        self.assertIn("EXIT=0", receipt["key_lines"])
+        self.assertTrue(any("runtime imports ok" in l for l in receipt["key_lines"]))
+        self.assertTrue(any(LOCK["pinned_heads"]["sammysun0711/aiter"]["commit"] in l for l in receipt["key_lines"]))
+
     def test_stack_status_separates_measured_from_pinned(self):
         status = {e["commit"][:7]: e["stack_status"] for e in LOCK["patches"]}
         self.assertEqual(status["2f9b9ae"], "measured_run")

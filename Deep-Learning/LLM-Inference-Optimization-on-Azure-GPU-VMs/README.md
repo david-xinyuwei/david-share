@@ -598,7 +598,7 @@ DATA=/path/with/models bash docker/docker-run.sh
 docker exec -it sglang bash
 ```
 
-The build fails if the FlyDSL wheel hash, the composable_kernel commit or the final imports do not match. The container needs broad host access (`--privileged`, host network and IPC, `/dev/kfd`, `/dev/dri`, `/dev/mem`, `CAP_SYS_ADMIN`) because RDMA and the AITER path use it; run it only on a dedicated GPU VM. The first server start compiles AITER JIT modules and takes noticeably longer than later starts.
+The build fails if the FlyDSL wheel hash, the composable_kernel commit or the final imports do not match. A clean build of this Dockerfile succeeded on 2026-09-28 (BuildKit, about six minutes after the base image is cached; image 27.9 GB); the receipt is in [`evidence/docker-build-20260928.json`](evidence/docker-build-20260928.json). The container needs broad host access (`--privileged`, host network and IPC, `/dev/kfd`, `/dev/dri`, `/dev/mem`, `CAP_SYS_ADMIN`) because RDMA and the AITER path use it; run it only on a dedicated GPU VM. The first server start compiles AITER JIT modules and takes noticeably longer than later starts.
 
 **3. Render the launch commands.** Profiles keep every host, path and device name as a variable:
 
@@ -638,7 +638,7 @@ For the single-VM final runtime (FlyDSL decode, page 64, 1M context), use `--pro
 
 **6. Stop.** `docker rm -f sglang` on each VM. Deallocate the VMs when you are done; a guest shutdown alone keeps the compute billed.
 
-Steps 2 to 5 were assembled from the recorded runtime identity and the measured launch scripts. The Dockerfile itself was not rebuilt in a clean environment for this repository.
+Step 2 was replayed in a clean environment: the image builds, the pinned commits are checked out and the runtime imports succeed. That build ran on a CPU-only VM, so steps 3 to 5 (starting servers and benchmarking) were not replayed; they are assembled from the recorded runtime identity and the measured launch scripts.
 
 ## Tests and Offline Checks
 
@@ -666,6 +666,7 @@ The same commands run in CI on Ubuntu and Windows with Python 3.10 and 3.12 ([wo
 - [`evidence/raw/`](evidence/raw/) — projected sources: `sglang.bench_serving` output (workload arguments and result block of every run), the A/B samples from the public audit file and the bring-up summary.
 - [`evidence/raw-manifest.json`](evidence/raw-manifest.json) — SHA-256 of each private raw log and of its public projection.
 - [`evidence/measurements.json`](evidence/measurements.json) — all comparisons, built by `tools/build_evidence.py`.
+- [`evidence/docker-build-20260928.json`](evidence/docker-build-20260928.json) — receipt of the clean Docker build: commit, Dockerfile hash, builder, image id and the step lines of the log.
 - [`upstream/`](upstream/) — full patches of every commit discussed and `SOURCES.lock.json` (hash, license, layer, whether it is in the pinned runtime).
 - [`profiles/`](profiles/) — technique catalog, measured MI300X profiles and the NVIDIA template.
 - [`tools/`](tools/) — log projection and parsing, evidence and README builders, launch renderer, diagram generator, public-content audit.

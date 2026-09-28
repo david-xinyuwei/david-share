@@ -598,7 +598,7 @@ DATA=/path/with/models bash docker/docker-run.sh
 docker exec -it sglang bash
 ```
 
-FlyDSL wheel 的哈希、composable_kernel 的 commit 或最后的 import 检查任何一项对不上，构建都会失败。容器需要很大的宿主机权限（`--privileged`、宿主机网络和 IPC、`/dev/kfd`、`/dev/dri`、`/dev/mem`、`CAP_SYS_ADMIN`），因为 RDMA 和 AITER 路径要用到；只在专用的 GPU 虚拟机上运行。第一次启动服务时要编译 AITER JIT 模块，会比之后的启动明显慢。
+FlyDSL wheel 的哈希、composable_kernel 的 commit 或最后的 import 检查任何一项对不上，构建都会失败。2026-09-28 在干净环境里构建成功（BuildKit，基础镜像已缓存时约 6 分钟，镜像 27.9 GB），构建回执见 [`evidence/docker-build-20260928.json`](evidence/docker-build-20260928.json)。容器需要很大的宿主机权限（`--privileged`、宿主机网络和 IPC、`/dev/kfd`、`/dev/dri`、`/dev/mem`、`CAP_SYS_ADMIN`），因为 RDMA 和 AITER 路径要用到；只在专用的 GPU 虚拟机上运行。第一次启动服务时要编译 AITER JIT 模块，会比之后的启动明显慢。
 
 **3. 渲染启动命令。** Profile 里所有主机、路径和设备名都是变量：
 
@@ -638,7 +638,7 @@ python tools/render_launch.py --profile rocm-mi300x-pd --role decode --ablate si
 
 **6. 停止。** 在每台机器上执行 `docker rm -f sglang`。用完后请释放（deallocate）虚拟机；只在系统里关机，计算资源仍然计费。
 
-第 2 到第 5 步是根据记录下来的 runtime 身份和实测启动脚本整理的；Dockerfile 本身没有在干净环境里为本仓库重新构建过。
+第 2 步已在干净环境中重放：镜像能构建，固定的 commit 都检出正确，runtime 的 import 都能通过。那次构建是在没有 GPU 的虚拟机上做的，所以第 3 到第 5 步（启动服务和压测）没有重放，它们是根据记录下来的 runtime 身份和实测启动脚本整理的。
 
 ## 测试与离线校验
 
@@ -666,6 +666,7 @@ CI 在 Ubuntu 和 Windows、Python 3.10 与 3.12 上运行同一组命令（[wor
 - [`evidence/raw/`](evidence/raw/)——各数据源的投影：`sglang.bench_serving` 输出（每次运行的负载参数和结果块）、公开审计文件中的 A/B 采样值，以及 bring-up 汇总。
 - [`evidence/raw-manifest.json`](evidence/raw-manifest.json)——每份私有原始日志及其公开投影的 SHA-256。
 - [`evidence/measurements.json`](evidence/measurements.json)——全部对比结果，由 `tools/build_evidence.py` 生成。
+- [`evidence/docker-build-20260928.json`](evidence/docker-build-20260928.json)——干净 Docker 构建的回执：commit、Dockerfile 哈希、构建器、镜像 id 以及日志里的各步记录。
 - [`upstream/`](upstream/)——文中讨论的每个 commit 的完整 patch，以及 `SOURCES.lock.json`（哈希、许可证、所属层、是否在固定 runtime 中）。
 - [`profiles/`](profiles/)——技术目录、实测的 MI300X profile 和 NVIDIA 模板。
 - [`tools/`](tools/)——日志投影与解析、证据和 README 生成器、启动命令渲染、画图、公开内容审计。
