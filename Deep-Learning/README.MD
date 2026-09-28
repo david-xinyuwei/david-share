@@ -1,6 +1,6 @@
 # Deep Learning
 
-A comprehensive collection of 78 projects covering quantization, fine-tuning, inference optimization, training parallelism, GPU benchmarks, and more.
+A comprehensive collection of 79 projects covering quantization, fine-tuning, inference optimization, training parallelism, GPU benchmarks, and more.
 
 > Projects marked with ⭐ were consolidated from multiple related projects during the 2026-02 restructuring.
 
@@ -15,7 +15,7 @@ A comprehensive collection of 78 projects covering quantization, fine-tuning, in
 | 3 | [RLHF, Alignment & Reasoning](#3-rlhf-alignment--reasoning) | 4 |
 | 4 | [Inference Optimization](#4-inference-optimization) | 18 |
 | 5 | [Training Parallelism & Distributed Systems](#5-training-parallelism--distributed-systems) | 7 |
-| 6 | [GPU Benchmarks & Hardware](#6-gpu-benchmarks--hardware) | 9 |
+| 6 | [GPU Benchmarks & Hardware](#6-gpu-benchmarks--hardware) | 10 |
 | 7 | [Model Architecture & Understanding](#7-model-architecture--understanding) | 14 |
 
 ---
@@ -128,6 +128,7 @@ Performance benchmarks, GPU selection guides, and hardware-specific tests.
 |---------|-------------|
 | [AI-Foundry-Model-Performance](AI-Foundry-Model-Performance/) | AI Foundry model performance testing |
 | [AI-on-PC](AI-on-PC/) | Running AI models on PC hardware |
+| [Azure-GPU-Hours-Monitoring](Azure-GPU-Hours-Monitoring/) | Allocated vs. actually-used GPU-hours per VM/user/day — DCGM + Azure Monitor Agent + Log Analytics, Workbook + optional Web UI/API, no custom storage |
 | ⭐ [Azure-AMD-MI300X-Guide](Azure-AMD-MI300X-Guide/) | AMD MI300X benchmarks + inference + PoC deployment handbook |
 | ⭐ [NC-RTX-Pro-6000V6-BSE-Benchmark](NC-RTX-Pro-6000V6-BSE-Benchmark/) | Azure GPU VM selection guide + H100/A100/RTX6000/A10 FP8 benchmark + NC RTX Pro 6000 BSE benchmark |
 | [CPU2GPU](CPU2GPU/) | CPU to GPU migration guide |

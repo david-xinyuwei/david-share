@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.venv/
+*.zip
+# never commit deployment outputs that carry real IDs
+*.env
+deploy-output*.txt

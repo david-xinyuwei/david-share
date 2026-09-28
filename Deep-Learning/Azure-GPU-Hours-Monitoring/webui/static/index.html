@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GPU 卡时统计</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root { --bg:#f5f7fb; --card:#fff; --ink:#1f2937; --mute:#6b7280; --line:#e5e7eb;
+          --alloc:#6366f1; --busy:#ec4899; --eff:#14b8a6; --idle:#f59e0b; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: "Segoe UI","Microsoft YaHei",system-ui,sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:#0f172a; color:#fff; padding:14px 24px; display:flex; flex-wrap:wrap; gap:16px; align-items:center; }
+  header h1 { font-size:18px; margin:0 16px 0 0; font-weight:600; }
+  header .sub { color:#94a3b8; font-size:12px; }
+  .ctrl { display:flex; gap:6px; align-items:center; font-size:13px; }
+  .pill { border:1px solid #334155; background:transparent; color:#cbd5e1; padding:4px 10px; border-radius:14px; cursor:pointer; }
+  .pill.on { background:#6366f1; border-color:#6366f1; color:#fff; }
+  input[type=number] { width:56px; padding:3px 6px; border-radius:6px; border:1px solid #334155; background:#1e293b; color:#fff; }
+  .spacer { flex:1; }
+  main { padding:18px 24px 40px; max-width:1600px; margin:0 auto; }
+  .kpis { display:grid; grid-template-columns:repeat(6, minmax(150px,1fr)); gap:12px; }
+  .kpi { background:var(--card); border-radius:10px; padding:14px 16px; border-left:5px solid var(--alloc); box-shadow:0 1px 2px rgba(0,0,0,.05); }
+  .kpi .t { font-size:12px; color:var(--mute); }
+  .kpi .v { font-size:28px; font-weight:600; margin-top:4px; }
+  .kpi .u { font-size:12px; color:var(--mute); margin-left:4px; font-weight:400; }
+  .defs { font-size:12px; color:var(--mute); margin:10px 2px 18px; line-height:1.7; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; }
+  .grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; margin-top:14px; }
+  .card { background:var(--card); border-radius:10px; padding:14px 16px; box-shadow:0 1px 2px rgba(0,0,0,.05); min-width:0; }
+  .card h3 { margin:0 0 10px; font-size:14px; font-weight:600; }
+  .chartbox { position:relative; height:260px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { padding:7px 8px; border-bottom:1px solid var(--line); text-align:right; white-space:nowrap; }
+  th { color:var(--mute); font-weight:600; background:#fafafa; }
+  th:first-child, td:first-child, td.l, th.l { text-align:left; }
+  .bar { display:inline-block; height:8px; border-radius:4px; vertical-align:middle; margin-right:6px; }
+  .empty { color:var(--mute); text-align:center; padding:18px; }
+  .err { background:#fee2e2; color:#991b1b; padding:10px 14px; border-radius:8px; margin-bottom:12px; display:none; }
+  .tag { display:inline-block; padding:1px 8px; border-radius:10px; background:#eef2ff; color:#4338ca; font-size:12px; }
+  @media (max-width:1100px){ .kpis{grid-template-columns:repeat(3,1fr);} .grid2,.grid3{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<header>
+  <h1>GPU 卡时统计 <span class="sub">Azure 原生 · DCGM + Azure Monitor Agent + Log Analytics</span></h1>
+  <div class="ctrl" id="ranges"></div>
+  <div class="ctrl">占用阈值 GPU Util ≥ <input type="number" id="idle" value="5" min="0" max="100">%</div>
+  <div class="spacer"></div>
+  <div class="ctrl sub" id="updated">加载中…</div>
+  <button class="pill" id="refresh">刷新</button>
+</header>
+<main>
+  <div class="err" id="err"></div>
+  <div class="kpis">
+    <div class="kpi" style="border-color:var(--alloc)"><div class="t">① 分配卡时</div><div class="v" id="kAlloc">–</div></div>
+    <div class="kpi" style="border-color:var(--busy)"><div class="t">② 占用卡时</div><div class="v" id="kBusy">–</div></div>
+    <div class="kpi" style="border-color:var(--eff)"><div class="t">③ 有效计算卡时（SM 加权）</div><div class="v" id="kEff">–</div></div>
+    <div class="kpi" style="border-color:var(--idle)"><div class="t">④ 空闲卡时（开机未用）</div><div class="v" id="kIdle">–</div></div>
+    <div class="kpi" style="border-color:#22c55e"><div class="t">⑤ 有效利用率</div><div class="v" id="kUtil">–</div></div>
+    <div class="kpi" style="border-color:#94a3b8"><div class="t">监控范围</div><div class="v" id="kScope">–</div></div>
+  </div>
+  <div class="defs">
+    <b>口径：</b>分配卡时 = VM 运行分钟（AMA Heartbeat）× GPU 数 ÷ 60；占用卡时 = 有 GPU 进程或 GPU Util ≥ 阈值的 GPU·分钟 ÷ 60；
+    有效计算卡时 = Σ SM Active ÷ 60（DCGM_FI_PROF_SM_ACTIVE）；空闲 = 分配 − 占用；有效利用率 = 有效计算 ÷ 分配。按小时 / 按天均为北京时间。
+  </div>
+
+  <div class="card"><h3>每小时卡时（分配 / 占用 / 有效计算）</h3><div class="chartbox"><canvas id="cHourly"></canvas></div></div>
+
+  <div class="grid3">
+    <div class="card"><h3>GPU 利用率趋势 %</h3><div class="chartbox"><canvas id="cUtil"></canvas></div></div>
+    <div class="card"><h3>显存占用 GB</h3><div class="chartbox"><canvas id="cMem"></canvas></div></div>
+    <div class="card"><h3>功耗 W</h3><div class="chartbox"><canvas id="cPower"></canvas></div></div>
+  </div>
+
+  <div class="card" style="margin-top:14px"><h3>按 VM 统计卡时</h3><div id="tVm"></div></div>
+  <div class="grid2">
+    <div class="card"><h3>按用户统计卡时（GPU 进程属主）</h3><div id="tUser"></div></div>
+    <div class="card"><h3>按天统计卡时（北京时间）</h3><div id="tDay"></div></div>
+  </div>
+  <div class="grid2">
+    <div class="card"><h3>当前状态（最近一次采样）</h3><div id="tLatest"></div></div>
+    <div class="card"><h3>最近 60 分钟完全空闲的 GPU <span class="tag">开机但未使用</span></h3><div id="tIdle"></div></div>
+  </div>
+</main>
+<script>
+const RANGES = [["1h","1 小时"],["6h","6 小时"],["24h","24 小时"],["7d","7 天"],["30d","30 天"]];
+let range = new URLSearchParams(location.search).get("range") || "24h";
+const charts = {};
+const fmtTime = new Intl.DateTimeFormat("zh-CN", {timeZone:"Asia/Shanghai", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", hour12:false});
+const fmtFull = new Intl.DateTimeFormat("zh-CN", {timeZone:"Asia/Shanghai", dateStyle:"short", timeStyle:"medium", hour12:false});
+const n = (v, d=2) => (v === null || v === undefined || v === "") ? "–" : Number(v).toFixed(d);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const PALETTE = ["#6366f1","#ec4899","#14b8a6","#f59e0b","#0ea5e9","#84cc16","#a855f7","#ef4444"];
+
+function renderRanges() {
+  const box = document.getElementById("ranges");
+  box.innerHTML = "";
+  for (const [k, label] of RANGES) {
+    const b = document.createElement("button");
+    b.className = "pill" + (k === range ? " on" : "");
+    b.textContent = label;
+    b.onclick = () => { range = k; renderRanges(); load(); };
+    box.appendChild(b);
+  }
+}
+
+function utilBar(p) {
+  const v = Math.max(0, Math.min(100, Number(p) || 0));
+  const color = v < 20 ? "#ef4444" : v < 50 ? "#f59e0b" : "#22c55e";
+  return `<span class="bar" style="width:${Math.max(2, v)}px;background:${color}"></span>${n(v,1)}%`;
+}
+
+function table(el, rows, cols) {
+  const box = document.getElementById(el);
+  if (!rows || !rows.length) { box.innerHTML = '<div class="empty">暂无数据</div>'; return; }
+  const head = cols.map(c => `<th class="${c.l ? "l" : ""}">${c.h}</th>`).join("");
+  const body = rows.map(r => "<tr>" + cols.map(c => `<td class="${c.l ? "l" : ""}">${c.f ? c.f(r[c.k], r) : esc(r[c.k])}</td>`).join("") + "</tr>").join("");
+  box.innerHTML = `<div style="overflow-x:auto"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
+function upsertChart(id, cfg) {
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(document.getElementById(id), cfg);
+}
+
+function lineCfg(labels, datasets, yMax) {
+  return { type:"line", data:{labels, datasets},
+    options:{ responsive:true, maintainAspectRatio:false, animation:false, spanGaps:false,
+      interaction:{mode:"index", intersect:false},
+      elements:{point:{radius:0}, line:{borderWidth:1.6, tension:0}},
+      plugins:{legend:{position:"bottom", labels:{boxWidth:10, font:{size:11}}}},
+      scales:{ x:{ticks:{maxTicksLimit:8, font:{size:11}}}, y:{beginAtZero:true, max:yMax, ticks:{font:{size:11}}} } } };
+}
+
+function renderSeries(series) {
+  const ts = [...new Set(series.map(r => r.T))].sort();
+  const labels = ts.map(t => fmtTime.format(new Date(t)));
+  const gpus = [...new Set(series.map(r => r.Gpu))].sort();
+  const idx = new Map(ts.map((t, i) => [t, i]));
+  const ds = (metric, label, color, gpu) => {
+    const data = new Array(ts.length).fill(null);
+    series.filter(r => r.Gpu === gpu).forEach(r => data[idx.get(r.T)] = r[metric]);
+    return { label: gpus.length > 1 ? `${gpu} ${label}` : label, data, borderColor: color, backgroundColor: color };
+  };
+  const util = [], mem = [], pw = [];
+  gpus.forEach((g, i) => {
+    const off = i * 3;
+    util.push(ds("SM", "SM Active %", PALETTE[off % 8], g), ds("Util", "GPU Util %", PALETTE[(off+1) % 8], g), ds("Tensor", "Tensor Active %", PALETTE[(off+2) % 8], g));
+    mem.push(ds("MemGB", "显存 GB", PALETTE[i % 8], g));
+    pw.push(ds("PowerW", "功耗 W", PALETTE[i % 8], g));
+  });
+  upsertChart("cUtil", lineCfg(labels, util, 100));
+  upsertChart("cMem", lineCfg(labels, mem));
+  upsertChart("cPower", lineCfg(labels, pw));
+}
+
+function renderHourly(rows) {
+  upsertChart("cHourly", { type:"bar",
+    data:{ labels: rows.map(r => r.B), datasets:[
+      {label:"分配卡时", data: rows.map(r => r.Alloc), backgroundColor:"#6366f1"},
+      {label:"占用卡时", data: rows.map(r => r.Busy), backgroundColor:"#ec4899"},
+      {label:"有效计算卡时", data: rows.map(r => r.Eff), backgroundColor:"#14b8a6"} ] },
+    options:{ responsive:true, maintainAspectRatio:false, animation:false,
+      plugins:{legend:{position:"bottom"}, tooltip:{callbacks:{label: c => `${c.dataset.label}: ${n(c.raw,3)} GPU-h`}}},
+      scales:{ y:{beginAtZero:true, title:{display:true, text:"GPU-h"}} } } });
+}
+
+async function load() {
+  const idle = document.getElementById("idle").value || 5;
+  document.getElementById("updated").textContent = "查询中…";
+  try {
+    const r = await fetch(`api/data?range=${range}&idle=${idle}`, {credentials:"same-origin"});
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || r.status);
+    document.getElementById("err").style.display = "none";
+    const s = d.summary;
+    const unit = '<span class="u">GPU-h</span>';
+    document.getElementById("kAlloc").innerHTML = n(s.Alloc) + unit;
+    document.getElementById("kBusy").innerHTML = n(s.Busy) + unit;
+    document.getElementById("kEff").innerHTML = n(s.Eff) + unit;
+    document.getElementById("kIdle").innerHTML = n(s.Idle) + unit;
+    document.getElementById("kUtil").innerHTML = n(s.UtilPct, 1) + '<span class="u">%</span>';
+    document.getElementById("kScope").innerHTML = `${s.Vms}<span class="u">台 VM</span> ${s.Gpus}<span class="u">卡</span>`;
+    renderHourly(d.hourly);
+    renderSeries(d.series);
+    table("tVm", d.perVm, [
+      {k:"Computer", h:"VM", l:1}, {k:"VmSize", h:"规格", l:1}, {k:"GpuName", h:"GPU", l:1}, {k:"Gpus", h:"卡数"},
+      {k:"RunHours", h:"运行时长 h", f:v => n(v)}, {k:"Alloc", h:"分配卡时", f:v => n(v)}, {k:"Busy", h:"占用卡时", f:v => n(v)},
+      {k:"Eff", h:"有效计算卡时", f:v => n(v)}, {k:"Idle", h:"空闲卡时", f:v => n(v)}, {k:"UtilPct", h:"有效利用率", f:utilBar}]);
+    table("tUser", d.users, [
+      {k:"User", h:"用户", l:1}, {k:"Computer", h:"VM", l:1}, {k:"Busy", h:"占用卡时", f:v => n(v)},
+      {k:"Eff", h:"有效计算卡时", f:v => n(v)}, {k:"AvgSm", h:"平均 SM Active", f:utilBar},
+      {k:"PeakMemGB", h:"峰值显存 GB", f:v => n(v,1)}, {k:"Processes", h:"进程", l:1}]);
+    table("tDay", [...d.daily].reverse(), [
+      {k:"B", h:"日期", l:1}, {k:"Alloc", h:"分配卡时", f:v => n(v)}, {k:"Busy", h:"占用卡时", f:v => n(v)},
+      {k:"Eff", h:"有效计算卡时", f:v => n(v)}, {k:"Idle", h:"空闲卡时", f:v => n(v)}, {k:"UtilPct", h:"有效利用率", f:utilBar}]);
+    table("tLatest", d.latest, [
+      {k:"TimeGenerated", h:"时间", l:1, f:v => fmtTime.format(new Date(v))}, {k:"Computer", h:"VM", l:1}, {k:"GpuId", h:"GPU"},
+      {k:"GpuUtil", h:"GPU Util %", f:v => n(v,1)}, {k:"SmPct", h:"SM Active %", f:v => n(v,1)}, {k:"MemGB", h:"显存 GB", f:v => n(v,1)},
+      {k:"PowerW", h:"功耗 W", f:v => n(v,0)}, {k:"TempC", h:"温度 °C", f:v => n(v,0)}, {k:"Users", h:"用户", l:1}]);
+    table("tIdle", d.idleNow, [
+      {k:"Computer", h:"VM", l:1}, {k:"GpuId", h:"GPU"}, {k:"VmSize", h:"规格", l:1},
+      {k:"Minutes", h:"空闲分钟"}, {k:"LastSeen", h:"最后采样", l:1, f:v => fmtTime.format(new Date(v))}]);
+    document.getElementById("updated").textContent = "数据时间 " + fmtFull.format(new Date(d.meta.generatedAt)) + "（北京时间，每分钟自动刷新）";
+  } catch (e) {
+    const el = document.getElementById("err");
+    el.textContent = "加载失败：" + e.message;
+    el.style.display = "block";
+    document.getElementById("updated").textContent = "";
+  }
+}
+
+renderRanges();
+document.getElementById("refresh").onclick = load;
+document.getElementById("idle").onchange = load;
+load();
+setInterval(load, 60000);
+</script>
+</body>
+</html>

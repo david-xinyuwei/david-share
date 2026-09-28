@@ -1,0 +1,6 @@
+*.sh text eol=lf
+*.py text eol=lf
+*.json text eol=lf
+*.kql text eol=lf
+*.md text
+*.png binary

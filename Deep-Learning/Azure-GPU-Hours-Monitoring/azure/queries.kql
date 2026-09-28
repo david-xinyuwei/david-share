@@ -1,0 +1,92 @@
+// ===== 卡时汇总 (Log Analytics Query API 可直接调用；把 {TimeRange} 换成 > ago(1d)，{Computer} 换成 '*'，{IdlePct} 换成 5) =====
+let gpu = GpuMetrics_CL
+| where TimeGenerated {TimeRange}
+| where '*' in ({Computer}) or Computer in ({Computer});
+let gpuCount = gpu | summarize Gpus = dcount(GpuId) by Computer;
+let alloc = Heartbeat
+| where TimeGenerated {TimeRange}
+| where Computer in ((gpuCount | project Computer))
+| summarize RunMinutes = dcount(bin(TimeGenerated, 1m)) by Computer
+| join kind=inner gpuCount on Computer
+| extend AllocGpuHours = RunMinutes * Gpus / 60.0;
+let used = gpu
+| summarize BusyGpuHours = countif(ProcCount > 0 or GpuUtil >= {IdlePct}) / 60.0,
+            EffGpuHours  = sum(coalesce(SmActive, 0.0)) / 60.0,
+            UtilGpuHours = sum(coalesce(GpuUtil, 0.0) / 100.0) / 60.0
+          by Computer;
+alloc
+| join kind=leftouter used on Computer
+| summarize Alloc = sum(AllocGpuHours), Busy = sum(BusyGpuHours), Eff = sum(EffGpuHours)
+| extend Idle = max_of(Alloc - Busy, 0.0), UtilPct = iff(Alloc > 0, 100.0 * Eff / Alloc, 0.0)
+| project Metric = pack_array('① 分配卡时 (GPU-h)', '② 占用卡时 (GPU-h)', '③ 有效计算卡时 (SM加权, GPU-h)', '④ 空闲卡时 (GPU-h)', '⑤ 有效利用率 %'),
+          Value = pack_array(round(Alloc, 2), round(Busy, 2), round(Eff, 2), round(Idle, 2), round(UtilPct, 1))
+| mv-expand Metric to typeof(string), Value to typeof(real)
+
+// ===== 按 VM =====
+let gpu = GpuMetrics_CL
+| where TimeGenerated {TimeRange}
+| where '*' in ({Computer}) or Computer in ({Computer});
+let gpuCount = gpu | summarize Gpus = dcount(GpuId) by Computer;
+let alloc = Heartbeat
+| where TimeGenerated {TimeRange}
+| where Computer in ((gpuCount | project Computer))
+| summarize RunMinutes = dcount(bin(TimeGenerated, 1m)) by Computer
+| join kind=inner gpuCount on Computer
+| extend AllocGpuHours = RunMinutes * Gpus / 60.0;
+let used = gpu
+| summarize BusyGpuHours = countif(ProcCount > 0 or GpuUtil >= {IdlePct}) / 60.0,
+            EffGpuHours  = sum(coalesce(SmActive, 0.0)) / 60.0,
+            UtilGpuHours = sum(coalesce(GpuUtil, 0.0) / 100.0) / 60.0
+          by Computer;
+alloc
+| join kind=leftouter used on Computer
+| extend BusyGpuHours = coalesce(BusyGpuHours, 0.0), EffGpuHours = coalesce(EffGpuHours, 0.0)
+| extend IdleGpuHours = max_of(AllocGpuHours - BusyGpuHours, 0.0),
+         UtilPct = iff(AllocGpuHours > 0, 100.0 * EffGpuHours / AllocGpuHours, 0.0)
+| project Computer, Gpus, RunHours = round(RunMinutes / 60.0, 2),
+          ['分配卡时'] = round(AllocGpuHours, 2), ['占用卡时'] = round(BusyGpuHours, 2),
+          ['有效计算卡时'] = round(EffGpuHours, 2), ['空闲卡时'] = round(IdleGpuHours, 2),
+          ['有效利用率%'] = round(UtilPct, 1)
+| order by ['分配卡时'] desc
+
+// ===== 按天 =====
+let gpu = GpuMetrics_CL
+| where TimeGenerated {TimeRange}
+| where '*' in ({Computer}) or Computer in ({Computer});
+let gpuCount = gpu | summarize Gpus = dcount(GpuId) by Computer;
+let alloc = Heartbeat
+| where TimeGenerated {TimeRange}
+| where Computer in ((gpuCount | project Computer))
+| summarize RunMinutes = dcount(bin(TimeGenerated, 1m)) by Computer, Day = startofday(TimeGenerated)
+| join kind=inner gpuCount on Computer
+| project Day, Computer, AllocGpuHours = RunMinutes * Gpus / 60.0;
+let used = gpu
+| summarize BusyGpuHours = countif(ProcCount > 0 or GpuUtil >= {IdlePct}) / 60.0,
+            EffGpuHours = sum(coalesce(SmActive, 0.0)) / 60.0
+          by Computer, Day = startofday(TimeGenerated);
+alloc
+| join kind=leftouter used on Computer, Day
+| project Day, Computer, ['分配卡时'] = round(AllocGpuHours, 2), ['占用卡时'] = round(coalesce(BusyGpuHours, 0.0), 2),
+          ['有效计算卡时'] = round(coalesce(EffGpuHours, 0.0), 2),
+          ['有效利用率%'] = round(iff(AllocGpuHours > 0, 100.0 * coalesce(EffGpuHours, 0.0) / AllocGpuHours, 0.0), 1)
+| order by Day desc, Computer asc
+
+// ===== 按用户 =====
+GpuMetrics_CL
+| where TimeGenerated {TimeRange}
+| where '*' in ({Computer}) or Computer in ({Computer})
+| where isnotempty(Users)
+| mv-expand User = split(Users, ',') to typeof(string)
+| summarize ['占用卡时'] = round(count() / 60.0, 2),
+            ['有效计算卡时'] = round(sum(coalesce(SmActive, 0.0)) / 60.0, 2),
+            ['平均SM Active%'] = round(100.0 * avg(SmActive), 1),
+            ['峰值显存GB'] = round(max(FbUsedMiB) / 1024.0, 1),
+            Processes = make_set(Processes, 10)
+          by User, Computer
+| order by ['占用卡时'] desc
+
+// ===== 空闲告警 =====
+GpuMetrics_CL
+| where TimeGenerated > ago(60m)
+| summarize Minutes = count(), BusyMinutes = countif(ProcCount > 0 or GpuUtil >= 5) by Computer, GpuId
+| where Minutes >= 50 and BusyMinutes == 0
