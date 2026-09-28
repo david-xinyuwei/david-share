@@ -64,7 +64,7 @@
 | 8K prefill，4 路并发<br>bring-up 的 prompt 平均 7,792 token | 16,644 → 20,781 tok/s | **1.25×** |
 <!-- END GENERATED: cumulative -->
 
-Decode 的倍数在很大程度上取决于 MTP 草稿 token 的接受率。优化后的吞吐测试把接受长度固定为每步 3 个 token，这是偏乐观的条件；同一套栈的一个较早版本，在同样的随机 prompt 上按草稿模型实际达到的接受率跑过一次，可作参考点。两者逐点列出：
+Decode 的倍数在很大程度上取决于 MTP 草稿 token 的接受率。优化后的吞吐测试把接受长度固定为每步 3 个 token，这是偏乐观的条件；同一套栈的一个较早版本，在同样的随机 prompt 上按草稿模型实际达到的接受率跑过一次，可作参考点。两者逐点列出（每个数值下方是相对 bring-up 的倍数）：
 
 <!-- BEGIN GENERATED: cumulative-decode -->
 | 指标 | Bring-up<br>16K 输入 | 按实际<br>接受 | 固定接受<br>长度 3 |

@@ -163,7 +163,7 @@ def ab_tpot(lang: str) -> str:
 
 def stage_prefill(lang: str) -> str:
     st = _json("evidence/measurements.json")["tuned_moe_stage"]
-    head = (["Input tokens", "tok/s before → after", "Change"] if lang == "en" else ["输入 token", "tok/s 优化前 → 后", "变化"])
+    head = (["Input tokens", "tok/s<br>before → after", "Change"] if lang == "en" else ["输入 token", "tok/s 优化前 → 后", "变化"])
     rows = [[_i(r["input_tokens"]), f"{_c(r['before_input_tok_s'])} → {_c(r['after_input_tok_s'])}",
              f"**{_pct(r['input_tok_s_delta_pct'])}**<br>TTFT {_pct(r['mean_ttft_delta_pct'])}"] for r in st["prefill"]]
     return _table(head, rows, ["r", "r", "r"])
@@ -171,7 +171,7 @@ def stage_prefill(lang: str) -> str:
 
 def stage_decode(lang: str) -> str:
     st = _json("evidence/measurements.json")["tuned_moe_stage"]
-    head = (["Concurrency", "tok/s before → after", "Change"] if lang == "en" else ["并发", "tok/s 优化前 → 后", "变化"])
+    head = (["Concurrency", "tok/s<br>before → after", "Change"] if lang == "en" else ["并发", "tok/s 优化前 → 后", "变化"])
     rows = [[str(r["concurrency"]), f"{_c(r['before_output_tok_s'])} → {_c(r['after_output_tok_s'])}",
              f"**{_pct(r['output_tok_s_delta_pct'])}**<br>TPOT {_pct(r['mean_tpot_delta_pct'])}"] for r in st["decode"]]
     return _table(head, rows, ["r", "r", "r"])
@@ -219,7 +219,7 @@ def cumulative(lang: str) -> str:
 def cumulative_decode(lang: str) -> str:
     cu = _json("evidence/measurements.json")["cumulative"]
     if lang == "en":
-        head = ["Metric", "Bring-up<br>16K in", "Actual<br>acceptance", "Fixed<br>acceptance 3"]
+        head = ["Metric", "Bring-up<br>16K in", "Actual<br>MTP", "Fixed<br>MTP 3"]
         names = ("TPOT ms<br>at {c}", "tok/s<br>at {c}")
     else:
         head = ["指标", "Bring-up<br>16K 输入", "按实际<br>接受", "固定接受<br>长度 3"]

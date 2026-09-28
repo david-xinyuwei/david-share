@@ -64,10 +64,10 @@ Every number compares MI300X with MI300X. Read this section top-down: first the 
 | 8K prefill, 4 in flight<br>bring-up prompts averaged 7,792 tokens | 16,644 → 20,781 tok/s | **1.25×** |
 <!-- END GENERATED: cumulative -->
 
-The decode factor depends strongly on how often MTP draft tokens are accepted. The optimized throughput runs fixed the acceptance at three tokens per step, which is favorable. A related run on an older build of the same stack, with the acceptance the draft model actually achieved on the same random prompts, gives a reference point. Both are shown per point:
+The decode factor depends strongly on how often MTP draft tokens are accepted. The optimized throughput runs fixed the acceptance at three tokens per step, which is favorable. A related run on an older build of the same stack, with the acceptance the draft model actually achieved on the same random prompts, gives a reference point. Both are shown per point ("Actual MTP" and "Fixed MTP 3"; the factor under each value is against bring-up):
 
 <!-- BEGIN GENERATED: cumulative-decode -->
-| Metric | Bring-up<br>16K in | Actual<br>acceptance | Fixed<br>acceptance 3 |
+| Metric | Bring-up<br>16K in | Actual<br>MTP | Fixed<br>MTP 3 |
 |---|---:|---:|---:|
 | TPOT ms<br>at 32 | 29.41 | 23.20<br>1.27× | 13.65<br>2.15× |
 | TPOT ms<br>at 64 | 45.86 | 30.07<br>1.53× | 17.00<br>2.70× |
@@ -134,7 +134,7 @@ The implied TPOT is `1000 × 16 / tok/s`, not a client-measured latency.
 Prefill, measured at the client (throughput rounded to whole tokens; exact values in `evidence/measurements.json`):
 
 <!-- BEGIN GENERATED: stage-prefill -->
-| Input tokens | tok/s before → after | Change |
+| Input tokens | tok/s<br>before → after | Change |
 |---:|---:|---:|
 | 8,192 | 16,716 → 20,781 | **+24.32%**<br>TTFT -15.15% |
 | 65,536 | 17,254 → 19,023 | **+10.25%**<br>TTFT -9.36% |
@@ -143,7 +143,7 @@ Prefill, measured at the client (throughput rounded to whole tokens; exact value
 Decode, same runs:
 
 <!-- BEGIN GENERATED: stage-decode -->
-| Concurrency | tok/s before → after | Change |
+| Concurrency | tok/s<br>before → after | Change |
 |---:|---:|---:|
 | 16 | 1,299 → 1,332 | **+2.52%**<br>TPOT +1.79% |
 | 32 | 1,911 → 1,936 | **+1.33%**<br>TPOT +1.11% |
