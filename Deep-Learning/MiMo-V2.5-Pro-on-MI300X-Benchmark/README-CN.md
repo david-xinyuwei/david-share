@@ -22,7 +22,7 @@
 | 目标 | 入口 |
 |---|---|
 | 看最终数字和它们的边界 | 下文 **执行摘要**：先准确率，再吞吐状态表 |
-| 理解这套栈是怎么调出来的、每个开关管什么 | **我们是怎么调的：关键技术点**，再看 [docs/optimization-evolution.md](docs/optimization-evolution.md)（[中文](docs/optimization-evolution-CN.md)）里按因果排序的演进图 |
+| 理解每项性能手段怎么做、换来多少收益、适用在哪里 | **我们是怎么调的：关键技术点**，再看 [docs/optimization-evolution.md](docs/optimization-evolution.md)（[中文](docs/optimization-evolution-CN.md)）里按因果排序的演进图 |
 | 在两台 MI300X 节点上复现吞吐 benchmark | **在 Azure 上运行并复现结果**，启动与压测脚本在 [scripts/amd-latest/](scripts/amd-latest/) |
 | 在一台 MI300X 节点上复现 SWE-bench 准确率 | **SWE-bench 准确率路线**，运行时配方与启动器在 [scripts/swebench/](scripts/swebench/) |
 | 不用 GPU 就核对已保存的证据 | **测试说明**：`python3 scripts/validate_repo.py` 与 `python3 scripts/summarize_swebench_swelog.py --check data/swebench` |
@@ -140,7 +140,7 @@ No-CK 与优化路径 A/B 测试的原始样本分别记录在 [`data/validation
 
 ## 我们是怎么调的：关键技术点
 
-性能不是靠某一个开关提上来的，而是让模型路径、算子覆盖、KV cache 组织、并行拓扑、KV 传输和测试口径一次只改一个变量地逐步收敛。本节逐个说明每个开关在 MI300X 上改变了什么、我们如何确认它真的生效；各阶段之间的因果顺序见 [docs/optimization-evolution.md](docs/optimization-evolution.md)。
+性能不是靠某一个开关提上来的，而是让模型路径、算子覆盖、KV cache 组织、并行拓扑、KV 传输和测试口径一次只改一个变量地逐步收敛。下面把每项性能手段拆成做法、实测收益、原理、通用性和对我们的启示五部分，没有受控测量的手段会直接写明；各阶段之间的因果顺序见 [docs/optimization-evolution.md](docs/optimization-evolution.md)。
 
 ### 从能跑到可交付
 
@@ -150,34 +150,133 @@ No-CK 与优化路径 A/B 测试的原始样本分别记录在 [`data/validation
 | 五月中旬，同模型基线 | 运行时不变；改用客户的 MiMo-V2.5-Pro H200 表格、单节点口径 | 8K 与 64K Prefill 为 H200 EP16/DP2 单节点参考的 51%–52% | 最近的 TPOT 测点约慢 4× | 这是方法学收益而非 kernel 收益：同一模型、同一单节点口径 |
 | 六月，AITER 路径 | 支持 hybrid SWA + GQA 的 AITER attention、带 `vectorized_5d` 的 FP8 E4M3 KV、FlyDSL Paged Attention decode、跨 8 个 IB 端口的 Mooncake RDMA、MTP accept length 1.6 → 2.4 | 共同测点约 42%–53% | 8K 高 batch TPOT 比 H200 低 3%–17% | 算子覆盖；同时找出一个错误关闭 CUDA graph 的配置——它曾把 Decode TPOT 推到约 120 ms，修正后回到约 23 ms |
 | 七月，按模型 shape 定制 kernel | 带 B preshuffle 的 CK A8W8 block-scale GEMM、覆盖 token batch 2048–32768 的 MiMo tuned fused-MoE 表、长上下文边界门禁 | 63.6%（8K）、69.3%（64K）、73.9%（256K） | 8K c16 吞吐达 95.6%，TPOT 低 6.6%；精确 64K BS16 从 743.12 → 933.75 tok/s（+25.7%） | 算子路径稳定之后，模型 shape 调优才测得出来 |
-| 七月下旬到八月，长上下文 Decode 与准确率 | 16 分区的 FlyDSL PA、`--swa-full-tokens-ratio 0.01`、overlap schedule、HIP non-greedy EAGLE verifier `878fff156` | 128K / 192K / 256K Prefill 为 16,711.96 / 14,402.00 / 12,725.25 input tok/s | 128K–256K Decode 在实际 batch 1 下 scheduler gen 125.04–140.72 tok/s | SWE-bench 366/499 与 370/499 都在这套栈上完成 |
+| 七月下旬到八月，长上下文 Decode 与准确率 | 仅准确率栈：16 分区的 FlyDSL PA、`--swa-full-tokens-ratio 0.01`、overlap schedule、HIP non-greedy EAGLE verifier `878fff156` | 128K / 192K / 256K Prefill 为 16,711.96 / 14,402.00 / 12,725.25 input tok/s，测于不含 FlyDSL 的 7/13 衍生镜像 | 同一镜像上，128K–256K Decode 在实际 batch 1 下 scheduler gen 125.04–140.72 tok/s | SWE-bench 366/499 与 370/499 在准确率栈上完成；本行吞吐数字不含 FlyDSL 的作用 |
 
 表中百分比都是按每 8 张 GPU 份额对客户工作簿的方向性比值；前两行之间参考模型和拓扑都变了，所以这张表是一段历史，不是受控的加速叠加瀑布。
 
-### 服务命令里的十三个开关
+### 提升性能的手段：做法、收益、原理、通用性与启示
 
-| # | 层 | 开关 | 在 MI300X 上改变了什么 | 我们怎么确认它生效 |
+每项手段回答五个问题：怎么设、本仓库测到了什么、为什么有效、适用在哪里、对下一次部署意味着什么。测量一栏写“无”，表示本仓库没有受控 A/B；项目历史中的数字会单独标明。
+
+| # | 手段 | 本仓库的受控测量 | 吞吐矩阵 | SWE-bench 准确率运行 |
 |---:|---|---|---|---|
-| 1 | Kernel | `--attention-backend aiter` + `SGLANG_USE_AITER=1` | 把 Triton 的 attention、MoE 与 normalisation 路径换成为 CDNA3 MFMA 编写的 AMD AITER kernel；这是该模型在 TP8 下唯一持续稳定的路径 | 看服务日志中的 kernel 名；核对 import 根目录是否为 `/sgl-workspace/aiter_0625`——同一个包版本从另一个 import 根加载时曾表现不同 |
-| 2 | Kernel | `SGLANG_AITER_PA_DECODE_IMPL=flydsl` + `SGLANG_FLYDSL_PA_NUM_PARTITIONS=16` | 为 MiMo 的 head 布局编译的 FlyDSL Paged Attention decode kernel；16 个分区在 64K–1M 上下文下填满 MI300X 的计算单元（AMD 自报单 kernel 约 14×、比 Gluon PA kernel 约 1.5×） | 两个变量必须一起设；accept length 约 2.4；128K–256K 在 batch 1 下 scheduler gen 125.04–140.72 tok/s |
-| 3 | Kernel | 来自 AITER `d725746` 的 `mimo_v2_5_pro_b16_tuned_fmoe.csv` | 为 token batch 2048–32768 的 fused-MoE grouped GEMM 逐 shape 选 kernel；模型数学不变 | 启动日志必须打印该 CSV 文件名；其 SHA-256 `2c87ff1f…80ea7` 纳入运行时身份 |
-| 4 | Kernel | `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1` | 权重预先重排成 MFMA 友好布局的 CK A8W8 block-scale GEMM；Prefill 是算力瓶颈，8-bit GEMM 的收益在这里 | 日志中的 `module_gemm_a8w8_blockscale_bpreshuffle` 标记；同镜像 A/B 743.12 → 933.75 tok/s |
-| 5 | Memory | `--kv-cache-dtype fp8_e4m3` | KV 字节数减半；这是 TP8 在每卡 192 GB 内同时装下权重与 1M 上下文的唯一办法（memory fraction 0.90 时实测容量 575,360 token） | `/server_info` 中的 `max_total_num_tokens`；容量门禁 524,288 token |
-| 6 | Memory | `SGLANG_AITER_KV_CACHE_LAYOUT=vectorized_5d` | 与 `global_load_dwordx4` wavefront lane 对齐的向量化 5D KV 布局；FlyDSL kernel 的前置条件——FP8 KV、5D 布局与 FlyDSL PA 永远成套出现 | 三者只改其一，要么启动失败，要么静默回退 |
-| 7 | Memory | PD 启动器用 `--page-size 32`，准确率启动器用 `--page-size 64` | 更大的页减少页表开销，并让 Mooncake KV 传输批量化；`ck_tile.patch` 补上 page-64 / head-192 的 prefill tile | 两个 PD 角色取值一致；JIT 对象列表里能看到该 tile 名 |
-| 8 | 算法 | `--speculative-algorithm EAGLE --speculative-num-steps 3 --speculative-eagle-topk 1 --speculative-num-draft-tokens 4 --enable-multi-layer-eagle` | MiMo 自带的 3 层 MTP draft；准确率运行用真实接受率，`SGLANG_SIMULATE_ACC_LEN=3` 只用于吞吐运行 | scheduler 日志中的 `accept len`；准确率启动器里模拟变量已 unset |
-| 9 | 算法 | `--chunked-prefill-size` 在 Prefill 角色为 32768、Decode 角色为 16384、统一准确率服务为 65536 | 限制 Prefill 峰值，让 256K prompt 不会耗尽显存；取值必须满足运行时的 dispatch 上限——照抄 H200 的值在启动时直接失败 | `--max-prefill-tokens` 与 `/server_info` |
-| 10 | 系统 | `--disaggregation-mode prefill` / `decode`、`--disaggregation-transfer-backend mooncake`、`--disaggregation-ib-device mlx5_ib0…mlx5_ib7` | Prefill 的 KV 经 RDMA 传到 Decode 节点 | 日志出现八行 `RDMA device: mlx5_ib*` 且没有 `fallback` 到 TCP 的标记——TCP 回退会让吞吐掉到约三分之一，却不报任何错 |
-| 11 | 系统 | `SGLANG_MOE_PADDING=1`、`SGLANG_SET_CPU_AFFINITY=1`、`HSA_NO_SCRATCH_RECLAIM=1`、`MC_GID_INDEX=3` | expert 维度 padding、NUMA 绑核、长跑期间禁止 HSA scratch 回收、Mooncake GID 选择 | 每次做差分前先比对容器内 `env`；少一个变量的表现就是"能跑但慢" |
-| 12 | 系统 | PD 启动器用 `--disable-overlap-schedule`；准确率启动器开启 overlap | overlap 路径在 Prefill 角色触发过 HIP 崩溃；崩溃处关闭，稳定处保留 | 在 Prefill 角色上做差分 |
-| 13 | 系统 | MTP 开启的准确率 wrapper 里设 `SGLANG_SCHEDULER_SKIP_ALL_GATHER=1` | 跳过 data-parallel 为 1 时每步 7 个整数的 scheduler all-gather，它曾在约 200K token 处超时；这是从 SGLang 源码里找到的开关，不是补丁 | 完整运行中不再出现 `_ALLGATHER_BASE` 超时 |
+| 1 | AITER 算子后端 | 无；未单独拆分 | 开 | 开 |
+| 2 | 预重排权重的 CK A8W8 block-scale GEMM | 单节点精确 64K Decode、BS16 下 scheduler gen tok/s +25.7% | Prefill 角色、DP=2、单节点 Decode 开启；PD Decode 角色未开 | 开 |
+| 3 | MiMo tuned fused-MoE 表 | 无端到端测量 | 开 | 开 |
+| 4 | Decode graph capture | 无；项目记录 TPOT 约 120 → 23 ms | Decode 角色开启；Prefill 角色关闭 | 开 |
+| 5 | KV 容量：FP8 KV、静态显存比例、SWA 比例 | KV 池 554,880 → 1,442,464 token（比例 0.85 → 0.95） | FP8 KV；PD 比例 0.85，单节点 0.95 | FP8 KV；SWA 比例 0.01 |
+| 6 | 向量化 5D KV 布局 + FlyDSL Paged Attention | 无 | 关 | 开，仅用于 MTP 验证 |
+| 7 | 多层 EAGLE MTP | 无；吞吐运行把接受长度固定为 3 | 模拟接受 | MTP 开启那轮用真实接受 |
+| 8 | 基于 Mooncake RDMA 的 PD 分离 | 无；退回 TCP 后吞吐约降到三分之一（项目观察） | 1P1D 矩阵 | 关（单节点） |
+| 9 | DP=2 Prefill 副本 | 并发 1 → 2 时聚合 input tok/s 为 1.99×（8K）与 1.98×（64K） | DP=2 矩阵 | 关 |
+
+后两列最值得看：PD Decode 角色上的 CK、配合 5D 布局的 FlyDSL PA、overlap 调度，在吞吐矩阵里都没开，吞吐数字是在没有它们的情况下测出来的。把它们逐项接入吞吐路径是尚未测试的候选项，不代表可以预期的收益。
+
+**1 · AITER 算子后端**
+
+| 问题 | 回答 |
+|---|---|
+| 做法 | 所有角色都设 `--attention-backend aiter` 和 `SGLANG_USE_AITER=1`。检查服务日志里的 AITER kernel 名，并确认 `aiter` 是从哪个目录导入的，只看版本号不够 |
+| 收益 | 未单独拆分。它和 FP8 KV、Paged Attention、RDMA、MTP 的改动在六月阶段一起上线，那一阶段的收益不单独记在它头上。在本项目里，它是该模型在 TP8 下唯一持续稳定的 attention 路径 |
+| 实现原理 | AITER 是 AMD 的 ROCm 算子库，把 CK、Triton 和汇编 kernel 封装成 attention、MoE、GEMM、normalisation 和量化等框架算子（[ROCm AITER](https://github.com/ROCm/aiter)）。这两个开关把 SGLang 的 attention 以及 MoE、GEMM、normalisation 路径交给这些算子 |
+| 通用性 | 适用于 ROCm GPU，与模型无关。MiMo 专属的收益来自第 2、3、6 项，它们都经由这个后端分发 |
+| 对我们的指点 | 先验证它，后面每一项都依赖它。同一镜像里可能同时存在两套 AITER 目录；曾经出现过包版本相同、只因导入根目录不同而行为不同的情况 |
+
+**2 · 预重排权重的 CK A8W8 block-scale GEMM**
+
+| 问题 | 回答 |
+|---|---|
+| 做法 | 导出 `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1`。Prefill、DP=2、单节点 Decode 和两个准确率启动器都设了，`launch_pd_decode.sh` 没设。日志里出现 `module_gemm_a8w8_blockscale_bpreshuffle` 才算生效 |
+| 收益 | 单节点 TP8，精确 64K 输入 / 1K 输出，固定 BS16，固定接受率，每组各两次全新服务，在同一台机器上连续执行：scheduler gen tok/s 从 743.12 → 933.75（+25.7%），推算 TPOT 从 21.53 → 17.14 ms。优化组还导出了 `SGLANG_AITER_UNIFIED_VERIFY=1`，但在记录的 SGLang 源码 `2f9b9aedf` 里，这个变量只有一处读取、默认值本来就是 `1`，所以从源码看，真正改变行为的只有 CK 路径。这个归因来自读代码，不是单开关实测；Prefill 也没有做 A/B |
+| 实现原理 | 不设这个开关时，SGLang 在 MI300X（gfx942）上走 AITER 的 Triton block-scale GEMM。设了之后，SGLang 在加载时把每个 FP8 权重一次性重排成 16 × 16 的 tile（`shuffle_weight(layer.weight, (16, 16))`），把激活按 1 × 128 分块量化并转置 scale，再调用 CK kernel，由它按 GEMM shape 选取调好的实例。AITER fork 把这些实例放在 `a8w8_blockscale_bpreshuffle_tuned_gemm_mimo_v2_5_pro.csv` 里：189 行，覆盖三种 (N, K) 权重 shape 下 M = 1 到 131,072 |
+| 通用性 | 适用于 gfx942 上带 1 × 128 block scale 的 FP8 线性层，前提是该 shape 有调好的行；在 gfx95 且 ROCm 7.2 及以上、开启 AITER 时，SGLang 默认走预重排路径，只有已有调优 Triton kernel 的 shape 例外。attention 和 fused-MoE 专家走的是别的 kernel |
+| 对我们的指点 | 本报告里的 PD Decode 数字都没开 CK，所以在 Decode 角色上打开它，是成本最低、尚未测试的候选项。给某个开关记功之前，先到源码里看它的默认值：这组 A/B 里的另一个开关本来就是开的 |
+
+**3 · MiMo tuned fused-MoE 表**
+
+| 问题 | 回答 |
+|---|---|
+| 做法 | 把 `mimo_v2_5_pro_b16_tuned_fmoe.csv`（AITER `d725746`，SHA-256 `2c87ff1f…80ea7`）放在 `aiter/configs/model_configs/` 下；AITER 启动时会把它和基础调优文件合并。启动日志里必须出现这个文件名 |
+| 收益 | 本仓库没有端到端 A/B。文件里记录的是调优器为每个 shape 选中的 kernel 耗时，从 2,048 token 时的 703.19 µs 到 32,768 token 时的 4,816.42 µs，但没有记录未调优时的耗时，单看它得不出加速比 |
+| 实现原理 | fused-MoE 分发器按精确 key 查配置：CU 数、token 数、模型维度与中间维度、专家数、top-k、激活函数、数据类型和量化类型（`aiter/fused_moe.py`）。MiMo 文件共五行：304 个 CU，维度 6,144 和 256，384 个专家，top-k 为 8，FP8 加 1 × 128 block scale，token 数 2,048 到 32,768。命中时选用记录的两阶段 kernel 和 `block_m`；未命中则退到更小的调优档位或默认启发式，日志里显示为 `default`。模型数学不变 |
+| 通用性 | 只适用于 304 CU 的 MI300X 上的这一 shape。AITER 把 1,024 以上的 token 数视为 Prefill，所以这些行服务于 Prefill 规模的 token batch；Decode batch 走别的行或默认值 |
+| 对我们的指点 | 调优数据是按 GPU 和 shape 生成的 CSV，用 AITER 自带的调优器就能低成本产出；换一个 MoE 模型或 GPU 型号，第一步就是针对它自己的 shape 跑一次调优。检查启动日志里关键 shape 显示的是调优标签，而不是 `default` |
+
+**4 · Decode graph capture**
+
+| 问题 | 回答 |
+|---|---|
+| 做法 | Decode 角色和单节点服务保持 graph capture；只有 `launch_pd_prefill.sh` 带 `--disable-cuda-graph`，仓库校验器对这两点都有检查 |
+| 收益 | 本仓库没有受控测量。六月阶段的项目记录：一个配错的 graph 开关把 Decode TPOT 推到约 120 ms，恢复 graph 后回到约 23 ms；该阶段的原始日志不在本仓库 |
+| 实现原理 | graph capture 按 batch size 把一整个 Decode 步录制一次，之后一次 launch 就能重放。小 batch 下 Decode kernel 都很短，不录制的话，每个 kernel 的 CPU 发射开销都会叠加到每个 token 上。这一版 SGLang 分别提供 Decode 和 Prefill 的 graph 后端（`--cuda-graph-backend-{decode,prefill}`） |
+| 通用性 | 适用于 CUDA 或 ROCm（HIP graph）上的任何 SGLang 部署；这里的 Prefill 角色不使用 graph |
+| 对我们的指点 | 一个开关设错，TPOT 差了约 5×，而且不报错。每次运行前，把每个启动器的参数和已验证的启动器逐项比对 |
+
+**5 · KV 容量：FP8 KV、静态显存比例、SWA 比例**
+
+| 问题 | 回答 |
+|---|---|
+| 做法 | 所有启动器都设 `--kv-cache-dtype fp8_e4m3`；`--mem-fraction-static` 在 PD 角色为 0.85，单节点服务为 0.95；准确率启动器设 `--swa-full-tokens-ratio 0.01`。从 `/server_info` 读 `max_total_num_tokens`，从 `#running-req` 读实际 batch |
+| 收益 | 收益在容量，容量再决定 batch。单个 TP8 节点上，比例从 PD 用的 0.85 提到 0.95，full-attention KV 池从 554,880 token 增至 1,442,464 token，足够同时容纳 16 个 64K 输入加 1K 输出的请求（16 × 66,560 = 1,064,960 token）。在 0.85 下，64K PD Decode 的实际 batch 只有 4–5，方向性比值为 H200 那一行的 20.1%；batch 对齐的单节点 BS16 测点为 70.0%。本仓库没有做 FP8 与 BF16 KV 的对比 |
+| 实现原理 | FP8 E4M3 每个 KV 元素占一个字节，BF16 占两个，同样的显存能放下两倍的 token。`--mem-fraction-static` 是分给权重和 KV 池的显存比例（SGLang 帮助文本），权重占用固定，超出部分每多一点都归 KV。`--swa-full-tokens-ratio` 设定 SWA 层 KV token 与 full-attention 层 KV token 的比例（SGLang 帮助文本）；设为 0.01 几乎把整个池都给了 full-attention 层，因为 SWA 层只需保留窗口内的 KV |
+| 通用性 | FP8 KV 和显存比例是 SGLang 的通用选项；SWA 比例适用于 MiMo 这类混合 SWA 模型。FP8 KV 需要按模型做准确率验证，这里两轮 SWE-bench 都用了它 |
+| 对我们的指点 | 长上下文下，容量决定实际 batch，batch 决定吞吐：64K PD 的差距主要是 KV 容量问题，不是 kernel 问题。先按 ISL × batch 规划显存和拓扑，再调 kernel；报告里写 `#running-req`，不要写客户端并发 |
+
+**6 · 向量化 5D KV 布局 + FlyDSL Paged Attention**
+
+| 问题 | 回答 |
+|---|---|
+| 做法 | 两个准确率启动器都设 `SGLANG_AITER_KV_CACHE_LAYOUT=vectorized_5d`、`SGLANG_AITER_PA_DECODE_IMPL=flydsl`、`SGLANG_FLYDSL_PA_NUM_PARTITIONS=16` 和 `--page-size 64`；`verify_runtime_contract.py` 在运行中的服务进程环境里检查这三个变量。只有布局为 `vectorized_5d` 时 FlyDSL 才会启用，所以这几项要一起设。`ck_tile.patch` 补上 page 64、head dim 192 所需的 CK batch-prefill tile |
+| 收益 | 本仓库没有测量。吞吐矩阵跑在 7/13 衍生镜像上，那套启动器两个变量都没设，记录的 SGLang 源码 `2f9b9aedf` 里也没有 FlyDSL 选择开关，所以本报告的吞吐数字都不含 FlyDSL。这里不引用任何公开的 kernel 基准 |
+| 实现原理 | 5D 布局把 K 存成 `(num_blocks, H_kv, head_dim/x, page_size, x)`，V 存成 `(num_blocks, H_kv, page_size/x, head_dim, x)`，其中 `x = 16 / dtype_size`；AITER 的 CK batch-prefill 和 Gluon PA kernel 可以直接读这种布局，不需要运行时重排（SGLang `878fff156`，`environ.py`）。FlyDSL PA 按 MiMo 在 TP8 下每卡的 shape 编译（16 个 query head、1 个 KV head、head dim 192、page 64、4 个 query token，与 `--speculative-num-draft-tokens 4` 一致），只负责 full-attention 层的 MTP target verification；SWA 层和普通 Decode 仍走 AITER。分区数是 kernel 的第三个 grid 维度，所以 batch 为 1 时，把它从默认的 8 提到 16，同一段上下文上的 work-group 数翻倍，再由 reduce kernel 合并各分区的局部最大值、求和与输出 |
+| 通用性 | MiMo 专用：kernel 按这一 head 布局和 page 大小编译，分区数只接受 8、16、24 或 32。5D 布局本身也服务于 AITER Gluon PA 对其他 attention 模型的支持 |
+| 对我们的指点 | 配置了的 kernel 不一定真的执行：MTP 关闭那一轮也带着 FlyDSL 设置，但这条路径只在 MTP 验证时运行。吞吐路径上的长上下文 Decode 还没有用过这项手段，它是 128K–256K 最主要的未测候选项 |
+
+**7 · 多层 EAGLE MTP**
+
+| 问题 | 回答 |
+|---|---|
+| 做法 | `--speculative-algorithm EAGLE --speculative-num-steps 3 --speculative-eagle-topk 1 --speculative-num-draft-tokens 4 --enable-multi-layer-eagle` 用 MiMo 自带的三层 MTP 作为 draft。吞吐启动器用 `SGLANG_SIMULATE_ACC_LEN=3` 和 `SGLANG_SIMULATE_ACC_METHOD=match-expected` 固定接受率；准确率启动器把这两个变量都 unset |
+| 收益 | 这里所有吞吐数字都在固定接受长度 3 下测得（64K 固定 batch 窗口记录的是 3.00，接受率 0.67），这是测试条件，不是实测的 MTP 收益；本仓库也没有做 MTP 开/关的吞吐 A/B。项目记录：在修复 verifier 之前的 5 题探测中，关闭 MTP 让原始 Decode 吞吐下降 40%–54%。准确率上，开 MTP 的 366/499 和不开的 370/499 都是单次运行，差距在运行间波动范围内 |
+| 实现原理 | 每一步由 MTP 层起草 3 个 token，目标模型在一次前向里给这些位置打分；每接受一个 draft，就省下一次属于它的前向。在 fork `878fff156` 加入随机 verifier（`SGLANG_MIMO_EAGLE_HIP_NONGREEDY_VERIFY=1`）之前，HIP 路径即使在 `temperature=1.0` 下也按 greedy 验证 |
+| 通用性 | 需要模型自带 MTP 或 draft head。接受率取决于内容和采样温度，所以模拟接受的开关只能用于测试 |
+| 对我们的指点 | 模拟接受下的每秒 token 数不是生产指标。Agent 场景看每小时完成的任务数；在 verifier 的采样路径被证明正确之前，不做 MTP 相关结论 |
+
+**8 · 基于 Mooncake RDMA 的 PD 分离**
+
+| 问题 | 回答 |
+|---|---|
+| 做法 | `--disaggregation-mode prefill` / `decode`、`--disaggregation-transfer-backend mooncake`、`--disaggregation-ib-device mlx5_ib0…mlx5_ib7`；容器需要 `--privileged`、`/dev/mem` 和 `CAP_SYS_ADMIN`。只有日志里出现八行 `RDMA device: mlx5_ib*` 且没有 TCP 回退标记，这次运行才算数 |
+| 收益 | 本仓库没有做 PD 与非 PD 的 A/B。长上下文证据记录了 RDMA 初始化已验证、没有 TCP 回退标记（`data/validation/decode-long-context-evidence.json`）。项目观察：一次静默的 TCP 回退让吞吐降到约三分之一 |
+| 实现原理 | SGLang 的 PD 模式把算力密集的 Prefill 和访存密集的 Decode 放到不同服务上，Prefill batch 不再打断 token 生成，Prefill 算出的 KV 通过传输引擎送到 Decode 节点（[SGLang PD Disaggregation](https://docs.sglang.io/advanced_features/pd_disaggregation.html)）。这里由 Mooncake 经八个 InfiniBand 端口用 RDMA 传输 |
+| 通用性 | 需要两组服务、RDMA 网络，以及容器内的设备访问权限；在 CUDA 上设计相同 |
+| 对我们的指点 | 这类故障不报错：退回 TCP 后 token 依然正确，只是变慢，所以 RDMA 初始化必须作为硬性门禁。拆分之后，Prefill 和 Decode 也可以使用各自的 batch size 和超参（见下文 PD 一章） |
+
+**9 · DP=2 Prefill 副本**
+
+| 问题 | 回答 |
+|---|---|
+| 做法 | 两个完整的 TP8 服务挂在同一个 SGLang router 后面（`launch_dp2_*.sh`）；每个测点前后都记录各 worker 的请求数 |
+| 收益 | 8K 输入：并发从 1 到 2，聚合 input tok/s 从 20,751.73 → 41,201.86（1.99×）；64K 输入：19,695.02 → 38,984.45（1.98×）；之后都进入平台期 |
+| 实现原理 | router 把整个请求分给相互独立的 TP8 组，热路径上没有跨节点 collective；第二个副本要等同时有两个请求在处理时才开始工作 |
+| 通用性 | 每个副本都要一整份模型显存。它测的是 Prefill 容量，不是 2P1D 端到端吞吐，也不测 P→D 的 KV 传输 |
+| 对我们的指点 | 跨节点 EP 失败的地方，复制副本让 Prefill 近似线性扩展（见并行策略表），所以先做副本，再把 EP 当成单独的 MoE 设计选择 |
+
+**不属于提速手段、但必须设置的项**
+
+| 设置 | 本仓库取值 | 为什么必须 |
+|---|---|---|
+| `--chunked-prefill-size` | Prefill 角色 32768，Decode 角色 16384，统一准确率服务 65536 | 压住 Prefill 峰值，让 256K prompt 放得进显存；取值必须满足运行时的 dispatch 上限，照抄 H200 的值在启动时直接失败 |
+| `--page-size` | 吞吐启动器 32，准确率启动器 64 | 两个 PD 角色必须一致；64 由 FlyDSL kernel 固定 |
+| `--disable-overlap-schedule` | 全部五个吞吐启动器都设了；两个准确率启动器保留 overlap | overlap 调度器把 CPU 调度与 GPU 计算重叠（SGLang 帮助文本），它在 Prefill 角色上触发过 HIP illegal address；因此吞吐数字是在关闭它的情况下测得的 |
+| `SGLANG_MOE_PADDING=1`、`SGLANG_SET_CPU_AFFINITY=1`、`HSA_NO_SCRATCH_RECLAIM=1`、`MC_GID_INDEX=3` | 前三项所有启动器都设；`MC_GID_INDEX=3` 只在 PD 角色和准确率启动器上 | expert 维度 padding、NUMA 绑核、长跑期间禁止 HSA scratch 回收、Mooncake GID 选择。少一个变量的表现就是“能跑但慢”，所以每次做差分前先比对容器内的 `env` |
 
 ### 长上下文方法：报数之前的五步
 
 1. **冻结 workload 语义。** Prefill 为 262,144 个输入 token 加 1 个输出 token；Decode 为 261,120 输入加 1,024 输出；`--random-range-ratio 1.0`、固定 seed 与 `--tokenize-prompt`，并且客户端启动前 `/server_info` 必须显示 `max_req_input_len` 不低于 262,145。
 2. **压住 Prefill 峰值。** chunked prefill 按运行时约束取值，而不是照抄 H200 配置。
 3. **确认的是容量，不是并发。** 读实时 `max_total_num_tokens`、记录 KV 使用峰值、从 `#running-req` 读实际 Decode batch；256K 下客户端并发 4 仍只跑出 batch 1，因为 KV 才是上限。
-4. **两个热点一起调。** 长输入抬高 attention 占比，所以 AITER attention 与 FlyDSL PA 重要；大 Prefill token batch 让 grouped GEMM 占比居高不下，所以 tuned MoE 表仍然有效。
+4. **两个热点一起调。** 长输入抬高 attention 占比，所以 attention 路径重要（吞吐测试用 AITER attention，FlyDSL PA 只在准确率栈里用）；大 Prefill token batch 让 grouped GEMM 占比居高不下，所以 tuned MoE 表仍然有效。
 5. **把"kernel 能跑"和"PD 链路可持续"分开。** 每个上下文长度依次做单请求、顺序多请求、并发请求、fresh-service 复测；256K Prefill c4 两次都触发 AMDGPU page fault，因此按 `REJECTED_BOUNDARY` 发布，而不是填一个估计值。
 
 ### 并行策略决策：TP8 优先
@@ -195,9 +294,9 @@ No-CK 与优化路径 A/B 测试的原始样本分别记录在 [`data/validation
 |---|---|---|
 | 反复探测健康端点后 Prefill detokenizer 停滞 | SGLang 默认 `SGLANG_ENABLE_HEALTH_ENDPOINT_GENERATION=True`，每次 `/health` 探测都真的生成一个 token | 设为 `0`；用不生成 token 的 `/server_info` 做监控 |
 | 加载权重时 TP rank 卡在 ROCm `wait_on_page_bit_common` | HMM 上的多线程 safetensors 加载；不写这个选项并不等于关闭 | PD 角色上加 `--model-loader-extra-config '{"enable_multithread_load": false}'` |
-| Prefill 角色的 overlap scheduler 路径出现 HIP illegal address | 该模型在 ROCm 上的 overlap 调度 | 崩溃处加 `--disable-overlap-schedule`（见开关 12） |
+| Prefill 角色的 overlap scheduler 路径出现 HIP illegal address | 该模型在 ROCm 上的 overlap 调度 | 吞吐启动器统一加 `--disable-overlap-schedule`（见上方设置表）；准确率启动器保留 overlap |
 | 一段 351,703 token 的对话在 `max_req_input_len=348,538` 处被截断 | GPU KV 池装不下一条活跃的 Agent 对话；主机侧 cache 不会放大它 | memory fraction 0.85 → 0.90，实测容量 575,360 token，启动门禁 524,288 |
-| scheduler 在约 200K token 处 `_ALLGATHER_BASE` 超时 | data-parallel 为 1 时每步 7 个整数的状态 all-gather | `SGLANG_SCHEDULER_SKIP_ALL_GATHER=1`（开关 13） |
+| scheduler 在约 200K token 处 `_ALLGATHER_BASE` 超时 | data-parallel 为 1 时每步 7 个整数的状态 all-gather | MTP 开启的 wrapper 里设 `SGLANG_SCHEDULER_SKIP_ALL_GATHER=1`，这是 SGLang 已有的开关，不是补丁 |
 | `temperature=1.0` 的请求在 HIP 上被按 greedy 验证 | HIP 的 EAGLE 路径没有随机 verifier，静默回退 | 可选的 Torch 随机 verifier，分支 commit `878fff156`，由 `SGLANG_MIMO_EAGLE_HIP_NONGREEDY_VERIFY=1` 启用 |
 | 准确率运行里出现有损的 INT8 collective | ROCm Quick Reduce 默认 INT8 压缩 | 准确率 wrapper 里设 `ROCM_QUICK_REDUCE_QUANTIZATION=NONE` |
 | verifier 修复之前，MTP 开启时 Agent 在 500 步上限处死循环 | 5 题隔离实验中，关闭 MTP 把平均 Agent 调用从 500 降到 95.3，同时原始 decode 吞吐下降 40%–54% | MTP 关闭与带 verifier 的 MTP 开启两轮完整运行都以 0 `LimitsExceeded` 收尾；这里真正重要的指标是每小时完成的 Agent 任务数，不是每秒 token 数 |

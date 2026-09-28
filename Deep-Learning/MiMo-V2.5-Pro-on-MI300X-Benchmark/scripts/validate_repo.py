@@ -32,7 +32,7 @@ BILINGUAL_HEADING_PAIRS = (
     ('### Test Topology', '### 测试拓扑'),
     ('## How We Tuned It: Key Technical Points', '## 我们是怎么调的：关键技术点'),
     ('### From Bring-Up to Deliverable', '### 从能跑到可交付'),
-    ('### The Thirteen Switches in the Serving Command', '### 服务命令里的十三个开关'),
+    ('### Performance Levers: Method, Gain, Mechanism, Scope and Lesson', '### 提升性能的手段：做法、收益、原理、通用性与启示'),
     ('### Long-Context Method: Five Steps Before a Number Is Reported', '### 长上下文方法：报数之前的五步'),
     ('### Parallelism Decision: TP8 First', '### 并行策略决策：TP8 优先'),
     ('### SWE-bench Engineering: What Broke and What Fixed It', '### SWE-bench 工程化：坏在哪里、怎么修的'),

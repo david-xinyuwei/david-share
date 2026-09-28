@@ -22,7 +22,7 @@ English | [中文版](README-CN.md) | [Validation Evidence](data/validation/) | 
 | Goal | Entry |
 |---|---|
 | Read the final numbers and their boundaries | **Executive Summary** below: accuracy first, then the throughput status table |
-| Understand how the stack was tuned and which switch does what | **How We Tuned It: Key Technical Points**, then the ordered evolution map in [docs/optimization-evolution.md](docs/optimization-evolution.md) ([中文](docs/optimization-evolution-CN.md)) |
+| Understand how each performance lever works, what it bought and where it applies | **How We Tuned It: Key Technical Points**, then the ordered evolution map in [docs/optimization-evolution.md](docs/optimization-evolution.md) ([中文](docs/optimization-evolution-CN.md)) |
 | Reproduce the throughput benchmark on two MI300X nodes | **Running on Azure and Reproducing Final Results** with the launch and benchmark bundle in [scripts/amd-latest/](scripts/amd-latest/) |
 | Reproduce the SWE-bench accuracy run on one MI300X node | **SWE-bench Accuracy Route** with the runtime recipe and launchers in [scripts/swebench/](scripts/swebench/) |
 | Check the saved evidence without a GPU | **Test Guide**: `python3 scripts/validate_repo.py` and `python3 scripts/summarize_swebench_swelog.py --check data/swebench` |
@@ -136,7 +136,7 @@ The architecture above is the production-shaped PD deployment. Four measured arr
 
 ## How We Tuned It: Key Technical Points
 
-The gains did not come from one flag. They came from making the model path, the operator coverage, the KV-cache organisation, the parallel topology, the KV transport and the test protocol converge, one variable at a time. This section names each switch, what it changes on MI300X and how we confirmed it was live; the causal order between stages is in [docs/optimization-evolution.md](docs/optimization-evolution.md).
+The gains did not come from one flag. They came from making the model path, the operator coverage, the KV-cache organisation, the parallel topology, the KV transport and the test protocol converge, one variable at a time. Below, each performance lever is broken into method, measured gain, mechanism, scope and what it tells us, and a lever without a controlled measurement says so; the causal order between stages is in [docs/optimization-evolution.md](docs/optimization-evolution.md).
 
 ### From Bring-Up to Deliverable
 
@@ -146,34 +146,133 @@ The gains did not come from one flag. They came from making the model path, the 
 | Mid May, same-model baseline | Same runtime; customer's MiMo-V2.5-Pro H200 table, per-node scope | 8K and 64K Prefill at 51%–52% of the H200 EP16/DP2 per-node reference | Nearest TPOT point about 4× slower | A methodology gain, not a kernel gain: same model and same per-node scope |
 | June, AITER path | AITER attention for hybrid SWA + GQA, FP8 E4M3 KV with `vectorized_5d`, FlyDSL Paged Attention decode, Mooncake RDMA over 8 IB ports, MTP accept length 1.6 → 2.4 | About 42%–53% at the common points | 8K high-batch TPOT 3%–17% below the H200 value | Operator coverage; a mis-set CUDA graph flag that had pushed Decode TPOT to about 120 ms was found and TPOT returned to about 23 ms |
 | July, shape-specific kernels | CK A8W8 block-scale GEMM with B preshuffle, MiMo tuned fused-MoE table for token batches 2048–32768, long-context boundary gates | 63.6% (8K), 69.3% (64K), 73.9% (256K) | 8K c16 at 95.6% throughput with 6.6% lower TPOT; exact 64K BS16 743.12 → 933.75 tok/s (+25.7%) | Model-shape tuning became measurable once the operator path was stable |
-| Late July to August, long-context Decode and accuracy | FlyDSL PA with 16 partitions, `--swa-full-tokens-ratio 0.01`, overlap schedule, HIP non-greedy EAGLE verifier `878fff156` | 128K / 192K / 256K Prefill 16,711.96 / 14,402.00 / 12,725.25 input tok/s | 128K–256K Decode 125.04–140.72 scheduler gen tok/s at actual batch 1 | SWE-bench 366/499 and 370/499 completed on this stack |
+| Late July to August, long-context Decode and accuracy | Accuracy stack only: FlyDSL PA with 16 partitions, `--swa-full-tokens-ratio 0.01`, overlap schedule, HIP non-greedy EAGLE verifier `878fff156` | 128K / 192K / 256K Prefill 16,711.96 / 14,402.00 / 12,725.25 input tok/s, measured on the 7/13-derived image without FlyDSL | 128K–256K Decode 125.04–140.72 scheduler gen tok/s at actual batch 1, same image | SWE-bench 366/499 and 370/499 completed on the accuracy stack; the throughput cells in this row carry no FlyDSL effect |
 
 The percentages in this table are per-8-GPU-share directional ratios against the customer worksheet; the reference model and topology changed between the first two rows, so the rows are a history, not a controlled speed-up waterfall.
 
-### The Thirteen Switches in the Serving Command
+### Performance Levers: Method, Gain, Mechanism, Scope and Lesson
 
-| # | Layer | Switch | What it changes on MI300X | How we confirmed it was live |
+Each lever below answers five questions: how it is set, what this repository measured, why it works, where it applies, and what it tells us for the next deployment. "None" in the measurement column means no controlled A/B exists here; project-history figures are labelled as such.
+
+| # | Lever | Controlled measurement in this repository | Throughput matrices | SWE-bench accuracy runs |
 |---:|---|---|---|---|
-| 1 | Kernel | `--attention-backend aiter` + `SGLANG_USE_AITER=1` | Replaces the Triton attention, MoE and normalisation paths with AMD AITER kernels written for CDNA3 MFMA; the only path that stayed stable at TP8 for this model | Kernel names in the server log; import root checked against `/sgl-workspace/aiter_0625` — the same package version loaded from a different import root once behaved differently |
-| 2 | Kernel | `SGLANG_AITER_PA_DECODE_IMPL=flydsl` + `SGLANG_FLYDSL_PA_NUM_PARTITIONS=16` | FlyDSL Paged Attention decode kernel compiled for MiMo's head layout; 16 partitions fill the MI300X compute units for 64K–1M contexts (AMD reports about 14× on the single kernel and about 1.5× over the Gluon PA kernel) | The two variables are set together; accept length about 2.4; 125.04–140.72 scheduler gen tok/s at batch 1 for 128K–256K |
-| 3 | Kernel | `mimo_v2_5_pro_b16_tuned_fmoe.csv` from AITER `d725746` | Per-shape kernel selection for the fused-MoE grouped GEMM at token batches 2048–32768; the model math is unchanged | The start-up log must name the CSV; its SHA-256 `2c87ff1f…80ea7` is part of the runtime identity |
-| 4 | Kernel | `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1` | CK A8W8 block-scale GEMM with weights pre-shuffled into an MFMA-friendly layout; Prefill is compute-bound, so this is where 8-bit GEMM pays | `module_gemm_a8w8_blockscale_bpreshuffle` marker in the log; same-image A/B 743.12 → 933.75 tok/s |
-| 5 | Memory | `--kv-cache-dtype fp8_e4m3` | Halves KV bytes; the only way TP8 fits the weights plus a 1M context in 192 GB per GPU (live capacity 575,360 tokens at memory fraction 0.90) | `max_total_num_tokens` in `/server_info`; capacity gate at 524,288 tokens |
-| 6 | Memory | `SGLANG_AITER_KV_CACHE_LAYOUT=vectorized_5d` | Vectorised 5D KV layout aligned to `global_load_dwordx4` wavefront lanes; prerequisite of the FlyDSL kernel — FP8 KV, the 5D layout and FlyDSL PA always appear together | Changing any one of the three alone fails at start-up or silently falls back |
-| 7 | Memory | `--page-size 32` in the PD launchers, `--page-size 64` in the accuracy launchers | Larger pages cut page-table overhead and batch the Mooncake KV transfer; `ck_tile.patch` adds the page-64 / head-192 prefill tile | Same value on both PD roles; tile name in the JIT object list |
-| 8 | Algorithm | `--speculative-algorithm EAGLE --speculative-num-steps 3 --speculative-eagle-topk 1 --speculative-num-draft-tokens 4 --enable-multi-layer-eagle` | MiMo's own 3-layer MTP draft; real acceptance in accuracy runs, `SGLANG_SIMULATE_ACC_LEN=3` only in throughput runs | `accept len` in the scheduler log; the simulation variables are unset in the accuracy launchers |
-| 9 | Algorithm | `--chunked-prefill-size` 32768 on the Prefill role, 16384 on the Decode role, 65536 in the unified accuracy server | Bounds the Prefill peak so 256K prompts do not run out of memory; the value must satisfy the runtime's dispatch limits — copying the H200 value verbatim failed at start-up | `--max-prefill-tokens` and `/server_info` |
-| 10 | System | `--disaggregation-mode prefill` / `decode`, `--disaggregation-transfer-backend mooncake`, `--disaggregation-ib-device mlx5_ib0…mlx5_ib7` | Prefill KV moves to the Decode node over RDMA | Eight `RDMA device: mlx5_ib*` lines and no `fallback` to TCP marker — the TCP fallback cuts throughput to about one third without raising an error |
-| 11 | System | `SGLANG_MOE_PADDING=1`, `SGLANG_SET_CPU_AFFINITY=1`, `HSA_NO_SCRATCH_RECLAIM=1`, `MC_GID_INDEX=3` | Expert-dimension padding, NUMA pinning, no HSA scratch reclaim during long runs, Mooncake GID selection | `env` inside the container compared before every differential; a missing variable shows up as "runs but slow" |
-| 12 | System | `--disable-overlap-schedule` in the PD launchers; overlap enabled in the accuracy launchers | The overlap path hit a HIP crash on the Prefill role; disabled where it crashed, kept where it was stable | Differential on the Prefill role |
-| 13 | System | `SGLANG_SCHEDULER_SKIP_ALL_GATHER=1` in the MTP-on accuracy wrapper | Skips the per-step 7-int scheduler all-gather that timed out near 200K tokens at data-parallel 1; located in SGLang source, not a patch | No `_ALLGATHER_BASE` timeout in the full run |
+| 1 | AITER operator backend | None; not isolated | On | On |
+| 2 | CK A8W8 block-scale GEMM with pre-shuffled weights | +25.7% scheduler gen tok/s, single-node exact-64K Decode at BS16 | Prefill role, DP=2 and single-node Decode; off on the PD Decode role | On |
+| 3 | MiMo tuned fused-MoE table | None end-to-end | On | On |
+| 4 | Decode graph capture | None; project record TPOT about 120 → 23 ms | Decode roles; off on the Prefill role | On |
+| 5 | KV capacity: FP8 KV, static memory fraction, SWA ratio | KV pool 554,880 → 1,442,464 tokens at fraction 0.85 → 0.95 | FP8 KV; fraction 0.85 PD, 0.95 single node | FP8 KV; SWA ratio 0.01 |
+| 6 | Vectorized 5D KV layout with FlyDSL Paged Attention | None | Off | On, MTP verification only |
+| 7 | Multi-layer EAGLE MTP | None; throughput runs fix the accept length at 3 | Simulated acceptance | Real acceptance in the MTP-on run |
+| 8 | PD disaggregation over Mooncake RDMA | None; a TCP fallback cuts throughput to about one third (project observation) | 1P1D matrices | Off (single node) |
+| 9 | DP=2 Prefill replicas | 1.99× (8K) and 1.98× (64K) aggregate input tok/s from concurrency 1 → 2 | DP=2 matrix | Off |
+
+The last two columns matter. CK on the PD Decode role, FlyDSL PA with the 5D layout and overlap scheduling were all off in the throughput matrices, so those numbers were measured without them. Turning each on for the throughput path is an untested candidate, not a projected gain.
+
+**1 · AITER operator backend**
+
+| Question | Answer |
+|---|---|
+| Method | Set `--attention-backend aiter` and `SGLANG_USE_AITER=1` on every role. Check the AITER kernel names in the server log and which tree `aiter` imports from, not only its version |
+| Gain | Not isolated. It arrived in the June stage together with the FP8 KV, Paged Attention, RDMA and MTP changes, so none of that stage's gain is credited to it alone. In this project it was the only attention path that stayed stable at TP8 for this model |
+| Mechanism | AITER is AMD's ROCm operator library: it puts CK, Triton and assembly kernels behind framework operators for attention, MoE, GEMM, normalisation and quantisation ([ROCm AITER](https://github.com/ROCm/aiter)). The two switches hand SGLang's attention and its MoE, GEMM and normalisation paths to those operators |
+| Scope | ROCm GPUs, independent of the model. The MiMo-specific gains come from levers 2, 3 and 6, which all dispatch through this backend |
+| What it tells us | Verify it first, because every later lever depends on it. One image can hold two AITER trees, and the same package version loaded from a different import root once behaved differently |
+
+**2 · CK A8W8 block-scale GEMM with pre-shuffled weights**
+
+| Question | Answer |
+|---|---|
+| Method | Export `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1`. The Prefill, DP=2, single-node Decode and both accuracy launchers set it; `launch_pd_decode.sh` does not. The log marker `module_gemm_a8w8_blockscale_bpreshuffle` confirms it is live |
+| Gain | Single node, TP8, exact 64K input / 1K output, fixed BS16, fixed acceptance, two fresh services per arm, run back-to-back on one host: 743.12 → 933.75 scheduler gen tok/s (+25.7%), implied TPOT 21.53 → 17.14 ms. The optimised arm also exported `SGLANG_AITER_UNIFIED_VERIFY=1`, but in the recorded SGLang source `2f9b9aedf` that flag has a single reader and already defaults to `1`, so by source reading the CK path is the only behavioural change. That attribution comes from the code, not from a single-flag run, and there is no Prefill A/B |
+| Mechanism | Without the switch, SGLang runs AITER's Triton block-scale GEMM on MI300X (gfx942). With it, SGLang permutes each FP8 weight once at load time into 16 × 16 tiles (`shuffle_weight(layer.weight, (16, 16))`), quantises activations per 1 × 128 block with a transposed scale, and calls the CK kernel, which picks a tuned instance per GEMM shape. The AITER fork ships those instances in `a8w8_blockscale_bpreshuffle_tuned_gemm_mimo_v2_5_pro.csv`: 189 rows covering M = 1 to 131,072 for three (N, K) weight shapes |
+| Scope | FP8 linear layers with 1 × 128 block scales on gfx942, for shapes that have a tuned row; SGLang turns the pre-shuffled path on by default on gfx95 with ROCm 7.2 or later when AITER is on, except for shapes it routes to a tuned Triton kernel. Attention and the fused-MoE experts use other kernels |
+| What it tells us | Every PD Decode number in this report is a no-CK number, so enabling it on the Decode role is the cheapest untested candidate. Read a flag's default in the source before crediting it: the other flag in this A/B was already on |
+
+**3 · MiMo tuned fused-MoE table**
+
+| Question | Answer |
+|---|---|
+| Method | Ship `mimo_v2_5_pro_b16_tuned_fmoe.csv` (AITER `d725746`, SHA-256 `2c87ff1f…80ea7`) under `aiter/configs/model_configs/`; AITER merges it with its base tuned file at start-up. The start-up log must name the file |
+| Gain | No end-to-end A/B here. The file records the tuner's timing of the chosen kernel for each shape, 703.19 µs at 2,048 tokens up to 4,816.42 µs at 32,768 tokens, but not the untuned time, so it shows no speed-up on its own |
+| Mechanism | The fused-MoE dispatcher looks up a config by an exact key: CU count, token count, model and intermediate dimensions, expert count, top-k, activation, data types and quantisation type (`aiter/fused_moe.py`). The MiMo file has five rows: 304 CUs, dimensions 6,144 and 256, 384 experts, top-k 8, FP8 with 1 × 128 block scales, token counts 2,048 to 32,768. A hit selects the recorded two-stage kernels and `block_m`; a miss falls back to a smaller tuned tier or to default heuristics, which the log prints as `default`. The model maths is unchanged |
+| Scope | This exact shape on a 304-CU MI300X. AITER treats more than 1,024 tokens as Prefill, so these rows serve Prefill-sized token batches; Decode batches use other rows or the defaults |
+| What it tells us | Tuning data is a CSV per GPU and shape, cheap to produce with AITER's tuner, so another MoE model or GPU SKU starts with a tuner run for its own shapes. Check that the start-up log shows a tuned tag, not `default`, for the shapes that matter |
+
+**4 · Decode graph capture**
+
+| Question | Answer |
+|---|---|
+| Method | Keep graph capture on the Decode role and the single-node server; only `launch_pd_prefill.sh` passes `--disable-cuda-graph`, and the repository validator checks both |
+| Gain | No controlled run here. Project record from the June stage: a mis-set graph flag had pushed Decode TPOT to about 120 ms, and restoring graphs brought it back to about 23 ms; raw logs for that stage are not in this repository |
+| Mechanism | Graph capture records a whole Decode step once per batch size and replays it with one launch. Decode kernels at small batch are short, so without capture the CPU launch cost of each kernel adds to every token. This SGLang version exposes separate Decode and Prefill graph backends (`--cuda-graph-backend-{decode,prefill}`) |
+| Scope | Any SGLang deployment on CUDA or ROCm (HIP graphs); the Prefill role here runs without graphs |
+| What it tells us | One wrong flag cost about 5× in TPOT and raised no error. Diff each launcher's flags against the known-good launcher before a run |
+
+**5 · KV capacity: FP8 KV, static memory fraction, SWA ratio**
+
+| Question | Answer |
+|---|---|
+| Method | `--kv-cache-dtype fp8_e4m3` on every launcher; `--mem-fraction-static` 0.85 on the PD roles and 0.95 on the single-node server; `--swa-full-tokens-ratio 0.01` in the accuracy launchers. Read `max_total_num_tokens` from `/server_info` and the actual batch from `#running-req` |
+| Gain | Capacity, which then sets the batch. On one TP8 node, raising the fraction from the PD value 0.85 to 0.95 grew the full-attention KV pool from 554,880 to 1,442,464 tokens, enough for 16 requests of 64K input plus 1K output at once (16 × 66,560 = 1,064,960 tokens). At 0.85 the 64K PD Decode ran at actual batch 4–5 and reached a directional 20.1% of the H200 row; the batch-aligned single-node BS16 point reached 70.0%. No FP8-versus-BF16 KV run was made |
+| Mechanism | FP8 E4M3 stores one byte per KV element instead of two for BF16, so the same memory holds twice the tokens. `--mem-fraction-static` is the share of GPU memory for weights plus the KV pool (SGLang help), so above the fixed weight footprint each extra point goes to KV. `--swa-full-tokens-ratio` sets SWA-layer KV tokens relative to full-attention KV tokens (SGLang help); 0.01 hands almost the whole pool to the full-attention layers, since SWA layers only keep their window |
+| Scope | FP8 KV and the memory fraction are generic SGLang options; the SWA ratio applies to hybrid SWA models such as MiMo. FP8 KV needs an accuracy check per model; both SWE-bench runs here used it |
+| What it tells us | At long context, capacity sets the actual batch and the batch sets throughput: the 64K PD gap is mainly a KV-capacity problem, not a kernel problem. Size memory and topology for ISL × batch before tuning kernels, and report `#running-req`, not client concurrency |
+
+**6 · Vectorized 5D KV layout with FlyDSL Paged Attention**
+
+| Question | Answer |
+|---|---|
+| Method | `SGLANG_AITER_KV_CACHE_LAYOUT=vectorized_5d`, `SGLANG_AITER_PA_DECODE_IMPL=flydsl`, `SGLANG_FLYDSL_PA_NUM_PARTITIONS=16` and `--page-size 64` in both accuracy launchers; `verify_runtime_contract.py` checks the three variables in the live server's environment. FlyDSL is enabled only when the layout is `vectorized_5d`, so the settings travel together. `ck_tile.patch` adds the CK batch-prefill tile for page 64 and head dim 192 |
+| Gain | Not measured here. The throughput matrices ran on the 7/13-derived image, whose launchers set neither variable and whose recorded SGLang source `2f9b9aedf` has no FlyDSL selector, so no throughput number in this report includes FlyDSL. No public kernel benchmark is cited |
+| Mechanism | The 5D layout stores K as `(num_blocks, H_kv, head_dim/x, page_size, x)` and V as `(num_blocks, H_kv, page_size/x, head_dim, x)` with `x = 16 / dtype_size`, which AITER's CK batch-prefill and Gluon PA kernels read without run-time permutes (SGLang `878fff156`, `environ.py`). FlyDSL PA is compiled for MiMo's per-GPU shape at TP8 (16 query heads, 1 KV head, head dim 192, page 64, 4 query tokens matching `--speculative-num-draft-tokens 4`) and serves only MTP target verification on full-attention layers; SWA layers and plain Decode stay on AITER. The partition count is the kernel's third grid dimension, so at batch 1 raising it from the default 8 to 16 doubles the work-groups over the same context, and a reduce kernel merges the partial maxima, sums and outputs |
+| Scope | MiMo-specific: the kernel is compiled for this head layout and page size and accepts 8, 16, 24 or 32 partitions. The 5D layout itself also serves AITER's Gluon PA for other attention models |
+| What it tells us | A configured kernel is not always an executed one: the MTP-off run carried the FlyDSL setting, but that path only runs during MTP verification. Long-context Decode on the throughput path has not used this lever yet, which makes it the main untested candidate for 128K–256K |
+
+**7 · Multi-layer EAGLE MTP**
+
+| Question | Answer |
+|---|---|
+| Method | `--speculative-algorithm EAGLE --speculative-num-steps 3 --speculative-eagle-topk 1 --speculative-num-draft-tokens 4 --enable-multi-layer-eagle` drafts with MiMo's three built-in MTP layers. The throughput launchers pin acceptance with `SGLANG_SIMULATE_ACC_LEN=3` and `SGLANG_SIMULATE_ACC_METHOD=match-expected`; the accuracy launchers unset both |
+| Gain | Every throughput number here runs at a fixed accept length of 3 (the 64K fixed-batch windows record 3.00 and a rate of 0.67), so it is a benchmark condition, not a measured MTP gain, and no MTP on/off throughput A/B was run. Project record: in a 5-case probe before the verifier fix, turning MTP off lowered raw Decode throughput by 40%–54%. For accuracy, 366/499 with MTP and 370/499 without are single runs within run-to-run variation |
+| Mechanism | Each step the MTP layers draft 3 tokens and the target model scores the drafted positions in one forward pass; each accepted draft is a token that needed no forward pass of its own. Until the stochastic verifier in fork `878fff156` (`SGLANG_MIMO_EAGLE_HIP_NONGREEDY_VERIFY=1`), the HIP path verified greedily even at `temperature=1.0` |
+| Scope | Needs a model with MTP or draft heads. Acceptance depends on content and sampling temperature, so the simulated-acceptance switches are a benchmarking device only |
+| What it tells us | Tokens per second under simulated acceptance is not a production number. For agent work the metric is finished tasks per hour, and an MTP claim waits until the verifier's sampling path is proven |
+
+**8 · PD disaggregation over Mooncake RDMA**
+
+| Question | Answer |
+|---|---|
+| Method | `--disaggregation-mode prefill` / `decode`, `--disaggregation-transfer-backend mooncake`, `--disaggregation-ib-device mlx5_ib0…mlx5_ib7`; the container needs `--privileged`, `/dev/mem` and `CAP_SYS_ADMIN`. Accept a run only with eight `RDMA device: mlx5_ib*` lines and no TCP fallback marker |
+| Gain | No PD-versus-unified A/B was run. The long-context evidence records verified RDMA initialization and no TCP fallback marker (`data/validation/decode-long-context-evidence.json`). Project observation: a silent TCP fallback cut throughput to about one third |
+| Mechanism | SGLang's PD mode serves the compute-bound Prefill and the memory-bound Decode from separate servers, so Prefill batches stop interrupting token generation, and the Prefill KV moves to the Decode node through a transfer engine ([SGLang PD Disaggregation](https://docs.sglang.io/advanced_features/pd_disaggregation.html)). Here Mooncake moves it over eight InfiniBand ports by RDMA |
+| Scope | Needs two server groups, an RDMA fabric and device access inside the container; the design is the same on CUDA |
+| What it tells us | The failure is silent: TCP still returns correct tokens, only slower, so RDMA initialization must be a hard gate. The split also lets Prefill and Decode use separate batch sizes and hyperparameters (see the PD chapter below) |
+
+**9 · DP=2 Prefill replicas**
+
+| Question | Answer |
+|---|---|
+| Method | Two complete TP8 servers behind one SGLang router (`launch_dp2_*.sh`); record each worker's request count before and after every point |
+| Gain | 8K input: 20,751.73 → 41,201.86 aggregate input tok/s from concurrency 1 to 2 (1.99×); 64K input: 19,695.02 → 38,984.45 (1.98×); both plateau after that |
+| Mechanism | The router sends whole requests to independent TP8 groups, so no cross-node collective sits in the hot path; the second replica only works once two requests are in flight |
+| Scope | Costs a full model copy per replica. It measures Prefill capacity, not 2P1D end-to-end throughput or P→D KV transfer |
+| What it tells us | Replication scaled Prefill almost linearly where cross-node EP failed (see the parallelism table), so replicate first and treat EP as a separate MoE design choice |
+
+**Required settings that are not speed levers**
+
+| Setting | Values in this repository | Why it is required |
+|---|---|---|
+| `--chunked-prefill-size` | 32768 on the Prefill role, 16384 on the Decode role, 65536 on the unified accuracy server | Bounds the Prefill peak so 256K prompts fit in memory; the value must satisfy the runtime's dispatch limits, and copying the H200 value verbatim failed at start-up |
+| `--page-size` | 32 in the throughput launchers, 64 in the accuracy launchers | Must match on both PD roles; 64 is fixed by the FlyDSL kernel |
+| `--disable-overlap-schedule` | Set in all five throughput launchers; overlap stays on in both accuracy launchers | The overlap scheduler, which overlaps CPU scheduling with GPU work (SGLang help), hit a HIP illegal address on the Prefill role; the throughput numbers were therefore measured without it |
+| `SGLANG_MOE_PADDING=1`, `SGLANG_SET_CPU_AFFINITY=1`, `HSA_NO_SCRATCH_RECLAIM=1`, `MC_GID_INDEX=3` | The first three on every launcher; `MC_GID_INDEX=3` on the PD roles and the accuracy launchers | Expert-dimension padding, NUMA pinning, no HSA scratch reclaim during long runs, Mooncake GID selection. A missing variable shows up as "runs but slow", so compare the container `env` before every differential |
 
 ### Long-Context Method: Five Steps Before a Number Is Reported
 
 1. **Freeze the workload semantics.** Prefill is 262,144 input tokens plus 1 output token; Decode is 261,120 input plus 1,024 output; `--random-range-ratio 1.0`, a fixed seed and `--tokenize-prompt`, and `/server_info` must show `max_req_input_len` at or above 262,145 before the client starts.
 2. **Bound the Prefill peak** with chunked prefill sized for the runtime, not copied from the H200 configuration.
 3. **Confirm capacity, not concurrency.** Read live `max_total_num_tokens`, record peak KV usage and read the actual Decode batch from `#running-req`; at 256K a client concurrency of 4 still ran at batch 1 because KV was the limit.
-4. **Tune both hot spots.** Long inputs raise attention share, so AITER attention and FlyDSL PA matter; large Prefill token batches keep the grouped GEMM share high, so the tuned MoE table still matters.
+4. **Tune both hot spots.** Long inputs raise attention share, so the attention path matters (AITER attention in the throughput runs; FlyDSL PA only in the accuracy stack); large Prefill token batches keep the grouped GEMM share high, so the tuned MoE table still matters.
 5. **Separate "kernel runs" from "PD path sustains".** Each context length is tested as one request, then sequential requests, then concurrent requests, then a fresh-service repeat; 256K Prefill c4 failed twice with AMDGPU page faults and is published as `REJECTED_BOUNDARY` instead of an estimate.
 
 ### Parallelism Decision: TP8 First
@@ -191,9 +290,9 @@ The percentages in this table are per-8-GPU-share directional ratios against the
 |---|---|---|
 | Prefill detokenizer stalled after repeated health polling | SGLang defaults `SGLANG_ENABLE_HEALTH_ENDPOINT_GENERATION=True`, so every `/health` probe generated a real token | Set it to `0`; monitor with the non-generating `/server_info` |
 | TP ranks stuck in ROCm `wait_on_page_bit_common` during weight load | Multithreaded safetensors loading on HMM; omitting the option does not disable it | `--model-loader-extra-config '{"enable_multithread_load": false}'` on the PD roles |
-| HIP illegal address in the overlap scheduler path on the Prefill role | Overlap scheduling on ROCm for this model | `--disable-overlap-schedule` where it crashed (see switch 12) |
+| HIP illegal address in the overlap scheduler path on the Prefill role | Overlap scheduling on ROCm for this model | `--disable-overlap-schedule` in all throughput launchers (settings table above); overlap stays on in the accuracy launchers |
 | A 351,703-token conversation truncated at `max_req_input_len=348,538` | GPU KV pool too small for one active agent conversation; host-side cache does not enlarge it | Memory fraction 0.85 → 0.90, live capacity 575,360 tokens, start-up gate at 524,288 |
-| Scheduler `_ALLGATHER_BASE` timeout near 200K tokens | Per-step 7-int state all-gather at data-parallel 1 | `SGLANG_SCHEDULER_SKIP_ALL_GATHER=1` (switch 13) |
+| Scheduler `_ALLGATHER_BASE` timeout near 200K tokens | Per-step 7-int state all-gather at data-parallel 1 | `SGLANG_SCHEDULER_SKIP_ALL_GATHER=1` in the MTP-on wrapper, an existing SGLang switch rather than a patch |
 | Requests with `temperature=1.0` were verified greedily on HIP | The HIP EAGLE path had no stochastic verifier and fell back silently | Opt-in Torch stochastic verifier, fork commit `878fff156`, enabled by `SGLANG_MIMO_EAGLE_HIP_NONGREEDY_VERIFY=1` |
 | Lossy INT8 collective in accuracy runs | ROCm Quick Reduce defaults to INT8 compression | `ROCM_QUICK_REDUCE_QUANTIZATION=NONE` in the accuracy wrapper |
 | Agent loops at the 500-step limit with MTP on before the verifier fix | In a 5-case isolation probe, turning MTP off cut average agent calls from 500 to 95.3 while raw decode throughput fell 40%–54% | Both MTP-off and MTP-on-with-verifier full runs finished with 0 `LimitsExceeded`; agent tasks per hour, not tokens per second, is the metric that matters here |
