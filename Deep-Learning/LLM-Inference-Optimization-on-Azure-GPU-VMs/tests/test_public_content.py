@@ -69,7 +69,8 @@ class ReadmeTests(unittest.TestCase):
 
     def test_each_forbidden_category_is_detected(self):
         samples = ["versus A100", "on MI350X", "on MI355X", "SWE-bench Verified", "swebench run", "xiaomi customer", "C:\\Users\\someone\\", "person@example.com", "10.2.3.4",
-                   "12345678-1234-1234-1234-123456789abc", "<details>", "from Jessica"]
+                   "12345678-1234-1234-1234-123456789abc", "<details>", "from Jessica",
+                   "run of 2026-05-08", "stage-20260713-tuned", "from May to July", "5 月 → 7 月"]
         for sample in samples:
             with self.subTest(sample=sample):
                 self.assertTrue(any(p.search(sample) for p, _ in check_repo.FORBIDDEN), sample)

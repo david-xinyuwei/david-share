@@ -39,6 +39,8 @@ FORBIDDEN = [
     (re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.I), "GUID (subscription or tenant)"),
     (re.compile(r"\b(?:Xiake|Jessica|Pia|Cliff|Kurt|Fiona)\b|霞克"), "personal name from private correspondence"),
     (re.compile(r"<details", re.I), "collapsed block"),
+    (re.compile(r"\b20\d\d-\d\d-\d\d\b|\b20\d\d(?:0[1-9]|1[0-2])(?:[0-2]\d|3[01])\b|\b(?:January|February|March|April|June|July|August|September|October|November|December)\b|\d{1,2}\s*月(?:\s*\d{1,2}\s*日)?"),
+     "calendar date that dates the underlying project"),
 ]
 SCAN_SUFFIXES = {".md", ".py", ".json", ".txt", ".sh", ".yml", ""}
 SCAN_SKIP_DIRS = {"upstream", "__pycache__"}

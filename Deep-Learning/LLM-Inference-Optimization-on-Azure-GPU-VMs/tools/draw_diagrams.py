@@ -157,15 +157,15 @@ CHART_TEXT = {
     "en": {
         "title": "Measured gain factors on MI300X (MI300X against itself)",
         "x": "factor: after ÷ before for throughput, before ÷ after for time per token",
-        "rows": ["Bring-up A/B: decode graph capture", "May → July: 128K prefill, 1 request", "May → July: decode time per token\n64 in flight, fixed MTP acceptance 3",
-                 "May → July: decode time per token\n64 in flight, actual MTP acceptance", "May → July: 64K prefill, 4 in flight", "May → July: 8K prefill, 4 in flight"],
+        "rows": ["A/B on the baseline stack:\ndecode graph capture", "Baseline → optimized:\n128K prefill, 1 request", "Baseline → optimized: decode time\nper token, 64 in flight, fixed MTP 3",
+                 "Baseline → optimized: decode time\nper token, 64 in flight, actual MTP", "Baseline → optimized:\n64K prefill, 4 in flight", "Baseline → optimized:\n8K prefill, 4 in flight"],
         "note": "Same model on Azure ND MI300X v5. Bars do not multiply: each compares a different pair of runs. Workload and topology notes are in the README.",
     },
     "cn": {
         "title": "MI300X 上实测的提升倍数（MI300X 自己和自己比）",
         "x": "倍数：吞吐为 后 ÷ 前，每 token 耗时为 前 ÷ 后",
-        "rows": ["Bring-up A/B：decode 图捕获", "5 月 → 7 月：128K prefill，1 个请求", "5 月 → 7 月：decode 每 token 耗时\n64 路并发，MTP 固定接受长度 3",
-                 "5 月 → 7 月：decode 每 token 耗时\n64 路并发，MTP 按实际接受", "5 月 → 7 月：64K prefill，4 路并发", "5 月 → 7 月：8K prefill，4 路并发"],
+        "rows": ["基线栈上的 A/B：\ndecode 图捕获", "基线栈 → 优化后：\n128K prefill，1 个请求", "基线栈 → 优化后：decode 每 token\n耗时，64 路并发，MTP 固定 3",
+                 "基线栈 → 优化后：decode 每 token\n耗时，64 路并发，MTP 按实际接受", "基线栈 → 优化后：\n64K prefill，4 路并发", "基线栈 → 优化后：\n8K prefill，4 路并发"],
         "note": "同一模型，Azure ND MI300X v5。各柱不能相乘：每根柱比较的是不同的一对运行。负载与拓扑说明见 README。",
     },
 }

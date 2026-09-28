@@ -3,7 +3,7 @@
   "profile": "rocm-mi300x-single",
   "status": "PINNED_RUNTIME",
   "measured_runs": [],
-  "description": "One Azure ND MI300X v5 VM, the final runtime pinned in upstream/SOURCES.lock.json (sglang 878fff15, aiter 3f4ab482, FlyDSL kernels c99d5cd), copied from the launch scripts sealed with that runtime. The decode role uses the fake transfer backend so decode can be measured without a prefill server. This repository publishes no Microsoft throughput run of this exact runtime; the 64K fixed-batch A/B in evidence/runs.json used the earlier 2026-07-13-derived single-VM image.",
+  "description": "One Azure ND MI300X v5 VM, the final runtime pinned in upstream/SOURCES.lock.json (sglang 878fff15, aiter 3f4ab482, FlyDSL kernels c99d5cd), copied from the launch scripts sealed with that runtime. The decode role uses the fake transfer backend so decode can be measured without a prefill server. This repository publishes no Microsoft throughput run of this exact runtime; the 64K fixed-batch A/B in evidence/runs.json used a single-VM image derived from the stage-after-moe-table runtime.",
   "variables": {
     "MODEL_PATH": "local path of the MiMo-V2.5-Pro checkpoint",
     "INPUT_IDS": "input length passed to bench_serving; MiMo adds four special tokens, so 65532 gives exactly 65536 server-side tokens",

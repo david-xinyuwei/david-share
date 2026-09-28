@@ -10,7 +10,6 @@
       "headline_exact.points[].steady_state.used_gen_tok_s"
     ]
   },
-  "measured_at_utc": "2026-07-17T16:37:20Z to 2026-07-17T22:54:35Z",
   "metric": "scheduler generation throughput (tok/s) with 16 running requests; first full-batch transition sample excluded",
   "baseline": {
     "env_added": {},

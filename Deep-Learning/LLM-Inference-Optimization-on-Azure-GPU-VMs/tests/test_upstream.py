@@ -53,7 +53,7 @@ class UpstreamTests(unittest.TestCase):
                     self.assertIn("```diff\n" + body + "\n```", text)
 
     def test_tuned_moe_csv_in_patch_is_the_file_that_was_served(self):
-        served = json.loads((ROOT / "evidence/runs.json").read_text(encoding="utf-8"))["runs"]["stage-20260713-tuned-moe"]["runtime"]["tuned_fmoe_csv_sha256"]
+        served = json.loads((ROOT / "evidence/runs.json").read_text(encoding="utf-8"))["runs"]["stage-after-moe-table"]["runtime"]["tuned_fmoe_csv_sha256"]
         text = (ROOT / "upstream/patches/sammysun0711__aiter__d725746.patch").read_text(encoding="utf-8")
         section = text.split("b/aiter/configs/model_configs/mimo_v2_5_pro_b16_tuned_fmoe.csv\n", 2)[2].split("diff --git", 1)[0]
         body = "\n".join(l[1:] for l in section.split("\n") if l.startswith("+") and not l.startswith("+++")) + "\n"
@@ -86,11 +86,11 @@ class UpstreamTests(unittest.TestCase):
 
     def test_quick_reduce_state_of_measured_runs_is_recorded(self):
         runs = json.loads((ROOT / "evidence/runs.json").read_text(encoding="utf-8"))["runs"]
-        for name in ("stage-20260707-ck", "stage-20260713-tuned-moe"):
+        for name in ("stage-before-moe-table", "stage-after-moe-table"):
             self.assertEqual(runs[name]["inherited_env"]["ROCM_QUICK_REDUCE_QUANTIZATION"], "INT8", name)
 
     def test_clean_build_receipt_matches_current_dockerfile(self):
-        receipt = json.loads((ROOT / "evidence/docker-build-20260928.json").read_text(encoding="utf-8"))
+        receipt = json.loads((ROOT / "evidence/docker-build.json").read_text(encoding="utf-8"))
         text = (ROOT / "docker/Dockerfile").read_text(encoding="utf-8")
         lines = [l.rstrip() for l in text.split("\n") if l.strip() and not l.lstrip().startswith("#")]
         self.assertEqual(hashlib.sha256("\n".join(lines).encode()).hexdigest(), receipt["dockerfile_instructions_sha256"])

@@ -196,7 +196,7 @@ def cumulative(lang: str) -> str:
     pre = {r["input_tokens"]: r for r in cu["prefill"]}
     d64 = next(r for r in cu["decode"] if r["concurrency"] == 64)
     rows_spec = [
-        (("Decode graph capture, one switch<br>16K/1K, 16 in flight, bring-up", "Decode 图捕获，单开关<br>16K/1K，16 路并发，bring-up"),
+        (("Decode graph capture, one switch<br>16K/1K, 16 in flight, baseline stack", "Decode 图捕获，单开关<br>16K/1K，16 路并发，基线栈"),
          f"{_n(g['off_output_tok_s'], 1)} → {_n(g['on_output_tok_s'], 1)} tok/s", g["output_tok_s_factor"]),
         (("128K prefill, 1 request, 8 GPUs<br>one VM → 1P1D prefill server", "128K prefill，1 个请求，8 张 GPU<br>单机 → 1P1D 的 prefill 服务"),
          f"{_c(pre[131072]['early_input_tok_s'])} → {_c(pre[131072]['late_input_tok_s'])} tok/s", pre[131072]["factor"]),
@@ -204,11 +204,11 @@ def cumulative(lang: str) -> str:
          f"{_n(d64['early_mean_tpot_ms'])} → {_n(d64['fixed_mean_tpot_ms'])} ms", d64["fixed_tpot_factor"]),
         (("Decode time per token, 64 in flight<br>MTP at actual acceptance, lower is better", "Decode 每 token 耗时，64 路并发<br>MTP 按实际接受，越低越好"),
          f"{_n(d64['early_mean_tpot_ms'])} → {_n(d64['real_mean_tpot_ms'])} ms", d64["real_tpot_factor"]),
-        ((f"64K prefill, 4 in flight<br>bring-up prompts averaged {_c(pre[65536]['early_avg_prompt_tokens'])} tokens",
-          f"64K prefill，4 路并发<br>bring-up 的 prompt 平均 {_c(pre[65536]['early_avg_prompt_tokens'])} token"),
+        ((f"64K prefill, 4 in flight<br>baseline prompts averaged {_c(pre[65536]['early_avg_prompt_tokens'])} tokens",
+          f"64K prefill，4 路并发<br>基线栈 prompt 平均 {_c(pre[65536]['early_avg_prompt_tokens'])} token"),
          f"{_c(pre[65536]['early_input_tok_s'])} → {_c(pre[65536]['late_input_tok_s'])} tok/s", pre[65536]["factor"]),
-        ((f"8K prefill, 4 in flight<br>bring-up prompts averaged {_c(pre[8192]['early_avg_prompt_tokens'])} tokens",
-          f"8K prefill，4 路并发<br>bring-up 的 prompt 平均 {_c(pre[8192]['early_avg_prompt_tokens'])} token"),
+        ((f"8K prefill, 4 in flight<br>baseline prompts averaged {_c(pre[8192]['early_avg_prompt_tokens'])} tokens",
+          f"8K prefill，4 路并发<br>基线栈 prompt 平均 {_c(pre[8192]['early_avg_prompt_tokens'])} token"),
          f"{_c(pre[8192]['early_input_tok_s'])} → {_c(pre[8192]['late_input_tok_s'])} tok/s", pre[8192]["factor"]),
     ]
     head = ["Measured on MI300X", "Before → after", "Factor"] if lang == "en" else ["MI300X 上实测", "优化前 → 后", "倍数"]
@@ -219,10 +219,10 @@ def cumulative(lang: str) -> str:
 def cumulative_decode(lang: str) -> str:
     cu = _json("evidence/measurements.json")["cumulative"]
     if lang == "en":
-        head = ["Metric", "Bring-up<br>16K in", "Actual<br>MTP", "Fixed<br>MTP 3"]
+        head = ["Metric", "Baseline<br>16K in", "Actual<br>MTP", "Fixed<br>MTP 3"]
         names = ("TPOT ms<br>at {c}", "tok/s<br>at {c}")
     else:
-        head = ["指标", "Bring-up<br>16K 输入", "按实际<br>接受", "固定接受<br>长度 3"]
+        head = ["指标", "基线栈<br>16K 输入", "按实际<br>接受", "固定接受<br>长度 3"]
         names = ("TPOT ms<br>并发 {c}", "tok/s<br>并发 {c}")
     rows = []
     for r in cu["decode"]:
@@ -245,19 +245,19 @@ def glance(lang: str) -> str:
     g = cu["graph_capture"]
     if lang == "en":
         return "\n".join([
-            f"- From bring-up in May to the optimized stack in July: **128K prefill {_x(pre[131072]['factor'])} faster** on 8 GPUs; "
+            f"- From the baseline stack to the optimized stack: **128K prefill {_x(pre[131072]['factor'])} faster** on 8 GPUs; "
             f"**decode time per token {_n(d64['early_mean_tpot_ms'])} → {_n(d64['fixed_mean_tpot_ms'])} ms ({_x(d64['fixed_tpot_factor'])} lower)** "
             f"at 64 in flight with MTP at a fixed acceptance of 3 ({_n(d64['real_mean_tpot_ms'])} ms, {_x(d64['real_tpot_factor'])} lower, in a reference run with actual acceptance).",
-            f"- **{_x(g['output_tok_s_factor'])} decode throughput** from one switch at bring-up: letting the decode server replay HIP graphs.",
+            f"- **{_x(g['output_tok_s_factor'])} decode throughput** from one switch on the baseline stack: letting the decode server replay HIP graphs.",
             f"- At 64K context, decode **{_pct(ab['throughput_delta_pct'])}** from the block-scale FP8 GEMM and unified-verify switches (in-session A/B); "
             f"8K prefill **{_pct(p8['input_tok_s_delta_pct'])}** from a shape-tuned fused-MoE table.",
             "- The factors do not multiply: each compares a different pair of runs. No performance number compares MI300X with another accelerator.",
         ]) + "\n"
     return "\n".join([
-        f"- 从 bring-up 到优化后的栈：**128K prefill 提速 {_x(pre[131072]['factor'])}**（8 张 GPU）；"
+        f"- 从基线栈到优化后的栈：**128K prefill 提速 {_x(pre[131072]['factor'])}**（8 张 GPU）；"
         f"**decode 每 token 耗时 {_n(d64['early_mean_tpot_ms'])} → {_n(d64['fixed_mean_tpot_ms'])} ms（缩短 {_x(d64['fixed_tpot_factor'])}）**，"
         f"64 路并发、MTP 固定接受长度 3（按实际接受的参考运行为 {_n(d64['real_mean_tpot_ms'])} ms，缩短 {_x(d64['real_tpot_factor'])}）。",
-        f"- bring-up 阶段一个开关带来 **{_x(g['output_tok_s_factor'])} decode 吞吐**：让 decode 服务重放 HIP graph。",
+        f"- 基线栈上一个开关带来 **{_x(g['output_tok_s_factor'])} decode 吞吐**：让 decode 服务重放 HIP graph。",
         f"- block-scale FP8 GEMM 与 unified verify 两个开关让 64K 上下文 decode **{_pct(ab['throughput_delta_pct'])}**（同一会话 A/B）；"
         f"按 shape 调优的 fused-MoE 表让 8K prefill **{_pct(p8['input_tok_s_delta_pct'])}**。",
         "- 这些倍数不能相乘：每个倍数比较的是不同的一对运行。本页没有任何性能数字拿 MI300X 和其他加速器比较。",

@@ -7,11 +7,11 @@
 
 **How much faster can a 1M-context MoE model be served on the same GPUs, and which layer does the work?** This repository takes MiMo-V2.5-Pro (384 routed experts, hybrid sliding-window + grouped-query attention, 3-layer MTP) on Azure ND MI300X v5 VMs and shows every optimization in its serving stack. The optimizations fall into three layers: the serving framework, the operator (kernel) layer, and the workload and deployment layer. For each one you get the switch that turns it on, the code change in a pinned public commit where there is one, what it does to model output, and, where it was measured, how far it moved MI300X against MI300X itself.
 
-<img src="images/cumulative-gain-en.png" width="900" alt="Gain factors on MI300X from bring-up to the optimized stack: decode graph capture 3.11x, 128K prefill 2.37x, decode time per token 2.70x at fixed MTP acceptance and 1.53x at real acceptance, 64K prefill 1.37x, 8K prefill 1.25x">
+<img src="images/cumulative-gain-en.png" width="900" alt="Gain factors on MI300X from the baseline to the optimized stack: decode graph capture 3.11x, 128K prefill 2.37x, decode time per token 2.70x at fixed MTP acceptance and 1.53x at real acceptance, 64K prefill 1.37x, 8K prefill 1.25x">
 
 <!-- BEGIN GENERATED: glance -->
-- From bring-up in May to the optimized stack in July: **128K prefill 2.37× faster** on 8 GPUs; **decode time per token 45.86 → 17.00 ms (2.70× lower)** at 64 in flight with MTP at a fixed acceptance of 3 (30.07 ms, 1.53× lower, in a reference run with actual acceptance).
-- **3.11× decode throughput** from one switch at bring-up: letting the decode server replay HIP graphs.
+- From the baseline stack to the optimized stack: **128K prefill 2.37× faster** on 8 GPUs; **decode time per token 45.86 → 17.00 ms (2.70× lower)** at 64 in flight with MTP at a fixed acceptance of 3 (30.07 ms, 1.53× lower, in a reference run with actual acceptance).
+- **3.11× decode throughput** from one switch on the baseline stack: letting the decode server replay HIP graphs.
 - At 64K context, decode **+25.65%** from the block-scale FP8 GEMM and unified-verify switches (in-session A/B); 8K prefill **+24.32%** from a shape-tuned fused-MoE table.
 - The factors do not multiply: each compares a different pair of runs. No performance number compares MI300X with another accelerator.
 <!-- END GENERATED: glance -->
@@ -24,7 +24,7 @@ Author: Xinyu Wei · [中文](README_CN.md) · [Results](#measured-results-on-mi
 
 | Goal | Entry |
 |---|---|
-| See the total gain from bring-up to the optimized stack | [Bring-up to optimized stack](#bring-up-to-optimized-stack-the-cumulative-gain) |
+| See the total gain from the baseline to the optimized stack | [Baseline to optimized stack](#baseline-to-optimized-stack-the-cumulative-gain) |
 | See what single optimizations added | [What single optimizations added](#what-single-optimizations-added) |
 | Find one technique: switch, code, evidence, effect on output | [The Three Optimization Layers](#the-three-optimization-layers) |
 | Apply the same method on NVIDIA GPUs | [Porting the method to NVIDIA GPUs](#porting-the-method-to-nvidia-gpus) and the `cuda-hopper-pd` profile |
@@ -45,29 +45,29 @@ Not provided: model weights, the private raw logs behind the projected evidence 
 
 ## Measured Results on MI300X
 
-Every number compares MI300X with MI300X. Read this section top-down: first the total gain from the first working deployment to the optimized stack, then what single optimizations added, then the detail of each comparison. The FP8 KV cache was on in the optimized runs, and the captured environment of the stage-pair runs shows INT8 Quick Reduce on. Both are lossy, and their accuracy effect is not measured here; see [Which optimizations can change model output](#which-optimizations-can-change-model-output).
+Every number compares MI300X with MI300X. Read this section top-down: first the total gain from the baseline stack to the optimized stack, then what single optimizations added, then the detail of each comparison. The FP8 KV cache was on in the optimized runs, and the captured environment of the stage-pair runs shows INT8 Quick Reduce on. Both are lossy, and their accuracy effect is not measured here; see [Which optimizations can change model output](#which-optimizations-can-change-model-output).
 
-### Bring-up to optimized stack: the cumulative gain
+### Baseline to optimized stack: the cumulative gain
 
 **Question.** With every optimization on, how much faster is the same model on the same MI300X VMs than on the first stack that served it?
 
-**Input.** Bring-up (2026-05-08 to 05-10): SGLang v0.5.11 with Triton FP8 GEMM, no speculative decoding and the default KV cache type. Decode and the 128K prefill point used Triton attention; the early 8K/64K prefill points already used AITER attention. The early 128K prefill point ran on one VM; all other early points ran on the same two-VM 1P1D layout as the optimized runs. Optimized (2026-07-13 to 07-20): the stack of the [stage pair](#stage-pair-shape-tuned-fused-moe-table) below, with AITER attention, the CK FP8 GEMM, FP8 KV, EAGLE MTP, the tuned fused-MoE table and 1P1D over eight InfiniBand ports. The one-switch row compares two bring-up runs from the same session.
+**Input.** Baseline stack, the first configuration that served the model: SGLang v0.5.11 with Triton FP8 GEMM, no speculative decoding and the default KV cache type. Its decode and 128K prefill points used Triton attention; its 8K/64K prefill points already used AITER attention. Its 128K prefill point ran on one VM; all its other points ran on the same two-VM 1P1D layout as the optimized runs. Optimized stack: the stack of the [stage pair](#stage-pair-shape-tuned-fused-moe-table) below, with AITER attention, the CK FP8 GEMM, FP8 KV, EAGLE MTP, the tuned fused-MoE table and 1P1D over eight InfiniBand ports. The one-switch row compares two runs of the baseline stack in the same session.
 
 <!-- BEGIN GENERATED: cumulative -->
 | Measured on MI300X | Before → after | Factor |
 |---|---|---:|
-| Decode graph capture, one switch<br>16K/1K, 16 in flight, bring-up | 107.4 → 334.0 tok/s | **3.11×** |
+| Decode graph capture, one switch<br>16K/1K, 16 in flight, baseline stack | 107.4 → 334.0 tok/s | **3.11×** |
 | 128K prefill, 1 request, 8 GPUs<br>one VM → 1P1D prefill server | 6,915 → 16,390 tok/s | **2.37×** |
 | Decode time per token, 64 in flight<br>MTP at fixed acceptance 3, lower is better | 45.86 → 17.00 ms | **2.70×** |
 | Decode time per token, 64 in flight<br>MTP at actual acceptance, lower is better | 45.86 → 30.07 ms | **1.53×** |
-| 64K prefill, 4 in flight<br>bring-up prompts averaged 60,610 tokens | 13,919 → 19,023 tok/s | **1.37×** |
-| 8K prefill, 4 in flight<br>bring-up prompts averaged 7,792 tokens | 16,644 → 20,781 tok/s | **1.25×** |
+| 64K prefill, 4 in flight<br>baseline prompts averaged 60,610 tokens | 13,919 → 19,023 tok/s | **1.37×** |
+| 8K prefill, 4 in flight<br>baseline prompts averaged 7,792 tokens | 16,644 → 20,781 tok/s | **1.25×** |
 <!-- END GENERATED: cumulative -->
 
-The decode factor depends strongly on how often MTP draft tokens are accepted. The optimized throughput runs fixed the acceptance at three tokens per step, which is favorable. A related run on an older build of the same stack, with the acceptance the draft model actually achieved on the same random prompts, gives a reference point. Both are shown per point ("Actual MTP" and "Fixed MTP 3"; the factor under each value is against bring-up):
+The decode factor depends strongly on how often MTP draft tokens are accepted. The optimized throughput runs fixed the acceptance at three tokens per step, which is favorable. A related run on an older build of the same stack, with the acceptance the draft model actually achieved on the same random prompts, gives a reference point. Both are shown per point ("Actual MTP" and "Fixed MTP 3"; the factor under each value is against the baseline):
 
 <!-- BEGIN GENERATED: cumulative-decode -->
-| Metric | Bring-up<br>16K in | Actual<br>MTP | Fixed<br>MTP 3 |
+| Metric | Baseline<br>16K in | Actual<br>MTP | Fixed<br>MTP 3 |
 |---|---:|---:|---:|
 | TPOT ms<br>at 32 | 29.41 | 23.20<br>1.27× | 13.65<br>2.15× |
 | TPOT ms<br>at 64 | 45.86 | 30.07<br>1.53× | 17.00<br>2.70× |
@@ -75,11 +75,11 @@ The decode factor depends strongly on how often MTP draft tokens are accepted. T
 | tok/s<br>at 64 | 1,396 | 1,645<br>1.18× | 2,458<br>1.76× |
 <!-- END GENERATED: cumulative-decode -->
 
-**Boundary.** This is a before/after across two months, not an A/B: kernels, library versions and launch settings changed together, so the factors belong to the whole stack, not to one change. The bring-up decode used 16K input tokens and the optimized runs 8K. A shorter context makes each decode step cheaper, so part of the decode factor comes from the workload, not the stack. The actual-acceptance run used the 2026-06-25 AITER build without the tuned fused-MoE table and without unified verify, and random prompts are hard to draft, so it says little about acceptance on real traffic. The bring-up 8K and 64K prompts averaged 7,792 and 60,610 tokens against exactly 8,192 and 65,536 in July, so those two factors are approximate. The early 128K point ran on one VM with prefill and decode in one server, the July point on the prefill server of 1P1D; both prefill on 8 GPUs. The bring-up decode and 128K values come from summary reports. The graph-capture pair and the early 8K/64K prefill points are public raw client output. The client of the bring-up runs stopped requests at about 340 of 1,024 output tokens, so the graph-capture factor compares those two runs with each other only. Sources and hashes are in [`evidence/runs.json`](evidence/runs.json) and [`evidence/raw-manifest.json`](evidence/raw-manifest.json).
+**Boundary.** This is a before/after, not an A/B: kernels, library versions and launch settings changed together, so the factors belong to the whole stack, not to one change. The baseline decode used 16K input tokens and the optimized runs 8K. A shorter context makes each decode step cheaper, so part of the decode factor comes from the workload, not the stack. The actual-acceptance run used an earlier AITER build without the tuned fused-MoE table and without unified verify, and random prompts are hard to draft, so it says little about acceptance on real traffic. The baseline 8K and 64K prompts averaged 7,792 and 60,610 tokens against exactly 8,192 and 65,536 in the optimized runs, so those two factors are approximate. The baseline 128K point ran on one VM with prefill and decode in one server, the optimized point on the prefill server of 1P1D; both prefill on 8 GPUs. The baseline decode and 128K values come from a summary report; the graph-capture pair and the baseline 8K/64K prefill points are raw client output. The baseline client stopped requests at about 340 of 1,024 output tokens, so the graph-capture factor compares those two runs with each other only. Sources and hashes are in [`evidence/runs.json`](evidence/runs.json) and [`evidence/raw-manifest.json`](evidence/raw-manifest.json).
 
 ### What single optimizations added
 
-Each row isolates one change on an otherwise fixed stack. An A/B changes named switches inside one session. A stage pair repeats the same captured launch and benchmark scripts on two dates around one library update. These runs fixed MTP acceptance at three draft tokens, so read them as relative gains, not as production throughput. The first row is scheduler generation throughput; the other two are client-side input and output throughput.
+Each row isolates one change on an otherwise fixed stack. An A/B changes named switches inside one session. A stage pair repeats the same captured launch and benchmark scripts before and after one library update. These runs fixed MTP acceptance at three draft tokens, so read them as relative gains, not as production throughput. The first row is scheduler generation throughput; the other two are client-side input and output throughput.
 
 **Input.** Each row names its workload, concurrency and topology; the full input of each comparison is in its own section below.
 
@@ -121,7 +121,7 @@ The two runs of each arm agree within 1%, so the difference is far outside run-t
 
 The implied TPOT is `1000 × 16 / tok/s`, not a client-measured latency.
 
-**Boundary.** The two variables were switched together, so the gain belongs to the pair, not to either flag alone. The run is single-VM with prefill and decode in one server; it says nothing about PD deployments. The raw samples are in [`evidence/raw/ab-20260718-64k-bs16.json`](evidence/raw/ab-20260718-64k-bs16.json) and trace back to the public audit file named there.
+**Boundary.** The two variables were switched together, so the gain belongs to the pair, not to either flag alone. The run is single-VM with prefill and decode in one server; it says nothing about PD deployments. The raw samples are in [`evidence/raw/ab-64k-bs16.json`](evidence/raw/ab-64k-bs16.json) and trace back to the public audit file named there.
 
 ### Stage pair: shape-tuned fused-MoE table
 
@@ -129,7 +129,7 @@ The implied TPOT is `1000 × 16 / tok/s`, not a client-measured latency.
 
 **Input.** Prefill: random prompts of 8,192 or 65,536 tokens, output 1 token, 16 prompts at concurrency 4, one warmup request, cache flushed, seed 12345. Decode: random prompts of 8,192 tokens with 1,024 output tokens, 256 prompts at concurrency 16 to 128, 32 warmup requests, cache flushed, seed 12345. The exact client arguments of every run are kept in [`evidence/raw/`](evidence/raw/).
 
-**What varied.** AITER moved from `fc96a4f` to a build that adds the tuned table from [`d725746`](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9) (the served CSV has the same SHA-256 as the file in that commit). The prefill launch script, the router script and both benchmark scripts have the same SHA-256 on both dates, and the captured environment lines of the decode server match. The full decode launch script was hashed only on the second date, and the sglang commit only on the first, so the attribution to the table is strong but not proven by an in-session A/B.
+**What varied.** AITER moved from `fc96a4f` to a build that adds the tuned table from [`d725746`](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9) (the served CSV has the same SHA-256 as the file in that commit). The prefill launch script, the router script and both benchmark scripts have the same SHA-256 in both runs, and the captured environment lines of the decode server match. The full decode launch script was hashed only in the after run, and the sglang commit only in the before run, so the attribution to the table is strong but not proven by an in-session A/B.
 
 Prefill, measured at the client (throughput rounded to whole tokens; exact values in `evidence/measurements.json`):
 
@@ -153,13 +153,13 @@ Decode, same runs:
 
 Prefill gains come with shorter time to first token. At decode concurrency 64 and 128 the table raises output throughput by about an eighth while TPOT rises by a similar amount: the server holds more requests per step, so each request waits a little longer per token but the batch as a whole finishes sooner.
 
-**Boundary.** Each point is one run on each date, not an interleaved A/B. The 256K prefill point is excluded from both dates: with `--context-length 262144`, a 262,144-token prompt plus MiMo's special tokens does not fit, and the server can answer with error payloads that the client still counts as successes. A later attempt to measure the same table with `AITER_BYPASS_TUNE_CONFIG=1` as the baseline hit a GPU memory fault at 64K and was rejected, so no in-session A/B of this table exists.
+**Boundary.** Each point is one run before and one run after, not an interleaved A/B. The 256K prefill point is excluded from both runs: with `--context-length 262144`, a 262,144-token prompt plus MiMo's special tokens does not fit, and the server can answer with error payloads that the client still counts as successes. A separate attempt to measure the same table with `AITER_BYPASS_TUNE_CONFIG=1` as the baseline hit a GPU memory fault at 64K and was rejected, so no in-session A/B of this table exists.
 
 ### Where decode saturates: concurrency ladder
 
 **Question.** Past which client concurrency does the 1P1D decode path stop gaining throughput, and what does extra concurrency cost?
 
-**Input.** The same 8K-in / 1K-out decode workload and stack as the first date above, 256 prompts per point, client concurrency 16 to 256.
+**Input.** The same 8K-in / 1K-out decode workload and stack as the before run above, 256 prompts per point, client concurrency 16 to 256.
 
 <!-- BEGIN GENERATED: ladder -->
 | In flight<br>(observed) | Output<br>tok/s | TPOT<br>(ms) | TTFT (s)<br>mean / P99 |
@@ -179,7 +179,7 @@ Throughput reaches its plateau at concurrency 64. Above that, TPOT stays flat wh
 
 ### What is not measured here
 
-Decode graph capture was measured only at bring-up, before MTP and the AITER kernels; its share in the optimized stack is not isolated. The FlyDSL paged-attention decode kernel, the vectorized 5D KV layout, page 64 and the head-192 prefill tile are part of the final pinned runtime, but no published Microsoft run isolates them, so this page reports no speed-up for them. Their code changes are explained in [The Three Optimization Layers](#the-three-optimization-layers); measuring them follows the same A/B method on the single-VM profile.
+Decode graph capture was measured only on the baseline stack, without MTP and the AITER kernels; its share in the optimized stack is not isolated. The FlyDSL paged-attention decode kernel, the vectorized 5D KV layout, page 64 and the head-192 prefill tile are part of the final pinned runtime, but no published Microsoft run isolates them, so this page reports no speed-up for them. Their code changes are explained in [The Three Optimization Layers](#the-three-optimization-layers); measuring them follows the same A/B method on the single-VM profile.
 
 ## Architecture and Test Setup
 
@@ -336,11 +336,11 @@ These are configuration, not code, but they decide whether the kernels above run
 - **Switch on MI300X**: on by default on the decode server: do not pass `--disable-cuda-graph` there (the prefill server keeps it)
 - **On NVIDIA**: same default with CUDA graphs; `--cuda-graph-max-bs` bounds the captured batch sizes
 - **Code**: no code change (configuration only)
-- **Evidence**: measured A/B at bring-up (Triton attention, no MTP)
+- **Evidence**: measured A/B on the baseline stack (Triton attention, no MTP)
 - **Effect on output**: same math. The captured graph replays the same kernels; it removes launch overhead, not arithmetic.
 <!-- END GENERATED: card-decode-graph-capture -->
 
-A decode step runs hundreds of small kernels, and at small batch the time to launch them is comparable to the time they run. SGLang captures each decode batch size once as a HIP graph (a CUDA graph on NVIDIA) and afterwards replays the whole step with one launch. Early MI300X bring-up turned this off with `--disable-cuda-graph` to work around a multi-node hang; putting it back on the decode server was the largest single step measured here, while the prefill server keeps `--disable-cuda-graph` because prefill batches are large and irregular. The capture needs HBM for each captured batch size, so it competes with the KV pool.
+A decode step runs hundreds of small kernels, and at small batch the time to launch them is comparable to the time they run. SGLang captures each decode batch size once as a HIP graph (a CUDA graph on NVIDIA) and afterwards replays the whole step with one launch. The baseline stack ran with it off (`--disable-cuda-graph`, a workaround for a multi-node hang); turning it back on for the decode server was the largest single step measured here, while the prefill server keeps `--disable-cuda-graph` because prefill batches are large and irregular. The capture needs HBM for each captured batch size, so it competes with the KV pool.
 
 ### Operator layer
 
@@ -614,7 +614,7 @@ To study the decode kernels without a prefill server, the decode server runs wit
 - **Effect on output**: test method only. Draft tokens are accepted by rule, not by the model, so the generated text is not the model's output.
 <!-- END GENERATED: card-simulated-acceptance -->
 
-`SGLANG_SIMULATE_ACC_LEN=3` makes every MTP step accept exactly three draft tokens. That removes acceptance noise from kernel measurements and makes runs comparable across days, but it overstates throughput for a real workload. Accuracy runs must unset both variables, and throughput measured with a fixed acceptance should never be quoted as production throughput.
+`SGLANG_SIMULATE_ACC_LEN=3` makes every MTP step accept exactly three draft tokens. That removes acceptance noise from kernel measurements and makes runs comparable with each other, but it overstates throughput for a real workload. Accuracy runs must unset both variables, and throughput measured with a fixed acceptance should never be quoted as production throughput.
 
 #### Concurrency ladder against the saturation point
 
@@ -723,7 +723,7 @@ python tools/build_readme.py --check
 
 Done when all tests pass and both checks print `PASS`.
 
-**2. Build the runtime on each VM.** The Dockerfile pins the base image by digest and checks out the commits of the final pinned runtime (not throughput-tested here; the published runs used the earlier stack named in each section): SGLang `878fff1`, AITER `3f4ab48` with Composable Kernel `af7118e` and its bundled patch, FlyDSL `0.2.4` from PyPI and the FlyDSL kernels at `c99d5cd`.
+**2. Build the runtime on each VM.** The Dockerfile pins the base image by digest and checks out the commits of the final pinned runtime (not throughput-tested here; the published runs used the stack named in each section): SGLang `878fff1`, AITER `3f4ab48` with Composable Kernel `af7118e` and its bundled patch, FlyDSL `0.2.4` from PyPI and the FlyDSL kernels at `c99d5cd`.
 
 ```bash
 docker build -t mimo-mi300x:public docker/
@@ -731,7 +731,7 @@ DATA=/path/with/models bash docker/docker-run.sh
 docker exec -it sglang bash
 ```
 
-The build fails if the FlyDSL wheel hash, the composable_kernel commit or the final imports do not match. A clean build of this Dockerfile succeeded on 2026-09-28 (BuildKit, about six minutes after the base image is cached; image 27.9 GB); the receipt is in [`evidence/docker-build-20260928.json`](evidence/docker-build-20260928.json). The container needs broad host access (`--privileged`, host network and IPC, `/dev/kfd`, `/dev/dri`, `/dev/mem`, `CAP_SYS_ADMIN`) because RDMA and the AITER path use it; run it only on a dedicated GPU VM. The first server start compiles AITER JIT modules and takes noticeably longer than later starts.
+The build fails if the FlyDSL wheel hash, the composable_kernel commit or the final imports do not match. A clean build of this Dockerfile succeeded (BuildKit, about six minutes after the base image is cached; image 27.9 GB); the receipt is in [`evidence/docker-build.json`](evidence/docker-build.json). The container needs broad host access (`--privileged`, host network and IPC, `/dev/kfd`, `/dev/dri`, `/dev/mem`, `CAP_SYS_ADMIN`) because RDMA and the AITER path use it; run it only on a dedicated GPU VM. The first server start compiles AITER JIT modules and takes noticeably longer than later starts.
 
 **3. Render the launch commands.** Profiles keep every host, path and device name as a variable:
 
@@ -797,10 +797,10 @@ The same commands run in CI on Ubuntu and Windows with Python 3.10 and 3.12 ([wo
 **Assets.**
 
 - [`evidence/runs.json`](evidence/runs.json) — run identities, topology, controlled variables and script hashes.
-- [`evidence/raw/`](evidence/raw/) — projected sources: `sglang.bench_serving` output (workload arguments and result block of every run), the A/B samples from the public audit file and the bring-up summary.
+- [`evidence/raw/`](evidence/raw/) — projected sources: `sglang.bench_serving` output (workload arguments and result block of every run), the A/B samples from the public audit file, and the baseline client results and summary.
 - [`evidence/raw-manifest.json`](evidence/raw-manifest.json) — SHA-256 of each private raw log and of its public projection.
 - [`evidence/measurements.json`](evidence/measurements.json) — all comparisons, built by `tools/build_evidence.py`.
-- [`evidence/docker-build-20260928.json`](evidence/docker-build-20260928.json) — receipt of the clean Docker build: commit, Dockerfile hash, builder, image id and the step lines of the log.
+- [`evidence/docker-build.json`](evidence/docker-build.json) — receipt of the clean Docker build: commit, Dockerfile hash, builder, image id and the step lines of the log.
 - [`upstream/`](upstream/) — full patches of every commit discussed and `SOURCES.lock.json` (hash, license, layer, whether it is in the pinned runtime).
 - [`profiles/`](profiles/) — technique catalog, measured MI300X profiles and the NVIDIA template.
 - [`tools/`](tools/) — log projection and parsing, evidence and README builders, launch renderer, diagram generator, public-content audit.

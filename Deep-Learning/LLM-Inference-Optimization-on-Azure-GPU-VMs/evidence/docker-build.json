@@ -1,7 +1,6 @@
 {
   "schema": 1,
   "kind": "clean-docker-build",
-  "date_utc": "2026-09-28",
   "repository_commit": "5cee79174eb664210fe00274117a6fcd6d5e9d3d",
   "dockerfile_sha256": "02b5ef3335848757038b021949d871ccd359aa44ab5789a621cc8276111d7861",
   "builder": "docker 29.1.3, buildx v0.19.3 (BuildKit), linux x86_64",

@@ -2,9 +2,9 @@
 #
 # Pins the commits of the final runtime (see ../upstream/SOURCES.lock.json).
 # That runtime was not throughput-tested in this repository; the published runs
-# used the earlier stack named in each README section. A clean build of these
-# instructions succeeded on a CPU-only VM on 2026-09-28; see
-# ../evidence/docker-build-20260928.json. Starting a server needs MI300X GPUs.
+# used the stack named in each README section. A clean build of these
+# instructions succeeded on a CPU-only VM; see
+# ../evidence/docker-build.json. Starting a server needs MI300X GPUs.
 
 # Pinned by digest: a re-pushed tag must not change the base image.
 FROM rocm/sgl-dev@sha256:8f8dc55398855764d339ff4e2695b9c3c298704999051acaa1a67993fdff62e5

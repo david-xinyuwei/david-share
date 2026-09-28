@@ -34,7 +34,7 @@ class EvidenceTests(unittest.TestCase):
             self.assertRegex(item["raw_log_sha256"], r"^[0-9a-f]{64}$")
 
     def test_tampered_projection_fails_the_build(self):
-        target = ROOT / "evidence/raw/stage-20260713-tuned-moe__prefill-8192-c4.txt"
+        target = ROOT / "evidence/raw/stage-after-moe-table__prefill-8192-c4.txt"
         original = target.read_bytes()
         try:
             target.write_bytes(original.replace(b"20780.79", b"29780.79"))
@@ -57,7 +57,7 @@ class EvidenceTests(unittest.TestCase):
         self.assertNotIn(262144, [r["input_tokens"] for r in stage["prefill"]])
 
     def test_ab_means_recompute_from_samples(self):
-        raw = load("evidence/raw/" + self.runs["runs"]["ab-20260718-64k-bs16"]["raw"][0])
+        raw = load("evidence/raw/" + self.runs["runs"]["ab-64k-bs16"]["raw"][0])
         base = statistics.fmean(statistics.fmean(s) for s in raw["baseline"]["runs"])
         opt = statistics.fmean(statistics.fmean(s) for s in raw["optimized"]["runs"])
         ab = self.m["ab_ck_unified_verify_64k"]
@@ -68,8 +68,8 @@ class EvidenceTests(unittest.TestCase):
         self.assertLess(abs(ab["optimized_repeatability_pct"]), 1.0)
 
     def test_stage_pair_uses_identical_scripts(self):
-        before = self.runs["runs"]["stage-20260707-ck"]["script_sha256"]
-        after = self.runs["runs"]["stage-20260713-tuned-moe"]["script_sha256"]
+        before = self.runs["runs"]["stage-before-moe-table"]["script_sha256"]
+        after = self.runs["runs"]["stage-after-moe-table"]["script_sha256"]
         for key in ("prefill_launch", "router_launch", "decode_benchmark", "prefill_benchmark"):
             self.assertEqual(before[key], after[key], key)
 
@@ -111,7 +111,7 @@ class EvidenceTests(unittest.TestCase):
         """The favorable fixed-acceptance factor must never appear without the real-acceptance one."""
         for row in self.m["cumulative"]["decode"]:
             self.assertLess(row["real_tpot_factor"], row["fixed_tpot_factor"])
-        real = self.runs["runs"]["realacc-20260714"]
+        real = self.runs["runs"]["actual-acceptance"]
         self.assertIn("no SGLANG_SIMULATE_ACC_", real["server_env"])
         for name in real["raw"]:
             self.assertNotIn("SIMULATE", (ROOT / "evidence" / "raw" / name).read_text(encoding="utf-8"))

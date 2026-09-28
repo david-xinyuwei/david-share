@@ -147,8 +147,8 @@
       "stack": "measured-run",
       "evidence": "LOCAL_AB",
       "evidence_note": {
-        "en": "measured A/B at bring-up (Triton attention, no MTP)",
-        "cn": "bring-up 阶段实测 A/B（Triton attention，无 MTP）"
+        "en": "measured A/B on the baseline stack (Triton attention, no MTP)",
+        "cn": "在基线栈上实测 A/B（Triton attention，无 MTP）"
       },
       "rocm_cn": "decode 服务上默认打开：不要给 decode 服务传 `--disable-cuda-graph`（prefill 服务保留该参数）",
       "cuda_cn": "默认行为相同，使用 CUDA graph；`--cuda-graph-max-bs` 限定捕获的 batch 上限",

@@ -2,11 +2,10 @@
   "schema": 1,
   "kind": "results-table-projection",
   "source": {
-    "name": "prefill-results.tsv",
+    "name": "long-context results table",
     "sha256": "a41a9b3cd61605d0935622be54f96f6a1c2680d79e7c6e473747ef09f5944480",
     "public": false
   },
-  "date": "2026-07-20",
   "workload": {
     "input_tokens": 131072,
     "output_tokens": 1,

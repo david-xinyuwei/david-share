@@ -1,24 +1,18 @@
 {
   "schema": 1,
-  "kind": "public-raw-projection",
+  "kind": "raw-json-projection",
   "source": {
-    "repository": "xinyuwei-david/MiMo-V2.5-Pro-MI300X-Bringup",
-    "commit": "e41bdc8cbc4c0efa48750eee94fdd2fde06949ea",
-    "directory": "data/pd_disagg_20260508/bench_pd",
+    "name": "bench_pd.tar.gz (four client result files)",
     "files": {
       "aiter_prefill_8192.json": "864a6974b9bf073c3d9e9b52d0759035a619a7a97121ba5d6fc05dd14ce4c1cc",
       "aiter_prefill_65536.json": "992da8ecf2535b764d802a4f4bba5d274ae1403fe69ecbf71fbd61a20dcca8e9",
       "bs16.json": "ab4ce1809bd946a25bec61b75746f5e4b7f955912a7f7ed8948ead783ff72bc0",
       "cg_bs16.json": "6a4901e4bf089d0b97119df07408122c1127e4801b452a61ad81940dc0b29014"
     },
-    "public": true,
-    "archive": {
-      "path": "data/pd_disagg_20260508/bench_pd.tar.gz",
-      "sha256": "66111e8a42b0b14d87cd8c2f6c839245ca56c41463e60d2da015633e7eef924a"
-    }
+    "archive_sha256": "66111e8a42b0b14d87cd8c2f6c839245ca56c41463e60d2da015633e7eef924a",
+    "public": false
   },
-  "date": "2026-05-08",
-  "client": "custom asyncio client of the bring-up repository, not sglang.bench_serving",
+  "client": "custom asyncio client of the baseline test harness, not sglang.bench_serving",
   "prefill": [
     {
       "file": "aiter_prefill_8192.json",

@@ -175,7 +175,7 @@
       "output_tokens": 1024
     },
     "graph_capture": {
-      "run": "bringup-20260508-pd",
+      "run": "baseline-pd-client",
       "workload": {
         "input_len_target": 16384,
         "output_len_target": 1024,
@@ -194,9 +194,9 @@
         "input_tokens": 8192,
         "concurrency": 4,
         "early_avg_prompt_tokens": 7791.5,
-        "early_run": "bringup-20260508-pd",
+        "early_run": "baseline-pd-client",
         "early_input_tok_s": 16643.9,
-        "late_run": "stage-20260713-tuned-moe",
+        "late_run": "stage-after-moe-table",
         "late_input_tok_s": 20780.79,
         "factor": 1.25
       },
@@ -204,9 +204,9 @@
         "input_tokens": 65536,
         "concurrency": 4,
         "early_avg_prompt_tokens": 60610.4,
-        "early_run": "bringup-20260508-pd",
+        "early_run": "baseline-pd-client",
         "early_input_tok_s": 13919.4,
-        "late_run": "stage-20260713-tuned-moe",
+        "late_run": "stage-after-moe-table",
         "late_input_tok_s": 19022.57,
         "factor": 1.37
       },
@@ -215,9 +215,9 @@
         "concurrency": 1,
         "early_topology": "one VM, TP8, prefill and decode in one server",
         "late_topology": "1P1D prefill server, TP8",
-        "early_run": "bringup-20260510-pd",
+        "early_run": "baseline-pd-summary",
         "early_input_tok_s": 6915,
-        "late_run": "long-20260720-128k",
+        "late_run": "long-128k",
         "late_input_tok_s": 16389.66,
         "factor": 2.37
       }

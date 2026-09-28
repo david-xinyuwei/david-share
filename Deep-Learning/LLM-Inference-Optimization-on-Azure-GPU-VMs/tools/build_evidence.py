@@ -82,8 +82,8 @@ def _fits_context(run: dict, stage: dict) -> bool:
 
 
 def tuned_moe_stage(meta: dict) -> dict:
-    stage_before = meta["runs"]["stage-20260707-ck"]
-    stage_after = meta["runs"]["stage-20260713-tuned-moe"]
+    stage_before = meta["runs"]["stage-before-moe-table"]
+    stage_after = meta["runs"]["stage-after-moe-table"]
     if stage_before["server_context_length"] != stage_after["server_context_length"]:
         raise SystemExit("CONTEXT_LENGTH_DIFFERS between the two stages")
     before = _parsed(stage_before["raw"])
@@ -136,7 +136,7 @@ def tuned_moe_stage(meta: dict) -> dict:
 
 def concurrency_ladder(meta: dict) -> list[dict]:
     rows = []
-    for run in _parsed(meta["runs"]["ladder-20260708-ck"]["raw"]):
+    for run in _parsed(meta["runs"]["ladder-ck"]["raw"]):
         _check_success(run)
         m = run["metrics"]
         rows.append({
@@ -150,7 +150,7 @@ def concurrency_ladder(meta: dict) -> list[dict]:
 
 
 def ab_64k(meta: dict) -> dict:
-    raw = _raw_json(meta["runs"]["ab-20260718-64k-bs16"]["raw"][0])
+    raw = _raw_json(meta["runs"]["ab-64k-bs16"]["raw"][0])
     if len(raw["baseline"]["runs"]) != 2 or len(raw["optimized"]["runs"]) != 2:
         raise SystemExit("AB_REPETITIONS each arm must have exactly two fresh-service runs")
     base_runs = [statistics.fmean(s) for s in raw["baseline"]["runs"]]
@@ -178,17 +178,17 @@ def _factor(after: float, before: float) -> float:
 
 
 def cumulative(meta: dict, stage: dict) -> dict:
-    """Bring-up (May) against the optimized stack (July) on the same MI300X VMs and 1P1D layout."""
-    may8 = _raw_json(meta["runs"]["bringup-20260508-pd"]["raw"][0])
-    may10 = _raw_json(meta["runs"]["bringup-20260510-pd"]["raw"][0])
-    long128 = _raw_json(meta["runs"]["long-20260720-128k"]["raw"][0])
+    """Baseline stack against the optimized stack on MI300X; each pair names its runs and workloads."""
+    may8 = _raw_json(meta["runs"]["baseline-pd-client"]["raw"][0])
+    may10 = _raw_json(meta["runs"]["baseline-pd-summary"]["raw"][0])
+    long128 = _raw_json(meta["runs"]["long-128k"]["raw"][0])
 
     ab = may8["graph_capture_ab"]
     off, on = ab["graph_off"], ab["graph_on"]
     if off["failed"] or on["failed"]:
         raise SystemExit("GRAPH_AB_FAILED_REQUESTS")
     graph = {
-        "run": "bringup-20260508-pd", "workload": ab["workload"],
+        "run": "baseline-pd-client", "workload": ab["workload"],
         "off_output_tok_s": off["output_tok_s"], "on_output_tok_s": on["output_tok_s"],
         "output_tok_s_factor": _factor(on["output_tok_s"], off["output_tok_s"]),
         "off_p50_latency_s": off["p50_latency_s"], "on_p50_latency_s": on["p50_latency_s"],
@@ -202,14 +202,14 @@ def cumulative(meta: dict, stage: dict) -> dict:
         late = late_prefill.get(n)
         if late is None or late["concurrency"] != early["concurrency"] or early["failed"]:
             raise SystemExit(f"CUMULATIVE_PREFILL_UNPAIRED {n}")
-        # the bring-up client sampled prompt lengths below the target; keep the pair only while the gap stays small
+        # the baseline client sampled prompt lengths below the target; keep the pair only while the gap stays small
         if not 0.9 * n <= early["avg_prompt_tokens"] <= n:
             raise SystemExit(f"CUMULATIVE_PREFILL_LENGTH {n}: early prompts averaged {early['avg_prompt_tokens']}")
         prefill.append({
             "input_tokens": n, "concurrency": early["concurrency"],
             "early_avg_prompt_tokens": early["avg_prompt_tokens"],
-            "early_run": "bringup-20260508-pd", "early_input_tok_s": early["input_tok_s"],
-            "late_run": "stage-20260713-tuned-moe", "late_input_tok_s": late["after_input_tok_s"],
+            "early_run": "baseline-pd-client", "early_input_tok_s": early["input_tok_s"],
+            "late_run": "stage-after-moe-table", "late_input_tok_s": late["after_input_tok_s"],
             "factor": _factor(late["after_input_tok_s"], early["input_tok_s"]),
         })
     rng = may10["single_vm_prefill_range"]
@@ -222,13 +222,13 @@ def cumulative(meta: dict, stage: dict) -> dict:
         "input_tokens": rng["input_tokens_high"], "concurrency": 1,
         "early_topology": "one VM, TP8, prefill and decode in one server",
         "late_topology": "1P1D prefill server, TP8",
-        "early_run": "bringup-20260510-pd", "early_input_tok_s": rng["input_tok_s_high"],
-        "late_run": "long-20260720-128k", "late_input_tok_s": point["input_tok_s"],
+        "early_run": "baseline-pd-summary", "early_input_tok_s": rng["input_tok_s_high"],
+        "late_run": "long-128k", "late_input_tok_s": point["input_tok_s"],
         "factor": _factor(point["input_tok_s"], rng["input_tok_s_high"]),
     })
 
     real = {}
-    for run in _parsed(meta["runs"]["realacc-20260714"]["raw"]):
+    for run in _parsed(meta["runs"]["actual-acceptance"]["raw"]):
         _check_success(run)
         a = run["args"]
         if (a["random_input_len"], a["random_output_len"]) != (8192, 1024):

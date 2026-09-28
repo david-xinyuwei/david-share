@@ -7,11 +7,11 @@
 
 **同样的 GPU，一个支持 1M 上下文的 MoE 模型到底能提速多少？提速又落在哪一层？** 本仓库以 Azure ND MI300X v5 虚拟机上的 MiMo-V2.5-Pro 为例（384 个路由专家、滑动窗口与 GQA 混合注意力、3 层 MTP），把推理链路上用到的全部优化手段逐项讲清楚。这些手段分属三层：推理框架层、算子层、负载与部署层。每一项都给出打开它的开关、固定 commit 里真实的代码改动（有代码改动的话）、它对模型输出的影响；实测过的项目还给出它让 MI300X 相对 MI300X 自己快了多少。
 
-<img src="images/cumulative-gain-cn.png" width="900" alt="MI300X 从 bring-up 到优化后的提升倍数：decode 图捕获 3.11 倍，128K prefill 2.37 倍，decode 每 token 耗时在固定 MTP 接受长度下 2.70 倍、真实接受长度下 1.53 倍，64K prefill 1.37 倍，8K prefill 1.25 倍">
+<img src="images/cumulative-gain-cn.png" width="900" alt="MI300X 从基线栈到优化后的提升倍数：decode 图捕获 3.11 倍，128K prefill 2.37 倍，decode 每 token 耗时在固定 MTP 接受长度下 2.70 倍、按实际接受 1.53 倍，64K prefill 1.37 倍，8K prefill 1.25 倍">
 
 <!-- BEGIN GENERATED: glance -->
-- 从 bring-up 到优化后的栈：**128K prefill 提速 2.37×**（8 张 GPU）；**decode 每 token 耗时 45.86 → 17.00 ms（缩短 2.70×）**，64 路并发、MTP 固定接受长度 3（按实际接受的参考运行为 30.07 ms，缩短 1.53×）。
-- bring-up 阶段一个开关带来 **3.11× decode 吞吐**：让 decode 服务重放 HIP graph。
+- 从基线栈到优化后的栈：**128K prefill 提速 2.37×**（8 张 GPU）；**decode 每 token 耗时 45.86 → 17.00 ms（缩短 2.70×）**，64 路并发、MTP 固定接受长度 3（按实际接受的参考运行为 30.07 ms，缩短 1.53×）。
+- 基线栈上一个开关带来 **3.11× decode 吞吐**：让 decode 服务重放 HIP graph。
 - block-scale FP8 GEMM 与 unified verify 两个开关让 64K 上下文 decode **+25.65%**（同一会话 A/B）；按 shape 调优的 fused-MoE 表让 8K prefill **+24.32%**。
 - 这些倍数不能相乘：每个倍数比较的是不同的一对运行。本页没有任何性能数字拿 MI300X 和其他加速器比较。
 <!-- END GENERATED: glance -->
@@ -24,7 +24,7 @@
 
 | 想做什么 | 入口 |
 |---|---|
-| 看从 bring-up 到优化后总共快了多少 | [从 bring-up 到优化后](#从-bring-up-到优化后累计提升) |
+| 看从基线栈到优化后总共快了多少 | [从基线栈到优化后](#从基线栈到优化后累计提升) |
 | 看单项优化各自带来多少 | [单项优化各自带来多少](#单项优化各自带来多少) |
 | 查某一项优化：开关、代码、证据、对输出的影响 | [三层优化逐项拆解](#三层优化逐项拆解) |
 | 把这套方法用到 NVIDIA GPU 上 | [迁移到 NVIDIA GPU](#迁移到-nvidia-gpu)，以及 `cuda-hopper-pd` profile |
@@ -45,29 +45,29 @@
 
 ## MI300X 实测结果
 
-所有数字都是 MI300X 和 MI300X 自己比。建议从上往下读：先看从第一版能跑的部署到优化后的总提升，再看单项优化各自带来多少，最后是每组对比的细节。优化后的测试打开了 FP8 KV cache，阶段对比那几次运行记录的环境显示 INT8 Quick Reduce 也是打开的。两者都有损，它们对准确率的影响本仓库没有测，见[哪些优化可能改变模型输出](#哪些优化可能改变模型输出)。
+所有数字都是 MI300X 和 MI300X 自己比。建议从上往下读：先看从基线栈到优化后的总提升，再看单项优化各自带来多少，最后是每组对比的细节。优化后的测试打开了 FP8 KV cache，阶段对比那几次运行记录的环境显示 INT8 Quick Reduce 也是打开的。两者都有损，它们对准确率的影响本仓库没有测，见[哪些优化可能改变模型输出](#哪些优化可能改变模型输出)。
 
-### 从 bring-up 到优化后：累计提升
+### 从基线栈到优化后：累计提升
 
 **问题。** 所有优化都打开以后，同一个模型、同一批 MI300X 虚拟机，比第一版能跑起来的栈快多少？
 
-**输入。** Bring-up（2026-05-08 至 05-10）：SGLang v0.5.11、Triton FP8 GEMM，不开投机解码，KV cache 用默认类型。Decode 和 128K prefill 测点用 Triton attention；早期 8K/64K prefill 测点已经在用 AITER attention。早期 128K prefill 测点跑在一台 VM 上，其余早期测点和优化后一样是两台 VM 的 1P1D。优化后（2026-07-13 至 07-20）：下文[阶段对比](#阶段对比按-shape-调优的-fused-moe-表)用的栈，即 AITER attention、CK FP8 GEMM、FP8 KV、EAGLE MTP、调优 fused-MoE 表，1P1D 走 8 路 InfiniBand。单开关那一行比较的是 bring-up 同一轮会话里的两次运行。
+**输入。** 基线栈，即第一版把模型跑起来的配置：SGLang v0.5.11、Triton FP8 GEMM，不开投机解码，KV cache 用默认类型。它的 decode 和 128K prefill 测点用 Triton attention；8K/64K prefill 测点已经在用 AITER attention。它的 128K prefill 测点跑在一台 VM 上，其余测点和优化后一样是两台 VM 的 1P1D。优化后的栈：下文[阶段对比](#阶段对比按-shape-调优的-fused-moe-表)用的栈，即 AITER attention、CK FP8 GEMM、FP8 KV、EAGLE MTP、调优 fused-MoE 表，1P1D 走 8 路 InfiniBand。单开关那一行比较的是基线栈在同一轮会话里的两次运行。
 
 <!-- BEGIN GENERATED: cumulative -->
 | MI300X 上实测 | 优化前 → 后 | 倍数 |
 |---|---|---:|
-| Decode 图捕获，单开关<br>16K/1K，16 路并发，bring-up | 107.4 → 334.0 tok/s | **3.11×** |
+| Decode 图捕获，单开关<br>16K/1K，16 路并发，基线栈 | 107.4 → 334.0 tok/s | **3.11×** |
 | 128K prefill，1 个请求，8 张 GPU<br>单机 → 1P1D 的 prefill 服务 | 6,915 → 16,390 tok/s | **2.37×** |
 | Decode 每 token 耗时，64 路并发<br>MTP 固定接受长度 3，越低越好 | 45.86 → 17.00 ms | **2.70×** |
 | Decode 每 token 耗时，64 路并发<br>MTP 按实际接受，越低越好 | 45.86 → 30.07 ms | **1.53×** |
-| 64K prefill，4 路并发<br>bring-up 的 prompt 平均 60,610 token | 13,919 → 19,023 tok/s | **1.37×** |
-| 8K prefill，4 路并发<br>bring-up 的 prompt 平均 7,792 token | 16,644 → 20,781 tok/s | **1.25×** |
+| 64K prefill，4 路并发<br>基线栈 prompt 平均 60,610 token | 13,919 → 19,023 tok/s | **1.37×** |
+| 8K prefill，4 路并发<br>基线栈 prompt 平均 7,792 token | 16,644 → 20,781 tok/s | **1.25×** |
 <!-- END GENERATED: cumulative -->
 
-Decode 的倍数在很大程度上取决于 MTP 草稿 token 的接受率。优化后的吞吐测试把接受长度固定为每步 3 个 token，这是偏乐观的条件；同一套栈的一个较早版本，在同样的随机 prompt 上按草稿模型实际达到的接受率跑过一次，可作参考点。两者逐点列出（每个数值下方是相对 bring-up 的倍数）：
+Decode 的倍数在很大程度上取决于 MTP 草稿 token 的接受率。优化后的吞吐测试把接受长度固定为每步 3 个 token，这是偏乐观的条件；同一套栈的一个较早版本，在同样的随机 prompt 上按草稿模型实际达到的接受率跑过一次，可作参考点。两者逐点列出（每个数值下方是相对基线栈的倍数）：
 
 <!-- BEGIN GENERATED: cumulative-decode -->
-| 指标 | Bring-up<br>16K 输入 | 按实际<br>接受 | 固定接受<br>长度 3 |
+| 指标 | 基线栈<br>16K 输入 | 按实际<br>接受 | 固定接受<br>长度 3 |
 |---|---:|---:|---:|
 | TPOT ms<br>并发 32 | 29.41 | 23.20<br>1.27× | 13.65<br>2.15× |
 | TPOT ms<br>并发 64 | 45.86 | 30.07<br>1.53× | 17.00<br>2.70× |
@@ -75,11 +75,11 @@ Decode 的倍数在很大程度上取决于 MTP 草稿 token 的接受率。优�
 | tok/s<br>并发 64 | 1,396 | 1,645<br>1.18× | 2,458<br>1.76× |
 <!-- END GENERATED: cumulative-decode -->
 
-**边界。** 这是跨两个月的前后对比，不是 A/B：kernel、库版本和启动参数是一起变的，所以倍数属于整套栈，不属于某一项改动。Bring-up 的 decode 输入是 16K token，优化后是 8K。上下文越短，每步 decode 越便宜，所以 decode 倍数里有一部分来自负载差异，而不是栈本身。按实际接受的那次运行用的是 2026-06-25 的 AITER，没有调优 fused-MoE 表，也没开 unified verify，而且随机 prompt 很难猜中，所以它说明不了真实流量上的接受率。Bring-up 的 8K 和 64K prompt 平均为 7,792 和 60,610 个 token，7 月是正好 8,192 和 65,536，所以这两个倍数是近似值。早期 128K 测点跑在一台 VM 上，prefill 和 decode 在同一个服务里；7 月的测点跑在 1P1D 的 prefill 服务上；两者都用 8 张 GPU 做 prefill。Bring-up 的 decode 和 128K 数值来自汇总报告；图捕获这一对以及早期 8K/64K prefill 测点是公开的客户端原始输出。Bring-up 的客户端在大约 340 个输出 token（请求的是 1,024）时就结束了请求，所以图捕获的倍数只能在这两次运行之间比较。来源和哈希见 [`evidence/runs.json`](evidence/runs.json) 和 [`evidence/raw-manifest.json`](evidence/raw-manifest.json)。
+**边界。** 这是前后对比，不是 A/B：kernel、库版本和启动参数是一起变的，所以倍数属于整套栈，不属于某一项改动。基线栈的 decode 输入是 16K token，优化后是 8K。上下文越短，每步 decode 越便宜，所以 decode 倍数里有一部分来自负载差异，而不是栈本身。按实际接受的那次运行用的是较早的 AITER 版本，没有调优 fused-MoE 表，也没开 unified verify，而且随机 prompt 很难猜中，所以它说明不了真实流量上的接受率。基线栈的 8K 和 64K prompt 平均为 7,792 和 60,610 个 token，优化后的运行是正好 8,192 和 65,536，所以这两个倍数是近似值。基线栈的 128K 测点跑在一台 VM 上，prefill 和 decode 在同一个服务里；优化后的测点跑在 1P1D 的 prefill 服务上；两者都用 8 张 GPU 做 prefill。基线栈的 decode 和 128K 数值来自汇总报告；图捕获这一对以及基线栈的 8K/64K prefill 测点是客户端原始输出。基线栈的客户端在大约 340 个输出 token（请求的是 1,024）时就结束了请求，所以图捕获的倍数只能在这两次运行之间比较。来源和哈希见 [`evidence/runs.json`](evidence/runs.json) 和 [`evidence/raw-manifest.json`](evidence/raw-manifest.json)。
 
 ### 单项优化各自带来多少
 
-每一行只在其余不变的栈上改一处。A/B 是同一轮测试里只改指定的开关；阶段对比是两个日期重复同一套已记录的启动和压测脚本，中间只更新了一个库。这些测试把 MTP 接受长度固定为 3 个草稿 token，所以应当看作相对提升，而不是生产吞吐。第一行是调度器的生成吞吐，后两行是客户端测得的输入和输出吞吐。
+每一行只在其余不变的栈上改一处。A/B 是同一轮测试里只改指定的开关；阶段对比是在更新一个库的前后，重复同一套已记录的启动和压测脚本。这些测试把 MTP 接受长度固定为 3 个草稿 token，所以应当看作相对提升，而不是生产吞吐。第一行是调度器的生成吞吐，后两行是客户端测得的输入和输出吞吐。
 
 **输入。** 每一行都写明了负载、并发和拓扑；每组对比的完整输入见下面对应的小节。
 
@@ -121,7 +121,7 @@ Decode 的倍数在很大程度上取决于 MTP 草稿 token 的接受率。优�
 
 折算 TPOT 按 `1000 × 16 / tok/s` 计算，不是客户端实测的延迟。
 
-**边界。** 两个变量是一起打开的，收益属于这一对开关，不能拆给其中任何一个。测试是单机、prefill 和 decode 在同一个服务里完成，不能推到 PD 部署上。原始采样值在 [`evidence/raw/ab-20260718-64k-bs16.json`](evidence/raw/ab-20260718-64k-bs16.json)，可以追溯到其中登记的公开审计文件。
+**边界。** 两个变量是一起打开的，收益属于这一对开关，不能拆给其中任何一个。测试是单机、prefill 和 decode 在同一个服务里完成，不能推到 PD 部署上。原始采样值在 [`evidence/raw/ab-64k-bs16.json`](evidence/raw/ab-64k-bs16.json)，可以追溯到其中登记的公开审计文件。
 
 ### 阶段对比：按 shape 调优的 fused-MoE 表
 
@@ -129,7 +129,7 @@ Decode 的倍数在很大程度上取决于 MTP 草稿 token 的接受率。优�
 
 **输入。** Prefill：随机 prompt，长度 8,192 或 65,536 token，输出 1 个 token，16 个 prompt，并发 4，1 个预热请求，清缓存，seed 12345。Decode：随机 prompt 8,192 token，输出 1,024 token，256 个 prompt，并发 16 到 128，32 个预热请求，清缓存，seed 12345。每次运行的完整客户端参数都保存在 [`evidence/raw/`](evidence/raw/)。
 
-**变量。** AITER 从 `fc96a4f` 升级到加入了 [`d725746`](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9) 调优表的版本（实际加载的 CSV 与该 commit 中的文件 SHA-256 相同）。两个日期的 prefill 启动脚本、router 脚本和两份压测脚本 SHA-256 完全一致，decode 服务记录下来的环境变量行也一致。decode 启动脚本的完整哈希只在第二个日期记录过，sglang commit 只在第一个日期记录过，所以把差异归到这张表上证据很强，但还没有同一轮内的 A/B 来证明。
+**变量。** AITER 从 `fc96a4f` 升级到加入了 [`d725746`](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9) 调优表的版本（实际加载的 CSV 与该 commit 中的文件 SHA-256 相同）。前后两次运行的 prefill 启动脚本、router 脚本和两份压测脚本 SHA-256 完全一致，decode 服务记录下来的环境变量行也一致。decode 启动脚本的完整哈希只在“之后”那次记录过，sglang commit 只在“之前”那次记录过，所以把差异归到这张表上证据很强，但还没有同一轮内的 A/B 来证明。
 
 Prefill，客户端测得（吞吐取整；精确值见 `evidence/measurements.json`）：
 
@@ -153,13 +153,13 @@ Decode，同一批运行：
 
 Prefill 吞吐上去的同时，首 token 时间也缩短了。Decode 在并发 64 和 128 时，输出吞吐提升了约八分之一，TPOT 也差不多涨了同样的幅度：服务每一步同时处理的请求更多，单个请求每个 token 多等一点，但整批完成得更快。
 
-**边界。** 每个点在每个日期只跑了一次，不是交错进行的 A/B。两个日期都剔除了 256K prefill 点：在 `--context-length 262144` 下，262,144 token 的 prompt 加上 MiMo 的特殊 token 放不下，服务端可能返回错误内容，而客户端仍然记为成功。后来曾尝试用 `AITER_BYPASS_TUNE_CONFIG=1` 作为基线在同一轮里做 A/B，64K 时出现 GPU 内存访问错误，结果被判无效，所以这张表目前没有同一轮内的 A/B。
+**边界。** 每个点前后各只跑了一次，不是交错进行的 A/B。前后两次都剔除了 256K prefill 点：在 `--context-length 262144` 下，262,144 token 的 prompt 加上 MiMo 的特殊 token 放不下，服务端可能返回错误内容，而客户端仍然记为成功。另有一次尝试用 `AITER_BYPASS_TUNE_CONFIG=1` 作为基线在同一轮里做 A/B，64K 时出现 GPU 内存访问错误，结果被判无效，所以这张表目前没有同一轮内的 A/B。
 
 ### Decode 在哪里饱和：并发阶梯
 
 **问题。** 1P1D 的 decode 路径，客户端并发加到多少以后吞吐就不再增长？多出来的并发代价是什么？
 
-**输入。** 与上面阶段对比第一个日期相同的负载（8K 输入 / 1K 输出）和相同的栈，每个点 256 个 prompt，客户端并发 16 到 256。
+**输入。** 与上面阶段对比“之前”那次相同的负载（8K 输入 / 1K 输出）和相同的栈，每个点 256 个 prompt，客户端并发 16 到 256。
 
 <!-- BEGIN GENERATED: ladder -->
 | 并发<br>（实测） | Output<br>tok/s | TPOT<br>（ms） | TTFT（s）<br>均值 / P99 |
@@ -179,7 +179,7 @@ Prefill 吞吐上去的同时，首 token 时间也缩短了。Decode 在并发 
 
 ### 本仓库没有测的部分
 
-Decode 图捕获只在 bring-up 阶段测过，当时还没有 MTP 和 AITER kernel；它在优化后栈里的贡献没有单独拆分。FlyDSL paged-attention decode kernel、向量化 5D KV 布局、page 64 和 head 192 的 prefill tile 都在最终固定的 runtime 里，但微软已发布的测试没有单独测过它们，所以本页不给出它们的加速数字。它们的代码改动在[三层优化逐项拆解](#三层优化逐项拆解)里讲清楚了；要测它们，可以在单机 profile 上按同样的 A/B 方法去做。
+Decode 图捕获只在基线栈上测过，那时的栈没有 MTP 和 AITER kernel；它在优化后栈里的贡献没有单独拆分。FlyDSL paged-attention decode kernel、向量化 5D KV 布局、page 64 和 head 192 的 prefill tile 都在最终固定的 runtime 里，但微软已发布的测试没有单独测过它们，所以本页不给出它们的加速数字。它们的代码改动在[三层优化逐项拆解](#三层优化逐项拆解)里讲清楚了；要测它们，可以在单机 profile 上按同样的 A/B 方法去做。
 
 ## 架构与测试环境
 
@@ -336,11 +336,11 @@ MiMo 自带 3 层 MTP，每个 decode 步起草 3 个 token、一次校验 4 个
 - **MI300X 上的开关**：decode 服务上默认打开：不要给 decode 服务传 `--disable-cuda-graph`（prefill 服务保留该参数）
 - **NVIDIA 上**：默认行为相同，使用 CUDA graph；`--cuda-graph-max-bs` 限定捕获的 batch 上限
 - **代码**：无代码改动（仅配置）
-- **证据**：bring-up 阶段实测 A/B（Triton attention，无 MTP）
+- **证据**：在基线栈上实测 A/B（Triton attention，无 MTP）
 - **对输出的影响**：算术不变。捕获的图重放的是同一批 kernel；省掉的是 launch 开销，算术不变。
 <!-- END GENERATED: card-decode-graph-capture -->
 
-一个 decode step 要跑几百个小 kernel，batch 小的时候，launch 它们的时间和它们实际运行的时间差不多。SGLang 对每个 decode batch size 先捕获一次 HIP graph（NVIDIA 上是 CUDA graph），之后整步只需一次 launch 重放。MI300X bring-up 早期为了绕开多机挂起问题用 `--disable-cuda-graph` 关掉了它；在 decode 服务上重新打开，是本页实测到的最大的一步。prefill 服务仍保留 `--disable-cuda-graph`，因为 prefill 的 batch 大且不规则。每个被捕获的 batch size 都要占 HBM，会和 KV 池争显存。
+一个 decode step 要跑几百个小 kernel，batch 小的时候，launch 它们的时间和它们实际运行的时间差不多。SGLang 对每个 decode batch size 先捕获一次 HIP graph（NVIDIA 上是 CUDA graph），之后整步只需一次 launch 重放。基线栈为了绕开多机挂起问题用 `--disable-cuda-graph` 关掉了它；在 decode 服务上重新打开，是本页实测到的最大的一步。prefill 服务仍保留 `--disable-cuda-graph`，因为 prefill 的 batch 大且不规则。每个被捕获的 batch size 都要占 HBM，会和 KV 池争显存。
 
 ### 算子层
 
@@ -614,7 +614,7 @@ Prefill 受算力限制，decode 受访存限制；一次长 prefill 会拖住�
 - **对输出的影响**：仅测试方法。草稿 token 按规则被接受，而不是由模型决定，生成的文本不是模型的输出。
 <!-- END GENERATED: card-simulated-acceptance -->
 
-`SGLANG_SIMULATE_ACC_LEN=3` 让每个 MTP 步都正好接受 3 个草稿 token。这样 kernel 测量不受接受率波动影响，不同日期的结果可以直接比较，但对真实负载来说吞吐会偏高。准确率测试必须去掉这两个变量；用固定接受长度测出的吞吐，不能当作生产吞吐引用。
+`SGLANG_SIMULATE_ACC_LEN=3` 让每个 MTP 步都正好接受 3 个草稿 token。这样 kernel 测量不受接受率波动影响，不同轮次的结果可以直接比较，但对真实负载来说吞吐会偏高。准确率测试必须去掉这两个变量；用固定接受长度测出的吞吐，不能当作生产吞吐引用。
 
 #### 按饱和点设计并发阶梯
 
@@ -723,7 +723,7 @@ python tools/build_readme.py --check
 
 全部测试通过、两个检查都输出 `PASS` 即完成。
 
-**2. 在每台虚拟机上构建 runtime。** Dockerfile 按 digest 固定基础镜像，并检出最终固定 runtime 的 commit（本仓库没有测它的吞吐；已发布的测试用的是各节里写明的早期栈）：SGLang `878fff1`，AITER `3f4ab48`（含 Composable Kernel `af7118e` 及其自带 patch），PyPI 上的 FlyDSL `0.2.4`，以及 `c99d5cd` 的 FlyDSL kernel。
+**2. 在每台虚拟机上构建 runtime。** Dockerfile 按 digest 固定基础镜像，并检出最终固定 runtime 的 commit（本仓库没有测它的吞吐；已发布的测试用的是各节里写明的那一版栈）：SGLang `878fff1`，AITER `3f4ab48`（含 Composable Kernel `af7118e` 及其自带 patch），PyPI 上的 FlyDSL `0.2.4`，以及 `c99d5cd` 的 FlyDSL kernel。
 
 ```bash
 docker build -t mimo-mi300x:public docker/
@@ -731,7 +731,7 @@ DATA=/path/with/models bash docker/docker-run.sh
 docker exec -it sglang bash
 ```
 
-FlyDSL wheel 的哈希、composable_kernel 的 commit 或最后的 import 检查任何一项对不上，构建都会失败。2026-09-28 在干净环境里构建成功（BuildKit，基础镜像已缓存时约 6 分钟，镜像 27.9 GB），构建回执见 [`evidence/docker-build-20260928.json`](evidence/docker-build-20260928.json)。容器需要很大的宿主机权限（`--privileged`、宿主机网络和 IPC、`/dev/kfd`、`/dev/dri`、`/dev/mem`、`CAP_SYS_ADMIN`），因为 RDMA 和 AITER 路径要用到；只在专用的 GPU 虚拟机上运行。第一次启动服务时要编译 AITER JIT 模块，会比之后的启动明显慢。
+FlyDSL wheel 的哈希、composable_kernel 的 commit 或最后的 import 检查任何一项对不上，构建都会失败。在干净环境里构建成功（BuildKit，基础镜像已缓存时约 6 分钟，镜像 27.9 GB），构建回执见 [`evidence/docker-build.json`](evidence/docker-build.json)。容器需要很大的宿主机权限（`--privileged`、宿主机网络和 IPC、`/dev/kfd`、`/dev/dri`、`/dev/mem`、`CAP_SYS_ADMIN`），因为 RDMA 和 AITER 路径要用到；只在专用的 GPU 虚拟机上运行。第一次启动服务时要编译 AITER JIT 模块，会比之后的启动明显慢。
 
 **3. 渲染启动命令。** Profile 里所有主机、路径和设备名都是变量：
 
@@ -797,10 +797,10 @@ CI 在 Ubuntu 和 Windows、Python 3.10 与 3.12 上运行同一组命令（[wor
 **目录。**
 
 - [`evidence/runs.json`](evidence/runs.json)——每次运行的身份、拓扑、控制变量和脚本哈希。
-- [`evidence/raw/`](evidence/raw/)——各数据源的投影：`sglang.bench_serving` 输出（每次运行的负载参数和结果块）、公开审计文件中的 A/B 采样值，以及 bring-up 汇总。
+- [`evidence/raw/`](evidence/raw/)——各数据源的投影：`sglang.bench_serving` 输出（每次运行的负载参数和结果块）、公开审计文件中的 A/B 采样值，以及基线栈的客户端结果和汇总。
 - [`evidence/raw-manifest.json`](evidence/raw-manifest.json)——每份私有原始日志及其公开投影的 SHA-256。
 - [`evidence/measurements.json`](evidence/measurements.json)——全部对比结果，由 `tools/build_evidence.py` 生成。
-- [`evidence/docker-build-20260928.json`](evidence/docker-build-20260928.json)——干净 Docker 构建的回执：commit、Dockerfile 哈希、构建器、镜像 id 以及日志里的各步记录。
+- [`evidence/docker-build.json`](evidence/docker-build.json)——干净 Docker 构建的回执：commit、Dockerfile 哈希、构建器、镜像 id 以及日志里的各步记录。
 - [`upstream/`](upstream/)——文中讨论的每个 commit 的完整 patch，以及 `SOURCES.lock.json`（哈希、许可证、所属层、是否在固定 runtime 中）。
 - [`profiles/`](profiles/)——技术目录、实测的 MI300X profile 和 NVIDIA 模板。
 - [`tools/`](tools/)——日志投影与解析、证据和 README 生成器、启动命令渲染、画图、公开内容审计。

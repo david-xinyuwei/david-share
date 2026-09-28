@@ -3,11 +3,11 @@
   "profile": "rocm-mi300x-pd",
   "status": "MEASURED",
   "measured_runs": [
-    "stage-20260707-ck",
-    "stage-20260713-tuned-moe",
-    "ladder-20260708-ck"
+    "stage-before-moe-table",
+    "stage-after-moe-table",
+    "ladder-ck"
   ],
-  "description": "1P1D on two Azure ND MI300X v5 VMs, the stack measured on 2026-07-07/08/13. Values are copied from the launch scripts whose SHA-256 is recorded in evidence/runs.json; hosts, paths and IB addresses are variables.",
+  "description": "1P1D on two Azure ND MI300X v5 VMs, the stack of the measured stage pair and concurrency ladder. Values are copied from the launch scripts whose SHA-256 is recorded in evidence/runs.json; hosts, paths and IB addresses are variables.",
   "variables": {
     "MODEL_PATH": "local path of the MiMo-V2.5-Pro checkpoint",
     "PREFILL_HOST": "address of the prefill VM on the IB network",
