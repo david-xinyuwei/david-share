@@ -183,16 +183,16 @@ Throughput reaches its plateau at concurrency 64. Above that, TPOT stays flat wh
 
 **Question.** On the optimized PD stack, how do prefill speed and the decode batch change as the context grows from 8K to 256K tokens?
 
-**Input.** Two VMs in 1P1D with the image of the optimized stack and `--context-length 262151`. Prefill: random prompts with one output token, 16 requests per point, client concurrency 1 to 8; the 256K points send exact token IDs. Decode: 1,024 output tokens with MTP at a fixed acceptance of 3. The decode batch and the generation rate come from the decode server's scheduler log (`#running-req`), not from the client. The table lists prefill at one request and decode at the highest client concurrency measured for that length.
+**Input.** Two VMs in 1P1D with the image of the optimized stack and `--context-length 262151`. Prefill: random prompts with one output token, 16 requests per point, client concurrency 1 to 8; the 256K points send exact token IDs. Decode: 1,024 output tokens with MTP at a fixed acceptance of 3. The decode batch and the generation rate come from the decode server's scheduler log (`#running-req`), not from the client. The table lists prefill at one request and decode at the highest client concurrency measured for that length; the decode columns show the batch the server actually ran and its total generation rate, and that rate divided by the batch.
 
 <!-- BEGIN GENERATED: context-table -->
-| Context | Prefill tok/s<br>1 request | Decode batch<br>(steady / peak) | Decode tok/s<br>total, per request |
+| Context | Prefill tok/s<br>1 request | Decode batch<br>steady / peak | Decode tok/s<br>total / each |
 |---|---:|---:|---:|
-| 8K | 16,835 | 51 / 54<br>at 128 in flight | 2,333<br>45.8 |
-| 64K | 18,057 | 4 / 5<br>at 96 in flight | 288<br>71.9 |
-| 128K | 16,390 | 1 / 1<br>at 32 in flight | 138<br>138.2 |
-| 192K | 13,827 | 1 / 1<br>at 16 in flight | 125<br>125.0 |
-| 256K | 12,632 | 1 / 1<br>at 4 in flight | 128<br>127.8 |
+| 8K | 16,835 | 51 / 54<br>128 in flight | 2,333<br>45.8 |
+| 64K | 18,057 | 4 / 5<br>96 in flight | 288<br>71.9 |
+| 128K | 16,390 | 1 / 1<br>32 in flight | 138<br>138.2 |
+| 192K | 13,827 | 1 / 1<br>16 in flight | 125<br>125.0 |
+| 256K | 12,632 | 1 / 1<br>4 in flight | 128<br>127.8 |
 <!-- END GENERATED: context-table -->
 
 Prefill holds between about 12,600 and 18,100 input tokens per second across the whole range, so one 256K prompt is ready in about 21 seconds. Decode behaves differently. At 64K the decode server keeps only 4 to 5 requests running with 96 in flight, and from 128K on it runs one request at a time, even with 32 in flight. Each request still decodes quickly, 125 to 140 tokens per second, but the server's total falls from about 2,300 tokens per second at 8K to about 130. At long context the KV pool, not kernel speed, sets the throughput; see [Sizing the decode batch from KV capacity](#sizing-the-decode-batch-from-kv-capacity).

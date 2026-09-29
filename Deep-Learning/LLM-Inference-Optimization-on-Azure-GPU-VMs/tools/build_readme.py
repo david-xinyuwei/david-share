@@ -243,13 +243,13 @@ def _k(n: int) -> str:
 def context_table(lang: str) -> str:
     cs = _json("evidence/measurements.json")["context_scaling"]
     en = lang == "en"
-    head = (["Context", "Prefill tok/s<br>1 request", "Decode batch<br>(steady / peak)", "Decode tok/s<br>total, per request"] if en
+    head = (["Context", "Prefill tok/s<br>1 request", "Decode batch<br>steady / peak", "Decode tok/s<br>total / each"] if en
             else ["上下文", "Prefill tok/s<br>1 个请求", "Decode batch<br>（稳态 / 峰值）", "Decode tok/s<br>合计、每请求"])
     rows = []
     for r in cs["rows"]:
         ctx = _k(r["input_tokens"])
         rows.append([ctx, _c(r["prefill_1req_input_tok_s"]),
-                     f"{r['decode_batch_mode']} / {r['decode_batch_max']}<br>" + (f"at {r['decode_max_client_concurrency']} in flight" if en else f"并发 {r['decode_max_client_concurrency']}"),
+                     f"{r['decode_batch_mode']} / {r['decode_batch_max']}<br>" + (f"{r['decode_max_client_concurrency']} in flight" if en else f"并发 {r['decode_max_client_concurrency']}"),
                      f"{_c(r['decode_gen_tok_s'])}<br>{_n(r['decode_gen_tok_s_per_request'], 1)}"])
     return _table(head, rows, ["l", "r", "r", "r"])
 

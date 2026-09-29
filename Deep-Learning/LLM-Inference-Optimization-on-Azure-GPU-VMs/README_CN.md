@@ -183,7 +183,7 @@ Prefill 吞吐上去的同时，首 token 时间也缩短了。Decode 在并发 
 
 **问题。** 在优化后的 PD 栈上，上下文从 8K 增长到 256K token 时，prefill 速度和 decode batch 怎样变化？
 
-**输入。** 两台 VM 组成 1P1D，用优化后栈的镜像，`--context-length 262151`。Prefill：随机 prompt、输出 1 个 token，每个点 16 个请求，客户端并发 1 到 8；256K 测点直接发送精确的 token ID。Decode：输出 1,024 个 token，MTP 固定接受长度 3。Decode batch 和生成速率取自 decode 服务的调度器日志（`#running-req`），不是客户端。表中 prefill 取 1 个请求时的值，decode 取该长度下测过的最高客户端并发。
+**输入。** 两台 VM 组成 1P1D，用优化后栈的镜像，`--context-length 262151`。Prefill：随机 prompt、输出 1 个 token，每个点 16 个请求，客户端并发 1 到 8；256K 测点直接发送精确的 token ID。Decode：输出 1,024 个 token，MTP 固定接受长度 3。Decode batch 和生成速率取自 decode 服务的调度器日志（`#running-req`），不是客户端。表中 prefill 取 1 个请求时的值，decode 取该长度下测过的最高客户端并发；decode 两列分别是服务实际运行的 batch，以及总生成速率和它除以 batch 得到的每请求速率。
 
 <!-- BEGIN GENERATED: context-table -->
 | 上下文 | Prefill tok/s<br>1 个请求 | Decode batch<br>（稳态 / 峰值） | Decode tok/s<br>合计、每请求 |
