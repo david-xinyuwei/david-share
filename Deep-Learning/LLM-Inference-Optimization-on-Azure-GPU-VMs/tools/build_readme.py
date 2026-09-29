@@ -243,7 +243,7 @@ def _k(n: int) -> str:
 def context_table(lang: str) -> str:
     cs = _json("evidence/measurements.json")["context_scaling"]
     en = lang == "en"
-    head = (["Context", "Prefill tok/s<br>1 request", "Decode batch<br>steady / peak", "Decode tok/s<br>total / each"] if en
+    head = (["Input", "Prefill tok/s<br>1 request", "Decode batch<br>steady / peak", "Decode tok/s<br>total / each"] if en
             else ["上下文", "Prefill tok/s<br>1 个请求", "Decode batch<br>（稳态 / 峰值）", "Decode tok/s<br>合计、每请求"])
     rows = []
     for r in cs["rows"]:

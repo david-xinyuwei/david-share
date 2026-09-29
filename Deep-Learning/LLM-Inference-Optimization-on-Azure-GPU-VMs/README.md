@@ -186,7 +186,7 @@ Throughput reaches its plateau at concurrency 64. Above that, TPOT stays flat wh
 **Input.** Two VMs in 1P1D with the image of the optimized stack and `--context-length 262151`. Prefill: random prompts with one output token, 16 requests per point, client concurrency 1 to 8; the 256K points send exact token IDs. Decode: 1,024 output tokens with MTP at a fixed acceptance of 3. The decode batch and the generation rate come from the decode server's scheduler log (`#running-req`), not from the client. The table lists prefill at one request and decode at the highest client concurrency measured for that length; the decode columns show the batch the server actually ran and its total generation rate, and that rate divided by the batch.
 
 <!-- BEGIN GENERATED: context-table -->
-| Context | Prefill tok/s<br>1 request | Decode batch<br>steady / peak | Decode tok/s<br>total / each |
+| Input | Prefill tok/s<br>1 request | Decode batch<br>steady / peak | Decode tok/s<br>total / each |
 |---|---:|---:|---:|
 | 8K | 16,835 | 51 / 54<br>128 in flight | 2,333<br>45.8 |
 | 64K | 18,057 | 4 / 5<br>96 in flight | 288<br>71.9 |
