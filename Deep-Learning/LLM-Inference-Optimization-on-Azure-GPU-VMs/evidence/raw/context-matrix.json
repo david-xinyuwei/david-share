@@ -1,0 +1,377 @@
+{
+  "schema": 1,
+  "kind": "results-table-projection",
+  "source": {
+    "files": {
+      "scalability-results.tsv": "82119849f464c02cd6c756ddb2fed1a290eb1a4b3fc2962535d8a7af182fd2c9",
+      "decode-service-log-audit-8k.json": "feb55949896dc33a3874e1c62429be59da37e26bc43f4c993c971257e9a6e2a9",
+      "decode-service-log-audit.json": "8fdb40bc83228823beda3ddb19784197a1ec2583c6f2cdd81af060059f1783a6",
+      "long-isl/128k/prefill-results.tsv": "5c1ad5b3b8bb522e70562322230aa05c2b113bbb77dd0191799071c6394ae378",
+      "long-isl/128k/decode-results.tsv": "fef1ea5995c935ddc8179602c7dc05cabbffc1eb077062f6fc7596ded2f45d1c",
+      "long-isl/192k/prefill-results.tsv": "78a66b44d8c21ca2ed3947088ac9248a92a7a6e52e99647ad14099d4a3e88c0a",
+      "long-isl/192k/decode-results.tsv": "db8068f25e4f2dd1d0421555f99109c9b51cf344ec6159036ee58a192fa59312",
+      "long-isl/256k/prefill-results.tsv": "218d57b45c28523ea52716c03a2ae1a5c3dad01d4f38c9476a7b4ae291bde7a4",
+      "long-isl/256k/decode-results.tsv": "675c81f0b306198884f01a487f1a539cf0aa72f444e3e7fe4cbd8c235595461f"
+    },
+    "public": false
+  },
+  "metrics": {
+    "prefill": "client input tok/s, output 1",
+    "decode": "decode-server scheduler generation tok/s averaged over the run; batch = #running-req mode and maximum"
+  },
+  "prefill": [
+    {
+      "input_tokens": 8192,
+      "concurrency": 1,
+      "requests": 16,
+      "status": "VALIDATED",
+      "input_tok_s": 16835.22,
+      "mean_ttft_ms": 485.7,
+      "source": "scalability-results.tsv"
+    },
+    {
+      "input_tokens": 8192,
+      "concurrency": 2,
+      "requests": 16,
+      "status": "VALIDATED",
+      "input_tok_s": 19618.25,
+      "mean_ttft_ms": 829.4,
+      "source": "scalability-results.tsv"
+    },
+    {
+      "input_tokens": 8192,
+      "concurrency": 4,
+      "requests": 16,
+      "status": "VALIDATED",
+      "input_tok_s": 18161.81,
+      "mean_ttft_ms": 1612.03,
+      "source": "scalability-results.tsv"
+    },
+    {
+      "input_tokens": 8192,
+      "concurrency": 8,
+      "requests": 16,
+      "status": "VALIDATED",
+      "input_tok_s": 21004.97,
+      "mean_ttft_ms": 2817.91,
+      "source": "scalability-results.tsv"
+    },
+    {
+      "input_tokens": 65536,
+      "concurrency": 1,
+      "requests": 16,
+      "status": "VALIDATED",
+      "input_tok_s": 18057.01,
+      "mean_ttft_ms": 3628.49,
+      "source": "scalability-results.tsv"
+    },
+    {
+      "input_tokens": 65536,
+      "concurrency": 2,
+      "requests": 16,
+      "status": "VALIDATED",
+      "input_tok_s": 19860.45,
+      "mean_ttft_ms": 6481.41,
+      "source": "scalability-results.tsv"
+    },
+    {
+      "input_tokens": 65536,
+      "concurrency": 4,
+      "requests": 16,
+      "status": "VALIDATED",
+      "input_tok_s": 18763.17,
+      "mean_ttft_ms": 12970.83,
+      "source": "scalability-results.tsv"
+    },
+    {
+      "input_tokens": 65536,
+      "concurrency": 8,
+      "requests": 16,
+      "status": "VALIDATED",
+      "input_tok_s": 18765.43,
+      "mean_ttft_ms": 22530.68,
+      "source": "scalability-results.tsv"
+    },
+    {
+      "input_tokens": 131072,
+      "concurrency": 1,
+      "requests": 16,
+      "status": "VALIDATED",
+      "source": "long-isl/128k/prefill-results.tsv",
+      "input_tok_s": 16389.66,
+      "mean_ttft_ms": 7995.96
+    },
+    {
+      "input_tokens": 131072,
+      "concurrency": 2,
+      "requests": 16,
+      "status": "VALIDATED",
+      "source": "long-isl/128k/prefill-results.tsv",
+      "input_tok_s": 16711.96,
+      "mean_ttft_ms": 15280.91
+    },
+    {
+      "input_tokens": 131072,
+      "concurrency": 4,
+      "requests": 16,
+      "status": "VALIDATED",
+      "source": "long-isl/128k/prefill-results.tsv",
+      "input_tok_s": 16667.06,
+      "mean_ttft_ms": 28777.69
+    },
+    {
+      "input_tokens": 131072,
+      "concurrency": 8,
+      "requests": 16,
+      "status": "VALIDATED",
+      "source": "long-isl/128k/prefill-results.tsv",
+      "input_tok_s": 16641.77,
+      "mean_ttft_ms": 49817.65
+    },
+    {
+      "input_tokens": 196608,
+      "concurrency": 1,
+      "requests": 16,
+      "status": "VALIDATED",
+      "source": "long-isl/192k/prefill-results.tsv",
+      "input_tok_s": 13827.37,
+      "mean_ttft_ms": 14217.14
+    },
+    {
+      "input_tokens": 196608,
+      "concurrency": 2,
+      "requests": 16,
+      "status": "VALIDATED",
+      "source": "long-isl/192k/prefill-results.tsv",
+      "input_tok_s": 14401.79,
+      "mean_ttft_ms": 26537.49
+    },
+    {
+      "input_tokens": 196608,
+      "concurrency": 4,
+      "requests": 16,
+      "status": "VALIDATED",
+      "source": "long-isl/192k/prefill-results.tsv",
+      "input_tok_s": 14402.0,
+      "mean_ttft_ms": 49755.39
+    },
+    {
+      "input_tokens": 196608,
+      "concurrency": 8,
+      "requests": 16,
+      "status": "VALIDATED",
+      "source": "long-isl/192k/prefill-results.tsv",
+      "input_tok_s": 14395.1,
+      "mean_ttft_ms": 85961.99
+    },
+    {
+      "input_tokens": 262144,
+      "concurrency": 1,
+      "requests": 16,
+      "status": "VALIDATED",
+      "source": "long-isl/256k/prefill-results.tsv",
+      "input_tok_s": 12631.6,
+      "mean_ttft_ms": 20751.02
+    },
+    {
+      "input_tokens": 262144,
+      "concurrency": 2,
+      "requests": 16,
+      "status": "VALIDATED",
+      "source": "long-isl/256k/prefill-results.tsv",
+      "input_tok_s": 12725.25,
+      "mean_ttft_ms": 40002.62
+    },
+    {
+      "input_tokens": 262144,
+      "concurrency": 4,
+      "requests": 16,
+      "status": "REJECTED_BOUNDARY",
+      "source": "long-isl/256k/prefill-results.tsv"
+    }
+  ],
+  "decode": [
+    {
+      "input_tokens": 8192,
+      "output_tokens": 1024,
+      "concurrency": 16,
+      "batch_mode": 15,
+      "batch_max": 16,
+      "gen_tok_s": 1319.78,
+      "source": "decode-service-log-audit-8k.json"
+    },
+    {
+      "input_tokens": 8192,
+      "output_tokens": 1024,
+      "concurrency": 32,
+      "batch_mode": 31,
+      "batch_max": 32,
+      "gen_tok_s": 1861.52,
+      "source": "decode-service-log-audit-8k.json"
+    },
+    {
+      "input_tokens": 8192,
+      "output_tokens": 1024,
+      "concurrency": 64,
+      "batch_mode": 53,
+      "batch_max": 55,
+      "gen_tok_s": 2324.57,
+      "source": "decode-service-log-audit-8k.json"
+    },
+    {
+      "input_tokens": 8192,
+      "output_tokens": 1024,
+      "concurrency": 128,
+      "batch_mode": 51,
+      "batch_max": 54,
+      "gen_tok_s": 2333.44,
+      "source": "decode-service-log-audit-8k.json"
+    },
+    {
+      "input_tokens": 65536,
+      "output_tokens": 1024,
+      "concurrency": 16,
+      "batch_mode": 4,
+      "batch_max": 5,
+      "gen_tok_s": 267.97,
+      "source": "decode-service-log-audit.json"
+    },
+    {
+      "input_tokens": 65536,
+      "output_tokens": 1024,
+      "concurrency": 32,
+      "batch_mode": 4,
+      "batch_max": 4,
+      "gen_tok_s": 276.74,
+      "source": "decode-service-log-audit.json"
+    },
+    {
+      "input_tokens": 65536,
+      "output_tokens": 1024,
+      "concurrency": 64,
+      "batch_mode": 4,
+      "batch_max": 5,
+      "gen_tok_s": 282.81,
+      "source": "decode-service-log-audit.json"
+    },
+    {
+      "input_tokens": 65536,
+      "output_tokens": 1024,
+      "concurrency": 96,
+      "batch_mode": 4,
+      "batch_max": 5,
+      "gen_tok_s": 287.77,
+      "source": "decode-service-log-audit.json"
+    },
+    {
+      "input_tokens": 131072,
+      "output_tokens": 1024,
+      "concurrency": 4,
+      "batch_mode": 1,
+      "batch_max": 1,
+      "gen_tok_s": 140.72,
+      "mean_tpot_ms": 5.76,
+      "source": "long-isl/128k/decode-results.tsv"
+    },
+    {
+      "input_tokens": 131072,
+      "output_tokens": 1024,
+      "concurrency": 8,
+      "batch_mode": 1,
+      "batch_max": 1,
+      "gen_tok_s": 137.62,
+      "mean_tpot_ms": 5.76,
+      "source": "long-isl/128k/decode-results.tsv"
+    },
+    {
+      "input_tokens": 131072,
+      "output_tokens": 1024,
+      "concurrency": 16,
+      "batch_mode": 1,
+      "batch_max": 1,
+      "gen_tok_s": 138.85,
+      "mean_tpot_ms": 5.81,
+      "source": "long-isl/128k/decode-results.tsv"
+    },
+    {
+      "input_tokens": 131072,
+      "output_tokens": 1024,
+      "concurrency": 32,
+      "batch_mode": 1,
+      "batch_max": 1,
+      "gen_tok_s": 138.2,
+      "mean_tpot_ms": 5.8,
+      "source": "long-isl/128k/decode-results.tsv"
+    },
+    {
+      "input_tokens": 196608,
+      "output_tokens": 1024,
+      "concurrency": 2,
+      "batch_mode": 1,
+      "batch_max": 1,
+      "gen_tok_s": 129.42,
+      "mean_tpot_ms": 6.34,
+      "source": "long-isl/192k/decode-results.tsv"
+    },
+    {
+      "input_tokens": 196608,
+      "output_tokens": 1024,
+      "concurrency": 4,
+      "batch_mode": 1,
+      "batch_max": 1,
+      "gen_tok_s": 126.99,
+      "mean_tpot_ms": 6.46,
+      "source": "long-isl/192k/decode-results.tsv"
+    },
+    {
+      "input_tokens": 196608,
+      "output_tokens": 1024,
+      "concurrency": 8,
+      "batch_mode": 1,
+      "batch_max": 1,
+      "gen_tok_s": 126.14,
+      "mean_tpot_ms": 6.48,
+      "source": "long-isl/192k/decode-results.tsv"
+    },
+    {
+      "input_tokens": 196608,
+      "output_tokens": 1024,
+      "concurrency": 16,
+      "batch_mode": 1,
+      "batch_max": 1,
+      "gen_tok_s": 125.04,
+      "mean_tpot_ms": 6.19,
+      "source": "long-isl/192k/decode-results.tsv"
+    },
+    {
+      "input_tokens": 261120,
+      "output_tokens": 1024,
+      "concurrency": 1,
+      "batch_mode": 1,
+      "batch_max": 1,
+      "gen_tok_s": 131.15,
+      "mean_tpot_ms": 7.16,
+      "source": "long-isl/256k/decode-results.tsv"
+    },
+    {
+      "input_tokens": 261120,
+      "output_tokens": 1024,
+      "concurrency": 2,
+      "batch_mode": 1,
+      "batch_max": 1,
+      "gen_tok_s": 127.64,
+      "mean_tpot_ms": 3.61,
+      "source": "long-isl/256k/decode-results.tsv"
+    },
+    {
+      "input_tokens": 261120,
+      "output_tokens": 1024,
+      "concurrency": 4,
+      "batch_mode": 1,
+      "batch_max": 1,
+      "gen_tok_s": 127.84,
+      "mean_tpot_ms": 2.65,
+      "source": "long-isl/256k/decode-results.tsv"
+    }
+  ]
+}

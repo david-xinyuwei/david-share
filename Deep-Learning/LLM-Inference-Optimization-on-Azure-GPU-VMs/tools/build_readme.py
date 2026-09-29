@@ -236,6 +236,51 @@ def cumulative_decode(lang: str) -> str:
     return _table(head, rows, ["l", "r", "r", "r"])
 
 
+def _k(n: int) -> str:
+    return f"{n // 1024}K"
+
+
+def context_table(lang: str) -> str:
+    cs = _json("evidence/measurements.json")["context_scaling"]
+    en = lang == "en"
+    head = (["Context", "Prefill tok/s<br>1 request", "Decode batch<br>(steady / peak)", "Decode tok/s<br>total, per request"] if en
+            else ["上下文", "Prefill tok/s<br>1 个请求", "Decode batch<br>（稳态 / 峰值）", "Decode tok/s<br>合计、每请求"])
+    rows = []
+    for r in cs["rows"]:
+        ctx = _k(r["input_tokens"])
+        rows.append([ctx, _c(r["prefill_1req_input_tok_s"]),
+                     f"{r['decode_batch_mode']} / {r['decode_batch_max']}<br>" + (f"at {r['decode_max_client_concurrency']} in flight" if en else f"并发 {r['decode_max_client_concurrency']}"),
+                     f"{_c(r['decode_gen_tok_s'])}<br>{_n(r['decode_gen_tok_s_per_request'], 1)}"])
+    return _table(head, rows, ["l", "r", "r", "r"])
+
+
+def replicas_table(lang: str) -> str:
+    rows_in = _json("evidence/measurements.json")["prefill_replicas"]
+    en = lang == "en"
+    head = (["Input tokens", "One server<br>1 → 2 in flight", "Two replicas<br>1 → 2 in flight"] if en
+            else ["输入 token", "一个服务<br>1 → 2 个在途", "两个副本<br>1 → 2 个在途"])
+    rows = []
+    for r in rows_in:
+        one = (f"{_c(r['single_one_tok_s'])} → {_c(r['single_two_tok_s'])}<br>{_x(r['single_factor'])}" if "single_factor" in r
+               else ("not measured" if en else "未测"))
+        rows.append([_i(r["input_tokens"]), one,
+                     f"{_c(r['one_in_flight_tok_s'])} → {_c(r['two_in_flight_tok_s'])}<br>**{_x(r['factor'])}**"])
+    return _table(head, rows, ["r", "r", "r"])
+
+
+def accuracy_table(lang: str) -> str:
+    rows_in = _json("evidence/measurements.json")["accuracy"]
+    en = lang == "en"
+    head = ["Benchmark", "Scored", "Accuracy"] if en else ["基准", "评分范围", "准确率"]
+    rows = []
+    for r in rows_in:
+        passes = (f"{r['passes']} pass" + ("es" if r["passes"] > 1 else "")) if en else f"{r['passes']} 遍"
+        scored = (f"first {_i(r['questions'])} questions × {passes}" if en else f"前 {_i(r['questions'])} 题 × {passes}")
+        acc = f"**{_n(r['accuracy_pct'])}%**<br>{_i(r['correct'])} / {_i(r['responses'])}"
+        rows.append([r["benchmark"], scored, acc])
+    return _table(head, rows, ["l", "l", "r"])
+
+
 def glance(lang: str) -> str:
     m = _json("evidence/measurements.json")
     ab, st = m["ab_ck_unified_verify_64k"], m["tuned_moe_stage"]
@@ -290,6 +335,7 @@ def _measured(t: dict, lang: str) -> str:
     ab, st, cu = m["ab_ck_unified_verify_64k"], m["tuned_moe_stage"], m["cumulative"]
     p8 = next(r for r in st["prefill"] if r["input_tokens"] == 8192)
     d128 = next(r for r in st["decode"] if r["concurrency"] == 128)
+    rep8 = next(r for r in m["prefill_replicas"] if r["input_tokens"] == 8192)
     en = lang == "en"
     special = {
         "decode-graph-capture": (f"{_x(cu['graph_capture']['output_tok_s_factor'])} decode (A/B)", f"decode {_x(cu['graph_capture']['output_tok_s_factor'])}（A/B）"),
@@ -298,6 +344,7 @@ def _measured(t: dict, lang: str) -> str:
         "tuned-fused-moe": (f"8K prefill {_pct(p8['input_tok_s_delta_pct'])}, decode {_pct(d128['output_tok_s_delta_pct'])} (stage pair)",
                             f"8K prefill {_pct(p8['input_tok_s_delta_pct'])}，decode {_pct(d128['output_tok_s_delta_pct'])}（阶段对比）"),
         "concurrency-ladder": ("finds the plateau (ladder)", "找到饱和点（并发阶梯）"),
+        "prefill-replicas": (f"8K prefill {_x(rep8['factor'])} (two replicas)", f"8K prefill {_x(rep8['factor'])}（两个副本）"),
     }
     if t["id"] in special:
         return special[t["id"]][0 if en else 1]
@@ -401,6 +448,9 @@ BLOCKS = {
     "cumulative": cumulative,
     "cumulative-decode": cumulative_decode,
     "headline": headline,
+    "context-table": context_table,
+    "replicas-table": replicas_table,
+    "accuracy-table": accuracy_table,
     "ab-table": ab_table,
     "ab-tpot": ab_tpot,
     "stage-prefill": stage_prefill,

@@ -46,6 +46,17 @@ def _verify_manifest(meta: dict) -> None:
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
         if digest != item["projected_sha256"]:
             raise SystemExit(f"HASH_MISMATCH {path.name}: {digest} != {item['projected_sha256']}")
+    for item in manifest["files"]:
+        data = json.loads((EVIDENCE / "raw" / item["projected_file"]).read_text(encoding="utf-8")) if item["projected_file"].endswith(".json") else {}
+        children = None
+        if "per-file hashes" in item["raw_log_name"]:
+            children = list(data["source"]["files"].values())
+        elif "per-benchmark hashes" in item["raw_log_name"]:
+            children = [b["audit_file_sha256"] for b in data["benchmarks"]]
+        if children is not None:
+            digest = hashlib.sha256("\n".join(sorted(children)).encode()).hexdigest()
+            if digest != item["raw_log_sha256"]:
+                raise SystemExit(f"AGGREGATE_HASH_MISMATCH {item['projected_file']}")
     used = {name for run in meta["runs"].values() for name in run.get("raw", [])}
     if used - listed:
         raise SystemExit(f"UNLISTED_SOURCE {sorted(used - listed)}")
@@ -181,7 +192,7 @@ def cumulative(meta: dict, stage: dict) -> dict:
     """Baseline stack against the optimized stack on MI300X; each pair names its runs and workloads."""
     may8 = _raw_json(meta["runs"]["baseline-pd-client"]["raw"][0])
     may10 = _raw_json(meta["runs"]["baseline-pd-summary"]["raw"][0])
-    long128 = _raw_json(meta["runs"]["long-128k"]["raw"][0])
+    matrix = _raw_json(meta["runs"]["context-matrix"]["raw"][0])
 
     ab = may8["graph_capture_ab"]
     off, on = ab["graph_off"], ab["graph_on"]
@@ -213,17 +224,15 @@ def cumulative(meta: dict, stage: dict) -> dict:
             "factor": _factor(late["after_input_tok_s"], early["input_tok_s"]),
         })
     rng = may10["single_vm_prefill_range"]
-    point = next(p for p in long128["points"] if p["concurrency"] == 1)
-    if point["status"] != "VALIDATED" or point["successful_requests"] != long128["workload"]["requests_per_point"]:
+    point = next(p for p in matrix["prefill"] if p["input_tokens"] == rng["input_tokens_high"] and p["concurrency"] == 1)
+    if point["status"] != "VALIDATED":
         raise SystemExit("LONG_128K_POINT_NOT_VALIDATED")
-    if rng["input_tokens_high"] != long128["workload"]["input_tokens"]:
-        raise SystemExit("LONG_128K_INPUT_DIFFERS")
     prefill.append({
         "input_tokens": rng["input_tokens_high"], "concurrency": 1,
         "early_topology": "one VM, TP8, prefill and decode in one server",
         "late_topology": "1P1D prefill server, TP8",
         "early_run": "baseline-pd-summary", "early_input_tok_s": rng["input_tok_s_high"],
-        "late_run": "long-128k", "late_input_tok_s": point["input_tok_s"],
+        "late_run": "context-matrix", "late_input_tok_s": point["input_tok_s"],
         "factor": _factor(point["input_tok_s"], rng["input_tok_s_high"]),
     })
 
@@ -260,6 +269,63 @@ def cumulative(meta: dict, stage: dict) -> dict:
     }
 
 
+def context_scaling(meta: dict) -> dict:
+    """One row per context length: prefill at one request, decode at the highest client concurrency measured."""
+    m = _raw_json(meta["runs"]["context-matrix"]["raw"][0])
+    rows = []
+    for n in sorted({p["input_tokens"] for p in m["prefill"]}):
+        pre = next(p for p in m["prefill"] if p["input_tokens"] == n and p["concurrency"] == 1)
+        peak = max((p for p in m["prefill"] if p["input_tokens"] == n and p["status"] == "VALIDATED"), key=lambda p: p["input_tok_s"])
+        dec_in = n if n != 262144 else 261120
+        decs = [d for d in m["decode"] if d["input_tokens"] == dec_in]
+        if not decs:
+            raise SystemExit(f"CONTEXT_NO_DECODE {n}")
+        top = max(decs, key=lambda d: d["concurrency"])
+        rows.append({
+            "input_tokens": n, "prefill_1req_input_tok_s": pre["input_tok_s"], "prefill_1req_ttft_ms": pre["mean_ttft_ms"],
+            "prefill_peak_input_tok_s": peak["input_tok_s"], "prefill_peak_concurrency": peak["concurrency"],
+            "decode_input_tokens": dec_in, "decode_max_client_concurrency": top["concurrency"],
+            "decode_batch_mode": top["batch_mode"], "decode_batch_max": top["batch_max"], "decode_gen_tok_s": top["gen_tok_s"],
+            "decode_gen_tok_s_per_request": round(top["gen_tok_s"] / top["batch_mode"], 2),
+        })
+    rejected = [{"input_tokens": p["input_tokens"], "concurrency": p["concurrency"]} for p in m["prefill"] if p["status"] != "VALIDATED"]
+    return {"rows": rows, "rejected_prefill": rejected}
+
+
+def prefill_replicas(meta: dict) -> list[dict]:
+    """Two replicas at 1 and 2 in flight, next to one server of the same stack at 1 and 2 in flight."""
+    raw = _raw_json(meta["runs"]["prefill-replicas"]["raw"][0])
+    pts, single = raw["points"], raw["single_server_points"]
+    rows = []
+    for n in sorted({p["input_tokens"] for p in pts}):
+        one = next(p for p in pts if p["input_tokens"] == n and p["concurrency"] == 1)
+        two = next(p for p in pts if p["input_tokens"] == n and p["concurrency"] == 2)
+        peak = max((p for p in pts if p["input_tokens"] == n), key=lambda p: p["aggregate_input_tok_s"])
+        s1 = next((p for p in single if p["input_tokens"] == n and p["concurrency"] == 1), None)
+        s2 = next((p for p in single if p["input_tokens"] == n and p["concurrency"] == 2), None)
+        row = {"input_tokens": n, "one_in_flight_tok_s": one["aggregate_input_tok_s"], "two_in_flight_tok_s": two["aggregate_input_tok_s"],
+               "factor": _factor(two["aggregate_input_tok_s"], one["aggregate_input_tok_s"]),
+               "one_ttft_ms": one["mean_ttft_ms"], "two_ttft_ms": two["mean_ttft_ms"],
+               "peak_tok_s": peak["aggregate_input_tok_s"], "peak_concurrency": peak["concurrency"],
+               "max_concurrency": max(p["concurrency"] for p in pts if p["input_tokens"] == n)}
+        if s1 and s2:
+            row.update({"single_one_tok_s": s1["input_tok_s"], "single_two_tok_s": s2["input_tok_s"],
+                        "single_factor": _factor(s2["input_tok_s"], s1["input_tok_s"])})
+        rows.append(row)
+    return rows
+
+
+def accuracy(meta: dict) -> list[dict]:
+    rows = []
+    for b in _raw_json(meta["runs"]["accuracy-subset"]["raw"][0])["benchmarks"]:
+        if b["responses"] != b["questions"] * b["passes"] or not 0 <= b["correct"] <= b["responses"]:
+            raise SystemExit(f"ACCURACY_COUNTS {b['benchmark']}")
+        rows.append({k: b[k] for k in ("benchmark", "questions", "passes", "responses", "correct", "empty_at_length_cap",
+                                        "temperature", "top_p", "max_tokens", "thinking")}
+                    | {"accuracy_pct": round(100.0 * b["correct"] / b["responses"], 2)})
+    return rows
+
+
 def build() -> dict:
     meta = _load_runs()
     _verify_manifest(meta)
@@ -271,6 +337,9 @@ def build() -> dict:
         "ab_ck_unified_verify_64k": ab_64k(meta),
         "concurrency_ladder_8k1k": concurrency_ladder(meta),
         "cumulative": cumulative(meta, stage),
+        "context_scaling": context_scaling(meta),
+        "prefill_replicas": prefill_replicas(meta),
+        "accuracy": accuracy(meta),
     }
 
 

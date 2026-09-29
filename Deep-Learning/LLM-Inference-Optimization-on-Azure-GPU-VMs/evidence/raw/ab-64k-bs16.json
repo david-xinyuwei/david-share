@@ -2,13 +2,13 @@
   "schema": 1,
   "kind": "public-audit-projection",
   "source": {
-    "repository": "david-xinyuwei/david-share",
-    "path": "Deep-Learning/MiMo-V2.5-Pro-on-MI300X-Benchmark/data/validation/decode-fixed-batch-audit.json",
-    "lfs_oid_sha256": "9af3291cd7e59b305996f90d950377f81540ca0db1f0fafe881e0d53992699c5",
+    "name": "decode-fixed-batch-audit.json",
+    "sha256": "9af3291cd7e59b305996f90d950377f81540ca0db1f0fafe881e0d53992699c5",
     "fields": [
       "headline_exact.same_image_exact_no_ck.points[].used_gen_tok_s",
       "headline_exact.points[].steady_state.used_gen_tok_s"
-    ]
+    ],
+    "public": false
   },
   "metric": "scheduler generation throughput (tok/s) with 16 running requests; first full-batch transition sample excluded",
   "baseline": {

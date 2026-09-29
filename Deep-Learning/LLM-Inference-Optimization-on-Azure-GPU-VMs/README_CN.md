@@ -35,6 +35,8 @@
 |---|---|
 | 看从基线栈到优化后总共快了多少 | [从基线栈到优化后](#从基线栈到优化后累计提升) |
 | 看单项优化各自带来多少 | [单项优化各自带来多少](#单项优化各自带来多少) |
+| 看吞吐从 8K 到 256K 上下文怎样变化 | [吞吐怎样随上下文长度变化](#吞吐怎样随上下文长度变化) |
+| 查公开基准上的准确率 | [在优化后的 kernel 上实测的准确率](#在优化后的-kernel-上实测的准确率) |
 | 查某一项优化：开关、代码、证据、对输出的影响 | [三层优化逐项拆解](#三层优化逐项拆解) |
 | 把这套方法用到 NVIDIA GPU 上 | [迁移到 NVIDIA GPU](#迁移到-nvidia-gpu)，以及 `cuda-hopper-pd` profile |
 | 在 MI300X 上重建 runtime、重跑压测 | [客户如何复现](#客户如何复现) |
@@ -50,7 +52,7 @@
 
 你需要自备：Azure ND MI300X v5 容量（PD 路线两台，单机路线一台）、MiMo-V2.5-Pro 权重，以及能访问 RDMA 的容器宿主机。
 
-不提供：模型权重；证据投影背后的私有原始日志（只记录其 SHA-256）；与其他加速卡的比较；这套栈的端到端准确率结果；任何 NVIDIA 上的实测。每项优化会对准确率产生什么影响、怎么核对，见[哪些优化可能改变模型输出](#哪些优化可能改变模型输出)。
+不提供：模型权重；证据投影背后的私有原始日志（只记录其 SHA-256）；与其他加速卡的比较；打开 FP8 KV cache 时的准确率结果；任何 NVIDIA 上的实测。每项优化会对准确率产生什么影响、怎么核对，见[哪些优化可能改变模型输出](#哪些优化可能改变模型输出)。
 
 ## MI300X 实测结果
 
@@ -121,7 +123,7 @@ Decode 的倍数在很大程度上取决于 MTP 草稿 token 的接受率。优�
 
 折算 TPOT 按 `1000 × 16 / tok/s` 计算，不是客户端实测的延迟。
 
-**边界。** 两个变量是一起打开的，收益属于这一对开关，不能拆给其中任何一个。测试是单机、prefill 和 decode 在同一个服务里完成，不能推到 PD 部署上。原始采样值在 [`evidence/raw/ab-64k-bs16.json`](evidence/raw/ab-64k-bs16.json)，可以追溯到其中登记的公开审计文件。
+**边界。** 两个变量是一起打开的，收益属于这一对开关，不能拆给其中任何一个。测试是单机、prefill 和 decode 在同一个服务里完成，不能推到 PD 部署上。原始采样值在 [`evidence/raw/ab-64k-bs16.json`](evidence/raw/ab-64k-bs16.json)，可以追溯到其中登记了 SHA-256 的审计文件。
 
 ### 阶段对比：按 shape 调优的 fused-MoE 表
 
@@ -177,6 +179,44 @@ Prefill 吞吐上去的同时，首 token 时间也缩短了。Decode 在并发 
 
 **边界。** 每个点只跑一次，而且是在加入调优 MoE 表之前的栈上测的。饱和点会随上下文长度、KV 容量和 `--max-running-requests` 变化，换配置就要重新测。
 
+### 吞吐怎样随上下文长度变化
+
+**问题。** 在优化后的 PD 栈上，上下文从 8K 增长到 256K token 时，prefill 速度和 decode batch 怎样变化？
+
+**输入。** 两台 VM 组成 1P1D，用优化后栈的镜像，`--context-length 262151`。Prefill：随机 prompt、输出 1 个 token，每个点 16 个请求，客户端并发 1 到 8；256K 测点直接发送精确的 token ID。Decode：输出 1,024 个 token，MTP 固定接受长度 3。Decode batch 和生成速率取自 decode 服务的调度器日志（`#running-req`），不是客户端。表中 prefill 取 1 个请求时的值，decode 取该长度下测过的最高客户端并发。
+
+<!-- BEGIN GENERATED: context-table -->
+| 上下文 | Prefill tok/s<br>1 个请求 | Decode batch<br>（稳态 / 峰值） | Decode tok/s<br>合计、每请求 |
+|---|---:|---:|---:|
+| 8K | 16,835 | 51 / 54<br>并发 128 | 2,333<br>45.8 |
+| 64K | 18,057 | 4 / 5<br>并发 96 | 288<br>71.9 |
+| 128K | 16,390 | 1 / 1<br>并发 32 | 138<br>138.2 |
+| 192K | 13,827 | 1 / 1<br>并发 16 | 125<br>125.0 |
+| 256K | 12,632 | 1 / 1<br>并发 4 | 128<br>127.8 |
+<!-- END GENERATED: context-table -->
+
+整个范围内 prefill 都保持在每秒约 12,600 到 18,100 个输入 token，一个 256K 的 prompt 大约 21 秒就能处理完。Decode 不一样：64K 时即使有 96 个请求在途，decode 服务也只同时跑 4 到 5 个；从 128K 起，即使有 32 个请求在途，也一次只跑 1 个。每个请求本身仍然很快，每秒 125 到 140 个 token，但服务的总速率从 8K 时的每秒约 2,300 个 token 降到约 130。长上下文下决定吞吐的是 KV 池，不是 kernel 速度，见[按 KV 容量估算 decode batch](#按-kv-容量估算-decode-batch)。
+
+**边界。** 8K 和 64K 两行来自一组测试，128K 到 256K 来自同一镜像上的另一组测试；每个点只跑了一次。256K prefill 在 4 个请求在途时的测点被判无效：两次服务生命周期都出现 GPU 内存访问错误，所以不报告数值。256K 的 decode 行用 261,120 个输入 token，这样 1,024 个输出 token 仍能放进上下文。Decode 用的是固定 MTP 接受长度 3，属于偏乐观的条件。
+
+### 增加第二个 prefill 副本
+
+**问题。** 当瓶颈在 prefill 时，同一个路由后面再加一个完整的 TP8 服务能带来多少？
+
+**输入。** 两个副本：两台 VM，每台跑一个优化后栈的普通 TP8 服务（不是 PD 模式），两个服务都注册到同一个 `sglang_router`，按轮询分配；每个点 32 个请求。一个服务：同一组测试里 1P1D 部署的 prefill 服务；每个点 16 个请求。两者都用随机 prompt、输出 1 个 token。表中比较的是各自 1 个和 2 个请求在途时的结果。
+
+<!-- BEGIN GENERATED: replicas-table -->
+| 输入 token | 一个服务<br>1 → 2 个在途 | 两个副本<br>1 → 2 个在途 |
+|---:|---:|---:|
+| 8,192 | 16,835 → 19,618<br>1.17× | 20,752 → 41,202<br>**1.99×** |
+| 65,536 | 18,057 → 19,860<br>1.10× | 19,695 → 38,984<br>**1.98×** |
+| 262,144 | 12,382 → 12,378<br>1.00× | 12,783 → 25,064<br>**1.96×** |
+<!-- END GENERATED: replicas-table -->
+
+一个服务多一个在途请求只多 0% 到 17%，因为两个请求挤在同样的 8 张 GPU 上。两个副本则接近翻倍，因为第二个请求落到了空闲的副本上；首 token 时间基本不变（64K 时为 3.33 s 和 3.35 s）。再增加到 8 个或 16 个在途，最多再多 13%（8K），64K 和 256K 则不再增加。
+
+**边界。** 这里测的是输出长度为 1 时的 prefill 容量。副本是普通服务，而单服务参照是 PD 的 prefill 服务，所以两列除了副本数不同，服务模式也不同。这不是 2P1D 的结果：测试中没有 decode 服务，也没有 KV 传输。每个点只跑了一次。
+
 ### 本仓库没有测的部分
 
 Decode 图捕获只在基线栈上测过，那时的栈没有 MTP 和 AITER kernel；它在优化后栈里的贡献没有单独拆分。FlyDSL paged-attention decode kernel、向量化 5D KV 布局、page 64 和 head 192 的 prefill tile 都在最终固定的 runtime 里，但微软已发布的测试没有单独测过它们，所以本页不给出它们的加速数字。它们的代码改动在[三层优化逐项拆解](#三层优化逐项拆解)里讲清楚了；要测它们，可以在单机 profile 上按同样的 A/B 方法去做。
@@ -223,6 +263,7 @@ Decode 图捕获只在基线栈上测过，那时的栈没有 MTP 和 AITER kern
 | 优化手段 | 在 MI300X 上的效果 | 对输出 |
 |---|---|---|
 | [Prefill/Decode 分离（1P1D），KV 走 RDMA](#prefilldecode-分离1p1dkv-走-rdma) | 已打开，未单独拆分 | 算术不变 |
+| [一个路由后挂多个 prefill 副本（DP=2）](#一个路由后挂多个-prefill-副本dp2) | 8K prefill 1.99×（两个副本） | 算术不变 |
 | [Fake prefill：只测 decode](#fake-prefill只测-decode) | 已发布的测试中未使用 | 仅测试方法 |
 | [性能测试固定 MTP 接受长度](#性能测试固定-mtp-接受长度) | 已打开，未单独拆分 | 仅测试方法 |
 | [按饱和点设计并发阶梯](#按饱和点设计并发阶梯) | 找到饱和点（并发阶梯） | 仅测试方法 |
@@ -592,6 +633,21 @@ MoE router 要把每个 token 的 hidden state 乘上一个 384 × 6,144 的 FP3
 
 Prefill 受算力限制，decode 受访存限制；一次长 prefill 会拖住同一组 GPU 上的每一个 decode 步。PD 部署让两个阶段各用一个 TP8 服务，KV cache 通过 Mooncake 走 8 路 InfiniBand 传输。比开关更重要的是两件运维上的事：容器必须带 `--privileged`、`/dev/mem` 和 `CAP_SYS_ADMIN`，否则 Mooncake 会悄悄从 RDMA 退回 TCP；router 必须等两个服务都就绪后再启动。在 NVIDIA 上，这些开关完全相同，传输后端可选 `mooncake` 或 `nixl`。
 
+#### 一个路由后挂多个 prefill 副本（DP=2）
+
+<!-- BEGIN GENERATED: card-prefill-replicas -->
+- **MI300X 上的开关**：每台 VM 一个完整的 TP8 服务，两个服务注册到同一个 `sglang_router`
+- **NVIDIA 上**：路由和参数相同；每个副本都要一份完整模型
+- **代码**：无代码改动（仅配置）
+- **证据**：实测：两个副本上 1 个与 2 个请求同时在跑的对比
+- **对输出的影响**：算术不变。每个请求完整地跑在一个副本上，没有任何切分或近似。
+<!-- END GENERATED: card-prefill-replicas -->
+
+路由把每个请求整个交给一个完整的 TP8 服务，没有任何集合通信跨 VM，所以只要有 2 个请求在途，两个副本就能让 prefill 接近翻倍（[实测](#增加第二个-prefill-副本)）。代价是每个副本都要一份完整模型。这里先做副本的原因是：
+
+- **每台 VM 一个 TP8** 是稳定的基础：每台 VM 有 8 张 GPU，模型的 8 个 KV head 正好每张 GPU 一个。
+- **专家并行**（EP），无论是单台 VM 内还是跨 VM，都不在这里任何一组实测配置中。副本不引入新的集合通信就能增加 prefill 容量；EP 会改变每个 MoE 层的通信方式，所以要单独做 A/B，而不是当作一个开关。
+
 #### Fake prefill：只测 decode
 
 <!-- BEGIN GENERATED: card-fake-prefill -->
@@ -632,24 +688,59 @@ Prefill 受算力限制，decode 受访存限制；一次长 prefill 会拖住�
 
 随机 prompt 压测会把文本重新分词，服务端的实际长度可能漂移。长上下文测点应直接传 token ID（`--tokenize-prompt`），并把模型的特殊 token 算进去：MiMo 会加 4 个，所以传 65,532 个 ID 才是服务端正好 65,536 个 token。`--context-length` 也要留同样的余量，否则最长的测点可能带着错误内容被记为「成功」，上面 256K 点被剔除正是这个原因。
 
+#### 按 KV 容量估算 decode batch
+
+"batch 16" 这样的说法可以指四种不同的东西，长上下文下它们会分开：
+
+- **客户端并发**：客户端同时保持在途的请求数（`--max-concurrency`）。
+- **Prefill batch**：一个 prefill 步接收多少个新请求、多少个 prompt token，受 `--chunked-prefill-size`（单个请求的一块）、`--max-prefill-tokens`（每步 token 数）和 `--prefill-max-requests` 限制。
+- **Decode batch**：一个 decode 步里有多少个请求在生成 token，服务端日志里记为 `#running-req`。
+- **准入上限**：`--max-running-requests`，是上限，不是保证。
+
+Decode batch 受 KV 池限制：所有运行中请求的 token（输入、已生成的 token 和预留）都要放得下。请求长度相同时，batch 最多是 `floor(KV 池 token 数 / (输入 + 输出 token 数))`，分页、MTP 状态和预留会让实际值更低。提高客户端并发或 `--max-running-requests` 都不能让 batch 超过这个上限。这些 VM 上的两个实测说明了这一点：
+
+- `--mem-fraction-static 0.95` 时，一台 TP8 VM 的全注意力 KV 池有 1,442,464 个 token。16 个 64K 输入、1K 输出的请求需要 1,064,960 个 token，占池子的 74%，所以 16 个请求能同时 decode；这就是 [64K A/B](#受控-ab64k-上下文下的-block-scale-fp8-gemm-路径) 的设置。
+- PD 的 decode 服务用 `--mem-fraction-static 0.85`，64K 时同时只跑 4 到 5 个请求，从 128K 起只跑 1 个（[上下文长度表](#吞吐怎样随上下文长度变化)）。
+
+先按"上下文长度 × batch"规划显存和拓扑，再去调 kernel；报告结果时把 `#running-req` 和客户端并发写在一起。
+
 #### 全新服务重复测
 
-每个被采纳的 A/B 组都在全新启动的服务上跑两次。两次结果相差约 1% 以内（见 A/B 表），才能说 25% 的差距是真的；每组只跑一次是说明不了问题的。
+每个被采纳的 A/B 组都在全新启动的服务上跑两次。两次结果相差约 1% 以内（见 A/B 表），才能说 25% 的差距是真的；每组只跑一次是说明不了问题的。测一个新的上下文长度时，先测 1 个请求，再测几个依次发送，再测几个同时发送，最后在全新服务上重复；中途失败的点作为无效点发布，不做估算。
 
 ### 哪些优化可能改变模型输出
 
-吞吐提升的前提是答案不变。上面每一项技术对数值的影响可以归成四类，类别决定了上线前要核对什么。优化后的吞吐测试打开了 FP8 KV 和固定 MTP 接受长度，阶段对比那几次运行还记录到 INT8 Quick Reduce 是打开的；本仓库没有发布这套配置的准确率结果。
+吞吐提升的前提是答案不变。上面每一项技术对数值的影响可以归成四类，类别决定了上线前要核对什么。优化后的吞吐测试打开了 FP8 KV 和固定 MTP 接受长度，阶段对比那几次运行还记录到 INT8 Quick Reduce 是打开的。[下面的准确率](#在优化后的-kernel-上实测的准确率)用的是同一批 kernel、按实际接受的 MTP，但没有打开 FP8 KV cache，所以已发布的准确率结果都不覆盖 FP8 KV。
 
 上面每张卡片最后一行写了该项对输出的影响。按类别归总：
 
 <!-- BEGIN GENERATED: precision-summary -->
 - **有损——上线前必须核对准确率**。数据通路上某处用了更少的比特，可能让输出产生系统性偏移，上线前必须用准确率基准核对。 [FP8 KV cache + 向量化 5D 分页布局](#fp8-kv-cache--向量化-5d-分页布局)；[张量并行 all-reduce 使用 INT8 Quick Reduce](#张量并行-all-reduce-使用-int8-quick-reduce)；[混合精度 Triton router（MoE gate）GEMM](#混合精度-triton-routermoe-gategemm)
 - **只有实现正确时才不改变输出**。设计上不改变输出分布，但前提是实现正确；一旦有 bug，输出会变而且不报错。 [多层 EAGLE MTP 投机解码及校验修复](#多层-eagle-mtp-投机解码及校验修复)
-- **算术不变，只换 kernel 或布局**。算术约定不变，只换 kernel、布局或调度。求和顺序变了，结果可能在最后几位有差异，但不是系统性偏差。 [混合 SWA + GQA 的逐层 attention 分派](#混合-swa--gqa-的逐层-attention-分派)；[MTP target verify 使用 AITER unified attention](#mtp-target-verify-使用-aiter-unified-attention)；[Chunked prefill、page size 与 SWA 池容量](#chunked-prefillpage-size-与-swa-池容量)；[Decode 图捕获（HIP graph）](#decode-图捕获hip-graph)；[FlyDSL paged-attention decode kernel（head 192，page 64）](#flydsl-paged-attention-decode-kernelhead-192page-64)；[权重预重排的 block-scale FP8 GEMM](#权重预重排的-block-scale-fp8-gemm)；[按 shape 调优的 fused-MoE kernel 表](#按-shape-调优的-fused-moe-kernel-表)；[head 192、page 64 的 FP8 batch-prefill tile](#head-192page-64-的-fp8-batch-prefill-tile)；[Prefill/Decode 分离（1P1D），KV 走 RDMA](#prefilldecode-分离1p1dkv-走-rdma)
+- **算术不变，只换 kernel 或布局**。算术约定不变，只换 kernel、布局或调度。求和顺序变了，结果可能在最后几位有差异，但不是系统性偏差。 [混合 SWA + GQA 的逐层 attention 分派](#混合-swa--gqa-的逐层-attention-分派)；[MTP target verify 使用 AITER unified attention](#mtp-target-verify-使用-aiter-unified-attention)；[Chunked prefill、page size 与 SWA 池容量](#chunked-prefillpage-size-与-swa-池容量)；[Decode 图捕获（HIP graph）](#decode-图捕获hip-graph)；[FlyDSL paged-attention decode kernel（head 192，page 64）](#flydsl-paged-attention-decode-kernelhead-192page-64)；[权重预重排的 block-scale FP8 GEMM](#权重预重排的-block-scale-fp8-gemm)；[按 shape 调优的 fused-MoE kernel 表](#按-shape-调优的-fused-moe-kernel-表)；[head 192、page 64 的 FP8 batch-prefill tile](#head-192page-64-的-fp8-batch-prefill-tile)；[Prefill/Decode 分离（1P1D），KV 走 RDMA](#prefilldecode-分离1p1dkv-走-rdma)；[一个路由后挂多个 prefill 副本（DP=2）](#一个路由后挂多个-prefill-副本dp2)
 - **测试方法——生成内容不能算分**。这种模式下生成的内容不是模型的回答，绝不能拿来算准确率。 [Fake prefill：只测 decode](#fake-prefill只测-decode)；[性能测试固定 MTP 接受长度](#性能测试固定-mtp-接受长度)；[按饱和点设计并发阶梯](#按饱和点设计并发阶梯)
 <!-- END GENERATED: precision-summary -->
 
 INT8 Quick Reduce 要单独提醒。实测时用的启动脚本都没有设置它：`rocm/sgl-dev` 基础镜像自带 `ROCM_QUICK_REDUCE_QUANTIZATION=INT8`，实测时记录下来的容器环境里就有它（哈希见 [`evidence/runs.json`](evidence/runs.json)），从这个镜像启动的每个服务都会继承。本仓库的 profile 把它显式写了出来，让这个继承值可见、可以消融；固定 runtime 的准确率角色把它重新设成 `NONE`。在干净构建时，同样的基础镜像 ENV 机制还悄悄覆盖了 Dockerfile 的一个 ARG，所以那里的每个版本参数都加了 `PIN_` 前缀。
+
+#### 在优化后的 kernel 上实测的准确率
+
+**问题。** 用优化后的 kernel、MTP 按实际接受，模型在公开基准上是否仍然答得对？
+
+**输入。** 两台 VM，每台跑一个独立的 TP8 服务（prefill 和 decode 在同一个服务里），用的是优化后栈的 kernel：AITER attention、CK block-scale FP8 GEMM、调优 fused-MoE 表（启动前核对哈希），以及按草稿模型实际接受率运行的多层 EAGLE MTP（固定接受长度的变量都已去掉并做了检查）。权重为 FP8，KV cache 为模型默认精度（没有 `--kv-cache-dtype`），page size 1，1M 上下文。AIME 用 temperature 1.0、top-p 0.95、最多 65,536 个 token，打开 thinking；其他五个基准用 temperature 0、最多 16,384 个 token。每个基准都按原始顺序取前面的题目评分，遍数见表。输出为空且达到 token 上限的回答算错。
+
+<!-- BEGIN GENERATED: accuracy-table -->
+| 基准 | 评分范围 | 准确率 |
+|---|---|---:|
+| AIME24_25 | 前 16 题 × 1 遍 | **100.00%**<br>16 / 16 |
+| CMMLU | 前 128 题 × 3 遍 | **89.84%**<br>345 / 384 |
+| MinervaMath | 前 1,536 题 × 3 遍 | **97.61%**<br>4,498 / 4,608 |
+| MMLU-Pro | 前 512 题 × 2 遍 | **89.36%**<br>915 / 1,024 |
+| MMLU-Redux | 前 512 题 × 3 遍 | **96.22%**<br>1,478 / 1,536 |
+| SuperGPQA | 前 512 题 × 1 遍 | **70.31%**<br>360 / 512 |
+<!-- END GENERATED: accuracy-table -->
+
+**边界。** 这些是子集上的绝对分数（共 3,216 道题、8,080 个评分回答），不是 A/B。没有给关掉优化的运行打分，所以这张表说明的是优化后的 kernel 和按实际接受的 MTP 能给出正常的答案，而不是它们对输出毫无影响。有两个有损开关没有覆盖：FP8 KV cache 是关着的；Quick Reduce 的实际设置没有记录（启动脚本没有设置，基础镜像导出的是 INT8）。基准前面的题目可能比整体更容易或更难，16 道 AIME 题单独看说明不了什么。FP8 KV 和 Quick Reduce 按下面的步骤核对。
 
 **kernel 级数值检查。** 上游提交为每个 MiMo 专用 kernel 加了测试，在 MiMo 的 shape（head 192、page 64、FP8 KV、query 长度 4）上与 PyTorch 参考实现比对，其中包括 2 GiB 偏移的用例。这些测试需要 MI300X，本仓库没有运行：
 
@@ -773,6 +864,23 @@ python tools/render_launch.py --profile rocm-mi300x-pd --role decode --ablate si
 
 第 2 步已在干净环境中重放：镜像能构建，固定的 commit 都检出正确，runtime 的 import 都能通过。那次构建是在没有 GPU 的虚拟机上做的，所以第 3 到第 5 步（启动服务和压测）没有重放，它们是根据记录下来的 runtime 身份和实测启动脚本整理的。
 
+### 容易误判的故障
+
+下面是在 MI300X 上把这套栈跑起来时的运维观察，不是实测结果；只有图捕获这一项在本页有公开的数字。第一组只会让运行变慢，服务照常工作。
+
+- **KV 传输退回 TCP。** 容器没有 `--privileged`、`/dev/mem` 和 `CAP_SYS_ADMIN` 时，Mooncake 会悄悄改用 TCP 而不是 RDMA。token 仍然正确，吞吐却会下降。把"RDMA 已初始化"作为启动检查项。
+- **decode 服务关掉了图捕获。** 加了 `--disable-cuda-graph` 后，decode 服务在[基线 A/B](#从基线栈到优化后累计提升) 中只剩三分之一的吞吐，日志里没有任何异常。每次运行前，把每个启动脚本和已知正确的版本逐项比对。
+- **镜像里有两份 kernel 库。** 同一个 AITER 版本从不同目录导入时表现不同。要检查导入路径和服务日志里的 kernel 名称，而不只是版本号。
+- **调优表从未命中。** 对没有调优记录的 fused-MoE shape，AITER 会在日志里打印 `default`。启动时检查日志里关键 shape 的情况。
+
+第二组会让服务停下或卡住，但原因容易看错：
+
+- **多线程加载权重卡住。** 在 PD 服务上，多线程加载权重时各张量并行 rank 卡在缺页处理里；`--model-loader-extra-config '{"enable_multithread_load": false}'` 解决了这个问题。
+- **prefill 服务上的重叠调度。** 它触发了 HIP 非法地址错误，所以吞吐测试都用了 `--disable-overlap-schedule`。
+- **会生成 token 的健康检查。** SGLang 的 `/health` 默认会真的生成一个 token（`SGLANG_ENABLE_HEALTH_ENDPOINT_GENERATION`），频繁探测把 prefill 服务的 detokenizer 卡住了。把它设为 `0`，改为轮询 `/server_info`。
+- **每步一次的 all-gather 在约 200K token 时超时。** 在数据并行度为 1 时，SGLang 已有的开关 `SGLANG_SCHEDULER_SKIP_ALL_GATHER=1` 可以避开它。
+- **照搬其他 GPU 配置里的值。** 从另一套系统照搬的 `--chunked-prefill-size` 在启动时就失败了。这类值要按本 runtime 的限制推算。
+
 ## 测试与离线校验
 
 - `python -m unittest discover -s tests -v`——上游 patch 与 SHA-256 锁一致；每份日志投影都能解析且与清单一致；发布的变化率能从绝对值重算；启动命令渲染和消融在两个平台上都符合文档；README 不含私有内容或超出范围的比较。
@@ -790,14 +898,14 @@ CI 在 Ubuntu 和 Windows、Python 3.10 与 3.12 上运行同一组命令（[wor
 - `LOCAL_MEASUREMENT`：A/B 和阶段对比各自只覆盖一种负载 shape，其他上下文长度、并发和 batch 组成没有在同样的控制条件下测过。
 - `LOCAL_MEASUREMENT`：吞吐是在 MTP 固定接受 3 个 token 的条件下测的。真实负载平均接受的草稿 token 更少，吞吐会更低。
 - `NOT_MEASURED`：最终 runtime（FlyDSL decode、向量化 5D KV、page 64、1M 上下文）没有在这里发布微软自己的吞吐测试，混合精度 router GEMM 也没有。
-- `NOT_MEASURED`：有损开关（FP8 KV cache、INT8 Quick Reduce、混合精度 router）对准确率的影响没有测；吞吐测试时前两个是打开的。上面的步骤覆盖 FP8 KV 和 Quick Reduce；router 的改动需要在包含提交 `1f9bb2b` 的 runtime 上单独做 A/B。
+- `NOT_MEASURED`：有损开关（FP8 KV cache、INT8 Quick Reduce、混合精度 router）对准确率的影响没有测；吞吐测试时前两个是打开的。[优化后 kernel 的子集准确率](#在优化后的-kernel-上实测的准确率)是在 FP8 KV cache 关闭时测的。上面的步骤覆盖 FP8 KV 和 Quick Reduce；router 的改动需要在包含提交 `1f9bb2b` 的 runtime 上单独做 A/B。
 - `NOT_MEASURED`：这里没有任何内容在 NVIDIA GPU 上跑过，CUDA profile 只是上游开关的对应关系。
 - `SOURCE_FACT`：摘录中 FlyDSL、CK 和 MTP 的 shape 检查把每个 kernel 限定在 MiMo 的 shape 上（每个 rank 16 个 query head、1 个 KV head，head 192，page 64，gfx942）。换一个模型需要重新验证，不是改改开关就行。
 
 **目录。**
 
 - [`evidence/runs.json`](evidence/runs.json)——每次运行的身份、拓扑、控制变量和脚本哈希。
-- [`evidence/raw/`](evidence/raw/)——各数据源的投影：`sglang.bench_serving` 输出（每次运行的负载参数和结果块）、公开审计文件中的 A/B 采样值，以及基线栈的客户端结果和汇总。
+- [`evidence/raw/`](evidence/raw/)——各数据源的投影：`sglang.bench_serving` 输出（每次运行的负载参数和结果块）、调度器日志审计中的 A/B 采样值、长上下文和副本的结果表、逐条回答的准确率评分，以及基线栈的客户端结果和汇总。
 - [`evidence/raw-manifest.json`](evidence/raw-manifest.json)——每份私有原始日志及其公开投影的 SHA-256。
 - [`evidence/measurements.json`](evidence/measurements.json)——全部对比结果，由 `tools/build_evidence.py` 生成。
 - [`evidence/docker-build.json`](evidence/docker-build.json)——干净 Docker 构建的回执：commit、Dockerfile 哈希、构建器、镜像 id 以及日志里的各步记录。

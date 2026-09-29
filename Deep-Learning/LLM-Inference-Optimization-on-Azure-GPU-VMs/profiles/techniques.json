@@ -310,6 +310,28 @@
       }
     },
     {
+      "id": "prefill-replicas",
+      "layer": "workload",
+      "en": "Prefill replicas behind one router (DP=2)",
+      "cn": "一个路由后挂多个 prefill 副本（DP=2）",
+      "rocm": "one complete TP8 server per VM, both registered with one `sglang_router`",
+      "cuda": "same router and flags; each replica needs its own full model copy",
+      "patches": [],
+      "stack": "measured-run",
+      "evidence": "LOCAL_AB",
+      "evidence_note": {
+        "en": "measured: 1 against 2 requests in flight on two replicas",
+        "cn": "实测：两个副本上 1 个与 2 个请求同时在跑的对比"
+      },
+      "rocm_cn": "每台 VM 一个完整的 TP8 服务，两个服务注册到同一个 `sglang_router`",
+      "cuda_cn": "路由和参数相同；每个副本都要一份完整模型",
+      "precision": {
+        "class": "same-math",
+        "en": "Each request runs entirely on one replica; nothing is split or approximated.",
+        "cn": "每个请求完整地跑在一个副本上，没有任何切分或近似。"
+      }
+    },
+    {
       "id": "fake-prefill",
       "layer": "workload",
       "en": "Fake prefill for decode-only measurement",

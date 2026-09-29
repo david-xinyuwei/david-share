@@ -124,6 +124,48 @@ class EvidenceTests(unittest.TestCase):
             self.assertIn(row["early_run"], self.runs["runs"])
             self.assertIn(row["late_run"], self.runs["runs"])
 
+    def test_accuracy_recomputes_from_counts_and_states_its_configuration(self):
+        for row in self.m["accuracy"]:
+            self.assertEqual(row["responses"], row["questions"] * row["passes"], row["benchmark"])
+            self.assertEqual(row["accuracy_pct"], round(100.0 * row["correct"] / row["responses"], 2), row["benchmark"])
+        run = self.runs["runs"]["accuracy-subset"]
+        self.assertIn("no --kv-cache-dtype", run["server_flags"])
+        self.assertIn("SGLANG_SIMULATE_ACC_* unset", run["server_env"])
+        self.assertIn("ROCM_QUICK_REDUCE_QUANTIZATION", run["not_recorded"])
+
+    def test_aggregate_source_hash_is_verified(self):
+        target = ROOT / "evidence" / "raw" / "accuracy-subset.json"
+        original = target.read_bytes()
+        manifest_path = ROOT / "evidence" / "raw-manifest.json"
+        manifest_original = manifest_path.read_bytes()
+        try:
+            data = json.loads(original)
+            data["benchmarks"][0]["audit_file_sha256"] = "0" * 64
+            target.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+            manifest = json.loads(manifest_original)
+            for item in manifest["files"]:
+                if item["projected_file"] == "accuracy-subset.json":
+                    item["projected_sha256"] = hashlib.sha256(target.read_bytes()).hexdigest()
+            manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+            with self.assertRaises(SystemExit) as ctx:
+                build_evidence.build()
+            self.assertIn("AGGREGATE_HASH_MISMATCH", str(ctx.exception))
+        finally:
+            target.write_bytes(original)
+            manifest_path.write_bytes(manifest_original)
+
+    def test_replica_factors_recompute(self):
+        for row in self.m["prefill_replicas"]:
+            self.assertEqual(row["factor"], round(row["two_in_flight_tok_s"] / row["one_in_flight_tok_s"], 2))
+
+    def test_long_context_decode_is_capacity_bound(self):
+        """From 128K on, the decode server runs one request at a time whatever the client sends."""
+        rows = {r["input_tokens"]: r for r in self.m["context_scaling"]["rows"]}
+        for n in (131072, 196608, 262144):
+            self.assertEqual((rows[n]["decode_batch_mode"], rows[n]["decode_batch_max"]), (1, 1), n)
+            self.assertGreater(rows[n]["decode_max_client_concurrency"], 1 if n != 262144 else 0, n)
+        self.assertEqual(self.m["context_scaling"]["rejected_prefill"], [{"input_tokens": 262144, "concurrency": 4}])
+
     def test_every_comparison_is_mi300x_only(self):
         self.assertIn("MI300X with MI300X", self.runs["compared_objects"]["comparison_rule"])
         for rel in ("evidence/runs.json", "evidence/measurements.json"):

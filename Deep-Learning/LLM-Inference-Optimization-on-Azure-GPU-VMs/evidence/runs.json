@@ -154,17 +154,45 @@
       "server_context_length": 262144,
       "special_tokens_per_request": 4
     },
-    "long-128k": {
+    "context-matrix": {
       "producer": "Microsoft",
       "evidence_level": "RESULTS_TABLE_PROJECTION",
-      "topology": "same as stage-before-moe-table",
-      "runtime": "immutable image built from the stage-after-moe-table runtime; --context-length 262151",
-      "prefill_workload": "131,072 input tokens, output 1, 16 requests per point, client concurrency 1 and 2",
+      "topology": "same as stage-before-moe-table (1P1D, one TP8 server per VM)",
+      "runtime": "image built from the stage-after-moe-table runtime (sglang 2f9b9aedf, aiter 00e94abf1 with the tuned fused-MoE table); --context-length 262151, --chunked-prefill-size 16384 on the decode server; decode with MTP at a fixed acceptance of 3",
+      "prefill_workload": "random prompts, output 1, 16 requests per point; 256K points use exact token IDs",
+      "decode_workload": "random prompts, 1K output; 8K and 64K at client concurrency 16-128, 128K-256K at 1-32; the batch is read from the decode server's #running-req",
       "notes": [
-        "The run set a fixed MTP acceptance of three; with output 1 no draft token is verified, so the setting does not enter the prefill rate."
+        "The 256K prefill point at concurrency 4 was rejected: two service lifecycles hit GPU memory faults, so no value is reported.",
+        "The 256K decode row uses 261,120 input tokens so that input plus 1,024 output tokens fits the 262,151-token context."
       ],
       "raw": [
-        "long-128k-prefill.json"
+        "context-matrix.json"
+      ]
+    },
+    "prefill-replicas": {
+      "producer": "Microsoft",
+      "evidence_level": "RESULTS_TABLE_PROJECTION",
+      "topology": "two VMs, each running one ordinary TP8 server (no PD mode), behind one sglang_router with --policy round_robin; no cross-node collective",
+      "runtime": "same image as context-matrix; --context-length 262151 --chunked-prefill-size 32768 --kv-cache-dtype fp8_e4m3 --page-size 32, EAGLE MTP at a fixed acceptance of 3",
+      "workload": "random prompts, output 1; two replicas: 32 requests per point at client concurrency 1-16 (256K: 1-8); single-server reference: the 1P1D prefill server of the same series, 16 requests per point",
+      "raw": [
+        "prefill-replicas.json"
+      ]
+    },
+    "accuracy-subset": {
+      "producer": "Microsoft",
+      "evidence_level": "PER_RESPONSE_AUDIT_PROJECTION",
+      "topology": "two VMs, each running one independent TP8 server (prefill and decode in one server); the benchmarks were split across them",
+      "runtime": {
+        "sglang": "2f9b9aedf",
+        "aiter": "00e94abf1 with the tuned fused-MoE table (hash-checked before start)"
+      },
+      "server_flags": "--tp-size 8 --attention-backend aiter --quantization fp8 --page-size 1 --mem-fraction-static 0.8 --max-running-requests 128 --context-length 1048576 --speculative-algorithm EAGLE --speculative-num-steps 3 --speculative-eagle-topk 1 --speculative-num-draft-tokens 4 --enable-multi-layer-eagle --reasoning-parser qwen3; no --kv-cache-dtype, so the KV cache stays at the model's default precision",
+      "server_env": "SGLANG_USE_AITER=1 SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1 SGLANG_ENABLE_SPEC_V2=1; SGLANG_SIMULATE_ACC_* unset and checked unset before start, so MTP runs at the acceptance the draft model achieves",
+      "not_recorded": "ROCM_QUICK_REDUCE_QUANTIZATION was not set by the launcher and the captured environment lists SGLANG_ variables only, so the effective Quick Reduce setting (the base image exports INT8) is not recorded",
+      "launch_script_sha256": "e9d788db3f205f877e58321496dc12da956256cce697203519f27741b6ca0453",
+      "raw": [
+        "accuracy-subset.json"
       ]
     }
   }

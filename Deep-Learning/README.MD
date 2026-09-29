@@ -1,6 +1,6 @@
 # Deep Learning
 
-A comprehensive collection of 79 projects covering quantization, fine-tuning, inference optimization, training parallelism, GPU benchmarks, and more.
+A comprehensive collection of 78 projects covering quantization, fine-tuning, inference optimization, training parallelism, GPU benchmarks, and more.
 
 > Projects marked with ⭐ were consolidated from multiple related projects during the 2026-02 restructuring.
 
@@ -15,7 +15,7 @@ A comprehensive collection of 79 projects covering quantization, fine-tuning, in
 | 3 | [RLHF, Alignment & Reasoning](#3-rlhf-alignment--reasoning) | 4 |
 | 4 | [Inference Optimization](#4-inference-optimization) | 18 |
 | 5 | [Training Parallelism & Distributed Systems](#5-training-parallelism--distributed-systems) | 7 |
-| 6 | [GPU Benchmarks & Hardware](#6-gpu-benchmarks--hardware) | 10 |
+| 6 | [GPU Benchmarks & Hardware](#6-gpu-benchmarks--hardware) | 9 |
 | 7 | [Model Architecture & Understanding](#7-model-architecture--understanding) | 14 |
 
 ---
@@ -89,7 +89,7 @@ vLLM, FlashAttention, KV cache, speculative decoding, and serving frameworks.
 | [FlashAttention-3](FlashAttention-3/) | FlashAttention 3 analysis |
 | [FlashInfer-vs-FlashAttention-Benchmark](FlashInfer-vs-FlashAttention-Benchmark/) | FlashInfer vs FlashAttention benchmark |
 | [KV-Cache-Quantization](KV-Cache-Quantization/) | KV cache quantization techniques |
-| [LLM-Inference-Optimization-on-Azure-GPU-VMs](LLM-Inference-Optimization-on-Azure-GPU-VMs/) | Inference optimization in three layers (serving framework, kernels, PD and fake-prefill workload) for MiMo-V2.5-Pro on Azure ND MI300X v5: public commit diffs, MI300X-vs-MI300X measured gains, and a mapping to NVIDIA GPUs |
+| [LLM-Inference-Optimization-on-Azure-GPU-VMs](LLM-Inference-Optimization-on-Azure-GPU-VMs/) | Inference optimization in three layers (serving framework, kernels, PD and fake-prefill workload) for MiMo-V2.5-Pro on Azure ND MI300X v5: public commit diffs, MI300X-vs-MI300X measured gains, 8K-256K context scaling, prefill replicas, subset accuracy on public benchmarks, and a mapping to NVIDIA GPUs |
 | [LLM-Inference-performance-test](LLM-Inference-performance-test/) | LLM inference performance testing |
 | ⭐ [LLM-Memory-Estimation](LLM-Memory-Estimation/) | Inference memory estimation tool + training/inference memory consumption theory |
 | [MInference](MInference/) | MInference for long-context acceleration |
@@ -133,7 +133,6 @@ Performance benchmarks, GPU selection guides, and hardware-specific tests.
 | ⭐ [NC-RTX-Pro-6000V6-BSE-Benchmark](NC-RTX-Pro-6000V6-BSE-Benchmark/) | Azure GPU VM selection guide + H100/A100/RTX6000/A10 FP8 benchmark + NC RTX Pro 6000 BSE benchmark |
 | [CPU2GPU](CPU2GPU/) | CPU to GPU migration guide |
 | [Install-CUDA](Install-CUDA/) | CUDA installation guide |
-| [MiMo-V2.5-Pro-MI300X-Accuracy-Evaluation](MiMo-V2.5-Pro-MI300X-Accuracy-Evaluation/) | Evidence-backed six-dataset accuracy evaluation with H200 reference alignment |
 | [Qwen3-235B-Multi-Node-vLLM-Benchmark](Qwen3-235B-Multi-Node-vLLM-Benchmark/) | Qwen3 235B multi-node vLLM benchmark |
 | [Script-For-DS671B](Script-For-DS671B/) | Scripts for DeepSeek 671B deployment |
 

@@ -217,7 +217,7 @@
         "late_topology": "1P1D prefill server, TP8",
         "early_run": "baseline-pd-summary",
         "early_input_tok_s": 6915,
-        "late_run": "long-128k",
+        "late_run": "context-matrix",
         "late_input_tok_s": 16389.66,
         "factor": 2.37
       }
@@ -250,5 +250,204 @@
         "fixed_output_factor": 1.76
       }
     ]
-  }
+  },
+  "context_scaling": {
+    "rows": [
+      {
+        "input_tokens": 8192,
+        "prefill_1req_input_tok_s": 16835.22,
+        "prefill_1req_ttft_ms": 485.7,
+        "prefill_peak_input_tok_s": 21004.97,
+        "prefill_peak_concurrency": 8,
+        "decode_input_tokens": 8192,
+        "decode_max_client_concurrency": 128,
+        "decode_batch_mode": 51,
+        "decode_batch_max": 54,
+        "decode_gen_tok_s": 2333.44,
+        "decode_gen_tok_s_per_request": 45.75
+      },
+      {
+        "input_tokens": 65536,
+        "prefill_1req_input_tok_s": 18057.01,
+        "prefill_1req_ttft_ms": 3628.49,
+        "prefill_peak_input_tok_s": 19860.45,
+        "prefill_peak_concurrency": 2,
+        "decode_input_tokens": 65536,
+        "decode_max_client_concurrency": 96,
+        "decode_batch_mode": 4,
+        "decode_batch_max": 5,
+        "decode_gen_tok_s": 287.77,
+        "decode_gen_tok_s_per_request": 71.94
+      },
+      {
+        "input_tokens": 131072,
+        "prefill_1req_input_tok_s": 16389.66,
+        "prefill_1req_ttft_ms": 7995.96,
+        "prefill_peak_input_tok_s": 16711.96,
+        "prefill_peak_concurrency": 2,
+        "decode_input_tokens": 131072,
+        "decode_max_client_concurrency": 32,
+        "decode_batch_mode": 1,
+        "decode_batch_max": 1,
+        "decode_gen_tok_s": 138.2,
+        "decode_gen_tok_s_per_request": 138.2
+      },
+      {
+        "input_tokens": 196608,
+        "prefill_1req_input_tok_s": 13827.37,
+        "prefill_1req_ttft_ms": 14217.14,
+        "prefill_peak_input_tok_s": 14402.0,
+        "prefill_peak_concurrency": 4,
+        "decode_input_tokens": 196608,
+        "decode_max_client_concurrency": 16,
+        "decode_batch_mode": 1,
+        "decode_batch_max": 1,
+        "decode_gen_tok_s": 125.04,
+        "decode_gen_tok_s_per_request": 125.04
+      },
+      {
+        "input_tokens": 262144,
+        "prefill_1req_input_tok_s": 12631.6,
+        "prefill_1req_ttft_ms": 20751.02,
+        "prefill_peak_input_tok_s": 12725.25,
+        "prefill_peak_concurrency": 2,
+        "decode_input_tokens": 261120,
+        "decode_max_client_concurrency": 4,
+        "decode_batch_mode": 1,
+        "decode_batch_max": 1,
+        "decode_gen_tok_s": 127.84,
+        "decode_gen_tok_s_per_request": 127.84
+      }
+    ],
+    "rejected_prefill": [
+      {
+        "input_tokens": 262144,
+        "concurrency": 4
+      }
+    ]
+  },
+  "prefill_replicas": [
+    {
+      "input_tokens": 8192,
+      "one_in_flight_tok_s": 20751.73,
+      "two_in_flight_tok_s": 41201.86,
+      "factor": 1.99,
+      "one_ttft_ms": 393.9,
+      "two_ttft_ms": 394.17,
+      "peak_tok_s": 46747.01,
+      "peak_concurrency": 16,
+      "max_concurrency": 16,
+      "single_one_tok_s": 16835.22,
+      "single_two_tok_s": 19618.25,
+      "single_factor": 1.17
+    },
+    {
+      "input_tokens": 65536,
+      "one_in_flight_tok_s": 19695.02,
+      "two_in_flight_tok_s": 38984.45,
+      "factor": 1.98,
+      "one_ttft_ms": 3326.53,
+      "two_ttft_ms": 3348.49,
+      "peak_tok_s": 38984.45,
+      "peak_concurrency": 2,
+      "max_concurrency": 16,
+      "single_one_tok_s": 18057.01,
+      "single_two_tok_s": 19860.45,
+      "single_factor": 1.1
+    },
+    {
+      "input_tokens": 262144,
+      "one_in_flight_tok_s": 12783.28,
+      "two_in_flight_tok_s": 25063.73,
+      "factor": 1.96,
+      "one_ttft_ms": 20505.88,
+      "two_ttft_ms": 20823.01,
+      "peak_tok_s": 25063.73,
+      "peak_concurrency": 2,
+      "max_concurrency": 8,
+      "single_one_tok_s": 12381.87,
+      "single_two_tok_s": 12378.06,
+      "single_factor": 1.0
+    }
+  ],
+  "accuracy": [
+    {
+      "benchmark": "AIME24_25",
+      "questions": 16,
+      "passes": 1,
+      "responses": 16,
+      "correct": 16,
+      "empty_at_length_cap": 0,
+      "temperature": 1.0,
+      "top_p": 0.95,
+      "max_tokens": 65536,
+      "thinking": true,
+      "accuracy_pct": 100.0
+    },
+    {
+      "benchmark": "CMMLU",
+      "questions": 128,
+      "passes": 3,
+      "responses": 384,
+      "correct": 345,
+      "empty_at_length_cap": 0,
+      "temperature": 0.0,
+      "top_p": 1.0,
+      "max_tokens": 16384,
+      "thinking": false,
+      "accuracy_pct": 89.84
+    },
+    {
+      "benchmark": "MinervaMath",
+      "questions": 1536,
+      "passes": 3,
+      "responses": 4608,
+      "correct": 4498,
+      "empty_at_length_cap": 17,
+      "temperature": 0.0,
+      "top_p": 1.0,
+      "max_tokens": 16384,
+      "thinking": false,
+      "accuracy_pct": 97.61
+    },
+    {
+      "benchmark": "MMLU-Pro",
+      "questions": 512,
+      "passes": 2,
+      "responses": 1024,
+      "correct": 915,
+      "empty_at_length_cap": 28,
+      "temperature": 0.0,
+      "top_p": 1.0,
+      "max_tokens": 16384,
+      "thinking": false,
+      "accuracy_pct": 89.36
+    },
+    {
+      "benchmark": "MMLU-Redux",
+      "questions": 512,
+      "passes": 3,
+      "responses": 1536,
+      "correct": 1478,
+      "empty_at_length_cap": 4,
+      "temperature": 0.0,
+      "top_p": 1.0,
+      "max_tokens": 16384,
+      "thinking": false,
+      "accuracy_pct": 96.22
+    },
+    {
+      "benchmark": "SuperGPQA",
+      "questions": 512,
+      "passes": 1,
+      "responses": 512,
+      "correct": 360,
+      "empty_at_length_cap": 58,
+      "temperature": 0.0,
+      "top_p": 1.0,
+      "max_tokens": 16384,
+      "thinking": false,
+      "accuracy_pct": 70.31
+    }
+  ]
 }

@@ -1,0 +1,198 @@
+{
+  "schema": 1,
+  "kind": "results-table-projection",
+  "source": {
+    "files": {
+      "scalability-results.tsv": "82119849f464c02cd6c756ddb2fed1a290eb1a4b3fc2962535d8a7af182fd2c9"
+    },
+    "public": false
+  },
+  "metric": "aggregate client input tok/s across both replicas, output 1",
+  "points": [
+    {
+      "input_tokens": 8192,
+      "concurrency": 1,
+      "requests": 32,
+      "aggregate_input_tok_s": 20751.73,
+      "mean_ttft_ms": 393.9
+    },
+    {
+      "input_tokens": 8192,
+      "concurrency": 2,
+      "requests": 32,
+      "aggregate_input_tok_s": 41201.86,
+      "mean_ttft_ms": 394.17
+    },
+    {
+      "input_tokens": 8192,
+      "concurrency": 4,
+      "requests": 32,
+      "aggregate_input_tok_s": 43401.7,
+      "mean_ttft_ms": 723.96
+    },
+    {
+      "input_tokens": 8192,
+      "concurrency": 8,
+      "requests": 32,
+      "aggregate_input_tok_s": 46113.92,
+      "mean_ttft_ms": 1296.43
+    },
+    {
+      "input_tokens": 8192,
+      "concurrency": 16,
+      "requests": 32,
+      "aggregate_input_tok_s": 46747.01,
+      "mean_ttft_ms": 2276.28
+    },
+    {
+      "input_tokens": 65536,
+      "concurrency": 1,
+      "requests": 32,
+      "aggregate_input_tok_s": 19695.02,
+      "mean_ttft_ms": 3326.53
+    },
+    {
+      "input_tokens": 65536,
+      "concurrency": 2,
+      "requests": 32,
+      "aggregate_input_tok_s": 38984.45,
+      "mean_ttft_ms": 3348.49
+    },
+    {
+      "input_tokens": 65536,
+      "concurrency": 4,
+      "requests": 32,
+      "aggregate_input_tok_s": 38382.03,
+      "mean_ttft_ms": 6615.25
+    },
+    {
+      "input_tokens": 65536,
+      "concurrency": 8,
+      "requests": 32,
+      "aggregate_input_tok_s": 38204.8,
+      "mean_ttft_ms": 12418.82
+    },
+    {
+      "input_tokens": 65536,
+      "concurrency": 16,
+      "requests": 32,
+      "aggregate_input_tok_s": 38155.28,
+      "mean_ttft_ms": 21164.99
+    },
+    {
+      "input_tokens": 262144,
+      "concurrency": 1,
+      "requests": 32,
+      "aggregate_input_tok_s": 12783.28,
+      "mean_ttft_ms": 20505.88
+    },
+    {
+      "input_tokens": 262144,
+      "concurrency": 2,
+      "requests": 32,
+      "aggregate_input_tok_s": 25063.73,
+      "mean_ttft_ms": 20823.01
+    },
+    {
+      "input_tokens": 262144,
+      "concurrency": 4,
+      "requests": 32,
+      "aggregate_input_tok_s": 24923.63,
+      "mean_ttft_ms": 40785.01
+    },
+    {
+      "input_tokens": 262144,
+      "concurrency": 8,
+      "requests": 32,
+      "aggregate_input_tok_s": 24765.29,
+      "mean_ttft_ms": 76468.09
+    }
+  ],
+  "single_server_points": [
+    {
+      "input_tokens": 8192,
+      "concurrency": 1,
+      "requests": 16,
+      "input_tok_s": 16835.22,
+      "mean_ttft_ms": 485.7
+    },
+    {
+      "input_tokens": 8192,
+      "concurrency": 2,
+      "requests": 16,
+      "input_tok_s": 19618.25,
+      "mean_ttft_ms": 829.4
+    },
+    {
+      "input_tokens": 8192,
+      "concurrency": 4,
+      "requests": 16,
+      "input_tok_s": 18161.81,
+      "mean_ttft_ms": 1612.03
+    },
+    {
+      "input_tokens": 8192,
+      "concurrency": 8,
+      "requests": 16,
+      "input_tok_s": 21004.97,
+      "mean_ttft_ms": 2817.91
+    },
+    {
+      "input_tokens": 65536,
+      "concurrency": 1,
+      "requests": 16,
+      "input_tok_s": 18057.01,
+      "mean_ttft_ms": 3628.49
+    },
+    {
+      "input_tokens": 65536,
+      "concurrency": 2,
+      "requests": 16,
+      "input_tok_s": 19860.45,
+      "mean_ttft_ms": 6481.41
+    },
+    {
+      "input_tokens": 65536,
+      "concurrency": 4,
+      "requests": 16,
+      "input_tok_s": 18763.17,
+      "mean_ttft_ms": 12970.83
+    },
+    {
+      "input_tokens": 65536,
+      "concurrency": 8,
+      "requests": 16,
+      "input_tok_s": 18765.43,
+      "mean_ttft_ms": 22530.68
+    },
+    {
+      "input_tokens": 262144,
+      "concurrency": 1,
+      "requests": 16,
+      "input_tok_s": 12381.87,
+      "mean_ttft_ms": 21170.66
+    },
+    {
+      "input_tokens": 262144,
+      "concurrency": 2,
+      "requests": 16,
+      "input_tok_s": 12378.06,
+      "mean_ttft_ms": 41208.61
+    },
+    {
+      "input_tokens": 262144,
+      "concurrency": 4,
+      "requests": 16,
+      "input_tok_s": 12389.64,
+      "mean_ttft_ms": 77254.06
+    },
+    {
+      "input_tokens": 262144,
+      "concurrency": 8,
+      "requests": 16,
+      "input_tok_s": 12402.23,
+      "mean_ttft_ms": 133251.83
+    }
+  ],
+  "single_server_note": "the prefill server of the 1P1D deployment in the same measurement series, one TP8 server"
+}

@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "note": "Raw sglang.bench_serving logs, the baseline client results and summary report and the long-context results table stay in the private project; the 64K A/B source is public. This manifest records the SHA-256 of every source and of the projection committed here.",
+  "note": "Raw sglang.bench_serving logs, scheduler-log audits, results tables, per-response accuracy audits and summary reports stay in the private project. This manifest records the SHA-256 of every source and of the projection committed here.",
   "files": [
     {
       "projected_file": "stage-before-moe-table__decode-8k1k.txt",
@@ -116,8 +116,8 @@
     },
     {
       "projected_file": "ab-64k-bs16.json",
-      "projected_sha256": "d84bbad7f6b12931de1ba87b1a10c7824548d908199266847b8f781d2730fe52",
-      "raw_log_name": "decode-fixed-batch-audit.json (public, david-share)",
+      "projected_sha256": "db95dbf8710676e4f5654ce9158da064ee25a7ee2bb85f757a69837014b01546",
+      "raw_log_name": "decode-fixed-batch-audit.json",
       "raw_log_sha256": "9af3291cd7e59b305996f90d950377f81540ca0db1f0fafe881e0d53992699c5",
       "raw_log_bytes": 14392
     },
@@ -164,11 +164,25 @@
       "raw_log_bytes": 2551
     },
     {
-      "projected_file": "long-128k-prefill.json",
-      "projected_sha256": "e3e5a132e60049bcaef390c4b44175be18c6fa9461046a671bfca43b4886bef9",
-      "raw_log_name": "long-context results table",
-      "raw_log_sha256": "a41a9b3cd61605d0935622be54f96f6a1c2680d79e7c6e473747ef09f5944480",
-      "raw_log_bytes": 3949
+      "projected_file": "context-matrix.json",
+      "projected_sha256": "a7ecaa0d3ad8bdbe8f833342f8dd162faddd91e05ac61da6ff1028b45684361e",
+      "raw_log_name": "results tables and scheduler-log audits; raw_log_sha256 is the SHA-256 of the sorted per-file hashes listed in the projection, one per line",
+      "raw_log_sha256": "1d91f6179dbe367664599fc53423530f882877273d5b4d221e03f859e5c6bb15",
+      "raw_log_bytes": 0
+    },
+    {
+      "projected_file": "prefill-replicas.json",
+      "projected_sha256": "a2d5e96dc489d41a4f7943033bc6ee883b9688c5bf365a4eb2831f2e170cefd1",
+      "raw_log_name": "scalability-results.tsv",
+      "raw_log_sha256": "82119849f464c02cd6c756ddb2fed1a290eb1a4b3fc2962535d8a7af182fd2c9",
+      "raw_log_bytes": 0
+    },
+    {
+      "projected_file": "accuracy-subset.json",
+      "projected_sha256": "40d94a005b07f8c510a21ccf41c7f4dbcb9dd2d5da3dae1eb9fad777300026cc",
+      "raw_log_name": "per-benchmark audit files; raw_log_sha256 is the SHA-256 of the sorted per-benchmark hashes listed in the projection, one per line",
+      "raw_log_sha256": "36503b025af2010ff8ff66aacad8f4ba469b7a7af08b0ed47b69ecdbc823fe78",
+      "raw_log_bytes": 0
     }
   ]
 }

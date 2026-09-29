@@ -1,0 +1,95 @@
+{
+  "schema": 1,
+  "kind": "per-response-audit-projection",
+  "source": {
+    "note": "per-response binary scores (one line per scored response); the SHA-256 of each audit file is listed per benchmark",
+    "public": false
+  },
+  "scoring": "each response scores 1 or 0; an empty response that reached max_tokens (finish_reason=length) counts as incorrect",
+  "benchmarks": [
+    {
+      "benchmark": "AIME24_25",
+      "questions": 16,
+      "passes": 1,
+      "responses": 16,
+      "correct": 16,
+      "empty_at_length_cap": 0,
+      "temperature": 1.0,
+      "top_p": 0.95,
+      "max_tokens": 65536,
+      "thinking": true,
+      "audit_file_sha256": "9aaafdcca441fbd5535856d89e0705d903f529a604061736f584ffca0423be2e",
+      "question_selection": "the first questions of the benchmark in its original order"
+    },
+    {
+      "benchmark": "CMMLU",
+      "questions": 128,
+      "passes": 3,
+      "responses": 384,
+      "correct": 345,
+      "empty_at_length_cap": 0,
+      "temperature": 0.0,
+      "top_p": 1.0,
+      "max_tokens": 16384,
+      "thinking": false,
+      "audit_file_sha256": "43bae814a2562b7c0fb2542b63a065b24b63f8321ecedb8dded7df214c5c75c0",
+      "question_selection": "the first questions of the benchmark in its original order"
+    },
+    {
+      "benchmark": "MinervaMath",
+      "questions": 1536,
+      "passes": 3,
+      "responses": 4608,
+      "correct": 4498,
+      "empty_at_length_cap": 17,
+      "temperature": 0.0,
+      "top_p": 1.0,
+      "max_tokens": 16384,
+      "thinking": false,
+      "audit_file_sha256": "4df2f08370fb536edf0ff207360db6026ad5e5831ed9887744fdc51951827057",
+      "question_selection": "the first questions of the benchmark in its original order"
+    },
+    {
+      "benchmark": "MMLU-Pro",
+      "questions": 512,
+      "passes": 2,
+      "responses": 1024,
+      "correct": 915,
+      "empty_at_length_cap": 28,
+      "temperature": 0.0,
+      "top_p": 1.0,
+      "max_tokens": 16384,
+      "thinking": false,
+      "audit_file_sha256": "6bfd483447148cc2358910d7b1d65af0ce5b54f72ddeb404262549ed20d7c09a",
+      "question_selection": "the first questions of the benchmark in its original order"
+    },
+    {
+      "benchmark": "MMLU-Redux",
+      "questions": 512,
+      "passes": 3,
+      "responses": 1536,
+      "correct": 1478,
+      "empty_at_length_cap": 4,
+      "temperature": 0.0,
+      "top_p": 1.0,
+      "max_tokens": 16384,
+      "thinking": false,
+      "audit_file_sha256": "e16fb62c6c8274ae3a655f52e8a961751f068c177cf8ec5a009b389cbea1a884",
+      "question_selection": "the first questions of the benchmark in its original order"
+    },
+    {
+      "benchmark": "SuperGPQA",
+      "questions": 512,
+      "passes": 1,
+      "responses": 512,
+      "correct": 360,
+      "empty_at_length_cap": 58,
+      "temperature": 0.0,
+      "top_p": 1.0,
+      "max_tokens": 16384,
+      "thinking": false,
+      "audit_file_sha256": "1054a757f2074122485063dd950950dae8a2c60e9c89efac061102a6f56fbba7",
+      "question_selection": "the first questions of the benchmark in its original order"
+    }
+  ]
+}

@@ -35,6 +35,8 @@ Author: Xinyu Wei · [中文](README_CN.md) · [Results](#measured-results-on-mi
 |---|---|
 | See the total gain from the baseline to the optimized stack | [Baseline to optimized stack](#baseline-to-optimized-stack-the-cumulative-gain) |
 | See what single optimizations added | [What single optimizations added](#what-single-optimizations-added) |
+| See how throughput changes from 8K to 256K context | [How throughput changes with context length](#how-throughput-changes-with-context-length) |
+| Check accuracy on public benchmarks | [Accuracy measured on the optimized kernels](#accuracy-measured-on-the-optimized-kernels) |
 | Find one technique: switch, code, evidence, effect on output | [The Three Optimization Layers](#the-three-optimization-layers) |
 | Apply the same method on NVIDIA GPUs | [Porting the method to NVIDIA GPUs](#porting-the-method-to-nvidia-gpus) and the `cuda-hopper-pd` profile |
 | Rebuild the runtime and rerun a benchmark on MI300X | [Reproduce in Your Environment](#reproduce-in-your-environment) |
@@ -50,7 +52,7 @@ Author: Xinyu Wei · [中文](README_CN.md) · [Results](#measured-results-on-mi
 
 You supply: Azure ND MI300X v5 capacity (two VMs for the PD path, one for the single-VM path), the MiMo-V2.5-Pro checkpoint, and a container host with RDMA access.
 
-Not provided: model weights, the private raw logs behind the projected evidence (their SHA-256 is recorded), comparisons with other accelerators, end-to-end accuracy results for this stack, and any measured NVIDIA run. What each optimization can do to accuracy, and how to check it, is covered in [Which optimizations can change model output](#which-optimizations-can-change-model-output).
+Not provided: model weights, the private raw logs behind the projected evidence (their SHA-256 is recorded), comparisons with other accelerators, accuracy results with the FP8 KV cache on, and any measured NVIDIA run. What each optimization can do to accuracy, and how to check it, is covered in [Which optimizations can change model output](#which-optimizations-can-change-model-output).
 
 ## Measured Results on MI300X
 
@@ -121,7 +123,7 @@ The two runs of each arm agree within 1%, so the difference is far outside run-t
 
 The implied TPOT is `1000 × 16 / tok/s`, not a client-measured latency.
 
-**Boundary.** The two variables were switched together, so the gain belongs to the pair, not to either flag alone. The run is single-VM with prefill and decode in one server; it says nothing about PD deployments. The raw samples are in [`evidence/raw/ab-64k-bs16.json`](evidence/raw/ab-64k-bs16.json) and trace back to the public audit file named there.
+**Boundary.** The two variables were switched together, so the gain belongs to the pair, not to either flag alone. The run is single-VM with prefill and decode in one server; it says nothing about PD deployments. The raw samples are in [`evidence/raw/ab-64k-bs16.json`](evidence/raw/ab-64k-bs16.json) and trace back to the audit file whose SHA-256 is recorded there.
 
 ### Stage pair: shape-tuned fused-MoE table
 
@@ -177,6 +179,44 @@ Throughput reaches its plateau at concurrency 64. Above that, TPOT stays flat wh
 
 **Boundary.** One run per point on the stack before the tuned MoE table. The saturation point moves with context length, KV capacity and `--max-running-requests`, so measure it again for any other configuration.
 
+### How throughput changes with context length
+
+**Question.** On the optimized PD stack, how do prefill speed and the decode batch change as the context grows from 8K to 256K tokens?
+
+**Input.** Two VMs in 1P1D with the image of the optimized stack and `--context-length 262151`. Prefill: random prompts with one output token, 16 requests per point, client concurrency 1 to 8; the 256K points send exact token IDs. Decode: 1,024 output tokens with MTP at a fixed acceptance of 3. The decode batch and the generation rate come from the decode server's scheduler log (`#running-req`), not from the client. The table lists prefill at one request and decode at the highest client concurrency measured for that length.
+
+<!-- BEGIN GENERATED: context-table -->
+| Context | Prefill tok/s<br>1 request | Decode batch<br>(steady / peak) | Decode tok/s<br>total, per request |
+|---|---:|---:|---:|
+| 8K | 16,835 | 51 / 54<br>at 128 in flight | 2,333<br>45.8 |
+| 64K | 18,057 | 4 / 5<br>at 96 in flight | 288<br>71.9 |
+| 128K | 16,390 | 1 / 1<br>at 32 in flight | 138<br>138.2 |
+| 192K | 13,827 | 1 / 1<br>at 16 in flight | 125<br>125.0 |
+| 256K | 12,632 | 1 / 1<br>at 4 in flight | 128<br>127.8 |
+<!-- END GENERATED: context-table -->
+
+Prefill holds between about 12,600 and 18,100 input tokens per second across the whole range, so one 256K prompt is ready in about 21 seconds. Decode behaves differently. At 64K the decode server keeps only 4 to 5 requests running with 96 in flight, and from 128K on it runs one request at a time, even with 32 in flight. Each request still decodes quickly, 125 to 140 tokens per second, but the server's total falls from about 2,300 tokens per second at 8K to about 130. At long context the KV pool, not kernel speed, sets the throughput; see [Sizing the decode batch from KV capacity](#sizing-the-decode-batch-from-kv-capacity).
+
+**Boundary.** The 8K and 64K rows come from one measurement series and the 128K to 256K rows from a second one on the same image; every point is a single run. The 256K prefill point with four requests in flight was rejected after two service lifecycles hit GPU memory-access faults, so no value is reported for it. The 256K decode row uses 261,120 input tokens so that the 1,024 output tokens still fit the context. Decode ran at a fixed MTP acceptance of 3, which is favorable.
+
+### Adding a second prefill replica
+
+**Question.** When prefill is the bottleneck, how much does a second complete TP8 server behind the same router add?
+
+**Input.** Two replicas: two VMs, each running one ordinary TP8 server of the optimized stack (no PD mode), both registered with one `sglang_router` using round-robin; 32 requests per point. One server: the prefill server of the 1P1D deployment in the same measurement series; 16 requests per point. Random prompts with one output token in both. The table compares one and two requests in flight on each.
+
+<!-- BEGIN GENERATED: replicas-table -->
+| Input tokens | One server<br>1 → 2 in flight | Two replicas<br>1 → 2 in flight |
+|---:|---:|---:|
+| 8,192 | 16,835 → 19,618<br>1.17× | 20,752 → 41,202<br>**1.99×** |
+| 65,536 | 18,057 → 19,860<br>1.10× | 19,695 → 38,984<br>**1.98×** |
+| 262,144 | 12,382 → 12,378<br>1.00× | 12,783 → 25,064<br>**1.96×** |
+<!-- END GENERATED: replicas-table -->
+
+One server gains 0% to 17% from a second request in flight, because both requests share the same eight GPUs. Two replicas nearly double, because the second request lands on the idle replica; time to first token stays where it was (3.33 s and 3.35 s at 64K). Going further, to 8 or 16 in flight, adds at most 13% more (8K) and nothing at 64K and 256K.
+
+**Boundary.** This measures prefill capacity with output length 1. The replicas were plain servers and the single-server reference was a PD prefill server, so the two columns differ in serving mode as well as in replica count. It is not a 2P1D result: no decode server and no KV transfer were in the loop. Each point is one run.
+
 ### What is not measured here
 
 Decode graph capture was measured only on the baseline stack, without MTP and the AITER kernels; its share in the optimized stack is not isolated. The FlyDSL paged-attention decode kernel, the vectorized 5D KV layout, page 64 and the head-192 prefill tile are part of the final pinned runtime, but no published Microsoft run isolates them, so this page reports no speed-up for them. Their code changes are explained in [The Three Optimization Layers](#the-three-optimization-layers); measuring them follows the same A/B method on the single-VM profile.
@@ -223,6 +263,7 @@ Start with the overview: one row per technique, with what it did on MI300X and w
 | Technique | What it did on MI300X | Output |
 |---|---|---|
 | [Prefill/decode disaggregation (1P1D) over RDMA](#prefilldecode-disaggregation-1p1d-over-rdma) | on, not isolated | same math |
+| [Prefill replicas behind one router (DP=2)](#prefill-replicas-behind-one-router-dp2) | 8K prefill 1.99× (two replicas) | same math |
 | [Fake prefill for decode-only measurement](#fake-prefill-for-decode-only-measurement) | not used in the published runs | test method only |
 | [Fixed MTP acceptance for performance runs](#fixed-mtp-acceptance-for-performance-runs) | on, not isolated | test method only |
 | [Concurrency ladder against the saturation point](#concurrency-ladder-against-the-saturation-point) | finds the plateau (ladder) | test method only |
@@ -592,6 +633,21 @@ This commit sits on a later branch and is not in the pinned runtime, so no numbe
 
 Prefill is compute-bound and decode is memory-bound, and a long prefill stalls every decode step that shares its GPUs. The PD deployment gives each phase its own TP8 server and moves the KV cache with Mooncake over eight InfiniBand ports. Two operational facts matter more than the flags: the container needs `--privileged`, `/dev/mem` and `CAP_SYS_ADMIN`, otherwise Mooncake silently falls back from RDMA to TCP; and the router must only be started after both servers report ready. The flags are identical on NVIDIA with the `mooncake` or `nixl` transfer backend.
 
+#### Prefill replicas behind one router (DP=2)
+
+<!-- BEGIN GENERATED: card-prefill-replicas -->
+- **Switch on MI300X**: one complete TP8 server per VM, both registered with one `sglang_router`
+- **On NVIDIA**: same router and flags; each replica needs its own full model copy
+- **Code**: no code change (configuration only)
+- **Evidence**: measured: 1 against 2 requests in flight on two replicas
+- **Effect on output**: same math. Each request runs entirely on one replica; nothing is split or approximated.
+<!-- END GENERATED: card-prefill-replicas -->
+
+The router hands each request to one complete TP8 server, so no collective crosses the VMs, and two replicas nearly double prefill once two requests are in flight ([measured](#adding-a-second-prefill-replica)). The price is a full model copy per replica. This is why replication came first here:
+
+- **TP8 per VM** is the stable base: each VM has eight GPUs and the model's eight KV heads map one per GPU.
+- **Expert parallelism** (EP), inside one VM or across VMs, is not part of any configuration measured here. Replication adds prefill capacity without new collectives; EP changes how every MoE layer communicates, so test it as its own A/B, not as a switch.
+
 #### Fake prefill for decode-only measurement
 
 <!-- BEGIN GENERATED: card-fake-prefill -->
@@ -632,24 +688,59 @@ Throughput only means something at a stated load. Sweep client concurrency with 
 
 Random-prompt benchmarks re-tokenize text, so the server-side length can drift. For long-context points, pass token IDs (`--tokenize-prompt`) and account for the model's special tokens: MiMo adds four, so 65,532 supplied IDs give exactly 65,536 server-side tokens. Leave the same headroom in `--context-length`, otherwise the longest point can "succeed" with error payloads, which is why the 256K point above is excluded.
 
+#### Sizing the decode batch from KV capacity
+
+A label such as "batch 16" can mean four different things, and at long context they drift apart:
+
+- **Client concurrency**: how many requests the client keeps in flight (`--max-concurrency`).
+- **Prefill batch**: how many new requests and prompt tokens one prefill step takes, bounded by `--chunked-prefill-size` (one request's chunk), `--max-prefill-tokens` (tokens per step) and `--prefill-max-requests`.
+- **Decode batch**: how many requests generate a token in one decode step; the server logs it as `#running-req`.
+- **Admission limit**: `--max-running-requests`, an upper bound and not a promise.
+
+The decode batch is bounded by the KV pool: the tokens of all running requests (input, generated tokens and reserve) have to fit. For identical requests the batch is at most `floor(KV pool tokens / (input + output tokens))`, and pages, MTP state and reserves make it lower in practice. More client concurrency or a higher `--max-running-requests` cannot push the batch past that bound. Two measurements on these VMs show it:
+
+- With `--mem-fraction-static 0.95` one TP8 VM has a full-attention KV pool of 1,442,464 tokens. Sixteen requests of 64K input and 1K output need 1,064,960 tokens, 74% of the pool, so all sixteen decode together; that is the setup of the [64K A/B](#controlled-ab-block-scale-fp8-gemm-path-at-64k-context).
+- The PD decode server runs at `--mem-fraction-static 0.85` and holds 4 to 5 requests at 64K and one from 128K on ([context table](#how-throughput-changes-with-context-length)).
+
+Size memory and topology for context length × batch before tuning kernels, and report `#running-req` next to client concurrency.
+
 #### Fresh-service repeats
 
-Every accepted A/B arm is run twice on a freshly started server. Agreement within about 1% (see the A/B table) is what allows a 25% difference to be called real; a single run per arm would not.
+Every accepted A/B arm is run twice on a freshly started server. Agreement within about 1% (see the A/B table) is what allows a 25% difference to be called real; a single run per arm would not. For a new context length, test one request first, then several in sequence, then several at once, then a fresh-service repeat; a point that fails on the way is published as rejected, not estimated.
 
 ### Which optimizations can change model output
 
-A throughput gain only counts if the answers stay the same. Every technique above does one of four things to the numbers, and the class decides what has to be checked before it goes to production. The optimized throughput runs had FP8 KV and fixed MTP acceptance on, and the stage-pair runs record INT8 Quick Reduce on; this repository publishes no accuracy result for that configuration.
+A throughput gain only counts if the answers stay the same. Every technique above does one of four things to the numbers, and the class decides what has to be checked before it goes to production. The optimized throughput runs had FP8 KV and fixed MTP acceptance on, and the stage-pair runs record INT8 Quick Reduce on. The [accuracy scores below](#accuracy-measured-on-the-optimized-kernels) come from the same kernels with real MTP acceptance but with the FP8 KV cache off, so no published accuracy result covers FP8 KV.
 
 Each card above ends with the technique's effect on output. Grouped by class:
 
 <!-- BEGIN GENERATED: precision-summary -->
 - **Lossy — check accuracy before production**. Fewer bits somewhere on the data path. Can shift outputs systematically and must be checked with an accuracy benchmark before production. [FP8 KV cache in a vectorized 5D page layout](#fp8-kv-cache-in-a-vectorized-5d-page-layout); [INT8 Quick Reduce for tensor-parallel all-reduce](#int8-quick-reduce-for-tensor-parallel-all-reduce); [Mixed-precision Triton router (MoE gate) GEMM](#mixed-precision-triton-router-moe-gate-gemm)
 - **Output-preserving only if the implementation is correct**. Designed to leave the output distribution unchanged, but only if the implementation is correct; a bug changes outputs without any error message. [Multi-layer EAGLE MTP speculative decoding and verifier fixes](#multi-layer-eagle-mtp-speculative-decoding-and-verifier-fixes)
-- **Same arithmetic, different kernel or layout**. Same arithmetic contract; only kernel, layout or schedule changes. Results can differ in the last bits because the summation order changes, not systematically. [Per-layer attention dispatch for hybrid SWA + GQA](#per-layer-attention-dispatch-for-hybrid-swa--gqa); [AITER unified attention for MTP target verify](#aiter-unified-attention-for-mtp-target-verify); [Chunked prefill, page size and SWA pool sizing](#chunked-prefill-page-size-and-swa-pool-sizing); [Decode graph capture (HIP graphs)](#decode-graph-capture-hip-graphs); [FlyDSL paged-attention decode kernel (head 192, page 64)](#flydsl-paged-attention-decode-kernel-head-192-page-64); [Block-scale FP8 GEMM with pre-shuffled weights](#block-scale-fp8-gemm-with-pre-shuffled-weights); [Shape-tuned fused-MoE kernel table](#shape-tuned-fused-moe-kernel-table); [Head-192, page-64 FP8 batch-prefill tile](#head-192-page-64-fp8-batch-prefill-tile); [Prefill/decode disaggregation (1P1D) over RDMA](#prefilldecode-disaggregation-1p1d-over-rdma)
+- **Same arithmetic, different kernel or layout**. Same arithmetic contract; only kernel, layout or schedule changes. Results can differ in the last bits because the summation order changes, not systematically. [Per-layer attention dispatch for hybrid SWA + GQA](#per-layer-attention-dispatch-for-hybrid-swa--gqa); [AITER unified attention for MTP target verify](#aiter-unified-attention-for-mtp-target-verify); [Chunked prefill, page size and SWA pool sizing](#chunked-prefill-page-size-and-swa-pool-sizing); [Decode graph capture (HIP graphs)](#decode-graph-capture-hip-graphs); [FlyDSL paged-attention decode kernel (head 192, page 64)](#flydsl-paged-attention-decode-kernel-head-192-page-64); [Block-scale FP8 GEMM with pre-shuffled weights](#block-scale-fp8-gemm-with-pre-shuffled-weights); [Shape-tuned fused-MoE kernel table](#shape-tuned-fused-moe-kernel-table); [Head-192, page-64 FP8 batch-prefill tile](#head-192-page-64-fp8-batch-prefill-tile); [Prefill/decode disaggregation (1P1D) over RDMA](#prefilldecode-disaggregation-1p1d-over-rdma); [Prefill replicas behind one router (DP=2)](#prefill-replicas-behind-one-router-dp2)
 - **Benchmark methods — never score their output**. Outputs produced in this mode are not model answers and must never be scored for accuracy. [Fake prefill for decode-only measurement](#fake-prefill-for-decode-only-measurement); [Fixed MTP acceptance for performance runs](#fixed-mtp-acceptance-for-performance-runs); [Concurrency ladder against the saturation point](#concurrency-ladder-against-the-saturation-point)
 <!-- END GENERATED: precision-summary -->
 
 INT8 Quick Reduce deserves a separate warning. None of the launch scripts used in the measured runs sets it: the `rocm/sgl-dev` base image exports `ROCM_QUICK_REDUCE_QUANTIZATION=INT8`, the captured environment of the measured runs shows it (hash in [`evidence/runs.json`](evidence/runs.json)), and every server started from that image inherits it. The profiles in this repository export it explicitly so that the inherited value is visible and can be ablated; the accuracy role of the pinned runtime sets it back to `NONE`. The same base-image ENV mechanism also silently overrode a Dockerfile ARG during the clean build, which is why every pin there carries a `PIN_` prefix.
+
+#### Accuracy measured on the optimized kernels
+
+**Question.** With the optimized kernels and real MTP acceptance, does the model still answer public benchmarks correctly?
+
+**Input.** Two VMs, each running one independent TP8 server (prefill and decode in one server) with the kernels of the optimized stack: AITER attention, the CK block-scale FP8 GEMM, the tuned fused-MoE table (hash-checked before start) and multi-layer EAGLE MTP at the acceptance the draft model actually achieves (the fixed-acceptance variables are unset and checked). FP8 weights, KV cache at the model's default precision (no `--kv-cache-dtype`), page size 1, 1M context. AIME runs at temperature 1.0, top-p 0.95 and up to 65,536 tokens with thinking on; the other five run at temperature 0 and up to 16,384 tokens. Each benchmark was scored on its first questions in their original order, with the number of passes shown. A response that hit the token limit empty counts as wrong.
+
+<!-- BEGIN GENERATED: accuracy-table -->
+| Benchmark | Scored | Accuracy |
+|---|---|---:|
+| AIME24_25 | first 16 questions × 1 pass | **100.00%**<br>16 / 16 |
+| CMMLU | first 128 questions × 3 passes | **89.84%**<br>345 / 384 |
+| MinervaMath | first 1,536 questions × 3 passes | **97.61%**<br>4,498 / 4,608 |
+| MMLU-Pro | first 512 questions × 2 passes | **89.36%**<br>915 / 1,024 |
+| MMLU-Redux | first 512 questions × 3 passes | **96.22%**<br>1,478 / 1,536 |
+| SuperGPQA | first 512 questions × 1 pass | **70.31%**<br>360 / 512 |
+<!-- END GENERATED: accuracy-table -->
+
+**Boundary.** These are absolute scores on subsets (3,216 questions and 8,080 scored responses in total), not an A/B. No run with the optimizations off was scored, so the table shows that the optimized kernels and real-acceptance MTP produce sound answers, not that they change nothing. Two lossy switches are not covered: the FP8 KV cache was off, and the effective Quick Reduce setting was not recorded (the launcher did not set it; the base image exports INT8). The first questions of a benchmark can be easier or harder than the whole set, and 16 AIME questions say little on their own. FP8 KV and Quick Reduce are checked with the procedure below.
 
 **Kernel-level numerical checks.** The upstream commits add tests that compare each MiMo-specific kernel with a PyTorch reference at MiMo's shape (head 192, page 64, FP8 KV, query length 4), including a 2 GiB offset case. They need an MI300X to run and were not run for this repository:
 
@@ -773,6 +864,23 @@ For the single-VM final runtime (FlyDSL decode, page 64, 1M context), use `--pro
 
 Step 2 was replayed in a clean environment: the image builds, the pinned commits are checked out and the runtime imports succeed. That build ran on a CPU-only VM, so steps 3 to 5 (starting servers and benchmarking) were not replayed; they are assembled from the recorded runtime identity and the measured launch scripts.
 
+### Failures that are easy to misread
+
+These are operational observations from bringing this stack up on MI300X, not measurements; only the graph-capture item has a number published here. The first group only makes a run slower while the server keeps working.
+
+- **KV transfer falls back to TCP.** Without `--privileged`, `/dev/mem` and `CAP_SYS_ADMIN` in the container, Mooncake quietly uses TCP instead of RDMA. Tokens stay correct and throughput drops. Make "RDMA initialized" a start-up check.
+- **Graph capture off on the decode server.** With `--disable-cuda-graph` the decode server ran at a third of its throughput in the [baseline A/B](#baseline-to-optimized-stack-the-cumulative-gain) and printed nothing unusual. Diff every launcher against a known-good one before a run.
+- **Two copies of a kernel library in one image.** The same AITER version imported from a different directory behaved differently. Check the import path and the kernel names in the server log, not only the version.
+- **A tuned table that is never hit.** AITER logs `default` for fused-MoE shapes without a tuned row. Check the start-up log for the shapes that matter.
+
+The second group stops or stalls the server, but the cause is easy to misread:
+
+- **Multithreaded weight loading hangs.** On the PD servers, tensor-parallel ranks hung in page-fault handling while loading weights with several threads; `--model-loader-extra-config '{"enable_multithread_load": false}'` fixed it.
+- **Overlap scheduling on the prefill server.** It hit a HIP illegal-address error, so the throughput runs use `--disable-overlap-schedule`.
+- **Health probes that generate tokens.** By default SGLang's `/health` generates a real token (`SGLANG_ENABLE_HEALTH_ENDPOINT_GENERATION`); frequent polling stalled the prefill server's detokenizer. Set it to `0` and poll `/server_info` instead.
+- **A per-step all-gather times out near 200K tokens.** At data-parallel size 1, the existing SGLang switch `SGLANG_SCHEDULER_SKIP_ALL_GATHER=1` avoided it.
+- **Values copied from another GPU's configuration.** A `--chunked-prefill-size` taken over from a different system failed at start-up. Derive such values from this runtime's limits.
+
 ## Tests and Offline Checks
 
 - `python -m unittest discover -s tests -v` — upstream patches match their SHA-256 lock; every projected log parses and matches the manifest; published deltas recompute from absolute values; launch rendering and ablation behave as documented on both platforms; READMEs contain no private or out-of-scope content.
@@ -790,14 +898,14 @@ The same commands run in CI on Ubuntu and Windows with Python 3.10 and 3.12 ([wo
 - `LOCAL_MEASUREMENT`: the A/B and the stage pair each cover one workload shape. Other context lengths, concurrencies and batch compositions were not measured with the same controls.
 - `LOCAL_MEASUREMENT`: throughput was measured with a fixed MTP acceptance of three tokens. Real workloads accept fewer draft tokens on average, so their throughput is lower.
 - `NOT_MEASURED`: the final runtime (FlyDSL decode, vectorized 5D KV, page 64, 1M context) has no Microsoft throughput run published here, and neither does the mixed-precision router GEMM.
-- `NOT_MEASURED`: the accuracy effect of the lossy switches (FP8 KV cache, INT8 Quick Reduce, mixed-precision router) was not measured; the throughput runs had the first two on. The procedure above covers FP8 KV and Quick Reduce; the router change needs its own A/B on a runtime that contains commit `1f9bb2b`.
+- `NOT_MEASURED`: the accuracy effect of the lossy switches (FP8 KV cache, INT8 Quick Reduce, mixed-precision router) was not measured; the throughput runs had the first two on. [Subset accuracy of the optimized kernels](#accuracy-measured-on-the-optimized-kernels) was measured with the FP8 KV cache off. The procedure above covers FP8 KV and Quick Reduce; the router change needs its own A/B on a runtime that contains commit `1f9bb2b`.
 - `NOT_MEASURED`: nothing here was run on NVIDIA GPUs. The CUDA profile is a mapping of upstream switches.
 - `SOURCE_FACT`: the FlyDSL, CK and MTP shape gates in the excerpts limit each kernel to MiMo's shape (16 query heads and 1 KV head per rank, head 192, page 64, gfx942). Another model needs its own validation, not just the flags.
 
 **Assets.**
 
 - [`evidence/runs.json`](evidence/runs.json) — run identities, topology, controlled variables and script hashes.
-- [`evidence/raw/`](evidence/raw/) — projected sources: `sglang.bench_serving` output (workload arguments and result block of every run), the A/B samples from the public audit file, and the baseline client results and summary.
+- [`evidence/raw/`](evidence/raw/) — projected sources: `sglang.bench_serving` output (workload arguments and result block of every run), the A/B samples from the scheduler-log audit, the long-context and replica result tables, the per-response accuracy scores, and the baseline client results and summary.
 - [`evidence/raw-manifest.json`](evidence/raw-manifest.json) — SHA-256 of each private raw log and of its public projection.
 - [`evidence/measurements.json`](evidence/measurements.json) — all comparisons, built by `tools/build_evidence.py`.
 - [`evidence/docker-build.json`](evidence/docker-build.json) — receipt of the clean Docker build: commit, Dockerfile hash, builder, image id and the step lines of the log.
