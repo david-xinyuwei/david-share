@@ -39,7 +39,7 @@
 | 查公开基准上的准确率 | [在优化后的 kernel 上实测的准确率](#在优化后的-kernel-上实测的准确率) |
 | 查某一项优化：开关、代码、证据、对输出的影响 | [三层优化逐项拆解](#三层优化逐项拆解) |
 | 把这套方法用到 NVIDIA GPU 上 | [迁移到 NVIDIA GPU](#迁移到-nvidia-gpu)，以及 `cuda-hopper-pd` profile |
-| 在 MI300X 上重建 runtime、重跑压测 | [客户如何复现](#客户如何复现) |
+| 在你的 MI300X 虚拟机上部署优化后的栈 | [客户如何复现](#客户如何复现) |
 | 不用 GPU 核对已发布的数字 | [测试与离线校验](#测试与离线校验) |
 
 ## 本仓库做了什么、提供什么
@@ -47,7 +47,7 @@
 - **推理引擎与 kernel**——归上游 SGLang、AMD AITER、Composable Kernel、FlyDSL 项目；MiMo 专用的提交是 AMD 工程师在公开 fork 中完成的。这里提供固定的 commit 身份，以及文中讨论的每个 commit 的完整 patch（[`upstream/`](upstream/)）。
 - **优化方法与实测数据**——本仓库。MI300X 优化前后的实测对比，附原始压测输出的公开投影（[`evidence/`](evidence/)）；逐项技术解读和代码摘录；每个数字的适用边界。
 - **启动配置**——本仓库。实测 MI300X 栈的机器可读 profile 和一份 NVIDIA 模板（[`profiles/`](profiles/)），可渲染成启动命令，并支持单项消融（[`tools/render_launch.py`](tools/render_launch.py)）。
-- **Runtime 重建**——本仓库。从公开源码重建固定版本 runtime 的 Dockerfile（[`docker/`](docker/)）。
+- **部署**——本仓库。从公开源码构建固定版本 runtime 的 Dockerfile、把每个服务角色作为独立容器启动的脚本、就绪检查和设置模板（[`docker/`](docker/)）。
 - **校验**——本仓库。离线测试和 CI，从已提交的证据重新算出每个发布的数字。
 
 你需要自备：Azure ND MI300X v5 容量（PD 路线两台，单机路线一台）、MiMo-V2.5-Pro 权重，以及能访问 RDMA 的容器宿主机。
@@ -798,71 +798,147 @@ CUDA profile 只是模板（`TEMPLATE_NOT_MEASURED`）。page size 和 SWA 比�
 
 ## 客户如何复现
 
-离线路径在任何装有 Python 3.10 及以上版本的机器上都能跑；GPU 路径需要 Azure ND MI300X v5 虚拟机。
+用本仓库的 Dockerfile 部署优化后的栈：镜像只构建一次，推到你自己的镜像仓库，每个服务都作为一个独立容器从这个镜像启动。两条路线用同一个镜像。**单机**：一个 TP8 服务，用最终 runtime 的配置。**两台 VM 的 1P1D**：实测吞吐背后的 prefill/decode 拓扑。不用 GPU 核对已发布数字是另一条路径，见[测试与离线校验](#测试与离线校验)。
 
-**1. 获取仓库并核对证据（不需要 GPU）。**
+**1. 检查每台 VM。** Azure ND MI300X v5，已装好 ROCm 驱动和 Docker（含 BuildKit）。
+
+```bash
+rocm-smi --showproductname   # 8 个条目 GPU[0] ... GPU[7]，型号为 MI300X
+ibv_devinfo -l               # 1P1D：8 个 RDMA 设备，mlx5_ib0 ... mlx5_ib7
+show_gids                    # 1P1D：确定 MC_GID_INDEX 用的 GID index（实测 VM 上是 3）
+df -h /mnt/models            # 本地 NVMe 卷上留出权重的空间（约 1 TB）
+docker buildx version
+```
+
+权重从 VM 的本地 NVMe 卷加载：每次启动容器都要把权重完整读一遍。这类 VM 的本地 NVMe 是临时存储，VM deallocate 后数据就没了，所以持久副本要放在别处（例如 Azure Blob Storage），每次分配 VM 后再拷到 NVMe 上。
+
+**2. 在每台 VM 上取得部署文件和模型。** 把模型固定到一个版本，这样每台 VM、以后每次重新部署加载的都是同一批文件。启动参数里有 `--trust-remote-code`，因为模型自带建模代码；请审阅你固定的那个版本里的代码。
 
 ```bash
 git clone --filter=blob:none --sparse https://github.com/david-xinyuwei/david-share.git
-cd david-share
-git sparse-checkout set Deep-Learning/LLM-Inference-Optimization-on-Azure-GPU-VMs
+cd david-share && git sparse-checkout set Deep-Learning/LLM-Inference-Optimization-on-Azure-GPU-VMs
 cd Deep-Learning/LLM-Inference-Optimization-on-Azure-GPU-VMs
-python -m unittest discover -s tests -v
-python tools/build_evidence.py --check
-python tools/build_readme.py --check
+export MODELS=/mnt/models
+export MODEL_REPO=        # 模型在 Hugging Face 上的仓库 id，见其模型卡
+export MODEL_REVISION=    # 你验证过的 commit
+hf download "$MODEL_REPO" --revision "$MODEL_REVISION" --local-dir "$MODELS/MiMo-V2.5-Pro"
+cp docker/mimo.env.example docker/mimo.env
 ```
 
-全部测试通过、两个检查都输出 `PASS` 即完成。
+填好 [`docker/mimo.env`](docker/mimo.env.example)，把同一份文件复制到每台 VM。服务要读取的设置都在里面：镜像 digest（第 3 步得到）、容器内的模型路径；1P1D 还需要两台 VM 的地址、RDMA 设备和 GID index。下面的主机命令用 `set -a; . docker/mimo.env; set +a` 加载它，容器则通过 `--env-file` 读取。
 
-**2. 在每台虚拟机上构建 runtime。** Dockerfile 按 digest 固定基础镜像，并检出最终固定 runtime 的 commit（本仓库没有测它的吞吐；已发布的测试用的是各节里写明的那一版栈）：SGLang `878fff1`，AITER `3f4ab48`（含 Composable Kernel `af7118e` 及其自带 patch），PyPI 上的 FlyDSL `0.2.4`，以及 `c99d5cd` 的 FlyDSL kernel。
+**3. 镜像只构建一次，推到镜像仓库。** 在任意一台装有 BuildKit 的 x86-64 机器上执行，用其中一台 VM 也可以：
 
 ```bash
-docker build -t mimo-mi300x:public docker/
-DATA=/path/with/models bash docker/docker-run.sh
-docker exec -it sglang bash
+export ACR_NAME=          # 你的 Azure Container Registry
+REGISTRY="$ACR_NAME.azurecr.io"
+az acr login --name "$ACR_NAME"
+docker buildx build --platform linux/amd64 --tag "$REGISTRY/mimo-mi300x:$(git rev-parse --short=12 HEAD)" \
+  --metadata-file build-meta.json --push docker/
+DIGEST=$(python3 -c "import json; print(json.load(open('build-meta.json'))['containerimage.digest'])")
+echo "IMAGE=$REGISTRY/mimo-mi300x@$DIGEST"   # 把这一行写进每台 VM 的 docker/mimo.env
 ```
 
-FlyDSL wheel 的哈希、composable_kernel 的 commit 或最后的 import 检查任何一项对不上，构建都会失败。在干净环境里构建成功（BuildKit，基础镜像已缓存时约 6 分钟，镜像 27.9 GB），构建回执见 [`evidence/docker-build.json`](evidence/docker-build.json)。容器需要很大的宿主机权限（`--privileged`、宿主机网络和 IPC、`/dev/kfd`、`/dev/dri`、`/dev/mem`、`CAP_SYS_ADMIN`），因为 RDMA 和 AITER 路径要用到；只在专用的 GPU 虚拟机上运行。第一次启动服务时要编译 AITER JIT 模块，会比之后的启动明显慢。
+然后在每台 VM 上：`set -a; . docker/mimo.env; set +a; docker pull "$IMAGE"`。
 
-**3. 渲染启动命令。** Profile 里所有主机、路径和设备名都是变量：
+[Dockerfile](docker/Dockerfile) 从按 digest 固定的公开基础镜像开始，检出 SGLang `878fff1`、AITER `3f4ab48`（含 Composable Kernel `af7118e` 及其自带 patch），从 PyPI 安装 FlyDSL `0.2.4`，并取 `c99d5cd` 的 FlyDSL kernel；wheel 哈希、CK commit 或最后的 import 检查任何一项对不上，构建都会停止。tag 记录源码 commit；按 digest 运行，保证两台 VM 以及之后每次重启用的都是同一个镜像。基础镜像已缓存时，干净构建约 6 分钟，镜像 27.9 GB。
+
+**4. 渲染启动脚本。** profile 把实测配置转成每个角色一个脚本；主机、路径和设备都保留为变量，由容器从 `docker/mimo.env` 读取。
+
+单机：
 
 ```bash
-export MODEL_PATH=/data/models/MiMo-V2.5-Pro
-export PREFILL_HOST=<prefill 机的 IB 地址> DECODE_HOST=<decode 机的 IB 地址>
-export IB_DEVICES=mlx5_ib0,mlx5_ib1,mlx5_ib2,mlx5_ib3,mlx5_ib4,mlx5_ib5,mlx5_ib6,mlx5_ib7
-export MC_GID_INDEX=3
-python tools/render_launch.py --profile rocm-mi300x-pd --role prefill > prefill.sh   # 在 VM A 上运行
-python tools/render_launch.py --profile rocm-mi300x-pd --role decode  > decode.sh    # 在 VM B 上运行
-python tools/render_launch.py --profile rocm-mi300x-pd --role router  > router.sh    # 在 VM A 上，两个服务就绪后运行
+mkdir -p run
+python3 tools/render_launch.py --profile rocm-mi300x-single --role server > run/server.sh
 ```
 
-先启动 `prefill.sh` 和 `decode.sh`，等两边都能响应 `curl -fsS http://<host>:<port>/health`，再启动 `router.sh`。`MC_GID_INDEX=3` 在实测机器上是对的，你的机器请用 `show_gids` 确认。
-
-**4. 跑压测并验收。**
+1P1D（在每台 VM 上渲染，或渲染一次后复制 `run/`）：
 
 ```bash
-CONCURRENCY=64 bash -c "$(python tools/render_launch.py --profile rocm-mi300x-pd --role bench-decode)" | tee decode_c64.log
-INPUT_LEN=8192 bash -c "$(python tools/render_launch.py --profile rocm-mi300x-pd --role bench-prefill)" | tee prefill_8k.log
-python tools/bench_log.py project decode_c64.log -o my_decode_c64.txt
-python tools/bench_log.py parse my_decode_c64.txt
+mkdir -p run
+python3 tools/render_launch.py --profile rocm-mi300x-pd --role prefill --ablate simulated-acceptance > run/prefill.sh
+python3 tools/render_launch.py --profile rocm-mi300x-pd --role decode --ablate simulated-acceptance > run/decode.sh
+python3 tools/render_launch.py --profile rocm-mi300x-pd --role router > run/router.sh
 ```
 
-`Successful requests` 等于 prompt 数（decode 256，prefill 16），并且服务端日志显示预期路径，即为完成：CK 路径加载了 `module_gemm_a8w8_blockscale_bpreshuffle`，AITER 启动时打印了 `mimo_v2_5_pro_b16_tuned_fmoe.csv`，Mooncake 用的是 RDMA 而不是 TCP。不传 `--dataset-path` 时，`bench_serving` 会下载它用来抽取随机文本的 ShareGPT 文件；离线机器请传本地副本。
+这些是上线服务用的配置，不是压测配置。`--ablate simulated-acceptance` 去掉了测量时用的固定 MTP 接受长度，MTP 只保留模型真正接受的草稿 token。单机的 `server` 角色本来就按实际接受运行，并且关闭了 Quick Reduce。1P1D 脚本保留了和实测一致的 INT8 Quick Reduce；在你的负载上[核对准确率](#哪些优化可能改变模型输出)之前，可以加 `--ablate int8-quick-reduce` 改为全精度求和。
 
-**5. 做 A/B。** 渲染同一个角色、去掉指定技术，只重启这一个服务，然后用完全相同的客户端命令每组跑两次。第一行在 PD profile 上去掉已发布 A/B 改过的两个开关；这只是在 PD 拓扑上的示意性消融，并不是重复那次单机 64K 实验，那次实验的配置记录在 [`evidence/runs.json`](evidence/runs.json)：
+**5. 启动服务。** 单机：
 
 ```bash
-python tools/render_launch.py --profile rocm-mi300x-pd --role decode --ablate ck-a8w8-gemm --ablate unified-verify > decode_baseline.sh
-python tools/render_launch.py --profile rocm-mi300x-pd --role decode --ablate simulated-acceptance > decode_real_acceptance.sh
+set -a; . docker/mimo.env; set +a
+bash docker/run-role.sh server run/server.sh
+bash docker/wait-ready.sh 127.0.0.1 30001 3600 mimo-server
 ```
 
-只要打开了固定 MTP 接受长度，渲染出的命令都会带一段警告；第二行演示如何切回真实接受。
+1P1D：
 
-单机的最终 runtime（FlyDSL decode、page 64、1M 上下文）请用 `--profile rocm-mi300x-single`，角色有 `decode`（fake prefill）、`server`（真实接受，用于准确率）和 `bench-decode`；设 `INPUT_IDS=65532` 可以得到服务端正好 64K 的输入。
+```bash
+set -a; . docker/mimo.env; set +a
+bash docker/run-role.sh prefill run/prefill.sh                         # 在 VM A 上
+bash docker/run-role.sh decode run/decode.sh                           # 在 VM B 上
+bash docker/wait-ready.sh "$PREFILL_HOST" 30000 3600 mimo-prefill      # 在 VM A 上
+bash docker/wait-ready.sh "$DECODE_HOST" 30001 3600                    # 在 VM A 上
+bash docker/run-role.sh router run/router.sh                           # 在 VM A 上，两个都打印 READY 之后再启动
+```
 
-**6. 停止。** 在每台机器上执行 `docker rm -f sglang`。用完后请释放（deallocate）虚拟机；只在系统里关机，计算资源仍然计费。
+[`docker/run-role.sh`](docker/run-role.sh) 把每个角色启动为一个有名字的容器（`mimo-server`、`mimo-prefill`、`mimo-decode`、`mimo-router`），容器的主进程就是服务本身：失败时最多自动重启 3 次，日志自动轮转，模型只读挂载，设置从 env 文件读取。只有 GPU 角色才拿到 RDMA 和 AITER 需要的宿主机权限（`--privileged`、宿主机 IPC、`/dev/kfd`、`/dev/dri`、`/dev/mem`、`CAP_SYS_ADMIN`），所以只在专用的 GPU 虚拟机上运行。[`docker/wait-ready.sh`](docker/wait-ready.sh) 轮询不会生成 token 的 `/server_info`，打印服务报告的 KV 容量；如果指定的容器已经退出，就提前结束等待。容器第一次启动时要编译 AITER JIT kernel 并加载权重，需要几十分钟。
 
-第 2 步已在干净环境中重放：镜像能构建，固定的 commit 都检出正确，runtime 的 import 都能通过。那次构建是在没有 GPU 的虚拟机上做的，所以第 3 到第 5 步（启动服务和压测）没有重放，它们是根据记录下来的 runtime 身份和实测启动脚本整理的。
+所有容器都用宿主机网络，服务监听所有网卡。30000 和 30001 端口只放行两台 VM 私网地址之间的访问；40000 端口同样不要对外开放，VM 之外的客户端需要访问时，在前面加一个带认证的网关。
+
+**6. 确认优化已生效，再发一个请求。** 单机：
+
+```bash
+docker logs mimo-server 2>&1 | grep -m1 module_gemm_a8w8_blockscale_bpreshuffle   # CK block-scale GEMM
+docker logs mimo-server 2>&1 | grep -m1 mimo_v2_5_pro_b16_tuned_fmoe              # 调优 fused-MoE 表
+curl -s --retry 30 --retry-connrefused --retry-delay 10 http://127.0.0.1:30001/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{"model": "default", "messages": [{"role": "user", "content": "What is 17 * 23? Reply with the number."}], "max_tokens": 1024, "temperature": 0}'
+```
+
+1P1D：prefill 服务的检查和请求在 VM A 上执行，decode 服务的检查在 VM B 上执行。
+
+```bash
+docker logs mimo-decode 2>&1 | grep -m1 module_gemm_a8w8_blockscale_bpreshuffle   # CK block-scale GEMM
+docker logs mimo-prefill 2>&1 | grep -m1 mimo_v2_5_pro_b16_tuned_fmoe             # 调优 fused-MoE 表
+docker logs mimo-prefill 2>&1 | grep -i mooncake | grep -m3 mlx5_ib                # 正在使用的 RDMA 设备
+docker logs mimo-prefill 2>&1 | grep -i mooncake | grep -i -m3 tcp                 # 应当没有输出
+curl -s --retry 30 --retry-connrefused --retry-delay 10 http://127.0.0.1:40000/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{"model": "default", "messages": [{"role": "user", "content": "What is 17 * 23? Reply with the number."}], "max_tokens": 1024, "temperature": 0}'
+```
+
+每项检查都输出注释里说的内容，并且回复中 `choices[0].message.content` 含有 `391`、`finish_reason` 为 `stop`，即为完成。
+
+**7. 日常运维。**
+
+- **日志：** `docker logs -f mimo-decode`。
+- **重启：** `docker restart mimo-decode` 会保留容器里已编译好的 AITER kernel；`docker rm` 会把它们丢掉，下次启动要重新编译。
+- **崩溃、卡死和重启机器：** 服务崩溃后容器会自动重启，最多 3 次。VM 或 Docker 重启后容器不会自动拉起，卡死的服务也不会被重启。无人值守运行时，用 systemd 或带就绪检查的编排工具来执行第 5 步的命令。
+- **升级或回滚：** 构建并推送新镜像（第 3 步），更新 `docker/mimo.env` 里的 `IMAGE`。在每台 VM 上用 `docker rm -f` 删掉各角色容器，再重复第 5 步：先启动服务，最后启动路由。回滚就是换回之前的 digest。只有一组服务时，这就是一次停机维护：进行中的请求会失败，新容器就绪之前服务暂停。要避免停机，就用新 digest 再起一组服务，检查通过后再切换路由。
+- **停止：** 在 VM A 上 `docker rm -f mimo-router mimo-prefill`，在 VM B 上 `docker rm -f mimo-decode`；单机则是 `docker rm -f mimo-server`。之后把 VM deallocate（`az vm deallocate`）；只在 VM 内部关机，计算资源仍会计费。deallocate 也会清空本地 NVMe，下次分配 VM 后要从第 1 步的拷贝开始。
+
+**复现页面上的数字。** 本页的吞吐是在 MTP 固定接受长度 3 的条件下测的。要和它比较，渲染 prefill 和 decode 时不要加 `--ablate simulated-acceptance`，重启这两个容器，然后在 VM A 上把压测客户端作为一次性容器运行：
+
+```bash
+python3 tools/render_launch.py --profile rocm-mi300x-pd --role bench-decode > run/bench-decode.sh
+python3 tools/render_launch.py --profile rocm-mi300x-pd --role bench-prefill > run/bench-prefill.sh
+CONCURRENCY=64 bash docker/run-role.sh bench run/bench-decode.sh | tee decode_c64.log
+INPUT_LEN=8192 bash docker/run-role.sh bench run/bench-prefill.sh | tee prefill_8k.log
+python3 tools/bench_log.py project decode_c64.log -o my_decode_c64.txt
+python3 tools/bench_log.py parse my_decode_c64.txt
+```
+
+`Successful requests` 等于 prompt 数量（decode 256、prefill 16）即为完成。不加 `--dataset-path` 时，`bench_serving` 会下载它用来采样文本的 ShareGPT 文件，离线主机需要准备本地副本。这套配置只用于测量。
+
+**测量一项改动。** 渲染同一个角色、去掉一项技术，只替换这一个容器，每组用完全相同的客户端命令跑两次。下面的例子在 1P1D 的 decode 服务上去掉已发布 A/B 的两个开关；它只是演示方法，并没有重复 [`evidence/runs.json`](evidence/runs.json) 里记录的单机 64K 实验：
+
+```bash
+python3 tools/render_launch.py --profile rocm-mi300x-pd --role decode --ablate ck-a8w8-gemm --ablate unified-verify > run/decode-baseline.sh
+docker rm -f mimo-decode && bash docker/run-role.sh decode run/decode-baseline.sh
+```
+
+**哪些步骤实际跑过。** 在一台只有 CPU、装有 Docker 的虚拟机上跑过：第 3 步的镜像构建（干净环境，用 `--metadata-file` 和 `--load` 代替 `--push`，见 [`evidence/docker-build.json`](evidence/docker-build.json) 和 [`evidence/deploy-check.json`](evidence/deploy-check.json)）；用 `run-role.sh` 从渲染出的脚本启动路由角色，路由就是容器的主进程，`docker stop` 0.5 秒返回；`wait-ready.sh` 对一个模拟的 `/server_info` 的检查；以及压测角色的变量传递和只读模型挂载。还没有跑过：推送镜像和按 digest 拉取、GPU 角色（server、prefill、decode），以及第 6 步的检查和请求。这些步骤依据的是记录下来的启动配置。另外，这个 Dockerfile 构建的 runtime 比实测吞吐所用的栈更新，各测量小节都写明了所用的栈。
 
 ### 容易误判的故障
 
@@ -883,13 +959,23 @@ python tools/render_launch.py --profile rocm-mi300x-pd --role decode --ablate si
 
 ## 测试与离线校验
 
-- `python -m unittest discover -s tests -v`——上游 patch 与 SHA-256 锁一致；每份日志投影都能解析且与清单一致；发布的变化率能从绝对值重算；启动命令渲染和消融在两个平台上都符合文档；README 不含私有内容或超出范围的比较。
+在任何装有 Python 3.10 及以上版本的机器上都能核对已发布的数字，不需要 GPU；在上一节第 2 步克隆的目录里执行：
+
+```bash
+python -m unittest discover -s tests -v
+python tools/build_evidence.py --check
+python tools/build_readme.py --check
+```
+
+全部测试通过、两个检查都输出 `PASS` 即为完成。每项检查覆盖的范围：
+
+- `python -m unittest discover -s tests -v`——上游 patch 与 SHA-256 锁一致；每份日志投影都能解析且与清单一致；发布的变化率能从绝对值重算；启动命令渲染和消融在两个平台上都符合文档；容器启动脚本为每个角色生成预期的 `docker run`，就绪检查只接受 JSON（这两项在 Linux 和 macOS 上运行）；README 不含私有内容或超出范围的比较。
 - `python tools/build_evidence.py --check`——`evidence/measurements.json` 与从 `evidence/raw/`、`evidence/runs.json` 重新构建的结果完全一致。
 - `python tools/build_readme.py --check`——两份 README 里每张生成的表、列表和每段代码摘录，都与从证据和固定 patch 重新渲染的结果一致。
 - `python tools/draw_diagrams.py --check`——已提交的 PNG 的 SHA-256 与 `images/SOURCES.json` 记录一致。
 - `python tools/check_repo.py`——链接和图片都能解析，标题顺序符合读者动线，每张表最多四列，中英文生成块里的数字一致，没有私有路径、主机名或超出范围的比较。
 
-CI 在 Ubuntu 和 Windows、Python 3.10 与 3.12 上运行同一组命令（[workflow](../../.github/workflows/llm-inference-optimization-ci.yml)）。这些检查都不会启动 GPU 或服务：它们证明的是「已发布的数字确实来自已提交的证据」，而不是「重新跑一遍能得到同样的结果」。上一节的 GPU 路径才是唯一的重新执行途径。
+CI 在 Ubuntu 和 Windows、Python 3.10 与 3.12 上运行同一组命令（[workflow](../../.github/workflows/llm-inference-optimization-ci.yml)）。这些检查都不会启动 GPU 或服务：它们证明的是「已发布的数字确实来自已提交的证据」，而不是「重新跑一遍能得到同样的结果」。上一节的部署才是真正把这套栈跑起来的途径。
 
 ## 边界、目录与资料
 
@@ -909,11 +995,12 @@ CI 在 Ubuntu 和 Windows、Python 3.10 与 3.12 上运行同一组命令（[wor
 - [`evidence/raw-manifest.json`](evidence/raw-manifest.json)——每份私有原始日志及其公开投影的 SHA-256。
 - [`evidence/measurements.json`](evidence/measurements.json)——全部对比结果，由 `tools/build_evidence.py` 生成。
 - [`evidence/docker-build.json`](evidence/docker-build.json)——干净 Docker 构建的回执：commit、Dockerfile 哈希、构建器、镜像 id 以及日志里的各步记录。
+- [`evidence/deploy-check.json`](evidence/deploy-check.json)——在只有 CPU 的虚拟机上做的容器检查回执：跑了哪些部署步骤、观察到什么、哪些没跑，以及被测脚本的哈希。
 - [`upstream/`](upstream/)——文中讨论的每个 commit 的完整 patch，以及 `SOURCES.lock.json`（哈希、许可证、所属层、是否在固定 runtime 中）。
 - [`profiles/`](profiles/)——技术目录、实测的 MI300X profile 和 NVIDIA 模板。
 - [`tools/`](tools/)——日志投影与解析、证据和 README 生成器、启动命令渲染、画图、公开内容审计。
 - [`tests/`](tests/)——离线测试。
-- [`docker/`](docker/)——从公开源码重建 runtime 以及启动容器的脚本。
+- [`docker/`](docker/)——Dockerfile、按角色启动容器的脚本、就绪检查和设置模板。
 - [`images/`](images/)——示意图及其哈希台账。
 
 **上游提交。**

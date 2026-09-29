@@ -102,7 +102,7 @@ class LaunchTests(unittest.TestCase):
     def test_profiles_keep_hosts_and_paths_as_variables(self):
         for path in (ROOT / "profiles").glob("*.json"):
             text = path.read_text(encoding="utf-8")
-            self.assertNotRegex(text, r"\b(?!0\.0\.0\.0)(?:\d{1,3}\.){3}\d{1,3}\b", path.name)
+            self.assertNotRegex(text, r"\b(?!0\.0\.0\.0\b)(?!127\.0\.0\.1\b)(?:\d{1,3}\.){3}\d{1,3}\b", path.name)
             self.assertNotRegex(text, r"\"/(?:data|home|root)/", path.name)
 
 

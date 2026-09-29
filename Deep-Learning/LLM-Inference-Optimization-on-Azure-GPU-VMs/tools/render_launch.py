@@ -10,7 +10,8 @@ A profile is a JSON file in profiles/. Each role has a base command; each
 technique adds environment variables and arguments to the roles it touches.
 `--ablate <technique>` removes exactly that technique's contribution (and adds
 its `ablate_env` and `ablate_args`, if any), which is how a single-variable A/B is set up. The
-script only prints a bash snippet; it never starts a process.
+script only prints a bash snippet; it never starts a process. The snippet ends in
+`exec`, so it can be a container's main process (see docker/run-role.sh).
 """
 from __future__ import annotations
 
@@ -112,7 +113,8 @@ def render(profile: dict, role: str, ablate: list[str]) -> str:
         else:
             body.append(tok)
             i += 1
-    lines.append(head + " \\")
+    # exec: the server replaces the shell, so a container stop signal reaches it directly.
+    lines.append("exec " + head + " \\")
     for n, item in enumerate(body):
         lines.append("  " + item + (" \\" if n < len(body) - 1 else ""))
     return "\n".join(lines) + "\n"

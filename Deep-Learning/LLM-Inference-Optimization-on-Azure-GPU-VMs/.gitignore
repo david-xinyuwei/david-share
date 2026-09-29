@@ -6,3 +6,7 @@ __pycache__/
 .idea/
 *.log
 !tests/fixtures/*.log
+# local deployment files (see README, Reproduce)
+docker/mimo.env
+run/
+build-meta.json

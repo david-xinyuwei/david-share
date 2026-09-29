@@ -97,7 +97,7 @@
         "--model",
         "${MODEL_PATH}",
         "--host",
-        "0.0.0.0",
+        "127.0.0.1",
         "--port",
         "30001",
         "--dataset-name",

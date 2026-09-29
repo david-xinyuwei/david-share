@@ -1,0 +1,76 @@
+{
+  "schema": 1,
+  "kind": "container-wiring-check",
+  "host": "CPU-only Azure VM with Docker and BuildKit; no GPU devices, so no GPU role was started",
+  "build": {
+    "command": "docker buildx build --platform linux/amd64 --tag mimo-mi300x:deploytest --metadata-file build-meta.json --load docker/",
+    "result": "PASS",
+    "final_step_line": "runtime imports ok",
+    "metadata_keys": [
+      "buildx.build.provenance",
+      "buildx.build.ref",
+      "containerimage.descriptor",
+      "containerimage.digest",
+      "image.name"
+    ],
+    "image_id": "sha256:de9ef6128438183048aca7e9fd12ff76744a0138b18a659f27c4c7b025500779",
+    "image_bytes": 27899790962,
+    "packages_checked": [
+      "sglang_router importable",
+      "curl present"
+    ]
+  },
+  "scripts_sha256": {
+    "docker/run-role.sh": "3822960d354ab078024c32444dce1cbf357ee98361ea94dc7dedc082f628ca2d",
+    "docker/wait-ready.sh": "87679cf811a59bbc4d107a49602ff13b430f69f9fe2c4c55de6eb6f0c2877966",
+    "docker/mimo.env.example": "1f332d519f7878c05f7077c226a1efaf4d2b5dd7bfd14a081e6cc9892aad7c95",
+    "tools/render_launch.py": "a5aeb3ad73709820c4ec2d725ca8d6590737b3aa1ef4d544acb6ff076aae2968"
+  },
+  "checks": [
+    {
+      "check": "settings file loaded by the host shell (set -a; . docker/mimo.env) and by run-role.sh",
+      "result": "PASS",
+      "observed": "IMAGE and IB_DEVICES set in the shell; run-role.sh took IMAGE from the file when the variable was unset"
+    },
+    {
+      "check": "router role via run-role.sh with the rendered router script",
+      "result": "PASS",
+      "observed": "container Up; log 'Starting router on 0.0.0.0:40000 | mode: PrefillDecode'; the rendered script execs the router"
+    },
+    {
+      "check": "container settings",
+      "result": "PASS",
+      "observed": "restart policy on-failure:3; privileged=false for the router; log options max-size 200m, max-file 5"
+    },
+    {
+      "check": "docker stop reaches the server",
+      "result": "PASS",
+      "observed": "docker stop returned in 542 ms"
+    },
+    {
+      "check": "wait-ready.sh against a /server_info stub that answers after 20 s",
+      "result": "PASS",
+      "observed": "READY 127.0.0.1:39999 max_total_num_tokens=1442464, exit 0"
+    },
+    {
+      "check": "wait-ready.sh with a named container that has exited",
+      "result": "PASS",
+      "observed": "FAILED mimo-deadprobe is exited, last log line printed, exit 1, without waiting for the timeout"
+    },
+    {
+      "check": "bench role: variable pass-through and read-only model mount",
+      "result": "PASS",
+      "observed": "CONCURRENCY and MODEL_PATH visible in the container; writing to /models failed with Read-only file system"
+    },
+    {
+      "check": "tests/test_deploy.py on Linux, including the fake-docker argv test and the wait-ready JSON test",
+      "result": "PASS",
+      "observed": "10 tests OK"
+    }
+  ],
+  "not_run": [
+    "server, prefill and decode roles (need MI300X GPUs, /dev/kfd and RDMA devices)",
+    "push to a registry and pull by digest",
+    "the smoke request and the log checks of step 6"
+  ]
+}
