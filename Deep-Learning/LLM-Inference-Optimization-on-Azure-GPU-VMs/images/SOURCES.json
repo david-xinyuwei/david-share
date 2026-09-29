@@ -2,26 +2,6 @@
   "schema": 1,
   "images": [
     {
-      "file": "cumulative-gain-en.png",
-      "language": "en",
-      "kind": "original chart",
-      "generator": "tools/draw_diagrams.py",
-      "sha256": "334d14b887c08d48e4269025cb4b08b8750f6edb3042c1a27af153377d521dcc",
-      "shows": "measured MI300X-to-MI300X gain factors from evidence/measurements.json (cumulative section)",
-      "does_not_show": "any other accelerator, production throughput or accuracy",
-      "data_sha256": "8d7e5d6017589d08d37386dd1f7f2a3c05525261a35f1fa5bc252f36690e25c3"
-    },
-    {
-      "file": "cumulative-gain-cn.png",
-      "language": "cn",
-      "kind": "original chart",
-      "generator": "tools/draw_diagrams.py",
-      "sha256": "93664826de2cc0738ee8358c772a4d597a5a6247044cbbafed062d717eaf3328",
-      "shows": "measured MI300X-to-MI300X gain factors from evidence/measurements.json (cumulative section)",
-      "does_not_show": "any other accelerator, production throughput or accuracy",
-      "data_sha256": "8d7e5d6017589d08d37386dd1f7f2a3c05525261a35f1fa5bc252f36690e25c3"
-    },
-    {
       "file": "architecture-en.png",
       "language": "en",
       "kind": "original diagram",

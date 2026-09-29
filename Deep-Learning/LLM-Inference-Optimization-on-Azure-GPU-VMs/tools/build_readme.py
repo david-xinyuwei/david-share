@@ -238,29 +238,20 @@ def cumulative_decode(lang: str) -> str:
 
 def glance(lang: str) -> str:
     m = _json("evidence/measurements.json")
-    cu, ab, st = m["cumulative"], m["ab_ck_unified_verify_64k"], m["tuned_moe_stage"]
-    pre = {r["input_tokens"]: r for r in cu["prefill"]}
-    d64 = next(r for r in cu["decode"] if r["concurrency"] == 64)
+    ab, st = m["ab_ck_unified_verify_64k"], m["tuned_moe_stage"]
     p8 = next(r for r in st["prefill"] if r["input_tokens"] == 8192)
-    g = cu["graph_capture"]
     if lang == "en":
         return "\n".join([
-            f"- From the baseline stack to the optimized stack: **128K prefill {_x(pre[131072]['factor'])} faster** on 8 GPUs; "
-            f"**decode time per token {_n(d64['early_mean_tpot_ms'])} → {_n(d64['fixed_mean_tpot_ms'])} ms ({_x(d64['fixed_tpot_factor'])} lower)** "
-            f"at 64 in flight with MTP at a fixed acceptance of 3 ({_n(d64['real_mean_tpot_ms'])} ms, {_x(d64['real_tpot_factor'])} lower, in a reference run with actual acceptance).",
-            f"- **{_x(g['output_tok_s_factor'])} decode throughput** from one switch on the baseline stack: letting the decode server replay HIP graphs.",
-            f"- At 64K context, decode **{_pct(ab['throughput_delta_pct'])}** from the block-scale FP8 GEMM and unified-verify switches (in-session A/B); "
-            f"8K prefill **{_pct(p8['input_tok_s_delta_pct'])}** from a shape-tuned fused-MoE table.",
-            "- The factors do not multiply: each compares a different pair of runs. No performance number compares MI300X with another accelerator.",
+            f"- Single optimizations on an otherwise fixed stack: decode at 64K context **{_pct(ab['throughput_delta_pct'])}** from the block-scale FP8 GEMM "
+            f"and unified-verify switches (in-session A/B); 8K prefill **{_pct(p8['input_tok_s_delta_pct'])}** from a shape-tuned fused-MoE table "
+            "([details](#what-single-optimizations-added)).",
+            "- The factors do not multiply: each row compares a different pair of runs. Workload and topology of every row are in "
+            "[Baseline to optimized stack](#baseline-to-optimized-stack-the-cumulative-gain). No performance number compares MI300X with another accelerator.",
         ]) + "\n"
     return "\n".join([
-        f"- 从基线栈到优化后的栈：**128K prefill 提速 {_x(pre[131072]['factor'])}**（8 张 GPU）；"
-        f"**decode 每 token 耗时 {_n(d64['early_mean_tpot_ms'])} → {_n(d64['fixed_mean_tpot_ms'])} ms（缩短 {_x(d64['fixed_tpot_factor'])}）**，"
-        f"64 路并发、MTP 固定接受长度 3（按实际接受的参考运行为 {_n(d64['real_mean_tpot_ms'])} ms，缩短 {_x(d64['real_tpot_factor'])}）。",
-        f"- 基线栈上一个开关带来 **{_x(g['output_tok_s_factor'])} decode 吞吐**：让 decode 服务重放 HIP graph。",
-        f"- block-scale FP8 GEMM 与 unified verify 两个开关让 64K 上下文 decode **{_pct(ab['throughput_delta_pct'])}**（同一会话 A/B）；"
-        f"按 shape 调优的 fused-MoE 表让 8K prefill **{_pct(p8['input_tok_s_delta_pct'])}**。",
-        "- 这些倍数不能相乘：每个倍数比较的是不同的一对运行。本页没有任何性能数字拿 MI300X 和其他加速器比较。",
+        f"- 在其余不变的栈上单独改一项：block-scale FP8 GEMM 与 unified verify 两个开关让 64K 上下文 decode **{_pct(ab['throughput_delta_pct'])}**（同一会话 A/B）；"
+        f"按 shape 调优的 fused-MoE 表让 8K prefill **{_pct(p8['input_tok_s_delta_pct'])}**（[详情](#单项优化各自带来多少)）。",
+        "- 这些倍数不能相乘：每一行比较的是不同的一对运行。每一行的负载和拓扑见[从基线栈到优化后](#从基线栈到优化后累计提升)。本页没有任何性能数字拿 MI300X 和其他加速器比较。",
     ]) + "\n"
 
 

@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
-"""Draw the cumulative-gain chart and the architecture and test-topology diagrams (English and Chinese).
+"""Draw the architecture and test-topology diagrams (English and Chinese).
 
     python tools/draw_diagrams.py            # write images/*.png and images/SOURCES.json
-    python tools/draw_diagrams.py --check    # verify committed images and chart data against the ledger
+    python tools/draw_diagrams.py --check    # verify committed images against the ledger
 
-The chart is drawn from the `cumulative` section of evidence/measurements.json;
-the ledger records a hash of that section, so a chart that no longer matches
-the evidence fails the check.
+Measured numbers are shown as generated README tables, not as images.
 
 Chinese figures need a CJK font (Microsoft YaHei, SimHei, Noto Sans CJK or
 Source Han Sans). The generator fails instead of falling back to a font that
@@ -153,61 +151,7 @@ def topology(lang: str, out: Path) -> None:
     plt.close(fig)
 
 
-CHART_TEXT = {
-    "en": {
-        "title": "Measured gain factors on MI300X (MI300X against itself)",
-        "x": "factor: after ÷ before for throughput, before ÷ after for time per token",
-        "rows": ["A/B on the baseline stack:\ndecode graph capture", "Baseline → optimized:\n128K prefill, 1 request", "Baseline → optimized: decode time\nper token, 64 in flight, fixed MTP 3",
-                 "Baseline → optimized: decode time\nper token, 64 in flight, actual MTP", "Baseline → optimized:\n64K prefill, 4 in flight", "Baseline → optimized:\n8K prefill, 4 in flight"],
-        "note": "Same model on Azure ND MI300X v5. Bars do not multiply: each compares a different pair of runs. Workload and topology notes are in the README.",
-    },
-    "cn": {
-        "title": "MI300X 上实测的提升倍数（MI300X 自己和自己比）",
-        "x": "倍数：吞吐为 后 ÷ 前，每 token 耗时为 前 ÷ 后",
-        "rows": ["基线栈上的 A/B：\ndecode 图捕获", "基线栈 → 优化后：\n128K prefill，1 个请求", "基线栈 → 优化后：decode 每 token\n耗时，64 路并发，MTP 固定 3",
-                 "基线栈 → 优化后：decode 每 token\n耗时，64 路并发，MTP 按实际接受", "基线栈 → 优化后：\n64K prefill，4 路并发", "基线栈 → 优化后：\n8K prefill，4 路并发"],
-        "note": "同一模型，Azure ND MI300X v5。各柱不能相乘：每根柱比较的是不同的一对运行。负载与拓扑说明见 README。",
-    },
-}
-
-
-def _chart_data() -> tuple[list[float], str]:
-    cu = json.loads((ROOT / "evidence" / "measurements.json").read_text(encoding="utf-8"))["cumulative"]
-    pre = {r["input_tokens"]: r for r in cu["prefill"]}
-    d64 = next(r for r in cu["decode"] if r["concurrency"] == 64)
-    values = [cu["graph_capture"]["output_tok_s_factor"], pre[131072]["factor"], d64["fixed_tpot_factor"],
-              d64["real_tpot_factor"], pre[65536]["factor"], pre[8192]["factor"]]
-    digest = hashlib.sha256(json.dumps(cu, sort_keys=True).encode("utf-8")).hexdigest()
-    return values, digest
-
-
-def gain_chart(lang: str, out: Path) -> None:
-    plt = _setup(lang)
-    t = CHART_TEXT[lang]
-    values, _ = _chart_data()
-    fig = plt.figure(figsize=(12, 5.6), dpi=100)
-    ax = fig.add_axes([0.3, 0.16, 0.66, 0.72])
-    ys = list(range(len(values)))[::-1]
-    colors = ["#1F77B4" if v >= 2 else "#7FB3E0" for v in values]
-    ax.barh(ys, values, color=colors, height=0.62)
-    ax.axvline(1.0, color="#444444", lw=1)
-    for y, v in zip(ys, values):
-        ax.text(v + 0.04, y, f"{v:.2f}×", va="center", fontsize=12, fontweight="bold")
-    ax.set_yticks(ys)
-    ax.set_yticklabels(t["rows"], fontsize=11)
-    ax.set_xlim(0, max(values) * 1.18)
-    ax.set_xlabel(t["x"], fontsize=11)
-    for side in ("top", "right"):
-        ax.spines[side].set_visible(False)
-    fig.text(0.5, 0.94, t["title"], ha="center", fontsize=15, fontweight="bold")
-    fig.text(0.5, 0.04, t["note"], ha="center", fontsize=9.5, color="#333333")
-    fig.savefig(out, dpi=100, metadata={"Software": None})
-    plt.close(fig)
-
-
 FIGURES = {
-    "cumulative-gain-en.png": (gain_chart, "en"),
-    "cumulative-gain-cn.png": (gain_chart, "cn"),
     "architecture-en.png": (architecture, "en"),
     "architecture-cn.png": (architecture, "cn"),
     "test-topology-en.png": (topology, "en"),
@@ -228,10 +172,6 @@ def main(argv: list[str] | None = None) -> int:
                 bad.append(item["file"])
         if set(i["file"] for i in ledger["images"]) != set(FIGURES):
             bad.append("ledger/figure list mismatch")
-        _, digest = _chart_data()
-        for item in ledger["images"]:
-            if item["file"].startswith("cumulative-gain") and item.get("data_sha256") != digest:
-                bad.append(f"{item['file']} (chart data changed; rerun tools/draw_diagrams.py)")
         if bad:
             print("IMAGE_LEDGER_MISMATCH " + ", ".join(bad))
             return 1
@@ -249,10 +189,6 @@ def main(argv: list[str] | None = None) -> int:
             "shows": "architecture of the three optimization layers" if name.startswith("architecture") else "measured 1P1D test topology and measurement points",
             "does_not_show": "measured traffic, latency or production readiness",
         }
-        if name.startswith("cumulative-gain"):
-            item.update({"kind": "original chart", "data_sha256": _chart_data()[1],
-                         "shows": "measured MI300X-to-MI300X gain factors from evidence/measurements.json (cumulative section)",
-                         "does_not_show": "any other accelerator, production throughput or accuracy"})
         items.append(item)
     LEDGER.write_text(json.dumps({"schema": 1, "images": items}, indent=2, ensure_ascii=False) + "\n",
                       encoding="utf-8", newline="\n")

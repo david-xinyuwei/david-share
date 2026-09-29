@@ -7,13 +7,22 @@
 
 **同样的 GPU，一个支持 1M 上下文的 MoE 模型到底能提速多少？提速又落在哪一层？** 本仓库以 Azure ND MI300X v5 虚拟机上的 MiMo-V2.5-Pro 为例（384 个路由专家、滑动窗口与 GQA 混合注意力、3 层 MTP），把推理链路上用到的全部优化手段逐项讲清楚。这些手段分属三层：推理框架层、算子层、负载与部署层。每一项都给出打开它的开关、固定 commit 里真实的代码改动（有代码改动的话）、它对模型输出的影响；实测过的项目还给出它让 MI300X 相对 MI300X 自己快了多少。
 
-<img src="images/cumulative-gain-cn.png" width="900" alt="MI300X 从基线栈到优化后的提升倍数：decode 图捕获 3.11 倍，128K prefill 2.37 倍，decode 每 token 耗时在固定 MTP 接受长度下 2.70 倍、按实际接受 1.53 倍，64K prefill 1.37 倍，8K prefill 1.25 倍">
+优化后的栈比基线栈快多少（都在 MI300X 上实测，MI300X 自己和自己比）：
+
+<!-- BEGIN GENERATED: cumulative -->
+| MI300X 上实测 | 优化前 → 后 | 倍数 |
+|---|---|---:|
+| Decode 图捕获，单开关<br>16K/1K，16 路并发，基线栈 | 107.4 → 334.0 tok/s | **3.11×** |
+| 128K prefill，1 个请求，8 张 GPU<br>单机 → 1P1D 的 prefill 服务 | 6,915 → 16,390 tok/s | **2.37×** |
+| Decode 每 token 耗时，64 路并发<br>MTP 固定接受长度 3，越低越好 | 45.86 → 17.00 ms | **2.70×** |
+| Decode 每 token 耗时，64 路并发<br>MTP 按实际接受，越低越好 | 45.86 → 30.07 ms | **1.53×** |
+| 64K prefill，4 路并发<br>基线栈 prompt 平均 60,610 token | 13,919 → 19,023 tok/s | **1.37×** |
+| 8K prefill，4 路并发<br>基线栈 prompt 平均 7,792 token | 16,644 → 20,781 tok/s | **1.25×** |
+<!-- END GENERATED: cumulative -->
 
 <!-- BEGIN GENERATED: glance -->
-- 从基线栈到优化后的栈：**128K prefill 提速 2.37×**（8 张 GPU）；**decode 每 token 耗时 45.86 → 17.00 ms（缩短 2.70×）**，64 路并发、MTP 固定接受长度 3（按实际接受的参考运行为 30.07 ms，缩短 1.53×）。
-- 基线栈上一个开关带来 **3.11× decode 吞吐**：让 decode 服务重放 HIP graph。
-- block-scale FP8 GEMM 与 unified verify 两个开关让 64K 上下文 decode **+25.65%**（同一会话 A/B）；按 shape 调优的 fused-MoE 表让 8K prefill **+24.32%**。
-- 这些倍数不能相乘：每个倍数比较的是不同的一对运行。本页没有任何性能数字拿 MI300X 和其他加速器比较。
+- 在其余不变的栈上单独改一项：block-scale FP8 GEMM 与 unified verify 两个开关让 64K 上下文 decode **+25.65%**（同一会话 A/B）；按 shape 调优的 fused-MoE 表让 8K prefill **+24.32%**（[详情](#单项优化各自带来多少)）。
+- 这些倍数不能相乘：每一行比较的是不同的一对运行。每一行的负载和拓扑见[从基线栈到优化后](#从基线栈到优化后累计提升)。本页没有任何性能数字拿 MI300X 和其他加速器比较。
 <!-- END GENERATED: glance -->
 
 框架层和负载层可以原样搬到 NVIDIA GPU 上，算子层每一项都写明了 CUDA 上的对应实现。
@@ -53,16 +62,7 @@
 
 **输入。** 基线栈，即第一版把模型跑起来的配置：SGLang v0.5.11、Triton FP8 GEMM，不开投机解码，KV cache 用默认类型。它的 decode 和 128K prefill 测点用 Triton attention；8K/64K prefill 测点已经在用 AITER attention。它的 128K prefill 测点跑在一台 VM 上，其余测点和优化后一样是两台 VM 的 1P1D。优化后的栈：下文[阶段对比](#阶段对比按-shape-调优的-fused-moe-表)用的栈，即 AITER attention、CK FP8 GEMM、FP8 KV、EAGLE MTP、调优 fused-MoE 表，1P1D 走 8 路 InfiniBand。单开关那一行比较的是基线栈在同一轮会话里的两次运行。
 
-<!-- BEGIN GENERATED: cumulative -->
-| MI300X 上实测 | 优化前 → 后 | 倍数 |
-|---|---|---:|
-| Decode 图捕获，单开关<br>16K/1K，16 路并发，基线栈 | 107.4 → 334.0 tok/s | **3.11×** |
-| 128K prefill，1 个请求，8 张 GPU<br>单机 → 1P1D 的 prefill 服务 | 6,915 → 16,390 tok/s | **2.37×** |
-| Decode 每 token 耗时，64 路并发<br>MTP 固定接受长度 3，越低越好 | 45.86 → 17.00 ms | **2.70×** |
-| Decode 每 token 耗时，64 路并发<br>MTP 按实际接受，越低越好 | 45.86 → 30.07 ms | **1.53×** |
-| 64K prefill，4 路并发<br>基线栈 prompt 平均 60,610 token | 13,919 → 19,023 tok/s | **1.37×** |
-| 8K prefill，4 路并发<br>基线栈 prompt 平均 7,792 token | 16,644 → 20,781 tok/s | **1.25×** |
-<!-- END GENERATED: cumulative -->
+这组对比的倍数见页面顶部的表格。
 
 Decode 的倍数在很大程度上取决于 MTP 草稿 token 的接受率。优化后的吞吐测试把接受长度固定为每步 3 个 token，这是偏乐观的条件；同一套栈的一个较早版本，在同样的随机 prompt 上按草稿模型实际达到的接受率跑过一次，可作参考点。两者逐点列出（每个数值下方是相对基线栈的倍数）：
 

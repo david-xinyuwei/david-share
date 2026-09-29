@@ -7,13 +7,22 @@
 
 **How much faster can a 1M-context MoE model be served on the same GPUs, and which layer does the work?** This repository takes MiMo-V2.5-Pro (384 routed experts, hybrid sliding-window + grouped-query attention, 3-layer MTP) on Azure ND MI300X v5 VMs and shows every optimization in its serving stack. The optimizations fall into three layers: the serving framework, the operator (kernel) layer, and the workload and deployment layer. For each one you get the switch that turns it on, the code change in a pinned public commit where there is one, what it does to model output, and, where it was measured, how far it moved MI300X against MI300X itself.
 
-<img src="images/cumulative-gain-en.png" width="900" alt="Gain factors on MI300X from the baseline to the optimized stack: decode graph capture 3.11x, 128K prefill 2.37x, decode time per token 2.70x at fixed MTP acceptance and 1.53x at real acceptance, 64K prefill 1.37x, 8K prefill 1.25x">
+How much faster the optimized stack is than the baseline stack, measured on MI300X against MI300X itself:
+
+<!-- BEGIN GENERATED: cumulative -->
+| Measured on MI300X | Before → after | Factor |
+|---|---|---:|
+| Decode graph capture, one switch<br>16K/1K, 16 in flight, baseline stack | 107.4 → 334.0 tok/s | **3.11×** |
+| 128K prefill, 1 request, 8 GPUs<br>one VM → 1P1D prefill server | 6,915 → 16,390 tok/s | **2.37×** |
+| Decode time per token, 64 in flight<br>MTP at fixed acceptance 3, lower is better | 45.86 → 17.00 ms | **2.70×** |
+| Decode time per token, 64 in flight<br>MTP at actual acceptance, lower is better | 45.86 → 30.07 ms | **1.53×** |
+| 64K prefill, 4 in flight<br>baseline prompts averaged 60,610 tokens | 13,919 → 19,023 tok/s | **1.37×** |
+| 8K prefill, 4 in flight<br>baseline prompts averaged 7,792 tokens | 16,644 → 20,781 tok/s | **1.25×** |
+<!-- END GENERATED: cumulative -->
 
 <!-- BEGIN GENERATED: glance -->
-- From the baseline stack to the optimized stack: **128K prefill 2.37× faster** on 8 GPUs; **decode time per token 45.86 → 17.00 ms (2.70× lower)** at 64 in flight with MTP at a fixed acceptance of 3 (30.07 ms, 1.53× lower, in a reference run with actual acceptance).
-- **3.11× decode throughput** from one switch on the baseline stack: letting the decode server replay HIP graphs.
-- At 64K context, decode **+25.65%** from the block-scale FP8 GEMM and unified-verify switches (in-session A/B); 8K prefill **+24.32%** from a shape-tuned fused-MoE table.
-- The factors do not multiply: each compares a different pair of runs. No performance number compares MI300X with another accelerator.
+- Single optimizations on an otherwise fixed stack: decode at 64K context **+25.65%** from the block-scale FP8 GEMM and unified-verify switches (in-session A/B); 8K prefill **+24.32%** from a shape-tuned fused-MoE table ([details](#what-single-optimizations-added)).
+- The factors do not multiply: each row compares a different pair of runs. Workload and topology of every row are in [Baseline to optimized stack](#baseline-to-optimized-stack-the-cumulative-gain). No performance number compares MI300X with another accelerator.
 <!-- END GENERATED: glance -->
 
 The framework and workload layers transfer unchanged to NVIDIA GPUs, and each operator-layer technique names its CUDA counterpart.
@@ -53,16 +62,7 @@ Every number compares MI300X with MI300X. Read this section top-down: first the 
 
 **Input.** Baseline stack, the first configuration that served the model: SGLang v0.5.11 with Triton FP8 GEMM, no speculative decoding and the default KV cache type. Its decode and 128K prefill points used Triton attention; its 8K/64K prefill points already used AITER attention. Its 128K prefill point ran on one VM; all its other points ran on the same two-VM 1P1D layout as the optimized runs. Optimized stack: the stack of the [stage pair](#stage-pair-shape-tuned-fused-moe-table) below, with AITER attention, the CK FP8 GEMM, FP8 KV, EAGLE MTP, the tuned fused-MoE table and 1P1D over eight InfiniBand ports. The one-switch row compares two runs of the baseline stack in the same session.
 
-<!-- BEGIN GENERATED: cumulative -->
-| Measured on MI300X | Before → after | Factor |
-|---|---|---:|
-| Decode graph capture, one switch<br>16K/1K, 16 in flight, baseline stack | 107.4 → 334.0 tok/s | **3.11×** |
-| 128K prefill, 1 request, 8 GPUs<br>one VM → 1P1D prefill server | 6,915 → 16,390 tok/s | **2.37×** |
-| Decode time per token, 64 in flight<br>MTP at fixed acceptance 3, lower is better | 45.86 → 17.00 ms | **2.70×** |
-| Decode time per token, 64 in flight<br>MTP at actual acceptance, lower is better | 45.86 → 30.07 ms | **1.53×** |
-| 64K prefill, 4 in flight<br>baseline prompts averaged 60,610 tokens | 13,919 → 19,023 tok/s | **1.37×** |
-| 8K prefill, 4 in flight<br>baseline prompts averaged 7,792 tokens | 16,644 → 20,781 tok/s | **1.25×** |
-<!-- END GENERATED: cumulative -->
+The factors of this comparison are in the table at the top of the page.
 
 The decode factor depends strongly on how often MTP draft tokens are accepted. The optimized throughput runs fixed the acceptance at three tokens per step, which is favorable. A related run on an older build of the same stack, with the acceptance the draft model actually achieved on the same random prompts, gives a reference point. Both are shown per point ("Actual MTP" and "Fixed MTP 3"; the factor under each value is against the baseline):
 
