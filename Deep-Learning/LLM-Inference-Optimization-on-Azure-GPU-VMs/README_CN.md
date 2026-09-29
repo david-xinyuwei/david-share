@@ -812,7 +812,7 @@ docker buildx version
 
 权重从 VM 的本地 NVMe 卷加载：每次启动容器都要把权重完整读一遍。这类 VM 的本地 NVMe 是临时存储，VM deallocate 后数据就没了，所以持久副本要放在别处（例如 Azure Blob Storage），每次分配 VM 后再拷到 NVMe 上。
 
-**2. 在每台 VM 上取得部署文件和模型。** 把模型固定到一个版本，这样每台 VM、以后每次重新部署加载的都是同一批文件。启动参数里有 `--trust-remote-code`，因为模型自带建模代码；请审阅你固定的那个版本里的代码。
+**2. 在每台 VM 上取得部署文件和模型。** 下载固定在版本 `7208274`：这是最后一次改动权重或建模代码的 commit（之后的提交只改了模型卡），这样每台 VM、以后每次重新部署加载的都是同一批文件。启动参数里有 `--trust-remote-code`，因为模型自带建模代码；请审阅你固定的那个版本里的代码。
 
 ```bash
 git clone --filter=blob:none --sparse https://github.com/david-xinyuwei/david-share.git
@@ -820,8 +820,7 @@ cd david-share && git sparse-checkout set Deep-Learning/LLM-Inference-Optimizati
 cd Deep-Learning/LLM-Inference-Optimization-on-Azure-GPU-VMs
 export MODELS=/mnt/models
 export MODEL_REPO=        # 模型在 Hugging Face 上的仓库 id，见其模型卡
-export MODEL_REVISION=    # 你验证过的 commit
-hf download "$MODEL_REPO" --revision "$MODEL_REVISION" --local-dir "$MODELS/MiMo-V2.5-Pro"
+hf download "$MODEL_REPO" --revision 7208274e94787a92d7261675fb1de56ccb0e94b5 --local-dir "$MODELS/MiMo-V2.5-Pro"
 cp docker/mimo.env.example docker/mimo.env
 ```
 

@@ -812,7 +812,7 @@ docker buildx version
 
 Serve the weights from the VM's local NVMe volume: every container start reads them in full. Local NVMe on these VMs is temporary storage and is lost when the VM is deallocated, so keep the durable copy elsewhere (for example in Azure Blob Storage) and stage it to NVMe after each allocation.
 
-**2. Get the deployment files and the model on every VM.** Pin the model to one revision so that every VM, and every later redeploy, loads the same files. The launch uses `--trust-remote-code` because the model ships its own modelling code; review the code at the revision you pin.
+**2. Get the deployment files and the model on every VM.** The download is pinned to revision `7208274`, the last commit that changed the weights or the modelling code (later commits change only the model card), so every VM and every later redeploy loads the same files. The launch uses `--trust-remote-code` because the model ships its own modelling code; review the code at the revision you pin.
 
 ```bash
 git clone --filter=blob:none --sparse https://github.com/david-xinyuwei/david-share.git
@@ -820,8 +820,7 @@ cd david-share && git sparse-checkout set Deep-Learning/LLM-Inference-Optimizati
 cd Deep-Learning/LLM-Inference-Optimization-on-Azure-GPU-VMs
 export MODELS=/mnt/models
 export MODEL_REPO=        # the model's Hugging Face repository id, from its model card
-export MODEL_REVISION=    # the commit you validated
-hf download "$MODEL_REPO" --revision "$MODEL_REVISION" --local-dir "$MODELS/MiMo-V2.5-Pro"
+hf download "$MODEL_REPO" --revision 7208274e94787a92d7261675fb1de56ccb0e94b5 --local-dir "$MODELS/MiMo-V2.5-Pro"
 cp docker/mimo.env.example docker/mimo.env
 ```
 
