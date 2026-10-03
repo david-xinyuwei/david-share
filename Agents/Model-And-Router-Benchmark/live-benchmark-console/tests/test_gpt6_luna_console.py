@@ -53,8 +53,8 @@ class Gpt6LunaReplay(unittest.TestCase):
 
     def test_follow_up_run_is_merged_after_the_pinned_runs(self):
         ids = [run["id"] for run in self.pack["runs"]]
-        self.assertEqual(ids[-1], "gpt6-luna-same-session")
         self.assertIn("scenario-matrix", ids)
+        self.assertGreater(ids.index("gpt6-luna-same-session"), ids.index("scenario-matrix"))
 
     def test_follow_up_run_covers_every_arm_in_model_then_effort_order(self):
         run = next(r for r in self.pack["runs"] if r["id"] == "gpt6-luna-same-session")
@@ -67,7 +67,8 @@ class Gpt6LunaReplay(unittest.TestCase):
     def test_replay_catalog_offers_gpt6_luna(self):
         catalog = self.pack["catalog"]
         self.assertIn("gpt-6-luna", {a["deployment"] for a in catalog["arms"]})
-        self.assertEqual(catalog["study_models"][-1], "gpt-6-luna")
+        studies = catalog["study_models"]
+        self.assertGreater(studies.index("gpt-6-luna"), studies.index("gpt-5.6-luna"))
 
 
 if __name__ == "__main__":

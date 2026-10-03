@@ -53,8 +53,9 @@ SCENARIO_NOTES = {
 
 # The candidate models the written studies compare. Everything else in the
 # registry is a baseline, a router, or a deployment kept for another study.
-# GPT-6 Luna joined in the 2026-09-26 same-session follow-up.
-STUDY_MODELS = ("gpt-4o-mini-bench", "gpt-5-mini", "gpt-5.6-luna", "gpt-6-luna")
+# GPT-6 Luna joined in the 2026-09-26 same-session follow-up; GPT-6.1 Sol in the
+# 2026-10-03 follow-up.
+STUDY_MODELS = ("gpt-4o-mini-bench", "gpt-5-mini", "gpt-5.6-luna", "gpt-6-luna", "gpt-6.1-sol")
 
 # Follow-up runs that brought a deployment the pinned study configs predate.
 # Each folder carries its own models.json, pricing.json and deployment record;
@@ -62,6 +63,7 @@ STUDY_MODELS = ("gpt-4o-mini-bench", "gpt-5-mini", "gpt-5.6-luna", "gpt-6-luna")
 # can extend the catalog but never rewrite a pinned price or registry entry.
 FOLLOW_UP_RUNS = (
     ("scenario-model-benchmark", "outputs/gpt6-luna-20260926"),
+    ("scenario-model-benchmark", "outputs/gpt61-sol-20261003"),
 )
 EFFORT_ORDER = {
     "": -1,

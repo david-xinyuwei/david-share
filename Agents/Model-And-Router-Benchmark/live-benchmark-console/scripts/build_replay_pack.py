@@ -70,7 +70,7 @@ POST_PIN_ARM_FIELDS = ("price_cache_write",)
 POST_PIN_SUMMARY_FIELDS = ("cache_write_tokens_total",)
 # Deployments added after the pin (see bench_core.FOLLOW_UP_RUNS). The pinned
 # pack embeds the catalog as it was; the follow-up pack carries these arms.
-POST_PIN_DEPLOYMENTS = ("gpt-6-luna",)
+POST_PIN_DEPLOYMENTS = ("gpt-6-luna", "gpt-6.1-sol")
 
 # Runs recorded after the pack was pinned. They go into their own pack so the
 # pinned one never changes; server.load_replay() merges both.
@@ -83,6 +83,14 @@ FOLLOW_UP_SOURCES = [
         "title": "GPT-6 Luna and every earlier arm, re-measured in one session (2026-09-26)",
         "description": "17 arms incl. GPT-6 Luna at every effort, same VM, prompts and resource as the scenario matrix, "
                        "single-turn, concurrency 1, no tools.",
+    },
+    {
+        "id": "gpt61-sol-follow-up",
+        "folder": "scenario-model-benchmark",
+        "glob": "outputs/gpt61-sol-20261003/direct_*.metrics.jsonl",
+        "title": "GPT-6.1 Sol at low, medium and high (2026-10-03)",
+        "description": "3 arms, same VM, prompts and resource as the scenario matrix, single-turn, concurrency 1, "
+                       "no tools; the folder also holds the interleaved A/B against GPT-6 Luna.",
     },
 ]
 
