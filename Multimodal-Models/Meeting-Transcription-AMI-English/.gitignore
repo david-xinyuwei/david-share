@@ -1,0 +1,2 @@
+# the repository ignores *.wav; these four CC BY 4.0 clips are the point of this folder (stored in Git LFS)
+!clips/*.wav

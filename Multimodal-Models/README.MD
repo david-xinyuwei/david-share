@@ -1,6 +1,6 @@
 # Multimodal Models
 
-A collection of 27 projects covering vision language models, image generation, speech processing, video generation, and multimodal fine-tuning.
+A collection of 28 projects covering vision language models, image generation, speech processing, video generation, and multimodal fine-tuning.
 
 ---
 
@@ -19,6 +19,7 @@ A collection of 27 projects covering vision language models, image generation, s
 | [GPT-Image-1](GPT-Image-1/) | Azure OpenAI GPT-Image-1 API for image generation |
 | [Image_super_Resolution](Image_super_Resolution/) | Image super-resolution using Real-ESRGAN with 2x/4x/8x upscaling |
 | [MedImageParse](MedImageParse/) | AI agent for medical image segmentation with natural language prompts |
+| [Meeting-Transcription-AMI-English](Meeting-Transcription-AMI-English/) | Six Azure speech paths on four far-field AMI meeting clips: WER, streaming latency, the clips and human transcripts (CC BY 4.0) |
 | [Muse-WHAM](Muse-WHAM/) | Microsoft Research WHAM world model for game intelligence |
 | [OmniParser](OmniParser/) | Microsoft OmniParser for screen parsing and UI understanding |
 | [Phi-3.5-Vision-and-Pixtral-vLLM](Phi-3.5-Vision-and-Pixtral-vLLM/) | Comparing Phi-3.5 Vision and Pixtral visual language models on vLLM |
