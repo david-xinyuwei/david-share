@@ -11,6 +11,7 @@
 
 <!-- BEGIN GENERATED: glance -->
 - On one H100 VM running a load with a known schedule, the pipeline recorded 8 full, 3 held and 5 partial GPU-minutes, the same split the load script scheduled; the five views and an independent Python recomputation of the raw rows agree on all 28 compared values.
+- Three AML jobs ran there as one Linux user: `per_user` shows a single owner with 0.150 busy GPU-hours, while `per_job` splits them by job name (0.067, 0.042, 0.042), counts the 3 minutes two jobs shared as half each and names the Entra account that submitted them; KQL and Python agree on 11 values and 28 fields.
 - The configuration steps below ran verbatim against a new resource group: workspace setup 181 s, VM onboarding 102 s, removal 98 s.
 - Log Analytics bills 343 bytes per GPU-minute row, about 4.74 MB per day for an 8-GPU VM including its Heartbeat.
 - Main limit: process owners are sampled once per minute, so a job that exits mid-minute leaves that minute busy but unattributed (1 of 17 busy minutes in the first run, 1 of 6 in the second).
@@ -331,7 +332,7 @@ For whole local days in `per_day`, start and end the timespan at local midnight,
 
 ## Validation on One H100 VM
 
-Two runs checked the pipeline on one GPU. In `validation-1`, a load with a known schedule showed whether each minute is classified correctly. In `replay-1`, the configuration steps above ran verbatim against a new resource group, with two owners sharing the GPU.
+Three runs checked the pipeline on one GPU. In `validation-1`, a load with a known schedule showed whether each minute is classified correctly. In `replay-1`, the configuration steps above ran verbatim against a new resource group, with two owners sharing the GPU. In `jobs-1`, three AML jobs ran as one Linux user and were attributed by job name and submitter.
 
 <img src="images/test-topology-en.png" width="900" alt="Measured VM Standard_NC40ads_H100_v5 in Spain Central running the known load, gpumon and the Azure Monitor Agent; data collection endpoint, rule and workspace in the same region; operator workstation running the scripts and queries">
 
@@ -428,10 +429,69 @@ print("done")
 - `PeakMemoryGiB` in `per_user` is the memory in use on the GPU, not per process: 42 GiB while both ran.
 - After the VM was deallocated and started again, it ran on a different host, so the GPU UUID changed. The views group by VM name and GPU index, so this does not change the numbers.
 
+### jobs-1: AML jobs and their submitter, one Linux user
+
+**Question.** When every GPU process runs as the same Linux user, as it does when an AML job starts torchrun or mpirun on its hosts over SSH, can a platform still read GPU-hours per job and per submitting Entra account, including the minutes two jobs share one GPU?
+
+**Input.** The VM above, onboarded with `scripts/onboard-vm.sh` to a workspace set up with `scripts/setup-workspace.sh -a`, and attached to an AML workspace in the same subscription as a `virtualmachine` compute. One Entra account (`submitter-1` below) submitted three AML command jobs. In its AML container, each job ran the launcher below, which starts [`tests/load/gpu_load.py`](tests/load/gpu_load.py) with `--phase full:150 --phase partial:90:0.5` on the host over SSH, as one Linux account (`user-1` below), and passes `AZUREML_RUN_ID` on. `job-3` was submitted about a minute after `job-2`, so the two shared the GPU.
+
+<!-- BEGIN GENERATED: jobs-launcher -->
+```bash
+#!/bin/bash
+# Runs in the AML job container on the attached VM. Starts the GPU load on the VM host over SSH and passes the
+# AML job name on in AZUREML_RUN_ID, the way a multi-node launcher starts torchrun or mpirun on its hosts.
+set -euo pipefail
+HOST=${GPU_HOST:?}; PORT=${GPU_HOST_PORT:-22}; USER_ON_HOST=${GPU_HOST_USER:-amljob}
+KEY=/tmp/aml_host_key; cp ./aml_host_key "$KEY"; chmod 600 "$KEY"
+OPTS=(-i "$KEY" -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=20 -o LogLevel=ERROR)
+REMOTE=/tmp/gpu_load_${AZUREML_RUN_ID}.py
+echo "[launcher] job=${AZUREML_RUN_ID} container=$(hostname) host=${HOST}:${PORT} start=$(date -u +%FT%TZ)"
+scp -q -P "$PORT" "${OPTS[@]}" ./gpu_load.py "${USER_ON_HOST}@${HOST}:${REMOTE}"
+set +e
+ssh -p "$PORT" "${OPTS[@]}" "${USER_ON_HOST}@${HOST}" "env AZUREML_RUN_ID=${AZUREML_RUN_ID} /usr/bin/python3 ${REMOTE} $*; rc=\$?; rm -f ${REMOTE}; exit \$rc"
+rc=$?
+echo "[launcher] job=${AZUREML_RUN_ID} rc=${rc} end=$(date -u +%FT%TZ)"
+exit $rc
+```
+<!-- END GENERATED: jobs-launcher -->
+
+**Varied and fixed.** The job name changed, and two of the jobs overlapped. The VM, the GPU, the Linux account, the submitter and the queries stayed the same.
+
+**Result.**
+
+<!-- BEGIN GENERATED: jobs-steps -->
+- **1 workspace with job tracking**: exit 0, 209 s. Table 24 columns including RunId; Administrative activity and AmlRunStatusChangedEvent go to the workspace.
+- **2 VM onboarding**: exit 0, 160 s. gpumon.service active with the RunId collector.
+- **3 VM attached to AML**: exit 0, 6 s. Compute provisioning state Succeeded.
+- **4 three AML jobs**: exit 0. All Completed; job-2 and job-3 shared the GPU as one Linux user, each process with its own AZUREML_RUN_ID.
+- **5 read back: the eight views through the client**: exit 0, 44 s. Raw rows and all views exported.
+- **6 cleanup**: exit 0. Compute detached, test account removed, diagnostic settings and resource group deleted, VM deallocated.
+<!-- END GENERATED: jobs-steps -->
+
+<!-- BEGIN GENERATED: jobs-result -->
+| Job | Submitter | Busy GPU-h | Effective GPU-h |
+|---|---|---:|---:|
+| `job-1` | `submitter-1` | 0.067 | 0.047 |
+| `job-2` | `submitter-1` | 0.042 | 0.032 |
+| `job-3` | `submitter-1` | 0.042 | 0.029 |
+
+- `per_user` over the same window: one owner, `user-1`, with 0.150 busy GPU-hours, the three jobs added together.
+- 11 busy minutes: 9 with a job name, of which 3 carried two names and counted half for each, and 2 without a name.
+- Status events of every job: Running → Finalizing → Completed.
+- Ingestion delay: GPU rows median 83 s; status events median 38 s, at most 55 s; submissions median 363 s, at most 538 s.
+<!-- END GENERATED: jobs-result -->
+
+**Boundary.**
+- One submitter: the test account could not grant a second identity access to the AML workspace, so `per_submitter` has one row. Each job's submitter comes from the `Caller` of that job's own `jobs/write` event, so a second account would be a second row.
+- The submitter arrives with the Azure Activity export, minutes after the GPU rows. Until then `per_job` lists the job with an empty submitter. Status events arrive faster than the GPU rows.
+- Job names, like owners, are read once at the end of each minute. A minute in which a job ends counts for the jobs still on the GPU at that moment, or for none.
+- Running AML jobs on an attached Ubuntu 24.04 VM needed three AML prerequisites, recorded in [`evidence/runs.json`](evidence/runs.json): `ssh-rsa` accepted for the attach account, `python` on the host, and workspace storage that AML can reach for logs. They belong to AML, not to the steps in this repository.
+
 ### Numbers you can recompute
 
 <!-- BEGIN GENERATED: checks -->
 - KQL against Python: 13 values in the first run and 15 in the second, largest difference 0.0.
+- `jobs-1`: 13 values of the classic views, and 11 values and 28 fields of the job views, largest difference 0.0.
 - Ingestion delay of GpuMetrics_CL rows: median 76 s, p95 125 s.
 - Billed size: 343 bytes per GPU row, 547 bytes per Heartbeat row.
 <!-- END GENERATED: checks -->
@@ -455,7 +515,7 @@ Done when all tests pass and each check prints `PASS`.
   - collector: `dcgmi dmon` line parsing on real output, averaging, and a JSON line whose keys equal the rule's stream and the table columns;
   - views: shared `let` lines are identical, `summary` is `per_vm` summed, and AML views join by `RunId`;
   - reference client: `let` overrides and the timespan sent;
-  - evidence: recomputation, including the 1/N owner split;
+  - evidence: recomputation, including the 1/N owner and job splits, the first submitter and the last status;
   - public content: every rule of `tools/check_repo.py`, with deliberate breaks that must fail.
 - **`tools/build_evidence.py --check`** rebuilds [`evidence/measurements.json`](evidence/measurements.json) from the committed rows and fails if a KQL result differs from the Python recomputation.
 - **`tools/build_readme.py --check`** fails if a number, table or command in either README differs from a fresh render of the evidence and the scripts.
@@ -469,7 +529,7 @@ The live checks need Azure:
 - the reference client;
 - the load test, which needs a GPU VM and PyTorch: `./tests/load/run-load.sh -g <vm-rg> -n <vm-name> -u <user>`. Remove the test users afterwards with `-x`.
 
-Not tested here: VMs with more than one GPU, MIG, DCGM 4.x, Azure Private Link, sovereign clouds, or the three AML views end to end. The AML views have offline contract tests but need a live two-identity run before production use.
+Not tested here: VMs with more than one GPU, MIG, DCGM 4.x, Azure Private Link, sovereign clouds, and more than one submitter account.
 
 ## Limits, Assets and Sources
 
@@ -478,6 +538,7 @@ Not tested here: VMs with more than one GPU, MIG, DCGM 4.x, Azure Private Link, 
 - `LOCAL_MEASUREMENT`: owners are sampled once, at the end of each minute. A job that exits mid-minute leaves that minute busy but unattributed, and a job that starts mid-minute is counted from the end of its first minute.
 - `LOCAL_MEASUREMENT`: allocated time starts at the agent's first `Heartbeat`. Lines the collector wrote before the agent began collecting were not ingested (minutes 5–10 of `validation-1`).
 - `LOCAL_MEASUREMENT`: `PeakMemoryGiB` is the GPU's memory in use, not a per-process figure.
+- `LOCAL_MEASUREMENT`: a job's submitter arrives with the Azure Activity export, several minutes after its GPU rows (`jobs-1`).
 - `LOCAL_MEASUREMENT`: a run ID is sampled at the end of each minute. If several run IDs share a GPU-minute, each receives an equal fraction because DCGM does not expose per-process SM activity.
 - `NOT_MEASURED`: 8-GPU VMs. The collector reads every GPU that `nvidia-smi` lists and the views count GPUs per VM, but only one GPU was measured.
 - `NOT_MEASURED`: MIG instances, DCGM 4.x, and jobs that do not propagate an identifier. AML uses `AZUREML_RUN_ID`; other schedulers need an equivalent collector and query convention.
@@ -492,7 +553,7 @@ Not tested here: VMs with more than one GPU, MIG, DCGM 4.x, Azure Private Link, 
 - [`scripts/`](scripts/): `setup-workspace.sh`, `onboard-vm.sh`, `offboard-vm.sh`.
 - [`kql/`](kql/): the eight views.
 - [`examples/`](examples/): `gpu_hours_client.py`, the reference Query API client, and its `requirements.txt`.
-- [`evidence/`](evidence/): run contracts (`runs.json`), the projected rows and view results of both runs (`runs/`), with SHA-256 of their private sources, and `measurements.json`.
+- [`evidence/`](evidence/): run contracts (`runs.json`), the projected rows and view results of the three runs (`runs/`), with SHA-256 of their private sources, and `measurements.json`.
 - [`tests/`](tests/): offline tests, and `tests/load/` with the load generator and its Run Command wrapper.
 - [`tools/`](tools/): evidence, README and diagram builders, and the public-content audit.
 - [`images/`](images/): English and Chinese figures and their ledger `SOURCES.json`.

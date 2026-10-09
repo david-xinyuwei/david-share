@@ -81,6 +81,113 @@
     {"step": "6 scripts/offboard-vm.sh -g <vm-rg> -n <vm-name>; az group delete -n rg-gpu-hours-replay", "exit": 0, "seconds": 98,
      "verified": "no Azure Monitor Agent extension and no rule or endpoint association left on the VM; gpumon inactive and /opt/gpumon removed; resource group deleted"}
    ]
+  },
+  "jobs-1": {
+   "question": "When every GPU process runs as the same Linux user, as it does when an AML job starts torchrun or mpirun on its hosts over SSH, can a platform read GPU-hours per AML job and per Entra submitter, including the minutes two jobs share one GPU?",
+   "hardware": {
+    "vm_size": "Standard_NC40ads_H100_v5",
+    "gpus": 1,
+    "gpu": "NVIDIA H100 NVL",
+    "gpu_memory_mib": 95830,
+    "azure_region": "Spain Central"
+   },
+   "software": {
+    "os": "Ubuntu 24.04.5 LTS",
+    "nvidia_driver": "615.71.09",
+    "dcgm": "datacenter-gpu-manager 3.3.9 (nvidia-dcgm.service)",
+    "azure_monitor_agent": "AzureMonitorLinuxAgent 1.45",
+    "aml": "an Azure Machine Learning workspace in the same subscription and region; the GPU VM attached as a virtualmachine compute; AML ran each job in mcr.microsoft.com/azureml/openmpi4.1.0-ubuntu22.04 with docker run --gpus all (Docker 29.8.2)",
+    "load_runtime": "system Python 3.12.3 with PyTorch 2.12.0+cu130 on the host"
+   },
+   "collector": "vm/gpu_collector.py and vm/install_collector.sh from the committed tree (RunId column), installed by scripts/onboard-vm.sh",
+   "load": {
+    "submitter": "submitter-1: one Entra user account submitted all three jobs",
+    "host_user": "user-1: one Linux account on the host ran every job's GPU process",
+    "jobs": [
+     {
+      "job": "job-1",
+      "submitted_with": "az ml job create -f <job>.yml",
+      "phases": "full:150 then partial:90:0.5"
+     },
+     {
+      "job": "job-2",
+      "submitted_with": "az ml job create -f <job>.yml, after job-1 completed",
+      "phases": "full:150 then partial:90:0.5"
+     },
+     {
+      "job": "job-3",
+      "submitted_with": "PUT .../workspaces/<ws>/jobs/<name> (ARM REST), about a minute after job-2, so that both share the GPU",
+      "phases": "full:150 then partial:90:0.5"
+     }
+    ],
+    "command": "bash launch-over-ssh.sh --phase full:150 --phase partial:90:0.5",
+    "load_script": "tests/load/gpu_load.py",
+    "launcher_verbatim": "#!/bin/bash\n# Runs in the AML job container on the attached VM. Starts the GPU load on the VM host over SSH and passes the\n# AML job name on in AZUREML_RUN_ID, the way a multi-node launcher starts torchrun or mpirun on its hosts.\nset -euo pipefail\nHOST=${GPU_HOST:?}; PORT=${GPU_HOST_PORT:-22}; USER_ON_HOST=${GPU_HOST_USER:-amljob}\nKEY=/tmp/aml_host_key; cp ./aml_host_key \"$KEY\"; chmod 600 \"$KEY\"\nOPTS=(-i \"$KEY\" -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=20 -o LogLevel=ERROR)\nREMOTE=/tmp/gpu_load_${AZUREML_RUN_ID}.py\necho \"[launcher] job=${AZUREML_RUN_ID} container=$(hostname) host=${HOST}:${PORT} start=$(date -u +%FT%TZ)\"\nscp -q -P \"$PORT\" \"${OPTS[@]}\" ./gpu_load.py \"${USER_ON_HOST}@${HOST}:${REMOTE}\"\nset +e\nssh -p \"$PORT\" \"${OPTS[@]}\" \"${USER_ON_HOST}@${HOST}\" \"env AZUREML_RUN_ID=${AZUREML_RUN_ID} /usr/bin/python3 ${REMOTE} $*; rc=\\$?; rm -f ${REMOTE}; exit \\$rc\"\nrc=$?\necho \"[launcher] job=${AZUREML_RUN_ID} rc=${rc} end=$(date -u +%FT%TZ)\"\nexit $rc\n"
+   },
+   "controlled": "one VM, one GPU, one Linux user for every job process, one submitter account, busy threshold GPU util >= 5 %",
+   "varied": "the AML job name, and whether two jobs shared the GPU",
+   "measurement": "the rows the workspace received through the README steps, read back with the eight views through examples/gpu_hours_client.py (tools/build_evidence.py capture --jobs) over a 25-minute window, and recomputed in Python",
+   "steps": [
+    {
+     "step": "1 scripts/setup-workspace.sh -g <rg> -l spaincentral -a <aml-workspace-id>",
+     "exit": 0,
+     "seconds": 209,
+     "verified": "GpuMetrics_CL: 24 columns including RunId; rule stream 24 columns; subscription Administrative activity and AmlRunStatusChangedEvent sent to the workspace"
+    },
+    {
+     "step": "2 scripts/onboard-vm.sh -g <vm-rg> -n <vm-name> -d <DCR_ID> -e <DCE_ID>",
+     "exit": 0,
+     "seconds": 160,
+     "verified": "gpumon.service active with the RunId collector"
+    },
+    {
+     "step": "3 attach the VM to the AML workspace as a virtualmachine compute",
+     "exit": 0,
+     "seconds": 6,
+     "verified": "provisioning state Succeeded, after the AML prerequisites in setup_findings"
+    },
+    {
+     "step": "4 three AML jobs on the attached VM",
+     "exit": 0,
+     "seconds": null,
+     "verified": "all three Completed; job-2 and job-3 ran on the GPU at the same time as the same Linux user, each process with its own AZUREML_RUN_ID in /proc/<pid>/environ"
+    },
+    {
+     "step": "5 tools/build_evidence.py capture --jobs",
+     "exit": 0,
+     "seconds": 44,
+     "verified": "raw rows and the eight views through the reference client"
+    },
+    {
+     "step": "6 cleanup",
+     "exit": 0,
+     "seconds": null,
+     "verified": "compute detached; test account and host changes removed; the VM's previous rule associations restored; diagnostic settings and resource group deleted; VM deallocated"
+    }
+   ],
+   "setup_findings": [
+    "AML signs SSH public-key authentication with ssh-rsa (SHA-1), which OpenSSH 9 on Ubuntu 24.04 rejects by default: attaching worked with password authentication, and running jobs needed PubkeyAcceptedAlgorithms +ssh-rsa for the attach account only",
+    "the AML job runtime starts python on the host; the image had only python3",
+    "subscription policy disabled shared-key and public network access on the new workspace's storage account, so the jobs carried the launcher inline instead of a code snapshot and AML could not upload their logs (HTTP 403); the jobs still ran and reported their status"
+   ],
+   "observed_events": [
+    {
+     "minute": 6,
+     "event": "first row with job-1"
+    },
+    {
+     "minute": 15,
+     "event": "first row with job-2"
+    },
+    {
+     "minute": 16,
+     "event": "first row with job-2 and job-3 on the GPU together"
+    },
+    {
+     "minute": 19,
+     "event": "last row with a job name (job-3)"
+    }
+   ]
   }
  }
 }

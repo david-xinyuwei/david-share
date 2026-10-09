@@ -1,0 +1,9 @@
+{"Second": 308, "RunId": "job-1", "Status": "Running", "IngestionDelaySeconds": 37}
+{"Second": 553, "RunId": "job-1", "Status": "Finalizing", "IngestionDelaySeconds": 37}
+{"Second": 556, "RunId": "job-1", "Status": "Completed", "IngestionDelaySeconds": 37}
+{"Second": 853, "RunId": "job-2", "Status": "Running", "IngestionDelaySeconds": 36}
+{"Second": 913, "RunId": "job-3", "Status": "Running", "IngestionDelaySeconds": 38}
+{"Second": 1098, "RunId": "job-2", "Status": "Finalizing", "IngestionDelaySeconds": 55}
+{"Second": 1100, "RunId": "job-2", "Status": "Completed", "IngestionDelaySeconds": 45}
+{"Second": 1159, "RunId": "job-3", "Status": "Finalizing", "IngestionDelaySeconds": 39}
+{"Second": 1161, "RunId": "job-3", "Status": "Completed", "IngestionDelaySeconds": 55}

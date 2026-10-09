@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """Evidence pipeline for the validation runs.
 
-    python tools/build_evidence.py capture --workspace <guid> --start <ISO-UTC> --minutes <n> --out <private-dir>
+    python tools/build_evidence.py capture --workspace <guid> --start <ISO-UTC> --minutes <n> --out <private-dir> [--jobs]
     python tools/build_evidence.py project --private <private-dir> --run <run-id>
     python tools/build_evidence.py            # rebuild evidence/measurements.json from evidence/runs/*/
     python tools/build_evidence.py --check    # fail if measurements.json is stale or KQL disagrees with Python
 
-`capture` runs the raw exports and the five views in kql/ through examples/gpu_hours_client.py with
-the window as the query timespan, and writes identifiable data to a private directory outside the repo.
-`project` maps VM and user names to neutral labels, drops resource IDs and GPU UUIDs, and replaces
-timestamps with minutes since the start of the window. The default build needs only committed files.
+`capture` runs the raw exports and the views in kql/ through examples/gpu_hours_client.py with the
+window as the query timespan, and writes identifiable data to a private directory outside the repo.
+`--jobs` also exports the AML job submissions (AzureActivity) and status events (AmlRunStatusChangedEvent)
+and runs the three job views. `project` maps VM, user, job and submitter names to neutral labels, drops
+resource IDs, object IDs and GPU UUIDs, and replaces timestamps with offsets from the start of the window.
+The default build needs only committed files.
 """
 from __future__ import annotations
 
@@ -23,7 +25,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "examples"))
-from gpu_hours_client import VIEWS, GpuHoursClient  # noqa: E402
+from gpu_hours_client import GpuHoursClient  # noqa: E402
 
 EVIDENCE = ROOT / "evidence"
 RUNS = EVIDENCE / "runs"
@@ -39,6 +41,19 @@ RAW_QUERIES = {
                  "| project TimeGenerated, IngestionTime, BilledSize, Computer, Category, Version, OSType "
                  "| order by TimeGenerated asc",
 }
+JOB_RAW_QUERIES = {
+    "azure_activity": "AzureActivity "
+                      "| where OperationNameValue =~ 'Microsoft.MachineLearningServices/workspaces/jobs/write' "
+                      "| extend IngestionTime = ingestion_time() "
+                      "| project TimeGenerated, IngestionTime, ActivityStatusValue, _ResourceId, Caller, "
+                      "SubmitterObjectId = coalesce(tostring(Claims_d['http://schemas.microsoft.com/identity/claims/objectidentifier']), "
+                      "tostring(Claims_d.oid)) "
+                      "| order by TimeGenerated asc",
+    "aml_status": "AmlRunStatusChangedEvent | extend IngestionTime = ingestion_time() "
+                  "| project TimeGenerated, IngestionTime, RunId, Status | order by TimeGenerated asc",
+}
+CLASSIC_VIEWS = ("summary", "per_vm", "per_hour", "per_day", "per_user")
+JOB_VIEWS = ("per_job", "per_submitter", "live")
 METRICS = ("AllocatedGpuHours", "BusyGpuHours", "EffectiveGpuHours", "IdleGpuHours", "UtilizationPct")
 
 
@@ -65,17 +80,17 @@ def _read_jsonl(path: Path) -> list[dict]:
 
 
 # ------------------------------------------------------------------ capture (private, needs Azure)
-def capture(workspace: str, start: str, minutes: int, out: Path) -> None:
+def capture(workspace: str, start: str, minutes: int, out: Path, jobs: bool = False) -> None:
     t0 = _ts(start)
     t1 = t0 + timedelta(minutes=minutes)
     client = GpuHoursClient(workspace)
     out.mkdir(parents=True, exist_ok=True)
     manifest = {"window_start_utc": start, "window_minutes": minutes, "files": {}}
-    for name, kql in RAW_QUERIES.items():
+    for name, kql in {**RAW_QUERIES, **(JOB_RAW_QUERIES if jobs else {})}.items():
         rows = client.run_kql(kql, t0, t1)
         (out / f"{name}.json").write_text(json.dumps(rows, indent=1, ensure_ascii=False), encoding="utf-8")
         manifest["files"][name] = len(rows)
-    results = {view: client.query_view(view, t0, t1) for view in VIEWS}
+    results = {view: client.query_view(view, t0, t1) for view in CLASSIC_VIEWS + (JOB_VIEWS if jobs else ())}
     (out / "kql-results.json").write_text(json.dumps(results, indent=1, ensure_ascii=False), encoding="utf-8")
     (out / "export-manifest.json").write_text(json.dumps(manifest, indent=1), encoding="utf-8")
     print(f"captured {manifest['files']} and {len(results)} views into {out}")
@@ -98,8 +113,12 @@ def project(private: Path, run_id: str) -> None:
     manifest = json.loads((private / "export-manifest.json").read_text(encoding="utf-8"))
     t0 = _ts(manifest["window_start_utc"])
     minute = lambda s: int((_ts(s) - t0).total_seconds() // 60)  # noqa: E731
+    second = lambda s: int((_ts(s) - t0).total_seconds())  # noqa: E731
     delay = lambda r: round((_ts(r["IngestionTime"]) - _ts(r["TimeGenerated"])).total_seconds())  # noqa: E731
-    vm, user = Labels("gpu-vm"), Labels("user")
+    vm, user, job = Labels("gpu-vm"), Labels("user"), Labels("job")
+    submitter, object_id = Labels("submitter"), Labels("object-id")
+    # AML job names are matched case-insensitively, as in kql/per_job.kql
+    runs = lambda v: ",".join(job(x.strip().lower()) for x in v.split(",") if x.strip()) if v else ""  # noqa: E731
 
     gpu_rows = []
     for r in json.loads((private / "gpu_metrics.json").read_text(encoding="utf-8")):
@@ -111,6 +130,8 @@ def project(private: Path, run_id: str) -> None:
                 v = vm(v)
             elif k == "Users":
                 v = ",".join(user(u) for u in v.split(",")) if v else ""
+            elif k == "RunId":
+                v = runs(v)
             elif k == "FilePath":
                 v = "/var/log/gpumon/gpu_metrics_<day>.json"
             row[k] = v
@@ -120,6 +141,17 @@ def project(private: Path, run_id: str) -> None:
                 "Version": r["Version"], "OSType": r["OSType"], "BilledSize": r["BilledSize"],
                 "IngestionDelaySeconds": delay(r)}
                for r in json.loads((private / "heartbeat.json").read_text(encoding="utf-8"))]
+    job_files = {}
+    if (private / "azure_activity.json").exists():
+        job_files["activity.jsonl"] = [
+            {"Second": second(r["TimeGenerated"]), "RunId": runs(r["_ResourceId"].rsplit("/", 1)[-1]),
+             "ActivityStatusValue": r["ActivityStatusValue"], "Submitter": submitter(r["Caller"]),
+             "SubmitterObjectId": object_id(r["SubmitterObjectId"] or ""), "IngestionDelaySeconds": delay(r)}
+            for r in json.loads((private / "azure_activity.json").read_text(encoding="utf-8"))]
+        job_files["aml-status.jsonl"] = [
+            {"Second": second(r["TimeGenerated"]), "RunId": runs(r["RunId"]), "Status": r["Status"],
+             "IngestionDelaySeconds": delay(r)}
+            for r in json.loads((private / "aml_status.json").read_text(encoding="utf-8"))]
 
     results = json.loads((private / "kql-results.json").read_text(encoding="utf-8"))
     pub = {}
@@ -131,6 +163,16 @@ def project(private: Path, run_id: str) -> None:
                 r["Computer"] = vm(r["Computer"])
             if "User" in r:
                 r["User"] = user(r["User"])
+            if r.get("RunId"):
+                r["RunId"] = runs(r["RunId"])
+            if r.get("Submitter") and r["Submitter"] != "Unknown":
+                r["Submitter"] = submitter(r["Submitter"])
+            if r.get("SubmitterObjectId"):
+                r["SubmitterObjectId"] = object_id(r["SubmitterObjectId"])
+            for col in ("StartTime", "EndTime", "LastSeen"):
+                if r.get(col):
+                    r[col] = minute(r[col])
+            r.pop("AgeSeconds", None)  # depends on the moment of the query, not on the data
             for bucket in ("Hour", "Day"):
                 if bucket in r:
                     r[bucket] = f"{bucket.lower()} {i + 1}"
@@ -140,18 +182,27 @@ def project(private: Path, run_id: str) -> None:
     run_dir = RUNS / run_id
     _write_jsonl(run_dir / "gpu-metrics.jsonl", gpu_rows)
     _write_jsonl(run_dir / "heartbeat.jsonl", hb_rows)
+    for name, rows in job_files.items():
+        _write_jsonl(run_dir / name, rows)
     _write_json(run_dir / "kql-results.json", pub)
     sources = {p.name: _sha(p) for p in sorted(private.glob("*.json")) if p.name != "export-manifest.json"}
     public = {p.name: _sha(p) for p in sorted(run_dir.iterdir()) if p.name != "raw-manifest.json"}
+    projection = ("Computer/VmName -> gpu-vm-N; Users -> user-N; TimeGenerated -> Minute since window start; "
+                  "IngestionTime -> IngestionDelaySeconds; dropped VmResourceId, GpuUuid, Tags, TenantId, _ResourceId; "
+                  "Hour/Day labels -> ordinal")
+    if job_files:
+        projection += ("; AML job names -> job-N (case-insensitive); Caller -> submitter-N; Entra object ID -> object-id-N; "
+                       "activity and status TimeGenerated -> Second since window start; StartTime/EndTime/LastSeen -> Minute; "
+                       "dropped AgeSeconds")
     _write_json(run_dir / "raw-manifest.json", {
         "window_minutes": manifest["window_minutes"],
         "private_sources_sha256": sources,
         "public_projection_sha256": public,
-        "projection": "Computer/VmName -> gpu-vm-N; Users -> user-N; TimeGenerated -> Minute since window start; "
-                      "IngestionTime -> IngestionDelaySeconds; dropped VmResourceId, GpuUuid, Tags, TenantId, _ResourceId; "
-                      "Hour/Day labels -> ordinal",
+        "projection": projection,
     })
-    print(f"projected {len(gpu_rows)} GPU rows and {len(hb_rows)} heartbeats into {run_dir.relative_to(ROOT)}")
+    print(f"projected {len(gpu_rows)} GPU rows, {len(hb_rows)} heartbeats"
+          + (f", {len(job_files['activity.jsonl'])} submissions and {len(job_files['aml-status.jsonl'])} status events"
+             if job_files else "") + f" into {run_dir.relative_to(ROOT)}")
 
 
 # ------------------------------------------------------------------ build (committed files only)
@@ -237,6 +288,108 @@ def _agreement(python: dict, kql: dict) -> dict:
     return {"compared_values": len(diffs), "max_abs_diff": round(worst, 12)}
 
 
+SUCCESS = ("success", "succeeded")  # Azure Activity reports "Success"; older exports reported "Succeeded"
+
+
+def recompute_jobs(gpu: list[dict], activity: list[dict], status: list[dict]) -> dict:
+    """Pure-Python implementation of kql/per_job.kql, kql/per_submitter.kql and kql/live.kql.
+
+    A GPU-minute shared by N job names counts 1/N for each; the submitter is the caller of the first successful
+    jobs/write (rows keep the capture order, oldest first); the status is the last status event.
+    """
+    jobs: dict[str, dict] = {}
+    live: dict[tuple, dict] = {}
+    for r in gpu:
+        ids = [x.strip() for x in (r.get("RunId") or "").split(",") if x.strip()]
+        for rid in ids:
+            w = 1 / len(ids)
+            d = jobs.setdefault(rid, {"vms": set(), "gpus": set(), "minutes": [], "busy": 0.0, "eff": 0.0, "mem": []})
+            d["vms"].add(r["Computer"])
+            d["gpus"].add((r["Computer"], r["GpuId"]))
+            d["minutes"].append(r["Minute"])
+            d["busy"] += w / 60 if is_busy(r) else 0.0
+            d["eff"] += (r["SmActive"] or 0.0) * w / 60
+            if r.get("FbUsedMiB") is not None:
+                d["mem"].append(r["FbUsedMiB"])
+            key = (r["Computer"], r["GpuId"], rid)
+            if key not in live or r["Minute"] >= live[key]["LastSeen"]:
+                live[key] = {"Computer": r["Computer"], "GpuId": r["GpuId"], "RunId": rid, "LastSeen": r["Minute"]}
+    submitters: dict[str, tuple] = {}
+    for a in activity:
+        if a["ActivityStatusValue"].lower() in SUCCESS and a["RunId"] not in submitters:
+            submitters[a["RunId"]] = (a["Submitter"], a["SubmitterObjectId"] or None)
+    statuses = {s["RunId"]: s["Status"] for s in status}
+    per_job = []
+    for rid in sorted(jobs):
+        d = jobs[rid]
+        sub, oid = submitters.get(rid, (None, None))
+        per_job.append({"RunId": rid, "Submitter": sub, "SubmitterObjectId": oid, "Status": statuses.get(rid, "Unknown"),
+                        "Vms": len(d["vms"]), "Gpus": len(d["gpus"]), "StartTime": min(d["minutes"]),
+                        "EndTime": max(d["minutes"]) + 1, "BusyGpuHours": d["busy"], "EffectiveGpuHours": d["eff"],
+                        "PeakMemoryGiB": max(d["mem"]) / 1024 if d["mem"] else None})
+    per_submitter: dict[tuple, dict] = {}
+    for j in per_job:
+        key = (j["Submitter"] or "Unknown", j["SubmitterObjectId"] or "")
+        s = per_submitter.setdefault(key, {"Submitter": key[0], "SubmitterObjectId": key[1], "Jobs": 0,
+                                           "BusyGpuHours": 0.0, "EffectiveGpuHours": 0.0})
+        s["Jobs"] += 1
+        s["BusyGpuHours"] += j["BusyGpuHours"]
+        s["EffectiveGpuHours"] += j["EffectiveGpuHours"]
+    live_rows = [dict(v, Status=statuses.get(v["RunId"], "Unknown")) for v in live.values()]
+    return {"per_job": per_job, "per_submitter": sorted(per_submitter.values(), key=lambda s: (-s["BusyGpuHours"], s["Submitter"])),
+            "live": sorted(live_rows, key=lambda v: (v["Computer"], v["GpuId"], v["RunId"]))}
+
+
+def _job_agreement(python: dict, kql: dict) -> dict:
+    diffs, fields = [], 0
+    checks = (("per_job", lambda r: r["RunId"],
+               ("Submitter", "SubmitterObjectId", "Status", "Vms", "Gpus", "StartTime", "EndTime"),
+               ("BusyGpuHours", "EffectiveGpuHours", "PeakMemoryGiB")),
+              ("per_submitter", lambda r: (r["Submitter"], r["SubmitterObjectId"]), ("Jobs",),
+               ("BusyGpuHours", "EffectiveGpuHours")),
+              ("live", lambda r: (r["Computer"], r["GpuId"], r["RunId"]), ("Status", "LastSeen"), ()))
+    for view, key, exact, numeric in checks:
+        py = {key(r): r for r in python[view]}
+        kq = {key(r): r for r in kql[view]}
+        if set(py) != set(kq):
+            raise SystemExit(f"KQL_PYTHON_ROWS {view}: python {sorted(map(str, py))} kql {sorted(map(str, kq))}")
+        for k, a in py.items():
+            b = kq[k]
+            for f in exact:
+                if a[f] != b[f]:
+                    raise SystemExit(f"KQL_PYTHON_FIELD {view} {k} {f}: python {a[f]!r} kql {b[f]!r}")
+                fields += 1
+            for f in numeric:
+                if a[f] is None or b[f] is None:
+                    if a[f] != b[f]:
+                        raise SystemExit(f"KQL_PYTHON_FIELD {view} {k} {f}: python {a[f]!r} kql {b[f]!r}")
+                    continue
+                diffs.append(abs(a[f] - b[f]))
+    worst = max(diffs) if diffs else 0.0
+    if worst > 1e-6:
+        raise SystemExit(f"KQL_PYTHON_MISMATCH jobs max abs diff {worst}")
+    return {"compared_values": len(diffs), "compared_fields": fields, "max_abs_diff": round(worst, 12)}
+
+
+def build_jobs(gpu: list[dict], activity: list[dict], status: list[dict], kql: dict) -> dict:
+    python = recompute_jobs(gpu, activity, status)
+    job_rows = [r for r in gpu if r.get("RunId")]
+    submissions = [a for a in activity if a["ActivityStatusValue"].lower() in SUCCESS]
+    stats = lambda xs: {"median": round(statistics.median(xs)), "max": max(xs)} if xs else None  # noqa: E731
+    return {
+        "per_job": python["per_job"],
+        "per_submitter": python["per_submitter"],
+        "job_minutes": len(job_rows),
+        "shared_job_minutes": sum(1 for r in job_rows if "," in r["RunId"]),
+        "owners_of_job_minutes": sorted({u for r in job_rows for u in r["Users"].split(",") if u}),
+        "status_sequence": {rid: [s["Status"] for s in status if s["RunId"] == rid] for rid in sorted({s["RunId"] for s in status})},
+        "kql_vs_python": _job_agreement(python, kql),
+        "ingestion_delay_seconds": {"gpu_rows": stats([r["IngestionDelaySeconds"] for r in job_rows]),
+                                    "submissions": stats([a["IngestionDelaySeconds"] for a in submissions]),
+                                    "status_events": stats([s["IngestionDelaySeconds"] for s in status])},
+    }
+
+
 def _pct(xs: list[float], q: float) -> float:
     xs = sorted(xs)
     return xs[max(0, min(len(xs) - 1, round(q * (len(xs) - 1))))]
@@ -269,6 +422,9 @@ def build_run(run_dir: Path, contract: dict) -> dict:
     } for s in segments(gpu) if s["phase"] != "idle"]
     gpu_bytes = statistics.median(r["BilledSize"] for r in gpu)
     hb_bytes = statistics.median(h["BilledSize"] for h in hb)
+    jobs = None
+    if (run_dir / "activity.jsonl").exists():
+        jobs = build_jobs(gpu, _read_jsonl(run_dir / "activity.jsonl"), _read_jsonl(run_dir / "aml-status.jsonl"), kql)
     return _r({
         "run": run_dir.name,
         "hardware": contract["hardware"],
@@ -291,6 +447,7 @@ def build_run(run_dir: Path, contract: dict) -> dict:
                                  "heartbeat_median": hb_bytes},
         "derived_mb_per_vm_day": {"1_gpu": round((gpu_bytes + hb_bytes) * 1440 / 1e6, 2),
                                   "8_gpu": round((8 * gpu_bytes + hb_bytes) * 1440 / 1e6, 2)},
+        **({"jobs": jobs} if jobs else {}),
     })
 
 
@@ -316,12 +473,13 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--start", required=True, help="window start, ISO-8601 UTC")
     c.add_argument("--minutes", type=int, required=True)
     c.add_argument("--out", type=Path, required=True)
+    c.add_argument("--jobs", action="store_true", help="also export AML submissions and status events and run the job views")
     p = sub.add_parser("project")
     p.add_argument("--private", type=Path, required=True)
     p.add_argument("--run", required=True)
     args = ap.parse_args(argv)
     if args.cmd == "capture":
-        capture(args.workspace, args.start, args.minutes, args.out)
+        capture(args.workspace, args.start, args.minutes, args.out, args.jobs)
         return 0
     if args.cmd == "project":
         project(args.private, args.run)

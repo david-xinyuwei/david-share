@@ -17,6 +17,7 @@
 
 <!-- BEGIN GENERATED: glance -->
 - 在一台 H100 VM 上跑一段时间表已知的负载，采集链路记录下满载 8 分钟、占用 3 分钟、半载 5 分钟，与负载脚本的安排一致；五个查询的结果和对原始数据的独立 Python 重算逐值比对，28 个值全部相同。
+- 三个 AML 作业以同一个 Linux 用户在这台 VM 上运行：`per_user` 只看到一个属主，合计 0.150 占用卡时；`per_job` 按作业名拆成 0.067、0.042、0.042，两个作业共用的 3 分钟各记一半，并给出提交作业的 Entra 账号；KQL 与 Python 比对 11 个数值、28 个字段全部一致。
 - 下面的配置步骤在一个新资源组里原样实跑：建工作区 181 秒，接入 VM 102 秒，下线 98 秒。
 - Log Analytics 按每行 343 字节计费（每 GPU·分钟一行），每天约 4.74 MB（8 卡 VM，含 Heartbeat）。
 - 主要限制：进程属主每分钟只采一次，任务在一分钟中途退出时，这一分钟算占用但没有属主（第一次实测 1 / 17 个占用分钟，第二次 1 / 6 个）。
@@ -353,9 +354,10 @@ az role assignment create --assignee <principal-id> --role "Log Analytics Reader
 
 ## 单台 H100 VM 上的实测验证
 
-在一张 GPU 上做了两次实测：
+在一张 GPU 上做了三次实测：
 - `validation-1`：用时间表已知的负载，检查每一分钟有没有被归到正确的类别；
-- `replay-1`：在一个新资源组里原样执行上面的配置步骤，并让两个属主共用这张卡。
+- `replay-1`：在一个新资源组里原样执行上面的配置步骤，并让两个属主共用这张卡；
+- `jobs-1`：三个 AML 作业以同一个 Linux 用户运行，按作业名和提交人归属卡时。
 
 <img src="images/test-topology-cn.png" width="900" alt="被测 VM Standard_NC40ads_H100_v5 位于 Spain Central，运行已知负载、gpumon 和 Azure Monitor Agent；同区域的数据收集终结点、规则和工作区；运维工作站执行脚本和查询">
 
@@ -461,10 +463,69 @@ print("done")
 - `per_user` 里的 `PeakMemoryGiB` 是这张卡上的显存占用，不是单个进程的：两人同时运行时是 42 GiB。
 - VM 释放后再启动时换到了另一台宿主机，所以 GPU UUID 变了。查询按 VM 名称加 GPU 序号分组，这不影响统计结果。
 
+### jobs-1：AML 作业与提交人，同一个 Linux 用户
+
+**问题。** 所有 GPU 进程都以同一个 Linux 用户运行时（AML 作业通过 SSH 在宿主机上启动 torchrun 或 mpirun 就是这样），客户平台还能不能按作业、按提交作业的 Entra 账号读出卡时？两个作业共用一张卡的那几分钟怎么算？
+
+**输入。** 上面那台 VM：用 `scripts/setup-workspace.sh -a` 建工作区，用 `scripts/onboard-vm.sh` 接入，并以 `virtualmachine` 计算目标附加到同一订阅里的一个 AML 工作区。一个 Entra 账号（下文记作 `submitter-1`）提交了三个 AML 命令作业。每个作业在自己的 AML 容器里运行下面这个启动脚本：它通过 SSH 在宿主机上，以同一个 Linux 账户（下文记作 `user-1`）启动 [`tests/load/gpu_load.py`](tests/load/gpu_load.py)，参数为 `--phase full:150 --phase partial:90:0.5`，并把 `AZUREML_RUN_ID` 传下去。`job-3` 比 `job-2` 晚约一分钟提交，因此两者共用了这张卡。
+
+<!-- BEGIN GENERATED: jobs-launcher -->
+```bash
+#!/bin/bash
+# Runs in the AML job container on the attached VM. Starts the GPU load on the VM host over SSH and passes the
+# AML job name on in AZUREML_RUN_ID, the way a multi-node launcher starts torchrun or mpirun on its hosts.
+set -euo pipefail
+HOST=${GPU_HOST:?}; PORT=${GPU_HOST_PORT:-22}; USER_ON_HOST=${GPU_HOST_USER:-amljob}
+KEY=/tmp/aml_host_key; cp ./aml_host_key "$KEY"; chmod 600 "$KEY"
+OPTS=(-i "$KEY" -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=20 -o LogLevel=ERROR)
+REMOTE=/tmp/gpu_load_${AZUREML_RUN_ID}.py
+echo "[launcher] job=${AZUREML_RUN_ID} container=$(hostname) host=${HOST}:${PORT} start=$(date -u +%FT%TZ)"
+scp -q -P "$PORT" "${OPTS[@]}" ./gpu_load.py "${USER_ON_HOST}@${HOST}:${REMOTE}"
+set +e
+ssh -p "$PORT" "${OPTS[@]}" "${USER_ON_HOST}@${HOST}" "env AZUREML_RUN_ID=${AZUREML_RUN_ID} /usr/bin/python3 ${REMOTE} $*; rc=\$?; rm -f ${REMOTE}; exit \$rc"
+rc=$?
+echo "[launcher] job=${AZUREML_RUN_ID} rc=${rc} end=$(date -u +%FT%TZ)"
+exit $rc
+```
+<!-- END GENERATED: jobs-launcher -->
+
+**变量与固定项。** 变的是作业名，以及其中两个作业的重叠。VM、GPU、Linux 账户、提交人和查询保持不变。
+
+**结果。**
+
+<!-- BEGIN GENERATED: jobs-steps -->
+- **1 工作区与作业跟踪**：退出码 0，209 秒。表 24 列，含 RunId；Administrative 活动日志和 AmlRunStatusChangedEvent 写入工作区。
+- **2 接入 VM**：退出码 0，160 秒。gpumon.service 运行中，采集器带 RunId。
+- **3 VM 附加到 AML**：退出码 0，6 秒。计算目标状态 Succeeded。
+- **4 三个 AML 作业**：退出码 0。全部 Completed；job-2 与 job-3 以同一个 Linux 用户共用 GPU，每个进程带各自的 AZUREML_RUN_ID。
+- **5 回读：参考客户端执行八个查询**：退出码 0，44 秒。原始数据和全部查询结果导出完成。
+- **6 清理**：退出码 0。计算目标已分离，测试账户已删除，诊断设置和资源组已删除，VM 已释放。
+<!-- END GENERATED: jobs-steps -->
+
+<!-- BEGIN GENERATED: jobs-result -->
+| 作业 | 提交人 | 占用卡时 | 有效计算卡时 |
+|---|---|---:|---:|
+| `job-1` | `submitter-1` | 0.067 | 0.047 |
+| `job-2` | `submitter-1` | 0.042 | 0.032 |
+| `job-3` | `submitter-1` | 0.042 | 0.029 |
+
+- 同一时段的 `per_user`：只有一个属主 `user-1`，占用 0.150 卡时，即三个作业之和。
+- 共 11 个占用分钟：9 个带作业名，其中 3 个带两个作业名、各记一半；2 个没有作业名。
+- 每个作业的状态事件：Running → Finalizing → Completed。
+- 入库延迟：GPU 数据中位数 83 秒；状态事件中位数 38 秒，最长 55 秒；提交事件中位数 363 秒，最长 538 秒。
+<!-- END GENERATED: jobs-result -->
+
+**边界。**
+- 只有一个提交人：测试账号无权给第二个身份授予 AML 工作区的访问权限，所以 `per_submitter` 只有一行。每个作业的提交人取自该作业自己那条 `jobs/write` 事件的 `Caller`，第二个账号会成为第二行。
+- 提交人随 Azure 活动日志导出入库，比 GPU 数据晚几分钟；在此之前 `per_job` 里这个作业的提交人为空。状态事件比 GPU 数据到得更快。
+- 作业名和属主一样，在每分钟末读取一次：作业结束的那一分钟，记给那一刻仍在 GPU 上的作业，或者不记给任何作业。
+- 在附加的 Ubuntu 24.04 VM 上运行 AML 作业，遇到了三个 AML 自身的前提条件，记录在 [`evidence/runs.json`](evidence/runs.json)：附加用的账户要接受 `ssh-rsa`，宿主机上要有 `python` 命令，工作区存储要能被 AML 访问以上传日志。它们属于 AML，不属于本仓库的配置步骤。
+
 ### 可以自己重算的数字
 
 <!-- BEGIN GENERATED: checks -->
 - KQL 与 Python 比对：第一次实测 13 个值，第二次 15 个，最大差值 0.0。
+- `jobs-1`：原有查询 13 个值，作业查询 11 个数值、28 个字段，最大差值 0.0。
 - GpuMetrics_CL 入库延迟：中位数 76 秒，p95 125 秒。
 - 计费大小：每行 GPU 数据 343 字节，每行 Heartbeat 547 字节。
 <!-- END GENERATED: checks -->
@@ -488,7 +549,7 @@ python tools/check_repo.py
   - 采集器：解析真实的 `dcgmi dmon` 输出、按分钟求平均，以及 JSON 行的字段与规则数据流、表的列完全一致；
   - 查询：共用的 `let` 行完全相同，`summary` 是 `per_vm` 的合计，AML 查询按 `RunId` 关联；
   - 参考客户端：`let` 改写，以及发出的 timespan；
-  - 证据：重算逻辑，包括属主的 1/N 分摊；
+  - 证据：重算逻辑，包括属主和作业的 1/N 分摊、首个提交人和最后状态；
   - 公开内容：`tools/check_repo.py` 的每一条规则，并故意制造违规，确认它会报错。
 - **`tools/build_evidence.py --check`** 用已提交的原始数据重新生成 [`evidence/measurements.json`](evidence/measurements.json)，KQL 结果与 Python 重算不一致时报错。
 - **`tools/build_readme.py --check`** 两份 README 里任何数字、表格或命令，与从证据和脚本重新生成的结果不一致时报错。
@@ -502,7 +563,7 @@ CI 在 Ubuntu 和 Windows 上、分别用 Python 3.10 和 3.12 执行同样的�
 - 参考客户端；
 - 负载测试（需要 GPU VM 和 PyTorch）：`./tests/load/run-load.sh -g <vm-rg> -n <vm-name> -u <user>`，测完用 `-x` 删除测试用户。
 
-本仓库没有测试：多卡 VM、MIG、DCGM 4.x、Azure Private Link、主权云，以及三个 AML 查询的端到端链路。AML 查询已有离线契约测试，但生产使用前仍需跑一次双身份实时验证。
+本仓库没有测试：多卡 VM、MIG、DCGM 4.x、Azure Private Link、主权云，以及多个提交账号。
 
 ## 边界、目录与资料
 
@@ -511,6 +572,7 @@ CI 在 Ubuntu 和 Windows 上、分别用 Python 3.10 和 3.12 执行同样的�
 - `LOCAL_MEASUREMENT`：属主在每分钟末采一次。任务在一分钟中途退出，这一分钟算占用但没有属主；任务在一分钟中途启动，从它的第一个分钟末开始计入。
 - `LOCAL_MEASUREMENT`：分配时长从代理的第一条 `Heartbeat` 算起。代理开始采集之前采集器写下的行没有入库（`validation-1` 的第 5–10 分钟）。
 - `LOCAL_MEASUREMENT`：`PeakMemoryGiB` 是整张卡的显存占用，不是按进程统计的。
+- `LOCAL_MEASUREMENT`：作业的提交人随 Azure 活动日志导出入库，比它的 GPU 数据晚几分钟（`jobs-1`）。
 - `LOCAL_MEASUREMENT`：作业 ID 在每分钟末采一次。同一个 GPU·分钟有多个作业 ID 时，由于 DCGM 不提供每进程 SM 活跃度，每个作业得到相同份额。
 - `NOT_MEASURED`：8 卡 VM。采集器读取 `nvidia-smi` 列出的每一张卡，查询也按 VM 统计卡数，但实测只有一张卡。
 - `NOT_MEASURED`：MIG 实例、DCGM 4.x，以及没有传递标识符的任务。AML 使用 `AZUREML_RUN_ID`；其他调度器需要定义等价的采集和查询约定。
@@ -525,7 +587,7 @@ CI 在 Ubuntu 和 Windows 上、分别用 Python 3.10 和 3.12 执行同样的�
 - [`scripts/`](scripts/)：`setup-workspace.sh`、`onboard-vm.sh`、`offboard-vm.sh`。
 - [`kql/`](kql/)：八个查询。
 - [`examples/`](examples/)：`gpu_hours_client.py`，调用查询 API 的参考客户端，以及它的 `requirements.txt`。
-- [`evidence/`](evidence/)：运行说明（`runs.json`）、两次实测经过脱敏投影的原始数据和查询结果（`runs/`），附私有原件的 SHA-256，以及 `measurements.json`。
+- [`evidence/`](evidence/)：运行说明（`runs.json`）、三次实测经过脱敏投影的原始数据和查询结果（`runs/`），附私有原件的 SHA-256，以及 `measurements.json`。
 - [`tests/`](tests/)：离线测试；`tests/load/` 下是负载生成器和它的 Run Command 包装脚本。
 - [`tools/`](tools/)：证据、README 和图的生成工具，以及公开内容审计。
 - [`images/`](images/)：中英文配图及其台账 `SOURCES.json`。

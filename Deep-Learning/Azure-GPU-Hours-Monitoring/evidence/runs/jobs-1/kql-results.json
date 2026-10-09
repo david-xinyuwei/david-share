@@ -1,0 +1,152 @@
+{
+ "summary": [
+  {
+   "AllocatedGpuHours": 0.4166666666666667,
+   "BusyGpuHours": 0.18333333333333332,
+   "EffectiveGpuHours": 0.11265166666666666,
+   "IdleGpuHours": 0.23333333333333336,
+   "Vms": 1,
+   "Gpus": 1,
+   "UtilizationPct": 27.036399999999997
+  }
+ ],
+ "per_vm": [
+  {
+   "Computer": "gpu-vm-1",
+   "VmSize": "Standard_NC40ads_H100_v5",
+   "GpuName": "NVIDIA H100 NVL",
+   "Gpus": 1,
+   "RunningHours": 0.4166666666666667,
+   "AllocatedGpuHours": 0.4166666666666667,
+   "BusyGpuHours": 0.18333333333333332,
+   "EffectiveGpuHours": 0.11265166666666666,
+   "IdleGpuHours": 0.23333333333333336,
+   "UtilizationPct": 27.036399999999997
+  }
+ ],
+ "per_hour": [
+  {
+   "Hour": "hour 1",
+   "AllocatedGpuHours": 0.4166666666666667,
+   "BusyGpuHours": 0.18333333333333332,
+   "EffectiveGpuHours": 0.11265166666666666,
+   "IdleGpuHours": 0.23333333333333336,
+   "UtilizationPct": 27.036399999999997
+  }
+ ],
+ "per_day": [
+  {
+   "Day": "day 1",
+   "AllocatedGpuHours": 0.4166666666666667,
+   "BusyGpuHours": 0.18333333333333332,
+   "EffectiveGpuHours": 0.11265166666666666,
+   "IdleGpuHours": 0.23333333333333336,
+   "UtilizationPct": 27.036399999999997
+  }
+ ],
+ "per_user": [
+  {
+   "User": "user-1",
+   "Computer": "gpu-vm-1",
+   "BusyGpuHours": 0.15,
+   "EffectiveGpuHours": 0.10848166666666667,
+   "AvgSmActivePct": 72.32111111111111,
+   "PeakMemoryGiB": 41.970703125,
+   "Processes": "python3"
+  }
+ ],
+ "per_job": [
+  {
+   "RunId": "job-3",
+   "Submitter": "submitter-1",
+   "SubmitterObjectId": "object-id-1",
+   "Status": "Completed",
+   "Vms": 1,
+   "Gpus": 1,
+   "StartTime": 16,
+   "EndTime": 20,
+   "BusyGpuHours": 0.041666666666666664,
+   "EffectiveGpuHours": 0.0288775,
+   "PeakMemoryGiB": 41.970703125
+  },
+  {
+   "RunId": "job-2",
+   "Submitter": "submitter-1",
+   "SubmitterObjectId": "object-id-1",
+   "Status": "Completed",
+   "Vms": 1,
+   "Gpus": 1,
+   "StartTime": 15,
+   "EndTime": 19,
+   "BusyGpuHours": 0.041666666666666664,
+   "EffectiveGpuHours": 0.0322675,
+   "PeakMemoryGiB": 41.970703125
+  },
+  {
+   "RunId": "job-1",
+   "Submitter": "submitter-1",
+   "SubmitterObjectId": "object-id-1",
+   "Status": "Completed",
+   "Vms": 1,
+   "Gpus": 1,
+   "StartTime": 6,
+   "EndTime": 10,
+   "BusyGpuHours": 0.06666666666666667,
+   "EffectiveGpuHours": 0.04733666666666667,
+   "PeakMemoryGiB": 20.986328125
+  }
+ ],
+ "per_submitter": [
+  {
+   "Submitter": "submitter-1",
+   "SubmitterObjectId": "object-id-1",
+   "Jobs": 3,
+   "BusyGpuHours": 0.15,
+   "EffectiveGpuHours": 0.10848166666666667
+  }
+ ],
+ "live": [
+  {
+   "Computer": "gpu-vm-1",
+   "GpuId": 0,
+   "RunId": "job-2",
+   "Submitter": "submitter-1",
+   "SubmitterObjectId": "object-id-1",
+   "Status": "Completed",
+   "LastSeen": 18,
+   "GpuUtil": 97,
+   "SmActive": 0.8807,
+   "FbUsedMiB": 42978,
+   "ProcCount": 2,
+   "Processes": "python3"
+  },
+  {
+   "Computer": "gpu-vm-1",
+   "GpuId": 0,
+   "RunId": "job-3",
+   "Submitter": "submitter-1",
+   "SubmitterObjectId": "object-id-1",
+   "Status": "Completed",
+   "LastSeen": 19,
+   "GpuUtil": 66.6667,
+   "SmActive": 0.4128,
+   "FbUsedMiB": 28652.6667,
+   "ProcCount": 1,
+   "Processes": "python3"
+  },
+  {
+   "Computer": "gpu-vm-1",
+   "GpuId": 0,
+   "RunId": "job-1",
+   "Submitter": "submitter-1",
+   "SubmitterObjectId": "object-id-1",
+   "Status": "Completed",
+   "LastSeen": 9,
+   "GpuUtil": 50,
+   "SmActive": 0.3537,
+   "FbUsedMiB": 21490,
+   "ProcCount": 1,
+   "Processes": "python3"
+  }
+ ]
+}

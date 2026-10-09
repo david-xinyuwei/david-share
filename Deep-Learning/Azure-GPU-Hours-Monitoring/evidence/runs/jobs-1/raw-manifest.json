@@ -1,0 +1,18 @@
+{
+ "window_minutes": 25,
+ "private_sources_sha256": {
+  "aml_status.json": "f8ef88c0188a46e44fe796ead2ca766b85e09df9540405abaae8b7f69987528f",
+  "azure_activity.json": "9412aebe60d555c1c23337284e9fb38e8393eef4a092d2a77641a004c0d35d5a",
+  "gpu_metrics.json": "4215a70ae409a1b22925b6875a4707b28750cb43d4b005fb7778d69b4d5dc26b",
+  "heartbeat.json": "131c3d22427ac9222184f2ab0a8107f1da4cf9ed21c4dd1439f3367fca446aef",
+  "kql-results.json": "9ef83f73350630ffd189118892928afd89486acbf62ce03cfece0252f690e527"
+ },
+ "public_projection_sha256": {
+  "activity.jsonl": "d9c31ee2d6f33b7efd74c888109c5f99db9ec120698c38ceac75ddf70a0d2fcc",
+  "aml-status.jsonl": "7fef43ffafa92ee32ed5f864887b63647a47f1726e0859942de01693a3f7d510",
+  "gpu-metrics.jsonl": "82286bc5e0ad29122b02ca36fd1979094c42fbffe5d265b5b29e032a0cb97c57",
+  "heartbeat.jsonl": "69f63e581d6279848aec933193827108de152b998164f0d3443dc6240562d8d5",
+  "kql-results.json": "5112adbdbc9ea60e55afa202b7fe4085e38f9f7a369920d224a8cdebe6b2e61e"
+ },
+ "projection": "Computer/VmName -> gpu-vm-N; Users -> user-N; TimeGenerated -> Minute since window start; IngestionTime -> IngestionDelaySeconds; dropped VmResourceId, GpuUuid, Tags, TenantId, _ResourceId; Hour/Day labels -> ordinal; AML job names -> job-N (case-insensitive); Caller -> submitter-N; Entra object ID -> object-id-N; activity and status TimeGenerated -> Second since window start; StartTime/EndTime/LastSeen -> Minute; dropped AgeSeconds"
+}

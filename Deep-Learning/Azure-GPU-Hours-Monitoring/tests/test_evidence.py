@@ -47,6 +47,45 @@ class SemanticsTests(unittest.TestCase):
         self.assertEqual(ev.classify(row(0, util=60, sm=0.34)), "partial")  # busy without a visible owner
 
 
+class JobSemanticsTests(unittest.TestCase):
+    def test_shared_minute_is_split_between_jobs_and_submitter_and_status_resolve(self):
+        def jrow(minute, run_id, mem=1024.0):
+            return dict(row(minute, proc=len(run_id.split(",")), users="user-1", util=100, sm=1.0), RunId=run_id, FbUsedMiB=mem)
+        gpu = [jrow(0, "job-1"), jrow(1, "job-1,job-2", 2048.0), jrow(2, "job-2"), row(3, proc=1, users="user-1", util=100, sm=1.0)]
+        activity = [
+            {"Second": 0, "RunId": "job-1", "ActivityStatusValue": "Start", "Submitter": "submitter-9", "SubmitterObjectId": "object-id-9"},
+            {"Second": 1, "RunId": "job-1", "ActivityStatusValue": "Success", "Submitter": "submitter-1", "SubmitterObjectId": "object-id-1"},
+            {"Second": 2, "RunId": "job-2", "ActivityStatusValue": "Succeeded", "Submitter": "submitter-2", "SubmitterObjectId": "object-id-2"},
+            {"Second": 300, "RunId": "job-2", "ActivityStatusValue": "Success", "Submitter": "submitter-1", "SubmitterObjectId": "object-id-1"},
+        ]
+        status = [{"Second": 10, "RunId": "job-1", "Status": "Running"}, {"Second": 200, "RunId": "job-1", "Status": "Completed"}]
+        out = ev.recompute_jobs(gpu, activity, status)
+        jobs = {j["RunId"]: j for j in out["per_job"]}
+        self.assertAlmostEqual(jobs["job-1"]["BusyGpuHours"], 1.5 / 60)
+        self.assertAlmostEqual(jobs["job-2"]["BusyGpuHours"], 1.5 / 60)
+        self.assertEqual((jobs["job-1"]["Submitter"], jobs["job-1"]["Status"]), ("submitter-1", "Completed"))
+        self.assertEqual((jobs["job-2"]["Submitter"], jobs["job-2"]["Status"]), ("submitter-2", "Unknown"))
+        self.assertEqual((jobs["job-1"]["StartTime"], jobs["job-1"]["EndTime"], jobs["job-2"]["PeakMemoryGiB"]), (0, 2, 2.0))
+        # the minute without a job name belongs to no job, so the job hours add up to the job minutes only
+        self.assertAlmostEqual(sum(j["BusyGpuHours"] for j in out["per_job"]), 3 / 60)
+        self.assertEqual({s["Submitter"]: s["Jobs"] for s in out["per_submitter"]}, {"submitter-1": 1, "submitter-2": 1})
+
+    def test_kql_job_that_disagrees_with_python_is_rejected(self):
+        gpu = [dict(row(0, proc=1, users="user-1", util=100, sm=1.0), RunId="job-1", FbUsedMiB=1024.0)]
+        python = ev.recompute_jobs(gpu, [], [])
+        kql = json.loads(json.dumps(python))
+        self.assertEqual(ev._job_agreement(python, kql)["compared_values"], 3 + 2)
+        kql["per_job"][0]["BusyGpuHours"] += 0.01
+        with self.assertRaises(SystemExit) as ctx:
+            ev._job_agreement(python, kql)
+        self.assertIn("KQL_PYTHON_MISMATCH", str(ctx.exception))
+        kql = json.loads(json.dumps(python))
+        kql["per_job"][0]["Status"] = "Completed"
+        with self.assertRaises(SystemExit) as ctx:
+            ev._job_agreement(python, kql)
+        self.assertIn("KQL_PYTHON_FIELD", str(ctx.exception))
+
+
 class FailClosedTests(unittest.TestCase):
     def test_committed_measurements_are_current(self):
         self.assertEqual(ev.main(["--check"]), 0)
@@ -78,12 +117,21 @@ class FailClosedTests(unittest.TestCase):
 
     def test_public_rows_carry_no_timestamps_or_identifiers(self):
         for path in ev.RUNS.rglob("*.jsonl"):
-            first = json.loads(path.read_text(encoding="utf-8").splitlines()[0])
-            with self.subTest(file=path.name):
-                self.assertNotIn("TimeGenerated", first)
-                self.assertNotIn("VmResourceId", first)
-                self.assertNotIn("GpuUuid", first)
-                self.assertRegex(first["Computer"], r"^gpu-vm-\d+$")
+            rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+            with self.subTest(file=f"{path.parent.name}/{path.name}"):
+                for r in rows:
+                    self.assertNotIn("TimeGenerated", r)
+                    self.assertNotIn("VmResourceId", r)
+                    self.assertNotIn("GpuUuid", r)
+                    self.assertNotIn("_ResourceId", r)
+                    if "Computer" in r:
+                        self.assertRegex(r["Computer"], r"^gpu-vm-\d+$")
+                    for run_id in filter(None, (r.get("RunId") or "").split(",")):
+                        self.assertRegex(run_id, r"^job-\d+$")
+                    if r.get("Submitter"):
+                        self.assertRegex(r["Submitter"], r"^submitter-\d+$")
+                    if r.get("SubmitterObjectId"):
+                        self.assertRegex(r["SubmitterObjectId"], r"^object-id-\d+$")
 
 
 if __name__ == "__main__":

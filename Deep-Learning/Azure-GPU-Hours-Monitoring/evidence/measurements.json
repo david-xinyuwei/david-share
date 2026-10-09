@@ -183,6 +183,220 @@
     "1_gpu": 1.29,
     "8_gpu": 4.8
    }
+  },
+  "jobs-1": {
+   "run": "jobs-1",
+   "hardware": {
+    "vm_size": "Standard_NC40ads_H100_v5",
+    "gpus": 1,
+    "gpu": "NVIDIA H100 NVL",
+    "gpu_memory_mib": 95830,
+    "azure_region": "Spain Central"
+   },
+   "window_minutes": 25,
+   "heartbeat_minutes": 25,
+   "first_heartbeat_minute": 0,
+   "first_gpu_minute": 0,
+   "gpu_rows": 26,
+   "summary": {
+    "AllocatedGpuHours": 0.417,
+    "BusyGpuHours": 0.183,
+    "EffectiveGpuHours": 0.113,
+    "IdleGpuHours": 0.233,
+    "Gpus": 1,
+    "Vms": 1,
+    "UtilizationPct": 27.036
+   },
+   "busy_minutes": 11,
+   "owner_minutes": 9,
+   "unattributed_busy_minutes": 2,
+   "per_user": [
+    {
+     "User": "user-1",
+     "Computer": "gpu-vm-1",
+     "BusyGpuHours": 0.15,
+     "EffectiveGpuHours": 0.108
+    }
+   ],
+   "phases": [
+    {
+     "phase": "partial",
+     "first_minute": 6,
+     "minutes": 1,
+     "mean_sm_active_pct": 67.4,
+     "mean_gpu_util_pct": 83.3,
+     "mean_power_w": 343.2,
+     "max_memory_gib": 17.5,
+     "owner_minutes": 1,
+     "shared_minutes": 0
+    },
+    {
+     "phase": "full",
+     "first_minute": 7,
+     "minutes": 2,
+     "mean_sm_active_pct": 90.6,
+     "mean_gpu_util_pct": 91.7,
+     "mean_power_w": 377.9,
+     "max_memory_gib": 21.0,
+     "owner_minutes": 2,
+     "shared_minutes": 0
+    },
+    {
+     "phase": "partial",
+     "first_minute": 9,
+     "minutes": 2,
+     "mean_sm_active_pct": 23.1,
+     "mean_gpu_util_pct": 33.3,
+     "mean_power_w": 200.9,
+     "max_memory_gib": 21.0,
+     "owner_minutes": 1,
+     "shared_minutes": 0
+    },
+    {
+     "phase": "partial",
+     "first_minute": 15,
+     "minutes": 1,
+     "mean_sm_active_pct": 61.6,
+     "mean_gpu_util_pct": 66.7,
+     "mean_power_w": 286.3,
+     "max_memory_gib": 14.0,
+     "owner_minutes": 1,
+     "shared_minutes": 0
+    },
+    {
+     "phase": "full",
+     "first_minute": 16,
+     "minutes": 3,
+     "mean_sm_active_pct": 88.0,
+     "mean_gpu_util_pct": 99.0,
+     "mean_power_w": 396.5,
+     "max_memory_gib": 42.0,
+     "owner_minutes": 3,
+     "shared_minutes": 0
+    },
+    {
+     "phase": "partial",
+     "first_minute": 19,
+     "minutes": 2,
+     "mean_sm_active_pct": 27.8,
+     "mean_gpu_util_pct": 35.8,
+     "mean_power_w": 222.9,
+     "max_memory_gib": 28.0,
+     "owner_minutes": 1,
+     "shared_minutes": 0
+    }
+   ],
+   "kql_vs_python": {
+    "compared_values": 13,
+    "max_abs_diff": 0.0
+   },
+   "ingestion_delay_seconds": {
+    "median": 82,
+    "p95": 84,
+    "max": 84
+   },
+   "billed_bytes_per_row": {
+    "gpu_median": 348.0,
+    "gpu_max": 437,
+    "heartbeat_median": 547
+   },
+   "derived_mb_per_vm_day": {
+    "1_gpu": 1.29,
+    "8_gpu": 4.8
+   },
+   "jobs": {
+    "per_job": [
+     {
+      "RunId": "job-1",
+      "Submitter": "submitter-1",
+      "SubmitterObjectId": "object-id-1",
+      "Status": "Completed",
+      "Vms": 1,
+      "Gpus": 1,
+      "StartTime": 6,
+      "EndTime": 10,
+      "BusyGpuHours": 0.067,
+      "EffectiveGpuHours": 0.047,
+      "PeakMemoryGiB": 20.986
+     },
+     {
+      "RunId": "job-2",
+      "Submitter": "submitter-1",
+      "SubmitterObjectId": "object-id-1",
+      "Status": "Completed",
+      "Vms": 1,
+      "Gpus": 1,
+      "StartTime": 15,
+      "EndTime": 19,
+      "BusyGpuHours": 0.042,
+      "EffectiveGpuHours": 0.032,
+      "PeakMemoryGiB": 41.971
+     },
+     {
+      "RunId": "job-3",
+      "Submitter": "submitter-1",
+      "SubmitterObjectId": "object-id-1",
+      "Status": "Completed",
+      "Vms": 1,
+      "Gpus": 1,
+      "StartTime": 16,
+      "EndTime": 20,
+      "BusyGpuHours": 0.042,
+      "EffectiveGpuHours": 0.029,
+      "PeakMemoryGiB": 41.971
+     }
+    ],
+    "per_submitter": [
+     {
+      "Submitter": "submitter-1",
+      "SubmitterObjectId": "object-id-1",
+      "Jobs": 3,
+      "BusyGpuHours": 0.15,
+      "EffectiveGpuHours": 0.108
+     }
+    ],
+    "job_minutes": 9,
+    "shared_job_minutes": 3,
+    "owners_of_job_minutes": [
+     "user-1"
+    ],
+    "status_sequence": {
+     "job-1": [
+      "Running",
+      "Finalizing",
+      "Completed"
+     ],
+     "job-2": [
+      "Running",
+      "Finalizing",
+      "Completed"
+     ],
+     "job-3": [
+      "Running",
+      "Finalizing",
+      "Completed"
+     ]
+    },
+    "kql_vs_python": {
+     "compared_values": 11,
+     "compared_fields": 28,
+     "max_abs_diff": 0.0
+    },
+    "ingestion_delay_seconds": {
+     "gpu_rows": {
+      "median": 83,
+      "max": 84
+     },
+     "submissions": {
+      "median": 363,
+      "max": 538
+     },
+     "status_events": {
+      "median": 38,
+      "max": 55
+     }
+    }
+   }
   }
  }
 }

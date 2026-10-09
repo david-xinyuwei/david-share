@@ -52,10 +52,18 @@ def glance(lang: str) -> str:
     ph = [p for p in v["phases"] if p["minutes"] > 1]
     n = sum(x["kql_vs_python"]["compared_values"] for x in (v, r))
     mb = v["derived_mb_per_vm_day"]["8_gpu"]
+    j = _m()["jobs-1"]
+    jobs, jm = j["jobs"], j["jobs"]["per_job"]
     if lang == "en":
         return (f"- On one H100 VM running a load with a known schedule, the pipeline recorded {ph[0]['minutes']} full, "
                 f"{ph[1]['minutes']} held and {ph[2]['minutes']} partial GPU-minutes, the same split the load script scheduled; "
                 f"the five views and an independent Python recomputation of the raw rows agree on all {n} compared values.\n"
+                f"- Three AML jobs ran there as one Linux user: `per_user` shows a single owner with "
+                f"{_n(j['per_user'][0]['BusyGpuHours'])} busy GPU-hours, while `per_job` splits them by job name "
+                f"({_n(jm[0]['BusyGpuHours'])}, {_n(jm[1]['BusyGpuHours'])}, {_n(jm[2]['BusyGpuHours'])}), counts the "
+                f"{jobs['shared_job_minutes']} minutes two jobs shared as half each and names the Entra account that submitted "
+                f"them; KQL and Python agree on {jobs['kql_vs_python']['compared_values']} values and "
+                f"{jobs['kql_vs_python']['compared_fields']} fields.\n"
                 f"- The configuration steps below ran verbatim against a new resource group: workspace setup {steps['1']['seconds']} s, "
                 f"VM onboarding {steps['2']['seconds']} s, removal {steps['6']['seconds']} s.\n"
                 f"- Log Analytics bills {_n(v['billed_bytes_per_row']['gpu_median'], 0)} bytes per GPU-minute row, about "
@@ -65,6 +73,11 @@ def glance(lang: str) -> str:
                 f"{r['unattributed_busy_minutes']} of {r['busy_minutes']} in the second).\n")
     return (f"- 在一台 H100 VM 上跑一段时间表已知的负载，采集链路记录下满载 {ph[0]['minutes']} 分钟、占用 {ph[1]['minutes']} 分钟、"
             f"半载 {ph[2]['minutes']} 分钟，与负载脚本的安排一致；五个查询的结果和对原始数据的独立 Python 重算逐值比对，{n} 个值全部相同。\n"
+            f"- 三个 AML 作业以同一个 Linux 用户在这台 VM 上运行：`per_user` 只看到一个属主，合计 "
+            f"{_n(j['per_user'][0]['BusyGpuHours'])} 占用卡时；`per_job` 按作业名拆成 "
+            f"{_n(jm[0]['BusyGpuHours'])}、{_n(jm[1]['BusyGpuHours'])}、{_n(jm[2]['BusyGpuHours'])}，两个作业共用的 "
+            f"{jobs['shared_job_minutes']} 分钟各记一半，并给出提交作业的 Entra 账号；KQL 与 Python 比对 "
+            f"{jobs['kql_vs_python']['compared_values']} 个数值、{jobs['kql_vs_python']['compared_fields']} 个字段全部一致。\n"
             f"- 下面的配置步骤在一个新资源组里原样实跑：建工作区 {steps['1']['seconds']} 秒，接入 VM {steps['2']['seconds']} 秒，"
             f"下线 {steps['6']['seconds']} 秒。\n"
             f"- Log Analytics 按每行 {_n(v['billed_bytes_per_row']['gpu_median'], 0)} 字节计费（每 GPU·分钟一行），每天约 "
@@ -250,23 +263,94 @@ def owners(lang: str) -> str:
 
 
 def checks(lang: str) -> str:
-    v, r = _m()["validation-1"], _m()["replay-1"]
+    v, r, j = _m()["validation-1"], _m()["replay-1"], _m()["jobs-1"]
     d, b = v["ingestion_delay_seconds"], v["billed_bytes_per_row"]
+    jq = j["jobs"]["kql_vs_python"]
     if lang == "en":
         return (f"- KQL against Python: {v['kql_vs_python']['compared_values']} values in the first run and "
                 f"{r['kql_vs_python']['compared_values']} in the second, largest difference {v['kql_vs_python']['max_abs_diff']}.\n"
+                f"- `jobs-1`: {j['kql_vs_python']['compared_values']} values of the classic views, and {jq['compared_values']} values "
+                f"and {jq['compared_fields']} fields of the job views, largest difference {jq['max_abs_diff']}.\n"
                 f"- Ingestion delay of GpuMetrics_CL rows: median {d['median']} s, p95 {d['p95']} s.\n"
                 f"- Billed size: {_n(b['gpu_median'], 0)} bytes per GPU row, {_n(b['heartbeat_median'], 0)} bytes per Heartbeat row.\n")
     return (f"- KQL 与 Python 比对：第一次实测 {v['kql_vs_python']['compared_values']} 个值，第二次 "
             f"{r['kql_vs_python']['compared_values']} 个，最大差值 {v['kql_vs_python']['max_abs_diff']}。\n"
+            f"- `jobs-1`：原有查询 {j['kql_vs_python']['compared_values']} 个值，作业查询 {jq['compared_values']} 个数值、"
+            f"{jq['compared_fields']} 个字段，最大差值 {jq['max_abs_diff']}。\n"
             f"- GpuMetrics_CL 入库延迟：中位数 {d['median']} 秒，p95 {d['p95']} 秒。\n"
             f"- 计费大小：每行 GPU 数据 {_n(b['gpu_median'], 0)} 字节，每行 Heartbeat {_n(b['heartbeat_median'], 0)} 字节。\n")
+
+
+def jobs_launcher(lang: str) -> str:
+    return "```bash\n" + _runs()["jobs-1"]["load"]["launcher_verbatim"] + "```\n"
+
+
+JOB_STEP_TEXT = {
+    "en": ["workspace with job tracking", "VM onboarding", "VM attached to AML", "three AML jobs",
+           "read back: the eight views through the client", "cleanup"],
+    "cn": ["工作区与作业跟踪", "接入 VM", "VM 附加到 AML", "三个 AML 作业", "回读：参考客户端执行八个查询", "清理"],
+}
+JOB_CHECK_TEXT = {
+    "en": ["Table 24 columns including RunId; Administrative activity and AmlRunStatusChangedEvent go to the workspace",
+           "gpumon.service active with the RunId collector",
+           "Compute provisioning state Succeeded",
+           "All Completed; job-2 and job-3 shared the GPU as one Linux user, each process with its own AZUREML_RUN_ID",
+           "Raw rows and all views exported",
+           "Compute detached, test account removed, diagnostic settings and resource group deleted, VM deallocated"],
+    "cn": ["表 24 列，含 RunId；Administrative 活动日志和 AmlRunStatusChangedEvent 写入工作区",
+           "gpumon.service 运行中，采集器带 RunId",
+           "计算目标状态 Succeeded",
+           "全部 Completed；job-2 与 job-3 以同一个 Linux 用户共用 GPU，每个进程带各自的 AZUREML_RUN_ID",
+           "原始数据和全部查询结果导出完成",
+           "计算目标已分离，测试账户已删除，诊断设置和资源组已删除，VM 已释放"],
+}
+
+
+def jobs_steps(lang: str) -> str:
+    out = []
+    for i, s in enumerate(_runs()["jobs-1"]["steps"]):
+        took = "" if s["seconds"] is None else {"en": f", {s['seconds']} s", "cn": f"，{s['seconds']} 秒"}[lang]
+        if lang == "en":
+            out.append(f"- **{i + 1} {JOB_STEP_TEXT[lang][i]}**: exit {s['exit']}{took}. {JOB_CHECK_TEXT[lang][i]}.\n")
+        else:
+            out.append(f"- **{i + 1} {JOB_STEP_TEXT[lang][i]}**：退出码 {s['exit']}{took}。{JOB_CHECK_TEXT[lang][i]}。\n")
+    return "".join(out)
+
+
+def jobs_result(lang: str) -> str:
+    j = _m()["jobs-1"]
+    jobs = j["jobs"]
+    owner = j["per_user"][0]
+    seq = " → ".join(next(iter(jobs["status_sequence"].values())))
+    delay = jobs["ingestion_delay_seconds"]
+    head = {"en": ["Job", "Submitter", "Busy GPU-h", "Effective GPU-h"], "cn": ["作业", "提交人", "占用卡时", "有效计算卡时"]}[lang]
+    rows = [[f"`{x['RunId']}`", f"`{x['Submitter']}`", _n(x["BusyGpuHours"]), _n(x["EffectiveGpuHours"])] for x in jobs["per_job"]]
+    unnamed = j["busy_minutes"] - jobs["job_minutes"]
+    if lang == "en":
+        tail = (f"\n- `per_user` over the same window: one owner, `{owner['User']}`, with {_n(owner['BusyGpuHours'])} busy GPU-hours, "
+                f"the three jobs added together.\n"
+                f"- {j['busy_minutes']} busy minutes: {jobs['job_minutes']} with a job name, of which {jobs['shared_job_minutes']} "
+                f"carried two names and counted half for each, and {unnamed} without a name.\n"
+                f"- Status events of every job: {seq}.\n"
+                f"- Ingestion delay: GPU rows median {delay['gpu_rows']['median']} s; status events median "
+                f"{delay['status_events']['median']} s, at most {delay['status_events']['max']} s; submissions median "
+                f"{delay['submissions']['median']} s, at most {delay['submissions']['max']} s.\n")
+    else:
+        tail = (f"\n- 同一时段的 `per_user`：只有一个属主 `{owner['User']}`，占用 {_n(owner['BusyGpuHours'])} 卡时，即三个作业之和。\n"
+                f"- 共 {j['busy_minutes']} 个占用分钟：{jobs['job_minutes']} 个带作业名，其中 {jobs['shared_job_minutes']} "
+                f"个带两个作业名、各记一半；{unnamed} 个没有作业名。\n"
+                f"- 每个作业的状态事件：{seq}。\n"
+                f"- 入库延迟：GPU 数据中位数 {delay['gpu_rows']['median']} 秒；状态事件中位数 "
+                f"{delay['status_events']['median']} 秒，最长 {delay['status_events']['max']} 秒；提交事件中位数 "
+                f"{delay['submissions']['median']} 秒，最长 {delay['submissions']['max']} 秒。\n")
+    return _table(head, rows, ["l", "l", "r", "r"]) + tail
 
 
 BLOCKS = {"glance": glance, "dcgm-command": dcgm_command, "dcgm-fields": dcgm_fields, "json-line": json_line,
           "setup-commands": setup_commands, "onboard-commands": onboard_commands, "offboard-commands": offboard_commands,
           "views": views, "per-user-json": per_user_json, "load-input": load_input, "phases": phases,
-          "summary-v1": summary_v1, "replay-steps": replay_steps, "owners": owners, "checks": checks}
+          "summary-v1": summary_v1, "replay-steps": replay_steps, "owners": owners, "checks": checks,
+          "jobs-launcher": jobs_launcher, "jobs-steps": jobs_steps, "jobs-result": jobs_result}
 
 
 def render(text: str, lang: str) -> str:
