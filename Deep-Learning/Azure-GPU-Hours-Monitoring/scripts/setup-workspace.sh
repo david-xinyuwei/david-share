@@ -7,6 +7,17 @@
 # needs permission to create subscription diagnostic settings and AML workspace diagnostic settings.
 set -euo pipefail
 export MSYS_NO_PATHCONV=1  # Git Bash on Windows: keep /subscriptions/... arguments unchanged
+az() {
+  if [[ -n "${GPUHOURS_SUBSCRIPTION_ID:-}" && "$1" != extension ]]; then
+    command az "$@" --subscription "$GPUHOURS_SUBSCRIPTION_ID"
+  else
+    command az "$@"
+  fi
+}
+hash8() {
+  if command -v sha256sum >/dev/null; then sha256sum | cut -c1-8
+  else shasum -a 256 | cut -c1-8; fi
+}
 
 RG=""; LOC=""; LAW="law-gpu-hours"; RETENTION=90; AML_ID=""
 while getopts "g:l:w:r:a:h" opt; do
@@ -18,7 +29,6 @@ while getopts "g:l:w:r:a:h" opt; do
 done
 [[ -n "$RG" && -n "$LOC" ]] || { sed -n '2,5p' "$0"; exit 1; }
 HERE=$(cd "$(dirname "$0")" && pwd)
-DCE="dce-gpu-hours"; DCR="dcr-gpu-hours"
 
 az extension add --upgrade --yes --name monitor-control-service -o none
 
@@ -40,8 +50,11 @@ else
 fi
 
 echo "==> data collection endpoint and rule"
-az monitor data-collection endpoint create -g "$RG" -n "$DCE" -l "$LOC" --public-network-access Enabled -o none
 LAW_ID=$(az monitor log-analytics workspace show -g "$RG" -n "$LAW" --query id -o tsv)
+LAW_HASH=$(printf '%s' "$LAW_ID" | hash8)
+DCE="dce-gpu-hours-$LAW_HASH"; DCR="dcr-gpu-hours-$LAW_HASH"
+SUB_DIAG="gpu-hours-job-submitters-$LAW_HASH"; AML_DIAG="gpu-hours-job-status-$LAW_HASH"
+az monitor data-collection endpoint create -g "$RG" -n "$DCE" -l "$LOC" --public-network-access Enabled -o none
 DCE_ID=$(az monitor data-collection endpoint show -g "$RG" -n "$DCE" --query id -o tsv)
 RULE_FILE="dcr-rule.$$.json"  # relative path: readable by the Windows and the Linux Azure CLI alike
 sed "s#__WORKSPACE_RESOURCE_ID__#${LAW_ID}#" "$HERE/../azure/dcr-rule.json" > "$RULE_FILE"
@@ -53,9 +66,9 @@ WORKSPACE_GUID=$(az monitor log-analytics workspace show -g "$RG" -n "$LAW" --qu
 
 if [[ -n "$AML_ID" ]]; then
   echo "==> job submitter and status diagnostics"
-  az monitor diagnostic-settings subscription create -n gpu-hours-job-submitters -l "$LOC" \
+  az monitor diagnostic-settings subscription create -n "$SUB_DIAG" -l "$LOC" \
     --workspace "$LAW_ID" --logs '[{"category":"Administrative","enabled":true}]' -o none
-  az monitor diagnostic-settings create -n gpu-hours-job-status --resource "$AML_ID" --workspace "$LAW_ID" \
+  az monitor diagnostic-settings create -n "$AML_DIAG" --resource "$AML_ID" --workspace "$LAW_ID" \
     --export-to-resource-specific true --logs '[{"category":"AmlRunStatusChangedEvent","enabled":true}]' -o none
 fi
 

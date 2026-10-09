@@ -90,6 +90,18 @@ class AggregateTests(unittest.TestCase):
                 mock.patch("builtins.open", side_effect=fake_open):
             self.assertEqual(c.gpu_processes(), {"GPU-0": [("trainer", "python3", "job-42")]})
 
+    def test_gpu_process_query_failure_is_not_reported_as_idle(self):
+        with mock.patch.dict(sys.modules, {"pwd": types.SimpleNamespace()}), \
+                mock.patch.object(c.subprocess, "run", side_effect=c.subprocess.TimeoutExpired("nvidia-smi", 30)), \
+                mock.patch.object(c, "log") as log:
+            self.assertIsNone(c.gpu_processes())
+        self.assertIn("skipping this minute", log.call_args.args[0])
+
+    def test_gpu_inventory_fails_when_nvidia_smi_fails(self):
+        with mock.patch.object(c.subprocess, "run", side_effect=c.subprocess.CalledProcessError(1, "nvidia-smi")):
+            with self.assertRaises(c.subprocess.CalledProcessError):
+                c.gpu_inventory()
+
 
 class ContractTests(unittest.TestCase):
     def _record(self):

@@ -36,7 +36,7 @@
     {"minute": 10, "event": "first Heartbeat"},
     {"minute": 11, "event": "first GpuMetrics_CL row"},
     {"minute": 13, "event": "load process visible on the GPU"},
-    {"minute": 173, "event": "last Heartbeat; the VM was deallocated"}
+    {"minute": 174, "kind": "last_heartbeat", "event": "last captured Heartbeat"}
    ]
   },
   "replay-1": {
@@ -188,6 +188,55 @@
      "event": "last row with a job name (job-3)"
     }
    ]
+  },
+  "configure-2": {
+   "kind": "setup",
+   "question": "Does scripts/configure.sh take an operator from one settings file to GPU rows in a new workspace with one command, with nothing left to finish by hand?",
+   "hardware": {
+    "vm_size": "Standard_NC40ads_H100_v5",
+    "gpus": 1,
+    "gpu": "NVIDIA H100 NVL",
+    "gpu_memory_mib": 95830,
+    "azure_region": "Spain Central"
+   },
+   "software": {
+    "os": "Ubuntu 24.04.5 LTS",
+    "nvidia_driver": "615.71.09",
+    "dcgm": "datacenter-gpu-manager 3.3.9 (nvidia-dcgm.service)",
+    "azure_monitor_agent": "AzureMonitorLinuxAgent 1.45",
+    "operator_shell": "Git Bash on Windows with Azure CLI 2.88.0, monitor-control-service 1.2.0"
+   },
+   "collector": "vm/gpu_collector.py and vm/install_collector.sh from the L5 working tree, installed by scripts/onboard-vm.sh as called by scripts/configure.sh; source SHA-256 values are in evidence/runs/configure-2/receipt.json",
+   "settings_file": "evidence/runs/configure-2/gpu-hours.env",
+   "commands": ["./scripts/configure.sh -c gpu-hours.env", "./scripts/configure.sh -c gpu-hours.env (rerun)", "./scripts/offboard-vm.sh ..."],
+   "controlled": "one VM, one GPU, no load (the GPU stayed idle), the same collector, rule and queries as the other runs",
+   "varied": "the entry point: one settings file and one command instead of the individual scripts",
+   "measurement": "configure.sh printed every step; step boundaries are the modification times of the files it writes in its log directory, the whole-command duration came from the wrapper, and receipt.json binds both to the source hashes; the command verified fresh rows from the exact VM resource ID",
+   "elapsed_seconds": 588,
+   "steps": [
+    {"step": "1-3 login, VM list, preflight", "exit": 0, "seconds": 52,
+     "verified": "the VM passed the read-only preflight: running, 1 GPU, DCGM 3.3.9, python3"},
+    {"step": "4 workspace, table, endpoint and rule", "exit": 0, "seconds": 132,
+     "verified": "setup-workspace.sh printed workspace-hashed DCR and DCE IDs; job tracking disabled because AML_WORKSPACE_ID was empty"},
+    {"step": "5 onboarding", "exit": 0, "seconds": 88,
+     "verified": "onboard-vm.sh output ended with gpumon.service active (running); existing DCE protection enabled"},
+    {"step": "6 query access", "exit": 0, "seconds": 23,
+     "verified": "Log Analytics Reader granted to the operator's own account; gpu-hours.outputs.env written"},
+    {"step": "7 wait for GPU rows", "exit": 0, "seconds": 293,
+     "verified": "api.loganalytics.azure.com returned rows newer than onboarding for the exact VM resource ID at the fifth check"},
+    {"step": "8 idempotent rerun", "exit": 0, "seconds": null,
+     "verified": "same workspace, DCR and DCE; existing Log Analytics Reader assignment reused; fresh row verified; 441 seconds"},
+    {"step": "9 safe offboard and cleanup", "exit": 0, "seconds": null,
+     "verified": "gpumon and the new DCR association removed; previous DCE and Azure Monitor Agent preserved; removal dry-run and confirmed modes succeeded; test resource group deleted; VM deallocated"}
+   ],
+   "rerun": {
+    "exit": 0,
+    "seconds": 441,
+    "dcr_id": "/subscriptions/<subscription-id>/resourceGroups/rg-gpu-hours/providers/Microsoft.Insights/dataCollectionRules/dcr-gpu-hours-7b40fdf9",
+    "dce_id": "/subscriptions/<subscription-id>/resourceGroups/rg-gpu-hours/providers/Microsoft.Insights/dataCollectionEndpoints/dce-gpu-hours-7b40fdf9"
+   },
+   "offboard": true,
+   "remove": true
   }
  }
 }

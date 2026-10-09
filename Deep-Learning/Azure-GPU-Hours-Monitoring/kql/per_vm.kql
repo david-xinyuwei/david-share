@@ -6,16 +6,23 @@ let Computers = dynamic([]);  // VM names to include; empty = all VMs that repor
 let gpu = GpuMetrics_CL | where array_length(Computers) == 0 or Computer in (Computers);
 let gpus = gpu | summarize Gpus = dcount(GpuId) by Computer;
 let heartbeat = Heartbeat | where Computer in ((gpus | project Computer));
+let heartbeat_minutes = heartbeat | distinct Computer, M = bin(TimeGenerated, 1m);
 heartbeat
 | summarize RunningMinutes = dcount(bin(TimeGenerated, 1m)) by Computer
 | join kind=inner gpus on Computer
 | project Computer, Gpus, RunningHours = RunningMinutes / 60.0, AllocatedGpuHours = RunningMinutes * Gpus / 60.0
 | join kind=leftouter (gpu
-    | summarize BusyGpuHours = countif(ProcCount > 0 or GpuUtil >= IdlePct) / 60.0,
+    | extend M = bin(TimeGenerated, 1m)
+    | join kind=inner heartbeat_minutes on Computer, M
+    | summarize ObservedGpuHours = dcount(strcat(GpuId, '|', bin(TimeGenerated, 1m))) / 60.0,
+                BusyGpuHours = countif(ProcCount > 0 or GpuUtil >= IdlePct) / 60.0,
                 EffectiveGpuHours = sum(coalesce(SmActive, 0.0)) / 60.0,
                 VmSize = take_any(VmSize), GpuName = take_any(GpuName) by Computer) on Computer
 | project Computer, VmSize, GpuName, Gpus, RunningHours, AllocatedGpuHours,
+          ObservedGpuHours = coalesce(ObservedGpuHours, 0.0),
           BusyGpuHours = coalesce(BusyGpuHours, 0.0), EffectiveGpuHours = coalesce(EffectiveGpuHours, 0.0)
-| extend IdleGpuHours = max_of(AllocatedGpuHours - BusyGpuHours, 0.0),
+| extend IdleGpuHours = max_of(ObservedGpuHours - BusyGpuHours, 0.0),
+         UnknownGpuHours = max_of(AllocatedGpuHours - ObservedGpuHours, 0.0),
+         TelemetryCoveragePct = iff(AllocatedGpuHours > 0, 100.0 * ObservedGpuHours / AllocatedGpuHours, 0.0),
          UtilizationPct = iff(AllocatedGpuHours > 0, 100.0 * EffectiveGpuHours / AllocatedGpuHours, 0.0)
 | order by AllocatedGpuHours desc, Computer asc

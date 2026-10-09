@@ -51,6 +51,8 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Evidence is current
         run: python tools/build_evidence.py --check
+      - name: SOP-68 rule results are current
+        run: python tools/build_rule_results.py --check
       - name: READMEs are current
         run: python tools/build_readme.py --check
       - name: Figures match their ledger

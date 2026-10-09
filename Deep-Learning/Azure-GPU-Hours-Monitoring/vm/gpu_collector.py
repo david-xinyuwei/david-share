@@ -62,7 +62,7 @@ def imds():
 def gpu_inventory():
     out = subprocess.run(
         ["nvidia-smi", "--query-gpu=index,uuid,name", "--format=csv,noheader"],
-        capture_output=True, text=True, encoding="utf-8", timeout=30).stdout
+        capture_output=True, text=True, encoding="utf-8", timeout=30, check=True).stdout
     inv = {}
     for line in out.strip().splitlines():
         idx, uuid, name = [x.strip() for x in line.split(",", 2)]
@@ -74,14 +74,15 @@ def gpu_processes():
     """Return {gpu_uuid: [(user, proc_name, aml_run_id), ...]}."""
     import pwd  # Unix only; imported here so the module also loads on Windows for tests
 
-    res = {}
     try:
         out = subprocess.run(
             ["nvidia-smi", "--query-compute-apps=gpu_uuid,pid",
              "--format=csv,noheader,nounits"],
-            capture_output=True, text=True, encoding="utf-8", timeout=30).stdout
-    except Exception:  # noqa: BLE001
-        return res
+            capture_output=True, text=True, encoding="utf-8", timeout=30, check=True).stdout
+    except (OSError, subprocess.SubprocessError) as e:
+        log(f"nvidia-smi process query failed; skipping this minute instead of reporting it idle: {e}")
+        return None
+    res = {}
     for line in out.strip().splitlines():
         parts = [x.strip() for x in line.split(",")]
         if len(parts) < 2 or not parts[1].isdigit():
@@ -217,6 +218,8 @@ def main():
         if not data:
             continue
         procs = gpu_processes()
+        if procs is None:
+            continue
         path = os.path.join(LOG_DIR, f"gpu_metrics_{ts:%Y%m%d}.json")
         with open(path, "a", encoding="utf-8") as f:
             for gpu_id in sorted(data):

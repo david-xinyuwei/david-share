@@ -10,5 +10,6 @@ preflight.*.sh
 query.*.json
 # configure.sh: your filled-in settings, its outputs and its logs
 gpu-hours.env
+!evidence/runs/configure-2/gpu-hours.env
 gpu-hours.outputs.env
 gpu-hours-logs/

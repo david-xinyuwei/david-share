@@ -6,7 +6,7 @@
    "language": "en",
    "generator": "tools/draw_diagrams.py",
    "shows": "components and data path of the monitoring pipeline",
-   "sha256": "564fddea8f65b3a5d7c148363425238e93d10db2531f73c6bbc9804585dafd0c",
+   "sha256": "80a9b2c2ea8635a10e0c0c33e2ceeaaa39d1edef5ee8535642e6486578218c3c",
    "does_not_show": "measured traffic, latency or production readiness"
   },
   {
@@ -14,7 +14,7 @@
    "language": "cn",
    "generator": "tools/draw_diagrams.py",
    "shows": "components and data path of the monitoring pipeline",
-   "sha256": "5f91ba9fb69469531e331b3992cc21f9e0c5b9ebc76fcb17ec9842d57d43de31",
+   "sha256": "7556e4c34b176562599d30e4c6c1db0257bb939dc671f758a33a1cbb13ce88c5",
    "does_not_show": "measured traffic, latency or production readiness"
   },
   {
@@ -22,7 +22,7 @@
    "language": "en",
    "generator": "tools/draw_diagrams.py",
    "shows": "where the measured VM, the workspace and the operator ran",
-   "sha256": "08e6dd14f0af1cf0339d6c88d3b31dc5d7937bad32e6bdb32b62c58392989e7c",
+   "sha256": "39945d5843d32af4409afb4375437340792a7d7c2b1a05a94c8fbc715b3801f3",
    "does_not_show": "measured traffic, latency or production readiness"
   },
   {
@@ -30,7 +30,7 @@
    "language": "cn",
    "generator": "tools/draw_diagrams.py",
    "shows": "where the measured VM, the workspace and the operator ran",
-   "sha256": "9c3bf3ff4cc323aa5912a13c9c767ef1f2ddfc018dadb9152fabcc99f5d0f8f0",
+   "sha256": "0b4ab28c565893650bfdf4e5976f012604ac178b67b4caf105f9db280e2369ca",
    "does_not_show": "measured traffic, latency or production readiness"
   },
   {

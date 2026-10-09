@@ -70,6 +70,16 @@ class ViewTests(unittest.TestCase):
                 self.assertIn("Weight = 1.0 / RunCount", text)
                 self.assertIn("sumif(Weight", text)
 
+    def test_missing_telemetry_is_unknown_not_idle(self):
+        for view in ("summary", "per_vm", "per_hour", "per_day"):
+            with self.subTest(view=view):
+                text = _text(view)
+                self.assertIn("ObservedGpuHours", text)
+                self.assertIn("UnknownGpuHours", text)
+                self.assertIn("TelemetryCoveragePct", text)
+                self.assertIn("ObservedGpuHours - BusyGpuHours", text)
+                self.assertNotIn("AllocatedGpuHours - BusyGpuHours", text)
+
 
 class ClientTests(unittest.TestCase):
     def test_overrides_replace_exactly_one_let(self):

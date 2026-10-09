@@ -14,6 +14,7 @@
    "window_minutes": 190,
    "heartbeat_minutes": 163,
    "first_heartbeat_minute": 10,
+   "last_heartbeat_minute": 174,
    "first_gpu_minute": 11,
    "gpu_rows": 162,
    "summary": {
@@ -23,6 +24,16 @@
     "IdleGpuHours": 2.433,
     "Gpus": 1,
     "Vms": 1,
+    "UtilizationPct": 5.797
+   },
+   "coverage_summary": {
+    "AllocatedGpuHours": 2.717,
+    "ObservedGpuHours": 2.7,
+    "BusyGpuHours": 0.283,
+    "EffectiveGpuHours": 0.157,
+    "IdleGpuHours": 2.417,
+    "UnknownGpuHours": 0.017,
+    "TelemetryCoveragePct": 99.387,
     "UtilizationPct": 5.797
    },
    "busy_minutes": 17,
@@ -113,6 +124,7 @@
    "window_minutes": 32,
    "heartbeat_minutes": 21,
    "first_heartbeat_minute": 10,
+   "last_heartbeat_minute": 30,
    "first_gpu_minute": 11,
    "gpu_rows": 19,
    "summary": {
@@ -122,6 +134,16 @@
     "IdleGpuHours": 0.25,
     "Gpus": 1,
     "Vms": 1,
+    "UtilizationPct": 24.875
+   },
+   "coverage_summary": {
+    "AllocatedGpuHours": 0.35,
+    "ObservedGpuHours": 0.317,
+    "BusyGpuHours": 0.1,
+    "EffectiveGpuHours": 0.087,
+    "IdleGpuHours": 0.217,
+    "UnknownGpuHours": 0.033,
+    "TelemetryCoveragePct": 90.476,
     "UtilizationPct": 24.875
    },
    "busy_minutes": 6,
@@ -196,6 +218,7 @@
    "window_minutes": 25,
    "heartbeat_minutes": 25,
    "first_heartbeat_minute": 0,
+   "last_heartbeat_minute": 24,
    "first_gpu_minute": 0,
    "gpu_rows": 26,
    "summary": {
@@ -205,6 +228,16 @@
     "IdleGpuHours": 0.233,
     "Gpus": 1,
     "Vms": 1,
+    "UtilizationPct": 27.036
+   },
+   "coverage_summary": {
+    "AllocatedGpuHours": 0.417,
+    "ObservedGpuHours": 0.433,
+    "BusyGpuHours": 0.183,
+    "EffectiveGpuHours": 0.113,
+    "IdleGpuHours": 0.25,
+    "UnknownGpuHours": 0.0,
+    "TelemetryCoveragePct": 104.0,
     "UtilizationPct": 27.036
    },
    "busy_minutes": 11,
@@ -396,6 +429,91 @@
       "max": 55
      }
     }
+   }
+  },
+  "configure-2": {
+   "kind": "setup",
+   "vms": 1,
+   "preflight": "gpus: 1 dcgm: 3.3.9",
+   "exit": 0,
+   "elapsed_seconds": 588,
+   "checks_before_rows": 4,
+   "rows_at_step_7": 2,
+   "last_row_minute_after_start": "7:50",
+   "per_vm": [],
+   "coverage_views": {
+    "window": {
+     "start": "2026-10-09T12:09:00+00:00",
+     "end": "2026-10-09T14:09:00+00:00"
+    },
+    "summary": [
+     {
+      "AllocatedGpuHours": 0.2,
+      "BusyGpuHours": 0,
+      "EffectiveGpuHours": 0,
+      "IdleGpuHours": 0.183,
+      "ObservedGpuHours": 0.183,
+      "UnknownGpuHours": 0.017,
+      "Vms": 1,
+      "Gpus": 1,
+      "TelemetryCoveragePct": 91.667,
+      "UtilizationPct": 0
+     }
+    ],
+    "per_vm": [
+     {
+      "Computer": "gpu-vm-1",
+      "VmSize": "Standard_NC40ads_H100_v5",
+      "GpuName": "NVIDIA H100 NVL",
+      "Gpus": 1,
+      "RunningHours": 0.2,
+      "AllocatedGpuHours": 0.2,
+      "ObservedGpuHours": 0.183,
+      "BusyGpuHours": 0,
+      "EffectiveGpuHours": 0,
+      "IdleGpuHours": 0.183,
+      "UnknownGpuHours": 0.017,
+      "TelemetryCoveragePct": 91.667,
+      "UtilizationPct": 0
+     }
+    ],
+    "per_hour": [
+     {
+      "Hour": "hour 1",
+      "AllocatedGpuHours": 0.05,
+      "ObservedGpuHours": 0.033,
+      "BusyGpuHours": 0,
+      "EffectiveGpuHours": 0,
+      "IdleGpuHours": 0.033,
+      "UnknownGpuHours": 0.017,
+      "TelemetryCoveragePct": 66.667,
+      "UtilizationPct": 0
+     },
+     {
+      "Hour": "hour 2",
+      "AllocatedGpuHours": 0.15,
+      "ObservedGpuHours": 0.15,
+      "BusyGpuHours": 0,
+      "EffectiveGpuHours": 0,
+      "IdleGpuHours": 0.15,
+      "UnknownGpuHours": 0,
+      "TelemetryCoveragePct": 100,
+      "UtilizationPct": 0
+     }
+    ],
+    "per_day": [
+     {
+      "Day": "day 1",
+      "AllocatedGpuHours": 0.2,
+      "ObservedGpuHours": 0.183,
+      "BusyGpuHours": 0,
+      "EffectiveGpuHours": 0,
+      "IdleGpuHours": 0.183,
+      "UnknownGpuHours": 0.017,
+      "TelemetryCoveragePct": 91.667,
+      "UtilizationPct": 0
+     }
+    ]
    }
   }
  }

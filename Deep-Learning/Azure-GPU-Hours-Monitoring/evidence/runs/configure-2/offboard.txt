@@ -1,0 +1,11 @@
+WARNING: Extension 'monitor-control-service' 1.2.0 is already installed.
+WARNING: Latest version of 'monitor-control-service' is already installed.
+==> stop and remove the gpumon collector
+Enable succeeded:
+[stdout]
+gpumon removed
+
+[stderr]
+==> remove the rule and endpoint associations
+==> another DCE owns configurationAccessEndpoint; leaving it: /subscriptions/<subscription-id>/resourceGroups/<previous-monitor-resource-group>/providers/Microsoft.Insights/dataCollectionEndpoints/<previous-dce>
+==> gpu-vm-1 offboarded

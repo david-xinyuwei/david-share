@@ -1,0 +1,3 @@
+agent=Succeeded
+associations:
+<previous-dcr-association> configurationAccessEndpoint

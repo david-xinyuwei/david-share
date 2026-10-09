@@ -1,0 +1,25 @@
+{
+ "private_sources_sha256": {
+  "console.txt": "ab81047ce723f6c5bb88584ebc5faff73d7827c7cb3de4e54a9a06bc724032dc",
+  "gpu-hours.env": "31ee5fba77b8cdbb2764927c8fab186ddd29c9d5ae767490a43cadcbb4e9cdfc",
+  "receipt.json": "233b455be7651cfaa4196524081ca45e59a622f7192b6f2810e1d063833ecf76",
+  "rerun-console.txt": "9f8ccb4e5f7b8943a91b37b96887c2456e8996b7580573224c0a98abc9d3f9bc",
+  "offboard.txt": "0be42a6712a9e2047f3d6e3e1705bcce1dd1fcc88749a155eb056dc6b6b8f161",
+  "coverage-kql.json": "b8502bb297f29350249aa03bc2ad35e4fc547bf1ad767e862f02fbfcf76fe61e",
+  "remove-dry.txt": "dd537b9987adf08aee31617bbde09a8f2f67d0423652268a6f57cca78111a60d",
+  "remove.txt": "59b05e2df7226980d9587e007c716674c9e1ca8e49535345406d2615c7e68d76",
+  "final-state.txt": "2b977dca4d78e0dc617db508769759558d9ad3494943c84090a57c0a0790dd77"
+ },
+ "projection": "names, groups, subscription, account, workspace and object IDs -> neutral placeholders (projection-map.json, private); UTC timestamps -> +minutes:seconds since the run started",
+ "public_projection_sha256": {
+  "console.txt": "35f8d0ba8618af1dc2f7d99f0075c4b3e3d98e776686adfd02615ec79c92b117",
+  "gpu-hours.env": "581b357308c517a5461f242f5a8392dbd3f9a7063ba9155f215e78c6bdc5c4bf",
+  "receipt.json": "959b8eb29a7b5fcb1a60f7d388c459f58e3f3270b5fb754ca20c00f2f8db74b5",
+  "rerun-console.txt": "797d0dd09cea57db7b634e94e294e311db729e72f3c234fa526c3bb1fe11195d",
+  "offboard.txt": "3f26b2a84d77b738b6386b6a104454f39377316dde05cf9e0451c5b7335b3ac7",
+  "coverage-kql.json": "844948962982e3f66a108f19da26687eba314d89af1d07732e73d1e12c27e498",
+  "remove-dry.txt": "eb8867dd68b32e68467715530a5187272c31ac6d04a4b27a6d54969a88a6513d",
+  "remove.txt": "6d0eaa5a6e1aa4c7687568ea19ac56869de564c7f31c463d969a023c548013b8",
+  "final-state.txt": "922a69c7f6f2c43f4054cdb86f01d7228c7a233a1a91d7b8f15eeb85ea5a448c"
+ }
+}

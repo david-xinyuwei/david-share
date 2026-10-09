@@ -57,29 +57,36 @@ def glance(lang: str) -> str:
     if lang == "en":
         return (f"- On one H100 VM running a load with a known schedule, the pipeline recorded {ph[0]['minutes']} full, "
                 f"{ph[1]['minutes']} held and {ph[2]['minutes']} partial GPU-minutes, the same split the load script scheduled; "
-                f"the five views and an independent Python recomputation of the raw rows agree on all {n} compared values.\n"
+                f"`summary`, `per_vm` and `per_user`, compared with an independent Python recomputation of the raw rows, "
+                f"agree on all {n} compared values.\n"
                 f"- Three AML jobs ran there as one Linux user: `per_user` shows a single owner with "
                 f"{_n(j['per_user'][0]['BusyGpuHours'])} busy GPU-hours, while `per_job` splits them by job name "
                 f"({_n(jm[0]['BusyGpuHours'])}, {_n(jm[1]['BusyGpuHours'])}, {_n(jm[2]['BusyGpuHours'])}), counts the "
                 f"{jobs['shared_job_minutes']} minutes two jobs shared as half each and names the Entra account that submitted "
                 f"them; KQL and Python agree on {jobs['kql_vs_python']['compared_values']} values and "
                 f"{jobs['kql_vs_python']['compared_fields']} fields.\n"
-                f"- The configuration steps below ran verbatim against a new resource group: workspace setup {steps['1']['seconds']} s, "
-                f"VM onboarding {steps['2']['seconds']} s, removal {steps['6']['seconds']} s.\n"
+                f"- `scripts/configure.sh` took one settings file to GPU rows in a new workspace in "
+                f"{_m()['configure-2']['elapsed_seconds']} s with exit 0; an idempotent rerun took "
+                f"{_runs()['configure-2']['rerun']['seconds']} s and reused the same resources; the scripts it calls had earlier run verbatim "
+                f"against another new resource group: workspace setup {steps['1']['seconds']} s, VM onboarding "
+                f"{steps['2']['seconds']} s, removal {steps['6']['seconds']} s.\n"
                 f"- Log Analytics bills {_n(v['billed_bytes_per_row']['gpu_median'], 0)} bytes per GPU-minute row, about "
                 f"{_n(mb, 2)} MB per day for an 8-GPU VM including its Heartbeat.\n"
                 f"- Main limit: process owners are sampled once per minute, so a job that exits mid-minute leaves that minute busy "
                 f"but unattributed ({v['unattributed_busy_minutes']} of {v['busy_minutes']} busy minutes in the first run, "
                 f"{r['unattributed_busy_minutes']} of {r['busy_minutes']} in the second).\n")
     return (f"- 在一台 H100 VM 上跑一段时间表已知的负载，采集链路记录下满载 {ph[0]['minutes']} 分钟、占用 {ph[1]['minutes']} 分钟、"
-            f"半载 {ph[2]['minutes']} 分钟，与负载脚本的安排一致；五个查询的结果和对原始数据的独立 Python 重算逐值比对，{n} 个值全部相同。\n"
+            f"半载 {ph[2]['minutes']} 分钟，与负载脚本的安排一致；`summary`、`per_vm`、`per_user` 与对原始数据的独立 "
+            f"Python 重算逐值比对，{n} 个值全部相同。\n"
             f"- 三个 AML 作业以同一个 Linux 用户在这台 VM 上运行：`per_user` 只看到一个属主，合计 "
             f"{_n(j['per_user'][0]['BusyGpuHours'])} 占用卡时；`per_job` 按作业名拆成 "
             f"{_n(jm[0]['BusyGpuHours'])}、{_n(jm[1]['BusyGpuHours'])}、{_n(jm[2]['BusyGpuHours'])}，两个作业共用的 "
             f"{jobs['shared_job_minutes']} 分钟各记一半，并给出提交作业的 Entra 账号；KQL 与 Python 比对 "
             f"{jobs['kql_vs_python']['compared_values']} 个数值、{jobs['kql_vs_python']['compared_fields']} 个字段全部一致。\n"
-            f"- 下面的配置步骤在一个新资源组里原样实跑：建工作区 {steps['1']['seconds']} 秒，接入 VM {steps['2']['seconds']} 秒，"
-            f"下线 {steps['6']['seconds']} 秒。\n"
+            f"- `scripts/configure.sh` 从一个配置文件到新工作区收到 GPU 数据，用时 {_m()['configure-2']['elapsed_seconds']} 秒，"
+            f"退出码 0；幂等重跑用时 {_runs()['configure-2']['rerun']['seconds']} 秒，复用了同一组资源；它调用的各个脚本此前"
+            f"在另一个新资源组里原样实跑过：建工作区 {steps['1']['seconds']} 秒，"
+            f"接入 VM {steps['2']['seconds']} 秒，下线 {steps['6']['seconds']} 秒。\n"
             f"- Log Analytics 按每行 {_n(v['billed_bytes_per_row']['gpu_median'], 0)} 字节计费（每 GPU·分钟一行），每天约 "
             f"{_n(mb, 2)} MB（8 卡 VM，含 Heartbeat）。\n"
             f"- 主要限制：进程属主每分钟只采一次，任务在一分钟中途退出时，这一分钟算占用但没有属主"
@@ -91,6 +98,21 @@ def dcgm_command(lang: str) -> str:
     import gpu_collector as c
     fields = ",".join(str(f) for f, _ in c.FIELDS)
     return f"```bash\ndcgmi dmon -e {fields} -d {c.SAMPLE_MS}\n```\n"
+
+
+def cost_example(lang: str) -> str:
+    mb_day = _m()["validation-1"]["derived_mb_per_vm_day"]["8_gpu"]
+    gb_month = mb_day * 20 * 30 / 1000
+    if lang == "en":
+        return (f"- Measured telemetry volume, not an invoice: one 8-GPU VM is about {_n(mb_day, 2)} MB/day; "
+                f"20 such VMs for 30 days are about {_n(gb_month, 2)} GB/month for `GpuMetrics_CL` plus `Heartbeat`.\n"
+                "- Budget = that volume × the current regional Analytics Logs ingestion price, plus retention beyond the "
+                "included interactive period. AML activity and status logs are additional and were not volume-measured here; "
+                "the existing GPU VMs, network and customer platform are also outside this estimate.\n")
+    return (f"- 这里给的是遥测数据量，不是账单：一台 8 卡 VM 约 {_n(mb_day, 2)} MB/天；20 台运行 30 天，"
+            f"`GpuMetrics_CL` 加 `Heartbeat` 约 {_n(gb_month, 2)} GB/月。\n"
+            "- 预算公式是“上述数据量 × 当前区域的 Analytics Logs 入库单价”，再加超出交互式包含期的保留费用。"
+            "AML 活动日志和状态日志会额外产生数据，本仓库尚未测它们的数据量；已有 GPU VM、网络和客户平台也不在这个估算里。\n")
 
 
 DCGM_NAMES = {203: "DCGM_FI_DEV_GPU_UTIL", 1001: "DCGM_FI_PROF_GR_ENGINE_ACTIVE", 1002: "DCGM_FI_PROF_SM_ACTIVE",
@@ -152,14 +174,23 @@ VIEW_TEXT = {
     "en": {"summary": "all selected VMs together", "per_vm": "one row per VM", "per_hour": "one row per local hour",
            "per_day": "one row per local day", "per_user": "one row per process owner and VM",
            "per_job": "one row per AML job", "per_submitter": "one row per Entra submitter",
-           "live": "latest GPU process seen in the query window"},
+           "live": "latest row for each job seen on each GPU in the query window"},
     "cn": {"summary": "所选 VM 合计", "per_vm": "每台 VM 一行", "per_hour": "每个本地小时一行",
            "per_day": "每个本地日一行", "per_user": "每个进程属主、每台 VM 一行",
            "per_job": "每个 AML 作业一行", "per_submitter": "每个 Entra 提交人一行",
-           "live": "查询时段内每张卡最后看到的 GPU 进程"},
+           "live": "查询时段内，每张卡上每个作业的最后一行"},
 }
 VIEW_ORDER = ("summary", "per_vm", "per_hour", "per_day", "per_user", "per_job", "per_submitter", "live")
 NEW_VIEW_COLUMNS = {
+    "summary": ["AllocatedGpuHours", "ObservedGpuHours", "BusyGpuHours", "EffectiveGpuHours", "IdleGpuHours",
+                "UnknownGpuHours", "Vms", "Gpus", "TelemetryCoveragePct", "UtilizationPct"],
+    "per_vm": ["Computer", "VmSize", "GpuName", "Gpus", "RunningHours", "AllocatedGpuHours", "ObservedGpuHours",
+               "BusyGpuHours", "EffectiveGpuHours", "IdleGpuHours", "UnknownGpuHours", "TelemetryCoveragePct",
+               "UtilizationPct"],
+    "per_hour": ["Hour", "AllocatedGpuHours", "ObservedGpuHours", "BusyGpuHours", "EffectiveGpuHours", "IdleGpuHours",
+                 "UnknownGpuHours", "TelemetryCoveragePct", "UtilizationPct"],
+    "per_day": ["Day", "AllocatedGpuHours", "ObservedGpuHours", "BusyGpuHours", "EffectiveGpuHours", "IdleGpuHours",
+                "UnknownGpuHours", "TelemetryCoveragePct", "UtilizationPct"],
     "per_job": ["RunId", "Submitter", "SubmitterObjectId", "Status", "Vms", "Gpus", "StartTime", "EndTime",
                 "BusyGpuHours", "EffectiveGpuHours", "PeakMemoryGiB"],
     "per_submitter": ["Submitter", "SubmitterObjectId", "Jobs", "BusyGpuHours", "EffectiveGpuHours"],
@@ -202,17 +233,20 @@ def phases(lang: str) -> str:
 
 
 def summary_v1(lang: str) -> str:
-    s = _m()["validation-1"]["summary"]
+    s = _m()["validation-1"]["coverage_summary"]
     v = _m()["validation-1"]
     if lang == "en":
-        return (f"- Allocated {_n(s['AllocatedGpuHours'])}, busy {_n(s['BusyGpuHours'])}, effective {_n(s['EffectiveGpuHours'])} "
-                f"and idle {_n(s['IdleGpuHours'])} GPU-hours; utilization {_n(s['UtilizationPct'], 2)} %.\n"
-                f"- Allocated time is {v['heartbeat_minutes']} Heartbeat minutes: the VM kept running after the load, which is "
-                f"what the idle hours show.\n"
+        return (f"- Allocated {_n(s['AllocatedGpuHours'])}, observed {_n(s['ObservedGpuHours'])}, busy {_n(s['BusyGpuHours'])}, "
+                f"effective {_n(s['EffectiveGpuHours'])}, idle {_n(s['IdleGpuHours'])} and unknown "
+                f"{_n(s['UnknownGpuHours'])} GPU-hours; telemetry coverage {_n(s['TelemetryCoveragePct'], 2)} %.\n"
+                f"- Allocated time is {v['heartbeat_minutes']} Heartbeat minutes. Idle counts only observed rows without work; "
+                f"unknown is the allocated time without a GPU row.\n"
                 f"- {v['owner_minutes']} of the {v['busy_minutes']} busy minutes carry the owner `user-1`.\n")
-    return (f"- 分配 {_n(s['AllocatedGpuHours'])}、占用 {_n(s['BusyGpuHours'])}、有效计算 {_n(s['EffectiveGpuHours'])}、"
-            f"空闲 {_n(s['IdleGpuHours'])} GPU·小时；有效利用率 {_n(s['UtilizationPct'], 2)} %。\n"
-            f"- 分配时长就是 {v['heartbeat_minutes']} 个 Heartbeat 分钟：负载结束后 VM 一直开着，空闲卡时反映的正是这段时间。\n"
+    return (f"- 分配 {_n(s['AllocatedGpuHours'])}、已观测 {_n(s['ObservedGpuHours'])}、占用 {_n(s['BusyGpuHours'])}、"
+            f"有效计算 {_n(s['EffectiveGpuHours'])}、空闲 {_n(s['IdleGpuHours'])}、未知 {_n(s['UnknownGpuHours'])} 卡时；"
+            f"遥测覆盖率 {_n(s['TelemetryCoveragePct'], 2)} %。\n"
+            f"- 分配时长来自 {v['heartbeat_minutes']} 个 Heartbeat 分钟。空闲只算已有 GPU 数据但没有工作的时段；"
+            f"未知是分配了 GPU、却没有 GPU 数据的时段。\n"
             f"- 占用分钟中有 {v['owner_minutes']} / {v['busy_minutes']} 个记到了属主 `user-1`。\n")
 
 
@@ -346,11 +380,66 @@ def jobs_result(lang: str) -> str:
     return _table(head, rows, ["l", "l", "r", "r"]) + tail
 
 
+CONFIGURE_STEP_TEXT = {
+    "en": ["login, VM list and read-only preflight", "workspace, table, endpoint and rule", "VM onboarding",
+           "query access", "wait for GPU rows", "idempotent rerun", "safe offboard and cleanup"],
+    "cn": ["登录、列出 VM、只读预检", "工作区、表、数据收集终结点和规则", "接入 VM", "查询授权", "等待 GPU 数据入库",
+           "幂等重跑", "安全下线与清理"],
+}
+
+
+def configure_settings(lang: str) -> str:
+    text = (ROOT / _runs()["configure-2"]["settings_file"]).read_text(encoding="utf-8").rstrip("\n")
+    return "```bash\n" + text + "\n```\n"
+
+
+def configure_steps(lang: str) -> str:
+    run, m = _runs()["configure-2"], _m()["configure-2"]
+    detail = {
+        "en": [f"The VM passed: `{m['preflight']}`",
+               "`setup-workspace.sh` printed workspace-hashed DCR and DCE IDs; job tracking off because `AML_WORKSPACE_ID` was empty",
+               "`gpumon.service` active (running); another DCE would have stopped onboarding instead of being overwritten",
+               "Log Analytics Reader granted; `gpu-hours.outputs.env` written",
+               f"The query API returned {m['rows_at_step_7']} rows for the VM at check {m['checks_before_rows'] + 1}, "
+               f"the last for minute +{m['last_row_minute_after_start']} after the start; VM resource ID matched",
+               f"Same workspace, DCR and DCE; existing Reader assignment reused; fresh row verified in {run['rerun']['seconds']} s",
+               "gpumon and the new DCR association removed; previous DCE and Azure Monitor Agent preserved; test resources removed"],
+        "cn": [f"这台 VM 通过预检：`{m['preflight']}`",
+               "`setup-workspace.sh` 打印出带工作区 hash 的 DCR 和 DCE ID；`AML_WORKSPACE_ID` 为空，作业跟踪未开启",
+               "`gpumon.service` 为 active (running)；已有其他 DCE 时会停止，不会覆盖",
+               "已授予 Log Analytics Reader，并写出 `gpu-hours.outputs.env`",
+               f"查询 API 返回这台 VM 的 {m['rows_at_step_7']} 行数据（第 {m['checks_before_rows'] + 1} 次检查），"
+               f"最后一行属于开始后 +{m['last_row_minute_after_start']} 那一分钟；VM 资源 ID 相同",
+               f"工作区、DCR、DCE 未变，已有 Reader 角色被复用，{run['rerun']['seconds']} 秒内验证到新数据",
+               "删除 gpumon 和新 DCR 关联，保留原 DCE 与 Azure Monitor Agent，删除测试资源"],
+    }[lang]
+    out = []
+    for i, s in enumerate(run["steps"]):
+        took = "" if s["seconds"] is None else {"en": f", {s['seconds']} s", "cn": f"，{s['seconds']} 秒"}[lang]
+        if lang == "en":
+            out.append(f"- **{CONFIGURE_STEP_TEXT[lang][i]}**: exit {s['exit']}{took}. {detail[i]}.\n")
+        else:
+            out.append(f"- **{CONFIGURE_STEP_TEXT[lang][i]}**：退出码 {s['exit']}{took}。{detail[i]}。\n")
+    coverage = m["coverage_views"]["summary"][0]
+    total = {
+        "en": (f"\n- The whole command: {m['elapsed_seconds']} s, exit {m['exit']}. A later live query of the current "
+               f"coverage-aware views reported {_n(coverage['ObservedGpuHours'])} observed and "
+               f"{_n(coverage['UnknownGpuHours'])} unknown GPU-hours ({_n(coverage['TelemetryCoveragePct'], 1)} % coverage); "
+               f"unknown time was not counted as idle.\n"),
+        "cn": (f"\n- 整条命令：{m['elapsed_seconds']} 秒，退出码 {m['exit']}。随后对当前覆盖率查询的实时调用返回 "
+               f"{_n(coverage['ObservedGpuHours'])} 已观测卡时、{_n(coverage['UnknownGpuHours'])} 未知卡时，"
+               f"遥测覆盖率 {_n(coverage['TelemetryCoveragePct'], 1)} %；未知时段没有记为空闲。\n"),
+    }[lang]
+    return "".join(out) + total
+
+
 BLOCKS = {"glance": glance, "dcgm-command": dcgm_command, "dcgm-fields": dcgm_fields, "json-line": json_line,
+          "cost-example": cost_example,
           "setup-commands": setup_commands, "onboard-commands": onboard_commands, "offboard-commands": offboard_commands,
           "views": views, "per-user-json": per_user_json, "load-input": load_input, "phases": phases,
           "summary-v1": summary_v1, "replay-steps": replay_steps, "owners": owners, "checks": checks,
-          "jobs-launcher": jobs_launcher, "jobs-steps": jobs_steps, "jobs-result": jobs_result}
+          "jobs-launcher": jobs_launcher, "jobs-steps": jobs_steps, "jobs-result": jobs_result,
+          "configure-settings": configure_settings, "configure-steps": configure_steps}
 
 
 def render(text: str, lang: str) -> str:

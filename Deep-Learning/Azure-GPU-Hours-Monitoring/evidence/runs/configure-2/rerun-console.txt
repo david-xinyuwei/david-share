@@ -1,0 +1,46 @@
+logs: gpu-hours-logs/<UTC rerun time>
+
+==> [1] Azure login and subscription
+Subscription       SignedInAs
+-----------------  ----------------------
+<subscription>  <operator>
+
+==> [2] GPU VMs
+1 VM(s): gpu-vm-1
+
+==> [3] preflight: running, NVIDIA driver, DCGM, python3 (Run Command, read-only)
+  gpu-vm-1                                 OK gpus: 1 dcgm: 3.3.9
+
+==> [4] workspace, GpuMetrics_CL table, data collection endpoint and rule
+WARNING: Extension 'monitor-control-service' 1.2.0 is already installed.
+WARNING: Latest version of 'monitor-control-service' is already installed.
+==> resource group and Log Analytics workspace
+==> GpuMetrics_CL table
+==> data collection endpoint and rule
+==> done
+WORKSPACE_GUID=<workspace-guid>
+DCR_ID=/subscriptions/<subscription-id>/resourceGroups/rg-gpu-hours/providers/Microsoft.Insights/dataCollectionRules/dcr-gpu-hours-7b40fdf9
+DCE_ID=/subscriptions/<subscription-id>/resourceGroups/rg-gpu-hours/providers/Microsoft.Insights/dataCollectionEndpoints/dce-gpu-hours-7b40fdf9
+JOB_TRACKING=disabled
+
+==> [5] onboard 1 VM(s), 5 at a time: Azure Monitor Agent, rule association, DCGM, gpumon
+  gpu-vm-1                                 OK
+
+==> [6] query access for your platform
+Log Analytics Reader already granted to <object-id>
+values for your platform saved to gpu-hours.outputs.env
+
+==> [7] wait for GPU rows from every VM (up to 25 minutes; the first rows take about 10 minutes)
+  0/1 VM(s) reporting; checking again in 60 s
+  0/1 VM(s) reporting; checking again in 60 s
+  VmName	VmResourceId	Rows	Last
+  gpu-vm-1	/subscriptions/<subscription-id>/resourcegroups/<vm-resource-group>/providers/microsoft.compute/virtualmachines/gpu-vm-1	2	+15:50
+all 1 VM(s) are sending GPU rows
+
+==> done
+WORKSPACE_GUID=<workspace-guid>
+Query from your platform: POST https://api.loganalytics.azure.com/v1/workspaces/<workspace-guid>/query
+  body {"query": "<content of a kql/*.kql file>", "timespan": "<start>/<end>"}, token for https://api.loganalytics.io,
+  identity with Log Analytics Reader on the workspace. Python: examples/gpu_hours_client.py.
+
+exit=0 elapsed=441s

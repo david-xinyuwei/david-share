@@ -2,7 +2,7 @@
 """Evidence pipeline for the validation runs.
 
     python tools/build_evidence.py capture --workspace <guid> --start <ISO-UTC> --minutes <n> --out <private-dir> [--jobs]
-    python tools/build_evidence.py project --private <private-dir> --run <run-id>
+    python tools/build_evidence.py project --private <private-dir> --run <run-id> [--setup]
     python tools/build_evidence.py            # rebuild evidence/measurements.json from evidence/runs/*/
     python tools/build_evidence.py --check    # fail if measurements.json is stale or KQL disagrees with Python
 
@@ -18,8 +18,13 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
+import os
+import re
+import shutil
 import statistics
 import sys
+import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -59,6 +64,20 @@ METRICS = ("AllocatedGpuHours", "BusyGpuHours", "EffectiveGpuHours", "IdleGpuHou
 
 def _ts(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def _minute_bucket(value: str, window_start: str) -> int:
+    """UTC minute bucket relative to the minute containing the window start, matching KQL bin(..., 1m)."""
+    ts, start = _ts(value), _ts(window_start)
+    ts = ts.replace(second=0, microsecond=0)
+    start = start.replace(second=0, microsecond=0)
+    return int((ts - start).total_seconds() // 60)
+
+
+def _finite_diff(a, b, context: str) -> float:
+    if not isinstance(a, (int, float)) or not isinstance(b, (int, float)) or not math.isfinite(a) or not math.isfinite(b):
+        raise SystemExit(f"KQL_PYTHON_NONFINITE {context}: python {a!r} kql {b!r}")
+    return abs(a - b)
 
 
 def _sha(path: Path) -> str:
@@ -112,7 +131,7 @@ class Labels:
 def project(private: Path, run_id: str) -> None:
     manifest = json.loads((private / "export-manifest.json").read_text(encoding="utf-8"))
     t0 = _ts(manifest["window_start_utc"])
-    minute = lambda s: int((_ts(s) - t0).total_seconds() // 60)  # noqa: E731
+    minute = lambda s: _minute_bucket(s, manifest["window_start_utc"])  # noqa: E731
     second = lambda s: int((_ts(s) - t0).total_seconds())  # noqa: E731
     delay = lambda r: round((_ts(r["IngestionTime"]) - _ts(r["TimeGenerated"])).total_seconds())  # noqa: E731
     vm, user, job = Labels("gpu-vm"), Labels("user"), Labels("job")
@@ -281,7 +300,7 @@ def _agreement(python: dict, kql: dict) -> dict:
         for a, b in zip(py_rows, kql[view]):
             if view == "per_user" and a["User"] != b["User"]:
                 raise SystemExit(f"KQL_PYTHON_ORDER per_user: {a['User']} vs {b['User']}")
-            diffs += [abs(a[k] - b[k]) for k in keys]
+            diffs += [_finite_diff(a[k], b[k], f"{view}.{k}") for k in keys]
     worst = max(diffs) if diffs else 0.0
     if worst > 1e-6:
         raise SystemExit(f"KQL_PYTHON_MISMATCH max abs diff {worst}")
@@ -364,7 +383,7 @@ def _job_agreement(python: dict, kql: dict) -> dict:
                     if a[f] != b[f]:
                         raise SystemExit(f"KQL_PYTHON_FIELD {view} {k} {f}: python {a[f]!r} kql {b[f]!r}")
                     continue
-                diffs.append(abs(a[f] - b[f]))
+                diffs.append(_finite_diff(a[f], b[f], f"{view}.{k}.{f}"))
     worst = max(diffs) if diffs else 0.0
     if worst > 1e-6:
         raise SystemExit(f"KQL_PYTHON_MISMATCH jobs max abs diff {worst}")
@@ -408,6 +427,10 @@ def _r(obj):
 def build_run(run_dir: Path, contract: dict) -> dict:
     gpu = _read_jsonl(run_dir / "gpu-metrics.jsonl")
     hb = _read_jsonl(run_dir / "heartbeat.jsonl")
+    last_hb = max(r["Minute"] for r in hb)
+    expected_last_hb = [e["minute"] for e in contract.get("observed_events", []) if e.get("kind") == "last_heartbeat"]
+    if expected_last_hb and expected_last_hb != [last_hb]:
+        raise SystemExit(f"CONTRACT_LAST_HEARTBEAT {run_dir.name}: contract {expected_last_hb} rows {last_hb}")
     kql = json.loads((run_dir / "kql-results.json").read_text(encoding="utf-8"))
     python = recompute(gpu, hb)
     busy = [r for r in gpu if is_busy(r)]
@@ -425,15 +448,30 @@ def build_run(run_dir: Path, contract: dict) -> dict:
     jobs = None
     if (run_dir / "activity.jsonl").exists():
         jobs = build_jobs(gpu, _read_jsonl(run_dir / "activity.jsonl"), _read_jsonl(run_dir / "aml-status.jsonl"), kql)
+    allocated = python["summary"]["AllocatedGpuHours"]
+    busy_hours = python["summary"]["BusyGpuHours"]
+    observed = len({(r["Computer"], r["GpuId"], r["Minute"]) for r in gpu}) / 60
+    coverage_summary = {
+        "AllocatedGpuHours": allocated,
+        "ObservedGpuHours": observed,
+        "BusyGpuHours": busy_hours,
+        "EffectiveGpuHours": python["summary"]["EffectiveGpuHours"],
+        "IdleGpuHours": max(observed - busy_hours, 0.0),
+        "UnknownGpuHours": max(allocated - observed, 0.0),
+        "TelemetryCoveragePct": 100 * observed / allocated if allocated else 0.0,
+        "UtilizationPct": python["summary"]["UtilizationPct"],
+    }
     return _r({
         "run": run_dir.name,
         "hardware": contract["hardware"],
         "window_minutes": json.loads((run_dir / "raw-manifest.json").read_text(encoding="utf-8"))["window_minutes"],
         "heartbeat_minutes": len({h["Minute"] for h in hb}),
         "first_heartbeat_minute": min(h["Minute"] for h in hb),
+        "last_heartbeat_minute": last_hb,
         "first_gpu_minute": min(r["Minute"] for r in gpu),
         "gpu_rows": len(gpu),
         "summary": python["summary"],
+        "coverage_summary": coverage_summary,
         "busy_minutes": len(busy),
         "owner_minutes": sum(1 for r in busy if r["Users"]),
         "unattributed_busy_minutes": sum(1 for r in busy if not r["Users"]),
@@ -451,6 +489,201 @@ def build_run(run_dir: Path, contract: dict) -> dict:
     })
 
 
+def build_setup_run(run_dir: Path, contract: dict) -> dict:
+    """A setup run has no load to recompute: check the console against the contract, fail closed on any gap."""
+    console = (run_dir / "console.txt").read_text(encoding="utf-8")
+    per_vm = json.loads((run_dir / "per-vm.json").read_text(encoding="utf-8")) if (run_dir / "per-vm.json").exists() else []
+    receipt = json.loads((run_dir / "receipt.json").read_text(encoding="utf-8"))
+
+    def need(ok: bool, what: str) -> None:
+        if not ok:
+            raise SystemExit(f"SETUP_EVIDENCE {run_dir.name}: {what}")
+
+    section = {n: body for n, body in re.findall(r"^==> \[(\d)\] [^\n]*\n(.*?)(?=^==> |\Z)", console, re.S | re.M)}
+    need(set("1234567") <= set(section), "console lacks one of the steps 1-7")
+    preflight = re.findall(r"^  (\S+)\s+OK (gpus: \d+ dcgm: [\d.]+)$", section["3"], re.M)
+    onboarded = re.findall(r"^  (\S+)\s+OK$", section["5"], re.M)
+    reporting = re.search(r"^all (\d+) VM\(s\) are sending GPU rows$", section["7"], re.M)
+    need(len(preflight) > 0 and [v for v, _ in preflight] == onboarded, "preflight and onboarded VMs differ")
+    need(reporting is not None and int(reporting.group(1)) == len(onboarded), "not every onboarded VM sent rows")
+    need("Log Analytics Reader granted" in section["6"], "query access was not granted")
+    if per_vm:
+        need({r["Computer"] for r in per_vm} == set(onboarded), "per_vm rows do not match the onboarded VMs")
+    need(all(s["exit"] == 0 for s in contract["steps"]), "a setup step did not exit 0")
+    need(receipt["exit"] == 0, "the whole command did not exit 0")
+    need(receipt["elapsed_seconds"] == contract["elapsed_seconds"], "receipt and contract elapsed time differ")
+    for rel, digest in receipt.get("source_sha256", {}).items():
+        source = ROOT / rel
+        need(source.is_file() and _sha(source) == digest, f"source hash differs for {rel}")
+    timed = [s["seconds"] for s in contract["steps"] if s["seconds"] is not None]
+    need(sum(timed) == contract["elapsed_seconds"], "step durations do not add up to the elapsed time")
+    def offset(name: str) -> int:
+        m = re.search(r"\+(\d+):(\d\d)", receipt["utc_boundaries"][name])
+        need(m is not None, f"receipt lacks a projected offset for {name}")
+        return int(m.group(1)) * 60 + int(m.group(2))
+    boundaries = [offset(n) for n in ("start", "preflight_done", "workspace_done", "onboard_done", "outputs_written", "end")]
+    receipt_steps = [b - a for a, b in zip(boundaries, boundaries[1:])]
+    need(receipt_steps == timed, "step durations differ from the receipt boundaries")
+    report_rows = re.findall(r"^  (\S+)\t(\S+)\t(\d+)\t\+(\d+):(\d\d)$", section["7"], re.M)
+    need(len(report_rows) == len(onboarded), "step 7 does not show one result row per onboarded VM")
+    for vm_name, resource_id, rows, _, _ in report_rows:
+        need(vm_name in onboarded and resource_id.lower().endswith("/virtualmachines/" + vm_name.lower()),
+             "step 7 VM name and resource ID differ")
+        need(int(rows) > 0, "step 7 returned zero rows")
+    first_row = report_rows[0]
+    last_seconds = int(first_row[3]) * 60 + int(first_row[4])
+    need(last_seconds <= boundaries[-1], "the last row is later than the command end")
+    hardware = contract["hardware"]
+    for row in per_vm:
+        need(row["VmSize"] == hardware["vm_size"] and row["GpuName"] == hardware["gpu"]
+             and row["Gpus"] == hardware["gpus"], "per_vm hardware differs from the run contract")
+        need(row["RunningHours"] == row["AllocatedGpuHours"], "running and allocated GPU-hours differ on a one-GPU VM")
+        need(row["BusyGpuHours"] == 0 and row["EffectiveGpuHours"] == 0 and row["UtilizationPct"] == 0,
+             "the no-load run reports GPU work")
+        need(row["IdleGpuHours"] == row["AllocatedGpuHours"], "the no-load run is not entirely idle")
+    if contract.get("rerun"):
+        rerun = (run_dir / "rerun-console.txt").read_text(encoding="utf-8")
+        need("Log Analytics Reader already granted" in rerun, "the rerun did not reuse the role assignment")
+        need(f"DCR_ID={contract['rerun']['dcr_id']}" in console and f"DCR_ID={contract['rerun']['dcr_id']}" in rerun,
+             "the rerun did not reuse the DCR")
+        need(f"DCE_ID={contract['rerun']['dce_id']}" in console and f"DCE_ID={contract['rerun']['dce_id']}" in rerun,
+             "the rerun did not reuse the DCE")
+        need(f"exit={contract['rerun']['exit']}" in rerun, "rerun exit differs from the contract")
+    if contract.get("offboard"):
+        offboard = (run_dir / "offboard.txt").read_text(encoding="utf-8")
+        need("gpumon removed" in offboard, "offboard did not remove gpumon")
+        need("another DCE owns configurationAccessEndpoint; leaving it" in offboard,
+             "offboard did not preserve the previous DCE")
+    if contract.get("remove"):
+        dry = (run_dir / "remove-dry.txt").read_text(encoding="utf-8")
+        removed = (run_dir / "remove.txt").read_text(encoding="utf-8")
+        final_state = (run_dir / "final-state.txt").read_text(encoding="utf-8")
+        need("Dry run only" in dry and "workspace resources removed" in removed,
+             "workspace removal did not pass dry-run and confirmed modes")
+        need("agent=Succeeded" in final_state and "<previous-dcr-association>" in final_state
+             and "configurationAccessEndpoint" in final_state,
+             "final state does not preserve the agent and previous associations")
+    coverage = json.loads((run_dir / "coverage-kql.json").read_text(encoding="utf-8")) if (run_dir / "coverage-kql.json").exists() else {}
+    if coverage:
+        def valid_row(r: dict) -> bool:
+            return (abs(r["ObservedGpuHours"] + r["UnknownGpuHours"] - r["AllocatedGpuHours"]) <= 1e-9
+                    and abs(r["IdleGpuHours"] - max(r["ObservedGpuHours"] - r["BusyGpuHours"], 0.0)) <= 1e-9
+                    and abs(r["TelemetryCoveragePct"]
+                            - (100 * r["ObservedGpuHours"] / r["AllocatedGpuHours"]
+                               if r["AllocatedGpuHours"] else 0.0)) <= 1e-9)
+        for view in ("summary", "per_vm", "per_hour", "per_day"):
+            need(coverage.get(view) and all(valid_row(r) for r in coverage[view]),
+                 f"{view} coverage fields are inconsistent")
+        need({r["Computer"] for r in coverage["per_vm"]} == set(onboarded),
+             "coverage per_vm rows do not match the onboarded VMs")
+        for row in coverage["per_vm"]:
+            need(row["VmSize"] == hardware["vm_size"] and row["GpuName"] == hardware["gpu"]
+                 and row["Gpus"] == hardware["gpus"], "coverage per_vm hardware differs from the run contract")
+        summary = coverage["summary"][0]
+        for metric in ("AllocatedGpuHours", "ObservedGpuHours", "BusyGpuHours", "EffectiveGpuHours",
+                       "IdleGpuHours", "UnknownGpuHours"):
+            need(abs(sum(r[metric] for r in coverage["per_hour"]) - summary[metric]) <= 1e-9,
+                 f"per_hour does not sum to summary for {metric}")
+    return {
+        "kind": "setup",
+        "vms": len(onboarded),
+        "preflight": preflight[0][1],
+        "exit": receipt["exit"],
+        "elapsed_seconds": receipt["elapsed_seconds"],
+        "checks_before_rows": section["7"].count("checking again in 60 s"),
+        "rows_at_step_7": sum(int(r[2]) for r in report_rows),
+        "last_row_minute_after_start": f"{first_row[3]}:{first_row[4]}",
+        "per_vm": _r(per_vm),
+        **({"coverage_views": _r(coverage)} if coverage else {}),
+    }
+
+
+def _since(stamp: str, start: datetime) -> str:
+    s = int((_ts(stamp) - start).total_seconds())
+    return f"+{s // 60}:{s % 60:02d}"
+
+
+def project_setup(private: Path, run_id: str) -> None:
+    """Project a configure.sh run: its console, its settings file and the reference client's per_vm answer.
+
+    projection-map.json in the private directory lists the literal identifiers to replace and the run start;
+    timestamps become minutes:seconds since the start, and the result is scanned with the public-content guard.
+    """
+    sys.path.insert(0, str(ROOT / "tools"))
+    import check_repo
+
+    mandatory = ("projection-map.json", "console.txt", "gpu-hours.env", "receipt.json")
+    optional = ("per-vm.json", "rerun-console.txt", "offboard.txt", "coverage-kql.json",
+                "remove-dry.txt", "remove.txt", "final-state.txt")
+    inputs = {name: (private / name).read_text(encoding="utf-8") for name in mandatory}
+    inputs.update({name: (private / name).read_text(encoding="utf-8") for name in optional if (private / name).exists()})
+    spec = json.loads(inputs["projection-map.json"])
+    start = _ts(spec["start_utc"])
+
+    def scrub(text: str) -> str:
+        for old, new in spec["literal"].items():
+            text = text.replace(old, new)
+        text = re.sub(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z", lambda m: _since(m.group(0), start), text)
+        # keep the printf column of the per-VM status lines after a name changes length
+        text = re.sub(r"^  (\S+) +(OK|NOT_READY|FAILED)", lambda m: f"  {m.group(1):<40} {m.group(2)}", text, flags=re.M)
+        trailing_newline = text.endswith("\n")
+        text = "\n".join(line.rstrip() for line in text.splitlines())
+        return text + ("\n" if trailing_newline else "")
+
+    files = {name: scrub(text) for name, text in inputs.items() if name != "projection-map.json"}
+    if "coverage-kql.json" in files:
+        coverage = json.loads(files["coverage-kql.json"])
+        for i, row in enumerate(coverage["per_hour"], 1):
+            row["Hour"] = f"hour {i}"
+        for i, row in enumerate(coverage["per_day"], 1):
+            row["Day"] = f"day {i}"
+        files["coverage-kql.json"] = json.dumps(coverage, indent=1) + "\n"
+    for name, text in files.items():
+        for pattern, why in check_repo.FORBIDDEN:
+            m = pattern.search(text)
+            if m:
+                raise SystemExit(f"PROJECTION_LEAK {run_id}/{name}: {why}: {m.group(0)!r}")
+        if name.endswith(".json"):
+            json.loads(text)
+    private_hashes = {n: _sha(private / n) for n in files}
+    manifest = {
+        "private_sources_sha256": private_hashes,
+        "projection": "names, groups, subscription, account, workspace and object IDs -> neutral placeholders "
+                      "(projection-map.json, private); UTC timestamps -> +minutes:seconds since the run started",
+    }
+    lock = RUNS / f".{run_id}.lock"
+    try:
+        fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError:
+        raise SystemExit(f"PROJECTION_BUSY {run_id}: another projection is running")
+    os.close(fd)
+    stage = Path(tempfile.mkdtemp(prefix=f".{run_id}.stage-", dir=RUNS))
+    backup = RUNS / f".{run_id}.backup"
+    out = RUNS / run_id
+    try:
+        for name, text in files.items():
+            (stage / name).write_text(text, encoding="utf-8", newline="\n")
+        manifest["private_sources_sha256"] = private_hashes
+        manifest["public_projection_sha256"] = {n: _sha(stage / n) for n in files}
+        _write_json(stage / "raw-manifest.json", manifest)
+        if backup.exists():
+            shutil.rmtree(backup)
+        if out.exists():
+            os.replace(out, backup)
+        try:
+            os.replace(stage, out)
+        except BaseException:
+            if backup.exists() and not out.exists():
+                os.replace(backup, out)
+            raise
+        if backup.exists():
+            shutil.rmtree(backup)
+    finally:
+        if stage.exists():
+            shutil.rmtree(stage)
+        lock.unlink(missing_ok=True)
+
+
 def build() -> dict:
     contracts = json.loads((EVIDENCE / "runs.json").read_text(encoding="utf-8"))
     runs = {}
@@ -460,7 +693,7 @@ def build() -> dict:
         for name, digest in manifest["public_projection_sha256"].items():
             if _sha(run_dir / name) != digest:
                 raise SystemExit(f"HASH_MISMATCH {run_id}/{name}: evidence changed after projection")
-        runs[run_id] = build_run(run_dir, contract)
+        runs[run_id] = (build_setup_run if contract.get("kind") == "setup" else build_run)(run_dir, contract)
     return {"schema": 1, "idle_pct": IDLE_PCT, "runs": runs}
 
 
@@ -477,12 +710,13 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("project")
     p.add_argument("--private", type=Path, required=True)
     p.add_argument("--run", required=True)
+    p.add_argument("--setup", action="store_true", help="a configure.sh run: console, settings and per_vm answer")
     args = ap.parse_args(argv)
     if args.cmd == "capture":
         capture(args.workspace, args.start, args.minutes, args.out, args.jobs)
         return 0
     if args.cmd == "project":
-        project(args.private, args.run)
+        (project_setup if args.setup else project)(args.private, args.run)
         return 0
     text = json.dumps(build(), indent=1, ensure_ascii=False) + "\n"
     if args.check:
@@ -490,8 +724,10 @@ def main(argv: list[str] | None = None) -> int:
             print("EVIDENCE_STALE evidence/measurements.json differs from a fresh build")
             return 1
         data = json.loads(text)
-        n = sum(r["kql_vs_python"]["compared_values"] for r in data["runs"].values())
-        print(f"PASS measurements.json is current; {n} KQL values equal the Python recomputation")
+        n = sum(r["kql_vs_python"]["compared_values"] for r in data["runs"].values() if "kql_vs_python" in r)
+        setups = [k for k, r in data["runs"].items() if r.get("kind") == "setup"]
+        print(f"PASS measurements.json is current; {n} KQL values equal the Python recomputation; "
+              f"setup runs consistent: {', '.join(setups) or 'none'}")
         return 0
     MEASUREMENTS.write_text(text, encoding="utf-8", newline="\n")
     print(f"wrote {MEASUREMENTS.relative_to(ROOT)}")

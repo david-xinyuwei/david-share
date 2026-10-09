@@ -42,6 +42,8 @@ FORBIDDEN = [
                 r"|\b(?:January|February|March|April|June|July|August|September|October|November|December)\b"
                 r"|\d{1,2}\s*月\s*\d{1,2}\s*日"), "calendar date"),
     (re.compile(r"README-CN\.md"), "retired file name (the Chinese README is README_CN.md)"),
+    (re.compile(r"QUICKSTART(?:_CN)?\.md"), "retired file name (the customer path lives in the README, not a second document)"),
+    (re.compile(r"\bconfigure-1\b"), "superseded setup run (configure-2 is the current script run)"),
     (re.compile(r"(?i)\bworkbook\b|webui|deploy-webui|alert-gpu-idle|dashboard-(?:webui|charts)"), "retired UI or alert scope"),
 ]
 SCAN_SUFFIXES = {".md", ".py", ".json", ".jsonl", ".txt", ".sh", ".yml", ".kql", ""}
@@ -174,10 +176,6 @@ def run() -> list[str]:
         check_links(lang, text, errors)
         check_order(lang, text, errors)
         check_table_shape(lang, text, errors)
-    for name in ("QUICKSTART.md", "QUICKSTART_CN.md"):
-        text = (ROOT / name).read_text(encoding="utf-8")
-        check_links(name, text, errors)
-        check_table_shape(name, text, errors)
     check_bilingual(errors)
     check_top_level(errors)
     check_forbidden(errors)

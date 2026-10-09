@@ -1,0 +1,9 @@
+Resources to remove:
+  workspace: rg-gpu-hours/law-gpu-hours
+  data collection rule: rg-gpu-hours/dcr-gpu-hours-7b40fdf9
+  data collection endpoint: rg-gpu-hours/dce-gpu-hours-7b40fdf9
+  AML diagnostics: not requested
+The resource group is not deleted. Offboard every VM before continuing.
+WARNING: Extension 'monitor-control-service' 1.2.0 is already installed.
+WARNING: Latest version of 'monitor-control-service' is already installed.
+GPU-hours workspace resources removed; resource group rg-gpu-hours kept

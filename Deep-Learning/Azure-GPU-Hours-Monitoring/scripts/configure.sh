@@ -27,6 +27,17 @@ tr -d '\r' < "$CONFIG" > "$SETTINGS"
 source "$SETTINGS"
 rm -f "$SETTINGS"
 
+if [[ -n "$SUBSCRIPTION_ID" ]]; then
+  GPUHOURS_SUBSCRIPTION_ID=$SUBSCRIPTION_ID
+else
+  GPUHOURS_SUBSCRIPTION_ID=$(command az account show --query id -o tsv)
+fi
+export GPUHOURS_SUBSCRIPTION_ID
+az() {
+  if [[ "$1" == extension ]]; then command az "$@"
+  else command az "$@" --subscription "$GPUHOURS_SUBSCRIPTION_ID"; fi
+}
+
 die() { echo "ERROR: $*" >&2; exit "${2:-1}"; }
 step() { printf '\n==> [%s] %s\n' "$1" "$2"; }
 clean() { tr -d '\r'; }
@@ -51,7 +62,6 @@ run_parallel() {
 }
 
 step 1 "Azure login and subscription"
-[[ -z "$SUBSCRIPTION_ID" ]] || az account set --subscription "$SUBSCRIPTION_ID"
 az account show --query "{subscription: name, signedInAs: user.name}" -o table || die "run az login first"
 
 step 2 "GPU VMs"
@@ -65,19 +75,28 @@ add_vm() {
 if [[ -n "$VMSS_NAME" ]]; then
   ORCH=$(az vmss show -g "$VM_RG" -n "$VMSS_NAME" --query orchestrationMode -o tsv | clean)
   [[ "$ORCH" == Flexible ]] || die "scale set $VMSS_NAME uses $ORCH orchestration; only Flexible scale set instances are standalone VMs that this script can onboard"
-  while read -r v; do add_vm "$v"; done < <(az vmss list-instances -g "$VM_RG" -n "$VMSS_NAME" --query "[].name" -o tsv | clean)
+  VMSS_LIST=$(az vmss list-instances -g "$VM_RG" -n "$VMSS_NAME" --query "[].name" -o tsv | clean)
+  [[ -n "$VMSS_LIST" ]] || die "scale set $VMSS_NAME returned no instances"
+  while read -r v; do add_vm "$v"; done <<<"$VMSS_LIST"
 fi
 for v in $VM_NAMES; do add_vm "$v"; done
 (( ${#VMS[@]} > 0 )) || die "no VM found in $VM_RG"
 echo "${#VMS[@]} VM(s): ${VMS[*]}"
+VM_IDS=()
+for vm in "${VMS[@]}"; do
+  VM_IDS+=("$(az vm show -g "$VM_RG" -n "$vm" --query id -o tsv | clean)")
+done
 
 if [[ "$MODE" != verify ]]; then
   step 3 "preflight: running, NVIDIA driver, DCGM, python3 (Run Command, read-only)"
   cat > "$PROBE" <<'EOF'
 #!/bin/bash
 ok=1
-if command -v nvidia-smi >/dev/null; then echo "gpus: $(nvidia-smi -L | wc -l)"; else echo "missing: nvidia-smi (NVIDIA driver)"; ok=0; fi
-if command -v dcgmi >/dev/null; then echo "dcgm: $(dcgmi --version | grep -io 'version *: *[0-9.]*' | grep -o '[0-9.]*$' | head -1)"
+if command -v nvidia-smi >/dev/null && GPU_LIST=$(nvidia-smi -L 2>/dev/null) && [ -n "$GPU_LIST" ]; then
+  echo "gpus: $(printf '%s\n' "$GPU_LIST" | wc -l)"
+else echo "not ready: nvidia-smi could not list a GPU"; ok=0; fi
+if command -v dcgmi >/dev/null && DCGM_VERSION=$(dcgmi --version 2>/dev/null | grep -io 'version *: *[0-9.]*' | grep -o '[0-9.]*$' | head -1) \
+   && [ -n "$DCGM_VERSION" ]; then echo "dcgm: $DCGM_VERSION"
 else echo "missing: dcgmi (datacenter-gpu-manager package)"; ok=0; fi
 [ -x /usr/bin/python3 ] || { echo "missing: /usr/bin/python3"; ok=0; }
 command -v systemctl >/dev/null || { echo "missing: systemd"; ok=0; }
@@ -138,6 +157,11 @@ EOF
   done
   (( ${#ONBOARDED[@]} > 0 )) || die "no VM was onboarded" 2
   VMS=("${ONBOARDED[@]}")
+  VM_IDS=()
+  for vm in "${VMS[@]}"; do
+    VM_IDS+=("$(az vm show -g "$VM_RG" -n "$vm" --query id -o tsv | clean)")
+  done
+  VERIFY_AFTER=$(date -u +%FT%TZ)
 fi
 
 LAW_ID=$(az monitor log-analytics workspace show -g "$WORKSPACE_RG" -n "$WORKSPACE_NAME" --query id -o tsv | clean)
@@ -147,11 +171,17 @@ WORKSPACE_GUID=$(az monitor log-analytics workspace show -g "$WORKSPACE_RG" -n "
 if [[ "$MODE" == all ]]; then
   step 6 "query access for your platform"
   if [[ -n "$READER_OBJECT_ID" ]]; then
-    az role assignment create --assignee-object-id "$READER_OBJECT_ID" --assignee-principal-type "$READER_PRINCIPAL_TYPE" \
-      --role "Log Analytics Reader" --scope "$LAW_ID" -o none
-    echo "Log Analytics Reader granted to $READER_OBJECT_ID"
+    READER_ASSIGNMENTS=$(az role assignment list --assignee-object-id "$READER_OBJECT_ID" \
+      --role "Log Analytics Reader" --scope "$LAW_ID" --query "length(@)" -o tsv | clean)
+    if [[ "$READER_ASSIGNMENTS" == 0 ]]; then
+      az role assignment create --assignee-object-id "$READER_OBJECT_ID" --assignee-principal-type "$READER_PRINCIPAL_TYPE" \
+        --role "Log Analytics Reader" --scope "$LAW_ID" -o none
+      echo "Log Analytics Reader granted to $READER_OBJECT_ID"
+    else
+      echo "Log Analytics Reader already granted to $READER_OBJECT_ID"
+    fi
   else
-    echo "READER_OBJECT_ID is empty; grant it later with the command in the quick start"
+    echo "READER_OBJECT_ID is empty; grant it later with the az role assignment command in the README"
   fi
   {
     echo "WORKSPACE_GUID=$WORKSPACE_GUID"
@@ -166,17 +196,35 @@ fi
 
 step 7 "wait for GPU rows from every VM (up to $WAIT_MINUTES minutes; the first rows take about 10 minutes)"
 # The same Log Analytics query API your platform calls, through az rest.
-printf '{"query": "GpuMetrics_CL | where TimeGenerated > ago(30m) | summarize Rows = count(), Last = max(TimeGenerated) by VmName", "timespan": "PT1H"}\n' > "$BODY"
+if [[ "$MODE" == all ]]; then
+  FILTER="TimeGenerated > datetime($VERIFY_AFTER)"
+else
+  FILTER="TimeGenerated > ago(10m)"
+fi
+printf '{"query": "GpuMetrics_CL | where %s | summarize Rows = count(), Last = max(TimeGenerated), VmResourceId = any(VmResourceId) by VmName | project VmName, VmResourceId = tolower(VmResourceId), Rows, Last", "timespan": "PT1H"}\n' \
+  "$FILTER" > "$BODY"
 DEADLINE=$(( $(date +%s) + WAIT_MINUTES * 60 ))
 while :; do
-  ROWS=$(az rest --method post --url "https://api.loganalytics.io/v1/workspaces/$WORKSPACE_GUID/query" \
-    --resource https://api.loganalytics.io --body "@$BODY" --query "tables[0].rows" -o tsv 2>>"$LOG_DIR/verify.log" | clean) || ROWS=""
+  QUERY_ERROR=$(az rest --method post --url "https://api.loganalytics.azure.com/v1/workspaces/$WORKSPACE_GUID/query" \
+    --resource https://api.loganalytics.io --body "@$BODY" \
+    --query "error.message || partialError.message" -o tsv 2>>"$LOG_DIR/verify.log" | clean) || QUERY_ERROR="request failed"
+  if [[ -n "$QUERY_ERROR" ]]; then
+    echo "Log Analytics query not complete: $QUERY_ERROR" >> "$LOG_DIR/verify.log"
+    ROWS=""
+  else
+    ROWS=$(az rest --method post --url "https://api.loganalytics.azure.com/v1/workspaces/$WORKSPACE_GUID/query" \
+      --resource https://api.loganalytics.io --body "@$BODY" --query "tables[0].rows" -o tsv \
+      2>>"$LOG_DIR/verify.log" | clean) || ROWS=""
+  fi
   MISSING=()
-  for vm in "${VMS[@]}"; do
-    awk -F'\t' -v v="$vm" 'tolower($1) == tolower(v) { found = 1 } END { exit !found }' <<<"$ROWS" || MISSING+=("$vm")
+  for i in "${!VMS[@]}"; do
+    vm=${VMS[$i]}; expected_id=${VM_IDS[$i],,}
+    awk -F'\t' -v v="$vm" -v id="$expected_id" \
+      'tolower($1) == tolower(v) && tolower($2) == id && ($3 + 0) > 0 { found = 1 } END { exit !found }' \
+      <<<"$ROWS" || MISSING+=("$vm")
   done
   if (( ${#MISSING[@]} == 0 )); then
-    printf 'VmName\tRows (30 min)\tLast\n%s\n' "$ROWS" | sed 's/^/  /'
+    printf 'VmName\tVmResourceId\tRows\tLast\n%s\n' "$ROWS" | sed 's/^/  /'
     echo "all ${#VMS[@]} VM(s) are sending GPU rows"
     break
   fi
@@ -191,7 +239,7 @@ cat <<EOF
 
 ==> done
 WORKSPACE_GUID=$WORKSPACE_GUID
-Query from your platform: POST https://api.loganalytics.io/v1/workspaces/$WORKSPACE_GUID/query
+Query from your platform: POST https://api.loganalytics.azure.com/v1/workspaces/$WORKSPACE_GUID/query
   body {"query": "<content of a kql/*.kql file>", "timespan": "<start>/<end>"}, token for https://api.loganalytics.io,
   identity with Log Analytics Reader on the workspace. Python: examples/gpu_hours_client.py.
 EOF

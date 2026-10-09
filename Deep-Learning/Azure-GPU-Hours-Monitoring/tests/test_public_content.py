@@ -13,7 +13,9 @@ import check_repo  # noqa: E402
 import draw_diagrams  # noqa: E402
 
 SECTION = {"en": "## Validation on One H100 VM", "cn": "## 单台 H100 VM 上的实测验证"}
-LABELS = {"en": ("**Question.**", "**Input.**", "**Boundary.**"), "cn": ("**问题。**", "**输入。**", "**边界。**")}
+LABELS = {"en": ("**Question.**", "**Input.**", "**Result.**", "**Boundary.**"),
+          "cn": ("**问题。**", "**输入。**", "**结果。**", "**边界。**")}
+RUN_IDS = ("validation-1", "replay-1", "configure-2", "jobs-1")
 
 
 def _audit_copy(edit) -> list[str]:
@@ -43,28 +45,51 @@ class ReadmeTests(unittest.TestCase):
     def test_each_run_states_question_and_input_before_results_and_a_boundary(self):
         for lang, path in build_readme.READMES.items():
             section = path.read_text(encoding="utf-8").split(SECTION[lang], 1)[1].split("\n## ", 1)[0]
-            runs = re.split(r"\n### ", section)[1:3]
-            self.assertEqual(len(runs), 2, lang)
+            runs = [s for s in re.split(r"\n### ", section)[1:] if re.match(r"[a-z]+-\d+", s)]
+            self.assertEqual([re.match(r"[a-z]+-\d+", s).group(0) for s in runs], list(RUN_IDS), lang)
             for sub in runs:
                 with self.subTest(lang=lang, run=sub.splitlines()[0]):
-                    first_result = min(i for i in (sub.find("\n| "), sub.find("<img")) if i > 0)
-                    question, inp, boundary = LABELS[lang]
-                    self.assertIn(question, sub[:first_result])
-                    self.assertIn(inp, sub[:first_result])
-                    self.assertIn(boundary, sub)
+                    question, inp, result, boundary = LABELS[lang]
+                    self.assertIn(result, sub)
+                    head = sub[:sub.index(result)]
+                    self.assertIn(question, head)
+                    self.assertIn(inp, head)
+                    self.assertNotIn("\n| ", head, "a table before the result")
+                    self.assertIn(boundary, sub[sub.index(result):])
 
     def test_configuration_steps_show_the_script_commands(self):
-        text = build_readme.READMES["en"].read_text(encoding="utf-8")
-        for needle in ("az monitor data-collection rule create", "az monitor data-collection rule association create",
-                       "az vm extension set", "az monitor log-analytics query", "dcgmi dmon -e"):
-            self.assertIn(needle, text)
+        for lang, path in build_readme.READMES.items():
+            text = path.read_text(encoding="utf-8")
+            for needle in ("./scripts/configure.sh -c gpu-hours.env -p", "./scripts/configure.sh -c gpu-hours.env\n",
+                           "./scripts/configure.sh -c gpu-hours.env -v", "cp scripts/gpu-hours.env.example gpu-hours.env",
+                           "az monitor data-collection rule create", "az monitor data-collection rule association create",
+                           "az vm extension set", "az monitor log-analytics query", "dcgmi dmon -e",
+                           "env AZUREML_RUN_ID=", "mpirun -x AZUREML_RUN_ID", "docker run -e AZUREML_RUN_ID"):
+                with self.subTest(lang=lang, needle=needle):
+                    self.assertIn(needle, text)
+
+    def test_configure_section_documents_every_setting_and_exit_code(self):
+        settings = re.findall(r"^([A-Z_]+)=", (ROOT / "scripts" / "gpu-hours.env.example").read_text(encoding="utf-8"), re.M)
+        script = (ROOT / "scripts" / "configure.sh").read_text(encoding="utf-8")
+        codes = sorted({int(c) for c in re.findall(r'die "[^"]*" (\d)', script)} | {1})
+        heading = {"en": ("## Configure on Azure", "## Query from Your Platform"), "cn": ("## 在 Azure 上配置", "## 从客户平台查询")}
+        for lang, path in build_readme.READMES.items():
+            start, end = heading[lang]
+            section = path.read_text(encoding="utf-8").split(start, 1)[1].split(end, 1)[0]
+            for name in settings:
+                with self.subTest(lang=lang, setting=name):
+                    self.assertTrue(f"`{name}`" in section, f"{name} is not documented")
+            for code in [0, *codes]:
+                with self.subTest(lang=lang, exit_code=code):
+                    self.assertTrue(re.search(rf"\n\| {code} \|", section), f"exit code {code} is not documented")
 
     def test_images_match_ledger(self):
         self.assertEqual(draw_diagrams.main(["--check"]), 0)
 
     def test_retired_files_are_gone(self):
         for rel in ("README-CN.md", "webui", "images/architecture.png", "images/metrics.png",
-                    "images/dashboard-webui.png", "images/dashboard-charts.png", "azure/queries.kql"):
+                    "images/dashboard-webui.png", "images/dashboard-charts.png", "azure/queries.kql",
+                    "QUICKSTART.md", "QUICKSTART_CN.md"):
             self.assertFalse((ROOT / rel).exists(), rel)
 
 
@@ -81,7 +106,7 @@ class GuardTests(unittest.TestCase):
         samples = ["GeekPlus", "极智嘉", "rg-geekplus-gpuhours-demo", "trainer-a", "from Kurt", "C:\\Users\\someone\\",
                    "person@example.com", "10.2.3.4", "12345678-1234-1234-1234-123456789abc", "<details>",
                    "run of 2026-05-08", "stage-20260713", "in September", "9 月 28 日", "see README-CN.md",
-                   "open the Workbook", "webui/app.py"]
+                   "open the Workbook", "webui/app.py", "see QUICKSTART_CN.md", "configure-1"]
         for sample in samples:
             with self.subTest(sample=sample):
                 self.assertTrue(any(p.search(sample) for p, _ in check_repo.FORBIDDEN), sample)

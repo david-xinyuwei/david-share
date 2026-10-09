@@ -1,0 +1,74 @@
+{
+ "window": {
+  "start": "2026-10-09T12:09:00+00:00",
+  "end": "2026-10-09T14:09:00+00:00"
+ },
+ "summary": [
+  {
+   "AllocatedGpuHours": 0.2,
+   "BusyGpuHours": 0,
+   "EffectiveGpuHours": 0,
+   "IdleGpuHours": 0.18333333333333332,
+   "ObservedGpuHours": 0.18333333333333332,
+   "UnknownGpuHours": 0.01666666666666669,
+   "Vms": 1,
+   "Gpus": 1,
+   "TelemetryCoveragePct": 91.66666666666666,
+   "UtilizationPct": 0
+  }
+ ],
+ "per_vm": [
+  {
+   "Computer": "gpu-vm-1",
+   "VmSize": "Standard_NC40ads_H100_v5",
+   "GpuName": "NVIDIA H100 NVL",
+   "Gpus": 1,
+   "RunningHours": 0.2,
+   "AllocatedGpuHours": 0.2,
+   "ObservedGpuHours": 0.18333333333333332,
+   "BusyGpuHours": 0,
+   "EffectiveGpuHours": 0,
+   "IdleGpuHours": 0.18333333333333332,
+   "UnknownGpuHours": 0.01666666666666669,
+   "TelemetryCoveragePct": 91.66666666666666,
+   "UtilizationPct": 0
+  }
+ ],
+ "per_hour": [
+  {
+   "Hour": "hour 1",
+   "AllocatedGpuHours": 0.05,
+   "ObservedGpuHours": 0.03333333333333333,
+   "BusyGpuHours": 0,
+   "EffectiveGpuHours": 0,
+   "IdleGpuHours": 0.03333333333333333,
+   "UnknownGpuHours": 0.01666666666666667,
+   "TelemetryCoveragePct": 66.66666666666667,
+   "UtilizationPct": 0
+  },
+  {
+   "Hour": "hour 2",
+   "AllocatedGpuHours": 0.15,
+   "ObservedGpuHours": 0.15,
+   "BusyGpuHours": 0,
+   "EffectiveGpuHours": 0,
+   "IdleGpuHours": 0.15,
+   "UnknownGpuHours": 0,
+   "TelemetryCoveragePct": 100,
+   "UtilizationPct": 0
+  }
+ ],
+ "per_day": [
+  {
+   "Day": "day 1",
+   "AllocatedGpuHours": 0.2,
+   "ObservedGpuHours": 0.18333333333333332,
+   "BusyGpuHours": 0,
+   "EffectiveGpuHours": 0,
+   "IdleGpuHours": 0.18333333333333332,
+   "UnknownGpuHours": 0.01666666666666669,
+   "TelemetryCoveragePct": 91.66666666666666,
+   "UtilizationPct": 0
+  }
+ ]
+}

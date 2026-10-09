@@ -1,0 +1,48 @@
+{
+  "run": "configure-2",
+  "command": "scripts/configure.sh -c gpu-hours.env from the final L5 working tree",
+  "exit": 0,
+  "elapsed_seconds": 588,
+  "source_sha256": {
+    "scripts/setup-workspace.sh": "baff2f0595431c9299a6c8c57d2591072e8fe37efcda486dee364330629d54a1",
+    "vm/gpu_collector.py": "45f834dd220aa87036e80c56a9d13792d6a88ab3369ed224202f03fb7d74ca13",
+    "scripts/offboard-vm.sh": "65b741d956d38deebf0836f6f3b255641044ddbebadcb14331523e128070f813",
+    "kql/per_hour.kql": "93382c749f9d3d8fb62d1248795bc9b5f22539f504f393153924a00c0dfd66a5",
+    "kql/per_vm.kql": "4e8ef3f13ae57b9dea3858ea98c84ccee6527dbb03c4fbf5f8ede660d0c1019c",
+    "scripts/configure.sh": "224a55033314a8513348131faa0cc64d706fa8bb1b52d32e7d12ab120dfa4173",
+    "scripts/remove-workspace.sh": "52ef6b67d6569b6a316f268a116d072c4a8ac2be1e4efa32871363a74912013c",
+    "scripts/onboard-vm.sh": "b76d5d77d1dfa8d500711aefc321723235c65f20b366988528110d66e7ee6bf2",
+    "kql/per_day.kql": "a7922473f900e5ad676091bda05935ece629528d2d58a382bd553fed4c721962",
+    "kql/summary.kql": "26bbb10520693038c1730cc625dea0abf4cf61f22aa43a108203f07af98518e0"
+  },
+  "utc_boundaries": {
+    "start": "+0:00 (log directory name)",
+    "preflight_done": "+0:52 (preflight status mtime)",
+    "workspace_done": "+3:04 (setup log mtime)",
+    "onboard_done": "+4:32 (onboard status mtime)",
+    "outputs_written": "+4:55 (verify log creation mtime)",
+    "end": "+9:48 (wrapper elapsed time)",
+    "gpumon_started": "+4:14 (systemctl status in onboard log)",
+    "first_ingested_gpu_row_minute": "+7:50 (step 7 output)"
+  },
+  "rerun": {
+    "exit": 0,
+    "elapsed_seconds": 441,
+    "reader": "already granted",
+    "same_dcr": true,
+    "same_dce": true
+  },
+  "offboard": {
+    "exit": 0,
+    "gpumon_removed": true,
+    "new_dcr_association_removed": true,
+    "previous_dce_preserved": true,
+    "azure_monitor_agent_preserved": true
+  },
+  "remove": {
+    "dry_run_exit": 0,
+    "confirmed_exit": 0,
+    "resource_group_preserved": true
+  },
+  "cleanup": "test resource group deleted after the safe removal; VM previous DCR/DCE associations preserved; VM deallocated"
+}
