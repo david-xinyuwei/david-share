@@ -42,6 +42,14 @@ class ScriptTests(unittest.TestCase):
         self.assertEqual(rule.count("__WORKSPACE_RESOURCE_ID__"), 1)
         self.assertIn("s#__WORKSPACE_RESOURCE_ID__#", (ROOT / "scripts" / "setup-workspace.sh").read_text(encoding="utf-8"))
 
+    def test_job_tracking_diagnostics_use_resource_specific_tables(self):
+        script = (ROOT / "scripts" / "setup-workspace.sh").read_text(encoding="utf-8")
+        self.assertIn("az monitor diagnostic-settings subscription create", script)
+        self.assertIn('"category":"Administrative"', script)
+        self.assertIn("az monitor diagnostic-settings create", script)
+        self.assertIn('"category":"AmlRunStatusChangedEvent"', script)
+        self.assertIn("--export-to-resource-specific true", script)
+
     def test_referenced_repository_files_exist(self):
         for path in SCRIPTS:
             for rel in re.findall(r"\$HERE/((?:\.\./)?[\w./-]+\.(?:py|sh|json))", path.read_text(encoding="utf-8")):

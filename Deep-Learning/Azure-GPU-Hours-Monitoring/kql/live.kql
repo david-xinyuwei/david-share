@@ -1,0 +1,30 @@
+// Latest AML job observed on every GPU in the query timespan.
+// Use a short timespan for a minute-level live view, but include the submission event when submitter is required.
+let Computers = dynamic([]);  // VM names to include; empty = all VMs that report GPU metrics
+let gpu = GpuMetrics_CL
+    | where array_length(Computers) == 0 or Computer in (Computers)
+    | where isnotempty(RunId)
+    | extend RunIds = split(RunId, ',')
+    | mv-expand RunId = RunIds to typeof(string)
+    | extend RunId = trim(' ', RunId), RunKey = tolower(trim(' ', RunId));
+let submitters = AzureActivity
+    | where OperationNameValue =~ 'Microsoft.MachineLearningServices/workspaces/jobs/write'
+    | where ActivityStatusValue in~ ('Success', 'Succeeded')
+    | extend RunKey = tolower(tostring(split(_ResourceId, '/')[-1]))
+    | summarize arg_min(TimeGenerated, Caller, Claims_d) by RunKey
+    | project RunKey, Submitter = Caller,
+              SubmitterObjectId = coalesce(
+                  tostring(Claims_d['http://schemas.microsoft.com/identity/claims/objectidentifier']),
+                  tostring(Claims_d.oid));
+let statuses = AmlRunStatusChangedEvent
+    | extend RunKey = tolower(RunId)
+    | summarize arg_max(TimeGenerated, Status) by RunKey
+    | project RunKey, Status;
+gpu
+| summarize arg_max(TimeGenerated, RunId, GpuUtil, SmActive, FbUsedMiB, ProcCount, Processes) by Computer, GpuId, RunKey
+| join kind=leftouter submitters on RunKey
+| join kind=leftouter statuses on RunKey
+| project Computer, GpuId, RunId, Submitter, SubmitterObjectId, Status = coalesce(Status, 'Unknown'),
+          LastSeen = TimeGenerated, AgeSeconds = datetime_diff('second', now(), TimeGenerated),
+          GpuUtil, SmActive, FbUsedMiB, ProcCount, Processes
+| order by Computer asc, GpuId asc, RunId asc

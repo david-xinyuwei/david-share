@@ -1,10 +1,13 @@
 """Collector tests: dcgmi dmon parsing, per-minute averaging and the JSON-line contract."""
 import json
+import io
 import re
 import sys
+import types
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "vm"))
@@ -57,23 +60,43 @@ class AggregateTests(unittest.TestCase):
         agg.add(0, [None] * (len(c.FIELDS) - 1) + [70.0])
         data = agg.drain()
         self.assertEqual(agg.drain(), {})
-        rec = c.build_record(datetime(2000, 1, 1, tzinfo=timezone.utc), META, 0, GPU, data[0], [("u2", "python3"), ("u1", "python3")])
+        rec = c.build_record(datetime(2000, 1, 1, tzinfo=timezone.utc), META, 0, GPU, data[0],
+                             [("u2", "python3", "run-b"), ("u1", "python3", "run-a")])
         self.assertEqual(rec["GpuUtil"], 100.0)
         self.assertEqual(rec["TempC"], 85.0)
         self.assertEqual(rec["Samples"], 2)
         self.assertEqual((rec["ProcCount"], rec["Users"], rec["Processes"]), (2, "u1,u2", "python3"))
+        self.assertEqual(rec["RunId"], "run-a,run-b")
 
     def test_empty_minute_gives_null_metrics(self):
         rec = c.build_record(datetime(2000, 1, 1, tzinfo=timezone.utc), META, 1, GPU, {}, [])
         self.assertIsNone(rec["SmActive"])
         self.assertEqual((rec["Samples"], rec["ProcCount"], rec["Users"]), (0, 0, ""))
+        self.assertEqual(rec["RunId"], "")
+
+    def test_gpu_processes_reads_only_aml_run_id_from_proc_environment(self):
+        def fake_open(path, mode="r", *args, **kwargs):
+            if path.endswith("/comm"):
+                return io.StringIO("python3\n")
+            if path.endswith("/environ"):
+                return io.BytesIO(b"SECRET=do-not-record\0AZUREML_RUN_ID=job-42\0OTHER=value\0")
+            raise FileNotFoundError(path)
+
+        pwd = types.SimpleNamespace(getpwuid=lambda uid: types.SimpleNamespace(pw_name="trainer"))
+        result = types.SimpleNamespace(stdout="GPU-0, 123\n")
+        with mock.patch.dict(sys.modules, {"pwd": pwd}), \
+                mock.patch.object(c.subprocess, "run", return_value=result), \
+                mock.patch.object(c.os, "stat", return_value=types.SimpleNamespace(st_uid=1000)), \
+                mock.patch("builtins.open", side_effect=fake_open):
+            self.assertEqual(c.gpu_processes(), {"GPU-0": [("trainer", "python3", "job-42")]})
 
 
 class ContractTests(unittest.TestCase):
     def _record(self):
         agg = c.Aggregator()
         agg.add(0, c.parse_dmon_line(FULL_LINE.replace("GPU 3", "GPU 0"))[1])
-        return c.build_record(datetime(2000, 1, 1, tzinfo=timezone.utc), META, 0, GPU, agg.drain()[0], [("u1", "python3")])
+        return c.build_record(datetime(2000, 1, 1, tzinfo=timezone.utc), META, 0, GPU, agg.drain()[0],
+                              [("u1", "python3", "job-42")])
 
     def test_json_line_matches_rule_stream_and_table(self):
         rule = json.loads((ROOT / "azure" / "dcr-rule.json").read_text(encoding="utf-8"))

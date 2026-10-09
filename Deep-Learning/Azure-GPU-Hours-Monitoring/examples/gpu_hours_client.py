@@ -4,7 +4,7 @@
     python examples/gpu_hours_client.py --workspace <workspace-guid> --view per_vm \
         --start 2026-10-01T00:00:00+08:00 --end 2026-10-02T00:00:00+08:00 [--idle-pct 5] [--tz-offset 8] [--computer <vm>]
 
-Each view is one file in kql/. The query window is passed as the query timespan, never edited into
+Each of the eight views is one file in kql/. The query window is passed as the query timespan, never edited into
 the KQL; the `let` defaults at the top of a file (IdlePct, TzOffset, Computers) can be overridden.
 Authentication uses DefaultAzureCredential: a managed identity where the platform runs, the Azure CLI
 login on a workstation. The identity needs the "Log Analytics Reader" role on the workspace.
@@ -19,7 +19,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 KQL_DIR = Path(__file__).resolve().parents[1] / "kql"
-VIEWS = ("summary", "per_vm", "per_hour", "per_day", "per_user")
+VIEWS = ("summary", "per_vm", "per_hour", "per_day", "per_user", "per_job", "per_submitter", "live")
 _LET = {
     "IdlePct": (re.compile(r"^let IdlePct = \d+;", re.M), lambda v: f"let IdlePct = {int(v)};"),
     "TzOffset": (re.compile(r"^let TzOffset = -?\d+h;", re.M), lambda v: f"let TzOffset = {int(v)}h;"),

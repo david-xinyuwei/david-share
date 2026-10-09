@@ -5,7 +5,7 @@
 [![Tested on](https://img.shields.io/badge/tested-NC40ads%20H100%20v5-0078D4)](#validation-on-one-h100-vm)
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/azure-gpu-hours-monitoring-ci.yml/badge.svg)](https://github.com/david-xinyuwei/david-share/actions/workflows/azure-gpu-hours-monitoring-ci.yml)
 
-**Of the GPU hours you pay for on Azure GPU VMs, how many ran real work, and whose work was it?** This repository measures that with NVIDIA DCGM inside each VM and Azure Monitor services outside it: the Azure Monitor Agent, a data collection rule and a Log Analytics workspace. It gives you the one collector that runs on the VM, every Azure configuration step as an `az` command, and five KQL views that a platform API calls through the Log Analytics Query API. There is no custom storage and no user interface to run.
+**Of the GPU hours you pay for on Azure GPU VMs, how many ran real work, and whose work was it?** This repository measures that with NVIDIA DCGM inside each VM and Azure Monitor services outside it: the Azure Monitor Agent, a data collection rule and a Log Analytics workspace. It gives you the one collector that runs on the VM, every Azure configuration step as an `az` command, and eight KQL views that a platform API calls through the Log Analytics Query API. There is no custom storage and no user interface to run.
 
 <img src="images/architecture-en.png" width="900" alt="Data path: DCGM host engine, gpumon collector, JSON lines on disk and Azure Monitor Agent on the GPU VM; data collection endpoint, data collection rule and Log Analytics workspace in Azure Monitor; views in kql/, the Log Analytics Query API and operators on the platform side">
 
@@ -36,13 +36,13 @@ Author: Xinyu Wei · [中文](README_CN.md) · [Architecture](#architecture-and-
   - the collector that runs on each VM ([`vm/`](vm/));
   - the data collection rule ([`azure/`](azure/));
   - the configuration steps as scripts of `az` commands ([`scripts/`](scripts/));
-  - five views ([`kql/`](kql/));
+  - eight views ([`kql/`](kql/)), including AML job and Entra submitter attribution;
   - a reference client for your API ([`examples/`](examples/));
   - the evidence and tests that check them ([`evidence/`](evidence/), [`tests/`](tests/), [`tools/`](tools/)).
 
 You supply: GPU VMs with the NVIDIA driver and the DCGM package; Azure CLI with Contributor on the resource group; for the platform, an identity with the Log Analytics Reader role on the workspace.
 
-Not provided: a dashboard or UI, alerting, reconciliation with your invoice, attribution of container or scheduler jobs, and MIG instances.
+Not provided: a dashboard or UI, alerting, reconciliation with your invoice, automatic attribution for jobs that do not propagate a run ID, and MIG instances.
 
 ## Architecture and Metrics
 
@@ -62,7 +62,8 @@ dcgmi dmon -e 203,1001,1002,1004,1005,252,250,155,150 -d 10000
 
 That is nine DCGM fields sampled every 10 s. Every minute, the collector averages each field per GPU and adds:
 - the VM name, size, resource ID and tags from the instance metadata service;
-- the Linux owner and name of every process on the GPU (`nvidia-smi --query-compute-apps` and `/proc/<pid>`).
+- the Linux owner and name of every process on the GPU (`nvidia-smi --query-compute-apps` and `/proc/<pid>`);
+- the `AZUREML_RUN_ID` value from each GPU process, when its launcher propagated that one variable.
 
 It then appends one line per GPU to `/var/log/gpumon/gpu_metrics_<day>.json` and deletes files older than three days.
 
@@ -82,7 +83,7 @@ One line of that file, from the measured VM (names replaced):
 
 <!-- BEGIN GENERATED: json-line -->
 ```json
-{"TimeGenerated": "<minute start, UTC>", "VmName": "<vm-name>", "VmSize": "Standard_NC40ads_H100_v5", "VmResourceId": "<vm resource id>", "Tags": "", "GpuId": 0, "GpuUuid": "<GPU UUID>", "GpuName": "NVIDIA H100 NVL", "Samples": 6, "GpuUtil": 100, "GrActive": 0.9818, "SmActive": 0.9413, "TensorActive": 0.916, "DramActive": 0.1307, "FbUsedMiB": 21618, "FbTotalMiB": 95830, "PowerW": 397.6368, "TempC": 64.1667, "ProcCount": 1, "Users": "<linux user>", "Processes": "python3"}
+{"TimeGenerated": "<minute start, UTC>", "VmName": "<vm-name>", "VmSize": "Standard_NC40ads_H100_v5", "VmResourceId": "<vm resource id>", "Tags": "", "GpuId": 0, "GpuUuid": "<GPU UUID>", "GpuName": "NVIDIA H100 NVL", "Samples": 6, "GpuUtil": 100, "GrActive": 0.9818, "SmActive": 0.9413, "TensorActive": 0.916, "DramActive": 0.1307, "FbUsedMiB": 21618, "FbTotalMiB": 95830, "PowerW": 397.6368, "TempC": 64.1667, "ProcCount": 1, "Users": "<linux user>", "Processes": "python3", "RunId": "<AML run ID>"}
 ```
 <!-- END GENERATED: json-line -->
 
@@ -124,6 +125,8 @@ az vm run-command invoke -g <vm-rg> -n <vm-name> --command-id RunShellScript \
 
 ```bash
 ./scripts/setup-workspace.sh -g rg-gpu-hours -l <region>
+# Add AML job submitter and status tracking:
+./scripts/setup-workspace.sh -g rg-gpu-hours -l <region> -a <aml-workspace-resource-id>
 ```
 
 The script prints `WORKSPACE_GUID`, `DCR_ID` and `DCE_ID`; keep them for the next steps. It runs these commands:
@@ -145,10 +148,14 @@ az monitor data-collection rule create -g "$RG" -n "$DCR" -l "$LOC" --kind Linux
   --endpoint-id "$DCE_ID" --rule-file "$RULE_FILE" -o none
 DCR_ID=$(az monitor data-collection rule show -g "$RG" -n "$DCR" --query id -o tsv)
 WORKSPACE_GUID=$(az monitor log-analytics workspace show -g "$RG" -n "$LAW" --query customerId -o tsv)
+az monitor diagnostic-settings subscription create -n gpu-hours-job-submitters -l "$LOC" \
+  --workspace "$LAW_ID" --logs '[{"category":"Administrative","enabled":true}]' -o none
+az monitor diagnostic-settings create -n gpu-hours-job-status --resource "$AML_ID" --workspace "$LAW_ID" \
+  --export-to-resource-specific true --logs '[{"category":"AmlRunStatusChangedEvent","enabled":true}]' -o none
 ```
 <!-- END GENERATED: setup-commands -->
 
-Put the workspace in the same region as the VMs. Retention is 90 days by default; change it with `-r <days>`. The table is created on the first run and updated on later runs.
+Put the workspace in the same region as the VMs. Retention is 90 days by default; change it with `-r <days>`. The table is created on the first run and updated on later runs. With `-a`, the script also sends subscription `Administrative` events to `AzureActivity` and AML run status events to the resource-specific `AmlRunStatusChangedEvent` table. That option needs permission to create diagnostic settings at subscription scope and on the AML workspace.
 
 Check it:
 
@@ -159,7 +166,7 @@ az monitor data-collection rule show -g rg-gpu-hours -n dcr-gpu-hours \
   --query "{kind: kind, files: dataSources.logFiles[0].filePatterns, stream: dataFlows[0].outputStream}" -o json
 ```
 
-Expected: 23 columns and the retention you chose; the rule has kind `Linux`, reads `/var/log/gpumon/*.json` and outputs `Custom-GpuMetrics_CL`.
+Expected: 24 columns and the retention you chose; the rule has kind `Linux`, reads `/var/log/gpumon/*.json` and outputs `Custom-GpuMetrics_CL`.
 
 **Step 2: onboard each GPU VM.**
 
@@ -225,12 +232,19 @@ Each view in [`kql/`](kql/) is a complete query. The time window is the query's 
 - `TzOffset`: UTC offset for hours and days, default `8h`;
 - `Computers`: VM names to include, empty means all.
 
+The three AML views require every GPU process to carry the AML job name in `AZUREML_RUN_ID`. Preserve it across every boundary in your launcher: pass it in the remote `env`, use Docker `-e AZUREML_RUN_ID`, and add `-x AZUREML_RUN_ID` to `mpirun`. The collector reads only that variable from `/proc/<pid>/environ`; it does not ingest the rest of the process environment. If several run IDs share one GPU-minute, the job views split that minute evenly.
+
+The timespan for `per_job`, `per_submitter` and `live` must include the job submission event as well as the GPU rows. `live` returns the last process seen on each GPU in that window; use a short window for freshness or a wider one when submitter enrichment is required.
+
 <!-- BEGIN GENERATED: views -->
 - [`kql/summary.kql`](kql/summary.kql), all selected VMs together: `AllocatedGpuHours`, `BusyGpuHours`, `EffectiveGpuHours`, `IdleGpuHours`, `Vms`, `Gpus`, `UtilizationPct`
 - [`kql/per_vm.kql`](kql/per_vm.kql), one row per VM: `Computer`, `VmSize`, `GpuName`, `Gpus`, `RunningHours`, `AllocatedGpuHours`, `BusyGpuHours`, `EffectiveGpuHours`, `IdleGpuHours`, `UtilizationPct`
 - [`kql/per_hour.kql`](kql/per_hour.kql), one row per local hour: `Hour`, `AllocatedGpuHours`, `BusyGpuHours`, `EffectiveGpuHours`, `IdleGpuHours`, `UtilizationPct`
 - [`kql/per_day.kql`](kql/per_day.kql), one row per local day: `Day`, `AllocatedGpuHours`, `BusyGpuHours`, `EffectiveGpuHours`, `IdleGpuHours`, `UtilizationPct`
 - [`kql/per_user.kql`](kql/per_user.kql), one row per process owner and VM: `User`, `Computer`, `BusyGpuHours`, `EffectiveGpuHours`, `AvgSmActivePct`, `PeakMemoryGiB`, `Processes`
+- [`kql/per_job.kql`](kql/per_job.kql), one row per AML job: `RunId`, `Submitter`, `SubmitterObjectId`, `Status`, `Vms`, `Gpus`, `StartTime`, `EndTime`, `BusyGpuHours`, `EffectiveGpuHours`, `PeakMemoryGiB`
+- [`kql/per_submitter.kql`](kql/per_submitter.kql), one row per Entra submitter: `Submitter`, `SubmitterObjectId`, `Jobs`, `BusyGpuHours`, `EffectiveGpuHours`
+- [`kql/live.kql`](kql/live.kql), latest GPU process seen in the query window: `Computer`, `GpuId`, `RunId`, `Submitter`, `SubmitterObjectId`, `Status`, `LastSeen`, `AgeSeconds`, `GpuUtil`, `SmActive`, `FbUsedMiB`, `ProcCount`, `Processes`
 <!-- END GENERATED: views -->
 
 **From a shell.** The `@` prefix makes the Azure CLI read the query from the file. `-t` takes an ISO 8601 duration such as `P1D`, or an interval `<start>/<end>`. The CLI returns every value as a string and adds a `TableName` column.
@@ -255,6 +269,7 @@ Content-Type: application/json
 pip install -r examples/requirements.txt
 END=$(date -u +%FT%TZ); START=$(date -u -d '-1 day' +%FT%TZ)
 python examples/gpu_hours_client.py --workspace "$WORKSPACE_GUID" --view per_user --start "$START" --end "$END"
+python examples/gpu_hours_client.py --workspace "$WORKSPACE_GUID" --view per_job --start "$START" --end "$END"
 ```
 
 The same call returned this during the replay below:
@@ -283,6 +298,27 @@ The same call returned this during the replay below:
 ]
 ```
 <!-- END GENERATED: per-user-json -->
+
+**Which interface your platform calls.** Nothing custom sits between your platform and the data:
+- API: the Log Analytics Query API above, one `POST` per view, the KQL file content in `query`, the window in `timespan`;
+- library: `azure-identity` and `azure-monitor-query` ([`examples/requirements.txt`](examples/requirements.txt)) for Python; the Azure Monitor Query client library also exists for .NET, Java, JavaScript and Go;
+- permission: `Log Analytics Reader` on the workspace, nothing on the VMs or the AML workspace.
+
+The same job query without the reference client:
+
+```python
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+from azure.identity import DefaultAzureCredential
+from azure.monitor.query import LogsQueryClient
+
+client = LogsQueryClient(DefaultAzureCredential())
+end = datetime.now(timezone.utc)
+result = client.query_workspace("<workspace-guid>", Path("kql/per_job.kql").read_text(encoding="utf-8"),
+                                timespan=(end - timedelta(days=1), end))
+jobs = [dict(zip(result.tables[0].columns, row)) for row in result.tables[0].rows]
+```
 
 Give the identity of your API read access to the workspace:
 
@@ -417,7 +453,7 @@ Done when all tests pass and each check prints `PASS`.
 
 - **`python -m unittest discover -s tests -v`** tests:
   - collector: `dcgmi dmon` line parsing on real output, averaging, and a JSON line whose keys equal the rule's stream and the table columns;
-  - views: the `let` lines shared by the five files are identical, and `summary` is `per_vm` summed;
+  - views: shared `let` lines are identical, `summary` is `per_vm` summed, and AML views join by `RunId`;
   - reference client: `let` overrides and the timespan sent;
   - evidence: recomputation, including the 1/N owner split;
   - public content: every rule of `tools/check_repo.py`, with deliberate breaks that must fail.
@@ -433,7 +469,7 @@ The live checks need Azure:
 - the reference client;
 - the load test, which needs a GPU VM and PyTorch: `./tests/load/run-load.sh -g <vm-rg> -n <vm-name> -u <user>`. Remove the test users afterwards with `-x`.
 
-Not tested here: VMs with more than one GPU, MIG, DCGM 4.x, containers or schedulers, Azure Private Link, and sovereign clouds.
+Not tested here: VMs with more than one GPU, MIG, DCGM 4.x, Azure Private Link, sovereign clouds, or the three AML views end to end. The AML views have offline contract tests but need a live two-identity run before production use.
 
 ## Limits, Assets and Sources
 
@@ -442,8 +478,9 @@ Not tested here: VMs with more than one GPU, MIG, DCGM 4.x, containers or schedu
 - `LOCAL_MEASUREMENT`: owners are sampled once, at the end of each minute. A job that exits mid-minute leaves that minute busy but unattributed, and a job that starts mid-minute is counted from the end of its first minute.
 - `LOCAL_MEASUREMENT`: allocated time starts at the agent's first `Heartbeat`. Lines the collector wrote before the agent began collecting were not ingested (minutes 5–10 of `validation-1`).
 - `LOCAL_MEASUREMENT`: `PeakMemoryGiB` is the GPU's memory in use, not a per-process figure.
+- `LOCAL_MEASUREMENT`: a run ID is sampled at the end of each minute. If several run IDs share a GPU-minute, each receives an equal fraction because DCGM does not expose per-process SM activity.
 - `NOT_MEASURED`: 8-GPU VMs. The collector reads every GPU that `nvidia-smi` lists and the views count GPUs per VM, but only one GPU was measured.
-- `NOT_MEASURED`: MIG instances, DCGM 4.x, jobs in containers (the owner is the container's user ID) and jobs under Slurm or Kubernetes. For scheduler jobs, join on `Computer` and time with the scheduler's job records.
+- `NOT_MEASURED`: MIG instances, DCGM 4.x, and jobs that do not propagate an identifier. AML uses `AZUREML_RUN_ID`; other schedulers need an equivalent collector and query convention.
 - `NOT_MEASURED`: the delay from VM start to first `Heartbeat` for a VM that already has the agent.
 - `SOURCE_FACT`: the `log-analytics` Azure CLI extension has no stable version (1.0.0b2 in this run). A platform should call the Query API through REST or the SDK.
 - Allocated hours follow VM running time as the agent reports it. They are not billing records: reconcile invoices with Cost Management.
@@ -453,7 +490,7 @@ Not tested here: VMs with more than one GPU, MIG, DCGM 4.x, containers or schedu
 - [`vm/`](vm/): `gpu_collector.py` (DCGM to JSON lines) and `install_collector.sh` (systemd unit, enables `nvidia-dcgm`).
 - [`azure/`](azure/): `dcr-rule.json`, the data collection rule for `az monitor data-collection rule create --rule-file`.
 - [`scripts/`](scripts/): `setup-workspace.sh`, `onboard-vm.sh`, `offboard-vm.sh`.
-- [`kql/`](kql/): the five views.
+- [`kql/`](kql/): the eight views.
 - [`examples/`](examples/): `gpu_hours_client.py`, the reference Query API client, and its `requirements.txt`.
 - [`evidence/`](evidence/): run contracts (`runs.json`), the projected rows and view results of both runs (`runs/`), with SHA-256 of their private sources, and `measurements.json`.
 - [`tests/`](tests/): offline tests, and `tests/load/` with the load generator and its Run Command wrapper.
@@ -465,6 +502,6 @@ Not tested here: VMs with more than one GPU, MIG, DCGM 4.x, containers or schedu
 - [Collect JSON logs with Azure Monitor Agent](https://learn.microsoft.com/azure/azure-monitor/vm/data-collection-log-json) and [data collection rule structure](https://learn.microsoft.com/azure/azure-monitor/data-collection/data-collection-rule-structure)
 - [Azure HPC VM images](https://learn.microsoft.com/azure/virtual-machines/azure-hpc-vm-images), which include DCGM
 - [`az monitor data-collection rule`](https://learn.microsoft.com/cli/azure/monitor/data-collection/rule) and [`az monitor log-analytics query`](https://learn.microsoft.com/cli/azure/monitor/log-analytics#az-monitor-log-analytics-query)
-- [Log Analytics Query API](https://learn.microsoft.com/azure/azure-monitor/logs/api/overview), [Azure Monitor Query client library for Python](https://learn.microsoft.com/python/api/overview/azure/monitor-query-readme) and the [`Heartbeat` table](https://learn.microsoft.com/azure/azure-monitor/reference/tables/heartbeat)
+- [Log Analytics Query API](https://learn.microsoft.com/azure/azure-monitor/logs/api/overview), [Azure Monitor Query client library for Python](https://learn.microsoft.com/python/api/overview/azure/monitor-query-readme), [`Heartbeat`](https://learn.microsoft.com/azure/azure-monitor/reference/tables/heartbeat), [`AzureActivity`](https://learn.microsoft.com/azure/azure-monitor/reference/tables/azureactivity) and [`AmlRunStatusChangedEvent`](https://learn.microsoft.com/azure/azure-monitor/reference/tables/amlrunstatuschangedevent)
 - [DCGM field identifiers](https://docs.nvidia.com/datacenter/dcgm/latest/dcgm-api/dcgm-api-field-ids.html) and [DCGM profiling metrics](https://docs.nvidia.com/datacenter/dcgm/latest/user-guide/feature-overview.html#profiling-metrics)
 - For GPU node pools on AKS, use Azure Monitor managed Prometheus with the [DCGM exporter integration](https://learn.microsoft.com/azure/azure-monitor/containers/prometheus-dcgm-integration) instead of this collector.

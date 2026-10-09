@@ -108,6 +108,7 @@ def json_line(lang: str) -> str:
               "ProcCount", "Users", "Processes"):
         line[k] = r[k]
     line["Users"] = "<linux user>"
+    line["RunId"] = "<AML run ID>"
     return "```json\n" + json.dumps(line, ensure_ascii=False) + "\n```\n"
 
 
@@ -136,9 +137,21 @@ def offboard_commands(lang: str) -> str:
 
 VIEW_TEXT = {
     "en": {"summary": "all selected VMs together", "per_vm": "one row per VM", "per_hour": "one row per local hour",
-           "per_day": "one row per local day", "per_user": "one row per process owner and VM"},
+           "per_day": "one row per local day", "per_user": "one row per process owner and VM",
+           "per_job": "one row per AML job", "per_submitter": "one row per Entra submitter",
+           "live": "latest GPU process seen in the query window"},
     "cn": {"summary": "所选 VM 合计", "per_vm": "每台 VM 一行", "per_hour": "每个本地小时一行",
-           "per_day": "每个本地日一行", "per_user": "每个进程属主、每台 VM 一行"},
+           "per_day": "每个本地日一行", "per_user": "每个进程属主、每台 VM 一行",
+           "per_job": "每个 AML 作业一行", "per_submitter": "每个 Entra 提交人一行",
+           "live": "查询时段内每张卡最后看到的 GPU 进程"},
+}
+VIEW_ORDER = ("summary", "per_vm", "per_hour", "per_day", "per_user", "per_job", "per_submitter", "live")
+NEW_VIEW_COLUMNS = {
+    "per_job": ["RunId", "Submitter", "SubmitterObjectId", "Status", "Vms", "Gpus", "StartTime", "EndTime",
+                "BusyGpuHours", "EffectiveGpuHours", "PeakMemoryGiB"],
+    "per_submitter": ["Submitter", "SubmitterObjectId", "Jobs", "BusyGpuHours", "EffectiveGpuHours"],
+    "live": ["Computer", "GpuId", "RunId", "Submitter", "SubmitterObjectId", "Status", "LastSeen", "AgeSeconds",
+             "GpuUtil", "SmActive", "FbUsedMiB", "ProcCount", "Processes"],
 }
 
 
@@ -146,9 +159,11 @@ def views(lang: str) -> str:
     kql = _json("evidence/runs/validation-1/kql-results.json")
     sep, comma = {"en": (", ", ": "), "cn": ("，", "：")}[lang]
     joiner = {"en": ", ", "cn": "、"}[lang]
+    columns = {v: list(kql[v][0]) for v in kql}
+    columns.update(NEW_VIEW_COLUMNS)
     return "".join(f"- [`kql/{v}.kql`](kql/{v}.kql){sep}{VIEW_TEXT[lang][v]}{comma}"
-                   + joiner.join(f"`{c}`" for c in kql[v][0]) + "\n"
-                   for v in ("summary", "per_vm", "per_hour", "per_day", "per_user"))
+                   + joiner.join(f"`{c}`" for c in columns[v]) + "\n"
+                   for v in VIEW_ORDER)
 
 
 def per_user_json(lang: str) -> str:

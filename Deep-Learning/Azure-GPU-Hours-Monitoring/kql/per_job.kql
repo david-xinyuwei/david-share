@@ -1,0 +1,36 @@
+// GPU hours per AML job, enriched with its Entra submitter and latest AML status.
+//   az monitor log-analytics query -w <workspace-guid> --analytics-query @kql/per_job.kql -t P1D
+// The timespan must include the job submission, status events and GPU rows to be correlated.
+// Job names are matched case-insensitively because Azure Activity can upper-case resource IDs.
+let IdlePct = 5;              // a GPU-minute is busy when a compute process runs or GPU util >= IdlePct
+let Computers = dynamic([]);  // VM names to include; empty = all VMs that report GPU metrics
+let gpu = GpuMetrics_CL
+    | where array_length(Computers) == 0 or Computer in (Computers)
+    | where isnotempty(RunId)
+    | extend RunIds = split(RunId, ','), RunCount = array_length(split(RunId, ','))
+    | mv-expand RunId = RunIds to typeof(string)
+    | extend RunId = trim(' ', RunId), RunKey = tolower(trim(' ', RunId)), Weight = 1.0 / RunCount;
+let submitters = AzureActivity
+    | where OperationNameValue =~ 'Microsoft.MachineLearningServices/workspaces/jobs/write'
+    | where ActivityStatusValue in~ ('Success', 'Succeeded')
+    | extend RunKey = tolower(tostring(split(_ResourceId, '/')[-1]))
+    | summarize arg_min(TimeGenerated, Caller, Claims_d) by RunKey
+    | project RunKey, Submitter = Caller,
+              SubmitterObjectId = coalesce(
+                  tostring(Claims_d['http://schemas.microsoft.com/identity/claims/objectidentifier']),
+                  tostring(Claims_d.oid));
+let statuses = AmlRunStatusChangedEvent
+    | extend RunKey = tolower(RunId)
+    | summarize arg_max(TimeGenerated, Status) by RunKey
+    | project RunKey, Status;
+gpu
+| summarize RunId = take_any(RunId), Vms = dcount(Computer), Gpus = dcount(strcat(Computer, '/', tostring(GpuId))),
+            StartTime = min(TimeGenerated), EndTime = max(TimeGenerated) + 1m,
+            BusyGpuHours = sumif(Weight, ProcCount > 0 or GpuUtil >= IdlePct) / 60.0,
+            EffectiveGpuHours = sum(coalesce(SmActive, 0.0) * Weight) / 60.0,
+            PeakMemoryGiB = max(FbUsedMiB) / 1024.0 by RunKey
+| join kind=leftouter submitters on RunKey
+| join kind=leftouter statuses on RunKey
+| project RunId, Submitter, SubmitterObjectId, Status = coalesce(Status, 'Unknown'), Vms, Gpus,
+          StartTime, EndTime, BusyGpuHours, EffectiveGpuHours, PeakMemoryGiB
+| order by StartTime desc, RunId asc

@@ -47,6 +47,29 @@ class ViewTests(unittest.TestCase):
                 text = _text(view)
                 self.assertNotRegex(text, r"ago\(|TimeGenerated\s+(between|>)|\{[A-Za-z]+\}")
 
+    def test_job_views_join_submitter_and_status_by_run_id(self):
+        for view in ("per_job", "per_submitter", "live"):
+            with self.subTest(view=view):
+                text = _text(view)
+                self.assertIn("AzureActivity", text)
+                self.assertIn("RunId", text)
+                self.assertIn("Claims_d", text)
+                # Azure Activity reports "Success" (and older "Succeeded") and may upper-case resource IDs.
+                self.assertIn("ActivityStatusValue in~ ('Success', 'Succeeded')", text)
+                self.assertIn("RunKey = tolower(tostring(split(_ResourceId, '/')[-1]))", text)
+                self.assertIn("arg_min(TimeGenerated, Caller, Claims_d) by RunKey", text)
+                self.assertIn("join kind=leftouter submitters on RunKey", text)
+        for view in ("per_job", "live"):
+            with self.subTest(status_view=view):
+                self.assertIn("AmlRunStatusChangedEvent", _text(view))
+
+    def test_shared_gpu_minute_is_split_between_run_ids(self):
+        for view in ("per_job", "per_submitter"):
+            with self.subTest(view=view):
+                text = _text(view)
+                self.assertIn("Weight = 1.0 / RunCount", text)
+                self.assertIn("sumif(Weight", text)
+
 
 class ClientTests(unittest.TestCase):
     def test_overrides_replace_exactly_one_let(self):

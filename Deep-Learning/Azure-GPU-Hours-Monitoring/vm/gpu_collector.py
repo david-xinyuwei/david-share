@@ -71,7 +71,7 @@ def gpu_inventory():
 
 
 def gpu_processes():
-    """Return {gpu_uuid: [(user, proc_name), ...]}."""
+    """Return {gpu_uuid: [(user, proc_name, aml_run_id), ...]}."""
     import pwd  # Unix only; imported here so the module also loads on Windows for tests
 
     res = {}
@@ -96,7 +96,16 @@ def gpu_processes():
                 comm = f.read().strip()
         except Exception:  # noqa: BLE001
             comm = "unknown"
-        res.setdefault(uuid, []).append((user, comm))
+        run_id = ""
+        try:
+            with open(f"/proc/{pid}/environ", "rb") as f:
+                for item in f.read().split(b"\0"):
+                    if item.startswith(b"AZUREML_RUN_ID="):
+                        run_id = item.split(b"=", 1)[1].decode("utf-8", errors="replace")
+                        break
+        except Exception:  # noqa: BLE001
+            pass
+        res.setdefault(uuid, []).append((user, comm, run_id))
     return res
 
 
@@ -174,7 +183,8 @@ def build_record(ts, meta, gpu_id, gpu_info, samples, procs):
     """One JSON line for one GPU and one minute.
 
     ts: aware datetime of the minute start; meta: IMDS fields; gpu_info: {GpuUuid, GpuName};
-    samples: {field_key: [values]} for that minute; procs: [(user, process_name), ...] on that GPU.
+    samples: {field_key: [values]} for that minute;
+    procs: [(user, process_name, aml_run_id), ...] on that GPU.
     The keys must match the stream declared in azure/dcr.json (tests/test_contracts.py enforces it).
     """
     return {
@@ -185,8 +195,9 @@ def build_record(ts, meta, gpu_id, gpu_info, samples, procs):
         "Samples": max((len(v) for v in samples.values()), default=0),
         **{k: mean(samples.get(k, [])) for _, k in FIELDS},
         "ProcCount": len(procs),
-        "Users": ",".join(sorted({u for u, _ in procs})),
-        "Processes": ",".join(sorted({c for _, c in procs})),
+        "Users": ",".join(sorted({u for u, _, _ in procs})),
+        "Processes": ",".join(sorted({c for _, c, _ in procs})),
+        "RunId": ",".join(sorted({r for _, _, r in procs if r})),
     }
 
 

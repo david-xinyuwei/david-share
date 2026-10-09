@@ -26,7 +26,8 @@
      {"name": "TempC", "type": "real"},
      {"name": "ProcCount", "type": "int"},
      {"name": "Users", "type": "string"},
-     {"name": "Processes", "type": "string"}
+     {"name": "Processes", "type": "string"},
+     {"name": "RunId", "type": "string"}
     ]
    }
   },

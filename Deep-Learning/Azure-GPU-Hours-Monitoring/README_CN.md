@@ -8,7 +8,7 @@
 **Azure GPU VM 上付了钱的卡时，有多少真正在算？算的是谁的任务？** 本仓库在 VM 内用 NVIDIA DCGM 采集 GPU 指标，在 VM 外全部用 Azure Monitor 托管服务：Azure Monitor Agent、数据收集规则（DCR）和 Log Analytics 工作区。仓库提供四样东西：
 - VM 上唯一需要运行的采集器；
 - 每个 Azure 配置步骤对应的 `az` 命令；
-- 五个 KQL 查询；
+- 八个 KQL 查询；
 - 一个参考客户端，演示客户平台的 API 怎样通过 Log Analytics 查询 API 调用这些查询。
 
 不需要自建存储，也不需要部署任何界面。
@@ -42,7 +42,7 @@
   - 每台 VM 上运行的采集器（[`vm/`](vm/)）；
   - 数据收集规则（[`azure/`](azure/)）；
   - 用 `az` 命令写成的配置脚本（[`scripts/`](scripts/)）；
-  - 五个查询（[`kql/`](kql/)）；
+  - 八个查询（[`kql/`](kql/)），包括按 AML 作业和 Entra 提交人的归属；
   - 给客户 API 参考的客户端（[`examples/`](examples/)）；
   - 用来核对上述内容的证据和测试（[`evidence/`](evidence/)、[`tests/`](tests/)、[`tools/`](tools/)）。
 
@@ -51,7 +51,7 @@
 - 对资源组有 Contributor 权限的 Azure CLI；
 - 客户平台用于查询的身份，并在工作区上授予 Log Analytics Reader 角色。
 
-不提供：看板或界面、告警、与账单对账、容器或调度器作业的归属，以及 MIG 实例。
+不提供：看板或界面、告警、与账单对账、没有传递作业 ID 的任务自动归属，以及 MIG 实例。
 
 ## 架构与指标口径
 
@@ -76,7 +76,8 @@ dcgmi dmon -e 203,1001,1002,1004,1005,252,250,155,150 -d 10000
 1. 把每张卡在这一分钟内的各个字段求平均；
 2. 从实例元数据服务读取 VM 名称、规格、资源 ID 和标签；
 3. 用 `nvidia-smi --query-compute-apps` 和 `/proc/<pid>` 记录 GPU 上每个进程的 Linux 属主和进程名；
-4. 每张卡一行，追加到 `/var/log/gpumon/gpu_metrics_<day>.json`，并删除三天前的文件。
+4. 如果启动器传递了 `AZUREML_RUN_ID`，只从进程环境中读取这一项；
+5. 每张卡一行，追加到 `/var/log/gpumon/gpu_metrics_<day>.json`，并删除三天前的文件。
 
 <!-- BEGIN GENERATED: dcgm-fields -->
 - `203` `DCGM_FI_DEV_GPU_UTIL` → `GpuUtil`：占用判定阈值
@@ -94,7 +95,7 @@ dcgmi dmon -e 203,1001,1002,1004,1005,252,250,155,150 -d 10000
 
 <!-- BEGIN GENERATED: json-line -->
 ```json
-{"TimeGenerated": "<minute start, UTC>", "VmName": "<vm-name>", "VmSize": "Standard_NC40ads_H100_v5", "VmResourceId": "<vm resource id>", "Tags": "", "GpuId": 0, "GpuUuid": "<GPU UUID>", "GpuName": "NVIDIA H100 NVL", "Samples": 6, "GpuUtil": 100, "GrActive": 0.9818, "SmActive": 0.9413, "TensorActive": 0.916, "DramActive": 0.1307, "FbUsedMiB": 21618, "FbTotalMiB": 95830, "PowerW": 397.6368, "TempC": 64.1667, "ProcCount": 1, "Users": "<linux user>", "Processes": "python3"}
+{"TimeGenerated": "<minute start, UTC>", "VmName": "<vm-name>", "VmSize": "Standard_NC40ads_H100_v5", "VmResourceId": "<vm resource id>", "Tags": "", "GpuId": 0, "GpuUuid": "<GPU UUID>", "GpuName": "NVIDIA H100 NVL", "Samples": 6, "GpuUtil": 100, "GrActive": 0.9818, "SmActive": 0.9413, "TensorActive": 0.916, "DramActive": 0.1307, "FbUsedMiB": 21618, "FbTotalMiB": 95830, "PowerW": 397.6368, "TempC": 64.1667, "ProcCount": 1, "Users": "<linux user>", "Processes": "python3", "RunId": "<AML run ID>"}
 ```
 <!-- END GENERATED: json-line -->
 
@@ -140,6 +141,8 @@ az vm run-command invoke -g <vm-rg> -n <vm-name> --command-id RunShellScript \
 
 ```bash
 ./scripts/setup-workspace.sh -g rg-gpu-hours -l <region>
+# 同时启用 AML 作业提交人和状态跟踪：
+./scripts/setup-workspace.sh -g rg-gpu-hours -l <region> -a <aml-workspace-resource-id>
 ```
 
 脚本最后会打印 `WORKSPACE_GUID`、`DCR_ID` 和 `DCE_ID`，后面几步要用。它依次执行这些命令：
@@ -161,10 +164,14 @@ az monitor data-collection rule create -g "$RG" -n "$DCR" -l "$LOC" --kind Linux
   --endpoint-id "$DCE_ID" --rule-file "$RULE_FILE" -o none
 DCR_ID=$(az monitor data-collection rule show -g "$RG" -n "$DCR" --query id -o tsv)
 WORKSPACE_GUID=$(az monitor log-analytics workspace show -g "$RG" -n "$LAW" --query customerId -o tsv)
+az monitor diagnostic-settings subscription create -n gpu-hours-job-submitters -l "$LOC" \
+  --workspace "$LAW_ID" --logs '[{"category":"Administrative","enabled":true}]' -o none
+az monitor diagnostic-settings create -n gpu-hours-job-status --resource "$AML_ID" --workspace "$LAW_ID" \
+  --export-to-resource-specific true --logs '[{"category":"AmlRunStatusChangedEvent","enabled":true}]' -o none
 ```
 <!-- END GENERATED: setup-commands -->
 
-工作区和 VM 放在同一区域。默认保留 90 天，用 `-r <天数>` 修改。第一次运行时建表，之后再运行会更新这张表。
+工作区和 VM 放在同一区域。默认保留 90 天，用 `-r <天数>` 修改。第一次运行时建表，之后再运行会更新这张表。指定 `-a` 后，脚本还会把订阅的 `Administrative` 事件送入 `AzureActivity`，把 AML 作业状态送入资源专用的 `AmlRunStatusChangedEvent` 表。该选项需要在订阅范围和 AML 工作区上创建诊断设置的权限。
 
 检查结果：
 
@@ -175,7 +182,7 @@ az monitor data-collection rule show -g rg-gpu-hours -n dcr-gpu-hours \
   --query "{kind: kind, files: dataSources.logFiles[0].filePatterns, stream: dataFlows[0].outputStream}" -o json
 ```
 
-应当看到：表有 23 列，保留天数与设置一致；规则的 kind 为 `Linux`，读取 `/var/log/gpumon/*.json`，输出到 `Custom-GpuMetrics_CL`。
+应当看到：表有 24 列，保留天数与设置一致；规则的 kind 为 `Linux`，读取 `/var/log/gpumon/*.json`，输出到 `Custom-GpuMetrics_CL`。
 
 **第 2 步：接入每台 GPU VM。**
 
@@ -245,12 +252,19 @@ az vm extension delete -g "$RG" --vm-name "$VM" -n AzureMonitorLinuxAgent -o non
 - `TzOffset`：按小时、按天统计用的 UTC 偏移，默认 `8h`；
 - `Computers`：只统计这些 VM，留空表示全部。
 
+三个 AML 查询要求每个 GPU 进程都带有 AML 作业名，即 `AZUREML_RUN_ID`。启动脚本跨边界时都要保留它：远程命令用 `env` 传递，Docker 加 `-e AZUREML_RUN_ID`，`mpirun` 加 `-x AZUREML_RUN_ID`。采集器只从 `/proc/<pid>/environ` 读取这一项，不采集进程环境里的其他变量。同一个 GPU·分钟有多个作业 ID 时，作业查询会在这些作业之间均分。
+
+`per_job`、`per_submitter` 和 `live` 的 timespan 必须同时覆盖作业提交事件和 GPU 数据。`live` 返回该时段内每张卡最后看到的进程；要看新鲜度就用短时段，要补全提交人则使用能覆盖提交时刻的较宽时段。
+
 <!-- BEGIN GENERATED: views -->
 - [`kql/summary.kql`](kql/summary.kql)，所选 VM 合计：`AllocatedGpuHours`、`BusyGpuHours`、`EffectiveGpuHours`、`IdleGpuHours`、`Vms`、`Gpus`、`UtilizationPct`
 - [`kql/per_vm.kql`](kql/per_vm.kql)，每台 VM 一行：`Computer`、`VmSize`、`GpuName`、`Gpus`、`RunningHours`、`AllocatedGpuHours`、`BusyGpuHours`、`EffectiveGpuHours`、`IdleGpuHours`、`UtilizationPct`
 - [`kql/per_hour.kql`](kql/per_hour.kql)，每个本地小时一行：`Hour`、`AllocatedGpuHours`、`BusyGpuHours`、`EffectiveGpuHours`、`IdleGpuHours`、`UtilizationPct`
 - [`kql/per_day.kql`](kql/per_day.kql)，每个本地日一行：`Day`、`AllocatedGpuHours`、`BusyGpuHours`、`EffectiveGpuHours`、`IdleGpuHours`、`UtilizationPct`
 - [`kql/per_user.kql`](kql/per_user.kql)，每个进程属主、每台 VM 一行：`User`、`Computer`、`BusyGpuHours`、`EffectiveGpuHours`、`AvgSmActivePct`、`PeakMemoryGiB`、`Processes`
+- [`kql/per_job.kql`](kql/per_job.kql)，每个 AML 作业一行：`RunId`、`Submitter`、`SubmitterObjectId`、`Status`、`Vms`、`Gpus`、`StartTime`、`EndTime`、`BusyGpuHours`、`EffectiveGpuHours`、`PeakMemoryGiB`
+- [`kql/per_submitter.kql`](kql/per_submitter.kql)，每个 Entra 提交人一行：`Submitter`、`SubmitterObjectId`、`Jobs`、`BusyGpuHours`、`EffectiveGpuHours`
+- [`kql/live.kql`](kql/live.kql)，查询时段内每张卡最后看到的 GPU 进程：`Computer`、`GpuId`、`RunId`、`Submitter`、`SubmitterObjectId`、`Status`、`LastSeen`、`AgeSeconds`、`GpuUtil`、`SmActive`、`FbUsedMiB`、`ProcCount`、`Processes`
 <!-- END GENERATED: views -->
 
 **命令行。** `@` 前缀让 Azure CLI 从文件读取查询。`-t` 接受 ISO 8601 时长（如 `P1D`）或时间区间 `<开始>/<结束>`。它会把所有值都返回成字符串，并多出一列 `TableName`。
@@ -277,6 +291,7 @@ Content-Type: application/json
 pip install -r examples/requirements.txt
 END=$(date -u +%FT%TZ); START=$(date -u -d '-1 day' +%FT%TZ)
 python examples/gpu_hours_client.py --workspace "$WORKSPACE_GUID" --view per_user --start "$START" --end "$END"
+python examples/gpu_hours_client.py --workspace "$WORKSPACE_GUID" --view per_job --start "$START" --end "$END"
 ```
 
 下面实测中的同一次调用返回：
@@ -305,6 +320,27 @@ python examples/gpu_hours_client.py --workspace "$WORKSPACE_GUID" --view per_use
 ]
 ```
 <!-- END GENERATED: per-user-json -->
+
+**客户平台调用的接口。** 客户平台和数据之间没有任何自建服务：
+- API：上面的 Log Analytics 查询 API，每个查询发一次 `POST`，`query` 填 KQL 文件内容，`timespan` 填统计时段；
+- 库：Python 用 `azure-identity` 和 `azure-monitor-query`（[`examples/requirements.txt`](examples/requirements.txt)）；Azure Monitor Query 客户端库也有 .NET、Java、JavaScript 和 Go 版本；
+- 权限：只需要工作区上的 `Log Analytics Reader`，不需要 VM 或 AML 工作区的权限。
+
+不用参考客户端、直接调用 SDK 查询作业的写法：
+
+```python
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+from azure.identity import DefaultAzureCredential
+from azure.monitor.query import LogsQueryClient
+
+client = LogsQueryClient(DefaultAzureCredential())
+end = datetime.now(timezone.utc)
+result = client.query_workspace("<workspace-guid>", Path("kql/per_job.kql").read_text(encoding="utf-8"),
+                                timespan=(end - timedelta(days=1), end))
+jobs = [dict(zip(result.tables[0].columns, row)) for row in result.tables[0].rows]
+```
 
 给客户 API 的身份授予工作区读权限：
 
@@ -450,7 +486,7 @@ python tools/check_repo.py
 
 - **`python -m unittest discover -s tests -v`** 测试以下内容：
   - 采集器：解析真实的 `dcgmi dmon` 输出、按分钟求平均，以及 JSON 行的字段与规则数据流、表的列完全一致；
-  - 查询：五个文件共用的 `let` 行完全相同，`summary` 就是 `per_vm` 的合计；
+  - 查询：共用的 `let` 行完全相同，`summary` 是 `per_vm` 的合计，AML 查询按 `RunId` 关联；
   - 参考客户端：`let` 改写，以及发出的 timespan；
   - 证据：重算逻辑，包括属主的 1/N 分摊；
   - 公开内容：`tools/check_repo.py` 的每一条规则，并故意制造违规，确认它会报错。
@@ -466,7 +502,7 @@ CI 在 Ubuntu 和 Windows 上、分别用 Python 3.10 和 3.12 执行同样的�
 - 参考客户端；
 - 负载测试（需要 GPU VM 和 PyTorch）：`./tests/load/run-load.sh -g <vm-rg> -n <vm-name> -u <user>`，测完用 `-x` 删除测试用户。
 
-本仓库没有测试：多卡 VM、MIG、DCGM 4.x、容器或调度器、Azure Private Link、主权云。
+本仓库没有测试：多卡 VM、MIG、DCGM 4.x、Azure Private Link、主权云，以及三个 AML 查询的端到端链路。AML 查询已有离线契约测试，但生产使用前仍需跑一次双身份实时验证。
 
 ## 边界、目录与资料
 
@@ -475,8 +511,9 @@ CI 在 Ubuntu 和 Windows 上、分别用 Python 3.10 和 3.12 执行同样的�
 - `LOCAL_MEASUREMENT`：属主在每分钟末采一次。任务在一分钟中途退出，这一分钟算占用但没有属主；任务在一分钟中途启动，从它的第一个分钟末开始计入。
 - `LOCAL_MEASUREMENT`：分配时长从代理的第一条 `Heartbeat` 算起。代理开始采集之前采集器写下的行没有入库（`validation-1` 的第 5–10 分钟）。
 - `LOCAL_MEASUREMENT`：`PeakMemoryGiB` 是整张卡的显存占用，不是按进程统计的。
+- `LOCAL_MEASUREMENT`：作业 ID 在每分钟末采一次。同一个 GPU·分钟有多个作业 ID 时，由于 DCGM 不提供每进程 SM 活跃度，每个作业得到相同份额。
 - `NOT_MEASURED`：8 卡 VM。采集器读取 `nvidia-smi` 列出的每一张卡，查询也按 VM 统计卡数，但实测只有一张卡。
-- `NOT_MEASURED`：MIG 实例、DCGM 4.x、容器里的任务（属主会是容器的用户 ID），以及 Slurm 或 Kubernetes 下的作业。调度器作业请用 `Computer` 和时间与调度器的作业记录关联。
+- `NOT_MEASURED`：MIG 实例、DCGM 4.x，以及没有传递标识符的任务。AML 使用 `AZUREML_RUN_ID`；其他调度器需要定义等价的采集和查询约定。
 - `NOT_MEASURED`：已装好代理的 VM，从开机到第一条 `Heartbeat` 的延迟。
 - `SOURCE_FACT`：Azure CLI 的 `log-analytics` 扩展没有正式版（本次为 1.0.0b2）。客户平台应通过 REST 或 SDK 调用查询 API。
 - 分配卡时反映的是代理上报的 VM 运行时间，不是账单记录；对账请用 Cost Management。
@@ -486,7 +523,7 @@ CI 在 Ubuntu 和 Windows 上、分别用 Python 3.10 和 3.12 执行同样的�
 - [`vm/`](vm/)：`gpu_collector.py`（把 DCGM 数据写成 JSON 行），`install_collector.sh`（systemd 服务，启用 `nvidia-dcgm`）。
 - [`azure/`](azure/)：`dcr-rule.json`，供 `az monitor data-collection rule create --rule-file` 使用的数据收集规则。
 - [`scripts/`](scripts/)：`setup-workspace.sh`、`onboard-vm.sh`、`offboard-vm.sh`。
-- [`kql/`](kql/)：五个查询。
+- [`kql/`](kql/)：八个查询。
 - [`examples/`](examples/)：`gpu_hours_client.py`，调用查询 API 的参考客户端，以及它的 `requirements.txt`。
 - [`evidence/`](evidence/)：运行说明（`runs.json`）、两次实测经过脱敏投影的原始数据和查询结果（`runs/`），附私有原件的 SHA-256，以及 `measurements.json`。
 - [`tests/`](tests/)：离线测试；`tests/load/` 下是负载生成器和它的 Run Command 包装脚本。
@@ -498,6 +535,6 @@ CI 在 Ubuntu 和 Windows 上、分别用 Python 3.10 和 3.12 执行同样的�
 - [用 Azure Monitor Agent 采集 JSON 日志](https://learn.microsoft.com/azure/azure-monitor/vm/data-collection-log-json)、[数据收集规则的结构](https://learn.microsoft.com/azure/azure-monitor/data-collection/data-collection-rule-structure)
 - [Azure HPC VM 镜像](https://learn.microsoft.com/azure/virtual-machines/azure-hpc-vm-images)（自带 DCGM）
 - [`az monitor data-collection rule`](https://learn.microsoft.com/cli/azure/monitor/data-collection/rule)、[`az monitor log-analytics query`](https://learn.microsoft.com/cli/azure/monitor/log-analytics#az-monitor-log-analytics-query)
-- [Log Analytics 查询 API](https://learn.microsoft.com/azure/azure-monitor/logs/api/overview)、[Azure Monitor Query 的 Python 客户端库](https://learn.microsoft.com/python/api/overview/azure/monitor-query-readme)、[`Heartbeat` 表](https://learn.microsoft.com/azure/azure-monitor/reference/tables/heartbeat)
+- [Log Analytics 查询 API](https://learn.microsoft.com/azure/azure-monitor/logs/api/overview)、[Azure Monitor Query 的 Python 客户端库](https://learn.microsoft.com/python/api/overview/azure/monitor-query-readme)、[`Heartbeat`](https://learn.microsoft.com/azure/azure-monitor/reference/tables/heartbeat)、[`AzureActivity`](https://learn.microsoft.com/azure/azure-monitor/reference/tables/azureactivity) 和 [`AmlRunStatusChangedEvent`](https://learn.microsoft.com/azure/azure-monitor/reference/tables/amlrunstatuschangedevent)
 - [DCGM 字段 ID](https://docs.nvidia.com/datacenter/dcgm/latest/dcgm-api/dcgm-api-field-ids.html)、[DCGM profiling 指标](https://docs.nvidia.com/datacenter/dcgm/latest/user-guide/feature-overview.html#profiling-metrics)
 - AKS 上的 GPU 节点池，请改用 Azure Monitor 托管 Prometheus 的 [DCGM exporter 集成](https://learn.microsoft.com/azure/azure-monitor/containers/prometheus-dcgm-integration)，不要用本采集器。

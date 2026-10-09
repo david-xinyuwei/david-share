@@ -1,0 +1,30 @@
+// GPU hours per Entra identity that submitted AML jobs.
+//   az monitor log-analytics query -w <workspace-guid> --analytics-query @kql/per_submitter.kql -t P1D
+// The timespan must include the job submission and GPU rows to be correlated.
+let IdlePct = 5;              // a GPU-minute is busy when a compute process runs or GPU util >= IdlePct
+let Computers = dynamic([]);  // VM names to include; empty = all VMs that report GPU metrics
+let gpu = GpuMetrics_CL
+    | where array_length(Computers) == 0 or Computer in (Computers)
+    | where isnotempty(RunId)
+    | extend RunIds = split(RunId, ','), RunCount = array_length(split(RunId, ','))
+    | mv-expand RunId = RunIds to typeof(string)
+    | extend RunId = trim(' ', RunId), RunKey = tolower(trim(' ', RunId)), Weight = 1.0 / RunCount;
+let submitters = AzureActivity
+    | where OperationNameValue =~ 'Microsoft.MachineLearningServices/workspaces/jobs/write'
+    | where ActivityStatusValue in~ ('Success', 'Succeeded')
+    | extend RunKey = tolower(tostring(split(_ResourceId, '/')[-1]))
+    | summarize arg_min(TimeGenerated, Caller, Claims_d) by RunKey
+    | project RunKey, Submitter = Caller,
+              SubmitterObjectId = coalesce(
+                  tostring(Claims_d['http://schemas.microsoft.com/identity/claims/objectidentifier']),
+                  tostring(Claims_d.oid));
+gpu
+| summarize BusyGpuHours = sumif(Weight, ProcCount > 0 or GpuUtil >= IdlePct) / 60.0,
+            EffectiveGpuHours = sum(coalesce(SmActive, 0.0) * Weight) / 60.0 by RunKey
+| join kind=leftouter submitters on RunKey
+| extend Submitter = coalesce(Submitter, 'Unknown'),
+         SubmitterObjectId = coalesce(SubmitterObjectId, '')
+| summarize Jobs = dcount(RunKey), BusyGpuHours = sum(BusyGpuHours),
+            EffectiveGpuHours = sum(EffectiveGpuHours)
+          by Submitter, SubmitterObjectId
+| order by BusyGpuHours desc, Submitter asc
