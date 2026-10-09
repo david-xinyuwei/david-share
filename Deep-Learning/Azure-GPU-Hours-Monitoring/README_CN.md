@@ -30,7 +30,7 @@
 | 目的 | 入口 |
 |---|---|
 | 了解测什么、怎么测 | [架构与指标口径](#架构与指标口径) |
-| 建工作区、接入 GPU VM | [在 Azure 上配置](#在-azure-上配置) |
+| 建工作区、接入 GPU VM | [客户配置手册：一个配置文件、一条命令](QUICKSTART_CN.md)，或分步看[在 Azure 上配置](#在-azure-上配置) |
 | 从客户平台的 API 读取卡时 | [从客户平台查询](#从客户平台查询) |
 | 看数字算得对不对的证据 | [单台 H100 VM 上的实测验证](#单台-h100-vm-上的实测验证) |
 | 不连 Azure 跑一遍校验 | [测试与离线校验](#测试与离线校验) |
@@ -121,6 +121,21 @@ dcgmi dmon -e 203,1001,1002,1004,1005,252,250,155,150 -d 10000
 一个进程占着显存却不跑 kernel，这张卡就算“占用”，但不算“有效计算”。回收 GPU 时，要找的正是这种情况。
 
 ## 在 Azure 上配置
+
+**最快的方式：一个配置文件、一条命令。** [`scripts/configure.sh`](scripts/configure.sh) 按顺序执行下面的所有步骤：
+- 逐台只读预检；
+- 建工作区和规则，并开启 AML 作业跟踪；
+- 并行接入 Flexible 规模集的全部实例，或列出的 VM；
+- 给客户平台的身份授予 Log Analytics Reader；
+- 等待每台 VM 的 GPU 数据入库。
+
+操作过程见[客户配置手册](QUICKSTART_CN.md)。下面各步说明它实际执行的命令。
+
+```bash
+cp scripts/gpu-hours.env.example gpu-hours.env   # 填资源组、区域和 VM
+./scripts/configure.sh -c gpu-hours.env -p       # 只预检，不做修改
+./scripts/configure.sh -c gpu-hours.env          # 配置，并等待数据入库
+```
 
 在 Bash 里执行下面的步骤，事先用 `az login` 登录 Azure CLI。Azure Cloud Shell、Linux、macOS 都可以。Windows 上用 Git Bash 也行：脚本会设置 `MSYS_NO_PATHCONV=1`，避免资源 ID 被当成路径改写。
 
@@ -584,7 +599,7 @@ CI 在 Ubuntu 和 Windows 上、分别用 Python 3.10 和 3.12 执行同样的�
 
 - [`vm/`](vm/)：`gpu_collector.py`（把 DCGM 数据写成 JSON 行），`install_collector.sh`（systemd 服务，启用 `nvidia-dcgm`）。
 - [`azure/`](azure/)：`dcr-rule.json`，供 `az monitor data-collection rule create --rule-file` 使用的数据收集规则。
-- [`scripts/`](scripts/)：`setup-workspace.sh`、`onboard-vm.sh`、`offboard-vm.sh`。
+- [`scripts/`](scripts/)：`configure.sh`（一条命令完成全部步骤，配置模板为 `gpu-hours.env.example`）、`setup-workspace.sh`、`onboard-vm.sh`、`offboard-vm.sh`。
 - [`kql/`](kql/)：八个查询。
 - [`examples/`](examples/)：`gpu_hours_client.py`，调用查询 API 的参考客户端，以及它的 `requirements.txt`。
 - [`evidence/`](evidence/)：运行说明（`runs.json`）、三次实测经过脱敏投影的原始数据和查询结果（`runs/`），附私有原件的 SHA-256，以及 `measurements.json`。

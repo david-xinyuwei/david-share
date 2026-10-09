@@ -17,7 +17,9 @@ done
 [[ -n "$RG" && -n "$VM" && -n "$DCR_ID" && -n "$DCE_ID" ]] || { sed -n '2,6p' "$0"; exit 1; }
 HERE=$(cd "$(dirname "$0")" && pwd)
 
-az extension add --upgrade --yes --name monitor-control-service -o none
+if [[ "${GPUHOURS_SKIP_CLI_EXTENSION:-0}" != 1 ]]; then  # configure.sh installs it once before parallel runs
+  az extension add --upgrade --yes --name monitor-control-service -o none
+fi
 VM_ID=$(az vm show -g "$RG" -n "$VM" --query id -o tsv)
 
 echo "==> system-assigned managed identity and Azure Monitor Agent"

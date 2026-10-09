@@ -5,3 +5,10 @@ __pycache__/
 dcr-rule.*.json
 run-command.*.sh
 run-load.*.sh
+settings.*.env
+preflight.*.sh
+query.*.json
+# configure.sh: your filled-in settings, its outputs and its logs
+gpu-hours.env
+gpu-hours.outputs.env
+gpu-hours-logs/

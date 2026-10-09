@@ -24,7 +24,7 @@ Author: Xinyu Wei · [中文](README_CN.md) · [Architecture](#architecture-and-
 | Goal | Entry |
 |---|---|
 | Understand what is measured and how | [Architecture and Metrics](#architecture-and-metrics) |
-| Set up a workspace and onboard GPU VMs | [Configure on Azure](#configure-on-azure) |
+| Set up a workspace and onboard GPU VMs | [Quick start: one settings file, one command](QUICKSTART.md), or step by step in [Configure on Azure](#configure-on-azure) |
 | Read the numbers from your platform API | [Query from Your Platform](#query-from-your-platform) |
 | See the evidence that the numbers are right | [Validation on One H100 VM](#validation-on-one-h100-vm) |
 | Run the checks without Azure | [Tests and Offline Checks](#tests-and-offline-checks) |
@@ -105,6 +105,21 @@ Effective hours use SM active, not GPU util. `DCGM_FI_DEV_GPU_UTIL` reports the 
 A process that keeps GPU memory without running kernels makes the GPU busy but not effective. That is the pattern to look for when reclaiming GPUs.
 
 ## Configure on Azure
+
+**Fastest path: one settings file, one command.** [`scripts/configure.sh`](scripts/configure.sh) runs every step below in order:
+- a read-only preflight of each VM;
+- the workspace and the rule, plus AML job tracking;
+- every VM of a Flexible scale set or a VM list, onboarded in parallel;
+- Log Analytics Reader for your platform's identity;
+- a wait until each VM's GPU rows arrive.
+
+The [quick start](QUICKSTART.md) walks through it. The steps below show what it runs.
+
+```bash
+cp scripts/gpu-hours.env.example gpu-hours.env   # fill in the resource groups, region, VMs
+./scripts/configure.sh -c gpu-hours.env -p       # preflight only, changes nothing
+./scripts/configure.sh -c gpu-hours.env          # configure, then wait for data
+```
 
 Run the steps from Bash with the Azure CLI logged in (`az login`). Azure Cloud Shell, Linux or macOS all work. On Windows, Git Bash also works: the scripts set `MSYS_NO_PATHCONV=1` so resource IDs are not rewritten as paths.
 
@@ -550,7 +565,7 @@ Not tested here: VMs with more than one GPU, MIG, DCGM 4.x, Azure Private Link, 
 
 - [`vm/`](vm/): `gpu_collector.py` (DCGM to JSON lines) and `install_collector.sh` (systemd unit, enables `nvidia-dcgm`).
 - [`azure/`](azure/): `dcr-rule.json`, the data collection rule for `az monitor data-collection rule create --rule-file`.
-- [`scripts/`](scripts/): `setup-workspace.sh`, `onboard-vm.sh`, `offboard-vm.sh`.
+- [`scripts/`](scripts/): `configure.sh` (every step in one command, driven by `gpu-hours.env.example`), `setup-workspace.sh`, `onboard-vm.sh`, `offboard-vm.sh`.
 - [`kql/`](kql/): the eight views.
 - [`examples/`](examples/): `gpu_hours_client.py`, the reference Query API client, and its `requirements.txt`.
 - [`evidence/`](evidence/): run contracts (`runs.json`), the projected rows and view results of the three runs (`runs/`), with SHA-256 of their private sources, and `measurements.json`.

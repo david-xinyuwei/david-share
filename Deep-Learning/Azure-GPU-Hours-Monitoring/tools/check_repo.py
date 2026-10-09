@@ -174,6 +174,10 @@ def run() -> list[str]:
         check_links(lang, text, errors)
         check_order(lang, text, errors)
         check_table_shape(lang, text, errors)
+    for name in ("QUICKSTART.md", "QUICKSTART_CN.md"):
+        text = (ROOT / name).read_text(encoding="utf-8")
+        check_links(name, text, errors)
+        check_table_shape(name, text, errors)
     check_bilingual(errors)
     check_top_level(errors)
     check_forbidden(errors)
