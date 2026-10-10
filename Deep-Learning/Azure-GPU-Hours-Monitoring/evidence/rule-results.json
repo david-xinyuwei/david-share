@@ -25,7 +25,7 @@
      "id": "actual-inputs-in-both-readmes",
      "passed": true,
      "actual": "5 runs in 2 languages",
-     "expected": "every run is in both results tables and its contract records question and input"
+     "expected": "every run is in both README results tables and has its input before the result in both VALIDATION pages"
     },
     {
      "id": "run-contracts-present",
@@ -49,6 +49,8 @@
    "evidence": [
     "README.md",
     "README_CN.md",
+    "VALIDATION.md",
+    "VALIDATION_CN.md",
     "evidence/runs.json"
    ]
   },
@@ -126,7 +128,7 @@
       "scripts/setup-workspace.sh",
       "vm/gpu_collector.py"
      ],
-     "expected": "every load-bearing source path linked in both READMEs"
+     "expected": "every load-bearing source path linked from README or VALIDATION in both languages"
     }
    ],
    "evidence": [

@@ -167,7 +167,7 @@ Time range, VMs and busy threshold are selectable at the top. Besides these pane
 The three jobs add up to 0.150 busy GPU-hours, the Linux user's total; the 3 minutes two jobs shared count half for each.
 <!-- END GENERATED: jobs-table -->
 
-**Measured runs.** On one `Standard_NC40ads_H100_v5` (one H100 NVL, DCGM 3.3.9); raw and redacted output is in [`evidence/`](evidence/):
+**Measured runs.** On one `Standard_NC40ads_H100_v5` (one H100 NVL, DCGM 3.3.9). The input, procedure, result and boundary of each run, and how to recompute them offline, are in [VALIDATION.md](VALIDATION.md):
 
 <!-- BEGIN GENERATED: results -->
 | Run | Scenario | Result |

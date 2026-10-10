@@ -22,6 +22,7 @@ OUT = ROOT / "evidence" / "rule-results.json"
 RUNS = json.loads((ROOT / "evidence" / "runs.json").read_text(encoding="utf-8"))["runs"]
 MEASUREMENTS = json.loads((ROOT / "evidence" / "measurements.json").read_text(encoding="utf-8"))["runs"]
 READMES = [ROOT / "README.md", ROOT / "README_CN.md"]
+VALIDATION = [ROOT / "VALIDATION.md", ROOT / "VALIDATION_CN.md"]
 
 
 def sha(rel: str) -> str:
@@ -43,6 +44,7 @@ def na(rule_id: str, reason: str) -> dict:
 
 def build() -> dict:
     en, cn = [p.read_text(encoding="utf-8") for p in READMES]
+    ven, vcn = [p.read_text(encoding="utf-8") for p in VALIDATION]
     collector = (ROOT / "vm" / "gpu_collector.py").read_text(encoding="utf-8")
     configure = (ROOT / "scripts" / "configure.sh").read_text(encoding="utf-8")
     evidence_tests = (ROOT / "tests" / "test_evidence.py").read_text(encoding="utf-8")
@@ -52,9 +54,12 @@ def build() -> dict:
 
     # Each measured run appears in the results table of both READMEs, and its inputs are in its evidence contract.
     run_ids = sorted(RUNS)
-    actual_inputs = all(f"`{rid}`" in en and f"`{rid}`" in cn for rid in run_ids) and all(
-        RUNS[rid].get("question") and (RUNS[rid].get("commands") or RUNS[rid].get("load") or RUNS[rid].get("steps"))
-        for rid in run_ids)
+    # Every run is a row of the README results table, and a subsection of VALIDATION with its input before the result.
+    def has_input(doc: str, rid: str, label: str) -> bool:
+        head = next((s for s in doc.split("\n### ")[1:] if s.startswith(rid)), "")
+        return bool(head) and label in head
+    actual_inputs = all(f"`{rid}`" in en and f"`{rid}`" in cn and has_input(ven, rid, "**Input.**")
+                        and has_input(vcn, rid, "**输入。**") for rid in run_ids)
     source_hashes = {p: sha(p) for p in (
         "scripts/configure.sh", "scripts/setup-workspace.sh", "scripts/onboard-vm.sh",
         "scripts/offboard-vm.sh", "scripts/remove-workspace.sh",
@@ -88,9 +93,9 @@ def build() -> dict:
     rules = [
         passed("RUN-001", [
             check("actual-inputs-in-both-readmes", actual_inputs, f"{len(run_ids)} runs in 2 languages",
-                  "every run is in both results tables and its contract records question and input"),
+                  "every run is in both README results tables and has its input before the result in both VALIDATION pages"),
             check("run-contracts-present", set(RUNS) == set(MEASUREMENTS), run_ids, sorted(MEASUREMENTS)),
-        ], ["README.md", "README_CN.md", "evidence/runs.json"]),
+        ], ["README.md", "README_CN.md", "VALIDATION.md", "VALIDATION_CN.md", "evidence/runs.json"]),
         passed("RUN-002", [
             check("owned-load-generator", (ROOT / "tests/load/gpu_load.py").is_file(), "tests/load/gpu_load.py", "exists"),
             check("owned-run-wrapper", (ROOT / "tests/load/run-load.sh").is_file(), "tests/load/run-load.sh", "exists"),
@@ -98,8 +103,8 @@ def build() -> dict:
         passed("RUN-003", [
             check("source-hashes", len(source_hashes) == 13, source_hashes, "thirteen load-bearing source files hashed"),
             check("collector-runid-source", "AZUREML_RUN_ID=" in collector, "collector reads AZUREML_RUN_ID", "present"),
-            check("readme-source-links", all(p in en and p in cn for p in source_hashes), sorted(source_hashes),
-                  "every load-bearing source path linked in both READMEs"),
+            check("readme-source-links", all(p in en + ven and p in cn + vcn for p in source_hashes), sorted(source_hashes),
+                  "every load-bearing source path linked from README or VALIDATION in both languages"),
         ], [*source_hashes, "README.md", "README_CN.md"]),
         na("RUN-004", "No customer-visible fault, retry, handoff, queue or deployment transition is claimed."),
         na("RUN-005", "The repository does not claim recovery or takeover between process instances."),
@@ -130,7 +135,7 @@ def build() -> dict:
         ], ["README.md", "README_CN.md", "evidence/runs.json", "evidence/measurements.json"]),
         passed("RUN-013", [
             check("cleanup-in-each-mutable-run", all(cleanups.values()), cleanups, "cleanup recorded for every run with steps"),
-            check("configure-cleanup-observed", "resource group deleted" in en and "资源组已删除" in cn,
+            check("configure-cleanup-observed", "resource group deleted" in en + ven and "资源组已删除" in cn + vcn,
                   "cleanup appears in both READMEs", "present"),
         ], ["evidence/runs.json", "README.md", "README_CN.md"]),
         passed("RUN-014", [

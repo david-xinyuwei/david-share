@@ -8,6 +8,10 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+VALIDATION = {"en": ROOT / "VALIDATION.md", "cn": ROOT / "VALIDATION_CN.md"}
+SECTION = {"en": "## Validation on One H100 VM", "cn": "## 单台 H100 VM 上的实测验证"}
+LABELS = {"en": ("**Question.**", "**Input.**", "**Result.**", "**Boundary.**"),
+          "cn": ("**问题。**", "**输入。**", "**结果。**", "**边界。**")}
 sys.path.insert(0, str(ROOT / "tools"))
 import build_readme  # noqa: E402
 import check_repo  # noqa: E402
@@ -32,7 +36,7 @@ def _audit_copy(edit) -> list[str]:
 
 class ReadmeTests(unittest.TestCase):
     def test_committed_readmes_are_refresh_clean(self):
-        for lang, path in build_readme.READMES.items():
+        for lang, path in build_readme.DOCS:
             text = path.read_text(encoding="utf-8")
             self.assertEqual(build_readme.render(text, lang), text, path.name)
 
@@ -86,12 +90,40 @@ class ReadmeTests(unittest.TestCase):
                 with self.subTest(lang=lang, run=run):
                     self.assertIn(f"`{run}`", text)
 
+    def test_each_run_in_validation_states_question_and_input_before_results_and_a_boundary(self):
+        runs_json = json.loads((ROOT / "evidence" / "runs.json").read_text(encoding="utf-8"))["runs"]
+        for lang, path in VALIDATION.items():
+            section = path.read_text(encoding="utf-8").split(SECTION[lang], 1)[1].split("\n## ", 1)[0]
+            runs = [s for s in re.split(r"\n### ", section)[1:] if re.match(r"[a-z]+-\d+", s)]
+            self.assertEqual(sorted(re.match(r"[a-z]+-\d+", s).group(0) for s in runs), sorted(runs_json), lang)
+            for sub in runs:
+                with self.subTest(lang=lang, run=sub.splitlines()[0]):
+                    question, inp, result, boundary = LABELS[lang]
+                    self.assertIn(result, sub)
+                    head = sub[:sub.index(result)]
+                    self.assertIn(question, head)
+                    self.assertIn(inp, head)
+                    self.assertNotIn("\n| ", head, "a table before the result")
+                    self.assertIn(boundary, sub[sub.index(result):])
+
+    def test_validation_shows_every_script_command(self):
+        for lang, path in VALIDATION.items():
+            text = path.read_text(encoding="utf-8")
+            for needle in ("az monitor data-collection rule create", "az monitor data-collection rule association create",
+                           "az vm extension set", "az monitor log-analytics query", "dcgmi dmon -e"):
+                with self.subTest(lang=lang, needle=needle):
+                    self.assertIn(needle, text)
+
+    def test_readme_results_link_the_validation_page(self):
+        for lang, path in build_readme.READMES.items():
+            self.assertIn(f"]({VALIDATION[lang].name})", path.read_text(encoding="utf-8"))
+
     def test_every_image_is_shown_and_every_shown_image_exists(self):
         shown = set()
-        for path in build_readme.READMES.values():
+        for path in (*build_readme.READMES.values(), *VALIDATION.values()):
             shown |= set(re.findall(r'src="images/([^"]+)"', path.read_text(encoding="utf-8")))
         stored = {p.name for p in (ROOT / "images").glob("*.png")}
-        self.assertEqual(stored, shown, "an image is not shown in a README, or a README shows a missing image")
+        self.assertEqual(stored, shown, "an image is not shown in README or VALIDATION, or a page shows a missing image")
 
     def test_images_match_ledger(self):
         self.assertEqual(draw_diagrams.main(["--check"]), 0)

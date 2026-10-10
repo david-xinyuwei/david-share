@@ -167,7 +167,7 @@ source gpu-hours.outputs.env
 三个作业合计 0.150 卡时，等于这个 Linux 用户的占用卡时；两个作业共用的 3 分钟各记一半。
 <!-- END GENERATED: jobs-table -->
 
-**实测验证。** 在 1 台 `Standard_NC40ads_H100_v5`（1 张 H100 NVL，DCGM 3.3.9）上完成，原始数据和脱敏输出在 [`evidence/`](evidence/)：
+**实测验证。** 在 1 台 `Standard_NC40ads_H100_v5`（1 张 H100 NVL，DCGM 3.3.9）上完成。每次实测的输入、过程、结果、边界，以及怎样离线复算，见 [VALIDATION_CN.md](VALIDATION_CN.md)：
 
 <!-- BEGIN GENERATED: results -->
 | 实测 | 场景 | 结果 |

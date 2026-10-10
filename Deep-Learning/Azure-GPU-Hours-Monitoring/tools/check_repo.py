@@ -19,12 +19,18 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 READMES = {"en": ROOT / "README.md", "cn": ROOT / "README_CN.md"}
+VALIDATION = {"en": ROOT / "VALIDATION.md", "cn": ROOT / "VALIDATION_CN.md"}
 READER_ORDER = {
     "en": ["Purpose", "Steps", "Results"],
     "cn": ["目的", "操作步骤", "实现效果"],
 }
+VALIDATION_ORDER = {
+    "en": ["Architecture and Metrics", "What the Configure Command Runs", "Query Details", "Validation on One H100 VM",
+           "Tests and Offline Checks", "Limits, Assets and Sources"],
+    "cn": ["架构与指标口径", "配置命令实际执行了什么", "查询细节", "单台 H100 VM 上的实测验证", "测试与离线校验", "边界、目录与资料"],
+}
 MAX_TABLE_COLUMNS = 4
-TOP_LEVEL_EXEMPT = {".gitattributes", ".gitignore", "README.md", "__pycache__"}
+TOP_LEVEL_EXEMPT = {".gitattributes", ".gitignore", "README.md", "VALIDATION.md", "__pycache__"}
 FORBIDDEN = [
     (re.compile(r"(?i)sungrow|geek\s*plus|极智嘉|阳光电源"), "customer name"),
     (re.compile(r"(?i)rg-geekplus|law-gpuhours-demo|gpuhours-demo|sungrow-122b|rg-gpu-hours-replay-"), "internal resource name"),
@@ -104,10 +110,10 @@ def check_links(lang: str, text: str, errors: list[str]) -> None:
             errors.append(f"{lang}: IMAGE_TOO_WIDE {w}")
 
 
-def check_order(lang: str, text: str, errors: list[str]) -> None:
+def check_order(lang: str, text: str, errors: list[str], order: dict | None = None, name: str = "README") -> None:
     got = [h for level, h in headings(text) if level == 2]
-    if got != READER_ORDER[lang]:
-        errors.append(f"{lang}: HEADING_ORDER {got}")
+    if got != (order or READER_ORDER)[lang]:
+        errors.append(f"{lang}: HEADING_ORDER {name} {got}")
 
 
 def _rows(body: str) -> list[list[str]]:
@@ -122,9 +128,9 @@ def _rows(body: str) -> list[list[str]]:
     return [[body.split("```", 1)[1] if "```" in body else ""]]
 
 
-def check_bilingual(errors: list[str]) -> None:
+def check_bilingual(errors: list[str], pair: dict | None = None) -> None:
     blocks = {lang: {m.group("name"): m.group("body") for m in GENERATED.finditer(p.read_text(encoding="utf-8"))}
-              for lang, p in READMES.items()}
+              for lang, p in (pair or READMES).items()}
     if set(blocks["en"]) != set(blocks["cn"]):
         errors.append(f"BILINGUAL_BLOCK_SET {sorted(set(blocks['en']) ^ set(blocks['cn']))}")
     for name in sorted(set(blocks["en"]) & set(blocks["cn"])):
@@ -155,7 +161,7 @@ def check_table_shape(lang: str, text: str, errors: list[str]) -> None:
 
 
 def check_top_level(errors: list[str]) -> None:
-    text = READMES["en"].read_text(encoding="utf-8") + READMES["cn"].read_text(encoding="utf-8")
+    text = "".join(p.read_text(encoding="utf-8") for p in (*READMES.values(), *VALIDATION.values()))
     for entry in ROOT.iterdir():
         if entry.name in TOP_LEVEL_EXEMPT:
             continue
@@ -187,7 +193,13 @@ def run() -> list[str]:
         check_links(lang, text, errors)
         check_order(lang, text, errors)
         check_table_shape(lang, text, errors)
+    for lang, path in VALIDATION.items():
+        text = path.read_text(encoding="utf-8")
+        check_links(lang, text, errors)
+        check_order(lang, text, errors, VALIDATION_ORDER, path.name)
+        check_table_shape(lang, text, errors)
     check_bilingual(errors)
+    check_bilingual(errors, VALIDATION)
     check_top_level(errors)
     check_forbidden(errors)
     return errors

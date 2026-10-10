@@ -18,6 +18,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 READMES = {"en": ROOT / "README.md", "cn": ROOT / "README_CN.md"}
+# Reviewer detail lives beside the README; one renderer owns all four files.
+VALIDATION = {"en": ROOT / "VALIDATION.md", "cn": ROOT / "VALIDATION_CN.md"}
+DOCS = [(lang, p) for lang, p in READMES.items()] + [(lang, p) for lang, p in VALIDATION.items()]
 BLOCK = re.compile(r"(<!-- BEGIN GENERATED: (?P<name>[a-z0-9-]+) -->\n)(?P<body>.*?)(<!-- END GENERATED: (?P=name) -->)", re.S)
 sys.path[:0] = [str(ROOT / "vm")]
 
@@ -525,7 +528,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--check", action="store_true")
     args = ap.parse_args(argv)
     stale = []
-    for lang, path in READMES.items():
+    for lang, path in DOCS:
         text = path.read_text(encoding="utf-8")
         new = render(text, lang)
         if args.check:
@@ -537,9 +540,9 @@ def main(argv: list[str] | None = None) -> int:
         if stale:
             print("README_STALE " + ", ".join(stale) + " (run python tools/build_readme.py)")
             return 1
-        print(f"PASS {len(READMES)} READMEs equal a fresh render of their generated blocks")
+        print(f"PASS {len(DOCS)} documents (README and VALIDATION, both languages) equal a fresh render of their generated blocks")
         return 0
-    print(f"rendered {', '.join(p.name for p in READMES.values())}")
+    print(f"rendered {', '.join(p.name for _, p in DOCS)}")
     return 0
 
 
