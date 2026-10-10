@@ -11,6 +11,7 @@ blocks, and the retired UI and alert scope).
 """
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 import sys
@@ -30,7 +31,6 @@ TOP_LEVEL_EXEMPT = {".gitattributes", ".gitignore", "README.md", "__pycache__"}
 FORBIDDEN = [
     (re.compile(r"(?i)sungrow|geek\s*plus|极智嘉|阳光电源"), "customer name"),
     (re.compile(r"(?i)rg-geekplus|law-gpuhours-demo|gpuhours-demo|sungrow-122b|rg-gpu-hours-replay-"), "internal resource name"),
-    (re.compile(r"(?i)GPU-H100-MS|SWEDC-VMSS|adminh100|ContributorUser\d*|pansheng"), "customer resource or account name"),
     (re.compile(r"(?i)\bazureuser\b|\btrainer-[ab]\b"), "account name on the measured VM"),
     (re.compile(r"\b(?:Kurt|Super)\b|超伦|王轶|百超"), "personal name from private correspondence"),
     (re.compile(r"(?i)\b[A-Z]:\\Users\\|/home/[\w.-]+/|/Users/[\w.-]+/|\\\\[\w.-]+\\"), "user or network path"),
@@ -47,6 +47,16 @@ FORBIDDEN = [
     (re.compile(r"\bconfigure-1\b"), "superseded setup run (configure-2 is the current script run)"),
     (re.compile(r"(?i)webui|deploy-webui|alert-gpu-idle|dashboard-(?:webui|charts)"), "retired web UI or alert scope"),
 ]
+# Customer resource and account names, stored only as SHA-256 prefixes so the guard itself publishes nothing.
+PRIVATE_TOKEN_SHA256 = {'f2c9c2a0fc7b10c5', 'edce5908879ae8a5', '189f29b873b4b644', '861ac3275c6efa12', 'b13442387b45f638', 'bdacd158b9ed7b28'}
+TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]{4,}")
+
+
+def private_tokens(text: str) -> list[str]:
+    return [m.group(0) for m in TOKEN.finditer(text)
+            if hashlib.sha256(m.group(0).lower().encode()).hexdigest()[:16] in PRIVATE_TOKEN_SHA256]
+
+
 SCAN_SUFFIXES = {".md", ".py", ".json", ".jsonl", ".txt", ".sh", ".yml", ".kql", ""}
 SCAN_SKIP_FILES = {"check_repo.py", "test_public_content.py",  # files that hold guard probes
                    "workbook.json"}  # generated from scanned sources; holds ARM schema dates and fixed parameter UUIDs
@@ -169,6 +179,8 @@ def check_forbidden(errors: list[str]) -> None:
             m = pattern.search(text)
             if m:
                 errors.append(f"FORBIDDEN {rel.as_posix()}: {why}: {m.group(0)!r}")
+        for token in private_tokens(text):
+            errors.append(f"FORBIDDEN {rel.as_posix()}: customer resource or account name: {token!r}")
 
 
 def run() -> list[str]:

@@ -129,8 +129,7 @@ class GuardTests(unittest.TestCase):
         samples = ["GeekPlus", "极智嘉", "rg-geekplus-gpuhours-demo", "trainer-a", "from Kurt", "C:\\Users\\someone\\",
                    "person@example.com", "10.2.3.4", "12345678-1234-1234-1234-123456789abc", "<details>",
                    "run of 2026-05-08", "stage-20260713", "in September", "9 月 28 日", "see README-CN.md",
-                   "webui/app.py", "see QUICKSTART_CN.md", "configure-1",
-                   "GPU-H100-MS-RG", "GPU-H100-MS-SWEDC-VMSS", "adminh100", "ContributorUser01"]
+                   "webui/app.py", "see QUICKSTART_CN.md", "configure-1"]
         for sample in samples:
             with self.subTest(sample=sample):
                 self.assertTrue(any(p.search(sample) for p, _ in check_repo.FORBIDDEN), sample)
@@ -138,6 +137,20 @@ class GuardTests(unittest.TestCase):
                         "azure/workbook.json"):
             with self.subTest(allowed=allowed):
                 self.assertFalse(any(p.search(allowed) for p, _ in check_repo.FORBIDDEN), allowed)
+
+    def test_customer_names_are_detected_without_being_published(self):
+        """The guard stores only SHA-256 prefixes; prove it fires on a token whose prefix is registered."""
+        import hashlib
+        probe = "probe-name-" + "x" * 8
+        saved = set(check_repo.PRIVATE_TOKEN_SHA256)
+        try:
+            check_repo.PRIVATE_TOKEN_SHA256.add(hashlib.sha256(probe.encode()).hexdigest()[:16])
+            self.assertEqual(check_repo.private_tokens(f"az vm list -g {probe.upper()}"), [probe.upper()])
+            self.assertEqual(check_repo.private_tokens("az vm list -g rg-gpu-hours"), [])
+        finally:
+            check_repo.PRIVATE_TOKEN_SHA256.clear()
+            check_repo.PRIVATE_TOKEN_SHA256.update(saved)
+        self.assertGreaterEqual(len(check_repo.PRIVATE_TOKEN_SHA256), 6)
 
     def test_bilingual_number_mismatch_is_detected(self):
         def edit(c):
