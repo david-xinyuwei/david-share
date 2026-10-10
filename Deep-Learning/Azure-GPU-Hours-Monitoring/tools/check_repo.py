@@ -30,6 +30,7 @@ TOP_LEVEL_EXEMPT = {".gitattributes", ".gitignore", "README.md", "__pycache__"}
 FORBIDDEN = [
     (re.compile(r"(?i)sungrow|geek\s*plus|极智嘉|阳光电源"), "customer name"),
     (re.compile(r"(?i)rg-geekplus|law-gpuhours-demo|gpuhours-demo|sungrow-122b|rg-gpu-hours-replay-"), "internal resource name"),
+    (re.compile(r"(?i)GPU-H100-MS|SWEDC-VMSS|adminh100|ContributorUser\d*|pansheng"), "customer resource or account name"),
     (re.compile(r"(?i)\bazureuser\b|\btrainer-[ab]\b"), "account name on the measured VM"),
     (re.compile(r"\b(?:Kurt|Super)\b|超伦|王轶|百超"), "personal name from private correspondence"),
     (re.compile(r"(?i)\b[A-Z]:\\Users\\|/home/[\w.-]+/|/Users/[\w.-]+/|\\\\[\w.-]+\\"), "user or network path"),

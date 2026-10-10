@@ -43,7 +43,7 @@ Author: Xinyu Wei · [中文](README_CN.md) · [Architecture](#architecture-and-
 
 You supply: GPU VMs with the NVIDIA driver and the DCGM package; Azure CLI with Contributor on the resource group; for the platform, an identity with the Log Analytics Reader role on the workspace.
 
-Optional: an Azure Monitor workbook (configuration step 8). Not provided: a custom UI, alerting, reconciliation with your invoice, automatic attribution for jobs that do not propagate a run ID, and MIG instances.
+Also provided: an Azure Monitor workbook (configuration step 8). Not provided: a custom UI, alerting, reconciliation with your invoice, automatic attribution for jobs that do not propagate a run ID, and MIG instances.
 
 **Cost sizing.** Use the [current Azure Monitor Logs pricing for your region](https://azure.microsoft.com/pricing/details/monitor/):
 
@@ -126,10 +126,25 @@ This section takes GPU VMs that have the NVIDIA driver and the DCGM package to G
 | 2 | Each GPU VM, Azure side | System-assigned managed identity, Azure Monitor Agent extension, association with the DCR and DCE | `onboard-vm.sh` |
 | 3 | Each GPU VM, inside through Run Command | **Start DCGM**: `systemctl enable --now nvidia-dcgm` (`dcgm` on older packages); then install and start the `gpumon` collector, which runs `dcgmi dmon` and writes one JSON line per GPU per minute | `vm/install_collector.sh` |
 | 4 | Log Analytics | Wait until every VM's rows arrive through the agent and can be read through the query API | `configure.sh` step 7 |
-| 5 | Azure portal | Deploy the workbook | `deploy-workbook.sh`, step 8 below |
-| 6 | Your platform | Create the read-only sign-in identity and call the query API | `create-query-identity.sh`, see [Query from Your Platform](#query-from-your-platform) |
+| 5 | Azure portal | Deploy the workbook | `deploy-workbook.sh`, step 8 |
+| 6 | Your platform | Create the read-only sign-in identity and call the query API | `create-query-identity.sh`, step 9 |
 
 The DCGM package (`datacenter-gpu-manager`) must already be in the VM image; the scripts start its service but do not install it. The preflight in step 4 checks every VM for `dcgmi`.
+
+**0. Set the session variables.** Every later command refers only to these variables, so customer names, the subscription and IDs are typed once, here and in the settings file. After `configure.sh` runs, `gpu-hours.outputs.env` adds `WORKSPACE_GUID`, `WORKSPACE_RESOURCE_ID`, `DCR_ID` and `DCE_ID`:
+
+```bash
+export SUBSCRIPTION_ID="<subscription-id>"   # subscription of the GPU VMs
+export WORKSPACE_RG="rg-gpu-hours"           # new monitoring resource group
+export WORKSPACE_NAME="law-gpu-hours"        # new Log Analytics workspace
+export VM_RG="<resource group of the GPU VMs>"
+export VM_NAME="<one VM name>"               # only for one-VM checks and offboarding
+export AML_WORKSPACE_ID=""                   # optional: AML workspace resource ID
+export READER_OBJECT_ID=""                   # optional: object ID of your platform's query identity
+az account set --subscription "$SUBSCRIPTION_ID"
+```
+
+No secret goes into these variables or into any command: the client secret for your platform's sign-in is written by step 9 to `gpu-hours.query.env`, mode 600 and git-ignored.
 
 **1. Check the prerequisites.**
 
@@ -200,7 +215,7 @@ Each VM prints `OK gpus: <n> dcgm: <version>`, and the run ends with `preflight 
 The full command in step 5 repeats the preflight, so `-p` is a dry run, not a required step. To check one VM by hand:
 
 ```bash
-az vm run-command invoke -g <vm-rg> -n <vm-name> --command-id RunShellScript \
+az vm run-command invoke -g "$VM_RG" -n "$VM_NAME" --command-id RunShellScript \
   --scripts "dcgmi --version | head -2; systemctl is-enabled nvidia-dcgm" --query "value[0].message" -o tsv
 ```
 
@@ -223,12 +238,25 @@ Each run keeps its logs in `gpu-hours-logs/<UTC time>/`. The current-code run [c
 
 | Exit code | Meaning | What to do |
 |---|---|---|
-| 0 | Every VM is sending rows | Step 6 if you attribute AML jobs, then step 7 |
+| 0 | Every VM is sending rows | Check with step 6; for AML jobs also do step 7 |
 | 1 | A required command failed | If it failed during settings validation or the preflight, nothing was changed. If it failed later, earlier steps can be complete: read the last printed step and its log, fix the cause and run the same command again |
 | 2 | Some VMs failed to onboard; the others are done | Read `gpu-hours-logs/<UTC time>/onboard.<vm>.log`, fix it, run the same command again |
 | 3 | No rows yet from some VMs within `WAIT_MINUTES` | Run `./scripts/configure.sh -c gpu-hours.env -v` to wait again without changing anything |
 
-**6. AML jobs: pass the job ID to every GPU process.** This is needed only for `per_job`, `per_submitter` and the job columns of `live`. AML sets `AZUREML_RUN_ID` in the job container. When the GPU processes run in that container, nothing changes. When your launcher starts them on the hosts, pass the variable on:
+**6. Check the data.** This calls the Log Analytics query API through `az rest`, with no CLI extension:
+
+```bash
+source gpu-hours.outputs.env
+cat > q.json <<'EOF'
+{"query": "GpuMetrics_CL | summarize Rows = count(), Gpus = dcount(GpuId), Last = max(TimeGenerated) by VmName", "timespan": "PT1H"}
+EOF
+az rest --method post --url "https://api.loganalytics.azure.com/v1/workspaces/$WORKSPACE_GUID/query" \
+  --resource https://api.loganalytics.io --body @q.json --query "tables[0].rows" -o table
+```
+
+Expected: one row per VM, `Gpus` equal to the GPUs in that VM, and `Last` within the last few minutes. The GPU-hour views are in [Query from Your Platform](#query-from-your-platform).
+
+**7. AML jobs: pass the job ID to every GPU process.** This is needed only for `per_job`, `per_submitter` and the job columns of `live`. AML sets `AZUREML_RUN_ID` in the job container. When the GPU processes run in that container, nothing changes. When your launcher starts them on the hosts, pass the variable on:
 
 ```bash
 ssh "$HOST" "env AZUREML_RUN_ID=$AZUREML_RUN_ID torchrun --nproc_per_node 8 train.py"   # over SSH
@@ -244,24 +272,11 @@ for p in $(nvidia-smi --query-compute-apps=pid --format=csv,noheader); do
   echo "pid $p: $(tr '\0' '\n' < /proc/$p/environ | grep '^AZUREML_RUN_ID=' || echo 'no AZUREML_RUN_ID')"
 done
 EOF
-az vm run-command invoke -g <vm-rg> -n <vm-name> --command-id RunShellScript --scripts @check-runid.sh \
+az vm run-command invoke -g "$VM_RG" -n "$VM_NAME" --command-id RunShellScript --scripts @check-runid.sh \
   --query "value[0].message" -o tsv
 ```
 
-**7. Check the data.** This calls the Log Analytics query API through `az rest`, with no CLI extension:
-
-```bash
-source gpu-hours.outputs.env
-cat > q.json <<'EOF'
-{"query": "GpuMetrics_CL | summarize Rows = count(), Gpus = dcount(GpuId), Last = max(TimeGenerated) by VmName", "timespan": "PT1H"}
-EOF
-az rest --method post --url "https://api.loganalytics.azure.com/v1/workspaces/$WORKSPACE_GUID/query" \
-  --resource https://api.loganalytics.io --body @q.json --query "tables[0].rows" -o table
-```
-
-Expected: one row per VM, `Gpus` equal to the GPUs in that VM, and `Last` within the last few minutes. The GPU-hour views are in [Query from Your Platform](#query-from-your-platform).
-
-**8. Deploy the Azure Monitor workbook (optional).** One workbook puts the GPU-hour tables and the operational panels on one page in the portal:
+**8. Deploy the Azure Monitor workbook.** One workbook puts the GPU-hour tables and the operational panels on one page in the portal:
 
 ```bash
 source gpu-hours.outputs.env
@@ -284,152 +299,7 @@ The workbook as it opened in the portal after deployment (screenshots from the t
 
 <img src="images/workbook-trend-user.png" width="900" alt="Workbook in the Azure portal: per-minute SM Active chart and the per_user view">
 
-**9. Operate.**
-- **More VMs**: scale out the scale set or add names to `VM_NAMES`, then run step 5 again. VMs already onboarded are refreshed in place.
-- **Newer collector**: update this repository and run step 5 again. The installer replaces `/opt/gpumon/gpu_collector.py` and restarts `gpumon`.
-- **Remove one VM**: load the deployment IDs and remove only its collector and associations. The shared Azure Monitor Agent, NVIDIA driver, DCGM and managed identity stay:
-
-  ```bash
-  source gpu-hours.outputs.env
-  ./scripts/offboard-vm.sh -g <vm-rg> -n <vm-name> -d "$DCR_ID" -e "$DCE_ID"
-  ```
-- **Remove the monitoring workspace**: offboard each VM, then run the safe removal in dry-run mode. It lists only this solution's workspace, DCR, DCE and optional diagnostic settings; it never deletes the resource group:
-
-```bash
-./scripts/remove-workspace.sh -g "$WORKSPACE_RG" -w "$WORKSPACE_NAME" -a "$AML_WORKSPACE_ID"      # dry run
-./scripts/remove-workspace.sh -g "$WORKSPACE_RG" -w "$WORKSPACE_NAME" -a "$AML_WORKSPACE_ID" -y   # remove
-```
-
-Delete the resource group only when you have independently confirmed that it is dedicated to this solution and contains nothing else.
-
-### What the command runs
-
-Each step script also runs on its own, for example from Azure Policy or your own automation.
-
-**`scripts/setup-workspace.sh`** (once per workspace):
-
-```bash
-./scripts/setup-workspace.sh -g rg-gpu-hours -l <region> [-r <days>] [-a <aml-workspace-resource-id>]
-```
-
-It prints `WORKSPACE_GUID`, `DCR_ID` and `DCE_ID`, and runs these commands:
-
-<!-- BEGIN GENERATED: setup-commands -->
-```bash
-az extension add --upgrade --yes --name monitor-control-service -o none
-az group create -n "$RG" -l "$LOC" -o none
-az monitor log-analytics workspace create -g "$RG" -n "$LAW" -l "$LOC" --retention-time "$RETENTION" -o none
-az monitor log-analytics workspace table show -g "$RG" --workspace-name "$LAW" -n GpuMetrics_CL -o none 2>/dev/null
-az monitor log-analytics workspace table update -g "$RG" --workspace-name "$LAW" -n GpuMetrics_CL \
-  --retention-time "$RETENTION" --columns "${COLUMNS[@]}" -o none
-az monitor log-analytics workspace table create -g "$RG" --workspace-name "$LAW" -n GpuMetrics_CL \
-  --retention-time "$RETENTION" --columns "${COLUMNS[@]}" -o none
-LAW_ID=$(az monitor log-analytics workspace show -g "$RG" -n "$LAW" --query id -o tsv)
-az monitor data-collection endpoint create -g "$RG" -n "$DCE" -l "$LOC" --public-network-access Enabled -o none
-DCE_ID=$(az monitor data-collection endpoint show -g "$RG" -n "$DCE" --query id -o tsv)
-az monitor data-collection rule create -g "$RG" -n "$DCR" -l "$LOC" --kind Linux \
-  --endpoint-id "$DCE_ID" --rule-file "$RULE_FILE" -o none
-DCR_ID=$(az monitor data-collection rule show -g "$RG" -n "$DCR" --query id -o tsv)
-WORKSPACE_GUID=$(az monitor log-analytics workspace show -g "$RG" -n "$LAW" --query customerId -o tsv)
-az monitor diagnostic-settings subscription create -n "$SUB_DIAG" -l "$LOC" \
-  --workspace "$LAW_ID" --logs '[{"category":"Administrative","enabled":true}]' -o none
-az monitor diagnostic-settings create -n "$AML_DIAG" --resource "$AML_ID" --workspace "$LAW_ID" \
-  --export-to-resource-specific true --logs '[{"category":"AmlRunStatusChangedEvent","enabled":true}]' -o none
-```
-<!-- END GENERATED: setup-commands -->
-
-The table is created on the first run and updated on later runs. `-a` needs permission to create diagnostic settings at subscription scope and on the AML workspace. Check the result:
-
-```bash
-az monitor log-analytics workspace table show -g rg-gpu-hours --workspace-name law-gpu-hours -n GpuMetrics_CL \
-  --query "{plan: plan, retention: retentionInDays, columns: length(schema.columns)}" -o json
-DCR_NAME=${DCR_ID##*/}
-az monitor data-collection rule show -g "$WORKSPACE_RG" -n "$DCR_NAME" \
-  --query "{kind: kind, files: dataSources.logFiles[0].filePatterns, stream: dataFlows[0].outputStream}" -o json
-```
-
-Expected: 24 columns and the retention you chose; the rule has kind `Linux`, reads `/var/log/gpumon/*.json` and outputs `Custom-GpuMetrics_CL`.
-
-**`scripts/onboard-vm.sh`** (per VM):
-
-```bash
-./scripts/onboard-vm.sh -g <vm-rg> -n <vm-name> -d "$DCR_ID" -e "$DCE_ID"
-```
-
-It enables the VM's system-assigned managed identity, installs the Azure Monitor Agent and associates the rule with the VM. If the VM has no DCE association, it associates this deployment's endpoint; if another DCE already owns `configurationAccessEndpoint`, it stops rather than redirecting that other monitoring configuration. Through Run Command it then runs [`vm/install_collector.sh`](vm/install_collector.sh), which enables `nvidia-dcgm` and installs `gpumon` as a systemd service:
-
-<!-- BEGIN GENERATED: onboard-commands -->
-```bash
-az extension add --upgrade --yes --name monitor-control-service -o none
-VM_ID=$(az vm show -g "$RG" -n "$VM" --query id -o tsv)
-az vm identity assign -g "$RG" -n "$VM" -o none
-az vm extension set -g "$RG" --vm-name "$VM" -n AzureMonitorLinuxAgent --publisher Microsoft.Azure.Monitor \
-  --enable-auto-upgrade true -o none
-az monitor data-collection rule association create --name "$DCR_ASSOC" --resource "$VM_ID" --rule-id "$DCR_ID" -o none
-EXISTING_DCE=$(az monitor data-collection rule association show --name configurationAccessEndpoint --resource "$VM_ID" \
-  --query dataCollectionEndpointId -o tsv 2>/dev/null || true)
-az monitor data-collection rule association create --name configurationAccessEndpoint --resource "$VM_ID" \
-  --endpoint-id "$DCE_ID" -o none
-RUN_OUTPUT=$(az vm run-command invoke -g "$RG" -n "$VM" --command-id RunShellScript --scripts "@$SCRIPT" \
-  --query "value[0].message" -o tsv)
-```
-<!-- END GENERATED: onboard-commands -->
-
-The Run Command output ends with `systemctl status gpumon`: it must show `active (running)` and the `dcgmi dmon` command above. Instead of a script per VM, two Azure Policy built-ins can install the agent and associate the rule: *Configure Linux virtual machines to run Azure Monitor Agent with system-assigned managed identity-based authentication* and *Configure Linux Machines to be associated with a Data Collection Rule or a Data Collection Endpoint*. Then add `vm/install_collector.sh` to your VM image build.
-
-**Query from the CLI.** The `log-analytics` CLI extension exists only as a preview:
-
-```bash
-az extension add --upgrade --yes --name log-analytics
-az monitor log-analytics query -w "$WORKSPACE_GUID" -t PT30M -o table --analytics-query \
-  "union (Heartbeat | summarize Rows = count(), Last = max(TimeGenerated) by Table = 'Heartbeat', Computer), (GpuMetrics_CL | summarize Rows = count(), Last = max(TimeGenerated) by Table = 'GpuMetrics_CL', Computer)"
-```
-
-**`scripts/offboard-vm.sh`** (per VM):
-
-<!-- BEGIN GENERATED: offboard-commands -->
-```bash
-az extension add --upgrade --yes --name monitor-control-service -o none
-VM_ID=$(az vm show -g "$RG" -n "$VM" --query id -o tsv)
-RUN_OUTPUT=$(az vm run-command invoke -g "$RG" -n "$VM" --command-id RunShellScript --query "value[0].message" -o tsv --scripts \
-  "set -eu; systemctl disable --now gpumon 2>/dev/null || [ ! -e /etc/systemd/system/gpumon.service ]; rm -rf /opt/gpumon /var/log/gpumon /etc/systemd/system/gpumon.service; systemctl daemon-reload; [ ! -e /etc/systemd/system/gpumon.service ]; echo gpumon removed")
-ASSOCIATION_NAMES=$(az monitor data-collection rule association list --resource "$VM_ID" --query "[].name" -o tsv)
-az monitor data-collection rule association delete --name "$DCR_ASSOC" --resource "$VM_ID" --yes -o none
-EXISTING_DCE=$(az monitor data-collection rule association list --resource "$VM_ID" \
-  --query "[?name=='configurationAccessEndpoint'].dataCollectionEndpointId | [0]" -o tsv)
-OTHER_DCRS=$(az monitor data-collection rule association list --resource "$VM_ID" \
-  --query "[?dataCollectionRuleId != null && name != '$DCR_ASSOC'].name" -o tsv)
-az monitor data-collection rule association delete --name configurationAccessEndpoint --resource "$VM_ID" --yes -o none
-```
-<!-- END GENERATED: offboard-commands -->
-
-## Query from Your Platform
-
-Each view in [`kql/`](kql/) is a complete query. The time window is the query's timespan, not something edited into the KQL. The `let` lines at the top hold the defaults you can change:
-- `IdlePct`: busy threshold, default 5;
-- `TzOffset`: UTC offset for hours and days, default `8h`;
-- `Computers`: VM names to include, empty means all.
-
-The three AML views need the job ID on every GPU process, set up in [step 6 of the configuration](#configure-on-azure). The timespan for `per_job`, `per_submitter` and `live` must include the job submission event as well as the GPU rows. `live` keeps the latest row for each job (`RunId`) seen on each GPU in that window; a GPU can therefore have several rows when it carried several jobs. Use a short window for freshness or a wider one when submitter enrichment is required.
-
-<!-- BEGIN GENERATED: views -->
-- [`kql/summary.kql`](kql/summary.kql), all selected VMs together: `AllocatedGpuHours`, `ObservedGpuHours`, `BusyGpuHours`, `EffectiveGpuHours`, `IdleGpuHours`, `UnknownGpuHours`, `Vms`, `Gpus`, `TelemetryCoveragePct`, `UtilizationPct`
-- [`kql/per_vm.kql`](kql/per_vm.kql), one row per VM: `Computer`, `VmSize`, `GpuName`, `Gpus`, `RunningHours`, `AllocatedGpuHours`, `ObservedGpuHours`, `BusyGpuHours`, `EffectiveGpuHours`, `IdleGpuHours`, `UnknownGpuHours`, `TelemetryCoveragePct`, `UtilizationPct`
-- [`kql/per_hour.kql`](kql/per_hour.kql), one row per local hour: `Hour`, `AllocatedGpuHours`, `ObservedGpuHours`, `BusyGpuHours`, `EffectiveGpuHours`, `IdleGpuHours`, `UnknownGpuHours`, `TelemetryCoveragePct`, `UtilizationPct`
-- [`kql/per_day.kql`](kql/per_day.kql), one row per local day: `Day`, `AllocatedGpuHours`, `ObservedGpuHours`, `BusyGpuHours`, `EffectiveGpuHours`, `IdleGpuHours`, `UnknownGpuHours`, `TelemetryCoveragePct`, `UtilizationPct`
-- [`kql/per_user.kql`](kql/per_user.kql), one row per process owner and VM: `User`, `Computer`, `BusyGpuHours`, `EffectiveGpuHours`, `AvgSmActivePct`, `PeakMemoryGiB`, `Processes`
-- [`kql/per_job.kql`](kql/per_job.kql), one row per AML job: `RunId`, `Submitter`, `SubmitterObjectId`, `Status`, `Vms`, `Gpus`, `StartTime`, `EndTime`, `BusyGpuHours`, `EffectiveGpuHours`, `PeakMemoryGiB`
-- [`kql/per_submitter.kql`](kql/per_submitter.kql), one row per Entra submitter: `Submitter`, `SubmitterObjectId`, `Jobs`, `BusyGpuHours`, `EffectiveGpuHours`
-- [`kql/live.kql`](kql/live.kql), latest row for each job seen on each GPU in the query window: `Computer`, `GpuId`, `RunId`, `Submitter`, `SubmitterObjectId`, `Status`, `LastSeen`, `AgeSeconds`, `GpuUtil`, `SmActive`, `FbUsedMiB`, `ProcCount`, `Processes`
-<!-- END GENERATED: views -->
-
-**From a shell.** The `@` prefix makes the Azure CLI read the query from the file. `-t` takes an ISO 8601 duration such as `P1D`, or an interval `<start>/<end>`. The CLI returns every value as a string and adds a `TableName` column.
-
-```bash
-az monitor log-analytics query -w "$WORKSPACE_GUID" --analytics-query @kql/per_vm.kql -t P1D -o table
-```
-
-**How your platform signs in.** The platform signs in to Entra ID as an identity that holds only `Log Analytics Reader` on the workspace (read-only), nothing on the VMs or AML. Pick one:
+**9. Create the sign-in identity for your platform.** The platform signs in to Entra ID as an identity that holds only `Log Analytics Reader` on the workspace (read-only), nothing on the VMs or AML. Pick one:
 
 | Your platform runs | Identity | How |
 |---|---|---|
@@ -467,55 +337,9 @@ Put the returned `access_token` in the `Authorization: Bearer` header of the que
 | 4 | Entra ID refused the sign-in: wrong tenant ID, client ID or secret, or an expired secret | Check `gpu-hours.query.env`; create a new secret with `-r` when it expired |
 | 5 | Signed in, but the query was refused: no `Log Analytics Reader` yet, wrong workspace GUID, or a KQL error | A new role takes up to 5 minutes to apply; check `WORKSPACE_GUID` |
 
-Measured in [auth-1](#auth-1-your-platform-signs-in-as-an-app-registration-and-queries).
+Measured in [auth-1](#auth-1-your-platform-signs-in-as-an-app-registration-and-queries). How to call the query API is in [Query from Your Platform](#query-from-your-platform).
 
-**From your API: REST.** Send the file content as `query` and the window as `timespan` to the current `api.loganalytics.azure.com` host, with a bearer access token whose resource is `https://api.loganalytics.io`. The response is typed JSON: `tables[0].columns` and `tables[0].rows`.
-
-```http
-POST https://api.loganalytics.azure.com/v1/workspaces/<workspace-guid>/query
-Authorization: Bearer <access-token>
-Content-Type: application/json
-
-{"query": "<content of kql/per_vm.kql>", "timespan": "<start>/<end>"}
-```
-
-**From your API: Python SDK.** [`examples/gpu_hours_client.py`](examples/gpu_hours_client.py) wraps `azure-monitor-query`. With `--credentials gpu-hours.query.env` it signs in as that app registration through `ClientSecretCredential` and reads the workspace GUID from the file. Without it, it uses `DefaultAzureCredential`: the `AZURE_TENANT_ID` / `AZURE_CLIENT_ID` / `AZURE_CLIENT_SECRET` environment variables, a managed identity, or the Azure CLI login. It overrides the `let` defaults and fails if a view does not have exactly one such line.
-
-```bash
-pip install -r examples/requirements.txt
-END=$(date -u +%FT%TZ); START=$(date -u -d '-1 day' +%FT%TZ)
-python examples/gpu_hours_client.py --credentials gpu-hours.query.env --view per_user --start "$START" --end "$END"
-python examples/gpu_hours_client.py --workspace "$WORKSPACE_GUID" --view per_job --start "$START" --end "$END"
-```
-
-The same call returned this during the replay below:
-
-<!-- BEGIN GENERATED: per-user-json -->
-```json
-[
- {
-  "User": "user-1",
-  "Computer": "gpu-vm-1",
-  "BusyGpuHours": 0.0417,
-  "EffectiveGpuHours": 0.0362,
-  "AvgSmActivePct": 87.55,
-  "PeakMemoryGiB": 41.9707,
-  "Processes": "python3"
- },
- {
-  "User": "user-2",
-  "Computer": "gpu-vm-1",
-  "BusyGpuHours": 0.0417,
-  "EffectiveGpuHours": 0.038,
-  "AvgSmActivePct": 90.24,
-  "PeakMemoryGiB": 41.9707,
-  "Processes": "python3"
- }
-]
-```
-<!-- END GENERATED: per-user-json -->
-
-**Per AML job: what it used and who submitted it.** The same reference client returned this `per_job` and `per_submitter` in [jobs-1](#jobs-1-aml-jobs-and-their-submitter-one-linux-user). Job names, the submitter and the object ID are replaced with `job-N`, `submitter-1` and `object-id-1`; in your workspace `RunId` is the AML job name, `Submitter` the submitter's Entra account (UPN) and `SubmitterObjectId` its object ID:
+**10. See what each AML job used and who submitted it.** The same reference client returned this `per_job` and `per_submitter` in [jobs-1](#jobs-1-aml-jobs-and-their-submitter-one-linux-user). Job names, the submitter and the object ID are replaced with `job-N`, `submitter-1` and `object-id-1`; in your workspace `RunId` is the AML job name, `Submitter` the submitter's Entra account (UPN) and `SubmitterObjectId` its object ID:
 
 ```bash
 python examples/gpu_hours_client.py --credentials gpu-hours.query.env --view per_job       --start "$START" --end "$END"
@@ -586,6 +410,217 @@ python examples/gpu_hours_client.py --credentials gpu-hours.query.env --view per
 - when two jobs share a GPU in a minute, each gets half, so the three jobs add up to the Linux user's 0.150 busy GPU-hours;
 - for one job, filter the rows by `RunId`, or append `| where RunId == '<job name>'` to the KQL.
 
+**11. Operate.**
+- **More VMs**: scale out the scale set or add names to `VM_NAMES`, then run step 5 again. VMs already onboarded are refreshed in place.
+- **Newer collector**: update this repository and run step 5 again. The installer replaces `/opt/gpumon/gpu_collector.py` and restarts `gpumon`.
+- **Remove one VM**: load the deployment IDs and remove only its collector and associations. The shared Azure Monitor Agent, NVIDIA driver, DCGM and managed identity stay:
+
+  ```bash
+  source gpu-hours.outputs.env
+  ./scripts/offboard-vm.sh -g "$VM_RG" -n "$VM_NAME" -d "$DCR_ID" -e "$DCE_ID"
+  ```
+- **Remove the monitoring workspace**: offboard each VM, then run the safe removal in dry-run mode. It lists only this solution's workspace, DCR, DCE and optional diagnostic settings; it never deletes the resource group:
+
+```bash
+./scripts/remove-workspace.sh -g "$WORKSPACE_RG" -w "$WORKSPACE_NAME" -a "$AML_WORKSPACE_ID"      # dry run
+./scripts/remove-workspace.sh -g "$WORKSPACE_RG" -w "$WORKSPACE_NAME" -a "$AML_WORKSPACE_ID" -y   # remove
+```
+
+Delete the resource group only when you have independently confirmed that it is dedicated to this solution and contains nothing else.
+
+**12. Troubleshoot.**
+
+| Symptom | Usual cause | What to do |
+|---|---|---|
+| `AuthorizationFailed` in step 5 | No Contributor on a resource group, or no permission for subscription diagnostic settings | Get the role, or leave `AML_WORKSPACE_ID` empty for now |
+| Granting Log Analytics Reader fails | You are not Owner or User Access Administrator | Leave `READER_OBJECT_ID` empty; an administrator grants it later as in step 9 |
+| A VM fails to onboard (exit 2) | Run Command conflict or an unhealthy VM agent | Read `onboard.<vm>.log` and run the same command again later |
+| Exit 3, one VM never sends rows | The agent has not started, or outbound traffic is blocked | Query as in step 6; check the agent (command below); allow the `AzureMonitor` service tag |
+| `query-gpu-hours.sh` exit 4 | Wrong or expired secret, tenant ID or client ID | Check `gpu-hours.query.env`; create a new secret with `create-query-identity.sh -r` |
+| `query-gpu-hours.sh` exit 5 | No Log Analytics Reader yet, or a wrong workspace GUID | A new role takes up to 5 minutes; rerun `create-query-identity.sh` |
+| A job is missing from `per_job` | Its GPU processes lack `AZUREML_RUN_ID` | Check with the step 7 command, then fix the launcher |
+| `Submitter` is empty in `per_job` | The activity log arrives later | Wait 10 minutes; the window must include the submission time |
+
+```bash
+# agent and collector state on one VM (read-only)
+az vm extension show -g "$VM_RG" --vm-name "$VM_NAME" -n AzureMonitorLinuxAgent --query provisioningState -o tsv
+az vm run-command invoke -g "$VM_RG" -n "$VM_NAME" --command-id RunShellScript \
+  --scripts "systemctl is-active gpumon nvidia-dcgm; ls -l /var/log/gpumon | tail -3" --query "value[0].message" -o tsv
+```
+
+### What the command runs
+
+Each step script also runs on its own, for example from Azure Policy or your own automation.
+
+**`scripts/setup-workspace.sh`** (once per workspace):
+
+```bash
+./scripts/setup-workspace.sh -g rg-gpu-hours -l <region> [-r <days>] [-a <aml-workspace-resource-id>]
+```
+
+It prints `WORKSPACE_GUID`, `DCR_ID` and `DCE_ID`, and runs these commands:
+
+<!-- BEGIN GENERATED: setup-commands -->
+```bash
+az extension add --upgrade --yes --name monitor-control-service -o none
+az group create -n "$RG" -l "$LOC" -o none
+az monitor log-analytics workspace create -g "$RG" -n "$LAW" -l "$LOC" --retention-time "$RETENTION" -o none
+az monitor log-analytics workspace table show -g "$RG" --workspace-name "$LAW" -n GpuMetrics_CL -o none 2>/dev/null
+az monitor log-analytics workspace table update -g "$RG" --workspace-name "$LAW" -n GpuMetrics_CL \
+  --retention-time "$RETENTION" --columns "${COLUMNS[@]}" -o none
+az monitor log-analytics workspace table create -g "$RG" --workspace-name "$LAW" -n GpuMetrics_CL \
+  --retention-time "$RETENTION" --columns "${COLUMNS[@]}" -o none
+LAW_ID=$(az monitor log-analytics workspace show -g "$RG" -n "$LAW" --query id -o tsv)
+az monitor data-collection endpoint create -g "$RG" -n "$DCE" -l "$LOC" --public-network-access Enabled -o none
+DCE_ID=$(az monitor data-collection endpoint show -g "$RG" -n "$DCE" --query id -o tsv)
+az monitor data-collection rule create -g "$RG" -n "$DCR" -l "$LOC" --kind Linux \
+  --endpoint-id "$DCE_ID" --rule-file "$RULE_FILE" -o none
+DCR_ID=$(az monitor data-collection rule show -g "$RG" -n "$DCR" --query id -o tsv)
+WORKSPACE_GUID=$(az monitor log-analytics workspace show -g "$RG" -n "$LAW" --query customerId -o tsv)
+az monitor diagnostic-settings subscription create -n "$SUB_DIAG" -l "$LOC" \
+  --workspace "$LAW_ID" --logs '[{"category":"Administrative","enabled":true}]' -o none
+az monitor diagnostic-settings create -n "$AML_DIAG" --resource "$AML_ID" --workspace "$LAW_ID" \
+  --export-to-resource-specific true --logs '[{"category":"AmlRunStatusChangedEvent","enabled":true}]' -o none
+```
+<!-- END GENERATED: setup-commands -->
+
+The table is created on the first run and updated on later runs. `-a` needs permission to create diagnostic settings at subscription scope and on the AML workspace. Check the result:
+
+```bash
+az monitor log-analytics workspace table show -g "$WORKSPACE_RG" --workspace-name "$WORKSPACE_NAME" -n GpuMetrics_CL \
+  --query "{plan: plan, retention: retentionInDays, columns: length(schema.columns)}" -o json
+DCR_NAME=${DCR_ID##*/}
+az monitor data-collection rule show -g "$WORKSPACE_RG" -n "$DCR_NAME" \
+  --query "{kind: kind, files: dataSources.logFiles[0].filePatterns, stream: dataFlows[0].outputStream}" -o json
+```
+
+Expected: 24 columns and the retention you chose; the rule has kind `Linux`, reads `/var/log/gpumon/*.json` and outputs `Custom-GpuMetrics_CL`.
+
+**`scripts/onboard-vm.sh`** (per VM):
+
+```bash
+./scripts/onboard-vm.sh -g "$VM_RG" -n "$VM_NAME" -d "$DCR_ID" -e "$DCE_ID"
+```
+
+It enables the VM's system-assigned managed identity, installs the Azure Monitor Agent and associates the rule with the VM. If the VM has no DCE association, it associates this deployment's endpoint; if another DCE already owns `configurationAccessEndpoint`, it stops rather than redirecting that other monitoring configuration. Through Run Command it then runs [`vm/install_collector.sh`](vm/install_collector.sh), which enables `nvidia-dcgm` and installs `gpumon` as a systemd service:
+
+<!-- BEGIN GENERATED: onboard-commands -->
+```bash
+az extension add --upgrade --yes --name monitor-control-service -o none
+VM_ID=$(az vm show -g "$RG" -n "$VM" --query id -o tsv)
+az vm identity assign -g "$RG" -n "$VM" -o none
+az vm extension set -g "$RG" --vm-name "$VM" -n AzureMonitorLinuxAgent --publisher Microsoft.Azure.Monitor \
+  --enable-auto-upgrade true -o none
+az monitor data-collection rule association create --name "$DCR_ASSOC" --resource "$VM_ID" --rule-id "$DCR_ID" -o none
+EXISTING_DCE=$(az monitor data-collection rule association show --name configurationAccessEndpoint --resource "$VM_ID" \
+  --query dataCollectionEndpointId -o tsv 2>/dev/null || true)
+az monitor data-collection rule association create --name configurationAccessEndpoint --resource "$VM_ID" \
+  --endpoint-id "$DCE_ID" -o none
+RUN_OUTPUT=$(az vm run-command invoke -g "$RG" -n "$VM" --command-id RunShellScript --scripts "@$SCRIPT" \
+  --query "value[0].message" -o tsv)
+```
+<!-- END GENERATED: onboard-commands -->
+
+The Run Command output ends with `systemctl status gpumon`: it must show `active (running)` and the `dcgmi dmon` command above. Instead of a script per VM, two Azure Policy built-ins can install the agent and associate the rule: *Configure Linux virtual machines to run Azure Monitor Agent with system-assigned managed identity-based authentication* and *Configure Linux Machines to be associated with a Data Collection Rule or a Data Collection Endpoint*. Then add `vm/install_collector.sh` to your VM image build.
+
+**Query from the CLI.** The `log-analytics` CLI extension exists only as a preview:
+
+```bash
+az extension add --upgrade --yes --name log-analytics
+az monitor log-analytics query -w "$WORKSPACE_GUID" -t PT30M -o table --analytics-query \
+  "union (Heartbeat | summarize Rows = count(), Last = max(TimeGenerated) by Table = 'Heartbeat', Computer), (GpuMetrics_CL | summarize Rows = count(), Last = max(TimeGenerated) by Table = 'GpuMetrics_CL', Computer)"
+```
+
+**`scripts/offboard-vm.sh`** (per VM):
+
+<!-- BEGIN GENERATED: offboard-commands -->
+```bash
+az extension add --upgrade --yes --name monitor-control-service -o none
+VM_ID=$(az vm show -g "$RG" -n "$VM" --query id -o tsv)
+RUN_OUTPUT=$(az vm run-command invoke -g "$RG" -n "$VM" --command-id RunShellScript --query "value[0].message" -o tsv --scripts \
+  "set -eu; systemctl disable --now gpumon 2>/dev/null || [ ! -e /etc/systemd/system/gpumon.service ]; rm -rf /opt/gpumon /var/log/gpumon /etc/systemd/system/gpumon.service; systemctl daemon-reload; [ ! -e /etc/systemd/system/gpumon.service ]; echo gpumon removed")
+ASSOCIATION_NAMES=$(az monitor data-collection rule association list --resource "$VM_ID" --query "[].name" -o tsv)
+az monitor data-collection rule association delete --name "$DCR_ASSOC" --resource "$VM_ID" --yes -o none
+EXISTING_DCE=$(az monitor data-collection rule association list --resource "$VM_ID" \
+  --query "[?name=='configurationAccessEndpoint'].dataCollectionEndpointId | [0]" -o tsv)
+OTHER_DCRS=$(az monitor data-collection rule association list --resource "$VM_ID" \
+  --query "[?dataCollectionRuleId != null && name != '$DCR_ASSOC'].name" -o tsv)
+az monitor data-collection rule association delete --name configurationAccessEndpoint --resource "$VM_ID" --yes -o none
+```
+<!-- END GENERATED: offboard-commands -->
+
+## Query from Your Platform
+
+Each view in [`kql/`](kql/) is a complete query. The time window is the query's timespan, not something edited into the KQL. The `let` lines at the top hold the defaults you can change:
+- `IdlePct`: busy threshold, default 5;
+- `TzOffset`: UTC offset for hours and days, default `8h`;
+- `Computers`: VM names to include, empty means all.
+
+The three AML views need the job ID on every GPU process, set up in [step 7 of the configuration](#configure-on-azure); sign-in is step 9 and the measured per-job output is step 10. The timespan for `per_job`, `per_submitter` and `live` must include the job submission event as well as the GPU rows. `live` keeps the latest row for each job (`RunId`) seen on each GPU in that window; a GPU can therefore have several rows when it carried several jobs. Use a short window for freshness or a wider one when submitter enrichment is required.
+
+<!-- BEGIN GENERATED: views -->
+- [`kql/summary.kql`](kql/summary.kql), all selected VMs together: `AllocatedGpuHours`, `ObservedGpuHours`, `BusyGpuHours`, `EffectiveGpuHours`, `IdleGpuHours`, `UnknownGpuHours`, `Vms`, `Gpus`, `TelemetryCoveragePct`, `UtilizationPct`
+- [`kql/per_vm.kql`](kql/per_vm.kql), one row per VM: `Computer`, `VmSize`, `GpuName`, `Gpus`, `RunningHours`, `AllocatedGpuHours`, `ObservedGpuHours`, `BusyGpuHours`, `EffectiveGpuHours`, `IdleGpuHours`, `UnknownGpuHours`, `TelemetryCoveragePct`, `UtilizationPct`
+- [`kql/per_hour.kql`](kql/per_hour.kql), one row per local hour: `Hour`, `AllocatedGpuHours`, `ObservedGpuHours`, `BusyGpuHours`, `EffectiveGpuHours`, `IdleGpuHours`, `UnknownGpuHours`, `TelemetryCoveragePct`, `UtilizationPct`
+- [`kql/per_day.kql`](kql/per_day.kql), one row per local day: `Day`, `AllocatedGpuHours`, `ObservedGpuHours`, `BusyGpuHours`, `EffectiveGpuHours`, `IdleGpuHours`, `UnknownGpuHours`, `TelemetryCoveragePct`, `UtilizationPct`
+- [`kql/per_user.kql`](kql/per_user.kql), one row per process owner and VM: `User`, `Computer`, `BusyGpuHours`, `EffectiveGpuHours`, `AvgSmActivePct`, `PeakMemoryGiB`, `Processes`
+- [`kql/per_job.kql`](kql/per_job.kql), one row per AML job: `RunId`, `Submitter`, `SubmitterObjectId`, `Status`, `Vms`, `Gpus`, `StartTime`, `EndTime`, `BusyGpuHours`, `EffectiveGpuHours`, `PeakMemoryGiB`
+- [`kql/per_submitter.kql`](kql/per_submitter.kql), one row per Entra submitter: `Submitter`, `SubmitterObjectId`, `Jobs`, `BusyGpuHours`, `EffectiveGpuHours`
+- [`kql/live.kql`](kql/live.kql), latest row for each job seen on each GPU in the query window: `Computer`, `GpuId`, `RunId`, `Submitter`, `SubmitterObjectId`, `Status`, `LastSeen`, `AgeSeconds`, `GpuUtil`, `SmActive`, `FbUsedMiB`, `ProcCount`, `Processes`
+<!-- END GENERATED: views -->
+
+**From a shell.** The `@` prefix makes the Azure CLI read the query from the file. `-t` takes an ISO 8601 duration such as `P1D`, or an interval `<start>/<end>`. The CLI returns every value as a string and adds a `TableName` column.
+
+```bash
+az monitor log-analytics query -w "$WORKSPACE_GUID" --analytics-query @kql/per_vm.kql -t P1D -o table
+```
+
+**From your API: REST.** Send the file content as `query` and the window as `timespan` to the current `api.loganalytics.azure.com` host, with a bearer access token whose resource is `https://api.loganalytics.io`. The response is typed JSON: `tables[0].columns` and `tables[0].rows`.
+
+```http
+POST https://api.loganalytics.azure.com/v1/workspaces/<WORKSPACE_GUID>/query
+Authorization: Bearer <access-token>
+Content-Type: application/json
+
+{"query": "<content of kql/per_vm.kql>", "timespan": "<start>/<end>"}
+```
+
+**From your API: Python SDK.** [`examples/gpu_hours_client.py`](examples/gpu_hours_client.py) wraps `azure-monitor-query`. With `--credentials gpu-hours.query.env` it signs in as that app registration through `ClientSecretCredential` and reads the workspace GUID from the file. Without it, it uses `DefaultAzureCredential`: the `AZURE_TENANT_ID` / `AZURE_CLIENT_ID` / `AZURE_CLIENT_SECRET` environment variables, a managed identity, or the Azure CLI login. It overrides the `let` defaults and fails if a view does not have exactly one such line.
+
+```bash
+pip install -r examples/requirements.txt
+END=$(date -u +%FT%TZ); START=$(date -u -d '-1 day' +%FT%TZ)
+python examples/gpu_hours_client.py --credentials gpu-hours.query.env --view per_user --start "$START" --end "$END"
+python examples/gpu_hours_client.py --workspace "$WORKSPACE_GUID" --view per_job --start "$START" --end "$END"
+```
+
+The same call returned this during the replay below:
+
+<!-- BEGIN GENERATED: per-user-json -->
+```json
+[
+ {
+  "User": "user-1",
+  "Computer": "gpu-vm-1",
+  "BusyGpuHours": 0.0417,
+  "EffectiveGpuHours": 0.0362,
+  "AvgSmActivePct": 87.55,
+  "PeakMemoryGiB": 41.9707,
+  "Processes": "python3"
+ },
+ {
+  "User": "user-2",
+  "Computer": "gpu-vm-1",
+  "BusyGpuHours": 0.0417,
+  "EffectiveGpuHours": 0.038,
+  "AvgSmActivePct": 90.24,
+  "PeakMemoryGiB": 41.9707,
+  "Processes": "python3"
+ }
+]
+```
+<!-- END GENERATED: per-user-json -->
+
 **Which interface your platform calls.** Nothing custom sits between your platform and the data:
 - API: the Log Analytics Query API above, one `POST` per view, the KQL file content in `query`, the window in `timespan`;
 - library: `azure-identity` and `azure-monitor-query` ([`examples/requirements.txt`](examples/requirements.txt)) for Python; the Azure Monitor Query client library also exists for .NET, Java, JavaScript and Go;
@@ -604,7 +639,7 @@ from azure.monitor.query import LogsQueryClient
 credential = ClientSecretCredential("<AZURE_TENANT_ID>", "<AZURE_CLIENT_ID>", "<AZURE_CLIENT_SECRET>")
 client = LogsQueryClient(credential)
 end = datetime.now(timezone.utc)
-result = client.query_workspace("<workspace-guid>", Path("kql/per_job.kql").read_text(encoding="utf-8"),
+result = client.query_workspace("<WORKSPACE_GUID>", Path("kql/per_job.kql").read_text(encoding="utf-8"),
                                 timespan=(end - timedelta(days=1), end))
 jobs = [dict(zip(result.tables[0].columns, row)) for row in result.tables[0].rows]
 ```
@@ -612,8 +647,8 @@ jobs = [dict(zip(result.tables[0].columns, row)) for row in result.tables[0].row
 Give an existing identity, such as a managed identity, read access to the workspace by hand:
 
 ```bash
-az role assignment create --assignee <principal-id> --role "Log Analytics Reader" \
-  --scope "$(az monitor log-analytics workspace show -g rg-gpu-hours -n law-gpu-hours --query id -o tsv)"
+source gpu-hours.outputs.env
+az role assignment create --assignee "$READER_OBJECT_ID" --role "Log Analytics Reader" --scope "$WORKSPACE_RESOURCE_ID"
 ```
 
 For whole local days in `per_day`, start and end the timespan at local midnight, written in UTC. Allocated hours come from the agent's `Heartbeat`, not from your bill. Reconcile invoices with Cost Management.
@@ -762,7 +797,7 @@ Then `./scripts/configure.sh -c gpu-hours.env` ran twice from Git Bash on Window
 
 **Boundary.**
 - One VM, named in `VM_NAMES`. Reading a Flexible scale set's instances, onboarding several VMs in parallel and the exit codes 1, 2 and 3 were exercised only against a stand-in `az` in [`tests/test_configure.py`](tests/test_configure.py).
-- The wait in step 7 includes the agent's start-up: the collector writes rows from onboarding on, but rows reach the workspace only after the agent begins reading its files, as in `validation-1`.
+- The wait inside the step 5 command includes the agent's start-up: the collector writes rows from onboarding on, but rows reach the workspace only after the agent begins reading its files, as in `validation-1`.
 - `AML_WORKSPACE_ID` was empty, so this run did not repeat the two diagnostic settings; `jobs-1` exercised them through `setup-workspace.sh -a`.
 
 ### jobs-1: AML jobs and their submitter, one Linux user
@@ -892,7 +927,7 @@ Done when all tests pass and each check prints `PASS`.
 CI runs the same commands on Ubuntu and Windows with Python 3.10 and 3.12 ([workflow](../../.github/workflows/azure-gpu-hours-monitoring-ci.yml)).
 
 The live checks need Azure:
-- `./scripts/configure.sh -c gpu-hours.env -v`, which waits for rows from every VM in the settings file without changing anything, and the step 7 query in [Configure on Azure](#configure-on-azure);
+- `./scripts/configure.sh -c gpu-hours.env -v`, which waits for rows from every VM in the settings file without changing anything, and the step 6 query in [Configure on Azure](#configure-on-azure);
 - the reference client;
 - the load test, which needs a GPU VM and PyTorch: `./tests/load/run-load.sh -g <vm-rg> -n <vm-name> -u <user>`. Remove the test users afterwards with `-x`.
 

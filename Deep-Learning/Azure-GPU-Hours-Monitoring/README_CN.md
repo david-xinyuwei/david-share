@@ -52,7 +52,7 @@
 - 对资源组有 Contributor 权限的 Azure CLI；
 - 客户平台用于查询的身份，并在工作区上授予 Log Analytics Reader 角色。
 
-可选提供：Azure Monitor Workbook 报表（配置第 8 步）。不提供：自建界面、告警、与账单对账、没有传递作业 ID 的任务自动归属，以及 MIG 实例。
+另外提供：Azure Monitor Workbook 报表（配置第 8 步）。不提供：自建界面、告警、与账单对账、没有传递作业 ID 的任务自动归属，以及 MIG 实例。
 
 **费用估算。** 单价请使用客户区域当前的 [Azure Monitor Logs 定价](https://azure.microsoft.com/pricing/details/monitor/)：
 
@@ -145,10 +145,25 @@ dcgmi dmon -e 203,1001,1002,1004,1005,252,250,155,150 -d 10000
 | 2 | 每台 GPU VM（Azure 侧） | 开启系统分配托管身份，安装 Azure Monitor Agent 扩展，把 VM 关联到 DCR 和 DCE | `onboard-vm.sh` |
 | 3 | 每台 GPU VM（VM 内，经 Run Command） | **启动 DCGM**：`systemctl enable --now nvidia-dcgm`（旧版软件包的服务名是 `dcgm`）；然后安装并启动 `gpumon` 采集服务，它运行 `dcgmi dmon` 读取 DCGM 指标，每分钟写一行 JSON | `vm/install_collector.sh` |
 | 4 | Log Analytics | 等待每台 VM 的数据经 Azure Monitor Agent 入库，可以通过查询 API 读到 | `configure.sh` 第 7 步 |
-| 5 | Azure 门户 | 部署报表（Workbook） | `deploy-workbook.sh`，下面第 8 步 |
-| 6 | 客户平台 | 创建只读登录身份并调用查询 API | `create-query-identity.sh`，见[从客户平台查询](#从客户平台查询) |
+| 5 | Azure 门户 | 部署报表（Workbook） | `deploy-workbook.sh`，第 8 步 |
+| 6 | 客户平台 | 创建只读登录身份并调用查询 API | `create-query-identity.sh`，第 9 步 |
 
 DCGM 软件包（`datacenter-gpu-manager`）需要事先装在 VM 镜像里，脚本只负责启动它的服务，不负责安装；第 4 步预检会逐台检查 `dcgmi` 是否存在。
+
+**0. 设定本次会话的变量。** 后面所有命令都只引用这些变量，客户名、订阅和 ID 只在这里和配置文件里填写一次。`configure.sh` 运行后，`gpu-hours.outputs.env` 会补上 `WORKSPACE_GUID`、`WORKSPACE_RESOURCE_ID`、`DCR_ID` 和 `DCE_ID`：
+
+```bash
+export SUBSCRIPTION_ID="<订阅 ID>"           # GPU VM 所在订阅
+export WORKSPACE_RG="rg-gpu-hours"           # 新建的监控资源组
+export WORKSPACE_NAME="law-gpu-hours"        # 新建的 Log Analytics 工作区
+export VM_RG="<GPU VM 所在资源组>"
+export VM_NAME="<某一台 VM 名>"              # 只在单台排查、下线时用
+export AML_WORKSPACE_ID=""                   # 可选：AML 工作区资源 ID
+export READER_OBJECT_ID=""                   # 可选：客户平台查询身份的对象 ID
+az account set --subscription "$SUBSCRIPTION_ID"
+```
+
+密钥不写进这些变量，也不写进任何命令：平台登录用的客户端密钥由第 9 步写进权限为 600、已加入 git 忽略的 `gpu-hours.query.env`。
 
 **1. 检查前提条件。**
 
@@ -223,7 +238,7 @@ az ad sp show --id <应用的 client id> --query id -o tsv                  # �
 第 5 步的完整命令会再做一次预检，所以 `-p` 只是试运行，不是必经步骤。手动检查一台 VM：
 
 ```bash
-az vm run-command invoke -g <vm-rg> -n <vm-name> --command-id RunShellScript \
+az vm run-command invoke -g "$VM_RG" -n "$VM_NAME" --command-id RunShellScript \
   --scripts "dcgmi --version | head -2; systemctl is-enabled nvidia-dcgm" --query "value[0].message" -o tsv
 ```
 
@@ -250,12 +265,30 @@ az vm run-command invoke -g <vm-rg> -n <vm-name> --command-id RunShellScript \
 
 | 退出码 | 含义 | 处理 |
 |---|---|---|
-| 0 | 每台 VM 都在上报数据 | 需要统计 AML 作业时做第 6 步，然后做第 7 步 |
+| 0 | 每台 VM 都在上报数据 | 做第 6 步核对；统计 AML 作业时再做第 7 步 |
 | 1 | 某条必要命令失败 | 配置校验或预检阶段失败时没有修改；之后失败时，前面的步骤可能已经完成。查看屏幕最后打印的步骤和对应日志，修复后重跑同一条命令 |
 | 2 | 部分 VM 接入失败，其余已完成 | 查看 `gpu-hours-logs/<UTC 时间>/onboard.<vm>.log`，修好后重跑同一条命令 |
 | 3 | `WAIT_MINUTES` 内仍有 VM 没有数据 | 运行 `./scripts/configure.sh -c gpu-hours.env -v`，只重新等待，不做修改 |
 
-**6. AML 作业：把作业 ID 传给每个 GPU 进程。** 只有 `per_job`、`per_submitter` 和 `live` 的作业列需要这一步：
+**6. 核对数据。** 下面经 `az rest` 直接调用 Log Analytics 查询 API，不需要任何 CLI 扩展：
+
+```bash
+source gpu-hours.outputs.env
+cat > q.json <<'EOF'
+{"query": "GpuMetrics_CL | summarize Rows = count(), Gpus = dcount(GpuId), Last = max(TimeGenerated) by VmName", "timespan": "PT1H"}
+EOF
+az rest --method post --url "https://api.loganalytics.azure.com/v1/workspaces/$WORKSPACE_GUID/query" \
+  --resource https://api.loganalytics.io --body @q.json --query "tables[0].rows" -o table
+```
+
+期望结果：
+- 每台 VM 一行；
+- `Gpus` 等于这台 VM 的卡数；
+- `Last` 在最近几分钟内。
+
+卡时查询见[从客户平台查询](#从客户平台查询)。
+
+**7. AML 作业：把作业 ID 传给每个 GPU 进程。** 只有 `per_job`、`per_submitter` 和 `live` 的作业列需要这一步：
 - AML 会在作业容器里设置 `AZUREML_RUN_ID`；
 - GPU 进程直接在这个容器里运行时，不需要任何改动；
 - 启动脚本在宿主机上启动 GPU 进程时，要把这个变量传下去：
@@ -274,29 +307,11 @@ for p in $(nvidia-smi --query-compute-apps=pid --format=csv,noheader); do
   echo "pid $p: $(tr '\0' '\n' < /proc/$p/environ | grep '^AZUREML_RUN_ID=' || echo 'no AZUREML_RUN_ID')"
 done
 EOF
-az vm run-command invoke -g <vm-rg> -n <vm-name> --command-id RunShellScript --scripts @check-runid.sh \
+az vm run-command invoke -g "$VM_RG" -n "$VM_NAME" --command-id RunShellScript --scripts @check-runid.sh \
   --query "value[0].message" -o tsv
 ```
 
-**7. 核对数据。** 下面经 `az rest` 直接调用 Log Analytics 查询 API，不需要任何 CLI 扩展：
-
-```bash
-source gpu-hours.outputs.env
-cat > q.json <<'EOF'
-{"query": "GpuMetrics_CL | summarize Rows = count(), Gpus = dcount(GpuId), Last = max(TimeGenerated) by VmName", "timespan": "PT1H"}
-EOF
-az rest --method post --url "https://api.loganalytics.azure.com/v1/workspaces/$WORKSPACE_GUID/query" \
-  --resource https://api.loganalytics.io --body @q.json --query "tables[0].rows" -o table
-```
-
-期望结果：
-- 每台 VM 一行；
-- `Gpus` 等于这台 VM 的卡数；
-- `Last` 在最近几分钟内。
-
-卡时查询见[从客户平台查询](#从客户平台查询)。
-
-**8. 部署 Azure Monitor 报表（可选）。** 一个 Workbook 把卡时表格和运维面板放在同一页，打开门户即可看：
+**8. 部署 Azure Monitor 报表。** 一个 Workbook 把卡时表格和运维面板放在同一页，打开门户即可看：
 
 ```bash
 source gpu-hours.outputs.env
@@ -319,163 +334,7 @@ source gpu-hours.outputs.env
 
 <img src="images/workbook-trend-user.png" width="900" alt="Azure 门户中的 Workbook：每分钟 SM Active 曲线和 per_user 视图">
 
-**9. 日常运维。**
-- **增加 VM**：规模集扩容，或在 `VM_NAMES` 里加上新 VM，然后重跑第 5 步。已接入的 VM 会原地刷新。
-- **升级采集器**：更新本仓库后重跑第 5 步。安装脚本会替换 `/opt/gpumon/gpu_collector.py` 并重启 `gpumon`。
-- **下线一台 VM**：先读取本次部署的 ID，再只删除它的采集器和关联。共享的 Azure Monitor Agent、NVIDIA 驱动、DCGM 和托管身份都会保留：
-
-  ```bash
-  source gpu-hours.outputs.env
-  ./scripts/offboard-vm.sh -g <vm-rg> -n <vm-name> -d "$DCR_ID" -e "$DCE_ID"
-  ```
-- **删除监控工作区**：先对每台 VM 执行下线，再运行安全删除脚本。默认只打印计划；它只删除本方案的工作区、DCR、DCE 和可选的诊断设置，永远不会删除资源组：
-
-```bash
-./scripts/remove-workspace.sh -g "$WORKSPACE_RG" -w "$WORKSPACE_NAME" -a "$AML_WORKSPACE_ID"      # 只预览
-./scripts/remove-workspace.sh -g "$WORKSPACE_RG" -w "$WORKSPACE_NAME" -a "$AML_WORKSPACE_ID" -y   # 删除
-```
-
-只有单独确认该资源组专用于本方案、其中没有其他资源时，才另行删除整个资源组。
-
-### 这条命令实际执行了什么
-
-每个分步脚本也可以单独运行，例如由 Azure Policy 或你自己的自动化流程调用。
-
-**`scripts/setup-workspace.sh`**（每个工作区运行一次）：
-
-```bash
-./scripts/setup-workspace.sh -g rg-gpu-hours -l <region> [-r <天数>] [-a <AML 工作区资源 ID>]
-```
-
-脚本最后打印 `WORKSPACE_GUID`、`DCR_ID` 和 `DCE_ID`。脚本包含以下 Azure CLI 命令；建表与更新表按表是否存在二选一，诊断设置仅在提供 `-a` 时创建：
-
-<!-- BEGIN GENERATED: setup-commands -->
-```bash
-az extension add --upgrade --yes --name monitor-control-service -o none
-az group create -n "$RG" -l "$LOC" -o none
-az monitor log-analytics workspace create -g "$RG" -n "$LAW" -l "$LOC" --retention-time "$RETENTION" -o none
-az monitor log-analytics workspace table show -g "$RG" --workspace-name "$LAW" -n GpuMetrics_CL -o none 2>/dev/null
-az monitor log-analytics workspace table update -g "$RG" --workspace-name "$LAW" -n GpuMetrics_CL \
-  --retention-time "$RETENTION" --columns "${COLUMNS[@]}" -o none
-az monitor log-analytics workspace table create -g "$RG" --workspace-name "$LAW" -n GpuMetrics_CL \
-  --retention-time "$RETENTION" --columns "${COLUMNS[@]}" -o none
-LAW_ID=$(az monitor log-analytics workspace show -g "$RG" -n "$LAW" --query id -o tsv)
-az monitor data-collection endpoint create -g "$RG" -n "$DCE" -l "$LOC" --public-network-access Enabled -o none
-DCE_ID=$(az monitor data-collection endpoint show -g "$RG" -n "$DCE" --query id -o tsv)
-az monitor data-collection rule create -g "$RG" -n "$DCR" -l "$LOC" --kind Linux \
-  --endpoint-id "$DCE_ID" --rule-file "$RULE_FILE" -o none
-DCR_ID=$(az monitor data-collection rule show -g "$RG" -n "$DCR" --query id -o tsv)
-WORKSPACE_GUID=$(az monitor log-analytics workspace show -g "$RG" -n "$LAW" --query customerId -o tsv)
-az monitor diagnostic-settings subscription create -n "$SUB_DIAG" -l "$LOC" \
-  --workspace "$LAW_ID" --logs '[{"category":"Administrative","enabled":true}]' -o none
-az monitor diagnostic-settings create -n "$AML_DIAG" --resource "$AML_ID" --workspace "$LAW_ID" \
-  --export-to-resource-specific true --logs '[{"category":"AmlRunStatusChangedEvent","enabled":true}]' -o none
-```
-<!-- END GENERATED: setup-commands -->
-
-第一次运行时建表，之后再运行会更新这张表。`-a` 需要在订阅范围和 AML 工作区上创建诊断设置的权限。检查结果：
-
-```bash
-az monitor log-analytics workspace table show -g rg-gpu-hours --workspace-name law-gpu-hours -n GpuMetrics_CL \
-  --query "{plan: plan, retention: retentionInDays, columns: length(schema.columns)}" -o json
-DCR_NAME=${DCR_ID##*/}
-az monitor data-collection rule show -g "$WORKSPACE_RG" -n "$DCR_NAME" \
-  --query "{kind: kind, files: dataSources.logFiles[0].filePatterns, stream: dataFlows[0].outputStream}" -o json
-```
-
-期望结果：
-- 表有 24 列，保留天数与设置一致；
-- 规则的 kind 为 `Linux`，读取 `/var/log/gpumon/*.json`，输出到 `Custom-GpuMetrics_CL`。
-
-**`scripts/onboard-vm.sh`**（每台 VM 运行一次）：
-
-```bash
-./scripts/onboard-vm.sh -g <vm-rg> -n <vm-name> -d "$DCR_ID" -e "$DCE_ID"
-```
-
-脚本做三件事：
-1. 开启 VM 的系统分配托管身份，安装 Azure Monitor Agent；
-2. 把规则关联到这台 VM。VM 没有 DCE 关联时，再关联本次部署的终结点；已有其他 DCE 占用 `configurationAccessEndpoint` 时，脚本停止，不会改写其他监控配置；
-3. 经 Run Command 运行 [`vm/install_collector.sh`](vm/install_collector.sh)，启用 `nvidia-dcgm`，并把 `gpumon` 装成 systemd 服务。
-
-<!-- BEGIN GENERATED: onboard-commands -->
-```bash
-az extension add --upgrade --yes --name monitor-control-service -o none
-VM_ID=$(az vm show -g "$RG" -n "$VM" --query id -o tsv)
-az vm identity assign -g "$RG" -n "$VM" -o none
-az vm extension set -g "$RG" --vm-name "$VM" -n AzureMonitorLinuxAgent --publisher Microsoft.Azure.Monitor \
-  --enable-auto-upgrade true -o none
-az monitor data-collection rule association create --name "$DCR_ASSOC" --resource "$VM_ID" --rule-id "$DCR_ID" -o none
-EXISTING_DCE=$(az monitor data-collection rule association show --name configurationAccessEndpoint --resource "$VM_ID" \
-  --query dataCollectionEndpointId -o tsv 2>/dev/null || true)
-az monitor data-collection rule association create --name configurationAccessEndpoint --resource "$VM_ID" \
-  --endpoint-id "$DCE_ID" -o none
-RUN_OUTPUT=$(az vm run-command invoke -g "$RG" -n "$VM" --command-id RunShellScript --scripts "@$SCRIPT" \
-  --query "value[0].message" -o tsv)
-```
-<!-- END GENERATED: onboard-commands -->
-
-Run Command 输出的最后是 `systemctl status gpumon`，必须看到 `active (running)` 和上面那条 `dcgmi dmon` 命令。
-
-也可以不逐台运行脚本，改用两条 Azure Policy 内置策略安装代理并关联规则：
-- *Configure Linux virtual machines to run Azure Monitor Agent with system-assigned managed identity-based authentication*；
-- *Configure Linux Machines to be associated with a Data Collection Rule or a Data Collection Endpoint*。
-
-这时把 `vm/install_collector.sh` 加进 VM 镜像的构建步骤。
-
-**在命令行里查询。** `log-analytics` CLI 扩展只有预览版：
-
-```bash
-az extension add --upgrade --yes --name log-analytics
-az monitor log-analytics query -w "$WORKSPACE_GUID" -t PT30M -o table --analytics-query \
-  "union (Heartbeat | summarize Rows = count(), Last = max(TimeGenerated) by Table = 'Heartbeat', Computer), (GpuMetrics_CL | summarize Rows = count(), Last = max(TimeGenerated) by Table = 'GpuMetrics_CL', Computer)"
-```
-
-**`scripts/offboard-vm.sh`**（每台 VM 运行一次）：
-
-<!-- BEGIN GENERATED: offboard-commands -->
-```bash
-az extension add --upgrade --yes --name monitor-control-service -o none
-VM_ID=$(az vm show -g "$RG" -n "$VM" --query id -o tsv)
-RUN_OUTPUT=$(az vm run-command invoke -g "$RG" -n "$VM" --command-id RunShellScript --query "value[0].message" -o tsv --scripts \
-  "set -eu; systemctl disable --now gpumon 2>/dev/null || [ ! -e /etc/systemd/system/gpumon.service ]; rm -rf /opt/gpumon /var/log/gpumon /etc/systemd/system/gpumon.service; systemctl daemon-reload; [ ! -e /etc/systemd/system/gpumon.service ]; echo gpumon removed")
-ASSOCIATION_NAMES=$(az monitor data-collection rule association list --resource "$VM_ID" --query "[].name" -o tsv)
-az monitor data-collection rule association delete --name "$DCR_ASSOC" --resource "$VM_ID" --yes -o none
-EXISTING_DCE=$(az monitor data-collection rule association list --resource "$VM_ID" \
-  --query "[?name=='configurationAccessEndpoint'].dataCollectionEndpointId | [0]" -o tsv)
-OTHER_DCRS=$(az monitor data-collection rule association list --resource "$VM_ID" \
-  --query "[?dataCollectionRuleId != null && name != '$DCR_ASSOC'].name" -o tsv)
-az monitor data-collection rule association delete --name configurationAccessEndpoint --resource "$VM_ID" --yes -o none
-```
-<!-- END GENERATED: offboard-commands -->
-
-## 从客户平台查询
-
-[`kql/`](kql/) 下每个文件都是一条完整的查询。统计时段由查询的 timespan 指定，不写进 KQL。文件开头的 `let` 行是可以修改的默认值：
-- `IdlePct`：占用判定阈值，默认 5；
-- `TzOffset`：按小时、按天统计用的 UTC 偏移，默认 `8h`；
-- `Computers`：只统计这些 VM，留空表示全部。
-
-三个 AML 查询要求每个 GPU 进程都带有作业 ID，做法见[配置的第 6 步](#在-azure-上配置)。`per_job`、`per_submitter` 和 `live` 的 timespan 必须同时覆盖作业提交事件和 GPU 数据。`live` 为每张卡上出现过的每个作业（`RunId`）保留最后一行，所以一张卡在时段内跑过多个作业时会返回多行；要看新鲜度就用短时段，要补全提交人则使用能覆盖提交时刻的较宽时段。
-
-<!-- BEGIN GENERATED: views -->
-- [`kql/summary.kql`](kql/summary.kql)，所选 VM 合计：`AllocatedGpuHours`、`ObservedGpuHours`、`BusyGpuHours`、`EffectiveGpuHours`、`IdleGpuHours`、`UnknownGpuHours`、`Vms`、`Gpus`、`TelemetryCoveragePct`、`UtilizationPct`
-- [`kql/per_vm.kql`](kql/per_vm.kql)，每台 VM 一行：`Computer`、`VmSize`、`GpuName`、`Gpus`、`RunningHours`、`AllocatedGpuHours`、`ObservedGpuHours`、`BusyGpuHours`、`EffectiveGpuHours`、`IdleGpuHours`、`UnknownGpuHours`、`TelemetryCoveragePct`、`UtilizationPct`
-- [`kql/per_hour.kql`](kql/per_hour.kql)，每个本地小时一行：`Hour`、`AllocatedGpuHours`、`ObservedGpuHours`、`BusyGpuHours`、`EffectiveGpuHours`、`IdleGpuHours`、`UnknownGpuHours`、`TelemetryCoveragePct`、`UtilizationPct`
-- [`kql/per_day.kql`](kql/per_day.kql)，每个本地日一行：`Day`、`AllocatedGpuHours`、`ObservedGpuHours`、`BusyGpuHours`、`EffectiveGpuHours`、`IdleGpuHours`、`UnknownGpuHours`、`TelemetryCoveragePct`、`UtilizationPct`
-- [`kql/per_user.kql`](kql/per_user.kql)，每个进程属主、每台 VM 一行：`User`、`Computer`、`BusyGpuHours`、`EffectiveGpuHours`、`AvgSmActivePct`、`PeakMemoryGiB`、`Processes`
-- [`kql/per_job.kql`](kql/per_job.kql)，每个 AML 作业一行：`RunId`、`Submitter`、`SubmitterObjectId`、`Status`、`Vms`、`Gpus`、`StartTime`、`EndTime`、`BusyGpuHours`、`EffectiveGpuHours`、`PeakMemoryGiB`
-- [`kql/per_submitter.kql`](kql/per_submitter.kql)，每个 Entra 提交人一行：`Submitter`、`SubmitterObjectId`、`Jobs`、`BusyGpuHours`、`EffectiveGpuHours`
-- [`kql/live.kql`](kql/live.kql)，查询时段内，每张卡上每个作业的最后一行：`Computer`、`GpuId`、`RunId`、`Submitter`、`SubmitterObjectId`、`Status`、`LastSeen`、`AgeSeconds`、`GpuUtil`、`SmActive`、`FbUsedMiB`、`ProcCount`、`Processes`
-<!-- END GENERATED: views -->
-
-**命令行。** `@` 前缀让 Azure CLI 从文件读取查询。`-t` 接受 ISO 8601 时长（如 `P1D`）或时间区间 `<开始>/<结束>`。它会把所有值都返回成字符串，并多出一列 `TableName`。
-
-```bash
-az monitor log-analytics query -w "$WORKSPACE_GUID" --analytics-query @kql/per_vm.kql -t P1D -o table
-```
-
-**客户平台怎样登录。** 平台以 Entra ID 身份登录，只拿到工作区上的 `Log Analytics Reader`（只读），不碰 VM 和 AML。二选一：
+**9. 给客户平台创建登录身份。** 平台以 Entra ID 身份登录，只拿到工作区上的 `Log Analytics Reader`（只读），不碰 VM 和 AML。二选一：
 
 | 平台运行在 | 身份 | 怎么做 |
 |---|---|---|
@@ -513,58 +372,9 @@ grant_type=client_credentials&client_id=<AZURE_CLIENT_ID>&client_secret=<AZURE_C
 | 4 | Entra ID 拒绝登录：租户 ID、客户端 ID 或密钥不对，或密钥已过期 | 核对 `gpu-hours.query.env`；过期时用 `-r` 生成新密钥 |
 | 5 | 登录成功，但查询被拒：还没有 `Log Analytics Reader`、工作区 GUID 不对，或 KQL 有错 | 新授予的角色最多 5 分钟生效；检查 `WORKSPACE_GUID` |
 
-实测见 [auth-1](#auth-1客户平台以应用注册登录并查询)。
+实测见 [auth-1](#auth-1客户平台以应用注册登录并查询)。调用查询 API 的写法见[从客户平台查询](#从客户平台查询)。
 
-**客户 API：REST。** 把文件内容作为 `query`，统计时段作为 `timespan`，请求发送到当前的 `api.loganalytics.azure.com` 主机，并携带资源为 `https://api.loganalytics.io` 的 Bearer 访问令牌。响应是带类型的 JSON：列定义在 `tables[0].columns`，数据行在 `tables[0].rows`。
-
-```http
-POST https://api.loganalytics.azure.com/v1/workspaces/<workspace-guid>/query
-Authorization: Bearer <access-token>
-Content-Type: application/json
-
-{"query": "<content of kql/per_vm.kql>", "timespan": "<start>/<end>"}
-```
-
-**客户 API：Python SDK。** [`examples/gpu_hours_client.py`](examples/gpu_hours_client.py) 封装了 `azure-monitor-query`：
-- 加 `--credentials gpu-hours.query.env` 时，用文件里的应用注册经 `ClientSecretCredential` 登录，工作区 GUID 也从文件读取；
-- 不加时用 `DefaultAzureCredential`：依次尝试 `AZURE_TENANT_ID` / `AZURE_CLIENT_ID` / `AZURE_CLIENT_SECRET` 环境变量、托管身份和 Azure CLI 登录；
-- 它会改写 `let` 默认值；某个查询里对应的 `let` 行不是恰好一行时直接报错。
-
-```bash
-pip install -r examples/requirements.txt
-END=$(date -u +%FT%TZ); START=$(date -u -d '-1 day' +%FT%TZ)
-python examples/gpu_hours_client.py --credentials gpu-hours.query.env --view per_user --start "$START" --end "$END"
-python examples/gpu_hours_client.py --workspace "$WORKSPACE_GUID" --view per_job --start "$START" --end "$END"
-```
-
-下面实测中的同一次调用返回：
-
-<!-- BEGIN GENERATED: per-user-json -->
-```json
-[
- {
-  "User": "user-1",
-  "Computer": "gpu-vm-1",
-  "BusyGpuHours": 0.0417,
-  "EffectiveGpuHours": 0.0362,
-  "AvgSmActivePct": 87.55,
-  "PeakMemoryGiB": 41.9707,
-  "Processes": "python3"
- },
- {
-  "User": "user-2",
-  "Computer": "gpu-vm-1",
-  "BusyGpuHours": 0.0417,
-  "EffectiveGpuHours": 0.038,
-  "AvgSmActivePct": 90.24,
-  "PeakMemoryGiB": 41.9707,
-  "Processes": "python3"
- }
-]
-```
-<!-- END GENERATED: per-user-json -->
-
-**按 AML 作业查询：消耗了多少资源、是谁提交的。** 下面是 [jobs-1](#jobs-1aml-作业与提交人同一个-linux-用户) 实测中同一个参考客户端返回的 `per_job` 和 `per_submitter`。作业名、提交人、对象 ID 已替换为 `job-N`、`submitter-1`、`object-id-1`；真实环境里 `RunId` 是 AML 作业名，`Submitter` 是提交人的 Entra 账号（UPN），`SubmitterObjectId` 是其对象 ID：
+**10. 按 AML 作业查看消耗和提交人。** 下面是 [jobs-1](#jobs-1aml-作业与提交人同一个-linux-用户) 实测中同一个参考客户端返回的 `per_job` 和 `per_submitter`。作业名、提交人、对象 ID 已替换为 `job-N`、`submitter-1`、`object-id-1`；真实环境里 `RunId` 是 AML 作业名，`Submitter` 是提交人的 Entra 账号（UPN），`SubmitterObjectId` 是其对象 ID：
 
 ```bash
 python examples/gpu_hours_client.py --credentials gpu-hours.query.env --view per_job       --start "$START" --end "$END"
@@ -635,6 +445,231 @@ python examples/gpu_hours_client.py --credentials gpu-hours.query.env --view per
 - 同一张卡同一分钟有两个作业时，各记一半，所以三个作业之和（0.150）等于这个 Linux 用户的占用卡时；
 - 只查某个作业：在返回结果里按 `RunId` 过滤，或在 KQL 末尾加 `| where RunId == '<作业名>'`。
 
+**11. 日常运维。**
+- **增加 VM**：规模集扩容，或在 `VM_NAMES` 里加上新 VM，然后重跑第 5 步。已接入的 VM 会原地刷新。
+- **升级采集器**：更新本仓库后重跑第 5 步。安装脚本会替换 `/opt/gpumon/gpu_collector.py` 并重启 `gpumon`。
+- **下线一台 VM**：先读取本次部署的 ID，再只删除它的采集器和关联。共享的 Azure Monitor Agent、NVIDIA 驱动、DCGM 和托管身份都会保留：
+
+  ```bash
+  source gpu-hours.outputs.env
+  ./scripts/offboard-vm.sh -g "$VM_RG" -n "$VM_NAME" -d "$DCR_ID" -e "$DCE_ID"
+  ```
+- **删除监控工作区**：先对每台 VM 执行下线，再运行安全删除脚本。默认只打印计划；它只删除本方案的工作区、DCR、DCE 和可选的诊断设置，永远不会删除资源组：
+
+```bash
+./scripts/remove-workspace.sh -g "$WORKSPACE_RG" -w "$WORKSPACE_NAME" -a "$AML_WORKSPACE_ID"      # 只预览
+./scripts/remove-workspace.sh -g "$WORKSPACE_RG" -w "$WORKSPACE_NAME" -a "$AML_WORKSPACE_ID" -y   # 删除
+```
+
+只有单独确认该资源组专用于本方案、其中没有其他资源时，才另行删除整个资源组。
+
+**12. 排错。**
+
+| 现象 | 常见原因 | 处理 |
+|---|---|---|
+| 第 5 步报 `AuthorizationFailed` | 缺资源组 Contributor，或缺订阅级诊断设置权限 | 补齐权限；或先把 `AML_WORKSPACE_ID` 留空 |
+| 授予 Log Analytics Reader 失败 | 执行人不是 Owner 或 User Access Administrator | `READER_OBJECT_ID` 留空，之后由管理员按第 9 步授权 |
+| 某台 `onboard` 失败（退出码 2） | Run Command 冲突，或 VM 代理异常 | 查看 `onboard.<vm>.log`，稍后重跑同一条命令 |
+| 退出码 3，某台一直没有数据 | 代理还没启动，或出站网络被拦截 | 按第 6 步查询；查看代理状态（下方命令）；确认 NSG 放行 `AzureMonitor` |
+| `query-gpu-hours.sh` 退出码 4 | 密钥错误或过期，或租户 / 客户端 ID 不对 | 核对 `gpu-hours.query.env`；`create-query-identity.sh -r` 生成新密钥 |
+| `query-gpu-hours.sh` 退出码 5 | 身份没有 Log Analytics Reader，或工作区 GUID 不对 | 新授予的角色最多 5 分钟生效；重跑 `create-query-identity.sh` |
+| `per_job` 里没有某个作业 | GPU 进程没有 `AZUREML_RUN_ID` | 用第 7 步的检查命令确认，然后修改启动脚本 |
+| `per_job` 的 `Submitter` 为空 | 活动日志晚到 | 等 10 分钟；查询时段要覆盖作业的提交时刻 |
+
+```bash
+# 某台 VM 的代理和采集服务状态（只读）
+az vm extension show -g "$VM_RG" --vm-name "$VM_NAME" -n AzureMonitorLinuxAgent --query provisioningState -o tsv
+az vm run-command invoke -g "$VM_RG" -n "$VM_NAME" --command-id RunShellScript \
+  --scripts "systemctl is-active gpumon nvidia-dcgm; ls -l /var/log/gpumon | tail -3" --query "value[0].message" -o tsv
+```
+
+### 这条命令实际执行了什么
+
+每个分步脚本也可以单独运行，例如由 Azure Policy 或你自己的自动化流程调用。
+
+**`scripts/setup-workspace.sh`**（每个工作区运行一次）：
+
+```bash
+./scripts/setup-workspace.sh -g rg-gpu-hours -l <region> [-r <天数>] [-a <AML 工作区资源 ID>]
+```
+
+脚本最后打印 `WORKSPACE_GUID`、`DCR_ID` 和 `DCE_ID`。脚本包含以下 Azure CLI 命令；建表与更新表按表是否存在二选一，诊断设置仅在提供 `-a` 时创建：
+
+<!-- BEGIN GENERATED: setup-commands -->
+```bash
+az extension add --upgrade --yes --name monitor-control-service -o none
+az group create -n "$RG" -l "$LOC" -o none
+az monitor log-analytics workspace create -g "$RG" -n "$LAW" -l "$LOC" --retention-time "$RETENTION" -o none
+az monitor log-analytics workspace table show -g "$RG" --workspace-name "$LAW" -n GpuMetrics_CL -o none 2>/dev/null
+az monitor log-analytics workspace table update -g "$RG" --workspace-name "$LAW" -n GpuMetrics_CL \
+  --retention-time "$RETENTION" --columns "${COLUMNS[@]}" -o none
+az monitor log-analytics workspace table create -g "$RG" --workspace-name "$LAW" -n GpuMetrics_CL \
+  --retention-time "$RETENTION" --columns "${COLUMNS[@]}" -o none
+LAW_ID=$(az monitor log-analytics workspace show -g "$RG" -n "$LAW" --query id -o tsv)
+az monitor data-collection endpoint create -g "$RG" -n "$DCE" -l "$LOC" --public-network-access Enabled -o none
+DCE_ID=$(az monitor data-collection endpoint show -g "$RG" -n "$DCE" --query id -o tsv)
+az monitor data-collection rule create -g "$RG" -n "$DCR" -l "$LOC" --kind Linux \
+  --endpoint-id "$DCE_ID" --rule-file "$RULE_FILE" -o none
+DCR_ID=$(az monitor data-collection rule show -g "$RG" -n "$DCR" --query id -o tsv)
+WORKSPACE_GUID=$(az monitor log-analytics workspace show -g "$RG" -n "$LAW" --query customerId -o tsv)
+az monitor diagnostic-settings subscription create -n "$SUB_DIAG" -l "$LOC" \
+  --workspace "$LAW_ID" --logs '[{"category":"Administrative","enabled":true}]' -o none
+az monitor diagnostic-settings create -n "$AML_DIAG" --resource "$AML_ID" --workspace "$LAW_ID" \
+  --export-to-resource-specific true --logs '[{"category":"AmlRunStatusChangedEvent","enabled":true}]' -o none
+```
+<!-- END GENERATED: setup-commands -->
+
+第一次运行时建表，之后再运行会更新这张表。`-a` 需要在订阅范围和 AML 工作区上创建诊断设置的权限。检查结果：
+
+```bash
+az monitor log-analytics workspace table show -g "$WORKSPACE_RG" --workspace-name "$WORKSPACE_NAME" -n GpuMetrics_CL \
+  --query "{plan: plan, retention: retentionInDays, columns: length(schema.columns)}" -o json
+DCR_NAME=${DCR_ID##*/}
+az monitor data-collection rule show -g "$WORKSPACE_RG" -n "$DCR_NAME" \
+  --query "{kind: kind, files: dataSources.logFiles[0].filePatterns, stream: dataFlows[0].outputStream}" -o json
+```
+
+期望结果：
+- 表有 24 列，保留天数与设置一致；
+- 规则的 kind 为 `Linux`，读取 `/var/log/gpumon/*.json`，输出到 `Custom-GpuMetrics_CL`。
+
+**`scripts/onboard-vm.sh`**（每台 VM 运行一次）：
+
+```bash
+./scripts/onboard-vm.sh -g "$VM_RG" -n "$VM_NAME" -d "$DCR_ID" -e "$DCE_ID"
+```
+
+脚本做三件事：
+1. 开启 VM 的系统分配托管身份，安装 Azure Monitor Agent；
+2. 把规则关联到这台 VM。VM 没有 DCE 关联时，再关联本次部署的终结点；已有其他 DCE 占用 `configurationAccessEndpoint` 时，脚本停止，不会改写其他监控配置；
+3. 经 Run Command 运行 [`vm/install_collector.sh`](vm/install_collector.sh)，启用 `nvidia-dcgm`，并把 `gpumon` 装成 systemd 服务。
+
+<!-- BEGIN GENERATED: onboard-commands -->
+```bash
+az extension add --upgrade --yes --name monitor-control-service -o none
+VM_ID=$(az vm show -g "$RG" -n "$VM" --query id -o tsv)
+az vm identity assign -g "$RG" -n "$VM" -o none
+az vm extension set -g "$RG" --vm-name "$VM" -n AzureMonitorLinuxAgent --publisher Microsoft.Azure.Monitor \
+  --enable-auto-upgrade true -o none
+az monitor data-collection rule association create --name "$DCR_ASSOC" --resource "$VM_ID" --rule-id "$DCR_ID" -o none
+EXISTING_DCE=$(az monitor data-collection rule association show --name configurationAccessEndpoint --resource "$VM_ID" \
+  --query dataCollectionEndpointId -o tsv 2>/dev/null || true)
+az monitor data-collection rule association create --name configurationAccessEndpoint --resource "$VM_ID" \
+  --endpoint-id "$DCE_ID" -o none
+RUN_OUTPUT=$(az vm run-command invoke -g "$RG" -n "$VM" --command-id RunShellScript --scripts "@$SCRIPT" \
+  --query "value[0].message" -o tsv)
+```
+<!-- END GENERATED: onboard-commands -->
+
+Run Command 输出的最后是 `systemctl status gpumon`，必须看到 `active (running)` 和上面那条 `dcgmi dmon` 命令。
+
+也可以不逐台运行脚本，改用两条 Azure Policy 内置策略安装代理并关联规则：
+- *Configure Linux virtual machines to run Azure Monitor Agent with system-assigned managed identity-based authentication*；
+- *Configure Linux Machines to be associated with a Data Collection Rule or a Data Collection Endpoint*。
+
+这时把 `vm/install_collector.sh` 加进 VM 镜像的构建步骤。
+
+**在命令行里查询。** `log-analytics` CLI 扩展只有预览版：
+
+```bash
+az extension add --upgrade --yes --name log-analytics
+az monitor log-analytics query -w "$WORKSPACE_GUID" -t PT30M -o table --analytics-query \
+  "union (Heartbeat | summarize Rows = count(), Last = max(TimeGenerated) by Table = 'Heartbeat', Computer), (GpuMetrics_CL | summarize Rows = count(), Last = max(TimeGenerated) by Table = 'GpuMetrics_CL', Computer)"
+```
+
+**`scripts/offboard-vm.sh`**（每台 VM 运行一次）：
+
+<!-- BEGIN GENERATED: offboard-commands -->
+```bash
+az extension add --upgrade --yes --name monitor-control-service -o none
+VM_ID=$(az vm show -g "$RG" -n "$VM" --query id -o tsv)
+RUN_OUTPUT=$(az vm run-command invoke -g "$RG" -n "$VM" --command-id RunShellScript --query "value[0].message" -o tsv --scripts \
+  "set -eu; systemctl disable --now gpumon 2>/dev/null || [ ! -e /etc/systemd/system/gpumon.service ]; rm -rf /opt/gpumon /var/log/gpumon /etc/systemd/system/gpumon.service; systemctl daemon-reload; [ ! -e /etc/systemd/system/gpumon.service ]; echo gpumon removed")
+ASSOCIATION_NAMES=$(az monitor data-collection rule association list --resource "$VM_ID" --query "[].name" -o tsv)
+az monitor data-collection rule association delete --name "$DCR_ASSOC" --resource "$VM_ID" --yes -o none
+EXISTING_DCE=$(az monitor data-collection rule association list --resource "$VM_ID" \
+  --query "[?name=='configurationAccessEndpoint'].dataCollectionEndpointId | [0]" -o tsv)
+OTHER_DCRS=$(az monitor data-collection rule association list --resource "$VM_ID" \
+  --query "[?dataCollectionRuleId != null && name != '$DCR_ASSOC'].name" -o tsv)
+az monitor data-collection rule association delete --name configurationAccessEndpoint --resource "$VM_ID" --yes -o none
+```
+<!-- END GENERATED: offboard-commands -->
+
+## 从客户平台查询
+
+[`kql/`](kql/) 下每个文件都是一条完整的查询。统计时段由查询的 timespan 指定，不写进 KQL。文件开头的 `let` 行是可以修改的默认值：
+- `IdlePct`：占用判定阈值，默认 5；
+- `TzOffset`：按小时、按天统计用的 UTC 偏移，默认 `8h`；
+- `Computers`：只统计这些 VM，留空表示全部。
+
+三个 AML 查询要求每个 GPU 进程都带有作业 ID，做法见[配置的第 7 步](#在-azure-上配置)；平台登录见第 9 步，按作业查询的实测返回见第 10 步。`per_job`、`per_submitter` 和 `live` 的 timespan 必须同时覆盖作业提交事件和 GPU 数据。`live` 为每张卡上出现过的每个作业（`RunId`）保留最后一行，所以一张卡在时段内跑过多个作业时会返回多行；要看新鲜度就用短时段，要补全提交人则使用能覆盖提交时刻的较宽时段。
+
+<!-- BEGIN GENERATED: views -->
+- [`kql/summary.kql`](kql/summary.kql)，所选 VM 合计：`AllocatedGpuHours`、`ObservedGpuHours`、`BusyGpuHours`、`EffectiveGpuHours`、`IdleGpuHours`、`UnknownGpuHours`、`Vms`、`Gpus`、`TelemetryCoveragePct`、`UtilizationPct`
+- [`kql/per_vm.kql`](kql/per_vm.kql)，每台 VM 一行：`Computer`、`VmSize`、`GpuName`、`Gpus`、`RunningHours`、`AllocatedGpuHours`、`ObservedGpuHours`、`BusyGpuHours`、`EffectiveGpuHours`、`IdleGpuHours`、`UnknownGpuHours`、`TelemetryCoveragePct`、`UtilizationPct`
+- [`kql/per_hour.kql`](kql/per_hour.kql)，每个本地小时一行：`Hour`、`AllocatedGpuHours`、`ObservedGpuHours`、`BusyGpuHours`、`EffectiveGpuHours`、`IdleGpuHours`、`UnknownGpuHours`、`TelemetryCoveragePct`、`UtilizationPct`
+- [`kql/per_day.kql`](kql/per_day.kql)，每个本地日一行：`Day`、`AllocatedGpuHours`、`ObservedGpuHours`、`BusyGpuHours`、`EffectiveGpuHours`、`IdleGpuHours`、`UnknownGpuHours`、`TelemetryCoveragePct`、`UtilizationPct`
+- [`kql/per_user.kql`](kql/per_user.kql)，每个进程属主、每台 VM 一行：`User`、`Computer`、`BusyGpuHours`、`EffectiveGpuHours`、`AvgSmActivePct`、`PeakMemoryGiB`、`Processes`
+- [`kql/per_job.kql`](kql/per_job.kql)，每个 AML 作业一行：`RunId`、`Submitter`、`SubmitterObjectId`、`Status`、`Vms`、`Gpus`、`StartTime`、`EndTime`、`BusyGpuHours`、`EffectiveGpuHours`、`PeakMemoryGiB`
+- [`kql/per_submitter.kql`](kql/per_submitter.kql)，每个 Entra 提交人一行：`Submitter`、`SubmitterObjectId`、`Jobs`、`BusyGpuHours`、`EffectiveGpuHours`
+- [`kql/live.kql`](kql/live.kql)，查询时段内，每张卡上每个作业的最后一行：`Computer`、`GpuId`、`RunId`、`Submitter`、`SubmitterObjectId`、`Status`、`LastSeen`、`AgeSeconds`、`GpuUtil`、`SmActive`、`FbUsedMiB`、`ProcCount`、`Processes`
+<!-- END GENERATED: views -->
+
+**命令行。** `@` 前缀让 Azure CLI 从文件读取查询。`-t` 接受 ISO 8601 时长（如 `P1D`）或时间区间 `<开始>/<结束>`。它会把所有值都返回成字符串，并多出一列 `TableName`。
+
+```bash
+az monitor log-analytics query -w "$WORKSPACE_GUID" --analytics-query @kql/per_vm.kql -t P1D -o table
+```
+
+**客户 API：REST。** 把文件内容作为 `query`，统计时段作为 `timespan`，请求发送到当前的 `api.loganalytics.azure.com` 主机，并携带资源为 `https://api.loganalytics.io` 的 Bearer 访问令牌。响应是带类型的 JSON：列定义在 `tables[0].columns`，数据行在 `tables[0].rows`。
+
+```http
+POST https://api.loganalytics.azure.com/v1/workspaces/<WORKSPACE_GUID>/query
+Authorization: Bearer <access-token>
+Content-Type: application/json
+
+{"query": "<content of kql/per_vm.kql>", "timespan": "<start>/<end>"}
+```
+
+**客户 API：Python SDK。** [`examples/gpu_hours_client.py`](examples/gpu_hours_client.py) 封装了 `azure-monitor-query`：
+- 加 `--credentials gpu-hours.query.env` 时，用文件里的应用注册经 `ClientSecretCredential` 登录，工作区 GUID 也从文件读取；
+- 不加时用 `DefaultAzureCredential`：依次尝试 `AZURE_TENANT_ID` / `AZURE_CLIENT_ID` / `AZURE_CLIENT_SECRET` 环境变量、托管身份和 Azure CLI 登录；
+- 它会改写 `let` 默认值；某个查询里对应的 `let` 行不是恰好一行时直接报错。
+
+```bash
+pip install -r examples/requirements.txt
+END=$(date -u +%FT%TZ); START=$(date -u -d '-1 day' +%FT%TZ)
+python examples/gpu_hours_client.py --credentials gpu-hours.query.env --view per_user --start "$START" --end "$END"
+python examples/gpu_hours_client.py --workspace "$WORKSPACE_GUID" --view per_job --start "$START" --end "$END"
+```
+
+下面实测中的同一次调用返回：
+
+<!-- BEGIN GENERATED: per-user-json -->
+```json
+[
+ {
+  "User": "user-1",
+  "Computer": "gpu-vm-1",
+  "BusyGpuHours": 0.0417,
+  "EffectiveGpuHours": 0.0362,
+  "AvgSmActivePct": 87.55,
+  "PeakMemoryGiB": 41.9707,
+  "Processes": "python3"
+ },
+ {
+  "User": "user-2",
+  "Computer": "gpu-vm-1",
+  "BusyGpuHours": 0.0417,
+  "EffectiveGpuHours": 0.038,
+  "AvgSmActivePct": 90.24,
+  "PeakMemoryGiB": 41.9707,
+  "Processes": "python3"
+ }
+]
+```
+<!-- END GENERATED: per-user-json -->
+
 **客户平台调用的接口。** 客户平台和数据之间没有任何自建服务：
 - API：上面的 Log Analytics 查询 API，每个查询发一次 `POST`，`query` 填 KQL 文件内容，`timespan` 填统计时段；
 - 库：Python 用 `azure-identity` 和 `azure-monitor-query`（[`examples/requirements.txt`](examples/requirements.txt)）；Azure Monitor Query 客户端库也有 .NET、Java、JavaScript 和 Go 版本；
@@ -653,7 +688,7 @@ from azure.monitor.query import LogsQueryClient
 credential = ClientSecretCredential("<AZURE_TENANT_ID>", "<AZURE_CLIENT_ID>", "<AZURE_CLIENT_SECRET>")
 client = LogsQueryClient(credential)
 end = datetime.now(timezone.utc)
-result = client.query_workspace("<workspace-guid>", Path("kql/per_job.kql").read_text(encoding="utf-8"),
+result = client.query_workspace("<WORKSPACE_GUID>", Path("kql/per_job.kql").read_text(encoding="utf-8"),
                                 timespan=(end - timedelta(days=1), end))
 jobs = [dict(zip(result.tables[0].columns, row)) for row in result.tables[0].rows]
 ```
@@ -661,8 +696,8 @@ jobs = [dict(zip(result.tables[0].columns, row)) for row in result.tables[0].row
 给已有身份（例如托管身份）手动授予工作区读权限：
 
 ```bash
-az role assignment create --assignee <principal-id> --role "Log Analytics Reader" \
-  --scope "$(az monitor log-analytics workspace show -g rg-gpu-hours -n law-gpu-hours --query id -o tsv)"
+source gpu-hours.outputs.env
+az role assignment create --assignee "$READER_OBJECT_ID" --role "Log Analytics Reader" --scope "$WORKSPACE_RESOURCE_ID"
 ```
 
 用 `per_day` 统计完整的本地自然日时，timespan 的起止要设在本地零点，并换算成 UTC。分配卡时来自代理上报的 `Heartbeat`，不是账单；对账请用 Cost Management。
@@ -831,7 +866,7 @@ WAIT_MINUTES=25
   - 多台 VM 并行接入；
   - 退出码 1、2、3。
 - `AML_WORKSPACE_ID` 为空，所以这次没有再次创建两个诊断设置；下面的 `jobs-1` 已通过 `setup-workspace.sh -a` 实测过它们。
-- 第 7 步的等待包含代理的启动时间：采集器从接入起就在写数据，但只有代理开始读取这些文件之后，数据才会进入工作区，与 `validation-1` 的现象相同。
+- 第 5 步命令内的等待包含代理的启动时间：采集器从接入起就在写数据，但只有代理开始读取这些文件之后，数据才会进入工作区，与 `validation-1` 的现象相同。
 
 ### jobs-1：AML 作业与提交人，同一个 Linux 用户
 
@@ -968,7 +1003,7 @@ python tools/check_repo.py
 CI 在 Ubuntu 和 Windows 上、分别用 Python 3.10 和 3.12 执行同样的命令（[workflow](../../.github/workflows/azure-gpu-hours-monitoring-ci.yml)）。
 
 需要连接 Azure 的实时检查有三项：
-- `./scripts/configure.sh -c gpu-hours.env -v`：等待配置文件里每台 VM 的数据，不做任何修改；以及[在 Azure 上配置](#在-azure-上配置)第 7 步的查询；
+- `./scripts/configure.sh -c gpu-hours.env -v`：等待配置文件里每台 VM 的数据，不做任何修改；以及[在 Azure 上配置](#在-azure-上配置)第 6 步的查询；
 - 参考客户端；
 - 负载测试（需要 GPU VM 和 PyTorch）：`./tests/load/run-load.sh -g <vm-rg> -n <vm-name> -u <user>`，测完用 `-x` 删除测试用户。
 

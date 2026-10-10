@@ -83,6 +83,29 @@ class ReadmeTests(unittest.TestCase):
                 with self.subTest(lang=lang, exit_code=code):
                     self.assertTrue(re.search(rf"\n\| {code} \|", section), f"exit code {code} is not documented")
 
+    def test_customer_path_is_ordered_and_uses_variables(self):
+        steps = {"en": ["0. Set the session variables.", "1. Check the prerequisites.", "2. Download.",
+                        "3. Fill in the settings file.", "4. Run the preflight.", "5. Configure.", "6. Check the data.",
+                        "7. AML jobs:", "8. Deploy the Azure Monitor workbook.",
+                        "9. Create the sign-in identity for your platform.",
+                        "10. See what each AML job used and who submitted it.", "11. Operate.", "12. Troubleshoot."],
+                 "cn": ["0. 设定本次会话的变量。", "1. 检查前提条件。", "2. 下载。", "3. 填写配置文件。", "4. 预检。",
+                        "5. 一键配置。", "6. 核对数据。", "7. AML 作业：", "8. 部署 Azure Monitor 报表。",
+                        "9. 给客户平台创建登录身份。", "10. 按 AML 作业查看消耗和提交人。", "11. 日常运维。", "12. 排错。"]}
+        heading = {"en": ("## Configure on Azure", "### What the command runs"), "cn": ("## 在 Azure 上配置", "### 这条命令实际执行了什么")}
+        for lang, path in build_readme.READMES.items():
+            start, end = heading[lang]
+            section = path.read_text(encoding="utf-8").split(start, 1)[1].split(end, 1)[0]
+            found = re.findall(r"^\*\*(\d+\. [^*]+)\*\*", section, re.M)
+            self.assertEqual(len(found), len(steps[lang]), (lang, found))
+            for got, want in zip(found, steps[lang]):
+                self.assertTrue(got.startswith(want), (lang, got, want))
+            commands = "\n".join(re.findall(r"```bash\n(.*?)```", section, re.S))
+            for placeholder in ("<vm-rg>", "<vm-name>", "<workspace-guid>", "<principal-id>", "-g rg-gpu-hours", "-n law-gpu-hours"):
+                with self.subTest(lang=lang, placeholder=placeholder):
+                    self.assertNotIn(placeholder, commands)
+            self.assertNotRegex(commands, r"AZURE_CLIENT_SECRET=\S")
+
     def test_images_match_ledger(self):
         self.assertEqual(draw_diagrams.main(["--check"]), 0)
 
@@ -106,7 +129,8 @@ class GuardTests(unittest.TestCase):
         samples = ["GeekPlus", "极智嘉", "rg-geekplus-gpuhours-demo", "trainer-a", "from Kurt", "C:\\Users\\someone\\",
                    "person@example.com", "10.2.3.4", "12345678-1234-1234-1234-123456789abc", "<details>",
                    "run of 2026-05-08", "stage-20260713", "in September", "9 月 28 日", "see README-CN.md",
-                   "webui/app.py", "see QUICKSTART_CN.md", "configure-1"]
+                   "webui/app.py", "see QUICKSTART_CN.md", "configure-1",
+                   "GPU-H100-MS-RG", "GPU-H100-MS-SWEDC-VMSS", "adminh100", "ContributorUser01"]
         for sample in samples:
             with self.subTest(sample=sample):
                 self.assertTrue(any(p.search(sample) for p, _ in check_repo.FORBIDDEN), sample)
