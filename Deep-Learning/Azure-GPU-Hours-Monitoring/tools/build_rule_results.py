@@ -48,12 +48,14 @@ def build() -> dict:
     evidence_tests = (ROOT / "tests" / "test_evidence.py").read_text(encoding="utf-8")
     public_tests = (ROOT / "tests" / "test_public_content.py").read_text(encoding="utf-8")
     configure_tests = (ROOT / "tests" / "test_configure.py").read_text(encoding="utf-8")
+    configure_tests += (ROOT / "tests" / "test_auth.py").read_text(encoding="utf-8")
 
     run_headings = {
         "validation-1": ("### validation-1:", "### validation-1："),
         "replay-1": ("### replay-1:", "### replay-1："),
         "configure-2": ("### configure-2:", "### configure-2："),
         "jobs-1": ("### jobs-1:", "### jobs-1："),
+        "auth-1": ("### auth-1:", "### auth-1："),
     }
     actual_inputs = all(
         all(h in doc and "**Input.**" in doc[doc.index(h):] if lang == 0 else h in doc and "**输入。**" in doc[doc.index(h):]
@@ -64,6 +66,8 @@ def build() -> dict:
         "scripts/configure.sh", "scripts/setup-workspace.sh", "scripts/onboard-vm.sh",
         "scripts/offboard-vm.sh", "scripts/remove-workspace.sh",
         "vm/gpu_collector.py", "examples/gpu_hours_client.py",
+        "scripts/create-query-identity.sh", "scripts/query-gpu-hours.sh",
+        "scripts/create-query-identity.sh", "scripts/query-gpu-hours.sh",
         "kql/summary.kql", "kql/per_vm.kql", "kql/per_hour.kql", "kql/per_day.kql",
     )}
     terminal_outputs = all((ROOT / "evidence" / "runs" / rid / "raw-manifest.json").is_file() for rid in RUNS)
@@ -83,6 +87,8 @@ def build() -> dict:
         "test_step_durations_that_do_not_add_up_are_rejected", "test_changed_evidence_row_is_rejected",
         "test_bilingual_number_mismatch_is_detected", "test_heading_order_is_enforced",
         "test_uniform_scale_set_is_rejected", "test_missing_rows_time_out_with_exit_3",
+        "test_wrong_secret_exits_4", "test_missing_role_exits_5",
+        "test_wrong_secret_exits_4", "test_missing_role_exits_5",
     )
     mutations = all(name in evidence_tests + public_tests + configure_tests for name in mutation_names)
 
@@ -97,7 +103,7 @@ def build() -> dict:
             check("owned-run-wrapper", (ROOT / "tests/load/run-load.sh").is_file(), "tests/load/run-load.sh", "exists"),
         ], ["tests/load/gpu_load.py", "tests/load/run-load.sh", "README.md", "README_CN.md"]),
         passed("RUN-003", [
-            check("source-hashes", len(source_hashes) == 11, source_hashes, "eleven load-bearing source files hashed"),
+            check("source-hashes", len(source_hashes) == 13, source_hashes, "thirteen load-bearing source files hashed"),
             check("collector-runid-source", "AZUREML_RUN_ID=" in collector, "collector reads AZUREML_RUN_ID", "present"),
             check("readme-source-links", all(p in en and p in cn for p in source_hashes), sorted(source_hashes),
                   "every load-bearing source path linked in both READMEs"),
@@ -147,7 +153,7 @@ def build() -> dict:
             check("retired-file-guard", ("QUICK" + "START.md") in public_tests
                   and ("QUICK" + "START_CN.md") in public_tests,
                   "retired QUICKSTART files guarded", "present"),
-        ], ["tests/test_evidence.py", "tests/test_public_content.py", "tests/test_configure.py"]),
+        ], ["tests/test_evidence.py", "tests/test_public_content.py", "tests/test_configure.py", "tests/test_auth.py"]),
     ]
     return {"schema": 1, "source_hashes": source_hashes, "rules": rules}
 

@@ -7,7 +7,9 @@
   "scripts/offboard-vm.sh": "65b741d956d38deebf0836f6f3b255641044ddbebadcb14331523e128070f813",
   "scripts/remove-workspace.sh": "52ef6b67d6569b6a316f268a116d072c4a8ac2be1e4efa32871363a74912013c",
   "vm/gpu_collector.py": "45f834dd220aa87036e80c56a9d13792d6a88ab3369ed224202f03fb7d74ca13",
-  "examples/gpu_hours_client.py": "5a0c0dec5d70cf93eee43b98a83755efcf7c64aef2a5c5d9368f17f52a084630",
+  "examples/gpu_hours_client.py": "d43a3411feb1fe4ec9a429a4f41f7443f7e5abce6041d70618958291e69b4cda",
+  "scripts/create-query-identity.sh": "9436a5ea9955367fc79e2a79976d2a5b6e1c9aae093a9898cb8726def3050706",
+  "scripts/query-gpu-hours.sh": "c6ca69639cbda05be0604ea00ce757b2d855816c139ff78c55f323ff822cfe6e",
   "kql/summary.kql": "26bbb10520693038c1730cc625dea0abf4cf61f22aa43a108203f07af98518e0",
   "kql/per_vm.kql": "4e8ef3f13ae57b9dea3858ea98c84ccee6527dbb03c4fbf5f8ede660d0c1019c",
   "kql/per_hour.kql": "93382c749f9d3d8fb62d1248795bc9b5f22539f504f393153924a00c0dfd66a5",
@@ -22,19 +24,21 @@
     {
      "id": "actual-inputs-in-both-readmes",
      "passed": true,
-     "actual": "4 runs in 2 languages",
+     "actual": "5 runs in 2 languages",
      "expected": "every run has its actual input before the result"
     },
     {
      "id": "run-contracts-present",
      "passed": true,
      "actual": [
+      "auth-1",
       "configure-2",
       "jobs-1",
       "replay-1",
       "validation-1"
      ],
      "expected": [
+      "auth-1",
       "configure-2",
       "jobs-1",
       "replay-1",
@@ -88,13 +92,15 @@
       "scripts/offboard-vm.sh": "65b741d956d38deebf0836f6f3b255641044ddbebadcb14331523e128070f813",
       "scripts/remove-workspace.sh": "52ef6b67d6569b6a316f268a116d072c4a8ac2be1e4efa32871363a74912013c",
       "vm/gpu_collector.py": "45f834dd220aa87036e80c56a9d13792d6a88ab3369ed224202f03fb7d74ca13",
-      "examples/gpu_hours_client.py": "5a0c0dec5d70cf93eee43b98a83755efcf7c64aef2a5c5d9368f17f52a084630",
+      "examples/gpu_hours_client.py": "d43a3411feb1fe4ec9a429a4f41f7443f7e5abce6041d70618958291e69b4cda",
+      "scripts/create-query-identity.sh": "9436a5ea9955367fc79e2a79976d2a5b6e1c9aae093a9898cb8726def3050706",
+      "scripts/query-gpu-hours.sh": "c6ca69639cbda05be0604ea00ce757b2d855816c139ff78c55f323ff822cfe6e",
       "kql/summary.kql": "26bbb10520693038c1730cc625dea0abf4cf61f22aa43a108203f07af98518e0",
       "kql/per_vm.kql": "4e8ef3f13ae57b9dea3858ea98c84ccee6527dbb03c4fbf5f8ede660d0c1019c",
       "kql/per_hour.kql": "93382c749f9d3d8fb62d1248795bc9b5f22539f504f393153924a00c0dfd66a5",
       "kql/per_day.kql": "a7922473f900e5ad676091bda05935ece629528d2d58a382bd553fed4c721962"
      },
-     "expected": "eleven load-bearing source files hashed"
+     "expected": "thirteen load-bearing source files hashed"
     },
     {
      "id": "collector-runid-source",
@@ -112,8 +118,10 @@
       "kql/per_vm.kql",
       "kql/summary.kql",
       "scripts/configure.sh",
+      "scripts/create-query-identity.sh",
       "scripts/offboard-vm.sh",
       "scripts/onboard-vm.sh",
+      "scripts/query-gpu-hours.sh",
       "scripts/remove-workspace.sh",
       "scripts/setup-workspace.sh",
       "vm/gpu_collector.py"
@@ -129,6 +137,8 @@
     "scripts/remove-workspace.sh",
     "vm/gpu_collector.py",
     "examples/gpu_hours_client.py",
+    "scripts/create-query-identity.sh",
+    "scripts/query-gpu-hours.sh",
     "kql/summary.kql",
     "kql/per_vm.kql",
     "kql/per_hour.kql",
@@ -170,6 +180,7 @@
      "id": "run-output-manifests",
      "passed": true,
      "actual": [
+      "auth-1",
       "configure-2",
       "jobs-1",
       "replay-1",
@@ -258,6 +269,7 @@
      "id": "scenario-headings-bilingual",
      "passed": true,
      "actual": [
+      "auth-1",
       "configure-2",
       "jobs-1",
       "replay-1",
@@ -269,12 +281,14 @@
      "id": "scenario-contracts",
      "passed": true,
      "actual": [
+      "auth-1",
       "configure-2",
       "jobs-1",
       "replay-1",
       "validation-1"
      ],
      "expected": [
+      "auth-1",
       "configure-2",
       "jobs-1",
       "replay-1",
@@ -300,7 +314,8 @@
      "actual": {
       "replay-1": true,
       "jobs-1": true,
-      "configure-2": true
+      "configure-2": true,
+      "auth-1": true
      },
      "expected": "cleanup recorded for every run with steps"
     },
@@ -382,7 +397,11 @@
       "test_bilingual_number_mismatch_is_detected",
       "test_heading_order_is_enforced",
       "test_uniform_scale_set_is_rejected",
-      "test_missing_rows_time_out_with_exit_3"
+      "test_missing_rows_time_out_with_exit_3",
+      "test_wrong_secret_exits_4",
+      "test_missing_role_exits_5",
+      "test_wrong_secret_exits_4",
+      "test_missing_role_exits_5"
      ],
      "expected": "every named mutation test exists"
     },
@@ -402,7 +421,8 @@
    "evidence": [
     "tests/test_evidence.py",
     "tests/test_public_content.py",
-    "tests/test_configure.py"
+    "tests/test_configure.py",
+    "tests/test_auth.py"
    ]
   }
  ]

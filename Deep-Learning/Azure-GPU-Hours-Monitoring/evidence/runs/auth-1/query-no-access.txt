@@ -1,0 +1,3 @@
+signed in as client <client-id> (token for https://api.loganalytics.io)
+ERROR: query rejected (HTTP 403) InsufficientAccessError: The provided credentials have insufficient access to perform the requested operation
+exit=5

@@ -1,0 +1,23 @@
+{
+ "private_sources_sha256": {
+  "identity.txt": "918f59e9899d943f5b9a08c96a4b0d3abbca2e1a8640dabf6af60ff8205e5aea",
+  "identity-rerun.txt": "2f8cef6f5ad38c6e925e3316b3692c5e965801d5f47d306e58040f1a01d54ec6",
+  "query-ok.txt": "479b5c6b1070b6a8344852f03ff82c3b7f848d6fbb04aa6678564982b6d70b22",
+  "query-bad-secret.txt": "91c1e1ed0abab5a79c1eab266ec5b6d374695f57e7b350e67981ea03a8544aff",
+  "query-no-access.txt": "9f2872920af7da5b8c7daaea088010bb004a0072a605d1bb17d13e99e2806652",
+  "views.txt": "e8d1bdeff911c03302262369faa44aaadb3e414a731d26e8b8b6189a5b111b11",
+  "python-ok.txt": "c63620306c2292e7e65c0f23a1e60dd2705f4aa77adf9a462cf484d2d0c3c004",
+  "final-state.txt": "162f88e3da5fe8b84db68fb0805d39f34718090257804991df7dbe05b00cac0a"
+ },
+ "projection": "tenant, subscription, client, object and workspace IDs -> placeholders; private paths removed; Entra trace IDs and the secret expiry date removed; the client secret never appears in any captured output",
+ "public_projection_sha256": {
+  "identity.txt": "e74b0af06247090148a29fcf62aa7cce3e67a80f4f26df12773f182a5b0ce1b3",
+  "identity-rerun.txt": "d42facf859108dbc487143d182968bee9765f510b124d7cf643157c7dd869eff",
+  "query-ok.txt": "e7a2754879fccbe3dfffa275236e10936c136190663e6c58943857e745805167",
+  "query-bad-secret.txt": "4368a10c7298610dc5c8414dc838fd1d97d8d60e4ca3734eb08e5dddd30e91ef",
+  "query-no-access.txt": "cb1d67c1430ebcc0cf402a96df9e019f70095a1a69a54f014dff96a6abc8ae26",
+  "views.txt": "7e2f70b2d72071e94c807de68d18a78e9ab76c891da1fb1dd74bb7e879dd1bab",
+  "python-ok.txt": "fc6465c3037745e9fe3e94baca097a943ec5cba30448f6d2f8157d9d2ed449f1",
+  "final-state.txt": "b89b1655b11e0276d2fc1368c50d4410b7a0a19c61c76b40ecb83217cb402b0e"
+ }
+}

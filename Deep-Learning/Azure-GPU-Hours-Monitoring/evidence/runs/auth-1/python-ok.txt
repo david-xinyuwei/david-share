@@ -1,0 +1,14 @@
+[
+ {
+  "AllocatedGpuHours": 0,
+  "BusyGpuHours": 0,
+  "EffectiveGpuHours": 0,
+  "IdleGpuHours": 0,
+  "ObservedGpuHours": 0,
+  "UnknownGpuHours": 0,
+  "Vms": 0,
+  "Gpus": 0,
+  "TelemetryCoveragePct": 0,
+  "UtilizationPct": 0
+ }
+]

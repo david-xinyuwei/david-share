@@ -1,0 +1,8 @@
+summary exit=0
+per_vm exit=0
+per_hour exit=0
+per_day exit=0
+per_user exit=0
+per_job exit=0
+per_submitter exit=0
+live exit=0

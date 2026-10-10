@@ -439,6 +439,46 @@ az monitor data-collection rule association delete --name configurationAccessEnd
 az monitor log-analytics query -w "$WORKSPACE_GUID" --analytics-query @kql/per_vm.kql -t P1D -o table
 ```
 
+**客户平台怎样登录。** 平台以 Entra ID 身份登录，只拿到工作区上的 `Log Analytics Reader`（只读），不碰 VM 和 AML。二选一：
+
+| 平台运行在 | 身份 | 怎么做 |
+|---|---|---|
+| Azure 上（VM、AKS、App Service、Functions、Container Apps） | 托管身份，不需要密钥 | 在配置文件填 `READER_OBJECT_ID`（托管身份的 principalId）后运行配置命令；代码里用 `DefaultAzureCredential` 或 `ManagedIdentityCredential` |
+| Azure 之外，或需要固定的客户端 ID 和密钥 | 应用注册加客户端密钥 | 管理员运行一次 [`scripts/create-query-identity.sh`](scripts/create-query-identity.sh)，把生成的 `gpu-hours.query.env` 交给平台 |
+
+应用注册方式，管理员执行一次（需要创建应用注册的权限，以及工作区上的 Owner 或 User Access Administrator）：
+
+```bash
+./scripts/create-query-identity.sh -g "$WORKSPACE_RG" -w "$WORKSPACE_NAME"
+```
+
+- 创建或复用应用注册 `gpu-hours-query` 和它的服务主体，只授予工作区上的 `Log Analytics Reader`；
+- 生成客户端密钥（默认 1 年，`-y` 可改），写入 `gpu-hours.query.env`：`AZURE_TENANT_ID`、`AZURE_CLIENT_ID`、`AZURE_CLIENT_SECRET`、`WORKSPACE_GUID`。文件权限 600，已加入 git 忽略，密钥不打印到屏幕；
+- 可以重跑，会复用应用、角色和文件里已有的密钥；`-r` 追加一个新密钥用于轮换，旧密钥在 Entra ID 里删除前继续有效。
+
+平台的登录流程（OAuth 2.0 客户端凭据，两次 HTTPS 请求）：
+
+```http
+POST https://login.microsoftonline.com/<AZURE_TENANT_ID>/oauth2/v2.0/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials&client_id=<AZURE_CLIENT_ID>&client_secret=<AZURE_CLIENT_SECRET>&scope=https://api.loganalytics.io/.default
+```
+
+返回的 `access_token` 放进下面查询请求的 `Authorization: Bearer` 头里，有效期约 1 小时，过期后重新申请。不装 Azure CLI 也能用的验收命令，只依赖 `curl` 和 `jq`：
+
+```bash
+./scripts/query-gpu-hours.sh -c gpu-hours.query.env -q kql/summary.kql -t P1D
+```
+
+| 退出码 | 含义 | 处理 |
+|---|---|---|
+| 0 | 登录成功，查询返回 HTTP 200，结果按 JSON 对象打印 | — |
+| 4 | Entra ID 拒绝登录：租户 ID、客户端 ID 或密钥不对，或密钥已过期 | 核对 `gpu-hours.query.env`；过期时用 `-r` 生成新密钥 |
+| 5 | 登录成功，但查询被拒：还没有 `Log Analytics Reader`、工作区 GUID 不对，或 KQL 有错 | 新授予的角色最多 5 分钟生效；检查 `WORKSPACE_GUID` |
+
+实测见 [auth-1](#auth-1客户平台以应用注册登录并查询)。
+
 **客户 API：REST。** 把文件内容作为 `query`，统计时段作为 `timespan`，请求发送到当前的 `api.loganalytics.azure.com` 主机，并携带资源为 `https://api.loganalytics.io` 的 Bearer 访问令牌。响应是带类型的 JSON：列定义在 `tables[0].columns`，数据行在 `tables[0].rows`。
 
 ```http
@@ -450,13 +490,14 @@ Content-Type: application/json
 ```
 
 **客户 API：Python SDK。** [`examples/gpu_hours_client.py`](examples/gpu_hours_client.py) 封装了 `azure-monitor-query`：
-- 凭据来自 `DefaultAzureCredential`：API 所在环境用托管身份，工作站上用 Azure CLI 登录；
+- 加 `--credentials gpu-hours.query.env` 时，用文件里的应用注册经 `ClientSecretCredential` 登录，工作区 GUID 也从文件读取；
+- 不加时用 `DefaultAzureCredential`：依次尝试 `AZURE_TENANT_ID` / `AZURE_CLIENT_ID` / `AZURE_CLIENT_SECRET` 环境变量、托管身份和 Azure CLI 登录；
 - 它会改写 `let` 默认值；某个查询里对应的 `let` 行不是恰好一行时直接报错。
 
 ```bash
 pip install -r examples/requirements.txt
 END=$(date -u +%FT%TZ); START=$(date -u -d '-1 day' +%FT%TZ)
-python examples/gpu_hours_client.py --workspace "$WORKSPACE_GUID" --view per_user --start "$START" --end "$END"
+python examples/gpu_hours_client.py --credentials gpu-hours.query.env --view per_user --start "$START" --end "$END"
 python examples/gpu_hours_client.py --workspace "$WORKSPACE_GUID" --view per_job --start "$START" --end "$END"
 ```
 
@@ -498,17 +539,19 @@ python examples/gpu_hours_client.py --workspace "$WORKSPACE_GUID" --view per_job
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from azure.identity import DefaultAzureCredential
+from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.monitor.query import LogsQueryClient
 
-client = LogsQueryClient(DefaultAzureCredential())
+# 应用注册：值来自 gpu-hours.query.env；托管身份或环境变量：DefaultAzureCredential()
+credential = ClientSecretCredential("<AZURE_TENANT_ID>", "<AZURE_CLIENT_ID>", "<AZURE_CLIENT_SECRET>")
+client = LogsQueryClient(credential)
 end = datetime.now(timezone.utc)
 result = client.query_workspace("<workspace-guid>", Path("kql/per_job.kql").read_text(encoding="utf-8"),
                                 timespan=(end - timedelta(days=1), end))
 jobs = [dict(zip(result.tables[0].columns, row)) for row in result.tables[0].rows]
 ```
 
-给客户 API 的身份授予工作区读权限：
+给已有身份（例如托管身份）手动授予工作区读权限：
 
 ```bash
 az role assignment create --assignee <principal-id> --role "Log Analytics Reader" \
@@ -740,6 +783,33 @@ exit $rc
 - 提交人随 Azure 活动日志导出入库，比 GPU 数据晚几分钟；在此之前 `per_job` 里这个作业的提交人为空。状态事件比 GPU 数据到得更快。
 - 作业名和属主一样，在每分钟末读取一次：作业结束的那一分钟，记给那一刻仍在 GPU 上的作业，或者不记给任何作业。
 - 在附加的 Ubuntu 24.04 VM 上运行 AML 作业，遇到了三个 AML 自身的前提条件，记录在 [`evidence/runs.json`](evidence/runs.json)：附加用的账户要接受 `ssh-rsa`，宿主机上要有 `python` 命令，工作区存储要能被 AML 访问以上传日志。它们属于 AML，不属于本仓库的配置步骤。
+
+### auth-1：客户平台以应用注册登录并查询
+
+**问题。** 一个没有 Azure CLI 的平台，能不能以应用注册的身份登录 Entra ID 并读取各个查询？密钥错误、或者访问没有授权的工作区时，会不会被拒绝？
+
+**输入。**
+- 另一个 Entra ID 测试租户，Sweden Central。用 `scripts/setup-workspace.sh` 新建工作区，另建一个没有任何授权的工作区作对照。
+- 这个工作区没有接 GPU VM，所以每个查询返回的卡时都是 0。本次只测登录和权限这条链路；数字是否正确由上面几次实测证明。
+- 执行的命令：`create-query-identity.sh` 两次；`query-gpu-hours.sh` 分别用正确密钥、错误密钥、没有授权的工作区，以及八个查询各一次；`gpu_hours_client.py --credentials`。最后删除应用注册和测试资源组。脱敏输出见 [`evidence/runs/auth-1/`](evidence/runs/auth-1/)。
+
+**结果。**
+
+| 步骤 | 退出码 | 观察到的结果 |
+|---|---|---|
+| 创建登录身份 | 0 | 126 秒；新建应用注册和服务主体，只授予工作区上的 Log Analytics Reader；密钥写入权限为 600 的文件，未打印 |
+| 重跑 | 0 | 40 秒；复用应用、服务主体、角色和文件中的密钥，文件内容不变 |
+| 正确密钥查询 `summary` | 0 | 先从 `login.microsoftonline.com` 取得令牌，再从 `api.loganalytics.azure.com` 得到 HTTP 200，约 7 秒 |
+| 错误密钥 | 4 | Entra ID 返回 HTTP 401 `AADSTS7000215`，没有发出查询 |
+| 没有授权的工作区 | 5 | 登录成功，查询 API 返回 HTTP 403 `InsufficientAccessError` |
+| 八个查询 | 0 | 全部 HTTP 200 |
+| Python `ClientSecretCredential` | 0 | 与 curl 返回同一行 `summary` |
+| 清理 | 0 | 应用注册剩 0 个，测试资源组已删除 |
+
+**边界。**
+- 只测了客户端密钥。托管身份走的是同一个查询 API、同一个角色，`configure-2` 中已用 `READER_OBJECT_ID` 授权过；但这次没有从 Azure 内的托管身份上实际发起查询。
+- 创建应用注册需要租户允许用户注册应用，或者执行人有 Application Developer 等目录角色；客户的 Entra ID 管理员可能要先放开或代为执行。
+- 证书凭据、联合身份凭据（例如 GitHub Actions、AKS 工作负载身份）没有测试。
 
 ### 可以自己重算的数字
 

@@ -1,0 +1,18 @@
+==> workspace
+/subscriptions/<subscription-id>/resourceGroups/rg-gpu-hours/providers/Microsoft.OperationalInsights/workspaces/law-gpu-hours
+==> app registration gpu-hours-query
+reusing app registration, client ID <client-id>
+==> service principal
+reusing service principal, object ID <service-principal-object-id>
+==> Log Analytics Reader on the workspace (read-only)
+Log Analytics Reader already granted
+==> client secret
+kept the secret already in gpu-hours.query.env (add -r to create a new one)
+
+==> done
+tenant ID     <tenant-id>
+client ID     <client-id>
+object ID     <service-principal-object-id>
+workspace     <workspace-guid>
+Test it (role assignments can take up to 5 minutes to apply):
+  ./scripts/query-gpu-hours.sh -c gpu-hours.query.env -q kql/summary.kql -t PT1H

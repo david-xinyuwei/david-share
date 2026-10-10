@@ -13,3 +13,4 @@ gpu-hours.env
 !evidence/runs/configure-2/gpu-hours.env
 gpu-hours.outputs.env
 gpu-hours-logs/
+gpu-hours.query.env

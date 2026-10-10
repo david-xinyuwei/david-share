@@ -15,7 +15,7 @@ import draw_diagrams  # noqa: E402
 SECTION = {"en": "## Validation on One H100 VM", "cn": "## 单台 H100 VM 上的实测验证"}
 LABELS = {"en": ("**Question.**", "**Input.**", "**Result.**", "**Boundary.**"),
           "cn": ("**问题。**", "**输入。**", "**结果。**", "**边界。**")}
-RUN_IDS = ("validation-1", "replay-1", "configure-2", "jobs-1")
+RUN_IDS = ("validation-1", "replay-1", "configure-2", "jobs-1", "auth-1")
 
 
 def _audit_copy(edit) -> list[str]:

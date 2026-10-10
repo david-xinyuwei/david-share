@@ -598,6 +598,44 @@ def build_setup_run(run_dir: Path, contract: dict) -> dict:
     }
 
 
+def build_auth_run(run_dir: Path, contract: dict) -> dict:
+    """A sign-in run: the identity script, a rerun, the query script's accept and reject paths, then cleanup."""
+    def read(name: str) -> str:
+        return (run_dir / name).read_text(encoding="utf-8")
+
+    def need(ok: bool, what: str) -> None:
+        if not ok:
+            raise SystemExit(f"AUTH_EVIDENCE {run_dir.name}: {what}")
+
+    first, rerun = read("identity.txt"), read("identity-rerun.txt")
+    need("created app registration" in first and "created service principal" in first, "first run did not create the app")
+    need("Log Analytics Reader granted" in first, "first run did not grant the read-only role")
+    need("new secret written to gpu-hours.query.env (mode 600); it is not printed" in first, "secret file not written")
+    for phrase in ("reusing app registration", "reusing service principal", "Log Analytics Reader already granted",
+                   "kept the secret already in"):
+        need(phrase in rerun, f"rerun lacks {phrase!r}")
+    need("AZURE_CLIENT_SECRET" not in first + rerun, "a transcript names the secret value")
+    ok = read("query-ok.txt")
+    need("signed in as client" in ok and "HTTP 200" in ok and ok.rstrip().endswith("exit=0"), "accepted query did not succeed")
+    rows = json.loads(ok[ok.index("["):ok.rindex("]") + 1])
+    need(len(rows) == 1 and "TelemetryCoveragePct" in rows[0], "accepted query did not return the summary row")
+    bad = read("query-bad-secret.txt")
+    need("HTTP 401" in bad and "AADSTS7000215" in bad and bad.rstrip().endswith("exit=4"), "wrong secret was not rejected with exit 4")
+    denied = read("query-no-access.txt")
+    need("signed in as client" in denied and "HTTP 403" in denied and "InsufficientAccessError" in denied
+         and denied.rstrip().endswith("exit=5"), "workspace without the role was not rejected with exit 5")
+    views = dict(re.findall(r"^(\w+) exit=(\d+)$", read("views.txt"), re.M))
+    need(sorted(views) == sorted(contract["views"]) and set(views.values()) == {"0"},
+         "not every view returned exit 0")
+    py = json.loads(read("python-ok.txt"))
+    need(py == rows, "the Python ClientSecretCredential answer differs from the curl answer")
+    final = read("final-state.txt")
+    need("app registrations left: 0" in final and "resource group exists: false" in final, "test identity or group left behind")
+    need(all(s["exit"] == s["expected_exit"] for s in contract["steps"]), "a step exit differs from its expected exit")
+    return {"kind": "auth", "views_ok": len(views), "wrong_secret_http": 401, "no_role_http": 403,
+            "identity_seconds": contract["steps"][0]["seconds"], "rerun_seconds": contract["steps"][1]["seconds"]}
+
+
 def _since(stamp: str, start: datetime) -> str:
     s = int((_ts(stamp) - start).total_seconds())
     return f"+{s // 60}:{s % 60:02d}"
@@ -693,7 +731,8 @@ def build() -> dict:
         for name, digest in manifest["public_projection_sha256"].items():
             if _sha(run_dir / name) != digest:
                 raise SystemExit(f"HASH_MISMATCH {run_id}/{name}: evidence changed after projection")
-        runs[run_id] = (build_setup_run if contract.get("kind") == "setup" else build_run)(run_dir, contract)
+        builder = {"setup": build_setup_run, "auth": build_auth_run}.get(contract.get("kind"), build_run)
+        runs[run_id] = builder(run_dir, contract)
     return {"schema": 1, "idle_pct": IDLE_PCT, "runs": runs}
 
 

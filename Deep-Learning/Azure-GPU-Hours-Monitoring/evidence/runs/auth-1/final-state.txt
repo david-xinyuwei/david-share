@@ -1,0 +1,2 @@
+app registrations left: 0
+resource group exists: false

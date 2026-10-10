@@ -393,6 +393,46 @@ The three AML views need the job ID on every GPU process, set up in [step 6 of t
 az monitor log-analytics query -w "$WORKSPACE_GUID" --analytics-query @kql/per_vm.kql -t P1D -o table
 ```
 
+**How your platform signs in.** The platform signs in to Entra ID as an identity that holds only `Log Analytics Reader` on the workspace (read-only), nothing on the VMs or AML. Pick one:
+
+| Your platform runs | Identity | How |
+|---|---|---|
+| On Azure (VM, AKS, App Service, Functions, Container Apps) | Managed identity, no secret | Put its principal ID in `READER_OBJECT_ID` and run the configure command; in code use `DefaultAzureCredential` or `ManagedIdentityCredential` |
+| Outside Azure, or needs a fixed client ID and secret | App registration with a client secret | An administrator runs [`scripts/create-query-identity.sh`](scripts/create-query-identity.sh) once and hands `gpu-hours.query.env` to the platform |
+
+For an app registration, an administrator runs this once (it needs permission to create app registrations and Owner or User Access Administrator on the workspace):
+
+```bash
+./scripts/create-query-identity.sh -g "$WORKSPACE_RG" -w "$WORKSPACE_NAME"
+```
+
+- It creates or reuses the app registration `gpu-hours-query` and its service principal, and grants only `Log Analytics Reader` on the workspace.
+- It creates a client secret (1 year by default, `-y` to change) and writes `gpu-hours.query.env`: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `WORKSPACE_GUID`. The file is mode 600 and git-ignored; the secret is not printed.
+- A rerun reuses the app, the role and the secret already in the file. `-r` adds a new secret for rotation; the old one keeps working until you delete it in Entra ID.
+
+How the platform signs in (OAuth 2.0 client credentials, two HTTPS requests):
+
+```http
+POST https://login.microsoftonline.com/<AZURE_TENANT_ID>/oauth2/v2.0/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials&client_id=<AZURE_CLIENT_ID>&client_secret=<AZURE_CLIENT_SECRET>&scope=https://api.loganalytics.io/.default
+```
+
+Put the returned `access_token` in the `Authorization: Bearer` header of the query request below. It lasts about an hour; request a new one when it expires. An acceptance check that needs only `curl` and `jq`, no Azure CLI:
+
+```bash
+./scripts/query-gpu-hours.sh -c gpu-hours.query.env -q kql/summary.kql -t P1D
+```
+
+| Exit | Meaning | What to do |
+|---|---|---|
+| 0 | Signed in, the query returned HTTP 200, rows printed as JSON objects | — |
+| 4 | Entra ID refused the sign-in: wrong tenant ID, client ID or secret, or an expired secret | Check `gpu-hours.query.env`; create a new secret with `-r` when it expired |
+| 5 | Signed in, but the query was refused: no `Log Analytics Reader` yet, wrong workspace GUID, or a KQL error | A new role takes up to 5 minutes to apply; check `WORKSPACE_GUID` |
+
+Measured in [auth-1](#auth-1-your-platform-signs-in-as-an-app-registration-and-queries).
+
 **From your API: REST.** Send the file content as `query` and the window as `timespan` to the current `api.loganalytics.azure.com` host, with a bearer access token whose resource is `https://api.loganalytics.io`. The response is typed JSON: `tables[0].columns` and `tables[0].rows`.
 
 ```http
@@ -403,12 +443,12 @@ Content-Type: application/json
 {"query": "<content of kql/per_vm.kql>", "timespan": "<start>/<end>"}
 ```
 
-**From your API: Python SDK.** [`examples/gpu_hours_client.py`](examples/gpu_hours_client.py) wraps `azure-monitor-query`. Credentials come from `DefaultAzureCredential`: a managed identity where your API runs, or the Azure CLI login on a workstation. It overrides the `let` defaults and fails if a view does not have exactly one such line.
+**From your API: Python SDK.** [`examples/gpu_hours_client.py`](examples/gpu_hours_client.py) wraps `azure-monitor-query`. With `--credentials gpu-hours.query.env` it signs in as that app registration through `ClientSecretCredential` and reads the workspace GUID from the file. Without it, it uses `DefaultAzureCredential`: the `AZURE_TENANT_ID` / `AZURE_CLIENT_ID` / `AZURE_CLIENT_SECRET` environment variables, a managed identity, or the Azure CLI login. It overrides the `let` defaults and fails if a view does not have exactly one such line.
 
 ```bash
 pip install -r examples/requirements.txt
 END=$(date -u +%FT%TZ); START=$(date -u -d '-1 day' +%FT%TZ)
-python examples/gpu_hours_client.py --workspace "$WORKSPACE_GUID" --view per_user --start "$START" --end "$END"
+python examples/gpu_hours_client.py --credentials gpu-hours.query.env --view per_user --start "$START" --end "$END"
 python examples/gpu_hours_client.py --workspace "$WORKSPACE_GUID" --view per_job --start "$START" --end "$END"
 ```
 
@@ -450,17 +490,19 @@ The same job query without the reference client:
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from azure.identity import DefaultAzureCredential
+from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.monitor.query import LogsQueryClient
 
-client = LogsQueryClient(DefaultAzureCredential())
+# app registration: values from gpu-hours.query.env; managed identity or environment variables: DefaultAzureCredential()
+credential = ClientSecretCredential("<AZURE_TENANT_ID>", "<AZURE_CLIENT_ID>", "<AZURE_CLIENT_SECRET>")
+client = LogsQueryClient(credential)
 end = datetime.now(timezone.utc)
 result = client.query_workspace("<workspace-guid>", Path("kql/per_job.kql").read_text(encoding="utf-8"),
                                 timespan=(end - timedelta(days=1), end))
 jobs = [dict(zip(result.tables[0].columns, row)) for row in result.tables[0].rows]
 ```
 
-Give the identity of your API read access to the workspace:
+Give an existing identity, such as a managed identity, read access to the workspace by hand:
 
 ```bash
 az role assignment create --assignee <principal-id> --role "Log Analytics Reader" \
@@ -673,6 +715,33 @@ exit $rc
 - The submitter arrives with the Azure Activity export, minutes after the GPU rows. Until then `per_job` lists the job with an empty submitter. Status events arrive faster than the GPU rows.
 - Job names, like owners, are read once at the end of each minute. A minute in which a job ends counts for the jobs still on the GPU at that moment, or for none.
 - Running AML jobs on an attached Ubuntu 24.04 VM needed three AML prerequisites, recorded in [`evidence/runs.json`](evidence/runs.json): `ssh-rsa` accepted for the attach account, `python` on the host, and workspace storage that AML can reach for logs. They belong to AML, not to the steps in this repository.
+
+### auth-1: your platform signs in as an app registration and queries
+
+**Question.** Can a platform with no Azure CLI sign in to Entra ID as an app registration and read the views, and are a wrong secret and a workspace without the role refused?
+
+**Input.**
+- A second Entra ID test tenant in Sweden Central. A new workspace from `scripts/setup-workspace.sh`, and a second workspace with no role assignment as the control.
+- No GPU VM was attached, so every view returned zero GPU-hours. This run tests sign-in and access only; the runs above test the numbers.
+- Commands: `create-query-identity.sh` twice; `query-gpu-hours.sh` with the right secret, a wrong secret, the workspace without the role, and once for each of the eight views; `gpu_hours_client.py --credentials`. Then the app registration and the test resource group were deleted. Redacted output: [`evidence/runs/auth-1/`](evidence/runs/auth-1/).
+
+**Result.**
+
+| Step | Exit | Observed |
+|---|---|---|
+| Create the identity | 0 | 126 s; new app registration and service principal, Log Analytics Reader on the workspace only; secret written to a mode-600 file and not printed |
+| Rerun | 0 | 40 s; app, service principal, role and the secret in the file reused; file unchanged |
+| `summary` with the right secret | 0 | token from `login.microsoftonline.com`, then HTTP 200 from `api.loganalytics.azure.com`, about 7 s |
+| Wrong secret | 4 | Entra ID answered HTTP 401 `AADSTS7000215`; no query was sent |
+| Workspace without the role | 5 | sign-in succeeded; the query API answered HTTP 403 `InsufficientAccessError` |
+| Eight views | 0 | all HTTP 200 |
+| Python `ClientSecretCredential` | 0 | the same `summary` row as the curl call |
+| Cleanup | 0 | 0 app registrations left; test resource group deleted |
+
+**Boundary.**
+- Only the client secret was tested. A managed identity uses the same query API and role, and `configure-2` granted the role through `READER_OBJECT_ID`, but no query was sent from a managed identity inside Azure in this run.
+- Creating an app registration needs a tenant that lets users register applications, or a directory role such as Application Developer; your Entra ID administrator may have to allow it or run the script.
+- Certificate credentials and federated credentials (GitHub Actions, AKS workload identity) were not tested.
 
 ### Numbers you can recompute
 

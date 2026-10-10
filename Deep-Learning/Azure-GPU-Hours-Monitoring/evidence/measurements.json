@@ -515,6 +515,14 @@
      }
     ]
    }
+  },
+  "auth-1": {
+   "kind": "auth",
+   "views_ok": 8,
+   "wrong_secret_http": 401,
+   "no_role_http": 403,
+   "identity_seconds": 126,
+   "rerun_seconds": 40
   }
  }
 }
