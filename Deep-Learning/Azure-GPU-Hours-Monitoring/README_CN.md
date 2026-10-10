@@ -132,10 +132,23 @@ dcgmi dmon -e 203,1001,1002,1004,1005,252,250,155,150 -d 10000
 
 ## 在 Azure 上配置
 
-本节的起点是已经装好 NVIDIA 驱动和 DCGM 的 GPU VM，终点是 GPU 数据进入你自己的 Log Analytics 工作区。你只需要填写一个配置文件，然后运行 [`scripts/configure.sh`](scripts/configure.sh)：
+本节的起点是已经装好 NVIDIA 驱动和 DCGM 软件包的 GPU VM，终点是 GPU 数据进入你自己的 Log Analytics 工作区，并在门户里看到报表。你只需要填写一个配置文件，然后运行 [`scripts/configure.sh`](scripts/configure.sh)：
 - 它调用的各个分步脚本列在本节末尾的“这条命令实际执行了什么”；
 - 不需要 SSH 登录 VM，VM 上的所有操作都经由 Run Command 完成；
 - 可以随时重跑，已存在的资源会原地更新。
+
+**部署顺序。** 先在 Azure 侧建好 Azure Monitor，再逐台接入 GPU VM；`configure.sh` 按这个顺序自动完成第 1–4 项：
+
+| 顺序 | 在哪里 | 做什么 | 由谁完成 |
+|---|---|---|---|
+| 1 | Azure 订阅 | **部署 Azure Monitor**：Log Analytics 工作区、`GpuMetrics_CL` 表、数据收集终结点（DCE）和数据收集规则（DCR）；可选 AML 作业跟踪的两个诊断设置 | `setup-workspace.sh` |
+| 2 | 每台 GPU VM（Azure 侧） | 开启系统分配托管身份，安装 Azure Monitor Agent 扩展，把 VM 关联到 DCR 和 DCE | `onboard-vm.sh` |
+| 3 | 每台 GPU VM（VM 内，经 Run Command） | **启动 DCGM**：`systemctl enable --now nvidia-dcgm`（旧版软件包的服务名是 `dcgm`）；然后安装并启动 `gpumon` 采集服务，它运行 `dcgmi dmon` 读取 DCGM 指标，每分钟写一行 JSON | `vm/install_collector.sh` |
+| 4 | Log Analytics | 等待每台 VM 的数据经 Azure Monitor Agent 入库，可以通过查询 API 读到 | `configure.sh` 第 7 步 |
+| 5 | Azure 门户 | 部署报表（Workbook） | `deploy-workbook.sh`，下面第 8 步 |
+| 6 | 客户平台 | 创建只读登录身份并调用查询 API | `create-query-identity.sh`，见[从客户平台查询](#从客户平台查询) |
+
+DCGM 软件包（`datacenter-gpu-manager`）需要事先装在 VM 镜像里，脚本只负责启动它的服务，不负责安装；第 4 步预检会逐台检查 `dcgmi` 是否存在。
 
 **1. 检查前提条件。**
 
@@ -295,6 +308,16 @@ source gpu-hours.outputs.env
 - 采样状态、SM Active / GPU Util / Tensor 趋势、显存、功耗、最近 15 分钟、60 分钟无负载的 GPU：来自 [`azure/workbook/`](azure/workbook/)；
 - 按 AML 作业、按提交人：只在工作区已有作业跟踪数据时显示；
 - 顶部可选时间范围、VM 和占用阈值。模板 [`azure/workbook.json`](azure/workbook.json) 由 [`tools/build_workbook.py`](tools/build_workbook.py) 生成；查看的人需要工作区上的 Log Analytics Reader。
+
+部署后在门户里打开的报表（测试订阅中的实际截图；VM 名和 Linux 账号已替换为 `gpu-vm-1`、`user-N`；截图之后又加入了采样状态、显存、功耗和当前状态等面板）：
+
+<img src="images/workbook-summary.png" width="900" alt="Azure 门户中的 Workbook：标题、指标说明、时间范围和 summary 视图，分配 13.28、已观测 13.07、未知 0.22 卡时，覆盖率 98.4%">
+
+<img src="images/workbook-per-vm.png" width="900" alt="Azure 门户中的 Workbook：per_vm 视图，一台 NC40ads H100 v5">
+
+<img src="images/workbook-per-hour-day.png" width="900" alt="Azure 门户中的 Workbook：每小时卡时柱状图和 per_day 视图">
+
+<img src="images/workbook-trend-user.png" width="900" alt="Azure 门户中的 Workbook：每分钟 SM Active 曲线和 per_user 视图">
 
 **9. 日常运维。**
 - **增加 VM**：规模集扩容，或在 `VM_NAMES` 里加上新 VM，然后重跑第 5 步。已接入的 VM 会原地刷新。

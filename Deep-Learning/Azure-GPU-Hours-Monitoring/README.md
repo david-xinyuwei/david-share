@@ -116,7 +116,20 @@ A process that keeps GPU memory without running kernels makes the GPU busy but n
 
 ## Configure on Azure
 
-This section takes GPU VMs that have the NVIDIA driver and DCGM to GPU rows in your own Log Analytics workspace. You fill in one settings file and run [`scripts/configure.sh`](scripts/configure.sh). It calls the step scripts listed under "What the command runs", needs no SSH to the VMs (everything on a VM goes through Run Command) and can be run again at any time: existing resources are updated in place.
+This section takes GPU VMs that have the NVIDIA driver and the DCGM package to GPU rows in your own Log Analytics workspace and a workbook in the portal. You fill in one settings file and run [`scripts/configure.sh`](scripts/configure.sh). It calls the step scripts listed under "What the command runs", needs no SSH to the VMs (everything on a VM goes through Run Command) and can be run again at any time: existing resources are updated in place.
+
+**Deployment order.** Azure Monitor comes first, then each GPU VM; `configure.sh` does items 1–4 in this order:
+
+| Order | Where | What | Done by |
+|---|---|---|---|
+| 1 | Azure subscription | **Deploy Azure Monitor**: Log Analytics workspace, `GpuMetrics_CL` table, data collection endpoint (DCE) and rule (DCR); optionally the two diagnostic settings for AML job tracking | `setup-workspace.sh` |
+| 2 | Each GPU VM, Azure side | System-assigned managed identity, Azure Monitor Agent extension, association with the DCR and DCE | `onboard-vm.sh` |
+| 3 | Each GPU VM, inside through Run Command | **Start DCGM**: `systemctl enable --now nvidia-dcgm` (`dcgm` on older packages); then install and start the `gpumon` collector, which runs `dcgmi dmon` and writes one JSON line per GPU per minute | `vm/install_collector.sh` |
+| 4 | Log Analytics | Wait until every VM's rows arrive through the agent and can be read through the query API | `configure.sh` step 7 |
+| 5 | Azure portal | Deploy the workbook | `deploy-workbook.sh`, step 8 below |
+| 6 | Your platform | Create the read-only sign-in identity and call the query API | `create-query-identity.sh`, see [Query from Your Platform](#query-from-your-platform) |
+
+The DCGM package (`datacenter-gpu-manager`) must already be in the VM image; the scripts start its service but do not install it. The preflight in step 4 checks every VM for `dcgmi`.
 
 **1. Check the prerequisites.**
 
@@ -260,6 +273,16 @@ source gpu-hours.outputs.env
 - sampling status, SM Active / GPU Util / Tensor trends, memory, power, the last 15 minutes and GPUs without load for an hour come from [`azure/workbook/`](azure/workbook/);
 - per AML job and per submitter appear only when the workspace has job tracking data;
 - time range, VMs and busy threshold are selectable at the top. [`tools/build_workbook.py`](tools/build_workbook.py) builds the template [`azure/workbook.json`](azure/workbook.json); viewers need Log Analytics Reader on the workspace.
+
+The workbook as it opened in the portal after deployment (screenshots from the test subscription; VM and Linux user names replaced with `gpu-vm-1` and `user-N`; the sampling, memory, power and current-state panels were added after these were taken):
+
+<img src="images/workbook-summary.png" width="900" alt="Workbook in the Azure portal: header, metric definitions, time range and the summary view, 13.28 allocated, 13.07 observed and 0.22 unknown GPU-hours, 98.4 % coverage">
+
+<img src="images/workbook-per-vm.png" width="900" alt="Workbook in the Azure portal: per_vm view, one NC40ads H100 v5">
+
+<img src="images/workbook-per-hour-day.png" width="900" alt="Workbook in the Azure portal: per-hour GPU-hours chart and the per_day view">
+
+<img src="images/workbook-trend-user.png" width="900" alt="Workbook in the Azure portal: per-minute SM Active chart and the per_user view">
 
 **9. Operate.**
 - **More VMs**: scale out the scale set or add names to `VM_NAMES`, then run step 5 again. VMs already onboarded are refreshed in place.

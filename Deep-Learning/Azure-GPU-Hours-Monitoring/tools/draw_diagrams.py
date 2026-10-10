@@ -18,6 +18,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 IMAGES = ROOT / "images"
 LEDGER = IMAGES / "SOURCES.json"
+# Azure portal screenshots of the deployed workbook: not drawn here, registered by hash with what they show.
+SCREENSHOTS = {
+    "workbook-summary.png": "Azure portal: workbook header and the summary view",
+    "workbook-per-vm.png": "Azure portal: per_vm view",
+    "workbook-per-hour-day.png": "Azure portal: per_hour chart and per_day view",
+    "workbook-trend-user.png": "Azure portal: per-minute SM Active chart and per_user view",
+}
+SCREENSHOT_NOTE = ("VM and Linux user names replaced with gpu-vm-1 and user-N; the screenshot predates the "
+                   "operational panels, which tools/build_workbook.py added afterwards")
 RUNS = ROOT / "evidence" / "runs"
 CJK_FONTS = ("Microsoft YaHei", "SimHei", "Noto Sans CJK SC", "Source Han Sans SC", "WenQuanYi Zen Hei")
 BLUE, DARK, GREEN, GREY, PURPLE, ORANGE, PINK, TEAL = ("#0078D4", "#1F3B5C", "#5E8C00", "#6B7280", "#6D5BD0",
@@ -314,7 +323,7 @@ def main(argv: list[str] | None = None) -> int:
         ledger = json.loads(LEDGER.read_text(encoding="utf-8"))
         bad = [i["file"] for i in ledger["images"]
                if not (IMAGES / i["file"]).is_file() or hashlib.sha256((IMAGES / i["file"]).read_bytes()).hexdigest() != i["sha256"]]
-        if {i["file"] for i in ledger["images"]} != set(FIGURES):
+        if {i["file"] for i in ledger["images"]} != set(FIGURES) | set(SCREENSHOTS):
             bad.append("ledger/figure list mismatch")
         for i in ledger["images"]:
             runs = FIGURES.get(i["file"], (None, None, None))[2]
@@ -338,6 +347,10 @@ def main(argv: list[str] | None = None) -> int:
         else:
             item["does_not_show"] = "measured traffic, latency or production readiness"
         items.append(item)
+    for name, shows in SCREENSHOTS.items():
+        items.append({"file": name, "language": "cn", "generator": "Azure portal screenshot", "shows": shows,
+                      "sha256": hashlib.sha256((IMAGES / name).read_bytes()).hexdigest(),
+                      "does_not_show": SCREENSHOT_NOTE})
     LEDGER.write_text(json.dumps({"schema": 1, "images": items}, indent=1, ensure_ascii=False) + "\n",
                       encoding="utf-8", newline="\n")
     print(f"wrote {len(items)} images and images/SOURCES.json")
