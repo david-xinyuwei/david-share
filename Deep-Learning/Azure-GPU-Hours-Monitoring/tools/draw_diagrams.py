@@ -21,7 +21,6 @@ LEDGER = IMAGES / "SOURCES.json"
 # Azure portal screenshots of the deployed workbook: not drawn here, registered by hash with what they show.
 SCREENSHOTS = {
     "workbook-summary.png": "Azure portal: workbook header and the summary view",
-    "workbook-per-vm.png": "Azure portal: per_vm view",
     "workbook-per-hour-day.png": "Azure portal: per_hour chart and per_day view",
     "workbook-trend-user.png": "Azure portal: per-minute SM Active chart and per_user view",
 }
@@ -208,33 +207,8 @@ def architecture(lang: str, out: Path) -> None:
     plt.close(b.fig)
 
 
-def topology(lang: str, out: Path) -> None:
-    plt = _setup(lang)
-    t = T[lang]
-    b = Board(plt, 15.6, 6.6)
-    b.ax.text(7.8, 6.4, t["topo_title"], ha="center", va="center", fontsize=14, fontweight="bold", color=DARK)
-    b.zone(0.15, 0.2, 7.0, 5.9, t["t_vm"][0], "#F3F8FD", "#9CC3E6")
-    for i, line in enumerate(t["t_vm"][1:]):
-        tt = b.ax.text(0.4, 5.55 - i * 0.28, line, ha="left", va="top", fontsize=9, color="#111827")
-        b.pairs.append(((0.15, 0.2, 7.0, 5.9), tt))
-    b.box(0.4, 2.55, 6.5, 1.35, t["t_load"], ORANGE)
-    b.box(0.4, 0.5, 6.5, 1.05, t["t_gpumon"], BLUE)
-    ws = b.box(7.6, 3.9, 3.6, 1.25, t["t_ws"], PURPLE, size=8.2)
-    ops = b.box(12.0, 3.75, 3.45, 1.65, t["t_ops"], GREEN, size=8.2)
-    b.box(7.9, 0.4, 7.55, 1.85, t["t_m"], DARK)
-    b.arrow((3.65, 2.55), (3.65, 1.55), "", color=ORANGE)
-    b.arrow((6.9, 1.2), (ws[0], 4.2), t["a_rows"], color=BLUE)
-    # routed below the workspace box so neither the line nor its label crosses it
-    b.arrow((ops[0], 3.85), (6.9, 3.1), t["a_setup"], color=GREY, dy=0.05)
-    b.arrow((ops[0], 4.55), (ws[0] + ws[2], 4.55), t["a_q"], color=GREEN)
-    b.verify(out.name)
-    b.save(out)
-    plt.close(b.fig)
 
 
-def _rows(run: str) -> list[dict]:
-    path = RUNS / run / "gpu-metrics.jsonl"
-    return [json.loads(l) for l in path.read_text(encoding="utf-8").splitlines() if l.strip()]
 
 
 def _data_sha(*runs: str) -> str:
@@ -244,74 +218,13 @@ def _data_sha(*runs: str) -> str:
     return h.hexdigest()
 
 
-def minutes_chart(lang: str, out: Path) -> None:
-    sys.path.insert(0, str(ROOT / "tools"))
-    from build_evidence import classify
-
-    plt = _setup(lang)
-    t = T[lang]
-    rows = [r for r in _rows("validation-1") if 8 <= r["Minute"] <= 40]
-    colors = {"full": TEAL, "held": PINK, "partial": "#F59E0B", "idle": "#CBD5E1"}
-    fig, ax = plt.subplots(figsize=(11, 4.2), dpi=150)
-    fig.patch.set_facecolor("white")
-    seen = set()
-    for r in rows:
-        c = classify(r)
-        ax.bar(r["Minute"], 100 * (r["SmActive"] or 0) if c != "idle" else 3, width=0.85, color=colors[c],
-               label=t[c] if c not in seen else None)
-        if c in ("held",):
-            ax.bar(r["Minute"], 3, width=0.85, color=colors[c])
-        seen.add(c)
-    ax.set_xlabel(t["chart_x"])
-    ax.set_ylabel(t["chart_y"])
-    ax.set_ylim(0, 110)
-    ax.set_title(t["chart_title"], fontsize=12, fontweight="bold", color=DARK)
-    ax.legend(loc="upper right", fontsize=8.5, frameon=False)
-    ax.text(0.01, -0.28, t["chart_note"], transform=ax.transAxes, fontsize=8.5, color=GREY)
-    for s in ("top", "right"):
-        ax.spines[s].set_visible(False)
-    fig.savefig(out, bbox_inches="tight", facecolor="white", metadata={"Software": None})
-    plt.close(fig)
 
 
-def owners_chart(lang: str, out: Path) -> None:
-    plt = _setup(lang)
-    t = T[lang]
-    rows = [r for r in _rows("replay-1") if r["Users"]]
-    fig, ax = plt.subplots(figsize=(11, 3.6), dpi=150)
-    fig.patch.set_facecolor("white")
-    seen = set()
-    for r in rows:
-        owners = r["Users"].split(",")
-        if len(owners) == 1:
-            key, color = ("owner_a", BLUE) if owners[0] == "user-1" else ("owner_b", ORANGE)
-            ax.bar(r["Minute"], 1.0, width=0.85, color=color, label=t[key] if key not in seen else None)
-        else:
-            key = "owner_ab"
-            ax.bar(r["Minute"], 0.5, width=0.85, color=BLUE, label=None)
-            ax.bar(r["Minute"], 0.5, bottom=0.5, width=0.85, color=ORANGE, hatch="//", edgecolor="white",
-                   label=t[key] if key not in seen else None)
-        seen.add(key)
-    ax.set_xlabel(t["owner_x"])
-    ax.set_ylabel(t["owner_y"])
-    ax.set_ylim(0, 1.25)
-    ax.set_title(t["owner_title"], fontsize=12, fontweight="bold", color=DARK)
-    ax.legend(loc="upper right", fontsize=8.5, frameon=False, ncol=3)
-    for s in ("top", "right"):
-        ax.spines[s].set_visible(False)
-    fig.savefig(out, bbox_inches="tight", facecolor="white", metadata={"Software": None})
-    plt.close(fig)
 
 
 FIGURES = {
     "architecture-en.png": (architecture, "en", None, "components and data path of the monitoring pipeline"),
     "architecture-cn.png": (architecture, "cn", None, "components and data path of the monitoring pipeline"),
-    "test-topology-en.png": (topology, "en", None, "where the measured VM, the workspace and the operator ran"),
-    "test-topology-cn.png": (topology, "cn", None, "where the measured VM, the workspace and the operator ran"),
-    "gpu-minutes-en.png": (minutes_chart, "en", ("validation-1",), "per-minute class and SM active of validation-1"),
-    "gpu-minutes-cn.png": (minutes_chart, "cn", ("validation-1",), "per-minute class and SM active of validation-1"),
-    "owners-en.png": (owners_chart, "en", ("replay-1",), "per-minute owner shares of replay-1"),
-    "owners-cn.png": (owners_chart, "cn", ("replay-1",), "per-minute owner shares of replay-1"),
 }
 
 

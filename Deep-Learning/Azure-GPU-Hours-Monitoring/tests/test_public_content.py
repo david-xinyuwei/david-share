@@ -86,6 +86,13 @@ class ReadmeTests(unittest.TestCase):
                 with self.subTest(lang=lang, run=run):
                     self.assertIn(f"`{run}`", text)
 
+    def test_every_image_is_shown_and_every_shown_image_exists(self):
+        shown = set()
+        for path in build_readme.READMES.values():
+            shown |= set(re.findall(r'src="images/([^"]+)"', path.read_text(encoding="utf-8")))
+        stored = {p.name for p in (ROOT / "images").glob("*.png")}
+        self.assertEqual(stored, shown, "an image is not shown in a README, or a README shows a missing image")
+
     def test_images_match_ledger(self):
         self.assertEqual(draw_diagrams.main(["--check"]), 0)
 
