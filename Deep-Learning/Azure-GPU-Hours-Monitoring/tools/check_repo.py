@@ -20,11 +20,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 READMES = {"en": ROOT / "README.md", "cn": ROOT / "README_CN.md"}
 READER_ORDER = {
-    "en": ["Start Here", "What This Repository Delivers", "Architecture and Metrics", "Configure on Azure",
-           "Query from Your Platform", "Validation on One H100 VM", "Tests and Offline Checks",
-           "Limits, Assets and Sources"],
-    "cn": ["从这里开始", "本仓库做了什么、提供什么", "架构与指标口径", "在 Azure 上配置", "从客户平台查询",
-           "单台 H100 VM 上的实测验证", "测试与离线校验", "边界、目录与资料"],
+    "en": ["Purpose", "Steps", "Results"],
+    "cn": ["目的", "操作步骤", "实现效果"],
 }
 MAX_TABLE_COLUMNS = 4
 TOP_LEVEL_EXEMPT = {".gitattributes", ".gitignore", "README.md", "__pycache__"}

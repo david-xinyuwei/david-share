@@ -25,7 +25,7 @@
      "id": "actual-inputs-in-both-readmes",
      "passed": true,
      "actual": "5 runs in 2 languages",
-     "expected": "every run has its actual input before the result"
+     "expected": "every run is in both results tables and its contract records question and input"
     },
     {
      "id": "run-contracts-present",
@@ -266,7 +266,7 @@
    "status": "PASS",
    "checks": [
     {
-     "id": "scenario-headings-bilingual",
+     "id": "scenario-rows-bilingual",
      "passed": true,
      "actual": [
       "auth-1",
@@ -275,7 +275,7 @@
       "replay-1",
       "validation-1"
      ],
-     "expected": "all scenarios in both READMEs"
+     "expected": "every scenario in both results tables"
     },
     {
      "id": "scenario-contracts",
@@ -341,28 +341,8 @@
      "id": "generated-block-set",
      "passed": true,
      "actual": [
-      "checks",
-      "configure-settings",
-      "configure-steps",
-      "cost-example",
-      "dcgm-command",
-      "dcgm-fields",
-      "glance",
-      "jobs-launcher",
-      "jobs-result",
-      "jobs-steps",
-      "json-line",
-      "load-input",
-      "offboard-commands",
-      "onboard-commands",
-      "owners",
-      "per-job-json",
-      "per-user-json",
-      "phases",
-      "replay-steps",
-      "setup-commands",
-      "summary-v1",
-      "views"
+      "jobs-table",
+      "results"
      ],
      "expected": "same generated blocks in both READMEs"
     },

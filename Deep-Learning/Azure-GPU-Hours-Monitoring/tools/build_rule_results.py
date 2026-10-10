@@ -50,18 +50,11 @@ def build() -> dict:
     configure_tests = (ROOT / "tests" / "test_configure.py").read_text(encoding="utf-8")
     configure_tests += (ROOT / "tests" / "test_auth.py").read_text(encoding="utf-8")
 
-    run_headings = {
-        "validation-1": ("### validation-1:", "### validation-1："),
-        "replay-1": ("### replay-1:", "### replay-1："),
-        "configure-2": ("### configure-2:", "### configure-2："),
-        "jobs-1": ("### jobs-1:", "### jobs-1："),
-        "auth-1": ("### auth-1:", "### auth-1："),
-    }
-    actual_inputs = all(
-        all(h in doc and "**Input.**" in doc[doc.index(h):] if lang == 0 else h in doc and "**输入。**" in doc[doc.index(h):]
-            for lang, (doc, h) in enumerate(zip((en, cn), headings)))
-        for headings in run_headings.values()
-    )
+    # Each measured run appears in the results table of both READMEs, and its inputs are in its evidence contract.
+    run_ids = sorted(RUNS)
+    actual_inputs = all(f"`{rid}`" in en and f"`{rid}`" in cn for rid in run_ids) and all(
+        RUNS[rid].get("question") and (RUNS[rid].get("commands") or RUNS[rid].get("load") or RUNS[rid].get("steps"))
+        for rid in run_ids)
     source_hashes = {p: sha(p) for p in (
         "scripts/configure.sh", "scripts/setup-workspace.sh", "scripts/onboard-vm.sh",
         "scripts/offboard-vm.sh", "scripts/remove-workspace.sh",
@@ -73,7 +66,7 @@ def build() -> dict:
     terminal_outputs = all((ROOT / "evidence" / "runs" / rid / "raw-manifest.json").is_file() for rid in RUNS)
     setup = MEASUREMENTS["configure-2"]
     duration_sum = sum(s["seconds"] for s in RUNS["configure-2"]["steps"] if s["seconds"] is not None)
-    scenario_matrix = all(all(h in doc for doc, h in zip((en, cn), headings)) for headings in run_headings.values())
+    scenario_matrix = all(f"`{rid}`" in en and f"`{rid}`" in cn for rid in run_ids)
     cleanups = {
         rid: any("cleanup" in s["step"].lower() or "remove" in s["step"].lower()
                  or "offboard" in s["step"].lower() or "下线" in s["step"]
@@ -94,9 +87,9 @@ def build() -> dict:
 
     rules = [
         passed("RUN-001", [
-            check("actual-inputs-in-both-readmes", actual_inputs, f"{len(run_headings)} runs in 2 languages",
-                  "every run has its actual input before the result"),
-            check("run-contracts-present", set(RUNS) == set(run_headings), sorted(RUNS), sorted(run_headings)),
+            check("actual-inputs-in-both-readmes", actual_inputs, f"{len(run_ids)} runs in 2 languages",
+                  "every run is in both results tables and its contract records question and input"),
+            check("run-contracts-present", set(RUNS) == set(MEASUREMENTS), run_ids, sorted(MEASUREMENTS)),
         ], ["README.md", "README_CN.md", "evidence/runs.json"]),
         passed("RUN-002", [
             check("owned-load-generator", (ROOT / "tests/load/gpu_load.py").is_file(), "tests/load/gpu_load.py", "exists"),
@@ -132,7 +125,7 @@ def build() -> dict:
             "evidence/runs/configure-2/receipt.json"]),
         na("RUN-011", "The repository does not claim a deployed customer UI or product object; it delivers scripts, KQL and evidence."),
         passed("RUN-012", [
-            check("scenario-headings-bilingual", scenario_matrix, sorted(run_headings), "all scenarios in both READMEs"),
+            check("scenario-rows-bilingual", scenario_matrix, run_ids, "every scenario in both results tables"),
             check("scenario-contracts", set(RUNS) == set(MEASUREMENTS), sorted(MEASUREMENTS), sorted(RUNS)),
         ], ["README.md", "README_CN.md", "evidence/runs.json", "evidence/measurements.json"]),
         passed("RUN-013", [

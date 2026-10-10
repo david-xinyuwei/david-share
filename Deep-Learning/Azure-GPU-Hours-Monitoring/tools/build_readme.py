@@ -226,6 +226,64 @@ def per_job_json(lang: str) -> str:
     return "\n".join(out)
 
 
+def results(lang: str) -> str:
+    """One row per measured run; both languages carry the same numbers in the same order."""
+    m, runs = _m(), _runs()
+    v, r, c, j, a = m["validation-1"], m["replay-1"], m["configure-2"], m["jobs-1"], m["auth-1"]
+    ph = [p for p in v["phases"] if p["minutes"] > 1]
+    shared = sum(p["shared_minutes"] for p in r["phases"])
+    jm = j["jobs"]["per_job"]
+    each = _n(r["per_user"][0]["BusyGpuHours"])
+    cov = _n(c["coverage_views"]["summary"][0]["TelemetryCoveragePct"], 1)
+    split = ", ".join(_n(x["BusyGpuHours"]) for x in jm)
+    rows = {
+        "en": [
+            ["`validation-1`", "known load, 1 owner",
+             f"{ph[0]['minutes']} full, {ph[1]['minutes']} held, {ph[2]['minutes']} partial minutes, as scheduled; "
+             f"KQL equals an independent recomputation on {v['kql_vs_python']['compared_values']} values"],
+            ["`replay-1`", f"{len(r['per_user'])} Linux users share 1 GPU",
+             f"{each} busy GPU-hours each; the {shared} shared minutes count half for each"],
+            ["`configure-2`", "one-command setup",
+             f"{c['elapsed_seconds']} s, exit {c['exit']}; rerun {runs['configure-2']['rerun']['seconds']} s; "
+             f"coverage {cov} %; test resource group deleted"],
+            ["`jobs-1`", f"{len(jm)} AML jobs, 1 Linux user",
+             f"split by job into {split} GPU-hours with the submitter; "
+             f"{j['jobs']['kql_vs_python']['compared_values']} values equal the recomputation"],
+            ["`auth-1`", "platform signs in as an app registration",
+             f"{a['views_ok']} views HTTP 200; wrong secret HTTP {a['wrong_secret_http']}; no role HTTP {a['no_role_http']}"],
+        ],
+        "cn": [
+            ["`validation-1`", "已知负载，1 个属主",
+             f"满载 {ph[0]['minutes']}、占用 {ph[1]['minutes']}、半载 {ph[2]['minutes']} 分钟，与负载安排一致；"
+             f"KQL 与独立重算 {v['kql_vs_python']['compared_values']} 个值相同"],
+            ["`replay-1`", f"{len(r['per_user'])} 个 Linux 用户共用 1 张卡",
+             f"各 {each} 占用卡时；共用的 {shared} 分钟各记一半"],
+            ["`configure-2`", "一条命令完成配置",
+             f"{c['elapsed_seconds']} 秒，退出码 {c['exit']}；重跑 {runs['configure-2']['rerun']['seconds']} 秒；"
+             f"覆盖率 {cov} %；测试资源组已删除"],
+            ["`jobs-1`", f"{len(jm)} 个 AML 作业，1 个 Linux 用户",
+             f"按作业拆成 {split.replace(', ', '、')} 卡时并给出提交人；"
+             f"{j['jobs']['kql_vs_python']['compared_values']} 个值与重算相同"],
+            ["`auth-1`", "平台以应用注册登录",
+             f"{a['views_ok']} 个查询 HTTP 200；错误密钥 HTTP {a['wrong_secret_http']}；无权限 HTTP {a['no_role_http']}"],
+        ],
+    }[lang]
+    head = {"en": ["Run", "Scenario", "Result"], "cn": ["实测", "场景", "结果"]}[lang]
+    return _table(head, rows, ["l", "l", "l"])
+
+
+def jobs_table(lang: str) -> str:
+    j = _m()["jobs-1"]
+    head = {"en": ["Job", "Submitter", "Busy GPU-h", "Effective GPU-h"], "cn": ["作业", "提交人", "占用卡时", "有效计算卡时"]}[lang]
+    rows = [[f"`{x['RunId']}`", f"`{x['Submitter']}`", _n(x["BusyGpuHours"]), _n(x["EffectiveGpuHours"])]
+            for x in j["jobs"]["per_job"]]
+    total, shared = _n(j["per_user"][0]["BusyGpuHours"]), j["jobs"]["shared_job_minutes"]
+    tail = {"en": f"\nThe three jobs add up to {total} busy GPU-hours, the Linux user's total; the {shared} minutes two jobs "
+                  "shared count half for each.\n",
+            "cn": f"\n三个作业合计 {total} 卡时，等于这个 Linux 用户的占用卡时；两个作业共用的 {shared} 分钟各记一半。\n"}[lang]
+    return _table(head, rows, ["l", "l", "r", "r"]) + tail
+
+
 def load_input(lang: str) -> str:
     return "```python\n" + _runs()["validation-1"]["load"]["script_verbatim"] + "```\n"
 
@@ -449,7 +507,8 @@ BLOCKS = {"glance": glance, "dcgm-command": dcgm_command, "dcgm-fields": dcgm_fi
           "views": views, "per-user-json": per_user_json, "per-job-json": per_job_json, "load-input": load_input, "phases": phases,
           "summary-v1": summary_v1, "replay-steps": replay_steps, "owners": owners, "checks": checks,
           "jobs-launcher": jobs_launcher, "jobs-steps": jobs_steps, "jobs-result": jobs_result,
-          "configure-settings": configure_settings, "configure-steps": configure_steps}
+          "configure-settings": configure_settings, "configure-steps": configure_steps,
+          "results": results, "jobs-table": jobs_table}
 
 
 def render(text: str, lang: str) -> str:
