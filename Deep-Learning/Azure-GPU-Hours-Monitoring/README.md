@@ -515,6 +515,77 @@ The same call returned this during the replay below:
 ```
 <!-- END GENERATED: per-user-json -->
 
+**Per AML job: what it used and who submitted it.** The same reference client returned this `per_job` and `per_submitter` in [jobs-1](#jobs-1-aml-jobs-and-their-submitter-one-linux-user). Job names, the submitter and the object ID are replaced with `job-N`, `submitter-1` and `object-id-1`; in your workspace `RunId` is the AML job name, `Submitter` the submitter's Entra account (UPN) and `SubmitterObjectId` its object ID:
+
+```bash
+python examples/gpu_hours_client.py --credentials gpu-hours.query.env --view per_job       --start "$START" --end "$END"
+python examples/gpu_hours_client.py --credentials gpu-hours.query.env --view per_submitter --start "$START" --end "$END"
+```
+
+<!-- BEGIN GENERATED: per-job-json -->
+```jsonc
+// --view per_job
+[
+ {
+  "RunId": "job-3",
+  "Submitter": "submitter-1",
+  "SubmitterObjectId": "object-id-1",
+  "Status": "Completed",
+  "Vms": 1,
+  "Gpus": 1,
+  "StartTime": 16,
+  "EndTime": 20,
+  "BusyGpuHours": 0.0417,
+  "EffectiveGpuHours": 0.0289,
+  "PeakMemoryGiB": 41.9707
+ },
+ {
+  "RunId": "job-2",
+  "Submitter": "submitter-1",
+  "SubmitterObjectId": "object-id-1",
+  "Status": "Completed",
+  "Vms": 1,
+  "Gpus": 1,
+  "StartTime": 15,
+  "EndTime": 19,
+  "BusyGpuHours": 0.0417,
+  "EffectiveGpuHours": 0.0323,
+  "PeakMemoryGiB": 41.9707
+ },
+ {
+  "RunId": "job-1",
+  "Submitter": "submitter-1",
+  "SubmitterObjectId": "object-id-1",
+  "Status": "Completed",
+  "Vms": 1,
+  "Gpus": 1,
+  "StartTime": 6,
+  "EndTime": 10,
+  "BusyGpuHours": 0.0667,
+  "EffectiveGpuHours": 0.0473,
+  "PeakMemoryGiB": 20.9863
+ }
+]
+```
+
+```jsonc
+// --view per_submitter
+[
+ {
+  "Submitter": "submitter-1",
+  "SubmitterObjectId": "object-id-1",
+  "Jobs": 3,
+  "BusyGpuHours": 0.15,
+  "EffectiveGpuHours": 0.1085
+ }
+]
+```
+<!-- END GENERATED: per-job-json -->
+
+- One row per job: submitter, status, VMs and GPUs used, first and last minute on a GPU (shown here as minutes since the window start; real results are UTC times), busy GPU-hours, effective GPU-hours (SM Active weighted) and peak memory;
+- when two jobs share a GPU in a minute, each gets half, so the three jobs add up to the Linux user's 0.150 busy GPU-hours;
+- for one job, filter the rows by `RunId`, or append `| where RunId == '<job name>'` to the KQL.
+
 **Which interface your platform calls.** Nothing custom sits between your platform and the data:
 - API: the Log Analytics Query API above, one `POST` per view, the KQL file content in `query`, the window in `timespan`;
 - library: `azure-identity` and `azure-monitor-query` ([`examples/requirements.txt`](examples/requirements.txt)) for Python; the Azure Monitor Query client library also exists for .NET, Java, JavaScript and Go;

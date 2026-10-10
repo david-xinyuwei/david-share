@@ -216,6 +216,16 @@ def per_user_json(lang: str) -> str:
     return "```json\n" + json.dumps(rounded, indent=1, ensure_ascii=False) + "\n```\n"
 
 
+def per_job_json(lang: str) -> str:
+    """per_job and per_submitter exactly as the reference client returned them in jobs-1 (labels already neutral)."""
+    data = _json("evidence/runs/jobs-1/kql-results.json")
+    out = []
+    for view in ("per_job", "per_submitter"):
+        rows = [{k: round(v, 4) if isinstance(v, float) else v for k, v in r.items()} for r in data[view]]
+        out.append(f"```jsonc\n// --view {view}\n" + json.dumps(rows, indent=1, ensure_ascii=False) + "\n```\n")
+    return "\n".join(out)
+
+
 def load_input(lang: str) -> str:
     return "```python\n" + _runs()["validation-1"]["load"]["script_verbatim"] + "```\n"
 
@@ -436,7 +446,7 @@ def configure_steps(lang: str) -> str:
 BLOCKS = {"glance": glance, "dcgm-command": dcgm_command, "dcgm-fields": dcgm_fields, "json-line": json_line,
           "cost-example": cost_example,
           "setup-commands": setup_commands, "onboard-commands": onboard_commands, "offboard-commands": offboard_commands,
-          "views": views, "per-user-json": per_user_json, "load-input": load_input, "phases": phases,
+          "views": views, "per-user-json": per_user_json, "per-job-json": per_job_json, "load-input": load_input, "phases": phases,
           "summary-v1": summary_v1, "replay-steps": replay_steps, "owners": owners, "checks": checks,
           "jobs-launcher": jobs_launcher, "jobs-steps": jobs_steps, "jobs-result": jobs_result,
           "configure-settings": configure_settings, "configure-steps": configure_steps}

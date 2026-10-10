@@ -564,6 +564,77 @@ python examples/gpu_hours_client.py --workspace "$WORKSPACE_GUID" --view per_job
 ```
 <!-- END GENERATED: per-user-json -->
 
+**按 AML 作业查询：消耗了多少资源、是谁提交的。** 下面是 [jobs-1](#jobs-1aml-作业与提交人同一个-linux-用户) 实测中同一个参考客户端返回的 `per_job` 和 `per_submitter`。作业名、提交人、对象 ID 已替换为 `job-N`、`submitter-1`、`object-id-1`；真实环境里 `RunId` 是 AML 作业名，`Submitter` 是提交人的 Entra 账号（UPN），`SubmitterObjectId` 是其对象 ID：
+
+```bash
+python examples/gpu_hours_client.py --credentials gpu-hours.query.env --view per_job       --start "$START" --end "$END"
+python examples/gpu_hours_client.py --credentials gpu-hours.query.env --view per_submitter --start "$START" --end "$END"
+```
+
+<!-- BEGIN GENERATED: per-job-json -->
+```jsonc
+// --view per_job
+[
+ {
+  "RunId": "job-3",
+  "Submitter": "submitter-1",
+  "SubmitterObjectId": "object-id-1",
+  "Status": "Completed",
+  "Vms": 1,
+  "Gpus": 1,
+  "StartTime": 16,
+  "EndTime": 20,
+  "BusyGpuHours": 0.0417,
+  "EffectiveGpuHours": 0.0289,
+  "PeakMemoryGiB": 41.9707
+ },
+ {
+  "RunId": "job-2",
+  "Submitter": "submitter-1",
+  "SubmitterObjectId": "object-id-1",
+  "Status": "Completed",
+  "Vms": 1,
+  "Gpus": 1,
+  "StartTime": 15,
+  "EndTime": 19,
+  "BusyGpuHours": 0.0417,
+  "EffectiveGpuHours": 0.0323,
+  "PeakMemoryGiB": 41.9707
+ },
+ {
+  "RunId": "job-1",
+  "Submitter": "submitter-1",
+  "SubmitterObjectId": "object-id-1",
+  "Status": "Completed",
+  "Vms": 1,
+  "Gpus": 1,
+  "StartTime": 6,
+  "EndTime": 10,
+  "BusyGpuHours": 0.0667,
+  "EffectiveGpuHours": 0.0473,
+  "PeakMemoryGiB": 20.9863
+ }
+]
+```
+
+```jsonc
+// --view per_submitter
+[
+ {
+  "Submitter": "submitter-1",
+  "SubmitterObjectId": "object-id-1",
+  "Jobs": 3,
+  "BusyGpuHours": 0.15,
+  "EffectiveGpuHours": 0.1085
+ }
+]
+```
+<!-- END GENERATED: per-job-json -->
+
+- 每个作业一行：提交人、状态、用了几台 VM 和几张卡、在 GPU 上的起止时间（这里已换成查询窗口开始后的分钟数，真实结果是 UTC 时间）、占用卡时、有效计算卡时（按 SM Active 加权）、显存峰值；
+- 同一张卡同一分钟有两个作业时，各记一半，所以三个作业之和（0.150）等于这个 Linux 用户的占用卡时；
+- 只查某个作业：在返回结果里按 `RunId` 过滤，或在 KQL 末尾加 `| where RunId == '<作业名>'`。
+
 **客户平台调用的接口。** 客户平台和数据之间没有任何自建服务：
 - API：上面的 Log Analytics 查询 API，每个查询发一次 `POST`，`query` 填 KQL 文件内容，`timespan` 填统计时段；
 - 库：Python 用 `azure-identity` 和 `azure-monitor-query`（[`examples/requirements.txt`](examples/requirements.txt)）；Azure Monitor Query 客户端库也有 .NET、Java、JavaScript 和 Go 版本；
