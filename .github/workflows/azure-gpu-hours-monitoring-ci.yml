@@ -55,6 +55,8 @@ jobs:
         run: python tools/build_rule_results.py --check
       - name: READMEs are current
         run: python tools/build_readme.py --check
+      - name: Workbook template is current
+        run: python tools/build_workbook.py --check
       - name: Figures match their ledger
         run: python tools/draw_diagrams.py --check
       - name: Public-content audit

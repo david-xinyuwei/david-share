@@ -1,0 +1,11 @@
+// Workbook panel: 最近60分钟未观察到占用的GPU（至少30条样本）
+// Workbook parameters: {TimeRange}, {Computer} ('*' = all VMs), {IdlePct}.
+GpuMetrics_CL
+| where TimeGenerated > ago(60m)
+| where '*' in ({Computer}) or Computer in ({Computer})
+| summarize Minutes = count(), BusyMinutes = countif(ProcCount > 0 or GpuUtil >= {IdlePct}),
+            LastSeen = max(TimeGenerated), VmSize = any(VmSize)
+          by Computer, GpuId
+| where Minutes >= 30 and BusyMinutes == 0
+| project Computer, GpuId, VmSize, ['最近60分钟采样条数'] = Minutes,
+          ['最后采样（北京时间）'] = format_datetime(LastSeen + 8h, 'yyyy-MM-dd HH:mm')

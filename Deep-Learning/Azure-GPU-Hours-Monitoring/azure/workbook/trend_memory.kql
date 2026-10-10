@@ -1,0 +1,19 @@
+// Workbook panel: 显存占用 (GB)
+// Workbook parameters: {TimeRange}, {Computer} ('*' = all VMs), {IdlePct}.
+let windowStart = {TimeRange:start};
+let windowEnd = {TimeRange:end};
+let gpu = materialize(GpuMetrics_CL
+| where TimeGenerated > windowStart and TimeGenerated <= windowEnd
+| where '*' in ({Computer}) or Computer in ({Computer}));
+let firstSample = toscalar(gpu | summarize min(TimeGenerated));
+let lastSample = toscalar(gpu | summarize max(TimeGenerated));
+let grainMinutes = toint(max_of(1.0, ceiling(((lastSample - firstSample) / 1m + 1.0) / 720.0)));
+let g = grainMinutes * 1m;
+let axisStart = bin(coalesce(firstSample, windowStart), g);
+let axisEnd = bin(coalesce(lastSample, windowStart), g) + g;
+gpu
+| extend Gpu = strcat(Computer, '/GPU', GpuId)
+| make-series UsedMiB = avg(FbUsedMiB) default=real(null) on TimeGenerated from axisStart to axisEnd step g by Gpu
+| mv-expand TimeGenerated to typeof(datetime), UsedMiB to typeof(real)
+| project TimeGenerated, Gpu, UsedGB = UsedMiB / 1024.0
+| order by TimeGenerated asc, Gpu asc

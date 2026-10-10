@@ -106,11 +106,12 @@ class GuardTests(unittest.TestCase):
         samples = ["GeekPlus", "极智嘉", "rg-geekplus-gpuhours-demo", "trainer-a", "from Kurt", "C:\\Users\\someone\\",
                    "person@example.com", "10.2.3.4", "12345678-1234-1234-1234-123456789abc", "<details>",
                    "run of 2026-05-08", "stage-20260713", "in September", "9 月 28 日", "see README-CN.md",
-                   "open the Workbook", "webui/app.py", "see QUICKSTART_CN.md", "configure-1"]
+                   "webui/app.py", "see QUICKSTART_CN.md", "configure-1"]
         for sample in samples:
             with self.subTest(sample=sample):
                 self.assertTrue(any(p.search(sample) for p, _ in check_repo.FORBIDDEN), sample)
-        for allowed in ("http://169.254.169.254/metadata/instance/compute?api-version=2021-02-01", "gpu-vm-1", "user-2"):
+        for allowed in ("http://169.254.169.254/metadata/instance/compute?api-version=2021-02-01", "gpu-vm-1", "user-2",
+                        "azure/workbook.json"):
             with self.subTest(allowed=allowed):
                 self.assertFalse(any(p.search(allowed) for p, _ in check_repo.FORBIDDEN), allowed)
 

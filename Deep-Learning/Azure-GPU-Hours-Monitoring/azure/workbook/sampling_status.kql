@@ -1,0 +1,10 @@
+// Workbook panel: 近30天采样状态（独立于所选范围）
+// Workbook parameters: {TimeRange}, {Computer} ('*' = all VMs), {IdlePct}.
+GpuMetrics_CL
+| where TimeGenerated > ago(30d)
+| where '*' in ({Computer}) or Computer in ({Computer})
+| summarize LastSample = max(TimeGenerated)
+| project ['近30天最后采样（北京时间）'] = format_datetime(LastSample + 8h, 'yyyy-MM-dd HH:mm'),
+          ['采样状态'] = case(isnull(LastSample), '近30天无GPU采样',
+                              LastSample < ago(15m), '最近15分钟无采样，历史数据不代表当前运行状态',
+                              '最近15分钟内有GPU采样')

@@ -1,0 +1,18 @@
+// Workbook panel: 所选范围与实际采样日期（北京时间）
+// Workbook parameters: {TimeRange}, {Computer} ('*' = all VMs), {IdlePct}.
+let windowStart = {TimeRange:start};
+let windowEnd = {TimeRange:end};
+let gpu = materialize(GpuMetrics_CL
+| where TimeGenerated > windowStart and TimeGenerated <= windowEnd
+| where '*' in ({Computer}) or Computer in ({Computer}));
+gpu
+| summarize FirstSample = min(TimeGenerated), LastSample = max(TimeGenerated),
+            Samples = count(), Days = make_set(format_datetime(TimeGenerated + 8h, 'yyyy-MM-dd'), 366)
+| project ['查询开始（北京时间）'] = format_datetime(windowStart + 8h, 'yyyy-MM-dd HH:mm'),
+          ['查询结束（北京时间）'] = format_datetime(windowEnd + 8h, 'yyyy-MM-dd HH:mm'),
+          ['实际采样日期'] = iff(Samples > 0, strcat_array(array_sort_asc(Days), '、'), '所选范围无 GPU 采样'),
+          ['GPU采样条数'] = Samples,
+          ['首次采样（北京时间）'] = format_datetime(FirstSample + 8h, 'yyyy-MM-dd HH:mm'),
+          ['最后采样（北京时间）'] = format_datetime(LastSample + 8h, 'yyyy-MM-dd HH:mm'),
+          ['趋势粒度（分钟）'] = iff(Samples > 0, toint(max_of(1.0, ceiling(((LastSample - FirstSample) / 1m + 1.0) / 720.0))), int(null)),
+          ['查询结果生成时间（北京时间）'] = format_datetime(now() + 8h, 'yyyy-MM-dd HH:mm')

@@ -44,10 +44,11 @@ FORBIDDEN = [
     (re.compile(r"README-CN\.md"), "retired file name (the Chinese README is README_CN.md)"),
     (re.compile(r"QUICKSTART(?:_CN)?\.md"), "retired file name (the customer path lives in the README, not a second document)"),
     (re.compile(r"\bconfigure-1\b"), "superseded setup run (configure-2 is the current script run)"),
-    (re.compile(r"(?i)\bworkbook\b|webui|deploy-webui|alert-gpu-idle|dashboard-(?:webui|charts)"), "retired UI or alert scope"),
+    (re.compile(r"(?i)webui|deploy-webui|alert-gpu-idle|dashboard-(?:webui|charts)"), "retired web UI or alert scope"),
 ]
 SCAN_SUFFIXES = {".md", ".py", ".json", ".jsonl", ".txt", ".sh", ".yml", ".kql", ""}
-SCAN_SKIP_FILES = {"check_repo.py", "test_public_content.py"}  # files that hold guard probes
+SCAN_SKIP_FILES = {"check_repo.py", "test_public_content.py",  # files that hold guard probes
+                   "workbook.json"}  # generated from scanned sources; holds ARM schema dates and fixed parameter UUIDs
 LINK = re.compile(r"(?<!!)\[[^\]]*\]\(([^)\s]+)\)|!\[[^\]]*\]\(([^)\s]+)\)|<img\s+[^>]*src=\"([^\"]+)\"")
 GENERATED = re.compile(r"<!-- BEGIN GENERATED: (?P<name>[a-z0-9-]+) -->\n(?P<body>.*?)<!-- END GENERATED: (?P=name) -->", re.S)
 LINK_TARGET = re.compile(r"\]\([^)]*\)")

@@ -43,7 +43,7 @@ Author: Xinyu Wei · [中文](README_CN.md) · [Architecture](#architecture-and-
 
 You supply: GPU VMs with the NVIDIA driver and the DCGM package; Azure CLI with Contributor on the resource group; for the platform, an identity with the Log Analytics Reader role on the workspace.
 
-Not provided: a dashboard or UI, alerting, reconciliation with your invoice, automatic attribution for jobs that do not propagate a run ID, and MIG instances.
+Optional: an Azure Monitor workbook (configuration step 8). Not provided: a custom UI, alerting, reconciliation with your invoice, automatic attribution for jobs that do not propagate a run ID, and MIG instances.
 
 **Cost sizing.** Use the [current Azure Monitor Logs pricing for your region](https://azure.microsoft.com/pricing/details/monitor/):
 
@@ -248,7 +248,20 @@ az rest --method post --url "https://api.loganalytics.azure.com/v1/workspaces/$W
 
 Expected: one row per VM, `Gpus` equal to the GPUs in that VM, and `Last` within the last few minutes. The GPU-hour views are in [Query from Your Platform](#query-from-your-platform).
 
-**8. Operate.**
+**8. Deploy the Azure Monitor workbook (optional).** One workbook puts the GPU-hour tables and the operational panels on one page in the portal:
+
+```bash
+source gpu-hours.outputs.env
+./scripts/deploy-workbook.sh -g "$WORKSPACE_RG" -w "$WORKSPACE_NAME"      # prints the portal link; safe to rerun
+./scripts/deploy-workbook.sh -g "$WORKSPACE_RG" -w "$WORKSPACE_NAME" -d   # remove it
+```
+
+- Summary, per VM, per hour, per day and per Linux user embed the views in [`kql/`](kql/), so they match what your platform reads through the API;
+- sampling status, SM Active / GPU Util / Tensor trends, memory, power, the last 15 minutes and GPUs without load for an hour come from [`azure/workbook/`](azure/workbook/);
+- per AML job and per submitter appear only when the workspace has job tracking data;
+- time range, VMs and busy threshold are selectable at the top. [`tools/build_workbook.py`](tools/build_workbook.py) builds the template [`azure/workbook.json`](azure/workbook.json); viewers need Log Analytics Reader on the workspace.
+
+**9. Operate.**
 - **More VMs**: scale out the scale set or add names to `VM_NAMES`, then run step 5 again. VMs already onboarded are refreshed in place.
 - **Newer collector**: update this repository and run step 5 again. The installer replaces `/opt/gpumon/gpu_collector.py` and restarts `gpumon`.
 - **Remove one VM**: load the deployment IDs and remove only its collector and associations. The shared Azure Monitor Agent, NVIDIA driver, DCGM and managed identity stay:
@@ -762,6 +775,7 @@ python -m unittest discover -s tests -v
 python tools/build_evidence.py --check
 python tools/build_rule_results.py --check
 python tools/build_readme.py --check
+python tools/build_workbook.py --check
 python tools/draw_diagrams.py --check
 python tools/check_repo.py
 ```

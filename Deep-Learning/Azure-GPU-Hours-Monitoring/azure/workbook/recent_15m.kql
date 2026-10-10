@@ -1,0 +1,10 @@
+// Workbook panel: 最近15分钟采样（独立于所选范围）
+// Workbook parameters: {TimeRange}, {Computer} ('*' = all VMs), {IdlePct}.
+GpuMetrics_CL
+| where TimeGenerated > ago(15m)
+| where '*' in ({Computer}) or Computer in ({Computer})
+| summarize arg_max(TimeGenerated, *) by Computer, GpuId
+| project ['采样时间（北京时间）'] = format_datetime(TimeGenerated + 8h, 'yyyy-MM-dd HH:mm'), Computer, VmSize, GpuId, GpuName,
+          ['GPU Util %'] = GpuUtil, ['SM Active %'] = round(SmActive * 100, 1),
+          ['显存 GB'] = round(FbUsedMiB / 1024.0, 1), ['功耗 W'] = PowerW, ['温度 C'] = TempC,
+          Users, Processes

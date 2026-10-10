@@ -11,7 +11,7 @@
 - 八个 KQL 查询；
 - 一个参考客户端，演示客户平台的 API 怎样通过 Log Analytics 查询 API 调用这些查询。
 
-不需要自建存储，也不需要部署任何界面。
+不需要自建存储，也不需要自建界面；报表用 Azure Monitor Workbook。
 
 <img src="images/architecture-cn.png" width="900" alt="数据链路：GPU VM 上的 DCGM host engine、gpumon 采集器、本地 JSON 行文件和 Azure Monitor Agent；Azure Monitor 中的数据收集终结点、数据收集规则和 Log Analytics 工作区；客户平台一侧的 kql/ 查询、Log Analytics 查询 API 和运维人员">
 
@@ -52,7 +52,7 @@
 - 对资源组有 Contributor 权限的 Azure CLI；
 - 客户平台用于查询的身份，并在工作区上授予 Log Analytics Reader 角色。
 
-不提供：看板或界面、告警、与账单对账、没有传递作业 ID 的任务自动归属，以及 MIG 实例。
+可选提供：Azure Monitor Workbook 报表（配置第 8 步）。不提供：自建界面、告警、与账单对账、没有传递作业 ID 的任务自动归属，以及 MIG 实例。
 
 **费用估算。** 单价请使用客户区域当前的 [Azure Monitor Logs 定价](https://azure.microsoft.com/pricing/details/monitor/)：
 
@@ -283,7 +283,20 @@ az rest --method post --url "https://api.loganalytics.azure.com/v1/workspaces/$W
 
 卡时查询见[从客户平台查询](#从客户平台查询)。
 
-**8. 日常运维。**
+**8. 部署 Azure Monitor 报表（可选）。** 一个 Workbook 把卡时表格和运维面板放在同一页，打开门户即可看：
+
+```bash
+source gpu-hours.outputs.env
+./scripts/deploy-workbook.sh -g "$WORKSPACE_RG" -w "$WORKSPACE_NAME"      # 打印 Workbook 的门户链接；可重跑
+./scripts/deploy-workbook.sh -g "$WORKSPACE_RG" -w "$WORKSPACE_NAME" -d   # 删除
+```
+
+- 卡时汇总、按 VM、每小时、按天、按 Linux 用户：直接嵌入 [`kql/`](kql/) 下的同名查询，与客户平台经 API 得到的数字一致；
+- 采样状态、SM Active / GPU Util / Tensor 趋势、显存、功耗、最近 15 分钟、60 分钟无负载的 GPU：来自 [`azure/workbook/`](azure/workbook/)；
+- 按 AML 作业、按提交人：只在工作区已有作业跟踪数据时显示；
+- 顶部可选时间范围、VM 和占用阈值。模板 [`azure/workbook.json`](azure/workbook.json) 由 [`tools/build_workbook.py`](tools/build_workbook.py) 生成；查看的人需要工作区上的 Log Analytics Reader。
+
+**9. 日常运维。**
 - **增加 VM**：规模集扩容，或在 `VM_NAMES` 里加上新 VM，然后重跑第 5 步。已接入的 VM 会原地刷新。
 - **升级采集器**：更新本仓库后重跑第 5 步。安装脚本会替换 `/opt/gpumon/gpu_collector.py` 并重启 `gpumon`。
 - **下线一台 VM**：先读取本次部署的 ID，再只删除它的采集器和关联。共享的 Azure Monitor Agent、NVIDIA 驱动、DCGM 和托管身份都会保留：
@@ -830,6 +843,7 @@ python -m unittest discover -s tests -v
 python tools/build_evidence.py --check
 python tools/build_rule_results.py --check
 python tools/build_readme.py --check
+python tools/build_workbook.py --check
 python tools/draw_diagrams.py --check
 python tools/check_repo.py
 ```
