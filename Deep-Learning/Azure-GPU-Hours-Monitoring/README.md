@@ -98,6 +98,17 @@ mpirun -x AZUREML_RUN_ID ...                                      # across hosts
 docker run -e AZUREML_RUN_ID ...                                  # a container on the host
 ```
 
+To confirm the running GPU processes on one VM carry the job ID (read-only):
+
+```bash
+cat > check-runid.sh <<'EOF'
+for p in $(nvidia-smi --query-compute-apps=pid --format=csv,noheader); do
+  echo "pid $p: $(tr '\0' '\n' < /proc/$p/environ | grep '^AZUREML_RUN_ID=' || echo 'no AZUREML_RUN_ID')"
+done
+EOF
+az vm run-command invoke -g "$VM_RG" -n "$VM_NAME" --command-id RunShellScript --scripts @check-runid.sh --query "value[0].message" -o tsv
+```
+
 **6. Deploy the workbook.**
 
 ```bash
@@ -134,6 +145,16 @@ From Python, use the reference client: `python examples/gpu_hours_client.py --cr
 | [`per_user`](kql/per_user.kql) | Linux user |
 | [`per_job`](kql/per_job.kql), [`per_submitter`](kql/per_submitter.kql) | AML job, with submitter and status; submitter |
 | [`live`](kql/live.kql) | latest row for each job on each GPU |
+
+**Common issues.**
+
+| Symptom | What to do |
+|---|---|
+| `AuthorizationFailed` in step 4 | Get Contributor on the resource groups; without subscription diagnostic-settings rights, leave `AML_WORKSPACE_ID` empty for now |
+| Exit 3, one VM never sends rows | Allow the `AzureMonitor` service tag in the NSG; check the agent and collector: `az vm run-command invoke -g "$VM_RG" -n "$VM_NAME" --command-id RunShellScript --scripts "systemctl is-active gpumon nvidia-dcgm"` |
+| A job is missing from `per_job` | Its GPU processes lack `AZUREML_RUN_ID`; check with the step 5 command |
+| `per_job` shows no submitter | The activity log arrives 6–9 minutes later; the window must include the submission time |
+| The scale set grew or a VM was added | Rerun step 4; onboarded VMs are refreshed in place |
 
 **Offboard and remove.** Offboard one VM (the Azure Monitor Agent and DCGM stay), or remove the monitoring resources (dry run by default; `-y` removes; the resource group is never deleted):
 

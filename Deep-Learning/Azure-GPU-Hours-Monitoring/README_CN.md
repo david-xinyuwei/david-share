@@ -98,6 +98,17 @@ mpirun -x AZUREML_RUN_ID ...                                      # 跨主机分
 docker run -e AZUREML_RUN_ID ...                                  # 宿主机上起容器
 ```
 
+确认某台 VM 上正在运行的 GPU 进程带了作业 ID（只读）：
+
+```bash
+cat > check-runid.sh <<'EOF'
+for p in $(nvidia-smi --query-compute-apps=pid --format=csv,noheader); do
+  echo "pid $p: $(tr '\0' '\n' < /proc/$p/environ | grep '^AZUREML_RUN_ID=' || echo 'no AZUREML_RUN_ID')"
+done
+EOF
+az vm run-command invoke -g "$VM_RG" -n "$VM_NAME" --command-id RunShellScript --scripts @check-runid.sh --query "value[0].message" -o tsv
+```
+
 **6. 部署报表。**
 
 ```bash
@@ -134,6 +145,16 @@ Python 可以直接用参考客户端：`python examples/gpu_hours_client.py --c
 | [`per_user`](kql/per_user.kql) | 每个 Linux 用户 |
 | [`per_job`](kql/per_job.kql)、[`per_submitter`](kql/per_submitter.kql) | 每个 AML 作业（含提交人、状态）；每个提交人 |
 | [`live`](kql/live.kql) | 每张卡上每个作业的最新一行 |
+
+**常见问题。**
+
+| 现象 | 处理 |
+|---|---|
+| 第 4 步报 `AuthorizationFailed` | 补齐资源组 Contributor；没有订阅级诊断设置权限时，先把 `AML_WORKSPACE_ID` 留空 |
+| 退出码 3，某台一直没有数据 | 确认 NSG 放行服务标记 `AzureMonitor`；查看代理和采集服务：`az vm run-command invoke -g "$VM_RG" -n "$VM_NAME" --command-id RunShellScript --scripts "systemctl is-active gpumon nvidia-dcgm"` |
+| `per_job` 里没有某个作业 | GPU 进程没带 `AZUREML_RUN_ID`，用第 5 步的检查命令确认 |
+| `per_job` 的提交人为空 | 活动日志晚到 6–9 分钟；查询时段要覆盖作业的提交时刻 |
+| 规模集扩容或新增 VM | 重跑第 4 步，已接入的 VM 原地刷新 |
 
 **下线与删除。** 下线一台 VM（保留 Azure Monitor Agent 和 DCGM），或删除整套监控资源（默认只预览，加 `-y` 才删除，不会删资源组）：
 
