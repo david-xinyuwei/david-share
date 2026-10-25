@@ -1,0 +1,1389 @@
+{
+  "status": "PASS",
+  "captured": "2026-10-24T22:29:17.165178-05:00",
+  "attempts": 50,
+  "completed": 50,
+  "providerCalls": 50,
+  "costUsd": 0.78989513,
+  "groups": {
+    "opus-adaptive-system": {
+      "config": {
+        "thinking": "adaptive",
+        "id": "opus-adaptive-system",
+        "model": "opus55-standard",
+        "effort": "medium",
+        "cache": "system"
+      },
+      "allTurns": {
+        "samples": 5,
+        "ttftSeconds": {
+          "count": 5,
+          "p50": 9.3205349,
+          "p95": 10.9877249
+        },
+        "e2eSeconds": {
+          "count": 5,
+          "p50": 18.334266,
+          "p95": 20.9043076
+        },
+        "headersSeconds": {
+          "count": 5,
+          "p50": 1.4533864,
+          "p95": 1.6706827
+        },
+        "firstBodyByteSeconds": {
+          "count": 5,
+          "p50": 1.4537197,
+          "p95": 1.6708383
+        },
+        "firstSseSeconds": {
+          "count": 5,
+          "p50": 1.4545819,
+          "p95": 1.6711542
+        },
+        "firstThinkingSeconds": {
+          "count": 5,
+          "p50": 1.4552417,
+          "p95": 1.6747967
+        },
+        "firstSignatureSeconds": {
+          "count": 5,
+          "p50": 9.319572,
+          "p95": 10.9867709
+        },
+        "postFirstSseWaitSeconds": {
+          "count": 5,
+          "p50": 8.027251799999998,
+          "p95": 9.9604707
+        },
+        "outputTokensPerSecond": {
+          "count": 5,
+          "p50": 95.77694574737816,
+          "p95": 101.05953607042342
+        },
+        "visibleTokensPerSecond": {
+          "count": 5,
+          "p50": 55.5027203192201,
+          "p95": 59.31765508244764
+        },
+        "totalInputTokens": 27750,
+        "uncachedInputTokens": 17945,
+        "cacheWriteTokens": 1961,
+        "cacheReadTokens": 7844,
+        "outputTokens": 8762,
+        "thinkingTokens": 3887,
+        "visibleOutputTokens": 4875,
+        "estimatedCostUsd": 0.2583938,
+        "cacheReadSharePercent": 28.266666666666666,
+        "requestsWithCacheRead": 4,
+        "requestsWithThinking": 5
+      },
+      "continuationTurns": {
+        "samples": 4,
+        "ttftSeconds": {
+          "count": 4,
+          "p50": 9.3205349,
+          "p95": 10.9877249
+        },
+        "e2eSeconds": {
+          "count": 4,
+          "p50": 18.334266,
+          "p95": 20.9043076
+        },
+        "headersSeconds": {
+          "count": 4,
+          "p50": 1.4533864,
+          "p95": 1.6706827
+        },
+        "firstBodyByteSeconds": {
+          "count": 4,
+          "p50": 1.4537197,
+          "p95": 1.6708383
+        },
+        "firstSseSeconds": {
+          "count": 4,
+          "p50": 1.4545819,
+          "p95": 1.6711542
+        },
+        "firstThinkingSeconds": {
+          "count": 4,
+          "p50": 1.4552417,
+          "p95": 1.6747967
+        },
+        "firstSignatureSeconds": {
+          "count": 4,
+          "p50": 9.319572,
+          "p95": 10.9867709
+        },
+        "postFirstSseWaitSeconds": {
+          "count": 4,
+          "p50": 7.865953,
+          "p95": 9.9604707
+        },
+        "outputTokensPerSecond": {
+          "count": 4,
+          "p50": 93.6170686657902,
+          "p95": 98.1476750114096
+        },
+        "visibleTokensPerSecond": {
+          "count": 4,
+          "p50": 53.19477790309592,
+          "p95": 59.31765508244764
+        },
+        "totalInputTokens": 25732,
+        "uncachedInputTokens": 17888,
+        "cacheWriteTokens": 0,
+        "cacheReadTokens": 7844,
+        "outputTokens": 6994,
+        "thinkingTokens": 3090,
+        "visibleOutputTokens": 3904,
+        "estimatedCostUsd": 0.2130008,
+        "cacheReadSharePercent": 30.48344473806933,
+        "requestsWithCacheRead": 4,
+        "requestsWithThinking": 4
+      }
+    },
+    "sonnet-adaptive-system": {
+      "config": {
+        "thinking": "adaptive",
+        "id": "sonnet-adaptive-system",
+        "model": "sonnet55-standard",
+        "effort": "medium",
+        "cache": "system"
+      },
+      "allTurns": {
+        "samples": 5,
+        "ttftSeconds": {
+          "count": 5,
+          "p50": 8.0513217,
+          "p95": 9.5312771
+        },
+        "e2eSeconds": {
+          "count": 5,
+          "p50": 15.2329348,
+          "p95": 16.5705575
+        },
+        "headersSeconds": {
+          "count": 5,
+          "p50": 1.1869033,
+          "p95": 1.6207876
+        },
+        "firstBodyByteSeconds": {
+          "count": 5,
+          "p50": 1.1871378,
+          "p95": 1.6209804
+        },
+        "firstSseSeconds": {
+          "count": 5,
+          "p50": 1.1878108,
+          "p95": 1.6213176
+        },
+        "firstThinkingSeconds": {
+          "count": 3,
+          "p50": 1.1887727,
+          "p95": 1.283914
+        },
+        "firstSignatureSeconds": {
+          "count": 3,
+          "p50": 8.6138332,
+          "p95": 9.5301378
+        },
+        "postFirstSseWaitSeconds": {
+          "count": 5,
+          "p50": 7.0288162000000005,
+          "p95": 8.247908
+        },
+        "outputTokensPerSecond": {
+          "count": 5,
+          "p50": 117.83678086772878,
+          "p95": 120.39425951721903
+        },
+        "visibleTokensPerSecond": {
+          "count": 5,
+          "p50": 62.56181179217021,
+          "p95": 118.52856176929298
+        },
+        "totalInputTokens": 23404,
+        "uncachedInputTokens": 13599,
+        "cacheWriteTokens": 1961,
+        "cacheReadTokens": 7844,
+        "outputTokens": 7723,
+        "thinkingTokens": 2699,
+        "visibleOutputTokens": 5024,
+        "estimatedCostUsd": 0.1101149,
+        "cacheReadSharePercent": 33.51563835241839,
+        "requestsWithCacheRead": 4,
+        "requestsWithThinking": 3
+      },
+      "continuationTurns": {
+        "samples": 4,
+        "ttftSeconds": {
+          "count": 4,
+          "p50": 8.0513217,
+          "p95": 9.5312771
+        },
+        "e2eSeconds": {
+          "count": 4,
+          "p50": 15.2329348,
+          "p95": 16.5705575
+        },
+        "headersSeconds": {
+          "count": 4,
+          "p50": 1.0703646,
+          "p95": 1.2825689
+        },
+        "firstBodyByteSeconds": {
+          "count": 4,
+          "p50": 1.0705016,
+          "p95": 1.2828199
+        },
+        "firstSseSeconds": {
+          "count": 4,
+          "p50": 1.0721306,
+          "p95": 1.2833691
+        },
+        "firstThinkingSeconds": {
+          "count": 3,
+          "p50": 1.1887727,
+          "p95": 1.283914
+        },
+        "firstSignatureSeconds": {
+          "count": 3,
+          "p50": 8.6138332,
+          "p95": 9.5301378
+        },
+        "postFirstSseWaitSeconds": {
+          "count": 4,
+          "p50": 7.0288162000000005,
+          "p95": 8.247908
+        },
+        "outputTokensPerSecond": {
+          "count": 4,
+          "p50": 115.06781157332486,
+          "p95": 120.39425951721903
+        },
+        "visibleTokensPerSecond": {
+          "count": 4,
+          "p50": 62.050644465095594,
+          "p95": 107.18697460611702
+        },
+        "totalInputTokens": 21386,
+        "uncachedInputTokens": 13542,
+        "cacheWriteTokens": 0,
+        "cacheReadTokens": 7844,
+        "outputTokens": 6685,
+        "thinkingTokens": 2699,
+        "visibleOutputTokens": 3986,
+        "estimatedCostUsd": 0.0947184,
+        "cacheReadSharePercent": 36.67820069204152,
+        "requestsWithCacheRead": 4,
+        "requestsWithThinking": 3
+      }
+    },
+    "sonnet-between-system": {
+      "config": {
+        "thinking": "between_tools",
+        "id": "sonnet-between-system",
+        "model": "sonnet55-standard",
+        "effort": "medium",
+        "cache": "system"
+      },
+      "allTurns": {
+        "samples": 5,
+        "ttftSeconds": {
+          "count": 5,
+          "p50": 0.9539733,
+          "p95": 2.4077182
+        },
+        "e2eSeconds": {
+          "count": 5,
+          "p50": 7.9906941,
+          "p95": 10.0732036
+        },
+        "headersSeconds": {
+          "count": 5,
+          "p50": 0.9519338,
+          "p95": 2.4055607
+        },
+        "firstBodyByteSeconds": {
+          "count": 5,
+          "p50": 0.9522139,
+          "p95": 2.4057732
+        },
+        "firstSseSeconds": {
+          "count": 5,
+          "p50": 0.9527593,
+          "p95": 2.4062197
+        },
+        "firstThinkingSeconds": {
+          "count": 0,
+          "p50": null,
+          "p95": null
+        },
+        "firstSignatureSeconds": {
+          "count": 0,
+          "p50": null,
+          "p95": null
+        },
+        "postFirstSseWaitSeconds": {
+          "count": 5,
+          "p50": 0.0006127000000000216,
+          "p95": 0.0014985000000002913
+        },
+        "outputTokensPerSecond": {
+          "count": 5,
+          "p50": 114.75849138061736,
+          "p95": 121.29719745909097
+        },
+        "visibleTokensPerSecond": {
+          "count": 5,
+          "p50": 114.75849138061736,
+          "p95": 121.29719745909097
+        },
+        "totalInputTokens": 19621,
+        "uncachedInputTokens": 9821,
+        "cacheWriteTokens": 1960,
+        "cacheReadTokens": 7840,
+        "outputTokens": 4814,
+        "thinkingTokens": 0,
+        "visibleOutputTokens": 4814,
+        "estimatedCostUsd": 0.073466,
+        "cacheReadSharePercent": 39.957188726364606,
+        "requestsWithCacheRead": 4,
+        "requestsWithThinking": 0
+      },
+      "continuationTurns": {
+        "samples": 4,
+        "ttftSeconds": {
+          "count": 4,
+          "p50": 0.8654315,
+          "p95": 0.995213
+        },
+        "e2eSeconds": {
+          "count": 4,
+          "p50": 7.9906941,
+          "p95": 10.0732036
+        },
+        "headersSeconds": {
+          "count": 4,
+          "p50": 0.8643257,
+          "p95": 0.9940468
+        },
+        "firstBodyByteSeconds": {
+          "count": 4,
+          "p50": 0.8645077,
+          "p95": 0.994236
+        },
+        "firstSseSeconds": {
+          "count": 4,
+          "p50": 0.8648455,
+          "p95": 0.9946003
+        },
+        "firstThinkingSeconds": {
+          "count": 0,
+          "p50": null,
+          "p95": null
+        },
+        "firstSignatureSeconds": {
+          "count": 0,
+          "p50": null,
+          "p95": null
+        },
+        "postFirstSseWaitSeconds": {
+          "count": 4,
+          "p50": 0.0005859999999999754,
+          "p95": 0.0012140000000000484
+        },
+        "outputTokensPerSecond": {
+          "count": 4,
+          "p50": 114.75849138061736,
+          "p95": 121.29719745909097
+        },
+        "visibleTokensPerSecond": {
+          "count": 4,
+          "p50": 114.75849138061736,
+          "p95": 121.29719745909097
+        },
+        "totalInputTokens": 17604,
+        "uncachedInputTokens": 9764,
+        "cacheWriteTokens": 0,
+        "cacheReadTokens": 7840,
+        "outputTokens": 3983,
+        "thinkingTokens": 0,
+        "visibleOutputTokens": 3983,
+        "estimatedCostUsd": 0.060142,
+        "cacheReadSharePercent": 44.53533287889116,
+        "requestsWithCacheRead": 4,
+        "requestsWithThinking": 0
+      }
+    },
+    "haiku-adaptive-system": {
+      "config": {
+        "thinking": "adaptive",
+        "id": "haiku-adaptive-system",
+        "model": "haiku55-standard",
+        "effort": "medium",
+        "cache": "system"
+      },
+      "allTurns": {
+        "samples": 5,
+        "ttftSeconds": {
+          "count": 5,
+          "p50": 4.2351167,
+          "p95": 4.4362415
+        },
+        "e2eSeconds": {
+          "count": 5,
+          "p50": 7.1604991,
+          "p95": 7.4607008
+        },
+        "headersSeconds": {
+          "count": 5,
+          "p50": 0.8642513,
+          "p95": 1.0024065
+        },
+        "firstBodyByteSeconds": {
+          "count": 5,
+          "p50": 0.8646448,
+          "p95": 1.0025743
+        },
+        "firstSseSeconds": {
+          "count": 5,
+          "p50": 0.8654168,
+          "p95": 1.0028779
+        },
+        "firstThinkingSeconds": {
+          "count": 5,
+          "p50": 0.8661896,
+          "p95": 1.0031288
+        },
+        "firstSignatureSeconds": {
+          "count": 5,
+          "p50": 4.234013,
+          "p95": 4.4355758
+        },
+        "postFirstSseWaitSeconds": {
+          "count": 5,
+          "p50": 3.2595657,
+          "p95": 3.5895333
+        },
+        "outputTokensPerSecond": {
+          "count": 5,
+          "p50": 183.50676142114173,
+          "p95": 211.79085254838367
+        },
+        "visibleTokensPerSecond": {
+          "count": 5,
+          "p50": 96.37164380053949,
+          "p95": 118.24131695513454
+        },
+        "totalInputTokens": 23904,
+        "uncachedInputTokens": 14099,
+        "cacheWriteTokens": 1961,
+        "cacheReadTokens": 7844,
+        "outputTokens": 6214,
+        "thinkingTokens": 2950,
+        "visibleOutputTokens": 3264,
+        "estimatedCostUsd": 0.004840465,
+        "cacheReadSharePercent": 32.81459170013387,
+        "requestsWithCacheRead": 4,
+        "requestsWithThinking": 5
+      },
+      "continuationTurns": {
+        "samples": 4,
+        "ttftSeconds": {
+          "count": 4,
+          "p50": 3.8217524,
+          "p95": 4.4362415
+        },
+        "e2eSeconds": {
+          "count": 4,
+          "p50": 6.6409472,
+          "p95": 7.4607008
+        },
+        "headersSeconds": {
+          "count": 4,
+          "p50": 0.856257,
+          "p95": 0.9025324
+        },
+        "firstBodyByteSeconds": {
+          "count": 4,
+          "p50": 0.8565256,
+          "p95": 0.902931
+        },
+        "firstSseSeconds": {
+          "count": 4,
+          "p50": 0.8571848,
+          "p95": 0.9037582
+        },
+        "firstThinkingSeconds": {
+          "count": 4,
+          "p50": 0.8577317,
+          "p95": 0.9046658
+        },
+        "firstSignatureSeconds": {
+          "count": 4,
+          "p50": 3.8211088,
+          "p95": 4.4355758
+        },
+        "postFirstSseWaitSeconds": {
+          "count": 4,
+          "p50": 2.9645675999999996,
+          "p95": 3.5895333
+        },
+        "outputTokensPerSecond": {
+          "count": 4,
+          "p50": 170.30703090065225,
+          "p95": 188.9902889551609
+        },
+        "visibleTokensPerSecond": {
+          "count": 4,
+          "p50": 88.541314110353,
+          "p95": 118.24131695513454
+        },
+        "totalInputTokens": 21886,
+        "uncachedInputTokens": 14042,
+        "cacheWriteTokens": 0,
+        "cacheReadTokens": 7844,
+        "outputTokens": 4662,
+        "thinkingTokens": 2159,
+        "visibleOutputTokens": 2503,
+        "estimatedCostUsd": 0.00381364,
+        "cacheReadSharePercent": 35.840263181942795,
+        "requestsWithCacheRead": 4,
+        "requestsWithThinking": 4
+      }
+    },
+    "haiku-disabled-system": {
+      "config": {
+        "thinking": "disabled",
+        "id": "haiku-disabled-system",
+        "model": "haiku55-standard",
+        "effort": "medium",
+        "cache": "system"
+      },
+      "allTurns": {
+        "samples": 5,
+        "ttftSeconds": {
+          "count": 5,
+          "p50": 0.8100576,
+          "p95": 1.5626388
+        },
+        "e2eSeconds": {
+          "count": 5,
+          "p50": 3.552825,
+          "p95": 4.8035949
+        },
+        "headersSeconds": {
+          "count": 5,
+          "p50": 0.8084245,
+          "p95": 1.5375215
+        },
+        "firstBodyByteSeconds": {
+          "count": 5,
+          "p50": 0.8087577,
+          "p95": 1.5532554
+        },
+        "firstSseSeconds": {
+          "count": 5,
+          "p50": 0.8092402,
+          "p95": 1.5542225
+        },
+        "firstThinkingSeconds": {
+          "count": 0,
+          "p50": null,
+          "p95": null
+        },
+        "firstSignatureSeconds": {
+          "count": 0,
+          "p50": null,
+          "p95": null
+        },
+        "postFirstSseWaitSeconds": {
+          "count": 5,
+          "p50": 0.000738699999999981,
+          "p95": 0.008416299999999932
+        },
+        "outputTokensPerSecond": {
+          "count": 5,
+          "p50": 153.9619879954684,
+          "p95": 155.86168451298147
+        },
+        "visibleTokensPerSecond": {
+          "count": 5,
+          "p50": 153.9619879954684,
+          "p95": 155.86168451298147
+        },
+        "totalInputTokens": 16517,
+        "uncachedInputTokens": 6717,
+        "cacheWriteTokens": 1960,
+        "cacheReadTokens": 7840,
+        "outputTokens": 2953,
+        "thinkingTokens": 0,
+        "visibleOutputTokens": 2953,
+        "estimatedCostUsd": 0.0024716,
+        "cacheReadSharePercent": 47.46624689713629,
+        "requestsWithCacheRead": 4,
+        "requestsWithThinking": 0
+      },
+      "continuationTurns": {
+        "samples": 4,
+        "ttftSeconds": {
+          "count": 4,
+          "p50": 0.7530528,
+          "p95": 0.873608
+        },
+        "e2eSeconds": {
+          "count": 4,
+          "p50": 3.4125787,
+          "p95": 4.8035949
+        },
+        "headersSeconds": {
+          "count": 4,
+          "p50": 0.7513628,
+          "p95": 0.8725324
+        },
+        "firstBodyByteSeconds": {
+          "count": 4,
+          "p50": 0.7515964,
+          "p95": 0.8727834
+        },
+        "firstSseSeconds": {
+          "count": 4,
+          "p50": 0.7523141,
+          "p95": 0.8731123
+        },
+        "firstThinkingSeconds": {
+          "count": 0,
+          "p50": null,
+          "p95": null
+        },
+        "firstSignatureSeconds": {
+          "count": 0,
+          "p50": null,
+          "p95": null
+        },
+        "postFirstSseWaitSeconds": {
+          "count": 4,
+          "p50": 0.0004957000000000988,
+          "p95": 0.0008174000000000792
+        },
+        "outputTokensPerSecond": {
+          "count": 4,
+          "p50": 148.10311142684455,
+          "p95": 154.25946929871208
+        },
+        "visibleTokensPerSecond": {
+          "count": 4,
+          "p50": 148.10311142684455,
+          "p95": 154.25946929871208
+        },
+        "totalInputTokens": 14500,
+        "uncachedInputTokens": 6660,
+        "cacheWriteTokens": 0,
+        "cacheReadTokens": 7840,
+        "outputTokens": 2269,
+        "thinkingTokens": 0,
+        "visibleOutputTokens": 2269,
+        "estimatedCostUsd": 0.0018789,
+        "cacheReadSharePercent": 54.06896551724138,
+        "requestsWithCacheRead": 4,
+        "requestsWithThinking": 0
+      }
+    },
+    "opus-adaptive-conversation": {
+      "config": {
+        "thinking": "adaptive",
+        "id": "opus-adaptive-conversation",
+        "model": "opus55-standard",
+        "effort": "medium",
+        "cache": "conversation"
+      },
+      "allTurns": {
+        "samples": 5,
+        "ttftSeconds": {
+          "count": 5,
+          "p50": 7.2930848,
+          "p95": 8.7494348
+        },
+        "e2eSeconds": {
+          "count": 5,
+          "p50": 16.0215954,
+          "p95": 18.6274213
+        },
+        "headersSeconds": {
+          "count": 5,
+          "p50": 1.4352502,
+          "p95": 1.6770416
+        },
+        "firstBodyByteSeconds": {
+          "count": 5,
+          "p50": 1.4354839,
+          "p95": 1.677284
+        },
+        "firstSseSeconds": {
+          "count": 5,
+          "p50": 1.4360273,
+          "p95": 1.6778205
+        },
+        "firstThinkingSeconds": {
+          "count": 5,
+          "p50": 1.4366509,
+          "p95": 1.6783684
+        },
+        "firstSignatureSeconds": {
+          "count": 5,
+          "p50": 7.2916349,
+          "p95": 8.7484741
+        },
+        "postFirstSseWaitSeconds": {
+          "count": 5,
+          "p50": 6.2150877,
+          "p95": 7.1913667000000006
+        },
+        "outputTokensPerSecond": {
+          "count": 5,
+          "p50": 90.86190123000891,
+          "p95": 109.0403269077685
+        },
+        "visibleTokensPerSecond": {
+          "count": 5,
+          "p50": 58.30114552678314,
+          "p95": 68.22214417353169
+        },
+        "totalInputTokens": 26109,
+        "uncachedInputTokens": 20,
+        "cacheWriteTokens": 8009,
+        "cacheReadTokens": 18080,
+        "outputTokens": 7488,
+        "thinkingTokens": 2694,
+        "visibleOutputTokens": 4794,
+        "estimatedCostUsd": 0.193501,
+        "cacheReadSharePercent": 69.24815197824505,
+        "requestsWithCacheRead": 4,
+        "requestsWithThinking": 5
+      },
+      "continuationTurns": {
+        "samples": 4,
+        "ttftSeconds": {
+          "count": 4,
+          "p50": 6.0880318,
+          "p95": 8.7494348
+        },
+        "e2eSeconds": {
+          "count": 4,
+          "p50": 13.6854037,
+          "p95": 18.6274213
+        },
+        "headersSeconds": {
+          "count": 4,
+          "p50": 1.4352502,
+          "p95": 1.6770416
+        },
+        "firstBodyByteSeconds": {
+          "count": 4,
+          "p50": 1.4354839,
+          "p95": 1.677284
+        },
+        "firstSseSeconds": {
+          "count": 4,
+          "p50": 1.4360273,
+          "p95": 1.6778205
+        },
+        "firstThinkingSeconds": {
+          "count": 4,
+          "p50": 1.4366509,
+          "p95": 1.6783684
+        },
+        "firstSignatureSeconds": {
+          "count": 4,
+          "p50": 6.08721,
+          "p95": 8.7484741
+        },
+        "postFirstSseWaitSeconds": {
+          "count": 4,
+          "p50": 4.559122800000001,
+          "p95": 7.1913667000000006
+        },
+        "outputTokensPerSecond": {
+          "count": 4,
+          "p50": 90.6157910179191,
+          "p95": 93.46435944947463
+        },
+        "visibleTokensPerSecond": {
+          "count": 4,
+          "p50": 56.55660709519296,
+          "p95": 68.22214417353169
+        },
+        "totalInputTokens": 24091,
+        "uncachedInputTokens": 16,
+        "cacheWriteTokens": 5995,
+        "cacheReadTokens": 18080,
+        "outputTokens": 5741,
+        "thinkingTokens": 1997,
+        "visibleOutputTokens": 3744,
+        "estimatedCostUsd": 0.14847500000000002,
+        "cacheReadSharePercent": 75.0487734008551,
+        "requestsWithCacheRead": 4,
+        "requestsWithThinking": 4
+      }
+    },
+    "sonnet-adaptive-conversation": {
+      "config": {
+        "thinking": "adaptive",
+        "id": "sonnet-adaptive-conversation",
+        "model": "sonnet55-standard",
+        "effort": "medium",
+        "cache": "conversation"
+      },
+      "allTurns": {
+        "samples": 5,
+        "ttftSeconds": {
+          "count": 5,
+          "p50": 1.4338232,
+          "p95": 8.5860401
+        },
+        "e2eSeconds": {
+          "count": 5,
+          "p50": 8.6044399,
+          "p95": 17.2569095
+        },
+        "headersSeconds": {
+          "count": 5,
+          "p50": 1.1536336,
+          "p95": 1.4318164
+        },
+        "firstBodyByteSeconds": {
+          "count": 5,
+          "p50": 1.154099,
+          "p95": 1.4320257
+        },
+        "firstSseSeconds": {
+          "count": 5,
+          "p50": 1.1550438,
+          "p95": 1.4326374
+        },
+        "firstThinkingSeconds": {
+          "count": 2,
+          "p50": 1.1561214,
+          "p95": 1.3047961
+        },
+        "firstSignatureSeconds": {
+          "count": 2,
+          "p50": 6.169515,
+          "p95": 8.5774797
+        },
+        "postFirstSseWaitSeconds": {
+          "count": 5,
+          "p50": 0.0015104000000001339,
+          "p95": 7.2817799999999995
+        },
+        "outputTokensPerSecond": {
+          "count": 5,
+          "p50": 115.28930225054773,
+          "p95": 117.1125107887945
+        },
+        "visibleTokensPerSecond": {
+          "count": 5,
+          "p50": 109.4783636062122,
+          "p95": 116.87627173757032
+        },
+        "totalInputTokens": 20341,
+        "uncachedInputTokens": 20,
+        "cacheWriteTokens": 6555,
+        "cacheReadTokens": 13766,
+        "outputTokens": 6320,
+        "thinkingTokens": 1456,
+        "visibleOutputTokens": 4864,
+        "estimatedCostUsd": 0.0810041,
+        "cacheReadSharePercent": 67.67612211788997,
+        "requestsWithCacheRead": 4,
+        "requestsWithThinking": 2
+      },
+      "continuationTurns": {
+        "samples": 4,
+        "ttftSeconds": {
+          "count": 4,
+          "p50": 1.0291513,
+          "p95": 8.5860401
+        },
+        "e2eSeconds": {
+          "count": 4,
+          "p50": 8.6044399,
+          "p95": 17.2569095
+        },
+        "headersSeconds": {
+          "count": 4,
+          "p50": 1.0244095,
+          "p95": 1.3033119
+        },
+        "firstBodyByteSeconds": {
+          "count": 4,
+          "p50": 1.0246155,
+          "p95": 1.3037141
+        },
+        "firstSseSeconds": {
+          "count": 4,
+          "p50": 1.0276409,
+          "p95": 1.3042601
+        },
+        "firstThinkingSeconds": {
+          "count": 2,
+          "p50": 1.1561214,
+          "p95": 1.3047961
+        },
+        "firstSignatureSeconds": {
+          "count": 2,
+          "p50": 6.169515,
+          "p95": 8.5774797
+        },
+        "postFirstSseWaitSeconds": {
+          "count": 4,
+          "p50": 0.0015104000000001339,
+          "p95": 7.2817799999999995
+        },
+        "outputTokensPerSecond": {
+          "count": 4,
+          "p50": 111.80691799061303,
+          "p95": 117.1125107887945
+        },
+        "visibleTokensPerSecond": {
+          "count": 4,
+          "p50": 68.08866906325261,
+          "p95": 116.87627173757032
+        },
+        "totalInputTokens": 18323,
+        "uncachedInputTokens": 16,
+        "cacheWriteTokens": 4541,
+        "cacheReadTokens": 13766,
+        "outputTokens": 5483,
+        "thinkingTokens": 1456,
+        "visibleOutputTokens": 4027,
+        "estimatedCostUsd": 0.0675911,
+        "cacheReadSharePercent": 75.12961851225236,
+        "requestsWithCacheRead": 4,
+        "requestsWithThinking": 2
+      }
+    },
+    "sonnet-between-conversation": {
+      "config": {
+        "thinking": "between_tools",
+        "id": "sonnet-between-conversation",
+        "model": "sonnet55-standard",
+        "effort": "medium",
+        "cache": "conversation"
+      },
+      "allTurns": {
+        "samples": 5,
+        "ttftSeconds": {
+          "count": 5,
+          "p50": 0.8932189,
+          "p95": 0.9864062
+        },
+        "e2eSeconds": {
+          "count": 5,
+          "p50": 7.8744581,
+          "p95": 8.5523258
+        },
+        "headersSeconds": {
+          "count": 5,
+          "p50": 0.87872,
+          "p95": 0.9841143
+        },
+        "firstBodyByteSeconds": {
+          "count": 5,
+          "p50": 0.8789666,
+          "p95": 0.9844166
+        },
+        "firstSseSeconds": {
+          "count": 5,
+          "p50": 0.8809903,
+          "p95": 0.9850597
+        },
+        "firstThinkingSeconds": {
+          "count": 0,
+          "p50": null,
+          "p95": null
+        },
+        "firstSignatureSeconds": {
+          "count": 0,
+          "p50": null,
+          "p95": null
+        },
+        "postFirstSseWaitSeconds": {
+          "count": 5,
+          "p50": 0.0013465000000000282,
+          "p95": 0.012228600000000034
+        },
+        "outputTokensPerSecond": {
+          "count": 5,
+          "p50": 112.64267188112919,
+          "p95": 125.80849114480165
+        },
+        "visibleTokensPerSecond": {
+          "count": 5,
+          "p50": 112.64267188112919,
+          "p95": 125.80849114480165
+        },
+        "totalInputTokens": 19612,
+        "uncachedInputTokens": 20,
+        "cacheWriteTokens": 5731,
+        "cacheReadTokens": 13861,
+        "outputTokens": 4442,
+        "thinkingTokens": 0,
+        "visibleOutputTokens": 4442,
+        "estimatedCostUsd": 0.060173599999999994,
+        "cacheReadSharePercent": 70.6761166632674,
+        "requestsWithCacheRead": 4,
+        "requestsWithThinking": 0
+      },
+      "continuationTurns": {
+        "samples": 4,
+        "ttftSeconds": {
+          "count": 4,
+          "p50": 0.8298925,
+          "p95": 0.9371355
+        },
+        "e2eSeconds": {
+          "count": 4,
+          "p50": 7.8744581,
+          "p95": 8.5523258
+        },
+        "headersSeconds": {
+          "count": 4,
+          "p50": 0.8277691,
+          "p95": 0.9324255
+        },
+        "firstBodyByteSeconds": {
+          "count": 4,
+          "p50": 0.8280889,
+          "p95": 0.9328405
+        },
+        "firstSseSeconds": {
+          "count": 4,
+          "p50": 0.8288439,
+          "p95": 0.9334366
+        },
+        "firstThinkingSeconds": {
+          "count": 0,
+          "p50": null,
+          "p95": null
+        },
+        "firstSignatureSeconds": {
+          "count": 0,
+          "p50": null,
+          "p95": null
+        },
+        "postFirstSseWaitSeconds": {
+          "count": 4,
+          "p50": 0.0010486000000000661,
+          "p95": 0.012228600000000034
+        },
+        "outputTokensPerSecond": {
+          "count": 4,
+          "p50": 111.5486035389344,
+          "p95": 114.03327772607695
+        },
+        "visibleTokensPerSecond": {
+          "count": 4,
+          "p50": 111.5486035389344,
+          "p95": 114.03327772607695
+        },
+        "totalInputTokens": 17595,
+        "uncachedInputTokens": 16,
+        "cacheWriteTokens": 3718,
+        "cacheReadTokens": 13861,
+        "outputTokens": 3553,
+        "thinkingTokens": 0,
+        "visibleOutputTokens": 3553,
+        "estimatedCostUsd": 0.046243099999999995,
+        "cacheReadSharePercent": 78.77806194941745,
+        "requestsWithCacheRead": 4,
+        "requestsWithThinking": 0
+      }
+    },
+    "haiku-adaptive-conversation": {
+      "config": {
+        "thinking": "adaptive",
+        "id": "haiku-adaptive-conversation",
+        "model": "haiku55-standard",
+        "effort": "medium",
+        "cache": "conversation"
+      },
+      "allTurns": {
+        "samples": 5,
+        "ttftSeconds": {
+          "count": 5,
+          "p50": 2.9098707,
+          "p95": 4.0195734
+        },
+        "e2eSeconds": {
+          "count": 5,
+          "p50": 5.9171014,
+          "p95": 7.7021501
+        },
+        "headersSeconds": {
+          "count": 5,
+          "p50": 0.9689816,
+          "p95": 1.1229895
+        },
+        "firstBodyByteSeconds": {
+          "count": 5,
+          "p50": 0.9691811,
+          "p95": 1.1233287
+        },
+        "firstSseSeconds": {
+          "count": 5,
+          "p50": 0.9697111,
+          "p95": 1.1240912
+        },
+        "firstThinkingSeconds": {
+          "count": 5,
+          "p50": 0.970283,
+          "p95": 1.1300248
+        },
+        "firstSignatureSeconds": {
+          "count": 5,
+          "p50": 2.9082672,
+          "p95": 4.018638
+        },
+        "postFirstSseWaitSeconds": {
+          "count": 5,
+          "p50": 2.0021773,
+          "p95": 2.8954821999999996
+        },
+        "outputTokensPerSecond": {
+          "count": 5,
+          "p50": 172.62363985049237,
+          "p95": 193.06297341569598
+        },
+        "visibleTokensPerSecond": {
+          "count": 5,
+          "p50": 111.11406703020198,
+          "p95": 117.44974161753875
+        },
+        "totalInputTokens": 22655,
+        "uncachedInputTokens": 20,
+        "cacheWriteTokens": 6541,
+        "cacheReadTokens": 16094,
+        "outputTokens": 5323,
+        "thinkingTokens": 1996,
+        "visibleOutputTokens": 3327,
+        "estimatedCostUsd": 0.0036420650000000003,
+        "cacheReadSharePercent": 71.03950562789672,
+        "requestsWithCacheRead": 4,
+        "requestsWithThinking": 5
+      },
+      "continuationTurns": {
+        "samples": 4,
+        "ttftSeconds": {
+          "count": 4,
+          "p50": 2.82891,
+          "p95": 2.9718884
+        },
+        "e2eSeconds": {
+          "count": 4,
+          "p50": 5.7386248,
+          "p95": 6.5518257
+        },
+        "headersSeconds": {
+          "count": 4,
+          "p50": 0.9511315,
+          "p95": 1.0257454
+        },
+        "firstBodyByteSeconds": {
+          "count": 4,
+          "p50": 0.9513883,
+          "p95": 1.0259207
+        },
+        "firstSseSeconds": {
+          "count": 4,
+          "p50": 0.9520119,
+          "p95": 1.0263454
+        },
+        "firstThinkingSeconds": {
+          "count": 4,
+          "p50": 0.952668,
+          "p95": 1.0268874
+        },
+        "firstSignatureSeconds": {
+          "count": 4,
+          "p50": 2.8277693,
+          "p95": 2.9709475
+        },
+        "postFirstSseWaitSeconds": {
+          "count": 4,
+          "p50": 1.8025646,
+          "p95": 2.0743685
+        },
+        "outputTokensPerSecond": {
+          "count": 4,
+          "p50": 163.59361358924826,
+          "p95": 181.9251190633686
+        },
+        "visibleTokensPerSecond": {
+          "count": 4,
+          "p50": 111.11406703020198,
+          "p95": 117.44974161753875
+        },
+        "totalInputTokens": 20637,
+        "uncachedInputTokens": 16,
+        "cacheWriteTokens": 4527,
+        "cacheReadTokens": 16094,
+        "outputTokens": 3836,
+        "thinkingTokens": 1309,
+        "visibleOutputTokens": 2527,
+        "estimatedCostUsd": 0.002646415,
+        "cacheReadSharePercent": 77.98614139652081,
+        "requestsWithCacheRead": 4,
+        "requestsWithThinking": 4
+      }
+    },
+    "haiku-disabled-conversation": {
+      "config": {
+        "thinking": "disabled",
+        "id": "haiku-disabled-conversation",
+        "model": "haiku55-standard",
+        "effort": "medium",
+        "cache": "conversation"
+      },
+      "allTurns": {
+        "samples": 5,
+        "ttftSeconds": {
+          "count": 5,
+          "p50": 0.7811622,
+          "p95": 1.2157794
+        },
+        "e2eSeconds": {
+          "count": 5,
+          "p50": 3.983145,
+          "p95": 4.2764071
+        },
+        "headersSeconds": {
+          "count": 5,
+          "p50": 0.7725531,
+          "p95": 1.2037675
+        },
+        "firstBodyByteSeconds": {
+          "count": 5,
+          "p50": 0.7728456,
+          "p95": 1.2041383
+        },
+        "firstSseSeconds": {
+          "count": 5,
+          "p50": 0.7783835,
+          "p95": 1.2049967
+        },
+        "firstThinkingSeconds": {
+          "count": 0,
+          "p50": null,
+          "p95": null
+        },
+        "firstSignatureSeconds": {
+          "count": 0,
+          "p50": null,
+          "p95": null
+        },
+        "postFirstSseWaitSeconds": {
+          "count": 5,
+          "p50": 0.0013200999999999352,
+          "p95": 0.010782700000000034
+        },
+        "outputTokensPerSecond": {
+          "count": 5,
+          "p50": 156.5511536584825,
+          "p95": 186.60524625917864
+        },
+        "visibleTokensPerSecond": {
+          "count": 5,
+          "p50": 156.5511536584825,
+          "p95": 186.60524625917864
+        },
+        "totalInputTokens": 17305,
+        "uncachedInputTokens": 20,
+        "cacheWriteTokens": 4750,
+        "cacheReadTokens": 12535,
+        "outputTokens": 3133,
+        "thinkingTokens": 0,
+        "visibleOutputTokens": 3133,
+        "estimatedCostUsd": 0.0022876,
+        "cacheReadSharePercent": 72.43571222190118,
+        "requestsWithCacheRead": 4,
+        "requestsWithThinking": 0
+      },
+      "continuationTurns": {
+        "samples": 4,
+        "ttftSeconds": {
+          "count": 4,
+          "p50": 0.7588247,
+          "p95": 0.9417171
+        },
+        "e2eSeconds": {
+          "count": 4,
+          "p50": 3.6026563,
+          "p95": 4.1842259
+        },
+        "headersSeconds": {
+          "count": 4,
+          "p50": 0.7576979,
+          "p95": 0.9393517
+        },
+        "firstBodyByteSeconds": {
+          "count": 4,
+          "p50": 0.7578525,
+          "p95": 0.939678
+        },
+        "firstSseSeconds": {
+          "count": 4,
+          "p50": 0.7582753,
+          "p95": 0.940397
+        },
+        "firstThinkingSeconds": {
+          "count": 0,
+          "p50": null,
+          "p95": null
+        },
+        "firstSignatureSeconds": {
+          "count": 0,
+          "p50": null,
+          "p95": null
+        },
+        "postFirstSseWaitSeconds": {
+          "count": 4,
+          "p50": 0.0005494000000000332,
+          "p95": 0.002778700000000023
+        },
+        "outputTokensPerSecond": {
+          "count": 4,
+          "p50": 153.91138418219722,
+          "p95": 160.42250875696678
+        },
+        "visibleTokensPerSecond": {
+          "count": 4,
+          "p50": 153.91138418219722,
+          "p95": 160.42250875696678
+        },
+        "totalInputTokens": 15288,
+        "uncachedInputTokens": 16,
+        "cacheWriteTokens": 2737,
+        "cacheReadTokens": 12535,
+        "outputTokens": 2335,
+        "thinkingTokens": 0,
+        "visibleOutputTokens": 2335,
+        "estimatedCostUsd": 0.001636575,
+        "cacheReadSharePercent": 81.99241234955521,
+        "requestsWithCacheRead": 4,
+        "requestsWithThinking": 0
+      }
+    }
+  },
+  "percentileMethod": "nearest-rank",
+  "scope": "A fixed public-safe source-review workload; not a customer production trace or quality benchmark.",
+  "notes": [
+    "One dependent five-turn conversation per configuration; no quality or production-tail claim.",
+    "Observed client times do not isolate model compute, server queues or network buffering.",
+    "Tokens/s uses output_tokens/E2E and includes thinking; visible token throughput is separate.",
+    "Mode and cache phases can change generated histories; no cross-model signature reuse."
+  ],
+  "projection": "Actual requests/responses/usage/timing; signatures omitted and call IDs pseudonymized. Private raw SSE was independently reconstructed before export."
+}

@@ -1,0 +1,9 @@
+*.json -filter -diff -merge text eol=lf
+*.jsonl -filter -diff -merge text eol=lf
+*.md -filter text eol=lf
+*.py -filter text eol=lf
+*.ps1 -filter text eol=lf
+*.yaml -filter text eol=lf
+Dockerfile -filter text eol=lf
+*.svg -filter text eol=lf
+*.png -filter binary

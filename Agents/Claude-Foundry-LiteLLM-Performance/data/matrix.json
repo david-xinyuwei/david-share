@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "title": "Claude gateway thinking and prompt-cache matrix",
+  "scope": "A fixed public-safe source-review workload; not a customer production trace or quality benchmark.",
+  "budgetUsd": 50,
+  "priorWorkBudgetReserveUsd": 3,
+  "attemptLimit": 50,
+  "turnsPerCase": 5,
+  "maxRetries": 0,
+  "maxConcurrency": 1,
+  "cases": [
+    {
+      "thinking": "adaptive",
+      "id": "opus-adaptive-system",
+      "model": "opus55-standard",
+      "effort": "medium",
+      "cache": "system"
+    },
+    {
+      "thinking": "adaptive",
+      "id": "sonnet-adaptive-system",
+      "model": "sonnet55-standard",
+      "effort": "medium",
+      "cache": "system"
+    },
+    {
+      "thinking": "between_tools",
+      "id": "sonnet-between-system",
+      "model": "sonnet55-standard",
+      "effort": "medium",
+      "cache": "system"
+    },
+    {
+      "thinking": "adaptive",
+      "id": "haiku-adaptive-system",
+      "model": "haiku55-standard",
+      "effort": "medium",
+      "cache": "system"
+    },
+    {
+      "thinking": "disabled",
+      "id": "haiku-disabled-system",
+      "model": "haiku55-standard",
+      "effort": "medium",
+      "cache": "system"
+    },
+    {
+      "thinking": "adaptive",
+      "id": "opus-adaptive-conversation",
+      "model": "opus55-standard",
+      "effort": "medium",
+      "cache": "conversation"
+    },
+    {
+      "thinking": "adaptive",
+      "id": "sonnet-adaptive-conversation",
+      "model": "sonnet55-standard",
+      "effort": "medium",
+      "cache": "conversation"
+    },
+    {
+      "thinking": "between_tools",
+      "id": "sonnet-between-conversation",
+      "model": "sonnet55-standard",
+      "effort": "medium",
+      "cache": "conversation"
+    },
+    {
+      "thinking": "adaptive",
+      "id": "haiku-adaptive-conversation",
+      "model": "haiku55-standard",
+      "effort": "medium",
+      "cache": "conversation"
+    },
+    {
+      "thinking": "disabled",
+      "id": "haiku-disabled-conversation",
+      "model": "haiku55-standard",
+      "effort": "medium",
+      "cache": "conversation"
+    }
+  ],
+  "baseRequest": {
+    "system": [
+      {
+        "text": "The test architecture routes Claude Desktop Enterprise (Chat, Cowork, Code) through a enterprise enterprise AI gateway to AWS or Azure, with Opus, Sonnet and Haiku on both branches and Anthropic Messages API /v1/messages at the client boundary. This run exercises only our Azure Container Apps + LiteLLM + managed identity + Microsoft Foundry prototype. AWS is not exercised. The attached files are our actual prototype configuration and observer, not enterprise production source. Reason from the supplied materials and the preceding conversation. Distinguish observed facts, inferences and unknowns. Do not claim to have executed tools, measured performance, or confirmed production readiness. Answer each turn in English with at most six concise bullets.\n\n--- SOURCE: scripts/aca-litellm/config.yaml ---\nmodel_list:\n  - model_name: opus55-lab\n    litellm_params:\n      model: azure_ai/claude-opus-5-5-fast\n      api_base: https://YOUR-FOUNDRY-RESOURCE.services.ai.azure.com/anthropic\n      azure_scope: https://ai.azure.com/.default\n      max_retries: 0\n  - model_name: opus55-cache-system\n    litellm_params:\n      model: azure_ai/claude-opus-5-5-fast\n      api_base: https://YOUR-FOUNDRY-RESOURCE.services.ai.azure.com/anthropic\n      azure_scope: https://ai.azure.com/.default\n      max_retries: 0\n      cache_control_injection_points:\n        - location: message\n          role: system\n  - model_name: opus55-standard\n    litellm_params:\n      model: azure_ai/claude-opus-5-5\n      api_base: https://YOUR-FOUNDRY-RESOURCE.services.ai.azure.com/anthropic\n      azure_scope: https://ai.azure.com/.default\n      max_retries: 0\n  - model_name: sonnet55-standard\n    litellm_params:\n      model: azure_ai/claude-sonnet-5-5\n      api_base: https://YOUR-FOUNDRY-RESOURCE.services.ai.azure.com/anthropic\n      azure_scope: https://ai.azure.com/.default\n      max_retries: 0\n  - model_name: haiku55-standard\n    litellm_params:\n      model: azure_ai/claude-haiku-5-5\n      api_base: https://YOUR-FOUNDRY-RESOURCE.services.ai.azure.com/anthropic\n      azure_scope: https://ai.azure.com/.default\n      max_retries: 0\n\nlitellm_settings:\n  enable_azure_ad_token_refresh: true\n  drop_params: false\n  num_retries: 0\n  turn_off_message_logging: true\n  callbacks:\n    - trace_hook.observer\n\nrouter_settings:\n  num_retries: 0\n\ngeneral_settings:\n  master_key: os.environ/LITELLM_MASTER_KEY\n\n--- SOURCE: scripts/aca-litellm/trace_hook.py ---\nimport hashlib\nimport json\nfrom datetime import datetime, timezone\nfrom pathlib import Path\n\nfrom litellm.integrations.custom_logger import CustomLogger\n\n\ndef collect_markers(value, path=\"\"):\n    markers = []\n    if isinstance(value, dict):\n        for name, child in value.items():\n            child_path = f\"{path}.{name}\" if path else name\n            if name == \"cache_control\":\n                markers.append({\"path\": child_path, \"value\": child})\n            else:\n                markers.extend(collect_markers(child, child_path))\n    elif isinstance(value, list):\n        for index, child in enumerate(value):\n            markers.extend(collect_markers(child, f\"{path}[{index}]\"))\n    return markers\n\n\ndef safe_request(request):\n    if not isinstance(request, dict):\n        return {\"capture\": \"FULL_REQUEST_NOT_AVAILABLE\"}\n    record = {\n        name: request[name]\n        for name in (\"model\", \"max_tokens\", \"stream\", \"speed\", \"thinking\", \"output_config\")\n        if name in request\n    }\n    record[\"capture\"] = \"PROVIDER_REQUEST_FIELDS\"\n    record[\"cache_markers\"] = collect_markers(request)\n    for name in (\"system\", \"messages\", \"tools\"):\n        if name in request:\n            serialized = json.dumps(request[name], ensure_ascii=False, separators=(\",\", \":\"))\n            record[f\"{name}_sha256\"] = hashlib.sha256(serialized.encode()).hexdigest()\n    return record\n\n\nclass RequestObserver(CustomLogger):\n    def _capture(self, stage, kwargs):\n        additional = kwargs.get(\"additional_args\") or {}\n        request = additional.get(\"complete_input_dict\")\n        if request is None:\n            request = kwargs.get(\"complete_input_dict\")\n        record = {\n            \"capture_utc\": datetime.now(timezone.utc).isoformat(),\n            \"stage\": stage,\n            \"call_id\": kwargs.get(\"litellm_call_id\"),\n            **safe_request(request),\n        }\n        directory = Path(\"/tmp/claude-gateway-evidence\")\n        directory.mkdir(parents=True, exist_ok=True)\n        with (directory / \"provider-trace.jsonl\").open(\"a\", encoding=\"utf-8\") as output:\n            output.write(json.dumps(record, ensure_ascii=False) + \"\\n\")\n        print(\"enterprise_PROVIDER_TRACE \" + json.dumps(record, ensure_ascii=False), flush=True)\n\n    def log_pre_api_call(self, model, messages, kwargs):\n        self._capture(\"pre_api_call\", kwargs)\n\n    def log_post_api_call(self, kwargs, response_obj, start_time, end_time):\n        self._capture(\"post_api_call\", kwargs)\n\n\nobserver = RequestObserver()",
+        "cache_control": {
+          "type": "ephemeral"
+        },
+        "type": "text"
+      }
+    ],
+    "stream": true,
+    "max_tokens": 4096,
+    "output_config": {
+      "effort": "medium"
+    },
+    "thinking": {
+      "type": "adaptive"
+    }
+  },
+  "questions": [
+    "Explain the request flow from the desktop client to a Claude model on Azure. Which components are shown in the test target architecture, and which are our prototype implementation choices?",
+    "Using that flow and the supplied code, where could a timeout or incomplete streamed response originate? Separate what these files establish from what would require additional evidence.",
+    "Continuing your analysis, propose the smallest checks that preserve the client's /v1/messages interface and the three independent model routes. What must be verified before attributing an error to a model?",
+    "Turn those checks into a concise five-turn validation checklist. Include conversation-history integrity, actual prompt-cache usage, first visible text, full-response completion, and token accounting; do not invent measurements.",
+    "Review your checklist against the observer code. Which evidence can it already retain, what additional client evidence is needed, and what sensitive information must not be logged? End with the main limits of this small workflow test."
+  ],
+  "inputProvenance": "Project-owned workload, with resource locators and customer names removed before this run. Not combined with earlier measurements.",
+  "pricingSource": "https://platform.claude.com/docs/en/about-claude/pricing"
+}

@@ -1,0 +1,2 @@
+# Offline analysis, rendering and tests use the Python standard library only.
+# Verified with CPython 3.13.15. Live requests use PowerShell 7.6.7.

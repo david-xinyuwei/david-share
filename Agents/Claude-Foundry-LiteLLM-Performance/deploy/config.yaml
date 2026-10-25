@@ -1,0 +1,30 @@
+model_list:
+  - model_name: opus55-standard
+    litellm_params:
+      model: azure_ai/claude-opus-5-5
+      api_base: os.environ/FOUNDRY_ANTHROPIC_BASE
+      azure_scope: https://ai.azure.com/.default
+      max_retries: 0
+  - model_name: sonnet55-standard
+    litellm_params:
+      model: azure_ai/claude-sonnet-5-5
+      api_base: os.environ/FOUNDRY_ANTHROPIC_BASE
+      azure_scope: https://ai.azure.com/.default
+      max_retries: 0
+  - model_name: haiku55-standard
+    litellm_params:
+      model: azure_ai/claude-haiku-5-5
+      api_base: os.environ/FOUNDRY_ANTHROPIC_BASE
+      azure_scope: https://ai.azure.com/.default
+      max_retries: 0
+litellm_settings:
+  enable_azure_ad_token_refresh: true
+  drop_params: false
+  num_retries: 0
+  turn_off_message_logging: true
+  callbacks:
+    - trace_hook.observer
+router_settings:
+  num_retries: 0
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY

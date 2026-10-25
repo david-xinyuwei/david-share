@@ -1,0 +1,25 @@
+{
+  "purpose": "Original explanatory architecture diagram using unmodified Azure icons",
+  "icons": [
+    {
+      "file": "images/icons/02989-icon-service-Container-Apps-Environments.svg",
+      "sha256": "3cf4ba9242e31496f778a27e92c9c2b2a09664f105c58325d5e2dcb142d3c3b9",
+      "bytes": 2029,
+      "packageEntry": "Azure_Public_Service_Icons/Icons/other/02989-icon-service-Container-Apps-Environments.svg",
+      "packageUrl": "https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V24.zip",
+      "termsUrl": "https://learn.microsoft.com/azure/architecture/icons/",
+      "terms": "Microsoft permits the use of these icons in architectural diagrams, training materials, or documentation. Don't crop, flip, rotate, distort or change icon shape.",
+      "modified": false
+    },
+    {
+      "file": "images/icons/036509415-icon-service-Foundry-Project.svg",
+      "sha256": "152187174d7d632cd91fd7d17b37316c423e008a84a889241163af832c8c3dec",
+      "bytes": 2348,
+      "packageEntry": "Azure_Public_Service_Icons/Icons/ai + machine learning/036509415-icon-service-Foundry-Project.svg",
+      "packageUrl": "https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V24.zip",
+      "termsUrl": "https://learn.microsoft.com/azure/architecture/icons/",
+      "terms": "Microsoft permits the use of these icons in architectural diagrams, training materials, or documentation. Don't crop, flip, rotate, distort or change icon shape.",
+      "modified": false
+    }
+  ]
+}

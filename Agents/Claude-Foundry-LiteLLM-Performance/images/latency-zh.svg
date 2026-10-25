@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="640" viewBox="0 0 1200 640"><rect width="1200" height="640" fill="white"/><g font-family="Segoe UI,Microsoft YaHei,sans-serif"><text x="28" y="40" font-size="27" fill="#202020">首个可见回答时间：每组五轮的 P50</text>
+<text x="28" y="97" font-size="17">Opus 5.5 / adaptive / system</text>
+<rect x="510" y="74" width="540.591" height="30" fill="#0078d4"/>
+<text x="1062.591" y="97" font-size="18">9.321 s</text>
+<text x="28" y="145" font-size="17">Sonnet 5.5 / adaptive / system</text>
+<rect x="510" y="122" width="466.977" height="30" fill="#0078d4"/>
+<text x="988.977" y="145" font-size="18">8.051 s</text>
+<text x="28" y="193" font-size="17">Sonnet 5.5 / between_tools / system</text>
+<rect x="510" y="170" width="55.330" height="30" fill="#107c10"/>
+<text x="577.330" y="193" font-size="18">0.954 s</text>
+<text x="28" y="241" font-size="17">Haiku 5.5 / adaptive / system</text>
+<rect x="510" y="218" width="245.637" height="30" fill="#0078d4"/>
+<text x="767.637" y="241" font-size="18">4.235 s</text>
+<text x="28" y="289" font-size="17">Haiku 5.5 / disabled / system</text>
+<rect x="510" y="266" width="46.983" height="30" fill="#107c10"/>
+<text x="568.983" y="289" font-size="18">0.810 s</text>
+<text x="28" y="337" font-size="17">Opus 5.5 / adaptive / conversation</text>
+<rect x="510" y="314" width="422.999" height="30" fill="#0078d4"/>
+<text x="944.999" y="337" font-size="18">7.293 s</text>
+<text x="28" y="385" font-size="17">Sonnet 5.5 / adaptive / conversation</text>
+<rect x="510" y="362" width="83.162" height="30" fill="#0078d4"/>
+<text x="605.162" y="385" font-size="18">1.434 s</text>
+<text x="28" y="433" font-size="17">Sonnet 5.5 / between_tools / conversation</text>
+<rect x="510" y="410" width="51.807" height="30" fill="#107c10"/>
+<text x="573.807" y="433" font-size="18">0.893 s</text>
+<text x="28" y="481" font-size="17">Haiku 5.5 / adaptive / conversation</text>
+<rect x="510" y="458" width="168.773" height="30" fill="#0078d4"/>
+<text x="690.773" y="481" font-size="18">2.910 s</text>
+<text x="28" y="529" font-size="17">Haiku 5.5 / disabled / conversation</text>
+<rect x="510" y="506" width="45.307" height="30" fill="#107c10"/>
+<text x="567.307" y="529" font-size="18">0.781 s</text>
+<text x="28" y="608" font-size="19" fill="#555">单会话、相关轮次；不是生产 P95，也未验证答案质量等价。</text></g></svg>
