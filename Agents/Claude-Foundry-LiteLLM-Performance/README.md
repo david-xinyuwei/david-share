@@ -8,7 +8,39 @@ Author: Xinyu Wei · [中文](README_CN.md)
 
 ## Purpose
 
-Claude Opus 5.5, Sonnet 5.5 and Haiku 5.5 on Microsoft Foundry take four settings that decide how a coding request behaves: the thinking mode (`thinking.type`), the effort level (`output_config.effort`), the output limit (`max_tokens`) and prompt-cache breakpoints (`cache_control`). Together they change how long the first visible text takes, what a request costs and how often the code works, and some combinations are rejected with HTTP 400. A successful HTTP response shows none of this. This repository measures it on the platform itself: from a VM in the same Azure region as the Foundry resource, it sends every combination that the three standard deployments accept to the same 18 coding problems, three times each, and runs every answer against the problem's own unit tests. A second test measures prompt caching in a four-turn coding conversation, and an earlier test (2026-10-24) sent a five-turn conversation through a LiteLLM gateway on Azure Container Apps.
+**What this measures.** How Claude Opus 5.5, Sonnet 5.5 and Haiku 5.5 perform as deployed in Microsoft Foundry with the [Hosted on Azure](https://platform.claude.com/docs/en/build-with-claude/claude-in-microsoft-foundry#hosting-options) option: model version 2, an Anthropic-operated service running on Azure infrastructure, in GlobalStandard deployments. For each coding request we measure how long the first visible text and the full answer take, whether the code passes the problem's own unit tests, and what the request costs at list price. The request settings in the table below change all of these, and some combinations are rejected with HTTP 400; a successful HTTP response shows none of this.
+
+Two test methods, both calling the same Foundry resource in East US 2:
+
+1. **Direct from a VM (2026-10-26).** Python test scripts on a Linux VM in the same Azure region call the Foundry Messages API with the VM's managed identity: a parameter probe (102 requests), a coding matrix (21 accepted thinking-mode × effort cells, 18 problems, 3 runs each, plus one warm-up per cell: 1,155 requests) and a prompt-cache test (264 requests). Each model has one request in flight at a time, so this measures single requests, not load. Results come from this method unless a section says otherwise.
+2. **Through a LiteLLM gateway on Azure Container Apps (2026-10-24).** A client sends Anthropic Messages requests to LiteLLM, which forwards them to the same deployments with its own managed identity; LiteLLM was set not to drop parameters and not to retry. That run sent a five-turn conversation from a Windows client to a gateway in Japan East, so its times include a round trip between Japan and the eastern United States. See [the results page](docs/results.md#gateway-test-2026-10-24).
+
+<img src="images/topology-en.svg" width="900" alt="How we measured, method 1: one Azure region, East US 2. The only client, a Linux VM, calls one Microsoft Foundry resource with three Claude 5.5 deployments over HTTPS and runs each answer's unit tests in Docker on the same VM. On the right, the method in five steps." />
+
+What the figure shows: method 1, the client, the resource and the steps behind the 2026-10-26 results; times are taken on the VM, from the request being written to the first visible text. Method 2 is noted under the figure and described on [the results page](docs/results.md#gateway-test-2026-10-24). Original explanatory diagram with unmodified [Azure icons](images/icon-sources.json).
+
+**Request settings.** What each setting does, from Claude's documentation, and what this test sent. Which values each deployment accepted comes from our probe:
+
+| Setting | What it does | In this test |
+|---|---|---|
+| `thinking.type: "adaptive"` | The model decides for each request whether to think before answering and for how long; `output_config.effort` steers how much. Sending no `thinking` field does the same on these three models | All three models, effort low to max |
+| `thinking.type: "between_tools"` | Sonnet 5.5's lowest setting: no thinking before the answer. Short progress updates written between tool calls still come back as thinking blocks; without tools the answer is text only. Accepted at effort `high` or below | Sonnet, effort low, medium, high; no tools |
+| `thinking.type: "disabled"` | Thinking off. Only Haiku 5.5 accepts it, at effort `high` or below; Opus 5.5 cannot turn thinking off | Haiku, effort low, medium, high |
+| `thinking.type: "enabled"` with `budget_tokens` | The older fixed thinking budget; these models do not support it | Probe only: HTTP 400 on all three |
+| `thinking.display` | Whether thinking text comes back. The default on these models, `"omitted"`, returns thinking blocks with empty text and an encrypted signature, so the answer starts streaming sooner; the thinking tokens are still billed. `"summarized"` returns a summary | Not sent: 610 matrix answers used thinking tokens and none streamed thinking text |
+| `output_config.effort` | How much work goes into the whole response, thinking included: `low`, `medium`, `high`, `xhigh`, `max`. A behavioral signal, not a token budget. Default when omitted: Opus and Haiku `medium`, Sonnet `high` | Every level each thinking mode accepted: 21 cells |
+| `max_tokens` | Hard limit on output tokens, thinking included; an answer that reaches it stops with `stop_reason: "max_tokens"`. At most 128,000 on these models | 128,000 in the matrix; 1,000,000 returned HTTP 400 |
+| `cache_control` at the top level | Automatic caching: the breakpoint goes on the last cacheable block and moves forward as the conversation grows | Cache test: most scenarios |
+| `cache_control` on a content block | Explicit breakpoint: caches the prompt up to and including that block, in the order `tools`, `system`, `messages`. At most 4 breakpoints per request; a prompt under 512 tokens is not cached | Cache test: after the repository files |
+| `cache_control.ttl` | How long an unused entry lives: `"5m"` by default, renewed on every read, or `"1h"`. Writes cost 1.25× the input price (5 minutes) or 2× (1 hour); reads cost 0.05× on Opus and Sonnet, 0.1× on Haiku | Both: 6.5 minutes idle before the second turn |
+| Per-message effort | An effort-only `system` message changes effort for later turns without touching the top-level field, so the cached prefix stays valid. Beta, header `anthropic-beta: mid-conversation-output-config-2026-07-01`; Foundry is not among the platforms the effort page lists for it | One cache scenario; all 264 cache requests returned HTTP 200 |
+| `temperature`, `top_p`, `top_k` | Sampling. On these models any non-default value returns HTTP 400 | Probe only: HTTP 400 in every mode tried; never sent in the matrix |
+| `stream` | `true` returns server-sent events, the only way to time the first visible text | `true` on every timed request; the pre-warm request with `max_tokens: 0` is not streamed, as the API requires |
+| Deployment type, chosen when the deployment is created | GlobalStandard may serve a request outside the resource's region; US Data Zone Standard keeps inference in the United States, like `inference_geo: "us"` on the Claude API. Sonnet 5.5 supports GlobalStandard only | GlobalStandard only; every matrix response reported `usage.inference_geo` `global` |
+
+**Not covered:** tool use, where `between_tools` and progress updates matter; `display: "summarized"`; US Data Zone deployments; and the separate `claude-opus-5-5-fast` model in the Foundry catalog.
+
+**Per model.** What each deployment accepted and how it did on the 18 problems:
 
 | Question | Opus 5.5 | Sonnet 5.5 | Haiku 5.5 |
 |---|---|---|---|
@@ -19,13 +51,9 @@ Claude Opus 5.5, Sonnet 5.5 and Haiku 5.5 on Microsoft Foundry take four setting
 | List-price cost per 1,000 requests | $23.34 to $355.75 | $13.04 to $356.49 | $0.69 to $22.26 |
 | Choose it when (our reading of this test) | Answers must be right the first time. Start at `low`: every effort level passed all 54, and `low` was the fastest (0.48 s) and cheapest | You want most of Opus's accuracy at a lower price: `between_tools` passed as often as `adaptive`, started in under 0.5 s and cost $13.16–$13.76 per 1,000 requests | Cost matters most and a wrong answer can be retried. Keep thinking on: at the same effort levels `adaptive` passed 12.3 points more often than `disabled` |
 
-**Scope.** The problems are public Exercism exercises from [Aider's polyglot benchmark](https://github.com/Aider-AI/polyglot-benchmark), each answered once, without tools and without seeing the tests; they are not your production tasks. Every request went straight to the Foundry Messages API, one at a time per deployment. Costs use list prices and were not reconciled with an Azure invoice.
+**Scope.** The problems are public Exercism exercises from [Aider's polyglot benchmark](https://github.com/Aider-AI/polyglot-benchmark), each answered once, without tools and without seeing the tests; they are not your production tasks. In method 1 every request went straight to the Foundry Messages API, one at a time per deployment. Costs use list prices and were not reconciled with an Azure invoice.
 
-**Sources.** Accepted values and the HTTP 400 messages come from our probe ([results](docs/results.md#parameter-probe-2026-10-26)). The defaults, the rules for `between_tools` and `disabled`, and the advice to set `max_tokens` to 128,000 for agentic coding on Sonnet 5.5 come from Claude's [effort](https://platform.claude.com/docs/en/build-with-claude/effort) page; cache rules from [prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching); prices from [pricing](https://platform.claude.com/docs/en/about-claude/pricing), read on 2026-10-26; Foundry setup from [Claude in Microsoft Foundry](https://platform.claude.com/docs/en/build-with-claude/claude-in-microsoft-foundry). The last row of the table is our reading of these 18 problems, not general advice.
-
-<img src="images/topology-en.svg" width="900" alt="How we measured. One Azure region, East US 2: the only client, a Linux VM, calls one Microsoft Foundry resource with three Claude 5.5 deployments over HTTPS and runs each answer's unit tests in Docker on the same VM. On the right, the method in five steps." />
-
-What the figure shows: the one client, the one resource and the method behind the 2026-10-26 results; times are taken on the VM, from the request being written to the first visible text. The 2026-10-24 gateway test took another path, noted under the figure and described on [the results page](docs/results.md#gateway-test-2026-10-24). Original explanatory diagram with unmodified [Azure icons](images/icon-sources.json).
+**Sources.** Accepted values and the HTTP 400 messages come from our probe ([results](docs/results.md#parameter-probe-2026-10-26)). What each setting does, the defaults, the rules for `between_tools` and `disabled`, and the advice to set `max_tokens` to 128,000 for agentic coding on Sonnet 5.5 come from Claude's [thinking](https://platform.claude.com/docs/en/build-with-claude/thinking) and [effort](https://platform.claude.com/docs/en/build-with-claude/effort) pages; cache rules and price multipliers from [prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching); prices from [pricing](https://platform.claude.com/docs/en/about-claude/pricing); hosting options and Foundry setup from [Claude in Microsoft Foundry](https://platform.claude.com/docs/en/build-with-claude/claude-in-microsoft-foundry); all read on 2026-10-26. The *Choose it when* row is our reading of these 18 problems, not general advice.
 
 ## Results
 
@@ -34,9 +62,7 @@ Words used in the results:
 | Term | Meaning |
 |---|---|
 | Cell | One model × thinking mode × effort level. Each cell answered the 18 problems three times: 54 answers |
-| `adaptive` | The model decides for each request whether and how long to think before it answers |
-| `between_tools` (Sonnet), `disabled` (Haiku) | No thinking before the answer. Sonnet's API message: the model "does not think before responding" and returns the short updates it writes between tool calls as thinking blocks. This test used no tools |
-| Effort | `output_config.effort`: how much work the model puts into the whole response, thinking included |
+| Thinking mode, effort level | Defined in the request-settings table under [Purpose](#purpose) |
 | First visible text | Seconds from just before the request is written to the first non-empty `text_delta`, timed on the VM. Thinking comes first and its text is not streamed (`display` omitted), so this wait includes all thinking |
 | First event | Seconds to the first server-sent event, `message_start` |
 | Full answer | Seconds to the end of the stream, completed requests only |

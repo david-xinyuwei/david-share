@@ -5,7 +5,7 @@ import html
 import json
 import re
 
-from coding_data import (DEPLOYMENT, EFFORTS, EV, MODELS, NAME, OFF_MODE, ROOT, ROWS, cache_numbers, cell,
+from coding_data import (DEPLOYMENT, EFFORTS, EV, MODELS, NAME, OFF_MODE, ROOT, ROWS, _pricing, cache_numbers, cell,
                          matrix_numbers, model_cells, probe_outcomes, read_json, require, thinking)
 
 REPO = "https://github.com/david-xinyuwei/david-share"
@@ -14,7 +14,11 @@ EFFORT_DOC = f"{DOCS}/build-with-claude/effort"
 CACHE_DOC = f"{DOCS}/build-with-claude/prompt-caching"
 PRICE_DOC = f"{DOCS}/about-claude/pricing"
 FOUNDRY_DOC = f"{DOCS}/build-with-claude/claude-in-microsoft-foundry"
+HOSTING_DOC = f"{FOUNDRY_DOC}#hosting-options"
+THINKING_DOC = f"{DOCS}/build-with-claude/thinking"
 POLYGLOT = "https://github.com/Aider-AI/polyglot-benchmark"
+# Effort used when a request omits output_config.effort, per Claude's effort page.
+DEFAULT_EFFORT = {"opus": "medium", "sonnet": "high", "haiku": "medium"}
 
 
 def tr(chinese, en, cn):
@@ -99,7 +103,7 @@ def grids(d, chinese):
 
 def decision_table(d, chinese):
     summary = d["probe_summary"]
-    defaults = {"opus": "medium", "sonnet": "high", "haiku": "medium"}
+    defaults = DEFAULT_EFFORT
     rows = {key: [] for key in ("modes", "effort", "fast", "pass", "cost", "choose")}
     for model in MODELS:
         accepted = summary[DEPLOYMENT[model]]["accepted"]
@@ -157,24 +161,169 @@ def decision_table(d, chinese):
     return "\n".join(lines)
 
 
+def settings_table(d, chinese):
+    summary, outcomes = d["probe_summary"], probe_outcomes(d)
+    m, k = matrix_numbers(d), cache_numbers(d)
+    accepted = {model: summary[DEPLOYMENT[model]]["accepted"] for model in MODELS}
+    require(all(accepted[model]["adaptive"] == list(EFFORTS) for model in MODELS), "adaptive did not accept every effort")
+    require(accepted["sonnet"]["between_tools"] == ["low", "medium", "high"] and not accepted["sonnet"]["disabled"]
+            and accepted["haiku"]["disabled"] == ["low", "medium", "high"] and not accepted["haiku"]["between_tools"],
+            "the thinking-off rules changed")
+    sampling = ("temperature_0.5", "top_p_0.9", "top_k_40")
+    rejected = [(name, model) for model in MODELS
+                for name in ("thinking_enabled_budget", "max_tokens_1000000", *(f"adaptive_{s}" for s in sampling))]
+    rejected += [(f"{OFF_MODE[model]}_{s}", model) for model in OFF_MODE for s in sampling]
+    require(all(outcomes[key][0] == 400 for key in rejected), "a probe expected to return HTTP 400 did not")
+    require(m["thought_streamed"] == 0, "a matrix answer streamed thinking text")
+    require(d["runs"]["cache"]["http"] == {200: k["requests"]}, "a cache request did not return HTTP 200")
+    require({x["sku"] for x in d["provenance"]["models"]["deployments"]} == {"GlobalStandard"}, "a deployment is not GlobalStandard")
+    prices = _pricing().PRICES
+
+    def times(model, key):
+        return round(prices[DEPLOYMENT[model]][key] / prices[DEPLOYMENT[model]]["input"], 3)
+
+    w5, w1, read_big, read_haiku = times("opus", "write_5m"), times("opus", "write_1h"), times("opus", "read"), times("haiku", "read")
+    require(all(times(x, "write_5m") == w5 and times(x, "write_1h") == w1 for x in MODELS) and times("sonnet", "read") == read_big,
+            "cache price multipliers differ between models")
+    max_tokens, cells, geo = d["runs"]["matrix"]["max_tokens"], len(d["facts"]["cells"]), m["geo_value"]
+    opus_default, sonnet_default = DEFAULT_EFFORT["opus"], DEFAULT_EFFORT["sonnet"]
+    require(DEFAULT_EFFORT["haiku"] == opus_default, "Opus and Haiku have different default efforts")
+    rows = tr(chinese, [
+        ('`thinking.type: "adaptive"`',
+         "The model decides for each request whether to think before answering and for how long; `output_config.effort` steers how much. Sending no `thinking` field does the same on these three models",
+         "All three models, effort low to max"),
+        ('`thinking.type: "between_tools"`',
+         "Sonnet 5.5's lowest setting: no thinking before the answer. Short progress updates written between tool calls still come back as thinking blocks; without tools the answer is text only. Accepted at effort `high` or below",
+         "Sonnet, effort low, medium, high; no tools"),
+        ('`thinking.type: "disabled"`',
+         "Thinking off. Only Haiku 5.5 accepts it, at effort `high` or below; Opus 5.5 cannot turn thinking off",
+         "Haiku, effort low, medium, high"),
+        ('`thinking.type: "enabled"` with `budget_tokens`',
+         "The older fixed thinking budget; these models do not support it",
+         "Probe only: HTTP 400 on all three"),
+        ("`thinking.display`",
+         'Whether thinking text comes back. The default on these models, `"omitted"`, returns thinking blocks with empty text and an encrypted signature, so the answer starts streaming sooner; the thinking tokens are still billed. `"summarized"` returns a summary',
+         f"Not sent: {count(m['thought'])} matrix answers used thinking tokens and none streamed thinking text"),
+        ("`output_config.effort`",
+         f"How much work goes into the whole response, thinking included: `low`, `medium`, `high`, `xhigh`, `max`. A behavioral signal, not a token budget. Default when omitted: Opus and Haiku `{opus_default}`, Sonnet `{sonnet_default}`",
+         f"Every level each thinking mode accepted: {cells} cells"),
+        ("`max_tokens`",
+         'Hard limit on output tokens, thinking included; an answer that reaches it stops with `stop_reason: "max_tokens"`. At most 128,000 on these models',
+         f"{count(max_tokens)} in the matrix; 1,000,000 returned HTTP 400"),
+        ("`cache_control` at the top level",
+         "Automatic caching: the breakpoint goes on the last cacheable block and moves forward as the conversation grows",
+         "Cache test: most scenarios"),
+        ("`cache_control` on a content block",
+         "Explicit breakpoint: caches the prompt up to and including that block, in the order `tools`, `system`, `messages`. At most 4 breakpoints per request; a prompt under 512 tokens is not cached",
+         "Cache test: after the repository files"),
+        ("`cache_control.ttl`",
+         f'How long an unused entry lives: `"5m"` by default, renewed on every read, or `"1h"`. Writes cost {w5:g}× the input price (5 minutes) or {w1:g}× (1 hour); reads cost {read_big:g}× on Opus and Sonnet, {read_haiku:g}× on Haiku',
+         "Both: 6.5 minutes idle before the second turn"),
+        ("Per-message effort",
+         "An effort-only `system` message changes effort for later turns without touching the top-level field, so the cached prefix stays valid. Beta, header `anthropic-beta: mid-conversation-output-config-2026-07-01`; Foundry is not among the platforms the effort page lists for it",
+         f"One cache scenario; all {count(k['requests'])} cache requests returned HTTP 200"),
+        ("`temperature`, `top_p`, `top_k`",
+         "Sampling. On these models any non-default value returns HTTP 400",
+         "Probe only: HTTP 400 in every mode tried; never sent in the matrix"),
+        ("`stream`",
+         "`true` returns server-sent events, the only way to time the first visible text",
+         "`true` on every timed request; the pre-warm request with `max_tokens: 0` is not streamed, as the API requires"),
+        ("Deployment type, chosen when the deployment is created",
+         'GlobalStandard may serve a request outside the resource\'s region; US Data Zone Standard keeps inference in the United States, like `inference_geo: "us"` on the Claude API. Sonnet 5.5 supports GlobalStandard only',
+         f"GlobalStandard only; every matrix response reported `usage.inference_geo` `{geo}`"),
+    ], [
+        ('`thinking.type: "adaptive"`',
+         "模型对每个请求自己决定要不要先思考、思考多久；`output_config.effort` 调节思考多少。这三个模型不传 `thinking` 字段时也是这样",
+         "三个模型，档位 low 到 max"),
+        ('`thinking.type: "between_tools"`',
+         "Sonnet 5.5 最低的思考设置：回答前不思考。在工具调用之间写的简短进度仍以 thinking 块返回；不用工具时只返回文字。只接受 `high` 及以下档位",
+         "Sonnet，档位 low、medium、high；不用工具"),
+        ('`thinking.type: "disabled"`',
+         "关闭思考。只有 Haiku 5.5 接受，且只在 `high` 及以下档位；Opus 5.5 关不掉思考",
+         "Haiku，档位 low、medium、high"),
+        ('`thinking.type: "enabled"` 加 `budget_tokens`',
+         "旧的固定思考预算，这些模型不支持",
+         "只在探测中发送：三个模型都返回 HTTP 400"),
+        ("`thinking.display`",
+         '是否返回思考文字。这些模型默认 `"omitted"`：thinking 块的文字为空、只带加密签名，所以回答更早开始流式返回；思考 token 照样计费。`"summarized"` 返回摘要',
+         f"未发送：矩阵中 {count(m['thought'])} 个回答用了思考 token，没有一个流式返回思考文字"),
+        ("`output_config.effort`",
+         f"模型在整个回答上投入多少，包括思考：`low`、`medium`、`high`、`xhigh`、`max`。它是行为信号，不是 token 预算。不传时 Opus 和 Haiku 为 `{opus_default}`，Sonnet 为 `{sonnet_default}`",
+         f"每种思考模式接受的全部档位，共 {cells} 格"),
+        ("`max_tokens`",
+         '输出 token 的硬上限，包括思考；回答达到上限时以 `stop_reason: "max_tokens"` 停止。这些模型最大 128,000',
+         f"矩阵用 {count(max_tokens)}；1,000,000 返回 HTTP 400"),
+        ("顶层 `cache_control`",
+         "自动缓存：断点放在最后一个可缓存块上，随对话增长自动后移",
+         "缓存测试的大多数场景"),
+        ("内容块上的 `cache_control`",
+         "显式断点：缓存到该块为止的提示，顺序为 `tools`、`system`、`messages`。每个请求最多 4 个断点；不足 512 个 token 的提示不会被缓存",
+         "缓存测试：放在仓库文件之后"),
+        ("`cache_control.ttl`",
+         f'缓存条目闲置多久后失效：默认 `"5m"`，每次读取都会续期；也可设为 `"1h"`。写入按输入价的 {w5:g} 倍（5 分钟）或 {w1:g} 倍（1 小时）计费；读取在 Opus 和 Sonnet 上按 {read_big:g} 倍，在 Haiku 上按 {read_haiku:g} 倍',
+         "两种都测了：第 2 轮前空闲 6.5 分钟"),
+        ("按消息设置 effort",
+         "用只含 effort 的 `system` 消息改变后续轮次的档位，不动顶层字段，缓存前缀因此保持有效。Beta 功能，请求头 `anthropic-beta: mid-conversation-output-config-2026-07-01`；effort 文档列出的支持平台中没有 Foundry",
+         f"一个缓存场景；缓存测试的 {count(k['requests'])} 个请求全部返回 HTTP 200"),
+        ("`temperature`、`top_p`、`top_k`",
+         "采样参数。这些模型上任何非默认值都返回 HTTP 400",
+         "只在探测中发送：试过的每种模式都返回 HTTP 400；矩阵从未发送"),
+        ("`stream`",
+         "为 `true` 时以服务端事件流返回，只有这样才能测首个可见文字的时间",
+         "计时的请求都是 `true`；`max_tokens: 0` 的预热请求按 API 要求不用流式"),
+        ("部署类型（创建部署时选择，不是请求参数）",
+         'GlobalStandard 的请求可能在资源所在区域以外处理；US Data Zone Standard 把推理留在美国，相当于 Claude API 的 `inference_geo: "us"`。Sonnet 5.5 只支持 GlobalStandard',
+         f"只测了 GlobalStandard；矩阵每个响应的 `usage.inference_geo` 都是 `{geo}`"),
+    ])
+    lines = ["| " + tr(chinese, "Setting | What it does | In this test", "设置 | 作用 | 本测试") + " |", "|---|---|---|"]
+    lines += [f"| {a} | {b} | {c} |" for a, b, c in rows]
+    return "\n".join(lines)
+
+
 def purpose(d, chinese, language):
+    m, k = matrix_numbers(d), cache_numbers(d)
+    models = d["provenance"]["models"]
+    versions = {x["version"] for x in models["deployments"]}
+    require(versions == {"2"}, "the deployments are not all version 2, the Hosted on Azure version")
+    version, region = next(iter(versions)), models["resourceRegion"]
+    cells, n_problems, repeats = len(d["facts"]["cells"]), len(m["problems"]), m["repeats"]
+    require(cells * n_problems * repeats == m["measured"] and m["warmups"] == cells, "matrix request counts do not add up")
+    date = d["runs"]["matrix"]["first"][:10]
+    probe_n, cache_n, requests = count(d["runs"]["probe"]["requests"]), count(k["requests"]), count(m["requests"])
     intro = tr(chinese,
-               "Claude Opus 5.5, Sonnet 5.5 and Haiku 5.5 on Microsoft Foundry take four settings that decide how a coding request behaves: the thinking mode (`thinking.type`), the effort level (`output_config.effort`), the output limit (`max_tokens`) and prompt-cache breakpoints (`cache_control`). Together they change how long the first visible text takes, what a request costs and how often the code works, and some combinations are rejected with HTTP 400. A successful HTTP response shows none of this. This repository measures it on the platform itself: from a VM in the same Azure region as the Foundry resource, it sends every combination that the three standard deployments accept to the same 18 coding problems, three times each, and runs every answer against the problem's own unit tests. A second test measures prompt caching in a four-turn coding conversation, and an earlier test (2026-10-24) sent a five-turn conversation through a LiteLLM gateway on Azure Container Apps.",
-               "Microsoft Foundry 上的 Claude Opus 5.5、Sonnet 5.5 和 Haiku 5.5 有四个设置决定一次编码请求的表现：思考模式（`thinking.type`）、推理档位（`output_config.effort`）、输出上限（`max_tokens`）和提示缓存断点（`cache_control`）。它们一起决定首个可见文字要等多久、一次请求花多少钱、写出的代码能不能用，有些组合还会直接返回 HTTP 400。只看请求成功看不出这些。本仓库在平台本身上把它测出来：在与 Foundry 资源同一 Azure 区域的 VM 上，把三个标准部署接受的每一种组合发给同样的 18 道编程题，每题 3 次，再用每道题自带的单元测试检验每个回答。另一组测试在四轮编码对话中测量提示缓存；更早的一次测试（2026-10-24）让五轮对话经过部署在 Azure Container Apps 上的 LiteLLM 网关。")
-    scope = tr(chinese,
-               f"**Scope.** The problems are public Exercism exercises from [Aider's polyglot benchmark]({POLYGLOT}), each answered once, without tools and without seeing the tests; they are not your production tasks. Every request went straight to the Foundry Messages API, one at a time per deployment. Costs use list prices and were not reconciled with an Azure invoice.",
-               f"**范围。** 题目是 [Aider polyglot benchmark]({POLYGLOT}) 收录的 Exercism 公开练习，每次只答一次、不用工具、看不到测试；它们不是你的生产任务。所有请求直接发往 Foundry 的 Messages API，每个部署同一时间只有一个请求。费用按标价计算，没有与 Azure 账单核对。")
-    sources = tr(chinese,
-                 f"**Sources.** Accepted values and the HTTP 400 messages come from our probe ([results](docs/results.md#parameter-probe-2026-10-26)). The defaults, the rules for `between_tools` and `disabled`, and the advice to set `max_tokens` to 128,000 for agentic coding on Sonnet 5.5 come from Claude's [effort]({EFFORT_DOC}) page; cache rules from [prompt caching]({CACHE_DOC}); prices from [pricing]({PRICE_DOC}), read on 2026-10-26; Foundry setup from [Claude in Microsoft Foundry]({FOUNDRY_DOC}). The last row of the table is our reading of these 18 problems, not general advice.",
-                 f"**来源。** 接受哪些取值、HTTP 400 的报错原文来自我们的参数探测（[结果页](docs/results_CN.md#参数探测)）。默认档位、`between_tools` 和 `disabled` 的使用规则，以及 Sonnet 5.5 做智能体编码时把 `max_tokens` 设为 128,000 的建议，来自 Claude 的 [effort]({EFFORT_DOC}) 文档；缓存规则来自 [prompt caching]({CACHE_DOC})；价格来自 [pricing]({PRICE_DOC})（2026-10-26 查阅）；Foundry 配置来自 [Claude in Microsoft Foundry]({FOUNDRY_DOC})。表格最后一行是我们对这 18 道题的解读，不是通用建议。")
+               f"**What this measures.** How Claude Opus 5.5, Sonnet 5.5 and Haiku 5.5 perform as deployed in Microsoft Foundry with the [Hosted on Azure]({HOSTING_DOC}) option: model version {version}, an Anthropic-operated service running on Azure infrastructure, in GlobalStandard deployments. For each coding request we measure how long the first visible text and the full answer take, whether the code passes the problem's own unit tests, and what the request costs at list price. The request settings in the table below change all of these, and some combinations are rejected with HTTP 400; a successful HTTP response shows none of this.",
+               f"**测什么。** 测 Claude Opus 5.5、Sonnet 5.5 和 Haiku 5.5 以 [Hosted on Azure]({HOSTING_DOC}) 方式部署在 Microsoft Foundry 上时的表现：模型版本 {version}，即 Anthropic 运营、运行在 Azure 基础设施上的服务，部署类型为 GlobalStandard。对每个编码请求，我们测首个可见文字和完整回答各要等多久、写出的代码能否通过题目自带的单元测试、按标价花多少钱。下表中的请求设置会同时改变这几项，有些组合还会直接返回 HTTP 400；只看请求成功看不出这些。")
+    methods = tr(chinese,
+                 f"Two test methods, both calling the same Foundry resource in {region}:\n\n"
+                 f"1. **Direct from a VM ({date}).** Python test scripts on a Linux VM in the same Azure region call the Foundry Messages API with the VM's managed identity: a parameter probe ({probe_n} requests), a coding matrix ({cells} accepted thinking-mode × effort cells, {n_problems} problems, {repeats} runs each, plus one warm-up per cell: {requests} requests) and a prompt-cache test ({cache_n} requests). Each model has one request in flight at a time, so this measures single requests, not load. Results come from this method unless a section says otherwise.\n"
+                 "2. **Through a LiteLLM gateway on Azure Container Apps (2026-10-24).** A client sends Anthropic Messages requests to LiteLLM, which forwards them to the same deployments with its own managed identity; LiteLLM was set not to drop parameters and not to retry. That run sent a five-turn conversation from a Windows client to a gateway in Japan East, so its times include a round trip between Japan and the eastern United States. See [the results page](docs/results.md#gateway-test-2026-10-24).",
+                 f"两种测试方法，调用的都是 {region} 的同一个 Foundry 资源：\n\n"
+                 f"1. **从 VM 直连（{date}）。** 同一 Azure 区域的 Linux VM 上运行 Python 测试脚本，用 VM 的托管身份调用 Foundry Messages API：参数探测（{probe_n} 个请求）、编码矩阵（{cells} 个被接受的思考模式 × 推理档位组合，{n_problems} 道题各答 {repeats} 次，每格另加 1 次预热，共 {requests} 个请求）和提示缓存测试（{cache_n} 个请求）。每个模型同一时间只有 1 个请求，测的是单个请求的表现，不是压力测试。除非某节另有说明，结果都来自这种方法。\n"
+                 "2. **经 Azure Container Apps 上的 LiteLLM 网关（2026-10-24）。** 客户端把 Anthropic Messages 请求发给 LiteLLM，由 LiteLLM 用自己的托管身份转发到同一组部署；LiteLLM 设置为不丢弃参数、不重试。那次测试由一台 Windows 客户端发起五轮对话，网关在 Japan East，所以时间里包含日本到美国东部的往返。详见[结果页](docs/results_CN.md#网关测试)。")
     figure = (f'<img src="images/topology-{language}.svg" width="900" alt="'
-              + tr(chinese, "How we measured. One Azure region, East US 2: the only client, a Linux VM, calls one Microsoft Foundry resource with three Claude 5.5 deployments over HTTPS and runs each answer's unit tests in Docker on the same VM. On the right, the method in five steps.",
-                   "测试方法。同一个 Azure 区域 East US 2 里，唯一的客户端 Linux VM 通过 HTTPS 调用一个 Microsoft Foundry 资源上的三个 Claude 5.5 部署，并在同一台 VM 的 Docker 中运行每个回答的单元测试。右侧分五步列出测试方法。")
+              + tr(chinese, "How we measured, method 1: one Azure region, East US 2. The only client, a Linux VM, calls one Microsoft Foundry resource with three Claude 5.5 deployments over HTTPS and runs each answer's unit tests in Docker on the same VM. On the right, the method in five steps.",
+                   "测试方法 1：同一个 Azure 区域 East US 2 里，唯一的客户端 Linux VM 通过 HTTPS 调用一个 Microsoft Foundry 资源上的三个 Claude 5.5 部署，并在同一台 VM 的 Docker 中运行每个回答的单元测试。右侧分五步列出测试方法。")
               + '" />')
     caption = tr(chinese,
-                 "What the figure shows: the one client, the one resource and the method behind the 2026-10-26 results; times are taken on the VM, from the request being written to the first visible text. The 2026-10-24 gateway test took another path, noted under the figure and described on [the results page](docs/results.md#gateway-test-2026-10-24). Original explanatory diagram with unmodified [Azure icons](images/icon-sources.json).",
-                 "图中内容：2026-10-26 结果背后的唯一客户端、唯一资源和测试方法；时间在 VM 上计，从请求发出到首个可见文字。2026-10-24 的网关测试走的是另一条路径，图下有注，详见[结果页](docs/results_CN.md#网关测试)。原创说明图，使用未修改的 [Azure 图标](images/icon-sources.json)。")
-    return "\n\n".join([intro, decision_table(d, chinese), scope, sources, figure, caption])
+                 f"What the figure shows: method 1, the client, the resource and the steps behind the {date} results; times are taken on the VM, from the request being written to the first visible text. Method 2 is noted under the figure and described on [the results page](docs/results.md#gateway-test-2026-10-24). Original explanatory diagram with unmodified [Azure icons](images/icon-sources.json).",
+                 f"图中内容：方法 1，即 {date} 结果背后的客户端、资源和测试步骤；时间在 VM 上计，从请求发出到首个可见文字。方法 2 在图下注明，详见[结果页](docs/results_CN.md#网关测试)。原创说明图，使用未修改的 [Azure 图标](images/icon-sources.json)。")
+    settings_lead = tr(chinese,
+                       "**Request settings.** What each setting does, from Claude's documentation, and what this test sent. Which values each deployment accepted comes from our probe:",
+                       "**请求设置。** 每个设置的作用（依据 Claude 官方文档）和本测试发送了什么；各部署接受哪些取值来自我们的参数探测：")
+    not_covered = tr(chinese,
+                     "**Not covered:** tool use, where `between_tools` and progress updates matter; `display: \"summarized\"`; US Data Zone deployments; and the separate `claude-opus-5-5-fast` model in the Foundry catalog.",
+                     "**未覆盖：** 工具调用（`between_tools` 和进度更新只在使用工具时才起作用）、`display: \"summarized\"`、US Data Zone 部署，以及 Foundry 模型目录里单独的 `claude-opus-5-5-fast` 模型。")
+    per_model = tr(chinese,
+                   f"**Per model.** What each deployment accepted and how it did on the {n_problems} problems:",
+                   f"**按模型汇总。** 每个部署接受什么，以及在这 {n_problems} 道题上的表现：")
+    scope = tr(chinese,
+               f"**Scope.** The problems are public Exercism exercises from [Aider's polyglot benchmark]({POLYGLOT}), each answered once, without tools and without seeing the tests; they are not your production tasks. In method 1 every request went straight to the Foundry Messages API, one at a time per deployment. Costs use list prices and were not reconciled with an Azure invoice.",
+               f"**范围。** 题目是 [Aider polyglot benchmark]({POLYGLOT}) 收录的 Exercism 公开练习，每次只答一次、不用工具、看不到测试；它们不是你的生产任务。方法 1 的所有请求直接发往 Foundry 的 Messages API，每个部署同一时间只有一个请求。费用按标价计算，没有与 Azure 账单核对。")
+    sources = tr(chinese,
+                 f"**Sources.** Accepted values and the HTTP 400 messages come from our probe ([results](docs/results.md#parameter-probe-2026-10-26)). What each setting does, the defaults, the rules for `between_tools` and `disabled`, and the advice to set `max_tokens` to 128,000 for agentic coding on Sonnet 5.5 come from Claude's [thinking]({THINKING_DOC}) and [effort]({EFFORT_DOC}) pages; cache rules and price multipliers from [prompt caching]({CACHE_DOC}); prices from [pricing]({PRICE_DOC}); hosting options and Foundry setup from [Claude in Microsoft Foundry]({FOUNDRY_DOC}); all read on 2026-10-26. The *Choose it when* row is our reading of these {n_problems} problems, not general advice.",
+                 f"**来源。** 接受哪些取值、HTTP 400 的报错原文来自我们的参数探测（[结果页](docs/results_CN.md#参数探测)）。各设置的作用、默认值、`between_tools` 和 `disabled` 的使用规则，以及 Sonnet 5.5 做智能体编码时把 `max_tokens` 设为 128,000 的建议，来自 Claude 的 [thinking]({THINKING_DOC}) 和 [effort]({EFFORT_DOC}) 文档；缓存规则和价格倍数来自 [prompt caching]({CACHE_DOC})；价格来自 [pricing]({PRICE_DOC})；托管方式和 Foundry 配置来自 [Claude in Microsoft Foundry]({FOUNDRY_DOC})；均于 2026-10-26 查阅。“适合的情况”一行是我们对这 {n_problems} 道题的解读，不是通用建议。")
+    return "\n\n".join([intro, methods, figure, caption, settings_lead, settings_table(d, chinese), not_covered,
+                        per_model, decision_table(d, chinese), scope, sources])
 
 
 # ---------- README: results ----------
@@ -182,9 +331,7 @@ def purpose(d, chinese, language):
 def glossary(chinese):
     rows = tr(chinese, [
         ("Cell", "One model × thinking mode × effort level. Each cell answered the 18 problems three times: 54 answers"),
-        ("`adaptive`", "The model decides for each request whether and how long to think before it answers"),
-        ("`between_tools` (Sonnet), `disabled` (Haiku)", "No thinking before the answer. Sonnet's API message: the model \"does not think before responding\" and returns the short updates it writes between tool calls as thinking blocks. This test used no tools"),
-        ("Effort", "`output_config.effort`: how much work the model puts into the whole response, thinking included"),
+        ("Thinking mode, effort level", "Defined in the request-settings table under [Purpose](#purpose)"),
         ("First visible text", "Seconds from just before the request is written to the first non-empty `text_delta`, timed on the VM. Thinking comes first and its text is not streamed (`display` omitted), so this wait includes all thinking"),
         ("First event", "Seconds to the first server-sent event, `message_start`"),
         ("Full answer", "Seconds to the end of the stream, completed requests only"),
@@ -194,9 +341,7 @@ def glossary(chinese):
         ("Cost", "List price × the token counts in the API's `usage`, cache writes and reads included"),
     ], [
         ("格", "一个模型 × 思考模式 × 推理档位的组合。每格把 18 道题各答 3 次，共 54 个回答"),
-        ("`adaptive`", "模型对每个请求自己决定要不要先思考、思考多久"),
-        ("`between_tools`（Sonnet）、`disabled`（Haiku）", "回答前不思考。Sonnet 的 API 报错原文说明：模型“回答前不思考”，在工具调用之间写的简短进度会以 thinking 块返回。本测试没有使用工具"),
-        ("推理档位（effort）", "`output_config.effort`：模型在整个回答上投入多少，包括思考"),
+        ("思考模式、推理档位", "定义见[目的](#目的)一节的请求设置表"),
         ("首个可见文字", "从请求即将发出到收到第一个非空 `text_delta` 的秒数，在 VM 上计时。思考在它之前进行，且思考文字默认不流式返回（`display` 为 omitted），所以这段等待包含全部思考时间"),
         ("首个事件", "收到第一个服务端事件 `message_start` 的秒数"),
         ("完整回答", "收到流结束的秒数，只统计完成的请求"),
