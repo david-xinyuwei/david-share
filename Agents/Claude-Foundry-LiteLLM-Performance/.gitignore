@@ -9,3 +9,7 @@ private/
 coding-matrix/runs/
 coding-matrix/problems.json
 coding-matrix/judge/java-warmup/
+gateway-cache/runs/
+gateway-cache/problems.json
+gateway-cache/*.parquet
+gateway-cache/.gateway_key

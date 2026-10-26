@@ -1,0 +1,100 @@
+{
+  "source": {
+    "dataset": "princeton-nlp/SWE-bench_Lite_bm25_13K",
+    "revision": "8d4bee9605fd8d72f14373a7f64d070c92f575c8",
+    "file": "data/test-00000-of-00001.parquet",
+    "rows": 300,
+    "parquet_sha256": "6089b58194f0298428bee5d2e707f47c6a4865ecc42cae557d5ea20e5c6d8cde"
+  },
+  "selection": "random.Random('20261026').sample(sorted(test instance_ids), 12)",
+  "split_rule": "first line of text = system, rest = user (SWE-bench run_api.py call_anthropic_v2)",
+  "system_prompt": "You will be provided with a partial code base and an issue statement explaining a problem to resolve.",
+  "system_prompt_sha256": "c03ce9359e270e89eab2b19778502edbd0398987bc2459c56e51eeb200a9bdc6",
+  "note": "Prompt text is not redistributed. gateway-cache/build_swebench_problems.py rebuilds it from the dataset's current revision; compare its source.revision and user_message_sha256 values with this file.",
+  "problems": [
+    {
+      "id": "django__django-15320",
+      "repo": "django/django",
+      "base_commit": "b55ebe32417e0884b6b8b3e1bc0379033aa221af",
+      "user_message_sha256": "0d7194ed766812d8dc22e3452ba7e2a0d7733b932bed95e80989a5d7ff844d4f",
+      "user_message_chars": 58784
+    },
+    {
+      "id": "sphinx-doc__sphinx-7738",
+      "repo": "sphinx-doc/sphinx",
+      "base_commit": "c087d717f6ed183dd422359bf91210dc59689d63",
+      "user_message_sha256": "377c44ed01f02fb5f40168571d2558132b45dc115e2d8692adcce078bdbd7fdd",
+      "user_message_chars": 52458
+    },
+    {
+      "id": "django__django-12184",
+      "repo": "django/django",
+      "base_commit": "5d674eac871a306405b0fbbaeb17bbeba9c68bf3",
+      "user_message_sha256": "8a83186e0e7f53ed32a1000ff40cfd483e2212c619bd9ebb52c0460a117542a3",
+      "user_message_chars": 57640
+    },
+    {
+      "id": "pylint-dev__pylint-7114",
+      "repo": "pylint-dev/pylint",
+      "base_commit": "397c1703e8ae6349d33f7b99f45b2ccaf581e666",
+      "user_message_sha256": "7747e1edff18b072c1429c191460894698f848022058042857af0530d9a43591",
+      "user_message_chars": 55510
+    },
+    {
+      "id": "pytest-dev__pytest-7373",
+      "repo": "pytest-dev/pytest",
+      "base_commit": "7b77fc086aab8b3a8ebc890200371884555eea1e",
+      "user_message_sha256": "72031db01c9b02f325b1a62b143137ded3067b6b6d5217ca46256e2aba87ebbe",
+      "user_message_chars": 52456
+    },
+    {
+      "id": "sympy__sympy-21847",
+      "repo": "sympy/sympy",
+      "base_commit": "d9b18c518d64d0ebe8e35a98c2fb519938b9b151",
+      "user_message_sha256": "31435ec8252c577c6eeb23818759113f6683e968a4e25ec909bc05929a5c67d2",
+      "user_message_chars": 35976
+    },
+    {
+      "id": "django__django-11422",
+      "repo": "django/django",
+      "base_commit": "df46b329e0900e9e4dc1d60816c1dce6dfc1094e",
+      "user_message_sha256": "738342c6d7a43eca278d45d28691ceb784a29d37957a956960e3a1f6d63fa0f1",
+      "user_message_chars": 57176
+    },
+    {
+      "id": "sympy__sympy-13480",
+      "repo": "sympy/sympy",
+      "base_commit": "f57fe3f4b3f2cab225749e1b3b38ae1bf80b62f0",
+      "user_message_sha256": "cfd1123363ff31809f0b379886592ea4f883261cac0e1ddef95e45d730daef10",
+      "user_message_chars": 33001
+    },
+    {
+      "id": "sphinx-doc__sphinx-10451",
+      "repo": "sphinx-doc/sphinx",
+      "base_commit": "195e911f1dab04b8ddeacbe04b7d214aaf81bb0b",
+      "user_message_sha256": "4c134d5e69341af96c43b58efeef84db68f980ef109f95ad3d8eb5d37974f41e",
+      "user_message_chars": 52690
+    },
+    {
+      "id": "pallets__flask-5063",
+      "repo": "pallets/flask",
+      "base_commit": "182ce3dd15dfa3537391c3efaf9c3ff407d134d4",
+      "user_message_sha256": "3fd7d6dbe30b2020a87267019386d357f740efda5f71f3c274841a999007d4a0",
+      "user_message_chars": 53692
+    },
+    {
+      "id": "sympy__sympy-14774",
+      "repo": "sympy/sympy",
+      "base_commit": "8fc63c2d71752389a44367b8ef4aba8a91af6a45",
+      "user_message_sha256": "9d27bef1ce046f6bd4a9a301f99b821680830dbdf5d665e14dccda6ba4d1477c",
+      "user_message_chars": 46799
+    },
+    {
+      "id": "sympy__sympy-18087",
+      "repo": "sympy/sympy",
+      "base_commit": "9da013ad0ddc3cd96fe505f2e47c63e372040916",
+      "user_message_sha256": "dcf52cb225f25c9decded62adffed0296a424dc2ab10915913481f35b35a0498",
+      "user_message_chars": 13237
+    }
+  ]
+}
