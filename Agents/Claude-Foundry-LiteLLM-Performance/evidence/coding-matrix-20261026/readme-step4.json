@@ -1,0 +1,37 @@
+{
+ "purpose": "README step 4 run once with the public client from the measured VM",
+ "utc": "2026-10-26T18:51Z",
+ "client": "Standard_D4s_v5 VM in East US 2 (the measured VM), system-assigned managed identity",
+ "command": "~/venv/bin/python call_once.py --model claude-sonnet-5-5 --thinking between_tools --effort low \"Write a Python function that returns the n-th Fibonacci number.\"",
+ "endpoint": "https://<foundry-resource>.services.ai.azure.com/anthropic",
+ "public_file_sha256": {
+  "claude_api.py": "cd31ec19640216fdc71e9cbfa2e2002584122e018a7b5410348588b8d0c43114",
+  "pricing.py": "43e49cb907640b4dc0eb81c28bf0f88580fc904b4452ae3e16b45755de458421",
+  "call_once.py": "ce12700bedab66ae4c2e6dffc49ce568a57d2fc4a96b66243d31c42db86fa66f"
+ },
+ "exit_code": 0,
+ "stdout": "Here's an efficient iterative implementation:\n\n```python\ndef fibonacci(n: int) -> int:\n    \"\"\"Return the n-th Fibonacci number (0-indexed: F(0)=0, F(1)=1).\"\"\"\n    if n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    a, b = 0, 1\n    for _ in range(n):\n        a, b = b, a + b\n    return a\n```\n\n**Usage:**\n\n```python\nprint(fibonacci(0))   # 0\nprint(fibonacci(1))   # 1\nprint(fibonacci(10))  # 55\nprint(fibonacci(50))  # 12586269025\n```\n\n**Notes:**\n\n- **Time complexity:** O(n), **space complexity:** O(1).\n- Python integers have arbitrary precision, so it works for very large `n` without overflow.\n- A naive recursive version (`fib(n-1) + fib(n-2)`) is O(2) and becomes impractically slow around n=40, so the iterative approach is preferred.\n\nIf you need to call it many times or for extremely large `n`, a memoized version or the fast-doubling method (O(log n)) is an option:\n\n```python\ndef fibonacci_fast(n: int) -> int:\n    if n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n\n    def fib_pair(k):\n        if k == 0:\n            return (0, 1)\n        a, b = fib_pair(k // 2)\n        c = a * (2 * b - a)      # F(2m)\n        d = a * a + b * b        # F(2m+1)\n        return (d, c + d) if k % 2 else (c, d)\n\n    return fib_pair(n)[0]\n```\n",
+ "stderr_result": {
+  "status": "completed",
+  "http_status": 200,
+  "first_text_s": 0.8893,
+  "end_s": 4.4216,
+  "usage": {
+   "input_tokens": 27,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 0,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 558,
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard",
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   }
+  },
+  "cost_usd": 0.005634
+ }
+}

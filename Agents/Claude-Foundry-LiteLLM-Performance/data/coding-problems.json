@@ -1,0 +1,80 @@
+{
+ "source": "https://github.com/Aider-AI/polyglot-benchmark",
+ "polyglot_commit": "7e0611e77b54e2dea774cdc0aa00cf9f7ed6144f",
+ "selection": "three per language: exercises shuffled with seed 20261026, kept when the reference solution passes and the unedited stub fails in the offline judge",
+ "system_prompt_sha256": "60c9eaa898b77547d09df817085d877e693314736b7ed3a37861d74527a5e10b",
+ "problems": [
+  {
+   "id": "cpp/perfect-numbers",
+   "user_message_sha256": "1b8134095e1dac044567b4d69db01d637b3d58bad5c559f9df69efef62e6a972"
+  },
+  {
+   "id": "cpp/queen-attack",
+   "user_message_sha256": "6ed52cbf7a22c68641ee269364df79fc8b7b8bdc04d19ebcc7f284f09c1844db"
+  },
+  {
+   "id": "cpp/bank-account",
+   "user_message_sha256": "da533f8afaa0f5b40fd3715f51271592b6c3ecd477e76cf660dd4e05c4e2d0e9"
+  },
+  {
+   "id": "go/trinary",
+   "user_message_sha256": "f62bc2f5d497a7116cc52d6f24466caf2440001c96c64cda9300cc9cf877be56"
+  },
+  {
+   "id": "go/beer-song",
+   "user_message_sha256": "b984b3d4179f9c5cf09d824988ac367d3435f742368f31808952d7cfc54742f0"
+  },
+  {
+   "id": "go/wordy",
+   "user_message_sha256": "710cf7c29a330199414ff9734bf01ce2d9d7fbd34b3bd7ffa3af8889e7a06bec"
+  },
+  {
+   "id": "java/pythagorean-triplet",
+   "user_message_sha256": "a6fe3293a0e8b28e1fc9e20db0e862494f345f7a0d12a009bb5a9b67a2f1bb83"
+  },
+  {
+   "id": "java/house",
+   "user_message_sha256": "384aa06644bb0cb3aee698b25f362bfc0c4e48d6bc160029c9aba34f65aa2ae2"
+  },
+  {
+   "id": "java/dominoes",
+   "user_message_sha256": "60b8525350c5070692ba1cae3061f404c79e772e05616f5f9804bcb6cda17550"
+  },
+  {
+   "id": "javascript/palindrome-products",
+   "user_message_sha256": "e0cb6aec89751a9086fe83949d99c20ef2b8e119bb56a7283e9b46ab5ffb0709"
+  },
+  {
+   "id": "javascript/space-age",
+   "user_message_sha256": "970c9e337a9359561697128dc14e2223b56159b5a39846c381311f2198e8dcb4"
+  },
+  {
+   "id": "javascript/promises",
+   "user_message_sha256": "4a61fa2e2a9d731e34ebbace4cded0e2aa8ffccbac7cde169e836fb71f52e4db"
+  },
+  {
+   "id": "python/simple-linked-list",
+   "user_message_sha256": "3908d895d6856aa0db0c0322ca46963d8f77499f5ef868f47d3f0dc18be61776"
+  },
+  {
+   "id": "python/wordy",
+   "user_message_sha256": "4aedd5b9a31d6186d9c9b1d90954ba5a2390dd3251a59aad7cfdd3275bb8eb7d"
+  },
+  {
+   "id": "python/proverb",
+   "user_message_sha256": "3298b3201208da9f32727421629970035ec333d8be44869ec4c57be5f2815492"
+  },
+  {
+   "id": "rust/dot-dsl",
+   "user_message_sha256": "14fa4fae7838f8dc6e28e52f809054280948ddc237e129bf5e31c5ce78de0a0d"
+  },
+  {
+   "id": "rust/doubly-linked-list",
+   "user_message_sha256": "2354293f1eecfa2993cb771bd247ea765b2443852b7cb89c8d573c0023a9888b"
+  },
+  {
+   "id": "rust/scale-generator",
+   "user_message_sha256": "c44cdbb62899945dd941e39a887b1aac5fac42b0e6bf14e4b3579e77cd1f7e1b"
+  }
+ ]
+}

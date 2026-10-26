@@ -1,250 +1,263 @@
-# Claude on Foundry: Thinking, Prompt Caching and First-Text Latency
+# Claude 5.5 on Microsoft Foundry: Thinking, Effort, Prompt Caching, Latency and Coding Accuracy
 
-[![LiteLLM 1.106.2](https://img.shields.io/badge/LiteLLM-1.106.2-0078D4)](deploy/Dockerfile)
-[![Python 3.13](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)](requirements.txt)
-[![Claude 5.5](https://img.shields.io/badge/Claude-5.5-555555?logo=anthropic&logoColor=white)](data/matrix.json)
-[![david-share stars](https://img.shields.io/github/stars/david-xinyuwei/david-share?style=flat&logo=github&label=david-share%20stars)](https://github.com/david-xinyuwei/david-share/stargazers)
+[![Models](https://img.shields.io/badge/models-Opus%20%C2%B7%20Sonnet%20%C2%B7%20Haiku%205.5-0078D4)](#purpose)
+[![Measured](https://img.shields.io/badge/measured-2026--10--24%20and%2010--26-0078D4)](#results)
+[![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/claude-foundry-performance-ci.yml/badge.svg)](https://github.com/david-xinyuwei/david-share/actions/workflows/claude-foundry-performance-ci.yml)
 
 Author: Xinyu Wei · [中文](README_CN.md)
 
-Stars belong to the whole david-share repository, not this directory.
-
 ## Purpose
 
-Measure thinking mode, cache coverage and client-visible waiting separately. A successful HTTP response, streaming flag or cache marker is not a performance acceptance test. This project provides a fixed five-turn workload, a streaming collector, ten measured configurations and independent offline verification.
+Claude Opus 5.5, Sonnet 5.5 and Haiku 5.5 on Microsoft Foundry take four settings that decide how a coding request behaves: the thinking mode (`thinking.type`), the effort level (`output_config.effort`), the output limit (`max_tokens`) and prompt-cache breakpoints (`cache_control`). Together they change how long the first visible text takes, what a request costs and how often the code works, and some combinations are rejected with HTTP 400. A successful HTTP response shows none of this. This repository measures it on the platform itself: from a VM in the same Azure region as the Foundry resource, it sends every combination that the three standard deployments accept to the same 18 coding problems, three times each, and runs every answer against the problem's own unit tests. A second test measures prompt caching in a four-turn coding conversation, and an earlier test (2026-10-24) sent a five-turn conversation through a LiteLLM gateway on Azure Container Apps.
 
-This is one fixed source-review workload, not customer production traffic. There is no answer-quality score, concurrent load test, AWS comparison or effort-level ranking.
+| Question | Opus 5.5 | Sonnet 5.5 | Haiku 5.5 |
+|---|---|---|---|
+| Thinking modes the API accepted | `adaptive` only; `disabled` and `between_tools` return 400 | `adaptive`; `between_tools` at low, medium, high | `adaptive`; `disabled` at low, medium, high |
+| Effort levels / default when omitted | low to max / medium | low to max / high | low to max / medium |
+| First visible text, P50 of the fastest cell | 0.48 s (`adaptive` · low) | 0.39 s (`between_tools` · high) | 0.43 s (`disabled` · high) |
+| Unit tests passed per cell, of 54 answers | 54 in every cell | 40 to 44 | 24 to 28 with `adaptive`; 17 to 21 with `disabled` |
+| List-price cost per 1,000 requests | $23.34 to $355.75 | $13.04 to $356.49 | $0.69 to $22.26 |
+| Choose it when (our reading of this test) | Answers must be right the first time. Start at `low`: every effort level passed all 54, and `low` was the fastest (0.48 s) and cheapest | You want most of Opus's accuracy at a lower price: `between_tools` passed as often as `adaptive`, started in under 0.5 s and cost $13.16–$13.76 per 1,000 requests | Cost matters most and a wrong answer can be retried. Keep thinking on: at the same effort levels `adaptive` passed 12.3 points more often than `disabled` |
 
-The recorded experiment used real model calls. A fresh deployment of this public package has not been run; offline checks are not deployment proof.
+**Scope.** The problems are public Exercism exercises from [Aider's polyglot benchmark](https://github.com/Aider-AI/polyglot-benchmark), each answered once, without tools and without seeing the tests; they are not your production tasks. Every request went straight to the Foundry Messages API, one at a time per deployment. Costs use list prices and were not reconciled with an Azure invoice.
 
-<img src="images/architecture-en.svg" width="440" alt="Measured gateway path and client timing points" />
+**Sources.** Accepted values and the HTTP 400 messages come from our probe ([results](docs/results.md#parameter-probe-2026-10-26)). The defaults, the rules for `between_tools` and `disabled`, and the advice to set `max_tokens` to 128,000 for agentic coding on Sonnet 5.5 come from Claude's [effort](https://platform.claude.com/docs/en/build-with-claude/effort) page; cache rules from [prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching); prices from [pricing](https://platform.claude.com/docs/en/about-claude/pricing), read on 2026-10-26; Foundry setup from [Claude in Microsoft Foundry](https://platform.claude.com/docs/en/build-with-claude/claude-in-microsoft-foundry). The last row of the table is our reading of these 18 problems, not general advice.
 
-Original explanatory diagram. The client owns prompts, history and timing; LiteLLM owns protocol and identity forwarding; model serving owns generation and caching. Connections explain the design, not execution proof. [Azure icons](images/icon-sources.json) · [Runtime](evidence/provenance.json)
+<img src="images/topology-en.svg" width="520" alt="Two test paths. Top: a Linux VM in East US 2 calls three Claude 5.5 deployments of a Foundry resource in East US 2 and runs the unit tests in Docker on the same VM. Bottom: the 2026-10-24 test, a Windows client calling LiteLLM on Azure Container Apps in Japan East, which calls the same East US 2 resource." />
 
-Adaptive uses adaptive; Sonnet without up-front thinking uses between_tools, and Haiku with thinking off uses disabled. Streaming remains enabled in every case.
-
-## Steps
-
-| Order | Where | Action |
-|---|---|---|
-| 1 | Client and Foundry | Settings, sign-in and three deployments |
-| 2 | Azure CLI | Build image and infrastructure |
-| 3 | CLI and Portal | Identity, secret, image and ingress |
-| 4 | Portal and client | Revision and metadata readiness |
-| 5 | Two client terminals | Capture logs and run matrix |
-| 6 | Client | Audit the new run and read its report |
-
-This path uses a dedicated new Container App, ACR and environment; do not apply creation or shutdown steps to shared production resources. Use PowerShell 7.6, Python 3.13 and Azure CLI, with permission to create resources, run ACR Tasks, assign scoped roles and read logs. The subscription owner confirms model access and Marketplace terms. Resources, builds, logs and model calls can incur charges; approve the budget first.
-
-**1. Set the context and deploy models**
-
-First select an existing resource in the Foundry portal, or have an authorized user create one and record its tenant, subscription, resource group, resource name and /anthropic base URL. Then start PowerShell in this project directory. Enter non-secret settings once; other terminals load private/settings.json. Sign in interactively on this machine; do not copy token caches.
-
-```powershell
-$ErrorActionPreference = 'Stop'
-$PSNativeCommandUseErrorActionPreference = $true
-if ($PSVersionTable.PSVersion -lt [version]'7.6') { throw 'Use PowerShell 7.6 or later' }
-$projectRoot = (Get-Location).ProviderPath
-$private = Join-Path $projectRoot 'private'
-[void][IO.Directory]::CreateDirectory($private)
-$settings = @{
-    tenant = Read-Host 'Tenant ID'
-    subscription = Read-Host 'Subscription ID'
-    group = Read-Host 'Dedicated resource group name'
-    location = Read-Host 'Container Apps region'
-    app = Read-Host 'New Container App name'
-    environment = Read-Host 'New Container Apps environment name'
-    registry = Read-Host 'New globally unique ACR name'
-    foundryGroup = Read-Host 'Foundry resource group'
-    foundry = Read-Host 'Foundry resource name'
-    baseUrl = Read-Host 'Foundry base URL ending in /anthropic'
-    clientCidr = Read-Host 'Test client public IPv4 address with /32'
-}
-$settings | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $private 'settings.json') -Encoding utf8
-$env:AZURE_CONFIG_DIR = Join-Path $private 'azure-cli'
-az login --tenant $settings.tenant --output none
-az account set --subscription $settings.subscription
-$account = az account show --output json | ConvertFrom-Json
-if ($account.id -ne $settings.subscription -or $account.tenantId -ne $settings.tenant) {
-    throw 'Unexpected Azure context'
-}
-az cognitiveservices account show --resource-group $settings.foundryGroup `
-    --name $settings.foundry --query '{name:name,location:location}' --output table
-```
-
-Success displays the selected Foundry resource. If no resource exists, create one in the Foundry portal in the required region. In **Discover → Models**, select Opus 5.5, Sonnet 5.5 and Haiku 5.5 in turn, then **Deploy → Custom settings**; the user accepts Marketplace terms for the first deployment. Select **Global** and version 2 labeled **Hosted on Azure**, using deployment names claude-opus-5-5, claude-sonnet-5-5 and claude-haiku-5-5. Allocate only approved quota. After all three complete, verify names, versions and Target URI in **Build → Models → Details**; baseUrl ends at /anthropic. Stop here if access or quota is unavailable; do not substitute models.
-
-[Foundry provisioning and authentication](https://platform.claude.com/docs/en/build-with-claude/claude-in-microsoft-foundry#provisioning)
-
-**2. Build a pinned image**
-
-```powershell
-$deployments = @(az cognitiveservices account deployment list `
-    --resource-group $settings.foundryGroup --name $settings.foundry --output json | ConvertFrom-Json)
-foreach ($model in @('claude-opus-5-5','claude-sonnet-5-5','claude-haiku-5-5')) {
-    $match = @($deployments | Where-Object { $_.name -eq $model })
-    if ($match.Count -ne 1 -or $match[0].properties.provisioningState -ne 'Succeeded' -or
-        $match[0].properties.model.name -ne $model -or $match[0].properties.model.version -ne '2' -or
-        $match[0].properties.model.format -ne 'Anthropic' -or $match[0].sku.name -ne 'GlobalStandard') {
-        throw "Deployment contract mismatch: $model"
-    }
-}
-az group create --name $settings.group --location $settings.location --output none
-az acr create --name $settings.registry --resource-group $settings.group `
-    --location $settings.location --sku Basic --admin-enabled false --output none
-az containerapp env create --name $settings.environment --resource-group $settings.group `
-    --location $settings.location --output none
-$tag = 'claude-gateway:' + (Get-Date -Format 'yyyyMMdd-HHmmss')
-az acr build --registry $settings.registry --image $tag --file deploy/Dockerfile deploy
-$digest = az acr repository show --name $settings.registry --image $tag --query digest --output tsv
-$server = az acr show --name $settings.registry --query loginServer --output tsv
-if ($digest -notmatch '^sha256:[a-f0-9]{64}$') { throw 'Image digest missing' }
-$image = "$server/claude-gateway@$digest"
-```
-
-Success is a completed ACR Tasks build and an image address with a SHA-256 digest. The public LiteLLM base is pinned. This repair did not build and deploy the public package from scratch: ENV_BUILD_STATUS=NOT_BUILT.
-
-**3. Configure identity, secret and ingress**
-
-Following Microsoft's system-assigned identity flow, first create a temporary revision from the public quickstart image with no external ingress, then configure the real gateway. This image only bootstraps identity; it is not model serving or measurement. Resolve its digest before use.
-
-```powershell
-$manifest = Invoke-WebRequest -Method Head `
-    -Uri 'https://mcr.microsoft.com/v2/k8se/quickstart/manifests/latest' `
-    -Headers @{Accept='application/vnd.docker.distribution.manifest.v2+json'} -TimeoutSec 15
-$bootstrapDigest = @($manifest.Headers['Docker-Content-Digest'])[0]
-if ($bootstrapDigest -notmatch '^sha256:[a-f0-9]{64}$') { throw 'Bootstrap digest missing' }
-az containerapp create --name $settings.app --resource-group $settings.group `
-    --environment $settings.environment --system-assigned --revisions-mode single `
-    --image "mcr.microsoft.com/k8se/quickstart@$bootstrapDigest" `
-    --cpu 0.25 --memory 0.5Gi --min-replicas 0 --max-replicas 1 --output none
-$principal = az containerapp identity show --name $settings.app `
-    --resource-group $settings.group --query principalId --output tsv
-$registryId = az acr show --name $settings.registry --query id --output tsv
-$foundryId = az cognitiveservices account show --name $settings.foundry `
-    --resource-group $settings.foundryGroup --query id --output tsv
-az role assignment create --assignee-object-id $principal --assignee-principal-type ServicePrincipal `
-    --role AcrPull --scope $registryId --output none
-az role assignment create --assignee-object-id $principal --assignee-principal-type ServicePrincipal `
-    --role 'Cognitive Services User' --scope $foundryId --output none
-az acr config authentication-as-arm update --registry $settings.registry --status enabled --output none
-az containerapp registry set --name $settings.app --resource-group $settings.group `
-    --server $server --identity system --output none
-```
-
-Open this Container App in Azure Portal, then **Application → Secrets → Add**. Use the name gateway-key; the user enters its value from their password manager and saves it. Preserve the existing gateway key; never put it in CLI arguments, logs or Git. Then apply the following update.
-
-```powershell
-az containerapp update --name $settings.app --resource-group $settings.group `
-    --image $image --cpu 1 --memory 2Gi --min-replicas 1 --max-replicas 1 `
-    --set-env-vars "FOUNDRY_ANTHROPIC_BASE=$($settings.baseUrl)" `
-        'LITELLM_MASTER_KEY=secretref:gateway-key' 'PYTHONPATH=/app/claude-gateway' --output none
-```
-
-In **Ingress**, enable external HTTP access to target port 4000 with Allow insecure connections off. In **IP security restrictions**, allow only settings.clientCidr and save; do not add 0.0.0.0/0. The gateway key protects client requests. The app's managed identity authenticates to Foundry; the gateway key does not.
-
-[Managed-identity image pull](https://learn.microsoft.com/en-us/azure/container-apps/managed-identity-image-pull)
-
-**4. Check the serving revision**
-
-```powershell
-$app = az containerapp show --name $settings.app --resource-group $settings.group --output json | ConvertFrom-Json
-$revision = az containerapp revision show --name $settings.app --resource-group $settings.group `
-    --revision $app.properties.latestRevisionName --output json | ConvertFrom-Json
-if (-not $revision.properties.active -or $revision.properties.healthState -ne 'Healthy' -or
-    $app.properties.latestReadyRevisionName -ne $app.properties.latestRevisionName -or
-    $revision.properties.template.containers[0].image -ne $image) {
-    throw 'Revision not ready: inspect Revision management and system logs, then repeat this step'
-}
-$env:CLAUDE_GATEWAY_URL = 'https://' + $app.properties.configuration.ingress.fqdn
-$secureKey = Read-Host 'Gateway key (entered privately)' -AsSecureString
-$env:CLAUDE_GATEWAY_KEY = [Net.NetworkCredential]::new('', $secureKey).Password
-try {
-    ./scripts/check_gateway.ps1
-} finally {
-    $env:CLAUDE_GATEWAY_KEY = $null
-}
-```
-
-Expect METADATA_READY and the three standard aliases. This makes no inference request and does not prove a model can answer. On failure inspect **Revision management** and **Log stream → System** for image pull, role propagation and secret references, then repeat this step; do not bypass readiness.
-
-**5. Capture logs and run the workload**
-
-First open a second PowerShell terminal in the same project directory and start the console log stream. Record the printed TRACE_FILE path and leave this terminal open.
-
-```powershell
-$ErrorActionPreference = 'Stop'
-$PSNativeCommandUseErrorActionPreference = $true
-$private = Join-Path (Get-Location).ProviderPath 'private'
-$env:AZURE_CONFIG_DIR = Join-Path $private 'azure-cli'
-$settings = Get-Content -LiteralPath (Join-Path $private 'settings.json') -Raw | ConvertFrom-Json
-$traceFile = Join-Path $private ('provider-console_' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.jsonl')
-Write-Output "TRACE_FILE=$traceFile"
-az containerapp logs show --name $settings.app --resource-group $settings.group `
-    --type console --follow --format json --tail 300 | Tee-Object -FilePath $traceFile
-```
-
-Return to the first terminal. The frozen matrix has ten configurations of five turns, medium effort, streaming and no retries, at most 50 requests. Its USD 50 script budget includes a fixed USD 3 reserve, not measured usage. Rates come from the frozen collector; check current pricing before calling. This bound excludes infrastructure and is not a current billing guarantee.
-
-```powershell
-$run = Join-Path $projectRoot ('live-runs/' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
-$secureKey = Read-Host 'Gateway key (entered privately)' -AsSecureString
-$env:CLAUDE_GATEWAY_KEY = [Net.NetworkCredential]::new('', $secureKey).Password
-try {
-    ./scripts/check_gateway.ps1
-    ./scripts/run_matrix.ps1 -RunDirectory $run
-} finally {
-    $env:CLAUDE_GATEWAY_KEY = $null
-}
-```
-
-Expect EXECUTED_PENDING_PROVIDER_TRACE_AUDIT in run.json and 50 raw responses. Then press Ctrl+C in the log terminal. Logs come from one revision/replica/container; this path uses one replica. If streaming breaks, preserve the file and capture again; never substitute older logs for missing calls. Failed runs are not silently retried or overwritten; inspect the recorded failing response first.
-
-**6. Audit this run**
-
-```powershell
-$traceFile = Read-Host 'Full path of the console log captured for this run'
-python -B scripts/analyze.py --run-directory $run --trace-file $traceFile
-Get-Content -LiteralPath (Join-Path $run 'analysis.md')
-```
-
-Expect status=PASS, requests=50 and providerCalls=50, with analysis.json and analysis.md identifying this run directory. Missing logs, wrong models, missing turns, truncated streams or usage mismatch fail without falling back to published evidence. Repeat --trace-file for several log files; --check validates without writing.
-
-**Upgrade, rollback and stop**: save the current image digest before upgrading, update to the new digest and repeat step 4. On failure update to the saved digest and recheck. Single-replica maintenance may interrupt requests. Ctrl+C stops only the client; temporary container files may be lost on restart, so retain local responses and traces first. Only after the resource owner approves stopping, deactivate all active revisions of this dedicated app in Portal Revision management and verify zero replicas. ACR, environment and logging may still incur charges; decide on those separately and never delete shared resources.
+What the figure shows: where each test's client, gateway and models ran, and where the clock was. The top path produced the main results on this page; the bottom path is the 2026-10-24 gateway test, whose gateway was in another region. Original explanatory diagram with unmodified [Azure icons](images/icon-sources.json); it does not show inference location, which GlobalStandard deployments do not fix.
 
 ## Results
 
-The recorded experiment on 2026-10-24 completed **50/50 requests**. Model cost at its recorded rates: **US$0.78989513**. Each cache configuration has five turns. These are historical measurements, not a reader's new run or current prices. First text spans client send to the first nonempty text_delta; P50 is the median of five turns.
+Words used in the results:
 
-**First visible text P50, seconds**
-
-| Model / mode | System only | System + history |
-|---|---:|---:|
-| Opus 5.5<br>adaptive | 9.321 | 7.293 |
-| Sonnet 5.5<br>adaptive | 8.051 | 1.434 |
-| Sonnet 5.5<br>between_tools | 0.954 | 0.893 |
-| Haiku 5.5<br>adaptive | 4.235 | 2.910 |
-| Haiku 5.5<br>disabled | 0.810 | 0.781 |
-
-**Cache-read share across all five turns, %**
-
-Cache-read share covers all five turns: total read tokens / (total uncached + written + read input tokens). Initial writes enter the denominator but are not hits; new prompts and history still need processing. System only reuses the fixed source; System + history also enables growing automatic conversation caching. This is neither last-turn hit rate nor the mean of per-turn percentages.
-
-| Model / mode | System only | System + history |
-|---|---:|---:|
-| Opus 5.5<br>adaptive | 28.27 | 69.25 |
-| Sonnet 5.5<br>adaptive | 33.52 | 67.68 |
-| Sonnet 5.5<br>between_tools | 39.96 | 70.68 |
-| Haiku 5.5<br>adaptive | 32.81 | 71.04 |
-| Haiku 5.5<br>disabled | 47.47 | 72.44 |
-
-The no-up-front-thinking modes produced zero thinking tokens in this tool-free workload. Sonnet between_tools is not a universal full-off switch; Opus 5.5 cannot disable thinking. With five samples, P95 is the maximum, not a production-tail estimate.
-
-Higher cache share does not attribute all first-text improvements to caching: conversations generate independently, changing history and thinking usage. All timing is client-side; server queues, network time and model compute are not isolated.
-
-| Goal | Read |
+| Term | Meaning |
 |---|---|
-| Inspect per-turn and timing results | [Results](docs/results.md) |
-| Verify, reproduce and understand limits | [Testing](docs/testing.md) |
+| Cell | One model × thinking mode × effort level. Each cell answered the 18 problems three times: 54 answers |
+| `adaptive` | The model decides for each request whether and how long to think before it answers |
+| `between_tools` (Sonnet), `disabled` (Haiku) | No thinking before the answer. Sonnet's API message: the model "does not think before responding" and returns the short updates it writes between tool calls as thinking blocks. This test used no tools |
+| Effort | `output_config.effort`: how much work the model puts into the whole response, thinking included |
+| First visible text | Seconds from just before the request is written to the first non-empty `text_delta`, timed on the VM. Thinking comes first and its text is not streamed (`display` omitted), so this wait includes all thinking |
+| First event | Seconds to the first server-sent event, `message_start` |
+| Full answer | Seconds to the end of the stream, completed requests only |
+| Completed | HTTP 200, `message_stop` received, `stop_reason` `end_turn` and non-empty text |
+| Pass | The files in the answer, written over the exercise's solution files, make its own unit tests exit 0 in an offline container (Aider's first-attempt rule) |
+| By-problem 95% interval | 2.5th to 97.5th percentile over 5,000 resamples of the 18 problems (seed 20261026). The three answers to one problem are not independent, so the problem is the unit |
+| Cost | List price × the token counts in the API's `usage`, cache writes and reads included |
 
-Directories: [deploy](deploy/), [scripts](scripts/), [data](data/), [evidence](evidence/), [images](images/), [tests](tests/). [Dependencies](requirements.txt).
+**Where each part ran.**
+
+| Part | Where | Detail |
+|---|---|---|
+| Client: probe, matrix, cache test | Linux VM `Standard_D4s_v5`, East US 2 | Ubuntu 24.04, kernel 7.0.0-1017-azure, Python 3.12.3, httpx 0.28.1, azure-identity 1.25.1; Entra token from the VM's managed identity; TCP connect to the endpoint 9.67 ms median before the matrix |
+| Models | Foundry resource in East US 2 | `claude-opus-5-5` 40,000 tokens per minute; `claude-sonnet-5-5` and `claude-haiku-5-5` 80,000 each; version 2, GlobalStandard, so a request may be served outside East US 2 |
+| Unit tests | Docker on the same VM | `--network none`, 1.5 CPUs, 3 GB; the toolchains of Aider's benchmark image: Python 3.11, Go 1.21.5, Rust, Node 20, OpenJDK 21, CMake and Boost |
+
+**What each matrix request sent.** One streamed Messages request per answer; the `system` and `content` values are shortened here:
+
+```json
+{
+  "model": "claude-sonnet-5-5",
+  "max_tokens": 128000,
+  "stream": true,
+  "thinking": {"type": "between_tools"},
+  "output_config": {"effort": "low"},
+  "system": "Act as an expert software developer. …",
+  "messages": [{"role": "user", "content": "I have *added these files to the chat* so you can go ahead and edit them. …"}]
+}
+```
+
+Only `model`, `thinking.type` and `output_config.effort` change between cells. There is no `cache_control`, no tool and no `temperature`, `top_p` or `top_k`. The full system prompt and a complete user message are quoted in [the results page](docs/results.md#coding-matrix-2026-10-26); all 18 are in [problems.json](evidence/coding-matrix-20261026/matrix/problems.json).
+
+**How each number is measured, and the scripts.**
+
+| Number | From → to, or how | Script |
+|---|---|---|
+| Accepted values | HTTP 200 or 400 for a one-word prompt sent with each value | [`probe.py`](coding-matrix/probe.py) |
+| First visible text, first event, full answer | request written → first `text_delta`, `message_start`, end of stream; clock on the VM | [`claude_api.py`](coding-matrix/claude_api.py) `stream_message` |
+| Completed, thinking and output tokens | status, `stop_reason` and `usage` of each stream | [`bench.py`](coding-matrix/bench.py) |
+| Pass | the exercise's unit tests, offline in Docker | [`judge.py`](coding-matrix/judge.py) |
+| P50, P95, intervals, cost per 1,000 | nearest rank; bootstrap over problems; mean list-price cost × 1,000 | [`analyze.py`](coding-matrix/analyze.py) |
+| Cache reads and writes, conversation cost | `usage` of each turn; the same tokens priced as if nothing were cached | [`cache_test.py`](coding-matrix/cache_test.py), [`cache_analyze.py`](coding-matrix/cache_analyze.py) |
+
+**Do not read these grids as a general ranking of the three models.** Opus answered all 18 problems correctly in every cell, so this test cannot separate its effort levels. With 18 problems, a Sonnet or Haiku cell's 95% interval spans 30 to 44 points (for example Sonnet `between_tools` · high: 44 of 54, 65% to 94%). The problems are short single-file exercises. Each row is one model and thinking mode, each column an effort level; *not accepted* means the API returned HTTP 400. P95, full-answer times, token counts and every interval are on [the results page](docs/results.md#results-per-cell).
+
+**Unit tests passed, of 54 answers**
+
+| Model · thinking | low | medium | high | xhigh | max |
+|---|---:|---:|---:|---:|---:|
+| Opus 5.5 · `adaptive` | 54/54 | 54/54 | 54/54 | 54/54 | 54/54 |
+| Sonnet 5.5 · `adaptive` | 41/54 | 42/54 | 40/54 | 41/54 | 44/54 |
+| Sonnet 5.5 · `between_tools` | 42/54 | 41/54 | 44/54 | not accepted | not accepted |
+| Haiku 5.5 · `adaptive` | 24/54 | 26/54 | 27/54 | 28/54 | 28/54 |
+| Haiku 5.5 · `disabled` | 19/54 | 17/54 | 21/54 | not accepted | not accepted |
+
+**First visible text, P50, seconds**
+
+| Model · thinking | low | medium | high | xhigh | max |
+|---|---:|---:|---:|---:|---:|
+| Opus 5.5 · `adaptive` | 0.48 | 3.71 | 4.05 | 6.04 | 51.4 |
+| Sonnet 5.5 · `adaptive` | 0.46 | 0.50 | 3.25 | 7.44 | 190 |
+| Sonnet 5.5 · `between_tools` | 0.42 | 0.44 | 0.39 | not accepted | not accepted |
+| Haiku 5.5 · `adaptive` | 4.13 | 4.62 | 8.21 | 14.9 | 121 |
+| Haiku 5.5 · `disabled` | 0.46 | 0.45 | 0.43 | not accepted | not accepted |
+
+**List-price cost per 1,000 requests, US dollars**
+
+| Model · thinking | low | medium | high | xhigh | max |
+|---|---:|---:|---:|---:|---:|
+| Opus 5.5 · `adaptive` | $23.34 | $34.52 | $38.75 | $65.36 | $355.75 |
+| Sonnet 5.5 · `adaptive` | $13.04 | $13.57 | $18.36 | $31.62 | $356.49 |
+| Sonnet 5.5 · `between_tools` | $13.16 | $13.21 | $13.76 | not accepted | not accepted |
+| Haiku 5.5 · `adaptive` | $1.27 | $1.57 | $2.14 | $4.19 | $22.26 |
+| Haiku 5.5 · `disabled` | $0.69 | $0.69 | $0.73 | not accepted | not accepted |
+
+What stands out:
+- **The platform answered every request.** All 1,155 matrix requests returned HTTP 200, none with 429 or 5xx, and 1,130 of the 1,134 measured requests completed. Of the other four, three Haiku `adaptive` · max answers spent all 128,000 output tokens on thinking (`stop_reason: max_tokens`), and one Sonnet `adaptive` · max stream sent `message_start` and two pings, then nothing until the client's 600 s read timeout ended it at 661 s.
+- **Without thinking, text starts in under half a second.** Sonnet `between_tools` and Haiku `disabled` showed the first visible text after 0.44 s P50 and 0.74 s P95 over 324 requests. The first event came after 0.47 s P50 over all requests, and between 0.39 and 0.53 s P50 in each cell; the rest of the wait is thinking, which is not streamed. At effort max the first visible text took 51.4 s (Opus), 190 s (Sonnet) and 121 s (Haiku), P50.
+- **Thinking raised Haiku's pass rate, not Sonnet's.** At the same three effort levels, Haiku passed 47.5% with `adaptive` and 35.2% with `disabled`: +12.3 points (95% interval +2.5 to +23.5; 9 problems better, 2 worse, 7 equal). Sonnet: 75.9% against 78.4% with `between_tools`, -2.5 points (-7.4 to +1.9).
+- **Higher effort mostly bought time and cost.** Opus cost $23.34 per 1,000 requests at low and $355.75 at max for the same 54 passes. Sonnet's eight cells passed 40 to 44 times each, inside one another's intervals.
+- **The problem mattered more than the setting.** Over all its cells Sonnet passed `java/house` 1 time in 24 and `javascript/promises` 3 times in 24; Haiku never passed 6 of the 18 problems. Opus passed every problem every time.
+
+**Prompt caching in a four-turn coding conversation.** Each conversation sends the same instructions and three httpx source files (about 15,500 tokens) as the system prompt, then four questions in turn: how an `Auth` subclass takes part in a request, a new `BearerTokenAuth` class, pytest tests for it, and a commit message. Opus uses `adaptive`, Sonnet `between_tools` and Haiku `disabled`, effort low, two repetitions per scenario. Each scenario changes one thing; results are the range over the three models:
+
+| Scenario | What changed | Result |
+|---|---|---|
+| Automatic caching | top-level `cache_control` on every turn | turns 2–4 read 94–97% of the prompt from cache; the conversation cost 52–53% less than the same tokens without cache |
+| Breakpoint after the files, new conversation | `cache_control` on the repository block; then a second conversation with the same files and a new question | the new conversation read 15,440–15,442 tokens from cache and cost 76–80% less |
+| Automatic caching only, new conversation | top-level `cache_control`; then a second conversation with the same files | read 0 tokens and wrote a new entry: 20–21% more than without cache |
+| Top-level effort change | effort low → high on turn 3 | turn 3 still read 95–97% of the prompt from cache |
+| Per-message effort | the same change as an effort-only system message, beta header `mid-conversation-output-config-2026-07-01` | turn 3 read 95–97% from cache |
+| Thinking mode change (Sonnet, Haiku) | thinking off → `adaptive` on turn 3 | turn 3 read 0 tokens and rewrote 16,609–17,138; turn 4 read 95–96% again |
+| 6.5 minutes idle, 5-minute TTL | default TTL | turn 2 read 0 tokens and rewrote 16,145–16,158 |
+| 6.5 minutes idle, 1-hour TTL | `"ttl": "1h"` | turn 2 read 15,490–15,493 tokens |
+| Pre-warm | a non-streaming request with `max_tokens: 0`, then the first question | the first question read 15,440–15,444 tokens (99.7% of its prompt) |
+| Cold and warm, same prompt | five pairs, one-word answer | first visible text P50 at about 15,500 tokens: Opus 1.51 → 1.38 s, Sonnet 1.03 → 0.89 s, Haiku 0.75 → 0.71 s; at about 53,300: Sonnet 0.94 → 0.92 s, Haiku 0.85 → 0.87 s. The warm request cost 4–8% of the cold one |
+
+Claude's [effort page](https://platform.claude.com/docs/en/build-with-claude/effort) says that changing the top-level effort between requests invalidates cache breakpoints. In this test, with automatic caching, turn 3 still read the cached prefix; we did not find out why, so treat it as an observation on these deployments on 2026-10-26. The per-message form, which the docs say keeps the cache, behaved the same. All 264 cache requests returned HTTP 200. Per-turn read shares and costs are on [the results page](docs/results.md#prompt-caching-2026-10-26).
+
+**Through a LiteLLM gateway (2026-10-24).** An earlier test sent a five-turn source-review conversation through LiteLLM 1.106.2 on Azure Container Apps in Japan East to the same East US 2 resource, in ten configurations at effort medium. All 50 requests completed, and the gateway's outbound log showed the model, thinking mode, effort, `stream`, `max_tokens` and cache markers of every request reaching Foundry unchanged. First visible text P50 was 0.78 to 0.95 s with thinking off and up to 9.32 s with `adaptive`. The gateway and the models were in different regions, so these times include a round trip between Japan and the eastern United States and do not measure the gateway's own overhead. Its full tables are on [the results page](docs/results.md#gateway-test-2026-10-24).
+
+**Measured runs.**
+
+| Run | When, UTC | What | Requests | List-price cost | Result |
+|---|---|---|---:|---:|---|
+| `probe` | 2026-10-26 08:11–08:12 | accepted values, one-word prompt | 102 | $0.05 | 50 × HTTP 200, 52 × HTTP 400 |
+| `smoke` | 2026-10-26 08:35 | one problem in each of the 21 cells, `max_tokens` 32,000 | 21 | $0.14 | 21 completed |
+| `pilot-32k` | 2026-10-26 08:37–09:04 | the matrix with `max_tokens` 32,000 | 173 | $5.59 | stopped: 7 answers hit 32,000 tokens and 4 hit the output-token-per-minute limit (HTTP 429); not used in the results |
+| `matrix` | 2026-10-26 09:04–14:11 | 21 cells × 18 problems × 3, plus 21 warm-ups | 1,155 | $55.36 | 1,130 of 1,134 completed; no 429 |
+| `cache` | 2026-10-26 13:04–14:57 | caching scenarios | 264 | $6.70 | 264 × HTTP 200 |
+| `gateway` | 2026-10-24 | five-turn conversation through LiteLLM, ten configurations | 50 | $0.79 | 50 completed |
+
+The 2026-10-26 runs cost $67.85 at list prices. Their records are in [`evidence/coding-matrix-20261026/`](evidence/coding-matrix-20261026/), with the endpoint and VM names replaced; the 2026-10-24 records are in [`evidence/`](evidence/).
+
+**Limits.**
+- **One client, one region, one day, one request at a time per deployment.** No concurrency, load or soak test, and no client outside Azure.
+- **Public exercises, first attempt, no tools.** As in Aider's benchmark the model sees the stub and the instructions but not the tests. `between_tools` differs from `disabled` only in tool loops, which this test never ran.
+- **Ceiling and sample size.** Opus passed all 54 answers in every cell, and 18 problems give wide intervals; a difference of a few answers between two cells is within noise.
+- **Thinking display.** 610 matrix requests used thinking tokens and 0 streamed any thinking text, so the first visible text includes all thinking. `display: "summarized"` was not tested.
+- **Routing.** GlobalStandard deployments may serve a request outside East US 2, and all 1,155 matrix responses reported `usage.inference_geo` as `global`; other client locations or deployment types will give other latencies.
+- **Cost.** List prices on 2026-10-26, not an Azure invoice.
+- **Gateway.** The 2026-10-24 gateway ran in another region; a gateway in the same region as the models has not been tested.
+
+| You want to | Read |
+|---|---|
+| See every cell, problem, probe message and cache turn | [Results](docs/results.md) |
+| Repeat the tests or run the offline checks | [Testing](docs/testing.md) |
+| Check what each public script changed from the measured one | [Provenance](evidence/coding-matrix-20261026/provenance.json) |
+
+## Steps
+
+**Deploy first, then call.** These steps deploy the three models and send one streamed request with the request shape used in the tests. Repeating the measurements, the 2026-10-24 gateway test and the offline checks are in [docs/testing.md](docs/testing.md).
+
+**Execution boundary:** the 2026-10-26 results came from these scripts, on a VM created with the commands of step 3 under our own resource names. The repository was assembled afterwards. Step 4 was then run once from the same VM with the published `claude_api.py`, `pricing.py` and `call_once.py`: completed, HTTP 200, first visible text after 0.89 s ([record](evidence/coding-matrix-20261026/readme-step4.json)). Steps 1 to 3 have not been re-run in a fresh subscription.
+
+| Order | Where | Action | Entry |
+|---|---|---|---|
+| 1 | Bash with Azure CLI | Sign in and name the resources | `az login` |
+| 2 | Foundry portal and Azure CLI | Deploy the three models | `az cognitiveservices account deployment create` |
+| 3 | Azure CLI | Create a VM in the same region and let its identity call Foundry | `az vm create`, `az role assignment create` |
+| 4 | The VM | Install the client and send one request | [`coding-matrix/call_once.py`](coding-matrix/call_once.py) |
+
+**Prerequisites.** Bash with Azure CLI (we used 2.91.0; Azure Cloud Shell works); a Foundry resource in a region that offers Claude 5.5 (East US 2 here); permission to deploy models, create a VM and assign roles on the Foundry resource; Claude 5.5 quota; and the Marketplace terms for Anthropic models, which the subscription owner accepts in the portal on the first deployment. Model calls, the VM and its disk are charged.
+
+**1. Sign in and name the resources.** Fill in the five values; `LOCATION` is the Foundry resource's region.
+
+```bash
+SUBSCRIPTION_ID="<subscription-id>"
+FOUNDRY_RG="<resource-group-of-the-Foundry-resource>"
+FOUNDRY="<Foundry-resource-name>"
+VM_RG="<new-resource-group-for-the-client-VM>"
+LOCATION="eastus2"
+az login
+az account set --subscription "$SUBSCRIPTION_ID"
+az cognitiveservices account show -g "$FOUNDRY_RG" -n "$FOUNDRY" --query "{name:name, location:location}" -o table
+```
+
+Success: the last command prints the resource and its region. If it fails, check the subscription and the resource names before going on.
+
+**2. Deploy the three models.** Capacity is thousands of tokens per minute; these are the values of the test (Opus 40, Sonnet and Haiku 80). If a command fails on Marketplace terms, deploy that model once in the Foundry portal (**Discover → Models**, then **Deploy → Custom settings**, deployment type **Global**, version 2) and run the command again.
+
+```bash
+az cognitiveservices account deployment create -g "$FOUNDRY_RG" -n "$FOUNDRY" --deployment-name claude-opus-5-5 \
+  --model-name claude-opus-5-5 --model-version 2 --model-format Anthropic --sku-name GlobalStandard --sku-capacity 40
+az cognitiveservices account deployment create -g "$FOUNDRY_RG" -n "$FOUNDRY" --deployment-name claude-sonnet-5-5 \
+  --model-name claude-sonnet-5-5 --model-version 2 --model-format Anthropic --sku-name GlobalStandard --sku-capacity 80
+az cognitiveservices account deployment create -g "$FOUNDRY_RG" -n "$FOUNDRY" --deployment-name claude-haiku-5-5 \
+  --model-name claude-haiku-5-5 --model-version 2 --model-format Anthropic --sku-name GlobalStandard --sku-capacity 80
+az cognitiveservices account deployment list -g "$FOUNDRY_RG" -n "$FOUNDRY" \
+  --query "[?properties.model.format=='Anthropic'].{name:name, sku:sku.name, capacity:sku.capacity, version:properties.model.version, state:properties.provisioningState}" -o table
+```
+
+Success: three rows with `GlobalStandard`, version `2` and `Succeeded`. Without quota, request it rather than switching models. The test client paces itself to these capacities (`TPM` in `bench.py` and `cache_test.py`); with other capacities, change those two values before repeating the measurements.
+
+**3. Create the client VM in the same region.** The VM gets a system-assigned managed identity, and `Cognitive Services User` on the Foundry resource lets that identity call the models. `--nsg-rule NONE` opens no inbound port: connect through Azure Bastion (we used it), or add an SSH rule limited to your own IP address.
+
+```bash
+az group create -n "$VM_RG" -l "$LOCATION"
+az vm create -g "$VM_RG" -n claude-client -l "$LOCATION" \
+  --image Canonical:ubuntu-24_04-lts:server:latest --size Standard_D4s_v5 --os-disk-size-gb 128 \
+  --admin-username azureuser --generate-ssh-keys --assign-identity '[system]' \
+  --public-ip-sku Standard --nsg-rule NONE
+PRINCIPAL_ID=$(az vm show -g "$VM_RG" -n claude-client --query identity.principalId -o tsv)
+FOUNDRY_ID=$(az cognitiveservices account show -g "$FOUNDRY_RG" -n "$FOUNDRY" --query id -o tsv)
+az role assignment create --assignee-object-id "$PRINCIPAL_ID" --assignee-principal-type ServicePrincipal \
+  --role "Cognitive Services User" --scope "$FOUNDRY_ID"
+```
+
+Success: `az vm create` prints `"powerState": "VM running"` and the role assignment prints its JSON. A new role assignment can take a few minutes to apply.
+
+**4. Install the client and send one request.** Run this on the VM. Set `FOUNDRY_ANTHROPIC_BASE` to your resource's endpoint ending in `/anthropic`.
+
+```bash
+sudo apt-get update && sudo apt-get install -y python3-venv git
+git clone --filter=blob:none --sparse --depth=1 https://github.com/david-xinyuwei/david-share.git
+git -C david-share sparse-checkout set Agents/Claude-Foundry-LiteLLM-Performance
+cd david-share/Agents/Claude-Foundry-LiteLLM-Performance/coding-matrix
+python3 -m venv ~/venv && ~/venv/bin/pip install -r requirements.txt
+export FOUNDRY_ANTHROPIC_BASE="https://<foundry-resource>.services.ai.azure.com/anthropic"
+~/venv/bin/python call_once.py --model claude-sonnet-5-5 --thinking between_tools --effort low \
+  "Write a Python function that returns the n-th Fibonacci number."
+```
+
+Success: the answer, then a line such as `{"status": "completed", "http_status": 200, "first_text_s": 0.8893, ...}`, and exit code 0. HTTP 401 or 403: the role has not applied yet or was assigned on another resource; wait and retry. HTTP 400: the model does not accept that thinking mode or effort (see the first table). HTTP 404: the deployment name or the endpoint is wrong.
+
+**Done.** The three deployments answer a client in their own region with the parameters used here. To repeat the measurements, follow [docs/testing.md](docs/testing.md).
+
+**Remove resources only after the owner approves; this is not part of deployment.** Each block removes one thing; run only the one you need.
+
+Delete the client VM and its resource group (`az` asks you to confirm):
+
+```bash
+az group delete -n "$VM_RG"
+```
+
+Delete the three model deployments:
+
+```bash
+for name in claude-opus-5-5 claude-sonnet-5-5 claude-haiku-5-5; do
+  az cognitiveservices account deployment delete -g "$FOUNDRY_RG" -n "$FOUNDRY" --deployment-name "$name"
+done
+```
+
+**Repository.** [`coding-matrix/`](coding-matrix/) client, probe, matrix, judge, cache test and analysis · [`data/`](data/) the measured problem list and the gateway workload · [`evidence/coding-matrix-20261026/`](evidence/coding-matrix-20261026/) run records, facts and provenance · [`evidence/`](evidence/) gateway records · [`scripts/`](scripts/) gateway collector, gateway analysis and the page generator · [`deploy/`](deploy/) gateway image · [`images/`](images/) figures and icon ledger · [`tests/`](tests/) offline tests (`python -B -m unittest discover -s tests -v`, run by CI) · [`NOTICE.md`](NOTICE.md) third-party notices.

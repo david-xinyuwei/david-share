@@ -1,0 +1,3725 @@
+{
+ "run": "cache",
+ "requests_sent": 264,
+ "throttled_attempts": 0,
+ "cost_total_usd": 6.704628405,
+ "context": {
+  "instructions": "You are a senior Python engineer pairing with a developer on the httpx code base.\nThe repository files you may read are included below. Answer concisely, show complete code when you write code,\nand keep the existing style (type hints, docstrings, naming).",
+  "questions": [
+   "In five bullet points, explain how an Auth subclass takes part in sending a request: which methods are called, in what order, and how a response can trigger a retry.",
+   "Write a new Auth subclass BearerTokenAuth that takes a token-refresh callback, sends 'Authorization: Bearer <token>', and refreshes the token once when the server answers 401. Return the complete class.",
+   "Write pytest tests for BearerTokenAuth using httpx.MockTransport: one test for a normal request and one for refresh-on-401.",
+   "Write a git commit message (subject line plus a short body) for the change we made in this session."
+  ],
+  "second_question": "List the public classes defined in these files, with one line each on what they are for.",
+  "pair_question": "Reply with the single word OK.",
+  "repo_files": [
+   "_auth.py",
+   "_config.py",
+   "_urls.py"
+  ],
+  "large_files": [
+   "_auth.py",
+   "_config.py",
+   "_urls.py",
+   "_models.py",
+   "_client.py"
+  ],
+  "context_chars": {
+   "repo": 42058,
+   "large": 152546
+  },
+  "context_sha256": {
+   "repo": "edcfc419480776fe20d691519d1d24b520a335a4f6a741d624f18de8968e5d41",
+   "large": "ce1587ea693a1295e395594d2ff0a436535b977d4647c20a78a3c0c6891762c4"
+  },
+  "max_tokens": 3000,
+  "pair_max_tokens": 256,
+  "idle_seconds": 390,
+  "pairs": 5,
+  "base_mode": {
+   "claude-opus-5-5": "adaptive",
+   "claude-sonnet-5-5": "between_tools",
+   "claude-haiku-5-5": "disabled"
+  },
+  "tpm": {
+   "claude-opus-5-5": 40000,
+   "claude-sonnet-5-5": 80000,
+   "claude-haiku-5-5": 80000
+  },
+  "otpm_assumed": {
+   "claude-opus-5-5": 8000,
+   "claude-sonnet-5-5": 16000,
+   "claude-haiku-5-5": 16000
+  },
+  "repetitions": 2,
+  "started_utc": "2026-10-26T09:15:26.690+00:00"
+ },
+ "per_turn": [
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "auto",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "disabled",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 15490.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 576.0
+   },
+   "prompt_tokens_mean": 15494.0,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.00222465,
+   "no_cache_cost_mean_usd": 0.0018374,
+   "first_event_p50_s": 0.43284999999999996,
+   "first_text_p50_s": 0.4329
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "auto",
+   "turn": 2,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "disabled",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 651.0,
+    "write_1h": 0.0,
+    "read": 15490.0,
+    "output": 431.0
+   },
+   "prompt_tokens_mean": 16145.0,
+   "read_share": 0.9594301641375038,
+   "cost_mean_usd": 0.000452175,
+   "no_cache_cost_mean_usd": 0.00183,
+   "first_event_p50_s": 0.50035,
+   "first_text_p50_s": 0.5004
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "auto",
+   "turn": 3,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "disabled",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 481.0,
+    "write_1h": 0.0,
+    "read": 16141.0,
+    "output": 665.5
+   },
+   "prompt_tokens_mean": 16626.0,
+   "read_share": 0.9708288223264766,
+   "cost_mean_usd": 0.000554685,
+   "no_cache_cost_mean_usd": 0.00199535,
+   "first_event_p50_s": 0.61885,
+   "first_text_p50_s": 0.61885
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "auto",
+   "turn": 4,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "disabled",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 695.5,
+    "write_1h": 0.0,
+    "read": 16622.0,
+    "output": 140.5
+   },
+   "prompt_tokens_mean": 17321.5,
+   "read_share": 0.9596166613745922,
+   "cost_mean_usd": 0.0003238075,
+   "no_cache_cost_mean_usd": 0.0018024,
+   "first_event_p50_s": 0.4573,
+   "first_text_p50_s": 0.45735
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "auto_second",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "disabled",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 15463.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 560.0
+   },
+   "prompt_tokens_mean": 15467.0,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.002213275,
+   "no_cache_cost_mean_usd": 0.0018267000000000001,
+   "first_event_p50_s": 0.7596,
+   "first_text_p50_s": 0.7596
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "effort_switch",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 15493.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 676.5
+   },
+   "prompt_tokens_mean": 15497.0,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.002275275,
+   "no_cache_cost_mean_usd": 0.0018879500000000002,
+   "first_event_p50_s": 0.5267999999999999,
+   "first_text_p50_s": 1.4209
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "effort_switch",
+   "turn": 2,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 585.5,
+    "write_1h": 0.0,
+    "read": 15493.0,
+    "output": 815.0
+   },
+   "prompt_tokens_mean": 16082.5,
+   "read_share": 0.9633452510492772,
+   "cost_mean_usd": 0.0006360175000000001,
+   "no_cache_cost_mean_usd": 0.00201575,
+   "first_event_p50_s": 0.5148,
+   "first_text_p50_s": 1.95545
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "effort_switch",
+   "turn": 3,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "high",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 543.5,
+    "write_1h": 0.0,
+    "read": 16078.5,
+    "output": 2088.0
+   },
+   "prompt_tokens_mean": 16626.0,
+   "read_share": 0.967069649945868,
+   "cost_mean_usd": 0.0012731225,
+   "no_cache_cost_mean_usd": 0.0027066000000000004,
+   "first_event_p50_s": 0.4554,
+   "first_text_p50_s": 5.7111
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "effort_switch",
+   "turn": 4,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 872.0,
+    "write_1h": 0.0,
+    "read": 16622.0,
+    "output": 174.5
+   },
+   "prompt_tokens_mean": 17498.0,
+   "read_share": 0.9499371356726483,
+   "cost_mean_usd": 0.00036287000000000005,
+   "no_cache_cost_mean_usd": 0.00183705,
+   "first_event_p50_s": 0.5815,
+   "first_text_p50_s": 0.5815
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "effort_switch_message",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 15491.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 775.0
+   },
+   "prompt_tokens_mean": 15495.0,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.002324275,
+   "no_cache_cost_mean_usd": 0.001937,
+   "first_event_p50_s": 0.49024999999999996,
+   "first_text_p50_s": 1.6643
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "effort_switch_message",
+   "turn": 2,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 586.0,
+    "write_1h": 0.0,
+    "read": 15491.0,
+    "output": 929.0
+   },
+   "prompt_tokens_mean": 16081.0,
+   "read_share": 0.9633107393818793,
+   "cost_mean_usd": 0.0006930599999999999,
+   "no_cache_cost_mean_usd": 0.0020726,
+   "first_event_p50_s": 0.5628500000000001,
+   "first_text_p50_s": 2.7578
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "effort_switch_message",
+   "turn": 3,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": "high",
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 535.0,
+    "write_1h": 0.0,
+    "read": 16077.0,
+    "output": 2128.0
+   },
+   "prompt_tokens_mean": 16616.0,
+   "read_share": 0.9675613866153105,
+   "cost_mean_usd": 0.001292045,
+   "no_cache_cost_mean_usd": 0.0027256,
+   "first_event_p50_s": 0.52535,
+   "first_text_p50_s": 5.8902
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "effort_switch_message",
+   "turn": 4,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": "low",
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 874.5,
+    "write_1h": 0.0,
+    "read": 16612.0,
+    "output": 199.0
+   },
+   "prompt_tokens_mean": 17490.5,
+   "read_share": 0.9497727337697607,
+   "cost_mean_usd": 0.0003753325,
+   "no_cache_cost_mean_usd": 0.00184855,
+   "first_event_p50_s": 0.52715,
+   "first_text_p50_s": 0.52715
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "idle_1h",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "disabled",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 15490.5,
+    "write_1h": 15490.5,
+    "read": 0.0,
+    "output": 514.0
+   },
+   "prompt_tokens_mean": 15494.5,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.0033555,
+   "no_cache_cost_mean_usd": 0.0018064500000000002,
+   "first_event_p50_s": 0.48605,
+   "first_text_p50_s": 0.48605
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "idle_1h",
+   "turn": 2,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "disabled",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 589.0,
+    "write_1h": 589.0,
+    "read": 15490.5,
+    "output": 333.5
+   },
+   "prompt_tokens_mean": 16083.5,
+   "read_share": 0.9631299157521683,
+   "cost_mean_usd": 0.000439855,
+   "no_cache_cost_mean_usd": 0.0017751,
+   "first_event_p50_s": 0.43425,
+   "first_text_p50_s": 0.43425
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "idle_5m",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "disabled",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 15490.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 593.5
+   },
+   "prompt_tokens_mean": 15494.0,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.0022334,
+   "no_cache_cost_mean_usd": 0.0018461500000000002,
+   "first_event_p50_s": 0.6881999999999999,
+   "first_text_p50_s": 0.6881999999999999
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "idle_5m",
+   "turn": 2,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "disabled",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 16158.5,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 407.0
+   },
+   "prompt_tokens_mean": 16162.5,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.0022237125,
+   "no_cache_cost_mean_usd": 0.0018197500000000002,
+   "first_event_p50_s": 0.9197500000000001,
+   "first_text_p50_s": 0.9197500000000001
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "mode_switch",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "disabled",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 15491.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 609.5
+   },
+   "prompt_tokens_mean": 15495.0,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.0022415250000000003,
+   "no_cache_cost_mean_usd": 0.00185425,
+   "first_event_p50_s": 0.4667,
+   "first_text_p50_s": 0.4667
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "mode_switch",
+   "turn": 2,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "disabled",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 684.5,
+    "write_1h": 0.0,
+    "read": 15491.0,
+    "output": 386.5
+   },
+   "prompt_tokens_mean": 16179.5,
+   "read_share": 0.9574461509935412,
+   "cost_mean_usd": 0.00043412250000000006,
+   "no_cache_cost_mean_usd": 0.0018112000000000002,
+   "first_event_p50_s": 0.56305,
+   "first_text_p50_s": 0.56305
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "mode_switch",
+   "turn": 3,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 16609.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 914.5
+   },
+   "prompt_tokens_mean": 16613.0,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.0025337750000000003,
+   "no_cache_cost_mean_usd": 0.0021185500000000003,
+   "first_event_p50_s": 0.601,
+   "first_text_p50_s": 1.7970000000000002
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "mode_switch",
+   "turn": 4,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 671.0,
+    "write_1h": 0.0,
+    "read": 16609.0,
+    "output": 174.5
+   },
+   "prompt_tokens_mean": 17284.0,
+   "read_share": 0.9609465401527424,
+   "cost_mean_usd": 0.000337615,
+   "no_cache_cost_mean_usd": 0.00181565,
+   "first_event_p50_s": 0.59195,
+   "first_text_p50_s": 0.59195
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "none",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "disabled",
+   "tokens_mean": {
+    "input": 15492.0,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 582.0
+   },
+   "prompt_tokens_mean": 15492.0,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.0018402000000000002,
+   "no_cache_cost_mean_usd": 0.0018402000000000002,
+   "first_event_p50_s": 0.43335,
+   "first_text_p50_s": 0.4334
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "none",
+   "turn": 2,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "disabled",
+   "tokens_mean": {
+    "input": 16149.0,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 328.5
+   },
+   "prompt_tokens_mean": 16149.0,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.0017791500000000002,
+   "no_cache_cost_mean_usd": 0.0017791500000000002,
+   "first_event_p50_s": 0.65415,
+   "first_text_p50_s": 0.6542
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "none",
+   "turn": 3,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "disabled",
+   "tokens_mean": {
+    "input": 16527.5,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 810.0
+   },
+   "prompt_tokens_mean": 16527.5,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.00205775,
+   "no_cache_cost_mean_usd": 0.00205775,
+   "first_event_p50_s": 0.6084,
+   "first_text_p50_s": 0.6084
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "none",
+   "turn": 4,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "disabled",
+   "tokens_mean": {
+    "input": 17367.5,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 159.0
+   },
+   "prompt_tokens_mean": 17367.5,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.0018162500000000002,
+   "no_cache_cost_mean_usd": 0.0018162500000000002,
+   "first_event_p50_s": 0.47525,
+   "first_text_p50_s": 0.47525
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "prewarm",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "disabled",
+   "tokens_mean": {
+    "input": 10.0,
+    "write": 15441.5,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 0.0
+   },
+   "prompt_tokens_mean": 15451.5,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.0019311875,
+   "no_cache_cost_mean_usd": 0.0015451500000000001,
+   "first_event_p50_s": null,
+   "first_text_p50_s": null
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "prewarm",
+   "turn": 2,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "disabled",
+   "tokens_mean": {
+    "input": 54.0,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 15441.5,
+    "output": 557.5
+   },
+   "prompt_tokens_mean": 15495.5,
+   "read_share": 0.9965151172921171,
+   "cost_mean_usd": 0.000438565,
+   "no_cache_cost_mean_usd": 0.0018283000000000002,
+   "first_event_p50_s": 0.53305,
+   "first_text_p50_s": 0.53305
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "system_only",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "disabled",
+   "tokens_mean": {
+    "input": 54.0,
+    "write": 15440.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 547.0
+   },
+   "prompt_tokens_mean": 15494.0,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.0022089,
+   "no_cache_cost_mean_usd": 0.0018229000000000001,
+   "first_event_p50_s": 0.5059,
+   "first_text_p50_s": 0.5059
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "system_only",
+   "turn": 2,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "disabled",
+   "tokens_mean": {
+    "input": 676.0,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 15440.0,
+    "output": 430.0
+   },
+   "prompt_tokens_mean": 16116.0,
+   "read_share": 0.958054107719037,
+   "cost_mean_usd": 0.000437,
+   "no_cache_cost_mean_usd": 0.0018266000000000003,
+   "first_event_p50_s": 0.5467500000000001,
+   "first_text_p50_s": 0.5467500000000001
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "system_only",
+   "turn": 3,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "disabled",
+   "tokens_mean": {
+    "input": 1156.0,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 15440.0,
+    "output": 651.5
+   },
+   "prompt_tokens_mean": 16596.0,
+   "read_share": 0.9303446613641841,
+   "cost_mean_usd": 0.00059575,
+   "no_cache_cost_mean_usd": 0.0019853500000000003,
+   "first_event_p50_s": 0.5628,
+   "first_text_p50_s": 0.5628
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "system_only",
+   "turn": 4,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "disabled",
+   "tokens_mean": {
+    "input": 1837.5,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 15440.0,
+    "output": 152.5
+   },
+   "prompt_tokens_mean": 17277.5,
+   "read_share": 0.8936478078425698,
+   "cost_mean_usd": 0.0004144,
+   "no_cache_cost_mean_usd": 0.001804,
+   "first_event_p50_s": 0.5846,
+   "first_text_p50_s": 0.5846
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "system_only_second",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "disabled",
+   "tokens_mean": {
+    "input": 27.0,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 15440.0,
+    "output": 558.5
+   },
+   "prompt_tokens_mean": 15467.0,
+   "read_share": 0.9982543479666387,
+   "cost_mean_usd": 0.00043635,
+   "no_cache_cost_mean_usd": 0.0018259500000000002,
+   "first_event_p50_s": 0.5223,
+   "first_text_p50_s": 0.5224
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "system_plus_auto",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "disabled",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 15492.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 586.0
+   },
+   "prompt_tokens_mean": 15496.0,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.0022299,
+   "no_cache_cost_mean_usd": 0.0018426000000000002,
+   "first_event_p50_s": 0.5352,
+   "first_text_p50_s": 0.53525
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "system_plus_auto",
+   "turn": 2,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "disabled",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 661.0,
+    "write_1h": 0.0,
+    "read": 15492.0,
+    "output": 478.5
+   },
+   "prompt_tokens_mean": 16157.0,
+   "read_share": 0.9588413690660395,
+   "cost_mean_usd": 0.00047719500000000003,
+   "no_cache_cost_mean_usd": 0.0018549500000000002,
+   "first_event_p50_s": 0.55315,
+   "first_text_p50_s": 0.55315
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "system_plus_auto",
+   "turn": 3,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "disabled",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 528.5,
+    "write_1h": 0.0,
+    "read": 16153.0,
+    "output": 688.5
+   },
+   "prompt_tokens_mean": 16685.5,
+   "read_share": 0.9680860627490935,
+   "cost_mean_usd": 0.0005722425,
+   "no_cache_cost_mean_usd": 0.0020128,
+   "first_event_p50_s": 0.6126499999999999,
+   "first_text_p50_s": 0.6127
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "system_plus_auto",
+   "turn": 4,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "disabled",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 718.5,
+    "write_1h": 0.0,
+    "read": 16681.5,
+    "output": 156.5
+   },
+   "prompt_tokens_mean": 17404.0,
+   "read_share": 0.958486554814985,
+   "cost_mean_usd": 0.0003352775,
+   "no_cache_cost_mean_usd": 0.0018186500000000002,
+   "first_event_p50_s": 0.79815,
+   "first_text_p50_s": 0.79815
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "system_plus_auto_second",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "disabled",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 23.0,
+    "write_1h": 0.0,
+    "read": 15442.0,
+    "output": 469.0
+   },
+   "prompt_tokens_mean": 15469.0,
+   "read_share": 0.9982545736634559,
+   "cost_mean_usd": 0.000392195,
+   "no_cache_cost_mean_usd": 0.0017814,
+   "first_event_p50_s": 0.54235,
+   "first_text_p50_s": 0.54235
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "ttft_cold_large",
+   "turn": 1,
+   "n": 5,
+   "ok": 5,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "disabled",
+   "tokens_mean": {
+    "input": 16.0,
+    "write": 53297.2,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 4.0
+   },
+   "prompt_tokens_mean": 53313.2,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.006665750000000001,
+   "no_cache_cost_mean_usd": 0.005333320000000001,
+   "first_event_p50_s": 0.8454,
+   "first_text_p50_s": 0.8454
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "ttft_cold_repo",
+   "turn": 1,
+   "n": 5,
+   "ok": 5,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "disabled",
+   "tokens_mean": {
+    "input": 16.0,
+    "write": 15441.6,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 4.0
+   },
+   "prompt_tokens_mean": 15457.6,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.0019338,
+   "no_cache_cost_mean_usd": 0.00154776,
+   "first_event_p50_s": 0.752,
+   "first_text_p50_s": 0.752
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "ttft_warm_large",
+   "turn": 1,
+   "n": 5,
+   "ok": 5,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "disabled",
+   "tokens_mean": {
+    "input": 16.0,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 53297.2,
+    "output": 4.0
+   },
+   "prompt_tokens_mean": 53313.2,
+   "read_share": 0.999699886707232,
+   "cost_mean_usd": 0.0005365720000000001,
+   "no_cache_cost_mean_usd": 0.005333320000000001,
+   "first_event_p50_s": 0.8673,
+   "first_text_p50_s": 0.8673
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "ttft_warm_repo",
+   "turn": 1,
+   "n": 5,
+   "ok": 5,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "disabled",
+   "tokens_mean": {
+    "input": 16.0,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 15441.6,
+    "output": 4.0
+   },
+   "prompt_tokens_mean": 15457.6,
+   "read_share": 0.9989649104647552,
+   "cost_mean_usd": 0.000158016,
+   "no_cache_cost_mean_usd": 0.00154776,
+   "first_event_p50_s": 0.7143,
+   "first_text_p50_s": 0.7143
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "auto",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 15489.5,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 551.5
+   },
+   "prompt_tokens_mean": 15493.5,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.0884935,
+   "no_cache_cost_mean_usd": 0.07300400000000001,
+   "first_event_p50_s": 0.8057,
+   "first_text_p50_s": 0.80575
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "auto",
+   "turn": 2,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 624.5,
+    "write_1h": 0.0,
+    "read": 15489.5,
+    "output": 934.0
+   },
+   "prompt_tokens_mean": 16118.0,
+   "read_share": 0.9610063283285768,
+   "cost_mean_usd": 0.0249164,
+   "no_cache_cost_mean_usd": 0.083152,
+   "first_event_p50_s": 0.89205,
+   "first_text_p50_s": 2.5567
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "auto",
+   "turn": 3,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 860.5,
+    "write_1h": 0.0,
+    "read": 16114.0,
+    "output": 1115.5
+   },
+   "prompt_tokens_mean": 16978.5,
+   "read_share": 0.9490826633683777,
+   "cost_mean_usd": 0.029851299999999997,
+   "no_cache_cost_mean_usd": 0.090224,
+   "first_event_p50_s": 0.79055,
+   "first_text_p50_s": 1.90275
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "auto",
+   "turn": 4,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 1027.0,
+    "write_1h": 0.0,
+    "read": 16974.5,
+    "output": 234.0
+   },
+   "prompt_tokens_mean": 18005.5,
+   "read_share": 0.9427397184193719,
+   "cost_mean_usd": 0.0132259,
+   "no_cache_cost_mean_usd": 0.07670199999999999,
+   "first_event_p50_s": 0.8755000000000001,
+   "first_text_p50_s": 0.8755000000000001
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "auto_second",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 15462.5,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 722.0
+   },
+   "prompt_tokens_mean": 15466.5,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.0917685,
+   "no_cache_cost_mean_usd": 0.07630600000000001,
+   "first_event_p50_s": 0.5822,
+   "first_text_p50_s": 0.5822
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "effort_switch",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 15491.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 468.0
+   },
+   "prompt_tokens_mean": 15495.0,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.086831,
+   "no_cache_cost_mean_usd": 0.07134,
+   "first_event_p50_s": 0.8712500000000001,
+   "first_text_p50_s": 0.8712500000000001
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "effort_switch",
+   "turn": 2,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 541.0,
+    "write_1h": 0.0,
+    "read": 15491.0,
+    "output": 942.5
+   },
+   "prompt_tokens_mean": 16036.0,
+   "read_share": 0.9660139685707159,
+   "cost_mean_usd": 0.024669200000000002,
+   "no_cache_cost_mean_usd": 0.082994,
+   "first_event_p50_s": 0.92605,
+   "first_text_p50_s": 3.3839
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "effort_switch",
+   "turn": 3,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "high",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 755.5,
+    "write_1h": 0.0,
+    "read": 16032.0,
+    "output": 1560.0
+   },
+   "prompt_tokens_mean": 16791.5,
+   "read_share": 0.9547687818241372,
+   "cost_mean_usd": 0.0381999,
+   "no_cache_cost_mean_usd": 0.098366,
+   "first_event_p50_s": 0.93605,
+   "first_text_p50_s": 7.5699
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "effort_switch",
+   "turn": 4,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 859.5,
+    "write_1h": 0.0,
+    "read": 16787.5,
+    "output": 241.5
+   },
+   "prompt_tokens_mean": 17651.0,
+   "read_share": 0.9510792589654977,
+   "cost_mean_usd": 0.012501,
+   "no_cache_cost_mean_usd": 0.075434,
+   "first_event_p50_s": 0.8608,
+   "first_text_p50_s": 0.8608
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "effort_switch_message",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 15492.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 567.5
+   },
+   "prompt_tokens_mean": 15496.0,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.08882599999999999,
+   "no_cache_cost_mean_usd": 0.07333400000000001,
+   "first_event_p50_s": 0.7563500000000001,
+   "first_text_p50_s": 0.7563500000000001
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "effort_switch_message",
+   "turn": 2,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 640.5,
+    "write_1h": 0.0,
+    "read": 15492.0,
+    "output": 962.0
+   },
+   "prompt_tokens_mean": 16136.5,
+   "read_share": 0.9600594924549933,
+   "cost_mean_usd": 0.0255569,
+   "no_cache_cost_mean_usd": 0.083786,
+   "first_event_p50_s": 1.05945,
+   "first_text_p50_s": 3.1485000000000003
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "effort_switch_message",
+   "turn": 3,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": "high",
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 826.0,
+    "write_1h": 0.0,
+    "read": 16132.5,
+    "output": 1632.0
+   },
+   "prompt_tokens_mean": 16962.5,
+   "read_share": 0.9510685335298452,
+   "cost_mean_usd": 0.0400125,
+   "no_cache_cost_mean_usd": 0.10049,
+   "first_event_p50_s": 0.85895,
+   "first_text_p50_s": 5.4692
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "effort_switch_message",
+   "turn": 4,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": "low",
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 1140.5,
+    "write_1h": 0.0,
+    "read": 16958.5,
+    "output": 326.5
+   },
+   "prompt_tokens_mean": 18103.0,
+   "read_share": 0.9367784345136165,
+   "cost_mean_usd": 0.0156402,
+   "no_cache_cost_mean_usd": 0.078942,
+   "first_event_p50_s": 0.9944999999999999,
+   "first_text_p50_s": 1.3213
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "idle_1h",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 15493.0,
+    "write_1h": 15493.0,
+    "read": 0.0,
+    "output": 573.0
+   },
+   "prompt_tokens_mean": 15497.0,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.13541999999999998,
+   "no_cache_cost_mean_usd": 0.073448,
+   "first_event_p50_s": 1.05105,
+   "first_text_p50_s": 1.05105
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "idle_1h",
+   "turn": 2,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 646.0,
+    "write_1h": 646.0,
+    "read": 15493.0,
+    "output": 981.0
+   },
+   "prompt_tokens_mean": 16143.0,
+   "read_share": 0.9597348696029239,
+   "cost_mean_usd": 0.0279026,
+   "no_cache_cost_mean_usd": 0.08419199999999999,
+   "first_event_p50_s": 1.0606499999999999,
+   "first_text_p50_s": 2.7388500000000002
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "idle_5m",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 15492.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 593.5
+   },
+   "prompt_tokens_mean": 15496.0,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.08934600000000001,
+   "no_cache_cost_mean_usd": 0.073854,
+   "first_event_p50_s": 0.88175,
+   "first_text_p50_s": 0.88175
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "idle_5m",
+   "turn": 2,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 16158.5,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 883.5
+   },
+   "prompt_tokens_mean": 16162.5,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.0984785,
+   "no_cache_cost_mean_usd": 0.08232,
+   "first_event_p50_s": 1.10725,
+   "first_text_p50_s": 2.61775
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "none",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 15495.5,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 548.0
+   },
+   "prompt_tokens_mean": 15495.5,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.072942,
+   "no_cache_cost_mean_usd": 0.072942,
+   "first_event_p50_s": 1.1177000000000001,
+   "first_text_p50_s": 1.11775
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "none",
+   "turn": 2,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 16116.5,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 819.0
+   },
+   "prompt_tokens_mean": 16116.5,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.080846,
+   "no_cache_cost_mean_usd": 0.080846,
+   "first_event_p50_s": 0.97295,
+   "first_text_p50_s": 2.81145
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "none",
+   "turn": 3,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 16828.5,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 935.0
+   },
+   "prompt_tokens_mean": 16828.5,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.08601400000000001,
+   "no_cache_cost_mean_usd": 0.08601400000000001,
+   "first_event_p50_s": 1.23255,
+   "first_text_p50_s": 2.05905
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "none",
+   "turn": 4,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 17718.0,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 246.5
+   },
+   "prompt_tokens_mean": 17718.0,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.075802,
+   "no_cache_cost_mean_usd": 0.075802,
+   "first_event_p50_s": 1.18765,
+   "first_text_p50_s": 1.18765
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "prewarm",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 10.0,
+    "write": 15443.5,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 0.0
+   },
+   "prompt_tokens_mean": 15453.5,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.0772575,
+   "no_cache_cost_mean_usd": 0.061814,
+   "first_event_p50_s": null,
+   "first_text_p50_s": null
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "prewarm",
+   "turn": 2,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 54.0,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 15443.5,
+    "output": 591.0
+   },
+   "prompt_tokens_mean": 15497.5,
+   "read_share": 0.9965155670269398,
+   "cost_mean_usd": 0.015124700000000001,
+   "no_cache_cost_mean_usd": 0.07381,
+   "first_event_p50_s": 1.4079000000000002,
+   "first_text_p50_s": 1.40795
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "system_only",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 54.0,
+    "write": 15442.5,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 609.0
+   },
+   "prompt_tokens_mean": 15496.5,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.08960850000000001,
+   "no_cache_cost_mean_usd": 0.07416600000000001,
+   "first_event_p50_s": 0.9394,
+   "first_text_p50_s": 0.93945
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "system_only",
+   "turn": 2,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 736.0,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 15442.5,
+    "output": 969.5
+   },
+   "prompt_tokens_mean": 16178.5,
+   "read_share": 0.9545075254195383,
+   "cost_mean_usd": 0.0254225,
+   "no_cache_cost_mean_usd": 0.084104,
+   "first_event_p50_s": 0.9319999999999999,
+   "first_text_p50_s": 2.84765
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "system_only",
+   "turn": 3,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 1578.5,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 15442.5,
+    "output": 984.0
+   },
+   "prompt_tokens_mean": 17021.0,
+   "read_share": 0.9072616180012926,
+   "cost_mean_usd": 0.029082499999999997,
+   "no_cache_cost_mean_usd": 0.087764,
+   "first_event_p50_s": 1.3686500000000001,
+   "first_text_p50_s": 2.77445
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "system_only",
+   "turn": 4,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 2452.5,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 15442.5,
+    "output": 228.5
+   },
+   "prompt_tokens_mean": 17895.0,
+   "read_share": 0.8629505448449287,
+   "cost_mean_usd": 0.017468499999999998,
+   "no_cache_cost_mean_usd": 0.07615,
+   "first_event_p50_s": 1.0201500000000001,
+   "first_text_p50_s": 1.0201500000000001
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "system_only_second",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 27.0,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 15442.5,
+    "output": 576.5
+   },
+   "prompt_tokens_mean": 15469.5,
+   "read_share": 0.9982546300785416,
+   "cost_mean_usd": 0.0147265,
+   "no_cache_cost_mean_usd": 0.073408,
+   "first_event_p50_s": 1.028,
+   "first_text_p50_s": 1.028
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "system_plus_auto",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 15492.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 560.0
+   },
+   "prompt_tokens_mean": 15496.0,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.088676,
+   "no_cache_cost_mean_usd": 0.073184,
+   "first_event_p50_s": 0.9645999999999999,
+   "first_text_p50_s": 0.96465
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "system_plus_auto",
+   "turn": 2,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 633.0,
+    "write_1h": 0.0,
+    "read": 15492.0,
+    "output": 1052.5
+   },
+   "prompt_tokens_mean": 16129.0,
+   "read_share": 0.9605059210118421,
+   "cost_mean_usd": 0.0273294,
+   "no_cache_cost_mean_usd": 0.085566,
+   "first_event_p50_s": 0.97865,
+   "first_text_p50_s": 3.7681000000000004
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "system_plus_auto",
+   "turn": 3,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 850.0,
+    "write_1h": 0.0,
+    "read": 16125.0,
+    "output": 984.5
+   },
+   "prompt_tokens_mean": 16979.0,
+   "read_share": 0.9497025737675953,
+   "cost_mean_usd": 0.027181,
+   "no_cache_cost_mean_usd": 0.08760599999999999,
+   "first_event_p50_s": 1.11175,
+   "first_text_p50_s": 2.2283
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "system_plus_auto",
+   "turn": 4,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 899.5,
+    "write_1h": 0.0,
+    "read": 16975.0,
+    "output": 244.5
+   },
+   "prompt_tokens_mean": 17878.5,
+   "read_share": 0.9494644405291272,
+   "cost_mean_usd": 0.0127985,
+   "no_cache_cost_mean_usd": 0.076404,
+   "first_event_p50_s": 1.2675,
+   "first_text_p50_s": 1.26755
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "system_plus_auto_second",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 23.0,
+    "write_1h": 0.0,
+    "read": 15442.0,
+    "output": 733.5
+   },
+   "prompt_tokens_mean": 15469.0,
+   "read_share": 0.9982545736634559,
+   "cost_mean_usd": 0.0178894,
+   "no_cache_cost_mean_usd": 0.076546,
+   "first_event_p50_s": 0.9766999999999999,
+   "first_text_p50_s": 0.97675
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "ttft_cold_repo",
+   "turn": 1,
+   "n": 5,
+   "ok": 5,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 16.0,
+    "write": 15442.6,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 4.0
+   },
+   "prompt_tokens_mean": 15458.6,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.077357,
+   "no_cache_cost_mean_usd": 0.0619144,
+   "first_event_p50_s": 1.512,
+   "first_text_p50_s": 1.512
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "ttft_warm_repo",
+   "turn": 1,
+   "n": 5,
+   "ok": 5,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 16.0,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 15442.6,
+    "output": 4.0
+   },
+   "prompt_tokens_mean": 15458.6,
+   "read_share": 0.99896497742357,
+   "cost_mean_usd": 0.00323252,
+   "no_cache_cost_mean_usd": 0.0619144,
+   "first_event_p50_s": 1.3808,
+   "first_text_p50_s": 1.3808
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "auto",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "between_tools",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 15492.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 580.0
+   },
+   "prompt_tokens_mean": 15496.0,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.044537999999999994,
+   "no_cache_cost_mean_usd": 0.036792000000000005,
+   "first_event_p50_s": 0.8934,
+   "first_text_p50_s": 0.8934500000000001
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "auto",
+   "turn": 2,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "between_tools",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 655.0,
+    "write_1h": 0.0,
+    "read": 15492.0,
+    "output": 773.0
+   },
+   "prompt_tokens_mean": 16151.0,
+   "read_share": 0.9591975729057024,
+   "cost_mean_usd": 0.010924699999999999,
+   "no_cache_cost_mean_usd": 0.040032,
+   "first_event_p50_s": 0.7128,
+   "first_text_p50_s": 0.71285
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "auto",
+   "turn": 3,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "between_tools",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 823.0,
+    "write_1h": 0.0,
+    "read": 16147.0,
+    "output": 923.0
+   },
+   "prompt_tokens_mean": 16974.0,
+   "read_share": 0.9512784258277366,
+   "cost_mean_usd": 0.0129102,
+   "no_cache_cost_mean_usd": 0.043178,
+   "first_event_p50_s": 0.75575,
+   "first_text_p50_s": 0.75585
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "auto",
+   "turn": 4,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "between_tools",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 953.0,
+    "write_1h": 0.0,
+    "read": 16970.0,
+    "output": 261.5
+   },
+   "prompt_tokens_mean": 17927.0,
+   "read_share": 0.946616834941708,
+   "cost_mean_usd": 0.0067025,
+   "no_cache_cost_mean_usd": 0.038469,
+   "first_event_p50_s": 0.72195,
+   "first_text_p50_s": 0.72195
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "auto_second",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "between_tools",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 15465.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 676.5
+   },
+   "prompt_tokens_mean": 15469.0,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.045435500000000004,
+   "no_cache_cost_mean_usd": 0.037703,
+   "first_event_p50_s": 0.7214499999999999,
+   "first_text_p50_s": 0.7214499999999999
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "effort_switch",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 15493.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 642.5
+   },
+   "prompt_tokens_mean": 15497.0,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.0451655,
+   "no_cache_cost_mean_usd": 0.037418999999999994,
+   "first_event_p50_s": 0.7412000000000001,
+   "first_text_p50_s": 0.74125
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "effort_switch",
+   "turn": 2,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 715.5,
+    "write_1h": 0.0,
+    "read": 15493.0,
+    "output": 849.0
+   },
+   "prompt_tokens_mean": 16212.5,
+   "read_share": 0.9556206630686199,
+   "cost_mean_usd": 0.01183605,
+   "no_cache_cost_mean_usd": 0.040915,
+   "first_event_p50_s": 0.7984,
+   "first_text_p50_s": 2.06265
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "effort_switch",
+   "turn": 3,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "high",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 737.5,
+    "write_1h": 0.0,
+    "read": 16208.5,
+    "output": 1454.5
+   },
+   "prompt_tokens_mean": 16950.0,
+   "read_share": 0.9562536873156342,
+   "cost_mean_usd": 0.0180176,
+   "no_cache_cost_mean_usd": 0.048445,
+   "first_event_p50_s": 0.7867,
+   "first_text_p50_s": 4.6191
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "effort_switch",
+   "turn": 4,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 965.0,
+    "write_1h": 0.0,
+    "read": 16946.0,
+    "output": 247.5
+   },
+   "prompt_tokens_mean": 17915.0,
+   "read_share": 0.9459112475579123,
+   "cost_mean_usd": 0.0065901,
+   "no_cache_cost_mean_usd": 0.038305000000000006,
+   "first_event_p50_s": 0.76235,
+   "first_text_p50_s": 0.76235
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "effort_switch_message",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 15493.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 551.5
+   },
+   "prompt_tokens_mean": 15497.0,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.0442555,
+   "no_cache_cost_mean_usd": 0.036509,
+   "first_event_p50_s": 0.7162,
+   "first_text_p50_s": 0.7162
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "effort_switch_message",
+   "turn": 2,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 624.5,
+    "write_1h": 0.0,
+    "read": 15493.0,
+    "output": 651.5
+   },
+   "prompt_tokens_mean": 16121.5,
+   "read_share": 0.9610147939087554,
+   "cost_mean_usd": 0.00963355,
+   "no_cache_cost_mean_usd": 0.038758,
+   "first_event_p50_s": 0.8076,
+   "first_text_p50_s": 0.8076
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "effort_switch_message",
+   "turn": 3,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": "high",
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 699.5,
+    "write_1h": 0.0,
+    "read": 16117.5,
+    "output": 1210.5
+   },
+   "prompt_tokens_mean": 16821.0,
+   "read_share": 0.9581772784019975,
+   "cost_mean_usd": 0.015473500000000001,
+   "no_cache_cost_mean_usd": 0.045746999999999996,
+   "first_event_p50_s": 0.78525,
+   "first_text_p50_s": 3.71375
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "effort_switch_message",
+   "turn": 4,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": "low",
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 899.5,
+    "write_1h": 0.0,
+    "read": 16817.0,
+    "output": 267.0
+   },
+   "prompt_tokens_mean": 17720.5,
+   "read_share": 0.9490138540108913,
+   "cost_mean_usd": 0.00660845,
+   "no_cache_cost_mean_usd": 0.038111,
+   "first_event_p50_s": 0.80535,
+   "first_text_p50_s": 0.80535
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "idle_1h",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "between_tools",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 15490.5,
+    "write_1h": 15490.5,
+    "read": 0.0,
+    "output": 660.5
+   },
+   "prompt_tokens_mean": 15494.5,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.068575,
+   "no_cache_cost_mean_usd": 0.037594,
+   "first_event_p50_s": 0.7072,
+   "first_text_p50_s": 0.7072
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "idle_1h",
+   "turn": 2,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "between_tools",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 735.5,
+    "write_1h": 735.5,
+    "read": 15490.5,
+    "output": 812.0
+   },
+   "prompt_tokens_mean": 16230.0,
+   "read_share": 0.9544362292051756,
+   "cost_mean_usd": 0.01261905,
+   "no_cache_cost_mean_usd": 0.04058,
+   "first_event_p50_s": 0.7518,
+   "first_text_p50_s": 0.7518
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "idle_5m",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "between_tools",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 15492.5,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 577.5
+   },
+   "prompt_tokens_mean": 15496.5,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.044514250000000005,
+   "no_cache_cost_mean_usd": 0.036767999999999995,
+   "first_event_p50_s": 0.8123,
+   "first_text_p50_s": 0.8123
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "idle_5m",
+   "turn": 2,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "between_tools",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 16145.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 864.5
+   },
+   "prompt_tokens_mean": 16149.0,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.049015500000000004,
+   "no_cache_cost_mean_usd": 0.040943,
+   "first_event_p50_s": 0.8298,
+   "first_text_p50_s": 0.82985
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "mode_switch",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "between_tools",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 15490.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 647.0
+   },
+   "prompt_tokens_mean": 15494.0,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.045203,
+   "no_cache_cost_mean_usd": 0.037458000000000005,
+   "first_event_p50_s": 0.79795,
+   "first_text_p50_s": 0.79795
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "mode_switch",
+   "turn": 2,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "between_tools",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 722.0,
+    "write_1h": 0.0,
+    "read": 15490.0,
+    "output": 878.5
+   },
+   "prompt_tokens_mean": 16216.0,
+   "read_share": 0.9552294030587074,
+   "cost_mean_usd": 0.012147000000000002,
+   "no_cache_cost_mean_usd": 0.041217,
+   "first_event_p50_s": 0.8402499999999999,
+   "first_text_p50_s": 0.8402499999999999
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "mode_switch",
+   "turn": 3,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 17137.5,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 1204.5
+   },
+   "prompt_tokens_mean": 17141.5,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.05489675,
+   "no_cache_cost_mean_usd": 0.046328,
+   "first_event_p50_s": 0.83975,
+   "first_text_p50_s": 3.0636
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "mode_switch",
+   "turn": 4,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "adaptive",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 958.5,
+    "write_1h": 0.0,
+    "read": 17137.5,
+    "output": 469.0
+   },
+   "prompt_tokens_mean": 18100.0,
+   "read_share": 0.9468232044198895,
+   "cost_mean_usd": 0.008808,
+   "no_cache_cost_mean_usd": 0.04089,
+   "first_event_p50_s": 0.76435,
+   "first_text_p50_s": 2.1702
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "none",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "between_tools",
+   "tokens_mean": {
+    "input": 15495.0,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 597.0
+   },
+   "prompt_tokens_mean": 15495.0,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.03696,
+   "no_cache_cost_mean_usd": 0.03696,
+   "first_event_p50_s": 0.76835,
+   "first_text_p50_s": 0.7684
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "none",
+   "turn": 2,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "between_tools",
+   "tokens_mean": {
+    "input": 16167.0,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 683.5
+   },
+   "prompt_tokens_mean": 16167.0,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.039169,
+   "no_cache_cost_mean_usd": 0.039169,
+   "first_event_p50_s": 0.8169500000000001,
+   "first_text_p50_s": 0.8169500000000001
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "none",
+   "turn": 3,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "between_tools",
+   "tokens_mean": {
+    "input": 16900.5,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 830.5
+   },
+   "prompt_tokens_mean": 16900.5,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.042106000000000005,
+   "no_cache_cost_mean_usd": 0.042106000000000005,
+   "first_event_p50_s": 0.8693500000000001,
+   "first_text_p50_s": 0.8694
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "none",
+   "turn": 4,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "between_tools",
+   "tokens_mean": {
+    "input": 17761.0,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 219.0
+   },
+   "prompt_tokens_mean": 17761.0,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.037711999999999996,
+   "no_cache_cost_mean_usd": 0.037711999999999996,
+   "first_event_p50_s": 0.74615,
+   "first_text_p50_s": 0.74615
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "prewarm",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "between_tools",
+   "tokens_mean": {
+    "input": 10.0,
+    "write": 15440.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 0.0
+   },
+   "prompt_tokens_mean": 15450.0,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.03862,
+   "no_cache_cost_mean_usd": 0.030899999999999997,
+   "first_event_p50_s": null,
+   "first_text_p50_s": null
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "prewarm",
+   "turn": 2,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "between_tools",
+   "tokens_mean": {
+    "input": 54.0,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 15440.0,
+    "output": 573.5
+   },
+   "prompt_tokens_mean": 15494.0,
+   "read_share": 0.9965147799148057,
+   "cost_mean_usd": 0.007387,
+   "no_cache_cost_mean_usd": 0.036723,
+   "first_event_p50_s": 0.84625,
+   "first_text_p50_s": 0.84625
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "system_only",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "between_tools",
+   "tokens_mean": {
+    "input": 54.0,
+    "write": 15440.5,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 643.0
+   },
+   "prompt_tokens_mean": 15494.5,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.04513925,
+   "no_cache_cost_mean_usd": 0.037419,
+   "first_event_p50_s": 0.6734,
+   "first_text_p50_s": 0.6735
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "system_only",
+   "turn": 2,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "between_tools",
+   "tokens_mean": {
+    "input": 772.0,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 15440.5,
+    "output": 736.0
+   },
+   "prompt_tokens_mean": 16212.5,
+   "read_share": 0.9523824209714726,
+   "cost_mean_usd": 0.01044805,
+   "no_cache_cost_mean_usd": 0.039785,
+   "first_event_p50_s": 0.7084,
+   "first_text_p50_s": 0.7084
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "system_only",
+   "turn": 3,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "between_tools",
+   "tokens_mean": {
+    "input": 1558.0,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 15440.5,
+    "output": 929.0
+   },
+   "prompt_tokens_mean": 16998.5,
+   "read_share": 0.9083448539577021,
+   "cost_mean_usd": 0.01395005,
+   "no_cache_cost_mean_usd": 0.043287,
+   "first_event_p50_s": 0.80965,
+   "first_text_p50_s": 0.80965
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "system_only",
+   "turn": 4,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "between_tools",
+   "tokens_mean": {
+    "input": 2517.0,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 15440.5,
+    "output": 197.0
+   },
+   "prompt_tokens_mean": 17957.5,
+   "read_share": 0.8598357232354169,
+   "cost_mean_usd": 0.00854805,
+   "no_cache_cost_mean_usd": 0.037885,
+   "first_event_p50_s": 0.76945,
+   "first_text_p50_s": 0.76945
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "system_only_second",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "between_tools",
+   "tokens_mean": {
+    "input": 27.0,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 15440.5,
+    "output": 759.0
+   },
+   "prompt_tokens_mean": 15467.5,
+   "read_share": 0.9982544043963149,
+   "cost_mean_usd": 0.00918805,
+   "no_cache_cost_mean_usd": 0.038525000000000004,
+   "first_event_p50_s": 0.9029,
+   "first_text_p50_s": 0.9029
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "system_plus_auto",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "between_tools",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 15491.0,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 578.5
+   },
+   "prompt_tokens_mean": 15495.0,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.044520500000000005,
+   "no_cache_cost_mean_usd": 0.036775,
+   "first_event_p50_s": 0.7516499999999999,
+   "first_text_p50_s": 0.7516499999999999
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "system_plus_auto",
+   "turn": 2,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "between_tools",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 653.5,
+    "write_1h": 0.0,
+    "read": 15491.0,
+    "output": 693.0
+   },
+   "prompt_tokens_mean": 16148.5,
+   "read_share": 0.959284144038146,
+   "cost_mean_usd": 0.01012085,
+   "no_cache_cost_mean_usd": 0.039227,
+   "first_event_p50_s": 0.7962,
+   "first_text_p50_s": 0.7962499999999999
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "system_plus_auto",
+   "turn": 3,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "between_tools",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 743.0,
+    "write_1h": 0.0,
+    "read": 16144.5,
+    "output": 849.5
+   },
+   "prompt_tokens_mean": 16891.5,
+   "read_share": 0.9557765740165172,
+   "cost_mean_usd": 0.01197495,
+   "no_cache_cost_mean_usd": 0.042277999999999996,
+   "first_event_p50_s": 0.8052,
+   "first_text_p50_s": 0.8052
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "system_plus_auto",
+   "turn": 4,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "between_tools",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 879.5,
+    "write_1h": 0.0,
+    "read": 16887.5,
+    "output": 169.5
+   },
+   "prompt_tokens_mean": 17771.0,
+   "read_share": 0.9502841708401328,
+   "cost_mean_usd": 0.0055905,
+   "no_cache_cost_mean_usd": 0.037237,
+   "first_event_p50_s": 0.7449,
+   "first_text_p50_s": 0.7449
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "system_plus_auto_second",
+   "turn": 1,
+   "n": 2,
+   "ok": 2,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "between_tools",
+   "tokens_mean": {
+    "input": 4.0,
+    "write": 23.0,
+    "write_1h": 0.0,
+    "read": 15441.0,
+    "output": 660.5
+   },
+   "prompt_tokens_mean": 15468.0,
+   "read_share": 0.9982544608223429,
+   "cost_mean_usd": 0.0082146,
+   "no_cache_cost_mean_usd": 0.037541000000000005,
+   "first_event_p50_s": 0.80775,
+   "first_text_p50_s": 0.80775
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "ttft_cold_large",
+   "turn": 1,
+   "n": 5,
+   "ok": 5,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "between_tools",
+   "tokens_mean": {
+    "input": 16.0,
+    "write": 53297.4,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 4.0
+   },
+   "prompt_tokens_mean": 53313.4,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.1333155,
+   "no_cache_cost_mean_usd": 0.10666679999999999,
+   "first_event_p50_s": 0.9376,
+   "first_text_p50_s": 0.9376
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "ttft_cold_repo",
+   "turn": 1,
+   "n": 5,
+   "ok": 5,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "between_tools",
+   "tokens_mean": {
+    "input": 16.0,
+    "write": 15440.4,
+    "write_1h": 0.0,
+    "read": 0.0,
+    "output": 4.0
+   },
+   "prompt_tokens_mean": 15456.4,
+   "read_share": 0.0,
+   "cost_mean_usd": 0.038673,
+   "no_cache_cost_mean_usd": 0.030952800000000003,
+   "first_event_p50_s": 1.0257,
+   "first_text_p50_s": 1.0257
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "ttft_warm_large",
+   "turn": 1,
+   "n": 5,
+   "ok": 5,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "between_tools",
+   "tokens_mean": {
+    "input": 16.0,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 53297.4,
+    "output": 4.0
+   },
+   "prompt_tokens_mean": 53313.4,
+   "read_share": 0.9996998878330776,
+   "cost_mean_usd": 0.00540174,
+   "no_cache_cost_mean_usd": 0.10666679999999999,
+   "first_event_p50_s": 0.9193,
+   "first_text_p50_s": 0.9193
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "ttft_warm_repo",
+   "turn": 1,
+   "n": 5,
+   "ok": 5,
+   "statuses": [
+    "completed/200"
+   ],
+   "errors": [],
+   "effort": "low",
+   "message_effort": null,
+   "mode": "between_tools",
+   "tokens_mean": {
+    "input": 16.0,
+    "write": 0.0,
+    "write_1h": 0.0,
+    "read": 15440.4,
+    "output": 4.0
+   },
+   "prompt_tokens_mean": 15456.4,
+   "read_share": 0.9989648301027406,
+   "cost_mean_usd": 0.0016160400000000002,
+   "no_cache_cost_mean_usd": 0.030952800000000003,
+   "first_event_p50_s": 0.8897,
+   "first_text_p50_s": 0.8897
+  }
+ ],
+ "sessions": [
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "auto",
+   "repetitions": 2,
+   "requests": 4,
+   "cost_mean_usd": 0.0035553175000000003,
+   "same_tokens_no_cache_usd": 0.00746515,
+   "saving_vs_no_cache": 0.5237446668854611
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "auto_second",
+   "repetitions": 2,
+   "requests": 1,
+   "cost_mean_usd": 0.002213275,
+   "same_tokens_no_cache_usd": 0.0018267000000000001,
+   "saving_vs_no_cache": -0.21162478786883443
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "effort_switch",
+   "repetitions": 2,
+   "requests": 4,
+   "cost_mean_usd": 0.004547285,
+   "same_tokens_no_cache_usd": 0.008447350000000001,
+   "saving_vs_no_cache": 0.4616909444973868
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "effort_switch_message",
+   "repetitions": 2,
+   "requests": 4,
+   "cost_mean_usd": 0.0046847125,
+   "same_tokens_no_cache_usd": 0.00858375,
+   "saving_vs_no_cache": 0.454234745886122
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "idle_1h",
+   "repetitions": 2,
+   "requests": 2,
+   "cost_mean_usd": 0.0037953550000000003,
+   "same_tokens_no_cache_usd": 0.00358155,
+   "saving_vs_no_cache": -0.0596962209099412
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "idle_5m",
+   "repetitions": 2,
+   "requests": 2,
+   "cost_mean_usd": 0.004457112500000001,
+   "same_tokens_no_cache_usd": 0.0036659000000000006,
+   "saving_vs_no_cache": -0.21583035543795526
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "mode_switch",
+   "repetitions": 2,
+   "requests": 4,
+   "cost_mean_usd": 0.0055470375,
+   "same_tokens_no_cache_usd": 0.00759965,
+   "saving_vs_no_cache": 0.2700930306000935
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "none",
+   "repetitions": 2,
+   "requests": 4,
+   "cost_mean_usd": 0.007493350000000001,
+   "same_tokens_no_cache_usd": 0.007493350000000001,
+   "saving_vs_no_cache": 0.0
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "prewarm",
+   "repetitions": 2,
+   "requests": 2,
+   "cost_mean_usd": 0.0023697525,
+   "same_tokens_no_cache_usd": 0.00337345,
+   "saving_vs_no_cache": 0.29752849456787567
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "system_only",
+   "repetitions": 2,
+   "requests": 4,
+   "cost_mean_usd": 0.00365605,
+   "same_tokens_no_cache_usd": 0.00743885,
+   "saving_vs_no_cache": 0.5085194620136178
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "system_only_second",
+   "repetitions": 2,
+   "requests": 1,
+   "cost_mean_usd": 0.00043635,
+   "same_tokens_no_cache_usd": 0.0018259500000000002,
+   "saving_vs_no_cache": 0.7610285057093568
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "system_plus_auto",
+   "repetitions": 2,
+   "requests": 4,
+   "cost_mean_usd": 0.0036146150000000003,
+   "same_tokens_no_cache_usd": 0.007529000000000001,
+   "saving_vs_no_cache": 0.5199076902643114
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "system_plus_auto_second",
+   "repetitions": 2,
+   "requests": 1,
+   "cost_mean_usd": 0.000392195,
+   "same_tokens_no_cache_usd": 0.0017814,
+   "saving_vs_no_cache": 0.7798388907600764
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "ttft_cold_large",
+   "repetitions": 5,
+   "requests": 1,
+   "cost_mean_usd": 0.006665750000000001,
+   "same_tokens_no_cache_usd": 0.005333320000000001,
+   "saving_vs_no_cache": -0.24983124957812386
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "ttft_cold_repo",
+   "repetitions": 5,
+   "requests": 1,
+   "cost_mean_usd": 0.0019337999999999998,
+   "same_tokens_no_cache_usd": 0.00154776,
+   "saving_vs_no_cache": -0.24941851449837182
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "ttft_warm_large",
+   "repetitions": 5,
+   "requests": 1,
+   "cost_mean_usd": 0.000536572,
+   "same_tokens_no_cache_usd": 0.005333320000000001,
+   "saving_vs_no_cache": 0.8993924984812462
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "ttft_warm_repo",
+   "repetitions": 5,
+   "requests": 1,
+   "cost_mean_usd": 0.000158016,
+   "same_tokens_no_cache_usd": 0.00154776,
+   "saving_vs_no_cache": 0.8979066521941386
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "auto",
+   "repetitions": 2,
+   "requests": 4,
+   "cost_mean_usd": 0.1564871,
+   "same_tokens_no_cache_usd": 0.323082,
+   "saving_vs_no_cache": 0.515642777994441
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "auto_second",
+   "repetitions": 2,
+   "requests": 1,
+   "cost_mean_usd": 0.0917685,
+   "same_tokens_no_cache_usd": 0.07630600000000001,
+   "saving_vs_no_cache": -0.20263806253767713
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "effort_switch",
+   "repetitions": 2,
+   "requests": 4,
+   "cost_mean_usd": 0.16220110000000001,
+   "same_tokens_no_cache_usd": 0.328134,
+   "saving_vs_no_cache": 0.5056863964112221
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "effort_switch_message",
+   "repetitions": 2,
+   "requests": 4,
+   "cost_mean_usd": 0.1700356,
+   "same_tokens_no_cache_usd": 0.336552,
+   "saving_vs_no_cache": 0.4947716846133733
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "idle_1h",
+   "repetitions": 2,
+   "requests": 2,
+   "cost_mean_usd": 0.16332259999999998,
+   "same_tokens_no_cache_usd": 0.15764,
+   "saving_vs_no_cache": -0.03604795737122557
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "idle_5m",
+   "repetitions": 2,
+   "requests": 2,
+   "cost_mean_usd": 0.1878245,
+   "same_tokens_no_cache_usd": 0.15617399999999998,
+   "saving_vs_no_cache": -0.20266177468720814
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "none",
+   "repetitions": 2,
+   "requests": 4,
+   "cost_mean_usd": 0.315604,
+   "same_tokens_no_cache_usd": 0.315604,
+   "saving_vs_no_cache": 0.0
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "prewarm",
+   "repetitions": 2,
+   "requests": 2,
+   "cost_mean_usd": 0.0923822,
+   "same_tokens_no_cache_usd": 0.13562400000000002,
+   "saving_vs_no_cache": 0.3188358992508702
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "system_only",
+   "repetitions": 2,
+   "requests": 4,
+   "cost_mean_usd": 0.161582,
+   "same_tokens_no_cache_usd": 0.322184,
+   "saving_vs_no_cache": 0.498479129938172
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "system_only_second",
+   "repetitions": 2,
+   "requests": 1,
+   "cost_mean_usd": 0.0147265,
+   "same_tokens_no_cache_usd": 0.073408,
+   "saving_vs_no_cache": 0.799388350043592
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "system_plus_auto",
+   "repetitions": 2,
+   "requests": 4,
+   "cost_mean_usd": 0.15598489999999998,
+   "same_tokens_no_cache_usd": 0.32276,
+   "saving_vs_no_cache": 0.5167155161730079
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "system_plus_auto_second",
+   "repetitions": 2,
+   "requests": 1,
+   "cost_mean_usd": 0.0178894,
+   "same_tokens_no_cache_usd": 0.076546,
+   "saving_vs_no_cache": 0.7662921641888538
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "ttft_cold_repo",
+   "repetitions": 5,
+   "requests": 1,
+   "cost_mean_usd": 0.077357,
+   "same_tokens_no_cache_usd": 0.0619144,
+   "saving_vs_no_cache": -0.24941855206543218
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "ttft_warm_repo",
+   "repetitions": 5,
+   "requests": 1,
+   "cost_mean_usd": 0.00323252,
+   "same_tokens_no_cache_usd": 0.0619144,
+   "saving_vs_no_cache": 0.9477904978486427
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "auto",
+   "repetitions": 2,
+   "requests": 4,
+   "cost_mean_usd": 0.0750754,
+   "same_tokens_no_cache_usd": 0.158471,
+   "saving_vs_no_cache": 0.5262514908090439
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "auto_second",
+   "repetitions": 2,
+   "requests": 1,
+   "cost_mean_usd": 0.045435500000000004,
+   "same_tokens_no_cache_usd": 0.037703,
+   "saving_vs_no_cache": -0.20508978065405947
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "effort_switch",
+   "repetitions": 2,
+   "requests": 4,
+   "cost_mean_usd": 0.08160925,
+   "same_tokens_no_cache_usd": 0.165084,
+   "saving_vs_no_cache": 0.5056501538610647
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "effort_switch_message",
+   "repetitions": 2,
+   "requests": 4,
+   "cost_mean_usd": 0.07597100000000001,
+   "same_tokens_no_cache_usd": 0.159125,
+   "saving_vs_no_cache": 0.5225703063629221
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "idle_1h",
+   "repetitions": 2,
+   "requests": 2,
+   "cost_mean_usd": 0.08119405,
+   "same_tokens_no_cache_usd": 0.078174,
+   "saving_vs_no_cache": -0.0386324097526034
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "idle_5m",
+   "repetitions": 2,
+   "requests": 2,
+   "cost_mean_usd": 0.09352975,
+   "same_tokens_no_cache_usd": 0.077711,
+   "saving_vs_no_cache": -0.20355869825378647
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "mode_switch",
+   "repetitions": 2,
+   "requests": 4,
+   "cost_mean_usd": 0.12105475,
+   "same_tokens_no_cache_usd": 0.165893,
+   "saving_vs_no_cache": 0.27028415906638625
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "none",
+   "repetitions": 2,
+   "requests": 4,
+   "cost_mean_usd": 0.155947,
+   "same_tokens_no_cache_usd": 0.155947,
+   "saving_vs_no_cache": 0.0
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "prewarm",
+   "repetitions": 2,
+   "requests": 2,
+   "cost_mean_usd": 0.046007,
+   "same_tokens_no_cache_usd": 0.06762299999999999,
+   "saving_vs_no_cache": 0.31965455540274745
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "system_only",
+   "repetitions": 2,
+   "requests": 4,
+   "cost_mean_usd": 0.0780854,
+   "same_tokens_no_cache_usd": 0.15837600000000002,
+   "saving_vs_no_cache": 0.5069619134212255
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "system_only_second",
+   "repetitions": 2,
+   "requests": 1,
+   "cost_mean_usd": 0.00918805,
+   "same_tokens_no_cache_usd": 0.038525000000000004,
+   "saving_vs_no_cache": 0.7615042180402336
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "system_plus_auto",
+   "repetitions": 2,
+   "requests": 4,
+   "cost_mean_usd": 0.0722068,
+   "same_tokens_no_cache_usd": 0.15551700000000002,
+   "saving_vs_no_cache": 0.5356983480905625
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "system_plus_auto_second",
+   "repetitions": 2,
+   "requests": 1,
+   "cost_mean_usd": 0.0082146,
+   "same_tokens_no_cache_usd": 0.037541000000000005,
+   "saving_vs_no_cache": 0.781183239657974
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "ttft_cold_large",
+   "repetitions": 5,
+   "requests": 1,
+   "cost_mean_usd": 0.1333155,
+   "same_tokens_no_cache_usd": 0.1066668,
+   "saving_vs_no_cache": -0.24983125021093722
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "ttft_cold_repo",
+   "repetitions": 5,
+   "requests": 1,
+   "cost_mean_usd": 0.038673,
+   "same_tokens_no_cache_usd": 0.0309528,
+   "saving_vs_no_cache": -0.24941846941149115
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "ttft_warm_large",
+   "repetitions": 5,
+   "requests": 1,
+   "cost_mean_usd": 0.00540174,
+   "same_tokens_no_cache_usd": 0.1066668,
+   "saving_vs_no_cache": 0.9493587508015615
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "ttft_warm_repo",
+   "repetitions": 5,
+   "requests": 1,
+   "cost_mean_usd": 0.0016160400000000002,
+   "same_tokens_no_cache_usd": 0.0309528,
+   "saving_vs_no_cache": 0.947790183763666
+  }
+ ],
+ "ttft_pairs": [
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "large",
+   "pairs": 5,
+   "prompt_tokens": 53313.2,
+   "cold_read_mean": 0,
+   "warm_read_mean": 53297.2,
+   "cold_first_event_p50_s": 0.8454,
+   "warm_first_event_p50_s": 0.8673,
+   "cold_first_text_p50_s": 0.8454,
+   "warm_first_text_p50_s": 0.8673,
+   "cold_cost_mean_usd": 0.006665750000000001,
+   "warm_cost_mean_usd": 0.000536572
+  },
+  {
+   "model": "claude-haiku-5-5",
+   "scenario": "repo",
+   "pairs": 5,
+   "prompt_tokens": 15457.6,
+   "cold_read_mean": 0,
+   "warm_read_mean": 15441.6,
+   "cold_first_event_p50_s": 0.752,
+   "warm_first_event_p50_s": 0.7143,
+   "cold_first_text_p50_s": 0.752,
+   "warm_first_text_p50_s": 0.7143,
+   "cold_cost_mean_usd": 0.0019337999999999998,
+   "warm_cost_mean_usd": 0.000158016
+  },
+  {
+   "model": "claude-opus-5-5",
+   "scenario": "repo",
+   "pairs": 5,
+   "prompt_tokens": 15458.6,
+   "cold_read_mean": 0,
+   "warm_read_mean": 15442.6,
+   "cold_first_event_p50_s": 1.512,
+   "warm_first_event_p50_s": 1.3808,
+   "cold_first_text_p50_s": 1.512,
+   "warm_first_text_p50_s": 1.3808,
+   "cold_cost_mean_usd": 0.077357,
+   "warm_cost_mean_usd": 0.00323252
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "large",
+   "pairs": 5,
+   "prompt_tokens": 53313.4,
+   "cold_read_mean": 0,
+   "warm_read_mean": 53297.4,
+   "cold_first_event_p50_s": 0.9376,
+   "warm_first_event_p50_s": 0.9193,
+   "cold_first_text_p50_s": 0.9376,
+   "warm_first_text_p50_s": 0.9193,
+   "cold_cost_mean_usd": 0.1333155,
+   "warm_cost_mean_usd": 0.00540174
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "scenario": "repo",
+   "pairs": 5,
+   "prompt_tokens": 15456.4,
+   "cold_read_mean": 0,
+   "warm_read_mean": 15440.4,
+   "cold_first_event_p50_s": 1.0257,
+   "warm_first_event_p50_s": 0.8897,
+   "cold_first_text_p50_s": 1.0257,
+   "warm_first_text_p50_s": 0.8897,
+   "cold_cost_mean_usd": 0.038673,
+   "warm_cost_mean_usd": 0.0016160400000000002
+  }
+ ]
+}

@@ -70,33 +70,49 @@ class EvidenceTests(unittest.TestCase):
         for name, content in render_docs.pages(analyze.validate()).items():
             self.assertEqual((ROOT / name).read_text(encoding="utf-8"), content.rstrip() + "\n", name)
 
-    def test_readme_sections_and_no_hidden_results(self):
-        for filename, expected in (("README.md", ["Purpose", "Steps", "Results"]), ("README_CN.md", ["目的", "操作步骤", "实现效果"])):
+    def test_readme_sections_and_opening(self):
+        for filename, expected, author in (
+                ("README.md", ["Purpose", "Results", "Steps"], "Author: Xinyu Wei · [中文](README_CN.md)"),
+                ("README_CN.md", ["目的", "实现效果", "操作步骤"], "作者：魏新宇 · [English](README.md)")):
             text = (ROOT / filename).read_text(encoding="utf-8")
             self.assertEqual(re.findall(r"^## (.+)$", text, re.MULTILINE), expected)
             self.assertNotIn("<details", text)
-            self.assertIn("./scripts/run_matrix.ps1", text)
-            self.assertRegex(text, r"(?m)^\[!\[LiteLLM 1\.106\.2\]")
-            self.assertRegex(text, r"(?m)^(Author|作者): Xinyu Wei")
-            self.assertIn("./scripts/check_gateway.ps1", text)
-            self.assertIn("--run-directory $run --trace-file $traceFile", text)
-            self.assertIn("EXECUTED_PENDING_PROVIDER_TRACE_AUDIT", text)
+            badges = re.findall(r"^\[!\[(\w+)\]", text, re.MULTILINE)
+            self.assertEqual(badges, ["Models", "Measured", "CI"])
+            self.assertIn("actions/workflows/claude-foundry-performance-ci.yml/badge.svg", text)
+            self.assertIn("\n" + author + "\n", text)
+            self.assertIn("call_once.py", text)
+            steps = text.split("\n## " + expected[2] + "\n", 1)[1]
+            self.assertTrue(steps.lstrip().startswith("**"))
+            self.assertLess(steps.index("| 1 |"), steps.index("```bash"))
+            for retired in ("Stars belong", "ENV_BUILD_STATUS", "This repair", "USD 3", "architecture-"):
+                self.assertNotIn(retired, text)
 
     def test_bilingual_commands_and_complete_result_tables(self):
-        english = (ROOT / "README.md").read_text(encoding="utf-8")
-        chinese = (ROOT / "README_CN.md").read_text(encoding="utf-8")
-        self.assertEqual(re.findall(r"```powershell\n(.*?)\n```", english, re.DOTALL),
-                         re.findall(r"```powershell\n(.*?)\n```", chinese, re.DOTALL))
+        for page, fences in (("README{}.md", ("bash",)), ("docs/testing{}.md", ("bash", "powershell"))):
+            english = (ROOT / page.format("")).read_text(encoding="utf-8")
+            chinese = (ROOT / page.format("_CN")).read_text(encoding="utf-8")
+            for fence in fences:
+                blocks = re.findall(rf"```{fence}\n(.*?)\n```", english, re.DOTALL)
+                self.assertTrue(blocks, page)
+                self.assertEqual(blocks, re.findall(rf"```{fence}\n(.*?)\n```", chinese, re.DOTALL), page)
+        testing = (ROOT / "docs/testing.md").read_text(encoding="utf-8")
+        for command in ("./scripts/run_matrix.ps1", "./scripts/check_gateway.ps1",
+                        "--run-directory $run --trace-file $traceFile", "EXECUTED_PENDING_PROVIDER_TRACE_AUDIT"):
+            self.assertIn(command, testing)
         result = analyze.validate()
-        for suffix in ("", "_CN"):
+        for suffix, heading in (("", "## Gateway test, 2026-10-24"), ("_CN", "## 网关测试")):
             text = (ROOT / f"docs/results{suffix}.md").read_text(encoding="utf-8")
-            self.assertEqual(len(re.findall(r"^### ", text, re.MULTILINE)), 10)
+            gateway = text.split("\n" + heading + "\n", 1)[1]
+            self.assertEqual(len(re.findall(r"^#### ", gateway, re.MULTILINE)), 10)
             for case_id, group in result["groups"].items():
-                self.assertIn(f"`{case_id}`", text)
+                self.assertIn(f"`{case_id}`", gateway)
                 for row in group["rows"]:
-                    self.assertIn(f'| {row["turn"]} | {row["ttftSeconds"]:.3f} | {row["e2eSeconds"]:.3f} |', text)
-                    self.assertIn(f'| {row["turn"]} | {row["totalInputTokens"]} | {row["cacheReadTokens"]} | {row["cacheWriteTokens"]} |', text)
-            self.assertTrue(all(line.count("|") <= 5 for line in text.splitlines() if line.startswith("|")))
+                    self.assertIn(f'| {row["turn"]} | {row["ttftSeconds"]:.3f} | {row["e2eSeconds"]:.3f} |', gateway)
+                    self.assertIn(f'| {row["turn"]} | {row["totalInputTokens"]} | {row["cacheReadTokens"]} | {row["cacheWriteTokens"]} |', gateway)
+        for path in list(ROOT.glob("README*.md")) + list((ROOT / "docs").glob("*.md")):
+            text = path.read_text(encoding="utf-8")
+            self.assertTrue(all(line.count("|") <= 7 for line in text.splitlines() if line.startswith("|")), path.name)
 
     def test_links_and_images_exist(self):
         for path in list(ROOT.glob("README*.md")) + list((ROOT / "docs").glob("*.md")):
@@ -109,20 +125,26 @@ class EvidenceTests(unittest.TestCase):
                 self.assertTrue(target.exists(), f"{path.name}: {link}")
 
     def test_inputs_precede_result_tables(self):
-        for path in (ROOT / "docs").glob("results*.md"):
-            text = path.read_text(encoding="utf-8")
-            first_table = re.search(r"^\|.+\|$", text, re.MULTILINE)
-            self.assertIsNotNone(first_table, path.name)
-            for question in self.matrix["questions"]:
-                self.assertIn(question, text)
-                self.assertLess(text.index(question), first_table.start())
+        for suffix, heading in (("", "## Gateway test, 2026-10-24"), ("_CN", "## 网关测试")):
+            text = (ROOT / f"docs/results{suffix}.md").read_text(encoding="utf-8")
+            coding, gateway = text.split("\n" + heading + "\n", 1)
+            for section, inputs in ((coding, ["Act as an expert software developer."]), (gateway, self.matrix["questions"])):
+                first_table = re.search(r"^\|.+\|$", section, re.MULTILINE)
+                self.assertIsNotNone(first_table, suffix)
+                for item in inputs:
+                    self.assertIn(item, section)
+                    self.assertLess(section.index(item), first_table.start())
 
     def test_public_identity_and_signature_boundary(self):
-        forbidden = re.compile(r"[A-Z]:[\\/](?:Users|AI-Super-Agent)[\\/]|@microsoft\.com|https://(?!YOUR-FOUNDRY-RESOURCE\.)[a-z0-9-]+\.(?:services\.ai\.azure\.com|azurecontainerapps\.io|openai\.azure\.com)|\b(?:ghp_[a-z0-9]{20,}|sk-[a-z0-9]{20,})", re.IGNORECASE)
-        extensions = {".md", ".py", ".ps1", ".json", ".jsonl", ".yaml", ".svg", ".example"}
+        private = "|".join(["ts" + "mc", "5303" + "9473", "16b3" + "c013", "926f" + "20f5", "ai-hub" + r"eastus\d+",
+                            r"(?<!david-)xinyu" + "wei", r"20\.96\." + r"14\.\d+", r"161\.115\." + r"118\.\d+",
+                            "/home/" + "azureuser"])
+        forbidden = re.compile(r"[A-Z]:[\\/]+(?:Users|AI-Super-Agent)[\\/]|@microsoft\.com|https://(?!YOUR-FOUNDRY-RESOURCE\.|<foundry-resource>\.)[a-z0-9-]+\.(?:services\.ai\.azure\.com|azurecontainerapps\.io|openai\.azure\.com)|\b(?:ghp_[a-z0-9]{20,}|sk-[a-z0-9]{20,})|" + private, re.IGNORECASE)
+        skipped = {"live-runs", "private", "tests", "__pycache__", "runs"}
         for path in ROOT.rglob("*"):
-            if path.is_file() and path.suffix in extensions and "live-runs" not in path.parts and "tests" not in path.parts:
-                self.assertIsNone(forbidden.search(path.read_text(encoding="utf-8")), str(path.relative_to(ROOT)))
+            if path.is_file() and path.suffix not in {".png", ".pyc"} and not skipped & set(path.relative_to(ROOT).parts):
+                match = forbidden.search(path.read_text(encoding="utf-8", errors="replace"))
+                self.assertIsNone(match, f"{path.relative_to(ROOT)}: {match.group(0) if match else ''}")
         def visit(value):
             if isinstance(value, dict):
                 for key, child in value.items():

@@ -1,0 +1,52 @@
+{
+ "instructions": "You are a senior Python engineer pairing with a developer on the httpx code base.\nThe repository files you may read are included below. Answer concisely, show complete code when you write code,\nand keep the existing style (type hints, docstrings, naming).",
+ "questions": [
+  "In five bullet points, explain how an Auth subclass takes part in sending a request: which methods are called, in what order, and how a response can trigger a retry.",
+  "Write a new Auth subclass BearerTokenAuth that takes a token-refresh callback, sends 'Authorization: Bearer <token>', and refreshes the token once when the server answers 401. Return the complete class.",
+  "Write pytest tests for BearerTokenAuth using httpx.MockTransport: one test for a normal request and one for refresh-on-401.",
+  "Write a git commit message (subject line plus a short body) for the change we made in this session."
+ ],
+ "second_question": "List the public classes defined in these files, with one line each on what they are for.",
+ "pair_question": "Reply with the single word OK.",
+ "repo_files": [
+  "_auth.py",
+  "_config.py",
+  "_urls.py"
+ ],
+ "large_files": [
+  "_auth.py",
+  "_config.py",
+  "_urls.py",
+  "_models.py",
+  "_client.py"
+ ],
+ "context_chars": {
+  "repo": 42058,
+  "large": 152546
+ },
+ "context_sha256": {
+  "repo": "edcfc419480776fe20d691519d1d24b520a335a4f6a741d624f18de8968e5d41",
+  "large": "ce1587ea693a1295e395594d2ff0a436535b977d4647c20a78a3c0c6891762c4"
+ },
+ "max_tokens": 3000,
+ "pair_max_tokens": 256,
+ "idle_seconds": 390,
+ "pairs": 5,
+ "base_mode": {
+  "claude-opus-5-5": "adaptive",
+  "claude-sonnet-5-5": "between_tools",
+  "claude-haiku-5-5": "disabled"
+ },
+ "tpm": {
+  "claude-opus-5-5": 40000,
+  "claude-sonnet-5-5": 80000,
+  "claude-haiku-5-5": 80000
+ },
+ "otpm_assumed": {
+  "claude-opus-5-5": 8000,
+  "claude-sonnet-5-5": 16000,
+  "claude-haiku-5-5": 16000
+ },
+ "repetitions": 2,
+ "started_utc": "2026-10-26T09:15:26.690+00:00"
+}

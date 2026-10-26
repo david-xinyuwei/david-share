@@ -1,0 +1,4 @@
+# Client packages of the 2026-10-26 runs (Python 3.12.3 on Ubuntu 24.04).
+# Offline analysis needs none of them; the stream-parser tests use httpx.
+httpx==0.28.1
+azure-identity==1.25.1

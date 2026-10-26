@@ -1,0 +1,76 @@
+{
+  "claude-haiku-5-5": {
+    "listed_in_400": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "accepted": {
+      "adaptive": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "disabled": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "between_tools": []
+    },
+    "requests": 35,
+    "http_200": 18
+  },
+  "claude-opus-5-5": {
+    "listed_in_400": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "accepted": {
+      "adaptive": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "disabled": [],
+      "between_tools": []
+    },
+    "requests": 32,
+    "http_200": 14
+  },
+  "claude-sonnet-5-5": {
+    "listed_in_400": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "accepted": {
+      "adaptive": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "disabled": [],
+      "between_tools": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "requests": 35,
+    "http_200": 18
+  }
+}

@@ -1,0 +1,25 @@
+{"utc": "2026-10-26T09:04:53.945+00:00", "phase": "preflight", "tcp_connect_ms": [3.8384240006053005, 7.619713000167394, 8.740712999497191, 9.40443099989352, 9.62336399970809, 9.725230999720225, 10.411641000246163, 16.066285999841057, 17.43729000008898, 19.736486000510922]}
+{"utc": "2026-10-26T09:04:54.864+00:00", "model": "claude-haiku-5-5", "tcp_connect_ms": 9.73}
+{"utc": "2026-10-26T09:04:55.017+00:00", "model": "claude-sonnet-5-5", "tcp_connect_ms": 10.18}
+{"utc": "2026-10-26T09:04:55.091+00:00", "model": "claude-opus-5-5", "tcp_connect_ms": 11.83}
+{"utc": "2026-10-26T09:29:57.090+00:00", "model": "claude-sonnet-5-5", "tcp_connect_ms": 15.09}
+{"utc": "2026-10-26T09:39:28.329+00:00", "model": "claude-haiku-5-5", "tcp_connect_ms": 26.66}
+{"utc": "2026-10-26T09:47:48.596+00:00", "model": "claude-opus-5-5", "tcp_connect_ms": 18.11}
+{"utc": "2026-10-26T10:03:35.823+00:00", "model": "claude-sonnet-5-5", "tcp_connect_ms": 6.25}
+{"utc": "2026-10-26T10:07:58.124+00:00", "model": "claude-haiku-5-5", "tcp_connect_ms": 7.85}
+{"utc": "2026-10-26T10:37:33.853+00:00", "model": "claude-sonnet-5-5", "tcp_connect_ms": 17.39}
+{"utc": "2026-10-26T10:42:18.018+00:00", "model": "claude-opus-5-5", "tcp_connect_ms": 16.27}
+{"utc": "2026-10-26T10:42:40.127+00:00", "model": "claude-haiku-5-5", "tcp_connect_ms": 12.57}
+{"utc": "2026-10-26T11:01:31.573+00:00", "model": "claude-sonnet-5-5", "tcp_connect_ms": 18.27}
+{"utc": "2026-10-26T11:17:31.728+00:00", "model": "claude-haiku-5-5", "tcp_connect_ms": 20.22}
+{"utc": "2026-10-26T11:18:32.255+00:00", "model": "claude-opus-5-5", "tcp_connect_ms": 5.67}
+{"utc": "2026-10-26T11:53:44.580+00:00", "model": "claude-haiku-5-5", "tcp_connect_ms": 33.09}
+{"utc": "2026-10-26T11:55:25.663+00:00", "model": "claude-sonnet-5-5", "tcp_connect_ms": 22.39}
+{"utc": "2026-10-26T12:07:52.755+00:00", "model": "claude-opus-5-5", "tcp_connect_ms": 20.38}
+{"utc": "2026-10-26T12:28:56.985+00:00", "model": "claude-sonnet-5-5", "tcp_connect_ms": 18.18}
+{"utc": "2026-10-26T12:32:46.557+00:00", "model": "claude-haiku-5-5", "tcp_connect_ms": 22.01}
+{"utc": "2026-10-26T12:50:02.706+00:00", "model": "claude-opus-5-5", "tcp_connect_ms": 29.18}
+{"utc": "2026-10-26T12:55:00.920+00:00", "model": "claude-haiku-5-5", "tcp_connect_ms": 16.09}
+{"utc": "2026-10-26T13:02:16.525+00:00", "model": "claude-sonnet-5-5", "tcp_connect_ms": 11.38}
+{"utc": "2026-10-26T13:43:47.901+00:00", "model": "claude-sonnet-5-5", "tcp_connect_ms": 8.49}
+{"utc": "2026-10-26T13:46:43.076+00:00", "model": "claude-haiku-5-5", "tcp_connect_ms": 6.24}

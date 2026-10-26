@@ -1,0 +1,4123 @@
+{
+ "run": "matrix",
+ "state": {
+  "status": "COMPLETED",
+  "updated_utc": "2026-10-26T14:11:41.388+00:00",
+  "cost_usd": 55.3649,
+  "budget_usd": 150.0,
+  "counts": {
+   "claude-haiku-5-5": {
+    "completed": 437,
+    "max_tokens": 3
+   },
+   "claude-sonnet-5-5": {
+    "completed": 439,
+    "timeout": 1
+   },
+   "claude-opus-5-5": {
+    "completed": 275
+   }
+  },
+  "planned": {
+   "claude-opus-5-5": 275,
+   "claude-sonnet-5-5": 440,
+   "claude-haiku-5-5": 440
+  },
+  "config": {
+   "started_utc": "2026-10-26T09:04:53.946+00:00",
+   "resumed_utc": null,
+   "max_tokens": 128000,
+   "repeats": 3,
+   "seed": "20261026",
+   "warmup_per_cell": true,
+   "budget_usd": 150.0,
+   "tpm": {
+    "claude-opus-5-5": 40000,
+    "claude-sonnet-5-5": 80000,
+    "claude-haiku-5-5": 80000
+   },
+   "otpm_assumed": {
+    "claude-opus-5-5": 8000,
+    "claude-sonnet-5-5": 16000,
+    "claude-haiku-5-5": 16000
+   },
+   "max_attempts_on_429": 4,
+   "cells": [
+    {
+     "cell_id": "opus|adaptive|low",
+     "model": "claude-opus-5-5",
+     "mode": "adaptive",
+     "effort": "low"
+    },
+    {
+     "cell_id": "opus|adaptive|medium",
+     "model": "claude-opus-5-5",
+     "mode": "adaptive",
+     "effort": "medium"
+    },
+    {
+     "cell_id": "opus|adaptive|high",
+     "model": "claude-opus-5-5",
+     "mode": "adaptive",
+     "effort": "high"
+    },
+    {
+     "cell_id": "opus|adaptive|xhigh",
+     "model": "claude-opus-5-5",
+     "mode": "adaptive",
+     "effort": "xhigh"
+    },
+    {
+     "cell_id": "opus|adaptive|max",
+     "model": "claude-opus-5-5",
+     "mode": "adaptive",
+     "effort": "max"
+    },
+    {
+     "cell_id": "sonnet|adaptive|low",
+     "model": "claude-sonnet-5-5",
+     "mode": "adaptive",
+     "effort": "low"
+    },
+    {
+     "cell_id": "sonnet|adaptive|medium",
+     "model": "claude-sonnet-5-5",
+     "mode": "adaptive",
+     "effort": "medium"
+    },
+    {
+     "cell_id": "sonnet|adaptive|high",
+     "model": "claude-sonnet-5-5",
+     "mode": "adaptive",
+     "effort": "high"
+    },
+    {
+     "cell_id": "sonnet|adaptive|xhigh",
+     "model": "claude-sonnet-5-5",
+     "mode": "adaptive",
+     "effort": "xhigh"
+    },
+    {
+     "cell_id": "sonnet|adaptive|max",
+     "model": "claude-sonnet-5-5",
+     "mode": "adaptive",
+     "effort": "max"
+    },
+    {
+     "cell_id": "sonnet|between_tools|low",
+     "model": "claude-sonnet-5-5",
+     "mode": "between_tools",
+     "effort": "low"
+    },
+    {
+     "cell_id": "sonnet|between_tools|medium",
+     "model": "claude-sonnet-5-5",
+     "mode": "between_tools",
+     "effort": "medium"
+    },
+    {
+     "cell_id": "sonnet|between_tools|high",
+     "model": "claude-sonnet-5-5",
+     "mode": "between_tools",
+     "effort": "high"
+    },
+    {
+     "cell_id": "haiku|adaptive|low",
+     "model": "claude-haiku-5-5",
+     "mode": "adaptive",
+     "effort": "low"
+    },
+    {
+     "cell_id": "haiku|adaptive|medium",
+     "model": "claude-haiku-5-5",
+     "mode": "adaptive",
+     "effort": "medium"
+    },
+    {
+     "cell_id": "haiku|adaptive|high",
+     "model": "claude-haiku-5-5",
+     "mode": "adaptive",
+     "effort": "high"
+    },
+    {
+     "cell_id": "haiku|adaptive|xhigh",
+     "model": "claude-haiku-5-5",
+     "mode": "adaptive",
+     "effort": "xhigh"
+    },
+    {
+     "cell_id": "haiku|adaptive|max",
+     "model": "claude-haiku-5-5",
+     "mode": "adaptive",
+     "effort": "max"
+    },
+    {
+     "cell_id": "haiku|disabled|low",
+     "model": "claude-haiku-5-5",
+     "mode": "disabled",
+     "effort": "low"
+    },
+    {
+     "cell_id": "haiku|disabled|medium",
+     "model": "claude-haiku-5-5",
+     "mode": "disabled",
+     "effort": "medium"
+    },
+    {
+     "cell_id": "haiku|disabled|high",
+     "model": "claude-haiku-5-5",
+     "mode": "disabled",
+     "effort": "high"
+    }
+   ],
+   "problem_ids": [
+    "cpp/perfect-numbers",
+    "cpp/queen-attack",
+    "cpp/bank-account",
+    "go/trinary",
+    "go/beer-song",
+    "go/wordy",
+    "java/pythagorean-triplet",
+    "java/house",
+    "java/dominoes",
+    "javascript/palindrome-products",
+    "javascript/space-age",
+    "javascript/promises",
+    "python/simple-linked-list",
+    "python/wordy",
+    "python/proverb",
+    "rust/dot-dsl",
+    "rust/doubly-linked-list",
+    "rust/scale-generator"
+   ],
+   "problems_sha256": "01715327dce21d8e1e4cfd39067f63d7b87c867ac0a6a9d013d519b9ee1e33bf",
+   "system_prompt_sha256": "60c9eaa898b77547d09df817085d877e693314736b7ed3a37861d74527a5e10b",
+   "tcp_connect_median_ms": 9.67,
+   "endpoint_host": "<foundry-resource>.services.ai.azure.com",
+   "tasks_already_final": 0
+  }
+ },
+ "cells": [
+  {
+   "cell_id": "opus|adaptive|low",
+   "model": "opus",
+   "mode": "adaptive",
+   "effort": "low",
+   "planned": 54,
+   "attempted": 54,
+   "completed": 54,
+   "statuses": {
+    "completed": 54
+   },
+   "success_rate": 1.0,
+   "first_text_p50_s": 0.4847,
+   "first_text_p95_s": 0.9784,
+   "first_event_p50_s": 0.4847,
+   "e2e_p50_s": 5.5827,
+   "e2e_p95_s": 19.5864,
+   "thinking_tokens_p50": 0,
+   "thinking_requests": 0,
+   "output_tokens_p50": 699,
+   "cost_per_request_usd": 0.023342666666666668,
+   "cost_per_1k_requests_usd": 23.34266666666667,
+   "cost_total_usd": 1.260504,
+   "judged": 54,
+   "passed": 54,
+   "verdicts": {
+    "pass": 54
+   },
+   "accuracy": 1.0,
+   "throttled_attempts": 0
+  },
+  {
+   "cell_id": "opus|adaptive|medium",
+   "model": "opus",
+   "mode": "adaptive",
+   "effort": "medium",
+   "planned": 54,
+   "attempted": 54,
+   "completed": 54,
+   "statuses": {
+    "completed": 54
+   },
+   "success_rate": 1.0,
+   "first_text_p50_s": 3.7113,
+   "first_text_p95_s": 11.9459,
+   "first_event_p50_s": 0.53,
+   "e2e_p50_s": 9.0707,
+   "e2e_p95_s": 39.036,
+   "thinking_tokens_p50": 335,
+   "thinking_requests": 45,
+   "output_tokens_p50": 1125,
+   "cost_per_request_usd": 0.03452192592592593,
+   "cost_per_1k_requests_usd": 34.52192592592593,
+   "cost_total_usd": 1.864184,
+   "judged": 54,
+   "passed": 54,
+   "verdicts": {
+    "pass": 54
+   },
+   "accuracy": 1.0,
+   "throttled_attempts": 0
+  },
+  {
+   "cell_id": "opus|adaptive|high",
+   "model": "opus",
+   "mode": "adaptive",
+   "effort": "high",
+   "planned": 54,
+   "attempted": 54,
+   "completed": 54,
+   "statuses": {
+    "completed": 54
+   },
+   "success_rate": 1.0,
+   "first_text_p50_s": 4.0506,
+   "first_text_p95_s": 20.3929,
+   "first_event_p50_s": 0.5273,
+   "e2e_p50_s": 9.848,
+   "e2e_p95_s": 53.9559,
+   "thinking_tokens_p50": 372,
+   "thinking_requests": 53,
+   "output_tokens_p50": 1203,
+   "cost_per_request_usd": 0.03875451851851852,
+   "cost_per_1k_requests_usd": 38.75451851851852,
+   "cost_total_usd": 2.092744,
+   "judged": 54,
+   "passed": 54,
+   "verdicts": {
+    "pass": 54
+   },
+   "accuracy": 1.0,
+   "throttled_attempts": 0
+  },
+  {
+   "cell_id": "opus|adaptive|xhigh",
+   "model": "opus",
+   "mode": "adaptive",
+   "effort": "xhigh",
+   "planned": 54,
+   "attempted": 54,
+   "completed": 54,
+   "statuses": {
+    "completed": 54
+   },
+   "success_rate": 1.0,
+   "first_text_p50_s": 6.0425,
+   "first_text_p95_s": 74.6577,
+   "first_event_p50_s": 0.5206,
+   "e2e_p50_s": 12.6834,
+   "e2e_p95_s": 89.7179,
+   "thinking_tokens_p50": 656,
+   "thinking_requests": 54,
+   "output_tokens_p50": 1579,
+   "cost_per_request_usd": 0.06536451851851852,
+   "cost_per_1k_requests_usd": 65.36451851851852,
+   "cost_total_usd": 3.529684,
+   "judged": 54,
+   "passed": 54,
+   "verdicts": {
+    "pass": 54
+   },
+   "accuracy": 1.0,
+   "throttled_attempts": 0
+  },
+  {
+   "cell_id": "opus|adaptive|max",
+   "model": "opus",
+   "mode": "adaptive",
+   "effort": "max",
+   "planned": 54,
+   "attempted": 54,
+   "completed": 54,
+   "statuses": {
+    "completed": 54
+   },
+   "success_rate": 1.0,
+   "first_text_p50_s": 51.3773,
+   "first_text_p95_s": 585.0912,
+   "first_event_p50_s": 0.4867,
+   "e2e_p50_s": 59.8546,
+   "e2e_p95_s": 621.0264,
+   "thinking_tokens_p50": 6473,
+   "thinking_requests": 54,
+   "output_tokens_p50": 7663,
+   "cost_per_request_usd": 0.3557519259259259,
+   "cost_per_1k_requests_usd": 355.7519259259259,
+   "cost_total_usd": 19.210604,
+   "judged": 54,
+   "passed": 54,
+   "verdicts": {
+    "pass": 54
+   },
+   "accuracy": 1.0,
+   "throttled_attempts": 0
+  },
+  {
+   "cell_id": "sonnet|adaptive|low",
+   "model": "sonnet",
+   "mode": "adaptive",
+   "effort": "low",
+   "planned": 54,
+   "attempted": 54,
+   "completed": 54,
+   "statuses": {
+    "completed": 54
+   },
+   "success_rate": 1.0,
+   "first_text_p50_s": 0.4631,
+   "first_text_p95_s": 0.9275,
+   "first_event_p50_s": 0.4631,
+   "e2e_p50_s": 5.2223,
+   "e2e_p95_s": 17.329,
+   "thinking_tokens_p50": 0,
+   "thinking_requests": 0,
+   "output_tokens_p50": 820,
+   "cost_per_request_usd": 0.013037259259259259,
+   "cost_per_1k_requests_usd": 13.037259259259258,
+   "cost_total_usd": 0.704012,
+   "judged": 54,
+   "passed": 41,
+   "verdicts": {
+    "pass": 41,
+    "fail": 13
+   },
+   "accuracy": 0.7592592592592593,
+   "throttled_attempts": 0
+  },
+  {
+   "cell_id": "sonnet|adaptive|medium",
+   "model": "sonnet",
+   "mode": "adaptive",
+   "effort": "medium",
+   "planned": 54,
+   "attempted": 54,
+   "completed": 54,
+   "statuses": {
+    "completed": 54
+   },
+   "success_rate": 1.0,
+   "first_text_p50_s": 0.4991,
+   "first_text_p95_s": 0.8675,
+   "first_event_p50_s": 0.499,
+   "e2e_p50_s": 5.5253,
+   "e2e_p95_s": 17.3993,
+   "thinking_tokens_p50": 0,
+   "thinking_requests": 0,
+   "output_tokens_p50": 923,
+   "cost_per_request_usd": 0.013565037037037039,
+   "cost_per_1k_requests_usd": 13.565037037037039,
+   "cost_total_usd": 0.732512,
+   "judged": 54,
+   "passed": 42,
+   "verdicts": {
+    "pass": 42,
+    "fail": 12
+   },
+   "accuracy": 0.7777777777777778,
+   "throttled_attempts": 0
+  },
+  {
+   "cell_id": "sonnet|adaptive|high",
+   "model": "sonnet",
+   "mode": "adaptive",
+   "effort": "high",
+   "planned": 54,
+   "attempted": 54,
+   "completed": 54,
+   "statuses": {
+    "completed": 54
+   },
+   "success_rate": 1.0,
+   "first_text_p50_s": 3.2489,
+   "first_text_p95_s": 10.9948,
+   "first_event_p50_s": 0.4624,
+   "e2e_p50_s": 8.5276,
+   "e2e_p95_s": 29.6789,
+   "thinking_tokens_p50": 366,
+   "thinking_requests": 34,
+   "output_tokens_p50": 1355,
+   "cost_per_request_usd": 0.01836374074074074,
+   "cost_per_1k_requests_usd": 18.36374074074074,
+   "cost_total_usd": 0.991642,
+   "judged": 54,
+   "passed": 40,
+   "verdicts": {
+    "pass": 40,
+    "fail": 14
+   },
+   "accuracy": 0.7407407407407407,
+   "throttled_attempts": 0
+  },
+  {
+   "cell_id": "sonnet|adaptive|xhigh",
+   "model": "sonnet",
+   "mode": "adaptive",
+   "effort": "xhigh",
+   "planned": 54,
+   "attempted": 54,
+   "completed": 54,
+   "statuses": {
+    "completed": 54
+   },
+   "success_rate": 1.0,
+   "first_text_p50_s": 7.4384,
+   "first_text_p95_s": 41.9662,
+   "first_event_p50_s": 0.4555,
+   "e2e_p50_s": 13.1545,
+   "e2e_p95_s": 66.7032,
+   "thinking_tokens_p50": 1031,
+   "thinking_requests": 54,
+   "output_tokens_p50": 2038,
+   "cost_per_request_usd": 0.03162022222222222,
+   "cost_per_1k_requests_usd": 31.62022222222222,
+   "cost_total_usd": 1.707492,
+   "judged": 54,
+   "passed": 41,
+   "verdicts": {
+    "pass": 41,
+    "fail": 13
+   },
+   "accuracy": 0.7592592592592593,
+   "throttled_attempts": 0
+  },
+  {
+   "cell_id": "sonnet|adaptive|max",
+   "model": "sonnet",
+   "mode": "adaptive",
+   "effort": "max",
+   "planned": 54,
+   "attempted": 54,
+   "completed": 53,
+   "statuses": {
+    "completed": 53,
+    "timeout": 1
+   },
+   "success_rate": 0.9814814814814815,
+   "first_text_p50_s": 189.8272,
+   "first_text_p95_s": 585.4768,
+   "first_event_p50_s": 0.4356,
+   "e2e_p50_s": 199.4697,
+   "e2e_p95_s": 615.702,
+   "thinking_tokens_p50": 30403,
+   "thinking_requests": 53,
+   "output_tokens_p50": 32129,
+   "cost_per_request_usd": 0.3564878148148148,
+   "cost_per_1k_requests_usd": 356.48781481481484,
+   "cost_total_usd": 19.250342,
+   "judged": 54,
+   "passed": 44,
+   "verdicts": {
+    "pass": 44,
+    "fail": 9,
+    "no_code": 1
+   },
+   "accuracy": 0.8148148148148148,
+   "throttled_attempts": 0
+  },
+  {
+   "cell_id": "sonnet|between_tools|low",
+   "model": "sonnet",
+   "mode": "between_tools",
+   "effort": "low",
+   "planned": 54,
+   "attempted": 54,
+   "completed": 54,
+   "statuses": {
+    "completed": 54
+   },
+   "success_rate": 1.0,
+   "first_text_p50_s": 0.4216,
+   "first_text_p95_s": 0.7992,
+   "first_event_p50_s": 0.4215,
+   "e2e_p50_s": 5.0614,
+   "e2e_p95_s": 17.4613,
+   "thinking_tokens_p50": 0,
+   "thinking_requests": 0,
+   "output_tokens_p50": 824,
+   "cost_per_request_usd": 0.01316211111111111,
+   "cost_per_1k_requests_usd": 13.16211111111111,
+   "cost_total_usd": 0.710754,
+   "judged": 54,
+   "passed": 42,
+   "verdicts": {
+    "pass": 42,
+    "fail": 12
+   },
+   "accuracy": 0.7777777777777778,
+   "throttled_attempts": 0
+  },
+  {
+   "cell_id": "sonnet|between_tools|medium",
+   "model": "sonnet",
+   "mode": "between_tools",
+   "effort": "medium",
+   "planned": 54,
+   "attempted": 54,
+   "completed": 54,
+   "statuses": {
+    "completed": 54
+   },
+   "success_rate": 1.0,
+   "first_text_p50_s": 0.4362,
+   "first_text_p95_s": 0.7827,
+   "first_event_p50_s": 0.4362,
+   "e2e_p50_s": 5.1432,
+   "e2e_p95_s": 19.2804,
+   "thinking_tokens_p50": 0,
+   "thinking_requests": 0,
+   "output_tokens_p50": 875,
+   "cost_per_request_usd": 0.013212296296296297,
+   "cost_per_1k_requests_usd": 13.212296296296294,
+   "cost_total_usd": 0.713464,
+   "judged": 54,
+   "passed": 41,
+   "verdicts": {
+    "pass": 41,
+    "fail": 13
+   },
+   "accuracy": 0.7592592592592593,
+   "throttled_attempts": 0
+  },
+  {
+   "cell_id": "sonnet|between_tools|high",
+   "model": "sonnet",
+   "mode": "between_tools",
+   "effort": "high",
+   "planned": 54,
+   "attempted": 54,
+   "completed": 54,
+   "statuses": {
+    "completed": 54
+   },
+   "success_rate": 1.0,
+   "first_text_p50_s": 0.3944,
+   "first_text_p95_s": 0.7404,
+   "first_event_p50_s": 0.3943,
+   "e2e_p50_s": 5.5576,
+   "e2e_p95_s": 19.8442,
+   "thinking_tokens_p50": 0,
+   "thinking_requests": 0,
+   "output_tokens_p50": 939,
+   "cost_per_request_usd": 0.013761,
+   "cost_per_1k_requests_usd": 13.761000000000001,
+   "cost_total_usd": 0.743094,
+   "judged": 54,
+   "passed": 44,
+   "verdicts": {
+    "pass": 44,
+    "fail": 10
+   },
+   "accuracy": 0.8148148148148148,
+   "throttled_attempts": 0
+  },
+  {
+   "cell_id": "haiku|adaptive|low",
+   "model": "haiku",
+   "mode": "adaptive",
+   "effort": "low",
+   "planned": 54,
+   "attempted": 54,
+   "completed": 54,
+   "statuses": {
+    "completed": 54
+   },
+   "success_rate": 1.0,
+   "first_text_p50_s": 4.132,
+   "first_text_p95_s": 18.0826,
+   "first_event_p50_s": 0.433,
+   "e2e_p50_s": 6.7471,
+   "e2e_p95_s": 31.3125,
+   "thinking_tokens_p50": 786,
+   "thinking_requests": 47,
+   "output_tokens_p50": 1709,
+   "cost_per_request_usd": 0.0012746870370370369,
+   "cost_per_1k_requests_usd": 1.274687037037037,
+   "cost_total_usd": 0.0688331,
+   "judged": 54,
+   "passed": 24,
+   "verdicts": {
+    "fail": 30,
+    "pass": 24
+   },
+   "accuracy": 0.4444444444444444,
+   "throttled_attempts": 0
+  },
+  {
+   "cell_id": "haiku|adaptive|medium",
+   "model": "haiku",
+   "mode": "adaptive",
+   "effort": "medium",
+   "planned": 54,
+   "attempted": 54,
+   "completed": 54,
+   "statuses": {
+    "completed": 54
+   },
+   "success_rate": 1.0,
+   "first_text_p50_s": 4.6162,
+   "first_text_p95_s": 27.5356,
+   "first_event_p50_s": 0.4353,
+   "e2e_p50_s": 7.7585,
+   "e2e_p95_s": 41.9811,
+   "thinking_tokens_p50": 956,
+   "thinking_requests": 54,
+   "output_tokens_p50": 1926,
+   "cost_per_request_usd": 0.0015665481481481483,
+   "cost_per_1k_requests_usd": 1.5665481481481482,
+   "cost_total_usd": 0.0845936,
+   "judged": 54,
+   "passed": 26,
+   "verdicts": {
+    "pass": 26,
+    "fail": 28
+   },
+   "accuracy": 0.48148148148148145,
+   "throttled_attempts": 0
+  },
+  {
+   "cell_id": "haiku|adaptive|high",
+   "model": "haiku",
+   "mode": "adaptive",
+   "effort": "high",
+   "planned": 54,
+   "attempted": 54,
+   "completed": 54,
+   "statuses": {
+    "completed": 54
+   },
+   "success_rate": 1.0,
+   "first_text_p50_s": 8.2095,
+   "first_text_p95_s": 41.9021,
+   "first_event_p50_s": 0.4662,
+   "e2e_p50_s": 11.3755,
+   "e2e_p95_s": 56.6325,
+   "thinking_tokens_p50": 1932,
+   "thinking_requests": 54,
+   "output_tokens_p50": 2967,
+   "cost_per_request_usd": 0.0021379462962962965,
+   "cost_per_1k_requests_usd": 2.1379462962962963,
+   "cost_total_usd": 0.1154491,
+   "judged": 54,
+   "passed": 27,
+   "verdicts": {
+    "pass": 27,
+    "fail": 27
+   },
+   "accuracy": 0.5,
+   "throttled_attempts": 0
+  },
+  {
+   "cell_id": "haiku|adaptive|xhigh",
+   "model": "haiku",
+   "mode": "adaptive",
+   "effort": "xhigh",
+   "planned": 54,
+   "attempted": 54,
+   "completed": 54,
+   "statuses": {
+    "completed": 54
+   },
+   "success_rate": 1.0,
+   "first_text_p50_s": 14.95,
+   "first_text_p95_s": 118.1199,
+   "first_event_p50_s": 0.4555,
+   "e2e_p50_s": 17.7779,
+   "e2e_p95_s": 133.9548,
+   "thinking_tokens_p50": 3744,
+   "thinking_requests": 54,
+   "output_tokens_p50": 4740,
+   "cost_per_request_usd": 0.00418502037037037,
+   "cost_per_1k_requests_usd": 4.185020370370371,
+   "cost_total_usd": 0.2259911,
+   "judged": 54,
+   "passed": 28,
+   "verdicts": {
+    "pass": 28,
+    "fail": 26
+   },
+   "accuracy": 0.5185185185185185,
+   "throttled_attempts": 0
+  },
+  {
+   "cell_id": "haiku|adaptive|max",
+   "model": "haiku",
+   "mode": "adaptive",
+   "effort": "max",
+   "planned": 54,
+   "attempted": 54,
+   "completed": 51,
+   "statuses": {
+    "completed": 51,
+    "max_tokens": 3
+   },
+   "success_rate": 0.9444444444444444,
+   "first_text_p50_s": 120.7992,
+   "first_text_p95_s": 420.9856,
+   "first_event_p50_s": 0.4426,
+   "e2e_p50_s": 125.1576,
+   "e2e_p95_s": 424.3449,
+   "thinking_tokens_p50": 33505,
+   "thinking_requests": 54,
+   "output_tokens_p50": 34821,
+   "cost_per_request_usd": 0.022263733333333334,
+   "cost_per_1k_requests_usd": 22.263733333333334,
+   "cost_total_usd": 1.2022416,
+   "judged": 54,
+   "passed": 28,
+   "verdicts": {
+    "pass": 28,
+    "fail": 23,
+    "no_code": 3
+   },
+   "accuracy": 0.5185185185185185,
+   "throttled_attempts": 0
+  },
+  {
+   "cell_id": "haiku|disabled|low",
+   "model": "haiku",
+   "mode": "disabled",
+   "effort": "low",
+   "planned": 54,
+   "attempted": 54,
+   "completed": 54,
+   "statuses": {
+    "completed": 54
+   },
+   "success_rate": 1.0,
+   "first_text_p50_s": 0.4611,
+   "first_text_p95_s": 0.7075,
+   "first_event_p50_s": 0.461,
+   "e2e_p50_s": 3.3323,
+   "e2e_p95_s": 11.0075,
+   "thinking_tokens_p50": 0,
+   "thinking_requests": 0,
+   "output_tokens_p50": 923,
+   "cost_per_request_usd": 0.0006859111111111112,
+   "cost_per_1k_requests_usd": 0.6859111111111111,
+   "cost_total_usd": 0.0370392,
+   "judged": 54,
+   "passed": 19,
+   "verdicts": {
+    "pass": 19,
+    "fail": 34,
+    "no_code": 1
+   },
+   "accuracy": 0.35185185185185186,
+   "throttled_attempts": 0
+  },
+  {
+   "cell_id": "haiku|disabled|medium",
+   "model": "haiku",
+   "mode": "disabled",
+   "effort": "medium",
+   "planned": 54,
+   "attempted": 54,
+   "completed": 54,
+   "statuses": {
+    "completed": 54
+   },
+   "success_rate": 1.0,
+   "first_text_p50_s": 0.4457,
+   "first_text_p95_s": 0.8017,
+   "first_event_p50_s": 0.4457,
+   "e2e_p50_s": 3.2874,
+   "e2e_p95_s": 11.5399,
+   "thinking_tokens_p50": 0,
+   "thinking_requests": 0,
+   "output_tokens_p50": 893,
+   "cost_per_request_usd": 0.0006862444444444444,
+   "cost_per_1k_requests_usd": 0.6862444444444444,
+   "cost_total_usd": 0.0370572,
+   "judged": 54,
+   "passed": 17,
+   "verdicts": {
+    "fail": 37,
+    "pass": 17
+   },
+   "accuracy": 0.3148148148148148,
+   "throttled_attempts": 0
+  },
+  {
+   "cell_id": "haiku|disabled|high",
+   "model": "haiku",
+   "mode": "disabled",
+   "effort": "high",
+   "planned": 54,
+   "attempted": 54,
+   "completed": 54,
+   "statuses": {
+    "completed": 54
+   },
+   "success_rate": 1.0,
+   "first_text_p50_s": 0.4306,
+   "first_text_p95_s": 0.691,
+   "first_event_p50_s": 0.4306,
+   "e2e_p50_s": 3.6235,
+   "e2e_p95_s": 12.1568,
+   "thinking_tokens_p50": 0,
+   "thinking_requests": 0,
+   "output_tokens_p50": 1019,
+   "cost_per_request_usd": 0.0007285037037037036,
+   "cost_per_1k_requests_usd": 0.7285037037037037,
+   "cost_total_usd": 0.0393392,
+   "judged": 54,
+   "passed": 21,
+   "verdicts": {
+    "pass": 21,
+    "fail": 33
+   },
+   "accuracy": 0.3888888888888889,
+   "throttled_attempts": 0
+  }
+ ],
+ "per_model_status": {
+  "claude-haiku-5-5": {
+   "completed": 437,
+   "http_200": 440,
+   "max_tokens": 3
+  },
+  "claude-opus-5-5": {
+   "completed": 275,
+   "http_200": 275
+  },
+  "claude-sonnet-5-5": {
+   "completed": 439,
+   "http_200": 440,
+   "timeout": 1
+  }
+ },
+ "by_language": [
+  {
+   "cell_id": "haiku|adaptive|high",
+   "language": "cpp",
+   "passed": 6,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|adaptive|high",
+   "language": "go",
+   "passed": 3,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|adaptive|high",
+   "language": "java",
+   "passed": 3,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|adaptive|high",
+   "language": "javascript",
+   "passed": 6,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|adaptive|high",
+   "language": "python",
+   "passed": 6,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|adaptive|high",
+   "language": "rust",
+   "passed": 3,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|adaptive|low",
+   "language": "cpp",
+   "passed": 3,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|adaptive|low",
+   "language": "go",
+   "passed": 3,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|adaptive|low",
+   "language": "java",
+   "passed": 3,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|adaptive|low",
+   "language": "javascript",
+   "passed": 4,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|adaptive|low",
+   "language": "python",
+   "passed": 8,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|adaptive|low",
+   "language": "rust",
+   "passed": 3,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|adaptive|max",
+   "language": "cpp",
+   "passed": 5,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|adaptive|max",
+   "language": "go",
+   "passed": 3,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|adaptive|max",
+   "language": "java",
+   "passed": 3,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|adaptive|max",
+   "language": "javascript",
+   "passed": 6,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|adaptive|max",
+   "language": "python",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|adaptive|max",
+   "language": "rust",
+   "passed": 2,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|adaptive|medium",
+   "language": "cpp",
+   "passed": 4,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|adaptive|medium",
+   "language": "go",
+   "passed": 3,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|adaptive|medium",
+   "language": "java",
+   "passed": 3,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|adaptive|medium",
+   "language": "javascript",
+   "passed": 4,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|adaptive|medium",
+   "language": "python",
+   "passed": 8,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|adaptive|medium",
+   "language": "rust",
+   "passed": 4,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|adaptive|xhigh",
+   "language": "cpp",
+   "passed": 5,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|adaptive|xhigh",
+   "language": "go",
+   "passed": 3,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|adaptive|xhigh",
+   "language": "java",
+   "passed": 3,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|adaptive|xhigh",
+   "language": "javascript",
+   "passed": 6,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|adaptive|xhigh",
+   "language": "python",
+   "passed": 8,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|adaptive|xhigh",
+   "language": "rust",
+   "passed": 3,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|disabled|high",
+   "language": "cpp",
+   "passed": 2,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|disabled|high",
+   "language": "go",
+   "passed": 3,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|disabled|high",
+   "language": "java",
+   "passed": 3,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|disabled|high",
+   "language": "javascript",
+   "passed": 3,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|disabled|high",
+   "language": "python",
+   "passed": 7,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|disabled|high",
+   "language": "rust",
+   "passed": 3,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|disabled|low",
+   "language": "cpp",
+   "passed": 2,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|disabled|low",
+   "language": "go",
+   "passed": 2,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|disabled|low",
+   "language": "java",
+   "passed": 3,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|disabled|low",
+   "language": "javascript",
+   "passed": 4,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|disabled|low",
+   "language": "python",
+   "passed": 6,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|disabled|low",
+   "language": "rust",
+   "passed": 2,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|disabled|medium",
+   "language": "cpp",
+   "passed": 0,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|disabled|medium",
+   "language": "go",
+   "passed": 2,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|disabled|medium",
+   "language": "java",
+   "passed": 3,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|disabled|medium",
+   "language": "javascript",
+   "passed": 3,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|disabled|medium",
+   "language": "python",
+   "passed": 6,
+   "n": 9
+  },
+  {
+   "cell_id": "haiku|disabled|medium",
+   "language": "rust",
+   "passed": 3,
+   "n": 9
+  },
+  {
+   "cell_id": "opus|adaptive|high",
+   "language": "cpp",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "opus|adaptive|high",
+   "language": "go",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "opus|adaptive|high",
+   "language": "java",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "opus|adaptive|high",
+   "language": "javascript",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "opus|adaptive|high",
+   "language": "python",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "opus|adaptive|high",
+   "language": "rust",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "opus|adaptive|low",
+   "language": "cpp",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "opus|adaptive|low",
+   "language": "go",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "opus|adaptive|low",
+   "language": "java",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "opus|adaptive|low",
+   "language": "javascript",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "opus|adaptive|low",
+   "language": "python",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "opus|adaptive|low",
+   "language": "rust",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "opus|adaptive|max",
+   "language": "cpp",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "opus|adaptive|max",
+   "language": "go",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "opus|adaptive|max",
+   "language": "java",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "opus|adaptive|max",
+   "language": "javascript",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "opus|adaptive|max",
+   "language": "python",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "opus|adaptive|max",
+   "language": "rust",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "opus|adaptive|medium",
+   "language": "cpp",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "opus|adaptive|medium",
+   "language": "go",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "opus|adaptive|medium",
+   "language": "java",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "opus|adaptive|medium",
+   "language": "javascript",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "opus|adaptive|medium",
+   "language": "python",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "opus|adaptive|medium",
+   "language": "rust",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "opus|adaptive|xhigh",
+   "language": "cpp",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "opus|adaptive|xhigh",
+   "language": "go",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "opus|adaptive|xhigh",
+   "language": "java",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "opus|adaptive|xhigh",
+   "language": "javascript",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "opus|adaptive|xhigh",
+   "language": "python",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "opus|adaptive|xhigh",
+   "language": "rust",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|adaptive|high",
+   "language": "cpp",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|adaptive|high",
+   "language": "go",
+   "passed": 5,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|adaptive|high",
+   "language": "java",
+   "passed": 6,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|adaptive|high",
+   "language": "javascript",
+   "passed": 7,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|adaptive|high",
+   "language": "python",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|adaptive|high",
+   "language": "rust",
+   "passed": 4,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|adaptive|low",
+   "language": "cpp",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|adaptive|low",
+   "language": "go",
+   "passed": 6,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|adaptive|low",
+   "language": "java",
+   "passed": 6,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|adaptive|low",
+   "language": "javascript",
+   "passed": 6,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|adaptive|low",
+   "language": "python",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|adaptive|low",
+   "language": "rust",
+   "passed": 5,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|adaptive|max",
+   "language": "cpp",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|adaptive|max",
+   "language": "go",
+   "passed": 6,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|adaptive|max",
+   "language": "java",
+   "passed": 7,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|adaptive|max",
+   "language": "javascript",
+   "passed": 7,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|adaptive|max",
+   "language": "python",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|adaptive|max",
+   "language": "rust",
+   "passed": 6,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|adaptive|medium",
+   "language": "cpp",
+   "passed": 8,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|adaptive|medium",
+   "language": "go",
+   "passed": 7,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|adaptive|medium",
+   "language": "java",
+   "passed": 6,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|adaptive|medium",
+   "language": "javascript",
+   "passed": 6,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|adaptive|medium",
+   "language": "python",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|adaptive|medium",
+   "language": "rust",
+   "passed": 6,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|adaptive|xhigh",
+   "language": "cpp",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|adaptive|xhigh",
+   "language": "go",
+   "passed": 6,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|adaptive|xhigh",
+   "language": "java",
+   "passed": 6,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|adaptive|xhigh",
+   "language": "javascript",
+   "passed": 7,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|adaptive|xhigh",
+   "language": "python",
+   "passed": 8,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|adaptive|xhigh",
+   "language": "rust",
+   "passed": 5,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|between_tools|high",
+   "language": "cpp",
+   "passed": 8,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|between_tools|high",
+   "language": "go",
+   "passed": 8,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|between_tools|high",
+   "language": "java",
+   "passed": 6,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|between_tools|high",
+   "language": "javascript",
+   "passed": 6,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|between_tools|high",
+   "language": "python",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|between_tools|high",
+   "language": "rust",
+   "passed": 7,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|between_tools|low",
+   "language": "cpp",
+   "passed": 8,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|between_tools|low",
+   "language": "go",
+   "passed": 7,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|between_tools|low",
+   "language": "java",
+   "passed": 6,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|between_tools|low",
+   "language": "javascript",
+   "passed": 6,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|between_tools|low",
+   "language": "python",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|between_tools|low",
+   "language": "rust",
+   "passed": 6,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|between_tools|medium",
+   "language": "cpp",
+   "passed": 8,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|between_tools|medium",
+   "language": "go",
+   "passed": 7,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|between_tools|medium",
+   "language": "java",
+   "passed": 6,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|between_tools|medium",
+   "language": "javascript",
+   "passed": 6,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|between_tools|medium",
+   "language": "python",
+   "passed": 9,
+   "n": 9
+  },
+  {
+   "cell_id": "sonnet|between_tools|medium",
+   "language": "rust",
+   "passed": 5,
+   "n": 9
+  }
+ ],
+ "by_problem": [
+  {
+   "cell_id": "haiku|adaptive|high",
+   "problem_id": "cpp/bank-account",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|high",
+   "problem_id": "cpp/perfect-numbers",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|high",
+   "problem_id": "cpp/queen-attack",
+   "passed": 1,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|high",
+   "problem_id": "go/beer-song",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|high",
+   "problem_id": "go/trinary",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|high",
+   "problem_id": "go/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|high",
+   "problem_id": "java/dominoes",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|high",
+   "problem_id": "java/house",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|high",
+   "problem_id": "java/pythagorean-triplet",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|high",
+   "problem_id": "javascript/palindrome-products",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|high",
+   "problem_id": "javascript/promises",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|high",
+   "problem_id": "javascript/space-age",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|high",
+   "problem_id": "python/proverb",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|high",
+   "problem_id": "python/simple-linked-list",
+   "passed": 1,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|high",
+   "problem_id": "python/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|high",
+   "problem_id": "rust/dot-dsl",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|high",
+   "problem_id": "rust/doubly-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|high",
+   "problem_id": "rust/scale-generator",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|low",
+   "problem_id": "cpp/bank-account",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|low",
+   "problem_id": "cpp/perfect-numbers",
+   "passed": 1,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|low",
+   "problem_id": "cpp/queen-attack",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|low",
+   "problem_id": "go/beer-song",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|low",
+   "problem_id": "go/trinary",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|low",
+   "problem_id": "go/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|low",
+   "problem_id": "java/dominoes",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|low",
+   "problem_id": "java/house",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|low",
+   "problem_id": "java/pythagorean-triplet",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|low",
+   "problem_id": "javascript/palindrome-products",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|low",
+   "problem_id": "javascript/promises",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|low",
+   "problem_id": "javascript/space-age",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|low",
+   "problem_id": "python/proverb",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|low",
+   "problem_id": "python/simple-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|low",
+   "problem_id": "python/wordy",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|low",
+   "problem_id": "rust/dot-dsl",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|low",
+   "problem_id": "rust/doubly-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|low",
+   "problem_id": "rust/scale-generator",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|max",
+   "problem_id": "cpp/bank-account",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|max",
+   "problem_id": "cpp/perfect-numbers",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|max",
+   "problem_id": "cpp/queen-attack",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|max",
+   "problem_id": "go/beer-song",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|max",
+   "problem_id": "go/trinary",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|max",
+   "problem_id": "go/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|max",
+   "problem_id": "java/dominoes",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|max",
+   "problem_id": "java/house",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|max",
+   "problem_id": "java/pythagorean-triplet",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|max",
+   "problem_id": "javascript/palindrome-products",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|max",
+   "problem_id": "javascript/promises",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|max",
+   "problem_id": "javascript/space-age",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|max",
+   "problem_id": "python/proverb",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|max",
+   "problem_id": "python/simple-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|max",
+   "problem_id": "python/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|max",
+   "problem_id": "rust/dot-dsl",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|max",
+   "problem_id": "rust/doubly-linked-list",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|max",
+   "problem_id": "rust/scale-generator",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|medium",
+   "problem_id": "cpp/bank-account",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|medium",
+   "problem_id": "cpp/perfect-numbers",
+   "passed": 1,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|medium",
+   "problem_id": "cpp/queen-attack",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|medium",
+   "problem_id": "go/beer-song",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|medium",
+   "problem_id": "go/trinary",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|medium",
+   "problem_id": "go/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|medium",
+   "problem_id": "java/dominoes",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|medium",
+   "problem_id": "java/house",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|medium",
+   "problem_id": "java/pythagorean-triplet",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|medium",
+   "problem_id": "javascript/palindrome-products",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|medium",
+   "problem_id": "javascript/promises",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|medium",
+   "problem_id": "javascript/space-age",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|medium",
+   "problem_id": "python/proverb",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|medium",
+   "problem_id": "python/simple-linked-list",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|medium",
+   "problem_id": "python/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|medium",
+   "problem_id": "rust/dot-dsl",
+   "passed": 1,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|medium",
+   "problem_id": "rust/doubly-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|medium",
+   "problem_id": "rust/scale-generator",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|xhigh",
+   "problem_id": "cpp/bank-account",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|xhigh",
+   "problem_id": "cpp/perfect-numbers",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|xhigh",
+   "problem_id": "cpp/queen-attack",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|xhigh",
+   "problem_id": "go/beer-song",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|xhigh",
+   "problem_id": "go/trinary",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|xhigh",
+   "problem_id": "go/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|xhigh",
+   "problem_id": "java/dominoes",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|xhigh",
+   "problem_id": "java/house",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|xhigh",
+   "problem_id": "java/pythagorean-triplet",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|xhigh",
+   "problem_id": "javascript/palindrome-products",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|xhigh",
+   "problem_id": "javascript/promises",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|xhigh",
+   "problem_id": "javascript/space-age",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|xhigh",
+   "problem_id": "python/proverb",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|xhigh",
+   "problem_id": "python/simple-linked-list",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|xhigh",
+   "problem_id": "python/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|xhigh",
+   "problem_id": "rust/dot-dsl",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|xhigh",
+   "problem_id": "rust/doubly-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|adaptive|xhigh",
+   "problem_id": "rust/scale-generator",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|high",
+   "problem_id": "cpp/bank-account",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|high",
+   "problem_id": "cpp/perfect-numbers",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|high",
+   "problem_id": "cpp/queen-attack",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|high",
+   "problem_id": "go/beer-song",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|high",
+   "problem_id": "go/trinary",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|high",
+   "problem_id": "go/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|high",
+   "problem_id": "java/dominoes",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|high",
+   "problem_id": "java/house",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|high",
+   "problem_id": "java/pythagorean-triplet",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|high",
+   "problem_id": "javascript/palindrome-products",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|high",
+   "problem_id": "javascript/promises",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|high",
+   "problem_id": "javascript/space-age",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|high",
+   "problem_id": "python/proverb",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|high",
+   "problem_id": "python/simple-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|high",
+   "problem_id": "python/wordy",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|high",
+   "problem_id": "rust/dot-dsl",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|high",
+   "problem_id": "rust/doubly-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|high",
+   "problem_id": "rust/scale-generator",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|low",
+   "problem_id": "cpp/bank-account",
+   "passed": 1,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|low",
+   "problem_id": "cpp/perfect-numbers",
+   "passed": 1,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|low",
+   "problem_id": "cpp/queen-attack",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|low",
+   "problem_id": "go/beer-song",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|low",
+   "problem_id": "go/trinary",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|low",
+   "problem_id": "go/wordy",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|low",
+   "problem_id": "java/dominoes",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|low",
+   "problem_id": "java/house",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|low",
+   "problem_id": "java/pythagorean-triplet",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|low",
+   "problem_id": "javascript/palindrome-products",
+   "passed": 1,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|low",
+   "problem_id": "javascript/promises",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|low",
+   "problem_id": "javascript/space-age",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|low",
+   "problem_id": "python/proverb",
+   "passed": 1,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|low",
+   "problem_id": "python/simple-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|low",
+   "problem_id": "python/wordy",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|low",
+   "problem_id": "rust/dot-dsl",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|low",
+   "problem_id": "rust/doubly-linked-list",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|low",
+   "problem_id": "rust/scale-generator",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|medium",
+   "problem_id": "cpp/bank-account",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|medium",
+   "problem_id": "cpp/perfect-numbers",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|medium",
+   "problem_id": "cpp/queen-attack",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|medium",
+   "problem_id": "go/beer-song",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|medium",
+   "problem_id": "go/trinary",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|medium",
+   "problem_id": "go/wordy",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|medium",
+   "problem_id": "java/dominoes",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|medium",
+   "problem_id": "java/house",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|medium",
+   "problem_id": "java/pythagorean-triplet",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|medium",
+   "problem_id": "javascript/palindrome-products",
+   "passed": 1,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|medium",
+   "problem_id": "javascript/promises",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|medium",
+   "problem_id": "javascript/space-age",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|medium",
+   "problem_id": "python/proverb",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|medium",
+   "problem_id": "python/simple-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|medium",
+   "problem_id": "python/wordy",
+   "passed": 1,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|medium",
+   "problem_id": "rust/dot-dsl",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|medium",
+   "problem_id": "rust/doubly-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "haiku|disabled|medium",
+   "problem_id": "rust/scale-generator",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|high",
+   "problem_id": "cpp/bank-account",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|high",
+   "problem_id": "cpp/perfect-numbers",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|high",
+   "problem_id": "cpp/queen-attack",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|high",
+   "problem_id": "go/beer-song",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|high",
+   "problem_id": "go/trinary",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|high",
+   "problem_id": "go/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|high",
+   "problem_id": "java/dominoes",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|high",
+   "problem_id": "java/house",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|high",
+   "problem_id": "java/pythagorean-triplet",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|high",
+   "problem_id": "javascript/palindrome-products",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|high",
+   "problem_id": "javascript/promises",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|high",
+   "problem_id": "javascript/space-age",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|high",
+   "problem_id": "python/proverb",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|high",
+   "problem_id": "python/simple-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|high",
+   "problem_id": "python/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|high",
+   "problem_id": "rust/dot-dsl",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|high",
+   "problem_id": "rust/doubly-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|high",
+   "problem_id": "rust/scale-generator",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|low",
+   "problem_id": "cpp/bank-account",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|low",
+   "problem_id": "cpp/perfect-numbers",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|low",
+   "problem_id": "cpp/queen-attack",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|low",
+   "problem_id": "go/beer-song",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|low",
+   "problem_id": "go/trinary",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|low",
+   "problem_id": "go/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|low",
+   "problem_id": "java/dominoes",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|low",
+   "problem_id": "java/house",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|low",
+   "problem_id": "java/pythagorean-triplet",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|low",
+   "problem_id": "javascript/palindrome-products",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|low",
+   "problem_id": "javascript/promises",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|low",
+   "problem_id": "javascript/space-age",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|low",
+   "problem_id": "python/proverb",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|low",
+   "problem_id": "python/simple-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|low",
+   "problem_id": "python/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|low",
+   "problem_id": "rust/dot-dsl",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|low",
+   "problem_id": "rust/doubly-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|low",
+   "problem_id": "rust/scale-generator",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|max",
+   "problem_id": "cpp/bank-account",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|max",
+   "problem_id": "cpp/perfect-numbers",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|max",
+   "problem_id": "cpp/queen-attack",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|max",
+   "problem_id": "go/beer-song",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|max",
+   "problem_id": "go/trinary",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|max",
+   "problem_id": "go/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|max",
+   "problem_id": "java/dominoes",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|max",
+   "problem_id": "java/house",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|max",
+   "problem_id": "java/pythagorean-triplet",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|max",
+   "problem_id": "javascript/palindrome-products",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|max",
+   "problem_id": "javascript/promises",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|max",
+   "problem_id": "javascript/space-age",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|max",
+   "problem_id": "python/proverb",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|max",
+   "problem_id": "python/simple-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|max",
+   "problem_id": "python/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|max",
+   "problem_id": "rust/dot-dsl",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|max",
+   "problem_id": "rust/doubly-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|max",
+   "problem_id": "rust/scale-generator",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|medium",
+   "problem_id": "cpp/bank-account",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|medium",
+   "problem_id": "cpp/perfect-numbers",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|medium",
+   "problem_id": "cpp/queen-attack",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|medium",
+   "problem_id": "go/beer-song",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|medium",
+   "problem_id": "go/trinary",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|medium",
+   "problem_id": "go/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|medium",
+   "problem_id": "java/dominoes",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|medium",
+   "problem_id": "java/house",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|medium",
+   "problem_id": "java/pythagorean-triplet",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|medium",
+   "problem_id": "javascript/palindrome-products",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|medium",
+   "problem_id": "javascript/promises",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|medium",
+   "problem_id": "javascript/space-age",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|medium",
+   "problem_id": "python/proverb",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|medium",
+   "problem_id": "python/simple-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|medium",
+   "problem_id": "python/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|medium",
+   "problem_id": "rust/dot-dsl",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|medium",
+   "problem_id": "rust/doubly-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|medium",
+   "problem_id": "rust/scale-generator",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|xhigh",
+   "problem_id": "cpp/bank-account",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|xhigh",
+   "problem_id": "cpp/perfect-numbers",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|xhigh",
+   "problem_id": "cpp/queen-attack",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|xhigh",
+   "problem_id": "go/beer-song",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|xhigh",
+   "problem_id": "go/trinary",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|xhigh",
+   "problem_id": "go/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|xhigh",
+   "problem_id": "java/dominoes",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|xhigh",
+   "problem_id": "java/house",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|xhigh",
+   "problem_id": "java/pythagorean-triplet",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|xhigh",
+   "problem_id": "javascript/palindrome-products",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|xhigh",
+   "problem_id": "javascript/promises",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|xhigh",
+   "problem_id": "javascript/space-age",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|xhigh",
+   "problem_id": "python/proverb",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|xhigh",
+   "problem_id": "python/simple-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|xhigh",
+   "problem_id": "python/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|xhigh",
+   "problem_id": "rust/dot-dsl",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|xhigh",
+   "problem_id": "rust/doubly-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "opus|adaptive|xhigh",
+   "problem_id": "rust/scale-generator",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|high",
+   "problem_id": "cpp/bank-account",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|high",
+   "problem_id": "cpp/perfect-numbers",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|high",
+   "problem_id": "cpp/queen-attack",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|high",
+   "problem_id": "go/beer-song",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|high",
+   "problem_id": "go/trinary",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|high",
+   "problem_id": "go/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|high",
+   "problem_id": "java/dominoes",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|high",
+   "problem_id": "java/house",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|high",
+   "problem_id": "java/pythagorean-triplet",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|high",
+   "problem_id": "javascript/palindrome-products",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|high",
+   "problem_id": "javascript/promises",
+   "passed": 1,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|high",
+   "problem_id": "javascript/space-age",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|high",
+   "problem_id": "python/proverb",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|high",
+   "problem_id": "python/simple-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|high",
+   "problem_id": "python/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|high",
+   "problem_id": "rust/dot-dsl",
+   "passed": 1,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|high",
+   "problem_id": "rust/doubly-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|high",
+   "problem_id": "rust/scale-generator",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|low",
+   "problem_id": "cpp/bank-account",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|low",
+   "problem_id": "cpp/perfect-numbers",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|low",
+   "problem_id": "cpp/queen-attack",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|low",
+   "problem_id": "go/beer-song",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|low",
+   "problem_id": "go/trinary",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|low",
+   "problem_id": "go/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|low",
+   "problem_id": "java/dominoes",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|low",
+   "problem_id": "java/house",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|low",
+   "problem_id": "java/pythagorean-triplet",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|low",
+   "problem_id": "javascript/palindrome-products",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|low",
+   "problem_id": "javascript/promises",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|low",
+   "problem_id": "javascript/space-age",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|low",
+   "problem_id": "python/proverb",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|low",
+   "problem_id": "python/simple-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|low",
+   "problem_id": "python/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|low",
+   "problem_id": "rust/dot-dsl",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|low",
+   "problem_id": "rust/doubly-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|low",
+   "problem_id": "rust/scale-generator",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|max",
+   "problem_id": "cpp/bank-account",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|max",
+   "problem_id": "cpp/perfect-numbers",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|max",
+   "problem_id": "cpp/queen-attack",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|max",
+   "problem_id": "go/beer-song",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|max",
+   "problem_id": "go/trinary",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|max",
+   "problem_id": "go/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|max",
+   "problem_id": "java/dominoes",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|max",
+   "problem_id": "java/house",
+   "passed": 1,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|max",
+   "problem_id": "java/pythagorean-triplet",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|max",
+   "problem_id": "javascript/palindrome-products",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|max",
+   "problem_id": "javascript/promises",
+   "passed": 1,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|max",
+   "problem_id": "javascript/space-age",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|max",
+   "problem_id": "python/proverb",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|max",
+   "problem_id": "python/simple-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|max",
+   "problem_id": "python/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|max",
+   "problem_id": "rust/dot-dsl",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|max",
+   "problem_id": "rust/doubly-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|max",
+   "problem_id": "rust/scale-generator",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|medium",
+   "problem_id": "cpp/bank-account",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|medium",
+   "problem_id": "cpp/perfect-numbers",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|medium",
+   "problem_id": "cpp/queen-attack",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|medium",
+   "problem_id": "go/beer-song",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|medium",
+   "problem_id": "go/trinary",
+   "passed": 1,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|medium",
+   "problem_id": "go/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|medium",
+   "problem_id": "java/dominoes",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|medium",
+   "problem_id": "java/house",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|medium",
+   "problem_id": "java/pythagorean-triplet",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|medium",
+   "problem_id": "javascript/palindrome-products",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|medium",
+   "problem_id": "javascript/promises",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|medium",
+   "problem_id": "javascript/space-age",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|medium",
+   "problem_id": "python/proverb",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|medium",
+   "problem_id": "python/simple-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|medium",
+   "problem_id": "python/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|medium",
+   "problem_id": "rust/dot-dsl",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|medium",
+   "problem_id": "rust/doubly-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|medium",
+   "problem_id": "rust/scale-generator",
+   "passed": 1,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|xhigh",
+   "problem_id": "cpp/bank-account",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|xhigh",
+   "problem_id": "cpp/perfect-numbers",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|xhigh",
+   "problem_id": "cpp/queen-attack",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|xhigh",
+   "problem_id": "go/beer-song",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|xhigh",
+   "problem_id": "go/trinary",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|xhigh",
+   "problem_id": "go/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|xhigh",
+   "problem_id": "java/dominoes",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|xhigh",
+   "problem_id": "java/house",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|xhigh",
+   "problem_id": "java/pythagorean-triplet",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|xhigh",
+   "problem_id": "javascript/palindrome-products",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|xhigh",
+   "problem_id": "javascript/promises",
+   "passed": 1,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|xhigh",
+   "problem_id": "javascript/space-age",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|xhigh",
+   "problem_id": "python/proverb",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|xhigh",
+   "problem_id": "python/simple-linked-list",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|xhigh",
+   "problem_id": "python/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|xhigh",
+   "problem_id": "rust/dot-dsl",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|xhigh",
+   "problem_id": "rust/doubly-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|adaptive|xhigh",
+   "problem_id": "rust/scale-generator",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|high",
+   "problem_id": "cpp/bank-account",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|high",
+   "problem_id": "cpp/perfect-numbers",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|high",
+   "problem_id": "cpp/queen-attack",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|high",
+   "problem_id": "go/beer-song",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|high",
+   "problem_id": "go/trinary",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|high",
+   "problem_id": "go/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|high",
+   "problem_id": "java/dominoes",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|high",
+   "problem_id": "java/house",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|high",
+   "problem_id": "java/pythagorean-triplet",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|high",
+   "problem_id": "javascript/palindrome-products",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|high",
+   "problem_id": "javascript/promises",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|high",
+   "problem_id": "javascript/space-age",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|high",
+   "problem_id": "python/proverb",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|high",
+   "problem_id": "python/simple-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|high",
+   "problem_id": "python/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|high",
+   "problem_id": "rust/dot-dsl",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|high",
+   "problem_id": "rust/doubly-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|high",
+   "problem_id": "rust/scale-generator",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|low",
+   "problem_id": "cpp/bank-account",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|low",
+   "problem_id": "cpp/perfect-numbers",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|low",
+   "problem_id": "cpp/queen-attack",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|low",
+   "problem_id": "go/beer-song",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|low",
+   "problem_id": "go/trinary",
+   "passed": 1,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|low",
+   "problem_id": "go/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|low",
+   "problem_id": "java/dominoes",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|low",
+   "problem_id": "java/house",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|low",
+   "problem_id": "java/pythagorean-triplet",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|low",
+   "problem_id": "javascript/palindrome-products",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|low",
+   "problem_id": "javascript/promises",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|low",
+   "problem_id": "javascript/space-age",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|low",
+   "problem_id": "python/proverb",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|low",
+   "problem_id": "python/simple-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|low",
+   "problem_id": "python/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|low",
+   "problem_id": "rust/dot-dsl",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|low",
+   "problem_id": "rust/doubly-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|low",
+   "problem_id": "rust/scale-generator",
+   "passed": 1,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|medium",
+   "problem_id": "cpp/bank-account",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|medium",
+   "problem_id": "cpp/perfect-numbers",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|medium",
+   "problem_id": "cpp/queen-attack",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|medium",
+   "problem_id": "go/beer-song",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|medium",
+   "problem_id": "go/trinary",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|medium",
+   "problem_id": "go/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|medium",
+   "problem_id": "java/dominoes",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|medium",
+   "problem_id": "java/house",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|medium",
+   "problem_id": "java/pythagorean-triplet",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|medium",
+   "problem_id": "javascript/palindrome-products",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|medium",
+   "problem_id": "javascript/promises",
+   "passed": 0,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|medium",
+   "problem_id": "javascript/space-age",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|medium",
+   "problem_id": "python/proverb",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|medium",
+   "problem_id": "python/simple-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|medium",
+   "problem_id": "python/wordy",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|medium",
+   "problem_id": "rust/dot-dsl",
+   "passed": 2,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|medium",
+   "problem_id": "rust/doubly-linked-list",
+   "passed": 3,
+   "n": 3
+  },
+  {
+   "cell_id": "sonnet|between_tools|medium",
+   "problem_id": "rust/scale-generator",
+   "passed": 0,
+   "n": 3
+  }
+ ],
+ "intervals": {
+  "method": "percentile bootstrap over problems",
+  "samples": 5000,
+  "seed": 20261026,
+  "problems": 18,
+  "cells": {
+   "opus|adaptive|low": {
+    "share": 1.0,
+    "ci95": [
+     1.0,
+     1.0
+    ]
+   },
+   "opus|adaptive|medium": {
+    "share": 1.0,
+    "ci95": [
+     1.0,
+     1.0
+    ]
+   },
+   "opus|adaptive|high": {
+    "share": 1.0,
+    "ci95": [
+     1.0,
+     1.0
+    ]
+   },
+   "opus|adaptive|xhigh": {
+    "share": 1.0,
+    "ci95": [
+     1.0,
+     1.0
+    ]
+   },
+   "opus|adaptive|max": {
+    "share": 1.0,
+    "ci95": [
+     1.0,
+     1.0
+    ]
+   },
+   "sonnet|adaptive|low": {
+    "share": 0.7592592592592593,
+    "ci95": [
+     0.5555555555555556,
+     0.9444444444444444
+    ]
+   },
+   "sonnet|adaptive|medium": {
+    "share": 0.7777777777777778,
+    "ci95": [
+     0.6111111111111112,
+     0.9259259259259259
+    ]
+   },
+   "sonnet|adaptive|high": {
+    "share": 0.7407407407407407,
+    "ci95": [
+     0.5555555555555556,
+     0.9074074074074074
+    ]
+   },
+   "sonnet|adaptive|xhigh": {
+    "share": 0.7592592592592593,
+    "ci95": [
+     0.5740740740740741,
+     0.9259259259259259
+    ]
+   },
+   "sonnet|adaptive|max": {
+    "share": 0.8148148148148148,
+    "ci95": [
+     0.6296296296296297,
+     0.9629629629629629
+    ]
+   },
+   "sonnet|between_tools|low": {
+    "share": 0.7777777777777778,
+    "ci95": [
+     0.6111111111111112,
+     0.9259259259259259
+    ]
+   },
+   "sonnet|between_tools|medium": {
+    "share": 0.7592592592592593,
+    "ci95": [
+     0.5740740740740741,
+     0.9074074074074074
+    ]
+   },
+   "sonnet|between_tools|high": {
+    "share": 0.8148148148148148,
+    "ci95": [
+     0.6481481481481481,
+     0.9444444444444444
+    ]
+   },
+   "haiku|adaptive|low": {
+    "share": 0.4444444444444444,
+    "ci95": [
+     0.25925925925925924,
+     0.6481481481481481
+    ]
+   },
+   "haiku|adaptive|medium": {
+    "share": 0.48148148148148145,
+    "ci95": [
+     0.2777777777777778,
+     0.6851851851851852
+    ]
+   },
+   "haiku|adaptive|high": {
+    "share": 0.5,
+    "ci95": [
+     0.2962962962962963,
+     0.7037037037037037
+    ]
+   },
+   "haiku|adaptive|xhigh": {
+    "share": 0.5185185185185185,
+    "ci95": [
+     0.2962962962962963,
+     0.7222222222222222
+    ]
+   },
+   "haiku|adaptive|max": {
+    "share": 0.5185185185185185,
+    "ci95": [
+     0.2962962962962963,
+     0.7407407407407407
+    ]
+   },
+   "haiku|disabled|low": {
+    "share": 0.35185185185185186,
+    "ci95": [
+     0.18518518518518517,
+     0.5370370370370371
+    ]
+   },
+   "haiku|disabled|medium": {
+    "share": 0.3148148148148148,
+    "ci95": [
+     0.14814814814814814,
+     0.5
+    ]
+   },
+   "haiku|disabled|high": {
+    "share": 0.3888888888888889,
+    "ci95": [
+     0.18518518518518517,
+     0.6111111111111112
+    ]
+   }
+  },
+  "thinking": {
+   "sonnet": {
+    "on_cells": [
+     "sonnet|adaptive|low",
+     "sonnet|adaptive|medium",
+     "sonnet|adaptive|high"
+    ],
+    "off_cells": [
+     "sonnet|between_tools|low",
+     "sonnet|between_tools|medium",
+     "sonnet|between_tools|high"
+    ],
+    "on_share": 0.7592592592592593,
+    "off_share": 0.7839506172839507,
+    "difference": -0.024691358024691357,
+    "difference_ci95": [
+     -0.07407407407407407,
+     0.01851851851851849
+    ],
+    "problems_better_on": 3,
+    "problems_better_off": 4,
+    "problems_equal": 11
+   },
+   "haiku": {
+    "on_cells": [
+     "haiku|adaptive|low",
+     "haiku|adaptive|medium",
+     "haiku|adaptive|high"
+    ],
+    "off_cells": [
+     "haiku|disabled|low",
+     "haiku|disabled|medium",
+     "haiku|disabled|high"
+    ],
+    "on_share": 0.47530864197530864,
+    "off_share": 0.35185185185185186,
+    "difference": 0.12345679012345678,
+    "difference_ci95": [
+     0.024691358024691357,
+     0.23456790123456792
+    ],
+    "problems_better_on": 9,
+    "problems_better_off": 2,
+    "problems_equal": 7
+   }
+  }
+ },
+ "requests_total": 1155,
+ "tasks_final": 1155,
+ "throttled_attempts": 0,
+ "cost_total_usd": 55.3648779
+}

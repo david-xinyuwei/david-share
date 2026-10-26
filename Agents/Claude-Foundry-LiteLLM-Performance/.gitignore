@@ -6,3 +6,6 @@ __pycache__/
 .venv/
 live-runs/
 private/
+coding-matrix/runs/
+coding-matrix/problems.json
+coding-matrix/judge/java-warmup/

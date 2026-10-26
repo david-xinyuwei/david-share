@@ -1,0 +1,175 @@
+{
+ "scope": "Direct calls from one Linux VM to three Claude 5.5 deployments in the same region; public Exercism exercises from Aider's polyglot benchmark; not a customer workload, concurrency test or gateway test.",
+ "runDate": "2026-10-26",
+ "client": {
+  "vmSize": "Standard_D4s_v5",
+  "image": "Canonical:ubuntu-24_04-lts:server:latest",
+  "region": "East US 2",
+  "kernel": "7.0.0-1017-azure",
+  "python": "3.12.3",
+  "httpx": "0.28.1",
+  "azureIdentity": "1.25.1",
+  "auth": "system-assigned managed identity with Cognitive Services User on the Foundry resource"
+ },
+ "models": {
+  "resourceRegion": "East US 2",
+  "endpoint": "https://<foundry-resource>.services.ai.azure.com/anthropic",
+  "apiVersion": "2023-06-01",
+  "inference": "GlobalStandard deployments may be served outside the resource region",
+  "deployments": [
+   {
+    "name": "claude-opus-5-5",
+    "version": "2",
+    "sku": "GlobalStandard",
+    "capacity": 40,
+    "tokensPerMinute": 40000
+   },
+   {
+    "name": "claude-sonnet-5-5",
+    "version": "2",
+    "sku": "GlobalStandard",
+    "capacity": 80,
+    "tokensPerMinute": 80000
+   },
+   {
+    "name": "claude-haiku-5-5",
+    "version": "2",
+    "sku": "GlobalStandard",
+    "capacity": 80,
+    "tokensPerMinute": 80000
+   }
+  ]
+ },
+ "dataset": {
+  "repository": "https://github.com/Aider-AI/polyglot-benchmark",
+  "commit": "7e0611e77b54e2dea774cdc0aa00cf9f7ed6144f",
+  "problems": "data/coding-problems.json",
+  "license": "Exercism tracks (cpp, go, java, javascript, python, rust): MIT; see NOTICE.md"
+ },
+ "judgeImage": "sha256:1b431409e1752c091147dcecbba1bef5996e525f8e344e92971dee6520a4db54",
+ "redactions": [
+  "run.json config.endpoint_host: resource name replaced by <foundry-resource>",
+  "environment.txt host: VM name replaced by <benchmark-vm>"
+ ],
+ "exportManifest": "_export_manifest.json lists every exported file with the SHA-256 of the record written on the VM",
+ "measuredSource": {
+  "analyze.py": "2dc9a96e203d54ca56738d0e47c0ddb805e5a918e0da5aa67553c1175f23e472",
+  "bench.py": "47b732204117ecc27d0826d7f6a16336a8af54b117ded9c3226d828ef355002b",
+  "cache_test.py": "5a85a068bb511cc2f13930047f87e47c2fc15f2f4f156b90ffbc2740d7cc5324",
+  "claude_api.py": "cc31250f13022f270b6c3f085a5a1fdedc9b4b7cc18b3e587b8dc0ded14cf50f",
+  "debug_reference.py": "3766d2199c054ac7e0fbd45d78e1e04411442790579dd9344ff032e0f661d390",
+  "inspect_probe.py": "52a7bdfd736f2d33f1d86a04b852c5408b3599153a5313b5c2e7f035dc8282b8",
+  "judge.py": "f17b5141f2413d8cd4478f5cc5af9c1f5680195e7a3a58535186e75a3f964900",
+  "prepare.py": "b869827a1865efeb6c57c2f48b791896b25060c287f83e437e1534e1c11de309",
+  "probe.py": "68d2695f0c890ceac97c5849584845fb0dd3c18766dd7ed4eda32ccd36cd1212",
+  "upload.py": "07e792f6991ed25df8ce566c350952248aff6c31f020be043eab736294f793ca",
+  "resume.sh": "392c8659fa9d5fd079a64a092b725e06240e090fa9ea1b30e6ca257b86861aec",
+  "run_all.sh": "c8354c10a7b867a9b5def3f8f737594518df5bb74d70c4af46a3617c8c685ea8",
+  "vm_setup.sh": "6b33513c046422c80ebad6ffa1aae85d2320ea6b074d7d3f1f810e433bdaa9a6",
+  "problems.json": "53ae6eda15db9ecadb5968e46bdedc01f11c6714bca0fc17e7ba339057a06d93",
+  "judge/Dockerfile": "6e9228bb0c3454dab5e9f057ea3d1d58c6896127c5c11b4d427a84d04e03c4f6",
+  "judge/cpp-test.sh": "0a90340df5cb3de15d1c05d2dd55e0ad26bd54347a4507f5af29293576528a5b",
+  "judge/npm-test.sh": "923a012bcdd8467c6900e2973a024cefc2dfd993ebdc8c5a47de76b18221203e",
+  "cache_test.py (cache run)": "9e0e9af7f3e09a7feeba7db6433fa7dd916c309c8a8f19ef6dab496b074e783b",
+  "cache_analyze.py (cache run)": "304fa63338bb81b1b1708132d549a30827c1db532270fc4e920a1c0bf58d9066",
+  "claude_api.py (cache run)": "cc31250f13022f270b6c3f085a5a1fdedc9b4b7cc18b3e587b8dc0ded14cf50f"
+ },
+ "publicFiles": {
+  "analyze.py": {
+   "sha256": "fd957ae7bdf0bf6c1858b2850e1ee366a117fb7221ff6048988d71994d2bd50a",
+   "measured_sha256": "2dc9a96e203d54ca56738d0e47c0ddb805e5a918e0da5aa67553c1175f23e472",
+   "identical_to_measured": false,
+   "change": "Adds by-problem bootstrap intervals and --check. The per-cell numbers come from the unchanged code."
+  },
+  "bench.py": {
+   "sha256": "47b732204117ecc27d0826d7f6a16336a8af54b117ded9c3226d828ef355002b",
+   "measured_sha256": "47b732204117ecc27d0826d7f6a16336a8af54b117ded9c3226d828ef355002b",
+   "identical_to_measured": true,
+   "change": null
+  },
+  "cache_analyze.py": {
+   "sha256": "4e895297d0a5bf00e101f1fc4427cbfb4e1ccfe74d4c5d40ee1b79e1274912e7",
+   "measured_sha256": "304fa63338bb81b1b1708132d549a30827c1db532270fc4e920a1c0bf58d9066",
+   "identical_to_measured": false,
+   "change": "Imports PRICES from pricing.py; adds --check."
+  },
+  "cache_test.py": {
+   "sha256": "9e0e9af7f3e09a7feeba7db6433fa7dd916c309c8a8f19ef6dab496b074e783b",
+   "measured_sha256": "9e0e9af7f3e09a7feeba7db6433fa7dd916c309c8a8f19ef6dab496b074e783b",
+   "identical_to_measured": true,
+   "change": null
+  },
+  "call_once.py": {
+   "sha256": "ce12700bedab66ae4c2e6dffc49ce568a57d2fc4a96b66243d31c42db86fa66f",
+   "measured_sha256": null,
+   "identical_to_measured": null,
+   "change": "New: one-request example used by README step 4."
+  },
+  "claude_api.py": {
+   "sha256": "cd31ec19640216fdc71e9cbfa2e2002584122e018a7b5410348588b8d0c43114",
+   "measured_sha256": "cc31250f13022f270b6c3f085a5a1fdedc9b4b7cc18b3e587b8dc0ded14cf50f",
+   "identical_to_measured": false,
+   "change": "Endpoint only from FOUNDRY_ANTHROPIC_BASE (the measured file defaulted to our resource). DefaultAzureCredential instead of ManagedIdentityCredential; on the VM it resolves to the same system-assigned identity. PRICES and cost_usd moved to pricing.py with the same values."
+  },
+  "judge/cpp-test.sh": {
+   "sha256": "0a90340df5cb3de15d1c05d2dd55e0ad26bd54347a4507f5af29293576528a5b",
+   "measured_sha256": "0a90340df5cb3de15d1c05d2dd55e0ad26bd54347a4507f5af29293576528a5b",
+   "identical_to_measured": true,
+   "change": null
+  },
+  "judge/Dockerfile": {
+   "sha256": "6e9228bb0c3454dab5e9f057ea3d1d58c6896127c5c11b4d427a84d04e03c4f6",
+   "measured_sha256": "6e9228bb0c3454dab5e9f057ea3d1d58c6896127c5c11b4d427a84d04e03c4f6",
+   "identical_to_measured": true,
+   "change": null
+  },
+  "judge/npm-test.sh": {
+   "sha256": "923a012bcdd8467c6900e2973a024cefc2dfd993ebdc8c5a47de76b18221203e",
+   "measured_sha256": "923a012bcdd8467c6900e2973a024cefc2dfd993ebdc8c5a47de76b18221203e",
+   "identical_to_measured": true,
+   "change": null
+  },
+  "judge.py": {
+   "sha256": "fd927fb0dc3900dd594ca467a2f3bea5bea5d392c27903d567026107f1454500",
+   "measured_sha256": "f17b5141f2413d8cd4478f5cc5af9c1f5680195e7a3a58535186e75a3f964900",
+   "identical_to_measured": false,
+   "change": "Judge image name and polyglot path from JUDGE_IMAGE and POLYGLOT_DIR, with neutral defaults."
+  },
+  "prepare.py": {
+   "sha256": "d59c4edf77c4fe47a0462b27f90c90ff556d336c797b5b531958bfb3e7e7a2f6",
+   "measured_sha256": "b869827a1865efeb6c57c2f48b791896b25060c287f83e437e1534e1c11de309",
+   "identical_to_measured": false,
+   "change": "Shuffle salt renamed (the measured salt named our project). --ids rebuilds the measured list from data/coding-problems.json and stops if a prompt hash differs."
+  },
+  "pricing.py": {
+   "sha256": "43e49cb907640b4dc0eb81c28bf0f88580fc904b4452ae3e16b45755de458421",
+   "measured_sha256": null,
+   "identical_to_measured": null,
+   "change": "New file holding PRICES and cost_usd from claude_api.py, unchanged, so offline analysis needs no Azure packages."
+  },
+  "probe.py": {
+   "sha256": "68d2695f0c890ceac97c5849584845fb0dd3c18766dd7ed4eda32ccd36cd1212",
+   "measured_sha256": "68d2695f0c890ceac97c5849584845fb0dd3c18766dd7ed4eda32ccd36cd1212",
+   "identical_to_measured": true,
+   "change": null
+  },
+  "requirements.txt": {
+   "sha256": "9899044e2b79aa3f68815c73801396e88ea1f2c8dd4425bef3b9a558b1e2eab7",
+   "measured_sha256": null,
+   "identical_to_measured": null,
+   "change": null
+  },
+  "vm_setup.sh": {
+   "sha256": "8e7978aec4bda83071e1d138645eb98d9708590709bc02f0da09dc9c33f775f6",
+   "measured_sha256": "6b33513c046422c80ebad6ffa1aae85d2320ea6b074d7d3f1f810e433bdaa9a6",
+   "identical_to_measured": false,
+   "change": "Adds $USER to the docker group instead of the measured VM's user name."
+  }
+ },
+ "notPublished": {
+  "run_all.sh, resume.sh": "launchers with our judge image name; their commands are in docs/testing.md",
+  "debug_reference.py, inspect_probe.py, upload.py": "debugging and copy helpers; not needed to reproduce a run",
+  "judge/java-warmup": "byte-identical copy of polyglot-benchmark java/exercises/practice/affine-cipher at the listed commit; docs/testing.md copies it before docker build",
+  "smoke and pilot judge logs, progress logs, stdout": "operator logs; the JSONL records carry every request"
+ }
+}

@@ -1,0 +1,5 @@
+utc=2026-10-26T08:37:53Z
+host=<benchmark-vm> kernel=7.0.0-1017-azure
+python 3.12.3 httpx 0.28.1 azure-identity 1.25.1
+polyglot-benchmark 7e0611e77b54e2dea774cdc0aa00cf9f7ed6144f
+judge-image sha256:1b431409e1752c091147dcecbba1bef5996e525f8e344e92971dee6520a4db54

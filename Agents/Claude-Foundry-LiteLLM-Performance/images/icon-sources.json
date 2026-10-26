@@ -20,6 +20,17 @@
       "termsUrl": "https://learn.microsoft.com/azure/architecture/icons/",
       "terms": "Microsoft permits the use of these icons in architectural diagrams, training materials, or documentation. Don't crop, flip, rotate, distort or change icon shape.",
       "modified": false
+    },
+    {
+      "file": "images/icons/10021-icon-service-Virtual-Machine.svg",
+      "sha256": "092d18ffadec9ec0e5af129186dc7bc2a80544011e55f965604ed4b13873e0fc",
+      "bytes": 1330,
+      "packageEntry": "Azure_Public_Service_Icons/Icons/compute/10021-icon-service-Virtual-Machine.svg",
+      "packageUrl": "https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V24.zip",
+      "packageSha256": "921594ccd1bf3d9c0a1bd7b6d924e050551a59342f2b353bb74bdcf761c35141",
+      "termsUrl": "https://learn.microsoft.com/azure/architecture/icons/",
+      "terms": "Microsoft permits the use of these icons in architectural diagrams, training materials, or documentation. Don't crop, flip, rotate, distort or change icon shape.",
+      "modified": false
     }
   ]
 }
