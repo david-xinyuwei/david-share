@@ -171,12 +171,18 @@ def settings_table(d, chinese):
             "the thinking-off rules changed")
     sampling = ("temperature_0.5", "top_p_0.9", "top_k_40")
     rejected = [(name, model) for model in MODELS
-                for name in ("thinking_enabled_budget", "max_tokens_1000000", *(f"adaptive_{s}" for s in sampling))]
+                for name in ("max_tokens_1000000", *(f"adaptive_{s}" for s in sampling))]
     rejected += [(f"{OFF_MODE[model]}_{s}", model) for model in OFF_MODE for s in sampling]
     require(all(outcomes[key][0] == 400 for key in rejected), "a probe expected to return HTTP 400 did not")
     require(m["thought_streamed"] == 0, "a matrix answer streamed thinking text")
     require(d["runs"]["cache"]["http"] == {200: k["requests"]}, "a cache request did not return HTTP 200")
     require({x["sku"] for x in d["provenance"]["models"]["deployments"]} == {"GlobalStandard"}, "a deployment is not GlobalStandard")
+    baseline = [r for r in d["cache_rows"] if r["scenario"] == "none"]
+    require(baseline and not any(r["automatic"] or r["breakpoint"] for r in baseline), "the cache baseline sent cache_control")
+    require(not any((r.get("usage") or {}).get(field) for r in d["responses"] + baseline
+                    for field in ("cache_read_input_tokens", "cache_creation_input_tokens")),
+            "a request without cache_control read or wrote the cache")
+    prefix = round(min(r["usage"]["input_tokens"] for r in baseline if r["turn"] == 1), -2)
     prices = _pricing().PRICES
 
     def times(model, key):
@@ -198,9 +204,6 @@ def settings_table(d, chinese):
         ('`thinking.type: "disabled"`',
          "Thinking off. Only Haiku 5.5 accepts it, at effort `high` or below; Opus 5.5 cannot turn thinking off",
          "Haiku, effort low, medium, high"),
-        ('`thinking.type: "enabled"` with `budget_tokens`',
-         "The older fixed thinking budget; these models do not support it",
-         "Probe only: HTTP 400 on all three"),
         ("`thinking.display`",
          'Whether thinking text comes back. The default on these models, `"omitted"`, returns thinking blocks with empty text and an encrypted signature, so the answer starts streaming sooner; the thinking tokens are still billed. `"summarized"` returns a summary',
          f"Not sent: {count(m['thought'])} matrix answers used thinking tokens and none streamed thinking text"),
@@ -210,6 +213,9 @@ def settings_table(d, chinese):
         ("`max_tokens`",
          'Hard limit on output tokens, thinking included; an answer that reaches it stops with `stop_reason: "max_tokens"`. At most 128,000 on these models',
          f"{count(max_tokens)} in the matrix; 1,000,000 returned HTTP 400"),
+        ("No `cache_control` (the default)",
+         'Nothing is cached: caching is opt-in. "Automatic caching" also needs the top-level field; "automatic" means the breakpoint is placed for you, not that caching is on by default. The documented exceptions involve tools: in a tool-use loop, history sent back with tool results can be cached without a marker, and server-tool results are cached automatically',
+         f"The coding matrix ({count(m['requests'])} requests) and the cache test's baseline ({len(baseline)} requests; each turn resent the same prefix of about {count(prefix)} tokens): 0 cache reads and 0 cache writes in every response"),
         ("`cache_control` at the top level",
          "Automatic caching: the breakpoint goes on the last cacheable block and moves forward as the conversation grows",
          "Cache test: most scenarios"),
@@ -241,9 +247,6 @@ def settings_table(d, chinese):
         ('`thinking.type: "disabled"`',
          "关闭思考。只有 Haiku 5.5 接受，且只在 `high` 及以下档位；Opus 5.5 关不掉思考",
          "Haiku，档位 low、medium、high"),
-        ('`thinking.type: "enabled"` 加 `budget_tokens`',
-         "旧的固定思考预算，这些模型不支持",
-         "只在探测中发送：三个模型都返回 HTTP 400"),
         ("`thinking.display`",
          '是否返回思考文字。这些模型默认 `"omitted"`：thinking 块的文字为空、只带加密签名，所以回答更早开始流式返回；思考 token 照样计费。`"summarized"` 返回摘要',
          f"未发送：矩阵中 {count(m['thought'])} 个回答用了思考 token，没有一个流式返回思考文字"),
@@ -253,6 +256,9 @@ def settings_table(d, chinese):
         ("`max_tokens`",
          '输出 token 的硬上限，包括思考；回答达到上限时以 `stop_reason: "max_tokens"` 停止。这些模型最大 128,000',
          f"矩阵用 {count(max_tokens)}；1,000,000 返回 HTTP 400"),
+        ("不传 `cache_control`（默认）",
+         "不缓存：缓存要由请求主动开启。“自动缓存”同样要在顶层传 `cache_control`，“自动”指断点位置由系统决定，不是默认开启。官方文档写明的例外都和工具有关：工具调用循环中随 tool_result 回传的历史不加标记也可能被缓存，服务器工具的结果会自动缓存",
+         f"编码矩阵（{count(m['requests'])} 个请求）和缓存测试的基线场景（{len(baseline)} 个请求，每轮都重发同样约 {count(prefix)} 个 token 的前缀）：每个响应的缓存读取和写入都是 0"),
         ("顶层 `cache_control`",
          "自动缓存：断点放在最后一个可缓存块上，随对话增长自动后移",
          "缓存测试的大多数场景"),

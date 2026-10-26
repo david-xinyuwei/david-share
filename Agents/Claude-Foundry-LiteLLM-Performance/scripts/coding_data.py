@@ -70,7 +70,7 @@ def load():
     return {"facts": facts, "cells": cells, "cache": cache, "problems": problems, "listed": listed,
             "measured": measured, "responses": responses, "probe": probe, "runs": runs,
             "environment": environment, "provenance": read_json(EV / "provenance.json"),
-            "probe_summary": read_json(EV / "probe/probe_summary.json")}
+            "probe_summary": read_json(EV / "probe/probe_summary.json"), "cache_rows": cache_rows}
 
 
 def _pricing():
