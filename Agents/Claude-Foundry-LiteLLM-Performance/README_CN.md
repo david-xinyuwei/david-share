@@ -15,9 +15,9 @@
 1. **从 VM 直连（2026-10-26）。** 同一 Azure 区域的 Linux VM 上运行 Python 测试脚本，用 VM 的托管身份调用 Foundry Messages API：参数探测（102 个请求）、编码矩阵（21 个被接受的思考模式 × 推理档位组合，18 道题各答 3 次，每格另加 1 次预热，共 1,155 个请求）和提示缓存测试（264 个请求）。每个模型同一时间只有 1 个请求，测的是单个请求的表现，不是压力测试。除非某节另有说明，结果都来自这种方法。
 2. **经 Azure Container Apps 上的 LiteLLM 网关（2026-10-24）。** 客户端把 Anthropic Messages 请求发给 LiteLLM，由 LiteLLM 用自己的托管身份转发到同一组部署；LiteLLM 设置为不丢弃参数、不重试。那次测试由一台 Windows 客户端发起五轮对话，网关在 Japan East，所以时间里包含日本到美国东部的往返。详见[结果页](docs/results_CN.md#网关测试)。
 
-<img src="images/topology-zh.svg" width="900" alt="测试方法 1：同一个 Azure 区域 East US 2 里，唯一的客户端 Linux VM 通过 HTTPS 调用一个 Microsoft Foundry 资源上的三个 Claude 5.5 部署，并在同一台 VM 的 Docker 中运行每个回答的单元测试。右侧分五步列出测试方法。" />
+<img src="images/topology-zh.svg" width="900" alt="当前开启缓存的测试路径：Linux VM 客户端经 East US 2 的 Azure Container Apps 上的 LiteLLM 调用三个 Microsoft Foundry Claude 部署。提示缓存在 Foundry 侧；客户端记录时间和原生 usage。" />
 
-图中内容：方法 1，即 2026-10-26 结果背后的客户端、资源和测试步骤；时间在 VM 上计，从请求发出到首个可见文字。方法 2 在图下注明，详见[结果页](docs/results_CN.md#网关测试)。原创说明图，使用未修改的 [Azure 图标](images/icon-sources.json)。
+图中展示新一轮美东二网关路径，不是历史 VM 直连结果的路径。[运行器](gateway-cache/aca_cache_matrix.py)使用[12 道题清单](data/gateway-cache-problems.json)：26 个被接受的模式／档位组合，每题每格原样发送两次，另有 26 个预热请求，计划共 650 次。请求顶层 `cache_control` 为 `ephemeral`，有效期 `1h`；第 1 次写入，第 2 次检查原生缓存读取。这不是关闭缓存的对照。历史结果保留原日期与调用路径；新一轮是否完成、性能和正确率均须由新证据确认。原创说明图，使用未修改的 [Azure 图标](images/icon-sources.json)。
 
 **请求设置。** 每个设置的作用（依据 Claude 官方文档）和本测试发送了什么；各部署接受哪些取值来自我们的参数探测：
 
@@ -42,7 +42,7 @@
 
 [![表 1：完整思考模式与推理档位矩阵。](images/parameter-support-zh.svg)](images/parameter-support-zh.svg)
 
-`adaptive`、`between_tools`、`disabled` 与六列档位共 54 格，均单独探测；其中 26 格被接受，包括五个不传 effort 的格子。`enabled` 每模型只测一次：`budget_tokens: 1024`，不传 effort；HTTP 400 拒绝的是模式本身，所以六个档位格都画斜线。缓存列只写适用性：思考模式使请求被拒时标“不适用”，不是说模型不支持缓存。默认档位来自[effort 文档](https://platform.claude.com/docs/en/build-with-claude/effort)。
+`adaptive`、`between_tools`、`disabled` 与六列档位共 54 格，均单独探测；其中 26 格被接受，包括五个不传 effort 的格子。`enabled` 每模型只测一次：`budget_tokens: 1024`，不传 effort；HTTP 400 拒绝的是模式本身，所以六个档位格都标“不支持”。缓存列只写适用性：思考模式使请求被拒时标“不适用”，不是说模型不支持缓存。默认档位来自[effort 文档](https://platform.claude.com/docs/en/build-with-claude/effort)。
 
 缓存实测范围：五个被接受的模型／模式行均在 low 档读到缓存；adaptive 在切换到 high 的场景也读到缓存。其他档位组合仍需经 ACA 逐格验证缓存命中。“适用”和“参数被接受”不等于“开启缓存后的性能已测完”。矩阵固定项：`max_tokens: 128000`、`stream: true`；`temperature`、`top_p`、`top_k` 不传。不传 thinking 等同 adaptive 来自文档；三个模型同时不传 thinking、effort 的探测均返回 200。
 

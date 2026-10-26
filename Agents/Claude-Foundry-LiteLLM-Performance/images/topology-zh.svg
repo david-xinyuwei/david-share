@@ -1,78 +1,72 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="650" viewBox="0 0 1200 650">
-<rect width="1200" height="650" fill="#FFFFFF"/>
-<g font-family="'Segoe UI', Aptos, 'Segoe Sans Display', system-ui, -apple-system, 'Helvetica Neue', Arial, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', sans-serif">
-<text x="40" y="62" font-size="36" fill="#111111" font-weight="400" text-anchor="start">测试方法：一个区域、一个客户端、一个资源</text>
-<rect x="40" y="92" width="760" height="444" rx="24" fill="none" stroke="#432FC8" stroke-width="2.5" stroke-dasharray="12 8"/>
-<text x="62" y="127" font-size="20" fill="#432FC8" font-weight="700" text-anchor="start">Azure 区域：East US 2</text>
-<rect x="62" y="146" width="270" height="256" rx="16" fill="#ECECEC"/>
-<image x="181" y="156" width="32" height="32" href="data:image/svg+xml;base64,PHN2ZyBpZD0iZmQ0NTRmMWMtNTUwNi00NGI4LTg3NGUtODgxNGI4YjJmNzBiIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCIgdmlld0JveD0iMCAwIDE4IDE4Ij48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImYzNGQ5NTY5LTJiZDAtNDAwMi04ZjE2LTNkMDFkODEwNmNiNSIgeDE9IjguODgiIHkxPSIxMi4yMSIgeDI9IjguODgiIHkyPSIwLjIxIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMDA3OGQ0IiAvPjxzdG9wIG9mZnNldD0iMC44MiIgc3RvcC1jb2xvcj0iIzVlYTBlZiIgLz48L2xpbmVhckdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iYmRiNDVhMGItZWI1OC00OTcwLWE2MGEtZmIyY2UzMTRmODY2IiB4MT0iOC44OCIgeTE9IjE2Ljg0IiB4Mj0iOC44OCIgeTI9IjEyLjIxIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwLjE1IiBzdG9wLWNvbG9yPSIjY2NjIiAvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzcwNzA3MCIgLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48dGl0bGU+SWNvbi1jb21wdXRlLTIxPC90aXRsZT48cmVjdCB4PSItMC4xMiIgeT0iMC4yMSIgd2lkdGg9IjE4IiBoZWlnaHQ9IjEyIiByeD0iMC42IiBmaWxsPSJ1cmwoI2YzNGQ5NTY5LTJiZDAtNDAwMi04ZjE2LTNkMDFkODEwNmNiNSkiIC8+PHBvbHlnb24gcG9pbnRzPSIxMS44OCA0LjQ2IDExLjg4IDcuOTUgOC44OCA5LjcxIDguODggNi4yMSAxMS44OCA0LjQ2IiBmaWxsPSIjNTBlNmZmIiAvPjxwb2x5Z29uIHBvaW50cz0iMTEuODggNC40NiA4Ljg4IDYuMjIgNS44OCA0LjQ2IDguODggMi43MSAxMS44OCA0LjQ2IiBmaWxsPSIjYzNmMWZmIiAvPjxwb2x5Z29uIHBvaW50cz0iOC44OCA2LjIyIDguODggOS43MSA1Ljg4IDcuOTUgNS44OCA0LjQ2IDguODggNi4yMiIgZmlsbD0iIzljZWJmZiIgLz48cG9seWdvbiBwb2ludHM9IjUuODggNy45NSA4Ljg4IDYuMjEgOC44OCA5LjcxIDUuODggNy45NSIgZmlsbD0iI2MzZjFmZiIgLz48cG9seWdvbiBwb2ludHM9IjExLjg4IDcuOTUgOC44OCA2LjIxIDguODggOS43MSAxMS44OCA3Ljk1IiBmaWxsPSIjOWNlYmZmIiAvPjxwYXRoIGQ9Ik0xMi40OSwxNS44NGMtMS43OC0uMjgtMS44NS0xLjU2LTEuODUtMy42M0g3LjExYzAsMi4wNy0uMDYsMy4zNS0xLjg0LDMuNjNhMSwxLDAsMCwwLS44OSwxaDlBMSwxLDAsMCwwLDEyLjQ5LDE1Ljg0WiIgZmlsbD0idXJsKCNiZGI0NWEwYi1lYjU4LTQ5NzAtYTYwYS1mYjJjZTMxNGY4NjYpIiAvPjwvc3ZnPg=="/>
-<text x="197" y="214" font-size="21" fill="#0408AC" font-weight="700" text-anchor="middle">Linux VM</text>
-<text x="197" y="239" font-size="16" fill="#666666" font-weight="400" text-anchor="middle">唯一的客户端</text>
-<text x="197" y="270" font-size="17" fill="#252525" font-weight="700" text-anchor="middle">Python 3.12 + httpx</text>
-<text x="197" y="295" font-size="17" fill="#252525" font-weight="400" text-anchor="middle">Messages API，流式返回</text>
-<text x="197" y="320" font-size="17" fill="#252525" font-weight="400" text-anchor="middle">每个模型同时只有 1 个请求</text>
-<text x="197" y="345" font-size="17" fill="#252525" font-weight="400" text-anchor="middle">托管身份，不用 API 密钥</text>
-<text x="197" y="377" font-size="14.5" fill="#666666" font-weight="400" text-anchor="middle">TCP 建连 ≥ 50 毫秒就停止</text>
-<line x1="197" y1="404" x2="197" y2="424" stroke="#C88A1E" stroke-width="2" stroke-dasharray="5 4"/>
-<polygon points="191,423 203,423 197,434" fill="#C88A1E"/>
-<text x="208" y="424" font-size="14.5" fill="#A35F00" font-weight="400" text-anchor="start">回答</text>
-<rect x="62" y="436" width="270" height="84" rx="10" fill="#FFF6E5" stroke="#C88A1E" stroke-width="1.6" stroke-dasharray="7 4"/>
-<text x="197" y="463" font-size="17" fill="#A35F00" font-weight="700" text-anchor="middle">Docker 评分 · 同一台 VM</text>
-<text x="197" y="486" font-size="15" fill="#252525" font-weight="400" text-anchor="middle">运行每道题自带的单元测试</text>
-<text x="197" y="508" font-size="15" fill="#252525" font-weight="400" text-anchor="middle">离线运行 · 以 0 退出即通过</text>
-<text x="400" y="232" font-size="16" fill="#432FC8" font-weight="700" text-anchor="middle">HTTPS</text>
-<text x="400" y="254" font-size="15" fill="#666666" font-weight="400" text-anchor="middle">TCP 建连</text>
-<text x="400" y="274" font-size="15" fill="#666666" font-weight="400" text-anchor="middle">中位数 9.7 毫秒</text>
-<line x1="346" y1="292" x2="454" y2="292" stroke="#432FC8" stroke-width="2.5"/>
-<polygon points="336,292 348,286 348,298" fill="#432FC8"/>
-<polygon points="464,292 452,286 452,298" fill="#432FC8"/>
-<rect x="468" y="146" width="312" height="374" rx="18" fill="#EFECFA" stroke="#C4BFF3" stroke-width="1.5"/>
-<image x="484" y="160" width="28" height="28" href="data:image/svg+xml;base64,PHN2ZyBpZD0idXVpZC0xZTAyMGEzMy1mZDExLTQxMjMtOTRmNy02MGIwMjNmYmQ4NjgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjE4IiBoZWlnaHQ9IjE4IiB2aWV3Qm94PSIwIDAgMTggMTgiPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0idXVpZC1mZmRjODMyNy02ZGQ0LTQ1N2QtOTFlNS03OWFiNjc1NGYzZjUiIHgxPSItNjA4LjEzIiB5MT0iLTIwNi4zNiIgeDI9Ii02MDguMTMiIHkyPSItMjIyLjU5IiBncmFkaWVudFRyYW5zZm9ybT0idHJhbnNsYXRlKDYxNy4xMyAtMjA1Ljc2KSBzY2FsZSgxIC0xKSIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2I2YjZlMSIgLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiM3MzcyZDgiIC8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHBhdGggZD0iTTE3LjQ2LDMuMzZoLTcuNzRjLS4wOCwwLS4xNi0uMDItLjIzLS4wN2wtMi4yMS0xLjQ3Yy0uMDctLjA1LS4xNS0uMDctLjIzLS4wN0guNTRjLS4xMSwwLS4yMi4wNC0uMy4xMi0uMDguMDgtLjEyLjE4LS4xMi4zdjEzLjY3YzAsLjA1LjAxLjExLjAzLjE2LjAyLjA1LjA1LjEuMDkuMTQuMDQuMDQuMDguMDcuMTQuMDkuMDUuMDIuMS4wMy4xNi4wM2gxNi45MWMuMDUsMCwuMTEtLjAxLjE2LS4wMy4wNS0uMDIuMS0uMDUuMTQtLjA5LjA0LS4wNC4wNy0uMDguMDktLjE0LjAyLS4wNS4wMy0uMTEuMDMtLjE2VjMuNzdjMC0uMTEtLjA1LS4yMS0uMTItLjI5LS4wOC0uMDgtLjE4LS4xMi0uMjktLjEyWiIgZmlsbD0iIzQ4NDZkZiIgLz48cGF0aCBkPSJNNS42LDIuNTRIMS45MWMtLjA5LDAtLjE3LjA4LS4xNy4xN3YuNDdjMCwuMDkuMDguMTcuMTcuMTdoMy43Yy4wOSwwLC4xNy0uMDguMTctLjE3di0uNDdjMC0uMDktLjA4LS4xNy0uMTctLjE3WiIgZmlsbD0iI2ZmZiIgLz48cGF0aCBkPSJNMTcuNDYsMy4zNGgtOC41Yy0uMTEsMC0uMjIuMDQtLjMuMTJsLTEuMzYsMS4zN2MtLjA4LjA4LS4xOC4xMi0uMy4xMkguNTRjLS4wNSwwLS4xMS4wMS0uMTYuMDMtLjA1LjAyLS4xLjA1LS4xNC4wOS0uMDQuMDQtLjA3LjA4LS4wOS4xNC0uMDIuMDUtLjAzLjEtLjAzLjE2djEwLjQ0YzAsLjExLjA0LjIyLjEyLjMuMDguMDguMTguMTIuMy4xMmgxNi45MWMuMTEsMCwuMjItLjA0LjMtLjEyLjA4LS4wOC4xMi0uMTguMTItLjNWMy43NWMwLS4xMS0uMDQtLjIyLS4xMi0uMy0uMDgtLjA4LS4xOC0uMTItLjMtLjEyaDBaIiBmaWxsPSJ1cmwoI3V1aWQtZmZkYzgzMjctNmRkNC00NTdkLTkxZTUtNzlhYjY3NTRmM2Y1KSIgLz48cGF0aCBkPSJNMTIuNiw4LjQzaC0uOHMtLjA3LjAyLS4xLjAybC0uMDQtLjEzYy0uMS0uMy0uMjQtLjczLS4yOS0uODktLjE1LS40Ni0uNDItLjk5LS44Ny0xLjAzdi0uMDJoLTEuNTdjLS42LDAtLjk5LjY1LTEuMywxLjI4LS4zNy43OC0yLjE1LDUuNDktMi4yMSw1LjY3LS4xLjI3LS4wOS40OC4wMy42NC4xMS4xNi4zLjI0LjU4LjI0aDIuNjJjMS4yNiwwLDEuODItMSwxLjgyLTJ2LS41OGwuMDkuMTVoLjAzYy4wNS4wMy4xMS4wNS4xNy4wNWguODljLjUsMCwxLjQ3LS40MywxLjQ3LTEuNDF2LTEuNDljMC0uMzEtLjItLjUxLS41LS41MWgwWk0xMS4xNiw4LjQ4bC4wMy4wOWMtLjExLjA2LS4yMS4xMy0uMy4yMi0uMDIuMDEtLjAzLjAzLS4wNC4wNS0uMDkuMDktLjE2LjE5LS4yMi4yOS0uMDIuMDQtLjA0LjA4LS4wNi4xMi0uMDUuMTMtLjA5LjI3LS4wOS40MXYuMzRzLS4wMi0uMDUtLjAyLS4wOHYtMWMwLS4xOCwwLS4zNiwwLS41MywwLS4wNSwwLS4wOSwwLS4xNCwwLS4xNS4wMS0uMjkuMDItLjQyLDAtLjA2LDAtLjExLjAxLS4xNiwwLS4wOC4wMS0uMTUuMDItLjIyLDAtLjA1LjAxLS4xLjAyLS4xNS4wMS0uMDkuMDItLjE3LjA0LS4yNCwwLS4wMiwwLS4wMywwLS4wNC4wOC4xMS4xOS4zMS4yOC41OC4wNS4xNi4xOS41OC4yOS44OGgwWk05LjkzLDEyLjIyYzAsLjI1LS4wNiwxLjQ4LTEuMjksMS40OGgtMi42MmMtLjA5LDAtLjEzLS4wMS0uMTUtLjAxaDBzMC0uMDYuMDMtLjE3Yy4wNy0uMiwxLjg0LTQuODgsMi4xOS01LjYyLjMyLS42Ni41OS0uOTkuODMtLjk5aDEuMTZjLS4wNy4zLS4xMi44LS4xNCwxLjU3LDAsLjIyLDAsLjM5LDAsLjQ0djMuM1pNMTIuNTgsMTAuNDNjMCwuNzItLjgyLjg5LS45NS44OWgtLjYzdi0xLjY3YzAtLjA4LjAyLS4xNi4wNi0uMjMsMC0uMDIuMDMtLjA0LjA0LS4wNi4wMy0uMDUuMDctLjExLjEyLS4xNi4wMi0uMDIuMDQtLjAzLjA2LS4wNS4wNi0uMDUuMTItLjA5LjE5LS4xMi4wMiwwLC4wMy0uMDIuMDUtLjAyLjA5LS4wNC4xOS0uMDYuMjktLjA2aC43OHYxLjQ4WiIgZmlsbD0iI2ZmZiIgLz48L3N2Zz4="/>
-<text x="520" y="182" font-size="20" fill="#0408AC" font-weight="700" text-anchor="start">一个 Foundry 资源</text>
-<text x="484" y="208" font-size="14.5" fill="#666666" font-weight="400" text-anchor="start">GlobalStandard 部署，版本 2</text>
-<rect x="484" y="222" width="280" height="58" rx="8" fill="#FFFFFF" stroke="#DAD5F4"/>
-<text x="498" y="246" font-size="17" fill="#0408AC" font-weight="700" text-anchor="start">Opus 5.5</text>
-<text x="750" y="246" font-size="14" fill="#666666" font-weight="400" text-anchor="end">40K TPM</text>
-<text x="498" y="268" font-size="15" fill="#432FC8" font-weight="400" text-anchor="start">adaptive：low → max</text>
-<rect x="484" y="290" width="280" height="80" rx="8" fill="#FFFFFF" stroke="#DAD5F4"/>
-<text x="498" y="314" font-size="17" fill="#0408AC" font-weight="700" text-anchor="start">Sonnet 5.5</text>
-<text x="750" y="314" font-size="14" fill="#666666" font-weight="400" text-anchor="end">80K TPM</text>
-<text x="498" y="336" font-size="15" fill="#432FC8" font-weight="400" text-anchor="start">adaptive：low → max</text>
-<text x="498" y="357" font-size="15" fill="#432FC8" font-weight="400" text-anchor="start">between_tools：low → high</text>
-<rect x="484" y="380" width="280" height="80" rx="8" fill="#FFFFFF" stroke="#DAD5F4"/>
-<text x="498" y="404" font-size="17" fill="#0408AC" font-weight="700" text-anchor="start">Haiku 5.5</text>
-<text x="750" y="404" font-size="14" fill="#666666" font-weight="400" text-anchor="end">80K TPM</text>
-<text x="498" y="426" font-size="15" fill="#432FC8" font-weight="400" text-anchor="start">adaptive：low → max</text>
-<text x="498" y="447" font-size="15" fill="#432FC8" font-weight="400" text-anchor="start">disabled：low → high</text>
-<text x="484" y="500" font-size="14.5" fill="#252525"><tspan font-weight="700" fill="#0408AC">Messages API </tspan><tspan font-weight="400">/anthropic/v1/messages</tspan></text>
-<text x="836" y="127" font-size="32" fill="#0408AC" font-weight="700" text-anchor="start">方法</text>
-<defs><linearGradient id="badge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#C4BFF3"/><stop offset="1" stop-color="#432FC8"/></linearGradient></defs>
-<circle cx="853" cy="172" r="17" fill="url(#badge)"/>
-<text x="853" y="178" font-size="16" fill="#FFFFFF" font-weight="700" text-anchor="middle">1</text>
-<text x="882" y="178" font-size="17" fill="#0408AC" font-weight="700" text-anchor="start">18 道题，6 种语言</text>
-<text x="882" y="201" font-size="15.5" fill="#252525" font-weight="400" text-anchor="start">Aider polyglot，每种语言 3 道；</text>
-<text x="882" y="222" font-size="15.5" fill="#252525" font-weight="400" text-anchor="start">公开练习，不是客户数据</text>
-<circle cx="853" cy="244" r="17" fill="url(#badge)"/>
-<text x="853" y="250" font-size="16" fill="#FFFFFF" font-weight="700" text-anchor="middle">2</text>
-<text x="882" y="250" font-size="17" fill="#0408AC" font-weight="700" text-anchor="start">先探测接受的取值</text>
-<text x="882" y="273" font-size="15.5" fill="#252525" font-weight="400" text-anchor="start">102 个探测请求，返回 200 的</text>
-<text x="882" y="294" font-size="15.5" fill="#252525" font-weight="400" text-anchor="start">思考模式 × 档位组合才成为一格</text>
-<circle cx="853" cy="316" r="17" fill="url(#badge)"/>
-<text x="853" y="322" font-size="16" fill="#FFFFFF" font-weight="700" text-anchor="middle">3</text>
-<text x="882" y="322" font-size="17" fill="#0408AC" font-weight="700" text-anchor="start">每格每题 3 次</text>
-<text x="882" y="345" font-size="15.5" fill="#252525" font-weight="400" text-anchor="start">每格 54 个回答，另加 1 次预热；</text>
-<text x="882" y="366" font-size="15.5" fill="#252525" font-weight="400" text-anchor="start">21 格共 1,134 次计分，全部 HTTP 200</text>
-<circle cx="853" cy="388" r="17" fill="url(#badge)"/>
-<text x="853" y="394" font-size="16" fill="#FFFFFF" font-weight="700" text-anchor="middle">4</text>
-<text x="882" y="394" font-size="17" fill="#0408AC" font-weight="700" text-anchor="start">提示缓存：4 轮编码对话</text>
-<text x="882" y="417" font-size="15.5" fill="#252525" font-weight="400" text-anchor="start">264 个请求：断点、TTL、</text>
-<text x="882" y="438" font-size="15.5" fill="#252525" font-weight="400" text-anchor="start">切换推理档位和思考模式</text>
-<circle cx="853" cy="460" r="17" fill="url(#badge)"/>
-<text x="853" y="466" font-size="16" fill="#FFFFFF" font-weight="700" text-anchor="middle">5</text>
-<text x="882" y="466" font-size="17" fill="#0408AC" font-weight="700" text-anchor="start">通过与费用</text>
-<text x="882" y="489" font-size="15.5" fill="#252525" font-weight="400" text-anchor="start">通过 = 单元测试以 0 退出，离线运行；</text>
-<text x="882" y="510" font-size="15.5" fill="#252525" font-weight="400" text-anchor="start">费用 = 记录的 token × 标价</text>
-<text x="40" y="570" font-size="16" fill="#252525"><tspan font-weight="700" fill="#0408AC">GlobalStandard：</tspan><tspan font-weight="400">Azure 可能在其他区域的 GPU 上处理请求，所以“一个区域”指每个模型的入口和网络路径相同，</tspan></text>
-<text x="40" y="595" font-size="16" fill="#252525"><tspan font-weight="400">不是同一块 GPU。矩阵的 1,155 个响应，x-ms-region 都是 East US 2，x-ms-is-spilled-over 都是 false。</tspan></text>
-<text x="40" y="620" font-size="16" fill="#252525"><tspan font-weight="700" fill="#0408AC">图中未画：</tspan><tspan font-weight="400">2026-10-24 的网关测试（Windows 客户端 → Japan East 的 Azure Container Apps 上的 LiteLLM → 本资源）。</tspan></text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="740" viewBox="0 0 1200 740" role="img" aria-label="当前测试：客户端 → ACA LiteLLM → Foundry">
+<rect width="1200" height="740" fill="#FFFFFF"/>
+<g font-family="'Segoe UI', 'Microsoft YaHei', sans-serif">
+<text x="32" y="44" font-size="30" fill="#1b1b1b" font-weight="600" data-max-width="1120">当前测试：客户端 → ACA LiteLLM → Foundry</text>
+<text x="32" y="76" font-size="17" fill="#605e5c" font-weight="400" data-max-width="1120">开启提示缓存的网关测试；计划请求数不是已完成结果。</text>
+<rect x="32" y="102" width="1136" height="328" rx="8" fill="none" stroke="#0078d4" stroke-width="2" stroke-dasharray="8 5"/>
+<text x="52" y="128" font-size="18" fill="#0078d4" font-weight="600" data-max-width="1120">客户端、网关与 Foundry 资源入口：East US 2</text>
+<rect x="52" y="148" width="280" height="258" rx="8" fill="#f3f2f1" stroke="#c8c6c4"/>
+<image x="66" y="162" width="28" height="28" href="data:image/svg+xml;base64,PHN2ZyBpZD0iZmQ0NTRmMWMtNTUwNi00NGI4LTg3NGUtODgxNGI4YjJmNzBiIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCIgdmlld0JveD0iMCAwIDE4IDE4Ij48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImYzNGQ5NTY5LTJiZDAtNDAwMi04ZjE2LTNkMDFkODEwNmNiNSIgeDE9IjguODgiIHkxPSIxMi4yMSIgeDI9IjguODgiIHkyPSIwLjIxIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMDA3OGQ0IiAvPjxzdG9wIG9mZnNldD0iMC44MiIgc3RvcC1jb2xvcj0iIzVlYTBlZiIgLz48L2xpbmVhckdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iYmRiNDVhMGItZWI1OC00OTcwLWE2MGEtZmIyY2UzMTRmODY2IiB4MT0iOC44OCIgeTE9IjE2Ljg0IiB4Mj0iOC44OCIgeTI9IjEyLjIxIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwLjE1IiBzdG9wLWNvbG9yPSIjY2NjIiAvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzcwNzA3MCIgLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48dGl0bGU+SWNvbi1jb21wdXRlLTIxPC90aXRsZT48cmVjdCB4PSItMC4xMiIgeT0iMC4yMSIgd2lkdGg9IjE4IiBoZWlnaHQ9IjEyIiByeD0iMC42IiBmaWxsPSJ1cmwoI2YzNGQ5NTY5LTJiZDAtNDAwMi04ZjE2LTNkMDFkODEwNmNiNSkiIC8+PHBvbHlnb24gcG9pbnRzPSIxMS44OCA0LjQ2IDExLjg4IDcuOTUgOC44OCA5LjcxIDguODggNi4yMSAxMS44OCA0LjQ2IiBmaWxsPSIjNTBlNmZmIiAvPjxwb2x5Z29uIHBvaW50cz0iMTEuODggNC40NiA4Ljg4IDYuMjIgNS44OCA0LjQ2IDguODggMi43MSAxMS44OCA0LjQ2IiBmaWxsPSIjYzNmMWZmIiAvPjxwb2x5Z29uIHBvaW50cz0iOC44OCA2LjIyIDguODggOS43MSA1Ljg4IDcuOTUgNS44OCA0LjQ2IDguODggNi4yMiIgZmlsbD0iIzljZWJmZiIgLz48cG9seWdvbiBwb2ludHM9IjUuODggNy45NSA4Ljg4IDYuMjEgOC44OCA5LjcxIDUuODggNy45NSIgZmlsbD0iI2MzZjFmZiIgLz48cG9seWdvbiBwb2ludHM9IjExLjg4IDcuOTUgOC44OCA2LjIxIDguODggOS43MSAxMS44OCA3Ljk1IiBmaWxsPSIjOWNlYmZmIiAvPjxwYXRoIGQ9Ik0xMi40OSwxNS44NGMtMS43OC0uMjgtMS44NS0xLjU2LTEuODUtMy42M0g3LjExYzAsMi4wNy0uMDYsMy4zNS0xLjg0LDMuNjNhMSwxLDAsMCwwLS44OSwxaDlBMSwxLDAsMCwwLDEyLjQ5LDE1Ljg0WiIgZmlsbD0idXJsKCNiZGI0NWEwYi1lYjU4LTQ5NzAtYTYwYS1mYjJjZTMxNGY4NjYpIiAvPjwvc3ZnPg=="/>
+<text x="104" y="184" font-size="20" fill="#0078d4" font-weight="600" data-max-width="216">Linux VM</text>
+<text x="68" y="222" font-size="16" fill="#242424" font-weight="400" data-max-width="248">仅作为请求客户端</text>
+<text x="68" y="252" font-size="16" fill="#242424" font-weight="400" data-max-width="248">Python + httpx</text>
+<text x="68" y="282" font-size="16" fill="#242424" font-weight="400" data-max-width="248">使用网关入口密钥调用 ACA</text>
+<text x="68" y="312" font-size="16" fill="#242424" font-weight="400" data-max-width="248">发送流式 Messages 请求</text>
+<text x="68" y="342" font-size="16" fill="#242424" font-weight="400" data-max-width="248">每个模型同时 1 个请求</text>
+<text x="68" y="372" font-size="16" fill="#242424" font-weight="400" data-max-width="248">记录首字与流结束时间</text>
+<rect x="460" y="148" width="280" height="258" rx="8" fill="#eaf4fb" stroke="#c8c6c4"/>
+<image x="474" y="162" width="28" height="28" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCIgdmlld0JveD0iMCAwIDE4IDE4Ij48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImEzYTQ0MDkzLWIxNTctNDI2ZS1hOGZlLWNlYzlmOWMyMzk3OCIgeDE9IjExLjcyOSIgeTE9IjQuODgiIHgyPSIxMS43MjkiIHkyPSIxMy4wOTkiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBvZmZzZXQ9IjAuMDAxIiBzdG9wLWNvbG9yPSIjNzczYWRjIiAvPjxzdG9wIG9mZnNldD0iMC41MjgiIHN0b3AtY29sb3I9IiM2NjM1YmIiIC8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNTUyZjk5IiAvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJhZDgzODg1OS0wM2Y0LTQ3MmYtODFiYy1lYmM5MjFkNzEzMzUiIHgxPSI2LjM1IiB5MT0iMTMuOTE0IiB4Mj0iNi4zNSIgeTI9IjQuMTk4IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwLjAwMSIgc3RvcC1jb2xvcj0iIzc3M2FkYyIgLz48c3RvcCBvZmZzZXQ9IjAuMzA3IiBzdG9wLWNvbG9yPSIjNzkzZGRkIiAvPjxzdG9wIG9mZnNldD0iMC41MzIiIHN0b3AtY29sb3I9IiM4MDQ2ZTEiIC8+PHN0b3Agb2Zmc2V0PSIwLjczMSIgc3RvcC1jb2xvcj0iIzhjNTZlNyIgLz48c3RvcCBvZmZzZXQ9IjAuOTE1IiBzdG9wLWNvbG9yPSIjOWM2ZGVmIiAvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iI2E2N2FmNCIgLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48ZyBpZD0iYWU4MjQ3MGQtN2E2Yy00ZGZlLTg1MzMtNTlkOGZmOTQ4NjI5Ij48Zz48cGF0aCBkPSJNOC42MTcsOC42NDRILjYzOVYxLjc4NEExLjE2LDEuMTYsMCwwLDEsMS43ODguNjI0SDguNjE3Wk0xLjYzLDcuNjUzaDZWMS41OTRIMS43ODhhLjE1OC4xNTgsMCwwLDAtLjE1OC4xNThoMFoiIGZpbGw9IiM5NDk0OTQiIC8+PHBhdGggZD0iTTE3LjUsOC42NDRIOS41MjNWLjYyNGg2LjgyOEExLjE2LDEuMTYsMCwwLDEsMTcuNSwxLjc4NFptLTYuOTg3LS45OTFoNlYxLjc4NGEuMTU3LjE1NywwLDAsMC0uMTIzLS4xODcuMi4yLDAsMCwwLS4wMzUsMEgxMC41MTNaIiBmaWxsPSIjOTQ5NDk0IiAvPjxwYXRoIGQ9Ik04LjYxNywxNy40ODVIMS43ODhBMS4xNDksMS4xNDksMCwwLDEsLjYzOSwxNi4zNDdWOS40NzZIOC42MTdaTTEuNjMsMTAuNDY3djUuODhhLjE1OC4xNTgsMCwwLDAsLjE1OC4xNThINy42MjZWMTAuNDY3WiIgZmlsbD0iIzk0OTQ5NCIgLz48cGF0aCBkPSJNMTYuMzUxLDE3LjQ4NUg5LjUyM1Y5LjQ3NkgxNy41djYuODcxQTEuMTQ5LDEuMTQ5LDAsMCwxLDE2LjM1MSwxNy40ODVabS01LjgzOC0uOTkxaDUuODM4YS4xNTcuMTU3LDAsMCwwLC4xNTgtLjE1OFYxMC40NjdoLTZaIiBmaWxsPSIjOTQ5NDk0IiAvPjxwYXRoIGQ9Ik0xNC42LDYuMjk0YS4yOTQuMjk0LDAsMCwwLS4yLS4yNzhMOS4wNDQsNC4yMDVBLjEyOC4xMjgsMCwwLDAsOSw0LjJIOWEuMTMyLjEzMiwwLDAsMC0uMTMzLjEzM3Y5LjQ0NUEuMTMzLjEzMywwLDAsMCw5LDEzLjkxMUg5YS4xMzguMTM4LDAsMCwwLC4wNDktLjAxbDUuMzY1LTIuMTQ1YS4yOTIuMjkyLDAsMCwwLC4xODQtLjI3MloiIGZpbGw9InVybCgjYTNhNDQwOTMtYjE1Ny00MjZlLWE4ZmUtY2VjOWY5YzIzOTc4KSIgLz48cGF0aCBkPSJNOC45NjYsNC4ybC01LjI5My45NjZhLjE2MS4xNjEsMCwwLDAtLjEzLjE1OFYxMi42M2EuMTYuMTYsMCwwLDAsLjEyNi4xNTdMOC45NjIsMTMuOTFhLjE2MS4xNjEsMCwwLDAsLjE5MS0uMTIxLjIyLjIyLDAsMCwwLDAtLjAzNlY0LjM1OEEuMTYuMTYsMCwwLDAsOSw0LjIuMTYzLjE2MywwLDAsMCw4Ljk2Niw0LjJaIiBmaWxsPSJ1cmwoI2FkODM4ODU5LTAzZjQtNDcyZi04MWJjLWViYzkyMWQ3MTMzNSkiIC8+PHBhdGggZD0iTTYuNTIsNS42NTZ2Ni44bDEuODQyLjNWNS4zMzVabS0yLjI2Mi4zNjd2NS45NTVsMS42LjMyNlY1Ljc1NFoiIGZpbGw9IiNiNzk2ZjkiIG9wYWNpdHk9IjAuNSIgLz48L2c+PC9nPjwvc3ZnPg=="/>
+<text x="512" y="184" font-size="20" fill="#0078d4" font-weight="600" data-max-width="216">ACA / LiteLLM</text>
+<text x="476" y="222" font-size="16" fill="#242424" font-weight="400" data-max-width="248">Azure Container Apps</text>
+<text x="476" y="252" font-size="16" fill="#242424" font-weight="400" data-max-width="248">East US 2</text>
+<text x="476" y="282" font-size="16" fill="#242424" font-weight="400" data-max-width="248">三个模型的固定别名映射</text>
+<text x="476" y="312" font-size="16" fill="#242424" font-weight="400" data-max-width="248">stream / thinking / effort</text>
+<text x="476" y="342" font-size="16" fill="#242424" font-weight="400" data-max-width="248">cache_control</text>
+<text x="476" y="372" font-size="16" fill="#242424" font-weight="400" data-max-width="248">以托管身份调用 Foundry</text>
+<rect x="868" y="148" width="280" height="258" rx="8" fill="#eef6ee" stroke="#c8c6c4"/>
+<image x="882" y="162" width="28" height="28" href="data:image/svg+xml;base64,PHN2ZyBpZD0idXVpZC0xZTAyMGEzMy1mZDExLTQxMjMtOTRmNy02MGIwMjNmYmQ4NjgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjE4IiBoZWlnaHQ9IjE4IiB2aWV3Qm94PSIwIDAgMTggMTgiPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0idXVpZC1mZmRjODMyNy02ZGQ0LTQ1N2QtOTFlNS03OWFiNjc1NGYzZjUiIHgxPSItNjA4LjEzIiB5MT0iLTIwNi4zNiIgeDI9Ii02MDguMTMiIHkyPSItMjIyLjU5IiBncmFkaWVudFRyYW5zZm9ybT0idHJhbnNsYXRlKDYxNy4xMyAtMjA1Ljc2KSBzY2FsZSgxIC0xKSIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2I2YjZlMSIgLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiM3MzcyZDgiIC8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHBhdGggZD0iTTE3LjQ2LDMuMzZoLTcuNzRjLS4wOCwwLS4xNi0uMDItLjIzLS4wN2wtMi4yMS0xLjQ3Yy0uMDctLjA1LS4xNS0uMDctLjIzLS4wN0guNTRjLS4xMSwwLS4yMi4wNC0uMy4xMi0uMDguMDgtLjEyLjE4LS4xMi4zdjEzLjY3YzAsLjA1LjAxLjExLjAzLjE2LjAyLjA1LjA1LjEuMDkuMTQuMDQuMDQuMDguMDcuMTQuMDkuMDUuMDIuMS4wMy4xNi4wM2gxNi45MWMuMDUsMCwuMTEtLjAxLjE2LS4wMy4wNS0uMDIuMS0uMDUuMTQtLjA5LjA0LS4wNC4wNy0uMDguMDktLjE0LjAyLS4wNS4wMy0uMTEuMDMtLjE2VjMuNzdjMC0uMTEtLjA1LS4yMS0uMTItLjI5LS4wOC0uMDgtLjE4LS4xMi0uMjktLjEyWiIgZmlsbD0iIzQ4NDZkZiIgLz48cGF0aCBkPSJNNS42LDIuNTRIMS45MWMtLjA5LDAtLjE3LjA4LS4xNy4xN3YuNDdjMCwuMDkuMDguMTcuMTcuMTdoMy43Yy4wOSwwLC4xNy0uMDguMTctLjE3di0uNDdjMC0uMDktLjA4LS4xNy0uMTctLjE3WiIgZmlsbD0iI2ZmZiIgLz48cGF0aCBkPSJNMTcuNDYsMy4zNGgtOC41Yy0uMTEsMC0uMjIuMDQtLjMuMTJsLTEuMzYsMS4zN2MtLjA4LjA4LS4xOC4xMi0uMy4xMkguNTRjLS4wNSwwLS4xMS4wMS0uMTYuMDMtLjA1LjAyLS4xLjA1LS4xNC4wOS0uMDQuMDQtLjA3LjA4LS4wOS4xNC0uMDIuMDUtLjAzLjEtLjAzLjE2djEwLjQ0YzAsLjExLjA0LjIyLjEyLjMuMDguMDguMTguMTIuMy4xMmgxNi45MWMuMTEsMCwuMjItLjA0LjMtLjEyLjA4LS4wOC4xMi0uMTguMTItLjNWMy43NWMwLS4xMS0uMDQtLjIyLS4xMi0uMy0uMDgtLjA4LS4xOC0uMTItLjMtLjEyaDBaIiBmaWxsPSJ1cmwoI3V1aWQtZmZkYzgzMjctNmRkNC00NTdkLTkxZTUtNzlhYjY3NTRmM2Y1KSIgLz48cGF0aCBkPSJNMTIuNiw4LjQzaC0uOHMtLjA3LjAyLS4xLjAybC0uMDQtLjEzYy0uMS0uMy0uMjQtLjczLS4yOS0uODktLjE1LS40Ni0uNDItLjk5LS44Ny0xLjAzdi0uMDJoLTEuNTdjLS42LDAtLjk5LjY1LTEuMywxLjI4LS4zNy43OC0yLjE1LDUuNDktMi4yMSw1LjY3LS4xLjI3LS4wOS40OC4wMy42NC4xMS4xNi4zLjI0LjU4LjI0aDIuNjJjMS4yNiwwLDEuODItMSwxLjgyLTJ2LS41OGwuMDkuMTVoLjAzYy4wNS4wMy4xMS4wNS4xNy4wNWguODljLjUsMCwxLjQ3LS40MywxLjQ3LTEuNDF2LTEuNDljMC0uMzEtLjItLjUxLS41LS41MWgwWk0xMS4xNiw4LjQ4bC4wMy4wOWMtLjExLjA2LS4yMS4xMy0uMy4yMi0uMDIuMDEtLjAzLjAzLS4wNC4wNS0uMDkuMDktLjE2LjE5LS4yMi4yOS0uMDIuMDQtLjA0LjA4LS4wNi4xMi0uMDUuMTMtLjA5LjI3LS4wOS40MXYuMzRzLS4wMi0uMDUtLjAyLS4wOHYtMWMwLS4xOCwwLS4zNiwwLS41MywwLS4wNSwwLS4wOSwwLS4xNCwwLS4xNS4wMS0uMjkuMDItLjQyLDAtLjA2LDAtLjExLjAxLS4xNiwwLS4wOC4wMS0uMTUuMDItLjIyLDAtLjA1LjAxLS4xLjAyLS4xNS4wMS0uMDkuMDItLjE3LjA0LS4yNCwwLS4wMiwwLS4wMywwLS4wNC4wOC4xMS4xOS4zMS4yOC41OC4wNS4xNi4xOS41OC4yOS44OGgwWk05LjkzLDEyLjIyYzAsLjI1LS4wNiwxLjQ4LTEuMjksMS40OGgtMi42MmMtLjA5LDAtLjEzLS4wMS0uMTUtLjAxaDBzMC0uMDYuMDMtLjE3Yy4wNy0uMiwxLjg0LTQuODgsMi4xOS01LjYyLjMyLS42Ni41OS0uOTkuODMtLjk5aDEuMTZjLS4wNy4zLS4xMi44LS4xNCwxLjU3LDAsLjIyLDAsLjM5LDAsLjQ0djMuM1pNMTIuNTgsMTAuNDNjMCwuNzItLjgyLjg5LS45NS44OWgtLjYzdi0xLjY3YzAtLjA4LjAyLS4xNi4wNi0uMjMsMC0uMDIuMDMtLjA0LjA0LS4wNi4wMy0uMDUuMDctLjExLjEyLS4xNi4wMi0uMDIuMDQtLjAzLjA2LS4wNS4wNi0uMDUuMTItLjA5LjE5LS4xMi4wMiwwLC4wMy0uMDIuMDUtLjAyLjA5LS4wNC4xOS0uMDYuMjktLjA2aC43OHYxLjQ4WiIgZmlsbD0iI2ZmZiIgLz48L3N2Zz4="/>
+<text x="920" y="184" font-size="20" fill="#0078d4" font-weight="600" data-max-width="216">Microsoft Foundry</text>
+<text x="884" y="222" font-size="16" fill="#242424" font-weight="400" data-max-width="248">Global Standard · 按量付费</text>
+<circle cx="887" cy="247" r="3" fill="#0078d4" data-model-bullet="true"/>
+<text x="898" y="252" font-size="16" fill="#242424" font-weight="400" data-max-width="234">Opus 5.5 · Global PAYGO</text>
+<circle cx="887" cy="277" r="3" fill="#0078d4" data-model-bullet="true"/>
+<text x="898" y="282" font-size="16" fill="#242424" font-weight="400" data-max-width="234">Sonnet 5.5 · Global PAYGO</text>
+<circle cx="887" cy="307" r="3" fill="#0078d4" data-model-bullet="true"/>
+<text x="898" y="312" font-size="16" fill="#242424" font-weight="400" data-max-width="234">Haiku 5.5 · Global PAYGO</text>
+<text x="884" y="342" font-size="16" fill="#242424" font-weight="400" data-max-width="248">提示缓存在服务端这一侧</text>
+<text x="884" y="372" font-size="16" fill="#242424" font-weight="400" data-max-width="248">原生 usage：缓存读取／写入</text>
+<text x="356" y="246" font-size="16" fill="#0078d4" font-weight="600" data-max-width="100">HTTPS</text>
+<text x="344" y="271" font-size="14" fill="#605e5c" font-weight="400" data-max-width="108">/v1/messages</text>
+<path d="M340 290 H445" stroke="#0078d4" stroke-width="2.2" fill="none"/>
+<polygon points="454,290 444,284 444,296" fill="#0078d4"/>
+<path d="M452 324 H347" stroke="#0078d4" stroke-width="1.5" fill="none"/>
+<polygon points="338,324 348,319 348,329" fill="#0078d4"/>
+<text x="352" y="350" font-size="14" fill="#605e5c" font-weight="400" data-max-width="104">SSE 返回</text>
+<text x="764" y="246" font-size="16" fill="#0078d4" font-weight="600" data-max-width="100">HTTPS</text>
+<text x="752" y="271" font-size="14" fill="#605e5c" font-weight="400" data-max-width="108">/v1/messages</text>
+<path d="M748 290 H853" stroke="#0078d4" stroke-width="2.2" fill="none"/>
+<polygon points="862,290 852,284 852,296" fill="#0078d4"/>
+<path d="M860 324 H755" stroke="#0078d4" stroke-width="1.5" fill="none"/>
+<polygon points="746,324 756,319 756,329" fill="#0078d4"/>
+<text x="760" y="350" font-size="14" fill="#605e5c" font-weight="400" data-max-width="104">SSE 返回</text>
+<text x="32" y="472" font-size="20" fill="#0078d4" font-weight="600" data-max-width="350">输入与组合</text>
+<text x="32" y="506" font-size="15.5" fill="#242424" font-weight="400" data-max-width="350">12 道 SWE-bench Lite 长题</text>
+<text x="32" y="534" font-size="15.5" fill="#242424" font-weight="400" data-max-width="350">26 个模式／档位组合，含不传档位</text>
+<text x="32" y="562" font-size="15.5" fill="#242424" font-weight="400" data-max-width="350">第 1 次写入；第 2 次原样发送并读缓存</text>
+<text x="32" y="590" font-size="15.5" fill="#242424" font-weight="400" data-max-width="350">计划：624 次正式请求＋26 次预热</text>
+<text x="32" y="618" font-size="15.5" fill="#242424" font-weight="400" data-max-width="350">共 650 次；公开题目，不是客户数据</text>
+<text x="432" y="472" font-size="20" fill="#0078d4" font-weight="600" data-max-width="350">请求参数</text>
+<text x="432" y="506" font-size="15.5" fill="#242424" font-weight="400" data-max-width="350">max_tokens: 128000; stream: true</text>
+<text x="432" y="534" font-size="15.5" fill="#242424" font-weight="400" data-max-width="350">thinking.type / output_config.effort</text>
+<text x="432" y="562" font-size="15.5" fill="#242424" font-weight="400" data-max-width="350">cache_control: {"type": "ephemeral",</text>
+<text x="432" y="590" font-size="15.5" fill="#242424" font-weight="400" data-max-width="350">"ttl": "1h"}</text>
+<text x="432" y="618" font-size="15.5" fill="#242424" font-weight="400" data-max-width="350">用原生 usage 确认真实缓存读取</text>
+<text x="832" y="472" font-size="20" fill="#0078d4" font-weight="600" data-max-width="350">观察与结果边界</text>
+<text x="832" y="506" font-size="15.5" fill="#242424" font-weight="400" data-max-width="350">首个可见文本、完整回答耗时</text>
+<text x="832" y="534" font-size="15.5" fill="#242424" font-weight="400" data-max-width="350">tokens/s 与原生缓存读取占比</text>
+<text x="832" y="562" font-size="15.5" fill="#242424" font-weight="400" data-max-width="350">费用：实际 token 数 × 标价</text>
+<text x="832" y="590" font-size="15.5" fill="#242424" font-weight="400" data-max-width="350">正确率须另行评分后报告</text>
+<text x="832" y="618" font-size="15.5" fill="#242424" font-weight="400" data-max-width="350">不能以 HTTP 200 代替缓存命中</text>
+<text x="32" y="680" font-size="15.5" fill="#605e5c" font-weight="400" data-max-width="1120">Global PAYGO：Global Standard 按 token 计费；资源在美东二不代表推理固定在美东二。</text>
+<text x="32" y="709" font-size="15.5" fill="#605e5c" font-weight="400" data-max-width="1120">历史 VM 直连及 Japan East 网关结果仍单独标注；不能当作本轮新结果。</text>
 </g></svg>

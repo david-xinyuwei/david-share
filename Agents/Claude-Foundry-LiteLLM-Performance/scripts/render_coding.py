@@ -139,7 +139,8 @@ def cache_setting_values(d):
     return values
 
 
-def matrix_figure(title, description, headers, widths, rows, heights, group=None, row_group=1):
+def matrix_figure(title, description, headers, widths, rows, heights, group=None, row_group=1,
+                  unsupported_label="Not\nsupported"):
     left, top, header_height = 20, 76, 88
     width, height = sum(widths) + 40, top + header_height + sum(heights) + 20
     parts = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
@@ -193,11 +194,7 @@ def matrix_figure(title, description, headers, widths, rows, heights, group=None
             parts.append(f'<rect x="{x_pos}" y="{y_pos}" width="{cell_width}" height="{cell_height}" '
                          f'fill="{fill}" stroke="#c8c6c4"/>')
             if unsupported:
-                slash_size = min(cell_width, cell_height) / 2
-                center_x, center_y = x_pos + cell_width / 2, y_pos + cell_height / 2
-                parts.append(f'<line x1="{center_x - slash_size / 2}" y1="{center_y - slash_size / 2}" '
-                             f'x2="{center_x + slash_size / 2}" y2="{center_y + slash_size / 2}" '
-                             'stroke="#a19f9d" stroke-width="1.2"/>')
+                text_block(unsupported_label, x_pos, y_pos, cell_width, cell_height)
             else:
                 text_block(value, x_pos, y_pos, cell_width, cell_height,
                            align_left=column == 1 or (len(headers) == 6 and column == 5))
@@ -227,10 +224,11 @@ def support_figure(d, chinese):
     return matrix_figure(
         tr(chinese, "Table 1. Thinking modes, effort levels and prompt caching",
            "表 1　思考模式、推理档位与提示缓存"),
-        tr(chinese, "Direct Foundry probe, 2026-10-26. Diagonal cells: rejected mode/combination. See scope notes below.",
-           "2026-10-26 直连 Foundry 探测。斜线格：模式或组合被拒绝；缓存列的实测范围见图下注。"),
+          tr(chinese, "Direct Foundry probe, 2026-10-26. Not supported: rejected mode/combination. See scope notes below.",
+              "2026-10-26 直连 Foundry 探测。不支持：模式或组合被拒绝；缓存列的实测范围见图下注。"),
         headers, [115, 235, *([110] * 6), 170], rows, heights,
-        group=(2, 6, tr(chinese, "Effort: output_config.effort", "推理档位：output_config.effort")), row_group=4)
+          group=(2, 6, tr(chinese, "Effort: output_config.effort", "推理档位：output_config.effort")), row_group=4,
+          unsupported_label=tr(chinese, "Not\nsupported", "不支持"))
 
 
 def cache_settings_figure(d, chinese):
@@ -302,8 +300,8 @@ def support_tables(d, chinese, language):
     image1 = f'[![{title1.strip("*")}](images/parameter-support-{language}.svg)](images/parameter-support-{language}.svg)'
     image2 = f'[![{title2.strip("*")}](images/cache-settings-{language}.svg)](images/cache-settings-{language}.svg)'
     notes1 = tr(chinese,
-                f"The 54 `adaptive`/`between_tools`/`disabled` × effort cells were individually probed; {accepted} were accepted, including five omitted-effort cells. For `enabled`, one request per model used `budget_tokens: 1024` and omitted effort; the HTTP 400 rejects the mode itself, so all effort cells are hatched. The cache column states applicability only: a rejected thinking mode makes the request inapplicable; it does not mean the model lacks caching. Default effort values are from the [effort documentation]({EFFORT_DOC}).",
-                f"`adaptive`、`between_tools`、`disabled` 与六列档位共 54 格，均单独探测；其中 {accepted} 格被接受，包括五个不传 effort 的格子。`enabled` 每模型只测一次：`budget_tokens: 1024`，不传 effort；HTTP 400 拒绝的是模式本身，所以六个档位格都画斜线。缓存列只写适用性：思考模式使请求被拒时标“不适用”，不是说模型不支持缓存。默认档位来自[effort 文档]({EFFORT_DOC})。")
+                f"The 54 `adaptive`/`between_tools`/`disabled` × effort cells were individually probed; {accepted} were accepted, including five omitted-effort cells. For `enabled`, one request per model used `budget_tokens: 1024` and omitted effort; the HTTP 400 rejects the mode itself, so all effort cells say not supported. The cache column states applicability only: a rejected thinking mode makes the request inapplicable; it does not mean the model lacks caching. Default effort values are from the [effort documentation]({EFFORT_DOC}).",
+                f"`adaptive`、`between_tools`、`disabled` 与六列档位共 54 格，均单独探测；其中 {accepted} 格被接受，包括五个不传 effort 的格子。`enabled` 每模型只测一次：`budget_tokens: 1024`，不传 effort；HTTP 400 拒绝的是模式本身，所以六个档位格都标“不支持”。缓存列只写适用性：思考模式使请求被拒时标“不适用”，不是说模型不支持缓存。默认档位来自[effort 文档]({EFFORT_DOC})。")
     cache_scope = tr(chinese,
                      "Cache observations: all five accepted model/mode rows read cache at effort low; adaptive also read cache in the high-effort switch scenario. Other effort combinations still need cache-hit verification through ACA. Applicability and parameter acceptance are not completed cache-enabled performance testing. Fixed matrix controls: `max_tokens: 128000`, `stream: true`; `temperature`, `top_p`, `top_k` omitted. No `thinking` field is documented to select adaptive; the three omitted-thinking/omitted-effort probes returned 200.",
                      "缓存实测范围：五个被接受的模型／模式行均在 low 档读到缓存；adaptive 在切换到 high 的场景也读到缓存。其他档位组合仍需经 ACA 逐格验证缓存命中。“适用”和“参数被接受”不等于“开启缓存后的性能已测完”。矩阵固定项：`max_tokens: 128000`、`stream: true`；`temperature`、`top_p`、`top_k` 不传。不传 thinking 等同 adaptive 来自文档；三个模型同时不传 thinking、effort 的探测均返回 200。")
@@ -519,12 +517,12 @@ def purpose(d, chinese, language):
                  f"1. **从 VM 直连（{date}）。** 同一 Azure 区域的 Linux VM 上运行 Python 测试脚本，用 VM 的托管身份调用 Foundry Messages API：参数探测（{probe_n} 个请求）、编码矩阵（{cells} 个被接受的思考模式 × 推理档位组合，{n_problems} 道题各答 {repeats} 次，每格另加 1 次预热，共 {requests} 个请求）和提示缓存测试（{cache_n} 个请求）。每个模型同一时间只有 1 个请求，测的是单个请求的表现，不是压力测试。除非某节另有说明，结果都来自这种方法。\n"
                  "2. **经 Azure Container Apps 上的 LiteLLM 网关（2026-10-24）。** 客户端把 Anthropic Messages 请求发给 LiteLLM，由 LiteLLM 用自己的托管身份转发到同一组部署；LiteLLM 设置为不丢弃参数、不重试。那次测试由一台 Windows 客户端发起五轮对话，网关在 Japan East，所以时间里包含日本到美国东部的往返。详见[结果页](docs/results_CN.md#网关测试)。")
     figure = (f'<img src="images/topology-{language}.svg" width="900" alt="'
-              + tr(chinese, "How we measured, method 1: one Azure region, East US 2. The only client, a Linux VM, calls one Microsoft Foundry resource with three Claude 5.5 deployments over HTTPS and runs each answer's unit tests in Docker on the same VM. On the right, the method in five steps.",
-                   "测试方法 1：同一个 Azure 区域 East US 2 里，唯一的客户端 Linux VM 通过 HTTPS 调用一个 Microsoft Foundry 资源上的三个 Claude 5.5 部署，并在同一台 VM 的 Docker 中运行每个回答的单元测试。右侧分五步列出测试方法。")
+                + tr(chinese, "Current cache-enabled test path: a Linux VM client sends streaming requests through LiteLLM on Azure Container Apps in East US 2 to the three Microsoft Foundry Claude deployments. Prompt caching is at Foundry; the client records timing and native usage.",
+                    "当前开启缓存的测试路径：Linux VM 客户端经 East US 2 的 Azure Container Apps 上的 LiteLLM 调用三个 Microsoft Foundry Claude 部署。提示缓存在 Foundry 侧；客户端记录时间和原生 usage。")
               + '" />')
     caption = tr(chinese,
-                 f"What the figure shows: method 1, the client, the resource and the steps behind the {date} results; times are taken on the VM, from the request being written to the first visible text. Method 2 is noted under the figure and described on [the results page](docs/results.md#gateway-test-2026-10-24). Original explanatory diagram with unmodified [Azure icons](images/icon-sources.json).",
-                 f"图中内容：方法 1，即 {date} 结果背后的客户端、资源和测试步骤；时间在 VM 上计，从请求发出到首个可见文字。方法 2 在图下注明，详见[结果页](docs/results_CN.md#网关测试)。原创说明图，使用未修改的 [Azure 图标](images/icon-sources.json)。")
+                  "The figure shows the new East US 2 gateway path, not the historical direct-VM result path. The [runner](gateway-cache/aca_cache_matrix.py) uses the [12-problem manifest](data/gateway-cache-problems.json): 26 accepted mode/effort cells, two identical requests per problem/cell, plus 26 warm-ups (650 planned requests). Top-level `cache_control` is `ephemeral`, TTL `1h`; request 1 writes and request 2 is checked for native cache reads. This is not a cache-disabled comparison. Historical results retain their original dates and paths; the new run's completion, performance and correctness require its own evidence. Original explanatory diagram with unmodified [Azure icons](images/icon-sources.json).",
+                  "图中展示新一轮美东二网关路径，不是历史 VM 直连结果的路径。[运行器](gateway-cache/aca_cache_matrix.py)使用[12 道题清单](data/gateway-cache-problems.json)：26 个被接受的模式／档位组合，每题每格原样发送两次，另有 26 个预热请求，计划共 650 次。请求顶层 `cache_control` 为 `ephemeral`，有效期 `1h`；第 1 次写入，第 2 次检查原生缓存读取。这不是关闭缓存的对照。历史结果保留原日期与调用路径；新一轮是否完成、性能和正确率均须由新证据确认。原创说明图，使用未修改的 [Azure 图标](images/icon-sources.json)。")
     settings_lead = tr(chinese,
                        "**Request settings.** What each setting does, from Claude's documentation, and what this test sent. Which values each deployment accepted comes from our probe:",
                        "**请求设置。** 每个设置的作用（依据 Claude 官方文档）和本测试发送了什么；各部署接受哪些取值来自我们的参数探测：")
@@ -967,27 +965,16 @@ done
 # ---------- figure ----------
 
 def topology(d, chinese):
-    """'How we measured' figure: one region, one client, one resource, and the method beside it."""
-    m = matrix_numbers(d)
-    k = cache_numbers(d)
-    cfg = d["facts"]["state"]["config"]
-    summary = d["probe_summary"]
-    prov = d["provenance"]
-    region = prov["client"]["region"]
-    require(prov["models"]["resourceRegion"] == region, "the client and the models are not in one region")
-    kinds = {(x["sku"], x["version"]) for x in prov["models"]["deployments"]}
-    require(len(kinds) == 1, "deployments differ in SKU or version")
-    sku, version = next(iter(kinds))
-    n_problems = len(m["problems"])
-    languages = sorted({p.split("/")[0] for p in m["problems"]})
-    per_language = n_problems // len(languages)
-    require(per_language * len(languages) == n_problems, "problems are not evenly split over languages")
-    require(m["http"] == {200: m["requests"]}, "a matrix request did not return HTTP 200")
-    require(list(m["regions"]) == [region], "x-ms-region differs from the resource region on a matrix response")
-    require(list(m["spilled"]) == ["false"], "a matrix response was spilled over")
-    cells = len(d["facts"]["cells"])
-    python = ".".join(d["environment"][2].split()[1].split(".")[:2])
-    turns = len(k["context"]["questions"])
+    """Current gateway test topology, with planned workload separate from measured results."""
+    spec = read_json(ROOT / "data/gateway-cache-problems.json")
+    n_problems = len(spec["problems"])
+    cells = sum(status == 200 for row in support_matrix_rows(d) for status in row["efforts"].values())
+    repeats = 2
+    measured = cells * n_problems * repeats
+    planned = measured + cells
+    require({item["sku"] for item in d["provenance"]["models"]["deployments"]} == {"GlobalStandard"},
+            "Global PAYGO labels require GlobalStandard deployments")
+    model_labels = [f"{NAME[model]} · Global PAYGO" for model in MODELS]
     ledger = read_json(ROOT / "images/icon-sources.json")
     icons = {}
     for item in ledger["icons"]:
@@ -995,19 +982,13 @@ def topology(d, chinese):
         require(hashlib.sha256(path.read_bytes()).hexdigest() == item["sha256"], "Icon changed: " + item["file"])
         icons[path.name] = base64.b64encode(path.read_bytes()).decode()
 
-    ink, body, head, accent, muted = "#111111", "#252525", "#0408AC", "#432FC8", "#666666"
-    judge_ink, judge_line = "#A35F00", "#C88A1E"
-    font = "'Segoe UI', Aptos, 'Segoe Sans Display', system-ui, -apple-system, 'Helvetica Neue', Arial, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', sans-serif"
+    ink, body, accent, muted = "#1b1b1b", "#242424", "#0078d4", "#605e5c"
+    font = "'Segoe UI', 'Microsoft YaHei', sans-serif"
     out = []
 
-    def text(x, y, content, size, fill=body, weight=400, anchor="start"):
+    def text(x, y, content, size=16, fill=body, weight=400, max_width=1120):
         out.append(f'<text x="{x}" y="{y}" font-size="{size}" fill="{fill}" font-weight="{weight}" '
-                   f'text-anchor="{anchor}">{html.escape(content, quote=False)}</text>')
-
-    def runs(x, y, parts, size, fill=body):
-        spans = "".join(f'<tspan font-weight="{700 if bold else 400}"{f" fill={chr(34)}{head}{chr(34)}" if bold else ""}>'
-                        f'{html.escape(part, quote=False)}</tspan>' for part, bold in parts)
-        out.append(f'<text x="{x}" y="{y}" font-size="{size}" fill="{fill}">{spans}</text>')
+                   f'data-max-width="{max_width}">{html.escape(content, quote=False)}</text>')
 
     def icon(name, x, y, size):
         out.append(f'<image x="{x}" y="{y}" width="{size}" height="{size}" href="data:image/svg+xml;base64,{icons[name]}"/>')
@@ -1015,101 +996,85 @@ def topology(d, chinese):
     def t(en, cn):
         return tr(chinese, en, cn)
 
-    text(40, 62, t("How we measured: one region, one client, one resource", "测试方法：一个区域、一个客户端、一个资源"), 36, ink)
-    out.append(f'<rect x="40" y="92" width="760" height="444" rx="24" fill="none" stroke="{accent}" stroke-width="2.5" stroke-dasharray="12 8"/>')
-    text(62, 127, t(f"Azure region: {region}", f"Azure 区域：{region}"), 20, accent, 700)
-
-    out.append('<rect x="62" y="146" width="270" height="256" rx="16" fill="#ECECEC"/>')
-    icon("10021-icon-service-Virtual-Machine.svg", 181, 156, 32)
-    vm_lines = [
-        ("Linux VM", "Linux VM", 21, head, 700, 214),
-        ("the only client", "唯一的客户端", 16, muted, 400, 239),
-        (f"Python {python} + httpx", f"Python {python} + httpx", 17, body, 700, 270),
-        ("Messages API, streaming", "Messages API，流式返回", 17, body, 400, 295),
-        ("1 request in flight per model", "每个模型同时只有 1 个请求", 17, body, 400, 320),
-        ("managed identity, no API key", "托管身份，不用 API 密钥", 17, body, 400, 345),
-        ("stops if TCP connect ≥ 50 ms", "TCP 建连 ≥ 50 毫秒就停止", 14.5, muted, 400, 377),
+    title = t("Current test: client → ACA LiteLLM → Foundry", "当前测试：客户端 → ACA LiteLLM → Foundry")
+    text(32, 44, title, 30, ink, 600)
+    text(32, 76, t("Cache-enabled gateway run; planned request counts are not completed results.",
+                   "开启提示缓存的网关测试；计划请求数不是已完成结果。"), 17, muted)
+    out.append(f'<rect x="32" y="102" width="1136" height="328" rx="8" fill="none" '
+               f'stroke="{accent}" stroke-width="2" stroke-dasharray="8 5"/>')
+    text(52, 128, t("Client, gateway and Foundry resource: East US 2", "客户端、网关与 Foundry 资源入口：East US 2"),
+         18, accent, 600)
+    nodes = [
+        (52, "#f3f2f1", "10021-icon-service-Virtual-Machine.svg", "Linux VM", [
+            t("Request client only", "仅作为请求客户端"), "Python + httpx",
+            t("Gateway key to call ACA", "使用网关入口密钥调用 ACA"),
+            t("Streaming Messages requests", "发送流式 Messages 请求"),
+            t("1 in-flight request per model", "每个模型同时 1 个请求"),
+            t("Times first text and stream end", "记录首字与流结束时间"),
+        ]),
+        (460, "#eaf4fb", "02989-icon-service-Container-Apps-Environments.svg", "ACA / LiteLLM", [
+            "Azure Container Apps", "East US 2",
+            t("Fixed aliases for 3 models", "三个模型的固定别名映射"),
+            "stream / thinking / effort", "cache_control",
+            t("Managed identity to Foundry", "以托管身份调用 Foundry"),
+        ]),
+        (868, "#eef6ee", "036509415-icon-service-Foundry-Project.svg", "Microsoft Foundry", [
+            t("Global Standard · pay-as-you-go", "Global Standard · 按量付费"), *model_labels,
+            t("Prompt cache is on this side", "提示缓存在服务端这一侧"),
+            t("Native usage: cache reads/writes", "原生 usage：缓存读取／写入"),
+        ]),
     ]
-    for en, cn, size, fill, weight, y in vm_lines:
-        text(197, y, t(en, cn), size, fill, weight, "middle")
-
-    out.append(f'<line x1="197" y1="404" x2="197" y2="424" stroke="{judge_line}" stroke-width="2" stroke-dasharray="5 4"/>')
-    out.append(f'<polygon points="191,423 203,423 197,434" fill="{judge_line}"/>')
-    text(208, 424, t("answers", "回答"), 14.5, judge_ink)
-    out.append(f'<rect x="62" y="436" width="270" height="84" rx="10" fill="#FFF6E5" stroke="{judge_line}" stroke-width="1.6" stroke-dasharray="7 4"/>')
-    text(197, 463, t("Docker judge · same VM", "Docker 评分 · 同一台 VM"), 17, judge_ink, 700, "middle")
-    text(197, 486, t("runs each problem's unit tests", "运行每道题自带的单元测试"), 15, body, 400, "middle")
-    text(197, 508, t("offline · pass = tests exit 0", "离线运行 · 以 0 退出即通过"), 15, body, 400, "middle")
-
-    text(400, 232, "HTTPS", 16, accent, 700, "middle")
-    text(400, 254, t("TCP connect", "TCP 建连"), 15, muted, 400, "middle")
-    text(400, 274, t(f"median {m['tcp_ms']:.1f} ms", f"中位数 {m['tcp_ms']:.1f} 毫秒"), 15, muted, 400, "middle")
-    out.append(f'<line x1="346" y1="292" x2="454" y2="292" stroke="{accent}" stroke-width="2.5"/>')
-    out.append(f'<polygon points="336,292 348,286 348,298" fill="{accent}"/>')
-    out.append(f'<polygon points="464,292 452,286 452,298" fill="{accent}"/>')
-
-    out.append('<rect x="468" y="146" width="312" height="374" rx="18" fill="#EFECFA" stroke="#C4BFF3" stroke-width="1.5"/>')
-    icon("036509415-icon-service-Foundry-Project.svg", 484, 160, 28)
-    text(520, 182, t("One Foundry resource", "一个 Foundry 资源"), 20, head, 700)
-    text(484, 208, t(f"{sku} deployments, version {version}", f"{sku} 部署，版本 {version}"), 14.5, muted)
-    y = 222
-    for model in MODELS:
-        deployment = DEPLOYMENT[model]
-        accepted = summary[deployment]["accepted"]
-        modes = [f"{mode}{t(': ', '：')}{accepted[mode][0]} → {accepted[mode][-1]}"
-                 for mode in ("adaptive", "between_tools", "disabled") if accepted[mode]]
-        height = 36 + 22 * len(modes)
-        out.append(f'<rect x="484" y="{y}" width="280" height="{height}" rx="8" fill="#FFFFFF" stroke="#DAD5F4"/>')
-        text(498, y + 24, NAME[model], 17, head, 700)
-        text(750, y + 24, f"{cfg['tpm'][deployment] // 1000}K TPM", 14, muted, 400, "end")
-        for index, line in enumerate(modes):
-            text(498, y + 46 + 21 * index, line, 15, accent)
-        y += height + 10
-    runs(484, 500, [("Messages API ", True), ("/anthropic/v1/messages", False)], 14.5)
-
-    text(836, 127, t("Method", "方法"), 32, head, 700)
-    probe_n, cache_n, measured = d["runs"]["probe"]["requests"], k["requests"], m["measured"]
-    steps = [
-        (t(f"{n_problems} problems, {len(languages)} languages", f"{n_problems} 道题，{len(languages)} 种语言"),
-         t(f"Aider polyglot, {per_language} per language;", f"Aider polyglot，每种语言 {per_language} 道；"),
-         t("public exercises, not customer data", "公开练习，不是客户数据")),
-        (t("Probe accepted settings first", "先探测接受的取值"),
-         t(f"{probe_n} requests: every thinking × effort", f"{probe_n} 个探测请求，返回 200 的"),
-         t("pair that returns 200 becomes a cell", "思考模式 × 档位组合才成为一格")),
-        (t(f"{m['repeats']} runs per problem and cell", f"每格每题 {m['repeats']} 次"),
-         t(f"{n_problems * m['repeats']} answers per cell, plus 1 warm-up;", f"每格 {n_problems * m['repeats']} 个回答，另加 1 次预热；"),
-         t(f"{cells} cells, {measured:,} measured, all HTTP 200", f"{cells} 格共 {measured:,} 次计分，全部 HTTP 200")),
-        (t(f"Prompt cache: {turns}-turn chat", f"提示缓存：{turns} 轮编码对话"),
-         t(f"{cache_n} requests: breakpoints, TTL,", f"{cache_n} 个请求：断点、TTL、"),
-         t("effort and thinking-mode switches", "切换推理档位和思考模式")),
-        (t("Pass and cost", "通过与费用"),
-         t("pass = unit tests exit 0, offline;", "通过 = 单元测试以 0 退出，离线运行；"),
-         t("cost = recorded tokens × list price", "费用 = 记录的 token × 标价")),
+    for x_pos, fill, icon_name, heading, lines in nodes:
+        out.append(f'<rect x="{x_pos}" y="148" width="280" height="258" rx="8" fill="{fill}" stroke="#c8c6c4"/>')
+        icon(icon_name, x_pos + 14, 162, 28)
+        text(x_pos + 52, 184, heading, 20, accent, 600, 216)
+        for index, line in enumerate(lines):
+            y_pos = 222 + index * 30
+            if line in model_labels:
+                out.append(f'<circle cx="{x_pos + 19}" cy="{y_pos - 5}" r="3" fill="{accent}" data-model-bullet="true"/>')
+                text(x_pos + 30, y_pos, line, 16, max_width=234)
+            else:
+                text(x_pos + 16, y_pos, line, 16, max_width=248)
+    for start, end in ((332, 460), (740, 868)):
+        text(start + 24, 246, "HTTPS", 16, accent, 600, 100)
+        text(start + 12, 271, "/v1/messages", 14, muted, max_width=108)
+        out.append(f'<path d="M{start + 8} 290 H{end - 15}" stroke="{accent}" stroke-width="2.2" fill="none"/>')
+        out.append(f'<polygon points="{end - 6},290 {end - 16},284 {end - 16},296" fill="{accent}"/>')
+        out.append(f'<path d="M{end - 8} 324 H{start + 15}" stroke="{accent}" stroke-width="1.5" fill="none"/>')
+        out.append(f'<polygon points="{start + 6},324 {start + 16},319 {start + 16},329" fill="{accent}"/>')
+        text(start + 20, 350, t("SSE stream", "SSE 返回"), 14, muted, max_width=104)
+    columns = [
+        (32, t("Inputs and combinations", "输入与组合"), [
+            t(f"{n_problems} long SWE-bench Lite prompts", f"{n_problems} 道 SWE-bench Lite 长题"),
+            t(f"{cells} mode/effort cells, defaults included", f"{cells} 个模式／档位组合，含不传档位"),
+            t("Request 1 writes; identical request 2 reads", "第 1 次写入；第 2 次原样发送并读缓存"),
+            t(f"Plan: {measured} measured + {cells} warm-ups", f"计划：{measured} 次正式请求＋{cells} 次预热"),
+            t(f"{planned} requests; public prompts, not customer data", f"共 {planned} 次；公开题目，不是客户数据"),
+        ]),
+        (432, t("Request controls", "请求参数"), [
+            "max_tokens: 128000; stream: true", "thinking.type / output_config.effort",
+            'cache_control: {"type": "ephemeral",', '"ttl": "1h"}',
+            t("Cache reads verified from native usage", "用原生 usage 确认真实缓存读取"),
+        ]),
+        (832, t("Observations and limits", "观察与结果边界"), [
+            t("First visible text; end-to-end duration", "首个可见文本、完整回答耗时"),
+            t("Tokens/s and native cache-read share", "tokens/s 与原生缓存读取占比"),
+            t("Cost: actual tokens × list price", "费用：实际 token 数 × 标价"),
+            t("Correctness needs separate evaluation", "正确率须另行评分后报告"),
+            t("HTTP 200 alone does not prove a cache hit", "不能以 HTTP 200 代替缓存命中"),
+        ]),
     ]
-    out.append(f'<defs><linearGradient id="badge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#C4BFF3"/>'
-               f'<stop offset="1" stop-color="{accent}"/></linearGradient></defs>')
-    for index, (title, first, second) in enumerate(steps):
-        ty = 178 + 72 * index
-        out.append(f'<circle cx="853" cy="{ty - 6}" r="17" fill="url(#badge)"/>')
-        text(853, ty, str(index + 1), 16, "#FFFFFF", 700, "middle")
-        text(882, ty, title, 17, head, 700)
-        text(882, ty + 23, first, 15.5, body)
-        text(882, ty + 44, second, 15.5, body)
-
-    spans = [
-        [(t(f"{sku}: ", f"{sku}："), True),
-         (t("Azure may serve a request on GPUs in another region, so ‘one region’ means the same entry point and network path",
-            "Azure 可能在其他区域的 GPU 上处理请求，所以“一个区域”指每个模型的入口和网络路径相同，"), False)],
-        [(t(f"for every model, not the same GPU. All {m['requests']:,} matrix responses carried x-ms-region {region} and were not spilled over.",
-            f"不是同一块 GPU。矩阵的 {m['requests']:,} 个响应，x-ms-region 都是 {region}，x-ms-is-spilled-over 都是 false。"), False)],
-        [(t("Not drawn: ", "图中未画："), True),
-         (t("the 2026-10-24 gateway test (Windows client → LiteLLM on Azure Container Apps in Japan East → this resource).",
-            "2026-10-24 的网关测试（Windows 客户端 → Japan East 的 Azure Container Apps 上的 LiteLLM → 本资源）。"), False)],
-    ]
-    for index, parts in enumerate(spans):
-        runs(40, 570 + 25 * index, parts, 16)
-    return ('<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="650" viewBox="0 0 1200 650">\n'
-            '<rect width="1200" height="650" fill="#FFFFFF"/>\n'
+    for x_pos, heading, lines in columns:
+        text(x_pos, 472, heading, 20, accent, 600, 350)
+        for index, line in enumerate(lines):
+            text(x_pos, 506 + index * 28, line, 15.5, max_width=350)
+    text(32, 680, t("Global PAYGO = Global Standard, billed per token; resource location does not fix the inference region.",
+                    "Global PAYGO：Global Standard 按 token 计费；资源在美东二不代表推理固定在美东二。"), 15.5, muted)
+    text(32, 709, t("Historical direct-VM and Japan East gateway results remain separately labeled; they are not results from this run.",
+                    "历史 VM 直连及 Japan East 网关结果仍单独标注；不能当作本轮新结果。"), 15.5, muted)
+    return ('<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="740" viewBox="0 0 1200 740" '
+            f'role="img" aria-label="{html.escape(title)}">\n'
+            '<rect width="1200" height="740" fill="#FFFFFF"/>\n'
             f'<g font-family="{font}">\n' + "\n".join(out) + "\n</g></svg>")
 
 

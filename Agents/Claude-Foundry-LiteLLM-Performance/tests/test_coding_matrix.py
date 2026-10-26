@@ -169,8 +169,10 @@ class EvidenceTests(unittest.TestCase):
             self.assertTrue(all(node.get("data-unsupported") == "false" for node in cache_cells))
             self.assertEqual({"".join(node.itertext()).strip() for node in cache_cells},
                              {"适用", "不适用"} if chinese else {"Applicable", "Not applicable"})
-            for line in first.findall('.//{http://www.w3.org/2000/svg}line'):
-                self.assertLessEqual(float(line.get("x2")) - float(line.get("x1")), 41)
+            self.assertFalse(first.findall('.//{http://www.w3.org/2000/svg}line'))
+            for node in first.findall('.//*[@data-unsupported="true"]'):
+                self.assertEqual(" ".join("".join(node.itertext()).split()),
+                                 "不支持" if chinese else "Not supported")
             self.assertEqual(len({node.get("data-row") for node in second.findall('.//*[@data-row]')}), 7)
             self.assertEqual(len(second.findall('.//*[@data-row]')), 42)
             language = "zh" if chinese else "en"
@@ -181,6 +183,22 @@ class EvidenceTests(unittest.TestCase):
             self.assertIn("ACA", markup)
             self.assertIn("probe/probe_results.jsonl", markup)
             self.assertIn("cache/cache_results.jsonl", markup)
+
+    def test_topology_shows_current_gateway_path_not_old_results(self):
+        for chinese in (False, True):
+            root = ET.fromstring(render_coding.topology(self.d, chinese))
+            text = " ".join(root.itertext())
+            self.assertEqual(len(root.findall('.//{http://www.w3.org/2000/svg}image')), 3)
+            for value in ("Linux VM", "ACA / LiteLLM", "Microsoft Foundry", "East US 2", "cache_control",
+                          "1h", "26", "12", "624", "650"):
+                self.assertIn(value, text)
+            self.assertNotIn("1,134", text)
+            self.assertNotIn("Docker", text)
+            self.assertIn("历史" if chinese else "Historical", text)
+            self.assertIn("计划" if chinese else "Plan:", text)
+            for model in ("Opus 5.5", "Sonnet 5.5", "Haiku 5.5"):
+                self.assertIn(f"{model} · Global PAYGO", text)
+            self.assertEqual(len(root.findall('.//*[@data-model-bullet="true"]')), 3)
 
     def test_thinking_comparison_uses_matched_efforts(self):
         for model in ("sonnet", "haiku"):

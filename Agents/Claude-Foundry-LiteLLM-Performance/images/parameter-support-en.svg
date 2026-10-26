@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1220" height="1168" viewBox="0 0 1220 1168" role="img" aria-labelledby="title description">
 <title id="title">Table 1. Thinking modes, effort levels and prompt caching</title>
-<desc id="description">Direct Foundry probe, 2026-10-26. Diagonal cells: rejected mode/combination. See scope notes below.</desc>
+<desc id="description">Direct Foundry probe, 2026-10-26. Not supported: rejected mode/combination. See scope notes below.</desc>
 <rect width="1220" height="1168" fill="white"/>
 <g font-family="Segoe UI,Microsoft YaHei,sans-serif">
 <text x="20" y="32" font-size="25" font-weight="600" fill="#1b1b1b">Table 1. Thinking modes, effort levels and prompt caching</text>
-<text x="20" y="58" font-size="17" fill="#605e5c">Direct Foundry probe, 2026-10-26. Diagonal cells: rejected mode/combination. See scope notes below.</text>
+<text x="20" y="58" font-size="17" fill="#605e5c">Direct Foundry probe, 2026-10-26. Not supported: rejected mode/combination. See scope notes below.</text>
 <rect x="20" y="76" width="115" height="88" fill="#0078d4" stroke="#2b88d8"/>
 <text x="77.5" y="126.0" text-anchor="middle" font-size="18" font-weight="600" fill="white" data-cell-width="95">Model</text>
 <rect x="135" y="76" width="235" height="88" fill="#0078d4" stroke="#2b88d8"/>
@@ -70,27 +70,33 @@
 </g>
 <g data-row="1" data-column="2" data-unsupported="true">
 <rect x="370" y="246" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="404.5" y1="266.5" x2="445.5" y2="307.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="425.0" y="281.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="425.0" y="305.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="1" data-column="3" data-unsupported="true">
 <rect x="480" y="246" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="514.5" y1="266.5" x2="555.5" y2="307.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="535.0" y="281.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="535.0" y="305.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="1" data-column="4" data-unsupported="true">
 <rect x="590" y="246" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="624.5" y1="266.5" x2="665.5" y2="307.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="645.0" y="281.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="645.0" y="305.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="1" data-column="5" data-unsupported="true">
 <rect x="700" y="246" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="734.5" y1="266.5" x2="775.5" y2="307.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="755.0" y="281.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="755.0" y="305.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="1" data-column="6" data-unsupported="true">
 <rect x="810" y="246" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="844.5" y1="266.5" x2="885.5" y2="307.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="865.0" y="281.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="865.0" y="305.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="1" data-column="7" data-unsupported="true">
 <rect x="920" y="246" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="954.5" y1="266.5" x2="995.5" y2="307.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="975.0" y="281.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="975.0" y="305.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="1" data-column="8" data-unsupported="false">
 <rect x="1030" y="246" width="170" height="82" fill="#ffffff" stroke="#c8c6c4"/>
@@ -102,27 +108,33 @@
 </g>
 <g data-row="2" data-column="2" data-unsupported="true">
 <rect x="370" y="328" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="404.5" y1="348.5" x2="445.5" y2="389.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="425.0" y="363.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="425.0" y="387.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="2" data-column="3" data-unsupported="true">
 <rect x="480" y="328" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="514.5" y1="348.5" x2="555.5" y2="389.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="535.0" y="363.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="535.0" y="387.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="2" data-column="4" data-unsupported="true">
 <rect x="590" y="328" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="624.5" y1="348.5" x2="665.5" y2="389.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="645.0" y="363.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="645.0" y="387.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="2" data-column="5" data-unsupported="true">
 <rect x="700" y="328" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="734.5" y1="348.5" x2="775.5" y2="389.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="755.0" y="363.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="755.0" y="387.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="2" data-column="6" data-unsupported="true">
 <rect x="810" y="328" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="844.5" y1="348.5" x2="885.5" y2="389.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="865.0" y="363.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="865.0" y="387.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="2" data-column="7" data-unsupported="true">
 <rect x="920" y="328" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="954.5" y1="348.5" x2="995.5" y2="389.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="975.0" y="363.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="975.0" y="387.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="2" data-column="8" data-unsupported="false">
 <rect x="1030" y="328" width="170" height="82" fill="#ffffff" stroke="#c8c6c4"/>
@@ -135,27 +147,33 @@
 </g>
 <g data-row="3" data-column="2" data-unsupported="true">
 <rect x="370" y="410" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="404.5" y1="430.5" x2="445.5" y2="471.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="425.0" y="445.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="425.0" y="469.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="3" data-column="3" data-unsupported="true">
 <rect x="480" y="410" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="514.5" y1="430.5" x2="555.5" y2="471.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="535.0" y="445.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="535.0" y="469.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="3" data-column="4" data-unsupported="true">
 <rect x="590" y="410" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="624.5" y1="430.5" x2="665.5" y2="471.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="645.0" y="445.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="645.0" y="469.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="3" data-column="5" data-unsupported="true">
 <rect x="700" y="410" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="734.5" y1="430.5" x2="775.5" y2="471.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="755.0" y="445.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="755.0" y="469.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="3" data-column="6" data-unsupported="true">
 <rect x="810" y="410" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="844.5" y1="430.5" x2="885.5" y2="471.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="865.0" y="445.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="865.0" y="469.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="3" data-column="7" data-unsupported="true">
 <rect x="920" y="410" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="954.5" y1="430.5" x2="995.5" y2="471.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="975.0" y="445.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="975.0" y="469.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="3" data-column="8" data-unsupported="false">
 <rect x="1030" y="410" width="170" height="82" fill="#ffffff" stroke="#c8c6c4"/>
@@ -216,11 +234,13 @@
 </g>
 <g data-row="5" data-column="5" data-unsupported="true">
 <rect x="700" y="574" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="734.5" y1="594.5" x2="775.5" y2="635.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="755.0" y="609.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="755.0" y="633.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="5" data-column="6" data-unsupported="true">
 <rect x="810" y="574" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="844.5" y1="594.5" x2="885.5" y2="635.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="865.0" y="609.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="865.0" y="633.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="5" data-column="7" data-unsupported="false">
 <rect x="920" y="574" width="110" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
@@ -237,27 +257,33 @@
 </g>
 <g data-row="6" data-column="2" data-unsupported="true">
 <rect x="370" y="656" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="404.5" y1="676.5" x2="445.5" y2="717.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="425.0" y="691.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="425.0" y="715.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="6" data-column="3" data-unsupported="true">
 <rect x="480" y="656" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="514.5" y1="676.5" x2="555.5" y2="717.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="535.0" y="691.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="535.0" y="715.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="6" data-column="4" data-unsupported="true">
 <rect x="590" y="656" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="624.5" y1="676.5" x2="665.5" y2="717.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="645.0" y="691.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="645.0" y="715.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="6" data-column="5" data-unsupported="true">
 <rect x="700" y="656" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="734.5" y1="676.5" x2="775.5" y2="717.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="755.0" y="691.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="755.0" y="715.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="6" data-column="6" data-unsupported="true">
 <rect x="810" y="656" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="844.5" y1="676.5" x2="885.5" y2="717.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="865.0" y="691.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="865.0" y="715.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="6" data-column="7" data-unsupported="true">
 <rect x="920" y="656" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="954.5" y1="676.5" x2="995.5" y2="717.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="975.0" y="691.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="975.0" y="715.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="6" data-column="8" data-unsupported="false">
 <rect x="1030" y="656" width="170" height="82" fill="#ffffff" stroke="#c8c6c4"/>
@@ -270,27 +296,33 @@
 </g>
 <g data-row="7" data-column="2" data-unsupported="true">
 <rect x="370" y="738" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="404.5" y1="758.5" x2="445.5" y2="799.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="425.0" y="773.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="425.0" y="797.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="7" data-column="3" data-unsupported="true">
 <rect x="480" y="738" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="514.5" y1="758.5" x2="555.5" y2="799.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="535.0" y="773.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="535.0" y="797.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="7" data-column="4" data-unsupported="true">
 <rect x="590" y="738" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="624.5" y1="758.5" x2="665.5" y2="799.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="645.0" y="773.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="645.0" y="797.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="7" data-column="5" data-unsupported="true">
 <rect x="700" y="738" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="734.5" y1="758.5" x2="775.5" y2="799.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="755.0" y="773.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="755.0" y="797.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="7" data-column="6" data-unsupported="true">
 <rect x="810" y="738" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="844.5" y1="758.5" x2="885.5" y2="799.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="865.0" y="773.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="865.0" y="797.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="7" data-column="7" data-unsupported="true">
 <rect x="920" y="738" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="954.5" y1="758.5" x2="995.5" y2="799.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="975.0" y="773.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="975.0" y="797.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="7" data-column="8" data-unsupported="false">
 <rect x="1030" y="738" width="170" height="82" fill="#ffffff" stroke="#c8c6c4"/>
@@ -339,27 +371,33 @@
 </g>
 <g data-row="9" data-column="2" data-unsupported="true">
 <rect x="370" y="902" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="404.5" y1="922.5" x2="445.5" y2="963.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="425.0" y="937.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="425.0" y="961.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="9" data-column="3" data-unsupported="true">
 <rect x="480" y="902" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="514.5" y1="922.5" x2="555.5" y2="963.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="535.0" y="937.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="535.0" y="961.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="9" data-column="4" data-unsupported="true">
 <rect x="590" y="902" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="624.5" y1="922.5" x2="665.5" y2="963.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="645.0" y="937.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="645.0" y="961.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="9" data-column="5" data-unsupported="true">
 <rect x="700" y="902" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="734.5" y1="922.5" x2="775.5" y2="963.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="755.0" y="937.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="755.0" y="961.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="9" data-column="6" data-unsupported="true">
 <rect x="810" y="902" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="844.5" y1="922.5" x2="885.5" y2="963.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="865.0" y="937.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="865.0" y="961.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="9" data-column="7" data-unsupported="true">
 <rect x="920" y="902" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="954.5" y1="922.5" x2="995.5" y2="963.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="975.0" y="937.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="975.0" y="961.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="9" data-column="8" data-unsupported="false">
 <rect x="1030" y="902" width="170" height="82" fill="#ffffff" stroke="#c8c6c4"/>
@@ -383,11 +421,13 @@
 </g>
 <g data-row="10" data-column="5" data-unsupported="true">
 <rect x="700" y="984" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="734.5" y1="1004.5" x2="775.5" y2="1045.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="755.0" y="1019.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="755.0" y="1043.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="10" data-column="6" data-unsupported="true">
 <rect x="810" y="984" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="844.5" y1="1004.5" x2="885.5" y2="1045.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="865.0" y="1019.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="865.0" y="1043.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="10" data-column="7" data-unsupported="false">
 <rect x="920" y="984" width="110" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
@@ -405,27 +445,33 @@
 </g>
 <g data-row="11" data-column="2" data-unsupported="true">
 <rect x="370" y="1066" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="404.5" y1="1086.5" x2="445.5" y2="1127.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="425.0" y="1101.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="425.0" y="1125.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="11" data-column="3" data-unsupported="true">
 <rect x="480" y="1066" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="514.5" y1="1086.5" x2="555.5" y2="1127.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="535.0" y="1101.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="535.0" y="1125.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="11" data-column="4" data-unsupported="true">
 <rect x="590" y="1066" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="624.5" y1="1086.5" x2="665.5" y2="1127.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="645.0" y="1101.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="645.0" y="1125.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="11" data-column="5" data-unsupported="true">
 <rect x="700" y="1066" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="734.5" y1="1086.5" x2="775.5" y2="1127.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="755.0" y="1101.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="755.0" y="1125.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="11" data-column="6" data-unsupported="true">
 <rect x="810" y="1066" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="844.5" y1="1086.5" x2="885.5" y2="1127.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="865.0" y="1101.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="865.0" y="1125.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="11" data-column="7" data-unsupported="true">
 <rect x="920" y="1066" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
-<line x1="954.5" y1="1086.5" x2="995.5" y2="1127.5" stroke="#a19f9d" stroke-width="1.2"/>
+<text x="975.0" y="1101.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Not</text>
+<text x="975.0" y="1125.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">supported</text>
 </g>
 <g data-row="11" data-column="8" data-unsupported="false">
 <rect x="1030" y="1066" width="170" height="82" fill="#ffffff" stroke="#c8c6c4"/>
