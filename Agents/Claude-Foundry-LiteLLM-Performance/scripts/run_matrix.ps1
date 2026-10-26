@@ -6,6 +6,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$MatrixPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($MatrixPath)
+$RunDirectory = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($RunDirectory)
 $runner = Join-Path $PSScriptRoot 'invoke_case.ps1'
 $matrix = [IO.File]::ReadAllText($MatrixPath,[Text.Encoding]::UTF8) | ConvertFrom-Json -AsHashtable
 $cases = if ($CaseIds) { @($matrix.cases | Where-Object { $_.id -in $CaseIds }) } else { @($matrix.cases) }
