@@ -1,0 +1,434 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1220" height="1168" viewBox="0 0 1220 1168" role="img" aria-labelledby="title description">
+<title id="title">Table 1. Thinking modes, effort levels and prompt caching</title>
+<desc id="description">Direct Foundry probe, 2026-10-26. Diagonal cells: rejected mode/combination. See scope notes below.</desc>
+<rect width="1220" height="1168" fill="white"/>
+<g font-family="Segoe UI,Microsoft YaHei,sans-serif">
+<text x="20" y="32" font-size="25" font-weight="600" fill="#1b1b1b">Table 1. Thinking modes, effort levels and prompt caching</text>
+<text x="20" y="58" font-size="17" fill="#605e5c">Direct Foundry probe, 2026-10-26. Diagonal cells: rejected mode/combination. See scope notes below.</text>
+<rect x="20" y="76" width="115" height="88" fill="#0078d4" stroke="#2b88d8"/>
+<text x="77.5" y="126.0" text-anchor="middle" font-size="18" font-weight="600" fill="white" data-cell-width="95">Model</text>
+<rect x="135" y="76" width="235" height="88" fill="#0078d4" stroke="#2b88d8"/>
+<text x="252.5" y="114.0" text-anchor="middle" font-size="18" font-weight="600" fill="white" data-cell-width="215">Thinking mode</text>
+<text x="252.5" y="138.0" text-anchor="middle" font-size="18" font-weight="600" fill="white" data-cell-width="215">thinking.type</text>
+<rect x="370" y="116" width="110" height="48" fill="#0078d4" stroke="#2b88d8"/>
+<text x="425.0" y="146.0" text-anchor="middle" font-size="18" font-weight="600" fill="white" data-cell-width="90">low</text>
+<rect x="480" y="116" width="110" height="48" fill="#0078d4" stroke="#2b88d8"/>
+<text x="535.0" y="146.0" text-anchor="middle" font-size="18" font-weight="600" fill="white" data-cell-width="90">medium</text>
+<rect x="590" y="116" width="110" height="48" fill="#0078d4" stroke="#2b88d8"/>
+<text x="645.0" y="146.0" text-anchor="middle" font-size="18" font-weight="600" fill="white" data-cell-width="90">high</text>
+<rect x="700" y="116" width="110" height="48" fill="#0078d4" stroke="#2b88d8"/>
+<text x="755.0" y="146.0" text-anchor="middle" font-size="18" font-weight="600" fill="white" data-cell-width="90">xhigh</text>
+<rect x="810" y="116" width="110" height="48" fill="#0078d4" stroke="#2b88d8"/>
+<text x="865.0" y="146.0" text-anchor="middle" font-size="18" font-weight="600" fill="white" data-cell-width="90">max</text>
+<rect x="920" y="116" width="110" height="48" fill="#0078d4" stroke="#2b88d8"/>
+<text x="975.0" y="146.0" text-anchor="middle" font-size="18" font-weight="600" fill="white" data-cell-width="90">Omitted</text>
+<rect x="1030" y="76" width="170" height="88" fill="#0078d4" stroke="#2b88d8"/>
+<text x="1115.0" y="114.0" text-anchor="middle" font-size="18" font-weight="600" fill="white" data-cell-width="150">Prompt cache</text>
+<text x="1115.0" y="138.0" text-anchor="middle" font-size="18" font-weight="600" fill="white" data-cell-width="150">cache_control</text>
+<rect x="370" y="76" width="660" height="40" fill="#005a9e"/>
+<text x="700.0" y="102.0" text-anchor="middle" font-size="18" font-weight="600" fill="white" data-cell-width="640">Effort: output_config.effort</text>
+<g data-row="0" data-column="0" data-unsupported="false">
+<rect x="20" y="164" width="115" height="328" fill="#f3f2f1" stroke="#c8c6c4"/>
+<text x="77.5" y="334.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="95">Opus 5.5</text>
+</g>
+<g data-row="0" data-column="1" data-unsupported="false">
+<rect x="135" y="164" width="235" height="82" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="145" y="211.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="215">adaptive</text>
+</g>
+<g data-row="0" data-column="2" data-unsupported="false">
+<rect x="370" y="164" width="110" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="425.0" y="211.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Supported</text>
+</g>
+<g data-row="0" data-column="3" data-unsupported="false">
+<rect x="480" y="164" width="110" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="535.0" y="211.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Supported</text>
+</g>
+<g data-row="0" data-column="4" data-unsupported="false">
+<rect x="590" y="164" width="110" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="645.0" y="211.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Supported</text>
+</g>
+<g data-row="0" data-column="5" data-unsupported="false">
+<rect x="700" y="164" width="110" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="755.0" y="211.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Supported</text>
+</g>
+<g data-row="0" data-column="6" data-unsupported="false">
+<rect x="810" y="164" width="110" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="865.0" y="211.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Supported</text>
+</g>
+<g data-row="0" data-column="7" data-unsupported="false">
+<rect x="920" y="164" width="110" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="975.0" y="199.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Default</text>
+<text x="975.0" y="223.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">medium</text>
+</g>
+<g data-row="0" data-column="8" data-unsupported="false">
+<rect x="1030" y="164" width="170" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="1115.0" y="211.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="150">Applicable</text>
+</g>
+<g data-row="1" data-column="1" data-unsupported="false">
+<rect x="135" y="246" width="235" height="82" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="145" y="293.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="215">between_tools</text>
+</g>
+<g data-row="1" data-column="2" data-unsupported="true">
+<rect x="370" y="246" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="404.5" y1="266.5" x2="445.5" y2="307.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="1" data-column="3" data-unsupported="true">
+<rect x="480" y="246" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="514.5" y1="266.5" x2="555.5" y2="307.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="1" data-column="4" data-unsupported="true">
+<rect x="590" y="246" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="624.5" y1="266.5" x2="665.5" y2="307.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="1" data-column="5" data-unsupported="true">
+<rect x="700" y="246" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="734.5" y1="266.5" x2="775.5" y2="307.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="1" data-column="6" data-unsupported="true">
+<rect x="810" y="246" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="844.5" y1="266.5" x2="885.5" y2="307.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="1" data-column="7" data-unsupported="true">
+<rect x="920" y="246" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="954.5" y1="266.5" x2="995.5" y2="307.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="1" data-column="8" data-unsupported="false">
+<rect x="1030" y="246" width="170" height="82" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="1115.0" y="293.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="150">Not applicable</text>
+</g>
+<g data-row="2" data-column="1" data-unsupported="false">
+<rect x="135" y="328" width="235" height="82" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="145" y="375.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="215">disabled</text>
+</g>
+<g data-row="2" data-column="2" data-unsupported="true">
+<rect x="370" y="328" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="404.5" y1="348.5" x2="445.5" y2="389.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="2" data-column="3" data-unsupported="true">
+<rect x="480" y="328" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="514.5" y1="348.5" x2="555.5" y2="389.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="2" data-column="4" data-unsupported="true">
+<rect x="590" y="328" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="624.5" y1="348.5" x2="665.5" y2="389.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="2" data-column="5" data-unsupported="true">
+<rect x="700" y="328" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="734.5" y1="348.5" x2="775.5" y2="389.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="2" data-column="6" data-unsupported="true">
+<rect x="810" y="328" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="844.5" y1="348.5" x2="885.5" y2="389.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="2" data-column="7" data-unsupported="true">
+<rect x="920" y="328" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="954.5" y1="348.5" x2="995.5" y2="389.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="2" data-column="8" data-unsupported="false">
+<rect x="1030" y="328" width="170" height="82" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="1115.0" y="375.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="150">Not applicable</text>
+</g>
+<g data-row="3" data-column="1" data-unsupported="false">
+<rect x="135" y="410" width="235" height="82" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="145" y="445.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="215">enabled +</text>
+<text x="145" y="469.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="215">budget_tokens</text>
+</g>
+<g data-row="3" data-column="2" data-unsupported="true">
+<rect x="370" y="410" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="404.5" y1="430.5" x2="445.5" y2="471.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="3" data-column="3" data-unsupported="true">
+<rect x="480" y="410" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="514.5" y1="430.5" x2="555.5" y2="471.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="3" data-column="4" data-unsupported="true">
+<rect x="590" y="410" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="624.5" y1="430.5" x2="665.5" y2="471.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="3" data-column="5" data-unsupported="true">
+<rect x="700" y="410" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="734.5" y1="430.5" x2="775.5" y2="471.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="3" data-column="6" data-unsupported="true">
+<rect x="810" y="410" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="844.5" y1="430.5" x2="885.5" y2="471.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="3" data-column="7" data-unsupported="true">
+<rect x="920" y="410" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="954.5" y1="430.5" x2="995.5" y2="471.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="3" data-column="8" data-unsupported="false">
+<rect x="1030" y="410" width="170" height="82" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="1115.0" y="457.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="150">Not applicable</text>
+</g>
+<g data-row="4" data-column="0" data-unsupported="false">
+<rect x="20" y="492" width="115" height="328" fill="#f3f2f1" stroke="#c8c6c4"/>
+<text x="77.5" y="662.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="95">Sonnet 5.5</text>
+</g>
+<g data-row="4" data-column="1" data-unsupported="false">
+<rect x="135" y="492" width="235" height="82" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="145" y="539.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="215">adaptive</text>
+</g>
+<g data-row="4" data-column="2" data-unsupported="false">
+<rect x="370" y="492" width="110" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="425.0" y="539.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Supported</text>
+</g>
+<g data-row="4" data-column="3" data-unsupported="false">
+<rect x="480" y="492" width="110" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="535.0" y="539.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Supported</text>
+</g>
+<g data-row="4" data-column="4" data-unsupported="false">
+<rect x="590" y="492" width="110" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="645.0" y="539.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Supported</text>
+</g>
+<g data-row="4" data-column="5" data-unsupported="false">
+<rect x="700" y="492" width="110" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="755.0" y="539.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Supported</text>
+</g>
+<g data-row="4" data-column="6" data-unsupported="false">
+<rect x="810" y="492" width="110" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="865.0" y="539.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Supported</text>
+</g>
+<g data-row="4" data-column="7" data-unsupported="false">
+<rect x="920" y="492" width="110" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="975.0" y="527.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Default</text>
+<text x="975.0" y="551.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">high</text>
+</g>
+<g data-row="4" data-column="8" data-unsupported="false">
+<rect x="1030" y="492" width="170" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="1115.0" y="539.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="150">Applicable</text>
+</g>
+<g data-row="5" data-column="1" data-unsupported="false">
+<rect x="135" y="574" width="235" height="82" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="145" y="621.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="215">between_tools</text>
+</g>
+<g data-row="5" data-column="2" data-unsupported="false">
+<rect x="370" y="574" width="110" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="425.0" y="621.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Supported</text>
+</g>
+<g data-row="5" data-column="3" data-unsupported="false">
+<rect x="480" y="574" width="110" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="535.0" y="621.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Supported</text>
+</g>
+<g data-row="5" data-column="4" data-unsupported="false">
+<rect x="590" y="574" width="110" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="645.0" y="621.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Supported</text>
+</g>
+<g data-row="5" data-column="5" data-unsupported="true">
+<rect x="700" y="574" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="734.5" y1="594.5" x2="775.5" y2="635.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="5" data-column="6" data-unsupported="true">
+<rect x="810" y="574" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="844.5" y1="594.5" x2="885.5" y2="635.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="5" data-column="7" data-unsupported="false">
+<rect x="920" y="574" width="110" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="975.0" y="609.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Default</text>
+<text x="975.0" y="633.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">high</text>
+</g>
+<g data-row="5" data-column="8" data-unsupported="false">
+<rect x="1030" y="574" width="170" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="1115.0" y="621.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="150">Applicable</text>
+</g>
+<g data-row="6" data-column="1" data-unsupported="false">
+<rect x="135" y="656" width="235" height="82" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="145" y="703.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="215">disabled</text>
+</g>
+<g data-row="6" data-column="2" data-unsupported="true">
+<rect x="370" y="656" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="404.5" y1="676.5" x2="445.5" y2="717.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="6" data-column="3" data-unsupported="true">
+<rect x="480" y="656" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="514.5" y1="676.5" x2="555.5" y2="717.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="6" data-column="4" data-unsupported="true">
+<rect x="590" y="656" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="624.5" y1="676.5" x2="665.5" y2="717.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="6" data-column="5" data-unsupported="true">
+<rect x="700" y="656" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="734.5" y1="676.5" x2="775.5" y2="717.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="6" data-column="6" data-unsupported="true">
+<rect x="810" y="656" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="844.5" y1="676.5" x2="885.5" y2="717.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="6" data-column="7" data-unsupported="true">
+<rect x="920" y="656" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="954.5" y1="676.5" x2="995.5" y2="717.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="6" data-column="8" data-unsupported="false">
+<rect x="1030" y="656" width="170" height="82" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="1115.0" y="703.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="150">Not applicable</text>
+</g>
+<g data-row="7" data-column="1" data-unsupported="false">
+<rect x="135" y="738" width="235" height="82" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="145" y="773.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="215">enabled +</text>
+<text x="145" y="797.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="215">budget_tokens</text>
+</g>
+<g data-row="7" data-column="2" data-unsupported="true">
+<rect x="370" y="738" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="404.5" y1="758.5" x2="445.5" y2="799.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="7" data-column="3" data-unsupported="true">
+<rect x="480" y="738" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="514.5" y1="758.5" x2="555.5" y2="799.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="7" data-column="4" data-unsupported="true">
+<rect x="590" y="738" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="624.5" y1="758.5" x2="665.5" y2="799.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="7" data-column="5" data-unsupported="true">
+<rect x="700" y="738" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="734.5" y1="758.5" x2="775.5" y2="799.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="7" data-column="6" data-unsupported="true">
+<rect x="810" y="738" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="844.5" y1="758.5" x2="885.5" y2="799.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="7" data-column="7" data-unsupported="true">
+<rect x="920" y="738" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="954.5" y1="758.5" x2="995.5" y2="799.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="7" data-column="8" data-unsupported="false">
+<rect x="1030" y="738" width="170" height="82" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="1115.0" y="785.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="150">Not applicable</text>
+</g>
+<g data-row="8" data-column="0" data-unsupported="false">
+<rect x="20" y="820" width="115" height="328" fill="#f3f2f1" stroke="#c8c6c4"/>
+<text x="77.5" y="990.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="95">Haiku 5.5</text>
+</g>
+<g data-row="8" data-column="1" data-unsupported="false">
+<rect x="135" y="820" width="235" height="82" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="145" y="867.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="215">adaptive</text>
+</g>
+<g data-row="8" data-column="2" data-unsupported="false">
+<rect x="370" y="820" width="110" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="425.0" y="867.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Supported</text>
+</g>
+<g data-row="8" data-column="3" data-unsupported="false">
+<rect x="480" y="820" width="110" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="535.0" y="867.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Supported</text>
+</g>
+<g data-row="8" data-column="4" data-unsupported="false">
+<rect x="590" y="820" width="110" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="645.0" y="867.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Supported</text>
+</g>
+<g data-row="8" data-column="5" data-unsupported="false">
+<rect x="700" y="820" width="110" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="755.0" y="867.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Supported</text>
+</g>
+<g data-row="8" data-column="6" data-unsupported="false">
+<rect x="810" y="820" width="110" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="865.0" y="867.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Supported</text>
+</g>
+<g data-row="8" data-column="7" data-unsupported="false">
+<rect x="920" y="820" width="110" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="975.0" y="855.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Default</text>
+<text x="975.0" y="879.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">medium</text>
+</g>
+<g data-row="8" data-column="8" data-unsupported="false">
+<rect x="1030" y="820" width="170" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="1115.0" y="867.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="150">Applicable</text>
+</g>
+<g data-row="9" data-column="1" data-unsupported="false">
+<rect x="135" y="902" width="235" height="82" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="145" y="949.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="215">between_tools</text>
+</g>
+<g data-row="9" data-column="2" data-unsupported="true">
+<rect x="370" y="902" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="404.5" y1="922.5" x2="445.5" y2="963.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="9" data-column="3" data-unsupported="true">
+<rect x="480" y="902" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="514.5" y1="922.5" x2="555.5" y2="963.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="9" data-column="4" data-unsupported="true">
+<rect x="590" y="902" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="624.5" y1="922.5" x2="665.5" y2="963.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="9" data-column="5" data-unsupported="true">
+<rect x="700" y="902" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="734.5" y1="922.5" x2="775.5" y2="963.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="9" data-column="6" data-unsupported="true">
+<rect x="810" y="902" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="844.5" y1="922.5" x2="885.5" y2="963.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="9" data-column="7" data-unsupported="true">
+<rect x="920" y="902" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="954.5" y1="922.5" x2="995.5" y2="963.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="9" data-column="8" data-unsupported="false">
+<rect x="1030" y="902" width="170" height="82" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="1115.0" y="949.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="150">Not applicable</text>
+</g>
+<g data-row="10" data-column="1" data-unsupported="false">
+<rect x="135" y="984" width="235" height="82" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="145" y="1031.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="215">disabled</text>
+</g>
+<g data-row="10" data-column="2" data-unsupported="false">
+<rect x="370" y="984" width="110" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="425.0" y="1031.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Supported</text>
+</g>
+<g data-row="10" data-column="3" data-unsupported="false">
+<rect x="480" y="984" width="110" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="535.0" y="1031.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Supported</text>
+</g>
+<g data-row="10" data-column="4" data-unsupported="false">
+<rect x="590" y="984" width="110" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="645.0" y="1031.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Supported</text>
+</g>
+<g data-row="10" data-column="5" data-unsupported="true">
+<rect x="700" y="984" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="734.5" y1="1004.5" x2="775.5" y2="1045.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="10" data-column="6" data-unsupported="true">
+<rect x="810" y="984" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="844.5" y1="1004.5" x2="885.5" y2="1045.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="10" data-column="7" data-unsupported="false">
+<rect x="920" y="984" width="110" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="975.0" y="1019.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">Default</text>
+<text x="975.0" y="1043.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="90">medium</text>
+</g>
+<g data-row="10" data-column="8" data-unsupported="false">
+<rect x="1030" y="984" width="170" height="82" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="1115.0" y="1031.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="150">Applicable</text>
+</g>
+<g data-row="11" data-column="1" data-unsupported="false">
+<rect x="135" y="1066" width="235" height="82" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="145" y="1101.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="215">enabled +</text>
+<text x="145" y="1125.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="215">budget_tokens</text>
+</g>
+<g data-row="11" data-column="2" data-unsupported="true">
+<rect x="370" y="1066" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="404.5" y1="1086.5" x2="445.5" y2="1127.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="11" data-column="3" data-unsupported="true">
+<rect x="480" y="1066" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="514.5" y1="1086.5" x2="555.5" y2="1127.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="11" data-column="4" data-unsupported="true">
+<rect x="590" y="1066" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="624.5" y1="1086.5" x2="665.5" y2="1127.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="11" data-column="5" data-unsupported="true">
+<rect x="700" y="1066" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="734.5" y1="1086.5" x2="775.5" y2="1127.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="11" data-column="6" data-unsupported="true">
+<rect x="810" y="1066" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="844.5" y1="1086.5" x2="885.5" y2="1127.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="11" data-column="7" data-unsupported="true">
+<rect x="920" y="1066" width="110" height="82" fill="#faf9f8" stroke="#c8c6c4"/>
+<line x1="954.5" y1="1086.5" x2="995.5" y2="1127.5" stroke="#a19f9d" stroke-width="1.2"/>
+</g>
+<g data-row="11" data-column="8" data-unsupported="false">
+<rect x="1030" y="1066" width="170" height="82" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="1115.0" y="1113.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="150">Not applicable</text>
+</g>
+</g></svg>

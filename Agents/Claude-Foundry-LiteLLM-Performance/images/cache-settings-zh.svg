@@ -1,0 +1,232 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1700" height="928" viewBox="0 0 1700 928" role="img" aria-labelledby="title description">
+<title id="title">表 2　提示缓存设置与实测读取比例</title>
+<desc id="description">2026-10-26 直连 Foundry 缓存测试。百分比对应该次请求，不是 ACA 重测结果。</desc>
+<rect width="1700" height="928" fill="white"/>
+<g font-family="Segoe UI,Microsoft YaHei,sans-serif">
+<text x="20" y="32" font-size="25" font-weight="600" fill="#1b1b1b">表 2　提示缓存设置与实测读取比例</text>
+<text x="20" y="58" font-size="17" fill="#605e5c">2026-10-26 直连 Foundry 缓存测试。百分比对应该次请求，不是 ACA 重测结果。</text>
+<rect x="20" y="76" width="190" height="88" fill="#0078d4" stroke="#2b88d8"/>
+<text x="115.0" y="126.0" text-anchor="middle" font-size="18" font-weight="600" fill="white" data-cell-width="170">缓存设置</text>
+<rect x="210" y="76" width="370" height="88" fill="#0078d4" stroke="#2b88d8"/>
+<text x="395.0" y="126.0" text-anchor="middle" font-size="18" font-weight="600" fill="white" data-cell-width="350">怎么写</text>
+<rect x="580" y="76" width="230" height="88" fill="#0078d4" stroke="#2b88d8"/>
+<text x="695.0" y="126.0" text-anchor="middle" font-size="18" font-weight="600" fill="white" data-cell-width="210">模型：Opus 5.5</text>
+<rect x="810" y="76" width="230" height="88" fill="#0078d4" stroke="#2b88d8"/>
+<text x="925.0" y="126.0" text-anchor="middle" font-size="18" font-weight="600" fill="white" data-cell-width="210">模型：Sonnet 5.5</text>
+<rect x="1040" y="76" width="230" height="88" fill="#0078d4" stroke="#2b88d8"/>
+<text x="1155.0" y="126.0" text-anchor="middle" font-size="18" font-weight="600" fill="white" data-cell-width="210">模型：Haiku 5.5</text>
+<rect x="1270" y="76" width="410" height="88" fill="#0078d4" stroke="#2b88d8"/>
+<text x="1475.0" y="126.0" text-anchor="middle" font-size="18" font-weight="600" fill="white" data-cell-width="390">说明与范围</text>
+<g data-row="0" data-column="0" data-unsupported="false">
+<rect x="20" y="164" width="190" height="96" fill="#f3f2f1" stroke="#c8c6c4"/>
+<text x="115.0" y="206.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="170">不传</text>
+<text x="115.0" y="230.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="170">cache_control</text>
+</g>
+<g data-row="0" data-column="1" data-unsupported="false">
+<rect x="210" y="164" width="370" height="96" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="220" y="218.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="350">不加 cache_control 字段</text>
+</g>
+<g data-row="0" data-column="2" data-unsupported="false">
+<rect x="580" y="164" width="230" height="96" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="695.0" y="218.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">缓存读写均为 0</text>
+</g>
+<g data-row="0" data-column="3" data-unsupported="false">
+<rect x="810" y="164" width="230" height="96" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="925.0" y="218.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">缓存读写均为 0</text>
+</g>
+<g data-row="0" data-column="4" data-unsupported="false">
+<rect x="1040" y="164" width="230" height="96" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="1155.0" y="218.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">缓存读写均为 0</text>
+</g>
+<g data-row="0" data-column="5" data-unsupported="false">
+<rect x="1270" y="164" width="410" height="96" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="1280" y="206.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">历史编码矩阵 1,155 个请求，</text>
+<text x="1280" y="230.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">缓存读写均为 0；没有工具调用。</text>
+</g>
+<g data-row="1" data-column="0" data-unsupported="false">
+<rect x="20" y="260" width="190" height="116" fill="#f3f2f1" stroke="#c8c6c4"/>
+<text x="115.0" y="324.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="170">位置：自动断点</text>
+</g>
+<g data-row="1" data-column="1" data-unsupported="false">
+<rect x="210" y="260" width="370" height="116" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="220" y="312.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="350">请求顶层：</text>
+<text x="220" y="336.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="350">cache_control: {&quot;type&quot;: &quot;ephemeral&quot;}</text>
+</g>
+<g data-row="1" data-column="2" data-unsupported="false">
+<rect x="580" y="260" width="230" height="116" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="695.0" y="300.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">支持</text>
+<text x="695.0" y="324.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">第 2-4 轮：94.3–96.1%</text>
+<text x="695.0" y="348.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">新对话：0.0%</text>
+</g>
+<g data-row="1" data-column="3" data-unsupported="false">
+<rect x="810" y="260" width="230" height="116" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="925.0" y="300.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">支持</text>
+<text x="925.0" y="324.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">第 2-4 轮：94.7–95.9%</text>
+<text x="925.0" y="348.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">新对话：0.0%</text>
+</g>
+<g data-row="1" data-column="4" data-unsupported="false">
+<rect x="1040" y="260" width="230" height="116" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="1155.0" y="300.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">支持</text>
+<text x="1155.0" y="324.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">第 2-4 轮：95.9–97.1%</text>
+<text x="1155.0" y="348.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">新对话：0.0%</text>
+</g>
+<g data-row="1" data-column="5" data-unsupported="false">
+<rect x="1270" y="260" width="410" height="116" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="1280" y="300.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">本次新对话复用指令和文件，</text>
+<text x="1280" y="324.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">但换了问题；旧的完整前缀没有命中。</text>
+<text x="1280" y="348.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">不能据此断言所有新对话都不能命中。</text>
+</g>
+<g data-row="2" data-column="0" data-unsupported="false">
+<rect x="20" y="376" width="190" height="116" fill="#f3f2f1" stroke="#c8c6c4"/>
+<text x="115.0" y="440.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="170">位置：显式断点</text>
+</g>
+<g data-row="2" data-column="1" data-unsupported="false">
+<rect x="210" y="376" width="370" height="116" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="220" y="428.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="350">内容块上：</text>
+<text x="220" y="452.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="350">cache_control: {&quot;type&quot;: &quot;ephemeral&quot;}</text>
+</g>
+<g data-row="2" data-column="2" data-unsupported="false">
+<rect x="580" y="376" width="230" height="116" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="695.0" y="416.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">支持</text>
+<text x="695.0" y="440.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">第 2-4 轮：86.3–95.5%</text>
+<text x="695.0" y="464.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">新对话：99.8%</text>
+</g>
+<g data-row="2" data-column="3" data-unsupported="false">
+<rect x="810" y="376" width="230" height="116" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="925.0" y="416.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">支持</text>
+<text x="925.0" y="440.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">第 2-4 轮：86.0–95.2%</text>
+<text x="925.0" y="464.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">新对话：99.8%</text>
+</g>
+<g data-row="2" data-column="4" data-unsupported="false">
+<rect x="1040" y="376" width="230" height="116" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="1155.0" y="416.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">支持</text>
+<text x="1155.0" y="440.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">第 2-4 轮：89.4–95.8%</text>
+<text x="1155.0" y="464.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">新对话：99.8%</text>
+</g>
+<g data-row="2" data-column="5" data-unsupported="false">
+<rect x="1270" y="376" width="410" height="116" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="1280" y="416.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">实测：system 中仓库文件末尾。</text>
+<text x="1280" y="440.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">tools、messages 位置仅有文档依据。</text>
+<text x="1280" y="464.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">每请求最多 4 个断点（文档）。</text>
+</g>
+<g data-row="3" data-column="0" data-unsupported="false">
+<rect x="20" y="492" width="190" height="104" fill="#f3f2f1" stroke="#c8c6c4"/>
+<text x="115.0" y="550.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="170">位置：自动＋显式</text>
+</g>
+<g data-row="3" data-column="1" data-unsupported="false">
+<rect x="210" y="492" width="370" height="104" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="220" y="550.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="350">上面两处都写</text>
+</g>
+<g data-row="3" data-column="2" data-unsupported="false">
+<rect x="580" y="492" width="230" height="104" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="695.0" y="526.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">支持</text>
+<text x="695.0" y="550.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">第 2-4 轮：94.9–96.1%</text>
+<text x="695.0" y="574.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">新对话：99.8%</text>
+</g>
+<g data-row="3" data-column="3" data-unsupported="false">
+<rect x="810" y="492" width="230" height="104" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="925.0" y="526.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">支持</text>
+<text x="925.0" y="550.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">第 2-4 轮：95.0–95.9%</text>
+<text x="925.0" y="574.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">新对话：99.8%</text>
+</g>
+<g data-row="3" data-column="4" data-unsupported="false">
+<rect x="1040" y="492" width="230" height="104" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="1155.0" y="526.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">支持</text>
+<text x="1155.0" y="550.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">第 2-4 轮：95.8–96.8%</text>
+<text x="1155.0" y="574.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">新对话：99.8%</text>
+</g>
+<g data-row="3" data-column="5" data-unsupported="false">
+<rect x="1270" y="492" width="410" height="104" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="1280" y="538.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">同一请求同时使用两种位置；</text>
+<text x="1280" y="562.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">新对话结果限于本次同文件测试。</text>
+</g>
+<g data-row="4" data-column="0" data-unsupported="false">
+<rect x="20" y="596" width="190" height="104" fill="#f3f2f1" stroke="#c8c6c4"/>
+<text x="115.0" y="654.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="170">有效期：5 分钟</text>
+</g>
+<g data-row="4" data-column="1" data-unsupported="false">
+<rect x="210" y="596" width="370" height="104" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="220" y="654.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="350">省略 ttl（默认），或 &quot;ttl&quot;: &quot;5m&quot;</text>
+</g>
+<g data-row="4" data-column="2" data-unsupported="false">
+<rect x="580" y="596" width="230" height="104" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="695.0" y="630.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">支持</text>
+<text x="695.0" y="654.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">闲置 6.5 分钟后</text>
+<text x="695.0" y="678.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">读取 0.0%</text>
+</g>
+<g data-row="4" data-column="3" data-unsupported="false">
+<rect x="810" y="596" width="230" height="104" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="925.0" y="630.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">支持</text>
+<text x="925.0" y="654.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">闲置 6.5 分钟后</text>
+<text x="925.0" y="678.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">读取 0.0%</text>
+</g>
+<g data-row="4" data-column="4" data-unsupported="false">
+<rect x="1040" y="596" width="230" height="104" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="1155.0" y="630.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">支持</text>
+<text x="1155.0" y="654.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">闲置 6.5 分钟后</text>
+<text x="1155.0" y="678.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">读取 0.0%</text>
+</g>
+<g data-row="4" data-column="5" data-unsupported="false">
+<rect x="1270" y="596" width="410" height="104" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="1280" y="642.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">5 分钟写入按输入价 1.25 倍计费；</text>
+<text x="1280" y="666.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">命中会续期（文档）。</text>
+</g>
+<g data-row="5" data-column="0" data-unsupported="false">
+<rect x="20" y="700" width="190" height="104" fill="#f3f2f1" stroke="#c8c6c4"/>
+<text x="115.0" y="758.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="170">有效期：1 小时</text>
+</g>
+<g data-row="5" data-column="1" data-unsupported="false">
+<rect x="210" y="700" width="370" height="104" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="220" y="746.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="350">cache_control:</text>
+<text x="220" y="770.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="350">{&quot;type&quot;: &quot;ephemeral&quot;, &quot;ttl&quot;: &quot;1h&quot;}</text>
+</g>
+<g data-row="5" data-column="2" data-unsupported="false">
+<rect x="580" y="700" width="230" height="104" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="695.0" y="734.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">支持</text>
+<text x="695.0" y="758.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">闲置 6.5 分钟后</text>
+<text x="695.0" y="782.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">读取 96.0%</text>
+</g>
+<g data-row="5" data-column="3" data-unsupported="false">
+<rect x="810" y="700" width="230" height="104" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="925.0" y="734.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">支持</text>
+<text x="925.0" y="758.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">闲置 6.5 分钟后</text>
+<text x="925.0" y="782.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">读取 95.4%</text>
+</g>
+<g data-row="5" data-column="4" data-unsupported="false">
+<rect x="1040" y="700" width="230" height="104" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="1155.0" y="734.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">支持</text>
+<text x="1155.0" y="758.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">闲置 6.5 分钟后</text>
+<text x="1155.0" y="782.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">读取 96.3%</text>
+</g>
+<g data-row="5" data-column="5" data-unsupported="false">
+<rect x="1270" y="700" width="410" height="104" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="1280" y="746.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">1 小时写入按输入价 2 倍计费（文档）；</text>
+<text x="1280" y="770.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">本次只闲置 6.5 分钟，未等满 1 小时。</text>
+</g>
+<g data-row="6" data-column="0" data-unsupported="false">
+<rect x="20" y="804" width="190" height="104" fill="#f3f2f1" stroke="#c8c6c4"/>
+<text x="115.0" y="850.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="170">提示：</text>
+<text x="115.0" y="874.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="170">不足 512 tokens</text>
+</g>
+<g data-row="6" data-column="1" data-unsupported="false">
+<rect x="210" y="804" width="370" height="104" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="220" y="862.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="350">任一缓存标记位置</text>
+</g>
+<g data-row="6" data-column="2" data-unsupported="false">
+<rect x="580" y="804" width="230" height="104" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="695.0" y="862.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">不缓存，不报错</text>
+</g>
+<g data-row="6" data-column="3" data-unsupported="false">
+<rect x="810" y="804" width="230" height="104" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="925.0" y="862.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">不缓存，不报错</text>
+</g>
+<g data-row="6" data-column="4" data-unsupported="false">
+<rect x="1040" y="804" width="230" height="104" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="1155.0" y="862.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">不缓存，不报错</text>
+</g>
+<g data-row="6" data-column="5" data-unsupported="false">
+<rect x="1270" y="804" width="410" height="104" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="1280" y="850.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">512 tokens 下限来自文档；</text>
+<text x="1280" y="874.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">实测约 20 tokens：HTTP 200，读写为 0。</text>
+</g>
+</g></svg>

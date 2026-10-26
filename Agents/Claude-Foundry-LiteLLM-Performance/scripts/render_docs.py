@@ -419,6 +419,8 @@ def pages(result):
         ])
         output[f"images/topology-{language}.svg"] = render_coding.topology(d, chinese)
         output[f"images/latency-{language}.svg"] = latency_chart(result["groups"], chinese)
+        output[f"images/parameter-support-{language}.svg"] = render_coding.support_figure(d, chinese)
+        output[f"images/cache-settings-{language}.svg"] = render_coding.cache_settings_figure(d, chinese)
     return output
 
 

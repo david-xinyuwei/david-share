@@ -9,6 +9,7 @@ import sys
 import tempfile
 import threading
 import unittest
+import xml.etree.ElementTree as ET
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -132,6 +133,54 @@ class EvidenceTests(unittest.TestCase):
                     self.assertEqual(passes[index], f"{cell['passed']}/{cell['attempted']}")
                     self.assertEqual(first_text[index], render_coding.secs(cell["first_text_p50_s"]))
                     self.assertEqual(cost[index], render_coding.usd(cell["cost_per_1k_requests_usd"]))
+
+    def test_support_table_covers_all_modes_and_omitted_effort(self):
+        rows = render_coding.support_matrix_rows(self.d)
+        self.assertEqual(len(rows), 12)
+        self.assertEqual(sum(status == 200 for row in rows for status in row["efforts"].values()), 26)
+        self.assertEqual(sum(row["cache_observed"] for row in rows), 5)
+        for row in rows:
+            self.assertEqual(tuple(row["efforts"]), (*coding_data.EFFORTS, "omitted"))
+            if row["mode"] == "enabled":
+                self.assertEqual(set(row["efforts"].values()), {400})
+
+    def test_cache_table_values_use_each_model_and_scenario(self):
+        values = render_coding.cache_setting_values(self.d)
+        turns = coding_data.cache_numbers(self.d)["turns"]
+        for model in coding_data.MODELS:
+            deployment = coding_data.DEPLOYMENT[model]
+            for scenario in ("auto", "system_only", "system_plus_auto"):
+                shares = [turns[(deployment, scenario, turn)]["read_share"] for turn in (2, 3, 4)]
+                self.assertEqual(values[model][scenario]["min"], min(shares))
+                self.assertEqual(values[model][scenario]["max"], max(shares))
+                self.assertEqual(values[model][scenario]["new_conversation"],
+                                 turns[(deployment, scenario + "_second", 1)]["read_share"])
+            self.assertEqual(values[model]["idle_5m"], 0)
+            self.assertGreater(values[model]["idle_1h"], 0)
+
+    def test_complete_table_figures_preserve_cells_and_scope(self):
+        for chinese in (False, True):
+            first = ET.fromstring(render_coding.support_figure(self.d, chinese))
+            second = ET.fromstring(render_coding.cache_settings_figure(self.d, chinese))
+            self.assertEqual(len(first.findall('.//*[@data-unsupported="true"]')), 46)
+            self.assertEqual(len({node.get("data-row") for node in first.findall('.//*[@data-row]')}), 12)
+            cache_cells = first.findall('.//*[@data-column="8"]')
+            self.assertEqual(len(cache_cells), 12)
+            self.assertTrue(all(node.get("data-unsupported") == "false" for node in cache_cells))
+            self.assertEqual({"".join(node.itertext()).strip() for node in cache_cells},
+                             {"适用", "不适用"} if chinese else {"Applicable", "Not applicable"})
+            for line in first.findall('.//{http://www.w3.org/2000/svg}line'):
+                self.assertLessEqual(float(line.get("x2")) - float(line.get("x1")), 41)
+            self.assertEqual(len({node.get("data-row") for node in second.findall('.//*[@data-row]')}), 7)
+            self.assertEqual(len(second.findall('.//*[@data-row]')), 42)
+            language = "zh" if chinese else "en"
+            markup = render_coding.support_tables(self.d, chinese, language)
+            self.assertIn(f"images/parameter-support-{language}.svg", markup)
+            self.assertIn(f"images/cache-settings-{language}.svg", markup)
+            self.assertIn("26", markup)
+            self.assertIn("ACA", markup)
+            self.assertIn("probe/probe_results.jsonl", markup)
+            self.assertIn("cache/cache_results.jsonl", markup)
 
     def test_thinking_comparison_uses_matched_efforts(self):
         for model in ("sonnet", "haiku"):

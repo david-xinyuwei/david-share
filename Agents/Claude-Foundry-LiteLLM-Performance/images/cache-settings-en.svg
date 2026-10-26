@@ -1,0 +1,235 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1700" height="928" viewBox="0 0 1700 928" role="img" aria-labelledby="title description">
+<title id="title">Table 2. Prompt-cache controls and observed cache-read share</title>
+<desc id="description">Direct Foundry cache test, 2026-10-26. Percentages describe these requests, not an ACA retest.</desc>
+<rect width="1700" height="928" fill="white"/>
+<g font-family="Segoe UI,Microsoft YaHei,sans-serif">
+<text x="20" y="32" font-size="25" font-weight="600" fill="#1b1b1b">Table 2. Prompt-cache controls and observed cache-read share</text>
+<text x="20" y="58" font-size="17" fill="#605e5c">Direct Foundry cache test, 2026-10-26. Percentages describe these requests, not an ACA retest.</text>
+<rect x="20" y="76" width="190" height="88" fill="#0078d4" stroke="#2b88d8"/>
+<text x="115.0" y="126.0" text-anchor="middle" font-size="18" font-weight="600" fill="white" data-cell-width="170">Cache setting</text>
+<rect x="210" y="76" width="370" height="88" fill="#0078d4" stroke="#2b88d8"/>
+<text x="395.0" y="126.0" text-anchor="middle" font-size="18" font-weight="600" fill="white" data-cell-width="350">Request syntax</text>
+<rect x="580" y="76" width="230" height="88" fill="#0078d4" stroke="#2b88d8"/>
+<text x="695.0" y="126.0" text-anchor="middle" font-size="18" font-weight="600" fill="white" data-cell-width="210">Model: Opus 5.5</text>
+<rect x="810" y="76" width="230" height="88" fill="#0078d4" stroke="#2b88d8"/>
+<text x="925.0" y="126.0" text-anchor="middle" font-size="18" font-weight="600" fill="white" data-cell-width="210">Model: Sonnet 5.5</text>
+<rect x="1040" y="76" width="230" height="88" fill="#0078d4" stroke="#2b88d8"/>
+<text x="1155.0" y="126.0" text-anchor="middle" font-size="18" font-weight="600" fill="white" data-cell-width="210">Model: Haiku 5.5</text>
+<rect x="1270" y="76" width="410" height="88" fill="#0078d4" stroke="#2b88d8"/>
+<text x="1475.0" y="126.0" text-anchor="middle" font-size="18" font-weight="600" fill="white" data-cell-width="390">Scope and notes</text>
+<g data-row="0" data-column="0" data-unsupported="false">
+<rect x="20" y="164" width="190" height="96" fill="#f3f2f1" stroke="#c8c6c4"/>
+<text x="115.0" y="206.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="170">cache_control:</text>
+<text x="115.0" y="230.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="170">omitted</text>
+</g>
+<g data-row="0" data-column="1" data-unsupported="false">
+<rect x="210" y="164" width="370" height="96" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="220" y="218.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="350">No cache_control field</text>
+</g>
+<g data-row="0" data-column="2" data-unsupported="false">
+<rect x="580" y="164" width="230" height="96" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="695.0" y="218.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">No reads/writes</text>
+</g>
+<g data-row="0" data-column="3" data-unsupported="false">
+<rect x="810" y="164" width="230" height="96" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="925.0" y="218.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">No reads/writes</text>
+</g>
+<g data-row="0" data-column="4" data-unsupported="false">
+<rect x="1040" y="164" width="230" height="96" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="1155.0" y="218.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">No reads/writes</text>
+</g>
+<g data-row="0" data-column="5" data-unsupported="false">
+<rect x="1270" y="164" width="410" height="96" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="1280" y="194.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">Historical coding matrix:</text>
+<text x="1280" y="218.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">1,155 requests, no cache reads</text>
+<text x="1280" y="242.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">or writes; no tool calls.</text>
+</g>
+<g data-row="1" data-column="0" data-unsupported="false">
+<rect x="20" y="260" width="190" height="116" fill="#f3f2f1" stroke="#c8c6c4"/>
+<text x="115.0" y="324.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="170">Position: automatic</text>
+</g>
+<g data-row="1" data-column="1" data-unsupported="false">
+<rect x="210" y="260" width="370" height="116" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="220" y="312.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="350">At request top level:</text>
+<text x="220" y="336.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="350">cache_control: {&quot;type&quot;: &quot;ephemeral&quot;}</text>
+</g>
+<g data-row="1" data-column="2" data-unsupported="false">
+<rect x="580" y="260" width="230" height="116" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="695.0" y="300.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">Supported</text>
+<text x="695.0" y="324.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">turns 2-4: 94.3–96.1%</text>
+<text x="695.0" y="348.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">new chat: 0.0%</text>
+</g>
+<g data-row="1" data-column="3" data-unsupported="false">
+<rect x="810" y="260" width="230" height="116" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="925.0" y="300.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">Supported</text>
+<text x="925.0" y="324.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">turns 2-4: 94.7–95.9%</text>
+<text x="925.0" y="348.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">new chat: 0.0%</text>
+</g>
+<g data-row="1" data-column="4" data-unsupported="false">
+<rect x="1040" y="260" width="230" height="116" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="1155.0" y="300.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">Supported</text>
+<text x="1155.0" y="324.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">turns 2-4: 95.9–97.1%</text>
+<text x="1155.0" y="348.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">new chat: 0.0%</text>
+</g>
+<g data-row="1" data-column="5" data-unsupported="false">
+<rect x="1270" y="260" width="410" height="116" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="1280" y="300.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">Tested new conversation: same</text>
+<text x="1280" y="324.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">instructions/files, different question.</text>
+<text x="1280" y="348.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">The prior full-prefix entry did not match.</text>
+</g>
+<g data-row="2" data-column="0" data-unsupported="false">
+<rect x="20" y="376" width="190" height="116" fill="#f3f2f1" stroke="#c8c6c4"/>
+<text x="115.0" y="440.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="170">Position: explicit</text>
+</g>
+<g data-row="2" data-column="1" data-unsupported="false">
+<rect x="210" y="376" width="370" height="116" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="220" y="428.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="350">On a content block:</text>
+<text x="220" y="452.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="350">cache_control: {&quot;type&quot;: &quot;ephemeral&quot;}</text>
+</g>
+<g data-row="2" data-column="2" data-unsupported="false">
+<rect x="580" y="376" width="230" height="116" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="695.0" y="416.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">Supported</text>
+<text x="695.0" y="440.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">turns 2-4: 86.3–95.5%</text>
+<text x="695.0" y="464.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">new chat: 99.8%</text>
+</g>
+<g data-row="2" data-column="3" data-unsupported="false">
+<rect x="810" y="376" width="230" height="116" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="925.0" y="416.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">Supported</text>
+<text x="925.0" y="440.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">turns 2-4: 86.0–95.2%</text>
+<text x="925.0" y="464.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">new chat: 99.8%</text>
+</g>
+<g data-row="2" data-column="4" data-unsupported="false">
+<rect x="1040" y="376" width="230" height="116" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="1155.0" y="416.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">Supported</text>
+<text x="1155.0" y="440.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">turns 2-4: 89.4–95.8%</text>
+<text x="1155.0" y="464.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">new chat: 99.8%</text>
+</g>
+<g data-row="2" data-column="5" data-unsupported="false">
+<rect x="1270" y="376" width="410" height="116" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="1280" y="416.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">Measured: end of repository in system.</text>
+<text x="1280" y="440.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">tools/messages locations: docs only.</text>
+<text x="1280" y="464.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">Up to 4 breakpoints per request (docs).</text>
+</g>
+<g data-row="3" data-column="0" data-unsupported="false">
+<rect x="20" y="492" width="190" height="104" fill="#f3f2f1" stroke="#c8c6c4"/>
+<text x="115.0" y="550.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="170">Position: combined</text>
+</g>
+<g data-row="3" data-column="1" data-unsupported="false">
+<rect x="210" y="492" width="370" height="104" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="220" y="550.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="350">At both positions above</text>
+</g>
+<g data-row="3" data-column="2" data-unsupported="false">
+<rect x="580" y="492" width="230" height="104" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="695.0" y="526.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">Supported</text>
+<text x="695.0" y="550.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">turns 2-4: 94.9–96.1%</text>
+<text x="695.0" y="574.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">new chat: 99.8%</text>
+</g>
+<g data-row="3" data-column="3" data-unsupported="false">
+<rect x="810" y="492" width="230" height="104" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="925.0" y="526.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">Supported</text>
+<text x="925.0" y="550.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">turns 2-4: 95.0–95.9%</text>
+<text x="925.0" y="574.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">new chat: 99.8%</text>
+</g>
+<g data-row="3" data-column="4" data-unsupported="false">
+<rect x="1040" y="492" width="230" height="104" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="1155.0" y="526.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">Supported</text>
+<text x="1155.0" y="550.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">turns 2-4: 95.8–96.8%</text>
+<text x="1155.0" y="574.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">new chat: 99.8%</text>
+</g>
+<g data-row="3" data-column="5" data-unsupported="false">
+<rect x="1270" y="492" width="410" height="104" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="1280" y="526.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">Both positions in one request.</text>
+<text x="1280" y="550.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">The new-conversation result applies</text>
+<text x="1280" y="574.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">to this same-files test.</text>
+</g>
+<g data-row="4" data-column="0" data-unsupported="false">
+<rect x="20" y="596" width="190" height="104" fill="#f3f2f1" stroke="#c8c6c4"/>
+<text x="115.0" y="654.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="170">TTL: 5 minutes</text>
+</g>
+<g data-row="4" data-column="1" data-unsupported="false">
+<rect x="210" y="596" width="370" height="104" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="220" y="654.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="350">Omit ttl (default), or &quot;ttl&quot;: &quot;5m&quot;</text>
+</g>
+<g data-row="4" data-column="2" data-unsupported="false">
+<rect x="580" y="596" width="230" height="104" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="695.0" y="630.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">Supported</text>
+<text x="695.0" y="654.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">after 6.5 min idle</text>
+<text x="695.0" y="678.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">read 0.0%</text>
+</g>
+<g data-row="4" data-column="3" data-unsupported="false">
+<rect x="810" y="596" width="230" height="104" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="925.0" y="630.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">Supported</text>
+<text x="925.0" y="654.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">after 6.5 min idle</text>
+<text x="925.0" y="678.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">read 0.0%</text>
+</g>
+<g data-row="4" data-column="4" data-unsupported="false">
+<rect x="1040" y="596" width="230" height="104" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="1155.0" y="630.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">Supported</text>
+<text x="1155.0" y="654.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">after 6.5 min idle</text>
+<text x="1155.0" y="678.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">read 0.0%</text>
+</g>
+<g data-row="4" data-column="5" data-unsupported="false">
+<rect x="1270" y="596" width="410" height="104" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="1280" y="642.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">5-minute writes: 1.25x input price.</text>
+<text x="1280" y="666.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">Hits refresh lifetime (docs).</text>
+</g>
+<g data-row="5" data-column="0" data-unsupported="false">
+<rect x="20" y="700" width="190" height="104" fill="#f3f2f1" stroke="#c8c6c4"/>
+<text x="115.0" y="758.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="170">TTL: 1 hour</text>
+</g>
+<g data-row="5" data-column="1" data-unsupported="false">
+<rect x="210" y="700" width="370" height="104" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="220" y="746.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="350">cache_control:</text>
+<text x="220" y="770.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="350">{&quot;type&quot;: &quot;ephemeral&quot;, &quot;ttl&quot;: &quot;1h&quot;}</text>
+</g>
+<g data-row="5" data-column="2" data-unsupported="false">
+<rect x="580" y="700" width="230" height="104" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="695.0" y="734.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">Supported</text>
+<text x="695.0" y="758.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">after 6.5 min idle</text>
+<text x="695.0" y="782.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">read 96.0%</text>
+</g>
+<g data-row="5" data-column="3" data-unsupported="false">
+<rect x="810" y="700" width="230" height="104" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="925.0" y="734.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">Supported</text>
+<text x="925.0" y="758.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">after 6.5 min idle</text>
+<text x="925.0" y="782.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">read 95.4%</text>
+</g>
+<g data-row="5" data-column="4" data-unsupported="false">
+<rect x="1040" y="700" width="230" height="104" fill="#dff6dd" stroke="#c8c6c4"/>
+<text x="1155.0" y="734.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">Supported</text>
+<text x="1155.0" y="758.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">after 6.5 min idle</text>
+<text x="1155.0" y="782.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">read 96.3%</text>
+</g>
+<g data-row="5" data-column="5" data-unsupported="false">
+<rect x="1270" y="700" width="410" height="104" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="1280" y="746.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">1-hour writes: 2x input price (docs).</text>
+<text x="1280" y="770.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">Idle test waited 6.5 min, not 1 hour.</text>
+</g>
+<g data-row="6" data-column="0" data-unsupported="false">
+<rect x="20" y="804" width="190" height="104" fill="#f3f2f1" stroke="#c8c6c4"/>
+<text x="115.0" y="850.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="170">Prompt:</text>
+<text x="115.0" y="874.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="170">&lt;512 tokens</text>
+</g>
+<g data-row="6" data-column="1" data-unsupported="false">
+<rect x="210" y="804" width="370" height="104" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="220" y="862.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="350">Either marker position</text>
+</g>
+<g data-row="6" data-column="2" data-unsupported="false">
+<rect x="580" y="804" width="230" height="104" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="695.0" y="862.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">No cache, no error</text>
+</g>
+<g data-row="6" data-column="3" data-unsupported="false">
+<rect x="810" y="804" width="230" height="104" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="925.0" y="862.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">No cache, no error</text>
+</g>
+<g data-row="6" data-column="4" data-unsupported="false">
+<rect x="1040" y="804" width="230" height="104" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="1155.0" y="862.0" text-anchor="middle" font-size="18" font-weight="400" fill="#242424" data-cell-width="210">No cache, no error</text>
+</g>
+<g data-row="6" data-column="5" data-unsupported="false">
+<rect x="1270" y="804" width="410" height="104" fill="#ffffff" stroke="#c8c6c4"/>
+<text x="1280" y="838.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">512-token minimum: documentation.</text>
+<text x="1280" y="862.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">Measured short prompt: about 20 tokens;</text>
+<text x="1280" y="886.0" text-anchor="start" font-size="18" font-weight="400" fill="#242424" data-cell-width="390">HTTP 200, zero cache reads and writes.</text>
+</g>
+</g></svg>

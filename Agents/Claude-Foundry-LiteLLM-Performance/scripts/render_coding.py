@@ -101,6 +101,218 @@ def grids(d, chinese):
 
 # ---------- README: purpose ----------
 
+def support_matrix_rows(d):
+    outcomes = probe_outcomes(d)
+    rows = []
+    for model in MODELS:
+        for mode in ("adaptive", "between_tools", "disabled", "enabled"):
+            if mode == "enabled":
+                status, message, _ = outcomes[("thinking_enabled_budget", model)]
+                require(status == 400 and "thinking.type.enabled" in message,
+                        "enabled-mode rejection is not established")
+                efforts = {effort: status for effort in (*EFFORTS, "omitted")}
+            else:
+                efforts = {effort: outcomes[(f"{mode}_{'default_effort' if effort == 'omitted' else effort}", model)][0]
+                           for effort in (*EFFORTS, "omitted")}
+            require(all(status in (200, 400) for status in efforts.values()), "unresolved parameter probe")
+            cached = any(row["model"] == DEPLOYMENT[model] and row["mode"] == mode
+                         and (row.get("usage") or {}).get("cache_read_input_tokens", 0) > 0
+                         for row in d["cache_rows"])
+            rows.append({"model": model, "mode": mode, "efforts": efforts, "cache_observed": cached})
+    return rows
+
+
+def cache_setting_values(d):
+    turns = cache_numbers(d)["turns"]
+    values = {}
+    for model in MODELS:
+        deployment = DEPLOYMENT[model]
+        values[model] = {}
+        for scenario in ("auto", "system_only", "system_plus_auto"):
+            shares = [turns[(deployment, scenario, turn)]["read_share"] for turn in (2, 3, 4)]
+            values[model][scenario] = {
+                "min": min(shares), "max": max(shares),
+                "new_conversation": turns[(deployment, scenario + "_second", 1)]["read_share"],
+            }
+        for scenario in ("idle_5m", "idle_1h"):
+            values[model][scenario] = turns[(deployment, scenario, 2)]["read_share"]
+    return values
+
+
+def matrix_figure(title, description, headers, widths, rows, heights, group=None, row_group=1):
+    left, top, header_height = 20, 76, 88
+    width, height = sum(widths) + 40, top + header_height + sum(heights) + 20
+    parts = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
+             f'viewBox="0 0 {width} {height}" role="img" aria-labelledby="title description">',
+             f'<title id="title">{html.escape(title)}</title>',
+             f'<desc id="description">{html.escape(description)}</desc>',
+             f'<rect width="{width}" height="{height}" fill="white"/>',
+             '<g font-family="Segoe UI,Microsoft YaHei,sans-serif">',
+             f'<text x="20" y="32" font-size="25" font-weight="600" fill="#1b1b1b">{html.escape(title)}</text>',
+             f'<text x="20" y="58" font-size="17" fill="#605e5c">{html.escape(description)}</text>']
+
+    def text_block(value, x_pos, y_pos, cell_width, cell_height, heading=False, align_left=False):
+        lines = value.split("\n")
+        baseline = y_pos + cell_height / 2 - (len(lines) - 1) * 12 + 6
+        x_text = x_pos + 10 if align_left else x_pos + cell_width / 2
+        anchor = "start" if align_left else "middle"
+        colour = "white" if heading else "#242424"
+        weight = "600" if heading else "400"
+        for offset, line in enumerate(lines):
+            parts.append(f'<text x="{x_text}" y="{baseline + offset * 24}" text-anchor="{anchor}" '
+                         f'font-size="18" font-weight="{weight}" fill="{colour}" '
+                         f'data-cell-width="{cell_width - 20}">{html.escape(line)}</text>')
+
+    x_pos = left
+    for column, (header, cell_width) in enumerate(zip(headers, widths)):
+        grouped = group is not None and group[0] <= column < group[0] + group[1]
+        y_pos, cell_height = (top + 40, header_height - 40) if grouped else (top, header_height)
+        parts.append(f'<rect x="{x_pos}" y="{y_pos}" width="{cell_width}" height="{cell_height}" '
+                     'fill="#0078d4" stroke="#2b88d8"/>')
+        text_block(header, x_pos, y_pos, cell_width, cell_height, heading=True)
+        x_pos += cell_width
+    if group is not None:
+        start, columns, label = group
+        x_pos, cell_width = left + sum(widths[:start]), sum(widths[start:start + columns])
+        parts.append(f'<rect x="{x_pos}" y="{top}" width="{cell_width}" height="40" fill="#005a9e"/>')
+        text_block(label, x_pos, top, cell_width, 40, heading=True)
+    y_pos = top + header_height
+    for row_index, (row, row_height) in enumerate(zip(rows, heights)):
+        x_pos = left
+        for column, (value, cell_width) in enumerate(zip(row, widths)):
+            if column == 0 and row_index % row_group:
+                x_pos += cell_width
+                continue
+            cell_height = sum(heights[row_index:row_index + row_group]) if column == 0 else row_height
+            unsupported = value is None
+            fill = "#faf9f8" if unsupported else "#f3f2f1" if column == 0 else "#ffffff"
+            if value and value.startswith(("Supported", "支持", "Default", "默认", "Applicable", "适用")):
+                fill = "#dff6dd"
+            parts.append(f'<g data-row="{row_index}" data-column="{column}" '
+                         f'data-unsupported="{str(unsupported).lower()}">')
+            parts.append(f'<rect x="{x_pos}" y="{y_pos}" width="{cell_width}" height="{cell_height}" '
+                         f'fill="{fill}" stroke="#c8c6c4"/>')
+            if unsupported:
+                slash_size = min(cell_width, cell_height) / 2
+                center_x, center_y = x_pos + cell_width / 2, y_pos + cell_height / 2
+                parts.append(f'<line x1="{center_x - slash_size / 2}" y1="{center_y - slash_size / 2}" '
+                             f'x2="{center_x + slash_size / 2}" y2="{center_y + slash_size / 2}" '
+                             'stroke="#a19f9d" stroke-width="1.2"/>')
+            else:
+                text_block(value, x_pos, y_pos, cell_width, cell_height,
+                           align_left=column == 1 or (len(headers) == 6 and column == 5))
+            parts.append('</g>')
+            x_pos += cell_width
+        y_pos += row_height
+    return "\n".join(parts) + "\n</g></svg>"
+
+
+def support_figure(d, chinese):
+    rows, heights = [], []
+    for item in support_matrix_rows(d):
+        model, mode = item["model"], item["mode"]
+        mode_text = "enabled +\nbudget_tokens" if mode == "enabled" else mode
+        values = []
+        for effort, status in item["efforts"].items():
+            value = None if status == 400 else tr(chinese, "Supported", "支持")
+            if value and effort == "omitted":
+                value = tr(chinese, "Default\n", "默认\n") + DEFAULT_EFFORT[model]
+            values.append(value)
+        applicable = any(status == 200 for status in item["efforts"].values())
+        cached = tr(chinese, "Applicable", "适用") if applicable else tr(chinese, "Not applicable", "不适用")
+        rows.append([NAME[model], mode_text, *values, cached])
+        heights.append(82)
+    headers = [tr(chinese, "Model", "模型"), tr(chinese, "Thinking mode\nthinking.type", "思考模式\nthinking.type"),
+               *EFFORTS, tr(chinese, "Omitted", "不传"), tr(chinese, "Prompt cache\ncache_control", "提示缓存\ncache_control")]
+    return matrix_figure(
+        tr(chinese, "Table 1. Thinking modes, effort levels and prompt caching",
+           "表 1　思考模式、推理档位与提示缓存"),
+        tr(chinese, "Direct Foundry probe, 2026-10-26. Diagonal cells: rejected mode/combination. See scope notes below.",
+           "2026-10-26 直连 Foundry 探测。斜线格：模式或组合被拒绝；缓存列的实测范围见图下注。"),
+        headers, [115, 235, *([110] * 6), 170], rows, heights,
+        group=(2, 6, tr(chinese, "Effort: output_config.effort", "推理档位：output_config.effort")), row_group=4)
+
+
+def cache_settings_figure(d, chinese):
+    values = cache_setting_values(d)
+    supported = tr(chinese, "Supported", "支持")
+    rows = [[tr(chinese, "cache_control:\nomitted", "不传\ncache_control"),
+             tr(chinese, "No cache_control field", "不加 cache_control 字段"),
+             *([tr(chinese, "No reads/writes", "缓存读写均为 0")] * 3),
+             tr(chinese, f"Historical coding matrix:\n{count(len(d['responses']))} requests, no cache reads\nor writes; no tool calls.",
+                f"历史编码矩阵 {count(len(d['responses']))} 个请求，\n缓存读写均为 0；没有工具调用。")]]
+    labels = {"auto": ("Position: automatic", "位置：自动断点"),
+              "system_only": ("Position: explicit", "位置：显式断点"),
+              "system_plus_auto": ("Position: combined", "位置：自动＋显式")}
+    syntax = {
+        "auto": tr(chinese, 'At request top level:\ncache_control: {"type": "ephemeral"}', '请求顶层：\ncache_control: {"type": "ephemeral"}'),
+        "system_only": tr(chinese, 'On a content block:\ncache_control: {"type": "ephemeral"}', '内容块上：\ncache_control: {"type": "ephemeral"}'),
+        "system_plus_auto": tr(chinese, "At both positions above", "上面两处都写"),
+    }
+    notes = {
+        "auto": tr(chinese, "Tested new conversation: same\ninstructions/files, different question.\nThe prior full-prefix entry did not match.",
+                   "本次新对话复用指令和文件，\n但换了问题；旧的完整前缀没有命中。\n不能据此断言所有新对话都不能命中。"),
+        "system_only": tr(chinese, "Measured: end of repository in system.\ntools/messages locations: docs only.\nUp to 4 breakpoints per request (docs).",
+                          "实测：system 中仓库文件末尾。\ntools、messages 位置仅有文档依据。\n每请求最多 4 个断点（文档）。"),
+        "system_plus_auto": tr(chinese, "Both positions in one request.\nThe new-conversation result applies\nto this same-files test.",
+                               "同一请求同时使用两种位置；\n新对话结果限于本次同文件测试。"),
+    }
+    for scenario in ("auto", "system_only", "system_plus_auto"):
+        cells = []
+        for model in MODELS:
+            value = values[model][scenario]
+            interval_text = span(value["min"], value["max"], pct) + "%"
+            cells.append(supported + "\n" + tr(chinese, f"turns 2-4: {interval_text}", f"第 2-4 轮：{interval_text}")
+                         + "\n" + tr(chinese, "new chat: ", "新对话：") + pct(value["new_conversation"]) + "%")
+        rows.append([tr(chinese, *labels[scenario]), syntax[scenario], *cells, notes[scenario]])
+    for scenario, duration in (("idle_5m", "5m"), ("idle_1h", "1h")):
+        cells = [supported + "\n" + tr(chinese, "after 6.5 min idle", "闲置 6.5 分钟后")
+                 + "\n" + tr(chinese, "read ", "读取 ") + pct(values[model][scenario]) + "%" for model in MODELS]
+        rows.append([
+            tr(chinese, "TTL: 5 minutes" if duration == "5m" else "TTL: 1 hour",
+               "有效期：5 分钟" if duration == "5m" else "有效期：1 小时"),
+            tr(chinese, 'Omit ttl (default), or "ttl": "5m"', '省略 ttl（默认），或 "ttl": "5m"') if duration == "5m"
+            else 'cache_control:\n{"type": "ephemeral", "ttl": "1h"}',
+            *cells,
+            tr(chinese, "5-minute writes: 1.25x input price.\nHits refresh lifetime (docs).",
+               "5 分钟写入按输入价 1.25 倍计费；\n命中会续期（文档）。") if duration == "5m"
+            else tr(chinese, "1-hour writes: 2x input price (docs).\nIdle test waited 6.5 min, not 1 hour.",
+                    "1 小时写入按输入价 2 倍计费（文档）；\n本次只闲置 6.5 分钟，未等满 1 小时。"),
+        ])
+    rows.append([tr(chinese, "Prompt:\n<512 tokens", "提示：\n不足 512 tokens"),
+                 tr(chinese, "Either marker position", "任一缓存标记位置"),
+                 *([tr(chinese, "No cache, no error", "不缓存，不报错")] * 3),
+                 tr(chinese, "512-token minimum: documentation.\nMeasured short prompt: about 20 tokens;\nHTTP 200, zero cache reads and writes.",
+                    "512 tokens 下限来自文档；\n实测约 20 tokens：HTTP 200，读写为 0。")])
+    return matrix_figure(
+        tr(chinese, "Table 2. Prompt-cache controls and observed cache-read share",
+           "表 2　提示缓存设置与实测读取比例"),
+        tr(chinese, "Direct Foundry cache test, 2026-10-26. Percentages describe these requests, not an ACA retest.",
+           "2026-10-26 直连 Foundry 缓存测试。百分比对应该次请求，不是 ACA 重测结果。"),
+        [tr(chinese, "Cache setting", "缓存设置"), tr(chinese, "Request syntax", "怎么写"),
+         *[tr(chinese, "Model: ", "模型：") + NAME[model] for model in MODELS], tr(chinese, "Scope and notes", "说明与范围")],
+        [190, 370, 230, 230, 230, 410], rows, [96, 116, 116, 104, 104, 104, 104])
+
+
+def support_tables(d, chinese, language):
+    accepted = sum(status == 200 for row in support_matrix_rows(d) for status in row["efforts"].values())
+    title1 = tr(chinese, "**Table 1. Complete thinking-mode and effort matrix.**",
+                "**表 1：完整思考模式与推理档位矩阵。**")
+    title2 = tr(chinese, "**Table 2. Complete prompt-cache settings.**", "**表 2：完整提示缓存设置。**")
+    image1 = f'[![{title1.strip("*")}](images/parameter-support-{language}.svg)](images/parameter-support-{language}.svg)'
+    image2 = f'[![{title2.strip("*")}](images/cache-settings-{language}.svg)](images/cache-settings-{language}.svg)'
+    notes1 = tr(chinese,
+                f"The 54 `adaptive`/`between_tools`/`disabled` × effort cells were individually probed; {accepted} were accepted, including five omitted-effort cells. For `enabled`, one request per model used `budget_tokens: 1024` and omitted effort; the HTTP 400 rejects the mode itself, so all effort cells are hatched. The cache column states applicability only: a rejected thinking mode makes the request inapplicable; it does not mean the model lacks caching. Default effort values are from the [effort documentation]({EFFORT_DOC}).",
+                f"`adaptive`、`between_tools`、`disabled` 与六列档位共 54 格，均单独探测；其中 {accepted} 格被接受，包括五个不传 effort 的格子。`enabled` 每模型只测一次：`budget_tokens: 1024`，不传 effort；HTTP 400 拒绝的是模式本身，所以六个档位格都画斜线。缓存列只写适用性：思考模式使请求被拒时标“不适用”，不是说模型不支持缓存。默认档位来自[effort 文档]({EFFORT_DOC})。")
+    cache_scope = tr(chinese,
+                     "Cache observations: all five accepted model/mode rows read cache at effort low; adaptive also read cache in the high-effort switch scenario. Other effort combinations still need cache-hit verification through ACA. Applicability and parameter acceptance are not completed cache-enabled performance testing. Fixed matrix controls: `max_tokens: 128000`, `stream: true`; `temperature`, `top_p`, `top_k` omitted. No `thinking` field is documented to select adaptive; the three omitted-thinking/omitted-effort probes returned 200.",
+                     "缓存实测范围：五个被接受的模型／模式行均在 low 档读到缓存；adaptive 在切换到 high 的场景也读到缓存。其他档位组合仍需经 ACA 逐格验证缓存命中。“适用”和“参数被接受”不等于“开启缓存后的性能已测完”。矩阵固定项：`max_tokens: 128000`、`stream: true`；`temperature`、`top_p`、`top_k` 不传。不传 thinking 等同 adaptive 来自文档；三个模型同时不传 thinking、effort 的探测均返回 200。")
+    notes2 = tr(chinese,
+                f"Sources: [probe requests](evidence/coding-matrix-20261026/probe/probe_results.jsonl), [cache requests](evidence/coding-matrix-20261026/cache/cache_results.jsonl) and [prompt-caching documentation]({CACHE_DOC}). Table 2 uses two repetitions per scenario: Opus adaptive, Sonnet between_tools, Haiku disabled, effort low; first writes are separate from turns 2-4. Read share is read tokens / (uncached + written + read input tokens), aggregated within each model/scenario/turn. New conversations reuse the files but change the question. The 512-token boundary and four-breakpoint limit are documented, not boundary-sweep measurements. All cache markers use `type: ephemeral`; reads cost 0.05x base input on Opus/Sonnet and 0.1x on Haiku (documented prices). These tables preserve the historical direct-VM evidence; no new ACA performance result is asserted.",
+                f"来源：[探测请求](evidence/coding-matrix-20261026/probe/probe_results.jsonl)、[缓存请求](evidence/coding-matrix-20261026/cache/cache_results.jsonl)及[缓存文档]({CACHE_DOC})。表 2 每场景重复两次：Opus adaptive、Sonnet between_tools、Haiku disabled，effort low；首轮写入与第 2-4 轮读取分开。读取比例＝读取 tokens ÷（未缓存＋写入＋读取的输入 tokens），按模型／场景／轮次汇总。新对话复用文件但换了问题。512-token 边界和四断点上限来自文档，并非边界扫描实测。缓存标记均为 `type: ephemeral`；读取按输入价计费：Opus／Sonnet 0.05 倍、Haiku 0.1 倍（文档价格）。这里保留历史 VM 直连证据，不宣称已有新的 ACA 性能结果。")
+    return "\n\n".join([title1, image1, notes1, cache_scope, title2, image2, notes2])
+
+
 def decision_table(d, chinese):
     summary = d["probe_summary"]
     defaults = DEFAULT_EFFORT
@@ -328,7 +540,8 @@ def purpose(d, chinese, language):
     sources = tr(chinese,
                  f"**Sources.** Accepted values and the HTTP 400 messages come from our probe ([results](docs/results.md#parameter-probe-2026-10-26)). What each setting does, the defaults, the rules for `between_tools` and `disabled`, and the advice to set `max_tokens` to 128,000 for agentic coding on Sonnet 5.5 come from Claude's [thinking]({THINKING_DOC}) and [effort]({EFFORT_DOC}) pages; cache rules and price multipliers from [prompt caching]({CACHE_DOC}); prices from [pricing]({PRICE_DOC}); hosting options and Foundry setup from [Claude in Microsoft Foundry]({FOUNDRY_DOC}); all read on 2026-10-26. The *Choose it when* row is our reading of these {n_problems} problems, not general advice.",
                  f"**来源。** 接受哪些取值、HTTP 400 的报错原文来自我们的参数探测（[结果页](docs/results_CN.md#参数探测)）。各设置的作用、默认值、`between_tools` 和 `disabled` 的使用规则，以及 Sonnet 5.5 做智能体编码时把 `max_tokens` 设为 128,000 的建议，来自 Claude 的 [thinking]({THINKING_DOC}) 和 [effort]({EFFORT_DOC}) 文档；缓存规则和价格倍数来自 [prompt caching]({CACHE_DOC})；价格来自 [pricing]({PRICE_DOC})；托管方式和 Foundry 配置来自 [Claude in Microsoft Foundry]({FOUNDRY_DOC})；均于 2026-10-26 查阅。“适合的情况”一行是我们对这 {n_problems} 道题的解读，不是通用建议。")
-    return "\n\n".join([intro, methods, figure, caption, settings_lead, settings_table(d, chinese), not_covered,
+    return "\n\n".join([intro, methods, figure, caption, settings_lead, settings_table(d, chinese),
+                        support_tables(d, chinese, language), not_covered,
                         per_model, decision_table(d, chinese), scope, sources])
 
 
