@@ -111,8 +111,10 @@ def matrix_numbers(d):
     http = Counter(r.get("http_status") for r in d["responses"])
     geo = Counter((r.get("usage") or {}).get("inference_geo") for r in d["responses"])
     require(len(geo) == 1, "responses report more than one inference_geo")
+    regions = Counter((r.get("headers") or {}).get("x-ms-region") for r in d["responses"])
+    spilled = Counter((r.get("headers") or {}).get("x-ms-is-spilled-over") for r in d["responses"])
     return {
-        "geo": geo, "geo_value": next(iter(geo)),
+        "geo": geo, "geo_value": next(iter(geo)), "regions": regions, "spilled": spilled,
         "requests": facts["requests_total"], "measured": len(measured),
         "warmups": facts["requests_total"] - len(measured), "completed": statuses["completed"],
         "http": http, "throttled": facts["throttled_attempts"],

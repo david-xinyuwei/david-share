@@ -23,9 +23,9 @@ Microsoft Foundry 上的 Claude Opus 5.5、Sonnet 5.5 和 Haiku 5.5 有四个设
 
 **来源。** 接受哪些取值、HTTP 400 的报错原文来自我们的参数探测（[结果页](docs/results_CN.md#参数探测)）。默认档位、`between_tools` 和 `disabled` 的使用规则，以及 Sonnet 5.5 做智能体编码时把 `max_tokens` 设为 128,000 的建议，来自 Claude 的 [effort](https://platform.claude.com/docs/en/build-with-claude/effort) 文档；缓存规则来自 [prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)；价格来自 [pricing](https://platform.claude.com/docs/en/about-claude/pricing)（2026-10-26 查阅）；Foundry 配置来自 [Claude in Microsoft Foundry](https://platform.claude.com/docs/en/build-with-claude/claude-in-microsoft-foundry)。表格最后一行是我们对这 18 道题的解读，不是通用建议。
 
-<img src="images/topology-zh.svg" width="520" alt="两条测试路径。上：East US 2 的 Linux VM 直接调用同区域 Foundry 资源上的三个 Claude 5.5 部署，并在同一台 VM 的 Docker 中运行单元测试。下：2026-10-24 的测试，Windows 客户端调用 Japan East 的 Azure Container Apps 上的 LiteLLM，再由它调用同一个 East US 2 资源。" />
+<img src="images/topology-zh.svg" width="900" alt="测试方法。同一个 Azure 区域 East US 2 里，唯一的客户端 Linux VM 通过 HTTPS 调用一个 Microsoft Foundry 资源上的三个 Claude 5.5 部署，并在同一台 VM 的 Docker 中运行每个回答的单元测试。右侧分五步列出测试方法。" />
 
-图中内容：每次测试的客户端、网关和模型分别在哪里运行，以及在哪里计时。上面的路径产生了本页的主要结果；下面是 2026-10-24 的网关测试，网关在另一个区域。原创说明图，使用未修改的 [Azure 图标](images/icon-sources.json)；图中没有画推理实际在哪里执行，GlobalStandard 部署不固定这一点。
+图中内容：2026-10-26 结果背后的唯一客户端、唯一资源和测试方法；时间在 VM 上计，从请求发出到首个可见文字。2026-10-24 的网关测试走的是另一条路径，图下有注，详见[结果页](docs/results_CN.md#网关测试)。原创说明图，使用未修改的 [Azure 图标](images/icon-sources.json)。
 
 ## 实现效果
 

@@ -1,6 +1,7 @@
 """Markdown and figure blocks for the 2026-10-26 direct tests; every number comes from coding_data."""
 import base64
 import hashlib
+import html
 import json
 import re
 
@@ -166,13 +167,13 @@ def purpose(d, chinese, language):
     sources = tr(chinese,
                  f"**Sources.** Accepted values and the HTTP 400 messages come from our probe ([results](docs/results.md#parameter-probe-2026-10-26)). The defaults, the rules for `between_tools` and `disabled`, and the advice to set `max_tokens` to 128,000 for agentic coding on Sonnet 5.5 come from Claude's [effort]({EFFORT_DOC}) page; cache rules from [prompt caching]({CACHE_DOC}); prices from [pricing]({PRICE_DOC}), read on 2026-10-26; Foundry setup from [Claude in Microsoft Foundry]({FOUNDRY_DOC}). The last row of the table is our reading of these 18 problems, not general advice.",
                  f"**来源。** 接受哪些取值、HTTP 400 的报错原文来自我们的参数探测（[结果页](docs/results_CN.md#参数探测)）。默认档位、`between_tools` 和 `disabled` 的使用规则，以及 Sonnet 5.5 做智能体编码时把 `max_tokens` 设为 128,000 的建议，来自 Claude 的 [effort]({EFFORT_DOC}) 文档；缓存规则来自 [prompt caching]({CACHE_DOC})；价格来自 [pricing]({PRICE_DOC})（2026-10-26 查阅）；Foundry 配置来自 [Claude in Microsoft Foundry]({FOUNDRY_DOC})。表格最后一行是我们对这 18 道题的解读，不是通用建议。")
-    figure = (f'<img src="images/topology-{language}.svg" width="520" alt="'
-              + tr(chinese, "Two test paths. Top: a Linux VM in East US 2 calls three Claude 5.5 deployments of a Foundry resource in East US 2 and runs the unit tests in Docker on the same VM. Bottom: the 2026-10-24 test, a Windows client calling LiteLLM on Azure Container Apps in Japan East, which calls the same East US 2 resource.",
-                   "两条测试路径。上：East US 2 的 Linux VM 直接调用同区域 Foundry 资源上的三个 Claude 5.5 部署，并在同一台 VM 的 Docker 中运行单元测试。下：2026-10-24 的测试，Windows 客户端调用 Japan East 的 Azure Container Apps 上的 LiteLLM，再由它调用同一个 East US 2 资源。")
+    figure = (f'<img src="images/topology-{language}.svg" width="900" alt="'
+              + tr(chinese, "How we measured. One Azure region, East US 2: the only client, a Linux VM, calls one Microsoft Foundry resource with three Claude 5.5 deployments over HTTPS and runs each answer's unit tests in Docker on the same VM. On the right, the method in five steps.",
+                   "测试方法。同一个 Azure 区域 East US 2 里，唯一的客户端 Linux VM 通过 HTTPS 调用一个 Microsoft Foundry 资源上的三个 Claude 5.5 部署，并在同一台 VM 的 Docker 中运行每个回答的单元测试。右侧分五步列出测试方法。")
               + '" />')
     caption = tr(chinese,
-                 "What the figure shows: where each test's client, gateway and models ran, and where the clock was. The top path produced the main results on this page; the bottom path is the 2026-10-24 gateway test, whose gateway was in another region. Original explanatory diagram with unmodified [Azure icons](images/icon-sources.json); it does not show inference location, which GlobalStandard deployments do not fix.",
-                 "图中内容：每次测试的客户端、网关和模型分别在哪里运行，以及在哪里计时。上面的路径产生了本页的主要结果；下面是 2026-10-24 的网关测试，网关在另一个区域。原创说明图，使用未修改的 [Azure 图标](images/icon-sources.json)；图中没有画推理实际在哪里执行，GlobalStandard 部署不固定这一点。")
+                 "What the figure shows: the one client, the one resource and the method behind the 2026-10-26 results; times are taken on the VM, from the request being written to the first visible text. The 2026-10-24 gateway test took another path, noted under the figure and described on [the results page](docs/results.md#gateway-test-2026-10-24). Original explanatory diagram with unmodified [Azure icons](images/icon-sources.json).",
+                 "图中内容：2026-10-26 结果背后的唯一客户端、唯一资源和测试方法；时间在 VM 上计，从请求发出到首个可见文字。2026-10-24 的网关测试走的是另一条路径，图下有注，详见[结果页](docs/results_CN.md#网关测试)。原创说明图，使用未修改的 [Azure 图标](images/icon-sources.json)。")
     return "\n\n".join([intro, decision_table(d, chinese), scope, sources, figure, caption])
 
 
@@ -602,61 +603,150 @@ done
 # ---------- figure ----------
 
 def topology(d, chinese):
-    tcp = f"{matrix_numbers(d)['tcp_ms']:.1f}"
+    """'How we measured' figure: one region, one client, one resource, and the method beside it."""
+    m = matrix_numbers(d)
+    k = cache_numbers(d)
+    cfg = d["facts"]["state"]["config"]
+    summary = d["probe_summary"]
+    prov = d["provenance"]
+    region = prov["client"]["region"]
+    require(prov["models"]["resourceRegion"] == region, "the client and the models are not in one region")
+    kinds = {(x["sku"], x["version"]) for x in prov["models"]["deployments"]}
+    require(len(kinds) == 1, "deployments differ in SKU or version")
+    sku, version = next(iter(kinds))
+    n_problems = len(m["problems"])
+    languages = sorted({p.split("/")[0] for p in m["problems"]})
+    per_language = n_problems // len(languages)
+    require(per_language * len(languages) == n_problems, "problems are not evenly split over languages")
+    require(m["http"] == {200: m["requests"]}, "a matrix request did not return HTTP 200")
+    require(list(m["regions"]) == [region], "x-ms-region differs from the resource region on a matrix response")
+    require(list(m["spilled"]) == ["false"], "a matrix response was spilled over")
+    cells = len(d["facts"]["cells"])
+    python = ".".join(d["environment"][2].split()[1].split(".")[:2])
+    turns = len(k["context"]["questions"])
     ledger = read_json(ROOT / "images/icon-sources.json")
     icons = {}
     for item in ledger["icons"]:
         path = ROOT / item["file"]
         require(hashlib.sha256(path.read_bytes()).hexdigest() == item["sha256"], "Icon changed: " + item["file"])
         icons[path.name] = base64.b64encode(path.read_bytes()).decode()
-    vm = icons["10021-icon-service-Virtual-Machine.svg"]
-    aca = icons["02989-icon-service-Container-Apps-Environments.svg"]
-    foundry = icons["036509415-icon-service-Foundry-Project.svg"]
+
+    ink, body, head, accent, muted = "#111111", "#252525", "#0408AC", "#432FC8", "#666666"
+    judge_ink, judge_line = "#A35F00", "#C88A1E"
+    font = "'Segoe UI', Aptos, 'Segoe Sans Display', system-ui, -apple-system, 'Helvetica Neue', Arial, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', sans-serif"
+    out = []
+
+    def text(x, y, content, size, fill=body, weight=400, anchor="start"):
+        out.append(f'<text x="{x}" y="{y}" font-size="{size}" fill="{fill}" font-weight="{weight}" '
+                   f'text-anchor="{anchor}">{html.escape(content, quote=False)}</text>')
+
+    def runs(x, y, parts, size, fill=body):
+        spans = "".join(f'<tspan font-weight="{700 if bold else 400}"{f" fill={chr(34)}{head}{chr(34)}" if bold else ""}>'
+                        f'{html.escape(part, quote=False)}</tspan>' for part, bold in parts)
+        out.append(f'<text x="{x}" y="{y}" font-size="{size}" fill="{fill}">{spans}</text>')
+
+    def icon(name, x, y, size):
+        out.append(f'<image x="{x}" y="{y}" width="{size}" height="{size}" href="data:image/svg+xml;base64,{icons[name]}"/>')
 
     def t(en, cn):
         return tr(chinese, en, cn)
-    font = "Segoe UI,Microsoft YaHei,PingFang SC,Noto Sans CJK SC,sans-serif"
-    return f'''<svg xmlns="http://www.w3.org/2000/svg" width="520" height="1010" viewBox="0 0 520 1010">
-<rect width="520" height="1010" fill="#ffffff"/>
-<g font-family="{font}" fill="#202020">
-<text x="20" y="34" font-size="23" fill="#0078d4">{t("A · 2026-10-26: direct, one region", "A · 2026-10-26：直连，同一区域")}</text>
-<rect x="20" y="52" width="480" height="150" rx="6" fill="#eef6fc" stroke="#0078d4"/>
-<image x="36" y="66" width="34" height="34" href="data:image/svg+xml;base64,{vm}"/>
-<text x="82" y="92" font-size="21">{t("Linux VM · East US 2", "Linux VM · East US 2")}</text>
-<text x="36" y="128" font-size="18">Standard_D4s_v5 · Python 3.12 · httpx</text>
-<text x="36" y="156" font-size="18">{t("probe · matrix · cache test", "参数探测 · 编码矩阵 · 缓存测试")}</text>
-<text x="36" y="184" font-size="18">{t("Docker judge: unit tests, no network", "Docker 评分：单元测试，无网络")}</text>
-<path d="M260 202 V256" stroke="#0078d4" stroke-width="3"/><path d="M253 244 L260 258 L267 244" fill="#0078d4"/>
-<text x="276" y="224" font-size="17">HTTPS /anthropic/v1/messages</text>
-<text x="276" y="247" font-size="17">{t(f"managed identity · TCP {tcp} ms", f"托管身份 · TCP {tcp} 毫秒")}</text>
-<rect x="20" y="262" width="480" height="150" rx="6" fill="#eef6fc" stroke="#0078d4"/>
-<image x="36" y="276" width="34" height="34" href="data:image/svg+xml;base64,{foundry}"/>
-<text x="82" y="302" font-size="21">{t("Microsoft Foundry · East US 2", "Microsoft Foundry · East US 2")}</text>
-<text x="36" y="338" font-size="18">claude-opus-5-5 · 40K TPM</text>
-<text x="36" y="366" font-size="18">claude-sonnet-5-5 · claude-haiku-5-5 · 80K TPM</text>
-<text x="36" y="394" font-size="18">{t("GlobalStandard · version 2", "GlobalStandard · 版本 2")}</text>
-<text x="20" y="446" font-size="17" fill="#555">{t("Clock on the VM: request written → first text_delta.", "在 VM 上计时：请求发出 → 第一个 text_delta。")}</text>
-<line x1="20" y1="476" x2="500" y2="476" stroke="#cccccc"/>
-<text x="20" y="518" font-size="23" fill="#0078d4">{t("B · 2026-10-24: through a gateway", "B · 2026-10-24：经过网关")}</text>
-<rect x="20" y="536" width="480" height="92" rx="6" fill="#f5f5f5" stroke="#767676"/>
-<text x="36" y="570" font-size="21">{t("Windows client", "Windows 客户端")}</text>
-<text x="36" y="604" font-size="18">{t("PowerShell 7.6 · location not recorded", "PowerShell 7.6 · 位置未记录")}</text>
-<path d="M260 628 V666" stroke="#0078d4" stroke-width="3"/><path d="M253 654 L260 668 L267 654" fill="#0078d4"/>
-<text x="276" y="654" font-size="17">/v1/messages</text>
-<rect x="20" y="672" width="480" height="122" rx="6" fill="#eef6fc" stroke="#0078d4"/>
-<image x="36" y="686" width="34" height="34" href="data:image/svg+xml;base64,{aca}"/>
-<text x="82" y="712" font-size="21">Azure Container Apps · Japan East</text>
-<text x="36" y="748" font-size="18">{t("LiteLLM 1.106.2 · one replica", "LiteLLM 1.106.2 · 单副本")}</text>
-<text x="36" y="776" font-size="18">{t("managed identity to Foundry", "用托管身份调用 Foundry")}</text>
-<path d="M260 794 V832" stroke="#d13438" stroke-width="3"/><path d="M253 820 L260 834 L267 820" fill="#d13438"/>
-<text x="276" y="820" font-size="17" fill="#d13438">{t("crosses regions", "跨区域")}</text>
-<rect x="20" y="838" width="480" height="92" rx="6" fill="#eef6fc" stroke="#0078d4"/>
-<image x="36" y="852" width="34" height="34" href="data:image/svg+xml;base64,{foundry}"/>
-<text x="82" y="878" font-size="21">{t("Same Foundry resource · East US 2", "同一个 Foundry 资源 · East US 2")}</text>
-<text x="36" y="912" font-size="18">{t("three deployments as above", "三个部署同上")}</text>
-<text x="20" y="964" font-size="17" fill="#555">{t("Clock on the client: request sent → first text.", "在客户端计时：请求发出 → 第一个文字。")}</text>
-<text x="20" y="992" font-size="17" fill="#555">{t("Times include the Japan–US round trip.", "时间包含日本到美国的往返。")}</text>
-</g></svg>'''
+
+    text(40, 62, t("How we measured: one region, one client, one resource", "测试方法：一个区域、一个客户端、一个资源"), 36, ink)
+    out.append(f'<rect x="40" y="92" width="760" height="444" rx="24" fill="none" stroke="{accent}" stroke-width="2.5" stroke-dasharray="12 8"/>')
+    text(62, 127, t(f"Azure region: {region}", f"Azure 区域：{region}"), 20, accent, 700)
+
+    out.append('<rect x="62" y="146" width="270" height="256" rx="16" fill="#ECECEC"/>')
+    icon("10021-icon-service-Virtual-Machine.svg", 181, 156, 32)
+    vm_lines = [
+        ("Linux VM", "Linux VM", 21, head, 700, 214),
+        ("the only client", "唯一的客户端", 16, muted, 400, 239),
+        (f"Python {python} + httpx", f"Python {python} + httpx", 17, body, 700, 270),
+        ("Messages API, streaming", "Messages API，流式返回", 17, body, 400, 295),
+        ("1 request in flight per model", "每个模型同时只有 1 个请求", 17, body, 400, 320),
+        ("managed identity, no API key", "托管身份，不用 API 密钥", 17, body, 400, 345),
+        ("stops if TCP connect ≥ 50 ms", "TCP 建连 ≥ 50 毫秒就停止", 14.5, muted, 400, 377),
+    ]
+    for en, cn, size, fill, weight, y in vm_lines:
+        text(197, y, t(en, cn), size, fill, weight, "middle")
+
+    out.append(f'<line x1="197" y1="404" x2="197" y2="424" stroke="{judge_line}" stroke-width="2" stroke-dasharray="5 4"/>')
+    out.append(f'<polygon points="191,423 203,423 197,434" fill="{judge_line}"/>')
+    text(208, 424, t("answers", "回答"), 14.5, judge_ink)
+    out.append(f'<rect x="62" y="436" width="270" height="84" rx="10" fill="#FFF6E5" stroke="{judge_line}" stroke-width="1.6" stroke-dasharray="7 4"/>')
+    text(197, 463, t("Docker judge · same VM", "Docker 评分 · 同一台 VM"), 17, judge_ink, 700, "middle")
+    text(197, 486, t("runs each problem's unit tests", "运行每道题自带的单元测试"), 15, body, 400, "middle")
+    text(197, 508, t("offline · pass = tests exit 0", "离线运行 · 以 0 退出即通过"), 15, body, 400, "middle")
+
+    text(400, 232, "HTTPS", 16, accent, 700, "middle")
+    text(400, 254, t("TCP connect", "TCP 建连"), 15, muted, 400, "middle")
+    text(400, 274, t(f"median {m['tcp_ms']:.1f} ms", f"中位数 {m['tcp_ms']:.1f} 毫秒"), 15, muted, 400, "middle")
+    out.append(f'<line x1="346" y1="292" x2="454" y2="292" stroke="{accent}" stroke-width="2.5"/>')
+    out.append(f'<polygon points="336,292 348,286 348,298" fill="{accent}"/>')
+    out.append(f'<polygon points="464,292 452,286 452,298" fill="{accent}"/>')
+
+    out.append('<rect x="468" y="146" width="312" height="374" rx="18" fill="#EFECFA" stroke="#C4BFF3" stroke-width="1.5"/>')
+    icon("036509415-icon-service-Foundry-Project.svg", 484, 160, 28)
+    text(520, 182, t("One Foundry resource", "一个 Foundry 资源"), 20, head, 700)
+    text(484, 208, t(f"{sku} deployments, version {version}", f"{sku} 部署，版本 {version}"), 14.5, muted)
+    y = 222
+    for model in MODELS:
+        deployment = DEPLOYMENT[model]
+        accepted = summary[deployment]["accepted"]
+        modes = [f"{mode}{t(': ', '：')}{accepted[mode][0]} → {accepted[mode][-1]}"
+                 for mode in ("adaptive", "between_tools", "disabled") if accepted[mode]]
+        height = 36 + 22 * len(modes)
+        out.append(f'<rect x="484" y="{y}" width="280" height="{height}" rx="8" fill="#FFFFFF" stroke="#DAD5F4"/>')
+        text(498, y + 24, NAME[model], 17, head, 700)
+        text(750, y + 24, f"{cfg['tpm'][deployment] // 1000}K TPM", 14, muted, 400, "end")
+        for index, line in enumerate(modes):
+            text(498, y + 46 + 21 * index, line, 15, accent)
+        y += height + 10
+    runs(484, 500, [("Messages API ", True), ("/anthropic/v1/messages", False)], 14.5)
+
+    text(836, 127, t("Method", "方法"), 32, head, 700)
+    probe_n, cache_n, measured = d["runs"]["probe"]["requests"], k["requests"], m["measured"]
+    steps = [
+        (t(f"{n_problems} problems, {len(languages)} languages", f"{n_problems} 道题，{len(languages)} 种语言"),
+         t(f"Aider polyglot, {per_language} per language;", f"Aider polyglot，每种语言 {per_language} 道；"),
+         t("public exercises, not customer data", "公开练习，不是客户数据")),
+        (t("Probe accepted settings first", "先探测接受的取值"),
+         t(f"{probe_n} requests: every thinking × effort", f"{probe_n} 个探测请求，返回 200 的"),
+         t("pair that returns 200 becomes a cell", "思考模式 × 档位组合才成为一格")),
+        (t(f"{m['repeats']} runs per problem and cell", f"每格每题 {m['repeats']} 次"),
+         t(f"{n_problems * m['repeats']} answers per cell, plus 1 warm-up;", f"每格 {n_problems * m['repeats']} 个回答，另加 1 次预热；"),
+         t(f"{cells} cells, {measured:,} measured, all HTTP 200", f"{cells} 格共 {measured:,} 次计分，全部 HTTP 200")),
+        (t(f"Prompt cache: {turns}-turn chat", f"提示缓存：{turns} 轮编码对话"),
+         t(f"{cache_n} requests: breakpoints, TTL,", f"{cache_n} 个请求：断点、TTL、"),
+         t("effort and thinking-mode switches", "切换推理档位和思考模式")),
+        (t("Pass and cost", "通过与费用"),
+         t("pass = unit tests exit 0, offline;", "通过 = 单元测试以 0 退出，离线运行；"),
+         t("cost = recorded tokens × list price", "费用 = 记录的 token × 标价")),
+    ]
+    out.append(f'<defs><linearGradient id="badge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#C4BFF3"/>'
+               f'<stop offset="1" stop-color="{accent}"/></linearGradient></defs>')
+    for index, (title, first, second) in enumerate(steps):
+        ty = 178 + 72 * index
+        out.append(f'<circle cx="853" cy="{ty - 6}" r="17" fill="url(#badge)"/>')
+        text(853, ty, str(index + 1), 16, "#FFFFFF", 700, "middle")
+        text(882, ty, title, 17, head, 700)
+        text(882, ty + 23, first, 15.5, body)
+        text(882, ty + 44, second, 15.5, body)
+
+    spans = [
+        [(t(f"{sku}: ", f"{sku}："), True),
+         (t("Azure may serve a request on GPUs in another region, so ‘one region’ means the same entry point and network path",
+            "Azure 可能在其他区域的 GPU 上处理请求，所以“一个区域”指每个模型的入口和网络路径相同，"), False)],
+        [(t(f"for every model, not the same GPU. All {m['requests']:,} matrix responses carried x-ms-region {region} and were not spilled over.",
+            f"不是同一块 GPU。矩阵的 {m['requests']:,} 个响应，x-ms-region 都是 {region}，x-ms-is-spilled-over 都是 false。"), False)],
+        [(t("Not drawn: ", "图中未画："), True),
+         (t("the 2026-10-24 gateway test (Windows client → LiteLLM on Azure Container Apps in Japan East → this resource).",
+            "2026-10-24 的网关测试（Windows 客户端 → Japan East 的 Azure Container Apps 上的 LiteLLM → 本资源）。"), False)],
+    ]
+    for index, parts in enumerate(spans):
+        runs(40, 570 + 25 * index, parts, 16)
+    return ('<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="650" viewBox="0 0 1200 650">\n'
+            '<rect width="1200" height="650" fill="#FFFFFF"/>\n'
+            f'<g font-family="{font}">\n' + "\n".join(out) + "\n</g></svg>")
 
 
 # ---------- results page ----------
