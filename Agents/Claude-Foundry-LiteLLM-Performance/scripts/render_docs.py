@@ -391,12 +391,12 @@ def pages(result):
         readme_name = f"README{suffix}.md"
         other = "README.md" if chinese else "README_CN.md"
         if chinese:
-            title = "Claude 5.5 经 LiteLLM 接入 Microsoft Foundry：参数、提示缓存与性能验证"
+            title = "Microsoft Foundry 上的 Claude 5.5：思考模式、推理档位、提示缓存、延迟与编码正确率"
             headings = ("目的", "实现效果", "操作步骤")
             anchors = ("#目的", "#实现效果")
             author = "作者：魏新宇 · [English](README.md)"
         else:
-            title = "Claude 5.5 through LiteLLM on Microsoft Foundry: Parameters, Prompt Cache and Performance"
+            title = "Claude 5.5 on Microsoft Foundry: Thinking, Effort, Prompt Caching, Latency and Coding Accuracy"
             headings = ("Purpose", "Results", "Steps")
             anchors = ("#purpose", "#results")
             author = "Author: Xinyu Wei · [中文](README_CN.md)"

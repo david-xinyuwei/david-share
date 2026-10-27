@@ -40,145 +40,36 @@ The runner prepends a deterministic system identifier per problem/configuration 
 
 **All measured configurations, performance first.** A pair is the same problem and configuration sent twice: an observed cache write followed by a native cache hit, with both answers completed. Each state below uses one request from every eligible pair. P50/P95 use nearest rank; with at most 12 requests per state, P95 is the largest observation, not a production tail guarantee. `default` means effort was omitted. Compare matching configurations; generated output lengths may differ, so a timing or cost difference cannot be attributed entirely to caching.
 
-### Opus 5.5
+**Request numbers, not conversation turns.** Request 1 is the first identical-prompt submission and cache write; request 2 repeats that prompt and reads its cache. No answer history is appended, and there is no request 3 or 4 in this matrix. Each table cell names the request number. Cache-read share is the sum of native read tokens divided by all input tokens (uncached + write + read) for that request number. The last column grades both requests across all 12 problems: 24 answers per configuration, including failures, not just the performance subset.
 
-**Latency by configuration.**
-
-| Model / thinking.type / output_config.effort | Cache state | TTFT P50 / P95 (s) | E2E P50 / P95 (s) | Valid requests |
-|---|---|---:|---:|---:|
-| Opus 5.5<br>`adaptive` / `low` | First write | 1.19 / 9.06 | 6.94 / 14.4 | 12 |
-| Opus 5.5<br>`adaptive` / `low` | Cache hit | 1.08 / 14.7 | 7.84 / 20.0 | 12 |
-| Opus 5.5<br>`adaptive` / `medium` | First write | 6.92 / 31.5 | 11.6 / 37.2 | 12 |
-| Opus 5.5<br>`adaptive` / `medium` | Cache hit | 7.15 / 29.3 | 11.3 / 35.3 | 12 |
-| Opus 5.5<br>`adaptive` / `high` | First write | 9.13 / 94.5 | 14.0 / 101 | 12 |
-| Opus 5.5<br>`adaptive` / `high` | Cache hit | 7.53 / 228 | 11.7 / 239 | 12 |
-| Opus 5.5<br>`adaptive` / `xhigh` | First write | 18.9 / 110 | 24.7 / 117 | 12 |
-| Opus 5.5<br>`adaptive` / `xhigh` | Cache hit | 19.6 / 380 | 24.5 / 389 | 12 |
-| Opus 5.5<br>`adaptive` / `max` | First write | 232 / 1027 | 247 / 1036 | 11 |
-| Opus 5.5<br>`adaptive` / `max` | Cache hit | 236 / 913 | 249 / 922 | 11 |
-| Opus 5.5<br>`adaptive` / `default` | First write | 7.03 / 65.8 | 12.0 / 72.3 | 11 |
-| Opus 5.5<br>`adaptive` / `default` | Cache hit | 8.02 / 28.5 | 15.0 / 34.3 | 11 |
-
-**Output rate and cost for the same requests.**
-
-| Model / thinking.type / output_config.effort | Cache state | E2E output rate P50 (tokens/s, thinking included) | Mean cost (USD/request) | Valid requests |
-|---|---|---:|---:|---:|
-| Opus 5.5<br>`adaptive` / `low` | First write | 103.53 | $0.158921 | 12 |
-| Opus 5.5<br>`adaptive` / `low` | Cache hit | 103.75 | $0.023222 | 12 |
-| Opus 5.5<br>`adaptive` / `medium` | First write | 108.44 | $0.173419 | 12 |
-| Opus 5.5<br>`adaptive` / `medium` | Cache hit | 111.76 | $0.036952 | 12 |
-| Opus 5.5<br>`adaptive` / `high` | First write | 110.21 | $0.200936 | 12 |
-| Opus 5.5<br>`adaptive` / `high` | Cache hit | 110.93 | $0.097379 | 12 |
-| Opus 5.5<br>`adaptive` / `xhigh` | First write | 112.87 | $0.248050 | 12 |
-| Opus 5.5<br>`adaptive` / `xhigh` | Cache hit | 114.35 | $0.183598 | 12 |
-| Opus 5.5<br>`adaptive` / `max` | First write | 123.30 | $1.008633 | 11 |
-| Opus 5.5<br>`adaptive` / `max` | Cache hit | 121.91 | $0.785095 | 11 |
-| Opus 5.5<br>`adaptive` / `default` | First write | 109.83 | $0.186835 | 11 |
-| Opus 5.5<br>`adaptive` / `default` | Cache hit | 109.88 | $0.037639 | 11 |
-
-### Sonnet 5.5
-
-**Latency by configuration.**
-
-| Model / thinking.type / output_config.effort | Cache state | TTFT P50 / P95 (s) | E2E P50 / P95 (s) | Valid requests |
-|---|---|---:|---:|---:|
-| Sonnet 5.5<br>`adaptive` / `low` | First write | 0.77 / 0.95 | 4.86 / 9.76 | 12 |
-| Sonnet 5.5<br>`adaptive` / `low` | Cache hit | 0.76 / 1.15 | 4.88 / 9.01 | 12 |
-| Sonnet 5.5<br>`adaptive` / `medium` | First write | 0.81 / 11.0 | 5.67 / 14.4 | 12 |
-| Sonnet 5.5<br>`adaptive` / `medium` | Cache hit | 0.87 / 16.3 | 6.15 / 19.1 | 12 |
-| Sonnet 5.5<br>`adaptive` / `high` | First write | 6.05 / 137 | 10.6 / 140 | 12 |
-| Sonnet 5.5<br>`adaptive` / `high` | Cache hit | 7.44 / 119 | 10.7 / 122 | 12 |
-| Sonnet 5.5<br>`adaptive` / `xhigh` | First write | 20.7 / 246 | 24.0 / 254 | 12 |
-| Sonnet 5.5<br>`adaptive` / `xhigh` | Cache hit | 16.1 / 341 | 19.4 / 354 | 12 |
-| Sonnet 5.5<br>`adaptive` / `max` | First write | 394 / 616 | 397 / 622 | 9 |
-| Sonnet 5.5<br>`adaptive` / `max` | Cache hit | 364 / 743 | 367 / 751 | 9 |
-| Sonnet 5.5<br>`adaptive` / `default` | First write | 6.86 / 86.8 | 10.8 / 90.2 | 12 |
-| Sonnet 5.5<br>`adaptive` / `default` | Cache hit | 5.78 / 152 | 8.39 / 156 | 12 |
-| Sonnet 5.5<br>`between_tools` / `low` | First write | 0.78 / 1.08 | 5.14 / 7.88 | 12 |
-| Sonnet 5.5<br>`between_tools` / `low` | Cache hit | 0.76 / 0.91 | 4.51 / 8.22 | 12 |
-| Sonnet 5.5<br>`between_tools` / `medium` | First write | 0.83 / 1.06 | 5.41 / 9.18 | 12 |
-| Sonnet 5.5<br>`between_tools` / `medium` | Cache hit | 0.79 / 0.93 | 4.60 / 9.87 | 12 |
-| Sonnet 5.5<br>`between_tools` / `high` | First write | 0.81 / 1.09 | 5.56 / 11.6 | 12 |
-| Sonnet 5.5<br>`between_tools` / `high` | Cache hit | 0.82 / 1.18 | 7.03 / 13.1 | 12 |
-| Sonnet 5.5<br>`between_tools` / `default` | First write | 0.79 / 1.15 | 4.88 / 13.6 | 12 |
-| Sonnet 5.5<br>`between_tools` / `default` | Cache hit | 0.78 / 1.07 | 5.46 / 10.2 | 12 |
-
-**Output rate and cost for the same requests.**
-
-| Model / thinking.type / output_config.effort | Cache state | E2E output rate P50 (tokens/s, thinking included) | Mean cost (USD/request) | Valid requests |
-|---|---|---:|---:|---:|
-| Sonnet 5.5<br>`adaptive` / `low` | First write | 130.16 | $0.077371 | 12 |
-| Sonnet 5.5<br>`adaptive` / `low` | Cache hit | 123.18 | $0.008869 | 12 |
-| Sonnet 5.5<br>`adaptive` / `medium` | First write | 124.97 | $0.078745 | 12 |
-| Sonnet 5.5<br>`adaptive` / `medium` | Cache hit | 124.24 | $0.010499 | 12 |
-| Sonnet 5.5<br>`adaptive` / `high` | First write | 141.38 | $0.106288 | 12 |
-| Sonnet 5.5<br>`adaptive` / `high` | Cache hit | 138.87 | $0.034861 | 12 |
-| Sonnet 5.5<br>`adaptive` / `xhigh` | First write | 148.80 | $0.152607 | 12 |
-| Sonnet 5.5<br>`adaptive` / `xhigh` | Cache hit | 149.31 | $0.109698 | 12 |
-| Sonnet 5.5<br>`adaptive` / `max` | First write | 156.49 | $0.804891 | 9 |
-| Sonnet 5.5<br>`adaptive` / `max` | Cache hit | 158.34 | $0.635133 | 9 |
-| Sonnet 5.5<br>`adaptive` / `default` | First write | 140.69 | $0.100876 | 12 |
-| Sonnet 5.5<br>`adaptive` / `default` | Cache hit | 141.88 | $0.035923 | 12 |
-| Sonnet 5.5<br>`between_tools` / `low` | First write | 126.13 | $0.077653 | 12 |
-| Sonnet 5.5<br>`between_tools` / `low` | Cache hit | 130.11 | $0.008496 | 12 |
-| Sonnet 5.5<br>`between_tools` / `medium` | First write | 132.11 | $0.077994 | 12 |
-| Sonnet 5.5<br>`between_tools` / `medium` | Cache hit | 133.30 | $0.009313 | 12 |
-| Sonnet 5.5<br>`between_tools` / `high` | First write | 130.38 | $0.079108 | 12 |
-| Sonnet 5.5<br>`between_tools` / `high` | Cache hit | 129.14 | $0.011469 | 12 |
-| Sonnet 5.5<br>`between_tools` / `default` | First write | 130.06 | $0.078623 | 12 |
-| Sonnet 5.5<br>`between_tools` / `default` | Cache hit | 133.11 | $0.010259 | 12 |
-
-### Haiku 5.5
-
-**Latency by configuration.**
-
-| Model / thinking.type / output_config.effort | Cache state | TTFT P50 / P95 (s) | E2E P50 / P95 (s) | Valid requests |
-|---|---|---:|---:|---:|
-| Haiku 5.5<br>`adaptive` / `low` | First write | 3.09 / 20.2 | 4.93 / 22.9 | 12 |
-| Haiku 5.5<br>`adaptive` / `low` | Cache hit | 4.25 / 17.6 | 5.75 / 20.7 | 12 |
-| Haiku 5.5<br>`adaptive` / `medium` | First write | 6.92 / 13.8 | 8.30 / 15.3 | 12 |
-| Haiku 5.5<br>`adaptive` / `medium` | Cache hit | 6.93 / 14.2 | 8.02 / 16.8 | 12 |
-| Haiku 5.5<br>`adaptive` / `high` | First write | 9.07 / 38.5 | 10.8 / 40.3 | 12 |
-| Haiku 5.5<br>`adaptive` / `high` | Cache hit | 12.1 / 29.6 | 14.1 / 34.0 | 12 |
-| Haiku 5.5<br>`adaptive` / `xhigh` | First write | 61.3 / 460 | 63.2 / 463 | 11 |
-| Haiku 5.5<br>`adaptive` / `xhigh` | Cache hit | 53.4 / 235 | 57.0 / 237 | 11 |
-| Haiku 5.5<br>`adaptive` / `max` | First write | 204 / 399 | 206 / 406 | 8 |
-| Haiku 5.5<br>`adaptive` / `max` | Cache hit | 260 / 377 | 262 / 384 | 8 |
-| Haiku 5.5<br>`adaptive` / `default` | First write | 5.49 / 15.5 | 7.40 / 18.4 | 12 |
-| Haiku 5.5<br>`adaptive` / `default` | Cache hit | 6.22 / 11.6 | 8.07 / 14.2 | 12 |
-| Haiku 5.5<br>`disabled` / `low` | First write | 0.48 / 0.83 | 2.29 / 3.37 | 12 |
-| Haiku 5.5<br>`disabled` / `low` | Cache hit | 0.56 / 0.74 | 2.36 / 3.51 | 12 |
-| Haiku 5.5<br>`disabled` / `medium` | First write | 0.54 / 0.73 | 2.42 / 3.47 | 12 |
-| Haiku 5.5<br>`disabled` / `medium` | Cache hit | 0.50 / 0.60 | 2.64 / 4.31 | 12 |
-| Haiku 5.5<br>`disabled` / `high` | First write | 0.49 / 0.72 | 2.67 / 4.51 | 12 |
-| Haiku 5.5<br>`disabled` / `high` | Cache hit | 0.49 / 0.69 | 2.40 / 3.56 | 12 |
-| Haiku 5.5<br>`disabled` / `default` | First write | 0.49 / 0.79 | 2.66 / 3.16 | 12 |
-| Haiku 5.5<br>`disabled` / `default` | Cache hit | 0.45 / 0.59 | 2.41 / 4.38 | 12 |
-
-**Output rate and cost for the same requests.**
-
-| Model / thinking.type / output_config.effort | Cache state | E2E output rate P50 (tokens/s, thinking included) | Mean cost (USD/request) | Valid requests |
-|---|---|---:|---:|---:|
-| Haiku 5.5<br>`adaptive` / `low` | First write | 214.53 | $0.004254 | 12 |
-| Haiku 5.5<br>`adaptive` / `low` | Cache hit | 211.44 | $0.001009 | 12 |
-| Haiku 5.5<br>`adaptive` / `medium` | First write | 218.61 | $0.004638 | 12 |
-| Haiku 5.5<br>`adaptive` / `medium` | Cache hit | 221.27 | $0.001248 | 12 |
-| Haiku 5.5<br>`adaptive` / `high` | First write | 234.38 | $0.005884 | 12 |
-| Haiku 5.5<br>`adaptive` / `high` | Cache hit | 230.84 | $0.002356 | 12 |
-| Haiku 5.5<br>`adaptive` / `xhigh` | First write | 259.47 | $0.019081 | 11 |
-| Haiku 5.5<br>`adaptive` / `xhigh` | Cache hit | 258.09 | $0.010969 | 11 |
-| Haiku 5.5<br>`adaptive` / `max` | First write | 269.25 | $0.037720 | 8 |
-| Haiku 5.5<br>`adaptive` / `max` | Cache hit | 265.15 | $0.032892 | 8 |
-| Haiku 5.5<br>`adaptive` / `default` | First write | 218.12 | $0.004464 | 12 |
-| Haiku 5.5<br>`adaptive` / `default` | Cache hit | 222.91 | $0.001171 | 12 |
-| Haiku 5.5<br>`disabled` / `low` | First write | 177.01 | $0.003747 | 12 |
-| Haiku 5.5<br>`disabled` / `low` | Cache hit | 183.87 | $0.000406 | 12 |
-| Haiku 5.5<br>`disabled` / `medium` | First write | 172.51 | $0.003759 | 12 |
-| Haiku 5.5<br>`disabled` / `medium` | Cache hit | 175.95 | $0.000443 | 12 |
-| Haiku 5.5<br>`disabled` / `high` | First write | 181.72 | $0.003790 | 12 |
-| Haiku 5.5<br>`disabled` / `high` | Cache hit | 172.20 | $0.000428 | 12 |
-| Haiku 5.5<br>`disabled` / `default` | First write | 174.06 | $0.003728 | 12 |
-| Haiku 5.5<br>`disabled` / `default` | Cache hit | 201.46 | $0.000475 | 12 |
+| Model / thinking.type / output_config.effort | Valid performance samples (requests) | TTFT P50 / P95 (s) | E2E P50 / P95 (s) | E2E output rate P50 (tokens/s, thinking included) | Mean cost (USD/request) | Cache-read share of input (%) | Resolved / graded answers (requests 1+2, %) |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Opus 5.5<br>`adaptive` / `low` | Request 1: 12<br>Request 2: 12 | Request 1: 1.19 / 9.06<br>Request 2: 1.08 / 14.7 | Request 1: 6.94 / 14.4<br>Request 2: 7.84 / 20.0 | Request 1: 103.53<br>Request 2: 103.75 | Request 1: $0.158921<br>Request 2: $0.023222 | Request 1: 0.00<br>Request 2: 99.98 | 9/24 (37.50%) |
+| Opus 5.5<br>`adaptive` / `medium` | Request 1: 12<br>Request 2: 12 | Request 1: 6.92 / 31.5<br>Request 2: 7.15 / 29.3 | Request 1: 11.6 / 37.2<br>Request 2: 11.3 / 35.3 | Request 1: 108.44<br>Request 2: 111.76 | Request 1: $0.173419<br>Request 2: $0.036952 | Request 1: 0.00<br>Request 2: 99.98 | 19/24 (79.17%) |
+| Opus 5.5<br>`adaptive` / `high` | Request 1: 12<br>Request 2: 12 | Request 1: 9.13 / 94.5<br>Request 2: 7.53 / 228 | Request 1: 14.0 / 101<br>Request 2: 11.7 / 239 | Request 1: 110.21<br>Request 2: 110.93 | Request 1: $0.200936<br>Request 2: $0.097379 | Request 1: 0.00<br>Request 2: 99.98 | 19/24 (79.17%) |
+| Opus 5.5<br>`adaptive` / `xhigh` | Request 1: 12<br>Request 2: 12 | Request 1: 18.9 / 110<br>Request 2: 19.6 / 380 | Request 1: 24.7 / 117<br>Request 2: 24.5 / 389 | Request 1: 112.87<br>Request 2: 114.35 | Request 1: $0.248050<br>Request 2: $0.183598 | Request 1: 0.00<br>Request 2: 99.98 | 21/24 (87.50%) |
+| Opus 5.5<br>`adaptive` / `max` | Request 1: 11<br>Request 2: 11 | Request 1: 232 / 1027<br>Request 2: 236 / 913 | Request 1: 247 / 1036<br>Request 2: 249 / 922 | Request 1: 123.30<br>Request 2: 121.91 | Request 1: $1.008633<br>Request 2: $0.785095 | Request 1: 0.00<br>Request 2: 99.98 | 22/24 (91.67%) |
+| Opus 5.5<br>`adaptive` / `default` | Request 1: 11<br>Request 2: 11 | Request 1: 7.03 / 65.8<br>Request 2: 8.02 / 28.5 | Request 1: 12.0 / 72.3<br>Request 2: 15.0 / 34.3 | Request 1: 109.83<br>Request 2: 109.88 | Request 1: $0.186835<br>Request 2: $0.037639 | Request 1: 0.00<br>Request 2: 99.98 | 14/24 (58.33%) |
+| Sonnet 5.5<br>`adaptive` / `low` | Request 1: 12<br>Request 2: 12 | Request 1: 0.77 / 0.95<br>Request 2: 0.76 / 1.15 | Request 1: 4.86 / 9.76<br>Request 2: 4.88 / 9.01 | Request 1: 130.16<br>Request 2: 123.18 | Request 1: $0.077371<br>Request 2: $0.008869 | Request 1: 0.00<br>Request 2: 99.98 | 6/24 (25.00%) |
+| Sonnet 5.5<br>`adaptive` / `medium` | Request 1: 12<br>Request 2: 12 | Request 1: 0.81 / 11.0<br>Request 2: 0.87 / 16.3 | Request 1: 5.67 / 14.4<br>Request 2: 6.15 / 19.1 | Request 1: 124.97<br>Request 2: 124.24 | Request 1: $0.078745<br>Request 2: $0.010499 | Request 1: 0.00<br>Request 2: 99.98 | 5/24 (20.83%) |
+| Sonnet 5.5<br>`adaptive` / `high` | Request 1: 12<br>Request 2: 12 | Request 1: 6.05 / 137<br>Request 2: 7.44 / 119 | Request 1: 10.6 / 140<br>Request 2: 10.7 / 122 | Request 1: 141.38<br>Request 2: 138.87 | Request 1: $0.106288<br>Request 2: $0.034861 | Request 1: 0.00<br>Request 2: 99.98 | 8/24 (33.33%) |
+| Sonnet 5.5<br>`adaptive` / `xhigh` | Request 1: 12<br>Request 2: 12 | Request 1: 20.7 / 246<br>Request 2: 16.1 / 341 | Request 1: 24.0 / 254<br>Request 2: 19.4 / 354 | Request 1: 148.80<br>Request 2: 149.31 | Request 1: $0.152607<br>Request 2: $0.109698 | Request 1: 0.00<br>Request 2: 99.98 | 18/24 (75.00%) |
+| Sonnet 5.5<br>`adaptive` / `max` | Request 1: 9<br>Request 2: 9 | Request 1: 394 / 616<br>Request 2: 364 / 743 | Request 1: 397 / 622<br>Request 2: 367 / 751 | Request 1: 156.49<br>Request 2: 158.34 | Request 1: $0.804891<br>Request 2: $0.635133 | Request 1: 0.00<br>Request 2: 99.98 | 18/24 (75.00%) |
+| Sonnet 5.5<br>`adaptive` / `default` | Request 1: 12<br>Request 2: 12 | Request 1: 6.86 / 86.8<br>Request 2: 5.78 / 152 | Request 1: 10.8 / 90.2<br>Request 2: 8.39 / 156 | Request 1: 140.69<br>Request 2: 141.88 | Request 1: $0.100876<br>Request 2: $0.035923 | Request 1: 0.00<br>Request 2: 99.98 | 9/24 (37.50%) |
+| Sonnet 5.5<br>`between_tools` / `low` | Request 1: 12<br>Request 2: 12 | Request 1: 0.78 / 1.08<br>Request 2: 0.76 / 0.91 | Request 1: 5.14 / 7.88<br>Request 2: 4.51 / 8.22 | Request 1: 126.13<br>Request 2: 130.11 | Request 1: $0.077653<br>Request 2: $0.008496 | Request 1: 0.00<br>Request 2: 99.98 | 4/24 (16.67%) |
+| Sonnet 5.5<br>`between_tools` / `medium` | Request 1: 12<br>Request 2: 12 | Request 1: 0.83 / 1.06<br>Request 2: 0.79 / 0.93 | Request 1: 5.41 / 9.18<br>Request 2: 4.60 / 9.87 | Request 1: 132.11<br>Request 2: 133.30 | Request 1: $0.077994<br>Request 2: $0.009313 | Request 1: 0.00<br>Request 2: 99.98 | 5/24 (20.83%) |
+| Sonnet 5.5<br>`between_tools` / `high` | Request 1: 12<br>Request 2: 12 | Request 1: 0.81 / 1.09<br>Request 2: 0.82 / 1.18 | Request 1: 5.56 / 11.6<br>Request 2: 7.03 / 13.1 | Request 1: 130.38<br>Request 2: 129.14 | Request 1: $0.079108<br>Request 2: $0.011469 | Request 1: 0.00<br>Request 2: 99.98 | 7/24 (29.17%) |
+| Sonnet 5.5<br>`between_tools` / `default` | Request 1: 12<br>Request 2: 12 | Request 1: 0.79 / 1.15<br>Request 2: 0.78 / 1.07 | Request 1: 4.88 / 13.6<br>Request 2: 5.46 / 10.2 | Request 1: 130.06<br>Request 2: 133.11 | Request 1: $0.078623<br>Request 2: $0.010259 | Request 1: 0.00<br>Request 2: 99.98 | 7/24 (29.17%) |
+| Haiku 5.5<br>`adaptive` / `low` | Request 1: 12<br>Request 2: 12 | Request 1: 3.09 / 20.2<br>Request 2: 4.25 / 17.6 | Request 1: 4.93 / 22.9<br>Request 2: 5.75 / 20.7 | Request 1: 214.53<br>Request 2: 211.44 | Request 1: $0.004254<br>Request 2: $0.001009 | Request 1: 0.00<br>Request 2: 99.98 | 2/24 (8.33%) |
+| Haiku 5.5<br>`adaptive` / `medium` | Request 1: 12<br>Request 2: 12 | Request 1: 6.92 / 13.8<br>Request 2: 6.93 / 14.2 | Request 1: 8.30 / 15.3<br>Request 2: 8.02 / 16.8 | Request 1: 218.61<br>Request 2: 221.27 | Request 1: $0.004638<br>Request 2: $0.001248 | Request 1: 0.00<br>Request 2: 99.98 | 5/24 (20.83%) |
+| Haiku 5.5<br>`adaptive` / `high` | Request 1: 12<br>Request 2: 12 | Request 1: 9.07 / 38.5<br>Request 2: 12.1 / 29.6 | Request 1: 10.8 / 40.3<br>Request 2: 14.1 / 34.0 | Request 1: 234.38<br>Request 2: 230.84 | Request 1: $0.005884<br>Request 2: $0.002356 | Request 1: 0.00<br>Request 2: 99.98 | 8/24 (33.33%) |
+| Haiku 5.5<br>`adaptive` / `xhigh` | Request 1: 11<br>Request 2: 11 | Request 1: 61.3 / 460<br>Request 2: 53.4 / 235 | Request 1: 63.2 / 463<br>Request 2: 57.0 / 237 | Request 1: 259.47<br>Request 2: 258.09 | Request 1: $0.019081<br>Request 2: $0.010969 | Request 1: 0.00<br>Request 2: 99.98 | 12/24 (50.00%) |
+| Haiku 5.5<br>`adaptive` / `max` | Request 1: 8<br>Request 2: 8 | Request 1: 204 / 399<br>Request 2: 260 / 377 | Request 1: 206 / 406<br>Request 2: 262 / 384 | Request 1: 269.25<br>Request 2: 265.15 | Request 1: $0.037720<br>Request 2: $0.032892 | Request 1: 0.00<br>Request 2: 99.98 | 14/24 (58.33%) |
+| Haiku 5.5<br>`adaptive` / `default` | Request 1: 12<br>Request 2: 12 | Request 1: 5.49 / 15.5<br>Request 2: 6.22 / 11.6 | Request 1: 7.40 / 18.4<br>Request 2: 8.07 / 14.2 | Request 1: 218.12<br>Request 2: 222.91 | Request 1: $0.004464<br>Request 2: $0.001171 | Request 1: 0.00<br>Request 2: 99.98 | 4/24 (16.67%) |
+| Haiku 5.5<br>`disabled` / `low` | Request 1: 12<br>Request 2: 12 | Request 1: 0.48 / 0.83<br>Request 2: 0.56 / 0.74 | Request 1: 2.29 / 3.37<br>Request 2: 2.36 / 3.51 | Request 1: 177.01<br>Request 2: 183.87 | Request 1: $0.003747<br>Request 2: $0.000406 | Request 1: 0.00<br>Request 2: 99.98 | 3/24 (12.50%) |
+| Haiku 5.5<br>`disabled` / `medium` | Request 1: 12<br>Request 2: 12 | Request 1: 0.54 / 0.73<br>Request 2: 0.50 / 0.60 | Request 1: 2.42 / 3.47<br>Request 2: 2.64 / 4.31 | Request 1: 172.51<br>Request 2: 175.95 | Request 1: $0.003759<br>Request 2: $0.000443 | Request 1: 0.00<br>Request 2: 99.98 | 3/24 (12.50%) |
+| Haiku 5.5<br>`disabled` / `high` | Request 1: 12<br>Request 2: 12 | Request 1: 0.49 / 0.72<br>Request 2: 0.49 / 0.69 | Request 1: 2.67 / 4.51<br>Request 2: 2.40 / 3.56 | Request 1: 181.72<br>Request 2: 172.20 | Request 1: $0.003790<br>Request 2: $0.000428 | Request 1: 0.00<br>Request 2: 99.98 | 1/24 (4.17%) |
+| Haiku 5.5<br>`disabled` / `default` | Request 1: 12<br>Request 2: 12 | Request 1: 0.49 / 0.79<br>Request 2: 0.45 / 0.59 | Request 1: 2.66 / 3.16<br>Request 2: 2.41 / 4.38 | Request 1: 174.06<br>Request 2: 201.46 | Request 1: $0.003728<br>Request 2: $0.000475 | Request 1: 0.00<br>Request 2: 99.98 | 2/24 (8.33%) |
 
 ### Completion and cache evidence
 
@@ -322,7 +213,7 @@ The following records preserve earlier direct and cross-region observations. The
 
 The 54 `adaptive`/`between_tools`/`disabled` × effort cells were individually probed; 26 were accepted, including five omitted-effort cells. For `enabled`, one request per model used `budget_tokens: 1024` and omitted effort; the HTTP 400 rejects the mode itself, so all effort cells say not supported. The cache column states applicability only: a rejected thinking mode makes the request inapplicable; it does not mean the model lacks caching. Default effort values are from the [effort documentation](https://platform.claude.com/docs/en/build-with-claude/effort).
 
-Historical cache scope: all five accepted model/mode rows read cache at effort low; adaptive also read cache in the high-effort switch scenario. The later ACA matrix above separately reports its full mode/effort coverage. Applicability and parameter acceptance alone do not establish cache-enabled performance. Fixed historical matrix controls: `max_tokens: 128000`, `stream: true`; `temperature`, `top_p`, `top_k` omitted. No `thinking` field is documented to select adaptive; the three omitted-thinking/omitted-effort probes returned 200.
+Historical cache scope: all five accepted model/mode rows read cache at effort low; adaptive also read cache in the high-effort switch scenario. The separate ACA performance section reports the later full mode/effort coverage. Applicability and parameter acceptance alone do not establish cache-enabled performance. Fixed historical matrix controls: `max_tokens: 128000`, `stream: true`; `temperature`, `top_p`, `top_k` omitted. No `thinking` field is documented to select adaptive; the three omitted-thinking/omitted-effort probes returned 200.
 
 **Table 2. Complete prompt-cache settings.**
 

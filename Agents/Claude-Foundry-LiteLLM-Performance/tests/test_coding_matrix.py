@@ -122,7 +122,7 @@ class EvidenceTests(unittest.TestCase):
         self.assertEqual(m["http"], {200: 1155})
 
     def test_historical_grids_match_the_facts(self):
-        for name in ("docs/results.md", "docs/results_CN.md"):
+        for name in ("README.md", "README_CN.md", "docs/results.md", "docs/results_CN.md"):
             text = (ROOT / name).read_text(encoding="utf-8")
             for model, mode in coding_data.ROWS:
                 rows = re.findall(rf"^\| {re.escape(coding_data.NAME[model])} · `{mode}` \| (.+) \|$", text, re.MULTILINE)
@@ -186,6 +186,17 @@ class EvidenceTests(unittest.TestCase):
             self.assertIn("ACA", markup)
             self.assertIn("probe/probe_results.jsonl", markup)
             self.assertIn("cache/cache_results.jsonl", markup)
+
+    def test_homepage_keeps_reference_parameter_figures_and_latest_status(self):
+        for chinese, language in ((False, "en"), (True, "zh")):
+            markup = render_coding.purpose(self.d, chinese, language)
+            self.assertIn(f"images/parameter-support-{language}.svg", markup)
+            self.assertIn(f"images/cache-settings-{language}.svg", markup)
+            self.assertIn("output_config.effort", markup)
+            self.assertIn("650/650", markup)
+            self.assertIn("624", markup)
+            self.assertNotIn("154/650", markup)
+            self.assertLess(markup.index("images/parameter-support-"), markup.index("images/cache-settings-"))
 
     def test_retired_direct_method_is_not_current_or_default(self):
         for chinese, language in ((False, "en"), (True, "zh")):
@@ -308,6 +319,8 @@ class GatewayCacheAnalysisTests(unittest.TestCase):
 
     def test_current_performance_tables_keep_every_configuration_and_metric(self):
         facts = gateway_analyze.analyze(ROOT / "evidence/gateway-cache-20261026")
+        score = json.loads((ROOT / "evidence/gateway-score-20261027/score-summary.json").read_text(encoding="utf-8"))
+        grades = {item["cell_id"]: item for item in score["cells"]}
         for chinese in (False, True):
             for detailed in (False, True):
                 markup = render_coding.gateway_snapshot(chinese, detailed=detailed)
@@ -317,20 +330,30 @@ class GatewayCacheAnalysisTests(unittest.TestCase):
                 self.assertIn("usage.output_tokens / timing.end", markup)
                 self.assertIn("当前批次未保留逐请求出站审计" if chinese else
                               "Per-request outbound audit is not retained for the current batch", markup)
+                headers = [line for line in markup.splitlines() if line.startswith("|") and "TTFT" in line and "tokens/s" in line]
+                self.assertEqual(len(headers), 1)
+                if not detailed:
+                    self.assertEqual(len(re.findall(r"^\|[-:|]+\|$", markup, re.MULTILINE)), 1)
+                first = "第1次" if chinese else "Request 1"
+                second = "第2次" if chinese else "Request 2"
                 for cell, item in facts["by_cell"].items():
                     model, mode, effort = cell.split("|")
                     label = f"| {coding_data.NAME[model]}<br>`{mode}` / `{effort}` |"
                     rows = [line for line in markup.splitlines() if line.startswith(label)]
-                    self.assertEqual(len(rows), 4, cell)
-                    for row, state in zip(rows[:2], ("cold", "warm")):
+                    self.assertEqual(len(rows), 1, cell)
+                    row = rows[0]
+                    self.assertEqual(row.count(first), 6)
+                    self.assertEqual(row.count(second), 6)
+                    for tag, state in ((first, "cold"), (second, "warm")):
                         observed = item[state]
-                        self.assertIn(f"{render_coding.secs(observed['first_text_p50'])} / {render_coding.secs(observed['first_text_p95'])}", row)
-                        self.assertIn(f"{render_coding.secs(observed['end_p50'])} / {render_coding.secs(observed['end_p95'])}", row)
-                        self.assertTrue(row.endswith(f"| {item['groups']} |"))
-                    for row, state in zip(rows[2:], ("cold", "warm")):
-                        observed = item[state]
-                        self.assertIn(f"| {observed['output_tokens_per_second_p50']:.2f} |", row)
-                        self.assertIn(f"| {render_coding.usd(observed['cost_usd_per_request'], 6)} | {item['groups']} |", row)
+                        self.assertIn(f"{tag}: {render_coding.secs(observed['first_text_p50'])} / {render_coding.secs(observed['first_text_p95'])}", row)
+                        self.assertIn(f"{tag}: {render_coding.secs(observed['end_p50'])} / {render_coding.secs(observed['end_p95'])}", row)
+                        self.assertIn(f"{tag}: {observed['output_tokens_per_second_p50']:.2f}", row)
+                        self.assertIn(f"{tag}: {render_coding.usd(observed['cost_usd_per_request'], 6)}", row)
+                        self.assertIn(f"{tag}: {render_coding.pct(observed['read_share'], 2)}", row)
+                        self.assertIn(f"{tag}: {item['groups']}", row)
+                    graded = grades[cell]
+                    self.assertIn(f"| {graded['resolved']}/{graded['denominator']} ({100 * graded['resolved'] / graded['denominator']:.2f}%) |", row)
 
     def snapshot(self, directory):
         directory = Path(directory)

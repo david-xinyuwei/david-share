@@ -81,6 +81,9 @@ class EvidenceTests(unittest.TestCase):
             self.assertEqual(badges, ["Models", "Measured", "CI"])
             self.assertIn("actions/workflows/claude-foundry-performance-ci.yml/badge.svg", text)
             self.assertIn("\n" + author + "\n", text)
+            language = "zh" if filename == "README_CN.md" else "en"
+            for image in ("parameter-support", "cache-settings"):
+                self.assertIn(f"images/{image}-{language}.svg", text)
             self.assertIn("gateway-cache/aca_cache_matrix.py", text)
             steps = text.split("\n## " + expected[2] + "\n", 1)[1]
             self.assertTrue(steps.lstrip().startswith("|"))
@@ -113,7 +116,14 @@ class EvidenceTests(unittest.TestCase):
                     self.assertIn(f'| {row["turn"]} | {row["totalInputTokens"]} | {row["cacheReadTokens"]} | {row["cacheWriteTokens"]} |', gateway)
         for path in list(ROOT.glob("README*.md")) + list((ROOT / "docs").glob("*.md")):
             text = path.read_text(encoding="utf-8")
-            self.assertTrue(all(line.count("|") <= 7 for line in text.splitlines() if line.startswith("|")), path.name)
+            limit = 7
+            for line in text.splitlines():
+                if not line.strip():
+                    limit = 7
+                if line.startswith("|"):
+                    if "TTFT P50 / P95" in line and "tokens/s" in line:
+                        limit = 9
+                    self.assertLessEqual(line.count("|"), limit, path.name)
 
     def test_links_and_images_exist(self):
         for path in list(ROOT.glob("README*.md")) + list((ROOT / "docs").glob("*.md")):
