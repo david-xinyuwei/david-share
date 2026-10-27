@@ -12,8 +12,6 @@
 
 **当前测试方法。** Linux VM 客户端 → Azure Container Apps 上的 LiteLLM → Foundry；客户端、网关和 Foundry 资源均位于 East US 2。客户端使用网关入口密钥，LiteLLM 以自己的托管身份调用 Foundry。通过请求顶层 `cache_control` 开启提示缓存。每个模型同一时间只有 1 个请求，测的是单个请求的表现，不是压力测试。
 
-**已取缔的方案，仅保留历史证据。** VM 直连 Foundry 不再作为测试方案。2026-10-26 的参数探测（102 个请求）、编码矩阵（1,155 个请求）和提示缓存测试（264 个请求）仅作为历史证据保留，不是当前测试方法，也不是新 ACA 测试的结果。旧编码矩阵没有发送 `cache_control`，不满足当前开启缓存的测试要求。
-
 **历史网关检查（2026-10-24）。** Windows 客户端通过 Japan East 的 Azure Container Apps 上的 LiteLLM，向同一组部署发送五轮对话；LiteLLM 用自己的托管身份转发，设置为不丢弃参数、不重试。那次耗时包含日本到美国东部的网络延迟，不是当前 East US 2 测试的结果。详见[结果页](docs/results_CN.md#网关测试)。
 
 <img src="images/topology-zh.svg" width="900" alt="当前开启缓存的测试路径：Linux VM 客户端经 East US 2 的 Azure Container Apps 上的 LiteLLM 调用三个 Microsoft Foundry Claude 部署。提示缓存在 Foundry 侧；客户端记录时间和原生 usage。" />

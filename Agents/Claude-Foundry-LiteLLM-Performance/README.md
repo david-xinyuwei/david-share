@@ -12,8 +12,6 @@ Author: Xinyu Wei · [中文](README_CN.md)
 
 **Current test method.** Linux VM client → LiteLLM on Azure Container Apps → Foundry, with the client, gateway and Foundry resource in East US 2. The client uses the gateway key; LiteLLM uses its managed identity to call Foundry. Prompt caching is enabled with top-level `cache_control`. Each model has one request in flight, so this measures individual requests, not load.
 
-**Retired method, historical evidence only.** Direct VM-to-Foundry testing has been retired. Its 2026-10-26 probe (102 requests), coding matrix (1,155 requests) and prompt-cache test (264 requests) are retained as historical evidence, not as the current test method or the new ACA run's results. The coding matrix sent no `cache_control` and does not meet the current cache-enabled test protocol.
-
 **Historical gateway check (2026-10-24).** A Windows client sent a five-turn conversation through LiteLLM on Azure Container Apps in Japan East to the same deployments; LiteLLM used its own managed identity and was set not to drop parameters or retry. Those times include Japan-to-US network latency and are not results from the current East US 2 run. See [the results page](docs/results.md#gateway-test-2026-10-24).
 
 <img src="images/topology-en.svg" width="900" alt="Current cache-enabled test path: a Linux VM client sends streaming requests through LiteLLM on Azure Container Apps in East US 2 to the three Microsoft Foundry Claude deployments. Prompt caching is at Foundry; the client records timing and native usage." />

@@ -497,24 +497,20 @@ def settings_table(d, chinese):
 
 
 def purpose(d, chinese, language):
-    m, k = matrix_numbers(d), cache_numbers(d)
+    m = matrix_numbers(d)
     models = d["provenance"]["models"]
     versions = {x["version"] for x in models["deployments"]}
     require(versions == {"2"}, "the deployments are not all version 2, the Hosted on Azure version")
     version, region = next(iter(versions)), models["resourceRegion"]
     cells, n_problems, repeats = len(d["facts"]["cells"]), len(m["problems"]), m["repeats"]
     require(cells * n_problems * repeats == m["measured"] and m["warmups"] == cells, "matrix request counts do not add up")
-    date = d["runs"]["matrix"]["first"][:10]
-    probe_n, cache_n, requests = count(d["runs"]["probe"]["requests"]), count(k["requests"]), count(m["requests"])
     intro = tr(chinese,
                f"**What this measures.** How Claude Opus 5.5, Sonnet 5.5 and Haiku 5.5 perform as deployed in Microsoft Foundry with the [Hosted on Azure]({HOSTING_DOC}) option: model version {version}, an Anthropic-operated service running on Azure infrastructure, in GlobalStandard deployments. For each coding request we measure how long the first visible text and the full answer take, whether the code passes the problem's own unit tests, and what the request costs at list price. The request settings in the table below change all of these, and some combinations are rejected with HTTP 400; a successful HTTP response shows none of this.",
                f"**测什么。** 测 Claude Opus 5.5、Sonnet 5.5 和 Haiku 5.5 以 [Hosted on Azure]({HOSTING_DOC}) 方式部署在 Microsoft Foundry 上时的表现：模型版本 {version}，即 Anthropic 运营、运行在 Azure 基础设施上的服务，部署类型为 GlobalStandard。对每个编码请求，我们测首个可见文字和完整回答各要等多久、写出的代码能否通过题目自带的单元测试、按标价花多少钱。下表中的请求设置会同时改变这几项，有些组合还会直接返回 HTTP 400；只看请求成功看不出这些。")
     methods = tr(chinese,
                  f"**Current test method.** Linux VM client → LiteLLM on Azure Container Apps → Foundry, with the client, gateway and Foundry resource in {region}. The client uses the gateway key; LiteLLM uses its managed identity to call Foundry. Prompt caching is enabled with top-level `cache_control`. Each model has one request in flight, so this measures individual requests, not load.\n\n"
-                 f"**Retired method, historical evidence only.** Direct VM-to-Foundry testing has been retired. Its {date} probe ({probe_n} requests), coding matrix ({requests} requests) and prompt-cache test ({cache_n} requests) are retained as historical evidence, not as the current test method or the new ACA run's results. The coding matrix sent no `cache_control` and does not meet the current cache-enabled test protocol.\n\n"
                  "**Historical gateway check (2026-10-24).** A Windows client sent a five-turn conversation through LiteLLM on Azure Container Apps in Japan East to the same deployments; LiteLLM used its own managed identity and was set not to drop parameters or retry. Those times include Japan-to-US network latency and are not results from the current East US 2 run. See [the results page](docs/results.md#gateway-test-2026-10-24).",
                  f"**当前测试方法。** Linux VM 客户端 → Azure Container Apps 上的 LiteLLM → Foundry；客户端、网关和 Foundry 资源均位于 {region}。客户端使用网关入口密钥，LiteLLM 以自己的托管身份调用 Foundry。通过请求顶层 `cache_control` 开启提示缓存。每个模型同一时间只有 1 个请求，测的是单个请求的表现，不是压力测试。\n\n"
-                 f"**已取缔的方案，仅保留历史证据。** VM 直连 Foundry 不再作为测试方案。{date} 的参数探测（{probe_n} 个请求）、编码矩阵（{requests} 个请求）和提示缓存测试（{cache_n} 个请求）仅作为历史证据保留，不是当前测试方法，也不是新 ACA 测试的结果。旧编码矩阵没有发送 `cache_control`，不满足当前开启缓存的测试要求。\n\n"
                  "**历史网关检查（2026-10-24）。** Windows 客户端通过 Japan East 的 Azure Container Apps 上的 LiteLLM，向同一组部署发送五轮对话；LiteLLM 用自己的托管身份转发，设置为不丢弃参数、不重试。那次耗时包含日本到美国东部的网络延迟，不是当前 East US 2 测试的结果。详见[结果页](docs/results_CN.md#网关测试)。")
     figure = (f'<img src="images/topology-{language}.svg" width="900" alt="'
                 + tr(chinese, "Current cache-enabled test path: a Linux VM client sends streaming requests through LiteLLM on Azure Container Apps in East US 2 to the three Microsoft Foundry Claude deployments. Prompt caching is at Foundry; the client records timing and native usage.",
