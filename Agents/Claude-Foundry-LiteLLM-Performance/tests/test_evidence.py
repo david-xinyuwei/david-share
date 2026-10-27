@@ -127,8 +127,12 @@ class EvidenceTests(unittest.TestCase):
     def test_inputs_precede_result_tables(self):
         for suffix, heading in (("", "## Gateway test, 2026-10-24"), ("_CN", "## 网关测试")):
             text = (ROOT / f"docs/results{suffix}.md").read_text(encoding="utf-8")
-            coding, gateway = text.split("\n" + heading + "\n", 1)
-            for section, inputs in ((coding, ["Act as an expert software developer."]), (gateway, self.matrix["questions"])):
+            before_gateway, gateway = text.split("\n" + heading + "\n", 1)
+            coding_heading = "## 编码矩阵" if suffix else "## Coding matrix, 2026-10-26"
+            aca, coding = before_gateway.split("\n" + coding_heading + "\n", 1)
+            sections = ((aca, ['"cache_control"', '"max_tokens": 128000', '"ttl": "1h"']),
+                        (coding, ["Act as an expert software developer."]), (gateway, self.matrix["questions"]))
+            for section, inputs in sections:
                 first_table = re.search(r"^\|.+\|$", section, re.MULTILINE)
                 self.assertIsNotNone(first_table, suffix)
                 for item in inputs:

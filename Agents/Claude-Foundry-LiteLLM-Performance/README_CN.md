@@ -10,6 +10,8 @@
 
 **测什么。** 测 Claude Opus 5.5、Sonnet 5.5 和 Haiku 5.5 以 [Hosted on Azure](https://platform.claude.com/docs/en/build-with-claude/claude-in-microsoft-foundry#hosting-options) 方式部署在 Microsoft Foundry 上时的表现：模型版本 2，即 Anthropic 运营、运行在 Azure 基础设施上的服务，部署类型为 GlobalStandard。对每个编码请求，我们测首个可见文字和完整回答各要等多久、写出的代码能否通过题目自带的单元测试、按标价花多少钱。下表中的请求设置会同时改变这几项，有些组合还会直接返回 HTTP 400；只看请求成功看不出这些。
 
+**当前 ACA 证据：** 已保存 154/650 次请求记录，全量是否完成和代码正确率尚未核实。核验时客户端 VM 已解除分配。[部分结果与状态边界](docs/results_CN.md#aca-gateway-snapshot)。
+
 **当前测试方法。** Linux VM 客户端 → Azure Container Apps 上的 LiteLLM → Foundry；客户端、网关和 Foundry 资源均位于 East US 2。客户端使用网关入口密钥，LiteLLM 以自己的托管身份调用 Foundry。通过请求顶层 `cache_control` 开启提示缓存。每个模型同一时间只有 1 个请求，测的是单个请求的表现，不是压力测试。
 
 **历史网关检查（2026-10-24）。** Windows 客户端通过 Japan East 的 Azure Container Apps 上的 LiteLLM，向同一组部署发送五轮对话；LiteLLM 用自己的托管身份转发，设置为不丢弃参数、不重试。那次耗时包含日本到美国东部的网络延迟，不是当前 East US 2 测试的结果。详见[结果页](docs/results_CN.md#网关测试)。
@@ -69,6 +71,30 @@
 **来源。** 接受哪些取值、HTTP 400 的报错原文来自我们的参数探测（[结果页](docs/results_CN.md#参数探测)）。各设置的作用、默认值、`between_tools` 和 `disabled` 的使用规则，以及 Sonnet 5.5 做智能体编码时把 `max_tokens` 设为 128,000 的建议，来自 Claude 的 [thinking](https://platform.claude.com/docs/en/build-with-claude/thinking) 和 [effort](https://platform.claude.com/docs/en/build-with-claude/effort) 文档；缓存规则和价格倍数来自 [prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)；价格来自 [pricing](https://platform.claude.com/docs/en/about-claude/pricing)；托管方式和 Foundry 配置来自 [Claude in Microsoft Foundry](https://platform.claude.com/docs/en/build-with-claude/claude-in-microsoft-foundry)；均于 2026-10-26 查阅。“适合的情况”一行是我们对这 18 道题的解读，不是通用建议。
 
 ## 实现效果
+
+### ACA 网关：部分结果
+
+**这是部分证据，不是全量测试通过。** 快照保存了计划 650 次中的 154 次请求：26 次预热，以及 624 次正式请求中的 128 次。运行文件最后更新于 `2026-10-27T00:07:59.720+00:00`。另有 496 次未包含在这份快照中，不能据此认定它们未执行或失败。
+
+**客户端状态。** 在 `2026-10-26T20:10:18.9885833-07:00` 核验时，Azure 返回客户端 VM 为 `PowerState/deallocated`，已不会继续发送新请求。最终测试结果和停机原因尚未核实；快照里的 `RUNNING` 是当时的状态，不是当前状态。[核验记录](evidence/gateway-cache-20261026/collection-status.json)。
+
+**问题与方法。** 编码提示通过 East US 2 的 ACA LiteLLM 网关发送后，原样重复的第二次请求能否读到第一次写入的缓存，观测到的耗时和费用是多少？客户端、网关和 Foundry 资源均在 East US 2；每个模型同时只有一个请求。这是首次写入与重复读取的配对，不是关闭缓存的对照，也不能隔离网关自身开销。
+
+**输入。** [12 道公开的 SWE-bench Lite BM25-13K 题目](data/gateway-cache-problems.json)，来源版本和提示哈希保存在 [run.json](evidence/gateway-cache-20261026/run.json)。这是作者的延迟与缓存测试，不是 SWE-bench 官方评分，也不是客户生产数据。[输入构建器](gateway-cache/build_swebench_problems.py)重建提示，[运行器](gateway-cache/aca_cache_matrix.py)遍历 26 个模式／档位组合，每题每格原样发送两次，每格另有一次预热。固定 `max_tokens: 128000`、`stream: true`、顶层 `cache_control: {"type": "ephemeral", "ttl": "1h"}`。计时从客户端即将发送请求时开始；首字指第一个非空文字增量，不是心跳或思考事件。
+
+| 模型 | 已保存／计划请求数（含预热） | 正常结束的请求数 | 截断请求数 | 完整正式配对数 |
+|---|---:|---:|---:|---:|
+| Opus 5.5 | 29/150 | 29 | 0 | 11 |
+| Sonnet 5.5 | 46/250 | 44 | 2 | 17 |
+| Haiku 5.5 | 79/250 | 79 | 0 | 34 |
+
+**已经确认的事实。** 62 个正式配对的两次回答均正常结束。首次请求最多读取 0 个缓存 token；重复请求至少读回前次写入缓存 token 的 100.0%；两次复用同一响应 message ID 的配对有 0 个。这些原生 usage 记录证明对应配对发生了缓存读取，不证明代码正确或普遍提速。响应报告 `inference_geo: global`，返回的区域头为 East US 2，不能把它当成 GlobalStandard 固定区域推理的承诺。
+
+**费用与边界。** 按记录采用的[标价模型](coding-matrix/pricing.py)，已保存请求共 $13.90，包含预热、缓存写入／读取、输出和截断回答。这不是整轮最终花费或 Azure 账单，不含基础设施费用。尚未取得代码正确率评分。配对统计排除预热及任一回答未完整结束的配对，但上表仍保留这些请求；各格样本数量不同且不完整，不能据此给模型或档位排名。
+
+[查看全部 26 格及配对观测](docs/results_CN.md#aca-gateway-snapshot)。
+
+**证据与复算。** [统计结果](evidence/gateway-cache-20261026/interim-facts.json)、[导出哈希与脱敏范围](evidence/gateway-cache-20261026/_export_manifest.json)、[Opus 记录](evidence/gateway-cache-20261026/responses_opus.jsonl)、[Sonnet 记录](evidence/gateway-cache-20261026/responses_sonnet.jsonl)、[Haiku 记录](evidence/gateway-cache-20261026/responses_haiku.jsonl)。指标投影省略提示与回答正文、思考签名、私有端点和其他响应头，不能用于代码正确率评分。复算命令见[测试页](docs/testing_CN.md#aca-snapshot-replay)。
 
 **以下仅为历史结果。** 下列 VM 直连测量属于已取缔的方案，尤其是 21 格编码矩阵未发送 `cache_control`，不满足当前 ACA 开启缓存的测试要求。Japan East 网关检查另列日期。这些数字都不是当前 East US 2 ACA 测试的结果。
 

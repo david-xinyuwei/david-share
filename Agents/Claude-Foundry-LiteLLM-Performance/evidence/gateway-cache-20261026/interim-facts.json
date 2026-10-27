@@ -1,0 +1,1152 @@
+{
+ "status": "RUNNING",
+ "started_utc": "2026-10-26T23:04:44.464+00:00",
+ "snapshot_utc": "2026-10-27T00:06:20.668+00:00",
+ "run_updated_utc": "2026-10-27T00:07:59.720+00:00",
+ "coverage": {
+  "observed_requests": 154,
+  "planned_requests": 650,
+  "missing_from_snapshot": 496,
+  "observed_measured": 128,
+  "planned_measured": 624,
+  "observed_warmups": 26,
+  "planned_warmups": 26,
+  "collection_complete": false
+ },
+ "planned": {
+  "claude-opus-5-5": 150,
+  "claude-sonnet-5-5": 250,
+  "claude-haiku-5-5": 250
+ },
+ "final_requests": {
+  "claude-haiku-5-5": 79,
+  "claude-opus-5-5": 29,
+  "claude-sonnet-5-5": 46
+ },
+ "prompt_tokens_range": [
+  5535,
+  20028
+ ],
+ "statuses": {
+  "completed http=200": 152,
+  "max_tokens http=200": 2
+ },
+ "attempts_over_one": 0,
+ "groups_complete": 62,
+ "same_message_id_groups": 0,
+ "warm_read_over_cold_write_min": 1.0,
+ "cold_reads_max": 0,
+ "inference_geo": {
+  "global": 154
+ },
+ "served_region": {
+  "East US 2": 154
+ },
+ "cost_usd": 13.9,
+ "by_model": {
+  "claude-opus-5-5": {
+   "groups": 11,
+   "prompt_tokens_p50": 19390,
+   "cold": {
+    "first_event_p50": 1.1431,
+    "first_text_p50": 6.5014,
+    "first_text_p95": 1027.2709,
+    "end_p50": 11.0411,
+    "end_p95": 1035.6269,
+    "read_share": 0.0,
+    "written_tokens": 188133,
+    "read_tokens": 0,
+    "output_tokens_p50": 1213,
+    "cost_usd_per_request": 0.41656,
+    "uncached_cost_usd_per_request": 0.348148
+   },
+   "warm": {
+    "first_event_p50": 0.9997,
+    "first_text_p50": 6.7179,
+    "first_text_p95": 913.3044,
+    "end_p50": 10.729,
+    "end_p95": 921.6233,
+    "read_share": 0.9998,
+    "written_tokens": 0,
+    "read_tokens": 188133,
+    "output_tokens_p50": 1168,
+    "cost_usd_per_request": 0.27122,
+    "uncached_cost_usd_per_request": 0.336212
+   },
+   "first_text_change_p50": -0.1096,
+   "warm_cost_over_cold": 0.6511,
+   "pair_cost_over_uncached": 1.005
+  },
+  "claude-sonnet-5-5": {
+   "groups": 17,
+   "prompt_tokens_p50": 19518,
+   "cold": {
+    "first_event_p50": 0.7963,
+    "first_text_p50": 0.8144,
+    "first_text_p95": 469.831,
+    "end_p50": 6.4611,
+    "end_p95": 472.6456,
+    "read_share": 0.0,
+    "written_tokens": 307475,
+    "read_tokens": 0,
+    "output_tokens_p50": 778,
+    "cost_usd_per_request": 0.128777,
+    "uncached_cost_usd_per_request": 0.092604
+   },
+   "warm": {
+    "first_event_p50": 0.8348,
+    "first_text_p50": 0.8348,
+    "first_text_p95": 364.0905,
+    "end_p50": 8.8893,
+    "end_p95": 367.2257,
+    "read_share": 0.9998,
+    "written_tokens": 0,
+    "read_tokens": 307475,
+    "output_tokens_p50": 1095,
+    "cost_usd_per_request": 0.052061,
+    "uncached_cost_usd_per_request": 0.086426
+   },
+   "first_text_change_p50": -0.0005,
+   "warm_cost_over_cold": 0.4043,
+   "pair_cost_over_uncached": 1.0101
+  },
+  "claude-haiku-5-5": {
+   "groups": 34,
+   "prompt_tokens_p50": 19390,
+   "cold": {
+    "first_event_p50": 0.4923,
+    "first_text_p50": 0.793,
+    "first_text_p95": 218.2465,
+    "end_p50": 4.0955,
+    "end_p95": 220.1768,
+    "read_share": 0.0,
+    "written_tokens": 593608,
+    "read_tokens": 0,
+    "output_tokens_p50": 896,
+    "cost_usd_per_request": 0.006765,
+    "uncached_cost_usd_per_request": 0.005019
+   },
+   "warm": {
+    "first_event_p50": 0.5108,
+    "first_text_p50": 0.662,
+    "first_text_p95": 261.7666,
+    "end_p50": 3.5617,
+    "end_p95": 265.1014,
+    "read_share": 0.9998,
+    "written_tokens": 0,
+    "read_tokens": 593608,
+    "output_tokens_p50": 723,
+    "cost_usd_per_request": 0.003698,
+    "uncached_cost_usd_per_request": 0.005269
+   },
+   "first_text_change_p50": -0.0336,
+   "warm_cost_over_cold": 0.5466,
+   "pair_cost_over_uncached": 1.017
+  }
+ },
+ "by_cell": {
+  "opus|adaptive|low": {
+   "groups": 2,
+   "prompt_tokens_p50": 19652,
+   "cold": {
+    "first_event_p50": 0.9359,
+    "first_text_p50": 1.1431,
+    "first_text_p95": 6.0468,
+    "end_p50": 6.7674,
+    "end_p95": 11.0411,
+    "read_share": 0.0,
+    "written_tokens": 39564,
+    "read_tokens": 0,
+    "output_tokens_p50": 688,
+    "cost_usd_per_request": 0.177282,
+    "uncached_cost_usd_per_request": 0.098154
+   },
+   "warm": {
+    "first_event_p50": 0.9531,
+    "first_text_p50": 0.9997,
+    "first_text_p95": 6.7179,
+    "end_p50": 6.3527,
+    "end_p95": 11.1658,
+    "read_share": 0.9998,
+    "written_tokens": 0,
+    "read_tokens": 39564,
+    "output_tokens_p50": 657,
+    "cost_usd_per_request": 0.022452,
+    "uncached_cost_usd_per_request": 0.097624
+   },
+   "first_text_change_p50": -0.1434,
+   "warm_cost_over_cold": 0.1266,
+   "pair_cost_over_uncached": 1.0202,
+   "requests": 5,
+   "measured_requests": 4,
+   "warmups": 1,
+   "statuses": {
+    "completed": 5
+   },
+   "planned_requests": 25,
+   "planned_measured_requests": 24,
+   "planned_groups": 12
+  },
+  "opus|adaptive|medium": {
+   "groups": 3,
+   "prompt_tokens_p50": 14795,
+   "cold": {
+    "first_event_p50": 1.1267,
+    "first_text_p50": 6.5014,
+    "first_text_p95": 31.491,
+    "end_p50": 9.1443,
+    "end_p95": 37.1898,
+    "read_share": 0.0,
+    "written_tokens": 47487,
+    "read_tokens": 0,
+    "output_tokens_p50": 886,
+    "cost_usd_per_request": 0.163915,
+    "uncached_cost_usd_per_request": 0.100599
+   },
+   "warm": {
+    "first_event_p50": 0.893,
+    "first_text_p50": 7.5652,
+    "first_text_p95": 19.9591,
+    "end_p50": 10.729,
+    "end_p95": 26.1435,
+    "read_share": 0.9997,
+    "written_tokens": 0,
+    "read_tokens": 47487,
+    "output_tokens_p50": 1168,
+    "cost_usd_per_request": 0.033795,
+    "uncached_cost_usd_per_request": 0.093945
+   },
+   "first_text_change_p50": -0.1096,
+   "warm_cost_over_cold": 0.2062,
+   "pair_cost_over_uncached": 1.0163,
+   "requests": 7,
+   "measured_requests": 6,
+   "warmups": 1,
+   "statuses": {
+    "completed": 7
+   },
+   "planned_requests": 25,
+   "planned_measured_requests": 24,
+   "planned_groups": 12
+  },
+  "opus|adaptive|high": {
+   "groups": 3,
+   "prompt_tokens_p50": 14796,
+   "cold": {
+    "first_event_p50": 1.0864,
+    "first_text_p50": 9.1318,
+    "first_text_p95": 61.8214,
+    "end_p50": 12.5754,
+    "end_p95": 68.8385,
+    "read_share": 0.0,
+    "written_tokens": 47995,
+    "read_tokens": 0,
+    "output_tokens_p50": 1349,
+    "cost_usd_per_request": 0.192016,
+    "uncached_cost_usd_per_request": 0.128023
+   },
+   "warm": {
+    "first_event_p50": 0.8816,
+    "first_text_p50": 5.0603,
+    "first_text_p95": 108.663,
+    "end_p50": 8.7353,
+    "end_p95": 115.935,
+    "read_share": 0.9998,
+    "written_tokens": 0,
+    "read_tokens": 47995,
+    "output_tokens_p50": 934,
+    "cost_usd_per_request": 0.100489,
+    "uncached_cost_usd_per_request": 0.161283
+   },
+   "first_text_change_p50": -0.2048,
+   "warm_cost_over_cold": 0.5233,
+   "pair_cost_over_uncached": 1.0111,
+   "requests": 8,
+   "measured_requests": 7,
+   "warmups": 1,
+   "statuses": {
+    "completed": 8
+   },
+   "planned_requests": 25,
+   "planned_measured_requests": 24,
+   "planned_groups": 12
+  },
+  "opus|adaptive|xhigh": {
+   "groups": 0,
+   "requests": 1,
+   "measured_requests": 0,
+   "warmups": 1,
+   "statuses": {
+    "completed": 1
+   },
+   "planned_requests": 25,
+   "planned_measured_requests": 24,
+   "planned_groups": 12
+  },
+  "opus|adaptive|max": {
+   "groups": 2,
+   "prompt_tokens_p50": 13315,
+   "cold": {
+    "first_event_p50": 1.1738,
+    "first_text_p50": 104.2984,
+    "first_text_p95": 1027.2709,
+    "end_p50": 109.3921,
+    "end_p95": 1035.6269,
+    "read_share": 0.0,
+    "written_tokens": 33199,
+    "read_tokens": 0,
+    "output_tokens_p50": 13488,
+    "cost_usd_per_request": 1.492552,
+    "uncached_cost_usd_per_request": 1.426154
+   },
+   "warm": {
+    "first_event_p50": 1.1315,
+    "first_text_p50": 132.3815,
+    "first_text_p95": 913.3044,
+    "end_p50": 136.2345,
+    "end_p95": 921.6233,
+    "read_share": 0.9998,
+    "written_tokens": 0,
+    "read_tokens": 33199,
+    "output_tokens_p50": 16793,
+    "cost_usd_per_request": 1.258076,
+    "uncached_cost_usd_per_request": 1.321154
+   },
+   "first_text_change_p50": -113.9665,
+   "warm_cost_over_cold": 0.8429,
+   "pair_cost_over_uncached": 1.0012,
+   "requests": 5,
+   "measured_requests": 4,
+   "warmups": 1,
+   "statuses": {
+    "completed": 5
+   },
+   "planned_requests": 25,
+   "planned_measured_requests": 24,
+   "planned_groups": 12
+  },
+  "opus|adaptive|default": {
+   "groups": 1,
+   "prompt_tokens_p50": 19892,
+   "cold": {
+    "first_event_p50": 1.4042,
+    "first_text_p50": 1.4042,
+    "first_text_p95": 1.4042,
+    "end_p50": 7.021,
+    "end_p95": 7.021,
+    "read_share": 0.0,
+    "written_tokens": 19888,
+    "read_tokens": 0,
+    "output_tokens_p50": 779,
+    "cost_usd_per_request": 0.1747,
+    "uncached_cost_usd_per_request": 0.095148
+   },
+   "warm": {
+    "first_event_p50": 1.3574,
+    "first_text_p50": 1.3574,
+    "first_text_p95": 1.3574,
+    "end_p50": 6.9041,
+    "end_p95": 6.9041,
+    "read_share": 0.9998,
+    "written_tokens": 0,
+    "read_tokens": 19888,
+    "output_tokens_p50": 776,
+    "cost_usd_per_request": 0.019514,
+    "uncached_cost_usd_per_request": 0.095088
+   },
+   "first_text_change_p50": -0.0468,
+   "warm_cost_over_cold": 0.1117,
+   "pair_cost_over_uncached": 1.0209,
+   "requests": 3,
+   "measured_requests": 2,
+   "warmups": 1,
+   "statuses": {
+    "completed": 3
+   },
+   "planned_requests": 25,
+   "planned_measured_requests": 24,
+   "planned_groups": 12
+  },
+  "sonnet|adaptive|low": {
+   "groups": 3,
+   "prompt_tokens_p50": 19518,
+   "cold": {
+    "first_event_p50": 0.7553,
+    "first_text_p50": 0.7553,
+    "first_text_p95": 0.795,
+    "end_p50": 5.7981,
+    "end_p95": 7.6072,
+    "read_share": 0.0,
+    "written_tokens": 58591,
+    "read_tokens": 0,
+    "output_tokens_p50": 778,
+    "cost_usd_per_request": 0.085269,
+    "uncached_cost_usd_per_request": 0.046209
+   },
+   "warm": {
+    "first_event_p50": 0.8348,
+    "first_text_p50": 0.8348,
+    "first_text_p95": 0.8838,
+    "end_p50": 4.2391,
+    "end_p95": 8.8893,
+    "read_share": 0.9998,
+    "written_tokens": 0,
+    "read_tokens": 58591,
+    "output_tokens_p50": 519,
+    "cost_usd_per_request": 0.008851,
+    "uncached_cost_usd_per_request": 0.045959
+   },
+   "first_text_change_p50": 0.0398,
+   "warm_cost_over_cold": 0.1038,
+   "pair_cost_over_uncached": 1.0212,
+   "requests": 7,
+   "measured_requests": 6,
+   "warmups": 1,
+   "statuses": {
+    "completed": 7
+   },
+   "planned_requests": 25,
+   "planned_measured_requests": 24,
+   "planned_groups": 12
+  },
+  "sonnet|adaptive|medium": {
+   "groups": 2,
+   "prompt_tokens_p50": 19895,
+   "cold": {
+    "first_event_p50": 0.7963,
+    "first_text_p50": 0.7963,
+    "first_text_p95": 10.4992,
+    "end_p50": 5.8967,
+    "end_p95": 12.5308,
+    "read_share": 0.0,
+    "written_tokens": 39805,
+    "read_tokens": 0,
+    "output_tokens_p50": 574,
+    "cost_usd_per_request": 0.090508,
+    "uncached_cost_usd_per_request": 0.050703
+   },
+   "warm": {
+    "first_event_p50": 0.7958,
+    "first_text_p50": 0.7958,
+    "first_text_p95": 16.3179,
+    "end_p50": 6.1455,
+    "end_p95": 19.0975,
+    "read_share": 0.9998,
+    "written_tokens": 0,
+    "read_tokens": 39805,
+    "output_tokens_p50": 700,
+    "cost_usd_per_request": 0.017633,
+    "uncached_cost_usd_per_request": 0.055448
+   },
+   "first_text_change_p50": -0.0005,
+   "warm_cost_over_cold": 0.1948,
+   "pair_cost_over_uncached": 1.0187,
+   "requests": 5,
+   "measured_requests": 4,
+   "warmups": 1,
+   "statuses": {
+    "completed": 5
+   },
+   "planned_requests": 25,
+   "planned_measured_requests": 24,
+   "planned_groups": 12
+  },
+  "sonnet|adaptive|high": {
+   "groups": 1,
+   "prompt_tokens_p50": 19393,
+   "cold": {
+    "first_event_p50": 1.0566,
+    "first_text_p50": 11.7108,
+    "first_text_p95": 11.7108,
+    "end_p50": 14.6947,
+    "end_p95": 14.6947,
+    "read_share": 0.0,
+    "written_tokens": 19389,
+    "read_tokens": 0,
+    "output_tokens_p50": 2333,
+    "cost_usd_per_request": 0.100894,
+    "uncached_cost_usd_per_request": 0.062116
+   },
+   "warm": {
+    "first_event_p50": 1.014,
+    "first_text_p50": 10.835,
+    "first_text_p95": 10.835,
+    "end_p50": 14.3462,
+    "end_p95": 14.3462,
+    "read_share": 0.9998,
+    "written_tokens": 0,
+    "read_tokens": 19389,
+    "output_tokens_p50": 2199,
+    "cost_usd_per_request": 0.023937,
+    "uncached_cost_usd_per_request": 0.060776
+   },
+   "first_text_change_p50": -0.8758,
+   "warm_cost_over_cold": 0.2372,
+   "pair_cost_over_uncached": 1.0158,
+   "requests": 3,
+   "measured_requests": 2,
+   "warmups": 1,
+   "statuses": {
+    "completed": 3
+   },
+   "planned_requests": 25,
+   "planned_measured_requests": 24,
+   "planned_groups": 12
+  },
+  "sonnet|adaptive|xhigh": {
+   "groups": 2,
+   "prompt_tokens_p50": 19518,
+   "cold": {
+    "first_event_p50": 0.7941,
+    "first_text_p50": 25.1164,
+    "first_text_p95": 25.8164,
+    "end_p50": 28.159,
+    "end_p95": 28.8914,
+    "read_share": 0.0,
+    "written_tokens": 39429,
+    "read_tokens": 0,
+    "output_tokens_p50": 4190,
+    "cost_usd_per_request": 0.121516,
+    "uncached_cost_usd_per_request": 0.082087
+   },
+   "warm": {
+    "first_event_p50": 1.0075,
+    "first_text_p50": 16.0661,
+    "first_text_p95": 60.4944,
+    "end_p50": 19.4389,
+    "end_p95": 63.3972,
+    "read_share": 0.9998,
+    "written_tokens": 0,
+    "read_tokens": 39429,
+    "output_tokens_p50": 2921,
+    "cost_usd_per_request": 0.063874,
+    "uncached_cost_usd_per_request": 0.101332
+   },
+   "first_text_change_p50": -9.0503,
+   "warm_cost_over_cold": 0.5256,
+   "pair_cost_over_uncached": 1.0107,
+   "requests": 5,
+   "measured_requests": 4,
+   "warmups": 1,
+   "statuses": {
+    "completed": 5
+   },
+   "planned_requests": 25,
+   "planned_measured_requests": 24,
+   "planned_groups": 12
+  },
+  "sonnet|adaptive|max": {
+   "groups": 1,
+   "prompt_tokens_p50": 13313,
+   "cold": {
+    "first_event_p50": 0.7304,
+    "first_text_p50": 469.831,
+    "first_text_p95": 469.831,
+    "end_p50": 472.6456,
+    "end_p95": 472.6456,
+    "read_share": 0.0,
+    "written_tokens": 13309,
+    "read_tokens": 0,
+    "output_tokens_p50": 73908,
+    "cost_usd_per_request": 0.792324,
+    "uncached_cost_usd_per_request": 0.765706
+   },
+   "warm": {
+    "first_event_p50": 0.9825,
+    "first_text_p50": 364.0905,
+    "first_text_p95": 364.0905,
+    "end_p50": 367.2257,
+    "end_p95": 367.2257,
+    "read_share": 0.9997,
+    "written_tokens": 0,
+    "read_tokens": 13309,
+    "output_tokens_p50": 58148,
+    "cost_usd_per_request": 0.582819,
+    "uncached_cost_usd_per_request": 0.608106
+   },
+   "first_text_change_p50": -105.7405,
+   "warm_cost_over_cold": 0.7356,
+   "pair_cost_over_uncached": 1.001,
+   "requests": 5,
+   "measured_requests": 4,
+   "warmups": 1,
+   "statuses": {
+    "completed": 3,
+    "max_tokens": 2
+   },
+   "planned_requests": 25,
+   "planned_measured_requests": 24,
+   "planned_groups": 12
+  },
+  "sonnet|adaptive|default": {
+   "groups": 0,
+   "requests": 1,
+   "measured_requests": 0,
+   "warmups": 1,
+   "statuses": {
+    "completed": 1
+   },
+   "planned_requests": 25,
+   "planned_measured_requests": 24,
+   "planned_groups": 12
+  },
+  "sonnet|between_tools|low": {
+   "groups": 2,
+   "prompt_tokens_p50": 13316,
+   "cold": {
+    "first_event_p50": 0.7516,
+    "first_text_p50": 0.7517,
+    "first_text_p95": 1.0832,
+    "end_p50": 4.7539,
+    "end_p95": 5.4016,
+    "read_share": 0.0,
+    "written_tokens": 32960,
+    "read_tokens": 0,
+    "output_tokens_p50": 496,
+    "cost_usd_per_request": 0.072113,
+    "uncached_cost_usd_per_request": 0.039153
+   },
+   "warm": {
+    "first_event_p50": 0.7662,
+    "first_text_p50": 0.7662,
+    "first_text_p95": 0.8229,
+    "end_p50": 4.0045,
+    "end_p95": 5.5271,
+    "read_share": 0.9998,
+    "written_tokens": 0,
+    "read_tokens": 32960,
+    "output_tokens_p50": 493,
+    "cost_usd_per_request": 0.007486,
+    "uncached_cost_usd_per_request": 0.038798
+   },
+   "first_text_change_p50": -0.2603,
+   "warm_cost_over_cold": 0.1038,
+   "pair_cost_over_uncached": 1.0211,
+   "requests": 5,
+   "measured_requests": 4,
+   "warmups": 1,
+   "statuses": {
+    "completed": 5
+   },
+   "planned_requests": 25,
+   "planned_measured_requests": 24,
+   "planned_groups": 12
+  },
+  "sonnet|between_tools|medium": {
+   "groups": 0,
+   "requests": 1,
+   "measured_requests": 0,
+   "warmups": 1,
+   "statuses": {
+    "completed": 1
+   },
+   "planned_requests": 25,
+   "planned_measured_requests": 24,
+   "planned_groups": 12
+  },
+  "sonnet|between_tools|high": {
+   "groups": 3,
+   "prompt_tokens_p50": 19391,
+   "cold": {
+    "first_event_p50": 0.8431,
+    "first_text_p50": 0.8431,
+    "first_text_p95": 0.9769,
+    "end_p50": 6.4611,
+    "end_p95": 10.4496,
+    "read_share": 0.0,
+    "written_tokens": 44940,
+    "read_tokens": 0,
+    "output_tokens_p50": 768,
+    "cost_usd_per_request": 0.070411,
+    "uncached_cost_usd_per_request": 0.040451
+   },
+   "warm": {
+    "first_event_p50": 1.015,
+    "first_text_p50": 1.0151,
+    "first_text_p95": 1.0525,
+    "end_p50": 9.1631,
+    "end_p95": 10.359,
+    "read_share": 0.9997,
+    "written_tokens": 0,
+    "read_tokens": 44940,
+    "output_tokens_p50": 1210,
+    "cost_usd_per_request": 0.013049,
+    "uncached_cost_usd_per_request": 0.041511
+   },
+   "first_text_change_p50": 0.2094,
+   "warm_cost_over_cold": 0.1853,
+   "pair_cost_over_uncached": 1.0183,
+   "requests": 7,
+   "measured_requests": 6,
+   "warmups": 1,
+   "statuses": {
+    "completed": 7
+   },
+   "planned_requests": 25,
+   "planned_measured_requests": 24,
+   "planned_groups": 12
+  },
+  "sonnet|between_tools|default": {
+   "groups": 3,
+   "prompt_tokens_p50": 19649,
+   "cold": {
+    "first_event_p50": 0.793,
+    "first_text_p50": 0.793,
+    "first_text_p95": 0.8144,
+    "end_p50": 4.8769,
+    "end_p95": 8.3351,
+    "read_share": 0.0,
+    "written_tokens": 59052,
+    "read_tokens": 0,
+    "output_tokens_p50": 608,
+    "cost_usd_per_request": 0.086894,
+    "uncached_cost_usd_per_request": 0.047526
+   },
+   "warm": {
+    "first_event_p50": 0.7768,
+    "first_text_p50": 0.7768,
+    "first_text_p95": 0.8292,
+    "end_p50": 5.349,
+    "end_p95": 10.1784,
+    "read_share": 0.9998,
+    "written_tokens": 0,
+    "read_tokens": 59052,
+    "output_tokens_p50": 705,
+    "cost_usd_per_request": 0.011533,
+    "uncached_cost_usd_per_request": 0.048933
+   },
+   "first_text_change_p50": -0.0347,
+   "warm_cost_over_cold": 0.1327,
+   "pair_cost_over_uncached": 1.0204,
+   "requests": 7,
+   "measured_requests": 6,
+   "warmups": 1,
+   "statuses": {
+    "completed": 7
+   },
+   "planned_requests": 25,
+   "planned_measured_requests": 24,
+   "planned_groups": 12
+  },
+  "haiku|adaptive|low": {
+   "groups": 4,
+   "prompt_tokens_p50": 19392,
+   "cold": {
+    "first_event_p50": 0.4117,
+    "first_text_p50": 2.702,
+    "first_text_p95": 5.6034,
+    "end_p50": 3.9391,
+    "end_p95": 8.0331,
+    "read_share": 0.0,
+    "written_tokens": 73584,
+    "read_tokens": 0,
+    "output_tokens_p50": 896,
+    "cost_usd_per_request": 0.004255,
+    "uncached_cost_usd_per_request": 0.002416
+   },
+   "warm": {
+    "first_event_p50": 0.5541,
+    "first_text_p50": 4.082,
+    "first_text_p95": 5.1371,
+    "end_p50": 5.0595,
+    "end_p95": 7.6791,
+    "read_share": 0.9998,
+    "written_tokens": 0,
+    "read_tokens": 73584,
+    "output_tokens_p50": 1092,
+    "cost_usd_per_request": 0.000797,
+    "uncached_cost_usd_per_request": 0.002453
+   },
+   "first_text_change_p50": -0.0952,
+   "warm_cost_over_cold": 0.1874,
+   "pair_cost_over_uncached": 1.0378,
+   "requests": 9,
+   "measured_requests": 8,
+   "warmups": 1,
+   "statuses": {
+    "completed": 9
+   },
+   "planned_requests": 25,
+   "planned_measured_requests": 24,
+   "planned_groups": 12
+  },
+  "haiku|adaptive|medium": {
+   "groups": 1,
+   "prompt_tokens_p50": 19390,
+   "cold": {
+    "first_event_p50": 0.6098,
+    "first_text_p50": 12.9545,
+    "first_text_p95": 12.9545,
+    "end_p50": 14.5918,
+    "end_p95": 14.5918,
+    "read_share": 0.0,
+    "written_tokens": 19386,
+    "read_tokens": 0,
+    "output_tokens_p50": 3588,
+    "cost_usd_per_request": 0.005672,
+    "uncached_cost_usd_per_request": 0.003733
+   },
+   "warm": {
+    "first_event_p50": 0.6146,
+    "first_text_p50": 7.2115,
+    "first_text_p95": 7.2115,
+    "end_p50": 9.2583,
+    "end_p95": 9.2583,
+    "read_share": 0.9998,
+    "written_tokens": 0,
+    "read_tokens": 19386,
+    "output_tokens_p50": 2347,
+    "cost_usd_per_request": 0.001368,
+    "uncached_cost_usd_per_request": 0.003112
+   },
+   "first_text_change_p50": -5.743,
+   "warm_cost_over_cold": 0.2412,
+   "pair_cost_over_uncached": 1.0283,
+   "requests": 3,
+   "measured_requests": 2,
+   "warmups": 1,
+   "statuses": {
+    "completed": 3
+   },
+   "planned_requests": 25,
+   "planned_measured_requests": 24,
+   "planned_groups": 12
+  },
+  "haiku|adaptive|high": {
+   "groups": 6,
+   "prompt_tokens_p50": 14796,
+   "cold": {
+    "first_event_p50": 0.4734,
+    "first_text_p50": 9.0718,
+    "first_text_p95": 29.8799,
+    "end_p50": 10.8119,
+    "end_p95": 34.4259,
+    "read_share": 0.0,
+    "written_tokens": 91837,
+    "read_tokens": 0,
+    "output_tokens_p50": 2543,
+    "cost_usd_per_request": 0.005043,
+    "uncached_cost_usd_per_request": 0.003512
+   },
+   "warm": {
+    "first_event_p50": 0.478,
+    "first_text_p50": 8.8484,
+    "first_text_p95": 29.0437,
+    "end_p50": 11.285,
+    "end_p95": 34.0288,
+    "read_share": 0.9997,
+    "written_tokens": 0,
+    "read_tokens": 91837,
+    "output_tokens_p50": 2289,
+    "cost_usd_per_request": 0.002008,
+    "uncached_cost_usd_per_request": 0.003386
+   },
+   "first_text_change_p50": -1.9717,
+   "warm_cost_over_cold": 0.3982,
+   "pair_cost_over_uncached": 1.0222,
+   "requests": 13,
+   "measured_requests": 12,
+   "warmups": 1,
+   "statuses": {
+    "completed": 13
+   },
+   "planned_requests": 25,
+   "planned_measured_requests": 24,
+   "planned_groups": 12
+  },
+  "haiku|adaptive|xhigh": {
+   "groups": 1,
+   "prompt_tokens_p50": 19519,
+   "cold": {
+    "first_event_p50": 0.5231,
+    "first_text_p50": 218.2465,
+    "first_text_p95": 218.2465,
+    "end_p50": 220.1768,
+    "end_p95": 220.1768,
+    "read_share": 0.0,
+    "written_tokens": 19515,
+    "read_tokens": 0,
+    "output_tokens_p50": 52569,
+    "cost_usd_per_request": 0.030188,
+    "uncached_cost_usd_per_request": 0.028236
+   },
+   "warm": {
+    "first_event_p50": 0.6541,
+    "first_text_p50": 201.0351,
+    "first_text_p95": 201.0351,
+    "end_p50": 202.979,
+    "end_p95": 202.979,
+    "read_share": 0.9998,
+    "written_tokens": 0,
+    "read_tokens": 19515,
+    "output_tokens_p50": 49943,
+    "cost_usd_per_request": 0.025167,
+    "uncached_cost_usd_per_request": 0.026923
+   },
+   "first_text_change_p50": -17.2114,
+   "warm_cost_over_cold": 0.8337,
+   "pair_cost_over_uncached": 1.0035,
+   "requests": 3,
+   "measured_requests": 2,
+   "warmups": 1,
+   "statuses": {
+    "completed": 3
+   },
+   "planned_requests": 25,
+   "planned_measured_requests": 24,
+   "planned_groups": 12
+  },
+  "haiku|adaptive|max": {
+   "groups": 2,
+   "prompt_tokens_p50": 19169,
+   "cold": {
+    "first_event_p50": 0.4855,
+    "first_text_p50": 178.3781,
+    "first_text_p95": 269.0259,
+    "end_p50": 179.9905,
+    "end_p95": 270.5005,
+    "read_share": 0.0,
+    "written_tokens": 39078,
+    "read_tokens": 0,
+    "output_tokens_p50": 47055,
+    "cost_usd_per_request": 0.03408,
+    "uncached_cost_usd_per_request": 0.032126
+   },
+   "warm": {
+    "first_event_p50": 0.4984,
+    "first_text_p50": 261.7666,
+    "first_text_p95": 274.8109,
+    "end_p50": 265.1014,
+    "end_p95": 276.2069,
+    "read_share": 0.9998,
+    "written_tokens": 0,
+    "read_tokens": 39078,
+    "output_tokens_p50": 71136,
+    "cost_usd_per_request": 0.036289,
+    "uncached_cost_usd_per_request": 0.038048
+   },
+   "first_text_change_p50": 5.785,
+   "warm_cost_over_cold": 1.0648,
+   "pair_cost_over_uncached": 1.0028,
+   "requests": 6,
+   "measured_requests": 5,
+   "warmups": 1,
+   "statuses": {
+    "completed": 6
+   },
+   "planned_requests": 25,
+   "planned_measured_requests": 24,
+   "planned_groups": 12
+  },
+  "haiku|adaptive|default": {
+   "groups": 4,
+   "prompt_tokens_p50": 19391,
+   "cold": {
+    "first_event_p50": 0.4986,
+    "first_text_p50": 4.1985,
+    "first_text_p95": 15.4574,
+    "end_p50": 5.7661,
+    "end_p95": 18.4108,
+    "read_share": 0.0,
+    "written_tokens": 73343,
+    "read_tokens": 0,
+    "output_tokens_p50": 1334,
+    "cost_usd_per_request": 0.004834,
+    "uncached_cost_usd_per_request": 0.003
+   },
+   "warm": {
+    "first_event_p50": 0.4645,
+    "first_text_p50": 4.3047,
+    "first_text_p95": 11.5642,
+    "end_p50": 5.9017,
+    "end_p95": 14.1849,
+    "read_share": 0.9998,
+    "written_tokens": 0,
+    "read_tokens": 73343,
+    "output_tokens_p50": 1354,
+    "cost_usd_per_request": 0.001172,
+    "uncached_cost_usd_per_request": 0.002822
+   },
+   "first_text_change_p50": -3.1924,
+   "warm_cost_over_cold": 0.2424,
+   "pair_cost_over_uncached": 1.0315,
+   "requests": 9,
+   "measured_requests": 8,
+   "warmups": 1,
+   "statuses": {
+    "completed": 9
+   },
+   "planned_requests": 25,
+   "planned_measured_requests": 24,
+   "planned_groups": 12
+  },
+  "haiku|disabled|low": {
+   "groups": 2,
+   "prompt_tokens_p50": 19890,
+   "cold": {
+    "first_event_p50": 0.4495,
+    "first_text_p50": 0.4495,
+    "first_text_p95": 0.5165,
+    "end_p50": 2.2142,
+    "end_p95": 2.8458,
+    "read_share": 0.0,
+    "written_tokens": 39803,
+    "read_tokens": 0,
+    "output_tokens_p50": 493,
+    "cost_usd_per_request": 0.004257,
+    "uncached_cost_usd_per_request": 0.002267
+   },
+   "warm": {
+    "first_event_p50": 0.4694,
+    "first_text_p50": 0.4694,
+    "first_text_p95": 0.6271,
+    "end_p50": 2.2177,
+    "end_p95": 2.4793,
+    "read_share": 0.9998,
+    "written_tokens": 0,
+    "read_tokens": 39803,
+    "output_tokens_p50": 358,
+    "cost_usd_per_request": 0.000442,
+    "uncached_cost_usd_per_request": 0.002233
+   },
+   "first_text_change_p50": 0.0199,
+   "warm_cost_over_cold": 0.1039,
+   "pair_cost_over_uncached": 1.0442,
+   "requests": 5,
+   "measured_requests": 4,
+   "warmups": 1,
+   "statuses": {
+    "completed": 5
+   },
+   "planned_requests": 25,
+   "planned_measured_requests": 24,
+   "planned_groups": 12
+  },
+  "haiku|disabled|medium": {
+   "groups": 2,
+   "prompt_tokens_p50": 13310,
+   "cold": {
+    "first_event_p50": 0.4104,
+    "first_text_p50": 0.4104,
+    "first_text_p95": 0.6051,
+    "end_p50": 2.4154,
+    "end_p95": 3.0033,
+    "read_share": 0.0,
+    "written_tokens": 32692,
+    "read_tokens": 0,
+    "output_tokens_p50": 410,
+    "cost_usd_per_request": 0.00351,
+    "uncached_cost_usd_per_request": 0.001875
+   },
+   "warm": {
+    "first_event_p50": 0.433,
+    "first_text_p50": 0.433,
+    "first_text_p95": 0.4613,
+    "end_p50": 2.6444,
+    "end_p95": 3.093,
+    "read_share": 0.9998,
+    "written_tokens": 0,
+    "read_tokens": 32692,
+    "output_tokens_p50": 410,
+    "cost_usd_per_request": 0.000409,
+    "uncached_cost_usd_per_request": 0.001881
+   },
+   "first_text_change_p50": -0.1438,
+   "warm_cost_over_cold": 0.1166,
+   "pair_cost_over_uncached": 1.0435,
+   "requests": 5,
+   "measured_requests": 4,
+   "warmups": 1,
+   "statuses": {
+    "completed": 5
+   },
+   "planned_requests": 25,
+   "planned_measured_requests": 24,
+   "planned_groups": 12
+  },
+  "haiku|disabled|high": {
+   "groups": 5,
+   "prompt_tokens_p50": 19651,
+   "cold": {
+    "first_event_p50": 0.4833,
+    "first_text_p50": 0.4833,
+    "first_text_p95": 0.6455,
+    "end_p50": 2.7143,
+    "end_p95": 4.5085,
+    "read_share": 0.0,
+    "written_tokens": 92277,
+    "read_tokens": 0,
+    "output_tokens_p50": 439,
+    "cost_usd_per_request": 0.003986,
+    "uncached_cost_usd_per_request": 0.002141
+   },
+   "warm": {
+    "first_event_p50": 0.5524,
+    "first_text_p50": 0.5524,
+    "first_text_p95": 0.662,
+    "end_p50": 2.9252,
+    "end_p95": 3.5617,
+    "read_share": 0.9998,
+    "written_tokens": 0,
+    "read_tokens": 92277,
+    "output_tokens_p50": 500,
+    "cost_usd_per_request": 0.000418,
+    "uncached_cost_usd_per_request": 0.002079
+   },
+   "first_text_change_p50": 0.0594,
+   "warm_cost_over_cold": 0.1048,
+   "pair_cost_over_uncached": 1.0437,
+   "requests": 11,
+   "measured_requests": 10,
+   "warmups": 1,
+   "statuses": {
+    "completed": 11
+   },
+   "planned_requests": 25,
+   "planned_measured_requests": 24,
+   "planned_groups": 12
+  },
+  "haiku|disabled|default": {
+   "groups": 7,
+   "prompt_tokens_p50": 19167,
+   "cold": {
+    "first_event_p50": 0.4918,
+    "first_text_p50": 0.4918,
+    "first_text_p95": 0.793,
+    "end_p50": 2.7436,
+    "end_p95": 3.1554,
+    "read_share": 0.0,
+    "written_tokens": 112093,
+    "read_tokens": 0,
+    "output_tokens_p50": 457,
+    "cost_usd_per_request": 0.003417,
+    "uncached_cost_usd_per_request": 0.001816
+   },
+   "warm": {
+    "first_event_p50": 0.5079,
+    "first_text_p50": 0.5079,
+    "first_text_p95": 0.5713,
+    "end_p50": 2.3001,
+    "end_p95": 3.158,
+    "read_share": 0.9998,
+    "written_tokens": 0,
+    "read_tokens": 112093,
+    "output_tokens_p50": 478,
+    "cost_usd_per_request": 0.000413,
+    "uncached_cost_usd_per_request": 0.001854
+   },
+   "first_text_change_p50": -0.0336,
+   "warm_cost_over_cold": 0.1209,
+   "pair_cost_over_uncached": 1.0436,
+   "requests": 15,
+   "measured_requests": 14,
+   "warmups": 1,
+   "statuses": {
+    "completed": 15
+   },
+   "planned_requests": 25,
+   "planned_measured_requests": 24,
+   "planned_groups": 12
+  }
+ }
+}

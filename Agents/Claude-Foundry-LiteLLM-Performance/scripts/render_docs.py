@@ -368,9 +368,9 @@ def gateway_testing(chinese):
 def security(chinese):
     return f'''## {'安全与未验证项' if chinese else 'Security and gaps'}
 
-{'真实输入、模型回答、签名及认证信息可能敏感。live-runs、private、runs 与 .env 已忽略；不要上传运行目录。公开的 2026-10-26 记录只替换了端点资源名和 VM 名称，其余字节与 VM 上写下的记录相同（见导出清单中的哈希）；记录里没有令牌或密钥。2026-10-24 的公开证据省略了签名，call ID 已假名化，不能拿它的历史重放签名。' if chinese else 'Live inputs, responses, signatures and authentication can be sensitive. live-runs, private, runs and .env are ignored; do not upload run directories. The published 2026-10-26 records only replace the endpoint resource name and the VM name; every other byte matches the record written on the VM (see the hashes in the export manifest), and they contain no token or key. The 2026-10-24 evidence omits signatures and pseudonymizes call IDs; do not replay its history signatures.'}
+{'真实输入、模型回答、签名及认证信息可能敏感。live-runs、private、runs 与 .env 已忽略；不要上传运行目录。历史 coding-matrix-20261026 记录只替换了端点资源名和 VM 名称；新的 gateway-cache-20261026 是指标投影，保留数值但省略提示／回答正文、思考签名、私有端点和非区域响应头。各自的导出清单记录哈希与边界，不能把指标投影用于代码正确率评分。2026-10-24 的公开证据省略了签名，call ID 已假名化，不能拿它的历史重放签名。' if chinese else 'Live inputs, responses, signatures and authentication can be sensitive. live-runs, private, runs and .env are ignored; do not upload run directories. Historical coding-matrix-20261026 records replace only endpoint and VM names. New gateway-cache-20261026 records are a metrics projection: numbers are preserved but prompt/answer bodies, thinking signatures, private endpoints and non-region headers are omitted. Each export manifest records its hashes and scope; the metrics projection cannot score code correctness. The 2026-10-24 evidence omits signatures and pseudonymizes call IDs; do not replay its history signatures.'}
 
-{'未验证：公开包装在全新订阅中的端到端部署、与模型同区域的网关、并发压测、Azure 以外的客户端、display: "summarized"、带工具的请求，以及客户自己的任务。' if chinese else 'Not verified: an end-to-end deployment of this public package in a fresh subscription, a gateway in the models\' region, concurrency or load, a client outside Azure, display: "summarized", requests with tools, and customer tasks.'}'''
+{'未验证：当前 ACA 全量结果与正确率、公开包装在全新订阅中的端到端部署、并发压测、Azure 以外的客户端、display: "summarized"、带工具的请求，以及客户自己的任务。已有同区域 ACA 部分快照，但不能据此宣称全量通过。' if chinese else 'Not verified: full ACA results and correctness, an end-to-end deployment of this public package in a fresh subscription, concurrency or load, a client outside Azure, display: "summarized", requests with tools, and customer tasks. A same-region ACA partial snapshot exists; it does not establish full completion.'}'''
 
 
 def pages(result):
@@ -403,10 +403,11 @@ def pages(result):
             f"## {headings[2]}", render_coding.steps(d, chinese),
         ])
         nav_results = f"[README](../{readme_name}) · [{'复测与核验' if chinese else 'Testing'}](testing{suffix}.md) · [{'English' if chinese else '中文'}](results{'' if chinese else '_CN'}.md)"
-        intro_results = ("本页收录每次实测的完整输入、每格数据和边界：2026-10-26 在 East US 2 的 VM 上直连三个部署的编码矩阵、参数探测和提示缓存测试，以及 2026-10-24 经过 LiteLLM 网关的测试。README 只放结论和摘要。"
-                         if chinese else "This page holds the complete inputs, every cell and the limits of each measured run: the coding matrix, parameter probe and prompt-cache test sent directly from a VM in East US 2 on 2026-10-26, and the 2026-10-24 test through a LiteLLM gateway. The README holds the conclusions and summaries.")
+        intro_results = ("先列当前 East US 2 ACA 开启缓存测试的部分快照，包含全部计划配置与缺失范围；随后保留已取缔直连方案的历史编码矩阵、参数探测、缓存测试和 2026-10-24 网关检查。各批次的输入、计数和边界分别说明，不混算。"
+                 if chinese else "Current East US 2 cache-enabled ACA partial evidence comes first, with every planned configuration and missing coverage. Retired direct-VM matrix, probe and cache evidence and the 2026-10-24 gateway check follow as historical records. Inputs, counts and limits stay separate for each run.")
         output[f"docs/results{suffix}.md"] = "\n\n".join([
             f"# {'实测结果' if chinese else 'Measured Results'}", nav_results, intro_results,
+            render_coding.gateway_snapshot(chinese, detailed=True),
             render_coding.results_page(d, chinese), gateway_results(result, chinese),
         ])
         nav_testing = f"[README](../{readme_name}) · [{'实测结果' if chinese else 'Results'}](results{suffix}.md) · [{'English' if chinese else '中文'}](testing{'' if chinese else '_CN'}.md)"
@@ -414,6 +415,7 @@ def pages(result):
                          if chinese else "This page gives the complete commands for the offline checks, for repeating the 2026-10-26 tests and for repeating the 2026-10-24 gateway test. Deploying the three models and sending the first request are README steps 1 to 4.")
         output[f"docs/testing{suffix}.md"] = "\n\n".join([
             f"# {'复测与核验' if chinese else 'Testing and Reproduction'}", nav_testing, intro_testing,
+            render_coding.gateway_snapshot_replay(chinese),
             render_coding.testing_offline(chinese), render_coding.testing_repeat(d, chinese),
             gateway_testing(chinese), security(chinese),
         ])

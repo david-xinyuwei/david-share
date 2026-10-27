@@ -2,7 +2,115 @@
 
 [README](../README_CN.md) · [复测与核验](testing_CN.md) · [English](results.md)
 
-本页收录每次实测的完整输入、每格数据和边界：2026-10-26 在 East US 2 的 VM 上直连三个部署的编码矩阵、参数探测和提示缓存测试，以及 2026-10-24 经过 LiteLLM 网关的测试。README 只放结论和摘要。
+先列当前 East US 2 ACA 开启缓存测试的部分快照，包含全部计划配置与缺失范围；随后保留已取缔直连方案的历史编码矩阵、参数探测、缓存测试和 2026-10-24 网关检查。各批次的输入、计数和边界分别说明，不混算。
+
+<a id="aca-gateway-snapshot"></a>
+
+## ACA 网关：部分结果
+
+**这是部分证据，不是全量测试通过。** 快照保存了计划 650 次中的 154 次请求：26 次预热，以及 624 次正式请求中的 128 次。运行文件最后更新于 `2026-10-27T00:07:59.720+00:00`。另有 496 次未包含在这份快照中，不能据此认定它们未执行或失败。
+
+**客户端状态。** 在 `2026-10-26T20:10:18.9885833-07:00` 核验时，Azure 返回客户端 VM 为 `PowerState/deallocated`，已不会继续发送新请求。最终测试结果和停机原因尚未核实；快照里的 `RUNNING` 是当时的状态，不是当前状态。[核验记录](../evidence/gateway-cache-20261026/collection-status.json)。
+
+**问题与方法。** 编码提示通过 East US 2 的 ACA LiteLLM 网关发送后，原样重复的第二次请求能否读到第一次写入的缓存，观测到的耗时和费用是多少？客户端、网关和 Foundry 资源均在 East US 2；每个模型同时只有一个请求。这是首次写入与重复读取的配对，不是关闭缓存的对照，也不能隔离网关自身开销。
+
+**输入。** [12 道公开的 SWE-bench Lite BM25-13K 题目](../data/gateway-cache-problems.json)，来源版本和提示哈希保存在 [run.json](../evidence/gateway-cache-20261026/run.json)。这是作者的延迟与缓存测试，不是 SWE-bench 官方评分，也不是客户生产数据。[输入构建器](../gateway-cache/build_swebench_problems.py)重建提示，[运行器](../gateway-cache/aca_cache_matrix.py)遍历 26 个模式／档位组合，每题每格原样发送两次，每格另有一次预热。固定 `max_tokens: 128000`、`stream: true`、顶层 `cache_control: {"type": "ephemeral", "ttl": "1h"}`。计时从客户端即将发送请求时开始；首字指第一个非空文字增量，不是心跳或思考事件。
+
+实际保存的参数记录（该指标投影不包含提示正文）：
+
+```json
+{
+  "model": "claude-opus-5-5",
+  "max_tokens": 128000,
+  "stream": true,
+  "thinking": {
+    "type": "adaptive"
+  },
+  "output_config": {
+    "effort": "low"
+  },
+  "cache_control": {
+    "type": "ephemeral",
+    "ttl": "1h"
+  }
+}
+```
+
+| 模型 | 已保存／计划请求数（含预热） | 正常结束的请求数 | 截断请求数 | 完整正式配对数 |
+|---|---:|---:|---:|---:|
+| Opus 5.5 | 29/150 | 29 | 0 | 11 |
+| Sonnet 5.5 | 46/250 | 44 | 2 | 17 |
+| Haiku 5.5 | 79/250 | 79 | 0 | 34 |
+
+**已经确认的事实。** 62 个正式配对的两次回答均正常结束。首次请求最多读取 0 个缓存 token；重复请求至少读回前次写入缓存 token 的 100.0%；两次复用同一响应 message ID 的配对有 0 个。这些原生 usage 记录证明对应配对发生了缓存读取，不证明代码正确或普遍提速。响应报告 `inference_geo: global`，返回的区域头为 East US 2，不能把它当成 GlobalStandard 固定区域推理的承诺。
+
+**费用与边界。** 按记录采用的[标价模型](../coding-matrix/pricing.py)，已保存请求共 $13.90，包含预热、缓存写入／读取、输出和截断回答。这不是整轮最终花费或 Azure 账单，不含基础设施费用。尚未取得代码正确率评分。配对统计排除预热及任一回答未完整结束的配对，但上表仍保留这些请求；各格样本数量不同且不完整，不能据此给模型或档位排名。
+
+### 全部计划配置
+
+| 模型 | thinking.type | output_config.effort | 已保存／计划正式请求数 | 截断请求数（含预热） | 完整／计划配对数 |
+|---|---|---|---:|---:|---:|
+| Opus 5.5 | `adaptive` | `low` | 4/24 | 0 | 2/12 |
+| Opus 5.5 | `adaptive` | `medium` | 6/24 | 0 | 3/12 |
+| Opus 5.5 | `adaptive` | `high` | 7/24 | 0 | 3/12 |
+| Opus 5.5 | `adaptive` | `xhigh` | 0/24 | 0 | 0/12 |
+| Opus 5.5 | `adaptive` | `max` | 4/24 | 0 | 2/12 |
+| Opus 5.5 | `adaptive` | `default` | 2/24 | 0 | 1/12 |
+| Sonnet 5.5 | `adaptive` | `low` | 6/24 | 0 | 3/12 |
+| Sonnet 5.5 | `adaptive` | `medium` | 4/24 | 0 | 2/12 |
+| Sonnet 5.5 | `adaptive` | `high` | 2/24 | 0 | 1/12 |
+| Sonnet 5.5 | `adaptive` | `xhigh` | 4/24 | 0 | 2/12 |
+| Sonnet 5.5 | `adaptive` | `max` | 4/24 | 2 | 1/12 |
+| Sonnet 5.5 | `adaptive` | `default` | 0/24 | 0 | 0/12 |
+| Sonnet 5.5 | `between_tools` | `low` | 4/24 | 0 | 2/12 |
+| Sonnet 5.5 | `between_tools` | `medium` | 0/24 | 0 | 0/12 |
+| Sonnet 5.5 | `between_tools` | `high` | 6/24 | 0 | 3/12 |
+| Sonnet 5.5 | `between_tools` | `default` | 6/24 | 0 | 3/12 |
+| Haiku 5.5 | `adaptive` | `low` | 8/24 | 0 | 4/12 |
+| Haiku 5.5 | `adaptive` | `medium` | 2/24 | 0 | 1/12 |
+| Haiku 5.5 | `adaptive` | `high` | 12/24 | 0 | 6/12 |
+| Haiku 5.5 | `adaptive` | `xhigh` | 2/24 | 0 | 1/12 |
+| Haiku 5.5 | `adaptive` | `max` | 5/24 | 0 | 2/12 |
+| Haiku 5.5 | `adaptive` | `default` | 8/24 | 0 | 4/12 |
+| Haiku 5.5 | `disabled` | `low` | 4/24 | 0 | 2/12 |
+| Haiku 5.5 | `disabled` | `medium` | 4/24 | 0 | 2/12 |
+| Haiku 5.5 | `disabled` | `high` | 10/24 | 0 | 5/12 |
+| Haiku 5.5 | `disabled` | `default` | 14/24 | 0 | 7/12 |
+
+### 配对观测，不作排名
+
+各格以最近秩法计算 P50，只统计完整正式配对。两次回答的输出长度可能不同，因此费用差异不能全部归因于缓存。
+
+| 模型／thinking.type／output_config.effort | 完整配对数 | 首字 P50：第 1 次写缓存（秒） | 首字 P50：第 2 次读缓存（秒） | 平均费用：第 1 次（美元） | 平均费用：第 2 次（美元） |
+|---|---:|---:|---:|---:|---:|
+| Opus 5.5 / adaptive / low | 2 | 1.14 | 1.00 | $0.177282 | $0.022452 |
+| Opus 5.5 / adaptive / medium | 3 | 6.50 | 7.57 | $0.163915 | $0.033795 |
+| Opus 5.5 / adaptive / high | 3 | 9.13 | 5.06 | $0.192016 | $0.100489 |
+| Opus 5.5 / adaptive / xhigh | 0 | 无完整配对 | 无完整配对 | 无完整配对 | 无完整配对 |
+| Opus 5.5 / adaptive / max | 2 | 104 | 132 | $1.492552 | $1.258076 |
+| Opus 5.5 / adaptive / default | 1 | 1.40 | 1.36 | $0.174700 | $0.019514 |
+| Sonnet 5.5 / adaptive / low | 3 | 0.76 | 0.83 | $0.085269 | $0.008851 |
+| Sonnet 5.5 / adaptive / medium | 2 | 0.80 | 0.80 | $0.090508 | $0.017633 |
+| Sonnet 5.5 / adaptive / high | 1 | 11.7 | 10.8 | $0.100894 | $0.023937 |
+| Sonnet 5.5 / adaptive / xhigh | 2 | 25.1 | 16.1 | $0.121516 | $0.063874 |
+| Sonnet 5.5 / adaptive / max | 1 | 470 | 364 | $0.792324 | $0.582819 |
+| Sonnet 5.5 / adaptive / default | 0 | 无完整配对 | 无完整配对 | 无完整配对 | 无完整配对 |
+| Sonnet 5.5 / between_tools / low | 2 | 0.75 | 0.77 | $0.072113 | $0.007486 |
+| Sonnet 5.5 / between_tools / medium | 0 | 无完整配对 | 无完整配对 | 无完整配对 | 无完整配对 |
+| Sonnet 5.5 / between_tools / high | 3 | 0.84 | 1.02 | $0.070411 | $0.013049 |
+| Sonnet 5.5 / between_tools / default | 3 | 0.79 | 0.78 | $0.086894 | $0.011533 |
+| Haiku 5.5 / adaptive / low | 4 | 2.70 | 4.08 | $0.004255 | $0.000797 |
+| Haiku 5.5 / adaptive / medium | 1 | 13.0 | 7.21 | $0.005672 | $0.001368 |
+| Haiku 5.5 / adaptive / high | 6 | 9.07 | 8.85 | $0.005043 | $0.002008 |
+| Haiku 5.5 / adaptive / xhigh | 1 | 218 | 201 | $0.030188 | $0.025167 |
+| Haiku 5.5 / adaptive / max | 2 | 178 | 262 | $0.034080 | $0.036289 |
+| Haiku 5.5 / adaptive / default | 4 | 4.20 | 4.30 | $0.004834 | $0.001172 |
+| Haiku 5.5 / disabled / low | 2 | 0.45 | 0.47 | $0.004257 | $0.000442 |
+| Haiku 5.5 / disabled / medium | 2 | 0.41 | 0.43 | $0.003510 | $0.000409 |
+| Haiku 5.5 / disabled / high | 5 | 0.48 | 0.55 | $0.003986 | $0.000418 |
+| Haiku 5.5 / disabled / default | 7 | 0.49 | 0.51 | $0.003417 | $0.000413 |
+
+**证据与复算。** [统计结果](../evidence/gateway-cache-20261026/interim-facts.json)、[导出哈希与脱敏范围](../evidence/gateway-cache-20261026/_export_manifest.json)、[Opus 记录](../evidence/gateway-cache-20261026/responses_opus.jsonl)、[Sonnet 记录](../evidence/gateway-cache-20261026/responses_sonnet.jsonl)、[Haiku 记录](../evidence/gateway-cache-20261026/responses_haiku.jsonl)。指标投影省略提示与回答正文、思考签名、私有端点和其他响应头，不能用于代码正确率评分。复算命令见[测试页](testing_CN.md#aca-snapshot-replay)。
 
 ## 编码矩阵
 

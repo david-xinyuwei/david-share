@@ -1,0 +1,10 @@
+{
+ "observed_at": "2026-10-26T20:10:18.9885833-07:00",
+ "observation_method": "Azure CLI vm get-instance-view",
+ "client_vm_power_state": "PowerState/deallocated",
+ "snapshot_run_updated_utc": "2026-10-27T00:07:59.720+00:00",
+ "collection_status": "PARTIAL",
+ "workload_completion": "UNVERIFIED",
+ "shutdown_cause": "UNVERIFIED",
+ "scope": "The client is not running at the observation time. The last retained snapshot predates that observation; later requests and the final workload status were not collected. No VM start or new inference was performed during this verification."
+}

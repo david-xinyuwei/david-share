@@ -4,6 +4,18 @@
 
 This page gives the complete commands for the offline checks, for repeating the 2026-10-26 tests and for repeating the 2026-10-24 gateway test. Deploying the three models and sending the first request are README steps 1 to 4.
 
+<a id="aca-snapshot-replay"></a>
+
+## Replay the ACA partial snapshot
+
+From the repository's project directory, use Python 3.12 or 3.13. This offline command sends no requests and needs no credentials:
+
+```bash
+python -B gateway-cache/analyze_cache_matrix.py --run-dir evidence/gateway-cache-20261026 --out evidence/gateway-cache-20261026/interim-facts.json --check
+```
+
+Success is `facts match` and exit 0. This proves that the retained metrics recompute, not that all 650 planned requests completed. The unit tests also check all 26 cells, export hashes, duplicate rejection and the incomplete-snapshot boundary. Never substitute the historical direct-VM grader for the uncollected ACA correctness results.
+
 ## Offline checks
 
 No Azure access or model key. Python 3.12 or 3.13 from this directory; the stream-parser tests also need the client packages.
@@ -300,6 +312,6 @@ Deployment command references (consulted 2026-10-25):
 
 ## Security and gaps
 
-Live inputs, responses, signatures and authentication can be sensitive. live-runs, private, runs and .env are ignored; do not upload run directories. The published 2026-10-26 records only replace the endpoint resource name and the VM name; every other byte matches the record written on the VM (see the hashes in the export manifest), and they contain no token or key. The 2026-10-24 evidence omits signatures and pseudonymizes call IDs; do not replay its history signatures.
+Live inputs, responses, signatures and authentication can be sensitive. live-runs, private, runs and .env are ignored; do not upload run directories. Historical coding-matrix-20261026 records replace only endpoint and VM names. New gateway-cache-20261026 records are a metrics projection: numbers are preserved but prompt/answer bodies, thinking signatures, private endpoints and non-region headers are omitted. Each export manifest records its hashes and scope; the metrics projection cannot score code correctness. The 2026-10-24 evidence omits signatures and pseudonymizes call IDs; do not replay its history signatures.
 
-Not verified: an end-to-end deployment of this public package in a fresh subscription, a gateway in the models' region, concurrency or load, a client outside Azure, display: "summarized", requests with tools, and customer tasks.
+Not verified: full ACA results and correctness, an end-to-end deployment of this public package in a fresh subscription, concurrency or load, a client outside Azure, display: "summarized", requests with tools, and customer tasks. A same-region ACA partial snapshot exists; it does not establish full completion.

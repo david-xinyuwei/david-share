@@ -32,6 +32,7 @@ def load(name, path):
 
 coding_analyze = load("coding_analyze", CODING / "analyze.py")
 prepare = load("coding_prepare", CODING / "prepare.py")
+gateway_analyze = load("gateway_cache_analyze", ROOT / "gateway-cache/analyze_cache_matrix.py")
 
 
 def sha(data):
@@ -225,6 +226,86 @@ class EvidenceTests(unittest.TestCase):
             self.assertLessEqual(low, item["difference"])
             self.assertLessEqual(item["difference"], high)
             self.assertEqual(item["problems_better_on"] + item["problems_better_off"] + item["problems_equal"], 18)
+
+
+class GatewayCacheAnalysisTests(unittest.TestCase):
+    def test_published_snapshot_recomputes_and_covers_all_cells(self):
+        directory = ROOT / "evidence/gateway-cache-20261026"
+        facts = gateway_analyze.analyze(directory)
+        self.assertEqual(facts, json.loads((directory / "interim-facts.json").read_text(encoding="utf-8")))
+        self.assertEqual(len(facts["by_cell"]), 26)
+        self.assertEqual(facts["coverage"]["observed_requests"] + facts["coverage"]["missing_from_snapshot"], 650)
+        self.assertFalse(facts["coverage"]["collection_complete"])
+        manifest = json.loads((directory / "_export_manifest.json").read_text(encoding="utf-8"))
+        for item in manifest["files"]:
+            self.assertEqual(sha((directory / item["file"]).read_bytes()), item["sha256"])
+        for chinese in (False, True):
+            markup = render_coding.gateway_snapshot(chinese, detailed=True)
+            self.assertIn("154", markup)
+            self.assertIn("650", markup)
+            self.assertIn("496", markup)
+            self.assertIn("PowerState/deallocated", markup)
+            self.assertIn("不是全量测试通过" if chinese else "not a completed benchmark", markup)
+            for cell in facts["by_cell"]:
+                model, mode, effort = cell.split("|")
+                self.assertIn(f"| {coding_data.NAME[model]} | `{mode}` | `{effort}` |", markup)
+
+    def snapshot(self, directory):
+        directory = Path(directory)
+        cells = [{"cell_id": f"sonnet|adaptive|{effort}", "model": "claude-sonnet-5-5",
+                  "mode": "adaptive", "effort": effort} for effort in ("low", "medium")]
+        run_record = {"status": "RUNNING", "updated_utc": "2026-10-27T00:08:00Z", "cost_usd": 0.03,
+                      "budget_usd": 75, "counts": {"claude-sonnet-5-5": {"completed": 2, "max_tokens": 1}},
+                      "planned": {"claude-sonnet-5-5": 6},
+                      "config": {"started_utc": "2026-10-27T00:00:00Z", "cells": cells,
+                                 "problem_ids": ["example"], "repeats": 2, "endpoint_host": "private.invalid"}}
+        rows = []
+        for repeat in range(3):
+            rows.append({"task_id": f"sample-{repeat}", "cell_id": cells[0]["cell_id"], "problem_id": "example",
+                         "model": "claude-sonnet-5-5", "kind": "measured" if repeat else "warmup",
+                         "repeat": repeat, "attempt": 1, "final": True, "sent_utc": f"2026-10-27T00:00:0{repeat}Z",
+                         "status": "max_tokens" if repeat == 2 else "completed", "http_status": 200,
+                         "message_id": f"message-{repeat}", "text": "private-output",
+                         "headers": {"Authorization": "private-marker", "llm_provider-x-ms-region": "East US 2"},
+                         "request_params": {"stream": True, "private_field": "private-marker"},
+                         "usage": {"input_tokens": 1, "cache_creation_input_tokens": 100 if repeat == 1 else 0,
+                                   "cache_read_input_tokens": 100 if repeat == 2 else 0, "output_tokens": 10},
+                         "timing": {"first_event": 0.1, "first_text": 0.2, "end": 0.3}, "cost_usd": 0.01})
+        (directory / "run.json").write_text(json.dumps(run_record), encoding="utf-8")
+        (directory / "responses_sonnet.jsonl").write_text("\n".join(map(json.dumps, rows)) + "\n", encoding="utf-8")
+        return directory
+
+    def test_partial_snapshot_keeps_missing_cells_and_truncations(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            facts = gateway_analyze.analyze(self.snapshot(temporary))
+        self.assertEqual((facts["coverage"]["observed_requests"], facts["coverage"]["planned_requests"]), (3, 6))
+        self.assertEqual(facts["coverage"]["missing_from_snapshot"], 3)
+        self.assertFalse(facts["coverage"]["collection_complete"])
+        self.assertEqual(facts["groups_complete"], 0)
+        self.assertEqual(facts["by_cell"]["sonnet|adaptive|medium"]["requests"], 0)
+        self.assertEqual(facts["by_cell"]["sonnet|adaptive|low"]["statuses"]["max_tokens"], 1)
+
+    def test_duplicate_final_request_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = self.snapshot(temporary)
+            response_file = directory / "responses_sonnet.jsonl"
+            content = response_file.read_text(encoding="utf-8")
+            response_file.write_text(content + content.splitlines()[0] + "\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "Duplicate final task_id"):
+                gateway_analyze.analyze(directory)
+
+    def test_public_projection_preserves_facts_and_removes_private_fields(self):
+        with tempfile.TemporaryDirectory() as temporary, tempfile.TemporaryDirectory() as exported:
+            directory = self.snapshot(temporary)
+            expected = gateway_analyze.analyze(directory)
+            gateway_analyze.export_snapshot(directory, exported)
+            self.assertEqual(gateway_analyze.analyze(exported), expected)
+            for path in Path(exported).glob("*.json*"):
+                self.assertNotIn("private-", path.read_text(encoding="utf-8"))
+                self.assertNotIn("private.invalid", path.read_text(encoding="utf-8"))
+            before = {path.name: sha(path.read_bytes()) for path in Path(exported).iterdir()}
+            gateway_analyze.export_snapshot(directory, exported)
+            self.assertEqual(before, {path.name: sha(path.read_bytes()) for path in Path(exported).iterdir()})
 
 
 class AnalysisTests(unittest.TestCase):
