@@ -34,6 +34,7 @@ coding_analyze = load("coding_analyze", CODING / "analyze.py")
 prepare = load("coding_prepare", CODING / "prepare.py")
 gateway_analyze = load("gateway_cache_analyze", ROOT / "gateway-cache/analyze_cache_matrix.py")
 gateway_score = load("gateway_score", ROOT / "gateway-cache/swebench_score.py")
+gateway_prepare = load("gateway_prepare", ROOT / "gateway-cache/build_swebench_problems.py")
 
 
 def sha(data):
@@ -120,8 +121,8 @@ class EvidenceTests(unittest.TestCase):
         self.assertEqual(self.d["runs"]["cache"]["requests"], 264)
         self.assertEqual(m["http"], {200: 1155})
 
-    def test_readme_grids_match_the_facts(self):
-        for name in ("README.md", "README_CN.md"):
+    def test_historical_grids_match_the_facts(self):
+        for name in ("docs/results.md", "docs/results_CN.md"):
             text = (ROOT / name).read_text(encoding="utf-8")
             for model, mode in coding_data.ROWS:
                 rows = re.findall(rf"^\| {re.escape(coding_data.NAME[model])} · `{mode}` \| (.+) \|$", text, re.MULTILINE)
@@ -200,7 +201,14 @@ class EvidenceTests(unittest.TestCase):
             self.assertIn("通过请求顶层 `cache_control` 开启提示缓存" if chinese else "Prompt caching is enabled with top-level `cache_control`", markup)
             steps = render_coding.steps(self.d, chinese)
             self.assertIn("gateway-cache/aca_cache_matrix.py", steps)
-            self.assertIn("仅供历史参考" if chinese else "reference only", steps)
+            self.assertIn("--gateway-url", steps)
+            self.assertIn("--manifest data/gateway-cache-problems.json", steps)
+            self.assertIn("--run-dir \"$RUN\"", steps)
+            self.assertNotIn("call_once.py", steps)
+            self.assertNotIn("az vm create", steps)
+            historical = render_coding.steps(self.d, chinese, historical=True)
+            self.assertIn("仅供历史参考" if chinese else "reference only", historical)
+            self.assertIn("call_once.py", historical)
 
     def test_topology_shows_current_gateway_path_not_old_results(self):
         for chinese in (False, True):
@@ -230,6 +238,39 @@ class EvidenceTests(unittest.TestCase):
 
 
 class GatewayCacheAnalysisTests(unittest.TestCase):
+    def test_frozen_problem_manifest_rejects_source_order_and_hash_drift(self):
+        manifest = json.loads((ROOT / "data/gateway-cache-problems.json").read_text(encoding="utf-8"))
+        gateway_prepare.verify_manifest(manifest, manifest)
+        for field in ("revision", "parquet_sha256"):
+            changed = json.loads(json.dumps(manifest))
+            changed["source"][field] = "changed"
+            with self.assertRaisesRegex(ValueError, "frozen manifest"):
+                gateway_prepare.verify_manifest(changed, manifest)
+        changed = json.loads(json.dumps(manifest))
+        changed["problems"].reverse()
+        with self.assertRaisesRegex(ValueError, "order or prompt hashes"):
+            gateway_prepare.verify_manifest(changed, manifest)
+        changed = json.loads(json.dumps(manifest))
+        changed["problems"][0]["user_message_sha256"] = "changed"
+        with self.assertRaisesRegex(ValueError, "order or prompt hashes"):
+            gateway_prepare.verify_manifest(changed, manifest)
+
+    def test_output_rate_uses_per_request_totals_and_reports_missing_values(self):
+        rows = [{"model": "claude-sonnet-5-5", "cost_usd": 0.01,
+                 "usage": {"output_tokens": tokens, "output_tokens_details": {"thinking_tokens": tokens // 2}},
+                 "timing": {"first_text": 1, "end": duration}}
+                for tokens, duration in ((120, 2), (200, 10), (30, 3))]
+        summary = gateway_analyze.side(rows)
+        self.assertEqual(summary["output_tokens_per_second_p50"], 20)
+        self.assertEqual(summary["output_rate_samples"], 3)
+        rows[0]["usage"].pop("output_tokens")
+        rows[1]["timing"]["end"] = 0
+        summary = gateway_analyze.side(rows)
+        self.assertEqual(summary["output_tokens_per_second_p50"], 10)
+        self.assertEqual(summary["output_rate_samples"], 1)
+        rows[2]["timing"].pop("end")
+        self.assertIsNone(gateway_analyze.side(rows)["output_tokens_per_second_p50"])
+
     def test_official_grading_matches_captured_answers(self):
         result = gateway_score.check_public(ROOT / "evidence/gateway-score-20261027",
                                             ROOT / "evidence/gateway-cache-20261026")
@@ -247,6 +288,8 @@ class GatewayCacheAnalysisTests(unittest.TestCase):
         self.assertTrue(facts["coverage"]["collection_complete"])
         self.assertEqual(facts["cache_hit_pairs"], 302)
         self.assertEqual(len(facts["excluded_cache_pairs"]), 2)
+        self.assertEqual([facts["by_model"][model]["completed_pairs"] for model in gateway_analyze.MODELS],
+                         [71, 117, 116])
         manifest = json.loads((directory / "_export_manifest.json").read_text(encoding="utf-8"))
         for item in manifest["files"]:
             self.assertEqual(sha((directory / item["file"]).read_bytes()), item["sha256"])
@@ -262,6 +305,32 @@ class GatewayCacheAnalysisTests(unittest.TestCase):
             for cell in facts["by_cell"]:
                 model, mode, effort = cell.split("|")
                 self.assertIn(f"| {coding_data.NAME[model]} | `{mode}` | `{effort}` |", markup)
+
+    def test_current_performance_tables_keep_every_configuration_and_metric(self):
+        facts = gateway_analyze.analyze(ROOT / "evidence/gateway-cache-20261026")
+        for chinese in (False, True):
+            for detailed in (False, True):
+                markup = render_coding.gateway_snapshot(chinese, detailed=detailed)
+                self.assertIn("TTFT P50 / P95", markup)
+                self.assertIn("E2E P50 / P95", markup)
+                self.assertIn("tokens/s", markup)
+                self.assertIn("usage.output_tokens / timing.end", markup)
+                self.assertIn("当前批次未保留逐请求出站审计" if chinese else
+                              "Per-request outbound audit is not retained for the current batch", markup)
+                for cell, item in facts["by_cell"].items():
+                    model, mode, effort = cell.split("|")
+                    label = f"| {coding_data.NAME[model]}<br>`{mode}` / `{effort}` |"
+                    rows = [line for line in markup.splitlines() if line.startswith(label)]
+                    self.assertEqual(len(rows), 4, cell)
+                    for row, state in zip(rows[:2], ("cold", "warm")):
+                        observed = item[state]
+                        self.assertIn(f"{render_coding.secs(observed['first_text_p50'])} / {render_coding.secs(observed['first_text_p95'])}", row)
+                        self.assertIn(f"{render_coding.secs(observed['end_p50'])} / {render_coding.secs(observed['end_p95'])}", row)
+                        self.assertTrue(row.endswith(f"| {item['groups']} |"))
+                    for row, state in zip(rows[2:], ("cold", "warm")):
+                        observed = item[state]
+                        self.assertIn(f"| {observed['output_tokens_per_second_p50']:.2f} |", row)
+                        self.assertIn(f"| {render_coding.usd(observed['cost_usd_per_request'], 6)} | {item['groups']} |", row)
 
     def snapshot(self, directory):
         directory = Path(directory)
@@ -306,6 +375,20 @@ class GatewayCacheAnalysisTests(unittest.TestCase):
             response_file.write_text(content + content.splitlines()[0] + "\n", encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "Duplicate final task_id"):
                 gateway_analyze.analyze(directory)
+
+    def test_transport_counts_do_not_hide_a_retried_429(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = self.snapshot(temporary)
+            path = directory / "responses_sonnet.jsonl"
+            records = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+            retry = dict(records[1], final=False, http_status=429, status="http_error", usage=None)
+            records[1]["attempt"] = 2
+            path.write_text("\n".join(map(json.dumps, [retry, *records])) + "\n", encoding="utf-8")
+            facts = gateway_analyze.analyze(directory)
+        self.assertEqual(facts["coverage"]["observed_requests"], 3)
+        self.assertEqual(facts["transport"], {"attempts": 4, "http_statuses": {"429": 1, "200": 3},
+                                            "retry_attempts": 1})
+        self.assertEqual(facts["thinking_by_mode"]["adaptive"]["usage_requests"], 0)
 
     def test_completed_cache_expiry_is_not_a_warm_hit(self):
         with tempfile.TemporaryDirectory() as temporary:

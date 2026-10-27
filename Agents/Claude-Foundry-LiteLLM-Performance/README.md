@@ -1,4 +1,4 @@
-# Claude 5.5 on Microsoft Foundry: Thinking, Effort, Prompt Caching, Latency and Coding Accuracy
+# Claude 5.5 through LiteLLM on Microsoft Foundry: Parameters, Prompt Cache and Performance
 
 [![Models](https://img.shields.io/badge/models-Opus%20%C2%B7%20Sonnet%20%C2%B7%20Haiku%205.5-0078D4)](#purpose)
 [![Measured](https://img.shields.io/badge/measured-2026--10--26%20to%2010--27-0078D4)](#results)
@@ -8,7 +8,7 @@ Author: Xinyu Wei · [中文](README_CN.md)
 
 ## Purpose
 
-**What this measures.** How Claude Opus 5.5, Sonnet 5.5 and Haiku 5.5 perform as deployed in Microsoft Foundry with the [Hosted on Azure](https://platform.claude.com/docs/en/build-with-claude/claude-in-microsoft-foundry#hosting-options) option: model version 2, an Anthropic-operated service running on Azure infrastructure, in GlobalStandard deployments. For each coding request we measure how long the first visible text and the full answer take, whether the code passes the problem's own unit tests, and what the request costs at list price. The request settings in the table below change all of these, and some combinations are rejected with HTTP 400; a successful HTTP response shows none of this.
+**Question.** Which Claude settings reach Microsoft Foundry through LiteLLM, does the upstream prompt cache actually get reused, and what latency, output rate and cost does each configuration produce? This repository provides measured requests, evidence checks and reproduction steps for Opus 5.5, Sonnet 5.5 and Haiku 5.5. The tested deployments used [Hosted on Azure](https://platform.claude.com/docs/en/build-with-claude/claude-in-microsoft-foundry#hosting-options), model version 2, GlobalStandard. Public coding problems provide controlled inputs, not evidence about your production workload.
 
 **Completed ACA run:** 650/650 requests retained, 624 measured answers graded. Performance comes first below, followed by correctness. [Full results](docs/results.md#aca-gateway-snapshot).
 
@@ -18,7 +18,7 @@ Author: Xinyu Wei · [中文](README_CN.md)
 
 Original test-topology diagram using unmodified [Azure icons](images/icon-sources.json).
 
-**Retired method.** The old direct-VM run omitted caching and does not meet the current cache-enabled test protocol. Its original evidence follows the current performance and correctness results below.
+**Responsibility and scope.** LiteLLM forwards requests; the upstream model service owns the prompt cache. These scripts collect and verify evidence. Operators must validate their own gateway version, routes and workload. Production capacity, historical incident resolution and an AWS comparison are not established. Earlier direct and cross-region runs remain separate in [Results](docs/results.md#historical-evidence).
 
 ## Results
 
@@ -30,19 +30,179 @@ Original test-topology diagram using unmodified [Azure icons](images/icon-source
 
 **Input.** [12 public SWE-bench Lite BM25-13K problems](data/gateway-cache-problems.json), with the source revision and prompt hashes in [run.json](evidence/gateway-cache-20261026/run.json). This is a selected-subset experiment, not a full SWE-bench leaderboard score or customer production data. The [runner](gateway-cache/aca_cache_matrix.py) uses 26 mode/effort cells, two identical requests per problem/cell and one warm-up per cell. Fixed: `max_tokens: 128000`, `stream: true`, top-level `cache_control: {"type": "ephemeral", "ttl": "1h"}`. Timing starts immediately before the client sends the request; first text is the first non-empty text delta, not a ping or thinking event.
 
-**Performance first.** The next table uses only completed pairs with native cache reads. Write and hit mean requests 1 and 2. These per-model aggregates mix different mode/effort populations; compare matched cells in the full tables, not these aggregates as a model ranking.
+**Captured input settings.** The following fields are from measured request `opus|adaptive|low|django__django-12184|r1`, not its warm-up. The problem manifest above pins the public input reconstruction; this metrics projection omits prompt bodies.
 
-| Model | Cache-hit pairs (count) | First text P50: write / hit (s) | Full response P50: write / hit (s) | Mean request cost: write / hit (USD) | Read share in hit requests (%) |
+```json
+{
+  "model": "claude-opus-5-5",
+  "max_tokens": 128000,
+  "stream": true,
+  "thinking": {
+    "type": "adaptive"
+  },
+  "output_config": {
+    "effort": "low"
+  },
+  "cache_control": {
+    "type": "ephemeral",
+    "ttl": "1h"
+  }
+}
+```
+
+The runner prepends a deterministic system identifier per problem/configuration to isolate each pair's cache. The problem text is shared across configurations, but these identifiers differ. This controlled reuse is not an estimate of production cache-hit rate.
+
+**Metric definitions.** TTFT is `timing.first_text`, the first non-empty visible text, not metadata or thinking. E2E is `timing.end`, through the end of the response stream. The client clock starts immediately before HTTP; credential acquisition, pacing and application/tool work are excluded. End-to-end output rate is `usage.output_tokens / timing.end` for each request, including thinking tokens; its P50 is not a ratio of medians or isolated decode speed. Costs include input, cache writes/reads and output at the recorded list prices, not infrastructure or an invoice.
+
+**All measured configurations, performance first.** A pair is the same problem and configuration sent twice: an observed cache write followed by a native cache hit, with both answers completed. Each state below uses one request from every eligible pair. P50/P95 use nearest rank; with at most 12 requests per state, P95 is the largest observation, not a production tail guarantee. `default` means effort was omitted. Compare matching configurations; generated output lengths may differ, so a timing or cost difference cannot be attributed entirely to caching.
+
+#### Opus 5.5
+
+**Latency by configuration.**
+
+| Model / thinking.type / output_config.effort | Cache state | TTFT P50 / P95 (s) | E2E P50 / P95 (s) | Valid requests |
+|---|---|---:|---:|---:|
+| Opus 5.5<br>`adaptive` / `low` | First write | 1.19 / 9.06 | 6.94 / 14.4 | 12 |
+| Opus 5.5<br>`adaptive` / `low` | Cache hit | 1.08 / 14.7 | 7.84 / 20.0 | 12 |
+| Opus 5.5<br>`adaptive` / `medium` | First write | 6.92 / 31.5 | 11.6 / 37.2 | 12 |
+| Opus 5.5<br>`adaptive` / `medium` | Cache hit | 7.15 / 29.3 | 11.3 / 35.3 | 12 |
+| Opus 5.5<br>`adaptive` / `high` | First write | 9.13 / 94.5 | 14.0 / 101 | 12 |
+| Opus 5.5<br>`adaptive` / `high` | Cache hit | 7.53 / 228 | 11.7 / 239 | 12 |
+| Opus 5.5<br>`adaptive` / `xhigh` | First write | 18.9 / 110 | 24.7 / 117 | 12 |
+| Opus 5.5<br>`adaptive` / `xhigh` | Cache hit | 19.6 / 380 | 24.5 / 389 | 12 |
+| Opus 5.5<br>`adaptive` / `max` | First write | 232 / 1027 | 247 / 1036 | 11 |
+| Opus 5.5<br>`adaptive` / `max` | Cache hit | 236 / 913 | 249 / 922 | 11 |
+| Opus 5.5<br>`adaptive` / `default` | First write | 7.03 / 65.8 | 12.0 / 72.3 | 11 |
+| Opus 5.5<br>`adaptive` / `default` | Cache hit | 8.02 / 28.5 | 15.0 / 34.3 | 11 |
+
+**Output rate and cost for the same requests.**
+
+| Model / thinking.type / output_config.effort | Cache state | E2E output rate P50 (tokens/s, thinking included) | Mean cost (USD/request) | Valid requests |
+|---|---|---:|---:|---:|
+| Opus 5.5<br>`adaptive` / `low` | First write | 103.53 | $0.158921 | 12 |
+| Opus 5.5<br>`adaptive` / `low` | Cache hit | 103.75 | $0.023222 | 12 |
+| Opus 5.5<br>`adaptive` / `medium` | First write | 108.44 | $0.173419 | 12 |
+| Opus 5.5<br>`adaptive` / `medium` | Cache hit | 111.76 | $0.036952 | 12 |
+| Opus 5.5<br>`adaptive` / `high` | First write | 110.21 | $0.200936 | 12 |
+| Opus 5.5<br>`adaptive` / `high` | Cache hit | 110.93 | $0.097379 | 12 |
+| Opus 5.5<br>`adaptive` / `xhigh` | First write | 112.87 | $0.248050 | 12 |
+| Opus 5.5<br>`adaptive` / `xhigh` | Cache hit | 114.35 | $0.183598 | 12 |
+| Opus 5.5<br>`adaptive` / `max` | First write | 123.30 | $1.008633 | 11 |
+| Opus 5.5<br>`adaptive` / `max` | Cache hit | 121.91 | $0.785095 | 11 |
+| Opus 5.5<br>`adaptive` / `default` | First write | 109.83 | $0.186835 | 11 |
+| Opus 5.5<br>`adaptive` / `default` | Cache hit | 109.88 | $0.037639 | 11 |
+
+#### Sonnet 5.5
+
+**Latency by configuration.**
+
+| Model / thinking.type / output_config.effort | Cache state | TTFT P50 / P95 (s) | E2E P50 / P95 (s) | Valid requests |
+|---|---|---:|---:|---:|
+| Sonnet 5.5<br>`adaptive` / `low` | First write | 0.77 / 0.95 | 4.86 / 9.76 | 12 |
+| Sonnet 5.5<br>`adaptive` / `low` | Cache hit | 0.76 / 1.15 | 4.88 / 9.01 | 12 |
+| Sonnet 5.5<br>`adaptive` / `medium` | First write | 0.81 / 11.0 | 5.67 / 14.4 | 12 |
+| Sonnet 5.5<br>`adaptive` / `medium` | Cache hit | 0.87 / 16.3 | 6.15 / 19.1 | 12 |
+| Sonnet 5.5<br>`adaptive` / `high` | First write | 6.05 / 137 | 10.6 / 140 | 12 |
+| Sonnet 5.5<br>`adaptive` / `high` | Cache hit | 7.44 / 119 | 10.7 / 122 | 12 |
+| Sonnet 5.5<br>`adaptive` / `xhigh` | First write | 20.7 / 246 | 24.0 / 254 | 12 |
+| Sonnet 5.5<br>`adaptive` / `xhigh` | Cache hit | 16.1 / 341 | 19.4 / 354 | 12 |
+| Sonnet 5.5<br>`adaptive` / `max` | First write | 394 / 616 | 397 / 622 | 9 |
+| Sonnet 5.5<br>`adaptive` / `max` | Cache hit | 364 / 743 | 367 / 751 | 9 |
+| Sonnet 5.5<br>`adaptive` / `default` | First write | 6.86 / 86.8 | 10.8 / 90.2 | 12 |
+| Sonnet 5.5<br>`adaptive` / `default` | Cache hit | 5.78 / 152 | 8.39 / 156 | 12 |
+| Sonnet 5.5<br>`between_tools` / `low` | First write | 0.78 / 1.08 | 5.14 / 7.88 | 12 |
+| Sonnet 5.5<br>`between_tools` / `low` | Cache hit | 0.76 / 0.91 | 4.51 / 8.22 | 12 |
+| Sonnet 5.5<br>`between_tools` / `medium` | First write | 0.83 / 1.06 | 5.41 / 9.18 | 12 |
+| Sonnet 5.5<br>`between_tools` / `medium` | Cache hit | 0.79 / 0.93 | 4.60 / 9.87 | 12 |
+| Sonnet 5.5<br>`between_tools` / `high` | First write | 0.81 / 1.09 | 5.56 / 11.6 | 12 |
+| Sonnet 5.5<br>`between_tools` / `high` | Cache hit | 0.82 / 1.18 | 7.03 / 13.1 | 12 |
+| Sonnet 5.5<br>`between_tools` / `default` | First write | 0.79 / 1.15 | 4.88 / 13.6 | 12 |
+| Sonnet 5.5<br>`between_tools` / `default` | Cache hit | 0.78 / 1.07 | 5.46 / 10.2 | 12 |
+
+**Output rate and cost for the same requests.**
+
+| Model / thinking.type / output_config.effort | Cache state | E2E output rate P50 (tokens/s, thinking included) | Mean cost (USD/request) | Valid requests |
+|---|---|---:|---:|---:|
+| Sonnet 5.5<br>`adaptive` / `low` | First write | 130.16 | $0.077371 | 12 |
+| Sonnet 5.5<br>`adaptive` / `low` | Cache hit | 123.18 | $0.008869 | 12 |
+| Sonnet 5.5<br>`adaptive` / `medium` | First write | 124.97 | $0.078745 | 12 |
+| Sonnet 5.5<br>`adaptive` / `medium` | Cache hit | 124.24 | $0.010499 | 12 |
+| Sonnet 5.5<br>`adaptive` / `high` | First write | 141.38 | $0.106288 | 12 |
+| Sonnet 5.5<br>`adaptive` / `high` | Cache hit | 138.87 | $0.034861 | 12 |
+| Sonnet 5.5<br>`adaptive` / `xhigh` | First write | 148.80 | $0.152607 | 12 |
+| Sonnet 5.5<br>`adaptive` / `xhigh` | Cache hit | 149.31 | $0.109698 | 12 |
+| Sonnet 5.5<br>`adaptive` / `max` | First write | 156.49 | $0.804891 | 9 |
+| Sonnet 5.5<br>`adaptive` / `max` | Cache hit | 158.34 | $0.635133 | 9 |
+| Sonnet 5.5<br>`adaptive` / `default` | First write | 140.69 | $0.100876 | 12 |
+| Sonnet 5.5<br>`adaptive` / `default` | Cache hit | 141.88 | $0.035923 | 12 |
+| Sonnet 5.5<br>`between_tools` / `low` | First write | 126.13 | $0.077653 | 12 |
+| Sonnet 5.5<br>`between_tools` / `low` | Cache hit | 130.11 | $0.008496 | 12 |
+| Sonnet 5.5<br>`between_tools` / `medium` | First write | 132.11 | $0.077994 | 12 |
+| Sonnet 5.5<br>`between_tools` / `medium` | Cache hit | 133.30 | $0.009313 | 12 |
+| Sonnet 5.5<br>`between_tools` / `high` | First write | 130.38 | $0.079108 | 12 |
+| Sonnet 5.5<br>`between_tools` / `high` | Cache hit | 129.14 | $0.011469 | 12 |
+| Sonnet 5.5<br>`between_tools` / `default` | First write | 130.06 | $0.078623 | 12 |
+| Sonnet 5.5<br>`between_tools` / `default` | Cache hit | 133.11 | $0.010259 | 12 |
+
+#### Haiku 5.5
+
+**Latency by configuration.**
+
+| Model / thinking.type / output_config.effort | Cache state | TTFT P50 / P95 (s) | E2E P50 / P95 (s) | Valid requests |
+|---|---|---:|---:|---:|
+| Haiku 5.5<br>`adaptive` / `low` | First write | 3.09 / 20.2 | 4.93 / 22.9 | 12 |
+| Haiku 5.5<br>`adaptive` / `low` | Cache hit | 4.25 / 17.6 | 5.75 / 20.7 | 12 |
+| Haiku 5.5<br>`adaptive` / `medium` | First write | 6.92 / 13.8 | 8.30 / 15.3 | 12 |
+| Haiku 5.5<br>`adaptive` / `medium` | Cache hit | 6.93 / 14.2 | 8.02 / 16.8 | 12 |
+| Haiku 5.5<br>`adaptive` / `high` | First write | 9.07 / 38.5 | 10.8 / 40.3 | 12 |
+| Haiku 5.5<br>`adaptive` / `high` | Cache hit | 12.1 / 29.6 | 14.1 / 34.0 | 12 |
+| Haiku 5.5<br>`adaptive` / `xhigh` | First write | 61.3 / 460 | 63.2 / 463 | 11 |
+| Haiku 5.5<br>`adaptive` / `xhigh` | Cache hit | 53.4 / 235 | 57.0 / 237 | 11 |
+| Haiku 5.5<br>`adaptive` / `max` | First write | 204 / 399 | 206 / 406 | 8 |
+| Haiku 5.5<br>`adaptive` / `max` | Cache hit | 260 / 377 | 262 / 384 | 8 |
+| Haiku 5.5<br>`adaptive` / `default` | First write | 5.49 / 15.5 | 7.40 / 18.4 | 12 |
+| Haiku 5.5<br>`adaptive` / `default` | Cache hit | 6.22 / 11.6 | 8.07 / 14.2 | 12 |
+| Haiku 5.5<br>`disabled` / `low` | First write | 0.48 / 0.83 | 2.29 / 3.37 | 12 |
+| Haiku 5.5<br>`disabled` / `low` | Cache hit | 0.56 / 0.74 | 2.36 / 3.51 | 12 |
+| Haiku 5.5<br>`disabled` / `medium` | First write | 0.54 / 0.73 | 2.42 / 3.47 | 12 |
+| Haiku 5.5<br>`disabled` / `medium` | Cache hit | 0.50 / 0.60 | 2.64 / 4.31 | 12 |
+| Haiku 5.5<br>`disabled` / `high` | First write | 0.49 / 0.72 | 2.67 / 4.51 | 12 |
+| Haiku 5.5<br>`disabled` / `high` | Cache hit | 0.49 / 0.69 | 2.40 / 3.56 | 12 |
+| Haiku 5.5<br>`disabled` / `default` | First write | 0.49 / 0.79 | 2.66 / 3.16 | 12 |
+| Haiku 5.5<br>`disabled` / `default` | Cache hit | 0.45 / 0.59 | 2.41 / 4.38 | 12 |
+
+**Output rate and cost for the same requests.**
+
+| Model / thinking.type / output_config.effort | Cache state | E2E output rate P50 (tokens/s, thinking included) | Mean cost (USD/request) | Valid requests |
+|---|---|---:|---:|---:|
+| Haiku 5.5<br>`adaptive` / `low` | First write | 214.53 | $0.004254 | 12 |
+| Haiku 5.5<br>`adaptive` / `low` | Cache hit | 211.44 | $0.001009 | 12 |
+| Haiku 5.5<br>`adaptive` / `medium` | First write | 218.61 | $0.004638 | 12 |
+| Haiku 5.5<br>`adaptive` / `medium` | Cache hit | 221.27 | $0.001248 | 12 |
+| Haiku 5.5<br>`adaptive` / `high` | First write | 234.38 | $0.005884 | 12 |
+| Haiku 5.5<br>`adaptive` / `high` | Cache hit | 230.84 | $0.002356 | 12 |
+| Haiku 5.5<br>`adaptive` / `xhigh` | First write | 259.47 | $0.019081 | 11 |
+| Haiku 5.5<br>`adaptive` / `xhigh` | Cache hit | 258.09 | $0.010969 | 11 |
+| Haiku 5.5<br>`adaptive` / `max` | First write | 269.25 | $0.037720 | 8 |
+| Haiku 5.5<br>`adaptive` / `max` | Cache hit | 265.15 | $0.032892 | 8 |
+| Haiku 5.5<br>`adaptive` / `default` | First write | 218.12 | $0.004464 | 12 |
+| Haiku 5.5<br>`adaptive` / `default` | Cache hit | 222.91 | $0.001171 | 12 |
+| Haiku 5.5<br>`disabled` / `low` | First write | 177.01 | $0.003747 | 12 |
+| Haiku 5.5<br>`disabled` / `low` | Cache hit | 183.87 | $0.000406 | 12 |
+| Haiku 5.5<br>`disabled` / `medium` | First write | 172.51 | $0.003759 | 12 |
+| Haiku 5.5<br>`disabled` / `medium` | Cache hit | 175.95 | $0.000443 | 12 |
+| Haiku 5.5<br>`disabled` / `high` | First write | 181.72 | $0.003790 | 12 |
+| Haiku 5.5<br>`disabled` / `high` | Cache hit | 172.20 | $0.000428 | 12 |
+| Haiku 5.5<br>`disabled` / `default` | First write | 174.06 | $0.003728 | 12 |
+| Haiku 5.5<br>`disabled` / `default` | Cache hit | 201.46 | $0.000475 | 12 |
+
+### Completion and cache evidence
+
+| Model | Retained / planned requests, warm-ups included | Completed requests | Truncated requests | Complete measured pairs | Cache-hit pairs |
 |---|---:|---:|---:|---:|---:|
-| Opus 5.5 | 70 | 9.06 / 8.98 | 14.5 / 17.5 | $0.321801 / $0.187770 | 99.98 |
-| Sonnet 5.5 | 117 | 0.92 / 0.93 | 6.61 / 7.05 | $0.146967 / $0.073409 | 99.98 |
-| Haiku 5.5 | 115 | 3.42 / 4.30 | 5.74 / 6.12 | $0.008025 / $0.004123 | 99.98 |
-
-| Model | Retained / planned requests, warm-ups included | Completed requests | Truncated requests | Complete measured pairs |
-|---|---:|---:|---:|---:|
-| Opus 5.5 | 150/150 | 149 | 1 | 70 |
-| Sonnet 5.5 | 250/250 | 244 | 6 | 117 |
-| Haiku 5.5 | 250/250 | 243 | 7 | 115 |
+| Opus 5.5 | 150/150 | 149 | 1 | 71 | 70 |
+| Sonnet 5.5 | 250/250 | 244 | 6 | 117 | 117 |
+| Haiku 5.5 | 250/250 | 243 | 7 | 116 | 115 |
 
 **Cache evidence.** 304 measured pairs completed; 302 show native cache hits. The other 2 crossed the shutdown/restart interval and rewrote expired entries. They remain in request, cost and correctness counts but not cache-hit performance statistics. Hit pairs read at least 100.0% of the preceding cache write; 0 reused a response message ID. This proves those cache reads, not a general speedup. Responses report `inference_geo: global` and an East US 2 region header; that is not a regional-inference guarantee.
 
@@ -50,202 +210,71 @@ Original test-topology diagram using unmodified [Azure icons](images/icon-source
 
 [All 26 configurations and paired observations](docs/results.md#aca-gateway-snapshot).
 
+### What the parameter evidence proves
+
+**Transport is not task success.** Recorded physical attempts: 650; HTTP 200: 650; retries: 0. These counts include warm-ups and any recorded retry attempts. The completion table retains truncated answers; this small, paced run is not a capacity or reliability guarantee.
+
+| Evidence layer | Available evidence | What it does not establish |
+|---|---|---|
+| Client request settings | `request_params` and `request_sha256` in the [captured requests](evidence/gateway-cache-20261026/responses_opus.jsonl), before the documented model-alias mapping | Not a wire capture of the gateway's outbound request |
+| Upstream response | Native cache and thinking usage, with completed / truncated outcomes in [all records](evidence/gateway-cache-20261026/interim-facts.json) | Not proof that every accepted parameter was honored, or that effort monotonically controls tokens |
+| Gateway outbound request | The [separate 2026-10-24 audit](docs/results.md#gateway-test-2026-10-24) correlates its own client requests with provider traces | Per-request outbound audit is not retained for the current batch; the older audit cannot fill this gap |
+
+| thinking.type | Measured requests | Native thinking usage present / requests | Requests with positive thinking tokens |
+|---|---:|---:|---:|
+| `adaptive` | 432 | 432/432 | 353 |
+| `between_tools` | 96 | 96/96 | 0 |
+| `disabled` | 96 | 96/96 | 0 |
+
+This is observed usage, not a model ranking. No tool loop was exercised, so zero thinking in `between_tools` does not test its between-tool behavior. A zero value in an adaptive request alone does not prove a dropped parameter. Acceptance/rejection probes from the older direct path remain historical, not a current gateway support matrix.
+
+### Configuration guidance and checks
+
+| Setting to check | Reproducible configuration | Observable check and limit |
+|---|---|---|
+| Gateway forwarding | Start from [config.yaml](deploy/config.yaml): `drop_params: false`; gateway/router retries are zero | Capture [provider traces](deploy/trace_hook.py) for the same call ID. Configuration text alone is not proof of forwarding; the matrix client can separately retry a 429 |
+| Prompt caching | This matrix uses top-level `cache_control`, `type: ephemeral`, `ttl: 1h` | Check native write and read token counts. It did not compare TTL choices or cache disabled; choose production TTL against actual session gaps and write cost |
+| Thinking and effort | Use the explicitly named configuration, preserving `default` as an omitted field | Compare matching rows plus their code-test outcomes. This public subset does not select a production-optimal effort |
+| Output cap and streaming | Reproduction uses `max_tokens: 128000`, `stream: true` | Require a terminal stream and inspect `stop_reason`; the cap still caused truncation. Do not count HTTP 200 or the first event as a completed answer |
+
 ### Code correctness after performance
 
 **Method.** The same 624 measured answers, excluding only warm-ups, were graded with the official SWE-bench harness 5.0.2 at commit `02e7a74ffd0b707aab73d203fe87bdc7c76afc8e`. The official `extract_diff` function extracted predictions; no answer repair or new model call was used. Each cell/repeat has a separate run ID. All 12 selected gold controls passed. [Frozen inputs, native reports and verifier](evidence/gateway-score-20261027/verification.json).
 
-| Model | Resolved / measured answers | Resolved (%) |
-|---|---:|---:|
-| Opus 5.5 | 104/144 | 72.22 |
-| Sonnet 5.5 | 87/240 | 36.25 |
-| Haiku 5.5 | 54/240 | 22.50 |
-
 Overall: 245/624 (39.26%) resolved; 257 patch-application failures, 108 unresolved test results and 14 truncated empty answers. These stay in the denominator. Different model/mode populations make the aggregate unsuitable as a fair overall ranking; each matched cell has 24 answers. This is a 12-instance subset, not the full SWE-bench Lite score.
+
+| Model | thinking.type | output_config.effort | Resolved / measured answers | Resolved (%) |
+|---|---|---|---:|---:|
+| Opus 5.5 | `adaptive` | `low` | 9/24 | 37.50 |
+| Opus 5.5 | `adaptive` | `medium` | 19/24 | 79.17 |
+| Opus 5.5 | `adaptive` | `high` | 19/24 | 79.17 |
+| Opus 5.5 | `adaptive` | `xhigh` | 21/24 | 87.50 |
+| Opus 5.5 | `adaptive` | `max` | 22/24 | 91.67 |
+| Opus 5.5 | `adaptive` | `default` | 14/24 | 58.33 |
+| Sonnet 5.5 | `adaptive` | `low` | 6/24 | 25.00 |
+| Sonnet 5.5 | `adaptive` | `medium` | 5/24 | 20.83 |
+| Sonnet 5.5 | `adaptive` | `high` | 8/24 | 33.33 |
+| Sonnet 5.5 | `adaptive` | `xhigh` | 18/24 | 75.00 |
+| Sonnet 5.5 | `adaptive` | `max` | 18/24 | 75.00 |
+| Sonnet 5.5 | `adaptive` | `default` | 9/24 | 37.50 |
+| Sonnet 5.5 | `between_tools` | `low` | 4/24 | 16.67 |
+| Sonnet 5.5 | `between_tools` | `medium` | 5/24 | 20.83 |
+| Sonnet 5.5 | `between_tools` | `high` | 7/24 | 29.17 |
+| Sonnet 5.5 | `between_tools` | `default` | 7/24 | 29.17 |
+| Haiku 5.5 | `adaptive` | `low` | 2/24 | 8.33 |
+| Haiku 5.5 | `adaptive` | `medium` | 5/24 | 20.83 |
+| Haiku 5.5 | `adaptive` | `high` | 8/24 | 33.33 |
+| Haiku 5.5 | `adaptive` | `xhigh` | 12/24 | 50.00 |
+| Haiku 5.5 | `adaptive` | `max` | 14/24 | 58.33 |
+| Haiku 5.5 | `adaptive` | `default` | 4/24 | 16.67 |
+| Haiku 5.5 | `disabled` | `low` | 3/24 | 12.50 |
+| Haiku 5.5 | `disabled` | `medium` | 3/24 | 12.50 |
+| Haiku 5.5 | `disabled` | `high` | 1/24 | 4.17 |
+| Haiku 5.5 | `disabled` | `default` | 2/24 | 8.33 |
 
 **Ambiguity retained.** 6 official `no_tests_collected` flags remain unresolved. Each associated log first collected 92 top-level tests, includes nested zero-collection output, and shows `NameError: cached_eval`; none was silently removed or relabeled. [Six source-linked reviews](evidence/gateway-score-20261027/ambiguous-review.json). The [environment inventory](evidence/gateway-score-20261027/environment.json) was captured after evaluation, not as in-run telemetry.
 
 **Evidence and replay.** [Facts](evidence/gateway-cache-20261026/interim-facts.json), [export hashes and redactions](evidence/gateway-cache-20261026/_export_manifest.json), [Opus](evidence/gateway-cache-20261026/responses_opus.jsonl), [Sonnet](evidence/gateway-cache-20261026/responses_sonnet.jsonl), [Haiku](evidence/gateway-cache-20261026/responses_haiku.jsonl). The metrics-only projection omits prompt/answer bodies, thinking signatures, private endpoints and other headers; it is not a correctness-scoring dataset. Replay instructions are in [Testing](docs/testing.md#aca-snapshot-replay).
-
-**Historical request settings.** What each setting does, from Claude's documentation, and what the retained direct-VM runs sent. Accepted values come from that historical probe; these observations do not describe the current ACA run:
-
-| Setting | What it does | Historical observation |
-|---|---|---|
-| `thinking.type: "adaptive"` | The model decides for each request whether to think before answering and for how long; `output_config.effort` steers how much. Sending no `thinking` field does the same on these three models | All three models, effort low to max |
-| `thinking.type: "between_tools"` | Sonnet 5.5's lowest setting: no thinking before the answer. Short progress updates written between tool calls still come back as thinking blocks; without tools the answer is text only. Accepted at effort `high` or below | Sonnet, effort low, medium, high; no tools |
-| `thinking.type: "disabled"` | Thinking off. Only Haiku 5.5 accepts it, at effort `high` or below; Opus 5.5 cannot turn thinking off | Haiku, effort low, medium, high |
-| `thinking.display` | Whether thinking text comes back. The default on these models, `"omitted"`, returns thinking blocks with empty text and an encrypted signature, so the answer starts streaming sooner; the thinking tokens are still billed. `"summarized"` returns a summary | Not sent: 610 matrix answers used thinking tokens and none streamed thinking text |
-| `output_config.effort` | How much work goes into the whole response, thinking included: `low`, `medium`, `high`, `xhigh`, `max`. A behavioral signal, not a token budget. Default when omitted: Opus and Haiku `medium`, Sonnet `high` | Every level each thinking mode accepted: 21 cells |
-| `max_tokens` | Hard limit on output tokens, thinking included; an answer that reaches it stops with `stop_reason: "max_tokens"`. At most 128,000 on these models | 128,000 in the matrix; 1,000,000 returned HTTP 400 |
-| No `cache_control` (the default) | Nothing is cached: caching is opt-in. "Automatic caching" also needs the top-level field; "automatic" means the breakpoint is placed for you, not that caching is on by default. The documented exceptions involve tools: in a tool-use loop, history sent back with tool results can be cached without a marker, and server-tool results are cached automatically | The coding matrix (1,155 requests) and the cache test's baseline (24 requests; each turn resent the same prefix of about 15,500 tokens): 0 cache reads and 0 cache writes in every response |
-| `cache_control` at the top level | Automatic caching: the breakpoint goes on the last cacheable block and moves forward as the conversation grows | Cache test: most scenarios |
-| `cache_control` on a content block | Explicit breakpoint: caches the prompt up to and including that block, in the order `tools`, `system`, `messages`. At most 4 breakpoints per request; a prompt under 512 tokens is not cached | Cache test: after the repository files |
-| `cache_control.ttl` | How long an unused entry lives: `"5m"` by default, renewed on every read, or `"1h"`. Writes cost 1.25× the input price (5 minutes) or 2× (1 hour); reads cost 0.05× on Opus and Sonnet, 0.1× on Haiku | Both: 6.5 minutes idle before the second turn |
-| Per-message effort | An effort-only `system` message changes effort for later turns without touching the top-level field, so the cached prefix stays valid. Beta, header `anthropic-beta: mid-conversation-output-config-2026-07-01`; Foundry is not among the platforms the effort page lists for it | One cache scenario; all 264 cache requests returned HTTP 200 |
-| `temperature`, `top_p`, `top_k` | Sampling. On these models any non-default value returns HTTP 400 | Probe only: HTTP 400 in every mode tried; never sent in the matrix |
-| `stream` | `true` returns server-sent events, the only way to time the first visible text | `true` on every timed request; the pre-warm request with `max_tokens: 0` is not streamed, as the API requires |
-| Deployment type, chosen when the deployment is created | GlobalStandard may serve a request outside the resource's region; US Data Zone Standard keeps inference in the United States, like `inference_geo: "us"` on the Claude API. Sonnet 5.5 supports GlobalStandard only | GlobalStandard only; every matrix response reported `usage.inference_geo` `global` |
-
-**Table 1. Complete thinking-mode and effort matrix.**
-
-[![Table 1. Complete thinking-mode and effort matrix.](images/parameter-support-en.svg)](images/parameter-support-en.svg)
-
-The 54 `adaptive`/`between_tools`/`disabled` × effort cells were individually probed; 26 were accepted, including five omitted-effort cells. For `enabled`, one request per model used `budget_tokens: 1024` and omitted effort; the HTTP 400 rejects the mode itself, so all effort cells say not supported. The cache column states applicability only: a rejected thinking mode makes the request inapplicable; it does not mean the model lacks caching. Default effort values are from the [effort documentation](https://platform.claude.com/docs/en/build-with-claude/effort).
-
-Cache observations: all five accepted model/mode rows read cache at effort low; adaptive also read cache in the high-effort switch scenario. Other effort combinations still need cache-hit verification through ACA. Applicability and parameter acceptance are not completed cache-enabled performance testing. Fixed matrix controls: `max_tokens: 128000`, `stream: true`; `temperature`, `top_p`, `top_k` omitted. No `thinking` field is documented to select adaptive; the three omitted-thinking/omitted-effort probes returned 200.
-
-**Table 2. Complete prompt-cache settings.**
-
-[![Table 2. Complete prompt-cache settings.](images/cache-settings-en.svg)](images/cache-settings-en.svg)
-
-Sources: [probe requests](evidence/coding-matrix-20261026/probe/probe_results.jsonl), [cache requests](evidence/coding-matrix-20261026/cache/cache_results.jsonl) and [prompt-caching documentation](https://platform.claude.com/docs/en/build-with-claude/prompt-caching). Table 2 uses two repetitions per scenario: Opus adaptive, Sonnet between_tools, Haiku disabled, effort low; first writes are separate from turns 2-4. Read share is read tokens / (uncached + written + read input tokens), aggregated within each model/scenario/turn. New conversations reuse the files but change the question. The 512-token boundary and four-breakpoint limit are documented, not boundary-sweep measurements. All cache markers use `type: ephemeral`; reads cost 0.05x base input on Opus/Sonnet and 0.1x on Haiku (documented prices). These tables preserve the historical direct-VM evidence; no new ACA performance result is asserted.
-
-**Not covered:** tool use, where `between_tools` and progress updates matter; `display: "summarized"`; US Data Zone deployments; and the separate `claude-opus-5-5-fast` model in the Foundry catalog.
-
-**Historical per-model summary.** What each deployment accepted and how it did on the 18 problems in the retired direct-VM batch; not current ACA results:
-
-| Question | Opus 5.5 | Sonnet 5.5 | Haiku 5.5 |
-|---|---|---|---|
-| Thinking modes the API accepted | `adaptive` only; `disabled` and `between_tools` return 400 | `adaptive`; `between_tools` at low, medium, high | `adaptive`; `disabled` at low, medium, high |
-| Effort levels / default when omitted | low to max / medium | low to max / high | low to max / medium |
-| First visible text, P50 of the fastest cell | 0.48 s (`adaptive` · low) | 0.39 s (`between_tools` · high) | 0.43 s (`disabled` · high) |
-| Unit tests passed per cell, of 54 answers | 54 in every cell | 40 to 44 | 24 to 28 with `adaptive`; 17 to 21 with `disabled` |
-| List-price cost per 1,000 requests | $23.34 to $355.75 | $13.04 to $356.49 | $0.69 to $22.26 |
-| Choose it when (our reading of this test) | Answers must be right the first time. Start at `low`: every effort level passed all 54, and `low` was the fastest (0.48 s) and cheapest | You want most of Opus's accuracy at a lower price: `between_tools` passed as often as `adaptive`, started in under 0.5 s and cost $13.16–$13.76 per 1,000 requests | Cost matters most and a wrong answer can be retried. Keep thinking on: at the same effort levels `adaptive` passed 12.3 points more often than `disabled` |
-
-**Historical scope.** The problems are public Exercism exercises from [Aider's polyglot benchmark](https://github.com/Aider-AI/polyglot-benchmark), each answered once, without tools and without seeing the tests; they are not your production tasks. The retired batch called Foundry directly, one request at a time per deployment. Its costs and accuracy are historical observations, not evidence for the current cache-enabled ACA path. Costs use list prices and were not reconciled with an Azure invoice.
-
-**Sources.** Accepted values and the HTTP 400 messages come from our probe ([results](docs/results.md#parameter-probe-2026-10-26)). What each setting does, the defaults, the rules for `between_tools` and `disabled`, and the advice to set `max_tokens` to 128,000 for agentic coding on Sonnet 5.5 come from Claude's [thinking](https://platform.claude.com/docs/en/build-with-claude/thinking) and [effort](https://platform.claude.com/docs/en/build-with-claude/effort) pages; cache rules and price multipliers from [prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching); prices from [pricing](https://platform.claude.com/docs/en/about-claude/pricing); hosting options and Foundry setup from [Claude in Microsoft Foundry](https://platform.claude.com/docs/en/build-with-claude/claude-in-microsoft-foundry); all read on 2026-10-26. The *Choose it when* row is our reading of these 18 problems, not general advice.
-
-**Historical results only.** The following direct-VM measurements belong to the retired method. In particular, the 21-cell coding matrix omitted `cache_control` and does not meet the current ACA cache-enabled protocol. The Japan East gateway check is separately dated. None of these numbers is a result from the current East US 2 ACA run.
-
-Words used in the results:
-
-| Term | Meaning |
-|---|---|
-| Cell | One model × thinking mode × effort level. Each cell answered the 18 problems three times: 54 answers |
-| Thinking mode, effort level | Defined in the request-settings table under [Purpose](#purpose) |
-| First visible text | Seconds from just before the request is written to the first non-empty `text_delta`, timed on the VM. Thinking comes first and its text is not streamed (`display` omitted), so this wait includes all thinking |
-| First event | Seconds to the first server-sent event, `message_start` |
-| Full answer | Seconds to the end of the stream, completed requests only |
-| Completed | HTTP 200, `message_stop` received, `stop_reason` `end_turn` and non-empty text |
-| Pass | The files in the answer, written over the exercise's solution files, make its own unit tests exit 0 in an offline container (Aider's first-attempt rule) |
-| By-problem 95% interval | 2.5th to 97.5th percentile over 5,000 resamples of the 18 problems (seed 20261026). The three answers to one problem are not independent, so the problem is the unit |
-| Cost | List price × the token counts in the API's `usage`, cache writes and reads included |
-
-**Where each part ran.**
-
-| Part | Where | Detail |
-|---|---|---|
-| Client: probe, matrix, cache test | Linux VM `Standard_D4s_v5`, East US 2 | Ubuntu 24.04, kernel 7.0.0-1017-azure, Python 3.12.3, httpx 0.28.1, azure-identity 1.25.1; Entra token from the VM's managed identity; TCP connect to the endpoint 9.67 ms median before the matrix |
-| Models | Foundry resource in East US 2 | `claude-opus-5-5` 40,000 tokens per minute; `claude-sonnet-5-5` and `claude-haiku-5-5` 80,000 each; version 2, GlobalStandard, so a request may be served outside East US 2 |
-| Unit tests | Docker on the same VM | `--network none`, 1.5 CPUs, 3 GB; the toolchains of Aider's benchmark image: Python 3.11, Go 1.21.5, Rust, Node 20, OpenJDK 21, CMake and Boost |
-
-**What each matrix request sent.** One streamed Messages request per answer; the `system` and `content` values are shortened here:
-
-```json
-{
-  "model": "claude-sonnet-5-5",
-  "max_tokens": 128000,
-  "stream": true,
-  "thinking": {"type": "between_tools"},
-  "output_config": {"effort": "low"},
-  "system": "Act as an expert software developer. …",
-  "messages": [{"role": "user", "content": "I have *added these files to the chat* so you can go ahead and edit them. …"}]
-}
-```
-
-Only `model`, `thinking.type` and `output_config.effort` change between cells. There is no `cache_control`, no tool and no `temperature`, `top_p` or `top_k`. The full system prompt and a complete user message are quoted in [the results page](docs/results.md#coding-matrix-2026-10-26); all 18 are in [problems.json](evidence/coding-matrix-20261026/matrix/problems.json).
-
-**How each number is measured, and the scripts.**
-
-| Number | From → to, or how | Script |
-|---|---|---|
-| Accepted values | HTTP 200 or 400 for a one-word prompt sent with each value | [`probe.py`](coding-matrix/probe.py) |
-| First visible text, first event, full answer | request written → first `text_delta`, `message_start`, end of stream; clock on the VM | [`claude_api.py`](coding-matrix/claude_api.py) `stream_message` |
-| Completed, thinking and output tokens | status, `stop_reason` and `usage` of each stream | [`bench.py`](coding-matrix/bench.py) |
-| Pass | the exercise's unit tests, offline in Docker | [`judge.py`](coding-matrix/judge.py) |
-| P50, P95, intervals, cost per 1,000 | nearest rank; bootstrap over problems; mean list-price cost × 1,000 | [`analyze.py`](coding-matrix/analyze.py) |
-| Cache reads and writes, conversation cost | `usage` of each turn; the same tokens priced as if nothing were cached | [`cache_test.py`](coding-matrix/cache_test.py), [`cache_analyze.py`](coding-matrix/cache_analyze.py) |
-
-**Do not read these grids as a general ranking of the three models.** Opus answered all 18 problems correctly in every cell, so this test cannot separate its effort levels. With 18 problems, a Sonnet or Haiku cell's 95% interval spans 30 to 44 points (for example Sonnet `between_tools` · high: 44 of 54, 65% to 94%). The problems are short single-file exercises. Each row is one model and thinking mode, each column an effort level; *not accepted* means the API returned HTTP 400. P95, full-answer times, token counts and every interval are on [the results page](docs/results.md#results-per-cell).
-
-**Unit tests passed, of 54 answers**
-
-| Model · thinking | low | medium | high | xhigh | max |
-|---|---:|---:|---:|---:|---:|
-| Opus 5.5 · `adaptive` | 54/54 | 54/54 | 54/54 | 54/54 | 54/54 |
-| Sonnet 5.5 · `adaptive` | 41/54 | 42/54 | 40/54 | 41/54 | 44/54 |
-| Sonnet 5.5 · `between_tools` | 42/54 | 41/54 | 44/54 | not accepted | not accepted |
-| Haiku 5.5 · `adaptive` | 24/54 | 26/54 | 27/54 | 28/54 | 28/54 |
-| Haiku 5.5 · `disabled` | 19/54 | 17/54 | 21/54 | not accepted | not accepted |
-
-**First visible text, P50, seconds**
-
-| Model · thinking | low | medium | high | xhigh | max |
-|---|---:|---:|---:|---:|---:|
-| Opus 5.5 · `adaptive` | 0.48 | 3.71 | 4.05 | 6.04 | 51.4 |
-| Sonnet 5.5 · `adaptive` | 0.46 | 0.50 | 3.25 | 7.44 | 190 |
-| Sonnet 5.5 · `between_tools` | 0.42 | 0.44 | 0.39 | not accepted | not accepted |
-| Haiku 5.5 · `adaptive` | 4.13 | 4.62 | 8.21 | 14.9 | 121 |
-| Haiku 5.5 · `disabled` | 0.46 | 0.45 | 0.43 | not accepted | not accepted |
-
-**List-price cost per 1,000 requests, US dollars**
-
-| Model · thinking | low | medium | high | xhigh | max |
-|---|---:|---:|---:|---:|---:|
-| Opus 5.5 · `adaptive` | $23.34 | $34.52 | $38.75 | $65.36 | $355.75 |
-| Sonnet 5.5 · `adaptive` | $13.04 | $13.57 | $18.36 | $31.62 | $356.49 |
-| Sonnet 5.5 · `between_tools` | $13.16 | $13.21 | $13.76 | not accepted | not accepted |
-| Haiku 5.5 · `adaptive` | $1.27 | $1.57 | $2.14 | $4.19 | $22.26 |
-| Haiku 5.5 · `disabled` | $0.69 | $0.69 | $0.73 | not accepted | not accepted |
-
-What stands out:
-- **The platform answered every request.** All 1,155 matrix requests returned HTTP 200, none with 429 or 5xx, and 1,130 of the 1,134 measured requests completed. Of the other four, three Haiku `adaptive` · max answers spent all 128,000 output tokens on thinking (`stop_reason: max_tokens`), and one Sonnet `adaptive` · max stream sent `message_start` and two pings, then nothing until the client's 600 s read timeout ended it at 661 s.
-- **Without thinking, text starts in under half a second.** Sonnet `between_tools` and Haiku `disabled` showed the first visible text after 0.44 s P50 and 0.74 s P95 over 324 requests. The first event came after 0.47 s P50 over all requests, and between 0.39 and 0.53 s P50 in each cell; the rest of the wait is thinking, which is not streamed. At effort max the first visible text took 51.4 s (Opus), 190 s (Sonnet) and 121 s (Haiku), P50.
-- **Thinking raised Haiku's pass rate, not Sonnet's.** At the same three effort levels, Haiku passed 47.5% with `adaptive` and 35.2% with `disabled`: +12.3 points (95% interval +2.5 to +23.5; 9 problems better, 2 worse, 7 equal). Sonnet: 75.9% against 78.4% with `between_tools`, -2.5 points (-7.4 to +1.9).
-- **Higher effort mostly bought time and cost.** Opus cost $23.34 per 1,000 requests at low and $355.75 at max for the same 54 passes. Sonnet's eight cells passed 40 to 44 times each, inside one another's intervals.
-- **The problem mattered more than the setting.** Over all its cells Sonnet passed `java/house` 1 time in 24 and `javascript/promises` 3 times in 24; Haiku never passed 6 of the 18 problems. Opus passed every problem every time.
-
-**Prompt caching in a four-turn coding conversation.** Each conversation sends the same instructions and three httpx source files (about 15,500 tokens) as the system prompt, then four questions in turn: how an `Auth` subclass takes part in a request, a new `BearerTokenAuth` class, pytest tests for it, and a commit message. Opus uses `adaptive`, Sonnet `between_tools` and Haiku `disabled`, effort low, two repetitions per scenario. Each scenario changes one thing; results are the range over the three models:
-
-| Scenario | What changed | Result |
-|---|---|---|
-| Automatic caching | top-level `cache_control` on every turn | turns 2–4 read 94–97% of the prompt from cache; the conversation cost 52–53% less than the same tokens without cache |
-| Breakpoint after the files, new conversation | `cache_control` on the repository block; then a second conversation with the same files and a new question | the new conversation read 15,440–15,442 tokens from cache and cost 76–80% less |
-| Automatic caching only, new conversation | top-level `cache_control`; then a second conversation with the same files | read 0 tokens and wrote a new entry: 20–21% more than without cache |
-| Top-level effort change | effort low → high on turn 3 | turn 3 still read 95–97% of the prompt from cache |
-| Per-message effort | the same change as an effort-only system message, beta header `mid-conversation-output-config-2026-07-01` | turn 3 read 95–97% from cache |
-| Thinking mode change (Sonnet, Haiku) | thinking off → `adaptive` on turn 3 | turn 3 read 0 tokens and rewrote 16,609–17,138; turn 4 read 95–96% again |
-| 6.5 minutes idle, 5-minute TTL | default TTL | turn 2 read 0 tokens and rewrote 16,145–16,158 |
-| 6.5 minutes idle, 1-hour TTL | `"ttl": "1h"` | turn 2 read 15,490–15,493 tokens |
-| Pre-warm | a non-streaming request with `max_tokens: 0`, then the first question | the first question read 15,440–15,444 tokens (99.7% of its prompt) |
-| Cold and warm, same prompt | five pairs, one-word answer | first visible text P50 at about 15,500 tokens: Opus 1.51 → 1.38 s, Sonnet 1.03 → 0.89 s, Haiku 0.75 → 0.71 s; at about 53,300: Sonnet 0.94 → 0.92 s, Haiku 0.85 → 0.87 s. The warm request cost 4–8% of the cold one |
-
-Claude's [effort page](https://platform.claude.com/docs/en/build-with-claude/effort) says that changing the top-level effort between requests invalidates cache breakpoints. In this test, with automatic caching, turn 3 still read the cached prefix; we did not find out why, so treat it as an observation on these deployments on 2026-10-26. The per-message form, which the docs say keeps the cache, behaved the same. All 264 cache requests returned HTTP 200. Per-turn read shares and costs are on [the results page](docs/results.md#prompt-caching-2026-10-26).
-
-**Through a LiteLLM gateway (2026-10-24).** An earlier test sent a five-turn source-review conversation through LiteLLM 1.106.2 on Azure Container Apps in Japan East to the same East US 2 resource, in ten configurations at effort medium. All 50 requests completed, and the gateway's outbound log showed the model, thinking mode, effort, `stream`, `max_tokens` and cache markers of every request reaching Foundry unchanged. First visible text P50 was 0.78 to 0.95 s with thinking off and up to 9.32 s with `adaptive`. The gateway and the models were in different regions, so these times include a round trip between Japan and the eastern United States and do not measure the gateway's own overhead. Its full tables are on [the results page](docs/results.md#gateway-test-2026-10-24).
-
-**Measured runs.**
-
-| Run | When, UTC | What | Requests | List-price cost | Result |
-|---|---|---|---:|---:|---|
-| `probe` | 2026-10-26 08:11–08:12 | accepted values, one-word prompt | 102 | $0.05 | 50 × HTTP 200, 52 × HTTP 400 |
-| `smoke` | 2026-10-26 08:35 | one problem in each of the 21 cells, `max_tokens` 32,000 | 21 | $0.14 | 21 completed |
-| `pilot-32k` | 2026-10-26 08:37–09:04 | the matrix with `max_tokens` 32,000 | 173 | $5.59 | stopped: 7 answers hit 32,000 tokens and 4 hit the output-token-per-minute limit (HTTP 429); not used in the results |
-| `matrix` | 2026-10-26 09:04–14:11 | 21 cells × 18 problems × 3, plus 21 warm-ups | 1,155 | $55.36 | 1,130 of 1,134 completed; no 429 |
-| `cache` | 2026-10-26 13:04–14:57 | caching scenarios | 264 | $6.70 | 264 × HTTP 200 |
-| `gateway` | 2026-10-24 | five-turn conversation through LiteLLM, ten configurations | 50 | $0.79 | 50 completed |
-
-The 2026-10-26 runs cost $67.85 at list prices. Their records are in [`evidence/coding-matrix-20261026/`](evidence/coding-matrix-20261026/), with the endpoint and VM names replaced; the 2026-10-24 records are in [`evidence/`](evidence/).
-
-**Limits.**
-- **One client, one region, one day, one request at a time per deployment.** No concurrency, load or soak test, and no client outside Azure.
-- **Public exercises, first attempt, no tools.** As in Aider's benchmark the model sees the stub and the instructions but not the tests. `between_tools` differs from `disabled` only in tool loops, which this test never ran.
-- **Ceiling and sample size.** Opus passed all 54 answers in every cell, and 18 problems give wide intervals; a difference of a few answers between two cells is within noise.
-- **Thinking display.** 610 matrix requests used thinking tokens and 0 streamed any thinking text, so the first visible text includes all thinking. `display: "summarized"` was not tested.
-- **Routing.** GlobalStandard deployments may serve a request outside East US 2, and all 1,155 matrix responses reported `usage.inference_geo` as `global`; other client locations or deployment types will give other latencies.
-- **Cost.** List prices on 2026-10-26, not an Azure invoice.
-- **Gateway.** The retained 2026-10-24 gateway results used another region and do not characterize the current East US 2 ACA path.
 
 | You want to | Read |
 |---|---|
@@ -255,98 +284,78 @@ The 2026-10-26 runs cost $67.85 at list prices. Their records are in [`evidence/
 
 ## Steps
 
-**Current test entry.** New tests use the [ACA cache runner](gateway-cache/aca_cache_matrix.py) and its [launcher](gateway-cache/run.sh), with the [12-problem manifest](data/gateway-cache-problems.json). Requests go from the VM client through the gateway, with `cache_control` enabled; do not use the old direct-VM client for the current test.
+| Order | Execution location | Action and completion check |
+|---|---|---|
+| 1 | Azure configuration workstation | Prepare Foundry and ACA LiteLLM; verify the active image and identities in [gateway setup](docs/testing.md#gateway-setup) |
+| 2 | Linux measurement client | Install dependencies and rebuild the hash-checked input |
+| 3 | Same Linux client | Supply the HTTPS gateway origin and private key |
+| 4 | Same Linux client | Run one cache pair and check native write/read evidence |
+| 5 | Same Linux client | Run all frozen configurations into a new directory |
+| 6 | Same Linux client | Analyze that directory, retaining failures and missing requests |
 
-**Retired direct-VM procedure: reference only.** The commands below document how the historical evidence was produced. They are not the current deployment or test instructions and must not be used for a new run under the ACA protocol. Historical procedures and offline evidence checks remain in [docs/testing.md](docs/testing.md).
+**Prerequisites and scope.** Use Bash on a Linux client with Python 3.12 or 3.13 and an existing ACA gateway. To reproduce the measured placement, use East US 2 for the client, gateway and Foundry resource; GlobalStandard still does not promise an inference region. Without a gateway, complete steps 1-4 of [gateway setup](docs/testing.md#gateway-setup), then return here. Allow the measurement client's actual egress /32 in ingress restrictions; a separate configuration workstation needs its own allowed /32. The gateway uses managed identity for Foundry; the client uses only the gateway key. Model calls and infrastructure incur charges. These reorganized public command blocks have not been run on a fresh cloud environment in this update.
 
-**Execution boundary:** the 2026-10-26 results came from these scripts, on a VM created with the commands of step 3 under our own resource names. The repository was assembled afterwards. Step 4 was then run once from the same VM with the published `claude_api.py`, `pricing.py` and `call_once.py`: completed, HTTP 200, first visible text after 0.89 s ([record](evidence/coding-matrix-20261026/readme-step4.json)). Steps 1 to 3 have not been re-run in a fresh subscription.
-
-| Order | Where | Action | Entry |
-|---|---|---|---|
-| 1 | Bash with Azure CLI | Sign in and name the resources | `az login` |
-| 2 | Foundry portal and Azure CLI | Deploy the three models | `az cognitiveservices account deployment create` |
-| 3 | Azure CLI | Create a VM in the same region and let its identity call Foundry | `az vm create`, `az role assignment create` |
-| 4 | The VM | Install the client and send one request | [`coding-matrix/call_once.py`](coding-matrix/call_once.py) |
-
-**Prerequisites.** Bash with Azure CLI (we used 2.91.0; Azure Cloud Shell works); a Foundry resource in a region that offers Claude 5.5 (East US 2 here); permission to deploy models, create a VM and assign roles on the Foundry resource; Claude 5.5 quota; and the Marketplace terms for Anthropic models, which the subscription owner accepts in the portal on the first deployment. Model calls, the VM and its disk are charged.
-
-**1. Sign in and name the resources.** Fill in the five values; `LOCATION` is the Foundry resource's region.
+**1. Prepare the client and frozen input.** Start in the parent of your checkout. Reuse an existing compatible Python environment; the conditional creates one only when no environment is active and no local one exists.
 
 ```bash
-SUBSCRIPTION_ID="<subscription-id>"
-FOUNDRY_RG="<resource-group-of-the-Foundry-resource>"
-FOUNDRY="<Foundry-resource-name>"
-VM_RG="<new-resource-group-for-the-client-VM>"
-LOCATION="eastus2"
-az login
-az account set --subscription "$SUBSCRIPTION_ID"
-az cognitiveservices account show -g "$FOUNDRY_RG" -n "$FOUNDRY" --query "{name:name, location:location}" -o table
+set -euo pipefail
+test -d david-share || git clone --depth 1 --filter=blob:none https://github.com/david-xinyuwei/david-share.git
+cd david-share/Agents/Claude-Foundry-LiteLLM-Performance
+if [ -z "${VIRTUAL_ENV:-}" ]; then
+  test -x .venv/bin/python || python3 -m venv .venv
+  source .venv/bin/activate
+fi
+python -m pip install -r coding-matrix/requirements.txt pyarrow
+RUN_ID="aca-$(date -u +%Y%m%d-%H%M%S)"
+WORK="$PWD/private/$RUN_ID"
+mkdir -p "$WORK"
+python -B gateway-cache/build_swebench_problems.py \
+  --manifest data/gateway-cache-problems.json --out "$WORK/problems.json"
 ```
 
-Success: the last command prints the resource and its region. If it fails, check the subscription and the resource names before going on.
+Expect PASS, revision `8d4bee9605fd8d72f14373a7f64d070c92f575c8` and 12 problems. The builder checks the parquet, problem order, source commits and prompt hashes before writing the prepared JSON. A mismatch stops the run; do not substitute a newer dataset. The downloaded data and later responses stay under ignored `private/`.
 
-**2. Deploy the three models.** Capacity is thousands of tokens per minute; these are the values of the test (Opus 40, Sonnet and Haiku 80). If a command fails on Marketplace terms, deploy that model once in the Foundry portal (**Discover → Models**, then **Deploy → Custom settings**, deployment type **Global**, version 2) and run the command again.
+**2. Configure the gateway, not the Foundry endpoint.** Get the HTTPS origin from Container Apps Ingress, without `/v1/messages` or `/anthropic`. Enter the key yourself; never put it in a command, screenshot or Git.
 
 ```bash
-az cognitiveservices account deployment create -g "$FOUNDRY_RG" -n "$FOUNDRY" --deployment-name claude-opus-5-5 \
-  --model-name claude-opus-5-5 --model-version 2 --model-format Anthropic --sku-name GlobalStandard --sku-capacity 40
-az cognitiveservices account deployment create -g "$FOUNDRY_RG" -n "$FOUNDRY" --deployment-name claude-sonnet-5-5 \
-  --model-name claude-sonnet-5-5 --model-version 2 --model-format Anthropic --sku-name GlobalStandard --sku-capacity 80
-az cognitiveservices account deployment create -g "$FOUNDRY_RG" -n "$FOUNDRY" --deployment-name claude-haiku-5-5 \
-  --model-name claude-haiku-5-5 --model-version 2 --model-format Anthropic --sku-name GlobalStandard --sku-capacity 80
-az cognitiveservices account deployment list -g "$FOUNDRY_RG" -n "$FOUNDRY" \
-  --query "[?properties.model.format=='Anthropic'].{name:name, sku:sku.name, capacity:sku.capacity, version:properties.model.version, state:properties.provisioningState}" -o table
+export GATEWAY_URL="https://<your-container-app-fqdn>"
+read -r -s -p 'Gateway key (private): ' CLAUDE_GATEWAY_KEY
+printf '\n'
+export CLAUDE_GATEWAY_KEY
+export CLAUDE_GATEWAY_BUDGET_ROOT="$WORK"
 ```
 
-Success: three rows with `GlobalStandard`, version `2` and `Succeeded`. Without quota, request it rather than switching models. The test client paces itself to these capacities (`TPM` in `bench.py` and `cache_test.py`); with other capacities, change those two values before repeating the measurements.
+Aliases are `opus55-standard`, `sonnet55-standard` and `haiku55-standard` in `deploy/config.yaml`; the existing gateway adapter maps the runner's model names to them. No direct-Foundry fallback is used. Configure matching aliases before continuing.
 
-**3. Create the client VM in the same region.** The VM gets a system-assigned managed identity, and `Cognitive Services User` on the Foundry resource lets that identity call the models. `--nsg-rule NONE` opens no inbound port: connect through Azure Bastion (we used it), or add an SSH rule limited to your own IP address.
+**3. Verify one cache pair first.** This diagnostic plans one warm-up plus two measured requests. Its seed is separate from the full run, so it does not prewarm the full run's group prefix. Approve its model spend before executing.
 
 ```bash
-az group create -n "$VM_RG" -l "$LOCATION"
-az vm create -g "$VM_RG" -n claude-client -l "$LOCATION" \
-  --image Canonical:ubuntu-24_04-lts:server:latest --size Standard_D4s_v5 --os-disk-size-gb 128 \
-  --admin-username azureuser --generate-ssh-keys --assign-identity '[system]' \
-  --public-ip-sku Standard --nsg-rule NONE
-PRINCIPAL_ID=$(az vm show -g "$VM_RG" -n claude-client --query identity.principalId -o tsv)
-FOUNDRY_ID=$(az cognitiveservices account show -g "$FOUNDRY_RG" -n "$FOUNDRY" --query id -o tsv)
-az role assignment create --assignee-object-id "$PRINCIPAL_ID" --assignee-principal-type ServicePrincipal \
-  --role "Cognitive Services User" --scope "$FOUNDRY_ID"
+GATE="$WORK/gate"
+python -u gateway-cache/aca_cache_matrix.py --run-dir "$GATE" \
+  --source coding-matrix --gateway-url "$GATEWAY_URL" --problems "$WORK/problems.json" \
+  --probe-summary evidence/coding-matrix-20261026/matrix/probe_summary.json \
+  --only-cells 'sonnet|adaptive|low' --only-problems 'django__django-15320' \
+  --seed "$RUN_ID-gate" --repeats 2 --max-tokens 128000 --ttl 1h --budget-usd 5
+python -B gateway-cache/analyze_cache_matrix.py --run-dir "$GATE" --out "$GATE/facts.json"
+python -c 'import json,sys; record=json.load(open(sys.argv[1], encoding="utf-8")); assert record["coverage"]["collection_complete"] and record["cache_hit_pairs"] == 1, record; print("CACHE_PAIR_VERIFIED")' "$GATE/facts.json"
 ```
 
-Success: `az vm create` prints `"powerState": "VM running"` and the role assignment prints its JSON. A new role assignment can take a few minutes to apply.
+Expect CACHE_PAIR_VERIFIED, two completed measured answers and native cache read after write. HTTP 200 alone is not enough. For 401/403 check the gateway key, ingress and gateway identity; for 400 inspect the actual parameter error; for 429 inspect the returned limit and pacing; for missing reads inspect the prefix, elapsed gap and route. A TCP check below 50 ms is only this runner's heuristic, not proof of location. Keep failures and their request identifiers.
 
-**4. Install the client and send one request.** Run this on the VM. Set `FOUNDRY_ANTHROPIC_BASE` to your resource's endpoint ending in `/anthropic`.
+**4. Run and analyze the full matrix.** Use the same shell and a new directory. The frozen probe fixes 26 configurations, 12 problems and two measured repeats, plus warm-ups: 650 planned requests. A new seed changes ordering and group identifiers while preserving the protocol and problem texts; results need not equal the published run. The example's USD 85 stop threshold is not a guaranteed cost cap because calls can be in flight. The adapter also stops at USD 95 accounted under WORK, reserving USD 5 of its USD 100 guard; check current prices before choosing budgets.
 
 ```bash
-sudo apt-get update && sudo apt-get install -y python3-venv git
-git clone --filter=blob:none --sparse --depth=1 https://github.com/david-xinyuwei/david-share.git
-git -C david-share sparse-checkout set Agents/Claude-Foundry-LiteLLM-Performance
-cd david-share/Agents/Claude-Foundry-LiteLLM-Performance/coding-matrix
-python3 -m venv ~/venv && ~/venv/bin/pip install -r requirements.txt
-export FOUNDRY_ANTHROPIC_BASE="https://<foundry-resource>.services.ai.azure.com/anthropic"
-~/venv/bin/python call_once.py --model claude-sonnet-5-5 --thinking between_tools --effort low \
-  "Write a Python function that returns the n-th Fibonacci number."
+RUN="$WORK/matrix"
+printf 'RUN_DIRECTORY=%s\n' "$RUN"
+python -u gateway-cache/aca_cache_matrix.py --run-dir "$RUN" \
+  --source coding-matrix --gateway-url "$GATEWAY_URL" --problems "$WORK/problems.json" \
+  --probe-summary evidence/coding-matrix-20261026/matrix/probe_summary.json \
+  --seed "$RUN_ID" --repeats 2 --max-tokens 128000 --ttl 1h --budget-usd 85
+python -B gateway-cache/analyze_cache_matrix.py --run-dir "$RUN" --out "$RUN/facts.json"
+python -B gateway-cache/analyze_cache_matrix.py --run-dir "$RUN" --out "$RUN/facts.json" --check
+unset CLAUDE_GATEWAY_KEY
 ```
 
-Success: the answer, then a line such as `{"status": "completed", "http_status": 200, "first_text_s": 0.8893, ...}`, and exit code 0. HTTP 401 or 403: the role has not applied yet or was assigned on another resource; wait and retry. HTTP 400: the model does not accept that thinking mode or effort (see the first table). HTTP 404: the deployment name or the endpoint is wrong.
+The analyzer reads this RUN, not the published fixture. Expect `facts match`; separately check `coverage.collection_complete`, all 26 cells, transport errors, truncations and native cache pairs in facts.json. BUDGET_STOP or missing requests is not completion. The foreground process can be interrupted with Ctrl+C; this does not stop cloud resources. Use the printed directory in another terminal for `tail -F <run-directory>/progress.log`, or read its run.json for a snapshot. Keep the same inputs, seed and run directory when resuming; first re-enter the private key. [New-answer grading and separate outbound audit](docs/testing.md#fresh-aca-analysis) are separate stages, not covered by `facts match`.
 
-**Done.** The three deployments answer a client in their own region with the parameters used here. To repeat the measurements, follow [docs/testing.md](docs/testing.md).
-
-**Remove resources only after the owner approves; this is not part of deployment.** Each block removes one thing; run only the one you need.
-
-Delete the client VM and its resource group (`az` asks you to confirm):
-
-```bash
-az group delete -n "$VM_RG"
-```
-
-Delete the three model deployments:
-
-```bash
-for name in claude-opus-5-5 claude-sonnet-5-5 claude-haiku-5-5; do
-  az cognitiveservices account deployment delete -g "$FOUNDRY_RG" -n "$FOUNDRY" --deployment-name "$name"
-done
-```
-
-**Repository.** [`coding-matrix/`](coding-matrix/) client, probe, matrix, judge, cache test and analysis · [`data/`](data/) the measured problem list and the gateway workload · [`evidence/coding-matrix-20261026/`](evidence/coding-matrix-20261026/) run records, facts and provenance · [`evidence/`](evidence/) gateway records · [`scripts/`](scripts/) gateway collector, gateway analysis and the page generator · [`deploy/`](deploy/) gateway image · [`images/`](images/) figures and icon ledger · [`tests/`](tests/) offline tests (`python -B -m unittest discover -s tests -v`, run by CI) · [`NOTICE.md`](NOTICE.md) third-party notices.
+**Only inspecting saved results?** Use [offline replay](docs/testing.md#aca-snapshot-replay); it needs no Azure credentials or model calls. Deployment, input reconstruction, fresh collection and offline replay have distinct acceptance checks.

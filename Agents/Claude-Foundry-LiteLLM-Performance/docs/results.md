@@ -2,7 +2,7 @@
 
 [README](../README.md) · [Testing](testing.md) · [中文](results_CN.md)
 
-Current East US 2 ACA performance comes first, followed by correctness for all 624 measured answers. Every configuration, failure and limitation is retained. Retired direct-VM matrix, probe, cache and earlier gateway evidence follow, without pooling runs.
+Current East US 2 ACA performance comes first, then parameter/cache evidence and correctness for all 624 measured answers. Historical direct, probe and cross-region gateway results remain separate; they neither pool with the current run nor fill its outbound-audit gap.
 
 <a id="aca-gateway-snapshot"></a>
 
@@ -14,7 +14,7 @@ Current East US 2 ACA performance comes first, followed by correctness for all 6
 
 **Input.** [12 public SWE-bench Lite BM25-13K problems](../data/gateway-cache-problems.json), with the source revision and prompt hashes in [run.json](../evidence/gateway-cache-20261026/run.json). This is a selected-subset experiment, not a full SWE-bench leaderboard score or customer production data. The [runner](../gateway-cache/aca_cache_matrix.py) uses 26 mode/effort cells, two identical requests per problem/cell and one warm-up per cell. Fixed: `max_tokens: 128000`, `stream: true`, top-level `cache_control: {"type": "ephemeral", "ttl": "1h"}`. Timing starts immediately before the client sends the request; first text is the first non-empty text delta, not a ping or thinking event.
 
-Captured parameter record (prompt bodies are not included in this metrics projection):
+**Captured input settings.** The following fields are from measured request `opus|adaptive|low|django__django-12184|r1`, not its warm-up. The problem manifest above pins the public input reconstruction; this metrics projection omits prompt bodies.
 
 ```json
 {
@@ -34,25 +34,165 @@ Captured parameter record (prompt bodies are not included in this metrics projec
 }
 ```
 
-**Performance first.** The next table uses only completed pairs with native cache reads. Write and hit mean requests 1 and 2. These per-model aggregates mix different mode/effort populations; compare matched cells in the full tables, not these aggregates as a model ranking.
+The runner prepends a deterministic system identifier per problem/configuration to isolate each pair's cache. The problem text is shared across configurations, but these identifiers differ. This controlled reuse is not an estimate of production cache-hit rate.
 
-| Model | Cache-hit pairs (count) | First text P50: write / hit (s) | Full response P50: write / hit (s) | Mean request cost: write / hit (USD) | Read share in hit requests (%) |
+**Metric definitions.** TTFT is `timing.first_text`, the first non-empty visible text, not metadata or thinking. E2E is `timing.end`, through the end of the response stream. The client clock starts immediately before HTTP; credential acquisition, pacing and application/tool work are excluded. End-to-end output rate is `usage.output_tokens / timing.end` for each request, including thinking tokens; its P50 is not a ratio of medians or isolated decode speed. Costs include input, cache writes/reads and output at the recorded list prices, not infrastructure or an invoice.
+
+**All measured configurations, performance first.** A pair is the same problem and configuration sent twice: an observed cache write followed by a native cache hit, with both answers completed. Each state below uses one request from every eligible pair. P50/P95 use nearest rank; with at most 12 requests per state, P95 is the largest observation, not a production tail guarantee. `default` means effort was omitted. Compare matching configurations; generated output lengths may differ, so a timing or cost difference cannot be attributed entirely to caching.
+
+### Opus 5.5
+
+**Latency by configuration.**
+
+| Model / thinking.type / output_config.effort | Cache state | TTFT P50 / P95 (s) | E2E P50 / P95 (s) | Valid requests |
+|---|---|---:|---:|---:|
+| Opus 5.5<br>`adaptive` / `low` | First write | 1.19 / 9.06 | 6.94 / 14.4 | 12 |
+| Opus 5.5<br>`adaptive` / `low` | Cache hit | 1.08 / 14.7 | 7.84 / 20.0 | 12 |
+| Opus 5.5<br>`adaptive` / `medium` | First write | 6.92 / 31.5 | 11.6 / 37.2 | 12 |
+| Opus 5.5<br>`adaptive` / `medium` | Cache hit | 7.15 / 29.3 | 11.3 / 35.3 | 12 |
+| Opus 5.5<br>`adaptive` / `high` | First write | 9.13 / 94.5 | 14.0 / 101 | 12 |
+| Opus 5.5<br>`adaptive` / `high` | Cache hit | 7.53 / 228 | 11.7 / 239 | 12 |
+| Opus 5.5<br>`adaptive` / `xhigh` | First write | 18.9 / 110 | 24.7 / 117 | 12 |
+| Opus 5.5<br>`adaptive` / `xhigh` | Cache hit | 19.6 / 380 | 24.5 / 389 | 12 |
+| Opus 5.5<br>`adaptive` / `max` | First write | 232 / 1027 | 247 / 1036 | 11 |
+| Opus 5.5<br>`adaptive` / `max` | Cache hit | 236 / 913 | 249 / 922 | 11 |
+| Opus 5.5<br>`adaptive` / `default` | First write | 7.03 / 65.8 | 12.0 / 72.3 | 11 |
+| Opus 5.5<br>`adaptive` / `default` | Cache hit | 8.02 / 28.5 | 15.0 / 34.3 | 11 |
+
+**Output rate and cost for the same requests.**
+
+| Model / thinking.type / output_config.effort | Cache state | E2E output rate P50 (tokens/s, thinking included) | Mean cost (USD/request) | Valid requests |
+|---|---|---:|---:|---:|
+| Opus 5.5<br>`adaptive` / `low` | First write | 103.53 | $0.158921 | 12 |
+| Opus 5.5<br>`adaptive` / `low` | Cache hit | 103.75 | $0.023222 | 12 |
+| Opus 5.5<br>`adaptive` / `medium` | First write | 108.44 | $0.173419 | 12 |
+| Opus 5.5<br>`adaptive` / `medium` | Cache hit | 111.76 | $0.036952 | 12 |
+| Opus 5.5<br>`adaptive` / `high` | First write | 110.21 | $0.200936 | 12 |
+| Opus 5.5<br>`adaptive` / `high` | Cache hit | 110.93 | $0.097379 | 12 |
+| Opus 5.5<br>`adaptive` / `xhigh` | First write | 112.87 | $0.248050 | 12 |
+| Opus 5.5<br>`adaptive` / `xhigh` | Cache hit | 114.35 | $0.183598 | 12 |
+| Opus 5.5<br>`adaptive` / `max` | First write | 123.30 | $1.008633 | 11 |
+| Opus 5.5<br>`adaptive` / `max` | Cache hit | 121.91 | $0.785095 | 11 |
+| Opus 5.5<br>`adaptive` / `default` | First write | 109.83 | $0.186835 | 11 |
+| Opus 5.5<br>`adaptive` / `default` | Cache hit | 109.88 | $0.037639 | 11 |
+
+### Sonnet 5.5
+
+**Latency by configuration.**
+
+| Model / thinking.type / output_config.effort | Cache state | TTFT P50 / P95 (s) | E2E P50 / P95 (s) | Valid requests |
+|---|---|---:|---:|---:|
+| Sonnet 5.5<br>`adaptive` / `low` | First write | 0.77 / 0.95 | 4.86 / 9.76 | 12 |
+| Sonnet 5.5<br>`adaptive` / `low` | Cache hit | 0.76 / 1.15 | 4.88 / 9.01 | 12 |
+| Sonnet 5.5<br>`adaptive` / `medium` | First write | 0.81 / 11.0 | 5.67 / 14.4 | 12 |
+| Sonnet 5.5<br>`adaptive` / `medium` | Cache hit | 0.87 / 16.3 | 6.15 / 19.1 | 12 |
+| Sonnet 5.5<br>`adaptive` / `high` | First write | 6.05 / 137 | 10.6 / 140 | 12 |
+| Sonnet 5.5<br>`adaptive` / `high` | Cache hit | 7.44 / 119 | 10.7 / 122 | 12 |
+| Sonnet 5.5<br>`adaptive` / `xhigh` | First write | 20.7 / 246 | 24.0 / 254 | 12 |
+| Sonnet 5.5<br>`adaptive` / `xhigh` | Cache hit | 16.1 / 341 | 19.4 / 354 | 12 |
+| Sonnet 5.5<br>`adaptive` / `max` | First write | 394 / 616 | 397 / 622 | 9 |
+| Sonnet 5.5<br>`adaptive` / `max` | Cache hit | 364 / 743 | 367 / 751 | 9 |
+| Sonnet 5.5<br>`adaptive` / `default` | First write | 6.86 / 86.8 | 10.8 / 90.2 | 12 |
+| Sonnet 5.5<br>`adaptive` / `default` | Cache hit | 5.78 / 152 | 8.39 / 156 | 12 |
+| Sonnet 5.5<br>`between_tools` / `low` | First write | 0.78 / 1.08 | 5.14 / 7.88 | 12 |
+| Sonnet 5.5<br>`between_tools` / `low` | Cache hit | 0.76 / 0.91 | 4.51 / 8.22 | 12 |
+| Sonnet 5.5<br>`between_tools` / `medium` | First write | 0.83 / 1.06 | 5.41 / 9.18 | 12 |
+| Sonnet 5.5<br>`between_tools` / `medium` | Cache hit | 0.79 / 0.93 | 4.60 / 9.87 | 12 |
+| Sonnet 5.5<br>`between_tools` / `high` | First write | 0.81 / 1.09 | 5.56 / 11.6 | 12 |
+| Sonnet 5.5<br>`between_tools` / `high` | Cache hit | 0.82 / 1.18 | 7.03 / 13.1 | 12 |
+| Sonnet 5.5<br>`between_tools` / `default` | First write | 0.79 / 1.15 | 4.88 / 13.6 | 12 |
+| Sonnet 5.5<br>`between_tools` / `default` | Cache hit | 0.78 / 1.07 | 5.46 / 10.2 | 12 |
+
+**Output rate and cost for the same requests.**
+
+| Model / thinking.type / output_config.effort | Cache state | E2E output rate P50 (tokens/s, thinking included) | Mean cost (USD/request) | Valid requests |
+|---|---|---:|---:|---:|
+| Sonnet 5.5<br>`adaptive` / `low` | First write | 130.16 | $0.077371 | 12 |
+| Sonnet 5.5<br>`adaptive` / `low` | Cache hit | 123.18 | $0.008869 | 12 |
+| Sonnet 5.5<br>`adaptive` / `medium` | First write | 124.97 | $0.078745 | 12 |
+| Sonnet 5.5<br>`adaptive` / `medium` | Cache hit | 124.24 | $0.010499 | 12 |
+| Sonnet 5.5<br>`adaptive` / `high` | First write | 141.38 | $0.106288 | 12 |
+| Sonnet 5.5<br>`adaptive` / `high` | Cache hit | 138.87 | $0.034861 | 12 |
+| Sonnet 5.5<br>`adaptive` / `xhigh` | First write | 148.80 | $0.152607 | 12 |
+| Sonnet 5.5<br>`adaptive` / `xhigh` | Cache hit | 149.31 | $0.109698 | 12 |
+| Sonnet 5.5<br>`adaptive` / `max` | First write | 156.49 | $0.804891 | 9 |
+| Sonnet 5.5<br>`adaptive` / `max` | Cache hit | 158.34 | $0.635133 | 9 |
+| Sonnet 5.5<br>`adaptive` / `default` | First write | 140.69 | $0.100876 | 12 |
+| Sonnet 5.5<br>`adaptive` / `default` | Cache hit | 141.88 | $0.035923 | 12 |
+| Sonnet 5.5<br>`between_tools` / `low` | First write | 126.13 | $0.077653 | 12 |
+| Sonnet 5.5<br>`between_tools` / `low` | Cache hit | 130.11 | $0.008496 | 12 |
+| Sonnet 5.5<br>`between_tools` / `medium` | First write | 132.11 | $0.077994 | 12 |
+| Sonnet 5.5<br>`between_tools` / `medium` | Cache hit | 133.30 | $0.009313 | 12 |
+| Sonnet 5.5<br>`between_tools` / `high` | First write | 130.38 | $0.079108 | 12 |
+| Sonnet 5.5<br>`between_tools` / `high` | Cache hit | 129.14 | $0.011469 | 12 |
+| Sonnet 5.5<br>`between_tools` / `default` | First write | 130.06 | $0.078623 | 12 |
+| Sonnet 5.5<br>`between_tools` / `default` | Cache hit | 133.11 | $0.010259 | 12 |
+
+### Haiku 5.5
+
+**Latency by configuration.**
+
+| Model / thinking.type / output_config.effort | Cache state | TTFT P50 / P95 (s) | E2E P50 / P95 (s) | Valid requests |
+|---|---|---:|---:|---:|
+| Haiku 5.5<br>`adaptive` / `low` | First write | 3.09 / 20.2 | 4.93 / 22.9 | 12 |
+| Haiku 5.5<br>`adaptive` / `low` | Cache hit | 4.25 / 17.6 | 5.75 / 20.7 | 12 |
+| Haiku 5.5<br>`adaptive` / `medium` | First write | 6.92 / 13.8 | 8.30 / 15.3 | 12 |
+| Haiku 5.5<br>`adaptive` / `medium` | Cache hit | 6.93 / 14.2 | 8.02 / 16.8 | 12 |
+| Haiku 5.5<br>`adaptive` / `high` | First write | 9.07 / 38.5 | 10.8 / 40.3 | 12 |
+| Haiku 5.5<br>`adaptive` / `high` | Cache hit | 12.1 / 29.6 | 14.1 / 34.0 | 12 |
+| Haiku 5.5<br>`adaptive` / `xhigh` | First write | 61.3 / 460 | 63.2 / 463 | 11 |
+| Haiku 5.5<br>`adaptive` / `xhigh` | Cache hit | 53.4 / 235 | 57.0 / 237 | 11 |
+| Haiku 5.5<br>`adaptive` / `max` | First write | 204 / 399 | 206 / 406 | 8 |
+| Haiku 5.5<br>`adaptive` / `max` | Cache hit | 260 / 377 | 262 / 384 | 8 |
+| Haiku 5.5<br>`adaptive` / `default` | First write | 5.49 / 15.5 | 7.40 / 18.4 | 12 |
+| Haiku 5.5<br>`adaptive` / `default` | Cache hit | 6.22 / 11.6 | 8.07 / 14.2 | 12 |
+| Haiku 5.5<br>`disabled` / `low` | First write | 0.48 / 0.83 | 2.29 / 3.37 | 12 |
+| Haiku 5.5<br>`disabled` / `low` | Cache hit | 0.56 / 0.74 | 2.36 / 3.51 | 12 |
+| Haiku 5.5<br>`disabled` / `medium` | First write | 0.54 / 0.73 | 2.42 / 3.47 | 12 |
+| Haiku 5.5<br>`disabled` / `medium` | Cache hit | 0.50 / 0.60 | 2.64 / 4.31 | 12 |
+| Haiku 5.5<br>`disabled` / `high` | First write | 0.49 / 0.72 | 2.67 / 4.51 | 12 |
+| Haiku 5.5<br>`disabled` / `high` | Cache hit | 0.49 / 0.69 | 2.40 / 3.56 | 12 |
+| Haiku 5.5<br>`disabled` / `default` | First write | 0.49 / 0.79 | 2.66 / 3.16 | 12 |
+| Haiku 5.5<br>`disabled` / `default` | Cache hit | 0.45 / 0.59 | 2.41 / 4.38 | 12 |
+
+**Output rate and cost for the same requests.**
+
+| Model / thinking.type / output_config.effort | Cache state | E2E output rate P50 (tokens/s, thinking included) | Mean cost (USD/request) | Valid requests |
+|---|---|---:|---:|---:|
+| Haiku 5.5<br>`adaptive` / `low` | First write | 214.53 | $0.004254 | 12 |
+| Haiku 5.5<br>`adaptive` / `low` | Cache hit | 211.44 | $0.001009 | 12 |
+| Haiku 5.5<br>`adaptive` / `medium` | First write | 218.61 | $0.004638 | 12 |
+| Haiku 5.5<br>`adaptive` / `medium` | Cache hit | 221.27 | $0.001248 | 12 |
+| Haiku 5.5<br>`adaptive` / `high` | First write | 234.38 | $0.005884 | 12 |
+| Haiku 5.5<br>`adaptive` / `high` | Cache hit | 230.84 | $0.002356 | 12 |
+| Haiku 5.5<br>`adaptive` / `xhigh` | First write | 259.47 | $0.019081 | 11 |
+| Haiku 5.5<br>`adaptive` / `xhigh` | Cache hit | 258.09 | $0.010969 | 11 |
+| Haiku 5.5<br>`adaptive` / `max` | First write | 269.25 | $0.037720 | 8 |
+| Haiku 5.5<br>`adaptive` / `max` | Cache hit | 265.15 | $0.032892 | 8 |
+| Haiku 5.5<br>`adaptive` / `default` | First write | 218.12 | $0.004464 | 12 |
+| Haiku 5.5<br>`adaptive` / `default` | Cache hit | 222.91 | $0.001171 | 12 |
+| Haiku 5.5<br>`disabled` / `low` | First write | 177.01 | $0.003747 | 12 |
+| Haiku 5.5<br>`disabled` / `low` | Cache hit | 183.87 | $0.000406 | 12 |
+| Haiku 5.5<br>`disabled` / `medium` | First write | 172.51 | $0.003759 | 12 |
+| Haiku 5.5<br>`disabled` / `medium` | Cache hit | 175.95 | $0.000443 | 12 |
+| Haiku 5.5<br>`disabled` / `high` | First write | 181.72 | $0.003790 | 12 |
+| Haiku 5.5<br>`disabled` / `high` | Cache hit | 172.20 | $0.000428 | 12 |
+| Haiku 5.5<br>`disabled` / `default` | First write | 174.06 | $0.003728 | 12 |
+| Haiku 5.5<br>`disabled` / `default` | Cache hit | 201.46 | $0.000475 | 12 |
+
+### Completion and cache evidence
+
+| Model | Retained / planned requests, warm-ups included | Completed requests | Truncated requests | Complete measured pairs | Cache-hit pairs |
 |---|---:|---:|---:|---:|---:|
-| Opus 5.5 | 70 | 9.06 / 8.98 | 14.5 / 17.5 | $0.321801 / $0.187770 | 99.98 |
-| Sonnet 5.5 | 117 | 0.92 / 0.93 | 6.61 / 7.05 | $0.146967 / $0.073409 | 99.98 |
-| Haiku 5.5 | 115 | 3.42 / 4.30 | 5.74 / 6.12 | $0.008025 / $0.004123 | 99.98 |
-
-| Model | Retained / planned requests, warm-ups included | Completed requests | Truncated requests | Complete measured pairs |
-|---|---:|---:|---:|---:|
-| Opus 5.5 | 150/150 | 149 | 1 | 70 |
-| Sonnet 5.5 | 250/250 | 244 | 6 | 117 |
-| Haiku 5.5 | 250/250 | 243 | 7 | 115 |
+| Opus 5.5 | 150/150 | 149 | 1 | 71 | 70 |
+| Sonnet 5.5 | 250/250 | 244 | 6 | 117 | 117 |
+| Haiku 5.5 | 250/250 | 243 | 7 | 116 | 115 |
 
 **Cache evidence.** 304 measured pairs completed; 302 show native cache hits. The other 2 crossed the shutdown/restart interval and rewrote expired entries. They remain in request, cost and correctness counts but not cache-hit performance statistics. Hit pairs read at least 100.0% of the preceding cache write; 0 reused a response message ID. This proves those cache reads, not a general speedup. Responses report `inference_geo: global` and an East US 2 region header; that is not a regional-inference guarantee.
 
 **Cost and limits.** The full run cost $76.17 at recorded [list prices](../coding-matrix/pricing.py), including warm-ups, writes, reads, output and truncated answers; infrastructure is excluded and this is not an invoice. Pair metrics exclude warm-ups and incomplete or non-hit pairs, never the correctness denominator. Full distributions and counts remain in [the facts](../evidence/gateway-cache-20261026/interim-facts.json).
 
-### All performance configurations
+### All configuration denominators
 
 | Model | thinking.type | output_config.effort | Retained / planned measured requests | Truncated requests, warm-ups included | Complete / planned pairs |
 |---|---|---|---:|---:|---:|
@@ -61,7 +201,7 @@ Captured parameter record (prompt bodies are not included in this metrics projec
 | Opus 5.5 | `adaptive` | `high` | 24/24 | 0 | 12/12 |
 | Opus 5.5 | `adaptive` | `xhigh` | 24/24 | 0 | 12/12 |
 | Opus 5.5 | `adaptive` | `max` | 24/24 | 1 | 11/12 |
-| Opus 5.5 | `adaptive` | `default` | 24/24 | 0 | 11/12 |
+| Opus 5.5 | `adaptive` | `default` | 24/24 | 0 | 12/12 |
 | Sonnet 5.5 | `adaptive` | `low` | 24/24 | 0 | 12/12 |
 | Sonnet 5.5 | `adaptive` | `medium` | 24/24 | 0 | 12/12 |
 | Sonnet 5.5 | `adaptive` | `high` | 24/24 | 0 | 12/12 |
@@ -75,7 +215,7 @@ Captured parameter record (prompt bodies are not included in this metrics projec
 | Haiku 5.5 | `adaptive` | `low` | 24/24 | 0 | 12/12 |
 | Haiku 5.5 | `adaptive` | `medium` | 24/24 | 0 | 12/12 |
 | Haiku 5.5 | `adaptive` | `high` | 24/24 | 0 | 12/12 |
-| Haiku 5.5 | `adaptive` | `xhigh` | 24/24 | 0 | 11/12 |
+| Haiku 5.5 | `adaptive` | `xhigh` | 24/24 | 0 | 12/12 |
 | Haiku 5.5 | `adaptive` | `max` | 24/24 | 7 | 8/12 |
 | Haiku 5.5 | `adaptive` | `default` | 24/24 | 0 | 12/12 |
 | Haiku 5.5 | `disabled` | `low` | 24/24 | 0 | 12/12 |
@@ -83,48 +223,36 @@ Captured parameter record (prompt bodies are not included in this metrics projec
 | Haiku 5.5 | `disabled` | `high` | 24/24 | 0 | 12/12 |
 | Haiku 5.5 | `disabled` | `default` | 24/24 | 0 | 12/12 |
 
-### Cache-hit pair timings and costs
+### What the parameter evidence proves
 
-Nearest-rank P50 within each cell, completed measured pairs only. Request 1 and 2 may produce different output lengths; cost differences do not isolate caching alone.
+**Transport is not task success.** Recorded physical attempts: 650; HTTP 200: 650; retries: 0. These counts include warm-ups and any recorded retry attempts. The completion table retains truncated answers; this small, paced run is not a capacity or reliability guarantee.
 
-| Model / thinking.type / output_config.effort | Complete pairs | First text P50: request 1, cache write (s) | First text P50: request 2, cache read (s) | Mean cost: request 1 (USD) | Mean cost: request 2 (USD) |
-|---|---:|---:|---:|---:|---:|
-| Opus 5.5 / adaptive / low | 12 | 1.19 | 1.08 | $0.158921 | $0.023222 |
-| Opus 5.5 / adaptive / medium | 12 | 6.92 | 7.15 | $0.173419 | $0.036952 |
-| Opus 5.5 / adaptive / high | 12 | 9.13 | 7.53 | $0.200936 | $0.097379 |
-| Opus 5.5 / adaptive / xhigh | 12 | 18.9 | 19.6 | $0.248050 | $0.183598 |
-| Opus 5.5 / adaptive / max | 11 | 232 | 236 | $1.008633 | $0.785095 |
-| Opus 5.5 / adaptive / default | 11 | 7.03 | 8.02 | $0.186835 | $0.037639 |
-| Sonnet 5.5 / adaptive / low | 12 | 0.77 | 0.76 | $0.077371 | $0.008869 |
-| Sonnet 5.5 / adaptive / medium | 12 | 0.81 | 0.87 | $0.078745 | $0.010499 |
-| Sonnet 5.5 / adaptive / high | 12 | 6.05 | 7.44 | $0.106288 | $0.034861 |
-| Sonnet 5.5 / adaptive / xhigh | 12 | 20.7 | 16.1 | $0.152607 | $0.109698 |
-| Sonnet 5.5 / adaptive / max | 9 | 394 | 364 | $0.804891 | $0.635133 |
-| Sonnet 5.5 / adaptive / default | 12 | 6.86 | 5.78 | $0.100876 | $0.035923 |
-| Sonnet 5.5 / between_tools / low | 12 | 0.78 | 0.76 | $0.077653 | $0.008496 |
-| Sonnet 5.5 / between_tools / medium | 12 | 0.83 | 0.79 | $0.077994 | $0.009313 |
-| Sonnet 5.5 / between_tools / high | 12 | 0.81 | 0.82 | $0.079108 | $0.011469 |
-| Sonnet 5.5 / between_tools / default | 12 | 0.79 | 0.78 | $0.078623 | $0.010259 |
-| Haiku 5.5 / adaptive / low | 12 | 3.09 | 4.25 | $0.004254 | $0.001009 |
-| Haiku 5.5 / adaptive / medium | 12 | 6.92 | 6.93 | $0.004638 | $0.001248 |
-| Haiku 5.5 / adaptive / high | 12 | 9.07 | 12.1 | $0.005884 | $0.002356 |
-| Haiku 5.5 / adaptive / xhigh | 11 | 61.3 | 53.4 | $0.019081 | $0.010969 |
-| Haiku 5.5 / adaptive / max | 8 | 204 | 260 | $0.037720 | $0.032892 |
-| Haiku 5.5 / adaptive / default | 12 | 5.49 | 6.22 | $0.004464 | $0.001171 |
-| Haiku 5.5 / disabled / low | 12 | 0.48 | 0.56 | $0.003747 | $0.000406 |
-| Haiku 5.5 / disabled / medium | 12 | 0.54 | 0.50 | $0.003759 | $0.000443 |
-| Haiku 5.5 / disabled / high | 12 | 0.49 | 0.49 | $0.003790 | $0.000428 |
-| Haiku 5.5 / disabled / default | 12 | 0.49 | 0.45 | $0.003728 | $0.000475 |
+| Evidence layer | Available evidence | What it does not establish |
+|---|---|---|
+| Client request settings | `request_params` and `request_sha256` in the [captured requests](../evidence/gateway-cache-20261026/responses_opus.jsonl), before the documented model-alias mapping | Not a wire capture of the gateway's outbound request |
+| Upstream response | Native cache and thinking usage, with completed / truncated outcomes in [all records](../evidence/gateway-cache-20261026/interim-facts.json) | Not proof that every accepted parameter was honored, or that effort monotonically controls tokens |
+| Gateway outbound request | The [separate 2026-10-24 audit](results.md#gateway-test-2026-10-24) correlates its own client requests with provider traces | Per-request outbound audit is not retained for the current batch; the older audit cannot fill this gap |
+
+| thinking.type | Measured requests | Native thinking usage present / requests | Requests with positive thinking tokens |
+|---|---:|---:|---:|
+| `adaptive` | 432 | 432/432 | 353 |
+| `between_tools` | 96 | 96/96 | 0 |
+| `disabled` | 96 | 96/96 | 0 |
+
+This is observed usage, not a model ranking. No tool loop was exercised, so zero thinking in `between_tools` does not test its between-tool behavior. A zero value in an adaptive request alone does not prove a dropped parameter. Acceptance/rejection probes from the older direct path remain historical, not a current gateway support matrix.
+
+### Configuration guidance and checks
+
+| Setting to check | Reproducible configuration | Observable check and limit |
+|---|---|---|
+| Gateway forwarding | Start from [config.yaml](../deploy/config.yaml): `drop_params: false`; gateway/router retries are zero | Capture [provider traces](../deploy/trace_hook.py) for the same call ID. Configuration text alone is not proof of forwarding; the matrix client can separately retry a 429 |
+| Prompt caching | This matrix uses top-level `cache_control`, `type: ephemeral`, `ttl: 1h` | Check native write and read token counts. It did not compare TTL choices or cache disabled; choose production TTL against actual session gaps and write cost |
+| Thinking and effort | Use the explicitly named configuration, preserving `default` as an omitted field | Compare matching rows plus their code-test outcomes. This public subset does not select a production-optimal effort |
+| Output cap and streaming | Reproduction uses `max_tokens: 128000`, `stream: true` | Require a terminal stream and inspect `stop_reason`; the cap still caused truncation. Do not count HTTP 200 or the first event as a completed answer |
 
 ### Code correctness after performance
 
 **Method.** The same 624 measured answers, excluding only warm-ups, were graded with the official SWE-bench harness 5.0.2 at commit `02e7a74ffd0b707aab73d203fe87bdc7c76afc8e`. The official `extract_diff` function extracted predictions; no answer repair or new model call was used. Each cell/repeat has a separate run ID. All 12 selected gold controls passed. [Frozen inputs, native reports and verifier](../evidence/gateway-score-20261027/verification.json).
-
-| Model | Resolved / measured answers | Resolved (%) |
-|---|---:|---:|
-| Opus 5.5 | 104/144 | 72.22 |
-| Sonnet 5.5 | 87/240 | 36.25 |
-| Haiku 5.5 | 54/240 | 22.50 |
 
 Overall: 245/624 (39.26%) resolved; 257 patch-application failures, 108 unresolved test results and 14 truncated empty answers. These stay in the denominator. Different model/mode populations make the aggregate unsuitable as a fair overall ranking; each matched cell has 24 answers. This is a 12-instance subset, not the full SWE-bench Lite score.
 
@@ -160,6 +288,123 @@ Overall: 245/624 (39.26%) resolved; 257 patch-application failures, 108 unresolv
 **Ambiguity retained.** 6 official `no_tests_collected` flags remain unresolved. Each associated log first collected 92 top-level tests, includes nested zero-collection output, and shows `NameError: cached_eval`; none was silently removed or relabeled. [Six source-linked reviews](../evidence/gateway-score-20261027/ambiguous-review.json). The [environment inventory](../evidence/gateway-score-20261027/environment.json) was captured after evaluation, not as in-run telemetry.
 
 **Evidence and replay.** [Facts](../evidence/gateway-cache-20261026/interim-facts.json), [export hashes and redactions](../evidence/gateway-cache-20261026/_export_manifest.json), [Opus](../evidence/gateway-cache-20261026/responses_opus.jsonl), [Sonnet](../evidence/gateway-cache-20261026/responses_sonnet.jsonl), [Haiku](../evidence/gateway-cache-20261026/responses_haiku.jsonl). The metrics-only projection omits prompt/answer bodies, thinking signatures, private endpoints and other headers; it is not a correctness-scoring dataset. Replay instructions are in [Testing](testing.md#aca-snapshot-replay).
+
+<a id="historical-evidence"></a>
+
+## Historical observations: different paths and inputs
+
+The following records preserve earlier direct and cross-region observations. They are not current ACA configuration recommendations or performance results.
+
+<a id="historical-settings"></a>
+
+**Historical request settings.** What each setting does, from Claude's documentation, and what the retained direct-VM runs sent. Accepted values come from that historical probe; these observations do not describe the current ACA run:
+
+| Setting | What it does | Historical observation |
+|---|---|---|
+| `thinking.type: "adaptive"` | The model decides for each request whether to think before answering and for how long; `output_config.effort` steers how much. Sending no `thinking` field does the same on these three models | All three models, effort low to max |
+| `thinking.type: "between_tools"` | Sonnet 5.5's lowest setting: no thinking before the answer. Short progress updates written between tool calls still come back as thinking blocks; without tools the answer is text only. Accepted at effort `high` or below | Sonnet, effort low, medium, high; no tools |
+| `thinking.type: "disabled"` | Thinking off. Only Haiku 5.5 accepts it, at effort `high` or below; Opus 5.5 cannot turn thinking off | Haiku, effort low, medium, high |
+| `thinking.display` | Whether thinking text comes back. The default on these models, `"omitted"`, returns thinking blocks with empty text and an encrypted signature, so the answer starts streaming sooner; the thinking tokens are still billed. `"summarized"` returns a summary | Not sent: 610 matrix answers used thinking tokens and none streamed thinking text |
+| `output_config.effort` | How much work goes into the whole response, thinking included: `low`, `medium`, `high`, `xhigh`, `max`. A behavioral signal, not a token budget. Default when omitted: Opus and Haiku `medium`, Sonnet `high` | Every level each thinking mode accepted: 21 cells |
+| `max_tokens` | Hard limit on output tokens, thinking included; an answer that reaches it stops with `stop_reason: "max_tokens"`. At most 128,000 on these models | 128,000 in the matrix; 1,000,000 returned HTTP 400 |
+| No `cache_control` (the default) | Nothing is cached: caching is opt-in. "Automatic caching" also needs the top-level field; "automatic" means the breakpoint is placed for you, not that caching is on by default. The documented exceptions involve tools: in a tool-use loop, history sent back with tool results can be cached without a marker, and server-tool results are cached automatically | The coding matrix (1,155 requests) and the cache test's baseline (24 requests; each turn resent the same prefix of about 15,500 tokens): 0 cache reads and 0 cache writes in every response |
+| `cache_control` at the top level | Automatic caching: the breakpoint goes on the last cacheable block and moves forward as the conversation grows | Cache test: most scenarios |
+| `cache_control` on a content block | Explicit breakpoint: caches the prompt up to and including that block, in the order `tools`, `system`, `messages`. At most 4 breakpoints per request; a prompt under 512 tokens is not cached | Cache test: after the repository files |
+| `cache_control.ttl` | How long an unused entry lives: `"5m"` by default, renewed on every read, or `"1h"`. Writes cost 1.25× the input price (5 minutes) or 2× (1 hour); reads cost 0.05× on Opus and Sonnet, 0.1× on Haiku | Both: 6.5 minutes idle before the second turn |
+| Per-message effort | An effort-only `system` message changes effort for later turns without touching the top-level field, so the cached prefix stays valid. Beta, header `anthropic-beta: mid-conversation-output-config-2026-07-01`; Foundry is not among the platforms the effort page lists for it | One cache scenario; all 264 cache requests returned HTTP 200 |
+| `temperature`, `top_p`, `top_k` | Sampling. On these models any non-default value returns HTTP 400 | Probe only: HTTP 400 in every mode tried; never sent in the matrix |
+| `stream` | `true` returns server-sent events, the only way to time the first visible text | `true` on every timed request; the pre-warm request with `max_tokens: 0` is not streamed, as the API requires |
+| Deployment type, chosen when the deployment is created | GlobalStandard may serve a request outside the resource's region; US Data Zone Standard keeps inference in the United States, like `inference_geo: "us"` on the Claude API. Sonnet 5.5 supports GlobalStandard only | GlobalStandard only; every matrix response reported `usage.inference_geo` `global` |
+
+**Table 1. Complete thinking-mode and effort matrix.**
+
+[![Table 1. Complete thinking-mode and effort matrix.](../images/parameter-support-en.svg)](../images/parameter-support-en.svg)
+
+The 54 `adaptive`/`between_tools`/`disabled` × effort cells were individually probed; 26 were accepted, including five omitted-effort cells. For `enabled`, one request per model used `budget_tokens: 1024` and omitted effort; the HTTP 400 rejects the mode itself, so all effort cells say not supported. The cache column states applicability only: a rejected thinking mode makes the request inapplicable; it does not mean the model lacks caching. Default effort values are from the [effort documentation](https://platform.claude.com/docs/en/build-with-claude/effort).
+
+Historical cache scope: all five accepted model/mode rows read cache at effort low; adaptive also read cache in the high-effort switch scenario. The later ACA matrix above separately reports its full mode/effort coverage. Applicability and parameter acceptance alone do not establish cache-enabled performance. Fixed historical matrix controls: `max_tokens: 128000`, `stream: true`; `temperature`, `top_p`, `top_k` omitted. No `thinking` field is documented to select adaptive; the three omitted-thinking/omitted-effort probes returned 200.
+
+**Table 2. Complete prompt-cache settings.**
+
+[![Table 2. Complete prompt-cache settings.](../images/cache-settings-en.svg)](../images/cache-settings-en.svg)
+
+Sources: [probe requests](../evidence/coding-matrix-20261026/probe/probe_results.jsonl), [cache requests](../evidence/coding-matrix-20261026/cache/cache_results.jsonl) and [prompt-caching documentation](https://platform.claude.com/docs/en/build-with-claude/prompt-caching). Table 2 uses two repetitions per scenario: Opus adaptive, Sonnet between_tools, Haiku disabled, effort low; first writes are separate from turns 2-4. Read share is read tokens / (uncached + written + read input tokens), aggregated within each model/scenario/turn. New conversations reuse the files but change the question. The 512-token boundary and four-breakpoint limit are documented, not boundary-sweep measurements. All cache markers use `type: ephemeral`; reads cost 0.05x base input on Opus/Sonnet and 0.1x on Haiku (documented prices). These are historical direct-VM observations, not evidence for the later ACA run.
+
+**Not covered:** tool use, where `between_tools` and progress updates matter; `display: "summarized"`; US Data Zone deployments; and the separate `claude-opus-5-5-fast` model in the Foundry catalog.
+
+**Historical per-model summary.** What each deployment accepted and how it did on the 18 problems in the retired direct-VM batch; not current ACA results:
+
+| Question | Opus 5.5 | Sonnet 5.5 | Haiku 5.5 |
+|---|---|---|---|
+| Thinking modes the API accepted | `adaptive` only; `disabled` and `between_tools` return 400 | `adaptive`; `between_tools` at low, medium, high | `adaptive`; `disabled` at low, medium, high |
+| Effort levels / default when omitted | low to max / medium | low to max / high | low to max / medium |
+| First visible text, P50 of the fastest cell | 0.48 s (`adaptive` · low) | 0.39 s (`between_tools` · high) | 0.43 s (`disabled` · high) |
+| Unit tests passed per cell, of 54 answers | 54 in every cell | 40 to 44 | 24 to 28 with `adaptive`; 17 to 21 with `disabled` |
+| List-price cost per 1,000 requests | $23.34 to $355.75 | $13.04 to $356.49 | $0.69 to $22.26 |
+| Choose it when (our reading of this test) | Answers must be right the first time. Start at `low`: every effort level passed all 54, and `low` was the fastest (0.48 s) and cheapest | You want most of Opus's accuracy at a lower price: `between_tools` passed as often as `adaptive`, started in under 0.5 s and cost $13.16–$13.76 per 1,000 requests | Cost matters most and a wrong answer can be retried. Keep thinking on: at the same effort levels `adaptive` passed 12.3 points more often than `disabled` |
+
+**Historical scope.** The problems are public Exercism exercises from [Aider's polyglot benchmark](https://github.com/Aider-AI/polyglot-benchmark), each answered once, without tools and without seeing the tests; they are not your production tasks. The retired batch called Foundry directly, one request at a time per deployment. Its costs and accuracy are historical observations, not evidence for the current cache-enabled ACA path. Costs use list prices and were not reconciled with an Azure invoice.
+
+**Sources.** Accepted values and the HTTP 400 messages come from our probe ([results](results.md#parameter-probe-2026-10-26)). What each setting does, the defaults, the rules for `between_tools` and `disabled`, and the advice to set `max_tokens` to 128,000 for agentic coding on Sonnet 5.5 come from Claude's [thinking](https://platform.claude.com/docs/en/build-with-claude/thinking) and [effort](https://platform.claude.com/docs/en/build-with-claude/effort) pages; cache rules and price multipliers from [prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching); prices from [pricing](https://platform.claude.com/docs/en/about-claude/pricing); hosting options and Foundry setup from [Claude in Microsoft Foundry](https://platform.claude.com/docs/en/build-with-claude/claude-in-microsoft-foundry); all read on 2026-10-26. The *Choose it when* row is our reading of these 18 problems, not general advice.
+
+| Term | Meaning |
+|---|---|
+| Cell | One model × thinking mode × effort level. Each cell answered the 18 problems three times: 54 answers |
+| Thinking mode, effort level | Defined in the [historical request-settings table](#historical-settings) |
+| First visible text | Seconds from just before the request is written to the first non-empty `text_delta`, timed on the VM. Thinking comes first and its text is not streamed (`display` omitted), so this wait includes all thinking |
+| First event | Seconds to the first server-sent event, `message_start` |
+| Full answer | Seconds to the end of the stream, completed requests only |
+| Completed | HTTP 200, `message_stop` received, `stop_reason` `end_turn` and non-empty text |
+| Pass | The files in the answer, written over the exercise's solution files, make its own unit tests exit 0 in an offline container (Aider's first-attempt rule) |
+| By-problem 95% interval | 2.5th to 97.5th percentile over 5,000 resamples of the 18 problems (seed 20261026). The three answers to one problem are not independent, so the problem is the unit |
+| Cost | List price × the token counts in the API's `usage`, cache writes and reads included |
+
+| Part | Where | Detail |
+|---|---|---|
+| Client: probe, matrix, cache test | Linux VM `Standard_D4s_v5`, East US 2 | Ubuntu 24.04, kernel 7.0.0-1017-azure, Python 3.12.3, httpx 0.28.1, azure-identity 1.25.1; Entra token from the VM's managed identity; TCP connect to the endpoint 9.67 ms median before the matrix |
+| Models | Foundry resource in East US 2 | `claude-opus-5-5` 40,000 tokens per minute; `claude-sonnet-5-5` and `claude-haiku-5-5` 80,000 each; version 2, GlobalStandard, so a request may be served outside East US 2 |
+| Unit tests | Docker on the same VM | `--network none`, 1.5 CPUs, 3 GB; the toolchains of Aider's benchmark image: Python 3.11, Go 1.21.5, Rust, Node 20, OpenJDK 21, CMake and Boost |
+
+| Number | From → to, or how | Script |
+|---|---|---|
+| Accepted values | HTTP 200 or 400 for a one-word prompt sent with each value | [`probe.py`](../coding-matrix/probe.py) |
+| First visible text, first event, full answer | request written → first `text_delta`, `message_start`, end of stream; clock on the VM | [`claude_api.py`](../coding-matrix/claude_api.py) `stream_message` |
+| Completed, thinking and output tokens | status, `stop_reason` and `usage` of each stream | [`bench.py`](../coding-matrix/bench.py) |
+| Pass | the exercise's unit tests, offline in Docker | [`judge.py`](../coding-matrix/judge.py) |
+| P50, P95, intervals, cost per 1,000 | nearest rank; bootstrap over problems; mean list-price cost × 1,000 | [`analyze.py`](../coding-matrix/analyze.py) |
+| Cache reads and writes, conversation cost | `usage` of each turn; the same tokens priced as if nothing were cached | [`cache_test.py`](../coding-matrix/cache_test.py), [`cache_analyze.py`](../coding-matrix/cache_analyze.py) |
+
+**Do not read these grids as a general ranking of the three models.** Opus answered all 18 problems correctly in every cell, so this test cannot separate its effort levels. With 18 problems, a Sonnet or Haiku cell's 95% interval spans 30 to 44 points (for example Sonnet `between_tools` · high: 44 of 54, 65% to 94%). The problems are short single-file exercises. Each row is one model and thinking mode, each column an effort level; *not accepted* means the API returned HTTP 400. P95, full-answer times, token counts and every interval are on [the results page](results.md#results-per-cell).
+
+**Unit tests passed, of 54 answers**
+
+| Model · thinking | low | medium | high | xhigh | max |
+|---|---:|---:|---:|---:|---:|
+| Opus 5.5 · `adaptive` | 54/54 | 54/54 | 54/54 | 54/54 | 54/54 |
+| Sonnet 5.5 · `adaptive` | 41/54 | 42/54 | 40/54 | 41/54 | 44/54 |
+| Sonnet 5.5 · `between_tools` | 42/54 | 41/54 | 44/54 | not accepted | not accepted |
+| Haiku 5.5 · `adaptive` | 24/54 | 26/54 | 27/54 | 28/54 | 28/54 |
+| Haiku 5.5 · `disabled` | 19/54 | 17/54 | 21/54 | not accepted | not accepted |
+
+**First visible text, P50, seconds**
+
+| Model · thinking | low | medium | high | xhigh | max |
+|---|---:|---:|---:|---:|---:|
+| Opus 5.5 · `adaptive` | 0.48 | 3.71 | 4.05 | 6.04 | 51.4 |
+| Sonnet 5.5 · `adaptive` | 0.46 | 0.50 | 3.25 | 7.44 | 190 |
+| Sonnet 5.5 · `between_tools` | 0.42 | 0.44 | 0.39 | not accepted | not accepted |
+| Haiku 5.5 · `adaptive` | 4.13 | 4.62 | 8.21 | 14.9 | 121 |
+| Haiku 5.5 · `disabled` | 0.46 | 0.45 | 0.43 | not accepted | not accepted |
+
+**List-price cost per 1,000 requests, US dollars**
+
+| Model · thinking | low | medium | high | xhigh | max |
+|---|---:|---:|---:|---:|---:|
+| Opus 5.5 · `adaptive` | $23.34 | $34.52 | $38.75 | $65.36 | $355.75 |
+| Sonnet 5.5 · `adaptive` | $13.04 | $13.57 | $18.36 | $31.62 | $356.49 |
+| Sonnet 5.5 · `between_tools` | $13.16 | $13.21 | $13.76 | not accepted | not accepted |
+| Haiku 5.5 · `adaptive` | $1.27 | $1.57 | $2.14 | $4.19 | $22.26 |
+| Haiku 5.5 · `disabled` | $0.69 | $0.69 | $0.73 | not accepted | not accepted |
 
 ## Coding matrix, 2026-10-26
 

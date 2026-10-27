@@ -2,6 +2,7 @@ import argparse
 import html
 import json
 import math
+import re
 
 import coding_data
 import render_coding
@@ -347,9 +348,11 @@ def gateway_results(result, chinese):
 
 
 def gateway_testing(chinese):
-    return f'''## {'重做 2026-10-24 的网关测试' if chinese else 'Repeat the 2026-10-24 gateway test'}
+    return f'''<a id="gateway-setup"></a>
 
-{'下面在新的 Container App 上部署 LiteLLM，并让十种配置的对话经过它。Container App 的区域请选 Foundry 资源所在区域：2026-10-24 的运行用的是 Japan East，所以它的时间包含跨区域往返。命令在 PowerShell 7.6 中运行。' if chinese else 'These steps deploy LiteLLM on a new Container App and send the ten-configuration conversation through it. Choose the Foundry resource\'s region for the Container App: the 2026-10-24 run used Japan East, so its times include a cross-region round trip. Commands run in PowerShell 7.6.'}
+## {'部署网关并核验透传' if chinese else 'Deploy a gateway and audit forwarding'}
+
+{'第 1-4 步在专用 Container App 上部署并检查 LiteLLM，完成后可回首页运行 650 请求矩阵。第 5-6 步是独立的 50 请求参数透传诊断，沿用 2026-10-24 的十组五轮工作负载，并非 650 请求矩阵。Container App 选择 Foundry 资源所在区域；要复现当前位置条件，使用 East US 2。历史诊断在 Japan East，时间包含跨区域往返。以下命令使用 PowerShell 7.6，部署环境不等于完成模型测试。' if chinese else 'Steps 1-4 deploy and check LiteLLM on a dedicated Container App; then return to the README for the 650-request matrix. Steps 5-6 are a separate 50-request forwarding diagnostic using the ten five-turn configurations from 2026-10-24, not the 650-request matrix. Choose the Foundry resource\'s region for the app; use East US 2 to reproduce the current placement. The historical diagnostic ran in Japan East and includes cross-region latency. These commands use PowerShell 7.6; a deployed environment is not a completed model test.'}
 
 {deployment_steps(chinese)}
 
@@ -373,6 +376,12 @@ def security(chinese):
 {'本轮 ACA 的 650 条请求和 624 份正式答案评分已收齐；失败和六条官方模糊标记保留。未验证：公开包装在全新订阅中的端到端部署、并发压测、Azure 以外的客户端、display: "summarized"、带工具的请求，以及客户自己的任务。评分环境版本是评分后采集，不是运行时遥测。' if chinese else 'All 650 ACA request records and grading outcomes for 624 measured answers are retained, including failures and six official ambiguous flags. Not verified: an end-to-end deployment in a fresh subscription, concurrency or load, a client outside Azure, display: "summarized", tool use, and customer tasks. Environment versions were collected after grading, not as in-run telemetry.'}'''
 
 
+def links_from_docs(markup):
+    markup = re.sub(r'(?<=\]\()docs/', '', markup)
+    markup = re.sub(r'(?<=\]\()(?=(?:coding-matrix|gateway-cache|data|evidence|images|scripts|deploy|tests)/|NOTICE\.md)', '../', markup)
+    return markup.replace('src="images/', 'src="../images/')
+
+
 def pages(result):
     d = coding_data.load()
     output = {}
@@ -382,12 +391,12 @@ def pages(result):
         readme_name = f"README{suffix}.md"
         other = "README.md" if chinese else "README_CN.md"
         if chinese:
-            title = "Microsoft Foundry 上的 Claude 5.5：思考模式、推理档位、提示缓存、延迟与编码正确率"
+            title = "Claude 5.5 经 LiteLLM 接入 Microsoft Foundry：参数、提示缓存与性能验证"
             headings = ("目的", "实现效果", "操作步骤")
             anchors = ("#目的", "#实现效果")
             author = "作者：魏新宇 · [English](README.md)"
         else:
-            title = "Claude 5.5 on Microsoft Foundry: Thinking, Effort, Prompt Caching, Latency and Coding Accuracy"
+            title = "Claude 5.5 through LiteLLM on Microsoft Foundry: Parameters, Prompt Cache and Performance"
             headings = ("Purpose", "Results", "Steps")
             anchors = ("#purpose", "#results")
             author = "Author: Xinyu Wei · [中文](README_CN.md)"
@@ -403,21 +412,39 @@ def pages(result):
             f"## {headings[2]}", render_coding.steps(d, chinese),
         ])
         nav_results = f"[README](../{readme_name}) · [{'复测与核验' if chinese else 'Testing'}](testing{suffix}.md) · [{'English' if chinese else '中文'}](results{'' if chinese else '_CN'}.md)"
-        intro_results = ("先看本轮 East US 2 ACA 全量性能结果，再看 624 份正式答案的代码正确率；全部配置、失败和限制均保留。已取缔直连方案的历史编码矩阵、参数探测、缓存测试和早期网关检查放在后面，不与本轮混算。"
-             if chinese else "Current East US 2 ACA performance comes first, followed by correctness for all 624 measured answers. Every configuration, failure and limitation is retained. Retired direct-VM matrix, probe, cache and earlier gateway evidence follow, without pooling runs.")
+        intro_results = ("先看当前 East US 2 ACA 全矩阵性能，再核对参数与缓存证据及 624 份答案的正确率。历史直连、参数探测和早期跨区域网关结果独立标注，不与当前批次混算，也不能补齐当前出站审计的缺口。"
+             if chinese else "Current East US 2 ACA performance comes first, then parameter/cache evidence and correctness for all 624 measured answers. Historical direct, probe and cross-region gateway results remain separate; they neither pool with the current run nor fill its outbound-audit gap.")
+        historical_overview = "\n\n".join([
+            '<a id="historical-evidence"></a>',
+            "## " + ("历史观察：不同路径与题目" if chinese else "Historical observations: different paths and inputs"),
+            ("以下内容记录早期直连和跨区域测试，保留原值；不是当前 ACA 批次的配置建议或性能成绩。" if chinese else
+             "The following records preserve earlier direct and cross-region observations. They are not current ACA configuration recommendations or performance results."),
+            '<a id="historical-settings"></a>',
+            links_from_docs(render_coding.purpose(d, chinese, language, historical=True)),
+            render_coding.glossary(chinese),
+            links_from_docs(render_coding.where_table(d, chinese)),
+            links_from_docs(render_coding.timing_table(chinese)),
+            links_from_docs(render_coding.caution(d, chinese)), render_coding.grids(d, chinese),
+        ])
         output[f"docs/results{suffix}.md"] = "\n\n".join([
             f"# {'实测结果' if chinese else 'Measured Results'}", nav_results, intro_results,
             render_coding.gateway_snapshot(chinese, detailed=True),
+            historical_overview,
             render_coding.results_page(d, chinese), gateway_results(result, chinese),
         ])
         nav_testing = f"[README](../{readme_name}) · [{'实测结果' if chinese else 'Results'}](results{suffix}.md) · [{'English' if chinese else '中文'}](testing{'' if chinese else '_CN'}.md)"
-        intro_testing = ("本页给出离线核验、重做 2026-10-26 测试和重做 2026-10-24 网关测试的完整命令。部署三个模型和发出第一个请求见 README 的操作步骤。"
-                         if chinese else "This page gives the complete commands for the offline checks, for repeating the 2026-10-26 tests and for repeating the 2026-10-24 gateway test. Deploying the three models and sending the first request are README steps 1 to 4.")
+        intro_testing = ("首页拥有当前 ACA 矩阵的执行顺序。本页区分离线复算、新答案评分、网关部署与独立透传诊断，并保留历史直连命令。每条路径只证明自己的阶段；离线通过不代表新部署、重新推理或生产验收。"
+                         if chinese else "The README owns the current ACA matrix execution sequence. This page separates offline replay, new-answer grading, gateway deployment and a separate forwarding diagnostic, followed by historical direct commands. Each path proves only its own stage; offline success is not a fresh deployment, inference run or production acceptance.")
         output[f"docs/testing{suffix}.md"] = "\n\n".join([
             f"# {'复测与核验' if chinese else 'Testing and Reproduction'}", nav_testing, intro_testing,
             render_coding.gateway_snapshot_replay(chinese),
-            render_coding.testing_offline(chinese), render_coding.testing_repeat(d, chinese),
+            render_coding.testing_offline(chinese), render_coding.fresh_aca_analysis(chinese),
             gateway_testing(chinese), security(chinese),
+            '<a id="historical-direct-procedure"></a>',
+            "## " + ("历史直连步骤，仅供参考" if chinese else "Historical direct procedure, reference only"),
+            links_from_docs(render_coding.steps(d, chinese, historical=True)),
+            render_coding.testing_repeat(d, chinese).replace("先完成 README 的第 1 到 4 步", "先完成本页历史直连步骤第 1 到 4 步")
+                .replace("Finish README steps 1 to 4", "Finish the historical direct procedure above, steps 1 to 4"),
         ])
         output[f"images/topology-{language}.svg"] = render_coding.topology(d, chinese)
         output[f"images/latency-{language}.svg"] = latency_chart(result["groups"], chinese)

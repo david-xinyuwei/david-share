@@ -39,10 +39,10 @@ def read_records(path):
             if line.endswith("\n") and line.strip()]
 
 
-def load(run_dir):
+def load(run_dir, final_only=True):
     rows = [row for path in sorted(Path(run_dir).glob("responses_*.jsonl"))
-            for row in read_records(path) if row["final"]]
-    identities = [row["task_id"] for row in rows]
+            for row in read_records(path) if not final_only or row["final"]]
+    identities = [row["task_id"] for row in rows if row["final"]]
     if len(identities) != len(set(identities)):
         raise ValueError("Duplicate final task_id in snapshot")
     return rows
@@ -62,11 +62,15 @@ def side(rows):
     read = sum(u.get("cache_read_input_tokens", 0) or 0 for u in usage)
     total = sum(prompt_tokens(u) for u in usage)
     times = {k: [r["timing"].get(k) for r in rows] for k in ("first_event", "first_text", "end")}
+    output_rates = [row["usage"]["output_tokens"] / row["timing"]["end"] for row in rows
+                    if row["usage"].get("output_tokens") is not None and (row["timing"].get("end") or 0) > 0]
     return {"first_event_p50": nearest_rank(times["first_event"], 0.5),
             "first_text_p50": nearest_rank(times["first_text"], 0.5),
             "first_text_p95": nearest_rank(times["first_text"], 0.95),
             "end_p50": nearest_rank(times["end"], 0.5),
             "end_p95": nearest_rank(times["end"], 0.95),
+            "output_tokens_per_second_p50": round(nearest_rank(output_rates, 0.5), 4) if output_rates else None,
+            "output_rate_samples": len(output_rates),
             "read_share": round(read / total, 4) if total else None,
             "written_tokens": sum(u.get("cache_creation_input_tokens", 0) or 0 for u in usage),
             "read_tokens": read,
@@ -91,7 +95,8 @@ def summarize(pairs):
 
 
 def analyze(run_dir):
-    rows = load(run_dir)
+    attempts = load(run_dir, final_only=False)
+    rows = [row for row in attempts if row["final"]]
     run = json.loads((Path(run_dir) / "run.json").read_text(encoding="utf-8"))
     cells = {entry["cell_id"]: entry for entry in run["config"]["cells"]}
     if len(cells) != len(run["config"]["cells"]) or any(row["cell_id"] not in cells for row in rows):
@@ -102,6 +107,15 @@ def analyze(run_dir):
     problems = len(run["config"]["problem_ids"])
     measured_per_cell = problems * run["config"]["repeats"]
     measured = [r for r in rows if r["kind"] == "measured"]
+    thinking = {}
+    for mode in MODES:
+        selected = [row for row in measured if cells[row["cell_id"]]["mode"] == mode]
+        if not selected:
+            continue
+        tokens = [(row.get("usage") or {}).get("output_tokens_details", {}).get("thinking_tokens")
+                  for row in selected]
+        thinking[mode] = {"requests": len(selected), "usage_requests": sum(value is not None for value in tokens),
+                          "positive_thinking_requests": sum(value is not None and value > 0 for value in tokens)}
     groups = defaultdict(dict)
     for row in measured:
         groups[(row["cell_id"], row["problem_id"])][row["repeat"]] = row
@@ -146,6 +160,10 @@ def analyze(run_dir):
                      "observed_warmups": sum(row["kind"] == "warmup" for row in rows),
                      "planned_warmups": len(cells), "collection_complete": len(rows) == expected},
         "planned": run["planned"], "final_requests": Counter(r["model"] for r in rows),
+        "transport": {"attempts": len(attempts),
+                  "http_statuses": Counter(str(row.get("http_status")) for row in attempts),
+                  "retry_attempts": sum(row["attempt"] > 1 for row in attempts)},
+        "thinking_by_mode": thinking,
         "prompt_tokens_range": [min(cold_prompts), max(cold_prompts)] if cold_prompts else None,
         "statuses": Counter(f"{r['status']} http={r['http_status']}" for r in rows),
         "attempts_over_one": sum(1 for r in rows if r["attempt"] > 1),
@@ -159,7 +177,9 @@ def analyze(run_dir):
         "inference_geo": Counter((r["usage"] or {}).get("inference_geo") for r in rows),
         "served_region": Counter((r.get("headers") or {}).get("llm_provider-x-ms-region") for r in rows),
         "cost_usd": round(sum(r["cost_usd"] for r in rows), 4),
-        "by_model": {m: summarize(by_model[m]) for m in MODELS if by_model[m]},
+        "by_model": {model: {**summarize(by_model[model]),
+                     "completed_pairs": sum(pair[0]["model"] == model for pair in complete_pairs.values())}
+                 for model in MODELS if by_model[model]},
         "by_cell": coverage,
     }
 

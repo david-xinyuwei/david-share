@@ -303,11 +303,11 @@ def support_tables(d, chinese, language):
                 f"The 54 `adaptive`/`between_tools`/`disabled` × effort cells were individually probed; {accepted} were accepted, including five omitted-effort cells. For `enabled`, one request per model used `budget_tokens: 1024` and omitted effort; the HTTP 400 rejects the mode itself, so all effort cells say not supported. The cache column states applicability only: a rejected thinking mode makes the request inapplicable; it does not mean the model lacks caching. Default effort values are from the [effort documentation]({EFFORT_DOC}).",
                 f"`adaptive`、`between_tools`、`disabled` 与六列档位共 54 格，均单独探测；其中 {accepted} 格被接受，包括五个不传 effort 的格子。`enabled` 每模型只测一次：`budget_tokens: 1024`，不传 effort；HTTP 400 拒绝的是模式本身，所以六个档位格都标“不支持”。缓存列只写适用性：思考模式使请求被拒时标“不适用”，不是说模型不支持缓存。默认档位来自[effort 文档]({EFFORT_DOC})。")
     cache_scope = tr(chinese,
-                     "Cache observations: all five accepted model/mode rows read cache at effort low; adaptive also read cache in the high-effort switch scenario. Other effort combinations still need cache-hit verification through ACA. Applicability and parameter acceptance are not completed cache-enabled performance testing. Fixed matrix controls: `max_tokens: 128000`, `stream: true`; `temperature`, `top_p`, `top_k` omitted. No `thinking` field is documented to select adaptive; the three omitted-thinking/omitted-effort probes returned 200.",
-                     "缓存实测范围：五个被接受的模型／模式行均在 low 档读到缓存；adaptive 在切换到 high 的场景也读到缓存。其他档位组合仍需经 ACA 逐格验证缓存命中。“适用”和“参数被接受”不等于“开启缓存后的性能已测完”。矩阵固定项：`max_tokens: 128000`、`stream: true`；`temperature`、`top_p`、`top_k` 不传。不传 thinking 等同 adaptive 来自文档；三个模型同时不传 thinking、effort 的探测均返回 200。")
+                     "Historical cache scope: all five accepted model/mode rows read cache at effort low; adaptive also read cache in the high-effort switch scenario. The later ACA matrix above separately reports its full mode/effort coverage. Applicability and parameter acceptance alone do not establish cache-enabled performance. Fixed historical matrix controls: `max_tokens: 128000`, `stream: true`; `temperature`, `top_p`, `top_k` omitted. No `thinking` field is documented to select adaptive; the three omitted-thinking/omitted-effort probes returned 200.",
+                     "历史缓存范围：当时五个被接受的模型／模式行均在 low 档读到缓存；adaptive 在切换到 high 的场景也读到缓存。后续 ACA 全矩阵的覆盖与结果见上方独立章节。“适用”和“参数被接受”本身不证明缓存性能。历史矩阵固定项为 `max_tokens: 128000`、`stream: true`；`temperature`、`top_p`、`top_k` 不传。不传 thinking 等同 adaptive 来自文档；三个模型同时不传 thinking、effort 的探测均返回 200。")
     notes2 = tr(chinese,
-                f"Sources: [probe requests](evidence/coding-matrix-20261026/probe/probe_results.jsonl), [cache requests](evidence/coding-matrix-20261026/cache/cache_results.jsonl) and [prompt-caching documentation]({CACHE_DOC}). Table 2 uses two repetitions per scenario: Opus adaptive, Sonnet between_tools, Haiku disabled, effort low; first writes are separate from turns 2-4. Read share is read tokens / (uncached + written + read input tokens), aggregated within each model/scenario/turn. New conversations reuse the files but change the question. The 512-token boundary and four-breakpoint limit are documented, not boundary-sweep measurements. All cache markers use `type: ephemeral`; reads cost 0.05x base input on Opus/Sonnet and 0.1x on Haiku (documented prices). These tables preserve the historical direct-VM evidence; no new ACA performance result is asserted.",
-                f"来源：[探测请求](evidence/coding-matrix-20261026/probe/probe_results.jsonl)、[缓存请求](evidence/coding-matrix-20261026/cache/cache_results.jsonl)及[缓存文档]({CACHE_DOC})。表 2 每场景重复两次：Opus adaptive、Sonnet between_tools、Haiku disabled，effort low；首轮写入与第 2-4 轮读取分开。读取比例＝读取 tokens ÷（未缓存＋写入＋读取的输入 tokens），按模型／场景／轮次汇总。新对话复用文件但换了问题。512-token 边界和四断点上限来自文档，并非边界扫描实测。缓存标记均为 `type: ephemeral`；读取按输入价计费：Opus／Sonnet 0.05 倍、Haiku 0.1 倍（文档价格）。这里保留历史 VM 直连证据，不宣称已有新的 ACA 性能结果。")
+                f"Sources: [probe requests](evidence/coding-matrix-20261026/probe/probe_results.jsonl), [cache requests](evidence/coding-matrix-20261026/cache/cache_results.jsonl) and [prompt-caching documentation]({CACHE_DOC}). Table 2 uses two repetitions per scenario: Opus adaptive, Sonnet between_tools, Haiku disabled, effort low; first writes are separate from turns 2-4. Read share is read tokens / (uncached + written + read input tokens), aggregated within each model/scenario/turn. New conversations reuse the files but change the question. The 512-token boundary and four-breakpoint limit are documented, not boundary-sweep measurements. All cache markers use `type: ephemeral`; reads cost 0.05x base input on Opus/Sonnet and 0.1x on Haiku (documented prices). These are historical direct-VM observations, not evidence for the later ACA run.",
+                f"来源：[探测请求](evidence/coding-matrix-20261026/probe/probe_results.jsonl)、[缓存请求](evidence/coding-matrix-20261026/cache/cache_results.jsonl)及[缓存文档]({CACHE_DOC})。表 2 每场景重复两次：Opus adaptive、Sonnet between_tools、Haiku disabled，effort low；首轮写入与第 2-4 轮读取分开。读取比例＝读取 tokens ÷（未缓存＋写入＋读取的输入 tokens），按模型／场景／轮次汇总。新对话话题变化，但复用文件。512-token 边界和四断点上限来自文档，并非边界扫描实测。缓存标记均为 `type: ephemeral`；读取按输入价计费：Opus／Sonnet 0.05 倍、Haiku 0.1 倍（文档价格）。这些是历史 VM 直连观察，不能作为后续 ACA 批次的证据。")
     return "\n\n".join([title1, image1, notes1, cache_scope, title2, image2, notes2])
 
 
@@ -510,8 +510,8 @@ def purpose(d, chinese, language, historical=False):
     cells, n_problems, repeats = len(d["facts"]["cells"]), len(m["problems"]), m["repeats"]
     require(cells * n_problems * repeats == m["measured"] and m["warmups"] == cells, "matrix request counts do not add up")
     intro = tr(chinese,
-               f"**What this measures.** How Claude Opus 5.5, Sonnet 5.5 and Haiku 5.5 perform as deployed in Microsoft Foundry with the [Hosted on Azure]({HOSTING_DOC}) option: model version {version}, an Anthropic-operated service running on Azure infrastructure, in GlobalStandard deployments. For each coding request we measure how long the first visible text and the full answer take, whether the code passes the problem's own unit tests, and what the request costs at list price. The request settings in the table below change all of these, and some combinations are rejected with HTTP 400; a successful HTTP response shows none of this.",
-               f"**测什么。** 测 Claude Opus 5.5、Sonnet 5.5 和 Haiku 5.5 以 [Hosted on Azure]({HOSTING_DOC}) 方式部署在 Microsoft Foundry 上时的表现：模型版本 {version}，即 Anthropic 运营、运行在 Azure 基础设施上的服务，部署类型为 GlobalStandard。对每个编码请求，我们测首个可见文字和完整回答各要等多久、写出的代码能否通过题目自带的单元测试、按标价花多少钱。下表中的请求设置会同时改变这几项，有些组合还会直接返回 HTTP 400；只看请求成功看不出这些。")
+               f"**Question.** Which Claude settings reach Microsoft Foundry through LiteLLM, does the upstream prompt cache actually get reused, and what latency, output rate and cost does each configuration produce? This repository provides measured requests, evidence checks and reproduction steps for Opus 5.5, Sonnet 5.5 and Haiku 5.5. The tested deployments used [Hosted on Azure]({HOSTING_DOC}), model version {version}, GlobalStandard. Public coding problems provide controlled inputs, not evidence about your production workload.",
+               f"**要解决的问题。** Claude 请求经过 LiteLLM 后，参数是否传到 Microsoft Foundry，提示缓存是否真正复用，各配置的等待时间、输出速率和费用是多少？这里提供 Opus 5.5、Sonnet 5.5 和 Haiku 5.5 的实测请求、证据校验和复现步骤。被测部署采用 [Hosted on Azure]({HOSTING_DOC})，模型版本 {version}、GlobalStandard；公开编码题用于固定测试输入，不代表客户生产负载。")
     methods = tr(chinese,
                  f"**Current test method.** Linux VM client → LiteLLM on Azure Container Apps → Foundry, with the client, gateway and Foundry resource in {region}. The client uses the gateway key; LiteLLM uses its managed identity to call Foundry. Prompt caching is enabled with top-level `cache_control`. Each model has one request in flight, so this measures individual requests, not load.\n\n"
                  "**Historical gateway check (2026-10-24).** A Windows client sent a five-turn conversation through LiteLLM on Azure Container Apps in Japan East to the same deployments; LiteLLM used its own managed identity and was set not to drop parameters or retry. Those times include Japan-to-US network latency and are not results from the current East US 2 run. See [the results page](docs/results.md#gateway-test-2026-10-24).",
@@ -543,8 +543,8 @@ def purpose(d, chinese, language, historical=False):
         return "\n\n".join([settings_lead, settings_table(d, chinese), support_tables(d, chinese, language),
                             not_covered, per_model, decision_table(d, chinese), scope, sources])
     retired = tr(chinese,
-        "**Retired method.** The old direct-VM run omitted caching and does not meet the current cache-enabled test protocol. Its original evidence follows the current performance and correctness results below.",
-        "**已取缔的方案。** 旧 VM 直连批次未开启缓存，不满足当前开启缓存的测试要求。其原始证据保留在本轮性能与正确率结果后面。")
+        "**Responsibility and scope.** LiteLLM forwards requests; the upstream model service owns the prompt cache. These scripts collect and verify evidence. Operators must validate their own gateway version, routes and workload. Production capacity, historical incident resolution and an AWS comparison are not established. Earlier direct and cross-region runs remain separate in [Results](docs/results.md#historical-evidence).",
+        "**职责与范围。** LiteLLM 负责转发，提示缓存在上游模型服务侧；本仓库的脚本负责采集和校验。使用者仍须核对自己的网关版本、路由和工作负载。本测试不证明生产容量、历史故障已修复或相对 AWS 的表现。早期直连及跨区域结果单独保留在[结果页](docs/results_CN.md#historical-evidence)。")
     return "\n\n".join([intro, snapshot_link, methods.split("\n\n", 1)[0], figure,
                         tr(chinese, "Original test-topology diagram using unmodified [Azure icons](images/icon-sources.json).",
                            "原创测试拓扑图，使用未修改的 [Azure 图标](images/icon-sources.json)。"), retired])
@@ -555,7 +555,7 @@ def purpose(d, chinese, language, historical=False):
 def glossary(chinese):
     rows = tr(chinese, [
         ("Cell", "One model × thinking mode × effort level. Each cell answered the 18 problems three times: 54 answers"),
-        ("Thinking mode, effort level", "Defined in the request-settings table under [Purpose](#purpose)"),
+        ("Thinking mode, effort level", "Defined in the [historical request-settings table](#historical-settings)"),
         ("First visible text", "Seconds from just before the request is written to the first non-empty `text_delta`, timed on the VM. Thinking comes first and its text is not streamed (`display` omitted), so this wait includes all thinking"),
         ("First event", "Seconds to the first server-sent event, `message_start`"),
         ("Full answer", "Seconds to the end of the stream, completed requests only"),
@@ -565,7 +565,7 @@ def glossary(chinese):
         ("Cost", "List price × the token counts in the API's `usage`, cache writes and reads included"),
     ], [
         ("格", "一个模型 × 思考模式 × 推理档位的组合。每格把 18 道题各答 3 次，共 54 个回答"),
-        ("思考模式、推理档位", "定义见[目的](#目的)一节的请求设置表"),
+        ("思考模式、推理档位", "定义见[历史请求设置表](#historical-settings)"),
         ("首个可见文字", "从请求即将发出到收到第一个非空 `text_delta` 的秒数，在 VM 上计时。思考在它之前进行，且思考文字默认不流式返回（`display` 为 omitted），所以这段等待包含全部思考时间"),
         ("首个事件", "收到第一个服务端事件 `message_start` 的秒数"),
         ("完整回答", "收到流结束的秒数，只统计完成的请求"),
@@ -848,6 +848,49 @@ def navigation(chinese):
     return "\n".join(lines)
 
 
+def gateway_controls(facts, chinese, prefix):
+    suffix = "_CN" if chinese else ""
+    source = prefix + "evidence/gateway-cache-20261026"
+    legacy_link = ("results" if prefix else "docs/results") + suffix + ".md" + tr(chinese, "#gateway-test-2026-10-24", "#网关测试")
+    transport = facts["transport"]
+    http_counts = ", ".join(f"HTTP {status}: {count}" for status, count in sorted(transport["http_statuses"].items()))
+    parts = [tr(chinese, "### What the parameter evidence proves", "### 参数证据能证明什么"),
+             tr(chinese,
+                f"**Transport is not task success.** Recorded physical attempts: {transport['attempts']}; {http_counts}; retries: {transport['retry_attempts']}. These counts include warm-ups and any recorded retry attempts. The completion table retains truncated answers; this small, paced run is not a capacity or reliability guarantee.",
+                f"**HTTP 成功不等于任务完成。** 记录到 {transport['attempts']} 次物理尝试，状态分布为 {http_counts}；重试 {transport['retry_attempts']} 次。这里包含预热和所有已记录的重试；上面的完成表仍保留截断回答。这是限速后的小规模运行，不是容量或可靠性保证。"),
+             tr(chinese,
+                "| Evidence layer | Available evidence | What it does not establish |\n|---|---|---|\n"
+                f"| Client request settings | `request_params` and `request_sha256` in the [captured requests]({source}/responses_opus.jsonl), before the documented model-alias mapping | Not a wire capture of the gateway's outbound request |\n"
+                f"| Upstream response | Native cache and thinking usage, with completed / truncated outcomes in [all records]({source}/interim-facts.json) | Not proof that every accepted parameter was honored, or that effort monotonically controls tokens |\n"
+                f"| Gateway outbound request | The [separate 2026-10-24 audit]({legacy_link}) correlates its own client requests with provider traces | Per-request outbound audit is not retained for the current batch; the older audit cannot fill this gap |",
+                "| 证据层 | 已有证据 | 不能据此证明什么 |\n|---|---|---|\n"
+                f"| 客户端请求参数 | [请求记录]({source}/responses_opus.jsonl)中的 `request_params`、`request_sha256`，记录在已说明的模型别名转换之前 | 不是网关出站请求的抓包 |\n"
+                f"| 上游返回的行为 | [原生 usage 和终态]({source}/interim-facts.json)包含缓存读写、思考 token、完整结束和截断 | 不能证明所有被接受的参数都生效，也不能证明 effort 与 token 数严格单调 |\n"
+                f"| 网关出站参数 | [2026-10-24 的独立审计]({legacy_link})对齐了该批次客户端请求与 provider trace | 当前批次未保留逐请求出站审计，不能拿旧批次补齐 |")]
+    table = [tr(chinese,
+        "| thinking.type | Measured requests | Native thinking usage present / requests | Requests with positive thinking tokens |",
+        "| thinking.type | 正式请求数 | 有思考 token 字段／请求数 | 思考 token 大于零的请求数 |"),
+        "|---|---:|---:|---:|"]
+    for mode, item in facts["thinking_by_mode"].items():
+        table.append(f"| `{mode}` | {item['requests']} | {item['usage_requests']}/{item['requests']} | {item['positive_thinking_requests']} |")
+    parts.extend(["\n".join(table), tr(chinese,
+        "This is observed usage, not a model ranking. No tool loop was exercised, so zero thinking in `between_tools` does not test its between-tool behavior. A zero value in an adaptive request alone does not prove a dropped parameter. Acceptance/rejection probes from the older direct path remain historical, not a current gateway support matrix.",
+        "这些是 usage 观察，不是模型排名。本轮没有工具循环，因此 `between_tools` 的零思考 token 不能验证工具调用之间的行为。某条 adaptive 请求为零，也不能单凭这一点判定参数被丢弃。旧直连路径的接受／拒绝探测仍属历史证据，不是当前网关支持矩阵。"),
+        tr(chinese, "### Configuration guidance and checks", "### 配置建议与验收观察"),
+        tr(chinese,
+            "| Setting to check | Reproducible configuration | Observable check and limit |\n|---|---|---|\n"
+            f"| Gateway forwarding | Start from [config.yaml]({prefix}deploy/config.yaml): `drop_params: false`; gateway/router retries are zero | Capture [provider traces]({prefix}deploy/trace_hook.py) for the same call ID. Configuration text alone is not proof of forwarding; the matrix client can separately retry a 429 |\n"
+            "| Prompt caching | This matrix uses top-level `cache_control`, `type: ephemeral`, `ttl: 1h` | Check native write and read token counts. It did not compare TTL choices or cache disabled; choose production TTL against actual session gaps and write cost |\n"
+            "| Thinking and effort | Use the explicitly named configuration, preserving `default` as an omitted field | Compare matching rows plus their code-test outcomes. This public subset does not select a production-optimal effort |\n"
+            "| Output cap and streaming | Reproduction uses `max_tokens: 128000`, `stream: true` | Require a terminal stream and inspect `stop_reason`; the cap still caused truncation. Do not count HTTP 200 or the first event as a completed answer |",
+            "| 要检查的设置 | 可复现的配置 | 验收观察与边界 |\n|---|---|---|\n"
+            f"| 网关透传 | 从 [config.yaml]({prefix}deploy/config.yaml) 开始：`drop_params: false`，网关与路由重试为零 | 采集同一 call ID 的 [provider trace]({prefix}deploy/trace_hook.py)。配置文本不等于已透传；矩阵客户端另有 429 重试策略 |\n"
+            "| 提示缓存 | 本矩阵使用顶层 `cache_control`，`type: ephemeral`、`ttl: 1h` | 看原生写入和读取 token 数。本轮未比较不同 TTL 或关闭缓存；生产 TTL 须结合真实会话间隔和写入成本选择 |\n"
+            "| 思考模式与档位 | 使用表中明确的配置，`default` 保留为不传字段 | 对比同条件性能和代码测试结果；这组公开题不能选出生产最优档位 |\n"
+            "| 输出上限与流式响应 | 复现配置为 `max_tokens: 128000`、`stream: true` | 必须检查流终止及 `stop_reason`；该上限仍发生截断，不能把 HTTP 200 或首个事件当成回答完成 |")])
+    return "\n\n".join(parts)
+
+
 def gateway_snapshot(chinese, detailed=False):
     evidence = ROOT / "evidence/gateway-cache-20261026"
     facts = read_json(evidence / "interim-facts.json")
@@ -874,34 +917,64 @@ def gateway_snapshot(chinese, detailed=False):
     parts.append(tr(chinese,
         f"**Input.** [12 public SWE-bench Lite BM25-13K problems]({prefix}data/gateway-cache-problems.json), with the source revision and prompt hashes in [run.json]({source}/run.json). This is a selected-subset experiment, not a full SWE-bench leaderboard score or customer production data. The [runner]({prefix}gateway-cache/aca_cache_matrix.py) uses 26 mode/effort cells, two identical requests per problem/cell and one warm-up per cell. Fixed: `max_tokens: 128000`, `stream: true`, top-level `cache_control: {{\"type\": \"ephemeral\", \"ttl\": \"1h\"}}`. Timing starts immediately before the client sends the request; first text is the first non-empty text delta, not a ping or thinking event.",
         f"**输入。** [12 道公开的 SWE-bench Lite BM25-13K 题目]({prefix}data/gateway-cache-problems.json)，来源版本和提示哈希在 [run.json]({source}/run.json)。这是选定子集实验，不是完整 SWE-bench 排行榜成绩，也不是客户生产数据。[运行器]({prefix}gateway-cache/aca_cache_matrix.py)遍历 26 个模式／档位组合，每题每格原样发送两次，每格另有一次预热。固定 `max_tokens: 128000`、`stream: true`、顶层 `cache_control: {{\"type\": \"ephemeral\", \"ttl\": \"1h\"}}`。计时从客户端即将发送请求时开始；首字是第一个非空文字增量，不是心跳或思考事件。"))
-    if detailed:
-        sample = json.loads((evidence / "responses_opus.jsonl").read_text(encoding="utf-8").splitlines()[0])
-        parts.append(tr(chinese, "Captured parameter record (prompt bodies are not included in this metrics projection):",
-                        "实际保存的参数记录（该指标投影不包含提示正文）："))
-        parts.append("```json\n" + json.dumps(sample["request_params"], ensure_ascii=False, indent=2) + "\n```")
-    performance = [tr(chinese,
-        "| Model | Cache-hit pairs (count) | First text P50: write / hit (s) | Full response P50: write / hit (s) | Mean request cost: write / hit (USD) | Read share in hit requests (%) |",
-        "| 模型 | 缓存命中配对数（组） | 首字 P50：首次写入／命中（秒） | 完整回答 P50：首次写入／命中（秒） | 单次平均费用：首次写入／命中（美元） | 命中请求的缓存读取占比（%） |"),
-        "|---|---:|---:|---:|---:|---:|"]
-    for model in MODELS:
-        item = facts["by_model"][DEPLOYMENT[model]]
-        cold, warm = item["cold"], item["warm"]
-        performance.append(f"| {NAME[model]} | {item['groups']} | {secs(cold['first_text_p50'])} / {secs(warm['first_text_p50'])} | {secs(cold['end_p50'])} / {secs(warm['end_p50'])} | {usd(cold['cost_usd_per_request'], 6)} / {usd(warm['cost_usd_per_request'], 6)} | {pct(warm['read_share'], 2)} |")
+    sample = next(row for row in (json.loads(line) for line in
+                  (evidence / "responses_opus.jsonl").read_text(encoding="utf-8").splitlines())
+                  if row["kind"] == "measured")
     parts.append(tr(chinese,
-        "**Performance first.** The next table uses only completed pairs with native cache reads. Write and hit mean requests 1 and 2. These per-model aggregates mix different mode/effort populations; compare matched cells in the full tables, not these aggregates as a model ranking.",
-        "**先看性能。** 下表只统计两次都正常结束、且第二次确实读取缓存的配对；“首次写入／命中”分别对应第 1／2 次请求。各模型汇总覆盖的模式／档位不同，不能据此直接排名，应进一步对比完整表中的同条件配置。"))
-    parts.append("\n".join(performance))
+        f"**Captured input settings.** The following fields are from measured request `{sample['task_id']}`, not its warm-up. The problem manifest above pins the public input reconstruction; this metrics projection omits prompt bodies.",
+        f"**实际请求设置。** 以下字段取自正式请求 `{sample['task_id']}`，不是预热请求。上面的题单固定了公开输入的重建版本；本指标投影省略提示正文。"))
+    parts.append("```json\n" + json.dumps(sample["request_params"], ensure_ascii=False, indent=2) + "\n```")
+    parts.append(tr(chinese,
+        "The runner prepends a deterministic system identifier per problem/configuration to isolate each pair's cache. The problem text is shared across configurations, but these identifiers differ. This controlled reuse is not an estimate of production cache-hit rate.",
+        "运行器在每个题目／配置的 system 前添加确定性组标识，隔离各组缓存。各配置的题目正文相同，但组标识不同；这是受控复用，不是生产缓存命中率估计。"))
+    parts.append(tr(chinese,
+        "**Metric definitions.** TTFT is `timing.first_text`, the first non-empty visible text, not metadata or thinking. E2E is `timing.end`, through the end of the response stream. The client clock starts immediately before HTTP; credential acquisition, pacing and application/tool work are excluded. End-to-end output rate is `usage.output_tokens / timing.end` for each request, including thinking tokens; its P50 is not a ratio of medians or isolated decode speed. Costs include input, cache writes/reads and output at the recorded list prices, not infrastructure or an invoice.",
+        "**指标定义。** TTFT 对应 `timing.first_text`，是首段非空可见文字，不是元数据或思考事件；E2E 对应 `timing.end`，到响应流结束。客户端在 HTTP 发送前开始计时，不含取凭据、发送前限速等待及应用或工具执行。端到端输出速率逐请求计算 `usage.output_tokens / timing.end`，包含思考 token，再取 P50；不是中位数相除，也不是纯解码速度。费用含输入、缓存写入／读取和输出，按记录中的标价计算，不含基础设施，也不是账单。"))
+    parts.append(tr(chinese,
+        "**All measured configurations, performance first.** A pair is the same problem and configuration sent twice: an observed cache write followed by a native cache hit, with both answers completed. Each state below uses one request from every eligible pair. P50/P95 use nearest rank; with at most 12 requests per state, P95 is the largest observation, not a production tail guarantee. `default` means effort was omitted. Compare matching configurations; generated output lengths may differ, so a timing or cost difference cannot be attributed entirely to caching.",
+        "**先看全部配置的性能。** 一组对照是同题、同配置的两次请求：首次实际写入缓存，随后原生命中，且两次回答均完整结束。下表每种缓存状态各取一条请求。P50/P95 使用最近秩法；每组状态最多 12 条，P95 就是最大观测值，不是生产尾延迟保证。`default` 表示未传 effort。比较时须对齐配置；两次生成的输出长度可能不同，耗时或费用差异不能全部归因于缓存。"))
+    for model in MODELS:
+        parts.append(f"{heading}# {NAME[model]}")
+        performance = [tr(chinese,
+            "| Model / thinking.type / output_config.effort | Cache state | TTFT P50 / P95 (s) | E2E P50 / P95 (s) | Valid requests |",
+            "| 模型 / thinking.type / output_config.effort | 缓存状态 | TTFT P50 / P95（秒） | E2E P50 / P95（秒） | 有效请求数 |"),
+            "|---|---|---:|---:|---:|"]
+        rates = [tr(chinese,
+            "| Model / thinking.type / output_config.effort | Cache state | E2E output rate P50 (tokens/s, thinking included) | Mean cost (USD/request) | Valid requests |",
+            "| 模型 / thinking.type / output_config.effort | 缓存状态 | 端到端输出速率 P50（tokens/s，含思考） | 平均费用（美元/请求） | 有效请求数 |"),
+            "|---|---|---:|---:|---:|"]
+        for cell, item in facts["by_cell"].items():
+            cell_model, mode, effort = cell.split("|")
+            if cell_model != model:
+                continue
+            label = f"{NAME[model]}<br>`{mode}` / `{effort}`"
+            for state, title in (("cold", tr(chinese, "First write", "首次写入")),
+                                 ("warm", tr(chinese, "Cache hit", "读取命中"))):
+                if not item["groups"]:
+                    missing = tr(chinese, "No eligible pair", "无有效配对")
+                    performance.append(f"| {label} | {title} | {missing} | {missing} | 0 |")
+                    rates.append(f"| {label} | {title} | {missing} | {missing} | 0 |")
+                    continue
+                observed = item[state]
+                require(observed["output_rate_samples"] == item["groups"], f"Missing output rate data: {cell}/{state}")
+                performance.append(f"| {label} | {title} | {secs(observed['first_text_p50'])} / {secs(observed['first_text_p95'])} | "
+                                   f"{secs(observed['end_p50'])} / {secs(observed['end_p95'])} | {item['groups']} |")
+                rates.append(f"| {label} | {title} | {observed['output_tokens_per_second_p50']:.2f} | "
+                             f"{usd(observed['cost_usd_per_request'], 6)} | {item['groups']} |")
+        parts.extend([tr(chinese, "**Latency by configuration.**", "**各配置的等待时间。**"), "\n".join(performance),
+                      tr(chinese, "**Output rate and cost for the same requests.**", "**同一组请求的输出速率与费用。**"), "\n".join(rates)])
     headers = tr(chinese,
-        "| Model | Retained / planned requests, warm-ups included | Completed requests | Truncated requests | Complete measured pairs |",
-        "| 模型 | 已保存／计划请求数（含预热） | 正常结束的请求数 | 截断请求数 | 完整正式配对数 |")
-    table = [headers, "|---|---:|---:|---:|---:|"]
+        "| Model | Retained / planned requests, warm-ups included | Completed requests | Truncated requests | Complete measured pairs | Cache-hit pairs |",
+        "| 模型 | 已保存／计划请求数（含预热） | 正常结束的请求数 | 截断请求数 | 完整正式配对数（组） | 缓存命中配对数（组） |")
+    table = [headers, "|---|---:|---:|---:|---:|---:|"]
     for model in MODELS:
         deployment = DEPLOYMENT[model]
         cells = [item for cell, item in facts["by_cell"].items() if cell.startswith(model + "|")]
         completed = sum(item["statuses"].get("completed", 0) for item in cells)
         truncated = sum(item["statuses"].get("max_tokens", 0) for item in cells)
-        pairs = facts["by_model"].get(deployment, {}).get("groups", 0)
-        table.append(f"| {NAME[model]} | {facts['final_requests'].get(deployment, 0)}/{facts['planned'][deployment]} | {completed} | {truncated} | {pairs} |")
+        summary = facts["by_model"].get(deployment, {})
+        table.append(f"| {NAME[model]} | {facts['final_requests'].get(deployment, 0)}/{facts['planned'][deployment]} | {completed} | {truncated} | {summary.get('completed_pairs', 0)} | {summary.get('groups', 0)} |")
+    parts.append(tr(chinese, "### Completion and cache evidence", "### 完成情况与缓存证据"))
     parts.append("\n".join(table))
     parts.append(tr(chinese,
         f"**Cache evidence.** {facts['groups_complete']} measured pairs completed; {facts['cache_hit_pairs']} show native cache hits. The other {len(facts['excluded_cache_pairs'])} crossed the shutdown/restart interval and rewrote expired entries. They remain in request, cost and correctness counts but not cache-hit performance statistics. Hit pairs read at least {pct(facts['warm_read_over_cold_write_min'])}% of the preceding cache write; {facts['same_message_id_groups']} reused a response message ID. This proves those cache reads, not a general speedup. Responses report `inference_geo: global` and an East US 2 region header; that is not a regional-inference guarantee.",
@@ -914,53 +987,30 @@ def gateway_snapshot(chinese, detailed=False):
             "| Model | thinking.type | output_config.effort | Retained / planned measured requests | Truncated requests, warm-ups included | Complete / planned pairs |",
             "| 模型 | thinking.type | output_config.effort | 已保存／计划正式请求数 | 截断请求数（含预热） | 完整／计划配对数 |"),
             "|---|---|---|---:|---:|---:|"]
-        timings = [tr(chinese,
-            "| Model / thinking.type / output_config.effort | Complete pairs | First text P50: request 1, cache write (s) | First text P50: request 2, cache read (s) | Mean cost: request 1 (USD) | Mean cost: request 2 (USD) |",
-            "| 模型／thinking.type／output_config.effort | 完整配对数 | 首字 P50：第 1 次写缓存（秒） | 首字 P50：第 2 次读缓存（秒） | 平均费用：第 1 次（美元） | 平均费用：第 2 次（美元） |"),
-            "|---|---:|---:|---:|---:|---:|"]
         for cell, item in facts["by_cell"].items():
             model, mode, effort = cell.split("|")
-            label = f"{NAME[model]} / {mode} / {effort}"
-            progress.append(f"| {NAME[model]} | `{mode}` | `{effort}` | {item['measured_requests']}/{item['planned_measured_requests']} | {item['statuses'].get('max_tokens', 0)} | {item['groups']}/{item['planned_groups']} |")
-            if item["groups"]:
-                cold, warm = item["cold"], item["warm"]
-                values = (secs(cold["first_text_p50"]), secs(warm["first_text_p50"]),
-                          usd(cold["cost_usd_per_request"], 6), usd(warm["cost_usd_per_request"], 6))
-            else:
-                values = (tr(chinese, "No complete pair", "无完整配对"),) * 4
-            timings.append(f"| {label} | {item['groups']} | " + " | ".join(values) + " |")
-        parts.extend([tr(chinese, "### All performance configurations", "### 全部配置的性能结果"), "\n".join(progress),
-                  tr(chinese, "### Cache-hit pair timings and costs", "### 缓存命中配对的耗时与费用"),
-                      tr(chinese, "Nearest-rank P50 within each cell, completed measured pairs only. Request 1 and 2 may produce different output lengths; cost differences do not isolate caching alone.",
-                         "各格以最近秩法计算 P50，只统计完整正式配对。两次回答的输出长度可能不同，因此费用差异不能全部归因于缓存。"), "\n".join(timings)])
+            progress.append(f"| {NAME[model]} | `{mode}` | `{effort}` | {item['measured_requests']}/{item['planned_measured_requests']} | {item['statuses'].get('max_tokens', 0)} | {item['completed_pairs']}/{item['planned_groups']} |")
+        parts.extend([tr(chinese, "### All configuration denominators", "### 全部配置的分母"), "\n".join(progress)])
     else:
         parts.append(tr(chinese, f"[All 26 configurations and paired observations](docs/results{suffix}.md#aca-gateway-snapshot).",
                         f"[查看全部 26 格及配对观测](docs/results{suffix}.md#aca-gateway-snapshot)。"))
     score_source = prefix + "evidence/gateway-score-20261027"
+    parts.append(gateway_controls(facts, chinese, prefix))
     parts.append(tr(chinese, "### Code correctness after performance", "### 性能之后：代码正确率"))
     parts.append(tr(chinese,
         f"**Method.** The same {score['denominator']} measured answers, excluding only warm-ups, were graded with the official SWE-bench harness {score_manifest['official_source']['installed_version']} at commit `{score_manifest['official_source']['commit']}`. The official `extract_diff` function extracted predictions; no answer repair or new model call was used. Each cell/repeat has a separate run ID. All {score_check['gold_controls']} selected gold controls passed. [Frozen inputs, native reports and verifier]({score_source}/verification.json).",
         f"**方法。** 对同一批 {score['denominator']} 份正式答案评分，只排除预热。使用官方 SWE-bench {score_manifest['official_source']['installed_version']}，固定提交 `{score_manifest['official_source']['commit']}`；由官方 `extract_diff` 提取补丁，没有替模型修答案，也没有新增模型调用。每个配置／重复次数使用独立 run ID；所选 {score_check['gold_controls']} 道金标准全部通过。[冻结输入、官方报告与验算]({score_source}/verification.json)。"))
-    score_table = [tr(chinese, "| Model | Resolved / measured answers | Resolved (%) |",
-                      "| 模型 | 已解决／正式答案数 | 解决率（%） |"), "|---|---:|---:|"]
-    for model in MODELS:
-        members = [item for item in score["cells"] if item["cell_id"].startswith(model + "|")]
-        denominator = sum(item["denominator"] for item in members)
-        resolved = sum(item["resolved"] for item in members)
-        score_table.append(f"| {NAME[model]} | {resolved}/{denominator} | {100 * resolved / denominator:.2f} |")
-    parts.append("\n".join(score_table))
     parts.append(tr(chinese,
         f"Overall: {score['resolved']}/{score['denominator']} ({100 * score['resolved'] / score['denominator']:.2f}%) resolved; {score['outcomes']['PATCH_APPLY_FAILED']} patch-application failures, {score['outcomes']['UNRESOLVED']} unresolved test results and {score['outcomes']['EMPTY_ANSWER_TRUNCATED']} truncated empty answers. These stay in the denominator. Different model/mode populations make the aggregate unsuitable as a fair overall ranking; each matched cell has 24 answers. This is a 12-instance subset, not the full SWE-bench Lite score.",
         f"合计 {score['resolved']}/{score['denominator']} 份解决问题（{100 * score['resolved'] / score['denominator']:.2f}%）；另有 {score['outcomes']['PATCH_APPLY_FAILED']} 份补丁应用失败、{score['outcomes']['UNRESOLVED']} 份测试未通过、{score['outcomes']['EMPTY_ANSWER_TRUNCATED']} 份截断空回答，均保留在分母中。不同模型的模式／档位组合数量不同，不能当成公平总榜；同条件每格均为 24 份答案。这只是 12 题子集，不是完整 SWE-bench Lite 成绩。"))
-    if detailed:
-        grid = [tr(chinese, "| Model | thinking.type | output_config.effort | Resolved / measured answers | Resolved (%) |",
-                   "| 模型 | thinking.type | output_config.effort | 已解决／正式答案数 | 解决率（%） |"), "|---|---|---|---:|---:|"]
-        lookup = {item["cell_id"]: item for item in score["cells"]}
-        for cell in facts["by_cell"]:
-            model, mode, effort = cell.split("|")
-            item = lookup[cell]
-            grid.append(f"| {NAME[model]} | `{mode}` | `{effort}` | {item['resolved']}/{item['denominator']} | {100 * item['resolved'] / item['denominator']:.2f} |")
-        parts.append("\n".join(grid))
+    grid = [tr(chinese, "| Model | thinking.type | output_config.effort | Resolved / measured answers | Resolved (%) |",
+               "| 模型 | thinking.type | output_config.effort | 已解决／正式答案数 | 解决率（%） |"), "|---|---|---|---:|---:|"]
+    lookup = {item["cell_id"]: item for item in score["cells"]}
+    for cell in facts["by_cell"]:
+        model, mode, effort = cell.split("|")
+        item = lookup[cell]
+        grid.append(f"| {NAME[model]} | `{mode}` | `{effort}` | {item['resolved']}/{item['denominator']} | {100 * item['resolved'] / item['denominator']:.2f} |")
+    parts.append("\n".join(grid))
     parts.append(tr(chinese,
         f"**Ambiguity retained.** {len(score_check['official_ambiguous_flags'])} official `no_tests_collected` flags remain unresolved. Each associated log first collected 92 top-level tests, includes nested zero-collection output, and shows `NameError: cached_eval`; none was silently removed or relabeled. [Six source-linked reviews]({score_source}/ambiguous-review.json). The [environment inventory]({score_source}/environment.json) was captured after evaluation, not as in-run telemetry.",
         f"**保留疑义。** {len(score_check['official_ambiguous_flags'])} 条官方 `no_tests_collected` 模糊标记仍保留为未解决。对应日志先收集了 92 项顶层测试，包含嵌套的零收集输出，并出现 `NameError: cached_eval`；没有暗中删除或改判。[六条来源复核]({score_source}/ambiguous-review.json)。[环境清单]({score_source}/environment.json)是在评分后采集，不冒充运行时遥测。"))
@@ -999,26 +1049,143 @@ done
               "52 批各应生成 `logs/evaluation/<run_id>/results.json`。查看解决、未解决、空补丁和错误 ID，不能只看 CLI 退出码。补丁应用失败属于模型输出结果；基础设施失败应排查后复评同一份冻结补丁。对照[官方原始报告](../evidence/gateway-score-20261027/logs/evaluation)与[预测哈希](../evidence/gateway-score-20261027/manifest.json)。本次文档更新未在全新机器重跑这些公开命令。")])
 
 
+def fresh_aca_analysis(chinese):
+    manifest = read_json(ROOT / "evidence/gateway-score-20261027/manifest.json")
+    revision = manifest["dataset"]["revision"]
+    commit = manifest["official_source"]["commit"]
+    return "\n\n".join([
+        '<a id="fresh-aca-analysis"></a>',
+        tr(chinese, "## Analyze and grade a new ACA run", "## 分析和评分新的 ACA 运行"),
+        tr(chinese,
+            "Follow the owning README for input preparation, the cache gate and collection. Its WORK, RUN and RUN_ID variables identify your new private directory. `analyze_cache_matrix.py --run-dir` reads that run's responses, including recorded retry attempts; it does not substitute published fixtures. A complete collection can still contain truncations or incorrect answers. The parameter records precede model-alias mapping and are not provider-wire traces.",
+            "输入重建、缓存检查与采集按首页执行；WORK、RUN、RUN_ID 指向本次私有目录。`analyze_cache_matrix.py --run-dir` 读取该次响应及已记录重试，不回退到已发布快照。采集完整仍可能有截断和错误答案。参数记录在模型别名转换之前，不是 provider 出站抓包。"),
+        tr(chinese,
+            "**Separate outbound audit.** The gateway setup section's 50-request diagnostic uses `run_matrix.ps1` plus `scripts/analyze.py --run-directory --trace-file` to correlate each call. It is a different workload from the 650-request coding matrix. The coding analyzer does not perform that trace correlation; retain native gateway logs when collecting new performance results, and do not label this unimplemented audit as PASS.",
+            "**出站审计单独进行。** 网关部署章节的 50 请求诊断使用 `run_matrix.ps1` 和 `scripts/analyze.py --run-directory --trace-file` 逐条关联调用。它与 650 请求编码矩阵是不同工作负载。编码矩阵分析器不执行该 trace 关联；新采集时保留原生网关日志，不能把尚未实现的关联审计标为通过。"),
+        tr(chinese,
+            "**Grade newly generated answers, not the public metrics projection.** On Linux x86-64 with Docker and space for the dataset images, reuse a compatible Python environment. This stage downloads official data/images and runs tests; it makes no model calls but consumes compute. The driver freezes the official evaluation dataset at prepare time. Before comparing with the published score, the following guard requires the same dataset revision. A mismatch requires a separately scoped evaluation, not a relabeled comparison.",
+            "**评分新生成的答案，不使用公开指标投影。** 在可使用 Docker、磁盘足够容纳题目镜像的 Linux x86-64 环境中执行，复用兼容 Python 环境。本阶段会下载官方数据和镜像并运行测试，不调用模型，但消耗计算资源。驱动在 prepare 时冻结官方评分集；下方检查要求与已发布分数使用同一数据集版本。不一致时须另行限定评测范围，不能继续冒充同口径比较。"),
+        "```bash\n" + f'''python -m pip install 'git+https://github.com/SWE-bench/SWE-bench.git@{commit}'
+SCORE="$WORK/score"
+python -B gateway-cache/swebench_score.py audit-input --run-dir "$RUN"
+python -B gateway-cache/swebench_score.py prepare --run-dir "$RUN" \\
+  --problems "$WORK/problems.json" --out "$SCORE" --evaluation-id "$RUN_ID"
+python -c 'import json,sys; record=json.load(open(sys.argv[1], encoding="utf-8")); assert record["dataset"]["revision"] == "{revision}", "Evaluation dataset revision changed"' "$SCORE/manifest.json"
+python -u gateway-cache/swebench_score.py run --out "$SCORE" --workers 2
+python -B gateway-cache/swebench_score.py collect --out "$SCORE"
+```''',
+        tr(chinese,
+            "Prepare must retain every measured answer and exclude only warm-ups. With the full protocol expect 624 answers and 52 batches; resolved counts are not predetermined. Read this SCORE's score-summary.json, scored-responses.json and native logs/evaluation reports. NOT_GRADED or EVALUATION_ERROR means incomplete evaluation, not an answer failure to silently discard. This command sequence was not rerun on fresh cloud compute during the documentation update.",
+            "prepare 必须保留全部正式答案，只排除预热。完整协议应有 624 份答案、52 批，解决数没有预设值。读取本次 SCORE 的 score-summary.json、scored-responses.json 和 logs/evaluation 原生报告。NOT_GRADED 或 EVALUATION_ERROR 表示评分未完成，不能当成可静默删除的答案失败。本轮文档更新未在新云计算环境重跑这套命令。"),
+    ])
+
+
 def results(d, gateway, chinese):
     parts = [
         gateway_snapshot(chinese),
-        purpose(d, chinese, "zh" if chinese else "en", historical=True),
-        tr(chinese,
-           "**Historical results only.** The following direct-VM measurements belong to the retired method. In particular, the 21-cell coding matrix omitted `cache_control` and does not meet the current ACA cache-enabled protocol. The Japan East gateway check is separately dated. None of these numbers is a result from the current East US 2 ACA run.",
-           "**以下仅为历史结果。** 下列 VM 直连测量属于已取缔的方案，尤其是 21 格编码矩阵未发送 `cache_control`，不满足当前 ACA 开启缓存的测试要求。Japan East 网关检查另列日期。这些数字都不是当前 East US 2 ACA 测试的结果。"),
-        tr(chinese, "Words used in the results:", "看结果时会用到的词："), glossary(chinese),
-        tr(chinese, "**Where each part ran.**", "**各部分在哪里运行。**"), where_table(d, chinese),
-        request_block(d, chinese),
-        tr(chinese, "**How each number is measured, and the scripts.**", "**每个指标怎么测、用哪个脚本。**"), timing_table(chinese),
-        caution(d, chinese), grids(d, chinese), stands_out(d, chinese), caching(d, chinese),
-        gateway_summary(gateway, chinese), runs_table(d, gateway, chinese), limits(d, chinese), navigation(chinese),
+        navigation(chinese),
     ]
     return "\n\n".join(parts)
 
 
 # ---------- README: steps ----------
 
-def steps(d, chinese):
+def gateway_steps(chinese):
+    suffix = "_CN" if chinese else ""
+    manifest = read_json(ROOT / "data/gateway-cache-problems.json")
+    first_problem = manifest["problems"][0]["id"]
+    return "\n\n".join([
+        tr(chinese,
+            "| Order | Execution location | Action and completion check |\n|---|---|---|\n"
+            f"| 1 | Azure configuration workstation | Prepare Foundry and ACA LiteLLM; verify the active image and identities in [gateway setup](docs/testing{suffix}.md#gateway-setup) |\n"
+            "| 2 | Linux measurement client | Install dependencies and rebuild the hash-checked input |\n"
+            "| 3 | Same Linux client | Supply the HTTPS gateway origin and private key |\n"
+            "| 4 | Same Linux client | Run one cache pair and check native write/read evidence |\n"
+            "| 5 | Same Linux client | Run all frozen configurations into a new directory |\n"
+            "| 6 | Same Linux client | Analyze that directory, retaining failures and missing requests |",
+            "| 顺序 | 执行位置 | 操作与完成观察 |\n|---|---|---|\n"
+            f"| 1 | Azure 配置工作机 | 准备 Foundry 和 ACA LiteLLM，按[网关部署](docs/testing{suffix}.md#gateway-setup)核对活动镜像与身份 |\n"
+            "| 2 | Linux 测量客户端 | 安装依赖并重建通过哈希校验的输入 |\n"
+            "| 3 | 同一 Linux 客户端 | 配置 HTTPS 网关地址，私下输入入口密钥 |\n"
+            "| 4 | 同一 Linux 客户端 | 运行一组缓存对照，检查原生写入与读取 |\n"
+            "| 5 | 同一 Linux 客户端 | 在新目录运行全部固定配置 |\n"
+            "| 6 | 同一 Linux 客户端 | 分析该目录，保留失败与缺失请求 |"),
+        tr(chinese,
+            f"**Prerequisites and scope.** Use Bash on a Linux client with Python 3.12 or 3.13 and an existing ACA gateway. To reproduce the measured placement, use East US 2 for the client, gateway and Foundry resource; GlobalStandard still does not promise an inference region. Without a gateway, complete steps 1-4 of [gateway setup](docs/testing{suffix}.md#gateway-setup), then return here. Allow the measurement client's actual egress /32 in ingress restrictions; a separate configuration workstation needs its own allowed /32. The gateway uses managed identity for Foundry; the client uses only the gateway key. Model calls and infrastructure incur charges. These reorganized public command blocks have not been run on a fresh cloud environment in this update.",
+            f"**前提与范围。** 在已有 Linux 客户端使用 Bash、Python 3.12 或 3.13，并准备好 ACA 网关。复现本次位置条件时，客户端、网关和 Foundry 资源均使用 East US 2；GlobalStandard 仍不承诺推理区域。还没有网关时，先完成[网关部署](docs/testing{suffix}.md#gateway-setup)第 1-4 步，再回到这里。Ingress 必须放行实际测量客户端的出口 /32；配置工作机不同时，单独放行它的 /32。调用 Foundry 的是网关托管身份，客户端只使用入口密钥。模型调用和基础设施会计费；本轮未在全新云环境执行这些重组后的公开命令。"),
+        tr(chinese, "**1. Prepare the client and frozen input.** Start in the parent of your checkout. Reuse an existing compatible Python environment; the conditional creates one only when no environment is active and no local one exists.",
+           "**1. 准备客户端和固定输入。** 从仓库工作副本的父目录开始。已有兼容 Python 环境就复用；下面仅在未激活环境且本地环境不存在时创建环境。"),
+        r'''```bash
+set -euo pipefail
+test -d david-share || git clone --depth 1 --filter=blob:none https://github.com/david-xinyuwei/david-share.git
+cd david-share/Agents/Claude-Foundry-LiteLLM-Performance
+if [ -z "${VIRTUAL_ENV:-}" ]; then
+  test -x .venv/bin/python || python3 -m venv .venv
+  source .venv/bin/activate
+fi
+python -m pip install -r coding-matrix/requirements.txt pyarrow
+RUN_ID="aca-$(date -u +%Y%m%d-%H%M%S)"
+WORK="$PWD/private/$RUN_ID"
+mkdir -p "$WORK"
+python -B gateway-cache/build_swebench_problems.py \
+  --manifest data/gateway-cache-problems.json --out "$WORK/problems.json"
+```''',
+        tr(chinese,
+            f"Expect PASS, revision `{manifest['source']['revision']}` and {len(manifest['problems'])} problems. The builder checks the parquet, problem order, source commits and prompt hashes before writing the prepared JSON. A mismatch stops the run; do not substitute a newer dataset. The downloaded data and later responses stay under ignored `private/`.",
+            f"预期 PASS、版本 `{manifest['source']['revision']}` 和 {len(manifest['problems'])} 道题。构建器在写出 JSON 前检查 parquet、题目顺序、源码提交及提示哈希。不一致就停止，不改用更新的数据集。下载数据及后续响应都保存在已忽略的 `private/` 下。"),
+        tr(chinese, "**2. Configure the gateway, not the Foundry endpoint.** Get the HTTPS origin from Container Apps Ingress, without `/v1/messages` or `/anthropic`. Enter the key yourself; never put it in a command, screenshot or Git.",
+           "**2. 配置网关，不填 Foundry 直连端点。** 从 Container Apps 的 Ingress 获取 HTTPS 源地址，不带 `/v1/messages` 或 `/anthropic`。密钥由使用者私下输入，不写进命令、截图或 Git。"),
+        r'''```bash
+export GATEWAY_URL="https://<your-container-app-fqdn>"
+read -r -s -p 'Gateway key (private): ' CLAUDE_GATEWAY_KEY
+printf '\n'
+export CLAUDE_GATEWAY_KEY
+export CLAUDE_GATEWAY_BUDGET_ROOT="$WORK"
+```''',
+        tr(chinese,
+            "Aliases are `opus55-standard`, `sonnet55-standard` and `haiku55-standard` in `deploy/config.yaml`; the existing gateway adapter maps the runner's model names to them. No direct-Foundry fallback is used. Configure matching aliases before continuing.",
+            "`deploy/config.yaml` 中的别名为 `opus55-standard`、`sonnet55-standard`、`haiku55-standard`，现有网关适配器将运行器模型名映射到这些别名；不会兜底直连 Foundry。别名不一致时先修正配置。"),
+        tr(chinese,
+            "**3. Verify one cache pair first.** This diagnostic plans one warm-up plus two measured requests. Its seed is separate from the full run, so it does not prewarm the full run's group prefix. Approve its model spend before executing.",
+            "**3. 先验证一组缓存对照。** 此诊断计划一次预热及两次正式请求。它使用独立种子，不给后续全矩阵的组前缀预热。执行前确认本步骤的模型费用。"),
+        "```bash\n" + f'''GATE="$WORK/gate"
+python -u gateway-cache/aca_cache_matrix.py --run-dir "$GATE" \\
+  --source coding-matrix --gateway-url "$GATEWAY_URL" --problems "$WORK/problems.json" \\
+  --probe-summary evidence/coding-matrix-20261026/matrix/probe_summary.json \\
+  --only-cells 'sonnet|adaptive|low' --only-problems '{first_problem}' \\
+  --seed "$RUN_ID-gate" --repeats 2 --max-tokens 128000 --ttl 1h --budget-usd 5
+python -B gateway-cache/analyze_cache_matrix.py --run-dir "$GATE" --out "$GATE/facts.json"
+python -c 'import json,sys; record=json.load(open(sys.argv[1], encoding="utf-8")); assert record["coverage"]["collection_complete"] and record["cache_hit_pairs"] == 1, record; print("CACHE_PAIR_VERIFIED")' "$GATE/facts.json"
+```''',
+        tr(chinese,
+            "Expect CACHE_PAIR_VERIFIED, two completed measured answers and native cache read after write. HTTP 200 alone is not enough. For 401/403 check the gateway key, ingress and gateway identity; for 400 inspect the actual parameter error; for 429 inspect the returned limit and pacing; for missing reads inspect the prefix, elapsed gap and route. A TCP check below 50 ms is only this runner's heuristic, not proof of location. Keep failures and their request identifiers.",
+            "预期 CACHE_PAIR_VERIFIED、两份完整正式回答，以及先写后读的原生缓存证据。HTTP 200 不够。401/403 检查入口密钥、Ingress 和网关身份；400 看实际参数错误；429 看返回的限流维度与发送节奏；没有读取时检查前缀、间隔和路由。运行器的 TCP 低于 50 毫秒检查只是启发式条件，不证明地域。失败和请求标识都要保留。"),
+        tr(chinese,
+            "**4. Run and analyze the full matrix.** Use the same shell and a new directory. The frozen probe fixes 26 configurations, 12 problems and two measured repeats, plus warm-ups: 650 planned requests. A new seed changes ordering and group identifiers while preserving the protocol and problem texts; results need not equal the published run. The example's USD 85 stop threshold is not a guaranteed cost cap because calls can be in flight. The adapter also stops at USD 95 accounted under WORK, reserving USD 5 of its USD 100 guard; check current prices before choosing budgets.",
+            "**4. 运行并分析全矩阵。** 仍在同一终端，新建运行目录。冻结的探测清单固定 26 种配置、12 道题、两次正式重复及预热，共 650 个计划请求。新种子改变顺序和组标识，协议与题目正文不变；不要求数字等于已发布结果。示例的 85 美元是停止阈值，不是严格费用上限，因为可能有在途请求。适配器另对 WORK 下已计费用设置 95 美元停止阈值、预留 5 美元，合计 100 美元保护；选择预算前须查当前价格。"),
+        r'''```bash
+RUN="$WORK/matrix"
+printf 'RUN_DIRECTORY=%s\n' "$RUN"
+python -u gateway-cache/aca_cache_matrix.py --run-dir "$RUN" \
+  --source coding-matrix --gateway-url "$GATEWAY_URL" --problems "$WORK/problems.json" \
+  --probe-summary evidence/coding-matrix-20261026/matrix/probe_summary.json \
+  --seed "$RUN_ID" --repeats 2 --max-tokens 128000 --ttl 1h --budget-usd 85
+python -B gateway-cache/analyze_cache_matrix.py --run-dir "$RUN" --out "$RUN/facts.json"
+python -B gateway-cache/analyze_cache_matrix.py --run-dir "$RUN" --out "$RUN/facts.json" --check
+unset CLAUDE_GATEWAY_KEY
+```''',
+        tr(chinese,
+            f"The analyzer reads this RUN, not the published fixture. Expect `facts match`; separately check `coverage.collection_complete`, all 26 cells, transport errors, truncations and native cache pairs in facts.json. BUDGET_STOP or missing requests is not completion. The foreground process can be interrupted with Ctrl+C; this does not stop cloud resources. Use the printed directory in another terminal for `tail -F <run-directory>/progress.log`, or read its run.json for a snapshot. Keep the same inputs, seed and run directory when resuming; first re-enter the private key. [New-answer grading and separate outbound audit](docs/testing{suffix}.md#fresh-aca-analysis) are separate stages, not covered by `facts match`.",
+            f"分析器读取本次 RUN，不读取已发布快照。预期 `facts match`；还须检查 facts.json 的 `coverage.collection_complete`、全部 26 格、传输错误、截断和原生缓存配对。BUDGET_STOP 或缺请求不算完成。前台进程可用 Ctrl+C 中断，这不会停止云资源。另开终端，用已输出目录运行 `tail -F <run-directory>/progress.log` 持续查看，或读取该目录的 run.json 看快照。续跑必须保留输入、种子和原运行目录，并先重新私下输入密钥。[新答案评分与独立出站审计](docs/testing{suffix}.md#fresh-aca-analysis)是另外的阶段，不由 `facts match` 覆盖。"),
+        tr(chinese,
+            f"**Only inspecting saved results?** Use [offline replay](docs/testing{suffix}.md#aca-snapshot-replay); it needs no Azure credentials or model calls. Deployment, input reconstruction, fresh collection and offline replay have distinct acceptance checks.",
+            f"**只想核对已有结果？** 使用[离线复算](docs/testing{suffix}.md#aca-snapshot-replay)，无需 Azure 凭据或模型调用。部署、重建输入、新采集和离线复算的验收分别记录。"),
+    ])
+
+
+def steps(d, chinese, historical=False):
+    if not historical:
+        return gateway_steps(chinese)
     suffix = "_CN" if chinese else ""
     step4 = read_json(EV / "readme-step4.json")
     result = step4["stderr_result"]

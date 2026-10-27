@@ -10,7 +10,7 @@
   "split_rule": "first line of text = system, rest = user (SWE-bench run_api.py call_anthropic_v2)",
   "system_prompt": "You will be provided with a partial code base and an issue statement explaining a problem to resolve.",
   "system_prompt_sha256": "c03ce9359e270e89eab2b19778502edbd0398987bc2459c56e51eeb200a9bdc6",
-  "note": "Prompt text is not redistributed. gateway-cache/build_swebench_problems.py rebuilds it from the dataset's current revision; compare its source.revision and user_message_sha256 values with this file.",
+  "note": "Prompt text is not redistributed. Run gateway-cache/build_swebench_problems.py with --manifest data/gateway-cache-problems.json to rebuild the frozen revision and validate the source, problem order and prompt hashes against this file.",
   "problems": [
     {
       "id": "django__django-15320",

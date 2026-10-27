@@ -81,9 +81,10 @@ class EvidenceTests(unittest.TestCase):
             self.assertEqual(badges, ["Models", "Measured", "CI"])
             self.assertIn("actions/workflows/claude-foundry-performance-ci.yml/badge.svg", text)
             self.assertIn("\n" + author + "\n", text)
-            self.assertIn("call_once.py", text)
+            self.assertIn("gateway-cache/aca_cache_matrix.py", text)
             steps = text.split("\n## " + expected[2] + "\n", 1)[1]
-            self.assertTrue(steps.lstrip().startswith("**"))
+            self.assertTrue(steps.lstrip().startswith("|"))
+            self.assertNotIn("call_once.py", steps)
             self.assertLess(steps.index("| 1 |"), steps.index("```bash"))
             for retired in ("Stars belong", "ENV_BUILD_STATUS", "This repair", "USD 3", "architecture-"):
                 self.assertNotIn(retired, text)

@@ -2,7 +2,7 @@
 
 [README](../README_CN.md) · [复测与核验](testing_CN.md) · [English](results.md)
 
-先看本轮 East US 2 ACA 全量性能结果，再看 624 份正式答案的代码正确率；全部配置、失败和限制均保留。已取缔直连方案的历史编码矩阵、参数探测、缓存测试和早期网关检查放在后面，不与本轮混算。
+先看当前 East US 2 ACA 全矩阵性能，再核对参数与缓存证据及 624 份答案的正确率。历史直连、参数探测和早期跨区域网关结果独立标注，不与当前批次混算，也不能补齐当前出站审计的缺口。
 
 <a id="aca-gateway-snapshot"></a>
 
@@ -14,7 +14,7 @@
 
 **输入。** [12 道公开的 SWE-bench Lite BM25-13K 题目](../data/gateway-cache-problems.json)，来源版本和提示哈希在 [run.json](../evidence/gateway-cache-20261026/run.json)。这是选定子集实验，不是完整 SWE-bench 排行榜成绩，也不是客户生产数据。[运行器](../gateway-cache/aca_cache_matrix.py)遍历 26 个模式／档位组合，每题每格原样发送两次，每格另有一次预热。固定 `max_tokens: 128000`、`stream: true`、顶层 `cache_control: {"type": "ephemeral", "ttl": "1h"}`。计时从客户端即将发送请求时开始；首字是第一个非空文字增量，不是心跳或思考事件。
 
-实际保存的参数记录（该指标投影不包含提示正文）：
+**实际请求设置。** 以下字段取自正式请求 `opus|adaptive|low|django__django-12184|r1`，不是预热请求。上面的题单固定了公开输入的重建版本；本指标投影省略提示正文。
 
 ```json
 {
@@ -34,25 +34,165 @@
 }
 ```
 
-**先看性能。** 下表只统计两次都正常结束、且第二次确实读取缓存的配对；“首次写入／命中”分别对应第 1／2 次请求。各模型汇总覆盖的模式／档位不同，不能据此直接排名，应进一步对比完整表中的同条件配置。
+运行器在每个题目／配置的 system 前添加确定性组标识，隔离各组缓存。各配置的题目正文相同，但组标识不同；这是受控复用，不是生产缓存命中率估计。
 
-| 模型 | 缓存命中配对数（组） | 首字 P50：首次写入／命中（秒） | 完整回答 P50：首次写入／命中（秒） | 单次平均费用：首次写入／命中（美元） | 命中请求的缓存读取占比（%） |
+**指标定义。** TTFT 对应 `timing.first_text`，是首段非空可见文字，不是元数据或思考事件；E2E 对应 `timing.end`，到响应流结束。客户端在 HTTP 发送前开始计时，不含取凭据、发送前限速等待及应用或工具执行。端到端输出速率逐请求计算 `usage.output_tokens / timing.end`，包含思考 token，再取 P50；不是中位数相除，也不是纯解码速度。费用含输入、缓存写入／读取和输出，按记录中的标价计算，不含基础设施，也不是账单。
+
+**先看全部配置的性能。** 一组对照是同题、同配置的两次请求：首次实际写入缓存，随后原生命中，且两次回答均完整结束。下表每种缓存状态各取一条请求。P50/P95 使用最近秩法；每组状态最多 12 条，P95 就是最大观测值，不是生产尾延迟保证。`default` 表示未传 effort。比较时须对齐配置；两次生成的输出长度可能不同，耗时或费用差异不能全部归因于缓存。
+
+### Opus 5.5
+
+**各配置的等待时间。**
+
+| 模型 / thinking.type / output_config.effort | 缓存状态 | TTFT P50 / P95（秒） | E2E P50 / P95（秒） | 有效请求数 |
+|---|---|---:|---:|---:|
+| Opus 5.5<br>`adaptive` / `low` | 首次写入 | 1.19 / 9.06 | 6.94 / 14.4 | 12 |
+| Opus 5.5<br>`adaptive` / `low` | 读取命中 | 1.08 / 14.7 | 7.84 / 20.0 | 12 |
+| Opus 5.5<br>`adaptive` / `medium` | 首次写入 | 6.92 / 31.5 | 11.6 / 37.2 | 12 |
+| Opus 5.5<br>`adaptive` / `medium` | 读取命中 | 7.15 / 29.3 | 11.3 / 35.3 | 12 |
+| Opus 5.5<br>`adaptive` / `high` | 首次写入 | 9.13 / 94.5 | 14.0 / 101 | 12 |
+| Opus 5.5<br>`adaptive` / `high` | 读取命中 | 7.53 / 228 | 11.7 / 239 | 12 |
+| Opus 5.5<br>`adaptive` / `xhigh` | 首次写入 | 18.9 / 110 | 24.7 / 117 | 12 |
+| Opus 5.5<br>`adaptive` / `xhigh` | 读取命中 | 19.6 / 380 | 24.5 / 389 | 12 |
+| Opus 5.5<br>`adaptive` / `max` | 首次写入 | 232 / 1027 | 247 / 1036 | 11 |
+| Opus 5.5<br>`adaptive` / `max` | 读取命中 | 236 / 913 | 249 / 922 | 11 |
+| Opus 5.5<br>`adaptive` / `default` | 首次写入 | 7.03 / 65.8 | 12.0 / 72.3 | 11 |
+| Opus 5.5<br>`adaptive` / `default` | 读取命中 | 8.02 / 28.5 | 15.0 / 34.3 | 11 |
+
+**同一组请求的输出速率与费用。**
+
+| 模型 / thinking.type / output_config.effort | 缓存状态 | 端到端输出速率 P50（tokens/s，含思考） | 平均费用（美元/请求） | 有效请求数 |
+|---|---|---:|---:|---:|
+| Opus 5.5<br>`adaptive` / `low` | 首次写入 | 103.53 | $0.158921 | 12 |
+| Opus 5.5<br>`adaptive` / `low` | 读取命中 | 103.75 | $0.023222 | 12 |
+| Opus 5.5<br>`adaptive` / `medium` | 首次写入 | 108.44 | $0.173419 | 12 |
+| Opus 5.5<br>`adaptive` / `medium` | 读取命中 | 111.76 | $0.036952 | 12 |
+| Opus 5.5<br>`adaptive` / `high` | 首次写入 | 110.21 | $0.200936 | 12 |
+| Opus 5.5<br>`adaptive` / `high` | 读取命中 | 110.93 | $0.097379 | 12 |
+| Opus 5.5<br>`adaptive` / `xhigh` | 首次写入 | 112.87 | $0.248050 | 12 |
+| Opus 5.5<br>`adaptive` / `xhigh` | 读取命中 | 114.35 | $0.183598 | 12 |
+| Opus 5.5<br>`adaptive` / `max` | 首次写入 | 123.30 | $1.008633 | 11 |
+| Opus 5.5<br>`adaptive` / `max` | 读取命中 | 121.91 | $0.785095 | 11 |
+| Opus 5.5<br>`adaptive` / `default` | 首次写入 | 109.83 | $0.186835 | 11 |
+| Opus 5.5<br>`adaptive` / `default` | 读取命中 | 109.88 | $0.037639 | 11 |
+
+### Sonnet 5.5
+
+**各配置的等待时间。**
+
+| 模型 / thinking.type / output_config.effort | 缓存状态 | TTFT P50 / P95（秒） | E2E P50 / P95（秒） | 有效请求数 |
+|---|---|---:|---:|---:|
+| Sonnet 5.5<br>`adaptive` / `low` | 首次写入 | 0.77 / 0.95 | 4.86 / 9.76 | 12 |
+| Sonnet 5.5<br>`adaptive` / `low` | 读取命中 | 0.76 / 1.15 | 4.88 / 9.01 | 12 |
+| Sonnet 5.5<br>`adaptive` / `medium` | 首次写入 | 0.81 / 11.0 | 5.67 / 14.4 | 12 |
+| Sonnet 5.5<br>`adaptive` / `medium` | 读取命中 | 0.87 / 16.3 | 6.15 / 19.1 | 12 |
+| Sonnet 5.5<br>`adaptive` / `high` | 首次写入 | 6.05 / 137 | 10.6 / 140 | 12 |
+| Sonnet 5.5<br>`adaptive` / `high` | 读取命中 | 7.44 / 119 | 10.7 / 122 | 12 |
+| Sonnet 5.5<br>`adaptive` / `xhigh` | 首次写入 | 20.7 / 246 | 24.0 / 254 | 12 |
+| Sonnet 5.5<br>`adaptive` / `xhigh` | 读取命中 | 16.1 / 341 | 19.4 / 354 | 12 |
+| Sonnet 5.5<br>`adaptive` / `max` | 首次写入 | 394 / 616 | 397 / 622 | 9 |
+| Sonnet 5.5<br>`adaptive` / `max` | 读取命中 | 364 / 743 | 367 / 751 | 9 |
+| Sonnet 5.5<br>`adaptive` / `default` | 首次写入 | 6.86 / 86.8 | 10.8 / 90.2 | 12 |
+| Sonnet 5.5<br>`adaptive` / `default` | 读取命中 | 5.78 / 152 | 8.39 / 156 | 12 |
+| Sonnet 5.5<br>`between_tools` / `low` | 首次写入 | 0.78 / 1.08 | 5.14 / 7.88 | 12 |
+| Sonnet 5.5<br>`between_tools` / `low` | 读取命中 | 0.76 / 0.91 | 4.51 / 8.22 | 12 |
+| Sonnet 5.5<br>`between_tools` / `medium` | 首次写入 | 0.83 / 1.06 | 5.41 / 9.18 | 12 |
+| Sonnet 5.5<br>`between_tools` / `medium` | 读取命中 | 0.79 / 0.93 | 4.60 / 9.87 | 12 |
+| Sonnet 5.5<br>`between_tools` / `high` | 首次写入 | 0.81 / 1.09 | 5.56 / 11.6 | 12 |
+| Sonnet 5.5<br>`between_tools` / `high` | 读取命中 | 0.82 / 1.18 | 7.03 / 13.1 | 12 |
+| Sonnet 5.5<br>`between_tools` / `default` | 首次写入 | 0.79 / 1.15 | 4.88 / 13.6 | 12 |
+| Sonnet 5.5<br>`between_tools` / `default` | 读取命中 | 0.78 / 1.07 | 5.46 / 10.2 | 12 |
+
+**同一组请求的输出速率与费用。**
+
+| 模型 / thinking.type / output_config.effort | 缓存状态 | 端到端输出速率 P50（tokens/s，含思考） | 平均费用（美元/请求） | 有效请求数 |
+|---|---|---:|---:|---:|
+| Sonnet 5.5<br>`adaptive` / `low` | 首次写入 | 130.16 | $0.077371 | 12 |
+| Sonnet 5.5<br>`adaptive` / `low` | 读取命中 | 123.18 | $0.008869 | 12 |
+| Sonnet 5.5<br>`adaptive` / `medium` | 首次写入 | 124.97 | $0.078745 | 12 |
+| Sonnet 5.5<br>`adaptive` / `medium` | 读取命中 | 124.24 | $0.010499 | 12 |
+| Sonnet 5.5<br>`adaptive` / `high` | 首次写入 | 141.38 | $0.106288 | 12 |
+| Sonnet 5.5<br>`adaptive` / `high` | 读取命中 | 138.87 | $0.034861 | 12 |
+| Sonnet 5.5<br>`adaptive` / `xhigh` | 首次写入 | 148.80 | $0.152607 | 12 |
+| Sonnet 5.5<br>`adaptive` / `xhigh` | 读取命中 | 149.31 | $0.109698 | 12 |
+| Sonnet 5.5<br>`adaptive` / `max` | 首次写入 | 156.49 | $0.804891 | 9 |
+| Sonnet 5.5<br>`adaptive` / `max` | 读取命中 | 158.34 | $0.635133 | 9 |
+| Sonnet 5.5<br>`adaptive` / `default` | 首次写入 | 140.69 | $0.100876 | 12 |
+| Sonnet 5.5<br>`adaptive` / `default` | 读取命中 | 141.88 | $0.035923 | 12 |
+| Sonnet 5.5<br>`between_tools` / `low` | 首次写入 | 126.13 | $0.077653 | 12 |
+| Sonnet 5.5<br>`between_tools` / `low` | 读取命中 | 130.11 | $0.008496 | 12 |
+| Sonnet 5.5<br>`between_tools` / `medium` | 首次写入 | 132.11 | $0.077994 | 12 |
+| Sonnet 5.5<br>`between_tools` / `medium` | 读取命中 | 133.30 | $0.009313 | 12 |
+| Sonnet 5.5<br>`between_tools` / `high` | 首次写入 | 130.38 | $0.079108 | 12 |
+| Sonnet 5.5<br>`between_tools` / `high` | 读取命中 | 129.14 | $0.011469 | 12 |
+| Sonnet 5.5<br>`between_tools` / `default` | 首次写入 | 130.06 | $0.078623 | 12 |
+| Sonnet 5.5<br>`between_tools` / `default` | 读取命中 | 133.11 | $0.010259 | 12 |
+
+### Haiku 5.5
+
+**各配置的等待时间。**
+
+| 模型 / thinking.type / output_config.effort | 缓存状态 | TTFT P50 / P95（秒） | E2E P50 / P95（秒） | 有效请求数 |
+|---|---|---:|---:|---:|
+| Haiku 5.5<br>`adaptive` / `low` | 首次写入 | 3.09 / 20.2 | 4.93 / 22.9 | 12 |
+| Haiku 5.5<br>`adaptive` / `low` | 读取命中 | 4.25 / 17.6 | 5.75 / 20.7 | 12 |
+| Haiku 5.5<br>`adaptive` / `medium` | 首次写入 | 6.92 / 13.8 | 8.30 / 15.3 | 12 |
+| Haiku 5.5<br>`adaptive` / `medium` | 读取命中 | 6.93 / 14.2 | 8.02 / 16.8 | 12 |
+| Haiku 5.5<br>`adaptive` / `high` | 首次写入 | 9.07 / 38.5 | 10.8 / 40.3 | 12 |
+| Haiku 5.5<br>`adaptive` / `high` | 读取命中 | 12.1 / 29.6 | 14.1 / 34.0 | 12 |
+| Haiku 5.5<br>`adaptive` / `xhigh` | 首次写入 | 61.3 / 460 | 63.2 / 463 | 11 |
+| Haiku 5.5<br>`adaptive` / `xhigh` | 读取命中 | 53.4 / 235 | 57.0 / 237 | 11 |
+| Haiku 5.5<br>`adaptive` / `max` | 首次写入 | 204 / 399 | 206 / 406 | 8 |
+| Haiku 5.5<br>`adaptive` / `max` | 读取命中 | 260 / 377 | 262 / 384 | 8 |
+| Haiku 5.5<br>`adaptive` / `default` | 首次写入 | 5.49 / 15.5 | 7.40 / 18.4 | 12 |
+| Haiku 5.5<br>`adaptive` / `default` | 读取命中 | 6.22 / 11.6 | 8.07 / 14.2 | 12 |
+| Haiku 5.5<br>`disabled` / `low` | 首次写入 | 0.48 / 0.83 | 2.29 / 3.37 | 12 |
+| Haiku 5.5<br>`disabled` / `low` | 读取命中 | 0.56 / 0.74 | 2.36 / 3.51 | 12 |
+| Haiku 5.5<br>`disabled` / `medium` | 首次写入 | 0.54 / 0.73 | 2.42 / 3.47 | 12 |
+| Haiku 5.5<br>`disabled` / `medium` | 读取命中 | 0.50 / 0.60 | 2.64 / 4.31 | 12 |
+| Haiku 5.5<br>`disabled` / `high` | 首次写入 | 0.49 / 0.72 | 2.67 / 4.51 | 12 |
+| Haiku 5.5<br>`disabled` / `high` | 读取命中 | 0.49 / 0.69 | 2.40 / 3.56 | 12 |
+| Haiku 5.5<br>`disabled` / `default` | 首次写入 | 0.49 / 0.79 | 2.66 / 3.16 | 12 |
+| Haiku 5.5<br>`disabled` / `default` | 读取命中 | 0.45 / 0.59 | 2.41 / 4.38 | 12 |
+
+**同一组请求的输出速率与费用。**
+
+| 模型 / thinking.type / output_config.effort | 缓存状态 | 端到端输出速率 P50（tokens/s，含思考） | 平均费用（美元/请求） | 有效请求数 |
+|---|---|---:|---:|---:|
+| Haiku 5.5<br>`adaptive` / `low` | 首次写入 | 214.53 | $0.004254 | 12 |
+| Haiku 5.5<br>`adaptive` / `low` | 读取命中 | 211.44 | $0.001009 | 12 |
+| Haiku 5.5<br>`adaptive` / `medium` | 首次写入 | 218.61 | $0.004638 | 12 |
+| Haiku 5.5<br>`adaptive` / `medium` | 读取命中 | 221.27 | $0.001248 | 12 |
+| Haiku 5.5<br>`adaptive` / `high` | 首次写入 | 234.38 | $0.005884 | 12 |
+| Haiku 5.5<br>`adaptive` / `high` | 读取命中 | 230.84 | $0.002356 | 12 |
+| Haiku 5.5<br>`adaptive` / `xhigh` | 首次写入 | 259.47 | $0.019081 | 11 |
+| Haiku 5.5<br>`adaptive` / `xhigh` | 读取命中 | 258.09 | $0.010969 | 11 |
+| Haiku 5.5<br>`adaptive` / `max` | 首次写入 | 269.25 | $0.037720 | 8 |
+| Haiku 5.5<br>`adaptive` / `max` | 读取命中 | 265.15 | $0.032892 | 8 |
+| Haiku 5.5<br>`adaptive` / `default` | 首次写入 | 218.12 | $0.004464 | 12 |
+| Haiku 5.5<br>`adaptive` / `default` | 读取命中 | 222.91 | $0.001171 | 12 |
+| Haiku 5.5<br>`disabled` / `low` | 首次写入 | 177.01 | $0.003747 | 12 |
+| Haiku 5.5<br>`disabled` / `low` | 读取命中 | 183.87 | $0.000406 | 12 |
+| Haiku 5.5<br>`disabled` / `medium` | 首次写入 | 172.51 | $0.003759 | 12 |
+| Haiku 5.5<br>`disabled` / `medium` | 读取命中 | 175.95 | $0.000443 | 12 |
+| Haiku 5.5<br>`disabled` / `high` | 首次写入 | 181.72 | $0.003790 | 12 |
+| Haiku 5.5<br>`disabled` / `high` | 读取命中 | 172.20 | $0.000428 | 12 |
+| Haiku 5.5<br>`disabled` / `default` | 首次写入 | 174.06 | $0.003728 | 12 |
+| Haiku 5.5<br>`disabled` / `default` | 读取命中 | 201.46 | $0.000475 | 12 |
+
+### 完成情况与缓存证据
+
+| 模型 | 已保存／计划请求数（含预热） | 正常结束的请求数 | 截断请求数 | 完整正式配对数（组） | 缓存命中配对数（组） |
 |---|---:|---:|---:|---:|---:|
-| Opus 5.5 | 70 | 9.06 / 8.98 | 14.5 / 17.5 | $0.321801 / $0.187770 | 99.98 |
-| Sonnet 5.5 | 117 | 0.92 / 0.93 | 6.61 / 7.05 | $0.146967 / $0.073409 | 99.98 |
-| Haiku 5.5 | 115 | 3.42 / 4.30 | 5.74 / 6.12 | $0.008025 / $0.004123 | 99.98 |
-
-| 模型 | 已保存／计划请求数（含预热） | 正常结束的请求数 | 截断请求数 | 完整正式配对数 |
-|---|---:|---:|---:|---:|
-| Opus 5.5 | 150/150 | 149 | 1 | 70 |
-| Sonnet 5.5 | 250/250 | 244 | 6 | 117 |
-| Haiku 5.5 | 250/250 | 243 | 7 | 115 |
+| Opus 5.5 | 150/150 | 149 | 1 | 71 | 70 |
+| Sonnet 5.5 | 250/250 | 244 | 6 | 117 | 117 |
+| Haiku 5.5 | 250/250 | 243 | 7 | 116 | 115 |
 
 **缓存证据。** 304 组正式配对完整结束，其中 302 组有原生缓存命中。另 2 组跨越停机／恢复间隔，过期后重新写入缓存；它们仍计入请求数、费用和正确率，但不进入缓存命中性能统计。命中配对至少读回前次缓存写入的 100.0%，复用同一响应 message ID 的配对为 0。这证明对应缓存读取，不证明普遍提速。响应报告 `inference_geo: global` 和 East US 2 区域头，不代表固定区域推理承诺。
 
 **费用与边界。** 整轮按记录采用的[标价](../coding-matrix/pricing.py)计费共 $76.17，包含预热、缓存写入／读取、输出和截断回答；不含基础设施费用，也不是账单。配对指标排除预热、不完整配对及非命中配对，但不会缩小正确率分母。完整分布与计数保存在[统计结果](../evidence/gateway-cache-20261026/interim-facts.json)。
 
-### 全部配置的性能结果
+### 全部配置的分母
 
 | 模型 | thinking.type | output_config.effort | 已保存／计划正式请求数 | 截断请求数（含预热） | 完整／计划配对数 |
 |---|---|---|---:|---:|---:|
@@ -61,7 +201,7 @@
 | Opus 5.5 | `adaptive` | `high` | 24/24 | 0 | 12/12 |
 | Opus 5.5 | `adaptive` | `xhigh` | 24/24 | 0 | 12/12 |
 | Opus 5.5 | `adaptive` | `max` | 24/24 | 1 | 11/12 |
-| Opus 5.5 | `adaptive` | `default` | 24/24 | 0 | 11/12 |
+| Opus 5.5 | `adaptive` | `default` | 24/24 | 0 | 12/12 |
 | Sonnet 5.5 | `adaptive` | `low` | 24/24 | 0 | 12/12 |
 | Sonnet 5.5 | `adaptive` | `medium` | 24/24 | 0 | 12/12 |
 | Sonnet 5.5 | `adaptive` | `high` | 24/24 | 0 | 12/12 |
@@ -75,7 +215,7 @@
 | Haiku 5.5 | `adaptive` | `low` | 24/24 | 0 | 12/12 |
 | Haiku 5.5 | `adaptive` | `medium` | 24/24 | 0 | 12/12 |
 | Haiku 5.5 | `adaptive` | `high` | 24/24 | 0 | 12/12 |
-| Haiku 5.5 | `adaptive` | `xhigh` | 24/24 | 0 | 11/12 |
+| Haiku 5.5 | `adaptive` | `xhigh` | 24/24 | 0 | 12/12 |
 | Haiku 5.5 | `adaptive` | `max` | 24/24 | 7 | 8/12 |
 | Haiku 5.5 | `adaptive` | `default` | 24/24 | 0 | 12/12 |
 | Haiku 5.5 | `disabled` | `low` | 24/24 | 0 | 12/12 |
@@ -83,48 +223,36 @@
 | Haiku 5.5 | `disabled` | `high` | 24/24 | 0 | 12/12 |
 | Haiku 5.5 | `disabled` | `default` | 24/24 | 0 | 12/12 |
 
-### 缓存命中配对的耗时与费用
+### 参数证据能证明什么
 
-各格以最近秩法计算 P50，只统计完整正式配对。两次回答的输出长度可能不同，因此费用差异不能全部归因于缓存。
+**HTTP 成功不等于任务完成。** 记录到 650 次物理尝试，状态分布为 HTTP 200: 650；重试 0 次。这里包含预热和所有已记录的重试；上面的完成表仍保留截断回答。这是限速后的小规模运行，不是容量或可靠性保证。
 
-| 模型／thinking.type／output_config.effort | 完整配对数 | 首字 P50：第 1 次写缓存（秒） | 首字 P50：第 2 次读缓存（秒） | 平均费用：第 1 次（美元） | 平均费用：第 2 次（美元） |
-|---|---:|---:|---:|---:|---:|
-| Opus 5.5 / adaptive / low | 12 | 1.19 | 1.08 | $0.158921 | $0.023222 |
-| Opus 5.5 / adaptive / medium | 12 | 6.92 | 7.15 | $0.173419 | $0.036952 |
-| Opus 5.5 / adaptive / high | 12 | 9.13 | 7.53 | $0.200936 | $0.097379 |
-| Opus 5.5 / adaptive / xhigh | 12 | 18.9 | 19.6 | $0.248050 | $0.183598 |
-| Opus 5.5 / adaptive / max | 11 | 232 | 236 | $1.008633 | $0.785095 |
-| Opus 5.5 / adaptive / default | 11 | 7.03 | 8.02 | $0.186835 | $0.037639 |
-| Sonnet 5.5 / adaptive / low | 12 | 0.77 | 0.76 | $0.077371 | $0.008869 |
-| Sonnet 5.5 / adaptive / medium | 12 | 0.81 | 0.87 | $0.078745 | $0.010499 |
-| Sonnet 5.5 / adaptive / high | 12 | 6.05 | 7.44 | $0.106288 | $0.034861 |
-| Sonnet 5.5 / adaptive / xhigh | 12 | 20.7 | 16.1 | $0.152607 | $0.109698 |
-| Sonnet 5.5 / adaptive / max | 9 | 394 | 364 | $0.804891 | $0.635133 |
-| Sonnet 5.5 / adaptive / default | 12 | 6.86 | 5.78 | $0.100876 | $0.035923 |
-| Sonnet 5.5 / between_tools / low | 12 | 0.78 | 0.76 | $0.077653 | $0.008496 |
-| Sonnet 5.5 / between_tools / medium | 12 | 0.83 | 0.79 | $0.077994 | $0.009313 |
-| Sonnet 5.5 / between_tools / high | 12 | 0.81 | 0.82 | $0.079108 | $0.011469 |
-| Sonnet 5.5 / between_tools / default | 12 | 0.79 | 0.78 | $0.078623 | $0.010259 |
-| Haiku 5.5 / adaptive / low | 12 | 3.09 | 4.25 | $0.004254 | $0.001009 |
-| Haiku 5.5 / adaptive / medium | 12 | 6.92 | 6.93 | $0.004638 | $0.001248 |
-| Haiku 5.5 / adaptive / high | 12 | 9.07 | 12.1 | $0.005884 | $0.002356 |
-| Haiku 5.5 / adaptive / xhigh | 11 | 61.3 | 53.4 | $0.019081 | $0.010969 |
-| Haiku 5.5 / adaptive / max | 8 | 204 | 260 | $0.037720 | $0.032892 |
-| Haiku 5.5 / adaptive / default | 12 | 5.49 | 6.22 | $0.004464 | $0.001171 |
-| Haiku 5.5 / disabled / low | 12 | 0.48 | 0.56 | $0.003747 | $0.000406 |
-| Haiku 5.5 / disabled / medium | 12 | 0.54 | 0.50 | $0.003759 | $0.000443 |
-| Haiku 5.5 / disabled / high | 12 | 0.49 | 0.49 | $0.003790 | $0.000428 |
-| Haiku 5.5 / disabled / default | 12 | 0.49 | 0.45 | $0.003728 | $0.000475 |
+| 证据层 | 已有证据 | 不能据此证明什么 |
+|---|---|---|
+| 客户端请求参数 | [请求记录](../evidence/gateway-cache-20261026/responses_opus.jsonl)中的 `request_params`、`request_sha256`，记录在已说明的模型别名转换之前 | 不是网关出站请求的抓包 |
+| 上游返回的行为 | [原生 usage 和终态](../evidence/gateway-cache-20261026/interim-facts.json)包含缓存读写、思考 token、完整结束和截断 | 不能证明所有被接受的参数都生效，也不能证明 effort 与 token 数严格单调 |
+| 网关出站参数 | [2026-10-24 的独立审计](results_CN.md#网关测试)对齐了该批次客户端请求与 provider trace | 当前批次未保留逐请求出站审计，不能拿旧批次补齐 |
+
+| thinking.type | 正式请求数 | 有思考 token 字段／请求数 | 思考 token 大于零的请求数 |
+|---|---:|---:|---:|
+| `adaptive` | 432 | 432/432 | 353 |
+| `between_tools` | 96 | 96/96 | 0 |
+| `disabled` | 96 | 96/96 | 0 |
+
+这些是 usage 观察，不是模型排名。本轮没有工具循环，因此 `between_tools` 的零思考 token 不能验证工具调用之间的行为。某条 adaptive 请求为零，也不能单凭这一点判定参数被丢弃。旧直连路径的接受／拒绝探测仍属历史证据，不是当前网关支持矩阵。
+
+### 配置建议与验收观察
+
+| 要检查的设置 | 可复现的配置 | 验收观察与边界 |
+|---|---|---|
+| 网关透传 | 从 [config.yaml](../deploy/config.yaml) 开始：`drop_params: false`，网关与路由重试为零 | 采集同一 call ID 的 [provider trace](../deploy/trace_hook.py)。配置文本不等于已透传；矩阵客户端另有 429 重试策略 |
+| 提示缓存 | 本矩阵使用顶层 `cache_control`，`type: ephemeral`、`ttl: 1h` | 看原生写入和读取 token 数。本轮未比较不同 TTL 或关闭缓存；生产 TTL 须结合真实会话间隔和写入成本选择 |
+| 思考模式与档位 | 使用表中明确的配置，`default` 保留为不传字段 | 对比同条件性能和代码测试结果；这组公开题不能选出生产最优档位 |
+| 输出上限与流式响应 | 复现配置为 `max_tokens: 128000`、`stream: true` | 必须检查流终止及 `stop_reason`；该上限仍发生截断，不能把 HTTP 200 或首个事件当成回答完成 |
 
 ### 性能之后：代码正确率
 
 **方法。** 对同一批 624 份正式答案评分，只排除预热。使用官方 SWE-bench 5.0.2，固定提交 `02e7a74ffd0b707aab73d203fe87bdc7c76afc8e`；由官方 `extract_diff` 提取补丁，没有替模型修答案，也没有新增模型调用。每个配置／重复次数使用独立 run ID；所选 12 道金标准全部通过。[冻结输入、官方报告与验算](../evidence/gateway-score-20261027/verification.json)。
-
-| 模型 | 已解决／正式答案数 | 解决率（%） |
-|---|---:|---:|
-| Opus 5.5 | 104/144 | 72.22 |
-| Sonnet 5.5 | 87/240 | 36.25 |
-| Haiku 5.5 | 54/240 | 22.50 |
 
 合计 245/624 份解决问题（39.26%）；另有 257 份补丁应用失败、108 份测试未通过、14 份截断空回答，均保留在分母中。不同模型的模式／档位组合数量不同，不能当成公平总榜；同条件每格均为 24 份答案。这只是 12 题子集，不是完整 SWE-bench Lite 成绩。
 
@@ -160,6 +288,123 @@
 **保留疑义。** 6 条官方 `no_tests_collected` 模糊标记仍保留为未解决。对应日志先收集了 92 项顶层测试，包含嵌套的零收集输出，并出现 `NameError: cached_eval`；没有暗中删除或改判。[六条来源复核](../evidence/gateway-score-20261027/ambiguous-review.json)。[环境清单](../evidence/gateway-score-20261027/environment.json)是在评分后采集，不冒充运行时遥测。
 
 **证据与复算。** [统计结果](../evidence/gateway-cache-20261026/interim-facts.json)、[导出哈希与脱敏范围](../evidence/gateway-cache-20261026/_export_manifest.json)、[Opus 记录](../evidence/gateway-cache-20261026/responses_opus.jsonl)、[Sonnet 记录](../evidence/gateway-cache-20261026/responses_sonnet.jsonl)、[Haiku 记录](../evidence/gateway-cache-20261026/responses_haiku.jsonl)。指标投影省略提示与回答正文、思考签名、私有端点和其他响应头，不能用于代码正确率评分。复算命令见[测试页](testing_CN.md#aca-snapshot-replay)。
+
+<a id="historical-evidence"></a>
+
+## 历史观察：不同路径与题目
+
+以下内容记录早期直连和跨区域测试，保留原值；不是当前 ACA 批次的配置建议或性能成绩。
+
+<a id="historical-settings"></a>
+
+**历史请求设置。** 每个设置的作用（依据 Claude 官方文档），以及保留的旧 VM 直连批次发送了什么；各部署接受哪些取值来自历史参数探测。这些观测不是当前 ACA 测试的结果：
+
+| 设置 | 作用 | 历史观测 |
+|---|---|---|
+| `thinking.type: "adaptive"` | 模型对每个请求自己决定要不要先思考、思考多久；`output_config.effort` 调节思考多少。这三个模型不传 `thinking` 字段时也是这样 | 三个模型，档位 low 到 max |
+| `thinking.type: "between_tools"` | Sonnet 5.5 最低的思考设置：回答前不思考。在工具调用之间写的简短进度仍以 thinking 块返回；不用工具时只返回文字。只接受 `high` 及以下档位 | Sonnet，档位 low、medium、high；不用工具 |
+| `thinking.type: "disabled"` | 关闭思考。只有 Haiku 5.5 接受，且只在 `high` 及以下档位；Opus 5.5 关不掉思考 | Haiku，档位 low、medium、high |
+| `thinking.display` | 是否返回思考文字。这些模型默认 `"omitted"`：thinking 块的文字为空、只带加密签名，所以回答更早开始流式返回；思考 token 照样计费。`"summarized"` 返回摘要 | 未发送：矩阵中 610 个回答用了思考 token，没有一个流式返回思考文字 |
+| `output_config.effort` | 模型在整个回答上投入多少，包括思考：`low`、`medium`、`high`、`xhigh`、`max`。它是行为信号，不是 token 预算。不传时 Opus 和 Haiku 为 `medium`，Sonnet 为 `high` | 每种思考模式接受的全部档位，共 21 格 |
+| `max_tokens` | 输出 token 的硬上限，包括思考；回答达到上限时以 `stop_reason: "max_tokens"` 停止。这些模型最大 128,000 | 矩阵用 128,000；1,000,000 返回 HTTP 400 |
+| 不传 `cache_control`（默认） | 不缓存：缓存要由请求主动开启。“自动缓存”同样要在顶层传 `cache_control`，“自动”指断点位置由系统决定，不是默认开启。官方文档写明的例外都和工具有关：工具调用循环中随 tool_result 回传的历史不加标记也可能被缓存，服务器工具的结果会自动缓存 | 编码矩阵（1,155 个请求）和缓存测试的基线场景（24 个请求，每轮都重发同样约 15,500 个 token 的前缀）：每个响应的缓存读取和写入都是 0 |
+| 顶层 `cache_control` | 自动缓存：断点放在最后一个可缓存块上，随对话增长自动后移 | 缓存测试的大多数场景 |
+| 内容块上的 `cache_control` | 显式断点：缓存到该块为止的提示，顺序为 `tools`、`system`、`messages`。每个请求最多 4 个断点；不足 512 个 token 的提示不会被缓存 | 缓存测试：放在仓库文件之后 |
+| `cache_control.ttl` | 缓存条目闲置多久后失效：默认 `"5m"`，每次读取都会续期；也可设为 `"1h"`。写入按输入价的 1.25 倍（5 分钟）或 2 倍（1 小时）计费；读取在 Opus 和 Sonnet 上按 0.05 倍，在 Haiku 上按 0.1 倍 | 两种都测了：第 2 轮前空闲 6.5 分钟 |
+| 按消息设置 effort | 用只含 effort 的 `system` 消息改变后续轮次的档位，不动顶层字段，缓存前缀因此保持有效。Beta 功能，请求头 `anthropic-beta: mid-conversation-output-config-2026-07-01`；effort 文档列出的支持平台中没有 Foundry | 一个缓存场景；缓存测试的 264 个请求全部返回 HTTP 200 |
+| `temperature`、`top_p`、`top_k` | 采样参数。这些模型上任何非默认值都返回 HTTP 400 | 只在探测中发送：试过的每种模式都返回 HTTP 400；矩阵从未发送 |
+| `stream` | 为 `true` 时以服务端事件流返回，只有这样才能测首个可见文字的时间 | 计时的请求都是 `true`；`max_tokens: 0` 的预热请求按 API 要求不用流式 |
+| 部署类型（创建部署时选择，不是请求参数） | GlobalStandard 的请求可能在资源所在区域以外处理；US Data Zone Standard 把推理留在美国，相当于 Claude API 的 `inference_geo: "us"`。Sonnet 5.5 只支持 GlobalStandard | 只测了 GlobalStandard；矩阵每个响应的 `usage.inference_geo` 都是 `global` |
+
+**表 1：完整思考模式与推理档位矩阵。**
+
+[![表 1：完整思考模式与推理档位矩阵。](../images/parameter-support-zh.svg)](../images/parameter-support-zh.svg)
+
+`adaptive`、`between_tools`、`disabled` 与六列档位共 54 格，均单独探测；其中 26 格被接受，包括五个不传 effort 的格子。`enabled` 每模型只测一次：`budget_tokens: 1024`，不传 effort；HTTP 400 拒绝的是模式本身，所以六个档位格都标“不支持”。缓存列只写适用性：思考模式使请求被拒时标“不适用”，不是说模型不支持缓存。默认档位来自[effort 文档](https://platform.claude.com/docs/en/build-with-claude/effort)。
+
+历史缓存范围：当时五个被接受的模型／模式行均在 low 档读到缓存；adaptive 在切换到 high 的场景也读到缓存。后续 ACA 全矩阵的覆盖与结果见上方独立章节。“适用”和“参数被接受”本身不证明缓存性能。历史矩阵固定项为 `max_tokens: 128000`、`stream: true`；`temperature`、`top_p`、`top_k` 不传。不传 thinking 等同 adaptive 来自文档；三个模型同时不传 thinking、effort 的探测均返回 200。
+
+**表 2：完整提示缓存设置。**
+
+[![表 2：完整提示缓存设置。](../images/cache-settings-zh.svg)](../images/cache-settings-zh.svg)
+
+来源：[探测请求](../evidence/coding-matrix-20261026/probe/probe_results.jsonl)、[缓存请求](../evidence/coding-matrix-20261026/cache/cache_results.jsonl)及[缓存文档](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)。表 2 每场景重复两次：Opus adaptive、Sonnet between_tools、Haiku disabled，effort low；首轮写入与第 2-4 轮读取分开。读取比例＝读取 tokens ÷（未缓存＋写入＋读取的输入 tokens），按模型／场景／轮次汇总。新对话话题变化，但复用文件。512-token 边界和四断点上限来自文档，并非边界扫描实测。缓存标记均为 `type: ephemeral`；读取按输入价计费：Opus／Sonnet 0.05 倍、Haiku 0.1 倍（文档价格）。这些是历史 VM 直连观察，不能作为后续 ACA 批次的证据。
+
+**未覆盖：** 工具调用（`between_tools` 和进度更新只在使用工具时才起作用）、`display: "summarized"`、US Data Zone 部署，以及 Foundry 模型目录里单独的 `claude-opus-5-5-fast` 模型。
+
+**历史批次按模型汇总。** 已取缔的 VM 直连批次中，每个部署接受什么，以及在这 18 道题上的表现；不是当前 ACA 测试的结果：
+
+| 问题 | Opus 5.5 | Sonnet 5.5 | Haiku 5.5 |
+|---|---|---|---|
+| API 接受的思考模式 | 只接受 `adaptive`；`disabled` 和 `between_tools` 返回 400 | `adaptive`；`between_tools` 只接受 low、medium、high | `adaptive`；`disabled` 只接受 low、medium、high |
+| 推理档位 / 不传时的默认值 | low 到 max / medium | low 到 max / high | low 到 max / medium |
+| 最快一格的首个可见文字 P50 | 0.48 秒（`adaptive` · low） | 0.39 秒（`between_tools` · high） | 0.43 秒（`disabled` · high） |
+| 每格通过单元测试的回答数（共 54 个） | 每格都是 54 | 40 到 44 | `adaptive` 24 到 28；`disabled` 17 到 21 |
+| 按标价计每 1,000 次请求的费用 | $23.34 到 $355.75 | $13.04 到 $356.49 | $0.69 到 $22.26 |
+| 适合的情况（本测试的解读） | 答案必须一次就对。从 `low` 开始：每个档位都 54 个全过，`low` 最快（0.48 秒）也最便宜 | 要接近 Opus 的正确率、价格更低：`between_tools` 的通过数与 `adaptive` 相当，首字不到 0.5 秒，每 1,000 次请求 $13.16–$13.76 | 费用最重要、答错可以重试。保持思考开启：同样的档位下 `adaptive` 比 `disabled` 通过率高 12.3 个百分点 |
+
+**历史结果范围。** 题目是 [Aider polyglot benchmark](https://github.com/Aider-AI/polyglot-benchmark) 收录的 Exercism 公开练习，每次只答一次、不用工具、看不到测试；它们不是你的生产任务。已取缔的批次曾直连 Foundry，每个部署同一时间只有一个请求。其费用和正确率是历史观测，不能证明当前开启缓存的 ACA 路径的表现。费用按标价计算，没有与 Azure 账单核对。
+
+**来源。** 接受哪些取值、HTTP 400 的报错原文来自我们的参数探测（[结果页](results_CN.md#参数探测)）。各设置的作用、默认值、`between_tools` 和 `disabled` 的使用规则，以及 Sonnet 5.5 做智能体编码时把 `max_tokens` 设为 128,000 的建议，来自 Claude 的 [thinking](https://platform.claude.com/docs/en/build-with-claude/thinking) 和 [effort](https://platform.claude.com/docs/en/build-with-claude/effort) 文档；缓存规则和价格倍数来自 [prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)；价格来自 [pricing](https://platform.claude.com/docs/en/about-claude/pricing)；托管方式和 Foundry 配置来自 [Claude in Microsoft Foundry](https://platform.claude.com/docs/en/build-with-claude/claude-in-microsoft-foundry)；均于 2026-10-26 查阅。“适合的情况”一行是我们对这 18 道题的解读，不是通用建议。
+
+| 术语 | 含义 |
+|---|---|
+| 格 | 一个模型 × 思考模式 × 推理档位的组合。每格把 18 道题各答 3 次，共 54 个回答 |
+| 思考模式、推理档位 | 定义见[历史请求设置表](#historical-settings) |
+| 首个可见文字 | 从请求即将发出到收到第一个非空 `text_delta` 的秒数，在 VM 上计时。思考在它之前进行，且思考文字默认不流式返回（`display` 为 omitted），所以这段等待包含全部思考时间 |
+| 首个事件 | 收到第一个服务端事件 `message_start` 的秒数 |
+| 完整回答 | 收到流结束的秒数，只统计完成的请求 |
+| 完成 | HTTP 200、收到 `message_stop`、`stop_reason` 为 `end_turn` 且文字不为空 |
+| 通过 | 把回答里的文件覆盖到练习的解答文件上，题目自带的单元测试在离线容器里以 0 退出（Aider 的首次作答规则） |
+| 按题目的 95% 区间 | 对 18 道题有放回重抽 5,000 次（种子 20261026）取 2.5% 到 97.5% 分位。同一道题的 3 个回答不独立，所以以题目为单位 |
+| 费用 | 标价 × API 返回的 `usage` 中的 token 数，包括缓存写入和读取 |
+
+| 部分 | 位置 | 说明 |
+|---|---|---|
+| 客户端：参数探测、编码矩阵、缓存测试 | Linux VM `Standard_D4s_v5`，East US 2 | Ubuntu 24.04，内核 7.0.0-1017-azure，Python 3.12.3，httpx 0.28.1，azure-identity 1.25.1；用 VM 的托管身份取 Entra 令牌；矩阵开始前到端点的 TCP 建连中位数 9.67 毫秒 |
+| 模型 | East US 2 的 Foundry 资源 | `claude-opus-5-5` 每分钟 40,000 token；`claude-sonnet-5-5` 和 `claude-haiku-5-5` 各 80,000；版本 2，GlobalStandard，请求可能在 East US 2 以外执行 |
+| 单元测试 | 同一台 VM 上的 Docker | `--network none`，1.5 个 CPU，3 GB；工具链与 Aider 评测镜像一致：Python 3.11、Go 1.21.5、Rust、Node 20、OpenJDK 21、CMake 和 Boost |
+
+| 指标 | 起止或算法 | 脚本 |
+|---|---|---|
+| 接受的取值 | 带上每个取值发一个只需回答一个词的请求，看返回 200 还是 400 | [`probe.py`](../coding-matrix/probe.py) |
+| 首个可见文字、首个事件、完整回答 | 请求发出 → 第一个 `text_delta`、`message_start`、流结束；在 VM 上计时 | [`claude_api.py`](../coding-matrix/claude_api.py) `stream_message` |
+| 完成、思考 token、输出 token | 每个流的状态、`stop_reason` 和 `usage` | [`bench.py`](../coding-matrix/bench.py) |
+| 通过 | 练习自带的单元测试，在 Docker 里离线运行 | [`judge.py`](../coding-matrix/judge.py) |
+| P50、P95、区间、每 1,000 次费用 | 最近秩分位；按题目自助重抽；平均标价费用 × 1,000 | [`analyze.py`](../coding-matrix/analyze.py) |
+| 缓存读写、整段对话费用 | 每轮的 `usage`；同样的 token 按不缓存计价作对照 | [`cache_test.py`](../coding-matrix/cache_test.py)、[`cache_analyze.py`](../coding-matrix/cache_analyze.py) |
+
+**不要把下面三张表当成三个模型的通用排名。** Opus 每一格都把 18 道题全部答对，这次测试分不出它各档位的差别。只有 18 道题，Sonnet 和 Haiku 每格的 95% 区间宽 30 到 44 个百分点（例如 Sonnet `between_tools` · high：54 个通过 44 个，区间 65% 到 94%）。题目都是短小的单文件练习。每行是一个模型加一种思考模式，每列是一个推理档位；*不接受* 表示 API 返回 HTTP 400。P95、完整回答耗时、token 数和每格的区间见[结果页](results_CN.md#每格结果)。
+
+**通过单元测试的回答数（每格 54 个）**
+
+| 模型 · 思考模式 | low | medium | high | xhigh | max |
+|---|---:|---:|---:|---:|---:|
+| Opus 5.5 · `adaptive` | 54/54 | 54/54 | 54/54 | 54/54 | 54/54 |
+| Sonnet 5.5 · `adaptive` | 41/54 | 42/54 | 40/54 | 41/54 | 44/54 |
+| Sonnet 5.5 · `between_tools` | 42/54 | 41/54 | 44/54 | 不接受 | 不接受 |
+| Haiku 5.5 · `adaptive` | 24/54 | 26/54 | 27/54 | 28/54 | 28/54 |
+| Haiku 5.5 · `disabled` | 19/54 | 17/54 | 21/54 | 不接受 | 不接受 |
+
+**首个可见文字 P50（秒）**
+
+| 模型 · 思考模式 | low | medium | high | xhigh | max |
+|---|---:|---:|---:|---:|---:|
+| Opus 5.5 · `adaptive` | 0.48 | 3.71 | 4.05 | 6.04 | 51.4 |
+| Sonnet 5.5 · `adaptive` | 0.46 | 0.50 | 3.25 | 7.44 | 190 |
+| Sonnet 5.5 · `between_tools` | 0.42 | 0.44 | 0.39 | 不接受 | 不接受 |
+| Haiku 5.5 · `adaptive` | 4.13 | 4.62 | 8.21 | 14.9 | 121 |
+| Haiku 5.5 · `disabled` | 0.46 | 0.45 | 0.43 | 不接受 | 不接受 |
+
+**按标价计每 1,000 次请求的费用（美元）**
+
+| 模型 · 思考模式 | low | medium | high | xhigh | max |
+|---|---:|---:|---:|---:|---:|
+| Opus 5.5 · `adaptive` | $23.34 | $34.52 | $38.75 | $65.36 | $355.75 |
+| Sonnet 5.5 · `adaptive` | $13.04 | $13.57 | $18.36 | $31.62 | $356.49 |
+| Sonnet 5.5 · `between_tools` | $13.16 | $13.21 | $13.76 | 不接受 | 不接受 |
+| Haiku 5.5 · `adaptive` | $1.27 | $1.57 | $2.14 | $4.19 | $22.26 |
+| Haiku 5.5 · `disabled` | $0.69 | $0.69 | $0.73 | 不接受 | 不接受 |
 
 ## 编码矩阵
 

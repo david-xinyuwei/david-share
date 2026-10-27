@@ -2,7 +2,7 @@
 
 [README](../README_CN.md) · [实测结果](results_CN.md) · [English](testing.md)
 
-本页给出离线核验、重做 2026-10-26 测试和重做 2026-10-24 网关测试的完整命令。部署三个模型和发出第一个请求见 README 的操作步骤。
+首页拥有当前 ACA 矩阵的执行顺序。本页区分离线复算、新答案评分、网关部署与独立透传诊断，并保留历史直连命令。每条路径只证明自己的阶段；离线通过不代表新部署、重新推理或生产验收。
 
 <a id="aca-snapshot-replay"></a>
 
@@ -58,78 +58,34 @@ python -B -m unittest discover -s tests -v
 
 CI 在 Ubuntu 和 Windows 上用 Python 3.12 和 3.13 运行同样的检查（[workflow](https://github.com/david-xinyuwei/david-share/blob/master/.github/workflows/claude-foundry-performance-ci.yml)）。
 
-## 重做 2026-10-26 的测试
+<a id="fresh-aca-analysis"></a>
 
-**开始之前。** 先完成 README 的第 1 到 4 步。这些运行要花钱：按标价，我们的矩阵花了 $55.36，缓存测试 $6.70，参数探测 $0.05。`--budget-usd` 在达到上限时停止矩阵（默认 150）。客户端按 Opus 每分钟 40,000、Sonnet 和 Haiku 各 80,000 token 控制速率（`bench.py` 和 `cache_test.py` 里的 `TPM`）；容量不同就改这两处。以下命令都在 VM 的 `coding-matrix/` 目录运行。
+## 分析和评分新的 ACA 运行
 
-**1. 准备 VM，构建评分镜像。** `vm_setup.sh` 安装 Docker 和客户端依赖，并克隆题库；Java 预热练习让 Gradle 能在镜像里离线运行。
+输入重建、缓存检查与采集按首页执行；WORK、RUN、RUN_ID 指向本次私有目录。`analyze_cache_matrix.py --run-dir` 读取该次响应及已记录重试，不回退到已发布快照。采集完整仍可能有截断和错误答案。参数记录在模型别名转换之前，不是 provider 出站抓包。
 
-```bash
-cd ~/david-share/Agents/Claude-Foundry-LiteLLM-Performance/coding-matrix
-bash vm_setup.sh
-git -C ~/polyglot-benchmark checkout 7e0611e77b54e2dea774cdc0aa00cf9f7ed6144f
-cp -r ~/polyglot-benchmark/java/exercises/practice/affine-cipher judge/java-warmup
-sudo docker build -t polyglot-judge:1 judge
-export FOUNDRY_ANTHROPIC_BASE="https://<foundry-resource>.services.ai.azure.com/anthropic"
-```
+**出站审计单独进行。** 网关部署章节的 50 请求诊断使用 `run_matrix.ps1` 和 `scripts/analyze.py --run-directory --trace-file` 逐条关联调用。它与 650 请求编码矩阵是不同工作负载。编码矩阵分析器不执行该 trace 关联；新采集时保留原生网关日志，不能把尚未实现的关联审计标为通过。
 
-成功时 `vm_setup.sh` 输出 httpx 和 azure-identity 的版本以及每种语言的练习数，镜像构建最后输出 Python、Go、Rust、Node、Java 和 CMake 的版本。退出再重新登录一次，让当前用户不用 `sudo` 就能运行 `docker`，评分器需要这一点。
-
-**2. 探测接受的取值。** 约 102 个请求。
+**评分新生成的答案，不使用公开指标投影。** 在可使用 Docker、磁盘足够容纳题目镜像的 Linux x86-64 环境中执行，复用兼容 Python 环境。本阶段会下载官方数据和镜像并运行测试，不调用模型，但消耗计算资源。驱动在 prepare 时冻结官方评分集；下方检查要求与已发布分数使用同一数据集版本。不一致时须另行限定评测范围，不能继续冒充同口径比较。
 
 ```bash
-~/venv/bin/python probe.py --out-dir runs/probe
+python -m pip install 'git+https://github.com/SWE-bench/SWE-bench.git@02e7a74ffd0b707aab73d203fe87bdc7c76afc8e'
+SCORE="$WORK/score"
+python -B gateway-cache/swebench_score.py audit-input --run-dir "$RUN"
+python -B gateway-cache/swebench_score.py prepare --run-dir "$RUN" \
+  --problems "$WORK/problems.json" --out "$SCORE" --evaluation-id "$RUN_ID"
+python -c 'import json,sys; record=json.load(open(sys.argv[1], encoding="utf-8")); assert record["dataset"]["revision"] == "b0dde1093fe417d83b7184254edf8199c1f0dff5", "Evaluation dataset revision changed"' "$SCORE/manifest.json"
+python -u gateway-cache/swebench_score.py run --out "$SCORE" --workers 2
+python -B gateway-cache/swebench_score.py collect --out "$SCORE"
 ```
 
-成功时 `runs/probe/probe_summary.json` 列出接受的思考模式和推理档位，可与[我们的结果](../evidence/coding-matrix-20261026/probe/probe_summary.json)对比。列表不同说明部署的行为已与 2026-10-26 不同；矩阵会按你的列表运行。
+prepare 必须保留全部正式答案，只排除预热。完整协议应有 624 份答案、52 批，解决数没有预设值。读取本次 SCORE 的 score-summary.json、scored-responses.json 和 logs/evaluation 原生报告。NOT_GRADED 或 EVALUATION_ERROR 表示评分未完成，不能当成可静默删除的答案失败。本轮文档更新未在新云计算环境重跑这套命令。
 
-**3. 重建实测题目。**
+<a id="gateway-setup"></a>
 
-```bash
-~/venv/bin/python prepare.py --ids ../data/coding-problems.json --out problems.json
-```
+## 部署网关并核验透传
 
-成功时输出 18 行 `ACCEPT`。如果重建的提示与实测不同，或者参考答案在评分器里失败、未修改的待补全文件反而通过，脚本会停止。
-
-**4. 运行编码矩阵和评分器。** 两者都在后台运行；评分器边收到回答边评分。
-
-```bash
-RUN=runs/matrix-$(date -u +%Y%m%d-%H%M%S)
-mkdir -p "$RUN"
-nohup ~/venv/bin/python bench.py --run-dir "$RUN" --problems problems.json \
-  --probe-summary runs/probe/probe_summary.json --repeats 3 --max-tokens 128000 --budget-usd 150 \
-  > "$RUN/bench.log" 2>&1 &
-nohup ~/venv/bin/python judge.py --run-dir "$RUN" --problems problems.json --workers 2 --watch \
-  > "$RUN/judge.log" 2>&1 &
-tail -F "$RUN/progress.log"
-```
-
-成功时每个请求在 `progress.log` 里有一行，结束时 `$RUN/run.json` 显示 `"status": "COMPLETED"`；我们的运行用了约五小时。如果到端点的 TCP 建连中位数达到 50 毫秒，`bench.py` 会立即退出，因为这说明客户端不在模型所在区域。要停止就结束两个进程（`pkill -f bench.py; pkill -f judge.py`）；用同一个 `RUN` 再运行这两条命令会续跑，并跳过已完成的请求。
-
-**5. 分析运行结果。**
-
-```bash
-~/venv/bin/python analyze.py --run-dir "$RUN"
-```
-
-成功时输出 21 行的表格，并生成字段与[我们的](../evidence/coding-matrix-20261026/matrix/facts.json)相同的 `$RUN/facts.json`。回答不是确定的，延迟随负载变化，数字会不同；请与我们的区间比较，而不是与单个数值比较。
-
-**6. 运行提示缓存测试。** 在矩阵结束后启动，或者加上 `--wait-run-dir "$RUN"`，让每个模型在自己的矩阵请求结束后再开始。空闲场景要等 6.5 分钟。
-
-```bash
-CACHE=runs/cache-$(date -u +%Y%m%d-%H%M%S)
-HTTPX_DIR=$(~/venv/bin/python -c "import httpx, os; print(os.path.dirname(httpx.__file__))")
-~/venv/bin/python cache_test.py --out-dir "$CACHE" --package-dir "$HTTPX_DIR" --repetitions 2
-~/venv/bin/python cache_analyze.py --run-dir "$CACHE"
-```
-
-成功时 `cache_analyze.py` 每个场景的每一轮输出一行；httpx 为 0.28.1 时，`$CACHE/context.json` 的 `context_sha256` 与[我们的](../evidence/coding-matrix-20261026/cache/context.json)相同。
-
-**这些步骤无法精确重现的部分。** 回答以及通过数每次都会不同；延迟取决于时间和负载；GlobalStandard 部署的路由可能不同。公开脚本与实测脚本的差异全部列在 [provenance.json](../evidence/coding-matrix-20261026/provenance.json)：`bench.py`、`probe.py`、`cache_test.py` 和评分镜像文件逐字节相同。
-
-## 重做 2026-10-24 的网关测试
-
-下面在新的 Container App 上部署 LiteLLM，并让十种配置的对话经过它。Container App 的区域请选 Foundry 资源所在区域：2026-10-24 的运行用的是 Japan East，所以它的时间包含跨区域往返。命令在 PowerShell 7.6 中运行。
+第 1-4 步在专用 Container App 上部署并检查 LiteLLM，完成后可回首页运行 650 请求矩阵。第 5-6 步是独立的 50 请求参数透传诊断，沿用 2026-10-24 的十组五轮工作负载，并非 650 请求矩阵。Container App 选择 Foundry 资源所在区域；要复现当前位置条件，使用 East US 2。历史诊断在 Japan East，时间包含跨区域往返。以下命令使用 PowerShell 7.6，部署环境不等于完成模型测试。
 
 | 顺序 | 位置 | 操作 |
 |---|---|---|
@@ -334,3 +290,172 @@ trace 输入支持观察器原始 JSON/JSONL、控制台 CLAUDE_PROVIDER_TRACE �
 真实输入、模型回答、签名及认证信息可能敏感。live-runs、private、runs 与 .env 已忽略；不要上传运行目录。历史 coding-matrix-20261026 记录只替换了端点资源名和 VM 名称；新的 gateway-cache-20261026 是指标投影，保留数值但省略提示／回答正文、思考签名、私有端点和非区域响应头。各自的导出清单记录哈希与边界，不能把指标投影用于代码正确率评分。2026-10-24 的公开证据省略了签名，call ID 已假名化，不能拿它的历史重放签名。
 
 本轮 ACA 的 650 条请求和 624 份正式答案评分已收齐；失败和六条官方模糊标记保留。未验证：公开包装在全新订阅中的端到端部署、并发压测、Azure 以外的客户端、display: "summarized"、带工具的请求，以及客户自己的任务。评分环境版本是评分后采集，不是运行时遥测。
+
+<a id="historical-direct-procedure"></a>
+
+## 历史直连步骤，仅供参考
+
+**当前测试入口。** 新测试使用 [ACA 缓存运行器](../gateway-cache/aca_cache_matrix.py)及其[启动脚本](../gateway-cache/run.sh)，输入为 [12 道题清单](../data/gateway-cache-problems.json)。VM 客户端通过网关发送请求，并开启 `cache_control`；当前测试不使用旧直连客户端。
+
+**已取缔的 VM 直连流程，仅供历史参考。** 以下命令记录旧证据的产生方式，不是当前部署或测试步骤，不能用于按 ACA 协议开展的新测试。历史流程和离线证据检查保留在 [docs/testing_CN.md](testing_CN.md)。
+
+**执行边界：** 2026-10-26 的结果由这些脚本产生，所用 VM 由第 3 步的命令（换成我们自己的资源名）创建。仓库是事后整理的。整理后在同一台 VM 上用公开的 `claude_api.py`、`pricing.py` 和 `call_once.py` 运行了一次第 4 步：完成，HTTP 200，首个可见文字在 0.89 秒后出现（[记录](../evidence/coding-matrix-20261026/readme-step4.json)）。第 1 到 3 步还没有在全新订阅中重跑。
+
+| 顺序 | 位置 | 操作 | 入口 |
+|---|---|---|---|
+| 1 | 装有 Azure CLI 的 Bash | 登录并填写资源名 | `az login` |
+| 2 | Foundry 门户和 Azure CLI | 部署三个模型 | `az cognitiveservices account deployment create` |
+| 3 | Azure CLI | 在同一区域创建 VM，并允许它的身份调用 Foundry | `az vm create`、`az role assignment create` |
+| 4 | VM | 安装客户端并发一个请求 | [`coding-matrix/call_once.py`](../coding-matrix/call_once.py) |
+
+**前提。** 装有 Azure CLI 的 Bash（我们用的是 2.91.0；Azure Cloud Shell 也可以）；位于提供 Claude 5.5 的区域的 Foundry 资源（这里是 East US 2）；部署模型、创建 VM 和在 Foundry 资源上分配角色的权限；Claude 5.5 配额；以及 Anthropic 模型的 Marketplace 条款，首次部署时由订阅所有者在门户中接受。模型调用、VM 和磁盘都会产生费用。
+
+**1. 登录并填写资源名。** 填好五个值；`LOCATION` 是 Foundry 资源所在的区域。
+
+```bash
+SUBSCRIPTION_ID="<subscription-id>"
+FOUNDRY_RG="<resource-group-of-the-Foundry-resource>"
+FOUNDRY="<Foundry-resource-name>"
+VM_RG="<new-resource-group-for-the-client-VM>"
+LOCATION="eastus2"
+az login
+az account set --subscription "$SUBSCRIPTION_ID"
+az cognitiveservices account show -g "$FOUNDRY_RG" -n "$FOUNDRY" --query "{name:name, location:location}" -o table
+```
+
+成功时最后一条命令输出资源名和区域。失败时先核对订阅和资源名再继续。
+
+**2. 部署三个模型。** capacity 的单位是每分钟千 token；这里用的是测试时的值（Opus 40，Sonnet 和 Haiku 各 80）。如果命令因 Marketplace 条款失败，先在 Foundry 门户部署一次该模型（**Discover → Models**，然后 **Deploy → Custom settings**，部署类型选 **Global**，版本 2），再重新运行命令。
+
+```bash
+az cognitiveservices account deployment create -g "$FOUNDRY_RG" -n "$FOUNDRY" --deployment-name claude-opus-5-5 \
+  --model-name claude-opus-5-5 --model-version 2 --model-format Anthropic --sku-name GlobalStandard --sku-capacity 40
+az cognitiveservices account deployment create -g "$FOUNDRY_RG" -n "$FOUNDRY" --deployment-name claude-sonnet-5-5 \
+  --model-name claude-sonnet-5-5 --model-version 2 --model-format Anthropic --sku-name GlobalStandard --sku-capacity 80
+az cognitiveservices account deployment create -g "$FOUNDRY_RG" -n "$FOUNDRY" --deployment-name claude-haiku-5-5 \
+  --model-name claude-haiku-5-5 --model-version 2 --model-format Anthropic --sku-name GlobalStandard --sku-capacity 80
+az cognitiveservices account deployment list -g "$FOUNDRY_RG" -n "$FOUNDRY" \
+  --query "[?properties.model.format=='Anthropic'].{name:name, sku:sku.name, capacity:sku.capacity, version:properties.model.version, state:properties.provisioningState}" -o table
+```
+
+成功时输出三行，都是 `GlobalStandard`、版本 `2`、`Succeeded`。没有配额就申请配额，不要换模型。测试客户端按这些容量控制发送速度（`bench.py` 和 `cache_test.py` 里的 `TPM`）；容量不同，重做测量前先改这两处。
+
+**3. 在同一区域创建客户端 VM。** VM 带系统分配的托管身份；在 Foundry 资源上授予该身份 `Cognitive Services User`，它就能调用模型。`--nsg-rule NONE` 不开放任何入站端口：通过 Azure Bastion 连接（我们用的方式），或者添加一条只允许你自己 IP 的 SSH 规则。
+
+```bash
+az group create -n "$VM_RG" -l "$LOCATION"
+az vm create -g "$VM_RG" -n claude-client -l "$LOCATION" \
+  --image Canonical:ubuntu-24_04-lts:server:latest --size Standard_D4s_v5 --os-disk-size-gb 128 \
+  --admin-username azureuser --generate-ssh-keys --assign-identity '[system]' \
+  --public-ip-sku Standard --nsg-rule NONE
+PRINCIPAL_ID=$(az vm show -g "$VM_RG" -n claude-client --query identity.principalId -o tsv)
+FOUNDRY_ID=$(az cognitiveservices account show -g "$FOUNDRY_RG" -n "$FOUNDRY" --query id -o tsv)
+az role assignment create --assignee-object-id "$PRINCIPAL_ID" --assignee-principal-type ServicePrincipal \
+  --role "Cognitive Services User" --scope "$FOUNDRY_ID"
+```
+
+成功时 `az vm create` 输出 `"powerState": "VM running"`，角色分配输出它的 JSON。新分配的角色可能要几分钟才生效。
+
+**4. 安装客户端并发一个请求。** 在 VM 上运行。把 `FOUNDRY_ANTHROPIC_BASE` 设为你的资源以 `/anthropic` 结尾的端点。
+
+```bash
+sudo apt-get update && sudo apt-get install -y python3-venv git
+git clone --filter=blob:none --sparse --depth=1 https://github.com/david-xinyuwei/david-share.git
+git -C david-share sparse-checkout set Agents/Claude-Foundry-LiteLLM-Performance
+cd david-share/Agents/Claude-Foundry-LiteLLM-Performance/coding-matrix
+python3 -m venv ~/venv && ~/venv/bin/pip install -r requirements.txt
+export FOUNDRY_ANTHROPIC_BASE="https://<foundry-resource>.services.ai.azure.com/anthropic"
+~/venv/bin/python call_once.py --model claude-sonnet-5-5 --thinking between_tools --effort low \
+  "Write a Python function that returns the n-th Fibonacci number."
+```
+
+成功时先输出回答，再输出一行类似 `{"status": "completed", "http_status": 200, "first_text_s": 0.8893, ...}` 的结果，退出码 0。HTTP 401 或 403：角色还没生效，或者分配到了别的资源上，稍等后重试。HTTP 400：模型不接受这个思考模式或推理档位（见第一张表）。HTTP 404：部署名或端点写错了。
+
+**完成。** 三个部署已能用这里的参数回答同区域客户端的请求。要重做测量，按 [docs/testing_CN.md](testing_CN.md) 操作。
+
+**只有在资源所有者同意后才删除资源；这不是部署步骤。** 每个代码块只删除一样东西，只运行需要的那一个。
+
+删除客户端 VM 及其资源组（`az` 会要求确认）：
+
+```bash
+az group delete -n "$VM_RG"
+```
+
+删除三个模型部署：
+
+```bash
+for name in claude-opus-5-5 claude-sonnet-5-5 claude-haiku-5-5; do
+  az cognitiveservices account deployment delete -g "$FOUNDRY_RG" -n "$FOUNDRY" --deployment-name "$name"
+done
+```
+
+**仓库目录。** [`coding-matrix/`](../coding-matrix/) 客户端、参数探测、编码矩阵、评分、缓存测试和分析 · [`data/`](../data/) 实测题目清单和网关测试的对话 · [`evidence/coding-matrix-20261026/`](../evidence/coding-matrix-20261026/) 运行记录、汇总和来源 · [`evidence/`](../evidence/) 网关测试记录 · [`scripts/`](../scripts/) 网关采集、网关分析和页面生成 · [`deploy/`](../deploy/) 网关镜像 · [`images/`](../images/) 图和图标台账 · [`tests/`](../tests/) 离线测试（`python -B -m unittest discover -s tests -v`，CI 每次推送都会运行）· [`NOTICE.md`](../NOTICE.md) 第三方声明。
+
+## 重做 2026-10-26 的测试
+
+**开始之前。** 先完成本页历史直连步骤第 1 到 4 步。这些运行要花钱：按标价，我们的矩阵花了 $55.36，缓存测试 $6.70，参数探测 $0.05。`--budget-usd` 在达到上限时停止矩阵（默认 150）。客户端按 Opus 每分钟 40,000、Sonnet 和 Haiku 各 80,000 token 控制速率（`bench.py` 和 `cache_test.py` 里的 `TPM`）；容量不同就改这两处。以下命令都在 VM 的 `coding-matrix/` 目录运行。
+
+**1. 准备 VM，构建评分镜像。** `vm_setup.sh` 安装 Docker 和客户端依赖，并克隆题库；Java 预热练习让 Gradle 能在镜像里离线运行。
+
+```bash
+cd ~/david-share/Agents/Claude-Foundry-LiteLLM-Performance/coding-matrix
+bash vm_setup.sh
+git -C ~/polyglot-benchmark checkout 7e0611e77b54e2dea774cdc0aa00cf9f7ed6144f
+cp -r ~/polyglot-benchmark/java/exercises/practice/affine-cipher judge/java-warmup
+sudo docker build -t polyglot-judge:1 judge
+export FOUNDRY_ANTHROPIC_BASE="https://<foundry-resource>.services.ai.azure.com/anthropic"
+```
+
+成功时 `vm_setup.sh` 输出 httpx 和 azure-identity 的版本以及每种语言的练习数，镜像构建最后输出 Python、Go、Rust、Node、Java 和 CMake 的版本。退出再重新登录一次，让当前用户不用 `sudo` 就能运行 `docker`，评分器需要这一点。
+
+**2. 探测接受的取值。** 约 102 个请求。
+
+```bash
+~/venv/bin/python probe.py --out-dir runs/probe
+```
+
+成功时 `runs/probe/probe_summary.json` 列出接受的思考模式和推理档位，可与[我们的结果](../evidence/coding-matrix-20261026/probe/probe_summary.json)对比。列表不同说明部署的行为已与 2026-10-26 不同；矩阵会按你的列表运行。
+
+**3. 重建实测题目。**
+
+```bash
+~/venv/bin/python prepare.py --ids ../data/coding-problems.json --out problems.json
+```
+
+成功时输出 18 行 `ACCEPT`。如果重建的提示与实测不同，或者参考答案在评分器里失败、未修改的待补全文件反而通过，脚本会停止。
+
+**4. 运行编码矩阵和评分器。** 两者都在后台运行；评分器边收到回答边评分。
+
+```bash
+RUN=runs/matrix-$(date -u +%Y%m%d-%H%M%S)
+mkdir -p "$RUN"
+nohup ~/venv/bin/python bench.py --run-dir "$RUN" --problems problems.json \
+  --probe-summary runs/probe/probe_summary.json --repeats 3 --max-tokens 128000 --budget-usd 150 \
+  > "$RUN/bench.log" 2>&1 &
+nohup ~/venv/bin/python judge.py --run-dir "$RUN" --problems problems.json --workers 2 --watch \
+  > "$RUN/judge.log" 2>&1 &
+tail -F "$RUN/progress.log"
+```
+
+成功时每个请求在 `progress.log` 里有一行，结束时 `$RUN/run.json` 显示 `"status": "COMPLETED"`；我们的运行用了约五小时。如果到端点的 TCP 建连中位数达到 50 毫秒，`bench.py` 会立即退出，因为这说明客户端不在模型所在区域。要停止就结束两个进程（`pkill -f bench.py; pkill -f judge.py`）；用同一个 `RUN` 再运行这两条命令会续跑，并跳过已完成的请求。
+
+**5. 分析运行结果。**
+
+```bash
+~/venv/bin/python analyze.py --run-dir "$RUN"
+```
+
+成功时输出 21 行的表格，并生成字段与[我们的](../evidence/coding-matrix-20261026/matrix/facts.json)相同的 `$RUN/facts.json`。回答不是确定的，延迟随负载变化，数字会不同；请与我们的区间比较，而不是与单个数值比较。
+
+**6. 运行提示缓存测试。** 在矩阵结束后启动，或者加上 `--wait-run-dir "$RUN"`，让每个模型在自己的矩阵请求结束后再开始。空闲场景要等 6.5 分钟。
+
+```bash
+CACHE=runs/cache-$(date -u +%Y%m%d-%H%M%S)
+HTTPX_DIR=$(~/venv/bin/python -c "import httpx, os; print(os.path.dirname(httpx.__file__))")
+~/venv/bin/python cache_test.py --out-dir "$CACHE" --package-dir "$HTTPX_DIR" --repetitions 2
+~/venv/bin/python cache_analyze.py --run-dir "$CACHE"
+```
+
+成功时 `cache_analyze.py` 每个场景的每一轮输出一行；httpx 为 0.28.1 时，`$CACHE/context.json` 的 `context_sha256` 与[我们的](../evidence/coding-matrix-20261026/cache/context.json)相同。
+
+**这些步骤无法精确重现的部分。** 回答以及通过数每次都会不同；延迟取决于时间和负载；GlobalStandard 部署的路由可能不同。公开脚本与实测脚本的差异全部列在 [provenance.json](../evidence/coding-matrix-20261026/provenance.json)：`bench.py`、`probe.py`、`cache_test.py` 和评分镜像文件逐字节相同。
