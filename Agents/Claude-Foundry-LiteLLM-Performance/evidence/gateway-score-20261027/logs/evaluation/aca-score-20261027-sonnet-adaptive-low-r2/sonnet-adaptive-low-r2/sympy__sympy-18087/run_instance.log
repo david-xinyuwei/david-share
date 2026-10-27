@@ -1,0 +1,23 @@
+2026-10-27 10:54:49,847 - INFO - Creating container for sympy__sympy-18087...
+2026-10-27 10:54:50,025 - INFO - Container for sympy__sympy-18087 created: c27df660e5f8a6d3770db7d01cf4ba962c8d2d622b83727d1210905c5123eef7
+2026-10-27 10:54:50,231 - INFO - Container for sympy__sympy-18087 started: c27df660e5f8a6d3770db7d01cf4ba962c8d2d622b83727d1210905c5123eef7
+2026-10-27 10:54:50,231 - INFO - Intermediate patch for sympy__sympy-18087 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-low-r2/sonnet-adaptive-low-r2/sympy__sympy-18087/patch.diff, now applying to container...
+2026-10-27 10:54:50,316 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:54:50,653 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:54:50,936 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:54:51,217 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:54:51,260 - INFO - >>>>> Patch Apply Failed:
+patch: **** Only garbage was found in the patch input.
+
+2026-10-27 10:54:51,261 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for sympy__sympy-18087: >>>>> Patch Apply Failed:
+patch: **** Only garbage was found in the patch input.
+
+Check (logs/evaluation/aca-score-20261027-sonnet-adaptive-low-r2/sonnet-adaptive-low-r2/sympy__sympy-18087/run_instance.log) for more information.
+
+2026-10-27 10:54:51,261 - INFO - Attempting to stop container sweb.eval.sympy__sympy-18087.aca-score-20261027-sonnet-adaptive-low-r2...
+2026-10-27 10:55:06,563 - INFO - Container sweb.eval.sympy__sympy-18087.aca-score-20261027-sonnet-adaptive-low-r2 stopped successfully.
+2026-10-27 10:55:06,563 - INFO - Attempting to remove container sweb.eval.sympy__sympy-18087.aca-score-20261027-sonnet-adaptive-low-r2...
+2026-10-27 10:55:06,636 - INFO - Container sweb.eval.sympy__sympy-18087.aca-score-20261027-sonnet-adaptive-low-r2 removed successfully.

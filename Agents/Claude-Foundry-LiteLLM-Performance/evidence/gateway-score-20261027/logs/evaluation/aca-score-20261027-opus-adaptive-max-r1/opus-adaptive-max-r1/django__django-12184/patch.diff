@@ -1,0 +1,65 @@
+
+--- a/django/urls/resolvers.py
++++ b/django/urls/resolvers.py
+@@ -158,8 +158,9 @@ def match(self, path):
+             # If there are any named groups, use those as kwargs, ignoring
+             # non-named groups. Otherwise, pass all non-named arguments as
+             # positional arguments.
+-            kwargs = {k: v for k, v in match.groupdict().items() if v is not None}
++            kwargs = match.groupdict()
+             args = () if kwargs else match.groups()
++            kwargs = {k: v for k, v in kwargs.items() if v is not None}
+             return path[match.end():], args, kwargs
+         return None
+ 
+--- /dev/null
++++ b/tests/urlpatterns/test_optional_named_groups.py
+@@ -0,0 +1,48 @@
++from django.http import HttpResponse
++from django.test import SimpleTestCase, override_settings
++from django.urls import re_path, resolve
++from django.urls.resolvers import RegexPattern
++
++
++def modules(request, format='html'):
++    return HttpResponse(format)
++
++
++urlpatterns = [
++    re_path(r'^module/(?P<format>(html|json|xml))?/?$', modules, name='modules'),
++]
++
++
++class RegexPatternOptionalNamedGroupsTests(SimpleTestCase):
++    pattern = r'^module/(?P<format>(html|json|xml))?/?$'
++
++    def test_match_missing_optional_named_group(self):
++        """
++        Non-named groups aren't returned as positional arguments when there
++        are named groups, even if all of them are missing.
++        """
++        self.assertEqual(RegexPattern(self.pattern).match('module/'), ('', (), {}))
++
++    def test_match_optional_named_group(self):
++        self.assertEqual(
++            RegexPattern(self.pattern).match('module/json/'),
++            ('', (), {'format': 'json'}),
++        )
++
++    def test_match_non_named_groups(self):
++        self.assertEqual(
++            RegexPattern(r'^(\d+)/(\d+)/$').match('1/2/'),
++            ('', ('1', '2'), {}),
++        )
++
++    @override_settings(ROOT_URLCONF=__name__)
++    def test_resolve_missing_optional_named_group(self):
++        match = resolve('/module/')
++        self.assertEqual(match.url_name, 'modules')
++        self.assertEqual(match.args, ())
++        self.assertEqual(match.kwargs, {})
++
++    @override_settings(ROOT_URLCONF=__name__)
++    def test_view_uses_default_argument_value(self):
++        self.assertEqual(self.client.get('/module/').content, b'html')
++        self.assertEqual(self.client.get('/module/json/').content, b'json')

@@ -1,0 +1,25 @@
+2026-10-27 10:54:00,303 - INFO - Creating container for pylint-dev__pylint-7114...
+2026-10-27 10:54:00,445 - INFO - Container for pylint-dev__pylint-7114 created: 12c66262db45401f10692ed38492058e397627b8a10673714b02c232b4cdd472
+2026-10-27 10:54:00,627 - INFO - Container for pylint-dev__pylint-7114 started: 12c66262db45401f10692ed38492058e397627b8a10673714b02c232b4cdd472
+2026-10-27 10:54:00,628 - INFO - Intermediate patch for pylint-dev__pylint-7114 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-low-r2/sonnet-adaptive-low-r2/pylint-dev__pylint-7114/patch.diff, now applying to container...
+2026-10-27 10:54:00,714 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:54:00,992 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:54:01,178 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:54:01,294 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:54:01,341 - INFO - >>>>> Patch Apply Failed:
+patch: **** Only garbage was found in the patch input.
+patch unexpectedly ends in middle of line
+
+2026-10-27 10:54:01,341 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for pylint-dev__pylint-7114: >>>>> Patch Apply Failed:
+patch: **** Only garbage was found in the patch input.
+patch unexpectedly ends in middle of line
+
+Check (logs/evaluation/aca-score-20261027-sonnet-adaptive-low-r2/sonnet-adaptive-low-r2/pylint-dev__pylint-7114/run_instance.log) for more information.
+
+2026-10-27 10:54:01,341 - INFO - Attempting to stop container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-sonnet-adaptive-low-r2...
+2026-10-27 10:54:16,643 - INFO - Container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-sonnet-adaptive-low-r2 stopped successfully.
+2026-10-27 10:54:16,643 - INFO - Attempting to remove container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-sonnet-adaptive-low-r2...
+2026-10-27 10:54:16,736 - INFO - Container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-sonnet-adaptive-low-r2 removed successfully.

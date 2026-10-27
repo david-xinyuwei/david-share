@@ -1,0 +1,196 @@
+
+--- a/src/flask/cli.py
++++ b/src/flask/cli.py
+@@ -9,7 +9,7 @@
+ import traceback
+ import typing as t
+ from functools import update_wrapper
+-from operator import attrgetter
++from operator import itemgetter
+ 
+ import click
+ from click.core import ParameterSource
+@@ -989,11 +989,11 @@
+ @click.option(
+     "--sort",
+     "-s",
+-    type=click.Choice(("endpoint", "methods", "rule", "match")),
++    type=click.Choice(("endpoint", "methods", "domain", "rule", "match")),
+     default="endpoint",
+     help=(
+-        'Method to sort routes by. "match" is the order that Flask will match '
+-        "routes when dispatching a request."
++        'Method to sort routes by. "domain" is the subdomain or host, and "match" is'
++        " the order that Flask will match routes when dispatching a request."
+     ),
+ )
+ @click.option("--all-methods", is_flag=True, help="Show HEAD and OPTIONS methods.")
+@@ -1006,32 +1006,43 @@
+         click.echo("No routes were registered.")
+         return
+ 
+-    ignored_methods = set(() if all_methods else ("HEAD", "OPTIONS"))
+-
+-    if sort in ("endpoint", "rule"):
+-        rules = sorted(rules, key=attrgetter(sort))
+-    elif sort == "methods":
+-        rules = sorted(rules, key=lambda rule: sorted(rule.methods))  # type: ignore
+-
+-    rule_methods = [
+-        ", ".join(sorted(rule.methods - ignored_methods))  # type: ignore
+-        for rule in rules
+-    ]
+-
+-    headers = ("Endpoint", "Methods", "Rule")
+-    widths = (
+-        max(len(rule.endpoint) for rule in rules),
+-        max(len(methods) for methods in rule_methods),
+-        max(len(rule.rule) for rule in rules),
+-    )
+-    widths = [max(len(h), w) for h, w in zip(headers, widths)]
+-    row = "{{0:<{0}}}  {{1:<{1}}}  {{2:<{2}}}".format(*widths)
+-
+-    click.echo(row.format(*headers).strip())
+-    click.echo(row.format(*("-" * width for width in widths)))
+-
+-    for rule, methods in zip(rules, rule_methods):
+-        click.echo(row.format(rule.endpoint, methods, rule.rule).rstrip())
++    ignored_methods = set() if all_methods else {"HEAD", "OPTIONS"}
++    host_matching = current_app.url_map.host_matching
++    has_domain = any(rule.host if host_matching else rule.subdomain for rule in rules)
++    rows = []
++
++    for rule in rules:
++        row = [
++            rule.endpoint,
++            ", ".join(sorted((rule.methods or set()) - ignored_methods)),
++        ]
++
++        if has_domain:
++            row.append((rule.host if host_matching else rule.subdomain) or "")
++
++        row.append(rule.rule)
++        rows.append(row)
++
++    headers = ["Endpoint", "Methods"]
++    sorts = ["endpoint", "methods"]
++
++    if has_domain:
++        headers.append("Host" if host_matching else "Subdomain")
++        sorts.append("domain")
++
++    headers.append("Rule")
++    sorts.append("rule")
++
++    if sort in sorts:
++        rows.sort(key=itemgetter(sorts.index(sort)))
++
++    rows.insert(0, headers)
++    widths = [max(len(row[i]) for row in rows) for i in range(len(headers))]
++    rows.insert(1, ["-" * w for w in widths])
++    template = "  ".join(f"{{{i}:<{w}}}" for i, w in enumerate(widths))
++
++    for row in rows:
++        click.echo(template.format(*row).rstrip())
+ 
+ 
+ cli = FlaskGroup(
+--- /dev/null
++++ b/tests/test_cli_routes.py
+@@ -0,0 +1,96 @@
++import re
++
++from flask import Blueprint
++from flask import Flask
++from flask.cli import routes_command
++
++
++def invoke_routes(app, *args):
++    return app.test_cli_runner().invoke(routes_command, list(args))
++
++
++def parse_table(output):
++    """Split the output of the ``routes`` command into the cells of each
++    row, keeping empty cells and skipping the separator line.
++    """
++    header, separator, *rows = output.splitlines()
++    # The separator has a run of dashes for each column, which gives the
++    # position and width of every column.
++    spans = [m.span() for m in re.finditer("-+", separator)]
++    return [
++        [line[start:end].strip() for start, end in spans]
++        for line in (header, *rows)
++    ]
++
++
++def test_no_domain_column():
++    app = Flask(__name__, static_folder=None)
++    app.add_url_rule("/a", endpoint="a")
++    result = invoke_routes(app)
++    assert result.exit_code == 0
++    assert parse_table(result.output) == [
++        ["Endpoint", "Methods", "Rule"],
++        ["a", "GET", "/a"],
++    ]
++
++
++def test_subdomain():
++    app = Flask(__name__, static_folder=None)
++    app.add_url_rule("/a", subdomain="a", endpoint="a")
++    app.add_url_rule("/b", subdomain="b", endpoint="b")
++    app.add_url_rule("/c", endpoint="c")
++    result = invoke_routes(app)
++    assert result.exit_code == 0
++    assert parse_table(result.output) == [
++        ["Endpoint", "Methods", "Subdomain", "Rule"],
++        ["a", "GET", "a", "/a"],
++        ["b", "GET", "b", "/b"],
++        ["c", "GET", "", "/c"],
++    ]
++
++
++def test_blueprint_subdomain():
++    app = Flask(__name__, static_folder=None)
++    bp = Blueprint("admin", __name__)
++    bp.add_url_rule("/home", endpoint="home")
++    app.register_blueprint(bp, subdomain="admin")
++    app.add_url_rule("/", endpoint="index")
++    result = invoke_routes(app)
++    assert result.exit_code == 0
++    assert parse_table(result.output) == [
++        ["Endpoint", "Methods", "Subdomain", "Rule"],
++        ["admin.home", "GET", "admin", "/home"],
++        ["index", "GET", "", "/"],
++    ]
++
++
++def test_host():
++    app = Flask(__name__, static_folder=None, host_matching=True)
++    app.add_url_rule("/a", host="a.example.com", endpoint="a")
++    app.add_url_rule("/b", host="b.example.com", endpoint="b")
++    result = invoke_routes(app)
++    assert result.exit_code == 0
++    assert parse_table(result.output) == [
++        ["Endpoint", "Methods", "Host", "Rule"],
++        ["a", "GET", "a.example.com", "/a"],
++        ["b", "GET", "b.example.com", "/b"],
++    ]
++
++
++def test_sort_domain():
++    app = Flask(__name__, static_folder=None)
++    app.add_url_rule("/a", subdomain="z", endpoint="a")
++    app.add_url_rule("/b", subdomain="y", endpoint="b")
++    app.add_url_rule("/c", endpoint="c")
++    result = invoke_routes(app, "--sort", "domain")
++    assert result.exit_code == 0
++    endpoints = [row[0] for row in parse_table(result.output)[1:]]
++    assert endpoints == ["c", "b", "a"]
++
++
++def test_sort_domain_without_domain_column():
++    app = Flask(__name__, static_folder=None)
++    app.add_url_rule("/a", endpoint="a")
++    result = invoke_routes(app, "--sort", "domain")
++    assert result.exit_code == 0
++    assert parse_table(result.output)[1:] == [["a", "GET", "/a"]]

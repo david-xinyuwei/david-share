@@ -33,6 +33,7 @@ def load(name, path):
 coding_analyze = load("coding_analyze", CODING / "analyze.py")
 prepare = load("coding_prepare", CODING / "prepare.py")
 gateway_analyze = load("gateway_cache_analyze", ROOT / "gateway-cache/analyze_cache_matrix.py")
+gateway_score = load("gateway_score", ROOT / "gateway-cache/swebench_score.py")
 
 
 def sha(data):
@@ -229,23 +230,35 @@ class EvidenceTests(unittest.TestCase):
 
 
 class GatewayCacheAnalysisTests(unittest.TestCase):
+    def test_official_grading_matches_captured_answers(self):
+        result = gateway_score.check_public(ROOT / "evidence/gateway-score-20261027",
+                                            ROOT / "evidence/gateway-cache-20261026")
+        self.assertEqual((result["denominator"], result["resolved"], result["batches"]), (624, 245, 52))
+        self.assertEqual(result["gold_controls"], 12)
+        self.assertEqual(len(result["official_ambiguous_flags"]), 6)
+        self.assertEqual(sum(result["outcomes"].values()), 624)
+
     def test_published_snapshot_recomputes_and_covers_all_cells(self):
         directory = ROOT / "evidence/gateway-cache-20261026"
         facts = gateway_analyze.analyze(directory)
         self.assertEqual(facts, json.loads((directory / "interim-facts.json").read_text(encoding="utf-8")))
         self.assertEqual(len(facts["by_cell"]), 26)
         self.assertEqual(facts["coverage"]["observed_requests"] + facts["coverage"]["missing_from_snapshot"], 650)
-        self.assertFalse(facts["coverage"]["collection_complete"])
+        self.assertTrue(facts["coverage"]["collection_complete"])
+        self.assertEqual(facts["cache_hit_pairs"], 302)
+        self.assertEqual(len(facts["excluded_cache_pairs"]), 2)
         manifest = json.loads((directory / "_export_manifest.json").read_text(encoding="utf-8"))
         for item in manifest["files"]:
             self.assertEqual(sha((directory / item["file"]).read_bytes()), item["sha256"])
         for chinese in (False, True):
             markup = render_coding.gateway_snapshot(chinese, detailed=True)
-            self.assertIn("154", markup)
             self.assertIn("650", markup)
-            self.assertIn("496", markup)
-            self.assertIn("PowerState/deallocated", markup)
-            self.assertIn("不是全量测试通过" if chinese else "not a completed benchmark", markup)
+            self.assertIn("624", markup)
+            self.assertIn("245", markup)
+            self.assertIn("COMPLETED", markup)
+            self.assertIn("不等于全部通过" if chinese else "not universal success", markup)
+            self.assertLess(markup.index("性能测试结果" if chinese else "performance results"),
+                            markup.index("性能之后：代码正确率" if chinese else "Code correctness after performance"))
             for cell in facts["by_cell"]:
                 model, mode, effort = cell.split("|")
                 self.assertIn(f"| {coding_data.NAME[model]} | `{mode}` | `{effort}` |", markup)
@@ -293,6 +306,22 @@ class GatewayCacheAnalysisTests(unittest.TestCase):
             response_file.write_text(content + content.splitlines()[0] + "\n", encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "Duplicate final task_id"):
                 gateway_analyze.analyze(directory)
+
+    def test_completed_cache_expiry_is_not_a_warm_hit(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = self.snapshot(temporary)
+            path = directory / "responses_sonnet.jsonl"
+            records = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+            records[-1]["status"] = "completed"
+            records[-1]["usage"]["cache_read_input_tokens"] = 0
+            records[-1]["usage"]["cache_creation_input_tokens"] = 100
+            path.write_text("\n".join(map(json.dumps, records)) + "\n", encoding="utf-8")
+            facts = gateway_analyze.analyze(directory)
+            self.assertEqual(facts["groups_complete"], 1)
+            self.assertEqual(facts["cache_hit_pairs"], 0)
+            self.assertEqual(len(facts["excluded_cache_pairs"]), 1)
+            self.assertEqual(facts["coverage"]["observed_requests"], 3)
+            self.assertEqual(facts["by_cell"]["sonnet|adaptive|low"]["completed_pairs"], 1)
 
     def test_public_projection_preserves_facts_and_removes_private_fields(self):
         with tempfile.TemporaryDirectory() as temporary, tempfile.TemporaryDirectory() as exported:

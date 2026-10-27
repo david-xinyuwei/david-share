@@ -1,0 +1,26 @@
+
+--- a/sphinx/ext/napoleon/__init__.py
++++ b/sphinx/ext/napoleon/__init__.py
+@@ -9,4 +9,5 @@
+ """
+ 
++import re
+ from typing import Any, Dict, List
+ 
+@@ -328,4 +329,10 @@
+ 
+ 
++def _unescape_attribute_name(line: str) -> str:
++    # Napoleon escapes a trailing underscore (``hello_`` -> ``hello\\_``), which is
++    # rendered literally inside a ``.. attribute::`` directive. Undo that here.
++    return re.sub(r'^(\s*\.\. attribute:: .*)\\_$', r'\1_', line)
++
++
+ def _process_docstring(app: Sphinx, what: str, name: str, obj: Any,
+                        options: Any, lines: List[str]) -> None:
+@@ -375,3 +382,3 @@
+                                     obj, options)
+         result_lines = docstring.lines()
+-    lines[:] = result_lines[:]
++    lines[:] = [_unescape_attribute_name(line) for line in result_lines]
+ 

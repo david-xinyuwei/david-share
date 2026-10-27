@@ -1,0 +1,57 @@
+
+--- a/pylint/lint/expand_modules.py
++++ b/pylint/lint/expand_modules.py
+@@ -30,3 +30,12 @@
+     if not os.path.isdir(dirname):
+         dirname = os.path.dirname(dirname)
++    else:
++        # A directory without ``__init__.py`` which contains a module named like
++        # itself (``a/a.py``) must not be put on the path as such: ``a`` would then
++        # resolve to ``a/a.py`` instead of the directory (a namespace package).
++        same_name_module = os.path.join(dirname, os.path.basename(dirname) + ".py")
++        if os.path.isfile(same_name_module) and not os.path.exists(
++            os.path.join(dirname, "__init__.py")
++        ):
++            return os.path.dirname(dirname)
+     while True:
+--- /dev/null
++++ b/tests/lint/test_same_named_module.py
+@@ -0,0 +1,37 @@
++# Licensed under the GPL: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
++# For details: https://github.com/PyCQA/pylint/blob/main/LICENSE
++# Copyright (c) https://github.com/PyCQA/pylint/blob/main/CONTRIBUTORS.txt
++
++"""Regression test for a directory containing a module named like the directory."""
++
++from __future__ import annotations
++
++import os
++from pathlib import Path
++
++import pytest
++
++from pylint.lint import Run
++from pylint.lint.expand_modules import get_python_path
++
++
++def _create_package(root: Path) -> Path:
++    package = root / "a"
++    package.mkdir()
++    (package / "a.py").touch()
++    (package / "b.py").touch()
++    return package
++
++
++def test_get_python_path_same_named_module(tmp_path: Path) -> None:
++    package = _create_package(tmp_path)
++    assert get_python_path(str(package)) == os.path.realpath(tmp_path)
++
++
++def test_lint_dir_with_same_named_module(
++    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
++) -> None:
++    _create_package(tmp_path)
++    monkeypatch.chdir(tmp_path)
++    runner = Run(["a", "--persistent=n"], exit=False)
++    assert "parse-error" not in runner.linter.stats.by_msg
++    assert "F0010" not in capsys.readouterr().out

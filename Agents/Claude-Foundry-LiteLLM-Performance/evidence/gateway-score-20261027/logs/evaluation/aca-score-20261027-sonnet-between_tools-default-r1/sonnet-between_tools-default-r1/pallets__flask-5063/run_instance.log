@@ -1,0 +1,27 @@
+2026-10-27 11:08:23,596 - INFO - Creating container for pallets__flask-5063...
+2026-10-27 11:08:23,859 - INFO - Container for pallets__flask-5063 created: 23766abed0237fd6d0475eaa4763c2506fbb520fe5b3ab3e6544c031aa69cedf
+2026-10-27 11:08:24,109 - INFO - Container for pallets__flask-5063 started: 23766abed0237fd6d0475eaa4763c2506fbb520fe5b3ab3e6544c031aa69cedf
+2026-10-27 11:08:24,109 - INFO - Intermediate patch for pallets__flask-5063 written to logs/evaluation/aca-score-20261027-sonnet-between_tools-default-r1/sonnet-between_tools-default-r1/pallets__flask-5063/patch.diff, now applying to container...
+2026-10-27 11:08:24,197 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 11:08:24,322 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 11:08:24,422 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 11:08:24,522 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 11:08:24,563 - INFO - >>>>> Patch Apply Failed:
+patch: **** malformed patch at line 58:  cli = FlaskGroup(
+
+patching file src/flask/cli.py
+
+2026-10-27 11:08:24,564 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for pallets__flask-5063: >>>>> Patch Apply Failed:
+patch: **** malformed patch at line 58:  cli = FlaskGroup(
+
+patching file src/flask/cli.py
+
+Check (logs/evaluation/aca-score-20261027-sonnet-between_tools-default-r1/sonnet-between_tools-default-r1/pallets__flask-5063/run_instance.log) for more information.
+
+2026-10-27 11:08:24,564 - INFO - Attempting to stop container sweb.eval.pallets__flask-5063.aca-score-20261027-sonnet-between_tools-default-r1...
+2026-10-27 11:08:40,228 - INFO - Container sweb.eval.pallets__flask-5063.aca-score-20261027-sonnet-between_tools-default-r1 stopped successfully.
+2026-10-27 11:08:40,228 - INFO - Attempting to remove container sweb.eval.pallets__flask-5063.aca-score-20261027-sonnet-between_tools-default-r1...
+2026-10-27 11:08:40,280 - INFO - Container sweb.eval.pallets__flask-5063.aca-score-20261027-sonnet-between_tools-default-r1 removed successfully.

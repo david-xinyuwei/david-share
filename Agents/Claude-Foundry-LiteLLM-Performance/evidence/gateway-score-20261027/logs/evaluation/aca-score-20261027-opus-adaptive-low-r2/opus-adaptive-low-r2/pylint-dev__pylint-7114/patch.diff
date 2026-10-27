@@ -1,0 +1,12 @@
+
+--- a/pylint/lint/expand_modules.py
++++ b/pylint/lint/expand_modules.py
+@@ -1,4 +1,4 @@
+-            if os.path.isdir(something):
+-                filepath = os.path.join(something, "__init__.py")
+-            else:
+-                filepath = something
++            filepath = something
++            init_path = os.path.join(something, "__init__.py")
++            if os.path.isdir(something) and os.path.isfile(init_path):
++                filepath = init_path

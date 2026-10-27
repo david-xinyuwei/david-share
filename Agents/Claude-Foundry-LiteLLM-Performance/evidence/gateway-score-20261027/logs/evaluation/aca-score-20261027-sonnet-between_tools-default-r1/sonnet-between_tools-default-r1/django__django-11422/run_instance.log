@@ -1,0 +1,27 @@
+2026-10-27 11:08:04,392 - INFO - Creating container for django__django-11422...
+2026-10-27 11:08:04,650 - INFO - Container for django__django-11422 created: 1b2a3e14ee4124875ba50c242a5058847cd61b84d722935494efada51539b13f
+2026-10-27 11:08:04,881 - INFO - Container for django__django-11422 started: 1b2a3e14ee4124875ba50c242a5058847cd61b84d722935494efada51539b13f
+2026-10-27 11:08:04,881 - INFO - Intermediate patch for django__django-11422 written to logs/evaluation/aca-score-20261027-sonnet-between_tools-default-r1/sonnet-between_tools-default-r1/django__django-11422/patch.diff, now applying to container...
+2026-10-27 11:08:04,977 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 11:08:05,866 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 11:08:06,343 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 11:08:06,528 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 11:08:06,574 - INFO - >>>>> Patch Apply Failed:
+patch: **** malformed patch at line 11:  
+
+patching file django/utils/autoreload.py
+
+2026-10-27 11:08:06,575 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for django__django-11422: >>>>> Patch Apply Failed:
+patch: **** malformed patch at line 11:  
+
+patching file django/utils/autoreload.py
+
+Check (logs/evaluation/aca-score-20261027-sonnet-between_tools-default-r1/sonnet-between_tools-default-r1/django__django-11422/run_instance.log) for more information.
+
+2026-10-27 11:08:06,576 - INFO - Attempting to stop container sweb.eval.django__django-11422.aca-score-20261027-sonnet-between_tools-default-r1...
+2026-10-27 11:08:23,255 - INFO - Container sweb.eval.django__django-11422.aca-score-20261027-sonnet-between_tools-default-r1 stopped successfully.
+2026-10-27 11:08:23,255 - INFO - Attempting to remove container sweb.eval.django__django-11422.aca-score-20261027-sonnet-between_tools-default-r1...
+2026-10-27 11:08:23,559 - INFO - Container sweb.eval.django__django-11422.aca-score-20261027-sonnet-between_tools-default-r1 removed successfully.

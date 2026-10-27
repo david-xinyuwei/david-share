@@ -1,8 +1,9 @@
 """Cold versus warm results of the gateway prompt-cache matrix.
 
 Request 1 of each (cell, problem) group writes the 1-hour cache and the identical request 2
-reads it, so a group compares the same prompt without and with a cache hit. A group counts
-only when both requests completed. Times are client-side seconds from just before the request
+reads it, so a group compares the same prompt without and with a cache hit. Performance pairs
+require two completed answers and a native cache hit; cache-expired pairs remain visible.
+Times are client-side seconds from just before the request
 is written; P50 and P95 use the nearest rank, as in coding-matrix/analyze.py.
 """
 import argparse
@@ -104,8 +105,17 @@ def analyze(run_dir):
     groups = defaultdict(dict)
     for row in measured:
         groups[(row["cell_id"], row["problem_id"])][row["repeat"]] = row
-    pairs = {key: (g[1], g[2]) for key, g in groups.items()
-             if 1 in g and 2 in g and g[1]["status"] == "completed" and g[2]["status"] == "completed"}
+    complete_pairs = {key: (g[1], g[2]) for key, g in groups.items()
+                      if 1 in g and 2 in g and g[1]["status"] == "completed" and g[2]["status"] == "completed"}
+    pairs = {key: pair for key, pair in complete_pairs.items()
+             if pair[0]["usage"].get("cache_creation_input_tokens", 0) > 0
+             and pair[0]["usage"].get("cache_read_input_tokens", 0) == 0
+             and pair[1]["usage"].get("cache_read_input_tokens", 0)
+             >= pair[0]["usage"]["cache_creation_input_tokens"]}
+    excluded_pairs = [{"cell_id": key[0], "problem_id": key[1], "second_task_id": pair[1]["task_id"],
+                       "first_written_tokens": pair[0]["usage"].get("cache_creation_input_tokens", 0),
+                       "second_read_tokens": pair[1]["usage"].get("cache_read_input_tokens", 0)}
+                      for key, pair in complete_pairs.items() if key not in pairs]
     by_cell, by_model = defaultdict(list), defaultdict(list)
     for (cell, _), pair in pairs.items():
         by_cell[cell].append(pair)
@@ -118,6 +128,8 @@ def analyze(run_dir):
     for cell in sorted(cells, key=cell_order):
         records = [row for row in rows if row["cell_id"] == cell]
         coverage[cell] = {**summarize(by_cell[cell]), "requests": len(records),
+                          "completed_pairs": sum(key[0] == cell for key in complete_pairs),
+                          "excluded_cache_pairs": sum(item["cell_id"] == cell for item in excluded_pairs),
                           "measured_requests": sum(row["kind"] == "measured" for row in records),
                           "warmups": sum(row["kind"] == "warmup" for row in records),
                           "statuses": Counter(row["status"] for row in records),
@@ -137,7 +149,8 @@ def analyze(run_dir):
         "prompt_tokens_range": [min(cold_prompts), max(cold_prompts)] if cold_prompts else None,
         "statuses": Counter(f"{r['status']} http={r['http_status']}" for r in rows),
         "attempts_over_one": sum(1 for r in rows if r["attempt"] > 1),
-        "groups_complete": len(pairs),
+        "groups_complete": len(complete_pairs),
+        "cache_hit_pairs": len(pairs), "excluded_cache_pairs": excluded_pairs,
         "same_message_id_groups": sum(1 for c, w in pairs.values() if c.get("message_id") == w.get("message_id")),
         "warm_read_over_cold_write_min": min((w["usage"]["cache_read_input_tokens"] / c["usage"]["cache_creation_input_tokens"]
                                               for c, w in pairs.values() if c["usage"].get("cache_creation_input_tokens")),

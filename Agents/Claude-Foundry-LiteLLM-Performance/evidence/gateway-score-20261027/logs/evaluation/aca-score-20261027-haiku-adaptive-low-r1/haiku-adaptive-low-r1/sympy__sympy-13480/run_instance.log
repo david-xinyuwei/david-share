@@ -1,0 +1,27 @@
+2026-10-27 09:44:55,437 - INFO - Creating container for sympy__sympy-13480...
+2026-10-27 09:44:55,577 - INFO - Container for sympy__sympy-13480 created: 5fb65b4cf780212d86208d44c7919e3eb2b9a27caa679b8164f32e9adb94e53a
+2026-10-27 09:44:55,750 - INFO - Container for sympy__sympy-13480 started: 5fb65b4cf780212d86208d44c7919e3eb2b9a27caa679b8164f32e9adb94e53a
+2026-10-27 09:44:55,750 - INFO - Intermediate patch for sympy__sympy-13480 written to logs/evaluation/aca-score-20261027-haiku-adaptive-low-r1/haiku-adaptive-low-r1/sympy__sympy-13480/patch.diff, now applying to container...
+2026-10-27 09:44:55,829 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 09:44:56,104 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 09:44:56,236 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 09:44:56,369 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 09:44:56,406 - INFO - >>>>> Patch Apply Failed:
+patching file sympy/functions/elementary/hyperbolic.py
+Hunk #1 FAILED at 585.
+1 out of 1 hunk FAILED -- saving rejects to file sympy/functions/elementary/hyperbolic.py.rej
+
+2026-10-27 09:44:56,407 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for sympy__sympy-13480: >>>>> Patch Apply Failed:
+patching file sympy/functions/elementary/hyperbolic.py
+Hunk #1 FAILED at 585.
+1 out of 1 hunk FAILED -- saving rejects to file sympy/functions/elementary/hyperbolic.py.rej
+
+Check (logs/evaluation/aca-score-20261027-haiku-adaptive-low-r1/haiku-adaptive-low-r1/sympy__sympy-13480/run_instance.log) for more information.
+
+2026-10-27 09:44:56,407 - INFO - Attempting to stop container sweb.eval.sympy__sympy-13480.aca-score-20261027-haiku-adaptive-low-r1...
+2026-10-27 09:45:11,658 - INFO - Container sweb.eval.sympy__sympy-13480.aca-score-20261027-haiku-adaptive-low-r1 stopped successfully.
+2026-10-27 09:45:11,658 - INFO - Attempting to remove container sweb.eval.sympy__sympy-13480.aca-score-20261027-haiku-adaptive-low-r1...
+2026-10-27 09:45:11,728 - INFO - Container sweb.eval.sympy__sympy-13480.aca-score-20261027-haiku-adaptive-low-r1 removed successfully.

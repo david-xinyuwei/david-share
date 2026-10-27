@@ -1,0 +1,20 @@
+
+--- a/sympy/printing/latex.py
++++ b/sympy/printing/latex.py
+@@ -740,7 +740,7 @@
+             else:
+                 can_fold_brackets = False
+ 
+-            inv_trig_table = ["asin", "acos", "atan", "acot"]
++            inv_trig_table = ["asin", "acos", "atan", "acsc", "asec", "acot"]
+ 
+             # If the function is an inverse trig function, handle the style
+             if func in inv_trig_table:
+--- a/sympy/physics/vector/printing.py
++++ b/sympy/physics/vector/printing.py
+@@ -89,7 +89,7 @@
+-            inv_trig_table = ["asin", "acos", "atan", "acot"]
++            inv_trig_table = ["asin", "acos", "atan", "acsc", "asec", "acot"]
+ 
+             # If the function is an inverse trig function, handle the style
+             if func in inv_trig_table:

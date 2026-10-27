@@ -1,0 +1,27 @@
+2026-10-27 09:53:20,677 - INFO - Creating container for pallets__flask-5063...
+2026-10-27 09:53:20,886 - INFO - Container for pallets__flask-5063 created: 9cd9baaa34ec404c2b943e81ee9f9a525fa643292312c43b7bb8344465268c23
+2026-10-27 09:53:21,066 - INFO - Container for pallets__flask-5063 started: 9cd9baaa34ec404c2b943e81ee9f9a525fa643292312c43b7bb8344465268c23
+2026-10-27 09:53:21,066 - INFO - Intermediate patch for pallets__flask-5063 written to logs/evaluation/aca-score-20261027-haiku-adaptive-medium-r2/haiku-adaptive-medium-r2/pallets__flask-5063/patch.diff, now applying to container...
+2026-10-27 09:53:21,155 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 09:53:21,267 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 09:53:21,373 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 09:53:21,478 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 09:53:21,518 - INFO - >>>>> Patch Apply Failed:
+patching file src/flask/cli.py
+Hunk #1 FAILED at 1001.
+1 out of 1 hunk FAILED -- saving rejects to file src/flask/cli.py.rej
+
+2026-10-27 09:53:21,519 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for pallets__flask-5063: >>>>> Patch Apply Failed:
+patching file src/flask/cli.py
+Hunk #1 FAILED at 1001.
+1 out of 1 hunk FAILED -- saving rejects to file src/flask/cli.py.rej
+
+Check (logs/evaluation/aca-score-20261027-haiku-adaptive-medium-r2/haiku-adaptive-medium-r2/pallets__flask-5063/run_instance.log) for more information.
+
+2026-10-27 09:53:21,519 - INFO - Attempting to stop container sweb.eval.pallets__flask-5063.aca-score-20261027-haiku-adaptive-medium-r2...
+2026-10-27 09:53:36,789 - INFO - Container sweb.eval.pallets__flask-5063.aca-score-20261027-haiku-adaptive-medium-r2 stopped successfully.
+2026-10-27 09:53:36,790 - INFO - Attempting to remove container sweb.eval.pallets__flask-5063.aca-score-20261027-haiku-adaptive-medium-r2...
+2026-10-27 09:53:36,844 - INFO - Container sweb.eval.pallets__flask-5063.aca-score-20261027-haiku-adaptive-medium-r2 removed successfully.

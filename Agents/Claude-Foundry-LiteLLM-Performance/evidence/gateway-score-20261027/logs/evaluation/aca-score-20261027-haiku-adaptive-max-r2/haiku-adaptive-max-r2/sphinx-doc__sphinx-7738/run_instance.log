@@ -1,0 +1,47 @@
+2026-10-27 09:49:53,403 - INFO - Creating container for sphinx-doc__sphinx-7738...
+2026-10-27 09:49:53,583 - INFO - Container for sphinx-doc__sphinx-7738 created: c687a22c3e168b55ae344305288e03fe5f74019acf2d32cf2e7c4fc9ab439e14
+2026-10-27 09:49:53,749 - INFO - Container for sphinx-doc__sphinx-7738 started: c687a22c3e168b55ae344305288e03fe5f74019acf2d32cf2e7c4fc9ab439e14
+2026-10-27 09:49:53,749 - INFO - Intermediate patch for sphinx-doc__sphinx-7738 written to logs/evaluation/aca-score-20261027-haiku-adaptive-max-r2/haiku-adaptive-max-r2/sphinx-doc__sphinx-7738/patch.diff, now applying to container...
+2026-10-27 09:49:53,841 - INFO - >>>>> Applied Patch:
+Checking patch sphinx/ext/napoleon/docstring.py...
+Hunk #1 succeeded at 588 (offset -112 lines).
+Applied patch sphinx/ext/napoleon/docstring.py cleanly.
+
+2026-10-27 09:49:54,049 - INFO - Git diff before:
+diff --git a/sphinx/ext/napoleon/docstring.py b/sphinx/ext/napoleon/docstring.py
+index 11409e6f6..1ccc97e8e 100755
+--- a/sphinx/ext/napoleon/docstring.py
++++ b/sphinx/ext/napoleon/docstring.py
+@@ -585,6 +585,8 @@ class GoogleDocstring:
+                 if _type:
+                     lines.append(':vartype %s: %s' % (_name, _type))
+             else:
++                # directive arguments are not parsed as reST: drop the escape
++                _name = _name.replace(r'\_', '_')
+                 lines.append('.. attribute:: ' + _name)
+                 if self._opt and 'noindex' in self._opt:
+                     lines.append('   :noindex:')
+2026-10-27 09:49:54,049 - INFO - Eval script for sphinx-doc__sphinx-7738 written to logs/evaluation/aca-score-20261027-haiku-adaptive-max-r2/haiku-adaptive-max-r2/sphinx-doc__sphinx-7738/eval.sh; copying to container...
+2026-10-27 09:49:57,133 - INFO - Test runtime: 3.04 seconds
+2026-10-27 09:49:57,133 - INFO - Test output for sphinx-doc__sphinx-7738 written to logs/evaluation/aca-score-20261027-haiku-adaptive-max-r2/haiku-adaptive-max-r2/sphinx-doc__sphinx-7738/test_output.txt
+2026-10-27 09:49:57,177 - INFO - Git diff after:
+diff --git a/sphinx/ext/napoleon/docstring.py b/sphinx/ext/napoleon/docstring.py
+index 11409e6f6..1ccc97e8e 100755
+--- a/sphinx/ext/napoleon/docstring.py
++++ b/sphinx/ext/napoleon/docstring.py
+@@ -585,6 +585,8 @@ class GoogleDocstring:
+                 if _type:
+                     lines.append(':vartype %s: %s' % (_name, _type))
+             else:
++                # directive arguments are not parsed as reST: drop the escape
++                _name = _name.replace(r'\_', '_')
+                 lines.append('.. attribute:: ' + _name)
+                 if self._opt and 'noindex' in self._opt:
+                     lines.append('   :noindex:')
+2026-10-27 09:49:57,177 - INFO - Grading answer for sphinx-doc__sphinx-7738...
+2026-10-27 09:49:57,179 - INFO - report: {'sphinx-doc__sphinx-7738': {'patch_is_None': False, 'patch_exists': True, 'patch_successfully_applied': True, 'resolved': False, 'infra_failure': False, 'tests_status': {'FAIL_TO_PASS': {'success': [], 'failure': ['tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_underscore_in_attribute']}, 'PASS_TO_PASS': {'success': ['tests/test_ext_napoleon_docstring.py::NamedtupleSubclassTest::test_attributes_docstring', 'tests/test_ext_napoleon_docstring.py::InlineAttributeTest::test_class_data_member', 'tests/test_ext_napoleon_docstring.py::InlineAttributeTest::test_class_data_member_inline', 'tests/test_ext_napoleon_docstring.py::InlineAttributeTest::test_class_data_member_inline_no_type', 'tests/test_ext_napoleon_docstring.py::InlineAttributeTest::test_class_data_member_inline_ref_in_type', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_attributes_with_class_reference', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_code_block_in_returns_section', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_colon_in_return_type', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_custom_generic_sections', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_docstrings', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_kwargs_in_arguments', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_list_in_parameter_description', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_noindex', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_parameters_with_class_reference', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_raises_types', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_section_header_formatting', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_sphinx_admonitions', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_xrefs_in_return_type', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_colon_in_return_type', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_docstrings', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_keywords_with_types', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_list_in_parameter_description', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_parameters_with_class_reference', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_parameters_without_class_reference', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_raises_types', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_section_header_underline_length', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_see_also_refs', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_sphinx_admonitions', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_underscore_in_attribute_strip_signature_backslash', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_xrefs_in_return_type'], 'failure': []}, 'FAIL_TO_FAIL': {'success': [], 'failure': []}, 'PASS_TO_FAIL': {'success': [], 'failure': []}}}}
+Result for sphinx-doc__sphinx-7738: resolved: False
+2026-10-27 09:49:57,180 - INFO - Attempting to stop container sweb.eval.sphinx-doc__sphinx-7738.aca-score-20261027-haiku-adaptive-max-r2...
+2026-10-27 09:50:12,731 - INFO - Container sweb.eval.sphinx-doc__sphinx-7738.aca-score-20261027-haiku-adaptive-max-r2 stopped successfully.
+2026-10-27 09:50:12,731 - INFO - Attempting to remove container sweb.eval.sphinx-doc__sphinx-7738.aca-score-20261027-haiku-adaptive-max-r2...
+2026-10-27 09:50:12,786 - INFO - Container sweb.eval.sphinx-doc__sphinx-7738.aca-score-20261027-haiku-adaptive-max-r2 removed successfully.

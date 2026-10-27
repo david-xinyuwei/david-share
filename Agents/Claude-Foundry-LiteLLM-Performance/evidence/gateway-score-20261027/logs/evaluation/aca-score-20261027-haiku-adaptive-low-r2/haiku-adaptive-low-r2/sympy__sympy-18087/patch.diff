@@ -1,0 +1,11 @@
+I can't produce a patch that will apply cleanly here. The repository contents I was given are only the README, and the diff format you showed targets an unrelated `file.py` (euclidean/bresenham). Writing a diff against sympy source I haven't seen would almost certainly fail `git apply` or patch the wrong code.
+
+**What I'd look at:**
+
+The symptom suggests that `sqrt(sin(x)**2)` is being rewritten to `sin(x)` with no check on whether `sin(x)` is real. For real `x`, `sqrt(sin(x)**2) = |sin(x)|`, and for general complex `x` it is neither `sin(x)` nor `-sin(x)`. The likely locations are:
+
+- `sympy/simplify/trigsimp.py`, where the `futrig` / `fu` helpers and the `_trigpats` or `_match_div_rewrite` logic may collapse `(sin(x)**2)**(1/2)`.
+- `sympy/core/power.py`, in `Pow.__new__` / `_eval_power`, where the even-power and `Abs` handling for `(b**2)**(1/2)` should only fire when `b` is known real or nonnegative.
+- `sympy/functions/elementary/complexes.py`, if `sqrt` of a squared expression is being turned into `sin(x)` instead of `Abs(sin(x))` for non-real arguments.
+
+**To get a working patch,** send me the contents of the relevant file(s), ideally `sympy/simplify/trigsimp.py` and the `_eval_power` section of `sympy/core/power.py`, or the output of `git grep -n "_eval_power\|futrig" sympy/simplify sympy/core`. With the actual code I can write a diff with correct context lines and a regression test along the lines of `assert trigsimp(cos(x)+sqrt(sin(x)**2)) == cos(x)+sqrt(sin(x)**2)` for complex `x`, while keeping the real-`x` behaviour.

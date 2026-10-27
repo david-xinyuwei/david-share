@@ -1,0 +1,27 @@
+2026-10-27 09:53:53,363 - INFO - Creating container for sphinx-doc__sphinx-10451...
+2026-10-27 09:53:53,538 - INFO - Container for sphinx-doc__sphinx-10451 created: a0a6662cd31388654bbd75117a1747c524ba603df19b7b05548152465a49ef7f
+2026-10-27 09:53:53,723 - INFO - Container for sphinx-doc__sphinx-10451 started: a0a6662cd31388654bbd75117a1747c524ba603df19b7b05548152465a49ef7f
+2026-10-27 09:53:53,723 - INFO - Intermediate patch for sphinx-doc__sphinx-10451 written to logs/evaluation/aca-score-20261027-haiku-adaptive-medium-r2/haiku-adaptive-medium-r2/sphinx-doc__sphinx-10451/patch.diff, now applying to container...
+2026-10-27 09:53:53,803 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 09:53:54,058 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 09:53:54,155 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 09:53:54,252 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 09:53:54,290 - INFO - >>>>> Patch Apply Failed:
+patching file sphinx/ext/autodoc/typehints.py
+Hunk #1 FAILED at 1.
+1 out of 1 hunk FAILED -- saving rejects to file sphinx/ext/autodoc/typehints.py.rej
+
+2026-10-27 09:53:54,291 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for sphinx-doc__sphinx-10451: >>>>> Patch Apply Failed:
+patching file sphinx/ext/autodoc/typehints.py
+Hunk #1 FAILED at 1.
+1 out of 1 hunk FAILED -- saving rejects to file sphinx/ext/autodoc/typehints.py.rej
+
+Check (logs/evaluation/aca-score-20261027-haiku-adaptive-medium-r2/haiku-adaptive-medium-r2/sphinx-doc__sphinx-10451/run_instance.log) for more information.
+
+2026-10-27 09:53:54,291 - INFO - Attempting to stop container sweb.eval.sphinx-doc__sphinx-10451.aca-score-20261027-haiku-adaptive-medium-r2...
+2026-10-27 09:54:09,750 - INFO - Container sweb.eval.sphinx-doc__sphinx-10451.aca-score-20261027-haiku-adaptive-medium-r2 stopped successfully.
+2026-10-27 09:54:09,750 - INFO - Attempting to remove container sweb.eval.sphinx-doc__sphinx-10451.aca-score-20261027-haiku-adaptive-medium-r2...
+2026-10-27 09:54:09,826 - INFO - Container sweb.eval.sphinx-doc__sphinx-10451.aca-score-20261027-haiku-adaptive-medium-r2 removed successfully.

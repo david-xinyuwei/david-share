@@ -1,0 +1,13 @@
+
+--- a/sympy/simplify/fu.py
++++ b/sympy/simplify/fu.py
+@@ -502,7 +502,7 @@
+         if not (rv.is_Pow and rv.base.func == f):
+             return rv
+ 
+-        if (rv.exp < 0) == True:
++        if not rv.exp.is_integer:
+             return rv
+-        if (rv.exp > max) == True:
++        if (rv.exp < 0) == True or (rv.exp > max) == True:
+             return rv

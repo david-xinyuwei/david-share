@@ -1,0 +1,27 @@
+2026-10-27 10:47:54,639 - INFO - Creating container for pytest-dev__pytest-7373...
+2026-10-27 10:47:54,811 - INFO - Container for pytest-dev__pytest-7373 created: c5753c728d7089ca999719c4fb4cb97a4aec11324447ec466e59b62de64c7d7d
+2026-10-27 10:47:54,995 - INFO - Container for pytest-dev__pytest-7373 started: c5753c728d7089ca999719c4fb4cb97a4aec11324447ec466e59b62de64c7d7d
+2026-10-27 10:47:54,996 - INFO - Intermediate patch for pytest-dev__pytest-7373 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-high-r1/sonnet-adaptive-high-r1/pytest-dev__pytest-7373/patch.diff, now applying to container...
+2026-10-27 10:47:55,079 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:47:55,209 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:47:55,319 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:47:55,430 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:47:55,470 - INFO - >>>>> Patch Apply Failed:
+patching file src/_pytest/mark/evaluate.py
+patch: **** malformed patch at line 36:  
+
+
+2026-10-27 10:47:55,471 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for pytest-dev__pytest-7373: >>>>> Patch Apply Failed:
+patching file src/_pytest/mark/evaluate.py
+patch: **** malformed patch at line 36:  
+
+
+Check (logs/evaluation/aca-score-20261027-sonnet-adaptive-high-r1/sonnet-adaptive-high-r1/pytest-dev__pytest-7373/run_instance.log) for more information.
+
+2026-10-27 10:47:55,471 - INFO - Attempting to stop container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-sonnet-adaptive-high-r1...
+2026-10-27 10:48:10,794 - INFO - Container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-sonnet-adaptive-high-r1 stopped successfully.
+2026-10-27 10:48:10,794 - INFO - Attempting to remove container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-sonnet-adaptive-high-r1...
+2026-10-27 10:48:10,847 - INFO - Container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-sonnet-adaptive-high-r1 removed successfully.

@@ -1,0 +1,60 @@
+
+--- a/src/flask/cli.py
++++ b/src/flask/cli.py
+@@ -1013,27 +1013,53 @@
+     elif sort == "methods":
+         rules = sorted(rules, key=lambda rule: sorted(rule.methods))  # type: ignore
+ 
+     rule_methods = [
+         ", ".join(sorted(rule.methods - ignored_methods))  # type: ignore
+         for rule in rules
+     ]
+ 
+-    headers = ("Endpoint", "Methods", "Rule")
+-    widths = (
+-        max(len(rule.endpoint) for rule in rules),
+-        max(len(methods) for methods in rule_methods),
+-        max(len(rule.rule) for rule in rules),
+-    )
+-    widths = [max(len(h), w) for h, w in zip(headers, widths)]
+-    row = "{{0:<{0}}}  {{1:<{1}}}  {{2:<{2}}}".format(*widths)
+-
+-    click.echo(row.format(*headers).strip())
+-    click.echo(row.format(*("-" * width for width in widths)))
+-
+-    for rule, methods in zip(rules, rule_methods):
+-        click.echo(row.format(rule.endpoint, methods, rule.rule).rstrip())
++    rule_domains: list[str] | None = None
++    domain_header = ""
++
++    if current_app.url_map.host_matching:
++        domain_header = "Host"
++        rule_domains = [rule.host or "" for rule in rules]
++    elif any(rule.subdomain for rule in rules):
++        domain_header = "Subdomain"
++        rule_domains = [rule.subdomain or "" for rule in rules]
++
++    headers = ["Endpoint", "Methods", "Rule"]
++    columns = [
++        [rule.endpoint for rule in rules],
++        rule_methods,
++        [rule.rule for rule in rules],
++    ]
++
++    if rule_domains is not None:
++        headers.insert(0, domain_header)
++        columns.insert(0, rule_domains)
++
++    widths = [
++        max(len(h), max(len(v) for v in col)) for h, col in zip(headers, columns)
++    ]
++    row = "  ".join("{{{0}:<{1}}}".format(i, w) for i, w in enumerate(widths))
++
++    click.echo(row.format(*headers).strip())
++    click.echo(row.format(*("-" * width for width in widths)))
++
++    for values in zip(*columns):
++        click.echo(row.format(*values).rstrip())
+ 
+ 
+ cli = FlaskGroup(

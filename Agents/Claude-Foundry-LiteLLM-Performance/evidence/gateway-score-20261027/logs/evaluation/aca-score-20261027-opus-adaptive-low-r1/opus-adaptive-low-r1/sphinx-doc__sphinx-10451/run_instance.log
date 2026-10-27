@@ -1,0 +1,27 @@
+2026-10-27 10:25:23,720 - INFO - Creating container for sphinx-doc__sphinx-10451...
+2026-10-27 10:25:23,872 - INFO - Container for sphinx-doc__sphinx-10451 created: 998a54881a5a0cba25294677bf364f580a919412507b532d7aed467ce66d1aa9
+2026-10-27 10:25:24,075 - INFO - Container for sphinx-doc__sphinx-10451 started: 998a54881a5a0cba25294677bf364f580a919412507b532d7aed467ce66d1aa9
+2026-10-27 10:25:24,076 - INFO - Intermediate patch for sphinx-doc__sphinx-10451 written to logs/evaluation/aca-score-20261027-opus-adaptive-low-r1/opus-adaptive-low-r1/sphinx-doc__sphinx-10451/patch.diff, now applying to container...
+2026-10-27 10:25:24,157 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:25:24,411 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:25:24,621 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:25:24,827 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:25:24,864 - INFO - >>>>> Patch Apply Failed:
+patching file sphinx/ext/autodoc/typehints.py
+patch: **** malformed patch at line 14:              field = nodes.field()
+
+
+2026-10-27 10:25:24,865 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for sphinx-doc__sphinx-10451: >>>>> Patch Apply Failed:
+patching file sphinx/ext/autodoc/typehints.py
+patch: **** malformed patch at line 14:              field = nodes.field()
+
+
+Check (logs/evaluation/aca-score-20261027-opus-adaptive-low-r1/opus-adaptive-low-r1/sphinx-doc__sphinx-10451/run_instance.log) for more information.
+
+2026-10-27 10:25:24,865 - INFO - Attempting to stop container sweb.eval.sphinx-doc__sphinx-10451.aca-score-20261027-opus-adaptive-low-r1...
+2026-10-27 10:25:40,217 - INFO - Container sweb.eval.sphinx-doc__sphinx-10451.aca-score-20261027-opus-adaptive-low-r1 stopped successfully.
+2026-10-27 10:25:40,217 - INFO - Attempting to remove container sweb.eval.sphinx-doc__sphinx-10451.aca-score-20261027-opus-adaptive-low-r1...
+2026-10-27 10:25:40,288 - INFO - Container sweb.eval.sphinx-doc__sphinx-10451.aca-score-20261027-opus-adaptive-low-r1 removed successfully.

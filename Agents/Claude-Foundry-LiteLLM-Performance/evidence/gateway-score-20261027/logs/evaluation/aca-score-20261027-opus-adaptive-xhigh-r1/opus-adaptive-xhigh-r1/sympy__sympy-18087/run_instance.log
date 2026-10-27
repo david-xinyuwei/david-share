@@ -1,0 +1,71 @@
+2026-10-27 10:39:56,879 - INFO - Creating container for sympy__sympy-18087...
+2026-10-27 10:39:57,015 - INFO - Container for sympy__sympy-18087 created: 18756dadf3e6309c14db16bf3ce9f9e24881587855abcdf4c232f2e7a8d188eb
+2026-10-27 10:39:57,207 - INFO - Container for sympy__sympy-18087 started: 18756dadf3e6309c14db16bf3ce9f9e24881587855abcdf4c232f2e7a8d188eb
+2026-10-27 10:39:57,208 - INFO - Intermediate patch for sympy__sympy-18087 written to logs/evaluation/aca-score-20261027-opus-adaptive-xhigh-r1/opus-adaptive-xhigh-r1/sympy__sympy-18087/patch.diff, now applying to container...
+2026-10-27 10:39:57,292 - INFO - >>>>> Applied Patch:
+Checking patch sympy/core/exprtools.py...
+Hunk #1 succeeded at 448 (offset 30 lines).
+Applied patch sympy/core/exprtools.py cleanly.
+
+2026-10-27 10:39:57,647 - INFO - Git diff before:
+diff --git a/sympy/core/exprtools.py b/sympy/core/exprtools.py
+index 57fad70407..90ede9c568 100755
+--- a/sympy/core/exprtools.py
++++ b/sympy/core/exprtools.py
+@@ -448,14 +448,15 @@ def as_expr(self):  # Factors
+         args = []
+         for factor, exp in self.factors.items():
+             if exp != 1:
+-                b, e = factor.as_base_exp()
+                 if isinstance(exp, int):
+-                    e = _keep_coeff(Integer(exp), e)
+-                elif isinstance(exp, Rational):
++                    exp = Integer(exp)
++                if isinstance(exp, Integer):
++                    # (b**e)**n == b**(e*n) is always valid for integer n
++                    b, e = factor.as_base_exp()
+                     e = _keep_coeff(exp, e)
++                    args.append(b**e)
+                 else:
+-                    e *= exp
+-                args.append(b**e)
++                    args.append(factor**exp)
+             else:
+                 args.append(factor)
+         return Mul(*args)
+2026-10-27 10:39:57,648 - INFO - Eval script for sympy__sympy-18087 written to logs/evaluation/aca-score-20261027-opus-adaptive-xhigh-r1/opus-adaptive-xhigh-r1/sympy__sympy-18087/eval.sh; copying to container...
+2026-10-27 10:40:17,483 - INFO - Test runtime: 19.79 seconds
+2026-10-27 10:40:17,484 - INFO - Test output for sympy__sympy-18087 written to logs/evaluation/aca-score-20261027-opus-adaptive-xhigh-r1/opus-adaptive-xhigh-r1/sympy__sympy-18087/test_output.txt
+2026-10-27 10:40:17,528 - INFO - Git diff after:
+diff --git a/sympy/core/exprtools.py b/sympy/core/exprtools.py
+index 57fad70407..90ede9c568 100755
+--- a/sympy/core/exprtools.py
++++ b/sympy/core/exprtools.py
+@@ -448,14 +448,15 @@ def as_expr(self):  # Factors
+         args = []
+         for factor, exp in self.factors.items():
+             if exp != 1:
+-                b, e = factor.as_base_exp()
+                 if isinstance(exp, int):
+-                    e = _keep_coeff(Integer(exp), e)
+-                elif isinstance(exp, Rational):
++                    exp = Integer(exp)
++                if isinstance(exp, Integer):
++                    # (b**e)**n == b**(e*n) is always valid for integer n
++                    b, e = factor.as_base_exp()
+                     e = _keep_coeff(exp, e)
++                    args.append(b**e)
+                 else:
+-                    e *= exp
+-                args.append(b**e)
++                    args.append(factor**exp)
+             else:
+                 args.append(factor)
+         return Mul(*args)
+2026-10-27 10:40:17,528 - INFO - Grading answer for sympy__sympy-18087...
+2026-10-27 10:40:17,530 - INFO - report: {'sympy__sympy-18087': {'patch_is_None': False, 'patch_exists': True, 'patch_successfully_applied': True, 'resolved': True, 'infra_failure': False, 'tests_status': {'FAIL_TO_PASS': {'success': ['test_Factors', 'test_fu'], 'failure': []}, 'PASS_TO_PASS': {'success': ['test_decompose_power', 'test_Term', 'test_gcd_terms', 'test_factor_terms', 'test_xreplace', 'test_factor_nc', 'test_issue_6360', 'test_issue_7903', 'test_issue_8263', 'test_monotonic_sign', 'test_TR1', 'test_TR2', 'test_TR2i', 'test_TR3', 'test__TR56', 'test_TR5', 'test_TR6', 'test_TR7', 'test_TR8', 'test_TR9', 'test_TR10', 'test_TR10i', 'test_TR11', 'test_TR12', 'test_TR13', 'test_L', 'test_objective', 'test_process_common_addends', 'test_trig_split', 'test_TRmorrie', 'test_TRpower', 'test_hyper_as_trig', 'test_TR12i', 'test_TR14', 'test_TR15_16_17'], 'failure': []}, 'FAIL_TO_FAIL': {'success': [], 'failure': []}, 'PASS_TO_FAIL': {'success': [], 'failure': []}}}}
+Result for sympy__sympy-18087: resolved: True
+2026-10-27 10:40:17,530 - INFO - Attempting to stop container sweb.eval.sympy__sympy-18087.aca-score-20261027-opus-adaptive-xhigh-r1...
+2026-10-27 10:40:32,771 - INFO - Container sweb.eval.sympy__sympy-18087.aca-score-20261027-opus-adaptive-xhigh-r1 stopped successfully.
+2026-10-27 10:40:32,771 - INFO - Attempting to remove container sweb.eval.sympy__sympy-18087.aca-score-20261027-opus-adaptive-xhigh-r1...
+2026-10-27 10:40:32,847 - INFO - Container sweb.eval.sympy__sympy-18087.aca-score-20261027-opus-adaptive-xhigh-r1 removed successfully.

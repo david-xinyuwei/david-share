@@ -1,0 +1,7 @@
+
+--- a/sphinx/ext/napoleon/docstring.py
++++ b/sphinx/ext/napoleon/docstring.py
+@@ -700,1 +700,3 @@
++                # directive arguments are not parsed as reST: drop the escape
++                _name = _name.replace(r'\_', '_')
+                 lines.append('.. attribute:: ' + _name)

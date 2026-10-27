@@ -1,0 +1,27 @@
+2026-10-27 11:08:56,744 - INFO - Creating container for sphinx-doc__sphinx-10451...
+2026-10-27 11:08:56,903 - INFO - Container for sphinx-doc__sphinx-10451 created: 33b89845f3170f9c82d188630c7f7348e75d44de504723f277afac2ab79a359b
+2026-10-27 11:08:57,103 - INFO - Container for sphinx-doc__sphinx-10451 started: 33b89845f3170f9c82d188630c7f7348e75d44de504723f277afac2ab79a359b
+2026-10-27 11:08:57,104 - INFO - Intermediate patch for sphinx-doc__sphinx-10451 written to logs/evaluation/aca-score-20261027-sonnet-between_tools-default-r1/sonnet-between_tools-default-r1/sphinx-doc__sphinx-10451/patch.diff, now applying to container...
+2026-10-27 11:08:57,188 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 11:08:57,461 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 11:08:57,674 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 11:08:57,888 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 11:08:57,930 - INFO - >>>>> Patch Apply Failed:
+patch: **** malformed patch at line 26:      for name, annotation in annotations.items():
+
+patching file sphinx/ext/autodoc/typehints.py
+
+2026-10-27 11:08:57,930 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for sphinx-doc__sphinx-10451: >>>>> Patch Apply Failed:
+patch: **** malformed patch at line 26:      for name, annotation in annotations.items():
+
+patching file sphinx/ext/autodoc/typehints.py
+
+Check (logs/evaluation/aca-score-20261027-sonnet-between_tools-default-r1/sonnet-between_tools-default-r1/sphinx-doc__sphinx-10451/run_instance.log) for more information.
+
+2026-10-27 11:08:57,930 - INFO - Attempting to stop container sweb.eval.sphinx-doc__sphinx-10451.aca-score-20261027-sonnet-between_tools-default-r1...
+2026-10-27 11:09:13,183 - INFO - Container sweb.eval.sphinx-doc__sphinx-10451.aca-score-20261027-sonnet-between_tools-default-r1 stopped successfully.
+2026-10-27 11:09:13,183 - INFO - Attempting to remove container sweb.eval.sphinx-doc__sphinx-10451.aca-score-20261027-sonnet-between_tools-default-r1...
+2026-10-27 11:09:13,255 - INFO - Container sweb.eval.sphinx-doc__sphinx-10451.aca-score-20261027-sonnet-between_tools-default-r1 removed successfully.

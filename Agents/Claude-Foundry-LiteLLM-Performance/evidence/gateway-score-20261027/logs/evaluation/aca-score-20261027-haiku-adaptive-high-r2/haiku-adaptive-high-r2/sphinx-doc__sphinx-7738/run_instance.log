@@ -1,0 +1,27 @@
+2026-10-27 09:42:36,599 - INFO - Creating container for sphinx-doc__sphinx-7738...
+2026-10-27 09:42:36,712 - INFO - Container for sphinx-doc__sphinx-7738 created: c9f6e03eaac32d315c96d738453bf4fb985f2adaf8fbbabd3fb62e78febab605
+2026-10-27 09:42:36,918 - INFO - Container for sphinx-doc__sphinx-7738 started: c9f6e03eaac32d315c96d738453bf4fb985f2adaf8fbbabd3fb62e78febab605
+2026-10-27 09:42:36,918 - INFO - Intermediate patch for sphinx-doc__sphinx-7738 written to logs/evaluation/aca-score-20261027-haiku-adaptive-high-r2/haiku-adaptive-high-r2/sphinx-doc__sphinx-7738/patch.diff, now applying to container...
+2026-10-27 09:42:36,997 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 09:42:37,226 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 09:42:37,421 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 09:42:37,619 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 09:42:37,656 - INFO - >>>>> Patch Apply Failed:
+patching file sphinx/ext/napoleon/docstring.py
+Reversed (or previously applied) patch detected!  Skipping patch.
+1 out of 1 hunk ignored -- saving rejects to file sphinx/ext/napoleon/docstring.py.rej
+
+2026-10-27 09:42:37,656 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for sphinx-doc__sphinx-7738: >>>>> Patch Apply Failed:
+patching file sphinx/ext/napoleon/docstring.py
+Reversed (or previously applied) patch detected!  Skipping patch.
+1 out of 1 hunk ignored -- saving rejects to file sphinx/ext/napoleon/docstring.py.rej
+
+Check (logs/evaluation/aca-score-20261027-haiku-adaptive-high-r2/haiku-adaptive-high-r2/sphinx-doc__sphinx-7738/run_instance.log) for more information.
+
+2026-10-27 09:42:37,656 - INFO - Attempting to stop container sweb.eval.sphinx-doc__sphinx-7738.aca-score-20261027-haiku-adaptive-high-r2...
+2026-10-27 09:42:53,009 - INFO - Container sweb.eval.sphinx-doc__sphinx-7738.aca-score-20261027-haiku-adaptive-high-r2 stopped successfully.
+2026-10-27 09:42:53,009 - INFO - Attempting to remove container sweb.eval.sphinx-doc__sphinx-7738.aca-score-20261027-haiku-adaptive-high-r2...
+2026-10-27 09:42:53,086 - INFO - Container sweb.eval.sphinx-doc__sphinx-7738.aca-score-20261027-haiku-adaptive-high-r2 removed successfully.

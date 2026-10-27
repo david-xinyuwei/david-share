@@ -1,0 +1,11 @@
+    def _parse_attributes_section(self, section: str) -> List[str]:
+        lines = []
+        for _name, _type, _desc in self._consume_fields():
+            if self._config.napoleon_use_ivar:
+                _name = self._qualify_name(_name, self._obj)
+                field = ':ivar %s: ' % _name
+                lines.extend(self._format_block(field, _desc))
+                if _type:
+                    lines.append(':vartype %s: %s' % (_name, _type))
+            else:
+                lines.append('.. attribute:: ' + _name)

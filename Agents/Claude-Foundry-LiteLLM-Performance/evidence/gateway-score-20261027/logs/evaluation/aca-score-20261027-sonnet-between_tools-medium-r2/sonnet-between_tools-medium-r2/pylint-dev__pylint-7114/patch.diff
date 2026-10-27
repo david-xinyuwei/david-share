@@ -1,0 +1,9 @@
+The files provided don't include the actual source of the bug. The failure comes from module expansion (`pylint/lint/expand_modules.py`) and astroid's module-name resolution (`pylint/lint/pylinter.py` and `pylint/lint/utils.py`), none of which are shown. I can't produce a correct patch against code I can't see, and a guessed one would likely fail to apply.
+
+I recall that `expand_modules` calls `modutils.modpath_from_file` and `modutils.file_from_modpath`. When linting `a`, it resolves `a` to `a/a.py` (the inner module) instead of the directory package `a`. As a result, the check for `a/__init__.py` fails.
+
+I'd need the following files to write an accurate patch:
+- `pylint/lint/expand_modules.py`
+- `pylint/lint/pylinter.py` (the `_get_file_descr_from_stdin` / `_expand_files` parts)
+
+Please share those and I'll produce the patch.

@@ -1,0 +1,3 @@
+from sympy import cos, sin, sqrt, Symbol, trigsimp
+x = Symbol('x')
+assert trigsimp(cos(x) + sqrt(sin(x)**2)) == cos(x) + sqrt(sin(x)**2)

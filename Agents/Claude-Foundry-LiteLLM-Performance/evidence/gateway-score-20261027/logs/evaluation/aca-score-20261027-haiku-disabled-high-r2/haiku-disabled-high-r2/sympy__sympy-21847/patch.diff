@@ -1,0 +1,56 @@
+
+--- a/sympy/polys/monomials.py
++++ b/sympy/polys/monomials.py
+@@ -113,36 +113,18 @@
+     if total_degree:
+         if min_degree > max_degree:
+             return
+-        if not variables or max_degree == 0:
+-            yield S.One
++        if not variables or max_degree == 0:
++            if min_degree <= 0:
++                yield S.One
+             return
+-        # Force to list in case of passed tuple or other incompatible collection
+-        variables = list(variables) + [S.One]
+-        if all(variable.is_commutative for variable in variables):
+-            monomials_list_comm = []
+-            for item in combinations_with_replacement(variables, max_degree):
+-                powers = dict()
+-                for variable in variables:
+-                    powers[variable] = 0
+-                for variable in item:
+-                    if variable != 1:
+-                        powers[variable] += 1
+-                if max(powers.values()) >= min_degree:
+-                    monomials_list_comm.append(Mul(*item))
+-            yield from set(monomials_list_comm)
+-        else:
+-            monomials_list_non_comm = []
+-            for item in product(variables, repeat=max_degree):
+-                powers = dict()
+-                for variable in variables:
+-                    powers[variable] = 0
+-                for variable in item:
+-                    if variable != 1:
+-                        powers[variable] += 1
+-                if max(powers.values()) >= min_degree:
+-                    monomials_list_non_comm.append(Mul(*item))
+-            yield from set(monomials_list_non_comm)
++        # Force to list in case of passed tuple or other incompatible collection
++        variables = list(variables)
++        if all(variable.is_commutative for variable in variables):
++            monomials_list_comm = []
++            for d in range(min_degree, max_degree + 1):
++                for item in combinations_with_replacement(variables, d):
++                    monomials_list_comm.append(Mul(*item))
++            yield from set(monomials_list_comm)
++        else:
++            monomials_list_non_comm = []
++            for d in range(min_degree, max_degree + 1):
++                for item in product(variables, repeat=d):
++                    monomials_list_non_comm.append(Mul(*item))
++            yield from set(monomials_list_non_comm)
+     else:
+         if any(min_degrees[i] > max_degrees[i] for i in range(n)):
+             raise ValueError('min_degrees[i] must be <= max_degrees[i] for all i')

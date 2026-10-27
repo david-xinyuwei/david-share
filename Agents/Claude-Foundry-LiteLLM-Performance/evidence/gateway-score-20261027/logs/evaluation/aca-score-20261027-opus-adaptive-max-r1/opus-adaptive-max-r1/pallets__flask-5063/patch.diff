@@ -1,0 +1,114 @@
+
+--- a/src/flask/cli.py
++++ b/src/flask/cli.py
+@@ -9,7 +9,7 @@
+ import traceback
+ import typing as t
+ from functools import update_wrapper
+-from operator import attrgetter
++from operator import itemgetter
+ 
+ import click
+ from click.core import ParameterSource
+@@ -985,53 +985,69 @@ def shell_command() -> None:
+     code.interact(banner=banner, local=ctx)
+ 
+ 
+ @click.command("routes", short_help="Show the routes for the app.")
+ @click.option(
+     "--sort",
+     "-s",
+-    type=click.Choice(("endpoint", "methods", "rule", "match")),
++    type=click.Choice(("endpoint", "methods", "domain", "rule", "match")),
+     default="endpoint",
+     help=(
+-        'Method to sort routes by. "match" is the order that Flask will match '
+-        "routes when dispatching a request."
++        "Method to sort routes by. 'match' is the order that Flask will match routes"
++        " when dispatching a request."
+     ),
+ )
+ @click.option("--all-methods", is_flag=True, help="Show HEAD and OPTIONS methods.")
+ @with_appcontext
+ def routes_command(sort: str, all_methods: bool) -> None:
+-    """Show all registered routes with endpoints and methods."""
+-
++    """Show all registered routes with endpoints and methods.
++
++    If any route is restricted to a subdomain, or to a host when host
++    matching is enabled, the subdomain or host is shown as well.
++    """
+     rules = list(current_app.url_map.iter_rules())
++
+     if not rules:
+         click.echo("No routes were registered.")
+         return
+ 
+-    ignored_methods = set(() if all_methods else ("HEAD", "OPTIONS"))
+-
+-    if sort in ("endpoint", "rule"):
+-        rules = sorted(rules, key=attrgetter(sort))
+-    elif sort == "methods":
+-        rules = sorted(rules, key=lambda rule: sorted(rule.methods))  # type: ignore
+-
+-    rule_methods = [
+-        ", ".join(sorted(rule.methods - ignored_methods))  # type: ignore
+-        for rule in rules
+-    ]
+-
+-    headers = ("Endpoint", "Methods", "Rule")
+-    widths = (
+-        max(len(rule.endpoint) for rule in rules),
+-        max(len(methods) for methods in rule_methods),
+-        max(len(rule.rule) for rule in rules),
+-    )
+-    widths = [max(len(h), w) for h, w in zip(headers, widths)]
+-    row = "{{0:<{0}}}  {{1:<{1}}}  {{2:<{2}}}".format(*widths)
+-
+-    click.echo(row.format(*headers).strip())
+-    click.echo(row.format(*("-" * width for width in widths)))
+-
+-    for rule, methods in zip(rules, rule_methods):
+-        click.echo(row.format(rule.endpoint, methods, rule.rule).rstrip())
++    ignored_methods = set() if all_methods else {"HEAD", "OPTIONS"}
++    host_matching = current_app.url_map.host_matching
++    has_domain = any(rule.host if host_matching else rule.subdomain for rule in rules)
++    rows: list[list[str]] = []
++
++    for rule in rules:
++        row = [
++            rule.endpoint,
++            ", ".join(sorted((rule.methods or set()) - ignored_methods)),
++        ]
++
++        if has_domain:
++            row.append((rule.host if host_matching else rule.subdomain) or "")
++
++        row.append(rule.rule)
++        rows.append(row)
++
++    headers = ["Endpoint", "Methods"]
++    sorts = ["endpoint", "methods"]
++
++    if has_domain:
++        headers.append("Host" if host_matching else "Subdomain")
++        sorts.append("domain")
++
++    headers.append("Rule")
++    sorts.append("rule")
++
++    # "match" (and "domain" when no domain column is shown) keeps the
++    # order in which the rules were registered.
++    if sort in sorts:
++        rows.sort(key=itemgetter(sorts.index(sort)))
++
++    rows.insert(0, headers)
++    widths = [max(len(row[i]) for row in rows) for i in range(len(headers))]
++    rows.insert(1, ["-" * w for w in widths])
++    template = "  ".join(f"{{{i}:<{w}}}" for i, w in enumerate(widths))
++
++    for row in rows:
++        click.echo(template.format(*row).rstrip())
+ 
+ 
+ cli = FlaskGroup(

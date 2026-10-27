@@ -1,0 +1,25 @@
+2026-10-27 09:59:39,091 - INFO - Creating container for django__django-11422...
+2026-10-27 09:59:39,290 - INFO - Container for django__django-11422 created: df3ea10ff7947ee1a4e9e56cde9f1ec26314b8ffe95a450e065080b179bc006d
+2026-10-27 09:59:39,504 - INFO - Container for django__django-11422 started: df3ea10ff7947ee1a4e9e56cde9f1ec26314b8ffe95a450e065080b179bc006d
+2026-10-27 09:59:39,505 - INFO - Intermediate patch for django__django-11422 written to logs/evaluation/aca-score-20261027-haiku-disabled-default-r1/haiku-disabled-default-r1/django__django-11422/patch.diff, now applying to container...
+2026-10-27 09:59:39,587 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 09:59:40,410 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 09:59:40,712 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 09:59:41,007 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 09:59:41,043 - INFO - >>>>> Patch Apply Failed:
+patch unexpectedly ends in middle of line
+patch: **** Only garbage was found in the patch input.
+
+2026-10-27 09:59:41,044 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for django__django-11422: >>>>> Patch Apply Failed:
+patch unexpectedly ends in middle of line
+patch: **** Only garbage was found in the patch input.
+
+Check (logs/evaluation/aca-score-20261027-haiku-disabled-default-r1/haiku-disabled-default-r1/django__django-11422/run_instance.log) for more information.
+
+2026-10-27 09:59:41,044 - INFO - Attempting to stop container sweb.eval.django__django-11422.aca-score-20261027-haiku-disabled-default-r1...
+2026-10-27 09:59:57,864 - INFO - Container sweb.eval.django__django-11422.aca-score-20261027-haiku-disabled-default-r1 stopped successfully.
+2026-10-27 09:59:57,864 - INFO - Attempting to remove container sweb.eval.django__django-11422.aca-score-20261027-haiku-disabled-default-r1...
+2026-10-27 09:59:58,029 - INFO - Container sweb.eval.django__django-11422.aca-score-20261027-haiku-disabled-default-r1 removed successfully.

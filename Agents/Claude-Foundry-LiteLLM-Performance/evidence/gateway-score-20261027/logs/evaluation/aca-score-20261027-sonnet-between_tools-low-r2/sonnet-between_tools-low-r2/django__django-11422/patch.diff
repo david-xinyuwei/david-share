@@ -1,0 +1,14 @@
+
+--- a/django/core/management/commands/runserver.py
++++ b/django/core/management/commands/runserver.py
+@@ -99,6 +99,10 @@
+         use_reloader = options['use_reloader']
+ 
+         if use_reloader:
++            # Watch the main script (e.g. manage.py), which isn't tracked as a
++            # regular module by the autoreloader.
++            if sys.argv and os.path.exists(sys.argv[0]):
++                autoreload.watch_file(os.path.abspath(sys.argv[0]))
+             autoreload.run_with_reloader(self.inner_run, **options)
+         else:
+             self.inner_run(None, **options)

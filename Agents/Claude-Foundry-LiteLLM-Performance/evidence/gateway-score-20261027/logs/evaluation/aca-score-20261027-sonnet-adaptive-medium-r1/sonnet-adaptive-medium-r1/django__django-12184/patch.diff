@@ -1,0 +1,5 @@
+match = self.regex.search(path)
+if match:
+    kwargs = match.groupdict()
+    args = () if kwargs else match.groups()
+    return path[match.end():], args, kwargs

@@ -1,0 +1,14 @@
+
+--- a/sympy/simplify/fu.py
++++ b/sympy/simplify/fu.py
+@@ -503,7 +503,7 @@
+     def _f(rv):
+         # I'm not sure if this transformation should target all even powers
+         # or only those expressible as powers of 2. Also, should it only
+         # make the changes in powers that appear in sums -- making an isolated
+         # change is not going to allow a simplification as far as I can tell.
+-        if not (rv.is_Pow and rv.base.func == f):
++        if not (rv.is_Pow and rv.base.func == f and rv.exp.is_integer):
+             return rv
+         if not rv.exp.is_real:
+             return rv

@@ -1,0 +1,3 @@
+I can't produce a patch for this issue without the relevant source. The napoleon code shown handles docstrings via `GoogleDocstring`/`NumpyDocstring` in `sphinx/ext/napoleon/docstring.py`, which wasn't included, and the escaping of the trailing underscore most likely happens there (in the attribute/field name rendering, where `_escape_args_and_kwargs` or the `:ivar:`/`.. attribute::` name handling produces `hello\_`).
+
+If I guessed at the change, the patch would likely fail to apply. If you share `sphinx/ext/napoleon/docstring.py` (and the relevant part of `sphinx/domains/python.py` if needed), I can write an accurate patch against it.

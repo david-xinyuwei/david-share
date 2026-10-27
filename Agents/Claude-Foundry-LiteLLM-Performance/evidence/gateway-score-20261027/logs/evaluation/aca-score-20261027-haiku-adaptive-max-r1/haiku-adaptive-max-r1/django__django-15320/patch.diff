@@ -1,0 +1,8 @@
+
+--- a/django/db/models/expressions.py
++++ b/django/db/models/expressions.py
+@@ -1150,2 +1150,4 @@
+         self.extra = extra
++        self.query = self.query.clone()
++        self.query.subquery = True
+         super().__init__(output_field)

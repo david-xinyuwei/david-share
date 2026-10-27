@@ -2,19 +2,17 @@
 
 [README](../README_CN.md) · [复测与核验](testing_CN.md) · [English](results.md)
 
-先列当前 East US 2 ACA 开启缓存测试的部分快照，包含全部计划配置与缺失范围；随后保留已取缔直连方案的历史编码矩阵、参数探测、缓存测试和 2026-10-24 网关检查。各批次的输入、计数和边界分别说明，不混算。
+先看本轮 East US 2 ACA 全量性能结果，再看 624 份正式答案的代码正确率；全部配置、失败和限制均保留。已取缔直连方案的历史编码矩阵、参数探测、缓存测试和早期网关检查放在后面，不与本轮混算。
 
 <a id="aca-gateway-snapshot"></a>
 
-## ACA 网关：部分结果
+## ACA 网关：性能测试结果
 
-**这是部分证据，不是全量测试通过。** 快照保存了计划 650 次中的 154 次请求：26 次预热，以及 624 次正式请求中的 128 次。运行文件最后更新于 `2026-10-27T00:07:59.720+00:00`。另有 496 次未包含在这份快照中，不能据此认定它们未执行或失败。
-
-**客户端状态。** 在 `2026-10-26T20:10:18.9885833-07:00` 核验时，Azure 返回客户端 VM 为 `PowerState/deallocated`，已不会继续发送新请求。最终测试结果和停机原因尚未核实；快照里的 `RUNNING` 是当时的状态，不是当前状态。[核验记录](../evidence/gateway-cache-20261026/collection-status.json)。
+**请求已收齐，不等于全部通过。** 已保留 650/650 次请求：26 次预热、624 份正式答案。运行在 `2026-10-27T08:37:15.795+00:00` 达到 `COMPLETED`；失败和截断仍保留在统计中。[采集验收](../evidence/gateway-cache-20261026/collection-status.json)。
 
 **问题与方法。** 编码提示通过 East US 2 的 ACA LiteLLM 网关发送后，原样重复的第二次请求能否读到第一次写入的缓存，观测到的耗时和费用是多少？客户端、网关和 Foundry 资源均在 East US 2；每个模型同时只有一个请求。这是首次写入与重复读取的配对，不是关闭缓存的对照，也不能隔离网关自身开销。
 
-**输入。** [12 道公开的 SWE-bench Lite BM25-13K 题目](../data/gateway-cache-problems.json)，来源版本和提示哈希保存在 [run.json](../evidence/gateway-cache-20261026/run.json)。这是作者的延迟与缓存测试，不是 SWE-bench 官方评分，也不是客户生产数据。[输入构建器](../gateway-cache/build_swebench_problems.py)重建提示，[运行器](../gateway-cache/aca_cache_matrix.py)遍历 26 个模式／档位组合，每题每格原样发送两次，每格另有一次预热。固定 `max_tokens: 128000`、`stream: true`、顶层 `cache_control: {"type": "ephemeral", "ttl": "1h"}`。计时从客户端即将发送请求时开始；首字指第一个非空文字增量，不是心跳或思考事件。
+**输入。** [12 道公开的 SWE-bench Lite BM25-13K 题目](../data/gateway-cache-problems.json)，来源版本和提示哈希在 [run.json](../evidence/gateway-cache-20261026/run.json)。这是选定子集实验，不是完整 SWE-bench 排行榜成绩，也不是客户生产数据。[运行器](../gateway-cache/aca_cache_matrix.py)遍历 26 个模式／档位组合，每题每格原样发送两次，每格另有一次预热。固定 `max_tokens: 128000`、`stream: true`、顶层 `cache_control: {"type": "ephemeral", "ttl": "1h"}`。计时从客户端即将发送请求时开始；首字是第一个非空文字增量，不是心跳或思考事件。
 
 实际保存的参数记录（该指标投影不包含提示正文）：
 
@@ -36,79 +34,130 @@
 }
 ```
 
+**先看性能。** 下表只统计两次都正常结束、且第二次确实读取缓存的配对；“首次写入／命中”分别对应第 1／2 次请求。各模型汇总覆盖的模式／档位不同，不能据此直接排名，应进一步对比完整表中的同条件配置。
+
+| 模型 | 缓存命中配对数（组） | 首字 P50：首次写入／命中（秒） | 完整回答 P50：首次写入／命中（秒） | 单次平均费用：首次写入／命中（美元） | 命中请求的缓存读取占比（%） |
+|---|---:|---:|---:|---:|---:|
+| Opus 5.5 | 70 | 9.06 / 8.98 | 14.5 / 17.5 | $0.321801 / $0.187770 | 99.98 |
+| Sonnet 5.5 | 117 | 0.92 / 0.93 | 6.61 / 7.05 | $0.146967 / $0.073409 | 99.98 |
+| Haiku 5.5 | 115 | 3.42 / 4.30 | 5.74 / 6.12 | $0.008025 / $0.004123 | 99.98 |
+
 | 模型 | 已保存／计划请求数（含预热） | 正常结束的请求数 | 截断请求数 | 完整正式配对数 |
 |---|---:|---:|---:|---:|
-| Opus 5.5 | 29/150 | 29 | 0 | 11 |
-| Sonnet 5.5 | 46/250 | 44 | 2 | 17 |
-| Haiku 5.5 | 79/250 | 79 | 0 | 34 |
+| Opus 5.5 | 150/150 | 149 | 1 | 70 |
+| Sonnet 5.5 | 250/250 | 244 | 6 | 117 |
+| Haiku 5.5 | 250/250 | 243 | 7 | 115 |
 
-**已经确认的事实。** 62 个正式配对的两次回答均正常结束。首次请求最多读取 0 个缓存 token；重复请求至少读回前次写入缓存 token 的 100.0%；两次复用同一响应 message ID 的配对有 0 个。这些原生 usage 记录证明对应配对发生了缓存读取，不证明代码正确或普遍提速。响应报告 `inference_geo: global`，返回的区域头为 East US 2，不能把它当成 GlobalStandard 固定区域推理的承诺。
+**缓存证据。** 304 组正式配对完整结束，其中 302 组有原生缓存命中。另 2 组跨越停机／恢复间隔，过期后重新写入缓存；它们仍计入请求数、费用和正确率，但不进入缓存命中性能统计。命中配对至少读回前次缓存写入的 100.0%，复用同一响应 message ID 的配对为 0。这证明对应缓存读取，不证明普遍提速。响应报告 `inference_geo: global` 和 East US 2 区域头，不代表固定区域推理承诺。
 
-**费用与边界。** 按记录采用的[标价模型](../coding-matrix/pricing.py)，已保存请求共 $13.90，包含预热、缓存写入／读取、输出和截断回答。这不是整轮最终花费或 Azure 账单，不含基础设施费用。尚未取得代码正确率评分。配对统计排除预热及任一回答未完整结束的配对，但上表仍保留这些请求；各格样本数量不同且不完整，不能据此给模型或档位排名。
+**费用与边界。** 整轮按记录采用的[标价](../coding-matrix/pricing.py)计费共 $76.17，包含预热、缓存写入／读取、输出和截断回答；不含基础设施费用，也不是账单。配对指标排除预热、不完整配对及非命中配对，但不会缩小正确率分母。完整分布与计数保存在[统计结果](../evidence/gateway-cache-20261026/interim-facts.json)。
 
-### 全部计划配置
+### 全部配置的性能结果
 
 | 模型 | thinking.type | output_config.effort | 已保存／计划正式请求数 | 截断请求数（含预热） | 完整／计划配对数 |
 |---|---|---|---:|---:|---:|
-| Opus 5.5 | `adaptive` | `low` | 4/24 | 0 | 2/12 |
-| Opus 5.5 | `adaptive` | `medium` | 6/24 | 0 | 3/12 |
-| Opus 5.5 | `adaptive` | `high` | 7/24 | 0 | 3/12 |
-| Opus 5.5 | `adaptive` | `xhigh` | 0/24 | 0 | 0/12 |
-| Opus 5.5 | `adaptive` | `max` | 4/24 | 0 | 2/12 |
-| Opus 5.5 | `adaptive` | `default` | 2/24 | 0 | 1/12 |
-| Sonnet 5.5 | `adaptive` | `low` | 6/24 | 0 | 3/12 |
-| Sonnet 5.5 | `adaptive` | `medium` | 4/24 | 0 | 2/12 |
-| Sonnet 5.5 | `adaptive` | `high` | 2/24 | 0 | 1/12 |
-| Sonnet 5.5 | `adaptive` | `xhigh` | 4/24 | 0 | 2/12 |
-| Sonnet 5.5 | `adaptive` | `max` | 4/24 | 2 | 1/12 |
-| Sonnet 5.5 | `adaptive` | `default` | 0/24 | 0 | 0/12 |
-| Sonnet 5.5 | `between_tools` | `low` | 4/24 | 0 | 2/12 |
-| Sonnet 5.5 | `between_tools` | `medium` | 0/24 | 0 | 0/12 |
-| Sonnet 5.5 | `between_tools` | `high` | 6/24 | 0 | 3/12 |
-| Sonnet 5.5 | `between_tools` | `default` | 6/24 | 0 | 3/12 |
-| Haiku 5.5 | `adaptive` | `low` | 8/24 | 0 | 4/12 |
-| Haiku 5.5 | `adaptive` | `medium` | 2/24 | 0 | 1/12 |
-| Haiku 5.5 | `adaptive` | `high` | 12/24 | 0 | 6/12 |
-| Haiku 5.5 | `adaptive` | `xhigh` | 2/24 | 0 | 1/12 |
-| Haiku 5.5 | `adaptive` | `max` | 5/24 | 0 | 2/12 |
-| Haiku 5.5 | `adaptive` | `default` | 8/24 | 0 | 4/12 |
-| Haiku 5.5 | `disabled` | `low` | 4/24 | 0 | 2/12 |
-| Haiku 5.5 | `disabled` | `medium` | 4/24 | 0 | 2/12 |
-| Haiku 5.5 | `disabled` | `high` | 10/24 | 0 | 5/12 |
-| Haiku 5.5 | `disabled` | `default` | 14/24 | 0 | 7/12 |
+| Opus 5.5 | `adaptive` | `low` | 24/24 | 0 | 12/12 |
+| Opus 5.5 | `adaptive` | `medium` | 24/24 | 0 | 12/12 |
+| Opus 5.5 | `adaptive` | `high` | 24/24 | 0 | 12/12 |
+| Opus 5.5 | `adaptive` | `xhigh` | 24/24 | 0 | 12/12 |
+| Opus 5.5 | `adaptive` | `max` | 24/24 | 1 | 11/12 |
+| Opus 5.5 | `adaptive` | `default` | 24/24 | 0 | 11/12 |
+| Sonnet 5.5 | `adaptive` | `low` | 24/24 | 0 | 12/12 |
+| Sonnet 5.5 | `adaptive` | `medium` | 24/24 | 0 | 12/12 |
+| Sonnet 5.5 | `adaptive` | `high` | 24/24 | 0 | 12/12 |
+| Sonnet 5.5 | `adaptive` | `xhigh` | 24/24 | 0 | 12/12 |
+| Sonnet 5.5 | `adaptive` | `max` | 24/24 | 6 | 9/12 |
+| Sonnet 5.5 | `adaptive` | `default` | 24/24 | 0 | 12/12 |
+| Sonnet 5.5 | `between_tools` | `low` | 24/24 | 0 | 12/12 |
+| Sonnet 5.5 | `between_tools` | `medium` | 24/24 | 0 | 12/12 |
+| Sonnet 5.5 | `between_tools` | `high` | 24/24 | 0 | 12/12 |
+| Sonnet 5.5 | `between_tools` | `default` | 24/24 | 0 | 12/12 |
+| Haiku 5.5 | `adaptive` | `low` | 24/24 | 0 | 12/12 |
+| Haiku 5.5 | `adaptive` | `medium` | 24/24 | 0 | 12/12 |
+| Haiku 5.5 | `adaptive` | `high` | 24/24 | 0 | 12/12 |
+| Haiku 5.5 | `adaptive` | `xhigh` | 24/24 | 0 | 11/12 |
+| Haiku 5.5 | `adaptive` | `max` | 24/24 | 7 | 8/12 |
+| Haiku 5.5 | `adaptive` | `default` | 24/24 | 0 | 12/12 |
+| Haiku 5.5 | `disabled` | `low` | 24/24 | 0 | 12/12 |
+| Haiku 5.5 | `disabled` | `medium` | 24/24 | 0 | 12/12 |
+| Haiku 5.5 | `disabled` | `high` | 24/24 | 0 | 12/12 |
+| Haiku 5.5 | `disabled` | `default` | 24/24 | 0 | 12/12 |
 
-### 配对观测，不作排名
+### 缓存命中配对的耗时与费用
 
 各格以最近秩法计算 P50，只统计完整正式配对。两次回答的输出长度可能不同，因此费用差异不能全部归因于缓存。
 
 | 模型／thinking.type／output_config.effort | 完整配对数 | 首字 P50：第 1 次写缓存（秒） | 首字 P50：第 2 次读缓存（秒） | 平均费用：第 1 次（美元） | 平均费用：第 2 次（美元） |
 |---|---:|---:|---:|---:|---:|
-| Opus 5.5 / adaptive / low | 2 | 1.14 | 1.00 | $0.177282 | $0.022452 |
-| Opus 5.5 / adaptive / medium | 3 | 6.50 | 7.57 | $0.163915 | $0.033795 |
-| Opus 5.5 / adaptive / high | 3 | 9.13 | 5.06 | $0.192016 | $0.100489 |
-| Opus 5.5 / adaptive / xhigh | 0 | 无完整配对 | 无完整配对 | 无完整配对 | 无完整配对 |
-| Opus 5.5 / adaptive / max | 2 | 104 | 132 | $1.492552 | $1.258076 |
-| Opus 5.5 / adaptive / default | 1 | 1.40 | 1.36 | $0.174700 | $0.019514 |
-| Sonnet 5.5 / adaptive / low | 3 | 0.76 | 0.83 | $0.085269 | $0.008851 |
-| Sonnet 5.5 / adaptive / medium | 2 | 0.80 | 0.80 | $0.090508 | $0.017633 |
-| Sonnet 5.5 / adaptive / high | 1 | 11.7 | 10.8 | $0.100894 | $0.023937 |
-| Sonnet 5.5 / adaptive / xhigh | 2 | 25.1 | 16.1 | $0.121516 | $0.063874 |
-| Sonnet 5.5 / adaptive / max | 1 | 470 | 364 | $0.792324 | $0.582819 |
-| Sonnet 5.5 / adaptive / default | 0 | 无完整配对 | 无完整配对 | 无完整配对 | 无完整配对 |
-| Sonnet 5.5 / between_tools / low | 2 | 0.75 | 0.77 | $0.072113 | $0.007486 |
-| Sonnet 5.5 / between_tools / medium | 0 | 无完整配对 | 无完整配对 | 无完整配对 | 无完整配对 |
-| Sonnet 5.5 / between_tools / high | 3 | 0.84 | 1.02 | $0.070411 | $0.013049 |
-| Sonnet 5.5 / between_tools / default | 3 | 0.79 | 0.78 | $0.086894 | $0.011533 |
-| Haiku 5.5 / adaptive / low | 4 | 2.70 | 4.08 | $0.004255 | $0.000797 |
-| Haiku 5.5 / adaptive / medium | 1 | 13.0 | 7.21 | $0.005672 | $0.001368 |
-| Haiku 5.5 / adaptive / high | 6 | 9.07 | 8.85 | $0.005043 | $0.002008 |
-| Haiku 5.5 / adaptive / xhigh | 1 | 218 | 201 | $0.030188 | $0.025167 |
-| Haiku 5.5 / adaptive / max | 2 | 178 | 262 | $0.034080 | $0.036289 |
-| Haiku 5.5 / adaptive / default | 4 | 4.20 | 4.30 | $0.004834 | $0.001172 |
-| Haiku 5.5 / disabled / low | 2 | 0.45 | 0.47 | $0.004257 | $0.000442 |
-| Haiku 5.5 / disabled / medium | 2 | 0.41 | 0.43 | $0.003510 | $0.000409 |
-| Haiku 5.5 / disabled / high | 5 | 0.48 | 0.55 | $0.003986 | $0.000418 |
-| Haiku 5.5 / disabled / default | 7 | 0.49 | 0.51 | $0.003417 | $0.000413 |
+| Opus 5.5 / adaptive / low | 12 | 1.19 | 1.08 | $0.158921 | $0.023222 |
+| Opus 5.5 / adaptive / medium | 12 | 6.92 | 7.15 | $0.173419 | $0.036952 |
+| Opus 5.5 / adaptive / high | 12 | 9.13 | 7.53 | $0.200936 | $0.097379 |
+| Opus 5.5 / adaptive / xhigh | 12 | 18.9 | 19.6 | $0.248050 | $0.183598 |
+| Opus 5.5 / adaptive / max | 11 | 232 | 236 | $1.008633 | $0.785095 |
+| Opus 5.5 / adaptive / default | 11 | 7.03 | 8.02 | $0.186835 | $0.037639 |
+| Sonnet 5.5 / adaptive / low | 12 | 0.77 | 0.76 | $0.077371 | $0.008869 |
+| Sonnet 5.5 / adaptive / medium | 12 | 0.81 | 0.87 | $0.078745 | $0.010499 |
+| Sonnet 5.5 / adaptive / high | 12 | 6.05 | 7.44 | $0.106288 | $0.034861 |
+| Sonnet 5.5 / adaptive / xhigh | 12 | 20.7 | 16.1 | $0.152607 | $0.109698 |
+| Sonnet 5.5 / adaptive / max | 9 | 394 | 364 | $0.804891 | $0.635133 |
+| Sonnet 5.5 / adaptive / default | 12 | 6.86 | 5.78 | $0.100876 | $0.035923 |
+| Sonnet 5.5 / between_tools / low | 12 | 0.78 | 0.76 | $0.077653 | $0.008496 |
+| Sonnet 5.5 / between_tools / medium | 12 | 0.83 | 0.79 | $0.077994 | $0.009313 |
+| Sonnet 5.5 / between_tools / high | 12 | 0.81 | 0.82 | $0.079108 | $0.011469 |
+| Sonnet 5.5 / between_tools / default | 12 | 0.79 | 0.78 | $0.078623 | $0.010259 |
+| Haiku 5.5 / adaptive / low | 12 | 3.09 | 4.25 | $0.004254 | $0.001009 |
+| Haiku 5.5 / adaptive / medium | 12 | 6.92 | 6.93 | $0.004638 | $0.001248 |
+| Haiku 5.5 / adaptive / high | 12 | 9.07 | 12.1 | $0.005884 | $0.002356 |
+| Haiku 5.5 / adaptive / xhigh | 11 | 61.3 | 53.4 | $0.019081 | $0.010969 |
+| Haiku 5.5 / adaptive / max | 8 | 204 | 260 | $0.037720 | $0.032892 |
+| Haiku 5.5 / adaptive / default | 12 | 5.49 | 6.22 | $0.004464 | $0.001171 |
+| Haiku 5.5 / disabled / low | 12 | 0.48 | 0.56 | $0.003747 | $0.000406 |
+| Haiku 5.5 / disabled / medium | 12 | 0.54 | 0.50 | $0.003759 | $0.000443 |
+| Haiku 5.5 / disabled / high | 12 | 0.49 | 0.49 | $0.003790 | $0.000428 |
+| Haiku 5.5 / disabled / default | 12 | 0.49 | 0.45 | $0.003728 | $0.000475 |
+
+### 性能之后：代码正确率
+
+**方法。** 对同一批 624 份正式答案评分，只排除预热。使用官方 SWE-bench 5.0.2，固定提交 `02e7a74ffd0b707aab73d203fe87bdc7c76afc8e`；由官方 `extract_diff` 提取补丁，没有替模型修答案，也没有新增模型调用。每个配置／重复次数使用独立 run ID；所选 12 道金标准全部通过。[冻结输入、官方报告与验算](../evidence/gateway-score-20261027/verification.json)。
+
+| 模型 | 已解决／正式答案数 | 解决率（%） |
+|---|---:|---:|
+| Opus 5.5 | 104/144 | 72.22 |
+| Sonnet 5.5 | 87/240 | 36.25 |
+| Haiku 5.5 | 54/240 | 22.50 |
+
+合计 245/624 份解决问题（39.26%）；另有 257 份补丁应用失败、108 份测试未通过、14 份截断空回答，均保留在分母中。不同模型的模式／档位组合数量不同，不能当成公平总榜；同条件每格均为 24 份答案。这只是 12 题子集，不是完整 SWE-bench Lite 成绩。
+
+| 模型 | thinking.type | output_config.effort | 已解决／正式答案数 | 解决率（%） |
+|---|---|---|---:|---:|
+| Opus 5.5 | `adaptive` | `low` | 9/24 | 37.50 |
+| Opus 5.5 | `adaptive` | `medium` | 19/24 | 79.17 |
+| Opus 5.5 | `adaptive` | `high` | 19/24 | 79.17 |
+| Opus 5.5 | `adaptive` | `xhigh` | 21/24 | 87.50 |
+| Opus 5.5 | `adaptive` | `max` | 22/24 | 91.67 |
+| Opus 5.5 | `adaptive` | `default` | 14/24 | 58.33 |
+| Sonnet 5.5 | `adaptive` | `low` | 6/24 | 25.00 |
+| Sonnet 5.5 | `adaptive` | `medium` | 5/24 | 20.83 |
+| Sonnet 5.5 | `adaptive` | `high` | 8/24 | 33.33 |
+| Sonnet 5.5 | `adaptive` | `xhigh` | 18/24 | 75.00 |
+| Sonnet 5.5 | `adaptive` | `max` | 18/24 | 75.00 |
+| Sonnet 5.5 | `adaptive` | `default` | 9/24 | 37.50 |
+| Sonnet 5.5 | `between_tools` | `low` | 4/24 | 16.67 |
+| Sonnet 5.5 | `between_tools` | `medium` | 5/24 | 20.83 |
+| Sonnet 5.5 | `between_tools` | `high` | 7/24 | 29.17 |
+| Sonnet 5.5 | `between_tools` | `default` | 7/24 | 29.17 |
+| Haiku 5.5 | `adaptive` | `low` | 2/24 | 8.33 |
+| Haiku 5.5 | `adaptive` | `medium` | 5/24 | 20.83 |
+| Haiku 5.5 | `adaptive` | `high` | 8/24 | 33.33 |
+| Haiku 5.5 | `adaptive` | `xhigh` | 12/24 | 50.00 |
+| Haiku 5.5 | `adaptive` | `max` | 14/24 | 58.33 |
+| Haiku 5.5 | `adaptive` | `default` | 4/24 | 16.67 |
+| Haiku 5.5 | `disabled` | `low` | 3/24 | 12.50 |
+| Haiku 5.5 | `disabled` | `medium` | 3/24 | 12.50 |
+| Haiku 5.5 | `disabled` | `high` | 1/24 | 4.17 |
+| Haiku 5.5 | `disabled` | `default` | 2/24 | 8.33 |
+
+**保留疑义。** 6 条官方 `no_tests_collected` 模糊标记仍保留为未解决。对应日志先收集了 92 项顶层测试，包含嵌套的零收集输出，并出现 `NameError: cached_eval`；没有暗中删除或改判。[六条来源复核](../evidence/gateway-score-20261027/ambiguous-review.json)。[环境清单](../evidence/gateway-score-20261027/environment.json)是在评分后采集，不冒充运行时遥测。
 
 **证据与复算。** [统计结果](../evidence/gateway-cache-20261026/interim-facts.json)、[导出哈希与脱敏范围](../evidence/gateway-cache-20261026/_export_manifest.json)、[Opus 记录](../evidence/gateway-cache-20261026/responses_opus.jsonl)、[Sonnet 记录](../evidence/gateway-cache-20261026/responses_sonnet.jsonl)、[Haiku 记录](../evidence/gateway-cache-20261026/responses_haiku.jsonl)。指标投影省略提示与回答正文、思考签名、私有端点和其他响应头，不能用于代码正确率评分。复算命令见[测试页](testing_CN.md#aca-snapshot-replay)。
 

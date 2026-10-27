@@ -1,0 +1,27 @@
+2026-10-27 09:35:16,503 - INFO - Creating container for django__django-12184...
+2026-10-27 09:35:16,708 - INFO - Container for django__django-12184 created: f01a653f02f2dc72b7b03aea281b7eb9d61e1ddb4d75f7b22961592506219751
+2026-10-27 09:35:16,964 - INFO - Container for django__django-12184 started: f01a653f02f2dc72b7b03aea281b7eb9d61e1ddb4d75f7b22961592506219751
+2026-10-27 09:35:16,964 - INFO - Intermediate patch for django__django-12184 written to logs/evaluation/aca-score-20261027-haiku-adaptive-default-r1/haiku-adaptive-default-r1/django__django-12184/patch.diff, now applying to container...
+2026-10-27 09:35:17,049 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 09:35:17,937 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 09:35:18,404 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 09:35:18,575 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 09:35:18,642 - INFO - >>>>> Patch Apply Failed:
+patch: **** malformed patch at line 14:              return path[match.end():], args, kwargs
+
+patching file django/urls/resolvers.py
+
+2026-10-27 09:35:18,642 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for django__django-12184: >>>>> Patch Apply Failed:
+patch: **** malformed patch at line 14:              return path[match.end():], args, kwargs
+
+patching file django/urls/resolvers.py
+
+Check (logs/evaluation/aca-score-20261027-haiku-adaptive-default-r1/haiku-adaptive-default-r1/django__django-12184/run_instance.log) for more information.
+
+2026-10-27 09:35:18,642 - INFO - Attempting to stop container sweb.eval.django__django-12184.aca-score-20261027-haiku-adaptive-default-r1...
+2026-10-27 09:35:35,190 - INFO - Container sweb.eval.django__django-12184.aca-score-20261027-haiku-adaptive-default-r1 stopped successfully.
+2026-10-27 09:35:35,190 - INFO - Attempting to remove container sweb.eval.django__django-12184.aca-score-20261027-haiku-adaptive-default-r1...
+2026-10-27 09:35:35,485 - INFO - Container sweb.eval.django__django-12184.aca-score-20261027-haiku-adaptive-default-r1 removed successfully.

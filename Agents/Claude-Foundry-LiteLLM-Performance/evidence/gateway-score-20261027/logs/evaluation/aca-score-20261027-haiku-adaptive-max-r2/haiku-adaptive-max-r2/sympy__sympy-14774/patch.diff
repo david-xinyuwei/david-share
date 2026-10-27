@@ -1,0 +1,45 @@
+
+diff --git a/sympy/printing/latex.py b/sympy/printing/latex.py
+--- a/sympy/printing/latex.py
++++ b/sympy/printing/latex.py
+@@ -742,3 +742,3 @@
+ 
+-            inv_trig_table = ["asin", "acos", "atan", "acot"]
++            inv_trig_table = ["asin", "acos", "atan", "acsc", "asec", "acot"]
+ 
+diff --git a/sympy/physics/vector/printing.py b/sympy/physics/vector/printing.py
+--- a/sympy/physics/vector/printing.py
++++ b/sympy/physics/vector/printing.py
+@@ -88,3 +88,3 @@
+ 
+-            inv_trig_table = ["asin", "acos", "atan", "acot"]
++            inv_trig_table = ["asin", "acos", "atan", "acsc", "asec", "acot"]
+ 
+diff --git a/sympy/printing/tests/test_latex_inv_trig.py b/sympy/printing/tests/test_latex_inv_trig.py
+new file mode 100644
+--- /dev/null
++++ b/sympy/printing/tests/test_latex_inv_trig.py
+@@ -0,0 +1,23 @@
++from sympy import acsc, asec, symbols
++from sympy.printing.latex import latex
++
++x = symbols('x')
++
++
++def test_latex_full_inv_trig_names_acsc_asec():
++    assert 'arccsc' in latex(acsc(x), inv_trig_style='full')
++    assert 'arcsec' in latex(asec(x), inv_trig_style='full')
++    assert 'acsc' not in latex(acsc(x), inv_trig_style='full')
++    assert 'asec' not in latex(asec(x), inv_trig_style='full')
++
++
++def test_latex_abbreviated_inv_trig_names_acsc_asec():
++    assert 'acsc' in latex(acsc(x), inv_trig_style='abbreviated')
++    assert 'asec' in latex(asec(x), inv_trig_style='abbreviated')
++
++
++def test_latex_power_inv_trig_names_acsc_asec():
++    assert 'acsc' not in latex(acsc(x), inv_trig_style='power')
++    assert 'asec' not in latex(asec(x), inv_trig_style='power')
++    assert '^{-1}' in latex(acsc(x), inv_trig_style='power')
++    assert '^{-1}' in latex(asec(x), inv_trig_style='power')

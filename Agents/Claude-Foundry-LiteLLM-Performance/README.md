@@ -1,7 +1,7 @@
 # Claude 5.5 on Microsoft Foundry: Thinking, Effort, Prompt Caching, Latency and Coding Accuracy
 
 [![Models](https://img.shields.io/badge/models-Opus%20%C2%B7%20Sonnet%20%C2%B7%20Haiku%205.5-0078D4)](#purpose)
-[![Measured](https://img.shields.io/badge/measured-2026--10--24%20and%2010--26-0078D4)](#results)
+[![Measured](https://img.shields.io/badge/measured-2026--10--26%20to%2010--27-0078D4)](#results)
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/claude-foundry-performance-ci.yml/badge.svg)](https://github.com/david-xinyuwei/david-share/actions/workflows/claude-foundry-performance-ci.yml)
 
 Author: Xinyu Wei · [中文](README_CN.md)
@@ -10,15 +10,61 @@ Author: Xinyu Wei · [中文](README_CN.md)
 
 **What this measures.** How Claude Opus 5.5, Sonnet 5.5 and Haiku 5.5 perform as deployed in Microsoft Foundry with the [Hosted on Azure](https://platform.claude.com/docs/en/build-with-claude/claude-in-microsoft-foundry#hosting-options) option: model version 2, an Anthropic-operated service running on Azure infrastructure, in GlobalStandard deployments. For each coding request we measure how long the first visible text and the full answer take, whether the code passes the problem's own unit tests, and what the request costs at list price. The request settings in the table below change all of these, and some combinations are rejected with HTTP 400; a successful HTTP response shows none of this.
 
-**Current ACA evidence:** 154/650 request records retained; full completion and correctness are unverified. The client VM was deallocated at the recorded verification time. [Partial results and current-state boundary](docs/results.md#aca-gateway-snapshot).
+**Completed ACA run:** 650/650 requests retained, 624 measured answers graded. Performance comes first below, followed by correctness. [Full results](docs/results.md#aca-gateway-snapshot).
 
 **Current test method.** Linux VM client → LiteLLM on Azure Container Apps → Foundry, with the client, gateway and Foundry resource in East US 2. The client uses the gateway key; LiteLLM uses its managed identity to call Foundry. Prompt caching is enabled with top-level `cache_control`. Each model has one request in flight, so this measures individual requests, not load.
 
-**Historical gateway check (2026-10-24).** A Windows client sent a five-turn conversation through LiteLLM on Azure Container Apps in Japan East to the same deployments; LiteLLM used its own managed identity and was set not to drop parameters or retry. Those times include Japan-to-US network latency and are not results from the current East US 2 run. See [the results page](docs/results.md#gateway-test-2026-10-24).
-
 <img src="images/topology-en.svg" width="900" alt="Current cache-enabled test path: a Linux VM client sends streaming requests through LiteLLM on Azure Container Apps in East US 2 to the three Microsoft Foundry Claude deployments. Prompt caching is at Foundry; the client records timing and native usage." />
 
-The figure shows the new East US 2 gateway path, not the historical direct-VM result path. The [runner](gateway-cache/aca_cache_matrix.py) uses the [12-problem manifest](data/gateway-cache-problems.json): 26 accepted mode/effort cells, two identical requests per problem/cell, plus 26 warm-ups (650 planned requests). Top-level `cache_control` is `ephemeral`, TTL `1h`; request 1 writes and request 2 is checked for native cache reads. This is not a cache-disabled comparison. Historical results retain their original dates and paths; the new run's completion, performance and correctness require its own evidence. Original explanatory diagram with unmodified [Azure icons](images/icon-sources.json).
+Original test-topology diagram using unmodified [Azure icons](images/icon-sources.json).
+
+**Retired method.** The old direct-VM run omitted caching and does not meet the current cache-enabled test protocol. Its original evidence follows the current performance and correctness results below.
+
+## Results
+
+### ACA gateway: performance results
+
+**Complete collection, not universal success.** All 650/650 requests are retained: 26 warm-ups and 624 measured answers. The run reached `COMPLETED` at `2026-10-27T08:37:15.795+00:00`. Failures and truncations remain in the counts. [Collection verification](evidence/gateway-cache-20261026/collection-status.json).
+
+**Question and method.** For coding prompts sent through the East US 2 ACA LiteLLM gateway, does the identical second request read the cache written by the first, and what timing and cost were observed? The client and gateway were in East US 2; the Foundry resource was also in East US 2. One request was in flight per model. This is a cache-write versus cache-read pair, not a cache-disabled control or a gateway-overhead experiment.
+
+**Input.** [12 public SWE-bench Lite BM25-13K problems](data/gateway-cache-problems.json), with the source revision and prompt hashes in [run.json](evidence/gateway-cache-20261026/run.json). This is a selected-subset experiment, not a full SWE-bench leaderboard score or customer production data. The [runner](gateway-cache/aca_cache_matrix.py) uses 26 mode/effort cells, two identical requests per problem/cell and one warm-up per cell. Fixed: `max_tokens: 128000`, `stream: true`, top-level `cache_control: {"type": "ephemeral", "ttl": "1h"}`. Timing starts immediately before the client sends the request; first text is the first non-empty text delta, not a ping or thinking event.
+
+**Performance first.** The next table uses only completed pairs with native cache reads. Write and hit mean requests 1 and 2. These per-model aggregates mix different mode/effort populations; compare matched cells in the full tables, not these aggregates as a model ranking.
+
+| Model | Cache-hit pairs (count) | First text P50: write / hit (s) | Full response P50: write / hit (s) | Mean request cost: write / hit (USD) | Read share in hit requests (%) |
+|---|---:|---:|---:|---:|---:|
+| Opus 5.5 | 70 | 9.06 / 8.98 | 14.5 / 17.5 | $0.321801 / $0.187770 | 99.98 |
+| Sonnet 5.5 | 117 | 0.92 / 0.93 | 6.61 / 7.05 | $0.146967 / $0.073409 | 99.98 |
+| Haiku 5.5 | 115 | 3.42 / 4.30 | 5.74 / 6.12 | $0.008025 / $0.004123 | 99.98 |
+
+| Model | Retained / planned requests, warm-ups included | Completed requests | Truncated requests | Complete measured pairs |
+|---|---:|---:|---:|---:|
+| Opus 5.5 | 150/150 | 149 | 1 | 70 |
+| Sonnet 5.5 | 250/250 | 244 | 6 | 117 |
+| Haiku 5.5 | 250/250 | 243 | 7 | 115 |
+
+**Cache evidence.** 304 measured pairs completed; 302 show native cache hits. The other 2 crossed the shutdown/restart interval and rewrote expired entries. They remain in request, cost and correctness counts but not cache-hit performance statistics. Hit pairs read at least 100.0% of the preceding cache write; 0 reused a response message ID. This proves those cache reads, not a general speedup. Responses report `inference_geo: global` and an East US 2 region header; that is not a regional-inference guarantee.
+
+**Cost and limits.** The full run cost $76.17 at recorded [list prices](coding-matrix/pricing.py), including warm-ups, writes, reads, output and truncated answers; infrastructure is excluded and this is not an invoice. Pair metrics exclude warm-ups and incomplete or non-hit pairs, never the correctness denominator. Full distributions and counts remain in [the facts](evidence/gateway-cache-20261026/interim-facts.json).
+
+[All 26 configurations and paired observations](docs/results.md#aca-gateway-snapshot).
+
+### Code correctness after performance
+
+**Method.** The same 624 measured answers, excluding only warm-ups, were graded with the official SWE-bench harness 5.0.2 at commit `02e7a74ffd0b707aab73d203fe87bdc7c76afc8e`. The official `extract_diff` function extracted predictions; no answer repair or new model call was used. Each cell/repeat has a separate run ID. All 12 selected gold controls passed. [Frozen inputs, native reports and verifier](evidence/gateway-score-20261027/verification.json).
+
+| Model | Resolved / measured answers | Resolved (%) |
+|---|---:|---:|
+| Opus 5.5 | 104/144 | 72.22 |
+| Sonnet 5.5 | 87/240 | 36.25 |
+| Haiku 5.5 | 54/240 | 22.50 |
+
+Overall: 245/624 (39.26%) resolved; 257 patch-application failures, 108 unresolved test results and 14 truncated empty answers. These stay in the denominator. Different model/mode populations make the aggregate unsuitable as a fair overall ranking; each matched cell has 24 answers. This is a 12-instance subset, not the full SWE-bench Lite score.
+
+**Ambiguity retained.** 6 official `no_tests_collected` flags remain unresolved. Each associated log first collected 92 top-level tests, includes nested zero-collection output, and shows `NameError: cached_eval`; none was silently removed or relabeled. [Six source-linked reviews](evidence/gateway-score-20261027/ambiguous-review.json). The [environment inventory](evidence/gateway-score-20261027/environment.json) was captured after evaluation, not as in-run telemetry.
+
+**Evidence and replay.** [Facts](evidence/gateway-cache-20261026/interim-facts.json), [export hashes and redactions](evidence/gateway-cache-20261026/_export_manifest.json), [Opus](evidence/gateway-cache-20261026/responses_opus.jsonl), [Sonnet](evidence/gateway-cache-20261026/responses_sonnet.jsonl), [Haiku](evidence/gateway-cache-20261026/responses_haiku.jsonl). The metrics-only projection omits prompt/answer bodies, thinking signatures, private endpoints and other headers; it is not a correctness-scoring dataset. Replay instructions are in [Testing](docs/testing.md#aca-snapshot-replay).
 
 **Historical request settings.** What each setting does, from Claude's documentation, and what the retained direct-VM runs sent. Accepted values come from that historical probe; these observations do not describe the current ACA run:
 
@@ -69,32 +115,6 @@ Sources: [probe requests](evidence/coding-matrix-20261026/probe/probe_results.js
 **Historical scope.** The problems are public Exercism exercises from [Aider's polyglot benchmark](https://github.com/Aider-AI/polyglot-benchmark), each answered once, without tools and without seeing the tests; they are not your production tasks. The retired batch called Foundry directly, one request at a time per deployment. Its costs and accuracy are historical observations, not evidence for the current cache-enabled ACA path. Costs use list prices and were not reconciled with an Azure invoice.
 
 **Sources.** Accepted values and the HTTP 400 messages come from our probe ([results](docs/results.md#parameter-probe-2026-10-26)). What each setting does, the defaults, the rules for `between_tools` and `disabled`, and the advice to set `max_tokens` to 128,000 for agentic coding on Sonnet 5.5 come from Claude's [thinking](https://platform.claude.com/docs/en/build-with-claude/thinking) and [effort](https://platform.claude.com/docs/en/build-with-claude/effort) pages; cache rules and price multipliers from [prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching); prices from [pricing](https://platform.claude.com/docs/en/about-claude/pricing); hosting options and Foundry setup from [Claude in Microsoft Foundry](https://platform.claude.com/docs/en/build-with-claude/claude-in-microsoft-foundry); all read on 2026-10-26. The *Choose it when* row is our reading of these 18 problems, not general advice.
-
-## Results
-
-### ACA gateway: partial results
-
-**Partial evidence, not a completed benchmark.** The retained snapshot contains 154 of 650 planned requests: 26 warm-ups and 128 of 624 measured requests. Its run file was last updated at `2026-10-27T00:07:59.720+00:00`. The other 496 requests are missing from this snapshot, not proven unrun or failed.
-
-**Client state.** At `2026-10-26T20:10:18.9885833-07:00`, Azure reported the client VM as `PowerState/deallocated`. It was no longer sending new requests. The final workload result and the shutdown cause remain unverified; the snapshot's `RUNNING` label is historical, not current status. [Verification record](evidence/gateway-cache-20261026/collection-status.json).
-
-**Question and method.** For coding prompts sent through the East US 2 ACA LiteLLM gateway, does the identical second request read the cache written by the first, and what timing and cost were observed? The client and gateway were in East US 2; the Foundry resource was also in East US 2. One request was in flight per model. This is a cache-write versus cache-read pair, not a cache-disabled control or a gateway-overhead experiment.
-
-**Input.** [12 public SWE-bench Lite BM25-13K problems](data/gateway-cache-problems.json), with the source revision and prompt hashes recorded in [run.json](evidence/gateway-cache-20261026/run.json). This is an author-run latency/cache workload, not official SWE-bench scoring or customer production data. The [input builder](gateway-cache/build_swebench_problems.py) reconstructs the prompts; the [runner](gateway-cache/aca_cache_matrix.py) sends 26 mode/effort cells, two identical requests per problem/cell and one warm-up per cell. Fixed: `max_tokens: 128000`, `stream: true`, top-level `cache_control: {"type": "ephemeral", "ttl": "1h"}`. Timing starts immediately before the client sends the request; first text means the first non-empty text delta, not a ping or thinking event.
-
-| Model | Retained / planned requests, warm-ups included | Completed requests | Truncated requests | Complete measured pairs |
-|---|---:|---:|---:|---:|
-| Opus 5.5 | 29/150 | 29 | 0 | 11 |
-| Sonnet 5.5 | 46/250 | 44 | 2 | 17 |
-| Haiku 5.5 | 79/250 | 79 | 0 | 34 |
-
-**What is established.** 62 measured pairs have two completed answers. In these pairs the cold request read at most 0 cached tokens; the warm request read at least 100.0% of the preceding request's written cache tokens. There were 0 pairs with a reused response message ID. These native usage observations establish cache reads for those pairs, not answer correctness or a general speedup. Saved responses report `inference_geo: global`; the returned region header is East US 2, not proof that GlobalStandard guarantees regional inference.
-
-**Cost and limits.** Retained requests cost $13.90 using the recorded [list-price model](coding-matrix/pricing.py), including warm-ups, cache writes/reads, output and truncated answers. This is not the whole run's final spend or an Azure invoice; infrastructure is excluded. Correctness grading was not collected. Pair statistics exclude warm-ups and pairs with an incomplete/truncated answer; the table above keeps those requests visible. Cells have unequal, partial samples, so do not rank models or effort levels from this snapshot.
-
-[All 26 configurations and paired observations](docs/results.md#aca-gateway-snapshot).
-
-**Evidence and replay.** [Facts](evidence/gateway-cache-20261026/interim-facts.json), [export hashes and redactions](evidence/gateway-cache-20261026/_export_manifest.json), [Opus](evidence/gateway-cache-20261026/responses_opus.jsonl), [Sonnet](evidence/gateway-cache-20261026/responses_sonnet.jsonl), [Haiku](evidence/gateway-cache-20261026/responses_haiku.jsonl). The metrics-only projection omits prompt/answer bodies, thinking signatures, private endpoints and other headers; it is not a correctness-scoring dataset. Replay instructions are in [Testing](docs/testing.md#aca-snapshot-replay).
 
 **Historical results only.** The following direct-VM measurements belong to the retired method. In particular, the 21-cell coding matrix omitted `cache_control` and does not meet the current ACA cache-enabled protocol. The Japan East gateway check is separately dated. None of these numbers is a result from the current East US 2 ACA run.
 

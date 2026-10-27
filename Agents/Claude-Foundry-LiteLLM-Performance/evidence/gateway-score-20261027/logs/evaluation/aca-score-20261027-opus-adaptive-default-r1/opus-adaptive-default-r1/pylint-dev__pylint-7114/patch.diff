@@ -1,0 +1,14 @@
+
+--- a/pylint/lint/expand_modules.py
++++ b/pylint/lint/expand_modules.py
+@@ -20,9 +20,11 @@
+-    dirname = os.path.realpath(os.path.expanduser(filepath))
+-    if not os.path.isdir(dirname):
+-        dirname = os.path.dirname(dirname)
++    # Always start from the parent directory: for a file this is its
++    # directory, for a directory (package or namespace package) this is
++    # the directory containing it. Otherwise a directory without an
++    # __init__.py would be added itself to the search path, which makes
++    # e.g. ``a/a.py`` shadow the namespace package ``a``.
++    dirname = os.path.dirname(os.path.realpath(os.path.expanduser(filepath)))
+     while True:

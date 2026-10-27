@@ -1,0 +1,27 @@
+2026-10-27 11:15:48,086 - INFO - Creating container for sympy__sympy-21847...
+2026-10-27 11:15:48,330 - INFO - Container for sympy__sympy-21847 created: 9dd8b6e1a71c1d4a85d64f2a2b3779bdbbf453d8890f8fce33a4453d17035f56
+2026-10-27 11:15:48,542 - INFO - Container for sympy__sympy-21847 started: 9dd8b6e1a71c1d4a85d64f2a2b3779bdbbf453d8890f8fce33a4453d17035f56
+2026-10-27 11:15:48,543 - INFO - Intermediate patch for sympy__sympy-21847 written to logs/evaluation/aca-score-20261027-sonnet-between_tools-high-r2/sonnet-between_tools-high-r2/sympy__sympy-21847/patch.diff, now applying to container...
+2026-10-27 11:15:48,644 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 11:15:49,033 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 11:15:49,348 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 11:15:49,455 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 11:15:49,495 - INFO - >>>>> Patch Apply Failed:
+patch: **** malformed patch at line 34:  
+
+patching file sympy/polys/monomials.py
+
+2026-10-27 11:15:49,495 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for sympy__sympy-21847: >>>>> Patch Apply Failed:
+patch: **** malformed patch at line 34:  
+
+patching file sympy/polys/monomials.py
+
+Check (logs/evaluation/aca-score-20261027-sonnet-between_tools-high-r2/sonnet-between_tools-high-r2/sympy__sympy-21847/run_instance.log) for more information.
+
+2026-10-27 11:15:49,495 - INFO - Attempting to stop container sweb.eval.sympy__sympy-21847.aca-score-20261027-sonnet-between_tools-high-r2...
+2026-10-27 11:16:05,003 - INFO - Container sweb.eval.sympy__sympy-21847.aca-score-20261027-sonnet-between_tools-high-r2 stopped successfully.
+2026-10-27 11:16:05,003 - INFO - Attempting to remove container sweb.eval.sympy__sympy-21847.aca-score-20261027-sonnet-between_tools-high-r2...
+2026-10-27 11:16:05,080 - INFO - Container sweb.eval.sympy__sympy-21847.aca-score-20261027-sonnet-between_tools-high-r2 removed successfully.

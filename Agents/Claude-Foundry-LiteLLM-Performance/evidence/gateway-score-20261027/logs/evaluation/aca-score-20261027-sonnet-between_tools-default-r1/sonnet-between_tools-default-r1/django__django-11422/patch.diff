@@ -1,0 +1,31 @@
+
+--- a/django/utils/autoreload.py
++++ b/django/utils/autoreload.py
+@@ -114,6 +114,13 @@
+     # modules based on the module name and pass it to iter_modules_and_files().
+     # This ensures cached results are returned in the usual case that modules
+     # aren't loaded on the fly.
+     keys = sorted(sys.modules)
+     modules = tuple(m for m in map(sys.modules.__getitem__, keys) if not isinstance(m, weakref.ProxyTypes))
+     return iter_modules_and_files(modules, frozenset(_error_files))
+ 
+ 
++def _main_script_path():
++    """Return the path of the main script if it is a real file, else None."""
++    main_module = sys.modules.get('__main__')
++    main_file = getattr(main_module, '__file__', None)
++    if main_file and os.path.isfile(main_file):
++        return Path(main_file).resolve().absolute()
++    return None
++
++
+ @functools.lru_cache(maxsize=1)
+ def iter_modules_and_files(modules, extra_files):
+     """Iterate through all modules needed to be watched."""
+--- a/django/utils/autoreload.py
++++ b/django/utils/autoreload.py
+@@ -1,3 +1,4 @@
++
+ import functools
+ import itertools
+ import logging

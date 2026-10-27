@@ -1,0 +1,1 @@
+python -c "from sympy import *; x=symbols('x'); print(trigsimp(cos(x)+sqrt(sin(x)**2)))"

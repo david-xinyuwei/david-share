@@ -1,0 +1,10 @@
+--- a/django/utils/autoreload.py
++++ b/django/utils/autoreload.py
+@@ -114,14 +114,18 @@
+     sys_file_paths = []
+     for module in modules:
+         # During debugging (with PyDev) the 'typing.io' and 'typing.re' objects
+         # are added to sys.modules, however they are types not modules and so
+         # cause issues here.
+         if not isinstance(module, ModuleType) or getattr(module, '__spec__', None) is None:
+             continue

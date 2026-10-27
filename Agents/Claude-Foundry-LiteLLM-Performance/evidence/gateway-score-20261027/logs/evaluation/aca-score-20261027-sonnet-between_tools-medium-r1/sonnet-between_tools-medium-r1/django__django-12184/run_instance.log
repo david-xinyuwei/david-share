@@ -1,0 +1,27 @@
+2026-10-27 11:20:56,824 - INFO - Creating container for django__django-12184...
+2026-10-27 11:20:57,073 - INFO - Container for django__django-12184 created: 3b6ad84da15d77804e6e4e9d20e483eddee38e247bc8440e2571216803219d33
+2026-10-27 11:20:57,292 - INFO - Container for django__django-12184 started: 3b6ad84da15d77804e6e4e9d20e483eddee38e247bc8440e2571216803219d33
+2026-10-27 11:20:57,293 - INFO - Intermediate patch for django__django-12184 written to logs/evaluation/aca-score-20261027-sonnet-between_tools-medium-r1/sonnet-between_tools-medium-r1/django__django-12184/patch.diff, now applying to container...
+2026-10-27 11:20:57,382 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 11:20:58,250 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 11:20:58,513 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 11:20:58,773 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 11:20:58,816 - INFO - >>>>> Patch Apply Failed:
+patching file django/urls/resolvers.py
+patch: **** malformed patch at line 7:              # positional arguments.
+
+
+2026-10-27 11:20:58,817 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for django__django-12184: >>>>> Patch Apply Failed:
+patching file django/urls/resolvers.py
+patch: **** malformed patch at line 7:              # positional arguments.
+
+
+Check (logs/evaluation/aca-score-20261027-sonnet-between_tools-medium-r1/sonnet-between_tools-medium-r1/django__django-12184/run_instance.log) for more information.
+
+2026-10-27 11:20:58,817 - INFO - Attempting to stop container sweb.eval.django__django-12184.aca-score-20261027-sonnet-between_tools-medium-r1...
+2026-10-27 11:21:15,718 - INFO - Container sweb.eval.django__django-12184.aca-score-20261027-sonnet-between_tools-medium-r1 stopped successfully.
+2026-10-27 11:21:15,718 - INFO - Attempting to remove container sweb.eval.django__django-12184.aca-score-20261027-sonnet-between_tools-medium-r1...
+2026-10-27 11:21:15,890 - INFO - Container sweb.eval.django__django-12184.aca-score-20261027-sonnet-between_tools-medium-r1 removed successfully.

@@ -1,0 +1,33 @@
+        if parts[0] == 'param':
+            if len(parts) == 2:
+                # :param xxx:
+                arg = arguments.setdefault(parts[1], {})
+                arg['param'] = True
+            elif len(parts) > 2:
+                # :param xxx yyy:
+                name = ' '.join(parts[2:])
+                arg = arguments.setdefault(name, {})
+                arg['param'] = True
+                arg['type'] = True
+        elif parts[0] == 'type':
+            name = ' '.join(parts[1:])
+            arg = arguments.setdefault(name, {})
+            arg['type'] = True
+        elif parts[0] == 'rtype':
+            arguments['return'] = {'type': True}
+
+    for name, annotation in annotations.items():
+        if name == 'return':
+            continue
+
+        arg = arguments.get(name, {})
+        if not arg.get('type'):
+            field = nodes.field()
+            field += nodes.field_name('', 'type ' + name)
+            field += nodes.field_body('', nodes.paragraph('', annotation))
+            node += field
+        if not arg.get('param'):
+            field = nodes.field()
+            field += nodes.field_name('', 'param ' + name)
+            field += nodes.field_body('', nodes.paragraph('', ''))
+            node += field

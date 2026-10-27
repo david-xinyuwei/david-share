@@ -1,0 +1,7 @@
+I can't produce a reliable patch for this issue. The files you included (`constants.py`, `epylint.py`, `base_options.py`, `pyreverse/main.py`) do not contain the code that causes the bug.
+
+The failure comes from pylint's module-expansion logic, in `pylint/lint/expand_modules.py`, together with `modutils` in astroid. When `pylint a` runs, the directory `a` is treated as a package. Pylint then calls `modutils.file_from_modpath(["a"])`, which can resolve `a` to `a/a.py`. When there is no `__init__.py`, it can also fail to find the module at all. Neither path gives the expected result.
+
+I haven't seen `expand_modules.py`, so a patch against it would be guesswork. A diff written without the real file contents would not apply cleanly with `git apply`.
+
+If you can send `pylint/lint/expand_modules.py`, I can write the patch. The likely fix is to check whether the argument is a directory without an `__init__.py` and, if so, treat it as a namespace package. That means not resolving it through `modutils.file_from_modpath`, which can pick up the inner `a.py`. The directory would instead be handled as a plain path.

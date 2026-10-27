@@ -1,0 +1,89 @@
+2026-10-27 09:24:12,652 - INFO - Image not found locally, attempting to pull...
+2026-10-27 09:24:37,498 - INFO - Creating container for sympy__sympy-18087...
+2026-10-27 09:24:48,539 - INFO - Container for sympy__sympy-18087 created: dbffd7ea8f56b2162fbfeb7271e4197896fb19820e4d425b7a50d1b937a44920
+2026-10-27 09:24:48,726 - INFO - Container for sympy__sympy-18087 started: dbffd7ea8f56b2162fbfeb7271e4197896fb19820e4d425b7a50d1b937a44920
+2026-10-27 09:24:48,727 - INFO - Intermediate patch for sympy__sympy-18087 written to logs/evaluation/aca-score-20261027-gold-canary/gold/sympy__sympy-18087/patch.diff, now applying to container...
+2026-10-27 09:24:48,811 - INFO - >>>>> Applied Patch:
+Checking patch sympy/core/exprtools.py...
+Applied patch sympy/core/exprtools.py cleanly.
+
+2026-10-27 09:24:49,152 - INFO - Git diff before:
+diff --git a/sympy/core/exprtools.py b/sympy/core/exprtools.py
+index 57fad70407..9d25da2675 100755
+--- a/sympy/core/exprtools.py
++++ b/sympy/core/exprtools.py
+@@ -358,8 +358,8 @@ def __init__(self, factors=None):  # Factors
+             for f in list(factors.keys()):
+                 if isinstance(f, Rational) and not isinstance(f, Integer):
+                     p, q = Integer(f.p), Integer(f.q)
+-                    factors[p] = (factors[p] if p in factors else 0) + factors[f]
+-                    factors[q] = (factors[q] if q in factors else 0) - factors[f]
++                    factors[p] = (factors[p] if p in factors else S.Zero) + factors[f]
++                    factors[q] = (factors[q] if q in factors else S.Zero) - factors[f]
+                     factors.pop(f)
+             if i:
+                 factors[I] = S.One*i
+@@ -448,14 +448,12 @@ def as_expr(self):  # Factors
+         args = []
+         for factor, exp in self.factors.items():
+             if exp != 1:
+-                b, e = factor.as_base_exp()
+-                if isinstance(exp, int):
+-                    e = _keep_coeff(Integer(exp), e)
+-                elif isinstance(exp, Rational):
++                if isinstance(exp, Integer):
++                    b, e = factor.as_base_exp()
+                     e = _keep_coeff(exp, e)
++                    args.append(b**e)
+                 else:
+-                    e *= exp
+-                args.append(b**e)
++                    args.append(factor**exp)
+             else:
+                 args.append(factor)
+         return Mul(*args)
+2026-10-27 09:24:49,152 - INFO - Eval script for sympy__sympy-18087 written to logs/evaluation/aca-score-20261027-gold-canary/gold/sympy__sympy-18087/eval.sh; copying to container...
+2026-10-27 09:25:07,740 - INFO - Test runtime: 18.54 seconds
+2026-10-27 09:25:07,741 - INFO - Test output for sympy__sympy-18087 written to logs/evaluation/aca-score-20261027-gold-canary/gold/sympy__sympy-18087/test_output.txt
+2026-10-27 09:25:07,789 - INFO - Git diff after:
+diff --git a/sympy/core/exprtools.py b/sympy/core/exprtools.py
+index 57fad70407..9d25da2675 100755
+--- a/sympy/core/exprtools.py
++++ b/sympy/core/exprtools.py
+@@ -358,8 +358,8 @@ def __init__(self, factors=None):  # Factors
+             for f in list(factors.keys()):
+                 if isinstance(f, Rational) and not isinstance(f, Integer):
+                     p, q = Integer(f.p), Integer(f.q)
+-                    factors[p] = (factors[p] if p in factors else 0) + factors[f]
+-                    factors[q] = (factors[q] if q in factors else 0) - factors[f]
++                    factors[p] = (factors[p] if p in factors else S.Zero) + factors[f]
++                    factors[q] = (factors[q] if q in factors else S.Zero) - factors[f]
+                     factors.pop(f)
+             if i:
+                 factors[I] = S.One*i
+@@ -448,14 +448,12 @@ def as_expr(self):  # Factors
+         args = []
+         for factor, exp in self.factors.items():
+             if exp != 1:
+-                b, e = factor.as_base_exp()
+-                if isinstance(exp, int):
+-                    e = _keep_coeff(Integer(exp), e)
+-                elif isinstance(exp, Rational):
++                if isinstance(exp, Integer):
++                    b, e = factor.as_base_exp()
+                     e = _keep_coeff(exp, e)
++                    args.append(b**e)
+                 else:
+-                    e *= exp
+-                args.append(b**e)
++                    args.append(factor**exp)
+             else:
+                 args.append(factor)
+         return Mul(*args)
+2026-10-27 09:25:07,789 - INFO - Grading answer for sympy__sympy-18087...
+2026-10-27 09:25:07,790 - INFO - report: {'sympy__sympy-18087': {'patch_is_None': False, 'patch_exists': True, 'patch_successfully_applied': True, 'resolved': True, 'infra_failure': False, 'tests_status': {'FAIL_TO_PASS': {'success': ['test_Factors', 'test_fu'], 'failure': []}, 'PASS_TO_PASS': {'success': ['test_decompose_power', 'test_Term', 'test_gcd_terms', 'test_factor_terms', 'test_xreplace', 'test_factor_nc', 'test_issue_6360', 'test_issue_7903', 'test_issue_8263', 'test_monotonic_sign', 'test_TR1', 'test_TR2', 'test_TR2i', 'test_TR3', 'test__TR56', 'test_TR5', 'test_TR6', 'test_TR7', 'test_TR8', 'test_TR9', 'test_TR10', 'test_TR10i', 'test_TR11', 'test_TR12', 'test_TR13', 'test_L', 'test_objective', 'test_process_common_addends', 'test_trig_split', 'test_TRmorrie', 'test_TRpower', 'test_hyper_as_trig', 'test_TR12i', 'test_TR14', 'test_TR15_16_17'], 'failure': []}, 'FAIL_TO_FAIL': {'success': [], 'failure': []}, 'PASS_TO_FAIL': {'success': [], 'failure': []}}}}
+Result for sympy__sympy-18087: resolved: True
+2026-10-27 09:25:07,791 - INFO - Attempting to stop container sweb.eval.sympy__sympy-18087.aca-score-20261027-gold-canary...
+2026-10-27 09:25:23,497 - INFO - Container sweb.eval.sympy__sympy-18087.aca-score-20261027-gold-canary stopped successfully.
+2026-10-27 09:25:23,497 - INFO - Attempting to remove container sweb.eval.sympy__sympy-18087.aca-score-20261027-gold-canary...
+2026-10-27 09:25:23,549 - INFO - Container sweb.eval.sympy__sympy-18087.aca-score-20261027-gold-canary removed successfully.

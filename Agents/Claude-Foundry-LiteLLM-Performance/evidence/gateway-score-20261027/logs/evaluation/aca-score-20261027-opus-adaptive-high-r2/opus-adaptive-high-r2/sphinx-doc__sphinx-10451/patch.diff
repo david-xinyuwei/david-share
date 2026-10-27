@@ -1,0 +1,70 @@
+
+--- a/sphinx/ext/autodoc/typehints.py
++++ b/sphinx/ext/autodoc/typehints.py
+@@ -89,3 +89,4 @@
+ 
++    annotations = _match_documented_names(annotations, arguments.keys())
+     for name, annotation in annotations.items():
+         if name == 'return':
+@@ -140,2 +141,3 @@
+     # Add 'type' for parameters with a description but no declared type.
++    annotations = _match_documented_names(annotations, has_description | has_type)
+     for name in annotations:
+@@ -176,5 +178,57 @@
+ 
+ 
++def record_variadic_typehints(app: Sphinx, objtype: str, name: str, obj: Any,
++                              options: Dict, args: str, retann: str) -> None:
++    """Prefix recorded type hints of variadic parameters with ``*`` or ``**``.
++
++    This makes the recorded names consistent with the way ``*args`` and
++    ``**kwargs`` are documented in info field lists.
++    """
++    annotations = app.env.temp_data.get('annotations', {})
++    annotation = annotations.get(name)
++    if not annotation:
++        return
++
++    try:
++        if not callable(obj):
++            return
++        sig = inspect.signature(obj, type_aliases=app.config.autodoc_type_aliases)
++    except (TypeError, ValueError):
++        return
++
++    prefixes: Dict[str, str] = {}
++    for param in sig.parameters.values():
++        if param.kind == param.VAR_POSITIONAL:
++            prefixes[param.name] = '*'
++        elif param.kind == param.VAR_KEYWORD:
++            prefixes[param.name] = '**'
++
++    if not prefixes:
++        return
++
++    renamed: Dict[str, str] = OrderedDict()
++    for key, value in annotation.items():
++        if key in prefixes:
++            key = prefixes[key] + key
++        renamed[key] = value
++    annotations[name] = renamed
++
++
++def _match_documented_names(annotations: Dict[str, str],
++                            documented: Iterable[str]) -> Dict[str, str]:
++    """Use the plain name of ``*args`` and ``**kwargs`` if documented so."""
++    names = set(documented)
++    result: Dict[str, str] = OrderedDict()
++    for name, annotation in annotations.items():
++        stripped = name.lstrip('*')
++        if name != stripped and name not in names and stripped in names:
++            result[stripped] = annotation
++        else:
++            result[name] = annotation
++    return result
++
++
+ def setup(app: Sphinx) -> Dict[str, Any]:
+     app.connect('autodoc-process-signature', record_typehints)
++    app.connect('autodoc-process-signature', record_variadic_typehints)
+     app.connect('object-description-transform', merge_typehints)

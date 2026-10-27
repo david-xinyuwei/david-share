@@ -1,0 +1,28 @@
+
+--- a/django/urls/resolvers.py
++++ b/django/urls/resolvers.py
+@@ -1,6 +1,7 @@
+ """
+ This module converts requested URLs to callback view functions.
+ """
++import re
+ import functools
+ import inspect
+ import re
+--- a/django/urls/resolvers.py
++++ b/django/urls/resolvers.py
+@@ -148,8 +148,10 @@ class RegexPattern(CheckURLMixin):
+         match = self.regex.search(path)
+         if match:
+             # If there are any named groups, use those as kwargs, ignoring
+-            # non-named groups. Otherwise, pass all non-named arguments as
+-            # positional arguments.
+-            kwargs = match.groupdict()
++            # non-named groups. Optional named groups that did not participate
++            # in the match (value None) are dropped so the view's defaults
++            # apply. Otherwise, pass all non-named arguments as positional
++            # arguments.
++            kwargs = {k: v for k, v in match.groupdict().items() if v is not None}
+             args = () if kwargs else match.groups()
+             return path[match.end():], args, kwargs
+         return None

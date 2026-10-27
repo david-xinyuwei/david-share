@@ -1,0 +1,25 @@
+2026-10-27 10:17:54,230 - INFO - Creating container for django__django-15320...
+2026-10-27 10:17:54,423 - INFO - Container for django__django-15320 created: 6cdbb88174606222c2f02c3365c6be0b25e5f188a464a4d379642fad2bb005e1
+2026-10-27 10:17:54,634 - INFO - Container for django__django-15320 started: 6cdbb88174606222c2f02c3365c6be0b25e5f188a464a4d379642fad2bb005e1
+2026-10-27 10:17:54,634 - INFO - Intermediate patch for django__django-15320 written to logs/evaluation/aca-score-20261027-opus-adaptive-default-r2/opus-adaptive-default-r2/django__django-15320/patch.diff, now applying to container...
+2026-10-27 10:17:54,723 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:17:55,483 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:17:55,856 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:17:56,233 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:17:56,272 - INFO - >>>>> Patch Apply Failed:
+patching file django/db/models/expressions.py
+patch: **** unexpected end of file in patch
+
+2026-10-27 10:17:56,273 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for django__django-15320: >>>>> Patch Apply Failed:
+patching file django/db/models/expressions.py
+patch: **** unexpected end of file in patch
+
+Check (logs/evaluation/aca-score-20261027-opus-adaptive-default-r2/opus-adaptive-default-r2/django__django-15320/run_instance.log) for more information.
+
+2026-10-27 10:17:56,273 - INFO - Attempting to stop container sweb.eval.django__django-15320.aca-score-20261027-opus-adaptive-default-r2...
+2026-10-27 10:18:11,599 - INFO - Container sweb.eval.django__django-15320.aca-score-20261027-opus-adaptive-default-r2 stopped successfully.
+2026-10-27 10:18:11,599 - INFO - Attempting to remove container sweb.eval.django__django-15320.aca-score-20261027-opus-adaptive-default-r2...
+2026-10-27 10:18:11,776 - INFO - Container sweb.eval.django__django-15320.aca-score-20261027-opus-adaptive-default-r2 removed successfully.

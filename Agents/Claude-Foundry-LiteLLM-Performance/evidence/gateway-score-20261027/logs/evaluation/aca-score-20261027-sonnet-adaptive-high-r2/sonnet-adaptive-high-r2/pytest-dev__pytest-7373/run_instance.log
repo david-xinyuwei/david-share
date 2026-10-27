@@ -1,0 +1,27 @@
+2026-10-27 10:50:01,502 - INFO - Creating container for pytest-dev__pytest-7373...
+2026-10-27 10:50:01,688 - INFO - Container for pytest-dev__pytest-7373 created: 6b88028800613f85e66837be82c1d14e4ee9758701bee828a204d79269c12569
+2026-10-27 10:50:01,888 - INFO - Container for pytest-dev__pytest-7373 started: 6b88028800613f85e66837be82c1d14e4ee9758701bee828a204d79269c12569
+2026-10-27 10:50:01,888 - INFO - Intermediate patch for pytest-dev__pytest-7373 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-high-r2/sonnet-adaptive-high-r2/pytest-dev__pytest-7373/patch.diff, now applying to container...
+2026-10-27 10:50:01,970 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:50:02,099 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:50:02,211 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:50:02,323 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:50:02,365 - INFO - >>>>> Patch Apply Failed:
+patching file src/_pytest/mark/evaluate.py
+patch: **** malformed patch at line 29:  class MarkEvaluator:
+
+
+2026-10-27 10:50:02,366 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for pytest-dev__pytest-7373: >>>>> Patch Apply Failed:
+patching file src/_pytest/mark/evaluate.py
+patch: **** malformed patch at line 29:  class MarkEvaluator:
+
+
+Check (logs/evaluation/aca-score-20261027-sonnet-adaptive-high-r2/sonnet-adaptive-high-r2/pytest-dev__pytest-7373/run_instance.log) for more information.
+
+2026-10-27 10:50:02,366 - INFO - Attempting to stop container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-sonnet-adaptive-high-r2...
+2026-10-27 10:50:17,605 - INFO - Container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-sonnet-adaptive-high-r2 stopped successfully.
+2026-10-27 10:50:17,606 - INFO - Attempting to remove container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-sonnet-adaptive-high-r2...
+2026-10-27 10:50:17,660 - INFO - Container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-sonnet-adaptive-high-r2 removed successfully.

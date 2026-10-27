@@ -1,0 +1,23 @@
+2026-10-27 10:58:56,272 - INFO - Creating container for django__django-11422...
+2026-10-27 10:58:56,501 - INFO - Container for django__django-11422 created: 611d0140883fb3a90ec0a61a7d7251d36c4ae349e630c5f1b385ff7b22f89569
+2026-10-27 10:58:56,727 - INFO - Container for django__django-11422 started: 611d0140883fb3a90ec0a61a7d7251d36c4ae349e630c5f1b385ff7b22f89569
+2026-10-27 10:58:56,728 - INFO - Intermediate patch for django__django-11422 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-medium-r1/sonnet-adaptive-medium-r1/django__django-11422/patch.diff, now applying to container...
+2026-10-27 10:58:56,815 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:58:57,677 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:58:58,080 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:58:58,556 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:58:58,596 - INFO - >>>>> Patch Apply Failed:
+patch: **** Only garbage was found in the patch input.
+
+2026-10-27 10:58:58,596 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for django__django-11422: >>>>> Patch Apply Failed:
+patch: **** Only garbage was found in the patch input.
+
+Check (logs/evaluation/aca-score-20261027-sonnet-adaptive-medium-r1/sonnet-adaptive-medium-r1/django__django-11422/run_instance.log) for more information.
+
+2026-10-27 10:58:58,597 - INFO - Attempting to stop container sweb.eval.django__django-11422.aca-score-20261027-sonnet-adaptive-medium-r1...
+2026-10-27 10:59:15,274 - INFO - Container sweb.eval.django__django-11422.aca-score-20261027-sonnet-adaptive-medium-r1 stopped successfully.
+2026-10-27 10:59:15,274 - INFO - Attempting to remove container sweb.eval.django__django-11422.aca-score-20261027-sonnet-adaptive-medium-r1...
+2026-10-27 10:59:15,580 - INFO - Container sweb.eval.django__django-11422.aca-score-20261027-sonnet-adaptive-medium-r1 removed successfully.

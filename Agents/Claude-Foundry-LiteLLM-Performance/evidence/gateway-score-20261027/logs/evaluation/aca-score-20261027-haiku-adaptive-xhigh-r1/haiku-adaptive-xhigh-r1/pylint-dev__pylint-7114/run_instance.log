@@ -1,0 +1,55 @@
+2026-10-27 09:55:46,616 - INFO - Creating container for pylint-dev__pylint-7114...
+2026-10-27 09:55:46,749 - INFO - Container for pylint-dev__pylint-7114 created: ef2158c27352ade1b213f5f8a316229a9e7d99a309c90a9e53e7b2a23777083d
+2026-10-27 09:55:46,915 - INFO - Container for pylint-dev__pylint-7114 started: ef2158c27352ade1b213f5f8a316229a9e7d99a309c90a9e53e7b2a23777083d
+2026-10-27 09:55:46,915 - INFO - Intermediate patch for pylint-dev__pylint-7114 written to logs/evaluation/aca-score-20261027-haiku-adaptive-xhigh-r1/haiku-adaptive-xhigh-r1/pylint-dev__pylint-7114/patch.diff, now applying to container...
+2026-10-27 09:55:46,991 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 09:55:47,255 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 09:55:47,433 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 09:55:47,606 - INFO - >>>>> Applied Patch:
+patching file pylint/lint/expand_modules.py
+Hunk #1 succeeded at 130 with fuzz 3.
+
+2026-10-27 09:55:47,688 - INFO - Git diff before:
+diff --git a/pylint/lint/expand_modules.py b/pylint/lint/expand_modules.py
+index 289e1afc..d54ee437 100755
+--- a/pylint/lint/expand_modules.py
++++ b/pylint/lint/expand_modules.py
+@@ -130,6 +130,11 @@ def expand_modules(
+                     "basepath": filepath,
+                     "basename": modname,
+                 }
++        if os.path.isdir(something) and not os.path.isfile(filepath):
++            # A directory without an __init__.py is a namespace package; there is
++            # no __init__.py file to load for it.
++            is_namespace = True
++
+             )
+         has_init = (
+             not (modname.endswith(".__init__") or modname == "__init__")
+2026-10-27 09:55:47,688 - INFO - Eval script for pylint-dev__pylint-7114 written to logs/evaluation/aca-score-20261027-haiku-adaptive-xhigh-r1/haiku-adaptive-xhigh-r1/pylint-dev__pylint-7114/eval.sh; copying to container...
+2026-10-27 09:55:54,151 - INFO - Test runtime: 6.42 seconds
+2026-10-27 09:55:54,152 - INFO - Test output for pylint-dev__pylint-7114 written to logs/evaluation/aca-score-20261027-haiku-adaptive-xhigh-r1/haiku-adaptive-xhigh-r1/pylint-dev__pylint-7114/test_output.txt
+2026-10-27 09:55:54,204 - INFO - Git diff after:
+diff --git a/pylint/lint/expand_modules.py b/pylint/lint/expand_modules.py
+index 289e1afc..d54ee437 100755
+--- a/pylint/lint/expand_modules.py
++++ b/pylint/lint/expand_modules.py
+@@ -130,6 +130,11 @@ def expand_modules(
+                     "basepath": filepath,
+                     "basename": modname,
+                 }
++        if os.path.isdir(something) and not os.path.isfile(filepath):
++            # A directory without an __init__.py is a namespace package; there is
++            # no __init__.py file to load for it.
++            is_namespace = True
++
+             )
+         has_init = (
+             not (modname.endswith(".__init__") or modname == "__init__")
+2026-10-27 09:55:54,204 - INFO - Grading answer for pylint-dev__pylint-7114...
+2026-10-27 09:55:54,303 - INFO - report: {'pylint-dev__pylint-7114': {'patch_is_None': False, 'patch_exists': True, 'patch_successfully_applied': False, 'resolved': False, 'infra_failure': False}}
+Result for pylint-dev__pylint-7114: resolved: False
+2026-10-27 09:55:54,303 - INFO - Attempting to stop container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-haiku-adaptive-xhigh-r1...
+2026-10-27 09:56:09,585 - INFO - Container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-haiku-adaptive-xhigh-r1 stopped successfully.
+2026-10-27 09:56:09,585 - INFO - Attempting to remove container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-haiku-adaptive-xhigh-r1...
+2026-10-27 09:56:09,689 - INFO - Container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-haiku-adaptive-xhigh-r1 removed successfully.

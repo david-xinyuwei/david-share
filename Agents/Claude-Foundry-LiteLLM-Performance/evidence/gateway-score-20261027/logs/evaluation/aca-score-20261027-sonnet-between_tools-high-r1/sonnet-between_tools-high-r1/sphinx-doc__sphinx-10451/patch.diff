@@ -1,0 +1,33 @@
+
+--- a/sphinx/ext/autodoc/typehints.py
++++ b/sphinx/ext/autodoc/typehints.py
+@@ -117,15 +117,26 @@
+         if name == 'return':
+             continue
+ 
+-        arg = arguments.get(name, {})
++        if name in arguments:
++            arg = arguments[name]
++            display_name = name
++        elif '*' + name in arguments:
++            display_name = '*' + name
++            arg = arguments[display_name]
++        elif '**' + name in arguments:
++            display_name = '**' + name
++            arg = arguments[display_name]
++        else:
++            display_name = name
++            arg = {}
++
+         if not arg.get('type'):
+             field = nodes.field()
+-            field += nodes.field_name('', 'type ' + name)
++            field += nodes.field_name('', 'type ' + display_name)
+             field += nodes.field_body('', nodes.paragraph('', annotation))
+             node += field
+         if not arg.get('param'):
+             field = nodes.field()
+-            field += nodes.field_name('', 'param ' + name)
++            field += nodes.field_name('', 'param ' + display_name)
+             field += nodes.field_body('', nodes.paragraph('', ''))
+             node += field

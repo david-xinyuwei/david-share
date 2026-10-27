@@ -1,0 +1,25 @@
+2026-10-27 10:59:35,998 - INFO - Creating container for pylint-dev__pylint-7114...
+2026-10-27 10:59:36,154 - INFO - Container for pylint-dev__pylint-7114 created: 8c2bf43eab5606f07a24513e595533dfc87366c957639637df312143037b5272
+2026-10-27 10:59:36,318 - INFO - Container for pylint-dev__pylint-7114 started: 8c2bf43eab5606f07a24513e595533dfc87366c957639637df312143037b5272
+2026-10-27 10:59:36,318 - INFO - Intermediate patch for pylint-dev__pylint-7114 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-medium-r1/sonnet-adaptive-medium-r1/pylint-dev__pylint-7114/patch.diff, now applying to container...
+2026-10-27 10:59:36,401 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:59:36,678 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:59:36,855 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:59:37,036 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:59:37,074 - INFO - >>>>> Patch Apply Failed:
+patch unexpectedly ends in middle of line
+patch: **** Only garbage was found in the patch input.
+
+2026-10-27 10:59:37,074 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for pylint-dev__pylint-7114: >>>>> Patch Apply Failed:
+patch unexpectedly ends in middle of line
+patch: **** Only garbage was found in the patch input.
+
+Check (logs/evaluation/aca-score-20261027-sonnet-adaptive-medium-r1/sonnet-adaptive-medium-r1/pylint-dev__pylint-7114/run_instance.log) for more information.
+
+2026-10-27 10:59:37,074 - INFO - Attempting to stop container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-sonnet-adaptive-medium-r1...
+2026-10-27 10:59:52,398 - INFO - Container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-sonnet-adaptive-medium-r1 stopped successfully.
+2026-10-27 10:59:52,398 - INFO - Attempting to remove container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-sonnet-adaptive-medium-r1...
+2026-10-27 10:59:52,489 - INFO - Container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-sonnet-adaptive-medium-r1 removed successfully.

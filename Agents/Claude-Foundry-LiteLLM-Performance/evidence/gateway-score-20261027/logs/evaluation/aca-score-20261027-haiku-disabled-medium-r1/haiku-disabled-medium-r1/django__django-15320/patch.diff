@@ -1,0 +1,12 @@
+
+--- a/django/db/models/expressions.py
++++ b/django/db/models/expressions.py
+@@ -1158,6 +1158,8 @@ class Subquery(BaseExpression, Combinable):
+     def __init__(self, queryset, output_field=None, **extra):
+         # Allow the usage of both QuerySet and sql.Query objects.
+         self.query = getattr(queryset, 'query', queryset).clone()
++        # Subquery expressions must be wrapped in parentheses.
++        self.query.subquery = True
+         self.extra = extra
+         super().__init__(output_field)
+ 

@@ -1,0 +1,5 @@
+I could not produce a patch for this issue. The code that fails is in `sympy/functions/elementary/hyperbolic.py`, in `coth.eval`, and that file was not included in the code you gave me. The only source file provided is `sympy/printing/glsl.py`, which is unrelated to the bug.
+
+From the traceback, `cotm` is used at line 590 without being defined. This usually means a variable is assigned inside only some branches, and the branch taken for these inputs skips the assignment. A patch written from that guess alone would very likely not apply to your copy, so I haven't written one.
+
+If you send `sympy/functions/elementary/hyperbolic.py`, or at least the `coth.eval` method around line 590, I can write the patch.

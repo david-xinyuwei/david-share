@@ -1,0 +1,5 @@
+I can't produce a patch that matches the example format directly from memory without the relevant autoreload code, and the files supplied here don't include `django/utils/autoreload.py`, where the fix belongs. The issue is that `StatReloader`/`run_with_reloader` only watches modules in `sys.modules`, and `manage.py` runs as `__main__`, whose file isn't being picked up as a watched file in 2.2.
+
+The likely fix is in `django/utils/autoreload.py`: when collecting watched files, include the `__main__` module's file (`sys.modules['__main__'].__file__`) if it exists, so that edits to `manage.py` trigger a reload. Since I don't have that file's contents in front of me, I can't generate an exact `git apply`-ready diff against it without risking a patch that won't apply cleanly.
+
+If you share `django/utils/autoreload.py` (particularly the `iter_all_python_module_files` / `gen_filenames` section), I can write an exact patch against it.

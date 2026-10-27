@@ -1,0 +1,274 @@
+{
+  "captured_utc": "2026-10-27T11:34:11+00:00",
+  "evaluation_id": "aca-score-20261027",
+  "status": "COMPLETE",
+  "denominator": 624,
+  "resolved": 245,
+  "outcomes": {
+    "PATCH_APPLY_FAILED": 257,
+    "UNRESOLVED": 108,
+    "RESOLVED": 245,
+    "EMPTY_ANSWER_TRUNCATED": 14
+  },
+  "cells": [
+    {
+      "cell_id": "haiku|adaptive|default",
+      "denominator": 24,
+      "resolved": 4,
+      "outcomes": {
+        "PATCH_APPLY_FAILED": 12,
+        "UNRESOLVED": 8,
+        "RESOLVED": 4
+      }
+    },
+    {
+      "cell_id": "haiku|adaptive|high",
+      "denominator": 24,
+      "resolved": 8,
+      "outcomes": {
+        "RESOLVED": 8,
+        "UNRESOLVED": 7,
+        "PATCH_APPLY_FAILED": 9
+      }
+    },
+    {
+      "cell_id": "haiku|adaptive|low",
+      "denominator": 24,
+      "resolved": 2,
+      "outcomes": {
+        "PATCH_APPLY_FAILED": 13,
+        "UNRESOLVED": 9,
+        "RESOLVED": 2
+      }
+    },
+    {
+      "cell_id": "haiku|adaptive|max",
+      "denominator": 24,
+      "resolved": 14,
+      "outcomes": {
+        "RESOLVED": 14,
+        "EMPTY_ANSWER_TRUNCATED": 7,
+        "PATCH_APPLY_FAILED": 2,
+        "UNRESOLVED": 1
+      }
+    },
+    {
+      "cell_id": "haiku|adaptive|medium",
+      "denominator": 24,
+      "resolved": 5,
+      "outcomes": {
+        "RESOLVED": 5,
+        "PATCH_APPLY_FAILED": 11,
+        "UNRESOLVED": 8
+      }
+    },
+    {
+      "cell_id": "haiku|adaptive|xhigh",
+      "denominator": 24,
+      "resolved": 12,
+      "outcomes": {
+        "RESOLVED": 12,
+        "UNRESOLVED": 7,
+        "PATCH_APPLY_FAILED": 5
+      }
+    },
+    {
+      "cell_id": "haiku|disabled|default",
+      "denominator": 24,
+      "resolved": 2,
+      "outcomes": {
+        "PATCH_APPLY_FAILED": 18,
+        "UNRESOLVED": 4,
+        "RESOLVED": 2
+      }
+    },
+    {
+      "cell_id": "haiku|disabled|high",
+      "denominator": 24,
+      "resolved": 1,
+      "outcomes": {
+        "PATCH_APPLY_FAILED": 20,
+        "UNRESOLVED": 3,
+        "RESOLVED": 1
+      }
+    },
+    {
+      "cell_id": "haiku|disabled|low",
+      "denominator": 24,
+      "resolved": 3,
+      "outcomes": {
+        "PATCH_APPLY_FAILED": 17,
+        "UNRESOLVED": 4,
+        "RESOLVED": 3
+      }
+    },
+    {
+      "cell_id": "haiku|disabled|medium",
+      "denominator": 24,
+      "resolved": 3,
+      "outcomes": {
+        "PATCH_APPLY_FAILED": 18,
+        "UNRESOLVED": 3,
+        "RESOLVED": 3
+      }
+    },
+    {
+      "cell_id": "opus|adaptive|default",
+      "denominator": 24,
+      "resolved": 14,
+      "outcomes": {
+        "PATCH_APPLY_FAILED": 8,
+        "RESOLVED": 14,
+        "UNRESOLVED": 2
+      }
+    },
+    {
+      "cell_id": "opus|adaptive|high",
+      "denominator": 24,
+      "resolved": 19,
+      "outcomes": {
+        "RESOLVED": 19,
+        "PATCH_APPLY_FAILED": 3,
+        "UNRESOLVED": 2
+      }
+    },
+    {
+      "cell_id": "opus|adaptive|low",
+      "denominator": 24,
+      "resolved": 9,
+      "outcomes": {
+        "UNRESOLVED": 7,
+        "PATCH_APPLY_FAILED": 8,
+        "RESOLVED": 9
+      }
+    },
+    {
+      "cell_id": "opus|adaptive|max",
+      "denominator": 24,
+      "resolved": 22,
+      "outcomes": {
+        "RESOLVED": 22,
+        "PATCH_APPLY_FAILED": 1,
+        "EMPTY_ANSWER_TRUNCATED": 1
+      }
+    },
+    {
+      "cell_id": "opus|adaptive|medium",
+      "denominator": 24,
+      "resolved": 19,
+      "outcomes": {
+        "RESOLVED": 19,
+        "UNRESOLVED": 2,
+        "PATCH_APPLY_FAILED": 3
+      }
+    },
+    {
+      "cell_id": "opus|adaptive|xhigh",
+      "denominator": 24,
+      "resolved": 21,
+      "outcomes": {
+        "RESOLVED": 21,
+        "PATCH_APPLY_FAILED": 3
+      }
+    },
+    {
+      "cell_id": "sonnet|adaptive|default",
+      "denominator": 24,
+      "resolved": 9,
+      "outcomes": {
+        "PATCH_APPLY_FAILED": 11,
+        "RESOLVED": 9,
+        "UNRESOLVED": 4
+      }
+    },
+    {
+      "cell_id": "sonnet|adaptive|high",
+      "denominator": 24,
+      "resolved": 8,
+      "outcomes": {
+        "RESOLVED": 8,
+        "PATCH_APPLY_FAILED": 14,
+        "UNRESOLVED": 2
+      }
+    },
+    {
+      "cell_id": "sonnet|adaptive|low",
+      "denominator": 24,
+      "resolved": 6,
+      "outcomes": {
+        "RESOLVED": 6,
+        "PATCH_APPLY_FAILED": 15,
+        "UNRESOLVED": 3
+      }
+    },
+    {
+      "cell_id": "sonnet|adaptive|max",
+      "denominator": 24,
+      "resolved": 18,
+      "outcomes": {
+        "RESOLVED": 18,
+        "EMPTY_ANSWER_TRUNCATED": 6
+      }
+    },
+    {
+      "cell_id": "sonnet|adaptive|medium",
+      "denominator": 24,
+      "resolved": 5,
+      "outcomes": {
+        "PATCH_APPLY_FAILED": 13,
+        "RESOLVED": 5,
+        "UNRESOLVED": 6
+      }
+    },
+    {
+      "cell_id": "sonnet|adaptive|xhigh",
+      "denominator": 24,
+      "resolved": 18,
+      "outcomes": {
+        "RESOLVED": 18,
+        "UNRESOLVED": 4,
+        "PATCH_APPLY_FAILED": 2
+      }
+    },
+    {
+      "cell_id": "sonnet|between_tools|default",
+      "denominator": 24,
+      "resolved": 7,
+      "outcomes": {
+        "PATCH_APPLY_FAILED": 14,
+        "RESOLVED": 7,
+        "UNRESOLVED": 3
+      }
+    },
+    {
+      "cell_id": "sonnet|between_tools|high",
+      "denominator": 24,
+      "resolved": 7,
+      "outcomes": {
+        "PATCH_APPLY_FAILED": 14,
+        "RESOLVED": 7,
+        "UNRESOLVED": 3
+      }
+    },
+    {
+      "cell_id": "sonnet|between_tools|low",
+      "denominator": 24,
+      "resolved": 4,
+      "outcomes": {
+        "PATCH_APPLY_FAILED": 11,
+        "RESOLVED": 4,
+        "UNRESOLVED": 9
+      }
+    },
+    {
+      "cell_id": "sonnet|between_tools|medium",
+      "denominator": 24,
+      "resolved": 5,
+      "outcomes": {
+        "PATCH_APPLY_FAILED": 12,
+        "RESOLVED": 5,
+        "UNRESOLVED": 7
+      }
+    }
+  ]
+}

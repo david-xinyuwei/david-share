@@ -1,0 +1,15 @@
+
+--- a/django/utils/autoreload.py
++++ b/django/utils/autoreload.py
+@@ -112,2 +112,11 @@
+     sys_file_paths = []
++    # __main__ (usually manage.py) doesn't always have a __spec__ set, in
++    # which case it would be skipped by the loop below and changes to it
++    # wouldn't be detected. Handle this by falling back to using its
++    # __file__ attribute, which is resolved below.
++    # See https://docs.python.org/reference/import.html#main-spec
++    main_module = sys.modules.get('__main__')
++    if main_module is not None and any(module is main_module for module in modules):
++        main_file = getattr(main_module, '__file__', None)
++        sys_file_paths.append(main_file)
+     for module in modules:

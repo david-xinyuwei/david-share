@@ -1,0 +1,17 @@
+
+--- a/sympy/simplify/fu.py
++++ b/sympy/simplify/fu.py
+@@ -500,6 +500,10 @@
+ 
+     def f(rv):
+-        if not (rv.is_Pow and rv.base.func == f):
++        if not rv.is_Pow:
+             return rv
++        if rv.base.is_Pow and rv.base.exp.is_even and not rv.exp.is_integer:
++            # sqrt(sin(x)**2) is not sin(x) for complex x; leave untouched
++            return rv
++        if rv.base.func != f:
++            return rv
+ 
+         if not rv.exp.is_real:
+             return rv

@@ -1,0 +1,27 @@
+2026-10-27 11:10:48,786 - INFO - Creating container for pytest-dev__pytest-7373...
+2026-10-27 11:10:48,957 - INFO - Container for pytest-dev__pytest-7373 created: cfa5ba48e250808ead0bca537347bd1c564e010386430bef6586ee484b4c4fda
+2026-10-27 11:10:49,154 - INFO - Container for pytest-dev__pytest-7373 started: cfa5ba48e250808ead0bca537347bd1c564e010386430bef6586ee484b4c4fda
+2026-10-27 11:10:49,154 - INFO - Intermediate patch for pytest-dev__pytest-7373 written to logs/evaluation/aca-score-20261027-sonnet-between_tools-default-r2/sonnet-between_tools-default-r2/pytest-dev__pytest-7373/patch.diff, now applying to container...
+2026-10-27 11:10:49,239 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 11:10:49,367 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 11:10:49,481 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 11:10:49,597 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 11:10:49,635 - INFO - >>>>> Patch Apply Failed:
+patching file src/_pytest/mark/evaluate.py
+patch: **** malformed patch at line 29:  class MarkEvaluator:
+
+
+2026-10-27 11:10:49,636 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for pytest-dev__pytest-7373: >>>>> Patch Apply Failed:
+patching file src/_pytest/mark/evaluate.py
+patch: **** malformed patch at line 29:  class MarkEvaluator:
+
+
+Check (logs/evaluation/aca-score-20261027-sonnet-between_tools-default-r2/sonnet-between_tools-default-r2/pytest-dev__pytest-7373/run_instance.log) for more information.
+
+2026-10-27 11:10:49,636 - INFO - Attempting to stop container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-sonnet-between_tools-default-r2...
+2026-10-27 11:11:05,012 - INFO - Container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-sonnet-between_tools-default-r2 stopped successfully.
+2026-10-27 11:11:05,012 - INFO - Attempting to remove container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-sonnet-between_tools-default-r2...
+2026-10-27 11:11:05,066 - INFO - Container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-sonnet-between_tools-default-r2 removed successfully.

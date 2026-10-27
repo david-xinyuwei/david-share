@@ -1,0 +1,47 @@
+
+--- a/sphinx/ext/napoleon/docstring.py
++++ b/sphinx/ext/napoleon/docstring.py
+@@ -270,12 +270,14 @@
+-    def _consume_field(self, parse_type: bool = True, prefer_type: bool = False
+-                       ) -> Tuple[str, str, List[str]]:
++    def _consume_field(self, parse_type: bool = True, prefer_type: bool = False,
++                       escape_args: bool = True) -> Tuple[str, str, List[str]]:
+         line = next(self._line_iter)
+ 
+         before, colon, after = self._partition_field_on_colon(line)
+         _name, _type, _desc = before, '', after
+ 
+         if parse_type:
+             match = _google_typed_arg_regex.match(before)
+             if match:
+                 _name = match.group(1)
+                 _type = match.group(2)
+ 
+-        _name = self._escape_args_and_kwargs(_name)
++        if escape_args:
++            _name = self._escape_args_and_kwargs(_name)
+ 
+         if prefer_type and not _type:
+             _type, _name = _name, _type
+@@ -290,11 +292,12 @@
+-    def _consume_fields(self, parse_type: bool = True, prefer_type: bool = False
+-                        ) -> List[Tuple[str, str, List[str]]]:
++    def _consume_fields(self, parse_type: bool = True, prefer_type: bool = False,
++                        escape_args: bool = True) -> List[Tuple[str, str, List[str]]]:
+         self._consume_empty()
+         fields = []
+         while not self._is_section_break():
+-            _name, _type, _desc = self._consume_field(parse_type, prefer_type)
++            _name, _type, _desc = self._consume_field(parse_type, prefer_type,
++                                                      escape_args)
+             if _name or _type or _desc:
+                 fields.append((_name, _type, _desc,))
+         return fields
+@@ -600,7 +603,7 @@
+     def _parse_attributes_section(self, section: str) -> List[str]:
+         lines = []
+-        for _name, _type, _desc in self._consume_fields():
++        for _name, _type, _desc in self._consume_fields(escape_args=False):
+             if self._config.napoleon_use_ivar:
+                 _name = self._qualify_name(_name, self._obj)
+                 field = ':ivar %s: ' % _name

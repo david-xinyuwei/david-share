@@ -1,0 +1,27 @@
+2026-10-27 10:07:02,861 - INFO - Creating container for sympy__sympy-21847...
+2026-10-27 10:07:02,997 - INFO - Container for sympy__sympy-21847 created: 6d9902fa36bbe8116357c6927ec260f78b696adf60fa8604a540db8fbfe201fe
+2026-10-27 10:07:03,193 - INFO - Container for sympy__sympy-21847 started: 6d9902fa36bbe8116357c6927ec260f78b696adf60fa8604a540db8fbfe201fe
+2026-10-27 10:07:03,193 - INFO - Intermediate patch for sympy__sympy-21847 written to logs/evaluation/aca-score-20261027-haiku-disabled-high-r2/haiku-disabled-high-r2/sympy__sympy-21847/patch.diff, now applying to container...
+2026-10-27 10:07:03,275 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:07:03,654 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:07:03,954 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:07:04,252 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:07:04,290 - INFO - >>>>> Patch Apply Failed:
+patching file sympy/polys/monomials.py
+patch: **** malformed patch at line 51: +                for item in product(variables, repeat=d):
+
+
+2026-10-27 10:07:04,291 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for sympy__sympy-21847: >>>>> Patch Apply Failed:
+patching file sympy/polys/monomials.py
+patch: **** malformed patch at line 51: +                for item in product(variables, repeat=d):
+
+
+Check (logs/evaluation/aca-score-20261027-haiku-disabled-high-r2/haiku-disabled-high-r2/sympy__sympy-21847/run_instance.log) for more information.
+
+2026-10-27 10:07:04,291 - INFO - Attempting to stop container sweb.eval.sympy__sympy-21847.aca-score-20261027-haiku-disabled-high-r2...
+2026-10-27 10:07:19,497 - INFO - Container sweb.eval.sympy__sympy-21847.aca-score-20261027-haiku-disabled-high-r2 stopped successfully.
+2026-10-27 10:07:19,497 - INFO - Attempting to remove container sweb.eval.sympy__sympy-21847.aca-score-20261027-haiku-disabled-high-r2...
+2026-10-27 10:07:19,573 - INFO - Container sweb.eval.sympy__sympy-21847.aca-score-20261027-haiku-disabled-high-r2 removed successfully.

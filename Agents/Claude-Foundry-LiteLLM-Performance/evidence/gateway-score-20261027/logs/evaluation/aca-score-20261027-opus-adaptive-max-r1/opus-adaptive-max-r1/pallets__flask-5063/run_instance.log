@@ -1,0 +1,27 @@
+2026-10-27 10:29:09,722 - INFO - Creating container for pallets__flask-5063...
+2026-10-27 10:29:09,908 - INFO - Container for pallets__flask-5063 created: f42a3e001d9755696540f38fc725d5490607c6e50ac001bff3c9b49faea1e367
+2026-10-27 10:29:10,125 - INFO - Container for pallets__flask-5063 started: f42a3e001d9755696540f38fc725d5490607c6e50ac001bff3c9b49faea1e367
+2026-10-27 10:29:10,125 - INFO - Intermediate patch for pallets__flask-5063 written to logs/evaluation/aca-score-20261027-opus-adaptive-max-r1/opus-adaptive-max-r1/pallets__flask-5063/patch.diff, now applying to container...
+2026-10-27 10:29:10,220 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:29:10,331 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:29:10,429 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:29:10,538 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:29:10,581 - INFO - >>>>> Patch Apply Failed:
+patching file src/flask/cli.py
+patch: **** malformed patch at line 114:  cli = FlaskGroup(
+
+
+2026-10-27 10:29:10,581 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for pallets__flask-5063: >>>>> Patch Apply Failed:
+patching file src/flask/cli.py
+patch: **** malformed patch at line 114:  cli = FlaskGroup(
+
+
+Check (logs/evaluation/aca-score-20261027-opus-adaptive-max-r1/opus-adaptive-max-r1/pallets__flask-5063/run_instance.log) for more information.
+
+2026-10-27 10:29:10,581 - INFO - Attempting to stop container sweb.eval.pallets__flask-5063.aca-score-20261027-opus-adaptive-max-r1...
+2026-10-27 10:29:25,851 - INFO - Container sweb.eval.pallets__flask-5063.aca-score-20261027-opus-adaptive-max-r1 stopped successfully.
+2026-10-27 10:29:25,851 - INFO - Attempting to remove container sweb.eval.pallets__flask-5063.aca-score-20261027-opus-adaptive-max-r1...
+2026-10-27 10:29:25,900 - INFO - Container sweb.eval.pallets__flask-5063.aca-score-20261027-opus-adaptive-max-r1 removed successfully.

@@ -1,0 +1,32 @@
+
+--- a/sympy/polys/monomials.py
++++ b/sympy/polys/monomials.py
+@@ -114,7 +114,9 @@
+         if min_degree > max_degree:
+             return
+         if not variables or max_degree == 0:
+-            yield S.One
++            # the only monomial here is 1, which has total degree 0
++            if min_degree == 0:
++                yield S.One
+             return
+         # Force to list in case of passed tuple or other incompatible collection
+         variables = list(variables) + [S.One]
+@@ -127,7 +129,7 @@
+                 for variable in item:
+                     if variable != 1:
+                         powers[variable] += 1
+-                if max(powers.values()) >= min_degree:
++                if sum(powers.values()) >= min_degree:
+                     monomials_list_comm.append(Mul(*item))
+             yield from set(monomials_list_comm)
+         else:
+@@ -139,7 +141,7 @@
+                 for variable in item:
+                     if variable != 1:
+                         powers[variable] += 1
+-                if max(powers.values()) >= min_degree:
++                if sum(powers.values()) >= min_degree:
+                     monomials_list_non_comm.append(Mul(*item))
+             yield from set(monomials_list_non_comm)
+     else:

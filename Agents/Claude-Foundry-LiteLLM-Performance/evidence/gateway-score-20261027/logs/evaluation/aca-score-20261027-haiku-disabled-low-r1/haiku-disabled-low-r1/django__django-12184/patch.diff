@@ -1,0 +1,22 @@
+
+--- a/django/urls/resolvers.py
++++ b/django/urls/resolvers.py
+@@ -1,6 +1,6 @@
+ class RegexPattern:
+     def match(self, path):
+         match = self.regex.search(path)
+         if match:
+             # If there are any named groups, use those as kwargs, ignoring
+             # non-named groups. Otherwise, pass all non-named arguments as
+             # positional arguments.
+             kwargs = match.groupdict()
+-            args = () if kwargs else match.groups()
++            if kwargs:
++                # Drop named groups that did not participate in the match
++                # so that view defaults are used.
++                kwargs = {k: v for k, v in kwargs.items() if v is not None}
++                args = ()
++            else:
++                args = match.groups()
+             return path[match.end():], args, kwargs
+         return None

@@ -1,0 +1,15 @@
+
+--- a/sympy/functions/elementary/hyperbolic.py
++++ b/sympy/functions/elementary/hyperbolic.py
+@@ -585,9 +585,11 @@ class coth(HyperbolicFunction):
+             if arg.is_Number:
+                 if arg is S.Infinity or arg is S.NegativeInfinity:
+                     return S.One * arg.is_real
+                 elif arg is S.Zero:
+                     return S.ComplexInfinity
+                 ...
++            cotm = None
++            if isinstance(arg, log):
++                cotm = cot(arg.args[0])
+             if cotm is S.ComplexInfinity:
+                 return S.Zero

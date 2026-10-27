@@ -1,0 +1,20 @@
+
+--- a/sphinx/ext/autodoc/typehints.py
++++ b/sphinx/ext/autodoc/typehints.py
+@@ -96,13 +96,13 @@
+             arg = arguments.setdefault(parts[1], {})
+             arg['param'] = True
+         elif parts[0] == 'type':
+-            name = ' '.join(parts[1:])
++            name = ' '.join(parts[1:]).lstrip('*')
+             arg = arguments.setdefault(name, {})
+             arg['type'] = True
+         elif parts[0] == 'rtype':
+             arguments['return'] = {'type': True}
+ 
+     for name, annotation in annotations.items():
+         if name == 'return':
+             continue
+ 
+-        arg = arguments.get(name, {})
++        arg = arguments.get(name, {})

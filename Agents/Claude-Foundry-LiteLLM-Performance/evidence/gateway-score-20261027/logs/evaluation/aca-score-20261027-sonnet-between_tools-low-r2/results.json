@@ -1,0 +1,76 @@
+{
+    "total_instances": 12,
+    "submitted_instances": 12,
+    "completed_instances": 9,
+    "resolved_instances": 3,
+    "unresolved_instances": 6,
+    "infra_failure_instances": 0,
+    "ambiguous_failure_instances": 0,
+    "empty_patch_instances": 0,
+    "error_instances": 3,
+    "completed_ids": [
+        "django__django-11422",
+        "django__django-15320",
+        "pylint-dev__pylint-7114",
+        "sphinx-doc__sphinx-10451",
+        "sphinx-doc__sphinx-7738",
+        "sympy__sympy-13480",
+        "sympy__sympy-14774",
+        "sympy__sympy-18087",
+        "sympy__sympy-21847"
+    ],
+    "incomplete_ids": [],
+    "empty_patch_ids": [],
+    "submitted_ids": [
+        "django__django-11422",
+        "django__django-12184",
+        "django__django-15320",
+        "pallets__flask-5063",
+        "pylint-dev__pylint-7114",
+        "pytest-dev__pytest-7373",
+        "sphinx-doc__sphinx-10451",
+        "sphinx-doc__sphinx-7738",
+        "sympy__sympy-13480",
+        "sympy__sympy-14774",
+        "sympy__sympy-18087",
+        "sympy__sympy-21847"
+    ],
+    "resolved_ids": [
+        "django__django-15320",
+        "sympy__sympy-13480",
+        "sympy__sympy-21847"
+    ],
+    "unresolved_ids": [
+        "django__django-11422",
+        "pylint-dev__pylint-7114",
+        "sphinx-doc__sphinx-10451",
+        "sphinx-doc__sphinx-7738",
+        "sympy__sympy-14774",
+        "sympy__sympy-18087"
+    ],
+    "infra_failure_ids": [],
+    "ambiguous_failure_ids": [],
+    "failure_reasons": {},
+    "error_ids": [
+        "django__django-12184",
+        "pallets__flask-5063",
+        "pytest-dev__pytest-7373"
+    ],
+    "schema_version": 2,
+    "unstopped_instances": 0,
+    "unstopped_containers": [],
+    "unremoved_images": [
+        "swebench/sweb.eval.x86_64.django_1776_django-11422:latest",
+        "swebench/sweb.eval.x86_64.django_1776_django-12184:latest",
+        "swebench/sweb.eval.x86_64.django_1776_django-15320:latest",
+        "swebench/sweb.eval.x86_64.pallets_1776_flask-5063:latest",
+        "swebench/sweb.eval.x86_64.pylint-dev_1776_pylint-7114:latest",
+        "swebench/sweb.eval.x86_64.pytest-dev_1776_pytest-7373:latest",
+        "swebench/sweb.eval.x86_64.sphinx-doc_1776_sphinx-10451:latest",
+        "swebench/sweb.eval.x86_64.sphinx-doc_1776_sphinx-7738:latest",
+        "swebench/sweb.eval.x86_64.sympy_1776_sympy-13480:latest",
+        "swebench/sweb.eval.x86_64.sympy_1776_sympy-14774:latest",
+        "swebench/sweb.eval.x86_64.sympy_1776_sympy-18087:latest",
+        "swebench/sweb.eval.x86_64.sympy_1776_sympy-21847:latest"
+    ]
+}

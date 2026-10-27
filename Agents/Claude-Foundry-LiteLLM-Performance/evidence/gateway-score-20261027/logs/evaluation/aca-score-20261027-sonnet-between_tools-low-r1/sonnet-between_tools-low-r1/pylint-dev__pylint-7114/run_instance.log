@@ -1,0 +1,27 @@
+2026-10-27 11:17:01,274 - INFO - Creating container for pylint-dev__pylint-7114...
+2026-10-27 11:17:01,416 - INFO - Container for pylint-dev__pylint-7114 created: b5ee4c525ec331133131a3d59afd56f87dc88a1d5b69834935ce04d93ad43825
+2026-10-27 11:17:01,597 - INFO - Container for pylint-dev__pylint-7114 started: b5ee4c525ec331133131a3d59afd56f87dc88a1d5b69834935ce04d93ad43825
+2026-10-27 11:17:01,597 - INFO - Intermediate patch for pylint-dev__pylint-7114 written to logs/evaluation/aca-score-20261027-sonnet-between_tools-low-r1/sonnet-between_tools-low-r1/pylint-dev__pylint-7114/patch.diff, now applying to container...
+2026-10-27 11:17:01,679 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 11:17:01,957 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 11:17:02,133 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 11:17:02,242 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 11:17:02,281 - INFO - >>>>> Patch Apply Failed:
+patching file pylint/lint/expand_modules.py
+patch: **** malformed patch at line 15: -                filepath = os.path.join(something, "__init__.py")
+
+
+2026-10-27 11:17:02,281 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for pylint-dev__pylint-7114: >>>>> Patch Apply Failed:
+patching file pylint/lint/expand_modules.py
+patch: **** malformed patch at line 15: -                filepath = os.path.join(something, "__init__.py")
+
+
+Check (logs/evaluation/aca-score-20261027-sonnet-between_tools-low-r1/sonnet-between_tools-low-r1/pylint-dev__pylint-7114/run_instance.log) for more information.
+
+2026-10-27 11:17:02,281 - INFO - Attempting to stop container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-sonnet-between_tools-low-r1...
+2026-10-27 11:17:17,553 - INFO - Container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-sonnet-between_tools-low-r1 stopped successfully.
+2026-10-27 11:17:17,553 - INFO - Attempting to remove container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-sonnet-between_tools-low-r1...
+2026-10-27 11:17:17,648 - INFO - Container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-sonnet-between_tools-low-r1 removed successfully.

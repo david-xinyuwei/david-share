@@ -1,0 +1,122 @@
+2026-10-27 10:32:50,629 - INFO - Creating container for sympy__sympy-21847...
+2026-10-27 10:32:50,809 - INFO - Container for sympy__sympy-21847 created: 2499b56f16f128452facbcd122203e66b4f054d56a4cbf037ec0817c8e23dac9
+2026-10-27 10:32:51,023 - INFO - Container for sympy__sympy-21847 started: 2499b56f16f128452facbcd122203e66b4f054d56a4cbf037ec0817c8e23dac9
+2026-10-27 10:32:51,024 - INFO - Intermediate patch for sympy__sympy-21847 written to logs/evaluation/aca-score-20261027-opus-adaptive-max-r2/opus-adaptive-max-r2/sympy__sympy-21847/patch.diff, now applying to container...
+2026-10-27 10:32:51,116 - INFO - >>>>> Applied Patch:
+Checking patch sympy/polys/monomials.py...
+Applied patch sympy/polys/monomials.py cleanly.
+
+2026-10-27 10:32:51,522 - INFO - Git diff before:
+diff --git a/sympy/polys/monomials.py b/sympy/polys/monomials.py
+index 0e84403307..da35a70d0f 100755
+--- a/sympy/polys/monomials.py
++++ b/sympy/polys/monomials.py
+@@ -28,7 +28,7 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+     Case I. ``max_degrees`` and ``min_degrees`` are both integers
+     =============================================================
+ 
+-    Given a set of variables $V$ and a min_degree $N$ and a max_degree $M$
++    Given a set of variables $V$ and a max_degree $N$ and a min_degree $M$
+     generate a set of monomials of degree less than or equal to $N$ and greater
+     than or equal to $M$. The total number of monomials in commutative
+     variables is huge and is given by the following formula if $M = 0$:
+@@ -63,6 +63,9 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+         >>> sorted(itermonomials([x, y], 2, 1), key=monomial_key('grlex', [y, x]))
+         [x, y, x**2, x*y, y**2]
+ 
++        >>> sorted(itermonomials([x, y], 3, 3), key=monomial_key('grlex', [y, x]))
++        [x**3, x**2*y, x*y**2, y**3]
++
+     Case II. ``max_degrees`` and ``min_degrees`` are both lists
+     ===========================================================
+ 
+@@ -114,7 +117,8 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+         if min_degree > max_degree:
+             return
+         if not variables or max_degree == 0:
+-            yield S.One
++            if min_degree == 0:
++                yield S.One
+             return
+         # Force to list in case of passed tuple or other incompatible collection
+         variables = list(variables) + [S.One]
+@@ -127,7 +131,7 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+                 for variable in item:
+                     if variable != 1:
+                         powers[variable] += 1
+-                if max(powers.values()) >= min_degree:
++                if sum(powers.values()) >= min_degree:
+                     monomials_list_comm.append(Mul(*item))
+             yield from set(monomials_list_comm)
+         else:
+@@ -139,7 +143,7 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+                 for variable in item:
+                     if variable != 1:
+                         powers[variable] += 1
+-                if max(powers.values()) >= min_degree:
++                if sum(powers.values()) >= min_degree:
+                     monomials_list_non_comm.append(Mul(*item))
+             yield from set(monomials_list_non_comm)
+     else:
+2026-10-27 10:32:51,523 - INFO - Eval script for sympy__sympy-21847 written to logs/evaluation/aca-score-20261027-opus-adaptive-max-r2/opus-adaptive-max-r2/sympy__sympy-21847/eval.sh; copying to container...
+2026-10-27 10:32:55,404 - INFO - Test runtime: 3.84 seconds
+2026-10-27 10:32:55,405 - INFO - Test output for sympy__sympy-21847 written to logs/evaluation/aca-score-20261027-opus-adaptive-max-r2/opus-adaptive-max-r2/sympy__sympy-21847/test_output.txt
+2026-10-27 10:32:55,450 - INFO - Git diff after:
+diff --git a/sympy/polys/monomials.py b/sympy/polys/monomials.py
+index 0e84403307..da35a70d0f 100755
+--- a/sympy/polys/monomials.py
++++ b/sympy/polys/monomials.py
+@@ -28,7 +28,7 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+     Case I. ``max_degrees`` and ``min_degrees`` are both integers
+     =============================================================
+ 
+-    Given a set of variables $V$ and a min_degree $N$ and a max_degree $M$
++    Given a set of variables $V$ and a max_degree $N$ and a min_degree $M$
+     generate a set of monomials of degree less than or equal to $N$ and greater
+     than or equal to $M$. The total number of monomials in commutative
+     variables is huge and is given by the following formula if $M = 0$:
+@@ -63,6 +63,9 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+         >>> sorted(itermonomials([x, y], 2, 1), key=monomial_key('grlex', [y, x]))
+         [x, y, x**2, x*y, y**2]
+ 
++        >>> sorted(itermonomials([x, y], 3, 3), key=monomial_key('grlex', [y, x]))
++        [x**3, x**2*y, x*y**2, y**3]
++
+     Case II. ``max_degrees`` and ``min_degrees`` are both lists
+     ===========================================================
+ 
+@@ -114,7 +117,8 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+         if min_degree > max_degree:
+             return
+         if not variables or max_degree == 0:
+-            yield S.One
++            if min_degree == 0:
++                yield S.One
+             return
+         # Force to list in case of passed tuple or other incompatible collection
+         variables = list(variables) + [S.One]
+@@ -127,7 +131,7 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+                 for variable in item:
+                     if variable != 1:
+                         powers[variable] += 1
+-                if max(powers.values()) >= min_degree:
++                if sum(powers.values()) >= min_degree:
+                     monomials_list_comm.append(Mul(*item))
+             yield from set(monomials_list_comm)
+         else:
+@@ -139,7 +143,7 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+                 for variable in item:
+                     if variable != 1:
+                         powers[variable] += 1
+-                if max(powers.values()) >= min_degree:
++                if sum(powers.values()) >= min_degree:
+                     monomials_list_non_comm.append(Mul(*item))
+             yield from set(monomials_list_non_comm)
+     else:
+2026-10-27 10:32:55,450 - INFO - Grading answer for sympy__sympy-21847...
+2026-10-27 10:32:55,452 - INFO - report: {'sympy__sympy-21847': {'patch_is_None': False, 'patch_exists': True, 'patch_successfully_applied': True, 'resolved': True, 'infra_failure': False, 'tests_status': {'FAIL_TO_PASS': {'success': ['test_monomials'], 'failure': []}, 'PASS_TO_PASS': {'success': ['test_monomial_count', 'test_monomial_mul', 'test_monomial_div', 'test_monomial_gcd', 'test_monomial_lcm', 'test_monomial_max', 'test_monomial_pow', 'test_monomial_min', 'test_monomial_divides'], 'failure': []}, 'FAIL_TO_FAIL': {'success': [], 'failure': []}, 'PASS_TO_FAIL': {'success': [], 'failure': []}}}}
+Result for sympy__sympy-21847: resolved: True
+2026-10-27 10:32:55,452 - INFO - Attempting to stop container sweb.eval.sympy__sympy-21847.aca-score-20261027-opus-adaptive-max-r2...
+2026-10-27 10:33:10,791 - INFO - Container sweb.eval.sympy__sympy-21847.aca-score-20261027-opus-adaptive-max-r2 stopped successfully.
+2026-10-27 10:33:10,791 - INFO - Attempting to remove container sweb.eval.sympy__sympy-21847.aca-score-20261027-opus-adaptive-max-r2...
+2026-10-27 10:33:10,846 - INFO - Container sweb.eval.sympy__sympy-21847.aca-score-20261027-opus-adaptive-max-r2 removed successfully.

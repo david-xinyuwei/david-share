@@ -1,0 +1,24 @@
+
+--- a/django/utils/autoreload.py
++++ b/django/utils/autoreload.py
+@@ -114,9 +114,18 @@ def iter_modules_and_files(modules, extra_files):
+         # During debugging (with PyDev) the 'typing.io' and 'typing.re' objects
+         # are added to sys.modules, however they are types not modules and so
+         # cause issues here.
+-        if not isinstance(module, ModuleType) or getattr(module, '__spec__', None) is None:
++        if not isinstance(module, ModuleType):
++            continue
++        spec = getattr(module, '__spec__', None)
++        if spec is None:
++            if getattr(module, '__name__', None) == '__main__':
++                # __main__ (usually manage.py) doesn't have a __spec__ set
++                # when it's run as a script. Fall back to using __file__,
++                # which is resolved below. __file__ may not exist, e.g. in
++                # an interactive interpreter or when using some debuggers.
++                # See https://docs.python.org/reference/import.html#main-spec
++                sys_file_paths.append(getattr(module, '__file__', None))
+             continue
+-        spec = module.__spec__
+         # Modules could be loaded from places without a concrete location. If
+         # this is the case, skip them.
+         if spec.has_location:

@@ -1,0 +1,7 @@
+I can't produce a patch that will apply cleanly here. The repository snapshot you attached contains only `README.rst`, and the example diff in your format targets `file.py` (a Euclidean-algorithm and Bresenham-line example) rather than SymPy code. A `git apply` patch needs exact context lines from the real files, and I don't have them. Writing one from memory would likely fail to apply or change unrelated code.
+
+**Likely cause:** `sqrt(sin(x)**2)` equals `sin(x)` only when `sin(x)` is real and nonnegative. For a generic complex `x` it is `Abs(sin(x))`-like, not `sin(x)`. Somewhere in the trigsimp path (likely the `fu`/`futrig` rules or the power/root handling in `sympy/simplify/trigsimp.py`), an even power under a square root is being collapsed without checking that the base is real. The real-`x` case works because `sin(x)**2` is then known to be nonnegative.
+
+**Suggested fix:** Only apply the `sqrt(b**2) -> b` style simplification when `b` is known to be real and nonnegative (or when the assumption check passes). Otherwise leave the expression alone or return `Abs(b)`. The change belongs in whichever rule performs this collapse.
+
+To get a patch that applies, please send the relevant file(s), for example `sympy/simplify/trigsimp.py` and/or `sympy/simplify/fu.py`, and the current SymPy version, or run `git` in the repo and share the output of `git rev-parse HEAD`. With the exact file contents I can write a diff with correct context lines and add a regression test for `cos(x) + sqrt(sin(x)**2)`.

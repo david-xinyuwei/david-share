@@ -1,0 +1,27 @@
+2026-10-27 09:37:20,884 - INFO - Creating container for django__django-11422...
+2026-10-27 09:37:21,077 - INFO - Container for django__django-11422 created: cd8373d30643dae4458b8e1ab986de3010e71b38e261958daf4e75c2dc06883c
+2026-10-27 09:37:21,311 - INFO - Container for django__django-11422 started: cd8373d30643dae4458b8e1ab986de3010e71b38e261958daf4e75c2dc06883c
+2026-10-27 09:37:21,311 - INFO - Intermediate patch for django__django-11422 written to logs/evaluation/aca-score-20261027-haiku-adaptive-default-r2/haiku-adaptive-default-r2/django__django-11422/patch.diff, now applying to container...
+2026-10-27 09:37:21,408 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 09:37:22,376 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 09:37:22,665 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 09:37:22,953 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 09:37:22,997 - INFO - >>>>> Patch Apply Failed:
+patching file django/utils/autoreload.py
+patch: **** malformed patch at line 23:              continue
+
+
+2026-10-27 09:37:22,997 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for django__django-11422: >>>>> Patch Apply Failed:
+patching file django/utils/autoreload.py
+patch: **** malformed patch at line 23:              continue
+
+
+Check (logs/evaluation/aca-score-20261027-haiku-adaptive-default-r2/haiku-adaptive-default-r2/django__django-11422/run_instance.log) for more information.
+
+2026-10-27 09:37:22,997 - INFO - Attempting to stop container sweb.eval.django__django-11422.aca-score-20261027-haiku-adaptive-default-r2...
+2026-10-27 09:37:39,459 - INFO - Container sweb.eval.django__django-11422.aca-score-20261027-haiku-adaptive-default-r2 stopped successfully.
+2026-10-27 09:37:39,459 - INFO - Attempting to remove container sweb.eval.django__django-11422.aca-score-20261027-haiku-adaptive-default-r2...
+2026-10-27 09:37:39,623 - INFO - Container sweb.eval.django__django-11422.aca-score-20261027-haiku-adaptive-default-r2 removed successfully.

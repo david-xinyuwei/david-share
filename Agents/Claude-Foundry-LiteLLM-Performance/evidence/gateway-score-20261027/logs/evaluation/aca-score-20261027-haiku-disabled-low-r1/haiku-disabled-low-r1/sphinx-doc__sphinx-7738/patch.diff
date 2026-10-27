@@ -1,0 +1,13 @@
+
+--- a/sphinx/ext/napoleon/__init__.py
++++ b/sphinx/ext/napoleon/__init__.py
+@@ -374,6 +374,9 @@ def _process_docstring(app: Sphinx, what: str, name: str, obj: Any,
+         docstring = GoogleDocstring(result_lines, app.config, app, what, name,
+                                     obj, options)
+         result_lines = docstring.lines()
++    # Undo over-escaping of trailing underscores in attribute directives
++    result_lines = [re.sub(r'(\.\. attribute:: \S*?)\\_(\s*)$', r'\1_\2', line)
++                    for line in result_lines]
+     lines[:] = result_lines[:]
+ 
+ 

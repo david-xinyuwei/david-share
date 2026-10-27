@@ -1,0 +1,216 @@
+2026-10-27 10:50:15,109 - INFO - Creating container for sphinx-doc__sphinx-10451...
+2026-10-27 10:50:15,266 - INFO - Container for sphinx-doc__sphinx-10451 created: fe35058397e0b0e59b8772074d7485392f3a3d133743cbe8c572f81ac4cb094f
+2026-10-27 10:50:15,445 - INFO - Container for sphinx-doc__sphinx-10451 started: fe35058397e0b0e59b8772074d7485392f3a3d133743cbe8c572f81ac4cb094f
+2026-10-27 10:50:15,445 - INFO - Intermediate patch for sphinx-doc__sphinx-10451 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-high-r2/sonnet-adaptive-high-r2/sphinx-doc__sphinx-10451/patch.diff, now applying to container...
+2026-10-27 10:50:15,527 - INFO - >>>>> Applied Patch:
+Checking patch sphinx/ext/autodoc/typehints.py...
+Applied patch sphinx/ext/autodoc/typehints.py cleanly.
+
+2026-10-27 10:50:15,764 - INFO - Git diff before:
+diff --git a/sphinx/ext/autodoc/typehints.py b/sphinx/ext/autodoc/typehints.py
+index d912cd7d5..9230f5d92 100755
+--- a/sphinx/ext/autodoc/typehints.py
++++ b/sphinx/ext/autodoc/typehints.py
+@@ -115,7 +115,15 @@ def modify_field_list(node: nodes.field_list, annotations: Dict[str, str],
+         if name == 'return':
+             continue
+ 
+-        arg = arguments.get(name, {})
++        if '*' + name in arguments:
++            name = '*' + name
++            arg = arguments.get(name, {})
++        elif '**' + name in arguments:
++            name = '**' + name
++            arg = arguments.get(name, {})
++        else:
++            arg = arguments.get(name, {})
++
+         if not arg.get('type'):
+             field = nodes.field()
+             field += nodes.field_name('', 'type ' + name)
+2026-10-27 10:50:15,764 - INFO - Eval script for sphinx-doc__sphinx-10451 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-high-r2/sonnet-adaptive-high-r2/sphinx-doc__sphinx-10451/eval.sh; copying to container...
+2026-10-27 10:50:21,121 - INFO - Test runtime: 5.32 seconds
+2026-10-27 10:50:21,121 - INFO - Test output for sphinx-doc__sphinx-10451 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-high-r2/sonnet-adaptive-high-r2/sphinx-doc__sphinx-10451/test_output.txt
+2026-10-27 10:50:21,172 - INFO - Git diff after:
+diff --git a/sphinx/ext/autodoc/typehints.py b/sphinx/ext/autodoc/typehints.py
+index d912cd7d5..9230f5d92 100755
+--- a/sphinx/ext/autodoc/typehints.py
++++ b/sphinx/ext/autodoc/typehints.py
+@@ -115,7 +115,15 @@ def modify_field_list(node: nodes.field_list, annotations: Dict[str, str],
+         if name == 'return':
+             continue
+ 
+-        arg = arguments.get(name, {})
++        if '*' + name in arguments:
++            name = '*' + name
++            arg = arguments.get(name, {})
++        elif '**' + name in arguments:
++            name = '**' + name
++            arg = arguments.get(name, {})
++        else:
++            arg = arguments.get(name, {})
++
+         if not arg.get('type'):
+             field = nodes.field()
+             field += nodes.field_name('', 'type ' + name)
+diff --git a/tests/roots/test-ext-autodoc/target/typehints.py b/tests/roots/test-ext-autodoc/target/typehints.py
+index 6b0d6142c..4acfc8911 100755
+--- a/tests/roots/test-ext-autodoc/target/typehints.py
++++ b/tests/roots/test-ext-autodoc/target/typehints.py
+@@ -94,8 +94,10 @@ def missing_attr(c,
+ class _ClassWithDocumentedInit:
+     """Class docstring."""
+ 
+-    def __init__(self, x: int) -> None:
++    def __init__(self, x: int, *args: int, **kwargs: int) -> None:
+         """Init docstring.
+ 
+         :param x: Some integer
++        :param args: Some integer
++        :param kwargs: Some integer
+         """
+diff --git a/tests/test_ext_autodoc_configs.py b/tests/test_ext_autodoc_configs.py
+index c075a8e2d..0011f450b 100755
+--- a/tests/test_ext_autodoc_configs.py
++++ b/tests/test_ext_autodoc_configs.py
+@@ -1034,19 +1034,27 @@ def test_autodoc_typehints_description_with_documented_init(app):
+     )
+     app.build()
+     context = (app.outdir / 'index.txt').read_text(encoding='utf8')
+-    assert ('class target.typehints._ClassWithDocumentedInit(x)\n'
++    assert ('class target.typehints._ClassWithDocumentedInit(x, *args, **kwargs)\n'
+             '\n'
+             '   Class docstring.\n'
+             '\n'
+             '   Parameters:\n'
+-            '      **x** (*int*) --\n'
++            '      * **x** (*int*) --\n'
+             '\n'
+-            '   __init__(x)\n'
++            '      * **args** (*int*) --\n'
++            '\n'
++            '      * **kwargs** (*int*) --\n'
++            '\n'
++            '   __init__(x, *args, **kwargs)\n'
+             '\n'
+             '      Init docstring.\n'
+             '\n'
+             '      Parameters:\n'
+-            '         **x** (*int*) -- Some integer\n'
++            '         * **x** (*int*) -- Some integer\n'
++            '\n'
++            '         * **args** (*int*) -- Some integer\n'
++            '\n'
++            '         * **kwargs** (*int*) -- Some integer\n'
+             '\n'
+             '      Return type:\n'
+             '         None\n' == context)
+@@ -1063,16 +1071,20 @@ def test_autodoc_typehints_description_with_documented_init_no_undoc(app):
+     )
+     app.build()
+     context = (app.outdir / 'index.txt').read_text(encoding='utf8')
+-    assert ('class target.typehints._ClassWithDocumentedInit(x)\n'
++    assert ('class target.typehints._ClassWithDocumentedInit(x, *args, **kwargs)\n'
+             '\n'
+             '   Class docstring.\n'
+             '\n'
+-            '   __init__(x)\n'
++            '   __init__(x, *args, **kwargs)\n'
+             '\n'
+             '      Init docstring.\n'
+             '\n'
+             '      Parameters:\n'
+-            '         **x** (*int*) -- Some integer\n' == context)
++            '         * **x** (*int*) -- Some integer\n'
++            '\n'
++            '         * **args** (*int*) -- Some integer\n'
++            '\n'
++            '         * **kwargs** (*int*) -- Some integer\n' == context)
+ 
+ 
+ @pytest.mark.sphinx('text', testroot='ext-autodoc',
+@@ -1089,16 +1101,20 @@ def test_autodoc_typehints_description_with_documented_init_no_undoc_doc_rtype(a
+     )
+     app.build()
+     context = (app.outdir / 'index.txt').read_text(encoding='utf8')
+-    assert ('class target.typehints._ClassWithDocumentedInit(x)\n'
++    assert ('class target.typehints._ClassWithDocumentedInit(x, *args, **kwargs)\n'
+             '\n'
+             '   Class docstring.\n'
+             '\n'
+-            '   __init__(x)\n'
++            '   __init__(x, *args, **kwargs)\n'
+             '\n'
+             '      Init docstring.\n'
+             '\n'
+             '      Parameters:\n'
+-            '         **x** (*int*) -- Some integer\n' == context)
++            '         * **x** (*int*) -- Some integer\n'
++            '\n'
++            '         * **args** (*int*) -- Some integer\n'
++            '\n'
++            '         * **kwargs** (*int*) -- Some integer\n' == context)
+ 
+ 
+ @pytest.mark.sphinx('text', testroot='ext-autodoc',
+diff --git a/tests/test_ext_napoleon_docstring.py b/tests/test_ext_napoleon_docstring.py
+index bdf50f516..6db897932 100755
+--- a/tests/test_ext_napoleon_docstring.py
++++ b/tests/test_ext_napoleon_docstring.py
+@@ -2593,3 +2593,48 @@ Sample class with PEP 526 annotations and numpy docstring
+ """
+         print(actual)
+         assert expected == actual
++
++
++@pytest.mark.sphinx('text', testroot='ext-napoleon',
++                    confoverrides={'autodoc_typehints': 'description',
++                                   'autodoc_typehints_description_target': 'all'})
++def test_napoleon_and_autodoc_typehints_description_all(app, status, warning):
++    app.build()
++    content = (app.outdir / 'typehints.txt').read_text(encoding='utf-8')
++    assert content == (
++        'typehints\n'
++        '*********\n'
++        '\n'
++        'mypackage.typehints.hello(x, *args, **kwargs)\n'
++        '\n'
++        '   Parameters:\n'
++        '      * **x** (*int*) -- X\n'
++        '\n'
++        '      * ***args** (*int*) -- Additional arguments.\n'
++        '\n'
++        '      * ****kwargs** (*int*) -- Extra arguments.\n'
++        '\n'
++        '   Return type:\n'
++        '      None\n'
++    )
++
++
++@pytest.mark.sphinx('text', testroot='ext-napoleon',
++                    confoverrides={'autodoc_typehints': 'description',
++                                   'autodoc_typehints_description_target': 'documented_params'})
++def test_napoleon_and_autodoc_typehints_description_documented_params(app, status, warning):
++    app.build()
++    content = (app.outdir / 'typehints.txt').read_text(encoding='utf-8')
++    assert content == (
++        'typehints\n'
++        '*********\n'
++        '\n'
++        'mypackage.typehints.hello(x, *args, **kwargs)\n'
++        '\n'
++        '   Parameters:\n'
++        '      * **x** (*int*) -- X\n'
++        '\n'
++        '      * ***args** (*int*) -- Additional arguments.\n'
++        '\n'
++        '      * ****kwargs** (*int*) -- Extra arguments.\n'
++    )
+2026-10-27 10:50:21,172 - INFO - Git diff changed after running eval script
+2026-10-27 10:50:21,172 - INFO - Grading answer for sphinx-doc__sphinx-10451...
+2026-10-27 10:50:21,182 - INFO - report: {'sphinx-doc__sphinx-10451': {'patch_is_None': False, 'patch_exists': True, 'patch_successfully_applied': True, 'resolved': False, 'infra_failure': False, 'tests_status': {'FAIL_TO_PASS': {'success': ['tests/test_ext_napoleon_docstring.py::test_napoleon_and_autodoc_typehints_description_all'], 'failure': ['tests/test_ext_napoleon_docstring.py::test_napoleon_and_autodoc_typehints_description_documented_params']}, 'PASS_TO_PASS': {'success': ['tests/test_ext_autodoc_configs.py::test_autoclass_content_class', 'tests/test_ext_autodoc_configs.py::test_autoclass_content_init', 'tests/test_ext_autodoc_configs.py::test_autodoc_class_signature_mixed', 'tests/test_ext_autodoc_configs.py::test_autodoc_class_signature_separated_init', 'tests/test_ext_autodoc_configs.py::test_autodoc_class_signature_separated_new', 'tests/test_ext_autodoc_configs.py::test_autoclass_content_both', 'tests/test_ext_autodoc_configs.py::test_autodoc_inherit_docstrings', 'tests/test_ext_autodoc_configs.py::test_autodoc_docstring_signature', 'tests/test_ext_autodoc_configs.py::test_autoclass_content_and_docstring_signature_class', 'tests/test_ext_autodoc_configs.py::test_autoclass_content_and_docstring_signature_init', 'tests/test_ext_autodoc_configs.py::test_autoclass_content_and_docstring_signature_both', 'tests/test_ext_autodoc_configs.py::test_mocked_module_imports', 'tests/test_ext_autodoc_configs.py::test_autodoc_typehints_signature', 'tests/test_ext_autodoc_configs.py::test_autodoc_typehints_none', 'tests/test_ext_autodoc_configs.py::test_autodoc_typehints_none_for_overload', 'tests/test_ext_autodoc_configs.py::test_autodoc_typehints_description', 'tests/test_ext_autodoc_configs.py::test_autodoc_typehints_description_no_undoc', 'tests/test_ext_autodoc_configs.py::test_autodoc_typehints_description_no_undoc_doc_rtype', 'tests/test_ext_autodoc_configs.py::test_autodoc_typehints_description_with_documented_init', 'tests/test_ext_autodoc_configs.py::test_autodoc_typehints_description_with_documented_init_no_undoc', 'tests/test_ext_autodoc_configs.py::test_autodoc_typehints_description_with_documented_init_no_undoc_doc_rtype', 'tests/test_ext_autodoc_configs.py::test_autodoc_typehints_description_for_invalid_node', 'tests/test_ext_autodoc_configs.py::test_autodoc_typehints_both', 'tests/test_ext_autodoc_configs.py::test_autodoc_type_aliases', 'tests/test_ext_autodoc_configs.py::test_autodoc_typehints_description_and_type_aliases', 'tests/test_ext_autodoc_configs.py::test_autodoc_typehints_format_fully_qualified', 'tests/test_ext_autodoc_configs.py::test_autodoc_typehints_format_fully_qualified_for_class_alias', 'tests/test_ext_autodoc_configs.py::test_autodoc_typehints_format_fully_qualified_for_generic_alias', 'tests/test_ext_autodoc_configs.py::test_autodoc_typehints_format_fully_qualified_for_newtype_alias', 'tests/test_ext_autodoc_configs.py::test_autodoc_default_options', 'tests/test_ext_autodoc_configs.py::test_autodoc_default_options_with_values', 'tests/test_ext_napoleon_docstring.py::NamedtupleSubclassTest::test_attributes_docstring', 'tests/test_ext_napoleon_docstring.py::InlineAttributeTest::test_class_data_member', 'tests/test_ext_napoleon_docstring.py::InlineAttributeTest::test_class_data_member_inline', 'tests/test_ext_napoleon_docstring.py::InlineAttributeTest::test_class_data_member_inline_no_type', 'tests/test_ext_napoleon_docstring.py::InlineAttributeTest::test_class_data_member_inline_ref_in_type', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_attributes_with_class_reference', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_attributes_with_use_ivar', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_code_block_in_returns_section', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_colon_in_return_type', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_custom_generic_sections', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_docstrings', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_keywords_with_types', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_kwargs_in_arguments', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_list_in_parameter_description', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_noindex', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_parameters_with_class_reference', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_pep526_annotations', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_preprocess_types', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_raises_types', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_section_header_formatting', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_sphinx_admonitions', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_xrefs_in_return_type', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_colon_in_return_type', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_convert_numpy_type_spec', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_docstrings', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_list_in_parameter_description', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_multiple_parameters', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_parameter_types', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_parameters_with_class_reference', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_parameters_without_class_reference', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_raises_types', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_recombine_set_tokens', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_recombine_set_tokens_invalid', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_return_types', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_section_header_underline_length', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_see_also_refs', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_sphinx_admonitions', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_token_type', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_tokenize_type_spec', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_type_preprocessor', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_underscore_in_attribute', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_underscore_in_attribute_strip_signature_backslash', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_xrefs_in_return_type', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_yield_types', 'tests/test_ext_napoleon_docstring.py::TestNumpyDocstring::test_token_type_invalid', 'tests/test_ext_napoleon_docstring.py::TestNumpyDocstring::test_escape_args_and_kwargs[x,', 'tests/test_ext_napoleon_docstring.py::TestNumpyDocstring::test_escape_args_and_kwargs[*args,', 'tests/test_ext_napoleon_docstring.py::TestNumpyDocstring::test_escape_args_and_kwargs[*x,', 'tests/test_ext_napoleon_docstring.py::TestNumpyDocstring::test_pep526_annotations'], 'failure': []}, 'FAIL_TO_FAIL': {'success': [], 'failure': []}, 'PASS_TO_FAIL': {'success': [], 'failure': []}}}}
+Result for sphinx-doc__sphinx-10451: resolved: False
+2026-10-27 10:50:21,182 - INFO - Attempting to stop container sweb.eval.sphinx-doc__sphinx-10451.aca-score-20261027-sonnet-adaptive-high-r2...
+2026-10-27 10:50:36,584 - INFO - Container sweb.eval.sphinx-doc__sphinx-10451.aca-score-20261027-sonnet-adaptive-high-r2 stopped successfully.
+2026-10-27 10:50:36,584 - INFO - Attempting to remove container sweb.eval.sphinx-doc__sphinx-10451.aca-score-20261027-sonnet-adaptive-high-r2...
+2026-10-27 10:50:36,643 - INFO - Container sweb.eval.sphinx-doc__sphinx-10451.aca-score-20261027-sonnet-adaptive-high-r2 removed successfully.

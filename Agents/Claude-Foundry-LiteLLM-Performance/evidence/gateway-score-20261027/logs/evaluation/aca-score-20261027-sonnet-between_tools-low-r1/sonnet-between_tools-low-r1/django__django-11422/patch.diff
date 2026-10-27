@@ -1,0 +1,35 @@
+
+--- a/django/utils/autoreload.py
++++ b/django/utils/autoreload.py
+@@ -114,14 +114,18 @@
+     # modules based on the module name and pass it to iter_modules_and_files().
+     # This ensures cached results are returned in the usual case that modules
+     # aren't loaded on the fly.
+     keys = sorted(sys.modules)
+     modules = tuple(m for m in map(sys.modules.__getitem__, keys) if not isinstance(m, weakref.ProxyTypes))
+     return iter_modules_and_files(modules, frozenset(_error_files))
+ 
+ 
+ @functools.lru_cache(maxsize=1)
+ def iter_modules_and_files(modules, extra_files):
+     """Iterate through all modules needed to be watched."""
+     sys_file_paths = []
+     for module in modules:
+         # During debugging (with PyDev) the 'typing.io' and 'typing.re' objects
+         # are added to sys.modules, however they are types not modules and so
+         # cause issues here.
+         if not isinstance(module, ModuleType):
+             continue
+-        if module.__name__ == '__main__':
+-            # __main__ (usually manage.py) doesn't always have a __spec__ set.
+-            # Handle this by falling back to using __file__, resolved below.
+-            # See https://docs.python.org/reference/import.html#main-spec
+-            sys_file_paths.append(module.__file__)
+-            continue
+         spec = module.__spec__
++        if module.__name__ == '__main__' and getattr(module, '__file__', None):
++            sys_file_paths.append(module.__file__)
++            continue
+         # Modules could be loaded from places without a concrete location. If
+         # this is the case, skip them.
+         if spec is None or spec.has_location is False:

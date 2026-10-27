@@ -1,0 +1,3 @@
+I can't produce a correct patch for this issue without the relevant source files: the issue concerns module resolution in pylint's linter (`pylint/lint/expand_modules.py` / `pylint/lint/pylinter.py`), and none of those files were included in the provided code. The files shown (README, constants, epylint, base_options, pyreverse main) don't contain the code path that raises the `a/__init__.py` load error.
+
+If you share `pylint/lint/expand_modules.py` (and `pylint/lint/pylinter.py` if needed), I can write a patch against them. Otherwise, a patch made against guessed contents would not apply with `git apply`.

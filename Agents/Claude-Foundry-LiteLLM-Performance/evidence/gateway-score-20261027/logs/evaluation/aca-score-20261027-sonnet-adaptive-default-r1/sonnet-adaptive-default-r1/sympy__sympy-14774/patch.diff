@@ -1,0 +1,19 @@
+
+--- a/sympy/printing/latex.py
++++ b/sympy/printing/latex.py
+@@ -741,7 +741,7 @@
+                 not self._needs_function_brackets(expr.args[0])
+ 
+-            inv_trig_table = ["asin", "acos", "atan", "acot"]
++            inv_trig_table = ["asin", "acos", "atan", "acsc", "asec", "acot"]
+ 
+             # If the function is an inverse trig function, handle the style
+--- a/sympy/physics/vector/printing.py
++++ b/sympy/physics/vector/printing.py
+@@ -87,7 +87,7 @@
+                 not self._needs_function_brackets(expr.args[0])
+ 
+-            inv_trig_table = ["asin", "acos", "atan", "acot"]
++            inv_trig_table = ["asin", "acos", "atan", "acsc", "asec", "acot"]
+ 
+             # If the function is an inverse trig function, handle the style

@@ -1,0 +1,10 @@
+
+--- a/django/db/models/expressions.py
++++ b/django/db/models/expressions.py
+@@ -1,5 +1,6 @@
+ class Subquery(Expression):
+     def __init__(self, queryset, output_field=None, **extra):
+         self.query = queryset.query
++        self.query.subquery = True
+         self.extra = extra
+         super().__init__(output_field)

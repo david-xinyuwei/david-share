@@ -1,0 +1,27 @@
+2026-10-27 10:54:20,141 - INFO - Creating container for sphinx-doc__sphinx-7738...
+2026-10-27 10:54:20,280 - INFO - Container for sphinx-doc__sphinx-7738 created: b1fea0555793a3721f503f73ea8bb6b984bc6762162df70260286f2178847827
+2026-10-27 10:54:20,460 - INFO - Container for sphinx-doc__sphinx-7738 started: b1fea0555793a3721f503f73ea8bb6b984bc6762162df70260286f2178847827
+2026-10-27 10:54:20,461 - INFO - Intermediate patch for sphinx-doc__sphinx-7738 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-low-r2/sonnet-adaptive-low-r2/sphinx-doc__sphinx-7738/patch.diff, now applying to container...
+2026-10-27 10:54:20,546 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:54:20,787 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:54:20,986 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:54:21,183 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:54:21,224 - INFO - >>>>> Patch Apply Failed:
+patch: **** malformed patch at line 11:  
+
+patching file sphinx/ext/napoleon/docstring.py
+
+2026-10-27 10:54:21,224 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for sphinx-doc__sphinx-7738: >>>>> Patch Apply Failed:
+patch: **** malformed patch at line 11:  
+
+patching file sphinx/ext/napoleon/docstring.py
+
+Check (logs/evaluation/aca-score-20261027-sonnet-adaptive-low-r2/sonnet-adaptive-low-r2/sphinx-doc__sphinx-7738/run_instance.log) for more information.
+
+2026-10-27 10:54:21,224 - INFO - Attempting to stop container sweb.eval.sphinx-doc__sphinx-7738.aca-score-20261027-sonnet-adaptive-low-r2...
+2026-10-27 10:54:36,618 - INFO - Container sweb.eval.sphinx-doc__sphinx-7738.aca-score-20261027-sonnet-adaptive-low-r2 stopped successfully.
+2026-10-27 10:54:36,618 - INFO - Attempting to remove container sweb.eval.sphinx-doc__sphinx-7738.aca-score-20261027-sonnet-adaptive-low-r2...
+2026-10-27 10:54:36,692 - INFO - Container sweb.eval.sphinx-doc__sphinx-7738.aca-score-20261027-sonnet-adaptive-low-r2 removed successfully.

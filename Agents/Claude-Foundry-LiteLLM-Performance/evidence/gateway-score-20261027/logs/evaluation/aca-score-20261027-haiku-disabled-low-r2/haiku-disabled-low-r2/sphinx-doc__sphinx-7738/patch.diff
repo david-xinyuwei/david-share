@@ -1,0 +1,5 @@
+I can't see the napoleon docstring code that converts attribute names into reST in the provided files, so I can't produce a verified patch for this issue. The napoleon `docstring.py` module (where `_escape_args_and_kwargs` / field name handling and `_load_custom_sections`/attribute rendering live) was not included in the provided code, and guessing at its contents would likely produce a patch that doesn't apply.
+
+What I can tell you from the issue: the trailing underscore is being escaped to `\_` somewhere in the napoleon Google/NumPy docstring processing path when rendering `Attributes` entries, which emits `.. attribute::` directives with the name passed through an escaping step. The fix would belong in `sphinx/ext/napoleon/docstring.py`, in the code that formats the attribute name for the `attribute` directive so that it doesn't apply reST escaping to names ending in `_`.
+
+If you can share `sphinx/ext/napoleon/docstring.py`, I can produce a precise patch against it.

@@ -1,0 +1,23 @@
+2026-10-27 11:13:45,636 - INFO - Creating container for sympy__sympy-18087...
+2026-10-27 11:13:45,791 - INFO - Container for sympy__sympy-18087 created: f340854a1d36ed257fac3903b76a701318f781f192ae7c524bdd7f1a2d85e21e
+2026-10-27 11:13:45,981 - INFO - Container for sympy__sympy-18087 started: f340854a1d36ed257fac3903b76a701318f781f192ae7c524bdd7f1a2d85e21e
+2026-10-27 11:13:45,981 - INFO - Intermediate patch for sympy__sympy-18087 written to logs/evaluation/aca-score-20261027-sonnet-between_tools-high-r1/sonnet-between_tools-high-r1/sympy__sympy-18087/patch.diff, now applying to container...
+2026-10-27 11:13:46,063 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 11:13:46,406 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 11:13:46,692 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 11:13:46,972 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 11:13:47,011 - INFO - >>>>> Patch Apply Failed:
+patch: **** Only garbage was found in the patch input.
+
+2026-10-27 11:13:47,011 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for sympy__sympy-18087: >>>>> Patch Apply Failed:
+patch: **** Only garbage was found in the patch input.
+
+Check (logs/evaluation/aca-score-20261027-sonnet-between_tools-high-r1/sonnet-between_tools-high-r1/sympy__sympy-18087/run_instance.log) for more information.
+
+2026-10-27 11:13:47,011 - INFO - Attempting to stop container sweb.eval.sympy__sympy-18087.aca-score-20261027-sonnet-between_tools-high-r1...
+2026-10-27 11:14:02,311 - INFO - Container sweb.eval.sympy__sympy-18087.aca-score-20261027-sonnet-between_tools-high-r1 stopped successfully.
+2026-10-27 11:14:02,311 - INFO - Attempting to remove container sweb.eval.sympy__sympy-18087.aca-score-20261027-sonnet-between_tools-high-r1...
+2026-10-27 11:14:02,384 - INFO - Container sweb.eval.sympy__sympy-18087.aca-score-20261027-sonnet-between_tools-high-r1 removed successfully.

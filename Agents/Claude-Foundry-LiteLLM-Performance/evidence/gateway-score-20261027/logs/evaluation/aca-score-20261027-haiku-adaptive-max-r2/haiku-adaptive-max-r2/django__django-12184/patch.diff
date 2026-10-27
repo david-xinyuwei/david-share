@@ -1,0 +1,38 @@
+
+--- a/django/urls/resolvers.py
++++ b/django/urls/resolvers.py
+@@ -190,4 +190,5 @@
+              # positional arguments.
+-            kwargs = {k: v for k, v in match.groupdict().items() if v is not None}
+-            args = () if kwargs else match.groups()
++            kwargs = match.groupdict()
++            args = () if kwargs else match.groups()
++            kwargs = {k: v for k, v in kwargs.items() if v is not None}
+             return path[match.end():], args, kwargs
+--- /dev/null
++++ b/tests/urlpatterns/test_optional_named_groups.py
+@@ -0,0 +1,24 @@
++from django.test import SimpleTestCase, override_settings
++from django.urls import re_path, resolve
++
++
++def empty_view(request, format='html'):
++    pass
++
++
++urlpatterns = [
++    re_path(r'^module/(?P<format>(html|json|xml))?/?$', empty_view, name='modules'),
++]
++
++
++@override_settings(ROOT_URLCONF=__name__)
++class OptionalNamedGroupTests(SimpleTestCase):
++    def test_unmatched_optional_named_group_is_not_passed(self):
++        match = resolve('/module/')
++        self.assertEqual(match.args, ())
++        self.assertEqual(match.kwargs, {})
++
++    def test_matched_optional_named_group_is_passed(self):
++        match = resolve('/module/json/')
++        self.assertEqual(match.args, ())
++        self.assertEqual(match.kwargs, {'format': 'json'})

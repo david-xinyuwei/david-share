@@ -1,0 +1,27 @@
+2026-10-27 10:21:33,936 - INFO - Creating container for sympy__sympy-18087...
+2026-10-27 10:21:34,093 - INFO - Container for sympy__sympy-18087 created: 469c6dbbe0f21653346d1d94ef9af0f76b98ab4b2d8c861b04cdf7be75459078
+2026-10-27 10:21:34,283 - INFO - Container for sympy__sympy-18087 started: 469c6dbbe0f21653346d1d94ef9af0f76b98ab4b2d8c861b04cdf7be75459078
+2026-10-27 10:21:34,284 - INFO - Intermediate patch for sympy__sympy-18087 written to logs/evaluation/aca-score-20261027-opus-adaptive-high-r1/opus-adaptive-high-r1/sympy__sympy-18087/patch.diff, now applying to container...
+2026-10-27 10:21:34,365 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:21:34,769 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:21:35,106 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:21:35,207 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:21:35,252 - INFO - >>>>> Patch Apply Failed:
+patch: **** malformed patch at line 25: --- a/sympy/simplify/tests/test_trigsimp.py
+
+patching file sympy/core/exprtools.py
+
+2026-10-27 10:21:35,253 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for sympy__sympy-18087: >>>>> Patch Apply Failed:
+patch: **** malformed patch at line 25: --- a/sympy/simplify/tests/test_trigsimp.py
+
+patching file sympy/core/exprtools.py
+
+Check (logs/evaluation/aca-score-20261027-opus-adaptive-high-r1/opus-adaptive-high-r1/sympy__sympy-18087/run_instance.log) for more information.
+
+2026-10-27 10:21:35,253 - INFO - Attempting to stop container sweb.eval.sympy__sympy-18087.aca-score-20261027-opus-adaptive-high-r1...
+2026-10-27 10:21:50,529 - INFO - Container sweb.eval.sympy__sympy-18087.aca-score-20261027-opus-adaptive-high-r1 stopped successfully.
+2026-10-27 10:21:50,529 - INFO - Attempting to remove container sweb.eval.sympy__sympy-18087.aca-score-20261027-opus-adaptive-high-r1...
+2026-10-27 10:21:50,605 - INFO - Container sweb.eval.sympy__sympy-18087.aca-score-20261027-opus-adaptive-high-r1 removed successfully.

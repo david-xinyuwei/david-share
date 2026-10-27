@@ -1,0 +1,27 @@
+2026-10-27 11:00:25,703 - INFO - Creating container for sympy__sympy-18087...
+2026-10-27 11:00:25,844 - INFO - Container for sympy__sympy-18087 created: c5bf5388059e08d8a0bdb956d7f33a2054eaea0adc1f073bffa32bc6f76312b2
+2026-10-27 11:00:26,035 - INFO - Container for sympy__sympy-18087 started: c5bf5388059e08d8a0bdb956d7f33a2054eaea0adc1f073bffa32bc6f76312b2
+2026-10-27 11:00:26,036 - INFO - Intermediate patch for sympy__sympy-18087 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-medium-r1/sonnet-adaptive-medium-r1/sympy__sympy-18087/patch.diff, now applying to container...
+2026-10-27 11:00:26,122 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 11:00:26,472 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 11:00:26,760 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 11:00:27,041 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 11:00:27,081 - INFO - >>>>> Patch Apply Failed:
+patching file sympy/simplify/fu.py
+Reversed (or previously applied) patch detected!  Skipping patch.
+1 out of 1 hunk ignored -- saving rejects to file sympy/simplify/fu.py.rej
+
+2026-10-27 11:00:27,081 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for sympy__sympy-18087: >>>>> Patch Apply Failed:
+patching file sympy/simplify/fu.py
+Reversed (or previously applied) patch detected!  Skipping patch.
+1 out of 1 hunk ignored -- saving rejects to file sympy/simplify/fu.py.rej
+
+Check (logs/evaluation/aca-score-20261027-sonnet-adaptive-medium-r1/sonnet-adaptive-medium-r1/sympy__sympy-18087/run_instance.log) for more information.
+
+2026-10-27 11:00:27,081 - INFO - Attempting to stop container sweb.eval.sympy__sympy-18087.aca-score-20261027-sonnet-adaptive-medium-r1...
+2026-10-27 11:00:42,312 - INFO - Container sweb.eval.sympy__sympy-18087.aca-score-20261027-sonnet-adaptive-medium-r1 stopped successfully.
+2026-10-27 11:00:42,313 - INFO - Attempting to remove container sweb.eval.sympy__sympy-18087.aca-score-20261027-sonnet-adaptive-medium-r1...
+2026-10-27 11:00:42,391 - INFO - Container sweb.eval.sympy__sympy-18087.aca-score-20261027-sonnet-adaptive-medium-r1 removed successfully.

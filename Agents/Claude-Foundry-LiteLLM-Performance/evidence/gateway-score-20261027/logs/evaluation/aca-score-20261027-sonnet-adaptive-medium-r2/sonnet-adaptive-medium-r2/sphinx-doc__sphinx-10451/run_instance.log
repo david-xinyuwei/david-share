@@ -1,0 +1,27 @@
+2026-10-27 11:01:59,374 - INFO - Creating container for sphinx-doc__sphinx-10451...
+2026-10-27 11:01:59,547 - INFO - Container for sphinx-doc__sphinx-10451 created: faab70deec5bbc61a62285d8d85e1c6a8274ab477cd150039411eec528836269
+2026-10-27 11:01:59,726 - INFO - Container for sphinx-doc__sphinx-10451 started: faab70deec5bbc61a62285d8d85e1c6a8274ab477cd150039411eec528836269
+2026-10-27 11:01:59,726 - INFO - Intermediate patch for sphinx-doc__sphinx-10451 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-medium-r2/sonnet-adaptive-medium-r2/sphinx-doc__sphinx-10451/patch.diff, now applying to container...
+2026-10-27 11:01:59,814 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 11:02:00,083 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 11:02:00,197 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 11:02:00,313 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 11:02:00,351 - INFO - >>>>> Patch Apply Failed:
+patching file sphinx/ext/autodoc/typehints.py
+patch: **** malformed patch at line 21:              field += nodes.field_name('', 'type ' + name)
+
+
+2026-10-27 11:02:00,351 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for sphinx-doc__sphinx-10451: >>>>> Patch Apply Failed:
+patching file sphinx/ext/autodoc/typehints.py
+patch: **** malformed patch at line 21:              field += nodes.field_name('', 'type ' + name)
+
+
+Check (logs/evaluation/aca-score-20261027-sonnet-adaptive-medium-r2/sonnet-adaptive-medium-r2/sphinx-doc__sphinx-10451/run_instance.log) for more information.
+
+2026-10-27 11:02:00,351 - INFO - Attempting to stop container sweb.eval.sphinx-doc__sphinx-10451.aca-score-20261027-sonnet-adaptive-medium-r2...
+2026-10-27 11:02:15,724 - INFO - Container sweb.eval.sphinx-doc__sphinx-10451.aca-score-20261027-sonnet-adaptive-medium-r2 stopped successfully.
+2026-10-27 11:02:15,724 - INFO - Attempting to remove container sweb.eval.sphinx-doc__sphinx-10451.aca-score-20261027-sonnet-adaptive-medium-r2...
+2026-10-27 11:02:15,799 - INFO - Container sweb.eval.sphinx-doc__sphinx-10451.aca-score-20261027-sonnet-adaptive-medium-r2 removed successfully.

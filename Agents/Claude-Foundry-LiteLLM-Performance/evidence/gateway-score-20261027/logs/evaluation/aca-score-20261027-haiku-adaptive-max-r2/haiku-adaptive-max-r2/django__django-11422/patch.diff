@@ -1,0 +1,13 @@
+
+--- a/django/utils/autoreload.py
++++ b/django/utils/autoreload.py
+@@ -122,2 +122,9 @@ def iter_modules_and_files(modules, extra_files):
+     for module in modules:
++        if isinstance(module, ModuleType) and module.__name__ == '__main__':
++            # __main__ (usually manage.py) doesn't always have a __spec__ set.
++            # Handle this by falling back to using __file__, resolved below.
++            # See https://docs.python.org/reference/import.html#main-spec
++            if hasattr(module, '__file__'):
++                sys_file_paths.append(module.__file__)
++            continue
+         # During debugging (with PyDev) the 'typing.io' and 'typing.re' objects

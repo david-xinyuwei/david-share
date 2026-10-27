@@ -1,0 +1,5 @@
+I can't produce a correct patch for this issue without seeing the relevant autodoc source (`sphinx/ext/autodoc/typehints.py` and `sphinx/ext/autodoc/__init__.py`), which were not included in the provided code. Guessing at their contents would likely produce a patch that fails to apply.
+
+What I can say about the problem: with `autodoc_typehints = "description"`, the `*args` and `**kwargs` entries get documented twice. The parameter names in the docstring are `*args` and `**kwargs` (with stars), while the signature-derived entries use `args` and `kwargs` (without stars). The type-hint injection code in `sphinx/ext/autodoc/typehints.py` (`modify_field_list`) needs to normalize the names by stripping leading `*` characters when matching existing `:param` fields, and then write the type into the existing field, keeping the star-prefixed name, rather than adding a new entry.
+
+If you send me the contents of `sphinx/ext/autodoc/typehints.py`, I can write an exact patch against it.

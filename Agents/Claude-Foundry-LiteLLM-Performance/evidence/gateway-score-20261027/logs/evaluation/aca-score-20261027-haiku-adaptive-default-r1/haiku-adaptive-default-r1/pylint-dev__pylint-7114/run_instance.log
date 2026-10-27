@@ -1,0 +1,25 @@
+2026-10-27 09:35:55,759 - INFO - Creating container for pylint-dev__pylint-7114...
+2026-10-27 09:35:55,893 - INFO - Container for pylint-dev__pylint-7114 created: d126b9aaa6d4ba037006d81cbfe0e971f20e38afbaaaf2281bc5292f5c115a1c
+2026-10-27 09:35:56,085 - INFO - Container for pylint-dev__pylint-7114 started: d126b9aaa6d4ba037006d81cbfe0e971f20e38afbaaaf2281bc5292f5c115a1c
+2026-10-27 09:35:56,085 - INFO - Intermediate patch for pylint-dev__pylint-7114 written to logs/evaluation/aca-score-20261027-haiku-adaptive-default-r1/haiku-adaptive-default-r1/pylint-dev__pylint-7114/patch.diff, now applying to container...
+2026-10-27 09:35:56,165 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 09:35:56,424 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 09:35:56,596 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 09:35:56,766 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 09:35:56,803 - INFO - >>>>> Patch Apply Failed:
+patch: **** Only garbage was found in the patch input.
+patch unexpectedly ends in middle of line
+
+2026-10-27 09:35:56,803 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for pylint-dev__pylint-7114: >>>>> Patch Apply Failed:
+patch: **** Only garbage was found in the patch input.
+patch unexpectedly ends in middle of line
+
+Check (logs/evaluation/aca-score-20261027-haiku-adaptive-default-r1/haiku-adaptive-default-r1/pylint-dev__pylint-7114/run_instance.log) for more information.
+
+2026-10-27 09:35:56,803 - INFO - Attempting to stop container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-haiku-adaptive-default-r1...
+2026-10-27 09:36:12,016 - INFO - Container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-haiku-adaptive-default-r1 stopped successfully.
+2026-10-27 09:36:12,016 - INFO - Attempting to remove container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-haiku-adaptive-default-r1...
+2026-10-27 09:36:12,119 - INFO - Container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-haiku-adaptive-default-r1 removed successfully.

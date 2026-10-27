@@ -1,0 +1,27 @@
+2026-10-27 09:44:19,292 - INFO - Creating container for pytest-dev__pytest-7373...
+2026-10-27 09:44:19,598 - INFO - Container for pytest-dev__pytest-7373 created: 7cbcb32c271173e13a3b93e521374ebfcd520f94eede71a4d660f9069f45ba65
+2026-10-27 09:44:19,807 - INFO - Container for pytest-dev__pytest-7373 started: 7cbcb32c271173e13a3b93e521374ebfcd520f94eede71a4d660f9069f45ba65
+2026-10-27 09:44:19,807 - INFO - Intermediate patch for pytest-dev__pytest-7373 written to logs/evaluation/aca-score-20261027-haiku-adaptive-low-r1/haiku-adaptive-low-r1/pytest-dev__pytest-7373/patch.diff, now applying to container...
+2026-10-27 09:44:19,897 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 09:44:20,032 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 09:44:20,140 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 09:44:20,225 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 09:44:20,264 - INFO - >>>>> Patch Apply Failed:
+patch: **** malformed patch at line 38:  class MarkEvaluator:
+
+patching file src/_pytest/mark/evaluate.py
+
+2026-10-27 09:44:20,264 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for pytest-dev__pytest-7373: >>>>> Patch Apply Failed:
+patch: **** malformed patch at line 38:  class MarkEvaluator:
+
+patching file src/_pytest/mark/evaluate.py
+
+Check (logs/evaluation/aca-score-20261027-haiku-adaptive-low-r1/haiku-adaptive-low-r1/pytest-dev__pytest-7373/run_instance.log) for more information.
+
+2026-10-27 09:44:20,265 - INFO - Attempting to stop container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-haiku-adaptive-low-r1...
+2026-10-27 09:44:35,471 - INFO - Container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-haiku-adaptive-low-r1 stopped successfully.
+2026-10-27 09:44:35,471 - INFO - Attempting to remove container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-haiku-adaptive-low-r1...
+2026-10-27 09:44:35,570 - INFO - Container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-haiku-adaptive-low-r1 removed successfully.

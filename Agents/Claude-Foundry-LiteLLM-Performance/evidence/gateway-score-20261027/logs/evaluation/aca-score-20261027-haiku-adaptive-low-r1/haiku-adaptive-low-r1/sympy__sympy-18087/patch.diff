@@ -1,0 +1,9 @@
+I can't produce a reliable patch for this issue. The relevant code isn't in the provided files. The README is the only file included, and the diff template you gave is for an unrelated `euclidean`/`bresenham` file. Any patch I wrote without the sympy source would be a guess, and `git apply` would likely reject it.
+
+Here's what I can tell you about where the fix probably belongs:
+
+- **Likely location:** `sympy/simplify/trigsimp.py`, and possibly `sympy/simplify/fu.py`, which contains the rewrite rules that `trigsimp` applies.
+- **Likely cause:** For complex `x`, `sqrt(sin(x)**2)` is not equal to `sin(x)`. It equals `sin(x)` only when `sin(x)` is real and non-negative, so simplifying it to `sin(x)` is unsound. The real-`x` case works because the assumptions let the simplification go through.
+- **Likely fix:** Stop rewriting `sqrt(f**2)` to `f` unless `f` is known to be real and non-negative, or rewrite it to `Abs(f)` instead.
+
+To produce a patch that applies cleanly, please send the contents of `sympy/simplify/trigsimp.py` and the sqrt/power-handling section of `sympy/simplify/fu.py`, or the output of `git log -1` so I can match the revision. Alternatively, a sympy test file that reproduces the failure would help me confirm the fix.

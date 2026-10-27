@@ -1,0 +1,44 @@
+
+diff --git a/django/db/models/expressions.py b/django/db/models/expressions.py
+--- a/django/db/models/expressions.py
++++ b/django/db/models/expressions.py
+@@ -1149,7 +1149,8 @@ class Subquery(BaseExpression, Combinable):
+ 
+     def __init__(self, queryset, output_field=None, **extra):
+         # Allow the usage of both QuerySet and sql.Query objects.
+-        self.query = getattr(queryset, 'query', queryset)
++        self.query = getattr(queryset, 'query', queryset).clone()
++        self.query.subquery = True
+         self.extra = extra
+         super().__init__(output_field)
+ 
+diff --git a/tests/expressions/test_subquery_sql.py b/tests/expressions/test_subquery_sql.py
+new file mode 100644
+--- /dev/null
++++ b/tests/expressions/test_subquery_sql.py
+@@ -0,0 +1,25 @@
++from django.db import connection
++from django.db.models import Exists, Subquery
++from django.test import TestCase
++
++from .models import Employee
++
++
++class SubqueryAsSQLTests(TestCase):
++    def test_subquery_sql(self):
++        employees = Employee.objects.all()
++        employees_subquery = Subquery(employees)
++        self.assertIs(employees_subquery.query.subquery, True)
++        self.assertIs(employees.query.subquery, False)
++        compiler = employees_subquery.query.get_compiler(connection=connection)
++        sql, _ = employees_subquery.as_sql(compiler, connection)
++        self.assertIn('(SELECT ', sql)
++
++    def test_exists_sql(self):
++        employees = Employee.objects.all()
++        employees_exists = Exists(employees)
++        self.assertIs(employees_exists.query.subquery, True)
++        self.assertIs(employees.query.subquery, False)
++        compiler = employees_exists.query.get_compiler(connection=connection)
++        sql, _ = employees_exists.as_sql(compiler, connection)
++        self.assertIn('EXISTS(SELECT ', sql)

@@ -1,0 +1,8 @@
+def iter_modules_and_files(modules, extra_files):
+    sys_file_paths = []
+    for module in modules:
+        # Handle __main__ (e.g. manage.py), which has no __spec__ set.
+        if getattr(module, '__spec__', None) is None and getattr(module, '__name__', None) != '__main__':
+            continue
+        spec = getattr(module, '__spec__', None)
+        ...

@@ -1,0 +1,8 @@
+I can't produce a patch that addresses this issue from the code shown here with confidence, because the fix lives in `django/utils/autoreload.py`, which was not included in the provided files. The reloader's file-watching logic (`StatReloader` / `iter_all_python_module_files`) is what determines whether `manage.py` is tracked, and I'd be guessing at its contents if I wrote a diff against it.
+
+What I can tell you from the provided code:
+
+- `ManagementUtility.execute()` and `runserver` both defer to `autoreload.run_with_reloader`, so the watched-file set is determined entirely inside `autoreload`.
+- The `__main__` module (the script executed as `python manage.py`) is not present in `sys.modules` under a name that the module-collection code is likely to pick up in the way it does for ordinary imported modules. In Django 2.2, `iter_all_python_module_files` iterates `sys.modules` values and skips modules without a `__file__`; the `__main__` module entry is the likely culprit for being missed by the stat-based reloader.
+
+If you share `django/utils/autoreload.py` (in particular `iter_all_python_module_files`, `gen_filenames`, and `StatReloader.snapshot_files`), I can produce an accurate patch against it. The likely shape of the fix is to explicitly include `sys.modules['__main__'].__file__` (when present) in the set of watched files within `gen_filenames`, so that changes to the entry script trigger a reload.

@@ -1,0 +1,23 @@
+2026-10-27 11:12:50,146 - INFO - Creating container for pylint-dev__pylint-7114...
+2026-10-27 11:12:50,308 - INFO - Container for pylint-dev__pylint-7114 created: 1423be3a26bd461fe61754057577def418dae5589e2068ea489150ffc93a9e1f
+2026-10-27 11:12:50,474 - INFO - Container for pylint-dev__pylint-7114 started: 1423be3a26bd461fe61754057577def418dae5589e2068ea489150ffc93a9e1f
+2026-10-27 11:12:50,474 - INFO - Intermediate patch for pylint-dev__pylint-7114 written to logs/evaluation/aca-score-20261027-sonnet-between_tools-high-r1/sonnet-between_tools-high-r1/pylint-dev__pylint-7114/patch.diff, now applying to container...
+2026-10-27 11:12:50,558 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 11:12:50,868 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 11:12:51,107 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 11:12:51,230 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 11:12:51,271 - INFO - >>>>> Patch Apply Failed:
+patch: **** Only garbage was found in the patch input.
+
+2026-10-27 11:12:51,272 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for pylint-dev__pylint-7114: >>>>> Patch Apply Failed:
+patch: **** Only garbage was found in the patch input.
+
+Check (logs/evaluation/aca-score-20261027-sonnet-between_tools-high-r1/sonnet-between_tools-high-r1/pylint-dev__pylint-7114/run_instance.log) for more information.
+
+2026-10-27 11:12:51,272 - INFO - Attempting to stop container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-sonnet-between_tools-high-r1...
+2026-10-27 11:13:06,534 - INFO - Container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-sonnet-between_tools-high-r1 stopped successfully.
+2026-10-27 11:13:06,534 - INFO - Attempting to remove container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-sonnet-between_tools-high-r1...
+2026-10-27 11:13:06,635 - INFO - Container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-sonnet-between_tools-high-r1 removed successfully.

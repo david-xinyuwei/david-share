@@ -1,18 +1,11 @@
 {
- "status": "RUNNING",
- "updated_utc": "2026-10-27T00:07:59.720+00:00",
- "cost_usd": 13.9,
- "budget_usd": 75.0,
+ "status": "COMPLETED",
+ "updated_utc": "2026-10-27T08:37:15.795+00:00",
+ "cost_usd": 76.1722,
+ "budget_usd": 85.0,
  "counts": {
-  "claude-haiku-5-5": {
-   "completed": 79
-  },
   "claude-sonnet-5-5": {
-   "completed": 44,
-   "max_tokens": 2
-  },
-  "claude-opus-5-5": {
-   "completed": 29
+   "completed": 6
   }
  },
  "planned": {
@@ -22,7 +15,7 @@
  },
  "config": {
   "started_utc": "2026-10-26T23:04:44.464+00:00",
-  "resumed_utc": null,
+  "resumed_utc": "2026-10-27T08:29:00.746+00:00",
   "path": "VM -> LiteLLM gateway (Azure Container Apps, East US 2) -> Foundry",
   "cache_control": {
    "type": "ephemeral",
@@ -32,7 +25,7 @@
   "max_tokens": 128000,
   "repeats": 2,
   "seed": "20261026",
-  "budget_usd": 75.0,
+  "budget_usd": 85.0,
   "tpm": {
    "claude-opus-5-5": 40000,
    "claude-sonnet-5-5": 80000,
@@ -225,7 +218,7 @@
   },
   "problems_sha256": "258820b81dd54fdbc24a741bea836c106f62b1019940054dbeaa47758c0627e7",
   "system_prompt_sha256": "c03ce9359e270e89eab2b19778502edbd0398987bc2459c56e51eeb200a9bdc6",
-  "tcp_connect_median_ms": 6.58,
-  "tasks_already_final": 0
+  "tcp_connect_median_ms": 10.89,
+  "tasks_already_final": 644
  }
 }

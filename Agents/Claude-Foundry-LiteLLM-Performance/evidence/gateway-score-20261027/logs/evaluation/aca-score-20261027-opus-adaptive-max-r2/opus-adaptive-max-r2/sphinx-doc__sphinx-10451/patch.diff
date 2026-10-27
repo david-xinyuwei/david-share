@@ -1,0 +1,33 @@
+
+--- a/sphinx/ext/autodoc/typehints.py
++++ b/sphinx/ext/autodoc/typehints.py
+@@ -115,7 +115,14 @@
+         if name == 'return':
+             continue
+ 
++        # variadic arguments (ex. *args and **kwargs) might be documented with
++        # their prefixes ("*" and "**").  Use the documented names for them.
++        if '*' + name in arguments:
++            name = '*' + name
++        elif '**' + name in arguments:
++            name = '**' + name
++
+         arg = arguments.get(name, {})
+         if not arg.get('type'):
+             field = nodes.field()
+             field += nodes.field_name('', 'type ' + name)
+@@ -166,3 +173,14 @@
+         elif parts[0] == 'rtype':
+             has_type.add('return')
++
++    # variadic arguments (ex. *args and **kwargs) might be documented with
++    # their prefixes ("*" and "**").  Use the documented names for them.
++    documented_annotations: Dict[str, str] = {}
++    for name, annotation in annotations.items():
++        if '*' + name in has_description:
++            name = '*' + name
++        elif '**' + name in has_description:
++            name = '**' + name
++        documented_annotations[name] = annotation
++    annotations = documented_annotations
+ 

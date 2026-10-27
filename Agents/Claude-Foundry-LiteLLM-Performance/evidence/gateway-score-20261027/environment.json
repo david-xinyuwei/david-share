@@ -1,0 +1,513 @@
+{
+  "capturedAt": "2026-10-27T09:02:38.9621471-07:00",
+  "scope": "Post-evaluation inventory of the original VM; not in-run telemetry",
+  "packages": [
+    {
+      "name": "aiohappyeyeballs",
+      "version": "2.7.1"
+    },
+    {
+      "name": "aiohttp",
+      "version": "3.14.5"
+    },
+    {
+      "name": "aiosignal",
+      "version": "1.4.0"
+    },
+    {
+      "name": "annotated-doc",
+      "version": "0.0.5"
+    },
+    {
+      "name": "anyio",
+      "version": "4.15.1"
+    },
+    {
+      "name": "attrs",
+      "version": "26.1.0"
+    },
+    {
+      "name": "azure-core",
+      "version": "1.41.0"
+    },
+    {
+      "name": "azure-identity",
+      "version": "1.25.1"
+    },
+    {
+      "name": "azure-storage-blob",
+      "version": "12.27.1"
+    },
+    {
+      "name": "beautifulsoup4",
+      "version": "4.15.0"
+    },
+    {
+      "name": "cbor2",
+      "version": "6.1.5"
+    },
+    {
+      "name": "certifi",
+      "version": "2026.10.23"
+    },
+    {
+      "name": "cffi",
+      "version": "2.1.1"
+    },
+    {
+      "name": "cfgv",
+      "version": "3.5.0"
+    },
+    {
+      "name": "chardet",
+      "version": "7.7.0"
+    },
+    {
+      "name": "charset-normalizer",
+      "version": "3.5.2"
+    },
+    {
+      "name": "click",
+      "version": "8.5.0"
+    },
+    {
+      "name": "cryptography",
+      "version": "50.0.2"
+    },
+    {
+      "name": "datasets",
+      "version": "5.1.0"
+    },
+    {
+      "name": "dill",
+      "version": "0.4.1"
+    },
+    {
+      "name": "distlib",
+      "version": "0.4.4"
+    },
+    {
+      "name": "docker",
+      "version": "7.2.0"
+    },
+    {
+      "name": "fastcore",
+      "version": "1.14.5"
+    },
+    {
+      "name": "filelock",
+      "version": "4.2.4"
+    },
+    {
+      "name": "frozenlist",
+      "version": "1.8.0"
+    },
+    {
+      "name": "fsspec",
+      "version": "2026.7.0"
+    },
+    {
+      "name": "ghapi",
+      "version": "1.1.1"
+    },
+    {
+      "name": "gitdb",
+      "version": "4.0.12"
+    },
+    {
+      "name": "GitPython",
+      "version": "3.2.1"
+    },
+    {
+      "name": "grpclib",
+      "version": "0.4.9"
+    },
+    {
+      "name": "h11",
+      "version": "0.16.0"
+    },
+    {
+      "name": "h2",
+      "version": "4.4.1"
+    },
+    {
+      "name": "hf-xet",
+      "version": "1.7.0"
+    },
+    {
+      "name": "hpack",
+      "version": "4.2.0"
+    },
+    {
+      "name": "httpcore",
+      "version": "1.0.9"
+    },
+    {
+      "name": "httpcore2",
+      "version": "2.16.0"
+    },
+    {
+      "name": "httpx",
+      "version": "0.28.1"
+    },
+    {
+      "name": "httpx2",
+      "version": "2.16.0"
+    },
+    {
+      "name": "huggingface_hub",
+      "version": "2.3.0"
+    },
+    {
+      "name": "hyperframe",
+      "version": "6.1.0"
+    },
+    {
+      "name": "identify",
+      "version": "2.6.20"
+    },
+    {
+      "name": "idna",
+      "version": "3.20"
+    },
+    {
+      "name": "isodate",
+      "version": "0.7.2"
+    },
+    {
+      "name": "markdown-it-py",
+      "version": "4.2.0"
+    },
+    {
+      "name": "mdurl",
+      "version": "0.1.2"
+    },
+    {
+      "name": "modal",
+      "version": "1.6.2"
+    },
+    {
+      "name": "msal",
+      "version": "1.39.0"
+    },
+    {
+      "name": "msal-extensions",
+      "version": "1.3.1"
+    },
+    {
+      "name": "multidict",
+      "version": "7.2.1"
+    },
+    {
+      "name": "multiprocess",
+      "version": "0.70.19"
+    },
+    {
+      "name": "nodeenv",
+      "version": "1.11.0"
+    },
+    {
+      "name": "numpy",
+      "version": "2.5.4"
+    },
+    {
+      "name": "packaging",
+      "version": "26.3"
+    },
+    {
+      "name": "pandas",
+      "version": "3.1.0"
+    },
+    {
+      "name": "pip",
+      "version": "26.2.2"
+    },
+    {
+      "name": "platformdirs",
+      "version": "4.13.6"
+    },
+    {
+      "name": "pre_commit",
+      "version": "4.7.0"
+    },
+    {
+      "name": "propcache",
+      "version": "0.5.4"
+    },
+    {
+      "name": "protobuf",
+      "version": "7.36.2"
+    },
+    {
+      "name": "pyarrow",
+      "version": "26.0.0"
+    },
+    {
+      "name": "pycparser",
+      "version": "3.12"
+    },
+    {
+      "name": "Pygments",
+      "version": "2.21.0"
+    },
+    {
+      "name": "PyJWT",
+      "version": "2.15.1"
+    },
+    {
+      "name": "python-dateutil",
+      "version": "3.0.0"
+    },
+    {
+      "name": "python-discovery",
+      "version": "1.6.5"
+    },
+    {
+      "name": "python-dotenv",
+      "version": "1.2.4"
+    },
+    {
+      "name": "PyYAML",
+      "version": "6.0.3"
+    },
+    {
+      "name": "requests",
+      "version": "2.34.2"
+    },
+    {
+      "name": "rich",
+      "version": "15.0.0"
+    },
+    {
+      "name": "shellingham",
+      "version": "1.5.4"
+    },
+    {
+      "name": "six",
+      "version": "1.17.0"
+    },
+    {
+      "name": "smmap",
+      "version": "5.0.3"
+    },
+    {
+      "name": "soupsieve",
+      "version": "3.0.4"
+    },
+    {
+      "name": "swebench",
+      "version": "5.0.2"
+    },
+    {
+      "name": "synchronicity",
+      "version": "0.12.7"
+    },
+    {
+      "name": "tenacity",
+      "version": "9.2.1"
+    },
+    {
+      "name": "toml",
+      "version": "0.10.2"
+    },
+    {
+      "name": "tqdm",
+      "version": "4.70.1"
+    },
+    {
+      "name": "truststore",
+      "version": "0.10.5"
+    },
+    {
+      "name": "typer",
+      "version": "0.27.3"
+    },
+    {
+      "name": "types-certifi",
+      "version": "2021.10.8.3"
+    },
+    {
+      "name": "types-toml",
+      "version": "0.10.8.20260518"
+    },
+    {
+      "name": "typing_extensions",
+      "version": "4.16.0"
+    },
+    {
+      "name": "tzdata",
+      "version": "2026.5"
+    },
+    {
+      "name": "unidiff",
+      "version": "1.0.1"
+    },
+    {
+      "name": "urllib3",
+      "version": "2.8.0"
+    },
+    {
+      "name": "virtualenv",
+      "version": "21.15.0"
+    },
+    {
+      "name": "watchfiles",
+      "version": "1.3.0"
+    },
+    {
+      "name": "xxhash",
+      "version": "4.0.2"
+    },
+    {
+      "name": "yarl",
+      "version": "1.25.1"
+    }
+  ],
+  "images": [
+    {
+      "Id": "sha256:d8703d50c49fae62753520403c3d4cd8a1048b7e554159aa4f46bb5f778f0ed3",
+      "RepoTags": [
+        "swebench/sweb.eval.x86_64.django_1776_django-11422:latest"
+      ],
+      "RepoDigests": [
+        "swebench/sweb.eval.x86_64.django_1776_django-11422@sha256:d8703d50c49fae62753520403c3d4cd8a1048b7e554159aa4f46bb5f778f0ed3"
+      ],
+      "Created": "2026-08-15T05:21:50.043946586Z",
+      "Architecture": "amd64",
+      "Os": "linux"
+    },
+    {
+      "Id": "sha256:c28686e155d0dd367dca0608074c62d28e5255629127d58a615594be24f20cbf",
+      "RepoTags": [
+        "swebench/sweb.eval.x86_64.django_1776_django-12184:latest"
+      ],
+      "RepoDigests": [
+        "swebench/sweb.eval.x86_64.django_1776_django-12184@sha256:c28686e155d0dd367dca0608074c62d28e5255629127d58a615594be24f20cbf"
+      ],
+      "Created": "2026-08-15T05:24:38.695293801Z",
+      "Architecture": "amd64",
+      "Os": "linux"
+    },
+    {
+      "Id": "sha256:dc4760a6acfa699a65ed39eaa297c86d24560e467548a5ef3c54a79469ab2429",
+      "RepoTags": [
+        "swebench/sweb.eval.x86_64.django_1776_django-15320:latest"
+      ],
+      "RepoDigests": [
+        "swebench/sweb.eval.x86_64.django_1776_django-15320@sha256:dc4760a6acfa699a65ed39eaa297c86d24560e467548a5ef3c54a79469ab2429"
+      ],
+      "Created": "2026-08-15T06:19:03.923741614Z",
+      "Architecture": "amd64",
+      "Os": "linux"
+    },
+    {
+      "Id": "sha256:05369549db34553599f6f96d65ee9c75173c02d9285d283422f6b6e49f0b8df2",
+      "RepoTags": [
+        "swebench/sweb.eval.x86_64.pallets_1776_flask-5063:latest"
+      ],
+      "RepoDigests": [
+        "swebench/sweb.eval.x86_64.pallets_1776_flask-5063@sha256:05369549db34553599f6f96d65ee9c75173c02d9285d283422f6b6e49f0b8df2"
+      ],
+      "Created": "2026-08-15T07:21:59.372152297Z",
+      "Architecture": "amd64",
+      "Os": "linux"
+    },
+    {
+      "Id": "sha256:6bf0ee60d9e1bb2772f3287f54df0875884ec8aa1e24e6fad14beec46aad70b0",
+      "RepoTags": [
+        "swebench/sweb.eval.x86_64.pylint-dev_1776_pylint-7114:latest"
+      ],
+      "RepoDigests": [
+        "swebench/sweb.eval.x86_64.pylint-dev_1776_pylint-7114@sha256:6bf0ee60d9e1bb2772f3287f54df0875884ec8aa1e24e6fad14beec46aad70b0"
+      ],
+      "Created": "2026-08-15T07:32:25.131425262Z",
+      "Architecture": "amd64",
+      "Os": "linux"
+    },
+    {
+      "Id": "sha256:f54aca361060d4daad66263a4233589286af074725785be8c893b7f30b697190",
+      "RepoTags": [
+        "swebench/sweb.eval.x86_64.pytest-dev_1776_pytest-7373:latest"
+      ],
+      "RepoDigests": [
+        "swebench/sweb.eval.x86_64.pytest-dev_1776_pytest-7373@sha256:f54aca361060d4daad66263a4233589286af074725785be8c893b7f30b697190"
+      ],
+      "Created": "2026-08-15T07:37:27.637273889Z",
+      "Architecture": "amd64",
+      "Os": "linux"
+    },
+    {
+      "Id": "sha256:244c5794ef548982322d967e0c3d9f15e311d27b980636645f41a58b0f2f92c4",
+      "RepoTags": [
+        "swebench/sweb.eval.x86_64.sphinx-doc_1776_sphinx-10451:latest"
+      ],
+      "RepoDigests": [
+        "swebench/sweb.eval.x86_64.sphinx-doc_1776_sphinx-10451@sha256:244c5794ef548982322d967e0c3d9f15e311d27b980636645f41a58b0f2f92c4"
+      ],
+      "Created": "2026-08-15T07:57:39.852838257Z",
+      "Architecture": "amd64",
+      "Os": "linux"
+    },
+    {
+      "Id": "sha256:908d80e3f2cb27da3fa10152c4da53d3be5389d39468339aad5563fda8f8e65d",
+      "RepoTags": [
+        "swebench/sweb.eval.x86_64.sphinx-doc_1776_sphinx-7738:latest"
+      ],
+      "RepoDigests": [
+        "swebench/sweb.eval.x86_64.sphinx-doc_1776_sphinx-7738@sha256:908d80e3f2cb27da3fa10152c4da53d3be5389d39468339aad5563fda8f8e65d"
+      ],
+      "Created": "2026-08-15T07:59:43.718278784Z",
+      "Architecture": "amd64",
+      "Os": "linux"
+    },
+    {
+      "Id": "sha256:98270682f9052def68c8c42f78fb6ce6573f2dc7b8cb7fe741139a0543b30e21",
+      "RepoTags": [
+        "swebench/sweb.eval.x86_64.sympy_1776_sympy-13480:latest"
+      ],
+      "RepoDigests": [
+        "swebench/sweb.eval.x86_64.sympy_1776_sympy-13480@sha256:98270682f9052def68c8c42f78fb6ce6573f2dc7b8cb7fe741139a0543b30e21"
+      ],
+      "Created": "2026-08-15T08:07:42.938749873Z",
+      "Architecture": "amd64",
+      "Os": "linux"
+    },
+    {
+      "Id": "sha256:1c3e7e826b3d32c7f2dc155470ace96063278ed78af91b9f0c8268824053779e",
+      "RepoTags": [
+        "swebench/sweb.eval.x86_64.sympy_1776_sympy-14774:latest"
+      ],
+      "RepoDigests": [
+        "swebench/sweb.eval.x86_64.sympy_1776_sympy-14774@sha256:1c3e7e826b3d32c7f2dc155470ace96063278ed78af91b9f0c8268824053779e"
+      ],
+      "Created": "2026-08-15T08:08:57.442502621Z",
+      "Architecture": "amd64",
+      "Os": "linux"
+    },
+    {
+      "Id": "sha256:7366161345db427a35b5c64a93b106072481023a24b17a42ed83589c4cdfdde1",
+      "RepoTags": [
+        "swebench/sweb.eval.x86_64.sympy_1776_sympy-18087:latest"
+      ],
+      "RepoDigests": [
+        "swebench/sweb.eval.x86_64.sympy_1776_sympy-18087@sha256:7366161345db427a35b5c64a93b106072481023a24b17a42ed83589c4cdfdde1"
+      ],
+      "Created": "2026-08-15T08:11:07.444038719Z",
+      "Architecture": "amd64",
+      "Os": "linux"
+    },
+    {
+      "Id": "sha256:9a45ffe20cac4243930e8c5b2b065adbc08f476c880d7465ca0fbfb9f98c6456",
+      "RepoTags": [
+        "swebench/sweb.eval.x86_64.sympy_1776_sympy-21847:latest"
+      ],
+      "RepoDigests": [
+        "swebench/sweb.eval.x86_64.sympy_1776_sympy-21847@sha256:9a45ffe20cac4243930e8c5b2b065adbc08f476c880d7465ca0fbfb9f98c6456"
+      ],
+      "Created": "2026-08-15T08:14:13.084452577Z",
+      "Architecture": "amd64",
+      "Os": "linux"
+    }
+  ],
+  "dockerVersionOutput": "Docker version 29.1.3, build 29.1.3-0ubuntu3~24.04.2"
+}

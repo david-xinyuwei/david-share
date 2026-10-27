@@ -1,0 +1,7 @@
+I couldn't produce a reliable patch for this issue. The code that causes it isn't in the files you provided: `pylint/lint/expand_modules.py` and `pylint/lint/utils.py`, where `__init__.py` is assumed for a directory.
+
+The shown files (`constants.py`, `epylint.py`, `base_options.py`, `pyreverse/main.py`) don't contain the failing logic. Any diff I wrote against `expand_modules.py` would be a guess at its exact text and would likely not apply cleanly with `git apply`.
+
+My best guess at the cause: `fix_import_path` puts the directory `a/` on `sys.path`. The name `a` then resolves to `a/a.py` instead of the package directory `a`. `expand_modules` then builds `a/__init__.py` for a directory that has no `__init__.py`, and parsing fails.
+
+If you send `pylint/lint/expand_modules.py` and `pylint/lint/utils.py`, I can write an exact patch. The fix would have to avoid assuming `__init__.py` exists when the directory has none, and stop the directory itself from shadowing the package name on `sys.path`.

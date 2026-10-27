@@ -1,0 +1,25 @@
+2026-10-27 10:53:20,245 - INFO - Creating container for django__django-12184...
+2026-10-27 10:53:20,464 - INFO - Container for django__django-12184 created: f499d40c59d4e2c6891c0e8c59b2c505286c3231fd4b722428698d46a07e6095
+2026-10-27 10:53:20,723 - INFO - Container for django__django-12184 started: f499d40c59d4e2c6891c0e8c59b2c505286c3231fd4b722428698d46a07e6095
+2026-10-27 10:53:20,723 - INFO - Intermediate patch for django__django-12184 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-low-r2/sonnet-adaptive-low-r2/django__django-12184/patch.diff, now applying to container...
+2026-10-27 10:53:20,811 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:53:21,667 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:53:22,082 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:53:22,528 - INFO - >>>>> Applied Patch:
+patching file django/urls/resolvers.py
+Hunk #1 succeeded at 3 (offset 2 lines).
+
+2026-10-27 10:53:22,594 - INFO - Git diff before:
+
+2026-10-27 10:53:22,594 - INFO - Eval script for django__django-12184 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-low-r2/sonnet-adaptive-low-r2/django__django-12184/eval.sh; copying to container...
+2026-10-27 10:53:27,853 - INFO - Test runtime: 5.22 seconds
+2026-10-27 10:53:27,855 - INFO - Test output for django__django-12184 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-low-r2/sonnet-adaptive-low-r2/django__django-12184/test_output.txt
+2026-10-27 10:53:27,904 - INFO - Git diff after:
+
+2026-10-27 10:53:27,904 - INFO - Grading answer for django__django-12184...
+2026-10-27 10:53:27,910 - INFO - report: {'django__django-12184': {'patch_is_None': False, 'patch_exists': True, 'patch_successfully_applied': True, 'resolved': False, 'infra_failure': False, 'tests_status': {'FAIL_TO_PASS': {'success': [], 'failure': ['test_re_path_with_missing_optional_parameter (urlpatterns.tests.SimplifiedURLTests)']}, 'PASS_TO_PASS': {'success': ['test_allows_non_ascii_but_valid_identifiers (urlpatterns.tests.ParameterRestrictionTests)', 'test_non_identifier_parameter_name_causes_exception (urlpatterns.tests.ParameterRestrictionTests)', 'test_matching_urls (urlpatterns.tests.ConverterTests)', 'test_nonmatching_urls (urlpatterns.tests.ConverterTests)', 'test_resolve_type_error_propagates (urlpatterns.tests.ConversionExceptionTests)', 'test_resolve_value_error_means_no_match (urlpatterns.tests.ConversionExceptionTests)', 'test_reverse_value_error_propagates (urlpatterns.tests.ConversionExceptionTests)', 'test_converter_resolve (urlpatterns.tests.SimplifiedURLTests)', 'test_converter_reverse (urlpatterns.tests.SimplifiedURLTests)', 'test_converter_reverse_with_second_layer_instance_namespace (urlpatterns.tests.SimplifiedURLTests)', 'test_invalid_converter (urlpatterns.tests.SimplifiedURLTests)', 'test_path_inclusion_is_matchable (urlpatterns.tests.SimplifiedURLTests)', 'test_path_inclusion_is_reversible (urlpatterns.tests.SimplifiedURLTests)', 'test_path_lookup_with_double_inclusion (urlpatterns.tests.SimplifiedURLTests)', 'test_path_lookup_with_empty_string_inclusion (urlpatterns.tests.SimplifiedURLTests)', 'test_path_lookup_with_inclusion (urlpatterns.tests.SimplifiedURLTests)', 'test_path_lookup_with_multiple_parameters (urlpatterns.tests.SimplifiedURLTests)', 'test_path_lookup_with_typed_parameters (urlpatterns.tests.SimplifiedURLTests)', 'test_path_lookup_without_parameters (urlpatterns.tests.SimplifiedURLTests)', 'test_path_reverse_with_parameter (urlpatterns.tests.SimplifiedURLTests)', 'test_path_reverse_without_parameter (urlpatterns.tests.SimplifiedURLTests)', 'test_re_path (urlpatterns.tests.SimplifiedURLTests)', 'test_re_path_with_optional_parameter (urlpatterns.tests.SimplifiedURLTests)', 'test_space_in_route (urlpatterns.tests.SimplifiedURLTests)', 'test_two_variable_at_start_of_path_pattern (urlpatterns.tests.SimplifiedURLTests)'], 'failure': []}, 'FAIL_TO_FAIL': {'success': [], 'failure': []}, 'PASS_TO_FAIL': {'success': [], 'failure': []}}}}
+Result for django__django-12184: resolved: False
+2026-10-27 10:53:27,911 - INFO - Attempting to stop container sweb.eval.django__django-12184.aca-score-20261027-sonnet-adaptive-low-r2...
+2026-10-27 10:53:43,830 - INFO - Container sweb.eval.django__django-12184.aca-score-20261027-sonnet-adaptive-low-r2 stopped successfully.
+2026-10-27 10:53:43,830 - INFO - Attempting to remove container sweb.eval.django__django-12184.aca-score-20261027-sonnet-adaptive-low-r2...
+2026-10-27 10:53:44,021 - INFO - Container sweb.eval.django__django-12184.aca-score-20261027-sonnet-adaptive-low-r2 removed successfully.

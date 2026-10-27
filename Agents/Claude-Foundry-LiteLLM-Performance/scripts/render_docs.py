@@ -370,7 +370,7 @@ def security(chinese):
 
 {'真实输入、模型回答、签名及认证信息可能敏感。live-runs、private、runs 与 .env 已忽略；不要上传运行目录。历史 coding-matrix-20261026 记录只替换了端点资源名和 VM 名称；新的 gateway-cache-20261026 是指标投影，保留数值但省略提示／回答正文、思考签名、私有端点和非区域响应头。各自的导出清单记录哈希与边界，不能把指标投影用于代码正确率评分。2026-10-24 的公开证据省略了签名，call ID 已假名化，不能拿它的历史重放签名。' if chinese else 'Live inputs, responses, signatures and authentication can be sensitive. live-runs, private, runs and .env are ignored; do not upload run directories. Historical coding-matrix-20261026 records replace only endpoint and VM names. New gateway-cache-20261026 records are a metrics projection: numbers are preserved but prompt/answer bodies, thinking signatures, private endpoints and non-region headers are omitted. Each export manifest records its hashes and scope; the metrics projection cannot score code correctness. The 2026-10-24 evidence omits signatures and pseudonymizes call IDs; do not replay its history signatures.'}
 
-{'未验证：当前 ACA 全量结果与正确率、公开包装在全新订阅中的端到端部署、并发压测、Azure 以外的客户端、display: "summarized"、带工具的请求，以及客户自己的任务。已有同区域 ACA 部分快照，但不能据此宣称全量通过。' if chinese else 'Not verified: full ACA results and correctness, an end-to-end deployment of this public package in a fresh subscription, concurrency or load, a client outside Azure, display: "summarized", requests with tools, and customer tasks. A same-region ACA partial snapshot exists; it does not establish full completion.'}'''
+{'本轮 ACA 的 650 条请求和 624 份正式答案评分已收齐；失败和六条官方模糊标记保留。未验证：公开包装在全新订阅中的端到端部署、并发压测、Azure 以外的客户端、display: "summarized"、带工具的请求，以及客户自己的任务。评分环境版本是评分后采集，不是运行时遥测。' if chinese else 'All 650 ACA request records and grading outcomes for 624 measured answers are retained, including failures and six official ambiguous flags. Not verified: an end-to-end deployment in a fresh subscription, concurrency or load, a client outside Azure, display: "summarized", tool use, and customer tasks. Environment versions were collected after grading, not as in-run telemetry.'}'''
 
 
 def pages(result):
@@ -393,7 +393,7 @@ def pages(result):
             author = "Author: Xinyu Wei · [中文](README_CN.md)"
         badges = "\n".join([
             f"[![Models](https://img.shields.io/badge/models-Opus%20%C2%B7%20Sonnet%20%C2%B7%20Haiku%205.5-0078D4)]({anchors[0]})",
-            f"[![Measured](https://img.shields.io/badge/measured-2026--10--24%20and%2010--26-0078D4)]({anchors[1]})",
+            f"[![Measured](https://img.shields.io/badge/measured-2026--10--26%20to%2010--27-0078D4)]({anchors[1]})",
             "[![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/claude-foundry-performance-ci.yml/badge.svg)](https://github.com/david-xinyuwei/david-share/actions/workflows/claude-foundry-performance-ci.yml)",
         ])
         output[readme_name] = "\n\n".join([
@@ -403,8 +403,8 @@ def pages(result):
             f"## {headings[2]}", render_coding.steps(d, chinese),
         ])
         nav_results = f"[README](../{readme_name}) · [{'复测与核验' if chinese else 'Testing'}](testing{suffix}.md) · [{'English' if chinese else '中文'}](results{'' if chinese else '_CN'}.md)"
-        intro_results = ("先列当前 East US 2 ACA 开启缓存测试的部分快照，包含全部计划配置与缺失范围；随后保留已取缔直连方案的历史编码矩阵、参数探测、缓存测试和 2026-10-24 网关检查。各批次的输入、计数和边界分别说明，不混算。"
-                 if chinese else "Current East US 2 cache-enabled ACA partial evidence comes first, with every planned configuration and missing coverage. Retired direct-VM matrix, probe and cache evidence and the 2026-10-24 gateway check follow as historical records. Inputs, counts and limits stay separate for each run.")
+        intro_results = ("先看本轮 East US 2 ACA 全量性能结果，再看 624 份正式答案的代码正确率；全部配置、失败和限制均保留。已取缔直连方案的历史编码矩阵、参数探测、缓存测试和早期网关检查放在后面，不与本轮混算。"
+             if chinese else "Current East US 2 ACA performance comes first, followed by correctness for all 624 measured answers. Every configuration, failure and limitation is retained. Retired direct-VM matrix, probe, cache and earlier gateway evidence follow, without pooling runs.")
         output[f"docs/results{suffix}.md"] = "\n\n".join([
             f"# {'实测结果' if chinese else 'Measured Results'}", nav_results, intro_results,
             render_coding.gateway_snapshot(chinese, detailed=True),

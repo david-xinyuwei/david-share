@@ -8,4 +8,6 @@ Dockerfile -filter text eol=lf
 *.svg -filter text eol=lf
 *.png -filter binary
 *.txt -filter text eol=lf
+*.log -filter text eol=lf
+*.diff -filter -text
 *.sh -filter text eol=lf

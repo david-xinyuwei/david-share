@@ -1,0 +1,11 @@
+I can't produce a patch that will apply cleanly here. The issue is in SymPy's trig simplification code, but the files I was given are only the README, and the patch template you sent is an unrelated example (`euclidean` and `bresenham` in `file.py`). Writing a diff against guessed line numbers would likely fail `git apply` or change the wrong code.
+
+**What I can tell you about the bug:**
+
+- `sqrt(sin(x)**2)` equals `sin(x)` only when `sin(x)` is real and nonnegative. For general complex `x` it isn't equal to `sin(x)`, and not even to `Abs(sin(x))`.
+- The wrong result comes from a trigsimp/futrig rule (likely in `sympy/simplify/trigsimp.py` or `sympy/simplify/fu.py`) that rewrites `sqrt(f**2)` as `f` without checking the assumptions on `f`.
+- The fact that real `x` gives the right answer fits this: the rule only fires when the sign of the argument is known.
+
+**Possible fix:** when a rewrite turns `sqrt(f**2)` into `f`, require `f` to be known nonnegative (or leave the expression unchanged). Otherwise leave `sqrt(sin(x)**2)` alone.
+
+**To get a real patch,** send me the contents of the relevant file (most likely `sympy/simplify/fu.py` or `sympy/simplify/trigsimp.py`), plus the output of `git log -1` so I know which revision the diff must match. I'll then write a patch against those exact lines and add a regression test for `cos(x) + sqrt(sin(x)**2)` with a complex symbol.

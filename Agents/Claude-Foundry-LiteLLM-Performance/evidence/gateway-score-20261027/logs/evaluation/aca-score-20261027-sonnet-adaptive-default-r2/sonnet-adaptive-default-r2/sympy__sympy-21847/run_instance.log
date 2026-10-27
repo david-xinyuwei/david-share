@@ -1,0 +1,64 @@
+2026-10-27 10:46:51,067 - INFO - Creating container for sympy__sympy-21847...
+2026-10-27 10:46:51,222 - INFO - Container for sympy__sympy-21847 created: 43f3995f676b84335d40e952d92ed402bb454c30d2b686fcf287a950b90d2402
+2026-10-27 10:46:51,404 - INFO - Container for sympy__sympy-21847 started: 43f3995f676b84335d40e952d92ed402bb454c30d2b686fcf287a950b90d2402
+2026-10-27 10:46:51,404 - INFO - Intermediate patch for sympy__sympy-21847 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-default-r2/sonnet-adaptive-default-r2/sympy__sympy-21847/patch.diff, now applying to container...
+2026-10-27 10:46:51,486 - INFO - >>>>> Applied Patch:
+Checking patch sympy/polys/monomials.py...
+Applied patch sympy/polys/monomials.py cleanly.
+
+2026-10-27 10:46:51,877 - INFO - Git diff before:
+diff --git a/sympy/polys/monomials.py b/sympy/polys/monomials.py
+index 0e84403307..d2cd3451e5 100755
+--- a/sympy/polys/monomials.py
++++ b/sympy/polys/monomials.py
+@@ -127,7 +127,7 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+                 for variable in item:
+                     if variable != 1:
+                         powers[variable] += 1
+-                if max(powers.values()) >= min_degree:
++                if sum(powers.values()) >= min_degree:
+                     monomials_list_comm.append(Mul(*item))
+             yield from set(monomials_list_comm)
+         else:
+@@ -139,7 +139,7 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+                 for variable in item:
+                     if variable != 1:
+                         powers[variable] += 1
+-                if max(powers.values()) >= min_degree:
++                if sum(powers.values()) >= min_degree:
+                     monomials_list_non_comm.append(Mul(*item))
+             yield from set(monomials_list_non_comm)
+     else:
+2026-10-27 10:46:51,878 - INFO - Eval script for sympy__sympy-21847 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-default-r2/sonnet-adaptive-default-r2/sympy__sympy-21847/eval.sh; copying to container...
+2026-10-27 10:46:55,616 - INFO - Test runtime: 3.70 seconds
+2026-10-27 10:46:55,617 - INFO - Test output for sympy__sympy-21847 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-default-r2/sonnet-adaptive-default-r2/sympy__sympy-21847/test_output.txt
+2026-10-27 10:46:55,660 - INFO - Git diff after:
+diff --git a/sympy/polys/monomials.py b/sympy/polys/monomials.py
+index 0e84403307..d2cd3451e5 100755
+--- a/sympy/polys/monomials.py
++++ b/sympy/polys/monomials.py
+@@ -127,7 +127,7 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+                 for variable in item:
+                     if variable != 1:
+                         powers[variable] += 1
+-                if max(powers.values()) >= min_degree:
++                if sum(powers.values()) >= min_degree:
+                     monomials_list_comm.append(Mul(*item))
+             yield from set(monomials_list_comm)
+         else:
+@@ -139,7 +139,7 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+                 for variable in item:
+                     if variable != 1:
+                         powers[variable] += 1
+-                if max(powers.values()) >= min_degree:
++                if sum(powers.values()) >= min_degree:
+                     monomials_list_non_comm.append(Mul(*item))
+             yield from set(monomials_list_non_comm)
+     else:
+2026-10-27 10:46:55,660 - INFO - Grading answer for sympy__sympy-21847...
+2026-10-27 10:46:55,662 - INFO - report: {'sympy__sympy-21847': {'patch_is_None': False, 'patch_exists': True, 'patch_successfully_applied': True, 'resolved': True, 'infra_failure': False, 'tests_status': {'FAIL_TO_PASS': {'success': ['test_monomials'], 'failure': []}, 'PASS_TO_PASS': {'success': ['test_monomial_count', 'test_monomial_mul', 'test_monomial_div', 'test_monomial_gcd', 'test_monomial_lcm', 'test_monomial_max', 'test_monomial_pow', 'test_monomial_min', 'test_monomial_divides'], 'failure': []}, 'FAIL_TO_FAIL': {'success': [], 'failure': []}, 'PASS_TO_FAIL': {'success': [], 'failure': []}}}}
+Result for sympy__sympy-21847: resolved: True
+2026-10-27 10:46:55,662 - INFO - Attempting to stop container sweb.eval.sympy__sympy-21847.aca-score-20261027-sonnet-adaptive-default-r2...
+2026-10-27 10:47:10,904 - INFO - Container sweb.eval.sympy__sympy-21847.aca-score-20261027-sonnet-adaptive-default-r2 stopped successfully.
+2026-10-27 10:47:10,904 - INFO - Attempting to remove container sweb.eval.sympy__sympy-21847.aca-score-20261027-sonnet-adaptive-default-r2...
+2026-10-27 10:47:10,967 - INFO - Container sweb.eval.sympy__sympy-21847.aca-score-20261027-sonnet-adaptive-default-r2 removed successfully.

@@ -1,0 +1,11 @@
+The problem is in how pylint resolves a module named `a` when a directory `a/` contains `a.py`: the module resolution picks up `a/a.py` in a way that treats `a/` as a package requiring `__init__.py`. The fix belongs in the module-discovery path, which I can't see in the provided files, so I can't produce a verified patch against the exact code.
+
+Rather than fabricate changes to files I haven't been shown, here is what I'd recommend:
+
+1. Locate the discovery logic in `pylint/lint/expand_modules.py` (the `expand_modules` function), which decides whether a path argument is a package and how it recurses into `a/`.
+2. The bug occurs when the package name matches a submodule name, so the code likely resolves `a` to `a/a.py` and then tries to load `a/__init__.py` as the module source. The fix is to only treat a directory as a package (and look for `__init__.py`) when resolving the directory itself, and to not conflate `a/a.py` with the package `a`.
+3. Add a regression test under `tests/` with a directory `a/` containing `a.py` and `b.py` (no `__init__.py`), asserting that `pylint a` produces no `parse-error`.
+
+If you share the contents of `pylint/lint/expand_modules.py` (and the relevant part of `pylint/lint/pylinter.py` where `get_ast` is called), I can write an exact `git apply`-ready patch against them.
+
+Note that the patch I was shown in the example format (the euclidean/bresenham code) is unrelated to this issue, so I did not apply it.

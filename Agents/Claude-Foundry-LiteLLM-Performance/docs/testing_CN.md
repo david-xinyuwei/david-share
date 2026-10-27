@@ -6,15 +6,34 @@
 
 <a id="aca-snapshot-replay"></a>
 
-## 复算 ACA 部分快照
+## 复算 ACA 全量结果
 
 在仓库的本项目目录，用 Python 3.12 或 3.13 执行。下列离线命令不发送请求，也不需要凭据：
 
 ```bash
 python -B gateway-cache/analyze_cache_matrix.py --run-dir evidence/gateway-cache-20261026 --out evidence/gateway-cache-20261026/interim-facts.json --check
+python -B gateway-cache/swebench_score.py check-public --out evidence/gateway-score-20261027 --inference-dir evidence/gateway-cache-20261026
 ```
 
-预期输出 `facts match`、退出码为 0。这只证明已保存指标可复算，不代表计划的 650 次请求全部完成。单元测试另查 26 格覆盖、导出哈希、重复记录拒绝和部分快照边界；不能用历史直连评分替代尚未取得的 ACA 正确率结果。
+预期先输出 `facts match`，再输出 status PASS、denominator 624、resolved 245，退出码均为 0。这是在复算已保存指标与官方判定，不生成新答案、不重跑 Docker。缓存命中性能用 302 组配对，正确率保留每一份正式答案。
+
+### 对公开补丁重新执行官方测试
+
+在可访问 Docker 的 Linux x86-64 机器上，从本项目目录执行；磁盘须能容纳数据集的 12 个镜像。新建 run_id 前缀，避免误用旧评分缓存。这会真实测试公开的模型补丁，不重新调用模型；机器运行和镜像存储可能计费。原评分使用 Python 3.12.3、2 个并发 worker，每题超时 1,800 秒。
+
+```bash
+python -m pip install 'git+https://github.com/SWE-bench/SWE-bench.git@02e7a74ffd0b707aab73d203fe87bdc7c76afc8e'
+RUN_PREFIX="aca-regrade-$(date -u +%Y%m%d-%H%M%S)"
+for prediction in evidence/gateway-score-20261027/predictions/*.jsonl; do
+  label=$(basename "$prediction" .jsonl)
+  python -u -m swebench.harness.run_evaluation \
+     --dataset_name evidence/gateway-score-20261027/dataset.json \
+     --predictions_path "$prediction" --max_workers 2 --timeout 1800 \
+     --run_id "$RUN_PREFIX-$label" || break
+done
+```
+
+52 批各应生成 `logs/evaluation/<run_id>/results.json`。查看解决、未解决、空补丁和错误 ID，不能只看 CLI 退出码。补丁应用失败属于模型输出结果；基础设施失败应排查后复评同一份冻结补丁。对照[官方原始报告](../evidence/gateway-score-20261027/logs/evaluation)与[预测哈希](../evidence/gateway-score-20261027/manifest.json)。本次文档更新未在全新机器重跑这些公开命令。
 
 ## 离线检查
 
@@ -314,4 +333,4 @@ trace 输入支持观察器原始 JSON/JSONL、控制台 CLAUDE_PROVIDER_TRACE �
 
 真实输入、模型回答、签名及认证信息可能敏感。live-runs、private、runs 与 .env 已忽略；不要上传运行目录。历史 coding-matrix-20261026 记录只替换了端点资源名和 VM 名称；新的 gateway-cache-20261026 是指标投影，保留数值但省略提示／回答正文、思考签名、私有端点和非区域响应头。各自的导出清单记录哈希与边界，不能把指标投影用于代码正确率评分。2026-10-24 的公开证据省略了签名，call ID 已假名化，不能拿它的历史重放签名。
 
-未验证：当前 ACA 全量结果与正确率、公开包装在全新订阅中的端到端部署、并发压测、Azure 以外的客户端、display: "summarized"、带工具的请求，以及客户自己的任务。已有同区域 ACA 部分快照，但不能据此宣称全量通过。
+本轮 ACA 的 650 条请求和 624 份正式答案评分已收齐；失败和六条官方模糊标记保留。未验证：公开包装在全新订阅中的端到端部署、并发压测、Azure 以外的客户端、display: "summarized"、带工具的请求，以及客户自己的任务。评分环境版本是评分后采集，不是运行时遥测。

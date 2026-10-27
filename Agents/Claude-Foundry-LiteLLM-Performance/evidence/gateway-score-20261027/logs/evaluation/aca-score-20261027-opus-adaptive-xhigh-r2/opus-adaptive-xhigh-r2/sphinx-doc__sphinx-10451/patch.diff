@@ -1,0 +1,41 @@
+
+--- a/sphinx/ext/autodoc/typehints.py
++++ b/sphinx/ext/autodoc/typehints.py
+@@ -83,3 +83,25 @@
+     return field_list
+ 
++
++def _resolve_variadic_arguments(annotations: Dict[str, str],
++                                documented: Iterable[str]) -> Dict[str, str]:
++    """Rename the annotations of variadic arguments after their documented names.
++
++    The type hints for ``*args`` and ``**kwargs`` are recorded as ``args`` and
++    ``kwargs``.  But they are often documented with leading asterisks
++    (ex. ``:param *args:``).  This renames such entries to the documented names
++    to prevent duplicated entries in the field list.
++    """
++    names = set(documented)
++    resolved: Dict[str, str] = {}
++    for name, annotation in annotations.items():
++        if name != 'return' and name not in names:
++            if '*' + name in names:
++                name = '*' + name
++            elif '**' + name in names:
++                name = '**' + name
++        resolved[name] = annotation
++
++    return resolved
++
+ 
+@@ -107,3 +129,5 @@
+         elif parts[0] == 'rtype':
+             arguments['return'] = {'type': True}
++
++    annotations = _resolve_variadic_arguments(annotations, arguments)
+ 
+@@ -158,3 +182,5 @@
+         elif parts[0] == 'rtype':
+             has_type.add('return')
++
++    annotations = _resolve_variadic_arguments(annotations, has_description | has_type)
+ 

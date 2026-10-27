@@ -1,0 +1,7 @@
+
+--- a/sphinx/ext/napoleon/docstring.py
++++ b/sphinx/ext/napoleon/docstring.py
+@@ -700,2 +700,2 @@
+-        if name.endswith('_'):
++        if name.endswith('_') and getattr(self._config, 'strip_signature_backslash', False):
+             name = name[:-1] + r'\_'

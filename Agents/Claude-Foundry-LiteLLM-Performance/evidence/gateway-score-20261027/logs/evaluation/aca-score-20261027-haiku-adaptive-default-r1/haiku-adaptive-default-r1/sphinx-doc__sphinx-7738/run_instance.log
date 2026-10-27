@@ -1,0 +1,27 @@
+2026-10-27 09:36:19,396 - INFO - Creating container for sphinx-doc__sphinx-7738...
+2026-10-27 09:36:19,537 - INFO - Container for sphinx-doc__sphinx-7738 created: cee08d093ada0039f36333dff1d93d9402a81460b22ca3ae2921976861040e4d
+2026-10-27 09:36:19,711 - INFO - Container for sphinx-doc__sphinx-7738 started: cee08d093ada0039f36333dff1d93d9402a81460b22ca3ae2921976861040e4d
+2026-10-27 09:36:19,712 - INFO - Intermediate patch for sphinx-doc__sphinx-7738 written to logs/evaluation/aca-score-20261027-haiku-adaptive-default-r1/haiku-adaptive-default-r1/sphinx-doc__sphinx-7738/patch.diff, now applying to container...
+2026-10-27 09:36:19,793 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 09:36:20,019 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 09:36:20,213 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 09:36:20,312 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 09:36:20,349 - INFO - >>>>> Patch Apply Failed:
+patching file sphinx/ext/napoleon/docstring.py
+patch: **** malformed patch at line 14:  
+
+
+2026-10-27 09:36:20,349 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for sphinx-doc__sphinx-7738: >>>>> Patch Apply Failed:
+patching file sphinx/ext/napoleon/docstring.py
+patch: **** malformed patch at line 14:  
+
+
+Check (logs/evaluation/aca-score-20261027-haiku-adaptive-default-r1/haiku-adaptive-default-r1/sphinx-doc__sphinx-7738/run_instance.log) for more information.
+
+2026-10-27 09:36:20,349 - INFO - Attempting to stop container sweb.eval.sphinx-doc__sphinx-7738.aca-score-20261027-haiku-adaptive-default-r1...
+2026-10-27 09:36:36,214 - INFO - Container sweb.eval.sphinx-doc__sphinx-7738.aca-score-20261027-haiku-adaptive-default-r1 stopped successfully.
+2026-10-27 09:36:36,215 - INFO - Attempting to remove container sweb.eval.sphinx-doc__sphinx-7738.aca-score-20261027-haiku-adaptive-default-r1...
+2026-10-27 09:36:36,346 - INFO - Container sweb.eval.sphinx-doc__sphinx-7738.aca-score-20261027-haiku-adaptive-default-r1 removed successfully.

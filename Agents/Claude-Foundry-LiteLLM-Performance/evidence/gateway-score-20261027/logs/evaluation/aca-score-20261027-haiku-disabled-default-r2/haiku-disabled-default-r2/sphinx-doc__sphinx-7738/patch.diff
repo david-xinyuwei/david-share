@@ -1,0 +1,5 @@
+I can't produce a patch for this issue from the provided code alone, because the relevant logic is not in the files shown. The napoleon docstring parser (`sphinx/ext/napoleon/docstring.py`) is where attribute names are formatted, and that file was not included. Guessing at its contents would likely produce a patch that doesn't apply.
+
+What I can say from the issue: the trailing underscore in `hello_` is being escaped to `hello\_` by reStructuredText. In napoleon's `_format_fields`/`_consume_field` path, the field name is wrapped in backquotes or emitted as `:ivar`/`.. attribute::` text, and the underscore ends up treated as an RST reference/emphasis marker, so the backslash escape gets emitted into the output. The fix would most likely be to escape or wrap the name (for example using ``` ``hello_`` ``` literal markup, or applying `rst.escape`-style handling) only where the attribute name is rendered.
+
+If you add `sphinx/ext/napoleon/docstring.py` to the conversation, I can write a patch against the actual code.

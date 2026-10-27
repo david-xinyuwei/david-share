@@ -1,0 +1,91 @@
+2026-10-27 11:01:45,961 - INFO - Creating container for pytest-dev__pytest-7373...
+2026-10-27 11:01:46,160 - INFO - Container for pytest-dev__pytest-7373 created: 4ab6da7387c3561ee5540164b4cf579505a3eeb8a4e35ef375208764edd476a8
+2026-10-27 11:01:46,365 - INFO - Container for pytest-dev__pytest-7373 started: 4ab6da7387c3561ee5540164b4cf579505a3eeb8a4e35ef375208764edd476a8
+2026-10-27 11:01:46,365 - INFO - Intermediate patch for pytest-dev__pytest-7373 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-medium-r2/sonnet-adaptive-medium-r2/pytest-dev__pytest-7373/patch.diff, now applying to container...
+2026-10-27 11:01:46,447 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 11:01:46,578 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 11:01:46,691 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 11:01:46,804 - INFO - >>>>> Applied Patch:
+patching file src/_pytest/mark/evaluate.py
+Hunk #1 succeeded at 2 with fuzz 3.
+
+2026-10-27 11:01:46,865 - INFO - Git diff before:
+diff --git a/src/_pytest/mark/evaluate.py b/src/_pytest/mark/evaluate.py
+index 759191668..b4767b375 100755
+--- a/src/_pytest/mark/evaluate.py
++++ b/src/_pytest/mark/evaluate.py
+@@ -2,7 +2,6 @@ import os
+ import platform
+ import sys
+ import traceback
+-from typing import Any
+ from typing import Dict
+ from typing import List
+ from typing import Optional
+@@ -10,21 +9,7 @@ from typing import Optional
+ from ..outcomes import fail
+ from ..outcomes import TEST_OUTCOME
+ from .structures import Mark
+-from _pytest.config import Config
+ from _pytest.nodes import Item
+-from _pytest.store import StoreKey
+-
+-
+-evalcache_key = StoreKey[Dict[str, Any]]()
+-
+-
+-def cached_eval(config: Config, expr: str, d: Dict[str, object]) -> Any:
+-    default = {}  # type: Dict[str, object]
+-    evalcache = config._store.setdefault(evalcache_key, default)
+-    try:
+-        return evalcache[expr]
+-    except KeyError:
+-        import _pytest._code
+ 
+         exprcode = _pytest._code.compile(expr, mode="eval")
+         evalcache[expr] = x = eval(exprcode, d)
+2026-10-27 11:01:46,865 - INFO - Eval script for pytest-dev__pytest-7373 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-medium-r2/sonnet-adaptive-medium-r2/pytest-dev__pytest-7373/eval.sh; copying to container...
+2026-10-27 11:01:50,878 - INFO - Test runtime: 3.97 seconds
+2026-10-27 11:01:50,879 - INFO - Test output for pytest-dev__pytest-7373 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-medium-r2/sonnet-adaptive-medium-r2/pytest-dev__pytest-7373/test_output.txt
+2026-10-27 11:01:50,922 - INFO - Git diff after:
+diff --git a/src/_pytest/mark/evaluate.py b/src/_pytest/mark/evaluate.py
+index 759191668..b4767b375 100755
+--- a/src/_pytest/mark/evaluate.py
++++ b/src/_pytest/mark/evaluate.py
+@@ -2,7 +2,6 @@ import os
+ import platform
+ import sys
+ import traceback
+-from typing import Any
+ from typing import Dict
+ from typing import List
+ from typing import Optional
+@@ -10,21 +9,7 @@ from typing import Optional
+ from ..outcomes import fail
+ from ..outcomes import TEST_OUTCOME
+ from .structures import Mark
+-from _pytest.config import Config
+ from _pytest.nodes import Item
+-from _pytest.store import StoreKey
+-
+-
+-evalcache_key = StoreKey[Dict[str, Any]]()
+-
+-
+-def cached_eval(config: Config, expr: str, d: Dict[str, object]) -> Any:
+-    default = {}  # type: Dict[str, object]
+-    evalcache = config._store.setdefault(evalcache_key, default)
+-    try:
+-        return evalcache[expr]
+-    except KeyError:
+-        import _pytest._code
+ 
+         exprcode = _pytest._code.compile(expr, mode="eval")
+         evalcache[expr] = x = eval(exprcode, d)
+2026-10-27 11:01:50,922 - INFO - Grading answer for pytest-dev__pytest-7373...
+2026-10-27 11:01:50,938 - INFO - report: {'pytest-dev__pytest-7373': {'patch_is_None': False, 'patch_exists': True, 'patch_successfully_applied': False, 'resolved': False, 'infra_failure': False}}
+Result for pytest-dev__pytest-7373: resolved: False
+2026-10-27 11:01:50,938 - INFO - Attempting to stop container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-sonnet-adaptive-medium-r2...
+2026-10-27 11:02:06,374 - INFO - Container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-sonnet-adaptive-medium-r2 stopped successfully.
+2026-10-27 11:02:06,374 - INFO - Attempting to remove container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-sonnet-adaptive-medium-r2...
+2026-10-27 11:02:06,430 - INFO - Container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-sonnet-adaptive-medium-r2 removed successfully.

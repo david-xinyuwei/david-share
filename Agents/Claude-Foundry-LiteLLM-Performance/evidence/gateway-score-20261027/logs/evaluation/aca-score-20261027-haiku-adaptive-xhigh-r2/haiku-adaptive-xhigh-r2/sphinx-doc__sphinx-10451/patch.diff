@@ -1,0 +1,25 @@
+
+--- a/sphinx/ext/autodoc/typehints.py
++++ b/sphinx/ext/autodoc/typehints.py
+@@ -22,4 +22,11 @@
+             for param in sig.parameters.values():
+                 if param.annotation is not param.empty:
+-                    annotation[param.name] = typing.stringify(param.annotation)
++                    # keep the stars of variadic parameters, as in ``:param *args:``
++                    if param.kind == param.VAR_POSITIONAL:
++                        key = '*' + param.name
++                    elif param.kind == param.VAR_KEYWORD:
++                        key = '**' + param.name
++                    else:
++                        key = param.name
++                    annotation[key] = typing.stringify(param.annotation)
+             if sig.return_annotation is not sig.empty:
+@@ -62,4 +69,8 @@
+         if name == 'return':
+             continue
+ 
++        # ``*args`` and ``**kwargs`` are recorded with stars; the docstring may omit them
++        if name not in arguments and name.lstrip('*') in arguments:
++            name = name.lstrip('*')
++
+         arg = arguments.get(name, {})

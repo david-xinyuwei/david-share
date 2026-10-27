@@ -1,0 +1,28 @@
+
+--- a/django/core/management/commands/runserver.py
++++ b/django/core/management/commands/runserver.py
+@@ -94,10 +94,23 @@
+             self._raw_ipv6 = self.use_ipv6
+         self.run(**options)
+ 
++    @staticmethod
++    def _watch_main_module(sender, **kwargs):
++        main = sys.modules.get('__main__')
++        path = getattr(main, '__file__', None)
++        if path and os.path.isfile(path):
++            try:
++                sender.watch_file(os.path.abspath(path))
++            except Exception:
++                pass
++
+     def run(self, **options):
+         """Run the server, using the autoreloader if needed."""
+         use_reloader = options['use_reloader']
+ 
+         if use_reloader:
++            autoreload.autoreload_started.connect(
++                Command._watch_main_module, dispatch_uid='runserver_watch_main',
++            )
+             autoreload.run_with_reloader(self.inner_run, **options)
+         else:
+             self.inner_run(None, **options)

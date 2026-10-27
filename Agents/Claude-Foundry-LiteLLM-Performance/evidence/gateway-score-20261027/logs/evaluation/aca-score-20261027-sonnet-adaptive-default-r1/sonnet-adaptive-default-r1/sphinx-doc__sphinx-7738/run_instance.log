@@ -1,0 +1,47 @@
+2026-10-27 10:44:02,478 - INFO - Creating container for sphinx-doc__sphinx-7738...
+2026-10-27 10:44:02,637 - INFO - Container for sphinx-doc__sphinx-7738 created: b672c8eb6c9e4c2cfdaf11fb38d7e3ed60496a9917965e84cab6cd4d25bf0c79
+2026-10-27 10:44:02,834 - INFO - Container for sphinx-doc__sphinx-7738 started: b672c8eb6c9e4c2cfdaf11fb38d7e3ed60496a9917965e84cab6cd4d25bf0c79
+2026-10-27 10:44:02,834 - INFO - Intermediate patch for sphinx-doc__sphinx-7738 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-default-r1/sonnet-adaptive-default-r1/sphinx-doc__sphinx-7738/patch.diff, now applying to container...
+2026-10-27 10:44:02,920 - INFO - >>>>> Applied Patch:
+Checking patch sphinx/ext/napoleon/docstring.py...
+Hunk #1 succeeded at 578 (offset -7 lines).
+Applied patch sphinx/ext/napoleon/docstring.py cleanly.
+
+2026-10-27 10:44:03,129 - INFO - Git diff before:
+diff --git a/sphinx/ext/napoleon/docstring.py b/sphinx/ext/napoleon/docstring.py
+index 11409e6f6..57cb666d0 100755
+--- a/sphinx/ext/napoleon/docstring.py
++++ b/sphinx/ext/napoleon/docstring.py
+@@ -578,6 +578,8 @@ class GoogleDocstring:
+     def _parse_attributes_section(self, section: str) -> List[str]:
+         lines = []
+         for _name, _type, _desc in self._consume_fields():
++            if _name.endswith('\\_'):
++                _name = _name[:-2] + '_'
+             if self._config.napoleon_use_ivar:
+                 _name = self._qualify_name(_name, self._obj)
+                 field = ':ivar %s: ' % _name
+2026-10-27 10:44:03,129 - INFO - Eval script for sphinx-doc__sphinx-7738 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-default-r1/sonnet-adaptive-default-r1/sphinx-doc__sphinx-7738/eval.sh; copying to container...
+2026-10-27 10:44:05,989 - INFO - Test runtime: 2.82 seconds
+2026-10-27 10:44:05,990 - INFO - Test output for sphinx-doc__sphinx-7738 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-default-r1/sonnet-adaptive-default-r1/sphinx-doc__sphinx-7738/test_output.txt
+2026-10-27 10:44:06,034 - INFO - Git diff after:
+diff --git a/sphinx/ext/napoleon/docstring.py b/sphinx/ext/napoleon/docstring.py
+index 11409e6f6..57cb666d0 100755
+--- a/sphinx/ext/napoleon/docstring.py
++++ b/sphinx/ext/napoleon/docstring.py
+@@ -578,6 +578,8 @@ class GoogleDocstring:
+     def _parse_attributes_section(self, section: str) -> List[str]:
+         lines = []
+         for _name, _type, _desc in self._consume_fields():
++            if _name.endswith('\\_'):
++                _name = _name[:-2] + '_'
+             if self._config.napoleon_use_ivar:
+                 _name = self._qualify_name(_name, self._obj)
+                 field = ':ivar %s: ' % _name
+2026-10-27 10:44:06,034 - INFO - Grading answer for sphinx-doc__sphinx-7738...
+2026-10-27 10:44:06,036 - INFO - report: {'sphinx-doc__sphinx-7738': {'patch_is_None': False, 'patch_exists': True, 'patch_successfully_applied': True, 'resolved': False, 'infra_failure': False, 'tests_status': {'FAIL_TO_PASS': {'success': ['tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_underscore_in_attribute'], 'failure': []}, 'PASS_TO_PASS': {'success': ['tests/test_ext_napoleon_docstring.py::NamedtupleSubclassTest::test_attributes_docstring', 'tests/test_ext_napoleon_docstring.py::InlineAttributeTest::test_class_data_member', 'tests/test_ext_napoleon_docstring.py::InlineAttributeTest::test_class_data_member_inline', 'tests/test_ext_napoleon_docstring.py::InlineAttributeTest::test_class_data_member_inline_no_type', 'tests/test_ext_napoleon_docstring.py::InlineAttributeTest::test_class_data_member_inline_ref_in_type', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_attributes_with_class_reference', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_code_block_in_returns_section', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_colon_in_return_type', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_custom_generic_sections', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_docstrings', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_kwargs_in_arguments', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_list_in_parameter_description', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_noindex', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_parameters_with_class_reference', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_raises_types', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_section_header_formatting', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_sphinx_admonitions', 'tests/test_ext_napoleon_docstring.py::GoogleDocstringTest::test_xrefs_in_return_type', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_colon_in_return_type', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_docstrings', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_keywords_with_types', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_list_in_parameter_description', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_parameters_with_class_reference', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_parameters_without_class_reference', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_raises_types', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_section_header_underline_length', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_see_also_refs', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_sphinx_admonitions', 'tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_xrefs_in_return_type'], 'failure': ['tests/test_ext_napoleon_docstring.py::NumpyDocstringTest::test_underscore_in_attribute_strip_signature_backslash']}, 'FAIL_TO_FAIL': {'success': [], 'failure': []}, 'PASS_TO_FAIL': {'success': [], 'failure': []}}}}
+Result for sphinx-doc__sphinx-7738: resolved: False
+2026-10-27 10:44:06,036 - INFO - Attempting to stop container sweb.eval.sphinx-doc__sphinx-7738.aca-score-20261027-sonnet-adaptive-default-r1...
+2026-10-27 10:44:21,429 - INFO - Container sweb.eval.sphinx-doc__sphinx-7738.aca-score-20261027-sonnet-adaptive-default-r1 stopped successfully.
+2026-10-27 10:44:21,430 - INFO - Attempting to remove container sweb.eval.sphinx-doc__sphinx-7738.aca-score-20261027-sonnet-adaptive-default-r1...
+2026-10-27 10:44:21,478 - INFO - Container sweb.eval.sphinx-doc__sphinx-7738.aca-score-20261027-sonnet-adaptive-default-r1 removed successfully.

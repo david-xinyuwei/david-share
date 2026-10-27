@@ -1,0 +1,25 @@
+2026-10-27 10:07:40,685 - INFO - Creating container for pallets__flask-5063...
+2026-10-27 10:07:40,953 - INFO - Container for pallets__flask-5063 created: 9cc7aaeba8dceef11fda3af29d873372b853435010521b886dc45bb994a67538
+2026-10-27 10:07:41,186 - INFO - Container for pallets__flask-5063 started: 9cc7aaeba8dceef11fda3af29d873372b853435010521b886dc45bb994a67538
+2026-10-27 10:07:41,186 - INFO - Intermediate patch for pallets__flask-5063 written to logs/evaluation/aca-score-20261027-haiku-disabled-low-r1/haiku-disabled-low-r1/pallets__flask-5063/patch.diff, now applying to container...
+2026-10-27 10:07:41,276 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:07:41,398 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:07:41,495 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:07:41,596 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:07:41,642 - INFO - >>>>> Patch Apply Failed:
+patch: **** Only garbage was found in the patch input.
+patch unexpectedly ends in middle of line
+
+2026-10-27 10:07:41,643 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for pallets__flask-5063: >>>>> Patch Apply Failed:
+patch: **** Only garbage was found in the patch input.
+patch unexpectedly ends in middle of line
+
+Check (logs/evaluation/aca-score-20261027-haiku-disabled-low-r1/haiku-disabled-low-r1/pallets__flask-5063/run_instance.log) for more information.
+
+2026-10-27 10:07:41,643 - INFO - Attempting to stop container sweb.eval.pallets__flask-5063.aca-score-20261027-haiku-disabled-low-r1...
+2026-10-27 10:07:57,288 - INFO - Container sweb.eval.pallets__flask-5063.aca-score-20261027-haiku-disabled-low-r1 stopped successfully.
+2026-10-27 10:07:57,288 - INFO - Attempting to remove container sweb.eval.pallets__flask-5063.aca-score-20261027-haiku-disabled-low-r1...
+2026-10-27 10:07:57,342 - INFO - Container sweb.eval.pallets__flask-5063.aca-score-20261027-haiku-disabled-low-r1 removed successfully.

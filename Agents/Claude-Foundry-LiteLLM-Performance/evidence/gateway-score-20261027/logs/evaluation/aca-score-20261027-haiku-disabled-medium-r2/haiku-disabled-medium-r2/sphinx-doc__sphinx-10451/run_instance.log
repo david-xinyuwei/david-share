@@ -1,0 +1,25 @@
+2026-10-27 10:14:12,911 - INFO - Creating container for sphinx-doc__sphinx-10451...
+2026-10-27 10:14:13,057 - INFO - Container for sphinx-doc__sphinx-10451 created: 2cbed8c6bc2a7fbdd2d1649d972714c3922f3330a4b63b5c386e472e10fa1708
+2026-10-27 10:14:13,244 - INFO - Container for sphinx-doc__sphinx-10451 started: 2cbed8c6bc2a7fbdd2d1649d972714c3922f3330a4b63b5c386e472e10fa1708
+2026-10-27 10:14:13,245 - INFO - Intermediate patch for sphinx-doc__sphinx-10451 written to logs/evaluation/aca-score-20261027-haiku-disabled-medium-r2/haiku-disabled-medium-r2/sphinx-doc__sphinx-10451/patch.diff, now applying to container...
+2026-10-27 10:14:13,329 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:14:13,600 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:14:13,824 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:14:14,037 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:14:14,079 - INFO - >>>>> Patch Apply Failed:
+patch: **** Only garbage was found in the patch input.
+patch unexpectedly ends in middle of line
+
+2026-10-27 10:14:14,079 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for sphinx-doc__sphinx-10451: >>>>> Patch Apply Failed:
+patch: **** Only garbage was found in the patch input.
+patch unexpectedly ends in middle of line
+
+Check (logs/evaluation/aca-score-20261027-haiku-disabled-medium-r2/haiku-disabled-medium-r2/sphinx-doc__sphinx-10451/run_instance.log) for more information.
+
+2026-10-27 10:14:14,079 - INFO - Attempting to stop container sweb.eval.sphinx-doc__sphinx-10451.aca-score-20261027-haiku-disabled-medium-r2...
+2026-10-27 10:14:29,441 - INFO - Container sweb.eval.sphinx-doc__sphinx-10451.aca-score-20261027-haiku-disabled-medium-r2 stopped successfully.
+2026-10-27 10:14:29,441 - INFO - Attempting to remove container sweb.eval.sphinx-doc__sphinx-10451.aca-score-20261027-haiku-disabled-medium-r2...
+2026-10-27 10:14:29,520 - INFO - Container sweb.eval.sphinx-doc__sphinx-10451.aca-score-20261027-haiku-disabled-medium-r2 removed successfully.

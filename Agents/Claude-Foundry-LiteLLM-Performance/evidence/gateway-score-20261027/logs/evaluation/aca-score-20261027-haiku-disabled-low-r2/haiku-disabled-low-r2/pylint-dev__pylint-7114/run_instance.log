@@ -1,0 +1,25 @@
+2026-10-27 10:09:57,413 - INFO - Creating container for pylint-dev__pylint-7114...
+2026-10-27 10:09:57,573 - INFO - Container for pylint-dev__pylint-7114 created: 84778b9ed630c9eae264bfca593b2270255efabcdf7dc449e4645781f8c0cae5
+2026-10-27 10:09:57,763 - INFO - Container for pylint-dev__pylint-7114 started: 84778b9ed630c9eae264bfca593b2270255efabcdf7dc449e4645781f8c0cae5
+2026-10-27 10:09:57,763 - INFO - Intermediate patch for pylint-dev__pylint-7114 written to logs/evaluation/aca-score-20261027-haiku-disabled-low-r2/haiku-disabled-low-r2/pylint-dev__pylint-7114/patch.diff, now applying to container...
+2026-10-27 10:09:57,865 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:09:58,190 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:09:58,373 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:09:58,548 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:09:58,597 - INFO - >>>>> Patch Apply Failed:
+patch: **** Only garbage was found in the patch input.
+patch unexpectedly ends in middle of line
+
+2026-10-27 10:09:58,597 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for pylint-dev__pylint-7114: >>>>> Patch Apply Failed:
+patch: **** Only garbage was found in the patch input.
+patch unexpectedly ends in middle of line
+
+Check (logs/evaluation/aca-score-20261027-haiku-disabled-low-r2/haiku-disabled-low-r2/pylint-dev__pylint-7114/run_instance.log) for more information.
+
+2026-10-27 10:09:58,598 - INFO - Attempting to stop container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-haiku-disabled-low-r2...
+2026-10-27 10:10:13,847 - INFO - Container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-haiku-disabled-low-r2 stopped successfully.
+2026-10-27 10:10:13,847 - INFO - Attempting to remove container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-haiku-disabled-low-r2...
+2026-10-27 10:10:13,941 - INFO - Container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-haiku-disabled-low-r2 removed successfully.

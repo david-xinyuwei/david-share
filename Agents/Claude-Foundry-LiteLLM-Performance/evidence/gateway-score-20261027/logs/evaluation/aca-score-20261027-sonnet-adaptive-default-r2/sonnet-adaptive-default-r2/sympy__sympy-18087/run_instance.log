@@ -1,0 +1,27 @@
+2026-10-27 10:46:44,900 - INFO - Creating container for sympy__sympy-18087...
+2026-10-27 10:46:45,072 - INFO - Container for sympy__sympy-18087 created: 201f29f043fbcc7d6649764caed45260235b5729d3b0edabb1c1d9347617ddf3
+2026-10-27 10:46:45,270 - INFO - Container for sympy__sympy-18087 started: 201f29f043fbcc7d6649764caed45260235b5729d3b0edabb1c1d9347617ddf3
+2026-10-27 10:46:45,271 - INFO - Intermediate patch for sympy__sympy-18087 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-default-r2/sonnet-adaptive-default-r2/sympy__sympy-18087/patch.diff, now applying to container...
+2026-10-27 10:46:45,353 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:46:45,697 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:46:45,980 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:46:46,261 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:46:46,301 - INFO - >>>>> Patch Apply Failed:
+patching file sympy/core/exprtools.py
+patch: **** malformed patch at line 23:  
+
+
+2026-10-27 10:46:46,301 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for sympy__sympy-18087: >>>>> Patch Apply Failed:
+patching file sympy/core/exprtools.py
+patch: **** malformed patch at line 23:  
+
+
+Check (logs/evaluation/aca-score-20261027-sonnet-adaptive-default-r2/sonnet-adaptive-default-r2/sympy__sympy-18087/run_instance.log) for more information.
+
+2026-10-27 10:46:46,301 - INFO - Attempting to stop container sweb.eval.sympy__sympy-18087.aca-score-20261027-sonnet-adaptive-default-r2...
+2026-10-27 10:47:01,587 - INFO - Container sweb.eval.sympy__sympy-18087.aca-score-20261027-sonnet-adaptive-default-r2 stopped successfully.
+2026-10-27 10:47:01,587 - INFO - Attempting to remove container sweb.eval.sympy__sympy-18087.aca-score-20261027-sonnet-adaptive-default-r2...
+2026-10-27 10:47:01,661 - INFO - Container sweb.eval.sympy__sympy-18087.aca-score-20261027-sonnet-adaptive-default-r2 removed successfully.

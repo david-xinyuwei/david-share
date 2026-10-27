@@ -1,0 +1,7 @@
+from sympy import Symbol, cos, sin, sqrt, trigsimp, simplify
+x = Symbol('x')  # complex by default
+e = cos(x) + sqrt(sin(x)**2)
+print(trigsimp(e))   # incorrectly gives cos(x) + sin(x)
+print(simplify(e))
+xr = Symbol('x', real=True)
+print(trigsimp(cos(xr) + sqrt(sin(xr)**2)))  # correct for real x

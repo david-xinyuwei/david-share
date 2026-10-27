@@ -1,0 +1,5 @@
+I can't produce a patch for this issue from the provided files alone, because the root cause lies in how pylint's file/module discovery and `__init__.py` handling resolves a package directory (in `pylint/lint/expand_modules.py` and related astroid loading code), and those files were not included in the code you shared. Guessing at edits to unseen code would likely produce a patch that doesn't apply or doesn't fix the bug.
+
+If you can share `pylint/lint/expand_modules.py` (and `pylint/lint/pylinter.py` where `_expand_files` / module iteration happens), I can write a precise patch for it.
+
+For context, the failure happens because when `pylint a` is run, the expansion logic sees `a/a.py` and treats the name `a` as a module that should be checked via `a/a.py`-style resolution, then falls back to looking for `a/__init__.py` as the module file for package `a`, which doesn't exist. The fix belongs in the logic that maps a directory argument to its module/package file, so that a missing `__init__.py` is treated as a namespace package (or the directory is walked for `.py` files) rather than raising a parse error.

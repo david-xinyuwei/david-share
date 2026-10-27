@@ -1,0 +1,28 @@
+
+--- a/django/urls/resolvers.py
++++ b/django/urls/resolvers.py
+@@ -1,4 +1,5 @@
+ import functools
++import re
+ 
+ from django.utils.regex_helper import _lazy_re_compile
+ 
+@@ -150,8 +151,12 @@ class RegexPattern(CheckURLMixin):
+         match = self.regex.search(path)
+         if match:
+             # If there are any named groups, use those as kwargs, ignoring
+-            # non-named groups. Otherwise, pass all non-named arguments as
+-            # positional arguments.
++            # non-named groups. Otherwise, pass all non-named arguments as
++            # positional arguments. Named groups that did not participate in
++            # the match (value None) are dropped so view defaults apply.
+             kwargs = match.groupdict()
+-            args = () if kwargs else match.groups()
++            if kwargs:
++                kwargs = {k: v for k, v in kwargs.items() if v is not None}
++                args = ()
++            else:
++                args = match.groups()
+             kwargs = {k: v for k, v in kwargs.items() if v is not None}
+             return path[match.end():], args, kwargs
+         return None

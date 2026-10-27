@@ -1,0 +1,27 @@
+2026-10-27 11:24:20,454 - INFO - Creating container for sympy__sympy-13480...
+2026-10-27 11:24:20,599 - INFO - Container for sympy__sympy-13480 created: eb3d8d3312a7ecfd6c604400ffaa58befbd90b31952b2ff45e6d7c2afe6cddef
+2026-10-27 11:24:20,790 - INFO - Container for sympy__sympy-13480 started: eb3d8d3312a7ecfd6c604400ffaa58befbd90b31952b2ff45e6d7c2afe6cddef
+2026-10-27 11:24:20,790 - INFO - Intermediate patch for sympy__sympy-13480 written to logs/evaluation/aca-score-20261027-sonnet-between_tools-medium-r2/sonnet-between_tools-medium-r2/sympy__sympy-13480/patch.diff, now applying to container...
+2026-10-27 11:24:20,870 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 11:24:21,148 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 11:24:21,336 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 11:24:21,534 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 11:24:21,578 - INFO - >>>>> Patch Apply Failed:
+patching file sympy/functions/elementary/hyperbolic.py
+Hunk #1 FAILED at 587.
+1 out of 1 hunk FAILED -- saving rejects to file sympy/functions/elementary/hyperbolic.py.rej
+
+2026-10-27 11:24:21,578 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for sympy__sympy-13480: >>>>> Patch Apply Failed:
+patching file sympy/functions/elementary/hyperbolic.py
+Hunk #1 FAILED at 587.
+1 out of 1 hunk FAILED -- saving rejects to file sympy/functions/elementary/hyperbolic.py.rej
+
+Check (logs/evaluation/aca-score-20261027-sonnet-between_tools-medium-r2/sonnet-between_tools-medium-r2/sympy__sympy-13480/run_instance.log) for more information.
+
+2026-10-27 11:24:21,578 - INFO - Attempting to stop container sweb.eval.sympy__sympy-13480.aca-score-20261027-sonnet-between_tools-medium-r2...
+2026-10-27 11:24:36,859 - INFO - Container sweb.eval.sympy__sympy-13480.aca-score-20261027-sonnet-between_tools-medium-r2 stopped successfully.
+2026-10-27 11:24:36,859 - INFO - Attempting to remove container sweb.eval.sympy__sympy-13480.aca-score-20261027-sonnet-between_tools-medium-r2...
+2026-10-27 11:24:36,925 - INFO - Container sweb.eval.sympy__sympy-13480.aca-score-20261027-sonnet-between_tools-medium-r2 removed successfully.

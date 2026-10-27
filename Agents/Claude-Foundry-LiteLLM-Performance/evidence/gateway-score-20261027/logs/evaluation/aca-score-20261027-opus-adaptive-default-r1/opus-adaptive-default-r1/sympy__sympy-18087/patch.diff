@@ -1,0 +1,23 @@
+
+--- a/sympy/core/exprtools.py
++++ b/sympy/core/exprtools.py
+@@ -440,16 +440,14 @@
+         for factor, exp in self.factors.items():
+             if exp != 1:
+-                b, e = factor.as_base_exp()
+-                if isinstance(exp, int):
+-                    e = _keep_coeff(Integer(exp), e)
+-                elif isinstance(exp, Rational):
+-                    e = _keep_coeff(exp, e)
+-                else:
+-                    e *= exp
+-                args.append(b**e)
++                if isinstance(exp, (int, Integer)):
++                    b, e = factor.as_base_exp()
++                    e = _keep_coeff(Integer(exp), e)
++                    args.append(b**e)
++                else:
++                    args.append(factor**exp)
+             else:
+                 args.append(factor)
+         return Mul(*args)

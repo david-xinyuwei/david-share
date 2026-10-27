@@ -1,0 +1,5 @@
+class Subquery(Expression):
+    def __init__(self, queryset, output_field=None, **extra):
+        self.query = queryset.query
+        self.query.subquery = True
+        ...

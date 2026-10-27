@@ -1,0 +1,51 @@
+
+--- a/src/flask/cli.py
++++ b/src/flask/cli.py
+@@ -1016,19 +1016,28 @@
+-    rule_methods = [
+-        ", ".join(sorted(rule.methods - ignored_methods))  # type: ignore
+-        for rule in rules
+-    ]
+-
+-    headers = ("Endpoint", "Methods", "Rule")
+-    widths = (
+-        max(len(rule.endpoint) for rule in rules),
+-        max(len(methods) for methods in rule_methods),
+-        max(len(rule.rule) for rule in rules),
+-    )
+-    widths = [max(len(h), w) for h, w in zip(headers, widths)]
+-    row = "{{0:<{0}}}  {{1:<{1}}}  {{2:<{2}}}".format(*widths)
+-
+-    click.echo(row.format(*headers).strip())
+-    click.echo(row.format(*("-" * width for width in widths)))
+-
+-    for rule, methods in zip(rules, rule_methods):
+-        click.echo(row.format(rule.endpoint, methods, rule.rule).rstrip())
++    host_matching = current_app.url_map.host_matching
++    has_domain = any(
++        (rule.host if host_matching else rule.subdomain) for rule in rules
++    )
++    rule_methods = [
++        ", ".join(sorted(rule.methods - ignored_methods))  # type: ignore
++        for rule in rules
++    ]
++    rule_domains = [
++        (rule.host if host_matching else rule.subdomain) or "" for rule in rules
++    ]
++    columns = [
++        ("Endpoint", [rule.endpoint for rule in rules]),
++        ("Methods", rule_methods),
++        ("Rule", [rule.rule for rule in rules]),
++    ]
++    if has_domain:
++        columns.insert(0, ("Domain", rule_domains))
++
++    widths = [max(len(h), *(len(v) for v in vals)) for h, vals in columns]
++    row = "  ".join("{{{0}:<{1}}}".format(i, w) for i, w in enumerate(widths))
++
++    headers = [h for h, _ in columns]
++    click.echo(row.format(*headers).strip())
++    click.echo(row.format(*("-" * w for w in widths)))
++
++    for values in zip(*(vals for _, vals in columns)):
++        click.echo(row.format(*values).rstrip())

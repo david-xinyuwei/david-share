@@ -1,0 +1,25 @@
+2026-10-27 10:02:17,160 - INFO - Creating container for pylint-dev__pylint-7114...
+2026-10-27 10:02:17,372 - INFO - Container for pylint-dev__pylint-7114 created: c645487800e191c52da11b125a6e1072bbf01123b6f000bd838e6e46915c2dd4
+2026-10-27 10:02:17,560 - INFO - Container for pylint-dev__pylint-7114 started: c645487800e191c52da11b125a6e1072bbf01123b6f000bd838e6e46915c2dd4
+2026-10-27 10:02:17,560 - INFO - Intermediate patch for pylint-dev__pylint-7114 written to logs/evaluation/aca-score-20261027-haiku-disabled-default-r2/haiku-disabled-default-r2/pylint-dev__pylint-7114/patch.diff, now applying to container...
+2026-10-27 10:02:17,643 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:02:17,960 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:02:18,154 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:02:18,278 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:02:18,319 - INFO - >>>>> Patch Apply Failed:
+patch unexpectedly ends in middle of line
+patch: **** Only garbage was found in the patch input.
+
+2026-10-27 10:02:18,319 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for pylint-dev__pylint-7114: >>>>> Patch Apply Failed:
+patch unexpectedly ends in middle of line
+patch: **** Only garbage was found in the patch input.
+
+Check (logs/evaluation/aca-score-20261027-haiku-disabled-default-r2/haiku-disabled-default-r2/pylint-dev__pylint-7114/run_instance.log) for more information.
+
+2026-10-27 10:02:18,319 - INFO - Attempting to stop container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-haiku-disabled-default-r2...
+2026-10-27 10:02:33,554 - INFO - Container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-haiku-disabled-default-r2 stopped successfully.
+2026-10-27 10:02:33,555 - INFO - Attempting to remove container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-haiku-disabled-default-r2...
+2026-10-27 10:02:33,649 - INFO - Container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-haiku-disabled-default-r2 removed successfully.

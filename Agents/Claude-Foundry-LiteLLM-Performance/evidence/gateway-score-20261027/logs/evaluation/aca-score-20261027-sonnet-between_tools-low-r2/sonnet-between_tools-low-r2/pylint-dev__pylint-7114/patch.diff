@@ -1,0 +1,8 @@
+
+--- a/pylint/constants.py
++++ b/pylint/constants.py
+@@ -21,3 +21,3 @@
+ 
+-IS_PYPY = platform.python_implementation() == "PyPy"
++IS_PYPY = platform.python_implementation() == "PyPy"  # noqa
+ 

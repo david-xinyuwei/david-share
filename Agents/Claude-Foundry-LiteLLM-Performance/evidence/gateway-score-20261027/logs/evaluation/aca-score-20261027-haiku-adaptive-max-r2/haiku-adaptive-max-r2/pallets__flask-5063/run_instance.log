@@ -1,0 +1,222 @@
+2026-10-27 09:49:33,634 - INFO - Creating container for pallets__flask-5063...
+2026-10-27 09:49:34,099 - INFO - Container for pallets__flask-5063 created: 411152bc955b7d8a0b08d225eeb2b7dfcd2ce0645a53b1bde70d0971c275f523
+2026-10-27 09:49:34,274 - INFO - Container for pallets__flask-5063 started: 411152bc955b7d8a0b08d225eeb2b7dfcd2ce0645a53b1bde70d0971c275f523
+2026-10-27 09:49:34,274 - INFO - Intermediate patch for pallets__flask-5063 written to logs/evaluation/aca-score-20261027-haiku-adaptive-max-r2/haiku-adaptive-max-r2/pallets__flask-5063/patch.diff, now applying to container...
+2026-10-27 09:49:34,360 - INFO - >>>>> Applied Patch:
+Checking patch src/flask/cli.py...
+Checking patch tests/test_cli_routes_subdomain.py...
+Applied patch src/flask/cli.py cleanly.
+Applied patch tests/test_cli_routes_subdomain.py cleanly.
+
+2026-10-27 09:49:34,424 - INFO - Git diff before:
+diff --git a/src/flask/cli.py b/src/flask/cli.py
+index 37a15ff2..a84a79b9 100755
+--- a/src/flask/cli.py
++++ b/src/flask/cli.py
+@@ -9,7 +9,7 @@ import sys
+ import traceback
+ import typing as t
+ from functools import update_wrapper
+-from operator import attrgetter
++from operator import itemgetter
+ 
+ import click
+ from click.core import ParameterSource
+@@ -989,7 +989,7 @@ def shell_command() -> None:
+ @click.option(
+     "--sort",
+     "-s",
+-    type=click.Choice(("endpoint", "methods", "rule", "match")),
++    type=click.Choice(("endpoint", "methods", "domain", "rule", "match")),
+     default="endpoint",
+     help=(
+         'Method to sort routes by. "match" is the order that Flask will match '
+@@ -999,7 +999,7 @@ def shell_command() -> None:
+ @click.option("--all-methods", is_flag=True, help="Show HEAD and OPTIONS methods.")
+ @with_appcontext
+ def routes_command(sort: str, all_methods: bool) -> None:
+-    """Show all registered routes with endpoints and methods."""
++    """Show all registered routes with endpoints, methods, and subdomains."""
+ 
+     rules = list(current_app.url_map.iter_rules())
+     if not rules:
+@@ -1007,31 +1007,46 @@ def routes_command(sort: str, all_methods: bool) -> None:
+         return
+ 
+     ignored_methods = set(() if all_methods else ("HEAD", "OPTIONS"))
++    host_matching = current_app.url_map.host_matching
+ 
+-    if sort in ("endpoint", "rule"):
+-        rules = sorted(rules, key=attrgetter(sort))
+-    elif sort == "methods":
+-        rules = sorted(rules, key=lambda rule: sorted(rule.methods))  # type: ignore
+-
+-    rule_methods = [
+-        ", ".join(sorted(rule.methods - ignored_methods))  # type: ignore
+-        for rule in rules
+-    ]
+-
+-    headers = ("Endpoint", "Methods", "Rule")
+-    widths = (
+-        max(len(rule.endpoint) for rule in rules),
+-        max(len(methods) for methods in rule_methods),
+-        max(len(rule.rule) for rule in rules),
+-    )
+-    widths = [max(len(h), w) for h, w in zip(headers, widths)]
+-    row = "{{0:<{0}}}  {{1:<{1}}}  {{2:<{2}}}".format(*widths)
++    # Only show the domain column if a rule is bound to a subdomain, or to a
++    # host when host matching is enabled.
++    has_domain = any(rule.host if host_matching else rule.subdomain for rule in rules)
++    rows: list[list[str]] = []
++
++    for rule in rules:
++        row = [
++            rule.endpoint,
++            ", ".join(sorted(rule.methods - ignored_methods)),  # type: ignore
++        ]
++
++        if has_domain:
++            row.append((rule.host if host_matching else rule.subdomain) or "")
++
++        row.append(rule.rule)
++        rows.append(row)
++
++    headers = ["Endpoint", "Methods"]
++    sort_keys = ["endpoint", "methods"]
++
++    if has_domain:
++        headers.append("Host" if host_matching else "Subdomain")
++        sort_keys.append("domain")
++
++    headers.append("Rule")
++    sort_keys.append("rule")
++
++    # "match" is not a column, so the rules keep the order Flask matches them in.
++    if sort in sort_keys:
++        rows.sort(key=itemgetter(sort_keys.index(sort)))
+ 
+-    click.echo(row.format(*headers).strip())
+-    click.echo(row.format(*("-" * width for width in widths)))
++    rows.insert(0, headers)
++    widths = [max(len(row[i]) for row in rows) for i in range(len(headers))]
++    rows.insert(1, ["-" * width for width in widths])
++    template = "  ".join(f"{{{i}:<{width}}}" for i, width in enumerate(widths))
+ 
+-    for rule, methods in zip(rules, rule_methods):
+-        click.echo(row.format(rule.endpoint, methods, rule.rule).rstrip())
++    for row in rows:
++        click.echo(template.format(*row).rstrip())
+ 
+ 
+ cli = FlaskGroup(
+2026-10-27 09:49:34,424 - INFO - Eval script for pallets__flask-5063 written to logs/evaluation/aca-score-20261027-haiku-adaptive-max-r2/haiku-adaptive-max-r2/pallets__flask-5063/eval.sh; copying to container...
+2026-10-27 09:49:37,928 - INFO - Test runtime: 3.46 seconds
+2026-10-27 09:49:37,929 - INFO - Test output for pallets__flask-5063 written to logs/evaluation/aca-score-20261027-haiku-adaptive-max-r2/haiku-adaptive-max-r2/pallets__flask-5063/test_output.txt
+2026-10-27 09:49:37,970 - INFO - Git diff after:
+diff --git a/src/flask/cli.py b/src/flask/cli.py
+index 37a15ff2..a84a79b9 100755
+--- a/src/flask/cli.py
++++ b/src/flask/cli.py
+@@ -9,7 +9,7 @@ import sys
+ import traceback
+ import typing as t
+ from functools import update_wrapper
+-from operator import attrgetter
++from operator import itemgetter
+ 
+ import click
+ from click.core import ParameterSource
+@@ -989,7 +989,7 @@ def shell_command() -> None:
+ @click.option(
+     "--sort",
+     "-s",
+-    type=click.Choice(("endpoint", "methods", "rule", "match")),
++    type=click.Choice(("endpoint", "methods", "domain", "rule", "match")),
+     default="endpoint",
+     help=(
+         'Method to sort routes by. "match" is the order that Flask will match '
+@@ -999,7 +999,7 @@ def shell_command() -> None:
+ @click.option("--all-methods", is_flag=True, help="Show HEAD and OPTIONS methods.")
+ @with_appcontext
+ def routes_command(sort: str, all_methods: bool) -> None:
+-    """Show all registered routes with endpoints and methods."""
++    """Show all registered routes with endpoints, methods, and subdomains."""
+ 
+     rules = list(current_app.url_map.iter_rules())
+     if not rules:
+@@ -1007,31 +1007,46 @@ def routes_command(sort: str, all_methods: bool) -> None:
+         return
+ 
+     ignored_methods = set(() if all_methods else ("HEAD", "OPTIONS"))
++    host_matching = current_app.url_map.host_matching
+ 
+-    if sort in ("endpoint", "rule"):
+-        rules = sorted(rules, key=attrgetter(sort))
+-    elif sort == "methods":
+-        rules = sorted(rules, key=lambda rule: sorted(rule.methods))  # type: ignore
+-
+-    rule_methods = [
+-        ", ".join(sorted(rule.methods - ignored_methods))  # type: ignore
+-        for rule in rules
+-    ]
+-
+-    headers = ("Endpoint", "Methods", "Rule")
+-    widths = (
+-        max(len(rule.endpoint) for rule in rules),
+-        max(len(methods) for methods in rule_methods),
+-        max(len(rule.rule) for rule in rules),
+-    )
+-    widths = [max(len(h), w) for h, w in zip(headers, widths)]
+-    row = "{{0:<{0}}}  {{1:<{1}}}  {{2:<{2}}}".format(*widths)
++    # Only show the domain column if a rule is bound to a subdomain, or to a
++    # host when host matching is enabled.
++    has_domain = any(rule.host if host_matching else rule.subdomain for rule in rules)
++    rows: list[list[str]] = []
++
++    for rule in rules:
++        row = [
++            rule.endpoint,
++            ", ".join(sorted(rule.methods - ignored_methods)),  # type: ignore
++        ]
++
++        if has_domain:
++            row.append((rule.host if host_matching else rule.subdomain) or "")
++
++        row.append(rule.rule)
++        rows.append(row)
++
++    headers = ["Endpoint", "Methods"]
++    sort_keys = ["endpoint", "methods"]
++
++    if has_domain:
++        headers.append("Host" if host_matching else "Subdomain")
++        sort_keys.append("domain")
++
++    headers.append("Rule")
++    sort_keys.append("rule")
++
++    # "match" is not a column, so the rules keep the order Flask matches them in.
++    if sort in sort_keys:
++        rows.sort(key=itemgetter(sort_keys.index(sort)))
+ 
+-    click.echo(row.format(*headers).strip())
+-    click.echo(row.format(*("-" * width for width in widths)))
++    rows.insert(0, headers)
++    widths = [max(len(row[i]) for row in rows) for i in range(len(headers))]
++    rows.insert(1, ["-" * width for width in widths])
++    template = "  ".join(f"{{{i}:<{width}}}" for i, width in enumerate(widths))
+ 
+-    for rule, methods in zip(rules, rule_methods):
+-        click.echo(row.format(rule.endpoint, methods, rule.rule).rstrip())
++    for row in rows:
++        click.echo(template.format(*row).rstrip())
+ 
+ 
+ cli = FlaskGroup(
+2026-10-27 09:49:37,970 - INFO - Grading answer for pallets__flask-5063...
+2026-10-27 09:49:37,970 - INFO - report: {'pallets__flask-5063': {'patch_is_None': False, 'patch_exists': True, 'patch_successfully_applied': True, 'resolved': True, 'infra_failure': False, 'tests_status': {'FAIL_TO_PASS': {'success': ['tests/test_cli.py::TestRoutes::test_subdomain', 'tests/test_cli.py::TestRoutes::test_host'], 'failure': []}, 'PASS_TO_PASS': {'success': ['tests/test_cli.py::test_cli_name', 'tests/test_cli.py::test_find_best_app', 'tests/test_cli.py::test_prepare_import[test-path0-test]', 'tests/test_cli.py::test_prepare_import[test.py-path1-test]', 'tests/test_cli.py::test_prepare_import[a/test-path2-test]', 'tests/test_cli.py::test_prepare_import[test/__init__.py-path3-test]', 'tests/test_cli.py::test_prepare_import[test/__init__-path4-test]', 'tests/test_cli.py::test_prepare_import[value5-path5-cliapp.inner1]', 'tests/test_cli.py::test_prepare_import[value6-path6-cliapp.inner1.inner2]', 'tests/test_cli.py::test_prepare_import[test.a.b-path7-test.a.b]', 'tests/test_cli.py::test_prepare_import[value8-path8-cliapp.app]', 'tests/test_cli.py::test_prepare_import[value9-path9-cliapp.message.txt]', 'tests/test_cli.py::test_locate_app[cliapp.app-None-testapp]', 'tests/test_cli.py::test_locate_app[cliapp.app-testapp-testapp]', 'tests/test_cli.py::test_locate_app[cliapp.factory-None-app]', 'tests/test_cli.py::test_locate_app[cliapp.factory-create_app-app]', 'tests/test_cli.py::test_locate_app[cliapp.factory-create_app()-app]', 'tests/test_cli.py::test_locate_app[cliapp.factory-create_app2("foo",', 'tests/test_cli.py::test_locate_app[cliapp.factory-', 'tests/test_cli.py::test_locate_app_raises[notanapp.py-None]', 'tests/test_cli.py::test_locate_app_raises[cliapp/app-None]', 'tests/test_cli.py::test_locate_app_raises[cliapp.app-notanapp]', 'tests/test_cli.py::test_locate_app_raises[cliapp.factory-create_app2("foo")]', 'tests/test_cli.py::test_locate_app_raises[cliapp.factory-create_app(]', 'tests/test_cli.py::test_locate_app_raises[cliapp.factory-no_app]', 'tests/test_cli.py::test_locate_app_raises[cliapp.importerrorapp-None]', 'tests/test_cli.py::test_locate_app_raises[cliapp.message.txt-None]', 'tests/test_cli.py::test_locate_app_suppress_raise', 'tests/test_cli.py::test_get_version', 'tests/test_cli.py::test_scriptinfo', 'tests/test_cli.py::test_app_cli_has_app_context', 'tests/test_cli.py::test_with_appcontext', 'tests/test_cli.py::test_appgroup_app_context', 'tests/test_cli.py::test_flaskgroup_app_context', 'tests/test_cli.py::test_flaskgroup_debug[True]', 'tests/test_cli.py::test_flaskgroup_debug[False]', 'tests/test_cli.py::test_flaskgroup_nested', 'tests/test_cli.py::test_no_command_echo_loading_error', 'tests/test_cli.py::test_help_echo_loading_error', 'tests/test_cli.py::test_help_echo_exception', 'tests/test_cli.py::TestRoutes::test_simple', 'tests/test_cli.py::TestRoutes::test_sort', 'tests/test_cli.py::TestRoutes::test_all_methods', 'tests/test_cli.py::TestRoutes::test_no_routes', 'tests/test_cli.py::test_load_dotenv', 'tests/test_cli.py::test_dotenv_path', 'tests/test_cli.py::test_dotenv_optional', 'tests/test_cli.py::test_disable_dotenv_from_env', 'tests/test_cli.py::test_run_cert_path', 'tests/test_cli.py::test_run_cert_adhoc', 'tests/test_cli.py::test_run_cert_import', 'tests/test_cli.py::test_run_cert_no_ssl', 'tests/test_cli.py::test_cli_blueprints', 'tests/test_cli.py::test_cli_empty'], 'failure': []}, 'FAIL_TO_FAIL': {'success': [], 'failure': []}, 'PASS_TO_FAIL': {'success': [], 'failure': []}}}}
+Result for pallets__flask-5063: resolved: True
+2026-10-27 09:49:37,971 - INFO - Attempting to stop container sweb.eval.pallets__flask-5063.aca-score-20261027-haiku-adaptive-max-r2...
+2026-10-27 09:49:53,319 - INFO - Container sweb.eval.pallets__flask-5063.aca-score-20261027-haiku-adaptive-max-r2 stopped successfully.
+2026-10-27 09:49:53,319 - INFO - Attempting to remove container sweb.eval.pallets__flask-5063.aca-score-20261027-haiku-adaptive-max-r2...
+2026-10-27 09:49:53,375 - INFO - Container sweb.eval.pallets__flask-5063.aca-score-20261027-haiku-adaptive-max-r2 removed successfully.

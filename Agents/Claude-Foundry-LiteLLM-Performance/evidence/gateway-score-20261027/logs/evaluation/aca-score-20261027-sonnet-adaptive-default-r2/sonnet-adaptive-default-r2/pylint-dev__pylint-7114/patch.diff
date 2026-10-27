@@ -1,0 +1,13 @@
+
+--- a/pylint/lint/expand_modules.py
++++ b/pylint/lint/expand_modules.py
+@@ -1,3 +1,3 @@
+ else:
+             is_namespace = modutils.is_namespace(spec)
+             is_directory = modutils.is_directory(spec)
++        if os.path.isdir(something) and not os.path.exists(filepath):
++            # A directory without __init__.py is an implicit namespace package,
++            # even if it contains a module with the same name as the directory.
++            is_namespace = True
++            is_directory = True
+         if not is_namespace:

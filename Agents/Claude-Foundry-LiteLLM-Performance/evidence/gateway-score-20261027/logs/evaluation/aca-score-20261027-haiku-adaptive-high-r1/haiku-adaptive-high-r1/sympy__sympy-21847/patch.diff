@@ -1,0 +1,21 @@
+
+--- a/sympy/polys/monomials.py
++++ b/sympy/polys/monomials.py
+@@ -116,4 +116,5 @@
+         if not variables or max_degree == 0:
+-            yield S.One
++            if min_degree == 0:
++                yield S.One
+             return
+@@ -128,4 +128,4 @@
+                 if variable != 1:
+                     powers[variable] += 1
+-                if max(powers.values()) >= min_degree:
++                if sum(powers.values()) >= min_degree:
+                     monomials_list_comm.append(Mul(*item))
+@@ -140,4 +140,4 @@
+                 if variable != 1:
+                     powers[variable] += 1
+-                if max(powers.values()) >= min_degree:
++                if sum(powers.values()) >= min_degree:
+                     monomials_list_non_comm.append(Mul(*item))

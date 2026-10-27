@@ -1,0 +1,7 @@
+I can't produce a correct patch for this issue from the files provided, because the bug lives in the astroid/module-resolution code path (how `pylint a` expands a package directory and looks for `__init__.py`), and none of the files shown there contain that logic. The files included (README, constants, epylint, base_options, pyreverse main) don't reference the file discovery code that's failing.
+
+The example patch in your template is also unrelated to this repository (it's about Euclid's algorithm and Bresenham's line algorithm), so I haven't used it.
+
+To write a real fix, I would need the file that handles module/package discovery in pylint's lint pipeline, most likely `pylint/lint/expand_modules.py` (the `expand_modules` function), along with the relevant part of `pylint/lint/pylinter.py` where the parse error is raised. If you can share those files, I can produce a patch against them.
+
+From the traceback, the likely cause is that `expand_modules` treats `a` as a package and then, while checking each file under it, resolves `a/a.py` to the module name `a`, colliding with the package name and causing pylint to attempt to load `a/__init__.py` as a file that doesn't exist. The fix would be to make the module-name resolution for a file in a package directory not collide with the package's own name, and to only require `__init__.py` when the package itself is the target.

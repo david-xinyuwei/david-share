@@ -1,0 +1,6 @@
+# :param xxx:
+arg = arguments.setdefault(parts[1].lstrip('*'), {})
+...
+# :param xxx yyy:
+name = ' '.join(parts[2:]).lstrip('*')
+arg = arguments.setdefault(name, {})

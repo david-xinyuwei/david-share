@@ -1,0 +1,7 @@
+I can't produce a correct patch for this issue from the files provided: the bug lives in how pylint's module resolution/`fix_import_path` or the `epylint`/file expansion logic handles a package whose directory contains a same-named module, and none of the files shown (README, constants, epylint, base_options, pyreverse main) contain that code path. Any diff I wrote against them would be guesswork and would not apply cleanly.
+
+What I can tell you from the issue:
+
+- The error is `Unable to load file a/__init__.py`, meaning pylint's file expansion treats `a` as a module whose `__init__.py` is expected at `a/__init__.py`, and then, when `a/a.py` exists, resolves `a` to the submodule path (`a/a.py` → `a.a`) and tries to load a package init that doesn't exist. The fix is likely in the file/module expansion utility (`pylint/lint/expand_modules.py` in pylint 3.0 development), where `a` should be recognized as a directory package (namespace package allowed) even when a same-named module exists inside it.
+
+If you share `pylint/lint/expand_modules.py` (and `pylint/lint/utils.py` if relevant), I can produce a precise patch against those files.

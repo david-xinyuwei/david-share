@@ -1,0 +1,27 @@
+2026-10-27 10:04:08,738 - INFO - Creating container for pytest-dev__pytest-7373...
+2026-10-27 10:04:08,947 - INFO - Container for pytest-dev__pytest-7373 created: c12dcd42bd2a16497c5ac7b791a3c1d937a31c3dc17b1a446cf42aa3a5f7c265
+2026-10-27 10:04:09,154 - INFO - Container for pytest-dev__pytest-7373 started: c12dcd42bd2a16497c5ac7b791a3c1d937a31c3dc17b1a446cf42aa3a5f7c265
+2026-10-27 10:04:09,154 - INFO - Intermediate patch for pytest-dev__pytest-7373 written to logs/evaluation/aca-score-20261027-haiku-disabled-high-r1/haiku-disabled-high-r1/pytest-dev__pytest-7373/patch.diff, now applying to container...
+2026-10-27 10:04:09,239 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:04:09,367 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:04:09,482 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:04:09,595 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:04:09,634 - INFO - >>>>> Patch Apply Failed:
+patching file src/_pytest/mark/evaluate.py
+patch: **** malformed patch at line 11:  from typing import List
+
+
+2026-10-27 10:04:09,635 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for pytest-dev__pytest-7373: >>>>> Patch Apply Failed:
+patching file src/_pytest/mark/evaluate.py
+patch: **** malformed patch at line 11:  from typing import List
+
+
+Check (logs/evaluation/aca-score-20261027-haiku-disabled-high-r1/haiku-disabled-high-r1/pytest-dev__pytest-7373/run_instance.log) for more information.
+
+2026-10-27 10:04:09,635 - INFO - Attempting to stop container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-haiku-disabled-high-r1...
+2026-10-27 10:04:24,972 - INFO - Container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-haiku-disabled-high-r1 stopped successfully.
+2026-10-27 10:04:24,972 - INFO - Attempting to remove container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-haiku-disabled-high-r1...
+2026-10-27 10:04:25,049 - INFO - Container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-haiku-disabled-high-r1 removed successfully.

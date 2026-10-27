@@ -1,0 +1,79 @@
+
+--- a/sphinx/ext/napoleon/docstring.py
++++ b/sphinx/ext/napoleon/docstring.py
+@@ -319,3 +319,5 @@
+     def _escape_args_and_kwargs(self, name: str) -> str:
+-        if name.endswith('_'):
++        # Escape a trailing underscore only if strip_signature_backslash is enabled,
++        # otherwise the backslash would be rendered literally ("hello\_").
++        if name.endswith('_') and getattr(self._config, 'strip_signature_backslash', False):
+             name = name[:-1] + r'\_'
+--- /dev/null
++++ b/tests/test_ext_napoleon_trailing_underscore.py
+@@ -0,0 +1,66 @@
++"""
++    test_ext_napoleon_trailing_underscore
++    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++
++    Tests for attribute names with a trailing underscore handled by the
++    :mod:`sphinx.ext.napoleon.docstring` module.
++
++    :copyright: Copyright 2007-2020 by the Sphinx team, see AUTHORS.
++    :license: BSD, see LICENSE for details.
++"""
++
++import pytest
++
++from sphinx.ext.napoleon import Config
++from sphinx.ext.napoleon.docstring import GoogleDocstring, NumpyDocstring
++
++GOOGLE_DOCSTRING = """\
++Attributes:
++    hello_ (int): hi
++"""
++
++NUMPY_DOCSTRING = """\
++Attributes
++----------
++hello_ : int
++    hi
++"""
++
++docstring_styles = pytest.mark.parametrize(
++    'docstring_class, docstring',
++    [(GoogleDocstring, GOOGLE_DOCSTRING), (NumpyDocstring, NUMPY_DOCSTRING)],
++    ids=['google', 'numpy'],
++)
++
++
++def make_config(strip_signature_backslash=False, **settings):
++    config = Config(**settings)
++    if strip_signature_backslash:
++        config.strip_signature_backslash = True
++    return config
++
++
++@docstring_styles
++def test_underscore_in_attribute(docstring_class, docstring):
++    config = make_config(napoleon_use_ivar=False)
++    lines = docstring_class(docstring, config, what='class').lines()
++    assert '.. attribute:: hello_' in lines
++    assert not any('\\' in line for line in lines)
++
++    config = make_config(napoleon_use_ivar=True)
++    lines = docstring_class(docstring, config, what='class').lines()
++    assert ':ivar hello_: hi' in lines
++    assert ':vartype hello_: int' in lines
++    assert not any('\\' in line for line in lines)
++
++
++@docstring_styles
++def test_underscore_in_attribute_strip_signature_backslash(docstring_class, docstring):
++    config = make_config(strip_signature_backslash=True, napoleon_use_ivar=False)
++    lines = docstring_class(docstring, config, what='class').lines()
++    assert '.. attribute:: hello\\_' in lines
++
++    config = make_config(strip_signature_backslash=True, napoleon_use_ivar=True)
++    lines = docstring_class(docstring, config, what='class').lines()
++    assert ':ivar hello\\_: hi' in lines
++    assert ':vartype hello\\_: int' in lines

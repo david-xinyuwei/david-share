@@ -1,0 +1,33 @@
+
+--- a/django/db/models/expressions.py
++++ b/django/db/models/expressions.py
+@@ -1150,5 +1150,6 @@
+     def __init__(self, queryset, output_field=None, **extra):
+         # Allow the usage of both QuerySet and sql.Query objects.
+-        self.query = getattr(queryset, 'query', queryset)
++        self.query = getattr(queryset, 'query', queryset).clone()
++        self.query.subquery = True
+         self.extra = extra
+         super().__init__(output_field)
+--- /dev/null
++++ b/tests/expressions/test_subquery_sql.py
+@@ -0,0 +1,19 @@
++from django.db import connection
++from django.db.models import Subquery
++from django.test import TestCase
++
++from .models import Employee
++
++
++class SubquerySQLTests(TestCase):
++    def test_subquery_sql(self):
++        employees = Employee.objects.all()
++        employees_subquery = Subquery(employees)
++        # The wrapped query is flagged as a subquery without mutating the
++        # queryset that was passed in.
++        self.assertIs(employees_subquery.query.subquery, True)
++        self.assertIs(employees.query.subquery, False)
++        compiler = employees_subquery.query.get_compiler(connection=connection)
++        sql, _ = employees_subquery.as_sql(compiler, connection)
++        self.assertTrue(sql.startswith('(SELECT '), sql)
++        self.assertTrue(sql.endswith(')'), sql)

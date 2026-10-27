@@ -1,0 +1,13 @@
+
+--- a/django/db/models/expressions.py
++++ b/django/db/models/expressions.py
+@@ -1,6 +1,6 @@
+ class Subquery(Expression):
+     template = '(%(subquery)s)'
+-    def __init__(self, queryset, output_field=None, **extra):
+-        self.query = queryset.query
++    def __init__(self, queryset, output_field=None, **extra):
++        self.query = queryset.query.clone()
++        self.query.subquery = True
+         self.extra = extra
+         super().__init__(output_field)

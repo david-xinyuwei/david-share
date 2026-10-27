@@ -1,0 +1,27 @@
+2026-10-27 09:46:56,010 - INFO - Creating container for sympy__sympy-14774...
+2026-10-27 09:46:56,528 - INFO - Container for sympy__sympy-14774 created: 12df0a56bd958e38432007b3a73cf992841e18d83a5b3f86261b30ab0f884df5
+2026-10-27 09:46:56,723 - INFO - Container for sympy__sympy-14774 started: 12df0a56bd958e38432007b3a73cf992841e18d83a5b3f86261b30ab0f884df5
+2026-10-27 09:46:56,723 - INFO - Intermediate patch for sympy__sympy-14774 written to logs/evaluation/aca-score-20261027-haiku-adaptive-low-r2/haiku-adaptive-low-r2/sympy__sympy-14774/patch.diff, now applying to container...
+2026-10-27 09:46:56,807 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 09:46:57,096 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 09:46:57,221 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 09:46:57,347 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 09:46:57,388 - INFO - >>>>> Patch Apply Failed:
+patching file sympy/printing/latex.py
+patch: **** malformed patch at line 7: EOF
+
+
+2026-10-27 09:46:57,388 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for sympy__sympy-14774: >>>>> Patch Apply Failed:
+patching file sympy/printing/latex.py
+patch: **** malformed patch at line 7: EOF
+
+
+Check (logs/evaluation/aca-score-20261027-haiku-adaptive-low-r2/haiku-adaptive-low-r2/sympy__sympy-14774/run_instance.log) for more information.
+
+2026-10-27 09:46:57,388 - INFO - Attempting to stop container sweb.eval.sympy__sympy-14774.aca-score-20261027-haiku-adaptive-low-r2...
+2026-10-27 09:47:12,701 - INFO - Container sweb.eval.sympy__sympy-14774.aca-score-20261027-haiku-adaptive-low-r2 stopped successfully.
+2026-10-27 09:47:12,701 - INFO - Attempting to remove container sweb.eval.sympy__sympy-14774.aca-score-20261027-haiku-adaptive-low-r2...
+2026-10-27 09:47:12,795 - INFO - Container sweb.eval.sympy__sympy-14774.aca-score-20261027-haiku-adaptive-low-r2 removed successfully.

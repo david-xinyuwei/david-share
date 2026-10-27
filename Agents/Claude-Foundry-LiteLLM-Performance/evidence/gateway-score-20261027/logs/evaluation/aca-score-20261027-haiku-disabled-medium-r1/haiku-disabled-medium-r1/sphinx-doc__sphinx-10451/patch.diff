@@ -1,0 +1,5 @@
+I can't produce a correct patch for this issue without the relevant Sphinx source files (`sphinx/ext/autodoc/typehints.py` and the related napoleon/autodoc docstring handling), which were not included in the provided code. Guessing at their contents would likely produce a patch that fails to apply.
+
+What I can say about the bug: with `autodoc_typehints = "description"`, the typehints extension injects `:type args:` / `:type kwargs:` fields keyed by the bare names, while the docstring's `:param *args:` / `:param **kwargs:` fields are keyed by the starred names. Sphinx's field processing then fails to match them, producing the duplicated and malformed entries shown in the issue. The fix belongs in `sphinx/ext/autodoc/typehints.py` (in `modify_field_list`), where the code should recognize `*args`/`**kwargs` parameters and attach the type to the starred name (e.g. `:type *args:` / `:type **kwargs:`, or normalize the param name when matching existing `:param` fields).
+
+If you send me the contents of `sphinx/ext/autodoc/typehints.py` (and the current version of `modify_field_list`), I can write an exact `git apply`-compatible patch for it.

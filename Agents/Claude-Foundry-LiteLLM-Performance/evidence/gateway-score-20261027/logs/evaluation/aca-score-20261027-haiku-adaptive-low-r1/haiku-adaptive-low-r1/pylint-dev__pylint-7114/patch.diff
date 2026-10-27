@@ -1,0 +1,10 @@
+I can't produce a reliable patch for this issue from the files provided. The bug is in how pylint expands the `a` argument into modules, which happens in `pylint/lint/expand_modules.py` (and possibly the file-discovery code in `pylint/lint/pylinter.py`). Neither file is in the code you sent, so I'd be guessing at the fix.
+
+The diff in your prompt (the `euclidean` and `bresenham` example) also doesn't relate to this repository, so I haven't used it.
+
+To write the patch, I need one of these:
+
+1. `pylint/lint/expand_modules.py` (the most likely location for the `__init__.py` lookup that fails when `a/a.py` exists).
+2. `pylint/lint/pylinter.py`, if the lookup happens during the file walk.
+
+With that file, I can produce a `git apply`-compatible patch and a regression test. The test would create `a/a.py` and `a/b.py` (both empty) and check that `pylint a` and `pylint -E r a` complete without `F0010`.

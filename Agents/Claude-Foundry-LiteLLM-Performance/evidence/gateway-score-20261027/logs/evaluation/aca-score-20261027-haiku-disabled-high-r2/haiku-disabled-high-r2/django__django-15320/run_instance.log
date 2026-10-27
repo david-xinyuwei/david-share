@@ -1,0 +1,47 @@
+2026-10-27 10:05:44,862 - INFO - Creating container for django__django-15320...
+2026-10-27 10:05:45,124 - INFO - Container for django__django-15320 created: 2c8b141aa2644d65d76da2fc1d51988d63ae84fc3cad88b6911d4121769f35de
+2026-10-27 10:05:45,373 - INFO - Container for django__django-15320 started: 2c8b141aa2644d65d76da2fc1d51988d63ae84fc3cad88b6911d4121769f35de
+2026-10-27 10:05:45,373 - INFO - Intermediate patch for django__django-15320 written to logs/evaluation/aca-score-20261027-haiku-disabled-high-r2/haiku-disabled-high-r2/django__django-15320/patch.diff, now applying to container...
+2026-10-27 10:05:45,465 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:05:46,319 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:05:46,613 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:05:46,907 - INFO - >>>>> Applied Patch:
+patching file django/db/models/expressions.py
+Hunk #1 succeeded at 1 with fuzz 3.
+
+2026-10-27 10:05:47,024 - INFO - Git diff before:
+diff --git a/django/db/models/expressions.py b/django/db/models/expressions.py
+index 6f26dff0e0..50281663fc 100755
+--- a/django/db/models/expressions.py
++++ b/django/db/models/expressions.py
+@@ -1,6 +1,7 @@
+ import copy
+ import datetime
+ import functools
++        self.query.subquery = True
+ import inspect
+ from decimal import Decimal
+ from uuid import UUID
+2026-10-27 10:05:47,024 - INFO - Eval script for django__django-15320 written to logs/evaluation/aca-score-20261027-haiku-disabled-high-r2/haiku-disabled-high-r2/django__django-15320/eval.sh; copying to container...
+2026-10-27 10:05:52,549 - INFO - Test runtime: 5.48 seconds
+2026-10-27 10:05:52,551 - INFO - Test output for django__django-15320 written to logs/evaluation/aca-score-20261027-haiku-disabled-high-r2/haiku-disabled-high-r2/django__django-15320/test_output.txt
+2026-10-27 10:05:52,606 - INFO - Git diff after:
+diff --git a/django/db/models/expressions.py b/django/db/models/expressions.py
+index 6f26dff0e0..50281663fc 100755
+--- a/django/db/models/expressions.py
++++ b/django/db/models/expressions.py
+@@ -1,6 +1,7 @@
+ import copy
+ import datetime
+ import functools
++        self.query.subquery = True
+ import inspect
+ from decimal import Decimal
+ from uuid import UUID
+2026-10-27 10:05:52,606 - INFO - Grading answer for django__django-15320...
+2026-10-27 10:05:52,879 - INFO - report: {'django__django-15320': {'patch_is_None': False, 'patch_exists': True, 'patch_successfully_applied': False, 'resolved': False, 'infra_failure': False}}
+Result for django__django-15320: resolved: False
+2026-10-27 10:05:52,879 - INFO - Attempting to stop container sweb.eval.django__django-15320.aca-score-20261027-haiku-disabled-high-r2...
+2026-10-27 10:06:08,221 - INFO - Container sweb.eval.django__django-15320.aca-score-20261027-haiku-disabled-high-r2 stopped successfully.
+2026-10-27 10:06:08,221 - INFO - Attempting to remove container sweb.eval.django__django-15320.aca-score-20261027-haiku-disabled-high-r2...
+2026-10-27 10:06:08,396 - INFO - Container sweb.eval.django__django-15320.aca-score-20261027-haiku-disabled-high-r2 removed successfully.

@@ -1,0 +1,83 @@
+
+--- a/src/flask/cli.py
++++ b/src/flask/cli.py
+@@ -989,7 +989,7 @@
+ @click.option(
+     "--sort",
+     "-s",
+-    type=click.Choice(("endpoint", "methods", "rule", "match")),
++    type=click.Choice(("endpoint", "methods", "domain", "rule", "match")),
+     default="endpoint",
+     help=(
+         'Method to sort routes by. "match" is the order that Flask will match '
+@@ -1006,32 +1006,44 @@
+         click.echo("No routes were registered.")
+         return
+ 
+-    ignored_methods = set(() if all_methods else ("HEAD", "OPTIONS"))
+-
+-    if sort in ("endpoint", "rule"):
+-        rules = sorted(rules, key=attrgetter(sort))
+-    elif sort == "methods":
+-        rules = sorted(rules, key=lambda rule: sorted(rule.methods))  # type: ignore
+-
+-    rule_methods = [
+-        ", ".join(sorted(rule.methods - ignored_methods))  # type: ignore
+-        for rule in rules
+-    ]
+-
+-    headers = ("Endpoint", "Methods", "Rule")
+-    widths = (
+-        max(len(rule.endpoint) for rule in rules),
+-        max(len(methods) for methods in rule_methods),
+-        max(len(rule.rule) for rule in rules),
+-    )
+-    widths = [max(len(h), w) for h, w in zip(headers, widths)]
+-    row = "{{0:<{0}}}  {{1:<{1}}}  {{2:<{2}}}".format(*widths)
+-
+-    click.echo(row.format(*headers).strip())
+-    click.echo(row.format(*("-" * width for width in widths)))
+-
+-    for rule, methods in zip(rules, rule_methods):
+-        click.echo(row.format(rule.endpoint, methods, rule.rule).rstrip())
++    ignored_methods = set(() if all_methods else ("HEAD", "OPTIONS"))
++    host_matching = current_app.url_map.host_matching
++
++    def get_domain(rule) -> str:
++        return (rule.host if host_matching else rule.subdomain) or ""
++
++    if sort in ("endpoint", "rule"):
++        rules = sorted(rules, key=attrgetter(sort))
++    elif sort == "domain":
++        rules = sorted(rules, key=get_domain)
++    elif sort == "methods":
++        rules = sorted(rules, key=lambda rule: sorted(rule.methods))  # type: ignore
++
++    rule_methods = [
++        ", ".join(sorted(rule.methods - ignored_methods))  # type: ignore
++        for rule in rules
++    ]
++    rule_domains = [get_domain(rule) for rule in rules]
++
++    # Only show the domain column when some route is bound to a subdomain
++    # or host, so the output is unchanged for apps that don't use them.
++    headers = ["Endpoint", "Methods"]
++    columns = [[rule.endpoint for rule in rules], rule_methods]
++
++    if any(rule_domains):
++        headers.append("Host" if host_matching else "Subdomain")
++        columns.append(rule_domains)
++
++    headers.append("Rule")
++    columns.append([rule.rule for rule in rules])
++    widths = [max(len(h), *(len(v) for v in col)) for h, col in zip(headers, columns)]
++    row = "  ".join(f"{{{i}:<{w}}}" for i, w in enumerate(widths))
++
++    click.echo(row.format(*headers).strip())
++    click.echo(row.format(*("-" * width for width in widths)))
++
++    for values in zip(*columns):
++        click.echo(row.format(*values).rstrip())
+ 
+ 
+ cli = FlaskGroup(

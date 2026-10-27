@@ -1,0 +1,23 @@
+2026-10-27 10:01:05,033 - INFO - Creating container for sympy__sympy-18087...
+2026-10-27 10:01:05,186 - INFO - Container for sympy__sympy-18087 created: 5ff003e7663af4566af838afa241242a2ede13ff7d03df5219c0f17b5ab7bebf
+2026-10-27 10:01:05,392 - INFO - Container for sympy__sympy-18087 started: 5ff003e7663af4566af838afa241242a2ede13ff7d03df5219c0f17b5ab7bebf
+2026-10-27 10:01:05,392 - INFO - Intermediate patch for sympy__sympy-18087 written to logs/evaluation/aca-score-20261027-haiku-disabled-default-r1/haiku-disabled-default-r1/sympy__sympy-18087/patch.diff, now applying to container...
+2026-10-27 10:01:05,476 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:01:05,811 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:01:06,098 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:01:06,193 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:01:06,232 - INFO - >>>>> Patch Apply Failed:
+patch: **** Only garbage was found in the patch input.
+
+2026-10-27 10:01:06,232 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for sympy__sympy-18087: >>>>> Patch Apply Failed:
+patch: **** Only garbage was found in the patch input.
+
+Check (logs/evaluation/aca-score-20261027-haiku-disabled-default-r1/haiku-disabled-default-r1/sympy__sympy-18087/run_instance.log) for more information.
+
+2026-10-27 10:01:06,232 - INFO - Attempting to stop container sweb.eval.sympy__sympy-18087.aca-score-20261027-haiku-disabled-default-r1...
+2026-10-27 10:01:21,507 - INFO - Container sweb.eval.sympy__sympy-18087.aca-score-20261027-haiku-disabled-default-r1 stopped successfully.
+2026-10-27 10:01:21,507 - INFO - Attempting to remove container sweb.eval.sympy__sympy-18087.aca-score-20261027-haiku-disabled-default-r1...
+2026-10-27 10:01:21,584 - INFO - Container sweb.eval.sympy__sympy-18087.aca-score-20261027-haiku-disabled-default-r1 removed successfully.

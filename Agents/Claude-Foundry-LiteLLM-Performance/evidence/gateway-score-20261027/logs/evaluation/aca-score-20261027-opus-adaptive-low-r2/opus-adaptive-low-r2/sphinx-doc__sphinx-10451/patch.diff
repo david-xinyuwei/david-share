@@ -1,0 +1,14 @@
+
+--- a/sphinx/ext/autodoc/typehints.py
++++ b/sphinx/ext/autodoc/typehints.py
+@@ -1,6 +1,11 @@
+     for name, annotation in annotations.items():
+         if name == 'return':
+             continue
+ 
++        if name not in arguments:
++            if '*' + name in arguments:
++                name = '*' + name
++            elif '**' + name in arguments:
++                name = '**' + name
+         arg = arguments.get(name, {})

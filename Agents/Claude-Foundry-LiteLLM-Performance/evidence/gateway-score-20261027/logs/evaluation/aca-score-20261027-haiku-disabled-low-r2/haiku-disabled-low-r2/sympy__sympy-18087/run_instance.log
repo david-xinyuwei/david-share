@@ -1,0 +1,23 @@
+2026-10-27 10:10:47,380 - INFO - Creating container for sympy__sympy-18087...
+2026-10-27 10:10:47,539 - INFO - Container for sympy__sympy-18087 created: 3b596029d82a30e316c15e12b6ba0cc5b717b552422f43ea8cafcae8425f0dcf
+2026-10-27 10:10:47,748 - INFO - Container for sympy__sympy-18087 started: 3b596029d82a30e316c15e12b6ba0cc5b717b552422f43ea8cafcae8425f0dcf
+2026-10-27 10:10:47,748 - INFO - Intermediate patch for sympy__sympy-18087 written to logs/evaluation/aca-score-20261027-haiku-disabled-low-r2/haiku-disabled-low-r2/sympy__sympy-18087/patch.diff, now applying to container...
+2026-10-27 10:10:47,831 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:10:48,171 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:10:48,362 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:10:48,552 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:10:48,592 - INFO - >>>>> Patch Apply Failed:
+patch: **** Only garbage was found in the patch input.
+
+2026-10-27 10:10:48,592 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for sympy__sympy-18087: >>>>> Patch Apply Failed:
+patch: **** Only garbage was found in the patch input.
+
+Check (logs/evaluation/aca-score-20261027-haiku-disabled-low-r2/haiku-disabled-low-r2/sympy__sympy-18087/run_instance.log) for more information.
+
+2026-10-27 10:10:48,592 - INFO - Attempting to stop container sweb.eval.sympy__sympy-18087.aca-score-20261027-haiku-disabled-low-r2...
+2026-10-27 10:11:03,844 - INFO - Container sweb.eval.sympy__sympy-18087.aca-score-20261027-haiku-disabled-low-r2 stopped successfully.
+2026-10-27 10:11:03,844 - INFO - Attempting to remove container sweb.eval.sympy__sympy-18087.aca-score-20261027-haiku-disabled-low-r2...
+2026-10-27 10:11:03,918 - INFO - Container sweb.eval.sympy__sympy-18087.aca-score-20261027-haiku-disabled-low-r2 removed successfully.

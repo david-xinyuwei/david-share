@@ -1,0 +1,5 @@
+I can't produce a patch for this issue from the provided code alone, because the relevant logic for escaping trailing underscores lives in the napoleon docstring converter (`sphinx/ext/napoleon/docstring.py`), which was not included in the files you shared. The napoleon `__init__.py` only handles configuration and hooks; the `_escape_args_and_kwargs` / field-rendering code that produces the `hello\_` output sits in `docstring.py`.
+
+Writing a patch blindly against that file would risk producing a diff that doesn't apply cleanly. If you can share `sphinx/ext/napoleon/docstring.py`, I can produce a targeted patch. Likely areas to check there are where attribute names from the `Attributes` section are passed through `_escape_rst_literal` or similar escaping helpers, and where the `:ivar:` / `.. attribute::` directives are generated for the name.
+
+Alternatively, the expected behavior is that attribute names are rendered as plain names (not literals) when the name contains a trailing underscore, so the fix is to avoid applying RST escaping to the name in the attribute-directive path while keeping it for type strings.

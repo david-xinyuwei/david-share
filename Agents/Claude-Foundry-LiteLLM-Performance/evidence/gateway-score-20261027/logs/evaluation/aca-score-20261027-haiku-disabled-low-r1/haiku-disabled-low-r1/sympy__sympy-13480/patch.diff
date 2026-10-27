@@ -1,0 +1,9 @@
+I can't produce a valid patch without seeing `sympy/functions/elementary/hyperbolic.py`, since the bug is in the `eval` method of `coth` and the file wasn't included in the provided code. The traceback shows `cotm` is referenced at line 590 but never assigned, so the fix needs to happen in that file.
+
+Guessing at the surrounding code and emitting a diff against lines I haven't seen would likely fail to apply. Instead, here is what needs to change:
+
+1. Open `sympy/functions/elementary/hyperbolic.py` and locate `class coth`'s `eval` method (around line 590).
+2. Find the branch that uses `cotm` (the `if cotm is S.ComplexInfinity:` check). The variable must be computed before use, typically as `cotm = cot(m)` (or the equivalent cotangent of the imaginary/argument part, following the pattern used for `tanh`/`cot` evaluation in the same method).
+3. Make sure every code path that reads `cotm` has it assigned first, for example by moving the assignment above the conditional that depends on it.
+
+If you send the contents of `sympy/functions/elementary/hyperbolic.py` (or the `coth.eval` section), I can write an exact patch file in the format you requested.

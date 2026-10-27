@@ -1,0 +1,25 @@
+2026-10-27 11:00:09,159 - INFO - Creating container for sympy__sympy-13480...
+2026-10-27 11:00:09,314 - INFO - Container for sympy__sympy-13480 created: d2ce57d65e647a311b88a76752ec2334a432e15b7c3f5314765e40f6dc86f3fc
+2026-10-27 11:00:09,552 - INFO - Container for sympy__sympy-13480 started: d2ce57d65e647a311b88a76752ec2334a432e15b7c3f5314765e40f6dc86f3fc
+2026-10-27 11:00:09,552 - INFO - Intermediate patch for sympy__sympy-13480 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-medium-r1/sonnet-adaptive-medium-r1/sympy__sympy-13480/patch.diff, now applying to container...
+2026-10-27 11:00:09,638 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 11:00:09,923 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 11:00:10,180 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 11:00:10,276 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 11:00:10,317 - INFO - >>>>> Patch Apply Failed:
+patch unexpectedly ends in middle of line
+patch: **** Only garbage was found in the patch input.
+
+2026-10-27 11:00:10,317 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for sympy__sympy-13480: >>>>> Patch Apply Failed:
+patch unexpectedly ends in middle of line
+patch: **** Only garbage was found in the patch input.
+
+Check (logs/evaluation/aca-score-20261027-sonnet-adaptive-medium-r1/sonnet-adaptive-medium-r1/sympy__sympy-13480/run_instance.log) for more information.
+
+2026-10-27 11:00:10,317 - INFO - Attempting to stop container sweb.eval.sympy__sympy-13480.aca-score-20261027-sonnet-adaptive-medium-r1...
+2026-10-27 11:00:25,608 - INFO - Container sweb.eval.sympy__sympy-13480.aca-score-20261027-sonnet-adaptive-medium-r1 stopped successfully.
+2026-10-27 11:00:25,608 - INFO - Attempting to remove container sweb.eval.sympy__sympy-13480.aca-score-20261027-sonnet-adaptive-medium-r1...
+2026-10-27 11:00:25,678 - INFO - Container sweb.eval.sympy__sympy-13480.aca-score-20261027-sonnet-adaptive-medium-r1 removed successfully.

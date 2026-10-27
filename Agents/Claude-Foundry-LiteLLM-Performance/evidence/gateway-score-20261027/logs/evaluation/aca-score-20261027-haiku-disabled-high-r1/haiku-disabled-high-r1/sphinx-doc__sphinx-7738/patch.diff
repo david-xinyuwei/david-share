@@ -1,0 +1,5 @@
+I can't produce a patch for this issue from the provided code alone, because the relevant napoleon docstring handling (the code that escapes trailing underscores in attribute names, likely in `sphinx/ext/napoleon/docstring.py`) was not included in the files you shared. Guessing at its contents would risk a patch that doesn't apply.
+
+What I can say from the issue: the trailing underscore on `hello_` is being escaped to `hello\_` somewhere in napoleon's processing of the `Attributes` section, which then gets rendered as a literal backslash. The fix would belong in the code path that converts numpy/google attribute entries into `.. attribute::` (or `:ivar:`) directives, ensuring the name is not passed through reST escaping when it is already used as a directive argument.
+
+If you can share `sphinx/ext/napoleon/docstring.py` (particularly `_parse_attributes_section` / `_escape_args_and_kwargs` and any `escape`/`\\_` handling), I can produce a precise patch against it.

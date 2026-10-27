@@ -1,0 +1,27 @@
+2026-10-27 11:21:56,424 - INFO - Creating container for sphinx-doc__sphinx-7738...
+2026-10-27 11:21:56,603 - INFO - Container for sphinx-doc__sphinx-7738 created: d4dfd44f1483ad6db6f44b02ee1f9a2f72b26b51f359182f8fa116e33823a693
+2026-10-27 11:21:56,801 - INFO - Container for sphinx-doc__sphinx-7738 started: d4dfd44f1483ad6db6f44b02ee1f9a2f72b26b51f359182f8fa116e33823a693
+2026-10-27 11:21:56,802 - INFO - Intermediate patch for sphinx-doc__sphinx-7738 written to logs/evaluation/aca-score-20261027-sonnet-between_tools-medium-r1/sonnet-between_tools-medium-r1/sphinx-doc__sphinx-7738/patch.diff, now applying to container...
+2026-10-27 11:21:56,882 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 11:21:57,113 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 11:21:57,247 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 11:21:57,376 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 11:21:57,414 - INFO - >>>>> Patch Apply Failed:
+patching file sphinx/ext/napoleon/docstring.py
+patch: **** malformed patch at line 12: @@ -262,7 +263,8 @@
+
+
+2026-10-27 11:21:57,414 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for sphinx-doc__sphinx-7738: >>>>> Patch Apply Failed:
+patching file sphinx/ext/napoleon/docstring.py
+patch: **** malformed patch at line 12: @@ -262,7 +263,8 @@
+
+
+Check (logs/evaluation/aca-score-20261027-sonnet-between_tools-medium-r1/sonnet-between_tools-medium-r1/sphinx-doc__sphinx-7738/run_instance.log) for more information.
+
+2026-10-27 11:21:57,415 - INFO - Attempting to stop container sweb.eval.sphinx-doc__sphinx-7738.aca-score-20261027-sonnet-between_tools-medium-r1...
+2026-10-27 11:22:12,805 - INFO - Container sweb.eval.sphinx-doc__sphinx-7738.aca-score-20261027-sonnet-between_tools-medium-r1 stopped successfully.
+2026-10-27 11:22:12,805 - INFO - Attempting to remove container sweb.eval.sphinx-doc__sphinx-7738.aca-score-20261027-sonnet-between_tools-medium-r1...
+2026-10-27 11:22:12,879 - INFO - Container sweb.eval.sphinx-doc__sphinx-7738.aca-score-20261027-sonnet-between_tools-medium-r1 removed successfully.

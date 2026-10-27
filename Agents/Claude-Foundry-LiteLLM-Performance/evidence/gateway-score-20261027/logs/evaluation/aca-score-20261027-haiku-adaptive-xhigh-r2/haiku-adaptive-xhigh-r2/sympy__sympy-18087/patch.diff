@@ -1,0 +1,9 @@
+from sympy import Symbol, cos, sin, sqrt, trigsimp, pi
+
+x = Symbol('x')                      # no assumptions: "general complex" case
+e = cos(x) + sqrt(sin(x)**2)
+r = trigsimp(e)
+print(r)                             # reported to be cos(x) + sin(x)
+
+# At x = 3*pi/2: the original value is 0 + 1 = 1, but cos(x)+sin(x) gives -1
+assert r.subs(x, 3*pi/2) == e.subs(x, 3*pi/2)

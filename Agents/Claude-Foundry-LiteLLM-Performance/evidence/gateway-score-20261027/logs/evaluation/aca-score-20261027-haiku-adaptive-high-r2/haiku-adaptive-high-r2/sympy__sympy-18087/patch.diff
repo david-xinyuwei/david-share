@@ -1,0 +1,10 @@
+from sympy import symbols, cos, sin, sqrt, trigsimp, simplify, Symbol
+
+x = symbols('x')
+expr = cos(x) + sqrt(sin(x)**2)
+print(trigsimp(expr))   # the bug: this should not come out as cos(x) + sin(x)
+print(simplify(expr))
+
+# The real-variable case should also keep the absolute value:
+xr = Symbol('x', real=True)
+print(trigsimp(cos(xr) + sqrt(sin(xr)**2)))

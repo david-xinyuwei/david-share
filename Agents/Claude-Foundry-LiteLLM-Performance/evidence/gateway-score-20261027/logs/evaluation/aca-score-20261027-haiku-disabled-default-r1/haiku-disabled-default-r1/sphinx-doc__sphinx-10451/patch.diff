@@ -1,0 +1,8 @@
+I can't produce a correct patch for this issue without the relevant Sphinx autodoc source (`sphinx/ext/autodoc/typehints.py`), which was not included in the provided code. Writing a patch blind against that file would risk a non-applying or incorrect diff, so I'm not going to fabricate one.
+
+What I can tell you from the issue itself:
+
+- The bug is in the `autodoc_typehints = "description"` path, where the `:param *args:` and `:param **kwargs:` entries from the docstring are not matched against the signature's parameter names (`args`, `kwargs`). As a result, Sphinx adds new `args`/`kwargs` entries with type info and leaves the originals with the stray `*`/`**` prefix.
+- The fix belongs in `sphinx/ext/autodoc/typehints.py`, in the function that inserts `:type:`/`:param:` fields into the docstring field list (`modify_field_list`). It needs to normalize docstring param names by stripping leading `*` characters before comparing against annotated parameter names, and to emit the type field using the star-prefixed name (`*args`, `**kwargs`) so the rendered output matches the expected result.
+
+If you send me the contents of `sphinx/ext/autodoc/typehints.py` (and the matching test file under `tests/`, if you want one added), I can produce a precise `git apply`-ready patch against it.

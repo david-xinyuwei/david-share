@@ -1,0 +1,12 @@
+
+--- a/pylint/lint/expand_modules.py
++++ b/pylint/lint/expand_modules.py
+@@ -1,6 +1,7 @@
+ from __future__ import annotations
+ 
++import os
+ import os.path
+ import sys
+ from collections.abc import Sequence
+ from re import Pattern
+@@ -

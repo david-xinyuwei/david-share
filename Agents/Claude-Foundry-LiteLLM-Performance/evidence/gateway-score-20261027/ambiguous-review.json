@@ -1,0 +1,86 @@
+[
+  {
+    "run_id": "aca-score-20261027-haiku-adaptive-high-r1",
+    "instance_id": "pytest-dev__pytest-7373",
+    "official_reason": "no_tests_collected",
+    "first_collected_tests": 92,
+    "nested_zero_collection": true,
+    "error_excerpt": [
+      "NameError: name 'cached_eval' is not defined",
+      "NameError: name 'cached_eval' is not defined"
+    ],
+    "source": "logs/evaluation/aca-score-20261027-haiku-adaptive-high-r1/haiku-adaptive-high-r1/pytest-dev__pytest-7373/test_output.txt",
+    "sha256": "3485996a52667e82e866e8df1294a9fd5f12cab79652892385a10b35da7d8b07",
+    "decision": "Retain the official ambiguous flag and unresolved result; do not remove this answer from the denominator."
+  },
+  {
+    "run_id": "aca-score-20261027-haiku-adaptive-medium-r2",
+    "instance_id": "pytest-dev__pytest-7373",
+    "official_reason": "no_tests_collected",
+    "first_collected_tests": 92,
+    "nested_zero_collection": true,
+    "error_excerpt": [
+      "NameError: name 'cached_eval' is not defined",
+      "NameError: name 'cached_eval' is not defined"
+    ],
+    "source": "logs/evaluation/aca-score-20261027-haiku-adaptive-medium-r2/haiku-adaptive-medium-r2/pytest-dev__pytest-7373/test_output.txt",
+    "sha256": "ee32cedd9c33309d283449c938c82f4c70dfbf52a7bbe2faac52247982b42424",
+    "decision": "Retain the official ambiguous flag and unresolved result; do not remove this answer from the denominator."
+  },
+  {
+    "run_id": "aca-score-20261027-haiku-adaptive-xhigh-r1",
+    "instance_id": "pytest-dev__pytest-7373",
+    "official_reason": "no_tests_collected",
+    "first_collected_tests": 92,
+    "nested_zero_collection": true,
+    "error_excerpt": [
+      "NameError: name 'cached_eval' is not defined",
+      "NameError: name 'cached_eval' is not defined"
+    ],
+    "source": "logs/evaluation/aca-score-20261027-haiku-adaptive-xhigh-r1/haiku-adaptive-xhigh-r1/pytest-dev__pytest-7373/test_output.txt",
+    "sha256": "2b8c42fe2cef2c5475d937a7081c6d17adbe1721f3b34d2cb255b70faa4358ea",
+    "decision": "Retain the official ambiguous flag and unresolved result; do not remove this answer from the denominator."
+  },
+  {
+    "run_id": "aca-score-20261027-haiku-adaptive-xhigh-r2",
+    "instance_id": "pytest-dev__pytest-7373",
+    "official_reason": "no_tests_collected",
+    "first_collected_tests": 92,
+    "nested_zero_collection": true,
+    "error_excerpt": [
+      "NameError: name 'cached_eval' is not defined",
+      "NameError: name 'cached_eval' is not defined"
+    ],
+    "source": "logs/evaluation/aca-score-20261027-haiku-adaptive-xhigh-r2/haiku-adaptive-xhigh-r2/pytest-dev__pytest-7373/test_output.txt",
+    "sha256": "252206719efff933af15d73db7b99468fc85b8ddc47b96ed27b926dae98832b3",
+    "decision": "Retain the official ambiguous flag and unresolved result; do not remove this answer from the denominator."
+  },
+  {
+    "run_id": "aca-score-20261027-sonnet-adaptive-medium-r1",
+    "instance_id": "pytest-dev__pytest-7373",
+    "official_reason": "no_tests_collected",
+    "first_collected_tests": 92,
+    "nested_zero_collection": true,
+    "error_excerpt": [
+      "NameError: name 'cached_eval' is not defined",
+      "NameError: name 'cached_eval' is not defined"
+    ],
+    "source": "logs/evaluation/aca-score-20261027-sonnet-adaptive-medium-r1/sonnet-adaptive-medium-r1/pytest-dev__pytest-7373/test_output.txt",
+    "sha256": "dc96872d0c1865d6b1a9236aff2fb7f214415bc888d0714288b55ede9151f7a1",
+    "decision": "Retain the official ambiguous flag and unresolved result; do not remove this answer from the denominator."
+  },
+  {
+    "run_id": "aca-score-20261027-sonnet-adaptive-xhigh-r1",
+    "instance_id": "pytest-dev__pytest-7373",
+    "official_reason": "no_tests_collected",
+    "first_collected_tests": 92,
+    "nested_zero_collection": true,
+    "error_excerpt": [
+      "NameError: name 'cached_eval' is not defined",
+      "NameError: name 'cached_eval' is not defined"
+    ],
+    "source": "logs/evaluation/aca-score-20261027-sonnet-adaptive-xhigh-r1/sonnet-adaptive-xhigh-r1/pytest-dev__pytest-7373/test_output.txt",
+    "sha256": "cf3a17e71005e2620152a04370324b976e35bdbdd58765036cc2f103bf864518",
+    "decision": "Retain the official ambiguous flag and unresolved result; do not remove this answer from the denominator."
+  }
+]

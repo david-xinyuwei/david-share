@@ -1,0 +1,27 @@
+2026-10-27 10:45:50,335 - INFO - Creating container for pylint-dev__pylint-7114...
+2026-10-27 10:45:50,475 - INFO - Container for pylint-dev__pylint-7114 created: e36879f3ed713a791b0bb1f3f5f6d3d4eca391985c47c090f0de0450ed58fe4e
+2026-10-27 10:45:50,648 - INFO - Container for pylint-dev__pylint-7114 started: e36879f3ed713a791b0bb1f3f5f6d3d4eca391985c47c090f0de0450ed58fe4e
+2026-10-27 10:45:50,648 - INFO - Intermediate patch for pylint-dev__pylint-7114 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-default-r2/sonnet-adaptive-default-r2/pylint-dev__pylint-7114/patch.diff, now applying to container...
+2026-10-27 10:45:50,732 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:45:51,006 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:45:51,187 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:45:51,301 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:45:51,339 - INFO - >>>>> Patch Apply Failed:
+patch: **** malformed patch at line 7:              is_directory = modutils.is_directory(spec)
+
+patching file pylint/lint/expand_modules.py
+
+2026-10-27 10:45:51,339 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for pylint-dev__pylint-7114: >>>>> Patch Apply Failed:
+patch: **** malformed patch at line 7:              is_directory = modutils.is_directory(spec)
+
+patching file pylint/lint/expand_modules.py
+
+Check (logs/evaluation/aca-score-20261027-sonnet-adaptive-default-r2/sonnet-adaptive-default-r2/pylint-dev__pylint-7114/run_instance.log) for more information.
+
+2026-10-27 10:45:51,339 - INFO - Attempting to stop container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-sonnet-adaptive-default-r2...
+2026-10-27 10:46:06,613 - INFO - Container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-sonnet-adaptive-default-r2 stopped successfully.
+2026-10-27 10:46:06,613 - INFO - Attempting to remove container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-sonnet-adaptive-default-r2...
+2026-10-27 10:46:06,708 - INFO - Container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-sonnet-adaptive-default-r2 removed successfully.

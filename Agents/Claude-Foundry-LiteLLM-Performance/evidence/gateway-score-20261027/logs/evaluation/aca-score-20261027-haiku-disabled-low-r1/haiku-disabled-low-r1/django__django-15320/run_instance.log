@@ -1,0 +1,27 @@
+2026-10-27 10:07:40,683 - INFO - Creating container for django__django-15320...
+2026-10-27 10:07:40,937 - INFO - Container for django__django-15320 created: 16eb61cc39dea7db3e887106603a620bd9a399d79299a5431d118f35a6ba4f4c
+2026-10-27 10:07:41,153 - INFO - Container for django__django-15320 started: 16eb61cc39dea7db3e887106603a620bd9a399d79299a5431d118f35a6ba4f4c
+2026-10-27 10:07:41,155 - INFO - Intermediate patch for django__django-15320 written to logs/evaluation/aca-score-20261027-haiku-disabled-low-r1/haiku-disabled-low-r1/django__django-15320/patch.diff, now applying to container...
+2026-10-27 10:07:41,246 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:07:42,110 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:07:42,283 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:07:42,459 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:07:42,504 - INFO - >>>>> Patch Apply Failed:
+patch: **** malformed patch at line 13:          super().__init__(output_field)
+
+patching file django/db/models/expressions.py
+
+2026-10-27 10:07:42,504 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for django__django-15320: >>>>> Patch Apply Failed:
+patch: **** malformed patch at line 13:          super().__init__(output_field)
+
+patching file django/db/models/expressions.py
+
+Check (logs/evaluation/aca-score-20261027-haiku-disabled-low-r1/haiku-disabled-low-r1/django__django-15320/run_instance.log) for more information.
+
+2026-10-27 10:07:42,504 - INFO - Attempting to stop container sweb.eval.django__django-15320.aca-score-20261027-haiku-disabled-low-r1...
+2026-10-27 10:07:57,796 - INFO - Container sweb.eval.django__django-15320.aca-score-20261027-haiku-disabled-low-r1 stopped successfully.
+2026-10-27 10:07:57,796 - INFO - Attempting to remove container sweb.eval.django__django-15320.aca-score-20261027-haiku-disabled-low-r1...
+2026-10-27 10:07:57,983 - INFO - Container sweb.eval.django__django-15320.aca-score-20261027-haiku-disabled-low-r1 removed successfully.

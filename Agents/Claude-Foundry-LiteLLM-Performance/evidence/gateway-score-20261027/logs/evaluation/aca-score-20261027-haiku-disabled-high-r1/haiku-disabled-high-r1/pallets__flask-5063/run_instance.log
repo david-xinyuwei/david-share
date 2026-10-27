@@ -1,0 +1,27 @@
+2026-10-27 10:03:50,930 - INFO - Creating container for pallets__flask-5063...
+2026-10-27 10:03:51,187 - INFO - Container for pallets__flask-5063 created: 2527957ad26ad2ee4cb739f056143bcd5860f483ffe569731e844bc04bf5f925
+2026-10-27 10:03:51,470 - INFO - Container for pallets__flask-5063 started: 2527957ad26ad2ee4cb739f056143bcd5860f483ffe569731e844bc04bf5f925
+2026-10-27 10:03:51,471 - INFO - Intermediate patch for pallets__flask-5063 written to logs/evaluation/aca-score-20261027-haiku-disabled-high-r1/haiku-disabled-high-r1/pallets__flask-5063/patch.diff, now applying to container...
+2026-10-27 10:03:51,569 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:03:51,693 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:03:51,795 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:03:51,896 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:03:51,940 - INFO - >>>>> Patch Apply Failed:
+patching file src/flask/cli.py
+patch: **** malformed patch at line 47:  
+
+
+2026-10-27 10:03:51,940 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for pallets__flask-5063: >>>>> Patch Apply Failed:
+patching file src/flask/cli.py
+patch: **** malformed patch at line 47:  
+
+
+Check (logs/evaluation/aca-score-20261027-haiku-disabled-high-r1/haiku-disabled-high-r1/pallets__flask-5063/run_instance.log) for more information.
+
+2026-10-27 10:03:51,940 - INFO - Attempting to stop container sweb.eval.pallets__flask-5063.aca-score-20261027-haiku-disabled-high-r1...
+2026-10-27 10:04:07,563 - INFO - Container sweb.eval.pallets__flask-5063.aca-score-20261027-haiku-disabled-high-r1 stopped successfully.
+2026-10-27 10:04:07,563 - INFO - Attempting to remove container sweb.eval.pallets__flask-5063.aca-score-20261027-haiku-disabled-high-r1...
+2026-10-27 10:04:07,622 - INFO - Container sweb.eval.pallets__flask-5063.aca-score-20261027-haiku-disabled-high-r1 removed successfully.

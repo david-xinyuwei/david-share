@@ -1,0 +1,5 @@
+I can't produce a valid patch for this issue with confidence from the information given, and I'd rather not guess at a diff that may not apply cleanly.
+
+The root cause is in how `StatReloader` / `autoreload` collects files to watch. In Django 2.2, `manage.py` is no longer picked up because the module-level `__main__` file is not included in the set of watched files (the `__main__` module's `__file__` is skipped by `iter_all_python_module_files` / `gen_filenames`). The fix upstream (Django ticket #30479) adjusts `django/utils/autoreload.py` so that the `__main__` module's file is included in the watched set, handling the case where `sys.modules['__main__']` has a `__file__` attribute and its spec is `None`.
+
+If you'd like, I can write out the change to `django/utils/autoreload.py` as a small, targeted edit, but to produce an exact patch that `git apply` will accept, I would need the current contents of `django/utils/autoreload.py` from your repository, since I haven't been given that file here. If you paste it, I'll generate the patch against it.

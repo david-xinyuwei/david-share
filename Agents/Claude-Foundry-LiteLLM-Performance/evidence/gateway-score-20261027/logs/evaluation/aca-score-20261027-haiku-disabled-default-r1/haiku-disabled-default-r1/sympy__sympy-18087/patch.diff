@@ -1,0 +1,5 @@
+from sympy import *
+x = Symbol('x')
+print(trigsimp(cos(x) + sqrt(sin(x)**2)))   # wrong for complex x
+x = Symbol('x', real=True)
+print(trigsimp(cos(x) + sqrt(sin(x)**2)))   # correct

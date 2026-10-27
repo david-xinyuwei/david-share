@@ -1,0 +1,27 @@
+2026-10-27 09:38:05,362 - INFO - Creating container for pytest-dev__pytest-7373...
+2026-10-27 09:38:05,524 - INFO - Container for pytest-dev__pytest-7373 created: c269d2bd22def667a2fff823109fabe31178dffaa8f4a3434858c587766778b6
+2026-10-27 09:38:05,705 - INFO - Container for pytest-dev__pytest-7373 started: c269d2bd22def667a2fff823109fabe31178dffaa8f4a3434858c587766778b6
+2026-10-27 09:38:05,706 - INFO - Intermediate patch for pytest-dev__pytest-7373 written to logs/evaluation/aca-score-20261027-haiku-adaptive-default-r2/haiku-adaptive-default-r2/pytest-dev__pytest-7373/patch.diff, now applying to container...
+2026-10-27 09:38:05,792 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 09:38:05,912 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 09:38:06,023 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 09:38:06,134 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 09:38:06,171 - INFO - >>>>> Patch Apply Failed:
+patching file src/_pytest/mark/evaluate.py
+patch: **** malformed patch at line 39: @@ -98,5 +81,6 @@
+
+
+2026-10-27 09:38:06,172 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for pytest-dev__pytest-7373: >>>>> Patch Apply Failed:
+patching file src/_pytest/mark/evaluate.py
+patch: **** malformed patch at line 39: @@ -98,5 +81,6 @@
+
+
+Check (logs/evaluation/aca-score-20261027-haiku-adaptive-default-r2/haiku-adaptive-default-r2/pytest-dev__pytest-7373/run_instance.log) for more information.
+
+2026-10-27 09:38:06,172 - INFO - Attempting to stop container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-haiku-adaptive-default-r2...
+2026-10-27 09:38:21,529 - INFO - Container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-haiku-adaptive-default-r2 stopped successfully.
+2026-10-27 09:38:21,529 - INFO - Attempting to remove container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-haiku-adaptive-default-r2...
+2026-10-27 09:38:21,610 - INFO - Container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-haiku-adaptive-default-r2 removed successfully.

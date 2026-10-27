@@ -1,0 +1,8 @@
+I can't produce a verified patch for this issue from the provided files, since the relevant module-discovery code (`pylint/lint/expand_modules.py` / `pylint/utils/...` and the `_is_package`/`__init__` lookup in `pylint/lint/pylinter.py`) isn't included in the snippets shown. Guessing at a diff against code I haven't seen would almost certainly fail to apply.
+
+What I can tell you about the root cause, based on the report:
+
+- When `pylint a` is run and `a/` contains `a.py`, the module-name resolution treats `a/a.py` as the candidate for the package `a` itself, then tries to load `a/__init__.py` as the module source for that package name, and fails with `[Errno 2] No such file or directory`.
+- The fix belongs in the code that expands a directory argument into modules: when the directory is a package (has no `__init__.py` but is given as a name), it should not assume a same-named child file is the package's `__init__`. Specifically, the check that decides whether a path refers to a package and the lookup that builds `<dir>/__init__.py` should be guarded so a missing `__init__.py` is handled (treated as a namespace package / skipped) rather than passed to the parser.
+
+If you send me `pylint/lint/expand_modules.py` (and `pylint/lint/pylinter.py` if it's involved in `_get_file_descr`/`expand_modules` calls), I can write a precise `git apply`-ready patch against those exact contents.

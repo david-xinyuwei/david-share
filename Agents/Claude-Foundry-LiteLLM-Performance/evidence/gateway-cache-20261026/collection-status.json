@@ -1,10 +1,10 @@
 {
- "observed_at": "2026-10-26T20:10:18.9885833-07:00",
- "observation_method": "Azure CLI vm get-instance-view",
- "client_vm_power_state": "PowerState/deallocated",
- "snapshot_run_updated_utc": "2026-10-27T00:07:59.720+00:00",
- "collection_status": "PARTIAL",
- "workload_completion": "UNVERIFIED",
+ "observation_method": "Completed run records, exact task-set reconciliation and remote/local SHA-256 equality",
+ "snapshot_run_updated_utc": "2026-10-27T08:37:15.795+00:00",
+ "collection_status": "COMPLETE",
+ "workload_completion": "COMPLETED",
+ "grading_status": "COMPLETED_WITH_REPORTED_FAILURES",
+ "grading_evidence": "../gateway-score-20261027/verification.json",
  "shutdown_cause": "UNVERIFIED",
- "scope": "The client is not running at the observation time. The last retained snapshot predates that observation; later requests and the final workload status were not collected. No VM start or new inference was performed during this verification."
+ "scope": "All 650 original requests are retained, including 26 warmups and 14 truncated responses. All 624 measured answers have official grading outcomes. Two cross-restart pairs did not read warm cache and are excluded only from cache-hit performance statistics. This record is not a live VM power-state statement."
 }

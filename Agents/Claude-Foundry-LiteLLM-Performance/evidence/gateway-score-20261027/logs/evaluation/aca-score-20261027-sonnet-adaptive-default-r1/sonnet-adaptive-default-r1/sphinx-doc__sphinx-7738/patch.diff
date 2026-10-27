@@ -1,0 +1,12 @@
+
+--- a/sphinx/ext/napoleon/docstring.py
++++ b/sphinx/ext/napoleon/docstring.py
+@@ -585,6 +585,8 @@
+     def _parse_attributes_section(self, section: str) -> List[str]:
+         lines = []
+         for _name, _type, _desc in self._consume_fields():
++            if _name.endswith('\\_'):
++                _name = _name[:-2] + '_'
+             if self._config.napoleon_use_ivar:
+                 _name = self._qualify_name(_name, self._obj)
+                 field = ':ivar %s: ' % _name

@@ -1,0 +1,29 @@
+2026-10-27 10:34:56,322 - INFO - Creating container for sympy__sympy-14774...
+2026-10-27 10:34:56,443 - INFO - Container for sympy__sympy-14774 created: a1e037e9facb0d3f1de16ed4e9c916ad3f97255900b2539c8d77e801444d6cdb
+2026-10-27 10:34:56,663 - INFO - Container for sympy__sympy-14774 started: a1e037e9facb0d3f1de16ed4e9c916ad3f97255900b2539c8d77e801444d6cdb
+2026-10-27 10:34:56,664 - INFO - Intermediate patch for sympy__sympy-14774 written to logs/evaluation/aca-score-20261027-opus-adaptive-medium-r1/opus-adaptive-medium-r1/sympy__sympy-14774/patch.diff, now applying to container...
+2026-10-27 10:34:56,751 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:34:57,061 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:34:57,164 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:34:57,270 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:34:57,310 - INFO - >>>>> Patch Apply Failed:
+patching file sympy/printing/latex.py
+Hunk #1 FAILED at 740.
+Hunk #2 succeeded at 741 with fuzz 1 (offset 655 lines).
+1 out of 2 hunks FAILED -- saving rejects to file sympy/printing/latex.py.rej
+
+2026-10-27 10:34:57,311 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for sympy__sympy-14774: >>>>> Patch Apply Failed:
+patching file sympy/printing/latex.py
+Hunk #1 FAILED at 740.
+Hunk #2 succeeded at 741 with fuzz 1 (offset 655 lines).
+1 out of 2 hunks FAILED -- saving rejects to file sympy/printing/latex.py.rej
+
+Check (logs/evaluation/aca-score-20261027-opus-adaptive-medium-r1/opus-adaptive-medium-r1/sympy__sympy-14774/run_instance.log) for more information.
+
+2026-10-27 10:34:57,311 - INFO - Attempting to stop container sweb.eval.sympy__sympy-14774.aca-score-20261027-opus-adaptive-medium-r1...
+2026-10-27 10:35:12,718 - INFO - Container sweb.eval.sympy__sympy-14774.aca-score-20261027-opus-adaptive-medium-r1 stopped successfully.
+2026-10-27 10:35:12,718 - INFO - Attempting to remove container sweb.eval.sympy__sympy-14774.aca-score-20261027-opus-adaptive-medium-r1...
+2026-10-27 10:35:12,791 - INFO - Container sweb.eval.sympy__sympy-14774.aca-score-20261027-opus-adaptive-medium-r1 removed successfully.

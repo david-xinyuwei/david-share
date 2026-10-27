@@ -1,0 +1,25 @@
+2026-10-27 09:45:11,752 - INFO - Creating container for sympy__sympy-18087...
+2026-10-27 09:45:11,903 - INFO - Container for sympy__sympy-18087 created: 99728b95d4f27ffcec9bba09320cb316aae8dc1e30f36384677812f293ec4578
+2026-10-27 09:45:12,086 - INFO - Container for sympy__sympy-18087 started: 99728b95d4f27ffcec9bba09320cb316aae8dc1e30f36384677812f293ec4578
+2026-10-27 09:45:12,086 - INFO - Intermediate patch for sympy__sympy-18087 written to logs/evaluation/aca-score-20261027-haiku-adaptive-low-r1/haiku-adaptive-low-r1/sympy__sympy-18087/patch.diff, now applying to container...
+2026-10-27 09:45:12,165 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 09:45:12,493 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 09:45:12,775 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 09:45:13,050 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 09:45:13,087 - INFO - >>>>> Patch Apply Failed:
+patch: **** Only garbage was found in the patch input.
+patch unexpectedly ends in middle of line
+
+2026-10-27 09:45:13,087 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for sympy__sympy-18087: >>>>> Patch Apply Failed:
+patch: **** Only garbage was found in the patch input.
+patch unexpectedly ends in middle of line
+
+Check (logs/evaluation/aca-score-20261027-haiku-adaptive-low-r1/haiku-adaptive-low-r1/sympy__sympy-18087/run_instance.log) for more information.
+
+2026-10-27 09:45:13,087 - INFO - Attempting to stop container sweb.eval.sympy__sympy-18087.aca-score-20261027-haiku-adaptive-low-r1...
+2026-10-27 09:45:28,344 - INFO - Container sweb.eval.sympy__sympy-18087.aca-score-20261027-haiku-adaptive-low-r1 stopped successfully.
+2026-10-27 09:45:28,344 - INFO - Attempting to remove container sweb.eval.sympy__sympy-18087.aca-score-20261027-haiku-adaptive-low-r1...
+2026-10-27 09:45:28,420 - INFO - Container sweb.eval.sympy__sympy-18087.aca-score-20261027-haiku-adaptive-low-r1 removed successfully.

@@ -1,0 +1,27 @@
+2026-10-27 09:46:04,064 - INFO - Creating container for pallets__flask-5063...
+2026-10-27 09:46:04,260 - INFO - Container for pallets__flask-5063 created: 9d721aa268c7d2240ed2b88a85100c45c7ad5d9547d279e4ddb87da117249e4d
+2026-10-27 09:46:04,433 - INFO - Container for pallets__flask-5063 started: 9d721aa268c7d2240ed2b88a85100c45c7ad5d9547d279e4ddb87da117249e4d
+2026-10-27 09:46:04,434 - INFO - Intermediate patch for pallets__flask-5063 written to logs/evaluation/aca-score-20261027-haiku-adaptive-low-r2/haiku-adaptive-low-r2/pallets__flask-5063/patch.diff, now applying to container...
+2026-10-27 09:46:04,515 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 09:46:04,623 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 09:46:04,717 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 09:46:04,809 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 09:46:04,851 - INFO - >>>>> Patch Apply Failed:
+patching file src/flask/cli.py
+patch: **** malformed patch at line 19:  @click.command("routes", short_help="Show the routes for the app.")
+
+
+2026-10-27 09:46:04,851 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for pallets__flask-5063: >>>>> Patch Apply Failed:
+patching file src/flask/cli.py
+patch: **** malformed patch at line 19:  @click.command("routes", short_help="Show the routes for the app.")
+
+
+Check (logs/evaluation/aca-score-20261027-haiku-adaptive-low-r2/haiku-adaptive-low-r2/pallets__flask-5063/run_instance.log) for more information.
+
+2026-10-27 09:46:04,851 - INFO - Attempting to stop container sweb.eval.pallets__flask-5063.aca-score-20261027-haiku-adaptive-low-r2...
+2026-10-27 09:46:20,173 - INFO - Container sweb.eval.pallets__flask-5063.aca-score-20261027-haiku-adaptive-low-r2 stopped successfully.
+2026-10-27 09:46:20,173 - INFO - Attempting to remove container sweb.eval.pallets__flask-5063.aca-score-20261027-haiku-adaptive-low-r2...
+2026-10-27 09:46:20,253 - INFO - Container sweb.eval.pallets__flask-5063.aca-score-20261027-haiku-adaptive-low-r2 removed successfully.

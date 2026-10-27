@@ -1,0 +1,27 @@
+2026-10-27 10:07:21,642 - INFO - Creating container for django__django-12184...
+2026-10-27 10:07:21,841 - INFO - Container for django__django-12184 created: ffee568c6e13d68ec9c88f7fa88d482a04e2baa49084663effa59fd37ecb6116
+2026-10-27 10:07:22,079 - INFO - Container for django__django-12184 started: ffee568c6e13d68ec9c88f7fa88d482a04e2baa49084663effa59fd37ecb6116
+2026-10-27 10:07:22,079 - INFO - Intermediate patch for django__django-12184 written to logs/evaluation/aca-score-20261027-haiku-disabled-low-r1/haiku-disabled-low-r1/django__django-12184/patch.diff, now applying to container...
+2026-10-27 10:07:22,175 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:07:23,065 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:07:23,549 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:07:23,731 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:07:23,773 - INFO - >>>>> Patch Apply Failed:
+patching file django/urls/resolvers.py
+patch: **** malformed patch at line 10:              # non-named groups. Otherwise, pass all non-named arguments as
+
+
+2026-10-27 10:07:23,774 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for django__django-12184: >>>>> Patch Apply Failed:
+patching file django/urls/resolvers.py
+patch: **** malformed patch at line 10:              # non-named groups. Otherwise, pass all non-named arguments as
+
+
+Check (logs/evaluation/aca-score-20261027-haiku-disabled-low-r1/haiku-disabled-low-r1/django__django-12184/run_instance.log) for more information.
+
+2026-10-27 10:07:23,774 - INFO - Attempting to stop container sweb.eval.django__django-12184.aca-score-20261027-haiku-disabled-low-r1...
+2026-10-27 10:07:40,353 - INFO - Container sweb.eval.django__django-12184.aca-score-20261027-haiku-disabled-low-r1 stopped successfully.
+2026-10-27 10:07:40,354 - INFO - Attempting to remove container sweb.eval.django__django-12184.aca-score-20261027-haiku-disabled-low-r1...
+2026-10-27 10:07:40,656 - INFO - Container sweb.eval.django__django-12184.aca-score-20261027-haiku-disabled-low-r1 removed successfully.

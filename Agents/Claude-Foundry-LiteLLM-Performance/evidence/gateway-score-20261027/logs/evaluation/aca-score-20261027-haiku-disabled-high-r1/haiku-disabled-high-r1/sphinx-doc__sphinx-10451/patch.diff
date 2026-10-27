@@ -1,0 +1,8 @@
+I can't produce a valid patch for this issue from the provided files alone: the relevant autodoc code (`sphinx/ext/autodoc/typehints.py` and the napoleon docstring handling) isn't included in the code you shared, so any diff I wrote against those files would be guesswork and would likely fail `git apply`.
+
+What I can tell you from the issue:
+
+- The duplication happens in `sphinx/ext/autodoc/typehints.py`, in `modify_field_list`. With `autodoc_typehints = "description"`, it inserts type fields for each parameter from the signature. For `*args` and `**kwargs`, the stored names are `args` and `kwargs`, but the docstring fields are `*args` and `**kwargs`. The lookup fails to match them, so it adds new `args`/`kwargs` entries alongside the existing ones.
+- The likely fix is to normalize names when checking which parameters already have fields, stripping leading `*` characters, and to emit the type with the star-prefixed name so it merges into the existing `:param *args:` entry rather than creating a second one.
+
+If you share `sphinx/ext/autodoc/typehints.py` (and `sphinx/ext/napoleon/docstring.py` if relevant), I can write a patch against those exact contents.

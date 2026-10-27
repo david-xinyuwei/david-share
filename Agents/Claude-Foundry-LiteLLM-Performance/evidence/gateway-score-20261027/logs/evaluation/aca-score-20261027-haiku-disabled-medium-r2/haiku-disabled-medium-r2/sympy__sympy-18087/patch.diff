@@ -1,0 +1,8 @@
+I can't produce a verified patch for this issue without the SymPy source files in front of me (the trigsimp code lives in `sympy/simplify/trigsimp.py` and related modules, and I don't have their contents here). Writing a diff against code I haven't seen would likely fail to apply or introduce incorrect changes.
+
+What I can tell you about the issue:
+
+- The problem is that `trigsimp` (and possibly the rewrite logic it uses) treats `sqrt(sin(x)**2)` as `sin(x)` without checking that `sin(x)` is nonnegative. For complex `x`, `sqrt(z**2) != z` in general, so the simplification is only valid when the argument is known to be real and nonnegative (or the sign is otherwise established).
+- The correct fix is to make the simplification conditional on assumptions: only replace `sqrt(f**2)` with `f` when `f` is known to be positive/nonnegative, or to leave it as `Abs(sin(x))` for general complex `x`.
+
+To get a patch you can apply with `git apply`, please share the relevant file(s), most likely `sympy/simplify/trigsimp.py` and/or the `powsimp`/`sqrt` handling in `sympy/core/power.py`, and I'll write a diff against the actual contents. Alternatively, run `git grep -n "trigsimp" sympy/simplify/` from the repo root and paste the matching functions.

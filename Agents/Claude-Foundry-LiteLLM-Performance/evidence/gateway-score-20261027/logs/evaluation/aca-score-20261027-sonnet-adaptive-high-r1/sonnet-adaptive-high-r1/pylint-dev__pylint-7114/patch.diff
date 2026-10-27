@@ -1,0 +1,18 @@
+
+--- a/pylint/lint/expand_modules.py
++++ b/pylint/lint/expand_modules.py
+@@ -1,3 +1,3 @@
+         module_path = get_python_path(something)
++        if os.path.isdir(something):
++            real_dir = os.path.realpath(something)
++            if (
++                module_path == real_dir
++                and not os.path.exists(os.path.join(real_dir, "__init__.py"))
++                and os.path.isfile(
++                    os.path.join(real_dir, os.path.basename(real_dir) + ".py")
++                )
++            ):
++                # A module named like its (namespace) parent directory would
++                # otherwise shadow the directory itself.
++                module_path = os.path.dirname(real_dir)
+         additional_search_path = [".", module_path] + path

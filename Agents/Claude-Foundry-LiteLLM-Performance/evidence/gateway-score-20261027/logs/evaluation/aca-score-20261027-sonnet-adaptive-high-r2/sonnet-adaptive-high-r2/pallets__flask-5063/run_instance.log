@@ -1,0 +1,27 @@
+2026-10-27 10:49:42,490 - INFO - Creating container for pallets__flask-5063...
+2026-10-27 10:49:42,665 - INFO - Container for pallets__flask-5063 created: ef81163530b4cea713e9874749f1cbc7a1b481eb42f1924add56649285283982
+2026-10-27 10:49:42,836 - INFO - Container for pallets__flask-5063 started: ef81163530b4cea713e9874749f1cbc7a1b481eb42f1924add56649285283982
+2026-10-27 10:49:42,837 - INFO - Intermediate patch for pallets__flask-5063 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-high-r2/sonnet-adaptive-high-r2/pallets__flask-5063/patch.diff, now applying to container...
+2026-10-27 10:49:42,931 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:49:43,051 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:49:43,152 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:49:43,238 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:49:43,280 - INFO - >>>>> Patch Apply Failed:
+patching file src/flask/cli.py
+patch: **** malformed patch at line 83:  
+
+
+2026-10-27 10:49:43,280 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for pallets__flask-5063: >>>>> Patch Apply Failed:
+patching file src/flask/cli.py
+patch: **** malformed patch at line 83:  
+
+
+Check (logs/evaluation/aca-score-20261027-sonnet-adaptive-high-r2/sonnet-adaptive-high-r2/pallets__flask-5063/run_instance.log) for more information.
+
+2026-10-27 10:49:43,280 - INFO - Attempting to stop container sweb.eval.pallets__flask-5063.aca-score-20261027-sonnet-adaptive-high-r2...
+2026-10-27 10:49:58,565 - INFO - Container sweb.eval.pallets__flask-5063.aca-score-20261027-sonnet-adaptive-high-r2 stopped successfully.
+2026-10-27 10:49:58,565 - INFO - Attempting to remove container sweb.eval.pallets__flask-5063.aca-score-20261027-sonnet-adaptive-high-r2...
+2026-10-27 10:49:58,620 - INFO - Container sweb.eval.pallets__flask-5063.aca-score-20261027-sonnet-adaptive-high-r2 removed successfully.

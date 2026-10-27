@@ -1,0 +1,17 @@
+
+--- a/sphinx/ext/autodoc/typehints.py
++++ b/sphinx/ext/autodoc/typehints.py
+@@ -1,9 +1,13 @@
+     for name, annotation in annotations.items():
+         if name == 'return':
+             continue
+ 
++        if '*' + name in arguments:
++            name = '*' + name
++        elif '**' + name in arguments:
++            name = '**' + name
+         arg = arguments.get(name, {})
+         if not arg.get('type'):
+             field = nodes.field()
+             field += nodes.field_name('', 'type ' + name)
+             field += nodes.field_body('', nodes.paragraph('', annotation))

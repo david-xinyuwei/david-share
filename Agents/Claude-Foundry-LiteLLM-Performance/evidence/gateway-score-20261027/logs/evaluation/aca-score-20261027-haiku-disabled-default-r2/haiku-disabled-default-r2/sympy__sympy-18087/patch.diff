@@ -1,0 +1,8 @@
+I can't produce a correct patch for this without the relevant SymPy source files. The issue concerns `trigsimp` simplifying `cos(x)+sqrt(sin(x)**2)` to `cos(x)+sin(x)`, which lives in `sympy/simplify/trigsimp.py` and related code (e.g. `fu.py`, `simplify.py`). The repository content provided here is only the README, so I don't have the exact lines to anchor a diff against.
+
+Guessing at hunks would produce a patch that `git apply` rejects or that silently changes unrelated code. What I can say about the root cause:
+
+- `sqrt(sin(x)**2)` is not equal to `sin(x)` for general complex `x`; it equals `|sin(x)|` for real `x`, and for complex `x` it is only `sin(x)` up to a sign that depends on the branch. Simplification rules that rewrite `sqrt(a**2)` to `a` without checking that `a` is nonnegative (or real) are the source of the bug.
+- The fix should make the rule for `sqrt(t**2)` (or `Pow(t**2, 1/2)`) only apply when `t` is known to be real and nonnegative (`t.is_extended_nonnegative`), and otherwise leave the expression unchanged, or return `Abs(t)` for real `t`.
+
+If you send me the contents of `sympy/simplify/trigsimp.py` (and/or `sympy/simplify/fu.py`) from this commit, or the output of `git rev-parse HEAD`, I can write a patch against the exact code. Alternatively, you can add a regression test with `assert trigsimp(cos(x) + sqrt(sin(x)**2)) == cos(x) + sqrt(sin(x)**2)` for complex `x` and run the test suite to locate the offending rule.

@@ -1,0 +1,46 @@
+
+--- a/django/urls/resolvers.py
++++ b/django/urls/resolvers.py
+@@ -162,3 +162,5 @@ def match(self, path):
+-            args = () if kwargs else match.groups()
++            # kwargs omits named groups that didn't match, so check the pattern
++            # itself to decide whether to ignore the non-named groups.
++            args = () if match.re.groupindex else match.groups()
+             return path[match.end():], args, kwargs
+         return None
+--- /dev/null
++++ b/tests/urlpatterns/test_regex_optional_groups.py
+@@ -0,0 +1,33 @@
++from django.test import SimpleTestCase
++from django.urls import re_path
++from django.urls.resolvers import RegexPattern, URLResolver
++
++
++def empty_view(request, *args, **kwargs):
++    pass
++
++
++class RegexOptionalGroupsTests(SimpleTestCase):
++    def resolve(self, route, path):
++        resolver = URLResolver(RegexPattern(r'^/'), [re_path(route, empty_view)])
++        return resolver.resolve(path)
++
++    def test_missing_nested_optional_named_group(self):
++        match = self.resolve(r'^module/(?P<format>(html|json|xml))?/?$', '/module/')
++        self.assertEqual(match.args, ())
++        self.assertEqual(match.kwargs, {})
++
++    def test_matched_nested_optional_named_group(self):
++        match = self.resolve(r'^module/(?P<format>(html|json|xml))?/?$', '/module/json/')
++        self.assertEqual(match.args, ())
++        self.assertEqual(match.kwargs, {'format': 'json'})
++
++    def test_missing_optional_named_group(self):
++        match = self.resolve(r'^articles/(?:(?P<year>\d+)/)?$', '/articles/')
++        self.assertEqual(match.args, ())
++        self.assertEqual(match.kwargs, {})
++
++    def test_unnamed_groups_are_positional_arguments(self):
++        match = self.resolve(r'^articles/(\d+)/(\d+)/$', '/articles/2007/12/')
++        self.assertEqual(match.args, ('2007', '12'))
++        self.assertEqual(match.kwargs, {})

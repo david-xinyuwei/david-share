@@ -1,0 +1,15 @@
+
+diff --git a/sympy/printing/latex.py b/sympy/printing/latex.py
+--- a/sympy/printing/latex.py
++++ b/sympy/printing/latex.py
+@@ -743,2 +743,2 @@
+-            inv_trig_table = ["asin", "acos", "atan", "acot"]
++            inv_trig_table = ["asin", "acos", "atan", "acsc", "asec", "acot"]
+ 
+diff --git a/sympy/physics/vector/printing.py b/sympy/physics/vector/printing.py
+--- a/sympy/physics/vector/printing.py
++++ b/sympy/physics/vector/printing.py
+@@ -89,2 +89,2 @@
+-            inv_trig_table = ["asin", "acos", "atan", "acot"]
++            inv_trig_table = ["asin", "acos", "atan", "acsc", "asec", "acot"]
+ 

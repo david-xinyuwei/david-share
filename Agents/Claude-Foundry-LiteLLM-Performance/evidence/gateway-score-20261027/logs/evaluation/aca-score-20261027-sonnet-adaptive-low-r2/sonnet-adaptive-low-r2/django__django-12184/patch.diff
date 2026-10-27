@@ -1,0 +1,6 @@
+
+--- a/django/urls/resolvers.py
++++ b/django/urls/resolvers.py
+@@ -1,1 +1,1 @@
+-
++

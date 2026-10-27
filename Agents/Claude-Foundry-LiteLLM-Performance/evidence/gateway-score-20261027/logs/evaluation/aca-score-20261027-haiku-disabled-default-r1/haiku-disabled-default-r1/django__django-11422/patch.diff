@@ -1,0 +1,5 @@
+I can't produce a correct patch for this issue from the context given, and I don't want to fabricate one. The problem is in how the autoreloader collects files to watch: `manage.py` is the `__main__` module, and in Django 2.2 the StatReloader's file discovery no longer picks up the main script's file (it relied on `sys.modules['__main__'].__file__` via `iter_all_python_module_files`, which was changed to skip `__main__` in the refactor). The fix is to make `iter_all_python_module_files` / `sys_file_paths` include `sys.argv[0]`-based main module file when it's a Python file.
+
+The relevant code lives in `django/utils/autoreload.py`, which was not included in the files you provided, so I cannot write an accurate `git apply` diff against its exact contents. Guessing at line numbers or context would produce a patch that fails to apply.
+
+If you share `django/utils/autoreload.py` I can write the patch against it. In the meantime, the likely shape of the fix is: in the function that gathers module file paths, add the file of `__main__` (`sys.modules['__main__'].__file__`) when it exists and ends in `.py`, so that `StatReloader.snapshot_files()` includes `manage.py`.

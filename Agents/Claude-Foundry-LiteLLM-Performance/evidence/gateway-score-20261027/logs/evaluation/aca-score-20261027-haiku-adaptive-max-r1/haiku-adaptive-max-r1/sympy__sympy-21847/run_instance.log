@@ -1,0 +1,86 @@
+2026-10-27 09:48:46,447 - INFO - Creating container for sympy__sympy-21847...
+2026-10-27 09:48:46,665 - INFO - Container for sympy__sympy-21847 created: afebc7ba53e11ade50ebb528c5ea7aadf95944e58bdfe8a199171b205fae98d9
+2026-10-27 09:48:46,885 - INFO - Container for sympy__sympy-21847 started: afebc7ba53e11ade50ebb528c5ea7aadf95944e58bdfe8a199171b205fae98d9
+2026-10-27 09:48:46,885 - INFO - Intermediate patch for sympy__sympy-21847 written to logs/evaluation/aca-score-20261027-haiku-adaptive-max-r1/haiku-adaptive-max-r1/sympy__sympy-21847/patch.diff, now applying to container...
+2026-10-27 09:48:46,969 - INFO - >>>>> Applied Patch:
+Checking patch sympy/polys/monomials.py...
+Applied patch sympy/polys/monomials.py cleanly.
+
+2026-10-27 09:48:47,357 - INFO - Git diff before:
+diff --git a/sympy/polys/monomials.py b/sympy/polys/monomials.py
+index 0e84403307..a74c831232 100755
+--- a/sympy/polys/monomials.py
++++ b/sympy/polys/monomials.py
+@@ -114,7 +114,9 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+         if min_degree > max_degree:
+             return
+         if not variables or max_degree == 0:
+-            yield S.One
++            # the only monomial here is 1, which has total degree 0
++            if min_degree == 0:
++                yield S.One
+             return
+         # Force to list in case of passed tuple or other incompatible collection
+         variables = list(variables) + [S.One]
+@@ -127,7 +129,7 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+                 for variable in item:
+                     if variable != 1:
+                         powers[variable] += 1
+-                if max(powers.values()) >= min_degree:
++                if sum(powers.values()) >= min_degree:
+                     monomials_list_comm.append(Mul(*item))
+             yield from set(monomials_list_comm)
+         else:
+@@ -139,7 +141,7 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+                 for variable in item:
+                     if variable != 1:
+                         powers[variable] += 1
+-                if max(powers.values()) >= min_degree:
++                if sum(powers.values()) >= min_degree:
+                     monomials_list_non_comm.append(Mul(*item))
+             yield from set(monomials_list_non_comm)
+     else:
+2026-10-27 09:48:47,357 - INFO - Eval script for sympy__sympy-21847 written to logs/evaluation/aca-score-20261027-haiku-adaptive-max-r1/haiku-adaptive-max-r1/sympy__sympy-21847/eval.sh; copying to container...
+2026-10-27 09:48:51,061 - INFO - Test runtime: 3.66 seconds
+2026-10-27 09:48:51,062 - INFO - Test output for sympy__sympy-21847 written to logs/evaluation/aca-score-20261027-haiku-adaptive-max-r1/haiku-adaptive-max-r1/sympy__sympy-21847/test_output.txt
+2026-10-27 09:48:51,104 - INFO - Git diff after:
+diff --git a/sympy/polys/monomials.py b/sympy/polys/monomials.py
+index 0e84403307..a74c831232 100755
+--- a/sympy/polys/monomials.py
++++ b/sympy/polys/monomials.py
+@@ -114,7 +114,9 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+         if min_degree > max_degree:
+             return
+         if not variables or max_degree == 0:
+-            yield S.One
++            # the only monomial here is 1, which has total degree 0
++            if min_degree == 0:
++                yield S.One
+             return
+         # Force to list in case of passed tuple or other incompatible collection
+         variables = list(variables) + [S.One]
+@@ -127,7 +129,7 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+                 for variable in item:
+                     if variable != 1:
+                         powers[variable] += 1
+-                if max(powers.values()) >= min_degree:
++                if sum(powers.values()) >= min_degree:
+                     monomials_list_comm.append(Mul(*item))
+             yield from set(monomials_list_comm)
+         else:
+@@ -139,7 +141,7 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+                 for variable in item:
+                     if variable != 1:
+                         powers[variable] += 1
+-                if max(powers.values()) >= min_degree:
++                if sum(powers.values()) >= min_degree:
+                     monomials_list_non_comm.append(Mul(*item))
+             yield from set(monomials_list_non_comm)
+     else:
+2026-10-27 09:48:51,104 - INFO - Grading answer for sympy__sympy-21847...
+2026-10-27 09:48:51,106 - INFO - report: {'sympy__sympy-21847': {'patch_is_None': False, 'patch_exists': True, 'patch_successfully_applied': True, 'resolved': True, 'infra_failure': False, 'tests_status': {'FAIL_TO_PASS': {'success': ['test_monomials'], 'failure': []}, 'PASS_TO_PASS': {'success': ['test_monomial_count', 'test_monomial_mul', 'test_monomial_div', 'test_monomial_gcd', 'test_monomial_lcm', 'test_monomial_max', 'test_monomial_pow', 'test_monomial_min', 'test_monomial_divides'], 'failure': []}, 'FAIL_TO_FAIL': {'success': [], 'failure': []}, 'PASS_TO_FAIL': {'success': [], 'failure': []}}}}
+Result for sympy__sympy-21847: resolved: True
+2026-10-27 09:48:51,106 - INFO - Attempting to stop container sweb.eval.sympy__sympy-21847.aca-score-20261027-haiku-adaptive-max-r1...
+2026-10-27 09:49:06,359 - INFO - Container sweb.eval.sympy__sympy-21847.aca-score-20261027-haiku-adaptive-max-r1 stopped successfully.
+2026-10-27 09:49:06,359 - INFO - Attempting to remove container sweb.eval.sympy__sympy-21847.aca-score-20261027-haiku-adaptive-max-r1...
+2026-10-27 09:49:06,423 - INFO - Container sweb.eval.sympy__sympy-21847.aca-score-20261027-haiku-adaptive-max-r1 removed successfully.

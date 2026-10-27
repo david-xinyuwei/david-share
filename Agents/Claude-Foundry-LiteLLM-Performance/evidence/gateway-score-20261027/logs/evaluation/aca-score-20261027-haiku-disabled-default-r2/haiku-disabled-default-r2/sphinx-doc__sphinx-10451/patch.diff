@@ -1,0 +1,5 @@
+I can't produce a correct patch for this issue without the relevant autodoc source files (`sphinx/ext/autodoc/typehints.py` and `sphinx/ext/autodoc/__init__.py`), which weren't included in the provided code. Guessing at their contents would likely produce a patch that fails to apply or doesn't fix the bug.
+
+What I can say about the issue: with `autodoc_typehints = "description"`, the `*args` and `**kwargs` entries get duplicated because the type-hint injection code adds `args`/`kwargs` fields (keyed without the stars) alongside the documented `*args`/`**kwargs` fields from the docstring. The fix belongs in `sphinx/ext/autodoc/typehints.py`, in the function that merges annotation info into the docstring fields. It should normalize parameter names (strip leading `*`/`**` when comparing) so that the type is attached to the existing `*args`/`**kwargs` field rather than creating a new one, and it should keep the star prefix in the emitted field name.
+
+If you share the contents of `sphinx/ext/autodoc/typehints.py` (and the test file `tests/test_ext_autodoc_configs.py` if you want a regression test), I can write an exact patch against those files.

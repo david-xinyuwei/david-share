@@ -1,0 +1,27 @@
+2026-10-27 09:58:11,463 - INFO - Creating container for pylint-dev__pylint-7114...
+2026-10-27 09:58:11,621 - INFO - Container for pylint-dev__pylint-7114 created: f4ef47603a763ff2526d93a619f1d4a21a84bc6a8c53a45fbf55adc66ff62ddc
+2026-10-27 09:58:11,786 - INFO - Container for pylint-dev__pylint-7114 started: f4ef47603a763ff2526d93a619f1d4a21a84bc6a8c53a45fbf55adc66ff62ddc
+2026-10-27 09:58:11,786 - INFO - Intermediate patch for pylint-dev__pylint-7114 written to logs/evaluation/aca-score-20261027-haiku-adaptive-xhigh-r2/haiku-adaptive-xhigh-r2/pylint-dev__pylint-7114/patch.diff, now applying to container...
+2026-10-27 09:58:11,868 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 09:58:12,129 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 09:58:12,266 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 09:58:12,399 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 09:58:12,436 - INFO - >>>>> Patch Apply Failed:
+patch: **** malformed patch at line 15:  
+
+patching file pylint/lint/expand_modules.py
+
+2026-10-27 09:58:12,437 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for pylint-dev__pylint-7114: >>>>> Patch Apply Failed:
+patch: **** malformed patch at line 15:  
+
+patching file pylint/lint/expand_modules.py
+
+Check (logs/evaluation/aca-score-20261027-haiku-adaptive-xhigh-r2/haiku-adaptive-xhigh-r2/pylint-dev__pylint-7114/run_instance.log) for more information.
+
+2026-10-27 09:58:12,437 - INFO - Attempting to stop container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-haiku-adaptive-xhigh-r2...
+2026-10-27 09:58:27,725 - INFO - Container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-haiku-adaptive-xhigh-r2 stopped successfully.
+2026-10-27 09:58:27,725 - INFO - Attempting to remove container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-haiku-adaptive-xhigh-r2...
+2026-10-27 09:58:27,822 - INFO - Container sweb.eval.pylint-dev__pylint-7114.aca-score-20261027-haiku-adaptive-xhigh-r2 removed successfully.

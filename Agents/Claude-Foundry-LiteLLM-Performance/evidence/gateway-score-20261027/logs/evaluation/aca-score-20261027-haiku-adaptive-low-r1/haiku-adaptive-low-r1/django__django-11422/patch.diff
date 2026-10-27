@@ -1,0 +1,7 @@
+I can't produce a reliable patch for this issue from the files provided. The bug is in `django/utils/autoreload.py`, which isn't in the code you sent. The autoreloader's module-file discovery lives there, and `git apply` needs exact context lines from that file.
+
+**Likely cause:** `manage.py` runs as `__main__`, and `__main__` often has no `__spec__` set. The autoreloader's `iter_modules_and_files()` skips any module without a `__spec__`, so `manage.py` never gets added to the watched files. Django 2.1 didn't skip it, which is why the regression appeared in 2.2.
+
+**Likely fix:** In `iter_modules_and_files()`, handle `__main__` before the `__spec__` check. If the module is `__main__` and has a `__file__`, add that path to the watched set, then skip the `__spec__` requirement for it.
+
+If you send `django/utils/autoreload.py` (at least `iter_modules_and_files` and the surrounding `sys_file_paths` logic), I'll write the exact patch against it. Alternatively, you can make the change directly: in the module-iteration loop, check `module.__name__ == '__main__'` and append `module.__file__` before the `__spec__` skip.

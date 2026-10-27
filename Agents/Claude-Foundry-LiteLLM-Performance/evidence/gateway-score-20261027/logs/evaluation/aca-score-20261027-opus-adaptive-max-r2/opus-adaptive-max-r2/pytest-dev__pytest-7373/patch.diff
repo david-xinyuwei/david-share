@@ -1,0 +1,112 @@
+
+--- a/src/_pytest/mark/evaluate.py
++++ b/src/_pytest/mark/evaluate.py
+@@ -10,25 +10,20 @@
+ from ..outcomes import fail
+ from ..outcomes import TEST_OUTCOME
+ from .structures import Mark
+-from _pytest.config import Config
+ from _pytest.nodes import Item
+-from _pytest.store import StoreKey
+ 
+ 
+-evalcache_key = StoreKey[Dict[str, Any]]()
+-
+-
+-def cached_eval(config: Config, expr: str, d: Dict[str, object]) -> Any:
+-    default = {}  # type: Dict[str, object]
+-    evalcache = config._store.setdefault(evalcache_key, default)
+-    try:
+-        return evalcache[expr]
+-    except KeyError:
+-        import _pytest._code
+-
+-        exprcode = _pytest._code.compile(expr, mode="eval")
+-        evalcache[expr] = x = eval(exprcode, d)
+-        return x
++def compiled_eval(expr: str, d: Dict[str, object]) -> Any:
++    """Compile and evaluate the string expression ``expr`` using ``d`` as globals.
++
++    The result is intentionally not cached: it depends not only on ``expr`` but
++    also on ``d`` (e.g. the globals of the module of the item being evaluated),
++    so the same string may legitimately evaluate differently for each item.
++    """
++    import _pytest._code
++
++    exprcode = _pytest._code.compile(expr, mode="eval")
++    return eval(exprcode, d)
+ 
+ 
+ class MarkEvaluator:
+@@ -98,7 +93,7 @@ class MarkEvaluator:
+                     self.expr = expr
+                     if isinstance(expr, str):
+                         d = self._getglobals()
+-                        result = cached_eval(self.item.config, expr, d)
++                        result = compiled_eval(expr, d)
+                     else:
+                         if "reason" not in mark.kwargs:
+                             # XXX better be checked at collection time
+--- /dev/null
++++ b/changelog/7360.bugfix.rst
+@@ -0,0 +1,2 @@
++Fix possibly incorrect evaluation of string expressions passed to ``pytest.mark.skipif`` and ``pytest.mark.xfail``,
++in rare circumstances where the exact same string is used but refers to different global values.
+--- /dev/null
++++ b/testing/test_mark_evaluate.py
+@@ -0,0 +1,55 @@
++"""Tests for the evaluation of string conditions of skipif/xfail marks."""
++from _pytest.pytester import Testdir
++
++
++def test_skipif_string_condition_uses_item_globals(testdir: Testdir) -> None:
++    """The same string condition must be evaluated with the globals of each
++    item's own module, and its result must not be reused for others (#7360)."""
++    testdir.makepyfile(
++        test_skipif_module_1="""
++        import pytest
++
++        skip = True
++
++        @pytest.mark.skipif("skip")
++        def test_should_skip():
++            assert False
++        """,
++        test_skipif_module_2="""
++        import pytest
++
++        skip = False
++
++        @pytest.mark.skipif("skip")
++        def test_should_not_skip():
++            assert False
++        """,
++    )
++    result = testdir.runpytest("test_skipif_module_1.py", "test_skipif_module_2.py")
++    result.assert_outcomes(skipped=1, failed=1)
++
++
++def test_xfail_string_condition_uses_item_globals(testdir: Testdir) -> None:
++    """Same as test_skipif_string_condition_uses_item_globals, but for xfail."""
++    testdir.makepyfile(
++        test_xfail_module_1="""
++        import pytest
++
++        expect_failure = True
++
++        @pytest.mark.xfail("expect_failure")
++        def test_should_xfail():
++            assert False
++        """,
++        test_xfail_module_2="""
++        import pytest
++
++        expect_failure = False
++
++        @pytest.mark.xfail("expect_failure")
++        def test_should_fail():
++            assert False
++        """,
++    )
++    result = testdir.runpytest("test_xfail_module_1.py", "test_xfail_module_2.py")
++    result.assert_outcomes(xfailed=1, failed=1)

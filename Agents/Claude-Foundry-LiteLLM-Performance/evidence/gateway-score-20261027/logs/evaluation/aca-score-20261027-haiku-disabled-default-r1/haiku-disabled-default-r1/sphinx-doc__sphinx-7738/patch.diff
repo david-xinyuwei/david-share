@@ -1,0 +1,5 @@
+I can't produce a patch for this issue without the relevant source. The napoleon code shown doesn't contain the attribute-name escaping logic; that lives in `sphinx/ext/napoleon/docstring.py` (the `_escape_args_and_kwargs` / field-name handling and `_format_fields` path), which wasn't included. Writing a diff against guessed content would fail to apply.
+
+What I can say from the issue: the trailing underscore in `hello_` is being escaped to `hello\_` by the reST text processing applied to the field name when napoleon builds the `.. attribute::` directive. The fix belongs in `NumpyDocstring`/`GoogleDocstring` where the attribute name is emitted, and should avoid escaping trailing underscores in the names used for `.. attribute::` (or in the `_escape_args_and_kwargs` helper that handles names).
+
+If you add `sphinx/ext/napoleon/docstring.py` to the conversation, I can write a patch against its actual contents that you can apply with `git apply`.

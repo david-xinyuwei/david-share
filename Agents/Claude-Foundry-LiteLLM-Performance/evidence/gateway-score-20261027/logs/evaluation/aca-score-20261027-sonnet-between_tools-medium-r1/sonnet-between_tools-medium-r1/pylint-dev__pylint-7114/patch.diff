@@ -1,0 +1,7 @@
+The relevant code isn't included in the provided files, so I'm working from knowledge of pylint's internals. In pylint 2.x/3.0a, `pylint/lint/expand_modules.py` has `expand_modules`, which calls `modutils.modpath_from_file_with_callback` and `modutils.file_info_from_modpath`. In `_modpath_from_file`/`get_python_path`, the problem is that for the directory `a`, the module spec resolves `a` to `a/a.py` (since `a/` has no `__init__.py`, it's a namespace package, and the lookup finds `a.py` within the `a` dir because `sys.path` includes `a/` for the directory).
+
+Specifically, in `pylint/lint/utils.py::fix_import_path` / `pylint/lint/pylinter.py::_expand_files`, the fix upstream (pylint PR #5983) was in `expand_modules`: when a path is a directory without `__init__.py`, avoid resolving it via `modpath` that picks up `a/a.py`. The upstream change made `expand_modules` check `os.path.isdir(something)` with `filepath = os.path.join(something, "__init__.py")` only if it exists.
+
+Since I can't see `expand_modules.py`, I can only patch the files provided; none contain the relevant logic. The closest actionable provided file is `pylint/epylint.py`, but it is unrelated to this bug, so I won't fabricate a change there.
+
+I cannot produce a correct patch from the files supplied: the bug lives in `pylint/lint/expand_modules.py`, which was not included. Please provide that file (and `pylint/lint/pylinter.py`) and I will generate the patch.

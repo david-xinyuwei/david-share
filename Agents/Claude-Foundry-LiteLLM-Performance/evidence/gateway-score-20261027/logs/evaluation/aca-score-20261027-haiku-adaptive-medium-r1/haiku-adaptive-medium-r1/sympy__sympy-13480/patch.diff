@@ -1,0 +1,11 @@
+
+--- a/sympy/functions/elementary/hyperbolic.py
++++ b/sympy/functions/elementary/hyperbolic.py
+@@ -588,5 +588,5 @@
+             if m:
+                 cothm = coth(m)
+-                if cotm is S.ComplexInfinity:
++                if cothm is S.ComplexInfinity:
+                     return coth(x)
+                 else: # cothm == 0
+                     return tanh(x)

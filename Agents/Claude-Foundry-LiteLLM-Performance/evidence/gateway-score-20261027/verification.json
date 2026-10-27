@@ -1,0 +1,45 @@
+{
+  "status": "PASS",
+  "denominator": 624,
+  "resolved": 245,
+  "batches": 52,
+  "gold_controls": 12,
+  "official_ambiguous_flags": [
+    {
+      "run_id": "aca-score-20261027-haiku-adaptive-high-r1",
+      "instance_id": "pytest-dev__pytest-7373",
+      "official_reason": "no_tests_collected"
+    },
+    {
+      "run_id": "aca-score-20261027-haiku-adaptive-medium-r2",
+      "instance_id": "pytest-dev__pytest-7373",
+      "official_reason": "no_tests_collected"
+    },
+    {
+      "run_id": "aca-score-20261027-haiku-adaptive-xhigh-r1",
+      "instance_id": "pytest-dev__pytest-7373",
+      "official_reason": "no_tests_collected"
+    },
+    {
+      "run_id": "aca-score-20261027-haiku-adaptive-xhigh-r2",
+      "instance_id": "pytest-dev__pytest-7373",
+      "official_reason": "no_tests_collected"
+    },
+    {
+      "run_id": "aca-score-20261027-sonnet-adaptive-medium-r1",
+      "instance_id": "pytest-dev__pytest-7373",
+      "official_reason": "no_tests_collected"
+    },
+    {
+      "run_id": "aca-score-20261027-sonnet-adaptive-xhigh-r1",
+      "instance_id": "pytest-dev__pytest-7373",
+      "official_reason": "no_tests_collected"
+    }
+  ],
+  "outcomes": {
+    "PATCH_APPLY_FAILED": 257,
+    "UNRESOLVED": 108,
+    "RESOLVED": 245,
+    "EMPTY_ANSWER_TRUNCATED": 14
+  }
+}

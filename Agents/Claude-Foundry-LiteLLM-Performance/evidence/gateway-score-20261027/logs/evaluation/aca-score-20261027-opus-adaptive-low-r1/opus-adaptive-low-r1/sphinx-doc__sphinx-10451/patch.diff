@@ -1,0 +1,25 @@
+
+--- a/sphinx/ext/autodoc/typehints.py
++++ b/sphinx/ext/autodoc/typehints.py
+@@ -1,4 +1,10 @@
+             continue
+ 
++        if '*' + name in arguments:
++            name = '*' + name
++        elif '**' + name in arguments:
++            name = '**' + name
++
+         arg = arguments.get(name, {})
+         if not arg.get('type'):
+             field = nodes.field()
+@@ -1,6 +1,10 @@
+     for name in annotations:
+         if name in ('return', 'returns'):
+             continue
++        if '*' + name in has_description:
++            name = '*' + name
++        elif '**' + name in has_description:
++            name = '**' + name
+         if name in has_description and name not in has_type:
+             field = nodes.field()
+             field += nodes.field_name('', 'type ' + name)

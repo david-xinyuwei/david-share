@@ -1,0 +1,27 @@
+2026-10-27 10:26:33,054 - INFO - Creating container for django__django-12184...
+2026-10-27 10:26:33,305 - INFO - Container for django__django-12184 created: 3c76839b0f96bc2da3fa0e36f80c5d5cf8fbe56758562477c11d2b547b25d1e8
+2026-10-27 10:26:33,545 - INFO - Container for django__django-12184 started: 3c76839b0f96bc2da3fa0e36f80c5d5cf8fbe56758562477c11d2b547b25d1e8
+2026-10-27 10:26:33,545 - INFO - Intermediate patch for django__django-12184 written to logs/evaluation/aca-score-20261027-opus-adaptive-low-r2/opus-adaptive-low-r2/django__django-12184/patch.diff, now applying to container...
+2026-10-27 10:26:33,636 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:26:34,495 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:26:34,843 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:26:35,187 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:26:35,228 - INFO - >>>>> Patch Apply Failed:
+patching file django/urls/resolvers.py
+patch: **** malformed patch at line 20:  
+
+
+2026-10-27 10:26:35,229 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for django__django-12184: >>>>> Patch Apply Failed:
+patching file django/urls/resolvers.py
+patch: **** malformed patch at line 20:  
+
+
+Check (logs/evaluation/aca-score-20261027-opus-adaptive-low-r2/opus-adaptive-low-r2/django__django-12184/run_instance.log) for more information.
+
+2026-10-27 10:26:35,229 - INFO - Attempting to stop container sweb.eval.django__django-12184.aca-score-20261027-opus-adaptive-low-r2...
+2026-10-27 10:26:51,951 - INFO - Container sweb.eval.django__django-12184.aca-score-20261027-opus-adaptive-low-r2 stopped successfully.
+2026-10-27 10:26:51,951 - INFO - Attempting to remove container sweb.eval.django__django-12184.aca-score-20261027-opus-adaptive-low-r2...
+2026-10-27 10:26:52,123 - INFO - Container sweb.eval.django__django-12184.aca-score-20261027-opus-adaptive-low-r2 removed successfully.

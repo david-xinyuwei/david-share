@@ -1,0 +1,33 @@
+
+--- a/django/core/management/commands/runserver.py
++++ b/django/core/management/commands/runserver.py
+@@ -20,6 +20,22 @@ naiveip_re = re.compile(r"""^(?:
+ ):)?(?P<port>\d+)$""", re.X)
+ 
+ 
++def _watch_main_module(sender, **kwargs):
++    """
++    Ensure the __main__ module (usually manage.py) is watched by the
++    autoreloader. It doesn't always have a __spec__ set, so it may otherwise
++    be skipped when collecting module files.
++    """
++    main_module = sys.modules.get('__main__')
++    path = getattr(main_module, '__file__', None)
++    if path and os.path.isfile(path):
++        try:
++            sender.watch_file(os.path.abspath(path))
++        except Exception:
++            pass
++
++
+ class Command(BaseCommand):
+     help = "Starts a lightweight Web server for development."
+ 
+@@ -99,6 +115,7 @@ class Command(BaseCommand):
+         use_reloader = options['use_reloader']
+ 
+         if use_reloader:
++            autoreload.autoreload_started.connect(_watch_main_module)
+             autoreload.run_with_reloader(self.inner_run, **options)
+         else:
+             self.inner_run(None, **options)

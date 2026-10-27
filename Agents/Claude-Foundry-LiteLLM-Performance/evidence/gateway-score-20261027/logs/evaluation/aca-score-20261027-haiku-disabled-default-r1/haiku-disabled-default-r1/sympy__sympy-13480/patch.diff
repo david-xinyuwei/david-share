@@ -1,0 +1,13 @@
+
+--- a/sympy/functions/elementary/hyperbolic.py
++++ b/sympy/functions/elementary/hyperbolic.py
+@@ -585,9 +585,6 @@ class coth(HyperbolicFunction):
+             if arg.is_Add:
+                 x, m = _peeloff_ipi(arg)
+                 if m:
+-                    cotm = coth(m)
+-                    if cotm is S.ComplexInfinity:
+-                        return coth(x)
+                     cotm = coth(m)
+                     if cotm is S.ComplexInfinity:
+                         return coth(x)

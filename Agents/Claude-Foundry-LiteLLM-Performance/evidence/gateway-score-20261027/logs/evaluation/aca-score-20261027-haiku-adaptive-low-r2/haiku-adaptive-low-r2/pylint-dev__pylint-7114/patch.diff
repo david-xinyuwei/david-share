@@ -1,0 +1,8 @@
+I can't produce a reliable patch for this issue from the files you've provided. The bug is in module expansion, which lives in `pylint/lint/expand_modules.py` (the `expand_modules` function). That file isn't in the provided code, and none of the files shown (`README.rst`, `constants.py`, `epylint.py`, `base_options.py`, `pyreverse/main.py`) contain the logic that resolves `pylint a` to `a/__init__.py`. The `euclidean`/`bresenham` example in your template also doesn't relate to this repository, so I haven't used it.
+
+From the traceback, the likely cause is that when a directory argument is given, `expand_modules` builds `filepath = os.path.join(something, "__init__.py")` and then treats it as a real module file without checking that it exists. The `a/a.py` file matters because module-name resolution then finds the `a.a` submodule. A fix would probably:
+
+1. Only use `<dir>/__init__.py` as the module file when that file exists.
+2. Otherwise treat the directory as a namespace package and expand it into its contained `.py` files (without emitting a parse error for the missing `__init__.py`).
+
+Because I haven't seen the exact code, I'd rather not guess at a diff that may not apply. If you send `pylint/lint/expand_modules.py` (and ideally the related tests in `tests/lint/unittest_expand_modules.py`), I can write a patch in the `git apply` format against the actual file contents.

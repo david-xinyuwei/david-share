@@ -1,0 +1,27 @@
+2026-10-27 10:11:19,325 - INFO - Creating container for django__django-12184...
+2026-10-27 10:11:19,570 - INFO - Container for django__django-12184 created: 3ee76704034b692be2c1f1671e8e86f8e981b04c3c6f01cff7f479d9ace6bc1a
+2026-10-27 10:11:19,815 - INFO - Container for django__django-12184 started: 3ee76704034b692be2c1f1671e8e86f8e981b04c3c6f01cff7f479d9ace6bc1a
+2026-10-27 10:11:19,815 - INFO - Intermediate patch for django__django-12184 written to logs/evaluation/aca-score-20261027-haiku-disabled-medium-r1/haiku-disabled-medium-r1/django__django-12184/patch.diff, now applying to container...
+2026-10-27 10:11:19,903 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:11:20,703 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:11:21,190 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:11:21,392 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:11:21,436 - INFO - >>>>> Patch Apply Failed:
+patching file django/urls/resolvers.py
+patch: **** malformed patch at line 15:              return path[match.end():], args, kwargs
+
+
+2026-10-27 10:11:21,437 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for django__django-12184: >>>>> Patch Apply Failed:
+patching file django/urls/resolvers.py
+patch: **** malformed patch at line 15:              return path[match.end():], args, kwargs
+
+
+Check (logs/evaluation/aca-score-20261027-haiku-disabled-medium-r1/haiku-disabled-medium-r1/django__django-12184/run_instance.log) for more information.
+
+2026-10-27 10:11:21,437 - INFO - Attempting to stop container sweb.eval.django__django-12184.aca-score-20261027-haiku-disabled-medium-r1...
+2026-10-27 10:11:38,134 - INFO - Container sweb.eval.django__django-12184.aca-score-20261027-haiku-disabled-medium-r1 stopped successfully.
+2026-10-27 10:11:38,134 - INFO - Attempting to remove container sweb.eval.django__django-12184.aca-score-20261027-haiku-disabled-medium-r1...
+2026-10-27 10:11:38,440 - INFO - Container sweb.eval.django__django-12184.aca-score-20261027-haiku-disabled-medium-r1 removed successfully.

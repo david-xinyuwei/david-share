@@ -1,0 +1,25 @@
+
+--- a/sympy/simplify/trigsimp.py
++++ b/sympy/simplify/trigsimp.py
+@@ -1050,4 +1050,20 @@
+     old = e
+-    e = bottom_up(e, lambda x: _futrig(x, **kwargs))
++    # (f**n)**p, with f trigonometric or hyperbolic, n an integer and p not an
++    # integer, only equals f**(n*p) when f is real. Such subexpressions are
++    # hidden behind placeholders so that they are not rewritten.
++    from sympy.core.power import Pow
++    from sympy.core.symbol import Dummy
++    from sympy.functions.elementary.hyperbolic import HyperbolicFunction
++    from sympy.functions.elementary.trigonometric import TrigonometricFunction
++
++    hidden = {}
++    for p in e.atoms(Pow):
++        if (p.base.is_Pow and p.base.exp.is_integer and
++                not p.exp.is_integer and
++                isinstance(p.base.base,
++                           (TrigonometricFunction, HyperbolicFunction))):
++            hidden[p] = Dummy()
++    e = bottom_up(e.xreplace(hidden), lambda x: _futrig(x, **kwargs))
++    e = e.xreplace({v: k for k, v in hidden.items()})
+ 
+     if kwargs.pop('hyper', True) and e.has(HyperbolicFunction):

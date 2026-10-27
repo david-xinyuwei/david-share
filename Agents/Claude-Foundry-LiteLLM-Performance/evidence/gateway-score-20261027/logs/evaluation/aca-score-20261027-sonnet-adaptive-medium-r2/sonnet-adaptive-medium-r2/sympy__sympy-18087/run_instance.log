@@ -1,0 +1,47 @@
+2026-10-27 11:02:32,490 - INFO - Creating container for sympy__sympy-18087...
+2026-10-27 11:02:32,665 - INFO - Container for sympy__sympy-18087 created: 875ba2072bcc3de2e72c8ace3ecdcb63d2869f742bd6f9f263dcc730b120c027
+2026-10-27 11:02:32,857 - INFO - Container for sympy__sympy-18087 started: 875ba2072bcc3de2e72c8ace3ecdcb63d2869f742bd6f9f263dcc730b120c027
+2026-10-27 11:02:32,857 - INFO - Intermediate patch for sympy__sympy-18087 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-medium-r2/sonnet-adaptive-medium-r2/sympy__sympy-18087/patch.diff, now applying to container...
+2026-10-27 11:02:32,946 - INFO - >>>>> Applied Patch:
+Checking patch sympy/simplify/fu.py...
+Hunk #1 succeeded at 496 (offset -7 lines).
+Applied patch sympy/simplify/fu.py cleanly.
+
+2026-10-27 11:02:33,310 - INFO - Git diff before:
+diff --git a/sympy/simplify/fu.py b/sympy/simplify/fu.py
+index 612bc0bb69..3a2b90aa30 100755
+--- a/sympy/simplify/fu.py
++++ b/sympy/simplify/fu.py
+@@ -498,7 +498,7 @@ def _f(rv):
+         # or only those expressible as powers of 2. Also, should it only
+         # make the changes in powers that appear in sums -- making an isolated
+         # change is not going to allow a simplification as far as I can tell.
+-        if not (rv.is_Pow and rv.base.func == f):
++        if not (rv.is_Pow and rv.base.func == f and rv.exp.is_integer):
+             return rv
+         if not rv.exp.is_real:
+             return rv
+2026-10-27 11:02:33,310 - INFO - Eval script for sympy__sympy-18087 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-medium-r2/sonnet-adaptive-medium-r2/sympy__sympy-18087/eval.sh; copying to container...
+2026-10-27 11:02:52,833 - INFO - Test runtime: 19.48 seconds
+2026-10-27 11:02:52,834 - INFO - Test output for sympy__sympy-18087 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-medium-r2/sonnet-adaptive-medium-r2/sympy__sympy-18087/test_output.txt
+2026-10-27 11:02:52,877 - INFO - Git diff after:
+diff --git a/sympy/simplify/fu.py b/sympy/simplify/fu.py
+index 612bc0bb69..3a2b90aa30 100755
+--- a/sympy/simplify/fu.py
++++ b/sympy/simplify/fu.py
+@@ -498,7 +498,7 @@ def _f(rv):
+         # or only those expressible as powers of 2. Also, should it only
+         # make the changes in powers that appear in sums -- making an isolated
+         # change is not going to allow a simplification as far as I can tell.
+-        if not (rv.is_Pow and rv.base.func == f):
++        if not (rv.is_Pow and rv.base.func == f and rv.exp.is_integer):
+             return rv
+         if not rv.exp.is_real:
+             return rv
+2026-10-27 11:02:52,877 - INFO - Grading answer for sympy__sympy-18087...
+2026-10-27 11:02:52,879 - INFO - report: {'sympy__sympy-18087': {'patch_is_None': False, 'patch_exists': True, 'patch_successfully_applied': True, 'resolved': False, 'infra_failure': False, 'tests_status': {'FAIL_TO_PASS': {'success': [], 'failure': ['test_Factors', 'test_fu']}, 'PASS_TO_PASS': {'success': ['test_decompose_power', 'test_Term', 'test_gcd_terms', 'test_factor_terms', 'test_xreplace', 'test_factor_nc', 'test_issue_6360', 'test_issue_7903', 'test_issue_8263', 'test_monotonic_sign', 'test_TR1', 'test_TR2', 'test_TR2i', 'test_TR3', 'test__TR56', 'test_TR5', 'test_TR6', 'test_TR7', 'test_TR8', 'test_TR9', 'test_TR10', 'test_TR10i', 'test_TR11', 'test_TR12', 'test_TR13', 'test_L', 'test_objective', 'test_process_common_addends', 'test_trig_split', 'test_TRmorrie', 'test_TRpower', 'test_hyper_as_trig', 'test_TR12i', 'test_TR14', 'test_TR15_16_17'], 'failure': []}, 'FAIL_TO_FAIL': {'success': [], 'failure': []}, 'PASS_TO_FAIL': {'success': [], 'failure': []}}}}
+Result for sympy__sympy-18087: resolved: False
+2026-10-27 11:02:52,879 - INFO - Attempting to stop container sweb.eval.sympy__sympy-18087.aca-score-20261027-sonnet-adaptive-medium-r2...
+2026-10-27 11:03:08,138 - INFO - Container sweb.eval.sympy__sympy-18087.aca-score-20261027-sonnet-adaptive-medium-r2 stopped successfully.
+2026-10-27 11:03:08,139 - INFO - Attempting to remove container sweb.eval.sympy__sympy-18087.aca-score-20261027-sonnet-adaptive-medium-r2...
+2026-10-27 11:03:08,209 - INFO - Container sweb.eval.sympy__sympy-18087.aca-score-20261027-sonnet-adaptive-medium-r2 removed successfully.

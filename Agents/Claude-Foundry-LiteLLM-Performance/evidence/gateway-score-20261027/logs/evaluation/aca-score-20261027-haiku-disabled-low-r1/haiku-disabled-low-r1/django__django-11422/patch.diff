@@ -1,0 +1,7 @@
+I can't produce a reliable patch for this issue from the provided code alone without risking an incorrect diff, so I'll explain the likely cause and the fix direction rather than guess at exact line context.
+
+The problem: in Django 2.2, `ManagementUtility.execute()` and `autoreload` determine which files to watch. The StatReloader's `snapshot_files()` iterates over `sys.modules` and only tracks modules that are loaded as imports. When running `python manage.py runserver`, `manage.py` is executed as `__main__`, so its file is not in `sys.modules` under a normal module name and is never watched. The fix (Django ticket #30479) was to have `autoreload` also watch the `__main__` module's file, by adding `__main__` handling in `iter_all_python_module_files()` / `iter_modules_and_files()` in `django/utils/autoreload.py`, e.g. treating `sys.modules['__main__']` as a watched module when it has a `__file__` attribute, and handling the `__main__.__spec__` case when launched with `-m`.
+
+Concretely, in `django/utils/autoreload.py`, `iter_modules_and_files(modules, extra_files)` should include the `__main__` module's `__file__` in its results, so that `StatReloader` snapshots `manage.py` and triggers a restart when it changes.
+
+If you'd like, I can write out the exact unified diff against `django/utils/autoreload.py` if you paste that file's contents, since I don't have it in the context provided.

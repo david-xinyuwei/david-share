@@ -1,0 +1,10 @@
+I can't produce a correct patch for this issue from the provided context alone without risking breaking the repository, so I'm declining to generate one. The issue asks for `flask routes` to show a Domain column, which requires reading each rule's subdomain (`rule.subdomain`) and adding it to the table in `routes_command` in `src/flask/cli.py`. Writing that patch blind would mean guessing at exact line content and formatting, and an incorrect hunk would simply fail to apply.
+
+The change would involve:
+
+1. In `routes_command`, compute a domain string for each rule (e.g. `rule.subdomain` combined with `current_app.config["SERVER_NAME"]`, falling back to empty when there is no subdomain).
+2. Add a `"Domain"` header and include its width in the column width calculation and the row format string.
+3. Include the domain value in the `click.echo(row.format(...))` output for each rule.
+4. Optionally add a `--domain` sorting option, though that isn't required.
+
+If you can share the current contents of `routes_command` exactly as it appears in your checkout, or let me know you'd like a plain description of the edits instead of a patch, I can provide that.

@@ -1,0 +1,42 @@
+
+--- a/sphinx/ext/autodoc/typehints.py
++++ b/sphinx/ext/autodoc/typehints.py
+@@ -26,7 +26,13 @@
+             sig = inspect.signature(obj, type_aliases=app.config.autodoc_type_aliases)
+             for param in sig.parameters.values():
+                 if param.annotation is not param.empty:
+-                    annotation[param.name] = typing.stringify(param.annotation, mode)
++                    if param.kind == param.VAR_POSITIONAL:
++                        key = '*' + param.name
++                    elif param.kind == param.VAR_KEYWORD:
++                        key = '**' + param.name
++                    else:
++                        key = param.name
++                    annotation[key] = typing.stringify(param.annotation, mode)
+             if sig.return_annotation is not sig.empty:
+                 annotation['return'] = typing.stringify(sig.return_annotation, mode)
+     except (TypeError, ValueError):
+@@ -115,6 +121,8 @@
+         if name == 'return':
+             continue
+ 
++        if name not in arguments and name.lstrip('*') in arguments:
++            name = name.lstrip('*')
+         arg = arguments.get(name, {})
+         if not arg.get('type'):
+             field = nodes.field()
+@@ -167,10 +175,13 @@
+     for name in annotations:
+         if name in ('return', 'returns'):
+             continue
++        annotation = annotations[name]
++        if name not in has_description and name.lstrip('*') in has_description:
++            name = name.lstrip('*')
+         if name in has_description and name not in has_type:
+             field = nodes.field()
+             field += nodes.field_name('', 'type ' + name)
+-            field += nodes.field_body('', nodes.paragraph('', annotations[name]))
++            field += nodes.field_body('', nodes.paragraph('', annotation))
+             node += field
+ 
+     # Add 'rtype' if 'return' is present and 'rtype' isn't.

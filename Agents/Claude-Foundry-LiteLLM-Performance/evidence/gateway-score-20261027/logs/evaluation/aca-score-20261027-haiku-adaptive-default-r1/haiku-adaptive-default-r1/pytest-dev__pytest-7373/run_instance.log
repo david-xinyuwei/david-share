@@ -1,0 +1,119 @@
+2026-10-27 09:35:59,525 - INFO - Creating container for pytest-dev__pytest-7373...
+2026-10-27 09:35:59,708 - INFO - Container for pytest-dev__pytest-7373 created: 16e7086322cfd10275b327d5bcaea2442cba3de61feb5da1510ab9c08edb743f
+2026-10-27 09:35:59,923 - INFO - Container for pytest-dev__pytest-7373 started: 16e7086322cfd10275b327d5bcaea2442cba3de61feb5da1510ab9c08edb743f
+2026-10-27 09:35:59,923 - INFO - Intermediate patch for pytest-dev__pytest-7373 written to logs/evaluation/aca-score-20261027-haiku-adaptive-default-r1/haiku-adaptive-default-r1/pytest-dev__pytest-7373/patch.diff, now applying to container...
+2026-10-27 09:36:00,001 - INFO - >>>>> Applied Patch:
+Checking patch src/_pytest/mark/evaluate.py...
+Hunk #2 succeeded at 77 (offset -1 lines).
+Applied patch src/_pytest/mark/evaluate.py cleanly.
+
+2026-10-27 09:36:00,085 - INFO - Git diff before:
+diff --git a/src/_pytest/mark/evaluate.py b/src/_pytest/mark/evaluate.py
+index 759191668..b1f763896 100755
+--- a/src/_pytest/mark/evaluate.py
++++ b/src/_pytest/mark/evaluate.py
+@@ -2,33 +2,13 @@ import os
+ import platform
+ import sys
+ import traceback
+-from typing import Any
+-from typing import Dict
+ from typing import List
+ from typing import Optional
+ 
+ from ..outcomes import fail
+ from ..outcomes import TEST_OUTCOME
+ from .structures import Mark
+-from _pytest.config import Config
+ from _pytest.nodes import Item
+-from _pytest.store import StoreKey
+-
+-
+-evalcache_key = StoreKey[Dict[str, Any]]()
+-
+-
+-def cached_eval(config: Config, expr: str, d: Dict[str, object]) -> Any:
+-    default = {}  # type: Dict[str, object]
+-    evalcache = config._store.setdefault(evalcache_key, default)
+-    try:
+-        return evalcache[expr]
+-    except KeyError:
+-        import _pytest._code
+-
+-        exprcode = _pytest._code.compile(expr, mode="eval")
+-        evalcache[expr] = x = eval(exprcode, d)
+-        return x
+ 
+ 
+ class MarkEvaluator:
+@@ -98,7 +78,9 @@ class MarkEvaluator:
+                     self.expr = expr
+                     if isinstance(expr, str):
+                         d = self._getglobals()
+-                        result = cached_eval(self.item.config, expr, d)
++                        import _pytest._code
++                        exprcode = _pytest._code.compile(expr, mode="eval")
++                        result = eval(exprcode, d)
+                     else:
+                         if "reason" not in mark.kwargs:
+                             # XXX better be checked at collection time
+2026-10-27 09:36:00,086 - INFO - Eval script for pytest-dev__pytest-7373 written to logs/evaluation/aca-score-20261027-haiku-adaptive-default-r1/haiku-adaptive-default-r1/pytest-dev__pytest-7373/eval.sh; copying to container...
+2026-10-27 09:36:03,892 - INFO - Test runtime: 3.77 seconds
+2026-10-27 09:36:03,892 - INFO - Test output for pytest-dev__pytest-7373 written to logs/evaluation/aca-score-20261027-haiku-adaptive-default-r1/haiku-adaptive-default-r1/pytest-dev__pytest-7373/test_output.txt
+2026-10-27 09:36:03,934 - INFO - Git diff after:
+diff --git a/src/_pytest/mark/evaluate.py b/src/_pytest/mark/evaluate.py
+index 759191668..b1f763896 100755
+--- a/src/_pytest/mark/evaluate.py
++++ b/src/_pytest/mark/evaluate.py
+@@ -2,33 +2,13 @@ import os
+ import platform
+ import sys
+ import traceback
+-from typing import Any
+-from typing import Dict
+ from typing import List
+ from typing import Optional
+ 
+ from ..outcomes import fail
+ from ..outcomes import TEST_OUTCOME
+ from .structures import Mark
+-from _pytest.config import Config
+ from _pytest.nodes import Item
+-from _pytest.store import StoreKey
+-
+-
+-evalcache_key = StoreKey[Dict[str, Any]]()
+-
+-
+-def cached_eval(config: Config, expr: str, d: Dict[str, object]) -> Any:
+-    default = {}  # type: Dict[str, object]
+-    evalcache = config._store.setdefault(evalcache_key, default)
+-    try:
+-        return evalcache[expr]
+-    except KeyError:
+-        import _pytest._code
+-
+-        exprcode = _pytest._code.compile(expr, mode="eval")
+-        evalcache[expr] = x = eval(exprcode, d)
+-        return x
+ 
+ 
+ class MarkEvaluator:
+@@ -98,7 +78,9 @@ class MarkEvaluator:
+                     self.expr = expr
+                     if isinstance(expr, str):
+                         d = self._getglobals()
+-                        result = cached_eval(self.item.config, expr, d)
++                        import _pytest._code
++                        exprcode = _pytest._code.compile(expr, mode="eval")
++                        result = eval(exprcode, d)
+                     else:
+                         if "reason" not in mark.kwargs:
+                             # XXX better be checked at collection time
+2026-10-27 09:36:03,934 - INFO - Grading answer for pytest-dev__pytest-7373...
+2026-10-27 09:36:03,949 - INFO - report: {'pytest-dev__pytest-7373': {'patch_is_None': False, 'patch_exists': True, 'patch_successfully_applied': False, 'resolved': False, 'infra_failure': False}}
+Result for pytest-dev__pytest-7373: resolved: False
+2026-10-27 09:36:03,949 - INFO - Attempting to stop container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-haiku-adaptive-default-r1...
+2026-10-27 09:36:19,315 - INFO - Container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-haiku-adaptive-default-r1 stopped successfully.
+2026-10-27 09:36:19,315 - INFO - Attempting to remove container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-haiku-adaptive-default-r1...
+2026-10-27 09:36:19,371 - INFO - Container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-haiku-adaptive-default-r1 removed successfully.

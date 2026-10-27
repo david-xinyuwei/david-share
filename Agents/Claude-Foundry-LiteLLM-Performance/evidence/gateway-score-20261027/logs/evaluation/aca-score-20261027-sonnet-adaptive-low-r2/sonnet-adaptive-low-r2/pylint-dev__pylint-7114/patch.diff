@@ -1,0 +1,7 @@
+I could not see the key files, so this patch is a guess rather than a verified fix. The code that expands module names (`expand_modules` in `pylint/lint/expand_modules.py`) and the astroid `modutils` lookup were not included in the provided base. The patch below is a best-effort workaround.
+
+The likely cause is that when `a` is a directory containing `a.py`, `modutils.file_from_modpath(["a"])` or `modutils.get_module_files` resolves `a` to `a/a.py` instead of the `a/` directory, because the current directory is on `sys.path`. That would also explain the failure to find `a/__init__.py`.
+
+The only workaround I can apply to the visible files is to stop that mis-resolution by making `fix_import_path` or the path handling in `pylint/lint/utils.py` more robust. Neither of those files was provided either. I therefore cannot write a diff against them without guessing at their contents, and a guessed diff would likely fail to apply with `git apply`.
+
+I'd rather not hand you a patch that won't apply or that edits unrelated files. If you can share `pylint/lint/expand_modules.py`, I can produce a precise patch. The fix would most likely be in `expand_modules`, so that an existing directory with no `__init__.py` is handled as a namespace package, not resolved through `a/a.py`.

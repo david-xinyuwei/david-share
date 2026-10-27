@@ -1,0 +1,18 @@
+
+--- a/sympy/functions/elementary/hyperbolic.py
++++ b/sympy/functions/elementary/hyperbolic.py
+@@ -585,9 +585,14 @@ class coth(HyperbolicFunction):
+     @classmethod
+     def eval(cls, arg):
+         from sympy import cot
++        from sympy.functions.elementary.exponential import log
+         arg, arg_coth = arg.as_coeff_Mul(), arg
+         if arg.is_Mul:
+             pass
++        if isinstance(arg, log):
++            cotm = cot(arg.args[0])
++            if cotm is S.ComplexInfinity:
++                return S.NaN
+         if arg.is_Number:
+             if arg is S.Infinity:
+                 return S.One

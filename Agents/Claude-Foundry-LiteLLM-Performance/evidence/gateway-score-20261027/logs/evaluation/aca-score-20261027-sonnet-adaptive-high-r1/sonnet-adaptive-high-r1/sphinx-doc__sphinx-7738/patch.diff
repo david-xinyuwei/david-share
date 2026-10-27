@@ -1,0 +1,14 @@
+
+--- a/sphinx/ext/napoleon/docstring.py
++++ b/sphinx/ext/napoleon/docstring.py
+@@ -588,7 +588,10 @@
+                 if _type:
+                     lines.append(':vartype %s: %s' % (_name, _type))
+             else:
+-                lines.append('.. attribute:: ' + _name)
++                # the trailing underscore must not be escaped in a directive argument
++                _attr_name = _name[:-2] + '_' if _name.endswith('\\_') else _name
++                lines.append('.. attribute:: ' + _attr_name)
+                 if self._opt and 'noindex' in self._opt:
+                     lines.append('   :noindex:')
+                 if _type:

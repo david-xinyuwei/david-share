@@ -1,0 +1,27 @@
+
+--- a/pylint/lint/expand_modules.py
++++ b/pylint/lint/expand_modules.py
+@@ -82,7 +82,11 @@ def expand_modules(
+             continue
+         module_path = get_python_path(something)
+         additional_search_path = [".", module_path] + path
+-        if os.path.exists(something):
++        if os.path.isdir(something):
++            filepath = something
++            if os.path.isfile(os.path.join(something, "__init__.py")):
++                filepath = os.path.join(something, "__init__.py")
++        if os.path.exists(something):
+             # this is a file or a directory
+             try:
+                 modname = ".".join(
+@@ -90,10 +94,8 @@ def expand_modules(
+                 )
+             except ImportError:
+                 modname = os.path.splitext(basename)[0]
+-            if os.path.isdir(something):
+-                filepath = os.path.join(something, "__init__.py")
+-            else:
++            if not os.path.isdir(something):
+                 filepath = something
+         else:
+             # suppose it's a module or package

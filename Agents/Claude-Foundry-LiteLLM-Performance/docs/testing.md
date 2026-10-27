@@ -6,15 +6,34 @@ This page gives the complete commands for the offline checks, for repeating the 
 
 <a id="aca-snapshot-replay"></a>
 
-## Replay the ACA partial snapshot
+## Replay the complete ACA results
 
 From the repository's project directory, use Python 3.12 or 3.13. This offline command sends no requests and needs no credentials:
 
 ```bash
 python -B gateway-cache/analyze_cache_matrix.py --run-dir evidence/gateway-cache-20261026 --out evidence/gateway-cache-20261026/interim-facts.json --check
+python -B gateway-cache/swebench_score.py check-public --out evidence/gateway-score-20261027 --inference-dir evidence/gateway-cache-20261026
 ```
 
-Success is `facts match` and exit 0. This proves that the retained metrics recompute, not that all 650 planned requests completed. The unit tests also check all 26 cells, export hashes, duplicate rejection and the incomplete-snapshot boundary. Never substitute the historical direct-VM grader for the uncollected ACA correctness results.
+Expect `facts match`, then status PASS with denominator 624 and resolved 245, and exit 0. This replays saved metrics and official judgments; it does not generate new answers or rerun Docker. Cache-hit performance uses 302 pairs, while grading retains every measured answer.
+
+### Run the official tests on the published patches
+
+On a Linux x86-64 machine with Docker access and sufficient disk for the 12 dataset images, run from this project directory. Use a new prefix to avoid reusing prior evaluation results. This executes the published model patches without generating new model answers; VM time and image storage may incur charges. The recorded setup used Python 3.12.3, two workers and a 1,800-second per-instance timeout.
+
+```bash
+python -m pip install 'git+https://github.com/SWE-bench/SWE-bench.git@02e7a74ffd0b707aab73d203fe87bdc7c76afc8e'
+RUN_PREFIX="aca-regrade-$(date -u +%Y%m%d-%H%M%S)"
+for prediction in evidence/gateway-score-20261027/predictions/*.jsonl; do
+  label=$(basename "$prediction" .jsonl)
+  python -u -m swebench.harness.run_evaluation \
+     --dataset_name evidence/gateway-score-20261027/dataset.json \
+     --predictions_path "$prediction" --max_workers 2 --timeout 1800 \
+     --run_id "$RUN_PREFIX-$label" || break
+done
+```
+
+Each of the 52 batches must produce `logs/evaluation/<run_id>/results.json`; inspect resolved, unresolved, empty-patch and error IDs, not just the CLI exit code. Patch-application failures are model-output outcomes; infrastructure failures require diagnosis and re-evaluating the same frozen patch. The published [official reports](../evidence/gateway-score-20261027/logs/evaluation) and [prediction hashes](../evidence/gateway-score-20261027/manifest.json) are the comparison reference. The public command blocks have not been replayed in a new machine during this documentation update.
 
 ## Offline checks
 
@@ -314,4 +333,4 @@ Deployment command references (consulted 2026-10-25):
 
 Live inputs, responses, signatures and authentication can be sensitive. live-runs, private, runs and .env are ignored; do not upload run directories. Historical coding-matrix-20261026 records replace only endpoint and VM names. New gateway-cache-20261026 records are a metrics projection: numbers are preserved but prompt/answer bodies, thinking signatures, private endpoints and non-region headers are omitted. Each export manifest records its hashes and scope; the metrics projection cannot score code correctness. The 2026-10-24 evidence omits signatures and pseudonymizes call IDs; do not replay its history signatures.
 
-Not verified: full ACA results and correctness, an end-to-end deployment of this public package in a fresh subscription, concurrency or load, a client outside Azure, display: "summarized", requests with tools, and customer tasks. A same-region ACA partial snapshot exists; it does not establish full completion.
+All 650 ACA request records and grading outcomes for 624 measured answers are retained, including failures and six official ambiguous flags. Not verified: an end-to-end deployment in a fresh subscription, concurrency or load, a client outside Azure, display: "summarized", tool use, and customer tasks. Environment versions were collected after grading, not as in-run telemetry.

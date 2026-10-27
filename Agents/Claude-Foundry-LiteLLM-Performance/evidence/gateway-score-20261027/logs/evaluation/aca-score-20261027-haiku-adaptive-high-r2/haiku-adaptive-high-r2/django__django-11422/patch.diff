@@ -1,0 +1,18 @@
+
+diff --git a/django/utils/autoreload.py b/django/utils/autoreload.py
+--- a/django/utils/autoreload.py
++++ b/django/utils/autoreload.py
+@@ -110,4 +110,12 @@
+         # cause issues here.
+-        if not isinstance(module, ModuleType) or getattr(module, '__spec__', None) is None:
++        if not isinstance(module, ModuleType):
++            continue
++        if module.__name__ == '__main__':
++            # __main__ (usually manage.py) doesn't always have a __spec__ set.
++            # Handle this by falling back to using __file__.
++            if hasattr(module, '__file__'):
++                sys_file_paths.append(module.__file__)
++            continue
++        if getattr(module, '__spec__', None) is None:
+             continue
+         spec = module.__spec__

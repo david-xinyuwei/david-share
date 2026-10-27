@@ -1,0 +1,16 @@
+
+--- a/django/utils/autoreload.py
++++ b/django/utils/autoreload.py
+@@ -112,6 +112,12 @@
+         # cause issues here.
+         if not isinstance(module, ModuleType):
+             continue
++        if module.__name__ == '__main__':
++            # __main__ (usually manage.py) doesn't always have a __spec__ set.
++            # Fall back to __file__.
++            if getattr(module, '__file__', None):
++                sys_file_paths.append(module.__file__)
++            continue
+         spec = module.__spec__
+         # Modules could be loaded from places without a concrete location. If
+         # this is the case, skip them.

@@ -1,0 +1,11 @@
+I can't produce a reliable patch for this issue from the files provided, so I won't guess at a diff that `git apply` would reject or that would silently do the wrong thing.
+
+The files you included don't contain the code that resolves `pylint a` to file paths. That logic is in `pylint/lint/expand_modules.py` (the expansion of directory arguments into module files, including the `__init__.py` lookup), and it's not in the context. The files shown (`README.rst`, `constants.py`, `epylint.py`, `base_options.py`, `pyreverse/main.py`) don't touch module discovery. `epylint.py` only walks up `__init__.py` for its own cwd logic, which isn't the failing path.
+
+The example patch in your message (Euclidean GCD and Bresenham line code) also has nothing to do with this issue, so I've left it out.
+
+To write a correct patch, I need:
+- `pylint/lint/expand_modules.py` (the full file), and
+- ideally `pylint/lint/pylinter.py` if the `check` path calls into it.
+
+With those, I can trace where a directory argument `a` gets resolved to `a/__init__.py` when `a/a.py` exists, and produce a patch in the format you asked for. A likely cause is a lookup that matches the module name `a` against the file `a/a.py` and then assumes the package's `__init__.py` should exist. That's a hypothesis until I can read the code.

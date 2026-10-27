@@ -1,0 +1,64 @@
+2026-10-27 09:39:04,204 - INFO - Creating container for sympy__sympy-21847...
+2026-10-27 09:39:04,342 - INFO - Container for sympy__sympy-21847 created: e33077f02b5fbc596fb02451283195fd888cdd07bd585baecfa3b7f9d9a0ed39
+2026-10-27 09:39:04,520 - INFO - Container for sympy__sympy-21847 started: e33077f02b5fbc596fb02451283195fd888cdd07bd585baecfa3b7f9d9a0ed39
+2026-10-27 09:39:04,520 - INFO - Intermediate patch for sympy__sympy-21847 written to logs/evaluation/aca-score-20261027-haiku-adaptive-default-r2/haiku-adaptive-default-r2/sympy__sympy-21847/patch.diff, now applying to container...
+2026-10-27 09:39:04,600 - INFO - >>>>> Applied Patch:
+Checking patch sympy/polys/monomials.py...
+Applied patch sympy/polys/monomials.py cleanly.
+
+2026-10-27 09:39:04,988 - INFO - Git diff before:
+diff --git a/sympy/polys/monomials.py b/sympy/polys/monomials.py
+index 0e84403307..d2cd3451e5 100755
+--- a/sympy/polys/monomials.py
++++ b/sympy/polys/monomials.py
+@@ -127,7 +127,7 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+                 for variable in item:
+                     if variable != 1:
+                         powers[variable] += 1
+-                if max(powers.values()) >= min_degree:
++                if sum(powers.values()) >= min_degree:
+                     monomials_list_comm.append(Mul(*item))
+             yield from set(monomials_list_comm)
+         else:
+@@ -139,7 +139,7 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+                 for variable in item:
+                     if variable != 1:
+                         powers[variable] += 1
+-                if max(powers.values()) >= min_degree:
++                if sum(powers.values()) >= min_degree:
+                     monomials_list_non_comm.append(Mul(*item))
+             yield from set(monomials_list_non_comm)
+     else:
+2026-10-27 09:39:04,989 - INFO - Eval script for sympy__sympy-21847 written to logs/evaluation/aca-score-20261027-haiku-adaptive-default-r2/haiku-adaptive-default-r2/sympy__sympy-21847/eval.sh; copying to container...
+2026-10-27 09:39:08,625 - INFO - Test runtime: 3.59 seconds
+2026-10-27 09:39:08,626 - INFO - Test output for sympy__sympy-21847 written to logs/evaluation/aca-score-20261027-haiku-adaptive-default-r2/haiku-adaptive-default-r2/sympy__sympy-21847/test_output.txt
+2026-10-27 09:39:08,667 - INFO - Git diff after:
+diff --git a/sympy/polys/monomials.py b/sympy/polys/monomials.py
+index 0e84403307..d2cd3451e5 100755
+--- a/sympy/polys/monomials.py
++++ b/sympy/polys/monomials.py
+@@ -127,7 +127,7 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+                 for variable in item:
+                     if variable != 1:
+                         powers[variable] += 1
+-                if max(powers.values()) >= min_degree:
++                if sum(powers.values()) >= min_degree:
+                     monomials_list_comm.append(Mul(*item))
+             yield from set(monomials_list_comm)
+         else:
+@@ -139,7 +139,7 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+                 for variable in item:
+                     if variable != 1:
+                         powers[variable] += 1
+-                if max(powers.values()) >= min_degree:
++                if sum(powers.values()) >= min_degree:
+                     monomials_list_non_comm.append(Mul(*item))
+             yield from set(monomials_list_non_comm)
+     else:
+2026-10-27 09:39:08,667 - INFO - Grading answer for sympy__sympy-21847...
+2026-10-27 09:39:08,668 - INFO - report: {'sympy__sympy-21847': {'patch_is_None': False, 'patch_exists': True, 'patch_successfully_applied': True, 'resolved': True, 'infra_failure': False, 'tests_status': {'FAIL_TO_PASS': {'success': ['test_monomials'], 'failure': []}, 'PASS_TO_PASS': {'success': ['test_monomial_count', 'test_monomial_mul', 'test_monomial_div', 'test_monomial_gcd', 'test_monomial_lcm', 'test_monomial_max', 'test_monomial_pow', 'test_monomial_min', 'test_monomial_divides'], 'failure': []}, 'FAIL_TO_FAIL': {'success': [], 'failure': []}, 'PASS_TO_FAIL': {'success': [], 'failure': []}}}}
+Result for sympy__sympy-21847: resolved: True
+2026-10-27 09:39:08,668 - INFO - Attempting to stop container sweb.eval.sympy__sympy-21847.aca-score-20261027-haiku-adaptive-default-r2...
+2026-10-27 09:39:23,875 - INFO - Container sweb.eval.sympy__sympy-21847.aca-score-20261027-haiku-adaptive-default-r2 stopped successfully.
+2026-10-27 09:39:23,875 - INFO - Attempting to remove container sweb.eval.sympy__sympy-21847.aca-score-20261027-haiku-adaptive-default-r2...
+2026-10-27 09:39:23,959 - INFO - Container sweb.eval.sympy__sympy-21847.aca-score-20261027-haiku-adaptive-default-r2 removed successfully.

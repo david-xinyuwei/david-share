@@ -1,0 +1,23 @@
+
+--- a/django/utils/autoreload.py
++++ b/django/utils/autoreload.py
+@@ -1,9 +1,14 @@
+ def iter_modules_and_files(modules, extra_files):
+     """Iterate through all modules needed to be watched."""
+     sys_file_paths = []
+     for module in modules:
+-        # During debugging (with PyDev) the 'typing.io' and 'typing.re' objects
+-        # are added to sys.modules, however they are types not modules and so
+-        # cause issues here.
+-        if not isinstance(module, ModuleType) or getattr(module, '__spec__', None) is None:
++        if not isinstance(module, ModuleType):
++            continue
++        if module.__name__ == '__main__':
++            # __main__ (usually manage.py) doesn't always have a __spec__ set.
++            # Handle it by falling back to __file__.
++            # See https://docs.python.org/reference/import.html#main-spec
++            if getattr(module, '__file__', None):
++                sys_file_paths.append(module.__file__)
++            continue
++        if getattr(module, '__spec__', None) is None:
+             continue

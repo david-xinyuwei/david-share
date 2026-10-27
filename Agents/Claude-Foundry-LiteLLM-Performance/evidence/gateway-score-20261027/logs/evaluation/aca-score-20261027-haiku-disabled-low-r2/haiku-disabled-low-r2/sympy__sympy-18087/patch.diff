@@ -1,0 +1,5 @@
+from sympy import symbols, cos, sin, sqrt, trigsimp
+x = symbols('x')
+print(trigsimp(cos(x) + sqrt(sin(x)**2)))  # should not become cos(x)+sin(x) for complex x
+x = symbols('x', real=True)
+print(trigsimp(cos(x) + sqrt(sin(x)**2)))  # real case

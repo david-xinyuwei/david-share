@@ -1,0 +1,32 @@
+
+--- a/sphinx/ext/autodoc/typehints.py
++++ b/sphinx/ext/autodoc/typehints.py
+@@ -116,4 +116,11 @@
+             continue
+ 
++        # The parameter might be documented with the leading asterisks
++        # (ex. ``:param *args:`` or ``:param **kwargs:``).
++        if '*' + name in arguments:
++            name = '*' + name
++        elif '**' + name in arguments:
++            name = '**' + name
++
+         arg = arguments.get(name, {})
+         if not arg.get('type'):
+@@ -172,6 +179,15 @@
+             continue
++
++        annotation = annotations[name]
++        # The parameter might be documented with the leading asterisks
++        # (ex. ``:param *args:`` or ``:param **kwargs:``).
++        if '*' + name in has_description:
++            name = '*' + name
++        elif '**' + name in has_description:
++            name = '**' + name
++
+         if name in has_description and name not in has_type:
+             field = nodes.field()
+             field += nodes.field_name('', 'type ' + name)
+-            field += nodes.field_body('', nodes.paragraph('', annotations[name]))
++            field += nodes.field_body('', nodes.paragraph('', annotation))
+             node += field

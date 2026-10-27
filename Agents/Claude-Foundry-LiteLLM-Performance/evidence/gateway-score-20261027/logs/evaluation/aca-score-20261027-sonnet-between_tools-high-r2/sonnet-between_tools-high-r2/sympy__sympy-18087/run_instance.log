@@ -1,0 +1,53 @@
+2026-10-27 11:15:46,444 - INFO - Creating container for sympy__sympy-18087...
+2026-10-27 11:15:47,054 - INFO - Container for sympy__sympy-18087 created: 3d35afbb1547ab106728775465875c98596a2db654d5021501a3c753e9b6ee98
+2026-10-27 11:15:47,533 - INFO - Container for sympy__sympy-18087 started: 3d35afbb1547ab106728775465875c98596a2db654d5021501a3c753e9b6ee98
+2026-10-27 11:15:47,533 - INFO - Intermediate patch for sympy__sympy-18087 written to logs/evaluation/aca-score-20261027-sonnet-between_tools-high-r2/sonnet-between_tools-high-r2/sympy__sympy-18087/patch.diff, now applying to container...
+2026-10-27 11:15:47,625 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 11:15:48,044 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 11:15:48,348 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 11:15:48,462 - INFO - >>>>> Applied Patch:
+patching file sympy/simplify/fu.py
+Hunk #1 succeeded at 502 with fuzz 2.
+
+2026-10-27 11:15:48,506 - INFO - Git diff before:
+diff --git a/sympy/simplify/fu.py b/sympy/simplify/fu.py
+index 612bc0bb69..4a7a629d67 100755
+--- a/sympy/simplify/fu.py
++++ b/sympy/simplify/fu.py
+@@ -502,6 +502,10 @@ def _f(rv):
+             return rv
+         if not rv.exp.is_real:
+             return rv
++        if not rv.exp.is_integer:
++            return rv
++        if not rv.base.args[0].is_real and rv.exp.is_even is not True:
++            return rv
+ 
+         if (rv.exp < 0) == True:
+             return rv
+2026-10-27 11:15:48,507 - INFO - Eval script for sympy__sympy-18087 written to logs/evaluation/aca-score-20261027-sonnet-between_tools-high-r2/sonnet-between_tools-high-r2/sympy__sympy-18087/eval.sh; copying to container...
+2026-10-27 11:16:07,795 - INFO - Test runtime: 19.24 seconds
+2026-10-27 11:16:07,796 - INFO - Test output for sympy__sympy-18087 written to logs/evaluation/aca-score-20261027-sonnet-between_tools-high-r2/sonnet-between_tools-high-r2/sympy__sympy-18087/test_output.txt
+2026-10-27 11:16:07,838 - INFO - Git diff after:
+diff --git a/sympy/simplify/fu.py b/sympy/simplify/fu.py
+index 612bc0bb69..4a7a629d67 100755
+--- a/sympy/simplify/fu.py
++++ b/sympy/simplify/fu.py
+@@ -502,6 +502,10 @@ def _f(rv):
+             return rv
+         if not rv.exp.is_real:
+             return rv
++        if not rv.exp.is_integer:
++            return rv
++        if not rv.base.args[0].is_real and rv.exp.is_even is not True:
++            return rv
+ 
+         if (rv.exp < 0) == True:
+             return rv
+2026-10-27 11:16:07,839 - INFO - Grading answer for sympy__sympy-18087...
+2026-10-27 11:16:07,840 - INFO - report: {'sympy__sympy-18087': {'patch_is_None': False, 'patch_exists': True, 'patch_successfully_applied': True, 'resolved': False, 'infra_failure': False, 'tests_status': {'FAIL_TO_PASS': {'success': [], 'failure': ['test_Factors', 'test_fu']}, 'PASS_TO_PASS': {'success': ['test_decompose_power', 'test_Term', 'test_gcd_terms', 'test_factor_terms', 'test_xreplace', 'test_factor_nc', 'test_issue_6360', 'test_issue_7903', 'test_issue_8263', 'test_monotonic_sign', 'test_TR1', 'test_TR2', 'test_TR2i', 'test_TR3', 'test__TR56', 'test_TR5', 'test_TR6', 'test_TR7', 'test_TR8', 'test_TR9', 'test_TR10', 'test_TR10i', 'test_TR11', 'test_TR12', 'test_TR13', 'test_L', 'test_objective', 'test_process_common_addends', 'test_trig_split', 'test_TRmorrie', 'test_TRpower', 'test_hyper_as_trig', 'test_TR12i', 'test_TR14', 'test_TR15_16_17'], 'failure': []}, 'FAIL_TO_FAIL': {'success': [], 'failure': []}, 'PASS_TO_FAIL': {'success': [], 'failure': []}}}}
+Result for sympy__sympy-18087: resolved: False
+2026-10-27 11:16:07,840 - INFO - Attempting to stop container sweb.eval.sympy__sympy-18087.aca-score-20261027-sonnet-between_tools-high-r2...
+2026-10-27 11:16:23,081 - INFO - Container sweb.eval.sympy__sympy-18087.aca-score-20261027-sonnet-between_tools-high-r2 stopped successfully.
+2026-10-27 11:16:23,081 - INFO - Attempting to remove container sweb.eval.sympy__sympy-18087.aca-score-20261027-sonnet-between_tools-high-r2...
+2026-10-27 11:16:23,163 - INFO - Container sweb.eval.sympy__sympy-18087.aca-score-20261027-sonnet-between_tools-high-r2 removed successfully.

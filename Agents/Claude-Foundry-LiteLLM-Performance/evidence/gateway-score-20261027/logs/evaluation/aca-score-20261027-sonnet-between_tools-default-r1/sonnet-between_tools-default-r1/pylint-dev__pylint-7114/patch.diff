@@ -1,0 +1,25 @@
+
+--- a/pylint/lint/expand_modules.py
++++ b/pylint/lint/expand_modules.py
+@@ -111,18 +111,24 @@
+         if os.path.exists(something):
+             # this is a file or a directory
+             try:
+                 modname = ".".join(
+                     modutils.modpath_from_file(something, path=additional_search_path)
+                 )
+             except ImportError:
+                 modname = os.path.splitext(basename(something))[0]
+             if os.path.isdir(something):
+                 filepath = os.path.join(something, "__init__.py")
+             else:
+                 filepath = something
+         else:
+             # suppose it's a module or package
+             modname = something
+             try:
+                 filepath = modutils.file_from_modpath(
+                     modname.split("."), path=additional_search_path
+                 )
+                 if filepath is None:
+                     continue

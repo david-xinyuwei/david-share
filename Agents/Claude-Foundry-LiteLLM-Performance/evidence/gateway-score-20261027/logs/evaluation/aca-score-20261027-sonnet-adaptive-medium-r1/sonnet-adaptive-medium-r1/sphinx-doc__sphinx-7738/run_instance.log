@@ -1,0 +1,23 @@
+2026-10-27 11:00:02,383 - INFO - Creating container for sphinx-doc__sphinx-7738...
+2026-10-27 11:00:02,553 - INFO - Container for sphinx-doc__sphinx-7738 created: 52609cc8337e611509936e50b6fd51770caa093e398b0bd8a95716d7e517a09b
+2026-10-27 11:00:02,754 - INFO - Container for sphinx-doc__sphinx-7738 started: 52609cc8337e611509936e50b6fd51770caa093e398b0bd8a95716d7e517a09b
+2026-10-27 11:00:02,754 - INFO - Intermediate patch for sphinx-doc__sphinx-7738 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-medium-r1/sonnet-adaptive-medium-r1/sphinx-doc__sphinx-7738/patch.diff, now applying to container...
+2026-10-27 11:00:02,838 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 11:00:03,081 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 11:00:03,195 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 11:00:03,315 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 11:00:03,355 - INFO - >>>>> Patch Apply Failed:
+patch: **** Only garbage was found in the patch input.
+
+2026-10-27 11:00:03,355 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for sphinx-doc__sphinx-7738: >>>>> Patch Apply Failed:
+patch: **** Only garbage was found in the patch input.
+
+Check (logs/evaluation/aca-score-20261027-sonnet-adaptive-medium-r1/sonnet-adaptive-medium-r1/sphinx-doc__sphinx-7738/run_instance.log) for more information.
+
+2026-10-27 11:00:03,355 - INFO - Attempting to stop container sweb.eval.sphinx-doc__sphinx-7738.aca-score-20261027-sonnet-adaptive-medium-r1...
+2026-10-27 11:00:18,751 - INFO - Container sweb.eval.sphinx-doc__sphinx-7738.aca-score-20261027-sonnet-adaptive-medium-r1 stopped successfully.
+2026-10-27 11:00:18,751 - INFO - Attempting to remove container sweb.eval.sphinx-doc__sphinx-7738.aca-score-20261027-sonnet-adaptive-medium-r1...
+2026-10-27 11:00:18,824 - INFO - Container sweb.eval.sphinx-doc__sphinx-7738.aca-score-20261027-sonnet-adaptive-medium-r1 removed successfully.

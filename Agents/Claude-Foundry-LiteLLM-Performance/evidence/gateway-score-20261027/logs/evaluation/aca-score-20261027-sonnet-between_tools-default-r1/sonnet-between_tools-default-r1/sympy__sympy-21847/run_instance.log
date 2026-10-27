@@ -1,0 +1,64 @@
+2026-10-27 11:09:44,536 - INFO - Creating container for sympy__sympy-21847...
+2026-10-27 11:09:44,692 - INFO - Container for sympy__sympy-21847 created: 6cd7a6b736e73c2309ecedb881de8f0f1f60186a0dac24dd674caaa34bd8cb8d
+2026-10-27 11:09:44,875 - INFO - Container for sympy__sympy-21847 started: 6cd7a6b736e73c2309ecedb881de8f0f1f60186a0dac24dd674caaa34bd8cb8d
+2026-10-27 11:09:44,875 - INFO - Intermediate patch for sympy__sympy-21847 written to logs/evaluation/aca-score-20261027-sonnet-between_tools-default-r1/sonnet-between_tools-default-r1/sympy__sympy-21847/patch.diff, now applying to container...
+2026-10-27 11:09:44,956 - INFO - >>>>> Applied Patch:
+Checking patch sympy/polys/monomials.py...
+Applied patch sympy/polys/monomials.py cleanly.
+
+2026-10-27 11:09:45,348 - INFO - Git diff before:
+diff --git a/sympy/polys/monomials.py b/sympy/polys/monomials.py
+index 0e84403307..d09942c067 100755
+--- a/sympy/polys/monomials.py
++++ b/sympy/polys/monomials.py
+@@ -127,7 +127,7 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+                 for variable in item:
+                     if variable != 1:
+                         powers[variable] += 1
+-                if max(powers.values()) >= min_degree:
++                if sum(powers[v] for v in variables if v != 1) >= min_degree:
+                     monomials_list_comm.append(Mul(*item))
+             yield from set(monomials_list_comm)
+         else:
+@@ -139,7 +139,7 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+                 for variable in item:
+                     if variable != 1:
+                         powers[variable] += 1
+-                if max(powers.values()) >= min_degree:
++                if sum(powers[v] for v in variables if v != 1) >= min_degree:
+                     monomials_list_non_comm.append(Mul(*item))
+             yield from set(monomials_list_non_comm)
+     else:
+2026-10-27 11:09:45,348 - INFO - Eval script for sympy__sympy-21847 written to logs/evaluation/aca-score-20261027-sonnet-between_tools-default-r1/sonnet-between_tools-default-r1/sympy__sympy-21847/eval.sh; copying to container...
+2026-10-27 11:09:49,204 - INFO - Test runtime: 3.82 seconds
+2026-10-27 11:09:49,204 - INFO - Test output for sympy__sympy-21847 written to logs/evaluation/aca-score-20261027-sonnet-between_tools-default-r1/sonnet-between_tools-default-r1/sympy__sympy-21847/test_output.txt
+2026-10-27 11:09:49,248 - INFO - Git diff after:
+diff --git a/sympy/polys/monomials.py b/sympy/polys/monomials.py
+index 0e84403307..d09942c067 100755
+--- a/sympy/polys/monomials.py
++++ b/sympy/polys/monomials.py
+@@ -127,7 +127,7 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+                 for variable in item:
+                     if variable != 1:
+                         powers[variable] += 1
+-                if max(powers.values()) >= min_degree:
++                if sum(powers[v] for v in variables if v != 1) >= min_degree:
+                     monomials_list_comm.append(Mul(*item))
+             yield from set(monomials_list_comm)
+         else:
+@@ -139,7 +139,7 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+                 for variable in item:
+                     if variable != 1:
+                         powers[variable] += 1
+-                if max(powers.values()) >= min_degree:
++                if sum(powers[v] for v in variables if v != 1) >= min_degree:
+                     monomials_list_non_comm.append(Mul(*item))
+             yield from set(monomials_list_non_comm)
+     else:
+2026-10-27 11:09:49,248 - INFO - Grading answer for sympy__sympy-21847...
+2026-10-27 11:09:49,250 - INFO - report: {'sympy__sympy-21847': {'patch_is_None': False, 'patch_exists': True, 'patch_successfully_applied': True, 'resolved': True, 'infra_failure': False, 'tests_status': {'FAIL_TO_PASS': {'success': ['test_monomials'], 'failure': []}, 'PASS_TO_PASS': {'success': ['test_monomial_count', 'test_monomial_mul', 'test_monomial_div', 'test_monomial_gcd', 'test_monomial_lcm', 'test_monomial_max', 'test_monomial_pow', 'test_monomial_min', 'test_monomial_divides'], 'failure': []}, 'FAIL_TO_FAIL': {'success': [], 'failure': []}, 'PASS_TO_FAIL': {'success': [], 'failure': []}}}}
+Result for sympy__sympy-21847: resolved: True
+2026-10-27 11:09:49,250 - INFO - Attempting to stop container sweb.eval.sympy__sympy-21847.aca-score-20261027-sonnet-between_tools-default-r1...
+2026-10-27 11:10:04,540 - INFO - Container sweb.eval.sympy__sympy-21847.aca-score-20261027-sonnet-between_tools-default-r1 stopped successfully.
+2026-10-27 11:10:04,540 - INFO - Attempting to remove container sweb.eval.sympy__sympy-21847.aca-score-20261027-sonnet-between_tools-default-r1...
+2026-10-27 11:10:04,610 - INFO - Container sweb.eval.sympy__sympy-21847.aca-score-20261027-sonnet-between_tools-default-r1 removed successfully.

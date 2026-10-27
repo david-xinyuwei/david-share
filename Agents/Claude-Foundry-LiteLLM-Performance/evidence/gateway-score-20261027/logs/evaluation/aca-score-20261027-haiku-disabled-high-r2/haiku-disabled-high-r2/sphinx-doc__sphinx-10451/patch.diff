@@ -1,0 +1,10 @@
+I can't produce a correct patch for this issue from the provided context alone: the relevant code lives in `sphinx/ext/autodoc/typehints.py` (and `sphinx/ext/autodoc/__init__.py`), which were not included in the files you shared, so any diff I wrote against those files would be guesswork and would likely fail `git apply`.
+
+What I can say about the root cause, based on the issue description:
+
+- With `autodoc_typehints = "description"`, the typehints extension injects `:type:` fields into the docstring for each parameter in the signature. For `*args` and `**kwargs`, the parameter names in the signature are `args` and `kwargs`, but the docstring field written by the author is `:param *args:` / `:param **kwargs:`, so the name lookup doesn't match.
+- The extension then adds a fresh `:param args:` / `:param kwargs:` entry with the type, producing the duplicated and broken entries shown in the issue.
+
+The fix is in `sphinx/ext/autodoc/typehints.py`, in the function that merges annotations into the docstring fields (`modify_field_list`). It should normalize the field name when checking whether a parameter is already documented: strip leading `*` characters from the documented name before comparing it to the signature parameter name, so `*args` in the docstring matches the `args` parameter and the type is attached to the existing entry rather than adding a new one.
+
+If you send me the contents of `sphinx/ext/autodoc/typehints.py` (and the test file `tests/test_ext_autodoc_configs.py` if you want a regression test), I can write an exact patch against those files.

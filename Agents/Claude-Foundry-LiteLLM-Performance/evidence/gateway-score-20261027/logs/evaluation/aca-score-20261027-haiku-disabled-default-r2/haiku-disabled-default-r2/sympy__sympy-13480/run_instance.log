@@ -1,0 +1,27 @@
+2026-10-27 10:02:50,406 - INFO - Creating container for sympy__sympy-13480...
+2026-10-27 10:02:50,557 - INFO - Container for sympy__sympy-13480 created: 340e52de0783e9fd9ecc3262e54061fafba0c0b5e6b346d621dcca7cc5ab41bc
+2026-10-27 10:02:50,748 - INFO - Container for sympy__sympy-13480 started: 340e52de0783e9fd9ecc3262e54061fafba0c0b5e6b346d621dcca7cc5ab41bc
+2026-10-27 10:02:50,749 - INFO - Intermediate patch for sympy__sympy-13480 written to logs/evaluation/aca-score-20261027-haiku-disabled-default-r2/haiku-disabled-default-r2/sympy__sympy-13480/patch.diff, now applying to container...
+2026-10-27 10:02:50,841 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:02:51,217 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:02:51,454 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:02:51,708 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:02:51,752 - INFO - >>>>> Patch Apply Failed:
+patching file sympy/functions/elementary/hyperbolic.py
+patch: **** malformed patch at line 15:  
+
+
+2026-10-27 10:02:51,753 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for sympy__sympy-13480: >>>>> Patch Apply Failed:
+patching file sympy/functions/elementary/hyperbolic.py
+patch: **** malformed patch at line 15:  
+
+
+Check (logs/evaluation/aca-score-20261027-haiku-disabled-default-r2/haiku-disabled-default-r2/sympy__sympy-13480/run_instance.log) for more information.
+
+2026-10-27 10:02:51,753 - INFO - Attempting to stop container sweb.eval.sympy__sympy-13480.aca-score-20261027-haiku-disabled-default-r2...
+2026-10-27 10:03:07,208 - INFO - Container sweb.eval.sympy__sympy-13480.aca-score-20261027-haiku-disabled-default-r2 stopped successfully.
+2026-10-27 10:03:07,208 - INFO - Attempting to remove container sweb.eval.sympy__sympy-13480.aca-score-20261027-haiku-disabled-default-r2...
+2026-10-27 10:03:07,277 - INFO - Container sweb.eval.sympy__sympy-13480.aca-score-20261027-haiku-disabled-default-r2 removed successfully.

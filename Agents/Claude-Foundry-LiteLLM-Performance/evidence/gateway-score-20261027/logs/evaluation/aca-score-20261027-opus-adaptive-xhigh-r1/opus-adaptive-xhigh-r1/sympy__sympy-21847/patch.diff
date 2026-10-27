@@ -1,0 +1,32 @@
+
+--- a/sympy/polys/monomials.py
++++ b/sympy/polys/monomials.py
+@@ -29,8 +29,8 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+     =============================================================
+ 
+     Given a set of variables $V$ and a min_degree $N$ and a max_degree $M$
+-    generate a set of monomials of degree less than or equal to $N$ and greater
+-    than or equal to $M$. The total number of monomials in commutative
++    generate a set of monomials of degree less than or equal to $M$ and greater
++    than or equal to $N$. The total number of monomials in commutative
+     variables is huge and is given by the following formula if $M = 0$:
+ 
+         .. math::
+@@ -127,7 +127,7 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+                 for variable in item:
+                     if variable != 1:
+                         powers[variable] += 1
+-                if max(powers.values()) >= min_degree:
++                if sum(powers.values()) >= min_degree:
+                     monomials_list_comm.append(Mul(*item))
+             yield from set(monomials_list_comm)
+         else:
+@@ -139,7 +139,7 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+                 for variable in item:
+                     if variable != 1:
+                         powers[variable] += 1
+-                if max(powers.values()) >= min_degree:
++                if sum(powers.values()) >= min_degree:
+                     monomials_list_non_comm.append(Mul(*item))
+             yield from set(monomials_list_non_comm)
+     else:

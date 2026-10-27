@@ -1,0 +1,83 @@
+
+--- a/sphinx/ext/napoleon/docstring.py
++++ b/sphinx/ext/napoleon/docstring.py
+@@ -318,2 +318,2 @@ class GoogleDocstring:
+-        if name.endswith('_'):
++        if name.endswith('_') and getattr(self._config, 'strip_signature_backslash', False):
+             name = name[:-1] + r'\_'
+--- /dev/null
++++ b/tests/test_ext_napoleon_trailing_underscore.py
+@@ -0,0 +1,73 @@
++"""
++    test_ext_napoleon_trailing_underscore
++    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++
++    Tests for names ending with an underscore in
++    :mod:`sphinx.ext.napoleon.docstring`.
++
++    :copyright: Copyright 2007-2020 by the Sphinx team, see AUTHORS.
++    :license: BSD, see LICENSE for details.
++"""
++
++import pytest
++
++from sphinx.ext.napoleon import Config
++from sphinx.ext.napoleon.docstring import GoogleDocstring, NumpyDocstring
++
++NUMPY_DOCSTRING = """\
++Attributes
++----------
++hello_ : int
++    hi
++"""
++
++GOOGLE_DOCSTRING = """\
++Attributes:
++    hello_ (int): hi
++"""
++
++DOCSTRINGS = [
++    pytest.param(NumpyDocstring, NUMPY_DOCSTRING, id='numpy'),
++    pytest.param(GoogleDocstring, GOOGLE_DOCSTRING, id='google'),
++]
++
++
++def convert(docstring_class, docstring, strip_signature_backslash=False, **settings):
++    config = Config(**settings)
++    if strip_signature_backslash:
++        config.strip_signature_backslash = True
++    return docstring_class(docstring, config, what='class').lines()
++
++
++@pytest.mark.parametrize('docstring_class, docstring', DOCSTRINGS)
++def test_attribute(docstring_class, docstring):
++    lines = convert(docstring_class, docstring)
++
++    # ``.. attribute::`` does not strip backslashes unless
++    # ``strip_signature_backslash`` is enabled, so the name must not be escaped
++    assert '.. attribute:: hello_' in lines
++    assert not any('\\' in line for line in lines)
++
++
++@pytest.mark.parametrize('docstring_class, docstring', DOCSTRINGS)
++def test_attribute_strip_signature_backslash(docstring_class, docstring):
++    lines = convert(docstring_class, docstring, strip_signature_backslash=True)
++
++    assert '.. attribute:: hello\\_' in lines
++
++
++@pytest.mark.parametrize('docstring_class, docstring', DOCSTRINGS)
++def test_ivar(docstring_class, docstring):
++    lines = convert(docstring_class, docstring, napoleon_use_ivar=True)
++
++    assert ':ivar hello_: hi' in lines
++    assert ':vartype hello_: int' in lines
++
++
++@pytest.mark.parametrize('docstring_class, docstring', DOCSTRINGS)
++def test_ivar_strip_signature_backslash(docstring_class, docstring):
++    lines = convert(docstring_class, docstring, strip_signature_backslash=True,
++                    napoleon_use_ivar=True)
++
++    assert ':ivar hello\\_: hi' in lines
++    assert ':vartype hello\\_: int' in lines

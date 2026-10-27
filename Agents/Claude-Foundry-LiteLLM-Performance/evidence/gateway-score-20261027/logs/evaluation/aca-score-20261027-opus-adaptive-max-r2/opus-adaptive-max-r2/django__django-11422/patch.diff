@@ -1,0 +1,21 @@
+
+--- a/django/utils/autoreload.py
++++ b/django/utils/autoreload.py
+@@ -111,6 +111,17 @@ def iter_modules_and_files(modules, extra_files):
+     """Iterate through all modules needed to be watched."""
+     sys_file_paths = []
+     for module in modules:
++        if (isinstance(module, ModuleType) and getattr(module, '__name__', None) == '__main__' and
++                getattr(module, '__spec__', None) is None):
++            # __main__ (usually manage.py) doesn't have a __spec__ set when
++            # it's executed directly as a script. Handle this by falling back
++            # to using __file__, resolved below. __file__ may not exist, e.g.
++            # when running in an interactive interpreter.
++            # See https://docs.python.org/reference/import.html#main-spec
++            main_file = getattr(module, '__file__', None)
++            if main_file:
++                sys_file_paths.append(main_file)
++            continue
+         # During debugging (with PyDev) the 'typing.io' and 'typing.re' objects
+         # are added to sys.modules, however they are types not modules and so
+         # cause issues here.

@@ -1,0 +1,87 @@
+
+--- a/src/_pytest/mark/evaluate.py
++++ b/src/_pytest/mark/evaluate.py
+@@ -2,33 +2,15 @@
+ import platform
+ import sys
+ import traceback
+-from typing import Any
+ from typing import Dict
+ from typing import List
+ from typing import Optional
+ 
++import _pytest._code
+ from ..outcomes import fail
+ from ..outcomes import TEST_OUTCOME
+ from .structures import Mark
+-from _pytest.config import Config
+ from _pytest.nodes import Item
+-from _pytest.store import StoreKey
+-
+-
+-evalcache_key = StoreKey[Dict[str, Any]]()
+-
+-
+-def cached_eval(config: Config, expr: str, d: Dict[str, object]) -> Any:
+-    default = {}  # type: Dict[str, object]
+-    evalcache = config._store.setdefault(evalcache_key, default)
+-    try:
+-        return evalcache[expr]
+-    except KeyError:
+-        import _pytest._code
+-
+-        exprcode = _pytest._code.compile(expr, mode="eval")
+-        evalcache[expr] = x = eval(exprcode, d)
+-        return x
+ 
+ 
+ class MarkEvaluator:
+@@ -98,7 +80,8 @@
+                     self.expr = expr
+                     if isinstance(expr, str):
+                         d = self._getglobals()
+-                        result = cached_eval(self.item.config, expr, d)
++                        exprcode = _pytest._code.compile(expr, mode="eval")
++                        result = eval(exprcode, d)
+                     else:
+                         if "reason" not in mark.kwargs:
+                             # XXX better be checked at collection time
+--- /dev/null
++++ b/changelog/7360.bugfix.rst
+@@ -0,0 +1,2 @@
++Fix possibly incorrect evaluation of string expressions passed to ``pytest.mark.skipif`` and ``pytest.mark.xfail``,
++in rare circumstances where the exact same string is used but refers to different global values.
+--- /dev/null
++++ b/testing/test_mark_evaluate.py
+@@ -0,0 +1,31 @@
++import pytest
++
++
++@pytest.mark.parametrize(
++    "mark_name, status", [("skipif", "SKIPPED"), ("xfail", "XFAIL")]
++)
++def test_string_condition_evaluated_in_module_globals(testdir, mark_name, status):
++    """The result of evaluating a string condition of a skipif/xfail mark depends
++    on the globals of the module of the test item, so it must not be cached based
++    only on the string (#7360).
++    """
++    template = """
++        import pytest
++
++        condition = {condition}
++
++        @pytest.mark.{mark}("condition")
++        def test_func():
++            assert False
++    """
++    testdir.makepyfile(
++        test_module_1=template.format(mark=mark_name, condition=True),
++        test_module_2=template.format(mark=mark_name, condition=False),
++    )
++    result = testdir.runpytest("-v")
++    result.stdout.fnmatch_lines(
++        [
++            "test_module_1.py::test_func " + status + "*",
++            "test_module_2.py::test_func FAILED*",
++        ]
++    )

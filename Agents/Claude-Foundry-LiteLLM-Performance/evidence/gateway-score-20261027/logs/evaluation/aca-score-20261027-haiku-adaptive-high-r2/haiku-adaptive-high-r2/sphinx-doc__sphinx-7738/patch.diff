@@ -1,0 +1,8 @@
+
+--- a/sphinx/ext/napoleon/docstring.py
++++ b/sphinx/ext/napoleon/docstring.py
+@@ -100,4 +100,1 @@
+-    if name.endswith('_'):
+-        name = name[:-1] + r'\_'
+-
+     if name[:2] == '**':

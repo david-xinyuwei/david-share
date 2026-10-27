@@ -1,0 +1,27 @@
+2026-10-27 10:54:03,829 - INFO - Creating container for pytest-dev__pytest-7373...
+2026-10-27 10:54:04,012 - INFO - Container for pytest-dev__pytest-7373 created: 7fb38ccf9c37de528b2a9c6d6f1c6bdb1f38e16eb8506666c941872035825b8b
+2026-10-27 10:54:04,208 - INFO - Container for pytest-dev__pytest-7373 started: 7fb38ccf9c37de528b2a9c6d6f1c6bdb1f38e16eb8506666c941872035825b8b
+2026-10-27 10:54:04,208 - INFO - Intermediate patch for pytest-dev__pytest-7373 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-low-r2/sonnet-adaptive-low-r2/pytest-dev__pytest-7373/patch.diff, now applying to container...
+2026-10-27 10:54:04,292 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:54:04,428 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:54:04,543 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:54:04,654 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:54:04,693 - INFO - >>>>> Patch Apply Failed:
+patch: **** malformed patch at line 31:          self.item = item
+
+patching file src/_pytest/mark/evaluate.py
+
+2026-10-27 10:54:04,694 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for pytest-dev__pytest-7373: >>>>> Patch Apply Failed:
+patch: **** malformed patch at line 31:          self.item = item
+
+patching file src/_pytest/mark/evaluate.py
+
+Check (logs/evaluation/aca-score-20261027-sonnet-adaptive-low-r2/sonnet-adaptive-low-r2/pytest-dev__pytest-7373/run_instance.log) for more information.
+
+2026-10-27 10:54:04,694 - INFO - Attempting to stop container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-sonnet-adaptive-low-r2...
+2026-10-27 10:54:20,061 - INFO - Container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-sonnet-adaptive-low-r2 stopped successfully.
+2026-10-27 10:54:20,061 - INFO - Attempting to remove container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-sonnet-adaptive-low-r2...
+2026-10-27 10:54:20,114 - INFO - Container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-sonnet-adaptive-low-r2 removed successfully.

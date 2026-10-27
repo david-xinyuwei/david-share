@@ -2,19 +2,17 @@
 
 [README](../README.md) · [Testing](testing.md) · [中文](results_CN.md)
 
-Current East US 2 cache-enabled ACA partial evidence comes first, with every planned configuration and missing coverage. Retired direct-VM matrix, probe and cache evidence and the 2026-10-24 gateway check follow as historical records. Inputs, counts and limits stay separate for each run.
+Current East US 2 ACA performance comes first, followed by correctness for all 624 measured answers. Every configuration, failure and limitation is retained. Retired direct-VM matrix, probe, cache and earlier gateway evidence follow, without pooling runs.
 
 <a id="aca-gateway-snapshot"></a>
 
-## ACA gateway: partial results
+## ACA gateway: performance results
 
-**Partial evidence, not a completed benchmark.** The retained snapshot contains 154 of 650 planned requests: 26 warm-ups and 128 of 624 measured requests. Its run file was last updated at `2026-10-27T00:07:59.720+00:00`. The other 496 requests are missing from this snapshot, not proven unrun or failed.
-
-**Client state.** At `2026-10-26T20:10:18.9885833-07:00`, Azure reported the client VM as `PowerState/deallocated`. It was no longer sending new requests. The final workload result and the shutdown cause remain unverified; the snapshot's `RUNNING` label is historical, not current status. [Verification record](../evidence/gateway-cache-20261026/collection-status.json).
+**Complete collection, not universal success.** All 650/650 requests are retained: 26 warm-ups and 624 measured answers. The run reached `COMPLETED` at `2026-10-27T08:37:15.795+00:00`. Failures and truncations remain in the counts. [Collection verification](../evidence/gateway-cache-20261026/collection-status.json).
 
 **Question and method.** For coding prompts sent through the East US 2 ACA LiteLLM gateway, does the identical second request read the cache written by the first, and what timing and cost were observed? The client and gateway were in East US 2; the Foundry resource was also in East US 2. One request was in flight per model. This is a cache-write versus cache-read pair, not a cache-disabled control or a gateway-overhead experiment.
 
-**Input.** [12 public SWE-bench Lite BM25-13K problems](../data/gateway-cache-problems.json), with the source revision and prompt hashes recorded in [run.json](../evidence/gateway-cache-20261026/run.json). This is an author-run latency/cache workload, not official SWE-bench scoring or customer production data. The [input builder](../gateway-cache/build_swebench_problems.py) reconstructs the prompts; the [runner](../gateway-cache/aca_cache_matrix.py) sends 26 mode/effort cells, two identical requests per problem/cell and one warm-up per cell. Fixed: `max_tokens: 128000`, `stream: true`, top-level `cache_control: {"type": "ephemeral", "ttl": "1h"}`. Timing starts immediately before the client sends the request; first text means the first non-empty text delta, not a ping or thinking event.
+**Input.** [12 public SWE-bench Lite BM25-13K problems](../data/gateway-cache-problems.json), with the source revision and prompt hashes in [run.json](../evidence/gateway-cache-20261026/run.json). This is a selected-subset experiment, not a full SWE-bench leaderboard score or customer production data. The [runner](../gateway-cache/aca_cache_matrix.py) uses 26 mode/effort cells, two identical requests per problem/cell and one warm-up per cell. Fixed: `max_tokens: 128000`, `stream: true`, top-level `cache_control: {"type": "ephemeral", "ttl": "1h"}`. Timing starts immediately before the client sends the request; first text is the first non-empty text delta, not a ping or thinking event.
 
 Captured parameter record (prompt bodies are not included in this metrics projection):
 
@@ -36,79 +34,130 @@ Captured parameter record (prompt bodies are not included in this metrics projec
 }
 ```
 
+**Performance first.** The next table uses only completed pairs with native cache reads. Write and hit mean requests 1 and 2. These per-model aggregates mix different mode/effort populations; compare matched cells in the full tables, not these aggregates as a model ranking.
+
+| Model | Cache-hit pairs (count) | First text P50: write / hit (s) | Full response P50: write / hit (s) | Mean request cost: write / hit (USD) | Read share in hit requests (%) |
+|---|---:|---:|---:|---:|---:|
+| Opus 5.5 | 70 | 9.06 / 8.98 | 14.5 / 17.5 | $0.321801 / $0.187770 | 99.98 |
+| Sonnet 5.5 | 117 | 0.92 / 0.93 | 6.61 / 7.05 | $0.146967 / $0.073409 | 99.98 |
+| Haiku 5.5 | 115 | 3.42 / 4.30 | 5.74 / 6.12 | $0.008025 / $0.004123 | 99.98 |
+
 | Model | Retained / planned requests, warm-ups included | Completed requests | Truncated requests | Complete measured pairs |
 |---|---:|---:|---:|---:|
-| Opus 5.5 | 29/150 | 29 | 0 | 11 |
-| Sonnet 5.5 | 46/250 | 44 | 2 | 17 |
-| Haiku 5.5 | 79/250 | 79 | 0 | 34 |
+| Opus 5.5 | 150/150 | 149 | 1 | 70 |
+| Sonnet 5.5 | 250/250 | 244 | 6 | 117 |
+| Haiku 5.5 | 250/250 | 243 | 7 | 115 |
 
-**What is established.** 62 measured pairs have two completed answers. In these pairs the cold request read at most 0 cached tokens; the warm request read at least 100.0% of the preceding request's written cache tokens. There were 0 pairs with a reused response message ID. These native usage observations establish cache reads for those pairs, not answer correctness or a general speedup. Saved responses report `inference_geo: global`; the returned region header is East US 2, not proof that GlobalStandard guarantees regional inference.
+**Cache evidence.** 304 measured pairs completed; 302 show native cache hits. The other 2 crossed the shutdown/restart interval and rewrote expired entries. They remain in request, cost and correctness counts but not cache-hit performance statistics. Hit pairs read at least 100.0% of the preceding cache write; 0 reused a response message ID. This proves those cache reads, not a general speedup. Responses report `inference_geo: global` and an East US 2 region header; that is not a regional-inference guarantee.
 
-**Cost and limits.** Retained requests cost $13.90 using the recorded [list-price model](../coding-matrix/pricing.py), including warm-ups, cache writes/reads, output and truncated answers. This is not the whole run's final spend or an Azure invoice; infrastructure is excluded. Correctness grading was not collected. Pair statistics exclude warm-ups and pairs with an incomplete/truncated answer; the table above keeps those requests visible. Cells have unequal, partial samples, so do not rank models or effort levels from this snapshot.
+**Cost and limits.** The full run cost $76.17 at recorded [list prices](../coding-matrix/pricing.py), including warm-ups, writes, reads, output and truncated answers; infrastructure is excluded and this is not an invoice. Pair metrics exclude warm-ups and incomplete or non-hit pairs, never the correctness denominator. Full distributions and counts remain in [the facts](../evidence/gateway-cache-20261026/interim-facts.json).
 
-### All planned configurations
+### All performance configurations
 
 | Model | thinking.type | output_config.effort | Retained / planned measured requests | Truncated requests, warm-ups included | Complete / planned pairs |
 |---|---|---|---:|---:|---:|
-| Opus 5.5 | `adaptive` | `low` | 4/24 | 0 | 2/12 |
-| Opus 5.5 | `adaptive` | `medium` | 6/24 | 0 | 3/12 |
-| Opus 5.5 | `adaptive` | `high` | 7/24 | 0 | 3/12 |
-| Opus 5.5 | `adaptive` | `xhigh` | 0/24 | 0 | 0/12 |
-| Opus 5.5 | `adaptive` | `max` | 4/24 | 0 | 2/12 |
-| Opus 5.5 | `adaptive` | `default` | 2/24 | 0 | 1/12 |
-| Sonnet 5.5 | `adaptive` | `low` | 6/24 | 0 | 3/12 |
-| Sonnet 5.5 | `adaptive` | `medium` | 4/24 | 0 | 2/12 |
-| Sonnet 5.5 | `adaptive` | `high` | 2/24 | 0 | 1/12 |
-| Sonnet 5.5 | `adaptive` | `xhigh` | 4/24 | 0 | 2/12 |
-| Sonnet 5.5 | `adaptive` | `max` | 4/24 | 2 | 1/12 |
-| Sonnet 5.5 | `adaptive` | `default` | 0/24 | 0 | 0/12 |
-| Sonnet 5.5 | `between_tools` | `low` | 4/24 | 0 | 2/12 |
-| Sonnet 5.5 | `between_tools` | `medium` | 0/24 | 0 | 0/12 |
-| Sonnet 5.5 | `between_tools` | `high` | 6/24 | 0 | 3/12 |
-| Sonnet 5.5 | `between_tools` | `default` | 6/24 | 0 | 3/12 |
-| Haiku 5.5 | `adaptive` | `low` | 8/24 | 0 | 4/12 |
-| Haiku 5.5 | `adaptive` | `medium` | 2/24 | 0 | 1/12 |
-| Haiku 5.5 | `adaptive` | `high` | 12/24 | 0 | 6/12 |
-| Haiku 5.5 | `adaptive` | `xhigh` | 2/24 | 0 | 1/12 |
-| Haiku 5.5 | `adaptive` | `max` | 5/24 | 0 | 2/12 |
-| Haiku 5.5 | `adaptive` | `default` | 8/24 | 0 | 4/12 |
-| Haiku 5.5 | `disabled` | `low` | 4/24 | 0 | 2/12 |
-| Haiku 5.5 | `disabled` | `medium` | 4/24 | 0 | 2/12 |
-| Haiku 5.5 | `disabled` | `high` | 10/24 | 0 | 5/12 |
-| Haiku 5.5 | `disabled` | `default` | 14/24 | 0 | 7/12 |
+| Opus 5.5 | `adaptive` | `low` | 24/24 | 0 | 12/12 |
+| Opus 5.5 | `adaptive` | `medium` | 24/24 | 0 | 12/12 |
+| Opus 5.5 | `adaptive` | `high` | 24/24 | 0 | 12/12 |
+| Opus 5.5 | `adaptive` | `xhigh` | 24/24 | 0 | 12/12 |
+| Opus 5.5 | `adaptive` | `max` | 24/24 | 1 | 11/12 |
+| Opus 5.5 | `adaptive` | `default` | 24/24 | 0 | 11/12 |
+| Sonnet 5.5 | `adaptive` | `low` | 24/24 | 0 | 12/12 |
+| Sonnet 5.5 | `adaptive` | `medium` | 24/24 | 0 | 12/12 |
+| Sonnet 5.5 | `adaptive` | `high` | 24/24 | 0 | 12/12 |
+| Sonnet 5.5 | `adaptive` | `xhigh` | 24/24 | 0 | 12/12 |
+| Sonnet 5.5 | `adaptive` | `max` | 24/24 | 6 | 9/12 |
+| Sonnet 5.5 | `adaptive` | `default` | 24/24 | 0 | 12/12 |
+| Sonnet 5.5 | `between_tools` | `low` | 24/24 | 0 | 12/12 |
+| Sonnet 5.5 | `between_tools` | `medium` | 24/24 | 0 | 12/12 |
+| Sonnet 5.5 | `between_tools` | `high` | 24/24 | 0 | 12/12 |
+| Sonnet 5.5 | `between_tools` | `default` | 24/24 | 0 | 12/12 |
+| Haiku 5.5 | `adaptive` | `low` | 24/24 | 0 | 12/12 |
+| Haiku 5.5 | `adaptive` | `medium` | 24/24 | 0 | 12/12 |
+| Haiku 5.5 | `adaptive` | `high` | 24/24 | 0 | 12/12 |
+| Haiku 5.5 | `adaptive` | `xhigh` | 24/24 | 0 | 11/12 |
+| Haiku 5.5 | `adaptive` | `max` | 24/24 | 7 | 8/12 |
+| Haiku 5.5 | `adaptive` | `default` | 24/24 | 0 | 12/12 |
+| Haiku 5.5 | `disabled` | `low` | 24/24 | 0 | 12/12 |
+| Haiku 5.5 | `disabled` | `medium` | 24/24 | 0 | 12/12 |
+| Haiku 5.5 | `disabled` | `high` | 24/24 | 0 | 12/12 |
+| Haiku 5.5 | `disabled` | `default` | 24/24 | 0 | 12/12 |
 
-### Observed pairs, not a ranking
+### Cache-hit pair timings and costs
 
 Nearest-rank P50 within each cell, completed measured pairs only. Request 1 and 2 may produce different output lengths; cost differences do not isolate caching alone.
 
 | Model / thinking.type / output_config.effort | Complete pairs | First text P50: request 1, cache write (s) | First text P50: request 2, cache read (s) | Mean cost: request 1 (USD) | Mean cost: request 2 (USD) |
 |---|---:|---:|---:|---:|---:|
-| Opus 5.5 / adaptive / low | 2 | 1.14 | 1.00 | $0.177282 | $0.022452 |
-| Opus 5.5 / adaptive / medium | 3 | 6.50 | 7.57 | $0.163915 | $0.033795 |
-| Opus 5.5 / adaptive / high | 3 | 9.13 | 5.06 | $0.192016 | $0.100489 |
-| Opus 5.5 / adaptive / xhigh | 0 | No complete pair | No complete pair | No complete pair | No complete pair |
-| Opus 5.5 / adaptive / max | 2 | 104 | 132 | $1.492552 | $1.258076 |
-| Opus 5.5 / adaptive / default | 1 | 1.40 | 1.36 | $0.174700 | $0.019514 |
-| Sonnet 5.5 / adaptive / low | 3 | 0.76 | 0.83 | $0.085269 | $0.008851 |
-| Sonnet 5.5 / adaptive / medium | 2 | 0.80 | 0.80 | $0.090508 | $0.017633 |
-| Sonnet 5.5 / adaptive / high | 1 | 11.7 | 10.8 | $0.100894 | $0.023937 |
-| Sonnet 5.5 / adaptive / xhigh | 2 | 25.1 | 16.1 | $0.121516 | $0.063874 |
-| Sonnet 5.5 / adaptive / max | 1 | 470 | 364 | $0.792324 | $0.582819 |
-| Sonnet 5.5 / adaptive / default | 0 | No complete pair | No complete pair | No complete pair | No complete pair |
-| Sonnet 5.5 / between_tools / low | 2 | 0.75 | 0.77 | $0.072113 | $0.007486 |
-| Sonnet 5.5 / between_tools / medium | 0 | No complete pair | No complete pair | No complete pair | No complete pair |
-| Sonnet 5.5 / between_tools / high | 3 | 0.84 | 1.02 | $0.070411 | $0.013049 |
-| Sonnet 5.5 / between_tools / default | 3 | 0.79 | 0.78 | $0.086894 | $0.011533 |
-| Haiku 5.5 / adaptive / low | 4 | 2.70 | 4.08 | $0.004255 | $0.000797 |
-| Haiku 5.5 / adaptive / medium | 1 | 13.0 | 7.21 | $0.005672 | $0.001368 |
-| Haiku 5.5 / adaptive / high | 6 | 9.07 | 8.85 | $0.005043 | $0.002008 |
-| Haiku 5.5 / adaptive / xhigh | 1 | 218 | 201 | $0.030188 | $0.025167 |
-| Haiku 5.5 / adaptive / max | 2 | 178 | 262 | $0.034080 | $0.036289 |
-| Haiku 5.5 / adaptive / default | 4 | 4.20 | 4.30 | $0.004834 | $0.001172 |
-| Haiku 5.5 / disabled / low | 2 | 0.45 | 0.47 | $0.004257 | $0.000442 |
-| Haiku 5.5 / disabled / medium | 2 | 0.41 | 0.43 | $0.003510 | $0.000409 |
-| Haiku 5.5 / disabled / high | 5 | 0.48 | 0.55 | $0.003986 | $0.000418 |
-| Haiku 5.5 / disabled / default | 7 | 0.49 | 0.51 | $0.003417 | $0.000413 |
+| Opus 5.5 / adaptive / low | 12 | 1.19 | 1.08 | $0.158921 | $0.023222 |
+| Opus 5.5 / adaptive / medium | 12 | 6.92 | 7.15 | $0.173419 | $0.036952 |
+| Opus 5.5 / adaptive / high | 12 | 9.13 | 7.53 | $0.200936 | $0.097379 |
+| Opus 5.5 / adaptive / xhigh | 12 | 18.9 | 19.6 | $0.248050 | $0.183598 |
+| Opus 5.5 / adaptive / max | 11 | 232 | 236 | $1.008633 | $0.785095 |
+| Opus 5.5 / adaptive / default | 11 | 7.03 | 8.02 | $0.186835 | $0.037639 |
+| Sonnet 5.5 / adaptive / low | 12 | 0.77 | 0.76 | $0.077371 | $0.008869 |
+| Sonnet 5.5 / adaptive / medium | 12 | 0.81 | 0.87 | $0.078745 | $0.010499 |
+| Sonnet 5.5 / adaptive / high | 12 | 6.05 | 7.44 | $0.106288 | $0.034861 |
+| Sonnet 5.5 / adaptive / xhigh | 12 | 20.7 | 16.1 | $0.152607 | $0.109698 |
+| Sonnet 5.5 / adaptive / max | 9 | 394 | 364 | $0.804891 | $0.635133 |
+| Sonnet 5.5 / adaptive / default | 12 | 6.86 | 5.78 | $0.100876 | $0.035923 |
+| Sonnet 5.5 / between_tools / low | 12 | 0.78 | 0.76 | $0.077653 | $0.008496 |
+| Sonnet 5.5 / between_tools / medium | 12 | 0.83 | 0.79 | $0.077994 | $0.009313 |
+| Sonnet 5.5 / between_tools / high | 12 | 0.81 | 0.82 | $0.079108 | $0.011469 |
+| Sonnet 5.5 / between_tools / default | 12 | 0.79 | 0.78 | $0.078623 | $0.010259 |
+| Haiku 5.5 / adaptive / low | 12 | 3.09 | 4.25 | $0.004254 | $0.001009 |
+| Haiku 5.5 / adaptive / medium | 12 | 6.92 | 6.93 | $0.004638 | $0.001248 |
+| Haiku 5.5 / adaptive / high | 12 | 9.07 | 12.1 | $0.005884 | $0.002356 |
+| Haiku 5.5 / adaptive / xhigh | 11 | 61.3 | 53.4 | $0.019081 | $0.010969 |
+| Haiku 5.5 / adaptive / max | 8 | 204 | 260 | $0.037720 | $0.032892 |
+| Haiku 5.5 / adaptive / default | 12 | 5.49 | 6.22 | $0.004464 | $0.001171 |
+| Haiku 5.5 / disabled / low | 12 | 0.48 | 0.56 | $0.003747 | $0.000406 |
+| Haiku 5.5 / disabled / medium | 12 | 0.54 | 0.50 | $0.003759 | $0.000443 |
+| Haiku 5.5 / disabled / high | 12 | 0.49 | 0.49 | $0.003790 | $0.000428 |
+| Haiku 5.5 / disabled / default | 12 | 0.49 | 0.45 | $0.003728 | $0.000475 |
+
+### Code correctness after performance
+
+**Method.** The same 624 measured answers, excluding only warm-ups, were graded with the official SWE-bench harness 5.0.2 at commit `02e7a74ffd0b707aab73d203fe87bdc7c76afc8e`. The official `extract_diff` function extracted predictions; no answer repair or new model call was used. Each cell/repeat has a separate run ID. All 12 selected gold controls passed. [Frozen inputs, native reports and verifier](../evidence/gateway-score-20261027/verification.json).
+
+| Model | Resolved / measured answers | Resolved (%) |
+|---|---:|---:|
+| Opus 5.5 | 104/144 | 72.22 |
+| Sonnet 5.5 | 87/240 | 36.25 |
+| Haiku 5.5 | 54/240 | 22.50 |
+
+Overall: 245/624 (39.26%) resolved; 257 patch-application failures, 108 unresolved test results and 14 truncated empty answers. These stay in the denominator. Different model/mode populations make the aggregate unsuitable as a fair overall ranking; each matched cell has 24 answers. This is a 12-instance subset, not the full SWE-bench Lite score.
+
+| Model | thinking.type | output_config.effort | Resolved / measured answers | Resolved (%) |
+|---|---|---|---:|---:|
+| Opus 5.5 | `adaptive` | `low` | 9/24 | 37.50 |
+| Opus 5.5 | `adaptive` | `medium` | 19/24 | 79.17 |
+| Opus 5.5 | `adaptive` | `high` | 19/24 | 79.17 |
+| Opus 5.5 | `adaptive` | `xhigh` | 21/24 | 87.50 |
+| Opus 5.5 | `adaptive` | `max` | 22/24 | 91.67 |
+| Opus 5.5 | `adaptive` | `default` | 14/24 | 58.33 |
+| Sonnet 5.5 | `adaptive` | `low` | 6/24 | 25.00 |
+| Sonnet 5.5 | `adaptive` | `medium` | 5/24 | 20.83 |
+| Sonnet 5.5 | `adaptive` | `high` | 8/24 | 33.33 |
+| Sonnet 5.5 | `adaptive` | `xhigh` | 18/24 | 75.00 |
+| Sonnet 5.5 | `adaptive` | `max` | 18/24 | 75.00 |
+| Sonnet 5.5 | `adaptive` | `default` | 9/24 | 37.50 |
+| Sonnet 5.5 | `between_tools` | `low` | 4/24 | 16.67 |
+| Sonnet 5.5 | `between_tools` | `medium` | 5/24 | 20.83 |
+| Sonnet 5.5 | `between_tools` | `high` | 7/24 | 29.17 |
+| Sonnet 5.5 | `between_tools` | `default` | 7/24 | 29.17 |
+| Haiku 5.5 | `adaptive` | `low` | 2/24 | 8.33 |
+| Haiku 5.5 | `adaptive` | `medium` | 5/24 | 20.83 |
+| Haiku 5.5 | `adaptive` | `high` | 8/24 | 33.33 |
+| Haiku 5.5 | `adaptive` | `xhigh` | 12/24 | 50.00 |
+| Haiku 5.5 | `adaptive` | `max` | 14/24 | 58.33 |
+| Haiku 5.5 | `adaptive` | `default` | 4/24 | 16.67 |
+| Haiku 5.5 | `disabled` | `low` | 3/24 | 12.50 |
+| Haiku 5.5 | `disabled` | `medium` | 3/24 | 12.50 |
+| Haiku 5.5 | `disabled` | `high` | 1/24 | 4.17 |
+| Haiku 5.5 | `disabled` | `default` | 2/24 | 8.33 |
+
+**Ambiguity retained.** 6 official `no_tests_collected` flags remain unresolved. Each associated log first collected 92 top-level tests, includes nested zero-collection output, and shows `NameError: cached_eval`; none was silently removed or relabeled. [Six source-linked reviews](../evidence/gateway-score-20261027/ambiguous-review.json). The [environment inventory](../evidence/gateway-score-20261027/environment.json) was captured after evaluation, not as in-run telemetry.
 
 **Evidence and replay.** [Facts](../evidence/gateway-cache-20261026/interim-facts.json), [export hashes and redactions](../evidence/gateway-cache-20261026/_export_manifest.json), [Opus](../evidence/gateway-cache-20261026/responses_opus.jsonl), [Sonnet](../evidence/gateway-cache-20261026/responses_sonnet.jsonl), [Haiku](../evidence/gateway-cache-20261026/responses_haiku.jsonl). The metrics-only projection omits prompt/answer bodies, thinking signatures, private endpoints and other headers; it is not a correctness-scoring dataset. Replay instructions are in [Testing](testing.md#aca-snapshot-replay).
 

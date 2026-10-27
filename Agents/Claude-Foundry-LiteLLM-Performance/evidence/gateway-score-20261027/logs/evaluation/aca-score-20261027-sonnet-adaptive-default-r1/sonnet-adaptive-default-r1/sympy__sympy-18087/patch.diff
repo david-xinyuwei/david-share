@@ -1,0 +1,12 @@
+
+--- a/sympy/polys/polytools.py
++++ b/sympy/polys/polytools.py
+@@ -5920,7 +5920,7 @@
+ 
+             if exp is S.One:
+                 factors.extend(_factors)
+-            elif exp.is_integer or len(_factors) == 1:
++            elif exp.is_integer:
+                 factors.extend([(f, k*exp) for f, k in _factors])
+             else:
+                 other = []

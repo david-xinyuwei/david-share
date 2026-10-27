@@ -1,0 +1,27 @@
+2026-10-27 10:46:28,370 - INFO - Creating container for sympy__sympy-13480...
+2026-10-27 10:46:28,521 - INFO - Container for sympy__sympy-13480 created: 1a6f157a3175bcab5db15fe8db40d98b37046cdee60e242c7f13f8218581f825
+2026-10-27 10:46:28,718 - INFO - Container for sympy__sympy-13480 started: 1a6f157a3175bcab5db15fe8db40d98b37046cdee60e242c7f13f8218581f825
+2026-10-27 10:46:28,718 - INFO - Intermediate patch for sympy__sympy-13480 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-default-r2/sonnet-adaptive-default-r2/sympy__sympy-13480/patch.diff, now applying to container...
+2026-10-27 10:46:28,806 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:46:29,118 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:46:29,283 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:46:29,455 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:46:29,499 - INFO - >>>>> Patch Apply Failed:
+patching file sympy/functions/elementary/hyperbolic.py
+Hunk #1 FAILED at 587.
+1 out of 1 hunk FAILED -- saving rejects to file sympy/functions/elementary/hyperbolic.py.rej
+
+2026-10-27 10:46:29,499 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for sympy__sympy-13480: >>>>> Patch Apply Failed:
+patching file sympy/functions/elementary/hyperbolic.py
+Hunk #1 FAILED at 587.
+1 out of 1 hunk FAILED -- saving rejects to file sympy/functions/elementary/hyperbolic.py.rej
+
+Check (logs/evaluation/aca-score-20261027-sonnet-adaptive-default-r2/sonnet-adaptive-default-r2/sympy__sympy-13480/run_instance.log) for more information.
+
+2026-10-27 10:46:29,499 - INFO - Attempting to stop container sweb.eval.sympy__sympy-13480.aca-score-20261027-sonnet-adaptive-default-r2...
+2026-10-27 10:46:44,806 - INFO - Container sweb.eval.sympy__sympy-13480.aca-score-20261027-sonnet-adaptive-default-r2 stopped successfully.
+2026-10-27 10:46:44,807 - INFO - Attempting to remove container sweb.eval.sympy__sympy-13480.aca-score-20261027-sonnet-adaptive-default-r2...
+2026-10-27 10:46:44,876 - INFO - Container sweb.eval.sympy__sympy-13480.aca-score-20261027-sonnet-adaptive-default-r2 removed successfully.

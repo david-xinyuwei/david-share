@@ -1,0 +1,27 @@
+2026-10-27 10:17:36,305 - INFO - Creating container for django__django-11422...
+2026-10-27 10:17:36,533 - INFO - Container for django__django-11422 created: 6dd6e5f4f441e9df00ebfd3d79fccaf7f6f765996b2e419190890b768e84c477
+2026-10-27 10:17:36,799 - INFO - Container for django__django-11422 started: 6dd6e5f4f441e9df00ebfd3d79fccaf7f6f765996b2e419190890b768e84c477
+2026-10-27 10:17:36,800 - INFO - Intermediate patch for django__django-11422 written to logs/evaluation/aca-score-20261027-opus-adaptive-default-r2/opus-adaptive-default-r2/django__django-11422/patch.diff, now applying to container...
+2026-10-27 10:17:36,894 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:17:37,691 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:17:38,228 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:17:38,410 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:17:38,456 - INFO - >>>>> Patch Apply Failed:
+patching file django/core/management/commands/runserver.py
+patch: **** malformed patch at line 24: @@ -99,6 +113,10 @@
+
+
+2026-10-27 10:17:38,457 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for django__django-11422: >>>>> Patch Apply Failed:
+patching file django/core/management/commands/runserver.py
+patch: **** malformed patch at line 24: @@ -99,6 +113,10 @@
+
+
+Check (logs/evaluation/aca-score-20261027-opus-adaptive-default-r2/opus-adaptive-default-r2/django__django-11422/run_instance.log) for more information.
+
+2026-10-27 10:17:38,457 - INFO - Attempting to stop container sweb.eval.django__django-11422.aca-score-20261027-opus-adaptive-default-r2...
+2026-10-27 10:17:54,032 - INFO - Container sweb.eval.django__django-11422.aca-score-20261027-opus-adaptive-default-r2 stopped successfully.
+2026-10-27 10:17:54,032 - INFO - Attempting to remove container sweb.eval.django__django-11422.aca-score-20261027-opus-adaptive-default-r2...
+2026-10-27 10:17:54,203 - INFO - Container sweb.eval.django__django-11422.aca-score-20261027-opus-adaptive-default-r2 removed successfully.

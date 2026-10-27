@@ -1,0 +1,51 @@
+2026-10-27 09:56:52,185 - INFO - Creating container for sympy__sympy-21847...
+2026-10-27 09:56:52,343 - INFO - Container for sympy__sympy-21847 created: 49d0aa7229605fc887df7ebd2bb39e22a7073c4a92e1cc10e5b699949da05c4e
+2026-10-27 09:56:52,575 - INFO - Container for sympy__sympy-21847 started: 49d0aa7229605fc887df7ebd2bb39e22a7073c4a92e1cc10e5b699949da05c4e
+2026-10-27 09:56:52,575 - INFO - Intermediate patch for sympy__sympy-21847 written to logs/evaluation/aca-score-20261027-haiku-adaptive-xhigh-r1/haiku-adaptive-xhigh-r1/sympy__sympy-21847/patch.diff, now applying to container...
+2026-10-27 09:56:52,662 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 09:56:53,034 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 09:56:53,332 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 09:56:53,428 - INFO - >>>>> Applied Patch:
+patching file sympy/polys/monomials.py
+Hunk #1 succeeded at 114 with fuzz 1.
+
+2026-10-27 09:56:53,470 - INFO - Git diff before:
+diff --git a/sympy/polys/monomials.py b/sympy/polys/monomials.py
+index 0e84403307..ef2de85fa1 100755
+--- a/sympy/polys/monomials.py
++++ b/sympy/polys/monomials.py
+@@ -114,7 +114,8 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+         if min_degree > max_degree:
+             return
+         if not variables or max_degree == 0:
+-            yield S.One
++            if min_degree <= 0:
++                yield S.One
+             return
+         # Force to list in case of passed tuple or other incompatible collection
+         variables = list(variables) + [S.One]
+2026-10-27 09:56:53,470 - INFO - Eval script for sympy__sympy-21847 written to logs/evaluation/aca-score-20261027-haiku-adaptive-xhigh-r1/haiku-adaptive-xhigh-r1/sympy__sympy-21847/eval.sh; copying to container...
+2026-10-27 09:56:57,157 - INFO - Test runtime: 3.64 seconds
+2026-10-27 09:56:57,158 - INFO - Test output for sympy__sympy-21847 written to logs/evaluation/aca-score-20261027-haiku-adaptive-xhigh-r1/haiku-adaptive-xhigh-r1/sympy__sympy-21847/test_output.txt
+2026-10-27 09:56:57,210 - INFO - Git diff after:
+diff --git a/sympy/polys/monomials.py b/sympy/polys/monomials.py
+index 0e84403307..ef2de85fa1 100755
+--- a/sympy/polys/monomials.py
++++ b/sympy/polys/monomials.py
+@@ -114,7 +114,8 @@ def itermonomials(variables, max_degrees, min_degrees=None):
+         if min_degree > max_degree:
+             return
+         if not variables or max_degree == 0:
+-            yield S.One
++            if min_degree <= 0:
++                yield S.One
+             return
+         # Force to list in case of passed tuple or other incompatible collection
+         variables = list(variables) + [S.One]
+2026-10-27 09:56:57,210 - INFO - Grading answer for sympy__sympy-21847...
+2026-10-27 09:56:57,212 - INFO - report: {'sympy__sympy-21847': {'patch_is_None': False, 'patch_exists': True, 'patch_successfully_applied': True, 'resolved': False, 'infra_failure': False, 'tests_status': {'FAIL_TO_PASS': {'success': [], 'failure': ['test_monomials']}, 'PASS_TO_PASS': {'success': ['test_monomial_count', 'test_monomial_mul', 'test_monomial_div', 'test_monomial_gcd', 'test_monomial_lcm', 'test_monomial_max', 'test_monomial_pow', 'test_monomial_min', 'test_monomial_divides'], 'failure': []}, 'FAIL_TO_FAIL': {'success': [], 'failure': []}, 'PASS_TO_FAIL': {'success': [], 'failure': []}}}}
+Result for sympy__sympy-21847: resolved: False
+2026-10-27 09:56:57,212 - INFO - Attempting to stop container sweb.eval.sympy__sympy-21847.aca-score-20261027-haiku-adaptive-xhigh-r1...
+2026-10-27 09:57:12,754 - INFO - Container sweb.eval.sympy__sympy-21847.aca-score-20261027-haiku-adaptive-xhigh-r1 stopped successfully.
+2026-10-27 09:57:12,754 - INFO - Attempting to remove container sweb.eval.sympy__sympy-21847.aca-score-20261027-haiku-adaptive-xhigh-r1...
+2026-10-27 09:57:12,838 - INFO - Container sweb.eval.sympy__sympy-21847.aca-score-20261027-haiku-adaptive-xhigh-r1 removed successfully.

@@ -1,0 +1,3 @@
+def _escape_args_and_kwargs(self, name: str) -> str:
+    if name.endswith('_') and getattr(self._config, 'strip_signature_backslash', False):
+        name = name[:-1] + r'\_'

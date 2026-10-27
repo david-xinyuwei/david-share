@@ -1,0 +1,13 @@
+
+--- a/sympy/simplify/fu.py
++++ b/sympy/simplify/fu.py
+@@ -1177,6 +1177,9 @@
+         for a in rv.args:
+             if a.is_Pow:
+                 b, e = a.as_base_exp()
++                if not (e.is_integer or b.is_positive):
++                    other.append(a)
++                    continue
+                 a = b
+             else:
+                 e = S.One

@@ -1,0 +1,27 @@
+2026-10-27 10:53:20,245 - INFO - Creating container for django__django-11422...
+2026-10-27 10:53:20,461 - INFO - Container for django__django-11422 created: e276ef4dee1189f58f5a1fcdce5025e3f462fe2cfaa2c12557b5e85a53335fa7
+2026-10-27 10:53:20,699 - INFO - Container for django__django-11422 started: e276ef4dee1189f58f5a1fcdce5025e3f462fe2cfaa2c12557b5e85a53335fa7
+2026-10-27 10:53:20,700 - INFO - Intermediate patch for django__django-11422 written to logs/evaluation/aca-score-20261027-sonnet-adaptive-low-r2/sonnet-adaptive-low-r2/django__django-11422/patch.diff, now applying to container...
+2026-10-27 10:53:20,789 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:53:21,638 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:53:22,019 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:53:22,410 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:53:22,454 - INFO - >>>>> Patch Apply Failed:
+patching file django/utils/autoreload.py
+patch: **** malformed patch at line 13: @@ -131,10 +137,17 @@
+
+
+2026-10-27 10:53:22,455 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for django__django-11422: >>>>> Patch Apply Failed:
+patching file django/utils/autoreload.py
+patch: **** malformed patch at line 13: @@ -131,10 +137,17 @@
+
+
+Check (logs/evaluation/aca-score-20261027-sonnet-adaptive-low-r2/sonnet-adaptive-low-r2/django__django-11422/run_instance.log) for more information.
+
+2026-10-27 10:53:22,455 - INFO - Attempting to stop container sweb.eval.django__django-11422.aca-score-20261027-sonnet-adaptive-low-r2...
+2026-10-27 10:53:39,441 - INFO - Container sweb.eval.django__django-11422.aca-score-20261027-sonnet-adaptive-low-r2 stopped successfully.
+2026-10-27 10:53:39,441 - INFO - Attempting to remove container sweb.eval.django__django-11422.aca-score-20261027-sonnet-adaptive-low-r2...
+2026-10-27 10:53:39,606 - INFO - Container sweb.eval.django__django-11422.aca-score-20261027-sonnet-adaptive-low-r2 removed successfully.

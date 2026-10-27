@@ -1,0 +1,2 @@
+cotm = coth(log(-arg))  # or the appropriate expression defined in that branch
+if cotm is S.ComplexInfinity:

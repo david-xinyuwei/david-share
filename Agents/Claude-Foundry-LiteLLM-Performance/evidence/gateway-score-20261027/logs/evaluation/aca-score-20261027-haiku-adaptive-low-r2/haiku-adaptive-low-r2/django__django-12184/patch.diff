@@ -1,0 +1,12 @@
+
+--- a/django/urls/resolvers.py
++++ b/django/urls/resolvers.py
+@@ -1,6 +1,8 @@
+         match = self.regex.search(path)
+         if match:
++            # Ignore optional named groups that did not participate in the match.
+             kwargs = match.groupdict()
++            kwargs = {k: v for k, v in kwargs.items() if v is not None}
+             args = () if kwargs else match.groups()
+             return path[match.end():], args, kwargs
+         return None

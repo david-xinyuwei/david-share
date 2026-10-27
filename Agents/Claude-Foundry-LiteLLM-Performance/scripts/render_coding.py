@@ -496,13 +496,13 @@ def settings_table(d, chinese):
     return "\n".join(lines)
 
 
-def purpose(d, chinese, language):
+def purpose(d, chinese, language, historical=False):
     m = matrix_numbers(d)
     snapshot = read_json(ROOT / "evidence/gateway-cache-20261026/interim-facts.json")
     coverage = snapshot["coverage"]
     snapshot_link = tr(chinese,
-        f"**Current ACA evidence:** {coverage['observed_requests']}/{coverage['planned_requests']} request records retained; full completion and correctness are unverified. The client VM was deallocated at the recorded verification time. [Partial results and current-state boundary](docs/results.md#aca-gateway-snapshot).",
-        f"**当前 ACA 证据：** 已保存 {coverage['observed_requests']}/{coverage['planned_requests']} 次请求记录，全量是否完成和代码正确率尚未核实。核验时客户端 VM 已解除分配。[部分结果与状态边界](docs/results_CN.md#aca-gateway-snapshot)。")
+        f"**Completed ACA run:** {coverage['observed_requests']}/{coverage['planned_requests']} requests retained, {coverage['observed_measured']} measured answers graded. Performance comes first below, followed by correctness. [Full results](docs/results.md#aca-gateway-snapshot).",
+        f"**本轮 ACA 已完成：** 已保存 {coverage['observed_requests']}/{coverage['planned_requests']} 次请求，{coverage['observed_measured']} 份正式答案已评分。下面先看性能，再看正确率。[完整结果](docs/results_CN.md#aca-gateway-snapshot)。")
     models = d["provenance"]["models"]
     versions = {x["version"] for x in models["deployments"]}
     require(versions == {"2"}, "the deployments are not all version 2, the Hosted on Azure version")
@@ -539,9 +539,15 @@ def purpose(d, chinese, language):
     sources = tr(chinese,
                  f"**Sources.** Accepted values and the HTTP 400 messages come from our probe ([results](docs/results.md#parameter-probe-2026-10-26)). What each setting does, the defaults, the rules for `between_tools` and `disabled`, and the advice to set `max_tokens` to 128,000 for agentic coding on Sonnet 5.5 come from Claude's [thinking]({THINKING_DOC}) and [effort]({EFFORT_DOC}) pages; cache rules and price multipliers from [prompt caching]({CACHE_DOC}); prices from [pricing]({PRICE_DOC}); hosting options and Foundry setup from [Claude in Microsoft Foundry]({FOUNDRY_DOC}); all read on 2026-10-26. The *Choose it when* row is our reading of these {n_problems} problems, not general advice.",
                  f"**来源。** 接受哪些取值、HTTP 400 的报错原文来自我们的参数探测（[结果页](docs/results_CN.md#参数探测)）。各设置的作用、默认值、`between_tools` 和 `disabled` 的使用规则，以及 Sonnet 5.5 做智能体编码时把 `max_tokens` 设为 128,000 的建议，来自 Claude 的 [thinking]({THINKING_DOC}) 和 [effort]({EFFORT_DOC}) 文档；缓存规则和价格倍数来自 [prompt caching]({CACHE_DOC})；价格来自 [pricing]({PRICE_DOC})；托管方式和 Foundry 配置来自 [Claude in Microsoft Foundry]({FOUNDRY_DOC})；均于 2026-10-26 查阅。“适合的情况”一行是我们对这 {n_problems} 道题的解读，不是通用建议。")
-    return "\n\n".join([intro, snapshot_link, methods, figure, caption, settings_lead, settings_table(d, chinese),
-                        support_tables(d, chinese, language), not_covered,
-                        per_model, decision_table(d, chinese), scope, sources])
+    if historical:
+        return "\n\n".join([settings_lead, settings_table(d, chinese), support_tables(d, chinese, language),
+                            not_covered, per_model, decision_table(d, chinese), scope, sources])
+    retired = tr(chinese,
+        "**Retired method.** The old direct-VM run omitted caching and does not meet the current cache-enabled test protocol. Its original evidence follows the current performance and correctness results below.",
+        "**已取缔的方案。** 旧 VM 直连批次未开启缓存，不满足当前开启缓存的测试要求。其原始证据保留在本轮性能与正确率结果后面。")
+    return "\n\n".join([intro, snapshot_link, methods.split("\n\n", 1)[0], figure,
+                        tr(chinese, "Original test-topology diagram using unmodified [Azure icons](images/icon-sources.json).",
+                           "原创测试拓扑图，使用未修改的 [Azure 图标](images/icon-sources.json)。"), retired])
 
 
 # ---------- README: results ----------
@@ -845,6 +851,10 @@ def navigation(chinese):
 def gateway_snapshot(chinese, detailed=False):
     evidence = ROOT / "evidence/gateway-cache-20261026"
     facts = read_json(evidence / "interim-facts.json")
+    score_root = ROOT / "evidence/gateway-score-20261027"
+    score = read_json(score_root / "score-summary.json")
+    score_check = read_json(score_root / "verification.json")
+    score_manifest = read_json(score_root / "manifest.json")
     observation = read_json(evidence / "collection-status.json")
     coverage = facts["coverage"]
     require(observation["snapshot_run_updated_utc"] == facts["run_updated_utc"], "ACA observation identifies another snapshot")
@@ -852,26 +862,35 @@ def gateway_snapshot(chinese, detailed=False):
     source = prefix + "evidence/gateway-cache-20261026"
     suffix = "_CN" if chinese else ""
     heading = "##" if detailed else "###"
-    parts = [f'{heading} ' + tr(chinese, "ACA gateway: partial results", "ACA 网关：部分结果")]
+    parts = [f'{heading} ' + tr(chinese, "ACA gateway: performance results", "ACA 网关：性能测试结果")]
     if detailed:
         parts.insert(0, '<a id="aca-gateway-snapshot"></a>')
     parts.append(tr(chinese,
-        f"**Partial evidence, not a completed benchmark.** The retained snapshot contains {coverage['observed_requests']} of {coverage['planned_requests']} planned requests: {coverage['observed_warmups']} warm-ups and {coverage['observed_measured']} of {coverage['planned_measured']} measured requests. Its run file was last updated at `{facts['run_updated_utc']}`. The other {coverage['missing_from_snapshot']} requests are missing from this snapshot, not proven unrun or failed.",
-        f"**这是部分证据，不是全量测试通过。** 快照保存了计划 {coverage['planned_requests']} 次中的 {coverage['observed_requests']} 次请求：{coverage['observed_warmups']} 次预热，以及 {coverage['planned_measured']} 次正式请求中的 {coverage['observed_measured']} 次。运行文件最后更新于 `{facts['run_updated_utc']}`。另有 {coverage['missing_from_snapshot']} 次未包含在这份快照中，不能据此认定它们未执行或失败。"))
-    parts.append(tr(chinese,
-        f"**Client state.** At `{observation['observed_at']}`, Azure reported the client VM as `{observation['client_vm_power_state']}`. It was no longer sending new requests. The final workload result and the shutdown cause remain unverified; the snapshot's `RUNNING` label is historical, not current status. [Verification record]({source}/collection-status.json).",
-        f"**客户端状态。** 在 `{observation['observed_at']}` 核验时，Azure 返回客户端 VM 为 `{observation['client_vm_power_state']}`，已不会继续发送新请求。最终测试结果和停机原因尚未核实；快照里的 `RUNNING` 是当时的状态，不是当前状态。[核验记录]({source}/collection-status.json)。"))
+        f"**Complete collection, not universal success.** All {coverage['observed_requests']}/{coverage['planned_requests']} requests are retained: {coverage['observed_warmups']} warm-ups and {coverage['observed_measured']} measured answers. The run reached `{facts['status']}` at `{facts['run_updated_utc']}`. Failures and truncations remain in the counts. [Collection verification]({source}/collection-status.json).",
+        f"**请求已收齐，不等于全部通过。** 已保留 {coverage['observed_requests']}/{coverage['planned_requests']} 次请求：{coverage['observed_warmups']} 次预热、{coverage['observed_measured']} 份正式答案。运行在 `{facts['run_updated_utc']}` 达到 `{facts['status']}`；失败和截断仍保留在统计中。[采集验收]({source}/collection-status.json)。"))
     parts.append(tr(chinese,
         "**Question and method.** For coding prompts sent through the East US 2 ACA LiteLLM gateway, does the identical second request read the cache written by the first, and what timing and cost were observed? The client and gateway were in East US 2; the Foundry resource was also in East US 2. One request was in flight per model. This is a cache-write versus cache-read pair, not a cache-disabled control or a gateway-overhead experiment.",
         "**问题与方法。** 编码提示通过 East US 2 的 ACA LiteLLM 网关发送后，原样重复的第二次请求能否读到第一次写入的缓存，观测到的耗时和费用是多少？客户端、网关和 Foundry 资源均在 East US 2；每个模型同时只有一个请求。这是首次写入与重复读取的配对，不是关闭缓存的对照，也不能隔离网关自身开销。"))
     parts.append(tr(chinese,
-        f"**Input.** [12 public SWE-bench Lite BM25-13K problems]({prefix}data/gateway-cache-problems.json), with the source revision and prompt hashes recorded in [run.json]({source}/run.json). This is an author-run latency/cache workload, not official SWE-bench scoring or customer production data. The [input builder]({prefix}gateway-cache/build_swebench_problems.py) reconstructs the prompts; the [runner]({prefix}gateway-cache/aca_cache_matrix.py) sends 26 mode/effort cells, two identical requests per problem/cell and one warm-up per cell. Fixed: `max_tokens: 128000`, `stream: true`, top-level `cache_control: {{\"type\": \"ephemeral\", \"ttl\": \"1h\"}}`. Timing starts immediately before the client sends the request; first text means the first non-empty text delta, not a ping or thinking event.",
-        f"**输入。** [12 道公开的 SWE-bench Lite BM25-13K 题目]({prefix}data/gateway-cache-problems.json)，来源版本和提示哈希保存在 [run.json]({source}/run.json)。这是作者的延迟与缓存测试，不是 SWE-bench 官方评分，也不是客户生产数据。[输入构建器]({prefix}gateway-cache/build_swebench_problems.py)重建提示，[运行器]({prefix}gateway-cache/aca_cache_matrix.py)遍历 26 个模式／档位组合，每题每格原样发送两次，每格另有一次预热。固定 `max_tokens: 128000`、`stream: true`、顶层 `cache_control: {{\"type\": \"ephemeral\", \"ttl\": \"1h\"}}`。计时从客户端即将发送请求时开始；首字指第一个非空文字增量，不是心跳或思考事件。"))
+        f"**Input.** [12 public SWE-bench Lite BM25-13K problems]({prefix}data/gateway-cache-problems.json), with the source revision and prompt hashes in [run.json]({source}/run.json). This is a selected-subset experiment, not a full SWE-bench leaderboard score or customer production data. The [runner]({prefix}gateway-cache/aca_cache_matrix.py) uses 26 mode/effort cells, two identical requests per problem/cell and one warm-up per cell. Fixed: `max_tokens: 128000`, `stream: true`, top-level `cache_control: {{\"type\": \"ephemeral\", \"ttl\": \"1h\"}}`. Timing starts immediately before the client sends the request; first text is the first non-empty text delta, not a ping or thinking event.",
+        f"**输入。** [12 道公开的 SWE-bench Lite BM25-13K 题目]({prefix}data/gateway-cache-problems.json)，来源版本和提示哈希在 [run.json]({source}/run.json)。这是选定子集实验，不是完整 SWE-bench 排行榜成绩，也不是客户生产数据。[运行器]({prefix}gateway-cache/aca_cache_matrix.py)遍历 26 个模式／档位组合，每题每格原样发送两次，每格另有一次预热。固定 `max_tokens: 128000`、`stream: true`、顶层 `cache_control: {{\"type\": \"ephemeral\", \"ttl\": \"1h\"}}`。计时从客户端即将发送请求时开始；首字是第一个非空文字增量，不是心跳或思考事件。"))
     if detailed:
         sample = json.loads((evidence / "responses_opus.jsonl").read_text(encoding="utf-8").splitlines()[0])
         parts.append(tr(chinese, "Captured parameter record (prompt bodies are not included in this metrics projection):",
                         "实际保存的参数记录（该指标投影不包含提示正文）："))
         parts.append("```json\n" + json.dumps(sample["request_params"], ensure_ascii=False, indent=2) + "\n```")
+    performance = [tr(chinese,
+        "| Model | Cache-hit pairs (count) | First text P50: write / hit (s) | Full response P50: write / hit (s) | Mean request cost: write / hit (USD) | Read share in hit requests (%) |",
+        "| 模型 | 缓存命中配对数（组） | 首字 P50：首次写入／命中（秒） | 完整回答 P50：首次写入／命中（秒） | 单次平均费用：首次写入／命中（美元） | 命中请求的缓存读取占比（%） |"),
+        "|---|---:|---:|---:|---:|---:|"]
+    for model in MODELS:
+        item = facts["by_model"][DEPLOYMENT[model]]
+        cold, warm = item["cold"], item["warm"]
+        performance.append(f"| {NAME[model]} | {item['groups']} | {secs(cold['first_text_p50'])} / {secs(warm['first_text_p50'])} | {secs(cold['end_p50'])} / {secs(warm['end_p50'])} | {usd(cold['cost_usd_per_request'], 6)} / {usd(warm['cost_usd_per_request'], 6)} | {pct(warm['read_share'], 2)} |")
+    parts.append(tr(chinese,
+        "**Performance first.** The next table uses only completed pairs with native cache reads. Write and hit mean requests 1 and 2. These per-model aggregates mix different mode/effort populations; compare matched cells in the full tables, not these aggregates as a model ranking.",
+        "**先看性能。** 下表只统计两次都正常结束、且第二次确实读取缓存的配对；“首次写入／命中”分别对应第 1／2 次请求。各模型汇总覆盖的模式／档位不同，不能据此直接排名，应进一步对比完整表中的同条件配置。"))
+    parts.append("\n".join(performance))
     headers = tr(chinese,
         "| Model | Retained / planned requests, warm-ups included | Completed requests | Truncated requests | Complete measured pairs |",
         "| 模型 | 已保存／计划请求数（含预热） | 正常结束的请求数 | 截断请求数 | 完整正式配对数 |")
@@ -885,11 +904,11 @@ def gateway_snapshot(chinese, detailed=False):
         table.append(f"| {NAME[model]} | {facts['final_requests'].get(deployment, 0)}/{facts['planned'][deployment]} | {completed} | {truncated} | {pairs} |")
     parts.append("\n".join(table))
     parts.append(tr(chinese,
-        f"**What is established.** {facts['groups_complete']} measured pairs have two completed answers. In these pairs the cold request read at most {facts['cold_reads_max']} cached tokens; the warm request read at least {pct(facts['warm_read_over_cold_write_min'])}% of the preceding request's written cache tokens. There were {facts['same_message_id_groups']} pairs with a reused response message ID. These native usage observations establish cache reads for those pairs, not answer correctness or a general speedup. Saved responses report `inference_geo: global`; the returned region header is East US 2, not proof that GlobalStandard guarantees regional inference.",
-        f"**已经确认的事实。** {facts['groups_complete']} 个正式配对的两次回答均正常结束。首次请求最多读取 {facts['cold_reads_max']} 个缓存 token；重复请求至少读回前次写入缓存 token 的 {pct(facts['warm_read_over_cold_write_min'])}%；两次复用同一响应 message ID 的配对有 {facts['same_message_id_groups']} 个。这些原生 usage 记录证明对应配对发生了缓存读取，不证明代码正确或普遍提速。响应报告 `inference_geo: global`，返回的区域头为 East US 2，不能把它当成 GlobalStandard 固定区域推理的承诺。"))
+        f"**Cache evidence.** {facts['groups_complete']} measured pairs completed; {facts['cache_hit_pairs']} show native cache hits. The other {len(facts['excluded_cache_pairs'])} crossed the shutdown/restart interval and rewrote expired entries. They remain in request, cost and correctness counts but not cache-hit performance statistics. Hit pairs read at least {pct(facts['warm_read_over_cold_write_min'])}% of the preceding cache write; {facts['same_message_id_groups']} reused a response message ID. This proves those cache reads, not a general speedup. Responses report `inference_geo: global` and an East US 2 region header; that is not a regional-inference guarantee.",
+        f"**缓存证据。** {facts['groups_complete']} 组正式配对完整结束，其中 {facts['cache_hit_pairs']} 组有原生缓存命中。另 {len(facts['excluded_cache_pairs'])} 组跨越停机／恢复间隔，过期后重新写入缓存；它们仍计入请求数、费用和正确率，但不进入缓存命中性能统计。命中配对至少读回前次缓存写入的 {pct(facts['warm_read_over_cold_write_min'])}%，复用同一响应 message ID 的配对为 {facts['same_message_id_groups']}。这证明对应缓存读取，不证明普遍提速。响应报告 `inference_geo: global` 和 East US 2 区域头，不代表固定区域推理承诺。"))
     parts.append(tr(chinese,
-        f"**Cost and limits.** Retained requests cost {usd(facts['cost_usd'])} using the recorded [list-price model]({prefix}coding-matrix/pricing.py), including warm-ups, cache writes/reads, output and truncated answers. This is not the whole run's final spend or an Azure invoice; infrastructure is excluded. Correctness grading was not collected. Pair statistics exclude warm-ups and pairs with an incomplete/truncated answer; the table above keeps those requests visible. Cells have unequal, partial samples, so do not rank models or effort levels from this snapshot.",
-        f"**费用与边界。** 按记录采用的[标价模型]({prefix}coding-matrix/pricing.py)，已保存请求共 {usd(facts['cost_usd'])}，包含预热、缓存写入／读取、输出和截断回答。这不是整轮最终花费或 Azure 账单，不含基础设施费用。尚未取得代码正确率评分。配对统计排除预热及任一回答未完整结束的配对，但上表仍保留这些请求；各格样本数量不同且不完整，不能据此给模型或档位排名。"))
+        f"**Cost and limits.** The full run cost {usd(facts['cost_usd'])} at recorded [list prices]({prefix}coding-matrix/pricing.py), including warm-ups, writes, reads, output and truncated answers; infrastructure is excluded and this is not an invoice. Pair metrics exclude warm-ups and incomplete or non-hit pairs, never the correctness denominator. Full distributions and counts remain in [the facts]({source}/interim-facts.json).",
+        f"**费用与边界。** 整轮按记录采用的[标价]({prefix}coding-matrix/pricing.py)计费共 {usd(facts['cost_usd'])}，包含预热、缓存写入／读取、输出和截断回答；不含基础设施费用，也不是账单。配对指标排除预热、不完整配对及非命中配对，但不会缩小正确率分母。完整分布与计数保存在[统计结果]({source}/interim-facts.json)。"))
     if detailed:
         progress = [tr(chinese,
             "| Model | thinking.type | output_config.effort | Retained / planned measured requests | Truncated requests, warm-ups included | Complete / planned pairs |",
@@ -910,13 +929,41 @@ def gateway_snapshot(chinese, detailed=False):
             else:
                 values = (tr(chinese, "No complete pair", "无完整配对"),) * 4
             timings.append(f"| {label} | {item['groups']} | " + " | ".join(values) + " |")
-        parts.extend([tr(chinese, "### All planned configurations", "### 全部计划配置"), "\n".join(progress),
-                      tr(chinese, "### Observed pairs, not a ranking", "### 配对观测，不作排名"),
+        parts.extend([tr(chinese, "### All performance configurations", "### 全部配置的性能结果"), "\n".join(progress),
+                  tr(chinese, "### Cache-hit pair timings and costs", "### 缓存命中配对的耗时与费用"),
                       tr(chinese, "Nearest-rank P50 within each cell, completed measured pairs only. Request 1 and 2 may produce different output lengths; cost differences do not isolate caching alone.",
                          "各格以最近秩法计算 P50，只统计完整正式配对。两次回答的输出长度可能不同，因此费用差异不能全部归因于缓存。"), "\n".join(timings)])
     else:
         parts.append(tr(chinese, f"[All 26 configurations and paired observations](docs/results{suffix}.md#aca-gateway-snapshot).",
                         f"[查看全部 26 格及配对观测](docs/results{suffix}.md#aca-gateway-snapshot)。"))
+    score_source = prefix + "evidence/gateway-score-20261027"
+    parts.append(tr(chinese, "### Code correctness after performance", "### 性能之后：代码正确率"))
+    parts.append(tr(chinese,
+        f"**Method.** The same {score['denominator']} measured answers, excluding only warm-ups, were graded with the official SWE-bench harness {score_manifest['official_source']['installed_version']} at commit `{score_manifest['official_source']['commit']}`. The official `extract_diff` function extracted predictions; no answer repair or new model call was used. Each cell/repeat has a separate run ID. All {score_check['gold_controls']} selected gold controls passed. [Frozen inputs, native reports and verifier]({score_source}/verification.json).",
+        f"**方法。** 对同一批 {score['denominator']} 份正式答案评分，只排除预热。使用官方 SWE-bench {score_manifest['official_source']['installed_version']}，固定提交 `{score_manifest['official_source']['commit']}`；由官方 `extract_diff` 提取补丁，没有替模型修答案，也没有新增模型调用。每个配置／重复次数使用独立 run ID；所选 {score_check['gold_controls']} 道金标准全部通过。[冻结输入、官方报告与验算]({score_source}/verification.json)。"))
+    score_table = [tr(chinese, "| Model | Resolved / measured answers | Resolved (%) |",
+                      "| 模型 | 已解决／正式答案数 | 解决率（%） |"), "|---|---:|---:|"]
+    for model in MODELS:
+        members = [item for item in score["cells"] if item["cell_id"].startswith(model + "|")]
+        denominator = sum(item["denominator"] for item in members)
+        resolved = sum(item["resolved"] for item in members)
+        score_table.append(f"| {NAME[model]} | {resolved}/{denominator} | {100 * resolved / denominator:.2f} |")
+    parts.append("\n".join(score_table))
+    parts.append(tr(chinese,
+        f"Overall: {score['resolved']}/{score['denominator']} ({100 * score['resolved'] / score['denominator']:.2f}%) resolved; {score['outcomes']['PATCH_APPLY_FAILED']} patch-application failures, {score['outcomes']['UNRESOLVED']} unresolved test results and {score['outcomes']['EMPTY_ANSWER_TRUNCATED']} truncated empty answers. These stay in the denominator. Different model/mode populations make the aggregate unsuitable as a fair overall ranking; each matched cell has 24 answers. This is a 12-instance subset, not the full SWE-bench Lite score.",
+        f"合计 {score['resolved']}/{score['denominator']} 份解决问题（{100 * score['resolved'] / score['denominator']:.2f}%）；另有 {score['outcomes']['PATCH_APPLY_FAILED']} 份补丁应用失败、{score['outcomes']['UNRESOLVED']} 份测试未通过、{score['outcomes']['EMPTY_ANSWER_TRUNCATED']} 份截断空回答，均保留在分母中。不同模型的模式／档位组合数量不同，不能当成公平总榜；同条件每格均为 24 份答案。这只是 12 题子集，不是完整 SWE-bench Lite 成绩。"))
+    if detailed:
+        grid = [tr(chinese, "| Model | thinking.type | output_config.effort | Resolved / measured answers | Resolved (%) |",
+                   "| 模型 | thinking.type | output_config.effort | 已解决／正式答案数 | 解决率（%） |"), "|---|---|---|---:|---:|"]
+        lookup = {item["cell_id"]: item for item in score["cells"]}
+        for cell in facts["by_cell"]:
+            model, mode, effort = cell.split("|")
+            item = lookup[cell]
+            grid.append(f"| {NAME[model]} | `{mode}` | `{effort}` | {item['resolved']}/{item['denominator']} | {100 * item['resolved'] / item['denominator']:.2f} |")
+        parts.append("\n".join(grid))
+    parts.append(tr(chinese,
+        f"**Ambiguity retained.** {len(score_check['official_ambiguous_flags'])} official `no_tests_collected` flags remain unresolved. Each associated log first collected 92 top-level tests, includes nested zero-collection output, and shows `NameError: cached_eval`; none was silently removed or relabeled. [Six source-linked reviews]({score_source}/ambiguous-review.json). The [environment inventory]({score_source}/environment.json) was captured after evaluation, not as in-run telemetry.",
+        f"**保留疑义。** {len(score_check['official_ambiguous_flags'])} 条官方 `no_tests_collected` 模糊标记仍保留为未解决。对应日志先收集了 92 项顶层测试，包含嵌套的零收集输出，并出现 `NameError: cached_eval`；没有暗中删除或改判。[六条来源复核]({score_source}/ambiguous-review.json)。[环境清单]({score_source}/environment.json)是在评分后采集，不冒充运行时遥测。"))
     parts.append(tr(chinese,
         f"**Evidence and replay.** [Facts]({source}/interim-facts.json), [export hashes and redactions]({source}/_export_manifest.json), [Opus]({source}/responses_opus.jsonl), [Sonnet]({source}/responses_sonnet.jsonl), [Haiku]({source}/responses_haiku.jsonl). The metrics-only projection omits prompt/answer bodies, thinking signatures, private endpoints and other headers; it is not a correctness-scoring dataset. Replay instructions are in [Testing]({'testing' if detailed else 'docs/testing'}{suffix}.md#aca-snapshot-replay).",
         f"**证据与复算。** [统计结果]({source}/interim-facts.json)、[导出哈希与脱敏范围]({source}/_export_manifest.json)、[Opus 记录]({source}/responses_opus.jsonl)、[Sonnet 记录]({source}/responses_sonnet.jsonl)、[Haiku 记录]({source}/responses_haiku.jsonl)。指标投影省略提示与回答正文、思考签名、私有端点和其他响应头，不能用于代码正确率评分。复算命令见[测试页]({'testing' if detailed else 'docs/testing'}{suffix}.md#aca-snapshot-replay)。"))
@@ -926,17 +973,36 @@ def gateway_snapshot(chinese, detailed=False):
 def gateway_snapshot_replay(chinese):
     return "\n\n".join([
         '<a id="aca-snapshot-replay"></a>',
-        tr(chinese, "## Replay the ACA partial snapshot", "## 复算 ACA 部分快照"),
+        tr(chinese, "## Replay the complete ACA results", "## 复算 ACA 全量结果"),
         tr(chinese, "From the repository's project directory, use Python 3.12 or 3.13. This offline command sends no requests and needs no credentials:",
            "在仓库的本项目目录，用 Python 3.12 或 3.13 执行。下列离线命令不发送请求，也不需要凭据："),
-        "```bash\npython -B gateway-cache/analyze_cache_matrix.py --run-dir evidence/gateway-cache-20261026 --out evidence/gateway-cache-20261026/interim-facts.json --check\n```",
-        tr(chinese, "Success is `facts match` and exit 0. This proves that the retained metrics recompute, not that all 650 planned requests completed. The unit tests also check all 26 cells, export hashes, duplicate rejection and the incomplete-snapshot boundary. Never substitute the historical direct-VM grader for the uncollected ACA correctness results.",
-           "预期输出 `facts match`、退出码为 0。这只证明已保存指标可复算，不代表计划的 650 次请求全部完成。单元测试另查 26 格覆盖、导出哈希、重复记录拒绝和部分快照边界；不能用历史直连评分替代尚未取得的 ACA 正确率结果。")])
+        "```bash\npython -B gateway-cache/analyze_cache_matrix.py --run-dir evidence/gateway-cache-20261026 --out evidence/gateway-cache-20261026/interim-facts.json --check\npython -B gateway-cache/swebench_score.py check-public --out evidence/gateway-score-20261027 --inference-dir evidence/gateway-cache-20261026\n```",
+          tr(chinese, "Expect `facts match`, then status PASS with denominator 624 and resolved 245, and exit 0. This replays saved metrics and official judgments; it does not generate new answers or rerun Docker. Cache-hit performance uses 302 pairs, while grading retains every measured answer.",
+              "预期先输出 `facts match`，再输出 status PASS、denominator 624、resolved 245，退出码均为 0。这是在复算已保存指标与官方判定，不生成新答案、不重跑 Docker。缓存命中性能用 302 组配对，正确率保留每一份正式答案。"),
+          tr(chinese, "### Run the official tests on the published patches", "### 对公开补丁重新执行官方测试"),
+          tr(chinese,
+              "On a Linux x86-64 machine with Docker access and sufficient disk for the 12 dataset images, run from this project directory. Use a new prefix to avoid reusing prior evaluation results. This executes the published model patches without generating new model answers; VM time and image storage may incur charges. The recorded setup used Python 3.12.3, two workers and a 1,800-second per-instance timeout.",
+              "在可访问 Docker 的 Linux x86-64 机器上，从本项目目录执行；磁盘须能容纳数据集的 12 个镜像。新建 run_id 前缀，避免误用旧评分缓存。这会真实测试公开的模型补丁，不重新调用模型；机器运行和镜像存储可能计费。原评分使用 Python 3.12.3、2 个并发 worker，每题超时 1,800 秒。"),
+          """```bash
+python -m pip install 'git+https://github.com/SWE-bench/SWE-bench.git@02e7a74ffd0b707aab73d203fe87bdc7c76afc8e'
+RUN_PREFIX="aca-regrade-$(date -u +%Y%m%d-%H%M%S)"
+for prediction in evidence/gateway-score-20261027/predictions/*.jsonl; do
+  label=$(basename "$prediction" .jsonl)
+  python -u -m swebench.harness.run_evaluation \\
+     --dataset_name evidence/gateway-score-20261027/dataset.json \\
+     --predictions_path "$prediction" --max_workers 2 --timeout 1800 \\
+     --run_id "$RUN_PREFIX-$label" || break
+done
+```""",
+          tr(chinese,
+              "Each of the 52 batches must produce `logs/evaluation/<run_id>/results.json`; inspect resolved, unresolved, empty-patch and error IDs, not just the CLI exit code. Patch-application failures are model-output outcomes; infrastructure failures require diagnosis and re-evaluating the same frozen patch. The published [official reports](../evidence/gateway-score-20261027/logs/evaluation) and [prediction hashes](../evidence/gateway-score-20261027/manifest.json) are the comparison reference. The public command blocks have not been replayed in a new machine during this documentation update.",
+              "52 批各应生成 `logs/evaluation/<run_id>/results.json`。查看解决、未解决、空补丁和错误 ID，不能只看 CLI 退出码。补丁应用失败属于模型输出结果；基础设施失败应排查后复评同一份冻结补丁。对照[官方原始报告](../evidence/gateway-score-20261027/logs/evaluation)与[预测哈希](../evidence/gateway-score-20261027/manifest.json)。本次文档更新未在全新机器重跑这些公开命令。")])
 
 
 def results(d, gateway, chinese):
     parts = [
         gateway_snapshot(chinese),
+        purpose(d, chinese, "zh" if chinese else "en", historical=True),
         tr(chinese,
            "**Historical results only.** The following direct-VM measurements belong to the retired method. In particular, the 21-cell coding matrix omitted `cache_control` and does not meet the current ACA cache-enabled protocol. The Japan East gateway check is separately dated. None of these numbers is a result from the current East US 2 ACA run.",
            "**以下仅为历史结果。** 下列 VM 直连测量属于已取缔的方案，尤其是 21 格编码矩阵未发送 `cache_control`，不满足当前 ACA 开启缓存的测试要求。Japan East 网关检查另列日期。这些数字都不是当前 East US 2 ACA 测试的结果。"),

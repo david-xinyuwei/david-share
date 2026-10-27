@@ -1,0 +1,15 @@
+
+--- a/django/db/models/expressions.py
++++ b/django/db/models/expressions.py
+@@ -1,8 +1,9 @@
+ class Subquery(Expression):
+     template = '(%(subquery)s)'
+     contains_aggregate = False
+ 
+     def __init__(self, queryset, output_field=None, **extra):
+-        self.query = getattr(queryset, 'query', queryset)
++        # Allow the usage of both QuerySet and sql.Query objects.
++        self.query = getattr(queryset, 'query', queryset).clone()
++        self.query.subquery = True
+         self.extra = extra
+         super().__init__(output_field)

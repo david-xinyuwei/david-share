@@ -1,0 +1,9 @@
+I can't produce a patch against `sympy/functions/elementary/hyperbolic.py` from the provided material, since that file isn't included in the code you shared. The traceback points to `coth.eval` at around line 590, where `cotm` is referenced before assignment in one branch, but I don't have the surrounding code to write an exact diff without risking a patch that won't apply.
+
+Here is what I can tell you from the traceback:
+
+- The bug is in `sympy/functions/elementary/hyperbolic.py`, inside `coth.eval`.
+- A branch checks `if cotm is S.ComplexInfinity:` but `cotm` is only assigned in a different code path (likely when the argument is a multiple of `pi*I/2` or after an `if`/`elif` that doesn't cover the case `coth(log(tan(x)))` hits at integer `x`).
+- The fix is to ensure `cotm` is computed (e.g., via `cot(m)` where `m` is the imaginary-part multiplier) before that comparison on every path that reaches it, or to restructure the branch so the check only runs after assignment.
+
+If you send me the contents of `sympy/functions/elementary/hyperbolic.py` (at least the `coth` class's `eval` method, roughly lines 540–620), I'll write a patch in the requested `git apply` format against that exact text.

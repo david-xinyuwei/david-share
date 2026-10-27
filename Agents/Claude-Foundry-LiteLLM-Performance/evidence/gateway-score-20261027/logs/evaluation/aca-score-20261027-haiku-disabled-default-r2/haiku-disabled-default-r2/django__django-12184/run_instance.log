@@ -1,0 +1,31 @@
+2026-10-27 10:01:33,775 - INFO - Creating container for django__django-12184...
+2026-10-27 10:01:34,001 - INFO - Container for django__django-12184 created: 57828e1dc1545f310f31217d10cf2f68fa3905b12fc77ac6295bb7e4b5d9c14a
+2026-10-27 10:01:34,292 - INFO - Container for django__django-12184 started: 57828e1dc1545f310f31217d10cf2f68fa3905b12fc77ac6295bb7e4b5d9c14a
+2026-10-27 10:01:34,292 - INFO - Intermediate patch for django__django-12184 written to logs/evaluation/aca-score-20261027-haiku-disabled-default-r2/haiku-disabled-default-r2/django__django-12184/patch.diff, now applying to container...
+2026-10-27 10:01:34,381 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:01:35,277 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:01:35,560 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:01:35,837 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:01:35,883 - INFO - >>>>> Patch Apply Failed:
+patching file django/urls/resolvers.py
+Hunk #1 succeeded at 5 with fuzz 2 (offset 4 lines).
+patching file django/urls/resolvers.py
+Hunk #1 FAILED at 148.
+1 out of 1 hunk FAILED -- saving rejects to file django/urls/resolvers.py.rej
+
+2026-10-27 10:01:35,883 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for django__django-12184: >>>>> Patch Apply Failed:
+patching file django/urls/resolvers.py
+Hunk #1 succeeded at 5 with fuzz 2 (offset 4 lines).
+patching file django/urls/resolvers.py
+Hunk #1 FAILED at 148.
+1 out of 1 hunk FAILED -- saving rejects to file django/urls/resolvers.py.rej
+
+Check (logs/evaluation/aca-score-20261027-haiku-disabled-default-r2/haiku-disabled-default-r2/django__django-12184/run_instance.log) for more information.
+
+2026-10-27 10:01:35,883 - INFO - Attempting to stop container sweb.eval.django__django-12184.aca-score-20261027-haiku-disabled-default-r2...
+2026-10-27 10:01:52,547 - INFO - Container sweb.eval.django__django-12184.aca-score-20261027-haiku-disabled-default-r2 stopped successfully.
+2026-10-27 10:01:52,547 - INFO - Attempting to remove container sweb.eval.django__django-12184.aca-score-20261027-haiku-disabled-default-r2...
+2026-10-27 10:01:52,719 - INFO - Container sweb.eval.django__django-12184.aca-score-20261027-haiku-disabled-default-r2 removed successfully.

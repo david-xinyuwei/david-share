@@ -1,0 +1,105 @@
+
+--- a/pylint/lint/expand_modules.py
++++ b/pylint/lint/expand_modules.py
+@@ -38,4 +38,17 @@ def get_python_path(filepath: str) -> str:
+     dirname = os.path.realpath(os.path.expanduser(filepath))
+     if not os.path.isdir(dirname):
+         dirname = os.path.dirname(dirname)
++    elif not os.path.isfile(os.path.join(dirname, "__init__.py")):
++        # A directory which is not a regular package was given explicitly.
++        # If it contains a module with the same name (e.g. ``a/a.py``),
++        # adding the directory itself to the python path would make
++        # ``import a`` resolve to that inner module instead of the directory
++        # (an implicit namespace package). In that case the parent directory
++        # has to be used instead.
++        name = os.path.basename(os.path.normpath(filepath))
++        if name not in ("", ".", "..") and any(
++            os.path.isfile(os.path.join(dirname, name + extension))
++            for extension in (".py", ".pyc")
++        ):
++            return os.path.dirname(dirname)
+     while True:
+@@ -115,3 +128,13 @@ def expand_modules(
+             is_namespace = modutils.is_namespace(spec)
+             is_directory = modutils.is_directory(spec)
++            if (
++                not is_namespace
++                and os.path.isdir(something)
++                and not os.path.isfile(os.path.join(something, "__init__.py"))
++            ):
++                # An explicitly given directory without ``__init__.py`` can't be
++                # a regular package: the spec found is a different module which
++                # merely shares its name (e.g. ``a/a.py``). Treat the directory
++                # as an implicit namespace package.
++                is_namespace = True
+         if not is_namespace:
+--- /dev/null
++++ b/tests/lint/unittest_expand_modules_same_name.py
+@@ -0,0 +1,67 @@
++# Licensed under the GPL: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
++# For details: https://github.com/PyCQA/pylint/blob/main/LICENSE
++# Copyright (c) https://github.com/PyCQA/pylint/blob/main/CONTRIBUTORS.txt
++
++"""Tests for directories that contain a module or a package of the same name."""
++
++from __future__ import annotations
++
++import os
++from pathlib import Path
++
++import pytest
++
++from pylint.lint.expand_modules import expand_modules, get_python_path
++from pylint.lint.utils import fix_import_path
++
++
++@pytest.fixture(name="same_name_module_dir")
++def fixture_same_name_module_dir(
++    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
++) -> Path:
++    """Create ``a/a.py`` and ``a/b.py`` (without any ``__init__.py``) and chdir."""
++    package = tmp_path / "a"
++    package.mkdir()
++    (package / "a.py").touch()
++    (package / "b.py").touch()
++    monkeypatch.chdir(tmp_path)
++    return tmp_path
++
++
++def _expand(arg: str) -> set[str]:
++    """Expand ``arg`` the way the linter does and return the resulting paths."""
++    with fix_import_path([arg]):
++        result, errors = expand_modules([arg], [], [], [])
++    assert not errors
++    if isinstance(result, dict):  # newer versions return a mapping
++        result = list(result.values())
++    return {os.path.normpath(module["path"]) for module in result}
++
++
++def test_get_python_path_with_same_name_module(same_name_module_dir: Path) -> None:
++    """The python path of ``a`` must not be ``a`` itself if ``a/a.py`` exists."""
++    expected = os.path.realpath(same_name_module_dir)
++    assert get_python_path("a") == expected
++    assert get_python_path(str(same_name_module_dir / "a")) == expected
++    # Files of the directory are still importable from the directory itself
++    assert get_python_path(os.path.join("a", "b.py")) == os.path.join(expected, "a")
++
++
++def test_expand_modules_with_same_name_module(same_name_module_dir: Path) -> None:
++    """``a/__init__.py`` must not be reported if it does not exist."""
++    assert _expand("a") == {os.path.join("a", "a.py"), os.path.join("a", "b.py")}
++
++
++def test_expand_modules_with_same_name_package(
++    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
++) -> None:
++    """The same goes if the directory contains a package of the same name."""
++    inner = tmp_path / "a" / "a"
++    inner.mkdir(parents=True)
++    (inner / "__init__.py").touch()
++    (tmp_path / "a" / "b.py").touch()
++    monkeypatch.chdir(tmp_path)
++    assert _expand("a") == {
++        os.path.join("a", "a", "__init__.py"),
++        os.path.join("a", "b.py"),
++    }

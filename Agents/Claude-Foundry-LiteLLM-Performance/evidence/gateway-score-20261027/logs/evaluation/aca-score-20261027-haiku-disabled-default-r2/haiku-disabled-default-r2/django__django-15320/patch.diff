@@ -1,0 +1,20 @@
+
+--- a/django/db/models/expressions.py
++++ b/django/db/models/expressions.py
+@@ -1,6 +1,6 @@
+ class Subquery(Expression):
+     """
+-    An explicit subquery. It may contain OuterRef() references to the outer
++    An explicit subquery. It may contain OuterRef() references to the outer
+     query which will be resolved when it is applied to that query.
+     """
+     template = '(%(subquery)s)'
+@@ -8,6 +8,8 @@ class Subquery(Expression):
+     def __init__(self, queryset, output_field=None, **extra):
+         # Allow the usage of both QuerySet and sql.Query objects.
+         self.query = getattr(queryset, 'query', queryset)
++        # Mark the query as a subquery so that as_sql() wraps it correctly.
++        self.query.subquery = True
+         self.extra = extra
+         super().__init__(output_field)
+ 

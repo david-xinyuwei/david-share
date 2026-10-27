@@ -1,0 +1,5 @@
+if os.path.isdir(something):
+    init_path = os.path.join(something, "__init__.py")
+    filepath = init_path if os.path.exists(init_path) else None
+else:
+    filepath = something

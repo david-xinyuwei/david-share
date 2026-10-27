@@ -1,0 +1,12 @@
+
+--- a/pylint/lint/expand_modules.py
++++ b/pylint/lint/expand_modules.py
+@@ -82,7 +82,9 @@
+         module_path = get_python_path(something)
+         additional_search_path = [".", module_path] + path
+-        if os.path.exists(something):
++        if os.path.isfile(something) or os.path.exists(
++            os.path.join(something, "__init__.py")
++        ):
+             # this is a file or a directory
+             try:

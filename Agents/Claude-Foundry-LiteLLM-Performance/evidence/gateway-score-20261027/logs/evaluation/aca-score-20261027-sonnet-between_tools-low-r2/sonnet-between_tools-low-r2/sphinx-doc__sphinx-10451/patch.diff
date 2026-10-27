@@ -1,0 +1,18 @@
+
+--- a/sphinx/ext/autodoc/typehints.py
++++ b/sphinx/ext/autodoc/typehints.py
+@@ -96,6 +96,12 @@
+         if name == 'return':
+             continue
+ 
+-        arg = arguments.get(name, {})
++        arg = arguments.get(name, {})
++        if not arg:
++            for prefix in ('*', '**'):
++                if prefix + name in arguments:
++                    name = prefix + name
++                    arg = arguments[name]
++                    break
+         if not arg.get('type'):
+             field = nodes.field()
+             field += nodes.field_name('', 'type ' + name)

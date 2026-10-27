@@ -1,0 +1,88 @@
+
+--- a/src/flask/cli.py
++++ b/src/flask/cli.py
+@@ -989,7 +989,7 @@
+ @click.option(
+     "--sort",
+     "-s",
+-    type=click.Choice(("endpoint", "methods", "rule", "match")),
++    type=click.Choice(("domain", "endpoint", "methods", "rule", "match")),
+     default="endpoint",
+     help=(
+         'Method to sort routes by. "match" is the order that Flask will match '
+@@ -1008,7 +1008,32 @@
+ 
+     ignored_methods = set(() if all_methods else ("HEAD", "OPTIONS"))
+ 
+-    if sort in ("endpoint", "rule"):
++    host_matching = current_app.url_map.host_matching
++    has_domain = any(rule.host if host_matching else rule.subdomain for rule in rules)
++    server_name = current_app.config.get("SERVER_NAME") or ""
++    rule_domains = []
++
++    for rule in rules:
++        if host_matching:
++            rule_domains.append(rule.host or "")
++        elif rule.subdomain:
++            if server_name:
++                rule_domains.append(f"{rule.subdomain}.{server_name}")
++            else:
++                rule_domains.append(rule.subdomain)
++        else:
++            rule_domains.append(server_name)
++
++    show_domain = has_domain or bool(server_name)
++    domain_map = dict(zip(map(id, rules), rule_domains))
++
++    if sort == "domain":
++        rules = sorted(
++            rules, key=lambda rule: (domain_map[id(rule)], rule.endpoint)
++        )
++    elif sort in ("endpoint", "rule"):
+         rules = sorted(rules, key=attrgetter(sort))
+     elif sort == "methods":
+         rules = sorted(rules, key=lambda rule: sorted(rule.methods))  # type: ignore
+@@ -1018,18 +1043,28 @@
+         for rule in rules
+     ]
+ 
+-    headers = ("Endpoint", "Methods", "Rule")
+-    widths = (
+-        max(len(rule.endpoint) for rule in rules),
+-        max(len(methods) for methods in rule_methods),
+-        max(len(rule.rule) for rule in rules),
+-    )
++    rule_domains = [domain_map[id(rule)] for rule in rules]
++
++    if show_domain:
++        headers: t.Tuple[str, ...] = ("Domain", "Endpoint", "Methods", "Rule")
++        widths: t.Any = (
++            max(len(domain) for domain in rule_domains),
++            max(len(rule.endpoint) for rule in rules),
++            max(len(methods) for methods in rule_methods),
++            max(len(rule.rule) for rule in rules),
++        )
++    else:
++        headers = ("Endpoint", "Methods", "Rule")
++        widths = (
++            max(len(rule.endpoint) for rule in rules),
++            max(len(methods) for methods in rule_methods),
++            max(len(rule.rule) for rule in rules),
++        )
+     widths = [max(len(h), w) for h, w in zip(headers, widths)]
+-    row = "{{0:<{0}}}  {{1:<{1}}}  {{2:<{2}}}".format(*widths)
++    row = "  ".join(f"{{{i}:<{w}}}" for i, w in enumerate(widths))
+ 
+     click.echo(row.format(*headers).strip())
+     click.echo(row.format(*("-" * width for width in widths)))
+ 
+-    for rule, methods in zip(rules, rule_methods):
+-        click.echo(row.format(rule.endpoint, methods, rule.rule).rstrip())
++    for rule, domain, methods in zip(rules, rule_domains, rule_methods):
++        if show_domain:
++            click.echo(row.format(domain, rule.endpoint, methods, rule.rule).rstrip())
++        else:
++            click.echo(row.format(rule.endpoint, methods, rule.rule).rstrip())
+ 
+ 
+ cli = FlaskGroup(

@@ -1,0 +1,5 @@
+I can't produce a reliable patch for this issue from the files provided. The bug is in module expansion and import-path handling, most likely in `pylint/lint/expand_modules.py` or `pylint/lint/utils.py`. None of the files shown (`constants.py`, `epylint.py`, `base_options.py`, `pyreverse/main.py`) contain that logic.
+
+What I can say from the issue is the likely cause. When you run `pylint a`, pylint adds the package's own directory (`a/`) to `sys.path`. The name `a` then resolves to `a/a.py`, a plain module, instead of the package `a`. Pylint then looks for `a/__init__.py` and fails.
+
+I would need to see `pylint/lint/expand_modules.py` and `pylint/lint/utils.py` to write a patch that `git apply` will accept. A patch written blind would likely not apply and could change behaviour elsewhere.

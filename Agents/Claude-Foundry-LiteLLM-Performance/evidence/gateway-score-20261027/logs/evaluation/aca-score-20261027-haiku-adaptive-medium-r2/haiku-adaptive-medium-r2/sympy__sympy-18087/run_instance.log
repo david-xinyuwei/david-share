@@ -1,0 +1,23 @@
+2026-10-27 09:54:26,502 - INFO - Creating container for sympy__sympy-18087...
+2026-10-27 09:54:26,643 - INFO - Container for sympy__sympy-18087 created: 2f3fe245877d4037ca6717a4d0ded6c0dd15a4eb82fce6efb964602c534bfa4b
+2026-10-27 09:54:26,827 - INFO - Container for sympy__sympy-18087 started: 2f3fe245877d4037ca6717a4d0ded6c0dd15a4eb82fce6efb964602c534bfa4b
+2026-10-27 09:54:26,827 - INFO - Intermediate patch for sympy__sympy-18087 written to logs/evaluation/aca-score-20261027-haiku-adaptive-medium-r2/haiku-adaptive-medium-r2/sympy__sympy-18087/patch.diff, now applying to container...
+2026-10-27 09:54:26,917 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 09:54:27,273 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 09:54:27,527 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 09:54:27,781 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 09:54:27,818 - INFO - >>>>> Patch Apply Failed:
+patch: **** Only garbage was found in the patch input.
+
+2026-10-27 09:54:27,818 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for sympy__sympy-18087: >>>>> Patch Apply Failed:
+patch: **** Only garbage was found in the patch input.
+
+Check (logs/evaluation/aca-score-20261027-haiku-adaptive-medium-r2/haiku-adaptive-medium-r2/sympy__sympy-18087/run_instance.log) for more information.
+
+2026-10-27 09:54:27,818 - INFO - Attempting to stop container sweb.eval.sympy__sympy-18087.aca-score-20261027-haiku-adaptive-medium-r2...
+2026-10-27 09:54:43,088 - INFO - Container sweb.eval.sympy__sympy-18087.aca-score-20261027-haiku-adaptive-medium-r2 stopped successfully.
+2026-10-27 09:54:43,088 - INFO - Attempting to remove container sweb.eval.sympy__sympy-18087.aca-score-20261027-haiku-adaptive-medium-r2...
+2026-10-27 09:54:43,188 - INFO - Container sweb.eval.sympy__sympy-18087.aca-score-20261027-haiku-adaptive-medium-r2 removed successfully.

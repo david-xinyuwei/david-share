@@ -1,0 +1,27 @@
+2026-10-27 10:41:20,123 - INFO - Creating container for pytest-dev__pytest-7373...
+2026-10-27 10:41:20,277 - INFO - Container for pytest-dev__pytest-7373 created: 5d917f97c26b9b285d2e8b99720094bb749e66f7f1f9eefb42d08a97d1d1e640
+2026-10-27 10:41:20,479 - INFO - Container for pytest-dev__pytest-7373 started: 5d917f97c26b9b285d2e8b99720094bb749e66f7f1f9eefb42d08a97d1d1e640
+2026-10-27 10:41:20,479 - INFO - Intermediate patch for pytest-dev__pytest-7373 written to logs/evaluation/aca-score-20261027-opus-adaptive-xhigh-r2/opus-adaptive-xhigh-r2/pytest-dev__pytest-7373/patch.diff, now applying to container...
+2026-10-27 10:41:20,573 - INFO - Failed to apply patch to container: git apply --verbose
+2026-10-27 10:41:20,712 - INFO - Failed to apply patch to container: git apply --verbose --3way
+2026-10-27 10:41:20,833 - INFO - Failed to apply patch to container: git apply --verbose --reject
+2026-10-27 10:41:20,957 - INFO - Failed to apply patch to container: patch --batch --forward --fuzz=5 -p1 -i
+2026-10-27 10:41:20,997 - INFO - >>>>> Patch Apply Failed:
+patching file src/_pytest/mark/evaluate.py
+patch: **** malformed patch at line 38: @@ -97,8 +79,11 @@ class MarkEvaluator:
+
+
+2026-10-27 10:41:20,997 - INFO - Traceback (most recent call last):
+  File "/home/benchmark-user/venv/lib/python3.12/site-packages/swebench/harness/run_evaluation.py", line 333, in run_instance
+    raise EvaluationError(
+swebench.harness.utils.EvaluationError: Error in evaluation for pytest-dev__pytest-7373: >>>>> Patch Apply Failed:
+patching file src/_pytest/mark/evaluate.py
+patch: **** malformed patch at line 38: @@ -97,8 +79,11 @@ class MarkEvaluator:
+
+
+Check (logs/evaluation/aca-score-20261027-opus-adaptive-xhigh-r2/opus-adaptive-xhigh-r2/pytest-dev__pytest-7373/run_instance.log) for more information.
+
+2026-10-27 10:41:20,997 - INFO - Attempting to stop container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-opus-adaptive-xhigh-r2...
+2026-10-27 10:41:36,271 - INFO - Container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-opus-adaptive-xhigh-r2 stopped successfully.
+2026-10-27 10:41:36,271 - INFO - Attempting to remove container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-opus-adaptive-xhigh-r2...
+2026-10-27 10:41:36,330 - INFO - Container sweb.eval.pytest-dev__pytest-7373.aca-score-20261027-opus-adaptive-xhigh-r2 removed successfully.

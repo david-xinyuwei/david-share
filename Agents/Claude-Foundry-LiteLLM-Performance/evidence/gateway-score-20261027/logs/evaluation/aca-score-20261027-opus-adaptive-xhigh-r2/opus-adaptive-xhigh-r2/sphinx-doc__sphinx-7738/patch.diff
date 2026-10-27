@@ -1,0 +1,12 @@
+
+--- a/sphinx/ext/napoleon/docstring.py
++++ b/sphinx/ext/napoleon/docstring.py
+@@ -318,7 +318,7 @@
+     def _escape_args_and_kwargs(self, name: str) -> str:
+-        if name.endswith('_'):
++        if name.endswith('_') and getattr(self._config, 'strip_signature_backslash', False):
+             name = name[:-1] + r'\_'
+ 
+         if name[:2] == '**':
+             return r'\*\*' + name[2:]
+         elif name[:1] == '*':

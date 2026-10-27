@@ -1,0 +1,12 @@
+
+--- a/sympy/functions/elementary/hyperbolic.py
++++ b/sympy/functions/elementary/hyperbolic.py
+@@ -585,6 +585,8 @@ class coth(HyperbolicFunction):
+             if arg.func == log:
+                 x = arg.args[0]
+                 if x.func == tan:
++                    from sympy.functions.elementary.trigonometric import cot
++                    cotm = cot(x.args[0])
+                     if cotm is S.ComplexInfinity:
+                         return coth(arg)
+                     else:

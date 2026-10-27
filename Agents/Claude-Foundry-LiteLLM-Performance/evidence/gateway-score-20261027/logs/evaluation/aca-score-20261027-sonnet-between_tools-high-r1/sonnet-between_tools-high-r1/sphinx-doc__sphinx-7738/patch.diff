@@ -1,0 +1,69 @@
+
+--- a/sphinx/ext/napoleon/docstring.py
++++ b/sphinx/ext/napoleon/docstring.py
+@@ -254,7 +254,8 @@
+         return [line[min_indent:] for line in lines]
+ 
+     def _consume_field(self, parse_type: bool = True, prefer_type: bool = False
+-                       ) -> Tuple[str, str, List[str]]:
++                       , escape_args_and_kwargs: bool = True
++                       ) -> Tuple[str, str, List[str]]:
+         line = next(self._line_iter)
+ 
+         before, colon, after = self._partition_field_on_colon(line)
+@@ -267,7 +268,8 @@
+         if parse_type:
+             _name, _, _type = self._partition_field_on_colon(_name)
+ 
+-        if _name:
+-            _name = self._escape_args_and_kwargs(_name)
++        if _name and escape_args_and_kwargs:
++            _name = self._escape_args_and_kwargs(_name)
+ 
+         if prefer_type and not _type:
+             _type, _name = _name, _type
+@@ -277,14 +279,16 @@
+         _desc = self.__class__(_desc, self._config).lines()
+         return _name, _type, _desc
+ 
+-    def _consume_fields(self, parse_type: bool = True, prefer_type: bool = False
++    def _consume_fields(self, parse_type: bool = True, prefer_type: bool = False,
++                        escape_args_and_kwargs: bool = True
+                         ) -> List[Tuple[str, str, List[str]]]:
+         self._consume_empty()
+         fields = []
+         while not self._is_section_break():
+-            _name, _type, _desc = self._consume_field(parse_type, prefer_type)
++            _name, _type, _desc = self._consume_field(parse_type, prefer_type,
++                                                      escape_args_and_kwargs)
+             if _name or _type or _desc:
+                 fields.append((_name, _type, _desc,))
+         return fields
+@@ -588,7 +592,7 @@
+     def _parse_attributes_section(self, section: str) -> List[str]:
+         lines = []
+-        for _name, _type, _desc in self._consume_fields():
++        for _name, _type, _desc in self._consume_fields(escape_args_and_kwargs=False):
+             if self._config.napoleon_use_ivar:
+                 _name = self._qualify_name(_name, self._obj)
+                 field = ':ivar %s: ' % _name
+@@ -1105,12 +1109,14 @@
+         else:
+             return func(name), "", ""
+ 
+-    def _consume_field(self, parse_type: bool = True, prefer_type: bool = False
++    def _consume_field(self, parse_type: bool = True, prefer_type: bool = False,
++                       escape_args_and_kwargs: bool = True
+                        ) -> Tuple[str, str, List[str]]:
+         line = next(self._line_iter)
+         if parse_type:
+             _name, _, _type = self._partition_field_on_colon(line)
+         else:
+             _name, _type = line, ''
+         _name, _type = _name.strip(), _type.strip()
+-        _name = self._escape_args_and_kwargs(_name)
++        if escape_args_and_kwargs:
++            _name = self._escape_args_and_kwargs(_name)
+ 
+         if prefer_type and not _type:
+             _type, _name = _name, _type
