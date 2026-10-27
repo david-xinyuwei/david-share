@@ -10,18 +10,19 @@ Author: Xinyu Wei · [中文](README_CN.md)
 
 **What this measures.** How Claude Opus 5.5, Sonnet 5.5 and Haiku 5.5 perform as deployed in Microsoft Foundry with the [Hosted on Azure](https://platform.claude.com/docs/en/build-with-claude/claude-in-microsoft-foundry#hosting-options) option: model version 2, an Anthropic-operated service running on Azure infrastructure, in GlobalStandard deployments. For each coding request we measure how long the first visible text and the full answer take, whether the code passes the problem's own unit tests, and what the request costs at list price. The request settings in the table below change all of these, and some combinations are rejected with HTTP 400; a successful HTTP response shows none of this.
 
-Two test methods, both calling the same Foundry resource in East US 2:
+**Current test method.** Linux VM client → LiteLLM on Azure Container Apps → Foundry, with the client, gateway and Foundry resource in East US 2. The client uses the gateway key; LiteLLM uses its managed identity to call Foundry. Prompt caching is enabled with top-level `cache_control`. Each model has one request in flight, so this measures individual requests, not load.
 
-1. **Direct from a VM (2026-10-26).** Python test scripts on a Linux VM in the same Azure region call the Foundry Messages API with the VM's managed identity: a parameter probe (102 requests), a coding matrix (21 accepted thinking-mode × effort cells, 18 problems, 3 runs each, plus one warm-up per cell: 1,155 requests) and a prompt-cache test (264 requests). Each model has one request in flight at a time, so this measures single requests, not load. Results come from this method unless a section says otherwise.
-2. **Through a LiteLLM gateway on Azure Container Apps (2026-10-24).** A client sends Anthropic Messages requests to LiteLLM, which forwards them to the same deployments with its own managed identity; LiteLLM was set not to drop parameters and not to retry. That run sent a five-turn conversation from a Windows client to a gateway in Japan East, so its times include a round trip between Japan and the eastern United States. See [the results page](docs/results.md#gateway-test-2026-10-24).
+**Retired method, historical evidence only.** Direct VM-to-Foundry testing has been retired. Its 2026-10-26 probe (102 requests), coding matrix (1,155 requests) and prompt-cache test (264 requests) are retained as historical evidence, not as the current test method or the new ACA run's results. The coding matrix sent no `cache_control` and does not meet the current cache-enabled test protocol.
+
+**Historical gateway check (2026-10-24).** A Windows client sent a five-turn conversation through LiteLLM on Azure Container Apps in Japan East to the same deployments; LiteLLM used its own managed identity and was set not to drop parameters or retry. Those times include Japan-to-US network latency and are not results from the current East US 2 run. See [the results page](docs/results.md#gateway-test-2026-10-24).
 
 <img src="images/topology-en.svg" width="900" alt="Current cache-enabled test path: a Linux VM client sends streaming requests through LiteLLM on Azure Container Apps in East US 2 to the three Microsoft Foundry Claude deployments. Prompt caching is at Foundry; the client records timing and native usage." />
 
 The figure shows the new East US 2 gateway path, not the historical direct-VM result path. The [runner](gateway-cache/aca_cache_matrix.py) uses the [12-problem manifest](data/gateway-cache-problems.json): 26 accepted mode/effort cells, two identical requests per problem/cell, plus 26 warm-ups (650 planned requests). Top-level `cache_control` is `ephemeral`, TTL `1h`; request 1 writes and request 2 is checked for native cache reads. This is not a cache-disabled comparison. Historical results retain their original dates and paths; the new run's completion, performance and correctness require its own evidence. Original explanatory diagram with unmodified [Azure icons](images/icon-sources.json).
 
-**Request settings.** What each setting does, from Claude's documentation, and what this test sent. Which values each deployment accepted comes from our probe:
+**Historical request settings.** What each setting does, from Claude's documentation, and what the retained direct-VM runs sent. Accepted values come from that historical probe; these observations do not describe the current ACA run:
 
-| Setting | What it does | In this test |
+| Setting | What it does | Historical observation |
 |---|---|---|
 | `thinking.type: "adaptive"` | The model decides for each request whether to think before answering and for how long; `output_config.effort` steers how much. Sending no `thinking` field does the same on these three models | All three models, effort low to max |
 | `thinking.type: "between_tools"` | Sonnet 5.5's lowest setting: no thinking before the answer. Short progress updates written between tool calls still come back as thinking blocks; without tools the answer is text only. Accepted at effort `high` or below | Sonnet, effort low, medium, high; no tools |
@@ -54,7 +55,7 @@ Sources: [probe requests](evidence/coding-matrix-20261026/probe/probe_results.js
 
 **Not covered:** tool use, where `between_tools` and progress updates matter; `display: "summarized"`; US Data Zone deployments; and the separate `claude-opus-5-5-fast` model in the Foundry catalog.
 
-**Per model.** What each deployment accepted and how it did on the 18 problems:
+**Historical per-model summary.** What each deployment accepted and how it did on the 18 problems in the retired direct-VM batch; not current ACA results:
 
 | Question | Opus 5.5 | Sonnet 5.5 | Haiku 5.5 |
 |---|---|---|---|
@@ -65,11 +66,13 @@ Sources: [probe requests](evidence/coding-matrix-20261026/probe/probe_results.js
 | List-price cost per 1,000 requests | $23.34 to $355.75 | $13.04 to $356.49 | $0.69 to $22.26 |
 | Choose it when (our reading of this test) | Answers must be right the first time. Start at `low`: every effort level passed all 54, and `low` was the fastest (0.48 s) and cheapest | You want most of Opus's accuracy at a lower price: `between_tools` passed as often as `adaptive`, started in under 0.5 s and cost $13.16–$13.76 per 1,000 requests | Cost matters most and a wrong answer can be retried. Keep thinking on: at the same effort levels `adaptive` passed 12.3 points more often than `disabled` |
 
-**Scope.** The problems are public Exercism exercises from [Aider's polyglot benchmark](https://github.com/Aider-AI/polyglot-benchmark), each answered once, without tools and without seeing the tests; they are not your production tasks. In method 1 every request went straight to the Foundry Messages API, one at a time per deployment. Costs use list prices and were not reconciled with an Azure invoice.
+**Historical scope.** The problems are public Exercism exercises from [Aider's polyglot benchmark](https://github.com/Aider-AI/polyglot-benchmark), each answered once, without tools and without seeing the tests; they are not your production tasks. The retired batch called Foundry directly, one request at a time per deployment. Its costs and accuracy are historical observations, not evidence for the current cache-enabled ACA path. Costs use list prices and were not reconciled with an Azure invoice.
 
 **Sources.** Accepted values and the HTTP 400 messages come from our probe ([results](docs/results.md#parameter-probe-2026-10-26)). What each setting does, the defaults, the rules for `between_tools` and `disabled`, and the advice to set `max_tokens` to 128,000 for agentic coding on Sonnet 5.5 come from Claude's [thinking](https://platform.claude.com/docs/en/build-with-claude/thinking) and [effort](https://platform.claude.com/docs/en/build-with-claude/effort) pages; cache rules and price multipliers from [prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching); prices from [pricing](https://platform.claude.com/docs/en/about-claude/pricing); hosting options and Foundry setup from [Claude in Microsoft Foundry](https://platform.claude.com/docs/en/build-with-claude/claude-in-microsoft-foundry); all read on 2026-10-26. The *Choose it when* row is our reading of these 18 problems, not general advice.
 
 ## Results
+
+**Historical results only.** The following direct-VM measurements belong to the retired method. In particular, the 21-cell coding matrix omitted `cache_control` and does not meet the current ACA cache-enabled protocol. The Japan East gateway check is separately dated. None of these numbers is a result from the current East US 2 ACA run.
 
 Words used in the results:
 
@@ -198,7 +201,7 @@ The 2026-10-26 runs cost $67.85 at list prices. Their records are in [`evidence/
 - **Thinking display.** 610 matrix requests used thinking tokens and 0 streamed any thinking text, so the first visible text includes all thinking. `display: "summarized"` was not tested.
 - **Routing.** GlobalStandard deployments may serve a request outside East US 2, and all 1,155 matrix responses reported `usage.inference_geo` as `global`; other client locations or deployment types will give other latencies.
 - **Cost.** List prices on 2026-10-26, not an Azure invoice.
-- **Gateway.** The 2026-10-24 gateway ran in another region; a gateway in the same region as the models has not been tested.
+- **Gateway.** The retained 2026-10-24 gateway results used another region and do not characterize the current East US 2 ACA path.
 
 | You want to | Read |
 |---|---|
@@ -208,7 +211,9 @@ The 2026-10-26 runs cost $67.85 at list prices. Their records are in [`evidence/
 
 ## Steps
 
-**Deploy first, then call.** These steps deploy the three models and send one streamed request with the request shape used in the tests. Repeating the measurements, the 2026-10-24 gateway test and the offline checks are in [docs/testing.md](docs/testing.md).
+**Current test entry.** New tests use the [ACA cache runner](gateway-cache/aca_cache_matrix.py) and its [launcher](gateway-cache/run.sh), with the [12-problem manifest](data/gateway-cache-problems.json). Requests go from the VM client through the gateway, with `cache_control` enabled; do not use the old direct-VM client for the current test.
+
+**Retired direct-VM procedure: reference only.** The commands below document how the historical evidence was produced. They are not the current deployment or test instructions and must not be used for a new run under the ACA protocol. Historical procedures and offline evidence checks remain in [docs/testing.md](docs/testing.md).
 
 **Execution boundary:** the 2026-10-26 results came from these scripts, on a VM created with the commands of step 3 under our own resource names. The repository was assembled afterwards. Step 4 was then run once from the same VM with the published `claude_api.py`, `pricing.py` and `call_once.py`: completed, HTTP 200, first visible text after 0.89 s ([record](evidence/coding-matrix-20261026/readme-step4.json)). Steps 1 to 3 have not been re-run in a fresh subscription.
 

@@ -6,6 +6,8 @@ This page holds the complete inputs, every cell and the limits of each measured 
 
 ## Coding matrix, 2026-10-26
 
+**Retired method: historical evidence only.** This section records the direct-VM coding matrix without `cache_control`. It does not satisfy the current cache-enabled ACA protocol and is not a result from that run. The raw records and their original values are retained unchanged.
+
 **Question.** For each thinking mode and effort level a Claude 5.5 deployment accepts, how often does a coding answer complete, how long until its first visible text, what does it cost and how often does it pass the problem's unit tests?
 
 **Input.** Every request carried the same system prompt, adapted from Aider's whole-file edit format, and one user message per problem built as in Aider's benchmark: the exercise's stub files, its instructions and Aider's closing instruction. The model does not see the tests. The system prompt, verbatim (995 characters):

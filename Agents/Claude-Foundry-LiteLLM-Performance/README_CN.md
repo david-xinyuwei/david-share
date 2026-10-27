@@ -10,18 +10,19 @@
 
 **测什么。** 测 Claude Opus 5.5、Sonnet 5.5 和 Haiku 5.5 以 [Hosted on Azure](https://platform.claude.com/docs/en/build-with-claude/claude-in-microsoft-foundry#hosting-options) 方式部署在 Microsoft Foundry 上时的表现：模型版本 2，即 Anthropic 运营、运行在 Azure 基础设施上的服务，部署类型为 GlobalStandard。对每个编码请求，我们测首个可见文字和完整回答各要等多久、写出的代码能否通过题目自带的单元测试、按标价花多少钱。下表中的请求设置会同时改变这几项，有些组合还会直接返回 HTTP 400；只看请求成功看不出这些。
 
-两种测试方法，调用的都是 East US 2 的同一个 Foundry 资源：
+**当前测试方法。** Linux VM 客户端 → Azure Container Apps 上的 LiteLLM → Foundry；客户端、网关和 Foundry 资源均位于 East US 2。客户端使用网关入口密钥，LiteLLM 以自己的托管身份调用 Foundry。通过请求顶层 `cache_control` 开启提示缓存。每个模型同一时间只有 1 个请求，测的是单个请求的表现，不是压力测试。
 
-1. **从 VM 直连（2026-10-26）。** 同一 Azure 区域的 Linux VM 上运行 Python 测试脚本，用 VM 的托管身份调用 Foundry Messages API：参数探测（102 个请求）、编码矩阵（21 个被接受的思考模式 × 推理档位组合，18 道题各答 3 次，每格另加 1 次预热，共 1,155 个请求）和提示缓存测试（264 个请求）。每个模型同一时间只有 1 个请求，测的是单个请求的表现，不是压力测试。除非某节另有说明，结果都来自这种方法。
-2. **经 Azure Container Apps 上的 LiteLLM 网关（2026-10-24）。** 客户端把 Anthropic Messages 请求发给 LiteLLM，由 LiteLLM 用自己的托管身份转发到同一组部署；LiteLLM 设置为不丢弃参数、不重试。那次测试由一台 Windows 客户端发起五轮对话，网关在 Japan East，所以时间里包含日本到美国东部的往返。详见[结果页](docs/results_CN.md#网关测试)。
+**已取缔的方案，仅保留历史证据。** VM 直连 Foundry 不再作为测试方案。2026-10-26 的参数探测（102 个请求）、编码矩阵（1,155 个请求）和提示缓存测试（264 个请求）仅作为历史证据保留，不是当前测试方法，也不是新 ACA 测试的结果。旧编码矩阵没有发送 `cache_control`，不满足当前开启缓存的测试要求。
+
+**历史网关检查（2026-10-24）。** Windows 客户端通过 Japan East 的 Azure Container Apps 上的 LiteLLM，向同一组部署发送五轮对话；LiteLLM 用自己的托管身份转发，设置为不丢弃参数、不重试。那次耗时包含日本到美国东部的网络延迟，不是当前 East US 2 测试的结果。详见[结果页](docs/results_CN.md#网关测试)。
 
 <img src="images/topology-zh.svg" width="900" alt="当前开启缓存的测试路径：Linux VM 客户端经 East US 2 的 Azure Container Apps 上的 LiteLLM 调用三个 Microsoft Foundry Claude 部署。提示缓存在 Foundry 侧；客户端记录时间和原生 usage。" />
 
 图中展示新一轮美东二网关路径，不是历史 VM 直连结果的路径。[运行器](gateway-cache/aca_cache_matrix.py)使用[12 道题清单](data/gateway-cache-problems.json)：26 个被接受的模式／档位组合，每题每格原样发送两次，另有 26 个预热请求，计划共 650 次。请求顶层 `cache_control` 为 `ephemeral`，有效期 `1h`；第 1 次写入，第 2 次检查原生缓存读取。这不是关闭缓存的对照。历史结果保留原日期与调用路径；新一轮是否完成、性能和正确率均须由新证据确认。原创说明图，使用未修改的 [Azure 图标](images/icon-sources.json)。
 
-**请求设置。** 每个设置的作用（依据 Claude 官方文档）和本测试发送了什么；各部署接受哪些取值来自我们的参数探测：
+**历史请求设置。** 每个设置的作用（依据 Claude 官方文档），以及保留的旧 VM 直连批次发送了什么；各部署接受哪些取值来自历史参数探测。这些观测不是当前 ACA 测试的结果：
 
-| 设置 | 作用 | 本测试 |
+| 设置 | 作用 | 历史观测 |
 |---|---|---|
 | `thinking.type: "adaptive"` | 模型对每个请求自己决定要不要先思考、思考多久；`output_config.effort` 调节思考多少。这三个模型不传 `thinking` 字段时也是这样 | 三个模型，档位 low 到 max |
 | `thinking.type: "between_tools"` | Sonnet 5.5 最低的思考设置：回答前不思考。在工具调用之间写的简短进度仍以 thinking 块返回；不用工具时只返回文字。只接受 `high` 及以下档位 | Sonnet，档位 low、medium、high；不用工具 |
@@ -54,7 +55,7 @@
 
 **未覆盖：** 工具调用（`between_tools` 和进度更新只在使用工具时才起作用）、`display: "summarized"`、US Data Zone 部署，以及 Foundry 模型目录里单独的 `claude-opus-5-5-fast` 模型。
 
-**按模型汇总。** 每个部署接受什么，以及在这 18 道题上的表现：
+**历史批次按模型汇总。** 已取缔的 VM 直连批次中，每个部署接受什么，以及在这 18 道题上的表现；不是当前 ACA 测试的结果：
 
 | 问题 | Opus 5.5 | Sonnet 5.5 | Haiku 5.5 |
 |---|---|---|---|
@@ -65,11 +66,13 @@
 | 按标价计每 1,000 次请求的费用 | $23.34 到 $355.75 | $13.04 到 $356.49 | $0.69 到 $22.26 |
 | 适合的情况（本测试的解读） | 答案必须一次就对。从 `low` 开始：每个档位都 54 个全过，`low` 最快（0.48 秒）也最便宜 | 要接近 Opus 的正确率、价格更低：`between_tools` 的通过数与 `adaptive` 相当，首字不到 0.5 秒，每 1,000 次请求 $13.16–$13.76 | 费用最重要、答错可以重试。保持思考开启：同样的档位下 `adaptive` 比 `disabled` 通过率高 12.3 个百分点 |
 
-**范围。** 题目是 [Aider polyglot benchmark](https://github.com/Aider-AI/polyglot-benchmark) 收录的 Exercism 公开练习，每次只答一次、不用工具、看不到测试；它们不是你的生产任务。方法 1 的所有请求直接发往 Foundry 的 Messages API，每个部署同一时间只有一个请求。费用按标价计算，没有与 Azure 账单核对。
+**历史结果范围。** 题目是 [Aider polyglot benchmark](https://github.com/Aider-AI/polyglot-benchmark) 收录的 Exercism 公开练习，每次只答一次、不用工具、看不到测试；它们不是你的生产任务。已取缔的批次曾直连 Foundry，每个部署同一时间只有一个请求。其费用和正确率是历史观测，不能证明当前开启缓存的 ACA 路径的表现。费用按标价计算，没有与 Azure 账单核对。
 
 **来源。** 接受哪些取值、HTTP 400 的报错原文来自我们的参数探测（[结果页](docs/results_CN.md#参数探测)）。各设置的作用、默认值、`between_tools` 和 `disabled` 的使用规则，以及 Sonnet 5.5 做智能体编码时把 `max_tokens` 设为 128,000 的建议，来自 Claude 的 [thinking](https://platform.claude.com/docs/en/build-with-claude/thinking) 和 [effort](https://platform.claude.com/docs/en/build-with-claude/effort) 文档；缓存规则和价格倍数来自 [prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)；价格来自 [pricing](https://platform.claude.com/docs/en/about-claude/pricing)；托管方式和 Foundry 配置来自 [Claude in Microsoft Foundry](https://platform.claude.com/docs/en/build-with-claude/claude-in-microsoft-foundry)；均于 2026-10-26 查阅。“适合的情况”一行是我们对这 18 道题的解读，不是通用建议。
 
 ## 实现效果
+
+**以下仅为历史结果。** 下列 VM 直连测量属于已取缔的方案，尤其是 21 格编码矩阵未发送 `cache_control`，不满足当前 ACA 开启缓存的测试要求。Japan East 网关检查另列日期。这些数字都不是当前 East US 2 ACA 测试的结果。
 
 看结果时会用到的词：
 
@@ -198,7 +201,7 @@ Claude 的 [effort 文档](https://platform.claude.com/docs/en/build-with-claude
 - **思考内容的显示。** 矩阵中 610 个请求用了思考 token，流式返回思考文字的有 0 个，所以首个可见文字包含全部思考时间。没有测试 `display: "summarized"`。
 - **路由。** GlobalStandard 部署可能在 East US 2 以外处理请求，矩阵的 1,155 个响应里 `usage.inference_geo` 都是 `global`；换客户端位置或部署类型，延迟会不同。
 - **费用。** 按 2026-10-26 的标价计算，不是 Azure 账单。
-- **网关。** 2026-10-24 的网关在另一个区域；与模型同区域的网关尚未测试。
+- **网关。** 保留的 2026-10-24 网关结果来自另一个区域，不能代表当前 East US 2 的 ACA 路径。
 
 | 想要 | 去看 |
 |---|---|
@@ -208,7 +211,9 @@ Claude 的 [effort 文档](https://platform.claude.com/docs/en/build-with-claude
 
 ## 操作步骤
 
-**先部署，再调用。** 下面的步骤部署三个模型，并用测试中的请求格式发一个流式请求。重做测量、2026-10-24 的网关测试和离线检查见 [docs/testing_CN.md](docs/testing_CN.md)。
+**当前测试入口。** 新测试使用 [ACA 缓存运行器](gateway-cache/aca_cache_matrix.py)及其[启动脚本](gateway-cache/run.sh)，输入为 [12 道题清单](data/gateway-cache-problems.json)。VM 客户端通过网关发送请求，并开启 `cache_control`；当前测试不使用旧直连客户端。
+
+**已取缔的 VM 直连流程，仅供历史参考。** 以下命令记录旧证据的产生方式，不是当前部署或测试步骤，不能用于按 ACA 协议开展的新测试。历史流程和离线证据检查保留在 [docs/testing_CN.md](docs/testing_CN.md)。
 
 **执行边界：** 2026-10-26 的结果由这些脚本产生，所用 VM 由第 3 步的命令（换成我们自己的资源名）创建。仓库是事后整理的。整理后在同一台 VM 上用公开的 `claude_api.py`、`pricing.py` 和 `call_once.py` 运行了一次第 4 步：完成，HTTP 200，首个可见文字在 0.89 秒后出现（[记录](evidence/coding-matrix-20261026/readme-step4.json)）。第 1 到 3 步还没有在全新订阅中重跑。
 

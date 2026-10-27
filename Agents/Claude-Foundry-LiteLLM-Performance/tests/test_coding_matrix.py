@@ -184,6 +184,22 @@ class EvidenceTests(unittest.TestCase):
             self.assertIn("probe/probe_results.jsonl", markup)
             self.assertIn("cache/cache_results.jsonl", markup)
 
+    def test_retired_direct_method_is_not_current_or_default(self):
+        for chinese, language in ((False, "en"), (True, "zh")):
+            markup = render_coding.purpose(self.d, chinese, language)
+            self.assertNotIn("1. **Direct from a VM", markup)
+            self.assertNotIn("1. **从 VM 直连", markup)
+            self.assertNotIn("Results come from this method unless", markup)
+            self.assertNotIn("除非某节另有说明，结果都来自这种方法", markup)
+            self.assertNotIn("In method 1", markup)
+            self.assertNotIn("方法 1 的所有请求", markup)
+            self.assertIn("当前测试方法" if chinese else "Current test method", markup)
+            self.assertIn("已取缔的方案" if chinese else "Retired method", markup)
+            self.assertIn("不满足当前开启缓存的测试要求" if chinese else "does not meet the current cache-enabled test protocol", markup)
+            steps = render_coding.steps(self.d, chinese)
+            self.assertIn("gateway-cache/aca_cache_matrix.py", steps)
+            self.assertIn("仅供历史参考" if chinese else "reference only", steps)
+
     def test_topology_shows_current_gateway_path_not_old_results(self):
         for chinese in (False, True):
             root = ET.fromstring(render_coding.topology(self.d, chinese))

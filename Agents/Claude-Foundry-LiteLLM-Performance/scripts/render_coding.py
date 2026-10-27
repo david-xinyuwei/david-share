@@ -491,7 +491,7 @@ def settings_table(d, chinese):
          'GlobalStandard 的请求可能在资源所在区域以外处理；US Data Zone Standard 把推理留在美国，相当于 Claude API 的 `inference_geo: "us"`。Sonnet 5.5 只支持 GlobalStandard',
          f"只测了 GlobalStandard；矩阵每个响应的 `usage.inference_geo` 都是 `{geo}`"),
     ])
-    lines = ["| " + tr(chinese, "Setting | What it does | In this test", "设置 | 作用 | 本测试") + " |", "|---|---|---|"]
+    lines = ["| " + tr(chinese, "Setting | What it does | Historical observation", "设置 | 作用 | 历史观测") + " |", "|---|---|---|"]
     lines += [f"| {a} | {b} | {c} |" for a, b, c in rows]
     return "\n".join(lines)
 
@@ -510,12 +510,12 @@ def purpose(d, chinese, language):
                f"**What this measures.** How Claude Opus 5.5, Sonnet 5.5 and Haiku 5.5 perform as deployed in Microsoft Foundry with the [Hosted on Azure]({HOSTING_DOC}) option: model version {version}, an Anthropic-operated service running on Azure infrastructure, in GlobalStandard deployments. For each coding request we measure how long the first visible text and the full answer take, whether the code passes the problem's own unit tests, and what the request costs at list price. The request settings in the table below change all of these, and some combinations are rejected with HTTP 400; a successful HTTP response shows none of this.",
                f"**测什么。** 测 Claude Opus 5.5、Sonnet 5.5 和 Haiku 5.5 以 [Hosted on Azure]({HOSTING_DOC}) 方式部署在 Microsoft Foundry 上时的表现：模型版本 {version}，即 Anthropic 运营、运行在 Azure 基础设施上的服务，部署类型为 GlobalStandard。对每个编码请求，我们测首个可见文字和完整回答各要等多久、写出的代码能否通过题目自带的单元测试、按标价花多少钱。下表中的请求设置会同时改变这几项，有些组合还会直接返回 HTTP 400；只看请求成功看不出这些。")
     methods = tr(chinese,
-                 f"Two test methods, both calling the same Foundry resource in {region}:\n\n"
-                 f"1. **Direct from a VM ({date}).** Python test scripts on a Linux VM in the same Azure region call the Foundry Messages API with the VM's managed identity: a parameter probe ({probe_n} requests), a coding matrix ({cells} accepted thinking-mode × effort cells, {n_problems} problems, {repeats} runs each, plus one warm-up per cell: {requests} requests) and a prompt-cache test ({cache_n} requests). Each model has one request in flight at a time, so this measures single requests, not load. Results come from this method unless a section says otherwise.\n"
-                 "2. **Through a LiteLLM gateway on Azure Container Apps (2026-10-24).** A client sends Anthropic Messages requests to LiteLLM, which forwards them to the same deployments with its own managed identity; LiteLLM was set not to drop parameters and not to retry. That run sent a five-turn conversation from a Windows client to a gateway in Japan East, so its times include a round trip between Japan and the eastern United States. See [the results page](docs/results.md#gateway-test-2026-10-24).",
-                 f"两种测试方法，调用的都是 {region} 的同一个 Foundry 资源：\n\n"
-                 f"1. **从 VM 直连（{date}）。** 同一 Azure 区域的 Linux VM 上运行 Python 测试脚本，用 VM 的托管身份调用 Foundry Messages API：参数探测（{probe_n} 个请求）、编码矩阵（{cells} 个被接受的思考模式 × 推理档位组合，{n_problems} 道题各答 {repeats} 次，每格另加 1 次预热，共 {requests} 个请求）和提示缓存测试（{cache_n} 个请求）。每个模型同一时间只有 1 个请求，测的是单个请求的表现，不是压力测试。除非某节另有说明，结果都来自这种方法。\n"
-                 "2. **经 Azure Container Apps 上的 LiteLLM 网关（2026-10-24）。** 客户端把 Anthropic Messages 请求发给 LiteLLM，由 LiteLLM 用自己的托管身份转发到同一组部署；LiteLLM 设置为不丢弃参数、不重试。那次测试由一台 Windows 客户端发起五轮对话，网关在 Japan East，所以时间里包含日本到美国东部的往返。详见[结果页](docs/results_CN.md#网关测试)。")
+                 f"**Current test method.** Linux VM client → LiteLLM on Azure Container Apps → Foundry, with the client, gateway and Foundry resource in {region}. The client uses the gateway key; LiteLLM uses its managed identity to call Foundry. Prompt caching is enabled with top-level `cache_control`. Each model has one request in flight, so this measures individual requests, not load.\n\n"
+                 f"**Retired method, historical evidence only.** Direct VM-to-Foundry testing has been retired. Its {date} probe ({probe_n} requests), coding matrix ({requests} requests) and prompt-cache test ({cache_n} requests) are retained as historical evidence, not as the current test method or the new ACA run's results. The coding matrix sent no `cache_control` and does not meet the current cache-enabled test protocol.\n\n"
+                 "**Historical gateway check (2026-10-24).** A Windows client sent a five-turn conversation through LiteLLM on Azure Container Apps in Japan East to the same deployments; LiteLLM used its own managed identity and was set not to drop parameters or retry. Those times include Japan-to-US network latency and are not results from the current East US 2 run. See [the results page](docs/results.md#gateway-test-2026-10-24).",
+                 f"**当前测试方法。** Linux VM 客户端 → Azure Container Apps 上的 LiteLLM → Foundry；客户端、网关和 Foundry 资源均位于 {region}。客户端使用网关入口密钥，LiteLLM 以自己的托管身份调用 Foundry。通过请求顶层 `cache_control` 开启提示缓存。每个模型同一时间只有 1 个请求，测的是单个请求的表现，不是压力测试。\n\n"
+                 f"**已取缔的方案，仅保留历史证据。** VM 直连 Foundry 不再作为测试方案。{date} 的参数探测（{probe_n} 个请求）、编码矩阵（{requests} 个请求）和提示缓存测试（{cache_n} 个请求）仅作为历史证据保留，不是当前测试方法，也不是新 ACA 测试的结果。旧编码矩阵没有发送 `cache_control`，不满足当前开启缓存的测试要求。\n\n"
+                 "**历史网关检查（2026-10-24）。** Windows 客户端通过 Japan East 的 Azure Container Apps 上的 LiteLLM，向同一组部署发送五轮对话；LiteLLM 用自己的托管身份转发，设置为不丢弃参数、不重试。那次耗时包含日本到美国东部的网络延迟，不是当前 East US 2 测试的结果。详见[结果页](docs/results_CN.md#网关测试)。")
     figure = (f'<img src="images/topology-{language}.svg" width="900" alt="'
                 + tr(chinese, "Current cache-enabled test path: a Linux VM client sends streaming requests through LiteLLM on Azure Container Apps in East US 2 to the three Microsoft Foundry Claude deployments. Prompt caching is at Foundry; the client records timing and native usage.",
                     "当前开启缓存的测试路径：Linux VM 客户端经 East US 2 的 Azure Container Apps 上的 LiteLLM 调用三个 Microsoft Foundry Claude 部署。提示缓存在 Foundry 侧；客户端记录时间和原生 usage。")
@@ -524,17 +524,17 @@ def purpose(d, chinese, language):
                   "The figure shows the new East US 2 gateway path, not the historical direct-VM result path. The [runner](gateway-cache/aca_cache_matrix.py) uses the [12-problem manifest](data/gateway-cache-problems.json): 26 accepted mode/effort cells, two identical requests per problem/cell, plus 26 warm-ups (650 planned requests). Top-level `cache_control` is `ephemeral`, TTL `1h`; request 1 writes and request 2 is checked for native cache reads. This is not a cache-disabled comparison. Historical results retain their original dates and paths; the new run's completion, performance and correctness require its own evidence. Original explanatory diagram with unmodified [Azure icons](images/icon-sources.json).",
                   "图中展示新一轮美东二网关路径，不是历史 VM 直连结果的路径。[运行器](gateway-cache/aca_cache_matrix.py)使用[12 道题清单](data/gateway-cache-problems.json)：26 个被接受的模式／档位组合，每题每格原样发送两次，另有 26 个预热请求，计划共 650 次。请求顶层 `cache_control` 为 `ephemeral`，有效期 `1h`；第 1 次写入，第 2 次检查原生缓存读取。这不是关闭缓存的对照。历史结果保留原日期与调用路径；新一轮是否完成、性能和正确率均须由新证据确认。原创说明图，使用未修改的 [Azure 图标](images/icon-sources.json)。")
     settings_lead = tr(chinese,
-                       "**Request settings.** What each setting does, from Claude's documentation, and what this test sent. Which values each deployment accepted comes from our probe:",
-                       "**请求设置。** 每个设置的作用（依据 Claude 官方文档）和本测试发送了什么；各部署接受哪些取值来自我们的参数探测：")
+                       "**Historical request settings.** What each setting does, from Claude's documentation, and what the retained direct-VM runs sent. Accepted values come from that historical probe; these observations do not describe the current ACA run:",
+                       "**历史请求设置。** 每个设置的作用（依据 Claude 官方文档），以及保留的旧 VM 直连批次发送了什么；各部署接受哪些取值来自历史参数探测。这些观测不是当前 ACA 测试的结果：")
     not_covered = tr(chinese,
                      "**Not covered:** tool use, where `between_tools` and progress updates matter; `display: \"summarized\"`; US Data Zone deployments; and the separate `claude-opus-5-5-fast` model in the Foundry catalog.",
                      "**未覆盖：** 工具调用（`between_tools` 和进度更新只在使用工具时才起作用）、`display: \"summarized\"`、US Data Zone 部署，以及 Foundry 模型目录里单独的 `claude-opus-5-5-fast` 模型。")
     per_model = tr(chinese,
-                   f"**Per model.** What each deployment accepted and how it did on the {n_problems} problems:",
-                   f"**按模型汇总。** 每个部署接受什么，以及在这 {n_problems} 道题上的表现：")
+                   f"**Historical per-model summary.** What each deployment accepted and how it did on the {n_problems} problems in the retired direct-VM batch; not current ACA results:",
+                   f"**历史批次按模型汇总。** 已取缔的 VM 直连批次中，每个部署接受什么，以及在这 {n_problems} 道题上的表现；不是当前 ACA 测试的结果：")
     scope = tr(chinese,
-               f"**Scope.** The problems are public Exercism exercises from [Aider's polyglot benchmark]({POLYGLOT}), each answered once, without tools and without seeing the tests; they are not your production tasks. In method 1 every request went straight to the Foundry Messages API, one at a time per deployment. Costs use list prices and were not reconciled with an Azure invoice.",
-               f"**范围。** 题目是 [Aider polyglot benchmark]({POLYGLOT}) 收录的 Exercism 公开练习，每次只答一次、不用工具、看不到测试；它们不是你的生产任务。方法 1 的所有请求直接发往 Foundry 的 Messages API，每个部署同一时间只有一个请求。费用按标价计算，没有与 Azure 账单核对。")
+               f"**Historical scope.** The problems are public Exercism exercises from [Aider's polyglot benchmark]({POLYGLOT}), each answered once, without tools and without seeing the tests; they are not your production tasks. The retired batch called Foundry directly, one request at a time per deployment. Its costs and accuracy are historical observations, not evidence for the current cache-enabled ACA path. Costs use list prices and were not reconciled with an Azure invoice.",
+               f"**历史结果范围。** 题目是 [Aider polyglot benchmark]({POLYGLOT}) 收录的 Exercism 公开练习，每次只答一次、不用工具、看不到测试；它们不是你的生产任务。已取缔的批次曾直连 Foundry，每个部署同一时间只有一个请求。其费用和正确率是历史观测，不能证明当前开启缓存的 ACA 路径的表现。费用按标价计算，没有与 Azure 账单核对。")
     sources = tr(chinese,
                  f"**Sources.** Accepted values and the HTTP 400 messages come from our probe ([results](docs/results.md#parameter-probe-2026-10-26)). What each setting does, the defaults, the rules for `between_tools` and `disabled`, and the advice to set `max_tokens` to 128,000 for agentic coding on Sonnet 5.5 come from Claude's [thinking]({THINKING_DOC}) and [effort]({EFFORT_DOC}) pages; cache rules and price multipliers from [prompt caching]({CACHE_DOC}); prices from [pricing]({PRICE_DOC}); hosting options and Foundry setup from [Claude in Microsoft Foundry]({FOUNDRY_DOC}); all read on 2026-10-26. The *Choose it when* row is our reading of these {n_problems} problems, not general advice.",
                  f"**来源。** 接受哪些取值、HTTP 400 的报错原文来自我们的参数探测（[结果页](docs/results_CN.md#参数探测)）。各设置的作用、默认值、`between_tools` 和 `disabled` 的使用规则，以及 Sonnet 5.5 做智能体编码时把 `max_tokens` 设为 128,000 的建议，来自 Claude 的 [thinking]({THINKING_DOC}) 和 [effort]({EFFORT_DOC}) 文档；缓存规则和价格倍数来自 [prompt caching]({CACHE_DOC})；价格来自 [pricing]({PRICE_DOC})；托管方式和 Foundry 配置来自 [Claude in Microsoft Foundry]({FOUNDRY_DOC})；均于 2026-10-26 查阅。“适合的情况”一行是我们对这 {n_problems} 道题的解读，不是通用建议。")
@@ -812,7 +812,7 @@ def limits(d, chinese):
         f"- **Thinking display.** {count(m['thought'])} matrix requests used thinking tokens and {m['thought_streamed']} streamed any thinking text, so the first visible text includes all thinking. `display: \"summarized\"` was not tested.",
         f"- **Routing.** GlobalStandard deployments may serve a request outside East US 2, and all {count(sum(m['geo'].values()))} matrix responses reported `usage.inference_geo` as `{m['geo_value']}`; other client locations or deployment types will give other latencies.",
         "- **Cost.** List prices on 2026-10-26, not an Azure invoice.",
-        "- **Gateway.** The 2026-10-24 gateway ran in another region; a gateway in the same region as the models has not been tested.",
+        "- **Gateway.** The retained 2026-10-24 gateway results used another region and do not characterize the current East US 2 ACA path.",
     ], [
         "**边界。**",
         "- **一个客户端、一个区域、一天、每个部署同一时间一个请求。** 没有并发、压力或长时间测试，也没有 Azure 以外的客户端。",
@@ -821,7 +821,7 @@ def limits(d, chinese):
         f"- **思考内容的显示。** 矩阵中 {count(m['thought'])} 个请求用了思考 token，流式返回思考文字的有 {m['thought_streamed']} 个，所以首个可见文字包含全部思考时间。没有测试 `display: \"summarized\"`。",
         f"- **路由。** GlobalStandard 部署可能在 East US 2 以外处理请求，矩阵的 {count(sum(m['geo'].values()))} 个响应里 `usage.inference_geo` 都是 `{m['geo_value']}`；换客户端位置或部署类型，延迟会不同。",
         "- **费用。** 按 2026-10-26 的标价计算，不是 Azure 账单。",
-        "- **网关。** 2026-10-24 的网关在另一个区域；与模型同区域的网关尚未测试。",
+        "- **网关。** 保留的 2026-10-24 网关结果来自另一个区域，不能代表当前 East US 2 的 ACA 路径。",
     ]))
 
 
@@ -843,6 +843,9 @@ def navigation(chinese):
 
 def results(d, gateway, chinese):
     parts = [
+        tr(chinese,
+           "**Historical results only.** The following direct-VM measurements belong to the retired method. In particular, the 21-cell coding matrix omitted `cache_control` and does not meet the current ACA cache-enabled protocol. The Japan East gateway check is separately dated. None of these numbers is a result from the current East US 2 ACA run.",
+           "**以下仅为历史结果。** 下列 VM 直连测量属于已取缔的方案，尤其是 21 格编码矩阵未发送 `cache_control`，不满足当前 ACA 开启缓存的测试要求。Japan East 网关检查另列日期。这些数字都不是当前 East US 2 ACA 测试的结果。"),
         tr(chinese, "Words used in the results:", "看结果时会用到的词："), glossary(chinese),
         tr(chinese, "**Where each part ran.**", "**各部分在哪里运行。**"), where_table(d, chinese),
         request_block(d, chinese),
@@ -863,8 +866,11 @@ def steps(d, chinese):
     sample = f'{{"status": "completed", "http_status": {result["http_status"]}, "first_text_s": {result["first_text_s"]}, ...}}'
     blocks = [
         tr(chinese,
-           f"**Deploy first, then call.** These steps deploy the three models and send one streamed request with the request shape used in the tests. Repeating the measurements, the 2026-10-24 gateway test and the offline checks are in [docs/testing.md](docs/testing{suffix}.md).",
-           f"**先部署，再调用。** 下面的步骤部署三个模型，并用测试中的请求格式发一个流式请求。重做测量、2026-10-24 的网关测试和离线检查见 [docs/testing_CN.md](docs/testing{suffix}.md)。"),
+              "**Current test entry.** New tests use the [ACA cache runner](gateway-cache/aca_cache_matrix.py) and its [launcher](gateway-cache/run.sh), with the [12-problem manifest](data/gateway-cache-problems.json). Requests go from the VM client through the gateway, with `cache_control` enabled; do not use the old direct-VM client for the current test.",
+              "**当前测试入口。** 新测试使用 [ACA 缓存运行器](gateway-cache/aca_cache_matrix.py)及其[启动脚本](gateway-cache/run.sh)，输入为 [12 道题清单](data/gateway-cache-problems.json)。VM 客户端通过网关发送请求，并开启 `cache_control`；当前测试不使用旧直连客户端。"),
+          tr(chinese,
+              f"**Retired direct-VM procedure: reference only.** The commands below document how the historical evidence was produced. They are not the current deployment or test instructions and must not be used for a new run under the ACA protocol. Historical procedures and offline evidence checks remain in [docs/testing.md](docs/testing{suffix}.md).",
+              f"**已取缔的 VM 直连流程，仅供历史参考。** 以下命令记录旧证据的产生方式，不是当前部署或测试步骤，不能用于按 ACA 协议开展的新测试。历史流程和离线证据检查保留在 [docs/testing_CN.md](docs/testing{suffix}.md)。"),
         tr(chinese,
            f"**Execution boundary:** the 2026-10-26 results came from these scripts, on a VM created with the commands of step 3 under our own resource names. The repository was assembled afterwards. Step 4 was then run once from the same VM with the published `claude_api.py`, `pricing.py` and `call_once.py`: completed, HTTP {result['http_status']}, first visible text after {secs(result['first_text_s'])} s ([record](evidence/coding-matrix-20261026/readme-step4.json)). Steps 1 to 3 have not been re-run in a fresh subscription.",
            f"**执行边界：** 2026-10-26 的结果由这些脚本产生，所用 VM 由第 3 步的命令（换成我们自己的资源名）创建。仓库是事后整理的。整理后在同一台 VM 上用公开的 `claude_api.py`、`pricing.py` 和 `call_once.py` 运行了一次第 4 步：完成，HTTP {result['http_status']}，首个可见文字在 {secs(result['first_text_s'])} 秒后出现（[记录](evidence/coding-matrix-20261026/readme-step4.json)）。第 1 到 3 步还没有在全新订阅中重跑。"),
@@ -1091,6 +1097,9 @@ def results_page(d, chinese):
     problem_list = "\n".join(f"- {lang}: " + ", ".join(problem_link(p) for p in ids) for lang, ids in by_language.items())
     out = []
     out.append(tr(chinese, "## Coding matrix, 2026-10-26", "## 编码矩阵"))
+    out.append(tr(chinese,
+                  "**Retired method: historical evidence only.** This section records the direct-VM coding matrix without `cache_control`. It does not satisfy the current cache-enabled ACA protocol and is not a result from that run. The raw records and their original values are retained unchanged.",
+                  "**已取缔的方案，仅保留历史证据。** 本节记录未带 `cache_control` 的 VM 直连编码矩阵，不满足当前开启缓存的 ACA 测试要求，也不是该轮测试的结果。原始记录和数值保持不变。"))
     out.append(tr(chinese,
                   "**Question.** For each thinking mode and effort level a Claude 5.5 deployment accepts, how often does a coding answer complete, how long until its first visible text, what does it cost and how often does it pass the problem's unit tests?",
                   "**问题。** 对每个 Claude 5.5 部署接受的每种思考模式和推理档位，编码回答完成的比例、首个可见文字的等待时间、费用，以及通过题目单元测试的比例各是多少？（2026-10-26）"))
