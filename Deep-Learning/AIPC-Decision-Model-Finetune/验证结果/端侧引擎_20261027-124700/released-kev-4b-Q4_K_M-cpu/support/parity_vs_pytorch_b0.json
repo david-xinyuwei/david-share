@@ -1,0 +1,403 @@
+{
+ "torch": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\验证结果\\端侧引擎_20261027-124700\\pytorch-b0-4b\\support\\rows.json",
+ "engine": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\验证结果\\端侧引擎_20261027-124700\\released-kev-4b-Q4_K_M-cpu\\support\\rows.jsonl",
+ "missing": 0,
+ "by_type": {
+  "all": {
+   "n": 510,
+   "agree_count": 475,
+   "agreement": 0.931373,
+   "torch_acc": 0.607843,
+   "engine_acc": 0.590196,
+   "only_torch_correct": 19,
+   "only_engine_correct": 10,
+   "mean_tvd": 0.033628,
+   "max_tvd": 0.123432
+  },
+  "choice": {
+   "n": 170,
+   "agree_count": 162,
+   "agreement": 0.952941,
+   "torch_acc": 0.547059,
+   "engine_acc": 0.541176,
+   "only_torch_correct": 3,
+   "only_engine_correct": 2,
+   "mean_tvd": 0.041443,
+   "max_tvd": 0.123432
+  },
+  "noul": {
+   "n": 170,
+   "agree_count": 153,
+   "agreement": 0.9,
+   "torch_acc": 0.688235,
+   "engine_acc": 0.623529,
+   "only_torch_correct": 14,
+   "only_engine_correct": 3,
+   "mean_tvd": 0.030885,
+   "max_tvd": 0.119237
+  },
+  "score": {
+   "n": 170,
+   "agree_count": 160,
+   "agreement": 0.941176,
+   "torch_acc": 0.588235,
+   "engine_acc": 0.605882,
+   "only_torch_correct": 2,
+   "only_engine_correct": 5,
+   "mean_tvd": 0.028556,
+   "max_tvd": 0.082363
+  }
+ },
+ "flips": [
+  {
+   "i": 61,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "false",
+   "torch_p": 0.5369,
+   "engine_p": 0.5823,
+   "tvd": 0.1192
+  },
+  {
+   "i": 44,
+   "question": "queue",
+   "torch": "remote_l1",
+   "engine": "depot_repair",
+   "label": "depot_repair",
+   "torch_p": 0.3483,
+   "engine_p": 0.355,
+   "tvd": 0.0983
+  },
+  {
+   "i": 70,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "false",
+   "torch_p": 0.5724,
+   "engine_p": 0.5247,
+   "tvd": 0.0971
+  },
+  {
+   "i": 81,
+   "question": "queue",
+   "torch": "remote_l1",
+   "engine": "depot_repair",
+   "label": "remote_l1",
+   "torch_p": 0.3451,
+   "engine_p": 0.3096,
+   "tvd": 0.0791
+  },
+  {
+   "i": 144,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "false",
+   "torch_p": 0.5087,
+   "engine_p": 0.5644,
+   "tvd": 0.0731
+  },
+  {
+   "i": 129,
+   "question": "urgency",
+   "torch": "2",
+   "engine": "1",
+   "label": "0",
+   "torch_p": 0.4435,
+   "engine_p": 0.4005,
+   "tvd": 0.0705
+  },
+  {
+   "i": 131,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "true",
+   "torch_p": 0.5169,
+   "engine_p": 0.5535,
+   "tvd": 0.0703
+  },
+  {
+   "i": 145,
+   "question": "queue",
+   "torch": "remote_l1",
+   "engine": "depot_repair",
+   "label": "remote_l1",
+   "torch_p": 0.3508,
+   "engine_p": 0.3052,
+   "tvd": 0.07
+  },
+  {
+   "i": 32,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "false",
+   "torch_p": 0.5362,
+   "engine_p": 0.5272,
+   "tvd": 0.0633
+  },
+  {
+   "i": 101,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "false",
+   "torch_p": 0.5381,
+   "engine_p": 0.5246,
+   "tvd": 0.0626
+  },
+  {
+   "i": 133,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "false",
+   "torch_p": 0.5034,
+   "engine_p": 0.5592,
+   "tvd": 0.0626
+  },
+  {
+   "i": 102,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "false",
+   "torch_p": 0.5389,
+   "engine_p": 0.5187,
+   "tvd": 0.0575
+  },
+  {
+   "i": 60,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "false",
+   "torch_p": 0.5107,
+   "engine_p": 0.5459,
+   "tvd": 0.0566
+  },
+  {
+   "i": 17,
+   "question": "queue",
+   "torch": "onsite_repair",
+   "engine": "depot_repair",
+   "label": "depot_repair",
+   "torch_p": 0.3138,
+   "engine_p": 0.3104,
+   "tvd": 0.0543
+  },
+  {
+   "i": 28,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "false",
+   "torch_p": 0.5392,
+   "engine_p": 0.5149,
+   "tvd": 0.0541
+  },
+  {
+   "i": 88,
+   "question": "urgency",
+   "torch": "2",
+   "engine": "1",
+   "label": "0",
+   "torch_p": 0.433,
+   "engine_p": 0.3961,
+   "tvd": 0.0503
+  },
+  {
+   "i": 84,
+   "question": "queue",
+   "torch": "remote_l1",
+   "engine": "bios_l2",
+   "label": "sales_ops",
+   "torch_p": 0.3386,
+   "engine_p": 0.3032,
+   "tvd": 0.0502
+  },
+  {
+   "i": 106,
+   "question": "queue",
+   "torch": "remote_l1",
+   "engine": "bios_l2",
+   "label": "sales_ops",
+   "torch_p": 0.338,
+   "engine_p": 0.3053,
+   "tvd": 0.0479
+  },
+  {
+   "i": 29,
+   "question": "queue",
+   "torch": "remote_l1",
+   "engine": "depot_repair",
+   "label": "remote_l1",
+   "torch_p": 0.3153,
+   "engine_p": 0.2796,
+   "tvd": 0.0475
+  },
+  {
+   "i": 31,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "false",
+   "torch_p": 0.5295,
+   "engine_p": 0.5154,
+   "tvd": 0.0449
+  },
+  {
+   "i": 134,
+   "question": "queue",
+   "torch": "remote_l1",
+   "engine": "depot_repair",
+   "label": "onsite_repair",
+   "torch_p": 0.3801,
+   "engine_p": 0.3745,
+   "tvd": 0.0435
+  },
+  {
+   "i": 49,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "false",
+   "torch_p": 0.5066,
+   "engine_p": 0.536,
+   "tvd": 0.0426
+  },
+  {
+   "i": 38,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "true",
+   "torch_p": 0.5107,
+   "engine_p": 0.5298,
+   "tvd": 0.0405
+  },
+  {
+   "i": 142,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "true",
+   "torch_p": 0.5217,
+   "engine_p": 0.518,
+   "tvd": 0.0397
+  },
+  {
+   "i": 20,
+   "question": "urgency",
+   "torch": "2",
+   "engine": "3",
+   "label": "1",
+   "torch_p": 0.373,
+   "engine_p": 0.3511,
+   "tvd": 0.0393
+  },
+  {
+   "i": 127,
+   "question": "urgency",
+   "torch": "2",
+   "engine": "1",
+   "label": "1",
+   "torch_p": 0.3544,
+   "engine_p": 0.3409,
+   "tvd": 0.0341
+  },
+  {
+   "i": 120,
+   "question": "urgency",
+   "torch": "2",
+   "engine": "1",
+   "label": "1",
+   "torch_p": 0.3558,
+   "engine_p": 0.3372,
+   "tvd": 0.0339
+  },
+  {
+   "i": 39,
+   "question": "urgency",
+   "torch": "1",
+   "engine": "0",
+   "label": "0",
+   "torch_p": 0.388,
+   "engine_p": 0.4075,
+   "tvd": 0.0327
+  },
+  {
+   "i": 119,
+   "question": "urgency",
+   "torch": "2",
+   "engine": "1",
+   "label": "1",
+   "torch_p": 0.3521,
+   "engine_p": 0.3319,
+   "tvd": 0.0319
+  },
+  {
+   "i": 46,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "false",
+   "torch_p": 0.5282,
+   "engine_p": 0.503,
+   "tvd": 0.0311
+  },
+  {
+   "i": 112,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "false",
+   "torch_p": 0.5094,
+   "engine_p": 0.5155,
+   "tvd": 0.0249
+  },
+  {
+   "i": 123,
+   "question": "urgency",
+   "torch": "1",
+   "engine": "2",
+   "label": "1",
+   "torch_p": 0.3697,
+   "engine_p": 0.3576,
+   "tvd": 0.0211
+  },
+  {
+   "i": 55,
+   "question": "urgency",
+   "torch": "1",
+   "engine": "2",
+   "label": "1",
+   "torch_p": 0.3511,
+   "engine_p": 0.3486,
+   "tvd": 0.0201
+  },
+  {
+   "i": 64,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "false",
+   "torch_p": 0.502,
+   "engine_p": 0.5136,
+   "tvd": 0.0156
+  },
+  {
+   "i": 124,
+   "question": "urgency",
+   "torch": "2",
+   "engine": "1",
+   "label": "1",
+   "torch_p": 0.3045,
+   "engine_p": 0.3096,
+   "tvd": 0.0099
+  }
+ ]
+}

@@ -1,0 +1,117 @@
+{
+ "train.jsonl": {
+  "records": 2147,
+  "questions": 6441,
+  "sha256": "9b45800ec98191b146b0263d88cb7b4967e7801a238b156f1a17dd2ca6941b77"
+ },
+ "calib.jsonl": {
+  "records": 328,
+  "questions": 984,
+  "sha256": "5ed0bc692d38b5d2c098e52785a73a1890cfc6f6a4cd82000a55a6190d1d1f61"
+ },
+ "dev_support.jsonl": {
+  "records": 181,
+  "questions": 543,
+  "sha256": "5d589c6e7572ecc69c092c13dd211cc16da78bc3e63703a4f4e54ea42a014c6b"
+ },
+ "test_support.jsonl": {
+  "records": 170,
+  "questions": 510,
+  "sha256": "ef0a2befc0652bacef438395e465e2928c3ca0e5423b4853deda5bc03ba106c5"
+ },
+ "policy_test_support.jsonl": {
+  "records": 170,
+  "questions": 510,
+  "sha256": "a2dfd8a6d7c2b738b36f726f4a97cf2d022f0ba8bd6176eeb194584443533fd8"
+ },
+ "ood_support.jsonl": {
+  "records": 337,
+  "questions": 1011,
+  "sha256": "cdf37fa4a0f6f51f13ebeb80f6e261231a1f6f6e8402a9efd9a3d5b99fceb4dc"
+ },
+ "policy_ood_support.jsonl": {
+  "records": 337,
+  "questions": 1011,
+  "sha256": "6aff6976245ebb663e2141b074f4ec062c135ef308b5f01e16a99e4039ecc3d2"
+ },
+ "dev_assistant.jsonl": {
+  "records": 163,
+  "questions": 489,
+  "sha256": "de64e6a7280e6ff3aa33ad5956461b031bcce48a22313d6f0121d271153000dd"
+ },
+ "test_assistant.jsonl": {
+  "records": 159,
+  "questions": 477,
+  "sha256": "70f1463bad3438b058db9f82e3cbf7d0243c5f7a5b37b23945f33bdbec83fb31"
+ },
+ "policy_test_assistant.jsonl": {
+  "records": 159,
+  "questions": 477,
+  "sha256": "b61dacca82d6ee9caa3a9e0a290799b16d417baf584b98f369aeb232318c81b7"
+ },
+ "ood_assistant.jsonl": {
+  "records": 317,
+  "questions": 951,
+  "sha256": "4cc7680103549e5477434bdebc8bc408b6cba08b04b0e7cc25863818f215c99b"
+ },
+ "policy_ood_assistant.jsonl": {
+  "records": 317,
+  "questions": 951,
+  "sha256": "aeda766161caa699f0fc41653909f81f22ab7bde43f95b63d5bdbd9929489a5e"
+ },
+ "train_cf.jsonl": {
+  "records": 3832,
+  "questions": 11496,
+  "sha256": "e75ee688ae9a64137bd63c38a0d65fd7f9d5a4f42263b5821d36d4fa962401cf"
+ },
+ "dev_cf_support.jsonl": {
+  "records": 131,
+  "questions": 393,
+  "sha256": "e0571fe04711df41d4f49d58db8b429a2bc55aaf0a4a5e68be5df7c3e77ec768"
+ },
+ "test_cf_support.jsonl": {
+  "records": 126,
+  "questions": 378,
+  "sha256": "6f3c6cbb06bec4719d201bb0381454dd5642b9aa5071980be4ca12c7e445cf54"
+ },
+ "policy_test_cf_support.jsonl": {
+  "records": 126,
+  "questions": 378,
+  "sha256": "05f5ca241d74716f7baa84b1d6d60b2292b089f07c7b90f217a5cd03cb8f1a73"
+ },
+ "ood_cf_support.jsonl": {
+  "records": 253,
+  "questions": 759,
+  "sha256": "e8b5e1ff716b5ce8ac4456a76460d5ed9faf1ec1678bffeae08c32e630d665c4"
+ },
+ "policy_ood_cf_support.jsonl": {
+  "records": 253,
+  "questions": 759,
+  "sha256": "9230662d4d20991a0d47f321d698c40079c9696d015cf04222552605e8595f3b"
+ },
+ "dev_cf_assistant.jsonl": {
+  "records": 74,
+  "questions": 222,
+  "sha256": "14b780a58398c6c3ef02170c33240d54651a96ccd130c90558cc8c3af5120142"
+ },
+ "test_cf_assistant.jsonl": {
+  "records": 70,
+  "questions": 210,
+  "sha256": "51bd4275448361beed3c67dc2dcc29008b4300110ec9a60bb5d3ca50795687a9"
+ },
+ "policy_test_cf_assistant.jsonl": {
+  "records": 70,
+  "questions": 210,
+  "sha256": "a550297b8bca3d0eacb48df08b28886a70af6217e5d27e65d2115471c0a64894"
+ },
+ "ood_cf_assistant.jsonl": {
+  "records": 161,
+  "questions": 483,
+  "sha256": "fdf5e6b25b52783b733074e32cdda0f606620644ef77a853c7e269226383843c"
+ },
+ "policy_ood_cf_assistant.jsonl": {
+  "records": 161,
+  "questions": 483,
+  "sha256": "330bbc272a165895a013e262c4ff32a0d86cbbe5cf54175a0de40d193bcc4ec1"
+ }
+}

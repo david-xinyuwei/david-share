@@ -1,0 +1,3 @@
+0.26.846.146 I cmn          init: llama threadpool init, n_threads = 12
+0.27.118.668 I srv          init: decision model type: kev
+0.27.157.259 I srv    load_model: initializing, n_slots = 4, n_ctx_slot = 8192, kv_unified = 'true'

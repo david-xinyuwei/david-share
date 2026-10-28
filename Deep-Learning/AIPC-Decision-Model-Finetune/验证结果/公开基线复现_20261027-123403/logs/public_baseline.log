@@ -1,0 +1,153 @@
+BENCH_START kev-0.8b 2026-10-27T19:30:55+00:00
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+evaluated 50/764
+evaluated 100/764
+evaluated 150/764
+evaluated 200/764
+evaluated 250/764
+evaluated 300/764
+evaluated 350/764
+evaluated 400/764
+evaluated 450/764
+evaluated 500/764
+evaluated 550/764
+evaluated 600/764
+evaluated 650/764
+evaluated 700/764
+evaluated 750/764
+{
+  "objective": -0.7008672336843804,
+  "clean": {
+    "n": 656,
+    "nll": 0.7165457767878463,
+    "acc": 0.6478658536585366,
+    "ece": 0.04895222118561981,
+    "brier": 0.4297807222371022,
+    "mean_conf": 0.6577275144303498,
+    "confident_error_rate": 0.001524390243902439,
+    "coverage_at_0_9": 0.10365853658536585,
+    "accuracy_at_0_9": 0.9852941176470589,
+    "coverage_at_5pct_error": 0.1448170731707317,
+    "coverage_at_1pct_error": 0.09603658536585366,
+    "aurc": 0.17052315055700507,
+    "error_rate_at_0_9": 0.014705882352941176,
+    "confidence_bias": 0.009861660771813274,
+    "top_bins": {
+      "0.9": {
+        "n": 68,
+        "errors": 1,
+        "error_rate": 0.014705882352941176
+      },
+      "0.95": {
+        "n": 48,
+        "errors": 0,
+        "error_rate": 0.0
+      },
+      "0.99": {
+        "n": 8,
+        "errors": 0,
+        "error_rate": 0.0
+      }
+    },
+    "selective": {
+      "0.5": {
+        "coverage": 0.5,
+        "accuracy": 0.8292682926829268,
+        "confidence_cutoff": 0.6618908047676086
+      },
+      "0.8": {
+        "coverage": 0.8003048780487805,
+        "accuracy": 0.7295238095238096,
+        "confidence_cutoff": 0.5054244248442523
+      }
+    },
+    "score_mae": 0.6990370842196516,
+    "ranked_probability_score": 0.21152472532091612
+  },
+  "coverage": {
+    "requested_records": 764,
+    "requested_questions": 764,
+    "evaluated_records": 764,
+    "evaluated_questions": 764,
+    "rejected_records": 0,
+    "truncated_records": 0
+  }
+}
+BENCH_DONE kev-0.8b wall_s=85 peak_gpu_mib=6819 2026-10-27T19:32:20+00:00
+BENCH_START kev-4b 2026-10-27T19:32:20+00:00
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+evaluated 50/764
+evaluated 100/764
+evaluated 150/764
+evaluated 200/764
+evaluated 250/764
+evaluated 300/764
+evaluated 350/764
+evaluated 400/764
+evaluated 450/764
+evaluated 500/764
+evaluated 550/764
+evaluated 600/764
+evaluated 650/764
+evaluated 700/764
+evaluated 750/764
+{
+  "objective": -0.3742683769680664,
+  "clean": {
+    "n": 656,
+    "nll": 0.43487184023143527,
+    "acc": 0.8170731707317073,
+    "ece": 0.04160106496945308,
+    "brier": 0.24298478950033428,
+    "mean_conf": 0.8135994394790511,
+    "confident_error_rate": 0.009146341463414634,
+    "coverage_at_0_9": 0.4817073170731707,
+    "accuracy_at_0_9": 0.9810126582278481,
+    "coverage_at_5pct_error": 0.6204268292682927,
+    "coverage_at_1pct_error": 0.375,
+    "aurc": 0.047113924471895476,
+    "error_rate_at_0_9": 0.0189873417721519,
+    "confidence_bias": -0.0034737312526561537,
+    "top_bins": {
+      "0.9": {
+        "n": 316,
+        "errors": 6,
+        "error_rate": 0.0189873417721519
+      },
+      "0.95": {
+        "n": 245,
+        "errors": 2,
+        "error_rate": 0.00816326530612245
+      },
+      "0.99": {
+        "n": 85,
+        "errors": 0,
+        "error_rate": 0.0
+      }
+    },
+    "selective": {
+      "0.5": {
+        "coverage": 0.5,
+        "accuracy": 0.975609756097561,
+        "confidence_cutoff": 0.886089364750176
+      },
+      "0.8": {
+        "coverage": 0.8003048780487805,
+        "accuracy": 0.9161904761904762,
+        "confidence_cutoff": 0.627941370010376
+      }
+    },
+    "score_mae": 0.3404766654113925,
+    "ranked_probability_score": 0.09989815210960289
+  },
+  "coverage": {
+    "requested_records": 764,
+    "requested_questions": 764,
+    "evaluated_records": 764,
+    "evaluated_questions": 764,
+    "rejected_records": 0,
+    "truncated_records": 0
+  }
+}
+BENCH_DONE kev-4b wall_s=103 peak_gpu_mib=20471 2026-10-27T19:34:03+00:00
+PUBLIC_BASELINE_DONE 2026-10-27T19:34:03+00:00

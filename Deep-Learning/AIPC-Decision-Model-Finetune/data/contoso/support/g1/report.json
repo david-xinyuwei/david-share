@@ -1,0 +1,100 @@
+{
+ "labels": {
+  "train": {
+   "queue": {
+    "onsite_repair": 97,
+    "depot_repair": 172,
+    "damage_claim": 72,
+    "sales_ops": 296,
+    "remote_l1": 177,
+    "bios_l2": 100,
+    "battery_program": 54,
+    "privacy_desk": 110
+   },
+   "onsite_eligible": {
+    "True": 97,
+    "False": 981
+   },
+   "urgency": {
+    "2": 289,
+    "1": 526,
+    "3": 127,
+    "0": 136
+   }
+  },
+  "calib": {
+   "queue": {
+    "bios_l2": 16,
+    "depot_repair": 29,
+    "remote_l1": 21,
+    "sales_ops": 48,
+    "onsite_repair": 16,
+    "damage_claim": 11,
+    "battery_program": 5,
+    "privacy_desk": 13
+   },
+   "onsite_eligible": {
+    "False": 143,
+    "True": 16
+   },
+   "urgency": {
+    "2": 44,
+    "3": 26,
+    "0": 19,
+    "1": 70
+   }
+  },
+  "test": {
+   "queue": {
+    "sales_ops": 51,
+    "bios_l2": 12,
+    "remote_l1": 31,
+    "depot_repair": 31,
+    "battery_program": 7,
+    "privacy_desk": 12,
+    "damage_claim": 8,
+    "onsite_repair": 18
+   },
+   "onsite_eligible": {
+    "False": 152,
+    "True": 18
+   },
+   "urgency": {
+    "0": 27,
+    "2": 45,
+    "3": 23,
+    "1": 75
+   }
+  },
+  "dev": {
+   "queue": {
+    "depot_repair": 26,
+    "sales_ops": 61,
+    "damage_claim": 15,
+    "onsite_repair": 15,
+    "privacy_desk": 12,
+    "battery_program": 7,
+    "bios_l2": 17,
+    "remote_l1": 28
+   },
+   "onsite_eligible": {
+    "False": 166,
+    "True": 15
+   },
+   "urgency": {
+    "3": 18,
+    "1": 85,
+    "0": 29,
+    "2": 49
+   }
+  }
+ },
+ "pairs": 188,
+ "missing_text": 0,
+ "counts": {
+  "train": 1078,
+  "calib": 159,
+  "dev": 181,
+  "test": 170
+ }
+}

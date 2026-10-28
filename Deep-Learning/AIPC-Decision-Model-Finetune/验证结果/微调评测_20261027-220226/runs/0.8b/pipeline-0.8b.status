@@ -1,0 +1,35 @@
+STAGE baseline_released 2026-10-27T19:44:17+00:00
+BENCH b0-test_support acc=0.4471 brier=0.6413 ece=0.0475 n=510
+BENCH b0-test_assistant acc=0.6709 brier=0.3963 ece=0.0945 n=477
+SKIP b0-ood_support (no /mnt/aipc/data/contoso/ood_support.jsonl yet)
+SKIP b0-ood_assistant (no /mnt/aipc/data/contoso/ood_assistant.jsonl yet)
+BENCH b0-dev_support acc=0.4770 brier=0.6152 ece=0.0497 n=543
+BENCH b0-dev_assistant acc=0.6503 brier=0.4174 ece=0.0745 n=489
+BENCH b0policy-test_support acc=0.6078 brier=0.5382 ece=0.1395 n=510
+BENCH b0policy-test_assistant acc=0.7191 brier=0.4077 ece=0.1751 n=477
+SKIP b0policy-ood_support (no /mnt/aipc/data/contoso/policy_ood_support.jsonl yet)
+SKIP b0policy-ood_assistant (no /mnt/aipc/data/contoso/policy_ood_assistant.jsonl yet)
+STAGE train 2026-10-27T19:46:07+00:00
+TRAIN_DONE wall_s=1614 peak_gpu_mib=4555 2026-10-27T20:13:01+00:00
+STAGE calibrate 2026-10-27T20:13:01+00:00
+BENCH ft-calib-raw acc=0.9085 brier=0.1226 ece=0.0249 n=984
+CALIBRATED fit rows     T=1.26  acc 0.909 -> 0.909 | brier 0.123 -> 0.120 | ece 0.025 -> 0.012 | conf-err 0.013 -> 0.011 | cov@5% 0.91 -> 0.91 fit rows     OOF T=[1.20, 1.32, 1.23, 1.32, 1.20] ece raw 0.025 [0.017, 0.044] -> oof 0.012 [0.009, 0.031]  delta [-0.020, 0.002] separated=False wrote temperature 1.26 to /mnt/aipc/runs/0.8b/ft/head.pt 
+STAGE evaluate_finetuned 2026-10-27T20:13:31+00:00
+BENCH ft-test_support acc=0.8647 brier=0.1685 ece=0.0230 n=510
+BENCH ft-test_assistant acc=0.9350 brier=0.0884 ece=0.0111 n=477
+BENCH ft-ood_support acc=0.8160 brier=0.2533 ece=0.0498 n=1011
+BENCH ft-ood_assistant acc=0.9190 brier=0.1183 ece=0.0227 n=951
+BENCH ft-dev_support acc=0.8766 brier=0.1474 ece=0.0255 n=543
+BENCH ft-dev_assistant acc=0.9407 brier=0.0797 ece=0.0099 n=489
+BENCH ft-public-transfer-v4-dev acc=0.6479 brier=0.5596
+STAGE compare 2026-10-27T20:16:00+00:00
+PIPELINE_DONE 2026-10-27T20:16:08+00:00
+STAGE baseline_released 2026-10-27T20:52:32+00:00
+BENCH b0-ood_support acc=0.4303 brier=0.6303 ece=0.0741 n=1011
+BENCH b0-ood_assistant acc=0.6572 brier=0.4212 ece=0.0804 n=951
+BENCH b0policy-ood_support acc=0.6281 brier=0.5234 ece=0.1336 n=1011
+BENCH b0policy-ood_assistant acc=0.6362 brier=0.4545 ece=0.1254 n=951
+STAGE calibrate 2026-10-27T20:54:23+00:00
+STAGE evaluate_finetuned 2026-10-27T20:54:23+00:00
+STAGE compare 2026-10-27T20:54:23+00:00
+PIPELINE_DONE 2026-10-27T20:54:40+00:00

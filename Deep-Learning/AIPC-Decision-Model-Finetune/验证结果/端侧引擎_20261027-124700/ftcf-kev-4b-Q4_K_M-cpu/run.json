@@ -1,0 +1,58 @@
+{
+  "label": "ftcf-kev-4b-Q4_K_M-cpu",
+  "model": "C:\\Tools\\models\\contoso-kev\\Contoso-Kev-4B-FTcf-Q4_K_M.gguf",
+  "backend": "cpu",
+  "build": "b11935-cpu",
+  "server_args": "-m \"C:\\Tools\\models\\contoso-kev\\Contoso-Kev-4B-FTcf-Q4_K_M.gguf\" --host 127.0.0.1 --port 8080 -c 8192 -b 2048 -ub 2048 --cache-ram 0",
+  "data_prefix": "test_",
+  "load_seconds": 6.7,
+  "server_log_facts": [
+    "0.04.961.509 I srv          init: decision model type: kev"
+  ],
+  "peak_working_set_mib": 6842,
+  "working_set_mib": 6842,
+  "private_mib": 7495,
+  "cpu_seconds": 8309,
+  "gguf_mib": 2893.0,
+  "gguf_sha256": "c7a0d0a555aa8a56ff44cee48a7b2a112efd5b505e2016f6746577f3f0f65ed3",
+  "captured": "2026-10-27T21:39:27.7831587-07:00",
+  "summaries": {
+    "support": {
+      "url": "http://127.0.0.1:8080/v1/systemone",
+      "data": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\data\\contoso\\final\\test_support.jsonl",
+      "records": 170,
+      "errors": 0,
+      "questions": 510,
+      "accuracy": 0.9529,
+      "by_type": {
+        "choice": 0.9235,
+        "noul": 0.9412,
+        "score": 0.9941
+      },
+      "latency_ms": {
+        "n": 170,
+        "p50": 3615.2,
+        "p90": 4817.3,
+        "mean": 3945.4
+      }
+    },
+    "assistant": {
+      "url": "http://127.0.0.1:8080/v1/systemone",
+      "data": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\data\\contoso\\final\\test_assistant.jsonl",
+      "records": 159,
+      "errors": 0,
+      "questions": 477,
+      "accuracy": 0.9958,
+      "by_type": {
+        "choice": 1.0,
+        "noul": 0.9937
+      },
+      "latency_ms": {
+        "n": 159,
+        "p50": 4751.0,
+        "p90": 7848.0,
+        "mean": 5696.8
+      }
+    }
+  }
+}

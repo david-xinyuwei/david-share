@@ -1,0 +1,38 @@
+SETUP_START 2026-10-27T19:29:05+00:00
+name, memory.total [MiB], memory.used [MiB], driver_version
+NVIDIA H100 NVL, 95830 MiB, 0 MiB, 615.71.10
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/root       991G  977G   14G  99% /
+/dev/sdb1       126G  9.4G  110G   8% /mnt
+               total        used        free      shared  buff/cache   available
+Mem:             314           5         299           0          12         309
+2074cc44256200bb37540103fa4572901faa10f3
+Resolved 120 packages in 0.79ms
+Uninstalled 5 packages in 29ms
+Installed 1 package in 10ms
+ - causal-conv1d==1.7.0 (from https://github.com/Dao-AILab/causal-conv1d/releases/download/v1.7.0/causal_conv1d-1.7.0%2Bcu12torch2.8cxx11abiTRUE-cp313-cp313-linux_x86_64.whl)
+ - einops==0.8.2
+ - fla-core==0.5.2
+ - flash-linear-attention==0.5.2
+ - triton==3.9.0
+ + triton==3.4.0
+Resolved 31 packages in 120ms
+Downloading triton (188.6MiB)
+ Downloaded triton
+Prepared 1 package in 3.79s
+Uninstalled 1 package in 6ms
+Installed 4 packages in 11ms
+ + einops==0.8.2
+ + fla-core==0.5.2
+ + flash-linear-attention==0.5.2
+ - triton==3.4.0
+ + triton==3.7.1
+Resolved 1 package in 1ms
+Installed 1 package in 4ms
+ + causal-conv1d==1.7.0+cu12torch2.8cxx11abitrue (from https://github.com/Dao-AILab/causal-conv1d/releases/download/v1.7.0/causal_conv1d-1.7.0%2Bcu12torch2.8cxx11abiTRUE-cp313-cp313-linux_x86_64.whl)
+torch 2.8.0+cu128 cuda 12.8 gpu NVIDIA H100 NVL avail True
+transformers 5.17.0 peft 0.21.0 triton 3.7.1 fla 0.5.2
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/root       991G  977G   14G  99% /
+/dev/sdb1       126G   11G  110G   9% /mnt
+SETUP_DONE 2026-10-27T19:29:16+00:00 kev_commit=2074cc44256200bb37540103fa4572901faa10f3

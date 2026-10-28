@@ -1,0 +1,5 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+delta: warm start from /mnt/aipc/hf-cache/hub/models--jaredpalmer--kev-0.8b/snapshots/bf75a6a8848ea6960ff2ed108d9ed44c2941174f: 372 lora tensors and the pointer head loaded
+device=cuda world=1 trainable params=11.3M
+64 training requests (holdout=[]), questions by type {'choice': 64, 'noul': 64, 'score': 64}
+saved /mnt/aipc/runs/memory-probe/0.8b

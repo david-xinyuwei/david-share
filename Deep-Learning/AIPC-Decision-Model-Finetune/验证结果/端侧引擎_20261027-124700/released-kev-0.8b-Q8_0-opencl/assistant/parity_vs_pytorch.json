@@ -1,0 +1,212 @@
+{
+ "torch": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\验证结果\\端侧引擎_20261027-124700\\pytorch-b0-0.8b\\assistant\\rows.json",
+ "engine": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\验证结果\\端侧引擎_20261027-124700\\released-kev-0.8b-Q8_0-opencl\\assistant\\rows.jsonl",
+ "missing": 0,
+ "by_type": {
+  "all": {
+   "n": 477,
+   "agree_count": 460,
+   "agreement": 0.964361,
+   "torch_acc": 0.67086,
+   "engine_acc": 0.66457,
+   "only_torch_correct": 10,
+   "only_engine_correct": 7,
+   "mean_tvd": 0.023359,
+   "max_tvd": 0.07796
+  },
+  "choice": {
+   "n": 159,
+   "agree_count": 153,
+   "agreement": 0.962264,
+   "torch_acc": 0.886792,
+   "engine_acc": 0.899371,
+   "only_torch_correct": 2,
+   "only_engine_correct": 4,
+   "mean_tvd": 0.030165,
+   "max_tvd": 0.07796
+  },
+  "noul": {
+   "n": 318,
+   "agree_count": 307,
+   "agreement": 0.965409,
+   "torch_acc": 0.562893,
+   "engine_acc": 0.54717,
+   "only_torch_correct": 8,
+   "only_engine_correct": 3,
+   "mean_tvd": 0.019956,
+   "max_tvd": 0.067174
+  }
+ },
+ "flips": [
+  {
+   "i": 18,
+   "question": "tool",
+   "torch": "smart_power",
+   "engine": "none_reject",
+   "label": "smart_power",
+   "torch_p": 0.3122,
+   "engine_p": 0.2897,
+   "tvd": 0.0715
+  },
+  {
+   "i": 17,
+   "question": "tool",
+   "torch": "none_reject",
+   "engine": "smart_power",
+   "label": "smart_power",
+   "torch_p": 0.3153,
+   "engine_p": 0.2925,
+   "tvd": 0.0667
+  },
+  {
+   "i": 42,
+   "question": "tool",
+   "torch": "system_diagnose",
+   "engine": "smart_power",
+   "label": "smart_power",
+   "torch_p": 0.3105,
+   "engine_p": 0.3439,
+   "tvd": 0.0631
+  },
+  {
+   "i": 94,
+   "question": "needs_confirmation",
+   "torch": "false",
+   "engine": "true",
+   "label": "true",
+   "torch_p": 0.5239,
+   "engine_p": 0.5348,
+   "tvd": 0.0587
+  },
+  {
+   "i": 28,
+   "question": "run_on_device",
+   "torch": "true",
+   "engine": "false",
+   "label": "true",
+   "torch_p": 0.5326,
+   "engine_p": 0.5205,
+   "tvd": 0.0531
+  },
+  {
+   "i": 108,
+   "question": "run_on_device",
+   "torch": "true",
+   "engine": "false",
+   "label": "true",
+   "torch_p": 0.5459,
+   "engine_p": 0.503,
+   "tvd": 0.0489
+  },
+  {
+   "i": 26,
+   "question": "run_on_device",
+   "torch": "true",
+   "engine": "false",
+   "label": "true",
+   "torch_p": 0.5024,
+   "engine_p": 0.5448,
+   "tvd": 0.0472
+  },
+  {
+   "i": 59,
+   "question": "tool",
+   "torch": "general_chat",
+   "engine": "none_reject",
+   "label": "general_chat",
+   "torch_p": 0.436,
+   "engine_p": 0.4004,
+   "tvd": 0.0442
+  },
+  {
+   "i": 72,
+   "question": "run_on_device",
+   "torch": "true",
+   "engine": "false",
+   "label": "true",
+   "torch_p": 0.503,
+   "engine_p": 0.5407,
+   "tvd": 0.0438
+  },
+  {
+   "i": 14,
+   "question": "run_on_device",
+   "torch": "true",
+   "engine": "false",
+   "label": "true",
+   "torch_p": 0.5341,
+   "engine_p": 0.5064,
+   "tvd": 0.0405
+  },
+  {
+   "i": 98,
+   "question": "run_on_device",
+   "torch": "true",
+   "engine": "false",
+   "label": "true",
+   "torch_p": 0.5178,
+   "engine_p": 0.5196,
+   "tvd": 0.0374
+  },
+  {
+   "i": 152,
+   "question": "needs_confirmation",
+   "torch": "false",
+   "engine": "true",
+   "label": "true",
+   "torch_p": 0.5038,
+   "engine_p": 0.5327,
+   "tvd": 0.0365
+  },
+  {
+   "i": 153,
+   "question": "needs_confirmation",
+   "torch": "false",
+   "engine": "true",
+   "label": "true",
+   "torch_p": 0.5005,
+   "engine_p": 0.5331,
+   "tvd": 0.0336
+  },
+  {
+   "i": 7,
+   "question": "run_on_device",
+   "torch": "true",
+   "engine": "false",
+   "label": "true",
+   "torch_p": 0.5063,
+   "engine_p": 0.5221,
+   "tvd": 0.0284
+  },
+  {
+   "i": 45,
+   "question": "tool",
+   "torch": "none_reject",
+   "engine": "smart_power",
+   "label": "smart_power",
+   "torch_p": 0.3068,
+   "engine_p": 0.3023,
+   "tvd": 0.0251
+  },
+  {
+   "i": 44,
+   "question": "tool",
+   "torch": "none_reject",
+   "engine": "smart_power",
+   "label": "smart_power",
+   "torch_p": 0.3074,
+   "engine_p": 0.2958,
+   "tvd": 0.0228
+  },
+  {
+   "i": 102,
+   "question": "run_on_device",
+   "torch": "true",
+   "engine": "false",
+   "label": "true",
+   "torch_p": 0.5162,
+   "engine_p": 0.5057,
+   "tvd": 0.0219
+  }
+ ]
+}

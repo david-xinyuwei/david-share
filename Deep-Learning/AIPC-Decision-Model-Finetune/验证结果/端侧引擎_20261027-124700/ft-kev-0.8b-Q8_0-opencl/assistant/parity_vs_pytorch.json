@@ -1,0 +1,92 @@
+{
+ "torch": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\验证结果\\端侧引擎_20261027-124700\\pytorch-ft-0.8b\\assistant\\rows.json",
+ "engine": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\验证结果\\端侧引擎_20261027-124700\\ft-kev-0.8b-Q8_0-opencl\\assistant\\rows.jsonl",
+ "missing": 0,
+ "by_type": {
+  "all": {
+   "n": 477,
+   "agree_count": 472,
+   "agreement": 0.989518,
+   "torch_acc": 0.93501,
+   "engine_acc": 0.937107,
+   "only_torch_correct": 2,
+   "only_engine_correct": 3,
+   "mean_tvd": 0.012125,
+   "max_tvd": 0.215254
+  },
+  "choice": {
+   "n": 159,
+   "agree_count": 159,
+   "agreement": 1.0,
+   "torch_acc": 1.0,
+   "engine_acc": 1.0,
+   "only_torch_correct": 0,
+   "only_engine_correct": 0,
+   "mean_tvd": 0.001122,
+   "max_tvd": 0.046026
+  },
+  "noul": {
+   "n": 318,
+   "agree_count": 313,
+   "agreement": 0.984277,
+   "torch_acc": 0.902516,
+   "engine_acc": 0.90566,
+   "only_torch_correct": 2,
+   "only_engine_correct": 3,
+   "mean_tvd": 0.017627,
+   "max_tvd": 0.215254
+  }
+ },
+ "flips": [
+  {
+   "i": 18,
+   "question": "needs_confirmation",
+   "torch": "true",
+   "engine": "false",
+   "label": "false",
+   "torch_p": 0.5158,
+   "engine_p": 0.5983,
+   "tvd": 0.1142
+  },
+  {
+   "i": 64,
+   "question": "needs_confirmation",
+   "torch": "true",
+   "engine": "false",
+   "label": "true",
+   "torch_p": 0.5771,
+   "engine_p": 0.5327,
+   "tvd": 0.1098
+  },
+  {
+   "i": 65,
+   "question": "needs_confirmation",
+   "torch": "true",
+   "engine": "false",
+   "label": "false",
+   "torch_p": 0.5313,
+   "engine_p": 0.5757,
+   "tvd": 0.107
+  },
+  {
+   "i": 17,
+   "question": "needs_confirmation",
+   "torch": "true",
+   "engine": "false",
+   "label": "true",
+   "torch_p": 0.5313,
+   "engine_p": 0.5276,
+   "tvd": 0.0589
+  },
+  {
+   "i": 30,
+   "question": "run_on_device",
+   "torch": "false",
+   "engine": "true",
+   "label": "true",
+   "torch_p": 0.5268,
+   "engine_p": 0.5121,
+   "tvd": 0.0389
+  }
+ ]
+}

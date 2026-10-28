@@ -1,0 +1,93 @@
+{
+ "torch": "验证结果\\端侧引擎_20261027-124700\\pytorch-ftcf-0.8b\\support\\rows.json",
+ "engine": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\验证结果\\端侧引擎_20261027-124700\\ftcf-kev-0.8b-Q8_0-cpu\\support\\rows.jsonl",
+ "missing": 0,
+ "by_type": {
+  "all": {
+   "n": 510,
+   "agree_count": 506,
+   "agreement": 0.992157,
+   "torch_acc": 0.868627,
+   "engine_acc": 0.868627,
+   "only_torch_correct": 2,
+   "only_engine_correct": 2,
+   "mean_tvd": 0.00593,
+   "max_tvd": 0.196263
+  },
+  "choice": {
+   "n": 170,
+   "agree_count": 166,
+   "agreement": 0.976471,
+   "torch_acc": 0.705882,
+   "engine_acc": 0.705882,
+   "only_torch_correct": 2,
+   "only_engine_correct": 2,
+   "mean_tvd": 0.009847,
+   "max_tvd": 0.048978
+  },
+  "noul": {
+   "n": 170,
+   "agree_count": 170,
+   "agreement": 1.0,
+   "torch_acc": 0.9,
+   "engine_acc": 0.9,
+   "only_torch_correct": 0,
+   "only_engine_correct": 0,
+   "mean_tvd": 0.004911,
+   "max_tvd": 0.064998
+  },
+  "score": {
+   "n": 170,
+   "agree_count": 170,
+   "agreement": 1.0,
+   "torch_acc": 1.0,
+   "engine_acc": 1.0,
+   "only_torch_correct": 0,
+   "only_engine_correct": 0,
+   "mean_tvd": 0.003034,
+   "max_tvd": 0.196263
+  }
+ },
+ "flips": [
+  {
+   "i": 63,
+   "question": "queue",
+   "torch": "damage_claim",
+   "engine": "sales_ops",
+   "label": "sales_ops",
+   "torch_p": 0.5112,
+   "engine_p": 0.5189,
+   "tvd": 0.0339
+  },
+  {
+   "i": 62,
+   "question": "queue",
+   "torch": "damage_claim",
+   "engine": "sales_ops",
+   "label": "damage_claim",
+   "torch_p": 0.5173,
+   "engine_p": 0.5056,
+   "tvd": 0.0279
+  },
+  {
+   "i": 68,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "damage_claim",
+   "label": "sales_ops",
+   "torch_p": 0.5042,
+   "engine_p": 0.5172,
+   "tvd": 0.0236
+  },
+  {
+   "i": 6,
+   "question": "queue",
+   "torch": "battery_program",
+   "engine": "sales_ops",
+   "label": "sales_ops",
+   "torch_p": 0.5051,
+   "engine_p": 0.5037,
+   "tvd": 0.0097
+  }
+ ]
+}

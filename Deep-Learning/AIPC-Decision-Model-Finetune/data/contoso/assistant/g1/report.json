@@ -1,0 +1,116 @@
+{
+ "labels": {
+  "train": {
+   "tool": {
+    "general_chat": 84,
+    "camera_studio": 58,
+    "smart_power": 221,
+    "file_search": 56,
+    "screen_translate": 63,
+    "driver_update": 48,
+    "none_reject": 41,
+    "privacy_shield": 74,
+    "support_chat": 60,
+    "meeting_assist": 131,
+    "display_eye_care": 55,
+    "smart_connect": 63,
+    "audio_enhance": 56,
+    "system_diagnose": 59
+   },
+   "run_on_device": {
+    "False": 257,
+    "True": 812
+   },
+   "needs_confirmation": {
+    "False": 867,
+    "True": 202
+   }
+  },
+  "test": {
+   "tool": {
+    "support_chat": 9,
+    "display_eye_care": 9,
+    "camera_studio": 8,
+    "driver_update": 7,
+    "system_diagnose": 9,
+    "general_chat": 9,
+    "file_search": 8,
+    "meeting_assist": 35,
+    "screen_translate": 12,
+    "smart_power": 26,
+    "none_reject": 2,
+    "privacy_shield": 10,
+    "audio_enhance": 5,
+    "smart_connect": 10
+   },
+   "run_on_device": {
+    "False": 41,
+    "True": 118
+   },
+   "needs_confirmation": {
+    "False": 125,
+    "True": 34
+   }
+  },
+  "dev": {
+   "tool": {
+    "screen_translate": 7,
+    "camera_studio": 7,
+    "privacy_shield": 15,
+    "display_eye_care": 10,
+    "smart_power": 26,
+    "support_chat": 10,
+    "file_search": 10,
+    "meeting_assist": 27,
+    "driver_update": 10,
+    "none_reject": 7,
+    "system_diagnose": 7,
+    "smart_connect": 4,
+    "audio_enhance": 12,
+    "general_chat": 11
+   },
+   "run_on_device": {
+    "True": 120,
+    "False": 43
+   },
+   "needs_confirmation": {
+    "False": 124,
+    "True": 39
+   }
+  },
+  "calib": {
+   "tool": {
+    "support_chat": 9,
+    "camera_studio": 12,
+    "display_eye_care": 9,
+    "driver_update": 12,
+    "privacy_shield": 7,
+    "file_search": 6,
+    "general_chat": 21,
+    "audio_enhance": 7,
+    "smart_connect": 11,
+    "meeting_assist": 21,
+    "screen_translate": 13,
+    "system_diagnose": 4,
+    "smart_power": 29,
+    "none_reject": 8
+   },
+   "run_on_device": {
+    "False": 51,
+    "True": 118
+   },
+   "needs_confirmation": {
+    "False": 131,
+    "True": 38
+   }
+  }
+ },
+ "pairs": 160,
+ "missing_text": 0,
+ "counts": {
+  "train": 1069,
+  "calib": 169,
+  "dev": 163,
+  "test": 159
+ }
+}

@@ -1,0 +1,18 @@
+{
+ "url": "http://127.0.0.1:8080/v1/systemone",
+ "data": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\data\\contoso\\final\\test_assistant.jsonl",
+ "records": 159,
+ "errors": 0,
+ "questions": 477,
+ "accuracy": 0.6646,
+ "by_type": {
+  "choice": 0.8994,
+  "noul": 0.5472
+ },
+ "latency_ms": {
+  "n": 159,
+  "p50": 1378.0,
+  "p90": 1439.0,
+  "mean": 1378.5
+ }
+}

@@ -1,0 +1,186 @@
+{
+  "candidate": "/mnt/aipc/runs/0.8b/ftcf-ood_support",
+  "reference": "/mnt/aipc/runs/0.8b/ft-ood_support",
+  "suite_sha256": "5cfdb18414da8f28a89e2d73604353256f4ed53a39863d2f91589ec59cc85d63",
+  "clean": {
+    "candidate": {
+      "n": 1011,
+      "nll": 0.49112789151726355,
+      "acc": 0.8249258160237388,
+      "ece": 0.06398445069131738,
+      "brier": 0.23305863215105685,
+      "mean_conf": 0.8889102667150561,
+      "confident_error_rate": 0.040553907022749754,
+      "coverage_at_0_9": 0.7171117705242335,
+      "accuracy_at_0_9": 0.9434482758620689,
+      "coverage_at_5pct_error": 0.6993076162215628,
+      "coverage_at_1pct_error": 0.503461918892186,
+      "aurc": 0.04270852332989296,
+      "error_rate_at_0_9": 0.05655172413793103,
+      "confidence_bias": 0.06398445069131731,
+      "top_bins": {
+        "0.9": {
+          "n": 725,
+          "errors": 41,
+          "error_rate": 0.05655172413793103
+        },
+        "0.95": {
+          "n": 692,
+          "errors": 30,
+          "error_rate": 0.04335260115606936
+        },
+        "0.99": {
+          "n": 605,
+          "errors": 14,
+          "error_rate": 0.023140495867768594
+        }
+      },
+      "selective": {
+        "0.5": {
+          "coverage": 0.5004945598417408,
+          "accuracy": 0.9901185770750988,
+          "confidence_cutoff": 0.9987766916682084
+        },
+        "0.8": {
+          "coverage": 0.8001978239366964,
+          "accuracy": 0.9184177997527813,
+          "confidence_cutoff": 0.70989990234375
+        }
+      },
+      "score_mae": 0.1560813852341499,
+      "ranked_probability_score": 0.0416720352487779
+    },
+    "reference": {
+      "n": 1011,
+      "nll": 0.49721910349874393,
+      "acc": 0.8160237388724035,
+      "ece": 0.04975885938588882,
+      "brier": 0.2532623732528892,
+      "mean_conf": 0.8657825982582924,
+      "confident_error_rate": 0.03560830860534125,
+      "coverage_at_0_9": 0.6627101879327398,
+      "accuracy_at_0_9": 0.9462686567164179,
+      "coverage_at_5pct_error": 0.6538081107814046,
+      "coverage_at_1pct_error": 0.4540059347181009,
+      "aurc": 0.04853958993978118,
+      "error_rate_at_0_9": 0.05373134328358209,
+      "confidence_bias": 0.049758859385888865,
+      "top_bins": {
+        "0.9": {
+          "n": 670,
+          "errors": 36,
+          "error_rate": 0.05373134328358209
+        },
+        "0.95": {
+          "n": 607,
+          "errors": 24,
+          "error_rate": 0.039538714991762765
+        },
+        "0.99": {
+          "n": 453,
+          "errors": 4,
+          "error_rate": 0.008830022075055188
+        }
+      },
+      "selective": {
+        "0.5": {
+          "coverage": 0.5004945598417408,
+          "accuracy": 0.9802371541501976,
+          "confidence_cutoff": 0.9804474199977313
+        },
+        "0.8": {
+          "coverage": 0.8001978239366964,
+          "accuracy": 0.9048207663782447,
+          "confidence_cutoff": 0.6778823416283639
+        }
+      },
+      "score_mae": 0.19783544417161206,
+      "ranked_probability_score": 0.0463973481194622
+    }
+  },
+  "paired": {
+    "nll": {
+      "macro_nll_delta": -0.006091211981480336,
+      "ci95": [
+        -0.05076603468271382,
+        0.039674804769831366
+      ],
+      "samples": 1000,
+      "groups": 337,
+      "aggregation": "macro",
+      "unit": "source-stratified original record; sibling questions stay together",
+      "method": "paired cluster percentile bootstrap; full statistic recomputed in each resample"
+    },
+    "acc": {
+      "macro_acc_delta": 0.008902077151335322,
+      "ci95": [
+        -0.0089268051434224,
+        0.024727992087042534
+      ],
+      "samples": 1000,
+      "groups": 337,
+      "aggregation": "macro",
+      "unit": "source-stratified original record; sibling questions stay together",
+      "method": "paired cluster percentile bootstrap; full statistic recomputed in each resample"
+    },
+    "brier": {
+      "macro_brier_delta": -0.02020374110183232,
+      "ci95": [
+        -0.037743253512031984,
+        -0.002764221054419656
+      ],
+      "samples": 1000,
+      "groups": 337,
+      "aggregation": "macro",
+      "unit": "source-stratified original record; sibling questions stay together",
+      "method": "paired cluster percentile bootstrap; full statistic recomputed in each resample"
+    }
+  },
+  "nll_floor_sensitivity": {
+    "0.001": {
+      "candidate_macro_nll": 0.4509669863556927,
+      "reference_macro_nll": 0.47922753224954245
+    },
+    "1e-06": {
+      "candidate_macro_nll": 0.4831110589252103,
+      "reference_macro_nll": 0.4962582548287653
+    },
+    "1e-09": {
+      "candidate_macro_nll": 0.49084537159937575,
+      "reference_macro_nll": 0.4972191024168741
+    }
+  },
+  "none_of_the_above": {
+    "candidate": {
+      "none_present": {
+        "n": 0,
+        "mean_p_none": null,
+        "p_none_above_half": null
+      },
+      "none_absent": {
+        "n": 0,
+        "mean_p_none": null,
+        "p_none_above_half": null
+      }
+    },
+    "reference": {
+      "none_present": {
+        "n": 0,
+        "mean_p_none": null,
+        "p_none_above_half": null
+      },
+      "none_absent": {
+        "n": 0,
+        "mean_p_none": null,
+        "p_none_above_half": null
+      }
+    }
+  },
+  "caveats": [
+    "Uncalibrated returned distributions; probabilities normalized for scoring; raw responses preserved.",
+    "Historical kev checkpoint trained on all six sources; its heldout-source status does not transfer to this study.",
+    "Jev uses a hosted alias and rounds some probabilities to zero; NLL depends on the declared floor.",
+    "CPU local latency and hosted network latency are not comparable hardware benchmarks.",
+    "This is a development-suite comparison, not the locked final test."
+  ]
+}

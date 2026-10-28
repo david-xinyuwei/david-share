@@ -1,0 +1,92 @@
+{
+ "torch": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\验证结果\\端侧引擎_20261027-124700\\pytorch-b0-0.8b\\assistant\\rows.json",
+ "engine": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\验证结果\\端侧引擎_20261027-124700\\released-kev-0.8b-Q8_0-cpu\\assistant\\rows.jsonl",
+ "missing": 0,
+ "by_type": {
+  "all": {
+   "n": 477,
+   "agree_count": 472,
+   "agreement": 0.989518,
+   "torch_acc": 0.67086,
+   "engine_acc": 0.668763,
+   "only_torch_correct": 3,
+   "only_engine_correct": 2,
+   "mean_tvd": 0.00689,
+   "max_tvd": 0.029299
+  },
+  "choice": {
+   "n": 159,
+   "agree_count": 157,
+   "agreement": 0.987421,
+   "torch_acc": 0.886792,
+   "engine_acc": 0.886792,
+   "only_torch_correct": 1,
+   "only_engine_correct": 1,
+   "mean_tvd": 0.008505,
+   "max_tvd": 0.025606
+  },
+  "noul": {
+   "n": 318,
+   "agree_count": 315,
+   "agreement": 0.990566,
+   "torch_acc": 0.562893,
+   "engine_acc": 0.559748,
+   "only_torch_correct": 2,
+   "only_engine_correct": 1,
+   "mean_tvd": 0.006083,
+   "max_tvd": 0.029299
+  }
+ },
+ "flips": [
+  {
+   "i": 109,
+   "question": "tool",
+   "torch": "none_reject",
+   "engine": "smart_power",
+   "label": "smart_power",
+   "torch_p": 0.3202,
+   "engine_p": 0.3302,
+   "tvd": 0.0155
+  },
+  {
+   "i": 153,
+   "question": "needs_confirmation",
+   "torch": "false",
+   "engine": "true",
+   "label": "true",
+   "torch_p": 0.5005,
+   "engine_p": 0.5088,
+   "tvd": 0.0093
+  },
+  {
+   "i": 72,
+   "question": "run_on_device",
+   "torch": "true",
+   "engine": "false",
+   "label": "true",
+   "torch_p": 0.503,
+   "engine_p": 0.5049,
+   "tvd": 0.0079
+  },
+  {
+   "i": 87,
+   "question": "tool",
+   "torch": "smart_connect",
+   "engine": "none_reject",
+   "label": "smart_connect",
+   "torch_p": 0.263,
+   "engine_p": 0.2662,
+   "tvd": 0.0065
+  },
+  {
+   "i": 26,
+   "question": "run_on_device",
+   "torch": "true",
+   "engine": "false",
+   "label": "true",
+   "torch_p": 0.5024,
+   "engine_p": 0.5003,
+   "tvd": 0.0027
+  }
+ ]
+}

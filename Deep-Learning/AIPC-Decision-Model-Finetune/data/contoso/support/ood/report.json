@@ -1,0 +1,34 @@
+{
+ "labels": {
+  "test": {
+   "queue": {
+    "damage_claim": 24,
+    "sales_ops": 112,
+    "remote_l1": 47,
+    "privacy_desk": 25,
+    "onsite_repair": 26,
+    "bios_l2": 36,
+    "depot_repair": 50,
+    "battery_program": 17
+   },
+   "onsite_eligible": {
+    "False": 311,
+    "True": 26
+   },
+   "urgency": {
+    "1": 170,
+    "0": 49,
+    "2": 75,
+    "3": 43
+   }
+  }
+ },
+ "pairs": 37,
+ "missing_text": 0,
+ "counts": {
+  "train": 0,
+  "calib": 0,
+  "dev": 0,
+  "test": 337
+ }
+}

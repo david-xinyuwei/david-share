@@ -1,0 +1,143 @@
+{
+ "torch": "验证结果\\端侧引擎_20261027-124700\\pytorch-ftcf-4b\\support\\rows.json",
+ "engine": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\验证结果\\端侧引擎_20261027-124700\\ftcf-kev-4b-Q4_K_M-cpu\\support\\rows.jsonl",
+ "missing": 0,
+ "by_type": {
+  "all": {
+   "n": 510,
+   "agree_count": 501,
+   "agreement": 0.982353,
+   "torch_acc": 0.958824,
+   "engine_acc": 0.952941,
+   "only_torch_correct": 6,
+   "only_engine_correct": 3,
+   "mean_tvd": 0.016216,
+   "max_tvd": 0.600502
+  },
+  "choice": {
+   "n": 170,
+   "agree_count": 166,
+   "agreement": 0.976471,
+   "torch_acc": 0.923529,
+   "engine_acc": 0.923529,
+   "only_torch_correct": 2,
+   "only_engine_correct": 2,
+   "mean_tvd": 0.027092,
+   "max_tvd": 0.476976
+  },
+  "noul": {
+   "n": 170,
+   "agree_count": 166,
+   "agreement": 0.976471,
+   "torch_acc": 0.952941,
+   "engine_acc": 0.941176,
+   "only_torch_correct": 3,
+   "only_engine_correct": 1,
+   "mean_tvd": 0.009678,
+   "max_tvd": 0.158827
+  },
+  "score": {
+   "n": 170,
+   "agree_count": 169,
+   "agreement": 0.994118,
+   "torch_acc": 1.0,
+   "engine_acc": 0.994118,
+   "only_torch_correct": 1,
+   "only_engine_correct": 0,
+   "mean_tvd": 0.011877,
+   "max_tvd": 0.600502
+  }
+ },
+ "flips": [
+  {
+   "i": 149,
+   "question": "urgency",
+   "torch": "1",
+   "engine": "0",
+   "label": "1",
+   "torch_p": 0.8886,
+   "engine_p": 0.7048,
+   "tvd": 0.6005
+  },
+  {
+   "i": 98,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "depot_repair",
+   "label": "sales_ops",
+   "torch_p": 0.8414,
+   "engine_p": 0.621,
+   "tvd": 0.477
+  },
+  {
+   "i": 123,
+   "question": "queue",
+   "torch": "onsite_repair",
+   "engine": "depot_repair",
+   "label": "onsite_repair",
+   "torch_p": 0.5672,
+   "engine_p": 0.5141,
+   "tvd": 0.1882
+  },
+  {
+   "i": 131,
+   "question": "onsite_eligible",
+   "torch": "true",
+   "engine": "false",
+   "label": "true",
+   "torch_p": 0.6075,
+   "engine_p": 0.5224,
+   "tvd": 0.1299
+  },
+  {
+   "i": 167,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "false",
+   "torch_p": 0.5168,
+   "engine_p": 0.5718,
+   "tvd": 0.0887
+  },
+  {
+   "i": 109,
+   "question": "queue",
+   "torch": "onsite_repair",
+   "engine": "depot_repair",
+   "label": "depot_repair",
+   "torch_p": 0.4818,
+   "engine_p": 0.4468,
+   "tvd": 0.0886
+  },
+  {
+   "i": 124,
+   "question": "queue",
+   "torch": "remote_l1",
+   "engine": "sales_ops",
+   "label": "sales_ops",
+   "torch_p": 0.5205,
+   "engine_p": 0.5122,
+   "tvd": 0.0731
+  },
+  {
+   "i": 109,
+   "question": "onsite_eligible",
+   "torch": "true",
+   "engine": "false",
+   "label": "false",
+   "torch_p": 0.5019,
+   "engine_p": 0.5563,
+   "tvd": 0.0583
+  },
+  {
+   "i": 99,
+   "question": "onsite_eligible",
+   "torch": "true",
+   "engine": "false",
+   "label": "true",
+   "torch_p": 0.5018,
+   "engine_p": 0.5369,
+   "tvd": 0.0388
+  }
+ ]
+}

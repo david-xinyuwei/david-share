@@ -1,0 +1,59 @@
+evaluated 50/163
+evaluated 100/163
+evaluated 150/163
+{
+  "objective": -0.5046150641248945,
+  "clean": {
+    "n": 489,
+    "nll": 0.5202148433803511,
+    "acc": 0.7995910020449898,
+    "ece": 0.12682210864846136,
+    "brier": 0.3058895948442039,
+    "mean_conf": 0.6831962846289116,
+    "confident_error_rate": 0.0,
+    "coverage_at_0_9": 0.08384458077709611,
+    "accuracy_at_0_9": 1.0,
+    "coverage_at_5pct_error": 0.24948875255623723,
+    "coverage_at_1pct_error": 0.11247443762781185,
+    "aurc": 0.08594862773119714,
+    "error_rate_at_0_9": 0.0,
+    "confidence_bias": -0.11639471741607821,
+    "top_bins": {
+      "0.9": {
+        "n": 41,
+        "errors": 0,
+        "error_rate": 0.0
+      },
+      "0.95": {
+        "n": 0,
+        "errors": 0,
+        "error_rate": null
+      },
+      "0.99": {
+        "n": 0,
+        "errors": 0,
+        "error_rate": null
+      }
+    },
+    "selective": {
+      "0.5": {
+        "coverage": 0.5010224948875256,
+        "accuracy": 0.926530612244898,
+        "confidence_cutoff": 0.6792928778914474
+      },
+      "0.8": {
+        "coverage": 0.8016359918200409,
+        "accuracy": 0.8596938775510204,
+        "confidence_cutoff": 0.5803602760922827
+      }
+    }
+  },
+  "coverage": {
+    "requested_records": 163,
+    "requested_questions": 489,
+    "evaluated_records": 163,
+    "evaluated_questions": 489,
+    "rejected_records": 0,
+    "truncated_records": 0
+  }
+}

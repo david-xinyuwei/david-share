@@ -1,0 +1,41 @@
+{
+ "torch": "验证结果\\端侧引擎_20261027-124700\\pytorch-ftcf-4b\\assistant\\rows.json",
+ "engine": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\验证结果\\端侧引擎_20261027-124700\\ftcf-kev-4b-Q8_0-cpu\\assistant\\rows.jsonl",
+ "missing": 0,
+ "by_type": {
+  "all": {
+   "n": 477,
+   "agree_count": 477,
+   "agreement": 1.0,
+   "torch_acc": 0.997904,
+   "engine_acc": 0.997904,
+   "only_torch_correct": 0,
+   "only_engine_correct": 0,
+   "mean_tvd": 0.00097,
+   "max_tvd": 0.081749
+  },
+  "choice": {
+   "n": 159,
+   "agree_count": 159,
+   "agreement": 1.0,
+   "torch_acc": 1.0,
+   "engine_acc": 1.0,
+   "only_torch_correct": 0,
+   "only_engine_correct": 0,
+   "mean_tvd": 0.000396,
+   "max_tvd": 0.022069
+  },
+  "noul": {
+   "n": 318,
+   "agree_count": 318,
+   "agreement": 1.0,
+   "torch_acc": 0.996855,
+   "engine_acc": 0.996855,
+   "only_torch_correct": 0,
+   "only_engine_correct": 0,
+   "mean_tvd": 0.001257,
+   "max_tvd": 0.081749
+  }
+ },
+ "flips": []
+}

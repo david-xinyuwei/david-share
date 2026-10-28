@@ -1,0 +1,56 @@
+{
+  "label": "released-kev-0.8b-Q8_0-cpu-policy",
+  "model": "ggml-org/Kev-0.8B-GGUF:Q8_0",
+  "backend": "cpu",
+  "build": "b11935-cpu",
+  "server_args": "-hf ggml-org/Kev-0.8B-GGUF:Q8_0 --host 127.0.0.1 --port 8080 -c 8192 -b 2048 -ub 2048 --cache-ram 0",
+  "data_prefix": "policy_test_",
+  "load_seconds": 6.1,
+  "server_log_facts": [
+    "0.04.593.867 I srv          init: decision model type: kev"
+  ],
+  "peak_working_set_mib": 3446,
+  "working_set_mib": 3446,
+  "private_mib": 5899,
+  "cpu_seconds": 6891,
+  "captured": "2026-10-27T14:16:51.5885382-07:00",
+  "summaries": {
+    "support": {
+      "url": "http://127.0.0.1:8080/v1/systemone",
+      "data": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\data\\contoso\\final\\policy_test_support.jsonl",
+      "records": 170,
+      "errors": 0,
+      "questions": 510,
+      "accuracy": 0.6059,
+      "by_type": {
+        "choice": 0.4882,
+        "noul": 0.8941,
+        "score": 0.4353
+      },
+      "latency_ms": {
+        "n": 170,
+        "p50": 4353.4,
+        "p90": 5081.3,
+        "mean": 4460.4
+      }
+    },
+    "assistant": {
+      "url": "http://127.0.0.1:8080/v1/systemone",
+      "data": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\data\\contoso\\final\\policy_test_assistant.jsonl",
+      "records": 159,
+      "errors": 0,
+      "questions": 477,
+      "accuracy": 0.717,
+      "by_type": {
+        "choice": 0.9497,
+        "noul": 0.6006
+      },
+      "latency_ms": {
+        "n": 159,
+        "p50": 2434.7,
+        "p90": 2840.4,
+        "mean": 2487.9
+      }
+    }
+  }
+}

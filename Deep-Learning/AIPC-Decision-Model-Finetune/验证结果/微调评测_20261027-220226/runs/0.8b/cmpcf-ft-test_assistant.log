@@ -1,0 +1,69 @@
+task                 kev acc    Jev acc    kev NLL    Jev NLL
+custom_choice           0.994      1.000      0.010      0.003
+custom_noul             0.965      0.903      0.083      0.207
+{
+  "paired": {
+    "nll": {
+      "macro_nll_delta": -0.05846548017109684,
+      "ci95": [
+        -0.08318864212339745,
+        -0.03784397878706707
+      ],
+      "samples": 1000,
+      "groups": 159,
+      "aggregation": "macro",
+      "unit": "source-stratified original record; sibling questions stay together",
+      "method": "paired cluster percentile bootstrap; full statistic recomputed in each resample"
+    },
+    "acc": {
+      "macro_acc_delta": 0.028301886792452824,
+      "ci95": [
+        0.012578616352201255,
+        0.047169811320754707
+      ],
+      "samples": 1000,
+      "groups": 159,
+      "aggregation": "macro",
+      "unit": "source-stratified original record; sibling questions stay together",
+      "method": "paired cluster percentile bootstrap; full statistic recomputed in each resample"
+    },
+    "brier": {
+      "macro_brier_delta": -0.03829062385850815,
+      "ci95": [
+        -0.05652365038657858,
+        -0.022290540885450218
+      ],
+      "samples": 1000,
+      "groups": 159,
+      "aggregation": "macro",
+      "unit": "source-stratified original record; sibling questions stay together",
+      "method": "paired cluster percentile bootstrap; full statistic recomputed in each resample"
+    }
+  },
+  "none_of_the_above": {
+    "candidate": {
+      "none_present": {
+        "n": 0,
+        "mean_p_none": null,
+        "p_none_above_half": null
+      },
+      "none_absent": {
+        "n": 0,
+        "mean_p_none": null,
+        "p_none_above_half": null
+      }
+    },
+    "reference": {
+      "none_present": {
+        "n": 0,
+        "mean_p_none": null,
+        "p_none_above_half": null
+      },
+      "none_absent": {
+        "n": 0,
+        "mean_p_none": null,
+        "p_none_above_half": null
+      }
+    }
+  }
+}

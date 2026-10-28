@@ -1,0 +1,142 @@
+{
+ "torch": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\验证结果\\端侧引擎_20261027-124700\\pytorch-ft-0.8b\\assistant\\rows.json",
+ "engine": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\验证结果\\端侧引擎_20261027-124700\\ft-kev-0.8b-Q4_K_M-cpu\\assistant\\rows.jsonl",
+ "missing": 0,
+ "by_type": {
+  "all": {
+   "n": 477,
+   "agree_count": 467,
+   "agreement": 0.979036,
+   "torch_acc": 0.93501,
+   "engine_acc": 0.939203,
+   "only_torch_correct": 4,
+   "only_engine_correct": 6,
+   "mean_tvd": 0.026027,
+   "max_tvd": 0.576166
+  },
+  "choice": {
+   "n": 159,
+   "agree_count": 159,
+   "agreement": 1.0,
+   "torch_acc": 1.0,
+   "engine_acc": 1.0,
+   "only_torch_correct": 0,
+   "only_engine_correct": 0,
+   "mean_tvd": 0.002987,
+   "max_tvd": 0.148311
+  },
+  "noul": {
+   "n": 318,
+   "agree_count": 308,
+   "agreement": 0.968553,
+   "torch_acc": 0.902516,
+   "engine_acc": 0.908805,
+   "only_torch_correct": 4,
+   "only_engine_correct": 6,
+   "mean_tvd": 0.037547,
+   "max_tvd": 0.576166
+  }
+ },
+ "flips": [
+  {
+   "i": 136,
+   "question": "needs_confirmation",
+   "torch": "false",
+   "engine": "true",
+   "label": "true",
+   "torch_p": 0.6769,
+   "engine_p": 0.8993,
+   "tvd": 0.5762
+  },
+  {
+   "i": 135,
+   "question": "needs_confirmation",
+   "torch": "false",
+   "engine": "true",
+   "label": "true",
+   "torch_p": 0.521,
+   "engine_p": 0.9453,
+   "tvd": 0.4663
+  },
+  {
+   "i": 44,
+   "question": "needs_confirmation",
+   "torch": "false",
+   "engine": "true",
+   "label": "false",
+   "torch_p": 0.7137,
+   "engine_p": 0.6774,
+   "tvd": 0.3911
+  },
+  {
+   "i": 45,
+   "question": "needs_confirmation",
+   "torch": "false",
+   "engine": "true",
+   "label": "true",
+   "torch_p": 0.72,
+   "engine_p": 0.6347,
+   "tvd": 0.3547
+  },
+  {
+   "i": 46,
+   "question": "needs_confirmation",
+   "torch": "false",
+   "engine": "true",
+   "label": "false",
+   "torch_p": 0.6019,
+   "engine_p": 0.6423,
+   "tvd": 0.2442
+  },
+  {
+   "i": 29,
+   "question": "needs_confirmation",
+   "torch": "false",
+   "engine": "true",
+   "label": "false",
+   "torch_p": 0.653,
+   "engine_p": 0.5817,
+   "tvd": 0.2347
+  },
+  {
+   "i": 9,
+   "question": "needs_confirmation",
+   "torch": "true",
+   "engine": "false",
+   "label": "false",
+   "torch_p": 0.5911,
+   "engine_p": 0.634,
+   "tvd": 0.2252
+  },
+  {
+   "i": 100,
+   "question": "run_on_device",
+   "torch": "true",
+   "engine": "false",
+   "label": "false",
+   "torch_p": 0.6086,
+   "engine_p": 0.5124,
+   "tvd": 0.121
+  },
+  {
+   "i": 144,
+   "question": "needs_confirmation",
+   "torch": "false",
+   "engine": "true",
+   "label": "false",
+   "torch_p": 0.5842,
+   "engine_p": 0.5295,
+   "tvd": 0.1137
+  },
+  {
+   "i": 30,
+   "question": "run_on_device",
+   "torch": "false",
+   "engine": "true",
+   "label": "true",
+   "torch_p": 0.5268,
+   "engine_p": 0.5138,
+   "tvd": 0.0406
+  }
+ ]
+}

@@ -1,0 +1,123 @@
+{
+ "torch": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\验证结果\\端侧引擎_20261027-124700\\pytorch-b0policy-0.8b\\support\\rows.json",
+ "engine": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\验证结果\\端侧引擎_20261027-124700\\released-kev-0.8b-Q8_0-cpu-policy\\support\\rows.jsonl",
+ "missing": 0,
+ "by_type": {
+  "all": {
+   "n": 510,
+   "agree_count": 503,
+   "agreement": 0.986275,
+   "torch_acc": 0.607843,
+   "engine_acc": 0.605882,
+   "only_torch_correct": 2,
+   "only_engine_correct": 1,
+   "mean_tvd": 0.006611,
+   "max_tvd": 0.029854
+  },
+  "choice": {
+   "n": 170,
+   "agree_count": 165,
+   "agreement": 0.970588,
+   "torch_acc": 0.494118,
+   "engine_acc": 0.488235,
+   "only_torch_correct": 1,
+   "only_engine_correct": 0,
+   "mean_tvd": 0.009103,
+   "max_tvd": 0.029854
+  },
+  "noul": {
+   "n": 170,
+   "agree_count": 170,
+   "agreement": 1.0,
+   "torch_acc": 0.894118,
+   "engine_acc": 0.894118,
+   "only_torch_correct": 0,
+   "only_engine_correct": 0,
+   "mean_tvd": 0.003956,
+   "max_tvd": 0.017701
+  },
+  "score": {
+   "n": 170,
+   "agree_count": 168,
+   "agreement": 0.988235,
+   "torch_acc": 0.435294,
+   "engine_acc": 0.435294,
+   "only_torch_correct": 1,
+   "only_engine_correct": 1,
+   "mean_tvd": 0.006773,
+   "max_tvd": 0.019534
+  }
+ },
+ "flips": [
+  {
+   "i": 107,
+   "question": "queue",
+   "torch": "bios_l2",
+   "engine": "remote_l1",
+   "label": "depot_repair",
+   "torch_p": 0.2125,
+   "engine_p": 0.2233,
+   "tvd": 0.0173
+  },
+  {
+   "i": 8,
+   "question": "urgency",
+   "torch": "2",
+   "engine": "3",
+   "label": "3",
+   "torch_p": 0.3733,
+   "engine_p": 0.3786,
+   "tvd": 0.0152
+  },
+  {
+   "i": 96,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "depot_repair",
+   "label": "remote_l1",
+   "torch_p": 0.2331,
+   "engine_p": 0.2368,
+   "tvd": 0.0116
+  },
+  {
+   "i": 106,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "remote_l1",
+   "label": "sales_ops",
+   "torch_p": 0.2144,
+   "engine_p": 0.2099,
+   "tvd": 0.0089
+  },
+  {
+   "i": 54,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "depot_repair",
+   "label": "onsite_repair",
+   "torch_p": 0.2426,
+   "engine_p": 0.2391,
+   "tvd": 0.0084
+  },
+  {
+   "i": 11,
+   "question": "queue",
+   "torch": "depot_repair",
+   "engine": "sales_ops",
+   "label": "battery_program",
+   "torch_p": 0.2395,
+   "engine_p": 0.2368,
+   "tvd": 0.0067
+  },
+  {
+   "i": 22,
+   "question": "urgency",
+   "torch": "3",
+   "engine": "0",
+   "label": "3",
+   "torch_p": 0.3284,
+   "engine_p": 0.331,
+   "tvd": 0.0048
+  }
+ ]
+}

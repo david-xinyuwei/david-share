@@ -1,0 +1,38 @@
+{
+ "labels": {
+  "test": {
+   "tool": {
+    "display_eye_care": 22,
+    "audio_enhance": 16,
+    "smart_power": 66,
+    "camera_studio": 16,
+    "screen_translate": 19,
+    "support_chat": 20,
+    "general_chat": 27,
+    "meeting_assist": 42,
+    "system_diagnose": 20,
+    "privacy_shield": 21,
+    "driver_update": 14,
+    "file_search": 12,
+    "smart_connect": 20,
+    "none_reject": 2
+   },
+   "run_on_device": {
+    "True": 242,
+    "False": 75
+   },
+   "needs_confirmation": {
+    "False": 253,
+    "True": 64
+   }
+  }
+ },
+ "pairs": 30,
+ "missing_text": 13,
+ "counts": {
+  "train": 0,
+  "calib": 0,
+  "dev": 0,
+  "test": 317
+ }
+}

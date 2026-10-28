@@ -1,0 +1,12 @@
+{
+  "model": "ggml-org/Kev-4B-GGUF:Q4_K_M",
+  "gguf_mib": 2893.0,
+  "build": "b11935-cpu",
+  "args": "-c 8192 -b 2048 -ub 2048 --cache-ram 0",
+  "peak_working_set_mib": 6849,
+  "working_set_mib": 6849,
+  "private_mib": 7497,
+  "cpu_seconds": 8894,
+  "captured": "2026-10-27T13:12:47.609618-07:00",
+  "gguf_sha256": "33ae6b18926502b2209a1bf7d3b61a350d65938441515c686bb87d226a19eff9"
+}

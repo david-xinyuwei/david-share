@@ -1,0 +1,70 @@
+task                 kev acc    Jev acc    kev NLL    Jev NLL
+custom_choice           0.516      0.175      0.817      2.235
+custom_noul             0.889      0.397      0.145      0.729
+custom_score            1.000      0.317      0.007      1.343
+{
+  "paired": {
+    "nll": {
+      "macro_nll_delta": -1.112620226259346,
+      "ci95": [
+        -1.1864491506467245,
+        -1.0373060119594955
+      ],
+      "samples": 1000,
+      "groups": 126,
+      "aggregation": "macro",
+      "unit": "source-stratified original record; sibling questions stay together",
+      "method": "paired cluster percentile bootstrap; full statistic recomputed in each resample"
+    },
+    "acc": {
+      "macro_acc_delta": 0.5052910052910052,
+      "ci95": [
+        0.4444444444444444,
+        0.5687830687830687
+      ],
+      "samples": 1000,
+      "groups": 126,
+      "aggregation": "macro",
+      "unit": "source-stratified original record; sibling questions stay together",
+      "method": "paired cluster percentile bootstrap; full statistic recomputed in each resample"
+    },
+    "brier": {
+      "macro_brier_delta": -0.5150148562561007,
+      "ci95": [
+        -0.548632889618954,
+        -0.47977464598114306
+      ],
+      "samples": 1000,
+      "groups": 126,
+      "aggregation": "macro",
+      "unit": "source-stratified original record; sibling questions stay together",
+      "method": "paired cluster percentile bootstrap; full statistic recomputed in each resample"
+    }
+  },
+  "none_of_the_above": {
+    "candidate": {
+      "none_present": {
+        "n": 0,
+        "mean_p_none": null,
+        "p_none_above_half": null
+      },
+      "none_absent": {
+        "n": 0,
+        "mean_p_none": null,
+        "p_none_above_half": null
+      }
+    },
+    "reference": {
+      "none_present": {
+        "n": 0,
+        "mean_p_none": null,
+        "p_none_above_half": null
+      },
+      "none_absent": {
+        "n": 0,
+        "mean_p_none": null,
+        "p_none_above_half": null
+      }
+    }
+  }
+}

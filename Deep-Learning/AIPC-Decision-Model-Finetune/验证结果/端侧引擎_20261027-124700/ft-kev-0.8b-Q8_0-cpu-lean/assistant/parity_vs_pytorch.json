@@ -1,0 +1,62 @@
+{
+ "torch": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\验证结果\\端侧引擎_20261027-124700\\pytorch-ft-0.8b\\assistant\\rows.json",
+ "engine": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\验证结果\\端侧引擎_20261027-124700\\ft-kev-0.8b-Q8_0-cpu-lean\\assistant\\rows.jsonl",
+ "missing": 0,
+ "by_type": {
+  "all": {
+   "n": 477,
+   "agree_count": 475,
+   "agreement": 0.995807,
+   "torch_acc": 0.93501,
+   "engine_acc": 0.93501,
+   "only_torch_correct": 1,
+   "only_engine_correct": 1,
+   "mean_tvd": 0.003804,
+   "max_tvd": 0.057614
+  },
+  "choice": {
+   "n": 159,
+   "agree_count": 159,
+   "agreement": 1.0,
+   "torch_acc": 1.0,
+   "engine_acc": 1.0,
+   "only_torch_correct": 0,
+   "only_engine_correct": 0,
+   "mean_tvd": 0.000527,
+   "max_tvd": 0.034887
+  },
+  "noul": {
+   "n": 318,
+   "agree_count": 316,
+   "agreement": 0.993711,
+   "torch_acc": 0.902516,
+   "engine_acc": 0.902516,
+   "only_torch_correct": 1,
+   "only_engine_correct": 1,
+   "mean_tvd": 0.005442,
+   "max_tvd": 0.057614
+  }
+ },
+ "flips": [
+  {
+   "i": 18,
+   "question": "needs_confirmation",
+   "torch": "true",
+   "engine": "false",
+   "label": "false",
+   "torch_p": 0.5158,
+   "engine_p": 0.5418,
+   "tvd": 0.0576
+  },
+  {
+   "i": 22,
+   "question": "run_on_device",
+   "torch": "true",
+   "engine": "false",
+   "label": "true",
+   "torch_p": 0.5061,
+   "engine_p": 0.5193,
+   "tvd": 0.0254
+  }
+ ]
+}

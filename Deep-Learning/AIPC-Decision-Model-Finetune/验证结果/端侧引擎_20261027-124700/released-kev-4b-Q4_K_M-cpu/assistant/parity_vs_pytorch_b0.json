@@ -1,0 +1,172 @@
+{
+ "torch": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\验证结果\\端侧引擎_20261027-124700\\pytorch-b0-4b\\assistant\\rows.json",
+ "engine": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\验证结果\\端侧引擎_20261027-124700\\released-kev-4b-Q4_K_M-cpu\\assistant\\rows.jsonl",
+ "missing": 0,
+ "by_type": {
+  "all": {
+   "n": 477,
+   "agree_count": 464,
+   "agreement": 0.972746,
+   "torch_acc": 0.81761,
+   "engine_acc": 0.819706,
+   "only_torch_correct": 6,
+   "only_engine_correct": 7,
+   "mean_tvd": 0.023019,
+   "max_tvd": 0.139283
+  },
+  "choice": {
+   "n": 159,
+   "agree_count": 158,
+   "agreement": 0.993711,
+   "torch_acc": 0.937107,
+   "engine_acc": 0.943396,
+   "only_torch_correct": 0,
+   "only_engine_correct": 1,
+   "mean_tvd": 0.025037,
+   "max_tvd": 0.139283
+  },
+  "noul": {
+   "n": 318,
+   "agree_count": 306,
+   "agreement": 0.962264,
+   "torch_acc": 0.757862,
+   "engine_acc": 0.757862,
+   "only_torch_correct": 6,
+   "only_engine_correct": 6,
+   "mean_tvd": 0.02201,
+   "max_tvd": 0.109806
+  }
+ },
+ "flips": [
+  {
+   "i": 5,
+   "question": "run_on_device",
+   "torch": "true",
+   "engine": "false",
+   "label": "true",
+   "torch_p": 0.5062,
+   "engine_p": 0.5566,
+   "tvd": 0.0628
+  },
+  {
+   "i": 143,
+   "question": "needs_confirmation",
+   "torch": "false",
+   "engine": "true",
+   "label": "false",
+   "torch_p": 0.5101,
+   "engine_p": 0.5487,
+   "tvd": 0.0588
+  },
+  {
+   "i": 110,
+   "question": "run_on_device",
+   "torch": "true",
+   "engine": "false",
+   "label": "false",
+   "torch_p": 0.5525,
+   "engine_p": 0.5023,
+   "tvd": 0.0548
+  },
+  {
+   "i": 89,
+   "question": "tool",
+   "torch": "system_diagnose",
+   "engine": "smart_power",
+   "label": "smart_power",
+   "torch_p": 0.2667,
+   "engine_p": 0.246,
+   "tvd": 0.0484
+  },
+  {
+   "i": 74,
+   "question": "run_on_device",
+   "torch": "true",
+   "engine": "false",
+   "label": "true",
+   "torch_p": 0.5146,
+   "engine_p": 0.531,
+   "tvd": 0.0455
+  },
+  {
+   "i": 91,
+   "question": "needs_confirmation",
+   "torch": "true",
+   "engine": "false",
+   "label": "false",
+   "torch_p": 0.5075,
+   "engine_p": 0.5361,
+   "tvd": 0.0436
+  },
+  {
+   "i": 90,
+   "question": "needs_confirmation",
+   "torch": "true",
+   "engine": "false",
+   "label": "false",
+   "torch_p": 0.5078,
+   "engine_p": 0.5351,
+   "tvd": 0.0428
+  },
+  {
+   "i": 63,
+   "question": "needs_confirmation",
+   "torch": "false",
+   "engine": "true",
+   "label": "false",
+   "torch_p": 0.5023,
+   "engine_p": 0.5294,
+   "tvd": 0.0317
+  },
+  {
+   "i": 16,
+   "question": "needs_confirmation",
+   "torch": "false",
+   "engine": "true",
+   "label": "true",
+   "torch_p": 0.5182,
+   "engine_p": 0.511,
+   "tvd": 0.0292
+  },
+  {
+   "i": 149,
+   "question": "run_on_device",
+   "torch": "false",
+   "engine": "true",
+   "label": "false",
+   "torch_p": 0.5162,
+   "engine_p": 0.5108,
+   "tvd": 0.027
+  },
+  {
+   "i": 27,
+   "question": "needs_confirmation",
+   "torch": "true",
+   "engine": "false",
+   "label": "true",
+   "torch_p": 0.5062,
+   "engine_p": 0.5197,
+   "tvd": 0.0259
+  },
+  {
+   "i": 154,
+   "question": "run_on_device",
+   "torch": "true",
+   "engine": "false",
+   "label": "false",
+   "torch_p": 0.5129,
+   "engine_p": 0.5047,
+   "tvd": 0.0176
+  },
+  {
+   "i": 86,
+   "question": "run_on_device",
+   "torch": "false",
+   "engine": "true",
+   "label": "true",
+   "torch_p": 0.5081,
+   "engine_p": 0.5023,
+   "tvd": 0.0104
+  }
+ ]
+}

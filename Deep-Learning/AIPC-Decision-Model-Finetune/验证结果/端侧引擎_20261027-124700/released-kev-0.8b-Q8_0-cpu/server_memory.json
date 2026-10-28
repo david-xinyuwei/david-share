@@ -1,0 +1,12 @@
+{
+  "model": "ggml-org/Kev-0.8B-GGUF:Q8_0",
+  "build": "b11935-cpu",
+  "args": "-c 8192 -b 2048 -ub 2048 --cache-ram 0",
+  "peak_working_set_mib": 2323,
+  "working_set_mib": 2322,
+  "private_mib": 5016,
+  "cpu_seconds": 2046,
+  "captured": "2026-10-27T12:51:04.6851971-07:00",
+  "gguf_mib": 774.8,
+  "gguf_sha256": "27278f34eb3273bceea4c053dc50dd61a5161da21a718c4aacdf8fd5830771d0"
+}

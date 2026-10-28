@@ -1,0 +1,38 @@
+STAGE baseline_cf 2026-10-27T20:54:58+00:00
+BENCH b0-test_cf_support acc=0.2963 brier=0.7290 ece=0.1402 n=378
+BENCH b0-test_cf_assistant acc=0.5524 brier=0.4605 ece=0.1638 n=210
+BENCH b0-ood_cf_support acc=0.3083 brier=0.7174 ece=0.1330 n=759
+BENCH b0-ood_cf_assistant acc=0.5362 brier=0.5017 ece=0.1520 n=483
+BENCH b0-dev_cf_support acc=0.2697 brier=0.7170 ece=0.1705 n=393
+BENCH b0-dev_cf_assistant acc=0.5721 brier=0.4624 ece=0.1133 n=222
+BENCH b0policy-test_cf_support acc=0.5212 brier=0.5967 ece=0.1734 n=378
+BENCH b0policy-test_cf_assistant acc=0.6667 brier=0.3930 ece=0.1120 n=210
+BENCH b0policy-ood_cf_support acc=0.5046 brier=0.6076 ece=0.1389 n=759
+BENCH b0policy-ood_cf_assistant acc=0.6398 brier=0.4398 ece=0.1358 n=483
+BENCH ft-test_cf_support acc=0.7646 brier=0.2796 ece=0.0465 n=378
+BENCH ft-test_cf_assistant acc=0.8190 brier=0.2352 ece=0.0739 n=210
+BENCH ft-ood_cf_support acc=0.7233 brier=0.3703 ece=0.0797 n=759
+BENCH ft-ood_cf_assistant acc=0.7867 brier=0.2888 ece=0.1131 n=483
+BENCH ft-dev_cf_support acc=0.7888 brier=0.2648 ece=0.0584 n=393
+BENCH ft-dev_cf_assistant acc=0.8288 brier=0.2289 ece=0.0777 n=222
+STAGE train_cf batch=4 accum=2 2026-10-27T20:59:34+00:00
+TRAIN_CF_DONE wall_s=698 peak_gpu_mib=7573 batch=4 accum=2 2026-10-27T21:11:12+00:00
+STAGE calibrate_cf 2026-10-27T21:11:12+00:00
+BENCH ftcf-calib-raw acc=0.9299 brier=0.0903 ece=0.0112 n=984
+CALIBRATED_CF fit rows     T=1.15  acc 0.930 -> 0.930 | brier 0.090 -> 0.090 | ece 0.011 -> 0.008 | conf-err 0.005 -> 0.003 | cov@5% 0.96 -> 0.96 fit rows     OOF T=[1.10, 1.23, 1.15, 1.23, 1.00] ece raw 0.011 [0.009, 0.027] -> oof 0.005 [0.007, 0.023]  delta [-0.009, 0.004] separated=False wrote temperature 1.15 to /mnt/aipc/runs/0.8b/ft_cf/head.pt 
+STAGE evaluate_cf 2026-10-27T21:11:42+00:00
+BENCH ftcf-test_support acc=0.8686 brier=0.1522 ece=0.0298 n=510
+BENCH ftcf-test_assistant acc=0.9748 brier=0.0351 ece=0.0128 n=477
+BENCH ftcf-ood_support acc=0.8249 brier=0.2331 ece=0.0640 n=1011
+BENCH ftcf-ood_assistant acc=0.9443 brier=0.0834 ece=0.0175 n=951
+BENCH ftcf-dev_support acc=0.8840 brier=0.1328 ece=0.0231 n=543
+BENCH ftcf-dev_assistant acc=0.9755 brier=0.0412 ece=0.0079 n=489
+BENCH ftcf-test_cf_support acc=0.8016 brier=0.2140 ece=0.0318 n=378
+BENCH ftcf-test_cf_assistant acc=0.9381 brier=0.0751 ece=0.0275 n=210
+BENCH ftcf-ood_cf_support acc=0.7418 brier=0.3303 ece=0.0934 n=759
+BENCH ftcf-ood_cf_assistant acc=0.9234 brier=0.1201 ece=0.0220 n=483
+BENCH ftcf-dev_cf_support acc=0.8219 brier=0.1936 ece=0.0289 n=393
+BENCH ftcf-dev_cf_assistant acc=0.9279 brier=0.0916 ece=0.0282 n=222
+BENCH ftcf-public-transfer-v4-dev acc=0.6479 brier=0.5740
+STAGE compare_cf 2026-10-27T21:15:48+00:00
+PIPELINE_CF_DONE 2026-10-27T21:16:55+00:00

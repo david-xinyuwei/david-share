@@ -1,0 +1,4 @@
+      6: STRING     |        1 | general.name = 'Contoso-Kev-4B-FTcf'
+     34: FLOAT32    |        1 | qwen35.decision.temperature.choice = 2.3510959148406982
+     35: FLOAT32    |        1 | qwen35.decision.temperature.score = 2.3510959148406982
+     36: FLOAT32    |        1 | qwen35.decision.temperature.noul = 2.3510959148406982

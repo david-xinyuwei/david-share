@@ -1,0 +1,173 @@
+{
+ "torch": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\验证结果\\端侧引擎_20261027-124700\\pytorch-ft-0.8b\\support\\rows.json",
+ "engine": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\验证结果\\端侧引擎_20261027-124700\\ft-kev-0.8b-Q8_0-opencl\\support\\rows.jsonl",
+ "missing": 0,
+ "by_type": {
+  "all": {
+   "n": 510,
+   "agree_count": 498,
+   "agreement": 0.976471,
+   "torch_acc": 0.864706,
+   "engine_acc": 0.856863,
+   "only_torch_correct": 7,
+   "only_engine_correct": 3,
+   "mean_tvd": 0.019112,
+   "max_tvd": 0.442599
+  },
+  "choice": {
+   "n": 170,
+   "agree_count": 165,
+   "agreement": 0.970588,
+   "torch_acc": 0.688235,
+   "engine_acc": 0.682353,
+   "only_torch_correct": 2,
+   "only_engine_correct": 1,
+   "mean_tvd": 0.026838,
+   "max_tvd": 0.107858
+  },
+  "noul": {
+   "n": 170,
+   "agree_count": 165,
+   "agreement": 0.970588,
+   "torch_acc": 0.905882,
+   "engine_acc": 0.9,
+   "only_torch_correct": 3,
+   "only_engine_correct": 2,
+   "mean_tvd": 0.011423,
+   "max_tvd": 0.108749
+  },
+  "score": {
+   "n": 170,
+   "agree_count": 168,
+   "agreement": 0.988235,
+   "torch_acc": 1.0,
+   "engine_acc": 0.988235,
+   "only_torch_correct": 2,
+   "only_engine_correct": 0,
+   "mean_tvd": 0.019075,
+   "max_tvd": 0.442599
+  }
+ },
+ "flips": [
+  {
+   "i": 84,
+   "question": "urgency",
+   "torch": "1",
+   "engine": "3",
+   "label": "1",
+   "torch_p": 0.6784,
+   "engine_p": 0.7258,
+   "tvd": 0.4426
+  },
+  {
+   "i": 137,
+   "question": "urgency",
+   "torch": "2",
+   "engine": "1",
+   "label": "2",
+   "torch_p": 0.5275,
+   "engine_p": 0.7905,
+   "tvd": 0.3237
+  },
+  {
+   "i": 44,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "false",
+   "torch_p": 0.6085,
+   "engine_p": 0.5003,
+   "tvd": 0.1087
+  },
+  {
+   "i": 167,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "false",
+   "torch_p": 0.5211,
+   "engine_p": 0.5781,
+   "tvd": 0.0992
+  },
+  {
+   "i": 99,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "true",
+   "torch_p": 0.5759,
+   "engine_p": 0.5231,
+   "tvd": 0.099
+  },
+  {
+   "i": 84,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "false",
+   "torch_p": 0.5437,
+   "engine_p": 0.5358,
+   "tvd": 0.0795
+  },
+  {
+   "i": 89,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "true",
+   "torch_p": 0.5692,
+   "engine_p": 0.5018,
+   "tvd": 0.0709
+  },
+  {
+   "i": 127,
+   "question": "queue",
+   "torch": "depot_repair",
+   "engine": "sales_ops",
+   "label": "sales_ops",
+   "torch_p": 0.4311,
+   "engine_p": 0.4107,
+   "tvd": 0.0695
+  },
+  {
+   "i": 74,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "battery_program",
+   "label": "sales_ops",
+   "torch_p": 0.4686,
+   "engine_p": 0.4449,
+   "tvd": 0.0616
+  },
+  {
+   "i": 103,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "battery_program",
+   "label": "sales_ops",
+   "torch_p": 0.4936,
+   "engine_p": 0.4587,
+   "tvd": 0.0606
+  },
+  {
+   "i": 162,
+   "question": "queue",
+   "torch": "onsite_repair",
+   "engine": "depot_repair",
+   "label": "sales_ops",
+   "torch_p": 0.3856,
+   "engine_p": 0.3905,
+   "tvd": 0.0467
+  },
+  {
+   "i": 90,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "depot_repair",
+   "label": "onsite_repair",
+   "torch_p": 0.3499,
+   "engine_p": 0.3533,
+   "tvd": 0.0362
+  }
+ ]
+}

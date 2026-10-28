@@ -1,0 +1,93 @@
+{
+ "torch": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\验证结果\\端侧引擎_20261027-124700\\pytorch-ft-0.8b\\support\\rows.json",
+ "engine": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\验证结果\\端侧引擎_20261027-124700\\ft-kev-0.8b-Q8_0-cpu\\support\\rows.jsonl",
+ "missing": 0,
+ "by_type": {
+  "all": {
+   "n": 510,
+   "agree_count": 506,
+   "agreement": 0.992157,
+   "torch_acc": 0.864706,
+   "engine_acc": 0.864706,
+   "only_torch_correct": 1,
+   "only_engine_correct": 1,
+   "mean_tvd": 0.006804,
+   "max_tvd": 0.0909
+  },
+  "choice": {
+   "n": 170,
+   "agree_count": 168,
+   "agreement": 0.988235,
+   "torch_acc": 0.688235,
+   "engine_acc": 0.688235,
+   "only_torch_correct": 0,
+   "only_engine_correct": 0,
+   "mean_tvd": 0.010272,
+   "max_tvd": 0.045668
+  },
+  "noul": {
+   "n": 170,
+   "agree_count": 168,
+   "agreement": 0.988235,
+   "torch_acc": 0.905882,
+   "engine_acc": 0.905882,
+   "only_torch_correct": 1,
+   "only_engine_correct": 1,
+   "mean_tvd": 0.00674,
+   "max_tvd": 0.0909
+  },
+  "score": {
+   "n": 170,
+   "agree_count": 170,
+   "agreement": 1.0,
+   "torch_acc": 1.0,
+   "engine_acc": 1.0,
+   "only_torch_correct": 0,
+   "only_engine_correct": 0,
+   "mean_tvd": 0.003399,
+   "max_tvd": 0.078134
+  }
+ },
+ "flips": [
+  {
+   "i": 83,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "true",
+   "torch_p": 0.5391,
+   "engine_p": 0.5204,
+   "tvd": 0.0595
+  },
+  {
+   "i": 167,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "false",
+   "torch_p": 0.5211,
+   "engine_p": 0.5134,
+   "tvd": 0.0345
+  },
+  {
+   "i": 120,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "depot_repair",
+   "label": "remote_l1",
+   "torch_p": 0.3165,
+   "engine_p": 0.3077,
+   "tvd": 0.0242
+  },
+  {
+   "i": 90,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "depot_repair",
+   "label": "onsite_repair",
+   "torch_p": 0.3499,
+   "engine_p": 0.3451,
+   "tvd": 0.0225
+  }
+ ]
+}

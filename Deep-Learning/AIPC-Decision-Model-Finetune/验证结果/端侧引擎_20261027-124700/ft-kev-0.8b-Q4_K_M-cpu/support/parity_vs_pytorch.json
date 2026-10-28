@@ -1,0 +1,313 @@
+{
+ "torch": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\验证结果\\端侧引擎_20261027-124700\\pytorch-ft-0.8b\\support\\rows.json",
+ "engine": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\验证结果\\端侧引擎_20261027-124700\\ft-kev-0.8b-Q4_K_M-cpu\\support\\rows.jsonl",
+ "missing": 0,
+ "by_type": {
+  "all": {
+   "n": 510,
+   "agree_count": 484,
+   "agreement": 0.94902,
+   "torch_acc": 0.864706,
+   "engine_acc": 0.87451,
+   "only_torch_correct": 7,
+   "only_engine_correct": 12,
+   "mean_tvd": 0.036554,
+   "max_tvd": 0.461876
+  },
+  "choice": {
+   "n": 170,
+   "agree_count": 152,
+   "agreement": 0.894118,
+   "torch_acc": 0.688235,
+   "engine_acc": 0.694118,
+   "only_torch_correct": 5,
+   "only_engine_correct": 6,
+   "mean_tvd": 0.066643,
+   "max_tvd": 0.331081
+  },
+  "noul": {
+   "n": 170,
+   "agree_count": 164,
+   "agreement": 0.964706,
+   "torch_acc": 0.905882,
+   "engine_acc": 0.941176,
+   "only_torch_correct": 0,
+   "only_engine_correct": 6,
+   "mean_tvd": 0.022898,
+   "max_tvd": 0.197966
+  },
+  "score": {
+   "n": 170,
+   "agree_count": 168,
+   "agreement": 0.988235,
+   "torch_acc": 1.0,
+   "engine_acc": 0.988235,
+   "only_torch_correct": 2,
+   "only_engine_correct": 0,
+   "mean_tvd": 0.020121,
+   "max_tvd": 0.461876
+  }
+ },
+ "flips": [
+  {
+   "i": 133,
+   "question": "urgency",
+   "torch": "1",
+   "engine": "3",
+   "label": "1",
+   "torch_p": 0.8732,
+   "engine_p": 0.5604,
+   "tvd": 0.4619
+  },
+  {
+   "i": 137,
+   "question": "urgency",
+   "torch": "2",
+   "engine": "1",
+   "label": "2",
+   "torch_p": 0.5275,
+   "engine_p": 0.8684,
+   "tvd": 0.402
+  },
+  {
+   "i": 23,
+   "question": "queue",
+   "torch": "depot_repair",
+   "engine": "damage_claim",
+   "label": "depot_repair",
+   "torch_p": 0.3617,
+   "engine_p": 0.5179,
+   "tvd": 0.3311
+  },
+  {
+   "i": 57,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "depot_repair",
+   "label": "depot_repair",
+   "torch_p": 0.4375,
+   "engine_p": 0.5789,
+   "tvd": 0.1882
+  },
+  {
+   "i": 44,
+   "question": "queue",
+   "torch": "depot_repair",
+   "engine": "onsite_repair",
+   "label": "depot_repair",
+   "torch_p": 0.4444,
+   "engine_p": 0.5928,
+   "tvd": 0.1779
+  },
+  {
+   "i": 120,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "depot_repair",
+   "label": "remote_l1",
+   "torch_p": 0.3165,
+   "engine_p": 0.3836,
+   "tvd": 0.1743
+  },
+  {
+   "i": 89,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "true",
+   "torch_p": 0.5692,
+   "engine_p": 0.6048,
+   "tvd": 0.174
+  },
+  {
+   "i": 29,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "onsite_repair",
+   "label": "remote_l1",
+   "torch_p": 0.4009,
+   "engine_p": 0.3347,
+   "tvd": 0.1609
+  },
+  {
+   "i": 31,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "damage_claim",
+   "label": "damage_claim",
+   "torch_p": 0.6,
+   "engine_p": 0.5011,
+   "tvd": 0.1553
+  },
+  {
+   "i": 141,
+   "question": "queue",
+   "torch": "battery_program",
+   "engine": "remote_l1",
+   "label": "battery_program",
+   "torch_p": 0.3677,
+   "engine_p": 0.3675,
+   "tvd": 0.1553
+  },
+  {
+   "i": 119,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "depot_repair",
+   "label": "sales_ops",
+   "torch_p": 0.4,
+   "engine_p": 0.3991,
+   "tvd": 0.1526
+  },
+  {
+   "i": 142,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "true",
+   "torch_p": 0.6119,
+   "engine_p": 0.5363,
+   "tvd": 0.1482
+  },
+  {
+   "i": 140,
+   "question": "queue",
+   "torch": "battery_program",
+   "engine": "remote_l1",
+   "label": "sales_ops",
+   "torch_p": 0.3641,
+   "engine_p": 0.3507,
+   "tvd": 0.1437
+  },
+  {
+   "i": 15,
+   "question": "queue",
+   "torch": "depot_repair",
+   "engine": "onsite_repair",
+   "label": "sales_ops",
+   "torch_p": 0.3462,
+   "engine_p": 0.3839,
+   "tvd": 0.1357
+  },
+  {
+   "i": 74,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "battery_program",
+   "label": "sales_ops",
+   "torch_p": 0.4686,
+   "engine_p": 0.374,
+   "tvd": 0.1215
+  },
+  {
+   "i": 51,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "depot_repair",
+   "label": "depot_repair",
+   "torch_p": 0.3958,
+   "engine_p": 0.4703,
+   "tvd": 0.1106
+  },
+  {
+   "i": 134,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "true",
+   "torch_p": 0.5927,
+   "engine_p": 0.5024,
+   "tvd": 0.0951
+  },
+  {
+   "i": 162,
+   "question": "queue",
+   "torch": "onsite_repair",
+   "engine": "depot_repair",
+   "label": "sales_ops",
+   "torch_p": 0.3856,
+   "engine_p": 0.4375,
+   "tvd": 0.0918
+  },
+  {
+   "i": 90,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "onsite_repair",
+   "label": "onsite_repair",
+   "torch_p": 0.3499,
+   "engine_p": 0.3957,
+   "tvd": 0.0866
+  },
+  {
+   "i": 99,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "true",
+   "torch_p": 0.5759,
+   "engine_p": 0.5088,
+   "tvd": 0.0847
+  },
+  {
+   "i": 97,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "true",
+   "torch_p": 0.5801,
+   "engine_p": 0.5043,
+   "tvd": 0.0844
+  },
+  {
+   "i": 36,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "onsite_repair",
+   "label": "onsite_repair",
+   "torch_p": 0.3756,
+   "engine_p": 0.3881,
+   "tvd": 0.0718
+  },
+  {
+   "i": 165,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "depot_repair",
+   "label": "depot_repair",
+   "torch_p": 0.4392,
+   "engine_p": 0.4025,
+   "tvd": 0.0708
+  },
+  {
+   "i": 164,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "depot_repair",
+   "label": "onsite_repair",
+   "torch_p": 0.4266,
+   "engine_p": 0.4177,
+   "tvd": 0.066
+  },
+  {
+   "i": 59,
+   "question": "queue",
+   "torch": "depot_repair",
+   "engine": "onsite_repair",
+   "label": "remote_l1",
+   "torch_p": 0.3616,
+   "engine_p": 0.4079,
+   "tvd": 0.0647
+  },
+  {
+   "i": 83,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "true",
+   "torch_p": 0.5391,
+   "engine_p": 0.5253,
+   "tvd": 0.0644
+  }
+ ]
+}

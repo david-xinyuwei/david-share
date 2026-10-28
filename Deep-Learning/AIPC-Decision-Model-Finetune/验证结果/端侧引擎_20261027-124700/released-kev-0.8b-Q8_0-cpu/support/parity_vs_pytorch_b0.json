@@ -1,0 +1,173 @@
+{
+ "torch": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\验证结果\\端侧引擎_20261027-124700\\pytorch-b0-0.8b\\support\\rows.json",
+ "engine": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\验证结果\\端侧引擎_20261027-124700\\released-kev-0.8b-Q8_0-cpu\\support\\rows.jsonl",
+ "missing": 0,
+ "by_type": {
+  "all": {
+   "n": 510,
+   "agree_count": 498,
+   "agreement": 0.976471,
+   "torch_acc": 0.447059,
+   "engine_acc": 0.456863,
+   "only_torch_correct": 2,
+   "only_engine_correct": 7,
+   "mean_tvd": 0.007594,
+   "max_tvd": 0.030359
+  },
+  "choice": {
+   "n": 170,
+   "agree_count": 164,
+   "agreement": 0.964706,
+   "torch_acc": 0.435294,
+   "engine_acc": 0.447059,
+   "only_torch_correct": 1,
+   "only_engine_correct": 3,
+   "mean_tvd": 0.011154,
+   "max_tvd": 0.030359
+  },
+  "noul": {
+   "n": 170,
+   "agree_count": 166,
+   "agreement": 0.976471,
+   "torch_acc": 0.482353,
+   "engine_acc": 0.494118,
+   "only_torch_correct": 1,
+   "only_engine_correct": 3,
+   "mean_tvd": 0.004028,
+   "max_tvd": 0.014978
+  },
+  "score": {
+   "n": 170,
+   "agree_count": 168,
+   "agreement": 0.988235,
+   "torch_acc": 0.423529,
+   "engine_acc": 0.429412,
+   "only_torch_correct": 0,
+   "only_engine_correct": 1,
+   "mean_tvd": 0.0076,
+   "max_tvd": 0.021533
+  }
+ },
+ "flips": [
+  {
+   "i": 116,
+   "question": "urgency",
+   "torch": "2",
+   "engine": "1",
+   "label": "1",
+   "torch_p": 0.2855,
+   "engine_p": 0.2917,
+   "tvd": 0.0185
+  },
+  {
+   "i": 169,
+   "question": "queue",
+   "torch": "damage_claim",
+   "engine": "depot_repair",
+   "label": "sales_ops",
+   "torch_p": 0.2346,
+   "engine_p": 0.2349,
+   "tvd": 0.0172
+  },
+  {
+   "i": 168,
+   "question": "queue",
+   "torch": "damage_claim",
+   "engine": "onsite_repair",
+   "label": "onsite_repair",
+   "torch_p": 0.2395,
+   "engine_p": 0.2423,
+   "tvd": 0.0156
+  },
+  {
+   "i": 49,
+   "question": "queue",
+   "torch": "onsite_repair",
+   "engine": "depot_repair",
+   "label": "depot_repair",
+   "torch_p": 0.2631,
+   "engine_p": 0.2672,
+   "tvd": 0.0155
+  },
+  {
+   "i": 91,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "false",
+   "torch_p": 0.5114,
+   "engine_p": 0.5003,
+   "tvd": 0.0116
+  },
+  {
+   "i": 139,
+   "question": "queue",
+   "torch": "damage_claim",
+   "engine": "onsite_repair",
+   "label": "depot_repair",
+   "torch_p": 0.2141,
+   "engine_p": 0.2158,
+   "tvd": 0.0102
+  },
+  {
+   "i": 52,
+   "question": "queue",
+   "torch": "onsite_repair",
+   "engine": "depot_repair",
+   "label": "onsite_repair",
+   "torch_p": 0.3067,
+   "engine_p": 0.3072,
+   "tvd": 0.01
+  },
+  {
+   "i": 167,
+   "question": "queue",
+   "torch": "onsite_repair",
+   "engine": "depot_repair",
+   "label": "depot_repair",
+   "torch_p": 0.2395,
+   "engine_p": 0.2428,
+   "tvd": 0.0095
+  },
+  {
+   "i": 88,
+   "question": "onsite_eligible",
+   "torch": "true",
+   "engine": "false",
+   "label": "false",
+   "torch_p": 0.5015,
+   "engine_p": 0.5046,
+   "tvd": 0.0061
+  },
+  {
+   "i": 157,
+   "question": "onsite_eligible",
+   "torch": "true",
+   "engine": "false",
+   "label": "false",
+   "torch_p": 0.5046,
+   "engine_p": 0.5014,
+   "tvd": 0.006
+  },
+  {
+   "i": 27,
+   "question": "urgency",
+   "torch": "2",
+   "engine": "1",
+   "label": "3",
+   "torch_p": 0.2814,
+   "engine_p": 0.2811,
+   "tvd": 0.0032
+  },
+  {
+   "i": 84,
+   "question": "onsite_eligible",
+   "torch": "true",
+   "engine": "false",
+   "label": "false",
+   "torch_p": 0.503,
+   "engine_p": 0.5002,
+   "tvd": 0.0032
+  }
+ ]
+}

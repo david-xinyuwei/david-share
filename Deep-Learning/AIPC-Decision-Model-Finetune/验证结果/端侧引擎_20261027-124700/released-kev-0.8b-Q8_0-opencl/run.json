@@ -1,0 +1,58 @@
+{
+  "label": "released-kev-0.8b-Q8_0-opencl",
+  "model": "ggml-org/Kev-0.8B-GGUF:Q8_0",
+  "backend": "opencl",
+  "build": "b11935-opencl-adreno",
+  "server_args": "-hf ggml-org/Kev-0.8B-GGUF:Q8_0 --host 127.0.0.1 --port 8080 -c 8192 -b 2048 -ub 2048 --cache-ram 0 -ngl 99",
+  "data_prefix": "test_",
+  "load_seconds": 75.0,
+  "server_log_facts": [
+    "1.14.268.438 I srv          init: decision model type: kev"
+  ],
+  "peak_working_set_mib": 4118,
+  "working_set_mib": 4118,
+  "private_mib": 5809,
+  "cpu_seconds": 79,
+  "gpu_shared_mib": 3400,
+  "gpu_dedicated_mib": 0,
+  "captured": "2026-10-27T13:21:41.4189145-07:00",
+  "summaries": {
+    "support": {
+      "url": "http://127.0.0.1:8080/v1/systemone",
+      "data": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\data\\contoso\\final\\test_support.jsonl",
+      "records": 170,
+      "errors": 0,
+      "questions": 510,
+      "accuracy": 0.4373,
+      "by_type": {
+        "choice": 0.4412,
+        "noul": 0.4529,
+        "score": 0.4176
+      },
+      "latency_ms": {
+        "n": 170,
+        "p50": 1171.1,
+        "p90": 1232.0,
+        "mean": 1179.7
+      }
+    },
+    "assistant": {
+      "url": "http://127.0.0.1:8080/v1/systemone",
+      "data": "C:\\Users\\xinyuwei\\OneDrive - Microsoft\\Desktop\\AI-Super-Agent\\S-AIPC决策模型本地微调\\data\\contoso\\final\\test_assistant.jsonl",
+      "records": 159,
+      "errors": 0,
+      "questions": 477,
+      "accuracy": 0.6646,
+      "by_type": {
+        "choice": 0.8994,
+        "noul": 0.5472
+      },
+      "latency_ms": {
+        "n": 159,
+        "p50": 1378.0,
+        "p90": 1439.0,
+        "mean": 1378.5
+      }
+    }
+  }
+}

@@ -1,0 +1,58 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+evaluated 50/70
+{
+  "objective": -0.12016385631320468,
+  "clean": {
+    "n": 210,
+    "nll": 0.15018386744394188,
+    "acc": 0.9428571428571428,
+    "ece": 0.010971760834836416,
+    "brier": 0.08951953496915956,
+    "mean_conf": 0.9467171363889877,
+    "confident_error_rate": 0.01904761904761905,
+    "coverage_at_0_9": 0.8333333333333334,
+    "accuracy_at_0_9": 0.9771428571428571,
+    "coverage_at_5pct_error": 0.9809523809523809,
+    "coverage_at_1pct_error": 0.7476190476190476,
+    "aurc": 0.007667977289665009,
+    "error_rate_at_0_9": 0.022857142857142857,
+    "confidence_bias": 0.003859993531844852,
+    "top_bins": {
+      "0.9": {
+        "n": 175,
+        "errors": 4,
+        "error_rate": 0.022857142857142857
+      },
+      "0.95": {
+        "n": 154,
+        "errors": 1,
+        "error_rate": 0.006493506493506494
+      },
+      "0.99": {
+        "n": 111,
+        "errors": 0,
+        "error_rate": 0.0
+      }
+    },
+    "selective": {
+      "0.5": {
+        "coverage": 0.5,
+        "accuracy": 1.0,
+        "confidence_cutoff": 0.9925429151194866
+      },
+      "0.8": {
+        "coverage": 0.8,
+        "accuracy": 0.9821428571428571,
+        "confidence_cutoff": 0.9178562555196228
+      }
+    }
+  },
+  "coverage": {
+    "requested_records": 70,
+    "requested_questions": 210,
+    "evaluated_records": 70,
+    "evaluated_questions": 210,
+    "rejected_records": 0,
+    "truncated_records": 0
+  }
+}

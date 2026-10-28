@@ -1,0 +1,31 @@
+== llama-bench --list-devices (b11935-opencl-adreno)
+load_backend: loaded RPC backend from C:\Tools\llama.cpp\b11935-opencl-adreno\ggml-rpc.dll
+ggml_opencl: selected platform: 'QUALCOMM Snapdragon(TM)'
+
+ggml_opencl: device: 'Qualcomm(R) Adreno(TM) X1-85 GPU (OpenCL 3.0 Qualcomm(R) Adreno(TM) X1-85 GPU)'
+ggml_opencl: default device: 'Qualcomm(R) Adreno(TM) X1-85 GPU (OpenCL 3.0 Qualcomm(R) Adreno(TM) X1-85 GPU)'
+load_backend: loaded OpenCL backend from C:\Tools\llama.cpp\b11935-opencl-adreno\ggml-opencl.dll
+load_backend: loaded CPU backend from C:\Tools\llama.cpp\b11935-opencl-adreno\ggml-cpu.dll
+load_backend: loaded RPC backend from C:\Tools\llama.cpp\b11935-opencl-adreno\ggml-rpc.dll
+load_backend: loaded OpenCL backend from C:\Tools\llama.cpp\b11935-opencl-adreno\ggml-opencl.dll
+load_backend: loaded CPU backend from C:\Tools\llama.cpp\b11935-opencl-adreno\ggml-cpu.dll
+
+== llama-server --version
+version: 0.7.0-dev (build 11935, commit 7ecb57f7a)
+built with Clang 20.1.8 for Windows arm64
+
+== GPU
+
+Name          : Qualcomm(R) Adreno(TM) X1-85 GPU
+DriverVersion : 31.0.133.1
+
+
+== CPU
+
+Name          : Snapdragon(R) X 12-core X1E80100 @ 3.40 GHz
+NumberOfCores : 12
+
+
+RAM_GB=63.5
+OS=Microsoft Windows 11 企业版 10.0.26300
+captured=2026-10-27T13:41:08.9444990-07:00

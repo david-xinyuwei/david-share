@@ -1,0 +1,9 @@
+check: every label in data/contoso/final equals vendor_policy labels recomputed from the record's own device/context fields
+train records 2147 pairs 228 label_mismatch {}
+calib records 328 pairs 40 label_mismatch {}
+dev_support records 181 pairs 15 label_mismatch {}
+dev_assistant records 163 pairs 20 label_mismatch {}
+test_support records 170 pairs 23 label_mismatch {}
+test_assistant records 159 pairs 22 label_mismatch {}
+ood_support records 337 pairs 37 label_mismatch {}
+ood_assistant records 317 pairs 30 label_mismatch {}
