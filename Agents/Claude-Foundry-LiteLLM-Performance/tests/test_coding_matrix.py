@@ -198,6 +198,50 @@ class EvidenceTests(unittest.TestCase):
             self.assertNotIn("154/650", markup)
             self.assertLess(markup.index("images/parameter-support-"), markup.index("images/cache-settings-"))
 
+    def test_homepage_states_what_the_repository_does_not_establish(self):
+        for chinese, language in ((False, "en"), (True, "zh")):
+            markup = render_coding.purpose(self.d, chinese, language)
+            self.assertIn("不证明生产容量、配额上限或任何历史故障已解决" if chinese else
+                          "does not establish production capacity, quota limits or the resolution of any earlier incident", markup)
+
+    def test_current_run_environment_is_stated_beside_the_results(self):
+        env = json.loads((ROOT / "evidence/gateway-cache-20261026/environment.json").read_text(encoding="utf-8"))
+        self.assertEqual(env["run_updated_utc"], gateway_analyze.analyze(ROOT / "evidence/gateway-cache-20261026")["run_updated_utc"])
+        for chinese in (False, True):
+            for detailed in (False, True):
+                markup = render_coding.gateway_snapshot(chinese, detailed=detailed)
+                self.assertIn("本批次的运行环境" if chinese else "Environment of this run", markup)
+                os_text = env["client"]["os"].replace("Ubuntu 24.04, kernel ", "Ubuntu 24.04，内核 ") if chinese else env["client"]["os"]
+                for value in ("Standard_D4s_v5", os_text, env["client"]["python"], env["client"]["httpx"],
+                              "LiteLLM 1.106.2", env["gateway"]["image_digest"][:19], env["run"]["started_utc"],
+                              env["run"]["completed_utc"], "evidence/gateway-cache-20261026/environment.json"):
+                    self.assertIn(value, markup, value)
+                self.assertLess(markup.index("Environment of this run" if not chinese else "本批次的运行环境"),
+                                markup.index("TTFT P50 / P95"))
+                environment_tables = [line for line in markup.splitlines() if line.startswith("| ") and "Standard_D4s_v5" in line]
+                self.assertEqual(len(environment_tables), 1 if detailed else 0)
+
+    def test_results_end_with_the_repository_layout_and_notices(self):
+        tracked = {"README.md", "README_CN.md", "docs/", "gateway-cache/", "coding-matrix/", "deploy/", "data/",
+                   "evidence/", "images/", "scripts/", "tests/", "NOTICE.md"}
+        for chinese in (False, True):
+            markup = render_coding.directories(chinese)
+            listed = set(re.findall(r"`([^`]+)`", markup))
+            self.assertEqual(listed & tracked, tracked)
+            self.assertIn("[`NOTICE.md`](NOTICE.md)", markup)
+            for path in tracked:
+                self.assertTrue((ROOT / path).exists(), path)
+        for filename in ("README.md", "README_CN.md"):
+            text = (ROOT / filename).read_text(encoding="utf-8")
+            self.assertIn("[`NOTICE.md`](NOTICE.md)", text)
+            self.assertLess(text.index("| You want to |" if filename == "README.md" else "| 想要 |"), text.index("NOTICE.md"))
+
+    def test_testing_page_states_the_windows_long_path_prerequisite(self):
+        for chinese in (False, True):
+            markup = render_coding.testing_offline(chinese)
+            self.assertIn("core.longpaths=true", markup)
+            self.assertLess(markup.index("core.longpaths"), markup.index("```bash"))
+
     def test_retired_direct_method_is_not_current_or_default(self):
         for chinese, language in ((False, "en"), (True, "zh")):
             markup = render_coding.purpose(self.d, chinese, language)

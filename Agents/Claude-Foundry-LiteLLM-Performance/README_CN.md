@@ -55,7 +55,7 @@
 
 来源：[探测请求](evidence/coding-matrix-20261026/probe/probe_results.jsonl)、[缓存请求](evidence/coding-matrix-20261026/cache/cache_results.jsonl)及[缓存文档](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)。表 2 每场景重复两次：Opus adaptive、Sonnet between_tools、Haiku disabled，effort low；首轮写入与第 2-4 轮读取分开。读取比例＝读取 tokens ÷（未缓存＋写入＋读取的输入 tokens），按模型／场景／轮次汇总。新对话话题变化，但复用文件。512-token 边界和四断点上限来自文档，并非边界扫描实测。缓存标记均为 `type: ephemeral`；读取按输入价计费：Opus／Sonnet 0.05 倍、Haiku 0.1 倍（文档价格）。这些是历史 VM 直连观察，不能作为后续 ACA 批次的证据。
 
-**未覆盖：** 工具调用（`between_tools` 和进度更新只在使用工具时才起作用）、`display: "summarized"`、US Data Zone 部署，以及 Foundry 模型目录里单独的 `claude-opus-5-5-fast` 模型。
+**未覆盖：** 工具调用（`between_tools` 和进度更新只在使用工具时才起作用）、`display: "summarized"`、US Data Zone 部署，以及 Foundry 模型目录里单独的 `claude-opus-5-5-fast` 模型。本仓库不证明生产容量、配额上限或任何历史故障已解决：这里的每次运行都把节奏控制在部署的每分钟限额之下，每个模型同时只有一个请求。
 
 **历史批次按模型汇总。** 已取缔的 VM 直连批次中，每个部署接受什么，以及在这 18 道题上的表现；不是当前 ACA 测试的结果：
 
@@ -103,6 +103,8 @@
 ```
 
 运行器在每个题目／配置的 system 前添加确定性组标识，隔离各组缓存。各配置的题目正文相同，但组标识不同；这是受控复用，不是生产缓存命中率估计。
+
+**本批次的运行环境。** 客户端：East US 2 的 Azure VM `Standard_D4s_v5`，Ubuntu 24.04，内核 7.0.0-1017-azure，Python 3.12.3，httpx 0.28.1；与直连编码矩阵同一台 VM，只持有网关入口密钥。网关：LiteLLM 1.106.2，由 [`deploy/Dockerfile`](deploy/Dockerfile) 构建，镜像 digest `sha256:dd6f80faa9be…`，East US 2 的 Azure Container Apps 上 1 个副本（2 vCPU、4 GiB），[`config.yaml`](deploy/config.yaml) 设 `drop_params: false`、零重试。目标：上述三个 Foundry 部署，模型版本 2，GlobalStandard；响应报告 `inference_geo: global`。2026-10-26T23:04:44Z 到 2026-10-27T08:37:15Z 之间操作者停止并重启过一次客户端 VM。未采集网关运行中的遥测和网关自己的请求日志。[完整记录](evidence/gateway-cache-20261026/environment.json)；结果页有分项表格。
 
 **指标定义。** TTFT 对应 `timing.first_text`，是首段非空可见文字，不是元数据或思考事件；E2E 对应 `timing.end`，到响应流结束。客户端在 HTTP 发送前开始计时，不含取凭据、发送前限速等待及应用或工具执行。端到端输出速率逐请求计算 `usage.output_tokens / timing.end`，包含思考 token，再取 P50；不是中位数相除，也不是纯解码速度。费用含输入、缓存写入／读取和输出，按记录中的标价计算，不含基础设施，也不是账单。
 
@@ -295,6 +297,21 @@ Claude 的 [effort 文档](https://platform.claude.com/docs/en/build-with-claude
 | 查看每一格、每道题、每条探测报错和每轮缓存 | [实测结果](docs/results_CN.md) |
 | 重做测试或运行离线检查 | [复测与核验](docs/testing_CN.md) |
 | 核对公开脚本相对实测脚本改了什么 | [来源记录](evidence/coding-matrix-20261026/provenance.json) |
+
+**仓库目录。**
+| 路径 | 内容 |
+|---|---|
+| [`README.md`](README.md), [`README_CN.md`](README_CN.md) | 入口页：目的、完整 ACA 性能表和当前执行顺序 |
+| `docs/` | 两种语言的结果页和复测页；由生成器输出，不手改 |
+| `gateway-cache/` | 当前 ACA 运行器、网关适配器、题库构建器、分析器和 SWE-bench 评分驱动 |
+| `coding-matrix/` | 实测客户端（`claude_api.py`、`bench.py`）、参数探测、Aider 风格评判和价格表；ACA 运行器原样复用 |
+| `deploy/` | LiteLLM 网关镜像：digest 固定的 Dockerfile、`config.yaml`、provider-trace 钩子和 `.env.example` |
+| `data/` | 冻结输入：12 道题的 ACA 清单、18 道 Exercism 题目和 2026-10-24 的网关矩阵 |
+| `evidence/` | 原始运行记录、指标投影、官方 SWE-bench 报告和导出清单，每次运行一个目录 |
+| `images/` | 生成的 SVG 图和它们使用的未修改 Azure 图标（[来源](images/icon-sources.json)） |
+| `scripts/` | 页面和图的生成器，以及 2026-10-24 的网关采集器和分析器 |
+| `tests/` | 本地和 CI 运行的离线单元测试 |
+| [`NOTICE.md`](NOTICE.md) | 第三方声明：Exercism 练习、Aider 提示词与评判、httpx 上下文文件、Azure 图标 |
 
 ## 操作步骤
 

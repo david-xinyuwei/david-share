@@ -39,6 +39,8 @@ Each of the 52 batches must produce `logs/evaluation/<run_id>/results.json`; ins
 
 No Azure access or model key. Python 3.12 or 3.13 from this directory; the stream-parser tests also need the client packages.
 
+**Windows first.** The official SWE-bench reports under `evidence/gateway-score-20261027/logs/` have paths longer than 260 characters. Enable long paths before cloning, or the checkout is incomplete and `check-public` fails: `git clone -c core.longpaths=true https://github.com/david-xinyuwei/david-share.git`, or `git config --global core.longpaths true` once. CI sets the same option; Linux and macOS need nothing.
+
 ```bash
 python -m pip install -r coding-matrix/requirements.txt
 python -B coding-matrix/analyze.py --run-dir evidence/coding-matrix-20261026/matrix --check

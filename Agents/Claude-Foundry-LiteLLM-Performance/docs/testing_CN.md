@@ -39,6 +39,8 @@ done
 
 不需要 Azure 权限或模型密钥。在本目录用 Python 3.12 或 3.13 运行；流解析测试还需要客户端依赖包。
 
+**Windows 先做一步。** `evidence/gateway-score-20261027/logs/` 下官方 SWE-bench 报告的路径超过 260 个字符。克隆前先启用长路径，否则检出不完整、`check-public` 会失败：`git clone -c core.longpaths=true https://github.com/david-xinyuwei/david-share.git`，或一次性执行 `git config --global core.longpaths true`。CI 设了同样的选项；Linux 和 macOS 不需要。
+
 ```bash
 python -m pip install -r coding-matrix/requirements.txt
 python -B coding-matrix/analyze.py --run-dir evidence/coding-matrix-20261026/matrix --check

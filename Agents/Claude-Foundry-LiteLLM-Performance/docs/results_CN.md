@@ -36,6 +36,17 @@
 
 运行器在每个题目／配置的 system 前添加确定性组标识，隔离各组缓存。各配置的题目正文相同，但组标识不同；这是受控复用，不是生产缓存命中率估计。
 
+**本批次的运行环境。** 取自运行后操作者的管理面读回和客户端 VM 自己的记录；会暴露订阅、资源组、主机或地址的标识已省略。[完整记录](../evidence/gateway-cache-20261026/environment.json)。
+
+| 部分 | 位置 | 版本与配置 |
+|---|---|---|
+| 客户端 | Azure VM `Standard_D4s_v5`，East US 2；与 2026-10-26 直连编码矩阵同一台 VM | Ubuntu 24.04，内核 7.0.0-1017-azure；Python 3.12.3、httpx 0.28.1、azure-identity 1.25.1；运行 [`aca_cache_matrix.py`](../gateway-cache/aca_cache_matrix.py)，原样导入实测的 `claude_api.py` 和 `bench.py`；只持有网关入口密钥 |
+| 网关 | Azure Container Apps，East US 2，Consumption 工作负载配置 | LiteLLM 1.106.2，由 [`deploy/Dockerfile`](../deploy/Dockerfile) 基于 digest 固定的官方镜像构建；镜像 digest `sha256:dd6f80faa9be…`；单修订模式 1 个副本（最小 1、最大 1），2 vCPU、4 GiB 内存、8 GiB 临时存储；[`config.yaml`](../deploy/config.yaml) 设 `drop_params: false`、零重试；仅 HTTPS 入口，三条 /32 放行规则（地址已省略） |
+| 目标 | Microsoft Foundry 资源，East US 2；Claude Opus 5.5、Sonnet 5.5、Haiku 5.5，模型版本 2，GlobalStandard | 响应报告 `inference_geo: global` 和 East US 2 服务区域头；GlobalStandard 不固定推理区域 |
+| 运行窗口 | 2026-10-26T23:04:44Z → 2026-10-27T08:37:15Z | 期间操作者停止并重启过客户端 VM；两组正式配对跨越该间隔、重写了过期缓存，仍计入请求、费用和正确率，只从缓存命中统计中排除 |
+
+未采集：网关在运行中的 CPU、内存或副本重启遥测、抓包，以及网关自己对本批次的请求日志——这就是下文所说的出站审计缺口。digest 标识的是操作者构建的镜像；用同一固定基础镜像重新构建 [`deploy/Dockerfile`](../deploy/Dockerfile) 会得到不同 digest。
+
 **指标定义。** TTFT 对应 `timing.first_text`，是首段非空可见文字，不是元数据或思考事件；E2E 对应 `timing.end`，到响应流结束。客户端在 HTTP 发送前开始计时，不含取凭据、发送前限速等待及应用或工具执行。端到端输出速率逐请求计算 `usage.output_tokens / timing.end`，包含思考 token，再取 P50；不是中位数相除，也不是纯解码速度。费用含输入、缓存写入／读取和输出，按记录中的标价计算，不含基础设施，也不是账单。
 
 **先看全部配置的性能。** 一组对照是同题、同配置的两次请求：首次实际写入缓存，随后原生命中，且两次回答均完整结束。下表每种缓存状态各取一条请求。P50/P95 使用最近秩法；每组状态最多 12 条，P95 就是最大观测值，不是生产尾延迟保证。`default` 表示未传 effort。比较时须对齐配置；两次生成的输出长度可能不同，耗时或费用差异不能全部归因于缓存。
@@ -221,7 +232,7 @@
 
 来源：[探测请求](../evidence/coding-matrix-20261026/probe/probe_results.jsonl)、[缓存请求](../evidence/coding-matrix-20261026/cache/cache_results.jsonl)及[缓存文档](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)。表 2 每场景重复两次：Opus adaptive、Sonnet between_tools、Haiku disabled，effort low；首轮写入与第 2-4 轮读取分开。读取比例＝读取 tokens ÷（未缓存＋写入＋读取的输入 tokens），按模型／场景／轮次汇总。新对话话题变化，但复用文件。512-token 边界和四断点上限来自文档，并非边界扫描实测。缓存标记均为 `type: ephemeral`；读取按输入价计费：Opus／Sonnet 0.05 倍、Haiku 0.1 倍（文档价格）。这些是历史 VM 直连观察，不能作为后续 ACA 批次的证据。
 
-**未覆盖：** 工具调用（`between_tools` 和进度更新只在使用工具时才起作用）、`display: "summarized"`、US Data Zone 部署，以及 Foundry 模型目录里单独的 `claude-opus-5-5-fast` 模型。
+**未覆盖：** 工具调用（`between_tools` 和进度更新只在使用工具时才起作用）、`display: "summarized"`、US Data Zone 部署，以及 Foundry 模型目录里单独的 `claude-opus-5-5-fast` 模型。本仓库不证明生产容量、配额上限或任何历史故障已解决：这里的每次运行都把节奏控制在部署的每分钟限额之下，每个模型同时只有一个请求。
 
 **历史批次按模型汇总。** 已取缔的 VM 直连批次中，每个部署接受什么，以及在这 18 道题上的表现；不是当前 ACA 测试的结果：
 

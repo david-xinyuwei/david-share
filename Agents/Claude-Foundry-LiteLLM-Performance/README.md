@@ -55,7 +55,7 @@ Historical cache scope: all five accepted model/mode rows read cache at effort l
 
 Sources: [probe requests](evidence/coding-matrix-20261026/probe/probe_results.jsonl), [cache requests](evidence/coding-matrix-20261026/cache/cache_results.jsonl) and [prompt-caching documentation](https://platform.claude.com/docs/en/build-with-claude/prompt-caching). Table 2 uses two repetitions per scenario: Opus adaptive, Sonnet between_tools, Haiku disabled, effort low; first writes are separate from turns 2-4. Read share is read tokens / (uncached + written + read input tokens), aggregated within each model/scenario/turn. New conversations reuse the files but change the question. The 512-token boundary and four-breakpoint limit are documented, not boundary-sweep measurements. All cache markers use `type: ephemeral`; reads cost 0.05x base input on Opus/Sonnet and 0.1x on Haiku (documented prices). These are historical direct-VM observations, not evidence for the later ACA run.
 
-**Not covered:** tool use, where `between_tools` and progress updates matter; `display: "summarized"`; US Data Zone deployments; and the separate `claude-opus-5-5-fast` model in the Foundry catalog.
+**Not covered:** tool use, where `between_tools` and progress updates matter; `display: "summarized"`; US Data Zone deployments; and the separate `claude-opus-5-5-fast` model in the Foundry catalog. This repository does not establish production capacity, quota limits or the resolution of any earlier incident: every run here was paced under the deployments' per-minute limits with one request in flight per model.
 
 **Historical per-model summary.** What each deployment accepted and how it did on the 18 problems in the retired direct-VM batch; not current ACA results:
 
@@ -103,6 +103,8 @@ Sources: [probe requests](evidence/coding-matrix-20261026/probe/probe_results.js
 ```
 
 The runner prepends a deterministic system identifier per problem/configuration to isolate each pair's cache. The problem text is shared across configurations, but these identifiers differ. This controlled reuse is not an estimate of production cache-hit rate.
+
+**Environment of this run.** Client: Azure VM `Standard_D4s_v5` in East US 2 running Ubuntu 24.04, kernel 7.0.0-1017-azure, Python 3.12.3, httpx 0.28.1; the same VM that ran the direct coding matrix, holding only the gateway key. Gateway: LiteLLM 1.106.2 built from [`deploy/Dockerfile`](deploy/Dockerfile), image digest `sha256:dd6f80faa9be…`, one replica with 2 vCPU and 4 GiB on Azure Container Apps in East US 2, [`config.yaml`](deploy/config.yaml) with `drop_params: false` and zero retries. Target: the three Foundry deployments above, model version 2, GlobalStandard; responses reported `inference_geo: global`. The client VM was stopped and restarted once by the operator between 2026-10-26T23:04:44Z and 2026-10-27T08:37:15Z. In-run gateway telemetry and the gateway's own request log were not captured. [Full record](evidence/gateway-cache-20261026/environment.json); the results page tabulates it.
 
 **Metric definitions.** TTFT is `timing.first_text`, the first non-empty visible text, not metadata or thinking. E2E is `timing.end`, through the end of the response stream. The client clock starts immediately before HTTP; credential acquisition, pacing and application/tool work are excluded. End-to-end output rate is `usage.output_tokens / timing.end` for each request, including thinking tokens; its P50 is not a ratio of medians or isolated decode speed. Costs include input, cache writes/reads and output at the recorded list prices, not infrastructure or an invoice.
 
@@ -295,6 +297,21 @@ The 2026-10-26 runs cost $67.85 at list prices. Their records are in [`evidence/
 | See every cell, problem, probe message and cache turn | [Results](docs/results.md) |
 | Repeat the tests or run the offline checks | [Testing](docs/testing.md) |
 | Check what each public script changed from the measured one | [Provenance](evidence/coding-matrix-20261026/provenance.json) |
+
+**Repository layout.**
+| Path | What it holds |
+|---|---|
+| [`README.md`](README.md), [`README_CN.md`](README_CN.md) | Owning pages: purpose, complete ACA performance table and the current execution sequence |
+| `docs/` | Results and testing pages in both languages; generated, not hand-edited |
+| `gateway-cache/` | Current ACA runner, gateway adapter, problem builder, analyzer and SWE-bench scoring driver |
+| `coding-matrix/` | Measured client (`claude_api.py`, `bench.py`), probe, Aider-style judge and pricing; reused unchanged by the ACA runner |
+| `deploy/` | LiteLLM gateway image: digest-pinned Dockerfile, `config.yaml`, provider-trace hook and `.env.example` |
+| `data/` | Frozen inputs: the 12-problem ACA manifest, the 18 Exercism problems and the 2026-10-24 gateway matrix |
+| `evidence/` | Raw run records, metrics projections, official SWE-bench reports and export manifests, one directory per run |
+| `images/` | Generated SVG figures and the unmodified Azure icons they use ([sources](images/icon-sources.json)) |
+| `scripts/` | Page and figure generators, plus the 2026-10-24 gateway collector and its analyzer |
+| `tests/` | Offline unit tests run locally and in CI |
+| [`NOTICE.md`](NOTICE.md) | Third-party notices: Exercism exercises, Aider prompts and judge, httpx context files, Azure icons |
 
 ## Steps
 

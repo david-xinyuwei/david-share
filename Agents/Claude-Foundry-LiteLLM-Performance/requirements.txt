@@ -1,2 +1,3 @@
-# Offline analysis, rendering and tests use the Python standard library only.
-# Verified with CPython 3.13.15. Live requests use PowerShell 7.6.7.
+# Offline analysis and page rendering use the Python standard library only (verified with CPython 3.12 and 3.13).
+# The stream-parser tests and the ACA runner need coding-matrix/requirements.txt; the 2026-10-24 gateway
+# collector used PowerShell 7.6.7. Problem reconstruction additionally needs pyarrow (see README step 1).

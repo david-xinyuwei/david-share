@@ -1,0 +1,53 @@
+{
+ "scope": "Public-safe environment record for the 650-request ACA run whose metrics are in this directory. Values are read from the operator's management-plane readbacks and the client VM's own records; identifiers that would name the subscription, resource group, hostnames or addresses are omitted.",
+ "run_updated_utc": "2026-10-27T08:37:15.795+00:00",
+ "client": {
+  "role": "Load generator: runs gateway-cache/aca_cache_matrix.py, which imports the measured coding-matrix/claude_api.py and bench.py unchanged",
+  "compute": "Azure VM Standard_D4s_v5, East US 2; the same VM that ran the 2026-10-26 direct coding matrix",
+  "os": "Ubuntu 24.04, kernel 7.0.0-1017-azure",
+  "python": "3.12.3",
+  "httpx": "0.28.1",
+  "azure_identity": "1.25.1",
+  "runner_sha256": "41c5ff7db7e2a457e3f04a320c88d6afae1b50a7145fd36a1e462984d0a175d9",
+  "runner_sha256_scope": "gateway-cache/aca_cache_matrix.py as copied to the VM before the run; the published file may differ only by later public edits recorded in Git",
+  "credential": "Gateway key read from a mode-600 file on the VM; the client never holds a Foundry credential"
+ },
+ "gateway": {
+  "service": "Azure Container Apps, East US 2, Consumption workload profile",
+  "revision": "one revision in Single revision mode, 1 replica (min 1, max 1), 2 vCPU, 4 GiB memory, 8 GiB ephemeral storage",
+  "image": "LiteLLM 1.106.2 built from deploy/Dockerfile on ghcr.io/berriai/litellm:v1.106.2@sha256:7294b90f868c5c38c99b83021c7ba46f9b439e95f8e32964c925c7d2563a03f7",
+  "image_digest": "sha256:dd6f80faa9bed7c8a09947094ca8094fcbb43e0a400feac3fc77cd4424eb69b1",
+  "image_digest_scope": "Digest of the built image in the operator's private registry; the registry name is omitted. Rebuilding deploy/Dockerfile produces a different digest",
+  "configuration": "deploy/config.yaml: drop_params false, zero LiteLLM and router retries, Entra token refresh on, user-assigned managed identity for Foundry",
+  "ingress": "External HTTPS only (allowInsecure false, target port 4000) with three /32 allow rules; the addresses are omitted",
+  "created_utc": "2026-10-26T19:15:35Z"
+ },
+ "target": {
+  "service": "Microsoft Foundry resource, East US 2; Claude Opus 5.5, Sonnet 5.5 and Haiku 5.5, model version 2, GlobalStandard",
+  "inference_placement": "Responses reported inference_geo global and an East US 2 served-region header; GlobalStandard does not fix the inference region"
+ },
+ "run": {
+  "started_utc": "2026-10-26T23:04:44Z",
+  "resumed_utc": "2026-10-27T03:52:06Z and 2026-10-27T08:29:00Z after operator-initiated stop/start of the client VM",
+  "completed_utc": "2026-10-27T08:37:15Z",
+  "tcp_connect_median_ms_at_preflights": [6.58, 12.87, 10.89],
+  "tcp_connect_scope": "Median of 10 TCP connects from the client VM to the gateway at each preflight; the last value is the one recorded in run.json",
+  "restart_effect": "Two measured pairs crossed the stop/restart gap and rewrote expired cache entries; they stay in request, cost and correctness counts and are excluded only from cache-hit statistics"
+ },
+ "verification": {
+  "method": "Operator readbacks (az containerapp show, az containerapp env show), the VM-side run receipt and runner sync log, the image build log, and the post-grading package inventory in ../gateway-score-20261027/environment.json (httpx 0.28.1, azure-identity 1.25.1 on the same VM)",
+  "not_captured": "No in-run telemetry of CPU, memory or replica restarts on the gateway; no packet capture; the gateway's own request log for this batch was not retained, which is the outbound-audit gap stated on the results page",
+  "private_sources_sha256": {
+   "aca_app_readiness_readback": "fde81bae3ada5e93491d80349790422f1c057411f5808d6a238869558c4ca546",
+   "aca_environment_readback": "ae12d133b23952a650a9f329666e332f59270e288cec8140f009890c6dc85775",
+   "vm_run_receipt": "80ac843dca4f9144c55d8785badbd1bc5d85fdaf0f14e25120a82167e4f43e38",
+   "runner_sync_log": "1dd6ec06dfd931bd703a3a07d53f553c969e8a4ee1fb683992d51a72cf13c34c",
+   "image_build_log": "8439505e97220ae653f6c2bf646960adf81c484cd50393c9fcf4152a71964090",
+   "client_vm_billing_card": "712f52d0ae6991aef6632850542c9ec6a8f7b786f5f2c0a21147180bdc36ff79"
+  },
+  "public_sources": {
+   "same_vm_capture_before_direct_matrix": "../coding-matrix-20261026/matrix/environment.txt",
+   "post_grading_inventory": "../gateway-score-20261027/environment.json"
+  }
+ }
+}

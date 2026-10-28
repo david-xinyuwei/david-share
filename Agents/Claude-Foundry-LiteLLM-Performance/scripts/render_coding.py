@@ -528,8 +528,8 @@ def purpose(d, chinese, language, historical=False):
                        "**Historical request settings.** What each setting does, from Claude's documentation, and what the retained direct-VM runs sent. Accepted values come from that historical probe; these observations do not describe the current ACA run:",
                        "**历史请求设置。** 每个设置的作用（依据 Claude 官方文档），以及保留的旧 VM 直连批次发送了什么；各部署接受哪些取值来自历史参数探测。这些观测不是当前 ACA 测试的结果：")
     not_covered = tr(chinese,
-                     "**Not covered:** tool use, where `between_tools` and progress updates matter; `display: \"summarized\"`; US Data Zone deployments; and the separate `claude-opus-5-5-fast` model in the Foundry catalog.",
-                     "**未覆盖：** 工具调用（`between_tools` 和进度更新只在使用工具时才起作用）、`display: \"summarized\"`、US Data Zone 部署，以及 Foundry 模型目录里单独的 `claude-opus-5-5-fast` 模型。")
+                     "**Not covered:** tool use, where `between_tools` and progress updates matter; `display: \"summarized\"`; US Data Zone deployments; and the separate `claude-opus-5-5-fast` model in the Foundry catalog. This repository does not establish production capacity, quota limits or the resolution of any earlier incident: every run here was paced under the deployments' per-minute limits with one request in flight per model.",
+                     "**未覆盖：** 工具调用（`between_tools` 和进度更新只在使用工具时才起作用）、`display: \"summarized\"`、US Data Zone 部署，以及 Foundry 模型目录里单独的 `claude-opus-5-5-fast` 模型。本仓库不证明生产容量、配额上限或任何历史故障已解决：这里的每次运行都把节奏控制在部署的每分钟限额之下，每个模型同时只有一个请求。")
     per_model = tr(chinese,
                    f"**Historical per-model summary.** What each deployment accepted and how it did on the {n_problems} problems in the retired direct-VM batch; not current ACA results:",
                    f"**历史批次按模型汇总。** 已取缔的 VM 直连批次中，每个部署接受什么，以及在这 {n_problems} 道题上的表现；不是当前 ACA 测试的结果：")
@@ -846,6 +846,79 @@ def navigation(chinese):
     return "\n".join(lines)
 
 
+DIRECTORIES = [
+    ("README.md", "README_CN.md", "Owning pages: purpose, complete ACA performance table and the current execution sequence",
+     "入口页：目的、完整 ACA 性能表和当前执行顺序"),
+    ("docs/", None, "Results and testing pages in both languages; generated, not hand-edited",
+     "两种语言的结果页和复测页；由生成器输出，不手改"),
+    ("gateway-cache/", None, "Current ACA runner, gateway adapter, problem builder, analyzer and SWE-bench scoring driver",
+     "当前 ACA 运行器、网关适配器、题库构建器、分析器和 SWE-bench 评分驱动"),
+    ("coding-matrix/", None, "Measured client (`claude_api.py`, `bench.py`), probe, Aider-style judge and pricing; reused unchanged by the ACA runner",
+     "实测客户端（`claude_api.py`、`bench.py`）、参数探测、Aider 风格评判和价格表；ACA 运行器原样复用"),
+    ("deploy/", None, "LiteLLM gateway image: digest-pinned Dockerfile, `config.yaml`, provider-trace hook and `.env.example`",
+     "LiteLLM 网关镜像：digest 固定的 Dockerfile、`config.yaml`、provider-trace 钩子和 `.env.example`"),
+    ("data/", None, "Frozen inputs: the 12-problem ACA manifest, the 18 Exercism problems and the 2026-10-24 gateway matrix",
+     "冻结输入：12 道题的 ACA 清单、18 道 Exercism 题目和 2026-10-24 的网关矩阵"),
+    ("evidence/", None, "Raw run records, metrics projections, official SWE-bench reports and export manifests, one directory per run",
+     "原始运行记录、指标投影、官方 SWE-bench 报告和导出清单，每次运行一个目录"),
+    ("images/", None, "Generated SVG figures and the unmodified Azure icons they use ([sources](images/icon-sources.json))",
+     "生成的 SVG 图和它们使用的未修改 Azure 图标（[来源](images/icon-sources.json)）"),
+    ("scripts/", None, "Page and figure generators, plus the 2026-10-24 gateway collector and its analyzer",
+     "页面和图的生成器，以及 2026-10-24 的网关采集器和分析器"),
+    ("tests/", None, "Offline unit tests run locally and in CI", "本地和 CI 运行的离线单元测试"),
+    ("NOTICE.md", None, "Third-party notices: Exercism exercises, Aider prompts and judge, httpx context files, Azure icons",
+     "第三方声明：Exercism 练习、Aider 提示词与评判、httpx 上下文文件、Azure 图标"),
+]
+
+
+def directories(chinese):
+    lines = ["| " + tr(chinese, "Path | What it holds", "路径 | 内容") + " |", "|---|---|"]
+    for path, twin, en, cn in DIRECTORIES:
+        label = f"[`{path}`]({path})" if path.endswith(".md") else f"`{path}`"
+        if twin:
+            label += ", " + f"[`{twin}`]({twin})"
+        lines.append(f"| {label} | {tr(chinese, en, cn)} |")
+    return "\n".join([tr(chinese, "**Repository layout.**", "**仓库目录。**"), *lines])
+
+
+def environment_block(chinese, prefix, detailed):
+    env = read_json(ROOT / "evidence/gateway-cache-20261026/environment.json")
+    client, gateway, target, run = env["client"], env["gateway"], env["target"], env["run"]
+    source = prefix + "evidence/gateway-cache-20261026/environment.json"
+    digest = gateway["image_digest"][:19] + "…"
+    os_cn = client["os"].replace("Ubuntu 24.04, kernel ", "Ubuntu 24.04，内核 ")
+    if not detailed:
+        return tr(chinese,
+            f"**Environment of this run.** Client: Azure VM `Standard_D4s_v5` in East US 2 running {client['os']}, Python {client['python']}, httpx {client['httpx']}; the same VM that ran the direct coding matrix, holding only the gateway key. Gateway: LiteLLM 1.106.2 built from [`deploy/Dockerfile`](deploy/Dockerfile), image digest `{digest}`, one replica with 2 vCPU and 4 GiB on Azure Container Apps in East US 2, [`config.yaml`](deploy/config.yaml) with `drop_params: false` and zero retries. Target: the three Foundry deployments above, model version 2, GlobalStandard; responses reported `inference_geo: global`. The client VM was stopped and restarted once by the operator between {run['started_utc']} and {run['completed_utc']}. In-run gateway telemetry and the gateway's own request log were not captured. [Full record]({source}); the results page tabulates it.",
+            f"**本批次的运行环境。** 客户端：East US 2 的 Azure VM `Standard_D4s_v5`，{os_cn}，Python {client['python']}，httpx {client['httpx']}；与直连编码矩阵同一台 VM，只持有网关入口密钥。网关：LiteLLM 1.106.2，由 [`deploy/Dockerfile`](deploy/Dockerfile) 构建，镜像 digest `{digest}`，East US 2 的 Azure Container Apps 上 1 个副本（2 vCPU、4 GiB），[`config.yaml`](deploy/config.yaml) 设 `drop_params: false`、零重试。目标：上述三个 Foundry 部署，模型版本 2，GlobalStandard；响应报告 `inference_geo: global`。{run['started_utc']} 到 {run['completed_utc']} 之间操作者停止并重启过一次客户端 VM。未采集网关运行中的遥测和网关自己的请求日志。[完整记录]({source})；结果页有分项表格。")
+    rows = tr(chinese, [
+        ("Client", client["compute"], f"{client['os']}; Python {client['python']}, httpx {client['httpx']}, azure-identity {client['azure_identity']}; runs [`aca_cache_matrix.py`]({prefix}gateway-cache/aca_cache_matrix.py), which imports the measured `claude_api.py` and `bench.py` unchanged; holds only the gateway key"),
+        ("Gateway", gateway["service"], f"LiteLLM 1.106.2 built from [`deploy/Dockerfile`]({prefix}deploy/Dockerfile) on the digest-pinned official base; built image digest `{digest}`; {gateway['revision']}; [`config.yaml`]({prefix}deploy/config.yaml) with `drop_params: false` and zero retries; HTTPS-only ingress with a /32 allow-list"),
+        ("Target", target["service"], target["inference_placement"]),
+        ("Run window", f"{run['started_utc']} → {run['completed_utc']}", "The operator stopped and restarted the client VM in between; two measured pairs crossed that gap and rewrote expired cache entries, so they stay in request, cost and correctness counts and are excluded only from cache-hit statistics"),
+    ], [
+        ("客户端", "Azure VM `Standard_D4s_v5`，East US 2；与 2026-10-26 直连编码矩阵同一台 VM",
+         f"{os_cn}；Python {client['python']}、httpx {client['httpx']}、azure-identity {client['azure_identity']}；运行 [`aca_cache_matrix.py`]({prefix}gateway-cache/aca_cache_matrix.py)，原样导入实测的 `claude_api.py` 和 `bench.py`；只持有网关入口密钥"),
+        ("网关", "Azure Container Apps，East US 2，Consumption 工作负载配置",
+         f"LiteLLM 1.106.2，由 [`deploy/Dockerfile`]({prefix}deploy/Dockerfile) 基于 digest 固定的官方镜像构建；镜像 digest `{digest}`；单修订模式 1 个副本（最小 1、最大 1），2 vCPU、4 GiB 内存、8 GiB 临时存储；[`config.yaml`]({prefix}deploy/config.yaml) 设 `drop_params: false`、零重试；仅 HTTPS 入口，三条 /32 放行规则（地址已省略）"),
+        ("目标", "Microsoft Foundry 资源，East US 2；Claude Opus 5.5、Sonnet 5.5、Haiku 5.5，模型版本 2，GlobalStandard",
+         "响应报告 `inference_geo: global` 和 East US 2 服务区域头；GlobalStandard 不固定推理区域"),
+        ("运行窗口", f"{run['started_utc']} → {run['completed_utc']}",
+         "期间操作者停止并重启过客户端 VM；两组正式配对跨越该间隔、重写了过期缓存，仍计入请求、费用和正确率，只从缓存命中统计中排除"),
+    ])
+    lines = ["| " + tr(chinese, "Part | Where | Version and configuration", "部分 | 位置 | 版本与配置") + " |", "|---|---|---|"]
+    lines += [f"| {a} | {b} | {c} |" for a, b, c in rows]
+    return "\n\n".join([
+        tr(chinese,
+           f"**Environment of this run.** Read from the operator's management-plane readbacks and the client VM's records after the run; identifiers that would name the subscription, resource group, hosts or addresses are omitted. [Full record]({source}).",
+           f"**本批次的运行环境。** 取自运行后操作者的管理面读回和客户端 VM 自己的记录；会暴露订阅、资源组、主机或地址的标识已省略。[完整记录]({source})。"),
+        "\n".join(lines),
+        tr(chinese,
+           f"Not captured: in-run CPU, memory or replica-restart telemetry on the gateway, packet captures, and the gateway's own request log for this batch, which is the outbound-audit gap stated below. The digest identifies the operator's built image; rebuilding [`deploy/Dockerfile`]({prefix}deploy/Dockerfile) yields a different digest from the same pinned base.",
+           f"未采集：网关在运行中的 CPU、内存或副本重启遥测、抓包，以及网关自己对本批次的请求日志——这就是下文所说的出站审计缺口。digest 标识的是操作者构建的镜像；用同一固定基础镜像重新构建 [`deploy/Dockerfile`]({prefix}deploy/Dockerfile) 会得到不同 digest。"),
+    ])
+
+
 def gateway_controls(facts, chinese, prefix):
     suffix = "_CN" if chinese else ""
     source = prefix + "evidence/gateway-cache-20261026"
@@ -955,6 +1028,7 @@ def gateway_snapshot(chinese, detailed=False):
     parts.append(tr(chinese,
         "The runner prepends a deterministic system identifier per problem/configuration to isolate each pair's cache. The problem text is shared across configurations, but these identifiers differ. This controlled reuse is not an estimate of production cache-hit rate.",
         "运行器在每个题目／配置的 system 前添加确定性组标识，隔离各组缓存。各配置的题目正文相同，但组标识不同；这是受控复用，不是生产缓存命中率估计。"))
+    parts.append(environment_block(chinese, prefix, detailed))
     parts.append(tr(chinese,
         "**Metric definitions.** TTFT is `timing.first_text`, the first non-empty visible text, not metadata or thinking. E2E is `timing.end`, through the end of the response stream. The client clock starts immediately before HTTP; credential acquisition, pacing and application/tool work are excluded. End-to-end output rate is `usage.output_tokens / timing.end` for each request, including thinking tokens; its P50 is not a ratio of medians or isolated decode speed. Costs include input, cache writes/reads and output at the recorded list prices, not infrastructure or an invoice.",
         "**指标定义。** TTFT 对应 `timing.first_text`，是首段非空可见文字，不是元数据或思考事件；E2E 对应 `timing.end`，到响应流结束。客户端在 HTTP 发送前开始计时，不含取凭据、发送前限速等待及应用或工具执行。端到端输出速率逐请求计算 `usage.output_tokens / timing.end`，包含思考 token，再取 P50；不是中位数相除，也不是纯解码速度。费用含输入、缓存写入／读取和输出，按记录中的标价计算，不含基础设施，也不是账单。"))
@@ -1101,6 +1175,7 @@ def results(d, gateway, chinese):
         tr(chinese, "**How each number is measured, and the scripts.**", "**每个指标怎么测、用哪个脚本。**"), timing_table(chinese),
         caution(d, chinese), grids(d, chinese), stands_out(d, chinese), caching(d, chinese),
         gateway_summary(gateway, chinese), runs_table(d, gateway, chinese), limits(d, chinese), navigation(chinese),
+        directories(chinese),
     ]
     return "\n\n".join(parts)
 
@@ -1683,6 +1758,9 @@ def testing_offline(chinese):
         tr(chinese,
            "No Azure access or model key. Python 3.12 or 3.13 from this directory; the stream-parser tests also need the client packages.",
            "不需要 Azure 权限或模型密钥。在本目录用 Python 3.12 或 3.13 运行；流解析测试还需要客户端依赖包。"),
+        tr(chinese,
+           "**Windows first.** The official SWE-bench reports under `evidence/gateway-score-20261027/logs/` have paths longer than 260 characters. Enable long paths before cloning, or the checkout is incomplete and `check-public` fails: `git clone -c core.longpaths=true https://github.com/david-xinyuwei/david-share.git`, or `git config --global core.longpaths true` once. CI sets the same option; Linux and macOS need nothing.",
+           "**Windows 先做一步。** `evidence/gateway-score-20261027/logs/` 下官方 SWE-bench 报告的路径超过 260 个字符。克隆前先启用长路径，否则检出不完整、`check-public` 会失败：`git clone -c core.longpaths=true https://github.com/david-xinyuwei/david-share.git`，或一次性执行 `git config --global core.longpaths true`。CI 设了同样的选项；Linux 和 macOS 不需要。"),
         """```bash
 python -m pip install -r coding-matrix/requirements.txt
 python -B coding-matrix/analyze.py --run-dir evidence/coding-matrix-20261026/matrix --check

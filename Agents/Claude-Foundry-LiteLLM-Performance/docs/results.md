@@ -36,6 +36,17 @@ Current East US 2 ACA performance comes first, then parameter/cache evidence and
 
 The runner prepends a deterministic system identifier per problem/configuration to isolate each pair's cache. The problem text is shared across configurations, but these identifiers differ. This controlled reuse is not an estimate of production cache-hit rate.
 
+**Environment of this run.** Read from the operator's management-plane readbacks and the client VM's records after the run; identifiers that would name the subscription, resource group, hosts or addresses are omitted. [Full record](../evidence/gateway-cache-20261026/environment.json).
+
+| Part | Where | Version and configuration |
+|---|---|---|
+| Client | Azure VM Standard_D4s_v5, East US 2; the same VM that ran the 2026-10-26 direct coding matrix | Ubuntu 24.04, kernel 7.0.0-1017-azure; Python 3.12.3, httpx 0.28.1, azure-identity 1.25.1; runs [`aca_cache_matrix.py`](../gateway-cache/aca_cache_matrix.py), which imports the measured `claude_api.py` and `bench.py` unchanged; holds only the gateway key |
+| Gateway | Azure Container Apps, East US 2, Consumption workload profile | LiteLLM 1.106.2 built from [`deploy/Dockerfile`](../deploy/Dockerfile) on the digest-pinned official base; built image digest `sha256:dd6f80faa9be…`; one revision in Single revision mode, 1 replica (min 1, max 1), 2 vCPU, 4 GiB memory, 8 GiB ephemeral storage; [`config.yaml`](../deploy/config.yaml) with `drop_params: false` and zero retries; HTTPS-only ingress with a /32 allow-list |
+| Target | Microsoft Foundry resource, East US 2; Claude Opus 5.5, Sonnet 5.5 and Haiku 5.5, model version 2, GlobalStandard | Responses reported inference_geo global and an East US 2 served-region header; GlobalStandard does not fix the inference region |
+| Run window | 2026-10-26T23:04:44Z → 2026-10-27T08:37:15Z | The operator stopped and restarted the client VM in between; two measured pairs crossed that gap and rewrote expired cache entries, so they stay in request, cost and correctness counts and are excluded only from cache-hit statistics |
+
+Not captured: in-run CPU, memory or replica-restart telemetry on the gateway, packet captures, and the gateway's own request log for this batch, which is the outbound-audit gap stated below. The digest identifies the operator's built image; rebuilding [`deploy/Dockerfile`](../deploy/Dockerfile) yields a different digest from the same pinned base.
+
 **Metric definitions.** TTFT is `timing.first_text`, the first non-empty visible text, not metadata or thinking. E2E is `timing.end`, through the end of the response stream. The client clock starts immediately before HTTP; credential acquisition, pacing and application/tool work are excluded. End-to-end output rate is `usage.output_tokens / timing.end` for each request, including thinking tokens; its P50 is not a ratio of medians or isolated decode speed. Costs include input, cache writes/reads and output at the recorded list prices, not infrastructure or an invoice.
 
 **All measured configurations, performance first.** A pair is the same problem and configuration sent twice: an observed cache write followed by a native cache hit, with both answers completed. Each state below uses one request from every eligible pair. P50/P95 use nearest rank; with at most 12 requests per state, P95 is the largest observation, not a production tail guarantee. `default` means effort was omitted. Compare matching configurations; generated output lengths may differ, so a timing or cost difference cannot be attributed entirely to caching.
@@ -221,7 +232,7 @@ Historical cache scope: all five accepted model/mode rows read cache at effort l
 
 Sources: [probe requests](../evidence/coding-matrix-20261026/probe/probe_results.jsonl), [cache requests](../evidence/coding-matrix-20261026/cache/cache_results.jsonl) and [prompt-caching documentation](https://platform.claude.com/docs/en/build-with-claude/prompt-caching). Table 2 uses two repetitions per scenario: Opus adaptive, Sonnet between_tools, Haiku disabled, effort low; first writes are separate from turns 2-4. Read share is read tokens / (uncached + written + read input tokens), aggregated within each model/scenario/turn. New conversations reuse the files but change the question. The 512-token boundary and four-breakpoint limit are documented, not boundary-sweep measurements. All cache markers use `type: ephemeral`; reads cost 0.05x base input on Opus/Sonnet and 0.1x on Haiku (documented prices). These are historical direct-VM observations, not evidence for the later ACA run.
 
-**Not covered:** tool use, where `between_tools` and progress updates matter; `display: "summarized"`; US Data Zone deployments; and the separate `claude-opus-5-5-fast` model in the Foundry catalog.
+**Not covered:** tool use, where `between_tools` and progress updates matter; `display: "summarized"`; US Data Zone deployments; and the separate `claude-opus-5-5-fast` model in the Foundry catalog. This repository does not establish production capacity, quota limits or the resolution of any earlier incident: every run here was paced under the deployments' per-minute limits with one request in flight per model.
 
 **Historical per-model summary.** What each deployment accepted and how it did on the 18 problems in the retired direct-VM batch; not current ACA results:
 
