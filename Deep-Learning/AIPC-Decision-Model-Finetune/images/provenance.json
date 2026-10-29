@@ -3,47 +3,125 @@
   "font": "msyh.ttc",
   "reference": "https://github.com/jaredpalmer/kev/blob/2074cc44256200bb37540103fa4572901faa10f3/README.md",
   "selection": "Upstream model/accuracy and playground figures do not describe this project's training, export and laptop validation paths.",
-  "visual_scope": "Generic workflow stages, not Azure service-resource icons or product screenshots.",
+  "visual_scope": "Azure host and Windows device boundaries; official Microsoft icons identify actual hosts and file artifacts, not custom services.",
+  "icon_sources": "vendor/sources.json",
   "assets": [
     {
       "file": "training.png",
       "width": 1200,
-      "height": 510,
-      "sha256": "dc63aee90535801e51ed339eb4cc5c686c735b6894aee51c9934c9089de02f80",
+      "height": 590,
+      "sha256": "d8e1b0af74671eea2fa7d79c86fdb11f4b3dd2a16e85e836a463abb94894e18b",
+      "vendor_icons": [
+        "azure-vm",
+        "file"
+      ],
       "kind": "original explanatory diagram",
+      "language": "zh",
       "sources": [
         "scripts/remote_pipeline_v2.sh",
         "scripts/remote_cf_round.sh",
-        "scripts/remote_export_gguf.sh"
+        "scripts/remote_export_gguf.sh",
+        "https://github.com/jaredpalmer/kev/blob/2074cc44256200bb37540103fa4572901faa10f3/scripts/calibrate_checkpoint.py"
       ],
-      "proves": "project workflow and stage ownership",
+      "proves": "project workflow, execution placement and scoring boundaries",
+      "does_not_prove": "model accuracy or runtime success"
+    },
+    {
+      "file": "training-en.png",
+      "width": 1200,
+      "height": 590,
+      "sha256": "a1ba8bff92c6ac5a7318a601670fbae92ef8a74f8ccf1e7b9486b920b39252cf",
+      "vendor_icons": [
+        "azure-vm",
+        "file"
+      ],
+      "kind": "original explanatory diagram",
+      "language": "en",
+      "sources": [
+        "scripts/remote_pipeline_v2.sh",
+        "scripts/remote_cf_round.sh",
+        "scripts/remote_export_gguf.sh",
+        "https://github.com/jaredpalmer/kev/blob/2074cc44256200bb37540103fa4572901faa10f3/scripts/calibrate_checkpoint.py"
+      ],
+      "proves": "project workflow, execution placement and scoring boundaries",
       "does_not_prove": "model accuracy or runtime success"
     },
     {
       "file": "inference.png",
       "width": 1200,
-      "height": 330,
-      "sha256": "599224c4072f6d393470c0d2c849d065e01d364320bfdd546bfa430830c20687",
+      "height": 470,
+      "sha256": "304e60bc3ac2430e7486d19e950b69cbd4e1e6e8975182d0654961caee874dfd",
+      "vendor_icons": [
+        "file",
+        "laptop"
+      ],
       "kind": "original explanatory diagram",
+      "language": "zh",
       "sources": [
         "scripts/systemone_client.py",
-        "scripts/run_engine_eval.ps1"
+        "scripts/run_engine_eval.ps1",
+        "https://github.com/ggml-org/llama.cpp/blob/b11935/tools/server/server-decision.cpp"
       ],
-      "proves": "project workflow and stage ownership",
+      "proves": "project workflow, execution placement and scoring boundaries",
+      "does_not_prove": "model accuracy or runtime success"
+    },
+    {
+      "file": "inference-en.png",
+      "width": 1200,
+      "height": 470,
+      "sha256": "7fb66c3a97d183e516cb7f840b48be85ad334e7010d1133197948065712f1a38",
+      "vendor_icons": [
+        "file",
+        "laptop"
+      ],
+      "kind": "original explanatory diagram",
+      "language": "en",
+      "sources": [
+        "scripts/systemone_client.py",
+        "scripts/run_engine_eval.ps1",
+        "https://github.com/ggml-org/llama.cpp/blob/b11935/tools/server/server-decision.cpp"
+      ],
+      "proves": "project workflow, execution placement and scoring boundaries",
       "does_not_prove": "model accuracy or runtime success"
     },
     {
       "file": "validation.png",
       "width": 1200,
-      "height": 550,
-      "sha256": "2493ca18d0bf50d66ee7038bfa7e66117a2e0378f7fc623af65f886db37cd5da",
+      "height": 660,
+      "sha256": "23687bde901b8c3a9311582219e22f8c316eac40521e5df915f97780d2b9ecd8",
+      "vendor_icons": [
+        "azure-vm",
+        "file",
+        "laptop"
+      ],
       "kind": "original explanatory diagram",
+      "language": "zh",
       "sources": [
         "scripts/remote_pipeline_v2.sh",
         "scripts/run_engine_eval.ps1",
         "scripts/parity.py"
       ],
-      "proves": "project workflow and stage ownership",
+      "proves": "project workflow, execution placement and scoring boundaries",
+      "does_not_prove": "model accuracy or runtime success"
+    },
+    {
+      "file": "validation-en.png",
+      "width": 1200,
+      "height": 660,
+      "sha256": "101cffb2796ad689ac19b1bba1bcc853a813f838220bdd38c62a46fe37761d27",
+      "vendor_icons": [
+        "azure-vm",
+        "file",
+        "laptop"
+      ],
+      "kind": "original explanatory diagram",
+      "language": "en",
+      "sources": [
+        "scripts/remote_pipeline_v2.sh",
+        "scripts/run_engine_eval.ps1",
+        "scripts/parity.py"
+      ],
+      "proves": "project workflow, execution placement and scoring boundaries",
       "does_not_prove": "model accuracy or runtime success"
     },
     {

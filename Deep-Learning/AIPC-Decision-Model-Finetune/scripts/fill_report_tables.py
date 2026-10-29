@@ -12,6 +12,49 @@ import sys
 from pathlib import Path
 
 
+def localize_block(text):
+    from markdown_it import MarkdownIt
+
+    translations = json.loads(Path(__file__).with_name("table_labels_en.json").read_text(encoding="utf-8"))
+    pattern = re.compile("|".join(re.escape(key) for key in sorted(translations, key=len, reverse=True)))
+    parser = MarkdownIt("commonmark", {"html": True})
+    lines = []
+    for line in text.splitlines():
+        parts = line.split("|") if line.startswith("|") else [line]
+        translated = []
+        for part in parts:
+            value = part.strip()
+            if value in translations:
+                result = translations[value]
+            else:
+                output = []
+                links = []
+                for token in parser.parseInline(value)[0].children or []:
+                    if token.type == "link_open":
+                        links.append(token.attrGet("href"))
+                        output.append("[")
+                    elif token.type == "link_close":
+                        output.append("](" + links.pop() + ")")
+                    elif token.type == "code_inline":
+                        output.append("`" + token.content + "`")
+                    elif token.type == "text":
+                        output.append(translations[token.content] if token.content in translations else
+                                      token.content if links and "/" in token.content else
+                                      pattern.sub(lambda match: translations[match.group()], token.content))
+                    elif token.type in ("strong_open", "strong_close"):
+                        output.append("**")
+                    elif token.type in ("em_open", "em_close"):
+                        output.append("*")
+                    elif token.type == "softbreak":
+                        output.append("\n")
+                    else:
+                        output.append(token.content)
+                result = "".join(output)
+            translated.append(result)
+        lines.append("| ".join(translated) if line.startswith("|") else translated[0])
+    return "\n".join(lines)
+
+
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser()

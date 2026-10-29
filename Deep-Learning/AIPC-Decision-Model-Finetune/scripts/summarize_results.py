@@ -370,6 +370,12 @@ def report_blocks(summary):
                     return total
         return None
 
+    readme_methods = {
+        "B0": "微调前：发布版",
+        "B0-policy": "微调前：仅在提示词中加入业务规则",
+        "FT": "微调后：业务数据微调",
+        "FT-cf": "微调后：业务数据＋字段变体增强",
+    }
     t = []
     for heading, columns, kind in (
         ("同分布测试：原话生成方式与训练集相同", ("test_support", "test_assistant"), "acc"),
@@ -379,7 +385,7 @@ def report_blocks(summary):
         headers = [f"{SET_NAME[set_name]}准确率（{count(set_name, kind):,} 题）"
                    if count(set_name, kind) else f"{SET_NAME[set_name]}准确率（题数未知）"
                    for set_name in columns]
-        t += [f"**{heading}**", "", "| 参数规模 | 训练方案 | " + " | ".join(headers) + " |", "|---|---|---|---|"]
+        t += [f"**{heading}**", "", "| 参数规模 | 阶段与做法 | " + " | ".join(headers) + " |", "|---|---|---|---|"]
         for size in ("0.8b", "4b"):
             if not any(set_key.startswith(size + "/") for set_key in S):
                 continue
@@ -389,7 +395,7 @@ def report_blocks(summary):
                     entry = S.get(f"{size}/{set_name}", {})
                     result = ((entry.get("changed_acc") or {}).get(model) or {}) if kind == "changed" else (entry.get(model) or {})
                     values.append(pct(result.get("acc")))
-                t.append(f"| {size.upper()} | {label} | " + " | ".join("未跑" if value == "—" else value for value in values) + " |")
+                t.append(f"| {size.upper()} | {readme_methods[label]} | " + " | ".join("未跑" if value == "—" else value for value in values) + " |")
         t.append("")
     b["README_ACC"] = "\n".join(t).rstrip()
 

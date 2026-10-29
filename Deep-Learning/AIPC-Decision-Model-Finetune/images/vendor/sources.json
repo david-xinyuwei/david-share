@@ -1,0 +1,53 @@
+{
+  "captured_at": "2026-10-29T09:29:17.541304-07:00",
+  "icons": [
+    {
+      "name": "azure-vm",
+      "owner": "Microsoft",
+      "source_url": "https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V24.zip",
+      "source_entry": "Azure_Public_Service_Icons/Icons/compute/10021-icon-service-Virtual-Machine.svg",
+      "terms_url": "https://learn.microsoft.com/en-us/azure/architecture/icons/#icon-terms",
+      "original": "azure-vm.svg",
+      "original_sha256": "092d18ffadec9ec0e5af129186dc7bc2a80544011e55f965604ed4b13873e0fc",
+      "raster": "azure-vm.png",
+      "raster_sha256": "a2427087b344bb9e21ae8790870fccca0b31b64b77c43857b19fdf81394eaa86",
+      "size": [
+        128,
+        128
+      ],
+      "transformation": "uniform scaling only; no crop, recolor, rotation or distortion"
+    },
+    {
+      "name": "file",
+      "owner": "Microsoft",
+      "source_url": "https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V24.zip",
+      "source_entry": "Azure_Public_Service_Icons/Icons/general/10800-icon-service-File.svg",
+      "terms_url": "https://learn.microsoft.com/en-us/azure/architecture/icons/#icon-terms",
+      "original": "file.svg",
+      "original_sha256": "89c56bc2a1b0f3f1a061049c7b58ea385b1a4d687cefc22ea91ffa3002f341f8",
+      "raster": "file.png",
+      "raster_sha256": "d455dd7051ef54fb4ed6d8451c9c4df0c6d273a3337ce19cf6b54975aa8adadc",
+      "size": [
+        128,
+        128
+      ],
+      "transformation": "uniform scaling only; no crop, recolor, rotation or distortion"
+    },
+    {
+      "name": "laptop",
+      "owner": "Microsoft",
+      "source_url": "https://raw.githubusercontent.com/microsoft/fluentui-system-icons/64e5aa757d1b70c24a283256ddcb8269d0f58773/assets/Laptop/SVG/ic_fluent_laptop_24_regular.svg",
+      "source_entry": "assets/Laptop/SVG/ic_fluent_laptop_24_regular.svg",
+      "terms_url": "https://github.com/microsoft/fluentui-system-icons/blob/64e5aa757d1b70c24a283256ddcb8269d0f58773/LICENSE",
+      "original": "laptop.svg",
+      "original_sha256": "518cf3b0f33f5540de6769a8f625569abd66587a0036fe226649dc4764c8c506",
+      "raster": "laptop.png",
+      "raster_sha256": "f8f9e0a9709e4561247fa517471b7bef1954df72eb37c279f6a79bda4308a038",
+      "size": [
+        128,
+        128
+      ],
+      "transformation": "uniform scaling only; no crop, recolor, rotation or distortion"
+    }
+  ]
+}

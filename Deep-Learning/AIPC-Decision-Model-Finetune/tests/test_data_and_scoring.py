@@ -9,6 +9,7 @@ bootstrap of summarize_results.py. A test whose saved evidence is absent is skip
 """
 import hashlib
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -157,9 +158,11 @@ class ReportLayoutTests(unittest.TestCase):
 
     def test_accuracy_tables_keep_every_configuration_and_value(self):
         block = sr.report_blocks(self.accuracy_summary())["README_ACC"]
-        self.assertEqual(block.count("| 参数规模 | 训练方案 |"), 3)
+        self.assertEqual(block.count("| 参数规模 | 阶段与做法 |"), 3)
+        labels = ("微调前：发布版", "微调前：仅在提示词中加入业务规则",
+                  "微调后：业务数据微调", "微调后：业务数据＋字段变体增强")
         for size in ("0.8B", "4B"):
-            for index, label in enumerate(sr.MODELS.values()):
+            for index, label in enumerate(labels):
                 percentage = f"{10 * (index + 1):.1f}%"
                 self.assertEqual(block.count(f"| {size} | {label} | {percentage} | {percentage} |"), 3)
         for count in ("510", "477", "1,011", "951", "172", "72"):
@@ -171,7 +174,7 @@ class ReportLayoutTests(unittest.TestCase):
         summary = self.accuracy_summary()
         del summary["sets"]["4b/test_support"]["ftcf"]
         block = sr.report_blocks(summary)["README_ACC"]
-        self.assertIn("| 4B | FT-cf | 未跑 | 40.0% |", block)
+        self.assertIn("| 4B | 微调后：业务数据＋字段变体增强 | 未跑 | 40.0% |", block)
 
     def test_engine_tables_keep_values_and_incomplete_runs(self):
         rows = [{"label": "ftcf-kev-0.8b-Q8_0-cpu", "gguf_mib": 775.0,
@@ -208,6 +211,105 @@ class ReportLayoutTests(unittest.TestCase):
         self.assertTrue(all(len(line.strip("|").split("|")) <= 5
                             for name in ("PUBLIC", "TRAIN") for line in blocks[name].splitlines()
                             if line.startswith("|")))
+
+
+class BilingualDocumentationTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        try:
+            from markdown_it import MarkdownIt
+        except ImportError:
+            raise unittest.SkipTest("Documentation tests require requirements-docs.txt")
+        cls.parser = MarkdownIt("commonmark", {"html": True}).enable("table")
+        cls.pairs = (("README_CN.md", "README.md", 26, 20),
+                     ("文档/微调与端侧验证报告_20261027-130700.md",
+                      "文档/Finetuning-and-On-Device-Validation-Report.md", 20, 1))
+
+    def tables(self, tokens):
+        tables = []
+        in_table = False
+        for token in tokens:
+            if token.type == "table_open":
+                tables.append([])
+                in_table = True
+            elif token.type == "table_close":
+                in_table = False
+            elif token.type == "tr_open" and in_table:
+                tables[-1].append([])
+            elif token.type == "inline" and in_table:
+                tables[-1][-1].append(token.content)
+        return tables
+
+    def test_bilingual_tables_preserve_numeric_cells(self):
+        compared = 0
+        for chinese, english, count, _ in self.pairs:
+            source = self.tables(self.parser.parse((ROOT / chinese).read_text(encoding="utf-8")))
+            target = self.tables(self.parser.parse((ROOT / english).read_text(encoding="utf-8")))
+            self.assertEqual(len(source), count)
+            self.assertEqual(len(target), count)
+            for left_table, right_table in zip(source, target):
+                self.assertEqual(len(left_table), len(right_table))
+                for left_row, right_row in zip(left_table, right_table):
+                    self.assertEqual(len(left_row), len(right_row))
+                    for left, right in zip(left_row, right_row):
+                        numeric = left.replace("MiB", "").replace("分钟", "").strip()
+                        if numeric and re.fullmatch(r"[\d\s,./%+−\-–~()（）\[\]×]+", numeric):
+                            numbers = lambda value: re.findall(r"[+−-]?\d+(?:\.\d+)?", value.replace(",", "").replace("−", "-"))
+                            self.assertEqual(numbers(left), numbers(right), (left, right))
+                            compared += 1
+        self.assertGreater(compared, 0)
+
+    def test_bilingual_code_and_source_anchors_are_complete(self):
+        for chinese, english, _, count in self.pairs:
+            source = self.parser.parse((ROOT / chinese).read_text(encoding="utf-8"))
+            text = (ROOT / english).read_text(encoding="utf-8")
+            target = self.parser.parse(text)
+            source_code = [token.content for token in source if token.type == "fence"]
+            target_code = [token.content for token in target if token.type == "fence"]
+            self.assertEqual(len(source_code), count)
+            self.assertEqual(source_code, target_code)
+            self.assertNotRegex(text, r"<!-- SOURCE:(TABLE|FENCE):\d+ -->\s*<!-- /SOURCE:")
+        english = self.parser.parse((ROOT / "README.md").read_text(encoding="utf-8"))
+        self.assertEqual([english[index + 1].content for index, token in enumerate(english)
+                          if token.type == "heading_open" and token.tag == "h2"], ["Purpose", "Results", "Steps"])
+
+    def test_localization_preserves_nested_link_and_code(self):
+        import fill_report_tables
+        from urllib.parse import unquote
+
+        source = "[文档/[NOTES]_实验协议_20261027-124000.md](文档/%5BNOTES%5D_实验协议_20261027-124000.md)，`manifest.json`"
+        target = fill_report_tables.localize_block(source)
+        source_tokens = self.parser.parseInline(source)[0].children
+        target_tokens = self.parser.parseInline(target)[0].children
+        self.assertEqual([unquote(token.attrGet("href")) for token in source_tokens if token.type == "link_open"],
+                         [unquote(token.attrGet("href")) for token in target_tokens if token.type == "link_open"])
+        self.assertEqual([token.content for token in target_tokens if token.type == "code_inline"], ["manifest.json"])
+        self.assertIn("Experimental protocol", target)
+        stages = fill_report_tables.localize_block(
+            "| 阶段与做法 |\n| 微调前：发布版 |\n| 微调前：仅在提示词中加入业务规则 |\n"
+            "| 微调后：业务数据微调 |\n| 微调后：业务数据＋字段变体增强 |")
+        self.assertIn("Stage and method", stages)
+        self.assertEqual(stages.count("Before fine-tuning:"), 2)
+        self.assertEqual(stages.count("After fine-tuning:"), 2)
+        self.assertIn("business rules in the prompt only", stages)
+        self.assertIn("business data + field-variant augmentation", stages)
+
+    def test_official_icons_and_both_diagram_languages(self):
+        icons = json.loads((ROOT / "images/vendor/sources.json").read_text(encoding="utf-8"))["icons"]
+        names = {icon["name"] for icon in icons}
+        for icon in icons:
+            for field in ("original", "raster"):
+                self.assertEqual(hashlib.sha256((ROOT / "images/vendor" / icon[field]).read_bytes()).hexdigest(),
+                                 icon[field + "_sha256"])
+        assets = json.loads((ROOT / "images/provenance.json").read_text(encoding="utf-8"))["assets"]
+        diagrams = [asset for asset in assets if asset["kind"] == "original explanatory diagram"]
+        self.assertEqual({asset["file"] for asset in diagrams},
+                         {name + suffix + ".png" for name in ("training", "inference", "validation") for suffix in ("", "-en")})
+        for asset in diagrams:
+            self.assertIn(asset["language"], ("zh", "en"))
+            self.assertTrue(asset["vendor_icons"])
+            self.assertTrue(set(asset["vendor_icons"]).issubset(names))
+            self.assertEqual(hashlib.sha256((ROOT / "images" / asset["file"]).read_bytes()).hexdigest(), asset["sha256"])
 
 
 class ScoringTests(unittest.TestCase):
