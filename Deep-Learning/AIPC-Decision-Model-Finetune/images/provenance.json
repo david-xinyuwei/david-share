@@ -7,9 +7,9 @@
   "assets": [
     {
       "file": "training.png",
-      "width": 800,
-      "height": 995,
-      "sha256": "cd4b1b0b4b836fea85305f3e31163b79b00d6a075697f31a85105c341e53e56c",
+      "width": 1200,
+      "height": 510,
+      "sha256": "dc63aee90535801e51ed339eb4cc5c686c735b6894aee51c9934c9089de02f80",
       "kind": "original explanatory diagram",
       "sources": [
         "scripts/remote_pipeline_v2.sh",
@@ -21,9 +21,9 @@
     },
     {
       "file": "inference.png",
-      "width": 800,
-      "height": 790,
-      "sha256": "28c68b249948ad8ffb8e13fcd053867a7e9dce57fcfb24b691df0d715e4ad75c",
+      "width": 1200,
+      "height": 330,
+      "sha256": "599224c4072f6d393470c0d2c849d065e01d364320bfdd546bfa430830c20687",
       "kind": "original explanatory diagram",
       "sources": [
         "scripts/systemone_client.py",
@@ -34,9 +34,9 @@
     },
     {
       "file": "validation.png",
-      "width": 800,
-      "height": 950,
-      "sha256": "621d3de2962f77032fad7723f4917ddbbfa7de4948788b51b794ab4fafa402d1",
+      "width": 1200,
+      "height": 550,
+      "sha256": "2493ca18d0bf50d66ee7038bfa7e66117a2e0378f7fc623af65f886db37cd5da",
       "kind": "original explanatory diagram",
       "sources": [
         "scripts/remote_pipeline_v2.sh",
@@ -45,6 +45,19 @@
       ],
       "proves": "project workflow and stage ownership",
       "does_not_prove": "model accuracy or runtime success"
+    },
+    {
+      "file": "kev-leaderboard.png",
+      "width": 2380,
+      "height": 1615,
+      "sha256": "c302d60204aec1fd65a598094623ca78bd9ebe7c65883f7cab16dbba155fa1e4",
+      "kind": "unchanged producer-published figure",
+      "owner": "Jared Palmer / Kev",
+      "source": "https://raw.githubusercontent.com/jaredpalmer/kev/2074cc44256200bb37540103fa4572901faa10f3/docs/kev-family.png",
+      "license": "Apache-2.0",
+      "crop": "none",
+      "proves": "producer-reported transfer-v4 development comparison at commit 2074cc44",
+      "does_not_prove": "this project's vendor-task accuracy, laptop latency, or universal model ranking"
     }
   ]
 }

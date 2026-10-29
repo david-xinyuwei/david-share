@@ -361,30 +361,37 @@ def report_blocks(summary):
             t.append(f"| {size} | {name} | " + " | ".join(ci(kc.get(x)) for x in ("ft_vs_b0", "ftcf_vs_b0", "ftcf_vs_ft")) + " |")
     b["ACC"] = "\n".join(t)
 
-    # README: one row per size and method, the four test sets plus the rule-following questions of the test variants
-    cols = [("test_support", "acc"), ("test_assistant", "acc"), ("ood_support", "acc"), ("ood_assistant", "acc"),
-            ("test_cf_support", "changed"), ("test_cf_assistant", "changed")]
-    def count(s, kind):
-        for k, e in S.items():
-            if k.endswith("/" + s):
-                n = e.get("changed_questions") if kind == "changed" else next((e[m]["n"] for m in MODELS if e.get(m)), None)
-                if n:
-                    return n
+    def count(set_name, kind):
+        for set_key, entry in S.items():
+            if set_key.endswith("/" + set_name):
+                total = entry.get("changed_questions") if kind == "changed" else next(
+                    (entry[model]["n"] for model in MODELS if entry.get(model)), None)
+                if total:
+                    return total
         return None
 
-    head = [f"{SET_NAME[s]}{'（答案因字段改变的题）' if kind == 'changed' else ''} 准确率（{count(s, kind):,} 题）" if count(s, kind) else SET_NAME[s]
-            for s, kind in cols]
-    t = ["| 尺寸 | 做法 | " + " | ".join(head) + " |", "|---|---|" + "---|" * len(cols)]
-    for size in ("0.8b", "4b"):
-        if not any(k.startswith(size + "/") for k in S):
-            continue
-        for m, label in MODELS.items():
-            vals = []
-            for s, kind in cols:
-                e = S.get(f"{size}/{s}", {})
-                vals.append(pct(((e.get("changed_acc") or {}).get(m) or {}).get("acc")) if kind == "changed" else pct((e.get(m) or {}).get("acc")))
-            t.append(f"| {size.upper()} | {label} | " + " | ".join("未跑" if v == "—" else v for v in vals) + " |")
-    b["README_ACC"] = "\n".join(t)
+    t = []
+    for heading, columns, kind in (
+        ("同分布测试：原话生成方式与训练集相同", ("test_support", "test_assistant"), "acc"),
+        ("分布外测试：更换生成模型与字段分布", ("ood_support", "ood_assistant"), "acc"),
+        ("字段变体测试：仅统计答案因字段改变的题", ("test_cf_support", "test_cf_assistant"), "changed"),
+    ):
+        headers = [f"{SET_NAME[set_name]}准确率（{count(set_name, kind):,} 题）"
+                   if count(set_name, kind) else f"{SET_NAME[set_name]}准确率（题数未知）"
+                   for set_name in columns]
+        t += [f"**{heading}**", "", "| 参数规模 | 训练方案 | " + " | ".join(headers) + " |", "|---|---|---|---|"]
+        for size in ("0.8b", "4b"):
+            if not any(set_key.startswith(size + "/") for set_key in S):
+                continue
+            for model, label in MODELS.items():
+                values = []
+                for set_name in columns:
+                    entry = S.get(f"{size}/{set_name}", {})
+                    result = ((entry.get("changed_acc") or {}).get(model) or {}) if kind == "changed" else (entry.get(model) or {})
+                    values.append(pct(result.get("acc")))
+                t.append(f"| {size.upper()} | {label} | " + " | ".join("未跑" if value == "—" else value for value in values) + " |")
+        t.append("")
+    b["README_ACC"] = "\n".join(t).rstrip()
 
     t = ["| 尺寸 | 测试集 | 问题 | 多数标签占比 | 准确率 B0 / B0-policy / FT / FT-cf | 平衡准确率 B0 / B0-policy / FT / FT-cf |", "|---|---|---|---|---|---|"]
     for k, e in rows(main_sets):
@@ -440,22 +447,38 @@ def report_blocks(summary):
                  + " / ".join(pct((e.get(m) or {}).get("coverage_at_5pct_error")) for m in MODELS) + " |")
     b["CAL"] = "\n".join(t)
 
-    t = ["| 尺寸 | 模型 | 题数 | 发布版准确率 | 微调后准确率 | 变化（百分点） | Brier 发布版 → 微调后 |", "|---|---|---|---|---|---|---|"]
+    t = ["| 模型与训练方案 | 通用题数 | 发布版准确率 | 微调后准确率 | 变化（百分点） |", "|---|---|---|---|---|"]
     for k, p in summary["public"].items():
         size, m = k.split("/")
         change = "0.0" if abs(p["acc_drop_pp"]) < 0.05 else f"{-p['acc_drop_pp']:+.1f}"  # avoid printing "-0.0"
-        t.append(f"| {size.upper()} | {MODELS[m]} | {p['n']} | {pct(p['b0_acc'])} | {pct(p['acc'])} | {change} | {p['b0_brier']:.3f} → {p['brier']:.3f} |")
+        t.append(f"| {size.upper()} {MODELS[m]} | {p['n']} | {pct(p['b0_acc'])} | {pct(p['acc'])} | {change} |")
+    t += ["", "**通用题的置信度：Brier 越低越好**", "",
+          "| 模型与训练方案 | 发布版 Brier | 微调后 Brier |", "|---|---|---|"]
+    for key, result in summary["public"].items():
+        size, model = key.split("/")
+        t.append(f"| {size.upper()} {MODELS[model]} | {result['b0_brier']:.3f} | {result['brier']:.3f} |")
     b["PUBLIC"] = "\n".join(t)
 
-    t = ["| 尺寸 | 模型 | micro-batch × accum | 训练记录（2 个 epoch 合计） | 优化步数 | 墙钟时间 | 显存峰值：nvidia-smi / PyTorch 分配 | 校准温度 |", "|---|---|---|---|---|---|---|---|"]
+    t = ["**训练配方：每个配置运行一次，有效 batch 均为 8**", "",
+         "| 模型与训练方案 | micro-batch × accum | 训练记录（2 个 epoch 合计） | 优化步数 |", "|---|---|---|---|"]
+    for key, training in summary["training"].items():
+        if not training.get("wall_s"):
+            continue
+        size, model = key.split("/")
+        metrics = training.get("training_metrics") or {}
+        steps = format(metrics["optimizer_steps"], ",") if "optimizer_steps" in metrics else "—"
+        t.append(f"| {size.upper()} {MODELS[model]} | {training.get('batch', '1')} × {training.get('accum', '8')} | "
+                 f"{metrics.get('records_seen', 0):,} | {steps} |")
+    t += ["", "**训练消耗：1 张 H100 NVL，时间包含模型加载与保存**", "",
+          "| 模型与训练方案 | 墙钟时间 | 整卡显存峰值（nvidia-smi） | PyTorch 分配峰值 | 校准温度 |", "|---|---|---|---|---|"]
     for k, tr in summary["training"].items():
         if not tr.get("wall_s"):
             continue
         size, m = k.split("/")
         mt = tr.get("training_metrics") or {}
         dev = mt.get("peak_device_bytes")
-        t.append(f"| {size.upper()} | {MODELS[m]} | {tr.get('batch', '1')} × {tr.get('accum', '8')} | {mt.get('records_seen', 0):,} | {format(mt['optimizer_steps'], ',') if 'optimizer_steps' in mt else '—'} | "
-                 + f"{int(tr['wall_s']) / 60:.1f} 分钟 | {int(tr.get('peak_gpu_mib', 0)):,} MiB / " + ("—" if dev is None else f"{dev / 2**20:,.0f} MiB")
+        t.append(f"| {size.upper()} {MODELS[m]} | {int(tr['wall_s']) / 60:.1f} 分钟 | {int(tr.get('peak_gpu_mib', 0)):,} MiB | "
+                 + ("—" if dev is None else f"{dev / 2**20:,.0f} MiB")
                  + f" | {tr.get('temperature', '—')} |")
     b["TRAIN"] = "\n".join(t)
     return b

@@ -28,13 +28,53 @@ def describe(label):
     return key, f"{KIND[kind]} {size.upper()}", quant, f"{BACKEND[backend]}，{VARIANT.get(variant, variant)}"
 
 
+def brief_table(rows, incomplete):
+    ordered = sorted(rows, key=lambda row: describe(row["label"])[0])
+
+    def metric(value, specification):
+        return "—" if value is None else format(value, specification)
+
+    def percentage(value):
+        return "—" if value is None else f"{100 * value:.1f}%"
+
+    sections = []
+    for title, headers, fields in (
+        ("准确率与引擎一致率", ["工单准确率：端侧（PyTorch）", "助手准确率：端侧（PyTorch）",
+                                "工单答案一致率：端侧对 PyTorch", "助手答案一致率：端侧对 PyTorch"], "quality"),
+        ("模型文件与进程内存", ["模型文件（MiB）", "峰值工作集（MiB）", "提交内存（MiB）"], "memory"),
+        ("单次请求时延", ["工单请求耗时中位数（毫秒）", "助手请求耗时中位数（毫秒）"], "latency"),
+    ):
+        sections += [f"**{title}**", "", "| 模型、量化与运行参数 | " + " | ".join(headers) + " |",
+                     "|" + "---|" * (len(headers) + 1)]
+        for row in ordered:
+            _, model, quant, setting = describe(row["label"])
+            label = f"{model}<br>{quant} · {setting}"
+            if fields == "quality":
+                values = [f"{percentage(row.get('support_acc'))}（{percentage(row.get('support_torch_acc'))}）",
+                          f"{percentage(row.get('assistant_acc'))}（{percentage(row.get('assistant_torch_acc'))}）",
+                          percentage(row.get("support_agree")), percentage(row.get("assistant_agree"))]
+            elif fields == "memory":
+                values = [metric(row.get("gguf_mib"), ",.0f"), metric(row.get("peak_ws_mib"), ",d"),
+                          metric(row.get("private_mib"), ",d")]
+            else:
+                values = [metric(row.get("support_p50"), ",.0f"), metric(row.get("assistant_p50"), ",.0f")]
+            sections.append("| " + " | ".join([label, *values]) + " |")
+        sections.append("")
+    if incomplete:
+        sections.append("没有跑完、不计入上表的运行：" + "；".join(incomplete) + "。")
+    return "\n".join(sections).rstrip() + "\n"
+
+
 def main():
     sys.stdout.reconfigure(encoding="utf-8")  # a piped Windows console defaults to GBK
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", required=True)
     ap.add_argument("--out", default="")
+    ap.add_argument("--output-dir", type=Path, help="write derived summaries here instead of the run directory")
     a = ap.parse_args()
     root = Path(a.root)
+    output_dir = a.output_dir or root
+    output_dir.mkdir(parents=True, exist_ok=True)
     rows, incomplete = [], []
     for d in sorted(p for p in root.iterdir() if p.is_dir() and not p.name.startswith("pytorch-")):
         if not all((d / w / "summary.json").is_file() for w in ("support", "assistant")):
@@ -88,20 +128,11 @@ def main():
             f"{f(r.get('support_tvd'), '.4f')} / {f(r.get('assistant_tvd'), '.4f')}",
             f"{f(r.get('support_p50'), '.0f')} / {f(r.get('support_p90'), '.0f')}",
             f"{f(r.get('assistant_p50'), '.0f')} / {f(r.get('assistant_p90'), '.0f')} |"]))
-    # brief table for the report: readable names, sorted released -> FT -> FT-cf, by size
-    brief = ["| 模型 | 量化 | 后端与启动参数 | 模型文件（MiB） | 内存：峰值工作集 / 提交（MiB） | 准确率 工单 / 助手（括号内为 PyTorch） | 与 PyTorch 逐题一致率 工单 / 助手 | 单次决策时延中位数 工单 / 助手（毫秒） |",
-             "|---|---|---|---|---|---|---|---|"]
-    for r in sorted(rows, key=lambda r: describe(r["label"])[0]):
-        _, model, quant, setting = describe(r["label"])
-        brief.append(f"| {model} | {quant} | {setting} | {f(r['gguf_mib'], ',.0f')} | {f(r['peak_ws_mib'], ',d')} / {f(r['private_mib'], ',d')} | "
-                     f"{pc(r.get('support_acc'))}（{pc(r.get('support_torch_acc'))}） / {pc(r.get('assistant_acc'))}（{pc(r.get('assistant_torch_acc'))}） | "
-                     f"{pc(r.get('support_agree'))} / {pc(r.get('assistant_agree'))} | {f(r.get('support_p50'), ',.0f')} / {f(r.get('assistant_p50'), ',.0f')} |")
-    if incomplete:
-        brief += ["", "没有跑完、不计入上表的运行：" + "；".join(incomplete) + "。"]
-    text = "\n".join(lines) + "\n\n" + "\n".join(brief) + "\n"
+    brief = brief_table(rows, incomplete)
+    text = "\n".join(lines) + "\n\n" + brief
     print(text)
-    (root / "engine_summary.json").write_text(json.dumps(rows, ensure_ascii=False, indent=1), encoding="utf-8")
-    (root / "engine_brief.md").write_text("\n".join(brief) + "\n", encoding="utf-8")
+    (output_dir / "engine_summary.json").write_text(json.dumps(rows, ensure_ascii=False, indent=1), encoding="utf-8")
+    (output_dir / "engine_brief.md").write_text(brief, encoding="utf-8")
     if a.out:
         Path(a.out).write_text(text, encoding="utf-8")
 

@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 *.preview.html
 截图/
+*.bak-*
+/验证结果/版式重构_20261029-063711/
+/文档/Repo_Review_Report_20261029-063711.md

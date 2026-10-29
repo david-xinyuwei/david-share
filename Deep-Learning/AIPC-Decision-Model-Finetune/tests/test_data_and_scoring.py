@@ -21,6 +21,7 @@ DATA = ROOT / "data" / "contoso"
 FINAL = DATA / "final"
 ENGINE = ROOT / "验证结果" / "端侧引擎_20261027-124700"
 sys.path.insert(0, str(ROOT / "scripts"))
+import summarize_engine as se
 import summarize_results as sr  # noqa: E402
 import systemone_client as client  # noqa: E402
 import temperature_whatif as tw  # noqa: E402
@@ -138,6 +139,75 @@ class RequestTests(unittest.TestCase):
                             client.single_request("http://127.0.0.1:8080/v1/systemone", request_path, output)
                     send.assert_called_once()
                     self.assertFalse((output / "result.json").exists())
+
+
+class ReportLayoutTests(unittest.TestCase):
+    def accuracy_summary(self):
+        sets = {}
+        for size in ("0.8b", "4b"):
+            for set_name, count in (("test_support", 510), ("test_assistant", 477),
+                                    ("ood_support", 1011), ("ood_assistant", 951),
+                                    ("test_cf_support", 172), ("test_cf_assistant", 72)):
+                scores = {model: {"n": count, "acc": 0.1 * (index + 1)}
+                          for index, model in enumerate(sr.MODELS)}
+                sets[f"{size}/{set_name}"] = (
+                    {"changed_questions": count, "changed_acc": scores, "changed_paired": {}}
+                    if "_cf_" in set_name else scores)
+        return {"sets": sets, "public": {}, "training": {}}
+
+    def test_accuracy_tables_keep_every_configuration_and_value(self):
+        block = sr.report_blocks(self.accuracy_summary())["README_ACC"]
+        self.assertEqual(block.count("| 参数规模 | 训练方案 |"), 3)
+        for size in ("0.8B", "4B"):
+            for index, label in enumerate(sr.MODELS.values()):
+                percentage = f"{10 * (index + 1):.1f}%"
+                self.assertEqual(block.count(f"| {size} | {label} | {percentage} | {percentage} |"), 3)
+        for count in ("510", "477", "1,011", "951", "172", "72"):
+            self.assertIn(f"（{count} 题）", block)
+        self.assertTrue(all(len(line.strip("|").split("|")) == 4
+                            for line in block.splitlines() if line.startswith("|")))
+
+    def test_accuracy_tables_keep_unrun_cells_visible(self):
+        summary = self.accuracy_summary()
+        del summary["sets"]["4b/test_support"]["ftcf"]
+        block = sr.report_blocks(summary)["README_ACC"]
+        self.assertIn("| 4B | FT-cf | 未跑 | 40.0% |", block)
+
+    def test_engine_tables_keep_values_and_incomplete_runs(self):
+        rows = [{"label": "ftcf-kev-0.8b-Q8_0-cpu", "gguf_mib": 775.0,
+                 "peak_ws_mib": 2314, "private_mib": 5014, "support_acc": 0.869,
+                 "assistant_acc": 0.977, "support_torch_acc": 0.869, "assistant_torch_acc": 0.975,
+                 "support_agree": 0.992, "assistant_agree": 0.998,
+                 "support_p50": 646.0, "assistant_p50": 984.0},
+                {"label": "released-kev-4b-Q4_K_M-cpu"}]
+        text = se.brief_table(rows, ["unfinished（support 36 条，无汇总）"])
+        self.assertEqual(text.count("| 模型、量化与运行参数 |"), 3)
+        self.assertEqual(text.count("| 微调 FT-cf 0.8B<br>Q8_0 · CPU，默认参数 |"), 3)
+        self.assertIn("| 86.9%（86.9%） | 97.7%（97.5%） | 99.2% | 99.8% |", text)
+        self.assertIn("| 775 | 2,314 | 5,014 |", text)
+        self.assertIn("| 646 | 984 |", text)
+        self.assertIn("unfinished（support 36 条，无汇总）", text)
+        self.assertIn("| — | — | — |", text)
+        self.assertLess(text.index("发布版 4B"), text.index("微调 FT-cf 0.8B"))
+        self.assertTrue(all(len(line.strip("|").split("|")) <= 5
+                            for line in text.splitlines() if line.startswith("|")))
+
+    def test_public_and_training_tables_keep_all_metrics(self):
+        summary = self.accuracy_summary()
+        summary["public"] = {"4b/ft": {"n": 656, "b0_acc": 0.817, "acc": 0.809,
+                                       "acc_drop_pp": 0.8, "b0_brier": 0.243, "brier": 0.299}}
+        summary["training"] = {"4b/ft": {"wall_s": 942, "batch": 4, "accum": 2,
+                                         "peak_gpu_mib": 33359, "temperature": "1.66",
+                                         "training_metrics": {"records_seen": 6294, "optimizer_steps": 788,
+                                                              "peak_device_bytes": 22581 * 2**20}}}
+        blocks = sr.report_blocks(summary)
+        self.assertIn("| 4B FT | 656 | 81.7% | 80.9% | -0.8 |", blocks["PUBLIC"])
+        self.assertIn("| 4B FT | 0.243 | 0.299 |", blocks["PUBLIC"])
+        self.assertIn("| 4B FT | 4 × 2 | 6,294 | 788 |", blocks["TRAIN"])
+        self.assertIn("| 4B FT | 15.7 分钟 | 33,359 MiB | 22,581 MiB | 1.66 |", blocks["TRAIN"])
+        self.assertTrue(all(len(line.strip("|").split("|")) <= 5
+                            for name in ("PUBLIC", "TRAIN") for line in blocks[name].splitlines()
+                            if line.startswith("|")))
 
 
 class ScoringTests(unittest.TestCase):
