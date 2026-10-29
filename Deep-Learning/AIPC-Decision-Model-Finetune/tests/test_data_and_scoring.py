@@ -14,6 +14,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data" / "contoso"
@@ -21,6 +22,7 @@ FINAL = DATA / "final"
 ENGINE = ROOT / "验证结果" / "端侧引擎_20261027-124700"
 sys.path.insert(0, str(ROOT / "scripts"))
 import summarize_results as sr  # noqa: E402
+import systemone_client as client  # noqa: E402
 import temperature_whatif as tw  # noqa: E402
 import vendor_policy as vp  # noqa: E402
 
@@ -91,6 +93,51 @@ class DataTests(unittest.TestCase):
                     base = originals[r["_meta"]["group"]]
                     changed = [q for q, v in r["questions"].items() if v["label"] != base["questions"][q]["label"]]
                     self.assertTrue(changed, r["_meta"]["case"])
+
+
+class RequestTests(unittest.TestCase):
+    def test_request_excludes_labels_and_metadata(self):
+        record = {"state": {"message": "test", "region": "CN"},
+                  "questions": {"onsite": {"type": "noul", "label": True}}, "_meta": {"case": "test"}}
+        body = client.request_body(record)
+        self.assertEqual(body, {"state": record["state"], "questions": {"onsite": {"type": "noul"}}})
+        self.assertTrue(record["questions"]["onsite"]["label"])
+        with self.assertRaises(ValueError):
+            client.request_body({"state": "test", "questions": {}})
+
+    def test_single_request_saves_visible_input_and_raw_response(self):
+        response = {"answers": {"onsite": {"type": "noul", "noul": 0.37}}, "usage": {"input_tokens": 15}}
+        with tempfile.TemporaryDirectory() as temporary:
+            request_path = Path(temporary) / "request.json"
+            for region in ("CN", "SG"):
+                record = {"state": {"message": "test", "region": region},
+                          "questions": {"onsite": {"type": "noul", "label": True}}}
+                request_path.write_text(json.dumps(record), encoding="utf-8-sig")
+                output = Path(temporary) / region
+                with mock.patch.object(client, "ask", return_value=(response, 12.3)) as send, mock.patch("builtins.print"):
+                    result = client.single_request("http://127.0.0.1:8080/v1/systemone", request_path, output)
+                send.assert_called_once_with("http://127.0.0.1:8080/v1/systemone", client.request_body(record))
+                self.assertEqual(result["response"], response)
+                self.assertEqual(result["request"]["state"]["region"], region)
+                self.assertEqual(result["client_latency_ms"], 12.3)
+                self.assertEqual(json.loads((output / "result.json").read_text(encoding="utf-8")), result)
+                with mock.patch.object(client, "ask") as send, self.assertRaises(FileExistsError):
+                    client.single_request("http://127.0.0.1:8080/v1/systemone", request_path, output)
+                send.assert_not_called()
+
+    def test_single_request_failure_never_writes_success(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            request_path = Path(temporary) / "request.json"
+            request_path.write_text(json.dumps({"state": "test", "questions": {"onsite": {"type": "noul"}}}), encoding="utf-8")
+            for name, effect, response in (("offline", ConnectionError("offline"), None),
+                                           ("missing-answer", None, ({"answers": {}}, 1.0))):
+                with self.subTest(name=name):
+                    output = Path(temporary) / name
+                    with mock.patch.object(client, "ask", side_effect=effect, return_value=response) as send:
+                        with self.assertRaises((ConnectionError, ValueError)):
+                            client.single_request("http://127.0.0.1:8080/v1/systemone", request_path, output)
+                    send.assert_called_once()
+                    self.assertFalse((output / "result.json").exists())
 
 
 class ScoringTests(unittest.TestCase):

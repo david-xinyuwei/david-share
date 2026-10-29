@@ -1,0 +1,96 @@
+{
+  "captured_utc": "2026-10-29T03:25:08.240817+00:00",
+  "url": "http://127.0.0.1:8080/v1/systemone",
+  "input_sha256": "45af53ffb7cbcfc2b40ec509ad259ab3c4dfee22049b8fb5d251c752ca13843b",
+  "request": {
+    "state": {
+      "channel": "email",
+      "message": "您好：我的AuraBook Pro 16有好几个按键突然失灵了，电脑没有摔过，也没有进过水。正常使用却出现这种情况，确实让人很烦。谢谢。",
+      "device": {
+        "product_line": "AuraBook Pro 16",
+        "region": "SG",
+        "warranty_plan": "Premium Care 3Y",
+        "days_since_purchase": 731,
+        "battery_cycles": 667,
+        "last_error_code": "none",
+        "bios_version": "1.18"
+      }
+    },
+    "questions": {
+      "queue": {
+        "type": "choice",
+        "instructions": "Which Contoso support queue should take this case?",
+        "criteria": {
+          "remote_l1": "Remote software support: drivers, Windows, Contoso apps and settings",
+          "depot_repair": "Mail-in repair at a Contoso service center",
+          "onsite_repair": "A technician visits the customer",
+          "battery_program": "Battery health replacement program",
+          "bios_l2": "Firmware and BIOS engineering (second line)",
+          "damage_claim": "Accidental damage claim",
+          "sales_ops": "Orders, invoices and paid repair quotes",
+          "privacy_desk": "Requests to export or delete personal data"
+        }
+      },
+      "onsite_eligible": {
+        "type": "noul",
+        "instructions": "Is the customer entitled to an onsite technician visit for this case?"
+      },
+      "urgency": {
+        "type": "score",
+        "instructions": "How urgently must Contoso respond?",
+        "criteria": [
+          "Can wait",
+          "Within this week",
+          "Today",
+          "Immediately: safety or data-loss risk"
+        ]
+      }
+    }
+  },
+  "client_latency_ms": 617.2,
+  "response": {
+    "model": "contoso-kev-0.8b-ftcf",
+    "answers": {
+      "queue": {
+        "type": "choice",
+        "choice": "sales_ops",
+        "probabilities": {
+          "remote_l1": 0.001125142723251588,
+          "depot_repair": 0.30777639384880834,
+          "onsite_repair": 0.24763675663654483,
+          "battery_program": 1.576634472340746e-06,
+          "bios_l2": 2.2867689780945595e-07,
+          "damage_claim": 3.7525768291895677e-06,
+          "sales_ops": 0.44345614797403177,
+          "privacy_desk": 9.291642347789435e-10
+        },
+        "confidence": 0.36394988339889345
+      },
+      "onsite_eligible": {
+        "type": "noul",
+        "noul": 0.25992053867072135
+      },
+      "urgency": {
+        "type": "score",
+        "score": 0.9999897544481694,
+        "legend": {
+          "0": "Can wait",
+          "1": "Within this week",
+          "2": "Today",
+          "3": "Immediately: safety or data-loss risk"
+        },
+        "probabilities": {
+          "0": 1.0272644267887257e-05,
+          "1": 0.9999897005431696,
+          "2": 2.6532687194073065e-08,
+          "3": 2.7987512877692453e-10
+        },
+        "confidence": 0.9999897002632947
+      }
+    },
+    "usage": {
+      "input_tokens": 500,
+      "output_tokens": 0
+    }
+  }
+}

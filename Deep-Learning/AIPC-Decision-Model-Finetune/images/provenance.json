@@ -1,0 +1,50 @@
+{
+  "generator": "scripts/render_diagrams.py",
+  "font": "msyh.ttc",
+  "reference": "https://github.com/jaredpalmer/kev/blob/2074cc44256200bb37540103fa4572901faa10f3/README.md",
+  "selection": "Upstream model/accuracy and playground figures do not describe this project's training, export and laptop validation paths.",
+  "visual_scope": "Generic workflow stages, not Azure service-resource icons or product screenshots.",
+  "assets": [
+    {
+      "file": "training.png",
+      "width": 800,
+      "height": 995,
+      "sha256": "cd4b1b0b4b836fea85305f3e31163b79b00d6a075697f31a85105c341e53e56c",
+      "kind": "original explanatory diagram",
+      "sources": [
+        "scripts/remote_pipeline_v2.sh",
+        "scripts/remote_cf_round.sh",
+        "scripts/remote_export_gguf.sh"
+      ],
+      "proves": "project workflow and stage ownership",
+      "does_not_prove": "model accuracy or runtime success"
+    },
+    {
+      "file": "inference.png",
+      "width": 800,
+      "height": 790,
+      "sha256": "28c68b249948ad8ffb8e13fcd053867a7e9dce57fcfb24b691df0d715e4ad75c",
+      "kind": "original explanatory diagram",
+      "sources": [
+        "scripts/systemone_client.py",
+        "scripts/run_engine_eval.ps1"
+      ],
+      "proves": "project workflow and stage ownership",
+      "does_not_prove": "model accuracy or runtime success"
+    },
+    {
+      "file": "validation.png",
+      "width": 800,
+      "height": 950,
+      "sha256": "621d3de2962f77032fad7723f4917ddbbfa7de4948788b51b794ab4fafa402d1",
+      "kind": "original explanatory diagram",
+      "sources": [
+        "scripts/remote_pipeline_v2.sh",
+        "scripts/run_engine_eval.ps1",
+        "scripts/parity.py"
+      ],
+      "proves": "project workflow and stage ownership",
+      "does_not_prove": "model accuracy or runtime success"
+    }
+  ]
+}

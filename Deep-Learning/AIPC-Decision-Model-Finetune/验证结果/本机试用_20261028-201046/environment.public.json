@@ -1,0 +1,35 @@
+{
+  "captured": "2026-10-28T20:41:16.5512528-07:00",
+  "execution_plane": "LOCAL_WINDOWS",
+  "os_architecture": "Arm64",
+  "processor": "Snapdragon(R) X 12-core X1E80100 @ 3.40 GHz",
+  "engine": "llama.cpp b11935 7ecb57f7a Windows ARM64 CPU",
+  "model_file": "Contoso-Kev-0.8B-FTcf-Q8_0.gguf",
+  "model_sha256": "5a647379764fcad21d12e06bc7fcb1663dd52e15587f8854d9f417d1f96d65d3",
+  "matches_historical_ftcf": true,
+  "host": "127.0.0.1",
+  "port": 8080,
+  "offline": true,
+  "ctx": 8192,
+  "batch": 2048,
+  "ubatch": 2048,
+  "gpu_layers": 0,
+  "warmup_requests": 0,
+  "request_count": 3,
+  "questions_per_request": 3,
+  "working_set_mib": 2288.6,
+  "peak_working_set_mib": 2288.6,
+  "private_mib": 4988.7,
+  "client_sha256": "767e3570d5ebb1fec3e0be2ceeff7ea013693889f3e21c43217f11602939101a",
+  "result_files": [
+    "support-us/result.json",
+    "support-sg/result.json",
+    "assistant/result.json"
+  ],
+  "scope": "Three real local requests, not an independent accuracy or latency benchmark",
+  "publication": {
+    "kind": "public projection",
+    "omitted_fields": ["server_log"],
+    "reason": "The original service log is retained locally and is not included in this public projection. Measurement values are unchanged."
+  }
+}

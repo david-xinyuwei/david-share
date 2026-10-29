@@ -1,0 +1,44 @@
+{
+  "state": {
+    "utterance": "帮我联系人工客服咨询保修。",
+    "context": {
+      "foreground_app": "Outlook",
+      "power_source": "battery",
+      "battery_pct": 17,
+      "network": "wifi",
+      "enterprise_managed": true,
+      "camera_in_use": false,
+      "external_display": false
+    }
+  },
+  "questions": {
+    "tool": {
+      "type": "choice",
+      "instructions": "Which Contoso Assistant tool should handle this request?",
+      "criteria": {
+        "smart_power": "Performance, quiet and battery-saver power modes",
+        "display_eye_care": "Brightness, blue-light filter and eye-care reminders",
+        "audio_enhance": "Microphone noise suppression and voice clarity",
+        "camera_studio": "Background blur, auto framing and lighting correction",
+        "meeting_assist": "Meeting transcripts, recordings, summaries and action items",
+        "file_search": "Find local files by what they contain",
+        "screen_translate": "Translate text or speech on the screen",
+        "driver_update": "Check and install drivers and firmware",
+        "system_diagnose": "Health checks for battery, fans, disk and performance",
+        "privacy_shield": "Screen privacy, auto-lock and hiding notifications",
+        "smart_connect": "Phone link: transfer files and photos, mirror notifications",
+        "support_chat": "Contact Contoso support about warranty or repairs",
+        "general_chat": "General questions, writing help and chit-chat",
+        "none_reject": "Out of scope or not allowed; decline politely"
+      }
+    },
+    "run_on_device": {
+      "type": "noul",
+      "instructions": "Should Contoso Assistant handle this request entirely on the device, without sending data to the cloud?"
+    },
+    "needs_confirmation": {
+      "type": "noul",
+      "instructions": "Must the assistant ask the user to confirm before acting?"
+    }
+  }
+}

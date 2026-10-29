@@ -1,4 +1,4 @@
-# Contoso PC 端侧决策模型：用厂商私有数据微调 Kev，并在骁龙笔记本上本地运行
+# 笔记本本地决策模型：用业务数据微调 Kev，在端侧完成判断
 
 [![Status](https://img.shields.io/badge/status-interim%202026--10--27-yellow)](#实现效果)
 [![Data](https://img.shields.io/badge/data-simulated%20vendor%20data-lightgrey)](#目的)
@@ -9,20 +9,42 @@
 
 > **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
 
-一家 AI PC 厂商想把"按公司规则选一个答案"的决策放在笔记本本地完成，例如售后工单该派到哪个队列、端侧助手该调用哪个工具。本仓库用虚构品牌 Contoso PC 模拟这家厂商：用它的私有业务规则生成数据，在开源决策模型 Kev 上续训，再把微调后的模型转成 GGUF，用 llama.cpp 在骁龙 X Elite 笔记本上运行。
+客户需要把决策能力放到自己的笔记本上，还需要让模型适配自己的业务数据和规则。本仓库以开源决策模型 Kev 为候选，验证业务数据微调的效果，以及更新后的模型在骁龙笔记本上的准确率、时延和资源占用。
 
-**阶段性结论（2026-10-27，模拟数据，每种做法只训练一次）**
+**验证边界**：使用虚构厂商 Contoso PC 的模拟数据，不是真实客户数据。历史实验完成于 2026-10-27，每种训练配方仅运行一次；这不是与云端闭源模型的性能对比，也不是生产可用性承诺。
 
-- **微调有效。** 按结果出来前写定的选择规则，两个尺寸都推荐 FT-cf（在首轮微调的数据上加"只改一个字段"的变体再训一次）。同分布测试集准确率：0.8B 工单 44.7% → 86.9%、助手 67.1% → 97.5%；4B 工单 60.8% → 95.9%、助手 81.8% → 99.8%。换一个模型写原话的分布外测试集上，0.8B 是 82.5% / 94.4%，4B 是 91.4% / 98.8%。
-- **置信度可以直接用来分流。** 要求自动处理部分的错误率不超过 5%，同分布测试集上能交给模型自动处理的题，发布版只有 2.9%–43.2%，FT-cf 是 84.5%–100%；分布外测试集上是 6.1%–44.4% 对 69.9%–100%（[报告 3.4](文档/微调与端侧验证报告_20261027-130700.md#34-置信度能不能用来决定自动处理还是转人工)）。
-- **把规则写进提示词替代不了微调。** 发布版加上厂商策略全文后，0.8B 只到 60.8%（工单）和 71.9%（助手），而且在笔记本上一次决策要 2.4–4.4 秒，是不加策略时的 2.9–6.5 倍。
-- **微调后的模型可以直接在笔记本 CPU 上跑。** 0.8B 的 FT 和 FT-cf Q8_0 在骁龙 X Elite 的 CPU 上与 PyTorch 的逐题一致率都在 99.2% 以上，单次决策时延中位数 0.65–0.98 秒，进程峰值工作集 2,314 MiB；4B FT-cf 的 Q8_0 一致率 99.4% / 100%（工单 / 助手），单次决策时延中位数 3.6–4.1 秒，峰值工作集 9,609 MiB。
-- **训练成本很低。** 1 张 H100 NVL 上，0.8B 一次训练 12–27 分钟，4B 一次 16–20 分钟，按这台 VM 的列表价（每小时 9.07 美元）一次约 1.8–4.1 美元。改用 micro-batch 1 时，在最长的训练记录上实测显存峰值 0.8B 4,213 MiB、4B 18,547 MiB（nvidia-smi）。
-- **还没解决的。** "能否上门"要同时看问题类型、保修类型、购买天数和地区，0.8B 在这道题上的平衡准确率只有约 55%（几乎总答"否"），4B 在分布外测试集上是 66.7%，低于把规则写进提示词的 88.1%。
+[业务需求与方案](#目的) · [实测效果与不足](#实现效果) · [本地使用与重新训练](#操作步骤)
 
 ## 目的
 
 ### 要解决的问题
+
+客户希望在本地设备上完成业务决策，但面临两个问题：
+
+1. **云端模型能力强，却不能直接部署到本地。** 对于依赖云端服务的决策能力，客户需要一个能在笔记本的算力和内存条件下运行的替代方案，而不是每次判断都依赖云端请求。
+2. **客户有自己独特的业务数据和规则。** 通用模型能运行还不够，还要针对客户的业务适配，并在规则变化、积累新数据或发现错误案例后重新评测和更新。
+
+因此，客户需要一个**能在笔记本本地运行、决策准确、响应快、资源占用低，并能随业务需求持续迭代的决策模型**。训练可以在云端 GPU 上完成，日常推理留在笔记本本地；本地运行不等于在笔记本上训练。
+
+| 模型要求 | 本项目用什么验证 | 不能据此推出什么 |
+|---|---|---|
+| 业务判断准确 | 同一批数据上比较发布版、提示词加规则、微调与反事实增强微调，并检查少数类别和字段变化 | 模拟数据高分不等于真实业务准确率 |
+| 响应快、资源占用低 | 笔记本上的单次请求耗时、模型文件大小、进程内存；另测 GPU 训练时间与显存 | 一台机器的一次运行不等于所有笔记本或并发场景 |
+| 客户可持续迭代 | 业务数据生成与切分、微调、校准、评测、GGUF 导出与更新路径 | 本仓库没有实现线上自动学习或自动发布 |
+
+### 为什么选择 Kev 作为候选
+
+[Kev 官方说明](https://github.com/jaredpalmer/kev/blob/2074cc44256200bb37540103fa4572901faa10f3/README.md)提供三个与上述需求相符的能力：
+
+- **输出结构化判断**：支持选择题、是非题和等级题，并返回概率，适合接入业务程序；它不是用来生成长篇回复的聊天界面。
+- **支持自己的业务数据**：用带标签的 JSONL，通过 `--init_from` 从已有检查点微调。本项目使用发布版 Kev 的 LoRA 和指针头作为起点。
+- **有小尺寸模型可验证端侧运行**：本项目比较 0.8B 和 4B，并把微调检查点转为 GGUF，通过 llama.cpp 在 Windows on Arm 上实际推理。
+
+这些能力说明 Kev 值得验证，并不预先保证它达到客户要求。具体效果和不足由[实测结果](#实现效果)回答。FT 和 FT-cf 是从同一发布版分别训练的两种配方，**不是 FT → FT-cf 连续续训**；持续业务迭代是这套流程的使用方式，不是已经测过的长期运行结论。
+
+### 用什么场景验证
+
+售后工单和助手路由是两种验证载体，不是全部业务需求。它们同时需要理解用户原话，并使用设备字段套用业务规则。
 
 | 场景 | 模型读到什么 | 要回答的问题 |
 |---|---|---|
@@ -61,39 +83,45 @@
 
 **不包括**：真实客户数据；多个随机种子；Hexagon NPU（Windows 上需要打开驱动测试签名，公司电脑上没有做）；并发请求、长时间运行、电池供电下的端侧测试。
 
-### 架构
+### 架构：训练与日常推理是两件事
 
-```mermaid
-flowchart LR
-    subgraph LAPTOP["笔记本（Windows on Arm，骁龙 X Elite X1E80100）"]
-        POLICY["vendor_policy.py<br/>厂商规则 → 标签"]
-        GEN["gen_vendor_data.py<br/>按事实清单让大模型写原话"]
-        DATA[("data/contoso/final<br/>训练 / 校准 / 开发 / 测试 / 分布外")]
-        SERVER["llama-server b11935<br/>/v1/systemone<br/>CPU 或 Adreno GPU"]
-        CLIENT["systemone_client.py<br/>逐条请求、计时"]
-        PARITY["parity.py<br/>与 PyTorch 逐题比对"]
-    end
-    subgraph AZURE["Azure"]
-        LLM1["大模型 A<br/>同分布原话"]
-        LLM2["大模型 B（另一家厂商）<br/>分布外原话"]
-        VM["NC40ads H100 v5 VM（Spain Central）<br/>kev.train / kev.benchmark / kev.compare<br/>convert_hf_to_gguf + llama-quantize"]
-    end
-    POLICY --> DATA
-    GEN --> LLM1 & LLM2
-    LLM1 & LLM2 -->|原话| DATA
-    DATA -->|scp，SHA-256 核对| VM
-    VM -->|GGUF 与结果包，并行 scp，SHA-256 核对| SERVER
-    CLIENT -->|HTTP 127.0.0.1:8080| SERVER
-    CLIENT --> PARITY
-    VM -->|逐题预测 rows.json| PARITY
+#### 1. 训练与导出：把业务数据变成模型文件
 
-    classDef azure fill:#0078D4,stroke:#005A9E,color:#ffffff
-    class LLM1,LLM2,VM azure
-```
+数据准备脚本在笔记本上运行。大模型 A/B 只帮助生成模拟原话，标签由业务规则代码计算；它们既不是被微调的 Kev，也不参与后续本地推理。训练、校准和导出在 GPU 主机上完成，其中导出只使用该主机的 CPU。
 
-原创示意图。笔记本只做数据生成和端侧推理；训练、PyTorch 评测和 GGUF 转换都在 GPU VM 上。
+<img src="images/training.png" width="580" alt="训练与导出：训练数据和 Kev 发布版进入 GPU 微调，校准集单独拟合温度，最后由 CPU 导出 GGUF。">
+
+*原创解释图。看清训练集与校准集的用途，以及最终交给笔记本的是模型文件。依据：[FT 流水线](scripts/remote_pipeline_v2.sh)、[FT-cf 流水线](scripts/remote_cf_round.sh)、[导出脚本](scripts/remote_export_gguf.sh)。*
+
+#### 2. 本地推理：模型文件变成一次业务判断
+
+笔记本加载已导出的 GGUF。业务程序发送原话、设备信息和待回答的问题，模型返回结构化答案及概率。**这一步不训练，不调用云端模型，也不会替用户执行维修、联系人工客服或修改设备设置。**
+
+<img src="images/inference.png" width="580" alt="本地推理：无标签业务输入进入笔记本 CPU 上的 llama.cpp，加载微调 GGUF 后返回结构化判断。">
+
+*原创解释图。所有推理都发生在笔记本，是否执行业务动作由应用另行决定。依据：[本机客户端](scripts/systemone_client.py)、[端侧运行入口](scripts/run_engine_eval.ps1)。第三张图放在下面的测试方法旁，专门说明效果验证。*
 
 ## 实现效果
+
+<a id="local-result"></a>
+
+### 本机实际试用：有返回，也要看答得对不对
+
+2026-10-28（UTC-07:00），在骁龙 X Elite X1E80100、约 64 GB 内存的笔记本上，用 llama.cpp b11935 的 CPU 版加载 **0.8B FT-cf Q8_0**，通过 `127.0.0.1:8080/v1/systemone` 发送单条请求。服务启用 `--offline`；每条请求回答 3 道题，不额外预热，不调用其他模型。
+
+[环境与模型哈希](验证结果/本机试用_20261028-201046/environment.public.json)确认加载的文件与历史 FT-cf 记录一致。3 条试用请求后采样的进程工作集为 2,288.6 MiB，提交内存为 4,988.7 MiB；这是本次进程采样，不替换下面的历史批量评测内存值。公开记录保留测量值，原始服务日志留在本地。
+
+工单输入摘录：“我的AuraBook Pro 16有好几个按键突然失灵了，电脑没有摔过，也没有进过水。”设备为 Premium Care 3Y、购买 731 天。第二次保持其余输入完全相同，只把地区从 US 改成 SG。助手输入为：“帮我联系人工客服咨询保修。”完整无标签输入在 [data/contoso/examples](data/contoso/examples)。
+
+| 试用请求 | 策略要求的结果 | 模型实际返回 | 本次单条请求耗时（毫秒） | 原始请求与响应 |
+|---|---|---|---|---|
+| 工单，地区 US | 上门维修；可以上门；紧急度 1 | `sales_ops`（订单/报价）；不可上门；紧急度最可能为 1。队列和上门资格错误 | 783.8 | [support-us/result.json](验证结果/本机试用_20261028-201046/support-us/result.json) |
+| 同一工单，地区 SG | 寄修；不可上门；紧急度 1 | `sales_ops`；不可上门；紧急度最可能为 1。队列错误 | 617.2 | [support-sg/result.json](验证结果/本机试用_20261028-201046/support-sg/result.json) |
+| 助手，联系人工客服 | `support_chat`；业务动作不是纯本地；不需先确认 | 三项与策略一致 | 774.2 | [assistant/result.json](验证结果/本机试用_20261028-201046/assistant/result.json) |
+
+**本机调用已经成立，但 0.8B 在这组保修规则上仍不可靠。** 地区变化确实进入了请求，概率也发生变化，但队列没有正确改变。这里模拟的是业务场景，不是模型输出。助手返回“业务动作不是纯本地”，指联系人工客服这个后续动作；本次决策推理本身仍在本地，客户端没有真的联系人工客服。
+
+这些输入复用了历史测试记录 `support-g1-11-00311` 和 `assistant-g1-12-00003`，不是新的独立质量评测。表中是单次客户端耗时，不是性能排名或时延保证。可用下面的[本机试用入口](#local-try)自行修改输入、复跑并观察错误。
 
 ### 测试怎么做的
 
@@ -106,7 +134,7 @@ flowchart LR
 | FT | 在发布版上续训，方法是监督微调（SFT）：损失是每道题正确选项上的交叉熵，没有用强化学习（[训练配置](验证结果/微调评测_20261027-220226/runs/0.8b/ft/training_config.json)里其他损失项的权重都是 0）。LoRA r16 + 指针头，2 个 epoch，lr 2e-5，有效 batch 8，bf16，seed 1；混入 1,000 条 Kev 原训练集防遗忘；在校准集上拟合温度 |
 | FT-cf | FT 的数据再加"反事实"变体：训练原话不变，只改一个策略字段，标签由规则代码重算（训练集 2,147 → 3,832 条）。因为 FT 在"只改一个字段"的配对题上大多答不对才加了这一轮，选择规则在结果出来前写进了[实验协议](文档/%5BNOTES%5D_实验协议_20261027-124000.md) |
 
-**测试数据**（标签全部由策略代码计算，按原话分组切分，同一句原话的所有记录只在一个切分里）：
+**测试数据**（标签全部由策略代码计算，原用例和它的字段变体按组放在同一切分）。组隔离不保证不同用例生成的短文本绝不重复：助手测试集有 19 条原话与训练集相同，报告另给去掉这些记录后的对照。
 
 | 测试集 | 记录 / 题数 | 原话由谁写 | 用途 |
 |---|---|---|---|
@@ -126,6 +154,12 @@ flowchart LR
                "onsite_eligible": {"type": "noul", "label": false},
                "urgency": {"type": "score", "label": 0}}}
 ```
+
+<img src="images/validation.png" width="580" alt="效果验证：同一测试输入分别经过云端 PyTorch 和笔记本 llama.cpp，标签只供评分，分别核对准确率与引擎一致率。">
+
+*原创解释图。模型准确率与两个引擎的答案一致率是不同指标。PyTorch 评测在 H100 VM 上，llama.cpp 评测和请求计时在骁龙笔记本上；依据：[训练评测流水线](scripts/remote_pipeline_v2.sh)、[端侧评测](scripts/run_engine_eval.ps1)、[逐题比对](scripts/parity.py)。这是一条测试链，不是用户日常推理的依赖。*
+
+以下为 **2026-10-27 的历史评测**，与上面的本机单条试用分开记录。
 
 **测量点**：
 
@@ -172,7 +206,7 @@ flowchart LR
 | 4B | FT-cf | 656 | 81.7% | 82.6% | +0.9 | 0.243 → 0.269 |
 <!-- /TABLE:PUBLIC -->
 
-- **准确率没有掉。** 协议的遗忘判定线是下降超过 2 个百分点。0.8B 的 FT 和 FT-cf 都是 64.8%，与发布版相同：逐题看，FT 有 20 题从错变对、20 题从对变错，FT-cf 是 22 题和 22 题，正好抵消。4B 的 FT 从 81.7% 降到 80.9%（656 题里少对 5 题），FT-cf 升到 82.6%（多对 6 题），都没有触发。
+- **未触发预设的遗忘判定线。** 协议的判定线是下降超过 2 个百分点。0.8B 的 FT 和 FT-cf 都是 64.8%，与发布版相同：逐题看，FT 有 20 题从错变对、20 题从对变错，FT-cf 是 22 题和 22 题，正好抵消。4B 的 FT 从 81.7% 降到 80.9%（656 题里少对 5 题），FT-cf 升到 82.6%（多对 6 题），都没有触发。这不等于每个通用任务的能力不变。
 - **通用题上的置信度变差了。** 微调后的温度是按厂商校准集拟合的（0.8B 从发布版的 2.35 变成 1.26），概率更"尖"，Brier 随之变差。用发布版温度 2.35 重算，0.8B FT 的 Brier 是 0.490，仍比发布版的 0.430 差，说明微调本身也让通用题上的置信度略有变差。4B 也一样：FT（温度 1.66）的 Brier 从 0.243 变成 0.299，FT-cf（温度 2.35）是 0.269。同一个模型如果还要处理厂商业务以外的通用决策，应在混合数据上校准温度。
 
 ### 3. 训练要多少资源
@@ -186,8 +220,8 @@ flowchart LR
 | 4B | FT-cf | 4 × 2 | 9,664 | 1,208 | 20.1 分钟 | 26,215 MiB / 22,641 MiB | 2.35 |
 <!-- /TABLE:TRAIN -->
 
-- 0.8B 的 FT 用 micro-batch 1 训了约 27 分钟；FT-cf 改用 micro-batch 4，训练记录多了 54%，只用了约 12 分钟。训练时间主要受 micro-batch 影响；同样用 micro-batch 4、同样 9,664 条训练记录，4B 的 FT-cf 用了 20.1 分钟，是 0.8B（11.6 分钟）的 1.7 倍。有效 batch 都是 8。
-- nvidia-smi 的数含 PyTorch 预留的缓存，是选卡时要按的数；PyTorch 分配峰值是实际用量的下限。4B 两次训练的 PyTorch 分配峰值几乎相同（22,581 / 22,641 MiB），nvidia-smi 却相差 7,144 MiB，差别应是这部分缓存（推测；nvidia-smi 只记录整卡用量）。
+- 0.8B 的 FT 用 micro-batch 1 训了约 27 分钟；FT-cf 使用 micro-batch 4，训练记录多了 54%，用时约 12 分钟。由于数据和 micro-batch 同时变化，不能把全部时长差归因于单个参数。同样使用 micro-batch 4、训练 9,664 条记录时，4B FT-cf 用时 20.1 分钟，0.8B 用时 11.6 分钟。有效 batch 都是 8。
+- nvidia-smi 这里记录整卡显存，可能包括框架缓存和其他进程，并非仅当前进程的张量；PyTorch 分配峰值也不代表全部运行开销。4B 两次训练的 PyTorch 分配峰值几乎相同（22,581 / 22,641 MiB），整卡峰值却相差 7,144 MiB。缓存可能是原因，但这些采样不足以证明归因，选卡不能只看张量分配量。
 - **显存不够时用 micro-batch 1。** 同一配方（bf16、梯度检查点、`max_state 768`）改成 micro-batch 1 × accum 8，在原话加设备档案最长的 64 条厂商训练记录上训 8 步（GPU 上没有其他进程）：nvidia-smi 峰值 0.8B 4,213 MiB、4B 18,547 MiB，PyTorch 分配 3,365 / 17,375 MiB。这次探测没有混入 Kev 原训练集记录；0.8B 正式训练同样用 micro-batch 1，PyTorch 峰值 3,460 MiB，比探测高约 3%，按探测值选卡要留余量。
 - 按这台 VM 的列表价每小时 9.07 美元（Azure Retail Prices API，Spain Central，2026-10-27；订阅的实际折扣价没有核对），一次 0.8B 训练约 1.8–4.1 美元，一次 4B 训练约 2.4–3.0 美元。
 
@@ -247,6 +281,9 @@ flowchart LR
 
 | 你想要 | 读这里 |
 |---|---|
+| 在自己的笔记本上发送一条业务请求 | [本机试用](#local-try)，不需要先重训 |
+| 用自己的数据训练并更新模型 | [训练与更新](#train-update)，留意旧流水线的断点跳过行为 |
+| 检查数据、评分或重新做端侧评测 | [验证与复核](#verify)，区分离线检查与真实模型调用 |
 | 每个结论的完整表格（每道题、校准、按字段拆开的规则跟随、端侧全部运行） | [文档/微调与端侧验证报告_20261027-130700.md](文档/微调与端侧验证报告_20261027-130700.md) |
 | 结果出来前写定的判定规则，以及执行中的偏差 | [文档/[NOTES]_实验协议_20261027-124000.md](文档/%5BNOTES%5D_实验协议_20261027-124000.md) |
 | 训练与评测的原始结果（报告、逐题预测、日志、显存曲线） | [验证结果/微调评测_20261027-220226](验证结果/微调评测_20261027-220226)（`summary/summary.md` 是全部汇总表；结果包的 SHA-256 在 `archive.sha256`） |
@@ -259,15 +296,107 @@ flowchart LR
 | 目录 | 内容 |
 |---|---|
 | `data/contoso/` | 用例（`*.cases.jsonl`）、生成的原话（`*.texts.jsonl`）、生成用量（`*.usage.json`）；`final/` 是训练和评测用的文件。公开版把记录里的生成模型名换成了代号 `llm-A`、`llm-B`，其余内容与实验所用数据相同，所以 `manifest.json` 里的 SHA-256 与实验时不同 |
-| `scripts/` | 本机脚本（`*.py`、`*.ps1`）和 GPU 主机脚本（`remote_*.sh`） |
+| `data/contoso/examples/` | 三个可编辑、无标签的试用请求。来源是已有测试记录及只改变地区的变体，不参与训练 |
+| `scripts/` | 正式入口和辅助脚本的分工见下面的脚本导航；没有删除历史入口 |
 | `tests/` | 不需要 GPU 和笔记本引擎的离线测试 |
-| `验证结果/` | 原始结果与证据，按运行时间命名 |
+| `images/` | 三张预渲染流程图和来源/哈希清单；统一由 `scripts/render_diagrams.py` 生成 |
+| `验证结果/` | 原始结果与证据，按运行时间命名。端侧运行目录里的 `run.json`、`summary.json`、`parity_vs_pytorch.json` 记录的文件路径在公开版里改成了相对本仓库的路径 |
 | `文档/` | 详细报告、实验协议 |
-| `截图/`、`会议纪要/` | 本阶段为空 |
+
+### 脚本导航
+
+| 用途 | 正式入口 | 辅助或历史脚本 |
+|---|---|---|
+| 日常单次推理 | `systemone_client.py --request` | 只发送输入并保存响应，不评分、不执行业务动作 |
+| 批量端侧验证 | `run_engine_eval.ps1`、`systemone_client.py --data`、`parity.py` | `refresh_parity.ps1` 重算历史逐题比对；`latency_profile.py` 分段检查时延 |
+| 数据准备 | `vendor_policy.py`、`gen_vendor_data.py`、`augment_counterfactual.py` | 大模型生成文本，策略代码计算标签 |
+| 首次复现训练 | `remote_setup.sh`、`remote_public_baseline.sh`、`remote_pipeline_v2.sh`、`remote_cf_round.sh` | `remote_pipeline.sh` 是固定 micro-batch 的历史版本；`remote_run_all.sh`、`remote_after_08b.sh`、`remote_after_chain.sh` 是原实验的串行调度入口 |
+| 模型导出与取回 | `remote_llama_prep.sh`、`remote_export_gguf.sh`、`remote_export_gguf_cf.sh`、`pull_gguf.ps1`、`pull_results.ps1` | `remote_pack_results.sh` 打包；`fetch_parallel.ps1` 分块传输；`remote_env.sh` 定义远端路径 |
+| 分析与文档 | `summarize_results.py`、`summarize_engine.py`、`fill_report_tables.py` | `temperature_whatif.py` 做温度诊断；`remote_memory_probe.sh` 仅做显存探测；`render_diagrams.py` 生成图 |
 
 ## 操作步骤
 
-### 部署顺序
+### 使用与部署顺序
+
+| 你要做什么 | 从哪里开始 | 执行顺序 | 完成时看到什么 |
+|---|---|---|---|
+| 已有微调 GGUF，想在本机试用 | [A. 本机试用](#local-try) | 启动本机引擎 → 发送单条请求 → 修改字段再试 | 真实模型响应、本次耗时和原始结果文件 |
+| 还没有微调模型，或要适配新业务 | [B. 训练与更新](#train-update) | 数据 → 训练 → 校准 → 评测 → 导出 → 更新本机模型 | 新版本检查点、评测结果和 GGUF；不是覆盖旧目录后继续跳过 |
+| 要复核文中结论 | [C. 验证与复核](#verify) | 离线测试，或另行启动模型做完整端侧评测 | 明确区分代码检查、历史证据复核和新模型实跑 |
+
+本页是操作命令的唯一入口；详细报告解释结果，实验协议保存原判定规则。下面均从 **本项目根目录（此 README 所在目录）** 执行。尚未获取代码时，可先克隆本仓库，再进入 `Deep-Learning/AIPC-Decision-Model-Finetune`。
+
+<a id="local-try"></a>
+
+### A. 本机试用微调模型
+
+**前提**：Windows on Arm、PowerShell 7、Python 3.11+，以及一个已经训练并导出的 GGUF。不需要在笔记本安装 PyTorch、CUDA 或训练环境。微调权重没有发布在本仓库中：已有模型直接使用；没有模型时先完成 B，不能拿发布版权重代替并称作微调版。
+
+从 [llama.cpp b11935 发布页](https://github.com/ggml-org/llama.cpp/releases/tag/b11935)取得 `llama-b11935-bin-win-cpu-arm64.zip`，SHA-256 为 `fe9db0136dd8f7e39240c90cd1c1107ff59a8ef27c5517472e9d2c4c0dc9511f`，解压到 `C:\Tools\llama.cpp\b11935-cpu\`。模型示例位置为 `C:\Tools\models\contoso-kev\`，可以改成自己的路径。其他 CPU 架构必须使用对应引擎，本次未验证其运行效果。
+
+**A1. 在一个 PowerShell 终端启动本机服务。**
+
+```powershell
+$Engine = 'C:\Tools\llama.cpp\b11935-cpu\llama-server.exe'
+$Model = 'C:\Tools\models\contoso-kev\Contoso-Kev-0.8B-FTcf-Q8_0.gguf'
+if (-not (Test-Path -LiteralPath $Engine)) { throw '找不到 llama-server' }
+if (-not (Test-Path -LiteralPath $Model)) { throw '找不到微调 GGUF，请先取得模型' }
+& $Engine -m $Model --alias contoso-kev-0.8b-ftcf --host 127.0.0.1 --port 8080 `
+    -c 8192 -b 2048 -ub 2048 -ngl 0 --cache-ram 0 --offline
+```
+
+成功时日志包含 `decision model type: kev`、`model loaded` 和 `listening on http://127.0.0.1:8080`。这个终端保持运行。端口占用时先确认占用者，不要直接关闭其他进程；需要时同时修改服务端和客户端端口。服务只供可信本机试用，不应直接暴露到局域网或公网。
+
+**A2. 在第二个 PowerShell 终端发送一条请求。**
+
+```powershell
+Invoke-RestMethod -Uri http://127.0.0.1:8080/health
+$Run = Join-Path '验证结果' ('本机试用_' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+python -B scripts\systemone_client.py --url http://127.0.0.1:8080/v1/systemone `
+    --request data\contoso\examples\support.json --out "$Run\support-us"
+```
+
+`health` 应返回正常状态。真实调用成功后，终端和 `$Run\support-us\result.json` 中都有 `request`、模型原始 `response`、`input_sha256` 和 `client_latency_ms`。没有标准答案时不输出准确率；连接失败或答案缺失时非零退出，不调用云端兜底。输出目录必须是新的，避免覆盖上一次结果。
+
+实际客户的请求与响应可能含敏感信息，应保存在私有目录，不要覆盖并提交仓库示例，也不要把真实业务结果提交到公共仓库。
+
+**A3. 保持原话不变，只改地区，再发送一次。**
+
+```powershell
+python -B scripts\systemone_client.py --url http://127.0.0.1:8080/v1/systemone `
+    --request data\contoso\examples\support-sg.json --out "$Run\support-sg"
+```
+
+[support.json](data/contoso/examples/support.json) 与 [support-sg.json](data/contoso/examples/support-sg.json) 仅有 `state.device.region` 不同。按本项目策略，US 应上门、SG 应寄修；本次 0.8B 的两个队列都答错，见上面的真实试用记录。可以直接编辑原话、设备字段和问题再试，每次使用新输出目录，模型不会自动替你改正答案。
+
+助手场景使用同一个引擎：
+
+```powershell
+python -B scripts\systemone_client.py --url http://127.0.0.1:8080/v1/systemone `
+    --request data\contoso\examples\assistant.json --out "$Run\assistant"
+```
+
+`choice` 是选中的选项，`probabilities` 是各选项概率；`noul` 是“是”的概率，本项目以 0.5 为二值判定界限；`score` 是等级期望值，最可能的等级要从 `probabilities` 取最大值。API 的 `confidence` 不等于准确率，也不等于所有题型的最高选项概率；业务阈值需要单独校准和验收。
+
+**A4. 查看本机内存，或更换模型。**
+
+```powershell
+$ServerPid = (Get-NetTCPConnection -LocalPort 8080 -State Listen).OwningProcess
+Get-Process -Id $ServerPid | Select-Object Id,
+    @{Name='WorkingSetMiB';Expression={[math]::Round($_.WorkingSet64 / 1MB,1)}},
+    @{Name='PeakWorkingSetMiB';Expression={[math]::Round($_.PeakWorkingSet64 / 1MB,1)}},
+    @{Name='PrivateMiB';Expression={[math]::Round($_.PrivateMemorySize64 / 1MB,1)}}
+```
+
+要试 4B，先由你在服务终端按 Ctrl+C 停止当前服务，再将 `$Model` 换成自己的 4B FT-cf GGUF、同步修改 `--alias`，重新执行 A1–A3。客户端不会因为 0.8B 答错而自动调用 4B。这里是模型选择与人工试用，不是自动级联路由。
+
+<a id="train-update"></a>
+
+### B. 用业务数据训练与更新
+
+已有模型只需 A。本节是从数据得到新模型的流程，训练在 Linux GPU 主机上，本地只做数据准备和文件取回。以下首次复现步骤使用仓库随附的模拟数据；换成真实业务时，先确定问题、标签和独立的训练、校准、开发、测试切分。
+
+**首次复现的部署顺序**：
 
 | 顺序 | 在哪执行 | 做什么 | 脚本 |
 |---|---|---|---|
@@ -281,13 +410,15 @@ flowchart LR
 | 8 | 笔记本 | 端侧打分、计时、与 PyTorch 比对 | `scripts/run_engine_eval.ps1` |
 | 9 | 笔记本 | 生成全部表格 | `scripts/summarize_results.py`、`scripts/summarize_engine.py` |
 
-### 前提
+#### 训练前提
 
 - **GPU 主机**：Ubuntu 24.04，NVIDIA 驱动（本次 615.71.10，CUDA 12.8），显存需求见上面第 3 节；能访问 GitHub 和 Hugging Face；`/mnt` 一类的大容量盘留出约 50 GB。本次用 Azure `Standard_NC40ads_H100_v5`（1× H100 NVL，95,830 MiB 显存）。训练脚本把状态和日志写在 [scripts/remote_env.sh](scripts/remote_env.sh) 里的 `META` 目录，换主机时按需要改。
-- **笔记本**：Windows 11 on Arm，PowerShell 7，Python 3.11 及以上（只用标准库），OpenSSH 客户端；Adreno 测试需要较新的 GPU 驱动（本次 31.0.133.1）。
+- **笔记本**：A 中的本机环境和 OpenSSH 客户端；Adreno 对照测试需要较新的 GPU 驱动（历史测试为 31.0.133.1）。
 - **SSH**：笔记本能用密钥登录 GPU 主机。下面的命令用 `$SSH_TARGET`（例如 `user@host`）和 `$SSH_PORT` 表示，按你的主机替换。脚本里没有内置主机地址：传 `-SshTarget`、`-SshPort` 参数，或先设置环境变量 `AIPC_SSH_TARGET`、`AIPC_SSH_PORT`。
 
-### 1. 搭建训练环境（GPU 主机，bash，仓库的 `scripts/` 目录已拷到主机）
+#### B1. 搭建训练环境
+
+先将本项目 `scripts/` 目录上传到 GPU 主机上的工作目录，并通过 SSH 进入该目录。以下 GPU 命令均在该主机的 Bash 中执行，笔记本命令仍在本项目目录的 PowerShell 中执行。
 
 ```bash
 bash scripts/remote_setup.sh
@@ -295,7 +426,7 @@ bash scripts/remote_setup.sh
 
 成功时最后一行是 `SETUP_DONE ... kev_commit=2074cc44256200bb37540103fa4572901faa10f3`，前面的 import 检查打印 `triton 3.7.1 fla 0.5.2`。环境装在 `/mnt/aipc`（Azure 临时盘，VM 释放后清空，重新运行这一步即可恢复）。之后一律用 `/mnt/aipc/kev/.venv/bin/python`，不要用 `uv run`（它会把 triton 退回 3.4，与 fla 0.5.2 不兼容）。
 
-### 2. 复现公开基线（GPU 主机）
+#### B2. 复现公开基线（GPU 主机）
 
 ```bash
 bash scripts/remote_public_baseline.sh
@@ -303,10 +434,10 @@ bash scripts/remote_public_baseline.sh
 
 成功时 transfer-v4 开发集（656 题）准确率：Kev-0.8B 0.6479、Kev-4B 0.8171，与 Kev 作者公布值一致。
 
-### 3. 上传数据（笔记本，PowerShell 7，仓库根目录）
+#### B3. 上传数据（笔记本，PowerShell 7，本项目根目录）
 
 ```powershell
-$files = @((Get-ChildItem data\contoso\final -Filter *.jsonl).FullName) + (Resolve-Path data\contoso\final\manifest.json).Path
+$files = @((Get-ChildItem -LiteralPath data\contoso\final -Filter *.jsonl).FullName) + (Resolve-Path -LiteralPath data\contoso\final\manifest.json).Path
 ssh -n -p $SSH_PORT $SSH_TARGET "mkdir -p /mnt/aipc/data/contoso"
 scp -P $SSH_PORT $files "${SSH_TARGET}:/mnt/aipc/data/contoso/"
 ssh -n -p $SSH_PORT $SSH_TARGET "cd /mnt/aipc/data/contoso && sha256sum *.jsonl"
@@ -314,7 +445,7 @@ ssh -n -p $SSH_PORT $SSH_TARGET "cd /mnt/aipc/data/contoso && sha256sum *.jsonl"
 
 把输出与 `data/contoso/final/manifest.json` 里的 `sha256` 逐个比对，应全部一致。
 
-### 4. 基线 + FT（GPU 主机）
+#### B4. 基线 + FT（GPU 主机）
 
 ```bash
 BATCH=1 ACCUM=8 bash scripts/remote_pipeline_v2.sh 0.8b
@@ -323,13 +454,13 @@ BATCH=4 ACCUM=2 bash scripts/remote_pipeline_v2.sh 4b
 
 进度写在 `$META/state/pipeline-<size>.status`（`META` 默认是 `~/remote-workspaces/aipc-decision`，在 `scripts/remote_env.sh` 里设置），依次出现 `BENCH b0-...`、`TRAIN_DONE wall_s=...`、`CALIBRATED ... T=...`、`BENCH ft-...`、`PIPELINE_DONE`。重新运行会跳过已经有 `report.json` 的步骤。
 
-### 5. FT-cf（笔记本生成变体，GPU 主机训练）
+#### B5. FT-cf（笔记本生成变体，GPU 主机训练）
 
 ```powershell
 python scripts\augment_counterfactual.py --root data\contoso --out data\contoso\final --per-case 2 --per-case-train 3 --seed 11
 ```
 
-成功时打印 `"train_cf.jsonl": 3832`。上传新增的 `*_cf*.jsonl` 和 `manifest.json`（同第 3 步），然后在 GPU 主机上：
+成功时打印 `"train_cf.jsonl": 3832`。上传新增的 `*_cf*.jsonl` 和 `manifest.json`（同 B3），然后在 GPU 主机上：
 
 ```bash
 bash scripts/remote_cf_round.sh 0.8b
@@ -346,7 +477,9 @@ bash scripts/remote_memory_probe.sh
 
 `state/memory-probe.status` 里每个尺寸一行 `PROBE <size> batch=1 accum=8 records=64 rc=0 ... peak_gpu_mib=...`，最后是 `PROBE_DONE`；详细日志和每秒的显存曲线在 `/mnt/aipc/runs/memory-probe/`。
 
-### 6. 导出 GGUF（GPU 主机，只用 CPU，可与训练同时进行）
+#### B6. 导出 GGUF（GPU 主机，只用 CPU）
+
+先确认目标检查点训练、校准已完成。导出可与其他独立训练并行，但不能读取仍在写入的同一个检查点。
 
 ```bash
 bash scripts/remote_llama_prep.sh
@@ -356,34 +489,52 @@ bash scripts/remote_export_gguf_cf.sh 0.8b 4b
 
 成功时 `/mnt/aipc/gguf/<size>/` 和 `/mnt/aipc/gguf/<size>-cf/` 下各有 BF16、Q8_0、Q4_K_M 三个文件和 `gguf.sha256`；`metadata.txt` 里的 `decision.temperature` 等于该检查点 `head.pt` 里的温度。
 
-### 7. 拉回结果和模型（笔记本）
+#### B7. 拉回结果和模型（笔记本）
 
 ```powershell
 .\scripts\pull_results.ps1 -SshTarget $SSH_TARGET -SshPort $SSH_PORT
-.\scripts\pull_gguf.ps1 -Size 0.8b -SshTarget $SSH_TARGET -SshPort $SSH_PORT
+.\scripts\pull_gguf.ps1 -Size 0.8b-cf -SshTarget $SSH_TARGET -SshPort $SSH_PORT
 ```
 
-`-Size` 可选 `0.8b`、`0.8b-cf`、`4b`、`4b-cf`，每次拉 Q8_0 和 Q4_K_M 两个文件。单个 scp 连接到远端 VM 可能只有不到 1 MiB/s，两个脚本都把文件切块后用 8 个并行连接下载，再按 SHA-256 核对。成功时打印 `sha256 OK` 和 `__PULL_RESULTS_DONE__ <目录>` / `__PULL_GGUF_DONE__`。结果包解压到 `验证结果\微调评测_<时间>\`，GGUF 放在 `C:\Tools\models\contoso-kev\`（不放进 OneDrive）。
+`-Size` 可选 `0.8b`、`0.8b-cf`、`4b`、`4b-cf`，每次拉 Q8_0 和 Q4_K_M 两个文件。单个 scp 连接到远端 VM 可能只有不到 1 MiB/s，两个脚本都把文件切块后用 8 个并行连接下载，再按 SHA-256 核对。成功时打印 `sha256 OK` 和 `__PULL_RESULTS_DONE__ <目录>` / `__PULL_GGUF_DONE__`。结果包解压到 `验证结果\微调评测_<时间>\`，GGUF 放在 `C:\Tools\models\contoso-kev\`（模型文件较大，放在仓库目录之外）。
 
-### 8. 端侧打分（笔记本）
+#### 业务变化后怎样迭代
 
-从 [llama.cpp b11935 发布页](https://github.com/ggml-org/llama.cpp/releases/tag/b11935)下载 `llama-b11935-bin-win-cpu-arm64.zip`（SHA-256 `fe9db0136dd8f7e39240c90cd1c1107ff59a8ef27c5517472e9d2c4c0dc9511f`）和 `llama-b11935-bin-win-opencl-adreno-arm64.zip`（SHA-256 `03495082010595c4d20c50b5d06fc44c0e03c57db5d573fae1727a92cca6a4c8`），分别解压到 `C:\Tools\llama.cpp\b11935-cpu\` 和 `C:\Tools\llama.cpp\b11935-opencl-adreno\`。然后：
+采用“新业务数据 → 新检查点 → 独立校准与评测 → 新 GGUF → 本机复核 → 人工切换”的版本流程。保留旧模型用于对照和回退；用开发集选候选，用未参与选择的测试集验收，不能仅凭训练损失或这几个试用请求决定上线。
+
+**不要把新数据直接放进旧目录后重跑原流水线。** `remote_env.sh` 固定使用 `/mnt/aipc`，原脚本会跳过已有 `head.pt`、`report.json` 的步骤。这是原实验的断点续跑，不是新的业务迭代。
+
+新版本应使用 Kev 原生 `--init_from <已有检查点>` 和全新的 `--out <新目录>`，记录数据与检查点版本，随后对该新目录重新执行校准、评测和导出。本次验证了发布版到 FT、发布版到 FT-cf 两个独立配方，**未验证自动反馈训练、连续多轮业务更新或自动发布**。具体数据转换和 CLI 约定见 [Kev 自有数据微调说明](https://github.com/jaredpalmer/kev/blob/2074cc44256200bb37540103fa4572901faa10f3/README.md#fine-tune-on-your-own-data)。
+
+<a id="verify"></a>
+
+### C. 验证与复核
+
+离线测试不需要模型；新端侧评测需要真实 GGUF 和运行环境。历史报告的数值不会因为离线测试通过而变成一轮新实验。
+
+#### C1. 端侧批量打分（笔记本）
+
+CPU 引擎使用 A 中的版本。需要重做 Adreno 对照时，从同一发布页取得 `llama-b11935-bin-win-opencl-adreno-arm64.zip`（SHA-256 `03495082010595c4d20c50b5d06fc44c0e03c57db5d573fae1727a92cca6a4c8`），解压到 `C:\Tools\llama.cpp\b11935-opencl-adreno\`。批量脚本会自行启动并结束它创建的服务，先手动退出 A 的试用服务或选用其他端口。
+
+每次使用新的 `-Label`。该历史脚本的输出根目录固定为 `验证结果\端侧引擎_20261027-124700`，新 Label 才能避免覆盖已有结果；目录名不代表新运行日期，实际时间见新 `run.json`。
 
 ```powershell
-.\scripts\run_engine_eval.ps1 -Model C:\Tools\models\contoso-kev\Contoso-Kev-0.8B-FT-Q8_0.gguf -Label ft-kev-0.8b-Q8_0-cpu `
+$Label = 'ft-kev-0.8b-Q8_0-cpu-' + (Get-Date -Format 'yyyyMMdd-HHmmss')
+.\scripts\run_engine_eval.ps1 -Model C:\Tools\models\contoso-kev\Contoso-Kev-0.8B-FT-Q8_0.gguf -Label $Label `
     -TorchPrefix 验证结果\端侧引擎_20261027-124700\pytorch-ft-0.8b\
 ```
 
 微调后的 4B FT-cf 同理（本次 Q8_0 和 Q4_K_M 各测一次）：
 
 ```powershell
-.\scripts\run_engine_eval.ps1 -Model C:\Tools\models\contoso-kev\Contoso-Kev-4B-FTcf-Q8_0.gguf -Label ftcf-kev-4b-Q8_0-cpu `
+$Label = 'ftcf-kev-4b-Q8_0-cpu-' + (Get-Date -Format 'yyyyMMdd-HHmmss')
+.\scripts\run_engine_eval.ps1 -Model C:\Tools\models\contoso-kev\Contoso-Kev-4B-FTcf-Q8_0.gguf -Label $Label `
     -TorchPrefix 验证结果\端侧引擎_20261027-124700\pytorch-ftcf-4b\
 ```
 
 `-TorchPrefix` 指向同一测试集的 PyTorch 逐题结果（`<前缀><workload>\rows.json`，从结果包的 `runs\<size>\ft-test_<workload>\rows.json` 复制，FT-cf 用 `ftcf-test_<workload>`）。成功时每个测试集打印一行准确率和时延，结尾 `__ENGINE_EVAL_DONE__ <Label>`。Adreno GPU 加 `-Backend opencl`；压内存的参数用 `-Ctx 2048 -UBatch 512`；测 B0-policy 用 `-DataPrefix policy_test_`。第一次用 OpenCL 版启动时会编译 GPU 内核，加载可能要一分多钟。
 
-### 9. 生成表格（笔记本）
+#### C2. 生成表格（笔记本）
 
 ```powershell
 python scripts\summarize_results.py --runs 验证结果\微调评测_<时间>\runs --data data\contoso\final --out 验证结果\微调评测_<时间>\summary
@@ -393,28 +544,42 @@ python scripts\fill_report_tables.py --report README.md --blocks 验证结果\�
 
 `summary.md` 是全部表格，`report_blocks.json` 是填进 README 和报告的表格；重新运行会替换上一次填入的内容。
 
-### 测试
+#### C3. 离线测试
 
 ```powershell
 python -m unittest discover -s tests -v
 ```
 
-[tests/test_data_and_scoring.py](tests/test_data_and_scoring.py) 不需要 GPU 和笔记本引擎，约 2 秒跑完，成功时结尾是 `OK`（9 个测试）：
+[tests/test_data_and_scoring.py](tests/test_data_and_scoring.py) 不需要 GPU 和笔记本引擎，成功时结尾是 `OK`。保留原有数据与评分检查，另验证单次业务请求的输入传递、响应保存和失败行为：
 
 | 检查什么 | 防的是什么问题 |
 |---|---|
+| 单次请求只发送可见业务输入，不发送标签；原样保存模型响应 | 把标准答案或伪造结果当作本机推理 |
+| 连接失败、答案缺失时不写成功结果；输出目录重复时报错 | 静默兜底、假成功或覆盖前一轮证据 |
 | `manifest.json` 里每个文件的 SHA-256、记录数、题数 | 训练机上用的数据和仓库里的不是同一份 |
 | 每条记录的标签都等于策略代码按它自己的设备字段重算的结果（含配对和反事实记录） | 改了规则或字段后标签没有跟着变 |
-| 同一句原话的记录不跨训练 / 校准 / 开发 / 测试 / 分布外 | 测试题在训练里见过 |
+| 原用例和字段变体的组 ID 不跨训练等切分 | 同组变体泄漏；不同组的文字重复需要另行检查 |
 | B0-policy 文件与对应测试文件是同一批记录、同样的标签，只多了策略文本 | 提示词基线和其他做法比的不是同一批题 |
 | 每条反事实记录至少有一道题的答案与原话那条不同 | 变体集里混进了答案没变的记录 |
 | `parity.py`：答案完全相同时一致率为 1；改掉一道题的答案后少 1 题 | 端侧与 PyTorch 的比对代码对错了题或对错了选项顺序 |
 | `temperature_whatif.py` 在发布版温度下重算的 Brier 等于 kev 报告的 0.6413 | 换温度重算概率的公式有误 |
 | `summarize_results.py` 的配对 bootstrap 在全对、全错、一半对时给出正确的差值和区间 | 配对差值或区间算错 |
 
-没有覆盖：GPU 上的训练和评测本身（由第 4–5 步的状态文件和 `report.json` 验收）、llama-server 的启动（由第 8 步验收）、数据生成调用的大模型 API。
+没有覆盖：GPU 上的训练和评测本身（需 B4–B5 的日志与结果）、llama-server 实际启动和模型效果（需 A 或 C1 的真实调用）、数据生成调用的大模型 API。请求传输测试使用的替身响应只证明客户端逻辑，不证明模型能力。
+
+#### C4. 图形重生成
+
+三个图和本地预览统一由 [scripts/render_diagrams.py](scripts/render_diagrams.py) 生成。依赖版本在 [requirements-docs.txt](requirements-docs.txt)，只用于文档，不是模型运行依赖。Windows 默认使用已安装的 `C:\Windows\Fonts\msyh.ttc`；其他系统通过 `--font` 指定中文字体。来源和生成图像 SHA-256 在 [images/provenance.json](images/provenance.json)。
+
+```powershell
+python -m pip install -r requirements-docs.txt
+python -B scripts\render_diagrams.py --preview
+```
+
+已安装相同依赖时不必重复安装。`--preview` 检查文档本地链接和锚点，在各文档旁生成已被 Git 忽略的 `*.preview.html`，可用 Edge 打开；不发布、不替换 Markdown 原文件。
 
 ### 停止与恢复
 
-- 训练机按小时计费。停止前先完成第 7 步并核对哈希，然后用 Azure 门户或 `az vm deallocate` 释放 VM；只关操作系统（`stopped`）仍会计费。
-- 释放后 `/mnt` 会清空。重新开机后运行第 1 步恢复环境；检查点和结果已在本机的结果包里，可以重新上传，不必重训。
+- 本机试用结束时，由你在服务终端按 Ctrl+C；模型文件和已保存结果保留。重新执行 A1 即可再次加载，无需重训。
+- 训练机按小时计费。需要停止时，先完成 B7 并核对哈希，再由资源所有者明确批准释放 VM；只关操作系统（`stopped`）仍会计费。本页不会自动关闭或删除云资源。
+- 释放后不能依赖 `/mnt` 中的临时数据仍存在。重新开机后按 B1 恢复环境；已取回的检查点和结果可以重新上传，不必重训。

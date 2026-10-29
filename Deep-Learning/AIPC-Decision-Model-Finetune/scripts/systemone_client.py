@@ -1,15 +1,56 @@
 #!/usr/bin/env python3
-"""Score labelled Kev records against any /v1/systemone endpoint (e.g. llama-server on the laptop) and time each request.
+"""Send a business request or score labelled records against a /v1/systemone endpoint.
 
+  python systemone_client.py --url http://127.0.0.1:8080/v1/systemone --request request.json --out out/decision
   python systemone_client.py --url http://127.0.0.1:8080/v1/systemone --data test_support.jsonl --out out/support
-Writes <out>/rows.jsonl (answer, label, latency per record) and <out>/summary.json. Standard library only.
+Single requests write result.json without grading or warm-up. Batch scoring writes rows.jsonl and summary.json.
+Standard library only.
 """
 import argparse
+import hashlib
 import json
 import statistics
 import time
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
+
+
+def request_body(record):
+    if "state" not in record or not isinstance(record.get("questions"), dict) or not record["questions"]:
+        raise ValueError("A request needs state and at least one question")
+    return {"state": record["state"],
+            "questions": {question_id: {key: value for key, value in question.items() if key != "label"}
+                          for question_id, question in record["questions"].items()}}
+
+
+def ask(url, record):
+    body = request_body(record)
+    request = urllib.request.Request(url, data=json.dumps(body, ensure_ascii=False).encode("utf-8"), method="POST",
+                                     headers={"content-type": "application/json"})
+    started = time.perf_counter()
+    with urllib.request.urlopen(request, timeout=600) as response:
+        data = json.loads(response.read())
+    return data, (time.perf_counter() - started) * 1000
+
+
+def single_request(url, request_path, out):
+    source = Path(request_path).read_bytes()
+    body = request_body(json.loads(source.decode("utf-8-sig")))
+    output = Path(out)
+    output.mkdir(parents=True, exist_ok=False)
+    response, elapsed_ms = ask(url, body)
+    answers = response.get("answers", {})
+    if not isinstance(answers, dict) or any(question_id not in answers for question_id in body["questions"]):
+        raise ValueError("The endpoint did not return an answer for every requested question")
+    for question_id, question in body["questions"].items():
+        predicted(question, answers[question_id])
+    result = {"captured_utc": datetime.now(timezone.utc).isoformat(), "url": url,
+              "input_sha256": hashlib.sha256(source).hexdigest(), "request": body,
+              "client_latency_ms": round(elapsed_ms, 1), "response": response}
+    (output / "result.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return result
 
 
 def predicted(q, ans):
@@ -28,34 +69,29 @@ def correct(q, pred):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--url", required=True)
-    ap.add_argument("--data", required=True)
+    inputs = ap.add_mutually_exclusive_group(required=True)
+    inputs.add_argument("--data", help="labelled JSONL records for batch scoring")
+    inputs.add_argument("--request", help="one JSON business request; labels are not sent")
     ap.add_argument("--out", required=True)
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--warmup", type=int, default=2, help="requests sent first and excluded from latency")
     a = ap.parse_args()
+    if a.request:
+        single_request(a.url, a.request, a.out)
+        return
     recs = [json.loads(l) for l in Path(a.data).read_text(encoding="utf-8").splitlines() if l.strip()]
     if a.limit:
         recs = recs[:a.limit]
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
 
-    def ask(rec):
-        body = {"state": rec["state"], "questions": {qid: {k: v for k, v in q.items() if k != "label"}
-                                                     for qid, q in rec["questions"].items()}}
-        req = urllib.request.Request(a.url, data=json.dumps(body, ensure_ascii=False).encode(), method="POST",
-                                     headers={"content-type": "application/json"})
-        t = time.perf_counter()
-        with urllib.request.urlopen(req, timeout=600) as resp:
-            data = json.loads(resp.read())
-        return data, (time.perf_counter() - t) * 1000
-
     for rec in recs[:a.warmup]:
-        ask(rec)
+        ask(a.url, rec)
     rows, lat, by_type, errors = [], [], {}, 0
     with (out / "rows.jsonl").open("w", encoding="utf-8", newline="\n") as f:
         for i, rec in enumerate(recs):
             try:
-                data, ms = ask(rec)
+                data, ms = ask(a.url, rec)
             except Exception as e:  # noqa: BLE001 - one failed request is counted, not fatal
                 errors += 1
                 f.write(json.dumps({"i": i, "error": str(e)[:300]}) + "\n")

@@ -1,0 +1,40 @@
+{
+  "state": {
+    "channel": "email",
+    "message": "您好：我的AuraBook Pro 16有好几个按键突然失灵了，电脑没有摔过，也没有进过水。正常使用却出现这种情况，确实让人很烦。谢谢。",
+    "device": {
+      "product_line": "AuraBook Pro 16",
+      "region": "US",
+      "warranty_plan": "Premium Care 3Y",
+      "days_since_purchase": 731,
+      "battery_cycles": 667,
+      "last_error_code": "none",
+      "bios_version": "1.18"
+    }
+  },
+  "questions": {
+    "queue": {
+      "type": "choice",
+      "instructions": "Which Contoso support queue should take this case?",
+      "criteria": {
+        "remote_l1": "Remote software support: drivers, Windows, Contoso apps and settings",
+        "depot_repair": "Mail-in repair at a Contoso service center",
+        "onsite_repair": "A technician visits the customer",
+        "battery_program": "Battery health replacement program",
+        "bios_l2": "Firmware and BIOS engineering (second line)",
+        "damage_claim": "Accidental damage claim",
+        "sales_ops": "Orders, invoices and paid repair quotes",
+        "privacy_desk": "Requests to export or delete personal data"
+      }
+    },
+    "onsite_eligible": {
+      "type": "noul",
+      "instructions": "Is the customer entitled to an onsite technician visit for this case?"
+    },
+    "urgency": {
+      "type": "score",
+      "instructions": "How urgently must Contoso respond?",
+      "criteria": ["Can wait", "Within this week", "Today", "Immediately: safety or data-loss risk"]
+    }
+  }
+}
