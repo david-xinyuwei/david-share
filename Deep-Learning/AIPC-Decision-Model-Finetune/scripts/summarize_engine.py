@@ -6,7 +6,9 @@ Usage: python summarize_engine.py --root 验证结果/端侧引擎_20261027-1247
 Standard library only.
 """
 import argparse
+import hashlib
 import json
+import shlex
 import sys
 from pathlib import Path
 
@@ -65,6 +67,35 @@ def brief_table(rows, incomplete):
     return "\n".join(sections).rstrip() + "\n"
 
 
+def before_after_table(rows):
+    by_label = {row["label"]: row for row in rows}
+    lines = ["| 固定模型配置 | 性能指标（单位） | 微调前测量值：发布版 | 微调后测量值：最终方案 |",
+             "|---|---|---|---|"]
+    for size, quantization in (("0.8b", "Q8_0"), ("4b", "Q4_K_M")):
+        before = by_label.get(f"released-kev-{size}-{quantization}-cpu", {})
+        after = by_label.get(f"ftcf-kev-{size}-{quantization}-cpu", {})
+        if before and after:
+            fields = ("backend", "build", "support_records", "assistant_records",
+                      "support_data", "assistant_data", "support_cases_sha256", "assistant_cases_sha256",
+                      "support_tokens_sha256", "assistant_tokens_sha256")
+            for field in fields:
+                if before.get(field) is None or before.get(field) != after.get(field):
+                    raise ValueError(f"Before/after performance conditions differ: {size}/{field}")
+            settings = []
+            for row in (before, after):
+                arguments = shlex.split(row.get("args") or "", posix=False)
+                settings.append({flag: arguments[arguments.index(flag) + 1] if flag in arguments else None
+                                 for flag in ("-c", "-b", "-ub", "--cache-ram", "-ngl", "--parallel", "--threads")})
+            if settings[0] != settings[1] or any(settings[0][flag] is None for flag in ("-c", "-b", "-ub", "--cache-ram")):
+                raise ValueError(f"Before/after performance settings differ: {size}")
+        for field, metric in (("support_p50", "工单请求耗时中位数（毫秒）"),
+                              ("assistant_p50", "助手请求耗时中位数（毫秒）"),
+                              ("peak_ws_mib", "进程峰值工作集（MiB）")):
+            values = ["未跑" if row.get(field) is None else format(row[field], ",.0f") for row in (before, after)]
+            lines.append(f"| {size.upper()} / {quantization} / CPU | {metric} | " + " | ".join(values) + " |")
+    return "\n".join(lines) + "\n"
+
+
 def main():
     sys.stdout.reconfigure(encoding="utf-8")  # a piped Windows console defaults to GBK
     ap = argparse.ArgumentParser()
@@ -85,6 +116,7 @@ def main():
         run = load(d / "run.json") or {}
         mem = load(d / "server_memory.json") or {}
         r = {"label": d.name, "backend": run.get("backend") or ("opencl" if "opencl" in d.name else "cpu"),
+               "build": run.get("build") or mem.get("build"),
              "gguf_mib": run.get("gguf_mib") or mem.get("gguf_mib"),
              "load_s": run.get("load_seconds"),
              "peak_ws_mib": run.get("peak_working_set_mib") or mem.get("peak_working_set_mib"),
@@ -95,11 +127,19 @@ def main():
             s = load(d / w / "summary.json")
             if s:
                 r[f"{w}_acc"] = s["accuracy"]
+                r[f"{w}_records"] = s["records"]
+                r[f"{w}_data"] = str(s["data"]).replace("\\", "/")
                 rows_file = d / w / "rows.jsonl"
                 if rows_file.is_file():  # exact accuracy from the per-question results (summary.json rounds to 4 decimals)
-                    oks = [q["ok"] for line in rows_file.read_text(encoding="utf-8").splitlines() if line.strip()
-                           for q in json.loads(line).get("questions", {}).values()]
+                    records = [json.loads(line) for line in rows_file.read_text(encoding="utf-8").splitlines() if line.strip()]
+                    oks = [question["ok"] for record in records for question in record.get("questions", {}).values()]
                     r[f"{w}_acc"] = sum(oks) / len(oks) if oks else None
+                    cases = [(record["i"], record.get("case"),
+                              {name: question["label"] for name, question in record.get("questions", {}).items()})
+                             for record in records]
+                    tokens = [record.get("input_tokens") for record in records]
+                    r[f"{w}_cases_sha256"] = hashlib.sha256(json.dumps(cases, sort_keys=True).encode()).hexdigest()
+                    r[f"{w}_tokens_sha256"] = hashlib.sha256(json.dumps(tokens).encode()).hexdigest()
                 r[f"{w}_p50"] = s["latency_ms"]["p50"]
                 r[f"{w}_p90"] = s["latency_ms"]["p90"]
                 r[f"{w}_errors"] = s["errors"]
@@ -133,6 +173,7 @@ def main():
     print(text)
     (output_dir / "engine_summary.json").write_text(json.dumps(rows, ensure_ascii=False, indent=1), encoding="utf-8")
     (output_dir / "engine_brief.md").write_text(brief, encoding="utf-8")
+    (output_dir / "engine_comparison.md").write_text(before_after_table(rows), encoding="utf-8")
     if a.out:
         Path(a.out).write_text(text, encoding="utf-8")
 

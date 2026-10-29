@@ -147,50 +147,60 @@ The following results are **historical measurements from 2026-10-27**, separate 
 | Agreement with PyTorch| Laptop, `parity.py`| Compare answers and probabilities question by question on the same file| —| 
 <!-- /SOURCE:TABLE:6 -->
 
-### 1. Accuracy Before and After Fine-Tuning
+### 1. Same Questions: Before and After Fine-Tuning
+
+**The customer-facing comparison answers three questions: are business decisions more accurate, do improvements carry over to new questions, and does laptop execution cost change?** Every main-table row compares the same-size released model with the final recommended FT-cf recipe, trained on business data plus field variants. The candidate is not changed to whichever model wins each metric. Policy prompting and the first FT recipe remain separate experimental controls.
+
+Accuracy in the first two tables comes from the same H100 NVL / PyTorch evaluation path. The third table measures laptop CPU latency and memory. These measurement locations are separate: PyTorch accuracy is not the quantized model's device accuracy. Section 4 retains the complete on-device results.
+
+**Before and after use the same questions, options, labels and short question instructions for each accuracy or generalization comparison.** Support and assistant routing are different tasks, each compared within its own test set. Generalization uses out-of-distribution questions excluded from weight training, not training questions. The message generator and field distribution change, but the data remains simulated rather than real customer production data. Request hashes and question-level labels are retained in the [original evaluation records](验证结果/微调评测_20261027-220226/runs).
 
 <!-- TABLE:README_ACC -->
+**Accuracy: the same business test questions**
+
 <!-- SOURCE:TABLE:7 -->
-| Parameter scale| Stage and method| Support: in-distribution Accuracy (510 questions)| Assistant: in-distribution Accuracy (477 questions)| 
-| ---| ---| ---| ---| 
-| 0.8B| Before fine-tuning: released model| 44.7%| 67.1%| 
-| 0.8B| Before fine-tuning: business rules in the prompt only| 60.8%| 71.9%| 
-| 0.8B| After fine-tuning: business data| 86.5%| 93.5%| 
-| 0.8B| After fine-tuning: business data + field-variant augmentation| 86.9%| 97.5%| 
-| 4B| Before fine-tuning: released model| 60.8%| 81.8%| 
-| 4B| Before fine-tuning: business rules in the prompt only| 63.3%| 87.8%| 
-| 4B| After fine-tuning: business data| 93.5%| 99.0%| 
-| 4B| After fine-tuning: business data + field-variant augmentation| 95.9%| 99.8%| 
+| Parameter scale| Test set (questions)| Before fine-tuning: released accuracy| After fine-tuning: final-recipe accuracy| Gain (percentage points)| 
+| ---| ---| ---| ---| ---| 
+| 0.8B| Support: in-distribution (510 questions)| 44.7%| 86.9%| +42.2| 
+| 0.8B| Assistant: in-distribution (477 questions)| 67.1%| 97.5%| +30.4| 
+| 4B| Support: in-distribution (510 questions)| 60.8%| 95.9%| +35.1| 
+| 4B| Assistant: in-distribution (477 questions)| 81.8%| 99.8%| +18.0| 
 <!-- /SOURCE:TABLE:7 -->
 
-<!-- SOURCE:TABLE:8 -->
-| Parameter scale| Stage and method| Support: out-of-distribution Accuracy (1,011 questions)| Assistant: out-of-distribution Accuracy (951 questions)| 
-| ---| ---| ---| ---| 
-| 0.8B| Before fine-tuning: released model| 43.0%| 65.7%| 
-| 0.8B| Before fine-tuning: business rules in the prompt only| 62.8%| 63.6%| 
-| 0.8B| After fine-tuning: business data| 81.6%| 91.9%| 
-| 0.8B| After fine-tuning: business data + field-variant augmentation| 82.5%| 94.4%| 
-| 4B| Before fine-tuning: released model| 60.7%| 81.9%| 
-| 4B| Before fine-tuning: business rules in the prompt only| 63.2%| 86.1%| 
-| 4B| After fine-tuning: business data| 88.8%| 96.6%| 
-| 4B| After fine-tuning: business data + field-variant augmentation| 91.4%| 98.8%| 
-<!-- /SOURCE:TABLE:8 -->
+**Generalization: the same out-of-distribution questions**
 
-<!-- SOURCE:TABLE:9 -->
-| Parameter scale| Stage and method| Support: test variants Accuracy (172 questions)| Assistant: test variants Accuracy (72 questions)| 
-| ---| ---| ---| ---| 
-| 0.8B| Before fine-tuning: released model| 22.1%| 36.1%| 
-| 0.8B| Before fine-tuning: business rules in the prompt only| 47.7%| 33.3%| 
-| 0.8B| After fine-tuning: business data| 48.3%| 48.6%| 
-| 0.8B| After fine-tuning: business data + field-variant augmentation| 57.6%| 81.9%| 
-| 4B| Before fine-tuning: released model| 40.7%| 40.3%| 
-| 4B| Before fine-tuning: business rules in the prompt only| 47.1%| 70.8%| 
-| 4B| After fine-tuning: business data| 72.1%| 86.1%| 
-| 4B| After fine-tuning: business data + field-variant augmentation| 84.9%| 100.0%| 
-<!-- /SOURCE:TABLE:9 -->
+<!-- SOURCE:TABLE:8 -->
+| Parameter scale| Test set (questions)| Before fine-tuning: released accuracy| After fine-tuning: final-recipe accuracy| Gain (percentage points)| 
+| ---| ---| ---| ---| ---| 
+| 0.8B| Support: out-of-distribution (1,011 questions)| 43.0%| 82.5%| +39.5| 
+| 0.8B| Assistant: out-of-distribution (951 questions)| 65.7%| 94.4%| +28.7| 
+| 4B| Support: out-of-distribution (1,011 questions)| 60.7%| 91.4%| +30.7| 
+| 4B| Assistant: out-of-distribution (951 questions)| 81.9%| 98.8%| +16.9| 
+<!-- /SOURCE:TABLE:8 -->
 <!-- /TABLE:README_ACC -->
 
-The field-variant table counts only questions whose correct answer changes with the edited field. Reading the message while ignoring that field is insufficient.
+**Performance: the same laptop and requests, comparing latency and memory**
+
+Both sides use Snapdragon X Elite X1E80100, llama.cpp b11935 CPU and `-c 8192 -b 2048 -ub 2048 --cache-ram 0`. Both 0.8B models use Q8_0; both 4B models use Q4_K_M. Performance effects are not attributed across model sizes. Each side completes the same 170 support requests and 159 assistant requests, with 3 questions per request. Request timing excludes model loading and warm-up; memory is the process peak working set across the run.
+
+<!-- TABLE:README_PERFORMANCE -->
+<!-- SOURCE:TABLE:9 -->
+| Fixed model configuration| Performance metric (unit)| Before fine-tuning: released measurement| After fine-tuning: final-recipe measurement| 
+| ---| ---| ---| ---| 
+| 0.8B / Q8_0 / CPU| Support median request time (ms)| 666| 646| 
+| 0.8B / Q8_0 / CPU| Assistant median request time (ms)| 843| 984| 
+| 0.8B / Q8_0 / CPU| Peak process working set (MiB)| 2,323| 2,314| 
+| 4B / Q4_K_M / CPU| Support median request time (ms)| 3,022| 3,615| 
+| 4B / Q4_K_M / CPU| Assistant median request time (ms)| 3,790| 4,751| 
+| 4B / Q4_K_M / CPU| Peak process working set (MiB)| 6,849| 6,842| 
+<!-- /SOURCE:TABLE:9 -->
+<!-- /TABLE:README_PERFORMANCE -->
+
+These are [recorded device runs](验证结果/端侧引擎_20261027-124700), not GPU evaluation timings. Case IDs, order, labels, input token counts and recorded core settings have been paired. The older device records lack per-request content hashes, so that comparison is not independent proof of byte-identical requests. Each configuration ran once and timing varies between runs: **the observations establish better accuracy, not faster inference caused by fine-tuning, nor that fine-tuning explains the entire latency difference.**
+
+#### Experimental Analysis: All Controls and Remaining Errors
+
+The full released, policy-prompted, FT and FT-cf matrix remains in [report section 3.1](文档/Finetuning-and-On-Device-Validation-Report.md#accuracy). [Section 3.3](文档/Finetuning-and-On-Device-Validation-Report.md#policy-following) retains all field-variant results. Those controls explain the recipe choice rather than replacing the main before/after comparison. The field-variant metric counts questions whose correct answer changes with the field: 172 support questions and 72 assistant questions.
 
 - **Both sizes improve on these tests.** Across four main test sets, FT exceeds B0 by 14.7-41.8 percentage points per question; every 95% interval has a lower bound above 0. FT-cf adds 0.4-4.0 points over FT, although the intervals for the two 0.8B support sets include 0. See [report section 3.1](文档/Finetuning-and-On-Device-Validation-Report.md#accuracy) for intervals and the protocol's `kev.compare` definition.
 - **Policy prompting is substantially below fine-tuning.** B0-policy is 10.5-30.2 points below FT. On the 0.8B out-of-distribution assistant set, it is worse than B0: 63.6% versus 65.7%.
@@ -198,6 +208,8 @@ The field-variant table counts only questions whose correct answer changes with 
 - **Selection was specified before the second recipe's results.** Recommend FT-cf only when development-variant accuracy improves and original development accuracy drops by no more than 1 percentage point. Both sizes qualify. On all development-variant questions, support/assistant scores change from 78.9%/82.9% to 82.2%/92.8% for 0.8B, and from 89.1%/96.4% to 95.9%/100.0% for 4B. Neither loses accuracy on original development questions.
 
 ### 2. Retention of General Capability
+
+This is separate from business generalization: after adapting to the business, does the model lose its prior general-task capability? Each before/after pair uses the same 656 public Kev questions. Both FT and FT-cf recipes are retained below; the main comparison uses the FT-cf rows.
 
 <!-- TABLE:PUBLIC -->
 <!-- SOURCE:TABLE:10 -->
@@ -660,12 +672,12 @@ $Label = 'ftcf-kev-4b-Q8_0-cpu-' + (Get-Date -Format 'yyyyMMdd-HHmmss')
 <!-- SOURCE:FENCE:18 -->
 ```powershell
 python scripts\summarize_results.py --runs 验证结果\微调评测_<时间>\runs --data data\contoso\final --out 验证结果\微调评测_<时间>\summary
-python scripts\summarize_engine.py --root 验证结果\端侧引擎_20261027-124700
-python scripts\fill_report_tables.py --report README.md --blocks 验证结果\微调评测_<时间>\summary\report_blocks.json --block ENGINE=验证结果\端侧引擎_20261027-124700\engine_brief.md
+python scripts\summarize_engine.py --root 验证结果\端侧引擎_20261027-124700 --output-dir 验证结果\微调评测_<时间>\summary
+python scripts\fill_report_tables.py --report README_CN.md --blocks 验证结果\微调评测_<时间>\summary\report_blocks.json --block ENGINE=验证结果\微调评测_<时间>\summary\engine_brief.md --block README_PERFORMANCE=验证结果\微调评测_<时间>\summary\engine_comparison.md
 ```
 <!-- /SOURCE:FENCE:18 -->
 
-`summary.md` contains all tables; `report_blocks.json` contains blocks for the README and report. Rerunning the fill step replaces previous generated Chinese blocks. The diagram/document renderer uses the shared table-localization function for English; measured values are not translated or recalculated. Synchronize the English source-backed blocks after updating their Chinese counterparts:
+`summary.md` contains all tables; `report_blocks.json` contains blocks for the README and report. `engine_comparison.md` supplies the main performance before/after table; `engine_brief.md` retains every device configuration. These commands produce derived summaries without changing raw results. Rerunning the fill step replaces previous generated Chinese blocks. The diagram/document renderer uses the shared table-localization function for English; measured values are not translated or recalculated. Synchronize the English source-backed blocks after updating their Chinese counterparts:
 
 Run `python scripts\render_diagrams.py --sync-english --preview`.
 
@@ -684,7 +696,7 @@ python -m unittest discover -s tests -v
 | ---| ---| 
 | Send visible business inputs without labels; preserve the raw model response| Ground-truth leakage or fabricated local-inference output| 
 | Do not save success after connection/missing-answer failures; reject reused output directories| Silent fallback, false success or overwritten evidence| 
-| Each manifest file's SHA-256, record count and question count in `manifest.json`| Training data differs from the repository data| 
+| Each manifest file's SHA-256, record count and question count in `manifest.json`| Data changed without a manifest update; historical input identity needs request hashes| 
 | Recompute every label from its own device fields, including paired and counterfactual records| Stale labels after policy or field changes| 
 | Original cases and field variants stay in the same split by group ID| Within-group leakage; text duplication across different groups needs a separate check| 
 | B0-policy and test files have identical records and labels, differing only in policy text| Prompt baseline evaluated on different questions| 
@@ -695,6 +707,8 @@ python -m unittest discover -s tests -v
 <!-- /SOURCE:TABLE:21 -->
 
 Not covered: GPU training/evaluation itself, which needs B4-B5 logs and results; real llama-server startup and model behavior, which need A or C1; or the large-model API used to generate data. Substitute responses in transport tests validate client logic, not model capability.
+
+Reproduction boundary: current out-of-distribution data files have different byte hashes from historical `suite_sha256` values; the reason has not been established. Historical released, FT and FT-cf request hashes and labels match, supporting the within-run comparison shown here. A consistent current `manifest.json` does not prove byte-identical historical inputs. Verify input versions before a new experiment rather than calling it a strict reproduction of the old run.
 
 #### C4. Regenerate the Diagrams
 

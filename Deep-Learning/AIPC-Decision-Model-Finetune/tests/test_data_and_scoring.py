@@ -156,25 +156,34 @@ class ReportLayoutTests(unittest.TestCase):
                     if "_cf_" in set_name else scores)
         return {"sets": sets, "public": {}, "training": {}}
 
-    def test_accuracy_tables_keep_every_configuration_and_value(self):
-        block = sr.report_blocks(self.accuracy_summary())["README_ACC"]
-        self.assertEqual(block.count("| 参数规模 | 阶段与做法 |"), 3)
-        labels = ("微调前：发布版", "微调前：仅在提示词中加入业务规则",
-                  "微调后：业务数据微调", "微调后：业务数据＋字段变体增强")
+    def test_accuracy_tables_pair_release_and_final_recipe(self):
+        blocks = sr.report_blocks(self.accuracy_summary())
+        block = blocks["README_ACC"]
+        self.assertEqual(block.count("| 微调前准确率：发布版 | 微调后准确率：最终方案 |"), 2)
         for size in ("0.8B", "4B"):
-            for index, label in enumerate(labels):
-                percentage = f"{10 * (index + 1):.1f}%"
-                self.assertEqual(block.count(f"| {size} | {label} | {percentage} | {percentage} |"), 3)
-        for count in ("510", "477", "1,011", "951", "172", "72"):
+            for set_name, count in (("工单·同分布", "510"), ("助手·同分布", "477"),
+                                    ("工单·分布外", "1,011"), ("助手·分布外", "951")):
+                self.assertIn(f"| {size} | {set_name}（{count} 题） | 10.0% | 40.0% | +30.0 |", block)
+        for count in ("510", "477", "1,011", "951"):
             self.assertIn(f"（{count} 题）", block)
-        self.assertTrue(all(len(line.strip("|").split("|")) == 4
+        self.assertNotIn("20.0%", block)
+        self.assertNotIn("30.0%", block)
+        self.assertIn("| 10.0% | 20.0% | 30.0% | 40.0% |", blocks["ACC"])
+        self.assertIn("| 10.0% | 20.0% | 30.0% | 40.0% |", blocks["CF"])
+        self.assertTrue(all(len(line.strip("|").split("|")) == 5
                             for line in block.splitlines() if line.startswith("|")))
 
     def test_accuracy_tables_keep_unrun_cells_visible(self):
         summary = self.accuracy_summary()
         del summary["sets"]["4b/test_support"]["ftcf"]
         block = sr.report_blocks(summary)["README_ACC"]
-        self.assertIn("| 4B | 微调后：业务数据＋字段变体增强 | 未跑 | 40.0% |", block)
+        self.assertIn("| 4B | 工单·同分布（510 题） | 10.0% | 未跑 | 未跑 |", block)
+
+    def test_accuracy_tables_reject_different_question_counts(self):
+        summary = self.accuracy_summary()
+        summary["sets"]["0.8b/test_support"]["ftcf"]["n"] = 509
+        with self.assertRaisesRegex(ValueError, "question counts differ"):
+            sr.report_blocks(summary)
 
     def test_engine_tables_keep_values_and_incomplete_runs(self):
         rows = [{"label": "ftcf-kev-0.8b-Q8_0-cpu", "gguf_mib": 775.0,
@@ -211,6 +220,32 @@ class ReportLayoutTests(unittest.TestCase):
         self.assertTrue(all(len(line.strip("|").split("|")) <= 5
                             for name in ("PUBLIC", "TRAIN") for line in blocks[name].splitlines()
                             if line.startswith("|")))
+
+    def performance_pair(self):
+        common = {"backend": "cpu", "build": "b11935-cpu", "args": "-c 8192 -b 2048 -ub 2048 --cache-ram 0",
+                  "support_records": 170, "assistant_records": 159,
+                  "support_data": "test_support.jsonl", "assistant_data": "test_assistant.jsonl",
+                  "support_cases_sha256": "same-support-cases", "assistant_cases_sha256": "same-assistant-cases",
+                  "support_tokens_sha256": "same-support-tokens", "assistant_tokens_sha256": "same-assistant-tokens"}
+        return [{**common, "label": "released-kev-0.8b-Q8_0-cpu", "support_p50": 666.5,
+                 "assistant_p50": 843.3, "peak_ws_mib": 2323},
+                {**common, "label": "ftcf-kev-0.8b-Q8_0-cpu", "support_p50": 646.0,
+                 "assistant_p50": 983.8, "peak_ws_mib": 2314}]
+
+    def test_performance_table_pairs_matching_runs(self):
+        text = se.before_after_table(self.performance_pair())
+        self.assertIn("| 0.8B / Q8_0 / CPU | 工单请求耗时中位数（毫秒） | 666 | 646 |", text)
+        self.assertIn("| 0.8B / Q8_0 / CPU | 进程峰值工作集（MiB） | 2,323 | 2,314 |", text)
+        self.assertIn("| 4B / Q4_K_M / CPU | 工单请求耗时中位数（毫秒） | 未跑 | 未跑 |", text)
+
+    def test_performance_table_rejects_mismatched_cases_or_settings(self):
+        for field, value in (("support_cases_sha256", "different-cases"),
+                             ("args", "-c 2048 -b 2048 -ub 512 --cache-ram 0")):
+            with self.subTest(field=field):
+                rows = self.performance_pair()
+                rows[1][field] = value
+                with self.assertRaisesRegex(ValueError, "performance (conditions|settings) differ"):
+                    se.before_after_table(rows)
 
 
 class BilingualDocumentationTests(unittest.TestCase):

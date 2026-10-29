@@ -361,41 +361,29 @@ def report_blocks(summary):
             t.append(f"| {size} | {name} | " + " | ".join(ci(kc.get(x)) for x in ("ft_vs_b0", "ftcf_vs_b0", "ftcf_vs_ft")) + " |")
     b["ACC"] = "\n".join(t)
 
-    def count(set_name, kind):
-        for set_key, entry in S.items():
-            if set_key.endswith("/" + set_name):
-                total = entry.get("changed_questions") if kind == "changed" else next(
-                    (entry[model]["n"] for model in MODELS if entry.get(model)), None)
-                if total:
-                    return total
-        return None
-
-    readme_methods = {
-        "B0": "微调前：发布版",
-        "B0-policy": "微调前：仅在提示词中加入业务规则",
-        "FT": "微调后：业务数据微调",
-        "FT-cf": "微调后：业务数据＋字段变体增强",
-    }
     t = []
-    for heading, columns, kind in (
-        ("同分布测试：原话生成方式与训练集相同", ("test_support", "test_assistant"), "acc"),
-        ("分布外测试：更换生成模型与字段分布", ("ood_support", "ood_assistant"), "acc"),
-        ("字段变体测试：仅统计答案因字段改变的题", ("test_cf_support", "test_cf_assistant"), "changed"),
+    for heading, columns in (
+        ("准确率：同一批业务测试题", ("test_support", "test_assistant")),
+        ("泛化能力：同一批分布外新问题", ("ood_support", "ood_assistant")),
     ):
-        headers = [f"{SET_NAME[set_name]}准确率（{count(set_name, kind):,} 题）"
-                   if count(set_name, kind) else f"{SET_NAME[set_name]}准确率（题数未知）"
-                   for set_name in columns]
-        t += [f"**{heading}**", "", "| 参数规模 | 阶段与做法 | " + " | ".join(headers) + " |", "|---|---|---|---|"]
+        t += [f"**{heading}**", "",
+              "| 参数规模 | 测试集（题数） | 微调前准确率：发布版 | 微调后准确率：最终方案 | 提升（百分点） |",
+              "|---|---|---|---|---|"]
         for size in ("0.8b", "4b"):
             if not any(set_key.startswith(size + "/") for set_key in S):
                 continue
-            for model, label in MODELS.items():
-                values = []
-                for set_name in columns:
-                    entry = S.get(f"{size}/{set_name}", {})
-                    result = ((entry.get("changed_acc") or {}).get(model) or {}) if kind == "changed" else (entry.get(model) or {})
-                    values.append(pct(result.get("acc")))
-                t.append(f"| {size.upper()} | {readme_methods[label]} | " + " | ".join("未跑" if value == "—" else value for value in values) + " |")
+            for set_name in columns:
+                entry = S.get(f"{size}/{set_name}", {})
+                before, after = entry.get("b0") or {}, entry.get("ftcf") or {}
+                before_count, after_count = before.get("n"), after.get("n")
+                if before_count is not None and after_count is not None and before_count != after_count:
+                    raise ValueError(f"Before/after question counts differ: {size}/{set_name}")
+                total = before_count if before_count is not None else after_count
+                count_label = "题数未知" if total is None else f"{total:,} 题"
+                before_acc, after_acc = before.get("acc"), after.get("acc")
+                values = ["未跑" if value is None else pct(value) for value in (before_acc, after_acc)]
+                gain = "未跑" if before_acc is None or after_acc is None else f"{100 * (after_acc - before_acc):+.1f}"
+                t.append(f"| {size.upper()} | {SET_NAME[set_name]}（{count_label}） | " + " | ".join([*values, gain]) + " |")
         t.append("")
     b["README_ACC"] = "\n".join(t).rstrip()
 
