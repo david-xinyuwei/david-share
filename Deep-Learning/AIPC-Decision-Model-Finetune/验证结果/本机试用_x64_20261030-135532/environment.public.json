@@ -1,0 +1,63 @@
+{
+  "captured": "2026-10-30T05:55:59.593325+00:00",
+  "execution_plane": "AZURE_VM_WINDOWS",
+  "machine_note": "Azure virtual machine, not a laptop; latency is not comparable with the Snapdragon laptop",
+  "os_architecture": "x64 (AMD64)",
+  "processor": "AMD EPYC 7763 64-Core Processor (8 vCPU / 16 threads, 2445 MHz)",
+  "ram_gb": 64,
+  "os": "Microsoft Windows Server 2025 Datacenter Azure Edition 10.0.26100",
+  "engine": "llama.cpp b11935 7ecb57f7a Windows x64 CPU (llama-b11935-bin-win-cpu-x64.zip, SHA-256 d13e3d617a724eef10a533b18d1178b5292f7f1395965adf4e83b1ab4e9fc4b6)",
+  "engine_threads": 8,
+  "model_file": "Contoso-Kev-0.8B-FTcf-Q8_0.gguf",
+  "model_sha256": "5a647379764fcad21d12e06bc7fcb1663dd52e15587f8854d9f417d1f96d65d3",
+  "matches_historical_ftcf": true,
+  "host": "127.0.0.1",
+  "port": 8080,
+  "offline": true,
+  "ctx": 8192,
+  "batch": 2048,
+  "ubatch": 2048,
+  "gpu_layers": 0,
+  "warmup_requests": 0,
+  "request_count": 3,
+  "questions_per_request": 3,
+  "working_set_mib": 1526,
+  "private_mib": 4228,
+  "client_sha256": "767e3570d5ebb1fec3e0be2ceeff7ea013693889f3e21c43217f11602939101a",
+  "result_files": [
+    "support-us/result.json",
+    "support-sg/result.json",
+    "assistant/result.json"
+  ],
+  "client_latency_ms": {
+    "support-us": 1678.1,
+    "support-sg": 1633.4,
+    "assistant": 1822.6
+  },
+  "answers": {
+    "support-us": {
+      "queue": "sales_ops",
+      "onsite_eligible": 0.289,
+      "urgency": 0.999982601578607
+    },
+    "support-sg": {
+      "queue": "sales_ops",
+      "onsite_eligible": 0.2757,
+      "urgency": 0.9999880696074432
+    },
+    "assistant": {
+      "tool": "support_chat",
+      "run_on_device": 0.0002,
+      "needs_confirmation": 0.0076
+    }
+  },
+  "same_answers_as_snapdragon_trial": true,
+  "scope": "Three real local requests on an x64 Azure VM, not an independent accuracy or latency benchmark; the batch run is under 验证结果/端侧引擎_x64_*/",
+  "publication": {
+    "kind": "public projection",
+    "omitted_fields": [
+      "server_log"
+    ],
+    "reason": "The original service log is retained locally and is not included in this public projection. Measurement values are unchanged."
+  }
+}

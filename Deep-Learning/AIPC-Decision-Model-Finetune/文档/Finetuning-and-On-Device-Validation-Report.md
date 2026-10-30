@@ -545,7 +545,7 @@ NPU execution was not tested. llama.cpp's Windows Hexagon instructions at commit
 - One seed-1 training run per recipe: bootstrap intervals describe sample uncertainty, not seed or dataset-generation variation.
 - Temperature is fit on in-distribution calibration data with `calibrate_checkpoint.py --allow-in-distribution`; the warning and out-of-distribution ECE remain part of the evidence.
 - The 13 refused-message assistant cases are absent from out-of-distribution accuracy.
-- One laptop and sequential requests: no concurrency, sustained thermal, battery or NPU tests. Each configuration has one run; same-architecture paired latencies can differ by 24%. The 4B Q8_0 standby incident is retained. Only recommended 4B FT-cf configurations completed; 4B FT stops after 36 records and is excluded.
+- One laptop and sequential requests: no concurrency, sustained thermal, battery or NPU tests. (On 2026-10-30, 0.8B FT-cf Q8_0 was rerun on an x86-64 Azure VM; 983 of 987 answers matched the laptop run in this report. Records and the comparison table are in [README section 5](../README.md#on-an-x86-64-cpu-the-same-model-file-runs-unchanged); the tables in this report still cover the laptop runs only.) Each configuration has one run; same-architecture paired latencies can differ by 24%. The 4B Q8_0 standby incident is retained. Only recommended 4B FT-cf configurations completed; 4B FT stops after 36 records and is excluded.
 
 ## 7. Operations and Evidence
 

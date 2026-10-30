@@ -1,0 +1,18 @@
+{
+ "url": "http://127.0.0.1:8080/v1/systemone",
+ "data": "data\\contoso\\final\\test_assistant.jsonl",
+ "records": 159,
+ "errors": 0,
+ "questions": 477,
+ "accuracy": 0.979,
+ "by_type": {
+  "choice": 0.9937,
+  "noul": 0.9717
+ },
+ "latency_ms": {
+  "n": 159,
+  "p50": 1331.5,
+  "p90": 1774.4,
+  "mean": 1426.0
+ }
+}

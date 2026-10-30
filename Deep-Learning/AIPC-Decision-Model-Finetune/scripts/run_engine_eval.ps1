@@ -9,6 +9,10 @@ Default server flags match the first released-model runs (-c 8192 -b 2048 -ub 20
       -TorchPrefix 验证结果\端侧引擎_20261027-124700\pytorch-b0-0.8b\
 
 -TorchPrefix + "<workload>\rows.json" (released runs) or + "test_<workload>\rows.json" (kev run folders) must exist for parity.
+Results go to <OutRoot>\<Label>\; one OutRoot per machine (default: the laptop campaign). Paths written into summary.json and
+parity_vs_pytorch.json are project-relative, so the records carry no machine-specific absolute paths. Another machine:
+  .\scripts\run_engine_eval.ps1 -Model C:\Tools\models\contoso-kev\Contoso-Kev-0.8B-FTcf-Q8_0.gguf -Label ftcf-kev-0.8b-Q8_0-cpu `
+      -Bin C:\Tools\llama.cpp\b11935-cpu-x64 -OutRoot 验证结果\端侧引擎_x64_20261030-232500 -TorchPrefix 验证结果\端侧引擎_20261027-124700\pytorch-ftcf-0.8b\
 #>
 param(
     [Parameter(Mandatory)] [string] $Model,
@@ -19,12 +23,15 @@ param(
     [int] $Port = 8080,
     [int] $Ctx = 8192,      # -c; the lean deployment check uses 2048 (inputs are ~500 tokens)
     [int] $UBatch = 2048,   # -b and -ub; the lean deployment check uses 512
-    [string] $DataPrefix = 'test_'  # 'policy_test_' scores the prompt-only variant (policy text in every question)
+    [string] $DataPrefix = 'test_',  # 'policy_test_' scores the prompt-only variant (policy text in every question)
+    [string] $Bin = '',              # llama.cpp folder; default = the ARM64 b11935 folders used by the laptop runs. x64: C:\Tools\llama.cpp\b11935-cpu-x64
+    [string] $OutRoot = '验证结果\端侧引擎_20261027-124700'  # project-relative results root; use a new one per machine
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-$bin = if ($Backend -eq 'cpu') { 'C:\Tools\llama.cpp\b11935-cpu' } else { 'C:\Tools\llama.cpp\b11935-opencl-adreno' }
-$out = Join-Path $root "验证结果\端侧引擎_20261027-124700\$Label"
+Push-Location $root  # relative paths below are resolved and recorded from the project root
+$bin = if ($Bin) { $Bin } elseif ($Backend -eq 'cpu') { 'C:\Tools\llama.cpp\b11935-cpu' } else { 'C:\Tools\llama.cpp\b11935-opencl-adreno' }
+$out = Join-Path $OutRoot $Label
 New-Item -ItemType Directory -Force -Path $out | Out-Null
 $log = Join-Path $env:TEMP "llama-server-$Label.log"
 
@@ -53,13 +60,13 @@ try {
     $result.server_log_facts = @(Select-String -LiteralPath $log -Pattern 'decision model type|ggml_opencl: device|offloaded|CPU_REPACK model buffer|OpenCL model buffer|CPU model buffer|KV buffer size|compute buffer size|file type|model size' | ForEach-Object { $_.Line.Trim() })
 
     foreach ($w in $Workloads) {
-        $data = Join-Path $root "data\contoso\final\$DataPrefix$w.jsonl"
-        python (Join-Path $root 'scripts\systemone_client.py') --url "http://127.0.0.1:$Port/v1/systemone" --data $data --out (Join-Path $out $w)
+        $data = "data\contoso\final\$DataPrefix$w.jsonl"
+        python scripts\systemone_client.py --url "http://127.0.0.1:$Port/v1/systemone" --data $data --out (Join-Path $out $w)
         if ($LASTEXITCODE -ne 0) { throw "client failed for $w" }
         if ($TorchPrefix) {
             $torch = @("$TorchPrefix$w\rows.json", "${TorchPrefix}test_$w\rows.json") | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
             if ($torch) {
-                python (Join-Path $root 'scripts\parity.py') --torch $torch --engine (Join-Path $out "$w\rows.jsonl") --out (Join-Path $out "$w\parity_vs_pytorch.json")
+                python scripts\parity.py --torch $torch --engine (Join-Path $out "$w\rows.jsonl") --out (Join-Path $out "$w\parity_vs_pytorch.json")
             } else { Write-Warning "no PyTorch rows for $w under $TorchPrefix" }
         }
     }
@@ -91,4 +98,5 @@ finally {
 $result | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $out 'run.json') -Encoding utf8
 [pscustomobject]$result | Select-Object label, backend, load_seconds, peak_working_set_mib, private_mib, gpu_shared_mib | Format-List
 foreach ($w in $Workloads) { "{0}: acc={1} p50={2} ms p90={3} ms" -f $w, $result.summaries[$w].accuracy, $result.summaries[$w].latency_ms.p50, $result.summaries[$w].latency_ms.p90 }
+Pop-Location
 Write-Output "__ENGINE_EVAL_DONE__ $Label"

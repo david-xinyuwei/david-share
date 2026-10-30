@@ -1,0 +1,58 @@
+{
+  "label": "ftcf-kev-0.8b-Q8_0-cpu-x64-epyc7763",
+  "model": "C:\\Tools\\models\\contoso-kev\\Contoso-Kev-0.8B-FTcf-Q8_0.gguf",
+  "backend": "cpu",
+  "build": "b11935-cpu-x64",
+  "server_args": "-m \"C:\\Tools\\models\\contoso-kev\\Contoso-Kev-0.8B-FTcf-Q8_0.gguf\" --host 127.0.0.1 --port 8080 -c 8192 -b 2048 -ub 2048 --cache-ram 0",
+  "data_prefix": "test_",
+  "load_seconds": 2.6,
+  "server_log_facts": [
+    "0.01.061.017 I srv          init: decision model type: kev"
+  ],
+  "peak_working_set_mib": 1552,
+  "working_set_mib": 1400,
+  "private_mib": 4254,
+  "cpu_seconds": 3751,
+  "gguf_mib": 774.8,
+  "gguf_sha256": "5a647379764fcad21d12e06bc7fcb1663dd52e15587f8854d9f417d1f96d65d3",
+  "captured": "2026-10-30T23:21:50.5169089+08:00",
+  "summaries": {
+    "support": {
+      "url": "http://127.0.0.1:8080/v1/systemone",
+      "data": "data\\contoso\\final\\test_support.jsonl",
+      "records": 170,
+      "errors": 0,
+      "questions": 510,
+      "accuracy": 0.8706,
+      "by_type": {
+        "choice": 0.7176,
+        "noul": 0.9,
+        "score": 0.9941
+      },
+      "latency_ms": {
+        "n": 170,
+        "p50": 1254.6,
+        "p90": 1675.8,
+        "mean": 1337.3
+      }
+    },
+    "assistant": {
+      "url": "http://127.0.0.1:8080/v1/systemone",
+      "data": "data\\contoso\\final\\test_assistant.jsonl",
+      "records": 159,
+      "errors": 0,
+      "questions": 477,
+      "accuracy": 0.979,
+      "by_type": {
+        "choice": 0.9937,
+        "noul": 0.9717
+      },
+      "latency_ms": {
+        "n": 159,
+        "p50": 1401.0,
+        "p90": 1846.0,
+        "mean": 1491.0
+      }
+    }
+  }
+}

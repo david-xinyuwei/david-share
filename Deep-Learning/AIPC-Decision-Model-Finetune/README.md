@@ -4,7 +4,7 @@
 
 [![Model](https://img.shields.io/badge/model-Kev%200.8B%20%C2%B7%204B%20on%20Qwen3.5-0078D4)](https://github.com/jaredpalmer/kev)
 [![Device](https://img.shields.io/badge/device-Snapdragon%20X%20Elite%20%C2%B7%20llama.cpp%20b11935-0078D4)](#5-laptop-inference-engine)
-[![Measured](https://img.shields.io/badge/measured-2026--10--27%20%C2%B7%20simulated%20vendor%20data-0078D4)](#results)
+[![Measured](https://img.shields.io/badge/measured-2026--10--27%20to%2030%20%C2%B7%20simulated%20vendor%20data-0078D4)](#results)
 [![License](https://img.shields.io/badge/license-MIT-0078D4)](https://github.com/david-xinyuwei/david-share/blob/master/LICENSE)
 
 > **Author**: Xinyu Wei - Senior Systems Engineer, Microsoft AI GBB
@@ -18,7 +18,7 @@
 1. **Run locally** — on a laptop's CPU and memory, with no cloud-model call.
 2. **Accept business data for fine-tuning** — the customer's rules, fields and vocabulary must train into the model, and the model must be updatable when the rules change.
 
-This project tests both with Kev (an open-weight decision model on Qwen3.5, 0.8B / 4B): fine-tune on business data on a GPU host, measure accuracy, latency and memory on a Snapdragon laptop, and measure the inference-optimization levers one at a time — quantization, context length, compute backend, prompt length and model size. **Training runs on a GPU host; routine inference stays on the laptop without cloud-model calls.** The data is fictional Contoso PC data, not customer data; there is no proprietary-cloud comparison and no production-readiness guarantee.
+This project tests both with Kev (an open-weight decision model on Qwen3.5, 0.8B / 4B): fine-tune on business data on a GPU host, measure accuracy, latency and memory on a Snapdragon laptop, measure the inference-optimization levers one at a time — quantization, context length, compute backend, prompt length and model size — and then confirm that the same model file runs unchanged on an x86-64 virtual machine. **Training runs on a GPU host; routine inference stays on the laptop without cloud-model calls.** The data is fictional Contoso PC data, not customer data; there is no proprietary-cloud comparison and no production-readiness guarantee.
 
 ### Architecture: Training and Inference Are Separate
 
@@ -223,7 +223,7 @@ The repository answers four questions:
 1. **Fine-tuning**: does continued training on vendor data improve released Kev?
 2. **Quality**: how much better is it than no training or policy text in the prompt? Can confidence inform automation versus human review, and is general capability retained?
 3. **Resources**: how much GPU time and memory does training need, and what are model size, process memory and decision latency on the laptop?
-4. **Runtime**: can llama.cpp run the fine-tuned model on Snapdragon X Elite, with results matching PyTorch?
+4. **Runtime**: can llama.cpp run the fine-tuned model on Snapdragon X Elite, with results matching PyTorch, and does it still run on an x86-64 CPU?
 
 ## Results
 
@@ -473,7 +473,7 @@ Incomplete runs excluded from the tables: `ft-kev-0.8b-Q8_0-cpu-ctx2048` (144 su
 
 #### Inference Optimization: Which Levers Were Measured
 
-The table below gathers the inference-side variables already measured in the three tables above. Each row changes one variable; values are taken directly from those tables (0.8B uses the FT rows, which cover the most configurations). "Not tested" marks a combination that was not run, not a conclusion. Each configuration ran once, and paired latency between two runs of the same architecture differed by up to 24% (see "Single-run latency varies" below), so latency differences within 20% are not interpreted.
+The table below gathers the inference-side variables already measured in the three tables above. Each row changes one variable; values are taken directly from those tables (0.8B uses the FT rows, which cover the most configurations). "Not tested" marks a combination that was not run, not a conclusion. Each configuration ran once, and paired latency between two runs of the same architecture differed by up to 24% (see "Single-run latency varies" below), so latency differences within 20% are not interpreted. The last row, "CPU architecture", changes the whole machine; its values come from the next subsection and only answer whether the answers stay the same.
 
 <!-- SOURCE:TABLE:20 -->
 | Optimization lever| Comparison (baseline → change)| Accuracy (support / assistant)| Median support decision (ms)| Peak working set (MiB)| One-line conclusion| 
@@ -487,6 +487,7 @@ The table below gathers the inference-side variables already measured in the thr
 | Concurrent requests| Not tested| —| —| —| One request at a time in this project; `llama-server` opens 4 slots by default but no load test was run| 
 | NPU (Hexagon)| Not tested| —| —| —| Requires driver test-signing on Windows, which was not enabled on the company laptop| 
 | Speculative decoding, KV-cache reuse| Not applicable| —| —| —| The decision endpoint generates no tokens, so there is no decode phase; `--cache-ram 0` disables the prompt cache| 
+| CPU architecture| 0.8B FT-cf Q8_0, Snapdragon X Elite laptop (ARM64 package) → AMD EPYC 7763 Azure VM (x64 package), both CPU with default settings| 86.9% / 97.7% → 87.1% / 97.9%| 646 → 1,168–1,255| 2,314 → 1,400–1,552| The same model file, llama.cpp release and arguments run unchanged on an x86-64 CPU: 983 of 987 answers are identical and two runs gave exactly the same results. The whole machine changed (processor, OS, 8 vs. 12 threads), so latency and memory differences are not attributed to the architecture| 
 <!-- /SOURCE:TABLE:20 -->
 
 - **The device runs the fine-tuned model.** Export merges LoRA into the base and writes the calibrated temperature into GGUF: 1.2599 for 0.8B FT, 1.1487 for 0.8B FT-cf and 2.3511 for 4B FT-cf, each equal to its calibration result.
@@ -498,9 +499,35 @@ The table below gathers the inference-side variables already measured in the thr
 - **Single-run latency varies; differences within 20% are not interpreted.** 0.8B FT and FT-cf have the same architecture and identical input-token counts per record. Paired by record, FT-cf is 53 ms faster on support and 166 ms slower on assistant, approximately -8%/+20%. Each configuration was measured once. Q4_K_M-versus-Q8_0 differences of +21% on support and +11% on assistant are of similar size, unlike Adreno (+49% to +76%), the smaller context/micro-batch (+74% support, +44% assistant) or policy prompting (2.9-6.5 times the latency).
 - **For 4B, interpret only the order of magnitude: about 3-5 seconds per decision.** Across three 4B runs (released Q4_K_M, FT-cf Q8_0, FT-cf Q4_K_M), tokens also match per record, but paired medians differ by 7-24%; even released versus fine-tuned Q4_K_M differs by 23-24%. At assistant record 139 in the 4B FT-cf Q8_0 run, the laptop entered standby for 5.4 hours; including that request gives a 4,115 ms median, excluding it 4,113 ms. Q4_K_M ran after resume. This experiment cannot rank the two quantizations by speed.
 
-### 6. Hardware Requirements
+#### On an x86-64 CPU: The Same Model File Runs Unchanged
+
+The laptop above has an ARM processor. To answer "does it still run on an x86-64 CPU", the same model file (`Contoso-Kev-0.8B-FTcf-Q8_0.gguf`, SHA-256 identical to the laptop copy) was loaded on an Azure virtual machine: AMD EPYC 7763, 8 vCPU (16 threads, 2.45 GHz), 64 GB RAM, Windows Server 2025, no GPU. The runtime was `llama-b11935-bin-win-cpu-x64.zip` from the same release page, with unchanged server arguments (`-c 8192 -b 2048 -ub 2048 --cache-ram 0`). The same 170 support and 159 assistant requests ran twice and were compared with the same PyTorch per-question results. The client script on the same VM sent the requests to `127.0.0.1:8080` and timed them at the client, as on the laptop.
 
 <!-- SOURCE:TABLE:21 -->
+| Metric| Snapdragon X Elite laptop (ARM64 package; the FT-cf 0.8B row above)| AMD EPYC 7763 Azure VM (x64 package): run 1 / run 2| 
+| ---| ---| ---| 
+| Support accuracy (PyTorch on the same test set: 86.9%)| 86.9%| 87.1% / 87.1%| 
+| Assistant accuracy (PyTorch on the same test set: 97.5%)| 97.7%| 97.9% / 97.9%| 
+| Support agreement: device vs. PyTorch| 99.2%| 99.0% / 99.0%| 
+| Assistant agreement: device vs. PyTorch| 99.8%| 99.6% / 99.6%| 
+| Questions with the same answer as Snapdragon: support 510 / assistant 477| —| 507 / 476 (99.4% / 99.8%), identical in both runs| 
+| Questions with the same answer across the two runs (987 total)| Single run| 987, probabilities identical to every digit| 
+| Peak working set (MiB)| 2,314| 1,552 / 1,400| 
+| Committed memory (MiB)| 5,014| 4,254 / 4,254| 
+| Support median request time (ms)| 646| 1,255 / 1,168| 
+| Assistant median request time (ms)| 984| 1,401 / 1,332| 
+| Engine threads (llama-server default)| 12| 8| 
+<!-- /SOURCE:TABLE:21 -->
+
+- **The answers agree.** 983 of 987 questions get the same answer on both machines; the 4 that differ are all questions whose top two options have close probabilities (selected-answer probability 0.32–0.62). x86-64 gets 3 more right and 1 fewer, hence an accuracy 0.2 points higher — these are flips near 0.5, not a more accurate x86-64. The median per-question probability difference is 0.00003, the maximum 0.151. Agreement with PyTorch is 99.0% / 99.6%, the same level as Snapdragon's 99.2% / 99.8%.
+- **Two runs on the same machine are exactly identical.** Answers and probabilities of all 987 questions match to every digit; only latency moves (support median 1,255 → 1,168 ms, a 7% difference).
+- **Latency is not compared with the laptop.** This is an 8-vCPU virtual machine at 2.45 GHz against a 12-core laptop at 3.4 GHz, with 8 versus 12 engine threads; the only statement is that one decision takes about 1.2–1.4 seconds on this VM.
+- **Memory is lower than on the laptop.** Peak working set 1,400–1,552 MiB versus 2,314 MiB, commitment 4,254 MiB versus 5,014 MiB, same arguments; the cause of the difference was not broken down.
+- **Raw records**: [验证结果/端侧引擎_x64_20261030-234858](验证结果/端侧引擎_x64_20261030-234858) — `machine.json` describes the machine and runtime, `ftcf-kev-0.8b-Q8_0-cpu-run1` and `-run2` hold each run's per-request results, server log, memory and per-question comparison, and `summary/` holds the summary tables. The 3 single requests of section 7 were also re-sent on this machine, with identical answers.
+
+### 6. Hardware Requirements
+
+<!-- SOURCE:TABLE:22 -->
 | Stage| GPU required?| Measured hardware and usage (GPU memory is nvidia-smi peak)| Estimated minimum from memory measurements; these cards were not tested| 
 | ---| ---| ---| ---| 
 | Train 0.8B| 1 GPU required; these scripts use NVIDIA CUDA| H100 NVL; 4,555 MiB GPU memory (micro-batch 1), 7,573 MiB (micro-batch 4)| 8 GB GPU memory (micro-batch 1)| 
@@ -508,7 +535,8 @@ The table below gathers the inference-side variables already measured in the thr
 | GGUF export| No; CPU only| GPU host's CPU| —| 
 | Laptop inference 0.8B (Q8_0)| No discrete GPU or NPU; CPU inference| 12-core Snapdragon X Elite; 2,314 MiB peak working set, 5,014 MiB commitment (defaults) or 2,119 MiB (`-c 2048 -ub 512`)| Size total RAM for this process plus the OS and other applications| 
 | Laptop inference 4B FT-cf (Q8_0 / Q4_K_M)| No discrete GPU or NPU; CPU inference| 12-core Snapdragon X Elite; peak working set 9,609 / 6,842 MiB and commitment 8,884 / 7,495 MiB| Same sizing principle| 
-<!-- /SOURCE:TABLE:21 -->
+| x86-64 CPU inference 0.8B FT-cf (Q8_0), cross-check| No GPU; CPU inference| AMD EPYC 7763 Azure VM, 8 vCPU; peak working set 1,400–1,552 MiB, commitment 4,254 MiB (defaults, two runs)| Same sizing principle| 
+<!-- /SOURCE:TABLE:22 -->
 
 - **Why the 24 GB estimate for 4B?** The micro-batch 1 result of 18,547 MiB is only a probe on 64 long vendor records, not a full run. Full 0.8B training used about 8% more whole-device memory than its probe, 4,555 versus 4,213 MiB. Applying that margin suggests about 20 GB for 4B, leaving roughly 4 GB on a 24 GB GPU. This is an estimate, not a tested minimum.
 - **The recipe uses bf16**, through `--dtype bf16`; check hardware support. Training time was measured only on H100 NVL in section 4. Smaller, slower GPUs will take longer, but their duration was not measured.
@@ -525,17 +553,19 @@ On 2026-10-28, UTC-07:00, the Snapdragon X Elite X1E80100 laptop with about 64 G
 
 The support message was “我的AuraBook Pro 16有好几个按键突然失灵了，电脑没有摔过，也没有进过水。” It reports failed keys without a drop or liquid spill. The device had Premium Care 3Y and was purchased 731 days earlier. The second request changed only region US to SG. The assistant message was “帮我联系人工客服咨询保修。” Complete unlabeled inputs are in [data/contoso/examples](data/contoso/examples); the quoted Chinese is the actual input.
 
-<!-- SOURCE:TABLE:22 -->
+<!-- SOURCE:TABLE:23 -->
 | Trial request| Policy-required result| Actual model output| This single request (ms)| Raw request and response| 
 | ---| ---| ---| ---| ---| 
 | Support, region US| Onsite repair; eligible; urgency 1| `sales_ops` (orders/quotes); ineligible; most likely urgency 1. Wrong queue and onsite eligibility| 783.8| [support-us/result.json](验证结果/本机试用_20261028-201046/support-us/result.json)| 
 | Same support case, region SG| Mail-in repair; ineligible; urgency 1| `sales_ops`; ineligible; most likely urgency 1. Wrong queue| 617.2| [support-sg/result.json](验证结果/本机试用_20261028-201046/support-sg/result.json)| 
 | Assistant: contact human support| `support_chat`; subsequent action is not entirely local; no prior confirmation| All three answers match policy| 774.2| [assistant/result.json](验证结果/本机试用_20261028-201046/assistant/result.json)| 
-<!-- /SOURCE:TABLE:22 -->
+<!-- /SOURCE:TABLE:23 -->
 
 **Local invocation works, but 0.8B is still unreliable on these warranty rules.** The region change reached the request and changed probabilities, but did not produce the correct queue change. The business scenario is simulated; the model output is real. For the assistant request, “not entirely local” describes the subsequent support-contact action. Decision inference itself stayed local and the client did not actually contact support.
 
 These inputs reuse historical records `support-g1-11-00311` and `assistant-g1-12-00003`; they are not a new independent quality evaluation. The table reports single client timings, not a speed ranking or latency guarantee. Use [the local trial steps](#local-try) to change inputs and inspect errors yourself.
+
+The same 3 requests were re-sent on the x86-64 Azure virtual machine (AMD EPYC 7763, section 5): every answer is identical (`sales_ops`, `sales_ops`, `support_chat`, with the same onsite-eligibility and confirmation decisions) and probabilities differ by at most 0.016; the single-request times of 1,633–1,823 ms are VM figures and are not compared with the laptop. Records: [验证结果/本机试用_x64_20261030-135532](验证结果/本机试用_x64_20261030-135532).
 
 ### Limits of the Conclusions
 
@@ -543,19 +573,19 @@ These inputs reuse historical records `support-g1-11-00311` and `assistant-g1-12
 - **One training run per recipe, seed 1**: the 95% intervals describe test-sample uncertainty, not variability across seeds or newly generated datasets.
 - **In-distribution temperature calibration** uses `calibrate_checkpoint.py --allow-in-distribution`, which emits a warning for this choice. Out-of-distribution ECE tests the result of that choice.
 - **A missing out-of-distribution assistant class**: the message generator refused 13 of 300 cases involving policy-bypassing or other-account actions, even after two retries. That class is absent from the assistant out-of-distribution test.
-- **One laptop, sequential requests**: concurrency, sustained thermal behavior, battery operation and NPU execution were not tested. Only recommended 4B FT-cf configurations completed; 4B FT stopped after 36 records and is excluded. Each configuration has one measured run, and paired latencies for identical architectures can differ by up to 24%.
+- **One Snapdragon laptop and one x86-64 virtual machine, sequential requests**: concurrency, sustained thermal behavior, battery operation and NPU execution were not tested. Only recommended 4B FT-cf configurations completed; 4B FT stopped after 36 records and is excluded. On the laptop each configuration has one measured run, and paired latencies for identical architectures can differ by up to 24%. On x86-64 only 0.8B FT-cf Q8_0 was measured (two runs), on an Azure VM rather than a customer laptop; 4B, Q4_K_M and Intel processors were not tested.
 
 ## Steps
 
 ### Use and Deployment Order
 
-<!-- SOURCE:TABLE:23 -->
+<!-- SOURCE:TABLE:24 -->
 | Your task| Start here| Execution order| Expected result| 
 | ---| ---| ---| ---| 
 | Try an existing fine-tuned GGUF locally| [A. Local trial](#local-try)| Start runtime → send one request → edit a field and repeat| Real model response, measured timing and raw output files| 
 | Produce a model or adapt to new business data| [B. Train and update](#train-update)| Data → train → calibrate → evaluate → export → update local model| A new checkpoint, evaluation and GGUF; not old-directory overwrite with skipped stages| 
 | Recheck the reported results| [C. Verification](#verify)| Run offline tests or start a real model for full device evaluation| Keep code checks, historical evidence replay and fresh model execution distinct| 
-<!-- /SOURCE:TABLE:23 -->
+<!-- /SOURCE:TABLE:24 -->
 
 This README is the single owner of executable steps. The report explains results; the protocol retains the original decision rules. Run laptop commands from **this project root**, the directory containing this README. After cloning the repository, enter `Deep-Learning/AIPC-Decision-Model-Finetune`.
 
@@ -563,14 +593,14 @@ This README is the single owner of executable steps. The report explains results
 
 ### A. Try the Fine-Tuned Model Locally
 
-**Prerequisites**: Windows on Arm, PowerShell 7, Python 3.11+, and a fine-tuned model already exported to GGUF. The laptop does not need PyTorch, CUDA or a training environment. Fine-tuned weights are not published in this repository. Use an existing artifact or complete section B; do not substitute released weights and call them fine-tuned.
+**Prerequisites**: Windows on Arm or x86-64 Windows, PowerShell 7, Python 3.11+, and a fine-tuned model already exported to GGUF. The laptop does not need PyTorch, CUDA or a training environment. Fine-tuned weights are not published in this repository. Use an existing artifact or complete section B; do not substitute released weights and call them fine-tuned.
 
-Download `llama-b11935-bin-win-cpu-arm64.zip` from [llama.cpp b11935](https://github.com/ggml-org/llama.cpp/releases/tag/b11935), SHA-256 `fe9db0136dd8f7e39240c90cd1c1107ff59a8ef27c5517472e9d2c4c0dc9511f`, and extract to `C:\Tools\llama.cpp\b11935-cpu\`. The example model directory is `C:\Tools\models\contoso-kev\`; substitute your own path. Other CPU architectures need a matching runtime and were not validated here.
+Download `llama-b11935-bin-win-cpu-arm64.zip` from [llama.cpp b11935](https://github.com/ggml-org/llama.cpp/releases/tag/b11935), SHA-256 `fe9db0136dd8f7e39240c90cd1c1107ff59a8ef27c5517472e9d2c4c0dc9511f`, and extract to `C:\Tools\llama.cpp\b11935-cpu\`. The example model directory is `C:\Tools\models\contoso-kev\`; substitute your own path. On x86-64 Windows use `llama-b11935-bin-win-cpu-x64.zip` from the same release page (SHA-256 `d13e3d617a724eef10a533b18d1178b5292f7f1395965adf4e83b1ab4e9fc4b6`), extract to `C:\Tools\llama.cpp\b11935-cpu-x64\` and point `$Engine` below at that folder; this path was validated on an AMD EPYC 7763 (section 5). Linux, macOS and other architectures were not validated here.
 
 Customer delivery should include the following, rather than asking the customer to run a training pipeline on the laptop:
 
 - **A calibrated model file**, such as `Contoso-Kev-0.8B-FTcf-Q8_0.gguf`, with its version, SHA-256, applicable data scope and acceptance results. Temperature is already inside GGUF; customers do not fill in a separate probability table.
-- **The matching runtime:** the b11935 ARM64 CPU package above, including its DLLs. Python is used by this repository's request client, not for laptop training.
+- **The matching runtime:** the b11935 CPU package for the customer's architecture (ARM64 or x64), including its DLLs. Python is used by this repository's request client, not for laptop training.
 - **Startup and request instructions:** run A1-A3, send unlabeled business input to `/v1/systemone`, and read structured answers and probabilities. The application owns subsequent actions.
 
 **A1. Start the local server in one PowerShell terminal.**
@@ -649,7 +679,7 @@ An existing model needs only A. This section produces a new model from data. Tra
 
 **First-reproduction order**:
 
-<!-- SOURCE:TABLE:24 -->
+<!-- SOURCE:TABLE:25 -->
 | Order| Execution location| Action| Script| 
 | ---| ---| ---| ---| 
 | 1| GPU host (Linux, NVIDIA GPU)| Set up the Kev training environment| `scripts/remote_setup.sh`| 
@@ -661,7 +691,7 @@ An existing model needs only A. This section produces a new model from data. Tra
 | 7| Laptop| Retrieve result archive and GGUF; verify hashes| `scripts/pull_results.ps1`, `scripts/pull_gguf.ps1`| 
 | 8| Laptop| Evaluate and time device inference; compare with PyTorch| `scripts/run_engine_eval.ps1`| 
 | 9| Laptop| Generate all tables| `scripts/summarize_results.py`, `scripts/summarize_engine.py`| 
-<!-- /SOURCE:TABLE:24 -->
+<!-- /SOURCE:TABLE:25 -->
 
 #### Training Prerequisites
 
@@ -805,7 +835,7 @@ Offline tests require no model. New device evaluation requires real GGUF weights
 
 Use the CPU runtime from A. For Adreno comparison, download `llama-b11935-bin-win-opencl-adreno-arm64.zip` from the same release, SHA-256 `03495082010595c4d20c50b5d06fc44c0e03c57db5d573fae1727a92cca6a4c8`, and extract to `C:\Tools\llama.cpp\b11935-opencl-adreno\`. The batch script starts and stops its own service. First stop A's trial service yourself or choose a different port.
 
-Use a new `-Label` every time. The historical script fixes the output root at `验证结果\端侧引擎_20261027-124700`; a new label prevents overwriting old results. That directory name is not the new run date; the new `run.json` records actual time.
+Use a new `-Label` every time. The script's default output root is the laptop campaign's `验证结果\端侧引擎_20261027-124700`; a new label prevents overwriting old results. That directory name is not the new run date; the new `run.json` records actual time. To rerun on another machine, add `-Bin <that machine's llama.cpp folder>` and `-OutRoot 验证结果\端侧引擎_<machine>_<time>`: results go to the new root and the recorded paths are repository-relative. The x86-64 cross-check in section 5 was run this way.
 
 <!-- SOURCE:FENCE:18 -->
 ```powershell
@@ -851,7 +881,7 @@ python -m unittest discover -s tests -v
 
 [tests/test_data_and_scoring.py](tests/test_data_and_scoring.py) needs neither the GPU VM nor the device engine. Success ends with `OK`. Existing data/scoring checks are retained, including visible-input transmission, raw response preservation and failure behavior:
 
-<!-- SOURCE:TABLE:25 -->
+<!-- SOURCE:TABLE:26 -->
 | Check| Failure detected| 
 | ---| ---| 
 | Send visible business inputs without labels; preserve the raw model response| Ground-truth leakage or fabricated local-inference output| 
@@ -864,7 +894,7 @@ python -m unittest discover -s tests -v
 | `parity.py`: identical answers give agreement 1; changing one answer reduces agreements by 1| Misaligned questions or option ordering in engine comparison| 
 | `temperature_whatif.py` reproduces Kev's Brier 0.6413 at the released temperature| Incorrect probability rescaling for temperature| 
 | `summarize_results.py` gives correct paired-bootstrap differences and intervals for all-correct, all-wrong and half-correct cases| Incorrect paired difference or interval| 
-<!-- /SOURCE:TABLE:25 -->
+<!-- /SOURCE:TABLE:26 -->
 
 Not covered: GPU training/evaluation itself, which needs B4-B5 logs and results; real llama-server startup and model behavior, which need A or C1; or the large-model API used to generate data. Substitute responses in transport tests validate client logic, not model capability.
 
@@ -872,7 +902,7 @@ Reproduction boundary: current out-of-distribution data files have different byt
 
 #### C4. Regenerate the Diagrams
 
-The three diagrams in both languages and all local previews share [scripts/render_diagrams.py](scripts/render_diagrams.py). [requirements-docs.txt](requirements-docs.txt) pins documentation dependencies, not model-runtime dependencies. Windows defaults to the installed `C:\Windows\Fonts\msyh.ttc`; elsewhere provide a CJK font with `--font`. Figure sources and hashes are in [images/provenance.json](images/provenance.json). Official icon originals, licenses and raster hashes are in [images/vendor/sources.json](images/vendor/sources.json).
+The four diagrams (training, inference, validation, decision model) in both languages and all local previews share [scripts/render_diagrams.py](scripts/render_diagrams.py). [requirements-docs.txt](requirements-docs.txt) pins documentation dependencies, not model-runtime dependencies. Windows defaults to the installed `C:\Windows\Fonts\msyh.ttc`; elsewhere provide a CJK font with `--font`. Figure sources and hashes are in [images/provenance.json](images/provenance.json). Official icon originals, licenses and raster hashes are in [images/vendor/sources.json](images/vendor/sources.json).
 
 <!-- SOURCE:FENCE:22 -->
 ```powershell
@@ -891,7 +921,7 @@ Do not reinstall matching dependencies. `--preview` checks local links/anchors a
 
 ### Repository Deliverables
 
-<!-- SOURCE:TABLE:26 -->
+<!-- SOURCE:TABLE:27 -->
 | Deliverable| Location| Purpose| 
 | ---| ---| ---| 
 | Simulated vendor data with policy-computed labels| [data/contoso/final](data/contoso/final); manifest and SHA-256: [manifest.json](data/contoso/final/manifest.json)| Training, calibration, development, in-distribution, out-of-distribution and variant evaluation| 
@@ -901,24 +931,24 @@ Do not reinstall matching dependencies. `--preview` checks local links/anchors a
 | Summaries and tests| [scripts/summarize_results.py](scripts/summarize_results.py), [scripts/summarize_engine.py](scripts/summarize_engine.py), [tests/](tests/)| Tables generated from raw results; offline data and scoring checks| 
 | Raw evidence| [Evidence directory](验证结果/)| Evaluation reports, predictions, training logs, GPU-memory samples and device records. Checkpoints and full result archives contain files above GitHub's 100 MB limit and are not included; reproduce them with the training steps| 
 | Detailed report| [Detailed validation report](文档/Finetuning-and-On-Device-Validation-Report.md)| Full tables, per-question analysis and claim boundaries| 
-<!-- /SOURCE:TABLE:26 -->
+<!-- /SOURCE:TABLE:27 -->
 
 #### Responsibilities
 
-<!-- SOURCE:TABLE:27 -->
+<!-- SOURCE:TABLE:28 -->
 | Component| Owner| This repository's approach| 
 | ---| ---| ---| 
 | Kev decision model (Qwen3.5-Base + LoRA + pointer head + calibration temperature)| Open-source project [jaredpalmer/kev](https://github.com/jaredpalmer/kev)| Pinned to commit `2074cc44`; native `--init_from` continuation, with upstream code unchanged| 
 | llama.cpp inference runtime| [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp)| Official b11935 packages and matching `convert_hf_to_gguf.py`, with upstream code unchanged| 
 | Business policies, real data and labels| Vendor| Fictional Contoso PC policies stand in for the vendor; code computes every label| 
-| Training host and laptop| Vendor| Azure `Standard_NC40ads_H100_v5` (1× H100 NVL) and one Snapdragon X Elite X1E80100 laptop| 
-<!-- /SOURCE:TABLE:27 -->
+| Training host and laptop| Vendor| Azure `Standard_NC40ads_H100_v5` (1× H100 NVL) and one Snapdragon X Elite X1E80100 laptop; the x86-64 cross-check used an AMD EPYC 7763 Azure VM| 
+<!-- /SOURCE:TABLE:28 -->
 
 **Not included**: real customer data; multiple random seeds; Hexagon NPU testing, which required Windows test-signing changes not made on the managed corporate laptop; concurrency, long-duration or battery-powered device tests.
 
 #### Evidence and Report Navigation
 
-<!-- SOURCE:TABLE:28 -->
+<!-- SOURCE:TABLE:29 -->
 | You want to| Read here| 
 | ---| ---| 
 | Send a business request on your laptop| [Local trial](#local-try); no retraining required| 
@@ -928,27 +958,28 @@ Do not reinstall matching dependencies. `--preview` checks local links/anchors a
 | Predeclared decision rules and recorded deviations| [Experimental protocol](文档/Experiment-Protocol.md)| 
 | Raw training/evaluation reports, predictions, logs and GPU-memory samples| [Training and evaluation evidence](验证结果/微调评测_20261027-220226) (`summary/summary.md` contains all summary tables; the archive SHA-256 is in `archive.sha256`)| 
 | Per-run device records, server logs, memory and answer comparisons| [Device-runtime evidence](验证结果/端侧引擎_20261027-124700)| 
+| Two batch runs, per-question comparison and 3 single requests of the same model on an x86-64 VM| [验证结果/端侧引擎_x64_20261030-234858](验证结果/端侧引擎_x64_20261030-234858), [验证结果/本机试用_x64_20261030-135532](验证结果/本机试用_x64_20261030-135532)| 
 | Released-model public-task reproduction, matching the author's scores| [Public-baseline reproduction](验证结果/公开基线复现_20261027-123403)| 
 | Policy-code label verification, 0 mismatches| [Policy-label verification](验证结果/数据标签复核_20261027-130518.txt)| 
-<!-- /SOURCE:TABLE:28 -->
+<!-- /SOURCE:TABLE:29 -->
 
 #### Directories
 
-<!-- SOURCE:TABLE:29 -->
+<!-- SOURCE:TABLE:30 -->
 | Directory| Contents| 
 | ---| ---| 
 | `data/contoso/`| Cases (`*.cases.jsonl`), generated messages (`*.texts.jsonl`) and usage (`*.usage.json`); `final/` holds training/evaluation files. Public records replace generator names with `llm-A` and `llm-B`; other content is unchanged, so SHA-256 values in `manifest.json` differ from experiment-time values| 
 | `data/contoso/examples/`| Three editable, unlabeled trial requests from existing test cases and a region-only variant; not training data| 
 | `scripts/`| Current, auxiliary and historical script roles are listed below; historical entries are preserved| 
 | `tests/`| Offline tests requiring neither GPU nor device runtime| 
-| `images/`| Three bilingual diagrams generated by `scripts/render_diagrams.py`, the author's unchanged ranking figure, and source/hash ledgers| 
+| `images/`| Four explanatory diagrams generated by `scripts/render_diagrams.py` (training, inference, validation, decision model), the author's unchanged ranking figure, and source/hash ledgers| 
 | `验证结果/`| Raw results and evidence by run time. Public `run.json`, `summary.json` and `parity_vs_pytorch.json` use repository-relative paths| 
 | `文档/`| Detailed report and experimental protocol| 
-<!-- /SOURCE:TABLE:29 -->
+<!-- /SOURCE:TABLE:30 -->
 
 #### Script Navigation
 
-<!-- SOURCE:TABLE:30 -->
+<!-- SOURCE:TABLE:31 -->
 | Purpose| Primary entry| Auxiliary or historical scripts| 
 | ---| ---| ---| 
 | Routine single-request inference| `systemone_client.py --request`| Send input and preserve response; no scoring or business action| 
@@ -957,4 +988,4 @@ Do not reinstall matching dependencies. `--preview` checks local links/anchors a
 | Initial training reproduction| `remote_setup.sh`, `remote_public_baseline.sh`, `remote_pipeline_v2.sh`, `remote_cf_round.sh`| `remote_pipeline.sh` is the historical fixed-micro-batch version; `remote_run_all.sh`, `remote_after_08b.sh` and `remote_after_chain.sh` are original sequential orchestration entries| 
 | Model export and retrieval| `remote_llama_prep.sh`, `remote_export_gguf.sh`, `remote_export_gguf_cf.sh`, `pull_gguf.ps1`, `pull_results.ps1`| `remote_pack_results.sh` packages results; `fetch_parallel.ps1` transfers chunks; `remote_env.sh` defines remote paths| 
 | Analysis and documentation| `summarize_results.py`, `summarize_engine.py`, `fill_report_tables.py`| `temperature_whatif.py` diagnoses temperature; `remote_memory_probe.sh` only probes memory; `render_diagrams.py` renders diagrams| 
-<!-- /SOURCE:TABLE:30 -->
+<!-- /SOURCE:TABLE:31 -->

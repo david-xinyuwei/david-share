@@ -1,0 +1,26 @@
+{
+  "captured": "2026-10-30T23:56:47.4209759+08:00",
+  "execution_plane": "AZURE_VM_WINDOWS",
+  "machine": "Azure virtual machine (Virtual Machine); AMD EPYC 7763 64-Core Processor, 8 vCPU / 16 threads, 2445 MHz; 64 GB RAM; no GPU",
+  "os": "Microsoft Windows Server 2025 Datacenter Azure Edition 10.0.26100",
+  "os_architecture": "x64 (AMD64)",
+  "engine": "llama.cpp b11935 Windows x64 CPU package llama-b11935-bin-win-cpu-x64.zip",
+  "engine_zip_sha256": "d13e3d617a724eef10a533b18d1178b5292f7f1395965adf4e83b1ab4e9fc4b6",
+  "engine_threads": 8,
+  "model_sha256": "5a647379764fcad21d12e06bc7fcb1663dd52e15587f8854d9f417d1f96d65d3",
+  "pytorch_reference": "验证结果/端侧引擎_20261027-124700/pytorch-ftcf-0.8b/ (same test sets, same per-question rows used by the Snapdragon runs)",
+  "snapdragon_counterpart": "验证结果/端侧引擎_20261027-124700/ftcf-kev-0.8b-Q8_0-cpu/",
+  "runs": [
+    {
+      "directory": "ftcf-kev-0.8b-Q8_0-cpu-run1",
+      "label_at_run_time": "ftcf-kev-0.8b-Q8_0-cpu-x64-epyc7763",
+      "note": "first batch run; its summary.json/parity_vs_pytorch.json paths were rewritten from this machine's absolute paths to project-relative paths, values unchanged"
+    },
+    {
+      "directory": "ftcf-kev-0.8b-Q8_0-cpu-run2",
+      "label_at_run_time": "ftcf-kev-0.8b-Q8_0-cpu",
+      "note": "second batch run with -OutRoot; directory renamed from ftcf-kev-0.8b-Q8_0-cpu to -run2 and the recorded engine path updated accordingly"
+    }
+  ],
+  "scope": "Same GGUF, same llama.cpp release and server arguments as the Snapdragon laptop run; shows whether the fine-tuned decision model runs on an x86-64 CPU with the same answers. Latency is not compared with the laptop."
+}

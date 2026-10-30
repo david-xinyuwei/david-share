@@ -18,7 +18,8 @@ def load(p):
 
 
 KIND = {"released": "发布版", "ft": "微调 FT", "ftcf": "微调 FT-cf"}
-VARIANT = {"": "默认参数", "lean": "-c 2048 -ub 512", "ctx2048": "-c 2048", "policy": "默认参数，提示词含策略全文（B0-policy）"}
+VARIANT = {"": "默认参数", "lean": "-c 2048 -ub 512", "ctx2048": "-c 2048", "policy": "默认参数，提示词含策略全文（B0-policy）",
+           "run1": "默认参数，第 1 次运行", "run2": "默认参数，第 2 次运行"}  # repeated runs of one configuration (x86-64 root)
 BACKEND = {"cpu": "CPU", "opencl": "Adreno GPU（OpenCL）"}
 
 
@@ -108,6 +109,8 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
     rows, incomplete = [], []
     for d in sorted(p for p in root.iterdir() if p.is_dir() and not p.name.startswith("pytorch-")):
+        if not any((d / name).exists() for name in ("run.json", "server.log", "server_memory.json", "support", "assistant")):
+            continue  # not a run folder (e.g. the derived summary/ written by --output-dir)
         if not all((d / w / "summary.json").is_file() for w in ("support", "assistant")):
             done = {w: sum(1 for line in (d / w / "rows.jsonl").read_text(encoding="utf-8").splitlines() if line.strip())
                     for w in ("support", "assistant") if (d / w / "rows.jsonl").is_file()}

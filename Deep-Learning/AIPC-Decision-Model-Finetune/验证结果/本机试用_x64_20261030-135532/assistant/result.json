@@ -1,0 +1,88 @@
+{
+  "captured_utc": "2026-10-30T05:55:59.593325+00:00",
+  "url": "http://127.0.0.1:8080/v1/systemone",
+  "input_sha256": "39dfc7b2bec6bbf9bfed957b5cc33283ddd9a9aa6d114aa1800237ed792b89b9",
+  "request": {
+    "state": {
+      "utterance": "帮我联系人工客服咨询保修。",
+      "context": {
+        "foreground_app": "Outlook",
+        "power_source": "battery",
+        "battery_pct": 17,
+        "network": "wifi",
+        "enterprise_managed": true,
+        "camera_in_use": false,
+        "external_display": false
+      }
+    },
+    "questions": {
+      "tool": {
+        "type": "choice",
+        "instructions": "Which Contoso Assistant tool should handle this request?",
+        "criteria": {
+          "smart_power": "Performance, quiet and battery-saver power modes",
+          "display_eye_care": "Brightness, blue-light filter and eye-care reminders",
+          "audio_enhance": "Microphone noise suppression and voice clarity",
+          "camera_studio": "Background blur, auto framing and lighting correction",
+          "meeting_assist": "Meeting transcripts, recordings, summaries and action items",
+          "file_search": "Find local files by what they contain",
+          "screen_translate": "Translate text or speech on the screen",
+          "driver_update": "Check and install drivers and firmware",
+          "system_diagnose": "Health checks for battery, fans, disk and performance",
+          "privacy_shield": "Screen privacy, auto-lock and hiding notifications",
+          "smart_connect": "Phone link: transfer files and photos, mirror notifications",
+          "support_chat": "Contact Contoso support about warranty or repairs",
+          "general_chat": "General questions, writing help and chit-chat",
+          "none_reject": "Out of scope or not allowed; decline politely"
+        }
+      },
+      "run_on_device": {
+        "type": "noul",
+        "instructions": "Should Contoso Assistant handle this request entirely on the device, without sending data to the cloud?"
+      },
+      "needs_confirmation": {
+        "type": "noul",
+        "instructions": "Must the assistant ask the user to confirm before acting?"
+      }
+    }
+  },
+  "client_latency_ms": 1822.6,
+  "response": {
+    "model": "contoso-kev-0.8b-ftcf",
+    "answers": {
+      "tool": {
+        "type": "choice",
+        "choice": "support_chat",
+        "probabilities": {
+          "smart_power": 2.537051996227768e-13,
+          "display_eye_care": 1.038119470335761e-14,
+          "audio_enhance": 1.6128339895621814e-12,
+          "camera_studio": 4.0498010487886983e-14,
+          "meeting_assist": 4.316340093401207e-12,
+          "file_search": 2.9553828191851557e-12,
+          "screen_translate": 1.1670026874829512e-11,
+          "driver_update": 1.1624869387541434e-12,
+          "system_diagnose": 1.6891273903633793e-11,
+          "privacy_shield": 3.195591531413757e-14,
+          "smart_connect": 9.494090789646276e-12,
+          "support_chat": 0.9999921519518363,
+          "general_chat": 7.838679862478421e-06,
+          "none_reject": 9.319862266065558e-09
+        },
+        "confidence": 0.9999915482558237
+      },
+      "run_on_device": {
+        "type": "noul",
+        "noul": 0.0001502757732742539
+      },
+      "needs_confirmation": {
+        "type": "noul",
+        "noul": 0.007593088598160517
+      }
+    },
+    "usage": {
+      "input_tokens": 432,
+      "output_tokens": 0
+    }
+  }
+}
