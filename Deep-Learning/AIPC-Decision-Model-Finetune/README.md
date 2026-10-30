@@ -120,7 +120,9 @@ This justifies evaluation, not guaranteed customer suitability. FT and FT-cf are
 
 **What Q8_0 and Q4_K_M are.** Both are llama.cpp block-wise integer quantization: Q8_0 keeps 8 bits per weight and is nearly lossless; Q4_K_M is mainly 4-bit and less precise. This project's Q4_K_M export keeps attention, DeltaNet, the pointer head and the output layer at 8 bits and compresses only the feed-forward layers, more conservative than llama.cpp's default mix. Measured effects are in [section 5](#5-laptop-inference-engine).
 
-**`/v1/systemone` is a decision endpoint, not chat completion.** One request = the customer message + device fields + a few questions; the response carries each question's answer and probabilities and generates no token (`usage.output_tokens` is always 0). Probabilities are already scaled with the temperature inside the GGUF. The endpoint follows the TypeSafe System One API and does not support streaming. The field layout is in this excerpt of one real local request and response; the complete file is in the [local trial record](验证结果/本机试用_20261028-201046/support-us/result.json):
+**`/v1/systemone` is a decision endpoint, not chat completion.** One request = the customer message + device fields + a few questions; the response carries each question's answer and probabilities and generates no token (`usage.output_tokens` is always 0). Probabilities are already scaled with the temperature inside the GGUF. The endpoint follows the TypeSafe System One API and does not support streaming.
+
+Below is an excerpt of one real local request and response (complete file: [local trial record](验证结果/本机试用_20261028-201046/support-us/result.json)). The scenario is a support ticket: the customer e-mails that several keys on an AuraBook Pro 16 stopped working, with no drop and no spill; the device record shows region US, a Premium Care 3-year warranty and 731 days since purchase. The business application puts both into `state` and asks three questions: `queue` — which of 8 support queues takes the case (choice); `onsite_eligible` — is an onsite visit allowed (yes/no); `urgency` — one of four urgency levels (ordinal). The response carries one answer and its probabilities per question: a choice question returns the chosen option, every option's probability and a `confidence`; a yes/no question returns only the probability of "yes"; an ordinal question returns the expected level, per-level probabilities and a legend.
 
 <!-- SOURCE:FENCE:1 -->
 ```jsonc
@@ -148,6 +150,8 @@ This justifies evaluation, not guaranteed customer suitability. FT and FT-cf are
  "usage": {"input_tokens": 500, "output_tokens": 0}}
 ```
 <!-- /SOURCE:FENCE:1 -->
+
+The model's answers this time: queue `sales_ops` (orders / quotes, 42% probability), 29% probability that an onsite visit is allowed, and urgency almost certainly level 1 (within this week). This project's policy code computes the ground truth for this record as `onsite_repair`, onsite visit allowed, urgency 1 (a keyboard fault on a US device within its Premium Care 3-year warranty). Compared with that: the urgency is right, the queue and the onsite eligibility are wrong. So this sample shows how the endpoint is used, not how accurate the model is; the full comparison for all three trial requests is in [section 7](#local-result). `confidence` is neither the top option's probability nor an accuracy figure; its definition is in step A3.
 
 **Startup arguments one by one** (matching the command in step A1; defaults from the [llama-server b11935 documentation](https://github.com/ggml-org/llama.cpp/blob/b11935/tools/server/README.md), measured values from [section 5](#5-laptop-inference-engine)):
 

@@ -114,7 +114,9 @@
 
 **Q8_0 和 Q4_K_M 是什么。** 都是 llama.cpp 的分块整数量化：Q8_0 每个权重 8 bit，几乎无损；Q4_K_M 主体 4 bit，精度更低。本项目导出 Q4_K_M 时把注意力、DeltaNet、指针头和输出层保留为 8 bit，只压前馈层，比 llama.cpp 默认配比更保守。实测效果见[第 5 节](#5-笔记本端推理引擎)。
 
-**`/v1/systemone` 是决策接口，不是聊天补全。** 一次请求 = 客户原话 + 设备字段 + 几道题；返回每道题的答案和概率，不生成任何 token（`usage.output_tokens` 恒为 0）。概率已按 GGUF 内的温度缩放。接口遵循 TypeSafe System One API，不支持流式。字段细节看下面这次本机真实请求与响应的摘录，完整文件见[本机试用记录](验证结果/本机试用_20261028-201046/support-us/result.json)：
+**`/v1/systemone` 是决策接口，不是聊天补全。** 一次请求 = 客户原话 + 设备字段 + 几道题；返回每道题的答案和概率，不生成任何 token（`usage.output_tokens` 恒为 0）。概率已按 GGUF 内的温度缩放。接口遵循 TypeSafe System One API，不支持流式。
+
+下面是本机一次真实请求与响应的摘录（完整文件见[本机试用记录](验证结果/本机试用_20261028-201046/support-us/result.json)）。场景是一张售后工单：客户邮件说 AuraBook Pro 16 好几个按键失灵，没摔过也没进水；设备档案显示美国区、Premium Care 3 年保修、购买 731 天。业务应用把这两样放进 `state`，再问三道题：`queue` —— 派给 8 个队列中的哪一个（选项题）；`onsite_eligible` —— 能否上门维修（是非题）；`urgency` —— 四级紧急度（等级题）。响应里每道题各带一个答案和概率：选项题返回选中的选项、每个选项的概率和一个 `confidence`；是非题只返回“是”的概率；等级题返回期望等级、各级概率和图例。
 
 ```jsonc
 // request (excerpt): what the business application sends
@@ -140,6 +142,8 @@
                          "probabilities": {"0": 0.000, "1": 1.000, "2": 0.000, "3": 0.000}, "confidence": 1.000}},
  "usage": {"input_tokens": 500, "output_tokens": 0}}
 ```
+
+这次模型的答案：队列选了 `sales_ops`（订单 / 报价，概率 42%），能否上门答“是”的概率 29%，紧急度几乎肯定是 1（本周内）。本项目的规则代码对这条记录算出的标准答案是：`onsite_repair`、可以上门、紧急度 1（美国区、Premium Care 3 年保修期内的键盘故障）。对照之下：紧急度答对了，队列和上门资格都答错了。所以这个样例说明的是接口怎么用，不是模型多准；这三条试用的完整对照见[第 7 节](#local-result)。`confidence` 不等于最高选项概率，也不是准确率，定义见操作步骤 A3。
 
 **启动参数逐项**（对应操作步骤 A1 的命令；默认值来自 [llama-server b11935 文档](https://github.com/ggml-org/llama.cpp/blob/b11935/tools/server/README.md)，实测数值来自[第 5 节](#5-笔记本端推理引擎)）：
 
