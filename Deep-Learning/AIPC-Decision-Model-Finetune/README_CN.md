@@ -67,21 +67,23 @@
 
 ### 核心技术：Kev 决策模型怎么微调
 
-**决策模型和聊天模型的区别。** 聊天模型逐个生成文字 token；Kev 不生成文字。它把 Qwen3.5-Base 当作只读的编码器——Kev 源码加载的是不带词表输出层的主干（`AutoModelForCausalLM.from_pretrained(...).model`，注释写明 "we never generate text"），在输入末尾为每道题拼上全部选项和一个 `<decide>` 标记，再用一个很小的**指针头**（pointer head）给每个选项打分。指针头只有两个线性层 q、k（输出维度 256）：q 作用于 `<decide>` 位置的隐状态，k 作用于每个选项结尾 `</opt>` 位置的隐状态，选项 i 的分数是两者的点积再除以 √256：`z_i = k(h_opt_i) · q(h_decide) / 16`，对全部选项做 softmax 就是各选项概率。一道 8 选 1 的题只需一次前向、读 8 个位置，不生成任何 token，也不会答出选项之外的内容。来源：[kev/model.py `PointerHead`、`DecisionModel`](https://github.com/jaredpalmer/kev/blob/2074cc44256200bb37540103fa4572901faa10f3/kev/model.py)，commit `2074cc44`。
+**决策模型和聊天模型的区别。** 聊天模型逐个生成文字；Kev 不生成文字。它把 Qwen3.5-Base 当只读编码器，在输入末尾拼上全部选项和一个 `<decide>` 标记，再用一个很小的**指针头**（pointer head）给每个选项打分，softmax 后就是各选项概率。一道 8 选 1 的题只需一次前向，答案不可能落在选项之外。
 
-**监督微调（SFT）的损失。** 每道题的损失是正确选项上的交叉熵 `F.cross_entropy(z, label)`。等级题可以另加排序损失，本次权重为 0；KL、Brier、focal、anchor 等附加项的权重也全部为 0（[训练配置](验证结果/微调评测_20261027-220226/runs/0.8b/ft/training_config.json)里 `ord_w`、`perm_kl`、`brier_w`、`focal_gamma`、`anchor_w` 均为 0）。没有强化学习。优化器 AdamW（weight decay 0.01），OneCycleLR 学习率调度（前 10% 步数升温），梯度范数裁到 1.0。来源：[kev/train.py `question_loss`、`main`](https://github.com/jaredpalmer/kev/blob/2074cc44256200bb37540103fa4572901faa10f3/kev/train.py)。
+**监督微调（SFT）。** 损失就是正确选项上的交叉熵，没有强化学习，也没有附加损失项。
 
-**LoRA r16 + 指针头：哪些参数在动。** 基座权重全部冻结。可训练的只有两部分：① LoRA 适配器（low-rank adaptation：在原线性层旁加一对低秩矩阵，只训练这对小矩阵），秩 16、alpha 32、dropout 0.05，挂在全部线性投影上——`--lora_targets all` 覆盖注意力的 q/k/v/o、前馈的 gate/up/down，以及 Qwen3.5 Gated DeltaNet 层的 `in_proj_qkv/z/a/b` 与 `out_proj`；② 指针头本身。训练日志记录可训练参数 0.8B 为 11.3M、4B 为 33.8M，按标称规模粗算约占 1.4% 和 0.8%。
+**哪些参数在动。** 基座冻结，只训练 LoRA 适配器（秩 16，挂在全部线性投影上）和指针头：0.8B 可训练 11.3M 参数，约占 1.4%；4B 为 33.8M，约 0.8%。
 
-**`--init_from`：在发布版上续训，不是从基座重训。** 本次 `--init_from jaredpalmer/kev-0.8b@v1.0`（4B 同理）。Kev 把这叫 delta 模式：先加载发布版已训练好的 372 个 LoRA 张量和指针头（日志 `delta: warm start … 372 lora tensors and the pointer head load`），再在厂商数据上继续训练。好处是保留发布版学到的通用决策能力，只学厂商规则这部分差量；代价是学习率要小（2e-5，是 Kev 从头训练默认值 2e-4 的十分之一）。
+**在发布版上续训，不是从基座重训。** `--init_from` 先加载 Kev 发布版已训好的 LoRA 和指针头，再学厂商规则这部分差量；学习率因此压到 2e-5，是从头训练默认值的十分之一。
 
-**`--replay 1000`：防遗忘。** 续训只喂厂商数据，模型会向厂商分布漂移。`--replay 1000` 按随机种子从 Kev 原训练集（12,576 条）抽 1,000 条混入训练（日志 `replay: 1000 of 12576 suite training records mixed with 2147 from …/train.jsonl`）。[第 2 节](#2-通用能力有没有丢)用 656 道公开题检验这一步是否奏效。
+**防遗忘。** `--replay 1000` 把 1,000 条 Kev 原训练记录混进训练，防止模型只记得厂商数据；[第 2 节](#2-通用能力有没有丢)用 656 道公开题检验效果。
 
-**FT-cf：反事实增强。** 保持原话不变，只改一个策略字段（地区、保修类型、购买天数等），让规则代码重算标签，形成"同一句话、不同字段、不同答案"的配对样本，训练集从 2,147 条增加到 3,832 条。目的是逼模型读设备字段，而不是只读原话。它和 FT 都从发布版独立训练，不是 FT 之后再续训。
+**FT-cf：反事实增强。** 原话不变，只改一个设备字段（地区、保修类型、购买天数等），让规则代码重算标签，逼模型读字段而不是只读原话；训练集从 2,147 条增加到 3,832 条。它和 FT 都从发布版独立训练，不是 FT 之后再续训。
 
-**温度校准为什么单独一步。** 训练时指针头的温度固定为 1。训练完固定全部权重，在独立校准集上用 Kev 的 `calibrate_checkpoint.py` 只拟合一个标量 T（概率改为 `softmax(z / T)`），写进检查点 `head.pt`，导出时随 GGUF 元数据带走。它不改答案排序，只改概率的"尖"与"平"。详见[第 3 节](#3-校准答案排名正确概率仍可能不准)。
+**温度校准单独一步。** 训练完冻结权重，只在校准集上拟合一个标量 T，并随 GGUF 元数据带到端侧。它不改答案排序，只改概率的"尖"与"平"。详见[第 3 节](#3-校准答案排名正确概率仍可能不准)。
 
-**本次训练配方一览**（0.8B FT 的 [training_config.json](验证结果/微调评测_20261027-220226/runs/0.8b/ft/training_config.json)；4B 与 FT-cf 只有 micro-batch 和数据文件不同）：
+*机制细节与证据*：指针头是两个 256 维线性层 q、k，选项 i 的分数 `z_i = k(h_opt_i) · q(h_decide) / 16`，q 读 `<decide>` 位置、k 读各选项结尾 `</opt>` 位置的隐状态；损失 `F.cross_entropy(z, label)`，优化器 AdamW、OneCycleLR、梯度裁剪 1.0；LoRA alpha 32、dropout 0.05，`--lora_targets all` 覆盖注意力、前馈和 Qwen3.5 DeltaNet 层的全部投影。训练日志：`delta: warm start … 372 lora tensors and the pointer head load`、`trainable params=11.3M`（4B 为 33.8M）、`replay: 1000 of 12576 suite training records mixed with 2147`。源码 [kev/model.py](https://github.com/jaredpalmer/kev/blob/2074cc44256200bb37540103fa4572901faa10f3/kev/model.py)、[kev/train.py](https://github.com/jaredpalmer/kev/blob/2074cc44256200bb37540103fa4572901faa10f3/kev/train.py)（commit `2074cc44`），本次 [training_config.json](验证结果/微调评测_20261027-220226/runs/0.8b/ft/training_config.json)。
+
+**本次训练配方一览**（0.8B FT；4B 与 FT-cf 只有 micro-batch 和数据文件不同）：
 
 | 配置项（`kev.train` 参数） | 本次取值 | 含义 |
 |---|---|---|
@@ -99,13 +101,13 @@
 
 ### 核心技术：笔记本上怎么跑
 
-**llama-server 是什么。** llama.cpp 是一个 C/C++ 推理引擎；`llama-server` 是它自带的本机 HTTP 服务程序。本项目用官方发布的 b11935 Windows ARM64 包，不改代码。这个版本识别 GGUF 元数据里的 `qwen35.decision.type = kev`（启动日志 `decision model type: kev`），把模型当决策模型服务，而不是文本生成模型。
+**llama-server 是什么。** llama.cpp 是一个 C/C++ 推理引擎，`llama-server` 是它自带的本机 HTTP 服务。本项目用官方 b11935 Windows ARM64 包，不改代码；这个版本认得 GGUF 里的决策模型标记，把 Kev 当决策模型服务，而不是文本生成模型。
 
-**GGUF 里装的是什么。** 转换器 `convert_hf_to_gguf.py` 识别出 Kev 检查点（日志 `detected Kev checkpoint` / `Model architecture: KevModel`），做三件事：把 LoRA 合并进基座权重，所以文件里只有合并后的权重、没有单独的适配器张量，`llama-server` 不需要 `--lora` 参数；把指针头保存为张量 `cls.output.weight`（1024 × 512，即 q 和 k 两个 256 维投影拼在一起）和 `cls.output.bias`；把三类题型的校准温度写进元数据 `qwen35.decision.temperature.{choice,score,noul}`（0.8B FT-cf 三项都是 1.1487）。0.8B FT-cf 的 BF16 原始文件 1,437 MiB，Q8_0 量化后 764 MiB（平均每个权重 8.52 bit），Q4_K_M 517 MiB（5.76 bit），数据见[转换与量化日志](验证结果/微调评测_20261027-220226/gguf/0.8b-cf)。
+**GGUF 里装的是什么。** 一个文件，四样东西：合并了 LoRA 的基座权重（所以启动时不需要 `--lora`）；指针头；三类题型的校准温度；分词器。0.8B FT-cf 的文件大小：BF16 原始 1,437 MiB，Q8_0 量化后 764 MiB，Q4_K_M 517 MiB。
 
-**Q8_0 和 Q4_K_M 是什么。** 两者都是 llama.cpp 的分块整数量化格式：Q8_0 把每个权重存成 8 bit 整数，每块共用一个缩放系数，几乎无损；Q4_K_M 主体是 4 bit 的 K 系列量化，精度低于 Q8_0。本项目导出 Q4_K_M 时用 `--pure` 并强制把注意力、DeltaNet（`ssm_`）、指针头（`cls`）和输出层保留为 q8_0，只把前馈层压到 4 bit（[导出脚本](scripts/remote_export_gguf_cf.sh)），比 llama.cpp 默认的 Q4_K_M 配比更保守。实测效果见[第 5 节](#5-笔记本端推理引擎)。
+**Q8_0 和 Q4_K_M 是什么。** 都是 llama.cpp 的分块整数量化：Q8_0 每个权重 8 bit，几乎无损；Q4_K_M 主体 4 bit，精度更低。本项目导出 Q4_K_M 时把注意力、DeltaNet、指针头和输出层保留为 8 bit，只压前馈层，比 llama.cpp 默认配比更保守。实测效果见[第 5 节](#5-笔记本端推理引擎)。
 
-**`/v1/systemone` 是决策接口，不是聊天补全。** 一次请求 = 一个 `state`（客户原话 + 设备字段，可以是 JSON 对象）+ 若干 `questions`。每题有 `type`（`choice` 选项题、`noul` 是非题、`score` 等级题）、`instructions` 和 `criteria`（选项及说明），各题独立作答。响应里选项题返回所选项、每个选项的概率和 `confidence`；是非题返回"是"的概率；等级题返回期望等级、各级概率和图例。`usage.output_tokens` 恒为 0——没有生成任何 token。概率已按 GGUF 内的温度缩放。接口遵循 TypeSafe System One API，不支持流式。下面是本机一次真实请求与响应的摘录，完整文件见[本机试用记录](验证结果/本机试用_20261028-201046/support-us/result.json)：
+**`/v1/systemone` 是决策接口，不是聊天补全。** 一次请求 = 客户原话 + 设备字段 + 几道题；返回每道题的答案和概率，不生成任何 token（`usage.output_tokens` 恒为 0）。概率已按 GGUF 内的温度缩放。接口遵循 TypeSafe System One API，不支持流式。字段细节看下面这次本机真实请求与响应的摘录，完整文件见[本机试用记录](验证结果/本机试用_20261028-201046/support-us/result.json)：
 
 ```jsonc
 // request (excerpt): what the business application sends
@@ -146,7 +148,9 @@
 | `-np`（`--parallel`） | 未指定（auto；本机日志 `n_slots = 4`） | 并行槽位数 | 本项目一次一条请求，没有测并发 |
 | `--temp` 等采样参数 | 不用 | 文本生成的采样设置 | 决策接口不生成文本；概率温度来自 GGUF 元数据，不是 `--temp` |
 
-**为什么跑 CPU，不跑 GPU 或 NPU。** CPU 版用 12 线程（日志 `n_threads = 12`）。骁龙 X Elite 的 Adreno GPU 走 OpenCL 版 llama.cpp，实测比 CPU 慢（0.8B FT 工单中位数 1,035 对 669 毫秒），还多占约 3,400 MiB 共享显存。Hexagon NPU 没有测：Windows 上需要打开驱动测试签名，公司电脑上没有做。所以推荐配置是 Q8_0 + CPU。
+**为什么跑 CPU，不跑 GPU 或 NPU。** Adreno GPU 走 OpenCL 版实测比 CPU 慢（0.8B FT 工单中位数 1,035 对 669 毫秒），还多占约 3,400 MiB 共享显存；Hexagon NPU 没有测，Windows 上需要打开驱动测试签名，公司电脑上没有做。所以推荐配置是 Q8_0 + CPU，12 线程。
+
+*机制细节与证据*：b11935 读 GGUF 元数据 `qwen35.decision.type = kev`（启动日志 `decision model type: kev`、`n_threads = 12`）；转换器 `convert_hf_to_gguf.py` 日志 `detected Kev checkpoint` / `Model architecture: KevModel`，指针头存为张量 `cls.output.weight`（1024 × 512，q、k 两个 256 维投影拼接）和 `cls.output.bias`，温度存为 `qwen35.decision.temperature.{choice,score,noul}`（0.8B FT-cf 三项都是 1.1487）；Q8_0 平均 8.52 bit/权重、Q4_K_M 5.76 bit/权重，Q4_K_M 用 `--pure` 加 `--tensor-type` 把 `attn_`、`ssm_`、`cls`、`output.weight` 固定为 q8_0。请求字段：`state` 可以是 JSON 对象，每题有 `type`（`choice` / `noul` / `score`）、`instructions`、`criteria`，各题独立作答。来源：[转换与量化日志](验证结果/微调评测_20261027-220226/gguf/0.8b-cf)、[导出脚本](scripts/remote_export_gguf_cf.sh)、[llama-server b11935 文档](https://github.com/ggml-org/llama.cpp/blob/b11935/tools/server/README.md)。
 
 ### 用什么场景验证
 
@@ -199,6 +203,8 @@
                "onsite_eligible": {"type": "noul", "label": false},
                "urgency": {"type": "score", "label": 0}}}
 ```
+
+目的里的两张图是客户上线后的样子；下面这张图只描述我们怎么测：同一测试集同时走 PyTorch 和笔记本两条路，PyTorch 路径和标准答案只在测试阶段存在，客户日常推理不需要它们。
 
 <img src="images/validation.png" width="900" alt="效果验证：同一测试输入分别经过云端 PyTorch 和笔记本 llama.cpp，标签只供评分，分别核对准确率与引擎一致率。">
 
