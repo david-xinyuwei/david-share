@@ -2,10 +2,10 @@
 
 [English](README.md) | [中文](README_CN.md)
 
-[![Status](https://img.shields.io/badge/status-interim%202026--10--27-yellow)](#results)
-[![Data](https://img.shields.io/badge/data-simulated%20vendor%20data-lightgrey)](#purpose)
-[![Model](https://img.shields.io/badge/model-Kev%200.8B%20%7C%204B-0078D4)](https://github.com/jaredpalmer/kev)
-[![Engine](https://img.shields.io/badge/engine-llama.cpp%20b11935-orange)](https://github.com/ggml-org/llama.cpp/releases/tag/b11935)
+[![Model](https://img.shields.io/badge/model-Kev%200.8B%20%C2%B7%204B%20on%20Qwen3.5-0078D4)](https://github.com/jaredpalmer/kev)
+[![Device](https://img.shields.io/badge/device-Snapdragon%20X%20Elite%20%C2%B7%20llama.cpp%20b11935-0078D4)](#5-laptop-inference-engine)
+[![Measured](https://img.shields.io/badge/measured-2026--10--27%20%C2%B7%20simulated%20vendor%20data-0078D4)](#results)
+[![License](https://img.shields.io/badge/license-MIT-0078D4)](https://github.com/david-xinyuwei/david-share/blob/master/LICENSE)
 
 > **Author**: Xinyu Wei - Senior Systems Engineer, Microsoft AI GBB
 
@@ -13,9 +13,12 @@
 
 ## Purpose
 
-Customers need accurate, fast decisions on their own laptops, within device compute and memory limits and governed by their business rules. This project fine-tunes the open-weight decision model Kev with business data, measures accuracy, latency and resource use on Snapdragon, and measures the inference-optimization levers one at a time: quantization, context length, compute backend, prompt length and model size. New policies or error cases prompt re-evaluation and model updates. **Training runs on a GPU host; routine inference stays on the laptop without cloud-model calls.**
+**Dedicated decision models are becoming a model class of their own**: TypeSafe's hosted Jev, the open-weight [Kev](https://github.com/jaredpalmer/kev) released in September 2026 (1.0 on October 1), and the dozen or so similar models that the current llama.cpp already serves. They generate no text; they pick an answer from the given options and return a probability, so one forward pass completes a routing, triage or grading decision — faster, steadier and cheaper than asking a chat model to write a paragraph and parsing it. But if such a model can only live in the cloud, it does not suit edge devices, offline scenarios or customers whose data must stay on site. So it has to meet two requirements:
 
-**Scope**: Fictional Contoso PC data, not customer data; one training run per recipe (2026-10-27). No proprietary-cloud comparison or production-readiness guarantee.
+1. **Run locally** — on a laptop's CPU and memory, with no cloud-model call.
+2. **Accept business data for fine-tuning** — the customer's rules, fields and vocabulary must train into the model, and the model must be updatable when the rules change.
+
+This project tests both with Kev (an open-weight decision model on Qwen3.5, 0.8B / 4B): fine-tune on business data on a GPU host, measure accuracy, latency and memory on a Snapdragon laptop, and measure the inference-optimization levers one at a time — quantization, context length, compute backend, prompt length and model size. **Training runs on a GPU host; routine inference stays on the laptop without cloud-model calls.** The data is fictional Contoso PC data, not customer data; there is no proprietary-cloud comparison and no production-readiness guarantee.
 
 ### Architecture: Training and Inference Are Separate
 

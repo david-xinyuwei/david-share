@@ -2,10 +2,10 @@
 
 [English](README.md) | [中文](README_CN.md)
 
-[![Status](https://img.shields.io/badge/status-interim%202026--10--27-yellow)](#实现效果)
-[![Data](https://img.shields.io/badge/data-simulated%20vendor%20data-lightgrey)](#目的)
-[![Model](https://img.shields.io/badge/model-Kev%200.8B%20%7C%204B-0078D4)](https://github.com/jaredpalmer/kev)
-[![Engine](https://img.shields.io/badge/engine-llama.cpp%20b11935-orange)](https://github.com/ggml-org/llama.cpp/releases/tag/b11935)
+[![Model](https://img.shields.io/badge/model-Kev%200.8B%20%C2%B7%204B%20on%20Qwen3.5-0078D4)](https://github.com/jaredpalmer/kev)
+[![Device](https://img.shields.io/badge/device-Snapdragon%20X%20Elite%20%C2%B7%20llama.cpp%20b11935-0078D4)](#5-笔记本端推理引擎)
+[![Measured](https://img.shields.io/badge/measured-2026--10--27%20%C2%B7%20simulated%20vendor%20data-0078D4)](#实现效果)
+[![License](https://img.shields.io/badge/license-MIT-0078D4)](https://github.com/david-xinyuwei/david-share/blob/master/LICENSE)
 
 > **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
 
@@ -13,9 +13,12 @@
 
 ## 目的
 
-客户需要在笔记本的算力和内存条件下，按自己的业务规则完成准确、快速的判断。本项目用业务数据微调开放权重决策模型 Kev，在骁龙笔记本上验证准确率、时延和资源占用，并逐项测量量化、上下文长度、计算后端、提示词长度和模型规模这些推理优化杠杆的效果；规则变化或出现错误案例后，重新评测并更新模型。**训练在 GPU 主机完成，日常推理留在笔记本，不调用云端模型。**
+**专用决策模型（decision model）正在成为一类独立的模型**：TypeSafe 的托管模型 Jev、2026 年 9 月开源的 [Kev](https://github.com/jaredpalmer/kev)（10 月 1 日发布 1.0），以及 llama.cpp 当前版本已能服务的十来个同类模型。它们不生成文字，只在给定选项里选答案并给出概率：一次前向就完成路由、分诊、判级这类业务判断，比让聊天模型写一段再解析更快、更稳、更便宜。但如果这类模型只能放在云上，对边缘设备、离线场景和数据不出本地的客户并不友好。所以它要满足两点：
 
-**验证边界**：Contoso PC 模拟数据，并非真实客户数据；每种配方仅训练一次（2026-10-27）。不含云端闭源模型对比，不作生产可用性承诺。
+1. **能在本地运行**——笔记本的 CPU 和内存就要跑得动，不调用云端模型。
+2. **能接入业务数据微调**——客户的规则、字段和术语要能训进模型，规则变了还能更新。
+
+本项目用 Kev（基于 Qwen3.5 的开放权重决策模型，0.8B / 4B）验证这两点：在 GPU 主机上用业务数据微调，在骁龙笔记本上测准确率、时延和内存，并逐项测量量化、上下文长度、计算后端、提示词长度和模型规模这些推理优化杠杆的效果。**训练在 GPU 主机完成，日常推理留在笔记本，不调用云端模型。** 数据是 Contoso PC 模拟数据，不是真实客户数据；不含云端闭源模型对比，不作生产可用性承诺。
 
 ### 架构：训练与日常推理是两件事
 
