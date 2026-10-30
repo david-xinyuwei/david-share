@@ -490,5 +490,19 @@
   "Windows 上需要打开驱动测试签名，公司电脑上没有做": "Requires driver test-signing on Windows, which was not enabled on the company laptop",
   "投机解码、KV 缓存复用": "Speculative decoding, KV-cache reuse",
   "不适用": "Not applicable",
-  "决策接口不生成 token，没有解码阶段；`--cache-ram 0` 关闭了提示词缓存": "The decision endpoint generates no tokens, so there is no decode phase; `--cache-ram 0` disables the prompt cache"
+  "决策接口不生成 token，没有解码阶段；`--cache-ram 0` 关闭了提示词缓存": "The decision endpoint generates no tokens, so there is no decode phase; `--cache-ram 0` disables the prompt cache",
+  "输入：情况": "Input: situation",
+  "客户邮件：AuraBook Pro 16 好几个按键失灵，没摔过没进水。设备档案：美国区，Premium Care 3 年保修，购买 731 天": "Customer e-mail: several keys on an AuraBook Pro 16 stopped working; no drop, no spill. Device record: US, Premium Care 3-year warranty, 731 days since purchase",
+  "输入：题 1": "Input: question 1",
+  "派给哪个队列？8 个选项：远程软件支持、寄修、上门维修、电池计划、BIOS 二线、意外损坏理赔、订单/报价、隐私请求": "Which queue? 8 options: remote software support, mail-in repair, onsite repair, battery program, BIOS second line, accidental-damage claim, orders/quotes, privacy request",
+  "输入：题 2": "Input: question 2",
+  "能上门维修吗？是 / 否": "Is an onsite visit allowed? yes / no",
+  "输入：题 3": "Input: question 3",
+  "多紧急？4 级：可以等、本周内、今天、立即": "How urgent? 4 levels: can wait, within this week, today, immediately",
+  "输出：题 1": "Output: question 1",
+  "订单/报价 42%，寄修 31%，上门维修 26%，其余接近 0 → 答“订单/报价”": "orders/quotes 42%, mail-in repair 31%, onsite repair 26%, the rest near 0 → answer \"orders/quotes\"",
+  "输出：题 2": "Output: question 2",
+  "“是”的概率 29% → 答“否”": "probability of \"yes\" 29% → answer \"no\"",
+  "输出：题 3": "Output: question 3",
+  "“本周内”100%，其余接近 0 → 答“本周内”": "\"within this week\" 100%, the rest near 0 → answer \"within this week\""
 }
