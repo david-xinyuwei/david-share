@@ -127,6 +127,38 @@
       "does_not_prove": "model accuracy or runtime success"
     },
     {
+      "file": "decision.png",
+      "width": 2400,
+      "height": 1360,
+      "sha256": "baad4c29a5899c99843451ba9ccca1ed6ef446d84bfc6eb12ca6ad00e9a00ff4",
+      "vendor_icons": [
+        "file"
+      ],
+      "kind": "original explanatory diagram",
+      "language": "zh",
+      "sources": [
+        "https://github.com/jaredpalmer/kev/blob/2074cc44256200bb37540103fa4572901faa10f3/kev/model.py"
+      ],
+      "proves": "how Kev scores options in one forward pass, as implemented in kev/model.py",
+      "does_not_prove": "model accuracy or runtime success"
+    },
+    {
+      "file": "decision-en.png",
+      "width": 2400,
+      "height": 1360,
+      "sha256": "1c37a5d06e80c1ba1102f4e4da64cac4941f73ce3fa7bd594145d133828fac27",
+      "vendor_icons": [
+        "file"
+      ],
+      "kind": "original explanatory diagram",
+      "language": "en",
+      "sources": [
+        "https://github.com/jaredpalmer/kev/blob/2074cc44256200bb37540103fa4572901faa10f3/kev/model.py"
+      ],
+      "proves": "how Kev scores options in one forward pass, as implemented in kev/model.py",
+      "does_not_prove": "model accuracy or runtime success"
+    },
+    {
       "file": "kev-leaderboard.png",
       "width": 2380,
       "height": 1615,

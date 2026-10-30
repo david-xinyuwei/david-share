@@ -74,7 +74,11 @@ This justifies evaluation, not guaranteed customer suitability. FT and FT-cf are
 
 ### Core Technique: How the Kev Decision Model Is Fine-Tuned
 
-**Decision model versus chat model.** A chat model generates text token by token; Kev generates no text. It uses Qwen3.5-Base as a read-only encoder, appends every option plus one `<decide>` marker to the input, and scores each option with a small **pointer head**; a softmax over the scores gives the option probabilities. One 8-way question costs one forward pass, and the answer can never fall outside the option list.
+**Decision model versus chat model.** A chat model generates text token by token; Kev generates no text. It uses Qwen3.5-Base as a read-only encoder, appends every option plus one `<decide>` marker to the input, and scores each option with a small **pointer head** (two small linear layers that give each option one score, like a finger pointing at one entry in the option list); a softmax over the scores gives the option probabilities. One 8-way question costs one forward pass, and the answer can never fall outside the option list.
+
+<img src="images/decision-en.png" width="900" alt="How the Kev decision model answers in one forward pass: the input sequence packs the message, device fields, question and every option into one row; the frozen Qwen3.5-Base backbone with LoRA adapters produces hidden states; the pointer head's q reads the <decide> position and k reads each </opt> position, a dot product scores each option and softmax gives the probabilities; no text is generated.">
+
+*Original explanatory diagram. Orange marks the K + 1 positions whose hidden states the pointer head reads; the other positions are read only by attention inside the forward pass and do not score directly. Source: `SPECIAL` delimiters, `encode()`, `PointerHead` and `_readout` in [kev/model.py](https://github.com/jaredpalmer/kev/blob/2074cc44256200bb37540103fa4572901faa10f3/kev/model.py), commit `2074cc44`.*
 
 **Supervised fine-tuning (SFT).** The loss is cross-entropy on the correct option — no reinforcement learning, no extra loss terms.
 

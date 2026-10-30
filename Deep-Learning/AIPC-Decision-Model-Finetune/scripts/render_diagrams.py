@@ -20,6 +20,7 @@ MUTED = "#536471"
 LANE_FILL = "#F3F5F7"
 CARD_LINE = "#B8CEDF"
 SCORE_GREY = "#687C8A"
+READ = "#D83B01"   # Microsoft Office orange accent, used only for the pointer head's readout positions
 WIDTH = 1200       # layout coordinates; the README displays every diagram at 900 px
 HEIGHT = 680       # one shared height for the three diagrams
 SCALE = 2          # raster at twice the layout size so labels stay crisp at the display width
@@ -125,7 +126,7 @@ class Diagram:
             self.draw.polygon(triangle, fill=color)
 
     def legend(self, top, items):
-        """items: (kind, label) with kind in lane | card | arrow | score | badge."""
+        """items: (kind, label) with kind in lane | card | arrow | score | read | badge."""
         x = 28
         for kind, label in items:
             if kind == "lane":
@@ -135,7 +136,7 @@ class Diagram:
             elif kind == "badge":
                 self.draw.rounded_rectangle(self.box(x, top + 2, x + 22, top + 18), radius=8 * self.s, fill="white", outline=MUTED, width=self.s)
             else:
-                self.arrow([(x, top + 10), (x + 22, top + 10)], color=SCORE_GREY if kind == "score" else BLUE)
+                self.arrow([(x, top + 10), (x + 22, top + 10)], color={"score": SCORE_GREY, "read": READ}.get(kind, BLUE))
             self.text((x + 30, top), label, self.small_font, 360, MUTED)
             x += 30 + self.width_of(label, self.small_font) + 26
         if x > LANE_RIGHT:
@@ -258,6 +259,56 @@ def validation(font_path, language="zh"):
     d.legend(620, legend_items(label, score=True))
     d.footnote(648, label("原创解释图。依据：scripts/remote_pipeline_v2.sh、scripts/run_engine_eval.ps1、scripts/parity.py。请求耗时在笔记本客户端计量，排除加载与预热。",
                           "Original explanatory diagram. Sources: scripts/remote_pipeline_v2.sh, run_engine_eval.ps1, parity.py. Request time: laptop client, excluding loading and warm-up."))
+    return d
+
+
+def decision(font_path, language="zh"):
+    """How Kev answers one question in a single forward pass: packed sequence -> frozen backbone + LoRA -> pointer head.
+    Facts: kev/model.py@2074cc44 (SPECIAL delimiters, encode(), PointerHead q/k dp=256, _readout, temperature)."""
+    label = lambda chinese, english: english if language == "en" else chinese
+    d = Diagram(label("Kev 决策模型：一次前向怎么出答案", "Kev decision model: one forward pass to an answer"),
+                label("模型读完题目和全部选项，只在 K+1 个位置读数、给每个选项打分；不生成任何文字", "The model reads the question and every option, reads K+1 positions, scores each option; no text is generated"), font_path)
+    read = READ
+    # --- lane 1: packed input sequence ---------------------------------------------------------------
+    d.lane(104, 236, label("输入序列", "Input sequence"), label("一条记录，拼成一行\n题目 + 全部选项", "One record as one row\nquestion + all options"), icon="file")
+    rows = ([(label("<state> 客户原话 + 设备字段", "<state> message + device fields"), INK), (label("<q> 题目", "<q> question"), INK)],
+            [(label("<opt> 选项 1 </opt>", "<opt> option 1 </opt>"), read), (label("<opt> 选项 2 </opt>", "<opt> option 2 </opt>"), read),
+             ("…", INK), (label("<opt> 选项 K </opt>", "<opt> option K </opt>"), read), ("<decide>", read)])
+    for line, tokens in enumerate(rows):
+        top = 120 + 42 * line
+        widths = [d.width_of(text, d.detail_font) + 18 for text, _ in tokens]
+        if CARD_LEFT + sum(widths) + 6 * (len(tokens) - 1) > LANE_RIGHT - 16:
+            raise ValueError("Token row is too wide for the lane")
+        x = CARD_LEFT
+        for (text, colour), width in zip(tokens, widths):
+            d.draw.rounded_rectangle(d.box(x, top, x + width, top + 34), radius=5 * d.s, fill="white", outline=colour, width=d.s if colour == INK else 2 * d.s)
+            d.text((x + 9, top + 7), text, d.detail_font, width - 12, colour)
+            x += width + 6
+    d.text((CARD_LEFT, 206), label("橙框 = 指针头读取隐状态的位置：每个选项结尾的 </opt>，和末尾的 <decide>；K 个选项共读 K + 1 个位置", "Orange = positions the pointer head reads: each option's closing </opt> and the final <decide>; K options → K + 1 reads"), d.small_font, 900, MUTED)
+    # --- lane 2: backbone -------------------------------------------------------------------------------
+    d.lane(258, 418, label("主干", "Backbone"), label("Qwen3.5-Base\n0.8B / 4B", "Qwen3.5-Base\n0.8B / 4B"))
+    d.card(CARD_LEFT, 274, label("冻结的基座权重", "Frozen base weights"), label("不带词表输出层\n不生成 token", "No vocabulary output layer\nGenerates no token"), badges=("PyTorch",))
+    d.card(CARD_LEFT + CARD_STEP, 274, label("LoRA 适配器（秩 16）", "LoRA adapters (rank 16)"), label("挂在全部线性投影上\n微调时唯一在动的主干参数", "On every linear projection\nThe only trained backbone part"), badges=("Kev",))
+    d.card(CARD_LEFT + 2 * CARD_STEP, 274, label("隐状态", "Hidden states"), label("每个 token 位置一个向量\n只取 K + 1 个位置", "One vector per token position\nOnly K + 1 positions are used"), height=100)
+    # --- lane 3: pointer head ---------------------------------------------------------------------------
+    d.lane(440, 600, label("指针头", "Pointer head"), label("两个线性层 q、k\n输出 256 维", "Two linear layers q, k\n256 dimensions"))
+    d.card(CARD_LEFT, 456, "q", label("读 <decide> 位置\n= 对整道题的理解", "Reads the <decide> position\n= the question as a whole"), badges=("Kev",))
+    d.card(CARD_LEFT + CARD_STEP, 456, "k", label("读每个 </opt> 位置\n= 对每个选项的理解", "Reads each </opt> position\n= each option"), badges=("Kev",))
+    d.card(CARD_LEFT + 2 * CARD_STEP, 456, label("打分 → 概率", "Score → probability"), label("z_i = k(h_opt_i)·q(h_decide) / 16\nsoftmax(z / T)，T 来自 GGUF", "z_i = k(h_opt_i)·q(h_decide) / 16\nsoftmax(z / T), T from the GGUF"), height=100)
+    # arrows: sequence -> backbone, backbone -> hidden -> q and k, q & k -> score
+    mid1, mid2, mid3 = CARD_LEFT + CARD_WIDTH / 2, CARD_LEFT + CARD_STEP + CARD_WIDTH / 2, CARD_LEFT + 2 * CARD_STEP + CARD_WIDTH / 2
+    d.arrow([(mid1, 216), (mid1, 274)])
+    d.arrow([(CARD_LEFT + CARD_WIDTH, 338), (CARD_LEFT + CARD_STEP, 338)])
+    d.arrow([(CARD_LEFT + CARD_STEP + CARD_WIDTH, 338), (CARD_LEFT + 2 * CARD_STEP, 338)])
+    d.arrow([(mid3, 374), (mid3, 430), (mid1, 430), (mid1, 456)], color=read)      # <decide> hidden state -> q
+    d.arrow([(mid3, 430), (mid2, 430), (mid2, 456)], color=read)                   # </opt> hidden states -> k
+    d.arrow([(CARD_LEFT + CARD_WIDTH, 520), (CARD_LEFT + CARD_STEP, 520)])
+    d.arrow([(CARD_LEFT + CARD_STEP + CARD_WIDTH, 520), (CARD_LEFT + 2 * CARD_STEP, 520)])
+    d.legend(620, [("lane", label("泳道：模型的一层", "Lane: model layer")), ("card", label("卡片：组件", "Card: component")),
+                   ("arrow", label("蓝色：数据流", "Blue: data flow")), ("read", label("橙色：指针头读取的位置", "Orange: positions the head reads")),
+                   ("badge", label("徽章：无图标的软件", "Badge: software without an icon"))])
+    d.footnote(648, label("原创解释图。依据：kev/model.py @ 2074cc44（SPECIAL 分隔标记、encode()、PointerHead、_readout）。聊天模型则是逐 token 生成文字再解析。",
+                          "Original explanatory diagram. Source: kev/model.py @ 2074cc44 (SPECIAL delimiters, encode(), PointerHead, _readout). A chat model would generate text and parse it."))
     return d
 
 
@@ -429,12 +480,14 @@ def main():
         ("inference", inference, ["scripts/systemone_client.py", "scripts/run_engine_eval.ps1",
                       "https://github.com/ggml-org/llama.cpp/blob/b11935/tools/server/server-decision.cpp"]),
         ("validation", validation, ["scripts/remote_pipeline_v2.sh", "scripts/run_engine_eval.ps1", "scripts/parity.py"]),
+        ("decision", decision, ["https://github.com/jaredpalmer/kev/blob/2074cc44256200bb37540103fa4572901faa10f3/kev/model.py"]),
     ):
         for language in ("zh", "en"):
             suffix = "" if language == "zh" else "-en"
             asset = factory(arguments.font, language).save(arguments.out / f"{name}{suffix}.png")
             asset.update({"kind": "original explanatory diagram", "language": language, "sources": sources,
-                          "proves": "project workflow, execution placement and scoring boundaries",
+                          "proves": "how Kev scores options in one forward pass, as implemented in kev/model.py" if name == "decision"
+                                   else "project workflow, execution placement and scoring boundaries",
                           "does_not_prove": "model accuracy or runtime success"})
             assets.append(asset)
     leaderboard = arguments.out / "kev-leaderboard.png"

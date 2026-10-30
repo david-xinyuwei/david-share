@@ -339,7 +339,7 @@ class BilingualDocumentationTests(unittest.TestCase):
         assets = json.loads((ROOT / "images/provenance.json").read_text(encoding="utf-8"))["assets"]
         diagrams = [asset for asset in assets if asset["kind"] == "original explanatory diagram"]
         self.assertEqual({asset["file"] for asset in diagrams},
-                         {name + suffix + ".png" for name in ("training", "inference", "validation") for suffix in ("", "-en")})
+                         {name + suffix + ".png" for name in ("training", "inference", "validation", "decision") for suffix in ("", "-en")})
         for asset in diagrams:
             self.assertIn(asset["language"], ("zh", "en"))
             self.assertTrue(asset["vendor_icons"])
