@@ -90,7 +90,23 @@
 
 *机制细节与证据*：指针头是两个 256 维线性层 q、k，选项 i 的分数 `z_i = k(h_opt_i) · q(h_decide) / 16`，q 读 `<decide>` 位置、k 读各选项结尾 `</opt>` 位置的隐状态；损失 `F.cross_entropy(z, label)`，优化器 AdamW、OneCycleLR、梯度裁剪 1.0；LoRA alpha 32、dropout 0.05，`--lora_targets all` 覆盖注意力、前馈和 Qwen3.5 DeltaNet 层的全部投影。训练日志：`delta: warm start … 372 lora tensors and the pointer head load`、`trainable params=11.3M`（4B 为 33.8M）、`replay: 1000 of 12576 suite training records mixed with 2147`。源码 [kev/model.py](https://github.com/jaredpalmer/kev/blob/2074cc44256200bb37540103fa4572901faa10f3/kev/model.py)、[kev/train.py](https://github.com/jaredpalmer/kev/blob/2074cc44256200bb37540103fa4572901faa10f3/kev/train.py)（commit `2074cc44`），本次 [training_config.json](验证结果/微调评测_20261027-220226/runs/0.8b/ft/training_config.json)。
 
-**本次训练配方一览**（0.8B FT；4B 与 FT-cf 只有 micro-batch 和数据文件不同）：
+**训练命令就是下面这一行**（摘自 [scripts/remote_pipeline_v2.sh](scripts/remote_pipeline_v2.sh)，变量已换成 0.8B FT 的实际取值；操作步骤 B4 的脚本跑的就是它，跑完接着校准和评测）：
+
+```bash
+# GPU host, Kev repository root (commit 2074cc44), python from its .venv
+/mnt/aipc/kev/.venv/bin/python -m kev.train \
+  --data /mnt/aipc/data/contoso/train.jsonl \
+  --suite evals/v7/decision-v7 --replay 1000 \
+  --base Qwen/Qwen3.5-0.8B-Base --base_revision dc7cdfe2ee4154fa7e30f5b51ca41bfa40174e68 \
+  --init_from jaredpalmer/kev-0.8b@v1.0 \
+  --epochs 2 --lr 2e-5 --batch 1 --accum 8 \
+  --dtype bf16 --checkpointing 1 --max_state 768 --device cuda --seed 1 \
+  --out /mnt/aipc/runs/0.8b/ft
+```
+
+4B 换 `--base Qwen/Qwen3.5-4B-Base --base_revision 1001bb4d… --init_from jaredpalmer/kev-4b@v1.0 --batch 4 --accum 2`；FT-cf 换 `--data …/train_cf.jsonl --batch 4 --accum 2 --out …/ft_cf`（[remote_cf_round.sh](scripts/remote_cf_round.sh)）。其余参数完全相同。训练代码是 Kev 自己的 [`kev/train.py`](https://github.com/jaredpalmer/kev/blob/2074cc44256200bb37540103fa4572901faa10f3/kev/train.py)，本项目没有改它，只给参数。
+
+**每个参数是什么意思**（0.8B FT；4B 与 FT-cf 只有 micro-batch 和数据文件不同）：
 
 | 配置项（`kev.train` 参数） | 本次取值 | 含义 |
 |---|---|---|

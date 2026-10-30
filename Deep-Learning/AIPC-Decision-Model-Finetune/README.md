@@ -94,7 +94,25 @@ This justifies evaluation, not guaranteed customer suitability. FT and FT-cf are
 
 *Mechanism details and evidence*: the pointer head is two 256-dimensional linear layers q and k; option i scores `z_i = k(h_opt_i) · q(h_decide) / 16`, with q reading the hidden state at the `<decide>` position and k at each option's closing `</opt>`; loss `F.cross_entropy(z, label)`, optimizer AdamW, OneCycleLR, gradient clipping 1.0; LoRA alpha 32, dropout 0.05, `--lora_targets all` covering attention, feed-forward and the Qwen3.5 DeltaNet projections. Training logs: `delta: warm start … 372 lora tensors and the pointer head load`, `trainable params=11.3M` (33.8M for 4B), `replay: 1000 of 12576 suite training records mixed with 2147`. Source: [kev/model.py](https://github.com/jaredpalmer/kev/blob/2074cc44256200bb37540103fa4572901faa10f3/kev/model.py), [kev/train.py](https://github.com/jaredpalmer/kev/blob/2074cc44256200bb37540103fa4572901faa10f3/kev/train.py) (commit `2074cc44`), this run's [training_config.json](验证结果/微调评测_20261027-220226/runs/0.8b/ft/training_config.json).
 
-**The training recipe at a glance** (0.8B FT; 4B and FT-cf differ only in micro-batch and data file):
+**The training command is this one line** (taken from [scripts/remote_pipeline_v2.sh](scripts/remote_pipeline_v2.sh) with the variables replaced by the actual 0.8B FT values; the step B4 script runs exactly this, then calibration and evaluation):
+
+<!-- SOURCE:FENCE:1 -->
+```bash
+# GPU host, Kev repository root (commit 2074cc44), python from its .venv
+/mnt/aipc/kev/.venv/bin/python -m kev.train \
+  --data /mnt/aipc/data/contoso/train.jsonl \
+  --suite evals/v7/decision-v7 --replay 1000 \
+  --base Qwen/Qwen3.5-0.8B-Base --base_revision dc7cdfe2ee4154fa7e30f5b51ca41bfa40174e68 \
+  --init_from jaredpalmer/kev-0.8b@v1.0 \
+  --epochs 2 --lr 2e-5 --batch 1 --accum 8 \
+  --dtype bf16 --checkpointing 1 --max_state 768 --device cuda --seed 1 \
+  --out /mnt/aipc/runs/0.8b/ft
+```
+<!-- /SOURCE:FENCE:1 -->
+
+For 4B, swap in `--base Qwen/Qwen3.5-4B-Base --base_revision 1001bb4d… --init_from jaredpalmer/kev-4b@v1.0 --batch 4 --accum 2`; for FT-cf, `--data …/train_cf.jsonl --batch 4 --accum 2 --out …/ft_cf` ([remote_cf_round.sh](scripts/remote_cf_round.sh)). Every other argument is identical. The training code is Kev's own [`kev/train.py`](https://github.com/jaredpalmer/kev/blob/2074cc44256200bb37540103fa4572901faa10f3/kev/train.py); this project does not modify it, only passes arguments.
+
+**What each argument means** (0.8B FT; 4B and FT-cf differ only in micro-batch and data file):
 
 <!-- SOURCE:TABLE:3 -->
 | Setting (`kev.train` argument)| Value in this run| Meaning| 
@@ -138,7 +156,7 @@ The endpoint in one sentence: **the input is a situation plus a few multiple-cho
 
 The corresponding JSON (excerpt):
 
-<!-- SOURCE:FENCE:1 -->
+<!-- SOURCE:FENCE:2 -->
 ```jsonc
 // request (excerpt): what the business application sends
 {"state": {"channel": "email",
@@ -163,7 +181,7 @@ The corresponding JSON (excerpt):
                          "probabilities": {"0": 0.000, "1": 1.000, "2": 0.000, "3": 0.000}, "confidence": 1.000}},
  "usage": {"input_tokens": 500, "output_tokens": 0}}
 ```
-<!-- /SOURCE:FENCE:1 -->
+<!-- /SOURCE:FENCE:2 -->
 
 By the rules this ticket should go to "onsite repair"; the model got it wrong. This example is only for understanding the endpoint; model accuracy is in [section 7](#local-result).
 
@@ -235,7 +253,7 @@ The repository answers four questions:
 
 One support test record is shown below, with option descriptions abbreviated. The model sees `state`; policy code derives `label` from the device record, and the model never receives it. The Chinese message is retained verbatim because it is the actual test input, not untranslated documentation.
 
-<!-- SOURCE:FENCE:2 -->
+<!-- SOURCE:FENCE:3 -->
 ```json
 {"state": {"channel": "email",
            "message": "您好：\n请问我的 Contoso Nimbus 2-in-1 订单目前是什么状态？麻烦告知最新进度。\n谢谢\n李明",
@@ -245,7 +263,7 @@ One support test record is shown below, with option descriptions abbreviated. Th
                "onsite_eligible": {"type": "noul", "label": false},
                "urgency": {"type": "score", "label": 0}}}
 ```
-<!-- /SOURCE:FENCE:2 -->
+<!-- /SOURCE:FENCE:3 -->
 
 The two diagrams in Purpose show the system as the customer runs it; the diagram below only shows how we measured: the same test set runs through both the PyTorch path and the laptop path. The PyTorch path and the ground-truth labels exist only during testing; routine device inference needs neither.
 
@@ -557,7 +575,7 @@ Customer delivery should include the following, rather than asking the customer 
 
 **A1. Start the local server in one PowerShell terminal.**
 
-<!-- SOURCE:FENCE:3 -->
+<!-- SOURCE:FENCE:4 -->
 ```powershell
 $Engine = 'C:\Tools\llama.cpp\b11935-cpu\llama-server.exe'
 $Model = 'C:\Tools\models\contoso-kev\Contoso-Kev-0.8B-FTcf-Q8_0.gguf'
@@ -566,7 +584,7 @@ if (-not (Test-Path -LiteralPath $Model)) { throw '找不到微调 GGUF，请先
 & $Engine -m $Model --alias contoso-kev-0.8b-ftcf --host 127.0.0.1 --port 8080 `
     -c 8192 -b 2048 -ub 2048 -ngl 0 --cache-ram 0 --offline
 ```
-<!-- /SOURCE:FENCE:3 -->
+<!-- /SOURCE:FENCE:4 -->
 
 Successful logs include `decision model type: kev`, `model loaded` and `listening on http://127.0.0.1:8080`. Keep that terminal running. If the port is occupied, identify its owner rather than closing another process. Change both server and client ports when necessary. This server is for trusted local trials; do not expose it directly to a LAN or the internet.
 
@@ -574,14 +592,14 @@ Successful logs include `decision model type: kev`, `model loaded` and `listenin
 
 **A2. Send one request from a second PowerShell terminal.**
 
-<!-- SOURCE:FENCE:4 -->
+<!-- SOURCE:FENCE:5 -->
 ```powershell
 Invoke-RestMethod -Uri http://127.0.0.1:8080/health
 $Run = Join-Path '验证结果' ('本机试用_' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
 python -B scripts\systemone_client.py --url http://127.0.0.1:8080/v1/systemone `
     --request data\contoso\examples\support.json --out "$Run\support-us"
 ```
-<!-- /SOURCE:FENCE:4 -->
+<!-- /SOURCE:FENCE:5 -->
 
 Health should be normal. A successful invocation writes `request`, the unmodified model `response`, `input_sha256` and `client_latency_ms` to the terminal and `$Run\support-us\result.json`. Without ground truth, it does not report accuracy. Connection failures or missing answers cause a nonzero exit, with no cloud fallback. Use a new output directory for every run.
 
@@ -589,29 +607,29 @@ Real customer requests and responses may be sensitive. Store them privately; do 
 
 **A3. Keep the message fixed, change only the region, and send again.**
 
-<!-- SOURCE:FENCE:5 -->
+<!-- SOURCE:FENCE:6 -->
 ```powershell
 python -B scripts\systemone_client.py --url http://127.0.0.1:8080/v1/systemone `
     --request data\contoso\examples\support-sg.json --out "$Run\support-sg"
 ```
-<!-- /SOURCE:FENCE:5 -->
+<!-- /SOURCE:FENCE:6 -->
 
 [support.json](data/contoso/examples/support.json) and [support-sg.json](data/contoso/examples/support-sg.json) differ only in `state.device.region`. The policy requires onsite service for US and mail-in for SG. In this trial, 0.8B gets both queues wrong; see the real trial above. Edit messages, fields and questions as needed, with a new output directory each time. The client does not correct model answers.
 
 The assistant scenario uses the same runtime:
 
-<!-- SOURCE:FENCE:6 -->
+<!-- SOURCE:FENCE:7 -->
 ```powershell
 python -B scripts\systemone_client.py --url http://127.0.0.1:8080/v1/systemone `
     --request data\contoso\examples\assistant.json --out "$Run\assistant"
 ```
-<!-- /SOURCE:FENCE:6 -->
+<!-- /SOURCE:FENCE:7 -->
 
 `choice` is the selected option and `probabilities` contains option probabilities. `noul` is the probability of yes; this project uses 0.5 for binary decisions. `score` is the expected ordinal value; take the maximum in `probabilities` for the most likely level. API `confidence` is neither accuracy nor the maximum option probability: the US support example above has a maximum probability of 42.3% but `confidence` approximately 34.1%. Specify the field used by a business threshold, select it, then validate on independent data. [Report section 3.4](文档/Finetuning-and-On-Device-Validation-Report.md#calibration-guide) gives the calculation.
 
 **A4. Inspect local memory or change the model.**
 
-<!-- SOURCE:FENCE:7 -->
+<!-- SOURCE:FENCE:8 -->
 ```powershell
 $ServerPid = (Get-NetTCPConnection -LocalPort 8080 -State Listen).OwningProcess
 Get-Process -Id $ServerPid | Select-Object Id,
@@ -619,7 +637,7 @@ Get-Process -Id $ServerPid | Select-Object Id,
     @{Name='PeakWorkingSetMiB';Expression={[math]::Round($_.PeakWorkingSet64 / 1MB,1)}},
     @{Name='PrivateMiB';Expression={[math]::Round($_.PrivateMemorySize64 / 1MB,1)}}
 ```
-<!-- /SOURCE:FENCE:7 -->
+<!-- /SOURCE:FENCE:8 -->
 
 To try 4B, stop the current service yourself with Ctrl+C, point `$Model` to your 4B FT-cf GGUF, update `--alias`, and repeat A1-A3. The client never calls 4B automatically because 0.8B is wrong. This is manual model selection, not a fallback cascade.
 
@@ -655,21 +673,21 @@ An existing model needs only A. This section produces a new model from data. Tra
 
 Upload this project's `scripts/` to a working directory on the GPU host and connect there through SSH. Run GPU commands in that host's Bash; laptop commands remain in PowerShell at this project root.
 
-<!-- SOURCE:FENCE:8 -->
+<!-- SOURCE:FENCE:9 -->
 ```bash
 bash scripts/remote_setup.sh
 ```
-<!-- /SOURCE:FENCE:8 -->
+<!-- /SOURCE:FENCE:9 -->
 
 Success ends with `SETUP_DONE ... kev_commit=2074cc44256200bb37540103fa4572901faa10f3`; the import check prints `triton 3.7.1 fla 0.5.2`. The environment is under `/mnt/aipc`, on Azure temporary storage that may be cleared after VM deallocation; rerun setup to restore it. Use `/mnt/aipc/kev/.venv/bin/python` afterward. Do not use `uv run`, which downgrades triton to 3.4 and is incompatible with fla 0.5.2.
 
 #### B2. Reproduce the Public Baseline on GPU
 
-<!-- SOURCE:FENCE:9 -->
+<!-- SOURCE:FENCE:10 -->
 ```bash
 bash scripts/remote_public_baseline.sh
 ```
-<!-- /SOURCE:FENCE:9 -->
+<!-- /SOURCE:FENCE:10 -->
 
 Expected transfer-v4 development accuracy on 656 questions is 0.6479 for Kev-0.8B and 0.8171 for Kev-4B, matching the author's published values.
 
@@ -677,25 +695,25 @@ Expected transfer-v4 development accuracy on 656 questions is 0.6479 for Kev-0.8
 
 Use PowerShell 7 at this project root:
 
-<!-- SOURCE:FENCE:10 -->
+<!-- SOURCE:FENCE:11 -->
 ```powershell
 $files = @((Get-ChildItem -LiteralPath data\contoso\final -Filter *.jsonl).FullName) + (Resolve-Path -LiteralPath data\contoso\final\manifest.json).Path
 ssh -n -p $SSH_PORT $SSH_TARGET "mkdir -p /mnt/aipc/data/contoso"
 scp -P $SSH_PORT $files "${SSH_TARGET}:/mnt/aipc/data/contoso/"
 ssh -n -p $SSH_PORT $SSH_TARGET "cd /mnt/aipc/data/contoso && sha256sum *.jsonl"
 ```
-<!-- /SOURCE:FENCE:10 -->
+<!-- /SOURCE:FENCE:11 -->
 
 Compare every returned hash with the corresponding `sha256` in [manifest.json](data/contoso/final/manifest.json). All must match.
 
 #### B4. Baselines and FT on the GPU Host
 
-<!-- SOURCE:FENCE:11 -->
+<!-- SOURCE:FENCE:12 -->
 ```bash
 BATCH=1 ACCUM=8 bash scripts/remote_pipeline_v2.sh 0.8b
 BATCH=4 ACCUM=2 bash scripts/remote_pipeline_v2.sh 4b
 ```
-<!-- /SOURCE:FENCE:11 -->
+<!-- /SOURCE:FENCE:12 -->
 
 Progress goes to `$META/state/pipeline-<size>.status`. `META` defaults to `~/remote-workspaces/aipc-decision` in `scripts/remote_env.sh`. Expected stages are `BENCH b0-...`, `TRAIN_DONE wall_s=...`, `CALIBRATED ... T=...`, `BENCH ft-...` and `PIPELINE_DONE`. A rerun skips stages that already contain `report.json`.
 
@@ -703,30 +721,30 @@ Calibration first scores `calib.jsonl` once with the fixed checkpoint, saving qu
 
 #### B5. FT-cf: Create Variants Locally, Train on GPU
 
-<!-- SOURCE:FENCE:12 -->
+<!-- SOURCE:FENCE:13 -->
 ```powershell
 python scripts\augment_counterfactual.py --root data\contoso --out data\contoso\final --per-case 2 --per-case-train 3 --seed 11
 ```
-<!-- /SOURCE:FENCE:12 -->
+<!-- /SOURCE:FENCE:13 -->
 
 Expected output includes `"train_cf.jsonl": 3832`. Upload the new `*_cf*.jsonl` files and manifest as in B3, then run on the GPU host:
 
-<!-- SOURCE:FENCE:13 -->
+<!-- SOURCE:FENCE:14 -->
 ```bash
 bash scripts/remote_cf_round.sh 0.8b
 bash scripts/remote_cf_round.sh 4b
 ```
-<!-- /SOURCE:FENCE:13 -->
+<!-- /SOURCE:FENCE:14 -->
 
 `pipeline-cf-<size>.status` records `TRAIN_CF_DONE`, `CALIBRATED_CF` and `PIPELINE_CF_DONE`.
 
 Optional memory probe, only when the GPU has no other workload:
 
-<!-- SOURCE:FENCE:14 -->
+<!-- SOURCE:FENCE:15 -->
 ```bash
 bash scripts/remote_memory_probe.sh
 ```
-<!-- /SOURCE:FENCE:14 -->
+<!-- /SOURCE:FENCE:15 -->
 
 `state/memory-probe.status` contains a `PROBE <size> batch=1 accum=8 records=64 rc=0 ... peak_gpu_mib=...` line for each size and ends with `PROBE_DONE`. Detailed logs and per-second GPU-memory samples are under `/mnt/aipc/runs/memory-probe/`.
 
@@ -734,13 +752,13 @@ bash scripts/remote_memory_probe.sh
 
 First verify that training and calibration of the selected checkpoint are complete. Export can overlap unrelated training, but must not read a checkpoint still being written.
 
-<!-- SOURCE:FENCE:15 -->
+<!-- SOURCE:FENCE:16 -->
 ```bash
 bash scripts/remote_llama_prep.sh
 bash scripts/remote_export_gguf.sh 0.8b 4b
 bash scripts/remote_export_gguf_cf.sh 0.8b 4b
 ```
-<!-- /SOURCE:FENCE:15 -->
+<!-- /SOURCE:FENCE:16 -->
 
 Both `/mnt/aipc/gguf/<size>/` and `/mnt/aipc/gguf/<size>-cf/` should contain BF16, Q8_0 and Q4_K_M files plus `gguf.sha256`. Conversion merges LoRA into the base and includes the pointer head and calibration parameters, so the resulting file can run without the training environment.
 
@@ -748,12 +766,12 @@ Both `/mnt/aipc/gguf/<size>/` and `/mnt/aipc/gguf/<size>-cf/` should contain BF1
 
 #### B7. Retrieve Results and Models
 
-<!-- SOURCE:FENCE:16 -->
+<!-- SOURCE:FENCE:17 -->
 ```powershell
 .\scripts\pull_results.ps1 -SshTarget $SSH_TARGET -SshPort $SSH_PORT
 .\scripts\pull_gguf.ps1 -Size 0.8b-cf -SshTarget $SSH_TARGET -SshPort $SSH_PORT
 ```
-<!-- /SOURCE:FENCE:16 -->
+<!-- /SOURCE:FENCE:17 -->
 
 `-Size` accepts `0.8b`, `0.8b-cf`, `4b` or `4b-cf`, retrieving Q8_0 and Q4_K_M for each. A single scp connection to the VM may deliver less than 1 MiB/s, so both scripts split files across 8 concurrent connections and verify SHA-256 afterward. Success prints `sha256 OK`, then `__PULL_RESULTS_DONE__ <directory>` or `__PULL_GGUF_DONE__`. Results extract to `验证结果\微调评测_<timestamp>\`; large GGUF files go outside the repository, to `C:\Tools\models\contoso-kev\`.
 
@@ -789,35 +807,35 @@ Use the CPU runtime from A. For Adreno comparison, download `llama-b11935-bin-wi
 
 Use a new `-Label` every time. The historical script fixes the output root at `验证结果\端侧引擎_20261027-124700`; a new label prevents overwriting old results. That directory name is not the new run date; the new `run.json` records actual time.
 
-<!-- SOURCE:FENCE:17 -->
+<!-- SOURCE:FENCE:18 -->
 ```powershell
 $Label = 'ft-kev-0.8b-Q8_0-cpu-' + (Get-Date -Format 'yyyyMMdd-HHmmss')
 .\scripts\run_engine_eval.ps1 -Model C:\Tools\models\contoso-kev\Contoso-Kev-0.8B-FT-Q8_0.gguf -Label $Label `
     -TorchPrefix 验证结果\端侧引擎_20261027-124700\pytorch-ft-0.8b\
 ```
-<!-- /SOURCE:FENCE:17 -->
+<!-- /SOURCE:FENCE:18 -->
 
 For 4B FT-cf, this experiment completed one Q8_0 and one Q4_K_M run:
 
-<!-- SOURCE:FENCE:18 -->
+<!-- SOURCE:FENCE:19 -->
 ```powershell
 $Label = 'ftcf-kev-4b-Q8_0-cpu-' + (Get-Date -Format 'yyyyMMdd-HHmmss')
 .\scripts\run_engine_eval.ps1 -Model C:\Tools\models\contoso-kev\Contoso-Kev-4B-FTcf-Q8_0.gguf -Label $Label `
     -TorchPrefix 验证结果\端侧引擎_20261027-124700\pytorch-ftcf-4b\
 ```
-<!-- /SOURCE:FENCE:18 -->
+<!-- /SOURCE:FENCE:19 -->
 
 `-TorchPrefix` points to PyTorch predictions for the same test set: `<prefix><workload>\rows.json`, copied from `runs\<size>\ft-test_<workload>\rows.json`, or `ftcf-test_<workload>` for FT-cf. Each test prints accuracy and latency, followed by `__ENGINE_EVAL_DONE__ <Label>`. Use `-Backend opencl` for Adreno, `-Ctx 2048 -UBatch 512` for the lower-memory case, and `-DataPrefix policy_test_` for B0-policy. First OpenCL startup compiles kernels and can take over a minute.
 
 #### C2. Generate Tables on the Laptop
 
-<!-- SOURCE:FENCE:19 -->
+<!-- SOURCE:FENCE:20 -->
 ```powershell
 python scripts\summarize_results.py --runs 验证结果\微调评测_<时间>\runs --data data\contoso\final --out 验证结果\微调评测_<时间>\summary
 python scripts\summarize_engine.py --root 验证结果\端侧引擎_20261027-124700 --output-dir 验证结果\微调评测_<时间>\summary
 python scripts\fill_report_tables.py --report README_CN.md --blocks 验证结果\微调评测_<时间>\summary\report_blocks.json --block ENGINE=验证结果\微调评测_<时间>\summary\engine_brief.md --block README_PERFORMANCE=验证结果\微调评测_<时间>\summary\engine_comparison.md
 ```
-<!-- /SOURCE:FENCE:19 -->
+<!-- /SOURCE:FENCE:20 -->
 
 `summary.md` contains all tables; `report_blocks.json` contains blocks for the README and report. `engine_comparison.md` supplies the main performance before/after table; `engine_brief.md` retains every device configuration. These commands produce derived summaries without changing raw results. Rerunning the fill step replaces previous generated Chinese blocks. The diagram/document renderer uses the shared table-localization function for English; measured values are not translated or recalculated. Synchronize the English source-backed blocks after updating their Chinese counterparts:
 
@@ -825,11 +843,11 @@ Run `python scripts\render_diagrams.py --sync-english --preview`.
 
 #### C3. Offline Tests
 
-<!-- SOURCE:FENCE:20 -->
+<!-- SOURCE:FENCE:21 -->
 ```powershell
 python -m unittest discover -s tests -v
 ```
-<!-- /SOURCE:FENCE:20 -->
+<!-- /SOURCE:FENCE:21 -->
 
 [tests/test_data_and_scoring.py](tests/test_data_and_scoring.py) needs neither the GPU VM nor the device engine. Success ends with `OK`. Existing data/scoring checks are retained, including visible-input transmission, raw response preservation and failure behavior:
 
@@ -856,12 +874,12 @@ Reproduction boundary: current out-of-distribution data files have different byt
 
 The three diagrams in both languages and all local previews share [scripts/render_diagrams.py](scripts/render_diagrams.py). [requirements-docs.txt](requirements-docs.txt) pins documentation dependencies, not model-runtime dependencies. Windows defaults to the installed `C:\Windows\Fonts\msyh.ttc`; elsewhere provide a CJK font with `--font`. Figure sources and hashes are in [images/provenance.json](images/provenance.json). Official icon originals, licenses and raster hashes are in [images/vendor/sources.json](images/vendor/sources.json).
 
-<!-- SOURCE:FENCE:21 -->
+<!-- SOURCE:FENCE:22 -->
 ```powershell
 python -m pip install -r requirements-docs.txt
 python -B scripts\render_diagrams.py --preview
 ```
-<!-- /SOURCE:FENCE:21 -->
+<!-- /SOURCE:FENCE:22 -->
 
 Do not reinstall matching dependencies. `--preview` checks local links/anchors and writes ignored `*.preview.html` files next to the source documents for Edge. It does not publish or replace Markdown sources. The language switch links the actual English and Chinese pages.
 
