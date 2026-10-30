@@ -3,17 +3,18 @@
   "font": "msyh.ttc",
   "reference": "https://github.com/jaredpalmer/kev/blob/2074cc44256200bb37540103fa4572901faa10f3/README.md",
   "selection": "Upstream model/accuracy and playground figures do not describe this project's training, export and laptop validation paths.",
-  "visual_scope": "Azure host and Windows device boundaries; official Microsoft icons identify actual hosts and file artifacts, not custom services.",
+  "visual_scope": "Azure Architecture Center style: blue title bar, grey ownership lanes, white component cards, legend and source footnote; official Microsoft icons identify actual hosts and file artifacts, text badges identify PyTorch, Kev and llama.cpp, which have no ledgered icon; rendered at 2x the 1200x680 layout.",
   "icon_sources": "vendor/sources.json",
   "assets": [
     {
       "file": "training.png",
-      "width": 1200,
-      "height": 590,
-      "sha256": "d8e1b0af74671eea2fa7d79c86fdb11f4b3dd2a16e85e836a463abb94894e18b",
+      "width": 2400,
+      "height": 1360,
+      "sha256": "c573f44289597e1e17f294ac5af6d13204521abd4c5ce9534d08e51128a1aeb2",
       "vendor_icons": [
         "azure-vm",
-        "file"
+        "file",
+        "laptop"
       ],
       "kind": "original explanatory diagram",
       "language": "zh",
@@ -28,12 +29,13 @@
     },
     {
       "file": "training-en.png",
-      "width": 1200,
-      "height": 590,
-      "sha256": "a1ba8bff92c6ac5a7318a601670fbae92ef8a74f8ccf1e7b9486b920b39252cf",
+      "width": 2400,
+      "height": 1360,
+      "sha256": "27e3386c4e53fc6286c6f5ca660139568e1d5a47df48eddda46c7006374ea004",
       "vendor_icons": [
         "azure-vm",
-        "file"
+        "file",
+        "laptop"
       ],
       "kind": "original explanatory diagram",
       "language": "en",
@@ -48,9 +50,9 @@
     },
     {
       "file": "inference.png",
-      "width": 1200,
-      "height": 470,
-      "sha256": "304e60bc3ac2430e7486d19e950b69cbd4e1e6e8975182d0654961caee874dfd",
+      "width": 2400,
+      "height": 1360,
+      "sha256": "d2c6b020f23822023012889ba658df508670fb39495f09f763c8091cf93e6e8d",
       "vendor_icons": [
         "file",
         "laptop"
@@ -67,9 +69,9 @@
     },
     {
       "file": "inference-en.png",
-      "width": 1200,
-      "height": 470,
-      "sha256": "7fb66c3a97d183e516cb7f840b48be85ad334e7010d1133197948065712f1a38",
+      "width": 2400,
+      "height": 1360,
+      "sha256": "ed537fffb4c5a4dab5674822e8810e31488e739e7535a42d26a1358afd340581",
       "vendor_icons": [
         "file",
         "laptop"
@@ -86,9 +88,9 @@
     },
     {
       "file": "validation.png",
-      "width": 1200,
-      "height": 660,
-      "sha256": "23687bde901b8c3a9311582219e22f8c316eac40521e5df915f97780d2b9ecd8",
+      "width": 2400,
+      "height": 1360,
+      "sha256": "fadd780784f34474f999289fd4355889f212377fdfa4cdfb076de17971206ec7",
       "vendor_icons": [
         "azure-vm",
         "file",
@@ -106,9 +108,9 @@
     },
     {
       "file": "validation-en.png",
-      "width": 1200,
-      "height": 660,
-      "sha256": "101cffb2796ad689ac19b1bba1bcc853a813f838220bdd38c62a46fe37761d27",
+      "width": 2400,
+      "height": 1360,
+      "sha256": "6d0f155e078e4407347de426ccfe2858f0471c65f580b8407f8d8c6df38b6d6e",
       "vendor_icons": [
         "azure-vm",
         "file",

@@ -16,25 +16,51 @@ ROOT = Path(__file__).resolve().parents[1]
 INK = "#243746"
 BLUE = "#0078D4"
 GREY = "#D9E1E7"
+MUTED = "#536471"
+LANE_FILL = "#F3F5F7"
+CARD_LINE = "#B8CEDF"
+SCORE_GREY = "#687C8A"
+WIDTH = 1200       # layout coordinates; the README displays every diagram at 900 px
+HEIGHT = 680       # one shared height for the three diagrams
+SCALE = 2          # raster at twice the layout size so labels stay crisp at the display width
+LANE_RIGHT = WIDTH - 24
+OWNER_DIVIDER = 264   # owner column 24..264, content from CARD_LEFT
+CARD_LEFT, CARD_WIDTH, CARD_STEP = 280, 268, 308   # three columns: 280, 588, 896 (right edge 1164)
 
 
 class Diagram:
-    def __init__(self, height, title, subtitle, font_path):
-        self.image = Image.new("RGB", (1200, height), "white")
+    """Azure Architecture Center style: blue title bar, grey ownership lanes, white component cards, legend, footnote."""
+
+    def __init__(self, title, subtitle, font_path, height=HEIGHT, scale=SCALE):
+        self.s = scale
+        self.image = Image.new("RGB", (WIDTH * scale, height * scale), "white")
         self.draw = ImageDraw.Draw(self.image)
-        self.title_font = ImageFont.truetype(str(font_path), 32)
-        self.node_font = ImageFont.truetype(str(font_path), 25)
-        self.detail_font = ImageFont.truetype(str(font_path), 20)
-        self.small_font = ImageFont.truetype(str(font_path), 18)
+        font = lambda size: ImageFont.truetype(str(font_path), size * scale)
+        self.title_font, self.node_font, self.owner_font, self.detail_font = font(26), font(21), font(18), font(16)
+        self.small_font, self.badge_font = font(14), font(12)
         self.icons_used = set()
-        self.draw.rectangle((24, 21, 29, 59), fill=BLUE)
-        self.text((43, 16), title, self.title_font, 1133, INK)
-        self.text((24, 65), subtitle, self.detail_font, 1152, "#536471")
+        self.draw.rectangle(self.box(0, 0, WIDTH, 58), fill=BLUE)
+        self.text((28, 13), title, self.title_font, 1140, "white")
+        self.text((28, 70), subtitle, self.detail_font, 1144, MUTED)
+
+    def box(self, left, top, right, bottom):
+        return tuple(round(value * self.s) for value in (left, top, right, bottom))
+
+    def point(self, x, y):
+        return (round(x * self.s), round(y * self.s))
+
+    def width_of(self, text, font):
+        return self.draw.textlength(text, font=font) / self.s
+
+    overflow = None   # set to a list to collect over-wide labels instead of raising (layout dry run)
 
     def text(self, position, text, font, max_width, fill):
-        if self.draw.textlength(text, font=font) > max_width:
-            raise ValueError(f"Diagram label is too wide: {text}")
-        self.draw.text(position, text, font=font, fill=fill)
+        width = self.width_of(text, font)
+        if width > max_width:
+            if Diagram.overflow is None:
+                raise ValueError(f"Diagram label is too wide: {text}")
+            Diagram.overflow.append(f"{text!r}: {width:.0f} > {max_width:.0f}")
+        self.draw.text(self.point(*position), text, font=font, fill=fill)
 
     def icon(self, name, position, size=48):
         folder = ROOT / "images" / "vendor"
@@ -46,37 +72,78 @@ class Diagram:
                 raise ValueError(f"Vendor icon differs from its source ledger: {name}")
         with Image.open(folder / record["raster"]) as source:
             icon = source.convert("RGBA")
-            icon.thumbnail((size, size), Image.Resampling.LANCZOS)
-            self.image.paste(icon, position, icon)
+            icon.thumbnail((size * self.s, size * self.s), Image.Resampling.LANCZOS)
+            self.image.paste(icon, self.point(*position), icon)
         self.icons_used.add(name)
 
-    def region(self, bounds, title, subtitle, icon, fill="#F3F8FC"):
-        left, top, right, bottom = bounds
-        self.draw.rounded_rectangle(bounds, radius=8, fill=fill, outline="#B8CEDF", width=2)
-        self.icon(icon, (left + 20, top + 18), 48)
-        self.text((left + 84, top + 15), title, self.node_font, right - left - 108, INK)
-        self.text((left + 84, top + 51), subtitle, self.small_font, right - left - 108, "#536471")
-        self.draw.line((left + 20, top + 91, right - 20, top + 91), fill="#D8E4ED", width=1)
+    def lane(self, top, bottom, owner, caption, icon=None, right=LANE_RIGHT):
+        """One ownership lane: grey band, owner column on the left (optional ledgered icon), content to the right."""
+        self.draw.rounded_rectangle(self.box(24, top, right, bottom), radius=8 * self.s, fill=LANE_FILL, outline=GREY, width=self.s)
+        x = 40
+        if icon:
+            self.icon(icon, (40, top + 14), 36)
+            x = 84
+        self.text((x, top + 14), owner, self.owner_font, OWNER_DIVIDER - 8 - x, INK)
+        for index, line in enumerate(caption.split("\n")):
+            self.text((x, top + 42 + 20 * index), line, self.small_font, OWNER_DIVIDER - 8 - x, MUTED)
+        self.draw.line([self.point(OWNER_DIVIDER, top + 12), self.point(OWNER_DIVIDER, bottom - 12)], fill=GREY, width=self.s)
 
-    def lines(self, position, title, detail, width, accent=INK):
-        left, top = position
-        self.text((left, top), title, self.node_font, width, accent)
-        for index, line in enumerate(detail.split("\n")):
-            self.text((left, top + 39 + 29 * index), line, self.detail_font, width, "#536471")
+    def card(self, left, top, title, detail="", icon=None, badges=(), step=None, width=CARD_WIDTH, height=None, muted=False):
+        """One component or artifact: white card, optional ledgered icon or step number, one or two detail lines, text badges."""
+        lines = [line for line in detail.split("\n") if line]
+        height = height or 56 + 22 * len(lines) + (28 if badges else 0)
+        outline = GREY if muted else CARD_LINE
+        self.draw.rounded_rectangle(self.box(left, top, left + width, top + height), radius=6 * self.s, fill="white", outline=outline, width=self.s)
+        x = left + 14
+        if icon:
+            self.icon(icon, (x, top + 10), 32)
+            x += 42
+        if step:
+            cx, cy, r = left + 27, top + 24, 12
+            self.draw.ellipse(self.box(cx - r, cy - r, cx + r, cy + r), fill=BLUE)
+            self.draw.text(self.point(cx - self.width_of(step, self.small_font) / 2, cy - 9), step, font=self.small_font, fill="white")
+            x = left + 50
+        self.text((x, top + 11), title, self.node_font, left + width - x - 10, MUTED if muted else INK)
+        for index, line in enumerate(lines):
+            self.text((left + 14, top + 44 + 22 * index), line, self.detail_font, width - 24, MUTED)
+        bx, by = left + 14, top + height - 32
+        for badge in badges:
+            bw = self.width_of(badge, self.badge_font) + 16
+            self.draw.rounded_rectangle(self.box(bx, by, bx + bw, by + 20), radius=10 * self.s, fill="white", outline=MUTED, width=self.s)
+            self.text((bx + 8, by + 2), badge, self.badge_font, bw, INK)
+            bx += bw + 8
+        return (left, top, left + width, top + height)
 
-    def artifact(self, position, title, detail, width):
-        left, top = position
-        self.icon("file", (left, top + 3), 34)
-        self.lines((left + 48, top), title, detail, width - 48)
+    def arrow(self, points, color=BLUE, head=True):
+        scaled = [self.point(*point) for point in points]
+        self.draw.line(scaled, fill=color, width=2 * self.s, joint="curve")
+        if head:
+            previous, end = scaled[-2:]
+            angle = math.atan2(end[1] - previous[1], end[0] - previous[0])
+            size = 10 * self.s
+            triangle = [end] + [(end[0] - size * math.cos(angle + offset), end[1] - size * math.sin(angle + offset)) for offset in (-0.48, 0.48)]
+            self.draw.polygon(triangle, fill=color)
 
-    def arrow(self, points, color=BLUE):
-        self.draw.line(points, fill=color, width=2, joint="curve")
-        previous, end = points[-2:]
-        angle = math.atan2(end[1] - previous[1], end[0] - previous[0])
-        triangle = [end]
-        for offset in (-0.48, 0.48):
-            triangle.append((end[0] - 11 * math.cos(angle + offset), end[1] - 11 * math.sin(angle + offset)))
-        self.draw.polygon(triangle, fill=color)
+    def legend(self, top, items):
+        """items: (kind, label) with kind in lane | card | arrow | score | badge."""
+        x = 28
+        for kind, label in items:
+            if kind == "lane":
+                self.draw.rounded_rectangle(self.box(x, top + 3, x + 22, top + 17), radius=3 * self.s, fill=LANE_FILL, outline=GREY, width=self.s)
+            elif kind == "card":
+                self.draw.rounded_rectangle(self.box(x, top + 3, x + 22, top + 17), radius=3 * self.s, fill="white", outline=CARD_LINE, width=self.s)
+            elif kind == "badge":
+                self.draw.rounded_rectangle(self.box(x, top + 2, x + 22, top + 18), radius=8 * self.s, fill="white", outline=MUTED, width=self.s)
+            else:
+                self.arrow([(x, top + 10), (x + 22, top + 10)], color=SCORE_GREY if kind == "score" else BLUE)
+            self.text((x + 30, top), label, self.small_font, 360, MUTED)
+            x += 30 + self.width_of(label, self.small_font) + 26
+        if x > LANE_RIGHT:
+            raise ValueError("Legend is too wide for the canvas")
+
+    def footnote(self, top, *lines):
+        for index, line in enumerate(lines):
+            self.text((28, top + 20 * index), line, self.small_font, 1144, MUTED)
 
     def save(self, path):
         self.image.save(path)
@@ -84,72 +151,121 @@ class Diagram:
             "sha256": hashlib.sha256(path.read_bytes()).hexdigest(), "vendor_icons": sorted(self.icons_used)}
 
 
+def legend_items(label, score=False):
+    items = [("lane", label("泳道：归属方", "Lane: owner")), ("card", label("卡片：组件或产物", "Card: component or artifact")),
+             ("arrow", label("蓝色箭头：数据流", "Blue arrow: data flow"))]
+    if score:
+        items.append(("score", label("灰色箭头：标准答案只供评分", "Grey arrow: labels, scoring only")))
+    items.append(("badge", label("徽章：无官方图标的软件", "Badge: software without an icon")))
+    return items
+
+
+ICON_NOTE = ("图标：Microsoft Azure 架构图标与 Fluent UI 系统图标，来源、条款与哈希见 images/vendor/sources.json。",
+             "Icons: Microsoft Azure architecture icons and Fluent UI system icons; sources, terms and hashes in images/vendor/sources.json.")
+
+
 def training(font_path, language="zh"):
     label = lambda chinese, english: english if language == "en" else chinese
-    diagram = Diagram(590, label("业务微调与模型导出", "Business fine-tuning and model export"),
-                      label("数据进入训练主机，GGUF 文件交给端侧设备", "Business data enters the training host; the GGUF file goes to the device"), font_path)
-    diagram.text((24, 124), label("输入", "INPUTS"), diagram.small_font, 250, "#536471")
-    diagram.artifact((24, 179), label("业务训练集", "Training data"), label("标注样本\n+ 1,000 条回放", "Labeled samples\n+ 1,000 replay rows"), 264)
-    diagram.artifact((24, 338), label("Kev 发布版", "Released Kev"), "0.8B / 4B", 264)
-    diagram.region((324, 121, 1176, 415), label("Azure 训练主机", "Azure training host"), "NVIDIA H100 NVL · PyTorch", "azure-vm")
-    diagram.lines((354, 239), label("01  监督微调", "01  Fine-tune"), label("LoRA + 指针头\nFT / FT-cf 独立训练", "LoRA + pointer head\nIndependent FT / FT-cf"), 244, "#527A08")
-    diagram.lines((652, 239), label("02  温度校准", "02  Calibrate"), label("固定权重\n仅拟合温度参数", "Keep weights fixed\nFit temperature only"), 242)
-    diagram.lines((938, 239), label("03  CPU 导出", "03  CPU export"), label("合并 LoRA\n保存 GGUF 与温度", "Merge LoRA\nGGUF + temperature"), 220)
-    diagram.arrow([(274, 222), (300, 222), (300, 303), (338, 303)])
-    diagram.draw.line([(274, 374), (300, 374), (300, 303)], fill=BLUE, width=2)
-    diagram.arrow([(598, 302), (632, 302)])
-    diagram.arrow([(897, 302), (922, 302)])
-    diagram.artifact((592, 466), label("校准集", "Calibration set"), label("与训练样本分开", "Separate from training"), 284)
-    diagram.arrow([(772, 449), (772, 383)])
-    diagram.artifact((930, 466), "GGUF", label("交给笔记本", "Deliver to the laptop"), 248)
-    diagram.arrow([(1053, 380), (1053, 448)])
-    diagram.text((24, 552), label("微调、校准和 CPU 导出都在同一主机完成；端侧推理不会触发这些步骤。", "Fine-tuning, calibration and CPU export share one host; device inference does not run these stages."), diagram.small_font, 1152, "#536471")
-    return diagram
+    d = Diagram(label("业务微调与模型导出", "Business fine-tuning and model export"),
+                label("业务数据在笔记本准备，GPU 主机训练、校准并导出，GGUF 文件回到笔记本", "Business data is prepared on the laptop; the GPU host trains, calibrates and exports; the GGUF file returns to the laptop"), font_path)
+    c1, c2, c3 = CARD_LEFT, CARD_LEFT + CARD_STEP, CARD_LEFT + 2 * CARD_STEP
+    d.lane(104, 236, label("客户笔记本", "Customer laptop"), label("厂商所有\n数据准备", "Vendor-owned\nData preparation"), icon="laptop")
+    d.card(c1, 116, label("业务训练集", "Training set"), label("标注样本 2,147 条\n+ 1,000 条 Kev 回放", "2,147 labeled records\n+ 1,000 Kev replay records"), icon="file")
+    d.card(c2, 116, label("Kev 发布版", "Released Kev"), label("0.8B / 4B，开放权重\n已训练的 LoRA + 指针头", "0.8B / 4B, open weights\nTrained LoRA + pointer head"), icon="file")
+    d.card(c3, 116, label("校准集", "Calibration set"), label("与训练样本分开\n只用于拟合温度", "Separate from training\nFits temperature only"), icon="file")
+    d.lane(258, 418, label("Azure 训练主机", "Azure training host"), label("厂商租用\n1× H100 NVL", "Vendor-rented\n1× H100 NVL"), icon="azure-vm")
+    d.card(c1, 274, label("监督微调", "Fine-tuning"), label("LoRA r16 + 指针头\nFT 与 FT-cf 独立训练", "LoRA r16 + pointer head\nIndependent FT and FT-cf"), step="1", badges=("PyTorch", "Kev"))
+    d.card(c2, 274, label("温度校准", "Calibration"), label("固定全部权重\n只拟合温度 T", "All weights frozen\nFit temperature T only"), step="2", badges=("Kev",))
+    d.card(c3, 274, label("CPU 导出", "CPU export"), label("合并 LoRA 进基座\nGGUF + 温度元数据", "Merge LoRA into the base\nGGUF + temperature metadata"), step="3", badges=("llama.cpp",))
+    d.lane(440, 540, label("客户笔记本", "Customer laptop"), label("厂商所有\n端侧部署", "Vendor-owned\nDevice deployment"), icon="laptop")
+    d.card(c3, 452, "GGUF", label("Q8_0 / Q4_K_M，温度在文件内", "Q8_0 / Q4_K_M, T inside the file"), icon="file", height=76)
+    mid1, mid2, mid3 = c1 + CARD_WIDTH / 2, c2 + CARD_WIDTH / 2, c3 + CARD_WIDTH / 2
+    d.arrow([(c1 + 80, 216), (c1 + 80, 274)])                                      # training set -> fine-tuning
+    d.arrow([(mid2, 216), (mid2, 246), (c1 + 200, 246), (c1 + 200, 274)])          # released Kev -> fine-tuning (--init_from)
+    d.arrow([(mid3, 216), (mid3, 246), (mid2, 246), (mid2, 274)])                  # calibration set -> calibration
+    d.arrow([(c1 + CARD_WIDTH, 338), (c2, 338)])
+    d.arrow([(c2 + CARD_WIDTH, 338), (c3, 338)])
+    d.arrow([(mid3, 402), (mid3, 452)])                                            # export -> GGUF on the laptop
+    d.legend(566, legend_items(label))
+    d.footnote(598, label("原创解释图。依据：scripts/remote_pipeline_v2.sh、remote_cf_round.sh、remote_export_gguf.sh，以及 Kev commit 2074cc44 的 calibrate_checkpoint.py。",
+                          "Original explanatory diagram. Sources: scripts/remote_pipeline_v2.sh, remote_cf_round.sh, remote_export_gguf.sh and calibrate_checkpoint.py at Kev commit 2074cc44."),
+               label(*ICON_NOTE),
+               label("微调、校准和 CPU 导出都在同一主机完成；端侧推理不会触发这些步骤。", "Fine-tuning, calibration and CPU export share one host; device inference does not run these stages."))
+    return d
 
 
 def inference(font_path, language="zh"):
     label = lambda chinese, english: english if language == "en" else chinese
-    diagram = Diagram(470, label("端侧业务判断", "On-device business decisions"),
-                      label("模型只回答问题，业务应用决定下一步动作", "The model answers questions; the business application decides what happens next"), font_path)
-    diagram.artifact((24, 229), label("业务输入", "Business input"), label("客户原话 + 设备字段\n待回答的问题\n不带标准答案", "Message + device fields\nQuestions to answer\nNo ground-truth labels"), 280)
-    diagram.region((324, 121, 1176, 391), label("Windows on Arm 笔记本", "Windows on Arm laptop"), "Snapdragon X Elite · CPU · llama.cpp", "laptop")
-    diagram.lines((360, 235), label("本机推理", "Local inference"), label("加载微调 GGUF\n读取内置温度\nPOST /v1/systemone", "Load fine-tuned GGUF\nUse saved temperature\nPOST /v1/systemone"), 294)
-    diagram.arrow([(308, 286), (342, 286)])
-    diagram.arrow([(678, 286), (758, 286)])
-    diagram.lines((784, 235), label("结构化答案", "Structured answers"), label("选项 / 是非 / 等级\n应用温度后的概率", "Choice / yes-no / ordinal\nTemperature-scaled probabilities"), 363)
-    diagram.text((24, 427), label("没有云端模型请求，不训练，也不替用户执行维修、联网或工具调用。", "No cloud-model request, training, repair action, network action or tool execution is performed here."), diagram.small_font, 1152, "#536471")
-    return diagram
+    d = Diagram(label("端侧业务判断", "On-device business decisions"),
+                label("业务应用发出请求，llama-server 在笔记本 CPU 上回答；全程没有云端模型调用", "The business application sends a request and llama-server answers on the laptop CPU; no cloud model is called"), font_path)
+    c1, c2, c3 = CARD_LEFT, CARD_LEFT + CARD_STEP, CARD_LEFT + 2 * CARD_STEP
+    d.lane(104, 236, label("业务应用", "Business application"), label("厂商所有\n决定后续动作", "Vendor-owned\nDecides what happens next"))
+    d.card(c1, 116, label("业务输入", "Business input"), label("客户原话 + 设备字段\n待回答的问题，无标签", "Message + device fields\nQuestions, no labels"), icon="file")
+    d.card(c3, 116, label("后续动作", "Next action"), label("派单、转人工或补问\n由应用自行决定", "Dispatch, hand off or ask again\nDecided by the application"))
+    d.lane(258, 418, label("客户笔记本", "Customer laptop"), label("厂商所有\n骁龙 X Elite，CPU", "Vendor-owned\nSnapdragon X Elite, CPU"), icon="laptop")
+    d.card(c1, 274, label("微调 GGUF", "Fine-tuned GGUF"), label("合并 LoRA + 指针头\n温度已写入元数据", "Merged LoRA + pointer head\nTemperature in metadata"), icon="file", height=128)
+    d.card(c2, 274, "llama-server", label("本机 HTTP 服务\nPOST /v1/systemone", "Local HTTP server\nPOST /v1/systemone"), badges=("llama.cpp b11935",))
+    d.card(c3, 274, label("结构化答案", "Structured answers"), label("选项 / 是非 / 等级\n温度缩放后的概率", "Choice / yes-no / ordinal\nProbabilities scaled by T"), height=128)
+    d.lane(440, 540, label("云端服务", "Cloud services"), label("本步骤不涉及", "Not involved in this step"))
+    d.card(c1, 452, label("无云端模型请求", "No cloud-model request"), label("不训练；不替用户执行维修、联网或工具调用", "No training; no repair, network or tool action on the user's behalf"), width=CARD_WIDTH * 2 + CARD_STEP - CARD_WIDTH, height=76, muted=True)
+    mid1, mid3 = c1 + CARD_WIDTH / 2, c3 + CARD_WIDTH / 2
+    d.arrow([(mid1, 216), (mid1, 246), (c2 + 90, 246), (c2 + 90, 274)])            # input -> llama-server
+    d.arrow([(c1 + CARD_WIDTH, 338), (c2, 338)])                                   # GGUF loaded by llama-server
+    d.arrow([(c2 + CARD_WIDTH, 338), (c3, 338)])                                   # answers
+    d.arrow([(mid3, 274), (mid3, 216)])                                            # answers -> application
+    d.legend(566, legend_items(label))
+    d.footnote(598, label("原创解释图。依据：scripts/systemone_client.py、scripts/run_engine_eval.ps1，以及 llama.cpp b11935 的 tools/server/server-decision.cpp。",
+                          "Original explanatory diagram. Sources: scripts/systemone_client.py, scripts/run_engine_eval.ps1 and tools/server/server-decision.cpp at llama.cpp b11935."),
+               label(*ICON_NOTE),
+               label("推理在笔记本完成，业务动作由应用另行决定；测试阶段的独立拓扑见下一张图。", "Inference happens on the laptop and the application decides the action; the separate test topology is in the next diagram."))
+    return d
 
 
 def validation(font_path, language="zh"):
     label = lambda chinese, english: english if language == "en" else chinese
-    diagram = Diagram(660, label("测试拓扑与评分边界", "Test topology and scoring boundaries"),
-                      label("两条独立推理路径；准确率与引擎一致率不是同一个指标", "Two independent inference paths; accuracy and engine agreement are different metrics"), font_path)
-    diagram.artifact((24, 229), label("同一测试集", "Same test set"), label("无标签输入给模型\n逐题保留标准答案", "Unlabeled inputs\nKeep labels for scoring"), 280)
-    diagram.region((334, 121, 766, 311), label("Azure GPU 主机", "Azure GPU host"), "H100 NVL · PyTorch", "azure-vm")
-    diagram.lines((358, 230), label("保存逐题预测", "Per-question predictions"), label("答案与概率", "Answers and probabilities"), 383)
-    diagram.region((334, 355, 766, 545), label("Windows on Arm", "Windows on Arm"), "llama.cpp · CPU / Adreno", "laptop")
-    diagram.lines((358, 465), label("端侧计量", "Device measurements"), label("答案、请求耗时、进程内存", "Answers, request time, memory"), 383)
-    diagram.draw.line((844, 144, 844, 537), fill="#B8CEDF", width=2)
-    diagram.lines((870, 148), label("评分程序", "Scoring program"), label("不更新模型参数", "No model updates"), 300)
-    diagram.lines((870, 263), label("业务准确率", "Task accuracy"), label("预测对照标准答案", "Predictions vs. ground truth"), 300)
-    diagram.lines((870, 378), label("引擎一致率", "Engine agreement"), label("两条路径的答案互相比对", "Answers from the two paths"), 300)
-    diagram.arrow([(274, 276), (303, 276), (303, 262), (320, 262)])
-    diagram.arrow([(303, 276), (303, 496), (320, 496)])
-    diagram.draw.line([(778, 262), (812, 262), (812, 496), (778, 496)], fill=BLUE, width=2)
-    diagram.arrow([(812, 360), (855, 360)])
-    diagram.draw.line([(155, 359), (155, 588), (418, 588)], fill="#687C8A", width=2)
-    diagram.arrow([(800, 588), (1010, 588), (1010, 478)], color="#687C8A")
-    diagram.text((435, 573), label("标准答案只供评分", "Ground truth: scoring only"), diagram.detail_font, 345, "#536471")
-    diagram.text((24, 623), label("请求耗时在笔记本客户端计量，排除加载与预热；训练资源另外统计。", "Request timing is measured by the laptop client, excluding loading and warm-up; training resources are separate."), diagram.small_font, 1152, "#536471")
-    return diagram
+    d = Diagram(label("测试拓扑与评分边界", "Test topology and scoring boundaries"),
+                label("同一测试集走两条独立推理路径；业务准确率与引擎一致率是两个不同的指标", "The same test set runs through two independent inference paths; task accuracy and engine agreement are different metrics"), font_path)
+    c1, c2 = CARD_LEFT, CARD_LEFT + CARD_STEP
+    score_left, score_right, lane_right = 884, LANE_RIGHT, 860
+    d.lane(104, 236, label("测试数据", "Test data"), label("规则代码算标签\n同一批记录", "Labels from policy code\nSame records"), icon="file")
+    d.card(c1, 116, label("同一测试集", "Same test set"), label("无标签输入给两条路径\n标准答案只给评分程序", "Unlabeled inputs to both paths\nLabels go to scoring only"), icon="file")
+    d.lane(258, 418, label("Azure GPU 主机", "Azure GPU host"), label("厂商租用\nH100 NVL", "Vendor-rented\nH100 NVL"), icon="azure-vm", right=lane_right)
+    d.card(c2, 274, label("PyTorch 评测", "PyTorch evaluation"), label("kev.benchmark，CUDA\n保存逐题答案与概率", "kev.benchmark on CUDA\nSaves per-question answers"), badges=("PyTorch", "Kev"))
+    d.lane(440, 600, label("客户笔记本", "Customer laptop"), label("厂商所有\n骁龙 X Elite\nCPU / Adreno GPU", "Vendor-owned\nSnapdragon X Elite\nCPU / Adreno GPU"), icon="laptop", right=lane_right)
+    d.card(c2, 456, label("端侧评测", "Device evaluation"), label("run_engine_eval.ps1\n答案、请求耗时、进程内存", "run_engine_eval.ps1\nAnswers, request time, memory"), badges=("llama.cpp b11935",))
+    # scoring box beside the two inference lanes: runs on the laptop, never updates the model
+    d.draw.rounded_rectangle(d.box(score_left, 258, score_right, 600), radius=8 * d.s, fill="white", outline=CARD_LINE, width=d.s)
+    d.text((score_left + 16, 270), label("评分程序", "Scoring program"), d.node_font, 260, INK)
+    d.text((score_left + 16, 300), label("笔记本上运行，不更新模型", "Runs on the laptop, no model updates"), d.small_font, 260, MUTED)
+    d.draw.line([d.point(score_left + 16, 328), d.point(score_right - 16, 328)], fill=GREY, width=d.s)
+    d.text((score_left + 16, 346), label("业务准确率", "Task accuracy"), d.node_font, 260, INK)
+    d.text((score_left + 16, 376), label("每条路径的预测对照标准答案", "Each path's predictions vs. labels"), d.small_font, 260, MUTED)
+    d.text((score_left + 16, 396), label("两条路径分别评分", "Each path is scored separately"), d.small_font, 260, MUTED)
+    d.draw.line([d.point(score_left + 16, 428), d.point(score_right - 16, 428)], fill=GREY, width=d.s)
+    d.text((score_left + 16, 446), label("引擎一致率", "Engine agreement"), d.node_font, 260, INK)
+    d.text((score_left + 16, 476), label("两条路径的答案逐题互比", "Both paths' answers, per question"), d.small_font, 260, MUTED)
+    d.text((score_left + 16, 496), label("不看标准答案", "Does not look at the labels"), d.small_font, 260, MUTED)
+    d.draw.line([d.point(score_left + 16, 528), d.point(score_right - 16, 528)], fill=GREY, width=d.s)
+    d.text((score_left + 16, 546), label("准确率 ≠ 一致率", "Accuracy ≠ agreement"), d.node_font, 260, INK)
+    d.text((score_left + 16, 576), label("引擎可以一致但都答错", "Both engines can agree and be wrong"), d.small_font, 260, MUTED)
+    mid1 = c1 + CARD_WIDTH / 2
+    d.arrow([(mid1, 216), (mid1, 338), (c2, 338)])                                 # test set -> PyTorch path
+    d.arrow([(mid1, 338), (mid1, 520), (c2, 520)])                                 # test set -> device path
+    d.arrow([(c2 + CARD_WIDTH, 338), (score_left, 338)])                           # PyTorch answers -> scoring
+    d.arrow([(c2 + CARD_WIDTH, 520), (score_left, 520)])                           # device answers -> scoring
+    d.arrow([(c1 + CARD_WIDTH, 150), (1030, 150), (1030, 258)], color=SCORE_GREY)  # labels -> scoring only
+    d.text((640, 128), label("标准答案只供评分", "Labels: scoring only"), d.small_font, 300, SCORE_GREY)
+    d.legend(620, legend_items(label, score=True))
+    d.footnote(648, label("原创解释图。依据：scripts/remote_pipeline_v2.sh、scripts/run_engine_eval.ps1、scripts/parity.py。请求耗时在笔记本客户端计量，排除加载与预热。",
+                          "Original explanatory diagram. Sources: scripts/remote_pipeline_v2.sh, run_engine_eval.ps1, parity.py. Request time: laptop client, excluding loading and warm-up."))
+    return d
 
 
 def sync_english_documents():
     from markdown_it import MarkdownIt
     from fill_report_tables import localize_block
 
-    pairs = ((ROOT / "README_CN.md", ROOT / "README.md", 26, 20),
+    pairs = ((ROOT / "README_CN.md", ROOT / "README.md", 29, 21),
              (ROOT / "文档" / "微调与端侧验证报告_20261027-130700.md",
               ROOT / "文档" / "Finetuning-and-On-Device-Validation-Report.md", 20, 1))
     names = {"微调与端侧验证报告_20261027-130700.md": "Finetuning-and-On-Device-Validation-Report.md",
@@ -336,7 +452,9 @@ def main():
     ledger = {"generator": "scripts/render_diagrams.py", "font": arguments.font.name,
               "reference": "https://github.com/jaredpalmer/kev/blob/2074cc44256200bb37540103fa4572901faa10f3/README.md",
               "selection": "Upstream model/accuracy and playground figures do not describe this project's training, export and laptop validation paths.",
-              "visual_scope": "Azure host and Windows device boundaries; official Microsoft icons identify actual hosts and file artifacts, not custom services.",
+              "visual_scope": "Azure Architecture Center style: blue title bar, grey ownership lanes, white component cards, legend and source footnote; "
+                              "official Microsoft icons identify actual hosts and file artifacts, text badges identify PyTorch, Kev and llama.cpp, which have no ledgered icon; "
+                              f"rendered at {SCALE}x the {WIDTH}x{HEIGHT} layout.",
               "icon_sources": "vendor/sources.json",
               "assets": assets}
     (arguments.out / "provenance.json").write_text(json.dumps(ledger, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

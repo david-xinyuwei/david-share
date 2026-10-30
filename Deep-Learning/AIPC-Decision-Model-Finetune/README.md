@@ -1,4 +1,4 @@
-# On-Device Deployment and Fine-Tuning of Decision Models
+# Decision Model on the Edge: Fine-Tuning and Inference Optimization
 
 [English](README.md) | [中文](README_CN.md)
 
@@ -13,19 +13,21 @@
 
 ## Purpose
 
-Customers need accurate, fast decisions on their own laptops, within device compute and memory limits and governed by their business rules. This project fine-tunes open-weight Kev with business data and measures accuracy, latency and resource use on Snapdragon; new policies or error cases prompt re-evaluation and model updates. **Training runs on a GPU host; routine inference stays on the laptop without cloud-model calls.**
+Customers need accurate, fast decisions on their own laptops, within device compute and memory limits and governed by their business rules. This project fine-tunes the open-weight decision model Kev with business data, measures accuracy, latency and resource use on Snapdragon, and measures the inference-optimization levers one at a time: quantization, context length, compute backend, prompt length and model size. New policies or error cases prompt re-evaluation and model updates. **Training runs on a GPU host; routine inference stays on the laptop without cloud-model calls.**
 
 **Scope**: Fictional Contoso PC data, not customer data; one training run per recipe (2026-10-27). No proprietary-cloud comparison or production-readiness guarantee.
 
 ### Architecture: Training and Inference Are Separate
 
+Four recipes are compared throughout; their names are fixed here. **B0** is the released Kev model without training. **B0-policy** is the same released model with the full vendor policy text written into every question's prompt. **FT** is supervised fine-tuning of the released model on business data. **FT-cf** adds counterfactual variants to FT's data: the same message with one device field changed. FT and FT-cf both start from the same release and are trained independently; FT-cf is the final recommendation.
+
 #### 1. Training and Export: Business Data to a Model File
 
-Data preparation scripts run on the laptop. Large models A and B only help write simulated customer messages; business-policy code computes the labels. Neither generator is the Kev model being fine-tuned, and neither participates in subsequent device inference. Training, calibration and export run on the GPU host; export uses only that host's CPU.
+Data preparation scripts run on the laptop. Large models A and B only help write simulated customer messages; business-policy code computes the labels. Neither generator is the Kev model being fine-tuned, and neither participates in subsequent device inference. Training, calibration and export run on the GPU host; export uses only that host's CPU. The product is one GGUF file, the single-file model format used by llama.cpp, holding weights, tokenizer and metadata together.
 
-<img src="images/training-en.png" width="900" alt="Labeled business data and released Kev enter an Azure training host. Independent FT and FT-cf training is followed by separate temperature calibration and CPU export to GGUF.">
+<img src="images/training-en.png" width="900" alt="Labeled business data and released Kev enter an Azure GPU training host. Independent FT and FT-cf training is followed by separate temperature calibration and CPU export of a GGUF file to the customer laptop; three ownership lanes, a legend and source footnote.">
 
-*Original explanatory diagram. Training data updates model parameters; a separate calibration set fits probability temperature. The laptop receives the GGUF file. Sources: [FT pipeline](scripts/remote_pipeline_v2.sh), [FT-cf pipeline](scripts/remote_cf_round.sh), [export script](scripts/remote_export_gguf.sh). Official Microsoft icon sources and usage terms are recorded in [the icon ledger](images/vendor/sources.json).*
+*Original explanatory diagram. Training data updates model parameters; a separate calibration set fits the probability temperature, the scaling factor applied when raw model scores become probabilities, explained in [section 3](#3-calibration-correct-ranking-does-not-guarantee-reliable-probabilities). The laptop receives the GGUF file. Sources: [FT pipeline](scripts/remote_pipeline_v2.sh), [FT-cf pipeline](scripts/remote_cf_round.sh), [export script](scripts/remote_export_gguf.sh). Official Microsoft icon sources and usage terms are recorded in [the icon ledger](images/vendor/sources.json).*
 
 #### 2. Device Inference: A Model File to a Business Decision
 
@@ -62,21 +64,110 @@ The candidate is **Kev; its 0.8B and 4B variants use Qwen3.5 bases**. It support
 <!-- /SOURCE:TABLE:2 -->
 
 - **Accuracy: 4B approaches the hosted reference, but does not rank first.** In the author's figure, Kev-4B is 4.0 percentage points below Jev; Kev-0.8B is 20.9 points below. The caption lists 764 records. In this project's reproduction, the published 0.8B and 4B scores correspond to 656 original questions, with another 108 variant records. The author does not know Jev's training data, so this is not a controlled comparison and does not establish customer-support accuracy. See the [author's explanation](https://github.com/jaredpalmer/kev/blob/2074cc44256200bb37540103fa4572901faa10f3/README.md) and [public-baseline reproduction](验证结果/公开基线复现_20261027-123403).
-- **Scale: 0.8B and 4B test the trade-off between accuracy and device overhead.** The author suggests starting with 4B when accuracy matters, and 0.8B when size matters more. These are nominal parameter scales, not file sizes. GGUF size, process memory and latency come from [device measurements](#4-laptop-inference-engine), not parameter-count estimates.
-- **Open weights: download, fine-tune on business data and export to your own devices.** The [Kev code](https://github.com/jaredpalmer/kev/blob/2074cc44256200bb37540103fa4572901faa10f3/README.md#license), [Kev-0.8B](https://huggingface.co/jaredpalmer/kev-0.8b), [Kev-4B](https://huggingface.co/jaredpalmer/kev-4b) and corresponding [Qwen3.5-0.8B-Base](https://huggingface.co/Qwen/Qwen3.5-0.8B-Base) and [Qwen3.5-4B-Base](https://huggingface.co/Qwen/Qwen3.5-4B-Base) use Apache-2.0. Labeled JSONL and `--init_from` continue training from the released LoRA and pointer head. Individual dataset licenses still apply.
+- **Scale: 0.8B and 4B test the trade-off between accuracy and device overhead.** The author suggests starting with 4B when accuracy matters, and 0.8B when size matters more. These are nominal parameter scales, not file sizes. GGUF size, process memory and latency come from [device measurements](#5-laptop-inference-engine), not parameter-count estimates.
+- **Open weights: download, fine-tune on business data and export to your own devices.** The [Kev code](https://github.com/jaredpalmer/kev/blob/2074cc44256200bb37540103fa4572901faa10f3/README.md#license), [Kev-0.8B](https://huggingface.co/jaredpalmer/kev-0.8b), [Kev-4B](https://huggingface.co/jaredpalmer/kev-4b) and corresponding [Qwen3.5-0.8B-Base](https://huggingface.co/Qwen/Qwen3.5-0.8B-Base) and [Qwen3.5-4B-Base](https://huggingface.co/Qwen/Qwen3.5-4B-Base) use Apache-2.0. Labeled JSONL and `--init_from` continue training from the release (mechanism in the next section). Individual dataset licenses still apply.
 
 This justifies evaluation, not guaranteed customer suitability. FT and FT-cf are separate recipes trained from the same release, **not sequential FT-to-FT-cf continuation**. Repeated business updates are a way to use the workflow, not a measured long-term outcome.
+
+### Core Technique: How the Kev Decision Model Is Fine-Tuned
+
+**Decision model versus chat model.** A chat model generates text one token at a time; Kev generates no text. It uses Qwen3.5-Base as a read-only encoder: the Kev source loads the backbone without the vocabulary output layer (`AutoModelForCausalLM.from_pretrained(...).model`, with the comment "we never generate text"), appends every option of each question plus one `<decide>` marker to the input, and scores each option with a small **pointer head**. The pointer head is just two linear layers q and k (output dimension 256): q is applied to the hidden state at the `<decide>` position, k to the hidden state at each option's closing `</opt>` position, and the score of option i is their dot product divided by √256: `z_i = k(h_opt_i) · q(h_decide) / 16`. A softmax over all options gives the option probabilities. One 8-way question costs one forward pass and reads 8 positions; no token is generated, and the answer can never fall outside the option list. Source: [kev/model.py `PointerHead`, `DecisionModel`](https://github.com/jaredpalmer/kev/blob/2074cc44256200bb37540103fa4572901faa10f3/kev/model.py), commit `2074cc44`.
+
+**The supervised fine-tuning (SFT) loss.** Each question's loss is cross-entropy on the correct option, `F.cross_entropy(z, label)`. Ordinal questions may add a ranking loss, weighted 0 here; the KL, Brier, focal and anchor terms are also all weighted 0 (`ord_w`, `perm_kl`, `brier_w`, `focal_gamma` and `anchor_w` are 0 in the [training configuration](验证结果/微调评测_20261027-220226/runs/0.8b/ft/training_config.json)). No reinforcement learning. The optimizer is AdamW (weight decay 0.01) with a OneCycleLR schedule (warm-up over the first 10% of steps) and gradient-norm clipping at 1.0. Source: [kev/train.py `question_loss`, `main`](https://github.com/jaredpalmer/kev/blob/2074cc44256200bb37540103fa4572901faa10f3/kev/train.py).
+
+**LoRA r16 + pointer head: which parameters move.** All base weights are frozen. Only two parts train: (1) LoRA adapters (low-rank adaptation: a pair of small low-rank matrices beside each original linear layer; only the pair is trained), rank 16, alpha 32, dropout 0.05, attached to every linear projection — `--lora_targets all` covers attention q/k/v/o, feed-forward gate/up/down, and the `in_proj_qkv/z/a/b` and `out_proj` of Qwen3.5's Gated DeltaNet layers; (2) the pointer head itself. The training logs record 11.3M trainable parameters for 0.8B and 33.8M for 4B, roughly 1.4% and 0.8% of the nominal sizes.
+
+**`--init_from`: continue from the release, not from the base.** This run used `--init_from jaredpalmer/kev-0.8b@v1.0` (4B likewise). Kev calls this delta mode: it first loads the release's 372 trained LoRA tensors and the pointer head (log: `delta: warm start … 372 lora tensors and the pointer head load`), then continues training on vendor data. The benefit is keeping the general decision skill the release learned and learning only the vendor-rule delta; the cost is a smaller learning rate (2e-5, one tenth of Kev's from-scratch default of 2e-4).
+
+**`--replay 1000`: against forgetting.** Training only on vendor data drifts the model toward the vendor distribution. `--replay 1000` samples 1,000 records by seed from Kev's original training set (12,576 records) and mixes them in (log: `replay: 1000 of 12576 suite training records mixed with 2147 from …/train.jsonl`). [Section 2](#2-retention-of-general-capability) checks with 656 public questions whether this worked.
+
+**FT-cf: counterfactual augmentation.** Keep the message, change one policy field (region, warranty plan, days since purchase and so on), let the policy code recompute the label, and you get paired samples of "same words, different field, different answer"; the training set grows from 2,147 to 3,832 records. The aim is to force the model to read the device fields rather than only the message. FT-cf and FT are both trained independently from the release; FT-cf is not a continuation of FT.
+
+**Why temperature calibration is a separate step.** During training the pointer head's temperature is fixed at 1. After training, all weights are frozen and Kev's `calibrate_checkpoint.py` fits one scalar T on a separate calibration set (probabilities become `softmax(z / T)`), writes it into the checkpoint's `head.pt`, and the export carries it into the GGUF metadata. It never changes the answer ranking, only how sharp or flat the probabilities are. Details in [section 3](#3-calibration-correct-ranking-does-not-guarantee-reliable-probabilities).
+
+**The training recipe at a glance** (0.8B FT's [training_config.json](验证结果/微调评测_20261027-220226/runs/0.8b/ft/training_config.json); 4B and FT-cf differ only in micro-batch and data file):
+
+<!-- SOURCE:TABLE:3 -->
+| Setting (`kev.train` argument)| Value in this run| Meaning| 
+| ---| ---| ---| 
+| `--init_from`| `jaredpalmer/kev-{0.8b,4b}@v1.0`| Continue from the release's LoRA and pointer head (delta mode)| 
+| `--lora` / `--lora_targets`| 16 / `all`| LoRA rank 16 (alpha 32) on every linear projection of attention, feed-forward and DeltaNet| 
+| `--head_dim`| 256| Output dimension of the pointer head's q and k| 
+| `--lr` / `--head_lr`| 2e-5 / 0 (0 means the same as `--lr`)| Learning rates for LoRA and the pointer head| 
+| `--epochs` / effective batch| 2 / 8 (1 × 8 for 0.8B FT, 4 × 2 for the others)| Each record is seen twice; one parameter update every 8 records| 
+| `--replay`| 1,000| Mix in 1,000 original Kev training records against forgetting| 
+| `--dtype` / `--weights_dtype`| bf16 / fp32| bf16 autocast forward pass, fp32 master weights| 
+| `--max_state`| 768| At most 768 state tokens per record| 
+| `--checkpointing`| 1| Gradient checkpointing: less GPU memory, more compute| 
+| `--seed`| 1| Only one random seed was run| 
+| `ord_w`, `perm_kl`, `brier_w`, `focal_gamma`, `anchor_w`| 0| Plain cross-entropy, no extra loss terms| 
+<!-- /SOURCE:TABLE:3 -->
+
+### Core Technique: How It Runs on the Laptop
+
+**What llama-server is.** llama.cpp is a C/C++ inference engine; `llama-server` is its bundled local HTTP server. This project uses the official b11935 Windows ARM64 release unchanged. That build recognizes the GGUF metadata key `qwen35.decision.type = kev` (startup log: `decision model type: kev`) and serves the model as a decision model rather than a text generator.
+
+**What is inside the GGUF.** The converter `convert_hf_to_gguf.py` recognizes a Kev checkpoint (log: `detected Kev checkpoint` / `Model architecture: KevModel`) and does three things: it merges the LoRA into the base weights, so the file holds only merged weights and no separate adapter tensors, and `llama-server` needs no `--lora` argument; it stores the pointer head as the tensors `cls.output.weight` (1024 × 512, the q and k projections of 256 dimensions each, side by side) and `cls.output.bias`; and it writes the three calibration temperatures into the metadata `qwen35.decision.temperature.{choice,score,noul}` (all 1.1487 for 0.8B FT-cf). The 0.8B FT-cf BF16 file is 1,437 MiB; Q8_0 quantization gives 764 MiB (8.52 bits per weight on average) and Q4_K_M 517 MiB (5.76 bits). Numbers from the [conversion and quantization logs](验证结果/微调评测_20261027-220226/gguf/0.8b-cf).
+
+**What Q8_0 and Q4_K_M are.** Both are llama.cpp block-wise integer quantization formats: Q8_0 stores each weight as an 8-bit integer with one scale per block and is nearly lossless; Q4_K_M is mainly 4-bit K-series quantization, less precise than Q8_0. This project's Q4_K_M export uses `--pure` and forces attention, DeltaNet (`ssm_`), the pointer head (`cls`) and the output layer to stay q8_0, compressing only the feed-forward layers to 4 bits ([export script](scripts/remote_export_gguf_cf.sh)), which is more conservative than llama.cpp's default Q4_K_M mix. Measured effects are in [section 5](#5-laptop-inference-engine).
+
+**`/v1/systemone` is a decision endpoint, not chat completion.** One request = one `state` (customer message + device fields; may be a JSON object) + several `questions`. Each question has a `type` (`choice`, `noul` yes/no, `score` ordinal), `instructions` and `criteria` (options with descriptions); questions are answered independently. In the response a choice question returns the chosen option, every option's probability and a `confidence`; a yes/no question returns the probability of "yes"; an ordinal question returns the expected level, per-level probabilities and a legend. `usage.output_tokens` is always 0 — no token is generated. Probabilities are already scaled with the temperature inside the GGUF. The endpoint follows the TypeSafe System One API and does not support streaming. Below is an excerpt of one real local request and response; the complete file is in the [local trial record](验证结果/本机试用_20261028-201046/support-us/result.json):
+
+<!-- SOURCE:FENCE:1 -->
+```jsonc
+// request (excerpt): what the business application sends
+{"state": {"channel": "email",
+           "message": "您好：我的AuraBook Pro 16有好几个按键突然失灵了，电脑没有摔过，也没有进过水。……",
+           "device": {"product_line": "AuraBook Pro 16", "region": "US", "warranty_plan": "Premium Care 3Y",
+                      "days_since_purchase": 731, "battery_cycles": 667, "last_error_code": "none", "bios_version": "1.18"}},
+ "questions": {"queue": {"type": "choice", "instructions": "Which Contoso support queue should take this case?",
+                         "criteria": {"remote_l1": "Remote software support: drivers, Windows, Contoso apps and settings",
+                                      "depot_repair": "Mail-in repair at a Contoso service center",
+                                      "onsite_repair": "A technician visits the customer", "...": "5 more options"}},
+               "onsite_eligible": {"type": "noul", "instructions": "Is the customer entitled to an onsite technician visit for this case?"},
+               "urgency": {"type": "score", "instructions": "How urgently must Contoso respond?",
+                           "criteria": ["Can wait", "Within this week", "Today", "Immediately: safety or data-loss risk"]}}}
+// response (excerpt, probabilities rounded to 3 decimals): client_latency_ms = 783.8
+{"model": "contoso-kev-0.8b-ftcf",
+ "answers": {"queue": {"type": "choice", "choice": "sales_ops",
+                       "probabilities": {"sales_ops": 0.423, "depot_repair": 0.313, "onsite_repair": 0.262, "remote_l1": 0.001, "...": "..."},
+                       "confidence": 0.341},
+             "onsite_eligible": {"type": "noul", "noul": 0.286},
+             "urgency": {"type": "score", "score": 1.000,
+                         "legend": {"0": "Can wait", "1": "Within this week", "2": "Today", "3": "Immediately: safety or data-loss risk"},
+                         "probabilities": {"0": 0.000, "1": 1.000, "2": 0.000, "3": 0.000}, "confidence": 1.000}},
+ "usage": {"input_tokens": 500, "output_tokens": 0}}
+```
+<!-- /SOURCE:FENCE:1 -->
+
+**Startup arguments one by one** (matching the command in step A1; defaults from the [llama-server b11935 documentation](https://github.com/ggml-org/llama.cpp/blob/b11935/tools/server/README.md), measured values from [section 5](#5-laptop-inference-engine)):
+
+<!-- SOURCE:TABLE:4 -->
+| Startup argument| Value in this run| What it does| What changes if you change it| 
+| ---| ---| ---| ---| 
+| `-m` / `--alias`| Path of the fine-tuned GGUF / `contoso-kev-0.8b-ftcf`| Model file to load / model name reported in API responses| Changing the file changes the model; the alias only affects the `model` field in responses| 
+| `--host` / `--port`| `127.0.0.1` / `8080`| Listen on the loopback address only| `0.0.0.0` exposes the server to the network; not recommended here| 
+| `-c` (`--ctx-size`)| 8192| Context-token limit per slot (default 0 = read from the model)| Drives memory. Inputs here are about 500 tokens; at 2048 the commit charge fell from 5,014 to 2,119 MiB, accuracy was unchanged, and one support decision went from 669 to 1,163 ms| 
+| `-b` (`--batch-size`) / `-ub` (`--ubatch-size`)| 2048 / 2048| Logical / physical batch size per forward pass (defaults 2048 / 512)| Larger values process more tokens per pass and need more scratch memory; `-ub 512` is part of the low-memory setting| 
+| `-ngl` (`--gpu-layers`)| 0| Number of layers placed on the GPU (default auto)| 0 = everything on the CPU. The Adreno OpenCL build uses 99 (all layers on the GPU) and measured slower on this laptop| 
+| `--cache-ram`| 0| Prompt-cache limit in MiB (b11935 default: 8192 for ordinary models, 0 for decision models)| Set to 0 explicitly: every request is recomputed and results are reproducible| 
+| `--offline`| On| Never download models from the network| Local files only| 
+| `-np` (`--parallel`)| Not set (auto; the local log shows `n_slots = 4`)| Number of parallel slots| This project sends one request at a time; concurrency was not tested| 
+| `--temp` and other sampling arguments| Not used| Sampling settings for text generation| The decision endpoint generates no text; the probability temperature comes from GGUF metadata, not `--temp`| 
+<!-- /SOURCE:TABLE:4 -->
+
+**Why CPU rather than GPU or NPU.** The CPU build uses 12 threads (log: `n_threads = 12`). The Snapdragon X Elite's Adreno GPU runs through the OpenCL build of llama.cpp and measured slower than CPU (0.8B FT support median 1,035 ms versus 669 ms) while using about 3,400 MiB of additional shared GPU memory. The Hexagon NPU was not tested: Windows requires driver test-signing for it, which was not enabled on the company laptop. The recommended configuration is therefore Q8_0 on CPU.
 
 ### Validation Scenarios
 
 Support-ticket triage and assistant routing are two evaluation scenarios, not the complete business requirement. Both require understanding the message and applying policies to device fields.
 
-<!-- SOURCE:TABLE:3 -->
+<!-- SOURCE:TABLE:5 -->
 | Scenario| Model input| Questions to answer| 
 | ---| ---| ---| 
 | Support-ticket triage| Customer message + device record (product line, region, warranty, purchase age, battery cycles, diagnostic code)| Queue (8 choices), onsite eligibility (yes/no), urgency (4 levels)| 
 | On-device assistant routing| User message + device state (network, enterprise management, power/battery, foreground application)| Tool (14 choices), entirely local action (yes/no), confirmation before execution (yes/no)| 
-<!-- /SOURCE:TABLE:3 -->
+<!-- /SOURCE:TABLE:5 -->
 
 Many answers depend on fields absent from the message. For the same loose-hinge complaint, Premium Care 3Y, an in-warranty device and a CN/JP/DE/US region imply onsite service. Singapore or an expired warranty changes the answer to mail-in service or a paid quote. Released Kev does not know these vendor rules.
 
@@ -93,29 +184,29 @@ The repository answers four questions:
 
 **Compared configurations** use the same records and the same `kev.benchmark` evaluator:
 
-<!-- SOURCE:TABLE:4 -->
+<!-- SOURCE:TABLE:6 -->
 | Name| Method| 
 | ---| ---| 
 | B0| Released Kev (`jaredpalmer/kev-{0.8b,4b}@v1.0`), one-sentence question instructions, no training| 
 | B0-policy| The same release with full vendor policy in each question (the support question section grows from about 950 to 4,600 characters per record)| 
 | FT| Continue from the release with supervised fine-tuning (SFT): cross-entropy on the correct answer, not reinforcement learning; other loss weights are 0 in the [training configuration](验证结果/微调评测_20261027-220226/runs/0.8b/ft/training_config.json). Rank-16 LoRA + pointer head, 2 epochs, lr 2e-5, effective batch 8, bf16, seed 1; mix in 1,000 Kev replay records; fit temperature on calibration data| 
 | FT-cf| Add counterfactual variants to FT data: keep the training message, change one policy field and recompute labels (2,147 → 3,832 training records). This recipe addresses FT's poor field-change pairs; the selection rule was written into the [protocol](文档/Experiment-Protocol.md) before its results| 
-<!-- /SOURCE:TABLE:4 -->
+<!-- /SOURCE:TABLE:6 -->
 
 **Test data** uses policy-computed labels. An original case and its field variants stay in one split. Group isolation does not guarantee distinct short messages across unrelated cases: 19 assistant test records have text also seen in training. The report includes a comparison excluding them.
 
-<!-- SOURCE:TABLE:5 -->
+<!-- SOURCE:TABLE:7 -->
 | Test set| Records / questions| Message author| Purpose| 
 | ---| ---| ---| ---| 
 | Support and assistant: in-distribution| 170 / 510, 159 / 477| Model A, also used for training messages| Main results| 
 | Support and assistant: out-of-distribution| 337 / 1,011, 317 / 951| Another provider's model B; more Singapore, offline and metered-network cases, with two intents in one message| Effect after changing generator and field distribution| 
 | Support and assistant: test variants| 126 / 378, 70 / 210| Keep the test message and change one policy field| Whether the model applies policy to device fields| 
 | Kev transfer-v4 development set| 656 questions| Kev author's public tasks| General-capability retention| 
-<!-- /SOURCE:TABLE:5 -->
+<!-- /SOURCE:TABLE:7 -->
 
 One support test record is shown below, with option descriptions abbreviated. The model sees `state`; policy code derives `label` from the device record, and the model never receives it. The Chinese message is retained verbatim because it is the actual test input, not untranslated documentation.
 
-<!-- SOURCE:FENCE:1 -->
+<!-- SOURCE:FENCE:2 -->
 ```json
 {"state": {"channel": "email",
            "message": "您好：\n请问我的 Contoso Nimbus 2-in-1 订单目前是什么状态？麻烦告知最新进度。\n谢谢\n李明",
@@ -125,7 +216,7 @@ One support test record is shown below, with option descriptions abbreviated. Th
                "onsite_eligible": {"type": "noul", "label": false},
                "urgency": {"type": "score", "label": 0}}}
 ```
-<!-- /SOURCE:FENCE:1 -->
+<!-- /SOURCE:FENCE:2 -->
 
 <img src="images/validation-en.png" width="900" alt="The same unlabeled test inputs enter independent PyTorch on H100 and laptop llama.cpp paths. Both predictions enter scoring; labels are used only by the scorer. Accuracy and engine agreement are reported separately.">
 
@@ -135,7 +226,7 @@ The following results are **historical measurements from 2026-10-27**, separate 
 
 **Measurement boundaries**:
 
-<!-- SOURCE:TABLE:6 -->
+<!-- SOURCE:TABLE:8 -->
 | Metric| Measurement location| Measurement start and end| Excludes| 
 | ---| ---| ---| ---| 
 | Accuracy, Brier, ECE and coverage at the error budget| GPU VM, `kev.benchmark --device cuda`| Score each question once and aggregate by question| Latency| 
@@ -145,38 +236,38 @@ The following results are **historical measurements from 2026-10-27**, separate 
 | Device request latency| Laptop, `systemone_client.py` → `127.0.0.1:8080`| Client sends one record → receives all 3 answers; sequential, not concurrent| First 2 warm-up requests and model loading| 
 | Device process memory| Laptop: read `llama-server` process counters after evaluation| Peak working set (physical process memory) and committed process memory| —| 
 | Agreement with PyTorch| Laptop, `parity.py`| Compare answers and probabilities question by question on the same file| —| 
-<!-- /SOURCE:TABLE:6 -->
+<!-- /SOURCE:TABLE:8 -->
 
 ### 1. Same Questions: Before and After Fine-Tuning
 
 **The customer-facing comparison answers three questions: are business decisions more accurate, do improvements carry over to new questions, and does laptop execution cost change?** Every main-table row compares the same-size released model with the final recommended FT-cf recipe, trained on business data plus field variants. The candidate is not changed to whichever model wins each metric. Policy prompting and the first FT recipe remain separate experimental controls.
 
-Accuracy in the first two tables comes from the same H100 NVL / PyTorch evaluation path. The third table measures laptop CPU latency and memory. These measurement locations are separate: PyTorch accuracy is not the quantized model's device accuracy. Section 4 retains the complete on-device results.
+Accuracy in the first two tables comes from the same H100 NVL / PyTorch evaluation path. The third table measures laptop CPU latency and memory. These measurement locations are separate: PyTorch accuracy is not the quantized model's device accuracy. [Section 5](#5-laptop-inference-engine) retains the complete on-device results.
 
 **Before and after use the same questions, options, labels and short question instructions for each accuracy or generalization comparison.** Support and assistant routing are different tasks, each compared within its own test set. Generalization uses out-of-distribution questions excluded from weight training, not training questions. The message generator and field distribution change, but the data remains simulated rather than real customer production data. Request hashes and question-level labels are retained in the [original evaluation records](验证结果/微调评测_20261027-220226/runs).
 
 <!-- TABLE:README_ACC -->
 **Accuracy: the same business test questions**
 
-<!-- SOURCE:TABLE:7 -->
+<!-- SOURCE:TABLE:9 -->
 | Parameter scale| Test set (questions)| Before fine-tuning: released accuracy| After fine-tuning: final-recipe accuracy| Gain (percentage points)| 
 | ---| ---| ---| ---| ---| 
 | 0.8B| Support: in-distribution (510 questions)| 44.7%| 86.9%| +42.2| 
 | 0.8B| Assistant: in-distribution (477 questions)| 67.1%| 97.5%| +30.4| 
 | 4B| Support: in-distribution (510 questions)| 60.8%| 95.9%| +35.1| 
 | 4B| Assistant: in-distribution (477 questions)| 81.8%| 99.8%| +18.0| 
-<!-- /SOURCE:TABLE:7 -->
+<!-- /SOURCE:TABLE:9 -->
 
 **Generalization: the same out-of-distribution questions**
 
-<!-- SOURCE:TABLE:8 -->
+<!-- SOURCE:TABLE:10 -->
 | Parameter scale| Test set (questions)| Before fine-tuning: released accuracy| After fine-tuning: final-recipe accuracy| Gain (percentage points)| 
 | ---| ---| ---| ---| ---| 
 | 0.8B| Support: out-of-distribution (1,011 questions)| 43.0%| 82.5%| +39.5| 
 | 0.8B| Assistant: out-of-distribution (951 questions)| 65.7%| 94.4%| +28.7| 
 | 4B| Support: out-of-distribution (1,011 questions)| 60.7%| 91.4%| +30.7| 
 | 4B| Assistant: out-of-distribution (951 questions)| 81.9%| 98.8%| +16.9| 
-<!-- /SOURCE:TABLE:8 -->
+<!-- /SOURCE:TABLE:10 -->
 <!-- /TABLE:README_ACC -->
 
 **Performance: the same laptop and requests, comparing latency and memory**
@@ -184,7 +275,7 @@ Accuracy in the first two tables comes from the same H100 NVL / PyTorch evaluati
 Both sides use Snapdragon X Elite X1E80100, llama.cpp b11935 CPU and `-c 8192 -b 2048 -ub 2048 --cache-ram 0`. Both 0.8B models use Q8_0; both 4B models use Q4_K_M. Performance effects are not attributed across model sizes. Each side completes the same 170 support requests and 159 assistant requests, with 3 questions per request. Request timing excludes model loading and warm-up; memory is the process peak working set across the run.
 
 <!-- TABLE:README_PERFORMANCE -->
-<!-- SOURCE:TABLE:9 -->
+<!-- SOURCE:TABLE:11 -->
 | Fixed model configuration| Performance metric (unit)| Before fine-tuning: released measurement| After fine-tuning: final-recipe measurement| 
 | ---| ---| ---| ---| 
 | 0.8B / Q8_0 / CPU| Support median request time (ms)| 666| 646| 
@@ -193,7 +284,7 @@ Both sides use Snapdragon X Elite X1E80100, llama.cpp b11935 CPU and `-c 8192 -b
 | 4B / Q4_K_M / CPU| Support median request time (ms)| 3,022| 3,615| 
 | 4B / Q4_K_M / CPU| Assistant median request time (ms)| 3,790| 4,751| 
 | 4B / Q4_K_M / CPU| Peak process working set (MiB)| 6,849| 6,842| 
-<!-- /SOURCE:TABLE:9 -->
+<!-- /SOURCE:TABLE:11 -->
 <!-- /TABLE:README_PERFORMANCE -->
 
 These are [recorded device runs](验证结果/端侧引擎_20261027-124700), not GPU evaluation timings. Case IDs, order, labels, input token counts and recorded core settings have been paired. The older device records lack per-request content hashes, so that comparison is not independent proof of byte-identical requests. Each configuration ran once and timing varies between runs: **the observations establish better accuracy, not faster inference caused by fine-tuning, nor that fine-tuning explains the entire latency difference.**
@@ -212,33 +303,33 @@ The full released, policy-prompted, FT and FT-cf matrix remains in [report secti
 This is separate from business generalization: after adapting to the business, does the model lose its prior general-task capability? Each before/after pair uses the same 656 public Kev questions. Both FT and FT-cf recipes are retained below; the main comparison uses the FT-cf rows.
 
 <!-- TABLE:PUBLIC -->
-<!-- SOURCE:TABLE:10 -->
+<!-- SOURCE:TABLE:12 -->
 | Model and recipe| General questions| Released accuracy| Fine-tuned accuracy| Change (percentage points)| 
 | ---| ---| ---| ---| ---| 
 | 0.8B FT| 656| 64.8%| 64.8%| 0.0| 
 | 0.8B FT-cf| 656| 64.8%| 64.8%| 0.0| 
 | 4B FT| 656| 81.7%| 80.9%| -0.8| 
 | 4B FT-cf| 656| 81.7%| 82.6%| +0.9| 
-<!-- /SOURCE:TABLE:10 -->
+<!-- /SOURCE:TABLE:12 -->
 
 **Confidence on general questions: lower Brier is better.**
 
-<!-- SOURCE:TABLE:11 -->
+<!-- SOURCE:TABLE:13 -->
 | Model and recipe| Released Brier| Fine-tuned Brier| 
 | ---| ---| ---| 
 | 0.8B FT| 0.430| 0.560| 
 | 0.8B FT-cf| 0.430| 0.574| 
 | 4B FT| 0.243| 0.299| 
 | 4B FT-cf| 0.243| 0.269| 
-<!-- /SOURCE:TABLE:11 -->
+<!-- /SOURCE:TABLE:13 -->
 <!-- /TABLE:PUBLIC -->
 
 - **The predefined forgetting threshold was not triggered.** The threshold is an accuracy drop greater than 2 percentage points. Both 0.8B recipes remain at the released model's 64.8%. FT corrects 20 answers but breaks 20 others; FT-cf corrects 22 and breaks 22. The 4B FT score falls from 81.7% to 80.9%, or 5 fewer correct answers out of 656; FT-cf reaches 82.6%, or 6 more. This does not mean every general task is unchanged.
 - **Confidence quality on general questions worsens.** Business calibration changes 0.8B's temperature from 2.35 to 1.26, making probabilities sharper. Recomputing 0.8B FT at the released temperature of 2.35 gives Brier 0.490, still worse than 0.430 before fine-tuning. Weight changes therefore also contribute. For 4B, FT at temperature 1.66 changes Brier from 0.243 to 0.299; FT-cf at 2.35 scores 0.269. A model serving both vendor and general decisions should be calibrated on mixed data.
 
-### Calibration: Correct Ranking Does Not Guarantee Reliable Probabilities
+### 3. Calibration: Correct Ranking Does Not Guarantee Reliable Probabilities
 
-**Fine-tuning learns which answer to choose; calibration adjusts the probabilities assigned to those answers.** The model produces logits and converts them with `softmax(logits / T)`. T is a dimensionless positive number, not accuracy or a business threshold. An already-trained model can keep all its weights while T is refitted; repeating the same training run is unnecessary for a probability-only adjustment.
+**Fine-tuning learns which answer to choose; calibration adjusts the probabilities assigned to those answers.** The model produces logits (the pointer-head scores z of the previous section) and converts them with `softmax(logits / T)`. T is a dimensionless positive number, not accuracy or a business threshold. An already-trained model can keep all its weights while T is refitted; repeating the same training run is unnecessary for a probability-only adjustment.
 
 Calibration data supplies inputs, questions, candidate options and correct labels, not a target probability table. Vendor-policy code computes the labels here; a language model only generates simulated messages and does not judge calibration. Training data updates weights, development data selects a recipe, calibration data fits T, and data excluded from selection is used for acceptance. Inference applies the saved T without refitting it.
 
@@ -248,26 +339,26 @@ The recorded 0.8B FT-cf fit uses **984 calibration questions** and reports T app
 
 **Customers receive a GGUF with calibration parameters inside it.** The engine applies that temperature after loading the file; no separate calibration service is required. Requests for clarification or human review belong to the business application; this repository provides no automatic handoff or model fallback. If answer quality is inadequate, improve the data and training rather than just changing T. For a probability-only adjustment, use the [calibration-only update workflow](#calibration-update).
 
-### 3. Training Resources
+### 4. Training Resources
 
 <!-- TABLE:TRAIN -->
-<!-- SOURCE:TABLE:12 -->
+<!-- SOURCE:TABLE:14 -->
 | Model and recipe| micro-batch × accum| Records processed (2 epochs)| Optimizer steps| 
 | ---| ---| ---| ---| 
 | 0.8B FT| 1 × 8| 6,294| 788| 
 | 0.8B FT-cf| 4 × 2| 9,664| 1,208| 
 | 4B FT| 4 × 2| 6,294| 788| 
 | 4B FT-cf| 4 × 2| 9,664| 1,208| 
-<!-- /SOURCE:TABLE:12 -->
+<!-- /SOURCE:TABLE:14 -->
 
-<!-- SOURCE:TABLE:13 -->
+<!-- SOURCE:TABLE:15 -->
 | Model and recipe| Wall-clock time| Whole-device GPU peak (nvidia-smi)| PyTorch allocation peak| Calibration temperature| 
 | ---| ---| ---| ---| ---| 
 | 0.8B FT| 26.9 minutes| 4,555 MiB| 3,460 MiB| 1.26| 
 | 0.8B FT-cf| 11.6 minutes| 7,573 MiB| 5,326 MiB| 1.15| 
 | 4B FT| 15.7 minutes| 33,359 MiB| 22,581 MiB| 1.66| 
 | 4B FT-cf| 20.1 minutes| 26,215 MiB| 22,641 MiB| 2.35| 
-<!-- /SOURCE:TABLE:13 -->
+<!-- /SOURCE:TABLE:15 -->
 <!-- /TABLE:TRAIN -->
 
 - 0.8B FT takes about 27 minutes with micro-batch 1. FT-cf uses micro-batch 4, sees 54% more training records and takes about 12 minutes. Data and micro-batch both change, so the entire time difference cannot be attributed to one parameter. At micro-batch 4 and 9,664 processed records, 4B FT-cf takes 20.1 minutes versus 11.6 minutes for 0.8B. Effective batch is 8 throughout.
@@ -275,12 +366,12 @@ The recorded 0.8B FT-cf fit uses **984 calibration questions** and reports T app
 - **Micro-batch 1 reduces memory demand.** An 8-step probe on the 64 longest vendor records, with bf16, gradient checkpointing, `max_state 768`, micro-batch 1 and accumulation 8, ran with no other GPU process. Whole-device peaks were 4,213 MiB for 0.8B and 18,547 MiB for 4B; PyTorch allocations were 3,365/17,375 MiB. The probe omitted Kev replay records. Full 0.8B FT at micro-batch 1 allocated 3,460 MiB, about 3% above its probe. Leave headroom.
 - At this VM's list price of USD 9.07 per hour, one 0.8B training run costs approximately USD 1.8-4.1 and one 4B run USD 2.4-3.0. Source: Azure Retail Prices API, Spain Central, 2026-10-27. Actual subscription discounts were not checked.
 
-### 4. Laptop Inference Engine
+### 5. Laptop Inference Engine
 
 Test hardware: Snapdragon X Elite X1E80100, 12 CPU cores, 64 GB RAM, Adreno X1-85 GPU with driver 31.0.133.1, and Windows 11 Enterprise. Runtime: official llama.cpp b11935 Windows ARM64 CPU and Adreno OpenCL packages.
 
 <!-- TABLE:ENGINE -->
-<!-- SOURCE:TABLE:14 -->
+<!-- SOURCE:TABLE:16 -->
 | Model, quantization and runtime settings| Support accuracy: device (PyTorch)| Assistant accuracy: device (PyTorch)| Support agreement: device vs. PyTorch| Assistant agreement: device vs. PyTorch| 
 | ---| ---| ---| ---| ---| 
 | Released 0.8B<br>Q8_0 · CPU, default settings| 45.7% (44.7%)| 66.9% (67.1%)| 97.6%| 99.0%| 
@@ -294,9 +385,9 @@ Test hardware: Snapdragon X Elite X1E80100, 12 CPU cores, 64 GB RAM, Adreno X1-8
 | Fine-tuned FT-cf 0.8B<br>Q8_0 · CPU, default settings| 86.9% (86.9%)| 97.7% (97.5%)| 99.2%| 99.8%| 
 | Fine-tuned FT-cf 4B<br>Q4_K_M · CPU, default settings| 95.3% (95.9%)| 99.6% (99.8%)| 98.2%| 99.8%| 
 | Fine-tuned FT-cf 4B<br>Q8_0 · CPU, default settings| 96.1% (95.9%)| 99.8% (99.8%)| 99.4%| 100.0%| 
-<!-- /SOURCE:TABLE:14 -->
+<!-- /SOURCE:TABLE:16 -->
 
-<!-- SOURCE:TABLE:15 -->
+<!-- SOURCE:TABLE:17 -->
 | Model, quantization and runtime settings| Model file (MiB)| Peak working set (MiB)| Committed memory (MiB)| 
 | ---| ---| ---| ---| 
 | Released 0.8B<br>Q8_0 · CPU, default settings| 775| 2,323| 5,016| 
@@ -310,9 +401,9 @@ Test hardware: Snapdragon X Elite X1E80100, 12 CPU cores, 64 GB RAM, Adreno X1-8
 | Fine-tuned FT-cf 0.8B<br>Q8_0 · CPU, default settings| 775| 2,314| 5,014| 
 | Fine-tuned FT-cf 4B<br>Q4_K_M · CPU, default settings| 2,893| 6,842| 7,495| 
 | Fine-tuned FT-cf 4B<br>Q8_0 · CPU, default settings| 4,276| 9,609| 8,884| 
-<!-- /SOURCE:TABLE:15 -->
+<!-- /SOURCE:TABLE:17 -->
 
-<!-- SOURCE:TABLE:16 -->
+<!-- SOURCE:TABLE:18 -->
 | Model, quantization and runtime settings| Support median request time (ms)| Assistant median request time (ms)| 
 | ---| ---| ---| 
 | Released 0.8B<br>Q8_0 · CPU, default settings| 666| 843| 
@@ -326,21 +417,41 @@ Test hardware: Snapdragon X Elite X1E80100, 12 CPU cores, 64 GB RAM, Adreno X1-8
 | Fine-tuned FT-cf 0.8B<br>Q8_0 · CPU, default settings| 646| 984| 
 | Fine-tuned FT-cf 4B<br>Q4_K_M · CPU, default settings| 3,615| 4,751| 
 | Fine-tuned FT-cf 4B<br>Q8_0 · CPU, default settings| 3,649| 4,115| 
-<!-- /SOURCE:TABLE:16 -->
+<!-- /SOURCE:TABLE:18 -->
 
 Incomplete runs excluded from the tables: `ft-kev-0.8b-Q8_0-cpu-ctx2048` (144 support records, no summary) and `ft-kev-4b-Q4_K_M-cpu` (36 support records, no summary).
 <!-- /TABLE:ENGINE -->
 
-- **The device runs the fine-tuned model.** Export merges LoRA into the base and writes the calibrated temperature into GGUF: 1.2599 for 0.8B FT, 1.1487 for 0.8B FT-cf and 2.3511 for 4B FT-cf. For 0.8B FT Q8_0 on CPU, accuracy matches PyTorch; 506/510 support and 475/477 assistant answers agree. FT-cf has 506 and 476 agreements. Its sole assistant disagreement is close to 0.5 in both runtimes, 0.528 versus 0.572. For 4B FT-cf Q8_0, 507 support and all 477 assistant answers agree. The three support disagreements have selected-answer probabilities of only 0.48-0.51; llama.cpp gets one additional question right, 96.1% versus 95.9%.
-- **Prefer Q8_0 on CPU; consider Q4_K_M for 4B when memory is tight.** For 0.8B, Q4_K_M saves about 250 MiB on disk and 500 MiB of peak working set, but was not faster on this laptop and reduces PyTorch agreement to 94.9%/97.9%. The 1-point accuracy increase on this set is a favorable quantization perturbation, not evidence of generally better quality. For 4B FT-cf, Q4_K_M saves 1,383 MiB on disk and 2,767 MiB of working set, 6,842 versus 9,609 MiB. Agreement falls to 98.2%/99.8%; support accuracy is 0.6 points below PyTorch, with 6 PyTorch-correct/engine-wrong questions and 3 in the reverse direction. Adreno is slower, at a 1,035 ms support median versus 669 ms on CPU, and uses about 3,400 MiB more shared GPU memory.
+#### Inference Optimization: Which Levers Were Measured
+
+The table below gathers the inference-side variables already measured in the three tables above. Each row changes one variable; values are taken directly from those tables (0.8B uses the FT rows, which cover the most configurations). "Not tested" marks a combination that was not run, not a conclusion. Each configuration ran once, and paired latency between two runs of the same architecture differed by up to 24% (see "Single-run latency varies" below), so latency differences within 20% are not interpreted.
+
+<!-- SOURCE:TABLE:19 -->
+| Optimization lever| Comparison (baseline → change)| Accuracy (support / assistant)| Median support decision (ms)| Peak working set (MiB)| One-line conclusion| 
+| ---| ---| ---| ---| ---| ---| 
+| Weight quantization| 0.8B FT Q8_0 → Q4_K_M (CPU, default arguments)| 86.5% / 93.5% → 87.5% / 93.9%| 669 → 812| 2,314 → 1,819| File 247 MiB smaller and memory 495 MiB lower, but not faster; agreement with PyTorch fell from 99.2% / 99.6% to 94.9% / 97.9%. The 1-point higher accuracy is quantization noise that happened to favor correct answers, not an improvement| 
+| Weight quantization| 4B FT-cf Q8_0 → Q4_K_M (CPU, default arguments)| 96.1% / 99.8% → 95.3% / 99.6%| 3,649 → 3,615| 9,609 → 6,842| File 1,383 MiB smaller and memory 2,767 MiB lower; support accuracy 0.6 points below PyTorch. Usable when 4B memory is tight| 
+| Context and batch size| 0.8B FT Q8_0 `-c 8192 -ub 2048` → `-c 2048 -ub 512`| 86.5% / 93.5% → unchanged| 669 → 1,163| 2,314 → 2,196 (commit charge 5,014 → 2,119)| Commit charge 2,895 MiB lower; the cost is 74% slower on support and 44% slower on assistant, accuracy unchanged. Inputs are only about 500 tokens, so most of the 8192 context was unused| 
+| Compute backend| 0.8B FT Q8_0 CPU → Adreno GPU (OpenCL, `-ngl 99`)| 86.5% / 93.5% → 85.7% / 93.7%| 669 → 1,035| 2,314 → 4,105| The GPU is slower, the process working set is 1,791 MiB higher, about 3,400 MiB of shared GPU memory is used in addition, and agreement fell to 97.6% / 99.0%. Not the choice on this laptop| 
+| Prompt length| Released 0.8B Q8_0, short description → full policy text in the prompt (B0-policy)| 45.7% / 66.9% → 60.6% / 71.7%| 666 → 4,353| 2,323 → 3,446| Median input tokens per record 488 → 1,505, 6.5× slower and 1.1 GB more memory; accuracy still far below fine-tuning (FT-cf 86.9% / 97.7%). Rules belong in the weights, not in every prompt| 
+| Model size| Released 4B Q4_K_M → fine-tuned 0.8B FT-cf Q8_0 (both CPU, default arguments)| 59.0% / 82.0% → 86.9% / 97.7%| 3,022 → 646| 6,849 → 2,314| A fine-tuned small model beats an untuned larger one: 27.9 / 15.7 points more accurate, 3.9–4.7× faster, about one third of the memory| 
+| Concurrent requests| Not tested| —| —| —| One request at a time in this project; `llama-server` opens 4 slots by default but no load test was run| 
+| NPU (Hexagon)| Not tested| —| —| —| Requires driver test-signing on Windows, which was not enabled on the company laptop| 
+| Speculative decoding, KV-cache reuse| Not applicable| —| —| —| The decision endpoint generates no tokens, so there is no decode phase; `--cache-ram 0` disables the prompt cache| 
+<!-- /SOURCE:TABLE:19 -->
+
+- **The device runs the fine-tuned model.** Export merges LoRA into the base and writes the calibrated temperature into GGUF: 1.2599 for 0.8B FT, 1.1487 for 0.8B FT-cf and 2.3511 for 4B FT-cf, each equal to its calibration result.
+- **Q8_0 agrees with PyTorch almost question by question.** For 0.8B FT Q8_0 on CPU, accuracy matches PyTorch; 506/510 support and 475/477 assistant answers agree. FT-cf has 506 and 476 agreements; its sole assistant disagreement is close to 0.5 in both runtimes, 0.528 versus 0.572. For 4B FT-cf Q8_0, 507 support and all 477 assistant answers agree; the three support disagreements have selected-answer probabilities of only 0.48-0.51, and llama.cpp gets one additional question right, 96.1% versus 95.9%.
+- **Prefer Q8_0 on CPU; consider Q4_K_M for 4B when memory is tight.** The reasons are the quantization and backend rows of the table above.
 - **Memory can be traded for latency.** Defaults are `-c 8192 -b 2048 -ub 2048`, with 4 parallel slots. Changing to `-c 2048 -ub 512` reduces committed memory from 5,014 to 2,119 MiB without changing accuracy, but raises request time to about 1.2 seconds.
 - **Policy prompts cost more on the device.** Median input tokens increase from 488 to 1,505 for support, and from 456 to 813 for assistant routing. One decision takes about 4.4 seconds and 2.4 seconds, respectively.
 - **An untuned 4B model is not a substitute for tuning 0.8B.** On the same laptop CPU, released 4B Q4_K_M scores 59.0%/82.0%, versus 86.9%/97.7% for 0.8B FT-cf Q8_0, a deficit of 27.9/15.7 points. Median latency is 3,022/3,790 ms versus 646/984 ms, or 3.9-4.7 times as long. Peak working set is 6,849 versus 2,314 MiB, roughly 3 times as much.
-- **Single-run latency varies.** 0.8B FT and FT-cf have the same architecture and identical input-token counts per record. Paired by record, FT-cf is 53 ms faster on support and 166 ms slower on assistant, approximately -8%/+20%. Each configuration was measured once. Q4_K_M-versus-Q8_0 differences of +21%/+11% are of similar size, unlike Adreno (+49% to +76%), the smaller context/micro-batch (+44%/+74%) or policy prompting (2.9-6.5 times the latency). Across three 4B runs, tokens also match per record, but paired medians differ by 7-24%; even released versus fine-tuned Q4_K_M differs by 23-24%. At assistant record 139 in the 4B FT-cf Q8_0 run, the laptop entered standby for 5.4 hours. Including that request gives a 4,115 ms median; excluding it gives 4,113 ms. Q4_K_M ran after resume. For 4B, interpret only the 3-5 second order of magnitude; this experiment cannot rank the two quantizations by speed.
+- **Single-run latency varies; differences within 20% are not interpreted.** 0.8B FT and FT-cf have the same architecture and identical input-token counts per record. Paired by record, FT-cf is 53 ms faster on support and 166 ms slower on assistant, approximately -8%/+20%. Each configuration was measured once. Q4_K_M-versus-Q8_0 differences of +21% on support and +11% on assistant are of similar size, unlike Adreno (+49% to +76%), the smaller context/micro-batch (+74% support, +44% assistant) or policy prompting (2.9-6.5 times the latency).
+- **For 4B, interpret only the order of magnitude: about 3-5 seconds per decision.** Across three 4B runs (released Q4_K_M, FT-cf Q8_0, FT-cf Q4_K_M), tokens also match per record, but paired medians differ by 7-24%; even released versus fine-tuned Q4_K_M differs by 23-24%. At assistant record 139 in the 4B FT-cf Q8_0 run, the laptop entered standby for 5.4 hours; including that request gives a 4,115 ms median, excluding it 4,113 ms. Q4_K_M ran after resume. This experiment cannot rank the two quantizations by speed.
 
-### 5. Hardware Requirements
+### 6. Hardware Requirements
 
-<!-- SOURCE:TABLE:17 -->
+<!-- SOURCE:TABLE:20 -->
 | Stage| GPU required?| Measured hardware and usage (GPU memory is nvidia-smi peak)| Estimated minimum from memory measurements; these cards were not tested| 
 | ---| ---| ---| ---| 
 | Train 0.8B| 1 GPU required; these scripts use NVIDIA CUDA| H100 NVL; 4,555 MiB GPU memory (micro-batch 1), 7,573 MiB (micro-batch 4)| 8 GB GPU memory (micro-batch 1)| 
@@ -348,16 +459,16 @@ Incomplete runs excluded from the tables: `ft-kev-0.8b-Q8_0-cpu-ctx2048` (144 su
 | GGUF export| No; CPU only| GPU host's CPU| —| 
 | Laptop inference 0.8B (Q8_0)| No discrete GPU or NPU; CPU inference| 12-core Snapdragon X Elite; 2,314 MiB peak working set, 5,014 MiB commitment (defaults) or 2,119 MiB (`-c 2048 -ub 512`)| Size total RAM for this process plus the OS and other applications| 
 | Laptop inference 4B FT-cf (Q8_0 / Q4_K_M)| No discrete GPU or NPU; CPU inference| 12-core Snapdragon X Elite; peak working set 9,609 / 6,842 MiB and commitment 8,884 / 7,495 MiB| Same sizing principle| 
-<!-- /SOURCE:TABLE:17 -->
+<!-- /SOURCE:TABLE:20 -->
 
 - **Why the 24 GB estimate for 4B?** The micro-batch 1 result of 18,547 MiB is only a probe on 64 long vendor records, not a full run. Full 0.8B training used about 8% more whole-device memory than its probe, 4,555 versus 4,213 MiB. Applying that margin suggests about 20 GB for 4B, leaving roughly 4 GB on a 24 GB GPU. This is an estimate, not a tested minimum.
-- **The recipe uses bf16**, through `--dtype bf16`; check hardware support. Training time was measured only on H100 NVL in section 3. Smaller, slower GPUs will take longer, but their duration was not measured.
+- **The recipe uses bf16**, through `--dtype bf16`; check hardware support. Training time was measured only on H100 NVL in section 4. Smaller, slower GPUs will take longer, but their duration was not measured.
 - **PyTorch evaluation through `kev.benchmark` also ran on GPU.** Its memory was not recorded separately. It is not required for routine device inference.
-- **The NPU was not tested.** Adreno GPU was slower than CPU, as described in section 4.
+- **The NPU was not tested.** Adreno GPU was slower than CPU, as described in section 5.
 
 <a id="local-result"></a>
 
-### A Real Local Trial: A Response Is Not Necessarily Correct
+### 7. A Real Local Trial: A Response Is Not Necessarily Correct
 
 On 2026-10-28, UTC-07:00, the Snapdragon X Elite X1E80100 laptop with about 64 GB RAM loaded **0.8B FT-cf Q8_0** with llama.cpp b11935 CPU. Single requests went to `127.0.0.1:8080/v1/systemone`. The server used `--offline`; each request answered 3 questions, without extra warm-up or calls to other models.
 
@@ -365,13 +476,13 @@ On 2026-10-28, UTC-07:00, the Snapdragon X Elite X1E80100 laptop with about 64 G
 
 The support message was “我的AuraBook Pro 16有好几个按键突然失灵了，电脑没有摔过，也没有进过水。” It reports failed keys without a drop or liquid spill. The device had Premium Care 3Y and was purchased 731 days earlier. The second request changed only region US to SG. The assistant message was “帮我联系人工客服咨询保修。” Complete unlabeled inputs are in [data/contoso/examples](data/contoso/examples); the quoted Chinese is the actual input.
 
-<!-- SOURCE:TABLE:18 -->
+<!-- SOURCE:TABLE:21 -->
 | Trial request| Policy-required result| Actual model output| This single request (ms)| Raw request and response| 
 | ---| ---| ---| ---| ---| 
 | Support, region US| Onsite repair; eligible; urgency 1| `sales_ops` (orders/quotes); ineligible; most likely urgency 1. Wrong queue and onsite eligibility| 783.8| [support-us/result.json](验证结果/本机试用_20261028-201046/support-us/result.json)| 
 | Same support case, region SG| Mail-in repair; ineligible; urgency 1| `sales_ops`; ineligible; most likely urgency 1. Wrong queue| 617.2| [support-sg/result.json](验证结果/本机试用_20261028-201046/support-sg/result.json)| 
 | Assistant: contact human support| `support_chat`; subsequent action is not entirely local; no prior confirmation| All three answers match policy| 774.2| [assistant/result.json](验证结果/本机试用_20261028-201046/assistant/result.json)| 
-<!-- /SOURCE:TABLE:18 -->
+<!-- /SOURCE:TABLE:21 -->
 
 **Local invocation works, but 0.8B is still unreliable on these warranty rules.** The region change reached the request and changed probabilities, but did not produce the correct queue change. The business scenario is simulated; the model output is real. For the assistant request, “not entirely local” describes the subsequent support-contact action. Decision inference itself stayed local and the client did not actually contact support.
 
@@ -389,13 +500,13 @@ These inputs reuse historical records `support-g1-11-00311` and `assistant-g1-12
 
 ### Use and Deployment Order
 
-<!-- SOURCE:TABLE:19 -->
+<!-- SOURCE:TABLE:22 -->
 | Your task| Start here| Execution order| Expected result| 
 | ---| ---| ---| ---| 
 | Try an existing fine-tuned GGUF locally| [A. Local trial](#local-try)| Start runtime → send one request → edit a field and repeat| Real model response, measured timing and raw output files| 
 | Produce a model or adapt to new business data| [B. Train and update](#train-update)| Data → train → calibrate → evaluate → export → update local model| A new checkpoint, evaluation and GGUF; not old-directory overwrite with skipped stages| 
 | Recheck the reported results| [C. Verification](#verify)| Run offline tests or start a real model for full device evaluation| Keep code checks, historical evidence replay and fresh model execution distinct| 
-<!-- /SOURCE:TABLE:19 -->
+<!-- /SOURCE:TABLE:22 -->
 
 This README is the single owner of executable steps. The report explains results; the protocol retains the original decision rules. Run laptop commands from **this project root**, the directory containing this README. After cloning the repository, enter `Deep-Learning/AIPC-Decision-Model-Finetune`.
 
@@ -415,7 +526,7 @@ Customer delivery should include the following, rather than asking the customer 
 
 **A1. Start the local server in one PowerShell terminal.**
 
-<!-- SOURCE:FENCE:2 -->
+<!-- SOURCE:FENCE:3 -->
 ```powershell
 $Engine = 'C:\Tools\llama.cpp\b11935-cpu\llama-server.exe'
 $Model = 'C:\Tools\models\contoso-kev\Contoso-Kev-0.8B-FTcf-Q8_0.gguf'
@@ -424,7 +535,7 @@ if (-not (Test-Path -LiteralPath $Model)) { throw '找不到微调 GGUF，请先
 & $Engine -m $Model --alias contoso-kev-0.8b-ftcf --host 127.0.0.1 --port 8080 `
     -c 8192 -b 2048 -ub 2048 -ngl 0 --cache-ram 0 --offline
 ```
-<!-- /SOURCE:FENCE:2 -->
+<!-- /SOURCE:FENCE:3 -->
 
 Successful logs include `decision model type: kev`, `model loaded` and `listening on http://127.0.0.1:8080`. Keep that terminal running. If the port is occupied, identify its owner rather than closing another process. Change both server and client ports when necessary. This server is for trusted local trials; do not expose it directly to a LAN or the internet.
 
@@ -432,14 +543,14 @@ Successful logs include `decision model type: kev`, `model loaded` and `listenin
 
 **A2. Send one request from a second PowerShell terminal.**
 
-<!-- SOURCE:FENCE:3 -->
+<!-- SOURCE:FENCE:4 -->
 ```powershell
 Invoke-RestMethod -Uri http://127.0.0.1:8080/health
 $Run = Join-Path '验证结果' ('本机试用_' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
 python -B scripts\systemone_client.py --url http://127.0.0.1:8080/v1/systemone `
     --request data\contoso\examples\support.json --out "$Run\support-us"
 ```
-<!-- /SOURCE:FENCE:3 -->
+<!-- /SOURCE:FENCE:4 -->
 
 Health should be normal. A successful invocation writes `request`, the unmodified model `response`, `input_sha256` and `client_latency_ms` to the terminal and `$Run\support-us\result.json`. Without ground truth, it does not report accuracy. Connection failures or missing answers cause a nonzero exit, with no cloud fallback. Use a new output directory for every run.
 
@@ -447,29 +558,29 @@ Real customer requests and responses may be sensitive. Store them privately; do 
 
 **A3. Keep the message fixed, change only the region, and send again.**
 
-<!-- SOURCE:FENCE:4 -->
+<!-- SOURCE:FENCE:5 -->
 ```powershell
 python -B scripts\systemone_client.py --url http://127.0.0.1:8080/v1/systemone `
     --request data\contoso\examples\support-sg.json --out "$Run\support-sg"
 ```
-<!-- /SOURCE:FENCE:4 -->
+<!-- /SOURCE:FENCE:5 -->
 
 [support.json](data/contoso/examples/support.json) and [support-sg.json](data/contoso/examples/support-sg.json) differ only in `state.device.region`. The policy requires onsite service for US and mail-in for SG. In this trial, 0.8B gets both queues wrong; see the real trial above. Edit messages, fields and questions as needed, with a new output directory each time. The client does not correct model answers.
 
 The assistant scenario uses the same runtime:
 
-<!-- SOURCE:FENCE:5 -->
+<!-- SOURCE:FENCE:6 -->
 ```powershell
 python -B scripts\systemone_client.py --url http://127.0.0.1:8080/v1/systemone `
     --request data\contoso\examples\assistant.json --out "$Run\assistant"
 ```
-<!-- /SOURCE:FENCE:5 -->
+<!-- /SOURCE:FENCE:6 -->
 
 `choice` is the selected option and `probabilities` contains option probabilities. `noul` is the probability of yes; this project uses 0.5 for binary decisions. `score` is the expected ordinal value; take the maximum in `probabilities` for the most likely level. API `confidence` is neither accuracy nor the maximum option probability: the US support example above has a maximum probability of 42.3% but `confidence` approximately 34.1%. Specify the field used by a business threshold, select it, then validate on independent data. [Report section 3.4](文档/Finetuning-and-On-Device-Validation-Report.md#calibration-guide) gives the calculation.
 
 **A4. Inspect local memory or change the model.**
 
-<!-- SOURCE:FENCE:6 -->
+<!-- SOURCE:FENCE:7 -->
 ```powershell
 $ServerPid = (Get-NetTCPConnection -LocalPort 8080 -State Listen).OwningProcess
 Get-Process -Id $ServerPid | Select-Object Id,
@@ -477,7 +588,7 @@ Get-Process -Id $ServerPid | Select-Object Id,
     @{Name='PeakWorkingSetMiB';Expression={[math]::Round($_.PeakWorkingSet64 / 1MB,1)}},
     @{Name='PrivateMiB';Expression={[math]::Round($_.PrivateMemorySize64 / 1MB,1)}}
 ```
-<!-- /SOURCE:FENCE:6 -->
+<!-- /SOURCE:FENCE:7 -->
 
 To try 4B, stop the current service yourself with Ctrl+C, point `$Model` to your 4B FT-cf GGUF, update `--alias`, and repeat A1-A3. The client never calls 4B automatically because 0.8B is wrong. This is manual model selection, not a fallback cascade.
 
@@ -489,7 +600,7 @@ An existing model needs only A. This section produces a new model from data. Tra
 
 **First-reproduction order**:
 
-<!-- SOURCE:TABLE:20 -->
+<!-- SOURCE:TABLE:23 -->
 | Order| Execution location| Action| Script| 
 | ---| ---| ---| ---| 
 | 1| GPU host (Linux, NVIDIA GPU)| Set up the Kev training environment| `scripts/remote_setup.sh`| 
@@ -501,7 +612,7 @@ An existing model needs only A. This section produces a new model from data. Tra
 | 7| Laptop| Retrieve result archive and GGUF; verify hashes| `scripts/pull_results.ps1`, `scripts/pull_gguf.ps1`| 
 | 8| Laptop| Evaluate and time device inference; compare with PyTorch| `scripts/run_engine_eval.ps1`| 
 | 9| Laptop| Generate all tables| `scripts/summarize_results.py`, `scripts/summarize_engine.py`| 
-<!-- /SOURCE:TABLE:20 -->
+<!-- /SOURCE:TABLE:23 -->
 
 #### Training Prerequisites
 
@@ -513,21 +624,21 @@ An existing model needs only A. This section produces a new model from data. Tra
 
 Upload this project's `scripts/` to a working directory on the GPU host and connect there through SSH. Run GPU commands in that host's Bash; laptop commands remain in PowerShell at this project root.
 
-<!-- SOURCE:FENCE:7 -->
+<!-- SOURCE:FENCE:8 -->
 ```bash
 bash scripts/remote_setup.sh
 ```
-<!-- /SOURCE:FENCE:7 -->
+<!-- /SOURCE:FENCE:8 -->
 
 Success ends with `SETUP_DONE ... kev_commit=2074cc44256200bb37540103fa4572901faa10f3`; the import check prints `triton 3.7.1 fla 0.5.2`. The environment is under `/mnt/aipc`, on Azure temporary storage that may be cleared after VM deallocation; rerun setup to restore it. Use `/mnt/aipc/kev/.venv/bin/python` afterward. Do not use `uv run`, which downgrades triton to 3.4 and is incompatible with fla 0.5.2.
 
 #### B2. Reproduce the Public Baseline on GPU
 
-<!-- SOURCE:FENCE:8 -->
+<!-- SOURCE:FENCE:9 -->
 ```bash
 bash scripts/remote_public_baseline.sh
 ```
-<!-- /SOURCE:FENCE:8 -->
+<!-- /SOURCE:FENCE:9 -->
 
 Expected transfer-v4 development accuracy on 656 questions is 0.6479 for Kev-0.8B and 0.8171 for Kev-4B, matching the author's published values.
 
@@ -535,25 +646,25 @@ Expected transfer-v4 development accuracy on 656 questions is 0.6479 for Kev-0.8
 
 Use PowerShell 7 at this project root:
 
-<!-- SOURCE:FENCE:9 -->
+<!-- SOURCE:FENCE:10 -->
 ```powershell
 $files = @((Get-ChildItem -LiteralPath data\contoso\final -Filter *.jsonl).FullName) + (Resolve-Path -LiteralPath data\contoso\final\manifest.json).Path
 ssh -n -p $SSH_PORT $SSH_TARGET "mkdir -p /mnt/aipc/data/contoso"
 scp -P $SSH_PORT $files "${SSH_TARGET}:/mnt/aipc/data/contoso/"
 ssh -n -p $SSH_PORT $SSH_TARGET "cd /mnt/aipc/data/contoso && sha256sum *.jsonl"
 ```
-<!-- /SOURCE:FENCE:9 -->
+<!-- /SOURCE:FENCE:10 -->
 
 Compare every returned hash with the corresponding `sha256` in [manifest.json](data/contoso/final/manifest.json). All must match.
 
 #### B4. Baselines and FT on the GPU Host
 
-<!-- SOURCE:FENCE:10 -->
+<!-- SOURCE:FENCE:11 -->
 ```bash
 BATCH=1 ACCUM=8 bash scripts/remote_pipeline_v2.sh 0.8b
 BATCH=4 ACCUM=2 bash scripts/remote_pipeline_v2.sh 4b
 ```
-<!-- /SOURCE:FENCE:10 -->
+<!-- /SOURCE:FENCE:11 -->
 
 Progress goes to `$META/state/pipeline-<size>.status`. `META` defaults to `~/remote-workspaces/aipc-decision` in `scripts/remote_env.sh`. Expected stages are `BENCH b0-...`, `TRAIN_DONE wall_s=...`, `CALIBRATED ... T=...`, `BENCH ft-...` and `PIPELINE_DONE`. A rerun skips stages that already contain `report.json`.
 
@@ -561,30 +672,30 @@ Calibration first scores `calib.jsonl` once with the fixed checkpoint, saving qu
 
 #### B5. FT-cf: Create Variants Locally, Train on GPU
 
-<!-- SOURCE:FENCE:11 -->
+<!-- SOURCE:FENCE:12 -->
 ```powershell
 python scripts\augment_counterfactual.py --root data\contoso --out data\contoso\final --per-case 2 --per-case-train 3 --seed 11
 ```
-<!-- /SOURCE:FENCE:11 -->
+<!-- /SOURCE:FENCE:12 -->
 
 Expected output includes `"train_cf.jsonl": 3832`. Upload the new `*_cf*.jsonl` files and manifest as in B3, then run on the GPU host:
 
-<!-- SOURCE:FENCE:12 -->
+<!-- SOURCE:FENCE:13 -->
 ```bash
 bash scripts/remote_cf_round.sh 0.8b
 bash scripts/remote_cf_round.sh 4b
 ```
-<!-- /SOURCE:FENCE:12 -->
+<!-- /SOURCE:FENCE:13 -->
 
 `pipeline-cf-<size>.status` records `TRAIN_CF_DONE`, `CALIBRATED_CF` and `PIPELINE_CF_DONE`.
 
 Optional memory probe, only when the GPU has no other workload:
 
-<!-- SOURCE:FENCE:13 -->
+<!-- SOURCE:FENCE:14 -->
 ```bash
 bash scripts/remote_memory_probe.sh
 ```
-<!-- /SOURCE:FENCE:13 -->
+<!-- /SOURCE:FENCE:14 -->
 
 `state/memory-probe.status` contains a `PROBE <size> batch=1 accum=8 records=64 rc=0 ... peak_gpu_mib=...` line for each size and ends with `PROBE_DONE`. Detailed logs and per-second GPU-memory samples are under `/mnt/aipc/runs/memory-probe/`.
 
@@ -592,13 +703,13 @@ bash scripts/remote_memory_probe.sh
 
 First verify that training and calibration of the selected checkpoint are complete. Export can overlap unrelated training, but must not read a checkpoint still being written.
 
-<!-- SOURCE:FENCE:14 -->
+<!-- SOURCE:FENCE:15 -->
 ```bash
 bash scripts/remote_llama_prep.sh
 bash scripts/remote_export_gguf.sh 0.8b 4b
 bash scripts/remote_export_gguf_cf.sh 0.8b 4b
 ```
-<!-- /SOURCE:FENCE:14 -->
+<!-- /SOURCE:FENCE:15 -->
 
 Both `/mnt/aipc/gguf/<size>/` and `/mnt/aipc/gguf/<size>-cf/` should contain BF16, Q8_0 and Q4_K_M files plus `gguf.sha256`. Conversion merges LoRA into the base and includes the pointer head and calibration parameters, so the resulting file can run without the training environment.
 
@@ -606,12 +717,12 @@ Both `/mnt/aipc/gguf/<size>/` and `/mnt/aipc/gguf/<size>-cf/` should contain BF1
 
 #### B7. Retrieve Results and Models
 
-<!-- SOURCE:FENCE:15 -->
+<!-- SOURCE:FENCE:16 -->
 ```powershell
 .\scripts\pull_results.ps1 -SshTarget $SSH_TARGET -SshPort $SSH_PORT
 .\scripts\pull_gguf.ps1 -Size 0.8b-cf -SshTarget $SSH_TARGET -SshPort $SSH_PORT
 ```
-<!-- /SOURCE:FENCE:15 -->
+<!-- /SOURCE:FENCE:16 -->
 
 `-Size` accepts `0.8b`, `0.8b-cf`, `4b` or `4b-cf`, retrieving Q8_0 and Q4_K_M for each. A single scp connection to the VM may deliver less than 1 MiB/s, so both scripts split files across 8 concurrent connections and verify SHA-256 afterward. Success prints `sha256 OK`, then `__PULL_RESULTS_DONE__ <directory>` or `__PULL_GGUF_DONE__`. Results extract to `验证结果\微调评测_<timestamp>\`; large GGUF files go outside the repository, to `C:\Tools\models\contoso-kev\`.
 
@@ -647,35 +758,35 @@ Use the CPU runtime from A. For Adreno comparison, download `llama-b11935-bin-wi
 
 Use a new `-Label` every time. The historical script fixes the output root at `验证结果\端侧引擎_20261027-124700`; a new label prevents overwriting old results. That directory name is not the new run date; the new `run.json` records actual time.
 
-<!-- SOURCE:FENCE:16 -->
+<!-- SOURCE:FENCE:17 -->
 ```powershell
 $Label = 'ft-kev-0.8b-Q8_0-cpu-' + (Get-Date -Format 'yyyyMMdd-HHmmss')
 .\scripts\run_engine_eval.ps1 -Model C:\Tools\models\contoso-kev\Contoso-Kev-0.8B-FT-Q8_0.gguf -Label $Label `
     -TorchPrefix 验证结果\端侧引擎_20261027-124700\pytorch-ft-0.8b\
 ```
-<!-- /SOURCE:FENCE:16 -->
+<!-- /SOURCE:FENCE:17 -->
 
 For 4B FT-cf, this experiment completed one Q8_0 and one Q4_K_M run:
 
-<!-- SOURCE:FENCE:17 -->
+<!-- SOURCE:FENCE:18 -->
 ```powershell
 $Label = 'ftcf-kev-4b-Q8_0-cpu-' + (Get-Date -Format 'yyyyMMdd-HHmmss')
 .\scripts\run_engine_eval.ps1 -Model C:\Tools\models\contoso-kev\Contoso-Kev-4B-FTcf-Q8_0.gguf -Label $Label `
     -TorchPrefix 验证结果\端侧引擎_20261027-124700\pytorch-ftcf-4b\
 ```
-<!-- /SOURCE:FENCE:17 -->
+<!-- /SOURCE:FENCE:18 -->
 
 `-TorchPrefix` points to PyTorch predictions for the same test set: `<prefix><workload>\rows.json`, copied from `runs\<size>\ft-test_<workload>\rows.json`, or `ftcf-test_<workload>` for FT-cf. Each test prints accuracy and latency, followed by `__ENGINE_EVAL_DONE__ <Label>`. Use `-Backend opencl` for Adreno, `-Ctx 2048 -UBatch 512` for the lower-memory case, and `-DataPrefix policy_test_` for B0-policy. First OpenCL startup compiles kernels and can take over a minute.
 
 #### C2. Generate Tables on the Laptop
 
-<!-- SOURCE:FENCE:18 -->
+<!-- SOURCE:FENCE:19 -->
 ```powershell
 python scripts\summarize_results.py --runs 验证结果\微调评测_<时间>\runs --data data\contoso\final --out 验证结果\微调评测_<时间>\summary
 python scripts\summarize_engine.py --root 验证结果\端侧引擎_20261027-124700 --output-dir 验证结果\微调评测_<时间>\summary
 python scripts\fill_report_tables.py --report README_CN.md --blocks 验证结果\微调评测_<时间>\summary\report_blocks.json --block ENGINE=验证结果\微调评测_<时间>\summary\engine_brief.md --block README_PERFORMANCE=验证结果\微调评测_<时间>\summary\engine_comparison.md
 ```
-<!-- /SOURCE:FENCE:18 -->
+<!-- /SOURCE:FENCE:19 -->
 
 `summary.md` contains all tables; `report_blocks.json` contains blocks for the README and report. `engine_comparison.md` supplies the main performance before/after table; `engine_brief.md` retains every device configuration. These commands produce derived summaries without changing raw results. Rerunning the fill step replaces previous generated Chinese blocks. The diagram/document renderer uses the shared table-localization function for English; measured values are not translated or recalculated. Synchronize the English source-backed blocks after updating their Chinese counterparts:
 
@@ -683,15 +794,15 @@ Run `python scripts\render_diagrams.py --sync-english --preview`.
 
 #### C3. Offline Tests
 
-<!-- SOURCE:FENCE:19 -->
+<!-- SOURCE:FENCE:20 -->
 ```powershell
 python -m unittest discover -s tests -v
 ```
-<!-- /SOURCE:FENCE:19 -->
+<!-- /SOURCE:FENCE:20 -->
 
 [tests/test_data_and_scoring.py](tests/test_data_and_scoring.py) needs neither the GPU VM nor the device engine. Success ends with `OK`. Existing data/scoring checks are retained, including visible-input transmission, raw response preservation and failure behavior:
 
-<!-- SOURCE:TABLE:21 -->
+<!-- SOURCE:TABLE:24 -->
 | Check| Failure detected| 
 | ---| ---| 
 | Send visible business inputs without labels; preserve the raw model response| Ground-truth leakage or fabricated local-inference output| 
@@ -704,7 +815,7 @@ python -m unittest discover -s tests -v
 | `parity.py`: identical answers give agreement 1; changing one answer reduces agreements by 1| Misaligned questions or option ordering in engine comparison| 
 | `temperature_whatif.py` reproduces Kev's Brier 0.6413 at the released temperature| Incorrect probability rescaling for temperature| 
 | `summarize_results.py` gives correct paired-bootstrap differences and intervals for all-correct, all-wrong and half-correct cases| Incorrect paired difference or interval| 
-<!-- /SOURCE:TABLE:21 -->
+<!-- /SOURCE:TABLE:24 -->
 
 Not covered: GPU training/evaluation itself, which needs B4-B5 logs and results; real llama-server startup and model behavior, which need A or C1; or the large-model API used to generate data. Substitute responses in transport tests validate client logic, not model capability.
 
@@ -714,12 +825,12 @@ Reproduction boundary: current out-of-distribution data files have different byt
 
 The three diagrams in both languages and all local previews share [scripts/render_diagrams.py](scripts/render_diagrams.py). [requirements-docs.txt](requirements-docs.txt) pins documentation dependencies, not model-runtime dependencies. Windows defaults to the installed `C:\Windows\Fonts\msyh.ttc`; elsewhere provide a CJK font with `--font`. Figure sources and hashes are in [images/provenance.json](images/provenance.json). Official icon originals, licenses and raster hashes are in [images/vendor/sources.json](images/vendor/sources.json).
 
-<!-- SOURCE:FENCE:20 -->
+<!-- SOURCE:FENCE:21 -->
 ```powershell
 python -m pip install -r requirements-docs.txt
 python -B scripts\render_diagrams.py --preview
 ```
-<!-- /SOURCE:FENCE:20 -->
+<!-- /SOURCE:FENCE:21 -->
 
 Do not reinstall matching dependencies. `--preview` checks local links/anchors and writes ignored `*.preview.html` files next to the source documents for Edge. It does not publish or replace Markdown sources. The language switch links the actual English and Chinese pages.
 
@@ -731,7 +842,7 @@ Do not reinstall matching dependencies. `--preview` checks local links/anchors a
 
 ### Repository Deliverables
 
-<!-- SOURCE:TABLE:22 -->
+<!-- SOURCE:TABLE:25 -->
 | Deliverable| Location| Purpose| 
 | ---| ---| ---| 
 | Simulated vendor data with policy-computed labels| [data/contoso/final](data/contoso/final); manifest and SHA-256: [manifest.json](data/contoso/final/manifest.json)| Training, calibration, development, in-distribution, out-of-distribution and variant evaluation| 
@@ -741,24 +852,24 @@ Do not reinstall matching dependencies. `--preview` checks local links/anchors a
 | Summaries and tests| [scripts/summarize_results.py](scripts/summarize_results.py), [scripts/summarize_engine.py](scripts/summarize_engine.py), [tests/](tests/)| Tables generated from raw results; offline data and scoring checks| 
 | Raw evidence| [Evidence directory](验证结果/)| Evaluation reports, predictions, training logs, GPU-memory samples and device records. Checkpoints and full result archives contain files above GitHub's 100 MB limit and are not included; reproduce them with the training steps| 
 | Detailed report| [Detailed validation report](文档/Finetuning-and-On-Device-Validation-Report.md)| Full tables, per-question analysis and claim boundaries| 
-<!-- /SOURCE:TABLE:22 -->
+<!-- /SOURCE:TABLE:25 -->
 
 #### Responsibilities
 
-<!-- SOURCE:TABLE:23 -->
+<!-- SOURCE:TABLE:26 -->
 | Component| Owner| This repository's approach| 
 | ---| ---| ---| 
 | Kev decision model (Qwen3.5-Base + LoRA + pointer head + calibration temperature)| Open-source project [jaredpalmer/kev](https://github.com/jaredpalmer/kev)| Pinned to commit `2074cc44`; native `--init_from` continuation, with upstream code unchanged| 
 | llama.cpp inference runtime| [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp)| Official b11935 packages and matching `convert_hf_to_gguf.py`, with upstream code unchanged| 
 | Business policies, real data and labels| Vendor| Fictional Contoso PC policies stand in for the vendor; code computes every label| 
 | Training host and laptop| Vendor| Azure `Standard_NC40ads_H100_v5` (1× H100 NVL) and one Snapdragon X Elite X1E80100 laptop| 
-<!-- /SOURCE:TABLE:23 -->
+<!-- /SOURCE:TABLE:26 -->
 
 **Not included**: real customer data; multiple random seeds; Hexagon NPU testing, which required Windows test-signing changes not made on the managed corporate laptop; concurrency, long-duration or battery-powered device tests.
 
 #### Evidence and Report Navigation
 
-<!-- SOURCE:TABLE:24 -->
+<!-- SOURCE:TABLE:27 -->
 | You want to| Read here| 
 | ---| ---| 
 | Send a business request on your laptop| [Local trial](#local-try); no retraining required| 
@@ -770,11 +881,11 @@ Do not reinstall matching dependencies. `--preview` checks local links/anchors a
 | Per-run device records, server logs, memory and answer comparisons| [Device-runtime evidence](验证结果/端侧引擎_20261027-124700)| 
 | Released-model public-task reproduction, matching the author's scores| [Public-baseline reproduction](验证结果/公开基线复现_20261027-123403)| 
 | Policy-code label verification, 0 mismatches| [Policy-label verification](验证结果/数据标签复核_20261027-130518.txt)| 
-<!-- /SOURCE:TABLE:24 -->
+<!-- /SOURCE:TABLE:27 -->
 
 #### Directories
 
-<!-- SOURCE:TABLE:25 -->
+<!-- SOURCE:TABLE:28 -->
 | Directory| Contents| 
 | ---| ---| 
 | `data/contoso/`| Cases (`*.cases.jsonl`), generated messages (`*.texts.jsonl`) and usage (`*.usage.json`); `final/` holds training/evaluation files. Public records replace generator names with `llm-A` and `llm-B`; other content is unchanged, so SHA-256 values in `manifest.json` differ from experiment-time values| 
@@ -784,11 +895,11 @@ Do not reinstall matching dependencies. `--preview` checks local links/anchors a
 | `images/`| Three bilingual diagrams generated by `scripts/render_diagrams.py`, the author's unchanged ranking figure, and source/hash ledgers| 
 | `验证结果/`| Raw results and evidence by run time. Public `run.json`, `summary.json` and `parity_vs_pytorch.json` use repository-relative paths| 
 | `文档/`| Detailed report and experimental protocol| 
-<!-- /SOURCE:TABLE:25 -->
+<!-- /SOURCE:TABLE:28 -->
 
 #### Script Navigation
 
-<!-- SOURCE:TABLE:26 -->
+<!-- SOURCE:TABLE:29 -->
 | Purpose| Primary entry| Auxiliary or historical scripts| 
 | ---| ---| ---| 
 | Routine single-request inference| `systemone_client.py --request`| Send input and preserve response; no scoring or business action| 
@@ -797,4 +908,4 @@ Do not reinstall matching dependencies. `--preview` checks local links/anchors a
 | Initial training reproduction| `remote_setup.sh`, `remote_public_baseline.sh`, `remote_pipeline_v2.sh`, `remote_cf_round.sh`| `remote_pipeline.sh` is the historical fixed-micro-batch version; `remote_run_all.sh`, `remote_after_08b.sh` and `remote_after_chain.sh` are original sequential orchestration entries| 
 | Model export and retrieval| `remote_llama_prep.sh`, `remote_export_gguf.sh`, `remote_export_gguf_cf.sh`, `pull_gguf.ps1`, `pull_results.ps1`| `remote_pack_results.sh` packages results; `fetch_parallel.ps1` transfers chunks; `remote_env.sh` defines remote paths| 
 | Analysis and documentation| `summarize_results.py`, `summarize_engine.py`, `fill_report_tables.py`| `temperature_whatif.py` diagnoses temperature; `remote_memory_probe.sh` only probes memory; `render_diagrams.py` renders diagrams| 
-<!-- /SOURCE:TABLE:26 -->
+<!-- /SOURCE:TABLE:29 -->
