@@ -166,32 +166,41 @@ ICON_NOTE = ("图标：Microsoft Azure 架构图标与 Fluent UI 系统图标，
 
 
 def training(font_path, language="zh"):
+    """Four numbered steps on the GPU host: supervised fine-tuning -> temperature calibration -> GGUF export (BF16) ->
+    post-training quantization (Q8_0 / Q4_K_M). Only the quantized file reaches the laptop.
+    Facts: scripts/remote_pipeline_v2.sh, remote_cf_round.sh, remote_export_gguf_cf.sh; sizes from 验证结果/微调评测_20261027-220226/gguf/0.8b-cf."""
     label = lambda chinese, english: english if language == "en" else chinese
-    d = Diagram(label("业务微调与模型导出", "Business fine-tuning and model export"),
-                label("业务数据在笔记本准备，GPU 主机训练、校准并导出，GGUF 文件回到笔记本", "Business data is prepared on the laptop; the GPU host trains, calibrates and exports; the GGUF file returns to the laptop"), font_path)
+    d = Diagram(label("业务微调、校准、导出与量化", "Business fine-tuning, calibration, export and quantization"),
+                label("业务数据在笔记本准备；GPU 主机依次完成微调、校准、导出和量化；笔记本只拿到量化后的 GGUF 文件", "Business data is prepared on the laptop; the GPU host fine-tunes, calibrates, exports and quantizes; the laptop receives only the quantized GGUF file"), font_path)
     c1, c2, c3 = CARD_LEFT, CARD_LEFT + CARD_STEP, CARD_LEFT + 2 * CARD_STEP
     d.lane(104, 236, label("客户笔记本", "Customer laptop"), label("厂商所有\n数据准备", "Vendor-owned\nData preparation"), icon="laptop")
     d.card(c1, 116, label("业务训练集", "Training set"), label("标注样本 2,147 条\n+ 1,000 条 Kev 回放", "2,147 labeled records\n+ 1,000 Kev replay records"), icon="file")
     d.card(c2, 116, label("Kev 发布版", "Released Kev"), label("0.8B / 4B，开放权重\n已训练的 LoRA + 指针头", "0.8B / 4B, open weights\nTrained LoRA + pointer head"), icon="file")
     d.card(c3, 116, label("校准集", "Calibration set"), label("与训练样本分开\n只用于拟合温度", "Separate from training\nFits temperature only"), icon="file")
-    d.lane(258, 418, label("Azure 训练主机", "Azure training host"), label("厂商租用\n1× H100 NVL", "Vendor-rented\n1× H100 NVL"), icon="azure-vm")
-    d.card(c1, 274, label("监督微调", "Fine-tuning"), label("LoRA r16 + 指针头\nFT 与 FT-cf 独立训练", "LoRA r16 + pointer head\nIndependent FT and FT-cf"), step="1", badges=("PyTorch", "Kev"))
-    d.card(c2, 274, label("温度校准", "Calibration"), label("固定全部权重\n只拟合温度 T", "All weights frozen\nFit temperature T only"), step="2", badges=("Kev",))
-    d.card(c3, 274, label("CPU 导出", "CPU export"), label("合并 LoRA 进基座\nGGUF + 温度元数据", "Merge LoRA into the base\nGGUF + temperature metadata"), step="3", badges=("llama.cpp",))
+    # four equal steps in the host lane: 4 x 206 px cards with 20 px gaps fill CARD_LEFT..LANE_RIGHT-16 (280..1160)
+    sw, sg, sh = 206, 20, 150   # equal card height: three detail lines + one badge row
+    s1, s2, s3, s4 = (CARD_LEFT + index * (sw + sg) for index in range(4))
+    d.lane(258, 418, label("Azure 训练主机", "Azure training host"), label("厂商租用\n1× H100 NVL\n3–4 只用 CPU", "Vendor-rented\n1× H100 NVL\nSteps 3–4: CPU only"), icon="azure-vm")
+    d.card(s1, 274, label("监督微调", "Fine-tuning"), label("LoRA r16 + 指针头\nFT 与 FT-cf 独立训练", "LoRA r16, pointer head\nFT, FT-cf trained apart"), step="1", width=sw, height=sh, badges=("PyTorch", "Kev"))
+    d.card(s2, 274, label("温度校准", "Calibration"), label("固定全部权重\n只拟合温度 T", "All weights frozen\nFit temperature T only"), step="2", width=sw, height=sh, badges=("Kev",))
+    d.card(s3, 274, label("导出 GGUF", "Export GGUF"), label("合并 LoRA 进基座\nBF16，1,437 MiB，含 T", "Merge LoRA into base\nBF16, 1,437 MiB, with T"), step="3", width=sw, height=sh, badges=("llama.cpp",))
+    d.card(s4, 274, label("量化", "Quantize"), label("训练后量化，不重训\nQ8_0 764 MiB\nQ4_K_M 517 MiB", "No retraining (PTQ)\nQ8_0 764 MiB\nQ4_K_M 517 MiB"), step="4", width=sw, height=sh, badges=("llama.cpp",))
     d.lane(440, 540, label("客户笔记本", "Customer laptop"), label("厂商所有\n端侧部署", "Vendor-owned\nDevice deployment"), icon="laptop")
-    d.card(c3, 452, "GGUF", label("Q8_0 / Q4_K_M，温度在文件内", "Q8_0 / Q4_K_M, T inside the file"), icon="file", height=76)
-    mid1, mid2, mid3 = c1 + CARD_WIDTH / 2, c2 + CARD_WIDTH / 2, c3 + CARD_WIDTH / 2
+    d.card(c3, 452, label("量化后的 GGUF", "Quantized GGUF"), label("Q8_0（推荐）/ Q4_K_M\n温度在文件内", "Q8_0 (recommended) / Q4_K_M\nT inside the file"), icon="file")
+    mid2, mid3 = c2 + CARD_WIDTH / 2, c3 + CARD_WIDTH / 2
     d.arrow([(c1 + 80, 216), (c1 + 80, 274)])                                      # training set -> fine-tuning
-    d.arrow([(mid2, 216), (mid2, 246), (c1 + 200, 246), (c1 + 200, 274)])          # released Kev -> fine-tuning (--init_from)
-    d.arrow([(mid3, 216), (mid3, 246), (mid2, 246), (mid2, 274)])                  # calibration set -> calibration
-    d.arrow([(c1 + CARD_WIDTH, 338), (c2, 338)])
-    d.arrow([(c2 + CARD_WIDTH, 338), (c3, 338)])
-    d.arrow([(mid3, 402), (mid3, 452)])                                            # export -> GGUF on the laptop
+    d.arrow([(mid2, 216), (mid2, 246), (c1 + 160, 246), (c1 + 160, 274)])          # released Kev -> fine-tuning (--init_from)
+    d.arrow([(mid3, 216), (mid3, 246), (s2 + sw / 2, 246), (s2 + sw / 2, 274)])    # calibration set -> calibration
+    d.arrow([(s1 + sw, 338), (s2, 338)])
+    d.arrow([(s2 + sw, 338), (s3, 338)])
+    d.arrow([(s3 + sw, 338), (s4, 338)])
+    d.arrow([(s4 + sw / 2, 274 + sh), (s4 + sw / 2, 436), (mid3, 436), (mid3, 452)])  # quantized file -> laptop
     d.legend(566, legend_items(label))
-    d.footnote(598, label("原创解释图。依据：scripts/remote_pipeline_v2.sh、remote_cf_round.sh、remote_export_gguf.sh，以及 Kev commit 2074cc44 的 calibrate_checkpoint.py。",
-                          "Original explanatory diagram. Sources: scripts/remote_pipeline_v2.sh, remote_cf_round.sh, remote_export_gguf.sh and calibrate_checkpoint.py at Kev commit 2074cc44."),
+    d.footnote(598, label("原创解释图。依据：scripts/remote_pipeline_v2.sh、remote_cf_round.sh、remote_export_gguf_cf.sh，Kev commit 2074cc44 的 calibrate_checkpoint.py；大小为 0.8B FT-cf。",
+                          "Original explanatory diagram. Sources: scripts/remote_pipeline_v2.sh, remote_cf_round.sh, remote_export_gguf_cf.sh; Kev 2074cc44 calibrate_checkpoint.py. Sizes: 0.8B."),
                label(*ICON_NOTE),
-               label("微调、校准和 CPU 导出都在同一主机完成；端侧推理不会触发这些步骤。", "Fine-tuning, calibration and CPU export share one host; device inference does not run these stages."))
+               label("四步都在同一主机完成，导出和量化只用它的 CPU；端侧推理不会触发这些步骤。Q4_K_M 只压前馈层，注意力、DeltaNet 和指针头保持 8 bit。",
+                     "One host runs all four steps; export and post-training quantization (PTQ) use only its CPU; device inference never runs them. Q4_K_M compresses only feed-forward layers."))
     return d
 
 
@@ -316,7 +325,7 @@ def sync_english_documents():
     from markdown_it import MarkdownIt
     from fill_report_tables import localize_block
 
-    pairs = ((ROOT / "README_CN.md", ROOT / "README.md", 31, 22),
+    pairs = ((ROOT / "README_CN.md", ROOT / "README.md", 34, 22),
              (ROOT / "文档" / "微调与端侧验证报告_20261027-130700.md",
               ROOT / "文档" / "Finetuning-and-On-Device-Validation-Report.md", 20, 1))
     names = {"微调与端侧验证报告_20261027-130700.md": "Finetuning-and-On-Device-Validation-Report.md",

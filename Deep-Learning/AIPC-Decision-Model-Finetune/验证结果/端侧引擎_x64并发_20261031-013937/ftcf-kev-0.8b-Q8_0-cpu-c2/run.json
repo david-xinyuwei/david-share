@@ -1,0 +1,78 @@
+{
+  "label": "ftcf-kev-0.8b-Q8_0-cpu-c2",
+  "model": "C:\\Tools\\models\\contoso-kev\\Contoso-Kev-0.8B-FTcf-Q8_0.gguf",
+  "backend": "cpu",
+  "build": "b11935-cpu-x64",
+  "server_args": "-m \"C:\\Tools\\models\\contoso-kev\\Contoso-Kev-0.8B-FTcf-Q8_0.gguf\" --host 127.0.0.1 --port 8080 -c 8192 -b 2048 -ub 2048 --cache-ram 0",
+  "data_prefix": "test_",
+  "client_concurrency": 2,
+  "logical_processors": 16,
+  "load_seconds": 2.6,
+  "server_log_facts": [
+    "0.01.019.811 I srv          init: decision model type: kev",
+    "0.00.864.805 I cmn          init: llama threadpool init, n_threads = 8",
+    "0.01.055.032 I srv    load_model: initializing, n_slots = 4, n_ctx_slot = 8192, kv_unified = 'true'"
+  ],
+  "workload_cpu_seconds": {
+    "support": {
+      "cpu_seconds": 1655.1,
+      "wall_seconds_incl_warmup": 207.5
+    },
+    "assistant": {
+      "cpu_seconds": 1786.0,
+      "wall_seconds_incl_warmup": 224.5
+    }
+  },
+  "peak_working_set_mib": 1552,
+  "working_set_mib": 1552,
+  "private_mib": 4253,
+  "cpu_seconds": 3446,
+  "gguf_mib": 774.8,
+  "gguf_sha256": "5a647379764fcad21d12e06bc7fcb1663dd52e15587f8854d9f417d1f96d65d3",
+  "captured": "2026-10-31T02:14:05.7978544+08:00",
+  "summaries": {
+    "support": {
+      "url": "http://127.0.0.1:8080/v1/systemone",
+      "data": "data\\contoso\\final\\test_support.jsonl",
+      "records": 170,
+      "errors": 0,
+      "questions": 510,
+      "accuracy": 0.8686,
+      "by_type": {
+        "choice": 0.7118,
+        "noul": 0.9059,
+        "score": 0.9882
+      },
+      "latency_ms": {
+        "n": 170,
+        "p50": 2343.9,
+        "p90": 2930.0,
+        "mean": 2405.1
+      },
+      "concurrency": 2,
+      "wall_seconds": 204.8,
+      "requests_per_second": 0.83
+    },
+    "assistant": {
+      "url": "http://127.0.0.1:8080/v1/systemone",
+      "data": "data\\contoso\\final\\test_assistant.jsonl",
+      "records": 159,
+      "errors": 0,
+      "questions": 477,
+      "accuracy": 0.979,
+      "by_type": {
+        "choice": 0.9937,
+        "noul": 0.9717
+      },
+      "latency_ms": {
+        "n": 159,
+        "p50": 2654.3,
+        "p90": 3226.7,
+        "mean": 2780.2
+      },
+      "concurrency": 2,
+      "wall_seconds": 221.6,
+      "requests_per_second": 0.718
+    }
+  }
+}

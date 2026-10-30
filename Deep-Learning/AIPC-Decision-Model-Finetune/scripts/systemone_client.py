@@ -4,6 +4,8 @@
   python systemone_client.py --url http://127.0.0.1:8080/v1/systemone --request request.json --out out/decision
   python systemone_client.py --url http://127.0.0.1:8080/v1/systemone --data test_support.jsonl --out out/support
 Single requests write result.json without grading or warm-up. Batch scoring writes rows.jsonl and summary.json.
+--concurrency N (default 1, one request at a time) keeps N requests in flight from a thread pool; each row's
+latency_ms is still measured at the client from send to full answer, so it includes server-side queueing.
 Standard library only.
 """
 import argparse
@@ -12,6 +14,7 @@ import json
 import statistics
 import time
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -75,7 +78,10 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--warmup", type=int, default=2, help="requests sent first and excluded from latency")
+    ap.add_argument("--concurrency", type=int, default=1, help="requests kept in flight at once (1 = sequential)")
     a = ap.parse_args()
+    if a.concurrency < 1:
+        ap.error("--concurrency must be at least 1")
     if a.request:
         single_request(a.url, a.request, a.out)
         return
@@ -87,15 +93,28 @@ def main():
 
     for rec in recs[:a.warmup]:
         ask(a.url, rec)
+
+    def attempt(item):
+        i, rec = item
+        try:
+            return i, rec, ask(a.url, rec), None
+        except Exception as e:  # noqa: BLE001 - one failed request is counted, not fatal
+            return i, rec, None, str(e)[:300]
+
+    wall_started = time.perf_counter()
+    if a.concurrency == 1:
+        outcomes = map(attempt, enumerate(recs))
+    else:
+        pool = ThreadPoolExecutor(max_workers=a.concurrency)
+        outcomes = pool.map(attempt, enumerate(recs))  # results come back in record order
     rows, lat, by_type, errors = [], [], {}, 0
     with (out / "rows.jsonl").open("w", encoding="utf-8", newline="\n") as f:
-        for i, rec in enumerate(recs):
-            try:
-                data, ms = ask(a.url, rec)
-            except Exception as e:  # noqa: BLE001 - one failed request is counted, not fatal
+        for i, rec, answer, error in outcomes:
+            if error is not None:
                 errors += 1
-                f.write(json.dumps({"i": i, "error": str(e)[:300]}) + "\n")
+                f.write(json.dumps({"i": i, "error": error}) + "\n")
                 continue
+            data, ms = answer
             lat.append(ms)
             row = {"i": i, "case": rec.get("_meta", {}).get("case"), "latency_ms": round(ms, 1),
                    "input_tokens": (data.get("usage") or {}).get("input_tokens"), "questions": {}}
@@ -109,6 +128,9 @@ def main():
                 row["questions"][qid] = {"pred": pred, "label": q["label"], "ok": ok,
                                          "p": ans.get("probabilities", ans.get("noul"))}
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
+    wall_s = time.perf_counter() - wall_started
+    if a.concurrency > 1:
+        pool.shutdown()
     qs = sum(v[1] for v in by_type.values())
     lat_sorted = sorted(lat)
     summary = {"url": a.url, "data": a.data, "records": len(recs), "errors": errors, "questions": qs,
@@ -117,6 +139,10 @@ def main():
                "latency_ms": {"n": len(lat), "p50": round(statistics.median(lat), 1) if lat else None,
                               "p90": round(lat_sorted[int(0.9 * (len(lat) - 1))], 1) if lat else None,
                               "mean": round(statistics.fmean(lat), 1) if lat else None}}
+    if a.concurrency > 1:  # sequential runs keep the historical summary shape
+        summary["concurrency"] = a.concurrency
+        summary["wall_seconds"] = round(wall_s, 1)  # warm-up excluded; all scored requests, send of the first to answer of the last
+        summary["requests_per_second"] = round(len(lat) / wall_s, 3) if wall_s and lat else None
     (out / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=1), encoding="utf-8")
     print(json.dumps(summary, ensure_ascii=False))
 

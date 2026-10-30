@@ -1,0 +1,123 @@
+{
+ "torch": "验证结果\\端侧引擎_20261027-124700\\pytorch-ftcf-0.8b\\support\\rows.json",
+ "engine": "验证结果\\端侧引擎_x64并发_20261031-013937\\ftcf-kev-0.8b-Q8_0-cpu-c4\\support\\rows.jsonl",
+ "missing": 0,
+ "by_type": {
+  "all": {
+   "n": 510,
+   "agree_count": 503,
+   "agreement": 0.986275,
+   "torch_acc": 0.868627,
+   "engine_acc": 0.870588,
+   "only_torch_correct": 3,
+   "only_engine_correct": 4,
+   "mean_tvd": 0.006449,
+   "max_tvd": 0.35062
+  },
+  "choice": {
+   "n": 170,
+   "agree_count": 165,
+   "agreement": 0.970588,
+   "torch_acc": 0.705882,
+   "engine_acc": 0.711765,
+   "only_torch_correct": 2,
+   "only_engine_correct": 3,
+   "mean_tvd": 0.009046,
+   "max_tvd": 0.040538
+  },
+  "noul": {
+   "n": 170,
+   "agree_count": 169,
+   "agreement": 0.994118,
+   "torch_acc": 0.9,
+   "engine_acc": 0.905882,
+   "only_torch_correct": 0,
+   "only_engine_correct": 1,
+   "mean_tvd": 0.005425,
+   "max_tvd": 0.067884
+  },
+  "score": {
+   "n": 170,
+   "agree_count": 169,
+   "agreement": 0.994118,
+   "torch_acc": 1.0,
+   "engine_acc": 0.994118,
+   "only_torch_correct": 1,
+   "only_engine_correct": 0,
+   "mean_tvd": 0.004877,
+   "max_tvd": 0.35062
+  }
+ },
+ "flips": [
+  {
+   "i": 66,
+   "question": "urgency",
+   "torch": "0",
+   "engine": "1",
+   "label": "0",
+   "torch_p": 0.7287,
+   "engine_p": 0.6219,
+   "tvd": 0.3506
+  },
+  {
+   "i": 164,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "true",
+   "torch_p": 0.564,
+   "engine_p": 0.5039,
+   "tvd": 0.0679
+  },
+  {
+   "i": 62,
+   "question": "queue",
+   "torch": "damage_claim",
+   "engine": "sales_ops",
+   "label": "damage_claim",
+   "torch_p": 0.5173,
+   "engine_p": 0.498,
+   "tvd": 0.0208
+  },
+  {
+   "i": 68,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "damage_claim",
+   "label": "sales_ops",
+   "torch_p": 0.5042,
+   "engine_p": 0.5084,
+   "tvd": 0.0148
+  },
+  {
+   "i": 133,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "depot_repair",
+   "label": "depot_repair",
+   "torch_p": 0.4344,
+   "engine_p": 0.4238,
+   "tvd": 0.0137
+  },
+  {
+   "i": 6,
+   "question": "queue",
+   "torch": "battery_program",
+   "engine": "sales_ops",
+   "label": "sales_ops",
+   "torch_p": 0.5051,
+   "engine_p": 0.5016,
+   "tvd": 0.0075
+  },
+  {
+   "i": 24,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "damage_claim",
+   "label": "damage_claim",
+   "torch_p": 0.502,
+   "engine_p": 0.4969,
+   "tvd": 0.0061
+  }
+ ]
+}

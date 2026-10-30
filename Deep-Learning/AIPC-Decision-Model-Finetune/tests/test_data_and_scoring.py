@@ -13,6 +13,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -141,6 +142,43 @@ class RequestTests(unittest.TestCase):
                     send.assert_called_once()
                     self.assertFalse((output / "result.json").exists())
 
+    def test_batch_concurrency_keeps_order_scoring_and_throughput_fields(self):
+        """--concurrency N scores the same records with the same per-row shape as the sequential path; rows stay in
+        record order, one failed request is counted not fatal, and only concurrent runs add wall/throughput fields."""
+        records = [{"state": {"message": f"m{i}"}, "questions": {"q": {"type": "noul", "label": i % 2 == 0}}, "_meta": {"case": f"c{i}"}}
+                   for i in range(6)]
+
+        def fake_ask(url, record):
+            index = int(record["state"]["message"][1:])
+            if index == 3:
+                raise ConnectionError("boom")
+            time.sleep(0.01 * (6 - index))  # later records finish first when run concurrently
+            return {"answers": {"q": {"type": "noul", "noul": 0.9}}, "usage": {"input_tokens": 10}}, 5.0 + index
+
+        for concurrency in (1, 3):
+            with self.subTest(concurrency=concurrency), tempfile.TemporaryDirectory() as temporary:
+                data = Path(temporary) / "data.jsonl"
+                data.write_text("\n".join(json.dumps(r) for r in records) + "\n", encoding="utf-8")
+                out = Path(temporary) / "out"
+                argv = ["systemone_client.py", "--url", "http://127.0.0.1:1/v1/systemone", "--data", str(data), "--out", str(out),
+                        "--warmup", "0", "--concurrency", str(concurrency)]
+                with mock.patch.object(client, "ask", side_effect=fake_ask), mock.patch("sys.argv", argv), mock.patch("builtins.print"):
+                    client.main()
+                rows = [json.loads(l) for l in (out / "rows.jsonl").read_text(encoding="utf-8").splitlines()]
+                self.assertEqual([r["i"] for r in rows], list(range(6)))
+                self.assertIn("error", rows[3])
+                self.assertEqual([r["questions"]["q"]["pred"] for r in rows if "questions" in r], [True] * 5)
+                summary = json.loads((out / "summary.json").read_text(encoding="utf-8"))
+                self.assertEqual((summary["records"], summary["errors"], summary["questions"]), (6, 1, 5))
+                self.assertEqual(summary["accuracy"], 0.6)  # correct for i in {0, 2, 4}, wrong for 1 and 5; record 3 failed
+                self.assertEqual(summary["latency_ms"]["n"], 5)
+                if concurrency == 1:
+                    self.assertNotIn("requests_per_second", summary)
+                else:
+                    self.assertEqual(summary["concurrency"], 3)
+                    self.assertGreater(summary["requests_per_second"], 0)
+                    self.assertGreater(summary["wall_seconds"], 0)
+
 
 class ReportLayoutTests(unittest.TestCase):
     def accuracy_summary(self):
@@ -256,7 +294,7 @@ class BilingualDocumentationTests(unittest.TestCase):
         except ImportError:
             raise unittest.SkipTest("Documentation tests require requirements-docs.txt")
         cls.parser = MarkdownIt("commonmark", {"html": True}).enable("table")
-        cls.pairs = (("README_CN.md", "README.md", 31, 22),
+        cls.pairs = (("README_CN.md", "README.md", 34, 22),
                      ("文档/微调与端侧验证报告_20261027-130700.md",
                       "文档/Finetuning-and-On-Device-Validation-Report.md", 20, 1))
 

@@ -1,0 +1,133 @@
+{
+ "torch": "验证结果\\端侧引擎_20261027-124700\\pytorch-ftcf-0.8b\\support\\rows.json",
+ "engine": "验证结果\\端侧引擎_x64并发_20261031-013937\\ftcf-kev-0.8b-Q8_0-cpu-c2\\support\\rows.jsonl",
+ "missing": 0,
+ "by_type": {
+  "all": {
+   "n": 510,
+   "agree_count": 502,
+   "agreement": 0.984314,
+   "torch_acc": 0.868627,
+   "engine_acc": 0.868627,
+   "only_torch_correct": 4,
+   "only_engine_correct": 4,
+   "mean_tvd": 0.006242,
+   "max_tvd": 0.35062
+  },
+  "choice": {
+   "n": 170,
+   "agree_count": 165,
+   "agreement": 0.970588,
+   "torch_acc": 0.705882,
+   "engine_acc": 0.711765,
+   "only_torch_correct": 2,
+   "only_engine_correct": 3,
+   "mean_tvd": 0.008688,
+   "max_tvd": 0.049085
+  },
+  "noul": {
+   "n": 170,
+   "agree_count": 169,
+   "agreement": 0.994118,
+   "torch_acc": 0.9,
+   "engine_acc": 0.905882,
+   "only_torch_correct": 0,
+   "only_engine_correct": 1,
+   "mean_tvd": 0.005338,
+   "max_tvd": 0.076261
+  },
+  "score": {
+   "n": 170,
+   "agree_count": 168,
+   "agreement": 0.988235,
+   "torch_acc": 1.0,
+   "engine_acc": 0.988235,
+   "only_torch_correct": 2,
+   "only_engine_correct": 0,
+   "mean_tvd": 0.0047,
+   "max_tvd": 0.35062
+  }
+ },
+ "flips": [
+  {
+   "i": 66,
+   "question": "urgency",
+   "torch": "0",
+   "engine": "1",
+   "label": "0",
+   "torch_p": 0.7287,
+   "engine_p": 0.6219,
+   "tvd": 0.3506
+  },
+  {
+   "i": 121,
+   "question": "urgency",
+   "torch": "1",
+   "engine": "0",
+   "label": "1",
+   "torch_p": 0.5584,
+   "engine_p": 0.5511,
+   "tvd": 0.1097
+  },
+  {
+   "i": 164,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "true",
+   "torch_p": 0.564,
+   "engine_p": 0.5123,
+   "tvd": 0.0763
+  },
+  {
+   "i": 113,
+   "question": "queue",
+   "torch": "depot_repair",
+   "engine": "remote_l1",
+   "label": "remote_l1",
+   "torch_p": 0.352,
+   "engine_p": 0.3398,
+   "tvd": 0.0353
+  },
+  {
+   "i": 63,
+   "question": "queue",
+   "torch": "damage_claim",
+   "engine": "sales_ops",
+   "label": "sales_ops",
+   "torch_p": 0.5112,
+   "engine_p": 0.5152,
+   "tvd": 0.0302
+  },
+  {
+   "i": 62,
+   "question": "queue",
+   "torch": "damage_claim",
+   "engine": "sales_ops",
+   "label": "damage_claim",
+   "torch_p": 0.5173,
+   "engine_p": 0.5012,
+   "tvd": 0.0231
+  },
+  {
+   "i": 68,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "damage_claim",
+   "label": "sales_ops",
+   "torch_p": 0.5042,
+   "engine_p": 0.5023,
+   "tvd": 0.0087
+  },
+  {
+   "i": 6,
+   "question": "queue",
+   "torch": "battery_program",
+   "engine": "sales_ops",
+   "label": "sales_ops",
+   "torch_p": 0.5051,
+   "engine_p": 0.5023,
+   "tvd": 0.0082
+  }
+ ]
+}

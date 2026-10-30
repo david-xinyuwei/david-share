@@ -1,0 +1,52 @@
+{
+ "torch": "验证结果\\端侧引擎_20261027-124700\\pytorch-ftcf-0.8b\\assistant\\rows.json",
+ "engine": "验证结果\\端侧引擎_x64并发_20261031-013937\\ftcf-kev-0.8b-Q8_0-cpu-c8\\assistant\\rows.jsonl",
+ "missing": 0,
+ "by_type": {
+  "all": {
+   "n": 477,
+   "agree_count": 476,
+   "agreement": 0.997904,
+   "torch_acc": 0.974843,
+   "engine_acc": 0.976939,
+   "only_torch_correct": 0,
+   "only_engine_correct": 1,
+   "mean_tvd": 0.002548,
+   "max_tvd": 0.06082
+  },
+  "choice": {
+   "n": 159,
+   "agree_count": 159,
+   "agreement": 1.0,
+   "torch_acc": 0.993711,
+   "engine_acc": 0.993711,
+   "only_torch_correct": 0,
+   "only_engine_correct": 0,
+   "mean_tvd": 0.000246,
+   "max_tvd": 0.024921
+  },
+  "noul": {
+   "n": 318,
+   "agree_count": 317,
+   "agreement": 0.996855,
+   "torch_acc": 0.965409,
+   "engine_acc": 0.968553,
+   "only_torch_correct": 0,
+   "only_engine_correct": 1,
+   "mean_tvd": 0.003699,
+   "max_tvd": 0.06082
+  }
+ },
+ "flips": [
+  {
+   "i": 64,
+   "question": "needs_confirmation",
+   "torch": "false",
+   "engine": "true",
+   "label": "true",
+   "torch_p": 0.5167,
+   "engine_p": 0.513,
+   "tvd": 0.0297
+  }
+ ]
+}

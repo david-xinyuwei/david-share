@@ -25,7 +25,9 @@ param(
     [int] $UBatch = 2048,   # -b and -ub; the lean deployment check uses 512
     [string] $DataPrefix = 'test_',  # 'policy_test_' scores the prompt-only variant (policy text in every question)
     [string] $Bin = '',              # llama.cpp folder; default = the ARM64 b11935 folders used by the laptop runs. x64: C:\Tools\llama.cpp\b11935-cpu-x64
-    [string] $OutRoot = '验证结果\端侧引擎_20261027-124700'  # project-relative results root; use a new one per machine
+    [string] $OutRoot = '验证结果\端侧引擎_20261027-124700',  # project-relative results root; use a new one per machine
+    [int] $Concurrency = 1,          # client requests kept in flight (systemone_client.py --concurrency); 1 = the sequential laptop method
+    [int] $Parallel = 0              # llama-server -np slots; 0 = leave the server default (auto, 4 on b11935 for this model)
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
@@ -39,6 +41,7 @@ $argList = @()
 if (Test-Path -LiteralPath $Model) { $argList += @('-m', ('"{0}"' -f (Resolve-Path -LiteralPath $Model).Path)) } else { $argList += @('-hf', $Model) }
 $argList += @('--host', '127.0.0.1', '--port', "$Port", '-c', "$Ctx", '-b', "$UBatch", '-ub', "$UBatch", '--cache-ram', '0')
 if ($Backend -eq 'opencl') { $argList += @('-ngl', '99') }
+if ($Parallel -gt 0) { $argList += @('-np', "$Parallel") }
 $portDeadline = (Get-Date).AddSeconds(60)  # the previous run's server may still be releasing the port
 while (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue) {
     if ((Get-Date) -gt $portDeadline) { throw "port $Port is still in use after 60 s" }
@@ -47,7 +50,8 @@ while (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction Silently
 
 $server = Start-Process -FilePath (Join-Path $bin 'llama-server.exe') -ArgumentList $argList -PassThru -WindowStyle Hidden `
     -RedirectStandardError $log -RedirectStandardOutput "$log.out"
-$result = [ordered]@{ label = $Label; model = $Model; backend = $Backend; build = (Split-Path -Leaf $bin); server_args = ($argList -join ' '); data_prefix = $DataPrefix }
+$result = [ordered]@{ label = $Label; model = $Model; backend = $Backend; build = (Split-Path -Leaf $bin); server_args = ($argList -join ' '); data_prefix = $DataPrefix
+                      client_concurrency = $Concurrency; logical_processors = [Environment]::ProcessorCount }
 try {
     $sw = [Diagnostics.Stopwatch]::StartNew()
     $ready = $false
@@ -59,10 +63,16 @@ try {
     $result.load_seconds = [math]::Round($sw.Elapsed.TotalSeconds, 1)
     $result.server_log_facts = @(Select-String -LiteralPath $log -Pattern 'decision model type|ggml_opencl: device|offloaded|CPU_REPACK model buffer|OpenCL model buffer|CPU model buffer|KV buffer size|compute buffer size|file type|model size' | ForEach-Object { $_.Line.Trim() })
 
+    $result.server_log_facts += @(Select-String -LiteralPath $log -Pattern 'n_slots|n_threads' | ForEach-Object { $_.Line.Trim() })
+    $result.workload_cpu_seconds = [ordered]@{}
     foreach ($w in $Workloads) {
         $data = "data\contoso\final\$DataPrefix$w.jsonl"
-        python scripts\systemone_client.py --url "http://127.0.0.1:$Port/v1/systemone" --data $data --out (Join-Path $out $w)
+        $server.Refresh(); $cpuBefore = $server.TotalProcessorTime.TotalSeconds; $wallBefore = Get-Date
+        python scripts\systemone_client.py --url "http://127.0.0.1:$Port/v1/systemone" --data $data --out (Join-Path $out $w) --concurrency $Concurrency
         if ($LASTEXITCODE -ne 0) { throw "client failed for $w" }
+        $server.Refresh()  # server CPU time consumed by this workload (incl. warm-up), for utilisation = cpu / wall / logical processors
+        $result.workload_cpu_seconds[$w] = [ordered]@{ cpu_seconds = [math]::Round($server.TotalProcessorTime.TotalSeconds - $cpuBefore, 1)
+                                                      wall_seconds_incl_warmup = [math]::Round(((Get-Date) - $wallBefore).TotalSeconds, 1) }
         if ($TorchPrefix) {
             $torch = @("$TorchPrefix$w\rows.json", "${TorchPrefix}test_$w\rows.json") | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
             if ($torch) {
