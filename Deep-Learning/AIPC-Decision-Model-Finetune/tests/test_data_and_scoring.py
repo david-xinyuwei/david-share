@@ -23,6 +23,7 @@ DATA = ROOT / "data" / "contoso"
 FINAL = DATA / "final"
 ENGINE = ROOT / "验证结果" / "端侧引擎_20261027-124700"
 sys.path.insert(0, str(ROOT / "scripts"))
+import calibration_boundary as cb  # noqa: E402
 import summarize_engine as se
 import summarize_results as sr  # noqa: E402
 import systemone_client as client  # noqa: E402
@@ -294,7 +295,7 @@ class BilingualDocumentationTests(unittest.TestCase):
         except ImportError:
             raise unittest.SkipTest("Documentation tests require requirements-docs.txt")
         cls.parser = MarkdownIt("commonmark", {"html": True}).enable("table")
-        cls.pairs = (("README_CN.md", "README.md", 35, 23),
+        cls.pairs = (("README_CN.md", "README.md", 36, 23),
                      ("文档/微调与端侧验证报告_20261027-130700.md",
                       "文档/Finetuning-and-On-Device-Validation-Report.md", 20, 1))
 
@@ -437,6 +438,26 @@ class ScoringTests(unittest.TestCase):
         # kev.benchmark reported b0-test_support brier=0.6413 at the served temperature (pipeline-0.8b.status)
         self.assertAlmostEqual(tw.score(rows, served)["brier"], 0.6413, places=4)
         self.assertGreater(tw.score(rows, 1.0)["brier"], tw.score(rows, served)["brier"])
+
+    def test_calibration_boundary_accuracy_invariant_and_ece_arithmetic(self):
+        """The re-calibrate-or-retrain rule rests on two facts the script must get right: a temperature never changes an
+        answer, and 'removable ECE' is exactly ECE(served) - ECE(best T on the grid). Checked on saved rows and on a
+        synthetic over-confident set whose best temperature is known to be > 1."""
+        rows = [r for r in json.loads(self.saved_rows("pytorch-b0-0.8b").read_text(encoding="utf-8")) if r.get("variant", "clean") == "clean"]
+        prepared, served = cb.prepare(rows)
+        accs = {round(cb.metrics(prepared, t)["acc"], 9) for t in (0.5, served, 1.0, 2.0, 4.0)}
+        self.assertEqual(len(accs), 1)
+        self.assertAlmostEqual(cb.metrics(prepared, served)["brier"], tw.score(rows, served)["brier"], places=4)  # tw rounds to 4 places
+        result = cb.analyse(self.saved_rows("pytorch-b0-0.8b"))
+        self.assertLessEqual(abs(result["ece_removable_by_any_T"] - (result["at_served"]["ece"] - result["ece_at_best_T"])), 0.00011)  # three independently rounded 4-place values
+        self.assertGreaterEqual(result["ece_removable_by_any_T"], -1e-9)
+        cov = result["coverage_at_served"]
+        self.assertTrue(all(cov[a]["coverage"] >= cov[b]["coverage"] for a, b in zip(("0.5", "0.6", "0.7", "0.8", "0.9"), ("0.6", "0.7", "0.8", "0.9", "0.95"))))
+        # synthetic: confidently wrong on 30% of items at T=1 -> the ECE-optimal temperature must flatten (T > 1)
+        synthetic = [([4.0, 0.0, 0.0], 0 if i % 10 < 7 else 1, "choice") for i in range(200)]
+        best = min(cb.GRID, key=lambda t: cb.metrics(synthetic, t)["ece"])
+        self.assertGreater(best, 1.0)
+        self.assertEqual({round(cb.metrics(synthetic, t)["acc"], 9) for t in cb.GRID}, {0.7})
 
     def test_paired_bootstrap_bounds(self):
         def rows(correct):

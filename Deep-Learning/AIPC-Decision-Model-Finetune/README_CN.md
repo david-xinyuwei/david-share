@@ -358,6 +358,33 @@
 
 **给客户用的是内置校准参数的 GGUF。** 引擎加载文件后使用其中的温度；客户不需要校准服务。是否补问或转人工要由业务应用实现，本仓库没有自动接管或模型兜底。若答案能力不足，应针对数据与错误改进训练，而不是只调 T；若只是概率偏差，走[仅更新校准参数](#calibration-update)。
 
+#### 什么时候只改校准就行，什么时候必须重训：规则和实测边界
+
+判断只看两件事，都能从保存的逐题结果离线算出，不用重新跑模型：
+
+1. **答案对不对（准确率）。** 改 T 不改任何一道题的答案——这是数学性质，本次也用数字核了：16 个模型 × 测试集组合在 0.5 到 4.0 之间 71 个温度上准确率全部逐位相同。所以准确率不够、或者新数据上准确率掉出了原来的 95% 区间，**校准没有任何办法，只能改数据重训**。
+2. **概率准不准（ECE），以及它有多少是一个标量 T 能修的。** 把新数据的逐题分数从 0.5 到 4.0 扫一遍 T，取 ECE 最小的那个：从当前 T 到最优 T 能降多少，就是“改校准就能解决”的部分；最优 T 下剩下的 ECE 是“校准修不掉”的部分。当前 T 的 ECE 还在自己的 95% bootstrap 区间里，就是噪声，什么都不用改。
+
+下表是对本项目两个尺寸的 FT-cf 算出来的边界（脚本 [scripts/calibration_boundary.py](scripts/calibration_boundary.py)，输入是 GPU 评测保存的原始分数；“最优 T”是在该测试集上自己选的，是上限不是可上线的值）：
+
+| 模型与测试集 | 准确率（任何 T 下相同，95% 区间） | ECE：不校准 T=1 | ECE：交付的 T（95% 区间） | ECE：该测试集最优 T | 改校准最多能降 | 校准修不掉的部分 |
+|---|---|---|---|---|---|---|
+| 0.8B FT-cf，工单·同分布（510 题） | 86.9%（83.7–89.8%） | 0.032 | 0.030（T=1.15；0.021–0.055） | 0.021（T=1.35） | 0.009 | 0.021 |
+| 0.8B FT-cf，助手·同分布（477 题） | 97.5%（95.8–98.7%） | 0.005 | 0.013（T=1.15；0.008–0.025） | 0.005（T=1.0） | 0.007 | 0.005 |
+| 0.8B FT-cf，工单·分布外（1,011 题） | 82.5%（80.1–84.8%） | 0.074 | **0.064**（T=1.15；0.051–0.086） | 0.016（T=2.15） | **0.048** | 0.016 |
+| 0.8B FT-cf，助手·分布外（951 题） | 94.4%（92.8–95.8%） | 0.022 | 0.018（T=1.15；0.011–0.032） | 0.005（T=1.65） | 0.012 | 0.005 |
+| 4B FT-cf，工单·同分布（510 题） | 95.9%（94.1–97.5%） | 0.023 | 0.019（T=2.35；0.012–0.035） | 0.012（T=1.65） | 0.007 | 0.012 |
+| 4B FT-cf，工单·分布外（1,011 题） | 91.4%（89.6–93.1%） | 0.057 | 0.023（T=2.35；0.016–0.040） | 0.015（T=2.8） | 0.008 | 0.015 |
+
+这张表对本项目的四条结论：
+
+- **同分布上交付的 T 已经够好，不要再调。** 六行里交付 T 的 ECE 都在自己的 95% 区间内，换成该测试集的最优 T 也只能再降 0.007–0.009，小于区间宽度。校准开口已经在噪声里。
+- **换了分布，工单的概率偏差大部分是校准能修的。** 0.8B 分布外工单的 ECE 0.064 里，0.048 只要把 T 从 1.15 重拟合到约 2.15 就能消掉，剩下 0.016 与同分布相当——这是“模型在新数据上还是那么准，只是过于自信”的典型情形，**走仅更新校准参数就行**。代价是概率更“平”：同样用 90% 做自动处理门槛，覆盖率从 71.7% 降到 60.9%，被自动处理部分的准确率从 94.3% 升到 97.4%。
+- **但准确率从 86.9% 掉到 82.5% 这 4.4 个点，校准一点也补不回来。** 82.5% 已经在同分布 95% 区间（83.7–89.8%）之外，这就是“必须重训”的信号；重训要补的是分布外数据里多出来的新加坡、离线、按流量计费网络和“一句话说两件事”（见[测试数据](#测试怎么做的)）。校准和重训不是二选一：这种情形下两件都要做，先重训，再在新数据上重拟合 T。
+- **一个标量 T 照顾不了两种分布。** 0.8B 工单同分布的最优 T 是 1.35，分布外是 2.15；用 2.15 回头看同分布，ECE 是 0.031（交付 T 下 0.030，最优 1.35 下 0.021），不变差但也拿不到同分布的最优。所以 T 要在与上线数据同分布的校准集上拟，分布变了就重拟。分题型看，0.8B 分布外工单的偏差集中在紧急度等级题（ECE 0.107）和队列选择题（0.070），是非题（0.042）较好。
+
+操作上：上线后定期抽一批带标签的新数据，跑一次 `kev.benchmark` 拿到逐题分数，再跑 `scripts/calibration_boundary.py`：准确率在区间内、ECE 在区间内 →不动；准确率在区间内、ECE 超出且“改校准最多能降”占大头 → 只重拟合 T（[步骤](#calibration-update)）；准确率掉出区间 → 补数据重训，再校准。这些门槛是本项目模拟数据上的数字，换了数据要用同样方法重算。
+
 ### 4. 训练要多少资源
 
 <!-- TABLE:TRAIN -->
@@ -918,7 +945,7 @@ python -B scripts\render_diagrams.py --preview
 | GPU 主机上的训练与评测流水线 | [scripts/remote_setup.sh](scripts/remote_setup.sh)、[scripts/remote_pipeline_v2.sh](scripts/remote_pipeline_v2.sh)、[scripts/remote_cf_round.sh](scripts/remote_cf_round.sh)、[scripts/remote_export_gguf.sh](scripts/remote_export_gguf.sh) | 基线、微调、温度校准、评测、配对比较、导出 GGUF |
 | 笔记本上的端侧验证 | [scripts/run_engine_eval.ps1](scripts/run_engine_eval.ps1)、[scripts/systemone_client.py](scripts/systemone_client.py)、[scripts/parity.py](scripts/parity.py) | 启动 llama-server、逐条打分计时（含并发）、与 PyTorch 逐题比对 |
 | 本机图形界面试用 | [scripts/try_ui.py](scripts/try_ui.py) | 浏览器表单改输入、看每个选项概率、与规则答案对照、看进程内存和 CPU；中英文 |
-| 汇总与测试 | [scripts/summarize_results.py](scripts/summarize_results.py)、[scripts/summarize_engine.py](scripts/summarize_engine.py)、[tests/](tests/) | 所有表格都从原始结果生成；离线检查数据和打分代码 |
+| 汇总与测试 | [scripts/summarize_results.py](scripts/summarize_results.py)、[scripts/summarize_engine.py](scripts/summarize_engine.py)、[scripts/calibration_boundary.py](scripts/calibration_boundary.py)、[tests/](tests/) | 所有表格都从原始结果生成；离线判断“改校准还是重训”；离线检查数据和打分代码 |
 | 原始证据 | [验证结果/](验证结果/) | 评测报告、逐题预测、训练日志、显存曲线、端侧逐条结果。模型检查点和完整结果包里有超过 GitHub 100 MB 上限的文件，没有放进仓库，按操作步骤重新训练即可得到 |
 | 详细报告 | [文档/微调与端侧验证报告_20261027-130700.md](文档/微调与端侧验证报告_20261027-130700.md) | 每个结论的完整表格、逐题分析和边界 |
 
@@ -970,4 +997,4 @@ python -B scripts\render_diagrams.py --preview
 | 数据准备 | `vendor_policy.py`、`gen_vendor_data.py`、`augment_counterfactual.py` | 大模型生成文本，策略代码计算标签 |
 | 首次复现训练 | `remote_setup.sh`、`remote_public_baseline.sh`、`remote_pipeline_v2.sh`、`remote_cf_round.sh` | `remote_pipeline.sh` 是固定 micro-batch 的历史版本；`remote_run_all.sh`、`remote_after_08b.sh`、`remote_after_chain.sh` 是原实验的串行调度入口 |
 | 模型导出与取回 | `remote_llama_prep.sh`、`remote_export_gguf.sh`、`remote_export_gguf_cf.sh`、`pull_gguf.ps1`、`pull_results.ps1` | `remote_pack_results.sh` 打包；`fetch_parallel.ps1` 分块传输；`remote_env.sh` 定义远端路径 |
-| 分析与文档 | `summarize_results.py`、`summarize_engine.py`、`fill_report_tables.py` | `temperature_whatif.py` 做温度诊断；`remote_memory_probe.sh` 仅做显存探测；`render_diagrams.py` 生成图 |
+| 分析与文档 | `summarize_results.py`、`summarize_engine.py`、`calibration_boundary.py`、`fill_report_tables.py` | `temperature_whatif.py` 做温度诊断；`remote_memory_probe.sh` 仅做显存探测；`render_diagrams.py` 生成图 |
