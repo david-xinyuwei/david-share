@@ -40,13 +40,21 @@ The laptop loads the exported GGUF. The business application sends a message, de
 
 *Original explanatory diagram. Inference happens on the laptop; the application decides whether to take action. Sources: [client](scripts/systemone_client.py), [device evaluation entry](scripts/run_engine_eval.ps1). The separate test topology is next to [the evaluation method](#how-the-tests-work).*
 
+<a id="criteria"></a>
+
+**Five criteria for judging a decision model.** For every question the model returns two things: an answer, and its confidence in that answer (a percentage). The two are checked separately; add how it runs on the laptop and how it holds up on data it has never seen, and every number in this document has a home:
+
 <!-- SOURCE:TABLE:1 -->
-| Model requirement| How this project evaluates it| What the result does not establish| 
-| ---| ---| ---| 
-| Accurate business decisions| Compare released, policy-prompted, fine-tuned and counterfactually augmented models on the same records; inspect minority classes and field changes| High simulated-data scores do not establish real-business accuracy| 
-| Short responses and modest resource use| Laptop request time, model file size and process memory; GPU training time and memory measured separately| One run on one machine does not cover every laptop or concurrency scenario| 
-| Customer-controlled updates| Data generation and splits, fine-tuning, calibration, evaluation, GGUF export and model updates| This repository does not implement online learning or automatic publication| 
+| Dimension| Criterion| Questions to answer| How it is measured| Measured here: 0.8B FT-cf, laptop Q8_0| What the result does not establish| 
+| ---| ---| ---| ---| ---| ---| 
+| Accuracy| ① Is the answer right?| Does the chosen queue, grade or yes/no match the reference answer?| Accuracy; also broken down on paired questions where one field changes and the answer must follow| Support 86.9%, assistant 97.5%; paired questions that change the region only 36.2% ([section 1](#same-questions), [headroom analysis](#headroom))| High simulated-data scores do not establish real-business accuracy| 
+| Accuracy| ② Is the confidence honest?| On the questions where it says 90%, is it right about nine times in ten?| ECE (lower is better); for the business, coverage and accuracy of the part auto-approved at confidence ≥ 90%| ECE 0.030; at a 90% threshold 73.1% of questions are auto-approved, and that part is 100% accurate ([section 3](#3-calibration-correct-ranking-does-not-guarantee-reliable-probabilities))| A change of data distribution requires refitting the calibration parameter| 
+| Performance| ③ Latency| How long one request takes| Median time per request (ms), one request at a time| Support 646 ms, assistant 984 ms, Snapdragon X Elite CPU ([section 5](#5-laptop-inference-engine))| One run on one machine does not cover every laptop; concurrency does not raise throughput, see section 5| 
+| Performance| ④ Resource use| How big a machine it needs| Peak process working set, CPU utilization during inference, model file size, load time in seconds| 2,314 MiB; CPU 50% (8 of 16 threads); file 764 MiB; load 2.6 s ([section 5](#5-laptop-inference-engine), [section 6](#6-hardware-requirements))| 4B needs about 3× the memory| 
+| Generalization| ⑤ Generalization| How much of ① and ② survives on data it has never seen| Re-measure ① and ② on out-of-distribution questions with a different message generator and field distribution, and read the drop; then check 656 public questions to confirm prior capability is retained| Support accuracy 86.9% → 82.5% (down 4.4 points); ECE 0.030 → 0.064, of which 0.048 is recovered by refitting calibration alone; public questions 64.8% → 64.8% ([section 1](#same-questions), [section 2](#2-retention-of-general-capability))| Out-of-distribution questions are still simulated business data, not real customer data| 
 <!-- /SOURCE:TABLE:1 -->
+
+Three sentences fix how they relate: **accuracy and performance are parallel dimensions and are never traded off against each other**; **quantization is the exchange between them** — file and memory halve, possibly at a small cost to ① and ②, which is why section 5 measures per-question answer agreement after quantization; **calibration moves only ②, retraining is what moves ①** — changing the calibration parameter changes no answer. The customer's own path for iterating on these five (data generation and splits, fine-tuning, calibration, evaluation, GGUF export and update) is in [Steps](#steps); this repository does not implement online learning or automatic publication.
 
 ### Why Kev Is a Candidate
 
@@ -233,27 +241,43 @@ The repository answers four questions:
 
 ### How the Tests Work
 
-**Compared configurations** use the same records and the same `kev.benchmark` evaluator:
+**Each pipeline step moves only one or two of the [five criteria](#criteria); the others must be re-checked for damage.** This is also why calibration has no pass/fail of its own: it owns only ②, and the verdict “good enough, or back to which step” comes from the evaluation that follows it.
 
 <!-- SOURCE:TABLE:7 -->
+| Pipeline step| Criterion it moves| What must be re-checked| Measured here (0.8B FT-cf)| 
+| ---| ---| ---| ---| 
+| Data generation and splits (with counterfactual variants)| ① what can be learned; ⑤ forces the model to read fields instead of memorizing messages| Training, calibration and test sets do not overlap| Training set 2,147 → 3,832 records| 
+| Fine-tuning (LoRA + pointer head)| ① answer correctness; side effect: sharper confidence| ⑤ public-question accuracy must not drop (threshold 2 percentage points)| Support 44.7% → 86.9%; public questions 64.8% → 64.8%| 
+| Calibration (fit one temperature T)| Only ②, confidence honesty| ① no answer changes| ECE 0.011 → 0.008; 16 combinations × 71 values of T give identical answers| 
+| Export GGUF (BF16)| Must change nothing| Per-question agreement with PyTorch| Agreement 99.2% / 99.8%| 
+| Quantization (Q8_0 / Q4_K_M)| ③ latency, ④ resource use| How much ① and ② were given up| File 1,437 → 764 / 517 MiB; 8-bit answer agreement 99.2–100%, 4-bit 94.9–98.2%| 
+| Evaluation (`kev.benchmark`, on-device runs)| Moves nothing; measures only| All five| ① ② ⑤ on the GPU; ③ ④ and agreement on the laptop| 
+| Post-launch monitoring| Moves nothing| Sample ① ② ⑤ and decide: leave / refit T only / retrain| [The rule in section 3](#3-calibration-correct-ranking-does-not-guarantee-reliable-probabilities)| 
+<!-- /SOURCE:TABLE:7 -->
+
+GPU time and memory spent on training are a cost of the pipeline, not a criterion of the model; they are listed separately in [section 4](#4-training-resources).
+
+**Compared configurations** use the same records and the same `kev.benchmark` evaluator:
+
+<!-- SOURCE:TABLE:8 -->
 | Name| Method| 
 | ---| ---| 
 | B0| Released Kev (`jaredpalmer/kev-{0.8b,4b}@v1.0`), one-sentence question instructions, no training| 
 | B0-policy| The same release with full vendor policy in each question (the support question section grows from about 950 to 4,600 characters per record)| 
 | FT| Continue from the release with supervised fine-tuning (SFT): cross-entropy on the correct answer, not reinforcement learning; other loss weights are 0 in the [training configuration](验证结果/微调评测_20261027-220226/runs/0.8b/ft/training_config.json). Rank-16 LoRA + pointer head, 2 epochs, lr 2e-5, effective batch 8, bf16, seed 1; mix in 1,000 Kev replay records; fit temperature on calibration data| 
 | FT-cf| Add counterfactual variants to FT data: keep the training message, change one policy field and recompute labels (2,147 → 3,832 training records). This recipe addresses FT's poor field-change pairs; the selection rule was written into the [protocol](文档/Experiment-Protocol.md) before its results| 
-<!-- /SOURCE:TABLE:7 -->
+<!-- /SOURCE:TABLE:8 -->
 
 **Test data** uses policy-computed labels. An original case and its field variants stay in one split. Group isolation does not guarantee distinct short messages across unrelated cases: 19 assistant test records have text also seen in training. The report includes a comparison excluding them.
 
-<!-- SOURCE:TABLE:8 -->
+<!-- SOURCE:TABLE:9 -->
 | Test set| Records / questions| Message author| Purpose| 
 | ---| ---| ---| ---| 
 | Support and assistant: in-distribution| 170 / 510, 159 / 477| Model A, also used for training messages| Main results| 
 | Support and assistant: out-of-distribution| 337 / 1,011, 317 / 951| Another provider's model B; more Singapore, offline and metered-network cases, with two intents in one message| Effect after changing generator and field distribution| 
 | Support and assistant: test variants| 126 / 378, 70 / 210| Keep the test message and change one policy field| Whether the model applies policy to device fields| 
 | Kev transfer-v4 development set| 656 questions| Kev author's public tasks| General-capability retention| 
-<!-- /SOURCE:TABLE:8 -->
+<!-- /SOURCE:TABLE:9 -->
 
 One support test record is shown below, with option descriptions abbreviated. The model sees `state`; policy code derives `label` from the device record, and the model never receives it. The Chinese message is retained verbatim because it is the actual test input, not untranslated documentation.
 
@@ -279,7 +303,7 @@ The following results are **historical measurements from 2026-10-27**, separate 
 
 **Measurement boundaries**:
 
-<!-- SOURCE:TABLE:9 -->
+<!-- SOURCE:TABLE:10 -->
 | Metric| Measurement location| Measurement start and end| Excludes| 
 | ---| ---| ---| ---| 
 | Accuracy, Brier, ECE and coverage at the error budget| GPU VM, `kev.benchmark --device cuda`| Score each question once and aggregate by question| Latency| 
@@ -289,7 +313,9 @@ The following results are **historical measurements from 2026-10-27**, separate 
 | Device request latency| Laptop, `systemone_client.py` → `127.0.0.1:8080`| Client sends one record → receives all 3 answers; sequential, not concurrent| First 2 warm-up requests and model loading| 
 | Device process memory| Laptop: read `llama-server` process counters after evaluation| Peak working set (physical process memory) and committed process memory| —| 
 | Agreement with PyTorch| Laptop, `parity.py`| Compare answers and probabilities question by question on the same file| —| 
-<!-- /SOURCE:TABLE:9 -->
+<!-- /SOURCE:TABLE:10 -->
+
+<a id="same-questions"></a>
 
 ### 1. Same Questions: Before and After Fine-Tuning
 
@@ -302,25 +328,25 @@ Accuracy in the first two tables comes from the same H100 NVL / PyTorch evaluati
 <!-- TABLE:README_ACC -->
 **Accuracy: the same business test questions**
 
-<!-- SOURCE:TABLE:10 -->
+<!-- SOURCE:TABLE:11 -->
 | Parameter scale| Test set (questions)| Before fine-tuning: released accuracy| After fine-tuning: final-recipe accuracy| Gain (percentage points)| 
 | ---| ---| ---| ---| ---| 
 | 0.8B| Support: in-distribution (510 questions)| 44.7%| 86.9%| +42.2| 
 | 0.8B| Assistant: in-distribution (477 questions)| 67.1%| 97.5%| +30.4| 
 | 4B| Support: in-distribution (510 questions)| 60.8%| 95.9%| +35.1| 
 | 4B| Assistant: in-distribution (477 questions)| 81.8%| 99.8%| +18.0| 
-<!-- /SOURCE:TABLE:10 -->
+<!-- /SOURCE:TABLE:11 -->
 
 **Generalization: the same out-of-distribution questions**
 
-<!-- SOURCE:TABLE:11 -->
+<!-- SOURCE:TABLE:12 -->
 | Parameter scale| Test set (questions)| Before fine-tuning: released accuracy| After fine-tuning: final-recipe accuracy| Gain (percentage points)| 
 | ---| ---| ---| ---| ---| 
 | 0.8B| Support: out-of-distribution (1,011 questions)| 43.0%| 82.5%| +39.5| 
 | 0.8B| Assistant: out-of-distribution (951 questions)| 65.7%| 94.4%| +28.7| 
 | 4B| Support: out-of-distribution (1,011 questions)| 60.7%| 91.4%| +30.7| 
 | 4B| Assistant: out-of-distribution (951 questions)| 81.9%| 98.8%| +16.9| 
-<!-- /SOURCE:TABLE:11 -->
+<!-- /SOURCE:TABLE:12 -->
 <!-- /TABLE:README_ACC -->
 
 **Performance: the same laptop and requests, comparing latency and memory**
@@ -328,7 +354,7 @@ Accuracy in the first two tables comes from the same H100 NVL / PyTorch evaluati
 Both sides use Snapdragon X Elite X1E80100, llama.cpp b11935 CPU and `-c 8192 -b 2048 -ub 2048 --cache-ram 0`. Both 0.8B models use Q8_0; both 4B models use Q4_K_M. Performance effects are not attributed across model sizes. Each side completes the same 170 support requests and 159 assistant requests, with 3 questions per request. Request timing excludes model loading and warm-up; memory is the process peak working set across the run.
 
 <!-- TABLE:README_PERFORMANCE -->
-<!-- SOURCE:TABLE:12 -->
+<!-- SOURCE:TABLE:13 -->
 | Fixed model configuration| Performance metric (unit)| Before fine-tuning: released measurement| After fine-tuning: final-recipe measurement| 
 | ---| ---| ---| ---| 
 | 0.8B / Q8_0 / CPU| Support median request time (ms)| 666| 646| 
@@ -337,7 +363,7 @@ Both sides use Snapdragon X Elite X1E80100, llama.cpp b11935 CPU and `-c 8192 -b
 | 4B / Q4_K_M / CPU| Support median request time (ms)| 3,022| 3,615| 
 | 4B / Q4_K_M / CPU| Assistant median request time (ms)| 3,790| 4,751| 
 | 4B / Q4_K_M / CPU| Peak process working set (MiB)| 6,849| 6,842| 
-<!-- /SOURCE:TABLE:12 -->
+<!-- /SOURCE:TABLE:13 -->
 <!-- /TABLE:README_PERFORMANCE -->
 
 These are [recorded device runs](验证结果/端侧引擎_20261027-124700), not GPU evaluation timings. Case IDs, order, labels, input token counts and recorded core settings have been paired. The older device records lack per-request content hashes, so that comparison is not independent proof of byte-identical requests. Each configuration ran once and timing varies between runs: **the observations establish better accuracy, not faster inference caused by fine-tuning, nor that fine-tuning explains the entire latency difference.**
@@ -353,28 +379,28 @@ The full released, policy-prompted, FT and FT-cf matrix remains in [report secti
 
 ### 2. Retention of General Capability
 
-This is separate from business generalization: after adapting to the business, does the model lose its prior general-task capability? Each before/after pair uses the same 656 public Kev questions. Both FT and FT-cf recipes are retained below; the main comparison uses the FT-cf rows.
+This is the second question under [criterion ⑤](#criteria): the previous section's out-of-distribution questions ask “does it still work on new business data”; this section asks whether, after adapting to the business, the model lost its prior general-task capability. Each before/after pair uses the same 656 public Kev questions. Both FT and FT-cf recipes are retained below; the main comparison uses the FT-cf rows.
 
 <!-- TABLE:PUBLIC -->
-<!-- SOURCE:TABLE:13 -->
+<!-- SOURCE:TABLE:14 -->
 | Model and recipe| General questions| Released accuracy| Fine-tuned accuracy| Change (percentage points)| 
 | ---| ---| ---| ---| ---| 
 | 0.8B FT| 656| 64.8%| 64.8%| 0.0| 
 | 0.8B FT-cf| 656| 64.8%| 64.8%| 0.0| 
 | 4B FT| 656| 81.7%| 80.9%| -0.8| 
 | 4B FT-cf| 656| 81.7%| 82.6%| +0.9| 
-<!-- /SOURCE:TABLE:13 -->
+<!-- /SOURCE:TABLE:14 -->
 
 **Confidence on general questions: lower Brier is better.**
 
-<!-- SOURCE:TABLE:14 -->
+<!-- SOURCE:TABLE:15 -->
 | Model and recipe| Released Brier| Fine-tuned Brier| 
 | ---| ---| ---| 
 | 0.8B FT| 0.430| 0.560| 
 | 0.8B FT-cf| 0.430| 0.574| 
 | 4B FT| 0.243| 0.299| 
 | 4B FT-cf| 0.243| 0.269| 
-<!-- /SOURCE:TABLE:14 -->
+<!-- /SOURCE:TABLE:15 -->
 <!-- /TABLE:PUBLIC -->
 
 - **The predefined forgetting threshold was not triggered.** The threshold is an accuracy drop greater than 2 percentage points. Both 0.8B recipes remain at the released model's 64.8%. FT corrects 20 answers but breaks 20 others; FT-cf corrects 22 and breaks 22. The 4B FT score falls from 81.7% to 80.9%, or 5 fewer correct answers out of 656; FT-cf reaches 82.6%, or 6 more. This does not mean every general task is unchanged.
@@ -401,7 +427,7 @@ The decision rests on two facts, both computable offline from saved per-question
 
 The table below is that boundary computed for both FT-cf sizes of this project ([scripts/calibration_boundary.py](scripts/calibration_boundary.py), input = the raw scores saved by the GPU evaluation; the "best T" is chosen on the same test set, so it is an upper bound, not a deployable value):
 
-<!-- SOURCE:TABLE:15 -->
+<!-- SOURCE:TABLE:16 -->
 | Model and test set| Accuracy (identical at every T; 95% interval)| ECE: uncalibrated, T = 1| ECE: shipped T (95% interval)| ECE: best T for this set| Most that re-calibration can remove| Not fixable by calibration| 
 | ---| ---| ---| ---| ---| ---| ---| 
 | 0.8B FT-cf, support · in distribution (510 questions)| 86.9% (83.7–89.8%)| 0.032| 0.030 (T = 1.15; 0.021–0.055)| 0.021 (T = 1.35)| 0.009| 0.021| 
@@ -410,7 +436,7 @@ The table below is that boundary computed for both FT-cf sizes of this project (
 | 0.8B FT-cf, assistant · out of distribution (951 questions)| 94.4% (92.8–95.8%)| 0.022| 0.018 (T = 1.15; 0.011–0.032)| 0.005 (T = 1.65)| 0.012| 0.005| 
 | 4B FT-cf, support · in distribution (510 questions)| 95.9% (94.1–97.5%)| 0.023| 0.019 (T = 2.35; 0.012–0.035)| 0.012 (T = 1.65)| 0.007| 0.012| 
 | 4B FT-cf, support · out of distribution (1,011 questions)| 91.4% (89.6–93.1%)| 0.057| 0.023 (T = 2.35; 0.016–0.040)| 0.015 (T = 2.8)| 0.008| 0.015| 
-<!-- /SOURCE:TABLE:15 -->
+<!-- /SOURCE:TABLE:16 -->
 
 Four conclusions for this project:
 
@@ -424,23 +450,23 @@ Operationally: after go-live, periodically sample a labeled batch of new data, r
 ### 4. Training Resources
 
 <!-- TABLE:TRAIN -->
-<!-- SOURCE:TABLE:16 -->
+<!-- SOURCE:TABLE:17 -->
 | Model and recipe| micro-batch × accum| Records processed (2 epochs)| Optimizer steps| 
 | ---| ---| ---| ---| 
 | 0.8B FT| 1 × 8| 6,294| 788| 
 | 0.8B FT-cf| 4 × 2| 9,664| 1,208| 
 | 4B FT| 4 × 2| 6,294| 788| 
 | 4B FT-cf| 4 × 2| 9,664| 1,208| 
-<!-- /SOURCE:TABLE:16 -->
+<!-- /SOURCE:TABLE:17 -->
 
-<!-- SOURCE:TABLE:17 -->
+<!-- SOURCE:TABLE:18 -->
 | Model and recipe| Wall-clock time| Whole-device GPU peak (nvidia-smi)| PyTorch allocation peak| Calibration temperature| 
 | ---| ---| ---| ---| ---| 
 | 0.8B FT| 26.9 minutes| 4,555 MiB| 3,460 MiB| 1.26| 
 | 0.8B FT-cf| 11.6 minutes| 7,573 MiB| 5,326 MiB| 1.15| 
 | 4B FT| 15.7 minutes| 33,359 MiB| 22,581 MiB| 1.66| 
 | 4B FT-cf| 20.1 minutes| 26,215 MiB| 22,641 MiB| 2.35| 
-<!-- /SOURCE:TABLE:17 -->
+<!-- /SOURCE:TABLE:18 -->
 <!-- /TABLE:TRAIN -->
 
 - 0.8B FT takes about 27 minutes with micro-batch 1. FT-cf uses micro-batch 4, sees 54% more training records and takes about 12 minutes. Data and micro-batch both change, so the entire time difference cannot be attributed to one parameter. At micro-batch 4 and 9,664 processed records, 4B FT-cf takes 20.1 minutes versus 11.6 minutes for 0.8B. Effective batch is 8 throughout.
@@ -453,7 +479,7 @@ Operationally: after go-live, periodically sample a labeled batch of new data, r
 Test hardware: Snapdragon X Elite X1E80100, 12 CPU cores, 64 GB RAM, Adreno X1-85 GPU with driver 31.0.133.1, and Windows 11 Enterprise. Runtime: official llama.cpp b11935 Windows ARM64 CPU and Adreno OpenCL packages.
 
 <!-- TABLE:ENGINE -->
-<!-- SOURCE:TABLE:18 -->
+<!-- SOURCE:TABLE:19 -->
 | Model, quantization and runtime settings| Support accuracy: device (PyTorch)| Assistant accuracy: device (PyTorch)| Support agreement: device vs. PyTorch| Assistant agreement: device vs. PyTorch| 
 | ---| ---| ---| ---| ---| 
 | Released 0.8B<br>Q8_0 · CPU, default settings| 45.7% (44.7%)| 66.9% (67.1%)| 97.6%| 99.0%| 
@@ -467,9 +493,9 @@ Test hardware: Snapdragon X Elite X1E80100, 12 CPU cores, 64 GB RAM, Adreno X1-8
 | Fine-tuned FT-cf 0.8B<br>Q8_0 · CPU, default settings| 86.9% (86.9%)| 97.7% (97.5%)| 99.2%| 99.8%| 
 | Fine-tuned FT-cf 4B<br>Q4_K_M · CPU, default settings| 95.3% (95.9%)| 99.6% (99.8%)| 98.2%| 99.8%| 
 | Fine-tuned FT-cf 4B<br>Q8_0 · CPU, default settings| 96.1% (95.9%)| 99.8% (99.8%)| 99.4%| 100.0%| 
-<!-- /SOURCE:TABLE:18 -->
+<!-- /SOURCE:TABLE:19 -->
 
-<!-- SOURCE:TABLE:19 -->
+<!-- SOURCE:TABLE:20 -->
 | Model, quantization and runtime settings| Model file (MiB)| Peak working set (MiB)| Committed memory (MiB)| 
 | ---| ---| ---| ---| 
 | Released 0.8B<br>Q8_0 · CPU, default settings| 775| 2,323| 5,016| 
@@ -483,9 +509,9 @@ Test hardware: Snapdragon X Elite X1E80100, 12 CPU cores, 64 GB RAM, Adreno X1-8
 | Fine-tuned FT-cf 0.8B<br>Q8_0 · CPU, default settings| 775| 2,314| 5,014| 
 | Fine-tuned FT-cf 4B<br>Q4_K_M · CPU, default settings| 2,893| 6,842| 7,495| 
 | Fine-tuned FT-cf 4B<br>Q8_0 · CPU, default settings| 4,276| 9,609| 8,884| 
-<!-- /SOURCE:TABLE:19 -->
+<!-- /SOURCE:TABLE:20 -->
 
-<!-- SOURCE:TABLE:20 -->
+<!-- SOURCE:TABLE:21 -->
 | Model, quantization and runtime settings| Support median request time (ms)| Assistant median request time (ms)| 
 | ---| ---| ---| 
 | Released 0.8B<br>Q8_0 · CPU, default settings| 666| 843| 
@@ -499,7 +525,7 @@ Test hardware: Snapdragon X Elite X1E80100, 12 CPU cores, 64 GB RAM, Adreno X1-8
 | Fine-tuned FT-cf 0.8B<br>Q8_0 · CPU, default settings| 646| 984| 
 | Fine-tuned FT-cf 4B<br>Q4_K_M · CPU, default settings| 3,615| 4,751| 
 | Fine-tuned FT-cf 4B<br>Q8_0 · CPU, default settings| 3,649| 4,115| 
-<!-- /SOURCE:TABLE:20 -->
+<!-- /SOURCE:TABLE:21 -->
 
 Incomplete runs excluded from the tables: `ft-kev-0.8b-Q8_0-cpu-ctx2048` (144 support records, no summary) and `ft-kev-4b-Q4_K_M-cpu` (36 support records, no summary).
 <!-- /TABLE:ENGINE -->
@@ -508,23 +534,23 @@ Incomplete runs excluded from the tables: `ft-kev-0.8b-Q8_0-cpu-ctx2048` (144 su
 
 The three tables above are ordered by runtime configuration. Here the same runs are reordered by what happened to the model: released model (no training) → fine-tuned, not yet quantized (BF16) → quantized to 8 bits (Q8_0) → quantized to 4 bits (Q4_K_M). The released model was measured only as the official llama.cpp quantized packages (Q8_0 for 0.8B, Q4_K_M for 4B), never as BF16; the fine-tuned BF16 file was scored only with PyTorch on the GPU host and never ran on the laptop. So the BF16 row's latency, memory and load time are "not measured", not zero.
 
-<!-- SOURCE:TABLE:21 -->
+<!-- SOURCE:TABLE:22 -->
 | Model (0.8B, Snapdragon X Elite CPU, default settings)| Weight precision (bits per weight)| File (MiB)| Support / assistant accuracy| Per-question agreement with the fine-tuned BF16 model| Support / assistant median request time (ms)| Peak working set (MiB)| Model load (s)| 
 | ---| ---| ---| ---| ---| ---| ---| ---| 
 | Released B0, official Q8_0 package| 8.5| 775| 45.7% / 66.9%| N/A (not a fine-tuned model; agreement with its own BF16: 97.6% / 99.0%)| 666 / 843| 2,323| Not recorded| 
 | Fine-tuned FT-cf, BF16 (not quantized)| 16.0| 1,437| 86.9% / 97.5% (PyTorch on the GPU host)| Reference| Not run on the laptop| Not run on the laptop| Not run on the laptop| 
 | Fine-tuned FT-cf, Q8_0| 8.5| 775| 86.9% / 97.7%| 99.2% / 99.8%| 646 / 984| 2,314| 2.6| 
 | Fine-tuned FT, Q4_K_M (the FT-cf 4-bit file was not brought to the laptop; same-architecture FT stands in)| 5.8| 528| 87.5% / 93.9% (its BF16: 86.5% / 93.5%)| 94.9% / 97.9%| 812 / 909| 1,819| 2.5| 
-<!-- /SOURCE:TABLE:21 -->
+<!-- /SOURCE:TABLE:22 -->
 
-<!-- SOURCE:TABLE:22 -->
+<!-- SOURCE:TABLE:23 -->
 | Model (4B, Snapdragon X Elite CPU, default settings)| Weight precision (bits per weight)| File (MiB)| Support / assistant accuracy| Per-question agreement with the fine-tuned BF16 model| Support / assistant median request time (ms)| Peak working set (MiB)| Model load (s)| 
 | ---| ---| ---| ---| ---| ---| ---| ---| 
 | Released B0, official Q4_K_M package| 5.8| 2,893| 59.0% / 82.0%| N/A (agreement with its own BF16: 93.1% / 97.3%)| 3,022 / 3,790| 6,849| Not recorded| 
 | Fine-tuned FT-cf, BF16 (not quantized)| 16.0| 8,026| 95.9% / 99.8% (PyTorch on the GPU host)| Reference| Not run on the laptop| Not run on the laptop| Not run on the laptop| 
 | Fine-tuned FT-cf, Q8_0| 8.5| 4,276| 96.1% / 99.8%| 99.4% / 100.0%| 3,649 / 4,115| 9,609| 10.7| 
 | Fine-tuned FT-cf, Q4_K_M| 5.8| 2,893| 95.3% / 99.6%| 98.2% / 99.8%| 3,615 / 4,751| 6,842| 6.7| 
-<!-- /SOURCE:TABLE:22 -->
+<!-- /SOURCE:TABLE:23 -->
 
 - **Fine-tuning gains far outweigh quantization losses.** 0.8B: fine-tuning lifts support accuracy from 45.7% to 86.9% (+41.2 points); 8-bit quantization moves it by 0.0 / +0.2 points relative to BF16, and 506 of 510 support answers stay the same. 4B likewise: +37.1 points versus +0.2 / 0.0.
 - **8-bit is near-lossless; 4-bit shows a visible loss.** Per-question agreement with BF16 is 99.2%–100% at 8 bits and 94.9%–98.2% at 4 bits, i.e. 2%–5% of the questions change their answer. The 0.8B 4-bit accuracy being 1 point above BF16 means a few changed answers happened to become correct, not that the model got better.
@@ -537,7 +563,7 @@ The three tables above are ordered by runtime configuration. Here the same runs 
 
 The table below gathers the inference-side variables already measured in the three tables above. Each row changes one variable; values are taken directly from those tables (0.8B uses the FT rows, which cover the most configurations). "Not tested" marks a combination that was not run, not a conclusion. Each configuration ran once, and paired latency between two runs of the same architecture differed by up to 24% (see "Single-run latency varies" below), so latency differences within 20% are not interpreted. The last row, "CPU architecture", changes the whole machine; its values come from the next subsection and only answer whether the answers stay the same.
 
-<!-- SOURCE:TABLE:23 -->
+<!-- SOURCE:TABLE:24 -->
 | Optimization lever| Comparison (baseline → change)| Accuracy (support / assistant)| Median support decision (ms)| Peak working set (MiB)| One-line conclusion| 
 | ---| ---| ---| ---| ---| ---| 
 | Weight quantization| 0.8B FT Q8_0 → Q4_K_M (CPU, default arguments)| 86.5% / 93.5% → 87.5% / 93.9%| 669 → 812| 2,314 → 1,819| File 247 MiB smaller and memory 495 MiB lower, but not faster; agreement with PyTorch fell from 99.2% / 99.6% to 94.9% / 97.9%. The 1-point higher accuracy is quantization noise that happened to favor correct answers, not an improvement| 
@@ -550,7 +576,7 @@ The table below gathers the inference-side variables already measured in the thr
 | NPU (Hexagon)| Not tested| —| —| —| Requires driver test-signing on Windows, which was not enabled on the company laptop| 
 | Speculative decoding, KV-cache reuse| Not applicable| —| —| —| The decision endpoint generates no tokens, so there is no decode phase; `--cache-ram 0` disables the prompt cache| 
 | CPU architecture| 0.8B FT-cf Q8_0, Snapdragon X Elite laptop (ARM64 package) → AMD EPYC 7763 Azure VM (x64 package), both CPU with default settings| 86.9% / 97.7% → 87.1% / 97.9%| 646 → 1,168–1,255| 2,314 → 1,400–1,552| The same model file, llama.cpp release and arguments run unchanged on an x86-64 CPU: 983 of 987 answers are identical and two runs gave exactly the same results. The whole machine changed (processor, OS, 8 vs. 12 threads), so latency and memory differences are not attributed to the architecture| 
-<!-- /SOURCE:TABLE:23 -->
+<!-- /SOURCE:TABLE:24 -->
 
 - **The device runs the fine-tuned model.** Export merges LoRA into the base and writes the calibrated temperature into GGUF: 1.2599 for 0.8B FT, 1.1487 for 0.8B FT-cf and 2.3511 for 4B FT-cf, each equal to its calibration result.
 - **Q8_0 agrees with PyTorch almost question by question.** For 0.8B FT Q8_0 on CPU, accuracy matches PyTorch; 506/510 support and 475/477 assistant answers agree. FT-cf has 506 and 476 agreements; its sole assistant disagreement is close to 0.5 in both runtimes, 0.528 versus 0.572. For 4B FT-cf Q8_0, 507 support and all 477 assistant answers agree; the three support disagreements have selected-answer probabilities of only 0.48-0.51, and llama.cpp gets one additional question right, 96.1% versus 95.9%.
@@ -565,7 +591,7 @@ The table below gathers the inference-side variables already measured in the thr
 
 The laptop above has an ARM processor. To answer "does it still run on an x86-64 CPU", the same model file (`Contoso-Kev-0.8B-FTcf-Q8_0.gguf`, SHA-256 identical to the laptop copy) was loaded on an Azure virtual machine: AMD EPYC 7763, 8 vCPU (16 threads, 2.45 GHz), 64 GB RAM, Windows Server 2025, no GPU. The runtime was `llama-b11935-bin-win-cpu-x64.zip` from the same release page, with unchanged server arguments (`-c 8192 -b 2048 -ub 2048 --cache-ram 0`). The same 170 support and 159 assistant requests ran twice and were compared with the same PyTorch per-question results. The client script on the same VM sent the requests to `127.0.0.1:8080` and timed them at the client, as on the laptop.
 
-<!-- SOURCE:TABLE:24 -->
+<!-- SOURCE:TABLE:25 -->
 | Metric| Snapdragon X Elite laptop (ARM64 package; the FT-cf 0.8B row above)| AMD EPYC 7763 Azure VM (x64 package): run 1 / run 2| 
 | ---| ---| ---| 
 | Support accuracy (PyTorch on the same test set: 86.9%)| 86.9%| 87.1% / 87.1%| 
@@ -579,7 +605,7 @@ The laptop above has an ARM processor. To answer "does it still run on an x86-64
 | Support median request time (ms)| 646| 1,255 / 1,168| 
 | Assistant median request time (ms)| 984| 1,401 / 1,332| 
 | Engine threads (llama-server default)| 12| 8| 
-<!-- /SOURCE:TABLE:24 -->
+<!-- /SOURCE:TABLE:25 -->
 
 - **The answers agree.** 983 of 987 questions get the same answer on both machines; the 4 that differ are all questions whose top two options have close probabilities (selected-answer probability 0.32–0.62). x86-64 gets 3 more right and 1 fewer, hence an accuracy 0.2 points higher — these are flips near 0.5, not a more accurate x86-64. The median per-question probability difference is 0.00003, the maximum 0.151. Agreement with PyTorch is 99.0% / 99.6%, the same level as Snapdragon's 99.2% / 99.8%.
 - **Two runs on the same machine are exactly identical.** Answers and probabilities of all 987 questions match to every digit; only latency moves (support median 1,255 → 1,168 ms, a 7% difference).
@@ -591,7 +617,7 @@ The laptop above has an ARM processor. To answer "does it still run on an x86-64
 
 Every latency above was measured one request at a time. To answer "what if several people submit at once", the same x86-64 VM (AMD EPYC 7763, 8 vCPU / 16 threads; llama-server defaults to 8 compute threads) served the client with 1 / 2 / 4 / 8 requests kept in flight, each level completing the same 170 support + 159 assistant requests; the server kept its default 4 slots, and a final level repeated 8 in flight against 8 slots (`-np 8`). Per-request latency is still measured at the client from send to full answer, so it includes time queued at the server; throughput = completed requests ÷ wall time from the first send to the last answer. Model, runtime and server arguments are those of the previous subsection.
 
-<!-- SOURCE:TABLE:25 -->
+<!-- SOURCE:TABLE:26 -->
 | Client requests in flight| Server slots (`-np`)| Support request time, median / p90 (ms)| Assistant request time, median / p90 (ms)| Throughput (completed requests per second, both test sets)| Server process CPU utilisation (16 threads busy = 100%)| Peak working set / commitment (MiB)| Support / assistant accuracy| Same answer as 1 in flight, per question (987 questions)| 
 | ---| ---| ---| ---| ---| ---| ---| ---| ---| 
 | 1| 4 (default)| 1,183 / 1,257| 1,329 / 1,394| 0.79| 50%| 1,399 / 4,253| 87.1% / 97.9%| Reference (answers and probabilities of all 987 questions identical to the sequential run in the previous subsection)| 
@@ -599,7 +625,7 @@ Every latency above was measured one request at a time. To answer "what if sever
 | 4| 4 (default)| 2,811 / 6,966| 2,984 / 7,878| 0.82| 50%| 1,552 / 4,254| 87.1% / 97.9%| 981 (99.4%)| 
 | 8| 4 (default)| 9,086 / 11,747| 10,492 / 13,132| 0.81| 50%| 1,401 / 4,254| 87.1% / 97.7%| 984 (99.7%)| 
 | 8| 8| 6,704 / 18,084| 7,748 / 20,643| 0.82| 50%| 1,743 / 4,417| 87.5% / 97.9%| 981 (99.4%)| 
-<!-- /SOURCE:TABLE:25 -->
+<!-- /SOURCE:TABLE:26 -->
 
 - **Concurrency adds queueing, not throughput.** From 1 to 8 in flight, completed requests per second stay at 0.77–0.82; the per-request median rises from 1.2 s to 9.1 s (support), roughly "requests in flight × single-request time". One request's forward pass already saturates the engine's 8 compute threads (CPU utilisation is 50% at every level, i.e. 8 of the 16 logical processors), so several requests only take turns on the same CPU. This machine's ceiling is about 0.8 decisions per second, about 48 per minute.
 - **More server slots do not help.** `-np 8` with 8 in flight gives the same throughput as `-np 4` (0.82 vs. 0.81 per second), a lower median but a higher p90 (18.1 s vs. 11.7 s): 8 requests admitted together contend for the same CPU, some finish early and some last, which is less even than queueing first and processing four at a time. Slots cap parallel admission; they are not compute.
@@ -610,7 +636,7 @@ Every latency above was measured one request at a time. To answer "what if sever
 
 ### 6. Hardware Requirements
 
-<!-- SOURCE:TABLE:26 -->
+<!-- SOURCE:TABLE:27 -->
 | Stage| GPU required?| Measured hardware and usage (GPU memory is nvidia-smi peak)| Estimated minimum from memory measurements; these cards were not tested| 
 | ---| ---| ---| ---| 
 | Train 0.8B| 1 GPU required; these scripts use NVIDIA CUDA| H100 NVL; 4,555 MiB GPU memory (micro-batch 1), 7,573 MiB (micro-batch 4)| 8 GB GPU memory (micro-batch 1)| 
@@ -619,7 +645,7 @@ Every latency above was measured one request at a time. To answer "what if sever
 | Laptop inference 0.8B (Q8_0)| No discrete GPU or NPU; CPU inference| 12-core Snapdragon X Elite; 2,314 MiB peak working set, 5,014 MiB commitment (defaults) or 2,119 MiB (`-c 2048 -ub 512`)| Size total RAM for this process plus the OS and other applications| 
 | Laptop inference 4B FT-cf (Q8_0 / Q4_K_M)| No discrete GPU or NPU; CPU inference| 12-core Snapdragon X Elite; peak working set 9,609 / 6,842 MiB and commitment 8,884 / 7,495 MiB| Same sizing principle| 
 | x86-64 CPU inference 0.8B FT-cf (Q8_0), cross-check| No GPU; CPU inference| AMD EPYC 7763 Azure VM, 8 vCPU; peak working set 1,400–1,552 MiB, commitment 4,254 MiB (defaults, two runs)| Same sizing principle| 
-<!-- /SOURCE:TABLE:26 -->
+<!-- /SOURCE:TABLE:27 -->
 
 - **Why the 24 GB estimate for 4B?** The micro-batch 1 result of 18,547 MiB is only a probe on 64 long vendor records, not a full run. Full 0.8B training used about 8% more whole-device memory than its probe, 4,555 versus 4,213 MiB. Applying that margin suggests about 20 GB for 4B, leaving roughly 4 GB on a 24 GB GPU. This is an estimate, not a tested minimum.
 - **The recipe uses bf16**, through `--dtype bf16`; check hardware support. Training time was measured only on H100 NVL in section 4. Smaller, slower GPUs will take longer, but their duration was not measured.
@@ -636,13 +662,13 @@ On 2026-10-28, UTC-07:00, the Snapdragon X Elite X1E80100 laptop with about 64 G
 
 The support message was “我的AuraBook Pro 16有好几个按键突然失灵了，电脑没有摔过，也没有进过水。” It reports failed keys without a drop or liquid spill. The device had Premium Care 3Y and was purchased 731 days earlier. The second request changed only region US to SG. The assistant message was “帮我联系人工客服咨询保修。” Complete unlabeled inputs are in [data/contoso/examples](data/contoso/examples); the quoted Chinese is the actual input.
 
-<!-- SOURCE:TABLE:27 -->
+<!-- SOURCE:TABLE:28 -->
 | Trial request| Policy-required result| Actual model output| This single request (ms)| Raw request and response| 
 | ---| ---| ---| ---| ---| 
 | Support, region US| Onsite repair; eligible; urgency 1| `sales_ops` (orders/quotes); ineligible; most likely urgency 1. Wrong queue and onsite eligibility| 783.8| [support-us/result.json](验证结果/本机试用_20261028-201046/support-us/result.json)| 
 | Same support case, region SG| Mail-in repair; ineligible; urgency 1| `sales_ops`; ineligible; most likely urgency 1. Wrong queue| 617.2| [support-sg/result.json](验证结果/本机试用_20261028-201046/support-sg/result.json)| 
 | Assistant: contact human support| `support_chat`; subsequent action is not entirely local; no prior confirmation| All three answers match policy| 774.2| [assistant/result.json](验证结果/本机试用_20261028-201046/assistant/result.json)| 
-<!-- /SOURCE:TABLE:27 -->
+<!-- /SOURCE:TABLE:28 -->
 
 **Local invocation works, but 0.8B is still unreliable on these warranty rules.** The region change reached the request and changed probabilities, but did not produce the correct queue change. The business scenario is simulated; the model output is real. For the assistant request, “not entirely local” describes the subsequent support-contact action. Decision inference itself stayed local and the client did not actually contact support.
 
@@ -650,17 +676,19 @@ These inputs reuse historical records `support-g1-11-00311` and `assistant-g1-12
 
 The same 3 requests were re-sent on the x86-64 Azure virtual machine (AMD EPYC 7763, section 5): every answer is identical (`sales_ops`, `sales_ops`, `support_chat`, with the same onsite-eligibility and confirmation decisions) and probabilities differ by at most 0.016; the single-request times of 1,633–1,823 ms are VM figures and are not compared with the laptop. Records: [验证结果/本机试用_x64_20261030-135532](验证结果/本机试用_x64_20261030-135532).
 
+<a id="headroom"></a>
+
 ### How Much More Accuracy Is Available: What the Next Fine-Tuning Round Should Change
 
 "More epochs" will not help; "different data" and "a larger size" will. The evidence is already in the results above:
 
-<!-- SOURCE:TABLE:28 -->
+<!-- SOURCE:TABLE:29 -->
 | Clue| Metric| What it shows| 
 | ---| ---| ---| 
 | Development set versus test set| 0.8B FT-cf support: development set 88.4%, test set 86.9%| Neither over- nor under-fitting; converged after 2 epochs. More epochs on the same data are expected to add at most 1 point| 
 | Where the errors are| "Change one field, the answer must follow" questions, 0.8B FT-cf by field: battery cycles 49.2%, days since purchase 41.9%, region 36.2% (below FT); onsite eligibility balanced accuracy about 55% (89% of the test answers are "no" and the model mostly answers "no")| Errors cluster on numeric thresholds (day 365 / 730 / 1095, 500 cycles) and multi-field rules, not random noise| 
 | Larger size| Same LoRA recipe: 4B scores 84.9% / 100% on field-following questions, 84.8% on days since purchase and 66.1% on battery cycles| 0.8B is at its capacity limit; the weakness is model size, not the adapter| 
-<!-- /SOURCE:TABLE:28 -->
+<!-- /SOURCE:TABLE:29 -->
 
 Three paths follow, ordered by cost:
 
@@ -682,13 +710,13 @@ The fine-tuning method is not among the candidates: both this project and the Ke
 
 ### Use and Deployment Order
 
-<!-- SOURCE:TABLE:29 -->
+<!-- SOURCE:TABLE:30 -->
 | Your task| Start here| Execution order| Expected result| 
 | ---| ---| ---| ---| 
 | Try an existing fine-tuned GGUF locally| [A. Local trial](#local-try)| Start runtime → send one request → edit a field and repeat| Real model response, measured timing and raw output files| 
 | Produce a model or adapt to new business data| [B. Train and update](#train-update)| Data → train → calibrate → evaluate → export → update local model| A new checkpoint, evaluation and GGUF; not old-directory overwrite with skipped stages| 
 | Recheck the reported results| [C. Verification](#verify)| Run offline tests or start a real model for full device evaluation| Keep code checks, historical evidence replay and fresh model execution distinct| 
-<!-- /SOURCE:TABLE:29 -->
+<!-- /SOURCE:TABLE:30 -->
 
 This README is the single owner of executable steps. The report explains results; the protocol retains the original decision rules. Run laptop commands from **this project root**, the directory containing this README. After cloning the repository, enter `Deep-Learning/AIPC-Decision-Model-Finetune`.
 
@@ -796,7 +824,7 @@ An existing model needs only A. This section produces a new model from data. Tra
 
 **First-reproduction order**:
 
-<!-- SOURCE:TABLE:30 -->
+<!-- SOURCE:TABLE:31 -->
 | Order| Execution location| Action| Script| 
 | ---| ---| ---| ---| 
 | 1| GPU host (Linux, NVIDIA GPU)| Set up the Kev training environment| `scripts/remote_setup.sh`| 
@@ -808,7 +836,7 @@ An existing model needs only A. This section produces a new model from data. Tra
 | 7| Laptop| Retrieve result archive and GGUF; verify hashes| `scripts/pull_results.ps1`, `scripts/pull_gguf.ps1`| 
 | 8| Laptop| Evaluate and time device inference; compare with PyTorch| `scripts/run_engine_eval.ps1`| 
 | 9| Laptop| Generate all tables| `scripts/summarize_results.py`, `scripts/summarize_engine.py`| 
-<!-- /SOURCE:TABLE:30 -->
+<!-- /SOURCE:TABLE:31 -->
 
 #### Training Prerequisites
 
@@ -998,7 +1026,7 @@ python -m unittest discover -s tests -v
 
 [tests/test_data_and_scoring.py](tests/test_data_and_scoring.py) needs neither the GPU VM nor the device engine. Success ends with `OK`. Existing data/scoring checks are retained, including visible-input transmission, raw response preservation and failure behavior:
 
-<!-- SOURCE:TABLE:31 -->
+<!-- SOURCE:TABLE:32 -->
 | Check| Failure detected| 
 | ---| ---| 
 | Send visible business inputs without labels; preserve the raw model response| Ground-truth leakage or fabricated local-inference output| 
@@ -1011,7 +1039,7 @@ python -m unittest discover -s tests -v
 | `parity.py`: identical answers give agreement 1; changing one answer reduces agreements by 1| Misaligned questions or option ordering in engine comparison| 
 | `temperature_whatif.py` reproduces Kev's Brier 0.6413 at the released temperature| Incorrect probability rescaling for temperature| 
 | `summarize_results.py` gives correct paired-bootstrap differences and intervals for all-correct, all-wrong and half-correct cases| Incorrect paired difference or interval| 
-<!-- /SOURCE:TABLE:31 -->
+<!-- /SOURCE:TABLE:32 -->
 
 Not covered: GPU training/evaluation itself, which needs B4-B5 logs and results; real llama-server startup and model behavior, which need A or C1; or the large-model API used to generate data. Substitute responses in transport tests validate client logic, not model capability.
 
@@ -1038,7 +1066,7 @@ Do not reinstall matching dependencies. `--preview` checks local links/anchors a
 
 ### Repository Deliverables
 
-<!-- SOURCE:TABLE:32 -->
+<!-- SOURCE:TABLE:33 -->
 | Deliverable| Location| Purpose| 
 | ---| ---| ---| 
 | Simulated vendor data with policy-computed labels| [data/contoso/final](data/contoso/final); manifest and SHA-256: [manifest.json](data/contoso/final/manifest.json)| Training, calibration, development, in-distribution, out-of-distribution and variant evaluation| 
@@ -1049,24 +1077,24 @@ Do not reinstall matching dependencies. `--preview` checks local links/anchors a
 | Summaries and tests| [scripts/summarize_results.py](scripts/summarize_results.py), [scripts/summarize_engine.py](scripts/summarize_engine.py), [scripts/calibration_boundary.py](scripts/calibration_boundary.py), [tests/](tests/)| Every table is generated from raw results; offline "re-calibrate or retrain" decision; offline checks of data and scoring code| 
 | Raw evidence| [Evidence directory](验证结果/)| Evaluation reports, predictions, training logs, GPU-memory samples and device records. Checkpoints and full result archives contain files above GitHub's 100 MB limit and are not included; reproduce them with the training steps| 
 | Detailed report| [Detailed validation report](文档/Finetuning-and-On-Device-Validation-Report.md)| Full tables, per-question analysis and claim boundaries| 
-<!-- /SOURCE:TABLE:32 -->
+<!-- /SOURCE:TABLE:33 -->
 
 #### Responsibilities
 
-<!-- SOURCE:TABLE:33 -->
+<!-- SOURCE:TABLE:34 -->
 | Component| Owner| This repository's approach| 
 | ---| ---| ---| 
 | Kev decision model (Qwen3.5-Base + LoRA + pointer head + calibration temperature)| Open-source project [jaredpalmer/kev](https://github.com/jaredpalmer/kev)| Pinned to commit `2074cc44`; native `--init_from` continuation, with upstream code unchanged| 
 | llama.cpp inference runtime| [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp)| Official b11935 packages and matching `convert_hf_to_gguf.py`, with upstream code unchanged| 
 | Business policies, real data and labels| Vendor| Fictional Contoso PC policies stand in for the vendor; code computes every label| 
 | Training host and laptop| Vendor| Azure `Standard_NC40ads_H100_v5` (1× H100 NVL) and one Snapdragon X Elite X1E80100 laptop; the x86-64 cross-check used an AMD EPYC 7763 Azure VM| 
-<!-- /SOURCE:TABLE:33 -->
+<!-- /SOURCE:TABLE:34 -->
 
 **Not included**: real customer data; multiple random seeds; Hexagon NPU testing, which required Windows test-signing changes not made on the managed corporate laptop; concurrency on the laptop (measured only on the x86-64 VM), long-duration or battery-powered device tests.
 
 #### Evidence and Report Navigation
 
-<!-- SOURCE:TABLE:34 -->
+<!-- SOURCE:TABLE:35 -->
 | You want to| Read here| 
 | ---| ---| 
 | Send a business request on your laptop| [Local trial](#local-try); no retraining required| 
@@ -1080,11 +1108,11 @@ Do not reinstall matching dependencies. `--preview` checks local links/anchors a
 | 并发压测：客户端在途 1 / 2 / 4 / 8 条, 服务端 4 和 8 槽位| [验证结果/端侧引擎_x64并发_20261031-013937](验证结果/端侧引擎_x64并发_20261031-013937) (`summary/concurrency.json` 是汇总)| 
 | Released-model public-task reproduction, matching the author's scores| [Public-baseline reproduction](验证结果/公开基线复现_20261027-123403)| 
 | Policy-code label verification, 0 mismatches| [Policy-label verification](验证结果/数据标签复核_20261027-130518.txt)| 
-<!-- /SOURCE:TABLE:34 -->
+<!-- /SOURCE:TABLE:35 -->
 
 #### Directories
 
-<!-- SOURCE:TABLE:35 -->
+<!-- SOURCE:TABLE:36 -->
 | Directory| Contents| 
 | ---| ---| 
 | `data/contoso/`| Cases (`*.cases.jsonl`), generated messages (`*.texts.jsonl`) and usage (`*.usage.json`); `final/` holds training/evaluation files. Public records replace generator names with `llm-A` and `llm-B`; other content is unchanged, so SHA-256 values in `manifest.json` differ from experiment-time values| 
@@ -1094,11 +1122,11 @@ Do not reinstall matching dependencies. `--preview` checks local links/anchors a
 | `images/`| Four explanatory diagrams generated by `scripts/render_diagrams.py` (training, inference, validation, decision model), the author's unchanged ranking figure, and source/hash ledgers| 
 | `验证结果/`| Raw results and evidence by run time. Public `run.json`, `summary.json` and `parity_vs_pytorch.json` use repository-relative paths| 
 | `文档/`| Detailed report and experimental protocol| 
-<!-- /SOURCE:TABLE:35 -->
+<!-- /SOURCE:TABLE:36 -->
 
 #### Script Navigation
 
-<!-- SOURCE:TABLE:36 -->
+<!-- SOURCE:TABLE:37 -->
 | Purpose| Primary entry| Auxiliary or historical scripts| 
 | ---| ---| ---| 
 | Routine single-request inference| `systemone_client.py --request`, `try_ui.py` (browser page)| Sends the input and saves/shows the response; no grading, no business action| 
@@ -1107,4 +1135,4 @@ Do not reinstall matching dependencies. `--preview` checks local links/anchors a
 | Initial training reproduction| `remote_setup.sh`, `remote_public_baseline.sh`, `remote_pipeline_v2.sh`, `remote_cf_round.sh`| `remote_pipeline.sh` is the historical fixed-micro-batch version; `remote_run_all.sh`, `remote_after_08b.sh` and `remote_after_chain.sh` are original sequential orchestration entries| 
 | Model export and retrieval| `remote_llama_prep.sh`, `remote_export_gguf.sh`, `remote_export_gguf_cf.sh`, `pull_gguf.ps1`, `pull_results.ps1`| `remote_pack_results.sh` packages results; `fetch_parallel.ps1` transfers chunks; `remote_env.sh` defines remote paths| 
 | Analysis and documentation| `summarize_results.py`, `summarize_engine.py`, `calibration_boundary.py`, `fill_report_tables.py`| `temperature_whatif.py` diagnoses temperature; `remote_memory_probe.sh` only probes memory; `render_diagrams.py` renders diagrams| 
-<!-- /SOURCE:TABLE:36 -->
+<!-- /SOURCE:TABLE:37 -->

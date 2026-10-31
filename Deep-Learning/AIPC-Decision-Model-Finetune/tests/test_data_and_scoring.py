@@ -295,7 +295,7 @@ class BilingualDocumentationTests(unittest.TestCase):
         except ImportError:
             raise unittest.SkipTest("Documentation tests require requirements-docs.txt")
         cls.parser = MarkdownIt("commonmark", {"html": True}).enable("table")
-        cls.pairs = (("README_CN.md", "README.md", 36, 23),
+        cls.pairs = (("README_CN.md", "README.md", 37, 23),
                      ("文档/微调与端侧验证报告_20261027-130700.md",
                       "文档/Finetuning-and-On-Device-Validation-Report.md", 20, 1))
 
