@@ -498,7 +498,7 @@ The three tables above are ordered by runtime configuration. Here the same runs 
 - **Quantization saves file size and memory, not time.** Files 1,437 → 775 → 528 MiB; peak working set 2,314 → 1,819 MiB; but a 4-bit request is not faster than 8-bit (812 vs. 646 ms), because llama.cpp's CPU kernels unpack 4-bit weights before computing.
 - **"0.8B is small" refers to the parameter count, not the file.** 0.8B × 16 bits is a 1.4 GB file; only at 8 bits does it become 0.76 GB. Everything that runs on the laptop, and every device figure on this page, is the quantized file.
 - **Load time**: Q8_0 0.8B 2.6 s, 4B 10.7 s; Q4_K_M 4B 6.7 s; smaller files load faster. The three released-model runs were the earliest manual runs and did not record load time.
-- **Not done**: neither the released model's BF16 nor the fine-tuned BF16 ran on the laptop (the BF16 files stayed on the GPU host as quantization sources; the host has been released); no full fine-tuning (Kev's `train.py` supports `--full_ft 1`; this project trained only the LoRA and the pointer head), so "is LoRA enough, or is full fine-tuning needed" has no data yet.
+- **Not done**: neither the released model's BF16 nor the fine-tuned BF16 ran on the laptop (the BF16 files stayed on the GPU host as quantization sources; the host has been released); As for the fine-tuning method, both this project and the Kev author's recipe train only the LoRA adapters and the pointer head; under the same LoRA recipe, 4B lifts the "change one field, the answer must follow" questions from 0.8B's 57.6% / 81.9% to 84.9% / 100% (section 1), so 0.8B's weakness is model capacity, not the adapter.
 
 #### Inference Optimization: Which Levers Were Measured
 
