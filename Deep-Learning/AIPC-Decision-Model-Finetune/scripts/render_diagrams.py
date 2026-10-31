@@ -325,7 +325,7 @@ def sync_english_documents():
     from markdown_it import MarkdownIt
     from fill_report_tables import localize_block
 
-    pairs = ((ROOT / "README_CN.md", ROOT / "README.md", 34, 22),
+    pairs = ((ROOT / "README_CN.md", ROOT / "README.md", 35, 23),
              (ROOT / "文档" / "微调与端侧验证报告_20261027-130700.md",
               ROOT / "文档" / "Finetuning-and-On-Device-Validation-Report.md", 20, 1))
     names = {"微调与端侧验证报告_20261027-130700.md": "Finetuning-and-On-Device-Validation-Report.md",

@@ -560,5 +560,21 @@
  "981（99.4%）": "981 (99.4%)",
  "槽位是同时处理的上限，不是算力：x86-64 上 4 和 8 个槽位的吞吐相同，多的请求只是排队（第 5 节“并发”）": "Slots cap how many requests are admitted at once; they are not compute. On x86-64, 4 and 8 slots gave the same throughput and extra requests simply queued (section 5, \"Concurrency\")",
  "0.8B FT-cf Q8_0，x86-64 虚拟机，客户端在途 1 → 8 条（服务端 4 槽位）": "0.8B FT-cf Q8_0, x86-64 VM, client requests in flight 1 → 8 (server: 4 slots)",
- "吞吐不增（每秒 0.79 → 0.81 条），时延按在途数线性排队；一条请求已用满 8 个计算线程。`-np 8` 也不增吞吐。详见下面“并发”小节": "Throughput does not grow (0.79 → 0.81 requests per second) while latency queues linearly with requests in flight; one request already saturates the 8 compute threads. `-np 8` does not add throughput either. See \"Concurrency\" below"
+ "吞吐不增（每秒 0.79 → 0.81 条），时延按在途数线性排队；一条请求已用满 8 个计算线程。`-np 8` 也不增吞吐。详见下面“并发”小节": "Throughput does not grow (0.79 → 0.81 requests per second) while latency queues linearly with requests in flight; one request already saturates the 8 compute threads. `-np 8` does not add throughput either. See \"Concurrency\" below",
+ "线索": "Clue",
+ "说明什么": "What it shows",
+ "开发集与测试集的差": "Development set versus test set",
+ "0.8B FT-cf 工单：开发集 88.4%，测试集 86.9%": "0.8B FT-cf support: development set 88.4%, test set 86.9%",
+ "没有过拟合也没有欠拟合，2 个 epoch 已收敛；同样数据再训几轮预计≤ 1 个百分点": "Neither over- nor under-fitting; converged after 2 epochs. More epochs on the same data are expected to add at most 1 point",
+ "错在哪里": "Where the errors are",
+ "“改一个字段答案要跟着变”的题，0.8B FT-cf 按字段拆：电池循环 49.2%、购买天数 41.9%、地区 36.2%（比 FT 还低）；“能否上门”平衡准确率约 55%（测试集 89% 的答案是“否”，模型基本只答“否”）": "\"Change one field, the answer must follow\" questions, 0.8B FT-cf by field: battery cycles 49.2%, days since purchase 41.9%, region 36.2% (below FT); onsite eligibility balanced accuracy about 55% (89% of the test answers are \"no\" and the model mostly answers \"no\")",
+ "错误集中在数值阈值判断（第 365 / 730 / 1095 天、500 次循环）和多字段联合规则上，不是随机噪声": "Errors cluster on numeric thresholds (day 365 / 730 / 1095, 500 cycles) and multi-field rules, not random noise",
+ "换尺寸": "Larger size",
+ "同一 LoRA 配方，4B 的字段跟随题 84.9% / 100%，购买天数 84.8%、电池循环 66.1%": "Same LoRA recipe: 4B scores 84.9% / 100% on field-following questions, 84.8% on days since purchase and 66.1% on battery cycles",
+ "0.8B 的容量已经吃紧；短板在模型大小，不在适配器": "0.8B is at its capacity limit; the weakness is model size, not the adapter",
+ "`systemone_client.py --request`、`try_ui.py`（图形界面）": "`systemone_client.py --request`, `try_ui.py` (browser page)",
+ "只发送输入并保存/显示响应，不评分、不执行业务动作": "Sends the input and saves/shows the response; no grading, no business action",
+ "本机图形界面试用": "Local browser trial page",
+ "浏览器表单改输入、看每个选项概率、与规则答案对照、看进程内存和 CPU；中英文": "Edit inputs in a browser form, see every option's probability, compare with the policy answer, watch process memory and CPU; Chinese/English",
+ "启动 llama-server、逐条打分计时（含并发）、与 PyTorch 逐题比对": "Start llama-server, score and time request by request (including concurrency), compare with PyTorch per question"
 }

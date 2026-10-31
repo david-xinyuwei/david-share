@@ -128,7 +128,11 @@
 
 **GGUF 里装的是什么。** 一个文件，四样东西：合并了 LoRA 的基座权重（所以启动时不需要 `--lora`）；指针头；三类题型的校准温度；分词器。0.8B FT-cf 的文件大小：BF16 原始 1,437 MiB，Q8_0 量化后 764 MiB，Q4_K_M 517 MiB。
 
+**0.8B 已经很小，为什么还要量化。** “0.8B”是参数个数，不是文件大小。微调完参数个数不变，每个参数仍是 16 bit 的 BF16：0.8B × 16 bit ≈ 1.4 GB，这不是一个“很小”的文件。量化改的是每个参数占几 bit：8 bit 后 0.76 GB，文件减半，实测答案与 BF16 逐题一致率 99.2% 以上；而且 llama.cpp 的 CPU 内核对 8 bit 整数权重有专门的矩阵乘法，内存带宽占用也小一半——笔记本 CPU 推理正是带宽受限的场景。所以量化是微调之后的必做步骤，不是因为嫌 0.8B 大；两个尺寸都量化了 8 bit 和 4 bit 两个版本，对照见[第 5 节](#从原始模型到量化微调模型一张表看精度速度和资源)。
+
 **Q8_0 和 Q4_K_M 是什么。** 都是 llama.cpp 的分块整数量化：Q8_0 每个权重 8 bit，几乎无损；Q4_K_M 主体 4 bit，精度更低。本项目导出 Q4_K_M 时把注意力、DeltaNet、指针头和输出层保留为 8 bit，只压前馈层，比 llama.cpp 默认配比更保守。实测效果见[第 5 节](#5-笔记本端推理引擎)。
+
+**上下文有多长。** 三个数字不要混：基座 Qwen3.5 的架构窗口是 262,144 token（GGUF 元数据 `qwen35.context_length`）；Kev 服务端接受 state 最多 65,536 token、每道题再加 8,192，超长直接拒绝不截断（`kev/model.py` 的 `SERVE_MAX_STATE`）；但 Kev-0.8B / 4B **训练时见过的 state 主要不超过 384 token，作者验证过仍准确的长度是 8,192**，16k 以上已不能排除准确率下降（Kev README「Length」段）。本项目每条输入 430–540 token，训练用 `--max_state 768`，llama-server 的 `-c 8192` 恰好等于作者验证过的上限。要把整份合同或长日志塞进 state，0.8B / 4B 在 8k 以上要先自己验准确率，不能拿 262k 当可用长度。
 
 **`/v1/systemone` 是决策接口，不是聊天补全。** 一次请求 = 客户原话 + 设备字段 + 几道题；返回每道题的答案和概率，不生成任何 token（`usage.output_tokens` 恒为 0）。概率已按 GGUF 内的温度缩放。接口遵循 TypeSafe System One API，不支持流式。
 
@@ -569,6 +573,24 @@
 
 同样的 3 条请求在 x86-64 的 Azure 虚拟机（AMD EPYC 7763，第 5 节）上重发了一遍：答案逐项相同（`sales_ops`、`sales_ops`、`support_chat`，上门资格和确认判断也相同），概率最多相差 0.016；单条耗时 1,633–1,823 毫秒是虚拟机上的数值，不与笔记本比较。记录在 [验证结果/本机试用_x64_20261030-135532](验证结果/本机试用_x64_20261030-135532)。
 
+### 还能再提多少准确率：下一轮微调该改什么
+
+“多训几轮”不会有用，“换数据”和“换尺寸”才有用。依据都在上面的结果里：
+
+| 线索 | 数字 | 说明什么 |
+|---|---|---|
+| 开发集与测试集的差 | 0.8B FT-cf 工单：开发集 88.4%，测试集 86.9% | 没有过拟合也没有欠拟合，2 个 epoch 已收敛；同样数据再训几轮预计≤ 1 个百分点 |
+| 错在哪里 | “改一个字段答案要跟着变”的题，0.8B FT-cf 按字段拆：电池循环 49.2%、购买天数 41.9%、地区 36.2%（比 FT 还低）；“能否上门”平衡准确率约 55%（测试集 89% 的答案是“否”，模型基本只答“否”） | 错误集中在数值阈值判断（第 365 / 730 / 1095 天、500 次循环）和多字段联合规则上，不是随机噪声 |
+| 换尺寸 | 同一 LoRA 配方，4B 的字段跟随题 84.9% / 100%，购买天数 84.8%、电池循环 66.1% | 0.8B 的容量已经吃紧；短板在模型大小，不在适配器 |
+
+由此得出三条路，按代价排序：
+
+1. **针对薄弱字段加数据，再训一轮**（最便宜：0.8B 一次 H100 约 12 分钟）。现在训练集 2,147 条 + 反事实变体 1,685 条；给地区、购买天数、电池循环各加几百条**落在阈值附近**的样本（如 700–760 天、SG 与 US 对照），对“能否上门”的正例过采样。预期这几个字段从 40% 上下提到 60–70%，整体工单准确率涨 2–4 个百分点；它不会让 0.8B 追上 4B。这是预期，不是实测。
+2. **4 个 epoch 对照**（也便宜）：开发集会告诉我们有没有空间；按线索 1 预期≤ 1 个百分点。
+3. **上 4B**（最有效，端侧代价高）：准确率 95.9% / 99.8%，但 Q8_0 文件 4.3 GB、一次决策 3.6–4.1 秒、峰值工作集 9.6 GB。这是产品取舒，不是训练问题。
+
+微调方式不在候选里：本项目和 Kev 作者的配方都只训 LoRA（秩 16）和指针头，0.8B 只动 1.4% 的参数就把工单准确率从 45.7% 提到 86.9%，没有“学不进去”的迹象，LoRA 是默认且足够的选择。如果客户的真数据已到手，这一轮应该直接在真数据上做，不必再在模拟数据上刷分。
+
 ### 这些结论的边界
 
 - **数据是模拟的。** 规则、字段和客户原话都是为虚构厂商设计的，原话由大模型按事实清单生成，比真实客户的话更规整。真实数据上的绝对准确率会不同；本仓库能说明的是方法可行、提升的量级和资源需求。
@@ -660,6 +682,18 @@ Get-Process -Id $ServerPid | Select-Object Id,
 ```
 
 要试 4B，先由你在服务终端按 Ctrl+C 停止当前服务，再将 `$Model` 换成自己的 4B FT-cf GGUF、同步修改 `--alias`，重新执行 A1–A3。客户端不会因为 0.8B 答错而自动调用 4B。这里是模型选择与人工试用，不是自动级联路由。
+
+**A5. 图形界面试用：改字段、点提交、看概率。** 不想改 JSON 文件时，用本机网页试。它和 A2 发的是同样的请求，只是把输入做成表单、把每个选项的概率画成条；可选“这段原话描述的场景”，页面会用 `scripts/vendor_policy.py` 算出“规则说该怎样”并排显示，模型看不到这个选择。页面右上角还每 2 秒读一次 llama-server 进程的工作集、提交内存和 CPU 占用（Windows API，按逻辑处理器数归一），中英文可切换。只用 Python 标准库，只监听 127.0.0.1。
+
+```powershell
+# Either reuse the server from A1, or let the page start and stop it (--start-server; set --engine / --model for your paths)
+python -B scripts\try_ui.py --start-server
+# then open http://127.0.0.1:8090 in a browser on this machine; Ctrl+C in this terminal stops the page (and the server it started)
+```
+
+<img src="截图/TryUI_zh_support_US_1400_20261031-171647.png" width="900" alt="本机试用页面：左侧工单表单，右侧 llama-server 进程的工作集 1,198 MiB、提交内存 4,169 MiB、CPU 49%，三道题的全部选项概率条，以及模型答案与规则答案的对照。">
+
+*真实页面截图（2026-10-31，x86-64 虚拟机，0.8B FT-cf Q8_0）。这条工单按规则该上门维修，模型答了“订单/报价”（40.9%），上门维修只有 27.6%——和第 7 节的记录一致，页面如实显示错误。中文 / 英文界面各一张：[中文](截图/TryUI_zh_support_US_1400_20261031-171647.png)、[英文（地区改为 SG）](截图/TryUI_en_support_SG_1400_20261031-171647.png)。*
 
 <a id="train-update"></a>
 
@@ -882,7 +916,8 @@ python -B scripts\render_diagrams.py --preview
 | 模拟厂商数据（标签由策略代码算出） | [data/contoso/final](data/contoso/final)，清单与 SHA-256 在 [manifest.json](data/contoso/final/manifest.json) | 训练、校准、开发、同分布测试、分布外测试、变体测试 |
 | 厂商规则与数据生成 | [scripts/vendor_policy.py](scripts/vendor_policy.py)、[scripts/gen_vendor_data.py](scripts/gen_vendor_data.py)、[scripts/augment_counterfactual.py](scripts/augment_counterfactual.py) | 换成真实业务时，改规则和字段即可复用整套流程 |
 | GPU 主机上的训练与评测流水线 | [scripts/remote_setup.sh](scripts/remote_setup.sh)、[scripts/remote_pipeline_v2.sh](scripts/remote_pipeline_v2.sh)、[scripts/remote_cf_round.sh](scripts/remote_cf_round.sh)、[scripts/remote_export_gguf.sh](scripts/remote_export_gguf.sh) | 基线、微调、温度校准、评测、配对比较、导出 GGUF |
-| 笔记本上的端侧验证 | [scripts/run_engine_eval.ps1](scripts/run_engine_eval.ps1)、[scripts/systemone_client.py](scripts/systemone_client.py)、[scripts/parity.py](scripts/parity.py) | 启动 llama-server、逐条打分计时、与 PyTorch 逐题比对 |
+| 笔记本上的端侧验证 | [scripts/run_engine_eval.ps1](scripts/run_engine_eval.ps1)、[scripts/systemone_client.py](scripts/systemone_client.py)、[scripts/parity.py](scripts/parity.py) | 启动 llama-server、逐条打分计时（含并发）、与 PyTorch 逐题比对 |
+| 本机图形界面试用 | [scripts/try_ui.py](scripts/try_ui.py) | 浏览器表单改输入、看每个选项概率、与规则答案对照、看进程内存和 CPU；中英文 |
 | 汇总与测试 | [scripts/summarize_results.py](scripts/summarize_results.py)、[scripts/summarize_engine.py](scripts/summarize_engine.py)、[tests/](tests/) | 所有表格都从原始结果生成；离线检查数据和打分代码 |
 | 原始证据 | [验证结果/](验证结果/) | 评测报告、逐题预测、训练日志、显存曲线、端侧逐条结果。模型检查点和完整结果包里有超过 GitHub 100 MB 上限的文件，没有放进仓库，按操作步骤重新训练即可得到 |
 | 详细报告 | [文档/微调与端侧验证报告_20261027-130700.md](文档/微调与端侧验证报告_20261027-130700.md) | 每个结论的完整表格、逐题分析和边界 |
@@ -930,7 +965,7 @@ python -B scripts\render_diagrams.py --preview
 
 | 用途 | 正式入口 | 辅助或历史脚本 |
 |---|---|---|
-| 日常单次推理 | `systemone_client.py --request` | 只发送输入并保存响应，不评分、不执行业务动作 |
+| 日常单次推理 | `systemone_client.py --request`、`try_ui.py`（图形界面） | 只发送输入并保存/显示响应，不评分、不执行业务动作 |
 | 批量端侧验证 | `run_engine_eval.ps1`、`systemone_client.py --data`、`parity.py` | `refresh_parity.ps1` 重算历史逐题比对；`latency_profile.py` 分段检查时延 |
 | 数据准备 | `vendor_policy.py`、`gen_vendor_data.py`、`augment_counterfactual.py` | 大模型生成文本，策略代码计算标签 |
 | 首次复现训练 | `remote_setup.sh`、`remote_public_baseline.sh`、`remote_pipeline_v2.sh`、`remote_cf_round.sh` | `remote_pipeline.sh` 是固定 micro-batch 的历史版本；`remote_run_all.sh`、`remote_after_08b.sh`、`remote_after_chain.sh` 是原实验的串行调度入口 |

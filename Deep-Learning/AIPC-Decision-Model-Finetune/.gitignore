@@ -10,3 +10,8 @@ __pycache__/
 /验证结果/改版备份_20261030-073554.zip
 /验证结果/精简备份_20261030-112240/
 /验证结果/本机试用_x64_20261030-135532/server.log
+# publish only the two trial-page screenshots referenced by the README
+!/截图/
+/截图/*
+!/截图/TryUI_zh_support_US_1400_20261031-171647.png
+!/截图/TryUI_en_support_SG_1400_20261031-171647.png
