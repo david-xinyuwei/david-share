@@ -1,0 +1,81 @@
+{
+  "CapturedAt": "2026-11-01T21:10:46.1038122+08:00",
+  "Status": "PASS",
+  "CompleteRuns": 3,
+  "ScoredRequests": 987,
+  "Questions": 2961,
+  "AggregationCorrection": "Total questions recomputed from the six unchanged Checks entries; original executed recovery source is preserved as resume_and_return.ps1.executed. No inference or raw result changed.",
+  "RequestErrors": 0,
+  "AllPredictionsMatchFirst": true,
+  "Checks": [
+    {
+      "Run": "r2c-kev-0.8b-Q8_0-cpu",
+      "Workload": "support",
+      "Records": 170,
+      "Errors": 0,
+      "Questions": 510,
+      "Accuracy": 0.9686,
+      "MedianLatencyMs": 634.7,
+      "PyTorchAgreement": 0.986275,
+      "PredictionsMatchFirst": true
+    },
+    {
+      "Run": "r2c-kev-0.8b-Q8_0-cpu",
+      "Workload": "assistant",
+      "Records": 159,
+      "Errors": 0,
+      "Questions": 477,
+      "Accuracy": 0.9958,
+      "MedianLatencyMs": 905.1,
+      "PyTorchAgreement": 0.995807,
+      "PredictionsMatchFirst": true
+    },
+    {
+      "Run": "r2c-kev-0.8b-Q8_0-cpu-run2",
+      "Workload": "support",
+      "Records": 170,
+      "Errors": 0,
+      "Questions": 510,
+      "Accuracy": 0.9686,
+      "MedianLatencyMs": 626.3,
+      "PyTorchAgreement": 0.986275,
+      "PredictionsMatchFirst": true
+    },
+    {
+      "Run": "r2c-kev-0.8b-Q8_0-cpu-run2",
+      "Workload": "assistant",
+      "Records": 159,
+      "Errors": 0,
+      "Questions": 477,
+      "Accuracy": 0.9958,
+      "MedianLatencyMs": 907.3,
+      "PyTorchAgreement": 0.995807,
+      "PredictionsMatchFirst": true
+    },
+    {
+      "Run": "r2c-kev-0.8b-Q8_0-cpu-c2048-ub512",
+      "Workload": "support",
+      "Records": 170,
+      "Errors": 0,
+      "Questions": 510,
+      "Accuracy": 0.9686,
+      "MedianLatencyMs": 851.4,
+      "PyTorchAgreement": 0.986275,
+      "PredictionsMatchFirst": true
+    },
+    {
+      "Run": "r2c-kev-0.8b-Q8_0-cpu-c2048-ub512",
+      "Workload": "assistant",
+      "Records": 159,
+      "Errors": 0,
+      "Questions": 477,
+      "Accuracy": 0.9958,
+      "MedianLatencyMs": 1023.2,
+      "PyTorchAgreement": 0.995807,
+      "PredictionsMatchFirst": true
+    }
+  ],
+  "ProtectedFilesUnchanged": true,
+  "SourceFilesUnchanged": true,
+  "InterruptedRequestsExcluded": 135
+}

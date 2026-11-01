@@ -1,0 +1,123 @@
+{
+ "torch": "验证结果\\第二轮微调评测_20261101-101948\\runs\\0.8b\\r2-C-test_support\\rows.json",
+ "engine": "验证结果\\端侧引擎_骁龙第二轮C_20261101-203702\\r2c-kev-0.8b-Q8_0-cpu-run2\\support\\rows.jsonl",
+ "missing": 0,
+ "by_type": {
+  "all": {
+   "n": 510,
+   "agree_count": 503,
+   "agreement": 0.986275,
+   "torch_acc": 0.962745,
+   "engine_acc": 0.968627,
+   "only_torch_correct": 2,
+   "only_engine_correct": 5,
+   "mean_tvd": 0.006093,
+   "max_tvd": 0.213334
+  },
+  "choice": {
+   "n": 170,
+   "agree_count": 164,
+   "agreement": 0.964706,
+   "torch_acc": 0.917647,
+   "engine_acc": 0.929412,
+   "only_torch_correct": 2,
+   "only_engine_correct": 4,
+   "mean_tvd": 0.013455,
+   "max_tvd": 0.154579
+  },
+  "noul": {
+   "n": 170,
+   "agree_count": 170,
+   "agreement": 1.0,
+   "torch_acc": 0.982353,
+   "engine_acc": 0.982353,
+   "only_torch_correct": 0,
+   "only_engine_correct": 0,
+   "mean_tvd": 0.001445,
+   "max_tvd": 0.050106
+  },
+  "score": {
+   "n": 170,
+   "agree_count": 169,
+   "agreement": 0.994118,
+   "torch_acc": 0.988235,
+   "engine_acc": 0.994118,
+   "only_torch_correct": 0,
+   "only_engine_correct": 1,
+   "mean_tvd": 0.00338,
+   "max_tvd": 0.213334
+  }
+ },
+ "flips": [
+  {
+   "i": 149,
+   "question": "urgency",
+   "torch": "0",
+   "engine": "1",
+   "label": "1",
+   "torch_p": 0.5475,
+   "engine_p": 0.6658,
+   "tvd": 0.2133
+  },
+  {
+   "i": 133,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "depot_repair",
+   "label": "depot_repair",
+   "torch_p": 0.5456,
+   "engine_p": 0.548,
+   "tvd": 0.0939
+  },
+  {
+   "i": 106,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "depot_repair",
+   "label": "sales_ops",
+   "torch_p": 0.5734,
+   "engine_p": 0.5106,
+   "tvd": 0.093
+  },
+  {
+   "i": 67,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "depot_repair",
+   "label": "depot_repair",
+   "torch_p": 0.5323,
+   "engine_p": 0.5484,
+   "tvd": 0.0859
+  },
+  {
+   "i": 141,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "battery_program",
+   "label": "battery_program",
+   "torch_p": 0.5416,
+   "engine_p": 0.498,
+   "tvd": 0.0584
+  },
+  {
+   "i": 59,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "remote_l1",
+   "label": "remote_l1",
+   "torch_p": 0.4445,
+   "engine_p": 0.466,
+   "tvd": 0.0561
+  },
+  {
+   "i": 42,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "battery_program",
+   "label": "sales_ops",
+   "torch_p": 0.4904,
+   "engine_p": 0.4867,
+   "tvd": 0.019
+  }
+ ]
+}

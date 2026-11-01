@@ -1,0 +1,21 @@
+{
+  "CapturedAt": "2026-11-01T21:00:21.9529981+08:00",
+  "Reason": "Original evaluator and client disappeared; root cause unverified",
+  "PreservedPartialRequests": 135,
+  "PreservedFiles": [
+    {
+      "Path": "server.log",
+      "SHA256": "120FEC5E1EAF98FD6CC1F4E242F20C50B87D25ADAF238BA71749B4FC1C872574"
+    },
+    {
+      "Path": "support\\rows.jsonl",
+      "SHA256": "FE360D0A108CCEAA54BF293CA64B7CC396E215451E8C548A05F521B4AA32A5C4"
+    }
+  ],
+  "ReusedCompleteRun": "r2c-kev-0.8b-Q8_0-cpu",
+  "RepeatedRuns": [
+    "r2c-kev-0.8b-Q8_0-cpu-run2",
+    "r2c-kev-0.8b-Q8_0-cpu-c2048-ub512"
+  ],
+  "Method": "Unmodified run_engine_eval.ps1; original model, inputs, engine and arguments; complete retry of run 2, then lean run 3"
+}

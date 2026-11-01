@@ -1,0 +1,85 @@
+{
+  "CapturedAt": "2026-11-01T20:54:14.2247393+08:00",
+  "Classification": "EXECUTION-BOUNDARY",
+  "Cause": "UNVERIFIED",
+  "Observed": "Run 1 complete; run 2 stopped producing rows after 135 support records; evaluation Python and runner were absent in the prior process snapshot",
+  "ProcessReadback": [
+    {
+      "Name": "pwsh.exe",
+      "ProcessId": 12616,
+      "ParentProcessId": 25680,
+      "CreationDate": "2026-11-01T20:07:18.601621+08:00",
+      "CommandLine": "C:\\Users\\xinyuwei\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe -noexit -command \"try { . \\\"c:\\Users\\xinyuwei\\AppData\\Local\\Programs\\Microsoft VS Code\\2c33b50b16\\resources\\app\\out\\vs\\workbench\\contrib\\terminal\\common\\scripts\\shellIntegration.ps1\\\" } catch {}\""
+    },
+    {
+      "Name": "llama-server.exe",
+      "ProcessId": 41436,
+      "ParentProcessId": 45508,
+      "CreationDate": "2026-11-01T20:41:34.792739+08:00",
+      "CommandLine": "\"C:\\Tools\\llama.cpp\\b11935-cpu\\llama-server.exe\" -m \"C:\\Tools\\models\\contoso-kev\\Contoso-Kev-0.8B-FTcf-R2C-Q8_0.gguf\" --host 127.0.0.1 --port 8080 -c 8192 -b 2048 -ub 2048 --cache-ram 0"
+    }
+  ],
+  "ServerLogPath": "C:\\Users\\xinyuwei\\AppData\\Local\\Temp\\llama-server-r2c-kev-0.8b-Q8_0-cpu-run2.log",
+  "ServerLogTail": [
+    "2.06.854.544 I slot      release: id  3 | task 722 | stop processing: n_tokens = 220, truncated = 0",
+    "2.07.095.349 I slot      release: id  0 | task 723 | stop processing: n_tokens = 125, truncated = 0",
+    "2.07.095.397 I slot      release: id  1 | task 724 | stop processing: n_tokens = 134, truncated = 0",
+    "2.07.101.138 I slot get_availabl: id  0 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 127092136",
+    "2.07.101.147 I slot launch_slot_: id  1 | task 729 | processing task, is_child = 1",
+    "2.07.101.148 I slot launch_slot_: id  2 | task 730 | processing task, is_child = 1",
+    "2.07.101.150 I slot launch_slot_: id  0 | task 728 | processing task, is_child = 0",
+    "2.08.221.877 I slot      release: id  0 | task 728 | stop processing: n_tokens = 214, truncated = 0",
+    "2.08.221.896 I slot      release: id  1 | task 729 | stop processing: n_tokens = 119, truncated = 0",
+    "2.08.221.929 I slot      release: id  2 | task 730 | stop processing: n_tokens = 128, truncated = 0",
+    "2.08.227.841 I slot get_availabl: id  1 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 128218692",
+    "2.08.227.855 I slot launch_slot_: id  2 | task 734 | processing task, is_child = 1",
+    "2.08.227.857 I slot launch_slot_: id  3 | task 735 | processing task, is_child = 1",
+    "2.08.227.859 I slot launch_slot_: id  1 | task 733 | processing task, is_child = 0",
+    "2.09.632.785 I slot      release: id  1 | task 733 | stop processing: n_tokens = 226, truncated = 0",
+    "2.09.632.802 I slot      release: id  2 | task 734 | stop processing: n_tokens = 131, truncated = 0",
+    "2.09.632.835 I slot      release: id  3 | task 735 | stop processing: n_tokens = 140, truncated = 0",
+    "2.09.639.520 I slot get_availabl: id  2 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 129629612",
+    "2.09.639.529 I slot launch_slot_: id  3 | task 739 | processing task, is_child = 1",
+    "2.09.639.531 I slot launch_slot_: id  0 | task 740 | processing task, is_child = 1",
+    "2.09.639.538 I slot launch_slot_: id  2 | task 738 | processing task, is_child = 0",
+    "2.10.530.433 I slot      release: id  2 | task 738 | stop processing: n_tokens = 223, truncated = 0",
+    "2.10.530.454 I slot      release: id  3 | task 739 | stop processing: n_tokens = 128, truncated = 0",
+    "2.10.674.919 I slot      release: id  0 | task 740 | stop processing: n_tokens = 137, truncated = 0",
+    "2.10.686.750 I slot get_availabl: id  3 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 130527272",
+    "2.10.686.758 I slot launch_slot_: id  0 | task 745 | processing task, is_child = 1",
+    "2.10.686.762 I slot launch_slot_: id  1 | task 746 | processing task, is_child = 1",
+    "2.10.686.764 I slot launch_slot_: id  3 | task 744 | processing task, is_child = 0",
+    "2.11.584.392 I slot      release: id  3 | task 744 | stop processing: n_tokens = 230, truncated = 0",
+    "2.11.941.864 I slot      release: id  0 | task 745 | stop processing: n_tokens = 135, truncated = 0",
+    "2.11.941.937 I slot      release: id  1 | task 746 | stop processing: n_tokens = 144, truncated = 0",
+    "2.11.958.146 I slot get_availabl: id  0 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 131938701",
+    "2.11.958.157 I slot launch_slot_: id  1 | task 751 | processing task, is_child = 1",
+    "2.11.958.160 I slot launch_slot_: id  2 | task 752 | processing task, is_child = 1",
+    "2.11.958.163 I slot launch_slot_: id  0 | task 750 | processing task, is_child = 0",
+    "2.12.945.010 I slot      release: id  0 | task 750 | stop processing: n_tokens = 221, truncated = 0",
+    "2.12.945.058 I slot      release: id  1 | task 751 | stop processing: n_tokens = 126, truncated = 0",
+    "2.12.945.450 I slot      release: id  2 | task 752 | stop processing: n_tokens = 135, truncated = 0",
+    "2.12.974.856 I slot get_availabl: id  1 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 132941901",
+    "2.12.974.865 I slot launch_slot_: id  2 | task 756 | processing task, is_child = 1",
+    "2.12.974.867 I slot launch_slot_: id  3 | task 757 | processing task, is_child = 1",
+    "2.12.974.868 I slot launch_slot_: id  1 | task 755 | processing task, is_child = 0",
+    "2.14.038.175 I slot      release: id  1 | task 755 | stop processing: n_tokens = 230, truncated = 0",
+    "2.14.038.191 I slot      release: id  2 | task 756 | stop processing: n_tokens = 135, truncated = 0",
+    "2.14.038.228 I slot      release: id  3 | task 757 | stop processing: n_tokens = 144, truncated = 0"
+  ],
+  "ClientRowsTail": [
+    {
+      "Case": "support-g1-11-01147",
+      "LatencyMs": 1267.2,
+      "Index": 133,
+      "Error": null
+    },
+    {
+      "Case": "support-g1-11-01152",
+      "LatencyMs": 1003.1,
+      "Index": 134,
+      "Error": null
+    }
+  ],
+  "RetryStarted": false
+}

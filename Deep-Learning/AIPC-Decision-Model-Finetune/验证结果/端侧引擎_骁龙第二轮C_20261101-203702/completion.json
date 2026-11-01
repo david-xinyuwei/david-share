@@ -1,0 +1,8 @@
+{
+  "Status": "PASS",
+  "EndedAt": "2026-11-01T21:10:46.1523430+08:00",
+  "ExitCode": 0,
+  "ScoredRequests": 987,
+  "Recovery": "Completed using unmodified original per-run evaluator; see recovery_audit.json",
+  "TransferStatus": "separate receipt outside result directory"
+}

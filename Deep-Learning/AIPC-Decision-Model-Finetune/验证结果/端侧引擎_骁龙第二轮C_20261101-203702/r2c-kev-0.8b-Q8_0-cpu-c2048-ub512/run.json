@@ -1,0 +1,72 @@
+{
+  "label": "r2c-kev-0.8b-Q8_0-cpu-c2048-ub512",
+  "model": "C:\\Tools\\models\\contoso-kev\\Contoso-Kev-0.8B-FTcf-R2C-Q8_0.gguf",
+  "backend": "cpu",
+  "build": "b11935-cpu",
+  "server_args": "-m \"C:\\Tools\\models\\contoso-kev\\Contoso-Kev-0.8B-FTcf-R2C-Q8_0.gguf\" --host 127.0.0.1 --port 8080 -c 2048 -b 512 -ub 512 --cache-ram 0",
+  "data_prefix": "test_",
+  "client_concurrency": 1,
+  "logical_processors": 12,
+  "load_seconds": 4.7,
+  "server_log_facts": [
+    "0.02.629.178 I srv          init: decision model type: kev",
+    "0.02.579.909 I cmn          init: llama threadpool init, n_threads = 12",
+    "0.02.678.820 I srv    load_model: initializing, n_slots = 4, n_ctx_slot = 2048, kv_unified = 'true'"
+  ],
+  "workload_cpu_seconds": {
+    "support": {
+      "cpu_seconds": 1180.8,
+      "wall_seconds_incl_warmup": 156.0
+    },
+    "assistant": {
+      "cpu_seconds": 1306.4,
+      "wall_seconds_incl_warmup": 180.3
+    }
+  },
+  "peak_working_set_mib": 2196,
+  "working_set_mib": 2196,
+  "private_mib": 2119,
+  "cpu_seconds": 2494,
+  "gguf_mib": 774.8,
+  "gguf_sha256": "c427ed7a8e797e1f6b6a838a80d4c32d8735b85dfa742f2dafba89307808ad05",
+  "captured": "2026-11-01T21:10:37.5640495+08:00",
+  "summaries": {
+    "assistant": {
+      "url": "http://127.0.0.1:8080/v1/systemone",
+      "data": "data\\contoso\\final\\test_assistant.jsonl",
+      "records": 159,
+      "errors": 0,
+      "questions": 477,
+      "accuracy": 0.9958,
+      "by_type": {
+        "choice": 1.0,
+        "noul": 0.9937
+      },
+      "latency_ms": {
+        "n": 159,
+        "p50": 1023.2,
+        "p90": 1330.6,
+        "mean": 1101.9
+      }
+    },
+    "support": {
+      "url": "http://127.0.0.1:8080/v1/systemone",
+      "data": "data\\contoso\\final\\test_support.jsonl",
+      "records": 170,
+      "errors": 0,
+      "questions": 510,
+      "accuracy": 0.9686,
+      "by_type": {
+        "choice": 0.9294,
+        "noul": 0.9824,
+        "score": 0.9941
+      },
+      "latency_ms": {
+        "n": 170,
+        "p50": 851.4,
+        "p90": 1136.2,
+        "mean": 906.1
+      }
+    }
+  }
+}

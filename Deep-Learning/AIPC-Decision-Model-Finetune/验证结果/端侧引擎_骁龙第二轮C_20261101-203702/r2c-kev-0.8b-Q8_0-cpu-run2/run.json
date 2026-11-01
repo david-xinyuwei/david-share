@@ -1,0 +1,72 @@
+{
+  "label": "r2c-kev-0.8b-Q8_0-cpu-run2",
+  "model": "C:\\Tools\\models\\contoso-kev\\Contoso-Kev-0.8B-FTcf-R2C-Q8_0.gguf",
+  "backend": "cpu",
+  "build": "b11935-cpu",
+  "server_args": "-m \"C:\\Tools\\models\\contoso-kev\\Contoso-Kev-0.8B-FTcf-R2C-Q8_0.gguf\" --host 127.0.0.1 --port 8080 -c 8192 -b 2048 -ub 2048 --cache-ram 0",
+  "data_prefix": "test_",
+  "client_concurrency": 1,
+  "logical_processors": 12,
+  "load_seconds": 2.6,
+  "server_log_facts": [
+    "0.02.095.780 I srv          init: decision model type: kev",
+    "0.02.053.526 I cmn          init: llama threadpool init, n_threads = 12",
+    "0.02.129.080 I srv    load_model: initializing, n_slots = 4, n_ctx_slot = 8192, kv_unified = 'true'"
+  ],
+  "workload_cpu_seconds": {
+    "support": {
+      "cpu_seconds": 933.9,
+      "wall_seconds_incl_warmup": 110.9
+    },
+    "assistant": {
+      "cpu_seconds": 1230.3,
+      "wall_seconds_incl_warmup": 147.7
+    }
+  },
+  "peak_working_set_mib": 2313,
+  "working_set_mib": 2313,
+  "private_mib": 5014,
+  "cpu_seconds": 2171,
+  "gguf_mib": 774.8,
+  "gguf_sha256": "c427ed7a8e797e1f6b6a838a80d4c32d8735b85dfa742f2dafba89307808ad05",
+  "captured": "2026-11-01T21:04:49.5688184+08:00",
+  "summaries": {
+    "assistant": {
+      "url": "http://127.0.0.1:8080/v1/systemone",
+      "data": "data\\contoso\\final\\test_assistant.jsonl",
+      "records": 159,
+      "errors": 0,
+      "questions": 477,
+      "accuracy": 0.9958,
+      "by_type": {
+        "choice": 1.0,
+        "noul": 0.9937
+      },
+      "latency_ms": {
+        "n": 159,
+        "p50": 907.3,
+        "p90": 1144.5,
+        "mean": 916.2
+      }
+    },
+    "support": {
+      "url": "http://127.0.0.1:8080/v1/systemone",
+      "data": "data\\contoso\\final\\test_support.jsonl",
+      "records": 170,
+      "errors": 0,
+      "questions": 510,
+      "accuracy": 0.9686,
+      "by_type": {
+        "choice": 0.9294,
+        "noul": 0.9824,
+        "score": 0.9941
+      },
+      "latency_ms": {
+        "n": 170,
+        "p50": 626.3,
+        "p90": 772.5,
+        "mean": 642.9
+      }
+    }
+  }
+}
