@@ -1,0 +1,348 @@
+{
+ "0.8b/r2-C/test_support": {
+  "rows": 510,
+  "served_T": 2.8284,
+  "accuracy": 0.9627,
+  "at_T1": {
+   "ece": 0.0223,
+   "brier": 0.0614,
+   "nll": 0.1289
+  },
+  "at_served": {
+   "ece": 0.0253,
+   "brier": 0.0635,
+   "nll": 0.1123
+  },
+  "best_T_for_ece_in_sample": 1.55,
+  "ece_at_best_T": 0.0089,
+  "best_T_for_nll_in_sample": 1.95,
+  "ece_at_nll_T": 0.0191,
+  "ece_removable_by_any_T": 0.0164,
+  "bootstrap_95_at_served": {
+   "acc_95": [
+    0.9451,
+    0.9784
+   ],
+   "ece_95": [
+    0.015,
+    0.041
+   ]
+  },
+  "by_type_at_served": {
+   "choice": {
+    "n": 170,
+    "acc": 0.9176,
+    "ece": 0.054,
+    "brier": 0.1358,
+    "nll": 0.245
+   },
+   "noul": {
+    "n": 170,
+    "acc": 0.9824,
+    "ece": 0.0271,
+    "brier": 0.0433,
+    "nll": 0.073
+   },
+   "score": {
+    "n": 170,
+    "acc": 0.9882,
+    "ece": 0.014,
+    "brier": 0.0114,
+    "nll": 0.0189
+   }
+  },
+  "coverage_at_served": {
+   "0.5": {
+    "coverage": 0.9941,
+    "accuracy_accepted": 0.9645
+   },
+   "0.6": {
+    "coverage": 0.949,
+    "accuracy_accepted": 0.9793
+   },
+   "0.7": {
+    "coverage": 0.9137,
+    "accuracy_accepted": 0.985
+   },
+   "0.8": {
+    "coverage": 0.851,
+    "accuracy_accepted": 0.9954
+   },
+   "0.9": {
+    "coverage": 0.8039,
+    "accuracy_accepted": 0.9976
+   },
+   "0.95": {
+    "coverage": 0.7765,
+    "accuracy_accepted": 1.0
+   }
+  },
+  "sweep_ece": {
+   "0.5": 0.0286,
+   "0.75": 0.0261,
+   "1.0": 0.0223,
+   "1.25": 0.0173,
+   "1.5": 0.014,
+   "2.0": 0.0155,
+   "2.5": 0.0187,
+   "3.0": 0.0288,
+   "4.0": 0.0497
+  }
+ },
+ "0.8b/r2-C/test_assistant": {
+  "rows": 477,
+  "served_T": 2.8284,
+  "accuracy": 1.0,
+  "at_T1": {
+   "ece": 0.0018,
+   "brier": 0.0006,
+   "nll": 0.0019
+  },
+  "at_served": {
+   "ece": 0.0092,
+   "brier": 0.0034,
+   "nll": 0.0102
+  },
+  "best_T_for_ece_in_sample": 0.5,
+  "ece_at_best_T": 0.0005,
+  "best_T_for_nll_in_sample": 0.5,
+  "ece_at_nll_T": 0.0005,
+  "ece_removable_by_any_T": 0.0087,
+  "bootstrap_95_at_served": {
+   "acc_95": [
+    1.0,
+    1.0
+   ],
+   "ece_95": [
+    0.0059,
+    0.013
+   ]
+  },
+  "by_type_at_served": {
+   "choice": {
+    "n": 159,
+    "acc": 1.0,
+    "ece": 0.003,
+    "brier": 0.0013,
+    "nll": 0.0035
+   },
+   "noul": {
+    "n": 318,
+    "acc": 1.0,
+    "ece": 0.0122,
+    "brier": 0.0044,
+    "nll": 0.0136
+   }
+  },
+  "coverage_at_served": {
+   "0.5": {
+    "coverage": 1.0,
+    "accuracy_accepted": 1.0
+   },
+   "0.6": {
+    "coverage": 0.9958,
+    "accuracy_accepted": 1.0
+   },
+   "0.7": {
+    "coverage": 0.9916,
+    "accuracy_accepted": 1.0
+   },
+   "0.8": {
+    "coverage": 0.9874,
+    "accuracy_accepted": 1.0
+   },
+   "0.9": {
+    "coverage": 0.979,
+    "accuracy_accepted": 1.0
+   },
+   "0.95": {
+    "coverage": 0.9623,
+    "accuracy_accepted": 1.0
+   }
+  },
+  "sweep_ece": {
+   "0.5": 0.0005,
+   "0.75": 0.0011,
+   "1.0": 0.0018,
+   "1.25": 0.0024,
+   "1.5": 0.0032,
+   "2.0": 0.0049,
+   "2.5": 0.0072,
+   "3.0": 0.0103,
+   "4.0": 0.0191
+  }
+ },
+ "0.8b/r2-C/ood_support": {
+  "rows": 1011,
+  "served_T": 2.8284,
+  "accuracy": 0.8843,
+  "at_T1": {
+   "ece": 0.0866,
+   "brier": 0.2012,
+   "nll": 0.8365
+  },
+  "at_served": {
+   "ece": 0.0549,
+   "brier": 0.1799,
+   "nll": 0.3962
+  },
+  "best_T_for_ece_in_sample": 4.0,
+  "ece_at_best_T": 0.0262,
+  "best_T_for_nll_in_sample": 4.0,
+  "ece_at_nll_T": 0.0262,
+  "ece_removable_by_any_T": 0.0287,
+  "bootstrap_95_at_served": {
+   "acc_95": [
+    0.8645,
+    0.9031
+   ],
+   "ece_95": [
+    0.039,
+    0.073
+   ]
+  },
+  "by_type_at_served": {
+   "choice": {
+    "n": 337,
+    "acc": 0.822,
+    "ece": 0.0658,
+    "brier": 0.2631,
+    "nll": 0.4737
+   },
+   "noul": {
+    "n": 337,
+    "acc": 0.9496,
+    "ece": 0.0197,
+    "brier": 0.0675,
+    "nll": 0.1089
+   },
+   "score": {
+    "n": 337,
+    "acc": 0.8813,
+    "ece": 0.0816,
+    "brier": 0.2091,
+    "nll": 0.606
+   }
+  },
+  "coverage_at_served": {
+   "0.5": {
+    "coverage": 0.9832,
+    "accuracy_accepted": 0.8944
+   },
+   "0.6": {
+    "coverage": 0.9238,
+    "accuracy_accepted": 0.9058
+   },
+   "0.7": {
+    "coverage": 0.8823,
+    "accuracy_accepted": 0.9226
+   },
+   "0.8": {
+    "coverage": 0.8289,
+    "accuracy_accepted": 0.9415
+   },
+   "0.9": {
+    "coverage": 0.7606,
+    "accuracy_accepted": 0.9545
+   },
+   "0.95": {
+    "coverage": 0.7082,
+    "accuracy_accepted": 0.9679
+   }
+  },
+  "sweep_ece": {
+   "0.5": 0.0984,
+   "0.75": 0.0927,
+   "1.0": 0.0866,
+   "1.25": 0.0802,
+   "1.5": 0.0776,
+   "2.0": 0.0617,
+   "2.5": 0.0537,
+   "3.0": 0.0465,
+   "4.0": 0.0262
+  }
+ },
+ "0.8b/r2-C/ood_assistant": {
+  "rows": 951,
+  "served_T": 2.8284,
+  "accuracy": 0.9727,
+  "at_T1": {
+   "ece": 0.025,
+   "brier": 0.0498,
+   "nll": 0.1583
+  },
+  "at_served": {
+   "ece": 0.0082,
+   "brier": 0.0433,
+   "nll": 0.0808
+  },
+  "best_T_for_ece_in_sample": 2.95,
+  "ece_at_best_T": 0.0069,
+  "best_T_for_nll_in_sample": 3.2,
+  "ece_at_nll_T": 0.0089,
+  "ece_removable_by_any_T": 0.0013,
+  "bootstrap_95_at_served": {
+   "acc_95": [
+    0.9611,
+    0.9821
+   ],
+   "ece_95": [
+    0.0055,
+    0.0194
+   ]
+  },
+  "by_type_at_served": {
+   "choice": {
+    "n": 317,
+    "acc": 0.9842,
+    "ece": 0.0094,
+    "brier": 0.025,
+    "nll": 0.048
+   },
+   "noul": {
+    "n": 634,
+    "acc": 0.9669,
+    "ece": 0.0095,
+    "brier": 0.0524,
+    "nll": 0.0972
+   }
+  },
+  "coverage_at_served": {
+   "0.5": {
+    "coverage": 0.9989,
+    "accuracy_accepted": 0.9737
+   },
+   "0.6": {
+    "coverage": 0.9874,
+    "accuracy_accepted": 0.9766
+   },
+   "0.7": {
+    "coverage": 0.98,
+    "accuracy_accepted": 0.9818
+   },
+   "0.8": {
+    "coverage": 0.9621,
+    "accuracy_accepted": 0.9858
+   },
+   "0.9": {
+    "coverage": 0.9295,
+    "accuracy_accepted": 0.991
+   },
+   "0.95": {
+    "coverage": 0.8917,
+    "accuracy_accepted": 0.9941
+   }
+  },
+  "sweep_ece": {
+   "0.5": 0.0271,
+   "0.75": 0.0246,
+   "1.0": 0.025,
+   "1.25": 0.0209,
+   "1.5": 0.0193,
+   "2.0": 0.0146,
+   "2.5": 0.0108,
+   "3.0": 0.0075,
+   "4.0": 0.0131
+  }
+ }
+}

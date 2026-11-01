@@ -429,7 +429,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def start_server(engine, model, port):
-    args = [engine, "-m", model, "--alias", "contoso-kev-0.8b-ftcf", "--host", "127.0.0.1", "--port", str(port),
+    args = [engine, "-m", model, "--alias", "contoso-kev-0.8b-r2c", "--host", "127.0.0.1", "--port", str(port),
             "-c", "8192", "-b", "2048", "-ub", "2048", "-ngl", "0", "--cache-ram", "0", "--offline"]
     log = open(ROOT / "验证结果" / "try_ui_llama_server.log", "ab")
     process = subprocess.Popen(args, stdout=log, stderr=subprocess.STDOUT)
@@ -453,7 +453,7 @@ def main():
     ap.add_argument("--server", default=SERVER, help="llama-server base URL")
     ap.add_argument("--start-server", action="store_true", help="start llama-server here and stop it when this page exits")
     ap.add_argument("--engine", default=os.environ.get("KEV_ENGINE", r"C:\Tools\llama.cpp\b11935-cpu\llama-server.exe"))
-    ap.add_argument("--model", default=os.environ.get("KEV_MODEL", r"C:\Tools\models\contoso-kev\Contoso-Kev-0.8B-FTcf-Q8_0.gguf"))
+    ap.add_argument("--model", default=os.environ.get("KEV_MODEL", r"C:\Tools\models\contoso-kev\Contoso-Kev-0.8B-FTcf-R2C-Q8_0.gguf"))  # delivered round-2 C; README A4 shows how to switch
     a = ap.parse_args()
     process = None
     server_port = int(a.server.rsplit(":", 1)[-1])
