@@ -22,7 +22,7 @@ CARD_LINE = "#B8CEDF"
 SCORE_GREY = "#687C8A"
 READ = "#D83B01"   # Microsoft Office orange accent, used only for the pointer head's readout positions
 WIDTH = 1200       # layout coordinates; the README displays every diagram at 900 px
-HEIGHT = 680       # one shared height for the three diagrams
+HEIGHT = 680       # shared height of the inference, validation and decision diagrams; training() uses 580 (two lanes)
 SCALE = 2          # raster at twice the layout size so labels stay crisp at the display width
 LANE_RIGHT = WIDTH - 24
 OWNER_DIVIDER = 264   # owner column 24..264, content from CARD_LEFT
@@ -190,12 +190,15 @@ def training(font_path, language="zh"):
     label = lambda chinese, english: english if language == "en" else chinese
     d = Diagram(label("业务微调、校准、评测、导出与量化", "Business fine-tuning, calibration, evaluation, export and quantization"),
                 label("GPU 主机依次微调、校准；评测是唯一判定点，不过回第 1 或第 2 步，通过才导出、量化；笔记本只拿到量化后的 GGUF",
-                      "GPU host: fine-tune, calibrate, evaluate (the only pass/fail point; failures return to step 1 or 2), export, quantize; the laptop gets the quantized GGUF"), font_path)
-    c1, c2, c3 = CARD_LEFT, CARD_LEFT + CARD_STEP, CARD_LEFT + 2 * CARD_STEP
-    d.lane(104, 236, label("客户笔记本", "Customer laptop"), label("厂商所有\n数据准备", "Vendor-owned\nData preparation"), icon="laptop")
-    d.card(c1, 116, label("业务训练集", "Training set"), label("标注样本 2,147 条\n+ 1,000 条 Kev 回放", "2,147 labeled records\n+ 1,000 Kev replay records"), icon="file")
-    d.card(c2, 116, label("Kev 发布版", "Released Kev"), label("0.8B / 4B，开放权重\n已训练的 LoRA + 指针头", "0.8B / 4B, open weights\nTrained LoRA + pointer head"), icon="file")
-    d.card(c3, 116, label("校准集 + 测试集", "Calibration + test"), label("与训练样本分开\n校准集拟 T，测试集验收", "Separate from training\nOne fits T, one judges"), icon="file")
+                      "GPU host: fine-tune, calibrate, evaluate (the only pass/fail point; failures return to step 1 or 2), export, quantize; the laptop gets the quantized GGUF"), font_path, height=580)
+    # one laptop lane: three input cards and, at the right end, the file the laptop receives back (same machine, both roles)
+    cw, cg = 206, 20   # four equal cards fill CARD_LEFT..LANE_RIGHT-16 (280..1160)
+    c1, c2, c3, c4 = (CARD_LEFT + index * (cw + cg) for index in range(4))
+    d.lane(104, 236, label("客户笔记本", "Customer laptop"), label("厂商所有\n准备数据，部署模型", "Vendor-owned\nPrepares data, runs it"), icon="laptop")
+    d.card(c1, 116, label("业务训练集", "Training set"), label("标注样本 2,147 条\n+ 1,000 条 Kev 回放", "2,147 labeled records\n+ 1,000 Kev replay"), icon="file", width=cw, compact=True)
+    d.card(c2, 116, label("Kev 发布版", "Released Kev"), label("0.8B / 4B，开放权重\n已训练的 LoRA + 指针头", "0.8B / 4B, open weights\nTrained LoRA + head"), icon="file", width=cw, compact=True)
+    d.card(c3, 116, label("校准与测试集", "Calib + test"), label("与训练样本分开\n校准集拟 T，测试集验收", "Separate from training\nOne fits T, one judges"), icon="file", width=cw, compact=True)
+    d.card(c4, 116, label("量化 GGUF", "Quantized"), label("Q8_0（推荐）/ Q4_K_M\n温度在文件内，端侧运行", "GGUF Q8_0 / Q4_K_M\nT inside; runs on device"), icon="file", width=cw, compact=True)
     # five equal cards in the host lane: 5 x 164 px with 12 px gaps fill CARD_LEFT..LANE_RIGHT-16 (280..1160); compact detail font
     sw, sg, sh = 164, 12, 160   # equal card height: four compact detail lines + one badge row
     s1, s2, s3, s4, s5 = (CARD_LEFT + index * (sw + sg) for index in range(5))
@@ -205,25 +208,23 @@ def training(font_path, language="zh"):
     d.card(s3, 274, label("评测验收", "Evaluate"), label("测试集量 ① ② ⑤\n准确率掉出区间→回 1\n只有概率偏差 → 回 2\n都在区间内 → 往下", "Test set: ① ② ⑤\nAccuracy out of CI: 1\nOnly ECE off: 2\nBoth inside: go on"), width=sw, height=sh, badges=("Kev",), compact=True)
     d.card(s4, 274, label("导出 GGUF", "Export"), label("合并 LoRA 进基座\nBF16，1,437 MiB\n含 T，不改任何值", "GGUF, LoRA merged\nBF16, 1,437 MiB\nWith T, unchanged"), step="3", width=sw, height=sh, badges=("llama.cpp",), compact=True)
     d.card(s5, 274, label("量化", "Quantize"), label("训练后量化，不重训\nQ8_0 764 MiB\nQ4_K_M 517 MiB\n换 ③④，付一点 ①②", "PTQ, no retraining\nQ8_0 764 MiB\nQ4_K_M 517 MiB\nBuys ③④, costs ①②"), step="4", width=sw, height=sh, badges=("llama.cpp",), compact=True)
-    d.lane(450, 550, label("客户笔记本", "Customer laptop"), label("厂商所有\n端侧部署", "Vendor-owned\nDevice deployment"), icon="laptop")
-    d.card(c3, 462, label("量化后的 GGUF", "Quantized GGUF"), label("Q8_0（推荐）/ Q4_K_M\n温度在文件内", "Q8_0 (recommended) / Q4_K_M\nT inside the file"), icon="file")
-    mid2, mid3 = c2 + CARD_WIDTH / 2, c3 + CARD_WIDTH / 2
-    d.arrow([(c1 + 60, 216), (c1 + 60, 274)])                                      # training set -> fine-tuning
-    d.arrow([(mid2, 216), (mid2, 246), (c1 + 120, 246), (c1 + 120, 274)])          # released Kev -> fine-tuning (--init_from)
-    d.arrow([(mid3 - 40, 216), (mid3 - 40, 246), (s2 + sw / 2, 246), (s2 + sw / 2, 274)])   # calibration set -> calibration
-    d.arrow([(mid3 + 40, 216), (mid3 + 40, 246), (s3 + sw / 2, 246), (s3 + sw / 2, 274)])   # test set -> evaluation gate
+    bottom = 274 + sh
+    cards_bottom = 116 + 56 + 19 * 2   # compact two-line data cards end here (card() height rule)
+    d.arrow([(c1 + cw / 2, cards_bottom), (c1 + cw / 2, 274)])                                          # training set -> fine-tuning
+    d.arrow([(c2 + cw / 2, cards_bottom), (c2 + cw / 2, 246), (s1 + sw - 30, 246), (s1 + sw - 30, 274)])    # released Kev -> fine-tuning (--init_from)
+    d.arrow([(c3 + cw / 2 - 30, cards_bottom), (c3 + cw / 2 - 30, 246), (s2 + sw / 2, 246), (s2 + sw / 2, 274)])   # calibration set -> calibration
+    d.arrow([(c3 + cw / 2 + 30, cards_bottom), (c3 + cw / 2 + 30, 246), (s3 + sw / 2, 246), (s3 + sw / 2, 274)])   # test set -> evaluation gate
     d.arrow([(s1 + sw, 338), (s2, 338)])
     d.arrow([(s2 + sw, 338), (s3, 338)])
     d.arrow([(s3 + sw, 338), (s4, 338)])
     d.arrow([(s4 + sw, 338), (s5, 338)])
-    bottom = 274 + sh
     d.arrow([(s3 + 40, bottom), (s3 + 40, bottom + 22), (s1 + sw / 2, bottom + 22), (s1 + sw / 2, bottom)], color=READ, dashed=True)   # accuracy fell -> retrain
     d.arrow([(s3 + sw - 40, bottom), (s3 + sw - 40, bottom + 11), (s2 + sw / 2, bottom + 11), (s2 + sw / 2, bottom)], color=READ, dashed=True)   # probabilities off -> refit T
-    d.arrow([(s5 + sw / 2, bottom), (s5 + sw / 2, 446), (mid3, 446), (mid3, 462)])  # quantized file -> laptop
-    d.legend(572, [("lane", label("泳道：归属方", "Lane: owner")), ("card", label("卡片：组件或产物", "Card: component or artifact")),
+    d.arrow([(s5 + sw / 2, 274), (s5 + sw / 2, 246), (c4 + cw / 2, 246), (c4 + cw / 2, cards_bottom)])      # quantized file -> back to the laptop
+    d.legend(452, [("lane", label("泳道：归属方", "Lane: owner")), ("card", label("卡片：组件或产物", "Card: component or artifact")),
                    ("arrow", label("蓝色：数据流", "Blue: data flow")), ("back", label("橙色虚线：评测不通过时回到的步骤", "Orange dashed: return after failed evaluation")),
                    ("badge", label("徽章：无图标的软件", "Badge: software without icon"))])
-    d.footnote(600, label("原创解释图。依据：scripts/remote_pipeline_v2.sh、remote_cf_round.sh、remote_export_gguf_cf.sh，Kev 2074cc44 calibrate_checkpoint.py；大小为 0.8B FT-cf。",
+    d.footnote(480, label("原创解释图。依据：scripts/remote_pipeline_v2.sh、remote_cf_round.sh、remote_export_gguf_cf.sh，Kev 2074cc44 calibrate_checkpoint.py；大小为 0.8B FT-cf。",
                           "Original explanatory diagram. Sources: scripts/remote_pipeline_v2.sh, remote_cf_round.sh, remote_export_gguf_cf.sh; Kev 2074cc44 calibrate_checkpoint.py. Sizes: 0.8B."),
                label("评测验收的判定规则和门槛见第 3 节与 scripts/calibration_boundary.py；①–⑤ 指首屏的五项标准。导出和量化只用主机 CPU；端侧推理不触发这些步骤。Q4_K_M 只压前馈层。",
                      "Gate rule: section 3, scripts/calibration_boundary.py; ①–⑤ = the five first-screen criteria. Export and PTQ use the host CPU only; the device never runs them."),
@@ -543,7 +544,7 @@ def main():
               "selection": "Upstream model/accuracy and playground figures do not describe this project's training, export and laptop validation paths.",
               "visual_scope": "Azure Architecture Center style: blue title bar, grey ownership lanes, white component cards, legend and source footnote; "
                               "official Microsoft icons identify actual hosts and file artifacts, text badges identify PyTorch, Kev and llama.cpp, which have no ledgered icon; "
-                              f"rendered at {SCALE}x the {WIDTH}x{HEIGHT} layout.",
+                              f"rendered at {SCALE}x the {WIDTH}x{HEIGHT} layout (training: {WIDTH}x580).",
               "icon_sources": "vendor/sources.json",
               "assets": assets}
     (arguments.out / "provenance.json").write_text(json.dumps(ledger, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

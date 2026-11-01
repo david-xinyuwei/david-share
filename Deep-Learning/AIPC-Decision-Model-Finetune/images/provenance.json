@@ -3,14 +3,14 @@
   "font": "msyh.ttc",
   "reference": "https://github.com/jaredpalmer/kev/blob/2074cc44256200bb37540103fa4572901faa10f3/README.md",
   "selection": "Upstream model/accuracy and playground figures do not describe this project's training, export and laptop validation paths.",
-  "visual_scope": "Azure Architecture Center style: blue title bar, grey ownership lanes, white component cards, legend and source footnote; official Microsoft icons identify actual hosts and file artifacts, text badges identify PyTorch, Kev and llama.cpp, which have no ledgered icon; rendered at 2x the 1200x680 layout.",
+  "visual_scope": "Azure Architecture Center style: blue title bar, grey ownership lanes, white component cards, legend and source footnote; official Microsoft icons identify actual hosts and file artifacts, text badges identify PyTorch, Kev and llama.cpp, which have no ledgered icon; rendered at 2x the 1200x680 layout (training: 1200x580).",
   "icon_sources": "vendor/sources.json",
   "assets": [
     {
       "file": "training.png",
       "width": 2400,
-      "height": 1360,
-      "sha256": "0e6af2dbce4633b7c11dbdf2b8e08f39704defc38d89faff513971d2b41e009f",
+      "height": 1160,
+      "sha256": "cdb887fa1d50db3e7419c1612ed016bd48b70cce4ebf337bea8e0ec33fd4cc01",
       "vendor_icons": [
         "azure-vm",
         "file",
@@ -30,8 +30,8 @@
     {
       "file": "training-en.png",
       "width": 2400,
-      "height": 1360,
-      "sha256": "9a910440d8159d620670e567837ac0fa1d71c9990cd59eeb298cf199b9e53780",
+      "height": 1160,
+      "sha256": "325eb19cb95107e0153abb9219d128b885fbd5357c7d137785bd459cbbbdeb55",
       "vendor_icons": [
         "azure-vm",
         "file",
