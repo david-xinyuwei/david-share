@@ -1,0 +1,19 @@
+{
+ "url": "http://127.0.0.1:8086/v1/systemone",
+ "data": "data\\contoso\\final\\long8k_test_support.jsonl",
+ "records": 40,
+ "errors": 0,
+ "questions": 120,
+ "accuracy": 0.8333,
+ "by_type": {
+  "choice": 0.775,
+  "noul": 0.95,
+  "score": 0.775
+ },
+ "latency_ms": {
+  "n": 40,
+  "p50": 40705.6,
+  "p90": 46224.3,
+  "mean": 42407.5
+ }
+}

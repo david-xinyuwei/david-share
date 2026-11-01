@@ -1,0 +1,640 @@
+0.00.003.397 I srv  llama_server: initializing ...
+0.00.028.900 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.029.348 W srv  server_setup: security: no API key is set and CORS allows all origins (see https://github.com/ggml-org/llama.cpp/pull/25655)
+0.00.031.889 I srv    load_model: loading model 'C:\Tools\models\contoso-kev\Contoso-Kev-0.8B-FTcf-Q8_0.gguf'
+0.00.841.017 I decision model reads the embeddings output, enabling embedding mode
+0.00.843.436 W llama_init_from_model: model default pooling_type is [-1], but [0] was specified
+0.00.873.615 I cmn          init: llama threadpool init, n_threads = 8
+0.00.873.651 W init: embeddings required but some input tokens were not marked as outputs -> overriding
+0.01.006.931 I srv          init: decision model type: kev
+0.01.010.302 W init: embeddings required but some input tokens were not marked as outputs -> overriding
+0.01.043.448 I srv    load_model: initializing, n_slots = 4, n_ctx_slot = 8192, kv_unified = 'true'
+0.01.043.586 W srv          init: --cache-idle-slots requires --cache-ram, disabling
+0.01.052.797 I srv  server_run_i: model loaded
+0.01.052.801 I srv  server_on_li: listening on http://127.0.0.1:8086
+0.02.771.047 I slot get_availabl: id  0 | task -1 | selected slot by LRU, n_tokens = 0, t_last = -1
+0.02.771.080 I slot launch_slot_: id  1 | task 1 | processing task, is_child = 1
+0.02.771.089 I slot launch_slot_: id  2 | task 2 | processing task, is_child = 1
+0.02.771.098 I slot launch_slot_: id  0 | task 0 | processing task, is_child = 0
+0.12.390.922 I slot print_timing: id  0 | task 0 | prompt processing, n_tokens =   2048, progress = 0.26, t =   9.62 s / 212.90 tokens per second
+0.21.863.326 I slot print_timing: id  0 | task 0 | prompt processing, n_tokens =   4096, progress = 0.53, t =  19.09 s / 214.54 tokens per second
+0.31.952.735 I slot print_timing: id  0 | task 0 | prompt processing, n_tokens =   6144, progress = 0.79, t =  29.18 s / 210.54 tokens per second
+0.39.931.808 I slot print_timing: id  0 | task 0 | prompt processing, n_tokens =   7645, progress = 0.99, t =  37.16 s / 205.73 tokens per second
+0.41.159.730 I slot      release: id  0 | task 0 | stop processing: n_tokens = 7760, truncated = 0
+0.41.159.755 I slot      release: id  1 | task 1 | stop processing: n_tokens = 7665, truncated = 0
+0.41.160.327 I slot      release: id  2 | task 2 | stop processing: n_tokens = 7674, truncated = 0
+0.41.184.460 I slot get_availabl: id  3 | task -1 | selected slot by LRU, n_tokens = 0, t_last = -1
+0.41.184.473 I slot launch_slot_: id  1 | task 9 | processing task, is_child = 1
+0.41.184.479 I slot launch_slot_: id  2 | task 10 | processing task, is_child = 1
+0.41.184.486 I slot launch_slot_: id  3 | task 8 | processing task, is_child = 0
+0.41.185.665 E init_batch: failed to prepare attention ubatches
+0.41.185.668 W decode: failed to find a memory slot for batch of size 2048
+0.41.185.730 W srv  try_clear_id: purging slot 0 with 7760 tokens
+0.41.187.032 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+0.50.381.654 I slot print_timing: id  3 | task 8 | prompt processing, n_tokens =   2048, progress = 0.26, t =   9.20 s / 222.68 tokens per second
+1.00.105.693 I slot print_timing: id  3 | task 8 | prompt processing, n_tokens =   4096, progress = 0.53, t =  18.92 s / 216.48 tokens per second
+1.10.228.539 I slot print_timing: id  3 | task 8 | prompt processing, n_tokens =   6144, progress = 0.79, t =  29.04 s / 211.54 tokens per second
+1.18.202.751 I slot print_timing: id  3 | task 8 | prompt processing, n_tokens =   7648, progress = 0.99, t =  37.02 s / 206.60 tokens per second
+1.19.074.267 I slot      release: id  3 | task 8 | stop processing: n_tokens = 7763, truncated = 0
+1.19.492.870 I slot      release: id  1 | task 9 | stop processing: n_tokens = 7668, truncated = 0
+1.19.493.571 I slot      release: id  2 | task 10 | stop processing: n_tokens = 7677, truncated = 0
+1.19.519.231 I slot get_availabl: id  0 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 41156197
+1.19.519.254 I slot launch_slot_: id  1 | task 18 | processing task, is_child = 1
+1.19.519.261 I slot launch_slot_: id  2 | task 19 | processing task, is_child = 1
+1.19.519.268 I slot launch_slot_: id  0 | task 17 | processing task, is_child = 0
+1.19.520.412 E init_batch: failed to prepare attention ubatches
+1.19.520.414 W decode: failed to find a memory slot for batch of size 2048
+1.19.520.471 W srv  try_clear_id: purging slot 3 with 7763 tokens
+1.19.521.810 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+1.28.598.173 I slot print_timing: id  0 | task 17 | prompt processing, n_tokens =   2048, progress = 0.26, t =   9.08 s / 225.58 tokens per second
+1.38.115.790 I slot print_timing: id  0 | task 17 | prompt processing, n_tokens =   4096, progress = 0.53, t =  18.60 s / 220.26 tokens per second
+1.48.318.770 I slot print_timing: id  0 | task 17 | prompt processing, n_tokens =   6144, progress = 0.79, t =  28.80 s / 213.34 tokens per second
+1.56.221.807 I slot print_timing: id  0 | task 17 | prompt processing, n_tokens =   7645, progress = 0.99, t =  36.70 s / 208.30 tokens per second
+1.57.616.944 I slot      release: id  0 | task 17 | stop processing: n_tokens = 7760, truncated = 0
+1.57.616.985 I slot      release: id  1 | task 18 | stop processing: n_tokens = 7665, truncated = 0
+1.57.617.681 I slot      release: id  2 | task 19 | stop processing: n_tokens = 7674, truncated = 0
+1.57.631.189 I slot get_availabl: id  3 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 79070625
+1.57.631.203 I slot launch_slot_: id  1 | task 26 | processing task, is_child = 1
+1.57.631.210 I slot launch_slot_: id  2 | task 27 | processing task, is_child = 1
+1.57.631.219 I slot launch_slot_: id  3 | task 25 | processing task, is_child = 0
+1.57.632.397 E init_batch: failed to prepare attention ubatches
+1.57.632.400 W decode: failed to find a memory slot for batch of size 2048
+1.57.632.447 W srv  try_clear_id: purging slot 0 with 7760 tokens
+1.57.633.744 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+2.06.589.530 I slot print_timing: id  3 | task 25 | prompt processing, n_tokens =   2048, progress = 0.26, t =   8.96 s / 228.62 tokens per second
+2.16.161.863 I slot print_timing: id  3 | task 25 | prompt processing, n_tokens =   4096, progress = 0.53, t =  18.53 s / 221.04 tokens per second
+2.26.258.801 I slot print_timing: id  3 | task 25 | prompt processing, n_tokens =   6144, progress = 0.79, t =  28.63 s / 214.62 tokens per second
+2.34.301.267 I slot print_timing: id  3 | task 25 | prompt processing, n_tokens =   7648, progress = 0.99, t =  36.67 s / 208.56 tokens per second
+2.35.299.089 I slot      release: id  3 | task 25 | stop processing: n_tokens = 7763, truncated = 0
+2.35.708.446 I slot      release: id  1 | task 26 | stop processing: n_tokens = 7668, truncated = 0
+2.35.709.385 I slot      release: id  2 | task 27 | stop processing: n_tokens = 7677, truncated = 0
+2.35.722.114 I slot get_availabl: id  0 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 117613157
+2.35.722.133 I slot launch_slot_: id  1 | task 35 | processing task, is_child = 1
+2.35.722.140 I slot launch_slot_: id  2 | task 36 | processing task, is_child = 1
+2.35.722.147 I slot launch_slot_: id  0 | task 34 | processing task, is_child = 0
+2.35.723.340 E init_batch: failed to prepare attention ubatches
+2.35.723.343 W decode: failed to find a memory slot for batch of size 2048
+2.35.723.391 W srv  try_clear_id: purging slot 3 with 7763 tokens
+2.35.724.695 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+2.44.855.459 I slot print_timing: id  0 | task 34 | prompt processing, n_tokens =   2048, progress = 0.26, t =   9.13 s / 224.24 tokens per second
+2.55.524.716 I slot print_timing: id  0 | task 34 | prompt processing, n_tokens =   4096, progress = 0.53, t =  19.80 s / 206.84 tokens per second
+3.07.711.854 I slot print_timing: id  0 | task 34 | prompt processing, n_tokens =   6144, progress = 0.79, t =  31.99 s / 192.06 tokens per second
+3.17.087.392 I slot print_timing: id  0 | task 34 | prompt processing, n_tokens =   7645, progress = 0.99, t =  41.37 s / 184.82 tokens per second
+3.18.326.954 I slot      release: id  0 | task 34 | stop processing: n_tokens = 7760, truncated = 0
+3.18.327.010 I slot      release: id  1 | task 35 | stop processing: n_tokens = 7665, truncated = 0
+3.18.327.653 I slot      release: id  2 | task 36 | stop processing: n_tokens = 7674, truncated = 0
+3.18.353.350 I slot get_availabl: id  3 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 155295188
+3.18.353.382 I slot launch_slot_: id  1 | task 43 | processing task, is_child = 1
+3.18.353.389 I slot launch_slot_: id  2 | task 44 | processing task, is_child = 1
+3.18.353.396 I slot launch_slot_: id  3 | task 42 | processing task, is_child = 0
+3.18.354.787 E init_batch: failed to prepare attention ubatches
+3.18.354.790 W decode: failed to find a memory slot for batch of size 2048
+3.18.354.848 W srv  try_clear_id: purging slot 0 with 7760 tokens
+3.18.356.152 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+3.27.653.073 I slot print_timing: id  3 | task 42 | prompt processing, n_tokens =   2048, progress = 0.26, t =   9.30 s / 220.22 tokens per second
+3.37.582.123 I slot print_timing: id  3 | task 42 | prompt processing, n_tokens =   4096, progress = 0.53, t =  19.23 s / 213.02 tokens per second
+3.48.053.830 I slot print_timing: id  3 | task 42 | prompt processing, n_tokens =   6144, progress = 0.79, t =  29.70 s / 206.87 tokens per second
+3.56.431.311 I slot print_timing: id  3 | task 42 | prompt processing, n_tokens =   7630, progress = 0.99, t =  38.08 s / 200.38 tokens per second
+3.57.337.642 I slot      release: id  3 | task 42 | stop processing: n_tokens = 7745, truncated = 0
+3.57.744.917 I slot      release: id  1 | task 43 | stop processing: n_tokens = 7650, truncated = 0
+3.57.745.501 I slot      release: id  2 | task 44 | stop processing: n_tokens = 7659, truncated = 0
+3.57.758.295 I slot get_availabl: id  0 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 198322929
+3.57.758.306 I slot launch_slot_: id  1 | task 52 | processing task, is_child = 1
+3.57.758.313 I slot launch_slot_: id  2 | task 53 | processing task, is_child = 1
+3.57.758.321 I slot launch_slot_: id  0 | task 51 | processing task, is_child = 0
+3.57.759.548 E init_batch: failed to prepare attention ubatches
+3.57.759.551 W decode: failed to find a memory slot for batch of size 2048
+3.57.759.615 W srv  try_clear_id: purging slot 3 with 7745 tokens
+3.57.760.908 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+4.06.893.986 I slot print_timing: id  0 | task 51 | prompt processing, n_tokens =   2048, progress = 0.26, t =   9.14 s / 224.18 tokens per second
+4.16.411.411 I slot print_timing: id  0 | task 51 | prompt processing, n_tokens =   4096, progress = 0.53, t =  18.65 s / 219.59 tokens per second
+4.27.713.871 I slot print_timing: id  0 | task 51 | prompt processing, n_tokens =   6144, progress = 0.79, t =  29.96 s / 205.11 tokens per second
+4.36.469.945 I slot print_timing: id  0 | task 51 | prompt processing, n_tokens =   7671, progress = 0.99, t =  38.71 s / 198.16 tokens per second
+4.37.876.158 I slot      release: id  0 | task 51 | stop processing: n_tokens = 7786, truncated = 0
+4.37.876.194 I slot      release: id  1 | task 52 | stop processing: n_tokens = 7691, truncated = 0
+4.37.876.887 I slot      release: id  2 | task 53 | stop processing: n_tokens = 7700, truncated = 0
+4.37.895.196 I slot get_availabl: id  3 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 237333496
+4.37.895.213 I slot launch_slot_: id  1 | task 60 | processing task, is_child = 1
+4.37.895.226 I slot launch_slot_: id  2 | task 61 | processing task, is_child = 1
+4.37.895.239 I slot launch_slot_: id  3 | task 59 | processing task, is_child = 0
+4.37.897.228 E init_batch: failed to prepare attention ubatches
+4.37.897.233 W decode: failed to find a memory slot for batch of size 2048
+4.37.897.299 W srv  try_clear_id: purging slot 0 with 7786 tokens
+4.37.898.952 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+4.47.436.310 I slot print_timing: id  3 | task 59 | prompt processing, n_tokens =   2048, progress = 0.26, t =   9.54 s / 214.65 tokens per second
+4.57.260.179 I slot print_timing: id  3 | task 59 | prompt processing, n_tokens =   4096, progress = 0.53, t =  19.36 s / 211.52 tokens per second
+5.08.091.963 I slot print_timing: id  3 | task 59 | prompt processing, n_tokens =   6144, progress = 0.79, t =  30.20 s / 203.47 tokens per second
+5.17.499.347 I slot print_timing: id  3 | task 59 | prompt processing, n_tokens =   7636, progress = 0.99, t =  39.60 s / 192.81 tokens per second
+5.18.435.541 I slot      release: id  3 | task 59 | stop processing: n_tokens = 7751, truncated = 0
+5.18.886.931 I slot      release: id  1 | task 60 | stop processing: n_tokens = 7656, truncated = 0
+5.18.887.536 I slot      release: id  2 | task 61 | stop processing: n_tokens = 7665, truncated = 0
+5.18.915.738 I slot get_availabl: id  0 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 277871840
+5.18.915.769 I slot launch_slot_: id  1 | task 69 | processing task, is_child = 1
+5.18.915.782 I slot launch_slot_: id  2 | task 70 | processing task, is_child = 1
+5.18.915.794 I slot launch_slot_: id  0 | task 68 | processing task, is_child = 0
+5.18.917.467 E init_batch: failed to prepare attention ubatches
+5.18.917.471 W decode: failed to find a memory slot for batch of size 2048
+5.18.917.533 W srv  try_clear_id: purging slot 3 with 7751 tokens
+5.18.919.343 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+5.29.849.134 I slot print_timing: id  0 | task 68 | prompt processing, n_tokens =   2048, progress = 0.26, t =  10.93 s / 187.32 tokens per second
+5.40.050.469 I slot print_timing: id  0 | task 68 | prompt processing, n_tokens =   4096, progress = 0.53, t =  21.13 s / 193.81 tokens per second
+5.50.600.900 I slot print_timing: id  0 | task 68 | prompt processing, n_tokens =   6144, progress = 0.79, t =  31.68 s / 193.91 tokens per second
+5.59.784.114 I slot print_timing: id  0 | task 68 | prompt processing, n_tokens =   7661, progress = 0.99, t =  40.87 s / 187.46 tokens per second
+6.01.070.109 I slot      release: id  0 | task 68 | stop processing: n_tokens = 7776, truncated = 0
+6.01.070.153 I slot      release: id  1 | task 69 | stop processing: n_tokens = 7681, truncated = 0
+6.01.071.068 I slot      release: id  2 | task 70 | stop processing: n_tokens = 7690, truncated = 0
+6.01.094.547 I slot get_availabl: id  3 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 318431044
+6.01.094.557 I slot launch_slot_: id  1 | task 77 | processing task, is_child = 1
+6.01.094.564 I slot launch_slot_: id  2 | task 78 | processing task, is_child = 1
+6.01.094.573 I slot launch_slot_: id  3 | task 76 | processing task, is_child = 0
+6.01.095.815 E init_batch: failed to prepare attention ubatches
+6.01.095.818 W decode: failed to find a memory slot for batch of size 2048
+6.01.095.863 W srv  try_clear_id: purging slot 0 with 7776 tokens
+6.01.097.162 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+6.10.755.416 I slot print_timing: id  3 | task 76 | prompt processing, n_tokens =   2048, progress = 0.26, t =   9.66 s / 211.99 tokens per second
+6.20.660.511 I slot print_timing: id  3 | task 76 | prompt processing, n_tokens =   4096, progress = 0.53, t =  19.57 s / 209.34 tokens per second
+6.31.111.651 I slot print_timing: id  3 | task 76 | prompt processing, n_tokens =   6144, progress = 0.79, t =  30.02 s / 204.68 tokens per second
+6.39.732.301 I slot print_timing: id  3 | task 76 | prompt processing, n_tokens =   7680, progress = 0.99, t =  38.64 s / 198.77 tokens per second
+6.40.774.979 I slot      release: id  3 | task 76 | stop processing: n_tokens = 7795, truncated = 0
+6.41.261.893 I slot      release: id  1 | task 77 | stop processing: n_tokens = 7700, truncated = 0
+6.41.262.487 I slot      release: id  2 | task 78 | stop processing: n_tokens = 7709, truncated = 0
+6.41.290.977 I slot get_availabl: id  0 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 361065437
+6.41.291.006 I slot launch_slot_: id  1 | task 86 | processing task, is_child = 1
+6.41.291.018 I slot launch_slot_: id  2 | task 87 | processing task, is_child = 1
+6.41.291.031 I slot launch_slot_: id  0 | task 85 | processing task, is_child = 0
+6.41.292.707 E init_batch: failed to prepare attention ubatches
+6.41.292.711 W decode: failed to find a memory slot for batch of size 2048
+6.41.292.767 W srv  try_clear_id: purging slot 3 with 7795 tokens
+6.41.294.144 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+6.52.348.960 I slot print_timing: id  0 | task 85 | prompt processing, n_tokens =   2048, progress = 0.26, t =  11.06 s / 185.21 tokens per second
+7.02.092.601 I slot print_timing: id  0 | task 85 | prompt processing, n_tokens =   4096, progress = 0.53, t =  20.80 s / 196.91 tokens per second
+7.15.258.529 I slot print_timing: id  0 | task 85 | prompt processing, n_tokens =   6144, progress = 0.79, t =  33.97 s / 180.88 tokens per second
+7.25.806.172 I slot print_timing: id  0 | task 85 | prompt processing, n_tokens =   7633, progress = 0.99, t =  44.51 s / 171.47 tokens per second
+7.27.486.538 I slot      release: id  0 | task 85 | stop processing: n_tokens = 7748, truncated = 0
+7.27.486.585 I slot      release: id  1 | task 86 | stop processing: n_tokens = 7653, truncated = 0
+7.27.487.178 I slot      release: id  2 | task 87 | stop processing: n_tokens = 7662, truncated = 0
+7.27.501.059 I slot get_availabl: id  3 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 400770147
+7.27.501.069 I slot launch_slot_: id  1 | task 94 | processing task, is_child = 1
+7.27.501.076 I slot launch_slot_: id  2 | task 95 | processing task, is_child = 1
+7.27.501.083 I slot launch_slot_: id  3 | task 93 | processing task, is_child = 0
+7.27.502.258 E init_batch: failed to prepare attention ubatches
+7.27.502.262 W decode: failed to find a memory slot for batch of size 2048
+7.27.502.313 W srv  try_clear_id: purging slot 0 with 7748 tokens
+7.27.503.607 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+7.38.898.207 I slot print_timing: id  3 | task 93 | prompt processing, n_tokens =   2048, progress = 0.26, t =  11.40 s / 179.70 tokens per second
+7.48.994.045 I slot print_timing: id  3 | task 93 | prompt processing, n_tokens =   4096, progress = 0.53, t =  21.49 s / 190.58 tokens per second
+7.59.805.020 I slot print_timing: id  3 | task 93 | prompt processing, n_tokens =   6144, progress = 0.79, t =  32.30 s / 190.19 tokens per second
+8.08.814.309 I slot print_timing: id  3 | task 93 | prompt processing, n_tokens =   7662, progress = 0.99, t =  41.31 s / 185.46 tokens per second
+8.09.930.392 I slot      release: id  3 | task 93 | stop processing: n_tokens = 7777, truncated = 0
+8.10.461.895 I slot      release: id  1 | task 94 | stop processing: n_tokens = 7682, truncated = 0
+8.10.462.817 I slot      release: id  2 | task 95 | stop processing: n_tokens = 7691, truncated = 0
+8.10.487.235 I slot get_availabl: id  0 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 447481529
+8.10.487.270 I slot launch_slot_: id  1 | task 103 | processing task, is_child = 1
+8.10.487.287 I slot launch_slot_: id  2 | task 104 | processing task, is_child = 1
+8.10.487.303 I slot launch_slot_: id  0 | task 102 | processing task, is_child = 0
+8.10.488.493 E init_batch: failed to prepare attention ubatches
+8.10.488.496 W decode: failed to find a memory slot for batch of size 2048
+8.10.488.554 W srv  try_clear_id: purging slot 3 with 7777 tokens
+8.10.489.949 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+8.22.524.031 I slot print_timing: id  0 | task 102 | prompt processing, n_tokens =   2048, progress = 0.26, t =  12.04 s / 170.15 tokens per second
+8.35.843.666 I slot print_timing: id  0 | task 102 | prompt processing, n_tokens =   4096, progress = 0.53, t =  25.36 s / 161.54 tokens per second
+8.47.282.565 I slot print_timing: id  0 | task 102 | prompt processing, n_tokens =   6144, progress = 0.79, t =  36.80 s / 166.98 tokens per second
+8.55.421.782 I slot print_timing: id  0 | task 102 | prompt processing, n_tokens =   7669, progress = 0.99, t =  44.93 s / 170.67 tokens per second
+8.57.204.860 I slot      release: id  0 | task 102 | stop processing: n_tokens = 7784, truncated = 0
+8.57.204.896 I slot      release: id  1 | task 103 | stop processing: n_tokens = 7689, truncated = 0
+8.57.205.518 I slot      release: id  2 | task 104 | stop processing: n_tokens = 7698, truncated = 0
+8.57.231.518 I slot get_availabl: id  3 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 489925227
+8.57.231.547 I slot launch_slot_: id  1 | task 111 | processing task, is_child = 1
+8.57.231.560 I slot launch_slot_: id  2 | task 112 | processing task, is_child = 1
+8.57.231.573 I slot launch_slot_: id  3 | task 110 | processing task, is_child = 0
+8.57.233.211 E init_batch: failed to prepare attention ubatches
+8.57.233.215 W decode: failed to find a memory slot for batch of size 2048
+8.57.233.283 W srv  try_clear_id: purging slot 0 with 7784 tokens
+8.57.235.112 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+9.07.125.138 I slot print_timing: id  3 | task 110 | prompt processing, n_tokens =   2048, progress = 0.26, t =   9.89 s / 207.00 tokens per second
+9.17.455.943 I slot print_timing: id  3 | task 110 | prompt processing, n_tokens =   4096, progress = 0.53, t =  20.22 s / 202.53 tokens per second
+9.28.298.371 I slot print_timing: id  3 | task 110 | prompt processing, n_tokens =   6144, progress = 0.79, t =  31.07 s / 197.77 tokens per second
+9.38.804.257 I slot print_timing: id  3 | task 110 | prompt processing, n_tokens =   7656, progress = 0.99, t =  41.57 s / 184.16 tokens per second
+9.39.948.731 I slot      release: id  3 | task 110 | stop processing: n_tokens = 7771, truncated = 0
+9.40.549.083 I slot      release: id  1 | task 111 | stop processing: n_tokens = 7676, truncated = 0
+9.40.550.046 I slot      release: id  2 | task 112 | stop processing: n_tokens = 7685, truncated = 0
+9.40.576.615 I slot get_availabl: id  0 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 537199527
+9.40.576.650 I slot launch_slot_: id  1 | task 120 | processing task, is_child = 1
+9.40.576.662 I slot launch_slot_: id  2 | task 121 | processing task, is_child = 1
+9.40.576.669 I slot launch_slot_: id  0 | task 119 | processing task, is_child = 0
+9.40.577.925 E init_batch: failed to prepare attention ubatches
+9.40.577.929 W decode: failed to find a memory slot for batch of size 2048
+9.40.577.976 W srv  try_clear_id: purging slot 3 with 7771 tokens
+9.40.579.324 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+9.52.841.068 I slot print_timing: id  0 | task 119 | prompt processing, n_tokens =   2048, progress = 0.26, t =  12.26 s / 166.99 tokens per second
+10.04.824.170 I slot print_timing: id  0 | task 119 | prompt processing, n_tokens =   4096, progress = 0.53, t =  24.25 s / 168.93 tokens per second
+10.15.280.524 I slot print_timing: id  0 | task 119 | prompt processing, n_tokens =   6144, progress = 0.79, t =  34.70 s / 177.04 tokens per second
+10.23.337.349 I slot print_timing: id  0 | task 119 | prompt processing, n_tokens =   7669, progress = 0.99, t =  42.76 s / 179.35 tokens per second
+10.24.685.782 I slot      release: id  0 | task 119 | stop processing: n_tokens = 7784, truncated = 0
+10.24.685.816 I slot      release: id  1 | task 120 | stop processing: n_tokens = 7689, truncated = 0
+10.24.686.432 I slot      release: id  2 | task 121 | stop processing: n_tokens = 7698, truncated = 0
+10.24.703.920 I slot get_availabl: id  3 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 579943254
+10.24.703.936 I slot launch_slot_: id  1 | task 128 | processing task, is_child = 1
+10.24.703.949 I slot launch_slot_: id  2 | task 129 | processing task, is_child = 1
+10.24.703.962 I slot launch_slot_: id  3 | task 127 | processing task, is_child = 0
+10.24.705.636 E init_batch: failed to prepare attention ubatches
+10.24.705.640 W decode: failed to find a memory slot for batch of size 2048
+10.24.705.703 W srv  try_clear_id: purging slot 0 with 7784 tokens
+10.24.707.512 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+10.34.066.571 I slot print_timing: id  3 | task 127 | prompt processing, n_tokens =   2048, progress = 0.26, t =   9.36 s / 218.74 tokens per second
+10.45.063.447 I slot print_timing: id  3 | task 127 | prompt processing, n_tokens =   4096, progress = 0.53, t =  20.36 s / 201.19 tokens per second
+10.56.129.579 I slot print_timing: id  3 | task 127 | prompt processing, n_tokens =   6144, progress = 0.79, t =  31.43 s / 195.51 tokens per second
+11.04.276.312 I slot print_timing: id  3 | task 127 | prompt processing, n_tokens =   7645, progress = 0.99, t =  39.57 s / 193.19 tokens per second
+11.05.136.063 I slot      release: id  3 | task 127 | stop processing: n_tokens = 7760, truncated = 0
+11.05.551.373 I slot      release: id  1 | task 128 | stop processing: n_tokens = 7665, truncated = 0
+11.05.552.007 I slot      release: id  2 | task 129 | stop processing: n_tokens = 7674, truncated = 0
+11.05.575.438 I slot get_availabl: id  0 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 624680153
+11.05.575.449 I slot launch_slot_: id  1 | task 137 | processing task, is_child = 1
+11.05.575.455 I slot launch_slot_: id  2 | task 138 | processing task, is_child = 1
+11.05.575.462 I slot launch_slot_: id  0 | task 136 | processing task, is_child = 0
+11.05.576.669 E init_batch: failed to prepare attention ubatches
+11.05.576.672 W decode: failed to find a memory slot for batch of size 2048
+11.05.576.753 W srv  try_clear_id: purging slot 3 with 7760 tokens
+11.05.578.066 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+11.14.679.899 I slot print_timing: id  0 | task 136 | prompt processing, n_tokens =   2048, progress = 0.26, t =   9.10 s / 224.95 tokens per second
+11.24.497.922 I slot print_timing: id  0 | task 136 | prompt processing, n_tokens =   4096, progress = 0.53, t =  18.92 s / 216.46 tokens per second
+11.35.454.299 I slot print_timing: id  0 | task 136 | prompt processing, n_tokens =   6144, progress = 0.79, t =  29.88 s / 205.63 tokens per second
+11.44.140.320 I slot print_timing: id  0 | task 136 | prompt processing, n_tokens =   7641, progress = 0.99, t =  38.56 s / 198.13 tokens per second
+11.45.711.492 I slot      release: id  0 | task 136 | stop processing: n_tokens = 7756, truncated = 0
+11.45.711.541 I slot      release: id  1 | task 137 | stop processing: n_tokens = 7661, truncated = 0
+11.45.712.445 I slot      release: id  2 | task 138 | stop processing: n_tokens = 7670, truncated = 0
+11.45.739.827 I slot get_availabl: id  3 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 665130299
+11.45.739.857 I slot launch_slot_: id  1 | task 145 | processing task, is_child = 1
+11.45.739.870 I slot launch_slot_: id  2 | task 146 | processing task, is_child = 1
+11.45.739.882 I slot launch_slot_: id  3 | task 144 | processing task, is_child = 0
+11.45.741.554 E init_batch: failed to prepare attention ubatches
+11.45.741.559 W decode: failed to find a memory slot for batch of size 2048
+11.45.741.613 W srv  try_clear_id: purging slot 0 with 7756 tokens
+11.45.743.427 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+11.56.775.998 I slot print_timing: id  3 | task 144 | prompt processing, n_tokens =   2048, progress = 0.26, t =  11.04 s / 185.57 tokens per second
+12.07.611.683 I slot print_timing: id  3 | task 144 | prompt processing, n_tokens =   4096, progress = 0.53, t =  21.87 s / 187.27 tokens per second
+12.18.368.954 I slot print_timing: id  3 | task 144 | prompt processing, n_tokens =   6144, progress = 0.79, t =  32.63 s / 188.30 tokens per second
+12.29.196.214 I slot print_timing: id  3 | task 144 | prompt processing, n_tokens =   7628, progress = 0.99, t =  43.46 s / 175.53 tokens per second
+12.30.040.258 I slot      release: id  3 | task 144 | stop processing: n_tokens = 7743, truncated = 0
+12.30.482.452 I slot      release: id  1 | task 145 | stop processing: n_tokens = 7648, truncated = 0
+12.30.483.168 I slot      release: id  2 | task 146 | stop processing: n_tokens = 7657, truncated = 0
+12.30.495.890 I slot get_availabl: id  0 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 705705601
+12.30.495.900 I slot launch_slot_: id  1 | task 154 | processing task, is_child = 1
+12.30.495.907 I slot launch_slot_: id  2 | task 155 | processing task, is_child = 1
+12.30.495.913 I slot launch_slot_: id  0 | task 153 | processing task, is_child = 0
+12.30.497.078 E init_batch: failed to prepare attention ubatches
+12.30.497.082 W decode: failed to find a memory slot for batch of size 2048
+12.30.497.131 W srv  try_clear_id: purging slot 3 with 7743 tokens
+12.30.498.435 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+12.40.308.450 I slot print_timing: id  0 | task 153 | prompt processing, n_tokens =   2048, progress = 0.26, t =   9.81 s / 208.71 tokens per second
+12.50.023.820 I slot print_timing: id  0 | task 153 | prompt processing, n_tokens =   4096, progress = 0.53, t =  19.53 s / 209.75 tokens per second
+13.01.201.473 I slot print_timing: id  0 | task 153 | prompt processing, n_tokens =   6144, progress = 0.79, t =  30.71 s / 200.09 tokens per second
+13.09.289.181 I slot print_timing: id  0 | task 153 | prompt processing, n_tokens =   7662, progress = 0.99, t =  38.79 s / 197.51 tokens per second
+13.10.593.193 I slot      release: id  0 | task 153 | stop processing: n_tokens = 7777, truncated = 0
+13.10.593.243 I slot      release: id  1 | task 154 | stop processing: n_tokens = 7682, truncated = 0
+13.10.593.861 I slot      release: id  2 | task 155 | stop processing: n_tokens = 7691, truncated = 0
+13.10.618.383 I slot get_availabl: id  3 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 750034226
+13.10.618.408 I slot launch_slot_: id  1 | task 162 | processing task, is_child = 1
+13.10.618.414 I slot launch_slot_: id  2 | task 163 | processing task, is_child = 1
+13.10.618.421 I slot launch_slot_: id  3 | task 161 | processing task, is_child = 0
+13.10.619.613 E init_batch: failed to prepare attention ubatches
+13.10.619.616 W decode: failed to find a memory slot for batch of size 2048
+13.10.619.681 W srv  try_clear_id: purging slot 0 with 7777 tokens
+13.10.621.024 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+13.19.538.103 I slot print_timing: id  3 | task 161 | prompt processing, n_tokens =   2048, progress = 0.26, t =   8.92 s / 229.61 tokens per second
+13.29.478.781 I slot print_timing: id  3 | task 161 | prompt processing, n_tokens =   4096, progress = 0.53, t =  18.86 s / 217.18 tokens per second
+13.39.635.168 I slot print_timing: id  3 | task 161 | prompt processing, n_tokens =   6144, progress = 0.79, t =  29.02 s / 211.74 tokens per second
+13.47.678.155 I slot print_timing: id  3 | task 161 | prompt processing, n_tokens =   7658, progress = 0.99, t =  37.06 s / 206.64 tokens per second
+13.48.533.234 I slot      release: id  3 | task 161 | stop processing: n_tokens = 7773, truncated = 0
+13.48.978.437 I slot      release: id  1 | task 162 | stop processing: n_tokens = 7678, truncated = 0
+13.48.979.084 I slot      release: id  2 | task 163 | stop processing: n_tokens = 7687, truncated = 0
+13.49.006.948 I slot get_availabl: id  0 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 790587036
+13.49.006.970 I slot launch_slot_: id  1 | task 171 | processing task, is_child = 1
+13.49.006.977 I slot launch_slot_: id  2 | task 172 | processing task, is_child = 1
+13.49.006.983 I slot launch_slot_: id  0 | task 170 | processing task, is_child = 0
+13.49.008.218 E init_batch: failed to prepare attention ubatches
+13.49.008.221 W decode: failed to find a memory slot for batch of size 2048
+13.49.008.278 W srv  try_clear_id: purging slot 3 with 7773 tokens
+13.49.009.805 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+13.58.556.987 I slot print_timing: id  0 | task 170 | prompt processing, n_tokens =   2048, progress = 0.26, t =   9.55 s / 214.45 tokens per second
+14.08.104.041 I slot print_timing: id  0 | task 170 | prompt processing, n_tokens =   4096, progress = 0.53, t =  19.10 s / 214.48 tokens per second
+14.20.168.911 I slot print_timing: id  0 | task 170 | prompt processing, n_tokens =   6144, progress = 0.79, t =  31.16 s / 197.16 tokens per second
+14.28.226.366 I slot print_timing: id  0 | task 170 | prompt processing, n_tokens =   7649, progress = 0.99, t =  39.22 s / 195.03 tokens per second
+14.29.494.144 I slot      release: id  0 | task 170 | stop processing: n_tokens = 7764, truncated = 0
+14.29.494.193 I slot      release: id  1 | task 171 | stop processing: n_tokens = 7669, truncated = 0
+14.29.494.945 I slot      release: id  2 | task 172 | stop processing: n_tokens = 7678, truncated = 0
+14.29.518.063 I slot get_availabl: id  3 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 828526955
+14.29.518.080 I slot launch_slot_: id  1 | task 179 | processing task, is_child = 1
+14.29.518.093 I slot launch_slot_: id  2 | task 180 | processing task, is_child = 1
+14.29.518.106 I slot launch_slot_: id  3 | task 178 | processing task, is_child = 0
+14.29.519.833 E init_batch: failed to prepare attention ubatches
+14.29.519.837 W decode: failed to find a memory slot for batch of size 2048
+14.29.519.917 W srv  try_clear_id: purging slot 0 with 7764 tokens
+14.29.521.737 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+14.38.562.082 I slot print_timing: id  3 | task 178 | prompt processing, n_tokens =   2048, progress = 0.26, t =   9.04 s / 226.45 tokens per second
+14.48.121.280 I slot print_timing: id  3 | task 178 | prompt processing, n_tokens =   4096, progress = 0.53, t =  18.60 s / 220.18 tokens per second
+14.58.863.377 I slot print_timing: id  3 | task 178 | prompt processing, n_tokens =   6144, progress = 0.79, t =  29.35 s / 209.37 tokens per second
+15.07.527.311 I slot print_timing: id  3 | task 178 | prompt processing, n_tokens =   7644, progress = 0.99, t =  38.01 s / 201.11 tokens per second
+15.08.377.472 I slot      release: id  3 | task 178 | stop processing: n_tokens = 7759, truncated = 0
+15.08.794.039 I slot      release: id  1 | task 179 | stop processing: n_tokens = 7664, truncated = 0
+15.08.794.680 I slot      release: id  2 | task 180 | stop processing: n_tokens = 7673, truncated = 0
+15.08.807.308 I slot get_availabl: id  0 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 869487743
+15.08.807.318 I slot launch_slot_: id  1 | task 188 | processing task, is_child = 1
+15.08.807.325 I slot launch_slot_: id  2 | task 189 | processing task, is_child = 1
+15.08.807.332 I slot launch_slot_: id  0 | task 187 | processing task, is_child = 0
+15.08.808.515 E init_batch: failed to prepare attention ubatches
+15.08.808.518 W decode: failed to find a memory slot for batch of size 2048
+15.08.808.559 W srv  try_clear_id: purging slot 3 with 7759 tokens
+15.08.809.875 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+15.18.055.415 I slot print_timing: id  0 | task 187 | prompt processing, n_tokens =   2048, progress = 0.26, t =   9.25 s / 221.45 tokens per second
+15.30.332.206 I slot print_timing: id  0 | task 187 | prompt processing, n_tokens =   4096, progress = 0.53, t =  21.52 s / 190.29 tokens per second
+15.42.086.456 I slot print_timing: id  0 | task 187 | prompt processing, n_tokens =   6144, progress = 0.79, t =  33.28 s / 184.62 tokens per second
+15.51.318.453 I slot print_timing: id  0 | task 187 | prompt processing, n_tokens =   7657, progress = 0.99, t =  42.51 s / 180.12 tokens per second
+15.52.614.715 I slot      release: id  0 | task 187 | stop processing: n_tokens = 7772, truncated = 0
+15.52.614.750 I slot      release: id  1 | task 188 | stop processing: n_tokens = 7677, truncated = 0
+15.52.615.377 I slot      release: id  2 | task 189 | stop processing: n_tokens = 7686, truncated = 0
+15.52.643.025 I slot get_availabl: id  3 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 908370947
+15.52.643.051 I slot launch_slot_: id  1 | task 196 | processing task, is_child = 1
+15.52.643.060 I slot launch_slot_: id  2 | task 197 | processing task, is_child = 1
+15.52.643.067 I slot launch_slot_: id  3 | task 195 | processing task, is_child = 0
+15.52.644.315 E init_batch: failed to prepare attention ubatches
+15.52.644.318 W decode: failed to find a memory slot for batch of size 2048
+15.52.644.375 W srv  try_clear_id: purging slot 0 with 7772 tokens
+15.52.645.917 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+16.02.194.701 I slot print_timing: id  3 | task 195 | prompt processing, n_tokens =   2048, progress = 0.26, t =   9.55 s / 214.42 tokens per second
+16.12.853.911 I slot print_timing: id  3 | task 195 | prompt processing, n_tokens =   4096, progress = 0.53, t =  20.21 s / 202.66 tokens per second
+16.23.086.524 I slot print_timing: id  3 | task 195 | prompt processing, n_tokens =   6144, progress = 0.79, t =  30.44 s / 201.82 tokens per second
+16.31.032.079 I slot print_timing: id  3 | task 195 | prompt processing, n_tokens =   7666, progress = 0.99, t =  38.39 s / 199.69 tokens per second
+16.31.873.529 I slot      release: id  3 | task 195 | stop processing: n_tokens = 7781, truncated = 0
+16.32.309.116 I slot      release: id  1 | task 196 | stop processing: n_tokens = 7686, truncated = 0
+16.32.309.754 I slot      release: id  2 | task 197 | stop processing: n_tokens = 7695, truncated = 0
+16.32.333.692 I slot get_availabl: id  0 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 952608057
+16.32.333.720 I slot launch_slot_: id  1 | task 205 | processing task, is_child = 1
+16.32.333.733 I slot launch_slot_: id  2 | task 206 | processing task, is_child = 1
+16.32.333.745 I slot launch_slot_: id  0 | task 204 | processing task, is_child = 0
+16.32.335.391 E init_batch: failed to prepare attention ubatches
+16.32.335.395 W decode: failed to find a memory slot for batch of size 2048
+16.32.335.470 W srv  try_clear_id: purging slot 3 with 7781 tokens
+16.32.337.097 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+16.41.348.178 I slot print_timing: id  0 | task 204 | prompt processing, n_tokens =   2048, progress = 0.26, t =   9.01 s / 227.19 tokens per second
+16.51.568.759 I slot print_timing: id  0 | task 204 | prompt processing, n_tokens =   4096, progress = 0.53, t =  19.23 s / 212.95 tokens per second
+17.02.395.559 I slot print_timing: id  0 | task 204 | prompt processing, n_tokens =   6144, progress = 0.79, t =  30.06 s / 204.38 tokens per second
+17.11.955.858 I slot print_timing: id  0 | task 204 | prompt processing, n_tokens =   7637, progress = 0.99, t =  39.62 s / 192.75 tokens per second
+17.13.263.610 I slot      release: id  0 | task 204 | stop processing: n_tokens = 7752, truncated = 0
+17.13.263.657 I slot      release: id  1 | task 205 | stop processing: n_tokens = 7657, truncated = 0
+17.13.264.438 I slot      release: id  2 | task 206 | stop processing: n_tokens = 7666, truncated = 0
+17.13.292.214 I slot get_availabl: id  3 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 991866753
+17.13.292.244 I slot launch_slot_: id  1 | task 213 | processing task, is_child = 1
+17.13.292.257 I slot launch_slot_: id  2 | task 214 | processing task, is_child = 1
+17.13.292.269 I slot launch_slot_: id  3 | task 212 | processing task, is_child = 0
+17.13.293.950 E init_batch: failed to prepare attention ubatches
+17.13.293.955 W decode: failed to find a memory slot for batch of size 2048
+17.13.294.004 W srv  try_clear_id: purging slot 0 with 7752 tokens
+17.13.295.828 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+17.22.640.411 I slot print_timing: id  3 | task 212 | prompt processing, n_tokens =   2048, progress = 0.26, t =   9.35 s / 219.08 tokens per second
+17.33.032.818 I slot print_timing: id  3 | task 212 | prompt processing, n_tokens =   4096, progress = 0.53, t =  19.74 s / 207.49 tokens per second
+17.43.837.193 I slot print_timing: id  3 | task 212 | prompt processing, n_tokens =   6144, progress = 0.79, t =  30.54 s / 201.15 tokens per second
+17.52.031.240 I slot print_timing: id  3 | task 212 | prompt processing, n_tokens =   7651, progress = 0.99, t =  38.74 s / 197.50 tokens per second
+17.52.890.834 I slot      release: id  3 | task 212 | stop processing: n_tokens = 7766, truncated = 0
+17.53.353.112 I slot      release: id  1 | task 213 | stop processing: n_tokens = 7671, truncated = 0
+17.53.353.806 I slot      release: id  2 | task 214 | stop processing: n_tokens = 7680, truncated = 0
+17.53.381.201 I slot get_availabl: id  0 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 1033256715
+17.53.381.233 I slot launch_slot_: id  1 | task 222 | processing task, is_child = 1
+17.53.381.246 I slot launch_slot_: id  2 | task 223 | processing task, is_child = 1
+17.53.381.259 I slot launch_slot_: id  0 | task 221 | processing task, is_child = 0
+17.53.382.941 E init_batch: failed to prepare attention ubatches
+17.53.382.945 W decode: failed to find a memory slot for batch of size 2048
+17.53.383.008 W srv  try_clear_id: purging slot 3 with 7766 tokens
+17.53.384.817 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+18.02.789.260 I slot print_timing: id  0 | task 221 | prompt processing, n_tokens =   2048, progress = 0.26, t =   9.41 s / 217.69 tokens per second
+18.13.098.001 I slot print_timing: id  0 | task 221 | prompt processing, n_tokens =   4096, progress = 0.53, t =  19.72 s / 207.74 tokens per second
+18.23.624.239 I slot print_timing: id  0 | task 221 | prompt processing, n_tokens =   6144, progress = 0.79, t =  30.24 s / 203.16 tokens per second
+18.31.872.720 I slot print_timing: id  0 | task 221 | prompt processing, n_tokens =   7664, progress = 0.99, t =  38.49 s / 199.11 tokens per second
+18.33.561.068 I slot      release: id  0 | task 221 | stop processing: n_tokens = 7779, truncated = 0
+18.33.561.111 I slot      release: id  1 | task 222 | stop processing: n_tokens = 7684, truncated = 0
+18.33.561.986 I slot      release: id  2 | task 223 | stop processing: n_tokens = 7693, truncated = 0
+18.33.590.087 I slot get_availabl: id  3 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 1072883815
+18.33.590.113 I slot launch_slot_: id  1 | task 230 | processing task, is_child = 1
+18.33.590.130 I slot launch_slot_: id  2 | task 231 | processing task, is_child = 1
+18.33.590.143 I slot launch_slot_: id  3 | task 229 | processing task, is_child = 0
+18.33.592.082 E init_batch: failed to prepare attention ubatches
+18.33.592.089 W decode: failed to find a memory slot for batch of size 2048
+18.33.592.152 W srv  try_clear_id: purging slot 0 with 7779 tokens
+18.33.593.960 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+18.43.699.801 I slot print_timing: id  3 | task 229 | prompt processing, n_tokens =   2048, progress = 0.26, t =  10.11 s / 202.58 tokens per second
+18.53.935.972 I slot print_timing: id  3 | task 229 | prompt processing, n_tokens =   4096, progress = 0.53, t =  20.35 s / 201.32 tokens per second
+19.05.294.327 I slot print_timing: id  3 | task 229 | prompt processing, n_tokens =   6144, progress = 0.79, t =  31.70 s / 193.79 tokens per second
+19.14.188.837 I slot print_timing: id  3 | task 229 | prompt processing, n_tokens =   7667, progress = 0.99, t =  40.60 s / 188.85 tokens per second
+19.15.108.515 I slot      release: id  3 | task 229 | stop processing: n_tokens = 7782, truncated = 0
+19.15.517.517 I slot      release: id  1 | task 230 | stop processing: n_tokens = 7687, truncated = 0
+19.15.518.130 I slot      release: id  2 | task 231 | stop processing: n_tokens = 7696, truncated = 0
+19.15.542.023 I slot get_availabl: id  0 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 1113553929
+19.15.542.040 I slot launch_slot_: id  1 | task 239 | processing task, is_child = 1
+19.15.542.053 I slot launch_slot_: id  2 | task 240 | processing task, is_child = 1
+19.15.542.065 I slot launch_slot_: id  0 | task 238 | processing task, is_child = 0
+19.15.543.709 E init_batch: failed to prepare attention ubatches
+19.15.543.713 W decode: failed to find a memory slot for batch of size 2048
+19.15.543.772 W srv  try_clear_id: purging slot 3 with 7782 tokens
+19.15.545.104 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+19.25.657.114 I slot print_timing: id  0 | task 238 | prompt processing, n_tokens =   2048, progress = 0.26, t =  10.11 s / 202.47 tokens per second
+19.35.733.741 I slot print_timing: id  0 | task 238 | prompt processing, n_tokens =   4096, progress = 0.53, t =  20.19 s / 202.86 tokens per second
+19.46.065.691 I slot print_timing: id  0 | task 238 | prompt processing, n_tokens =   6144, progress = 0.79, t =  30.52 s / 201.29 tokens per second
+19.54.718.864 I slot print_timing: id  0 | task 238 | prompt processing, n_tokens =   7649, progress = 0.99, t =  39.18 s / 195.24 tokens per second
+19.56.063.970 I slot      release: id  0 | task 238 | stop processing: n_tokens = 7764, truncated = 0
+19.56.064.018 I slot      release: id  1 | task 239 | stop processing: n_tokens = 7669, truncated = 0
+19.56.064.619 I slot      release: id  2 | task 240 | stop processing: n_tokens = 7678, truncated = 0
+19.56.078.574 I slot get_availabl: id  3 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 1155101254
+19.56.078.586 I slot launch_slot_: id  1 | task 247 | processing task, is_child = 1
+19.56.078.593 I slot launch_slot_: id  2 | task 248 | processing task, is_child = 1
+19.56.078.600 I slot launch_slot_: id  3 | task 246 | processing task, is_child = 0
+19.56.079.820 E init_batch: failed to prepare attention ubatches
+19.56.079.823 W decode: failed to find a memory slot for batch of size 2048
+19.56.079.871 W srv  try_clear_id: purging slot 0 with 7764 tokens
+19.56.081.268 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+20.05.524.608 I slot print_timing: id  3 | task 246 | prompt processing, n_tokens =   2048, progress = 0.26, t =   9.45 s / 216.81 tokens per second
+20.15.763.305 I slot print_timing: id  3 | task 246 | prompt processing, n_tokens =   4096, progress = 0.53, t =  19.68 s / 208.08 tokens per second
+20.27.582.240 I slot print_timing: id  3 | task 246 | prompt processing, n_tokens =   6144, progress = 0.79, t =  31.50 s / 195.03 tokens per second
+20.36.540.653 I slot print_timing: id  3 | task 246 | prompt processing, n_tokens =   7661, progress = 0.99, t =  40.46 s / 189.34 tokens per second
+20.37.437.422 I slot      release: id  3 | task 246 | stop processing: n_tokens = 7776, truncated = 0
+20.37.908.693 I slot      release: id  1 | task 247 | stop processing: n_tokens = 7681, truncated = 0
+20.37.909.302 I slot      release: id  2 | task 248 | stop processing: n_tokens = 7690, truncated = 0
+20.37.932.597 I slot get_availabl: id  0 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 1196056560
+20.37.932.619 I slot launch_slot_: id  1 | task 256 | processing task, is_child = 1
+20.37.932.631 I slot launch_slot_: id  2 | task 257 | processing task, is_child = 1
+20.37.932.646 I slot launch_slot_: id  0 | task 255 | processing task, is_child = 0
+20.37.933.993 E init_batch: failed to prepare attention ubatches
+20.37.933.996 W decode: failed to find a memory slot for batch of size 2048
+20.37.934.064 W srv  try_clear_id: purging slot 3 with 7776 tokens
+20.37.935.380 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+20.47.259.099 I slot print_timing: id  0 | task 255 | prompt processing, n_tokens =   2048, progress = 0.26, t =   9.33 s / 219.59 tokens per second
+20.57.047.130 I slot print_timing: id  0 | task 255 | prompt processing, n_tokens =   4096, progress = 0.53, t =  19.11 s / 214.29 tokens per second
+21.08.002.391 I slot print_timing: id  0 | task 255 | prompt processing, n_tokens =   6144, progress = 0.79, t =  30.07 s / 204.33 tokens per second
+21.16.614.681 I slot print_timing: id  0 | task 255 | prompt processing, n_tokens =   7632, progress = 0.99, t =  38.68 s / 197.30 tokens per second
+21.17.931.095 I slot      release: id  0 | task 255 | stop processing: n_tokens = 7747, truncated = 0
+21.17.931.137 I slot      release: id  1 | task 256 | stop processing: n_tokens = 7652, truncated = 0
+21.17.932.045 I slot      release: id  2 | task 257 | stop processing: n_tokens = 7661, truncated = 0
+21.17.959.649 I slot get_availabl: id  3 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 1237429889
+21.17.959.666 I slot launch_slot_: id  1 | task 264 | processing task, is_child = 1
+21.17.959.679 I slot launch_slot_: id  2 | task 265 | processing task, is_child = 1
+21.17.959.692 I slot launch_slot_: id  3 | task 263 | processing task, is_child = 0
+21.17.961.382 E init_batch: failed to prepare attention ubatches
+21.17.961.386 W decode: failed to find a memory slot for batch of size 2048
+21.17.961.449 W srv  try_clear_id: purging slot 0 with 7747 tokens
+21.17.963.262 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+21.27.357.359 I slot print_timing: id  3 | task 263 | prompt processing, n_tokens =   2048, progress = 0.26, t =   9.40 s / 217.93 tokens per second
+21.37.128.011 I slot print_timing: id  3 | task 263 | prompt processing, n_tokens =   4096, progress = 0.53, t =  19.17 s / 213.69 tokens per second
+21.48.305.045 I slot print_timing: id  3 | task 263 | prompt processing, n_tokens =   6144, progress = 0.79, t =  30.35 s / 202.47 tokens per second
+21.58.292.031 I slot print_timing: id  3 | task 263 | prompt processing, n_tokens =   7651, progress = 0.99, t =  40.33 s / 189.70 tokens per second
+21.59.416.209 I slot      release: id  3 | task 263 | stop processing: n_tokens = 7766, truncated = 0
+21.59.989.006 I slot      release: id  1 | task 264 | stop processing: n_tokens = 7671, truncated = 0
+21.59.989.625 I slot      release: id  2 | task 265 | stop processing: n_tokens = 7680, truncated = 0
+22.00.006.952 I slot get_availabl: id  0 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 1277923408
+22.00.006.962 I slot launch_slot_: id  1 | task 273 | processing task, is_child = 1
+22.00.006.969 I slot launch_slot_: id  2 | task 274 | processing task, is_child = 1
+22.00.006.976 I slot launch_slot_: id  0 | task 272 | processing task, is_child = 0
+22.00.008.247 E init_batch: failed to prepare attention ubatches
+22.00.008.250 W decode: failed to find a memory slot for batch of size 2048
+22.00.008.305 W srv  try_clear_id: purging slot 3 with 7766 tokens
+22.00.009.631 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+22.12.248.795 I slot print_timing: id  0 | task 272 | prompt processing, n_tokens =   2048, progress = 0.26, t =  12.24 s / 167.30 tokens per second
+22.27.283.358 I slot print_timing: id  0 | task 272 | prompt processing, n_tokens =   4096, progress = 0.53, t =  27.28 s / 150.17 tokens per second
+22.49.704.704 I slot print_timing: id  0 | task 272 | prompt processing, n_tokens =   6144, progress = 0.79, t =  49.70 s / 123.63 tokens per second
+23.06.614.844 I slot print_timing: id  0 | task 272 | prompt processing, n_tokens =   7671, progress = 0.99, t =  66.61 s / 115.17 tokens per second
+23.08.225.870 I slot      release: id  0 | task 272 | stop processing: n_tokens = 7786, truncated = 0
+23.08.225.911 I slot      release: id  1 | task 273 | stop processing: n_tokens = 7691, truncated = 0
+23.08.226.827 I slot      release: id  2 | task 274 | stop processing: n_tokens = 7700, truncated = 0
+23.08.254.717 I slot get_availabl: id  3 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 1319408245
+23.08.254.745 I slot launch_slot_: id  1 | task 281 | processing task, is_child = 1
+23.08.254.758 I slot launch_slot_: id  2 | task 282 | processing task, is_child = 1
+23.08.254.772 I slot launch_slot_: id  3 | task 280 | processing task, is_child = 0
+23.08.256.501 E init_batch: failed to prepare attention ubatches
+23.08.256.505 W decode: failed to find a memory slot for batch of size 2048
+23.08.256.567 W srv  try_clear_id: purging slot 0 with 7786 tokens
+23.08.258.364 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+23.20.941.685 I slot print_timing: id  3 | task 280 | prompt processing, n_tokens =   2048, progress = 0.26, t =  12.69 s / 161.43 tokens per second
+23.33.807.890 I slot print_timing: id  3 | task 280 | prompt processing, n_tokens =   4096, progress = 0.53, t =  25.55 s / 160.29 tokens per second
+23.49.420.856 I slot print_timing: id  3 | task 280 | prompt processing, n_tokens =   6144, progress = 0.79, t =  41.17 s / 149.25 tokens per second
+24.03.262.762 I slot print_timing: id  3 | task 280 | prompt processing, n_tokens =   7663, progress = 0.99, t =  55.01 s / 139.31 tokens per second
+24.04.748.798 I slot      release: id  3 | task 280 | stop processing: n_tokens = 7778, truncated = 0
+24.05.565.060 I slot      release: id  1 | task 281 | stop processing: n_tokens = 7683, truncated = 0
+24.05.566.112 I slot      release: id  2 | task 282 | stop processing: n_tokens = 7692, truncated = 0
+24.05.586.158 I slot get_availabl: id  0 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 1388217486
+24.05.586.182 I slot launch_slot_: id  1 | task 290 | processing task, is_child = 1
+24.05.586.196 I slot launch_slot_: id  2 | task 291 | processing task, is_child = 1
+24.05.586.211 I slot launch_slot_: id  0 | task 289 | processing task, is_child = 0
+24.05.588.136 E init_batch: failed to prepare attention ubatches
+24.05.588.142 W decode: failed to find a memory slot for batch of size 2048
+24.05.588.197 W srv  try_clear_id: purging slot 3 with 7778 tokens
+24.05.590.208 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+24.20.649.235 I slot print_timing: id  0 | task 289 | prompt processing, n_tokens =   2048, progress = 0.26, t =  15.06 s / 135.96 tokens per second
+24.34.493.036 I slot print_timing: id  0 | task 289 | prompt processing, n_tokens =   4096, progress = 0.53, t =  28.91 s / 141.70 tokens per second
+24.47.089.543 I slot print_timing: id  0 | task 289 | prompt processing, n_tokens =   6144, progress = 0.79, t =  41.50 s / 148.04 tokens per second
+24.57.175.650 I slot print_timing: id  0 | task 289 | prompt processing, n_tokens =   7674, progress = 0.99, t =  51.59 s / 148.75 tokens per second
+24.58.955.274 I slot      release: id  0 | task 289 | stop processing: n_tokens = 7789, truncated = 0
+24.58.955.308 I slot      release: id  1 | task 290 | stop processing: n_tokens = 7694, truncated = 0
+24.58.955.902 I slot      release: id  2 | task 291 | stop processing: n_tokens = 7703, truncated = 0
+24.58.980.692 I slot get_availabl: id  3 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 1444740102
+24.58.980.716 I slot launch_slot_: id  1 | task 298 | processing task, is_child = 1
+24.58.980.730 I slot launch_slot_: id  2 | task 299 | processing task, is_child = 1
+24.58.980.746 I slot launch_slot_: id  3 | task 297 | processing task, is_child = 0
+24.58.982.431 E init_batch: failed to prepare attention ubatches
+24.58.982.438 W decode: failed to find a memory slot for batch of size 2048
+24.58.982.503 W srv  try_clear_id: purging slot 0 with 7789 tokens
+24.58.984.405 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+25.08.798.086 I slot print_timing: id  3 | task 297 | prompt processing, n_tokens =   2048, progress = 0.26, t =   9.82 s / 208.61 tokens per second
+25.21.184.793 I slot print_timing: id  3 | task 297 | prompt processing, n_tokens =   4096, progress = 0.53, t =  22.20 s / 184.47 tokens per second
+25.32.672.055 I slot print_timing: id  3 | task 297 | prompt processing, n_tokens =   6144, progress = 0.79, t =  33.69 s / 182.36 tokens per second
+25.40.716.122 I slot print_timing: id  3 | task 297 | prompt processing, n_tokens =   7655, progress = 0.99, t =  41.74 s / 183.42 tokens per second
+25.41.599.704 I slot      release: id  3 | task 297 | stop processing: n_tokens = 7770, truncated = 0
+25.42.080.950 I slot      release: id  1 | task 298 | stop processing: n_tokens = 7675, truncated = 0
+25.42.081.544 I slot      release: id  2 | task 299 | stop processing: n_tokens = 7684, truncated = 0
+25.42.113.917 I slot get_availabl: id  0 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 1498946319
+25.42.113.928 I slot launch_slot_: id  1 | task 307 | processing task, is_child = 1
+25.42.113.936 I slot launch_slot_: id  2 | task 308 | processing task, is_child = 1
+25.42.113.942 I slot launch_slot_: id  0 | task 306 | processing task, is_child = 0
+25.42.115.141 E init_batch: failed to prepare attention ubatches
+25.42.115.144 W decode: failed to find a memory slot for batch of size 2048
+25.42.115.209 W srv  try_clear_id: purging slot 3 with 7770 tokens
+25.42.116.525 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+25.52.385.389 I slot print_timing: id  0 | task 306 | prompt processing, n_tokens =   2048, progress = 0.26, t =  10.27 s / 199.39 tokens per second
+26.03.134.891 I slot print_timing: id  0 | task 306 | prompt processing, n_tokens =   4096, progress = 0.53, t =  21.02 s / 194.85 tokens per second
+26.13.546.346 I slot print_timing: id  0 | task 306 | prompt processing, n_tokens =   6144, progress = 0.79, t =  31.43 s / 195.47 tokens per second
+26.22.350.309 I slot print_timing: id  0 | task 306 | prompt processing, n_tokens =   7641, progress = 0.99, t =  40.24 s / 189.90 tokens per second
+26.23.630.351 I slot      release: id  0 | task 306 | stop processing: n_tokens = 7756, truncated = 0
+26.23.630.398 I slot      release: id  1 | task 307 | stop processing: n_tokens = 7661, truncated = 0
+26.23.631.036 I slot      release: id  2 | task 308 | stop processing: n_tokens = 7670, truncated = 0
+26.23.657.347 I slot get_availabl: id  3 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 1541590554
+26.23.657.363 I slot launch_slot_: id  1 | task 315 | processing task, is_child = 1
+26.23.657.376 I slot launch_slot_: id  2 | task 316 | processing task, is_child = 1
+26.23.657.388 I slot launch_slot_: id  3 | task 314 | processing task, is_child = 0
+26.23.659.049 E init_batch: failed to prepare attention ubatches
+26.23.659.053 W decode: failed to find a memory slot for batch of size 2048
+26.23.659.108 W srv  try_clear_id: purging slot 0 with 7756 tokens
+26.23.660.462 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+26.33.000.155 I slot print_timing: id  3 | task 314 | prompt processing, n_tokens =   2048, progress = 0.26, t =   9.34 s / 219.21 tokens per second
+26.42.517.119 I slot print_timing: id  3 | task 314 | prompt processing, n_tokens =   4096, progress = 0.53, t =  18.86 s / 217.18 tokens per second
+26.53.197.390 I slot print_timing: id  3 | task 314 | prompt processing, n_tokens =   6144, progress = 0.79, t =  29.54 s / 207.99 tokens per second
+27.01.264.858 I slot print_timing: id  3 | task 314 | prompt processing, n_tokens =   7642, progress = 0.99, t =  37.61 s / 203.21 tokens per second
+27.02.105.335 I slot      release: id  3 | task 314 | stop processing: n_tokens = 7757, truncated = 0
+27.02.528.116 I slot      release: id  1 | task 315 | stop processing: n_tokens = 7662, truncated = 0
+27.02.529.016 I slot      release: id  2 | task 316 | stop processing: n_tokens = 7671, truncated = 0
+27.02.541.367 I slot get_availabl: id  0 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 1583621026
+27.02.541.378 I slot launch_slot_: id  1 | task 324 | processing task, is_child = 1
+27.02.541.385 I slot launch_slot_: id  2 | task 325 | processing task, is_child = 1
+27.02.541.391 I slot launch_slot_: id  0 | task 323 | processing task, is_child = 0
+27.02.542.615 E init_batch: failed to prepare attention ubatches
+27.02.542.618 W decode: failed to find a memory slot for batch of size 2048
+27.02.542.680 W srv  try_clear_id: purging slot 3 with 7757 tokens
+27.02.544.035 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+27.11.389.026 I slot print_timing: id  0 | task 323 | prompt processing, n_tokens =   2048, progress = 0.26, t =   8.85 s / 231.48 tokens per second
+27.21.613.031 I slot print_timing: id  0 | task 323 | prompt processing, n_tokens =   4096, progress = 0.53, t =  19.07 s / 214.77 tokens per second
+27.31.771.081 I slot print_timing: id  0 | task 323 | prompt processing, n_tokens =   6144, progress = 0.79, t =  29.23 s / 210.20 tokens per second
+27.40.087.259 I slot print_timing: id  0 | task 323 | prompt processing, n_tokens =   7655, progress = 0.99, t =  37.55 s / 203.88 tokens per second
+27.41.396.909 I slot      release: id  0 | task 323 | stop processing: n_tokens = 7770, truncated = 0
+27.41.396.937 I slot      release: id  1 | task 324 | stop processing: n_tokens = 7675, truncated = 0
+27.41.397.534 I slot      release: id  2 | task 325 | stop processing: n_tokens = 7684, truncated = 0
+27.41.410.511 I slot get_availabl: id  3 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 1622095852
+27.41.410.533 I slot launch_slot_: id  1 | task 332 | processing task, is_child = 1
+27.41.410.546 I slot launch_slot_: id  2 | task 333 | processing task, is_child = 1
+27.41.410.555 I slot launch_slot_: id  3 | task 331 | processing task, is_child = 0
+27.41.411.768 E init_batch: failed to prepare attention ubatches
+27.41.411.772 W decode: failed to find a memory slot for batch of size 2048
+27.41.411.842 W srv  try_clear_id: purging slot 0 with 7770 tokens
+27.41.413.148 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+27.50.100.914 I slot print_timing: id  3 | task 331 | prompt processing, n_tokens =   2048, progress = 0.26, t =   8.69 s / 235.67 tokens per second
+27.59.789.898 I slot print_timing: id  3 | task 331 | prompt processing, n_tokens =   4096, progress = 0.53, t =  18.38 s / 222.86 tokens per second
+28.09.904.161 I slot print_timing: id  3 | task 331 | prompt processing, n_tokens =   6144, progress = 0.79, t =  28.49 s / 215.63 tokens per second
+28.17.711.846 I slot print_timing: id  3 | task 331 | prompt processing, n_tokens =   7652, progress = 0.99, t =  36.30 s / 210.79 tokens per second
+28.18.566.441 I slot      release: id  3 | task 331 | stop processing: n_tokens = 7767, truncated = 0
+28.18.976.128 I slot      release: id  1 | task 332 | stop processing: n_tokens = 7672, truncated = 0
+28.18.976.831 I slot      release: id  2 | task 333 | stop processing: n_tokens = 7681, truncated = 0
+28.19.004.752 I slot get_availabl: id  0 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 1661387267
+28.19.004.777 I slot launch_slot_: id  1 | task 341 | processing task, is_child = 1
+28.19.004.784 I slot launch_slot_: id  2 | task 342 | processing task, is_child = 1
+28.19.004.792 I slot launch_slot_: id  0 | task 340 | processing task, is_child = 0
+28.19.005.988 E init_batch: failed to prepare attention ubatches
+28.19.005.991 W decode: failed to find a memory slot for batch of size 2048
+28.19.006.069 W srv  try_clear_id: purging slot 3 with 7767 tokens
+28.19.007.395 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+28.27.830.574 I slot print_timing: id  0 | task 340 | prompt processing, n_tokens =   2048, progress = 0.26, t =   8.83 s / 232.05 tokens per second
+28.37.271.595 I slot print_timing: id  0 | task 340 | prompt processing, n_tokens =   4096, progress = 0.53, t =  18.27 s / 224.23 tokens per second
+28.47.392.832 I slot print_timing: id  0 | task 340 | prompt processing, n_tokens =   6144, progress = 0.79, t =  28.39 s / 216.43 tokens per second
+28.55.615.283 I slot print_timing: id  0 | task 340 | prompt processing, n_tokens =   7673, progress = 0.99, t =  36.61 s / 209.59 tokens per second
+28.57.009.186 I slot      release: id  0 | task 340 | stop processing: n_tokens = 7788, truncated = 0
+28.57.009.222 I slot      release: id  1 | task 341 | stop processing: n_tokens = 7693, truncated = 0
+28.57.009.811 I slot      release: id  2 | task 342 | stop processing: n_tokens = 7702, truncated = 0
+28.57.036.944 I slot get_availabl: id  3 | task -1 | selected slot by LRU, n_tokens = 0, t_last = 1698556653
+28.57.036.974 I slot launch_slot_: id  1 | task 349 | processing task, is_child = 1
+28.57.036.987 I slot launch_slot_: id  2 | task 350 | processing task, is_child = 1
+28.57.036.999 I slot launch_slot_: id  3 | task 348 | processing task, is_child = 0
+28.57.038.691 E init_batch: failed to prepare attention ubatches
+28.57.038.695 W decode: failed to find a memory slot for batch of size 2048
+28.57.038.755 W srv  try_clear_id: purging slot 0 with 7788 tokens
+28.57.040.585 W srv        decode: failed to find free space in the KV cache, retrying with smaller batch size, off = 0, n_batch = 2048, ret = 1
+29.05.987.089 I slot print_timing: id  3 | task 348 | prompt processing, n_tokens =   2048, progress = 0.26, t =   8.95 s / 228.83 tokens per second
+29.16.118.768 I slot print_timing: id  3 | task 348 | prompt processing, n_tokens =   4096, progress = 0.53, t =  19.08 s / 214.66 tokens per second
+29.26.668.992 I slot print_timing: id  3 | task 348 | prompt processing, n_tokens =   6144, progress = 0.79, t =  29.63 s / 207.34 tokens per second
+29.34.558.372 I slot print_timing: id  3 | task 348 | prompt processing, n_tokens =   7637, progress = 0.99, t =  37.52 s / 203.54 tokens per second
+29.35.385.751 I slot      release: id  3 | task 348 | stop processing: n_tokens = 7752, truncated = 0
+29.35.809.999 I slot      release: id  1 | task 349 | stop processing: n_tokens = 7657, truncated = 0
+29.35.810.926 I slot      release: id  2 | task 350 | stop processing: n_tokens = 7666, truncated = 0
