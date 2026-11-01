@@ -1,0 +1,72 @@
+{
+  "label": "r2c-kev-0.8b-Q8_0-cpu-c2048-ub512",
+  "model": "验证结果\\第二轮GGUF_20261101-164825\\0.8b-r2C\\Contoso-Kev-0.8B-FTcf-R2C-Q8_0.gguf",
+  "backend": "cpu",
+  "build": "b11935-cpu-x64",
+  "server_args": "-m \"验证结果\\第二轮GGUF_20261101-164825\\0.8b-r2C\\Contoso-Kev-0.8B-FTcf-R2C-Q8_0.gguf\" --host 127.0.0.1 --port 8080 -c 2048 -b 512 -ub 512 --cache-ram 0",
+  "data_prefix": "test_",
+  "client_concurrency": 1,
+  "logical_processors": 16,
+  "load_seconds": 2.5,
+  "server_log_facts": [
+    "0.00.954.047 I srv          init: decision model type: kev",
+    "0.00.826.953 I cmn          init: llama threadpool init, n_threads = 8",
+    "0.00.986.295 I srv    load_model: initializing, n_slots = 4, n_ctx_slot = 2048, kv_unified = 'true'"
+  ],
+  "workload_cpu_seconds": {
+    "support": {
+      "cpu_seconds": 1719.8,
+      "wall_seconds_incl_warmup": 216.0
+    },
+    "assistant": {
+      "cpu_seconds": 1832.4,
+      "wall_seconds_incl_warmup": 230.0
+    }
+  },
+  "peak_working_set_mib": 1421,
+  "working_set_mib": 1421,
+  "private_mib": 1360,
+  "cpu_seconds": 3557,
+  "gguf_mib": 774.8,
+  "gguf_sha256": "c427ed7a8e797e1f6b6a838a80d4c32d8735b85dfa742f2dafba89307808ad05",
+  "captured": "2026-11-01T17:37:09.1078989+08:00",
+  "summaries": {
+    "assistant": {
+      "url": "http://127.0.0.1:8080/v1/systemone",
+      "data": "data\\contoso\\final\\test_assistant.jsonl",
+      "records": 159,
+      "errors": 0,
+      "questions": 477,
+      "accuracy": 0.9979,
+      "by_type": {
+        "choice": 1.0,
+        "noul": 0.9969
+      },
+      "latency_ms": {
+        "n": 159,
+        "p50": 1411.4,
+        "p90": 1531.8,
+        "mean": 1426.4
+      }
+    },
+    "support": {
+      "url": "http://127.0.0.1:8080/v1/systemone",
+      "data": "data\\contoso\\final\\test_support.jsonl",
+      "records": 170,
+      "errors": 0,
+      "questions": 510,
+      "accuracy": 0.9647,
+      "by_type": {
+        "choice": 0.9294,
+        "noul": 0.9824,
+        "score": 0.9824
+      },
+      "latency_ms": {
+        "n": 170,
+        "p50": 1238.1,
+        "p90": 1358.3,
+        "mean": 1253.0
+      }
+    }
+  }
+}

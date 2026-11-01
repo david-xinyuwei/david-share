@@ -1,0 +1,30 @@
+{
+  "captured": "2026-11-01T17:47:23.1075938+08:00",
+  "execution_plane": "AZURE_VM_WINDOWS",
+  "machine": "Azure virtual machine (Virtual Machine); AMD EPYC 7763 64-Core Processor, 8 vCPU / 16 threads, 2445 MHz; 64 GB RAM; no GPU",
+  "os": "Microsoft Windows Server 2025 Datacenter Azure Edition 10.0.26100",
+  "os_architecture": "x64 (AMD64)",
+  "engine": "llama.cpp b11935 Windows x64 CPU package llama-b11935-bin-win-cpu-x64.zip",
+  "engine_zip_sha256": "d13e3d617a724eef10a533b18d1178b5292f7f1395965adf4e83b1ab4e9fc4b6",
+  "engine_threads": 8,
+  "model": "Contoso-Kev-0.8B-FTcf-R2C-Q8_0.gguf (round-2 arm C: train_cf2, 4 epochs, T = 2.83; exported on the GPU host 2026-11-01, pulled to this VM and SHA-256 verified against the export manifest)",
+  "model_sha256": "c427ed7a8e797e1f6b6a838a80d4c32d8735b85dfa742f2dafba89307808ad05",
+  "pytorch_reference": "验证结果/第二轮微调评测_20261101-101948/runs/0.8b/r2-C-test_support/rows.json and r2-C-test_assistant/rows.json (arm C scored on the GPU host, same test sets)",
+  "ftcf_counterpart_same_vm": "验证结果/端侧引擎_x64_20261030-234858/ftcf-kev-0.8b-Q8_0-cpu-run1/ (published FT-cf, same VM, same engine build and arguments)",
+  "runs": [
+    {
+      "note": "default arguments -c 8192 -b 2048 -ub 2048 --cache-ram 0, run 1",
+      "directory": "r2c-kev-0.8b-Q8_0-cpu"
+    },
+    {
+      "note": "same arguments, run 2 (reproducibility)",
+      "directory": "r2c-kev-0.8b-Q8_0-cpu-run2"
+    },
+    {
+      "note": "lean deployment arguments -c 2048 -b 512 -ub 512 --cache-ram 0",
+      "directory": "r2c-kev-0.8b-Q8_0-cpu-c2048-ub512"
+    }
+  ],
+  "scope": "On-device regression of the round-2 C model on the same x86-64 VM that scored the published FT-cf: does the GPU-side gain survive quantization to Q8_0 and the llama.cpp engine, and does the lean -c 2048 setting change any answer. Latency is not compared with the Snapdragon laptop.",
+  "path_note": "The model was loaded from the project folder 验证结果/第二轮GGUF_20261101-164825/0.8b-r2C/ (GGUF files are kept locally, not in the repository). This machine's absolute project prefix was removed from server.log line 4, run.json server_args and summary/engine_summary.json args, leaving project-relative paths; no measured value was changed."
+}

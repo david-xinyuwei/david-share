@@ -1,0 +1,103 @@
+{
+ "torch": "验证结果\\第二轮微调评测_20261101-101948\\runs\\0.8b\\r2-C-test_support\\rows.json",
+ "engine": "验证结果\\端侧引擎_x64第二轮C_20261101-171344\\r2c-kev-0.8b-Q8_0-cpu\\support\\rows.jsonl",
+ "missing": 0,
+ "by_type": {
+  "all": {
+   "n": 510,
+   "agree_count": 505,
+   "agreement": 0.990196,
+   "torch_acc": 0.962745,
+   "engine_acc": 0.964706,
+   "only_torch_correct": 2,
+   "only_engine_correct": 3,
+   "mean_tvd": 0.006539,
+   "max_tvd": 0.251326
+  },
+  "choice": {
+   "n": 170,
+   "agree_count": 166,
+   "agreement": 0.976471,
+   "torch_acc": 0.917647,
+   "engine_acc": 0.929412,
+   "only_torch_correct": 1,
+   "only_engine_correct": 3,
+   "mean_tvd": 0.013606,
+   "max_tvd": 0.161974
+  },
+  "noul": {
+   "n": 170,
+   "agree_count": 170,
+   "agreement": 1.0,
+   "torch_acc": 0.982353,
+   "engine_acc": 0.982353,
+   "only_torch_correct": 0,
+   "only_engine_correct": 0,
+   "mean_tvd": 0.001465,
+   "max_tvd": 0.031424
+  },
+  "score": {
+   "n": 170,
+   "agree_count": 169,
+   "agreement": 0.994118,
+   "torch_acc": 0.988235,
+   "engine_acc": 0.982353,
+   "only_torch_correct": 1,
+   "only_engine_correct": 0,
+   "mean_tvd": 0.004545,
+   "max_tvd": 0.251326
+  }
+ },
+ "flips": [
+  {
+   "i": 10,
+   "question": "urgency",
+   "torch": "2",
+   "engine": "0",
+   "label": "2",
+   "torch_p": 0.7306,
+   "engine_p": 0.5207,
+   "tvd": 0.2513
+  },
+  {
+   "i": 67,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "depot_repair",
+   "label": "depot_repair",
+   "torch_p": 0.5323,
+   "engine_p": 0.6247,
+   "tvd": 0.162
+  },
+  {
+   "i": 106,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "depot_repair",
+   "label": "sales_ops",
+   "torch_p": 0.5734,
+   "engine_p": 0.5341,
+   "tvd": 0.118
+  },
+  {
+   "i": 133,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "depot_repair",
+   "label": "depot_repair",
+   "torch_p": 0.5456,
+   "engine_p": 0.548,
+   "tvd": 0.094
+  },
+  {
+   "i": 59,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "remote_l1",
+   "label": "remote_l1",
+   "torch_p": 0.4445,
+   "engine_p": 0.4378,
+   "tvd": 0.0285
+  }
+ ]
+}

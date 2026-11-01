@@ -17,8 +17,9 @@ def load(p):
     return json.loads(p.read_text(encoding="utf-8-sig")) if p.is_file() else None
 
 
-KIND = {"released": "发布版", "ft": "微调 FT", "ftcf": "微调 FT-cf"}
-VARIANT = {"": "默认参数", "lean": "-c 2048 -ub 512", "ctx2048": "-c 2048", "policy": "默认参数，提示词含策略全文（B0-policy）",
+KIND = {"released": "发布版", "ft": "微调 FT", "ftcf": "微调 FT-cf", "r2c": "微调 FT-cf 第二轮 C"}  # r2c: round-2 arm C (train_cf2, 4 epochs)
+VARIANT = {"": "默认参数", "lean": "-c 2048 -ub 512", "c2048-ub512": "-c 2048 -ub 512", "ctx2048": "-c 2048",
+           "policy": "默认参数，提示词含策略全文（B0-policy）",
            "run1": "默认参数，第 1 次运行", "run2": "默认参数，第 2 次运行"}  # repeated runs of one configuration (x86-64 root)
 BACKEND = {"cpu": "CPU", "opencl": "Adreno GPU（OpenCL）"}
 
