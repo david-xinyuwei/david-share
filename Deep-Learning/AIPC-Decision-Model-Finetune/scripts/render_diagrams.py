@@ -89,10 +89,12 @@ class Diagram:
             self.text((x, top + 42 + 20 * index), line, self.small_font, OWNER_DIVIDER - 8 - x, MUTED)
         self.draw.line([self.point(OWNER_DIVIDER, top + 12), self.point(OWNER_DIVIDER, bottom - 12)], fill=GREY, width=self.s)
 
-    def card(self, left, top, title, detail="", icon=None, badges=(), step=None, width=CARD_WIDTH, height=None, muted=False):
-        """One component or artifact: white card, optional ledgered icon or step number, one or two detail lines, text badges."""
+    def card(self, left, top, title, detail="", icon=None, badges=(), step=None, width=CARD_WIDTH, height=None, muted=False, compact=False):
+        """One component or artifact: white card, optional ledgered icon or step number, one or two detail lines, text badges.
+        compact=True sets detail lines in the 14 px small font at 19 px leading, for narrow cards (five across a lane)."""
         lines = [line for line in detail.split("\n") if line]
-        height = height or 56 + 22 * len(lines) + (28 if badges else 0)
+        detail_font, leading = (self.small_font, 19) if compact else (self.detail_font, 22)
+        height = height or 56 + leading * len(lines) + (28 if badges else 0)
         outline = GREY if muted else CARD_LINE
         self.draw.rounded_rectangle(self.box(left, top, left + width, top + height), radius=6 * self.s, fill="white", outline=outline, width=self.s)
         x = left + 14
@@ -103,10 +105,10 @@ class Diagram:
             cx, cy, r = left + 27, top + 24, 12
             self.draw.ellipse(self.box(cx - r, cy - r, cx + r, cy + r), fill=BLUE)
             self.draw.text(self.point(cx - self.width_of(step, self.small_font) / 2, cy - 9), step, font=self.small_font, fill="white")
-            x = left + 50
-        self.text((x, top + 11), title, self.node_font, left + width - x - 10, MUTED if muted else INK)
+            x = left + (44 if compact else 50)
+        self.text((x, top + 11), title, self.node_font, left + width - x - (6 if compact else 10), MUTED if muted else INK)
         for index, line in enumerate(lines):
-            self.text((left + 14, top + 44 + 22 * index), line, self.detail_font, width - 24, MUTED)
+            self.text((left + 14, top + 44 + leading * index), line, detail_font, width - 24, MUTED)
         bx, by = left + 14, top + height - 32
         for badge in badges:
             bw = self.width_of(badge, self.badge_font) + 16
@@ -115,9 +117,20 @@ class Diagram:
             bx += bw + 8
         return (left, top, left + width, top + height)
 
-    def arrow(self, points, color=BLUE, head=True):
+    def arrow(self, points, color=BLUE, head=True, dashed=False):
         scaled = [self.point(*point) for point in points]
-        self.draw.line(scaled, fill=color, width=2 * self.s, joint="curve")
+        if dashed:
+            dash, gap = 7 * self.s, 5 * self.s
+            for (x0, y0), (x1, y1) in zip(scaled, scaled[1:]):
+                length = math.hypot(x1 - x0, y1 - y0)
+                ux, uy = ((x1 - x0) / length, (y1 - y0) / length) if length else (0, 0)
+                run = 0
+                while run < length:
+                    stop = min(run + dash, length)
+                    self.draw.line([(x0 + ux * run, y0 + uy * run), (x0 + ux * stop, y0 + uy * stop)], fill=color, width=2 * self.s)
+                    run = stop + gap
+        else:
+            self.draw.line(scaled, fill=color, width=2 * self.s, joint="curve")
         if head:
             previous, end = scaled[-2:]
             angle = math.atan2(end[1] - previous[1], end[0] - previous[0])
@@ -126,7 +139,7 @@ class Diagram:
             self.draw.polygon(triangle, fill=color)
 
     def legend(self, top, items):
-        """items: (kind, label) with kind in lane | card | arrow | score | read | badge."""
+        """items: (kind, label) with kind in lane | card | arrow | score | read | back | badge."""
         x = 28
         for kind, label in items:
             if kind == "lane":
@@ -135,6 +148,8 @@ class Diagram:
                 self.draw.rounded_rectangle(self.box(x, top + 3, x + 22, top + 17), radius=3 * self.s, fill="white", outline=CARD_LINE, width=self.s)
             elif kind == "badge":
                 self.draw.rounded_rectangle(self.box(x, top + 2, x + 22, top + 18), radius=8 * self.s, fill="white", outline=MUTED, width=self.s)
+            elif kind == "back":
+                self.arrow([(x, top + 10), (x + 22, top + 10)], color=READ, dashed=True)
             else:
                 self.arrow([(x, top + 10), (x + 22, top + 10)], color={"score": SCORE_GREY, "read": READ}.get(kind, BLUE))
             self.text((x + 30, top), label, self.small_font, 360, MUTED)
@@ -166,41 +181,53 @@ ICON_NOTE = ("图标：Microsoft Azure 架构图标与 Fluent UI 系统图标，
 
 
 def training(font_path, language="zh"):
-    """Four numbered steps on the GPU host: supervised fine-tuning -> temperature calibration -> GGUF export (BF16) ->
-    post-training quantization (Q8_0 / Q4_K_M). Only the quantized file reaches the laptop.
-    Facts: scripts/remote_pipeline_v2.sh, remote_cf_round.sh, remote_export_gguf_cf.sh; sizes from 验证结果/微调评测_20261027-220226/gguf/0.8b-cf."""
+    """Four numbered steps on the GPU host: supervised fine-tuning -> temperature calibration -> [evaluation gate] ->
+    GGUF export (BF16) -> post-training quantization (Q8_0 / Q4_K_M). The unnumbered evaluation card is the only
+    pass/fail point: its dashed exits return to step 1 (accuracy fell out of its interval) or step 2 (probabilities
+    off, answers fine). Only the quantized file reaches the laptop.
+    Facts: scripts/remote_pipeline_v2.sh, remote_cf_round.sh, remote_export_gguf_cf.sh; sizes from 验证结果/微调评测_20261027-220226/gguf/0.8b-cf;
+    gate rule from README section 3 / scripts/calibration_boundary.py."""
     label = lambda chinese, english: english if language == "en" else chinese
-    d = Diagram(label("业务微调、校准、导出与量化", "Business fine-tuning, calibration, export and quantization"),
-                label("业务数据在笔记本准备；GPU 主机依次完成微调、校准、导出和量化；笔记本只拿到量化后的 GGUF 文件", "Business data is prepared on the laptop; the GPU host fine-tunes, calibrates, exports and quantizes; the laptop receives only the quantized GGUF file"), font_path)
+    d = Diagram(label("业务微调、校准、评测、导出与量化", "Business fine-tuning, calibration, evaluation, export and quantization"),
+                label("GPU 主机依次微调、校准；评测是唯一判定点，不过回第 1 或第 2 步，通过才导出、量化；笔记本只拿到量化后的 GGUF",
+                      "GPU host: fine-tune, calibrate, evaluate (the only pass/fail point; failures return to step 1 or 2), export, quantize; the laptop gets the quantized GGUF"), font_path)
     c1, c2, c3 = CARD_LEFT, CARD_LEFT + CARD_STEP, CARD_LEFT + 2 * CARD_STEP
     d.lane(104, 236, label("客户笔记本", "Customer laptop"), label("厂商所有\n数据准备", "Vendor-owned\nData preparation"), icon="laptop")
     d.card(c1, 116, label("业务训练集", "Training set"), label("标注样本 2,147 条\n+ 1,000 条 Kev 回放", "2,147 labeled records\n+ 1,000 Kev replay records"), icon="file")
     d.card(c2, 116, label("Kev 发布版", "Released Kev"), label("0.8B / 4B，开放权重\n已训练的 LoRA + 指针头", "0.8B / 4B, open weights\nTrained LoRA + pointer head"), icon="file")
-    d.card(c3, 116, label("校准集", "Calibration set"), label("与训练样本分开\n只用于拟合温度", "Separate from training\nFits temperature only"), icon="file")
-    # four equal steps in the host lane: 4 x 206 px cards with 20 px gaps fill CARD_LEFT..LANE_RIGHT-16 (280..1160)
-    sw, sg, sh = 206, 20, 150   # equal card height: three detail lines + one badge row
-    s1, s2, s3, s4 = (CARD_LEFT + index * (sw + sg) for index in range(4))
-    d.lane(258, 418, label("Azure 训练主机", "Azure training host"), label("厂商租用\n1× H100 NVL\n3–4 只用 CPU", "Vendor-rented\n1× H100 NVL\nSteps 3–4: CPU only"), icon="azure-vm")
-    d.card(s1, 274, label("监督微调", "Fine-tuning"), label("LoRA r16 + 指针头\nFT 与 FT-cf 独立训练", "LoRA r16, pointer head\nFT, FT-cf trained apart"), step="1", width=sw, height=sh, badges=("PyTorch", "Kev"))
-    d.card(s2, 274, label("温度校准", "Calibration"), label("固定全部权重\n只拟合温度 T", "All weights frozen\nFit temperature T only"), step="2", width=sw, height=sh, badges=("Kev",))
-    d.card(s3, 274, label("导出 GGUF", "Export GGUF"), label("合并 LoRA 进基座\nBF16，1,437 MiB，含 T", "Merge LoRA into base\nBF16, 1,437 MiB, with T"), step="3", width=sw, height=sh, badges=("llama.cpp",))
-    d.card(s4, 274, label("量化", "Quantize"), label("训练后量化，不重训\nQ8_0 764 MiB\nQ4_K_M 517 MiB", "No retraining (PTQ)\nQ8_0 764 MiB\nQ4_K_M 517 MiB"), step="4", width=sw, height=sh, badges=("llama.cpp",))
-    d.lane(440, 540, label("客户笔记本", "Customer laptop"), label("厂商所有\n端侧部署", "Vendor-owned\nDevice deployment"), icon="laptop")
-    d.card(c3, 452, label("量化后的 GGUF", "Quantized GGUF"), label("Q8_0（推荐）/ Q4_K_M\n温度在文件内", "Q8_0 (recommended) / Q4_K_M\nT inside the file"), icon="file")
+    d.card(c3, 116, label("校准集 + 测试集", "Calibration + test"), label("与训练样本分开\n校准集拟 T，测试集验收", "Separate from training\nOne fits T, one judges"), icon="file")
+    # five equal cards in the host lane: 5 x 164 px with 12 px gaps fill CARD_LEFT..LANE_RIGHT-16 (280..1160); compact detail font
+    sw, sg, sh = 164, 12, 160   # equal card height: four compact detail lines + one badge row
+    s1, s2, s3, s4, s5 = (CARD_LEFT + index * (sw + sg) for index in range(5))
+    d.lane(258, 428, label("Azure 训练主机", "Azure training host"), label("厂商租用\n1× H100 NVL\n3–4 只用 CPU", "Vendor-rented\n1× H100 NVL\nSteps 3–4: CPU only"), icon="azure-vm")
+    d.card(s1, 274, label("监督微调", "Fine-tune"), label("LoRA r16 + 指针头\nFT / FT-cf 独立训练\n推动 ① 答案对不对", "LoRA r16 + head\nFT, FT-cf separately\nMoves ① answers"), step="1", width=sw, height=sh, badges=("PyTorch", "Kev"), compact=True)
+    d.card(s2, 274, label("温度校准", "Calibrate"), label("权重不动，只拟一个 T\n不改任何一题答案\n只动 ② 把握真不真", "Weights frozen; fit T\nChanges no answer\nMoves only ②"), step="2", width=sw, height=sh, badges=("Kev",), compact=True)
+    d.card(s3, 274, label("评测验收", "Evaluate"), label("测试集量 ① ② ⑤\n准确率掉出区间→回 1\n只有概率偏差 → 回 2\n都在区间内 → 往下", "Test set: ① ② ⑤\nAccuracy out of CI: 1\nOnly ECE off: 2\nBoth inside: go on"), width=sw, height=sh, badges=("Kev",), compact=True)
+    d.card(s4, 274, label("导出 GGUF", "Export"), label("合并 LoRA 进基座\nBF16，1,437 MiB\n含 T，不改任何值", "GGUF, LoRA merged\nBF16, 1,437 MiB\nWith T, unchanged"), step="3", width=sw, height=sh, badges=("llama.cpp",), compact=True)
+    d.card(s5, 274, label("量化", "Quantize"), label("训练后量化，不重训\nQ8_0 764 MiB\nQ4_K_M 517 MiB\n换 ③④，付一点 ①②", "PTQ, no retraining\nQ8_0 764 MiB\nQ4_K_M 517 MiB\nBuys ③④, costs ①②"), step="4", width=sw, height=sh, badges=("llama.cpp",), compact=True)
+    d.lane(450, 550, label("客户笔记本", "Customer laptop"), label("厂商所有\n端侧部署", "Vendor-owned\nDevice deployment"), icon="laptop")
+    d.card(c3, 462, label("量化后的 GGUF", "Quantized GGUF"), label("Q8_0（推荐）/ Q4_K_M\n温度在文件内", "Q8_0 (recommended) / Q4_K_M\nT inside the file"), icon="file")
     mid2, mid3 = c2 + CARD_WIDTH / 2, c3 + CARD_WIDTH / 2
-    d.arrow([(c1 + 80, 216), (c1 + 80, 274)])                                      # training set -> fine-tuning
-    d.arrow([(mid2, 216), (mid2, 246), (c1 + 160, 246), (c1 + 160, 274)])          # released Kev -> fine-tuning (--init_from)
-    d.arrow([(mid3, 216), (mid3, 246), (s2 + sw / 2, 246), (s2 + sw / 2, 274)])    # calibration set -> calibration
+    d.arrow([(c1 + 60, 216), (c1 + 60, 274)])                                      # training set -> fine-tuning
+    d.arrow([(mid2, 216), (mid2, 246), (c1 + 120, 246), (c1 + 120, 274)])          # released Kev -> fine-tuning (--init_from)
+    d.arrow([(mid3 - 40, 216), (mid3 - 40, 246), (s2 + sw / 2, 246), (s2 + sw / 2, 274)])   # calibration set -> calibration
+    d.arrow([(mid3 + 40, 216), (mid3 + 40, 246), (s3 + sw / 2, 246), (s3 + sw / 2, 274)])   # test set -> evaluation gate
     d.arrow([(s1 + sw, 338), (s2, 338)])
     d.arrow([(s2 + sw, 338), (s3, 338)])
     d.arrow([(s3 + sw, 338), (s4, 338)])
-    d.arrow([(s4 + sw / 2, 274 + sh), (s4 + sw / 2, 436), (mid3, 436), (mid3, 452)])  # quantized file -> laptop
-    d.legend(566, legend_items(label))
-    d.footnote(598, label("原创解释图。依据：scripts/remote_pipeline_v2.sh、remote_cf_round.sh、remote_export_gguf_cf.sh，Kev commit 2074cc44 的 calibrate_checkpoint.py；大小为 0.8B FT-cf。",
+    d.arrow([(s4 + sw, 338), (s5, 338)])
+    bottom = 274 + sh
+    d.arrow([(s3 + 40, bottom), (s3 + 40, bottom + 22), (s1 + sw / 2, bottom + 22), (s1 + sw / 2, bottom)], color=READ, dashed=True)   # accuracy fell -> retrain
+    d.arrow([(s3 + sw - 40, bottom), (s3 + sw - 40, bottom + 11), (s2 + sw / 2, bottom + 11), (s2 + sw / 2, bottom)], color=READ, dashed=True)   # probabilities off -> refit T
+    d.arrow([(s5 + sw / 2, bottom), (s5 + sw / 2, 446), (mid3, 446), (mid3, 462)])  # quantized file -> laptop
+    d.legend(572, [("lane", label("泳道：归属方", "Lane: owner")), ("card", label("卡片：组件或产物", "Card: component or artifact")),
+                   ("arrow", label("蓝色：数据流", "Blue: data flow")), ("back", label("橙色虚线：评测不通过时回到的步骤", "Orange dashed: return after failed evaluation")),
+                   ("badge", label("徽章：无图标的软件", "Badge: software without icon"))])
+    d.footnote(600, label("原创解释图。依据：scripts/remote_pipeline_v2.sh、remote_cf_round.sh、remote_export_gguf_cf.sh，Kev 2074cc44 calibrate_checkpoint.py；大小为 0.8B FT-cf。",
                           "Original explanatory diagram. Sources: scripts/remote_pipeline_v2.sh, remote_cf_round.sh, remote_export_gguf_cf.sh; Kev 2074cc44 calibrate_checkpoint.py. Sizes: 0.8B."),
-               label(*ICON_NOTE),
-               label("四步都在同一主机完成，导出和量化只用它的 CPU；端侧推理不会触发这些步骤。Q4_K_M 只压前馈层，注意力、DeltaNet 和指针头保持 8 bit。",
-                     "One host runs all four steps; export and post-training quantization (PTQ) use only its CPU; device inference never runs them. Q4_K_M compresses only feed-forward layers."))
+               label("评测验收的判定规则和门槛见第 3 节与 scripts/calibration_boundary.py；①–⑤ 指首屏的五项标准。导出和量化只用主机 CPU；端侧推理不触发这些步骤。Q4_K_M 只压前馈层。",
+                     "Gate rule: section 3, scripts/calibration_boundary.py; ①–⑤ = the five first-screen criteria. Export and PTQ use the host CPU only; the device never runs them."),
+               label(*ICON_NOTE))
     return d
 
 

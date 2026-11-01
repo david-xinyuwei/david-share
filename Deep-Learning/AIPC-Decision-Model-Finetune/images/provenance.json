@@ -10,7 +10,7 @@
       "file": "training.png",
       "width": 2400,
       "height": 1360,
-      "sha256": "3606998bec4dadc6e5a94034ac27d9ff13bab8103742f70d168fe0533a493c71",
+      "sha256": "0e6af2dbce4633b7c11dbdf2b8e08f39704defc38d89faff513971d2b41e009f",
       "vendor_icons": [
         "azure-vm",
         "file",
@@ -31,7 +31,7 @@
       "file": "training-en.png",
       "width": 2400,
       "height": 1360,
-      "sha256": "392b42c8c91d3b9139dc53b118f2ccc8f5702d4740218cab271ffe54754eaba5",
+      "sha256": "9a910440d8159d620670e567837ac0fa1d71c9990cd59eeb298cf199b9e53780",
       "vendor_icons": [
         "azure-vm",
         "file",
