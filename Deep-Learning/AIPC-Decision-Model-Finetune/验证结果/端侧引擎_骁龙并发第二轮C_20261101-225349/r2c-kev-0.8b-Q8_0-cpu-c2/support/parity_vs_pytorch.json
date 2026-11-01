@@ -1,0 +1,123 @@
+{
+ "torch": "验证结果\\第二轮微调评测_20261101-101948\\runs\\0.8b\\r2-C-test_support\\rows.json",
+ "engine": "验证结果\\端侧引擎_骁龙并发第二轮C_20261101-225349\\r2c-kev-0.8b-Q8_0-cpu-c2\\support\\rows.jsonl",
+ "missing": 0,
+ "by_type": {
+  "all": {
+   "n": 510,
+   "agree_count": 503,
+   "agreement": 0.986275,
+   "torch_acc": 0.962745,
+   "engine_acc": 0.964706,
+   "only_torch_correct": 3,
+   "only_engine_correct": 4,
+   "mean_tvd": 0.006132,
+   "max_tvd": 0.232752
+  },
+  "choice": {
+   "n": 170,
+   "agree_count": 166,
+   "agreement": 0.976471,
+   "torch_acc": 0.917647,
+   "engine_acc": 0.929412,
+   "only_torch_correct": 1,
+   "only_engine_correct": 3,
+   "mean_tvd": 0.012887,
+   "max_tvd": 0.140789
+  },
+  "noul": {
+   "n": 170,
+   "agree_count": 169,
+   "agreement": 0.994118,
+   "torch_acc": 0.982353,
+   "engine_acc": 0.976471,
+   "only_torch_correct": 1,
+   "only_engine_correct": 0,
+   "mean_tvd": 0.001749,
+   "max_tvd": 0.050106
+  },
+  "score": {
+   "n": 170,
+   "agree_count": 168,
+   "agreement": 0.988235,
+   "torch_acc": 0.988235,
+   "engine_acc": 0.988235,
+   "only_torch_correct": 1,
+   "only_engine_correct": 1,
+   "mean_tvd": 0.003761,
+   "max_tvd": 0.232752
+  }
+ },
+ "flips": [
+  {
+   "i": 10,
+   "question": "urgency",
+   "torch": "2",
+   "engine": "0",
+   "label": "2",
+   "torch_p": 0.7306,
+   "engine_p": 0.5021,
+   "tvd": 0.2328
+  },
+  {
+   "i": 149,
+   "question": "urgency",
+   "torch": "0",
+   "engine": "1",
+   "label": "1",
+   "torch_p": 0.5475,
+   "engine_p": 0.609,
+   "tvd": 0.1565
+  },
+  {
+   "i": 133,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "depot_repair",
+   "label": "depot_repair",
+   "torch_p": 0.5456,
+   "engine_p": 0.5641,
+   "tvd": 0.11
+  },
+  {
+   "i": 67,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "depot_repair",
+   "label": "depot_repair",
+   "torch_p": 0.5323,
+   "engine_p": 0.5629,
+   "tvd": 0.1007
+  },
+  {
+   "i": 106,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "depot_repair",
+   "label": "sales_ops",
+   "torch_p": 0.5734,
+   "engine_p": 0.5124,
+   "tvd": 0.0948
+  },
+  {
+   "i": 59,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "remote_l1",
+   "label": "remote_l1",
+   "torch_p": 0.4445,
+   "engine_p": 0.4618,
+   "tvd": 0.0501
+  },
+  {
+   "i": 96,
+   "question": "onsite_eligible",
+   "torch": "false",
+   "engine": "true",
+   "label": "false",
+   "torch_p": 0.5081,
+   "engine_p": 0.5033,
+   "tvd": 0.0114
+  }
+ ]
+}

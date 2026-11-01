@@ -1,0 +1,41 @@
+{
+  "captured": "2026-11-01T23:24:12.0949417+08:00",
+  "execution_plane": "CUSTOMER_LAPTOP_WINDOWS",
+  "machine": "Microsoft Corporation Microsoft Surface Laptop, 7th Edition; Snapdragon(R) X 12-core X1E80100 @ 3.40 GHz, 12 cores / 12 threads; 63 GB RAM",
+  "os": "Microsoft Windows 11 企业版 10.0.26300",
+  "os_architecture": "ARM 64 位处理器",
+  "engine": "llama.cpp b11935-cpu Windows ARM64 CPU package",
+  "model": "Contoso-Kev-0.8B-FTcf-R2C-Q8_0.gguf (round-2 arm C, T = 2.83)",
+  "model_sha256": "c427ed7a8e797e1f6b6a838a80d4c32d8735b85dfa742f2dafba89307808ad05",
+  "pytorch_reference": "验证结果/第二轮微调评测_20261101-101948/runs/0.8b/r2-C-test_{support,assistant}/rows.json",
+  "x64_counterpart": "验证结果/端侧引擎_x64并发_20261031-013937/ (published FT-cf, same tiers, AMD EPYC 7763 VM)",
+  "sequential_counterpart": "laptop_round2c_eval.ps1 output (same model, concurrency 1, default and lean arguments)",
+  "runs": [
+    {
+      "client_concurrency": 1,
+      "server_slots": "default (4)",
+      "directory": "r2c-kev-0.8b-Q8_0-cpu-c1"
+    },
+    {
+      "client_concurrency": 2,
+      "server_slots": "default (4)",
+      "directory": "r2c-kev-0.8b-Q8_0-cpu-c2"
+    },
+    {
+      "client_concurrency": 4,
+      "server_slots": "default (4)",
+      "directory": "r2c-kev-0.8b-Q8_0-cpu-c4"
+    },
+    {
+      "client_concurrency": 8,
+      "server_slots": "default (4)",
+      "directory": "r2c-kev-0.8b-Q8_0-cpu-c8"
+    },
+    {
+      "client_concurrency": 8,
+      "server_slots": 8,
+      "directory": "r2c-kev-0.8b-Q8_0-cpu-c8np8"
+    }
+  ],
+  "scope": "Concurrency sweep on the laptop: throughput (requests per second), latency distribution, peak memory and per-question agreement with PyTorch as the client keeps more requests in flight. One run per tier."
+}

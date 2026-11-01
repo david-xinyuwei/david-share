@@ -1,0 +1,112 @@
+{
+ "rejected": 7,
+ "rejected_400": 2,
+ "rejected_500": 5,
+ "scored": 153,
+ "scored_q": 459,
+ "rejected_hist_chars": [
+  7858,
+  8621,
+  9492,
+  12510,
+  14982,
+  24576,
+  24681
+ ],
+ "short_strategy_acc": "88.5%",
+ "model_eq_short_policy": "42.9%",
+ "pred_dist": {
+  "queue": {
+   "battery_program": 15,
+   "sales_ops": 112,
+   "depot_repair": 24,
+   "remote_l1": 2
+  },
+  "onsite_eligible": {
+   "False": 123,
+   "True": 30
+  },
+  "urgency": {
+   "0": 66,
+   "3": 17,
+   "2": 19,
+   "1": 51
+  }
+ },
+ "urgency0_count": 66,
+ "queue_salesops_count": 112,
+ "H1_dec": "40.0% (10/25)",
+ "H1_ctl": "0.0% (0/26)",
+ "H1_dec_o": "54.0% (27/50)",
+ "H1_ctl_o": "57.7% (30/52)",
+ "H2_dec": "52.0% (13/25)",
+ "H2_ctl": "0.0% (0/27)",
+ "H2_dec_o": "46.0% (23/50)",
+ "H2_ctl_o": "59.3% (32/54)",
+ "H3_dec": "26.9% (7/26)",
+ "H3_ctl": "83.3% (20/24)",
+ "H3_dec_o": "34.6% (18/52)",
+ "H3_ctl_o": "54.2% (26/48)",
+ "dec_all": "39.5% (30/76)",
+ "ctl_all": "26.0% (20/77)",
+ "dec_o_all": "44.7% (68/152)",
+ "ctl_o_all": "57.1% (88/154)",
+ "dec_all_pct": "39.5%",
+ "ctl_all_pct": "26.0%",
+ "long_acc": "44.9%",
+ "long_acc_frac": "206/459",
+ "long_acc_by_q": {
+  "queue": "26.1% (40/153)",
+  "onsite_eligible": "77.1% (118/153)",
+  "urgency": "31.4% (48/153)"
+ },
+ "long_records_all_three": "11/153",
+ "long_lat_med": "26,395",
+ "long_lat_p90": "37,560",
+ "tok_q_median": "4,869",
+ "tok_q_max": "8,052",
+ "tok_q_min": "3,034",
+ "long_ws": "5,060",
+ "long_commit": "5,970",
+ "hist_chars_min": "5,350",
+ "hist_chars_median": "10,541",
+ "hist_chars_max": "30,379",
+ "flip_count": 54,
+ "purging_slot": 146,
+ "short_acc": "63.1%",
+ "short_acc_frac": "303/480",
+ "short_acc_by_q": {
+  "queue": "36.9% (59/160)",
+  "onsite_eligible": "79.4% (127/160)",
+  "urgency": "73.1% (117/160)"
+ },
+ "short_run_vs_long_labels": "68.5%",
+ "short_lat_med": "2,578",
+ "short_lat_p90": "2,792",
+ "short_tok_q_median": "256",
+ "short_tok_q_max": "287",
+ "short_ws": "1,722",
+ "short_commit": "4,427",
+ "plain_acc": "84.0%",
+ "plain_acc_frac": "403/480",
+ "plain_acc_by_q": {
+  "queue": "73.1% (117/160)",
+  "onsite_eligible": "95.6% (153/160)",
+  "urgency": "83.1% (133/160)"
+ },
+ "plain_lat_med": "1,338",
+ "plain_lat_p90": "1,445",
+ "plain_tok_q_median": "166",
+ "plain_tok_q_max": "197",
+ "plain_ws": "1,403",
+ "plain_commit": "4,170",
+ "short_vs_plain_same_answer": "362/480",
+ "decisive_answer_changed_vs_short": "41/76",
+ "decisive_by_length": {
+  "4k–6k": "37.2% (16/43)",
+  "≥6k": "40.0% (6/15)",
+  "2k–4k": "44.4% (8/18)"
+ },
+ "plain_gap_note_cn": "这 84.0% 与第 1 节的 96.5% 之间的差不是模型变了，是题的分布变了：这 160 条只覆盖电池 / 过热 / 磁盘三个场景，其中 26 条磁盘工单的短记录故意不提备份（短记录规则的标签是 3，模型没有依据只能答 1–2，26 道全错），去掉这 26 道是 88.1%；过热场景的队列题（`remote_l1`）本来就是 C 最弱的一类，在原测试集同三个场景上 C 是 93.2%（109/117）。所以“规则文本写法变了”这一层是 84.0% → 63.1%：训练时每道题的 `instructions` 是固定的，模型把它当格式标记而不是当规则读，追加三句条款就把紧急度题从 83.1% 打到 73.1%、队列题从 73.1% 打到 36.9%——这和第 2 节“规则跟随”里“改规则文本它不跟”的结论是同一件事。",
+ "plain_gap_note_en": "The gap between this 84.0% and section 1's 96.5% is not the model but the question mix: these 160 records cover only the battery / overheating / disk scenarios, and the short records of the 26 disk tickets deliberately omit the backup status (the short-record policy label is 3, the model has nothing to go on and answers 1–2, all 26 wrong); without those 26 it is 88.1%, and the overheating queue question (`remote_l1`) was already C's weakest class — on the same three scenarios of the original test set C scores 93.2% (109/117). So the \"rule text changed\" layer is 84.0% → 63.1%: during training each question's `instructions` were fixed, the model treats them as a format marker rather than a rule to read, and appending three clauses knocks the urgency question from 83.1% to 73.1% and the queue question from 73.1% to 36.9% — the same finding as \"it does not follow a changed rule text\" in section 2's rule-following test."
+}

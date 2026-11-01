@@ -1,0 +1,178 @@
+{
+ "records": 160,
+ "rejected": [
+  {
+   "i": 37,
+   "case": "support-long-23-00037",
+   "error": "HTTP Error 500: Internal Server Error"
+  },
+  {
+   "i": 47,
+   "case": "support-long-23-00047",
+   "error": "HTTP Error 400: Bad Request"
+  },
+  {
+   "i": 62,
+   "case": "support-long-23-00062",
+   "error": "HTTP Error 400: Bad Request"
+  },
+  {
+   "i": 102,
+   "case": "support-long-23-00102",
+   "error": "HTTP Error 500: Internal Server Error"
+  },
+  {
+   "i": 114,
+   "case": "support-long-23-00114",
+   "error": "HTTP Error 500: Internal Server Error"
+  },
+  {
+   "i": 137,
+   "case": "support-long-23-00137",
+   "error": "HTTP Error 500: Internal Server Error"
+  },
+  {
+   "i": 158,
+   "case": "support-long-23-00158",
+   "error": "HTTP Error 500: Internal Server Error"
+  }
+ ],
+ "scored_records": 153,
+ "questions": 459,
+ "correct": 206,
+ "short_policy_strategy_correct": 406,
+ "model_equals_short_policy": 197,
+ "per_clause": {
+  "H1": {
+   "decisive": [
+    10,
+    25
+   ],
+   "control": [
+    0,
+    26
+   ],
+   "decisive_other_q": [
+    27,
+    50
+   ],
+   "control_other_q": [
+    30,
+    52
+   ]
+  },
+  "H2": {
+   "decisive": [
+    13,
+    25
+   ],
+   "control": [
+    0,
+    27
+   ],
+   "decisive_other_q": [
+    23,
+    50
+   ],
+   "control_other_q": [
+    32,
+    54
+   ]
+  },
+  "H3": {
+   "decisive": [
+    7,
+    26
+   ],
+   "control": [
+    20,
+    24
+   ],
+   "decisive_other_q": [
+    18,
+    52
+   ],
+   "control_other_q": [
+    26,
+    48
+   ]
+  }
+ },
+ "overall": {
+  "queue": [
+   40,
+   153
+  ],
+  "onsite_eligible": [
+   118,
+   153
+  ],
+  "urgency": [
+   48,
+   153
+  ]
+ },
+ "prediction_distribution": {
+  "queue": {
+   "battery_program": 15,
+   "sales_ops": 112,
+   "depot_repair": 24,
+   "remote_l1": 2
+  },
+  "onsite_eligible": {
+   "False": 123,
+   "True": 30
+  },
+  "urgency": {
+   "0": 66,
+   "3": 17,
+   "2": 19,
+   "1": 51
+  }
+ },
+ "label_distribution": {
+  "queue": {
+   "sales_ops": 53,
+   "battery_program": 26,
+   "depot_repair": 26,
+   "remote_l1": 27,
+   "onsite_repair": 21
+  },
+  "onsite_eligible": {
+   "False": 132,
+   "True": 21
+  },
+  "urgency": {
+   "1": 102,
+   "3": 26,
+   "2": 25
+  }
+ },
+ "by_length": {
+  "20k–25k 字符": [
+   21,
+   48
+  ],
+  "5k–10k 字符": [
+   92,
+   210
+  ],
+  "15k–20k 字符": [
+   36,
+   93
+  ],
+  "10k–15k 字符": [
+   52,
+   96
+  ],
+  "25k–30k 字符": [
+   4,
+   9
+  ],
+  "30k–35k 字符": [
+   1,
+   3
+  ]
+ },
+ "latency_ms_median": 26395.4
+}

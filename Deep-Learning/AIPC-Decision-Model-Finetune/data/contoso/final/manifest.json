@@ -123,5 +123,23 @@
   "seed": 23,
   "region_per_case": 2,
   "onsite_per_case": 1
+ },
+ "long_test_support.jsonl": {
+  "records": 160,
+  "questions": 480,
+  "sha256": "7c398aeabf94ea8161ef8b843e89fd3e5ae00674e2cde02088a979c7cdb65572",
+  "note": "160 support tickets with a 3k–30k-character case_history written by an LLM from a fact list; labels = short policy + history clause (scripts/gen_long_cases.py long_labels), computed, never generated"
+ },
+ "longshort_test_support.jsonl": {
+  "records": 160,
+  "questions": 480,
+  "sha256": "117d875d096775ff082888ca354e0e2abc245a1f11e52366d8e0b5e243789284",
+  "note": "the same 160 records with case_history removed; labels = short policy (control run for the long set)"
+ },
+ "longplain_test_support.jsonl": {
+  "records": 160,
+  "questions": 480,
+  "sha256": "4edfa2aac7a5efe01dc26efbbe44d9cff77c6043ef49ea50bb1fad7d46c20984",
+  "note": "the same 160 records with case_history removed AND the history clauses removed from instructions = exactly the training format; labels = short policy (second control for the long set)"
  }
 }

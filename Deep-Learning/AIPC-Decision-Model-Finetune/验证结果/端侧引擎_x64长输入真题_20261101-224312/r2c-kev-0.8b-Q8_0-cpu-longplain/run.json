@@ -1,0 +1,50 @@
+{
+  "label": "r2c-kev-0.8b-Q8_0-cpu-longplain",
+  "model": "C:\\Tools\\models\\contoso-kev\\Contoso-Kev-0.8B-FTcf-R2C-Q8_0.gguf",
+  "backend": "cpu",
+  "build": "b11935-cpu-x64",
+  "server_args": "-m \"C:\\Tools\\models\\contoso-kev\\Contoso-Kev-0.8B-FTcf-R2C-Q8_0.gguf\" --host 127.0.0.1 --port 8089 -c 8192 -b 2048 -ub 2048 --cache-ram 0",
+  "data_prefix": "longplain_test_",
+  "client_concurrency": 1,
+  "logical_processors": 16,
+  "load_seconds": 2.5,
+  "server_log_facts": [
+    "0.00.994.448 I srv          init: decision model type: kev",
+    "0.00.850.879 I cmn          init: llama threadpool init, n_threads = 8",
+    "0.01.029.085 I srv    load_model: initializing, n_slots = 4, n_ctx_slot = 8192, kv_unified = 'true'"
+  ],
+  "workload_cpu_seconds": {
+    "support": {
+      "cpu_seconds": 1739.1,
+      "wall_seconds_incl_warmup": 218.5
+    }
+  },
+  "peak_working_set_mib": 1403,
+  "working_set_mib": 1403,
+  "private_mib": 4170,
+  "cpu_seconds": 1743,
+  "gguf_mib": 774.8,
+  "gguf_sha256": "c427ed7a8e797e1f6b6a838a80d4c32d8735b85dfa742f2dafba89307808ad05",
+  "captured": "2026-11-02T00:09:39.2583699+08:00",
+  "summaries": {
+    "support": {
+      "url": "http://127.0.0.1:8089/v1/systemone",
+      "data": "data\\contoso\\final\\longplain_test_support.jsonl",
+      "records": 160,
+      "errors": 0,
+      "questions": 480,
+      "accuracy": 0.8396,
+      "by_type": {
+        "choice": 0.7312,
+        "noul": 0.9563,
+        "score": 0.8313
+      },
+      "latency_ms": {
+        "n": 160,
+        "p50": 1338.0,
+        "p90": 1445.4,
+        "mean": 1346.6
+      }
+    }
+  }
+}

@@ -57,6 +57,8 @@ class DataTests(unittest.TestCase):
     def test_labels_equal_vendor_policy(self):
         labels = {"support": vp.support_labels, "assistant": vp.assistant_labels}
         for name, rows in self.files.items():
+            if name.startswith("long"):  # history clauses: LongInputTests
+                continue
             with self.subTest(file=name):
                 for r in rows:
                     case = dict(self.cases[r["_meta"]["group"]])
@@ -64,6 +66,43 @@ class DataTests(unittest.TestCase):
                     case[field] = state_of(r)[field]  # pair and counterfactual records change these fields
                     got = {q: v["label"] for q, v in r["questions"].items()}
                     self.assertEqual(got, labels[case["workload"]](case), r["_meta"]["case"])
+
+    def test_long_input_labels_follow_history_clauses(self):
+        import gen_long_cases as glc
+        long_rows = self.files["long_test_support.jsonl"]
+        short_rows = self.files["longshort_test_support.jsonl"]
+        self.assertEqual(len(long_rows), 160)
+        self.assertEqual([r["_meta"]["case"] for r in long_rows], [r["_meta"]["case"] for r in short_rows])
+        plain_rows = self.files["longplain_test_support.jsonl"]
+        self.assertEqual([r["_meta"]["case"] for r in plain_rows], [r["_meta"]["case"] for r in short_rows])
+        base_instr = {q: v["instructions"] for q, v in self.files["test_support.jsonl"][0]["questions"].items()}
+        for s, p in zip(short_rows, plain_rows):
+            self.assertEqual(state_of(s), state_of(p))
+            for q in s["questions"]:
+                self.assertEqual(s["questions"][q]["label"], p["questions"][q]["label"])
+                self.assertEqual(p["questions"][q]["instructions"], base_instr[q])  # plain = training format
+                self.assertTrue(s["questions"][q]["instructions"].startswith(base_instr[q]))
+        kinds = {}
+        for r, s in zip(long_rows, short_rows):
+            meta = r["_meta"]
+            kinds[meta["long_kind"]] = kinds.get(meta["long_kind"], 0) + 1
+            self.assertGreaterEqual(len(r["state"]["case_history"]), 3000, meta["case"])
+            self.assertNotIn("case_history", s["state"])
+            self.assertTrue(all(glc.HISTORY_POLICY in q["instructions"] for q in r["questions"].values()))
+            got = {q: v["label"] for q, v in r["questions"].items()}
+            self.assertEqual({q: v["label"] for q, v in s["questions"].items()}, meta["short_policy_labels"], meta["case"])
+            if not meta["decisive"]:  # control: the history is present but the decisive fact is absent -> short label
+                self.assertEqual(got, meta["short_policy_labels"], meta["case"])
+            else:  # decisive: the clause's question must come from the history clause, never from the short rule alone
+                qid = {"H1": "queue", "H2": "queue", "H3": "urgency"}[meta["clause"]]
+                if meta["clause"] == "H1":
+                    self.assertEqual(got["queue"], "sales_ops")
+                elif meta["clause"] == "H3":
+                    self.assertEqual(got["urgency"], 3)
+                else:
+                    self.assertIn(got["queue"], ("onsite_repair", "depot_repair", "sales_ops"))
+                self.assertIn(qid, got)
+        self.assertEqual(set(kinds), set(glc.LONG_KINDS))
 
     def test_no_message_group_crosses_splits(self):
         def groups(prefixes):
@@ -295,7 +334,7 @@ class BilingualDocumentationTests(unittest.TestCase):
         except ImportError:
             raise unittest.SkipTest("Documentation tests require requirements-docs.txt")
         cls.parser = MarkdownIt("commonmark", {"html": True}).enable("table")
-        cls.pairs = (("README_CN.md", "README.md", 42, 23),
+        cls.pairs = (("README_CN.md", "README.md", 45, 23),
                      ("文档/微调与端侧验证报告_20261027-130700.md",
                       "文档/Finetuning-and-On-Device-Validation-Report.md", 20, 1))
 
