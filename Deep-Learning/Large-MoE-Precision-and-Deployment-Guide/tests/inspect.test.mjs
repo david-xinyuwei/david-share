@@ -18,19 +18,27 @@ test('covers all model variants and keeps the bilingual matrix and links aligned
   for (const filename of ['README_CN.md', 'README.md', 'VALIDATION_CN.md', 'VALIDATION.md']) {
     const source = new URL(`../${filename}`, import.meta.url);
     const markdown = await readFile(source, 'utf8');
+    if (filename.startsWith('README')) {
+      assert.doesNotMatch(markdown, /mp\.weixin\.qq\.com|之前的公众号|Our \[earlier article\]/);
+      assert.doesNotMatch(markdown.split(/\r?\n/)[0], /[?？]/);
+    }
     for (const match of markdown.matchAll(/\[[^\]]*\]\(([^)\s]+)\)/g)) {
       const target = match[1].split('#')[0];
       if (target && !/^[a-z]+:/i.test(target)) await access(new URL(target, source));
     }
     if (filename.startsWith('README')) {
       const lines = markdown.split(/\r?\n/);
-      const start = lines.findIndex(line => line.startsWith('| 类别与组件/执行条件') || line.startsWith('| Category and component/execution condition'));
-      assert.ok(start >= 0, `Missing component matrix in ${filename}`);
-      const rows = [];
-      for (let index = start; index < lines.length && lines[index].startsWith('|'); index++) rows.push(lines[index].split('|').slice(1, -1));
-      assert.equal(rows.length, 27);
-      assert.ok(rows.every(row => row.length === 10));
-      matrices.push(rows.map(row => row.map(cell => Array.from(cell.matchAll(/\[([A-Z]\d+)\]/g), match => match[1]))));
+      const starts = lines.flatMap((line, index) => /^\| (组件|Part) \|/.test(line) ? [index] : []);
+      assert.equal(starts.length, 3, `Expected one complete table per model in ${filename}`);
+      const modelTables = starts.map(start => {
+        const rows = [];
+        for (let index = start; index < lines.length && lines[index].startsWith('|'); index++) rows.push(lines[index].split('|').slice(1, -1));
+        assert.equal(rows.length, 27);
+        assert.ok(rows.every(row => row.length === 4));
+        return rows.map(row => row.map(cell => Array.from(cell.matchAll(/\[([A-Z]\d+)\]/g), match => match[1])));
+      });
+      assert.doesNotMatch(markdown, /不知道|待核|未核实|dtype 另核|Our \[earlier article\]/);
+      matrices.push(modelTables);
     }
   }
   assert.deepEqual(matrices[0], matrices[1]);

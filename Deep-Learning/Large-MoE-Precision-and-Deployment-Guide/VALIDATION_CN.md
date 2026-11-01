@@ -19,7 +19,7 @@ node --test tests/inspect.test.mjs
 
 第一条成功时输出 JSON，`result_type` 为 `CALCULATED_FROM_PUBLIC_METADATA`，模型推理状态始终为 `NOT_RUN`。`tensor_payload_bytes` 是各 dtype 元素数乘以其存储字节数后求和；GB 用十进制，GiB 用二进制。它不包括 safetensors 文件头、其他文件、KV/状态缓存、运行工作区和通信缓冲。
 
-第二条运行八项测试：模型版本覆盖及九列双语主表/本地链接一致性、U8 打包字节而非逻辑参数量、六行负载复算、Muse 401 保留、Nemotron router 排除、未知 dtype 拒绝、新 revision 不继承旧配置结论、联网失败不回退成旧数据成功。测试中的 HTTP 返回对象是单元测试桩，不是在线模型证据。
+第二条运行八项测试：三个完整组件表及双语引用/本地链接一致性、独立仓库开篇、U8 打包字节而非逻辑参数量、六行负载复算、Muse 401 保留、Nemotron router 排除、未知 dtype 拒绝、新 revision 不继承旧配置结论、联网失败不回退成旧数据成功。测试中的 HTTP 返回对象是单元测试桩，不是在线模型证据。
 
 ## 新数据而非旧快照
 
@@ -48,15 +48,16 @@ Nemotron BF16 的 API `safetensors.total` 与逐 dtype 元素数之和并不一�
 | 公开模型身份与六个固定 revision | 已读取 API；未下载权重 |
 | 原厂 NVFP4 配置 | Nemotron 与 Inkling 已解析；Muse 返回 401，未解析 |
 | 文件诊断 | 已执行编辑器检查；不等于 Node 测试通过 |
-| Node 测试与 CLI | 已执行：8 项通过、0 项失败；包含最新九列表/双语来源/链接断言及六行字节复算 |
-| 页面预览 | 已检查四页、1280/390 像素宽度；主表各 25 行内容与九个版本列，图片/锚点无缺失、无页面级溢出；不代表 GitHub 线上验收 |
+| Node 测试与 CLI | 通过：八项测试，零失败；覆盖三个四列表、每表 25 项、全部九个版本、双语来源/链接及六行字节复算 |
+| 表格布局 | 通过：四页全部表格分别检查 1280 和 390 像素宽度；分别核对表格和容器，均无横向溢出 |
+| 本地完整预览 | 本修订等待脚本完成时超时，不计为完整渲染通过。图像字节和图源码未变，GitHub 显示另行验收 |
 | 模型推理、性能与生产稳定性 | NOT_RUN |
-| 独立中文与双语语义审查 | PASS：只读独立复核完成；英文未核实状态的一类歧义已修正并独立复验 |
+| 独立中文与双语语义审查 | 本修订通过：五处措辞、条件和来源链接问题已修复并独立复验；不代表视觉或推理验收 |
 | GitHub 发布与线上页面 | 以本专题的公开提交及检查结果为准；本地预览不替代线上验收 |
 
 未执行的检查不能标为通过。公开来源、原理分析与可执行工具分别有自己的验收边界。
 
-独立文本复核覆盖四份双语文档、组件矩阵与数据/图像来源摘要，并定点检查引用来源；它没有执行模型、复跑性能测试或证明尚未核实的组件精度。`AI_NATIVE_CHINESE_AUDIT=PASS`、`AI_BILINGUAL_SEMANTIC_AUDIT=PASS` 只描述本次文本审查结果。
+独立文本复核覆盖四份双语文档及组件表，第二轮逐项复验修正后的五个问题。`AI_NATIVE_CHINESE_AUDIT=PASS`，`AI_BILINGUAL_SEMANTIC_AUDIT=PASS`。它不执行模型、不复跑性能测试，也不代替实际组件精度验证。来源单元格对应与本地链接的确定性检查另行通过。
 
 ## 重建文档预览
 
@@ -66,7 +67,7 @@ Nemotron BF16 的 API `safetensors.total` 与逐 dtype 元素数之和并不一�
 ./tools/preview.ps1 -OutputDirectory "$env:TEMP/large-moe-guide-preview"
 ```
 
-同一个入口生成四页并记录源文件与 HTML 的 SHA-256。表格保留全部列，窄屏通过表格内横向滚动查看，不将主表裁成精选行。官方图的来源、尺寸与 SHA-256 见 [visual-evidence.json](data/visual-evidence.json)。预览不替代 GitHub 线上页面或独立双语语义复审。
+同一个入口生成四页并记录源文件与 HTML 的 SHA-256。三个模型各用四列表，保留全部组件与版本，要求表格自身无需横向滚动。测试应分别比较每张表的 `scrollWidth` 与 `clientWidth`，并查看实际截图。官方图的来源、尺寸与 SHA-256 见 [visual-evidence.json](data/visual-evidence.json)。预览不替代 GitHub 线上页面或独立双语语义复审。
 
 ## 后续 GPU 验证
 

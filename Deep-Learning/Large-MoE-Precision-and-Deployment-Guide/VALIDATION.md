@@ -19,7 +19,7 @@ node --test tests/inspect.test.mjs
 
 Successful replay emits JSON with `result_type=CALCULATED_FROM_PUBLIC_METADATA` and inference status `NOT_RUN`. `tensor_payload_bytes` sums per-dtype element counts times storage bytes. GB is decimal and GiB binary. Headers, non-tensor files, KV/state caches, runtime workspaces and communication buffers are excluded.
 
-The eight tests cover model variants plus the nine-column bilingual matrix/local links, packed U8 accounting, the six observed payloads, retained Muse HTTP 401, Nemotron router exclusions, unknown dtypes, fresh revisions invalidating old configuration evidence, and HTTP failure without silently replaying old data. HTTP objects in tests are unit-test stubs, not live model evidence.
+The eight tests cover three complete component tables with bilingual references/local links, independent repository prose, packed U8 accounting, the six observed payloads, retained Muse HTTP 401, Nemotron router exclusions, unknown dtypes, fresh revisions invalidating old configuration evidence, and HTTP failure without silently replaying old data. HTTP objects in tests are unit-test stubs, not live model evidence.
 
 ## Fresh metadata
 
@@ -48,15 +48,16 @@ Cover required modalities, structured output, tool calls, quality, long context,
 | Public identities and six pinned revisions | Read from the API; weights not downloaded |
 | Original NVFP4 configuration | Nemotron and Inkling parsed; Muse returned 401 and was not parsed |
 | File diagnostics | Editor checks executed; not evidence that Node tests passed |
-| Node tests and CLI | Executed: 8 passed, 0 failed; includes current matrix/source/link assertions and six payload calculations |
-| Page preview | Four pages checked at 1280/390 pixels; each matrix has 25 content rows and nine release columns, with no missing images/anchors or page-level overflow; not GitHub live-page acceptance |
+| Node tests and CLI | PASS: eight tests, zero failures; three four-column tables with 25 items each, all nine releases, bilingual references/local links and six payload calculations |
+| Table layout | PASS: all tables on four pages checked at 1280 and 390 px; table and container widths were inspected separately, with no horizontal table overflow |
+| Full local preview | The script-completion wait timed out in this revision; this is not a successful full-render check. Figure bytes and diagram source remain unchanged; GitHub rendering is checked separately |
 | Model inference, performance and production stability | NOT_RUN |
-| Independent Chinese and bilingual semantic review | PASS: read-only independent review completed; ambiguous English wording for unverified states was corrected and independently rechecked |
+| Independent Chinese and bilingual semantic review | PASS for this revision: five wording, condition and source-link findings were repaired and independently rechecked; not a visual or inference test |
 | GitHub publication and live pages | Refer to this project's public commit and check results; local preview does not establish live-page acceptance |
 
 An unexecuted check cannot be labeled PASS. Public-source analysis, mechanism explanation and executable tools have separate acceptance boundaries.
 
-Independent text review covered the four bilingual documents, component matrix and data/visual provenance summaries, with targeted source checks. It did not execute models, rerun performance tests or establish the still-unverified component precisions. `AI_NATIVE_CHINESE_AUDIT=PASS` and `AI_BILINGUAL_SEMANTIC_AUDIT=PASS` describe this text review only.
+Independent text review covers the four bilingual documents and component tables; a focused second pass rechecked all five findings against the repaired text. `AI_NATIVE_CHINESE_AUDIT=PASS` and `AI_BILINGUAL_SEMANTIC_AUDIT=PASS`. It does not execute models, rerun performance tests or replace component-level runtime verification. Deterministic source-cell parity and local-link checks passed separately.
 
 ## Rebuild the document preview
 
@@ -66,7 +67,7 @@ Use PowerShell 7's built-in `ConvertFrom-Markdown`; no npm packages are installe
 ./tools/preview.ps1 -OutputDirectory "$env:TEMP/large-moe-guide-preview"
 ```
 
-One entry generates all four pages and records source/HTML SHA-256 values. All table columns are retained; narrow screens scroll inside the table instead of receiving selected rows. Official figure provenance, dimensions and SHA-256 are in [visual-evidence.json](data/visual-evidence.json). Local preview is not GitHub publication acceptance or independent bilingual semantic review.
+One entry generates all four pages and records source/HTML SHA-256 values. Each model uses a four-column table retaining every component and release, with no horizontal table scrolling required. Compare each table's `scrollWidth` and `clientWidth` and inspect actual screenshots. Official figure provenance, dimensions and SHA-256 are in [visual-evidence.json](data/visual-evidence.json). Local preview is not GitHub publication acceptance or independent bilingual semantic review.
 
 ## Subsequent GPU validation
 

@@ -1,7 +1,7 @@
-# Does a Model's Bit Width Describe Its Computation? Component Precision in Three Large MoE Models
+# Component Precision and Deployment Guide for Large MoE Models
 
-[![Models](https://img.shields.io/badge/models-3-0078D4)](#choosing-the-six-original-checkpoints)
-[![Precisions](https://img.shields.io/badge/precision-BF16%20%7C%20FP8%20%7C%20NVFP4-76B900)](#complete-component-precision-matrix)
+[![Models](https://img.shields.io/badge/models-3-0078D4)](#deployment-reference)
+[![Precisions](https://img.shields.io/badge/precision-BF16%20%7C%20FP8%20%7C%20NVFP4-76B900)](#component-precision-by-model)
 [![Scope](https://img.shields.io/badge/evidence-documents%20%2B%20configuration-555555)](#evidence-boundaries)
 [![Checked](https://img.shields.io/badge/checked-2026--11--01-0078D4)](#evidence-boundaries)
 
@@ -9,21 +9,21 @@ Author: Xinyu Wei · [中文](README_CN.md)
 
 ## Purpose
 
-Our [earlier article](https://mp.weixin.qq.com/s/2gyeCYu13PH_dGLUV3gryA) established a useful distinction: **a checkpoint describes storage; the operands consumed by the actual Tensor Core instruction describe matrix-multiply input precision.** This guide applies that distinction to Muse Spark Open, NVIDIA Nemotron 3 Ultra, and Inkling. What does BF16, FP8, or NVFP4 mean for each component, and what happens when NVFP4 weights run on H100?
+This project provides component-level precision references for Muse Spark Open 816B-A42B, NVIDIA Nemotron 3 Ultra 550B-A55B, and Inkling 975B. It covers the original BF16 and NVFP4 checkpoints and specific partner FP8 releases. Use it to distinguish weights, activations, matrix-multiply operands, accumulation/output, KV caches, and other state, and to select an appropriate hardware and inference-engine path.
 
-The narrative proceeds from bit widths to model architecture, one complete component matrix, the H100 execution path, and deployment acceptance. Pricing, regional availability, and model rankings are out of scope. **This is a public-source and configuration analysis. No model inference has been executed for this project.**
+Deliverables include per-model component tables, pinned checkpoint/configuration evidence, Hopper-compatible and native Blackwell execution paths, resource-accounting tools, and validation procedures. **Precision claims are scoped to the cited configuration or implementation. No model inference has been executed for this project; production acceptance requires the target environment and business inputs.** Pricing and regional availability are outside this project's scope.
 
-### Start with a concrete counterexample
+### Precision definitions and configuration scope
 
 The original Nemotron 3 Ultra NVFP4 export assigns NVFP4 to routed experts, FP8 to shared experts and Mamba projections, and excludes router/gate modules. Its vLLM example separately chooses FP8 KV cache and FP16 Mamba state [N2][N3]. Calling this simply a "4-bit model" does not describe its components or establish a GPU count.
 
-| Precision question | What must be inspected | Misleading shortcut |
-|---|---|---|
-| Weight storage | Encoding, group scales, zero points, and exceptions | Every tensor in an NVFP4 checkpoint is 4-bit |
-| Activations | Quantization at the input and output of each operator | FP8 weights imply FP8 intermediate values everywhere |
-| Matrix multiplication | Both operand types at the selected kernel | Stored INT4 weights imply native INT4 multiplication |
-| Accumulation and output | Accumulators, reductions, and returned tensor types | FP4 operands imply FP4 accumulation |
-| Caches and state | Separate K, V, Mamba, and short-convolution settings | Cache precision automatically follows weight precision |
+| Precision aspect | Inspection and limits |
+|---|---|
+| Weight storage | Inspect encoding, group scales, zero points and exceptions. An NVFP4 checkpoint does not imply that every tensor is 4-bit. |
+| Activations | Inspect quantization at each operator's input and output. FP8 weights do not imply FP8 intermediate values everywhere. |
+| Matrix multiplication | Inspect both operand types at the selected kernel. Stored INT4 weights do not imply native INT4 multiplication. |
+| Accumulation and output | Inspect accumulators, reductions and returned tensor types. FP4 operands do not imply FP4 accumulation. |
+| Caches and state | Inspect separate K, V, Mamba and short-convolution settings. Cache precision does not automatically follow weight precision. |
 
 BF16 and FP16 both occupy 16 bits but use different exponent/mantissa layouts. The original reference checkpoints here are BF16; this guide does not invent an official FP16 release. Labels such as `W4A16` and `W8A8` give bit widths, not the integer/floating-point encoding or the selected kernel.
 
@@ -33,13 +33,17 @@ AWQ, GPTQ, and GSQ optimize quantized weights. GGUF is a file format; names such
 
 Source: NVIDIA, *Introducing NVFP4 for Efficient and Accurate Low-Precision Inference*, Figure 2 [H1]. Original, unmodified GIF. Inspect the separate value and scale encodings; the figure does not establish every model component's precision or any performance result from this project.
 
-### Identify the models and releases
+### Model scope
 
-| Model | Publisher's nominal total parameters | Active parameters per token | Deployment-relevant architecture | Original releases and access |
-|---|---:|---:|---|---|
-| Muse Spark Open | 816B | 42B | Multimodal MoE Transformer, perception encoder, 62 language layers, 256 experts, top-8 routing | Meta BF16 and NVFP4; gated access under the Muse Model License [M1][M2] |
-| NVIDIA Nemotron 3 Ultra | 550B | 55B | Hybrid Mamba-2, Attention and LatentMoE, with MTP | NVIDIA BF16 and NVFP4; OpenMDW-1.1 [N1][N2] |
-| Inkling | 975B | 41B | 66 layers, local/global Attention, short convolution, 256 routed and 2 shared experts, top-6 routed experts | Thinking Machines Lab BF16 and NVFP4; Apache-2.0 [I1][I2] |
+| Model | Total<br>para&shy;meters<br>(billions) | Active para&shy;meters<br>per token<br>(billions) |
+|---|---:|---:|
+| Muse Spark Open | 816 | 42 |
+| Nemotron 3 Ultra | 550 | 55 |
+| Inkling | 975 | 41 |
+
+- **Muse Spark Open:** multimodal MoE Transformer and perception encoder; 62 language layers, 256 experts and top-8 routing. Meta publishes BF16/NVFP4 checkpoints with gated access under the Muse Model License [M1][M2].
+- **Nemotron 3 Ultra:** hybrid Mamba-2, Attention, LatentMoE and MTP. NVIDIA publishes BF16/NVFP4 checkpoints under OpenMDW-1.1 [N1][N2].
+- **Inkling:** 66 local/global Attention layers with short convolution, 256 routed and 2 shared experts, selecting 6 routed experts per token. Thinking Machines Lab publishes BF16/NVFP4 checkpoints under Apache-2.0 [I1][I2].
 
 `B` means one billion parameters. Active parameter counts do not describe all resident weights. The other experts normally remain loaded unless an explicit offloading design accepts its communication and scheduling costs. Do not size complete checkpoints using 42B, 55B, or 41B. Nominal counts may also differ from exported multimodal, MTP, and auxiliary tensor inventories.
 
@@ -47,45 +51,127 @@ A readable model card does not grant weight access. The Muse license includes at
 
 ## Results
 
-### Complete component precision matrix
+### Component precision by model
 
-**Conventions:** "Baseline" means retained checkpoint precision, not that every tensor is BF16: all three reference metadata records contain F32 tensors. "Excluded" means excluded from that quantization configuration, not a verified per-tensor dtype. "Unverified" is a gap, not an implicit BF16 value. "N/A" means the architecture has no such component. Execution rows describe a specified documented path, not profiler observations from this project.
+Each model retains all 25 component and status items. Columns identify specific releases; rows separate storage, activations, arithmetic and caches.
 
-Revisions for the six original BF16/NVFP4 checkpoints and the three partner FP8 releases are in [model-evidence.json](data/model-evidence.json). The FP8 columns use specific AMD Quark and Red Hat AI derivatives [M8][N8][I8], not an arbitrary FP8 checkpoint or a claim that the original model developer published it.
+**Terms:** "Baseline" retains the original tensor type, which may include BF16 and FP32. "Excluded" is an explicit export rule, not proof of BF16 storage. "Runtime" is determined by launch settings and the backend. "N/A" is reserved for absent components. Configuration notes below each table identify access restrictions, source conflicts and the settings to inspect; no default precision is invented for missing evidence.
 
-| Category and component/execution condition | Model: Muse Spark Open; release: Meta BF16 | Model: Muse Spark Open; release: AMD FP8 | Model: Muse Spark Open; release: Meta NVFP4 | Model: Nemotron 3 Ultra; release: NVIDIA BF16 | Model: Nemotron 3 Ultra; release: Red Hat FP8 | Model: Nemotron 3 Ultra; release: NVIDIA NVFP4 | Model: Inkling; release: TML BF16 | Model: Inkling; release: Red Hat FP8 | Model: Inkling; release: TML NVFP4 |
-|---|---|---|---|---|---|---|---|---|---|
-| Weights: token embedding | BF16 baseline [M1] | Baseline retained [M8] | Baseline; raw configuration requires authorization [M3] | BF16 baseline [N1] | Excluded [N8] | Excluded [N3] | BF16 baseline [I1] | Baseline retained [I8] | BF16 [I3] |
-| Weights: Attention Q/K/V/O projections | BF16 baseline [M1] | FP8 E4M3, per-channel [M8] | Outside expert quantization; baseline [M3] | BF16 baseline [N1] | FP8 for matching Linear targets [N8] | Not among inspected FP8/NVFP4 rules; per-tensor baseline dtype unverified [N3] | BF16 baseline [I1] | Config excludes the `.attn` subtree; do not infer FP8 from card prose [I9] | BF16 [I3] |
-| Weights: router/gate | Storage dtype unverified; routing computes in FP32 [M4] | Card says BF16 retained; computation remains unverified [M8] | Storage unverified; not router=NVFP4 [M4] | Per-tensor dtype unverified [N1] | `gate` excluded [N8] | `gate` excluded [N3] | BF16 [I3] | Baseline retained [I8] | BF16 [I3] |
-| Weights: routed-expert matrices | BF16 [M1] | FP8 E4M3, per-channel [M8] | NVFP4; publisher quantizes experts only [M3] | BF16 [N1] | FP8, per-channel [N8] | NVFP4, group=16 [N3] | BF16 [I1] | FP8 with early-layer exclusions [I8] | NVFP4 with additional layer exclusions [I4] |
-| Weights: shared-expert matrices | N/A: no shared expert [M4] | N/A [M4] | N/A [M4] | BF16 baseline [N1] | FP8 for matching Linear targets [N8] | FP8 [N3] | BF16 [I3] | Baseline retained [I8] | BF16 [I3][I4] |
-| Weights: pre/post-expert latent projections | Baseline retained [M4] | Explicitly excluded [M8] | Baseline retained [M4] | LatentMoE baseline; inspect individual tensors [N1] | Check Linear targets and exclusions [N8] | Latent projections excluded; not FP4 [N3] | Different architecture; do not copy another model's recipe [I1] | Same boundary [I8] | Same boundary [I3] |
-| Weights: Mamba input/output projections | N/A | N/A | N/A | BF16 baseline [N1] | FP8 for matching Linear targets [N8] | FP8 [N3] | N/A | N/A | N/A |
-| Weights: Mamba convolution/state parameters | N/A | N/A | N/A | BF16/F32 baseline; not uniformly BF16 [N1] | Convolution, bias and other exclusions [N8] | Convolution excluded; per-tensor dtype requires separate verification [N3] | N/A | N/A | N/A |
-| Weights: short convolution, sconv | N/A | N/A | N/A | N/A: not Inkling sconv | N/A | N/A | BF16 [I3] | Outside attention/expert Linear targets [I8] | BF16 [I3] |
-| Weights: normalization and bias | Baseline; per-tensor inspection incomplete [M1] | Baseline retained [M8] | Baseline retained [M3] | Baseline, possibly F32 [N1] | Norm/bias exclusions [N8] | Non-expert rules do not imply FP4 [N3] | Baseline [I1] | Baseline retained [I8] | Primarily BF16; buffer dtypes require separate verification [I3] |
-| Weights: vision/audio encoders | Multimodal components; inspect individual dtypes [M1] | Card declares BF16 retained [M8] | Outside expert quantization; baseline [M3] | N/A: text model [N1] | N/A | N/A | Multimodal components; baseline [I1] | Original precision retained [I8] | Encoders excluded; per-tensor dtypes require separate verification [I4] |
-| Weights: MTP/external draft | External draft requires independent verification [M3] | External draft requires independent verification | External draft requires independent verification [M3] | MTP present; inspect shared weights [N1] | Separate MTP recipe unverified [N8] | Main checkpoint name does not establish MTP precision [N2] | MTP heads BF16 [I3] | Separate MTP recipe unverified [I8] | MTP heads BF16 [I3] |
-| Weights: output head | BF16 baseline [M1] | `lm_head` excluded [M8] | Baseline retained [M3] | BF16 baseline [N1] | `lm_head` excluded [N8] | Outside FP8/NVFP4 rules; dtype requires separate verification [N3] | BF16 baseline [I1] | Unembedding baseline retained [I8] | BF16 [I3] |
-| Activations: quantized Attention Linear input | 16-bit baseline | Dynamic per-token FP8 [M8] | Not an expert path; do not infer FP4 [M3] | 16-bit baseline | Dynamic per-token FP8 [N8] | No universal FP4 claim [N3] | 16-bit baseline | `.attn` excluded; generic FP8 input rule does not establish this path [I9] | BF16 path [I3] |
-| Activations: expert Linear input, native low-precision path | 16-bit baseline | Dynamic per-token FP8 [M8] | FP4 when using a native FP4 kernel; otherwise backend-dependent [V1] | 16-bit baseline | Dynamic per-token FP8 [N8] | FP4 for the native NVFP4 path [V1] | 16-bit baseline | Dynamic per-token FP8 [I8] | FP4 for native NVFP4; excluded layers separate [I3][V1] |
-| Activations: routing/residual stream | FP32 routing input and residual stream in recipe [M4] | Verify compute independently of BF16 weight claim [M8] | FP32 routing input and residual stream in recipe [M4] | Check implementation, not BF16 name | Not quantized alongside experts [N8] | Not quantized alongside experts [N3] | Implementation-dependent | Not quantized alongside experts [I8] | Not quantized alongside experts [I3] |
-| Compute: expert GEMM, native Blackwell backend | BF16 operands | AMD release; CUDA compatibility not established [M8] | FP4 operands and block scales [V1] | BF16 operands | FP8 with a supported FP8 kernel | FP4 operands and block scales [V1] | BF16 operands | FP8 with a supported FP8 kernel | FP4 operands/scales; excluded layers retain baseline [I3] |
-| Compute: expert GEMM, H100/H200 compatible backend | BF16; capacity separate | Publisher lists AMD hardware; Hopper path unverified [M8] | No native FP4; Meta lists H200, backend must be verified [M3] | BF16; capacity separate [N1] | FP8 with a supported FP8 kernel | Compatible W4A16; verify the MoE kernel [N2][V1] | BF16; multi-node requirements separate [I3] | FP8 with a supported FP8 kernel | Recipe states on-the-fly BF16 dequantization; named example is H200 [I3] |
-| Compute: accumulation and output | Higher precision; verify kernel | Not uniformly FP8 | Not FP4 accumulation/output [H1] | Verify kernel | Not uniformly FP8 | Not FP4 accumulation/output [H1] | Verify kernel | Not uniformly FP8 | Not FP4 accumulation/output [H1] |
-| KV cache: K storage | Independently configured | Not established by FP8 weight recipe | Independently configured | Example-dependent, not a universal default [N1] | Not explicitly quantized; set at runtime [N8] | FP8 in official vLLM example [N2] | Independently configured | Not established by weight recipe [I8] | Export declares `none`; runtime may override [I4] |
-| KV cache: V storage | Independently configured | Not established by FP8 weight recipe | Independently configured | Example-dependent, not a universal default [N1] | Not explicitly quantized; set at runtime [N8] | FP8 in official vLLM example [N2] | Independently configured | Not established by weight recipe [I8] | Export declares `none`; runtime may override [I4] |
-| KV cache: scales and Attention arithmetic | Depends on KV dtype, scales and backend | FP8 QKV projections do not imply FP8 Attention dot products | FP4 weights do not determine KV precision | Depends on KV dtype and backend | Same boundary | FP8 cache alone does not prove FP8 Attention computation [V2] | Local/global layers require separate accounting [I3] | Same boundary | Same boundary |
-| Other cache: Mamba SSM | N/A | N/A | N/A | Official example: FP16 plus stochastic rounding [N1] | Official example: FP16 plus stochastic rounding [N8] | Official example: FP16 plus stochastic rounding [N2] | N/A | N/A | N/A |
-| Other cache: short-convolution state | N/A | N/A | N/A | N/A | N/A | N/A | Present; runtime dtype must be verified [I3] | Present; not automatically FP8 KV | Present; not NVFP4 KV [I3] |
-| Acceptance status | NOT_RUN | NOT_RUN | NOT_RUN; raw configuration gated | NOT_RUN | NOT_RUN | Configuration inspected; inference NOT_RUN | NOT_RUN | NOT_RUN; specific integration required | Configuration inspected; inference NOT_RUN |
+Revisions and configuration summaries for all nine releases are retained in [model-evidence.json](data/model-evidence.json). FP8 refers to the specific AMD Quark and Red Hat AI releases [M8][N8][I8].
 
-The router selects experts; routed experts perform the selected computations. They are different modules. Nemotron's inspected export has 49,344 module rules: 49,152 NVFP4 routed-expert rules, 96 FP8 shared-expert rules, and 48 FP8 rules each for Mamba input and output projections. These are configuration entry counts, not parameter counts or performance measurements.
+#### Muse Spark Open
 
-Inkling instead uses global NVFP4 settings with exclusions, including `model.llm.layers.2.mlp.experts`. An empty per-module dictionary does not mean no quantization, and the global algorithm does not override its exclusions [I4].
+Releases: Meta BF16 and NVFP4; AMD Quark FP8 [M1][M2][M8].
 
-### How H100 executes NVFP4
+| Part | For&shy;mat:<br>BF16 | For&shy;mat:<br>FP8 | For&shy;mat:<br>NVFP4 |
+|---|---|---|---|
+| Weight<br>em&shy;bed&shy;ding | BF16 [M1] | Base&shy;line [M8] | Base&shy;line [M3] |
+| Weight<br>atten&shy;tion pro&shy;jec&shy;tion | BF16 [M1] | FP8 [M8] | Base&shy;line [M3] |
+| Weight<br>router | Dtype: see note [M4] | BF16 claim [M8] | Dtype: see note [M4] |
+| Weight<br>rout&shy;ed expert | BF16 [M1] | FP8 [M8] | NVFP4 [M3] |
+| Weight<br>shar&shy;ed expert | N/A [M4] | N/A [M4] | N/A [M4] |
+| Weight<br>expert pre / post pro&shy;jec&shy;tion | Base&shy;line [M4] | Exclu&shy;ded [M8] | Base&shy;line [M4] |
+| Weight<br>Mam&shy;ba pro&shy;jec&shy;tion | N/A | N/A | N/A |
+| Weight<br>Mam&shy;ba state para&shy;me&shy;ter | N/A | N/A | N/A |
+| Weight<br>short con&shy;vo&shy;lu&shy;tion | N/A | N/A | N/A |
+| Weight<br>norm / bias | Base&shy;line [M1] | Base&shy;line [M8] | Base&shy;line [M3] |
+| Weight<br>vision / audio | Base&shy;line [M1] | BF16 claim [M8] | Base&shy;line [M3] |
+| Weight<br>draft | Own model [M3] | Own model | Own model [M3] |
+| Weight<br>out&shy;put head | BF16 [M1] | Exclu&shy;ded [M8] | Base&shy;line [M3] |
+| Input<br>atten&shy;tion pro&shy;jec&shy;tion | 16 bit | Dyna&shy;mic FP8 [M8] | Base&shy;line [M3] |
+| Input<br>expert | 16 bit | Dyna&shy;mic FP8 [M8] | FP4 / 16 bit by kernel [V1] |
+| Input<br>router / resid&shy;ual | FP32 [M4] | By code [M8] | FP32 [M4] |
+| Expert math<br>Black&shy;well | BF16 | AMD path [M8] | Native FP4 [V1] |
+| Expert math<br>Hop&shy;per | BF16 | CUDA: test first [M8] | H200: de&shy;code path [M3] |
+| Sum / out&shy;put | By kernel | Not set by FP8 | Above FP4 [H1] |
+| K cache | Run&shy;time | Run&shy;time | Run&shy;time |
+| V cache | Run&shy;time | Run&shy;time | Run&shy;time |
+| Cache scale / atten&shy;tion | By back&shy;end | By back&shy;end | By back&shy;end |
+| Mam&shy;ba state cache | N/A | N/A | N/A |
+| Short con&shy;vo&shy;lu&shy;tion cache | N/A | N/A | N/A |
+| Infer&shy;ence status | Not run | Not run | Not run |
+
+**Configuration notes.** Meta documents expert-only quantization [M3]. The vLLM recipe specifies FP32 routing computation and residuals, but does not separately specify router weight storage [M4]; these are different quantities. The original NVFP4 raw configuration returned HTTP 401 and requires authorized access to the pinned revision. Public model-card facts remain usable. AMD states that routing, encoders and the output head remain BF16, with static per-channel FP8 E4M3 expert/attention weights and dynamic per-token FP8 inputs [M8]. Its Deployment section is still `Todo`, not evidence of a CUDA deployment.
+
+Muse has no shared expert [M4]. Draft weights are a separate checkpoint whose precision and memory require their own record. K/V dtypes, scales and Attention arithmetic depend on runtime settings and the backend; FP8 QKV projections do not imply FP8 Attention dot products.
+
+#### NVIDIA Nemotron 3 Ultra
+
+Releases: NVIDIA BF16 and NVFP4; Red Hat AI FP8 [N1][N2][N8].
+
+| Part | For&shy;mat:<br>BF16 | For&shy;mat:<br>FP8 | For&shy;mat:<br>NVFP4 |
+|---|---|---|---|
+| Weight<br>em&shy;bed&shy;ding | BF16 [N1] | Exclu&shy;ded [N8] | Exclu&shy;ded [N3] |
+| Weight<br>atten&shy;tion pro&shy;jec&shy;tion | BF16 [N1] | FP8 target [N8] | Not in low-bit rules [N3] |
+| Weight<br>router | Base&shy;line [N1] | Exclu&shy;ded [N8] | Exclu&shy;ded [N3] |
+| Weight<br>rout&shy;ed expert | BF16 [N1] | FP8 [N8] | NVFP4 [N3] |
+| Weight<br>shar&shy;ed expert | BF16 [N1] | FP8 target [N8] | FP8 [N3] |
+| Weight<br>latent pro&shy;jec&shy;tion | Base&shy;line [N1] | Per rule [N8] | Exclu&shy;ded [N3] |
+| Weight<br>Mam&shy;ba pro&shy;jec&shy;tion | BF16 [N1] | FP8 target [N8] | FP8 [N3] |
+| Weight<br>Mam&shy;ba state para&shy;me&shy;ter | BF16 / FP32 [N1] | Con&shy;vo&shy;lu&shy;tion exclu&shy;ded [N8] | Con&shy;vo&shy;lu&shy;tion exclu&shy;ded [N3] |
+| Weight<br>Inkling sconv | N/A | N/A | N/A |
+| Weight<br>norm / bias | Base&shy;line [N1] | Exclu&shy;ded [N8] | Base&shy;line [N3] |
+| Weight<br>vision / audio | N/A [N1] | N/A | N/A |
+| Weight<br>MTP | Share map: see note [N1] | MTP not sep&shy;a&shy;rate&shy;ly speci&shy;fied [N8] | MTP not sep&shy;a&shy;rate&shy;ly speci&shy;fied [N2] |
+| Weight<br>out&shy;put head | BF16 [N1] | Exclu&shy;ded [N8] | Not in low-bit rules [N3] |
+| Input<br>atten&shy;tion pro&shy;jec&shy;tion | 16 bit | Dyna&shy;mic FP8 [N8] | By oper&shy;ator [N3] |
+| Input<br>expert | 16 bit | Dyna&shy;mic FP8 [N8] | FP4 / 16 bit by kernel [V1] |
+| Input<br>router / resid&shy;ual | By code | Not in expert rules [N8] | Not in expert rules [N3] |
+| Expert math<br>Black&shy;well | BF16 | FP8 on valid kernel | Native FP4 [V1] |
+| Expert math<br>Hop&shy;per | BF16 [N1] | FP8 on valid kernel | W4A16 de&shy;code [N2][V1] |
+| Sum / out&shy;put | By kernel | Not set by FP8 | Above FP4 [H1] |
+| K cache | Per recipe [N1] | Set at launch [N8] | FP8 in recipe [N2] |
+| V cache | Per recipe [N1] | Set at launch [N8] | FP8 in recipe [N2] |
+| Cache scale / atten&shy;tion | By back&shy;end | By back&shy;end | By back&shy;end [V2] |
+| Mam&shy;ba state cache | FP16 in recipe [N1] | FP16 in recipe [N8] | FP16 in recipe [N2] |
+| Short con&shy;vo&shy;lu&shy;tion cache | N/A | N/A | N/A |
+| Infer&shy;ence status | Not run | Not run | Config read; not run |
+
+**Configuration notes.** N3 was read directly. Router/gate and latent projections occur in its exclusions; exclusion does not establish each tensor's BF16 storage. BF16 metadata also includes F32 tensors, so normalization, bias and state parameters retain their original dtypes. The Red Hat FP8 recipe uses `Linear` targets with an explicit ignore list; only matching, non-excluded modules receive that FP8 scheme [N8].
+
+The original NVFP4 expert group size is 16. N3 contains 49,344 module rules: 49,152 NVFP4 routed-expert rules, 96 FP8 shared-expert rules and 48 FP8 rules each for Mamba input and output projections. These are configuration-entry counts, not parameter counts or performance measurements. The official example uses FP16 Mamba state with stochastic rounding, independently of FP8 KV cache [N2]. The cited recipes do not separately map MTP precision; MTP sharing and tensor dtypes require inspection of the complete configuration and tensor inventory.
+
+#### Inkling
+
+Releases: Thinking Machines Lab BF16 and NVFP4; Red Hat AI FP8 [I1][I2][I8].
+
+| Part | For&shy;mat:<br>BF16 | For&shy;mat:<br>FP8 | For&shy;mat:<br>NVFP4 |
+|---|---|---|---|
+| Weight<br>em&shy;bed&shy;ding | BF16 [I1] | Base&shy;line [I8] | BF16 [I3] |
+| Weight<br>atten&shy;tion pro&shy;jec&shy;tion | BF16 [I1] | Config exclu&shy;sion [I9] | BF16 [I3] |
+| Weight<br>router | BF16 [I3] | Base&shy;line [I8] | BF16 [I3] |
+| Weight<br>rout&shy;ed expert | BF16 [I1] | FP8 with exclu&shy;sions [I8] | NVFP4 with exclu&shy;sions [I4] |
+| Weight<br>shar&shy;ed expert | BF16 [I3] | Base&shy;line [I8] | BF16 [I3][I4] |
+| Weight<br>latent pro&shy;jec&shy;tion | Do not infer from Nemo&shy;tron [I1] | Do not infer from Nemo&shy;tron [I8] | Do not infer from Nemo&shy;tron [I3] |
+| Weight<br>Mam&shy;ba pro&shy;jec&shy;tion | N/A | N/A | N/A |
+| Weight<br>Mam&shy;ba state para&shy;me&shy;ter | N/A | N/A | N/A |
+| Weight<br>short con&shy;vo&shy;lu&shy;tion | BF16 [I3] | Base&shy;line [I8] | BF16 [I3] |
+| Weight<br>norm / bias | Base&shy;line [I1] | Base&shy;line [I8] | Mostly BF16 [I3] |
+| Weight<br>vision / audio | Base&shy;line [I1] | Base&shy;line [I8] | En&shy;coders exclu&shy;ded [I4] |
+| Weight<br>MTP | BF16 [I3] | MTP not sep&shy;a&shy;rate&shy;ly speci&shy;fied [I8] | BF16 [I3] |
+| Weight<br>out&shy;put head | BF16 [I1] | Base&shy;line [I8] | BF16 [I3] |
+| Input<br>atten&shy;tion pro&shy;jec&shy;tion | 16 bit | Config exclu&shy;sion [I9] | BF16 [I3] |
+| Input<br>expert | 16 bit | Dyna&shy;mic FP8 [I8] | FP4 / 16 bit by kernel [I3][V1] |
+| Input<br>router / resid&shy;ual | By code | Base&shy;line [I8] | Base&shy;line [I3] |
+| Expert math<br>Black&shy;well | BF16 | FP8 on valid kernel | Native FP4; exclu&shy;ded layers differ [I3] |
+| Expert math<br>Hop&shy;per | BF16 [I3] | FP8 on valid kernel | H200: de&shy;code to BF16 [I3] |
+| Sum / out&shy;put | By kernel | Not set by FP8 | Above FP4 [H1] |
+| K cache | Run&shy;time | Run&shy;time [I8] | Export: none [I4] |
+| V cache | Run&shy;time | Run&shy;time [I8] | Export: none [I4] |
+| Cache scale / atten&shy;tion | Local / global layers [I3] | By back&shy;end | By back&shy;end |
+| Mam&shy;ba state cache | N/A | N/A | N/A |
+| Short con&shy;vo&shy;lu&shy;tion cache | Run&shy;time set&shy;tings [I3] | Run&shy;time set&shy;tings | Run&shy;time set&shy;tings [I3] |
+| Infer&shy;ence status | Not run | Pin engine build; not run | Config read; not run |
+
+**Configuration notes.** Inkling has local/global Attention, short convolution and shared experts; Nemotron's Mamba/LatentMoE precision map does not apply. I4 uses a global NVFP4 scheme with exclusions including `model.llm.layers.2.mlp.experts`, shared experts, routers and encoders. An absent per-module dictionary does not mean no quantization, and a global scheme does not override exclusions.
+
+Red Hat's card and configuration disagree about Attention, so the table follows I9's `.attn` exclusion. Null output-activation and KV schemes do not mean FP8 output or cache. The original NVFP4 export's `kv_cache_quant_algo=none` means it does not specify cache quantization; runtime settings may override K/V dtypes. Short-convolution state follows its own implementation, not a uniform FP8/NVFP4 KV rule.
+
+"Native FP4" requires a supported Blackwell kernel to be selected. Hopper fallback, native execution and excluded layers have separate activation/arithmetic paths. Accumulation, reduction and output precision depend on the actual kernel, not the weight label.
+
+Routers select experts; routed experts perform expert computations. Low-bit expert weights do not establish a low-bit router.
+
+### NVFP4 execution on H100 and H200
 
 A supported W4A16 fallback loads packed FP4 weights and scales, decodes tiles on chip into FP16/BF16, multiplies them by 16-bit activations, and returns results using the kernel's accumulation, reduction and output rules. Efficient fused kernels need not expand the entire model back into high-precision HBM storage. Other loaders may use different layouts; measure actual memory instead of assuming it.
 
@@ -112,27 +198,27 @@ flowchart LR
 
 Original explanatory diagram: a cross-source synthesis of NVIDIA's format, vLLM's fallback rules, and the model recipe [H1][V1][I3]. It is not an execution trace. The Blackwell branch applies only when a native kernel is selected; other model components can remain BF16 or FP8.
 
-### Choosing the six original checkpoints
+### Deployment reference
 
-| Model | Weight release | Documented candidate starting point | What it does not establish |
-|---|---|---|---|
-| Muse Spark Open | BF16 | Meta card gives approximately 2 TB of VRAM [M1] | Not a single-GPU specification or concurrency guarantee |
-| Muse Spark Open | NVFP4 | Meta lists four Blackwell Ultra GPUs or eight H200s; vLLM recipe defaults to eight Blackwell GPUs [M3][M4] | Do not merge distinct recipes into one universal minimum GPU count |
-| Nemotron 3 Ultra | BF16 | Card summary lists 16 H100s, 8 H200s or 8 B200s [N1] | Not capacity at maximum context plus target concurrency |
-| Nemotron 3 Ultra | NVFP4 | Card lists four B200/GB200-class GPUs and eight H100s [N2] | H100 has no native FP4 compute; engine support differs |
-| Inkling | BF16 | Original BF16 release; vLLM Hopper recipe requires multiple nodes [I1][I3] | Summed memory does not validate expert placement or communication |
-| Inkling | NVFP4 | vLLM recipe lists four GB200s and eight H200s [I3] | Not four arbitrary Blackwell GPUs or eight arbitrary Hopper GPUs |
+| Model / format | Published starting point and limits |
+|---|---|
+| Muse Spark Open<br>BF16 | Meta's card gives approximately 2 TB of VRAM [M1]. This is not a single-GPU specification or a concurrency guarantee. |
+| Muse Spark Open<br>NVFP4 | Meta lists four Blackwell Ultra GPUs or eight H200s; the vLLM recipe defaults to eight Blackwell GPUs [M3][M4]. These distinct recipes do not establish one universal minimum GPU count. |
+| Nemotron 3 Ultra<br>BF16 | The card summary lists 16 H100s, 8 H200s or 8 B200s [N1]. This does not establish capacity at maximum context and target concurrency. |
+| Nemotron 3 Ultra<br>NVFP4 | The card lists four B200/GB200-class GPUs and eight H100s [N2]. H100 has no native FP4 compute; engine support differs. |
+| Inkling<br>BF16 | Original BF16 release; the vLLM Hopper recipe requires multiple nodes [I1][I3]. Summed memory does not validate expert placement or communication. |
+| Inkling<br>NVFP4 | The vLLM recipe lists four GB200s and eight H200s [I3]. This does not generalize to four arbitrary Blackwell GPUs or eight arbitrary Hopper GPUs. |
 
 Establish a same-model BF16 business-quality baseline. NVFP4 and partner FP8 are candidates, not automatic replacements. Reject configurations that fail required quality, modalities, tool calling, or kernel compatibility. AMD's Muse FP8 card still says `Todo` under Deployment: it documents a recipe and hardware claims, not an end-to-end deployment verified here [M8].
 
 ### Weight, arithmetic, and cache settings are independent
 
-| Question | Evidence to inspect | Invalid substitute |
-|---|---|---|
-| Stored weight format | Revision, tensor dtypes, quantization/scales/exclusions | NVFP4 in a filename |
-| Actual multiplication | GPU, selected kernel, conversions, runtime log | A checkpoint successfully loaded |
-| Cache precision | KV, Mamba and sconv settings separately | Weight format |
-| Accumulation/output | Operator implementation | Operand bit width |
+| Precision aspect | Required evidence and limits |
+|---|---|
+| Stored weights | Inspect the revision, tensor dtypes, quantization, scales and exclusions. NVFP4 in a filename is insufficient. |
+| Matrix multiplication | Inspect the GPU, selected kernel, conversions and runtime log. Loading a checkpoint does not establish arithmetic precision. |
+| Cache precision | Inspect KV, Mamba and sconv settings separately. Weight format does not establish cache precision. |
+| Sum and output | Inspect the operator implementation. Operand bit width does not establish accumulator or output dtype. |
 
 vLLM distinguishes `NVFP4` from `W4A16_NVFP4` and documents weight-only execution when native FP4 GEMM is unavailable [V1]. Nemotron's example uses FP8 KV cache and FP16 Mamba state with stochastic rounding [N2]; "all caches are FP8 or FP32" is not a universal rule.
 
@@ -142,14 +228,14 @@ AMD MI350X/MI355X support MXFP4, whose block-scale format differs from NVFP4 [H2
 
 The following tensor payloads are calculated from the six pinned revisions' public per-dtype element counts. **They are not complete download sizes or peak VRAM.** Inputs are in [model-evidence.json](data/model-evidence.json); run `node tools/inspect.mjs` to recompute them. Scale tensors and packed U8 elements use their actual storage dtypes, not the original logical parameter count.
 
-| Model | Weight release | Tensor payload (decimal GB) | Tensor payload (binary GiB) |
-|---|---|---:|---:|
-| Muse Spark Open | BF16 | 1644.333 | 1531.405 |
-| Muse Spark Open | NVFP4 | 533.011 | 496.405 |
-| Nemotron 3 Ultra | BF16 | 1121.049 | 1044.058 |
-| Nemotron 3 Ultra | NVFP4 | 320.071 | 298.090 |
-| Inkling | BF16 | 1904.755 | 1773.942 |
-| Inkling | NVFP4 | 592.005 | 551.348 |
+| Model / format | Tensor bytes<br>GB | Tensor bytes<br>GiB |
+|---|---:|---:|
+| Muse Spark Open<br>BF16 | 1644.333 | 1531.405 |
+| Muse Spark Open<br>NVFP4 | 533.011 | 496.405 |
+| Nemotron 3 Ultra<br>BF16 | 1121.049 | 1044.058 |
+| Nemotron 3 Ultra<br>NVFP4 | 320.071 | 298.090 |
+| Inkling<br>BF16 | 1904.755 | 1773.942 |
+| Inkling<br>NVFP4 | 592.005 | 551.348 |
 
 Only tensors reported by public metadata are included. Headers, other files, caches/state, temporary workspaces and communication buffers are excluded. Nemotron BF16's reported total element count differs from the per-dtype sum; the tool preserves and reports this source discrepancy. See [Validation](VALIDATION.md).
 
@@ -159,11 +245,11 @@ $$
 
 The following is a hypothetical weight-only calculation from nominal total parameters, in decimal GB. It is not file size, measured VRAM or a GPU recommendation. The NVFP4 column assumes every parameter uses four value bits plus one 8-bit scale per 16 values, or 4.5 bits/parameter. Actual mixed-precision releases include higher-precision components and further metadata [H2].
 
-| Model | Input: nominal total parameters | Hypothetical all-BF16 payload | Hypothetical all-NVFP4 payload including block scales |
-|---|---:|---:|---:|
-| Muse Spark Open | 816B | 1,632 GB | 459.0 GB |
-| Nemotron 3 Ultra | 550B | 1,100 GB | 309.375 GB |
-| Inkling | 975B | 1,950 GB | 548.4375 GB |
+| Model / total<br>para&shy;meters | Format: BF16<br>Ideal GB | Format: NVFP4<br>Ideal GB |
+|---|---:|---:|
+| Muse Spark Open<br>816B | 1,632 | 459.0 |
+| Nemotron 3 Ultra<br>550B | 1,100 | 309.375 |
+| Inkling<br>975B | 1,950 | 548.4375 |
 
 The formulas are `parameters * 2 bytes` and `parameters * (4 + 8/16) / 8 bytes`. Meta's approximately 700 GB deployment guidance cannot be replaced with 459 GB: one is publisher deployment guidance and the other an idealized encoding calculation. Their difference cannot be attributed to a single component without evidence.
 
@@ -179,7 +265,7 @@ Plan download/cache storage, serving weights, conversion intermediates and logs 
 
 ### Evidence boundaries
 
-Checked on 2026-11-01. The nine matrix columns have inference status **NOT_RUN** in this project. Throughput, latency, quality regression, long-context stability and recovery are not measured here. Source-reported benchmark scores from different projects are not combined into a comparison.
+Checked on 2026-11-01. All nine releases across the three model tables have inference status **NOT_RUN** in this project. Throughput, latency, quality regression, long-context stability and recovery are not measured here. Source-reported benchmark scores from different projects are not combined into a comparison.
 
 Nemotron's card discusses training recipes, weight exports and engine examples separately. Its prose mentions "NVFP4 KV caching" while concrete examples select FP8 cache; this guide follows the explicit parameters rather than treating the prose as a verified cache capability.
 
@@ -193,14 +279,14 @@ License applicability, precise per-tensor gaps, device-specific peak memory and 
 
 ### Select a verifiable path before starting a service
 
-| Order | Location | Action | Acceptance |
-|---|---|---|---|
-| 1 | Weight repository/license | Confirm model, precision, access and revision | Obtainable licensed checkpoint with an explicit revision |
-| 2 | Hardware/engine | Select the model's own recipe and pin software/topology | Required modalities, cache and kernels explicitly supported |
-| 3 | Capacity planning | Account for weights, context, concurrency and workspaces | Headroom per device and parallel group, not only a total |
-| 4 | Isolated validation | Start the selected official path; retain kernel/cache logs | Loading, functionality and numerical checks pass |
-| 5 | Business acceptance | Compare same-model BF16 and quantized releases on real tasks | Quality, memory and latency/concurrency targets met |
-| 6 | Production preparation | Pin image, weights, templates, rollback and monitoring | Repeated deployment and upgrade/rollback verified |
+| Step | Location and action | Pass condition |
+|---|---|---|
+| 1 | **Weight repository and license:** confirm model, precision, access and revision. | Obtainable licensed checkpoint with an explicit revision. |
+| 2 | **Hardware and engine:** select the model's own recipe and pin software and topology. | Required modalities, cache and kernels explicitly supported. |
+| 3 | **Capacity planning:** account for weights, context, concurrency and workspaces. | Headroom per device and parallel group, not only a total. |
+| 4 | **Isolated validation:** start the selected official path; retain kernel and cache logs. | Loading, functionality and numerical checks pass. |
+| 5 | **Business acceptance:** compare same-model BF16 and quantized releases on real tasks. | Quality, memory, latency and concurrency targets met. |
+| 6 | **Production preparation:** pin image, weights, templates, rollback and monitoring. | Repeated deploy&shy;ment, upgrade and rollback verified. |
 
 Use Meta's guide for Muse [M3], the matching Nemotron card for its precision [N1][N2], and the publisher-linked Inkling recipe [I3]. Do not assemble unrelated model commands into a supposedly universal launcher. Example context lengths, concurrency and parallelism are not business recommendations.
 
@@ -225,11 +311,11 @@ This reads the public Hugging Face model API, reports the new revisions and reca
 
 Detailed commands, expected semantics and unexecuted checks: [Validation](VALIDATION.md) · [验证说明](VALIDATION_CN.md). Data and its boundaries: [model-evidence.json](data/model-evidence.json). The matrix's supporting sources are listed below.
 
-### What production acceptance means
+### Production acceptance conditions
 
 The unit of acceptance is **model revision + format + GPU + engine version + kernel + cache settings + parallel topology + workload**. A changed component invalidates the affected results.
 
-Cover the text, image, audio/video, structured outputs and tool calls actually required. Use representative inputs at target context and concurrency, recording quality/error categories, peak VRAM, time to first token, generation-latency distribution and throughput. A health check, one answer or a smaller file is not production acceptance. BF16 is a reference, not a guarantee of correct answers; NVFP4 is not an unconditional lossless promise.
+Cover the text, image, audio/video, structured outputs and tool calls actually required. Use representative inputs at target context and concurrency, recording quality/error categories, peak VRAM, time to first token, generation-latency distribution and throughput. A health check, one answer or a smaller file is not production acceptance. BF16 is a reference, not a guarantee of correct answers; NVFP4 is not an unconditional lossless promise. Without the business tasks, target context and concurrency, guidance remains conditional: do not prescribe a precise instance count or SLA.
 
 ### Public sources
 

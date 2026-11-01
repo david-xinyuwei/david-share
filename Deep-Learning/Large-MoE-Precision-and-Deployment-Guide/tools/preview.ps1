@@ -28,7 +28,7 @@ $template = @'
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <style>
 body { margin: 0; color: #1f2328; background: #ffffff; font: 16px/1.65 "Segoe UI", "Microsoft YaHei", sans-serif; }
-main { max-width: 1216px; margin: auto; padding: 32px 24px 80px; overflow-wrap: anywhere; }
+main { box-sizing: border-box; max-width: 1092px; margin: auto; padding: 32px 40px 80px; overflow-wrap: break-word; }
 h1 { font-size: 30px; line-height: 1.35; border-bottom: 1px solid #d1d9e0; padding-bottom: 16px; }
 h2 { font-size: 24px; border-bottom: 1px solid #d1d9e0; padding-bottom: 8px; margin-top: 36px; }
 h3 { font-size: 20px; margin-top: 28px; }
@@ -37,18 +37,16 @@ img { max-width: 100%; height: auto; }
 pre { padding: 16px; background: #f6f8fa; overflow-x: auto; border-radius: 4px; }
 code { font: 0.9em/1.6 Consolas, monospace; background: #eff1f3; }
 pre code { background: transparent; }
-.table-wrap { overflow-x: auto; border: 1px solid #d1d9e0; margin: 18px 0; }
-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-th, td { padding: 10px 12px; border: 1px solid #d1d9e0; min-width: 150px; vertical-align: top; }
+.table-wrap { overflow-x: auto; margin: 18px 0; }
+table { display: block; width: max-content; max-width: 100%; overflow-x: auto; border-collapse: collapse; font-size: 16px; }
+th, td { padding: 6px 13px; border: 1px solid #d1d9e0; vertical-align: top; overflow-wrap: break-word; word-break: normal; }
 th { background: #eef3f6; text-align: left; }
 tr:nth-child(even) td { background: #f6f8fa; }
-.table-wrap.wide table { width: 2040px; table-layout: fixed; }
-.table-wrap.wide th:first-child, .table-wrap.wide td:first-child { position: sticky; left: 0; background: #edf4f8; width: 200px; }
 .diagram-wrap { overflow-x: auto; margin: 18px 0; border: 1px solid #d1d9e0; }
 .mermaid { min-width: 960px; padding: 12px; }
 .katex-display { overflow-x: auto; overflow-y: hidden; padding: 8px 0; }
 .render-error { color: #a40e26; padding: 12px; border: 1px solid #a40e26; }
-@media (max-width: 600px) { main { padding: 16px 12px 48px; } h1 { font-size: 25px; } h2 { font-size: 22px; } }
+@media (max-width: 600px) { main { padding: 16px 32px 48px; } h1 { font-size: 25px; } h2 { font-size: 22px; } }
 </style>
 </head>
 <body><main>__BODY__</main>
@@ -65,7 +63,7 @@ for (const link of document.querySelectorAll('a[href]')) {
 }
 for (const table of document.querySelectorAll('table')) {
   const wrapper = document.createElement('div');
-  wrapper.className = 'table-wrap' + (table.rows[0]?.cells.length === 10 ? ' wide' : '');
+  wrapper.className = 'table-wrap' + (/^(组件|Part)$/.test(table.rows[0]?.cells[0]?.textContent.trim() ?? '') ? ' precision' : '');
   table.replaceWith(wrapper); wrapper.append(table);
 }
 try {
