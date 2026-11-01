@@ -1,0 +1,6 @@
+!!! IN DISTRIBUTION (--allow-in-distribution): /mnt/aipc/runs/0.8b/r2-C-calib-raw/rows.json: cannot tell which suite these rows were scored on (no kev.benchmark report.json with a suite of this checkout beside them, not a trial's read)
+!!! IN DISTRIBUTION (--allow-in-distribution): cannot list the sources of data /mnt/aipc/data/contoso/train_cf2.jsonl (outside evals/), training data of /mnt/aipc/runs/0.8b/r2-C
+!!! This temperature is not held out: round 19's failure mode: a temperature fitted on held-out items of a checkpoint's own training corpus is in distribution (round 19 served its SFT arms at T 0.955 fitted on sft-v1 development rows: breadth-v1 ECE 0.059); fit on a pool of held-out datasets instead (round 20: breadth-v1 ECE 0.0085).
+fit rows     T=2.83  acc 0.966 -> 0.966 | brier 0.053 -> 0.044 | ece 0.025 -> 0.010 | conf-err 0.017 -> 0.005 | cov@5% 1.00 -> 1.00
+fit rows     OOF T=[2.58, 2.96, 2.76, 2.76, 2.89] ece raw 0.025 [0.017, 0.035] -> oof 0.010 [0.006, 0.020]  delta [-0.021, -0.004] separated=True
+wrote temperature 2.83 to /mnt/aipc/runs/0.8b/r2-C/head.pt

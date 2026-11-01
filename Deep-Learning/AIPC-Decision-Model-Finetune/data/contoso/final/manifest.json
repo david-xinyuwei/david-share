@@ -113,5 +113,15 @@
   "records": 161,
   "questions": 483,
   "sha256": "330bbc272a165895a013e262c4ff32a0d86cbbe5cf54175a0de40d193bcc4ec1"
+ },
+ "train_cf2.jsonl": {
+  "records": 4038,
+  "questions": 12114,
+  "sha256": "ff87ce18af9d84fc3a54b8d33a77df105fd713175e7d9dc402bfd85071d7bba9",
+  "derived_from": "train_cf.jsonl",
+  "added": 206,
+  "seed": 23,
+  "region_per_case": 2,
+  "onsite_per_case": 1
  }
 }
