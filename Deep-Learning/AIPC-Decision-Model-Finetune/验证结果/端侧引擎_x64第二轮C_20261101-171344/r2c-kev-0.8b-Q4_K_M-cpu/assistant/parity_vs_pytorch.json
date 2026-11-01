@@ -1,0 +1,72 @@
+{
+ "torch": "验证结果\\第二轮微调评测_20261101-101948\\runs\\0.8b\\r2-C-test_assistant\\rows.json",
+ "engine": "验证结果\\端侧引擎_x64第二轮C_20261101-171344\\r2c-kev-0.8b-Q4_K_M-cpu\\assistant\\rows.jsonl",
+ "missing": 0,
+ "by_type": {
+  "all": {
+   "n": 477,
+   "agree_count": 474,
+   "agreement": 0.993711,
+   "torch_acc": 1.0,
+   "engine_acc": 0.993711,
+   "only_torch_correct": 3,
+   "only_engine_correct": 0,
+   "mean_tvd": 0.013401,
+   "max_tvd": 0.904735
+  },
+  "choice": {
+   "n": 159,
+   "agree_count": 159,
+   "agreement": 1.0,
+   "torch_acc": 1.0,
+   "engine_acc": 1.0,
+   "only_torch_correct": 0,
+   "only_engine_correct": 0,
+   "mean_tvd": 0.004176,
+   "max_tvd": 0.233518
+  },
+  "noul": {
+   "n": 318,
+   "agree_count": 315,
+   "agreement": 0.990566,
+   "torch_acc": 1.0,
+   "engine_acc": 0.990566,
+   "only_torch_correct": 3,
+   "only_engine_correct": 0,
+   "mean_tvd": 0.018014,
+   "max_tvd": 0.904735
+  }
+ },
+ "flips": [
+  {
+   "i": 36,
+   "question": "run_on_device",
+   "torch": "true",
+   "engine": "false",
+   "label": "true",
+   "torch_p": 0.9389,
+   "engine_p": 0.9658,
+   "tvd": 0.9047
+  },
+  {
+   "i": 85,
+   "question": "needs_confirmation",
+   "torch": "true",
+   "engine": "false",
+   "label": "true",
+   "torch_p": 0.8716,
+   "engine_p": 0.8469,
+   "tvd": 0.7185
+  },
+  {
+   "i": 30,
+   "question": "run_on_device",
+   "torch": "true",
+   "engine": "false",
+   "label": "true",
+   "torch_p": 0.8798,
+   "engine_p": 0.5247,
+   "tvd": 0.4045
+  }
+ ]
+}

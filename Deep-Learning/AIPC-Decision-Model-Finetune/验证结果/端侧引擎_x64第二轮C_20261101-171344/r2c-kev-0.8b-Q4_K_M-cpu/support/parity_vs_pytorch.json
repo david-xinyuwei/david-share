@@ -1,0 +1,203 @@
+{
+ "torch": "验证结果\\第二轮微调评测_20261101-101948\\runs\\0.8b\\r2-C-test_support\\rows.json",
+ "engine": "验证结果\\端侧引擎_x64第二轮C_20261101-171344\\r2c-kev-0.8b-Q4_K_M-cpu\\support\\rows.jsonl",
+ "missing": 0,
+ "by_type": {
+  "all": {
+   "n": 510,
+   "agree_count": 495,
+   "agreement": 0.970588,
+   "torch_acc": 0.962745,
+   "engine_acc": 0.952941,
+   "only_torch_correct": 10,
+   "only_engine_correct": 5,
+   "mean_tvd": 0.021086,
+   "max_tvd": 0.450087
+  },
+  "choice": {
+   "n": 170,
+   "agree_count": 158,
+   "agreement": 0.929412,
+   "torch_acc": 0.917647,
+   "engine_acc": 0.894118,
+   "only_torch_correct": 8,
+   "only_engine_correct": 4,
+   "mean_tvd": 0.043438,
+   "max_tvd": 0.450087
+  },
+  "noul": {
+   "n": 170,
+   "agree_count": 169,
+   "agreement": 0.994118,
+   "torch_acc": 0.982353,
+   "engine_acc": 0.976471,
+   "only_torch_correct": 1,
+   "only_engine_correct": 0,
+   "mean_tvd": 0.009643,
+   "max_tvd": 0.280972
+  },
+  "score": {
+   "n": 170,
+   "agree_count": 168,
+   "agreement": 0.988235,
+   "torch_acc": 0.988235,
+   "engine_acc": 0.988235,
+   "only_torch_correct": 1,
+   "only_engine_correct": 1,
+   "mean_tvd": 0.010177,
+   "max_tvd": 0.378133
+  }
+ },
+ "flips": [
+  {
+   "i": 139,
+   "question": "queue",
+   "torch": "depot_repair",
+   "engine": "sales_ops",
+   "label": "depot_repair",
+   "torch_p": 0.786,
+   "engine_p": 0.6286,
+   "tvd": 0.4501
+  },
+  {
+   "i": 121,
+   "question": "urgency",
+   "torch": "1",
+   "engine": "0",
+   "label": "1",
+   "torch_p": 0.8563,
+   "engine_p": 0.5194,
+   "tvd": 0.3781
+  },
+  {
+   "i": 149,
+   "question": "urgency",
+   "torch": "0",
+   "engine": "1",
+   "label": "1",
+   "torch_p": 0.5475,
+   "engine_p": 0.8163,
+   "tvd": 0.3638
+  },
+  {
+   "i": 168,
+   "question": "queue",
+   "torch": "onsite_repair",
+   "engine": "sales_ops",
+   "label": "onsite_repair",
+   "torch_p": 0.7016,
+   "engine_p": 0.4858,
+   "tvd": 0.2721
+  },
+  {
+   "i": 49,
+   "question": "queue",
+   "torch": "depot_repair",
+   "engine": "sales_ops",
+   "label": "depot_repair",
+   "torch_p": 0.5104,
+   "engine_p": 0.4876,
+   "tvd": 0.2545
+  },
+  {
+   "i": 45,
+   "question": "queue",
+   "torch": "depot_repair",
+   "engine": "remote_l1",
+   "label": "depot_repair",
+   "torch_p": 0.4175,
+   "engine_p": 0.5907,
+   "tvd": 0.2348
+  },
+  {
+   "i": 17,
+   "question": "queue",
+   "torch": "depot_repair",
+   "engine": "sales_ops",
+   "label": "depot_repair",
+   "torch_p": 0.5168,
+   "engine_p": 0.6708,
+   "tvd": 0.1918
+  },
+  {
+   "i": 67,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "depot_repair",
+   "label": "depot_repair",
+   "torch_p": 0.5323,
+   "engine_p": 0.6401,
+   "tvd": 0.1789
+  },
+  {
+   "i": 54,
+   "question": "onsite_eligible",
+   "torch": "true",
+   "engine": "false",
+   "label": "true",
+   "torch_p": 0.6453,
+   "engine_p": 0.5188,
+   "tvd": 0.1641
+  },
+  {
+   "i": 141,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "battery_program",
+   "label": "battery_program",
+   "torch_p": 0.5416,
+   "engine_p": 0.5981,
+   "tvd": 0.1585
+  },
+  {
+   "i": 69,
+   "question": "queue",
+   "torch": "onsite_repair",
+   "engine": "sales_ops",
+   "label": "onsite_repair",
+   "torch_p": 0.5591,
+   "engine_p": 0.5045,
+   "tvd": 0.1175
+  },
+  {
+   "i": 140,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "battery_program",
+   "label": "sales_ops",
+   "torch_p": 0.5369,
+   "engine_p": 0.5544,
+   "tvd": 0.1123
+  },
+  {
+   "i": 59,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "remote_l1",
+   "label": "remote_l1",
+   "torch_p": 0.4445,
+   "engine_p": 0.5196,
+   "tvd": 0.0954
+  },
+  {
+   "i": 42,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "battery_program",
+   "label": "sales_ops",
+   "torch_p": 0.4904,
+   "engine_p": 0.5369,
+   "tvd": 0.0883
+  },
+  {
+   "i": 133,
+   "question": "queue",
+   "torch": "sales_ops",
+   "engine": "depot_repair",
+   "label": "depot_repair",
+   "torch_p": 0.5456,
+   "engine_p": 0.5049,
+   "tvd": 0.0509
+  }
+ ]
+}
