@@ -1,0 +1,184 @@
+{
+  "schema_version": 1,
+  "capture_utc": "2026-11-01T12:49:24.528Z",
+  "source": "https://huggingface.co/api/models/{model_id}",
+  "scope": "Public metadata snapshot; tensor payload calculation, not checkpoint download size or peak VRAM",
+  "inference_status": "NOT_RUN",
+  "models": [
+    {
+      "model_id": "meta-models/Muse-Spark-Open-816B-A42B",
+      "family": "Muse Spark Open",
+      "variant": "BF16",
+      "nominal_total_billions": 816,
+      "nominal_active_billions": 42,
+      "revision": "0fb02478b02565b2ce7fc57e6051c91172774ac9",
+      "gated": "manual",
+      "license_name": "Muse Model License",
+      "safetensors": {
+        "parameters": {"BF16": 821906490368, "F32": 130039296},
+        "total": 822036529664
+      }
+    },
+    {
+      "model_id": "meta-models/Muse-Spark-Open-816B-A42B-NVFP4",
+      "family": "Muse Spark Open",
+      "variant": "NVFP4",
+      "nominal_total_billions": 816,
+      "nominal_active_billions": 42,
+      "revision": "4239e4db19376904f2e82c167e78f70abb5455fe",
+      "gated": "manual",
+      "license_name": "Muse Model License",
+      "safetensors": {
+        "parameters": {"BF16": 48812377088, "F32": 130131456, "U8": 386547056640, "F8_E4M3": 48318382080},
+        "total": 483807947264
+      }
+    },
+    {
+      "model_id": "nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16",
+      "family": "Nemotron 3 Ultra",
+      "variant": "BF16",
+      "nominal_total_billions": 550,
+      "nominal_active_billions": 55,
+      "revision": "77df655d5e9f8362164ed14dd8b48f8bce657498",
+      "gated": false,
+      "license_name": "OpenMDW-1.1",
+      "safetensors": {
+        "parameters": {"BF16": 560524578816, "F32": 25088},
+        "total": 560524578816
+      }
+    },
+    {
+      "model_id": "nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-NVFP4",
+      "family": "Nemotron 3 Ultra",
+      "variant": "NVFP4",
+      "nominal_total_billions": 550,
+      "nominal_active_billions": 55,
+      "revision": "02462641f13d3af838b904f48195b9bb8a1e4ebc",
+      "gated": false,
+      "license_name": "OpenMDW-1.1",
+      "safetensors": {
+        "parameters": {"BF16": 16640790528, "F8_E4M3": 28286386176, "F32": 201351704, "U8": 257698037760},
+        "total": 302826566168
+      }
+    },
+    {
+      "model_id": "thinkingmachines/Inkling",
+      "family": "Inkling",
+      "variant": "BF16",
+      "nominal_total_billions": 975,
+      "nominal_active_billions": 41,
+      "revision": "828496eeae4c243ff1a22f7f28ff83694f2f7bc9",
+      "gated": false,
+      "license_name": "Apache-2.0",
+      "safetensors": {
+        "parameters": {"BF16": 952377607178, "F32": 16448},
+        "total": 952377623626
+      }
+    },
+    {
+      "model_id": "thinkingmachines/Inkling-NVFP4",
+      "family": "Inkling",
+      "variant": "NVFP4",
+      "nominal_total_billions": 975,
+      "nominal_active_billions": 41,
+      "revision": "42a75a99a40eb2ba1e0717db6357a0bf15205044",
+      "gated": false,
+      "license_name": "Apache-2.0",
+      "safetensors": {
+        "parameters": {"I64": 378, "F32": 48704, "BF16": 39160185992, "F8_E4M3": 57076088832, "U8": 456608710656},
+        "total": 552845034562
+      }
+    }
+  ],
+  "fp8_capture_utc": "2026-11-01T13:09:31.493Z",
+  "fp8_releases": [
+    {
+      "model_id": "amd/Muse-Spark-Open-816B-A42B-Quark-PTPC-FP8",
+      "revision": "52cace63f43ed9fc6acef6dcd391adb02f4bfbe1",
+      "metadata_status": 200,
+      "config_status": 200,
+      "base_dtype": "bfloat16",
+      "quant_method": "quark",
+      "recipe_source": "https://huggingface.co/amd/Muse-Spark-Open-816B-A42B-Quark-PTPC-FP8",
+      "weight_recipe": "Static per-channel FP8 E4M3 for routed experts and attention projections",
+      "activation_recipe": "Dynamic per-token FP8 E4M3 for quantized targets",
+      "exclude_examples": ["lm_head", "model.audio_tower.layers.0.conv_blocks.0.conv", "model.audio_tower.layers.0.conv_blocks.0.mlp.fc1"],
+      "limitation": "Publisher deployment section is Todo; no CUDA/Hopper deployment validated here"
+    },
+    {
+      "model_id": "RedHatAI/NVIDIA-Nemotron-3-Ultra-550B-A55B-FP8-dynamic",
+      "revision": "0d08e59f6a3b4512f4694cb9780bdf667c2078e8",
+      "metadata_status": 200,
+      "config_status": 200,
+      "base_dtype": "bfloat16",
+      "quant_method": "compressed-tensors",
+      "targets": ["Linear"],
+      "weights": {"num_bits": 8, "type": "float", "strategy": "channel", "dynamic": false},
+      "input_activations": {"num_bits": 8, "type": "float", "strategy": "token", "dynamic": true},
+      "output_activations": null,
+      "kv_cache_scheme": null,
+      "ignore": ["re:.*gate$", "lm_head", "model.embed_tokens", "re:.*mixer.conv1d.*", "re:.*norm_f*", "re:.*bias$", "re:.*embed_tokens$", "backbone.embeddings"]
+    },
+    {
+      "model_id": "RedHatAI/Inkling-FP8-dynamic",
+      "revision": "cb2bf130a5263e01d7398723ae9b88e0060f4998",
+      "metadata_status": 200,
+      "config_status": 200,
+      "base_dtype": "bfloat16",
+      "quant_method": "compressed-tensors",
+      "targets": ["Linear"],
+      "weights": {"num_bits": 8, "type": "float", "strategy": "channel", "dynamic": false},
+      "input_activations": {"num_bits": 8, "type": "float", "strategy": "token", "dynamic": true},
+      "output_activations": null,
+      "kv_cache_scheme": null,
+      "ignore": ["model.llm.unembed", "model.llm.embed", "re:.*norm.*", "re:.*bias$", "re:.*\\.attn$", "re:.*\\.attn\\..*", "re:.*sconv$", "re:.*\\.gate$", "re:.*global_scale$", "re:.*shared_experts.*", "re:model\\.layers\\.[01]\\.mlp\\..*", "re:model\\.layers\\.2\\.mlp\\.experts\\..*", "re:model\\.visual\\..*", "re:model\\.audio\\..*"],
+      "source_conflict": "Model card describes attention Linear quantization, but the inspected config excludes the .attn subtree; this guide follows the config exclusion and does not infer FP8 Attention."
+    }
+  ],
+  "quantization_config_capture_utc": "2026-11-01T12:51:18.489Z",
+  "quantization_configs": [
+    {
+      "model_id": "meta-models/Muse-Spark-Open-816B-A42B-NVFP4",
+      "revision": "4239e4db19376904f2e82c167e78f70abb5455fe",
+      "http_status": 401,
+      "inspected": false,
+      "limitation": "Authorized model access required; no credentials supplied or access bypass attempted"
+    },
+    {
+      "model_id": "nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-NVFP4",
+      "revision": "02462641f13d3af838b904f48195b9bb8a1e4ebc",
+      "http_status": 200,
+      "inspected": true,
+      "quant_algo": "MIXED_PRECISION",
+      "kv_cache_quant_algo": "FP8",
+      "module_rule_count": 49344,
+      "precision_rule_counts": {"FP8": 192, "NVFP4": 49152},
+      "representative_rules": {
+        "backbone.layers.1.mixer.experts.0.down_proj": {"quant_algo": "NVFP4", "group_size": 16},
+        "backbone.layers.1.mixer.shared_experts.down_proj": {"quant_algo": "FP8"},
+        "backbone.layers.0.mixer.in_proj": {"quant_algo": "FP8"},
+        "backbone.layers.0.mixer.out_proj": {"quant_algo": "FP8"}
+      },
+      "excluded_examples": ["backbone.layers.1.mixer.gate", "backbone.layers.10.mixer.gate"]
+    },
+    {
+      "model_id": "thinkingmachines/Inkling-NVFP4",
+      "revision": "42a75a99a40eb2ba1e0717db6357a0bf15205044",
+      "http_status": 200,
+      "inspected": true,
+      "quant_algo": "NVFP4",
+      "kv_cache_quant_algo": "none",
+      "module_rule_count": 0,
+      "limitation": "Global quantization plus exclusions; absence of per-module rules does not mean no quantization",
+      "excluded_examples": [
+        "model.llm.layers.10.mlp.gate",
+        "model.llm.layers.11.mlp.gate",
+        "model.llm.layers.10.mlp.shared_experts",
+        "model.llm.layers.11.mlp.shared_experts",
+        "model.llm.layers.2.mlp.experts",
+        "model.audio.encoder",
+        "model.visual.final_norm"
+      ]
+    }
+  ]
+}
