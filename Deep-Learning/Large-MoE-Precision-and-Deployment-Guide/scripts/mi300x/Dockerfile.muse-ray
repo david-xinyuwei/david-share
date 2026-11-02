@@ -1,0 +1,28 @@
+# Dockerfile.muse-ray — a vLLM ROCm image that carries the Muse Spark architecture, plus Ray for the two-node
+# TP8 x PP2 layout. Neither published image has Ray: the recipe runs one node (TP8 on gfx950, 288 GB per GPU)
+# and the generic release image leaves Ray to the user, while vLLM's multi-node executors require Ray >= 2.43.0
+# (vllm/v1/executor/ray_executor.py, `_check_ray_cgraph_installation`). Observed 2026-11-02 without this image:
+#   worker: /bin/bash: line 1: ray: command not found
+#   head:   pydantic ValidationError for ParallelConfig: Failed to import Ray: No module named 'ray'
+#
+# Two bases were used on 2026-11-02 (pass BASE=... to pick one):
+#   vllm/vllm-openai-rocm:muse-spark-open  the recipe image. vLLM 0.29.1rc1, PYTORCH_ROCM_ARCH=gfx950 only:
+#                                          every .so carries gfx950 code objects and nothing for gfx942, so on
+#                                          MI300X the weights load (104.84 GiB/GPU) and then all 16 ranks segfault
+#                                          in fused_muse_spark_qknorm_rope_kv_insert_kernel.hip (attempt 2).
+#   vllm/vllm-openai-rocm:v0.33.0          the release image of 2026-11-02 (default below). vLLM 0.33.0,
+#                                          torch 2.13.0+rocm10.0.0, the same vllm/models/muse_spark/ tree, and
+#                                          PYTORCH_ROCM_ARCH=gfx90a;gfx942;gfx950;gfx11xx;gfx12xx — the fused
+#                                          Muse kernel exists for gfx942 (checked with llvm-objdump --offloading).
+# 2.55.1 is the Ray version vLLM 0.29.0 pins in requirements/test/rocm.txt. cupy is deliberately not installed:
+# vLLM moves pipeline tensors between stages with its own communicator (VLLM_USE_RAY_WRAPPED_PP_COMM=1 default),
+# so the Ray NCCL channel that needs cupy is not used.
+#
+#   docker build --network host --build-arg BASE=vllm/vllm-openai-rocm:v0.33.0 \
+#     -t vllm-muse-ray:0.33.0 -f scripts/mi300x/Dockerfile.muse-ray scripts/mi300x
+#   MUSE_SERVE_IMAGE=vllm-muse-ray:0.33.0 HEAD_IP=<node0 private ip> sudo -E bash scripts/mi300x/08_serve_muse_2node.sh head
+ARG BASE=vllm/vllm-openai-rocm:v0.33.0
+FROM ${BASE}
+RUN pip install --no-cache-dir "ray[default]==2.55.1" \
+ && python3 -c "import ray, torch; print('ray', ray.__version__, 'torch', torch.__version__)" \
+ && pip check || true

@@ -1,0 +1,11 @@
+EVIDENCE_START=2026-11-02T03:46:25Z ctr=vllm_inkling model=inkling-bf16
+kernel=6.8.0-1067-azure rocm_host=6.4.4-129
+image=rocm/vllm:rocm10.1.0_ubuntu24.04_py3.14-pytorch_2.13.0_vllm-0.29.0 imageid=sha256:e0ea9a10b729573ea8598bdc073bda0ea382fe1037eec7c0761b6fa7f46baaf4 started=2026-11-02T03:39:08.382663138Z args=-lc 
+    ray start --head --node-ip-address=<node0-private-ip> --port=6379 --num-gpus=8 --dashboard-host=0.0.0.0 &&
+    for i in $(seq 1 60); do n=$(ray status 2>/dev/null | grep -c 'node_'); [ "$n" -ge 2 ] && break; sleep 5; done; ray status;
+    vllm serve thinkingmachines/Inkling --revision 828496eeae4c243ff1a22f7f28ff83694f2f7bc9 --host 0.0.0.0 --port 8000 --served-model-name inkling-bf16       --trust-remote-code --dtype bfloat16 --tokenizer-mode inkling --reasoning-parser inkling       --tensor-parallel-size 8 --pipeline-parallel-size 2 --distributed-executor-backend ray       --max-model-len 65536 --gpu-memory-utilization 0.90 --max-num-seqs 16 --max-num-batched-tokens 16384       --enable-chunked-prefill --distributed-timeout-seconds 3600       --kernel-config '{"enable_jit_warmup": false}'
+models_http=0
+02_smoke_wall_secs=3.011236797
+03_smoke2_wall_secs=4.097804381
+07_smoke3_wall_secs=5.566016235
+EVIDENCE_END=2026-11-02T03:46:39Z

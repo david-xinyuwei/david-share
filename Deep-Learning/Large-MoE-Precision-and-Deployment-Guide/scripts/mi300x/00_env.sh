@@ -23,8 +23,14 @@ export NEMOTRON_ID="nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16"
 export NEMOTRON_REV="77df655d5e9f8362164ed14dd8b48f8bce657498"
 export INKLING_ID="thinkingmachines/Inkling"
 export INKLING_REV="828496eeae4c243ff1a22f7f28ff83694f2f7bc9"
+# Muse Spark Open BF16 is gated: accept the Muse Model License on the model page first (approval took about one
+# hour on 2026-11-02) and put the token in ~/.cache/huggingface/token on the download host. 65 safetensors, 1.64 TB.
+export MUSE_ID="meta-models/Muse-Spark-Open-816B-A42B"
+export MUSE_REV="0fb02478b02565b2ce7fc57e6051c91172774ac9"
+# The Muse architecture is not in rocm/vllm 0.29; the vLLM recipe ships it in this image (11.3 GB, pushed 2026-10-15).
+export MUSE_IMAGE="${MUSE_IMAGE:-vllm/vllm-openai-rocm:muse-spark-open}"
 
-# Two-node Inkling run: private IP of the Ray head node (node 0). Set it on BOTH nodes.
+# Two-node runs: private IP of the Ray head node (node 0). Set it on BOTH nodes.
 export HEAD_IP="${HEAD_IP:-}"
 
 # Docker flags common to every container in this run.

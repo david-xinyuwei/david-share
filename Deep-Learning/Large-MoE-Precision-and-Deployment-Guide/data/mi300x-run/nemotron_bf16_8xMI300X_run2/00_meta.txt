@@ -1,0 +1,8 @@
+EVIDENCE_START=2026-11-02T04:05:02Z ctr=vllm_nemotron model=nemotron-3-ultra-bf16
+kernel=6.8.0-1067-azure rocm_host=6.4.4-129
+image=rocm/vllm:rocm10.1.0_ubuntu24.04_py3.14-pytorch_2.13.0_vllm-0.29.0 imageid=sha256:e0ea9a10b729573ea8598bdc073bda0ea382fe1037eec7c0761b6fa7f46baaf4 started=2026-11-02T03:49:28.916624305Z args=serve nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16 --revision 77df655d5e9f8362164ed14dd8b48f8bce657498 --host 0.0.0.0 --port 8000 --served-model-name nemotron-3-ultra-bf16 --trust-remote-code --dtype bfloat16 --tensor-parallel-size 8 --enable-expert-parallel --max-model-len 65536 --gpu-memory-utilization 0.90 --max-num-seqs 16 --max-num-batched-tokens 16384 --enable-chunked-prefill --enable-prefix-caching --mamba-ssm-cache-dtype float16 --reasoning-parser nemotron_v3
+models_http=0
+02_smoke_wall_secs=1.614260234
+03_smoke2_wall_secs=5.385709539
+07_smoke3_wall_secs=1.597987411
+EVIDENCE_END=2026-11-02T04:05:11Z

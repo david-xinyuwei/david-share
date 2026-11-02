@@ -39,4 +39,7 @@ grep -iE 'attention backend|Using .* backend|aiter|triton|moe|quantiz|kv.?cache|
   "$E/05_server_full.log" | head -300 > "$E/05_server_keylines.log"
 echo "EVIDENCE_END=$(date -u +%FT%TZ)" >> "$E/00_meta.txt"
 ( cd "$E" && find . -type f ! -name SHA256SUMS.txt -print0 | xargs -0 sha256sum > SHA256SUMS.txt )
+# This script runs under sudo (docker), so the directory is root-owned; hand it back to the login user so that
+# 09_perf_probe.py (plain python3, no sudo) can write 08_perf.json next to these files.
+[ -n "${SUDO_USER:-}" ] && chown -R "$SUDO_USER:$SUDO_USER" "$MOE_ROOT/evidence"
 echo "evidence written to $E ($(find "$E" -type f | wc -l) files)"

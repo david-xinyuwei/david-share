@@ -6,13 +6,14 @@
     python3 tools/mi300x_evidence.py table                                # prints the summary as Markdown
 
 `project` copies the small raw artifacts (00_meta.txt, 01_models.json, *_request.json, *_response.json,
-04_rocm_smi_vram.json, 05_server_keylines.log) and replaces host names, private IPs and the login user with role
-labels. Full container logs and Ray worker logs stay private because of size; their SHA-256 values are kept in
-SHA256SUMS.private.txt so the public summary can be matched against them.
+04_rocm_smi_vram.json, 05_server_keylines.log, 08_perf.json) and replaces host names, private IPs and the login user
+with role labels. Full container logs and Ray worker logs stay private because of size; their SHA-256 values are kept
+in SHA256SUMS.private.txt so the public summary can be matched against them.
 
 `summarize` reads every data/mi300x-run/<tag>/ directory and extracts, from the raw files only, the numbers that the
 README and VALIDATION pages quote: kernels/backends selected, weights per GPU, KV cache budget, smoke request wall
-clock, token usage and finish reasons. tests/mi300x.test.mjs asserts the documents against this file, so a quoted
+clock, token usage and finish reasons, and — when scripts/mi300x/09_perf_probe.py was run — the TTFT / decode
+throughput medians per concurrency level. tests/mi300x.test.mjs asserts the documents against this file, so a quoted
 number cannot drift from the evidence without a failing test.
 """
 from __future__ import annotations
@@ -26,7 +27,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC = ROOT / "data" / "mi300x-run"
-SMALL = ("00_meta.txt", "01_models.json", "04_rocm_smi_vram.json", "05_server_keylines.log")
+SMALL = ("00_meta.txt", "01_models.json", "04_rocm_smi_vram.json", "05_server_keylines.log", "08_perf.json")
 # Private identifiers observed in the 2026-11-02 run -> public role labels. Extend when a new environment is used.
 REDACT = [
     (re.compile(r"mi3007ca7000000"), "node0"),
@@ -155,6 +156,32 @@ def summarize_tag(tag_dir: Path) -> dict:
             entry.update({"finish_reason": None, "note": "no response: request timed out (see wall_secs)"})
         smokes.append(entry)
     out["smoke"] = smokes
+    # serving probe (09_perf_probe.py): medians per concurrency level, straight from the probe's own JSON
+    perf_path = tag_dir / "08_perf.json"
+    if perf_path.exists() and perf_path.stat().st_size > 0:
+        p = json.loads(perf_path.read_text(encoding="utf-8"))
+        levels = []
+        for lv in p["levels"]:
+            reqs = [r for rd in lv["rounds"] for r in rd["requests"]]
+            levels.append({
+                "concurrency": lv["concurrency"],
+                "n_requests": lv["n_requests"],
+                "ttft_s_median": round(lv["ttft_s_median"], 3) if lv["ttft_s_median"] is not None else None,
+                "ttft_s_max": round(lv["ttft_s_max"], 3) if lv["ttft_s_max"] is not None else None,
+                "decode_tok_s_per_request_median": round(lv["decode_tok_s_per_request_median"], 1)
+                if lv["decode_tok_s_per_request_median"] is not None else None,
+                "agg_tok_s_median": round(lv["agg_tok_s_median"], 1) if lv["agg_tok_s_median"] is not None else None,
+                "completion_tokens_per_request": sorted({r["completion_tokens"] for r in reqs if r.get("completion_tokens")}),
+                "finish_reasons": sorted({r["finish_reason"] for r in reqs if r.get("finish_reason")}),
+            })
+        out["perf"] = {
+            "prompt": p["prompt"], "max_tokens": p["max_tokens"], "rounds": p["rounds"],
+            "started_utc": p.get("started_utc"), "finished_utc": p.get("finished_utc"),
+            "warmup": {k: p["warmup"].get(k) for k in ("ttft_s", "decode_tok_s", "completion_tokens", "finish_reason")},
+            "gpu_used_gib_before": (p.get("gpu_mem_before") or {}).get("used_gib_per_gpu"),
+            "gpu_used_gib_after": (p.get("gpu_mem_after") or {}).get("used_gib_per_gpu"),
+            "levels": levels,
+        }
     return out
 
 
@@ -168,13 +195,16 @@ def summarize() -> dict:
 
 
 def table(summary: dict) -> str:
-    lines = ["| Run | Layout | MoE backend | Weights/GPU GiB | KV free GiB | KV tokens | Smoke (finish, wall s) |", "|---|---|---|---|---|---|---|"]
+    lines = ["| Run | Layout | MoE backend | Weights/GPU GiB | KV free GiB | KV tokens | Smoke (finish, wall s) | Probe: conc → TTFT s / tok/s per req / agg tok/s |",
+             "|---|---|---|---|---|---|---|---|"]
     for r in summary["runs"]:
         layout = f"TP{r['tensor_parallel_size']}" + (f"×PP{r['pipeline_parallel_size']}" if r.get("pipeline_parallel_size") else "") + \
                  (f"×DP{r['data_parallel_size']}" if r.get("data_parallel_size") else "") + ("+EP" if r["expert_parallel"] else "")
         smoke = "; ".join(f"{s['name']}={s.get('finish_reason')}@{s['wall_secs']}" for s in r["smoke"])
+        perf = "; ".join(f"{lv['concurrency']} → {lv['ttft_s_median']} / {lv['decode_tok_s_per_request_median']} / {lv['agg_tok_s_median']}"
+                         for lv in (r.get("perf") or {}).get("levels", [])) or "not run"
         lines.append(f"| {r['tag']} | {layout} | {', '.join(r['moe_backend'])} | {'/'.join(map(str, r['model_loading_gib_per_gpu']))} | "
-                     f"{'/'.join(map(str, r['available_kv_cache_gib']))} | {'/'.join(f'{t:,}' for t in r['gpu_kv_cache_tokens'])} | {smoke} |")
+                     f"{'/'.join(map(str, r['available_kv_cache_gib']))} | {'/'.join(f'{t:,}' for t in r['gpu_kv_cache_tokens'])} | {smoke} | {perf} |")
     return "\n".join(lines)
 
 

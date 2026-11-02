@@ -1,0 +1,11 @@
+EVIDENCE_START=2026-11-02T04:23:17Z ctr=vllm_muse model=muse-spark-open-bf16
+kernel=6.8.0-1067-azure rocm_host=6.4.4-129
+image=vllm-muse-ray:0.33.0 imageid=sha256:1bf049629cc26c4f669c916ff3febad2b3ecdca66af165110cf28f587c3b27ad started=2026-11-02T04:18:05.675369318Z args=-lc 
+    ray start --head --node-ip-address=<node0-private-ip> --port=6379 --num-gpus=8 --dashboard-host=0.0.0.0 &&
+    for i in $(seq 1 60); do n=$(ray status 2>/dev/null | grep -c 'node_'); [ "$n" -ge 2 ] && break; sleep 5; done; ray status;
+    vllm serve meta-models/Muse-Spark-Open-816B-A42B --revision 0fb02478b02565b2ce7fc57e6051c91172774ac9 --host 0.0.0.0 --port 8000 --served-model-name muse-spark-open-bf16       --dtype bfloat16 --language-model-only       --moe-backend triton --attention-backend ROCM_AITER_FA       --tensor-parallel-size 8 --pipeline-parallel-size 2 --distributed-executor-backend ray       --max-model-len 32768 --gpu-memory-utilization 0.92 --max-num-seqs 32 --max-num-batched-tokens 4096       --no-enable-prefix-caching --enable-chunked-prefill       --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}'       --kernel-config '{"enable_jit_warmup": false}'       --reasoning-parser muse --distributed-timeout-seconds 3600
+models_http=0
+02_smoke_wall_secs=6.694606829
+03_smoke2_wall_secs=4.329777734
+07_smoke3_wall_secs=12.409843094
+EVIDENCE_END=2026-11-02T04:23:40Z

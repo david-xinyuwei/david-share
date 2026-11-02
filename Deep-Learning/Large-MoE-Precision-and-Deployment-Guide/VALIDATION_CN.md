@@ -19,7 +19,7 @@ node --test tests/inspect.test.mjs tests/census.test.mjs tests/mi300x.test.mjs
 
 第一条成功时输出 JSON，`result_type` 为 `CALCULATED_FROM_PUBLIC_METADATA`，模型推理状态始终为 `NOT_RUN`。`tensor_payload_bytes` 是各 dtype 元素数乘以其存储字节数后求和；GB 用十进制，GiB 用二进制。它不包括 safetensors 文件头、其他文件、KV/状态缓存、运行工作区和通信缓冲。
 
-第二条运行十六项测试。`inspect.test.mjs`（八项）：三个完整组件表及双语引用/本地链接一致性、独立仓库开篇、U8 打包字节而非逻辑参数量、六行负载复算、Muse 401 保留、Nemotron router 排除、未知 dtype 拒绝、新 revision 不继承旧配置结论、联网失败不回退成旧数据成功。`census.test.mjs`（四项）：普查字节与 API 元数据逐字节一致、两个模型关键组件的 dtype 与张量数、未分类组件与篡改总数被拒绝。`mi300x.test.mjs`（四项）：`data/mi300x-run/summary.json` 的每个数字能回到对应的原始请求/响应/日志文件，公开投影中没有私有标识，四份文档引用的 Nemotron 与 Inkling 实测数字与 summary 一致，文档没有宣称未执行的吞吐/质量验收或 Muse 实测。测试中的 HTTP 返回对象是单元测试桩，不是在线模型证据。
+第二条运行十七项测试。`inspect.test.mjs`（八项）：三个完整组件表及双语引用/本地链接一致性、独立仓库开篇、U8 打包字节而非逻辑参数量、六行负载复算、Muse 401 保留、Nemotron router 排除、未知 dtype 拒绝、新 revision 不继承旧配置结论、联网失败不回退成旧数据成功。`census.test.mjs`（四项）：普查字节与 API 元数据逐字节一致、两个模型关键组件的 dtype 与张量数、未分类组件与篡改总数被拒绝。`mi300x.test.mjs`（五项）：`data/mi300x-run/summary.json` 的每个数字能回到对应的原始请求/响应/日志文件，公开投影中没有私有标识，四份文档引用的 Nemotron 与 Inkling 实测数字与 summary 一致，第 2 轮服务速度探针的中位数（并发 1 和 8 的 TTFT、解码与总吞吐 tok/s）在每份文档中都以带单位的表格行出现且与 `08_perf.json` 重算值逐字一致，文档没有宣称未执行的吞吐/质量验收，并且对 Muse 通过的描述只用 summary 中那次运行的加载/KV/token 数字。测试中的 HTTP 返回对象是单元测试桩，不是在线模型证据。
 
 ## 新数据而非旧快照
 
@@ -45,17 +45,18 @@ Nemotron BF16 的 API `safetensors.total` 与逐 dtype 元素数之和并不一�
 
 | 验证项 | 状态与边界 |
 |---|---|
-| 公开模型身份与六个固定 revision | 已读取 API；两个 BF16 版本于 2026-11-02 完整下载（Nemotron 3 Ultra 1,121,078,235,607 字节，Inkling 1,904,787,107,666 字节）；其余七个版本未下载 |
+| 公开模型身份与六个固定 revision | 已读取 API；三个 BF16 版本于 2026-11-02 完整下载（Nemotron 3 Ultra 1,121,078,235,607 字节，Inkling 1,904,787,107,666 字节，Muse Spark Open 1,644,365,682,665 字节——Meta 当天上午批准闸门后下载）；其余六个版本未下载 |
 | 原厂 NVFP4 配置 | Nemotron 与 Inkling 已解析；Muse 返回 401，未解析 |
 | 逐张量 dtype 普查 | 两个 BF16 版本通过：从 safetensors 文件头读出 51,023 + 1,552 个张量，文件头字节合计与 API 元数据一致，无未分类名字模式（见「逐张量 dtype 普查」） |
 | 文件诊断 | 已执行编辑器检查；不等于 Node 测试通过 |
-| Node 测试与 CLI | 通过：十六项测试，零失败（`node --test tests/inspect.test.mjs tests/census.test.mjs tests/mi300x.test.mjs`）；覆盖三个四列表、每表 25 项、全部九个版本、双语来源/链接、六行字节复算、普查与 API 字节一致性、关键组件 dtype，以及文档引用的 MI300X 实测数字与 `data/mi300x-run/summary.json` 一致 |
+| Node 测试与 CLI | 通过：十七项测试，零失败（`node --test tests/inspect.test.mjs tests/census.test.mjs tests/mi300x.test.mjs`）；覆盖三个四列表、每表 25 项、全部九个版本、双语来源/链接、六行字节复算、普查与 API 字节一致性、关键组件 dtype，以及文档引用的 MI300X 实测数字与 `data/mi300x-run/summary.json` 一致 |
 | 表格布局 | 通过：四页全部表格分别检查 1280 和 390 像素宽度；分别核对表格和容器，均无横向溢出 |
 | 本地完整预览 | 本修订等待脚本完成时超时，不计为完整渲染通过。图像字节和图源码未变，GitHub 显示另行验收 |
 | MI300X BF16 加载与 smoke，Nemotron 3 Ultra | 8 × MI300X 通过（尝试 3）：引擎就绪，两条请求回答正确；内核、缓存精度与显存记录在「MI300X 实测」 |
 | MI300X BF16 加载与 smoke，Inkling | 2 × 8 MI300X 通过（尝试 6，TP8 × PP2）：引擎就绪，三条请求返回，`max_tokens=1024` 的一条给出正确最终答案；TP8 × DP2 + EP16 布局（尝试 5）就绪后第二条请求挂起，记为该布局在本镜像上未通过 |
-| MI300X BF16 加载与 smoke，Muse Spark Open | BLOCKED：Meta 两个仓库为人工审批 gated，2026-11-02 读 `config.json` 返回 403 `GatedRepo`；访问申请已提交，批准前不能下载 |
-| 吞吐、延迟、业务任务质量、长上下文、生产稳定性 | 三个模型均 NOT_RUN |
+| MI300X BF16 加载与 smoke，Muse Spark Open | 2 × 8 MI300X 通过（尝试 3，TP8 × PP2，`vllm/vllm-openai-rocm:v0.33.0` + Ray）：引擎 4 分 36 秒就绪，四条请求返回，`max_tokens=4096` 的一条在 1,289 个推理 token 后给出正确最终答案；尝试 1（配方镜像没有 Ray）和尝试 2（配方镜像只编译了 `gfx950` → 融合 qk-norm/rope/kv-insert 内核段错误）记在「第 2 轮」 |
+| 服务速度探针（TTFT、tok/s，并发 1 和 8） | 通过（第 2 轮）：Inkling TP8×PP2、Nemotron TP8+EP 和 Muse TP8×PP2 各跑 1 次 `09_perf_probe.py`（一条短提示、max_tokens 256、每档 3 轮），数字见「第 2 轮」；这是量级探针，不是 benchmark |
+| 吞吐分布、长提示、业务任务质量、长上下文、生产稳定性 | 三个模型均 NOT_RUN |
 | NVFP4 版本在 MI300X 上的加载路径 | NOT_RUN；发布方说法只覆盖 Blackwell/Hopper，vLLM ROCm 对 ModelOpt NVFP4 是拒绝还是反量化未核实 |
 | FP8 版本在任何 GPU 上 | NOT_RUN；不在本轮实测范围内 |
 | 独立中文与双语语义审查 | 本修订通过：五处措辞、条件和来源链接问题已修复并独立复验；不代表视觉或推理验收 |
@@ -219,6 +220,32 @@ Inkling 是推理模型，推理段通常超过 200 token；前两条请求的 `
 
 这组结果证明：BF16 原厂权重能在 16 × MI300X 上装载、由 AITER 融合 MoE 内核服务并给出正确回答（TP8 × PP2 布局）；跨机 DP/EP 布局在本镜像上没有完成第二条请求，是本项目记录的现状而非模型或硬件的结论。证据：[data/mi300x-run/inkling_bf16_16xMI300X_pp2/](data/mi300x-run/inkling_bf16_16xMI300X_pp2/)（尝试 6：三条请求与响应、`rocm-smi` JSON、服务日志关键行）、[data/mi300x-run/inkling_bf16_16xMI300X/](data/mi300x-run/inkling_bf16_16xMI300X/)（尝试 5：第一条响应、超时的第二条请求、关键行）。完整容器日志、两台机器的 Ray worker 日志、尝试 1–4 日志和 RCCL 探针日志在作者的私有证据目录，SHA-256 列在各目录的 `SHA256SUMS.private.txt`；主机名、私网 IP 和登录用户在公开投影中换成了角色标签。运行脚本见 [scripts/mi300x/](scripts/mi300x/)。
 
+### 第 2 轮（2026-11-02 上午）：复跑 + 服务速度探针 + Muse
+
+<a id="第-2-轮"></a>
+
+两台 VM 于 2026-11-02 03:05 释放后在 10:06 重新启动（本地 NVMe 为临时盘，权重与镜像全部重下：三个模型 4.67 TB 在两节点上 17 分钟内下完，字节数与第 1 轮完全一致）。第 2 轮的目的：对第 1 轮已通过的布局各跑一次**服务速度探针**，并在 Meta 批准权重闸门后首次尝试 Muse。
+
+**探针方法**（[`scripts/mi300x/09_perf_probe.py`](scripts/mi300x/09_perf_probe.py)，纯标准库，在节点 0 宿主机上向 `127.0.0.1:8000` 发请求）：固定英文提示词 "Explain in about 150 words why mixture-of-experts models keep the router in higher precision than the experts."（37 token），`max_tokens 256`，`temperature 0`，`stream: true` 且 `stream_options.include_usage: true`；先发 1 条预热请求，再按并发 1、并发 8 各跑 3 轮，每轮用线程同时发出全部请求。指标定义：TTFT = 发出到第一个带 `content` 或 `reasoning_content` 的分片；单请求解码速度 = (completion_tokens − 1) ÷ (末分片时刻 − 首分片时刻)；总吞吐 = 一轮所有流的 completion_tokens 之和 ÷ (该轮末次结束 − 首次发出)。`completion_tokens` 来自服务端最后一个带 `usage` 的分片。探针前后各记一次 `rocm-smi --showmeminfo vram`。这是量级探针：一条短提示、两个并发档、每档 3 轮；它不是 benchmark，也不替代业务负载测试。
+
+| 模型 · 布局（第 2 轮） | 就绪 | smoke（与第 1 轮同样三条） | 并发 1（n=3）：TTFT 中位 / 单请求解码 / 总吞吐 | 并发 8（n=24）：TTFT 中位 / 单请求解码 / 总吞吐 | 结束原因 |
+|---|---|---|---|---|---|
+| Inkling BF16 · TP8×PP2 · 0.29 镜像 | 03:46:25Z（head 03:39:08Z 启动；冷加载 249.6 / 243.7 s；`init engine` 58.22 s；KV 57.39 / 51.02 GiB、398,239 token，与第 1 轮完全一致） | 3/3 返回：3.01 s / 4.10 s / 5.57 s；`max_tokens=1024` 那条 377 token（推理 302）`finish_reason=stop`，答案正确 | **0.045 s** / **68.9 tok/s** / 68.3 tok/s | **0.097 s**（最大 0.102） / **42.5 tok/s** / **335.8 tok/s** | 全部 27 条 `length`（推理段未在 256 token 内结束） |
+| Nemotron 3 Ultra BF16 · TP8+EP · 0.29 镜像 | 04:05:02Z（启动 03:49:28Z；冷加载 744.5 s，比第 1 轮的 443 s 慢——本轮三个模型同时下载后页缓存已被 Inkling 占满；`init engine` 117.78 s；KV 23.07 GiB、3,490,022 token，与第 1 轮完全一致） | 3/3 `stop`：1.61 s / 5.39 s / 1.60 s；中文答案与第 1 轮逐字一致（94 token，推理 21） | **0.170 s** / **60.7 tok/s** / 58.6 tok/s | **0.358 s**（最大 1.17） / **42.0 tok/s** / **317.4 tok/s** | 全部 27 条 `length`（256 token 上限先到；答案段已开始） |
+| Muse Spark Open BF16 · TP8×PP2 · v0.33.0+Ray 镜像（尝试 3） | 04:22:41Z（head 04:18:05Z 启动；16 个 rank 全部 `Model loading took 99.1 GiB memory`，流水级 0 用 95.0 s、流水级 1 用 39.6–43.1 s；`init engine` 64.22 s；`Available KV cache memory` 72.05 / 71.98 GiB，`GPU KV cache size: 8,130,184 tokens`） | 3/3 返回：6.69 s / 4.33 s / 12.41 s，全部 `finish_reason=length` 停在推理段内（200 / 256 / 1024 token）；追加第 4 条——同一中文提示、`max_tokens=4096`——以 `stop` 结束，1,354 个 completion token（推理 1,289），16.4 s，一句话答案正确（BF16 是 8 位指数 + 7 位尾数，范围与 FP32 一样但精度低；FP16 是 5 + 10，精度更高但容易溢出） | **0.205 s** / **84.6 tok/s** / 79.5 tok/s | **0.506 s**（最大 0.518） / **47.6 tok/s** / **348.6 tok/s** | 全部 27 条 `length`（推理段未在 256 token 内结束） |
+
+Inkling 第 2 轮的加载和 KV 数字与第 1 轮尝试 6 逐字一致（`Model loading took 109.52 / 116.12 GiB`、`Available KV cache memory 57.39 / 51.02 GiB`、`GPU KV cache size 398,239 tokens`），说明这套布局的显存占用是确定的；smoke 墙钟时间 3.01 / 4.10 / 5.57 s 与第 1 轮的 2.97 / 4.06 / 6.52 s 同量级。探针期间 `rocm-smi` 显示节点 0 每卡 170.6–171.2 GiB、节点 1 177.2–177.9 GiB 已用（权重 + KV 预分配 + 运行时），探针前后数值不变。证据：[data/mi300x-run/inkling_bf16_16xMI300X_pp2_run2/](data/mi300x-run/inkling_bf16_16xMI300X_pp2_run2/)（含 `08_perf.json` 全部 28 条请求的逐条记录）。
+
+**Muse Spark Open BF16 的三次尝试**（权重闸门于 2026-11-02 上午批准；`meta-models/Muse-Spark-Open-816B-A42B` revision `0fb02478…`，1,644,365,682,665 字节，两节点各一份；配置：62 层、hidden 8192、256 专家 top-8、128 Q 头 / 16 KV 头 / head_dim 64、词表 202,048；1.64 TB ÷ 8 = 205 GB 单机装不下，所以沿用 Inkling 通过的双机 TP8 × PP2）：
+
+| 尝试 | 镜像 | 结果 | 日志中的根因 |
+|---|---|---|---|
+| 1 | `vllm/vllm-openai-rocm:muse-spark-open`（vLLM 配方镜像，vLLM 0.29.1rc1，2026-10-15 推送） | 1 秒内失败 | worker：`/bin/bash: line 1: ray: command not found`；head：`pydantic ValidationError for ParallelConfig: Failed to import Ray: No module named 'ray'`——镜像没装 Ray；vLLM 多机执行器要求 Ray ≥ 2.43.0（`vllm/v1/executor/ray_executor.py`）。配方是 MI355X（288 GB）单机 TP8，从不需要多机 |
+| 2 | 同上 + `ray[default]==2.55.1`（[`Dockerfile.muse-ray`](scripts/mi300x/Dockerfile.muse-ray)，`BASE=muse-spark-open`） | Ray 集群 16 卡组成，**16 个 rank 全部加载权重**（`Model loading took 104.84 GiB memory and 189.7 seconds`，`Materialized residual-path constants for 62 gated residual connections`），然后在 `determine_available_memory` 阶段**全部段错误**，`RayWorkerProc rank=[15] died unexpectedly` → `Engine core initialization failed` | 每个 worker 的 `.err` 都是 `!!!!!!! Segfault encountered !!!!!!!` 于 `csrc/libtorch_stable/fused_muse_spark_qknorm_rope_kv_insert_kernel.hip:647/821`（`launchFusedMuseSparkTyped<BFloat16,…>`）；节点 1 `dmesg`：`amdgpu: Freeing queue vital buffer … queue evicted` ×7。镜像内 `PYTORCH_ROCM_ARCH=gfx950`，`llvm-objdump --offloading` 显示 `_C_stable_libtorch.abi3.so`（含该内核符号）28 个代码对象全是 `gfx950`，`_C.abi3.so`、`_rocm_C.abi3.so` 同样只有 `gfx950`；宿主机 `rocminfo` 为 `gfx942`。**没有 MI300X 的代码对象**，HIP 启动该内核即越界。融合路径在 `models/muse_spark/amd/model.py:535` 对 ROCM_AITER_FA + BF16 + head_dim 64 无条件启用，无环境变量可关 |
+| 3 | `vllm/vllm-openai-rocm:v0.33.0`（2026-11-02 02:45 UTC 发布，vLLM 0.33.0，torch 2.13.0+rocm10.0.0，`PYTORCH_ROCM_ARCH=gfx90a;gfx942;gfx950;gfx11xx;gfx12xx`，同一个 `vllm/models/muse_spark/` 代码树，`_C_stable_libtorch.abi3.so` 每个架构 28 个代码对象且含 `fused_muse_spark_qknorm_rope_kv_insert`）+ `ray[default]==2.55.1` | **通过**：Ray 集群 33 s 组成，权重加载，显存探测穿过同一个融合内核无错，`/health` 200 于 04:22:41Z，四条请求返回，探针跑完（见上表） | 日志：`Using MuseSparkTritonExperts MoE backend`、`Using ROCM_AITER_FA backend (selected via --attention-backend)`、all-reduce `tp:0` 为 `['AITER_CUSTOM', 'PYNCCL']`、`pp:0` 为 `['PYNCCL']`、`Enabled custom fusions: norm_quant, act_quant, allreduce_rms, mla_dual_rms_norm, qk_norm_rope_kvcache`；容器内 `vllm 0.33.0+rocm100`、`ray 2.55.1`。与尝试 2 唯一的差别是基础镜像，所以尝试 2 的失败归因于缺 `gfx942` 代码对象，不是模型或布局 |
+
+尝试 2 的证据：节点 0 `attempt2_head_full.log`、`attempt2_image_code_objects.txt`（`llvm-objdump` 输出）、`host_gfx_arch.txt`；节点 1 8 个 Ray `worker-*.err`（段错误栈）、`raylet.err`、`dmesg_amdgpu_tail.txt`——在作者的私有证据目录，SHA-256 列于 `SHA256SUMS.private.txt`。镜像探查与段错误栈证明的是**这个镜像没为 gfx942 编译**，不是模型或 MI300X 的结论；v0.33.0 的代码对象清单说明上游已经在编译 gfx942，所以尝试 3 用它。尝试 3 的证据：[data/mi300x-run/muse_bf16_16xMI300X_pp2_run2/](data/mi300x-run/muse_bf16_16xMI300X_pp2_run2/)（服务器关键日志行、四对请求/响应、`rocm-smi` 快照、含全部 28 条请求逐条记录的 `08_perf.json`）。探针期间 `rocm-smi` 显示节点 0 每卡 180.0–180.9 GiB、节点 1 180.3–181.4 GiB 已用（权重 99.1 GiB + KV 预分配约 72 GiB + 运行时）；Muse 的 KV 池是三个模型中最大的，因为 16 个 KV 头 × head_dim 64 使它每 token 的 KV 占用最小（同样 32,768 `max_model_len` 下 813 万 token，Inkling 39.8 万、Nemotron 349 万）。
+
 ## 后续 GPU 验证
 
-MI300X 的 BF16 加载与 smoke 在 Nemotron 3 Ultra 和 Inkling 上已完成（见上文）。未执行的仍是：① Muse Spark Open BF16——Meta 的两个仓库都是人工审批的 gated 仓库，2026-11-02 用本项目的 Hugging Face 账号读取 `config.json` 返回 403 `GatedRepo`（"you are not in the authorized list"），访问申请已在当天提交，批准后按同一套脚本在 2 节点 16 卡上补跑；② 三个模型的 NVFP4 版本在 MI300X 上的加载路径——MI300X 没有 FP4 矩阵算力，发布方的说法只覆盖 Blackwell 和 Hopper，vLLM ROCm 对 ModelOpt NVFP4 checkpoint 是拒绝还是反量化加载，尚未核实；③ 吞吐与延迟、业务任务质量、长上下文稳定性，对三个模型均未执行。任何后续实测都在本专题中补充，不另建平行结论页。
+MI300X 的 BF16 加载、smoke 和服务速度探针在三个模型上都已完成（Nemotron 3 Ultra 和 Inkling 用 0.29.0 镜像，Muse Spark Open 用 v0.33.0 镜像）。未执行的仍是：① Muse 的多模态路径（用了 `--language-model-only`，视觉编码器没有加载），以及 Inkling、Nemotron 在同一个 v0.33.0 镜像上的复跑——受控的跨模型对比需要这一步；② 三个模型的 NVFP4 版本在 MI300X 上的加载路径——MI300X 没有 FP4 矩阵算力，发布方的说法只覆盖 Blackwell 和 Hopper，vLLM ROCm 对 ModelOpt NVFP4 checkpoint 是拒绝还是反量化加载，尚未核实；③ 吞吐分布、长提示、业务任务质量、长上下文稳定性，对三个模型均未执行——第 2 轮的探针只给一条短提示在两个并发档的量级。任何后续实测都在本专题中补充，不另建平行结论页。

@@ -29,9 +29,9 @@ BF16 and FP16 both occupy 16 bits but use different exponent/mantissa layouts. T
 
 AWQ, GPTQ, and GSQ optimize quantized weights. GGUF is a file format; names such as `Q4_K_M` describe encoding or mixed-precision presets. These are not interchangeable categories. NVFP4 combines E2M1 values with an FP8 scale per 16 values and a global FP32 scale, so its storage footprint is not exactly four bits per value [H1].
 
-<img src="images/nvfp4-two-level-scaling.gif" width="853" alt="Original NVIDIA figure: NVFP4 E2M1 values, an FP8 scale per 16 values and a global FP32 scale">
+<img src="images/nvfp4-two-level-scaling.png" width="853" alt="Original NVIDIA figure: NVFP4 E2M1 values, an FP8 scale per 16 values and a global FP32 scale">
 
-Source: NVIDIA, *Introducing NVFP4 for Efficient and Accurate Low-Precision Inference*, Figure 2 [H1]. Original, unmodified GIF. Inspect the separate value and scale encodings; the figure does not establish every model component's precision or any performance result from this project.
+Source: NVIDIA, *Introducing NVFP4 for Efficient and Accurate Low-Precision Inference*, Figure 2 [H1]. The original is a GIF that draws the figure step by step; this is its last frame (all three parts drawn) as a still image, pixels unmodified. Inspect the separate value and scale encodings; the figure does not establish every model component's precision or any performance result from this project.
 
 ### Model scope
 
@@ -67,7 +67,7 @@ Releases: Meta BF16 and NVFP4; AMD Quark FP8 [M1][M2][M8].
 |---|---|---|---|
 | Weight<br>em&shy;bed&shy;ding | BF16 [M1] | Base&shy;line [M8] | Base&shy;line [M3] |
 | Weight<br>atten&shy;tion pro&shy;jec&shy;tion | BF16 [M1] | FP8 [M8] | Base&shy;line [M3] |
-| Weight<br>router | Dtype: see note [M4] | BF16 claim [M8] | Dtype: see note [M4] |
+| Weight<br>router | FP32 compute; storage dtype not published [M4] | BF16 claim [M8] | FP32 compute; storage dtype not published [M4] |
 | Weight<br>rout&shy;ed expert | BF16 [M1] | FP8 [M8] | NVFP4 [M3] |
 | Weight<br>shar&shy;ed expert | N/A [M4] | N/A [M4] | N/A [M4] |
 | Weight<br>expert pre / post pro&shy;jec&shy;tion | Base&shy;line [M4] | Exclu&shy;ded [M8] | Base&shy;line [M4] |
@@ -91,7 +91,7 @@ Releases: Meta BF16 and NVFP4; AMD Quark FP8 [M1][M2][M8].
 | Short con&shy;vo&shy;lu&shy;tion cache | N/A | N/A | N/A |
 | Infer&shy;ence status | Not run | Not run | Not run |
 
-**Configuration notes.** Meta documents expert-only quantization [M3]. The vLLM recipe specifies FP32 routing computation and residuals, but does not separately specify router weight storage [M4]; these are different quantities. The original NVFP4 raw configuration returned HTTP 401 and requires authorized access to the pinned revision. Public model-card facts remain usable. AMD states that routing, encoders and the output head remain BF16, with static per-channel FP8 E4M3 expert/attention weights and dynamic per-token FP8 inputs [M8]. Its Deployment section is still `Todo`, not evidence of a CUDA deployment.
+**Configuration notes.** Meta documents expert-only quantization [M3]. The vLLM recipe specifies FP32 routing computation and residuals, but does not separately specify router weight storage [M4]; the router cell therefore reads "FP32 compute; storage dtype not published" rather than conflating the two. The original NVFP4 raw configuration returned HTTP 401 and requires authorized access to the pinned revision. Public model-card facts remain usable. AMD states that routing, encoders and the output head remain BF16, with static per-channel FP8 E4M3 expert/attention weights and dynamic per-token FP8 inputs [M8]. Its Deployment section is still `Todo`, not evidence of a CUDA deployment.
 
 Muse has no shared expert [M4]. Draft weights are a separate checkpoint whose precision and memory require their own record. K/V dtypes, scales and Attention arithmetic depend on runtime settings and the backend; FP8 QKV projections do not imply FP8 Attention dot products.
 
@@ -285,12 +285,14 @@ On 2026-11-02 the original BF16 weights were loaded with `rocm/vllm:rocm10.1.0_u
 ```mermaid
 flowchart LR
     subgraph N0["Node 0 · ND96isr_MI300X_v5 · 8×MI300X 192GB"]
-        C0["vLLM container · Ray head<br/>Nemotron: TP8+EP<br/>Inkling: TP8 · pipeline stage 0"]
+        C0["vLLM container · Ray head<br/>Nemotron: TP8+EP (single node)<br/>Inkling / Muse: TP8 · pipeline stage 0"]
+        P["09_perf_probe.py<br/>host python3 → 127.0.0.1:8000<br/>concurrency 1 / 8 · streaming · TTFT · tok/s"]
     end
     subgraph N1["Node 1 · ND96isr_MI300X_v5 · 8×MI300X 192GB"]
-        C1["vLLM container · Ray worker<br/>Inkling: TP8 · pipeline stage 1"]
+        C1["vLLM container · Ray worker<br/>Inkling / Muse: TP8 · pipeline stage 1"]
     end
     W["Control host (a separate Windows VM)<br/>SSH · smoke sent by curl on node 0"] -->|"request"| C0
+    P -->|"streamed requests"| C0
     C0 <-->|"RCCL over 8× IB 400Gb/s<br/>NCCL_NET_GDR_LEVEL=0"| C1
     NV0["local NVMe RAID0 28TB<br/>HF weight cache"] --> C0
     NV1["local NVMe RAID0 28TB<br/>HF weight cache"] --> C1
@@ -298,7 +300,7 @@ flowchart LR
     style N1 fill:#fdf0ee,stroke:#ED1C24
 ```
 
-Original test-topology figure: Nemotron used node 0 only; Inkling used both nodes. Smoke requests were sent by `curl` on node 0 to its own `127.0.0.1:8000`; timing is wall-clock from `curl` send to complete JSON receipt, including scheduling and generation but no cross-machine network — not time to first token. The control host only issued commands over SSH. Per-GPU memory figures are vLLM's GiB (binary); the weight bytes in the resource table are GB (decimal).
+Original test-topology figure: Nemotron used node 0 only; Inkling and Muse used both nodes, one pipeline stage per node with TP8 inside each stage. Smoke requests were sent by `curl` on node 0 to its own `127.0.0.1:8000`; timing is wall-clock from `curl` send to complete JSON receipt, including scheduling and generation but no cross-machine network — not time to first token. Time to first token and tok/s were measured separately by the run-2 serving-speed probe (below). The control host only issued commands over SSH. Per-GPU memory figures are vLLM's GiB (binary); the weight bytes in the resource table are GB (decimal).
 
 | Model · layout | Load result | Selected kernels and backends | Memory per GPU | Cache precision | Smoke generation |
 |---|---|---|---|---|---|
@@ -308,9 +310,27 @@ Original test-topology figure: Nemotron used node 0 only; Inkling used both node
 
 Four facts you only meet on MI300X and no document states: ① the AITER fused-MoE kernel requires act_and_mul (SwiGLU-style) experts; Nemotron's LatentMoE `relu2` non-gated experts do not qualify and fall back to Triton MoE, while Inkling's gated experts use AITER directly. ② Nemotron's example flag `--enable-mamba-cache-stochastic-rounding` triggers an `ld.lld` link failure on this Triton 3.8 / ROCm 10.1 image and must be dropped to pass warm-up — a kernel-compilation issue, not a model issue. ③ Inkling cannot simply run TP16 across two nodes: the short-convolution cache shards at most 8 ways, so the layout is either "TP8 inside each node + DP2 across nodes + EP16" (the model card's Hopper recipe; on this image the engine became ready but a cross-node request hung) or "TP8 inside each node + PP2 across nodes" (the layout this project actually passed). ④ vLLM's FA4 warm-up checks the model config class rather than the platform and tries to import a CUDA-only extension on ROCm; `--kernel-config '{"enable_jit_warmup": false}'` skips it. The one-variable-per-attempt record (Nemotron 3 attempts, Inkling 6) and log excerpts are in [Validation](VALIDATION.md#mi300x-run).
 
+#### Serving-speed probe (run 2, 2026-11-02)
+
+<a id="serving-speed-probe"></a>
+
+**Question.** The smoke requests above answer only "does it generate". Run 2 restarted the layouts that had passed, on the same machines, and used [`scripts/mi300x/09_perf_probe.py`](scripts/mi300x/09_perf_probe.py) to answer "roughly how fast": one fixed English prompt (37 tokens, asking why MoE models keep the router in higher precision than the experts), streamed, `max_tokens 256`, `temperature 0`, 3 rounds each at concurrency 1 and concurrency 8, preceded by one warm-up request so JIT and graph capture stay out of the timed rounds. This is a **probe, not a benchmark**: one short prompt, two concurrency levels, three rounds each — it gives the order of magnitude, not a distribution; long prompts, large batches and other output lengths are out of scope.
+
+The three metrics are defined in the probe's own JSON and quoted here unchanged: **time to first token (TTFT)** = request send to the first streamed chunk carrying text (for a reasoning model the first visible token is reasoning text); **decode speed per request** = (completion_tokens − 1) ÷ (time of last chunk − time of first chunk); **aggregate throughput** = sum of completion_tokens over all streams of one round ÷ the span from the first send to the last finish in that round. `completion_tokens` comes from the server's `usage` object (`stream_options.include_usage`), not from counting chunks.
+
+| Model · layout | Load result (run 2) | Concurrency 1: TTFT median / decode tok/s per request / aggregate tok/s | Concurrency 8: TTFT median / decode tok/s per request / aggregate tok/s | GPU memory in use during the probe (`rocm-smi`, GiB per GPU) |
+|---|---|---|---|---|
+| Inkling BF16 · 2 nodes TP8×PP2 | **Passed**: cold load 249.6 / 243.7 s (the two pipeline stages); after `/health` 200 all three smoke requests returned and the `max_tokens=1024` one gave a correct final answer | **45 ms** / **68.9** / 68.3 (n=3) | **97 ms** / **42.5** / **335.8** (n=24) | node 0: 170.6–171.2; node 1: 177.2–177.9 (includes the KV pre-allocation) |
+| Nemotron 3 Ultra BF16 · 1 node TP8+EP | **Passed**: cold load 744.5 s, `init engine` 117.78 s; all three smoke requests `finish_reason=stop`, the Chinese BF16/FP16 answer correct and identical to run 1 | **170 ms** / **60.7** / 58.6 (n=3) | **358 ms** (max 1.17 s) / **42.0** / **317.4** (n=24) | 174.9–175.5 (weights 136.51 + KV 23.07 + runtime) |
+| Muse Spark Open BF16 · 2 nodes TP8×PP2 (attempt 3, `vllm/vllm-openai-rocm:v0.33.0` + Ray) | **Passed**: weights 99.1 GiB per GPU, load 95.0 s (stage 0) / 43.1 s (stage 1), `init engine` 64.22 s, `/health` 200 at 04:22:41Z (4 min 36 s after the head started); 72.05 / 71.98 GiB free for KV = 8,130,184 tokens; three smoke requests returned and a fourth with `max_tokens=4096` ended `finish_reason=stop` with a **correct one-sentence BF16-vs-FP16 answer** after 1,289 reasoning tokens (1,354 completion tokens, 16.4 s) | **205 ms** / **84.6** / 79.5 (n=3) | **506 ms** (max 0.52 s) / **47.6** / **348.6** (n=24) | node 0: 180.0–180.9; node 1: 180.3–181.4 |
+
+Two things to read off the table. First, at concurrency 8 Inkling's per-request decode drops from 68.9 to 42.5 tok/s while the aggregate rises from 68 to 336 tok/s — each stream is 38% slower when eight run together, and the node produces 4.9× more tokens overall; that is the usual shape of memory-bandwidth-bound MoE decoding, where more concurrency makes each token cheaper until KV cache or scheduling becomes the limit. Second, all 27 Inkling requests ended with `finish_reason=length`: it is a reasoning model and 256 tokens is still inside the reasoning segment, so these tok/s are the decode speed of the reasoning text, not of the final answer, and the first answer token a user sees arrives after the reasoning segment ends — much later than the TTFT. The raw JSON (per-request TTFT, decode speed, token counts and finish reasons) is [data/mi300x-run/inkling_bf16_16xMI300X_pp2_run2/08_perf.json](data/mi300x-run/inkling_bf16_16xMI300X_pp2_run2/08_perf.json); the medians in `summary.json` are recomputed from it and `tests/mi300x.test.mjs` checks every number this page quotes.
+
+**Muse: three attempts** (details in [Validation](VALIDATION.md#mi300x-run)). Meta approved the weight gate on the morning of 2026-11-02; the 1.64 TB BF16 checkpoint was downloaded to both nodes (`bytes=1644365682665`). Attempt 1 used the vLLM recipe image `vllm/vllm-openai-rocm:muse-spark-open` and failed in one second: the image has no Ray (the recipe runs single-node TP8 on MI355X and never needs a multi-node executor). Attempt 2 added Ray 2.55.1 to that image; the weights loaded (104.84 GiB per GPU, 190 s) and then all 16 ranks segfaulted during memory profiling inside `fused_muse_spark_qknorm_rope_kv_insert_kernel.hip` — `llvm-objdump --offloading` on the image's `.so` files shows GPU code objects for `gfx950` (MI350X/MI355X) only and none for MI300X's `gfx942`; the fused kernel is selected unconditionally on the ROCm path and has no switch. Attempt 3 used `vllm/vllm-openai-rocm:v0.33.0`, released on 2026-11-02 (compiled for `gfx942` among others, same `vllm/models/muse_spark/` tree) plus Ray, and **passed**: the same fused kernel that segfaulted in attempt 2 ran, the engine came up in 4 min 36 s, and the probe numbers are in the table above. The MoE backend is `MuseSparkTritonExperts` (the launcher passes `--moe-backend triton`, as in the vLLM recipe's AMD example), attention is `ROCM_AITER_FA`, all-reduce `AITER_CUSTOM`+`PYNCCL` in the TP group and `PYNCCL` across the pipeline. Muse has the fastest single-stream decode of the three (84.6 tok/s against Inkling's 68.9 and Nemotron's 60.7 — it activates 42B parameters per token, the fewest of the three) and the highest TTFT at concurrency 1 (205 ms against 45 / 170 ms); like Inkling it is a reasoning model, so all 27 probe requests ended with `finish_reason=length` inside the reasoning segment and the `max_tokens=4096` request is the one that shows the final answer. The images differ (0.29.0 for Inkling/Nemotron, 0.33.0 for Muse), so the cross-model numbers are a reading of this run, not a controlled comparison.
+
 ### Evidence boundaries
 
-Checked on 2026-11-01 (documents and configuration) and 2026-11-02 (MI300X run and tensor census). Of the nine releases, only Nemotron 3 Ultra BF16 (1 node, 8 GPUs) and Inkling BF16 (2 nodes, 16 GPUs, TP8 × PP2) were actually loaded in this project and produced correct answers; throughput, latency, quality regression, long-context stability and recovery remain **NOT_RUN** for every release, and the seven FP8 / NVFP4 releases were not loaded on any GPU. Source-reported benchmark scores from different projects are not combined into a comparison.
+Checked on 2026-11-01 (documents and configuration) and 2026-11-02 (MI300X run and tensor census). Of the nine releases, only the three BF16 originals were actually loaded in this project and produced correct answers — Nemotron 3 Ultra (1 node, 8 GPUs), Inkling (2 nodes, 16 GPUs, TP8 × PP2) and Muse Spark Open (2 nodes, 16 GPUs, TP8 × PP2, on the v0.33.0 image after two failed attempts); serving speed is covered only by the run-2 order-of-magnitude probe (one short prompt, concurrency 1 and 8), while throughput distributions, quality regression, long-context stability and recovery remain **NOT_RUN** for every release, and the six FP8 / NVFP4 releases were not loaded on any GPU. Source-reported benchmark scores from different projects are not combined into a comparison.
 
 Nemotron's card discusses training recipes, weight exports and engine examples separately. Its prose mentions "NVFP4 KV caching" while concrete examples select FP8 cache; this guide follows the explicit parameters rather than treating the prose as a verified cache capability.
 
@@ -318,7 +338,7 @@ Inkling's recipe mentions both `vLLM 0.26.0+` and nightly installation. Neither 
 
 Red Hat's Inkling FP8 card describes attention Linear quantization, but the pinned configuration excludes `re:.*\.attn$` and `re:.*\.attn\..*` [I9]. The matrix preserves this conflict and does not label that subtree FP8. Actual module-name matching and loaded dtypes still need runtime inspection. Both Red Hat FP8 configurations have null `output_activations` and `kv_cache_scheme`: FP8 input rules do not establish FP8 outputs or KV storage.
 
-License applicability, precise per-tensor gaps, device-specific peak memory and business performance still require validation. General framework support does not establish every precision, modality and backend combination. Muse BF16 was not run on MI300X because of the weight gate: both Meta repositories are manually approved gated repositories, a `config.json` read with this project's Hugging Face account returned 403 `GatedRepo` on 2026-11-02, and the access request is submitted; after approval the same scripts run it and the result is appended to the table on this page.
+License applicability, precise per-tensor gaps, device-specific peak memory and business performance still require validation. General framework support does not establish every precision, modality and backend combination. Muse BF16's weight gate (Meta's manually approved gated repositories; a `config.json` read returned 403 early on 2026-11-02) was approved the same morning, the weights were downloaded to both nodes, and the third attempt on the v0.33.0 image passed; the three MI300X attempts and the measured numbers are in [Serving-speed probe](#serving-speed-probe) and [Validation](VALIDATION.md#run-2). Muse's multimodal path was not exercised (`--language-model-only`), and its raw NVFP4 quantization configuration still returns 401.
 
 ### You want to … read
 
@@ -340,12 +360,12 @@ License applicability, precise per-tensor gaps, device-specific peak memory and 
 | `data/model-evidence.json` | API metadata snapshot and NVFP4 configuration summaries for the six pinned revisions (including the retained Muse 401) |
 | `data/tensor-census/` | Per-tensor safetensors header census of the two BF16 snapshots |
 | `data/deployment-budget.json` | Input for the per-GPU budget table (GPU counts, HBM, sources) |
-| `data/mi300x-run/` | Public projection of the three MI300X runs: raw requests/responses, memory JSON, log key lines, `summary.json`, SHA-256 of the private large files |
+| `data/mi300x-run/` | Public projection of the MI300X runs (run 1: Nemotron, Inkling PP2, Inkling DP2; run 2: the same two layouts with `08_perf.json` from the serving probe): raw requests/responses, memory JSON, log key lines, `summary.json`, SHA-256 of the private large files |
 | `data/visual-evidence.json` | Source, dimensions, hash and proof boundary of every figure |
 | `images/` | The single NVIDIA official NVFP4 two-level-scaling figure |
-| `scripts/mi300x/` | MI300X reproduction scripts: node preparation, image pull, download, the two model launchers, evidence collection, RCCL probe |
+| `scripts/mi300x/` | MI300X reproduction scripts: node preparation, image pull, download, the three model launchers (`04_` Nemotron, `05_` Inkling, `08_` Muse), evidence collection, RCCL probe, serving-speed probe (`09_perf_probe.py`), `Dockerfile.muse-ray` |
 | `tools/` | `inspect.mjs` (metadata recomputation), `census.mjs` (census summary), `budget.mjs` (per-GPU budget), `tensor_census.py` (header read on a machine holding the weights), `mi300x_evidence.py` (evidence projection and summary), `preview.ps1` (local render) |
-| `tests/` | `inspect.test.mjs`, `census.test.mjs`, `mi300x.test.mjs`: 16 tests |
+| `tests/` | `inspect.test.mjs`, `census.test.mjs`, `mi300x.test.mjs`: 17 tests |
 
 ## Steps
 
@@ -378,6 +398,8 @@ These are the scripts this project ran on 2026-11-02, in [scripts/mi300x/](scrip
 | 7 | both | 16-rank all_reduce probe to confirm cross-node RCCL first (optional, saves time) | `07_rccl_probe.sh`, node 1 first, node 0 within 30 s | node 0 prints `RCCL_PROBE_OK=True world=16` and `PROBE_EXIT=0` |
 | 8 | node 1 → node 0 | Start Inkling (TP8 × PP2, one pipeline stage per node) | `05_serve_inkling_2node.sh`, node 1 `worker` first, node 0 `head` about 30 s later | node 0 `/health` returns 200; log contains `Using AiterExperts MoE backend` and `Model loading took 109.52 / 116.12 GiB` on the two stages |
 | 9 | node 0 | Collect Inkling evidence | `06_evidence.sh` + Inkling arguments | `07_smoke3_response.json` has `finish_reason` = `stop` and states the BF16/FP16 difference |
+| 9' | node 0 | Serving-speed probe on whichever server is up (run 2) | `09_perf_probe.py <served_model_name> <evidence_dir>/08_perf.json` | Prints `conc=1 …` and `conc=8 …` lines and `PERF_DONE`; `08_perf.json` lists every request's TTFT, decode tok/s and `finish_reason` |
+| 9'' | node 1 → node 0 | Muse Spark Open (TP8 × PP2, gated weights, needs the Ray-enabled image built from `Dockerfile.muse-ray` on both nodes first) | `08_serve_muse_2node.sh`, node 1 `worker`, node 0 `head` about 30 s later | node 0 `/health` returns 200; `Model loading took ≈ 105 GiB` on all 16 ranks. The two failure modes met on 2026-11-02 (missing Ray; gfx950-only image) are in the script header |
 | 10 | both | Stop containers; deallocate the VMs when no longer needed | `docker rm -f vllm_inkling`, then deallocate from the management plane | `PowerState/deallocated`; the weights on NVMe are gone with it |
 
 ```bash
@@ -399,7 +421,14 @@ HEAD_IP=<node0 private IP> sudo -E bash scripts/mi300x/07_rccl_probe.sh 0 nogdr 
 HEAD_IP=<node0 private IP> sudo -E bash scripts/mi300x/05_serve_inkling_2node.sh worker   # node 1
 HEAD_IP=<node0 private IP> sudo -E bash scripts/mi300x/05_serve_inkling_2node.sh head     # node 0
 sudo -E bash scripts/mi300x/06_evidence.sh vllm_inkling inkling-bf16 inkling_bf16_16xMI300X_pp2   # node 0
+python3 scripts/mi300x/09_perf_probe.py inkling-bf16 "$MOE_ROOT/evidence/inkling_bf16_16xMI300X_pp2/08_perf.json"  # node 0, server up
 sudo docker rm -f vllm_inkling                                                            # both nodes
+# Muse (step 9''): gated weights (03_download.sh with HF_TOKEN), Ray-enabled image on both nodes, then worker -> head
+bash scripts/mi300x/03_download.sh "$MUSE_ID" "$MUSE_REV"                                             # both nodes
+sudo docker build --network host --build-arg BASE=vllm/vllm-openai-rocm:v0.33.0 -t vllm-muse-ray:0.33.0 \
+  -f scripts/mi300x/Dockerfile.muse-ray scripts/mi300x                                                  # both nodes
+HEAD_IP=<node0 private IP> sudo -E bash scripts/mi300x/08_serve_muse_2node.sh worker      # node 1
+HEAD_IP=<node0 private IP> sudo -E bash scripts/mi300x/08_serve_muse_2node.sh head        # node 0
 ```
 
 Hand a collected directory to `python3 tools/mi300x_evidence.py project <evidence_dir> <tag>` to produce a public projection in the same format as this repository's [data/mi300x-run/](data/mi300x-run/) (host names, private IPs and the login user replaced; full container logs kept only as SHA-256); `python3 tools/mi300x_evidence.py summarize` recomputes `summary.json` from those raw files, and `node --test tests/mi300x.test.mjs` checks every number this page quotes against it. The three projections in this repository were produced that way; no value was typed by hand.
@@ -417,7 +446,7 @@ node tools/budget.mjs --table
 node --test tests/inspect.test.mjs tests/census.test.mjs tests/mi300x.test.mjs
 ```
 
-The first command calculates tensor payload bytes from the six saved per-dtype inventories; the second summarizes the per-tensor header census of the two BF16 snapshots and cross-checks it against the API metadata; the third divides observed weight bytes across the publisher-listed GPU counts. The tests check matrix coverage, packed-byte accounting, explicit configuration gaps, failure handling, census-to-API byte parity, and that every MI300X number quoted on this page equals [data/mi300x-run/summary.json](data/mi300x-run/summary.json) (16 tests in total). None of these commands invokes a model or validates GPU requirements.
+The first command calculates tensor payload bytes from the six saved per-dtype inventories; the second summarizes the per-tensor header census of the two BF16 snapshots and cross-checks it against the API metadata; the third divides observed weight bytes across the publisher-listed GPU counts. The tests check matrix coverage, packed-byte accounting, explicit configuration gaps, failure handling, census-to-API byte parity, and that every MI300X number quoted on this page equals [data/mi300x-run/summary.json](data/mi300x-run/summary.json) (17 tests in total). None of these commands invokes a model or validates GPU requirements.
 
 For current public metadata rather than replay:
 

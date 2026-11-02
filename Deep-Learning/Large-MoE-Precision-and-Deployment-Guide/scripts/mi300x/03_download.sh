@@ -16,13 +16,16 @@ if [ ! -x "$MOE_ROOT/venv/bin/python" ]; then
 fi
 mkdir -p "$HF_CACHE/hub"
 echo "DL_START=$(date -u +%FT%TZ) MID=$MID REV=$REV" | tee -a "$LOG"
+# A previous sudo run can leave dl_<model>.py root-owned; remove it so the script below is the one that runs.
+[ -w "$MOE_ROOT/dl_$TAG.py" ] || sudo rm -f "$MOE_ROOT/dl_$TAG.py" 2>/dev/null
 cat > "$MOE_ROOT/dl_$TAG.py" <<PY
 import os, time
 os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"; os.environ["HF_HUB_DOWNLOAD_TIMEOUT"] = "60"
 from huggingface_hub import snapshot_download
 t = time.time()
 p = snapshot_download("$MID", revision="$REV", cache_dir="$HF_CACHE/hub", max_workers=32,
-    allow_patterns=["*.json", "*.safetensors", "*.py", "*.jinja", "*.txt", "*.model", "*.tiktoken", "*.yaml", "*.yml"])
+    allow_patterns=["*.json", "*.safetensors", "*.py", "*.jinja", "*.txt", "*.model", "*.tiktoken", "*.yaml", "*.yml",
+                    "l4_200k_base"])  # Muse ships its tokenizer ranks as an extension-less file
 tot = sum(os.path.getsize(os.path.join(d, f)) for d, _, fs in os.walk(p) for f in fs)
 print(f"DL_DONE path={p} bytes={tot} secs={time.time()-t:.0f}", flush=True)
 PY
