@@ -22,10 +22,20 @@
 # gfx950-only segfault, MUSE_SERVE_IMAGE=$MUSE_IMAGE reproduces the missing-Ray failure.
 #
 # Layout: the recipe validates BF16 only on gfx950 (MI350X/MI355X, 288 GB) where 1.64 TB fits one 8-GPU node (TP8).
-# On MI300X (192 GB) one node cannot hold it (1.64 TB / 8 = 205 GB per GPU), so this script uses the same two-node
-# layout that passed for Inkling: TP8 x PP2 (one pipeline stage per node, 1.64 TB / 16 = 103 GB weights per GPU).
+# On MI300X (192 GB) one node cannot hold it (1.64 TB / 8 = 205 GB per GPU), so LAYOUT=pp (default) uses the same
+# two-node layout that passed for Inkling: TP8 x PP2 (one pipeline stage per node, 1.64 TB / 16 = 103 GB per GPU).
 # The recipe says "AMD supports only TP and TP + expert parallel"; PP across nodes is therefore an experiment, and the
-# result (pass or the exact error) is the evidence. LAYOUT=tep selects the recipe's TP8 + EP layout over 16 ranks.
+# result (pass or the exact error) is the evidence.
+# LAYOUT=tep is the recipe's own two-node answer: the command builder's "2x MI300X . Multi-Node Tensor + Expert
+# Parallel . BF16" tab (recipes.vllm.ai, recipe updated 2026-10-23) emits `--tensor-parallel-size 16
+# --enable-expert-parallel --nnodes 2 --node-rank <0|1> --master-addr $HEAD_IP --distributed-executor-backend mp`,
+# i.e. vLLM's multiprocessing multi-node backend without Ray: both nodes run the same `vllm serve`, rank 1 adds
+# `--headless` (vllm/entrypoints/cli/serve.py: node_rank_within_dp > 0 -> headless MultiprocExecutor). Deviations
+# from the recipe tab, each forced: image (see above), the Python front end (VLLM_USE_RUST_FRONTEND=0; the v0.33.0
+# image ships no vllm-rs binary), `--kernel-config '{"enable_jit_warmup": false}'` (same as the passed PP run; the
+# FA4 warm-up imports a CUDA-only module on ROCm), and this cluster's RCCL settings plus `--network host`.
+#   node 0:  HEAD_IP=<node0 private ip> LAYOUT=tep sudo -E bash scripts/mi300x/08_serve_muse_2node.sh head
+#   node 1:  HEAD_IP=<node0 private ip> LAYOUT=tep sudo -E bash scripts/mi300x/08_serve_muse_2node.sh worker   (within ~60 s)
 #
 # Flags copied from the recipe's AMD BF16 variant (recipes/models/meta-models/Muse-Spark-Open-816B-A42B.yaml):
 #   --moe-backend triton --attention-backend ROCM_AITER_FA --dtype bfloat16 --language-model-only
@@ -39,34 +49,44 @@ ROLE="${1:?usage: $0 head|worker}"
 MAXLEN="${MAXLEN:-32768}"
 LAYOUT="${LAYOUT:-pp}"
 MUSE_SERVE_IMAGE="${MUSE_SERVE_IMAGE:-vllm-muse-ray:0.33.0}"
+RANK=0; [ "$ROLE" = "worker" ] && RANK=1
 if [ "$LAYOUT" = "pp" ]; then
   PAR="--tensor-parallel-size 8 --pipeline-parallel-size 2 --distributed-executor-backend ray"
+  GPU_UTIL=0.92; EXTRA=""; ENV_LAYOUT=""
 else
-  PAR="--tensor-parallel-size 16 --enable-expert-parallel --distributed-executor-backend ray"
+  # Recipe tab verbatim: TP16 + EP over the mp backend; rank 1 is headless (no API server, joins rank 0's process group).
+  PAR="--tensor-parallel-size 16 --enable-expert-parallel --distributed-executor-backend mp --nnodes 2 --node-rank $RANK --master-addr $HEAD_IP"
+  [ "$RANK" = 1 ] && PAR="$PAR --headless"
+  GPU_UTIL=0.95; EXTRA="--enable-auto-tool-choice --tool-call-parser muse"
+  ENV_LAYOUT="-e NCCL_SOCKET_IFNAME=eth0 -e VLLM_USE_RUST_FRONTEND=0"
 fi
 LOG="$MOE_ROOT/logs/08_serve_muse_${ROLE}.log"
 docker rm -f vllm_muse >/dev/null 2>&1
-echo "SERVE_START=$(date -u +%FT%TZ) role=$ROLE head=$HEAD_IP IMG=$MUSE_SERVE_IMAGE (base $MUSE_IMAGE) MID=$MUSE_ID REV=$MUSE_REV MAXLEN=$MAXLEN LAYOUT=$LAYOUT PAR=$PAR" | tee "$LOG"
+echo "SERVE_START=$(date -u +%FT%TZ) role=$ROLE rank=$RANK head=$HEAD_IP IMG=$MUSE_SERVE_IMAGE (base $MUSE_IMAGE) MID=$MUSE_ID REV=$MUSE_REV MAXLEN=$MAXLEN LAYOUT=$LAYOUT PAR=$PAR GPU_UTIL=$GPU_UTIL" | tee "$LOG"
 ENV2="$DOCKER_COMMON --device /dev/infiniband --cap-add SYS_PTRACE \
   -e VLLM_ROCM_USE_AITER=1 -e VLLM_ROCM_MUSE_MOE_REDUCE_DTYPE=bf16 -e VLLM_USE_BREAKABLE_CUDAGRAPH=1 \
   -e NCCL_IB_HCA=^mlx5_8:1,mlx5_an0:1 -e NCCL_IB_PCI_RELAXED_ORDERING=1 -e NCCL_NET_GDR_LEVEL=${GDR_LEVEL:-0} -e GLOO_SOCKET_IFNAME=eth0 \
-  -e NCCL_DEBUG=WARN -e RAY_memory_monitor_refresh_ms=0"
+  -e NCCL_DEBUG=WARN -e RAY_memory_monitor_refresh_ms=0 $ENV_LAYOUT"
+# The serve command is the same for both layouts and (LAYOUT=tep) for both nodes; only $PAR / $GPU_UTIL / $EXTRA differ.
+SERVE="vllm serve $MUSE_ID --revision $MUSE_REV --host 0.0.0.0 --port 8000 --served-model-name muse-spark-open-bf16 \
+      --dtype bfloat16 --language-model-only \
+      --moe-backend triton --attention-backend ROCM_AITER_FA \
+      $PAR \
+      --max-model-len $MAXLEN --gpu-memory-utilization $GPU_UTIL --max-num-seqs 32 --max-num-batched-tokens 4096 \
+      --no-enable-prefix-caching --enable-chunked-prefill \
+      --compilation-config '{\"cudagraph_mode\":\"FULL_AND_PIECEWISE\"}' \
+      --kernel-config '{\"enable_jit_warmup\": false}' \
+      --reasoning-parser muse $EXTRA --distributed-timeout-seconds 3600"
 # This image's ENTRYPOINT is /bin/bash (rocm/vllm's is an entry script), so the command is passed with -c.
-if [ "$ROLE" = "worker" ]; then
+if [ "$LAYOUT" != "pp" ]; then
+  docker run -d --name vllm_muse $ENV2 --entrypoint /bin/bash "$MUSE_SERVE_IMAGE" -lc "$SERVE" >> "$LOG" 2>&1
+elif [ "$ROLE" = "worker" ]; then
   docker run -d --name vllm_muse $ENV2 --entrypoint /bin/bash "$MUSE_SERVE_IMAGE" -lc "ray start --address=$HEAD_IP:6379 --num-gpus=8 --block" >> "$LOG" 2>&1
 else
   docker run -d --name vllm_muse $ENV2 --entrypoint /bin/bash "$MUSE_SERVE_IMAGE" -lc "
     ray start --head --node-ip-address=$HEAD_IP --port=6379 --num-gpus=8 --dashboard-host=0.0.0.0 &&
     for i in \$(seq 1 60); do n=\$(ray status 2>/dev/null | grep -c 'node_'); [ \"\$n\" -ge 2 ] && break; sleep 5; done; ray status;
-    vllm serve $MUSE_ID --revision $MUSE_REV --host 0.0.0.0 --port 8000 --served-model-name muse-spark-open-bf16 \
-      --dtype bfloat16 --language-model-only \
-      --moe-backend triton --attention-backend ROCM_AITER_FA \
-      $PAR \
-      --max-model-len $MAXLEN --gpu-memory-utilization 0.92 --max-num-seqs 32 --max-num-batched-tokens 4096 \
-      --no-enable-prefix-caching --enable-chunked-prefill \
-      --compilation-config '{\"cudagraph_mode\":\"FULL_AND_PIECEWISE\"}' \
-      --kernel-config '{\"enable_jit_warmup\": false}' \
-      --reasoning-parser muse --distributed-timeout-seconds 3600" >> "$LOG" 2>&1
+    $SERVE" >> "$LOG" 2>&1
 fi
 echo "CONTAINER=$(docker ps -q -f name=vllm_muse)" | tee -a "$LOG"
 nohup docker logs -f vllm_muse >> "$LOG" 2>&1 &

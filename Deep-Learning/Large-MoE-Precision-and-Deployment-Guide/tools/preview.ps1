@@ -2,7 +2,10 @@ param(
     [Parameter(Mandatory = $true)]
   [string]$OutputDirectory,
     [switch]$ExportDiagrams,
-    [switch]$GitHubMarkdown
+    [switch]$GitHubMarkdown,
+    # GitHub repository used as the `context` of the Markdown API call (-GitHubMarkdown). Only affects
+    # how #123 / @user references resolve; override when rendering from a fork.
+    [string]$GitHubContext = 'david-xinyuwei/david-share'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -46,7 +49,7 @@ th { background: #eef3f6; text-align: left; }
 tr:nth-child(even) td { background: #f6f8fa; }
 .diagram-wrap { overflow-x: auto; margin: 18px 0; border: 1px solid #d1d9e0; }
 .mermaid { min-width: 960px; padding: 12px; }
-.katex-display { overflow-x: auto; overflow-y: hidden; padding: 8px 0; }
+.katex-display { position: relative; overflow-x: auto; overflow-y: hidden; padding: 8px 0; } /* relative: keep KaTeX's absolutely positioned MathML copy inside the scroll box, otherwise it widens the page at 390 px */
 .render-error { color: #a40e26; padding: 12px; border: 1px solid #a40e26; }
 @media (max-width: 600px) { main { padding: 16px 32px 48px; } h1 { font-size: 25px; } h2 { font-size: 22px; } }
 </style>
@@ -91,7 +94,9 @@ try {
   }
   if (document.body.dataset.exportOnly !== 'true') {
     const { default: renderMathInElement } = await import('https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.mjs');
-    renderMathInElement(document.querySelector('main'), { delimiters: [{left: '$$', right: '$$', display: true}, {left: '\[', right: '\]', display: true}], throwOnError: true });
+    // GitHub renders $$...$$ blocks only. The JS string '\[' is just '[' and turned every [T2]/[M1] citation
+    // into display math in the local preview (observed 2026-11-02); match the literal "\[" so citations stay text.
+    renderMathInElement(document.querySelector('main'), { delimiters: [{left: '$$', right: '$$', display: true}, {left: '\\[', right: '\\]', display: true}], throwOnError: true });
   }
   document.body.dataset.renderStatus = 'complete';
 } catch (error) {
@@ -192,7 +197,7 @@ $records = foreach ($name in @('README.md', 'README_CN.md', 'VALIDATION.md', 'VA
     $source = Join-Path $projectRoot $name
     $markdown = Get-Content -LiteralPath $source -Raw -Encoding utf8
   if ($GitHubMarkdown) {
-    $request = @{ text = $markdown; mode = 'gfm'; context = 'david-xinyuwei/david-share' } | ConvertTo-Json -Compress
+    $request = @{ text = $markdown; mode = 'gfm'; context = $GitHubContext } | ConvertTo-Json -Compress
     $body = Invoke-RestMethod -Method Post -Uri 'https://api.github.com/markdown' -Headers @{ Accept = 'text/html'; 'User-Agent' = 'MoE-document-preview' } -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($request)) -TimeoutSec 30
   } else {
     $body = (ConvertFrom-Markdown -InputObject $markdown).Html

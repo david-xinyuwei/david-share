@@ -1,0 +1,47 @@
+name: Large MoE Precision Guide CI
+
+on:
+  push:
+    paths:
+      - "Deep-Learning/Large-MoE-Precision-and-Deployment-Guide/**"
+      - ".github/workflows/large-moe-precision-guide-ci.yml"
+  pull_request:
+    paths:
+      - "Deep-Learning/Large-MoE-Precision-and-Deployment-Guide/**"
+      - ".github/workflows/large-moe-precision-guide-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-checks:
+    name: Offline checks (${{ matrix.os }}, Node 22)
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    defaults:
+      run:
+        working-directory: Deep-Learning/Large-MoE-Precision-and-Deployment-Guide
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # The repository root .gitattributes routes *.json through Git LFS; the tests read
+          # data/mi300x-run/**.json and data/tensor-census/*.json, so the LFS objects are required.
+          lfs: true
+          sparse-checkout: Deep-Learning/Large-MoE-Precision-and-Deployment-Guide
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+      - name: Recompute tensor payloads from the saved metadata
+        run: node tools/inspect.mjs
+      - name: Summarize the per-tensor census and cross-check it against the API metadata
+        run: node tools/census.mjs --table
+      - name: Recompute the per-GPU weight budget
+        run: node tools/budget.mjs --table
+      - name: Offline tests (matrix coverage, evidence parity, MI300X numbers, figures, table layout)
+        run: node --test tests/inspect.test.mjs tests/census.test.mjs tests/mi300x.test.mjs

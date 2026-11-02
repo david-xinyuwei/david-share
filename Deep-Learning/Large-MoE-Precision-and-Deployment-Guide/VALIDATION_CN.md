@@ -19,7 +19,7 @@ node --test tests/inspect.test.mjs tests/census.test.mjs tests/mi300x.test.mjs
 
 第一条成功时输出 JSON，`result_type` 为 `CALCULATED_FROM_PUBLIC_METADATA`，模型推理状态始终为 `NOT_RUN`。`tensor_payload_bytes` 是各 dtype 元素数乘以其存储字节数后求和；GB 用十进制，GiB 用二进制。它不包括 safetensors 文件头、其他文件、KV/状态缓存、运行工作区和通信缓冲。
 
-第二条运行十八项测试。`inspect.test.mjs`（八项）：三个完整组件表及双语引用/本地链接一致性、独立仓库开篇、U8 打包字节而非逻辑参数量、六行负载复算、Muse 401 保留、Nemotron router 排除、未知 dtype 拒绝、新 revision 不继承旧配置结论、联网失败不回退成旧数据成功。`census.test.mjs`（四项）：普查字节与 API 元数据逐字节一致、两个模型关键组件的 dtype 与张量数、未分类组件与篡改总数被拒绝。`mi300x.test.mjs`（六项）：`data/mi300x-run/summary.json` 的每个数字能回到对应的原始请求/响应/日志文件，公开投影中没有私有标识，四份文档引用的 Nemotron 与 Inkling 实测数字与 summary 一致，第 2 轮服务速度探针的中位数（并发 1 和 8 的 TTFT、解码与总吞吐 tok/s）在每份文档中都以带单位的表格行出现且与 `08_perf.json` 重算值逐字一致，文档没有宣称未执行的吞吐/质量验收，对 Muse 通过的描述只用 summary 中那次运行的加载/KV/token 数字，以及并行布局图（`images/mi300x-parallel-layout-{en,zh}.svg`）画的正是 summary 里三个第 2 轮布局的 TP/PP/EP 大小和每卡权重/KV 显存、只嵌入台账登记的未改动 Azure 虚拟机图标、哈希与 `data/visual-evidence.json` 一致，且在两份 README 中都以“原创”图说嵌入。测试中的 HTTP 返回对象是单元测试桩，不是在线模型证据。
+第二条运行十九项测试。`inspect.test.mjs`（九项）：三个完整组件表及双语引用/本地链接一致性、独立仓库开篇、版式守卫（两版 README 的每卡预算、MI300X 结果、速度探针、复现步骤和先看结论五张对比表保持完整列数，没有被 `<br>` 切断的代码标识、空 `<code>` 标签或两列堆叠表；针对 2026-11-02 的版式回退）、U8 打包字节而非逻辑参数量、六行负载复算、Muse 401 保留、Nemotron router 排除、未知 dtype 拒绝、新 revision 不继承旧配置结论、联网失败不回退成旧数据成功。`census.test.mjs`（四项）：普查字节与 API 元数据逐字节一致、两个模型关键组件的 dtype 与张量数、未分类组件与篡改总数被拒绝。`mi300x.test.mjs`（六项）：`data/mi300x-run/summary.json` 的每个数字能回到对应的原始请求/响应/日志文件，公开投影中没有私有标识，四份文档引用的 Nemotron 与 Inkling 实测数字与 summary 一致，第 2 轮服务速度探针的中位数（并发 1 和 8 的 TTFT、解码与总吞吐 tok/s）在每份文档中都以带单位的表格行出现且与 `08_perf.json` 重算值逐字一致，文档没有宣称未执行的吞吐/质量验收，对 Muse 通过的描述只用 summary 中那次运行的加载/KV/token 数字，以及并行布局图（`images/mi300x-parallel-layout-{en,zh}.svg`）画的正是 summary 里三个第 2 轮布局的 TP/PP/EP 大小和每卡权重/KV 显存、只嵌入台账登记的未改动 Azure 虚拟机图标、哈希与 `data/visual-evidence.json` 一致，且在两份 README 中都以“原创”图说嵌入。测试中的 HTTP 返回对象是单元测试桩，不是在线模型证据。
 
 ## 新数据而非旧快照
 
@@ -49,7 +49,7 @@ Nemotron BF16 的 API `safetensors.total` 与逐 dtype 元素数之和并不一�
 | 原厂 NVFP4 配置 | Nemotron 与 Inkling 已解析；Muse 返回 401，未解析 |
 | 逐张量 dtype 普查 | 两个 BF16 版本通过：从 safetensors 文件头读出 51,023 + 1,552 个张量，文件头字节合计与 API 元数据一致，无未分类名字模式（见「逐张量 dtype 普查」） |
 | 文件诊断 | 已执行编辑器检查；不等于 Node 测试通过 |
-| Node 测试与 CLI | 通过：十八项测试，零失败（`node --test tests/inspect.test.mjs tests/census.test.mjs tests/mi300x.test.mjs`）；覆盖三个四列表、每表 25 项、全部九个版本、双语来源/链接、六行字节复算、普查与 API 字节一致性、关键组件 dtype，以及文档引用的 MI300X 实测数字与 `data/mi300x-run/summary.json` 一致 |
+| Node 测试与 CLI | 通过：十九项测试，零失败（`node --test tests/inspect.test.mjs tests/census.test.mjs tests/mi300x.test.mjs`，每次推送由 GitHub Actions `large-moe-precision-guide-ci.yml` 在 Ubuntu 和 Windows 上复跑）；覆盖三个四列表、每表 25 项、全部九个版本、双语来源/链接、六行字节复算、普查与 API 字节一致性、关键组件 dtype，以及文档引用的 MI300X 实测数字与 `data/mi300x-run/summary.json` 一致 |
 | 表格布局 | 通过：四页全部表格分别检查 1280 和 390 像素宽度；分别核对表格和容器，均无横向溢出 |
 | 本地完整预览 | 本修订等待脚本完成时超时，不计为完整渲染通过。图像字节和图源码未变，GitHub 显示另行验收 |
 | MI300X BF16 加载与 smoke，Nemotron 3 Ultra | 8 × MI300X 通过（尝试 3）：引擎就绪，两条请求回答正确；内核、缓存精度与显存记录在「MI300X 实测」 |

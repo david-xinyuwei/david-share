@@ -63,6 +63,32 @@ test('covers all model variants and keeps the bilingual matrix and links aligned
   assert.deepEqual(matrices[0], matrices[1]);
 });
 
+test('comparison tables keep their columns and code identifiers stay whole (2026-11-02 layout regression)', async () => {
+  // On 2026-11-02 a narrow-screen pass collapsed four multi-column tables into two-column
+  // "<strong>label</strong><br>value" stacks and split identifiers such as `VALIDATION_CN.md` and
+  // `max_tokens=1024` across `</code><br><code>` boundaries. GitHub already gives wide tables a local
+  // horizontal scrollbar, so neither change was needed, and both destroyed side-by-side comparison
+  // and copy/paste. This guard pins the minimum column count of each comparison table and rejects
+  // identifier splitting anywhere in the two READMEs.
+  const expectedColumns = {
+    'README_CN.md': [['| 模型 | GPU × 数量 |', 6], ['| 模型 · 布局 | 加载结果 |', 6], ['| 模型 · 布局 | 加载结果（第 2 轮） |', 5], ['| 顺序 | 在哪台机器 |', 5], ['| 模型与版本 | 发布方给出的起点与边界 |', 3]],
+    'README.md': [['| Model | GPU × count |', 6], ['| Model · layout | Load result |', 6], ['| Model · layout | Load result (run 2) |', 5], ['| Order | Where |', 5], ['| Model / format | Published starting point and limits |', 3]],
+  };
+  for (const [filename, tables] of Object.entries(expectedColumns)) {
+    const markdown = await readFile(new URL(`../${filename}`, import.meta.url), 'utf8');
+    const lines = markdown.split(/\r?\n/);
+    for (const [prefix, columns] of tables) {
+      const header = lines.find(line => line.startsWith(prefix));
+      assert.ok(header, `${filename}: table starting with "${prefix}" is present`);
+      assert.equal(header.split('|').length - 2, columns, `${filename}: "${prefix}" keeps ${columns} columns`);
+    }
+    assert.doesNotMatch(markdown, /<code><\/code>/, `${filename}: no empty <code> tag`);
+    assert.doesNotMatch(markdown, /<\/code><br><code>/, `${filename}: no identifier split across <br>`);
+    assert.doesNotMatch(markdown, /<code>[^<\n]*<br>[^<\n]*<\/code>/, `${filename}: no <br> inside a <code> span`);
+    assert.doesNotMatch(markdown, /\| 配置与结果 \||\| Configuration and results \|/, `${filename}: no stacked two-column table`);
+  }
+});
+
 test('counts packed bytes rather than interpreting U8 elements as original parameters', () => {
   assert.deepEqual(tensorPayload({U8: 8, F8_E4M3: 1, BF16: 2, F32: 1}), {bytes: 17, elements: 12});
 });
