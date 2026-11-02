@@ -1,0 +1,159 @@
+(APIServer pid=1) INFO 11-02 04:18:43 [startup.py:96] non-default args: {'model_tag': 'meta-models/Muse-Spark-Open-816B-A42B', 'host': '0.0.0.0', 'model': 'meta-models/Muse-Spark-Open-816B-A42B', 'dtype': 'bfloat16', 'revision': '0fb02478b02565b2ce7fc57e6051c91172774ac9', 'max_model_len': 32768, 'served_model_name': ['muse-spark-open-bf16'], 'attention_backend': 'ROCM_AITER_FA', 'reasoning_parser': 'muse', 'distributed_executor_backend': 'ray', 'pipeline_parallel_size': 2, 'distributed_timeout_seconds': 3600, 'tensor_parallel_size': 8, 'enable_prefix_caching': False, 'language_model_only': True, 'max_num_batched_tokens': 4096, 'max_num_seqs': 32, 'enable_chunked_prefill': True, 'moe_backend': 'triton', 'compilation_config': {'mode': None, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': [], 'ir_enable_torch_wrap': None, 'splitting_ops': None, 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': None, 'cudagraph_decoder_replay': True, 'decoder_replay_cudagraph_capture_sizes': [], 'decoder_replay_trim_threshold': 768, 'compile_sizes': None, 'compile_ranges_endpoints': None, 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.FULL_AND_PIECEWISE: (2, 1)>, 'cudagraph_num_of_warmups': 0, 'cudagraph_capture_sizes': None, 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': None, 'pass_config': {}, 'max_cudagraph_capture_size': None, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': None, 'static_all_moe_layers': []}, 'kernel_config': KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=[], fused_add_rms_norm=[], gelu_and_mul_sparse=[]), enable_flashinfer_autotune=None, enable_rocm_segmented_attn_autotune=False, enable_cutedsl_warmup=True, enable_jit_warmup=False, monokernel=False, moe_backend='auto', sparse_indexer_topk_backend='auto', linear_backend='auto', linear_backend_per_quant=None)}
+(APIServer pid=1) INFO 11-02 04:18:56 [model.py:1021] Disabled mm_prefix attention mode because multimodal inputs are configuration-disabled. Attention backends without mm_prefix support may now be selected.
+(APIServer pid=1) INFO 11-02 04:18:56 [kernel.py:480] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['aiter', 'vllm_c', 'native'], fused_add_rms_norm=['aiter', 'vllm_c', 'native'], gelu_and_mul_sparse=['native'])
+(APIServer pid=1) INFO 11-02 04:18:56 [compilation.py:317] Enabled custom fusions: norm_quant, act_quant, allreduce_rms, mla_dual_rms_norm, qk_norm_rope_kvcache
+(EngineCore pid=2044) INFO 11-02 04:19:06 [core.py:139] Initializing a V1 LLM engine (v0.33.0) with config: model='/hf/hub/models--meta-models--Muse-Spark-Open-816B-A42B/snapshots/0fb02478b02565b2ce7fc57e6051c91172774ac9', speculative_config=None, tokenizer='/hf/hub/models--meta-models--Muse-Spark-Open-816B-A42B/snapshots/0fb02478b02565b2ce7fc57e6051c91172774ac9', skip_tokenizer_init=False, tokenizer_mode=auto, revision=0fb02478b02565b2ce7fc57e6051c91172774ac9, tokenizer_revision=0fb02478b02565b2ce7fc57e6051c91172774ac9, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=32768, download_dir=None, load_format=auto, tensor_parallel_size=8, pipeline_parallel_size=2, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=False, quantization=None, quantization_config=None, enforce_eager=False, aux_output_config=AuxOutputConfig(enable_return_routed_experts=False, max_bytes=None), kv_cache_dtype=auto, device_config=cuda, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='muse', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, per_request_spec_decode_metrics='none', kv_cache_metrics=False, kv_cache_metrics_sample=0.01, custom_histogram_buckets=None, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False, jit_monitor_mode='warn', jit_monitor_verbose=False), seed=0, served_model_name=muse-spark-open-bf16, enable_prefix_caching=False, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.NONE: 0>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['+quant_fp8', '+grouped_topk', '+sparse_attn_indexer', '+rms_norm_gated', 'all'], 'ir_enable_torch_wrap': False, 'splitting_ops': [], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': None, 'cudagraph_decoder_replay': True, 'decoder_replay_cudagraph_capture_sizes': [], 'decoder_replay_trim_threshold': 768, 'compile_sizes': [], 'compile_ranges_endpoints': [256, 4096], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.FULL_AND_PIECEWISE: (2, 1)>, 'cudagraph_num_of_warmups': 1, 'cudagraph_capture_sizes': [1, 2, 4, 8, 16, 24, 32, 40, 48, 56, 64], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': True, 'fuse_act_quant': True, 'fuse_attn_quant': False, 'fuse_allreduce_rms': True, 'enable_qk_norm_rope_fusion': False, 'fuse_rope_kvcache_cat_mla': False, 'fuse_act_padding': False, 'fuse_mla_dual_rms_norm': True, 'fuse_rope_kvcache': False, 'fuse_qk_norm_rope_kvcache': True}, 'max_cudagraph_capture_size': 64, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['aiter', 'vllm_c', 'native'], fused_add_rms_norm=['aiter', 'vllm_c', 'native'], gelu_and_mul_sparse=['native']), enable_flashinfer_autotune=True, enable_rocm_segmented_attn_autotune=False, enable_cutedsl_warmup=True, enable_jit_warmup=False, monokernel=False, moe_backend='triton', sparse_indexer_topk_backend='auto', linear_backend='auto', linear_backend_per_quant=None)
+(RayWorkerProc pid=377, ip=<node1-private-ip>) [aiter] import [module_aiter_core] under /usr/local/lib/python3.12/dist-packages/aiter/jit/module_aiter_core.so
+(RayWorkerProc pid=376, ip=<node1-private-ip>) [aiter] import [module_custom_all_reduce] under /usr/local/lib/python3.12/dist-packages/aiter/jit/module_custom_all_reduce.so
+(RayWorkerProc pid=376, ip=<node1-private-ip>) [aiter] CustomAllreduce input pool: torch.empty (expandable_segments=False, AITER_CUSTOM_AR_RAW_INPUT_POOL=False)
+(RayWorkerProc pid=7727) [aiter] import [module_aiter_core] under /usr/local/lib/python3.12/dist-packages/aiter/jit/module_aiter_core.so [repeated 15x across cluster]
+(RayWorkerProc pid=7729) [aiter] import [module_custom_all_reduce] under /usr/local/lib/python3.12/dist-packages/aiter/jit/module_custom_all_reduce.so [repeated 15x across cluster]
+(RayWorkerProc pid=7729) [aiter] CustomAllreduce input pool: torch.empty (expandable_segments=False, AITER_CUSTOM_AR_RAW_INPUT_POOL=False) [repeated 15x across cluster]
+(RayWorkerProc pid=7722) (Worker pid=7722) INFO 11-02 04:19:41 [cuda_communicator.py:353] Using ['AITER_CUSTOM', 'PYNCCL'] all-reduce backends (in dispatch order) for group 'tp:0' out of potential backends: ['FLASHINFER_PCIE_IPC', 'FLASHINFER', 'NCCL_SYMM_MEM', 'QUICK_REDUCE', 'AITER_CUSTOM', 'CUSTOM', 'SYMM_MEM', 'PYNCCL'].
+(RayWorkerProc pid=7722) (Worker pid=7722) INFO 11-02 04:19:42 [cuda_communicator.py:353] Using ['PYNCCL'] all-reduce backends (in dispatch order) for group 'pp:0' out of potential backends: ['FLASHINFER_PCIE_IPC', 'FLASHINFER', 'NCCL_SYMM_MEM', 'QUICK_REDUCE', 'AITER_CUSTOM', 'CUSTOM', 'SYMM_MEM', 'PYNCCL'].
+(RayWorkerProc pid=7722) (Worker pid=7722) INFO 11-02 04:19:43 [cuda_communicator.py:353] Using ['PYNCCL'] all-reduce backends (in dispatch order) for group 'ep:0' out of potential backends: ['FLASHINFER_PCIE_IPC', 'FLASHINFER', 'NCCL_SYMM_MEM', 'QUICK_REDUCE', 'AITER_CUSTOM', 'CUSTOM', 'SYMM_MEM', 'PYNCCL'].
+(RayWorkerProc pid=376, ip=<node1-private-ip>) (Worker_PP1_TP0 pid=376) INFO 11-02 04:19:46 [rocm.py:803] Using ROCM_AITER_FA backend (selected via --attention-backend).
+(RayWorkerProc pid=376, ip=<node1-private-ip>) (Worker_PP1_TP0 pid=376) INFO 11-02 04:19:46 [rocm.py:944] Using AITER Flash Attention backend for ViT model.
+(RayWorkerProc pid=376, ip=<node1-private-ip>) (Worker_PP1_TP0 pid=376) INFO 11-02 04:19:46 [mm_encoder_attention.py:372] Using AttentionBackendEnum.ROCM_AITER_FA for MMEncoderAttention.
+(RayWorkerProc pid=376, ip=<node1-private-ip>) (Worker_PP1_TP0 pid=376) WARNING 11-02 04:19:46 [compilation.py:1355] Op 'quant_fp8' not present in model, enabling with '+quant_fp8' has no effect
+(RayWorkerProc pid=376, ip=<node1-private-ip>) (Worker_PP1_TP0 pid=376) WARNING 11-02 04:19:46 [compilation.py:1355] Op 'grouped_topk' not present in model, enabling with '+grouped_topk' has no effect
+(RayWorkerProc pid=376, ip=<node1-private-ip>) (Worker_PP1_TP0 pid=376) WARNING 11-02 04:19:46 [compilation.py:1355] Op 'sparse_attn_indexer' not present in model, enabling with '+sparse_attn_indexer' has no effect
+(RayWorkerProc pid=376, ip=<node1-private-ip>) (Worker_PP1_TP0 pid=376) WARNING 11-02 04:19:46 [compilation.py:1355] Op 'rms_norm_gated' not present in model, enabling with '+rms_norm_gated' has no effect
+(RayWorkerProc pid=7722) (Worker_PP0_TP0 pid=7722) INFO 11-02 04:19:47 [rocm.py:803] Using ROCM_AITER_FA backend (selected via --attention-backend).
+(RayWorkerProc pid=7722) (Worker_PP0_TP0 pid=7722) INFO 11-02 04:19:47 [rocm.py:944] Using AITER Flash Attention backend for ViT model.
+(RayWorkerProc pid=7722) (Worker_PP0_TP0 pid=7722) INFO 11-02 04:19:47 [mm_encoder_attention.py:372] Using AttentionBackendEnum.ROCM_AITER_FA for MMEncoderAttention.
+(RayWorkerProc pid=7722) (Worker_PP0_TP0 pid=7722) WARNING 11-02 04:19:47 [compilation.py:1355] Op 'quant_fp8' not present in model, enabling with '+quant_fp8' has no effect
+(RayWorkerProc pid=7722) (Worker_PP0_TP0 pid=7722) WARNING 11-02 04:19:47 [compilation.py:1355] Op 'grouped_topk' not present in model, enabling with '+grouped_topk' has no effect
+(RayWorkerProc pid=7722) (Worker_PP0_TP0 pid=7722) WARNING 11-02 04:19:47 [compilation.py:1355] Op 'sparse_attn_indexer' not present in model, enabling with '+sparse_attn_indexer' has no effect
+(RayWorkerProc pid=7722) (Worker_PP0_TP0 pid=7722) WARNING 11-02 04:19:47 [compilation.py:1355] Op 'rms_norm_gated' not present in model, enabling with '+rms_norm_gated' has no effect
+(RayWorkerProc pid=383, ip=<node1-private-ip>) (Worker_PP1_TP7 pid=383) INFO 11-02 04:20:25 [model_runner.py:428] Model loading took 99.1 GiB memory and 39.569682 seconds
+(RayWorkerProc pid=376, ip=<node1-private-ip>) (Worker_PP1_TP0 pid=376) INFO 11-02 04:20:26 [unquantized.py:529] Using MoEPrepareAndFinalizeNoDPEPModular
+(RayWorkerProc pid=376, ip=<node1-private-ip>) (Worker_PP1_TP0 pid=376) INFO 11-02 04:20:26 [unquantized.py:530] Using MuseSparkTritonExperts MoE backend
+(RayWorkerProc pid=379, ip=<node1-private-ip>) (Worker_PP1_TP3 pid=379) INFO 11-02 04:20:29 [model_runner.py:428] Model loading took 99.1 GiB memory and 43.080310 seconds [repeated 7x across cluster]
+(RayWorkerProc pid=7722) (Worker_PP0_TP0 pid=7722) INFO 11-02 04:21:19 [unquantized.py:529] Using MoEPrepareAndFinalizeNoDPEPModular
+(RayWorkerProc pid=7722) (Worker_PP0_TP0 pid=7722) INFO 11-02 04:21:19 [unquantized.py:530] Using MuseSparkTritonExperts MoE backend
+(EngineCore pid=2044) INFO 11-02 04:21:21 [utils.py:381] Using LBHNC KV cache layout.
+(EngineCore pid=2044) WARNING 11-02 04:21:21 [kv_cache_planning.py:537] Add 2 padding layers, may waste at most 4.35% KV cache memory
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (PIECEWISE):   0%|          | 0/11 [00:00<?, ?it/s]
+(RayWorkerProc pid=7722) [aiter] import [mha_varlen_fwd_bf16_nlogits_nbias_mask_nlse_ndropout_skip_nqscale] under /usr/local/lib/python3.12/dist-packages/aiter/jit/mha_varlen_fwd_bf16_nlogits_nbias_mask_nlse_ndropout_skip_nqscale.so
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (PIECEWISE):   9%|▉         | 1/11 [00:01<00:15,  1.59s/it]
+(RayWorkerProc pid=7722) [aiter] compile_template_op func_name = 'pa_v1_5b317db3b0a7bcac06ebfb7233279a53' with {'src_template': <Template memory:7b7023e4fda0>, 'md_name': 'pa_v1', 'includes': ['/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/cpp_itfs/utils.h', '/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/cpp_itfs/pa/pa_kernels.cuh', '/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/cpp_itfs/pa/pa_v1.cuh', '/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/cpp_itfs/pa/pa_common.cuh', '/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/include', '/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/include/ck_tile/'], 'sources': [], 'cxxflags': [], 'func_name': 'pa_v1_5b317db3b0a7bcac06ebfb7233279a53', 'folder': 'pa_v1_5b317db3b0a7bcac06ebfb7233279a53', 'kwargs': OrderedDict({'gqa_ratio': 8, 'head_size': 64, 'npar_loops': 1, 'dtype': '__hip_bfloat16', 'kv_dtype': '__hip_bfloat16', 'fp8_kv_dtype': 'auto', 'out_dtype': '__hip_bfloat16', 'block_size': 16, 'alibi_enabled': False, 'logits_soft_cap_enabled': False, 'partition_size': 256, 'mtp': 1, 'sliding_window_enabled': True})}...
+(RayWorkerProc pid=7722) [aiter] start build /root/.aiter/build/pa_v1_5b317db3b0a7bcac06ebfb7233279a53
+(RayWorkerProc pid=7724) [aiter] [pid=7724 pname=MainProcess] waiting for baton release at /root/.aiter/build/pa_v1_5b317db3b0a7bcac06ebfb7233279a53/lock
+(RayWorkerProc pid=376, ip=<node1-private-ip>) [aiter] -mllvm -amdgpu-coerce-illegal-types=1 is not supported by hipcc.
+(RayWorkerProc pid=383, ip=<node1-private-ip>) [aiter] import [mha_varlen_fwd_bf16_nlogits_nbias_mask_nlse_ndropout_skip_nqscale] under /usr/local/lib/python3.12/dist-packages/aiter/jit/mha_varlen_fwd_bf16_nlogits_nbias_mask_nlse_ndropout_skip_nqscale.so [repeated 15x across cluster]
+(RayWorkerProc pid=383, ip=<node1-private-ip>) [aiter] compile_template_op func_name = 'pa_v1_5b317db3b0a7bcac06ebfb7233279a53' with {'src_template': <Template memory:7c84b0dca480>, 'md_name': 'pa_v1', 'includes': ['/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/cpp_itfs/utils.h', '/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/cpp_itfs/pa/pa_kernels.cuh', '/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/cpp_itfs/pa/pa_v1.cuh', '/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/cpp_itfs/pa/pa_common.cuh', '/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/include', '/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/include/ck_tile/'], 'sources': [], 'cxxflags': [], 'func_name': 'pa_v1_5b317db3b0a7bcac06ebfb7233279a53', 'folder': 'pa_v1_5b317db3b0a7bcac06ebfb7233279a53', 'kwargs': OrderedDict({'gqa_ratio': 8, 'head_size': 64, 'npar_loops': 1, 'dtype': '__hip_bfloat16', 'kv_dtype': '__hip_bfloat16', 'fp8_kv_dtype': 'auto', 'out_dtype': '__hip_bfloat16', 'block_size': 16, 'alibi_enabled': False, 'logits_soft_cap_enabled': False, 'partition_size': 256, 'mtp': 1, 'sliding_window_enabled': True})}... [repeated 15x across cluster]
+(RayWorkerProc pid=376, ip=<node1-private-ip>) [aiter] start build /root/.aiter/build/pa_v1_5b317db3b0a7bcac06ebfb7233279a53
+(RayWorkerProc pid=383, ip=<node1-private-ip>) [aiter] [pid=383 pname=MainProcess] waiting for baton release at /root/.aiter/build/pa_v1_5b317db3b0a7bcac06ebfb7233279a53/lock [repeated 13x across cluster]
+(RayWorkerProc pid=7722) [aiter] -mllvm -amdgpu-coerce-illegal-types=1 is not supported by hipcc.
+(RayWorkerProc pid=376, ip=<node1-private-ip>) [aiter] finish build /root/.aiter/build/pa_v1_5b317db3b0a7bcac06ebfb7233279a53, cost 25.21526231s
+(RayWorkerProc pid=376, ip=<node1-private-ip>) [aiter] compile_template_op func_name = 'pa_v1_d1c02fa20f45278c68b4445a1322add4' with {'src_template': <Template memory:7c4f344b29f0>, 'md_name': 'pa_v1', 'includes': ['/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/cpp_itfs/utils.h', '/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/cpp_itfs/pa/pa_kernels.cuh', '/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/cpp_itfs/pa/pa_v1.cuh', '/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/cpp_itfs/pa/pa_common.cuh', '/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/include', '/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/include/ck_tile/'], 'sources': [], 'cxxflags': [], 'func_name': 'pa_v1_d1c02fa20f45278c68b4445a1322add4', 'folder': 'pa_v1_d1c02fa20f45278c68b4445a1322add4', 'kwargs': OrderedDict({'gqa_ratio': 8, 'head_size': 64, 'npar_loops': 1, 'dtype': '__hip_bfloat16', 'kv_dtype': '__hip_bfloat16', 'fp8_kv_dtype': 'auto', 'out_dtype': '__hip_bfloat16', 'block_size': 16, 'alibi_enabled': False, 'logits_soft_cap_enabled': False, 'partition_size': 256, 'mtp': 1, 'sliding_window_enabled': False})}...
+(RayWorkerProc pid=376, ip=<node1-private-ip>) [aiter] start build /root/.aiter/build/pa_v1_d1c02fa20f45278c68b4445a1322add4
+(RayWorkerProc pid=377, ip=<node1-private-ip>) [aiter] [pid=377 pname=MainProcess] waiting for baton release at /root/.aiter/build/pa_v1_d1c02fa20f45278c68b4445a1322add4/lock
+(RayWorkerProc pid=7722) [aiter] finish build /root/.aiter/build/pa_v1_d1c02fa20f45278c68b4445a1322add4, cost 4.92151371s [repeated 3x across cluster]
+(RayWorkerProc pid=7729) [aiter] compile_template_op func_name = 'pa_v1_d1c02fa20f45278c68b4445a1322add4' with {'src_template': <Template memory:71548c5a4f50>, 'md_name': 'pa_v1', 'includes': ['/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/cpp_itfs/utils.h', '/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/cpp_itfs/pa/pa_kernels.cuh', '/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/cpp_itfs/pa/pa_v1.cuh', '/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/cpp_itfs/pa/pa_common.cuh', '/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/include', '/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/include/ck_tile/'], 'sources': [], 'cxxflags': [], 'func_name': 'pa_v1_d1c02fa20f45278c68b4445a1322add4', 'folder': 'pa_v1_d1c02fa20f45278c68b4445a1322add4', 'kwargs': OrderedDict({'gqa_ratio': 8, 'head_size': 64, 'npar_loops': 1, 'dtype': '__hip_bfloat16', 'kv_dtype': '__hip_bfloat16', 'fp8_kv_dtype': 'auto', 'out_dtype': '__hip_bfloat16', 'block_size': 16, 'alibi_enabled': False, 'logits_soft_cap_enabled': False, 'partition_size': 256, 'mtp': 1, 'sliding_window_enabled': False})}... [repeated 15x across cluster]
+(RayWorkerProc pid=7722) [aiter] start build /root/.aiter/build/pa_v1_d1c02fa20f45278c68b4445a1322add4
+(RayWorkerProc pid=7729) [aiter] [pid=7729 pname=MainProcess] waiting for baton release at /root/.aiter/build/pa_v1_d1c02fa20f45278c68b4445a1322add4/lock [repeated 13x across cluster]
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (PIECEWISE):  18%|█▊        | 2/11 [00:35<03:03, 20.39s/it]
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (PIECEWISE):  27%|██▋       | 3/11 [00:35<01:29, 11.16s/it]
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (PIECEWISE):  36%|███▋      | 4/11 [00:35<00:47,  6.83s/it]
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (PIECEWISE):  45%|████▌     | 5/11 [00:36<00:27,  4.60s/it]
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (PIECEWISE):  55%|█████▍    | 6/11 [00:36<00:15,  3.09s/it]
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (PIECEWISE):  64%|██████▎   | 7/11 [00:36<00:08,  2.13s/it]
+(RayWorkerProc pid=376, ip=<node1-private-ip>) [aiter] start build /root/.aiter/build/pa_v1_61ccf84454b82a1d47dec47db43eccab
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (PIECEWISE):  73%|███████▎  | 8/11 [00:37<00:04,  1.65s/it]
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (PIECEWISE):  82%|████████▏ | 9/11 [00:37<00:02,  1.24s/it]
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (PIECEWISE):  91%|█████████ | 10/11 [00:37<00:00,  1.11it/s]
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (PIECEWISE): 100%|██████████| 11/11 [00:39<00:00,  1.24s/it]
+Capturing CUDA graphs (PIECEWISE): 100%|██████████| 11/11 [00:39<00:00,  3.60s/it]
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (FULL):   0%|          | 0/2 [00:00<?, ?it/s][aiter] compile_template_op func_name = 'pa_v1_61ccf84454b82a1d47dec47db43eccab' with {'src_template': <Template memory:7b7023e4fda0>, 'md_name': 'pa_v1', 'includes': ['/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/cpp_itfs/utils.h', '/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/cpp_itfs/pa/pa_kernels.cuh', '/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/cpp_itfs/pa/pa_v1.cuh', '/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/cpp_itfs/pa/pa_common.cuh', '/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/include', '/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/include/ck_tile/'], 'sources': [], 'cxxflags': [], 'func_name': 'pa_v1_61ccf84454b82a1d47dec47db43eccab', 'folder': 'pa_v1_61ccf84454b82a1d47dec47db43eccab', 'kwargs': OrderedDict({'gqa_ratio': 8, 'head_size': 64, 'npar_loops': 2, 'dtype': '__hip_bfloat16', 'kv_dtype': '__hip_bfloat16', 'fp8_kv_dtype': 'auto', 'out_dtype': '__hip_bfloat16', 'block_size': 16, 'alibi_enabled': False, 'logits_soft_cap_enabled': False, 'partition_size': 256, 'mtp': 1, 'sliding_window_enabled': False})}...
+(RayWorkerProc pid=376, ip=<node1-private-ip>) [aiter] finish build /root/.aiter/build/pa_v1_61ccf84454b82a1d47dec47db43eccab, cost 4.57697228s
+(RayWorkerProc pid=7729) [aiter] compile_template_op func_name = 'pa_v1_61ccf84454b82a1d47dec47db43eccab' with {'src_template': <Template memory:71548c5a4f50>, 'md_name': 'pa_v1', 'includes': ['/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/cpp_itfs/utils.h', '/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/cpp_itfs/pa/pa_kernels.cuh', '/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/cpp_itfs/pa/pa_v1.cuh', '/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/cpp_itfs/pa/pa_common.cuh', '/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/include', '/usr/local/lib/python3.12/dist-packages/aiter_meta/csrc/include/ck_tile/'], 'sources': [], 'cxxflags': [], 'func_name': 'pa_v1_61ccf84454b82a1d47dec47db43eccab', 'folder': 'pa_v1_61ccf84454b82a1d47dec47db43eccab', 'kwargs': OrderedDict({'gqa_ratio': 8, 'head_size': 64, 'npar_loops': 2, 'dtype': '__hip_bfloat16', 'kv_dtype': '__hip_bfloat16', 'fp8_kv_dtype': 'auto', 'out_dtype': '__hip_bfloat16', 'block_size': 16, 'alibi_enabled': False, 'logits_soft_cap_enabled': False, 'partition_size': 256, 'mtp': 1, 'sliding_window_enabled': False})}... [repeated 15x across cluster]
+(RayWorkerProc pid=7729) [aiter] [pid=7729 pname=MainProcess] waiting for baton release at /root/.aiter/build/pa_v1_61ccf84454b82a1d47dec47db43eccab/lock [repeated 14x across cluster]
+(RayWorkerProc pid=376, ip=<node1-private-ip>) [aiter] Registering 682 cuda graph addresses
+(RayWorkerProc pid=7722) [aiter] start build /root/.aiter/build/pa_v1_61ccf84454b82a1d47dec47db43eccab
+(RayWorkerProc pid=7722) [aiter] finish build /root/.aiter/build/pa_v1_61ccf84454b82a1d47dec47db43eccab, cost 4.95842157s
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (FULL):  50%|█████     | 1/2 [00:05<00:05,  5.11s/it]
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (FULL): 100%|██████████| 2/2 [00:05<00:00,  2.19s/it]
+Capturing CUDA graphs (FULL): 100%|██████████| 2/2 [00:05<00:00,  2.63s/it]
+(RayWorkerProc pid=376, ip=<node1-private-ip>) (Worker_PP1_TP0 pid=376) WARNING 11-02 04:21:27 [fused_moe.py:1165] Using default MoE config. Performance might be sub-optimal! Config file not found at /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/configs/E=256,N=512,device_name=AMD_Instinct_MI300X.json
+(RayWorkerProc pid=7723) (Worker_PP0_TP2 pid=7723) INFO 11-02 04:21:21 [model_runner.py:428] Model loading took 99.1 GiB memory and 95.047420 seconds [repeated 8x across cluster]
+(RayWorkerProc pid=7724) (Worker_PP0_TP1 pid=7724) WARNING 11-02 04:21:33 [kv_cache_planning.py:537] Add 1 padding layers, may waste at most 4.35% KV cache memory
+(RayWorkerProc pid=7722) (Worker_PP0_TP0 pid=7722) WARNING 11-02 04:21:29 [fused_moe.py:1165] Using default MoE config. Performance might be sub-optimal! Config file not found at /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/configs/E=256,N=512,device_name=AMD_Instinct_MI300X.json
+(RayWorkerProc pid=7722) (Worker_PP0_TP0 pid=7722) INFO 11-02 04:21:33 [breakable_cudagraph.py:294] Breakable CUDA graph enabled
+(RayWorkerProc pid=382, ip=<node1-private-ip>) (Worker_PP1_TP6 pid=382) WARNING 11-02 04:21:35 [kv_cache_planning.py:537] Add 1 padding layers, may waste at most 4.35% KV cache memory [repeated 15x across cluster]
+(RayWorkerProc pid=376, ip=<node1-private-ip>) (Worker_PP1_TP0 pid=376) INFO 11-02 04:21:34 [breakable_cudagraph.py:294] Breakable CUDA graph enabled
+(RayWorkerProc pid=376, ip=<node1-private-ip>) (Worker_PP1_TP0 pid=376) INFO 11-02 04:22:16 [gpu_worker.py:772] Available KV cache memory: 71.98 GiB
+(RayWorkerProc pid=376, ip=<node1-private-ip>) (Worker_PP1_TP0 pid=376) INFO 11-02 04:22:16 [gpu_worker.py:787] CUDA graph memory profiling is enabled (default since v0.21.0). The current --gpu-memory-utilization=0.9200 is equivalent to --gpu-memory-utilization=0.9153 without CUDA graph memory profiling. To maintain the same effective KV cache size as before, increase --gpu-memory-utilization to 0.9247. To disable, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=0.
+(EngineCore pid=2044) INFO 11-02 04:22:20 [kv_cache_utils.py:1147] GPU KV cache size: 8,130,184 tokens, Maximum concurrency for 32,768 tokens per request: 248.11x
+(EngineCore pid=2044) INFO 11-02 04:22:20 [kv_cache_utils.py:865] kv cache group sizes (16, 16, 16, 16)
+(EngineCore pid=2044) INFO 11-02 04:22:20 [kv_cache_utils.py:866] kv lcm block sizes 16
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (PIECEWISE):   0%|          | 0/11 [00:00<?, ?it/s]
+(RayWorkerProc pid=7729) [aiter] Registering 692 cuda graph addresses [repeated 15x across cluster]
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (PIECEWISE):   9%|▉         | 1/11 [00:00<00:02,  4.16it/s]
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (PIECEWISE):  18%|█▊        | 2/11 [00:00<00:01,  4.81it/s]
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (PIECEWISE):  27%|██▋       | 3/11 [00:00<00:01,  5.08it/s]
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (PIECEWISE):  36%|███▋      | 4/11 [00:00<00:01,  5.20it/s]
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (PIECEWISE):  45%|████▌     | 5/11 [00:00<00:01,  5.58it/s]
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (PIECEWISE):  55%|█████▍    | 6/11 [00:01<00:00,  5.82it/s]
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (PIECEWISE):  64%|██████▎   | 7/11 [00:01<00:00,  6.00it/s]
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (PIECEWISE):  73%|███████▎  | 8/11 [00:01<00:00,  6.16it/s]
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (PIECEWISE):  82%|████████▏ | 9/11 [00:01<00:00,  6.35it/s]
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (PIECEWISE):  91%|█████████ | 10/11 [00:01<00:00,  6.50it/s]
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (PIECEWISE): 100%|██████████| 11/11 [00:01<00:00,  6.60it/s]
+Capturing CUDA graphs (PIECEWISE): 100%|██████████| 11/11 [00:01<00:00,  5.93it/s]
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (FULL):   0%|          | 0/7 [00:00<?, ?it/s]
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (FULL):  14%|█▍        | 1/7 [00:00<00:01,  5.79it/s]
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (FULL):  29%|██▊       | 2/7 [00:00<00:00,  6.52it/s]
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (FULL):  43%|████▎     | 3/7 [00:00<00:00,  6.82it/s]
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (FULL):  57%|█████▋    | 4/7 [00:00<00:00,  7.04it/s]
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (FULL):  71%|███████▏  | 5/7 [00:00<00:00,  7.27it/s]
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (FULL):  86%|████████▌ | 6/7 [00:00<00:00,  7.40it/s]
+(RayWorkerProc pid=7722) 
+Capturing CUDA graphs (FULL): 100%|██████████| 7/7 [00:00<00:00,  7.48it/s]
+Capturing CUDA graphs (FULL): 100%|██████████| 7/7 [00:00<00:00,  7.17it/s]
+(RayWorkerProc pid=376, ip=<node1-private-ip>) (Worker_PP1_TP0 pid=376) INFO 11-02 04:22:24 [gpu_worker.py:1003] CUDA graph pool memory: 0.84 GiB (actual), 0.91 GiB (estimated), difference: 0.07 GiB (8.6%).
+(RayWorkerProc pid=376, ip=<node1-private-ip>) (Worker_PP1_TP0 pid=376) INFO 11-02 04:22:24 [gpu_worker.py:1066] Free memory on device (186.14/191.45 GiB) on startup. Desired GPU memory utilization is (0.92, 176.14 GiB). Actual usage is 102.7 GiB for consumed memory (weights + non-torch), 1.45 GiB for peak activation, and 0.84 GiB for CUDAGraph memory. Replace gpu_memory_utilization config with `--kv-cache-memory=76237934429` (71.0 GiB) to fit into requested memory, or `--kv-cache-memory=86975184896` (81.0 GiB) to fully utilize gpu memory. Current kv cache memory in use is 71.98 GiB.
+(RayWorkerProc pid=7722) (Worker_PP0_TP0 pid=7722) INFO 11-02 04:22:20 [gpu_worker.py:772] Available KV cache memory: 72.05 GiB
+(RayWorkerProc pid=7723) (Worker_PP0_TP2 pid=7723) INFO 11-02 04:22:20 [gpu_worker.py:787] CUDA graph memory profiling is enabled (default since v0.21.0). The current --gpu-memory-utilization=0.9200 is equivalent to --gpu-memory-utilization=0.9152 without CUDA graph memory profiling. To maintain the same effective KV cache size as before, increase --gpu-memory-utilization to 0.9248. To disable, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=0. [repeated 15x across cluster]
+(EngineCore pid=2044) INFO 11-02 04:22:25 [core.py:412] init engine (profile, create kv cache, warmup model) took 64.22 s
+(EngineCore pid=2044) INFO 11-02 04:22:30 [kernel.py:480] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['aiter', 'vllm_c', 'native'], fused_add_rms_norm=['aiter', 'vllm_c', 'native'], gelu_and_mul_sparse=['native'])
+(EngineCore pid=2044) INFO 11-02 04:22:30 [compilation.py:317] Enabled custom fusions: norm_quant, act_quant, allreduce_rms, mla_dual_rms_norm, qk_norm_rope_kvcache
+(RayWorkerProc pid=7729) [aiter] Registering 880 cuda graph addresses [repeated 16x across cluster]
+(RayWorkerProc pid=7722)   object_tensor = torch.frombuffer(pickle.dumps(obj), dtype=torch.uint8)
+(APIServer pid=1) INFO 11-02 04:23:23 [loggers.py:335] Engine 000: Avg prompt throughput: 15.6 tokens/s, Avg generation throughput: 15.5 tokens/s, Running: 1 reqs, Waiting: 0 reqs, GPU KV cache usage: 0.0%
+(APIServer pid=1) INFO 11-02 04:23:33 [loggers.py:335] Engine 000: Avg prompt throughput: 32.3 tokens/s, Avg generation throughput: 71.6 tokens/s, Running: 1 reqs, Waiting: 0 reqs, GPU KV cache usage: 0.0%

@@ -33,7 +33,13 @@ jobs:
           # The repository root .gitattributes routes *.json through Git LFS; the tests read
           # data/mi300x-run/**.json and data/tensor-census/*.json, so the LFS objects are required.
           lfs: true
-          sparse-checkout: Deep-Learning/Large-MoE-Precision-and-Deployment-Guide
+          # inspect.test.mjs resolves every relative link in the four pages, including the three
+          # "Related background" directories, so they are part of the sparse checkout (4.4 MB, no LFS).
+          sparse-checkout: |
+            Deep-Learning/Large-MoE-Precision-and-Deployment-Guide
+            Deep-Learning/NVFP4
+            Deep-Learning/Quantization-Methods-Comparison-and-Practice
+            Deep-Learning/LLM-Memory-Estimation
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "22"
