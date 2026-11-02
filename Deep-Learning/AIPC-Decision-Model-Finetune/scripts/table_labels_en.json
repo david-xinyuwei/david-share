@@ -1047,5 +1047,14 @@
  "模型与配方": "Model and recipe",
  "权重格式": "Weight format",
  "工单 / 助手准确率（GPU / PyTorch）": "Support / assistant accuracy (GPU / PyTorch)",
- "与各自 PyTorch 逐题答案一致率": "Per-question agreement with its own PyTorch model"
+ "与各自 PyTorch 逐题答案一致率": "Per-question agreement with its own PyTorch model",
+ "权重量化格式": "Weight quantization format",
+ "笔记本准确率（工单 / 助手）": "Laptop accuracy (support / assistant)",
+ "W8（Q8_0）": "W8 (Q8_0)",
+ "W4/W8 混合（自定义 Q4_K_M）": "W4/W8 mix (custom Q4_K_M)",
+ "Q4_K_M（官方混合格式）": "Q4_K_M (official mixed format)",
+ "微调 FT，Q4_K_M（独立 FT 配方，非 FT-cf）": "Fine-tuned FT, Q4_K_M (separate FT recipe, not FT-cf)",
+ "GPU 准确率：发布版": "GPU accuracy: released",
+ "GPU 准确率：FT-cf<br>业务样本 3,832 条，训练 2 遍": "GPU accuracy: FT-cf<br>3,832 business records, 2 epochs",
+ "GPU 准确率：C<br>业务样本 4,038 条，训练 4 遍": "GPU accuracy: C<br>4,038 business records, 4 epochs"
 }

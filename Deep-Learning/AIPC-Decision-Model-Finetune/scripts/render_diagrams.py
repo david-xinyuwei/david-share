@@ -382,7 +382,7 @@ def overview_blocks():
     second = json.loads((ROOT / "验证结果/第二轮微调评测_20261101-101948/summary/round2_summary.json").read_text(encoding="utf-8"))
     datasets = (("test_support", "工单·同分布"), ("test_assistant", "助手·同分布"),
                 ("ood_support", "工单·分布外"), ("ood_assistant", "助手·分布外"))
-    accuracy = ["| 参数规模 | 测试集（题数） | 发布版准确率 | 第一轮 FT-cf 准确率 | 第二轮 C 准确率 | 最终方案相对发布版提升（百分点） |",
+    accuracy = ["| 参数规模 | 测试集（题数） | GPU 准确率：发布版 | GPU 准确率：FT-cf<br>业务样本 3,832 条，训练 2 遍 | GPU 准确率：C<br>业务样本 4,038 条，训练 4 遍 | 最终方案相对发布版提升（百分点） |",
                 "|---|---|---|---|---|---|"]
     for size in ("0.8b", "4b"):
         for dataset, label in datasets:
@@ -421,8 +421,8 @@ def overview_blocks():
     latency = " / ".join(numeric(field("工单 / 助手请求耗时"))[:2])
     peak = numeric(field("峰值工作集"))[0]
     weight, load = numeric(field("模型文件"))[:2]
-    bits = next(row[1] for row in rows(precision[0])[1:] if row[0] == "微调 FT-cf，Q8_0")
-    precision[0] += f"\n| 第二轮 C，Q8_0（交付） | {bits} | {weight} | {support} / {assistant} | {parity} | {latency} | {peak} | {load} |"
+    quantization = next(row[1] for row in rows(precision[0])[1:] if row[0] == "微调 FT-cf，Q8_0")
+    precision[0] += f"\n| 第二轮 C，Q8_0（交付） | {quantization} | {weight} | {support} / {assistant} | {parity} | {latency} | {peak} | {load} |"
     return {"ACCURACY": "\n".join(accuracy), "INFERENCE": "\n\n".join(precision),
             "LEVERS": tables_after("#### 推理优化：测过哪些杠杆")[0],
             "HARDWARE": tables_after("### 6. 需要什么硬件")[0]}
@@ -473,6 +473,7 @@ def sync_overview():
     text = path.read_text(encoding="utf-8")
     introduction = (
         "下面两表只列在骁龙 X Elite 笔记本上实际运行过的配置，包括交付的第二轮 C。"
+        "上面的 GPU 准确率比较训练配方；这里的笔记本准确率验证量化部署后是否仍然答对，两者不能当作同一测量值。"
         "使用 llama.cpp b11935 CPU、默认参数、170 条工单和 159 条助手请求，每条三题。"
         "时延是客户端从发出请求到收到全部答案的中位数，不含加载及两条预热；内存是进程峰值工作集。"
         "一致率与各行同一规模、同一配方的 PyTorch 模型比较。"
@@ -481,6 +482,14 @@ def sync_overview():
     text, replacements = re.subn(r"^下面两表(?:保留|只列).*$", lambda _: introduction, text, flags=re.M)
     if replacements != 1:
         raise ValueError("Missing or duplicated laptop inference introduction")
+    recipe = (
+        "发布版不做业务微调；FT-cf 用 3,832 条业务样本训练 2 遍，C 增加 206 条变体后用 4,038 条训练 4 遍。"
+        "两者都额外混入 1,000 条 Kev 通用回放，从同一个发布版独立训练，不是接着第一轮模型续训。"
+        "4B 没做 C，最终提升以 FT-cf 计；0.8B 以 C 计。提升从未取整的答对题数计算。"
+    )
+    text, replacements = re.subn(r"^发布版(?:不训练|不做业务微调).*$", lambda _: recipe, text, flags=re.M)
+    if replacements != 1:
+        raise ValueError("Missing or duplicated training recipe note")
     for name, content in overview_for_readme().items():
         expression = re.compile(rf"<!-- OVERVIEW:{name} -->.*?<!-- /OVERVIEW:{name} -->", re.S)
         if len(expression.findall(text)) != 1:
@@ -538,6 +547,7 @@ def sync_english_documents():
         if target.name == "README.md":
             introduction = (
                 "The two tables list only configurations actually run on the Snapdragon X Elite laptop, including delivered round-2 C. "
+                "GPU accuracy above compares training recipes; laptop accuracy here checks the quantized deployment. They are different measurements, not interchangeable values. "
                 "They use llama.cpp b11935 CPU, default settings, 170 support and 159 assistant requests, with three questions per request. "
                 "Latency runs from client send to all answers received, excluding loading and two warm-up requests; memory is peak process working set. "
                 "Each agreement value uses the PyTorch model of the same size and recipe as that row. "
@@ -546,6 +556,14 @@ def sync_english_documents():
             text, replacements = re.subn(r"^The two tables (?:retain|list).*$", lambda _: introduction, text, flags=re.M)
             if replacements != 1:
                 raise ValueError("Missing or duplicated English laptop inference introduction")
+            recipe = (
+                "Released means no business fine-tuning. FT-cf uses 3,832 business records for 2 epochs; C adds 206 variants and uses 4,038 records for 4 epochs. "
+                "Both also mix in 1,000 Kev replay records and train independently from the same released checkpoint; C does not continue from the FT-cf checkpoint. "
+                "The 4B model has no C run, so its final gain uses FT-cf; 0.8B uses C. Gains are calculated from unrounded correct-answer counts."
+            )
+            text, replacements = re.subn(r"^Released means.*$", lambda _: recipe, text, flags=re.M)
+            if replacements != 1:
+                raise ValueError("Missing or duplicated English training recipe note")
             text, replacements = re.subn(r"^- \*\*Keep the limits with the headline\.\*\*.*$",
                                          lambda _: long_input_note("en"), text, flags=re.M)
             if replacements != 1:

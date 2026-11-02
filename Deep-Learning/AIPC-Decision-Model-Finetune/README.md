@@ -28,7 +28,7 @@ Inputs are simulated Contoso PC support and assistant records: a user message, d
 
 <!-- OVERVIEW:ACCURACY -->
 <!-- SOURCE:TABLE:1 -->
-| Parameter scale| Test set (questions)| Released accuracy| First-round FT-cf accuracy| Round-2 C accuracy| Final recipe gain over released (percentage points)| 
+| Parameter scale| Test set (questions)| GPU accuracy: released| GPU accuracy: FT-cf<br>3,832 business records, 2 epochs| GPU accuracy: C<br>4,038 business records, 4 epochs| Final recipe gain over released (percentage points)| 
 | ---| ---| ---| ---| ---| ---| 
 | 0.8B| Support: in-distribution (510 questions)| 44.7%| 86.9%| **96.3%**| +51.6| 
 | 0.8B| Assistant: in-distribution (477 questions)| 67.1%| 97.5%| **100.0%**| +32.9| 
@@ -41,28 +41,28 @@ Inputs are simulated Contoso PC support and assistant records: a user message, d
 <!-- /SOURCE:TABLE:1 -->
 <!-- /OVERVIEW:ACCURACY -->
 
-Released means no business fine-tuning; FT-cf is the first-round recipe with field variants; round-2 C adds 206 variants and uses 4 epochs. The 4B model has no second-round run, so its final gain uses FT-cf; 0.8B uses C. Gains are calculated from unrounded correct-answer counts.
+Released means no business fine-tuning. FT-cf uses 3,832 business records for 2 epochs; C adds 206 variants and uses 4,038 records for 4 epochs. Both also mix in 1,000 Kev replay records and train independently from the same released checkpoint; C does not continue from the FT-cf checkpoint. The 4B model has no C run, so its final gain uses FT-cf; 0.8B uses C. Gains are calculated from unrounded correct-answer counts.
 
 ### Inference: Accuracy, Speed and Resources
 
-The two tables list only configurations actually run on the Snapdragon X Elite laptop, including delivered round-2 C. They use llama.cpp b11935 CPU, default settings, 170 support and 159 assistant requests, with three questions per request. Latency runs from client send to all answers received, excluding loading and two warm-up requests; memory is peak process working set. Each agreement value uses the PyTorch model of the same size and recipe as that row. BF16 models not run on the laptop are listed separately in the [GPU accuracy baseline](文档/Evaluation-Results.md#gpu-bf16-baseline).
+The two tables list only configurations actually run on the Snapdragon X Elite laptop, including delivered round-2 C. GPU accuracy above compares training recipes; laptop accuracy here checks the quantized deployment. They are different measurements, not interchangeable values. They use llama.cpp b11935 CPU, default settings, 170 support and 159 assistant requests, with three questions per request. Latency runs from client send to all answers received, excluding loading and two warm-up requests; memory is peak process working set. Each agreement value uses the PyTorch model of the same size and recipe as that row. BF16 models not run on the laptop are listed separately in the [GPU accuracy baseline](文档/Evaluation-Results.md#gpu-bf16-baseline).
 
 <!-- OVERVIEW:INFERENCE -->
 <!-- SOURCE:TABLE:2 -->
-| Model (0.8B, Snapdragon X Elite CPU, default settings)| Weight precision (bits per weight)| File (MiB)| Support / assistant accuracy| Per-question agreement with its own PyTorch model| Support / assistant median request time (ms)| Peak working set (MiB)| Model load (s)| 
+| Model (0.8B, Snapdragon X Elite CPU, default settings)| Weight quantization format| File (MiB)| Laptop accuracy (support / assistant)| Per-question agreement with its own PyTorch model| Support / assistant median request time (ms)| Peak working set (MiB)| Model load (s)| 
 | ---| ---| ---| ---| ---| ---| ---| ---| 
-| Released B0, official Q8_0 package| 8.5| 775| 45.7% / 66.9%| 97.6% / 99.0%| 666 / 843| 2,323| Not recorded| 
-| Fine-tuned FT-cf, Q8_0| 8.5| 775| 86.9% / 97.7%| 99.2% / 99.8%| 646 / 984| 2,314| 2.6| 
-| Fine-tuned FT, Q4_K_M (the FT-cf 4-bit file was not brought to the laptop; same-architecture FT stands in)| 5.8| 528| 87.5% / 93.9% (its BF16: 86.5% / 93.5%)| 94.9% / 97.9%| 812 / 909| 1,819| 2.5| 
-| Round-2 C, Q8_0 (delivered)| 8.5| 775| 96.9% / 99.6%| 98.6% / 99.6%| 635 / 905| 2,314| 2.6| 
+| Released B0, official Q8_0 package| W8 (Q8_0)| 775| 45.7% / 66.9%| 97.6% / 99.0%| 666 / 843| 2,323| Not recorded| 
+| Fine-tuned FT-cf, Q8_0| W8 (Q8_0)| 775| 86.9% / 97.7%| 99.2% / 99.8%| 646 / 984| 2,314| 2.6| 
+| Fine-tuned FT, Q4_K_M (separate FT recipe, not FT-cf)| W4/W8 mix (custom Q4_K_M)| 528| 87.5% / 93.9%| 94.9% / 97.9%| 812 / 909| 1,819| 2.5| 
+| Round-2 C, Q8_0 (delivered)| W8 (Q8_0)| 775| 96.9% / 99.6%| 98.6% / 99.6%| 635 / 905| 2,314| 2.6| 
 <!-- /SOURCE:TABLE:2 -->
 
 <!-- SOURCE:TABLE:3 -->
-| Model (4B, Snapdragon X Elite CPU, default settings)| Weight precision (bits per weight)| File (MiB)| Support / assistant accuracy| Per-question agreement with its own PyTorch model| Support / assistant median request time (ms)| Peak working set (MiB)| Model load (s)| 
+| Model (4B, Snapdragon X Elite CPU, default settings)| Weight quantization format| File (MiB)| Laptop accuracy (support / assistant)| Per-question agreement with its own PyTorch model| Support / assistant median request time (ms)| Peak working set (MiB)| Model load (s)| 
 | ---| ---| ---| ---| ---| ---| ---| ---| 
-| Released B0, official Q4_K_M package| 5.8| 2,893| 59.0% / 82.0%| 93.1% / 97.3%| 3,022 / 3,790| 6,849| Not recorded| 
-| Fine-tuned FT-cf, Q8_0| 8.5| 4,276| 96.1% / 99.8%| 99.4% / 100.0%| 3,649 / 4,115| 9,609| 10.7| 
-| Fine-tuned FT-cf, Q4_K_M| 5.8| 2,893| 95.3% / 99.6%| 98.2% / 99.8%| 3,615 / 4,751| 6,842| 6.7| 
+| Released B0, official Q4_K_M package| Q4_K_M (official mixed format)| 2,893| 59.0% / 82.0%| 93.1% / 97.3%| 3,022 / 3,790| 6,849| Not recorded| 
+| Fine-tuned FT-cf, Q8_0| W8 (Q8_0)| 4,276| 96.1% / 99.8%| 99.4% / 100.0%| 3,649 / 4,115| 9,609| 10.7| 
+| Fine-tuned FT-cf, Q4_K_M| W4/W8 mix (custom Q4_K_M)| 2,893| 95.3% / 99.6%| 98.2% / 99.8%| 3,615 / 4,751| 6,842| 6.7| 
 <!-- /SOURCE:TABLE:3 -->
 <!-- /OVERVIEW:INFERENCE -->
 

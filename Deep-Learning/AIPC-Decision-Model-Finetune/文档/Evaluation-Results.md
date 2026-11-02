@@ -354,20 +354,26 @@ Incomplete runs excluded from the tables: `ft-kev-0.8b-Q8_0-cpu-ctx2048` (144 su
 The two tables below contain only configurations actually run on the Snapdragon laptop: the released and fine-tuned Q8_0 / Q4_K_M models. Pre-quantization BF16 results are listed separately in the [GPU accuracy baseline](#gpu-bf16-baseline), not as laptop runs. Each agreement value compares the row with its own same-size, same-recipe PyTorch model; FT Q4_K_M must not use FT-cf as its reference.
 
 <!-- SOURCE:TABLE:19 -->
-| Model (0.8B, Snapdragon X Elite CPU, default settings)| Weight precision (bits per weight)| File (MiB)| Support / assistant accuracy| Per-question agreement with its own PyTorch model| Support / assistant median request time (ms)| Peak working set (MiB)| Model load (s)| 
+| Model (0.8B, Snapdragon X Elite CPU, default settings)| Weight quantization format| File (MiB)| Laptop accuracy (support / assistant)| Per-question agreement with its own PyTorch model| Support / assistant median request time (ms)| Peak working set (MiB)| Model load (s)| 
 | ---| ---| ---| ---| ---| ---| ---| ---| 
-| Released B0, official Q8_0 package| 8.5| 775| 45.7% / 66.9%| 97.6% / 99.0%| 666 / 843| 2,323| Not recorded| 
-| Fine-tuned FT-cf, Q8_0| 8.5| 775| 86.9% / 97.7%| 99.2% / 99.8%| 646 / 984| 2,314| 2.6| 
-| Fine-tuned FT, Q4_K_M (the FT-cf 4-bit file was not brought to the laptop; same-architecture FT stands in)| 5.8| 528| 87.5% / 93.9% (its BF16: 86.5% / 93.5%)| 94.9% / 97.9%| 812 / 909| 1,819| 2.5| 
+| Released B0, official Q8_0 package| W8 (Q8_0)| 775| 45.7% / 66.9%| 97.6% / 99.0%| 666 / 843| 2,323| Not recorded| 
+| Fine-tuned FT-cf, Q8_0| W8 (Q8_0)| 775| 86.9% / 97.7%| 99.2% / 99.8%| 646 / 984| 2,314| 2.6| 
+| Fine-tuned FT, Q4_K_M (separate FT recipe, not FT-cf)| W4/W8 mix (custom Q4_K_M)| 528| 87.5% / 93.9%| 94.9% / 97.9%| 812 / 909| 1,819| 2.5| 
 <!-- /SOURCE:TABLE:19 -->
 
 <!-- SOURCE:TABLE:20 -->
-| Model (4B, Snapdragon X Elite CPU, default settings)| Weight precision (bits per weight)| File (MiB)| Support / assistant accuracy| Per-question agreement with its own PyTorch model| Support / assistant median request time (ms)| Peak working set (MiB)| Model load (s)| 
+| Model (4B, Snapdragon X Elite CPU, default settings)| Weight quantization format| File (MiB)| Laptop accuracy (support / assistant)| Per-question agreement with its own PyTorch model| Support / assistant median request time (ms)| Peak working set (MiB)| Model load (s)| 
 | ---| ---| ---| ---| ---| ---| ---| ---| 
-| Released B0, official Q4_K_M package| 5.8| 2,893| 59.0% / 82.0%| 93.1% / 97.3%| 3,022 / 3,790| 6,849| Not recorded| 
-| Fine-tuned FT-cf, Q8_0| 8.5| 4,276| 96.1% / 99.8%| 99.4% / 100.0%| 3,649 / 4,115| 9,609| 10.7| 
-| Fine-tuned FT-cf, Q4_K_M| 5.8| 2,893| 95.3% / 99.6%| 98.2% / 99.8%| 3,615 / 4,751| 6,842| 6.7| 
+| Released B0, official Q4_K_M package| Q4_K_M (official mixed format)| 2,893| 59.0% / 82.0%| 93.1% / 97.3%| 3,022 / 3,790| 6,849| Not recorded| 
+| Fine-tuned FT-cf, Q8_0| W8 (Q8_0)| 4,276| 96.1% / 99.8%| 99.4% / 100.0%| 3,649 / 4,115| 9,609| 10.7| 
+| Fine-tuned FT-cf, Q4_K_M| W4/W8 mix (custom Q4_K_M)| 2,893| 95.3% / 99.6%| 98.2% / 99.8%| 3,615 / 4,751| 6,842| 6.7| 
 <!-- /SOURCE:TABLE:20 -->
+
+**The two accuracy measurements serve different purposes.** GPU / PyTorch accuracy compares business fine-tuning recipes; laptop accuracy checks the quantized file deployed through llama.cpp. The same recipe uses the same test questions, but weight representation, engine and hardware differ, so the scores need not be equal and the whole difference cannot be attributed to quantization. For 0.8B FT-cf, GPU and laptop scores are 86.9% / 97.5% and 86.9% / 97.7%; for C they are 96.3% / 100.0% and 96.9% / 99.6%. The GPU reference for FT Q4_K_M is its own FT score, 86.5% / 93.5%, not FT-cf; its laptop score is 87.5% / 93.9%.
+
+**Storage detail: BPW is not quantization bit width.** W8 means the main weights use 8-bit quantization. Q8_0 stores 32 eight-bit weights plus one shared 16-bit scale, giving `(32 × 8 + 16) / 32 = 8.5` bits per weight for a block. The [llama.cpp b11935 format definition](https://github.com/ggml-org/llama.cpp/blob/b11935/ggml/src/ggml-common.h) specifies `block_q8_0`. The actual quantization logs report 8.52 BPW for 0.8B FT-cf Q8_0, 5.76 BPW for custom 0.8B FT Q4_K_M, and 5.75 BPW for custom 4B FT-cf Q4_K_M; the old table rounded these to 8.5 / 5.8. This measures weight-tensor storage including block metadata, not "8.5-bit / 5.8-bit precision" and not the average size of the whole GGUF file.
+
+The custom Q4_K_M recipe uses `--pure` and `--tensor-type` to quantize feed-forward matrices to W4 while retaining attention, SSM, output and classification-head matrices in W8; other unquantized small tensors retain their own types. The official released Q4_K_M package was not produced by these commands, so the table labels its official mixed format without inferring each layer's bit width. [Export command](../scripts/remote_export_gguf.sh) · [FT-cf export command](../scripts/remote_export_gguf_cf.sh) · [0.8B Q8_0 log](../验证结果/微调评测_20261027-220226/gguf/0.8b-cf/quantize-Q8_0.log) · [0.8B FT Q4 log](../验证结果/微调评测_20261027-220226/gguf/0.8b/quantize-Q4_K_M.log) · [4B FT-cf Q4 log](../验证结果/微调评测_20261027-220226/gguf/4b-cf/quantize-Q4_K_M.log)
 
 - **Fine-tuning gains far outweigh quantization losses.** 0.8B: fine-tuning lifts support accuracy from 45.7% to 86.9% (+41.2 points); 8-bit quantization moves it by 0.0 / +0.2 points relative to BF16, and 506 of 510 support answers stay the same. 4B likewise: +37.1 points versus +0.2 / 0.0.
 - **8-bit is near-lossless; 4-bit shows a visible loss.** Per-question agreement with BF16 is 99.2%–100% at 8 bits and 94.9%–98.2% at 4 bits, i.e. 2%–5% of the questions change their answer. The 0.8B 4-bit accuracy being 1 point above BF16 means a few changed answers happened to become correct, not that the model got better.

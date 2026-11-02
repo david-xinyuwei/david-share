@@ -405,6 +405,10 @@ class BilingualDocumentationTests(unittest.TestCase):
         for table, expected_rows in zip(tables[1:3], (4, 3)):
             self.assertEqual(len(table) - 1, expected_rows)
             self.assertIn("与各自 PyTorch 逐题答案一致率", table[0])
+            self.assertEqual(table[0][1], "权重量化格式")
+            self.assertEqual(table[0][3], "笔记本准确率（工单 / 助手）")
+            self.assertFalse(any(row[1] in ("8.5", "5.8") for row in table[1:]))
+            self.assertTrue(all(row[1] == "W8（Q8_0）" for row in table[1:] if "Q8_0" in row[0]))
             self.assertFalse(any("BF16 未量化" in row[0] for row in table[1:]))
             self.assertFalse(any("未在笔记本运行" in cell for row in table for cell in row))
         details = (ROOT / "文档/评测与端侧结果全集.md").read_text(encoding="utf-8")
@@ -415,6 +419,12 @@ class BilingualDocumentationTests(unittest.TestCase):
             ["0.8B FT-cf", "BF16", "16.0", "1,437", "86.9% / 97.5%"],
             ["4B FT-cf", "BF16", "16.0", "8,026", "95.9% / 99.8%"],
         ])
+        self.assertTrue(all("GPU 准确率" in header for header in tables[0][0][2:5]))
+        self.assertIn("3,832 条，训练 2 遍", tables[0][0][3])
+        self.assertIn("4,038 条，训练 4 遍", tables[0][0][4])
+        self.assertIn("从同一个发布版独立训练", chinese)
+        self.assertIn("8.52 BPW", details)
+        self.assertIn("5.76 BPW", details)
 
     def test_localization_preserves_nested_link_and_code(self):
         import fill_report_tables
