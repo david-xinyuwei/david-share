@@ -101,7 +101,7 @@ The business application sends the message, device fields and questions; llama-s
 
 <a id="criteria"></a>
 
-**The main table asks whether classification is correct, how long one classification takes, and whether its probabilities are reliable.** Calibration checks whether answers assigned about 90% confidence are actually correct about 90% of the time. Fitting temperature is an adjustment method; test-set ECE measures the resulting quality. [Definitions and the historical five-criterion summary](文档/Evaluation-Results.md#single-question).
+**The main table reports per-question correctness, the time for a complete three-question request, and probability reliability.** It is not a standalone single-question latency table. Calibration checks whether answers assigned about 90% confidence are correct about 90% of the time. Fitting temperature adjusts probabilities; ECE measures the outcome. [Complete timing definitions](文档/Evaluation-Results.md#single-question).
 
 ### Why Kev
 
@@ -146,7 +146,7 @@ Three real single-question examples use round-2 C 0.8B / Q8_0 on x64. **They are
 
 ### Inference Optimization: Measured Levers
 
-The full historical matrix of quantization, context size, compute backend, prompt length, model size, long inputs, concurrency and CPU architectures remains in [methods and individual runs](文档/Evaluation-Results.md#inference-optimization-which-levers-were-measured). Historical timings retain their original request units and do not enter the new single-question table.
+The full matrix of quantization, context size, compute backend, prompt length, model size, long inputs, concurrency and CPU architectures remains in [methods and individual runs](文档/Evaluation-Results.md#inference-optimization-which-levers-were-measured). These timings describe complete requests, not standalone single-question latency.
 
 
 ### Hardware Requirements
@@ -156,7 +156,7 @@ Training VRAM, laptop memory, model file sizes and inferred minimum configuratio
 
 ### Limits
 
-Simulated data, one training seed, one Snapdragon laptop and one x86-64 VM; no customer-production acceptance, long-term stability or battery-power conclusion. Out-of-distribution sets are still simulated, and short-input scores are not long-input guarantees. [Complete limits](文档/Evaluation-Results.md#limits-of-the-conclusions)
+Simulated data, one training seed, one Snapdragon laptop and one x86-64 VM; no customer-production acceptance, long-term stability or battery-power conclusion. Test errors already informed recipe iterations, so these scores are not independent blind acceptance. Out-of-distribution sets remain simulated, and short-input scores are not long-input guarantees. [Complete limits](文档/Evaluation-Results.md#limits-of-the-conclusions)
 
 ## Steps
 

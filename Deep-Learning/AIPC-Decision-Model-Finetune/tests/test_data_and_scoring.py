@@ -10,6 +10,7 @@ bootstrap of summarize_results.py. A test whose saved evidence is absent is skip
 import hashlib
 import json
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -37,6 +38,68 @@ def read_jsonl(path):
 
 def state_of(record):
     return record["state"] if isinstance(record["state"], dict) else json.loads(record["state"])
+
+
+class PipelineCompletionTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        git_bash = Path("C:/Program Files/Git/bin/bash.exe")
+        cls.bash = str(git_bash) if git_bash.is_file() else shutil.which("bash")
+        if not cls.bash:
+            raise unittest.SkipTest("Pipeline failure-path tests require Bash")
+
+    def run_bash(self, program, directory):
+        return subprocess.run([self.bash, "--noprofile", "--norc", "-s"],
+                              input=program.encode("utf-8"), cwd=directory,
+                              capture_output=True, timeout=15)
+
+    def test_missing_evaluation_input_blocks_completion(self):
+        for filename in ("remote_pipeline_v2.sh", "remote_cf_round.sh", "remote_round2.sh"):
+            with self.subTest(script=filename), tempfile.TemporaryDirectory() as temporary:
+                source = (ROOT / "scripts" / filename).read_text(encoding="utf-8")
+                function = re.search(r"^ *bench\(\) \{.*?^ *\}", source, re.M | re.S).group()
+                output = Path(temporary) / "runs/sample"
+                output.mkdir(parents=True)
+                (output / "report.json").write_text("{}", encoding="utf-8")
+                arguments = 'sample "$PWD/missing.jsonl"' if filename == "remote_round2.sh" else 'sample unused "$PWD/missing.jsonl"'
+                program = ('set -euo pipefail\nR="$PWD/runs"\nSTATUS="$PWD/status.log"\nTAG=r2-C\n'
+                           + function + '\nbench ' + arguments + '\necho PIPELINE_DONE\n')
+                result = self.run_bash(program, temporary)
+                self.assertEqual(result.returncode, 3, result.stderr.decode())
+                self.assertIn(b"MISSING_DATA", result.stdout)
+                self.assertNotIn(b"PIPELINE_DONE", result.stdout)
+
+    def test_comparison_failure_blocks_completion(self):
+        source = (ROOT / "scripts/remote_pipeline_v2.sh").read_text(encoding="utf-8")
+        comparison = source[source.index('stage "STAGE compare"'):]
+        with tempfile.TemporaryDirectory() as temporary:
+            for prefix in ("ft", "b0"):
+                output = Path(temporary) / f"runs/{prefix}-test_support"
+                output.mkdir(parents=True)
+                (output / "report.json").write_text("{}", encoding="utf-8")
+            program = ('set -euo pipefail\nR="$PWD/runs"\nPY=false\n'
+                       'stage() { printf "%s\\n" "$1"; }\n' + comparison)
+            result = self.run_bash(program, temporary)
+        self.assertEqual(result.returncode, 4, result.stderr.decode())
+        self.assertIn(b"COMPARE_FAILED", result.stdout)
+        self.assertNotIn(b"PIPELINE_DONE", result.stdout)
+
+    def test_quantization_failure_blocks_export_completion(self):
+        for filename in ("remote_export_gguf.sh", "remote_export_gguf_cf.sh", "remote_export_round2.sh"):
+            source = (ROOT / "scripts" / filename).read_text(encoding="utf-8")
+            start = source.index('  [ -s "$OUT/$NAME-Q8_0.gguf" ]')
+            end = source.index('  cat "$OUT/metadata.txt"')
+            for failed_format in ("Q8_0", "Q4_K_M"):
+                with self.subTest(script=filename, format=failed_format), tempfile.TemporaryDirectory() as temporary:
+                    if failed_format == "Q4_K_M":
+                        (Path(temporary) / "test-Q8_0.gguf").write_bytes(b"fixture")
+                    program = ('set -euo pipefail\nOUT="$PWD"\nNAME=test\nSIZE=0.8b\nARM=C\nQ=false\nFLAGS_Q4_K_M=\n'
+                               + source[start:end] + '\necho EXPORT_DONE\n')
+                    result = self.run_bash(program, temporary)
+                    self.assertEqual(result.returncode, 5, result.stderr.decode())
+                    self.assertIn(b"QUANT_FAILED", result.stdout)
+                    self.assertNotIn(b"EXPORT_DONE", result.stdout)
+                    self.assertFalse((Path(temporary) / f"test-{failed_format}.gguf").exists())
 
 
 class DataTests(unittest.TestCase):
@@ -309,6 +372,31 @@ class RequestTests(unittest.TestCase):
 
 
 class ReportLayoutTests(unittest.TestCase):
+    def test_overview_consumes_the_selected_summary(self):
+        from render_diagrams import overview_blocks, report_sources
+
+        sources = report_sources()
+        summary = json.loads(sources["first_summary"].read_text(encoding="utf-8"))
+        summary["sets"]["0.8b/test_support"]["b0"]["acc"] = 0.0
+        with tempfile.TemporaryDirectory() as temporary:
+            replacement = Path(temporary) / "summary.json"
+            replacement.write_text(json.dumps(summary), encoding="utf-8")
+            sources["first_summary"] = replacement
+            with mock.patch("render_diagrams.report_sources", return_value=sources):
+                table = overview_blocks()["ACCURACY"]
+        self.assertIn("| 0.8B | 工单·同分布（510 题） | 0.0% |", table)
+
+    def test_report_sources_reject_missing_or_external_paths(self):
+        from render_diagrams import report_sources
+
+        for invalid in ("missing-summary.json", "../outside-summary.json"):
+            configuration = {name: invalid for name in
+                             ("first_summary", "round2_summary", "device_results", "round2_device_results")}
+            text = "<!-- REPORT:SOURCES\n" + json.dumps(configuration) + "\n-->"
+            with self.subTest(path=invalid), mock.patch.object(Path, "read_text", return_value=text):
+                with self.assertRaises(ValueError):
+                    report_sources()
+
     def test_request_examples_match_captured_requests_and_responses(self):
         from render_diagrams import saved_request_examples
 
@@ -338,19 +426,12 @@ class ReportLayoutTests(unittest.TestCase):
             self.assertIn(f"**{statistics.median(item['latency_ms'] for item in raw) / 1000:.3f}**", row)
             self.assertIn("100.0%", row)
 
-    def test_single_question_matrix_keeps_all_unmeasured_cells(self):
+    def test_single_question_matrix_omits_unexecuted_campaign(self):
         from render_diagrams import single_question_tables
 
         with tempfile.TemporaryDirectory() as temporary:
             text = single_question_tables(Path(temporary))
-        rows = [line for line in text.splitlines() if line.startswith("| ") and "待测" in line]
-        self.assertEqual(len(rows), 28)
-        self.assertEqual(text.count("待测"), 28 * 4)
-        self.assertNotIn("635", text)
-        self.assertNotIn("905", text)
-        for dataset, questions in (("工单·同分布", "510"), ("助手·同分布", "477"),
-                                    ("工单·分布外", "1,011"), ("助手·分布外", "951")):
-            self.assertEqual(text.count(f"{dataset}（{questions} 题）"), 7)
+        self.assertEqual(text, "")
 
     def test_single_question_matrix_rejects_other_devices(self):
         from render_diagrams import single_question_tables
@@ -494,6 +575,52 @@ class BilingualDocumentationTests(unittest.TestCase):
             elif token.type == "inline" and in_table:
                 tables[-1][-1].append(token.content)
         return tables
+
+    def test_delivered_results_contain_record_measurements_not_empty_plans(self):
+        from render_diagrams import record_request_tables
+        from fill_report_tables import localize_block
+
+        expected = record_request_tables()
+        for filename, rendered, boundary in (
+                ("评测与端侧结果全集.md", expected, "不是独立盲测终验集"),
+                ("Evaluation-Results.md", localize_block(expected), "not an independent blind acceptance set")):
+            text = (ROOT / "文档" / filename).read_text(encoding="utf-8")
+            measured = self.tables(self.parser.parse(text))[1:3]
+            self.assertEqual(measured, self.tables(self.parser.parse(rendered)))
+            self.assertEqual([len(table) - 1 for table in measured], [8, 6])
+            self.assertIn(boundary, text)
+            self.assertNotIn("SINGLE:INFERENCE", text)
+            self.assertNotRegex(text, r"\|[^\n]*(?:待测|Not measured)")
+
+    def test_current_model_reproduction_commands_are_present_in_both_languages(self):
+        commands = ("bash scripts/remote_round2.sh 0.8b C",
+                    "bash scripts/remote_export_round2.sh 0.8b C",
+                    "-Size 0.8b-r2C -Only Q8_0")
+        for filename in ("操作步骤全本.md", "Operations-Guide.md"):
+            text = (ROOT / "文档" / filename).read_text(encoding="utf-8")
+            for command in commands:
+                self.assertIn(command, text, filename)
+            self.assertIn('id="report-sources"', text)
+            self.assertIn("REPORT:SOURCES", text)
+
+    def test_long_input_token_table_matches_original_requests(self):
+        import statistics
+
+        text = (ROOT / "文档/评测与端侧结果全集.md").read_text(encoding="utf-8")
+        table = next(table for table in self.tables(self.parser.parse(text))
+                     if "输入 token 中位数（请求合计 / 每题平均）" in table[0])
+        paths = (
+            "验证结果/端侧引擎_x64_20261030-234858/ftcf-kev-0.8b-Q8_0-cpu-run1/support/rows.jsonl",
+            "验证结果/端侧引擎_x64长输入_20261101-101318/ftcf-0.8b-q8-cpu-long8k/support/rows.jsonl",
+        )
+        for row, relative in zip(table[1:], paths):
+            records = read_jsonl(ROOT / relative)[:40]
+            total = statistics.median(record["input_tokens"] for record in records)
+            mean = statistics.median(record["input_tokens"] / len(record["questions"]) for record in records)
+            total_text = f"{total:,.1f}".removesuffix(".0")
+            self.assertEqual(row[1], f"{total_text} / {mean:,.1f}")
+        self.assertNotIn("时间按输入长度线性涨", text)
+        self.assertNotIn("当前可行的是两条路", text)
 
     def test_bilingual_tables_preserve_numeric_cells(self):
         compared = 0

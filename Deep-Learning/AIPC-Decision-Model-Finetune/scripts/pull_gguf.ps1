@@ -5,8 +5,8 @@ BF16 stays on the VM (only used as the quantization source).
   .\scripts\pull_gguf.ps1 -Size 0.8b [-Only Q8_0]
 #>
 param(
-    [Parameter(Mandatory)] [ValidateSet('0.8b', '4b', '0.8b-cf', '4b-cf')] [string] $Size,
-    [string[]] $Only = @('Q8_0', 'Q4_K_M'),
+    [Parameter(Mandatory)] [ValidateSet('0.8b', '4b', '0.8b-cf', '4b-cf', '0.8b-r2A', '0.8b-r2B', '0.8b-r2C')] [string] $Size,
+    [ValidateSet('Q8_0', 'Q4_K_M')] [string[]] $Only = @('Q8_0', 'Q4_K_M'),
     [string] $Dest = 'C:\Tools\models\contoso-kev',
     [string] $SshTarget = $env:AIPC_SSH_TARGET,
     [int] $SshPort = $(if ($env:AIPC_SSH_PORT) { [int]$env:AIPC_SSH_PORT } else { 22 })
@@ -18,6 +18,7 @@ $remote = "/mnt/aipc/gguf/$Size"
 $lines = ssh -n -o BatchMode=yes -o ConnectTimeout=30 -p $SshPort $SshTarget "cat $remote/gguf.sha256"
 if ($LASTEXITCODE -ne 0 -or -not $lines) { throw "no gguf.sha256 for $Size on the VM yet" }
 $bad = 0
+$verified = @()
 foreach ($line in $lines) {
     $hash, $name = $line -split '\s+', 2
     $name = $name.TrimStart('*') -replace '^\./', ''
@@ -28,7 +29,13 @@ foreach ($line in $lines) {
     }
     $ok = (Get-FileHash -LiteralPath $local -Algorithm SHA256).Hash.ToLower() -eq $hash
     if (-not $ok) { $bad++ }
+    if ($ok) { $verified += $name }
     "{0}  sha256 {1}  {2}" -f $name, $hash.Substring(0, 16), $(if ($ok) { 'OK' } else { 'MISMATCH' })
 }
 if ($bad) { throw "$bad GGUF file(s) failed the SHA-256 check" }
+foreach ($quantization in $Only) {
+    if (-not ($verified | Where-Object { $_.EndsWith("-$quantization.gguf") })) {
+        throw "requested GGUF missing from verified files: $Size $quantization"
+    }
+}
 Write-Output "__PULL_GGUF_DONE__ $Size"

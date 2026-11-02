@@ -38,8 +38,8 @@ for ARM in "$@"; do
   stage() { echo "$1 $(date -Is)" | tee -a "$STATUS"; }
   bench() {  # name data
     local out="$R/$TAG-$1"
+    [ -s "$2" ] || { echo "MISSING_DATA $2" | tee -a "$STATUS"; return 3; }
     [ -f "$out/report.json" ] && return 0
-    [ -f "$2" ] || { echo "SKIP $1 (no $2)" | tee -a "$STATUS"; return 0; }
     rm -rf "$out"
     "$PY" -m kev.benchmark --run "$CK" --data "$2" --out "$out" --device cuda > "$R/$TAG-$1.log" 2>&1
     "$PY" -c "import json,sys; c=json.load(open(sys.argv[1]))['clean']; print('BENCH', sys.argv[2], 'acc=%.4f brier=%.4f ece=%.4f n=%d' % (c['acc'], c['brier'], c['ece'], c['n']))" "$out/report.json" "$TAG-$1" | tee -a "$STATUS"
@@ -76,8 +76,8 @@ for ARM in "$@"; do
 
   stage "STAGE compare arm=$ARM"
   for s in test_support test_assistant ood_support ood_assistant test_cf_support ood_cf_support; do
-    [ -f "$R/b0-$s/report.json" ] || continue   # B0 rows exist only if the first round's runs are on this disk
-    "$PY" -m kev.compare --candidate "$R/$TAG-$s" --reference "$R/b0-$s" --out "$R/cmp-$TAG-b0-$s" > "$R/cmp-$TAG-b0-$s.log" 2>&1 || echo "COMPARE_FAILED b0 $s" | tee -a "$STATUS"
+    [ -s "$R/b0-$s/report.json" ] && [ -s "$R/$TAG-$s/report.json" ] || { stage "MISSING_COMPARISON_INPUT b0 $s"; exit 3; }
+    "$PY" -m kev.compare --candidate "$R/$TAG-$s" --reference "$R/b0-$s" --out "$R/cmp-$TAG-b0-$s" > "$R/cmp-$TAG-b0-$s.log" 2>&1 || { stage "COMPARE_FAILED b0 $s"; exit 4; }
   done
   stage "ROUND2_DONE arm=$ARM"
 done

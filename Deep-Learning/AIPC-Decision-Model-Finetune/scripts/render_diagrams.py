@@ -406,7 +406,7 @@ def sync_model_loading_tables():
                 raise ValueError(f"No recorded loading run for: {entry[0]}")
             quantization = "Q8_0" if "Q8_0" in entry[0] else "Q4_K_M"
             run = f"{recipe}-kev-{size}-{quantization}-cpu"
-            entry[7] = model_loading_seconds(f"验证结果/端侧引擎_20261027-124700/{run}/server.log")
+            entry[7] = model_loading_seconds(report_sources()["device_results"] / run / "server.log")
         replacements.append((start, end, "".join("| " + " | ".join(entry) + " |\n" for entry in entries)))
     if len(replacements) != 2:
         raise ValueError("Expected both laptop inference tables")
@@ -426,6 +426,28 @@ INFERENCE_CONFIGURATIONS = (
 )
 
 
+def report_sources():
+    text = (ROOT / "README_CN.md").read_text(encoding="utf-8")
+    matches = re.findall(r"<!-- REPORT:SOURCES\s+(.*?)\s+-->", text, re.S)
+    if len(matches) != 1:
+        raise ValueError("Expected one REPORT:SOURCES configuration in README_CN.md")
+    sources = json.loads(matches[0])
+    expected = {"first_summary", "round2_summary", "device_results", "round2_device_results"}
+    if set(sources) != expected:
+        raise ValueError("Report source configuration must name both summaries and both device campaigns")
+    paths = {}
+    for name, relative in sources.items():
+        if not isinstance(relative, str) or Path(relative).is_absolute():
+            raise ValueError(f"Report source must be project-relative: {name}")
+        path = (ROOT / relative).resolve()
+        if not path.is_relative_to(ROOT.resolve()):
+            raise ValueError(f"Report source is outside the project: {name}")
+        if not (path.is_file() if name.endswith("summary") else path.is_dir()):
+            raise ValueError(f"Report source is missing or has the wrong type: {name}: {relative}")
+        paths[name] = path
+    return paths
+
+
 def single_question_tables(campaign=None):
     models = INFERENCE_CONFIGURATIONS
     datasets = (("test_support", "工单·同分布"), ("test_assistant", "助手·同分布"),
@@ -435,6 +457,7 @@ def single_question_tables(campaign=None):
         campaigns = sorted(path for path in (ROOT / "验证结果").glob("单题端侧评测_骁龙_*") if path.is_dir())
         campaign = campaigns[-1] if campaigns else None
     tables = []
+    has_results = False
     for size in ("0.8B", "4B"):
         lines = [f"| 模型（{size}，骁龙 X Elite CPU，默认参数） | 测试集（题数） | 单题准确率（%，含失败题） | 单次分类中位延迟（毫秒） | 校准误差 ECE（百分点，越低越好） | 有效概率覆盖率（%） |",
                  "|---|---|---|---|---|---|"]
@@ -476,14 +499,16 @@ def single_question_tables(campaign=None):
                              f"{result['latency_ms']['p50']:,.0f}" if calibration["n"] else "无有效回答",
                              f"{calibration['ece'] * 100:.2f}" if calibration["n"] else "无有效回答",
                              f"{calibration['coverage']:.1%}"]
+                    has_results = True
                 lines.append(f"| {label} | {dataset_label}（{expected['questions']:,} 题） | " + " | ".join(cells) + " |")
         tables.append("\n".join(lines))
-    return "\n\n".join(tables)
+    return "\n\n".join(tables) if has_results else ""
 
 
 def record_request_tables():
     from systemone_client import calibration_summary, score_answer
 
+    sources = report_sources()
     tables = []
     for size in ("0.8B", "4B"):
         lines = [f"| 模型（{size}，骁龙 X Elite CPU，默认参数） | 测试集（题数） | 逐题准确率（%，含失败题） | 处理完整请求中位时间（秒，每次3道判断） | 校准误差 ECE（百分点，越低越好） | 有效概率覆盖率（%） |",
@@ -491,10 +516,9 @@ def record_request_tables():
         for model_size, model_id, label in INFERENCE_CONFIGURATIONS:
             if model_size != size:
                 continue
-            campaign = ("端侧引擎_骁龙第二轮C_20261101-203702" if model_id.startswith("r2c-")
-                        else "端侧引擎_20261027-124700")
+            campaign = sources["round2_device_results" if model_id.startswith("r2c-") else "device_results"]
             for workload, dataset_label in (("support", "工单·同分布"), ("assistant", "助手·同分布")):
-                run_path = ROOT / "验证结果" / campaign / model_id / workload
+                run_path = campaign / model_id / workload
                 raw_rows = [json.loads(line) for line in (run_path / "rows.jsonl").read_text(encoding="utf-8-sig").splitlines() if line.strip()]
                 records = [json.loads(line) for line in (ROOT / f"data/contoso/final/test_{workload}.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
                 if len(raw_rows) != len(records) or [row["i"] for row in raw_rows] != list(range(len(records))):
@@ -582,8 +606,9 @@ def overview_blocks():
                 result[-1].append(token.content)
         return result
 
-    first = json.loads((ROOT / "验证结果/微调评测_20261027-220226/summary/summary.json").read_text(encoding="utf-8"))
-    second = json.loads((ROOT / "验证结果/第二轮微调评测_20261101-101948/summary/round2_summary.json").read_text(encoding="utf-8"))
+    sources = report_sources()
+    first = json.loads(sources["first_summary"].read_text(encoding="utf-8"))
+    second = json.loads(sources["round2_summary"].read_text(encoding="utf-8"))
     datasets = (("test_support", "工单·同分布"), ("test_assistant", "助手·同分布"),
                 ("ood_support", "工单·分布外"), ("ood_assistant", "助手·分布外"))
     accuracy = ["| 参数规模 | 测试集（题数） | GPU 准确率：发布版 | GPU 准确率：FT-cf<br>业务样本 3,832 条，训练 2 遍 | GPU 准确率：C<br>业务样本 4,038 条，训练 4 遍 | 最终方案相对发布版提升（百分点） |",
@@ -625,7 +650,7 @@ def overview_blocks():
     latency = " / ".join(numeric(field("工单 / 助手请求耗时"))[:2])
     peak = numeric(field("峰值工作集"))[0]
     weight = numeric(field("模型文件"))[0]
-    load = model_loading_seconds("验证结果/端侧引擎_骁龙第二轮C_20261101-203702/r2c-kev-0.8b-Q8_0-cpu/server.log")
+    load = model_loading_seconds(sources["round2_device_results"] / "r2c-kev-0.8b-Q8_0-cpu/server.log")
     quantization = next(row[1] for row in rows(precision[0])[1:] if row[0] == "微调 FT-cf，Q8_0")
     precision[0] += f"\n| 第二轮 C，Q8_0（交付） | {quantization} | {weight} | {support} / {assistant} | {parity} | {latency} | {peak} | {load} |"
     return {"ACCURACY": "\n".join(accuracy), "INFERENCE": record_request_tables(),
@@ -688,11 +713,11 @@ def sync_overview():
         example_path.write_text(example_text, encoding="utf-8")
     detail_path = ROOT / "文档/评测与端侧结果全集.md"
     detail = detail_path.read_text(encoding="utf-8")
-    detail, replacements = re.subn(r"<!-- SINGLE:INFERENCE -->.*?<!-- /SINGLE:INFERENCE -->",
-                                   lambda _: "<!-- SINGLE:INFERENCE -->\n" + single_question_tables()
-                                   + "\n<!-- /SINGLE:INFERENCE -->", detail, flags=re.S)
+    detail, replacements = re.subn(r"<!-- (?:SINGLE|RECORD):INFERENCE -->.*?<!-- /(?:SINGLE|RECORD):INFERENCE -->",
+                                   lambda _: "<!-- RECORD:INFERENCE -->\n" + record_request_tables()
+                                   + "\n<!-- /RECORD:INFERENCE -->", detail, flags=re.S)
     if replacements != 1:
-        raise ValueError("Missing or duplicated single-question results marker")
+        raise ValueError("Missing or duplicated recorded-request results marker")
     detail_path.write_text(detail, encoding="utf-8")
     path = ROOT / "README_CN.md"
     text = path.read_text(encoding="utf-8")

@@ -1,4 +1,5 @@
 {
+ "输入 token 中位数（请求合计 / 每题平均）": "Median input tokens (request total / mean per question)",
  "0.8B 第二轮 C Q8_0，x86-64 虚拟机，160 条带历史的工单，每题平均输入 3,034–8,052 token，答案由历史决定": "0.8B round-2 C Q8_0, x86-64 VM, 160 history-bearing tickets, mean input per question 3,034–8,052 tokens; history determines the answer",
  "对照题 0 / 53；固定 8,192 窗口下出现拒绝，未测模型绝对上限。详见[长输入真题](#long-real)": "Controls 0 / 53; refusals under the fixed 8,192-token window, not a measured absolute model limit. See [long-input cases](#long-real)",
  "每题平均输入（token，请求总量除以3，中位 / 最大）": "Mean input per question (tokens, request total divided by 3, median / maximum)",

@@ -27,8 +27,8 @@ peak() { cut -d, -f2 "$R/gpu-$1.csv" | tr -dc '0-9\n' | sort -n | tail -1; }
 
 bench() {  # name run data
   local out="$R/$1"
+  [ -s "$3" ] || { echo "MISSING_DATA $3" | tee -a "$STATUS"; return 3; }
   [ -f "$out/report.json" ] && return 0
-  [ -f "$3" ] || { echo "SKIP $1 (no $3)" | tee -a "$STATUS"; return 0; }
   rm -rf "$out"
   "$PY" -m kev.benchmark --run "$2" --data "$3" --out "$out" --device cuda > "$R/$1.log" 2>&1
   "$PY" -c "import json,sys; c=json.load(open(sys.argv[1]))['clean']; print('BENCH', sys.argv[2], 'acc=%.4f brier=%.4f ece=%.4f n=%d' % (c['acc'], c['brier'], c['ece'], c['n']))" "$out/report.json" "$1" | tee -a "$STATUS"
@@ -74,8 +74,8 @@ fi
 stage "STAGE compare_cf"
 for s in test_support test_assistant ood_support ood_assistant test_cf_support test_cf_assistant ood_cf_support ood_cf_assistant; do
   for ref in b0 ft; do
-    [ -f "$R/ftcf-$s/report.json" ] && [ -f "$R/$ref-$s/report.json" ] || continue
-    "$PY" -m kev.compare --candidate "$R/ftcf-$s" --reference "$R/$ref-$s" --out "$R/cmpcf-$ref-$s" > "$R/cmpcf-$ref-$s.log" 2>&1 || echo "COMPARE_FAILED $ref $s" | tee -a "$STATUS"
+    [ -s "$R/ftcf-$s/report.json" ] && [ -s "$R/$ref-$s/report.json" ] || { stage "MISSING_COMPARISON_INPUT $ref $s"; exit 3; }
+    "$PY" -m kev.compare --candidate "$R/ftcf-$s" --reference "$R/$ref-$s" --out "$R/cmpcf-$ref-$s" > "$R/cmpcf-$ref-$s.log" 2>&1 || { stage "COMPARE_FAILED $ref $s"; exit 4; }
   done
 done
 stage "PIPELINE_CF_DONE"

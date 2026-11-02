@@ -192,7 +192,7 @@ Progress goes to `$META/state/pipeline-<size>.status`. `META` defaults to `~/rem
 
 Calibration first scores `calib.jsonl` once with the fixed checkpoint, saving question-level scores to `ft-calib-raw/rows.json`. Kev's `scripts/calibrate_checkpoint.py` selects T and writes it into checkpoint `head.pt` metadata; base, LoRA and pointer-head weights stay unchanged. FT-cf uses `ftcf-calib-raw/rows.json` and writes `calibrate_cf.log`. A `CALIBRATED` marker establishes that fitting and saving completed, not that business accuracy or independent calibration acceptance passed.
 
-#### B5. FT-cf: Create Variants Locally, Train on GPU
+#### B5. Train FT-cf and the Delivered C on GPU
 
 <!-- SOURCE:FENCE:11 -->
 ```powershell
@@ -200,16 +200,17 @@ python scripts\augment_counterfactual.py --root data\contoso --out data\contoso\
 ```
 <!-- /SOURCE:FENCE:11 -->
 
-Expected output includes `"train_cf.jsonl": 3832`. Upload the new `*_cf*.jsonl` files and manifest as in B3, then run on the GPU host:
+Expected output includes `"train_cf.jsonl": 3832`. Upload new `*_cf*.jsonl` files and the manifest as in B3. The delivered C uses the included `train_cf2.jsonl`: 4,038 business records plus 1,000 Kev replay records, for 4 epochs. B3 uploads that file. The following commands train the two FT-cf references and 0.8B C independently from the release:
 
 <!-- SOURCE:FENCE:12 -->
 ```bash
 bash scripts/remote_cf_round.sh 0.8b
 bash scripts/remote_cf_round.sh 4b
+bash scripts/remote_round2.sh 0.8b C
 ```
 <!-- /SOURCE:FENCE:12 -->
 
-`pipeline-cf-<size>.status` records `TRAIN_CF_DONE`, `CALIBRATED_CF` and `PIPELINE_CF_DONE`.
+FT-cf uses `pipeline-cf-<size>.status`; C uses `round2-0.8b-C.status` and completes with `ROUND2_DONE arm=C`. C's checkpoint is `/mnt/aipc/runs/0.8b/r2-C/`. Missing evaluation inputs or failed comparisons now exit nonzero; a checkpoint alone does not establish full completion. These instructions close the reproduction path, but this documentation correction did not retrain the model.
 
 Optional memory probe, only when the GPU has no other workload:
 
@@ -230,10 +231,11 @@ First verify that training and calibration of the selected checkpoint are comple
 bash scripts/remote_llama_prep.sh
 bash scripts/remote_export_gguf.sh 0.8b 4b
 bash scripts/remote_export_gguf_cf.sh 0.8b 4b
+bash scripts/remote_export_round2.sh 0.8b C
 ```
 <!-- /SOURCE:FENCE:14 -->
 
-Both `/mnt/aipc/gguf/<size>/` and `/mnt/aipc/gguf/<size>-cf/` should contain BF16, Q8_0 and Q4_K_M files plus `gguf.sha256`. Conversion merges LoRA into the base and includes the pointer head and calibration parameters, so the resulting file can run without the training environment.
+FT and FT-cf export to `/mnt/aipc/gguf/<size>/` and `/mnt/aipc/gguf/<size>-cf/`. C exports to `/mnt/aipc/gguf/0.8b-r2C/`, with Q8_0 named `Contoso-Kev-0.8B-FTcf-R2C-Q8_0.gguf`. Each directory contains BF16, Q8_0, Q4_K_M, `metadata.txt` and `gguf.sha256`. Round-2 export stops on conversion, quantization or temperature-field failure without a success marker. Export merges LoRA and retains the head and calibration parameters for inference without the training environment.
 
 **Inspect temperature metadata before delivery.** The export script runs llama.cpp's `gguf_dump.py --no-tensors` on Q8_0 and saves the result in `metadata.txt`. Its `qwen35.decision.temperature.choice`, `qwen35.decision.temperature.score` and `qwen35.decision.temperature.noul` values must match the source `head.pt` temperature within storage precision. The saved [0.8B FT-cf metadata](../验证结果/微调评测_20261027-220226/gguf/0.8b-cf/metadata.txt) has all three at 1.148698329925537, approximately 1.15. If delivering Q4_K_M or another file, inspect that actual file too; a Q8_0 record does not validate it. Missing or mismatched values block delivery until a wrong or stale export is ruled out.
 
@@ -242,11 +244,11 @@ Both `/mnt/aipc/gguf/<size>/` and `/mnt/aipc/gguf/<size>-cf/` should contain BF1
 <!-- SOURCE:FENCE:15 -->
 ```powershell
 .\scripts\pull_results.ps1 -SshTarget $SSH_TARGET -SshPort $SSH_PORT
-.\scripts\pull_gguf.ps1 -Size 0.8b-cf -SshTarget $SSH_TARGET -SshPort $SSH_PORT
+.\scripts\pull_gguf.ps1 -Size 0.8b-r2C -Only Q8_0 -SshTarget $SSH_TARGET -SshPort $SSH_PORT
 ```
 <!-- /SOURCE:FENCE:15 -->
 
-`-Size` accepts `0.8b`, `0.8b-cf`, `4b` or `4b-cf`, retrieving Q8_0 and Q4_K_M for each. A single scp connection to the VM may deliver less than 1 MiB/s, so both scripts split files across 8 concurrent connections and verify SHA-256 afterward. Success prints `sha256 OK`, then `__PULL_RESULTS_DONE__ <directory>` or `__PULL_GGUF_DONE__`. Results extract to `验证结果\微调评测_<timestamp>\`; large GGUF files go outside the repository, to `C:\Tools\models\contoso-kev\`.
+`-Size` accepts `0.8b`, `0.8b-cf`, `4b`, `4b-cf`, `0.8b-r2A`, `0.8b-r2B` and `0.8b-r2C`. Q8_0 and Q4_K_M are the defaults; the command above retrieves only C Q8_0. Each requested format must exist and match the remote SHA-256 manifest; an empty selection cannot report completion. Success is `__PULL_GGUF_DONE__ 0.8b-r2C`, with the model under `C:\Tools\models\contoso-kev\`; continue with A1-A3. A retrained file is not promised to match historical bytes: validate against that run's export manifest.
 
 <a id="calibration-update"></a>
 
@@ -278,9 +280,11 @@ Offline tests require no model. New device evaluation requires real GGUF weights
 
 #### C1. Single-Question Evaluation on the Laptop
 
+**Uncompleted evaluation procedure, not existing results.** The results page contains historical three-question requests. This section supports future one-question collection. Only small x64 single-question calls and script failure paths have been checked; the seven-configuration by four-dataset Snapdragon campaign has not completed.
+
 Use the CPU runtime from A. For Adreno comparison, download `llama-b11935-bin-win-opencl-adreno-arm64.zip` from the same release, SHA-256 `03495082010595c4d20c50b5d06fc44c0e03c57db5d573fae1727a92cca6a4c8`, and extract to `C:\Tools\llama.cpp\b11935-opencl-adreno\`. The batch script starts and stops its own service. First stop A's trial service yourself or choose a different port.
 
-The new main table uses `-SingleQuestion`: one question per request over all four test sets by default, collecting accuracy, latency and ECE together. Omitting the switch retains the historical three-question mode. Start a batch with a new timestamp and use the fixed model labels below within it, without overwriting an older batch. Completion is determined by the result table and its raw records.
+Future single-question collection uses `-SingleQuestion`: one question per request over four test sets, collecting accuracy, latency and ECE together. Omitting the switch retains three-question mode. Use a new timestamped output batch and the fixed labels without overwriting older evidence. Completion depends on raw records, not passing offline script tests.
 
 <!-- SOURCE:FENCE:16 -->
 ```powershell
@@ -307,7 +311,9 @@ Each completed model leaves `run.json`, `server.log`, and `rows.jsonl` plus `sum
 
 Single-question mode does not compare against historical three-question PyTorch results: it skips `-TorchPrefix` with a warning. Without `-SingleQuestion`, the legacy `-TorchPrefix`, `-Backend opencl`, `-Ctx`, `-UBatch`, `-DataPrefix policy_test_`, `-Concurrency` and `-Parallel` options remain available. Such changed conditions do not belong in the default single-question table. x64 runs require their matching `-Bin` and a separately named result directory, never a Snapdragon batch name.
 
-#### C2. Generate Tables on the Laptop
+<a id="report-sources"></a>
+
+#### C2. Select Evidence Sources and Generate Tables
 
 <!-- SOURCE:FENCE:18 -->
 ```powershell
@@ -319,7 +325,11 @@ python scripts\fill_report_tables.py --report 文档/评测与端侧结果全集
 
 `summary.md` contains all tables; `report_blocks.json` contains blocks for the README and report. `engine_comparison.md` supplies the main performance before/after table; `engine_brief.md` retains every device configuration. These commands produce derived summaries without changing raw results. Rerunning the fill step replaces previous generated Chinese blocks. The diagram/document renderer uses the shared table-localization function for English; measured values are not translated or recalculated. Synchronize the English source-backed blocks after updating their Chinese counterparts:
 
-The three commands above remain for historical GPU and three-question results, not single-question aggregation. The client writes new single-question metrics directly to each run's `summary.json`. Run `python scripts\render_diagrams.py --sync-english --preview`: it selects the name-sorted latest `验证结果/单题端侧评测_骁龙_*` batch, checks device, input hash, full question count and raw-output hash, and writes the same table to the overview and detailed results in both languages. Missing configurations remain unmeasured rather than being filled from other batches. Numbers are not translated.
+The commands above analyze recorded GPU and three-question outputs in the specified directories; they do not run a new experiment. First-round summaries use `summarize_results.py`; second-round summaries use `python scripts\summarize_round2.py --round2 <current-runs> --baseline <first-round-runs> --data data\contoso\final --out <current-summary>`. Unrun A/B arms must not receive C's results.
+
+There is one report source configuration: the `REPORT:SOURCES` JSON at the top of `README_CN.md`. `first_summary` and `round2_summary` select training summary files; `device_results` and `round2_device_results` select the two Snapdragon three-question campaigns. All paths are project-relative. Defaults explicitly reference the documented historical runs. For a new campaign, preserve old evidence, generate its summary, update the corresponding source paths, and review the prose, recipe, conclusions and links together. Renaming a directory does not make another model the same recipe.
+
+Run `python scripts\render_diagrams.py --sync-english --preview` to read that configuration, validate sources, question counts and raw records, and generate bilingual overview/results tables. Missing or out-of-project sources fail without fallback. Single-question data does not replace three-question timing, and absent single-question results produce no empty matrix. Selecting a source does not automatically prove methodological comparability with historical runs.
 
 #### C3. Offline Tests
 
