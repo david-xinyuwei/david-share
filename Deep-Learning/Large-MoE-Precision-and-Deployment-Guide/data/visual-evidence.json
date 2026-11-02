@@ -36,14 +36,112 @@
       "source_class": "original_test_topology",
       "decision": "USE",
       "depicts": "The 2026-11-02 run as executed: node 0 (Ray head; Nemotron TP8+EP; Inkling pipeline stage 0), node 1 (Ray worker; Inkling pipeline stage 1), local NVMe RAID0 weight cache on each node, RCCL over 8x InfiniBand with NCCL_NET_GDR_LEVEL=0, control host issuing commands over SSH, smoke requests sent by curl on node 0.",
-      "bound_to": ["data/mi300x-run/nemotron_bf16_8xMI300X/00_meta.txt", "data/mi300x-run/inkling_bf16_16xMI300X_pp2/00_meta.txt", "scripts/mi300x/05_serve_inkling_2node.sh"],
+      "bound_to": [
+        "data/mi300x-run/nemotron_bf16_8xMI300X/00_meta.txt",
+        "data/mi300x-run/inkling_bf16_16xMI300X_pp2/00_meta.txt",
+        "scripts/mi300x/05_serve_inkling_2node.sh"
+      ],
       "does_not_prove": "Execution by itself; the bound 00_meta.txt and log key lines do. Private host names and IPs are replaced by role labels."
+    },
+    {
+      "asset": "images/mi300x-parallel-layout-en.svg",
+      "source_class": "original_explanatory_diagram",
+      "generator": "tools/build_layout_figure.py",
+      "language": "en",
+      "sha256": "aa50f473197b7db6a7dd4cf1ec3931fe920fa9424faaec5c3e68bfab06c3b8f7",
+      "width": 1960,
+      "height": 1130,
+      "decision": "USE",
+      "depicts": "Per-model parallel layout of the 2026-11-02 run 2 on two ND96isr_MI300X_v5 nodes: Nemotron TP8+EP8 on node 0 only; Inkling and Muse TP8 inside each node x PP2 across nodes (stage 0 = node 0 / Ray head, stage 1 = node 1 / Ray worker). GPU counts, TP/PP/EP sizes, per-GPU weights and free KV memory and the image tag are read from summary.json.",
+      "bound_to": [
+        "data/mi300x-run/nemotron_bf16_8xMI300X_run2/00_meta.txt",
+        "data/mi300x-run/inkling_bf16_16xMI300X_pp2_run2/00_meta.txt",
+        "data/mi300x-run/muse_bf16_16xMI300X_pp2_run2/00_meta.txt",
+        "data/mi300x-run/summary.json"
+      ],
+      "does_not_prove": "Throughput, quality or that another layout would not work; the 'why' box restates constraints already recorded in the README and VALIDATION.",
+      "icons": [
+        {
+          "file": "images/icons/10021-icon-service-Virtual-Machine.svg",
+          "sha256": "092d18ffadec9ec0e5af129186dc7bc2a80544011e55f965604ed4b13873e0fc",
+          "bytes": 1330,
+          "packageEntry": "Azure_Public_Service_Icons/Icons/compute/10021-icon-service-Virtual-Machine.svg",
+          "packageUrl": "https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V24.zip",
+          "packageSha256": "921594ccd1bf3d9c0a1bd7b6d924e050551a59342f2b353bb74bdcf761c35141",
+          "termsUrl": "https://learn.microsoft.com/azure/architecture/icons/",
+          "terms": "Microsoft permits the use of these icons in architectural diagrams, training materials, or documentation. Don't crop, flip, rotate, distort or change icon shape.",
+          "modified": false
+        }
+      ],
+      "rendered_png": {
+        "asset": "images/mi300x-parallel-layout-en.png",
+        "sha256": "5de9ebd0acf09fc48f4d803a940aa9f396a8640d59a38e7f5d1e5d8b1db3a38d",
+        "width": 3920,
+        "height": 2260,
+        "rendered_from_svg_sha256": "aa50f473197b7db6a7dd4cf1ec3931fe920fa9424faaec5c3e68bfab06c3b8f7",
+        "renderer": "Microsoft Edge headless screenshot, device scale factor 2"
+      }
+    },
+    {
+      "asset": "images/mi300x-parallel-layout-zh.svg",
+      "source_class": "original_explanatory_diagram",
+      "generator": "tools/build_layout_figure.py",
+      "language": "zh",
+      "sha256": "f3fa39c3af0dd393d256235461000612356921038575d2e57091ca514308503e",
+      "width": 1960,
+      "height": 1130,
+      "decision": "USE",
+      "depicts": "Per-model parallel layout of the 2026-11-02 run 2 on two ND96isr_MI300X_v5 nodes: Nemotron TP8+EP8 on node 0 only; Inkling and Muse TP8 inside each node x PP2 across nodes (stage 0 = node 0 / Ray head, stage 1 = node 1 / Ray worker). GPU counts, TP/PP/EP sizes, per-GPU weights and free KV memory and the image tag are read from summary.json.",
+      "bound_to": [
+        "data/mi300x-run/nemotron_bf16_8xMI300X_run2/00_meta.txt",
+        "data/mi300x-run/inkling_bf16_16xMI300X_pp2_run2/00_meta.txt",
+        "data/mi300x-run/muse_bf16_16xMI300X_pp2_run2/00_meta.txt",
+        "data/mi300x-run/summary.json"
+      ],
+      "does_not_prove": "Throughput, quality or that another layout would not work; the 'why' box restates constraints already recorded in the README and VALIDATION.",
+      "icons": [
+        {
+          "file": "images/icons/10021-icon-service-Virtual-Machine.svg",
+          "sha256": "092d18ffadec9ec0e5af129186dc7bc2a80544011e55f965604ed4b13873e0fc",
+          "bytes": 1330,
+          "packageEntry": "Azure_Public_Service_Icons/Icons/compute/10021-icon-service-Virtual-Machine.svg",
+          "packageUrl": "https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V24.zip",
+          "packageSha256": "921594ccd1bf3d9c0a1bd7b6d924e050551a59342f2b353bb74bdcf761c35141",
+          "termsUrl": "https://learn.microsoft.com/azure/architecture/icons/",
+          "terms": "Microsoft permits the use of these icons in architectural diagrams, training materials, or documentation. Don't crop, flip, rotate, distort or change icon shape.",
+          "modified": false
+        }
+      ],
+      "rendered_png": {
+        "asset": "images/mi300x-parallel-layout-zh.png",
+        "sha256": "a8f8fc03b6c892d384ba0c8aca11eaa4f01f7b96c89705b84efc741b9eab3890",
+        "width": 3920,
+        "height": 2260,
+        "rendered_from_svg_sha256": "f3fa39c3af0dd393d256235461000612356921038575d2e57091ca514308503e",
+        "renderer": "Microsoft Edge headless screenshot, device scale factor 2"
+      }
     }
   ],
   "source_class_decisions": [
-    {"source_class": "real_experiment", "decision": "USE_AS_TABLES_AND_RAW_FILES", "reason": "The 2026-11-02 MI300X run is shown as result tables and raw request/response/log files in data/mi300x-run/ rather than as charts: with 2-3 smoke requests per model there is no distribution to plot, and a chart would overstate the measurement."},
-    {"source_class": "vendor_documentation", "decision": "USE", "reason": "The original NVFP4 Figure 2 directly explains value and scale storage."},
-    {"source_class": "paper_figures", "decision": "SKIP", "reason": "No paper figure was used to establish per-checkpoint component settings; those claims use actual export configuration and named deployment recipes."},
-    {"source_class": "private_screenshots", "decision": "BLOCKED", "reason": "Customer conversations and the private request spreadsheet are not public visual assets."}
+    {
+      "source_class": "real_experiment",
+      "decision": "USE_AS_TABLES_AND_RAW_FILES",
+      "reason": "The 2026-11-02 MI300X run is shown as result tables and raw request/response/log files in data/mi300x-run/ rather than as charts: with 2-3 smoke requests per model there is no distribution to plot, and a chart would overstate the measurement."
+    },
+    {
+      "source_class": "vendor_documentation",
+      "decision": "USE",
+      "reason": "The original NVFP4 Figure 2 directly explains value and scale storage."
+    },
+    {
+      "source_class": "paper_figures",
+      "decision": "SKIP",
+      "reason": "No paper figure was used to establish per-checkpoint component settings; those claims use actual export configuration and named deployment recipes."
+    },
+    {
+      "source_class": "private_screenshots",
+      "decision": "BLOCKED",
+      "reason": "Customer conversations and the private request spreadsheet are not public visual assets."
+    }
   ]
 }

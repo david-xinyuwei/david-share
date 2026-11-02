@@ -198,3 +198,43 @@ test('documents do not claim what the run did not do', () => {
   const inklingScript = docs['README.md'].includes('scripts/mi300x/05_serve_inkling_2node.sh');
   assert.ok(nemotronScript && inklingScript, 'README links both serving scripts');
 });
+
+test('parallel-layout figure: generated from summary.json, ledgered, embedded in both READMEs', async () => {
+  const ledger = JSON.parse(await readFile(new URL('data/visual-evidence.json', root), 'utf8'));
+  const { createHash } = await import('node:crypto');
+  const sha = buf => createHash('sha256').update(buf).digest('hex');
+  for (const lang of ['en', 'zh']) {
+    const rel = `images/mi300x-parallel-layout-${lang}.svg`;
+    const entry = ledger.visuals.find(v => v.asset === rel);
+    assert.ok(entry, `${rel} is registered in data/visual-evidence.json`);
+    assert.equal(entry.source_class, 'original_explanatory_diagram');
+    const svg = await readFile(new URL(rel, root), 'utf8');
+    assert.equal(sha(Buffer.from(svg, 'utf8')), entry.sha256, `${rel} matches its ledger hash`);
+    // every number the figure draws comes from summary.json (run 2 layouts)
+    for (const tag of ['nemotron_bf16_8xMI300X_run2', 'inkling_bf16_16xMI300X_pp2_run2', 'muse_bf16_16xMI300X_pp2_run2']) {
+      const run = byTag[tag];
+      for (const gib of [...run.model_loading_gib_per_gpu, ...run.available_kv_cache_gib]) {
+        assert.ok(svg.includes(`${gib} GiB`), `${rel} draws ${gib} GiB from ${tag}`);
+      }
+      assert.ok(svg.includes(`--tensor-parallel-size ${run.tensor_parallel_size}`), `${rel} states TP for ${tag}`);
+      if (run.pipeline_parallel_size) assert.ok(svg.includes(`--pipeline-parallel-size ${run.pipeline_parallel_size}`), `${rel} states PP for ${tag}`);
+      if (run.expert_parallel) assert.ok(svg.includes('--enable-expert-parallel'), `${rel} states EP for ${tag}`);
+    }
+    assert.match(svg, /TP8/); assert.match(svg, /PP/); assert.match(svg, /EP8/);
+    // the only icon is the ledgered, unmodified Azure Virtual Machine icon
+    assert.equal(entry.icons.length, 1);
+    const icon = await readFile(new URL(entry.icons[0].file, root));
+    assert.equal(sha(icon), entry.icons[0].sha256); assert.equal(icon.length, entry.icons[0].bytes); assert.equal(entry.icons[0].modified, false);
+    assert.ok(svg.includes('data:image/svg+xml;base64,' + icon.toString('base64')), `${rel} embeds exactly the ledgered icon bytes`);
+    if (entry.rendered_png) {
+      const png = await readFile(new URL(entry.rendered_png.asset, root));
+      assert.equal(sha(png), entry.rendered_png.sha256, `${entry.rendered_png.asset} matches its ledger hash`);
+      assert.equal(entry.rendered_png.rendered_from_svg_sha256, entry.sha256, 'PNG was rendered from the current SVG');
+    }
+  }
+  assert.ok(docs['README.md'].includes('images/mi300x-parallel-layout-en.png'), 'README embeds the English figure');
+  assert.ok(docs['README_CN.md'].includes('images/mi300x-parallel-layout-zh.png'), 'README_CN embeds the Chinese figure');
+  for (const name of ['README.md', 'README_CN.md']) {
+    assert.match(docs[name], /Original parallel-layout figure|原创并行布局图/, `${name} captions the figure as original`);
+  }
+});

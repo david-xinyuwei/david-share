@@ -41,9 +41,9 @@ AWQ、GPTQ、GSQ 是求取低精度权重的方法；GGUF 是文件格式，`Q4_
 | Nemotron 3 Ultra | 550 | 55 |
 | Inkling | 975 | 41 |
 
-- **Muse Spark Open：**多模态 MoE Transformer 和感知编码器；语言骨干 62 层、256 个专家、每 token 选择 8 个。Meta 发布 BF16/NVFP4 权重，访问需按 Muse Model License 申请 [M1][M2]。
-- **Nemotron 3 Ultra：**Mamba-2、Attention、LatentMoE 混合架构及 MTP。NVIDIA 发布 BF16/NVFP4 权重，许可为 OpenMDW-1.1 [N1][N2]。
-- **Inkling：**66 层局部/全局 Attention 与短卷积；256 个路由专家、2 个共享专家，每 token 选择 6 个路由专家。Thinking Machines Lab 发布 BF16/NVFP4 权重，许可为 Apache-2.0 [I1][I2]。
+- **Muse Spark Open**：多模态 MoE Transformer 和感知编码器；语言骨干 62 层、256 个专家、每 token 选择 8 个。Meta 发布 BF16/NVFP4 权重，访问需按 Muse Model License 申请 [M1][M2]。
+- **Nemotron 3 Ultra**：Mamba-2、Attention、LatentMoE 混合架构及 MTP。NVIDIA 发布 BF16/NVFP4 权重，许可为 OpenMDW-1.1 [N1][N2]。
+- **Inkling**：66 层局部/全局 Attention 与短卷积；256 个路由专家、2 个共享专家，每 token 选择 6 个路由专家。Thinking Machines Lab 发布 BF16/NVFP4 权重，许可为 Apache-2.0 [I1][I2]。
 
 `B` 表示十亿参数，`A42B` 等表示每 token 激活参数，不是需要常驻的完整权重。MoE 通常仍需装载全部专家，或明确采用会增加传输和调度开销的卸载策略。不能按 42B、55B、41B 计算完整模型的权重显存。参数标签也不一定包括全部多模态组件、MTP 和导出额外张量，应以所选 revision 的实际文件和张量清单复核。
 
@@ -62,6 +62,8 @@ AWQ、GPTQ、GSQ 是求取低精度权重的方法；GGUF 是文件格式，`Q4_
 #### Muse Spark Open
 
 发布版本：Meta BF16、NVFP4；AMD Quark FP8 [M1][M2][M8]。
+
+三张表用同一套 25 行，便于逐行对照。Muse 是纯 Attention + MoE 的 Transformer，没有共享专家、Mamba 层和短卷积 [M4]，所以下表 6 行“不适用”是模型本身没有这个部件，不是未查。
 
 | 组件 | 精度：<br>BF16 | 精度：<br>FP8 | 精度：<br>NVFP4 |
 |---|---|---|---|
@@ -99,6 +101,8 @@ Muse 没有共享专家 [M4]。辅助预测使用独立的 draft checkpoint，�
 
 发布版本：NVIDIA BF16、NVFP4；Red Hat AI FP8 [N1][N2][N8]。
 
+Nemotron 用 Mamba-2 而不用 Inkling 式短卷积，且没有视觉/音频编码器 [N1]，所以下表 3 行“不适用”是模型没有这个部件。
+
 | 组件 | 精度：<br>BF16 | 精度：<br>FP8 | 精度：<br>NVFP4 |
 |---|---|---|---|
 | 权重：词嵌入 | BF16，实测 [T1] | 排除量化 [N8] | 排除量化 [N3] |
@@ -134,6 +138,8 @@ Muse 没有共享专家 [M4]。辅助预测使用独立的 draft checkpoint，�
 #### Inkling
 
 发布版本：Thinking Machines Lab BF16、NVFP4；Red Hat AI FP8 [I1][I2][I8]。
+
+Inkling 用短卷积而不用 Mamba [I1]，所以下表 3 行 Mamba “不适用”是模型没有这个部件。
 
 | 组件 | 精度：<br>BF16 | 精度：<br>FP8 | 精度：<br>NVFP4 |
 |---|---|---|---|
@@ -306,6 +312,10 @@ flowchart LR
 
 原创测试拓扑图：Nemotron 只用节点 0；Inkling 和 Muse 用两个节点，每节点一个流水级，流水级内 TP8。smoke 请求由节点 0 上的 `curl` 发向本机 `127.0.0.1:8000`，计时点是 `curl` 发出到收到完整 JSON 的墙钟时间，包含调度和生成、不含跨机网络，不是首 token 延迟；首 token 延迟和 tok/s 由第 2 轮的速度探针单独测（见下文）。控制机只通过 SSH 下发命令。每卡显存数字是 vLLM 日志的 GiB（二进制）；资源估算表的权重字节是 GB（十进制）。
 
+<img src="images/mi300x-parallel-layout-zh.png" width="980" alt="原创图：三个模型在两台 ND96isr_MI300X_v5 上的 TP / EP / PP 布局——Nemotron 在节点 0 上 TP8+EP8；Inkling 和 Muse 节点内 TP8 × 跨节点 PP2">
+
+原创并行布局图，由 [`tools/build_layout_figure.py`](tools/build_layout_figure.py) 从 [summary.json](data/mi300x-run/summary.json) 生成：**TP**（张量并行）把每一层切到一个节点的 8 张卡上，**EP**（专家并行）把路由专家切到同一组 8 张卡上，**PP**（流水线并行）把前一半层放在节点 0、后一半层放在节点 1。Nemotron 只在节点 0 上跑 `--tensor-parallel-size 8 --enable-expert-parallel`（每卡权重 136.51 GiB）；Inkling 和 Muse 通过 Ray 跑 `--tensor-parallel-size 8 --pipeline-parallel-size 2`，流水级 0 在节点 0、流水级 1 在节点 1，两者都不用 EP。图中每卡权重和 KV 可用显存是 vLLM 加载后日志里的值，与下表数字相同。Azure 虚拟机图标来自 Azure Architecture Icons V24；MI300X 和 vLLM 进程没有官方图标，用带文字的普通方框表示。图只说明布局，不代表速度或质量。
+
 | 模型 · 布局 | 加载结果 | 选中的内核与后端 | 显存（每卡） | 缓存精度 | smoke 生成 |
 |---|---|---|---|---|---|
 | Nemotron 3 Ultra BF16 · 1 节点 TP8+EP | **通过**（第 3 次尝试） | MoE `TritonExperts`；注意力 `ROCM_ATTN`；Mamba SSU `triton`；all-reduce `AITER_CUSTOM`+`PYNCCL` | 权重 136.51 GiB，加载后 146.67 GiB 已用，KV 可用 23.07 GiB，KV 容量 3,490,022 token | K/V BF16（默认）；Mamba 状态 FP16（启动参数）；注意力块 1056 token 对齐 Mamba 页 | 中文 31→94 token 1.61 s；英文 42→209 token 5.42 s；内容正确 |
@@ -366,10 +376,10 @@ Muse 的详细模块精度、三模型在指定机器上的峰值显存与性能
 | `data/deployment-budget.json` | 每卡预算表的输入（GPU 数量、HBM、来源） |
 | `data/mi300x-run/` | MI300X 实测的公开投影（第 1 轮：Nemotron、Inkling PP2、Inkling DP2；第 2 轮：Inkling PP2、Nemotron 和 Muse PP2，各带速度探针的 `08_perf.json`）：原始请求/响应、显存 JSON、日志关键行、`summary.json`、私有大文件的 SHA-256 |
 | `data/visual-evidence.json` | 文中每张图的来源、尺寸、哈希和证明边界 |
-| `images/` | 仅一张 NVIDIA 官方 NVFP4 两级缩放图 |
+| `images/` | NVIDIA 官方 NVFP4 两级缩放图；原创并行布局图（`mi300x-parallel-layout-{zh,en}.svg/.png`，由 `tools/build_layout_figure.py` 从 `summary.json` 生成）；`icons/` 下是未改动的 Azure 官方图标 |
 | `scripts/mi300x/` | MI300X 复现脚本：节点准备、拉镜像、下载、三个模型的启动（`04_` Nemotron、`05_` Inkling、`08_` Muse）、证据采集、RCCL 探针、服务速度探针（`09_perf_probe.py`）、`Dockerfile.muse-ray` |
 | `tools/` | `inspect.mjs`（元数据复算）、`census.mjs`（普查汇总）、`budget.mjs`（每卡预算）、`tensor_census.py`（在有权重的机器上读文件头）、`mi300x_evidence.py`（证据投影与汇总）、`preview.ps1`（本地渲染） |
-| `tests/` | `inspect.test.mjs`、`census.test.mjs`、`mi300x.test.mjs`，共 17 项 |
+| `tests/` | `inspect.test.mjs`、`census.test.mjs`、`mi300x.test.mjs`，共 18 项 |
 
 ## 操作步骤
 
@@ -377,12 +387,12 @@ Muse 的详细模块精度、三模型在指定机器上的峰值显存与性能
 
 | 顺序 | 位置与操作 | 通过条件 |
 |---|---|---|
-| 1 | **权重仓库与许可证页：**确认模型、精度版本、访问许可和固定 revision。 | 权重可合法取得，版本明确。 |
-| 2 | **目标硬件与引擎：**选择同一模型的官方配方，固定 GPU、并行布局和引擎版本。 | 所需模态、缓存和内核都有明确支持。 |
-| 3 | **容量规划：**统计权重字节，按目标上下文与并发计算缓存，再预留工作区。 | 每张卡与每个并行分组都有余量，不能只看总和。 |
-| 4 | **隔离验证环境：**按官方配方启动，保存实际内核与缓存日志。 | 模型加载、功能调用与数值检查都通过。 |
-| 5 | **业务验收环境：**用同一模型 BF16 与量化版本跑相同真实任务。 | 质量、峰值显存、延迟与并发满足预先定义的要求。 |
-| 6 | **生产准备：**固定镜像、权重、模板、回退方案和监控。 | 新实例可重复部署；升级与回退有验证记录。 |
+| 1 | **权重仓库与许可证页**：确认模型、精度版本、访问许可和固定 revision。 | 权重可合法取得，版本明确。 |
+| 2 | **目标硬件与引擎**：选择同一模型的官方配方，固定 GPU、并行布局和引擎版本。 | 所需模态、缓存和内核都有明确支持。 |
+| 3 | **容量规划**：统计权重字节，按目标上下文与并发计算缓存，再预留工作区。 | 每张卡与每个并行分组都有余量，不能只看总和。 |
+| 4 | **隔离验证环境**：按官方配方启动，保存实际内核与缓存日志。 | 模型加载、功能调用与数值检查都通过。 |
+| 5 | **业务验收环境**：用同一模型 BF16 与量化版本跑相同真实任务。 | 质量、峰值显存、延迟与并发满足预先定义的要求。 |
+| 6 | **生产准备**：固定镜像、权重、模板、回退方案和监控。 | 新实例可重复部署；升级与回退有验证记录。 |
 
 部署入口：Muse 使用 Meta 的开发者指南 [M3]；Nemotron 使用相应 BF16/NVFP4 模型卡中的引擎示例 [N1][N2]；Inkling 使用发布方链接的 vLLM recipe [I3]。不要把不同模型的命令拼成一个通用启动脚本，也不要把示例中的上下文长度、并发和并行参数原样当作业务推荐值。
 
@@ -450,7 +460,7 @@ node tools/budget.mjs --table
 node --test tests/inspect.test.mjs tests/census.test.mjs tests/mi300x.test.mjs
 ```
 
-第一条命令从六个已保存版本的逐 dtype 元素数计算张量负载字节；第二条汇总两个 BF16 快照的逐张量文件头普查并与 API 元数据交叉核对；第三条按发布方列出的 GPU 数量算每卡权重与剩余 HBM。测试检查版本覆盖、打包字节计算、明确保留的配置缺口、失败处理、普查与 API 字节一致性，以及本文引用的每个 MI300X 实测数字（含第 2 轮速度探针的 TTFT 和 tok/s）是否与 [data/mi300x-run/summary.json](data/mi300x-run/summary.json) 一致（共 17 项）。这些命令都不调用模型，也不验证 GPU 数量。
+第一条命令从六个已保存版本的逐 dtype 元素数计算张量负载字节；第二条汇总两个 BF16 快照的逐张量文件头普查并与 API 元数据交叉核对；第三条按发布方列出的 GPU 数量算每卡权重与剩余 HBM。测试检查版本覆盖、打包字节计算、明确保留的配置缺口、失败处理、普查与 API 字节一致性，以及本文引用的每个 MI300X 实测数字（含第 2 轮速度探针的 TTFT 和 tok/s）是否与 [data/mi300x-run/summary.json](data/mi300x-run/summary.json) 一致，以及并行布局图画的 TP/PP/EP 大小和每卡显存是否就是该 summary 里的值、图标是否与台账哈希一致（共 18 项）。这些命令都不调用模型，也不验证 GPU 数量。
 
 要读取当前公开元数据而不是复算快照：
 
