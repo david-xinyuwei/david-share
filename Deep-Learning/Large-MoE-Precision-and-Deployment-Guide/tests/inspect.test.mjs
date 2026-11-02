@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import {access, readFile} from 'node:fs/promises';
 import test from 'node:test';
 import {refreshSnapshot, summarizeSnapshot, tensorPayload} from '../tools/inspect.mjs';
@@ -6,6 +7,7 @@ import {refreshSnapshot, summarizeSnapshot, tensorPayload} from '../tools/inspec
 const snapshot = JSON.parse(await readFile(new URL('../data/model-evidence.json', import.meta.url), 'utf8'));
 
 test('covers all model variants and keeps the bilingual matrix and links aligned', async () => {
+  const visuals = JSON.parse(await readFile(new URL('../data/visual-evidence.json', import.meta.url), 'utf8')).visuals;
   assert.equal(snapshot.models.length, 6);
   for (const family of ['Muse Spark Open', 'Nemotron 3 Ultra', 'Inkling']) {
     assert.deepEqual(snapshot.models.filter(model => model.family === family).map(model => model.variant).sort(), ['BF16', 'NVFP4']);
@@ -26,7 +28,24 @@ test('covers all model variants and keeps the bilingual matrix and links aligned
       const target = match[1].split('#')[0];
       if (target && !/^[a-z]+:/i.test(target)) await access(new URL(target, source));
     }
+    for (const match of markdown.matchAll(/<img\b[^>]*\bsrc="([^"]+)"/g)) {
+      if (!/^[a-z]+:/i.test(match[1])) await access(new URL(match[1], source));
+    }
     if (filename.startsWith('README')) {
+      assert.doesNotMatch(markdown, /```mermaid|<wbr\b/);
+      const language = filename.includes('_CN') ? 'zh' : 'en';
+      for (const diagram of ['nvfp4-execution', 'mi300x-test-topology']) {
+        const asset = `images/${diagram}-${language}.svg`;
+        assert.ok(markdown.includes(asset), `${filename} embeds ${asset}`);
+        const svg = await readFile(new URL(`../${asset}`, import.meta.url), 'utf8');
+        assert.match(svg, /<svg\b/);
+        assert.doesNotMatch(svg, /<foreignObject\b|<script\b|&amp;nbsp;/);
+        const entry = visuals.find(visual => visual.asset === asset);
+        assert.ok(entry, `${asset} has provenance`);
+        assert.equal(createHash('sha256').update(svg).digest('hex'), entry.sha256);
+        const diagramSource = await readFile(new URL(`../${entry.source_asset}`, import.meta.url));
+        assert.equal(createHash('sha256').update(diagramSource).digest('hex'), entry.source_sha256);
+      }
       const lines = markdown.split(/\r?\n/);
       const starts = lines.flatMap((line, index) => /^\| (组件|Part) \|/.test(line) ? [index] : []);
       assert.equal(starts.length, 3, `Expected one complete table per model in ${filename}`);

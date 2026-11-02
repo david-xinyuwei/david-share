@@ -20,30 +20,6 @@
       "rights_note": "Third-party figure reproduced with adjacent source attribution; not relicensed as original repository artwork."
     },
     {
-      "asset": "README.md / README_CN.md Mermaid block",
-      "source_class": "original_cross_source_explanation",
-      "decision": "USE",
-      "sources": [
-        "https://docs.vllm.ai/en/stable/features/quantization/modelopt/",
-        "https://developer.nvidia.com/blog/introducing-nvfp4-for-efficient-and-accurate-low-precision-inference/",
-        "https://recipes.vllm.ai/thinkingmachines/Inkling"
-      ],
-      "incremental_value": "Places documented Hopper fallback and Blackwell native paths beside one another without substituting them for model runtime evidence.",
-      "does_not_prove": "Execution trace or full-model kernel coverage"
-    },
-    {
-      "asset": "README.md / README_CN.md Mermaid block in 'MI300X run' / 'MI300X 实测'",
-      "source_class": "original_test_topology",
-      "decision": "USE",
-      "depicts": "The 2026-11-02 run as executed: node 0 (Ray head; Nemotron TP8+EP; Inkling pipeline stage 0), node 1 (Ray worker; Inkling pipeline stage 1), local NVMe RAID0 weight cache on each node, RCCL over 8x InfiniBand with NCCL_NET_GDR_LEVEL=0, control host issuing commands over SSH, smoke requests sent by curl on node 0.",
-      "bound_to": [
-        "data/mi300x-run/nemotron_bf16_8xMI300X/00_meta.txt",
-        "data/mi300x-run/inkling_bf16_16xMI300X_pp2/00_meta.txt",
-        "scripts/mi300x/05_serve_inkling_2node.sh"
-      ],
-      "does_not_prove": "Execution by itself; the bound 00_meta.txt and log key lines do. Private host names and IPs are replaced by role labels."
-    },
-    {
       "asset": "images/mi300x-parallel-layout-en.svg",
       "source_class": "original_explanatory_diagram",
       "generator": "tools/build_layout_figure.py",
@@ -120,6 +96,82 @@
         "rendered_from_svg_sha256": "f3fa39c3af0dd393d256235461000612356921038575d2e57091ca514308503e",
         "renderer": "Microsoft Edge headless screenshot, device scale factor 2"
       }
+    },
+    {
+      "asset": "images/nvfp4-execution-en.svg",
+      "source_class": "original_cross_source_explanation",
+      "decision": "USE",
+      "sources": [
+        "https://docs.vllm.ai/en/stable/features/quantization/modelopt/",
+        "https://developer.nvidia.com/blog/introducing-nvfp4-for-efficient-and-accurate-low-precision-inference/",
+        "https://recipes.vllm.ai/thinkingmachines/Inkling"
+      ],
+      "incremental_value": "Places documented Hopper fallback and Blackwell native paths beside one another without substituting them for model runtime evidence.",
+      "does_not_prove": "Execution trace or full-model kernel coverage",
+      "language": "en",
+      "generator": "tools/preview.ps1 -ExportDiagrams",
+      "source_asset": "images/nvfp4-execution-en.mmd",
+      "source_sha256": "124a40abc0ae242eeba623d0cd0db207679046c6bc28859ca4ad0b6d41295359",
+      "sha256": "4068cacc4bfc892dbbb0b3bcfe13dd9a677b8b41ef72db380ea980dee4479648",
+      "width": 1391,
+      "height": 349
+    },
+    {
+      "asset": "images/mi300x-test-topology-en.svg",
+      "source_class": "original_test_topology",
+      "decision": "USE",
+      "depicts": "The 2026-11-02 run as executed: node 0 (Ray head; Nemotron TP8+EP; Inkling pipeline stage 0), node 1 (Ray worker; Inkling pipeline stage 1), local NVMe RAID0 weight cache on each node, RCCL over 8x InfiniBand with NCCL_NET_GDR_LEVEL=0, control host issuing commands over SSH, smoke requests sent by curl on node 0.",
+      "bound_to": [
+        "data/mi300x-run/nemotron_bf16_8xMI300X/00_meta.txt",
+        "data/mi300x-run/inkling_bf16_16xMI300X_pp2/00_meta.txt",
+        "scripts/mi300x/05_serve_inkling_2node.sh"
+      ],
+      "does_not_prove": "Execution by itself; the bound 00_meta.txt and log key lines do. Private host names and IPs are replaced by role labels.",
+      "language": "en",
+      "generator": "tools/preview.ps1 -ExportDiagrams",
+      "source_asset": "images/mi300x-test-topology-en.mmd",
+      "source_sha256": "4669ad8e492e5be7cb3b58665e8f3739eb93a7357e567879a8b18e7deffc6995",
+      "sha256": "fbdb3fb9dd09ff28dce5688c521d8c66958f701dc1f5f094a53b9c1998f4ee33",
+      "width": 1575,
+      "height": 406
+    },
+    {
+      "asset": "images/nvfp4-execution-zh.svg",
+      "source_class": "original_cross_source_explanation",
+      "decision": "USE",
+      "sources": [
+        "https://docs.vllm.ai/en/stable/features/quantization/modelopt/",
+        "https://developer.nvidia.com/blog/introducing-nvfp4-for-efficient-and-accurate-low-precision-inference/",
+        "https://recipes.vllm.ai/thinkingmachines/Inkling"
+      ],
+      "incremental_value": "Places documented Hopper fallback and Blackwell native paths beside one another without substituting them for model runtime evidence.",
+      "does_not_prove": "Execution trace or full-model kernel coverage",
+      "language": "zh",
+      "generator": "tools/preview.ps1 -ExportDiagrams",
+      "source_asset": "images/nvfp4-execution-zh.mmd",
+      "source_sha256": "cb22c69487bd6908cd943209224e8315e4b9565f0159fb1f887bd1b216a7746d",
+      "sha256": "20d59e4b3d45b7e77193ca906e00381c44c0614d8945dd230726881d74353a7b",
+      "width": 1280,
+      "height": 327
+    },
+    {
+      "asset": "images/mi300x-test-topology-zh.svg",
+      "source_class": "original_test_topology",
+      "decision": "USE",
+      "depicts": "The 2026-11-02 run as executed: node 0 (Ray head; Nemotron TP8+EP; Inkling pipeline stage 0), node 1 (Ray worker; Inkling pipeline stage 1), local NVMe RAID0 weight cache on each node, RCCL over 8x InfiniBand with NCCL_NET_GDR_LEVEL=0, control host issuing commands over SSH, smoke requests sent by curl on node 0.",
+      "bound_to": [
+        "data/mi300x-run/nemotron_bf16_8xMI300X/00_meta.txt",
+        "data/mi300x-run/inkling_bf16_16xMI300X_pp2/00_meta.txt",
+        "scripts/mi300x/05_serve_inkling_2node.sh"
+      ],
+      "does_not_prove": "Execution by itself; the bound 00_meta.txt and log key lines do. Private host names and IPs are replaced by role labels.",
+      "language": "zh",
+      "generator": "tools/preview.ps1 -ExportDiagrams",
+      "source_asset": "images/mi300x-test-topology-zh.mmd",
+      "source_sha256": "9aa5e8d16e775643684f53131a24ae5c9d88304ee958c060c283d083ed0f211a",
+      "sha256": "b229d24f786d8e55e0156c574aac43ec957cb7b05570fa991b2e7987733de3fd",
+      "width": 1499,
+      "height": 380
     }
   ],
   "source_class_decisions": [

@@ -1,1 +1,5 @@
 data/*.json !filter !diff !merge text eol=lf
+images/nvfp4-execution-*.mmd text eol=lf
+images/nvfp4-execution-*.svg text eol=lf
+images/mi300x-test-topology-*.mmd text eol=lf
+images/mi300x-test-topology-*.svg text eol=lf

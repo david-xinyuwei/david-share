@@ -1,0 +1,12 @@
+flowchart LR
+	W["NVFP4 权重与 scale"] --> H["H100/H200 兼容内核"]
+	H --> D["片上按块解码为 FP16/BF16"]
+	A["16 bit 激活"] --> G["16 bit 浮点矩阵乘法"]
+	D --> G
+	W --> B["Blackwell 原生 NVFP4 内核"]
+	Q["激活量化为 FP4 并生成 scale"] --> B
+	B --> F["FP4 操作数矩阵乘法"]
+	G --> O["高精度累加与输出"]
+	F --> O
+	style H fill:#eeeeee,stroke:#555555
+	style B fill:#e9f4d5,stroke:#76B900

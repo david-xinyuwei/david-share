@@ -1,0 +1,12 @@
+flowchart LR
+    W["NVFP4 weights and scales"] --> H["H100/H200 compatible kernel"]
+    H --> D["Decode tiles to FP16/BF16 on chip"]
+    A["16-bit activations"] --> G["16-bit floating-point GEMM"]
+    D --> G
+    W --> B["Blackwell native NVFP4 kernel"]
+    Q["Quantize activations to FP4 and generate scales"] --> B
+    B --> F["GEMM with FP4 operands"]
+    G --> O["Higher-precision sum/output"]
+    F --> O
+    style H fill:#eeeeee,stroke:#555555
+    style B fill:#e9f4d5,stroke:#76B900

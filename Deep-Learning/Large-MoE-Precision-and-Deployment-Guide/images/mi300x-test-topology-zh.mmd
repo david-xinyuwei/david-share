@@ -1,0 +1,16 @@
+flowchart LR
+    subgraph N0["节点 0 · ND96isr_MI300X_v5 · 8×MI300X 192GB"]
+        C0["vLLM 容器 · Ray head<br/>Nemotron: TP8+EP（单机）<br/>Inkling / Muse: TP8 · 流水级 0"]
+        P["09_perf_probe.py<br/>宿主机 python3 → 127.0.0.1:8000<br/>并发 1 / 8 · 流式 · TTFT · tok/s"]
+    end
+    subgraph N1["节点 1 · ND96isr_MI300X_v5 · 8×MI300X 192GB"]
+        C1["vLLM 容器 · Ray worker<br/>Inkling / Muse: TP8 · 流水级 1"]
+    end
+    W["控制机（与节点不同的 Windows VM）<br/>SSH · 节点 0 本地 curl 发 smoke"] -->|"请求"| C0
+    W ~~~ P
+    P -->|"流式请求"| C0
+    C0 <-->|"RCCL over 8× IB 400Gb/s<br/>NCCL_NET_GDR_LEVEL=0"| C1
+    NV0["本地 NVMe RAID0 28TB<br/>HF 权重缓存"] --> C0
+    NV1["本地 NVMe RAID0 28TB<br/>HF 权重缓存"] --> C1
+    style N0 fill:#fdf0ee,stroke:#ED1C24
+    style N1 fill:#fdf0ee,stroke:#ED1C24

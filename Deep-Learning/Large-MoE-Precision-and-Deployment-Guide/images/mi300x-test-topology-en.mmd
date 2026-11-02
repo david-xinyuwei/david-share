@@ -1,0 +1,16 @@
+flowchart LR
+        subgraph N0["Node 0 · MI300X"]
+                C0["Host: ND96isr_MI300X_v5<br/>8×MI300X 192GB<br/>vLLM container · Ray head<br/>Nemotron: TP8+EP (single node)<br/>Inkling / Muse: TP8 · pipeline stage 0"]
+        P["09_perf_probe.py<br/>host python3 → 127.0.0.1:8000<br/>concurrency 1 / 8 · streaming · TTFT · tok/s"]
+    end
+    subgraph N1["Node 1 · MI300X"]
+        C1["Host: ND96isr_MI300X_v5<br/>8×MI300X 192GB<br/>vLLM container · Ray worker<br/>Inkling / Muse: TP8 · pipeline stage 1"]
+    end
+    W["Control host (a separate Windows VM)<br/>SSH · smoke sent by curl on node 0"] -->|"request"| C0
+    W ~~~ P
+    P -->|"streamed requests"| C0
+    C0 <-->|"RCCL over 8× IB 400Gb/s<br/>NCCL_NET_GDR_LEVEL=0"| C1
+    NV0["local NVMe RAID0 28TB<br/>HF weight cache"] --> C0
+    NV1["local NVMe RAID0 28TB<br/>HF weight cache"] --> C1
+    style N0 fill:#fdf0ee,stroke:#ED1C24
+    style N1 fill:#fdf0ee,stroke:#ED1C24
