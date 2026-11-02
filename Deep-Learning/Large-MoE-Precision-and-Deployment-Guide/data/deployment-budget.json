@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "scope": "Per-GPU weight budget from observed tensor bytes (data/tensor-census) divided across the publisher-listed GPU count. HBM figures are the vendor's nominal per-device capacity. Remaining HBM is before KV cache, Mamba/sconv state, activations, workspace, communication buffers and framework reservation; it is an upper bound on what runtime caches may take, not a measured allocation.",
+  "evidence_type": "CALCULATED_FROM_OBSERVED_HEADERS",
+  "gpus": {
+    "H100 SXM 80GB": {"hbm_GB": 80, "native_fp4": false, "native_fp8": true},
+    "H200 141GB": {"hbm_GB": 141, "native_fp4": false, "native_fp8": true},
+    "B200 180GB": {"hbm_GB": 180, "native_fp4": true, "native_fp8": true},
+    "MI300X 192GB": {"hbm_GB": 192, "native_fp4": false, "native_fp8": true}
+  },
+  "layouts": [
+    {"model": "Nemotron 3 Ultra BF16", "census": "nemotron3ultra_bf16_77df655d.json", "publisher_listing": "16x H100 / 8x H200 / 8x B200 (model card N1)", "configs": [
+      {"gpu": "H100 SXM 80GB", "count": 16, "source": "N1"},
+      {"gpu": "H200 141GB", "count": 8, "source": "N1"},
+      {"gpu": "B200 180GB", "count": 8, "source": "N1"},
+      {"gpu": "MI300X 192GB", "count": 8, "source": "this repository, 2026-11-02 run"}
+    ]},
+    {"model": "Inkling BF16", "census": "inkling_bf16_828496ee.json", "publisher_listing": "multi-node on Hopper (vLLM recipe I3); not listed for AMD in BF16", "configs": [
+      {"gpu": "H200 141GB", "count": 16, "source": "I3 (2 nodes x 8)"},
+      {"gpu": "B200 180GB", "count": 16, "source": "calculated only; not a publisher listing"},
+      {"gpu": "MI300X 192GB", "count": 16, "source": "this repository, 2026-11-02 run (2 nodes x 8)"}
+    ]}
+  ]
+}

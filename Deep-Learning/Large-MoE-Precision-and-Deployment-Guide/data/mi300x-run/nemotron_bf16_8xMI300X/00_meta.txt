@@ -1,0 +1,22 @@
+EVIDENCE_START=2026-11-01T17:36:58Z ctr=vllm_nemotron model=nemotron-3-ultra-bf16
+host=node0 kernel=6.8.0-1067-azure rocm_host=6.4.4-129
+image=rocm/vllm:rocm10.1.0_ubuntu24.04_py3.14-pytorch_2.13.0_vllm-0.29.0 imageid=sha256:e0ea9a10b729573ea8598bdc073bda0ea382fe1037eec7c0761b6fa7f46baaf4 started=2026-11-01T17:30:32.649611674Z args=serve nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16 --revision 77df655d5e9f8362164ed14dd8b48f8bce657498 --host 0.0.0.0 --port 8000 --served-model-name nemotron-3-ultra-bf16 --trust-remote-code --dtype bfloat16 --tensor-parallel-size 8 --enable-expert-parallel --max-model-len 65536 --gpu-memory-utilization 0.90 --max-num-seqs 16 --max-num-batched-tokens 16384 --enable-chunked-prefill --enable-prefix-caching --mamba-ssm-cache-dtype float16 --reasoning-parser nemotron_v3
+models_http=0
+smoke_wall_secs=1.613000112
+smoke2_wall_secs=5.416165716
+EVIDENCE_END=2026-11-01T17:37:05Z
+total 240
+drwxr-xr-x 2 root      root        4096 Nov  1 17:37 .
+drwxrwxr-x 4 <login-user> <login-user>   4096 Nov  1 17:36 ..
+-rw-r--r-- 1 root      root         922 Nov  1 17:37 00_meta.txt
+-rw-r--r-- 1 root      root         501 Nov  1 17:36 01_models.json
+-rw-r--r-- 1 root      root         154 Nov  1 17:36 02_smoke_request.json
+-rw-r--r-- 1 root      root         977 Nov  1 17:36 02_smoke_response.json
+-rw-r--r-- 1 root      root         218 Nov  1 17:36 03_smoke2_request.json
+-rw-r--r-- 1 root      root        1727 Nov  1 17:37 03_smoke2_response.json
+-rw-r--r-- 1 root      root        8139 Nov  1 17:37 04_amd_smi_mem.json
+-rw-r--r-- 1 root      root         785 Nov  1 17:37 04_rocm_smi_vram.json
+-rw-r--r-- 1 root      root      168190 Nov  1 17:37 05_server_full.log
+-rw-r--r-- 1 root      root       27393 Nov  1 17:37 05_server_keylines.log
+-rw-r--r-- 1 root      root           0 Nov  1 17:37 06_module_dtype_census.err
+-rw-r--r-- 1 root      root           0 Nov  1 17:37 06_module_dtype_census.json

@@ -2,8 +2,8 @@
 
 [![Models](https://img.shields.io/badge/models-3-0078D4)](#部署配置参考)
 [![Precisions](https://img.shields.io/badge/precision-BF16%20%7C%20FP8%20%7C%20NVFP4-76B900)](#逐模型组件精度)
-[![Scope](https://img.shields.io/badge/evidence-documents%20%2B%20configuration-555555)](#证据边界)
-[![Checked](https://img.shields.io/badge/checked-2026--11--01-0078D4)](#证据边界)
+[![Evidence](https://img.shields.io/badge/evidence-headers%20%2B%20config%20%2B%20MI300X%20run-555555)](#证据边界)
+[![Tested](https://img.shields.io/badge/tested-2026--11--02%20%C2%B7%2016%C3%97MI300X-ED1C24)](#mi300x-实测)
 
 作者：魏新宇（Xinyu Wei） · [English](README.md)
 
@@ -101,33 +101,33 @@ Muse 没有共享专家 [M4]。辅助预测使用独立的 draft checkpoint，�
 
 | 组件 | 精度：<br>BF16 | 精度：<br>FP8 | 精度：<br>NVFP4 |
 |---|---|---|---|
-| 权重：词嵌入 | BF16 [N1] | 排除量化 [N8] | 排除量化 [N3] |
-| 权重：注意力投影 | BF16 [N1] | FP8 目标层 [N8] | 不在低精度规则中 [N3] |
-| 权重：路由器 | 保留基线 [N1] | 排除量化 [N8] | 排除量化 [N3] |
-| 权重：路由专家 | BF16 [N1] | FP8 [N8] | NVFP4 [N3] |
-| 权重：共享专家 | BF16 [N1] | FP8 目标层 [N8] | FP8 [N3] |
-| 权重：潜空间投影 | 保留基线 [N1] | 按目标与排除规则 [N8] | 排除量化 [N3] |
-| 权重：Mamba 投影 | BF16 [N1] | FP8 目标层 [N8] | FP8 [N3] |
-| 权重：Mamba 状态参数 | BF16 / FP32 [N1] | 卷积等排除 [N8] | 卷积等排除 [N3] |
+| 权重：词嵌入 | BF16，实测 [T1] | 排除量化 [N8] | 排除量化 [N3] |
+| 权重：注意力投影 | BF16，实测 [T1] | FP8 目标层 [N8] | 不在低精度规则中 [N3] |
+| 权重：路由器 | `gate.weight` BF16 + `e_score_correction_bias` F32，实测 [T1] | 排除量化 [N8] | 排除量化 [N3] |
+| 权重：路由专家 | BF16，49,152 个张量，实测 [T1] | FP8 [N8] | NVFP4 [N3] |
+| 权重：共享专家 | BF16，实测 [T1] | FP8 目标层 [N8] | FP8 [N3] |
+| 权重：潜空间投影 | BF16，实测 [T1] | 按目标与排除规则 [N8] | 排除量化 [N3] |
+| 权重：Mamba 投影 | BF16，实测 [T1] | FP8 目标层 [N8] | FP8 [N3] |
+| 权重：Mamba 状态参数 | `A_log` / `D` / `dt_bias` / `conv1d` 全部 BF16，实测 [T1] | 卷积等排除 [N8] | 卷积等排除 [N3] |
 | 权重：Inkling 短卷积 | 不适用 | 不适用 | 不适用 |
-| 权重：归一化与偏置 | 保留基线 [N1] | 排除量化 [N8] | 保留基线 [N3] |
+| 权重：归一化与偏置 | BF16，实测 [T1] | 排除量化 [N8] | 保留基线 [N3] |
 | 权重：视觉与音频 | 不适用 [N1] | 不适用 | 不适用 |
-| 权重：MTP | 共享关系另核 [N1] | 配方未单列 [N8] | 配方未单列 [N2] |
-| 权重：输出层 | BF16 [N1] | 排除量化 [N8] | 不在低精度规则中 [N3] |
-| 激活：注意力投影输入 | 16 bit | 动态 FP8 [N8] | 按对应算子 [N3] |
-| 激活：专家输入 | 16 bit | 动态 FP8 [N8] | 依内核选 FP4 / 16 bit [V1] |
+| 权重：MTP | BF16（1,039 张量）+ 1 个 F32 偏置，实测 [T1] | 配方未单列 [N8] | 配方未单列 [N2] |
+| 权重：输出层 | BF16，实测 [T1] | 排除量化 [N8] | 不在低精度规则中 [N3] |
+| 激活：注意力投影输入 | BF16，MI300X 实测 [T2] | 动态 FP8 [N8] | 按对应算子 [N3] |
+| 激活：专家输入 | BF16，MI300X 实测 [T2] | 动态 FP8 [N8] | 依内核选 FP4 / 16 bit [V1] |
 | 激活：路由与残差 | 按实现 | 排除专家量化 [N8] | 排除专家量化 [N3] |
 | 运算：Black&shy;well 专家 | BF16 | 支持内核时 FP8 | 原生 FP4 [V1] |
-| 运算：Hopper 专家 | BF16 [N1] | 支持内核时 FP8 | W4A16 兼容 [N2][V1] |
+| 运算：Hopper / MI300X 专家 | BF16；MI300X 实测选中 `TritonExperts` [N1][T2] | 支持内核时 FP8 | W4A16 兼容 [N2][V1] |
 | 运算：累加与输出 | 按内核 | 非由 FP8 决定 | 高于 FP4 [H1] |
-| K 缓存 | 按示例配置 [N1] | 启动时另设 [N8] | 示例为 FP8 [N2] |
-| V 缓存 | 按示例配置 [N1] | 启动时另设 [N8] | 示例为 FP8 [N2] |
-| 缓存缩放与注意力 | 按后端 | 按后端 | 按后端 [V2] |
-| Mamba 状态缓存 | 示例 FP16 [N1] | 示例 FP16 [N8] | 示例 FP16 [N2] |
+| K 缓存 | BF16（默认 `auto`），MI300X 实测 [T2] | 启动时另设 [N8] | 示例为 FP8 [N2] |
+| V 缓存 | BF16（默认 `auto`），MI300X 实测 [T2] | 启动时另设 [N8] | 示例为 FP8 [N2] |
+| 缓存缩放与注意力 | `ROCM_ATTN`，MI300X 实测 [T2] | 按后端 | 按后端 [V2] |
+| Mamba 状态缓存 | FP16（启动参数生效），MI300X 实测 [T2] | 示例 FP16 [N8] | 示例 FP16 [N2] |
 | 短卷积状态缓存 | 不适用 | 不适用 | 不适用 |
-| 推理验收 | 尚未执行 | 尚未执行 | 配置已解析，推理未执行 |
+| 推理验收 | **MI300X 8 卡 smoke 通过** [T2] | 尚未执行 | 配置已解析，推理未执行 |
 
-**配置说明。** N3 是直接读取的发布配置，router/gate、latent projection 等出现在排除列表中；排除规则不等于已逐张量确认 BF16。BF16 发布元数据含 F32 张量，归一化、偏置和状态参数须保留原始 dtype。Red Hat FP8 使用 `Linear` 目标和明确的 ignore 列表；只有匹配目标且未被排除的模块才采用该 FP8 配方 [N8]。
+**配置说明。** N3 是直接读取的发布配置，router/gate、latent projection 等出现在排除列表中；排除规则不等于已逐张量确认 BF16。BF16 列的"实测"来自 2026-11-02 对固定 revision `77df655d` 全部 225 个 safetensors 文件头的逐张量普查 [T1]：51,023 个张量、1,121,049,257,984 字节，与公开 API 元数据算出的字节数完全一致；路由专家占 91.9%，Mamba 投影 3.6%，MTP 2.0%，共享专家 1.4%。模型配置的 `mamba_ssm_cache_dtype` 为 `float32`，但 vLLM 示例和本次实测都用 `--mamba-ssm-cache-dtype float16` 覆盖它，缓存精度由启动参数决定而不是 checkpoint。Red Hat FP8 使用 `Linear` 目标和明确的 ignore 列表；只有匹配目标且未被排除的模块才采用该 FP8 配方 [N8]。
 
 原厂 NVFP4 专家分组大小为 16。N3 共包含 49,344 条模块量化规则：49,152 条 NVFP4 路由专家规则、96 条 FP8 共享专家规则，以及 Mamba 输入、输出投影各 48 条 FP8 规则。这是配置条目数，不是参数量或性能测量。官方示例的 Mamba 状态采用 FP16 加随机舍入；FP8 KV cache 与 Mamba 状态是两套独立设置 [N2]。MTP 的共享关系和未单列模块应通过完整模型配置及张量清单确认。
 
@@ -137,33 +137,33 @@ Muse 没有共享专家 [M4]。辅助预测使用独立的 draft checkpoint，�
 
 | 组件 | 精度：<br>BF16 | 精度：<br>FP8 | 精度：<br>NVFP4 |
 |---|---|---|---|
-| 权重：词嵌入 | BF16 [I1] | 保留基线 [I8] | BF16 [I3] |
-| 权重：注意力投影 | BF16 [I1] | 配置排除 [I9] | BF16 [I3] |
-| 权重：路由器 | BF16 [I3] | 保留基线 [I8] | BF16 [I3] |
-| 权重：路由专家 | BF16 [I1] | FP8<br>含排除层 [I8] | NVFP4<br>含排除层 [I4] |
-| 权重：共享专家 | BF16 [I3] | 保留基线 [I8] | BF16 [I3][I4] |
+| 权重：词嵌入 | BF16，实测 [T1] | 保留基线 [I8] | BF16 [I3] |
+| 权重：注意力投影 | BF16，实测 [T1] | 配置排除 [I9] | BF16 [I3] |
+| 权重：路由器 | `gate.weight` BF16 [258×6144] + `gate.bias` F32，实测 [T1] | 保留基线 [I8] | BF16 [I3] |
+| 权重：路由专家 | BF16，融合张量 `experts.w13_weight` / `w2_weight` 各 [256,…]，实测 [T1] | FP8<br>含排除层 [I8] | NVFP4<br>含排除层 [I4] |
+| 权重：共享专家 | BF16，`shared_w13_weight` [2,6144,6144]，实测 [T1] | 保留基线 [I8] | BF16 [I3][I4] |
 | 权重：潜空间投影 | 不套用 Nemo&shy;tron [I1] | 不套用 Nemo&shy;tron [I8] | 不套用 Nemo&shy;tron [I3] |
 | 权重：Mamba 投影 | 不适用 | 不适用 | 不适用 |
 | 权重：Mamba 状态参数 | 不适用 | 不适用 | 不适用 |
-| 权重：短卷积 | BF16 [I3] | 保留基线 [I8] | BF16 [I3] |
-| 权重：归一化与偏置 | 保留基线 [I1] | 保留基线 [I8] | BF16 为主 [I3] |
-| 权重：视觉与音频 | 保留基线 [I1] | 保留基线 [I8] | 编码器排除 [I4] |
-| 权重：MTP | BF16 [I3] | 配方未单列 [I8] | BF16 [I3] |
-| 权重：输出层 | BF16 [I1] | 保留基线 [I8] | BF16 [I3] |
-| 激活：注意力投影输入 | 16 bit | 配置排除 [I9] | BF16 [I3] |
-| 激活：专家输入 | 16 bit | 动态 FP8 [I8] | 依内核选 FP4 / 16 bit [I3][V1] |
-| 激活：路由与残差 | 按实现 | 保留基线 [I8] | 保留基线 [I3] |
+| 权重：短卷积 | BF16，264 个 [2048,1,4] 核，实测 [T1] | 保留基线 [I8] | BF16 [I3] |
+| 权重：归一化与偏置 | BF16 + 128 个 F32 标量，实测 [T1] | 保留基线 [I8] | BF16 为主 [I3] |
+| 权重：视觉与音频 | BF16，仅 0.18 GB，实测 [T1] | 保留基线 [I8] | 编码器排除 [I4] |
+| 权重：MTP | BF16，160 个张量，实测 [T1] | 配方未单列 [I8] | BF16 [I3] |
+| 权重：输出层 | BF16，实测 [T1] | 保留基线 [I8] | BF16 [I3] |
+| 激活：注意力投影输入 | BF16（`--dtype bfloat16`），实测 [T2] | 配置排除 [I9] | BF16 [I3] |
+| 激活：专家输入 | BF16，AITER 融合 MoE 以 BF16 收 BF16 权重，实测 [T2] | 动态 FP8 [I8] | 依内核选 FP4 / 16 bit [I3][V1] |
+| 激活：路由与残差 | BF16 主干，128 个 F32 标量参与 [T1] | 保留基线 [I8] | 保留基线 [I3] |
 | 运算：Black&shy;well 专家 | BF16 | 支持内核时 FP8 | 原生 FP4，排除层另算 [I3] |
-| 运算：Hopper 专家 | BF16 [I3] | 支持内核时 FP8 | H200 解码为 BF16 [I3] |
+| 运算：Hopper / MI300X 专家 | Hopper BF16 [I3]；MI300X `AiterExperts`（2stage，Silu），实测 [T2] | 支持内核时 FP8 | H200 解码为 BF16 [I3] |
 | 运算：累加与输出 | 按内核 | 非由 FP8 决定 | 高于 FP4 [H1] |
-| K 缓存 | 按运行配置 | 按运行配置 [I8] | 导出为 none [I4] |
-| V 缓存 | 按运行配置 | 按运行配置 [I8] | 导出为 none [I4] |
-| 缓存缩放与注意力 | 区分局部/全局层 [I3] | 按后端 | 按后端 |
+| K 缓存 | BF16（`kv_cache_dtype=auto` 跟随权重），实测 [T2] | 按运行配置 [I8] | 导出为 none [I4] |
+| V 缓存 | BF16（同上），实测 [T2] | 按运行配置 [I8] | 导出为 none [I4] |
+| 缓存缩放与注意力 | 区分局部/全局层 [I3]；MI300X 走模型自带 AMD 注意力实现，实测 [T2] | 按后端 | 按后端 |
 | Mamba 状态缓存 | 不适用 | 不适用 | 不适用 |
-| 短卷积状态缓存 | 读取运行配置 [I3] | 读取运行配置 | 读取运行配置 [I3] |
-| 推理验收 | 尚未执行 | 需固定集成版本，尚未执行 | 配置已解析，推理未执行 |
+| 短卷积状态缓存 | BF16，切分上限 8 路（`sconv SWA cache supports tp_size <= num_kv_heads (8)`），实测 [T2] | 读取运行配置 | 读取运行配置 [I3] |
+| 推理验收 | MI300X 2 × 8 卡 smoke 通过（TP8 × PP2） [T2] | 需固定集成版本，尚未执行 | 配置已解析，推理未执行 |
 
-**配置说明。** Inkling 使用局部与全局 Attention、短卷积及共享专家，不套用 Nemotron 的 Mamba/LatentMoE 精度分配。I4 采用全局 NVFP4 配置加排除列表，其中包括 `model.llm.layers.2.mlp.experts`、共享专家、router 和编码器等。没有逐模块字典不表示没有量化；全局算法也不能覆盖排除项。
+**配置说明。** Inkling 使用局部与全局 Attention、短卷积及共享专家，不套用 Nemotron 的 Mamba/LatentMoE 精度分配。BF16 列的"实测"来自 2026-11-02 对 revision `828496ee` 全部 109 个 safetensors 文件头的普查 [T1]：1,552 个张量、1,904,755,280,148 字节，与 API 元数据一致；路由专家占 97.4%，注意力 0.9%，共享专家 0.8%，MTP 0.6%，第 0–1 层稠密 MLP 0.1%。该 checkpoint 把每层 256 个专家打包成两个融合张量，而 Nemotron 每个专家单独存储，所以张量数相差 30 倍但精度语义相同。路由器 `gate.weight` 第一维是 258 = 256 个路由专家 + 2 个作为 sink 参与打分的共享专家。I4 采用全局 NVFP4 配置加排除列表，其中包括 `model.llm.layers.2.mlp.experts`、共享专家、router 和编码器等。没有逐模块字典不表示没有量化；全局算法也不能覆盖排除项。
 
 Red Hat FP8 模型卡与实际配置对 Attention 的描述有冲突，表中按 I9 的 `.attn` 排除规则处理。输出激活与 KV 配方为空，不表示这些值都是 FP8。NVFP4 导出的 `kv_cache_quant_algo=none` 表示没有在该导出配置中指定缓存量化，运行时仍可另设 K/V dtype。短卷积缓存的 dtype 由其运行实现确定，不归入统一 FP8 或 NVFP4 KV。
 
@@ -241,7 +241,20 @@ AMD MI350 系列支持 MXFP4，包括 MI350X 和 MI355X；NVFP4 与 MXFP4 的块
 | Inkling<br>BF16 | 1904.755 | 1773.942 |
 | Inkling<br>NVFP4 | 592.005 | 551.348 |
 
-计算只覆盖公开元数据列出的张量，不含文件头、非张量文件、KV/状态缓存、临时工作区或通信缓冲。Nemotron BF16 的 API 总元素字段与逐 dtype 求和有差异，工具保留并报告该差异，不改原数据；更多边界见[验证说明](VALIDATION_CN.md)。
+计算只覆盖公开元数据列出的张量，不含文件头、非张量文件、KV/状态缓存、临时工作区或通信缓冲。Nemotron BF16 的 API 总元素字段与逐 dtype 求和有差异，工具保留并报告该差异，不改原数据；更多边界见[验证说明](VALIDATION_CN.md)。2026-11-02 对两个 BF16 快照的文件头普查 [T1] 得到的字节数与上表 Nemotron、Inkling 两行完全一致，证明按 API 元素数乘 dtype 字节的算法没有漏项。
+
+**每张卡要放多少权重。** 把观测到的张量字节按发布方列出的 GPU 数量平分，再和该 GPU 的标称 HBM 相减；"剩余"是扣掉权重之前 KV cache、Mamba/短卷积状态、激活、工作区和通信缓冲能用的上限，不是实测分配。入口 `node tools/budget.mjs --table`，输入 [deployment-budget.json](data/deployment-budget.json)：
+
+| 模型 | GPU × 数量 | 每卡权重<br>GB | 每卡 HBM<br>GB | 每卡剩余<br>GB | 来源 |
+|---|---|---:|---:|---:|---|
+| Nemotron 3 Ultra BF16 | 16 × H100 80GB | 70.1 | 80 | 9.9 | N1 |
+| Nemotron 3 Ultra BF16 | 8 × H200 141GB | 140.1 | 141 | 0.9 | N1 |
+| Nemotron 3 Ultra BF16 | 8 × B200 180GB | 140.1 | 180 | 39.9 | N1 |
+| Nemotron 3 Ultra BF16 | 8 × MI300X 192GB | 140.1 | 192 | 51.9 | 本项目实测 [T2]：加载后每卡 146.67 GiB 已用（权重 136.51 GiB + 非 torch），KV cache 可用 23.07 GiB |
+| Inkling BF16 | 16 × H200 141GB | 119.0 | 141 | 22.0 | I3（2 节点 × 8） |
+| Inkling BF16 | 16 × MI300X 192GB | 119.0 | 192 | 73.0 | 本项目实测 [T2]：TP16 被模型拒绝（`sconv SWA cache supports tp_size <= num_kv_heads (8)`）；TP8 × PP2 实际加载 109.5 / 116.1 GiB（两个流水级），KV 可用 57.4 / 51.0 GiB；TP8 × DP2 + EP16 每卡 114.9 GiB（预算 116.0 + 6.2 = 122.1 GB） |
+
+8 × H200 跑 Nemotron BF16 每卡只剩 0.9 GB，说明模型卡把它列为最低配置时默认了 KV cache 要靠 FP8 和很小的并发；这是"能放下权重"和"能服务"之间的差距。Inkling 一行说明"16 卡能放下"和"16 卡能按 TP16 切"是两件事：权重放得下，但注意力/短卷积缓存的切分维度限制了并行形态——同样 16 卡，PP2 每卡装 109–116 GiB、DP2+EP16 每卡装 115 GiB，两种布局都比平均值 119 GB 略低，因为流水级/专家组各自只持有一部分非专家张量。
 
 $$
 M_{\text{peak}} = M_{\text{weights}} + M_{\text{KV}} + M_{\text{state}} + M_{\text{workspace}} + M_{\text{communication}} + M_{\text{other}}.
@@ -267,9 +280,41 @@ $$
 
 存储至少区分下载与缓存目录、运行使用的权重目录、转换中间文件和日志。不要凭标称参数给出固定磁盘数字；先读取所选 revision 的文件大小并确认是否需要同时保留 BF16 与 NVFP4 两份权重。
 
+### MI300X 实测
+
+<a id="mi300x-实测"></a>
+
+2026-11-02 在两台 Azure `Standard_ND96isr_MI300X_v5`（每台 8 × MI300X 192 GB）上用 `rocm/vllm:rocm10.1.0_ubuntu24.04_py3.14-pytorch_2.13.0_vllm-0.29.0` 实际加载 BF16 原厂权重。三个发布方都没有给 MI300X 的 BF16 配方，所以这是本项目自己的实验，不是复现官方步骤；它回答的是"能不能跑起来、实际选了什么内核、缓存什么精度、显存用了多少"，不是吞吐或质量。
+
+```mermaid
+flowchart LR
+    subgraph N0["节点 0 · ND96isr_MI300X_v5 · 8×MI300X 192GB"]
+        C0["vLLM 容器 · Ray head<br/>Nemotron: TP8+EP<br/>Inkling: TP8 · 流水级 0"]
+    end
+    subgraph N1["节点 1 · ND96isr_MI300X_v5 · 8×MI300X 192GB"]
+        C1["vLLM 容器 · Ray worker<br/>Inkling: TP8 · 流水级 1"]
+    end
+    W["控制机（与节点不同的 Windows VM）<br/>SSH · 节点 0 本地 curl 发 smoke"] -->|"请求"| C0
+    C0 <-->|"RCCL over 8× IB 400Gb/s<br/>NCCL_NET_GDR_LEVEL=0"| C1
+    NV0["本地 NVMe RAID0 28TB<br/>HF 权重缓存"] --> C0
+    NV1["本地 NVMe RAID0 28TB<br/>HF 权重缓存"] --> C1
+    style N0 fill:#fdf0ee,stroke:#ED1C24
+    style N1 fill:#fdf0ee,stroke:#ED1C24
+```
+
+原创测试拓扑图：Nemotron 只用节点 0；Inkling 用两个节点。smoke 请求由节点 0 上的 `curl` 发向本机 `127.0.0.1:8000`，计时点是 `curl` 发出到收到完整 JSON 的墙钟时间，包含调度和生成、不含跨机网络，不是首 token 延迟；控制机只通过 SSH 下发命令。每卡显存数字是 vLLM 日志的 GiB（二进制）；资源估算表的权重字节是 GB（十进制）。
+
+| 模型 · 布局 | 加载结果 | 选中的内核与后端 | 显存（每卡） | 缓存精度 | smoke 生成 |
+|---|---|---|---|---|---|
+| Nemotron 3 Ultra BF16 · 1 节点 TP8+EP | **通过**（第 3 次尝试） | MoE `TritonExperts`；注意力 `ROCM_ATTN`；Mamba SSU `triton`；all-reduce `AITER_CUSTOM`+`PYNCCL` | 权重 136.51 GiB，加载后 146.67 GiB 已用，KV 可用 23.07 GiB，KV 容量 3,490,022 token | K/V BF16（默认）；Mamba 状态 FP16（启动参数）；注意力块 1056 token 对齐 Mamba 页 | 中文 31→94 token 1.61 s；英文 42→209 token 5.42 s；内容正确 |
+| Inkling BF16 · 2 节点 TP8×PP2 | **通过**（第 6 次尝试） | MoE `AiterExperts`（ROCm AITER 融合内核，2stage，Silu）；all-reduce `AITER_CUSTOM`+`PYNCCL`（TP 组）、`PYNCCL`（PP 组） | 流水级 0：权重 109.52 GiB，加载后 112.54 GiB 已用，KV 可用 57.39 GiB；流水级 1：116.12 / 118.9 / 51.02 GiB；KV 容量 398,239 token | K/V BF16（默认）；短卷积缓存 BF16，切分上限 8 路 | 中文 27→200 token 2.97 s、英文 39→256 token 4.06 s（均止于推理段，`max_tokens` 不够）；中文 `max_tokens=1024` 27→441 token 6.52 s，**最终答案正确** |
+| Inkling BF16 · 2 节点 TP8×DP2+EP16 | 引擎就绪（第 5 次尝试），服务未通过 | 同上，`MoEPrepareAndFinalize` 走 DP/EP 路径 | 每卡权重 114.88 GiB，KV 可用 50.25 GiB，每个 DP rank KV 容量 317,040 token | K/V BF16（默认） | 第 1 条（本机 DP rank）27→200 token 4.76 s；第 2 条被调度到远端 DP rank 后无输出，5 分钟后 `RPC call to sample_tokens timed out`，引擎退出 |
+
+四条在 MI300X 上才会遇到、文档里没写的事实：① AITER 融合 MoE 内核要求专家是 act_and_mul（SwiGLU 类）结构，Nemotron LatentMoE 的 `relu2` 非门控专家不满足，必须回退到 Triton MoE；Inkling 的门控专家则直接用上 AITER。② Nemotron 示例里的 `--enable-mamba-cache-stochastic-rounding` 在这套 Triton 3.8 / ROCm 10.1 镜像上触发 `ld.lld` 链接失败，去掉它才能过 warm-up——这是内核编译问题，不是模型问题。③ Inkling 的多机布局不能简单 TP16：短卷积缓存最多切 8 路，所以要么"节点内 TP8 + 节点间 DP2 + EP16"（模型卡的 Hopper 配方，本镜像上引擎就绪但跨机请求挂起），要么"节点内 TP8 + 节点间 PP2"（本项目实际通过的布局）。④ vLLM 的 FA4 预热只看模型配置类不看平台，在 ROCm 上会去导入 CUDA 专有扩展，需要 `--kernel-config '{"enable_jit_warmup": false}'` 跳过。每次只改一个变量的完整尝试记录（Nemotron 3 次、Inkling 6 次）和日志摘录见[验证说明](VALIDATION_CN.md#mi300x-实测)。
+
 ### 证据边界
 
-检查日期：2026-11-01。本文采用发布方模型卡、实际配置和推理引擎文档，不用模型榜单或不同环境的历史测试拼成性能对比。三个模型的九个版本均未在本项目执行推理，吞吐、延迟、质量回归、长上下文稳定性和故障恢复均为 **NOT_RUN**。
+检查日期：2026-11-01（文档与配置）、2026-11-02（MI300X 实测与张量普查）。本文采用发布方模型卡、实际配置、推理引擎文档、固定 revision 的 safetensors 文件头和本项目在 MI300X 上的加载记录，不用模型榜单或不同环境的历史测试拼成性能对比。九个版本中只有 Nemotron 3 Ultra BF16（1 节点 8 卡）和 Inkling BF16（2 节点 16 卡，TP8 × PP2）在本项目实际加载并生成正确回答；吞吐、延迟、质量回归、长上下文稳定性和故障恢复对全部版本仍为 **NOT_RUN**，七个 FP8 / NVFP4 版本未在任何 GPU 上加载。
 
 Nemotron 模型卡同时存在训练配方、权重版本和引擎示例；本文只将明确的导出规则用于模块精度判断。它的模型卡概述中出现“NVFP4 KV caching”，但具体示例使用 FP8 KV cache，本文按可执行参数说明差异，而不将概述视为已验证的缓存能力。
 
@@ -277,7 +322,34 @@ Inkling recipe 同时出现 `vLLM 0.26.0+` 和 nightly 安装提示。前者不�
 
 Red Hat Inkling FP8 模型卡概述称 Attention Linear 也量化，但固定 revision 的配置包含 `re:.*\.attn$` 和 `re:.*\.attn\..*` 两条排除规则 [I9]。主表保留这个冲突，按配置不把 `.attn` 子树写成 FP8；实际模块名匹配和加载后 dtype 仍须在运行时验收。两个 Red Hat FP8 配置的 `output_activations` 与 `kv_cache_scheme` 都为空，因此也不能由 FP8 输入规则推断输出和 KV 缓存都是 FP8。
 
-Muse 的详细模块精度、三模型在指定机器上的峰值显存与性能，以及许可证在具体业务模式下的适用性仍需核验。公开模型卡的广泛支持列表不替代某一引擎、精度和模态的完整验收。
+Muse 的详细模块精度、三模型在指定机器上的峰值显存与性能，以及许可证在具体业务模式下的适用性仍需核验。公开模型卡的广泛支持列表不替代某一引擎、精度和模态的完整验收。Muse BF16 没有在 MI300X 上实测的原因是权重闸门：Meta 的两个仓库都是人工审批的 gated 仓库，2026-11-02 用本项目的 Hugging Face 账号读 `config.json` 返回 403 `GatedRepo`，访问申请已提交；批准后用同一套脚本补跑，结果追加到本页的实测表。
+
+### 想要……请读
+
+| 想要 | 读 |
+|---|---|
+| 查某个组件在某个版本里是什么精度 | 本页「[逐模型组件精度](#逐模型组件精度)」三张表，引用标号指向「[公开来源](#公开来源)」 |
+| 知道每张卡要放多少权重、剩多少给缓存 | 「[资源估算](#资源估算)」的每卡预算表，数据在 [deployment-budget.json](data/deployment-budget.json) |
+| 看 MI300X 上实际跑出了什么 | 本页「[MI300X 实测](#mi300x-实测)」；每次尝试的报错原文和日志摘录在[验证说明](VALIDATION_CN.md#mi300x-实测)；原始请求/响应/日志关键行在 [data/mi300x-run/](data/mi300x-run/) |
+| 自己在 MI300X 上复现 | 「[在 MI300X 上复现 BF16 加载与 smoke](#在-mi300x-上复现-bf16-加载与-smoke)」的步骤表和 [scripts/mi300x/](scripts/mi300x/) |
+| 核对仓库里的数字是怎么算出来的 | 「[不下载权重复算公开元数据](#不下载权重复算公开元数据)」的命令；测试语义与未执行项在[验证说明](VALIDATION_CN.md) |
+| 知道哪些结论有证据、哪些没有 | 「[证据边界](#证据边界)」和[验证说明的当前验证状态表](VALIDATION_CN.md#当前验证状态) |
+
+### 目录与职责
+
+| 目录 / 文件 | 职责 |
+|---|---|
+| `README_CN.md` · `README.md` | 主文档，中英两版共用同一套数据文件 |
+| `VALIDATION_CN.md` · `VALIDATION.md` | 测试命令、预期语义、MI300X 每次尝试的记录、当前验证状态表 |
+| `data/model-evidence.json` | 六个固定 revision 的 API 元数据快照与 NVFP4 配置摘要（含 Muse 401 记录） |
+| `data/tensor-census/` | 两个 BF16 快照的逐张量文件头普查结果 |
+| `data/deployment-budget.json` | 每卡预算表的输入（GPU 数量、HBM、来源） |
+| `data/mi300x-run/` | 三组 MI300X 实测的公开投影：原始请求/响应、显存 JSON、日志关键行、`summary.json`、私有大文件的 SHA-256 |
+| `data/visual-evidence.json` | 文中每张图的来源、尺寸、哈希和证明边界 |
+| `images/` | 仅一张 NVIDIA 官方 NVFP4 两级缩放图 |
+| `scripts/mi300x/` | MI300X 复现脚本：节点准备、拉镜像、下载、两个模型的启动、证据采集、RCCL 探针 |
+| `tools/` | `inspect.mjs`（元数据复算）、`census.mjs`（普查汇总）、`budget.mjs`（每卡预算）、`tensor_census.py`（在有权重的机器上读文件头）、`mi300x_evidence.py`（证据投影与汇总）、`preview.ps1`（本地渲染） |
+| `tests/` | `inspect.test.mjs`、`census.test.mjs`、`mi300x.test.mjs`，共 16 项 |
 
 ## 操作步骤
 
@@ -294,16 +366,62 @@ Muse 的详细模块精度、三模型在指定机器上的峰值显存与性能
 
 部署入口：Muse 使用 Meta 的开发者指南 [M3]；Nemotron 使用相应 BF16/NVFP4 模型卡中的引擎示例 [N1][N2]；Inkling 使用发布方链接的 vLLM recipe [I3]。不要把不同模型的命令拼成一个通用启动脚本，也不要把示例中的上下文长度、并发和并行参数原样当作业务推荐值。
 
+### 在 MI300X 上复现 BF16 加载与 smoke
+
+以下是本项目 2026-11-02 实测所用的脚本，位于 [scripts/mi300x/](scripts/mi300x/)，每个脚本开头注明它做什么、期望看到什么。起点：一台或两台 Azure `Standard_ND96isr_MI300X_v5`（镜像 `microsoft-dsvm:ubuntu-hpc:2404-rocm`），一个能 `sudo` 的登录用户，节点能访问 Hugging Face；Inkling 还需要两台机器的私网互通（Ray 6379 端口、RCCL 走 InfiniBand）。Shell 为 Bash，工作目录为本专题目录的克隆。费用提示：该规格每台约 14 美元/小时（Spot 参考价），本项目全程 2 小时 36 分钟、两台机器约 73 美元；不用时 `deallocate`，本地 NVMe 上的权重会随之丢失。
+
+| 顺序 | 在哪台机器 | 做什么 | 脚本（命令原文见下方代码块） | 看到什么算通过 |
+|---|---|---|---|---|
+| 1 | 每台 | 组 NVMe RAID0、把 Docker/containerd 存储搬到 NVMe、记录 ROCm/GPU/IB 事实 | `01_preflight.sh` | 日志末尾 `GPU_COUNT=8`、`NVME_FREE_GB` > 3000、Docker 根目录在 NVMe |
+| 2 | 每台 | 拉取 vLLM ROCm 镜像（约 30 GB） | `02_pull_image.sh` | `02_pull.log` 末尾 `PULL_EXIT=0`、`IMAGEID=sha256:e0ea9a10…` |
+| 3 | 节点 0 | 下载 Nemotron 固定 revision（1.12 TB） | `03_download.sh` + Nemotron 参数 | `DL_DONE … bytes=1121078235607` |
+| 3' | 每台 | 下载 Inkling 固定 revision（1.90 TB，两台都要） | `03_download.sh` + Inkling 参数 | 两台都出现 `DL_DONE … bytes=1904787107666` |
+| 4 | 节点 0 | 启动 Nemotron（TP8 + EP） | `04_serve_nemotron.sh` | `/health` 返回 200；日志含 `Using TritonExperts MoE backend`、`Model loading took 136.51 GiB` |
+| 5 | 节点 0 | 采集证据（3 条 smoke、显存、关键日志行、哈希） | `06_evidence.sh` + Nemotron 参数 | 证据目录出现 `02_smoke_response.json`，`finish_reason` 为 `stop` |
+| 6 | 节点 0 | 停掉 Nemotron 容器，释放 8 卡 | `docker rm -f vllm_nemotron` | `rocm-smi --showmeminfo vram` 每卡回到 < 1 GB |
+| 7 | 两台 | 16 进程 all_reduce 探针，先确认跨机 RCCL 通（可选但省时间） | `07_rccl_probe.sh`，节点 1 先、节点 0 在 30 秒内跟上 | 节点 0 打印 `RCCL_PROBE_OK=True world=16`、`PROBE_EXIT=0` |
+| 8 | 节点 1 → 节点 0 | 启动 Inkling（TP8 × PP2，每台一个流水级） | `05_serve_inkling_2node.sh`，节点 1 `worker` 先、约 30 秒后节点 0 `head` | 节点 0 `/health` 返回 200；日志含 `Using AiterExperts MoE backend`、两个流水级分别 `Model loading took 109.52 / 116.12 GiB` |
+| 9 | 节点 0 | 采集 Inkling 证据 | `06_evidence.sh` + Inkling 参数 | `07_smoke3_response.json` 的 `finish_reason` 为 `stop`，正文给出 BF16 与 FP16 的区别 |
+| 10 | 两台 | 停容器；不再使用时释放虚拟机 | `docker rm -f vllm_inkling`，再在管理面 deallocate | `PowerState/deallocated`；NVMe 上的权重随之清空 |
+
+```bash
+# 每台节点（步骤 1–2）
+sudo -E bash scripts/mi300x/01_preflight.sh
+sudo -E bash scripts/mi300x/02_pull_image.sh
+# 下载（步骤 3 / 3'；变量来自 scripts/mi300x/00_env.sh）
+. scripts/mi300x/00_env.sh
+bash scripts/mi300x/03_download.sh "$NEMOTRON_ID" "$NEMOTRON_REV"      # 节点 0
+bash scripts/mi300x/03_download.sh "$INKLING_ID"  "$INKLING_REV"       # 两台
+# Nemotron（步骤 4–6，节点 0）
+sudo -E bash scripts/mi300x/04_serve_nemotron.sh
+sudo -E bash scripts/mi300x/06_evidence.sh vllm_nemotron nemotron-3-ultra-bf16 nemotron_bf16_8xMI300X
+sudo docker rm -f vllm_nemotron
+# 跨机探针（步骤 7）：节点 1 先执行，节点 0 在 30 秒内执行
+HEAD_IP=<节点0私网IP> sudo -E bash scripts/mi300x/07_rccl_probe.sh 1 nogdr     # 节点 1
+HEAD_IP=<节点0私网IP> sudo -E bash scripts/mi300x/07_rccl_probe.sh 0 nogdr     # 节点 0
+# Inkling（步骤 8–10）：节点 1 先 worker，约 30 秒后节点 0 head
+HEAD_IP=<节点0私网IP> sudo -E bash scripts/mi300x/05_serve_inkling_2node.sh worker   # 节点 1
+HEAD_IP=<节点0私网IP> sudo -E bash scripts/mi300x/05_serve_inkling_2node.sh head     # 节点 0
+sudo -E bash scripts/mi300x/06_evidence.sh vllm_inkling inkling-bf16 inkling_bf16_16xMI300X_pp2   # 节点 0
+sudo docker rm -f vllm_inkling                                                       # 两台
+```
+
+把采集到的目录交给 `python3 tools/mi300x_evidence.py project <evidence_dir> <tag>` 可生成与本仓库 [data/mi300x-run/](data/mi300x-run/) 同格式的公开投影（替换主机名、私网 IP 和登录用户，完整容器日志只保留 SHA-256）；`python3 tools/mi300x_evidence.py summarize` 从这些原始文件重算 `summary.json`，`node --test tests/mi300x.test.mjs` 再核对本文引用的每个数字。本仓库的三组投影就是这样得到的，未手工填写任何数值。
+
+两处与模型卡不同、且只有在这套 ROCm 镜像上才会碰到的改动都写在脚本注释里：Nemotron 关掉 AITER MoE 并去掉 Mamba 随机舍入；Inkling 用 PP2 而不是模型卡的 DP2 + EP16，并关掉 FA4 预热。每一条的报错原文、尝试次序和判断依据见[验证说明](VALIDATION_CN.md#mi300x-实测)。
+
 ### 不下载权重复算公开元数据
 
 需要 Node.js 20 或更高版本。在本目录的终端执行：
 
 ```bash
 node tools/inspect.mjs
-node --test tests/inspect.test.mjs
+node tools/census.mjs --table
+node tools/budget.mjs --table
+node --test tests/inspect.test.mjs tests/census.test.mjs tests/mi300x.test.mjs
 ```
 
-第一条命令从六个已保存版本的逐 dtype 元素数计算张量负载字节。测试检查版本覆盖、打包字节计算、明确保留的配置缺口和失败处理；两条命令都不调用模型，也不验证 GPU 数量。
+第一条命令从六个已保存版本的逐 dtype 元素数计算张量负载字节；第二条汇总两个 BF16 快照的逐张量文件头普查并与 API 元数据交叉核对；第三条按发布方列出的 GPU 数量算每卡权重与剩余 HBM。测试检查版本覆盖、打包字节计算、明确保留的配置缺口、失败处理、普查与 API 字节一致性，以及本文引用的每个 MI300X 实测数字是否与 [data/mi300x-run/summary.json](data/mi300x-run/summary.json) 一致（共 16 项）。这些命令都不调用模型，也不验证 GPU 数量。
 
 要读取当前公开元数据而不是复算快照：
 
@@ -347,6 +465,8 @@ BF16 是对照基线，并不保证答案正确；NVFP4 是候选格式，不是
 | H1 | [NVIDIA NVFP4 说明](https://developer.nvidia.com/blog/introducing-nvfp4-for-efficient-and-accurate-low-precision-inference/)：E2M1、16 元素块、FP8 块 scale 与 FP32 tensor scale |
 | H2 | [NVIDIA NVFP4 与 MXFP4 格式对照](https://developer.nvidia.com/blog/introducing-nvfp4-for-efficient-and-accurate-low-precision-inference/)：两种块缩放及 NVFP4 的编码开销 |
 | H3 | [AMD Instinct MI350 系列](https://www.amd.com/en/products/accelerators/instinct/mi350.html)：MI350X/MI355X 的 MXFP4 支持 |
+| T1 | [本项目逐张量普查](data/tensor-census/)：2026-11-02 读取固定 revision 全部 safetensors 文件头得到的每个张量 dtype 与字节数，不读权重数据；脚本 [tensor_census.py](tools/tensor_census.py)，汇总 `node tools/census.mjs --table` |
+| T2 | [本项目 MI300X 实测](VALIDATION_CN.md#mi300x-实测)：2026-11-02 在 Azure `Standard_ND96isr_MI300X_v5` 上用 `rocm/vllm` 镜像加载并生成；证据目录与关键日志行见验证说明 |
 
 进一步阅读：[NVFP4](../NVFP4/)、[量化方法对比](../Quantization-Methods-Comparison-and-Practice/)、[大模型显存估算](../LLM-Memory-Estimation/)。这些目录解释通用方法或其他模型的历史结果，不能替代本文三款模型的验收。
 

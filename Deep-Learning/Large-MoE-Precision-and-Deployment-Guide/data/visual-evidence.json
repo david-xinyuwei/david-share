@@ -1,5 +1,5 @@
 {
-  "checked_date": "2026-11-01",
+  "checked_date": "2026-11-02",
   "visuals": [
     {
       "asset": "images/nvfp4-two-level-scaling.gif",
@@ -28,10 +28,18 @@
       ],
       "incremental_value": "Places documented Hopper fallback and Blackwell native paths beside one another without substituting them for model runtime evidence.",
       "does_not_prove": "Execution trace or full-model kernel coverage"
+    },
+    {
+      "asset": "README.md / README_CN.md Mermaid block in 'MI300X run' / 'MI300X 实测'",
+      "source_class": "original_test_topology",
+      "decision": "USE",
+      "depicts": "The 2026-11-02 run as executed: node 0 (Ray head; Nemotron TP8+EP; Inkling pipeline stage 0), node 1 (Ray worker; Inkling pipeline stage 1), local NVMe RAID0 weight cache on each node, RCCL over 8x InfiniBand with NCCL_NET_GDR_LEVEL=0, control host issuing commands over SSH, smoke requests sent by curl on node 0.",
+      "bound_to": ["data/mi300x-run/nemotron_bf16_8xMI300X/00_meta.txt", "data/mi300x-run/inkling_bf16_16xMI300X_pp2/00_meta.txt", "scripts/mi300x/05_serve_inkling_2node.sh"],
+      "does_not_prove": "Execution by itself; the bound 00_meta.txt and log key lines do. Private host names and IPs are replaced by role labels."
     }
   ],
   "source_class_decisions": [
-    {"source_class": "real_experiment", "decision": "SKIP", "reason": "No GPU experiment has been run for these model configurations; unrelated benchmark charts would imply false coverage."},
+    {"source_class": "real_experiment", "decision": "USE_AS_TABLES_AND_RAW_FILES", "reason": "The 2026-11-02 MI300X run is shown as result tables and raw request/response/log files in data/mi300x-run/ rather than as charts: with 2-3 smoke requests per model there is no distribution to plot, and a chart would overstate the measurement."},
     {"source_class": "vendor_documentation", "decision": "USE", "reason": "The original NVFP4 Figure 2 directly explains value and scale storage."},
     {"source_class": "paper_figures", "decision": "SKIP", "reason": "No paper figure was used to establish per-checkpoint component settings; those claims use actual export configuration and named deployment recipes."},
     {"source_class": "private_screenshots", "decision": "BLOCKED", "reason": "Customer conversations and the private request spreadsheet are not public visual assets."}

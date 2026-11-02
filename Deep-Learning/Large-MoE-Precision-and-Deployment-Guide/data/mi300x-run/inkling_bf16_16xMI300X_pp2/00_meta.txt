@@ -1,0 +1,26 @@
+EVIDENCE_START=2026-11-01T19:00:34Z ctr=vllm_inkling model=inkling-bf16
+host=node0 kernel=6.8.0-1067-azure rocm_host=6.4.4-129
+image=rocm/vllm:rocm10.1.0_ubuntu24.04_py3.14-pytorch_2.13.0_vllm-0.29.0 imageid=sha256:e0ea9a10b729573ea8598bdc073bda0ea382fe1037eec7c0761b6fa7f46baaf4 started=2026-11-01T18:50:41.305454287Z args=-lc 
+    ray start --head --node-ip-address=<node0-private-ip> --port=6379 --num-gpus=8 --dashboard-host=0.0.0.0 &&
+    for i in $(seq 1 60); do n=$(ray status 2>/dev/null | grep -c 'node_'); [ "$n" -ge 2 ] && break; sleep 5; done; ray status;
+    vllm serve thinkingmachines/Inkling --revision 828496eeae4c243ff1a22f7f28ff83694f2f7bc9 --host 0.0.0.0 --port 8000 --served-model-name inkling-bf16       --trust-remote-code --dtype bfloat16 --tokenizer-mode inkling --reasoning-parser inkling       --tensor-parallel-size 8 --pipeline-parallel-size 2 --distributed-executor-backend ray       --max-model-len 65536 --gpu-memory-utilization 0.90 --max-num-seqs 16 --max-num-batched-tokens 16384       --enable-chunked-prefill --distributed-timeout-seconds 3600       --kernel-config '{"enable_jit_warmup": false}'
+models_http=0
+smoke_wall_secs=2.971688392
+smoke2_wall_secs=4.059290236
+EVIDENCE_END=2026-11-01T19:00:41Z
+total 196
+drwxr-xr-x 2 root      root        4096 Nov  1 19:00 .
+drwxrwxr-x 7 <login-user> <login-user>   4096 Nov  1 19:00 ..
+-rw-r--r-- 1 root      root        1239 Nov  1 19:00 00_meta.txt
+-rw-r--r-- 1 root      root         471 Nov  1 19:00 01_models.json
+-rw-r--r-- 1 root      root         145 Nov  1 19:00 02_smoke_request.json
+-rw-r--r-- 1 root      root        1500 Nov  1 19:00 02_smoke_response.json
+-rw-r--r-- 1 root      root         209 Nov  1 19:00 03_smoke2_request.json
+-rw-r--r-- 1 root      root        1971 Nov  1 19:00 03_smoke2_response.json
+-rw-r--r-- 1 root      root        8139 Nov  1 19:00 04_amd_smi_mem.json
+-rw-r--r-- 1 root      root         785 Nov  1 19:00 04_rocm_smi_vram.json
+-rw-r--r-- 1 root      root      137485 Nov  1 19:00 05_server_full.log
+-rw-r--r-- 1 root      root       14875 Nov  1 19:00 05_server_keylines.log
+-rw-r--r-- 1 root      root           0 Nov  1 19:00 06_module_dtype_census.err
+-rw-r--r-- 1 root      root           0 Nov  1 19:00 06_module_dtype_census.json
+smoke3_wall_secs=6.518549405
