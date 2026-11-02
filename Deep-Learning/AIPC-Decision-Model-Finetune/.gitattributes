@@ -1,0 +1,3 @@
+/data/contoso/final/*.jsonl -text
+/images/vendor/*.svg -text
+/images/vendor/fluent-LICENSE.txt -text

@@ -334,9 +334,8 @@ class BilingualDocumentationTests(unittest.TestCase):
         except ImportError:
             raise unittest.SkipTest("Documentation tests require requirements-docs.txt")
         cls.parser = MarkdownIt("commonmark", {"html": True}).enable("table")
-        cls.pairs = (("README_CN.md", "README.md", 45, 23),
-                     ("文档/微调与端侧验证报告_20261027-130700.md",
-                      "文档/Finetuning-and-On-Device-Validation-Report.md", 20, 1))
+        from render_diagrams import DOCUMENT_PAIRS
+        cls.pairs = DOCUMENT_PAIRS
 
     def tables(self, tokens):
         tables = []
@@ -384,7 +383,21 @@ class BilingualDocumentationTests(unittest.TestCase):
             self.assertNotRegex(text, r"<!-- SOURCE:(TABLE|FENCE):\d+ -->\s*<!-- /SOURCE:")
         english = self.parser.parse((ROOT / "README.md").read_text(encoding="utf-8"))
         self.assertEqual([english[index + 1].content for index, token in enumerate(english)
-                          if token.type == "heading_open" and token.tag == "h2"], ["Purpose", "Results", "Steps"])
+                          if token.type == "heading_open" and token.tag == "h2"],
+                         ["Purpose", "Results at a Glance", "Architecture", "Results", "Steps", "Repository Deliverables"])
+
+    def test_overview_matches_saved_results_and_precedes_architecture(self):
+        from render_diagrams import validate_overview
+
+        chinese = (ROOT / "README_CN.md").read_text(encoding="utf-8")
+        validate_overview(chinese)
+        self.assertLess(chinese.index("## 成果一览"), chinese.index("## 架构"))
+        self.assertLessEqual(len(chinese.splitlines()), 400)
+        tables = self.tables(self.parser.parse(chinese))
+        self.assertEqual(len(tables[0]) - 1, 8)
+        self.assertEqual(sum("未做" in row for row in tables[0][1:]), 4)
+        with self.assertRaises(ValueError):
+            validate_overview(chinese.replace("44.7%", "44.8%"))
 
     def test_localization_preserves_nested_link_and_code(self):
         import fill_report_tables

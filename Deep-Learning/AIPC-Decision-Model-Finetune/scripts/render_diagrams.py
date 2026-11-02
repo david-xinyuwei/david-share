@@ -4,6 +4,7 @@ import hashlib
 import html
 import json
 import math
+import os
 import re
 from html.parser import HTMLParser
 from pathlib import Path
@@ -13,6 +14,13 @@ from PIL import Image, ImageDraw, ImageFont
 
 
 ROOT = Path(__file__).resolve().parents[1]
+DOCUMENT_PAIRS = (
+    ("README_CN.md", "README.md", 9, 2),
+    ("文档/核心技术_微调与端侧运行.md", "文档/Core-Technology.md", 4, 2),
+    ("文档/评测与端侧结果全集.md", "文档/Evaluation-Results.md", 32, 1),
+    ("文档/操作步骤全本.md", "文档/Operations-Guide.md", 8, 20),
+    ("文档/微调与端侧验证报告_20261027-130700.md", "文档/Finetuning-and-On-Device-Validation-Report.md", 20, 1),
+)
 INK = "#243746"
 BLUE = "#0078D4"
 GREY = "#D9E1E7"
@@ -349,15 +357,138 @@ def decision(font_path, language="zh"):
     return d
 
 
+def overview_blocks():
+    from markdown_it import MarkdownIt
+
+    parser = MarkdownIt("commonmark", {"html": True}).enable("table")
+    detail = (ROOT / "文档/评测与端侧结果全集.md").read_text(encoding="utf-8")
+
+    def tables_after(heading):
+        text = detail[detail.index(heading):]
+        lines = text.splitlines(keepends=True)
+        return ["".join(lines[token.map[0]:token.map[1]]).strip()
+                for token in parser.parse(text) if token.type == "table_open"]
+
+    def rows(table):
+        result = []
+        for token in parser.parse(table):
+            if token.type == "tr_open":
+                result.append([])
+            elif token.type == "inline":
+                result[-1].append(token.content)
+        return result
+
+    first = json.loads((ROOT / "验证结果/微调评测_20261027-220226/summary/summary.json").read_text(encoding="utf-8"))
+    second = json.loads((ROOT / "验证结果/第二轮微调评测_20261101-101948/summary/round2_summary.json").read_text(encoding="utf-8"))
+    datasets = (("test_support", "工单·同分布"), ("test_assistant", "助手·同分布"),
+                ("ood_support", "工单·分布外"), ("ood_assistant", "助手·分布外"))
+    accuracy = ["| 参数规模 | 测试集（题数） | 发布版准确率 | 第一轮 FT-cf 准确率 | 第二轮 C 准确率 | 最终方案相对发布版提升（百分点） |",
+                "|---|---|---|---|---|---|"]
+    for size in ("0.8b", "4b"):
+        for dataset, label in datasets:
+            entry = first["sets"][f"{size}/{dataset}"]
+            baseline, tuned = entry["b0"], entry["ftcf"]
+            final = second["sets"][dataset]["questions"]["r2-C"] if size == "0.8b" else tuned
+            if not baseline["n"] == tuned["n"] == final["n"]:
+                raise ValueError(f"Overview question-count mismatch: {size}/{dataset}")
+            counts = []
+            for result in (baseline, tuned, final):
+                correct = round(result["n"] * result["acc"])
+                if abs(correct / result["n"] - result["acc"]) > 1e-12:
+                    raise ValueError(f"Overview accuracy has no matching integer count: {size}/{dataset}")
+                counts.append(correct)
+            gain = (counts[2] - counts[0]) / final["n"] * 100
+            final_cell = f"**{final['acc']:.1%}**" if size == "0.8b" else "未做"
+            accuracy.append(f"| {size.upper()} | {label}（{final['n']:,} 题） | {baseline['acc']:.1%} | {tuned['acc']:.1%} | {final_cell} | +{gain:.1f} |")
+
+    precision = tables_after("#### 从原始模型到量化微调模型")[:2]
+    device = next(table for table in tables_after("#### 换到 x86-64 CPU")
+                  if rows(table)[0][0].startswith("指标（骁龙"))
+    values = {row[0]: row[2] for row in rows(device)[1:]}
+
+    def field(prefix):
+        return next(value for name, value in values.items() if name.startswith(prefix))
+
+    def numeric(value):
+        return re.findall(r"\d[\d,]*(?:\.\d+)?%?", value)
+
+    support = numeric(field("工单准确率"))[0]
+    assistant = numeric(field("助手准确率"))[0]
+    parity = " / ".join(numeric(field("答案一致率"))[:2])
+    latency = " / ".join(numeric(field("工单 / 助手请求耗时"))[:2])
+    peak = numeric(field("峰值工作集"))[0]
+    weight, load = numeric(field("模型文件"))[:2]
+    bits = next(row[1] for row in rows(precision[0])[1:] if row[0] == "微调 FT-cf，Q8_0")
+    precision[0] += f"\n| 第二轮 C，Q8_0（交付） | {bits} | {weight} | {support} / {assistant} | {parity} | {latency} | {peak} | {load} |"
+    return {"ACCURACY": "\n".join(accuracy), "INFERENCE": "\n\n".join(precision),
+            "LEVERS": tables_after("#### 推理优化：测过哪些杠杆")[0],
+            "HARDWARE": tables_after("### 6. 需要什么硬件")[0]}
+
+
+def overview_for_readme():
+    source = ROOT / "文档/评测与端侧结果全集.md"
+
+    def rebase(match):
+        parsed = urlsplit(match.group(1))
+        if parsed.scheme or parsed.netloc:
+            return match.group()
+        target = (source.parent / unquote(parsed.path)).resolve() if parsed.path else source
+        path = os.path.relpath(target, ROOT).replace("\\", "/")
+        return "](" + urlunsplit(("", "", path, parsed.query, parsed.fragment)) + ")"
+
+    return {name: re.sub(r"\]\(([^)]+)\)", rebase, text) for name, text in overview_blocks().items()}
+
+
+def long_input_note(language="zh"):
+    values = json.loads((ROOT / "验证结果/端侧引擎_x64长输入真题_20261101-224312/summary/long_numbers.json").read_text(encoding="utf-8"))
+    records = values["scored"] + values["rejected"]
+    correct, questions = values["long_acc_frac"].split("/")
+    if language == "zh":
+        return (f"- **边界必须一起看。** 数据是模拟的；{records} 条长历史工单中，{values['rejected']} 条超窗口被拒；"
+                f"其余 {values['scored']} 条的 {questions} 道题仅答对 {correct} 道（{values['long_acc']}，不含被拒请求）。"
+                "这组长输入只在 x86-64 测过，不能用上面的短输入成绩替代。"
+                "[长输入原题与结果](文档/评测与端侧结果全集.md#long-real)")
+    return (f"- **Keep the limits with the headline.** Data is simulated. Of {records} long-history records, "
+            f"{values['rejected']} exceed the context window and are rejected. On the remaining {values['scored']} records, "
+            f"C answers {correct}/{questions} questions correctly ({values['long_acc']}, excluding rejected requests). "
+            "This test ran only on x86-64, and short-input accuracy cannot substitute for it. "
+            "[Long-input cases and results](文档/Evaluation-Results.md#long-real)")
+
+
+def validate_overview(text):
+    for name, expected in overview_for_readme().items():
+        expression = re.compile(rf"<!-- OVERVIEW:{name} -->\n(.*?)\n<!-- /OVERVIEW:{name} -->", re.S)
+        matches = expression.findall(text)
+        if matches != [expected]:
+            raise ValueError(f"README overview differs from its saved source: {name}")
+    if long_input_note() not in text:
+        raise ValueError("README long-input denominator differs from its saved source")
+
+
+def sync_overview():
+    path = ROOT / "README_CN.md"
+    text = path.read_text(encoding="utf-8")
+    for name, content in overview_for_readme().items():
+        expression = re.compile(rf"<!-- OVERVIEW:{name} -->.*?<!-- /OVERVIEW:{name} -->", re.S)
+        if len(expression.findall(text)) != 1:
+            raise ValueError(f"Missing or duplicated overview marker: {name}")
+        text = expression.sub(lambda _: f"<!-- OVERVIEW:{name} -->\n{content}\n<!-- /OVERVIEW:{name} -->", text)
+    text, replacements = re.subn(r"^- \*\*边界必须一起看。\*\*.*$", lambda _: long_input_note(), text, flags=re.M)
+    if replacements != 1:
+        raise ValueError("Missing or duplicated long-input summary")
+    validate_overview(text)
+    path.write_text(text, encoding="utf-8")
+
+
 def sync_english_documents():
     from markdown_it import MarkdownIt
     from fill_report_tables import localize_block
 
-    pairs = ((ROOT / "README_CN.md", ROOT / "README.md", 45, 23),
-             (ROOT / "文档" / "微调与端侧验证报告_20261027-130700.md",
-              ROOT / "文档" / "Finetuning-and-On-Device-Validation-Report.md", 20, 1))
-    names = {"微调与端侧验证报告_20261027-130700.md": "Finetuning-and-On-Device-Validation-Report.md",
-             "[NOTES]_实验协议_20261027-124000.md": "Experiment-Protocol.md", "README_CN.md": "README.md"}
+    sync_overview()
+    pairs = tuple((ROOT / chinese, ROOT / english, tables, fences)
+                  for chinese, english, tables, fences in DOCUMENT_PAIRS)
+    names = {Path(chinese).name: Path(english).name for chinese, english, _, _ in DOCUMENT_PAIRS}
+    names["[NOTES]_实验协议_20261027-124000.md"] = "Experiment-Protocol.md"
     parser = MarkdownIt("commonmark", {"html": True}).enable("table")
     results = []
     for source, target, expected_tables, expected_fences in pairs:
@@ -391,6 +522,11 @@ def sync_english_documents():
                         return "](" + urlunsplit(("", "", path, parsed.query, parsed.fragment)) + ")"
                     content = re.sub(r"\]\(([^)]+)\)", target_link, content)
                 text = expression.sub(lambda _: opening + "\n" + content + "\n" + closing, text)
+        if target.name == "README.md":
+            text, replacements = re.subn(r"^- \*\*Keep the limits with the headline\.\*\*.*$",
+                                         lambda _: long_input_note("en"), text, flags=re.M)
+            if replacements != 1:
+                raise ValueError("Missing or duplicated English long-input summary")
         target.write_text(text, encoding="utf-8")
         parsed_target = parser.parse(text)
         if sum(token.type == "table_open" for token in parsed_target) != expected_tables:
@@ -422,11 +558,8 @@ class References(HTMLParser):
 def preview_documents(only=None):
     from markdown_it import MarkdownIt
 
-    sources = [ROOT / "README.md", ROOT / "README_CN.md",
-               ROOT / "文档" / "微调与端侧验证报告_20261027-130700.md",
-               ROOT / "文档" / "Finetuning-and-On-Device-Validation-Report.md",
-               ROOT / "文档" / "[NOTES]_实验协议_20261027-124000.md",
-               ROOT / "文档" / "Experiment-Protocol.md"]
+    sources = [ROOT / name for chinese, english, _, _ in DOCUMENT_PAIRS for name in (chinese, english)]
+    sources += [ROOT / "文档" / "[NOTES]_实验协议_20261027-124000.md", ROOT / "文档" / "Experiment-Protocol.md"]
     pages = {}
     style = """*{box-sizing:border-box}body{margin:0;color:#1f2328;background:#fff;font:16px/1.7 'Segoe UI','Microsoft YaHei',sans-serif;letter-spacing:0}
 main{max-width:980px;margin:0 auto;padding:32px 32px 80px;overflow-wrap:break-word}h1{font-size:30px;line-height:1.35;margin:0 0 20px}
@@ -464,6 +597,7 @@ th{background:#edf3f8;text-align:left;font-weight:600}tr:nth-child(even){backgro
         references.feed(body)
         pages[source.resolve()] = (body, references, tokens, parser)
     checked = 0
+    broken = []
     for source, (_, references, _, _) in pages.items():
         for reference in references.paths:
             parsed = urlsplit(reference)
@@ -471,10 +605,12 @@ th{background:#edf3f8;text-align:left;font-weight:600}tr:nth-child(even){backgro
                 continue
             target = (source.parent / unquote(parsed.path)).resolve() if parsed.path else source
             if not target.exists():
-                raise ValueError(f"Broken local link in {source.name}: {reference}")
+                broken.append(f"Broken local link in {source.name}: {reference}")
             if parsed.fragment and target in pages and unquote(parsed.fragment) not in pages[target][1].ids:
-                raise ValueError(f"Broken anchor in {source.name}: {reference}")
+                broken.append(f"Broken anchor in {source.name}: {reference}")
             checked += 1
+    if broken:
+        raise ValueError("\n".join(broken))
     written = 0
     for source, (_, _, tokens, parser) in pages.items():
         if only is not None and source.name not in only:

@@ -4,9 +4,9 @@
 
 The data is simulated: business policies and messages for the fictional AI PC vendor Contoso PC, not any real customer. Each recipe was trained once with seed 1. Conclusions describe that run, not stability across repeated training.
 
-[Project home](../README.md) · [Local trial](../README.md#local-try) · [Train and update](../README.md#train-update) · [Verify](../README.md#verify) · [Experimental protocol](Experiment-Protocol.md)
+[Project home](../README.md) · [Local trial](Operations-Guide.md#local-try) · [Train and update](Operations-Guide.md#train-update) · [Verify](Operations-Guide.md#verify) · [Experimental protocol](Experiment-Protocol.md)
 
-This report retains the historical method, detailed results and analysis. The README owns business requirements, architecture and executable steps. The [single-request local trial](../README.md#local-result) added on 2026-10-28 is reported separately, not merged into these historical measurements.
+This report retains the historical method, detailed results and analysis. The README owns business requirements, architecture and executable steps. The [single-request local trial](Evaluation-Results.md#local-result) added on 2026-10-28 is reported separately, not merged into these historical measurements.
 
 ## Findings
 
@@ -98,14 +98,14 @@ B0, B0-policy, FT and FT-cf use the same `kev.benchmark` evaluator and records. 
 <!-- SOURCE:TABLE:3 -->
 | Size| Test set| Questions| B0| B0-policy| FT| FT-cf| FT−B0 (percentage points, 95% interval)| FT−B0-policy| FT-cf−FT| 
 | ---| ---| ---| ---| ---| ---| ---| ---| ---| ---| 
-| 0.8B| Support: in-distribution | 510| 44.7%| 60.8%| 86.5%| 86.9%| +41.8 (+36.3 ~ +47.1)| +25.7 (+22.5 ~ +28.9)| +0.4 (-2.0 ~ +2.8)| 
-| 0.8B| Assistant: in-distribution | 477| 67.1%| 71.9%| 93.5%| 97.5%| +26.4 (+22.8 ~ +30.1)| +21.6 (+17.9 ~ +25.3)| +4.0 (+2.3 ~ +5.8)| 
-| 0.8B| Support: out-of-distribution | 1,011| 43.0%| 62.8%| 81.6%| 82.5%| +38.6 (+35.0 ~ +42.1)| +18.8 (+16.2 ~ +21.4)| +0.9 (-0.9 ~ +2.6)| 
-| 0.8B| Assistant: out-of-distribution | 951| 65.7%| 63.6%| 91.9%| 94.4%| +26.2 (+23.4 ~ +29.0)| +28.3 (+25.5 ~ +31.2)| +2.5 (+1.1 ~ +3.9)| 
-| 4B| Support: in-distribution | 510| 60.8%| 63.3%| 93.5%| 95.9%| +32.7 (+28.7 ~ +36.8)| +30.2 (+25.9 ~ +34.4)| +2.4 (+0.6 ~ +4.1)| 
-| 4B| Assistant: in-distribution | 477| 81.8%| 87.8%| 99.0%| 99.8%| +17.2 (+13.8 ~ +20.7)| +11.1 (+8.2 ~ +14.2)| +0.8 (+0.0 ~ +1.9)| 
-| 4B| Support: out-of-distribution | 1,011| 60.7%| 63.2%| 88.8%| 91.4%| +28.1 (+25.0 ~ +31.2)| +25.6 (+22.4 ~ +28.7)| +2.6 (+1.0 ~ +4.2)| 
-| 4B| Assistant: out-of-distribution | 951| 81.9%| 86.1%| 96.6%| 98.8%| +14.7 (+12.2 ~ +17.3)| +10.5 (+8.4 ~ +12.7)| +2.2 (+1.1 ~ +3.4)| 
+| 0.8B| Support: in-distribution| 510| 44.7%| 60.8%| 86.5%| 86.9%| +41.8 (+36.3 ~ +47.1)| +25.7 (+22.5 ~ +28.9)| +0.4 (-2.0 ~ +2.8)| 
+| 0.8B| Assistant: in-distribution| 477| 67.1%| 71.9%| 93.5%| 97.5%| +26.4 (+22.8 ~ +30.1)| +21.6 (+17.9 ~ +25.3)| +4.0 (+2.3 ~ +5.8)| 
+| 0.8B| Support: out-of-distribution| 1,011| 43.0%| 62.8%| 81.6%| 82.5%| +38.6 (+35.0 ~ +42.1)| +18.8 (+16.2 ~ +21.4)| +0.9 (-0.9 ~ +2.6)| 
+| 0.8B| Assistant: out-of-distribution| 951| 65.7%| 63.6%| 91.9%| 94.4%| +26.2 (+23.4 ~ +29.0)| +28.3 (+25.5 ~ +31.2)| +2.5 (+1.1 ~ +3.9)| 
+| 4B| Support: in-distribution| 510| 60.8%| 63.3%| 93.5%| 95.9%| +32.7 (+28.7 ~ +36.8)| +30.2 (+25.9 ~ +34.4)| +2.4 (+0.6 ~ +4.1)| 
+| 4B| Assistant: in-distribution| 477| 81.8%| 87.8%| 99.0%| 99.8%| +17.2 (+13.8 ~ +20.7)| +11.1 (+8.2 ~ +14.2)| +0.8 (+0.0 ~ +1.9)| 
+| 4B| Support: out-of-distribution| 1,011| 60.7%| 63.2%| 88.8%| 91.4%| +28.1 (+25.0 ~ +31.2)| +25.6 (+22.4 ~ +28.7)| +2.6 (+1.0 ~ +4.2)| 
+| 4B| Assistant: out-of-distribution| 951| 81.9%| 86.1%| 96.6%| 98.8%| +14.7 (+12.2 ~ +17.3)| +10.5 (+8.4 ~ +12.7)| +2.2 (+1.1 ~ +3.4)| 
 <!-- /SOURCE:TABLE:3 -->
 
 Paired differences are per question. The 95% intervals resample all records sharing the same original message together, 10,000 times. The protocol's `kev.compare` first computes accuracy by question type and then macro-averages; it supports the same direction:
@@ -113,14 +113,14 @@ Paired differences are per question. The 95% intervals resample all records shar
 <!-- SOURCE:TABLE:4 -->
 | Size| Test set| FT−B0 (kev.compare)| FT-cf−B0 (kev.compare)| FT-cf−FT (kev.compare)| 
 | ---| ---| ---| ---| ---| 
-| 0.8B| Support: in-distribution | +41.8 (+36.7 ~ +47.5)| +42.2 (+36.7 ~ +47.8)| +0.4 (-2.0 ~ +2.7)| 
-| 0.8B| Assistant: in-distribution | +22.6 (+19.0 ~ +26.4)| +25.5 (+22.0 ~ +28.8)| +2.8 (+1.3 ~ +4.7)| 
-| 0.8B| Support: out-of-distribution | +38.6 (+35.2 ~ +42.5)| +39.5 (+36.3 ~ +43.1)| +0.9 (-0.9 ~ +2.5)| 
-| 0.8B| Assistant: out-of-distribution | +22.9 (+20.3 ~ +25.6)| +24.7 (+22.1 ~ +27.4)| +1.8 (+0.6 ~ +2.9)| 
-| 4B| Support: in-distribution | +32.7 (+28.4 ~ +36.9)| +35.1 (+31.0 ~ +39.2)| +2.4 (+0.2 ~ +4.3)| 
-| 4B| Assistant: in-distribution | +14.5 (+11.5 ~ +17.5)| +15.1 (+11.9 ~ +18.1)| +0.6 (+0.0 ~ +1.4)| 
-| 4B| Support: out-of-distribution | +28.1 (+25.0 ~ +31.4)| +30.7 (+27.5 ~ +33.7)| +2.6 (+1.0 ~ +4.3)| 
-| 4B| Assistant: out-of-distribution | +13.4 (+11.1 ~ +15.7)| +15.3 (+12.7 ~ +17.8)| +1.9 (+0.8 ~ +3.1)| 
+| 0.8B| Support: in-distribution| +41.8 (+36.7 ~ +47.5)| +42.2 (+36.7 ~ +47.8)| +0.4 (-2.0 ~ +2.7)| 
+| 0.8B| Assistant: in-distribution| +22.6 (+19.0 ~ +26.4)| +25.5 (+22.0 ~ +28.8)| +2.8 (+1.3 ~ +4.7)| 
+| 0.8B| Support: out-of-distribution| +38.6 (+35.2 ~ +42.5)| +39.5 (+36.3 ~ +43.1)| +0.9 (-0.9 ~ +2.5)| 
+| 0.8B| Assistant: out-of-distribution| +22.9 (+20.3 ~ +25.6)| +24.7 (+22.1 ~ +27.4)| +1.8 (+0.6 ~ +2.9)| 
+| 4B| Support: in-distribution| +32.7 (+28.4 ~ +36.9)| +35.1 (+31.0 ~ +39.2)| +2.4 (+0.2 ~ +4.3)| 
+| 4B| Assistant: in-distribution| +14.5 (+11.5 ~ +17.5)| +15.1 (+11.9 ~ +18.1)| +0.6 (+0.0 ~ +1.4)| 
+| 4B| Support: out-of-distribution| +28.1 (+25.0 ~ +31.4)| +30.7 (+27.5 ~ +33.7)| +2.6 (+1.0 ~ +4.3)| 
+| 4B| Assistant: out-of-distribution| +13.4 (+11.1 ~ +15.7)| +15.3 (+12.7 ~ +17.8)| +1.9 (+0.8 ~ +3.1)| 
 <!-- /SOURCE:TABLE:4 -->
 <!-- /TABLE:ACC -->
 
@@ -135,30 +135,30 @@ Paired differences are per question. The 95% intervals resample all records shar
 <!-- SOURCE:TABLE:5 -->
 | Size| Test set| Question| Majority-label share| Accuracy: B0 / B0-policy / FT / FT-cf| Balanced accuracy: B0 / B0-policy / FT / FT-cf| 
 | ---| ---| ---| ---| ---| ---| 
-| 0.8B| Support: in-distribution | Queue (8 choices)| 30.0%| 43.5% / 49.4% / 68.8% / 70.6%| 54.6% / 55.5% / 72.7% / 74.6%| 
-| 0.8B| Support: in-distribution | Onsite eligibility (yes/no)| 89.4%| 48.2% / 89.4% / 90.6% / 90.0%| 63.7% / 50.0% / 55.6% / 55.2%| 
-| 0.8B| Support: in-distribution | Urgency (4 levels)| 44.1%| 42.4% / 43.5% / 100.0% / 100.0%| 56.3% / 57.0% / 100.0% / 100.0%| 
-| 0.8B| Assistant: in-distribution | Tool (14 choices)| 22.0%| 88.7% / 95.0% / 100.0% / 99.4%| 89.6% / 95.1% / 100.0% / 99.3%| 
-| 0.8B| Assistant: in-distribution | Entirely local action (yes/no)| 74.2%| 33.3% / 26.4% / 88.1% / 97.5%| 54.3% / 48.8% / 84.8% / 96.7%| 
-| 0.8B| Assistant: in-distribution | Confirmation before execution (yes/no)| 78.6%| 79.2% / 94.3% / 92.5% / 95.6%| 51.5% / 86.8% / 87.7% / 91.8%| 
-| 0.8B| Support: out-of-distribution | Queue (8 choices)| 33.2%| 42.1% / 57.6% / 68.0% / 67.7%| 49.6% / 58.0% / 61.1% / 60.2%| 
-| 0.8B| Support: out-of-distribution | Onsite eligibility (yes/no)| 92.3%| 52.8% / 91.4% / 92.3% / 92.3%| 58.6% / 49.5% / 51.8% / 55.3%| 
-| 0.8B| Support: out-of-distribution | Urgency (4 levels)| 50.4%| 34.1% / 39.5% / 84.6% / 87.5%| 52.1% / 59.2% / 85.7% / 90.3%| 
-| 0.8B| Assistant: out-of-distribution | Tool (14 choices)| 20.8%| 85.8% / 87.4% / 98.7% / 98.4%| 87.0% / 84.4% / 95.8% / 92.2%| 
-| 0.8B| Assistant: out-of-distribution | Entirely local action (yes/no)| 76.3%| 32.2% / 22.4% / 89.9% / 95.0%| 53.3% / 44.6% / 82.8% / 92.1%| 
-| 0.8B| Assistant: out-of-distribution | Confirmation before execution (yes/no)| 79.8%| 79.2% / 81.1% / 87.1% / 89.9%| 50.8% / 68.9% / 75.6% / 83.8%| 
-| 4B| Support: in-distribution | Queue (8 choices)| 30.0%| 54.7% / 64.1% / 86.5% / 92.4%| 70.7% / 71.5% / 84.7% / 89.7%| 
-| 4B| Support: in-distribution | Onsite eligibility (yes/no)| 89.4%| 68.8% / 72.9% / 94.1% / 95.3%| 70.3% / 84.9% / 79.6% / 85.1%| 
-| 4B| Support: in-distribution | Urgency (4 levels)| 44.1%| 58.8% / 52.9% / 100.0% / 100.0%| 54.6% / 66.9% / 100.0% / 100.0%| 
-| 4B| Assistant: in-distribution | Tool (14 choices)| 22.0%| 93.7% / 95.6% / 100.0% / 100.0%| 96.8% / 97.6% / 100.0% / 100.0%| 
-| 4B| Assistant: in-distribution | Entirely local action (yes/no)| 74.2%| 73.6% / 77.4% / 98.7% / 100.0%| 62.3% / 82.4% / 98.4% / 100.0%| 
-| 4B| Assistant: in-distribution | Confirmation before execution (yes/no)| 78.6%| 78.0% / 90.6% / 98.1% / 99.4%| 56.0% / 89.7% / 96.7% / 98.5%| 
-| 4B| Support: out-of-distribution | Queue (8 choices)| 33.2%| 59.1% / 62.9% / 81.6% / 85.8%| 72.1% / 68.9% / 79.6% / 86.9%| 
-| 4B| Support: out-of-distribution | Onsite eligibility (yes/no)| 92.3%| 68.5% / 78.0% / 93.2% / 93.8%| 63.6% / 88.1% / 64.6% / 66.7%| 
-| 4B| Support: out-of-distribution | Urgency (4 levels)| 50.4%| 54.6% / 48.7% / 91.7% / 94.7%| 53.9% / 57.6% / 90.3% / 95.0%| 
-| 4B| Assistant: out-of-distribution | Tool (14 choices)| 20.8%| 88.0% / 92.1% / 97.5% / 98.4%| 94.9% / 93.2% / 98.9% / 98.7%| 
-| 4B| Assistant: out-of-distribution | Entirely local action (yes/no)| 76.3%| 78.2% / 77.3% / 99.1% / 99.4%| 64.6% / 80.1% / 98.5% / 99.1%| 
-| 4B| Assistant: out-of-distribution | Confirmation before execution (yes/no)| 79.8%| 79.5% / 89.0% / 93.4% / 98.7%| 53.3% / 84.9% / 85.9% / 98.0%| 
+| 0.8B| Support: in-distribution| Queue (8 choices)| 30.0%| 43.5% / 49.4% / 68.8% / 70.6%| 54.6% / 55.5% / 72.7% / 74.6%| 
+| 0.8B| Support: in-distribution| Onsite eligibility (yes/no)| 89.4%| 48.2% / 89.4% / 90.6% / 90.0%| 63.7% / 50.0% / 55.6% / 55.2%| 
+| 0.8B| Support: in-distribution| Urgency (4 levels)| 44.1%| 42.4% / 43.5% / 100.0% / 100.0%| 56.3% / 57.0% / 100.0% / 100.0%| 
+| 0.8B| Assistant: in-distribution| Tool (14 choices)| 22.0%| 88.7% / 95.0% / 100.0% / 99.4%| 89.6% / 95.1% / 100.0% / 99.3%| 
+| 0.8B| Assistant: in-distribution| Entirely local action (yes/no)| 74.2%| 33.3% / 26.4% / 88.1% / 97.5%| 54.3% / 48.8% / 84.8% / 96.7%| 
+| 0.8B| Assistant: in-distribution| Confirmation before execution (yes/no)| 78.6%| 79.2% / 94.3% / 92.5% / 95.6%| 51.5% / 86.8% / 87.7% / 91.8%| 
+| 0.8B| Support: out-of-distribution| Queue (8 choices)| 33.2%| 42.1% / 57.6% / 68.0% / 67.7%| 49.6% / 58.0% / 61.1% / 60.2%| 
+| 0.8B| Support: out-of-distribution| Onsite eligibility (yes/no)| 92.3%| 52.8% / 91.4% / 92.3% / 92.3%| 58.6% / 49.5% / 51.8% / 55.3%| 
+| 0.8B| Support: out-of-distribution| Urgency (4 levels)| 50.4%| 34.1% / 39.5% / 84.6% / 87.5%| 52.1% / 59.2% / 85.7% / 90.3%| 
+| 0.8B| Assistant: out-of-distribution| Tool (14 choices)| 20.8%| 85.8% / 87.4% / 98.7% / 98.4%| 87.0% / 84.4% / 95.8% / 92.2%| 
+| 0.8B| Assistant: out-of-distribution| Entirely local action (yes/no)| 76.3%| 32.2% / 22.4% / 89.9% / 95.0%| 53.3% / 44.6% / 82.8% / 92.1%| 
+| 0.8B| Assistant: out-of-distribution| Confirmation before execution (yes/no)| 79.8%| 79.2% / 81.1% / 87.1% / 89.9%| 50.8% / 68.9% / 75.6% / 83.8%| 
+| 4B| Support: in-distribution| Queue (8 choices)| 30.0%| 54.7% / 64.1% / 86.5% / 92.4%| 70.7% / 71.5% / 84.7% / 89.7%| 
+| 4B| Support: in-distribution| Onsite eligibility (yes/no)| 89.4%| 68.8% / 72.9% / 94.1% / 95.3%| 70.3% / 84.9% / 79.6% / 85.1%| 
+| 4B| Support: in-distribution| Urgency (4 levels)| 44.1%| 58.8% / 52.9% / 100.0% / 100.0%| 54.6% / 66.9% / 100.0% / 100.0%| 
+| 4B| Assistant: in-distribution| Tool (14 choices)| 22.0%| 93.7% / 95.6% / 100.0% / 100.0%| 96.8% / 97.6% / 100.0% / 100.0%| 
+| 4B| Assistant: in-distribution| Entirely local action (yes/no)| 74.2%| 73.6% / 77.4% / 98.7% / 100.0%| 62.3% / 82.4% / 98.4% / 100.0%| 
+| 4B| Assistant: in-distribution| Confirmation before execution (yes/no)| 78.6%| 78.0% / 90.6% / 98.1% / 99.4%| 56.0% / 89.7% / 96.7% / 98.5%| 
+| 4B| Support: out-of-distribution| Queue (8 choices)| 33.2%| 59.1% / 62.9% / 81.6% / 85.8%| 72.1% / 68.9% / 79.6% / 86.9%| 
+| 4B| Support: out-of-distribution| Onsite eligibility (yes/no)| 92.3%| 68.5% / 78.0% / 93.2% / 93.8%| 63.6% / 88.1% / 64.6% / 66.7%| 
+| 4B| Support: out-of-distribution| Urgency (4 levels)| 50.4%| 54.6% / 48.7% / 91.7% / 94.7%| 53.9% / 57.6% / 90.3% / 95.0%| 
+| 4B| Assistant: out-of-distribution| Tool (14 choices)| 20.8%| 88.0% / 92.1% / 97.5% / 98.4%| 94.9% / 93.2% / 98.9% / 98.7%| 
+| 4B| Assistant: out-of-distribution| Entirely local action (yes/no)| 76.3%| 78.2% / 77.3% / 99.1% / 99.4%| 64.6% / 80.1% / 98.5% / 99.1%| 
+| 4B| Assistant: out-of-distribution| Confirmation before execution (yes/no)| 79.8%| 79.5% / 89.0% / 93.4% / 98.7%| 53.3% / 84.9% / 85.9% / 98.0%| 
 <!-- /SOURCE:TABLE:5 -->
 <!-- /TABLE:PERQ -->
 
@@ -178,18 +178,18 @@ Only questions whose answer differs from the original record are counted; recogn
 <!-- SOURCE:TABLE:6 -->
 | Size| Variant set| Questions| B0| B0-policy| FT| FT-cf| FT-cf−FT (percentage points, 95% interval)| 
 | ---| ---| ---| ---| ---| ---| ---| ---| 
-| 0.8B| Support: test variants | 172| 22.1%| 47.7%| 48.3%| 57.6%| +9.3 (-1.2 ~ +19.7)| 
-| 0.8B| Assistant: test variants | 72| 36.1%| 33.3%| 48.6%| 81.9%| +33.3 (+20.5 ~ +46.7)| 
-| 0.8B| Support: out-of-distribution variants | 316| 25.6%| 42.1%| 43.4%| 48.4%| +5.1 (-0.6 ~ +11.1)| 
-| 0.8B| Assistant: out-of-distribution variants | 175| 41.1%| 48.6%| 46.3%| 81.7%| +35.4 (+25.4 ~ +45.2)| 
-| 0.8B| Support: development variants | 176| 20.5%| —| 54.0%| 60.8%| +6.8 (-4.1 ~ +17.6)| 
-| 0.8B| Assistant: development variants | 77| 36.4%| —| 50.6%| 79.2%| +28.6 (+13.8 ~ +43.6)| 
-| 4B| Support: test variants | 172| 40.7%| 47.1%| 72.1%| 84.9%| +12.8 (+5.3 ~ +20.6)| 
-| 4B| Assistant: test variants | 72| 40.3%| 70.8%| 86.1%| 100.0%| +13.9 (+5.9 ~ +22.5)| 
-| 4B| Support: out-of-distribution variants | 316| 38.6%| 55.4%| 62.7%| 78.2%| +15.5 (+9.6 ~ +21.9)| 
-| 4B| Assistant: out-of-distribution variants | 175| 50.3%| 79.4%| 84.0%| 98.3%| +14.3 (+8.4 ~ +20.6)| 
-| 4B| Support: development variants | 176| 43.8%| —| 75.6%| 90.9%| +15.3 (+8.0 ~ +23.4)| 
-| 4B| Assistant: development variants | 77| 54.5%| —| 89.6%| 100.0%| +10.4 (+4.1 ~ +16.9)| 
+| 0.8B| Support: test variants| 172| 22.1%| 47.7%| 48.3%| 57.6%| +9.3 (-1.2 ~ +19.7)| 
+| 0.8B| Assistant: test variants| 72| 36.1%| 33.3%| 48.6%| 81.9%| +33.3 (+20.5 ~ +46.7)| 
+| 0.8B| Support: out-of-distribution variants| 316| 25.6%| 42.1%| 43.4%| 48.4%| +5.1 (-0.6 ~ +11.1)| 
+| 0.8B| Assistant: out-of-distribution variants| 175| 41.1%| 48.6%| 46.3%| 81.7%| +35.4 (+25.4 ~ +45.2)| 
+| 0.8B| Support: development variants| 176| 20.5%| —| 54.0%| 60.8%| +6.8 (-4.1 ~ +17.6)| 
+| 0.8B| Assistant: development variants| 77| 36.4%| —| 50.6%| 79.2%| +28.6 (+13.8 ~ +43.6)| 
+| 4B| Support: test variants| 172| 40.7%| 47.1%| 72.1%| 84.9%| +12.8 (+5.3 ~ +20.6)| 
+| 4B| Assistant: test variants| 72| 40.3%| 70.8%| 86.1%| 100.0%| +13.9 (+5.9 ~ +22.5)| 
+| 4B| Support: out-of-distribution variants| 316| 38.6%| 55.4%| 62.7%| 78.2%| +15.5 (+9.6 ~ +21.9)| 
+| 4B| Assistant: out-of-distribution variants| 175| 50.3%| 79.4%| 84.0%| 98.3%| +14.3 (+8.4 ~ +20.6)| 
+| 4B| Support: development variants| 176| 43.8%| —| 75.6%| 90.9%| +15.3 (+8.0 ~ +23.4)| 
+| 4B| Assistant: development variants| 77| 54.5%| —| 89.6%| 100.0%| +10.4 (+4.1 ~ +16.9)| 
 <!-- /SOURCE:TABLE:6 -->
 
 By edited field, combining test and out-of-distribution variants and counting only changed-answer questions:
@@ -218,14 +218,14 @@ For paired records already in the original test set, the following is the fracti
 <!-- SOURCE:TABLE:8 -->
 | Size| Test set| Questions with changed ground truth| B0| B0-policy| FT| FT-cf| 
 | ---| ---| ---| ---| ---| ---| ---| 
-| 0.8B| Support: in-distribution | 31| 0.0%| 0.0%| 9.7%| 9.7%| 
-| 0.8B| Assistant: in-distribution | 22| 0.0%| 0.0%| 13.6%| 63.6%| 
-| 0.8B| Support: out-of-distribution | 48| 0.0%| 2.1%| 4.2%| 6.2%| 
-| 0.8B| Assistant: out-of-distribution | 32| 0.0%| 3.1%| 3.1%| 59.4%| 
-| 4B| Support: in-distribution | 31| 0.0%| 22.6%| 48.4%| 64.5%| 
-| 4B| Assistant: in-distribution | 22| 4.5%| 59.1%| 90.9%| 100.0%| 
-| 4B| Support: out-of-distribution | 48| 4.2%| 25.0%| 29.2%| 45.8%| 
-| 4B| Assistant: out-of-distribution | 32| 3.1%| 50.0%| 65.6%| 96.9%| 
+| 0.8B| Support: in-distribution| 31| 0.0%| 0.0%| 9.7%| 9.7%| 
+| 0.8B| Assistant: in-distribution| 22| 0.0%| 0.0%| 13.6%| 63.6%| 
+| 0.8B| Support: out-of-distribution| 48| 0.0%| 2.1%| 4.2%| 6.2%| 
+| 0.8B| Assistant: out-of-distribution| 32| 0.0%| 3.1%| 3.1%| 59.4%| 
+| 4B| Support: in-distribution| 31| 0.0%| 22.6%| 48.4%| 64.5%| 
+| 4B| Assistant: in-distribution| 22| 4.5%| 59.1%| 90.9%| 100.0%| 
+| 4B| Support: out-of-distribution| 48| 4.2%| 25.0%| 29.2%| 45.8%| 
+| 4B| Assistant: out-of-distribution| 32| 3.1%| 50.0%| 65.6%| 96.9%| 
 <!-- /SOURCE:TABLE:8 -->
 <!-- /TABLE:CF -->
 
@@ -292,7 +292,7 @@ A recorded example is the [US support request and response](../验证结果/本�
 
 An application could request more information, user confirmation or human review for uncertain predictions. These are policy recommendations: **the current client has no automatic human handoff or fallback to another model**. If high-probability predictions are also frequently wrong, filtering only low-probability requests is insufficient. Restrict the affected automated decisions until representative independent tests meet business requirements.
 
-The customer deliverable is **a GGUF containing the calibration parameters plus a matching inference engine**, not a claim that calibration has been completed. The model computes scores, the inference implementation converts them to probabilities, and the fitted parameters travel with the model. The [README's local trial](../README.md#local-try) and [training/update workflow](../README.md#train-update) explain deployment and calibration-only updates. No laptop retraining or separate calibration service is required.
+The customer deliverable is **a GGUF containing the calibration parameters plus a matching inference engine**, not a claim that calibration has been completed. The model computes scores, the inference implementation converts them to probabilities, and the fitted parameters travel with the model. The [README's local trial](Operations-Guide.md#local-try) and [training/update workflow](Operations-Guide.md#train-update) explain deployment and calibration-only updates. No laptop retraining or separate calibration service is required.
 
 #### 3.4.6 What This Temperature Fit Actually Demonstrated
 
@@ -315,14 +315,14 @@ The table below compares probability quality and coverage for the released model
 <!-- SOURCE:TABLE:9 -->
 | Size| Test set| ECE B0 / B0-policy / FT / FT-cf| Brier B0 / B0-policy / FT / FT-cf| Coverage at 5% error budget: B0 / B0-policy / FT / FT-cf| 
 | ---| ---| ---| ---| ---| 
-| 0.8B| Support: in-distribution | 0.048 / 0.140 / 0.023 / 0.030| 0.641 / 0.538 / 0.168 / 0.152| 2.9% / 18.4% / 84.7% / 84.5%| 
-| 0.8B| Assistant: in-distribution | 0.095 / 0.175 / 0.011 / 0.013| 0.396 / 0.408 / 0.088 / 0.035| 13.0% / 17.2% / 97.1% / 100.0%| 
-| 0.8B| Support: out-of-distribution | 0.074 / 0.134 / 0.050 / 0.064| 0.630 / 0.523 / 0.253 / 0.233| 6.1% / 29.9% / 65.4% / 69.9%| 
-| 0.8B| Assistant: out-of-distribution | 0.080 / 0.125 / 0.023 / 0.017| 0.421 / 0.454 / 0.118 / 0.083| 6.7% / 11.6% / 92.6% / 98.8%| 
-| 4B| Support: in-distribution | 0.043 / 0.058 / 0.023 / 0.019| 0.514 / 0.468 / 0.098 / 0.062| 19.8% / 17.5% / 96.7% / 100.0%| 
-| 4B| Assistant: in-distribution | 0.143 / 0.213 / 0.023 / 0.008| 0.291 / 0.263 / 0.023 / 0.003| 43.2% / 71.5% / 100.0% / 100.0%| 
-| 4B| Support: out-of-distribution | 0.044 / 0.059 / 0.041 / 0.023| 0.518 / 0.466 / 0.159 / 0.121| 18.5% / 14.2% / 84.1% / 91.2%| 
-| 4B| Assistant: out-of-distribution | 0.144 / 0.213 / 0.005 / 0.009| 0.297 / 0.292 / 0.050 / 0.016| 44.4% / 61.6% / 100.0% / 100.0%| 
+| 0.8B| Support: in-distribution| 0.048 / 0.140 / 0.023 / 0.030| 0.641 / 0.538 / 0.168 / 0.152| 2.9% / 18.4% / 84.7% / 84.5%| 
+| 0.8B| Assistant: in-distribution| 0.095 / 0.175 / 0.011 / 0.013| 0.396 / 0.408 / 0.088 / 0.035| 13.0% / 17.2% / 97.1% / 100.0%| 
+| 0.8B| Support: out-of-distribution| 0.074 / 0.134 / 0.050 / 0.064| 0.630 / 0.523 / 0.253 / 0.233| 6.1% / 29.9% / 65.4% / 69.9%| 
+| 0.8B| Assistant: out-of-distribution| 0.080 / 0.125 / 0.023 / 0.017| 0.421 / 0.454 / 0.118 / 0.083| 6.7% / 11.6% / 92.6% / 98.8%| 
+| 4B| Support: in-distribution| 0.043 / 0.058 / 0.023 / 0.019| 0.514 / 0.468 / 0.098 / 0.062| 19.8% / 17.5% / 96.7% / 100.0%| 
+| 4B| Assistant: in-distribution| 0.143 / 0.213 / 0.023 / 0.008| 0.291 / 0.263 / 0.023 / 0.003| 43.2% / 71.5% / 100.0% / 100.0%| 
+| 4B| Support: out-of-distribution| 0.044 / 0.059 / 0.041 / 0.023| 0.518 / 0.466 / 0.159 / 0.121| 18.5% / 14.2% / 84.1% / 91.2%| 
+| 4B| Assistant: out-of-distribution| 0.144 / 0.213 / 0.005 / 0.009| 0.297 / 0.292 / 0.050 / 0.016| 44.4% / 61.6% / 100.0% / 100.0%| 
 <!-- /SOURCE:TABLE:9 -->
 <!-- /TABLE:CAL -->
 
@@ -545,7 +545,7 @@ NPU execution was not tested. llama.cpp's Windows Hexagon instructions at commit
 - One seed-1 training run per recipe: bootstrap intervals describe sample uncertainty, not seed or dataset-generation variation.
 - Temperature is fit on in-distribution calibration data with `calibrate_checkpoint.py --allow-in-distribution`; the warning and out-of-distribution ECE remain part of the evidence.
 - The 13 refused-message assistant cases are absent from out-of-distribution accuracy.
-- One laptop and sequential requests: no concurrency, sustained thermal, battery or NPU tests. (On 2026-10-30, 0.8B FT-cf Q8_0 was rerun on an x86-64 Azure VM; 983 of 987 answers matched the laptop run in this report. Records and the comparison table are in [README section 5](../README.md#on-an-x86-64-cpu-the-same-model-file-runs-unchanged); the tables in this report still cover the laptop runs only.) Each configuration has one run; same-architecture paired latencies can differ by 24%. The 4B Q8_0 standby incident is retained. Only recommended 4B FT-cf configurations completed; 4B FT stops after 36 records and is excluded.
+- One laptop and sequential requests: no concurrency, sustained thermal, battery or NPU tests. (On 2026-10-30, 0.8B FT-cf Q8_0 was rerun on an x86-64 Azure VM; 983 of 987 answers matched the laptop run in this report. Records and the comparison table are in [README section 5](Evaluation-Results.md#on-an-x86-64-cpu-the-same-model-file-runs-unchanged); the tables in this report still cover the laptop runs only.) Each configuration has one run; same-architecture paired latencies can differ by 24%. The 4B Q8_0 standby incident is retained. Only recommended 4B FT-cf configurations completed; 4B FT stops after 36 records and is excluded.
 
 ## 7. Operations and Evidence
 
@@ -554,9 +554,9 @@ Executable commands are maintained only in the README to prevent two diverging r
 <!-- SOURCE:TABLE:20 -->
 | Task| Owning operational entry| Evidence retained here| 
 | ---| ---| ---| 
-| Use an existing model on the laptop| [Local trial](../README.md#local-try)| [Real local trial](../README.md#local-result), including incorrect answers| 
-| Produce a new model from business data| [Train and update](../README.md#train-update)| Sections 2–4: method, data scale, accuracy and training resources| 
-| Verify data, scoring and device agreement| [Verification](../README.md#verify)| Sections 3–5: complete historical matrices and raw evidence links| 
+| Use an existing model on the laptop| [Local trial](Operations-Guide.md#local-try)| [Real local trial](Evaluation-Results.md#local-result), including incorrect answers| 
+| Produce a new model from business data| [Train and update](Operations-Guide.md#train-update)| Sections 2–4: method, data scale, accuracy and training resources| 
+| Verify data, scoring and device agreement| [Verification](Operations-Guide.md#verify)| Sections 3–5: complete historical matrices and raw evidence links| 
 | Read original decision rules and deviations| [Experimental protocol](Experiment-Protocol.md)| The original protocol is retained, not rewritten to fit new results| 
 <!-- /SOURCE:TABLE:20 -->
 
