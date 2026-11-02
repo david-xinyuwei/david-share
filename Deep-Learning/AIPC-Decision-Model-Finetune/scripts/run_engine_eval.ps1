@@ -27,13 +27,19 @@ param(
     [string] $Bin = '',              # llama.cpp folder; default = the ARM64 b11935 folders used by the laptop runs. x64: C:\Tools\llama.cpp\b11935-cpu-x64
     [string] $OutRoot = '验证结果\端侧引擎_20261027-124700',  # project-relative results root; use a new one per machine
     [int] $Concurrency = 1,          # client requests kept in flight (systemone_client.py --concurrency); 1 = the sequential laptop method
-    [int] $Parallel = 0              # llama-server -np slots; 0 = leave the server default (auto, 4 on b11935 for this model)
+    [int] $Parallel = 0,             # llama-server -np slots; 0 = leave the server default (auto, 4 on b11935 for this model)
+    [switch] $SingleQuestion
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 Push-Location $root  # relative paths below are resolved and recorded from the project root
+if ($SingleQuestion -and -not $PSBoundParameters.ContainsKey('Workloads')) {
+    $Workloads = @('test_support', 'test_assistant', 'ood_support', 'ood_assistant')
+    if (-not $PSBoundParameters.ContainsKey('DataPrefix')) { $DataPrefix = '' }
+}
 $bin = if ($Bin) { $Bin } elseif ($Backend -eq 'cpu') { 'C:\Tools\llama.cpp\b11935-cpu' } else { 'C:\Tools\llama.cpp\b11935-opencl-adreno' }
 $out = Join-Path $OutRoot $Label
+if ($SingleQuestion -and (Test-Path -LiteralPath $out)) { throw "single-question output already exists: $out" }
 New-Item -ItemType Directory -Force -Path $out | Out-Null
 $log = Join-Path $env:TEMP "llama-server-$Label.log"
 
@@ -52,6 +58,16 @@ $server = Start-Process -FilePath (Join-Path $bin 'llama-server.exe') -ArgumentL
     -RedirectStandardError $log -RedirectStandardOutput "$log.out"
 $result = [ordered]@{ label = $Label; model = $Model; backend = $Backend; build = (Split-Path -Leaf $bin); server_args = ($argList -join ' '); data_prefix = $DataPrefix
                       client_concurrency = $Concurrency; logical_processors = [Environment]::ProcessorCount }
+$result.request_mode = if ($SingleQuestion) { 'single_question' } else { 'record' }
+if ($SingleQuestion) {
+    $result.host = $env:COMPUTERNAME
+    $result.architecture = $env:PROCESSOR_ARCHITECTURE
+    $result.cpu = @((Get-CimInstance Win32_Processor).Name)
+    $result.client_sha256 = (Get-FileHash -LiteralPath 'scripts\systemone_client.py' -Algorithm SHA256).Hash.ToLower()
+    $result.runner_sha256 = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLower()
+    $result.engine_sha256 = (Get-FileHash -LiteralPath (Join-Path $bin 'llama-server.exe') -Algorithm SHA256).Hash.ToLower()
+    if ($TorchPrefix) { Write-Warning 'Single-question runs do not compare against historical multi-question PyTorch answers.' }
+}
 try {
     $sw = [Diagnostics.Stopwatch]::StartNew()
     $ready = $false
@@ -68,12 +84,15 @@ try {
     foreach ($w in $Workloads) {
         $data = "data\contoso\final\$DataPrefix$w.jsonl"
         $server.Refresh(); $cpuBefore = $server.TotalProcessorTime.TotalSeconds; $wallBefore = Get-Date
-        python scripts\systemone_client.py --url "http://127.0.0.1:$Port/v1/systemone" --data $data --out (Join-Path $out $w) --concurrency $Concurrency
+        $clientArgs = @('--url', "http://127.0.0.1:$Port/v1/systemone", '--data', $data,
+                '--out', (Join-Path $out $w), '--concurrency', "$Concurrency")
+        if ($SingleQuestion) { $clientArgs += '--single-question' }
+        python scripts\systemone_client.py @clientArgs
         if ($LASTEXITCODE -ne 0) { throw "client failed for $w" }
         $server.Refresh()  # server CPU time consumed by this workload (incl. warm-up), for utilisation = cpu / wall / logical processors
         $result.workload_cpu_seconds[$w] = [ordered]@{ cpu_seconds = [math]::Round($server.TotalProcessorTime.TotalSeconds - $cpuBefore, 1)
                                                       wall_seconds_incl_warmup = [math]::Round(((Get-Date) - $wallBefore).TotalSeconds, 1) }
-        if ($TorchPrefix) {
+        if ($TorchPrefix -and -not $SingleQuestion) {
             $torch = @("$TorchPrefix$w\rows.json", "${TorchPrefix}test_$w\rows.json") | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
             if ($torch) {
                 python scripts\parity.py --torch $torch --engine (Join-Path $out "$w\rows.jsonl") --out (Join-Path $out "$w\parity_vs_pytorch.json")
@@ -105,7 +124,7 @@ finally {
     if (-not $server.HasExited) { Stop-Process -Id $server.Id -Force; $null = $server.WaitForExit(30000) }
     Copy-Item -LiteralPath $log -Destination (Join-Path $out 'server.log') -Force -ErrorAction SilentlyContinue
 }
-$result | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $out 'run.json') -Encoding utf8
+$result | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $out 'run.json') -Encoding utf8
 [pscustomobject]$result | Select-Object label, backend, load_seconds, peak_working_set_mib, private_mib, gpu_shared_mib | Format-List
 foreach ($w in $Workloads) { "{0}: acc={1} p50={2} ms p90={3} ms" -f $w, $result.summaries[$w].accuracy, $result.summaries[$w].latency_ms.p50, $result.summaries[$w].latency_ms.p90 }
 Pop-Location

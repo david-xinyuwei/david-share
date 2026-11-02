@@ -139,6 +139,94 @@ class DataTests(unittest.TestCase):
 
 
 class RequestTests(unittest.TestCase):
+    def test_single_question_batch_preserves_inputs_and_measures_each_request(self):
+        record = {"state": {"message": "test", "region": "CN"}, "_meta": {"case": "case-1"},
+                  "questions": {"queue": {"type": "choice", "choices": ["repair", "sales"], "label": "repair"},
+                                "onsite": {"type": "noul", "label": True},
+                                "urgency": {"type": "score", "label": 2}}}
+        original = json.loads(json.dumps(record))
+        answers = {"queue": {"choice": "repair", "probabilities": {"repair": 0.8, "sales": 0.2}},
+                   "onsite": {"noul": 0.8}, "urgency": {"probabilities": {"1": 0.1, "2": 0.9}}}
+        with tempfile.TemporaryDirectory() as temporary:
+            data = Path(temporary) / "data.jsonl"
+            data.write_text(json.dumps(record) + "\n", encoding="utf-8")
+            output = Path(temporary) / "out"
+            argv = ["systemone_client.py", "--url", "http://127.0.0.1:1/v1/systemone", "--data", str(data),
+                    "--out", str(output), "--warmup", "0", "--single-question"]
+            responses = [({"answers": {question_id: answer}}, latency)
+                         for (question_id, answer), latency in zip(answers.items(), (10.0, 20.0, 30.0))]
+            with mock.patch.object(client, "ask", side_effect=responses) as send, mock.patch("sys.argv", argv), mock.patch("builtins.print"):
+                client.main()
+            self.assertEqual(send.call_count, 3)
+            for call, question_id in zip(send.call_args_list, record["questions"]):
+                sent_record = call.args[1]
+                self.assertEqual(sent_record["state"], record["state"])
+                self.assertEqual(sent_record["questions"], {question_id: record["questions"][question_id]})
+                self.assertNotIn("label", client.request_body(sent_record)["questions"][question_id])
+            rows = read_jsonl(output / "rows.jsonl")
+            self.assertEqual([row["latency_ms"] for row in rows], [10.0, 20.0, 30.0])
+            self.assertEqual([row["record_index"] for row in rows], [0, 0, 0])
+            self.assertEqual([list(row["questions"]) for row in rows], [[question_id] for question_id in record["questions"]])
+            summary = json.loads((output / "summary.json").read_text(encoding="utf-8"))
+            self.assertEqual((summary["records"], summary["requests"], summary["questions"]), (1, 3, 3))
+            self.assertEqual(summary["request_mode"], "single_question")
+            self.assertEqual(summary["latency_ms"]["p50"], 20.0)
+            self.assertEqual(summary["accuracy"], 1.0)
+            self.assertAlmostEqual(summary["calibration"]["ece"], 1 / 6)
+            self.assertEqual(summary["calibration"]["coverage"], 1.0)
+            self.assertEqual(rows[0]["response"], responses[0][0])
+            self.assertEqual(rows[0]["request"], client.request_body(send.call_args_list[0].args[1]))
+            with mock.patch.object(client, "ask") as repeated, mock.patch("sys.argv", argv), self.assertRaises(FileExistsError):
+                client.main()
+            repeated.assert_not_called()
+        self.assertEqual(record, original)
+
+    def test_single_question_failures_stay_in_denominator_and_raw_rows(self):
+        record = {"state": "test", "questions": {
+            "answered": {"type": "noul", "label": True},
+            "timeout": {"type": "noul", "label": True},
+            "invalid": {"type": "noul", "label": True}}}
+        invalid_response = {"answers": {"invalid": {"noul": 1.2}}}
+        responses = [({"answers": {"answered": {"noul": 0.8}}}, 12.0),
+                     TimeoutError("timeout"), (invalid_response, 13.0)]
+        with tempfile.TemporaryDirectory() as temporary:
+            data = Path(temporary) / "data.jsonl"
+            data.write_text(json.dumps(record) + "\n", encoding="utf-8")
+            output = Path(temporary) / "out"
+            argv = ["systemone_client.py", "--url", "http://127.0.0.1:1/v1/systemone", "--data", str(data),
+                    "--out", str(output), "--warmup", "0", "--single-question"]
+            with mock.patch.object(client, "ask", side_effect=responses), mock.patch("sys.argv", argv), mock.patch("builtins.print"):
+                client.main()
+            summary = json.loads((output / "summary.json").read_text(encoding="utf-8"))
+            rows = read_jsonl(output / "rows.jsonl")
+            self.assertEqual((summary["questions"], summary["questions_answered"], summary["errors"]), (3, 1, 2))
+            self.assertAlmostEqual(summary["accuracy"], 1 / 3)
+            self.assertAlmostEqual(summary["calibration"]["coverage"], 1 / 3)
+            self.assertAlmostEqual(summary["calibration"]["ece"], 0.2)
+            self.assertEqual(summary["latency_ms"]["n"], 1)
+            self.assertEqual(rows[1]["error"]["type"], "TimeoutError")
+            self.assertEqual(rows[1]["labels"], {"timeout": True})
+            self.assertGreaterEqual(rows[1]["error"]["elapsed_ms"], 0)
+            self.assertEqual(rows[2]["response"], invalid_response)
+
+    def test_probability_metrics_match_existing_calibration_method(self):
+        import math
+        distributions = [([0.8, 0.2], 0, "choice"), ([0.7, 0.3], 1, "noul"),
+                         ([0.1, 0.2, 0.7], 2, "score")]
+        scores = []
+        for probabilities, label, question_type in distributions:
+            question = {"type": question_type, "label": bool(label) if question_type == "noul" else label}
+            answer = ({"noul": probabilities[1]} if question_type == "noul"
+                      else {"choice": 0, "probabilities": {str(index): value for index, value in enumerate(probabilities)}})
+            scores.append(client.score_answer(question, answer))
+        actual = client.calibration_summary(scores)
+        reference = cb.metrics([([math.log(value) for value in probabilities], label, question_type)
+                                for probabilities, label, question_type in distributions], 1.0)
+        self.assertAlmostEqual(actual["ece"], reference["ece"])
+        self.assertAlmostEqual(actual["brier"], reference["brier"])
+        self.assertEqual(actual["n"], reference["n"])
+        self.assertIsNone(client.calibration_summary([])["ece"])
+
     def test_request_excludes_labels_and_metadata(self):
         record = {"state": {"message": "test", "region": "CN"},
                   "questions": {"onsite": {"type": "noul", "label": True}}, "_meta": {"case": "test"}}
@@ -221,6 +309,61 @@ class RequestTests(unittest.TestCase):
 
 
 class ReportLayoutTests(unittest.TestCase):
+    def test_request_examples_match_captured_requests_and_responses(self):
+        from render_diagrams import saved_request_examples
+
+        for language in ("zh", "en"):
+            text = saved_request_examples(language)
+            blocks = re.findall(r"```json\n(.*?)\n```", text, re.S)
+            self.assertEqual(len(blocks), 6)
+            for index, dataset in enumerate(("test_support", "test_assistant", "ood_support")):
+                raw = read_jsonl(ROOT / "验证结果/单题接口验收_20261102-161257" / dataset / "rows.jsonl")[0]
+                self.assertEqual(json.loads(blocks[index * 2]), raw["request"])
+                self.assertEqual(json.loads(blocks[index * 2 + 1]), raw["response"])
+            self.assertIn("damage_claim", text)
+            self.assertIn("答错" if language == "zh" else "incorrect", text)
+
+    def test_record_request_tables_preserve_real_latency_and_recipe_coverage(self):
+        import statistics
+        from render_diagrams import record_request_tables
+
+        text = record_request_tables()
+        rows = [line for line in text.splitlines() if line.startswith("| ") and not line.startswith("| 模型")]
+        self.assertEqual(len(rows), 14)
+        self.assertNotIn("待测", text)
+        self.assertEqual(text.count("处理完整请求中位时间（秒，每次3道判断）"), 2)
+        for workload, dataset in (("support", "工单·同分布"), ("assistant", "助手·同分布")):
+            raw = read_jsonl(ROOT / "验证结果/端侧引擎_骁龙第二轮C_20261101-203702/r2c-kev-0.8b-Q8_0-cpu" / workload / "rows.jsonl")
+            row = next(line for line in rows if "第二轮 C" in line and dataset in line)
+            self.assertIn(f"**{statistics.median(item['latency_ms'] for item in raw) / 1000:.3f}**", row)
+            self.assertIn("100.0%", row)
+
+    def test_single_question_matrix_keeps_all_unmeasured_cells(self):
+        from render_diagrams import single_question_tables
+
+        with tempfile.TemporaryDirectory() as temporary:
+            text = single_question_tables(Path(temporary))
+        rows = [line for line in text.splitlines() if line.startswith("| ") and "待测" in line]
+        self.assertEqual(len(rows), 28)
+        self.assertEqual(text.count("待测"), 28 * 4)
+        self.assertNotIn("635", text)
+        self.assertNotIn("905", text)
+        for dataset, questions in (("工单·同分布", "510"), ("助手·同分布", "477"),
+                                    ("工单·分布外", "1,011"), ("助手·分布外", "951")):
+            self.assertEqual(text.count(f"{dataset}（{questions} 题）"), 7)
+
+    def test_single_question_matrix_rejects_other_devices(self):
+        from render_diagrams import single_question_tables
+
+        with tempfile.TemporaryDirectory() as temporary:
+            campaign = Path(temporary)
+            output = campaign / "released-kev-0.8b-Q8_0-cpu" / "test_support"
+            output.mkdir(parents=True)
+            (output / "summary.json").write_text('{}', encoding="utf-8")
+            (output.parent / "run.json").write_text(json.dumps({"request_mode": "single_question", "architecture": "AMD64"}), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "device/configuration mismatch"):
+                single_question_tables(campaign)
+
     def accuracy_summary(self):
         sets = {}
         for size in ("0.8b", "4b"):
@@ -402,15 +545,14 @@ class BilingualDocumentationTests(unittest.TestCase):
     def test_device_tables_exclude_gpu_only_reference_rows(self):
         chinese = (ROOT / "README_CN.md").read_text(encoding="utf-8")
         tables = self.tables(self.parser.parse(chinese))
-        for table, expected_rows in zip(tables[1:3], (4, 3)):
+        for table, expected_rows in zip(tables[1:3], (8, 6)):
             self.assertEqual(len(table) - 1, expected_rows)
-            self.assertIn("与各自 PyTorch 逐题答案一致率", table[0])
-            self.assertEqual(table[0][1], "权重量化格式")
-            self.assertEqual(table[0][3], "笔记本准确率（工单 / 助手）")
-            self.assertFalse(any(row[1] in ("8.5", "5.8") for row in table[1:]))
-            self.assertTrue(all(row[1] == "W8（Q8_0）" for row in table[1:] if "Q8_0" in row[0]))
+            self.assertEqual(table[0][1], "测试集（题数）")
+            self.assertEqual(table[0][2], "逐题准确率（%，含失败题）")
+            self.assertEqual(table[0][3], "处理完整请求中位时间（秒，每次3道判断）")
+            self.assertIn("校准误差 ECE（百分点，越低越好）", table[0])
             self.assertFalse(any("BF16 未量化" in row[0] for row in table[1:]))
-            self.assertFalse(any("未在笔记本运行" in cell for row in table for cell in row))
+            self.assertNotIn("模型加载阶段耗时（秒，日志）", table[0])
         details = (ROOT / "文档/评测与端侧结果全集.md").read_text(encoding="utf-8")
         self.assertIn('<a id="gpu-bf16-baseline"></a>', details)
         baseline = next(table for table in self.tables(self.parser.parse(details))
@@ -427,21 +569,21 @@ class BilingualDocumentationTests(unittest.TestCase):
         self.assertIn("5.76 BPW", details)
 
     def test_loading_times_use_the_same_server_log_interval(self):
-        from render_diagrams import model_loading_seconds
+        from render_diagrams import model_loading_seconds, overview_blocks
 
         prefix = "验证结果/端侧引擎_20261027-124700/"
         self.assertEqual(model_loading_seconds(prefix + "released-kev-0.8b-Q8_0-cpu/server.log"), "3.981")
         self.assertEqual(model_loading_seconds(prefix + "released-kev-4b-Q4_K_M-cpu/server.log"), "7.820")
-        chinese = (ROOT / "README_CN.md").read_text(encoding="utf-8")
-        tables = self.tables(self.parser.parse(chinese))
+        tables = self.tables(self.parser.parse(overview_blocks()["LEGACY_INFERENCE"]))
         expected = (("3.981", "1.483", "1.642", "2.236"), ("7.820", "8.552", "5.014"))
-        for table, loading in zip(tables[1:3], expected):
+        for table, loading in zip(tables, expected):
             self.assertEqual(table[0][5], "单条任务处理耗时（工单 / 助手，毫秒，中位数）")
             self.assertEqual(table[0][7], "模型加载阶段耗时（秒，日志）")
             self.assertEqual(tuple(row[7] for row in table[1:]), loading)
             self.assertFalse(any(row[7] == "未记录" for row in table[1:]))
-        self.assertIn("一条任务一次回答三道问题", chinese)
-        self.assertIn("不是完整服务启动时间", chinese)
+        details = (ROOT / "文档/评测与端侧结果全集.md").read_text(encoding="utf-8")
+        self.assertIn("一次返回三道问题的答案", details)
+        self.assertIn("不代表完整服务启动耗时", details)
 
     def test_localization_preserves_nested_link_and_code(self):
         import fill_report_tables

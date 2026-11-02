@@ -274,31 +274,38 @@ Use native Kev `--init_from <existing-checkpoint>` and a new `--out <new-directo
 
 Offline tests require no model. New device evaluation requires real GGUF weights and the runtime. Passing offline tests does not turn historical scores into a new experiment.
 
-#### C1. Batch Evaluation on the Laptop
+<a id="single-question-run"></a>
+
+#### C1. Single-Question Evaluation on the Laptop
 
 Use the CPU runtime from A. For Adreno comparison, download `llama-b11935-bin-win-opencl-adreno-arm64.zip` from the same release, SHA-256 `03495082010595c4d20c50b5d06fc44c0e03c57db5d573fae1727a92cca6a4c8`, and extract to `C:\Tools\llama.cpp\b11935-opencl-adreno\`. The batch script starts and stops its own service. First stop A's trial service yourself or choose a different port.
 
-Use a new `-Label` every time. The script's default output root is the laptop campaign's `验证结果\端侧引擎_20261027-124700`; a new label prevents overwriting old results. That directory name is not the new run date; the new `run.json` records actual time. To rerun on another machine, add `-Bin <that machine's llama.cpp folder>` and `-OutRoot 验证结果\端侧引擎_<machine>_<time>`: results go to the new root and the recorded paths are repository-relative. The x86-64 cross-check in section 5 was run this way.
+The new main table uses `-SingleQuestion`: one question per request over all four test sets by default, collecting accuracy, latency and ECE together. Omitting the switch retains the historical three-question mode. Start a batch with a new timestamp and use the fixed model labels below within it, without overwriting an older batch. Completion is determined by the result table and its raw records.
 
 <!-- SOURCE:FENCE:16 -->
 ```powershell
-$Label = 'ft-kev-0.8b-Q8_0-cpu-' + (Get-Date -Format 'yyyyMMdd-HHmmss')
-.\scripts\run_engine_eval.ps1 -Model C:\Tools\models\contoso-kev\Contoso-Kev-0.8B-FT-Q8_0.gguf -Label $Label `
-    -TorchPrefix 验证结果\端侧引擎_20261027-124700\pytorch-ft-0.8b\
+$Run = Join-Path '验证结果' ('单题端侧评测_骁龙_' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts\run_engine_eval.ps1 `
+    -Model C:\Tools\models\contoso-kev\Contoso-Kev-0.8B-FTcf-R2C-Q8_0.gguf `
+    -Label r2c-kev-0.8b-Q8_0-cpu -SingleQuestion -OutRoot $Run -Port 8118
 ```
 <!-- /SOURCE:FENCE:16 -->
 
-For 4B FT-cf, this experiment completed one Q8_0 and one Q4_K_M run:
+Continue with 4B FT-cf Q8_0 in the same batch. For the other configurations change the model file and fixed label, retaining all test sets and settings:
 
 <!-- SOURCE:FENCE:17 -->
 ```powershell
-$Label = 'ftcf-kev-4b-Q8_0-cpu-' + (Get-Date -Format 'yyyyMMdd-HHmmss')
-.\scripts\run_engine_eval.ps1 -Model C:\Tools\models\contoso-kev\Contoso-Kev-4B-FTcf-Q8_0.gguf -Label $Label `
-    -TorchPrefix 验证结果\端侧引擎_20261027-124700\pytorch-ftcf-4b\
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts\run_engine_eval.ps1 `
+    -Model C:\Tools\models\contoso-kev\Contoso-Kev-4B-FTcf-Q8_0.gguf `
+    -Label ftcf-kev-4b-Q8_0-cpu -SingleQuestion -OutRoot $Run -Port 8118
 ```
 <!-- /SOURCE:FENCE:17 -->
 
-`-TorchPrefix` points to PyTorch predictions for the same test set: `<prefix><workload>\rows.json`, copied from `runs\<size>\ft-test_<workload>\rows.json`, or `ftcf-test_<workload>` for FT-cf. Each test prints accuracy and latency, followed by `__ENGINE_EVAL_DONE__ <Label>`. Use `-Backend opencl` for Adreno, `-Ctx 2048 -UBatch 512` for the lower-memory case, and `-DataPrefix policy_test_` for B0-policy. First OpenCL startup compiles kernels and can take over a minute. For concurrency use `-Concurrency N` (the client keeps N requests in flight; default 1) and `-Parallel N` when the server slot count should change (passed as `-np`); concurrent runs add `wall_seconds` and `requests_per_second` to `summary.json`, and `run.json` records the server process's CPU seconds per test set. The concurrency table in section 5 was produced this way.
+The seven fixed labels are `released-kev-0.8b-Q8_0-cpu`, `ftcf-kev-0.8b-Q8_0-cpu`, `ft-kev-0.8b-Q4_K_M-cpu`, `r2c-kev-0.8b-Q8_0-cpu`, `released-kev-4b-Q4_K_M-cpu`, `ftcf-kev-4b-Q8_0-cpu` and `ftcf-kev-4b-Q4_K_M-cpu`. Each must use its own model file; renaming a label while loading the same weights is not another configuration. Reuse the official released packages and each fine-tuned model's calibrated GGUF. This protocol neither retrains nor refits temperature.
+
+Each completed model leaves `run.json`, `server.log`, and `rows.jsonl` plus `summary.json` per test set. Request counts must be 510, 477, 1,011 and 951, with `questions_answered + errors = questions = requests`. ECE has a separate denominator and valid-probability coverage. A `--limit` smoke sample cannot enter the main table. New output directories are required; existing ones fail instead of being overwritten. Retain interrupted evidence as incomplete, never as a full run.
+
+Single-question mode does not compare against historical three-question PyTorch results: it skips `-TorchPrefix` with a warning. Without `-SingleQuestion`, the legacy `-TorchPrefix`, `-Backend opencl`, `-Ctx`, `-UBatch`, `-DataPrefix policy_test_`, `-Concurrency` and `-Parallel` options remain available. Such changed conditions do not belong in the default single-question table. x64 runs require their matching `-Bin` and a separately named result directory, never a Snapdragon batch name.
 
 #### C2. Generate Tables on the Laptop
 
@@ -312,7 +319,7 @@ python scripts\fill_report_tables.py --report 文档/评测与端侧结果全集
 
 `summary.md` contains all tables; `report_blocks.json` contains blocks for the README and report. `engine_comparison.md` supplies the main performance before/after table; `engine_brief.md` retains every device configuration. These commands produce derived summaries without changing raw results. Rerunning the fill step replaces previous generated Chinese blocks. The diagram/document renderer uses the shared table-localization function for English; measured values are not translated or recalculated. Synchronize the English source-backed blocks after updating their Chinese counterparts:
 
-Run `python scripts\render_diagrams.py --sync-english --preview`.
+The three commands above remain for historical GPU and three-question results, not single-question aggregation. The client writes new single-question metrics directly to each run's `summary.json`. Run `python scripts\render_diagrams.py --sync-english --preview`: it selects the name-sorted latest `验证结果/单题端侧评测_骁龙_*` batch, checks device, input hash, full question count and raw-output hash, and writes the same table to the overview and detailed results in both languages. Missing configurations remain unmeasured rather than being filled from other batches. Numbers are not translated.
 
 #### C3. Offline Tests
 

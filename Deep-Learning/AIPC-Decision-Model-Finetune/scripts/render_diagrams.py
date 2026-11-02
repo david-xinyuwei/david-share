@@ -6,6 +6,7 @@ import json
 import math
 import os
 import re
+import statistics
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import unquote, urlsplit, urlunsplit
@@ -15,9 +16,9 @@ from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCUMENT_PAIRS = (
-    ("README_CN.md", "README.md", 9, 2),
+    ("README_CN.md", "README.md", 6, 2),
     ("文档/核心技术_微调与端侧运行.md", "文档/Core-Technology.md", 4, 2),
-    ("文档/评测与端侧结果全集.md", "文档/Evaluation-Results.md", 33, 1),
+    ("文档/评测与端侧结果全集.md", "文档/Evaluation-Results.md", 36, 7),
     ("文档/操作步骤全本.md", "文档/Operations-Guide.md", 8, 20),
     ("文档/微调与端侧验证报告_20261027-130700.md", "文档/Finetuning-and-On-Device-Validation-Report.md", 20, 1),
 )
@@ -387,7 +388,8 @@ def sync_model_loading_tables():
         if token.type != "table_open":
             continue
         start, end = token.map
-        if not lines[start].startswith(("| 模型（0.8B，骁龙", "| 模型（4B，骁龙")):
+        if (not lines[start].startswith(("| 模型（0.8B，骁龙", "| 模型（4B，骁龙"))
+            or "模型加载阶段耗时" not in lines[start]):
             continue
         size = "0.8b" if "0.8B" in lines[start] else "4b"
         entries = [[cell.strip() for cell in line.strip().split("|")[1:-1]] for line in lines[start:end]]
@@ -411,6 +413,152 @@ def sync_model_loading_tables():
     for start, end, replacement in reversed(replacements):
         lines[start:end] = [replacement]
     path.write_text("".join(lines), encoding="utf-8")
+
+
+INFERENCE_CONFIGURATIONS = (
+        ("0.8B", "released-kev-0.8b-Q8_0-cpu", "原始发布版 B0，官方 Q8_0 包"),
+        ("0.8B", "ftcf-kev-0.8b-Q8_0-cpu", "微调 FT-cf，Q8_0"),
+        ("0.8B", "ft-kev-0.8b-Q4_K_M-cpu", "微调 FT，Q4_K_M（独立 FT 配方，非 FT-cf）"),
+        ("0.8B", "r2c-kev-0.8b-Q8_0-cpu", "第二轮 C，Q8_0（交付）"),
+        ("4B", "released-kev-4b-Q4_K_M-cpu", "原始发布版 B0，官方 Q4_K_M 包"),
+        ("4B", "ftcf-kev-4b-Q8_0-cpu", "微调 FT-cf，Q8_0"),
+        ("4B", "ftcf-kev-4b-Q4_K_M-cpu", "微调 FT-cf，Q4_K_M"),
+)
+
+
+def single_question_tables(campaign=None):
+    models = INFERENCE_CONFIGURATIONS
+    datasets = (("test_support", "工单·同分布"), ("test_assistant", "助手·同分布"),
+                ("ood_support", "工单·分布外"), ("ood_assistant", "助手·分布外"))
+    manifest = json.loads((ROOT / "data/contoso/final/manifest.json").read_text(encoding="utf-8"))
+    if campaign is None:
+        campaigns = sorted(path for path in (ROOT / "验证结果").glob("单题端侧评测_骁龙_*") if path.is_dir())
+        campaign = campaigns[-1] if campaigns else None
+    tables = []
+    for size in ("0.8B", "4B"):
+        lines = [f"| 模型（{size}，骁龙 X Elite CPU，默认参数） | 测试集（题数） | 单题准确率（%，含失败题） | 单次分类中位延迟（毫秒） | 校准误差 ECE（百分点，越低越好） | 有效概率覆盖率（%） |",
+                 "|---|---|---|---|---|---|"]
+        for model_size, model_id, label in models:
+            if model_size != size:
+                continue
+            for dataset, dataset_label in datasets:
+                expected = manifest[f"{dataset}.jsonl"]
+                cells = ["待测"] * 4
+                summary_path = Path(campaign) / model_id / dataset / "summary.json" if campaign else None
+                if summary_path and summary_path.is_file():
+                    result = json.loads(summary_path.read_text(encoding="utf-8-sig"))
+                    run = json.loads((summary_path.parents[1] / "run.json").read_text(encoding="utf-8-sig"))
+                    if (run.get("request_mode") != "single_question" or run.get("architecture") != "ARM64"
+                            or not re.search(r"X Elite|X1E80100", " ".join(run.get("cpu", [])), re.I)
+                            or run.get("label") != model_id or run.get("backend") != "cpu"
+                            or not run.get("build", "").startswith("b11935")
+                            or any(flag not in run.get("server_args", "") for flag in
+                                   ("-c 8192", "-b 2048", "-ub 2048", "--cache-ram 0"))):
+                        raise ValueError(f"Single-question device/configuration mismatch: {summary_path}")
+                    count = expected["questions"]
+                    method = result.get("method", {})
+                    if (result.get("request_mode") != "single_question" or result.get("questions") != count
+                            or result.get("requests") != count or result.get("questions_answered", 0) + result.get("errors", 0) != count
+                            or result.get("records") != expected["records"] or method.get("limit_records") != 0
+                            or method.get("concurrency") != 1 or method.get("warmup_requests") != 2
+                            or method.get("calibration") != "top_label_ece_10_equal_width_bins"
+                            or result.get("provenance", {}).get("input_sha256") != expected["sha256"]):
+                        raise ValueError(f"Single-question method/input/denominator mismatch: {summary_path}")
+                    rows_path = summary_path.with_name("rows.jsonl")
+                    if hashlib.sha256(rows_path.read_bytes()).hexdigest() != result["provenance"].get("rows_sha256"):
+                        raise ValueError(f"Single-question raw-output hash mismatch: {summary_path}")
+                    calibration = result["calibration"]
+                    if (calibration["n"] != result["questions_answered"] or result["latency_ms"]["n"] != calibration["n"]
+                            or not math.isclose(result["accuracy"], result["questions_correct"] / count)
+                            or not math.isclose(calibration["coverage"], calibration["n"] / count)):
+                        raise ValueError(f"Single-question metric denominator mismatch: {summary_path}")
+                    cells = [f"{result['accuracy']:.1%}",
+                             f"{result['latency_ms']['p50']:,.0f}" if calibration["n"] else "无有效回答",
+                             f"{calibration['ece'] * 100:.2f}" if calibration["n"] else "无有效回答",
+                             f"{calibration['coverage']:.1%}"]
+                lines.append(f"| {label} | {dataset_label}（{expected['questions']:,} 题） | " + " | ".join(cells) + " |")
+        tables.append("\n".join(lines))
+    return "\n\n".join(tables)
+
+
+def record_request_tables():
+    from systemone_client import calibration_summary, score_answer
+
+    tables = []
+    for size in ("0.8B", "4B"):
+        lines = [f"| 模型（{size}，骁龙 X Elite CPU，默认参数） | 测试集（题数） | 逐题准确率（%，含失败题） | 处理完整请求中位时间（秒，每次3道判断） | 校准误差 ECE（百分点，越低越好） | 有效概率覆盖率（%） |",
+                 "|---|---|---|---|---|---|"]
+        for model_size, model_id, label in INFERENCE_CONFIGURATIONS:
+            if model_size != size:
+                continue
+            campaign = ("端侧引擎_骁龙第二轮C_20261101-203702" if model_id.startswith("r2c-")
+                        else "端侧引擎_20261027-124700")
+            for workload, dataset_label in (("support", "工单·同分布"), ("assistant", "助手·同分布")):
+                run_path = ROOT / "验证结果" / campaign / model_id / workload
+                raw_rows = [json.loads(line) for line in (run_path / "rows.jsonl").read_text(encoding="utf-8-sig").splitlines() if line.strip()]
+                records = [json.loads(line) for line in (ROOT / f"data/contoso/final/test_{workload}.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
+                if len(raw_rows) != len(records) or [row["i"] for row in raw_rows] != list(range(len(records))):
+                    raise ValueError(f"Historical request coverage mismatch: {run_path}")
+                scores, latencies = [], []
+                total_questions = sum(len(record["questions"]) for record in records)
+                for raw, record in zip(raw_rows, records):
+                    if "error" in raw:
+                        continue
+                    if set(raw["questions"]) != set(record["questions"]):
+                        raise ValueError(f"Historical question set mismatch: {run_path}")
+                    latencies.append(raw["latency_ms"])
+                    for question_id, question in record["questions"].items():
+                        saved = raw["questions"][question_id]
+                        if saved["label"] != question["label"]:
+                            raise ValueError(f"Historical label mismatch: {run_path}/{raw['i']}/{question_id}")
+                        answer = ({"noul": saved["p"]} if question["type"] == "noul" else
+                                  {"choice": saved["pred"], "probabilities": saved["p"]})
+                        score = score_answer(question, answer)
+                        if score["pred"] != saved["pred"] or score["ok"] != saved["ok"]:
+                            raise ValueError(f"Historical scoring mismatch: {run_path}/{raw['i']}/{question_id}")
+                        scores.append(score)
+                calibration = calibration_summary(scores)
+                accuracy = sum(score["ok"] for score in scores) / total_questions
+                if not latencies or calibration["ece"] is None:
+                    raise ValueError(f"No usable historical measurements: {run_path}")
+                lines.append(f"| {label} | {dataset_label}（{total_questions:,} 题） | {accuracy:.1%} | "
+                             f"**{statistics.median(latencies) / 1000:.3f}** | {calibration['ece'] * 100:.2f} | "
+                             f"{len(scores) / total_questions:.1%} |")
+        tables.append("\n".join(lines))
+    return "\n\n".join(tables)
+
+
+def saved_request_examples(language="zh"):
+    samples = (("test_support", "订单询问：队列选择正确", "Order enquiry: correct queue"),
+               ("test_assistant", "保修咨询：助手工具选择正确", "Warranty enquiry: correct assistant tool"),
+               ("ood_support", "意外损坏：模型选错队列", "Accidental damage: incorrect queue"))
+    sections = []
+    for example_index, (dataset, chinese, english) in enumerate(samples, 1):
+        relative = f"验证结果/单题接口验收_20261102-161257/{dataset}/rows.jsonl"
+        row = json.loads((ROOT / relative).read_text(encoding="utf-8").splitlines()[0])
+        question_id, scored = next(iter(row["questions"].items()))
+        if row.get("status") != "ok" or len(row["request"]["questions"]) != 1:
+            raise ValueError(f"Example is not a completed single-question request: {relative}")
+        elapsed = row["latency_ms"] / 1000
+        if language == "zh":
+            sections += [f"#### 例 {example_index}：{chinese}", "",
+                         f"题目 `{question_id}`；模型输出 `{scored['pred']}`，规则标签 `{scored['label']}`，"
+                         f"判定：{'答对' if scored['ok'] else '答错'}。本次单题请求实测 **{elapsed:.3f} 秒**，不是中位数。"
+                         f"[完整原始记录](../{relative})（第 1 条）。", ""]
+            captions = ("实际输入（未发送标签）：", "实际输出（完整响应）：")
+        else:
+            sections += [f"#### Example {example_index}: {english}", "",
+                         f"Question `{question_id}`; prediction `{scored['pred']}`, policy label `{scored['label']}`: "
+                         f"{'correct' if scored['ok'] else 'incorrect'}. This single request took **{elapsed:.3f} seconds**, not a median. "
+                         f"[Complete raw record](../{relative}) (first row).", ""]
+            captions = ("Actual request (labels excluded):", "Actual output (complete response):")
+        for offset, (caption, value) in enumerate(zip(captions, (row["request"], row["response"])), 1):
+            block = "```json\n" + json.dumps(value, ensure_ascii=False, indent=2) + "\n```"
+            if language == "en":
+                fence_index = 2 * (example_index - 1) + offset
+                block = f"<!-- SOURCE:FENCE:{fence_index} -->\n{block}\n<!-- /SOURCE:FENCE:{fence_index} -->"
+            sections += [caption, "", block, ""]
+    return "\n".join(sections).rstrip()
 
 
 def overview_blocks():
@@ -480,7 +628,8 @@ def overview_blocks():
     load = model_loading_seconds("验证结果/端侧引擎_骁龙第二轮C_20261101-203702/r2c-kev-0.8b-Q8_0-cpu/server.log")
     quantization = next(row[1] for row in rows(precision[0])[1:] if row[0] == "微调 FT-cf，Q8_0")
     precision[0] += f"\n| 第二轮 C，Q8_0（交付） | {quantization} | {weight} | {support} / {assistant} | {parity} | {latency} | {peak} | {load} |"
-    return {"ACCURACY": "\n".join(accuracy), "INFERENCE": "\n\n".join(precision),
+    return {"ACCURACY": "\n".join(accuracy), "INFERENCE": record_request_tables(),
+            "LEGACY_INFERENCE": "\n\n".join(precision),
             "LEVERS": tables_after("#### 推理优化：测过哪些杠杆")[0],
             "HARDWARE": tables_after("### 6. 需要什么硬件")[0]}
 
@@ -496,7 +645,8 @@ def overview_for_readme():
         path = os.path.relpath(target, ROOT).replace("\\", "/")
         return "](" + urlunsplit(("", "", path, parsed.query, parsed.fragment)) + ")"
 
-    return {name: re.sub(r"\]\(([^)]+)\)", rebase, text) for name, text in overview_blocks().items()}
+    return {name: re.sub(r"\]\(([^)]+)\)", rebase, text) for name, text in overview_blocks().items()
+            if name in ("ACCURACY", "INFERENCE")}
 
 
 def long_input_note(language="zh"):
@@ -527,19 +677,32 @@ def validate_overview(text):
 
 def sync_overview():
     sync_model_loading_tables()
+    for language, filename in (("zh", "文档/评测与端侧结果全集.md"), ("en", "文档/Evaluation-Results.md")):
+        example_path = ROOT / filename
+        example_text = example_path.read_text(encoding="utf-8")
+        example_text, replacements = re.subn(r"<!-- REQUEST:EXAMPLES -->.*?<!-- /REQUEST:EXAMPLES -->",
+                                             lambda _: "<!-- REQUEST:EXAMPLES -->\n" + saved_request_examples(language)
+                                             + "\n<!-- /REQUEST:EXAMPLES -->", example_text, flags=re.S)
+        if replacements != 1:
+            raise ValueError(f"Missing or duplicated request examples marker: {filename}")
+        example_path.write_text(example_text, encoding="utf-8")
+    detail_path = ROOT / "文档/评测与端侧结果全集.md"
+    detail = detail_path.read_text(encoding="utf-8")
+    detail, replacements = re.subn(r"<!-- SINGLE:INFERENCE -->.*?<!-- /SINGLE:INFERENCE -->",
+                                   lambda _: "<!-- SINGLE:INFERENCE -->\n" + single_question_tables()
+                                   + "\n<!-- /SINGLE:INFERENCE -->", detail, flags=re.S)
+    if replacements != 1:
+        raise ValueError("Missing or duplicated single-question results marker")
+    detail_path.write_text(detail, encoding="utf-8")
     path = ROOT / "README_CN.md"
     text = path.read_text(encoding="utf-8")
     introduction = (
-        "下面两表只列在骁龙 X Elite 笔记本上实际运行过的配置，包括交付的第二轮 C。"
-        "上面的 GPU 准确率比较训练配方；这里的笔记本准确率验证量化部署后是否仍然答对，两者不能当作同一测量值。"
-        "使用 llama.cpp b11935 CPU、默认参数、170 条工单和 159 条助手请求，每条三题。"
-        "时延是客户端从发出请求到收到全部答案的中位数，不含加载及两条预热；内存是进程峰值工作集。"
-        "一条任务一次回答三道问题，模型加载后可连续处理任务，不是每条都重载。"
-        "加载列统一按服务器日志从 `loading model` 到 `model loaded` 回算，单位为秒；不是完整服务启动时间，也不混用健康检查等待。"
-        "各取一次既有运行，未控制文件系统缓存，不能据此比较微调是否加快启动。"
-        "[吞吐量（每秒任务数）另见并发结果](文档/评测与端侧结果全集.md#concurrency-laptop)，不使用中位耗时的倒数。"
-        "一致率与各行同一规模、同一配方的 PyTorch 模型比较。"
-        "未在笔记本运行的 BF16 数据另列为 [GPU 精度基线](文档/评测与端侧结果全集.md#gpu-bf16-baseline)。"
+        "下面两表保留七个部署配置的真实骁龙记录。处理时间是模型已加载后，从发出一个完整工单或助手请求到收到答案的中位数，单位为秒；"
+        "每次请求包含三道判断，不是模型加载时间，也不是独立一道分类的中位数，不能除以三换算。"
+        "每个配置使用 llama.cpp b11935 CPU、默认参数、并发 1，测量 170 条工单和 159 条助手请求，排除加载与两次预热。"
+        "准确率、处理时间和 ECE 都从各自同一轮骁龙记录重算；ECE 采用 10 个等宽置信度分箱，越接近 0 越好，"
+        "不是 Microsoft-Decision-1 官网的百分制分数。独立单题全量评测仍未完成，不与本表混用。"
+        "[计量单位、校准定义与单题补测边界](文档/评测与端侧结果全集.md#single-question)。"
     )
     text, replacements = re.subn(r"^下面两表(?:保留|只列).*$", lambda _: introduction, text, flags=re.M)
     if replacements != 1:
@@ -552,6 +715,8 @@ def sync_overview():
     text, replacements = re.subn(r"^发布版(?:不训练|不做业务微调).*$", lambda _: recipe, text, flags=re.M)
     if replacements != 1:
         raise ValueError("Missing or duplicated training recipe note")
+    for name in ("LEVERS", "HARDWARE"):
+        text = re.sub(rf"<!-- OVERVIEW:{name} -->.*?<!-- /OVERVIEW:{name} -->\n?", "", text, flags=re.S)
     for name, content in overview_for_readme().items():
         expression = re.compile(rf"<!-- OVERVIEW:{name} -->.*?<!-- /OVERVIEW:{name} -->", re.S)
         if len(expression.findall(text)) != 1:
@@ -608,16 +773,12 @@ def sync_english_documents():
                 text = expression.sub(lambda _: opening + "\n" + content + "\n" + closing, text)
         if target.name == "README.md":
             introduction = (
-                "The two tables list only configurations actually run on the Snapdragon X Elite laptop, including delivered round-2 C. "
-                "GPU accuracy above compares training recipes; laptop accuracy here checks the quantized deployment. They are different measurements, not interchangeable values. "
-                "They use llama.cpp b11935 CPU, default settings, 170 support and 159 assistant requests, with three questions per request. "
-                "Latency runs from client send to all answers received, excluding loading and two warm-up requests; memory is peak process working set. "
-                "Each task answers three questions in one request; the loaded model handles subsequent tasks without reloading. "
-                "The loading column uses the same server-log interval, from `loading model` to `model loaded`, in seconds; it is not full service startup or health-check waiting time. "
-                "Each value comes from one retained run with uncontrolled filesystem-cache state, so it does not establish a fine-tuning speedup in startup. "
-                "[Throughput in tasks per second is reported separately](文档/Evaluation-Results.md#concurrency-laptop), not inferred by inverting median latency. "
-                "Each agreement value uses the PyTorch model of the same size and recipe as that row. "
-                "BF16 models not run on the laptop are listed separately in the [GPU accuracy baseline](文档/Evaluation-Results.md#gpu-bf16-baseline)."
+                "The two tables retain real Snapdragon measurements for all seven deployment configurations. Processing time is the median from sending a complete support or assistant request to receiving its answers after the model is loaded, in seconds. "
+                "Each request contains three decisions. This is neither model-loading time nor the median for a standalone classification, and dividing it by three does not measure that latency. "
+                "Each configuration uses llama.cpp b11935 CPU, default settings and concurrency 1, with 170 support and 159 assistant requests, excluding loading and two warm-ups. "
+                "Accuracy, processing time and ECE are recalculated from each configuration's same recorded Snapdragon run. ECE uses 10 equal-width confidence bins and is better closer to 0; it is not the Microsoft-Decision-1 website's percentage-scale score. "
+                "Full standalone single-question evaluation is still incomplete and is not mixed into this table. "
+                "[Timing units, calibration and the single-question boundary](文档/Evaluation-Results.md#single-question)."
             )
             text, replacements = re.subn(r"^The two tables (?:retain|list).*$", lambda _: introduction, text, flags=re.M)
             if replacements != 1:
