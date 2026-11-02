@@ -49,5 +49,5 @@ jobs:
         run: node tools/census.mjs --table
       - name: Recompute the per-GPU weight budget
         run: node tools/budget.mjs --table
-      - name: Offline tests (matrix coverage, evidence parity, MI300X numbers, figures, table layout)
-        run: node --test tests/inspect.test.mjs tests/census.test.mjs tests/mi300x.test.mjs
+      - name: Offline tests (matrix coverage, evidence parity, MI300X BF16 and MXFP4 numbers, figures, table layout)
+        run: node --test tests/inspect.test.mjs tests/census.test.mjs tests/mi300x.test.mjs tests/mxfp4.test.mjs

@@ -71,8 +71,8 @@ test('comparison tables keep their columns and code identifiers stay whole (2026
   // and copy/paste. This guard pins the minimum column count of each comparison table and rejects
   // identifier splitting anywhere in the two READMEs.
   const expectedColumns = {
-    'README_CN.md': [['| 模型 | GPU × 数量 |', 6], ['| 模型 · 布局 | 加载结果 |', 6], ['| 模型 · 布局 | 加载结果（第 2 轮） |', 5], ['| 顺序 | 在哪台机器 |', 5], ['| 模型与版本 | 发布方给出的起点与边界 |', 3]],
-    'README.md': [['| Model | GPU × count |', 6], ['| Model · layout | Load result |', 6], ['| Model · layout | Load result (run 2) |', 5], ['| Order | Where |', 5], ['| Model / format | Published starting point and limits |', 3]],
+    'README_CN.md': [['| 模型 | GPU × 数量 |', 6], ['| 模型 · 布局 | 加载结果 |', 6], ['| 模型 · 布局 | 加载结果（第 2 轮） |', 5], ['| 顺序 | 在哪台机器 |', 5], ['| 模型 | 发布方给出的起点与边界 |', 5], ['| 模型 · MXFP4 入口 |', 7]],
+    'README.md': [['| Model | GPU × count |', 6], ['| Model · layout | Load result |', 6], ['| Model · layout | Load result (run 2) |', 5], ['| Order | Where |', 5], ['| Model | Published starting point and limits |', 5], ['| Model · MXFP4 entry |', 7]],
   };
   for (const [filename, tables] of Object.entries(expectedColumns)) {
     const markdown = await readFile(new URL(`../${filename}`, import.meta.url), 'utf8');

@@ -4,5 +4,7 @@ images/nvfp4-execution-*.svg text eol=lf
 images/mi300x-test-topology-*.mmd text eol=lf
 images/mi300x-test-topology-*.svg text eol=lf
 data/mi300x-run/*/05_server_keylines.log text eol=lf
+data/mi300x-mxfp4/*/server_keylines.log text eol=lf
+data/mi300x-mxfp4/*/SHA256SUMS.private.txt text eol=lf
 images/mi300x-parallel-layout-*.svg text eol=lf
 images/icons/*.svg text eol=lf
