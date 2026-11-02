@@ -45,24 +45,22 @@ Released means no business fine-tuning; FT-cf is the first-round recipe with fie
 
 ### Inference: Accuracy, Speed and Resources
 
-The two tables retain all previously listed released, fine-tuned BF16, Q8_0 and Q4_K_M configurations and add the delivered C. Device measurements use the same Snapdragon X Elite, llama.cpp b11935 CPU, default settings, 170 support and 159 assistant requests, with three questions per request. Latency runs from client send to all answers received, excluding loading and two warm-up requests; memory is peak process working set. BF16 accuracy was measured only with PyTorch on the GPU, not on the laptop.
+The two tables list only configurations actually run on the Snapdragon X Elite laptop, including delivered round-2 C. They use llama.cpp b11935 CPU, default settings, 170 support and 159 assistant requests, with three questions per request. Latency runs from client send to all answers received, excluding loading and two warm-up requests; memory is peak process working set. Each agreement value uses the PyTorch model of the same size and recipe as that row. BF16 models not run on the laptop are listed separately in the [GPU accuracy baseline](文档/Evaluation-Results.md#gpu-bf16-baseline).
 
 <!-- OVERVIEW:INFERENCE -->
 <!-- SOURCE:TABLE:2 -->
-| Model (0.8B, Snapdragon X Elite CPU, default settings)| Weight precision (bits per weight)| File (MiB)| Support / assistant accuracy| Per-question agreement with the fine-tuned BF16 model| Support / assistant median request time (ms)| Peak working set (MiB)| Model load (s)| 
+| Model (0.8B, Snapdragon X Elite CPU, default settings)| Weight precision (bits per weight)| File (MiB)| Support / assistant accuracy| Per-question agreement with its own PyTorch model| Support / assistant median request time (ms)| Peak working set (MiB)| Model load (s)| 
 | ---| ---| ---| ---| ---| ---| ---| ---| 
-| Released B0, official Q8_0 package| 8.5| 775| 45.7% / 66.9%| N/A (not a fine-tuned model; agreement with its own BF16: 97.6% / 99.0%)| 666 / 843| 2,323| Not recorded| 
-| Fine-tuned FT-cf, BF16 (not quantized)| 16.0| 1,437| 86.9% / 97.5% (PyTorch on the GPU host)| Reference| Not run on the laptop| Not run on the laptop| Not run on the laptop| 
+| Released B0, official Q8_0 package| 8.5| 775| 45.7% / 66.9%| 97.6% / 99.0%| 666 / 843| 2,323| Not recorded| 
 | Fine-tuned FT-cf, Q8_0| 8.5| 775| 86.9% / 97.7%| 99.2% / 99.8%| 646 / 984| 2,314| 2.6| 
 | Fine-tuned FT, Q4_K_M (the FT-cf 4-bit file was not brought to the laptop; same-architecture FT stands in)| 5.8| 528| 87.5% / 93.9% (its BF16: 86.5% / 93.5%)| 94.9% / 97.9%| 812 / 909| 1,819| 2.5| 
 | Round-2 C, Q8_0 (delivered)| 8.5| 775| 96.9% / 99.6%| 98.6% / 99.6%| 635 / 905| 2,314| 2.6| 
 <!-- /SOURCE:TABLE:2 -->
 
 <!-- SOURCE:TABLE:3 -->
-| Model (4B, Snapdragon X Elite CPU, default settings)| Weight precision (bits per weight)| File (MiB)| Support / assistant accuracy| Per-question agreement with the fine-tuned BF16 model| Support / assistant median request time (ms)| Peak working set (MiB)| Model load (s)| 
+| Model (4B, Snapdragon X Elite CPU, default settings)| Weight precision (bits per weight)| File (MiB)| Support / assistant accuracy| Per-question agreement with its own PyTorch model| Support / assistant median request time (ms)| Peak working set (MiB)| Model load (s)| 
 | ---| ---| ---| ---| ---| ---| ---| ---| 
-| Released B0, official Q4_K_M package| 5.8| 2,893| 59.0% / 82.0%| N/A (agreement with its own BF16: 93.1% / 97.3%)| 3,022 / 3,790| 6,849| Not recorded| 
-| Fine-tuned FT-cf, BF16 (not quantized)| 16.0| 8,026| 95.9% / 99.8% (PyTorch on the GPU host)| Reference| Not run on the laptop| Not run on the laptop| Not run on the laptop| 
+| Released B0, official Q4_K_M package| 5.8| 2,893| 59.0% / 82.0%| 93.1% / 97.3%| 3,022 / 3,790| 6,849| Not recorded| 
 | Fine-tuned FT-cf, Q8_0| 8.5| 4,276| 96.1% / 99.8%| 99.4% / 100.0%| 3,649 / 4,115| 9,609| 10.7| 
 | Fine-tuned FT-cf, Q4_K_M| 5.8| 2,893| 95.3% / 99.6%| 98.2% / 99.8%| 3,615 / 4,751| 6,842| 6.7| 
 <!-- /SOURCE:TABLE:3 -->

@@ -1043,5 +1043,9 @@
  "[真实试用记录](评测与端侧结果全集.md#local-result)，含错误结果": "[Real local trial](Evaluation-Results.md#local-result), including incorrect answers",
  "[训练与更新](操作步骤全本.md#train-update)": "[Train and update](Operations-Guide.md#train-update)",
  "[验证与复核](操作步骤全本.md#verify)": "[Verification](Operations-Guide.md#verify)",
- "[实验协议](%5BNOTES%5D_实验协议_20261027-124000.md)": "[Experimental protocol](Experiment-Protocol.md)"
+ "[实验协议](%5BNOTES%5D_实验协议_20261027-124000.md)": "[Experimental protocol](Experiment-Protocol.md)",
+ "模型与配方": "Model and recipe",
+ "权重格式": "Weight format",
+ "工单 / 助手准确率（GPU / PyTorch）": "Support / assistant accuracy (GPU / PyTorch)",
+ "与各自 PyTorch 逐题答案一致率": "Per-question agreement with its own PyTorch model"
 }

@@ -399,6 +399,23 @@ class BilingualDocumentationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_overview(chinese.replace("44.7%", "44.8%"))
 
+    def test_device_tables_exclude_gpu_only_reference_rows(self):
+        chinese = (ROOT / "README_CN.md").read_text(encoding="utf-8")
+        tables = self.tables(self.parser.parse(chinese))
+        for table, expected_rows in zip(tables[1:3], (4, 3)):
+            self.assertEqual(len(table) - 1, expected_rows)
+            self.assertIn("与各自 PyTorch 逐题答案一致率", table[0])
+            self.assertFalse(any("BF16 未量化" in row[0] for row in table[1:]))
+            self.assertFalse(any("未在笔记本运行" in cell for row in table for cell in row))
+        details = (ROOT / "文档/评测与端侧结果全集.md").read_text(encoding="utf-8")
+        self.assertIn('<a id="gpu-bf16-baseline"></a>', details)
+        baseline = next(table for table in self.tables(self.parser.parse(details))
+                        if "工单 / 助手准确率（GPU / PyTorch）" in table[0])
+        self.assertEqual(baseline[1:], [
+            ["0.8B FT-cf", "BF16", "16.0", "1,437", "86.9% / 97.5%"],
+            ["4B FT-cf", "BF16", "16.0", "8,026", "95.9% / 99.8%"],
+        ])
+
     def test_localization_preserves_nested_link_and_code(self):
         import fill_report_tables
         from urllib.parse import unquote

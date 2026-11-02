@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DOCUMENT_PAIRS = (
     ("README_CN.md", "README.md", 9, 2),
     ("文档/核心技术_微调与端侧运行.md", "文档/Core-Technology.md", 4, 2),
-    ("文档/评测与端侧结果全集.md", "文档/Evaluation-Results.md", 32, 1),
+    ("文档/评测与端侧结果全集.md", "文档/Evaluation-Results.md", 33, 1),
     ("文档/操作步骤全本.md", "文档/Operations-Guide.md", 8, 20),
     ("文档/微调与端侧验证报告_20261027-130700.md", "文档/Finetuning-and-On-Device-Validation-Report.md", 20, 1),
 )
@@ -402,6 +402,9 @@ def overview_blocks():
             accuracy.append(f"| {size.upper()} | {label}（{final['n']:,} 题） | {baseline['acc']:.1%} | {tuned['acc']:.1%} | {final_cell} | +{gain:.1f} |")
 
     precision = tables_after("#### 从原始模型到量化微调模型")[:2]
+    for table in precision:
+        if any("BF16 未量化" in row[0] for row in rows(table)[1:]):
+            raise ValueError("GPU-only BF16 reference must not appear in the laptop inference tables")
     device = next(table for table in tables_after("#### 换到 x86-64 CPU")
                   if rows(table)[0][0].startswith("指标（骁龙"))
     values = {row[0]: row[2] for row in rows(device)[1:]}
@@ -468,6 +471,16 @@ def validate_overview(text):
 def sync_overview():
     path = ROOT / "README_CN.md"
     text = path.read_text(encoding="utf-8")
+    introduction = (
+        "下面两表只列在骁龙 X Elite 笔记本上实际运行过的配置，包括交付的第二轮 C。"
+        "使用 llama.cpp b11935 CPU、默认参数、170 条工单和 159 条助手请求，每条三题。"
+        "时延是客户端从发出请求到收到全部答案的中位数，不含加载及两条预热；内存是进程峰值工作集。"
+        "一致率与各行同一规模、同一配方的 PyTorch 模型比较。"
+        "未在笔记本运行的 BF16 数据另列为 [GPU 精度基线](文档/评测与端侧结果全集.md#gpu-bf16-baseline)。"
+    )
+    text, replacements = re.subn(r"^下面两表(?:保留|只列).*$", lambda _: introduction, text, flags=re.M)
+    if replacements != 1:
+        raise ValueError("Missing or duplicated laptop inference introduction")
     for name, content in overview_for_readme().items():
         expression = re.compile(rf"<!-- OVERVIEW:{name} -->.*?<!-- /OVERVIEW:{name} -->", re.S)
         if len(expression.findall(text)) != 1:
@@ -523,6 +536,16 @@ def sync_english_documents():
                     content = re.sub(r"\]\(([^)]+)\)", target_link, content)
                 text = expression.sub(lambda _: opening + "\n" + content + "\n" + closing, text)
         if target.name == "README.md":
+            introduction = (
+                "The two tables list only configurations actually run on the Snapdragon X Elite laptop, including delivered round-2 C. "
+                "They use llama.cpp b11935 CPU, default settings, 170 support and 159 assistant requests, with three questions per request. "
+                "Latency runs from client send to all answers received, excluding loading and two warm-up requests; memory is peak process working set. "
+                "Each agreement value uses the PyTorch model of the same size and recipe as that row. "
+                "BF16 models not run on the laptop are listed separately in the [GPU accuracy baseline](文档/Evaluation-Results.md#gpu-bf16-baseline)."
+            )
+            text, replacements = re.subn(r"^The two tables (?:retain|list).*$", lambda _: introduction, text, flags=re.M)
+            if replacements != 1:
+                raise ValueError("Missing or duplicated English laptop inference introduction")
             text, replacements = re.subn(r"^- \*\*Keep the limits with the headline\.\*\*.*$",
                                          lambda _: long_input_note("en"), text, flags=re.M)
             if replacements != 1:
