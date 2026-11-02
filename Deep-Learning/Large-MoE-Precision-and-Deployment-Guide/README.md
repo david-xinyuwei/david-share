@@ -11,7 +11,7 @@ Author: Xinyu Wei · [中文](README_CN.md)
 
 This project provides component-level precision references for Muse Spark Open 816B-A42B, NVIDIA Nemotron 3 Ultra 550B-A55B, and Inkling 975B. It covers the original BF16 and NVFP4 checkpoints and specific partner FP8 releases. Use it to distinguish weights, activations, matrix-multiply operands, accumulation/output, KV caches, and other state, and to select an appropriate hardware and inference-engine path.
 
-Deliverables include per-model component tables, pinned checkpoint/configuration evidence, Hopper-compatible and native Blackwell execution paths, resource-accounting tools, and validation procedures. **Precision claims are scoped to the cited configuration or implementation. No model inference has been executed for this project; production acceptance requires the target environment and business inputs.** Pricing and regional availability are outside this project's scope.
+Deliverables include per-model component tables, pinned checkpoint/configuration evidence, Hopper-compatible and native Blackwell execution paths, resource-accounting tools, and validation procedures. **Precision claims are scoped to the cited configuration or implementation. The only inference executed for this project is the BF16 load, smoke and serving-speed probe of the three original checkpoints on MI300X described below; production acceptance requires the target environment and business inputs.** Pricing and regional availability are outside this project's scope.
 
 ### Precision definitions and configuration scope
 
@@ -78,18 +78,18 @@ Releases: Meta BF16 and NVFP4; AMD Quark FP8 [M1][M2][M8].
 | Weight<br>vision / audio | Base&shy;line [M1] | BF16 claim [M8] | Base&shy;line [M3] |
 | Weight<br>draft | Own model [M3] | Own model | Own model [M3] |
 | Weight<br>out&shy;put head | BF16 [M1] | Exclu&shy;ded [M8] | Base&shy;line [M3] |
-| Input<br>atten&shy;tion pro&shy;jec&shy;tion | 16 bit | Dyna&shy;mic FP8 [M8] | Base&shy;line [M3] |
-| Input<br>expert | 16 bit | Dyna&shy;mic FP8 [M8] | FP4 / 16 bit by kernel [V1] |
+| Input<br>atten&shy;tion pro&shy;jec&shy;tion | BF16 (`--dtype bfloat16`), MI300X run [T2] | Dyna&shy;mic FP8 [M8] | Base&shy;line [M3] |
+| Input<br>expert | BF16, MI300X run [T2] | Dyna&shy;mic FP8 [M8] | FP4 / 16 bit by kernel [V1] |
 | Input<br>router / resid&shy;ual | FP32 [M4] | By code [M8] | FP32 [M4] |
 | Expert math<br>Black&shy;well | BF16 | AMD path [M8] | Native FP4 [V1] |
-| Expert math<br>Hop&shy;per | BF16 | CUDA: test first [M8] | H200: de&shy;code path [M3] |
+| Expert math<br>Hop&shy;per / MI300X | BF16; MI300X selected `MuseSparkTritonExperts` [T2] | CUDA: test first [M8] | H200: de&shy;code path [M3] |
 | Sum / out&shy;put | By kernel | Not set by FP8 | Above FP4 [H1] |
-| K cache | Run&shy;time | Run&shy;time | Run&shy;time |
-| V cache | Run&shy;time | Run&shy;time | Run&shy;time |
-| Cache scale / atten&shy;tion | By back&shy;end | By back&shy;end | By back&shy;end |
+| K cache | BF16 (`kv_cache_dtype=auto` follows weights), MI300X run [T2] | Run&shy;time | Run&shy;time |
+| V cache | BF16 (same), MI300X run [T2] | Run&shy;time | Run&shy;time |
+| Cache scale / atten&shy;tion | `ROCM_AITER_FA` with the fused qk-norm/rope/kv-insert kernel, MI300X run [T2] | By back&shy;end | By back&shy;end |
 | Mam&shy;ba state cache | N/A | N/A | N/A |
 | Short con&shy;vo&shy;lu&shy;tion cache | N/A | N/A | N/A |
-| Infer&shy;ence status | Not run | Not run | Not run |
+| Infer&shy;ence status | MI300X 2 × 8 GPU smoke passed (TP8 × PP2, v0.33.0 image, text only) [T2] | Not run | Config read; not run |
 
 **Configuration notes.** Meta documents expert-only quantization [M3]. The vLLM recipe specifies FP32 routing computation and residuals, but does not separately specify router weight storage [M4]; the router cell therefore reads "FP32 compute; storage dtype not published" rather than conflating the two. The original NVFP4 raw configuration returned HTTP 401 and requires authorized access to the pinned revision. Public model-card facts remain usable. AMD states that routing, encoders and the output head remain BF16, with static per-channel FP8 E4M3 expert/attention weights and dynamic per-token FP8 inputs [M8]. Its Deployment section is still `Todo`, not evidence of a CUDA deployment.
 
@@ -360,7 +360,7 @@ License applicability, precise per-tensor gaps, device-specific peak memory and 
 | `data/model-evidence.json` | API metadata snapshot and NVFP4 configuration summaries for the six pinned revisions (including the retained Muse 401) |
 | `data/tensor-census/` | Per-tensor safetensors header census of the two BF16 snapshots |
 | `data/deployment-budget.json` | Input for the per-GPU budget table (GPU counts, HBM, sources) |
-| `data/mi300x-run/` | Public projection of the MI300X runs (run 1: Nemotron, Inkling PP2, Inkling DP2; run 2: the same two layouts with `08_perf.json` from the serving probe): raw requests/responses, memory JSON, log key lines, `summary.json`, SHA-256 of the private large files |
+| `data/mi300x-run/` | Public projection of the MI300X runs (run 1: Nemotron, Inkling PP2, Inkling DP2; run 2: Inkling PP2, Nemotron and Muse PP2, each with `08_perf.json` from the serving probe): raw requests/responses, memory JSON, log key lines, `summary.json`, SHA-256 of the private large files |
 | `data/visual-evidence.json` | Source, dimensions, hash and proof boundary of every figure |
 | `images/` | The single NVIDIA official NVFP4 two-level-scaling figure |
 | `scripts/mi300x/` | MI300X reproduction scripts: node preparation, image pull, download, the three model launchers (`04_` Nemotron, `05_` Inkling, `08_` Muse), evidence collection, RCCL probe, serving-speed probe (`09_perf_probe.py`), `Dockerfile.muse-ray` |
@@ -399,7 +399,7 @@ These are the scripts this project ran on 2026-11-02, in [scripts/mi300x/](scrip
 | 8 | node 1 → node 0 | Start Inkling (TP8 × PP2, one pipeline stage per node) | `05_serve_inkling_2node.sh`, node 1 `worker` first, node 0 `head` about 30 s later | node 0 `/health` returns 200; log contains `Using AiterExperts MoE backend` and `Model loading took 109.52 / 116.12 GiB` on the two stages |
 | 9 | node 0 | Collect Inkling evidence | `06_evidence.sh` + Inkling arguments | `07_smoke3_response.json` has `finish_reason` = `stop` and states the BF16/FP16 difference |
 | 9' | node 0 | Serving-speed probe on whichever server is up (run 2) | `09_perf_probe.py <served_model_name> <evidence_dir>/08_perf.json` | Prints `conc=1 …` and `conc=8 …` lines and `PERF_DONE`; `08_perf.json` lists every request's TTFT, decode tok/s and `finish_reason` |
-| 9'' | node 1 → node 0 | Muse Spark Open (TP8 × PP2, gated weights, needs the Ray-enabled image built from `Dockerfile.muse-ray` on both nodes first) | `08_serve_muse_2node.sh`, node 1 `worker`, node 0 `head` about 30 s later | node 0 `/health` returns 200; `Model loading took ≈ 105 GiB` on all 16 ranks. The two failure modes met on 2026-11-02 (missing Ray; gfx950-only image) are in the script header |
+| 9'' | node 1 → node 0 | Muse Spark Open (TP8 × PP2, gated weights, needs the Ray-enabled image built from `Dockerfile.muse-ray` on both nodes first) | `08_serve_muse_2node.sh`, node 1 `worker`, node 0 `head` about 30 s later | node 0 `/health` returns 200; log contains `Using MuseSparkTritonExperts MoE backend` and `Model loading took 99.1 GiB` on all 16 ranks (about 4.5 min from head start on a warm page cache). The two failure modes met on 2026-11-02 (missing Ray; gfx950-only image) are in the script header |
 | 10 | both | Stop containers; deallocate the VMs when no longer needed | `docker rm -f vllm_inkling`, then deallocate from the management plane | `PowerState/deallocated`; the weights on NVMe are gone with it |
 
 ```bash
@@ -431,7 +431,7 @@ HEAD_IP=<node0 private IP> sudo -E bash scripts/mi300x/08_serve_muse_2node.sh wo
 HEAD_IP=<node0 private IP> sudo -E bash scripts/mi300x/08_serve_muse_2node.sh head        # node 0
 ```
 
-Hand a collected directory to `python3 tools/mi300x_evidence.py project <evidence_dir> <tag>` to produce a public projection in the same format as this repository's [data/mi300x-run/](data/mi300x-run/) (host names, private IPs and the login user replaced; full container logs kept only as SHA-256); `python3 tools/mi300x_evidence.py summarize` recomputes `summary.json` from those raw files, and `node --test tests/mi300x.test.mjs` checks every number this page quotes against it. The three projections in this repository were produced that way; no value was typed by hand.
+Hand a collected directory to `python3 tools/mi300x_evidence.py project <evidence_dir> <tag>` to produce a public projection in the same format as this repository's [data/mi300x-run/](data/mi300x-run/) (host names, private IPs and the login user replaced; full container logs kept only as SHA-256); `python3 tools/mi300x_evidence.py summarize` recomputes `summary.json` from those raw files, and `node --test tests/mi300x.test.mjs` checks every number this page quotes against it. The six projections in this repository were produced that way; no value was typed by hand.
 
 The two departures from the model cards that only appear on this ROCm image are written into the script comments: Nemotron disables AITER MoE and drops Mamba stochastic rounding; Inkling uses PP2 instead of the card's DP2 + EP16 and disables the FA4 warm-up. The exact error text, attempt order and reasoning for each are in [Validation](VALIDATION.md#mi300x-run).
 

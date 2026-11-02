@@ -11,7 +11,7 @@
 
 本项目提供 Muse Spark Open 816B-A42B、NVIDIA Nemotron 3 Ultra 550B-A55B 和 Inkling 975B 的组件精度参考，覆盖原厂 BF16、原厂 NVFP4 及指定伙伴 FP8 版本。用于核对权重、激活、矩阵乘法、累加与输出、KV Cache 和其他状态缓存，并选择与硬件及推理引擎相匹配的部署路径。
 
-交付内容包括逐模型组件表、固定权重版本与配置证据、H100/H200 兼容执行和 Blackwell 原生执行路径、资源复算工具及验证步骤。**精度结论以对应配置或实现为依据；本项目尚未执行模型推理，生产验收需使用目标环境和业务输入。** 价格与云区域供应不在本项目范围内。
+交付内容包括逐模型组件表、固定权重版本与配置证据、H100/H200 兼容执行和 Blackwell 原生执行路径、资源复算工具及验证步骤。**精度结论以对应配置或实现为依据；本项目执行过的推理只有下文三个原厂 BF16 权重在 MI300X 上的加载、smoke 和服务速度探针，生产验收需使用目标环境和业务输入。** 价格与云区域供应不在本项目范围内。
 
 ### 精度定义与配置范围
 
@@ -78,18 +78,18 @@ AWQ、GPTQ、GSQ 是求取低精度权重的方法；GGUF 是文件格式，`Q4_
 | 权重：视觉与音频 | 保留基线 [M1] | BF16 声明 [M8] | 保留基线 [M3] |
 | 权重：预测辅助模型 | 独立权重 [M3] | 独立权重 | 独立权重 [M3] |
 | 权重：输出层 | BF16 [M1] | 排除量化 [M8] | 保留基线 [M3] |
-| 激活：注意力投影输入 | 16 bit | 动态 FP8 [M8] | 保留基线 [M3] |
-| 激活：专家输入 | 16 bit | 动态 FP8 [M8] | 依内核选 FP4 / 16 bit [V1] |
+| 激活：注意力投影输入 | BF16（`--dtype bfloat16`），MI300X 实测 [T2] | 动态 FP8 [M8] | 保留基线 [M3] |
+| 激活：专家输入 | BF16，MI300X 实测 [T2] | 动态 FP8 [M8] | 依内核选 FP4 / 16 bit [V1] |
 | 激活：路由与残差 | FP32 [M4] | 按实现 [M8] | FP32 [M4] |
 | 运算：Black&shy;well 专家 | BF16 | 发布路径为 AMD [M8] | 原生 FP4 [V1] |
-| 运算：Hopper 专家 | BF16 | CUDA 支持另验 [M8] | H200 兼容路径 [M3] |
+| 运算：Hopper / MI300X 专家 | BF16；MI300X 实测选中 `MuseSparkTritonExperts` [T2] | CUDA 支持另验 [M8] | H200 兼容路径 [M3] |
 | 运算：累加与输出 | 按内核 | 非由 FP8 决定 | 高于 FP4 [H1] |
-| K 缓存 | 按运行配置 | 按运行配置 | 按运行配置 |
-| V 缓存 | 按运行配置 | 按运行配置 | 按运行配置 |
-| 缓存缩放与注意力 | 按后端 | 按后端 | 按后端 |
+| K 缓存 | BF16（`kv_cache_dtype=auto` 随权重），MI300X 实测 [T2] | 按运行配置 | 按运行配置 |
+| V 缓存 | BF16（同上），MI300X 实测 [T2] | 按运行配置 | 按运行配置 |
+| 缓存缩放与注意力 | `ROCM_AITER_FA` 配融合 qk-norm/rope/kv-insert 内核，MI300X 实测 [T2] | 按后端 | 按后端 |
 | Mamba 状态缓存 | 不适用 | 不适用 | 不适用 |
 | 短卷积状态缓存 | 不适用 | 不适用 | 不适用 |
-| 推理验收 | 尚未执行 | 尚未执行 | 尚未执行 |
+| 推理验收 | MI300X 2 × 8 卡 smoke 通过（TP8 × PP2，v0.33.0 镜像，纯文本） [T2] | 尚未执行 | 配置已解析，推理未执行 |
 
 **配置说明。** Meta 公开说明只量化专家 [M3]；vLLM recipe 明确路由计算及残差使用 FP32，但没有单独给出 router 权重的存储 dtype [M4]，所以表中路由器一格写“计算用 FP32；权重存储 dtype 未公开”，不把两者混写。原厂 NVFP4 配置的匿名读取返回 401，需要授权后读取对应 revision；此访问限制不影响引用已公开的模型卡。AMD 模型卡声明路由、编码器及输出层保留 BF16，专家和注意力权重使用静态逐通道 FP8 E4M3、输入使用动态逐 token FP8 [M8]；其 Deployment 段仍为 `Todo`，不作为 CUDA 部署证明。
 
@@ -364,7 +364,7 @@ Muse 的详细模块精度、三模型在指定机器上的峰值显存与性能
 | `data/model-evidence.json` | 六个固定 revision 的 API 元数据快照与 NVFP4 配置摘要（含 Muse 401 记录） |
 | `data/tensor-census/` | 两个 BF16 快照的逐张量文件头普查结果 |
 | `data/deployment-budget.json` | 每卡预算表的输入（GPU 数量、HBM、来源） |
-| `data/mi300x-run/` | MI300X 实测的公开投影（第 1 轮：Nemotron、Inkling PP2、Inkling DP2；第 2 轮：同样两个布局加速度探针的 `08_perf.json`）：原始请求/响应、显存 JSON、日志关键行、`summary.json`、私有大文件的 SHA-256 |
+| `data/mi300x-run/` | MI300X 实测的公开投影（第 1 轮：Nemotron、Inkling PP2、Inkling DP2；第 2 轮：Inkling PP2、Nemotron 和 Muse PP2，各带速度探针的 `08_perf.json`）：原始请求/响应、显存 JSON、日志关键行、`summary.json`、私有大文件的 SHA-256 |
 | `data/visual-evidence.json` | 文中每张图的来源、尺寸、哈希和证明边界 |
 | `images/` | 仅一张 NVIDIA 官方 NVFP4 两级缩放图 |
 | `scripts/mi300x/` | MI300X 复现脚本：节点准备、拉镜像、下载、三个模型的启动（`04_` Nemotron、`05_` Inkling、`08_` Muse）、证据采集、RCCL 探针、服务速度探针（`09_perf_probe.py`）、`Dockerfile.muse-ray` |
@@ -403,7 +403,7 @@ Muse 的详细模块精度、三模型在指定机器上的峰值显存与性能
 | 8 | 节点 1 → 节点 0 | 启动 Inkling（TP8 × PP2，每台一个流水级） | `05_serve_inkling_2node.sh`，节点 1 `worker` 先、约 30 秒后节点 0 `head` | 节点 0 `/health` 返回 200；日志含 `Using AiterExperts MoE backend`、两个流水级分别 `Model loading took 109.52 / 116.12 GiB` |
 | 9 | 节点 0 | 采集 Inkling 证据 | `06_evidence.sh` + Inkling 参数 | `07_smoke3_response.json` 的 `finish_reason` 为 `stop`，正文给出 BF16 与 FP16 的区别 |
 | 9' | 节点 0 | 对当前在线的服务跑服务速度探针（第 2 轮） | `09_perf_probe.py <served_model_name> <证据目录>/08_perf.json` | 打印 `conc=1 …`、`conc=8 …` 和 `PERF_DONE`；`08_perf.json` 逐条记录 TTFT、解码 tok/s 和 `finish_reason` |
-| 9'' | 节点 1 → 节点 0 | Muse Spark Open（TP8 × PP2，gated 权重，需先在两节点用 `Dockerfile.muse-ray` 构建带 Ray 的镜像） | `08_serve_muse_2node.sh`，节点 1 `worker`，约 30 s 后节点 0 `head` | 节点 0 `/health` 返回 200；16 个 rank 都出现 `Model loading took ≈ 105 GiB`。2026-11-02 遇到的两种失败（没有 Ray；镜像只编了 gfx950）写在脚本头部 |
+| 9'' | 节点 1 → 节点 0 | Muse Spark Open（TP8 × PP2，gated 权重，需先在两节点用 `Dockerfile.muse-ray` 构建带 Ray 的镜像） | `08_serve_muse_2node.sh`，节点 1 `worker`，约 30 s 后节点 0 `head` | 节点 0 `/health` 返回 200；日志有 `Using MuseSparkTritonExperts MoE backend`，16 个 rank 都出现 `Model loading took 99.1 GiB`（页缓存热时从 head 启动到就绪约 4.5 分钟）。2026-11-02 遇到的两种失败（没有 Ray；镜像只编了 gfx950）写在脚本头部 |
 | 10 | 两台 | 停容器；不再使用时释放虚拟机 | `docker rm -f vllm_inkling`，再在管理面 deallocate | `PowerState/deallocated`；NVMe 上的权重随之清空 |
 
 ```bash
@@ -435,7 +435,7 @@ HEAD_IP=<节点 0 私网 IP> sudo -E bash scripts/mi300x/08_serve_muse_2node.sh 
 HEAD_IP=<节点 0 私网 IP> sudo -E bash scripts/mi300x/08_serve_muse_2node.sh head       # 节点 0
 ```
 
-把采集到的目录交给 `python3 tools/mi300x_evidence.py project <evidence_dir> <tag>` 可生成与本仓库 [data/mi300x-run/](data/mi300x-run/) 同格式的公开投影（替换主机名、私网 IP 和登录用户，完整容器日志只保留 SHA-256）；`python3 tools/mi300x_evidence.py summarize` 从这些原始文件重算 `summary.json`，`node --test tests/mi300x.test.mjs` 再核对本文引用的每个数字。本仓库的三组投影就是这样得到的，未手工填写任何数值。
+把采集到的目录交给 `python3 tools/mi300x_evidence.py project <evidence_dir> <tag>` 可生成与本仓库 [data/mi300x-run/](data/mi300x-run/) 同格式的公开投影（替换主机名、私网 IP 和登录用户，完整容器日志只保留 SHA-256）；`python3 tools/mi300x_evidence.py summarize` 从这些原始文件重算 `summary.json`，`node --test tests/mi300x.test.mjs` 再核对本文引用的每个数字。本仓库的六组投影就是这样得到的，未手工填写任何数值。
 
 两处与模型卡不同、且只有在这套 ROCm 镜像上才会碰到的改动都写在脚本注释里：Nemotron 关掉 AITER MoE 并去掉 Mamba 随机舍入；Inkling 用 PP2 而不是模型卡的 DP2 + EP16，并关掉 FA4 预热。每一条的报错原文、尝试次序和判断依据见[验证说明](VALIDATION_CN.md#mi300x-实测)。
 
