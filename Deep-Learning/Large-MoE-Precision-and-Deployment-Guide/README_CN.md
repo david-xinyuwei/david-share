@@ -300,8 +300,8 @@ $$
 | 模型 · 布局 | 配置与结果 |
 | --- | --- |
 | Nemotron 3 Ultra BF16 · 1 节点 TP8+EP | <strong>加载结果</strong><br>**通过**（第 3 次尝试）<br><br><strong>选中的内核与后端</strong><br>MoE <code>TritonExperts</code>；注意力 <code>ROCM_ATTN</code>；Mamba SSU <code>triton</code>；all-reduce <code>AITER_CUSTOM</code> + <code>PYNCCL</code><br><br><strong>显存（每卡）</strong><br>权重 136.51 GiB，加载后 146.67 GiB 已用，KV 可用 23.07 GiB，KV 容量 3,490,022 token<br><br><strong>缓存精度</strong><br>K/V BF16（默认）；Mamba 状态 FP16（启动参数）；注意力块 1056 token 对齐 Mamba 页<br><br><strong>smoke 生成</strong><br>中文 31→94 token 1.61 s；英文 42→209 token 5.42 s；内容正确 |
-| Inkling BF16 · 2 节点 TP8×PP2 | <strong>加载结果</strong><br>**通过**（第 6 次尝试）<br><br><strong>选中的内核与后端</strong><br>MoE <code>AiterExperts</code>（ROCm AITER 融合内核，2stage，Silu）；all-reduce <code>AITER_CUSTOM</code> + <code>PYNCCL</code>（TP 组）、<code>PYNCCL</code>（PP 组）<br><br><strong>显存（每卡）</strong><br>流水级 0：权重 109.52 GiB，加载后 112.54 GiB 已用，KV 可用 57.39 GiB；流水级 1：116.12 / 118.9 / 51.02 GiB；KV 容量 398,239 token<br><br><strong>缓存精度</strong><br>K/V BF16（默认）；短卷积缓存 BF16，切分上限 8 路<br><br><strong>smoke 生成</strong><br>中文 27→200 token 2.97 s、英文 39→256 token 4.06 s（均止于推理段，<code>max_tokens</code> 不够）；中文 <code>max_<br>tokens=<br>1024</code> 27→441 token 6.52 s，**最终答案正确** |
-| Inkling BF16 · 2 节点 TP8×DP2+EP16 | <strong>加载结果</strong><br>引擎就绪（第 5 次尝试），服务未通过<br><br><strong>选中的内核与后端</strong><br>同上，<code>Mo<br>EPrepare<br>And<br>Finalize</code> 走 DP/EP 路径<br><br><strong>显存（每卡）</strong><br>每卡权重 114.88 GiB，KV 可用 50.25 GiB，每个 DP rank KV 容量 317,040 token<br><br><strong>缓存精度</strong><br>K/V BF16（默认）<br><br><strong>smoke 生成</strong><br>第 1 条（本机 DP rank）27→200 token 4.76 s；第 2 条被调度到远端 DP rank 后无输出，5 分钟后 <code>RPC call to sample_tokens timed out</code>，引擎退出 |
+| Inkling BF16 · 2 节点 TP8×PP2 | <strong>加载结果</strong><br>**通过**（第 6 次尝试）<br><br><strong>选中的内核与后端</strong><br>MoE <code>AiterExperts</code>（ROCm AITER 融合内核，2stage，Silu）；all-reduce <code>AITER_CUSTOM</code> + <code>PYNCCL</code>（TP 组）、<code>PYNCCL</code>（PP 组）<br><br><strong>显存（每卡）</strong><br>流水级 0：权重 109.52 GiB，加载后 112.54 GiB 已用，KV 可用 57.39 GiB；流水级 1：116.12 / 118.9 / 51.02 GiB；KV 容量 398,239 token<br><br><strong>缓存精度</strong><br>K/V BF16（默认）；短卷积缓存 BF16，切分上限 8 路<br><br><strong>smoke 生成</strong><br>中文 27→200 token 2.97 s、英文 39→256 token 4.06 s（均止于推理段，<code>max_tokens</code> 不够）；中文 <code>max_</code><br><code>tokens=</code><br><code>1024</code> 27→441 token 6.52 s，**最终答案正确** |
+| Inkling BF16 · 2 节点 TP8×DP2+EP16 | <strong>加载结果</strong><br>引擎就绪（第 5 次尝试），服务未通过<br><br><strong>选中的内核与后端</strong><br>同上，<code>Mo</code><br><code>EPrepare</code><br><code>And</code><br><code>Finalize</code> 走 DP/EP 路径<br><br><strong>显存（每卡）</strong><br>每卡权重 114.88 GiB，KV 可用 50.25 GiB，每个 DP rank KV 容量 317,040 token<br><br><strong>缓存精度</strong><br>K/V BF16（默认）<br><br><strong>smoke 生成</strong><br>第 1 条（本机 DP rank）27→200 token 4.76 s；第 2 条被调度到远端 DP rank 后无输出，5 分钟后 <code>RPC call to sample_tokens timed out</code>，引擎退出 |
 
 四条在 MI300X 上才会遇到、文档里没写的事实：① AITER 融合 MoE 内核要求专家是 act_and_mul（SwiGLU 类）结构，Nemotron LatentMoE 的 `relu2` 非门控专家不满足，必须回退到 Triton MoE；Inkling 的门控专家则直接用上 AITER。② Nemotron 示例里的 `--enable-mamba-cache-stochastic-rounding` 在这套 Triton 3.8 / ROCm 10.1 镜像上触发 `ld.lld` 链接失败，去掉它才能过 warm-up——这是内核编译问题，不是模型问题。③ Inkling 的多机布局不能简单 TP16：短卷积缓存最多切 8 路，所以要么"节点内 TP8 + 节点间 DP2 + EP16"（模型卡的 Hopper 配方，本镜像上引擎就绪但跨机请求挂起），要么"节点内 TP8 + 节点间 PP2"（本项目实际通过的布局）。④ vLLM 的 FA4 预热只看模型配置类不看平台，在 ROCm 上会去导入 CUDA 专有扩展，需要 `--kernel-config '{"enable_jit_warmup": false}'` 跳过。每次只改一个变量的完整尝试记录（Nemotron 3 次、Inkling 6 次）和日志摘录见[验证说明](VALIDATION_CN.md#mi300x-实测)。
 
@@ -351,16 +351,16 @@ Muse 的详细模块精度、三模型在指定机器上的峰值显存与性能
 | 目录 / 文件 | 职责 |
 | --- | --- |
 | <code>README_CN.md</code> · <code>README.md</code> | 主文档，中英两版共用同一套数据文件 |
-| <code>VALIDATION_<br>CN.<br>md</code> · <code>VALIDATION.md</code> | 测试命令、预期语义、MI300X 每次尝试的记录、当前验证状态表 |
-| <code>data/<br>model-<br>evidence.<br>json</code> | 六个固定 revision 的 API 元数据快照与 NVFP4 配置摘要（含 Muse 401 记录） |
-| <code>data/<br>tensor-<br>census/<br></code> | 两个 BF16 快照的逐张量文件头普查结果 |
-| <code>data/<br>deployment-<br>budget.<br>json</code> | 每卡预算表的输入（GPU 数量、HBM、来源） |
-| <code>data/<br>mi300x-<br>run/<br></code> | MI300X 实测的公开投影（第 1 轮：Nemotron、Inkling PP2、Inkling DP2；第 2 轮：Inkling PP2、Nemotron 和 Muse PP2，各带速度探针的 <code>08_perf.json</code>）：原始请求/响应、显存 JSON、日志关键行、<code>summary.json</code>、私有大文件的 SHA-256 |
-| <code>data/<br>visual-<br>evidence.<br>json</code> | 文中每张图的来源、尺寸、哈希和证明边界 |
-| <code>images/</code> | NVIDIA 官方 NVFP4 两级缩放图；原创并行布局图（<code>mi300x-<br>parallel-<br>layout-<br>{zh,en}.<br>svg/<br>.<br>png</code>，由 <code>tools/<br>build_<br>layout_<br>figure.<br>py</code> 从 <code>summary.json</code> 生成）；<code>icons/</code> 下是未改动的 Azure 官方图标 |
-| <code>scripts/<br>mi300x/<br></code> | MI300X 复现脚本：节点准备、拉镜像、下载、三个模型的启动（<code>04_</code> Nemotron、<code>05_</code> Inkling、<code>08_</code> Muse）、证据采集、RCCL 探针、服务速度探针（<code>09_<br>perf_<br>probe.<br>py</code>）、<code>Dockerfile.<br>muse-<br>ray</code> |
-| <code>tools/</code> | <code>inspect.mjs</code>（元数据复算）、<code>census.mjs</code>（普查汇总）、<code>budget.mjs</code>（每卡预算）、<code>tensor_<br>census.<br>py</code>（在有权重的机器上读文件头）、<code>mi300x_<br>evidence.<br>py</code>（证据投影与汇总）、<code>preview.ps1</code>（本地渲染） |
-| <code>tests/</code> | <code>inspect.<br>test.<br>mjs</code>、<code>census.<br>test.<br>mjs</code>、<code>mi300x.<br>test.<br>mjs</code>，共 18 项 |
+| <code>VALIDATION_</code><br><code>CN.</code><br><code>md</code> · <code>VALIDATION.md</code> | 测试命令、预期语义、MI300X 每次尝试的记录、当前验证状态表 |
+| <code>data/</code><br><code>model-</code><br><code>evidence.</code><br><code>json</code> | 六个固定 revision 的 API 元数据快照与 NVFP4 配置摘要（含 Muse 401 记录） |
+| <code>data/</code><br><code>tensor-</code><br><code>census/</code><br><code></code> | 两个 BF16 快照的逐张量文件头普查结果 |
+| <code>data/</code><br><code>deployment-</code><br><code>budget.</code><br><code>json</code> | 每卡预算表的输入（GPU 数量、HBM、来源） |
+| <code>data/</code><br><code>mi300x-</code><br><code>run/</code><br><code></code> | MI300X 实测的公开投影（第 1 轮：Nemotron、Inkling PP2、Inkling DP2；第 2 轮：Inkling PP2、Nemotron 和 Muse PP2，各带速度探针的 <code>08_perf.json</code>）：原始请求/响应、显存 JSON、日志关键行、<code>summary.json</code>、私有大文件的 SHA-256 |
+| <code>data/</code><br><code>visual-</code><br><code>evidence.</code><br><code>json</code> | 文中每张图的来源、尺寸、哈希和证明边界 |
+| <code>images/</code> | NVIDIA 官方 NVFP4 两级缩放图；原创并行布局图（<code>mi300x-</code><br><code>parallel-</code><br><code>layout-</code><br><code>{zh,en}.</code><br><code>svg/</code><br><code>.</code><br><code>png</code>，由 <code>tools/</code><br><code>build_</code><br><code>layout_</code><br><code>figure.</code><br><code>py</code> 从 <code>summary.json</code> 生成）；<code>icons/</code> 下是未改动的 Azure 官方图标 |
+| <code>scripts/</code><br><code>mi300x/</code><br><code></code> | MI300X 复现脚本：节点准备、拉镜像、下载、三个模型的启动（<code>04_</code> Nemotron、<code>05_</code> Inkling、<code>08_</code> Muse）、证据采集、RCCL 探针、服务速度探针（<code>09_</code><br><code>perf_</code><br><code>probe.</code><br><code>py</code>）、<code>Dockerfile.</code><br><code>muse-</code><br><code>ray</code> |
+| <code>tools/</code> | <code>inspect.mjs</code>（元数据复算）、<code>census.mjs</code>（普查汇总）、<code>budget.mjs</code>（每卡预算）、<code>tensor_</code><br><code>census.</code><br><code>py</code>（在有权重的机器上读文件头）、<code>mi300x_</code><br><code>evidence.</code><br><code>py</code>（证据投影与汇总）、<code>preview.ps1</code>（本地渲染） |
+| <code>tests/</code> | <code>inspect.</code><br><code>test.</code><br><code>mjs</code>、<code>census.</code><br><code>test.</code><br><code>mjs</code>、<code>mi300x.</code><br><code>test.</code><br><code>mjs</code>，共 18 项 |
 
 ## 操作步骤
 
