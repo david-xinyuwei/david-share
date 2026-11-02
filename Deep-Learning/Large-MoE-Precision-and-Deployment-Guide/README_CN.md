@@ -16,15 +16,15 @@
 
 ### 先看结论
 
-三个模型都是“全部专家常驻、每 token 只激活一小部分”的 MoE，BF16 权重 1.1–1.9 TB，单卡放不下，选型第一步是回答“哪种卡、几张、什么精度”。下表每行一个模型：第 2 列是发布方自己给出的起点，第 3–5 列是本项目 2026-11-02 在 Azure MI300X（192 GB，vLLM ROCm）上实际跑出的三条路径——原厂 BF16、MXFP4 低精度、原厂 NVFP4。这些都不是最低卡数或并发保证。速度都是并发 1 时单个请求的解码 tok/s（中位数，n=3）。
+三个模型都是“全部专家常驻、每 token 只激活一小部分”的 MoE，BF16 权重 1.1–1.9 TB，单卡放不下，选型第一步是回答“哪种卡、几张、什么精度”。下表每行一个模型：第 2 列是发布方自己给出的起点，第 3–4 列是本项目 2026-11-02 在 Azure MI300X（192 GB，vLLM ROCm）上实际跑出的两条路径——原厂 BF16，以及 MI300X 上唯一可走的 4 bit 路径 MXFP4。原厂 NVFP4 是 NVIDIA Blackwell 的格式，AMD GPU 没有对应的原生内核，本项目没有在 MI300X 上部署它；它的组件精度仍在下文三张矩阵里。这些都不是最低卡数或并发保证。速度都是并发 1 时单个请求的解码 tok/s（中位数，n=3）。
 
-| 模型 | 发布方给出的起点与边界 | 本项目实测：原厂 BF16 | 本项目实测：MXFP4（模拟内核，1 节点 8 卡） | 本项目实测：原厂 NVFP4 |
-|---|---|---|---|---|
-| Muse Spark Open | BF16：Meta 模型卡给出约 2 TB VRAM 量级 [M1]。NVFP4：四张 Blackwell Ultra 或八张 H200，vLLM recipe 默认八卡 Blackwell [M3][M4]。两份配方不能合成唯一“最低卡数”。 | **通过**：2 节点 16 卡，TP8 × PP2；每卡权重 99.1 GiB；84.6 tok/s（第 3 次尝试，v0.33.0 镜像）[T2] | **失败**：两次尝试都在加载权重前退出——Muse 的 ROCm 代码要求 `AITER_MXFP4_MXFP4` 后端，MI300X 上 vLLM 选中的是 `EMULATION`，被模型代码拒绝 [T3] | 未加载；原厂量化配置匿名读取返回 401，单专家探针也未进行 |
-| Nemotron 3 Ultra | BF16：模型卡摘要列 16 张 H100、8 张 H200 或 8 张 B200 [N1]。NVFP4：四张 B200/GB200 等与八张 H100 [N2]；H100 没有原生 FP4 算力。 | **通过**：1 节点 8 卡，TP8 + EP；每卡权重 136.51 GiB；60.7 tok/s（第 3 次尝试）[T2] | **通过**：BF16 权重加载时在线量化为 MXFP4（vLLM 官方 `--quantization online`），TP8 + EP8；每卡权重 43.21 GiB；最终答案正确；7.7 tok/s [T3] | 未加载；导出配置已解析 [N3]；单个 NVFP4 专家在 1 卡上用模拟内核算对（相对 L2 误差 0），不是全模型推理 [T3] |
-| Inkling | BF16：官方发布；vLLM recipe 的 Hopper 路径需要多节点 [I1][I3]。NVFP4：四张 GB200、八张 H200 [I3]。总显存相加不证明专家布局和通信可行。 | **通过**：2 节点 16 卡，TP8 × PP2；每卡权重 109.52 / 116.12 GiB（两个流水级）；68.9 tok/s（第 6 次尝试）[T2] | **通过**：社区 Quark MXFP4 checkpoint `lightseekorg/Inkling-MXFP4`（recipe 列出的 MI300X 模拟路径 [I3]），TP8；每卡权重 66.74 GiB；最终答案正确；6.1 tok/s [T3] | 未加载；导出配置已解析 [I4]；单个 NVFP4 专家在 1 卡上用模拟内核算对（相对 L2 误差 3.7×10⁻⁹），不是全模型推理 [T3] |
+| 模型 | 发布方给出的起点与边界 | 本项目实测：原厂 BF16 | 本项目实测：MXFP4（模拟内核，1 节点 8 卡） |
+|---|---|---|---|
+| Muse Spark Open | BF16：Meta 模型卡给出约 2 TB VRAM 量级 [M1]。NVFP4：四张 Blackwell Ultra 或八张 H200，vLLM recipe 默认八卡 Blackwell [M3][M4]。两份配方不能合成唯一“最低卡数”。 | **通过**：2 节点 16 卡，TP8 × PP2；每卡权重 99.1 GiB；84.6 tok/s（第 3 次尝试，v0.33.0 镜像）[T2] | **失败**：两次尝试都在加载权重前退出——Muse 的 ROCm 代码要求 `AITER_MXFP4_MXFP4` 后端，MI300X 上 vLLM 选中的是 `EMULATION`，被模型代码拒绝 [T3] |
+| Nemotron 3 Ultra | BF16：模型卡摘要列 16 张 H100、8 张 H200 或 8 张 B200 [N1]。NVFP4：四张 B200/GB200 等与八张 H100 [N2]；H100 没有原生 FP4 算力。 | **通过**：1 节点 8 卡，TP8 + EP；每卡权重 136.51 GiB；60.7 tok/s（第 3 次尝试）[T2] | **通过**：BF16 权重加载时在线量化为 MXFP4（vLLM 官方 `--quantization online`），TP8 + EP8；每卡权重 43.21 GiB；最终答案正确；7.7 tok/s [T3] |
+| Inkling | BF16：官方发布；vLLM recipe 的 Hopper 路径需要多节点 [I1][I3]。NVFP4：四张 GB200、八张 H200 [I3]。总显存相加不证明专家布局和通信可行。 | **通过**：2 节点 16 卡，TP8 × PP2；每卡权重 109.52 / 116.12 GiB（两个流水级）；68.9 tok/s（第 6 次尝试）[T2] | **通过**：社区 Quark MXFP4 checkpoint `lightseekorg/Inkling-MXFP4`（recipe 列出的 MI300X 模拟路径 [I3]），TP8；每卡权重 66.74 GiB；最终答案正确；6.1 tok/s [T3] |
 
-读这张表要知道三件事。① MI300X 没有 FP4 矩阵算力，MXFP4 列的两个“通过”都走 vLLM 的 `EMULATION` 后端：权重按 MXFP4 存、算的时候先反量化。所以它省的是显存（Nemotron 每卡 136.51 → 43.21 GiB，Inkling 从 16 卡降到 8 卡），不是速度：单请求解码 6–8 tok/s，是 BF16 的十分之一。② 这是“能不能跑起来、显存多少、回答对不对”的验证，不是质量回归测试；三个伙伴 FP8 版本（AMD Quark、Red Hat AI）只核对了配置，未在任何 GPU 上加载 [M8][N8][I8]。③ 先以同模型 BF16 建立业务质量基线；MXFP4、NVFP4 和伙伴 FP8 都只是候选，当精度、模态、工具调用或兼容内核未通过验收时，不为减少权重体积而直接替换生产版本。AMD Muse FP8 模型卡的 Deployment 仍写 `Todo`，它证明配方与硬件声明，不构成本项目可直接复跑的部署教程 [M8]。各列背后的内核、缓存精度、显存与速度数字见「[MI300X 实测](#mi300x-实测)」和「[MXFP4 低精度路径](#mxfp4-低精度路径)」。
+读这张表要知道三件事。① MI300X 没有 FP4 矩阵算力，MXFP4 列的两个“通过”都走 vLLM 的 `EMULATION` 后端：权重按 MXFP4 存、算的时候先反量化。所以它省的是显存（Nemotron 每卡 136.51 → 43.21 GiB，Inkling 从 16 卡降到 8 卡），不是速度：单请求解码 6–8 tok/s，是 BF16 的十分之一。② 这是“能不能跑起来、显存多少、回答对不对”的验证，不是质量回归测试；三个伙伴 FP8 版本（AMD Quark、Red Hat AI）只核对了配置，未在任何 GPU 上加载 [M8][N8][I8]。③ 先以同模型 BF16 建立业务质量基线；MXFP4 和伙伴 FP8 都只是候选，当精度、模态、工具调用或兼容内核未通过验收时，不为减少权重体积而直接替换生产版本。AMD Muse FP8 模型卡的 Deployment 仍写 `Todo`，它证明配方与硬件声明，不构成本项目可直接复跑的部署教程 [M8]。各列背后的内核、缓存精度、显存与速度数字见「[MI300X 实测](#mi300x-实测)」和「[MXFP4 低精度路径](#mxfp4-低精度路径)」。
 
 ### 模型范围
 
@@ -328,7 +328,7 @@ $$
 |---|---|---|---|---|
 | Inkling BF16 · 2 节点 TP8×PP2 | **通过**，冷加载 249.6 / 243.7 s（两个流水级），`/health` 200 后 3 条 smoke 全部返回，`max_tokens=1024` 那条最终答案正确 | **45 ms** / **68.9** / 68.3（n=3） | **97 ms** / **42.5** / **335.8**（n=24） | 节点 0：170.6–171.2；节点 1：177.2–177.9（含 KV 预分配） |
 | Nemotron 3 Ultra BF16 · 1 节点 TP8+EP | **通过**，冷加载 744.5 s，`init engine` 117.78 s；3 条 smoke 全部 `finish_reason=stop`，中文 BF16/FP16 答案正确（与第 1 轮逐字一致） | **170 ms** / **60.7** / 58.6（n=3） | **358 ms**（最大 1.17 s） / **42.0** / **317.4**（n=24） | 174.9–175.5（权重 136.51 + KV 23.07 + 运行时） |
-| Muse Spark Open BF16 · 2 节点 TP8×PP2（第 3 次尝试，`vllm/vllm-openai-rocm:v0.33.0` + Ray） | **通过**：每卡权重 99.1 GiB，加载 95.0 s（流水级 0）/ 43.1 s（流水级 1），`init engine` 64.22 s，`/health` 200 于 04:22:41Z（head 启动后 4 分 36 秒）；KV 可用 72.05 / 71.98 GiB = 8,130,184 token；3 条 smoke 全部返回，追加的第 4 条 `max_tokens=4096` 以 `finish_reason=stop` 结束，1,289 个推理 token 后给出**正确的一句话 BF16/FP16 区别**（共 1,354 个 completion token，16.4 s） | **205 ms** / **84.6** / 79.5（n=3） | **506 ms**（最大 0.52 s） / **47.6** / **348.6**（n=24） | 节点 0：180.0–180.9；节点 1：180.3–181.4 |
+| Muse Spark Open BF16 · 2 节点 TP8×PP2（第 3 次尝试，`vllm/vllm-openai-rocm:v0.33.0` + Ray） | **通过**：每卡权重 99.1 GiB，加载 95.0 s（流水级 0）/ 43.1 s（流水级 1），`init engine` 64.22 s，`/health` 200 于 04:22:41Z（head 启动后 4 分 36 秒）；KV 可用 72.05 / 71.98 GiB = 8,130,184 token；3 条 smoke 全部返回，追加的第 4 条 `max_tokens=4096` 以 `finish_reason=stop` 结束，1,289 个推理 token 后给出**正确的一句话 BF16/FP16 区别**（共 1,354 个 completion token；这条未记墙钟） | **205 ms** / **84.6** / 79.5（n=3） | **506 ms**（最大 0.52 s） / **47.6** / **348.6**（n=24） | 节点 0：180.0–180.9；节点 1：180.3–181.4 |
 
 读表时注意两点。第一，并发 8 时 Inkling 单请求解码从 68.9 降到 42.5 tok/s，但总吞吐从 68 升到 336 tok/s——8 条流一起走时每条慢 38%，整体多出 4.9 倍产出；这是 MoE 解码受显存带宽约束时的典型形状，并发越高单位 token 越便宜，直到 KV 缓存或调度成为瓶颈。第二，所有 27 条 Inkling 请求都以 `finish_reason=length` 结束——它是推理模型，256 token 还在推理段里，所以这里的 tok/s 是推理段的解码速度，不是最终答案的速度；对用户可见的首个答案 token 要等推理段结束，比 TTFT 晚得多。原始 JSON（含每条请求的 TTFT、解码速度、token 数、结束原因）在 [data/mi300x-run/inkling_bf16_16xMI300X_pp2_run2/08_perf.json](data/mi300x-run/inkling_bf16_16xMI300X_pp2_run2/08_perf.json)，`summary.json` 里的中位数由它重算，`tests/mi300x.test.mjs` 校验本页引用的每个数字。
 
@@ -348,13 +348,13 @@ $$
 
 **Muse 的两次失败都是代码里的明确拒绝，不是显存或内核崩溃。** 尝试 1 照搬 Nemotron 的通用在线量化参数，8 个 worker 全部报 `NotImplementedError: MuseSpark1x on ROCm only supports Quark W8A8 FP8 or OCP-MXFP4 W4A4 quantized checkpoints; got quantization 'online'`——Muse 不走通用入口。尝试 2 改用 Muse 自己的入口（`VLLM_ROCM_MUSE_MOE_ONLINE_QUANT=mxfp4`），这次进入了 MXFP4，vLLM 在 MI300X 上选中 `EMULATION`，紧接着 8 个 worker 全部报 `NotImplementedError: MuseSpark1x MXFP4 on ROCm requires the AITER_MXFP4_MXFP4 backend; got EMULATION`。也就是说，Muse 的 ROCm 实现只接受 AITER 的原生 MXFP4 内核（MI350 系列才有），模拟路径被模型代码自己关掉了——原因是 Muse 的专家输出要先做逐路由的后归一化再加权归约，模拟内核没有这一步。所以“Muse MXFP4 在 MI300X 上失败”是**这个版本的 vLLM 代码与这种卡的组合不支持**，不是权重或显存问题；Hugging Face 上存在 `amd/Muse-Spark-Open-816B-A42B-Quark-MXFP4` 等预量化 checkpoint，本项目没有测，它们的存在也不证明 MI300X 兼容。
 
-读这张表要注意四点。① **省的是显存，不是时间**：Nemotron 每卡权重从 136.51 降到 43.21 GiB，KV 池从 349 万 token 涨到 1,376 万；Inkling 从 16 卡降到 8 卡。但单请求解码只有 6–8 tok/s，是 BF16 的十分之一（Nemotron 60.7 → 7.7，Inkling 68.9 → 6.1），因为每次矩阵乘法前都要先反量化，且 `--enforce-eager` 关掉了图捕获。② 与 BF16 的对比只是描述性的：BF16 那轮用的是 0.29.0 镜像、没开 eager，Inkling BF16 还是 16 卡；不要把速度差全部归给量化。③ 首条回答的墙钟（Inkling 78.56 s）含首次生成的 JIT 编译，和预热后的探针数字是两件事。④ 质量回归、长上下文（32K 只是配置上限，没用 32K 输入测）和最少卡数都未测。原始文件在 [data/mi300x-mxfp4/](data/mi300x-mxfp4/)：每次部署的 `launch.json`（实际 argv）、`first_response.json`、`08_perf.json`、服务器日志关键行，`summary.json` 由它们重算，`tests/mxfp4.test.mjs` 校验本页引用的每个数字。
+读这张表要注意四点。① **省的是显存，不是时间**：Nemotron 每卡权重从 136.51 降到 43.21 GiB，KV 池从 3,490,022 token 涨到 13,758,836（约 349 万 → 1,376 万）；Inkling 从 16 卡降到 8 卡。但单请求解码只有 6–8 tok/s，是 BF16 的十分之一（Nemotron 60.7 → 7.7，Inkling 68.9 → 6.1），因为每次矩阵乘法前都要先反量化，且 `--enforce-eager` 关掉了图捕获。② 与 BF16 的对比只是描述性的：BF16 那轮用的是 0.29.0 镜像、没开 eager，Inkling BF16 还是 16 卡；不要把速度差全部归给量化。③ 首条回答的墙钟（Inkling 78.56 s）含首次生成的 JIT 编译，和预热后的探针数字是两件事。④ 质量回归、长上下文（32K 只是配置上限，没用 32K 输入测）和最少卡数都未测。原始文件在 [data/mi300x-mxfp4/](data/mi300x-mxfp4/)：每次部署的 `launch.json`（实际 argv）、`first_response.json`、`08_perf.json`、服务器日志关键行，`summary.json` 由它们重算，`tests/mxfp4.test.mjs` 校验本页引用的每个数字。
 
-**NVFP4 单专家探针**（第 3 轮之前，07:49Z，1 卡）：原厂 NVFP4 checkpoint 没有在 MI300X 上全模型加载。做过的是更小的事：从 Nemotron（revision `02462641`）和 Inkling（`42a75a99`）的 NVFP4 checkpoint 各取真实的第 0 号专家权重和 scale，用 vLLM 的 NVFP4 模拟内核（`Nvfp4QuantizationEmulationTritonExperts`）对两行合成激活算一次专家前向，与 PyTorch 参考实现对比：相对 L2 误差 Nemotron 0、Inkling 3.7×10⁻⁹。这证明的只是“这两个 checkpoint 的专家张量格式能被 MI300X 上的模拟内核正确读懂”，不是全模型能跑。Muse 的 NVFP4 配置仍返回 401，没有探。
+原厂 NVFP4 版本没有在 MI300X 上部署：NVFP4 是 NVIDIA Blackwell 的原生格式，AMD GPU 上没有对应内核，也不是本项目在 AMD 上要回答的问题。它们的组件精度还在上文三张矩阵里；在 MI300X 上对 NVFP4 checkpoint 做过的唯一动作是一次单专家内核探针，记在[验证说明](VALIDATION_CN.md#第-3-轮)，不作为本页的结论。
 
 ### 证据边界
 
-检查日期：2026-11-01（文档与配置）、2026-11-02（MI300X 实测与张量普查）。本文采用发布方模型卡、实际配置、推理引擎文档、固定 revision 的 safetensors 文件头和本项目在 MI300X 上的加载记录，不用模型榜单或不同环境的历史测试拼成性能对比。本项目在 MI300X 上实际加载并生成正确回答的有五个部署：三个原厂 BF16——Nemotron 3 Ultra（1 节点 8 卡）、Inkling（2 节点 16 卡，TP8 × PP2）和 Muse Spark Open（2 节点 16 卡，TP8 × PP2，两次失败后在 v0.33.0 镜像上通过）——以及两个 MXFP4 模拟路径——Inkling（社区 Quark checkpoint，8 卡）和 Nemotron（BF16 在线量化，8 卡）；Muse 的 MXFP4 路径两次尝试都被模型代码拒绝。服务速度只有量级探针（一条短提示词，并发 1 和 8），吞吐分布、质量回归、长上下文稳定性和故障恢复对全部版本仍为 **NOT_RUN**。三个原厂 NVFP4 版本未在任何 GPU 上全模型加载（Nemotron、Inkling 各做过一次单专家内核探针），三个伙伴 FP8 版本未在任何 GPU 上加载。
+检查日期：2026-11-01（文档与配置）、2026-11-02（MI300X 实测与张量普查）。本文采用发布方模型卡、实际配置、推理引擎文档、固定 revision 的 safetensors 文件头和本项目在 MI300X 上的加载记录，不用模型榜单或不同环境的历史测试拼成性能对比。本项目在 MI300X 上实际加载并生成正确回答的有五个部署：三个原厂 BF16——Nemotron 3 Ultra（1 节点 8 卡）、Inkling（2 节点 16 卡，TP8 × PP2）和 Muse Spark Open（2 节点 16 卡，TP8 × PP2，两次失败后在 v0.33.0 镜像上通过）——以及两个 MXFP4 模拟路径——Inkling（社区 Quark checkpoint，8 卡）和 Nemotron（BF16 在线量化，8 卡）；Muse 的 MXFP4 路径两次尝试都被模型代码拒绝。服务速度只有量级探针（一条短提示词，并发 1 和 8），吞吐分布、质量回归、长上下文稳定性和故障恢复对全部版本仍为 **NOT_RUN**。三个原厂 NVFP4 版本（NVIDIA Blackwell 格式，AMD 无对应内核）未在任何 GPU 上全模型加载，三个伙伴 FP8 版本未在任何 GPU 上加载。
 
 Nemotron 模型卡同时存在训练配方、权重版本和引擎示例；本文只将明确的导出规则用于模块精度判断。它的模型卡概述中出现“NVFP4 KV caching”，但具体示例使用 FP8 KV cache，本文按可执行参数说明差异，而不将概述视为已验证的缓存能力。
 
@@ -387,7 +387,7 @@ Muse 的详细模块精度、三模型在指定机器上的峰值显存与性能
 | `data/tensor-census/` | 两个 BF16 快照的逐张量文件头普查结果 |
 | `data/deployment-budget.json` | 每卡预算表的输入（GPU 数量、HBM、来源） |
 | `data/mi300x-run/` | MI300X 实测的公开投影（第 1 轮：Nemotron、Inkling PP2、Inkling DP2；第 2 轮：Inkling PP2、Nemotron 和 Muse PP2，各带速度探针的 `08_perf.json`）：原始请求/响应、显存 JSON、日志关键行、`summary.json`、私有大文件的 SHA-256 |
-| `data/mi300x-mxfp4/` | 第 3 轮 MXFP4 / NVFP4 的公开投影：Inkling 和 Nemotron 的 MXFP4 部署（`launch.json` 实际 argv、`first_response.json`、`08_perf.json`、日志关键行）、Muse 两次失败尝试的报错行、NVFP4 单专家探针的 `gpu_probe.json`、`summary.json`、私有大文件的 SHA-256 |
+| `data/mi300x-mxfp4/` | 第 3 轮 MXFP4 的公开投影：Inkling 和 Nemotron 的 MXFP4 部署（`launch.json` 实际 argv、`first_response.json`、`08_perf.json`、日志关键行）、Muse 两次失败尝试的报错行、`summary.json`、私有大文件的 SHA-256；另含一次 NVFP4 单专家内核探针的 `gpu_probe.json`（只在验证说明里引用） |
 | `data/visual-evidence.json` | 文中每张图的来源、尺寸、哈希和证明边界 |
 | `images/` | NVIDIA 官方 NVFP4 两级缩放图；原创执行路径图与测试拓扑图（`.mmd` 源 + 静态 `.svg`）；原创并行布局图（`mi300x-parallel-layout-{zh,en}.svg/.png`，由 `tools/build_layout_figure.py` 从 `summary.json` 生成）；`icons/` 下是未改动的 Azure 官方图标 |
 | `scripts/mi300x/` | MI300X 复现脚本：节点准备、拉镜像、下载、三个模型的启动（`04_` Nemotron、`05_` Inkling、`08_` Muse）、证据采集、RCCL 探针、服务速度探针（`09_perf_probe.py`）、`Dockerfile.muse-ray` |
@@ -411,7 +411,7 @@ Muse 的详细模块精度、三模型在指定机器上的峰值显存与性能
 
 ### 在 MI300X 上复现 BF16 加载与 smoke
 
-以下是本项目 2026-11-02 实测所用的脚本，位于 [scripts/mi300x/](scripts/mi300x/)，每个脚本开头注明它做什么、期望看到什么。起点：一台或两台 Azure `Standard_ND96isr_MI300X_v5`（镜像 `microsoft-dsvm:ubuntu-hpc:2404-rocm`），一个能 `sudo` 的登录用户，节点能访问 Hugging Face；Inkling 还需要两台机器的私网互通（Ray 6379 端口、RCCL 走 InfiniBand）。Shell 为 Bash，工作目录为本专题目录的克隆。费用提示：该规格每台约 14 美元/小时（Spot 参考价），本项目全程 2 小时 36 分钟、两台机器约 73 美元；不用时 `deallocate`，本地 NVMe 上的权重会随之丢失。
+以下是本项目 2026-11-02 实测所用的脚本，位于 [scripts/mi300x/](scripts/mi300x/)，每个脚本开头注明它做什么、期望看到什么。起点：一台或两台 Azure `Standard_ND96isr_MI300X_v5`（镜像 `microsoft-dsvm:ubuntu-hpc:2404-rocm`），一个能 `sudo` 的登录用户，节点能访问 Hugging Face；Inkling 还需要两台机器的私网互通（Ray 6379 端口、RCCL 走 InfiniBand）。Shell 为 Bash，工作目录为本专题目录的克隆。费用提示：该规格每台约 14 美元/小时（Spot 参考价）；第 1 轮（BF16 加载与 smoke，00:29–03:05 北京时间）两台机器共 2 小时 36 分钟，约 73 美元；第 2–3 轮（速度探针、Muse、MXFP4）当天 10:06 重启后另计机时，未单独折算。不用时 `deallocate`，本地 NVMe 上的权重会随之丢失。
 
 **执行边界。** 这些脚本是在两天的实测中边跑边改定稿的，仓库里的最终版本没有在一台全新的虚拟机上从第 1 步到第 10 步完整回放过一次；仓库保留的证据来自实测过程中的各次运行。已知的两处坑写在脚本注释里：虚拟机重新启动后 NVMe RAID0 会消失，必须重跑 `01_preflight.sh`；containerd 可能先于新存储目录启动导致 `docker pull` 报 `metadata.db` 错，`systemctl restart containerd docker` 可解。
 
@@ -521,7 +521,7 @@ BF16 是对照基线，并不保证答案正确；NVFP4 是候选格式，不是
 | H3 | [AMD Instinct MI350 系列](https://www.amd.com/en/products/accelerators/instinct/mi350.html)：MI350X/MI355X 的 MXFP4 支持 |
 | T1 | [本项目逐张量普查](data/tensor-census/)：2026-11-02 读取固定 revision 全部 safetensors 文件头得到的每个张量 dtype 与字节数，不读权重数据；脚本 [tensor_census.py](tools/tensor_census.py)，汇总 `node tools/census.mjs --table` |
 | T2 | [本项目 MI300X 实测](VALIDATION_CN.md#mi300x-实测)：2026-11-02 在 Azure `Standard_ND96isr_MI300X_v5` 上用 `rocm/vllm` 镜像加载并生成；证据目录与关键日志行见验证说明 |
-| T3 | [本项目 MXFP4 / NVFP4 低精度路径](VALIDATION_CN.md#第-3-轮)：2026-11-02 在 1 节点 8 × MI300X 上用 `vllm-muse-ray:0.33.0` 镜像的 MXFP4 模拟路径（Inkling、Nemotron 通过，Muse 被模型代码拒绝）和 NVFP4 单专家内核探针；公开投影在 [data/mi300x-mxfp4/](data/mi300x-mxfp4/) |
+| T3 | [本项目 MXFP4 低精度路径](VALIDATION_CN.md#第-3-轮)：2026-11-02 在 1 节点 8 × MI300X 上用 `vllm-muse-ray:0.33.0` 镜像的 MXFP4 模拟路径（Inkling、Nemotron 通过，Muse 被模型代码拒绝）；公开投影在 [data/mi300x-mxfp4/](data/mi300x-mxfp4/) |
 
 进一步阅读：[NVFP4](../NVFP4/)、[量化方法对比](../Quantization-Methods-Comparison-and-Practice/)、[大模型显存估算](../LLM-Memory-Estimation/)。这些目录解释通用方法或其他模型的历史结果，不能替代本文三款模型的验收。
 

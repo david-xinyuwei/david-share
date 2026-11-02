@@ -77,18 +77,25 @@ test('run 3: both READMEs quote the MXFP4 numbers exactly and do not call Muse M
     assert.ok(text.includes('lightseekorg/Inkling-MXFP4'), `${name} names the Inkling MXFP4 checkpoint`);
     assert.ok(text.includes('AITER_MXFP4_MXFP4'), `${name} quotes the Muse backend requirement`);
     assert.ok(text.includes("got quantization 'online'"), `${name} quotes Muse attempt 1's rejection`);
-    assert.ok(text.includes('Nvfp4QuantizationEmulationTritonExperts'), `${name} names the NVFP4 probe kernel`);
+    // 2026-11-03 user ruling: NVFP4 is NVIDIA's Blackwell format with no AMD kernel; the single-expert probe stays in
+    // VALIDATION only. The READMEs must not present it as a result column or quote its kernel name.
+    assert.ok(!text.includes('Nvfp4QuantizationEmulationTritonExperts'), `${name} does not surface the NVFP4 probe kernel`);
+    assert.doesNotMatch(text, /\| 本项目实测：原厂 NVFP4 \||\| This project's run: original NVFP4 \|/, `${name} has no NVFP4 result column`);
     // Table rows are the claims a reader scans. In the Summary-first table the Muse row's MXFP4 cell (4th column)
     // and in the run-3 table the Muse row's load-result cell (2nd column) must say failed, never passed.
     const rows = text.split(/\r?\n/).filter(line => /^\| Muse Spark Open/.test(line));
-    const summaryRow = rows.find(line => line.split('|').length - 2 === 5);
-    assert.ok(summaryRow, `${name} has the five-column Summary-first Muse row`);
+    const summaryRow = rows.find(line => line.split('|').length - 2 === 4);
+    assert.ok(summaryRow, `${name} has the four-column Summary-first Muse row`);
     const mxfp4Cell = summaryRow.split('|')[4];
     assert.match(mxfp4Cell, /\*\*(失败|Failed)\*\*/, `${name}: Summary-first Muse MXFP4 cell says failed`);
     assert.doesNotMatch(mxfp4Cell, /\*\*(通过|Passed)\*\*/, `${name}: Summary-first Muse MXFP4 cell must not say passed`);
     const run3Row = rows.find(line => line.split('|').length - 2 === 7 && /两次尝试|two attempts/.test(line));
     assert.ok(run3Row, `${name} has the run-3 Muse row`);
     assert.match(run3Row.split('|')[2], /\*\*(失败|Failed)\*\*/, `${name}: run-3 Muse load result says failed`);
-    assert.match(text, /(不是全模型推理|not full-model inference)/, `${name} bounds the NVFP4 probe`);
+  }
+  // The probe record itself stays in the validation pages, bounded as not full-model inference.
+  for (const name of ['VALIDATION_CN.md', 'VALIDATION.md']) {
+    assert.ok(docs[name].includes('Nvfp4QuantizationEmulationTritonExperts'), `${name} records the NVFP4 probe kernel`);
+    assert.match(docs[name], /(不是模型加载|not model loading|不是全模型|not full-model)/, `${name} bounds the NVFP4 probe`);
   }
 });
