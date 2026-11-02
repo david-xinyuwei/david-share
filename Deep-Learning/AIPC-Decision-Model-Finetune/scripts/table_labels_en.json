@@ -1056,5 +1056,13 @@
  "微调 FT，Q4_K_M（独立 FT 配方，非 FT-cf）": "Fine-tuned FT, Q4_K_M (separate FT recipe, not FT-cf)",
  "GPU 准确率：发布版": "GPU accuracy: released",
  "GPU 准确率：FT-cf<br>业务样本 3,832 条，训练 2 遍": "GPU accuracy: FT-cf<br>3,832 business records, 2 epochs",
- "GPU 准确率：C<br>业务样本 4,038 条，训练 4 遍": "GPU accuracy: C<br>4,038 business records, 4 epochs"
+ "GPU 准确率：C<br>业务样本 4,038 条，训练 4 遍": "GPU accuracy: C<br>4,038 business records, 4 epochs",
+ "进程峰值工作集、推理时 CPU 利用率、模型文件大小、服务就绪等待秒数": "Peak process working set, CPU utilization during inference, model file size, service-readiness wait in seconds",
+ "2,314 MiB；CPU 50%（8 / 16 线程）；文件 764 MiB；服务就绪等待 2.6 秒（[第 5 节](#5-笔记本端推理引擎)、[第 6 节](#6-需要什么硬件)）": "2,314 MiB; CPU 50% (8 of 16 threads); file 764 MiB; service-readiness wait 2.6 s ([section 5](#5-laptop-inference-engine), [section 6](#6-hardware-requirements))",
+ "模型文件（MiB）/ 服务就绪等待（秒）": "Model file (MiB) / service-readiness wait (s)",
+ "同尺寸同量化，C 与 FT-cf 相同：x86-64 上 1,552 MiB、CPU 50%（8 / 16 线程）、文件 775 MiB、服务就绪等待 2.6 秒；骁龙上 FT-cf 2,314 MiB（[第 5 节](#5-笔记本端推理引擎)、[第 6 节](#6-需要什么硬件)）": "Same size and quantization, C equals FT-cf: 1,552 MiB on x86-64, CPU 50% (8 / 16 threads), file 775 MiB, service-readiness wait 2.6 s; FT-cf on Snapdragon 2,314 MiB ([section 5](#5-laptop-inference-engine), [section 6](#6-hardware-requirements))",
+ "骁龙上 2,314 MiB、提交内存 5,014 MiB（与 FT-cf 完全相同；`-c 2048` 时 2,196 / 2,119）；文件 775 MiB；服务就绪等待 2.6 秒；x86-64 上 1,552 MiB、CPU 50%（8 / 16 线程）（[第 5 节](#5-笔记本端推理引擎)、[第 6 节](#6-需要什么硬件)）": "2,314 MiB on Snapdragon, commit charge 5,014 MiB (identical to FT-cf; 2,196 / 2,119 with `-c 2048`); file 775 MiB; service-readiness wait 2.6 s; 1,552 MiB and CPU 50% (8 / 16 threads) on x86-64 ([section 5](#5-laptop-inference-engine), [section 6](#6-hardware-requirements))",
+ "骁龙上 2,314 MiB、提交内存 5,014 MiB（与 FT-cf 完全相同；`-c 2048` 时 2,196 / 2,119）；文件 775 MiB；服务就绪等待 2.6 秒；x86-64 上 1,552 MiB、CPU 50%（8 / 16 线程）（[第 5 节](文档/评测与端侧结果全集.md#5-笔记本端推理引擎)、[第 6 节](文档/评测与端侧结果全集.md#6-需要什么硬件)）": "2,314 MiB on Snapdragon, commit charge 5,014 MiB (identical to FT-cf; 2,196 / 2,119 with `-c 2048`); file 775 MiB; service-readiness wait 2.6 s; 1,552 MiB and CPU 50% (8 / 16 threads) on x86-64 ([section 5](文档/Evaluation-Results.md#5-laptop-inference-engine), [section 6](文档/Evaluation-Results.md#6-hardware-requirements))",
+ "单条任务处理耗时（工单 / 助手，毫秒，中位数）": "Time per task (support / assistant, ms, median)",
+ "模型加载阶段耗时（秒，日志）": "Model-loading stage (s, server log)"
 }

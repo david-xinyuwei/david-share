@@ -357,6 +357,62 @@ def decision(font_path, language="zh"):
     return d
 
 
+def model_loading_seconds(log_path):
+    text = (ROOT / log_path).read_text(encoding="utf-8-sig")
+    timestamp = r"^(\d+)\.(\d{2})\.(\d{3})\.(\d{3})\s+.*?"
+    starts = re.findall(timestamp + r"\bload_model:\s+loading model", text, re.M)
+    ends = re.findall(timestamp + r"\bserver_run_i:\s+model loaded", text, re.M)
+    if len(starts) != 1 or len(ends) != 1:
+        raise ValueError(f"Expected one model-loading interval: {log_path}")
+
+    def microseconds(parts):
+        minutes, seconds, milliseconds, remainder = map(int, parts)
+        return (minutes * 60 + seconds) * 1_000_000 + milliseconds * 1_000 + remainder
+
+    elapsed = microseconds(ends[0]) - microseconds(starts[0])
+    if elapsed <= 0:
+        raise ValueError(f"Invalid model-loading interval: {log_path}")
+    return f"{elapsed / 1_000_000:.3f}"
+
+
+def sync_model_loading_tables():
+    from markdown_it import MarkdownIt
+
+    path = ROOT / "文档/评测与端侧结果全集.md"
+    text = path.read_text(encoding="utf-8")
+    lines = text.splitlines(keepends=True)
+    parser = MarkdownIt("commonmark", {"html": True}).enable("table")
+    replacements = []
+    for token in parser.parse(text):
+        if token.type != "table_open":
+            continue
+        start, end = token.map
+        if not lines[start].startswith(("| 模型（0.8B，骁龙", "| 模型（4B，骁龙")):
+            continue
+        size = "0.8b" if "0.8B" in lines[start] else "4b"
+        entries = [[cell.strip() for cell in line.strip().split("|")[1:-1]] for line in lines[start:end]]
+        entries[0][5] = "单条任务处理耗时（工单 / 助手，毫秒，中位数）"
+        entries[0][7] = "模型加载阶段耗时（秒，日志）"
+        for entry in entries[2:]:
+            if entry[0].startswith("原始发布版 B0"):
+                recipe = "released"
+            elif entry[0].startswith("微调 FT-cf"):
+                recipe = "ftcf"
+            elif entry[0].startswith("微调 FT，"):
+                recipe = "ft"
+            else:
+                raise ValueError(f"No recorded loading run for: {entry[0]}")
+            quantization = "Q8_0" if "Q8_0" in entry[0] else "Q4_K_M"
+            run = f"{recipe}-kev-{size}-{quantization}-cpu"
+            entry[7] = model_loading_seconds(f"验证结果/端侧引擎_20261027-124700/{run}/server.log")
+        replacements.append((start, end, "".join("| " + " | ".join(entry) + " |\n" for entry in entries)))
+    if len(replacements) != 2:
+        raise ValueError("Expected both laptop inference tables")
+    for start, end, replacement in reversed(replacements):
+        lines[start:end] = [replacement]
+    path.write_text("".join(lines), encoding="utf-8")
+
+
 def overview_blocks():
     from markdown_it import MarkdownIt
 
@@ -420,7 +476,8 @@ def overview_blocks():
     parity = " / ".join(numeric(field("答案一致率"))[:2])
     latency = " / ".join(numeric(field("工单 / 助手请求耗时"))[:2])
     peak = numeric(field("峰值工作集"))[0]
-    weight, load = numeric(field("模型文件"))[:2]
+    weight = numeric(field("模型文件"))[0]
+    load = model_loading_seconds("验证结果/端侧引擎_骁龙第二轮C_20261101-203702/r2c-kev-0.8b-Q8_0-cpu/server.log")
     quantization = next(row[1] for row in rows(precision[0])[1:] if row[0] == "微调 FT-cf，Q8_0")
     precision[0] += f"\n| 第二轮 C，Q8_0（交付） | {quantization} | {weight} | {support} / {assistant} | {parity} | {latency} | {peak} | {load} |"
     return {"ACCURACY": "\n".join(accuracy), "INFERENCE": "\n\n".join(precision),
@@ -469,6 +526,7 @@ def validate_overview(text):
 
 
 def sync_overview():
+    sync_model_loading_tables()
     path = ROOT / "README_CN.md"
     text = path.read_text(encoding="utf-8")
     introduction = (
@@ -476,6 +534,10 @@ def sync_overview():
         "上面的 GPU 准确率比较训练配方；这里的笔记本准确率验证量化部署后是否仍然答对，两者不能当作同一测量值。"
         "使用 llama.cpp b11935 CPU、默认参数、170 条工单和 159 条助手请求，每条三题。"
         "时延是客户端从发出请求到收到全部答案的中位数，不含加载及两条预热；内存是进程峰值工作集。"
+        "一条任务一次回答三道问题，模型加载后可连续处理任务，不是每条都重载。"
+        "加载列统一按服务器日志从 `loading model` 到 `model loaded` 回算，单位为秒；不是完整服务启动时间，也不混用健康检查等待。"
+        "各取一次既有运行，未控制文件系统缓存，不能据此比较微调是否加快启动。"
+        "[吞吐量（每秒任务数）另见并发结果](文档/评测与端侧结果全集.md#concurrency-laptop)，不使用中位耗时的倒数。"
         "一致率与各行同一规模、同一配方的 PyTorch 模型比较。"
         "未在笔记本运行的 BF16 数据另列为 [GPU 精度基线](文档/评测与端侧结果全集.md#gpu-bf16-baseline)。"
     )
@@ -550,6 +612,10 @@ def sync_english_documents():
                 "GPU accuracy above compares training recipes; laptop accuracy here checks the quantized deployment. They are different measurements, not interchangeable values. "
                 "They use llama.cpp b11935 CPU, default settings, 170 support and 159 assistant requests, with three questions per request. "
                 "Latency runs from client send to all answers received, excluding loading and two warm-up requests; memory is peak process working set. "
+                "Each task answers three questions in one request; the loaded model handles subsequent tasks without reloading. "
+                "The loading column uses the same server-log interval, from `loading model` to `model loaded`, in seconds; it is not full service startup or health-check waiting time. "
+                "Each value comes from one retained run with uncontrolled filesystem-cache state, so it does not establish a fine-tuning speedup in startup. "
+                "[Throughput in tasks per second is reported separately](文档/Evaluation-Results.md#concurrency-laptop), not inferred by inverting median latency. "
                 "Each agreement value uses the PyTorch model of the same size and recipe as that row. "
                 "BF16 models not run on the laptop are listed separately in the [GPU accuracy baseline](文档/Evaluation-Results.md#gpu-bf16-baseline)."
             )

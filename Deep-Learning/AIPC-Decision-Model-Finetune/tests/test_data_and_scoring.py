@@ -426,6 +426,23 @@ class BilingualDocumentationTests(unittest.TestCase):
         self.assertIn("8.52 BPW", details)
         self.assertIn("5.76 BPW", details)
 
+    def test_loading_times_use_the_same_server_log_interval(self):
+        from render_diagrams import model_loading_seconds
+
+        prefix = "验证结果/端侧引擎_20261027-124700/"
+        self.assertEqual(model_loading_seconds(prefix + "released-kev-0.8b-Q8_0-cpu/server.log"), "3.981")
+        self.assertEqual(model_loading_seconds(prefix + "released-kev-4b-Q4_K_M-cpu/server.log"), "7.820")
+        chinese = (ROOT / "README_CN.md").read_text(encoding="utf-8")
+        tables = self.tables(self.parser.parse(chinese))
+        expected = (("3.981", "1.483", "1.642", "2.236"), ("7.820", "8.552", "5.014"))
+        for table, loading in zip(tables[1:3], expected):
+            self.assertEqual(table[0][5], "单条任务处理耗时（工单 / 助手，毫秒，中位数）")
+            self.assertEqual(table[0][7], "模型加载阶段耗时（秒，日志）")
+            self.assertEqual(tuple(row[7] for row in table[1:]), loading)
+            self.assertFalse(any(row[7] == "未记录" for row in table[1:]))
+        self.assertIn("一条任务一次回答三道问题", chinese)
+        self.assertIn("不是完整服务启动时间", chinese)
+
     def test_localization_preserves_nested_link_and_code(self):
         import fill_report_tables
         from urllib.parse import unquote

@@ -354,19 +354,19 @@ Incomplete runs excluded from the tables: `ft-kev-0.8b-Q8_0-cpu-ctx2048` (144 su
 The two tables below contain only configurations actually run on the Snapdragon laptop: the released and fine-tuned Q8_0 / Q4_K_M models. Pre-quantization BF16 results are listed separately in the [GPU accuracy baseline](#gpu-bf16-baseline), not as laptop runs. Each agreement value compares the row with its own same-size, same-recipe PyTorch model; FT Q4_K_M must not use FT-cf as its reference.
 
 <!-- SOURCE:TABLE:19 -->
-| Model (0.8B, Snapdragon X Elite CPU, default settings)| Weight quantization format| File (MiB)| Laptop accuracy (support / assistant)| Per-question agreement with its own PyTorch model| Support / assistant median request time (ms)| Peak working set (MiB)| Model load (s)| 
+| Model (0.8B, Snapdragon X Elite CPU, default settings)| Weight quantization format| File (MiB)| Laptop accuracy (support / assistant)| Per-question agreement with its own PyTorch model| Time per task (support / assistant, ms, median)| Peak working set (MiB)| Model-loading stage (s, server log)| 
 | ---| ---| ---| ---| ---| ---| ---| ---| 
-| Released B0, official Q8_0 package| W8 (Q8_0)| 775| 45.7% / 66.9%| 97.6% / 99.0%| 666 / 843| 2,323| Not recorded| 
-| Fine-tuned FT-cf, Q8_0| W8 (Q8_0)| 775| 86.9% / 97.7%| 99.2% / 99.8%| 646 / 984| 2,314| 2.6| 
-| Fine-tuned FT, Q4_K_M (separate FT recipe, not FT-cf)| W4/W8 mix (custom Q4_K_M)| 528| 87.5% / 93.9%| 94.9% / 97.9%| 812 / 909| 1,819| 2.5| 
+| Released B0, official Q8_0 package| W8 (Q8_0)| 775| 45.7% / 66.9%| 97.6% / 99.0%| 666 / 843| 2,323| 3.981| 
+| Fine-tuned FT-cf, Q8_0| W8 (Q8_0)| 775| 86.9% / 97.7%| 99.2% / 99.8%| 646 / 984| 2,314| 1.483| 
+| Fine-tuned FT, Q4_K_M (separate FT recipe, not FT-cf)| W4/W8 mix (custom Q4_K_M)| 528| 87.5% / 93.9%| 94.9% / 97.9%| 812 / 909| 1,819| 1.642| 
 <!-- /SOURCE:TABLE:19 -->
 
 <!-- SOURCE:TABLE:20 -->
-| Model (4B, Snapdragon X Elite CPU, default settings)| Weight quantization format| File (MiB)| Laptop accuracy (support / assistant)| Per-question agreement with its own PyTorch model| Support / assistant median request time (ms)| Peak working set (MiB)| Model load (s)| 
+| Model (4B, Snapdragon X Elite CPU, default settings)| Weight quantization format| File (MiB)| Laptop accuracy (support / assistant)| Per-question agreement with its own PyTorch model| Time per task (support / assistant, ms, median)| Peak working set (MiB)| Model-loading stage (s, server log)| 
 | ---| ---| ---| ---| ---| ---| ---| ---| 
-| Released B0, official Q4_K_M package| Q4_K_M (official mixed format)| 2,893| 59.0% / 82.0%| 93.1% / 97.3%| 3,022 / 3,790| 6,849| Not recorded| 
-| Fine-tuned FT-cf, Q8_0| W8 (Q8_0)| 4,276| 96.1% / 99.8%| 99.4% / 100.0%| 3,649 / 4,115| 9,609| 10.7| 
-| Fine-tuned FT-cf, Q4_K_M| W4/W8 mix (custom Q4_K_M)| 2,893| 95.3% / 99.6%| 98.2% / 99.8%| 3,615 / 4,751| 6,842| 6.7| 
+| Released B0, official Q4_K_M package| Q4_K_M (official mixed format)| 2,893| 59.0% / 82.0%| 93.1% / 97.3%| 3,022 / 3,790| 6,849| 7.820| 
+| Fine-tuned FT-cf, Q8_0| W8 (Q8_0)| 4,276| 96.1% / 99.8%| 99.4% / 100.0%| 3,649 / 4,115| 9,609| 8.552| 
+| Fine-tuned FT-cf, Q4_K_M| W4/W8 mix (custom Q4_K_M)| 2,893| 95.3% / 99.6%| 98.2% / 99.8%| 3,615 / 4,751| 6,842| 5.014| 
 <!-- /SOURCE:TABLE:20 -->
 
 **The two accuracy measurements serve different purposes.** GPU / PyTorch accuracy compares business fine-tuning recipes; laptop accuracy checks the quantized file deployed through llama.cpp. The same recipe uses the same test questions, but weight representation, engine and hardware differ, so the scores need not be equal and the whole difference cannot be attributed to quantization. For 0.8B FT-cf, GPU and laptop scores are 86.9% / 97.5% and 86.9% / 97.7%; for C they are 96.3% / 100.0% and 96.9% / 99.6%. The GPU reference for FT Q4_K_M is its own FT score, 86.5% / 93.5%, not FT-cf; its laptop score is 87.5% / 93.9%.
@@ -380,7 +380,13 @@ The custom Q4_K_M recipe uses `--pure` and `--tensor-type` to quantize feed-forw
 - **Quantization saves file size and memory, not time.** Files 1,437 → 775 → 528 MiB; peak working set 2,314 → 1,819 MiB; but a 4-bit request is not faster than 8-bit (812 vs. 646 ms), because llama.cpp's CPU kernels unpack 4-bit weights before computing.
 - **"0.8B is small" refers to the parameter count, not the file.** 0.8B × 16 bits is a 1.4 GB file; only at 8 bits does it become 0.76 GB. Everything that runs on the laptop, and every device figure on this page, is the quantized file.
 - **The delivered round-2 C was also measured in 4-bit** (x86-64 VM): support 95.3% versus Q8_0's 96.5%, agreement with PyTorch 97.1% versus 99.0%, no process-memory saving — the same conclusion as the FT 4-bit row above; details in the [device regression](#round2-device).
-- **Load time**: Q8_0 0.8B 2.6 s, 4B 10.7 s; Q4_K_M 4B 6.7 s; smaller files load faster. The three released-model runs were the earliest manual runs and did not record load time.
+<a id="model-loading-method"></a>
+
+**Task processing and loading are different measurements.** One support or assistant task is one request returning three answers. Median time per task runs from client send to receipt of all answers, excluding model loading and the first two warm-up requests. Subsequent tasks reuse the loaded model. Delivered C has support / assistant medians of 635 / 905 ms, or about 0.635 / 0.905 seconds per task. [Throughput is measured separately](#concurrency-laptop); the reciprocal of median latency is not throughput.
+
+**The model-loading stage is reconstructed consistently from logs.** Every row uses its recorded server interval from `load_model: loading model` to `server_run_i: model loaded`. Timestamps follow [llama.cpp b11935's M.s.ms.us definition](https://github.com/ggml-org/llama.cpp/blob/b11935/common/log.cpp), and the difference is shown to 0.001 s. The released runs lack standardized `run.json` files but retain these log events: their 0.8B / 4B loading stages are 3.981 / 7.820 s. Model lookup, downloads, startup preparation and health-check waiting outside this interval are excluded; it is not full service startup. Each value uses one retained run with uncontrolled filesystem-cache state, so it neither attributes a speed difference to fine-tuning/quantization nor guarantees repeat timing. Sources: [first-round device logs](../验证结果/端侧引擎_20261027-124700) and [C's first default-settings Snapdragon run](../验证结果/端侧引擎_骁龙第二轮C_20261101-203702/r2c-kev-0.8b-Q8_0-cpu/server.log).
+
+**The old values remain as service-readiness waiting time.** `load_seconds` in `run.json` measures the script's wait for a successful `/health` response after process launch, including health-check waiting, not the model-loading interval above. Historical FT-cf Q8_0 values are 2.6 / 10.7 s for 0.8B / 4B, 4B Q4_K_M is 6.7 s, and FT 0.8B Q4_K_M is 2.5 s; C's first default-settings run is also 2.6 s. These values are unchanged and are labeled as service-readiness waiting time in the device-regression tables. Only this client-side timing field is missing for the two released runs; their log-derived loading stages cannot substitute for it.
 - **Not done**: neither the released model's BF16 nor the fine-tuned BF16 ran on the laptop (the BF16 files stayed on the GPU host as quantization sources; the host has been released); As for the fine-tuning method, both this project and the Kev author's recipe train only the LoRA adapters and the pointer head; under the same LoRA recipe, 4B lifts the "change one field, the answer must follow" questions from 0.8B's 57.6% / 81.9% to 84.9% / 100% (section 1), so 0.8B's weakness is model capacity, not the adapter.
 
 #### Inference Optimization: Which Levers Were Measured
@@ -455,7 +461,7 @@ The laptop above has an ARM processor. To answer "does it still run on an x86-64
 | Committed memory (MiB)| 4,254| 4,253 / 4,254| **1,360**| 
 | Support / assistant median request time (ms)| 1,255 / 1,401| 1,260 / 1,430; 1,236 / 1,401| 1,238 / 1,411| 
 | Server-process CPU utilization (16 logical processors)| 50%| 50% / 50%| 50%| 
-| Model file (MiB) / load time (s)| 775 / 2.6| 775 / 2.6| 775 / 2.5| 
+| Model file (MiB) / service-readiness wait (s)| 775 / 2.6| 775 / 2.6| 775 / 2.5| 
 <!-- /SOURCE:TABLE:23 -->
 
 - **On-device accuracy equals the GPU figure.** Under Q8_0 + llama.cpp, C scores 96.5% on support and 99.8% on assistant, agreeing with its GPU-side PyTorch rows (96.3% / 100.0%) on 99.0% / 99.8% of questions — the same level as FT-cf's 99.0% / 99.6%: quantization and the engine cost C as little as they cost FT-cf. Against FT-cf question by question, C fixes 68 of 987 answers and breaks 11; the fixes concentrate on the queue (71.8% → 92.9%) and the onsite-eligible positives (2 of 18 correct → 17), the same picture as on the GPU; urgency loses 2 (169 → 167).
@@ -478,7 +484,7 @@ The laptop above has an ARM processor. To answer "does it still run on an x86-64
 | Peak working set (MiB)| 2,314| 2,314 / 2,313| **2,196**| 
 | Committed memory (MiB)| 5,014| 5,014 / 5,014| **2,119**| 
 | Support / assistant median request time (ms)| 646 / 984| 635 / 905; 626 / 907| 851 / 1,023| 
-| Model file (MiB) / load time (s)| 775 / 2.6| 775 / 2.6| 775 / 4.7| 
+| Model file (MiB) / service-readiness wait (s)| 775 / 2.6| 775 / 2.6| 775 / 4.7| 
 <!-- /SOURCE:TABLE:24 -->
 
 - **The laptop reaches the same conclusion as x86-64.** On Snapdragon, C scores 96.9% on support and 99.6% on assistant, 10.0 / 1.9 points above FT-cf, fixing 68 answers and breaking 8 against FT-cf question by question; the two CPUs running one file give the same answer on 982 of 987 questions, and the 5 that differ are all boundary questions whose top probability sits at 0.48–0.58 (median per-question probability difference 0.00001), so 96.9% versus 96.5% is a flip around p = 0.5, not one CPU being more accurate.
