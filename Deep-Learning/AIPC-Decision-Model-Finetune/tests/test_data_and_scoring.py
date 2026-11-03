@@ -102,6 +102,61 @@ class PipelineCompletionTests(unittest.TestCase):
                     self.assertFalse((Path(temporary) / f"test-{failed_format}.gguf").exists())
 
 
+class EngineRunnerTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.pwsh = shutil.which("pwsh")
+        if not cls.pwsh:
+            raise unittest.SkipTest("Engine runner failure-path tests require PowerShell 7")
+
+    def test_engine_modes_reject_existing_output_before_startup(self):
+        for single_question in (False, True):
+            with self.subTest(single_question=single_question), tempfile.TemporaryDirectory() as temporary:
+                output = Path(temporary) / "existing"
+                output.mkdir()
+                evidence = output / "rows.jsonl"
+                evidence.write_bytes(b"original evidence\n")
+                arguments = [self.pwsh, "-NoProfile", "-NonInteractive", "-File",
+                             str(ROOT / "scripts/run_engine_eval.ps1"), "-Model", "not-used.gguf",
+                             "-Label", "existing", "-OutRoot", temporary]
+                if single_question:
+                    arguments.append("-SingleQuestion")
+                result = subprocess.run(arguments, capture_output=True, timeout=20)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(b"engine output already exists", result.stderr)
+                self.assertNotIn(b"__ENGINE_EVAL_DONE__", result.stdout)
+                self.assertEqual(evidence.read_bytes(), b"original evidence\n")
+                self.assertFalse((output / "run.json").exists())
+
+    def test_engine_parity_failure_or_missing_input_blocks_completion(self):
+        runner = (ROOT / "scripts/run_engine_eval.ps1").as_posix().replace("'", "''")
+        python = Path(sys.executable).as_posix().replace("'", "''")
+        for native_exit, has_reference in ((0, True), (23, True), (0, False)):
+            with self.subTest(native_exit=native_exit, has_reference=has_reference):
+                program = (
+                    "$ErrorActionPreference='Stop'; $PSNativeCommandUseErrorActionPreference=$false; "
+                    "$tokens=$null; $parseErrors=$null; "
+                    f"$ast=[Management.Automation.Language.Parser]::ParseFile('{runner}',[ref]$tokens,[ref]$parseErrors); "
+                    "$branch=@($ast.FindAll({param($node) $node -is [Management.Automation.Language.IfStatementAst] "
+                    "-and $node.Extent.Text.StartsWith('if ($TorchPrefix -and -not $SingleQuestion)')},$true)); "
+                    "if($branch.Count -ne 1) { throw 'comparison branch missing' }; "
+                    f"function python {{ & '{python}' -B -c 'raise SystemExit({native_exit})'; $global:LASTEXITCODE=$LASTEXITCODE }}; "
+                    f"function Test-Path {{ ${str(has_reference).lower()} }}; "
+                    "$TorchPrefix='fixture/'; $SingleQuestion=$false; $w='support'; $out=[IO.Path]::GetTempPath(); "
+                    "& ([scriptblock]::Create($branch[0].Extent.Text)); Write-Output '__ENGINE_EVAL_DONE__'"
+                )
+                result = subprocess.run([self.pwsh, "-NoProfile", "-NonInteractive", "-Command", program],
+                                        capture_output=True, timeout=20)
+                if native_exit == 0 and has_reference:
+                    self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
+                    self.assertIn(b"__ENGINE_EVAL_DONE__", result.stdout)
+                else:
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertNotIn(b"__ENGINE_EVAL_DONE__", result.stdout)
+                    expected = b"parity comparison failed" if has_reference else b"no PyTorch rows"
+                    self.assertIn(expected, result.stderr)
+
+
 class DataTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -202,6 +257,25 @@ class DataTests(unittest.TestCase):
 
 
 class RequestTests(unittest.TestCase):
+    def test_batch_modes_preserve_existing_evidence_before_sending(self):
+        for single_question in (False, True):
+            with self.subTest(single_question=single_question), tempfile.TemporaryDirectory() as temporary:
+                output = Path(temporary) / "existing"
+                output.mkdir()
+                evidence = output / "rows.jsonl"
+                original = b"prior evidence\n"
+                evidence.write_bytes(original)
+                argv = ["systemone_client.py", "--url", "http://127.0.0.1:1/v1/systemone",
+                        "--data", str(FINAL / "test_support.jsonl"), "--out", str(output)]
+                if single_question:
+                    argv.append("--single-question")
+                with mock.patch.object(client, "ask") as send, mock.patch("sys.argv", argv):
+                    with self.assertRaises(FileExistsError):
+                        client.main()
+                send.assert_not_called()
+                self.assertEqual(evidence.read_bytes(), original)
+                self.assertFalse((output / "summary.json").exists())
+
     def test_single_question_batch_preserves_inputs_and_measures_each_request(self):
         record = {"state": {"message": "test", "region": "CN"}, "_meta": {"case": "case-1"},
                   "questions": {"queue": {"type": "choice", "choices": ["repair", "sales"], "label": "repair"},
@@ -372,6 +446,18 @@ class RequestTests(unittest.TestCase):
 
 
 class ReportLayoutTests(unittest.TestCase):
+    def test_calibration_table_covers_all_measured_recipe_dataset_pairs(self):
+        from render_diagrams import calibration_table
+
+        text = calibration_table()
+        rows = [line for line in text.splitlines() if line.startswith("| ")][1:]
+        self.assertEqual(len(rows), 12)
+        for recipe in ("0.8B FT-cf", "4B FT-cf", "0.8B 第二轮 C"):
+            self.assertEqual(sum(recipe in row for row in rows), 4)
+        self.assertIn("案例组95%区间", text)
+        self.assertIn("（边界）", text)
+        self.assertNotIn("修不掉", text)
+
     def test_overview_consumes_the_selected_summary(self):
         from render_diagrams import overview_blocks, report_sources
 
@@ -461,7 +547,7 @@ class ReportLayoutTests(unittest.TestCase):
     def test_accuracy_tables_pair_release_and_final_recipe(self):
         blocks = sr.report_blocks(self.accuracy_summary())
         block = blocks["README_ACC"]
-        self.assertEqual(block.count("| 微调前准确率：发布版 | 微调后准确率：最终方案 |"), 2)
+        self.assertEqual(block.count("| 微调前准确率：发布版 | 微调后准确率：第一轮 FT-cf |"), 2)
         for size in ("0.8B", "4B"):
             for set_name, count in (("工单·同分布", "510"), ("助手·同分布", "477"),
                                     ("工单·分布外", "1,011"), ("助手·分布外", "951")):
@@ -592,6 +678,51 @@ class BilingualDocumentationTests(unittest.TestCase):
             self.assertNotIn("SINGLE:INFERENCE", text)
             self.assertNotRegex(text, r"\|[^\n]*(?:待测|Not measured)")
 
+    def test_report_alignment_keeps_measured_scope_and_removes_invalid_inferences(self):
+        from render_diagrams import calibration_table
+        from fill_report_tables import localize_block
+
+        expected = calibration_table()
+        for filename, translated in (("评测与端侧结果全集.md", expected),
+                                     ("Evaluation-Results.md", localize_block(expected))):
+            text = (ROOT / "文档" / filename).read_text(encoding="utf-8")
+            tables = self.tables(self.parser.parse(text))
+            self.assertEqual(tables[14], self.tables(self.parser.parse(translated))[0])
+            self.assertEqual(len(tables[14]) - 1, 12)
+            self.assertNotRegex(text, r"每秒约 190 token|about 190 tokens per second|812 对 646|812 vs\. 646")
+            self.assertNotRegex(text, r"校准修不掉的部分|Not fixable by calibration|微调后准确率：最终方案|final-recipe accuracy")
+            self.assertNotRegex(text, r"\|\s*(?:NPU（Hexagon）|NPU \(Hexagon\))\s*\|")
+            self.assertNotRegex(text, r"从 45\.7% 提到 96\.3%|from 45\.7% to 96\.3%")
+            self.assertIn("13,589 MiB", text)
+            self.assertIn("10.08 GB", text)
+        source = (ROOT / "scripts/render_diagrams.py").read_text(encoding="utf-8")
+        training = source[source.index("def training("):source.index("def inference(")]
+        self.assertNotIn("764 MiB", training)
+        self.assertNotIn("517 MiB", training)
+        self.assertNotIn("only pass/fail", training)
+        self.assertIn('manifest[name]["records"]', training)
+
+    def test_audited_prose_and_runner_contracts_stay_aligned(self):
+        for filename in ("README_CN.md", "README.md", "文档/核心技术_微调与端侧运行.md", "文档/Core-Technology.md"):
+            text = (ROOT / filename).read_text(encoding="utf-8")
+            self.assertNotRegex(text, r"四种微调|Four recipes are compared|All four fine-tuned recipes")
+        for filename in ("操作步骤全本.md", "Operations-Guide.md"):
+            text = (ROOT / "文档" / filename).read_text(encoding="utf-8")
+            self.assertNotRegex(text, r"笔记本上的并发（只在|concurrency on the laptop \(measured only")
+            self.assertNotIn("其余内容与实验所用数据相同", text)
+            self.assertNotIn("other content is unchanged, so SHA-256", text)
+            self.assertIn("--sizes 0.8b --recipes r2-C", text)
+            self.assertIn("__ENGINE_EVAL_DONE__", text)
+            self.assertIn("<OutRoot>/<Label>", text)
+        for filename in ("核心技术_微调与端侧运行.md", "Core-Technology.md"):
+            text = (ROOT / "文档" / filename).read_text(encoding="utf-8")
+            table = next(table for table in self.tables(self.parser.parse(text))
+                         if any(row and row[0].startswith("`-c`") for row in table))
+            context_row = next(row for row in table if row[0].startswith("`-c`"))
+            self.assertIn("`-b`", context_row[-1])
+            self.assertIn("`-ub`", context_row[-1])
+            self.assertRegex(context_row[-1], r"不能仅归因|cannot be attributed")
+
     def test_current_model_reproduction_commands_are_present_in_both_languages(self):
         commands = ("bash scripts/remote_round2.sh 0.8b C",
                     "bash scripts/remote_export_round2.sh 0.8b C",
@@ -677,7 +808,7 @@ class BilingualDocumentationTests(unittest.TestCase):
             self.assertEqual(table[0][1], "测试集（题数）")
             self.assertEqual(table[0][2], "逐题准确率（%，含失败题）")
             self.assertEqual(table[0][3], "处理完整请求中位时间（秒，每次3道判断）")
-            self.assertIn("校准误差 ECE（百分点，越低越好）", table[0])
+            self.assertIn("校准误差 ECE（0–1，越低越好）", table[0])
             self.assertFalse(any("BF16 未量化" in row[0] for row in table[1:]))
             self.assertNotIn("模型加载阶段耗时（秒，日志）", table[0])
         details = (ROOT / "文档/评测与端侧结果全集.md").read_text(encoding="utf-8")
@@ -805,17 +936,19 @@ class ScoringTests(unittest.TestCase):
         self.assertGreater(tw.score(rows, 1.0)["brier"], tw.score(rows, served)["brier"])
 
     def test_calibration_boundary_accuracy_invariant_and_ece_arithmetic(self):
-        """The re-calibrate-or-retrain rule rests on two facts the script must get right: a temperature never changes an
-        answer, and 'removable ECE' is exactly ECE(served) - ECE(best T on the grid). Checked on saved rows and on a
-        synthetic over-confident set whose best temperature is known to be > 1."""
+        """Temperature preserves argmax; a finite-grid ECE decrease remains an in-sample diagnostic."""
         rows = [r for r in json.loads(self.saved_rows("pytorch-b0-0.8b").read_text(encoding="utf-8")) if r.get("variant", "clean") == "clean"]
         prepared, served = cb.prepare(rows)
         accs = {round(cb.metrics(prepared, t)["acc"], 9) for t in (0.5, served, 1.0, 2.0, 4.0)}
         self.assertEqual(len(accs), 1)
         self.assertAlmostEqual(cb.metrics(prepared, served)["brier"], tw.score(rows, served)["brier"], places=4)  # tw rounds to 4 places
-        result = cb.analyse(self.saved_rows("pytorch-b0-0.8b"))
-        self.assertLessEqual(abs(result["ece_removable_by_any_T"] - (result["at_served"]["ece"] - result["ece_at_best_T"])), 0.00011)  # three independently rounded 4-place values
-        self.assertGreaterEqual(result["ece_removable_by_any_T"], -1e-9)
+        result = cb.analyse(self.saved_rows("pytorch-b0-0.8b"), FINAL / "test_support.jsonl")
+        self.assertLessEqual(abs(result["ece_decrease_on_grid"] - (result["at_served"]["ece"] - result["ece_at_best_T"])), 0.00011)
+        self.assertFalse(result["temperature_search"]["global_bound"])
+        self.assertNotIn("ece_removable_by_any_T", result)
+        records = read_jsonl(FINAL / "test_support.jsonl")
+        self.assertEqual(result["bootstrap_method"]["groups"], len({record["_meta"]["group"] for record in records}))
+        self.assertEqual(result["input_hashes"]["data_sha256"], hashlib.sha256((FINAL / "test_support.jsonl").read_bytes()).hexdigest())
         cov = result["coverage_at_served"]
         self.assertTrue(all(cov[a]["coverage"] >= cov[b]["coverage"] for a, b in zip(("0.5", "0.6", "0.7", "0.8", "0.9"), ("0.6", "0.7", "0.8", "0.9", "0.95"))))
         # synthetic: confidently wrong on 30% of items at T=1 -> the ECE-optimal temperature must flatten (T > 1)
@@ -823,6 +956,92 @@ class ScoringTests(unittest.TestCase):
         best = min(cb.GRID, key=lambda t: cb.metrics(synthetic, t)["ece"])
         self.assertGreater(best, 1.0)
         self.assertEqual({round(cb.metrics(synthetic, t)["acc"], 9) for t in cb.GRID}, {0.7})
+
+    def test_calibration_diagnostic_rejects_incomplete_or_duplicate_questions(self):
+        rows = [row for row in json.loads(self.saved_rows("pytorch-b0-0.8b").read_text(encoding="utf-8"))
+                if row.get("variant", "clean") == "clean"]
+        invalid = {
+            "missing": rows[:-1],
+            "duplicate": rows + [rows[0]],
+            "duplicate_replacing_missing": rows[:-1] + [rows[0]],
+            "unexpected": rows + [{**rows[0], "question": "unexpected_question"}],
+            "empty": [],
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "rows.json"
+            for name, sample in invalid.items():
+                with self.subTest(case=name):
+                    path.write_text(json.dumps(sample), encoding="utf-8")
+                    with self.assertRaisesRegex(ValueError, "question coverage mismatch"):
+                        cb.analyse(path, FINAL / "test_support.jsonl")
+
+    def test_calibration_cli_rejects_empty_or_partial_campaigns(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            empty = directory / "empty"
+            empty.mkdir()
+            runs = directory / "runs"
+            valid = runs / "0.8b/ftcf-test_support/rows.json"
+            valid.parent.mkdir(parents=True)
+            original = self.saved_rows("pytorch-ftcf-0.8b").read_bytes()
+            valid.write_bytes(original)
+            (runs / "4b").mkdir()
+            command = [sys.executable, "-B", str(ROOT / "scripts/calibration_boundary.py"),
+                       "--data", str(FINAL), "--recipes", "ftcf"]
+            cases = {
+                "empty": ["--runs", str(empty)],
+                "missing_model": ["--runs", str(empty), "--sizes", "0.8b", "--sets", "test_support"],
+                "missing_dataset": ["--runs", str(runs), "--sizes", "0.8b"],
+                "missing_second_model": ["--runs", str(runs), "--sets", "test_support"],
+                "missing_recipe": ["--runs", str(runs), "--sizes", "0.8b", "--sets", "test_support",
+                                   "--recipes", "ftcf", "ft"],
+            }
+            for name, arguments in cases.items():
+                with self.subTest(case=name):
+                    output = directory / name / "diagnostic"
+                    result = subprocess.run(command + arguments + ["--out", str(output)], capture_output=True, timeout=20)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn(b"calibration", result.stderr.lower())
+                    self.assertFalse(output.exists())
+            output = directory / "complete"
+            arguments = command + ["--runs", str(runs), "--sizes", "0.8b", "--sets", "test_support", "--out", str(output)]
+            result = subprocess.run(arguments, capture_output=True, timeout=30)
+            self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
+            evidence = output / "calibration_boundary.json"
+            recorded = evidence.read_bytes()
+            diagnostic = json.loads(recorded)
+            self.assertEqual(list(diagnostic), ["0.8b/ftcf/test_support"])
+            self.assertEqual(diagnostic["0.8b/ftcf/test_support"]["rows"], 510)
+            self.assertEqual(diagnostic["0.8b/ftcf/test_support"]["input_hashes"]["rows_sha256"], hashlib.sha256(original).hexdigest())
+            repeated = subprocess.run(arguments, capture_output=True, timeout=20)
+            self.assertNotEqual(repeated.returncode, 0)
+            self.assertEqual(evidence.read_bytes(), recorded)
+
+    def test_calibration_bootstrap_keeps_case_groups_and_sources_together(self):
+        prepared = [([3.0, 0.0], 0, "choice")] * 30 + [([3.0, 0.0], 1, "choice")] * 30
+        groups = [("one-source", "correct-case")] * 30 + [("one-source", "wrong-case")] * 30
+        self.assertEqual(cb.bootstrap(prepared, 1.0, groups, reps=200)["acc_95"], [0.0, 1.0])
+        sources = [("first-source", "case")] * 30 + [("second-source", "case")] * 30
+        self.assertEqual(cb.bootstrap(prepared, 1.0, sources, reps=200)["acc_95"], [0.5, 0.5])
+
+    def test_paired_rejects_missing_and_duplicate_questions(self):
+        rows = json.loads(self.saved_rows("pytorch-b0-0.8b").read_text(encoding="utf-8"))
+        records = read_jsonl(FINAL / "test_support.jsonl")
+        groups = {index: record["_meta"]["group"] for index, record in enumerate(records)}
+        same = sr.paired(rows, rows, groups, n_boot=40)
+        self.assertEqual((same["questions"], same["acc_delta"]), (510, 0.0))
+        cases = {
+            "missing_reference_record": (rows, rows[:-3]),
+            "missing_reference_question": (rows, rows[:-1]),
+            "missing_on_both_sides": (rows[:-3], rows[:-3]),
+            "duplicate_candidate": (rows + [rows[0]], rows),
+            "duplicate_reference": (rows, rows + [rows[0]]),
+            "duplicate_replacing_missing": (rows[:-1] + [rows[0]], rows),
+            "empty": ([], []),
+        }
+        for name, (candidate, reference) in cases.items():
+            with self.subTest(case=name), self.assertRaisesRegex(ValueError, "[Cc]overage mismatch|Duplicate paired question"):
+                sr.paired(candidate, reference, groups, n_boot=40)
 
     def test_paired_bootstrap_bounds(self):
         def rows(correct):

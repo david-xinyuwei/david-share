@@ -140,7 +140,7 @@ def main():
     if a.limit:
         recs = recs[:a.limit]
     out = Path(a.out)
-    out.mkdir(parents=True, exist_ok=not a.single_question)
+    out.mkdir(parents=True, exist_ok=False)
 
     requests = list(batch_records(recs, a.single_question))
     captured_utc = datetime.now(timezone.utc).isoformat()

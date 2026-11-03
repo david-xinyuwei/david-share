@@ -9,7 +9,7 @@ Default server flags match the first released-model runs (-c 8192 -b 2048 -ub 20
       -TorchPrefix 验证结果\端侧引擎_20261027-124700\pytorch-b0-0.8b\
 
 -TorchPrefix + "<workload>\rows.json" (released runs) or + "test_<workload>\rows.json" (kev run folders) must exist for parity.
-Results go to <OutRoot>\<Label>\; one OutRoot per machine (default: the laptop campaign). Paths written into summary.json and
+Results go to <OutRoot>\<Label>\; the default OutRoot is a new timestamped campaign. Existing label directories are rejected. Paths written into summary.json and
 parity_vs_pytorch.json are project-relative, so the records carry no machine-specific absolute paths. Another machine:
   .\scripts\run_engine_eval.ps1 -Model C:\Tools\models\contoso-kev\Contoso-Kev-0.8B-FTcf-Q8_0.gguf -Label ftcf-kev-0.8b-Q8_0-cpu `
       -Bin C:\Tools\llama.cpp\b11935-cpu-x64 -OutRoot 验证结果\端侧引擎_x64_20261030-232500 -TorchPrefix 验证结果\端侧引擎_20261027-124700\pytorch-ftcf-0.8b\
@@ -25,7 +25,7 @@ param(
     [int] $UBatch = 2048,   # -b and -ub; the lean deployment check uses 512
     [string] $DataPrefix = 'test_',  # 'policy_test_' scores the prompt-only variant (policy text in every question)
     [string] $Bin = '',              # llama.cpp folder; default = the ARM64 b11935 folders used by the laptop runs. x64: C:\Tools\llama.cpp\b11935-cpu-x64
-    [string] $OutRoot = '验证结果\端侧引擎_20261027-124700',  # project-relative results root; use a new one per machine
+    [string] $OutRoot = '',
     [int] $Concurrency = 1,          # client requests kept in flight (systemone_client.py --concurrency); 1 = the sequential laptop method
     [int] $Parallel = 0,             # llama-server -np slots; 0 = leave the server default (auto, 4 on b11935 for this model)
     [switch] $SingleQuestion
@@ -38,9 +38,10 @@ if ($SingleQuestion -and -not $PSBoundParameters.ContainsKey('Workloads')) {
     if (-not $PSBoundParameters.ContainsKey('DataPrefix')) { $DataPrefix = '' }
 }
 $bin = if ($Bin) { $Bin } elseif ($Backend -eq 'cpu') { 'C:\Tools\llama.cpp\b11935-cpu' } else { 'C:\Tools\llama.cpp\b11935-opencl-adreno' }
+if (-not $OutRoot) { $OutRoot = Join-Path '验证结果' ('端侧引擎_' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff')) }
 $out = Join-Path $OutRoot $Label
-if ($SingleQuestion -and (Test-Path -LiteralPath $out)) { throw "single-question output already exists: $out" }
-New-Item -ItemType Directory -Force -Path $out | Out-Null
+if (Test-Path -LiteralPath $out) { throw "engine output already exists: $out" }
+New-Item -ItemType Directory -Path $out | Out-Null
 $log = Join-Path $env:TEMP "llama-server-$Label.log"
 
 $argList = @()
@@ -96,7 +97,8 @@ try {
             $torch = @("$TorchPrefix$w\rows.json", "${TorchPrefix}test_$w\rows.json") | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
             if ($torch) {
                 python scripts\parity.py --torch $torch --engine (Join-Path $out "$w\rows.jsonl") --out (Join-Path $out "$w\parity_vs_pytorch.json")
-            } else { Write-Warning "no PyTorch rows for $w under $TorchPrefix" }
+                if ($LASTEXITCODE -ne 0) { throw "parity comparison failed for $w (exit $LASTEXITCODE)" }
+            } else { throw "no PyTorch rows for $w under $TorchPrefix" }
         }
     }
 

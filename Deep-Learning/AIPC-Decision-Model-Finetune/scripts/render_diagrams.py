@@ -190,35 +190,32 @@ ICON_NOTE = ("图标：Microsoft Azure 架构图标与 Fluent UI 系统图标，
 
 
 def training(font_path, language="zh"):
-    """Four numbered steps on the GPU host: supervised fine-tuning -> temperature calibration -> [evaluation gate] ->
-    GGUF export (BF16) -> post-training quantization (Q8_0 / Q4_K_M). The unnumbered evaluation card is the only
-    pass/fail point: its dashed exits return to step 1 (accuracy fell out of its interval) or step 2 (probabilities
-    off, answers fine). Only the quantized file reaches the laptop.
-    Facts: scripts/remote_pipeline_v2.sh, remote_cf_round.sh, remote_export_gguf_cf.sh; sizes from 验证结果/微调评测_20261027-220226/gguf/0.8b-cf;
-    gate rule from README section 3 / scripts/calibration_boundary.py."""
+    """Workflow illustration: development feedback is separate from frozen independent acceptance."""
     label = lambda chinese, english: english if language == "en" else chinese
+    manifest = json.loads((ROOT / "data/contoso/final/manifest.json").read_text(encoding="utf-8"))
+    counts = [manifest[name]["records"] for name in ("train.jsonl", "train_cf.jsonl", "train_cf2.jsonl")]
     d = Diagram(label("业务微调、校准、评测、导出与量化", "Business fine-tuning, calibration, evaluation, export and quantization"),
-                label("GPU 主机依次微调、校准；评测是唯一判定点，不过回第 1 或第 2 步，通过才导出、量化；笔记本只拿到量化后的 GGUF",
-                    "GPU host: fine-tune, calibrate, evaluate (the only pass/fail point; failures return to step 1 or 2), export, quantize; the laptop gets the quantized GGUF"), font_path, height=728)
+                label("开发数据指导迭代；冻结权重与温度后做独立验收，量化文件还需在目标设备复核",
+                    "Development guides iteration; freeze weights and temperature for independent acceptance, then validate the quantized file on device"), font_path, height=728)
     cw = CARD_WIDTH
     c1, c2, c3 = (CARD_LEFT + index * CARD_STEP for index in range(3))
     d.lane(104, 236, label("客户笔记本", "Customer laptop"), label("本地，厂商所有\n准备数据，部署 GGUF", "Local; vendor-owned\nPrepares data, runs GGUF"), icon="laptop")
-    d.card(c1, 116, label("业务训练集", "Training set"), label("标注样本 2,147 条\n+ 1,000 条 Kev 回放", "2,147 labeled records\n+ 1,000 Kev replay"), icon="file", width=cw, compact=True)
-    d.card(c2, 116, label("校准与测试集", "Calib + test"), label("与训练样本分开\n校准集拟 T，测试集验收", "Separate from training\nOne fits T, one judges"), icon="file", width=cw, compact=True)
-    d.card(c3, 116, label("量化 GGUF", "Quantized"), label("Q8_0（推荐）/ Q4_K_M\n温度在文件内，端侧运行", "GGUF Q8_0 / Q4_K_M\nT inside; runs on device"), icon="file", width=cw, compact=True)
+    d.card(c1, 116, label("业务训练集", "Training set"), label(f"FT {counts[0]:,} / FT-cf {counts[1]:,}\nC {counts[2]:,} 条\n各配方 + 1,000 条回放", f"FT {counts[0]:,} / FT-cf {counts[1]:,}\nC {counts[2]:,} records\nEach + 1,000 replay"), icon="file", width=cw, compact=True)
+    d.card(c2, 116, label("数据切分", "Data splits"), label("训练、校准、开发隔离\n开发集反馈改进\n独立测试只做终验", "Train / calibration / dev\nDevelopment feedback\nSeparate final acceptance"), icon="file", width=cw, compact=True)
+    d.card(c3, 116, label("量化 GGUF", "Quantized"), label("Q8_0 / Q4_K_M\n温度随文件保存\n按最终设备复核", "GGUF Q8_0 / Q4_K_M\nTemperature inside\nValidate on target device"), icon="file", width=cw, compact=True)
     # five equal cards in the host lane: 5 x 164 px with 12 px gaps fill CARD_LEFT..LANE_RIGHT-16 (280..1160); compact detail font
     sw, sg, sh = 164, 12, 160   # equal card height: four compact detail lines + one badge row
     s1, s2, s3, s4, s5 = (CARD_LEFT + index * (sw + sg) for index in range(5))
     d.lane(258, 606, label("Azure 训练主机", "Azure training host"), label("云侧，厂商租用\n1× H100 NVL\n3–4 只用 CPU", "Cloud; vendor-rented\n1× H100 NVL\nSteps 3–4: CPU only"), icon="azure-vm")
     model = d.card(s1, 274, label("Kev 发布版", "Released Kev"), label("0.8B / 4B，开放权重\n已训练的 LoRA + 指针头", "0.8B / 4B, open weights\nTrained LoRA + head"), icon="file", width=206, compact=True)
     step_top = 402
-    d.card(s1, step_top, label("监督微调", "Fine-tune"), label("LoRA r16 + 指针头\nFT / FT-cf 独立训练\n推动 ① 答案对不对", "LoRA r16 + head\nFT, FT-cf separately\nMoves ① answers"), step="1", width=sw, height=sh, badges=("PyTorch", "Kev"), compact=True)
+    d.card(s1, step_top, label("监督微调", "Fine-tune"), label("LoRA r16 + 指针头\n各配方独立训练\n训练数据更新权重", "LoRA r16 + head\nIndependent recipes\nUpdate weights"), step="1", width=sw, height=sh, badges=("PyTorch", "Kev"), compact=True)
     d.card(s2, step_top, label("温度校准", "Calibrate"), label("权重不动，只拟一个 T\n不改任何一题答案\n只动 ② 把握真不真", "Weights frozen; fit T\nChanges no answer\nMoves only ②"), step="2", width=sw, height=sh, badges=("Kev",), compact=True)
-    d.card(s3, step_top, label("评测验收", "Evaluate"), label("测试集量 ① ② ⑤\n准确率掉出区间→回 1\n只有概率偏差 → 回 2\n都在区间内 → 往下", "Test set: ① ② ⑤\nAccuracy out of CI: 1\nOnly ECE off: 2\nBoth inside: go on"), width=sw, height=sh, badges=("Kev",), compact=True)
-    d.card(s4, step_top, label("导出 GGUF", "Export"), label("合并 LoRA 进基座\nBF16，1,437 MiB\n含 T，不改任何值", "GGUF, LoRA merged\nBF16, 1,437 MiB\nWith T, unchanged"), step="3", width=sw, height=sh, badges=("llama.cpp",), compact=True)
-    d.card(s5, step_top, label("量化", "Quantize"), label("训练后量化，不重训\nQ8_0 764 MiB\nQ4_K_M 517 MiB\n换 ③④，付一点 ①②", "PTQ, no retraining\nQ8_0 764 MiB\nQ4_K_M 517 MiB\nBuys ③④, costs ①②"), step="4", width=sw, height=sh, badges=("llama.cpp",), compact=True)
+    d.card(s3, step_top, label("开发评估", "Dev review"), label("开发集诊断错误\n人工决定下一步\n不是独立终验", "Diagnose dev errors\nHuman decision\nNot final testing"), width=sw, height=sh, badges=("Kev",), compact=True)
+    d.card(s4, step_top, label("导出 GGUF", "Export"), label("合并 LoRA 进基座\n保存温度参数\n核对最终导出文件", "Merge LoRA weights\nRetain temperature\nVerify exported file"), step="3", width=sw, height=sh, badges=("llama.cpp",), compact=True)
+    d.card(s5, step_top, label("量化", "Quantize"), label("训练后量化，不重训\nQ8_0 / Q4_K_M\n逐题复核答案与概率\n文件大小见实测表", "PTQ, no retraining\nQ8_0 / Q4_K_M\nCheck predictions\nSizes: results"), step="4", width=sw, height=sh, badges=("llama.cpp",), compact=True)
     bottom = step_top + sh
-    cards_bottom = 116 + 56 + 19 * 2   # compact two-line data cards end here (card() height rule)
+    cards_bottom = 116 + 56 + 19 * 3
     d.arrow([(c1 + cw - 20, cards_bottom), (c1 + cw - 20, step_top - 12), (s1 + sw - 38, step_top - 12), (s1 + sw - 38, step_top)])
     d.arrow([(s1 + sw / 2, model[3]), (s1 + sw / 2, step_top)])
     d.arrow([(c2 + cw / 2 - 34, cards_bottom), (c2 + cw / 2 - 34, step_top - 20), (s2 + sw / 2, step_top - 20), (s2 + sw / 2, step_top)])
@@ -231,12 +228,12 @@ def training(font_path, language="zh"):
     d.arrow([(s3 + sw - 40, bottom), (s3 + sw - 40, bottom + 11), (s2 + sw / 2, bottom + 11), (s2 + sw / 2, bottom)], color=READ, dashed=True)   # probabilities off -> refit T
     d.arrow([(s5 + sw / 2, step_top), (s5 + sw / 2, 246), (c3 + cw / 2, 246), (c3 + cw / 2, cards_bottom)])
     d.legend(620, [("lane", label("泳道：执行位置", "Lane: location")), ("card", label("卡片：组件或产物", "Card: component or artifact")),
-                   ("arrow", label("蓝色：数据流", "Blue: data flow")), ("back", label("橙色虚线：评测不通过时回到的步骤", "Orange dashed: return after failed evaluation")),
+                   ("arrow", label("蓝色：数据流", "Blue: data flow")), ("back", label("橙色虚线：人工开发反馈", "Orange dashed: human feedback")),
                    ("badge", label("徽章：无图标的软件", "Badge: software without icon"))])
-    d.footnote(650, label("原创解释图。依据：scripts/remote_pipeline_v2.sh、remote_cf_round.sh、remote_export_gguf_cf.sh，Kev 2074cc44 calibrate_checkpoint.py；大小为 0.8B FT-cf。",
-                          "Original explanatory diagram. Sources: scripts/remote_pipeline_v2.sh, remote_cf_round.sh, remote_export_gguf_cf.sh; Kev 2074cc44 calibrate_checkpoint.py. Sizes: 0.8B."),
-               label("评测验收的判定规则和门槛见第 3 节与 scripts/calibration_boundary.py；①–⑤ 指首屏的五项标准。导出和量化只用主机 CPU；端侧推理不触发这些步骤。Q4_K_M 只压前馈层。",
-                     "Gate rule: section 3, scripts/calibration_boundary.py; ①–⑤ = the five first-screen criteria. Export and PTQ use the host CPU only; the device never runs them."),
+    d.footnote(650, label("原创流程图。FT、FT-cf、C 从发布版独立训练；样本数取自 data/contoso/final/manifest.json，回放参数取自训练脚本。",
+                          "Original workflow. FT, FT-cf and C start independently from the release; sample counts: data/contoso/final/manifest.json; replay: training scripts."),
+               label("开发反馈不等于独立终验。回退为人工决策；脚本不自动重训或发布。导出、量化只用 CPU；最终文件需目标设备验收。",
+                   "Development feedback is not final acceptance. Retraining and release are human decisions. Export/PTQ use CPU; validate the final file on device."),
                label(*ICON_NOTE))
     return d
 
@@ -459,7 +456,7 @@ def single_question_tables(campaign=None):
     tables = []
     has_results = False
     for size in ("0.8B", "4B"):
-        lines = [f"| 模型（{size}，骁龙 X Elite CPU，默认参数） | 测试集（题数） | 单题准确率（%，含失败题） | 单次分类中位延迟（毫秒） | 校准误差 ECE（百分点，越低越好） | 有效概率覆盖率（%） |",
+        lines = [f"| 模型（{size}，骁龙 X Elite CPU，默认参数） | 测试集（题数） | 单题准确率（%，含失败题） | 单次分类中位延迟（毫秒） | 校准误差 ECE（0–1，越低越好） | 有效概率覆盖率（%） |",
                  "|---|---|---|---|---|---|"]
         for model_size, model_id, label in models:
             if model_size != size:
@@ -497,7 +494,7 @@ def single_question_tables(campaign=None):
                         raise ValueError(f"Single-question metric denominator mismatch: {summary_path}")
                     cells = [f"{result['accuracy']:.1%}",
                              f"{result['latency_ms']['p50']:,.0f}" if calibration["n"] else "无有效回答",
-                             f"{calibration['ece'] * 100:.2f}" if calibration["n"] else "无有效回答",
+                             f"{calibration['ece']:.3f}" if calibration["n"] else "无有效回答",
                              f"{calibration['coverage']:.1%}"]
                     has_results = True
                 lines.append(f"| {label} | {dataset_label}（{expected['questions']:,} 题） | " + " | ".join(cells) + " |")
@@ -511,7 +508,7 @@ def record_request_tables():
     sources = report_sources()
     tables = []
     for size in ("0.8B", "4B"):
-        lines = [f"| 模型（{size}，骁龙 X Elite CPU，默认参数） | 测试集（题数） | 逐题准确率（%，含失败题） | 处理完整请求中位时间（秒，每次3道判断） | 校准误差 ECE（百分点，越低越好） | 有效概率覆盖率（%） |",
+        lines = [f"| 模型（{size}，骁龙 X Elite CPU，默认参数） | 测试集（题数） | 逐题准确率（%，含失败题） | 处理完整请求中位时间（秒，每次3道判断） | 校准误差 ECE（0–1，越低越好） | 有效概率覆盖率（%） |",
                  "|---|---|---|---|---|---|"]
         for model_size, model_id, label in INFERENCE_CONFIGURATIONS:
             if model_size != size:
@@ -546,10 +543,35 @@ def record_request_tables():
                 if not latencies or calibration["ece"] is None:
                     raise ValueError(f"No usable historical measurements: {run_path}")
                 lines.append(f"| {label} | {dataset_label}（{total_questions:,} 题） | {accuracy:.1%} | "
-                             f"**{statistics.median(latencies) / 1000:.3f}** | {calibration['ece'] * 100:.2f} | "
+                             f"**{statistics.median(latencies) / 1000:.3f}** | {calibration['ece']:.3f} | "
                              f"{len(scores) / total_questions:.1%} |")
         tables.append("\n".join(lines))
     return "\n\n".join(tables)
+
+
+def calibration_table():
+    from calibration_boundary import analyse
+
+    sources = report_sources()
+    datasets = (("test_support", "工单·同分布"), ("test_assistant", "助手·同分布"),
+                ("ood_support", "工单·分布外"), ("ood_assistant", "助手·分布外"))
+    lines = ["| 模型与测试集（GPU / PyTorch） | 准确率（%，案例组95%区间） | ECE：当前温度（0–1，案例组95%区间） | 当前温度 T | 网格内最低 ECE（0–1，样本内） | 对应 T | 网格内 ECE 降幅（样本内） |",
+             "|---|---|---|---|---|---|---|"]
+    for size, recipe, label, source_name in (("0.8b", "ftcf", "0.8B FT-cf", "first_summary"),
+                                           ("4b", "ftcf", "4B FT-cf", "first_summary"),
+                                           ("0.8b", "r2-C", "0.8B 第二轮 C", "round2_summary")):
+        runs = sources[source_name].parent.parent / "runs" / size
+        for dataset, dataset_label in datasets:
+            result = analyse(runs / f"{recipe}-{dataset}/rows.json", ROOT / f"data/contoso/final/{dataset}.jsonl")
+            lower, upper = result["bootstrap_95_at_served"]["acc_95"]
+            ece_lower, ece_upper = result["bootstrap_95_at_served"]["ece_95"]
+            boundary = "（边界）" if result["temperature_search"]["best_at_grid_boundary"] else ""
+            lines.append(f"| {label}，{dataset_label}（{result['rows']:,} 题） | "
+                         f"{result['accuracy']:.1%}（{lower:.1%}–{upper:.1%}） | "
+                         f"{result['at_served']['ece']:.3f}（{ece_lower:.3f}–{ece_upper:.3f}） | "
+                         f"{result['served_T']:.2f} | {result['ece_at_best_T']:.3f} | "
+                         f"{result['best_T_for_ece_in_sample']:.2f}{boundary} | {result['ece_decrease_on_grid']:.3f} |")
+    return "\n".join(lines)
 
 
 def saved_request_examples(language="zh"):
@@ -718,6 +740,11 @@ def sync_overview():
                                    + "\n<!-- /RECORD:INFERENCE -->", detail, flags=re.S)
     if replacements != 1:
         raise ValueError("Missing or duplicated recorded-request results marker")
+    detail, replacements = re.subn(r"<!-- TABLE:CALIBRATION_DIAGNOSTIC -->.*?<!-- /TABLE:CALIBRATION_DIAGNOSTIC -->",
+                                   lambda _: "<!-- TABLE:CALIBRATION_DIAGNOSTIC -->\n" + calibration_table()
+                                   + "\n<!-- /TABLE:CALIBRATION_DIAGNOSTIC -->", detail, flags=re.S)
+    if replacements != 1:
+        raise ValueError("Missing or duplicated calibration diagnostic marker")
     detail_path.write_text(detail, encoding="utf-8")
     path = ROOT / "README_CN.md"
     text = path.read_text(encoding="utf-8")

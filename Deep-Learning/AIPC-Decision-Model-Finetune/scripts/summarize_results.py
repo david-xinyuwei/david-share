@@ -35,6 +35,8 @@ def per_question(rows):
     out = {}
     for r in rows:
         i = int(str(r["id"]).rsplit("/", 1)[-1])
+        if r["question"] in out.get(i, {}):
+            raise ValueError(f"Duplicate paired question: {r['id']}/{r['question']}")
         p = [float(x) for x in r["p"]]
         label = int(r["label"])
         pred = max(range(len(p)), key=lambda j: p[j])
@@ -46,13 +48,14 @@ def per_question(rows):
 def paired(cand_rows, ref_rows, groups, keep=None, n_boot=10000, seed=1):
     """Accuracy and Brier difference cand - ref over the same questions; keep(i, q) can restrict the questions."""
     c, r = per_question(cand_rows), per_question(ref_rows)
+    if (not c or set(c) != set(r) or set(c) != set(groups)
+            or any(set(questions) != set(r[record_index]) for record_index, questions in c.items())):
+        raise ValueError("Paired question coverage mismatch: both runs must cover the same complete records and questions")
     by_group = {}
     for i, qs in c.items():
-        if i not in r:
-            continue
         g = by_group.setdefault(groups[i], [0, 0.0, 0.0])
         for q, (ok, br) in qs.items():
-            if q not in r[i] or (keep and not keep(i, q)):
+            if keep and not keep(i, q):
                 continue
             ok_ref, br_ref = r[i][q]
             g[0] += 1
@@ -367,7 +370,7 @@ def report_blocks(summary):
         ("泛化能力：同一批分布外新问题", ("ood_support", "ood_assistant")),
     ):
         t += [f"**{heading}**", "",
-              "| 参数规模 | 测试集（题数） | 微调前准确率：发布版 | 微调后准确率：最终方案 | 提升（百分点） |",
+              "| 参数规模 | 测试集（题数） | 微调前准确率：发布版 | 微调后准确率：第一轮 FT-cf | 提升（百分点） |",
               "|---|---|---|---|---|"]
         for size in ("0.8b", "4b"):
             if not any(set_key.startswith(size + "/") for set_key in S):

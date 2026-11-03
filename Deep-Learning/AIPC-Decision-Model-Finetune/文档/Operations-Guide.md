@@ -311,6 +311,8 @@ Each completed model leaves `run.json`, `server.log`, and `rows.jsonl` plus `sum
 
 Single-question mode does not compare against historical three-question PyTorch results: it skips `-TorchPrefix` with a warning. Without `-SingleQuestion`, the legacy `-TorchPrefix`, `-Backend opencl`, `-Ctx`, `-UBatch`, `-DataPrefix policy_test_`, `-Concurrency` and `-Parallel` options remain available. Such changed conditions do not belong in the default single-question table. x64 runs require their matching `-Bin` and a separately named result directory, never a Snapdragon batch name.
 
+Both modes reject an existing `<OutRoot>/<Label>` directory, and the client also rejects an existing output directory. Without `-OutRoot`, the runner creates a timestamped campaign instead of writing to the historical campaign. In three-question mode, a requested `-TorchPrefix` with missing reference records or a failed parity command causes a nonzero exit without `__ENGINE_EVAL_DONE__`.
+
 <a id="report-sources"></a>
 
 #### C2. Select Evidence Sources and Generate Tables
@@ -332,6 +334,10 @@ There is one report source configuration: the `REPORT:SOURCES` JSON at the top o
 Run `python scripts\render_diagrams.py --sync-english --preview` to read that configuration, validate sources, question counts and raw records, and generate bilingual overview/results tables. Missing or out-of-project sources fail without fallback. Single-question data does not replace three-question timing, and absent single-question results produce no empty matrix. Selecting a source does not automatically prove methodological comparability with historical runs.
 
 #### C3. Offline Tests
+
+**Fixed-model probability diagnostics.** Run `python scripts\calibration_boundary.py --runs <current-runs> --data data\contoso\final --recipes ftcf --out <new-diagnostic-directory>`. For round two, use `--recipes r2-C` and its runs directory. The script recomputes saved logits without model calls or changing T. Original messages and variants share `_meta.group` for resampling; outputs record intervals, finite-grid scope, input hashes and in-sample diagnostics. The grid minimum is not a calibration-capability bound, and test-selected temperatures or thresholds are not deployment settings. Historical question-bootstrap JSON remains unchanged and its intervals must not be mixed with the current method.
+
+By default, each existing `0.8b` or `4b` directory must contain every requested `--recipes` and `--sets` combination. For round-2 C alone, use `--sizes 0.8b --recipes r2-C`. Empty campaigns, missing combinations, missing or duplicate questions, and existing output directories fail without producing an empty success result. Paired statistics also require both runs to cover the same complete records and questions, rather than silently comparing their intersection.
 
 <!-- SOURCE:FENCE:19 -->
 ```powershell
@@ -389,7 +395,7 @@ Do not reinstall matching dependencies. `--preview` checks local links/anchors a
 | GPU-host training and evaluation pipelines| [scripts/remote_setup.sh](../scripts/remote_setup.sh), [scripts/remote_pipeline_v2.sh](../scripts/remote_pipeline_v2.sh), [scripts/remote_cf_round.sh](../scripts/remote_cf_round.sh), [scripts/remote_export_gguf.sh](../scripts/remote_export_gguf.sh)| Baselines, fine-tuning, temperature calibration, evaluation, paired comparison and GGUF export| 
 | Laptop device validation| [scripts/run_engine_eval.ps1](../scripts/run_engine_eval.ps1), [scripts/systemone_client.py](../scripts/systemone_client.py), [scripts/parity.py](../scripts/parity.py)| Start llama-server, score and time request by request (including concurrency), compare with PyTorch per question| 
 | Local browser trial page| [scripts/try_ui.py](../scripts/try_ui.py)| Edit inputs in a browser form, see every option's probability, compare with the policy answer, watch process memory and CPU; Chinese/English| 
-| Summaries and tests| [scripts/summarize_results.py](../scripts/summarize_results.py), [scripts/summarize_engine.py](../scripts/summarize_engine.py), [scripts/calibration_boundary.py](../scripts/calibration_boundary.py), [tests/](../tests)| Every table is generated from raw results; offline "re-calibrate or retrain" decision; offline checks of data and scoring code| 
+| Summaries and tests| [scripts/summarize_results.py](../scripts/summarize_results.py), [scripts/summarize_engine.py](../scripts/summarize_engine.py), [scripts/calibration_boundary.py](../scripts/calibration_boundary.py), [tests/](../tests)| Generate tables and probability diagnostics from raw results; no automatic retraining decision; offline checks of data and scoring code| 
 | Raw evidence| [Evidence directory](../验证结果)| Evaluation reports, predictions, training logs, GPU-memory samples and device records. Checkpoints and full result archives contain files above GitHub's 100 MB limit and are not included; reproduce them with the training steps| 
 | Detailed report| [Detailed validation report](Finetuning-and-On-Device-Validation-Report.md)| Full tables, per-question analysis and claim boundaries| 
 <!-- /SOURCE:TABLE:4 -->
@@ -405,7 +411,7 @@ Do not reinstall matching dependencies. `--preview` checks local links/anchors a
 | Training host and laptop| Vendor| Azure `Standard_NC40ads_H100_v5` (1× H100 NVL) and one Snapdragon X Elite X1E80100 laptop; the x86-64 cross-check used an AMD EPYC 7763 Azure VM| 
 <!-- /SOURCE:TABLE:5 -->
 
-**Not included**: real customer data; multiple random seeds; Hexagon NPU testing, which required Windows test-signing changes not made on the managed corporate laptop; concurrency on the laptop (measured only on the x86-64 VM), long-duration or battery-powered device tests.
+**Not included**: real customer data, multiple random seeds, Hexagon NPU, long-duration and battery-powered device tests. Concurrency was measured separately on x86-64 FT-cf and Snapdragon round-2 C; different models and hardware prevent merging the two into a performance comparison.
 
 #### Evidence and Report Navigation
 
@@ -432,7 +438,7 @@ Do not reinstall matching dependencies. `--preview` checks local links/anchors a
 <!-- SOURCE:TABLE:7 -->
 | Directory| Contents| 
 | ---| ---| 
-| `data/contoso/`| Cases (`*.cases.jsonl`), generated messages (`*.texts.jsonl`) and usage (`*.usage.json`); `final/` holds training/evaluation files. Public records replace generator names with `llm-A` and `llm-B`; other content is unchanged, so SHA-256 values in `manifest.json` differ from experiment-time values| 
+| `data/contoso/`| Cases (`*.cases.jsonl`), generated messages (`*.texts.jsonl`) and usage (`*.usage.json`); `final/` holds training/evaluation files. Public records use generator aliases `llm-A` and `llm-B`; the current manifest verifies file hashes. Byte differences from historical inputs are not fully explained and cannot all be attributed to replacing generator names| 
 | `data/contoso/examples/`| Three editable, unlabeled trial requests from existing test cases and a region-only variant; not training data| 
 | `scripts/`| Current, auxiliary and historical script roles are listed below; historical entries are preserved| 
 | `tests/`| Offline tests requiring neither GPU nor device runtime| 

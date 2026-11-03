@@ -49,27 +49,27 @@ The two tables retain real Snapdragon measurements for all seven deployment conf
 
 <!-- OVERVIEW:INFERENCE -->
 <!-- SOURCE:TABLE:2 -->
-| Model (0.8B, Snapdragon X Elite CPU, default settings)| Test set (questions)| Per-question accuracy (%, failures included)| Median processing time per complete request (seconds, 3 decisions each)| Calibration error ECE (percentage points, lower is better)| Valid-probability coverage (%)| 
+| Model (0.8B, Snapdragon X Elite CPU, default settings)| Test set (questions)| Per-question accuracy (%, failures included)| Median processing time per complete request (seconds, 3 decisions each)| Calibration error ECE (0-1, lower is better)| Valid-probability coverage (%)| 
 | ---| ---| ---| ---| ---| ---| 
-| Released B0, official Q8_0 package| Support: in-distribution (510 questions)| 45.7%| **0.666**| 3.00| 100.0%| 
-| Released B0, official Q8_0 package| Assistant: in-distribution (477 questions)| 66.9%| **0.843**| 9.29| 100.0%| 
-| Fine-tuned FT-cf, Q8_0| Support: in-distribution (510 questions)| 86.9%| **0.646**| 2.82| 100.0%| 
-| Fine-tuned FT-cf, Q8_0| Assistant: in-distribution (477 questions)| 97.7%| **0.984**| 1.44| 100.0%| 
-| Fine-tuned FT, Q4_K_M (separate FT recipe, not FT-cf)| Support: in-distribution (510 questions)| 87.5%| **0.812**| 2.13| 100.0%| 
-| Fine-tuned FT, Q4_K_M (separate FT recipe, not FT-cf)| Assistant: in-distribution (477 questions)| 93.9%| **0.909**| 1.45| 100.0%| 
-| Round-2 C, Q8_0 (delivered)| Support: in-distribution (510 questions)| 96.9%| **0.635**| 3.16| 100.0%| 
-| Round-2 C, Q8_0 (delivered)| Assistant: in-distribution (477 questions)| 99.6%| **0.905**| 1.01| 100.0%| 
+| Released B0, official Q8_0 package| Support: in-distribution (510 questions)| 45.7%| **0.666**| 0.030| 100.0%| 
+| Released B0, official Q8_0 package| Assistant: in-distribution (477 questions)| 66.9%| **0.843**| 0.093| 100.0%| 
+| Fine-tuned FT-cf, Q8_0| Support: in-distribution (510 questions)| 86.9%| **0.646**| 0.028| 100.0%| 
+| Fine-tuned FT-cf, Q8_0| Assistant: in-distribution (477 questions)| 97.7%| **0.984**| 0.014| 100.0%| 
+| Fine-tuned FT, Q4_K_M (separate FT recipe, not FT-cf)| Support: in-distribution (510 questions)| 87.5%| **0.812**| 0.021| 100.0%| 
+| Fine-tuned FT, Q4_K_M (separate FT recipe, not FT-cf)| Assistant: in-distribution (477 questions)| 93.9%| **0.909**| 0.014| 100.0%| 
+| Round-2 C, Q8_0 (delivered)| Support: in-distribution (510 questions)| 96.9%| **0.635**| 0.032| 100.0%| 
+| Round-2 C, Q8_0 (delivered)| Assistant: in-distribution (477 questions)| 99.6%| **0.905**| 0.010| 100.0%| 
 <!-- /SOURCE:TABLE:2 -->
 
 <!-- SOURCE:TABLE:3 -->
-| Model (4B, Snapdragon X Elite CPU, default settings)| Test set (questions)| Per-question accuracy (%, failures included)| Median processing time per complete request (seconds, 3 decisions each)| Calibration error ECE (percentage points, lower is better)| Valid-probability coverage (%)| 
+| Model (4B, Snapdragon X Elite CPU, default settings)| Test set (questions)| Per-question accuracy (%, failures included)| Median processing time per complete request (seconds, 3 decisions each)| Calibration error ECE (0-1, lower is better)| Valid-probability coverage (%)| 
 | ---| ---| ---| ---| ---| ---| 
-| Released B0, official Q4_K_M package| Support: in-distribution (510 questions)| 59.0%| **3.022**| 4.72| 100.0%| 
-| Released B0, official Q4_K_M package| Assistant: in-distribution (477 questions)| 82.0%| **3.790**| 13.42| 100.0%| 
-| Fine-tuned FT-cf, Q8_0| Support: in-distribution (510 questions)| 96.1%| **3.649**| 1.90| 100.0%| 
-| Fine-tuned FT-cf, Q8_0| Assistant: in-distribution (477 questions)| 99.8%| **4.115**| 0.79| 100.0%| 
-| Fine-tuned FT-cf, Q4_K_M| Support: in-distribution (510 questions)| 95.3%| **3.615**| 1.78| 100.0%| 
-| Fine-tuned FT-cf, Q4_K_M| Assistant: in-distribution (477 questions)| 99.6%| **4.751**| 0.93| 100.0%| 
+| Released B0, official Q4_K_M package| Support: in-distribution (510 questions)| 59.0%| **3.022**| 0.047| 100.0%| 
+| Released B0, official Q4_K_M package| Assistant: in-distribution (477 questions)| 82.0%| **3.790**| 0.134| 100.0%| 
+| Fine-tuned FT-cf, Q8_0| Support: in-distribution (510 questions)| 96.1%| **3.649**| 0.019| 100.0%| 
+| Fine-tuned FT-cf, Q8_0| Assistant: in-distribution (477 questions)| 99.8%| **4.115**| 0.008| 100.0%| 
+| Fine-tuned FT-cf, Q4_K_M| Support: in-distribution (510 questions)| 95.3%| **3.615**| 0.018| 100.0%| 
+| Fine-tuned FT-cf, Q4_K_M| Assistant: in-distribution (477 questions)| 99.6%| **4.751**| 0.009| 100.0%| 
 <!-- /SOURCE:TABLE:3 -->
 <!-- /OVERVIEW:INFERENCE -->
 
@@ -81,15 +81,15 @@ The two tables retain real Snapdragon measurements for all seven deployment conf
 
 ## Architecture
 
-Four recipes are compared throughout; their names are fixed here. **B0** is the released Kev model without training. **B0-policy** is the same released model with the full vendor policy text written into every question's prompt. **FT** is supervised fine-tuning of the released model on business data. **FT-cf** adds counterfactual variants to FT's data: the same message with one device field changed. **Round-2 C** is the FT-cf recipe plus 206 variants aimed at the weak fields, trained for 4 epochs. All four fine-tuned recipes start from the same release and are trained independently; **the final recommendation and delivered file is round-2 C** (`Contoso-Kev-0.8B-FTcf-R2C-Q8_0.gguf`). FT-cf is its previous version: the full measurement campaign in sections 1–7 was run on FT-cf; C's GPU figures are in [the second round](文档/Evaluation-Results.md#round2), and its on-device figures on the x86-64 VM and the Snapdragon laptop in the [device regression](文档/Evaluation-Results.md#round2-device).
+The model and recipe names are fixed here. **B0** is the released Kev model without training. **B0-policy** is the same released model with the full vendor policy text written into every question's prompt. **FT** is supervised fine-tuning of the released model on business data. **FT-cf** adds counterfactual variants to FT's data: the same message with one device field changed. **Round-2 C** is the FT-cf recipe plus 206 variants aimed at the weak fields, trained for 4 epochs. FT, FT-cf and round-2 A/B/C start from the same release and are trained independently; **the final recommendation and delivered file is round-2 C** (`Contoso-Kev-0.8B-FTcf-R2C-Q8_0.gguf`). FT-cf is its previous version: sections 1–7 retain measurements of the first-round recipes; C's GPU figures are in [the second round](文档/Evaluation-Results.md#round2), and its on-device figures on the x86-64 VM and the Snapdragon laptop in the [device regression](文档/Evaluation-Results.md#round2-device).
 
 ### Training: Business Data to a Model File
 
 The laptop prepares separate training, calibration and test sets; released Kev is loaded on the Azure training host. Fine-tuning, calibration and evaluation precede export and quantization. The laptop receives the GGUF. [Parameters and return paths](文档/Core-Technology.md)
 
-<img src="images/training-en.png" width="900" alt="Fine-tuning, calibration, evaluation, export and quantization: the customer laptop prepares the training, calibration and test sets; released Kev is loaded inside the Azure training host as the model input to supervised fine-tuning. Four numbered steps are supervised fine-tuning, temperature calibration, BF16 GGUF export and quantization to Q8_0 / Q4_K_M; between calibration and export sits an unnumbered evaluation-gate card whose two orange dashed exits return to fine-tuning (accuracy out of its interval) and to calibration (probabilities off only); the quantized GGUF returns to the same customer laptop; two execution-location lanes (local laptop, cloud training host), a legend and source footnote.">
+<img src="images/training-en.png" width="900" alt="Business data and original-case splits feed independent FT, FT-cf and C recipes. Development review guides human iteration; frozen independent acceptance and device validation of the quantized file remain separate. Export and quantization use CPU before the model returns to the laptop.">
 
-*Original explanatory diagram: blue lines carry data; dashed lines return after evaluation failure. Sources and hashes: [images/provenance.json](images/provenance.json).*
+*Original workflow illustration: blue lines carry data and dashed lines show human-led development feedback, not completed independent customer acceptance. Sources and hashes: [images/provenance.json](images/provenance.json).*
 
 ### Everyday Inference: Decisions Stay on the Laptop
 
@@ -151,7 +151,7 @@ The full matrix of quantization, context size, compute backend, prompt length, m
 
 ### Hardware Requirements
 
-Training VRAM, laptop memory, model file sizes and inferred minimum configurations remain in the [complete hardware table](文档/Evaluation-Results.md#6-hardware-requirements). Estimates are not measurements.
+Training VRAM, laptop memory and model file sizes are in the [measured hardware table](文档/Evaluation-Results.md#6-hardware-requirements). Values describe the specified workloads, not minimum supported configurations for every device.
 
 
 ### Limits
@@ -206,7 +206,7 @@ Region changes, the graphical trial, training, updates, offline tests and stop/r
 | GPU-host training and evaluation pipelines| [scripts/remote_setup.sh](scripts/remote_setup.sh), [scripts/remote_pipeline_v2.sh](scripts/remote_pipeline_v2.sh), [scripts/remote_cf_round.sh](scripts/remote_cf_round.sh), [scripts/remote_export_gguf.sh](scripts/remote_export_gguf.sh)| Baselines, fine-tuning, temperature calibration, evaluation, paired comparison and GGUF export| 
 | Laptop device validation| [scripts/run_engine_eval.ps1](scripts/run_engine_eval.ps1), [scripts/systemone_client.py](scripts/systemone_client.py), [scripts/parity.py](scripts/parity.py)| Start llama-server, score and time request by request (including concurrency), compare with PyTorch per question| 
 | Local browser trial page| [scripts/try_ui.py](scripts/try_ui.py)| Edit inputs in a browser form, see every option's probability, compare with the policy answer, watch process memory and CPU; Chinese/English| 
-| Summaries and tests| [scripts/summarize_results.py](scripts/summarize_results.py), [scripts/summarize_engine.py](scripts/summarize_engine.py), [scripts/calibration_boundary.py](scripts/calibration_boundary.py), [tests/](tests/)| Every table is generated from raw results; offline "re-calibrate or retrain" decision; offline checks of data and scoring code| 
+| Summaries and tests| [scripts/summarize_results.py](scripts/summarize_results.py), [scripts/summarize_engine.py](scripts/summarize_engine.py), [scripts/calibration_boundary.py](scripts/calibration_boundary.py), [tests/](tests/)| Generate tables and probability diagnostics from raw results; no automatic retraining decision; offline checks of data and scoring code| 
 | Raw evidence| [Evidence directory](验证结果/)| Evaluation reports, predictions, training logs, GPU-memory samples and device records. Checkpoints and full result archives contain files above GitHub's 100 MB limit and are not included; reproduce them with the training steps| 
 | Detailed report| [Detailed validation report](文档/Finetuning-and-On-Device-Validation-Report.md)| Full tables, per-question analysis and claim boundaries| 
 <!-- /SOURCE:TABLE:6 -->

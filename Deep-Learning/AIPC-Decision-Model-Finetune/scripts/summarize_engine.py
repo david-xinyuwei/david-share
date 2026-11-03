@@ -71,7 +71,7 @@ def brief_table(rows, incomplete):
 
 def before_after_table(rows):
     by_label = {row["label"]: row for row in rows}
-    lines = ["| 固定模型配置 | 性能指标（单位） | 微调前测量值：发布版 | 微调后测量值：最终方案 |",
+    lines = ["| 固定模型配置 | 性能指标（单位） | 微调前测量值：发布版 | 微调后测量值：第一轮 FT-cf |",
              "|---|---|---|---|"]
     for size, quantization in (("0.8b", "Q8_0"), ("4b", "Q4_K_M")):
         before = by_label.get(f"released-kev-{size}-{quantization}-cpu", {})

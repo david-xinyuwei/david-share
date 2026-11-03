@@ -412,16 +412,16 @@ The section 5 tables retain each configuration. Files are 528 MiB for 0.8B Q4_K_
 ### 4.4 Hardware Selection
 
 <!-- SOURCE:TABLE:15 -->
-| Stage| GPU required?| Measured hardware and usage (GPU memory is nvidia-smi peak)| Estimated minimum from memory measurements; these cards were not tested| 
-| ---| ---| ---| ---| 
-| Train 0.8B| 1 GPU required; these scripts use NVIDIA CUDA| H100 NVL; 4,555 MiB GPU memory (micro-batch 1), 7,573 MiB (micro-batch 4)| 8 GB GPU memory (micro-batch 1)| 
-| Train 4B| 1 GPU required; these scripts use NVIDIA CUDA| H100 NVL; 18,547 MiB (micro-batch 1, probe only), 26,215–33,359 MiB (micro-batch 4)| 24 GB GPU memory (micro-batch 1); over 40 GB for micro-batch 4| 
-| GGUF export| No; CPU only| GPU host's CPU| —| 
-| Laptop inference 0.8B (Q8_0)| No discrete GPU or NPU; CPU inference| 12-core Snapdragon X Elite; 2,314 MiB peak working set, 5,014 MiB commitment (defaults) or 2,119 MiB (`-c 2048 -ub 512`)| Size total RAM for this process plus the OS and other applications| 
-| Laptop inference 4B FT-cf (Q8_0 / Q4_K_M)| No discrete GPU or NPU; CPU inference| 12-core Snapdragon X Elite; peak working set 9,609 / 6,842 MiB and commitment 8,884 / 7,495 MiB| Same sizing principle| 
+| Stage| GPU required?| Measured hardware and usage (GPU memory is nvidia-smi peak)| 
+| ---| ---| ---| 
+| Train 0.8B| 1 GPU required; these scripts use NVIDIA CUDA| H100 NVL; 4,555 MiB GPU memory (micro-batch 1), 7,573 MiB (micro-batch 4)| 
+| Train 4B| 1 GPU required; these scripts use NVIDIA CUDA| H100 NVL: 18,547 MiB (micro-batch 1, short 64-record probe); 26,215-33,359 MiB (micro-batch 4, full training)| 
+| GGUF export| No; CPU only| GPU host's CPU| 
+| Laptop inference 0.8B (Q8_0)| No discrete GPU or NPU; CPU inference| 12-core Snapdragon X Elite; 2,314 MiB peak working set, 5,014 MiB commitment (defaults) or 2,119 MiB (`-c 2048 -ub 512`)| 
+| Laptop inference 4B FT-cf (Q8_0 / Q4_K_M)| No discrete GPU or NPU; CPU inference| 12-core Snapdragon X Elite; peak working set 9,609 / 6,842 MiB and commitment 8,884 / 7,495 MiB| 
 <!-- /SOURCE:TABLE:15 -->
 
-The 24 GB recommendation for 4B is an estimate: batch 1 was probed on 64 long records at 18,547 MiB, not fully trained. Full 0.8B training uses about 8% more whole-device memory than its probe, 4,555 versus 4,213 MiB. Applying that margin suggests about 20 GB for 4B, leaving roughly 4 GB on a 24 GB card.
+This table reports measured usage, not a minimum supported GPU inferred from a 64-record probe or another model's margin.
 
 The recipe uses `--dtype bf16`; verify support. Training times are measured only on H100 NVL, not smaller GPUs. `kev.benchmark` evaluation also used GPU, with memory not separately recorded, and is not required for deployed inference. The NPU was not tested; Adreno was slower than CPU.
 
@@ -491,7 +491,7 @@ The converter merges LoRA into the base and writes calibration temperature into 
 
 ### Finding 2: Quantization Trades Memory for Agreement
 
-0.8B Q4_K_M saves about 250 MiB on disk and 500 MiB working set. Its support/assistant medians are 812/909 ms versus 669/822 ms for Q8_0, within the variability discussed below. Agreement drops to 94.9%/97.9%, with some probability differences of 0.46-0.58. Its support accuracy of 87.5%, 1 point above PyTorch, is a favorable quantization perturbation on this set, not evidence that it is generally better.
+0.8B FT Q4_K_M saves about 250 MiB on disk and 500 MiB peak working set. Its support/assistant medians are 812/909 ms versus 669/822 ms for Q8_0, and agreement with PyTorch is 94.9%/97.9%. Its 87.5% support accuracy really exceeds PyTorch by one point on this set; this is neither dismissed as random noise nor generalized to universal superiority. Run conditions differ, so timings are observations rather than a stable ranking.
 
 For 4B FT-cf, Q4_K_M saves 1,383 MiB on disk, 2,893 versus 4,276 MiB, and 2,767 MiB working set, 6,842 versus 9,609 MiB. Agreement falls from 99.4%/100% to 98.2%/99.8%, with individual probability differences up to 0.60. Support accuracy is 95.3%, 0.6 points below PyTorch: 6 questions move from PyTorch-correct to engine-wrong and 3 in the reverse direction. Timing cannot discriminate the formats in this run. Use Q8_0 by default; consider Q4_K_M when memory is constrained.
 
@@ -509,7 +509,7 @@ With the same released 0.8B Q8_0 CPU settings, B0-policy increases median input 
 
 ### Finding 6: One Run Does Not Establish Small Latency Differences
 
-0.8B FT and FT-cf Q8_0 have identical architecture and per-record input-token counts. Paired by record, FT-cf is 53 ms faster on support and 166 ms slower on assistant, approximately -8%/+20%. Its first device run overlapped a result-summary process and had an 841 ms support median; it was rerun on an idle laptop, and the tables use that rerun. Each configuration has one measured run, without controlled temperature or power state. Therefore Q4_K_M/Q8_0 differences of +21%/+11% are not ranked, whereas Adreno (+49%-76%), `-c 2048 -ub 512` (+44%/+74%) and B0-policy (2.9-6.5 times the latency) exceed that observed variation.
+FT and FT-cf share architecture and input-token counts but differ in weights and run state. Paired median differences are -53 ms for support and +166 ms for assistant. FT-cf's first run overlapped a summary process and had an 841 ms support median; tables use the idle rerun. This does not define a 20% cross-configuration noise threshold. Stable rankings require repeated measurements under matched conditions.
 
 The three 4B runs, released Q4_K_M, FT-cf Q8_0 and FT-cf Q4_K_M, also have identical token counts per record. Paired medians differ by 7-24%; even the two same-architecture Q4_K_M runs differ by 23-24%, or +666 ms on support and +906 ms on assistant. At assistant record 139, the FT-cf Q8_0 run entered Modern Standby for 5.4 hours, supported by Kernel-Power events 506/507. Including that request yields a 4,115 ms median; excluding it gives 4,113 ms. Q4_K_M runs after resume, so the two formats cannot be ranked by latency. Only the roughly 3-5 second decision range is supported.
 
