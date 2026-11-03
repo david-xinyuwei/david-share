@@ -1,0 +1,62 @@
+{
+  "started_utc": "2026-11-03T05:23:31.835952+00:00",
+  "platform": "Windows-11-10.0.26300-SP0",
+  "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+  "settings": {
+    "engine": "llama.cpp b11935-cpu-x64/llama-server.exe",
+    "model": "Contoso-Kev-0.8B-FTcf-R2C-Q8_0.gguf",
+    "data": "data/contoso/final (frozen byte copy; input_sha256 below)",
+    "concurrency": [
+      1,
+      2,
+      4,
+      8,
+      16,
+      32,
+      64,
+      128,
+      256
+    ],
+    "records_per_set": 32,
+    "context": 8192,
+    "port": 8127,
+    "process_limit_mib": 24576,
+    "reserve_mib": 8192,
+    "tier_seconds": 900,
+    "request_timeout": 180
+  },
+  "initial_memory": {
+    "physical_total_mib": 65484.83984375,
+    "physical_available_mib": 35456.31640625,
+    "commit_limit_mib": 74700.83984375,
+    "commit_available_mib": 42791.28125
+  },
+  "datasets": {
+    "test_support": {
+      "input_sha256": "ef0a2befc0652bacef438395e465e2928c3ca0e5423b4853deda5bc03ba106c5",
+      "selected_records": 32
+    },
+    "test_assistant": {
+      "input_sha256": "70f1463bad3438b058db9f82e3cbf7d0243c5f7a5b37b23945f33bdbec83fb31",
+      "selected_records": 32
+    },
+    "ood_support": {
+      "input_sha256": "cdf37fa4a0f6f51f13ebeb80f6e261231a1f6f6e8402a9efd9a3d5b99fceb4dc",
+      "selected_records": 32
+    },
+    "ood_assistant": {
+      "input_sha256": "4cc7680103549e5477434bdebc8bc408b6cba08b04b0e7cc25863818f215c99b",
+      "selected_records": 32
+    }
+  },
+  "requests_per_tier": 384,
+  "source_sha256": {
+    "run_concurrency_capacity.py": "631a90e11f3c60334af4e4ec1b8ca766eaad77613c44e2ef0d5ab8e1cc4625f2",
+    "systemone_client.py": "9335688b2bbfbb708bfa24452573f006922363128e03faf7efd08d309f176c5c",
+    "try_ui.py": "abd27a8a8831d31e55d6632aaabee3cd7eea1952fd89c846dbc96dc5ba481ebd",
+    "vendor_policy.py": "13a1e32451f594e04b311025d59c1c1751d274d4a1512c0dd11781b025df64a3"
+  },
+  "engine_sha256": "20be913c9dcd889749037841a9e77699754bb274f1d1055bf271e330f3d87849",
+  "model_sha256": "c427ed7a8e797e1f6b6a838a80d4c32d8735b85dfa742f2dafba89307808ad05",
+  "scope": "Windows x64 CPU capacity diagnostic on a fixed subset, not Snapdragon results or a full accuracy benchmark"
+}

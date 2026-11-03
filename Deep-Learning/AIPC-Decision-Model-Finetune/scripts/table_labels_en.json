@@ -1131,5 +1131,13 @@
  "骁龙上 2,314 MiB、提交内存 5,014 MiB（与 FT-cf 完全相同；`-c 2048` 时 2,196 / 2,119）；文件 775 MiB；服务就绪等待 2.6 秒；x86-64 上 1,552 MiB、CPU 50%（8 / 16 线程）（[第 5 节](#5-笔记本端推理引擎)、[第 6 节](#6-需要什么硬件)）": "2,314 MiB on Snapdragon, commit charge 5,014 MiB (identical to FT-cf; 2,196 / 2,119 with `-c 2048`); file 775 MiB; service-readiness wait 2.6 s; 1,552 MiB and CPU 50% (8 / 16 threads) on x86-64 ([section 5](#5-laptop-inference-engine), [section 6](#6-hardware-requirements))",
  "骁龙上 2,314 MiB、提交内存 5,014 MiB（与 FT-cf 完全相同；`-c 2048` 时 2,196 / 2,119）；文件 775 MiB；服务就绪等待 2.6 秒；x86-64 上 1,552 MiB、CPU 50%（8 / 16 线程）（[第 5 节](文档/评测与端侧结果全集.md#5-笔记本端推理引擎)、[第 6 节](文档/评测与端侧结果全集.md#6-需要什么硬件)）": "2,314 MiB on Snapdragon, commit charge 5,014 MiB (identical to FT-cf; 2,196 / 2,119 with `-c 2048`); file 775 MiB; service-readiness wait 2.6 s; 1,552 MiB and CPU 50% (8 / 16 threads) on x86-64 ([section 5](文档/Evaluation-Results.md#5-laptop-inference-engine), [section 6](文档/Evaluation-Results.md#6-hardware-requirements))",
  "单条任务处理耗时（工单 / 助手，毫秒，中位数）": "Time per task (support / assistant, ms, median)",
- "模型加载阶段耗时（秒，日志）": "Model-loading stage (s, server log)"
+ "模型加载阶段耗时（秒，日志）": "Model-loading stage (s, server log)",
+ "同时在途请求数（= 服务端槽位，每槽 8,192 token）": "Requests in flight (= server slots, 8,192 tokens per slot)",
+ "成功请求 / 总请求": "Successful / total requests",
+ "答对 / 总请求（同一 384 题，失败计答错）": "Correct / total requests (same 384 questions; failures count as wrong)",
+ "耗时中位数（秒，成功请求）": "Median latency (s, successful requests)",
+ "p95 耗时（秒，成功请求，最近秩）": "p95 latency (s, successful requests, nearest rank)",
+ "吞吐（成功请求/秒，墙钟）": "Throughput (successful requests/s, wall clock)",
+ "私有提交峰值（MiB，每 0.5 秒采样）": "Peak private commit (MiB, sampled every 0.5 s)",
+ "整机最低可用物理内存（MiB，含其他进程）": "Lowest available physical memory on the VM (MiB, other processes included)"
 }

@@ -604,6 +604,23 @@ class ReportLayoutTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "device/configuration mismatch"):
                 single_question_tables(campaign)
 
+    def test_capacity_table_recomputes_public_rows_and_rejects_split_slot_context(self):
+        from render_diagrams import capacity_table, report_sources
+
+        source = report_sources()["cloud_capacity_results"]
+        text = capacity_table(source)
+        self.assertEqual([line.split("|")[1].strip() for line in text.splitlines()[2:]], ["1", "2", "4", "8", "16", "32"])
+        self.assertIn("| 4 | 384 / 384 |", text)
+        self.assertIn("| 32 | 375 / 384 |", text)
+        self.assertIn("2,238", text)
+        with tempfile.TemporaryDirectory() as temporary:
+            campaign = Path(temporary) / "campaign"
+            shutil.copytree(source, campaign)
+            log = campaign / "c4-slots4/server.log"
+            log.write_bytes(log.read_bytes().replace(b"n_ctx_slot = 8192", b"n_ctx_slot = 2048"))
+            with self.assertRaisesRegex(ValueError, "server log mismatch"):
+                capacity_table(campaign)
+
     def accuracy_summary(self):
         sets = {}
         for size in ("0.8b", "4b"):

@@ -1,4 +1,5 @@
 /data/contoso/final/*.jsonl -text
 /验证结果/单题端侧评测_骁龙_20261103-111934/公开/**/*.jsonl -text
+/验证结果/云机单题并发容量_20261103-130933/公开/** -text
 /images/vendor/*.svg -text
 /images/vendor/fluent-LICENSE.txt -text

@@ -7,6 +7,7 @@ import math
 import os
 import re
 import statistics
+from datetime import datetime
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import unquote, urlsplit, urlunsplit
@@ -16,9 +17,9 @@ from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCUMENT_PAIRS = (
-    ("README_CN.md", "README.md", 5, 5),
+    ("README_CN.md", "README.md", 6, 5),
     ("文档/核心技术_微调与端侧运行.md", "文档/Core-Technology.md", 4, 2),
-    ("文档/评测与端侧结果全集.md", "文档/Evaluation-Results.md", 37, 7),
+    ("文档/评测与端侧结果全集.md", "文档/Evaluation-Results.md", 38, 7),
     ("文档/操作步骤全本.md", "文档/Operations-Guide.md", 8, 20),
     ("文档/微调与端侧验证报告_20261027-130700.md", "文档/Finetuning-and-On-Device-Validation-Report.md", 20, 1),
 )
@@ -429,9 +430,11 @@ def report_sources():
     if len(matches) != 1:
         raise ValueError("Expected one REPORT:SOURCES configuration in README_CN.md")
     sources = json.loads(matches[0])
-    expected = {"first_summary", "round2_summary", "device_results", "round2_device_results", "single_question_results"}
+    expected = {"first_summary", "round2_summary", "device_results", "round2_device_results", "single_question_results",
+                "cloud_capacity_results"}
     if set(sources) != expected:
-        raise ValueError("Report source configuration must name both summaries, historical campaigns and the single-question campaign")
+        raise ValueError("Report source configuration must name both summaries, historical campaigns, the single-question campaign "
+                         "and the cloud capacity campaign")
     paths = {}
     for name, relative in sources.items():
         if not isinstance(relative, str) or Path(relative).is_absolute():
@@ -565,7 +568,7 @@ def single_question_description(language="zh"):
                 "准确率、ECE 和耗时来自同一批请求，错误保留在准确率分母。\n\n"
                 "**内存与并发前提：** 同一个模型服务进程连续处理所有请求，峰值工作集是整轮最高值（含加载、预热、模型常驻权重和运行缓冲），"
                 "不是每个请求新增的内存，也不是恒定占用或内存上限。顺序处理 100 次不能乘以 100；"
-                "100 个同时在途请求则是另一种负载。本轮只测并发 1，不能从峰值内存反推最大并发；单题并发容量尚未实测。"
+                "100 个同时在途请求则是另一种负载。本轮只测并发 1，不能从峰值内存反推最大并发；骁龙上尚未测单题并发，云机 x64 实测见下文。"
                 "同配置各数据集重复显示整轮峰值，不是分别测出的数据集峰值。")
     return (f"**Each request answers exactly one question.** The table includes only received, individually verified single-question results: "
             f"{len(configurations)}/7 configurations, {len(summaries)}/28 combinations and {requests:,} measured requests. "
@@ -577,7 +580,189 @@ def single_question_description(language="zh"):
             "maximum over that whole run, including loading, warm-up, resident weights and runtime buffers. It is neither extra memory per "
             "request, constant usage, nor a memory limit. Do not multiply it by 100 for 100 sequential requests; 100 concurrent requests are "
             "a different workload. Only concurrency 1 was measured here, so peak memory does not establish maximum concurrency. "
-            "Single-question concurrency capacity has not been measured. Dataset rows repeat the configuration's whole-run peak.")
+            "Single-question concurrency has not been measured on Snapdragon; the cloud x64 measurement follows below. "
+            "Dataset rows repeat the configuration's whole-run peak.")
+
+
+CAPACITY_DATASETS = ("test_support", "test_assistant", "ood_support", "ood_assistant")
+
+
+def capacity_results(campaign=None):
+    from systemone_client import request_body, score_answer
+
+    campaign = report_sources()["cloud_capacity_results"] if campaign is None else Path(campaign)
+    environment = json.loads((campaign / "environment.json").read_text(encoding="utf-8"))
+    settings = environment["settings"]
+    context = settings["context"]
+    manifest = json.loads((ROOT / "data/contoso/final/manifest.json").read_text(encoding="utf-8"))
+    expected = {}
+    for dataset in CAPACITY_DATASETS:
+        if environment["datasets"][dataset]["input_sha256"] != manifest[f"{dataset}.jsonl"]["sha256"]:
+            raise ValueError(f"Capacity input differs from the published dataset: {dataset}")
+        records = [json.loads(line) for line in (ROOT / f"data/contoso/final/{dataset}.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
+        for index, record in enumerate(records[:settings["records_per_set"]]):
+            for question_id, question in record["questions"].items():
+                expected[f"{dataset}/{index}/{question_id}"] = (record, question_id, question)
+    if len(expected) != environment["requests_per_tier"]:
+        raise ValueError("Capacity request count differs from the selected records")
+    tiers = []
+    for concurrency in settings["concurrency"]:
+        directory = campaign / f"c{concurrency}-slots{concurrency}"
+        if not directory.is_dir():
+            break
+        result = json.loads((directory / "result.json").read_text(encoding="utf-8"))
+        arguments = result["server_arguments"]
+        required = {"-np": concurrency, "-c": context * concurrency, "-b": 2048, "-ub": 2048, "-ngl": 0, "--cache-ram": 0}
+        if (result["client_concurrency"] != concurrency or result["configured_slots"] != concurrency
+                or result["actual_slots"] != concurrency or result["actual_context_per_slot"] != context
+                or result["max_observed_client_inflight"] != concurrency or result["process_budget_readback"] != "PASS"
+                or any(not any(arguments[i:i + 2] == [flag, str(value)] for i in range(len(arguments) - 1))
+                       for flag, value in required.items())):
+            raise ValueError(f"Capacity slot/configuration mismatch: {directory.name}")
+        log = (directory / "server.log").read_text(encoding="utf-8", errors="replace")
+        if (re.findall(r"n_slots = (\d+), n_ctx_slot = (\d+)", log) != [(str(concurrency), str(context))]
+                or re.search(r"out of memory|bad_alloc|failed to allocate|not enough memory", log, re.I)):
+            raise ValueError(f"Capacity server log mismatch: {directory.name}")
+        rows = [json.loads(line) for line in (directory / "rows.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
+        if sorted(row["id"] for row in rows) != sorted(expected):
+            raise ValueError(f"Capacity request coverage mismatch: {directory.name}")
+        latencies, correct, error_types = [], 0, []
+        for row in rows:
+            record, question_id, question = expected[row["id"]]
+            if row["request"] != request_body({**record, "questions": {question_id: question}}):
+                raise ValueError(f"Capacity request/input mismatch: {directory.name}/{row['id']}")
+            if row["status"] == "error" and "error" in row:
+                error_types.append(row["error"]["type"])
+                continue
+            latency = row.get("latency_ms")
+            if (row["status"] != "ok" or isinstance(latency, bool) or not isinstance(latency, (int, float))
+                    or not math.isfinite(latency) or latency < 0):
+                raise ValueError(f"Capacity status/latency mismatch: {directory.name}/{row['id']}")
+            score = score_answer(question, row["response"]["answers"][question_id])
+            if score["ok"] != row["score"]["ok"]:
+                raise ValueError(f"Capacity grading mismatch: {directory.name}/{row['id']}")
+            latencies.append(latency)
+            correct += score["ok"]
+        latencies.sort()
+        samples = [json.loads(line) for line in (directory / "memory.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
+        process = [sample["process"] for sample in samples if sample["process"].get("available")]
+        if not process or len(samples) != result["memory_samples"]:
+            raise ValueError(f"Capacity memory samples missing: {directory.name}")
+        tier = {"concurrency": concurrency, "status": result["status"], "answered": len(latencies), "correct": correct,
+                "errors": len(error_types), "error_types": sorted(set(error_types)),
+                "p50_ms": statistics.median(latencies) if latencies else None,
+                "p95_ms": latencies[math.ceil(0.95 * len(latencies)) - 1] if latencies else None,
+                "throughput": len(latencies) / result["wall_seconds"],
+                "peak_working_set_mib": max(item["peak_working_set_mib"] for item in process),
+                "peak_private_mib": max(item["private_mib"] for item in process),
+                "lowest_available_mib": min(sample["physical_available_mib"] for sample in samples),
+                "lowest_commit_mib": min(sample["commit_available_mib"] for sample in samples)}
+        span = (max(datetime.fromisoformat(row["finished_utc"]) for row in rows)
+                - min(datetime.fromisoformat(row["started_utc"]) for row in rows)).total_seconds()
+        pairs = [(result["answered"], tier["answered"]), (result["errors"], tier["errors"]), (result["completed"], len(rows)),
+                 (result["latency_p50_ms"], tier["p50_ms"]), (result["latency_p95_ms"], tier["p95_ms"]),
+                 (result["requests_per_second"], tier["throughput"]), (result["accuracy"], correct / len(expected)),
+                 (result["peak_working_set_mib"], tier["peak_working_set_mib"]),
+                 (result["peak_sampled_private_mib"], tier["peak_private_mib"]),
+                 (result["minimum_available_ram_mib"], tier["lowest_available_mib"]),
+                 (result["minimum_commit_headroom_mib"], tier["lowest_commit_mib"])]
+        expected_status = "PROTECTED_STOP" if result["guard_reasons"] else "FAIL" if error_types else "PASS"
+        if (result["status"] != expected_status or not 0 <= result["wall_seconds"] - span < 5
+                or any((a is None) != (b is None) or (a is not None and not math.isclose(a, b, rel_tol=1e-9, abs_tol=1e-9))
+                       for a, b in pairs)):
+            raise ValueError(f"Capacity raw recomputation mismatch: {directory.name}")
+        tiers.append(tier)
+        if tier["status"] != "PASS":
+            break
+    status = json.loads((campaign / "status.json").read_text(encoding="utf-8"))
+    passed = [tier["concurrency"] for tier in tiers if tier["status"] == "PASS"]
+    failed = [tier["concurrency"] for tier in tiers if tier["status"] != "PASS"]
+    if (not tiers or status["status"] != "FINISHED" or status["completed_tiers"] != len(tiers)
+            or status["highest_passed_setting"] != (passed[-1] if passed else None)
+            or status["first_nonpassing_tier"] != (failed[0] if failed else None)):
+        raise ValueError("Capacity campaign status mismatch")
+    return {"tiers": tiers, "untested": settings["concurrency"][len(tiers):], "requests": len(expected),
+            "context": context, "timeout_s": settings["request_timeout"]}
+
+
+def capacity_table(campaign=None):
+    data = capacity_results(campaign)
+    total = data["requests"]
+    lines = [f"| 同时在途请求数（= 服务端槽位，每槽 {data['context']:,} token） | 成功请求 / 总请求 | 答对 / 总请求（同一 {total} 题，失败计答错） | "
+             "耗时中位数（秒，成功请求） | p95 耗时（秒，成功请求，最近秩） | 吞吐（成功请求/秒，墙钟） | 整轮进程峰值工作集（MiB） | "
+             "私有提交峰值（MiB，每 0.5 秒采样） | 整机最低可用物理内存（MiB，含其他进程） |",
+             "|---|---|---|---|---|---|---|---|---|"]
+    for tier in data["tiers"]:
+        p50, p95 = (f"{tier[name] / 1000:.2f}" if tier[name] is not None else "—" for name in ("p50_ms", "p95_ms"))
+        lines.append(f"| {tier['concurrency']} | {tier['answered']} / {total} | {tier['correct']} / {total} | {p50} | {p95} | "
+                     f"{tier['throughput']:.3f} | {peak_working_set_cell(tier)} | {tier['peak_private_mib']:,.0f} | "
+                     f"{tier['lowest_available_mib']:,.0f} |")
+    return "\n".join(lines)
+
+
+def capacity_notes(language="zh", readme=False):
+    data = capacity_results()
+    tiers, untested, total = data["tiers"], data["untested"], data["requests"]
+    first, last = tiers[0], tiers[-1]
+    rates = [tier["throughput"] for tier in tiers]
+    passed = [tier["concurrency"] for tier in tiers if tier["status"] == "PASS"]
+    failed = next((tier for tier in tiers if tier["status"] != "PASS"), None)
+    within = [tier for tier in tiers if tier["peak_working_set_mib"] <= 3072]
+    best = within[-1] if within else None
+    after = next((tier for tier in tiers if best and tier["concurrency"] > best["concurrency"]), None)
+    gap = (best["concurrency"] + 1, after["concurrency"] - 1) if best and after and after["concurrency"] - best["concurrency"] > 1 else None
+    timeouts = failed is not None and failed["error_types"] == ["TimeoutError"]
+    if language == "zh":
+        lines = [f"- **内存随并发上涨，不是固定值。** 整轮进程峰值工作集从并发 {first['concurrency']} 的 {first['peak_working_set_mib']:,.0f} MiB "
+                 f"升到并发 {last['concurrency']} 的 {last['peak_working_set_mib']:,.0f} MiB。"
+                 + (f"已测档位里不超过 3 GiB（3,072 MiB）的最高档是并发 {best['concurrency']}（{best['peak_working_set_mib']:,.0f} MiB）" if best else "")
+                 + (f"，下一档并发 {after['concurrency']} 为 {after['peak_working_set_mib']:,.0f} MiB" if after else "")
+                 + ((f"，并发 {gap[0]}–{gap[1]} 未测" if gap[1] > gap[0] else f"，并发 {gap[0]} 未测") if gap else "")
+                 + ("。" if best else ""),
+                 f"- **先到上限的是处理速度，不是内存。** 各档吞吐都在 {min(rates):.3f}–{max(rates):.3f} 成功请求/秒，并发增加只拉长等待："
+                 f"耗时中位数从 {first['p50_ms'] / 1000:.2f} 秒升到 {last['p50_ms'] / 1000:.2f} 秒。"]
+        if failed:
+            lines.append(f"- **并发 {failed['concurrency']} 出现失败。** {failed['errors']} 个请求"
+                         + (f"在客户端等满 {data['timeout_s']} 秒超时" if timeouts else "失败")
+                         + f"，其余请求耗时中位数 {failed['p50_ms'] / 1000:.2f} 秒；服务日志没有内存分配失败，整机最低仍有 "
+                         f"{failed['lowest_available_mib']:,.0f} MiB 可用物理内存、{failed['lowest_commit_mib']:,.0f} MiB 剩余可提交内存。"
+                         "个别请求为何远慢于中位数，本次未单独查明。")
+        lines.append(f"- **边界。** 无错误的最高档是并发 {passed[-1]}，这是本次已测下界，不是容量上限；"
+                     + (f"按协议在首个失败档停止，并发 {'、'.join(map(str, untested))} 未运行，" if untested else "")
+                     + f"内存耗尽点未测到。每档运行一次，只用 {total} 题子集，不替代主表的全量准确率；这是 AMD EPYC 云机结果，不能换算到骁龙。"
+                     + ("[方法与原始证据](文档/评测与端侧结果全集.md#concurrency-single-question)" if readme else ""))
+        return "\n".join(lines)
+    lines = [f"- **Memory rises with concurrency; it is not a fixed amount.** The whole-run peak process working set rises from "
+             f"{first['peak_working_set_mib']:,.0f} MiB at concurrency {first['concurrency']} to {last['peak_working_set_mib']:,.0f} MiB at concurrency {last['concurrency']}."
+             + (f" The highest tested tier within 3 GiB (3,072 MiB) is concurrency {best['concurrency']} ({best['peak_working_set_mib']:,.0f} MiB)" if best else "")
+             + (f"; the next tier, concurrency {after['concurrency']}, uses {after['peak_working_set_mib']:,.0f} MiB" if after else "")
+             + ((f", and concurrencies {gap[0]}-{gap[1]} were not tested" if gap[1] > gap[0] else f", and concurrency {gap[0]} was not tested") if gap else "")
+             + ("." if best else ""),
+             f"- **Processing speed reaches its limit before memory does.** Every tier completes {min(rates):.3f}-{max(rates):.3f} successful requests per second, "
+             f"so more concurrency only lengthens the wait: median latency rises from {first['p50_ms'] / 1000:.2f} s to {last['p50_ms'] / 1000:.2f} s."]
+    if failed:
+        lines.append(f"- **Concurrency {failed['concurrency']} has failures.** {failed['errors']} requests "
+                     + (f"timed out after waiting {data['timeout_s']} s at the client" if timeouts else "failed")
+                     + f"; the remaining requests have a median latency of {failed['p50_ms'] / 1000:.2f} s. The server log has no memory-allocation failure, "
+                     f"and the VM still had at least {failed['lowest_available_mib']:,.0f} MiB of available physical memory and "
+                     f"{failed['lowest_commit_mib']:,.0f} MiB of remaining commit capacity. Why individual requests were far slower than the median "
+                     "was not investigated separately.")
+    skipped = ", ".join(map(str, untested[:-1])) + " and " + str(untested[-1]) if len(untested) > 1 else "".join(map(str, untested))
+    lines.append(f"- **Limits.** Concurrency {passed[-1]} is the highest tier without errors; it is a measured lower bound, not a capacity limit. "
+                 + (f"The run stopped at the first failing tier as planned, so concurrencies {skipped} did not run. " if untested else "")
+                 + f"The point where memory runs out was not reached. Each tier ran once on a {total}-question subset, which does not replace "
+                 "the full accuracy in the main table. These are AMD EPYC cloud VM results and do not convert to Snapdragon."
+                 + (" [Method and raw evidence](文档/Evaluation-Results.md#concurrency-single-question)" if readme else ""))
+    return "\n".join(lines)
+
+
+def with_capacity_notes(text, language="zh", readme=False):
+    text, replacements = re.subn(r"<!-- CAPACITY:NOTES -->.*?<!-- /CAPACITY:NOTES -->",
+                                 lambda _: "<!-- CAPACITY:NOTES -->\n" + capacity_notes(language, readme)
+                                 + "\n<!-- /CAPACITY:NOTES -->", text, flags=re.S)
+    if replacements != 1:
+        raise ValueError("Missing or duplicated capacity notes marker")
+    return text
 
 
 def record_request_tables():
@@ -757,7 +942,7 @@ def overview_blocks():
     load = model_loading_seconds(sources["round2_device_results"] / "r2c-kev-0.8b-Q8_0-cpu/server.log")
     quantization = next(row[1] for row in rows(precision[0])[1:] if row[0] == "微调 FT-cf，Q8_0")
     precision[0] += f"\n| 第二轮 C，Q8_0（交付） | {quantization} | {weight} | {support} / {assistant} | {parity} | {latency} | {peak} | {load} |"
-    return {"ACCURACY": "\n".join(accuracy), "INFERENCE": single_question_tables(),
+    return {"ACCURACY": "\n".join(accuracy), "INFERENCE": single_question_tables(), "CAPACITY": capacity_table(),
             "LEGACY_INFERENCE": "\n\n".join(precision),
             "LEVERS": tables_after("#### 推理优化：测过哪些杠杆")[0],
             "HARDWARE": tables_after("### 6. 需要什么硬件")[0]}
@@ -775,7 +960,7 @@ def overview_for_readme():
         return "](" + urlunsplit(("", "", path, parsed.query, parsed.fragment)) + ")"
 
     return {name: re.sub(r"\]\(([^)]+)\)", rebase, text) for name, text in overview_blocks().items()
-            if name in ("ACCURACY", "INFERENCE")}
+            if name in ("ACCURACY", "INFERENCE", "CAPACITY")}
 
 
 def long_input_note(language="zh"):
@@ -832,7 +1017,12 @@ def sync_overview():
                                    + "\n<!-- /TABLE:CALIBRATION_DIAGNOSTIC -->", detail, flags=re.S)
     if replacements != 1:
         raise ValueError("Missing or duplicated calibration diagnostic marker")
-    detail_path.write_text(detail, encoding="utf-8")
+    detail, replacements = re.subn(r"<!-- CAPACITY:TABLE -->.*?<!-- /CAPACITY:TABLE -->",
+                                   lambda _: "<!-- CAPACITY:TABLE -->\n" + capacity_table()
+                                   + "\n<!-- /CAPACITY:TABLE -->", detail, flags=re.S)
+    if replacements != 1:
+        raise ValueError("Missing or duplicated capacity table marker")
+    detail_path.write_text(with_capacity_notes(detail), encoding="utf-8")
     path = ROOT / "README_CN.md"
     text = path.read_text(encoding="utf-8")
     text, replacements = re.subn(r"<!-- SINGLE:METHOD -->.*?<!-- /SINGLE:METHOD -->",
@@ -840,6 +1030,7 @@ def sync_overview():
                                 + "\n<!-- /SINGLE:METHOD -->", text, flags=re.S)
     if replacements != 1:
         raise ValueError("Missing or duplicated laptop inference introduction")
+    text = with_capacity_notes(text, readme=True)
     recipe = (
         "发布版不做业务微调；FT-cf 用 3,832 条业务样本训练 2 遍，C 增加 206 条变体后用 4,038 条训练 4 遍。"
         "两者都额外混入 1,000 条 Kev 通用回放，从同一个发布版独立训练，不是接着第一轮模型续训。"
@@ -904,6 +1095,8 @@ def sync_english_documents():
                         return "](" + urlunsplit(("", "", path, parsed.query, parsed.fragment)) + ")"
                     content = re.sub(r"\]\(([^)]+)\)", target_link, content)
                 text = expression.sub(lambda _: opening + "\n" + content + "\n" + closing, text)
+        if target.name in ("README.md", "Evaluation-Results.md"):
+            text = with_capacity_notes(text, "en", readme=target.name == "README.md")
         if target.name == "README.md":
             text, replacements = re.subn(r"<!-- SINGLE:METHOD -->.*?<!-- /SINGLE:METHOD -->",
                                         lambda _: "<!-- SINGLE:METHOD -->\n" + single_question_description("en")

@@ -50,7 +50,7 @@ Released means no business fine-tuning. FT-cf uses 3,832 business records for 2 
 
 Fixed conditions: Snapdragon X Elite CPU, llama.cpp b11935, concurrency 1, two warm-ups per dataset, `-c 8192 -b 2048 -ub 2048 --cache-ram 0`. Single-question latency measures client send to complete JSON receipt in milliseconds, excluding loading and warm-ups. Accuracy, ECE and latency use the same requests; failures remain in the accuracy denominator.
 
-**Memory and concurrency conditions:** one model-server process handles the requests sequentially. The peak working set is the maximum over that whole run, including loading, warm-up, resident weights and runtime buffers. It is neither extra memory per request, constant usage, nor a memory limit. Do not multiply it by 100 for 100 sequential requests; 100 concurrent requests are a different workload. Only concurrency 1 was measured here, so peak memory does not establish maximum concurrency. Single-question concurrency capacity has not been measured. Dataset rows repeat the configuration's whole-run peak.
+**Memory and concurrency conditions:** one model-server process handles the requests sequentially. The peak working set is the maximum over that whole run, including loading, warm-up, resident weights and runtime buffers. It is neither extra memory per request, constant usage, nor a memory limit. Do not multiply it by 100 for 100 sequential requests; 100 concurrent requests are a different workload. Only concurrency 1 was measured here, so peak memory does not establish maximum concurrency. Single-question concurrency has not been measured on Snapdragon; the cloud x64 measurement follows below. Dataset rows repeat the configuration's whole-run peak.
 <!-- /SINGLE:METHOD -->
 
 <!-- OVERVIEW:INFERENCE -->
@@ -69,6 +69,30 @@ The four received datasets contain no request errors; this does not mean every a
 - **Fine-tuning improves business accuracy.** This does not show that fine-tuning accelerates an unchanged model architecture; individual timing differences do not establish causation.
 - **Q8_0 stays closer to its own PyTorch answers.** Q4_K_M reduces file size but has lower per-question agreement. Unrun cells remain visible.
 - **Keep the limits with the headline.** Data is simulated. Of 160 long-history records, 7 exceed the context window and are rejected. On the remaining 153 records, C answers 206/459 questions correctly (44.9%, excluding rejected requests). This test ran only on x86-64, and short-input accuracy cannot substitute for it. [Long-input cases and results](文档/Evaluation-Results.md#long-real)
+
+### Concurrency and Memory: Single-Question Test on a Cloud x64 VM (Not Snapdragon)
+
+The same C file (`Contoso-Kev-0.8B-FTcf-R2C-Q8_0.gguf`) was tested for concurrency on an Azure VM: Standard_D16as_v5, AMD EPYC 7763, 16 logical processors, about 64 GiB of memory, the llama.cpp b11935 x64 CPU build and 8 inference threads. In each tier the client keeps N requests in flight and the server runs N slots of 8,192 tokens each. Every tier sends the same 384 single-question requests (the first 32 records of each of the four test sets, three questions per record), from concurrency 1 up to 32; no higher tier runs after a tier with failures.
+
+<!-- OVERVIEW:CAPACITY -->
+<!-- SOURCE:TABLE:3 -->
+| Requests in flight (= server slots, 8,192 tokens per slot)| Successful / total requests| Correct / total requests (same 384 questions; failures count as wrong)| Median latency (s, successful requests)| p95 latency (s, successful requests, nearest rank)| Throughput (successful requests/s, wall clock)| Peak process working set, whole run (MiB)| Peak private commit (MiB, sampled every 0.5 s)| Lowest available physical memory on the VM (MiB, other processes included)| 
+| ---| ---| ---| ---| ---| ---| ---| ---| ---| 
+| 1| 384 / 384| 360 / 384| 0.92| 1.85| 0.923| 1,674| 4,263| 32,845| 
+| 2| 384 / 384| 360 / 384| 2.32| 2.81| 0.929| 1,790| 4,378| 33,750| 
+| 4| 384 / 384| 360 / 384| 4.21| 5.30| 0.930| 2,238| 4,827| 33,467| 
+| 8| 384 / 384| 360 / 384| 8.48| 10.83| 0.925| 3,756| 6,349| 32,101| 
+| 16| 384 / 384| 360 / 384| 16.57| 20.04| 0.927| 5,033| 7,648| 30,893| 
+| 32| 375 / 384| 353 / 384| 26.20| 41.08| 0.919| 6,906| 9,505| 29,011| 
+<!-- /SOURCE:TABLE:3 -->
+<!-- /OVERVIEW:CAPACITY -->
+
+<!-- CAPACITY:NOTES -->
+- **Memory rises with concurrency; it is not a fixed amount.** The whole-run peak process working set rises from 1,674 MiB at concurrency 1 to 6,906 MiB at concurrency 32. The highest tested tier within 3 GiB (3,072 MiB) is concurrency 4 (2,238 MiB); the next tier, concurrency 8, uses 3,756 MiB, and concurrencies 5-7 were not tested.
+- **Processing speed reaches its limit before memory does.** Every tier completes 0.919-0.930 successful requests per second, so more concurrency only lengthens the wait: median latency rises from 0.92 s to 26.20 s.
+- **Concurrency 32 has failures.** 9 requests timed out after waiting 180 s at the client; the remaining requests have a median latency of 26.20 s. The server log has no memory-allocation failure, and the VM still had at least 29,011 MiB of available physical memory and 33,760 MiB of remaining commit capacity. Why individual requests were far slower than the median was not investigated separately.
+- **Limits.** Concurrency 16 is the highest tier without errors; it is a measured lower bound, not a capacity limit. The run stopped at the first failing tier as planned, so concurrencies 64, 128 and 256 did not run. The point where memory runs out was not reached. Each tier ran once on a 384-question subset, which does not replace the full accuracy in the main table. These are AMD EPYC cloud VM results and do not convert to Snapdragon. [Method and raw evidence](文档/Evaluation-Results.md#concurrency-single-question)
+<!-- /CAPACITY:NOTES -->
 
 ## Architecture
 
@@ -162,7 +186,7 @@ The business application sends the message, device fields and questions; llama-s
 
 Kev has downloadable decision-model weights that can be fine-tuned on business data. This project tests only 0.8B and 4B. Producer evaluations and product information below are not this project's business scores. [Selection evidence, original figure and limits](文档/Core-Technology.md#why-kev-is-a-candidate)
 
-<!-- SOURCE:TABLE:3 -->
+<!-- SOURCE:TABLE:4 -->
 | Model| Nominal base-model parameter scale| transfer-v4 development accuracy (author's evaluation)| Training state limit (tokens)| Validated input length (tokens)| Weights and this project's scope| 
 | ---| ---| ---| ---| ---| ---| 
 | Microsoft-Decision-1| 9B (Qwen3.5-9B, post-trained by Microsoft)| Not evaluated on this suite| Not disclosed| Product commitment: 32,768 per request| Hosted in Microsoft Foundry, Preview; not tested in this project| 
@@ -171,7 +195,7 @@ Kev has downloadable decision-model weights that can be fine-tuned on business d
 | Kev-9B| 9B| 82.0%| 7,552| 8,192| Open weights; not deployed in this project| 
 | Kev-4B| 4B| 81.7%| 7,552| 8,192| Open weights; fine-tuned and deployed on-device in this project| 
 | Kev-0.8B| 0.8B| 64.8%| 7,552| 8,192| Open weights; fine-tuned and deployed on-device in this project| 
-<!-- /SOURCE:TABLE:3 -->
+<!-- /SOURCE:TABLE:4 -->
 
 ## Results
 
@@ -215,13 +239,13 @@ Simulated data, one training seed, one Snapdragon laptop and one x86-64 VM; no c
 
 ## Steps
 
-<!-- SOURCE:TABLE:4 -->
+<!-- SOURCE:TABLE:5 -->
 | Your task| Start here| Execution order| Expected result| 
 | ---| ---| ---| ---| 
 | Try an existing fine-tuned GGUF locally| [A. Local trial](文档/Operations-Guide.md#local-try)| Start runtime → send one request → edit a field and repeat| Real model response, measured timing and raw output files| 
 | Produce a model or adapt to new business data| [B. Train and update](文档/Operations-Guide.md#train-update)| Data → train → calibrate → evaluate → export → update local model| A new checkpoint, evaluation and GGUF; not old-directory overwrite with skipped stages| 
 | Recheck the reported results| [C. Verification](文档/Operations-Guide.md#verify)| Run offline tests or start a real model for full device evaluation| Keep code checks, historical evidence replay and fresh model execution distinct| 
-<!-- /SOURCE:TABLE:4 -->
+<!-- /SOURCE:TABLE:5 -->
 
 Run all commands from the project root, not the directory containing a detail document. First obtain the architecture-matched llama.cpp package and calibrated GGUF through [Operations A](文档/Operations-Guide.md#local-try). Large model files are not included in this repository.
 
@@ -253,7 +277,7 @@ Region changes, the graphical trial, training, updates, offline tests and stop/r
 
 ## Repository Deliverables
 
-<!-- SOURCE:TABLE:5 -->
+<!-- SOURCE:TABLE:6 -->
 | Deliverable| Location| Purpose| 
 | ---| ---| ---| 
 | Simulated vendor data with policy-computed labels| [data/contoso/final](data/contoso/final); manifest and SHA-256: [manifest.json](data/contoso/final/manifest.json)| Training, calibration, development, in-distribution, out-of-distribution and variant evaluation| 
@@ -264,7 +288,7 @@ Region changes, the graphical trial, training, updates, offline tests and stop/r
 | Summaries and tests| [scripts/summarize_results.py](scripts/summarize_results.py), [scripts/summarize_engine.py](scripts/summarize_engine.py), [scripts/calibration_boundary.py](scripts/calibration_boundary.py), [tests/](tests/)| Generate tables and probability diagnostics from raw results; no automatic retraining decision; offline checks of data and scoring code| 
 | Raw evidence| [Evidence directory](验证结果/)| Evaluation reports, predictions, training logs, GPU-memory samples and device records. Checkpoints and full result archives contain files above GitHub's 100 MB limit and are not included; reproduce them with the training steps| 
 | Detailed report| [Detailed validation report](文档/Finetuning-and-On-Device-Validation-Report.md)| Full tables, per-question analysis and claim boundaries| 
-<!-- /SOURCE:TABLE:5 -->
+<!-- /SOURCE:TABLE:6 -->
 
 ### Documentation
 

@@ -1,0 +1,9 @@
+{
+  "status": "FINISHED",
+  "pid": 31768,
+  "completed_tiers": 6,
+  "highest_passed_setting": 16,
+  "first_nonpassing_tier": 32,
+  "updated_utc": "2026-11-03T06:05:17.356817+00:00",
+  "limit_claim": "highest tested success is not an unmeasured maximum; failures under a process budget are budget-scoped"
+}

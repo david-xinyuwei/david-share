@@ -1,0 +1,136 @@
+[
+  {
+    "id": "test_support/0/queue",
+    "record_index": 0,
+    "question_id": "queue",
+    "request": {
+      "state": {
+        "channel": "email",
+        "message": "您好：\n请问我的 Contoso Nimbus 2-in-1 订单目前是什么状态？麻烦告知最新进度。\n谢谢\n李明",
+        "device": {
+          "product_line": "Nimbus 2-in-1",
+          "region": "SG",
+          "warranty_plan": "Accidental Damage 2Y",
+          "days_since_purchase": 749,
+          "battery_cycles": 202,
+          "last_error_code": "none",
+          "bios_version": "1.11"
+        }
+      },
+      "questions": {
+        "queue": {
+          "type": "choice",
+          "instructions": "Which Contoso support queue should take this case?",
+          "criteria": {
+            "remote_l1": "Remote software support: drivers, Windows, Contoso apps and settings",
+            "depot_repair": "Mail-in repair at a Contoso service center",
+            "onsite_repair": "A technician visits the customer",
+            "battery_program": "Battery health replacement program",
+            "bios_l2": "Firmware and BIOS engineering (second line)",
+            "damage_claim": "Accidental damage claim",
+            "sales_ops": "Orders, invoices and paid repair quotes",
+            "privacy_desk": "Requests to export or delete personal data"
+          }
+        }
+      }
+    },
+    "started_utc": "2026-11-03T05:51:27.775687+00:00",
+    "latency_ms": 1475.433299998258,
+    "status": "ok",
+    "response": {
+      "model": "kev-c-cloud-capacity",
+      "answers": {
+        "queue": {
+          "type": "choice",
+          "choice": "sales_ops",
+          "probabilities": {
+            "remote_l1": 0.0006115767199941937,
+            "depot_repair": 0.0003931018170842656,
+            "onsite_repair": 1.3003979530846931e-05,
+            "battery_program": 4.991326586368505e-05,
+            "bios_l2": 7.837347784228804e-06,
+            "damage_claim": 4.242419694772982e-06,
+            "sales_ops": 0.9989151873888784,
+            "privacy_desk": 5.137061169574683e-06
+          },
+          "confidence": 0.9987602141587182
+        }
+      },
+      "usage": {
+        "input_tokens": 218,
+        "output_tokens": 0
+      }
+    },
+    "score": {
+      "type": "choice",
+      "pred": "sales_ops",
+      "label": "sales_ops",
+      "ok": true,
+      "p": {
+        "remote_l1": 0.0006115767199941937,
+        "depot_repair": 0.0003931018170842656,
+        "onsite_repair": 1.3003979530846931e-05,
+        "battery_program": 4.991326586368505e-05,
+        "bios_l2": 7.837347784228804e-06,
+        "damage_claim": 4.242419694772982e-06,
+        "sales_ops": 0.9989151873888784,
+        "privacy_desk": 5.137061169574683e-06
+      },
+      "confidence": 0.9989151873888784,
+      "brier": 1.7081397734176812e-06
+    },
+    "finished_utc": "2026-11-03T05:51:29.251186+00:00"
+  },
+  {
+    "id": "test_support/0/onsite_eligible",
+    "record_index": 0,
+    "question_id": "onsite_eligible",
+    "request": {
+      "state": {
+        "channel": "email",
+        "message": "您好：\n请问我的 Contoso Nimbus 2-in-1 订单目前是什么状态？麻烦告知最新进度。\n谢谢\n李明",
+        "device": {
+          "product_line": "Nimbus 2-in-1",
+          "region": "SG",
+          "warranty_plan": "Accidental Damage 2Y",
+          "days_since_purchase": 749,
+          "battery_cycles": 202,
+          "last_error_code": "none",
+          "bios_version": "1.11"
+        }
+      },
+      "questions": {
+        "onsite_eligible": {
+          "type": "noul",
+          "instructions": "Is the customer entitled to an onsite technician visit for this case?"
+        }
+      }
+    },
+    "started_utc": "2026-11-03T05:51:29.252184+00:00",
+    "latency_ms": 816.6509000002407,
+    "status": "ok",
+    "response": {
+      "model": "kev-c-cloud-capacity",
+      "answers": {
+        "onsite_eligible": {
+          "type": "noul",
+          "noul": 0.005077530112136719
+        }
+      },
+      "usage": {
+        "input_tokens": 123,
+        "output_tokens": 0
+      }
+    },
+    "score": {
+      "type": "noul",
+      "pred": false,
+      "label": false,
+      "ok": true,
+      "p": 0.005077530112136719,
+      "confidence": 0.9949224698878633,
+      "brier": 5.156262407931048e-05
+    },
+    "finished_utc": "2026-11-03T05:51:30.069434+00:00"
+  }
+]

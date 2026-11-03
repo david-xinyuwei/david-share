@@ -1,0 +1,15 @@
+{
+  "captured_utc": "2026-11-03T06:17:59.8351929Z",
+  "azure_vm_size": "Standard_D16as_v5",
+  "cpu": "AMD EPYC 7763 64-Core Processor",
+  "cores": 8,
+  "logical_processors": 16,
+  "max_clock_mhz": 2445,
+  "physical_memory_mib": 65484.8,
+  "os": "Microsoft Windows 11 专业版",
+  "os_version": "10.0.26300",
+  "os_architecture": "64 位",
+  "last_boot_utc": "2026-11-03T00:14:41.2695350Z",
+  "booted_before_measurement": true,
+  "note": "Captured after the measurement on the same VM. A boot time before the measurement start means CPU and memory did not change during it."
+}
