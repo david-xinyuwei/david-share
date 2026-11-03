@@ -4,7 +4,7 @@
 
 [![Model](https://img.shields.io/badge/model-Kev%200.8B%20%C2%B7%204B%20on%20Qwen3.5-0078D4)](https://github.com/jaredpalmer/kev)
 [![Device](https://img.shields.io/badge/device-Snapdragon%20X%20Elite%20%C2%B7%20llama.cpp%20b11935-0078D4)](文档/Evaluation-Results.md#5-laptop-inference-engine)
-[![Measured](https://img.shields.io/badge/measured-2026--10--27%20to%2011--01%20%C2%B7%20simulated%20vendor%20data-0078D4)](#results)
+[![Measured](https://img.shields.io/badge/measured-2026--10--27%20to%2011--03%20%C2%B7%20simulated%20vendor%20data-0078D4)](#results)
 [![License](https://img.shields.io/badge/license-MIT-0078D4)](https://github.com/david-xinyuwei/david-share/blob/master/LICENSE)
 
 > **Author**: Xinyu Wei - Senior Systems Engineer, Microsoft AI GBB
@@ -43,37 +43,28 @@ Inputs are simulated Contoso PC support and assistant records: a user message, d
 
 Released means no business fine-tuning. FT-cf uses 3,832 business records for 2 epochs; C adds 206 variants and uses 4,038 records for 4 epochs. Both also mix in 1,000 Kev replay records and train independently from the same released checkpoint; C does not continue from the FT-cf checkpoint. The 4B model has no C run, so its final gain uses FT-cf; 0.8B uses C. Gains are calculated from unrounded correct-answer counts.
 
-### Inference: Accuracy, Measured Processing Time and Calibration
+### Inference: One Question per Request on Snapdragon
 
-The two tables retain historical three-question Snapdragon measurements for all seven deployment configurations. New evaluations send one question per request by default; these tables do not report the new single-question latency. Processing time is the median from sending a complete support or assistant request to receiving its answers after the model is loaded, in seconds. Each request contains three decisions. This is neither model-loading time nor the median for a standalone classification, and dividing it by three does not measure that latency. Each configuration uses llama.cpp b11935 CPU, default settings and concurrency 1, with 170 support and 159 assistant requests, excluding loading and two warm-ups. Accuracy, processing time and ECE are recalculated from each configuration's same recorded Snapdragon run. ECE uses 10 equal-width confidence bins and is better closer to 0; it is not the Microsoft-Decision-1 website's percentage-scale score. Peak memory is the peak process working set from the same configuration's run, covering the full server lifetime including model loading, warm-up and all datasets. It is not model file size, commit charge or GPU memory. Dataset rows repeat that run-level peak, not independently measured per-dataset peaks. Full standalone single-question evaluation is still incomplete and is not mixed into this table. [Timing units, calibration and the single-question boundary](文档/Evaluation-Results.md#single-question).
+<!-- SINGLE:METHOD -->
+**Each request answers exactly one question.** The table includes only received, individually verified single-question results: 1/7 configurations, 4/28 combinations and 2,949 measured requests. Missing configurations are not filled with historical three-question figures and are not labeled unsupported.
+
+Fixed conditions: Snapdragon X Elite CPU, llama.cpp b11935, concurrency 1, two warm-ups per dataset, `-c 8192 -b 2048 -ub 2048 --cache-ram 0`. Single-question latency measures client send to complete JSON receipt in milliseconds, excluding loading and warm-ups. Accuracy, ECE and latency use the same requests; failures remain in the accuracy denominator.
+
+**Memory and concurrency conditions:** one model-server process handles the requests sequentially. The peak working set is the maximum over that whole run, including loading, warm-up, resident weights and runtime buffers. It is neither extra memory per request, constant usage, nor a memory limit. Do not multiply it by 100 for 100 sequential requests; 100 concurrent requests are a different workload. Only concurrency 1 was measured here, so peak memory does not establish maximum concurrency. Single-question concurrency capacity has not been measured. Dataset rows repeat the configuration's whole-run peak.
+<!-- /SINGLE:METHOD -->
 
 <!-- OVERVIEW:INFERENCE -->
 <!-- SOURCE:TABLE:2 -->
-| Model (0.8B, Snapdragon X Elite CPU, default settings)| Test set (questions)| Per-question accuracy (%, failures included)| Median processing time per complete request (seconds, 3 decisions each)| Peak process working set, whole run (MiB)| Calibration error ECE (0-1, lower is better)| Valid-probability coverage (%)| 
+| Model (0.8B, Snapdragon X Elite CPU, default settings)| Test set (questions)| Single-question accuracy (%, failures included)| Median latency per question (ms, 1 question per request)| Peak process working set, whole run (MiB)| Calibration error ECE (0-1, lower is better)| Valid-probability coverage (%)| 
 | ---| ---| ---| ---| ---| ---| ---| 
-| Released B0, official Q8_0 package| Support: in-distribution (510 questions)| 45.7%| **0.666**| 2,323| 0.030| 100.0%| 
-| Released B0, official Q8_0 package| Assistant: in-distribution (477 questions)| 66.9%| **0.843**| 2,323| 0.093| 100.0%| 
-| Fine-tuned FT-cf, Q8_0| Support: in-distribution (510 questions)| 86.9%| **0.646**| 2,314| 0.028| 100.0%| 
-| Fine-tuned FT-cf, Q8_0| Assistant: in-distribution (477 questions)| 97.7%| **0.984**| 2,314| 0.014| 100.0%| 
-| Fine-tuned FT, Q4_K_M (separate FT recipe, not FT-cf)| Support: in-distribution (510 questions)| 87.5%| **0.812**| 1,819| 0.021| 100.0%| 
-| Fine-tuned FT, Q4_K_M (separate FT recipe, not FT-cf)| Assistant: in-distribution (477 questions)| 93.9%| **0.909**| 1,819| 0.014| 100.0%| 
-| Round-2 C, Q8_0 (delivered)| Support: in-distribution (510 questions)| 96.9%| **0.635**| 2,314| 0.032| 100.0%| 
-| Round-2 C, Q8_0 (delivered)| Assistant: in-distribution (477 questions)| 99.6%| **0.905**| 2,314| 0.010| 100.0%| 
+| Round-2 C, Q8_0 (delivered)| Support: in-distribution (510 questions)| 97.06%| 386.34| 2,585| 0.034| 100.0%| 
+| Round-2 C, Q8_0 (delivered)| Assistant: in-distribution (477 questions)| 99.58%| 409.32| 2,585| 0.007| 100.0%| 
+| Round-2 C, Q8_0 (delivered)| Support: out-of-distribution (1,011 questions)| 88.72%| 635.37| 2,585| 0.047| 100.0%| 
+| Round-2 C, Q8_0 (delivered)| Assistant: out-of-distribution (951 questions)| 96.95%| 448.31| 2,585| 0.007| 100.0%| 
 <!-- /SOURCE:TABLE:2 -->
-
-<!-- SOURCE:TABLE:3 -->
-| Model (4B, Snapdragon X Elite CPU, default settings)| Test set (questions)| Per-question accuracy (%, failures included)| Median processing time per complete request (seconds, 3 decisions each)| Peak process working set, whole run (MiB)| Calibration error ECE (0-1, lower is better)| Valid-probability coverage (%)| 
-| ---| ---| ---| ---| ---| ---| ---| 
-| Released B0, official Q4_K_M package| Support: in-distribution (510 questions)| 59.0%| **3.022**| 6,849| 0.047| 100.0%| 
-| Released B0, official Q4_K_M package| Assistant: in-distribution (477 questions)| 82.0%| **3.790**| 6,849| 0.134| 100.0%| 
-| Fine-tuned FT-cf, Q8_0| Support: in-distribution (510 questions)| 96.1%| **3.649**| 9,609| 0.019| 100.0%| 
-| Fine-tuned FT-cf, Q8_0| Assistant: in-distribution (477 questions)| 99.8%| **4.115**| 9,609| 0.008| 100.0%| 
-| Fine-tuned FT-cf, Q4_K_M| Support: in-distribution (510 questions)| 95.3%| **3.615**| 6,842| 0.018| 100.0%| 
-| Fine-tuned FT-cf, Q4_K_M| Assistant: in-distribution (477 questions)| 99.6%| **4.751**| 6,842| 0.009| 100.0%| 
-<!-- /SOURCE:TABLE:3 -->
 <!-- /OVERVIEW:INFERENCE -->
 
-**In this recorded Snapdragon run, delivered C takes a median of about 0.635 seconds for a complete support request and 0.905 seconds for an assistant request, each containing three decisions.** These are full-run measurements, not the local smoke samples, and exclude model loading. The whole-run peak process working set is now in the tables above; loading, commit charge, file size and repeats are detailed in the [device results](文档/Evaluation-Results.md#5-laptop-inference-engine) and [C regression](文档/Evaluation-Results.md#round2-device). The 0.8B Q4_K_M configuration is the separate FT recipe, not FT-cf or C. Q8_0 is W8; this project's custom Q4_K_M mixes W4/W8, while the official package name does not establish each layer's bit width.
+The four received datasets contain no request errors; this does not mean every answer is correct. Single-question results for the other six configurations have not been received, so this is not the complete seven-configuration comparison. [Raw requests and responses](验证结果/单题端侧评测_骁龙_20261103-111934/公开) · [Method, metrics and memory limits](文档/Evaluation-Results.md#single-question) · [Historical three-question results, not comparable timings](文档/Evaluation-Results.md#historical-three-question).
 
 - **Fine-tuning improves business accuracy.** This does not show that fine-tuning accelerates an unchanged model architecture; individual timing differences do not establish causation.
 - **Q8_0 stays closer to its own PyTorch answers.** Q4_K_M reduces file size but has lower per-question agreement. Unrun cells remain visible.
@@ -165,13 +156,13 @@ The business application sends the message, device fields and questions; llama-s
 
 <a id="criteria"></a>
 
-**The main table reports per-question correctness, the time for a complete three-question request, and probability reliability.** It is not a standalone single-question latency table. Calibration checks whether answers assigned about 90% confidence are correct about 90% of the time. Fitting temperature adjusts probabilities; ECE measures the outcome. [Complete timing definitions](文档/Evaluation-Results.md#single-question).
+**The main table reports single-question accuracy, time for one answer, whole-process peak memory and probability quality.** Single-question latency is not three-question request time; process peak memory is neither per-request incremental memory nor maximum concurrency. Fitting temperature adjusts probabilities; ECE measures the outcome. [Complete metric definitions](文档/Evaluation-Results.md#single-question).
 
 ### Why Kev
 
 Kev has downloadable decision-model weights that can be fine-tuned on business data. This project tests only 0.8B and 4B. Producer evaluations and product information below are not this project's business scores. [Selection evidence, original figure and limits](文档/Core-Technology.md#why-kev-is-a-candidate)
 
-<!-- SOURCE:TABLE:4 -->
+<!-- SOURCE:TABLE:3 -->
 | Model| Nominal base-model parameter scale| transfer-v4 development accuracy (author's evaluation)| Training state limit (tokens)| Validated input length (tokens)| Weights and this project's scope| 
 | ---| ---| ---| ---| ---| ---| 
 | Microsoft-Decision-1| 9B (Qwen3.5-9B, post-trained by Microsoft)| Not evaluated on this suite| Not disclosed| Product commitment: 32,768 per request| Hosted in Microsoft Foundry, Preview; not tested in this project| 
@@ -180,7 +171,7 @@ Kev has downloadable decision-model weights that can be fine-tuned on business d
 | Kev-9B| 9B| 82.0%| 7,552| 8,192| Open weights; not deployed in this project| 
 | Kev-4B| 4B| 81.7%| 7,552| 8,192| Open weights; fine-tuned and deployed on-device in this project| 
 | Kev-0.8B| 0.8B| 64.8%| 7,552| 8,192| Open weights; fine-tuned and deployed on-device in this project| 
-<!-- /SOURCE:TABLE:4 -->
+<!-- /SOURCE:TABLE:3 -->
 
 ## Results
 
@@ -224,13 +215,13 @@ Simulated data, one training seed, one Snapdragon laptop and one x86-64 VM; no c
 
 ## Steps
 
-<!-- SOURCE:TABLE:5 -->
+<!-- SOURCE:TABLE:4 -->
 | Your task| Start here| Execution order| Expected result| 
 | ---| ---| ---| ---| 
 | Try an existing fine-tuned GGUF locally| [A. Local trial](文档/Operations-Guide.md#local-try)| Start runtime → send one request → edit a field and repeat| Real model response, measured timing and raw output files| 
 | Produce a model or adapt to new business data| [B. Train and update](文档/Operations-Guide.md#train-update)| Data → train → calibrate → evaluate → export → update local model| A new checkpoint, evaluation and GGUF; not old-directory overwrite with skipped stages| 
 | Recheck the reported results| [C. Verification](文档/Operations-Guide.md#verify)| Run offline tests or start a real model for full device evaluation| Keep code checks, historical evidence replay and fresh model execution distinct| 
-<!-- /SOURCE:TABLE:5 -->
+<!-- /SOURCE:TABLE:4 -->
 
 Run all commands from the project root, not the directory containing a detail document. First obtain the architecture-matched llama.cpp package and calibrated GGUF through [Operations A](文档/Operations-Guide.md#local-try). Large model files are not included in this repository.
 
@@ -262,7 +253,7 @@ Region changes, the graphical trial, training, updates, offline tests and stop/r
 
 ## Repository Deliverables
 
-<!-- SOURCE:TABLE:6 -->
+<!-- SOURCE:TABLE:5 -->
 | Deliverable| Location| Purpose| 
 | ---| ---| ---| 
 | Simulated vendor data with policy-computed labels| [data/contoso/final](data/contoso/final); manifest and SHA-256: [manifest.json](data/contoso/final/manifest.json)| Training, calibration, development, in-distribution, out-of-distribution and variant evaluation| 
@@ -273,7 +264,7 @@ Region changes, the graphical trial, training, updates, offline tests and stop/r
 | Summaries and tests| [scripts/summarize_results.py](scripts/summarize_results.py), [scripts/summarize_engine.py](scripts/summarize_engine.py), [scripts/calibration_boundary.py](scripts/calibration_boundary.py), [tests/](tests/)| Generate tables and probability diagnostics from raw results; no automatic retraining decision; offline checks of data and scoring code| 
 | Raw evidence| [Evidence directory](验证结果/)| Evaluation reports, predictions, training logs, GPU-memory samples and device records. Checkpoints and full result archives contain files above GitHub's 100 MB limit and are not included; reproduce them with the training steps| 
 | Detailed report| [Detailed validation report](文档/Finetuning-and-On-Device-Validation-Report.md)| Full tables, per-question analysis and claim boundaries| 
-<!-- /SOURCE:TABLE:6 -->
+<!-- /SOURCE:TABLE:5 -->
 
 ### Documentation
 

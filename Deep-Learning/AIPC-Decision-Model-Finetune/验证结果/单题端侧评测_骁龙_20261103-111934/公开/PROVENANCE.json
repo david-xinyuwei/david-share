@@ -1,0 +1,48 @@
+{
+  "kind": "public projection of captured single-question evidence",
+  "captured": "2026-11-03T12:06:01.5679941+08:00",
+  "model_label": "r2c-kev-0.8b-Q8_0-cpu",
+  "gguf_sha256": "c427ed7a8e797e1f6b6a838a80d4c32d8735b85dfa742f2dafba89307808ad05",
+  "redactions": [
+    "run.host",
+    "summary.provenance.host",
+    "run.model and its server_args path reduced to filename"
+  ],
+  "deduplicated_field": "run.summaries; the unchanged metric values are preserved in per-dataset summary.json",
+  "original_run_sha256": "6dcb22d46e40a3fccf5e4363edfa54c47ee217fe975eec9eee194e0f2050b09e",
+  "public_run_sha256": "a04a6709f4eed0176558b5a22ba2966df957130ba227cfafc3b81f7aedae1687",
+  "datasets": {
+    "test_support": {
+      "requests": 510,
+      "original_summary_sha256": "8250c43119176ac65160f11e8544b98332e7f09413a2a6359bcdd1ba7b782400",
+      "public_summary_sha256": "629ab2ebb1dcf35528948eff72edf5f610dc767fa2b6a06f6e1f15f8f98bb227",
+      "rows_sha256": "77aef20d756b30e6ddf53785810c08fe6daf90ed51ee6f211908a8099c436dec",
+      "input_sha256": "ef0a2befc0652bacef438395e465e2928c3ca0e5423b4853deda5bc03ba106c5",
+      "request_response_and_metric_values_unchanged": true
+    },
+    "test_assistant": {
+      "requests": 477,
+      "original_summary_sha256": "3cf56e4ac5978278a0d209c1ad2d38bb3f1ef433e6013ad42fe2cccb1ec86b44",
+      "public_summary_sha256": "0ff72cea305e8ac185a0fa6914d30440c7097ba45f504390c88798e68c725ae6",
+      "rows_sha256": "782180bc654652bea97c76945da019a58a3edc44dbba2ac00237dfba4b830fcb",
+      "input_sha256": "70f1463bad3438b058db9f82e3cbf7d0243c5f7a5b37b23945f33bdbec83fb31",
+      "request_response_and_metric_values_unchanged": true
+    },
+    "ood_support": {
+      "requests": 1011,
+      "original_summary_sha256": "6aeac5ab300851cd8888e6f4dca232f12f909f242a4a912b78052fcfaf7d1ada",
+      "public_summary_sha256": "4c3836591ad1213c2636932002414d2492d10365ce6d234ce038034f219d391a",
+      "rows_sha256": "de7870b408fd65632ca69ed7291fc9a4e33ada4de9bb4d417b763a2c41062fbd",
+      "input_sha256": "cdf37fa4a0f6f51f13ebeb80f6e261231a1f6f6e8402a9efd9a3d5b99fceb4dc",
+      "request_response_and_metric_values_unchanged": true
+    },
+    "ood_assistant": {
+      "requests": 951,
+      "original_summary_sha256": "ac148f8d8d4bc3c870fad2a852624540290d250e1d83918529609a6be48d41c8",
+      "public_summary_sha256": "4213e8b4005b074546c412d5b0f25ebc7c7deb2231e7f393c1e21736dd235fd3",
+      "rows_sha256": "880bd14c5fdc5b879d305eb47b6401acefad68e5f65b9daebfe8c4bd3ce482a6",
+      "input_sha256": "4cc7680103549e5477434bdebc8bc408b6cba08b04b0e7cc25863818f215c99b",
+      "request_response_and_metric_values_unchanged": true
+    }
+  }
+}

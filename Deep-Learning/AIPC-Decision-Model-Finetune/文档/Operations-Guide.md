@@ -280,7 +280,7 @@ Offline tests require no model. New device evaluation requires real GGUF weights
 
 #### C1. Single-Question Evaluation on the Laptop
 
-**Uncompleted evaluation procedure, not existing results.** The results page contains historical three-question requests. This section supports future one-question collection. Only small x64 single-question calls and script failure paths have been checked; the seven-configuration by four-dataset Snapdragon campaign has not completed.
+**C's four single-question datasets have been received and verified; the main table shows those measurements.** The other six configurations have not been received, so the seven-configuration by four-dataset matrix is incomplete. This section describes the matching collection method; historical three-question runs remain separate in the detailed report.
 
 Use the CPU runtime from A. For Adreno comparison, download `llama-b11935-bin-win-opencl-adreno-arm64.zip` from the same release, SHA-256 `03495082010595c4d20c50b5d06fc44c0e03c57db5d573fae1727a92cca6a4c8`, and extract to `C:\Tools\llama.cpp\b11935-opencl-adreno\`. The batch script starts and stops its own service. First stop A's trial service yourself or choose a different port.
 
@@ -329,9 +329,9 @@ python scripts\fill_report_tables.py --report 文档/评测与端侧结果全集
 
 The commands above analyze recorded GPU and three-question outputs in the specified directories; they do not run a new experiment. First-round summaries use `summarize_results.py`; second-round summaries use `python scripts\summarize_round2.py --round2 <current-runs> --baseline <first-round-runs> --data data\contoso\final --out <current-summary>`. Unrun A/B arms must not receive C's results.
 
-There is one report source configuration: the `REPORT:SOURCES` JSON at the top of `README_CN.md`. `first_summary` and `round2_summary` select training summary files; `device_results` and `round2_device_results` select the two Snapdragon three-question campaigns. All paths are project-relative. Defaults explicitly reference the documented historical runs. For a new campaign, preserve old evidence, generate its summary, update the corresponding source paths, and review the prose, recipe, conclusions and links together. Renaming a directory does not make another model the same recipe.
+There is one report source configuration: the `REPORT:SOURCES` JSON at the top of `README_CN.md`. `single_question_results` selects the public single-question evidence used in the main table. `first_summary` and `round2_summary` select training summaries; `device_results` and `round2_device_results` retain historical three-question campaigns. Paths are project-relative. Preserve previous evidence, verify each new request and response, then update the selected paths and prose without mixing models or request modes.
 
-Run `python scripts\render_diagrams.py --sync-english --preview` to read that configuration, validate sources, question counts and raw records, and generate bilingual overview/results tables. Missing or out-of-project sources fail without fallback. Single-question data does not replace three-question timing, and absent single-question results produce no empty matrix. Selecting a source does not automatically prove methodological comparability with historical runs.
+Run `python scripts\render_diagrams.py --sync-english --preview` to verify every single-question input, response, hash and metric and put only valid received combinations into the main table. Missing combinations are disclosed separately, not filled with old results or empty plan rows. Historical three-question tables remain separate in the detailed report. Missing or out-of-project sources and inconsistent evidence fail without fallback. Memory is the selected run's whole-process peak at concurrency 1, not incremental memory per request or a maximum-concurrency measurement.
 
 #### C3. Offline Tests
 

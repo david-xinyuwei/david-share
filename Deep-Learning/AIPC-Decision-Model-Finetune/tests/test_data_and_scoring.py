@@ -560,6 +560,31 @@ class ReportLayoutTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaisesRegex(ValueError, "measured peak working set"):
                 peak_working_set_cell({"peak_working_set_mib": value, "private_mib": 5014, "gguf_mib": 775})
 
+    def test_single_question_main_table_uses_only_verified_received_rows(self):
+        from render_diagrams import report_sources, single_question_tables
+
+        source = report_sources()["single_question_results"]
+        text = single_question_tables(source)
+        rows = [line for line in text.splitlines() if line.startswith("| 第二轮 C")]
+        self.assertEqual(len(rows), 4)
+        self.assertEqual(text.count("| 模型（"), 1)
+        self.assertNotIn("待测", text)
+        self.assertNotIn("0.666", text)
+        self.assertIn("386.34", text)
+        self.assertIn("2,585", text)
+        with tempfile.TemporaryDirectory() as temporary:
+            campaign = Path(temporary)
+            model = "r2c-kev-0.8b-Q8_0-cpu"
+            target = campaign / model / "test_support"
+            target.mkdir(parents=True)
+            shutil.copyfile(source / model / "run.json", target.parent / "run.json")
+            shutil.copyfile(source / model / "test_support/rows.jsonl", target / "rows.jsonl")
+            summary = json.loads((source / model / "test_support/summary.json").read_text(encoding="utf-8"))
+            summary["latency_ms"]["p50"] += 1
+            (target / "summary.json").write_text(json.dumps(summary), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "raw median mismatch"):
+                single_question_tables(campaign)
+
     def test_single_question_matrix_omits_unexecuted_campaign(self):
         from render_diagrams import single_question_tables
 
@@ -719,11 +744,11 @@ class BilingualDocumentationTests(unittest.TestCase):
                 ("评测与端侧结果全集.md", expected, "不是独立盲测终验集"),
                 ("Evaluation-Results.md", localize_block(expected), "not an independent blind acceptance set")):
             text = (ROOT / "文档" / filename).read_text(encoding="utf-8")
-            measured = self.tables(self.parser.parse(text))[1:3]
+            measured = self.tables(self.parser.parse(text))[2:4]
             self.assertEqual(measured, self.tables(self.parser.parse(rendered)))
             self.assertEqual([len(table) - 1 for table in measured], [8, 6])
             self.assertIn(boundary, text)
-            self.assertNotIn("SINGLE:INFERENCE", text)
+            self.assertIn("SINGLE:INFERENCE", text)
             self.assertNotRegex(text, r"\|[^\n]*(?:待测|Not measured)")
 
     def test_report_alignment_keeps_measured_scope_and_removes_invalid_inferences(self):
@@ -735,8 +760,10 @@ class BilingualDocumentationTests(unittest.TestCase):
                                      ("Evaluation-Results.md", localize_block(expected))):
             text = (ROOT / "文档" / filename).read_text(encoding="utf-8")
             tables = self.tables(self.parser.parse(text))
-            self.assertEqual(tables[14], self.tables(self.parser.parse(translated))[0])
-            self.assertEqual(len(tables[14]) - 1, 12)
+            calibration = self.tables(self.parser.parse(translated))[0]
+            measured = next(table for table in tables if table[0] == calibration[0])
+            self.assertEqual(measured, calibration)
+            self.assertEqual(len(measured) - 1, 12)
             self.assertNotRegex(text, r"每秒约 190 token|about 190 tokens per second|812 对 646|812 vs\. 646")
             self.assertNotRegex(text, r"校准修不掉的部分|Not fixable by calibration|微调后准确率：最终方案|final-recipe accuracy")
             self.assertNotRegex(text, r"\|\s*(?:NPU（Hexagon）|NPU \(Hexagon\))\s*\|")
@@ -772,8 +799,8 @@ class BilingualDocumentationTests(unittest.TestCase):
             self.assertRegex(context_row[-1], r"不能仅归因|cannot be attributed")
 
     def test_single_question_default_is_distinct_from_historical_results(self):
-        for filename, wording in (("README_CN.md", "新评测默认每次只发一道题"),
-                                  ("README.md", "New evaluations send one question per request by default")):
+        for filename, wording in (("README_CN.md", "每次请求只回答一道题"),
+                      ("README.md", "Each request answers exactly one question")):
             self.assertIn(wording, (ROOT / filename).read_text(encoding="utf-8"))
         for filename in ("操作步骤全本.md", "Operations-Guide.md"):
             text = (ROOT / "文档" / filename).read_text(encoding="utf-8")
@@ -913,15 +940,21 @@ class BilingualDocumentationTests(unittest.TestCase):
     def test_device_tables_exclude_gpu_only_reference_rows(self):
         chinese = (ROOT / "README_CN.md").read_text(encoding="utf-8")
         tables = self.tables(self.parser.parse(chinese))
-        for table, expected_rows in zip(tables[1:3], (8, 6)):
+        for table, expected_rows in zip(tables[1:2], (4,)):
             self.assertEqual(len(table) - 1, expected_rows)
             self.assertEqual(table[0][1], "测试集（题数）")
-            self.assertEqual(table[0][2], "逐题准确率（%，含失败题）")
-            self.assertEqual(table[0][3], "处理完整请求中位时间（秒，每次3道判断）")
+            self.assertEqual(table[0][2], "单题准确率（%，含失败题）")
+            self.assertEqual(table[0][3], "单题耗时中位数（毫秒，每请求1题）")
             self.assertEqual(table[0][4], "整轮进程峰值工作集（MiB）")
             self.assertIn("校准误差 ECE（0–1，越低越好）", table[0])
             self.assertFalse(any("BF16 未量化" in row[0] for row in table[1:]))
             self.assertNotIn("模型加载阶段耗时（秒，日志）", table[0])
+            self.assertEqual([row[3] for row in table[1:]], ["386.34", "409.32", "635.37", "448.31"])
+            self.assertTrue(all(row[4] == "2,585" for row in table[1:]))
+        self.assertNotIn("0.666", chinese)
+        self.assertIn("并发 1", chinese)
+        self.assertIn("不能从峰值内存反推最大并发", chinese)
+        self.assertIn("1/7 个配置、4/28 组", chinese)
         details = (ROOT / "文档/评测与端侧结果全集.md").read_text(encoding="utf-8")
         self.assertIn('<a id="gpu-bf16-baseline"></a>', details)
         baseline = next(table for table in self.tables(self.parser.parse(details))

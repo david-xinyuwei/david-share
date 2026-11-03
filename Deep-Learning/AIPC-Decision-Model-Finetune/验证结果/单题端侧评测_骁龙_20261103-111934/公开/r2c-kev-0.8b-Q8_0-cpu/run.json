@@ -1,0 +1,49 @@
+{
+  "label": "r2c-kev-0.8b-Q8_0-cpu",
+  "model": "Contoso-Kev-0.8B-FTcf-R2C-Q8_0.gguf",
+  "backend": "cpu",
+  "build": "b11935-cpu",
+  "server_args": "-m \"Contoso-Kev-0.8B-FTcf-R2C-Q8_0.gguf\" --host 127.0.0.1 --port 8118 -c 8192 -b 2048 -ub 2048 --cache-ram 0",
+  "data_prefix": "",
+  "client_concurrency": 1,
+  "logical_processors": 12,
+  "request_mode": "single_question",
+  "architecture": "ARM64",
+  "cpu": [
+    "Snapdragon(R) X 12-core X1E80100 @ 3.40 GHz"
+  ],
+  "client_sha256": "9335688b2bbfbb708bfa24452573f006922363128e03faf7efd08d309f176c5c",
+  "runner_sha256": "7835e826c5a780671058b6b9b7f07aa9d8badfe3cb90bcb62794bf286a39ae02",
+  "engine_sha256": "a6a74bad9d837b1864f77660e9075bee51e4d60a26187ca24b8cfbee2b18690c",
+  "load_seconds": 2.3,
+  "server_log_facts": [
+    "0.02.827.168 I srv          init: decision model type: kev",
+    "0.02.761.260 I cmn          init: llama threadpool init, n_threads = 12",
+    "0.02.865.599 I srv    load_model: initializing, n_slots = 4, n_ctx_slot = 8192, kv_unified = 'true'"
+  ],
+  "workload_cpu_seconds": {
+    "test_support": {
+      "cpu_seconds": 1719.4,
+      "wall_seconds_incl_warmup": 237.6
+    },
+    "test_assistant": {
+      "cpu_seconds": 1556.4,
+      "wall_seconds_incl_warmup": 288.4
+    },
+    "ood_support": {
+      "cpu_seconds": 4070.6,
+      "wall_seconds_incl_warmup": 707.0
+    },
+    "ood_assistant": {
+      "cpu_seconds": 3388.2,
+      "wall_seconds_incl_warmup": 554.3
+    }
+  },
+  "peak_working_set_mib": 2585,
+  "working_set_mib": 2585,
+  "private_mib": 5125,
+  "cpu_seconds": 10738,
+  "gguf_mib": 774.8,
+  "gguf_sha256": "c427ed7a8e797e1f6b6a838a80d4c32d8735b85dfa742f2dafba89307808ad05",
+  "captured": "2026-11-03T12:06:01.5679941+08:00"
+}

@@ -61,6 +61,7 @@
  "待测": "Not measured",
  "无有效回答": "No valid answers",
  "单题准确率（%，含失败题）": "Single-question accuracy (%, failures included)",
+ "单题耗时中位数（毫秒，每请求1题）": "Median latency per question (ms, 1 question per request)",
  "单次分类中位延迟（毫秒）": "Median single-classification latency (ms)",
  "校准误差 ECE（百分点，越低越好）": "Calibration error ECE (percentage points, lower is better)",
  "有效概率覆盖率（%）": "Valid-probability coverage (%)",

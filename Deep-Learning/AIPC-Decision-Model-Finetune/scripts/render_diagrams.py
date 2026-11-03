@@ -16,9 +16,9 @@ from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCUMENT_PAIRS = (
-    ("README_CN.md", "README.md", 6, 5),
+    ("README_CN.md", "README.md", 5, 5),
     ("文档/核心技术_微调与端侧运行.md", "文档/Core-Technology.md", 4, 2),
-    ("文档/评测与端侧结果全集.md", "文档/Evaluation-Results.md", 36, 7),
+    ("文档/评测与端侧结果全集.md", "文档/Evaluation-Results.md", 37, 7),
     ("文档/操作步骤全本.md", "文档/Operations-Guide.md", 8, 20),
     ("文档/微调与端侧验证报告_20261027-130700.md", "文档/Finetuning-and-On-Device-Validation-Report.md", 20, 1),
 )
@@ -429,9 +429,9 @@ def report_sources():
     if len(matches) != 1:
         raise ValueError("Expected one REPORT:SOURCES configuration in README_CN.md")
     sources = json.loads(matches[0])
-    expected = {"first_summary", "round2_summary", "device_results", "round2_device_results"}
+    expected = {"first_summary", "round2_summary", "device_results", "round2_device_results", "single_question_results"}
     if set(sources) != expected:
-        raise ValueError("Report source configuration must name both summaries and both device campaigns")
+        raise ValueError("Report source configuration must name both summaries, historical campaigns and the single-question campaign")
     paths = {}
     for name, relative in sources.items():
         if not isinstance(relative, str) or Path(relative).is_absolute():
@@ -453,24 +453,24 @@ def peak_working_set_cell(run):
 
 
 def single_question_tables(campaign=None):
+    from systemone_client import calibration_summary, request_body, score_answer
+
     models = INFERENCE_CONFIGURATIONS
     datasets = (("test_support", "工单·同分布"), ("test_assistant", "助手·同分布"),
                 ("ood_support", "工单·分布外"), ("ood_assistant", "助手·分布外"))
     manifest = json.loads((ROOT / "data/contoso/final/manifest.json").read_text(encoding="utf-8"))
     if campaign is None:
-        campaigns = sorted(path for path in (ROOT / "验证结果").glob("单题端侧评测_骁龙_*") if path.is_dir())
-        campaign = campaigns[-1] if campaigns else None
+        campaign = report_sources()["single_question_results"]
     tables = []
     has_results = False
     for size in ("0.8B", "4B"):
-        lines = [f"| 模型（{size}，骁龙 X Elite CPU，默认参数） | 测试集（题数） | 单题准确率（%，含失败题） | 单次分类中位延迟（毫秒） | 整轮进程峰值工作集（MiB） | 校准误差 ECE（0–1，越低越好） | 有效概率覆盖率（%） |",
+        lines = [f"| 模型（{size}，骁龙 X Elite CPU，默认参数） | 测试集（题数） | 单题准确率（%，含失败题） | 单题耗时中位数（毫秒，每请求1题） | 整轮进程峰值工作集（MiB） | 校准误差 ECE（0–1，越低越好） | 有效概率覆盖率（%） |",
              "|---|---|---|---|---|---|---|"]
         for model_size, model_id, label in models:
             if model_size != size:
                 continue
             for dataset, dataset_label in datasets:
                 expected = manifest[f"{dataset}.jsonl"]
-                cells = ["待测"] * 5
                 summary_path = Path(campaign) / model_id / dataset / "summary.json" if campaign else None
                 if summary_path and summary_path.is_file():
                     result = json.loads(summary_path.read_text(encoding="utf-8-sig"))
@@ -494,20 +494,90 @@ def single_question_tables(campaign=None):
                     rows_path = summary_path.with_name("rows.jsonl")
                     if hashlib.sha256(rows_path.read_bytes()).hexdigest() != result["provenance"].get("rows_sha256"):
                         raise ValueError(f"Single-question raw-output hash mismatch: {summary_path}")
+                    records = [json.loads(line) for line in (ROOT / f"data/contoso/final/{dataset}.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
+                    requests = [(record_index, question_id, record, question)
+                                for record_index, record in enumerate(records)
+                                for question_id, question in record["questions"].items()]
+                    raw_rows = [json.loads(line) for line in rows_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+                    if len(raw_rows) != count or len(requests) != count:
+                        raise ValueError(f"Single-question raw coverage mismatch: {summary_path}")
+                    scores, latencies, errors = [], [], 0
+                    for index, (raw, (record_index, question_id, record, question)) in enumerate(zip(raw_rows, requests)):
+                        body = request_body({**record, "questions": {question_id: question}})
+                        if raw["i"] != index or raw["record_index"] != record_index or raw["request"] != body:
+                            raise ValueError(f"Single-question request/input mismatch: {summary_path}/{index}")
+                        if raw["status"] == "error":
+                            if "error" not in raw:
+                                raise ValueError(f"Single-question error evidence missing: {summary_path}/{index}")
+                            errors += 1
+                            continue
+                        if raw["status"] != "ok" or "error" in raw:
+                            raise ValueError(f"Single-question status mismatch: {summary_path}/{index}")
+                        score = score_answer(question, raw["response"]["answers"][question_id])
+                        if score["ok"] != raw["questions"][question_id]["ok"]:
+                            raise ValueError(f"Single-question grading mismatch: {summary_path}/{index}")
+                        latency = raw["latency_ms"]
+                        if isinstance(latency, bool) or not isinstance(latency, (int, float)) or not math.isfinite(latency) or latency < 0:
+                            raise ValueError(f"Single-question latency is invalid: {summary_path}/{index}")
+                        scores.append(score)
+                        latencies.append(latency)
                     calibration = result["calibration"]
                     if (calibration["n"] != result["questions_answered"] or result["latency_ms"]["n"] != calibration["n"]
                             or not math.isclose(result["accuracy"], result["questions_correct"] / count)
                             or not math.isclose(calibration["coverage"], calibration["n"] / count)):
                         raise ValueError(f"Single-question metric denominator mismatch: {summary_path}")
-                    cells = [f"{result['accuracy']:.1%}",
-                             f"{result['latency_ms']['p50']:,.0f}" if calibration["n"] else "无有效回答",
+                    computed = calibration_summary(scores)
+                    correct = sum(score["ok"] for score in scores)
+                    median = statistics.median(latencies) if latencies else None
+                    if errors != result["errors"] or correct != result["questions_correct"] or len(scores) != calibration["n"]:
+                        raise ValueError(f"Single-question raw counts mismatch: {summary_path}")
+                    for name in ("ece", "brier"):
+                        if (computed[name] is None) != (calibration[name] is None) or (computed[name] is not None and not math.isclose(computed[name], calibration[name], rel_tol=1e-9, abs_tol=1e-12)):
+                            raise ValueError(f"Single-question raw {name} mismatch: {summary_path}")
+                    if (median is None) != (result["latency_ms"]["p50"] is None) or (median is not None and not math.isclose(median, result["latency_ms"]["p50"], rel_tol=1e-9, abs_tol=1e-9)):
+                        raise ValueError(f"Single-question raw median mismatch: {summary_path}")
+                    cells = [f"{correct / count:.2%}",
+                             f"{median:,.2f}" if median is not None else "无有效回答",
                              peak_working_set_cell(run),
-                             f"{calibration['ece']:.3f}" if calibration["n"] else "无有效回答",
+                             f"{computed['ece']:.3f}" if calibration["n"] else "无有效回答",
                              f"{calibration['coverage']:.1%}"]
                     has_results = True
-                lines.append(f"| {label} | {dataset_label}（{expected['questions']:,} 题） | " + " | ".join(cells) + " |")
-        tables.append("\n".join(lines))
+                    lines.append(f"| {label} | {dataset_label}（{expected['questions']:,} 题） | " + " | ".join(cells) + " |")
+        if len(lines) > 2:
+            tables.append("\n".join(lines))
     return "\n\n".join(tables) if has_results else ""
+
+
+def single_question_description(language="zh"):
+    campaign = report_sources()["single_question_results"]
+    summaries = [path for _, label, _ in INFERENCE_CONFIGURATIONS
+                 for path in (campaign / label).glob("*/summary.json")
+                 if path.parent.name in ("test_support", "test_assistant", "ood_support", "ood_assistant")]
+    configurations = {path.parent.parent.name for path in summaries}
+    requests = sum(json.loads(path.read_text(encoding="utf-8-sig"))["requests"] for path in summaries)
+    if not summaries:
+        raise ValueError("No received single-question results for the main table")
+    if language == "zh":
+        return (f"**每次请求只回答一道题。** 下表只列已回传并逐条核验的单题结果：{len(configurations)}/7 个配置、{len(summaries)}/28 组，共 {requests:,} 次正式请求。"
+                "未回传配置不填入历史三题数字，也不表示它们不受支持。\n\n"
+                "固定条件：骁龙 X Elite CPU、llama.cpp b11935、并发 1、每个数据集预热 2 次，"
+                "`-c 8192 -b 2048 -ub 2048 --cache-ram 0`。单题耗时从客户端发出请求到完整收到 JSON，单位毫秒，不含加载和预热。"
+                "准确率、ECE 和耗时来自同一批请求，错误保留在准确率分母。\n\n"
+                "**内存与并发前提：** 同一个模型服务进程连续处理所有请求，峰值工作集是整轮最高值（含加载、预热、模型常驻权重和运行缓冲），"
+                "不是每个请求新增的内存，也不是恒定占用或内存上限。顺序处理 100 次不能乘以 100；"
+                "100 个同时在途请求则是另一种负载。本轮只测并发 1，不能从峰值内存反推最大并发；单题并发容量尚未实测。"
+                "同配置各数据集重复显示整轮峰值，不是分别测出的数据集峰值。")
+    return (f"**Each request answers exactly one question.** The table includes only received, individually verified single-question results: "
+            f"{len(configurations)}/7 configurations, {len(summaries)}/28 combinations and {requests:,} measured requests. "
+            "Missing configurations are not filled with historical three-question figures and are not labeled unsupported.\n\n"
+            "Fixed conditions: Snapdragon X Elite CPU, llama.cpp b11935, concurrency 1, two warm-ups per dataset, "
+            "`-c 8192 -b 2048 -ub 2048 --cache-ram 0`. Single-question latency measures client send to complete JSON receipt in milliseconds, "
+            "excluding loading and warm-ups. Accuracy, ECE and latency use the same requests; failures remain in the accuracy denominator.\n\n"
+            "**Memory and concurrency conditions:** one model-server process handles the requests sequentially. The peak working set is the "
+            "maximum over that whole run, including loading, warm-up, resident weights and runtime buffers. It is neither extra memory per "
+            "request, constant usage, nor a memory limit. Do not multiply it by 100 for 100 sequential requests; 100 concurrent requests are "
+            "a different workload. Only concurrency 1 was measured here, so peak memory does not establish maximum concurrency. "
+            "Single-question concurrency capacity has not been measured. Dataset rows repeat the configuration's whole-run peak.")
 
 
 def record_request_tables():
@@ -687,7 +757,7 @@ def overview_blocks():
     load = model_loading_seconds(sources["round2_device_results"] / "r2c-kev-0.8b-Q8_0-cpu/server.log")
     quantization = next(row[1] for row in rows(precision[0])[1:] if row[0] == "微调 FT-cf，Q8_0")
     precision[0] += f"\n| 第二轮 C，Q8_0（交付） | {quantization} | {weight} | {support} / {assistant} | {parity} | {latency} | {peak} | {load} |"
-    return {"ACCURACY": "\n".join(accuracy), "INFERENCE": record_request_tables(),
+    return {"ACCURACY": "\n".join(accuracy), "INFERENCE": single_question_tables(),
             "LEGACY_INFERENCE": "\n\n".join(precision),
             "LEVERS": tables_after("#### 推理优化：测过哪些杠杆")[0],
             "HARDWARE": tables_after("### 6. 需要什么硬件")[0]}
@@ -747,11 +817,16 @@ def sync_overview():
         example_path.write_text(example_text, encoding="utf-8")
     detail_path = ROOT / "文档/评测与端侧结果全集.md"
     detail = detail_path.read_text(encoding="utf-8")
-    detail, replacements = re.subn(r"<!-- (?:SINGLE|RECORD):INFERENCE -->.*?<!-- /(?:SINGLE|RECORD):INFERENCE -->",
+    detail, replacements = re.subn(r"<!-- RECORD:INFERENCE -->.*?<!-- /RECORD:INFERENCE -->",
                                    lambda _: "<!-- RECORD:INFERENCE -->\n" + record_request_tables()
                                    + "\n<!-- /RECORD:INFERENCE -->", detail, flags=re.S)
     if replacements != 1:
         raise ValueError("Missing or duplicated recorded-request results marker")
+    detail, replacements = re.subn(r"<!-- SINGLE:INFERENCE -->.*?<!-- /SINGLE:INFERENCE -->",
+                                   lambda _: "<!-- SINGLE:INFERENCE -->\n" + single_question_tables()
+                                   + "\n<!-- /SINGLE:INFERENCE -->", detail, flags=re.S)
+    if replacements != 1:
+        raise ValueError("Missing or duplicated single-question results marker")
     detail, replacements = re.subn(r"<!-- TABLE:CALIBRATION_DIAGNOSTIC -->.*?<!-- /TABLE:CALIBRATION_DIAGNOSTIC -->",
                                    lambda _: "<!-- TABLE:CALIBRATION_DIAGNOSTIC -->\n" + calibration_table()
                                    + "\n<!-- /TABLE:CALIBRATION_DIAGNOSTIC -->", detail, flags=re.S)
@@ -760,16 +835,9 @@ def sync_overview():
     detail_path.write_text(detail, encoding="utf-8")
     path = ROOT / "README_CN.md"
     text = path.read_text(encoding="utf-8")
-    introduction = (
-        "下面两表保留七个部署配置的历史骁龙三题记录。新评测默认每次只发一道题；这两表不代表新的单题耗时。处理时间是模型已加载后，从发出一个完整工单或助手请求到收到答案的中位数，单位为秒；"
-        "每次请求包含三道判断，不是模型加载时间，也不是独立一道分类的中位数，不能除以三换算。"
-        "每个配置使用 llama.cpp b11935 CPU、默认参数、并发 1，测量 170 条工单和 159 条助手请求，排除加载与两次预热。"
-        "准确率、处理时间和 ECE 都从各自同一轮骁龙记录重算；ECE 采用 10 个等宽置信度分箱，越接近 0 越好，不是 Microsoft-Decision-1 官网的百分制分数。"
-        "峰值内存取同一配置运行记录的进程峰值工作集，覆盖整个服务进程（含模型加载、预热和各数据集），不是模型文件大小、提交内存或显存；同一配置各行重复列出该整轮峰值，不是分别测出的逐数据集峰值。"
-        "独立单题全量评测仍未完成，不与本表混用。"
-        "[计量单位、校准定义与单题补测边界](文档/评测与端侧结果全集.md#single-question)。"
-    )
-    text, replacements = re.subn(r"^下面两表(?:保留|只列).*$", lambda _: introduction, text, flags=re.M)
+    text, replacements = re.subn(r"<!-- SINGLE:METHOD -->.*?<!-- /SINGLE:METHOD -->",
+                                lambda _: "<!-- SINGLE:METHOD -->\n" + single_question_description()
+                                + "\n<!-- /SINGLE:METHOD -->", text, flags=re.S)
     if replacements != 1:
         raise ValueError("Missing or duplicated laptop inference introduction")
     recipe = (
@@ -837,16 +905,9 @@ def sync_english_documents():
                     content = re.sub(r"\]\(([^)]+)\)", target_link, content)
                 text = expression.sub(lambda _: opening + "\n" + content + "\n" + closing, text)
         if target.name == "README.md":
-            introduction = (
-                "The two tables retain historical three-question Snapdragon measurements for all seven deployment configurations. New evaluations send one question per request by default; these tables do not report the new single-question latency. Processing time is the median from sending a complete support or assistant request to receiving its answers after the model is loaded, in seconds. "
-                "Each request contains three decisions. This is neither model-loading time nor the median for a standalone classification, and dividing it by three does not measure that latency. "
-                "Each configuration uses llama.cpp b11935 CPU, default settings and concurrency 1, with 170 support and 159 assistant requests, excluding loading and two warm-ups. "
-                "Accuracy, processing time and ECE are recalculated from each configuration's same recorded Snapdragon run. ECE uses 10 equal-width confidence bins and is better closer to 0; it is not the Microsoft-Decision-1 website's percentage-scale score. "
-                "Peak memory is the peak process working set from the same configuration's run, covering the full server lifetime including model loading, warm-up and all datasets. It is not model file size, commit charge or GPU memory. Dataset rows repeat that run-level peak, not independently measured per-dataset peaks. "
-                "Full standalone single-question evaluation is still incomplete and is not mixed into this table. "
-                "[Timing units, calibration and the single-question boundary](文档/Evaluation-Results.md#single-question)."
-            )
-            text, replacements = re.subn(r"^The two tables (?:retain|list).*$", lambda _: introduction, text, flags=re.M)
+            text, replacements = re.subn(r"<!-- SINGLE:METHOD -->.*?<!-- /SINGLE:METHOD -->",
+                                        lambda _: "<!-- SINGLE:METHOD -->\n" + single_question_description("en")
+                                        + "\n<!-- /SINGLE:METHOD -->", text, flags=re.S)
             if replacements != 1:
                 raise ValueError("Missing or duplicated English laptop inference introduction")
             recipe = (
