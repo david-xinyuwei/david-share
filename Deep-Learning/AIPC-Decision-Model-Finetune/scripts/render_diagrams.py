@@ -16,7 +16,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCUMENT_PAIRS = (
-    ("README_CN.md", "README.md", 6, 2),
+    ("README_CN.md", "README.md", 6, 5),
     ("文档/核心技术_微调与端侧运行.md", "文档/Core-Technology.md", 4, 2),
     ("文档/评测与端侧结果全集.md", "文档/Evaluation-Results.md", 36, 7),
     ("文档/操作步骤全本.md", "文档/Operations-Guide.md", 8, 20),

@@ -91,6 +91,54 @@ The laptop prepares separate training, calibration and test sets; released Kev i
 
 *Original workflow illustration: blue lines carry data and dashed lines show human-led development feedback, not completed independent customer acceptance. Sources and hashes: [images/provenance.json](images/provenance.json).*
 
+#### Core Code: Fine-Tuning, Calibration and Quantization
+
+These core calls use the delivered **0.8B C recipe**. Complete the [training environment, data upload and export-tool setup](文档/Operations-Guide.md#train-update) first, then execute the blocks in order in the same Bash session on the Linux training host. The first two stages need a GPU; export and quantization use CPU only. Paths match this project: **do not rerun these calls over existing checkpoints or result directories**. Use the linked pipelines for full reproduction, including evaluation, error handling and delivery checks.
+
+**1. Fine-tune: business records → LoRA and pointer-head checkpoint.** C uses 4,038 business records plus 1,000 replay records for 4 epochs, with base weights frozen. [Complete training script](scripts/remote_round2.sh)
+
+<!-- SOURCE:FENCE:1 -->
+```bash
+set -euo pipefail
+cd /mnt/aipc/kev
+PY="$PWD/.venv/bin/python"
+CK=/mnt/aipc/runs/0.8b/r2-C
+"$PY" -m kev.train \
+    --data /mnt/aipc/data/contoso/train_cf2.jsonl --suite evals/v7/decision-v7 --replay 1000 \
+    --base Qwen/Qwen3.5-0.8B-Base --base_revision dc7cdfe2ee4154fa7e30f5b51ca41bfa40174e68 \
+    --init_from jaredpalmer/kev-0.8b@v1.0 --epochs 4 --lr 2e-5 --batch 4 --accum 2 \
+    --dtype bf16 --checkpointing 1 --max_state 768 --device cuda --seed 1 --out "$CK"
+```
+<!-- /SOURCE:FENCE:1 -->
+
+**2. Calibrate: calibration-set scores → temperature T in the checkpoint.** First save per-question scores from the fixed model, then fit temperature. This updates neither model weights nor answer ranking and does not select temperature on the test set. [Calibration and update details](文档/Operations-Guide.md#calibration-update)
+
+<!-- SOURCE:FENCE:2 -->
+```bash
+ROWS=/mnt/aipc/runs/0.8b/r2-C-calib-raw
+"$PY" -m kev.benchmark --run "$CK" \
+    --data /mnt/aipc/data/contoso/calib.jsonl --out "$ROWS" --device cuda
+"$PY" scripts/calibrate_checkpoint.py --run "$CK" \
+    --rows "$ROWS/rows.json" --allow-in-distribution
+```
+<!-- /SOURCE:FENCE:2 -->
+
+**3. Export and quantize: calibrated checkpoint → BF16 GGUF → Q8_0 GGUF.** Conversion merges LoRA and includes the pointer head and temperature; quantization does not retrain. Check the resulting file's temperatures and run target-device regression: successful export alone does not establish unchanged quality. [Complete export script](scripts/remote_export_round2.sh)
+
+<!-- SOURCE:FENCE:3 -->
+```bash
+LLAMA=/mnt/aipc/llama.cpp
+OUT=/mnt/aipc/gguf/0.8b-r2C
+NAME=Contoso-Kev-0.8B-FTcf-R2C
+mkdir -p "$OUT"
+/mnt/aipc/llama-venv/bin/python "$LLAMA/convert_hf_to_gguf.py" "$CK" \
+    --outtype bf16 --outfile "$OUT/$NAME-BF16.gguf.part" --model-name "$NAME"
+mv "$OUT/$NAME-BF16.gguf.part" "$OUT/$NAME-BF16.gguf"
+"$LLAMA/build/bin/llama-quantize" "$OUT/$NAME-BF16.gguf" "$OUT/$NAME-Q8_0.gguf.part" Q8_0
+mv "$OUT/$NAME-Q8_0.gguf.part" "$OUT/$NAME-Q8_0.gguf"
+```
+<!-- /SOURCE:FENCE:3 -->
+
 ### Everyday Inference: Decisions Stay on the Laptop
 
 The business application sends the message, device fields and questions; llama-server returns option probabilities. This path neither trains nor calls a cloud model, and it does not execute business actions.
@@ -174,7 +222,7 @@ Run all commands from the project root, not the directory containing a detail do
 
 Start the service in the first PowerShell terminal and send the request in a second. Receiving option probabilities establishes a working call; correctness still needs comparison with the business rules.
 
-<!-- SOURCE:FENCE:1 -->
+<!-- SOURCE:FENCE:4 -->
 ```powershell
 $Engine = 'C:\Tools\llama.cpp\b11935-cpu\llama-server.exe'
 $Model = 'C:\Tools\models\contoso-kev\Contoso-Kev-0.8B-FTcf-R2C-Q8_0.gguf'   # 交付的第二轮 C；上一版改用 Contoso-Kev-0.8B-FTcf-Q8_0.gguf
@@ -183,16 +231,16 @@ if (-not (Test-Path -LiteralPath $Model)) { throw '找不到微调 GGUF，请先
 & $Engine -m $Model --alias contoso-kev-0.8b-r2c --host 127.0.0.1 --port 8080 `
     -c 8192 -b 2048 -ub 2048 -ngl 0 --cache-ram 0 --offline
 ```
-<!-- /SOURCE:FENCE:1 -->
+<!-- /SOURCE:FENCE:4 -->
 
-<!-- SOURCE:FENCE:2 -->
+<!-- SOURCE:FENCE:5 -->
 ```powershell
 Invoke-RestMethod -Uri http://127.0.0.1:8080/health
 $Run = Join-Path '验证结果' ('本机试用_' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
 python -B scripts\systemone_client.py --url http://127.0.0.1:8080/v1/systemone `
     --request data\contoso\examples\support.json --out "$Run\support-us"
 ```
-<!-- /SOURCE:FENCE:2 -->
+<!-- /SOURCE:FENCE:5 -->
 
 Region changes, the graphical trial, training, updates, offline tests and stop/restore instructions are in the [operations guide](文档/Operations-Guide.md). Offline checks do not invoke a model or establish a fresh training/performance run.
 

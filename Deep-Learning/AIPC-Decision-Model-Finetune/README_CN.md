@@ -94,6 +94,48 @@
 
 *原创流程解释图：蓝线为数据流，虚线为人工依据开发数据迭代；不表示已完成独立客户验收。来源与哈希见 [images/provenance.json](images/provenance.json)。*
 
+#### 核心代码示例：微调、校准、量化
+
+以下按当前交付的 **0.8B C 配方**展开核心调用。先完成[训练环境、数据上传与导出工具准备](文档/操作步骤全本.md#train-update)，在 Linux 训练主机的同一个 Bash 会话中顺序执行；前两步需要 GPU，导出与量化只用 CPU。示例使用本项目的实际路径，**不要在已有检查点或结果目录上重复执行**。完整复现仍使用链接中的流水线，它还包含评测、错误处理和交付校验。
+
+**1. 微调：业务样本 → LoRA 与指针头检查点。** C 使用 4,038 条业务记录、1,000 条通用回放，训练 4 个 epoch；基座权重冻结。[完整训练脚本](scripts/remote_round2.sh)
+
+```bash
+set -euo pipefail
+cd /mnt/aipc/kev
+PY="$PWD/.venv/bin/python"
+CK=/mnt/aipc/runs/0.8b/r2-C
+"$PY" -m kev.train \
+    --data /mnt/aipc/data/contoso/train_cf2.jsonl --suite evals/v7/decision-v7 --replay 1000 \
+    --base Qwen/Qwen3.5-0.8B-Base --base_revision dc7cdfe2ee4154fa7e30f5b51ca41bfa40174e68 \
+    --init_from jaredpalmer/kev-0.8b@v1.0 --epochs 4 --lr 2e-5 --batch 4 --accum 2 \
+    --dtype bf16 --checkpointing 1 --max_state 768 --device cuda --seed 1 --out "$CK"
+```
+
+**2. 校准：校准集分数 → 检查点中的温度 T。** 先保存固定模型的逐题分数，再拟合温度；不更新模型权重，不改变答案排序，也不使用测试集挑温度。[校准与更新说明](文档/操作步骤全本.md#calibration-update)
+
+```bash
+ROWS=/mnt/aipc/runs/0.8b/r2-C-calib-raw
+"$PY" -m kev.benchmark --run "$CK" \
+    --data /mnt/aipc/data/contoso/calib.jsonl --out "$ROWS" --device cuda
+"$PY" scripts/calibrate_checkpoint.py --run "$CK" \
+    --rows "$ROWS/rows.json" --allow-in-distribution
+```
+
+**3. 导出并量化：已校准检查点 → BF16 GGUF → Q8_0 GGUF。** 转换器合并 LoRA 并写入指针头与温度；量化不重训。生成的 Q8_0 文件仍需温度核对和目标设备回归，不能仅凭导出成功认定效果不变。[完整导出脚本](scripts/remote_export_round2.sh)
+
+```bash
+LLAMA=/mnt/aipc/llama.cpp
+OUT=/mnt/aipc/gguf/0.8b-r2C
+NAME=Contoso-Kev-0.8B-FTcf-R2C
+mkdir -p "$OUT"
+/mnt/aipc/llama-venv/bin/python "$LLAMA/convert_hf_to_gguf.py" "$CK" \
+    --outtype bf16 --outfile "$OUT/$NAME-BF16.gguf.part" --model-name "$NAME"
+mv "$OUT/$NAME-BF16.gguf.part" "$OUT/$NAME-BF16.gguf"
+"$LLAMA/build/bin/llama-quantize" "$OUT/$NAME-BF16.gguf" "$OUT/$NAME-Q8_0.gguf.part" Q8_0
+mv "$OUT/$NAME-Q8_0.gguf.part" "$OUT/$NAME-Q8_0.gguf"
+```
+
 ### 日常推理：只在笔记本作判断
 
 业务程序提交原话、设备信息和问题，llama-server 返回选项概率。这里不训练、不调用云端模型，也不代替业务应用执行后续动作。

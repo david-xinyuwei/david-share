@@ -723,6 +723,36 @@ class BilingualDocumentationTests(unittest.TestCase):
             self.assertIn("`-ub`", context_row[-1])
             self.assertRegex(context_row[-1], r"不能仅归因|cannot be attributed")
 
+    def test_readme_core_examples_match_the_delivered_c_recipe(self):
+        text = (ROOT / "README_CN.md").read_text(encoding="utf-8")
+        examples = [token.content for token in self.parser.parse(text)
+                    if token.type == "fence" and token.info == "bash"]
+        self.assertEqual(len(examples), 3)
+        training, calibration, quantization = examples
+        self.assertIn("--data /mnt/aipc/data/contoso/train_cf2.jsonl", training)
+        for argument in ("--replay 1000", "--epochs 4", "--lr 2e-5", "--batch 4 --accum 2",
+                         "--max_state 768", "--init_from jaredpalmer/kev-0.8b@v1.0"):
+            self.assertIn(argument, training)
+        self.assertIn("CK=/mnt/aipc/runs/0.8b/r2-C", training)
+        self.assertIn("-m kev.benchmark", calibration)
+        self.assertIn("--data /mnt/aipc/data/contoso/calib.jsonl", calibration)
+        self.assertIn('scripts/calibrate_checkpoint.py --run "$CK"', calibration)
+        self.assertIn('--rows "$ROWS/rows.json" --allow-in-distribution', calibration)
+        self.assertIn('"$LLAMA/convert_hf_to_gguf.py" "$CK"', quantization)
+        self.assertIn("--outtype bf16", quantization)
+        self.assertIn('"$LLAMA/build/bin/llama-quantize"', quantization)
+        self.assertIn('"$OUT/$NAME-Q8_0.gguf.part" Q8_0', quantization)
+        self.assertIn("NAME=Contoso-Kev-0.8B-FTcf-R2C", quantization)
+        self.assertLess(text.index('src="images/training.png"'), text.index("#### 核心代码示例"))
+        self.assertLess(text.index("#### 核心代码示例"), text.index("### 日常推理"))
+        git_bash = Path("C:/Program Files/Git/bin/bash.exe")
+        bash = str(git_bash) if git_bash.is_file() else shutil.which("bash")
+        if not bash:
+            self.skipTest("README command syntax validation requires Bash")
+        result = subprocess.run([bash, "--noprofile", "--norc", "-n"],
+                                input="\n".join(examples).encode("utf-8"), capture_output=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
+
     def test_current_model_reproduction_commands_are_present_in_both_languages(self):
         commands = ("bash scripts/remote_round2.sh 0.8b C",
                     "bash scripts/remote_export_round2.sh 0.8b C",
