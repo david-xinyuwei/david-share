@@ -45,35 +45,35 @@ Released means no business fine-tuning. FT-cf uses 3,832 business records for 2 
 
 ### Inference: Accuracy, Measured Processing Time and Calibration
 
-The two tables retain historical three-question Snapdragon measurements for all seven deployment configurations. New evaluations send one question per request by default; these tables do not report the new single-question latency. Processing time is the median from sending a complete support or assistant request to receiving its answers after the model is loaded, in seconds. Each request contains three decisions. This is neither model-loading time nor the median for a standalone classification, and dividing it by three does not measure that latency. Each configuration uses llama.cpp b11935 CPU, default settings and concurrency 1, with 170 support and 159 assistant requests, excluding loading and two warm-ups. Accuracy, processing time and ECE are recalculated from each configuration's same recorded Snapdragon run. ECE uses 10 equal-width confidence bins and is better closer to 0; it is not the Microsoft-Decision-1 website's percentage-scale score. Full standalone single-question evaluation is still incomplete and is not mixed into this table. [Timing units, calibration and the single-question boundary](文档/Evaluation-Results.md#single-question).
+The two tables retain historical three-question Snapdragon measurements for all seven deployment configurations. New evaluations send one question per request by default; these tables do not report the new single-question latency. Processing time is the median from sending a complete support or assistant request to receiving its answers after the model is loaded, in seconds. Each request contains three decisions. This is neither model-loading time nor the median for a standalone classification, and dividing it by three does not measure that latency. Each configuration uses llama.cpp b11935 CPU, default settings and concurrency 1, with 170 support and 159 assistant requests, excluding loading and two warm-ups. Accuracy, processing time and ECE are recalculated from each configuration's same recorded Snapdragon run. ECE uses 10 equal-width confidence bins and is better closer to 0; it is not the Microsoft-Decision-1 website's percentage-scale score. Peak memory is the peak process working set from the same configuration's run, covering the full server lifetime including model loading, warm-up and all datasets. It is not model file size, commit charge or GPU memory. Dataset rows repeat that run-level peak, not independently measured per-dataset peaks. Full standalone single-question evaluation is still incomplete and is not mixed into this table. [Timing units, calibration and the single-question boundary](文档/Evaluation-Results.md#single-question).
 
 <!-- OVERVIEW:INFERENCE -->
 <!-- SOURCE:TABLE:2 -->
-| Model (0.8B, Snapdragon X Elite CPU, default settings)| Test set (questions)| Per-question accuracy (%, failures included)| Median processing time per complete request (seconds, 3 decisions each)| Calibration error ECE (0-1, lower is better)| Valid-probability coverage (%)| 
-| ---| ---| ---| ---| ---| ---| 
-| Released B0, official Q8_0 package| Support: in-distribution (510 questions)| 45.7%| **0.666**| 0.030| 100.0%| 
-| Released B0, official Q8_0 package| Assistant: in-distribution (477 questions)| 66.9%| **0.843**| 0.093| 100.0%| 
-| Fine-tuned FT-cf, Q8_0| Support: in-distribution (510 questions)| 86.9%| **0.646**| 0.028| 100.0%| 
-| Fine-tuned FT-cf, Q8_0| Assistant: in-distribution (477 questions)| 97.7%| **0.984**| 0.014| 100.0%| 
-| Fine-tuned FT, Q4_K_M (separate FT recipe, not FT-cf)| Support: in-distribution (510 questions)| 87.5%| **0.812**| 0.021| 100.0%| 
-| Fine-tuned FT, Q4_K_M (separate FT recipe, not FT-cf)| Assistant: in-distribution (477 questions)| 93.9%| **0.909**| 0.014| 100.0%| 
-| Round-2 C, Q8_0 (delivered)| Support: in-distribution (510 questions)| 96.9%| **0.635**| 0.032| 100.0%| 
-| Round-2 C, Q8_0 (delivered)| Assistant: in-distribution (477 questions)| 99.6%| **0.905**| 0.010| 100.0%| 
+| Model (0.8B, Snapdragon X Elite CPU, default settings)| Test set (questions)| Per-question accuracy (%, failures included)| Median processing time per complete request (seconds, 3 decisions each)| Peak process working set, whole run (MiB)| Calibration error ECE (0-1, lower is better)| Valid-probability coverage (%)| 
+| ---| ---| ---| ---| ---| ---| ---| 
+| Released B0, official Q8_0 package| Support: in-distribution (510 questions)| 45.7%| **0.666**| 2,323| 0.030| 100.0%| 
+| Released B0, official Q8_0 package| Assistant: in-distribution (477 questions)| 66.9%| **0.843**| 2,323| 0.093| 100.0%| 
+| Fine-tuned FT-cf, Q8_0| Support: in-distribution (510 questions)| 86.9%| **0.646**| 2,314| 0.028| 100.0%| 
+| Fine-tuned FT-cf, Q8_0| Assistant: in-distribution (477 questions)| 97.7%| **0.984**| 2,314| 0.014| 100.0%| 
+| Fine-tuned FT, Q4_K_M (separate FT recipe, not FT-cf)| Support: in-distribution (510 questions)| 87.5%| **0.812**| 1,819| 0.021| 100.0%| 
+| Fine-tuned FT, Q4_K_M (separate FT recipe, not FT-cf)| Assistant: in-distribution (477 questions)| 93.9%| **0.909**| 1,819| 0.014| 100.0%| 
+| Round-2 C, Q8_0 (delivered)| Support: in-distribution (510 questions)| 96.9%| **0.635**| 2,314| 0.032| 100.0%| 
+| Round-2 C, Q8_0 (delivered)| Assistant: in-distribution (477 questions)| 99.6%| **0.905**| 2,314| 0.010| 100.0%| 
 <!-- /SOURCE:TABLE:2 -->
 
 <!-- SOURCE:TABLE:3 -->
-| Model (4B, Snapdragon X Elite CPU, default settings)| Test set (questions)| Per-question accuracy (%, failures included)| Median processing time per complete request (seconds, 3 decisions each)| Calibration error ECE (0-1, lower is better)| Valid-probability coverage (%)| 
-| ---| ---| ---| ---| ---| ---| 
-| Released B0, official Q4_K_M package| Support: in-distribution (510 questions)| 59.0%| **3.022**| 0.047| 100.0%| 
-| Released B0, official Q4_K_M package| Assistant: in-distribution (477 questions)| 82.0%| **3.790**| 0.134| 100.0%| 
-| Fine-tuned FT-cf, Q8_0| Support: in-distribution (510 questions)| 96.1%| **3.649**| 0.019| 100.0%| 
-| Fine-tuned FT-cf, Q8_0| Assistant: in-distribution (477 questions)| 99.8%| **4.115**| 0.008| 100.0%| 
-| Fine-tuned FT-cf, Q4_K_M| Support: in-distribution (510 questions)| 95.3%| **3.615**| 0.018| 100.0%| 
-| Fine-tuned FT-cf, Q4_K_M| Assistant: in-distribution (477 questions)| 99.6%| **4.751**| 0.009| 100.0%| 
+| Model (4B, Snapdragon X Elite CPU, default settings)| Test set (questions)| Per-question accuracy (%, failures included)| Median processing time per complete request (seconds, 3 decisions each)| Peak process working set, whole run (MiB)| Calibration error ECE (0-1, lower is better)| Valid-probability coverage (%)| 
+| ---| ---| ---| ---| ---| ---| ---| 
+| Released B0, official Q4_K_M package| Support: in-distribution (510 questions)| 59.0%| **3.022**| 6,849| 0.047| 100.0%| 
+| Released B0, official Q4_K_M package| Assistant: in-distribution (477 questions)| 82.0%| **3.790**| 6,849| 0.134| 100.0%| 
+| Fine-tuned FT-cf, Q8_0| Support: in-distribution (510 questions)| 96.1%| **3.649**| 9,609| 0.019| 100.0%| 
+| Fine-tuned FT-cf, Q8_0| Assistant: in-distribution (477 questions)| 99.8%| **4.115**| 9,609| 0.008| 100.0%| 
+| Fine-tuned FT-cf, Q4_K_M| Support: in-distribution (510 questions)| 95.3%| **3.615**| 6,842| 0.018| 100.0%| 
+| Fine-tuned FT-cf, Q4_K_M| Assistant: in-distribution (477 questions)| 99.6%| **4.751**| 6,842| 0.009| 100.0%| 
 <!-- /SOURCE:TABLE:3 -->
 <!-- /OVERVIEW:INFERENCE -->
 
-**In this recorded Snapdragon run, delivered C takes a median of about 0.635 seconds for a complete support request and 0.905 seconds for an assistant request, each containing three decisions.** These are full-run measurements, not the local smoke samples, and exclude model loading. Loading, memory, file size and repeats remain in the [device results](文档/Evaluation-Results.md#5-laptop-inference-engine) and [C regression](文档/Evaluation-Results.md#round2-device). The 0.8B Q4_K_M configuration is the separate FT recipe, not FT-cf or C. Q8_0 is W8; this project's custom Q4_K_M mixes W4/W8, while the official package name does not establish each layer's bit width.
+**In this recorded Snapdragon run, delivered C takes a median of about 0.635 seconds for a complete support request and 0.905 seconds for an assistant request, each containing three decisions.** These are full-run measurements, not the local smoke samples, and exclude model loading. The whole-run peak process working set is now in the tables above; loading, commit charge, file size and repeats are detailed in the [device results](文档/Evaluation-Results.md#5-laptop-inference-engine) and [C regression](文档/Evaluation-Results.md#round2-device). The 0.8B Q4_K_M configuration is the separate FT recipe, not FT-cf or C. Q8_0 is W8; this project's custom Q4_K_M mixes W4/W8, while the official package name does not establish each layer's bit width.
 
 - **Fine-tuning improves business accuracy.** This does not show that fine-tuning accelerates an unchanged model architecture; individual timing differences do not establish causation.
 - **Q8_0 stays closer to its own PyTorch answers.** Q4_K_M reduces file size but has lower per-question agreement. Unrun cells remain visible.

@@ -283,28 +283,30 @@ Inputs are [test_support](../data/contoso/final/test_support.jsonl) and [test_as
 The interpretation is whether answers assigned about 90% confidence are correct about 90% of the time. ECE depends on the dataset and binning and must be read with accuracy and coverage. **Temperature fitting is an adjustment; ECE measures its outcome.** This report uses the definition above, not another product's percentage-scale calibration score or a cross-benchmark ranking.
 
 <!-- SOURCE:TABLE:2 -->
-| Model (0.8B, Snapdragon X Elite CPU, default settings)| Test set (questions)| Per-question accuracy (%, failures included)| Median processing time per complete request (seconds, 3 decisions each)| Calibration error ECE (0-1, lower is better)| Valid-probability coverage (%)| 
-| ---| ---| ---| ---| ---| ---| 
-| Released B0, official Q8_0 package| Support: in-distribution (510 questions)| 45.7%| **0.666**| 0.030| 100.0%| 
-| Released B0, official Q8_0 package| Assistant: in-distribution (477 questions)| 66.9%| **0.843**| 0.093| 100.0%| 
-| Fine-tuned FT-cf, Q8_0| Support: in-distribution (510 questions)| 86.9%| **0.646**| 0.028| 100.0%| 
-| Fine-tuned FT-cf, Q8_0| Assistant: in-distribution (477 questions)| 97.7%| **0.984**| 0.014| 100.0%| 
-| Fine-tuned FT, Q4_K_M (separate FT recipe, not FT-cf)| Support: in-distribution (510 questions)| 87.5%| **0.812**| 0.021| 100.0%| 
-| Fine-tuned FT, Q4_K_M (separate FT recipe, not FT-cf)| Assistant: in-distribution (477 questions)| 93.9%| **0.909**| 0.014| 100.0%| 
-| Round-2 C, Q8_0 (delivered)| Support: in-distribution (510 questions)| 96.9%| **0.635**| 0.032| 100.0%| 
-| Round-2 C, Q8_0 (delivered)| Assistant: in-distribution (477 questions)| 99.6%| **0.905**| 0.010| 100.0%| 
+| Model (0.8B, Snapdragon X Elite CPU, default settings)| Test set (questions)| Per-question accuracy (%, failures included)| Median processing time per complete request (seconds, 3 decisions each)| Peak process working set, whole run (MiB)| Calibration error ECE (0-1, lower is better)| Valid-probability coverage (%)| 
+| ---| ---| ---| ---| ---| ---| ---| 
+| Released B0, official Q8_0 package| Support: in-distribution (510 questions)| 45.7%| **0.666**| 2,323| 0.030| 100.0%| 
+| Released B0, official Q8_0 package| Assistant: in-distribution (477 questions)| 66.9%| **0.843**| 2,323| 0.093| 100.0%| 
+| Fine-tuned FT-cf, Q8_0| Support: in-distribution (510 questions)| 86.9%| **0.646**| 2,314| 0.028| 100.0%| 
+| Fine-tuned FT-cf, Q8_0| Assistant: in-distribution (477 questions)| 97.7%| **0.984**| 2,314| 0.014| 100.0%| 
+| Fine-tuned FT, Q4_K_M (separate FT recipe, not FT-cf)| Support: in-distribution (510 questions)| 87.5%| **0.812**| 1,819| 0.021| 100.0%| 
+| Fine-tuned FT, Q4_K_M (separate FT recipe, not FT-cf)| Assistant: in-distribution (477 questions)| 93.9%| **0.909**| 1,819| 0.014| 100.0%| 
+| Round-2 C, Q8_0 (delivered)| Support: in-distribution (510 questions)| 96.9%| **0.635**| 2,314| 0.032| 100.0%| 
+| Round-2 C, Q8_0 (delivered)| Assistant: in-distribution (477 questions)| 99.6%| **0.905**| 2,314| 0.010| 100.0%| 
 <!-- /SOURCE:TABLE:2 -->
 
 <!-- SOURCE:TABLE:3 -->
-| Model (4B, Snapdragon X Elite CPU, default settings)| Test set (questions)| Per-question accuracy (%, failures included)| Median processing time per complete request (seconds, 3 decisions each)| Calibration error ECE (0-1, lower is better)| Valid-probability coverage (%)| 
-| ---| ---| ---| ---| ---| ---| 
-| Released B0, official Q4_K_M package| Support: in-distribution (510 questions)| 59.0%| **3.022**| 0.047| 100.0%| 
-| Released B0, official Q4_K_M package| Assistant: in-distribution (477 questions)| 82.0%| **3.790**| 0.134| 100.0%| 
-| Fine-tuned FT-cf, Q8_0| Support: in-distribution (510 questions)| 96.1%| **3.649**| 0.019| 100.0%| 
-| Fine-tuned FT-cf, Q8_0| Assistant: in-distribution (477 questions)| 99.8%| **4.115**| 0.008| 100.0%| 
-| Fine-tuned FT-cf, Q4_K_M| Support: in-distribution (510 questions)| 95.3%| **3.615**| 0.018| 100.0%| 
-| Fine-tuned FT-cf, Q4_K_M| Assistant: in-distribution (477 questions)| 99.6%| **4.751**| 0.009| 100.0%| 
+| Model (4B, Snapdragon X Elite CPU, default settings)| Test set (questions)| Per-question accuracy (%, failures included)| Median processing time per complete request (seconds, 3 decisions each)| Peak process working set, whole run (MiB)| Calibration error ECE (0-1, lower is better)| Valid-probability coverage (%)| 
+| ---| ---| ---| ---| ---| ---| ---| 
+| Released B0, official Q4_K_M package| Support: in-distribution (510 questions)| 59.0%| **3.022**| 6,849| 0.047| 100.0%| 
+| Released B0, official Q4_K_M package| Assistant: in-distribution (477 questions)| 82.0%| **3.790**| 6,849| 0.134| 100.0%| 
+| Fine-tuned FT-cf, Q8_0| Support: in-distribution (510 questions)| 96.1%| **3.649**| 9,609| 0.019| 100.0%| 
+| Fine-tuned FT-cf, Q8_0| Assistant: in-distribution (477 questions)| 99.8%| **4.115**| 9,609| 0.008| 100.0%| 
+| Fine-tuned FT-cf, Q4_K_M| Support: in-distribution (510 questions)| 95.3%| **3.615**| 6,842| 0.018| 100.0%| 
+| Fine-tuned FT-cf, Q4_K_M| Assistant: in-distribution (477 questions)| 99.6%| **4.751**| 6,842| 0.009| 100.0%| 
 <!-- /SOURCE:TABLE:3 -->
+
+Peak memory comes from `peak_working_set_mib` in the same configuration's `run.json` or `server_memory.json`. It is the peak process working set over the full server run, including model loading, warm-up and all datasets, not model file size, commit charge or GPU memory. The record contains only a whole-run peak, so the support and assistant rows repeat it rather than claiming separately measured per-dataset peaks.
 
 **Scope:** the table covers Snapdragon runs with three questions per request. The earlier x64 single-question calls are separate interface examples, not the same performance benchmark. Other collection modes belong in the [operations guide](Operations-Guide.md#single-question-run). Updates must select evidence through the [source configuration](Operations-Guide.md#report-sources), without filling gaps from an older campaign.
 

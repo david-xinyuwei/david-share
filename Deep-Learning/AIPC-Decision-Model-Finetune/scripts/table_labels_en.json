@@ -64,6 +64,7 @@
  "单次分类中位延迟（毫秒）": "Median single-classification latency (ms)",
  "校准误差 ECE（百分点，越低越好）": "Calibration error ECE (percentage points, lower is better)",
  "有效概率覆盖率（%）": "Valid-probability coverage (%)",
+ "整轮进程峰值工作集（MiB）": "Peak process working set, whole run (MiB)",
  "测试集（题数）": "Test set (questions)",
  "微调前准确率：发布版": "Before fine-tuning: released accuracy",
  "微调后准确率：最终方案": "After fine-tuning: final-recipe accuracy",

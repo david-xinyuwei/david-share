@@ -445,6 +445,13 @@ def report_sources():
     return paths
 
 
+def peak_working_set_cell(run):
+    value = run.get("peak_working_set_mib")
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
+        raise ValueError("Missing or invalid measured peak working set")
+    return f"{value:,.0f}"
+
+
 def single_question_tables(campaign=None):
     models = INFERENCE_CONFIGURATIONS
     datasets = (("test_support", "工单·同分布"), ("test_assistant", "助手·同分布"),
@@ -456,14 +463,14 @@ def single_question_tables(campaign=None):
     tables = []
     has_results = False
     for size in ("0.8B", "4B"):
-        lines = [f"| 模型（{size}，骁龙 X Elite CPU，默认参数） | 测试集（题数） | 单题准确率（%，含失败题） | 单次分类中位延迟（毫秒） | 校准误差 ECE（0–1，越低越好） | 有效概率覆盖率（%） |",
-                 "|---|---|---|---|---|---|"]
+        lines = [f"| 模型（{size}，骁龙 X Elite CPU，默认参数） | 测试集（题数） | 单题准确率（%，含失败题） | 单次分类中位延迟（毫秒） | 整轮进程峰值工作集（MiB） | 校准误差 ECE（0–1，越低越好） | 有效概率覆盖率（%） |",
+             "|---|---|---|---|---|---|---|"]
         for model_size, model_id, label in models:
             if model_size != size:
                 continue
             for dataset, dataset_label in datasets:
                 expected = manifest[f"{dataset}.jsonl"]
-                cells = ["待测"] * 4
+                cells = ["待测"] * 5
                 summary_path = Path(campaign) / model_id / dataset / "summary.json" if campaign else None
                 if summary_path and summary_path.is_file():
                     result = json.loads(summary_path.read_text(encoding="utf-8-sig"))
@@ -494,6 +501,7 @@ def single_question_tables(campaign=None):
                         raise ValueError(f"Single-question metric denominator mismatch: {summary_path}")
                     cells = [f"{result['accuracy']:.1%}",
                              f"{result['latency_ms']['p50']:,.0f}" if calibration["n"] else "无有效回答",
+                             peak_working_set_cell(run),
                              f"{calibration['ece']:.3f}" if calibration["n"] else "无有效回答",
                              f"{calibration['coverage']:.1%}"]
                     has_results = True
@@ -508,12 +516,16 @@ def record_request_tables():
     sources = report_sources()
     tables = []
     for size in ("0.8B", "4B"):
-        lines = [f"| 模型（{size}，骁龙 X Elite CPU，默认参数） | 测试集（题数） | 逐题准确率（%，含失败题） | 处理完整请求中位时间（秒，每次3道判断） | 校准误差 ECE（0–1，越低越好） | 有效概率覆盖率（%） |",
-                 "|---|---|---|---|---|---|"]
+        lines = [f"| 模型（{size}，骁龙 X Elite CPU，默认参数） | 测试集（题数） | 逐题准确率（%，含失败题） | 处理完整请求中位时间（秒，每次3道判断） | 整轮进程峰值工作集（MiB） | 校准误差 ECE（0–1，越低越好） | 有效概率覆盖率（%） |",
+             "|---|---|---|---|---|---|---|"]
         for model_size, model_id, label in INFERENCE_CONFIGURATIONS:
             if model_size != size:
                 continue
             campaign = sources["round2_device_results" if model_id.startswith("r2c-") else "device_results"]
+            metadata_path = campaign / model_id / "run.json"
+            if not metadata_path.is_file():
+                metadata_path = campaign / model_id / "server_memory.json"
+            peak_memory = peak_working_set_cell(json.loads(metadata_path.read_text(encoding="utf-8-sig")))
             for workload, dataset_label in (("support", "工单·同分布"), ("assistant", "助手·同分布")):
                 run_path = campaign / model_id / workload
                 raw_rows = [json.loads(line) for line in (run_path / "rows.jsonl").read_text(encoding="utf-8-sig").splitlines() if line.strip()]
@@ -543,7 +555,7 @@ def record_request_tables():
                 if not latencies or calibration["ece"] is None:
                     raise ValueError(f"No usable historical measurements: {run_path}")
                 lines.append(f"| {label} | {dataset_label}（{total_questions:,} 题） | {accuracy:.1%} | "
-                             f"**{statistics.median(latencies) / 1000:.3f}** | {calibration['ece']:.3f} | "
+                             f"**{statistics.median(latencies) / 1000:.3f}** | {peak_memory} | {calibration['ece']:.3f} | "
                              f"{len(scores) / total_questions:.1%} |")
         tables.append("\n".join(lines))
     return "\n\n".join(tables)
@@ -752,8 +764,9 @@ def sync_overview():
         "下面两表保留七个部署配置的历史骁龙三题记录。新评测默认每次只发一道题；这两表不代表新的单题耗时。处理时间是模型已加载后，从发出一个完整工单或助手请求到收到答案的中位数，单位为秒；"
         "每次请求包含三道判断，不是模型加载时间，也不是独立一道分类的中位数，不能除以三换算。"
         "每个配置使用 llama.cpp b11935 CPU、默认参数、并发 1，测量 170 条工单和 159 条助手请求，排除加载与两次预热。"
-        "准确率、处理时间和 ECE 都从各自同一轮骁龙记录重算；ECE 采用 10 个等宽置信度分箱，越接近 0 越好，"
-        "不是 Microsoft-Decision-1 官网的百分制分数。独立单题全量评测仍未完成，不与本表混用。"
+        "准确率、处理时间和 ECE 都从各自同一轮骁龙记录重算；ECE 采用 10 个等宽置信度分箱，越接近 0 越好，不是 Microsoft-Decision-1 官网的百分制分数。"
+        "峰值内存取同一配置运行记录的进程峰值工作集，覆盖整个服务进程（含模型加载、预热和各数据集），不是模型文件大小、提交内存或显存；同一配置各行重复列出该整轮峰值，不是分别测出的逐数据集峰值。"
+        "独立单题全量评测仍未完成，不与本表混用。"
         "[计量单位、校准定义与单题补测边界](文档/评测与端侧结果全集.md#single-question)。"
     )
     text, replacements = re.subn(r"^下面两表(?:保留|只列).*$", lambda _: introduction, text, flags=re.M)
@@ -829,6 +842,7 @@ def sync_english_documents():
                 "Each request contains three decisions. This is neither model-loading time nor the median for a standalone classification, and dividing it by three does not measure that latency. "
                 "Each configuration uses llama.cpp b11935 CPU, default settings and concurrency 1, with 170 support and 159 assistant requests, excluding loading and two warm-ups. "
                 "Accuracy, processing time and ECE are recalculated from each configuration's same recorded Snapdragon run. ECE uses 10 equal-width confidence bins and is better closer to 0; it is not the Microsoft-Decision-1 website's percentage-scale score. "
+                "Peak memory is the peak process working set from the same configuration's run, covering the full server lifetime including model loading, warm-up and all datasets. It is not model file size, commit charge or GPU memory. Dataset rows repeat that run-level peak, not independently measured per-dataset peaks. "
                 "Full standalone single-question evaluation is still incomplete and is not mixed into this table. "
                 "[Timing units, calibration and the single-question boundary](文档/Evaluation-Results.md#single-question)."
             )

@@ -526,18 +526,39 @@ class ReportLayoutTests(unittest.TestCase):
 
     def test_record_request_tables_preserve_real_latency_and_recipe_coverage(self):
         import statistics
-        from render_diagrams import record_request_tables
+        from render_diagrams import INFERENCE_CONFIGURATIONS, record_request_tables, report_sources
 
         text = record_request_tables()
         rows = [line for line in text.splitlines() if line.startswith("| ") and not line.startswith("| 模型")]
         self.assertEqual(len(rows), 14)
         self.assertNotIn("待测", text)
         self.assertEqual(text.count("处理完整请求中位时间（秒，每次3道判断）"), 2)
+        self.assertEqual(text.count("整轮进程峰值工作集（MiB）"), 2)
+        sources = report_sources()
+        for model_size, model_id, label in INFERENCE_CONFIGURATIONS:
+            campaign = sources["round2_device_results" if model_id.startswith("r2c-") else "device_results"]
+            metadata = campaign / model_id / "run.json"
+            if not metadata.is_file():
+                metadata = campaign / model_id / "server_memory.json"
+            expected_peak = json.loads(metadata.read_text(encoding="utf-8-sig"))["peak_working_set_mib"]
+            table = next(block for block in text.split("\n\n") if block.startswith(f"| 模型（{model_size}，"))
+            matching = [row for row in table.splitlines() if row.startswith(f"| {label} |")]
+            self.assertEqual(len(matching), 2)
+            for row in matching:
+                self.assertEqual(row.split("|")[5].strip(), f"{expected_peak:,.0f}")
         for workload, dataset in (("support", "工单·同分布"), ("assistant", "助手·同分布")):
             raw = read_jsonl(ROOT / "验证结果/端侧引擎_骁龙第二轮C_20261101-203702/r2c-kev-0.8b-Q8_0-cpu" / workload / "rows.jsonl")
             row = next(line for line in rows if "第二轮 C" in line and dataset in line)
             self.assertIn(f"**{statistics.median(item['latency_ms'] for item in raw) / 1000:.3f}**", row)
             self.assertIn("100.0%", row)
+
+    def test_peak_memory_requires_a_recorded_measurement(self):
+        from render_diagrams import peak_working_set_cell
+
+        self.assertEqual(peak_working_set_cell({"peak_working_set_mib": 2314}), "2,314")
+        for value in (None, 0, -1, "2314", True, float("nan"), float("inf")):
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "measured peak working set"):
+                peak_working_set_cell({"peak_working_set_mib": value, "private_mib": 5014, "gguf_mib": 775})
 
     def test_single_question_matrix_omits_unexecuted_campaign(self):
         from render_diagrams import single_question_tables
@@ -897,6 +918,7 @@ class BilingualDocumentationTests(unittest.TestCase):
             self.assertEqual(table[0][1], "测试集（题数）")
             self.assertEqual(table[0][2], "逐题准确率（%，含失败题）")
             self.assertEqual(table[0][3], "处理完整请求中位时间（秒，每次3道判断）")
+            self.assertEqual(table[0][4], "整轮进程峰值工作集（MiB）")
             self.assertIn("校准误差 ECE（0–1，越低越好）", table[0])
             self.assertFalse(any("BF16 未量化" in row[0] for row in table[1:]))
             self.assertNotIn("模型加载阶段耗时（秒，日志）", table[0])
