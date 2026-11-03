@@ -1,0 +1,10 @@
+{
+  "source": "scripts/mi300x/07_rccl_probe.sh node-0 logs, one per variant (ref = default GPU Direct RDMA, nogdr = NCCL_NET_GDR_LEVEL=0)",
+  "public_files": [
+    "07_rccl_probe_nogdr_node0.log",
+    "07_rccl_probe_ref_node0.log"
+  ],
+  "private_files_hashed": 2,
+  "kept": "PROBE_START / RCCL_PROBE_OK / PROBE_EXIT lines, RCCL/HIP/ROCm version header, first occurrence of each distinct NCCL WARN and watchdog message",
+  "redaction": "host names -> node0/node1, ANSI colour removed; the full logs are hashed in SHA256SUMS.private.txt"
+}

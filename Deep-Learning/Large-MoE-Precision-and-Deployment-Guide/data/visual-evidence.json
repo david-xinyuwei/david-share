@@ -100,7 +100,8 @@
     {
       "asset": "images/nvfp4-execution-en.svg",
       "source_class": "original_cross_source_explanation",
-      "decision": "USE",
+      "decision": "SKIP",
+      "decision_reason": "Removed from the customer README at the user's request on 2026-11-03; retained only as historical source artwork.",
       "sources": [
         "https://docs.vllm.ai/en/stable/features/quantization/modelopt/",
         "https://developer.nvidia.com/blog/introducing-nvfp4-for-efficient-and-accurate-low-precision-inference/",
@@ -117,28 +118,10 @@
       "height": 349
     },
     {
-      "asset": "images/mi300x-test-topology-en.svg",
-      "source_class": "original_test_topology",
-      "decision": "USE",
-      "depicts": "The 2026-11-02 run as executed: node 0 (Ray head; Nemotron TP8+EP; Inkling pipeline stage 0), node 1 (Ray worker; Inkling pipeline stage 1), local NVMe RAID0 weight cache on each node, RCCL over 8x InfiniBand with NCCL_NET_GDR_LEVEL=0, control host issuing commands over SSH, smoke requests sent by curl on node 0.",
-      "bound_to": [
-        "data/mi300x-run/nemotron_bf16_8xMI300X/00_meta.txt",
-        "data/mi300x-run/inkling_bf16_16xMI300X_pp2/00_meta.txt",
-        "scripts/mi300x/05_serve_inkling_2node.sh"
-      ],
-      "does_not_prove": "Execution by itself; the bound 00_meta.txt and log key lines do. Private host names and IPs are replaced by role labels.",
-      "language": "en",
-      "generator": "tools/preview.ps1 -ExportDiagrams",
-      "source_asset": "images/mi300x-test-topology-en.mmd",
-      "source_sha256": "4669ad8e492e5be7cb3b58665e8f3739eb93a7357e567879a8b18e7deffc6995",
-      "sha256": "fbdb3fb9dd09ff28dce5688c521d8c66958f701dc1f5f094a53b9c1998f4ee33",
-      "width": 1575,
-      "height": 406
-    },
-    {
       "asset": "images/nvfp4-execution-zh.svg",
       "source_class": "original_cross_source_explanation",
-      "decision": "USE",
+      "decision": "SKIP",
+      "decision_reason": "Removed from the customer README at the user's request on 2026-11-03; retained only as historical source artwork.",
       "sources": [
         "https://docs.vllm.ai/en/stable/features/quantization/modelopt/",
         "https://developer.nvidia.com/blog/introducing-nvfp4-for-efficient-and-accurate-low-precision-inference/",
@@ -155,23 +138,76 @@
       "height": 327
     },
     {
+      "asset": "images/mi300x-test-topology-en.svg",
+      "source_class": "original_test_topology",
+      "decision": "USE",
+      "language": "en",
+      "generator": "tools/build_layout_figure.py --topology-only",
+      "source_asset": "tools/build_layout_figure.py",
+      "source_sha256": "2b55fe5e0fb8c793ea4aadda619f58ee01503c0daa0946b3ac47cc89dc7b3274",
+      "sha256": "6f0854d02d24afc2ff7f862d4296bea9b05e45c84cd613cf5e68c579c83d2ba7",
+      "width": 1720,
+      "height": 760,
+      "icons": [
+        {
+          "file": "images/icons/10021-icon-service-Virtual-Machine.svg",
+          "sha256": "092d18ffadec9ec0e5af129186dc7bc2a80544011e55f965604ed4b13873e0fc",
+          "bytes": 1330,
+          "packageEntry": "Azure_Public_Service_Icons/Icons/compute/10021-icon-service-Virtual-Machine.svg",
+          "packageUrl": "https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V24.zip",
+          "packageSha256": "921594ccd1bf3d9c0a1bd7b6d924e050551a59342f2b353bb74bdcf761c35141",
+          "termsUrl": "https://learn.microsoft.com/azure/architecture/icons/",
+          "terms": "Microsoft permits the use of these icons in architectural diagrams, training materials, or documentation. Don't crop, flip, rotate, distort or change icon shape.",
+          "modified": false
+        }
+      ],
+      "bound_to": [
+        "data/mi300x-run/nemotron_bf16_8xMI300X_run2/00_meta.txt",
+        "data/mi300x-run/inkling_bf16_16xMI300X_pp2_run2/00_meta.txt",
+        "data/mi300x-run/muse_bf16_16xMI300X_pp2_run2/00_meta.txt",
+        "data/mi300x-run/summary.json",
+        "scripts/mi300x/05_serve_inkling_2node.sh",
+        "scripts/mi300x/09_perf_probe.py"
+      ],
+      "depicts": "The 2026-11-02 client and execution topology: a Windows control VM issues commands over SSH; curl and the streaming probe run on node 0. Nemotron uses a local multiprocess executor with TP8+EP8. Inkling and Muse use Ray, TP8 within each of two PP stages. Each node has a local NVMe model cache. RCCL traffic is host-staged with NCCL_NET_GDR_LEVEL=0.",
+      "incremental_value": "Combines the recorded client placement, per-model executor and two-node communication path; the official Azure VM icon identifies the hosting resource, not the custom scripts.",
+      "does_not_prove": "The drawing is not runtime evidence; correctness and performance require the bound logs and requests."
+    },
+    {
       "asset": "images/mi300x-test-topology-zh.svg",
       "source_class": "original_test_topology",
       "decision": "USE",
-      "depicts": "The 2026-11-02 run as executed: node 0 (Ray head; Nemotron TP8+EP; Inkling pipeline stage 0), node 1 (Ray worker; Inkling pipeline stage 1), local NVMe RAID0 weight cache on each node, RCCL over 8x InfiniBand with NCCL_NET_GDR_LEVEL=0, control host issuing commands over SSH, smoke requests sent by curl on node 0.",
-      "bound_to": [
-        "data/mi300x-run/nemotron_bf16_8xMI300X/00_meta.txt",
-        "data/mi300x-run/inkling_bf16_16xMI300X_pp2/00_meta.txt",
-        "scripts/mi300x/05_serve_inkling_2node.sh"
-      ],
-      "does_not_prove": "Execution by itself; the bound 00_meta.txt and log key lines do. Private host names and IPs are replaced by role labels.",
       "language": "zh",
-      "generator": "tools/preview.ps1 -ExportDiagrams",
-      "source_asset": "images/mi300x-test-topology-zh.mmd",
-      "source_sha256": "9aa5e8d16e775643684f53131a24ae5c9d88304ee958c060c283d083ed0f211a",
-      "sha256": "b229d24f786d8e55e0156c574aac43ec957cb7b05570fa991b2e7987733de3fd",
-      "width": 1499,
-      "height": 380
+      "generator": "tools/build_layout_figure.py --topology-only",
+      "source_asset": "tools/build_layout_figure.py",
+      "source_sha256": "2b55fe5e0fb8c793ea4aadda619f58ee01503c0daa0946b3ac47cc89dc7b3274",
+      "sha256": "92272aef3c812f506845387a4072fda5a1ca3a27c5dc22049d221e872997bab9",
+      "width": 1720,
+      "height": 760,
+      "icons": [
+        {
+          "file": "images/icons/10021-icon-service-Virtual-Machine.svg",
+          "sha256": "092d18ffadec9ec0e5af129186dc7bc2a80544011e55f965604ed4b13873e0fc",
+          "bytes": 1330,
+          "packageEntry": "Azure_Public_Service_Icons/Icons/compute/10021-icon-service-Virtual-Machine.svg",
+          "packageUrl": "https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V24.zip",
+          "packageSha256": "921594ccd1bf3d9c0a1bd7b6d924e050551a59342f2b353bb74bdcf761c35141",
+          "termsUrl": "https://learn.microsoft.com/azure/architecture/icons/",
+          "terms": "Microsoft permits the use of these icons in architectural diagrams, training materials, or documentation. Don't crop, flip, rotate, distort or change icon shape.",
+          "modified": false
+        }
+      ],
+      "bound_to": [
+        "data/mi300x-run/nemotron_bf16_8xMI300X_run2/00_meta.txt",
+        "data/mi300x-run/inkling_bf16_16xMI300X_pp2_run2/00_meta.txt",
+        "data/mi300x-run/muse_bf16_16xMI300X_pp2_run2/00_meta.txt",
+        "data/mi300x-run/summary.json",
+        "scripts/mi300x/05_serve_inkling_2node.sh",
+        "scripts/mi300x/09_perf_probe.py"
+      ],
+      "depicts": "The 2026-11-02 client and execution topology: a Windows control VM issues commands over SSH; curl and the streaming probe run on node 0. Nemotron uses a local multiprocess executor with TP8+EP8. Inkling and Muse use Ray, TP8 within each of two PP stages. Each node has a local NVMe model cache. RCCL traffic is host-staged with NCCL_NET_GDR_LEVEL=0.",
+      "incremental_value": "Combines the recorded client placement, per-model executor and two-node communication path; the official Azure VM icon identifies the hosting resource, not the custom scripts.",
+      "does_not_prove": "The drawing is not runtime evidence; correctness and performance require the bound logs and requests."
     }
   ],
   "source_class_decisions": [

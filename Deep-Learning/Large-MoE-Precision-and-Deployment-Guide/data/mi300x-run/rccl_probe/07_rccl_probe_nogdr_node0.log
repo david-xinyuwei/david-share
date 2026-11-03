@@ -1,0 +1,8 @@
+PROBE_START=2026-11-01T17:59:55Z node_rank=0 variant=nogdr
+RCCL version : 2.30.7-HEAD:7da4302
+HIP version  : 7.16.26385-0000000
+ROCm version : 10.1.0.0-9999-7da43026
+Librccl path : /opt/python/lib/python3.14/site-packages/_rocm_sdk_libraries/lib/librccl.so.1
+NCCL WARN NET/IB: Peermem not available, falling back to GPU Direct RDMA (DMAbuf) for device <n>
+RCCL_PROBE_OK=True world=16 init_s=0.0 first_allreduce_s=3.68 avg_allreduce_ms=2.4 bytes=67108864 busbw_GBps=52.4 nccl=(2, 30, 7)
+PROBE_EXIT=0 PROBE_END=2026-11-01T18:00:05Z

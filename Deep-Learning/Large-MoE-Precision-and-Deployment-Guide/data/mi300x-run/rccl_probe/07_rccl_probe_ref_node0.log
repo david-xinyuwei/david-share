@@ -1,0 +1,11 @@
+PROBE_START=2026-11-01T17:54:11Z node_rank=0 variant=ref
+RCCL version : 2.30.7-HEAD:7da4302
+HIP version  : 7.16.26385-0000000
+ROCm version : 10.1.0.0-9999-7da43026
+Librccl path : /opt/python/lib/python3.14/site-packages/_rocm_sdk_libraries/lib/librccl.so.1
+NCCL WARN NET/IB: Peermem not available, falling back to GPU Direct RDMA (DMAbuf) for device <n>
+Watchdog caught collective operation timeout: WorkNCCL(SeqNum=1, OpType=ALLREDUCE, NumelIn=16777216, NumelOut=16777216, Timeout(ms)=240000) ran for <n> milliseconds before timing out.
+Received a dump signal due to a collective timeout from rank <n> and we will try our best to dump the debug info.
+NCCL WARN ncclCommDump() proxy-trace (profiler plugin):
+Received a dump signal due to a collective timeout from this local rank and we will try our best to dump the debug info.
+PROBE_EXIT=124 PROBE_END=2026-11-01T17:59:12Z

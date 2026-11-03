@@ -2,6 +2,7 @@
 """Project a private MI300X evidence directory into the public data/mi300x-run/ set and summarize it.
 
     python3 tools/mi300x_evidence.py project <private_evidence_dir> <tag>   # writes data/mi300x-run/<tag>/
+    python3 tools/mi300x_evidence.py project-rccl <private_rccl_dir>        # writes data/mi300x-run/rccl_probe/
     python3 tools/mi300x_evidence.py summarize                            # rewrites data/mi300x-run/summary.json
     python3 tools/mi300x_evidence.py table                                # prints the summary as Markdown
 
@@ -10,11 +11,17 @@
 with role labels. Full container logs and Ray worker logs stay private because of size; their SHA-256 values are kept
 in SHA256SUMS.private.txt so the public summary can be matched against them.
 
+`project-rccl` projects the node-0 logs of scripts/mi300x/07_rccl_probe.sh (one file per variant, `ref` = default GPU
+Direct RDMA, `nogdr` = NCCL_NET_GDR_LEVEL=0): the probe's own PROBE_START / RCCL_PROBE_OK / PROBE_EXIT lines, the
+RCCL/HIP/ROCm version header, and the first occurrence of each distinct NCCL WARN / watchdog-timeout message, with host
+names replaced by role labels. The full logs are hashed into SHA256SUMS.private.txt like the other private files.
+
 `summarize` reads every data/mi300x-run/<tag>/ directory and extracts, from the raw files only, the numbers that the
 README and VALIDATION pages quote: kernels/backends selected, weights per GPU, KV cache budget, smoke request wall
 clock, token usage and finish reasons, and — when scripts/mi300x/09_perf_probe.py was run — the TTFT / decode
-throughput medians per concurrency level. tests/mi300x.test.mjs asserts the documents against this file, so a quoted
-number cannot drift from the evidence without a failing test.
+throughput medians per concurrency level; the RCCL probe result per variant is added under `rccl_probe` when the
+projection exists. tests/mi300x.test.mjs asserts the documents against this file, so a quoted number cannot drift
+from the evidence without a failing test.
 """
 from __future__ import annotations
 
@@ -27,6 +34,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC = ROOT / "data" / "mi300x-run"
+RCCL_TAG = "rccl_probe"
 SMALL = ("00_meta.txt", "01_models.json", "04_rocm_smi_vram.json", "05_server_keylines.log", "08_perf.json")
 # Private identifiers observed in the 2026-11-02 run -> public role labels. Extend when a new environment is used.
 REDACT = [
@@ -82,6 +90,81 @@ def project(src: Path, tag: str) -> Path:
                 "their SHA-256 values are listed in SHA256SUMS.private.txt.",
     }, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
     return dst
+
+
+# Lines of a 07_rccl_probe.sh log that the public projection keeps verbatim (after redaction).
+RCCL_KEEP = re.compile(r"^(PROBE_START=|PROBE_EXIT=|RCCL_PROBE_OK=|RCCL version|HIP version|ROCm version|Librccl path)")
+# Lines kept once per distinct message: RCCL warnings and the PyTorch collective watchdog. The per-rank prefix
+# ("[2026-11-01 18:00:03] host:pid:tid [4] /path/file.cc:1605 " or "[rank5]:[E1101 17:58:22.507895301 File.cpp:730] ")
+# is stripped so that the same message from sixteen ranks collapses to one line.
+RCCL_ONCE = re.compile(r"NCCL WARN|Watchdog caught collective operation timeout|Received a dump signal")
+RCCL_PREFIX = re.compile(r"^(\[[^\]]*\] \S+ \[\d+\] \S+ |\[rank\d+\]:\[E[0-9.: ]+\S+\] (\[[^\]]*\] )?)")
+# Per-rank variation inside an otherwise identical message: elapsed millis, the signalling rank, trailing queue state.
+RCCL_NORMALIZE = [
+    (re.compile(r" for device \d+$"), " for device <n>"),
+    (re.compile(r"ran for \d+ millis"), "ran for <n> millis"),
+    (re.compile(r"from\s+rank \d+"), "from rank <n>"),
+    (re.compile(r"\. Last enqueued.*$"), "."),
+]
+
+
+def project_rccl(src: Path) -> Path:
+    """Project the 07_rccl_probe.sh node-0 logs (one per variant) into data/mi300x-run/rccl_probe/."""
+    dst = PUBLIC / RCCL_TAG
+    dst.mkdir(parents=True, exist_ok=True)
+    copied = []
+    for path in sorted(src.glob("*_rccl_probe_*_node*.log")):
+        text = ANSI.sub("", path.read_text(encoding="utf-8", errors="replace"))
+        kept, seen = [], set()
+        for line in text.splitlines():
+            if RCCL_KEEP.match(line):
+                kept.append(line)
+            elif RCCL_ONCE.search(line):
+                message = RCCL_PREFIX.sub("", line).strip()
+                for pattern, replacement in RCCL_NORMALIZE:
+                    message = pattern.sub(replacement, message)
+                if message not in seen:
+                    seen.add(message)
+                    kept.append(message)
+        name = re.sub(r"^\d\d_", "07_", path.name)          # the private copy was numbered 10_, the script is 07_
+        (dst / name).write_text(redact("\n".join(kept)) + "\n", encoding="utf-8", newline="\n")
+        copied.append(name)
+    private = [f"{sha256(p)}  {p.relative_to(src).as_posix()}" for p in sorted(src.rglob("*")) if p.is_file()]
+    (dst / "SHA256SUMS.private.txt").write_text("\n".join(private) + "\n", encoding="utf-8", newline="\n")
+    (dst / "PROJECTION.json").write_text(json.dumps({
+        "source": "scripts/mi300x/07_rccl_probe.sh node-0 logs, one per variant (ref = default GPU Direct RDMA, nogdr = NCCL_NET_GDR_LEVEL=0)",
+        "public_files": copied,
+        "private_files_hashed": len(private),
+        "kept": "PROBE_START / RCCL_PROBE_OK / PROBE_EXIT lines, RCCL/HIP/ROCm version header, first occurrence of each distinct NCCL WARN and watchdog message",
+        "redaction": "host names -> node0/node1, ANSI colour removed; the full logs are hashed in SHA256SUMS.private.txt",
+    }, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
+    return dst
+
+
+def summarize_rccl(tag_dir: Path) -> list[dict]:
+    """One entry per projected variant log, read from the probe's own result line only."""
+    out = []
+    for path in sorted(tag_dir.glob("07_rccl_probe_*_node0.log")):
+        text = path.read_text(encoding="utf-8")
+        entry = {
+            "file": path.name,
+            "variant": _first(r"^PROBE_START=\S+ node_rank=\d+ variant=(\S+)", text),
+            "probe_start_utc": _first(r"^PROBE_START=(\S+)", text),
+            "probe_end_utc": _first(r"PROBE_END=(\S+)", text),
+            "probe_exit": _first(r"^PROBE_EXIT=(\d+)", text, cast=int),
+            "rccl_version": _first(r"^RCCL version\s*:\s*(\S+)", text),
+            "rocm_version": _first(r"^ROCm version\s*:\s*(\S+)", text),
+            "ok": _first(r"^RCCL_PROBE_OK=(\w+)", text) == "True",
+            "world": _first(r"^RCCL_PROBE_OK=\S+ world=(\d+)", text, cast=int),
+            "bytes": _first(r" bytes=(\d+)", text, cast=int),
+            "first_allreduce_s": _first(r" first_allreduce_s=([0-9.]+)", text, cast=float),
+            "avg_allreduce_ms": _first(r" avg_allreduce_ms=([0-9.]+)", text, cast=float),
+            "busbw_GBps": _first(r" busbw_GBps=([0-9.]+)", text, cast=float),
+            "peermem_fallback": "Peermem not available" in text,
+            "watchdog_timeout": "Watchdog caught collective operation timeout" in text,
+        }
+        out.append(entry)
+    return out
 
 
 def _first(pattern: str, text: str, group: int = 1, cast=str):
@@ -186,10 +269,12 @@ def summarize_tag(tag_dir: Path) -> dict:
 
 
 def summarize() -> dict:
-    tags = sorted(p for p in PUBLIC.iterdir() if p.is_dir())
+    tags = sorted(p for p in PUBLIC.iterdir() if p.is_dir() and p.name != RCCL_TAG)
     summary = {"schema_version": 1,
                "scope": "Numbers extracted from the raw files in data/mi300x-run/<tag>/ only; nothing typed by hand.",
                "runs": [summarize_tag(t) for t in tags]}
+    if (PUBLIC / RCCL_TAG).is_dir():
+        summary["rccl_probe"] = summarize_rccl(PUBLIC / RCCL_TAG)
     (PUBLIC / "summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
     return summary
 
@@ -213,6 +298,10 @@ def main(argv: list[str]) -> int:
         if len(argv) != 4:
             print(__doc__); return 2
         dst = project(Path(argv[2]), argv[3]); print(f"projected -> {dst}"); return 0
+    if len(argv) >= 2 and argv[1] == "project-rccl":
+        if len(argv) != 3:
+            print(__doc__); return 2
+        dst = project_rccl(Path(argv[2])); print(f"projected -> {dst}"); return 0
     if len(argv) >= 2 and argv[1] == "summarize":
         s = summarize(); print(f"summary.json: {len(s['runs'])} runs"); return 0
     if len(argv) >= 2 and argv[1] == "table":

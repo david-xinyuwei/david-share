@@ -4,6 +4,7 @@
     python tools/build_layout_figure.py           # write images/mi300x-parallel-layout-{en,zh}.svg and update data/visual-evidence.json
     python tools/build_layout_figure.py --png     # also render the PNGs with headless Microsoft Edge (Windows)
     python tools/build_layout_figure.py --check   # fail if an SVG, PNG or icon differs from data/visual-evidence.json
+    python tools/build_layout_figure.py --topology-only  # draw the client, serving nodes, storage and communication paths
 
 Every number drawn (GPUs per node, TP/PP/EP sizes, weights and free KV memory per GPU, image tag) is read from
 summary.json, never typed here. The only icon is the Azure Architecture Icons "Virtual Machine" SVG, unmodified
@@ -188,9 +189,12 @@ def wrap(s: str, size: float, max_w: float) -> list[str]:
 
 
 class Svg:
-    def __init__(self, icon_href: str) -> None:
+    def __init__(self, icon_href: str, width: int = W, height: int = H, arrow_color: str = PP_COLOR) -> None:
         self.parts: list[str] = []
         self.icon_href = icon_href
+        self.width = width
+        self.height = height
+        self.arrow_color = arrow_color
 
     def rect(self, x, y, w, h, fill="#FFFFFF", stroke=CARD_BORDER, sw=1.2, rx=6, dash=None):
         d = f' stroke-dasharray="{dash}"' if dash else ""
@@ -214,10 +218,10 @@ class Svg:
 
     def render(self) -> str:
         body = "\n".join(self.parts)
-        return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}">\n'
+        return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{self.width}" height="{self.height}" viewBox="0 0 {self.width} {self.height}">\n'
                 f'<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">'
-                f'<path d="M0,0 L8,4 L0,8 z" fill="{PP_COLOR}"/></marker></defs>\n'
-                f'<rect width="{W}" height="{H}" fill="#FFFFFF"/>\n{body}\n</svg>\n')
+            f'<path d="M0,0 L8,4 L0,8 z" fill="{self.arrow_color}"/></marker></defs>\n'
+            f'<rect width="{self.width}" height="{self.height}" fill="#FFFFFF"/>\n{body}\n</svg>\n')
 
 
 def load_runs() -> dict:
@@ -348,6 +352,98 @@ def draw(lang: str, runs: dict, icon_href: str) -> Svg:
     return s
 
 
+def draw_topology(lang: str, runs: dict, icon: str) -> Svg:
+    chinese = lang == "zh"
+    figure = Svg(icon, width=1720, height=760, arrow_color=AZURE_BLUE)
+    title = "MI300X 实测：请求与执行拓扑" if chinese else "MI300X run: requests and execution topology"
+    subtitle = "2026-11-02 · 本地请求、节点内并行与跨节点通信" if chinese else "2026-11-02 · local requests, intra-node parallelism and cross-node communication"
+    figure.text(28, 48, title, 31, weight="600")
+    figure.text(28, 83, subtitle, 22, color=SUBTEXT)
+
+    figure.rect(28, 188, 282, 174, stroke=CARD_BORDER, rx=6)
+    figure.icon(46, 208, 44)
+    figure.text(102, 235, "控制机" if chinese else "Control host", 26, weight="600")
+    figure.text(48, 285, "Windows VM", 23)
+    figure.text(48, 323, "仅通过 SSH 下发命令" if chinese else "Commands over SSH", 20)
+    figure.line(310, 269, 388, 269, color=AZURE_BLUE, sw=2.2, marker=True)
+    figure.text(349, 251, "SSH", 20, color=AZURE_BLUE, anchor="middle")
+
+    node_positions = (392, 1156)
+    node_width = 536
+    for node_index, node_x in enumerate(node_positions):
+        figure.rect(node_x, 140, node_width, 476, fill="#F5F8FA", stroke="#B9C8D3", rx=6)
+        figure.icon(node_x + 20, 160, 48)
+        node_label = f"Azure GPU 虚拟机 · 节点 {node_index}" if chinese else f"Azure GPU VM · Node {node_index}"
+        figure.text(node_x + 83, 193, node_label, 25, color=AZURE_BLUE, weight="600")
+        figure.text(node_x + 22, 235, "8 × AMD Instinct MI300X · 192 GB HBM / GPU", 20)
+
+        figure.rect(node_x + 20, 260, node_width - 40, 162, stroke=CARD_BORDER, rx=4)
+        figure.text(node_x + 38, 294, "vLLM 服务" if chinese else "vLLM serving", 25, weight="600")
+        tp = runs["inkling"]["tensor_parallel_size"]
+        if node_index == 0:
+            nemotron_tp = runs["nemotron"]["tensor_parallel_size"]
+            nemotron_ep = f" + EP{nemotron_tp}" if runs["nemotron"].get("expert_parallel") else ""
+            executor = "多进程" if chinese else "multiprocess"
+            figure.text(node_x + 38, 331, f"Nemotron: TP{nemotron_tp}{nemotron_ep} · {executor}", 20)
+        else:
+            figure.text(node_x + 38, 331, "Nemotron 不使用此节点" if chinese else "Not used by Nemotron", 20, color=SUBTEXT)
+        role = "Ray head" if node_index == 0 else "Ray worker"
+        stage = f"流水级 {node_index}" if chinese else f"stage {node_index}"
+        figure.text(node_x + 38, 370, f"Inkling / Muse: TP{tp} · {stage}", 20)
+        figure.text(node_x + 38, 400, role, 20, color=AZURE_BLUE)
+
+        if node_index == 0:
+            figure.line(node_x + 268, 469, node_x + 268, 426, color=AZURE_BLUE, sw=2, marker=True)
+            figure.text(node_x + 268, 500, "本机客户端 → 127.0.0.1:8000" if chinese else "Local client → 127.0.0.1:8000", 20, anchor="middle")
+            figure.text(node_x + 268, 534, "curl：基本生成检查" if chinese else "curl: smoke generation", 20, anchor="middle")
+            figure.text(node_x + 268, 568, "09_perf_probe.py：TTFT / tok/s" if chinese else "09_perf_probe.py: TTFT / tok/s", 20, anchor="middle")
+        else:
+            figure.text(node_x + 268, 500, "跨节点流水线执行" if chinese else "Cross-node pipeline execution", 21, anchor="middle")
+            figure.text(node_x + 268, 540, "模型布局见下图" if chinese else "Per-model layouts shown below", 20, color=SUBTEXT, anchor="middle")
+
+        figure.rect(node_x + 20, 666, node_width - 40, 66, stroke=CARD_BORDER, rx=4)
+        figure.text(node_x + 268, 693, "本地 NVMe RAID0 · 28 TB" if chinese else "Local NVMe RAID0 · 28 TB", 20, anchor="middle")
+        figure.text(node_x + 268, 720, "Hugging Face 权重缓存" if chinese else "Hugging Face weight cache", 19, color=SUBTEXT, anchor="middle")
+        figure.line(node_x + 268, 662, node_x + 268, 620, color=AZURE_BLUE, sw=2, marker=True)
+        figure.text(node_x + 286, 648, "加载权重" if chinese else "Load", 18, color=AZURE_BLUE)
+
+    figure.line(930, 347, 1152, 347, color=AZURE_BLUE, sw=2.4, marker=True)
+    figure.line(1152, 372, 930, 372, color=AZURE_BLUE, sw=2.4, marker=True)
+    figure.text(1040, 286, "RCCL", 22, color=AZURE_BLUE, anchor="middle", weight="600")
+    figure.text(1040, 316, "8 × IB · 400 Gb/s", 19, anchor="middle")
+    figure.text(1040, 423, "经主机内存中转" if chinese else "Host-staged transfer", 19, anchor="middle")
+    return figure
+
+
+def topology_entries(svgs: dict[str, str]) -> list[dict]:
+    source_hash = sha(Path(__file__).read_bytes())
+    return [{
+        "asset": f"images/mi300x-test-topology-{language}.svg",
+        "source_class": "original_test_topology",
+        "decision": "USE",
+        "language": language,
+        "generator": "tools/build_layout_figure.py --topology-only",
+        "source_asset": "tools/build_layout_figure.py",
+        "source_sha256": source_hash,
+        "sha256": sha(svg.encode("utf-8")),
+        "width": 1720,
+        "height": 760,
+        "icons": [ICON_ENTRY],
+        "bound_to": [f"data/mi300x-run/{tag}/00_meta.txt" for tag in RUNS.values()] + [
+            "data/mi300x-run/summary.json",
+            "scripts/mi300x/05_serve_inkling_2node.sh",
+            "scripts/mi300x/09_perf_probe.py",
+        ],
+        "depicts": "The 2026-11-02 client and execution topology: a Windows control VM issues commands over SSH; "
+                   "curl and the streaming probe run on node 0. Nemotron uses a local multiprocess executor with TP8+EP8. "
+                   "Inkling and Muse use Ray, TP8 within each of two PP stages. Each node has a local NVMe model cache. "
+                   "RCCL traffic is host-staged with NCCL_NET_GDR_LEVEL=0.",
+        "incremental_value": "Combines the recorded client placement, per-model executor and two-node communication path; "
+                             "the official Azure VM icon identifies the hosting resource, not the custom scripts.",
+        "does_not_prove": "The drawing is not runtime evidence; correctness and performance require the bound logs and requests.",
+    } for language, svg in svgs.items()]
+
+
 def png_size(path: Path) -> tuple[int, int]:
     with path.open("rb") as f:
         head = f.read(24)
@@ -427,16 +523,19 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--png", action="store_true")
     ap.add_argument("--check", action="store_true")
+    ap.add_argument("--topology-only", action="store_true")
     args = ap.parse_args(argv)
     href = icon_href()
     runs = load_runs()
-    svgs = {lang: draw(lang, runs, href).render() for lang in ("en", "zh")}
+    basename = "mi300x-test-topology" if args.topology_only else "mi300x-parallel-layout"
+    draw_figure = draw_topology if args.topology_only else draw
+    svgs = {lang: draw_figure(lang, runs, href).render() for lang in ("en", "zh")}
     ledger = json.loads(LEDGER.read_text(encoding="utf-8"))
     if args.check:
         problems = []
         by_asset = {v.get("asset"): v for v in ledger["visuals"]}
         for lang, text in svgs.items():
-            rel = f"images/mi300x-parallel-layout-{lang}.svg"
+            rel = f"images/{basename}-{lang}.svg"
             p = ROOT / rel
             if not p.exists() or p.read_text(encoding="utf-8") != text:
                 problems.append(f"{rel} differs from the generator output")
@@ -455,15 +554,15 @@ def main(argv: list[str] | None = None) -> int:
         print("CHECK OK" if not problems else f"{len(problems)} problem(s)")
         return 1 if problems else 0
     for lang, text in svgs.items():
-        svg_path = IMAGES / f"mi300x-parallel-layout-{lang}.svg"
+        svg_path = IMAGES / f"{basename}-{lang}.svg"
         svg_path.write_text(text, encoding="utf-8", newline="\n")
         print("wrote", svg_path.relative_to(ROOT).as_posix(), sha(text.encode("utf-8"))[:16])
-        if args.png:
+        if args.png and not args.topology_only:
             png_path = IMAGES / f"mi300x-parallel-layout-{lang}.png"
             render_png(svg_path, png_path)
             print("wrote", png_path.relative_to(ROOT).as_posix(), png_size(png_path))
-    new_entries = figure_entries(svgs, args.png)
-    kept = [v for v in ledger["visuals"] if not str(v.get("asset", "")).startswith("images/mi300x-parallel-layout-")]
+    new_entries = topology_entries(svgs) if args.topology_only else figure_entries(svgs, args.png)
+    kept = [v for v in ledger["visuals"] if not str(v.get("asset", "")).startswith(f"images/{basename}-")]
     ledger["visuals"] = kept + new_entries
     LEDGER.write_text(json.dumps(ledger, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
     print("updated", LEDGER.relative_to(ROOT).as_posix())

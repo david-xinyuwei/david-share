@@ -34,7 +34,8 @@ test('covers all model variants and keeps the bilingual matrix and links aligned
     if (filename.startsWith('README')) {
       assert.doesNotMatch(markdown, /```mermaid|<wbr\b/);
       const language = filename.includes('_CN') ? 'zh' : 'en';
-      for (const diagram of ['nvfp4-execution', 'mi300x-test-topology']) {
+      assert.doesNotMatch(markdown, /### (H100 与 H200 的 NVFP4 执行路径|NVFP4 execution on H100 and H200)|<img[^>]+nvfp4-execution-/);
+      for (const diagram of ['mi300x-test-topology']) {
         const asset = `images/${diagram}-${language}.svg`;
         assert.ok(markdown.includes(asset), `${filename} embeds ${asset}`);
         const svg = await readFile(new URL(`../${asset}`, import.meta.url), 'utf8');
@@ -54,6 +55,9 @@ test('covers all model variants and keeps the bilingual matrix and links aligned
         for (let index = start; index < lines.length && lines[index].startsWith('|'); index++) rows.push(lines[index].split('|').slice(1, -1));
         assert.equal(rows.length, 27);
         assert.ok(rows.every(row => row.length === 4));
+        assert.deepEqual(rows[0].slice(1).map(cell => cell.trim()), ['BF16', 'FP8', 'NVFP4']);
+        assert.equal(rows.flat().filter(cell => /\bN\/A\b/.test(cell)).length, start === starts[0] ? 18 : 9);
+        assert.doesNotMatch(rows.flat().join(' '), /不适用|保留基线|Base(?:&shy;)?line/);
         return rows.map(row => row.map(cell => Array.from(cell.matchAll(/\[([A-Z]\d+)\]/g), match => match[1])));
       });
       assert.doesNotMatch(markdown, /不知道|待核|未核实|dtype 另核|Our \[earlier article\]/);

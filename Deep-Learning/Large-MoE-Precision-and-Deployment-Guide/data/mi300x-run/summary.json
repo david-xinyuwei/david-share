@@ -1,3 +1,788 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:8be48539887f2d66d5bb002a15590229f6b9db45591b33a99f43594f7ef1c51a
-size 23206
+{
+  "schema_version": 1,
+  "scope": "Numbers extracted from the raw files in data/mi300x-run/<tag>/ only; nothing typed by hand.",
+  "runs": [
+    {
+      "tag": "inkling_bf16_16xMI300X",
+      "evidence_start_utc": "2026-11-01T18:26:58Z",
+      "image": "rocm/vllm:rocm10.1.0_ubuntu24.04_py3.14-pytorch_2.13.0_vllm-0.29.0",
+      "image_id": "sha256:e0ea9a10b729573ea8598bdc073bda0ea382fe1037eec7c0761b6fa7f46baaf4",
+      "rocm_host": "6.4.4-129",
+      "kernel": "6.8.0-1067-azure",
+      "served_model_name": "inkling-bf16",
+      "revision": "828496eeae4c243ff1a22f7f28ff83694f2f7bc9",
+      "tensor_parallel_size": 8,
+      "pipeline_parallel_size": null,
+      "data_parallel_size": 2,
+      "expert_parallel": true,
+      "max_model_len": 65536,
+      "mamba_ssm_cache_dtype": null,
+      "moe_backend": [
+        "AiterExperts MoE backend"
+      ],
+      "moe_backend_selection": [
+        "ROCm AITER"
+      ],
+      "attention_backend_override": [],
+      "mamba_ssu_backend": [],
+      "allreduce_backends": [
+        "dp:['PYNCCL']",
+        "ep:['PYNCCL']",
+        "tp:['AITER_CUSTOM', 'PYNCCL']"
+      ],
+      "aiter_fused_moe_shapes": 0,
+      "model_loading_gib_per_gpu": [
+        114.88
+      ],
+      "model_loading_seconds": [
+        55.7,
+        59.8,
+        66.8,
+        66.9
+      ],
+      "available_kv_cache_gib": [
+        50.25
+      ],
+      "gpu_kv_cache_tokens": [
+        317040
+      ],
+      "max_concurrency_at_max_len": [
+        4.84
+      ],
+      "consumed_memory_gib": [
+        117.4,
+        117.56
+      ],
+      "init_engine_seconds": 76.77,
+      "smoke": [
+        {
+          "name": "02_smoke",
+          "prompt": "用一句话说明 BF16 和 FP16 的区别。",
+          "max_tokens": 200,
+          "temperature": 0,
+          "wall_secs": 4.76,
+          "finish_reason": "length",
+          "prompt_tokens": 27,
+          "completion_tokens": 200,
+          "reasoning_tokens": 199,
+          "content_chars": 0,
+          "content": ""
+        },
+        {
+          "name": "03_smoke2",
+          "prompt": "List three differences between Mamba-2 state space layers and softmax attention, in English, under 120 words.",
+          "max_tokens": 256,
+          "temperature": 0,
+          "wall_secs": 600.02,
+          "finish_reason": null,
+          "note": "no response: request timed out (see wall_secs)"
+        }
+      ]
+    },
+    {
+      "tag": "inkling_bf16_16xMI300X_pp2",
+      "evidence_start_utc": "2026-11-01T19:00:34Z",
+      "image": "rocm/vllm:rocm10.1.0_ubuntu24.04_py3.14-pytorch_2.13.0_vllm-0.29.0",
+      "image_id": "sha256:e0ea9a10b729573ea8598bdc073bda0ea382fe1037eec7c0761b6fa7f46baaf4",
+      "rocm_host": "6.4.4-129",
+      "kernel": "6.8.0-1067-azure",
+      "served_model_name": "inkling-bf16",
+      "revision": "828496eeae4c243ff1a22f7f28ff83694f2f7bc9",
+      "tensor_parallel_size": 8,
+      "pipeline_parallel_size": 2,
+      "data_parallel_size": null,
+      "expert_parallel": false,
+      "max_model_len": 65536,
+      "mamba_ssm_cache_dtype": null,
+      "moe_backend": [
+        "AiterExperts MoE backend"
+      ],
+      "moe_backend_selection": [
+        "ROCm AITER"
+      ],
+      "attention_backend_override": [],
+      "mamba_ssu_backend": [],
+      "allreduce_backends": [
+        "ep:['PYNCCL']",
+        "pp:['PYNCCL']",
+        "tp:['AITER_CUSTOM', 'PYNCCL']"
+      ],
+      "aiter_fused_moe_shapes": 0,
+      "model_loading_gib_per_gpu": [
+        109.52,
+        116.12
+      ],
+      "model_loading_seconds": [
+        80.8,
+        83.5,
+        176.4
+      ],
+      "available_kv_cache_gib": [
+        51.02,
+        57.39
+      ],
+      "gpu_kv_cache_tokens": [
+        398239
+      ],
+      "max_concurrency_at_max_len": [
+        6.08
+      ],
+      "consumed_memory_gib": [
+        112.54,
+        118.9
+      ],
+      "init_engine_seconds": 56.47,
+      "smoke": [
+        {
+          "name": "02_smoke",
+          "prompt": "用一句话说明 BF16 和 FP16 的区别。",
+          "max_tokens": 200,
+          "temperature": 0,
+          "wall_secs": 2.97,
+          "finish_reason": "length",
+          "prompt_tokens": 27,
+          "completion_tokens": 200,
+          "reasoning_tokens": 199,
+          "content_chars": 0,
+          "content": ""
+        },
+        {
+          "name": "03_smoke2",
+          "prompt": "List three differences between Mamba-2 state space layers and softmax attention, in English, under 120 words.",
+          "max_tokens": 256,
+          "temperature": 0,
+          "wall_secs": 4.06,
+          "finish_reason": "length",
+          "prompt_tokens": 39,
+          "completion_tokens": 256,
+          "reasoning_tokens": 255,
+          "content_chars": 0,
+          "content": ""
+        },
+        {
+          "name": "07_smoke3",
+          "prompt": "用一句话说明 BF16 和 FP16 的区别。",
+          "max_tokens": 1024,
+          "temperature": 0,
+          "wall_secs": 6.52,
+          "finish_reason": "stop",
+          "prompt_tokens": 27,
+          "completion_tokens": 441,
+          "reasoning_tokens": 362,
+          "content_chars": 98,
+          "content": "BF16 保留了与 FP32 相同的 8 位指数（动态范围大、不易溢出），但尾数仅 7 位（精度较低）；而 FP16 有 10 位尾数（精度更高），却只有 5 位指数（动态范围小、易溢出或下溢）。"
+        }
+      ]
+    },
+    {
+      "tag": "inkling_bf16_16xMI300X_pp2_run2",
+      "evidence_start_utc": "2026-11-02T03:46:25Z",
+      "image": "rocm/vllm:rocm10.1.0_ubuntu24.04_py3.14-pytorch_2.13.0_vllm-0.29.0",
+      "image_id": "sha256:e0ea9a10b729573ea8598bdc073bda0ea382fe1037eec7c0761b6fa7f46baaf4",
+      "rocm_host": "6.4.4-129",
+      "kernel": "6.8.0-1067-azure",
+      "served_model_name": "inkling-bf16",
+      "revision": "828496eeae4c243ff1a22f7f28ff83694f2f7bc9",
+      "tensor_parallel_size": 8,
+      "pipeline_parallel_size": 2,
+      "data_parallel_size": null,
+      "expert_parallel": false,
+      "max_model_len": 65536,
+      "mamba_ssm_cache_dtype": null,
+      "moe_backend": [
+        "AiterExperts MoE backend"
+      ],
+      "moe_backend_selection": [
+        "ROCm AITER"
+      ],
+      "attention_backend_override": [],
+      "mamba_ssu_backend": [],
+      "allreduce_backends": [
+        "ep:['PYNCCL']",
+        "pp:['PYNCCL']",
+        "tp:['AITER_CUSTOM', 'PYNCCL']"
+      ],
+      "aiter_fused_moe_shapes": 5,
+      "model_loading_gib_per_gpu": [
+        109.52,
+        116.12
+      ],
+      "model_loading_seconds": [
+        243.7,
+        249.3,
+        249.6
+      ],
+      "available_kv_cache_gib": [
+        51.02,
+        57.39
+      ],
+      "gpu_kv_cache_tokens": [
+        398239
+      ],
+      "max_concurrency_at_max_len": [
+        6.08
+      ],
+      "consumed_memory_gib": [
+        112.54,
+        118.9
+      ],
+      "init_engine_seconds": 58.22,
+      "smoke": [
+        {
+          "name": "02_smoke",
+          "prompt": "用一句话说明 BF16 和 FP16 的区别。",
+          "max_tokens": 200,
+          "temperature": 0,
+          "wall_secs": 3.01,
+          "finish_reason": "length",
+          "prompt_tokens": 27,
+          "completion_tokens": 200,
+          "reasoning_tokens": 199,
+          "content_chars": 0,
+          "content": ""
+        },
+        {
+          "name": "03_smoke2",
+          "prompt": "List three differences between Mamba-2 state space layers and softmax attention, in English, under 120 words.",
+          "max_tokens": 256,
+          "temperature": 0,
+          "wall_secs": 4.1,
+          "finish_reason": "length",
+          "prompt_tokens": 39,
+          "completion_tokens": 256,
+          "reasoning_tokens": 255,
+          "content_chars": 0,
+          "content": ""
+        },
+        {
+          "name": "07_smoke3",
+          "prompt": "用一句话说明 BF16 和 FP16 的区别。",
+          "max_tokens": 1024,
+          "temperature": 0,
+          "wall_secs": 5.57,
+          "finish_reason": "stop",
+          "prompt_tokens": 27,
+          "completion_tokens": 377,
+          "reasoning_tokens": 302,
+          "content_chars": 88,
+          "content": "BF16 拥有与 FP32 相同的指数范围（8 位指数、7 位尾数），精度较低但不易溢出；FP16 则精度更高（10 位尾数），但指数位仅 5 位，动态范围小、更易溢出或下溢。"
+        }
+      ],
+      "perf": {
+        "prompt": "Explain in about 150 words why mixture-of-experts models keep the router in higher precision than the experts.",
+        "max_tokens": 256,
+        "rounds": 3,
+        "started_utc": "2026-11-02T03:47:56Z",
+        "finished_utc": "2026-11-02T03:48:31Z",
+        "warmup": {
+          "ttft_s": 0.07136624299982941,
+          "decode_tok_s": 69.11178023552924,
+          "completion_tokens": 256,
+          "finish_reason": "length"
+        },
+        "gpu_used_gib_before": [
+          170.6,
+          171.2,
+          171.2,
+          171.2,
+          171.1,
+          171.1,
+          171.1,
+          171.1
+        ],
+        "gpu_used_gib_after": [
+          170.6,
+          171.2,
+          171.2,
+          171.2,
+          171.1,
+          171.1,
+          171.1,
+          171.1
+        ],
+        "levels": [
+          {
+            "concurrency": 1,
+            "n_requests": 3,
+            "ttft_s_median": 0.045,
+            "ttft_s_max": 0.046,
+            "decode_tok_s_per_request_median": 68.9,
+            "agg_tok_s_median": 68.3,
+            "completion_tokens_per_request": [
+              256
+            ],
+            "finish_reasons": [
+              "length"
+            ]
+          },
+          {
+            "concurrency": 8,
+            "n_requests": 24,
+            "ttft_s_median": 0.097,
+            "ttft_s_max": 0.102,
+            "decode_tok_s_per_request_median": 42.5,
+            "agg_tok_s_median": 335.8,
+            "completion_tokens_per_request": [
+              256
+            ],
+            "finish_reasons": [
+              "length"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "tag": "muse_bf16_16xMI300X_pp2_run2",
+      "evidence_start_utc": "2026-11-02T04:23:17Z",
+      "image": "vllm-muse-ray:0.33.0",
+      "image_id": "sha256:1bf049629cc26c4f669c916ff3febad2b3ecdca66af165110cf28f587c3b27ad",
+      "rocm_host": "6.4.4-129",
+      "kernel": "6.8.0-1067-azure",
+      "served_model_name": "muse-spark-open-bf16",
+      "revision": "0fb02478b02565b2ce7fc57e6051c91172774ac9",
+      "tensor_parallel_size": 8,
+      "pipeline_parallel_size": 2,
+      "data_parallel_size": null,
+      "expert_parallel": false,
+      "max_model_len": 32768,
+      "mamba_ssm_cache_dtype": null,
+      "moe_backend": [
+        "MuseSparkTritonExperts MoE backend"
+      ],
+      "moe_backend_selection": [],
+      "attention_backend_override": [],
+      "mamba_ssu_backend": [],
+      "allreduce_backends": [
+        "ep:['PYNCCL']",
+        "pp:['PYNCCL']",
+        "tp:['AITER_CUSTOM', 'PYNCCL']"
+      ],
+      "aiter_fused_moe_shapes": 0,
+      "model_loading_gib_per_gpu": [
+        99.1
+      ],
+      "model_loading_seconds": [
+        39.6,
+        43.1,
+        95.0
+      ],
+      "available_kv_cache_gib": [
+        71.98,
+        72.05
+      ],
+      "gpu_kv_cache_tokens": [
+        8130184
+      ],
+      "max_concurrency_at_max_len": [
+        248.11
+      ],
+      "consumed_memory_gib": [
+        102.7
+      ],
+      "init_engine_seconds": 64.22,
+      "smoke": [
+        {
+          "name": "02_smoke",
+          "prompt": "用一句话说明 BF16 和 FP16 的区别。",
+          "max_tokens": 200,
+          "temperature": 0,
+          "wall_secs": 6.69,
+          "finish_reason": "length",
+          "prompt_tokens": 156,
+          "completion_tokens": 200,
+          "reasoning_tokens": 197,
+          "content_chars": 0,
+          "content": ""
+        },
+        {
+          "name": "03_smoke2",
+          "prompt": "List three differences between Mamba-2 state space layers and softmax attention, in English, under 120 words.",
+          "max_tokens": 256,
+          "temperature": 0,
+          "wall_secs": 4.33,
+          "finish_reason": "length",
+          "prompt_tokens": 167,
+          "completion_tokens": 256,
+          "reasoning_tokens": 253,
+          "content_chars": 0,
+          "content": ""
+        },
+        {
+          "name": "07_smoke3",
+          "prompt": "用一句话说明 BF16 和 FP16 的区别。",
+          "max_tokens": 1024,
+          "temperature": 0,
+          "wall_secs": 12.41,
+          "finish_reason": "length",
+          "prompt_tokens": 156,
+          "completion_tokens": 1024,
+          "reasoning_tokens": 1021,
+          "content_chars": 0,
+          "content": ""
+        },
+        {
+          "name": "12_smoke4",
+          "prompt": "用一句话说明 BF16 和 FP16 的区别。",
+          "max_tokens": 4096,
+          "temperature": 0,
+          "wall_secs": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 156,
+          "completion_tokens": 1354,
+          "reasoning_tokens": 1289,
+          "content_chars": 78,
+          "content": "BF16和FP16都是16位浮点，但BF16是8位指数+7位尾数、范围与FP32一样大但精度低，FP16是5位指数+10位尾数、精度更高但范围小得多易溢出。"
+        }
+      ],
+      "perf": {
+        "prompt": "Explain in about 150 words why mixture-of-experts models keep the router in higher precision than the experts.",
+        "max_tokens": 256,
+        "rounds": 3,
+        "started_utc": "2026-11-02T04:23:40Z",
+        "finished_utc": "2026-11-02T04:24:11Z",
+        "warmup": {
+          "ttft_s": 0.23862506000023131,
+          "decode_tok_s": 84.59706735469139,
+          "completion_tokens": 256,
+          "finish_reason": "length"
+        },
+        "gpu_used_gib_before": [
+          180.0,
+          180.6,
+          180.6,
+          180.6,
+          180.6,
+          180.5,
+          180.5,
+          180.5
+        ],
+        "gpu_used_gib_after": [
+          180.3,
+          180.9,
+          180.9,
+          180.9,
+          180.8,
+          180.7,
+          180.7,
+          180.7
+        ],
+        "levels": [
+          {
+            "concurrency": 1,
+            "n_requests": 3,
+            "ttft_s_median": 0.205,
+            "ttft_s_max": 0.205,
+            "decode_tok_s_per_request_median": 84.6,
+            "agg_tok_s_median": 79.5,
+            "completion_tokens_per_request": [
+              256
+            ],
+            "finish_reasons": [
+              "length"
+            ]
+          },
+          {
+            "concurrency": 8,
+            "n_requests": 24,
+            "ttft_s_median": 0.506,
+            "ttft_s_max": 0.518,
+            "decode_tok_s_per_request_median": 47.6,
+            "agg_tok_s_median": 348.6,
+            "completion_tokens_per_request": [
+              256
+            ],
+            "finish_reasons": [
+              "length"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "tag": "nemotron_bf16_8xMI300X",
+      "evidence_start_utc": "2026-11-01T17:36:58Z",
+      "image": "rocm/vllm:rocm10.1.0_ubuntu24.04_py3.14-pytorch_2.13.0_vllm-0.29.0",
+      "image_id": "sha256:e0ea9a10b729573ea8598bdc073bda0ea382fe1037eec7c0761b6fa7f46baaf4",
+      "rocm_host": "6.4.4-129",
+      "kernel": "6.8.0-1067-azure",
+      "served_model_name": "nemotron-3-ultra-bf16",
+      "revision": "77df655d5e9f8362164ed14dd8b48f8bce657498",
+      "tensor_parallel_size": 8,
+      "pipeline_parallel_size": null,
+      "data_parallel_size": null,
+      "expert_parallel": true,
+      "max_model_len": 65536,
+      "mamba_ssm_cache_dtype": "float16",
+      "moe_backend": [
+        "TritonExperts MoE backend"
+      ],
+      "moe_backend_selection": [
+        "TRITON"
+      ],
+      "attention_backend_override": [
+        "ROCM_ATTN"
+      ],
+      "mamba_ssu_backend": [
+        "triton"
+      ],
+      "allreduce_backends": [
+        "ep:['PYNCCL']",
+        "tp:['AITER_CUSTOM', 'PYNCCL']"
+      ],
+      "aiter_fused_moe_shapes": 0,
+      "model_loading_gib_per_gpu": [
+        136.51
+      ],
+      "model_loading_seconds": [
+        112.0,
+        112.1,
+        113.3,
+        117.7,
+        118.1,
+        118.2
+      ],
+      "available_kv_cache_gib": [
+        23.07
+      ],
+      "gpu_kv_cache_tokens": [
+        3490022
+      ],
+      "max_concurrency_at_max_len": [
+        53.25
+      ],
+      "consumed_memory_gib": [
+        146.67,
+        146.82,
+        146.86,
+        146.89
+      ],
+      "init_engine_seconds": 119.58,
+      "smoke": [
+        {
+          "name": "02_smoke",
+          "prompt": "用一句话说明 BF16 和 FP16 的区别。",
+          "max_tokens": 200,
+          "temperature": 0,
+          "wall_secs": 1.61,
+          "finish_reason": "stop",
+          "prompt_tokens": 31,
+          "completion_tokens": 94,
+          "reasoning_tokens": 21,
+          "content_chars": 74,
+          "content": "**BF16 牺牲精度（7位尾数）保留 FP32 同等的动态范围（8位指数），而 FP16 牺牲动态范围（5位指数）保留更高精度（10位尾数）。**"
+        },
+        {
+          "name": "03_smoke2",
+          "prompt": "List three differences between Mamba-2 state space layers and softmax attention, in English, under 120 words.",
+          "max_tokens": 256,
+          "temperature": 0,
+          "wall_secs": 5.42,
+          "finish_reason": "stop",
+          "prompt_tokens": 42,
+          "completion_tokens": 209,
+          "reasoning_tokens": 29,
+          "content_chars": 846,
+          "content": "1. **Complexity Scaling**: Mamba-2 processes sequences in linear time $O(N)$ and constant memory via recurrent state updates, whereas softmax attention requires quadratic time $O(N^2)$ and memory due to the pairwise token interaction matrix.\n\n2. **Context Compression**: Mamba-2 compresses history into a fixed-size latent state (SSM), inevitably discarding fine-grained details over long horizons. S"
+        }
+      ]
+    },
+    {
+      "tag": "nemotron_bf16_8xMI300X_run2",
+      "evidence_start_utc": "2026-11-02T04:05:02Z",
+      "image": "rocm/vllm:rocm10.1.0_ubuntu24.04_py3.14-pytorch_2.13.0_vllm-0.29.0",
+      "image_id": "sha256:e0ea9a10b729573ea8598bdc073bda0ea382fe1037eec7c0761b6fa7f46baaf4",
+      "rocm_host": "6.4.4-129",
+      "kernel": "6.8.0-1067-azure",
+      "served_model_name": "nemotron-3-ultra-bf16",
+      "revision": "77df655d5e9f8362164ed14dd8b48f8bce657498",
+      "tensor_parallel_size": 8,
+      "pipeline_parallel_size": null,
+      "data_parallel_size": null,
+      "expert_parallel": true,
+      "max_model_len": 65536,
+      "mamba_ssm_cache_dtype": "float16",
+      "moe_backend": [
+        "TritonExperts MoE backend"
+      ],
+      "moe_backend_selection": [
+        "TRITON"
+      ],
+      "attention_backend_override": [
+        "ROCM_ATTN"
+      ],
+      "mamba_ssu_backend": [
+        "triton"
+      ],
+      "allreduce_backends": [
+        "ep:['PYNCCL']",
+        "tp:['AITER_CUSTOM', 'PYNCCL']"
+      ],
+      "aiter_fused_moe_shapes": 0,
+      "model_loading_gib_per_gpu": [
+        136.51
+      ],
+      "model_loading_seconds": [
+        744.5,
+        744.6,
+        744.7
+      ],
+      "available_kv_cache_gib": [
+        23.07
+      ],
+      "gpu_kv_cache_tokens": [
+        3490022
+      ],
+      "max_concurrency_at_max_len": [
+        53.25
+      ],
+      "consumed_memory_gib": [
+        146.67,
+        146.82,
+        146.86,
+        146.89
+      ],
+      "init_engine_seconds": 117.78,
+      "smoke": [
+        {
+          "name": "02_smoke",
+          "prompt": "用一句话说明 BF16 和 FP16 的区别。",
+          "max_tokens": 200,
+          "temperature": 0,
+          "wall_secs": 1.61,
+          "finish_reason": "stop",
+          "prompt_tokens": 31,
+          "completion_tokens": 94,
+          "reasoning_tokens": 21,
+          "content_chars": 74,
+          "content": "**BF16 牺牲精度（7位尾数）保留 FP32 同等的动态范围（8位指数），而 FP16 牺牲动态范围（5位指数）保留更高精度（10位尾数）。**"
+        },
+        {
+          "name": "03_smoke2",
+          "prompt": "List three differences between Mamba-2 state space layers and softmax attention, in English, under 120 words.",
+          "max_tokens": 256,
+          "temperature": 0,
+          "wall_secs": 5.39,
+          "finish_reason": "stop",
+          "prompt_tokens": 42,
+          "completion_tokens": 206,
+          "reasoning_tokens": 29,
+          "content_chars": 884,
+          "content": "1. **Complexity Scaling**: Mamba-2 processes sequences in linear time $O(N)$ and constant memory via recurrent state updates, whereas softmax attention requires quadratic time $O(N^2)$ and memory due to the full attention matrix computation.\n\n2. **Context Compression**: Mamba-2 compresses history into a fixed-size latent state (size $d_{state}$), inevitably discarding fine-grained token-level deta"
+        },
+        {
+          "name": "07_smoke3",
+          "prompt": "用一句话说明 BF16 和 FP16 的区别。",
+          "max_tokens": 1024,
+          "temperature": 0,
+          "wall_secs": 1.6,
+          "finish_reason": "stop",
+          "prompt_tokens": 31,
+          "completion_tokens": 94,
+          "reasoning_tokens": 21,
+          "content_chars": 74,
+          "content": "**BF16 牺牲精度（7位尾数）保留 FP32 同等的动态范围（8位指数），而 FP16 牺牲动态范围（5位指数）保留更高精度（10位尾数）。**"
+        }
+      ],
+      "perf": {
+        "prompt": "Explain in about 150 words why mixture-of-experts models keep the router in higher precision than the experts.",
+        "max_tokens": 256,
+        "rounds": 3,
+        "started_utc": "2026-11-02T04:05:11Z",
+        "finished_utc": "2026-11-02T04:05:49Z",
+        "warmup": {
+          "ttft_s": 0.24921108300077321,
+          "decode_tok_s": 60.62129495721418,
+          "completion_tokens": 256,
+          "finish_reason": "length"
+        },
+        "gpu_used_gib_before": [
+          174.9,
+          175.5,
+          175.5,
+          175.5,
+          175.4,
+          175.3,
+          175.3,
+          175.3
+        ],
+        "gpu_used_gib_after": [
+          174.9,
+          175.5,
+          175.5,
+          175.5,
+          175.4,
+          175.3,
+          175.3,
+          175.3
+        ],
+        "levels": [
+          {
+            "concurrency": 1,
+            "n_requests": 3,
+            "ttft_s_median": 0.17,
+            "ttft_s_max": 0.171,
+            "decode_tok_s_per_request_median": 60.7,
+            "agg_tok_s_median": 58.6,
+            "completion_tokens_per_request": [
+              256
+            ],
+            "finish_reasons": [
+              "length"
+            ]
+          },
+          {
+            "concurrency": 8,
+            "n_requests": 24,
+            "ttft_s_median": 0.358,
+            "ttft_s_max": 1.17,
+            "decode_tok_s_per_request_median": 42.0,
+            "agg_tok_s_median": 317.4,
+            "completion_tokens_per_request": [
+              256
+            ],
+            "finish_reasons": [
+              "length"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "rccl_probe": [
+    {
+      "file": "07_rccl_probe_nogdr_node0.log",
+      "variant": "nogdr",
+      "probe_start_utc": "2026-11-01T17:59:55Z",
+      "probe_end_utc": "2026-11-01T18:00:05Z",
+      "probe_exit": 0,
+      "rccl_version": "2.30.7-HEAD:7da4302",
+      "rocm_version": "10.1.0.0-9999-7da43026",
+      "ok": true,
+      "world": 16,
+      "bytes": 67108864,
+      "first_allreduce_s": 3.68,
+      "avg_allreduce_ms": 2.4,
+      "busbw_GBps": 52.4,
+      "peermem_fallback": true,
+      "watchdog_timeout": false
+    },
+    {
+      "file": "07_rccl_probe_ref_node0.log",
+      "variant": "ref",
+      "probe_start_utc": "2026-11-01T17:54:11Z",
+      "probe_end_utc": "2026-11-01T17:59:12Z",
+      "probe_exit": 124,
+      "rccl_version": "2.30.7-HEAD:7da4302",
+      "rocm_version": "10.1.0.0-9999-7da43026",
+      "ok": false,
+      "world": null,
+      "bytes": null,
+      "first_allreduce_s": null,
+      "avg_allreduce_ms": null,
+      "busbw_GBps": null,
+      "peermem_fallback": true,
+      "watchdog_timeout": true
+    }
+  ]
+}

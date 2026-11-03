@@ -199,6 +199,49 @@ test('documents do not claim what the run did not do', () => {
   assert.ok(nemotronScript && inklingScript, 'README links both serving scripts');
 });
 
+test('cross-node RCCL probe (step 7): summary numbers come from the probe result line and the documents quote them', async () => {
+  // data/mi300x-run/rccl_probe/ holds the node-0 key lines of scripts/mi300x/07_rccl_probe.sh for both variants;
+  // summary.rccl_probe is read from those files by tools/mi300x_evidence.py summarize.
+  const dir = new URL('data/mi300x-run/rccl_probe/', root);
+  const files = await readdir(dir);
+  for (const required of ['07_rccl_probe_nogdr_node0.log', '07_rccl_probe_ref_node0.log', 'PROJECTION.json', 'SHA256SUMS.private.txt']) {
+    assert.ok(files.includes(required), `rccl_probe projection lacks ${required}`);
+  }
+  assert.ok(Array.isArray(summary.rccl_probe) && summary.rccl_probe.length === 2, 'summary.json carries both probe variants');
+  const nogdr = summary.rccl_probe.find(p => p.variant === 'nogdr'), ref = summary.rccl_probe.find(p => p.variant === 'ref');
+  const nogdrLog = await readFile(new URL(nogdr.file, dir), 'utf8'), refLog = await readFile(new URL(ref.file, dir), 'utf8');
+  // the passing variant: every summary number is on the probe's own result line
+  const result = nogdrLog.match(/^RCCL_PROBE_OK=True world=(\d+) init_s=[0-9.]+ first_allreduce_s=([0-9.]+) avg_allreduce_ms=([0-9.]+) bytes=(\d+) busbw_GBps=([0-9.]+)/m);
+  assert.ok(result, 'nogdr log has the RCCL_PROBE_OK result line');
+  assert.equal(nogdr.ok, true); assert.equal(nogdr.probe_exit, 0);
+  assert.equal(nogdr.world, Number(result[1])); assert.equal(nogdr.world, 16);
+  assert.equal(nogdr.first_allreduce_s, Number(result[2]));
+  assert.equal(nogdr.avg_allreduce_ms, Number(result[3])); assert.equal(nogdr.bytes, Number(result[4])); assert.equal(nogdr.bytes, 64 * 1024 * 1024);
+  assert.equal(nogdr.busbw_GBps, Number(result[5]));
+  // busbw is the ring formula 2(n-1)/n * bytes / time, as 07_rccl_probe.py computes it (one decimal)
+  const ring = 2 * (nogdr.world - 1) / nogdr.world * nogdr.bytes / (nogdr.avg_allreduce_ms / 1000) / 1e9;
+  assert.ok(Math.abs(ring - nogdr.busbw_GBps) < 0.5, `busbw ${nogdr.busbw_GBps} follows from 2(n-1)/n*bytes/time = ${ring.toFixed(1)} (rounded avg_allreduce_ms)`);
+  assert.match(nogdrLog, /^PROBE_EXIT=0 /m);
+  // the failing variant: no result line, watchdog timeout, exit 124 from `timeout 300`
+  assert.equal(ref.ok, false); assert.equal(ref.probe_exit, 124); assert.equal(ref.avg_allreduce_ms, null); assert.equal(ref.watchdog_timeout, true);
+  assert.doesNotMatch(refLog, /RCCL_PROBE_OK=True/); assert.match(refLog, /Watchdog caught collective operation timeout/); assert.match(refLog, /^PROBE_EXIT=124 /m);
+  assert.ok(nogdr.peermem_fallback && ref.peermem_fallback, 'both variants logged the Peermem fallback');
+  // no private identifiers survive the projection
+  const everything = (await Promise.all(files.map(f => readFile(new URL(f, dir), 'utf8')))).join('\n');
+  assert.doesNotMatch(everything, /\b10\.0\.0\.\d+\b|mi3007ca|azureuser|\b20\.2\d\d\.\d+\.\d+\b/);
+  // the documents quote exactly these numbers, and the default-RDMA failure, wherever they describe the probe
+  for (const [name, text] of Object.entries(docs)) {
+    assert.ok(text.includes(`${nogdr.avg_allreduce_ms} ms`), `${name} quotes the all_reduce time ${nogdr.avg_allreduce_ms} ms`);
+    assert.ok(text.includes(`${nogdr.busbw_GBps} GB/s`), `${name} quotes the bus bandwidth ${nogdr.busbw_GBps} GB/s`);
+    assert.ok(text.includes('NCCL_NET_GDR_LEVEL=0'), `${name} names the setting the pass depends on`);
+    assert.doesNotMatch(text, /52\.\d GB\/s[^|\n]{0,80}(benchmark passed|吞吐通过)/i);
+    if (name.startsWith('README')) {
+      assert.match(text, /PROBE_EXIT=124|timed out|超时/, `${name} records that the default-RDMA variant did not complete`);
+      assert.ok(text.includes('data/mi300x-run/rccl_probe/'), `${name} links the projection`);
+    }
+  }
+});
+
 test('parallel-layout figure: generated from summary.json, ledgered, embedded in both READMEs', async () => {
   const ledger = JSON.parse(await readFile(new URL('data/visual-evidence.json', root), 'utf8'));
   const { createHash } = await import('node:crypto');

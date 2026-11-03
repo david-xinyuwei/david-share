@@ -5,7 +5,8 @@ param(
     [switch]$GitHubMarkdown,
     # GitHub repository used as the `context` of the Markdown API call (-GitHubMarkdown). Only affects
     # how #123 / @user references resolve; override when rendering from a fork.
-    [string]$GitHubContext = 'david-xinyuwei/david-share'
+    [string]$GitHubContext = 'david-xinyuwei/david-share',
+    [string]$PythonExecutable = 'python'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -43,10 +44,25 @@ pre { padding: 16px; background: #f6f8fa; overflow-x: auto; border-radius: 4px; 
 code { font: 0.9em/1.6 Consolas, monospace; background: #eff1f3; }
 pre code { background: transparent; }
 .table-wrap { overflow-x: auto; margin: 18px 0; }
-table { display: block; width: max-content; max-width: 100%; overflow-x: auto; border-collapse: collapse; font-size: 16px; }
-th, td { padding: 6px 13px; border: 1px solid #d1d9e0; vertical-align: top; overflow-wrap: break-word; word-break: normal; }
+table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 14px; line-height: 1.5; }
+th, td { padding: 7px 10px; border: 1px solid #d1d9e0; vertical-align: top; overflow-wrap: anywhere; word-break: normal; }
+td code, th code { font-size: 0.9em; white-space: normal; overflow-wrap: anywhere; }
 th { background: #eef3f6; text-align: left; }
 tr:nth-child(even) td { background: #f6f8fa; }
+.precision th:first-child { width: 20%; }
+.budget th:nth-child(1) { width: 20%; }
+.budget th:nth-child(2) { width: 16%; }
+.budget th:nth-child(3), .budget th:nth-child(4), .budget th:nth-child(5) { width: 10%; }
+.budget th:nth-child(6) { width: 34%; }
+.performance table { min-width: 1000px; }
+.performance th:nth-child(1) { width: 19%; }
+.performance th:nth-child(2) { width: 9%; }
+.performance th:nth-child(3) { width: 14%; }
+.performance th:nth-child(4) { width: 16%; }
+.performance th:nth-child(5) { width: 22%; }
+.performance th:nth-child(6), .performance th:nth-child(7) { width: 10%; }
+.reading-map th:first-child { width: 34%; }
+@media (max-width: 700px) { .table-wrap table { min-width: 700px; } .performance table { min-width: 1000px; } }
 .diagram-wrap { overflow-x: auto; margin: 18px 0; border: 1px solid #d1d9e0; }
 .mermaid { min-width: 960px; padding: 12px; }
 .katex-display { position: relative; overflow-x: auto; overflow-y: hidden; padding: 8px 0; } /* relative: keep KaTeX's absolutely positioned MathML copy inside the scroll box, otherwise it widens the page at 390 px */
@@ -69,7 +85,13 @@ for (const link of document.querySelectorAll('a[href]')) {
 }
 for (const table of document.querySelectorAll('table')) {
   const wrapper = document.createElement('div');
-  wrapper.className = 'table-wrap' + (/^(组件|Part)$/.test(table.rows[0]?.cells[0]?.textContent.trim() ?? '') ? ' precision' : '');
+  const firstHeader = table.rows[0]?.cells[0]?.textContent.trim() ?? '';
+  const headers = table.rows[0]?.textContent ?? '';
+  wrapper.className = 'table-wrap';
+  if (/^(组件|Part)$/.test(firstHeader)) wrapper.classList.add('precision');
+  if (/MXFP4/.test(firstHeader)) wrapper.classList.add('performance');
+  if (/HBM/.test(headers) && table.rows[0].cells.length === 6) wrapper.classList.add('budget');
+  if (/^(想要|You want|阅读目的|Reader task)/.test(firstHeader)) wrapper.classList.add('reading-map');
   table.replaceWith(wrapper); wrapper.append(table);
 }
 try {
@@ -109,88 +131,13 @@ try {
 '@
 
 if ($ExportDiagrams) {
-  $sources = @()
+  & $PythonExecutable (Join-Path $projectRoot 'tools/build_layout_figure.py') --topology-only
+  if ($LASTEXITCODE -ne 0) { throw 'MI300X topology generation failed.' }
   foreach ($language in @('en', 'zh')) {
-    $document = if ($language -eq 'zh') { 'README_CN.md' } else { 'README.md' }
-    $markdown = [IO.File]::ReadAllText((Join-Path $projectRoot $document), [Text.Encoding]::UTF8)
-    $blocks = [regex]::Matches($markdown, '(?ms)^```mermaid\r?\n(?<source>.*?)^```[ \t]*\r?$')
-    $names = @("nvfp4-execution-$language", "mi300x-test-topology-$language")
-    for ($index = 0; $index -lt $names.Count; $index++) {
-      $sourcePath = Join-Path $projectRoot "images/$($names[$index]).mmd"
-      if (-not (Test-Path -LiteralPath $sourcePath)) {
-        if ($blocks.Count -ne 2) { throw "Expected two source diagrams in $document" }
-        [IO.File]::WriteAllText($sourcePath, $blocks[$index].Groups['source'].Value.TrimEnd() + "`n", [Text.UTF8Encoding]::new($false))
-      }
-      $sources += [ordered]@{
-        Name = $names[$index]
-        Language = $language
-        Kind = $index
-        Path = $sourcePath
-        Text = [IO.File]::ReadAllText($sourcePath, [Text.Encoding]::UTF8)
-      }
-    }
+    Copy-Item -LiteralPath (Join-Path $projectRoot "images/mi300x-test-topology-$language.svg") -Destination $imageRoot
   }
-  $body = ($sources | ForEach-Object { '<pre class="mermaid">' + [Net.WebUtility]::HtmlEncode($_.Text) + '</pre>' }) -join "`n"
-  $exportPage = Join-Path $outputRoot 'diagram-export.html'
-  $html = $template.Replace('__LANG__', 'en').Replace('__TITLE__', 'Static diagram export').Replace('__BODY__', $body).Replace('<body>', '<body data-export-only="true">')
-  [IO.File]::WriteAllText($exportPage, $html, [Text.UTF8Encoding]::new($false))
-  $edge = @('C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe', 'C:\Program Files\Microsoft\Edge\Application\msedge.exe') | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
-  if (-not $edge) { throw 'Microsoft Edge is required to export static diagrams.' }
-  $start = [Diagnostics.ProcessStartInfo]::new($edge)
-  $start.UseShellExecute = $false
-  $start.RedirectStandardOutput = $true
-  $start.RedirectStandardError = $true
-  $start.StandardOutputEncoding = [Text.Encoding]::UTF8
-  $start.StandardErrorEncoding = [Text.Encoding]::UTF8
-  foreach ($argument in @('--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--dump-dom', '--virtual-time-budget=10000', ([Uri]$exportPage).AbsoluteUri)) {
-    $start.ArgumentList.Add($argument)
-  }
-  $process = [Diagnostics.Process]::Start($start)
-  $stdout = $process.StandardOutput.ReadToEndAsync()
-  $stderr = $process.StandardError.ReadToEndAsync()
-  if (-not $process.WaitForExit(60000)) {
-    $process.Kill($true)
-    throw 'Static diagram export exceeded 60 seconds.'
-  }
-  $rendered = $stdout.GetAwaiter().GetResult()
-  [IO.File]::WriteAllText((Join-Path $outputRoot 'diagram-export.stderr.log'), $stderr.GetAwaiter().GetResult(), [Text.UTF8Encoding]::new($false))
-  if ($process.ExitCode -ne 0 -or $rendered -notmatch 'data-render-status="complete"') { throw 'Static diagram rendering did not complete; inspect diagram-export.stderr.log.' }
-  $match = [regex]::Match($rendered, '<script id="diagram-export" type="application/json">(?<json>.*?)</script>', [Text.RegularExpressions.RegexOptions]::Singleline)
-  if (-not $match.Success) { throw 'The renderer did not return diagram data.' }
-  $svgs = @($match.Groups['json'].Value | ConvertFrom-Json)
-  if ($svgs.Count -ne $sources.Count) { throw 'The renderer returned an incomplete diagram set.' }
-  $ledgerPath = Join-Path $projectRoot 'data/visual-evidence.json'
-  $ledger = [IO.File]::ReadAllText($ledgerPath, [Text.Encoding]::UTF8) | ConvertFrom-Json -AsHashtable
-  $entries = @()
-  for ($index = 0; $index -lt $sources.Count; $index++) {
-    $source = $sources[$index]
-    $asset = "images/$($source.Name).svg"
-    $assetPath = Join-Path $projectRoot $asset
-    $svg = [xml]::new()
-    $svg.LoadXml($svgs[$index])
-    $viewBox = $svg.DocumentElement.GetAttribute('viewBox').Split(' ', [StringSplitOptions]::RemoveEmptyEntries)
-    if ($viewBox.Count -ne 4 -or $svg.DocumentElement.LocalName -ne 'svg') { throw "Invalid rendered SVG: $asset" }
-    if ($svg.SelectNodes('//*[local-name()="foreignObject"]').Count) { throw "HTML labels are not portable SVG: $asset" }
-    [IO.File]::WriteAllText($assetPath, $svgs[$index] + "`n", [Text.UTF8Encoding]::new($false))
-    $original = $ledger.visuals | Where-Object { $_.source_class -eq $(if ($source.Kind -eq 0) { 'original_cross_source_explanation' } else { 'original_test_topology' }) } | Select-Object -First 1
-    if (-not $original) { throw 'The original diagram provenance is missing.' }
-    $entry = [ordered]@{}
-    foreach ($key in $original.Keys) { $entry[$key] = $original[$key] }
-    $entry.asset = $asset
-    $entry.language = $source.Language
-    $entry.generator = 'tools/preview.ps1 -ExportDiagrams'
-    $entry.source_asset = "images/$($source.Name).mmd"
-    $entry.source_sha256 = (Get-FileHash -LiteralPath $source.Path -Algorithm SHA256).Hash.ToLowerInvariant()
-    $entry.sha256 = (Get-FileHash -LiteralPath $assetPath -Algorithm SHA256).Hash.ToLowerInvariant()
-    $entry.width = [Math]::Ceiling([double]::Parse($viewBox[2], [Globalization.CultureInfo]::InvariantCulture))
-    $entry.height = [Math]::Ceiling([double]::Parse($viewBox[3], [Globalization.CultureInfo]::InvariantCulture))
-    $entries += $entry
-    Copy-Item -LiteralPath $assetPath, $source.Path -Destination $imageRoot
-  }
-  $ledger.visuals = @($ledger.visuals | Where-Object { $_.source_class -notin @('original_cross_source_explanation', 'original_test_topology') }) + $entries
-  [IO.File]::WriteAllText($ledgerPath, ($ledger | ConvertTo-Json -Depth 20) + "`n", [Text.UTF8Encoding]::new($false))
-  Copy-Item -LiteralPath $ledgerPath -Destination $dataRoot
-  Write-Output "STATIC_DIAGRAM_EXPORT_PASS count=$($svgs.Count)"
+  Copy-Item -LiteralPath (Join-Path $projectRoot 'data/visual-evidence.json') -Destination $dataRoot
+  Write-Output 'STATIC_DIAGRAM_EXPORT_PASS count=2'
 }
 
 $records = foreach ($name in @('README.md', 'README_CN.md', 'VALIDATION.md', 'VALIDATION_CN.md')) {
