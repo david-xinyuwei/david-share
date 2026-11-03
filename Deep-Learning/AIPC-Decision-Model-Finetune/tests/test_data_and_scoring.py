@@ -121,12 +121,37 @@ class EngineRunnerTests(unittest.TestCase):
                              "-Label", "existing", "-OutRoot", temporary]
                 if single_question:
                     arguments.append("-SingleQuestion")
+                else:
+                    arguments.append("-SingleQuestion:$false")
                 result = subprocess.run(arguments, capture_output=True, timeout=20)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn(b"engine output already exists", result.stderr)
                 self.assertNotIn(b"__ENGINE_EVAL_DONE__", result.stdout)
                 self.assertEqual(evidence.read_bytes(), b"original evidence\n")
                 self.assertFalse((output / "run.json").exists())
+
+    def test_engine_defaults_to_single_question_and_preserves_legacy_mode(self):
+        runner = (ROOT / "scripts/run_engine_eval.ps1").as_posix().replace("'", "''")
+        program = (
+            "$tokens=$null; $errors=$null; "
+            f"$ast=[Management.Automation.Language.Parser]::ParseFile('{runner}',[ref]$tokens,[ref]$errors); "
+            "$parameter=$ast.ParamBlock.Parameters | Where-Object {$_.Name.VariablePath.UserPath -eq 'SingleQuestion'}; "
+            "$SingleQuestion=& ([scriptblock]::Create($parameter.DefaultValue.Extent.Text)); "
+            "$branch=@($ast.FindAll({param($node) $node -is [Management.Automation.Language.IfStatementAst] "
+            "-and $node.Extent.Text.StartsWith('if ($SingleQuestion) { $clientArgs')},$true)); "
+            "if($errors.Count -or $branch.Count -ne 1) { throw 'runner mode parse failed' }; "
+            "$clientArgs=@(); . ([scriptblock]::Create($branch[0].Extent.Text)); "
+            "Write-Output ('default='+($clientArgs -join ',')); "
+            "$SingleQuestion=$false; $clientArgs=@(); . ([scriptblock]::Create($branch[0].Extent.Text)); "
+            "Write-Output ('legacy='+($clientArgs -join ','))"
+        )
+        result = subprocess.run([self.pwsh, "-NoProfile", "-NonInteractive", "-Command", program],
+                                capture_output=True, timeout=20)
+        self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
+        self.assertIn(b"default=--single-question", result.stdout)
+        self.assertIn(b"legacy=--record-questions", result.stdout)
+        for name in ("laptop_round2c_eval.ps1", "laptop_round2c_concurrency.ps1"):
+            self.assertIn("-SingleQuestion:$false", (ROOT / "scripts" / name).read_text(encoding="utf-8"))
 
     def test_engine_parity_failure_or_missing_input_blocks_completion(self):
         runner = (ROOT / "scripts/run_engine_eval.ps1").as_posix().replace("'", "''")
@@ -269,6 +294,8 @@ class RequestTests(unittest.TestCase):
                         "--data", str(FINAL / "test_support.jsonl"), "--out", str(output)]
                 if single_question:
                     argv.append("--single-question")
+                else:
+                    argv.append("--record-questions")
                 with mock.patch.object(client, "ask") as send, mock.patch("sys.argv", argv):
                     with self.assertRaises(FileExistsError):
                         client.main()
@@ -289,7 +316,7 @@ class RequestTests(unittest.TestCase):
             data.write_text(json.dumps(record) + "\n", encoding="utf-8")
             output = Path(temporary) / "out"
             argv = ["systemone_client.py", "--url", "http://127.0.0.1:1/v1/systemone", "--data", str(data),
-                    "--out", str(output), "--warmup", "0", "--single-question"]
+                    "--out", str(output), "--warmup", "0"]
             responses = [({"answers": {question_id: answer}}, latency)
                          for (question_id, answer), latency in zip(answers.items(), (10.0, 20.0, 30.0))]
             with mock.patch.object(client, "ask", side_effect=responses) as send, mock.patch("sys.argv", argv), mock.patch("builtins.print"):
@@ -426,7 +453,7 @@ class RequestTests(unittest.TestCase):
                 data.write_text("\n".join(json.dumps(r) for r in records) + "\n", encoding="utf-8")
                 out = Path(temporary) / "out"
                 argv = ["systemone_client.py", "--url", "http://127.0.0.1:1/v1/systemone", "--data", str(data), "--out", str(out),
-                        "--warmup", "0", "--concurrency", str(concurrency)]
+                    "--warmup", "0", "--concurrency", str(concurrency), "--record-questions"]
                 with mock.patch.object(client, "ask", side_effect=fake_ask), mock.patch("sys.argv", argv), mock.patch("builtins.print"):
                     client.main()
                 rows = [json.loads(l) for l in (out / "rows.jsonl").read_text(encoding="utf-8").splitlines()]
@@ -722,6 +749,38 @@ class BilingualDocumentationTests(unittest.TestCase):
             self.assertIn("`-b`", context_row[-1])
             self.assertIn("`-ub`", context_row[-1])
             self.assertRegex(context_row[-1], r"不能仅归因|cannot be attributed")
+
+    def test_single_question_default_is_distinct_from_historical_results(self):
+        for filename, wording in (("README_CN.md", "新评测默认每次只发一道题"),
+                                  ("README.md", "New evaluations send one question per request by default")):
+            self.assertIn(wording, (ROOT / filename).read_text(encoding="utf-8"))
+        for filename in ("操作步骤全本.md", "Operations-Guide.md"):
+            text = (ROOT / "文档" / filename).read_text(encoding="utf-8")
+            self.assertIn("-SingleQuestion:$false", text)
+            self.assertIn("--record-questions", text)
+            self.assertNotIn("不加此开关即走旧路径", text)
+            self.assertNotIn("Ommiting the switch retains three-question mode", text)
+            self.assertNotIn("Omitting the switch retains three-question mode", text)
+
+    def test_readme_composition_identifies_frozen_and_updated_components(self):
+        config_path = ROOT / "验证结果/第二轮微调评测_20261101-101948/runs/0.8b/r2-C/training_config.json"
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        self.assertEqual(config["args"]["base"], "Qwen/Qwen3.5-0.8B-Base")
+        self.assertEqual(config["args"]["init_from"], "jaredpalmer/kev-0.8b@v1.0")
+        self.assertEqual((config["args"]["lora"], config["args"]["full_ft"]), (16, 0))
+        for filename, next_heading, required in (
+                ("README_CN.md", "#### 核心代码示例", ("基座：冻结，不更新", "LoRA adapter：继续训练", "决策头：继续训练",
+                                                     "不叠加第二套业务 adapter", "不是独立的全量基座权重包", "不需要再单独加载 Qwen 基座或 adapter")),
+                ("README.md", "#### Core Code:", ("backbone: frozen, not updated", "LoRA adapter: continued training",
+                                                 "decision head: continued training", "does not stack a second business adapter",
+                                                 "not a standalone full-backbone weight package", "no separate Qwen base or adapter needs to be loaded"))):
+            with self.subTest(document=filename):
+                text = (ROOT / filename).read_text(encoding="utf-8")
+                start = text.index('<a id="model-composition"></a>')
+                section = text[start:text.index(next_heading, start)]
+                for value in (*required, "--base", "--base_revision", "--init_from", "lora=16", "full_ft=0",
+                              "training_config.json", "Checkpoint.warm_start()"):
+                    self.assertIn(value, section)
 
     def test_readme_core_examples_match_the_delivered_c_recipe(self):
         text = (ROOT / "README_CN.md").read_text(encoding="utf-8")

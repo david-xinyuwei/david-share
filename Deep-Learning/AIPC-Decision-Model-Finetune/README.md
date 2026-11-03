@@ -45,7 +45,7 @@ Released means no business fine-tuning. FT-cf uses 3,832 business records for 2 
 
 ### Inference: Accuracy, Measured Processing Time and Calibration
 
-The two tables retain real Snapdragon measurements for all seven deployment configurations. Processing time is the median from sending a complete support or assistant request to receiving its answers after the model is loaded, in seconds. Each request contains three decisions. This is neither model-loading time nor the median for a standalone classification, and dividing it by three does not measure that latency. Each configuration uses llama.cpp b11935 CPU, default settings and concurrency 1, with 170 support and 159 assistant requests, excluding loading and two warm-ups. Accuracy, processing time and ECE are recalculated from each configuration's same recorded Snapdragon run. ECE uses 10 equal-width confidence bins and is better closer to 0; it is not the Microsoft-Decision-1 website's percentage-scale score. Full standalone single-question evaluation is still incomplete and is not mixed into this table. [Timing units, calibration and the single-question boundary](文档/Evaluation-Results.md#single-question).
+The two tables retain historical three-question Snapdragon measurements for all seven deployment configurations. New evaluations send one question per request by default; these tables do not report the new single-question latency. Processing time is the median from sending a complete support or assistant request to receiving its answers after the model is loaded, in seconds. Each request contains three decisions. This is neither model-loading time nor the median for a standalone classification, and dividing it by three does not measure that latency. Each configuration uses llama.cpp b11935 CPU, default settings and concurrency 1, with 170 support and 159 assistant requests, excluding loading and two warm-ups. Accuracy, processing time and ECE are recalculated from each configuration's same recorded Snapdragon run. ECE uses 10 equal-width confidence bins and is better closer to 0; it is not the Microsoft-Decision-1 website's percentage-scale score. Full standalone single-question evaluation is still incomplete and is not mixed into this table. [Timing units, calibration and the single-question boundary](文档/Evaluation-Results.md#single-question).
 
 <!-- OVERVIEW:INFERENCE -->
 <!-- SOURCE:TABLE:2 -->
@@ -90,6 +90,22 @@ The laptop prepares separate training, calibration and test sets; released Kev i
 <img src="images/training-en.png" width="900" alt="Business data and original-case splits feed independent FT, FT-cf and C recipes. Development review guides human iteration; frozen independent acceptance and device validation of the quantized file remain separate. Export and quantization use CPU before the model returns to the laptop.">
 
 *Original workflow illustration: blue lines carry data and dashed lines show human-led development feedback, not completed independent customer acceptance. Sources and hashes: [images/provenance.json](images/provenance.json).*
+
+<a id="model-composition"></a>
+
+#### Model Composition: What This Fine-Tune Updates
+
+This section describes the **`jaredpalmer/kev-0.8b@v1.0` LoRA checkpoint used here**, not every Kev version or format. It holds a trained adapter, decision head, configuration and tokenizer files, **not a standalone full-backbone weight package**. Loading it also requires the specified Qwen base revision.
+
+**The running Kev-0.8B model = Qwen3.5-0.8B backbone + Kev's trained LoRA adapter + trained decision head.** `0.8B` names the backbone's size class, not an additional 0.8B adapter; `v1.0` is the release version, not a second model.
+
+- **Qwen backbone: frozen, not updated.** `--base` and `--base_revision` select its weights and version.
+- **Kev LoRA adapter: continued training updates its parameters.** `--init_from` loads the existing v1.0 LoRA, and this run continues training those same parameters on business data. **It does not stack a second business adapter.**
+- **Kev decision head: continued training updates its parameters.** It is also loaded by `--init_from` and scores the supplied candidate options; it is not replaced with a newly randomized head.
+
+**Fine-tuning updates the last two components.** Calibration then freezes the weights and fits only temperature T. GGUF export merges the updated LoRA into the backbone and packages the decision head, tokenizer and temperature. The delivered GGUF contains the required model components: **no separate Qwen base or adapter needs to be loaded**, although the llama.cpp runtime is still required.
+
+Evidence: `lora=16`, `full_ft=0` and `init_source` in the [recorded C training configuration](验证结果/第二轮微调评测_20261101-101948/runs/0.8b/r2-C/training_config.json), and the existing-adapter and decision-head loading in [Kev `Checkpoint.warm_start()`](https://github.com/jaredpalmer/kev/blob/2074cc44256200bb37540103fa4572901faa10f3/kev/checkpoint.py).
 
 #### Core Code: Fine-Tuning, Calibration and Quantization
 

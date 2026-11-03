@@ -37,7 +37,7 @@ try {
     foreach ($t in $tiers) {
         "== $($t.Label)  concurrency=$($t.Conc) np=$($t.Np)  $(Get-Date -Format 'HH:mm:ss') =="
         & (Join-Path $PSScriptRoot 'run_engine_eval.ps1') -Model $Model -Label $t.Label -Backend cpu -Bin $Bin -OutRoot $OutRoot `
-            -TorchPrefix $torch -Concurrency $t.Conc -Parallel $t.Np
+            -TorchPrefix $torch -Concurrency $t.Conc -Parallel $t.Np -SingleQuestion:$false
         if ($LASTEXITCODE -ne 0 -and $null -ne $LASTEXITCODE) { throw "run_engine_eval failed for $($t.Label)" }
     }
 

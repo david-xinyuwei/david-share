@@ -749,7 +749,7 @@ def sync_overview():
     path = ROOT / "README_CN.md"
     text = path.read_text(encoding="utf-8")
     introduction = (
-        "下面两表保留七个部署配置的真实骁龙记录。处理时间是模型已加载后，从发出一个完整工单或助手请求到收到答案的中位数，单位为秒；"
+        "下面两表保留七个部署配置的历史骁龙三题记录。新评测默认每次只发一道题；这两表不代表新的单题耗时。处理时间是模型已加载后，从发出一个完整工单或助手请求到收到答案的中位数，单位为秒；"
         "每次请求包含三道判断，不是模型加载时间，也不是独立一道分类的中位数，不能除以三换算。"
         "每个配置使用 llama.cpp b11935 CPU、默认参数、并发 1，测量 170 条工单和 159 条助手请求，排除加载与两次预热。"
         "准确率、处理时间和 ECE 都从各自同一轮骁龙记录重算；ECE 采用 10 个等宽置信度分箱，越接近 0 越好，"
@@ -825,7 +825,7 @@ def sync_english_documents():
                 text = expression.sub(lambda _: opening + "\n" + content + "\n" + closing, text)
         if target.name == "README.md":
             introduction = (
-                "The two tables retain real Snapdragon measurements for all seven deployment configurations. Processing time is the median from sending a complete support or assistant request to receiving its answers after the model is loaded, in seconds. "
+                "The two tables retain historical three-question Snapdragon measurements for all seven deployment configurations. New evaluations send one question per request by default; these tables do not report the new single-question latency. Processing time is the median from sending a complete support or assistant request to receiving its answers after the model is loaded, in seconds. "
                 "Each request contains three decisions. This is neither model-loading time nor the median for a standalone classification, and dividing it by three does not measure that latency. "
                 "Each configuration uses llama.cpp b11935 CPU, default settings and concurrency 1, with 170 support and 159 assistant requests, excluding loading and two warm-ups. "
                 "Accuracy, processing time and ECE are recalculated from each configuration's same recorded Snapdragon run. ECE uses 10 equal-width confidence bins and is better closer to 0; it is not the Microsoft-Decision-1 website's percentage-scale score. "

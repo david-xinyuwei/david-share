@@ -41,7 +41,7 @@ try {
     foreach ($r in $runs) {
         "== $($r.Label)  $(Get-Date -Format 'HH:mm:ss') =="
         & (Join-Path $PSScriptRoot 'run_engine_eval.ps1') -Model $Model -Label $r.Label -Backend cpu -Bin $Bin -OutRoot $OutRoot `
-            -Ctx $r.Ctx -UBatch $r.UBatch -TorchPrefix $torch
+            -Ctx $r.Ctx -UBatch $r.UBatch -TorchPrefix $torch -SingleQuestion:$false
         if ($LASTEXITCODE -ne 0 -and $null -ne $LASTEXITCODE) { throw "run_engine_eval failed for $($r.Label)" }
     }
 

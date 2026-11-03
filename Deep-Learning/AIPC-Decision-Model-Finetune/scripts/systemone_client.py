@@ -6,7 +6,8 @@
 Single requests write result.json without grading or warm-up. Batch scoring writes rows.jsonl and summary.json.
 --concurrency N (default 1, one request at a time) keeps N requests in flight from a thread pool; each row's
 latency_ms is still measured at the client from send to full answer, so it includes server-side queueing.
---single-question sends each labelled question separately with the unchanged state and question definition.
+Batch scoring sends one labelled question per request by default; --single-question makes that explicit.
+--record-questions retains historical multi-question requests for replay, not single-classification timing.
 Standard library only.
 """
 import argparse
@@ -127,15 +128,18 @@ def main():
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--warmup", type=int, default=2, help="requests sent first and excluded from latency")
     ap.add_argument("--concurrency", type=int, default=1, help="requests kept in flight at once (1 = sequential)")
-    ap.add_argument("--single-question", action="store_true", help="send one question per batch request")
+    modes = ap.add_mutually_exclusive_group()
+    modes.add_argument("--single-question", action="store_true", help="send one question per batch request (default)")
+    modes.add_argument("--record-questions", action="store_true", help="historical mode: send all questions in each record together")
     a = ap.parse_args()
     if a.concurrency < 1:
         ap.error("--concurrency must be at least 1")
-    if a.request and a.single_question:
-        ap.error("--single-question requires --data")
+    if a.request and (a.single_question or a.record_questions):
+        ap.error("batch question modes require --data")
     if a.request:
         single_request(a.url, a.request, a.out)
         return
+    a.single_question = not a.record_questions
     recs = [json.loads(l) for l in Path(a.data).read_text(encoding="utf-8").splitlines() if l.strip()]
     if a.limit:
         recs = recs[:a.limit]

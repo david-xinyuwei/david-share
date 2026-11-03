@@ -2,17 +2,18 @@
 On-device engine run: start llama-server (b11935, CPU or Adreno OpenCL build) with one GGUF, score the Contoso test
 sets through /v1/systemone, record process memory, compare per question with the PyTorch rows, stop the server.
 Default server flags match the first released-model runs (-c 8192 -b 2048 -ub 2048 --cache-ram 0); -Ctx/-UBatch change them.
+Requests contain one question by default. Use -SingleQuestion:$false only to replay historical multi-question runs.
 
   .\scripts\run_engine_eval.ps1 -Model C:\Tools\models\contoso-kev\Contoso-Kev-0.8B-FT-Q8_0.gguf -Label ft-kev-0.8b-Q8_0-cpu `
-      -TorchPrefix 验证结果\微调评测_X\runs\0.8b\ft-
+    -SingleQuestion:$false -TorchPrefix 验证结果\微调评测_X\runs\0.8b\ft-
   .\scripts\run_engine_eval.ps1 -Model ggml-org/Kev-0.8B-GGUF:Q8_0 -Label released-kev-0.8b-Q8_0-opencl -Backend opencl `
-      -TorchPrefix 验证结果\端侧引擎_20261027-124700\pytorch-b0-0.8b\
+    -SingleQuestion:$false -TorchPrefix 验证结果\端侧引擎_20261027-124700\pytorch-b0-0.8b\
 
 -TorchPrefix + "<workload>\rows.json" (released runs) or + "test_<workload>\rows.json" (kev run folders) must exist for parity.
 Results go to <OutRoot>\<Label>\; the default OutRoot is a new timestamped campaign. Existing label directories are rejected. Paths written into summary.json and
 parity_vs_pytorch.json are project-relative, so the records carry no machine-specific absolute paths. Another machine:
   .\scripts\run_engine_eval.ps1 -Model C:\Tools\models\contoso-kev\Contoso-Kev-0.8B-FTcf-Q8_0.gguf -Label ftcf-kev-0.8b-Q8_0-cpu `
-      -Bin C:\Tools\llama.cpp\b11935-cpu-x64 -OutRoot 验证结果\端侧引擎_x64_20261030-232500 -TorchPrefix 验证结果\端侧引擎_20261027-124700\pytorch-ftcf-0.8b\
+    -SingleQuestion:$false -Bin C:\Tools\llama.cpp\b11935-cpu-x64 -OutRoot 验证结果\端侧引擎_x64_20261030-232500 -TorchPrefix 验证结果\端侧引擎_20261027-124700\pytorch-ftcf-0.8b\
 #>
 param(
     [Parameter(Mandatory)] [string] $Model,
@@ -28,7 +29,7 @@ param(
     [string] $OutRoot = '',
     [int] $Concurrency = 1,          # client requests kept in flight (systemone_client.py --concurrency); 1 = the sequential laptop method
     [int] $Parallel = 0,             # llama-server -np slots; 0 = leave the server default (auto, 4 on b11935 for this model)
-    [switch] $SingleQuestion
+    [switch] $SingleQuestion = $true
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
@@ -87,7 +88,7 @@ try {
         $server.Refresh(); $cpuBefore = $server.TotalProcessorTime.TotalSeconds; $wallBefore = Get-Date
         $clientArgs = @('--url', "http://127.0.0.1:$Port/v1/systemone", '--data', $data,
                 '--out', (Join-Path $out $w), '--concurrency', "$Concurrency")
-        if ($SingleQuestion) { $clientArgs += '--single-question' }
+        if ($SingleQuestion) { $clientArgs += '--single-question' } else { $clientArgs += '--record-questions' }
         python scripts\systemone_client.py @clientArgs
         if ($LASTEXITCODE -ne 0) { throw "client failed for $w" }
         $server.Refresh()  # server CPU time consumed by this workload (incl. warm-up), for utilisation = cpu / wall / logical processors
