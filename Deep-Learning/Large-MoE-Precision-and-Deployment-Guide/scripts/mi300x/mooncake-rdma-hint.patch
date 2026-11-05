@@ -1,0 +1,12 @@
+--- /usr/local/lib/python3.12/dist-packages/vllm/distributed/kv_transfer/kv_connector/v1/mooncake/mooncake_connector.py
++++ /usr/local/lib/python3.12/dist-packages/vllm/distributed/kv_transfer/kv_connector/v1/mooncake/mooncake_connector.py
+@@ -2036,8 +2036,8 @@
+     ) -> int:
+         start_time = time.perf_counter()
+         ret_value = self.engine.batch_transfer_sync_write(
+-            remote_session, src_ptrs, dst_ptrs, lengths
++            remote_session, src_ptrs, dst_ptrs, lengths, transport_hint="rdma"
+         )
+         duration = time.perf_counter() - start_time
+         if ret_value == 0:
+             self.xfer_stats.record_transfer(

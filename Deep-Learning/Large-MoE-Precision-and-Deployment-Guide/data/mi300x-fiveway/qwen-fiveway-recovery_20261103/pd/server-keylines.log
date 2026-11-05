@@ -1,0 +1,26 @@
+(Worker pid=888) INFO 11-04 00:48:08 [cuda_communicator.py:353] Using ['CUSTOM', 'PYNCCL'] all-reduce backends (in dispatch order) for group 'tp:0' out of potential backends: ['FLASHINFER_PCIE_IPC', 'FLASHINFER', 'NCCL_SYMM_MEM', 'QUICK_REDUCE', 'AITER_CUSTOM', 'CUSTOM', 'SYMM_MEM', 'PYNCCL'].
+(Worker pid=888) INFO 11-04 00:48:09 [cuda_communicator.py:353] Using ['PYNCCL'] all-reduce backends (in dispatch order) for group 'ep:0' out of potential backends: ['FLASHINFER_PCIE_IPC', 'FLASHINFER', 'NCCL_SYMM_MEM', 'QUICK_REDUCE', 'AITER_CUSTOM', 'CUSTOM', 'SYMM_MEM', 'PYNCCL'].
+(Worker pid=888) INFO 11-04 00:48:09 [parallel_state.py:2385] rank 0 in world size 8 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, ETP rank 0, EP rank 0, EPLB rank N/A
+(Worker_TP0 pid=888) INFO 11-04 00:48:13 [rocm.py:803] Using TRITON_ATTN backend (selected via --attention-backend).
+(Worker_TP0 pid=888) INFO 11-04 00:48:13 [unquantized.py:294] Using TRITON Unquantized MoE backend out of potential backends: ['ROCm AITER', 'TRITON', 'BATCHED_TRITON'].
+(Worker_TP2 pid=892) INFO 11-04 00:48:42 [model_runner.py:428] Model loading took 54.98 GiB memory and 29.905646 seconds
+(Worker_TP7 pid=898) INFO 11-04 00:48:42 [model_runner.py:428] Model loading took 54.98 GiB memory and 30.113343 seconds
+(Worker_TP1 pid=890) INFO 11-04 00:48:42 [model_runner.py:428] Model loading took 54.98 GiB memory and 30.473655 seconds
+(Worker_TP3 pid=896) INFO 11-04 00:48:45 [model_runner.py:428] Model loading took 54.98 GiB memory and 33.477251 seconds
+(Worker_TP5 pid=894) INFO 11-04 00:48:46 [model_runner.py:428] Model loading took 54.98 GiB memory and 34.454335 seconds
+(Worker_TP6 pid=897) INFO 11-04 00:48:47 [model_runner.py:428] Model loading took 54.98 GiB memory and 34.973229 seconds
+(Worker_TP4 pid=895) INFO 11-04 00:48:47 [model_runner.py:428] Model loading took 54.98 GiB memory and 35.480400 seconds
+(Worker_TP0 pid=888) INFO 11-04 00:48:49 [unquantized.py:530] Using TritonExperts MoE backend
+(Worker_TP0 pid=888) INFO 11-04 00:48:50 [model_runner.py:428] Model loading took 54.98 GiB memory and 37.995643 seconds
+(Worker_TP0 pid=888) INFO 11-04 00:50:03 [gpu_worker.py:772] Available KV cache memory: 91.61 GiB
+(EngineCore pid=639) INFO 11-04 00:50:03 [kv_cache_utils.py:1147] GPU KV cache size: 2,039,040 tokens, Maximum concurrency for 32,768 tokens per request: 62.23x
+INFO:     Application startup complete.
+INFO:     Application startup complete.
+(APIServer pid=1) INFO 11-04 00:50:55 [metrics.py:108] KV Transfer metrics: Num successful transfers=24, Avg xfer time (ms)=6.465, P90 xfer time (ms)=8.464, Avg MB per transfer=1.469, Throughput (MB/s)=227.197, Avg number of descriptors=94.0, Num failed transfers=0, Num failed recvs=0, Num KV expired reqs=0
+(APIServer pid=1) INFO 11-04 00:51:05 [metrics.py:108] KV Transfer metrics: Num successful transfers=64, Avg xfer time (ms)=6.276, P90 xfer time (ms)=9.127, Avg MB per transfer=0.734, Throughput (MB/s)=117.006, Avg number of descriptors=94.0, Num failed transfers=0, Num failed recvs=0, Num KV expired reqs=0
+(APIServer pid=1) INFO 11-04 00:51:15 [metrics.py:108] KV Transfer metrics: Num successful transfers=136, Avg xfer time (ms)=8.821, P90 xfer time (ms)=16.967, Avg MB per transfer=0.864, Throughput (MB/s)=97.942, Avg number of descriptors=110.6, Num failed transfers=0, Num failed recvs=0, Num KV expired reqs=0
+(APIServer pid=1) INFO 11-04 00:51:25 [metrics.py:108] KV Transfer metrics: Num successful transfers=296, Avg xfer time (ms)=17.082, P90 xfer time (ms)=29.3, Avg MB per transfer=0.953, Throughput (MB/s)=55.771, Avg number of descriptors=121.9, Num failed transfers=0, Num failed recvs=0, Num KV expired reqs=0
+(APIServer pid=1) INFO 11-04 00:51:35 [metrics.py:108] KV Transfer metrics: Num successful transfers=424, Avg xfer time (ms)=19.893, P90 xfer time (ms)=41.819, Avg MB per transfer=1.108, Throughput (MB/s)=55.724, Avg number of descriptors=141.9, Num failed transfers=0, Num failed recvs=0, Num KV expired reqs=0
+(APIServer pid=1) INFO 11-04 00:51:45 [metrics.py:108] KV Transfer metrics: Num successful transfers=458, Avg xfer time (ms)=22.408, P90 xfer time (ms)=48.965, Avg MB per transfer=1.231, Throughput (MB/s)=54.955, Avg number of descriptors=157.6, Num failed transfers=0, Num failed recvs=0, Num KV expired reqs=0
+(APIServer pid=1) INFO 11-04 00:51:55 [metrics.py:108] KV Transfer metrics: Num successful transfers=704, Avg xfer time (ms)=15.741, P90 xfer time (ms)=41.812, Avg MB per transfer=1.06, Throughput (MB/s)=67.329, Avg number of descriptors=135.7, Num failed transfers=0, Num failed recvs=0, Num KV expired reqs=0
+(APIServer pid=1) INFO 11-04 00:59:55 [metrics.py:108] KV Transfer metrics: Num successful transfers=0, Avg xfer time (ms)=0, P90 xfer time (ms)=0, Avg MB per transfer=0, Throughput (MB/s)=0, Avg number of descriptors=0, Num failed transfers=540, Num failed recvs=0, Num KV expired reqs=0

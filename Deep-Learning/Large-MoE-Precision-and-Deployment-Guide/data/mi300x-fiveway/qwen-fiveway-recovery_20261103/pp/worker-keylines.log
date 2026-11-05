@@ -1,0 +1,13 @@
+(Worker pid=644) INFO 11-03 15:42:40 [parallel_state.py:2385] rank 8 in world size 16 is assigned as DP rank 0, PP rank 1, PCP rank 0, TP rank 0, ETP rank 0, EP rank 0, EPLB rank N/A
+(Worker_PP1_TP0 pid=644) INFO 11-03 15:42:44 [rocm.py:803] Using TRITON_ATTN backend (selected via --attention-backend).
+(Worker_PP1_TP0 pid=644) INFO 11-03 15:42:44 [unquantized.py:294] Using TRITON Unquantized MoE backend out of potential backends: ['ROCm AITER', 'TRITON', 'BATCHED_TRITON'].
+(Worker_PP1_TP4 pid=652) INFO 11-03 15:42:57 [model_runner.py:428] Model loading took 27.67 GiB memory and 14.374223 seconds
+(Worker_PP1_TP3 pid=648) INFO 11-03 15:42:59 [model_runner.py:428] Model loading took 27.67 GiB memory and 16.347219 seconds
+(Worker_PP1_TP1 pid=645) INFO 11-03 15:43:00 [model_runner.py:428] Model loading took 27.67 GiB memory and 16.512076 seconds
+(Worker_PP1_TP2 pid=647) INFO 11-03 15:43:00 [model_runner.py:428] Model loading took 27.67 GiB memory and 17.022935 seconds
+(Worker_PP1_TP6 pid=651) INFO 11-03 15:43:00 [model_runner.py:428] Model loading took 27.67 GiB memory and 17.342378 seconds
+(Worker_PP1_TP5 pid=649) INFO 11-03 15:43:01 [model_runner.py:428] Model loading took 27.67 GiB memory and 17.745324 seconds
+(Worker_PP1_TP7 pid=650) INFO 11-03 15:43:02 [model_runner.py:428] Model loading took 27.67 GiB memory and 18.656424 seconds
+(Worker_PP1_TP0 pid=644) INFO 11-03 15:43:02 [unquantized.py:530] Using TritonExperts MoE backend
+(Worker_PP1_TP0 pid=644) INFO 11-03 15:43:03 [model_runner.py:428] Model loading took 27.67 GiB memory and 19.928730 seconds
+(Worker_PP1_TP0 pid=644) INFO 11-03 15:43:55 [gpu_worker.py:772] Available KV cache memory: 120.07 GiB

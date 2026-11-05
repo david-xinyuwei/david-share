@@ -1,0 +1,201 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1960" height="1130" viewBox="0 0 1960 1130">
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#201F1E"/></marker></defs>
+<rect width="1960" height="1130" fill="#FFFFFF"/>
+<text x="28" y="52.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="32" fill="#201F1E" font-weight="600" text-anchor="start">一个输出 token 的时间花在哪里 · 短问题，并发 1</text>
+<text x="28" y="94.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="22" fill="#605E5C" font-weight="normal" text-anchor="start">Muse-Spark-Open-816B-A42B · BF16 · 2 节点 × 8 张 MI300X · 每节点 8 × 400 Gb/s InfiniBand，合计 400 GB/s · GPU Direct RDMA 关闭</text>
+<text x="28" y="150.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="24" fill="#201F1E" font-weight="600" text-anchor="start">A · 实测每个输出 token 的时间（ms）= 1000 ÷ 单请求解码速度中位数</text>
+<line x1="360.0" y1="192" x2="360.0" y2="434" stroke="#EDEBE9" stroke-width="1"/>
+<line x1="360.0" y1="442" x2="360.0" y2="450" stroke="#201F1E" stroke-width="1"/>
+<text x="360.0" y="472.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="middle">0</text>
+<line x1="645.0" y1="192" x2="645.0" y2="434" stroke="#EDEBE9" stroke-width="1"/>
+<line x1="645.0" y1="442" x2="645.0" y2="450" stroke="#201F1E" stroke-width="1"/>
+<text x="645.0" y="472.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="middle">5</text>
+<line x1="930.0" y1="192" x2="930.0" y2="434" stroke="#EDEBE9" stroke-width="1"/>
+<line x1="930.0" y1="442" x2="930.0" y2="450" stroke="#201F1E" stroke-width="1"/>
+<text x="930.0" y="472.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="middle">10</text>
+<line x1="1215.0" y1="192" x2="1215.0" y2="434" stroke="#EDEBE9" stroke-width="1"/>
+<line x1="1215.0" y1="442" x2="1215.0" y2="450" stroke="#201F1E" stroke-width="1"/>
+<text x="1215.0" y="472.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="middle">15</text>
+<line x1="1500.0" y1="192" x2="1500.0" y2="434" stroke="#EDEBE9" stroke-width="1"/>
+<line x1="1500.0" y1="442" x2="1500.0" y2="450" stroke="#201F1E" stroke-width="1"/>
+<text x="1500.0" y="472.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="middle">20 ms</text>
+<line x1="360" y1="442" x2="1500" y2="442" stroke="#201F1E" stroke-width="1.2"/>
+<text x="28" y="228.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="26" fill="#107C10" font-weight="600" text-anchor="start">TP8 × PP2</text>
+<rect x="360" y="200" width="680.4354763052332" height="46" rx="3" fill="#107C10" stroke="#107C10" stroke-width="1"/>
+<text x="28" y="256.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="start">126 次同步在节点内</text>
+<text x="28" y="278.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="start">跨节点交接 1 次</text>
+<text x="1054.4354763052334" y="231.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="22" fill="#201F1E" font-weight="600" text-anchor="start">11.9 ms · 83.8 token/s</text>
+<text x="28" y="318.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="26" fill="#0078D4" font-weight="600" text-anchor="start">TP16</text>
+<rect x="360" y="290" width="680.4354763052332" height="46" rx="3" fill="#C7E0F4" stroke="#C7E0F4" stroke-width="1"/>
+<rect x="1040.4354763052334" y="290" width="253.20547034067158" height="46" rx="3" fill="#0078D4" stroke="#0078D4" stroke-width="1"/>
+<text x="1167.038211475569" y="321.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#FFFFFF" font-weight="600" text-anchor="middle">+4.4 ms</text>
+<text x="28" y="346.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="start">约 126 次同步全部跨节点（估算）</text>
+<text x="1307.640946645905" y="321.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="22" fill="#201F1E" font-weight="600" text-anchor="start">16.4 ms · 61.1 token/s</text>
+<text x="28" y="408.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="26" fill="#ED1C24" font-weight="600" text-anchor="start">TP16 + EP</text>
+<rect x="360" y="380" width="680.4354763052332" height="46" rx="3" fill="#F8C8CA" stroke="#F8C8CA" stroke-width="1"/>
+<rect x="1040.4354763052334" y="380" width="376.0181867146436" height="46" rx="3" fill="#ED1C24" stroke="#ED1C24" stroke-width="1"/>
+<text x="1228.444569662555" y="411.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#FFFFFF" font-weight="600" text-anchor="middle">+6.6 ms</text>
+<text x="28" y="436.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="start">约 126 次同步全部跨节点（估算）</text>
+<text x="1430.4536630198768" y="411.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="22" fill="#201F1E" font-weight="600" text-anchor="start">18.5 ms · 54.0 token/s</text>
+<line x1="1040.4354763052334" y1="186" x2="1040.4354763052334" y2="436" stroke="#107C10" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="1040.4354763052334" y="180.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="17" fill="#107C10" font-weight="normal" text-anchor="middle">TP8 × PP2: 11.9 ms</text>
+<text x="360" y="502.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="17" fill="#605E5C" font-weight="normal" text-anchor="start">浅色段：到 TP8 × PP2 的 11.9 ms 为止；深色段：每个 token 多出的时间，在 B 图放大</text>
+<text x="28" y="548.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="24" fill="#201F1E" font-weight="600" text-anchor="start">B · 放大每个 token 多出的时间，与这些 InfiniBand 数据以 400 GB/s 传输所需的时间按同一比例画出</text>
+<text x="28" y="642.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="26" fill="#0078D4" font-weight="600" text-anchor="start">TP16</text>
+<text x="28" y="668.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="17" fill="#605E5C" font-weight="normal" text-anchor="start">每个 token 多 4.4 ms</text>
+<rect x="360" y="612" width="956.2084510465814" height="54" rx="2" fill="#0078D4" stroke="#0078D4" stroke-width="1"/>
+<line x1="367.58895596068714" y1="615" x2="367.58895596068714" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="375.1779119213743" y1="615" x2="375.1779119213743" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="382.76686788206143" y1="615" x2="382.76686788206143" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="390.35582384274863" y1="615" x2="390.35582384274863" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="397.9447798034358" y1="615" x2="397.9447798034358" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="405.5337357641229" y1="615" x2="405.5337357641229" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="413.12269172481007" y1="615" x2="413.12269172481007" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="420.7116476854972" y1="615" x2="420.7116476854972" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="428.3006036461844" y1="615" x2="428.3006036461844" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="435.88955960687156" y1="615" x2="435.88955960687156" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="443.4785155675587" y1="615" x2="443.4785155675587" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="451.06747152824585" y1="615" x2="451.06747152824585" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="458.656427488933" y1="615" x2="458.656427488933" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="466.24538344962014" y1="615" x2="466.24538344962014" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="473.8343394103073" y1="615" x2="473.8343394103073" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="481.4232953709945" y1="615" x2="481.4232953709945" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="489.0122513316816" y1="615" x2="489.0122513316816" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="496.60120729236877" y1="615" x2="496.60120729236877" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="504.19016325305597" y1="615" x2="504.19016325305597" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="511.7791192137431" y1="615" x2="511.7791192137431" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="519.3680751744303" y1="615" x2="519.3680751744303" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="526.9570311351174" y1="615" x2="526.9570311351174" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="534.5459870958045" y1="615" x2="534.5459870958045" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="542.1349430564917" y1="615" x2="542.1349430564917" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="549.7238990171788" y1="615" x2="549.7238990171788" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="557.312854977866" y1="615" x2="557.312854977866" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="564.9018109385531" y1="615" x2="564.9018109385531" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="572.4907668992403" y1="615" x2="572.4907668992403" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="580.0797228599274" y1="615" x2="580.0797228599274" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="587.6686788206146" y1="615" x2="587.6686788206146" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="595.2576347813018" y1="615" x2="595.2576347813018" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="602.846590741989" y1="615" x2="602.846590741989" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="610.4355467026761" y1="615" x2="610.4355467026761" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="618.0245026633633" y1="615" x2="618.0245026633633" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="625.6134586240504" y1="615" x2="625.6134586240504" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="633.2024145847375" y1="615" x2="633.2024145847375" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="640.7913705454247" y1="615" x2="640.7913705454247" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="648.3803265061119" y1="615" x2="648.3803265061119" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="655.9692824667991" y1="615" x2="655.9692824667991" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="663.5582384274862" y1="615" x2="663.5582384274862" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="671.1471943881734" y1="615" x2="671.1471943881734" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="678.7361503488605" y1="615" x2="678.7361503488605" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="686.3251063095477" y1="615" x2="686.3251063095477" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="693.9140622702348" y1="615" x2="693.9140622702348" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="701.503018230922" y1="615" x2="701.503018230922" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="709.0919741916091" y1="615" x2="709.0919741916091" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="716.6809301522962" y1="615" x2="716.6809301522962" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="724.2698861129834" y1="615" x2="724.2698861129834" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="731.8588420736705" y1="615" x2="731.8588420736705" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="739.4477980343577" y1="615" x2="739.4477980343577" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="747.0367539950448" y1="615" x2="747.0367539950448" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="754.625709955732" y1="615" x2="754.625709955732" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="762.2146659164191" y1="615" x2="762.2146659164191" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="769.8036218771063" y1="615" x2="769.8036218771063" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="777.3925778377934" y1="615" x2="777.3925778377934" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="784.9815337984807" y1="615" x2="784.9815337984807" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="792.5704897591678" y1="615" x2="792.5704897591678" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="800.159445719855" y1="615" x2="800.159445719855" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="807.7484016805421" y1="615" x2="807.7484016805421" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="815.3373576412292" y1="615" x2="815.3373576412292" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="822.9263136019164" y1="615" x2="822.9263136019164" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="830.5152695626036" y1="615" x2="830.5152695626036" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="838.1042255232908" y1="615" x2="838.1042255232908" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="845.6931814839779" y1="615" x2="845.6931814839779" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="853.2821374446651" y1="615" x2="853.2821374446651" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="860.8710934053522" y1="615" x2="860.8710934053522" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="868.4600493660394" y1="615" x2="868.4600493660394" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="876.0490053267265" y1="615" x2="876.0490053267265" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="883.6379612874136" y1="615" x2="883.6379612874136" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="891.2269172481008" y1="615" x2="891.2269172481008" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="898.8158732087879" y1="615" x2="898.8158732087879" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="906.4048291694751" y1="615" x2="906.4048291694751" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="913.9937851301622" y1="615" x2="913.9937851301622" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="921.5827410908494" y1="615" x2="921.5827410908494" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="929.1716970515365" y1="615" x2="929.1716970515365" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="936.7606530122238" y1="615" x2="936.7606530122238" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="944.3496089729109" y1="615" x2="944.3496089729109" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="951.9385649335981" y1="615" x2="951.9385649335981" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="959.5275208942852" y1="615" x2="959.5275208942852" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="967.1164768549723" y1="615" x2="967.1164768549723" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="974.7054328156595" y1="615" x2="974.7054328156595" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="982.2943887763466" y1="615" x2="982.2943887763466" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="989.8833447370338" y1="615" x2="989.8833447370338" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="997.4723006977209" y1="615" x2="997.4723006977209" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1005.0612566584081" y1="615" x2="1005.0612566584081" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1012.6502126190952" y1="615" x2="1012.6502126190952" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1020.2391685797824" y1="615" x2="1020.2391685797824" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1027.8281245404696" y1="615" x2="1027.8281245404696" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1035.4170805011568" y1="615" x2="1035.4170805011568" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1043.006036461844" y1="615" x2="1043.006036461844" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1050.594992422531" y1="615" x2="1050.594992422531" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1058.1839483832182" y1="615" x2="1058.1839483832182" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1065.7729043439053" y1="615" x2="1065.7729043439053" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1073.3618603045925" y1="615" x2="1073.3618603045925" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1080.9508162652796" y1="615" x2="1080.9508162652796" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1088.5397722259668" y1="615" x2="1088.5397722259668" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1096.128728186654" y1="615" x2="1096.128728186654" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1103.717684147341" y1="615" x2="1103.717684147341" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1111.3066401080282" y1="615" x2="1111.3066401080282" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1118.8955960687153" y1="615" x2="1118.8955960687153" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1126.4845520294025" y1="615" x2="1126.4845520294025" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1134.0735079900896" y1="615" x2="1134.0735079900896" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1141.6624639507768" y1="615" x2="1141.6624639507768" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1149.251419911464" y1="615" x2="1149.251419911464" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1156.840375872151" y1="615" x2="1156.840375872151" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1164.4293318328382" y1="615" x2="1164.4293318328382" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1172.0182877935254" y1="615" x2="1172.0182877935254" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1179.6072437542125" y1="615" x2="1179.6072437542125" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1187.1961997148996" y1="615" x2="1187.1961997148996" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1194.7851556755868" y1="615" x2="1194.7851556755868" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1202.3741116362742" y1="615" x2="1202.3741116362742" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1209.9630675969613" y1="615" x2="1209.9630675969613" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1217.5520235576485" y1="615" x2="1217.5520235576485" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1225.1409795183356" y1="615" x2="1225.1409795183356" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1232.7299354790227" y1="615" x2="1232.7299354790227" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1240.31889143971" y1="615" x2="1240.31889143971" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1247.907847400397" y1="615" x2="1247.907847400397" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1255.4968033610842" y1="615" x2="1255.4968033610842" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1263.0857593217713" y1="615" x2="1263.0857593217713" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1270.6747152824585" y1="615" x2="1270.6747152824585" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1278.2636712431456" y1="615" x2="1278.2636712431456" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1285.8526272038328" y1="615" x2="1285.8526272038328" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1293.4415831645201" y1="615" x2="1293.4415831645201" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1301.0305391252073" y1="615" x2="1301.0305391252073" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="1308.6194950858944" y1="615" x2="1308.6194950858944" y2="663" stroke="#FFFFFF" stroke-width="1"/>
+<rect x="360" y="604" width="6.12599216750341" height="70" rx="0" fill="#FFB900" stroke="#201F1E" stroke-width="1"/>
+<text x="406" y="594.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#201F1E" font-weight="600" text-anchor="start">黄色细条：它每个 token 的 11.4 MB 以 400 GB/s 传输需 28 µs，占多出时间的 0.6%</text>
+<line x1="400" y1="588" x2="369.1259921675034" y2="608" stroke="#201F1E" stroke-width="1.5" marker-end="url(#arrow)"/>
+<text x="360" y="696.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#201F1E" font-weight="normal" text-anchor="start">126 条 = 每个 token 约 126 次跨节点集合通信（估算：62 层 × 2 次 all-reduce，再加嵌入层和输出层共 2 次）。TP8 × PP2</text>
+<text x="360" y="722.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#201F1E" font-weight="normal" text-anchor="start">做同样多次，但都在节点内；平均每次跨节点至少多花 35 µs，而每次平均约 90 KB 的数据在链路上只需 0.23 µs</text>
+<text x="28" y="832.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="26" fill="#ED1C24" font-weight="600" text-anchor="start">TP16 + EP</text>
+<text x="28" y="858.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="17" fill="#605E5C" font-weight="normal" text-anchor="start">每个 token 多 6.6 ms</text>
+<rect x="360" y="802" width="1420.0" height="54" rx="2" fill="#ED1C24" stroke="#ED1C24" stroke-width="1"/>
+<rect x="360" y="794" width="2.176709565364112" height="70" rx="0" fill="#FFB900" stroke="#201F1E" stroke-width="1"/>
+<text x="406" y="784.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#201F1E" font-weight="600" text-anchor="start">黄色细条：它每个 token 的 4.0 MB 以 400 GB/s 传输需 10 µs，占多出时间的 0.2%</text>
+<line x1="400" y1="778" x2="365.1767095653641" y2="798" stroke="#201F1E" stroke-width="1.5" marker-end="url(#arrow)"/>
+<text x="360" y="886.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#201F1E" font-weight="normal" text-anchor="start">数据比 TP16 少，多出的时间却更长。这里不按 all-reduce 拆分，因为页面的 AMD 说明指出 Triton 专家内核在专家并行下更慢</text>
+<line x1="360" y1="962" x2="1780" y2="962" stroke="#201F1E" stroke-width="1.2"/>
+<line x1="360.0" y1="962" x2="360.0" y2="970" stroke="#201F1E" stroke-width="1"/>
+<text x="360.0" y="994.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="middle">0</text>
+<line x1="575.2555457681215" y1="962" x2="575.2555457681215" y2="970" stroke="#201F1E" stroke-width="1"/>
+<text x="575.2555457681215" y="994.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="middle">1</text>
+<line x1="790.5110915362429" y1="962" x2="790.5110915362429" y2="970" stroke="#201F1E" stroke-width="1"/>
+<text x="790.5110915362429" y="994.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="middle">2</text>
+<line x1="1005.7666373043643" y1="962" x2="1005.7666373043643" y2="970" stroke="#201F1E" stroke-width="1"/>
+<text x="1005.7666373043643" y="994.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="middle">3</text>
+<line x1="1221.0221830724859" y1="962" x2="1221.0221830724859" y2="970" stroke="#201F1E" stroke-width="1"/>
+<text x="1221.0221830724859" y="994.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="middle">4</text>
+<line x1="1436.277728840607" y1="962" x2="1436.277728840607" y2="970" stroke="#201F1E" stroke-width="1"/>
+<text x="1436.277728840607" y="994.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="middle">5</text>
+<line x1="1651.5332746087286" y1="962" x2="1651.5332746087286" y2="970" stroke="#201F1E" stroke-width="1"/>
+<text x="1651.5332746087286" y="994.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="middle">6 ms</text>
+<text x="28" y="1036.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="start">实测：每 token 时间来自单请求解码速度中位数；InfiniBand 接收量取正式轮次内的每秒采样，按较忙的节点计，含输入部分的分摊。估算而非实测：集合通信次数来自 vLLM 源码（62 层 × 2 次 all-reduce，再加 2</text>
+<text x="28" y="1060.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="start">次）；每次多花的时间是下限，前提是 TP16 除同步以外的计算不长于 TP8 × PP2（并发 1 时一个 token 在两种布局中都依次经过全部 62 层，TP16 每层的分片计算只有 TP8 的一半）。</text>
+</svg>

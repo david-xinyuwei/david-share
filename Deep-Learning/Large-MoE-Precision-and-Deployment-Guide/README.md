@@ -3,7 +3,7 @@
 [![Models](https://img.shields.io/badge/models-3-0078D4)](#summary-first)
 [![Precisions](https://img.shields.io/badge/precision-BF16%20%7C%20FP8%20%7C%20NVFP4-76B900)](#component-precision-by-model)
 [![Evidence](https://img.shields.io/badge/evidence-headers%20%2B%20config%20%2B%20MI300X%20run-555555)](#evidence-boundaries)
-[![Tested](https://img.shields.io/badge/tested-2026--11--02%20%C2%B7%2016%C3%97MI300X-ED1C24)](#mi300x-run)
+[![Tested](https://img.shields.io/badge/tested-2026--11--02%20to%2011--04%20%C2%B7%2016%C3%97MI300X-ED1C24)](#mi300x-run)
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/large-moe-precision-guide-ci.yml/badge.svg)](https://github.com/david-xinyuwei/david-share/actions/workflows/large-moe-precision-guide-ci.yml)
 
 Author: Xinyu Wei · [中文](README_CN.md)
@@ -12,17 +12,19 @@ Author: Xinyu Wei · [中文](README_CN.md)
 
 This project provides component-level precision references for Muse Spark Open 816B-A42B, NVIDIA Nemotron 3 Ultra 550B-A55B, and Inkling 975B. It covers the original BF16 and NVFP4 checkpoints and specific partner FP8 releases. Use it to distinguish weights, activations, matrix-multiply operands, accumulation/output, KV caches, and other state, and to select an appropriate hardware and inference-engine path.
 
-Deliverables include per-model component tables, pinned checkpoint/configuration evidence, resource-accounting tools, and validation procedures. **Precision claims are scoped to the cited configuration or implementation. The only inference executed for this project is on MI300X and of two kinds, both described below: the BF16 load, smoke and serving-speed probe of the three original checkpoints, and the MXFP4 low-precision path (emulated kernels) for Inkling and Nemotron plus the failure of the same path for Muse. Production acceptance requires the target environment and business inputs.** Pricing and regional availability are outside this project's scope.
+Deliverables include per-model component tables, pinned checkpoint/configuration evidence, resource-accounting tools, and validation procedures. **The precision study ran the original BF16 checkpoints on MI300X and the MXFP4 emulation paths for Inkling and Nemotron; Muse's MXFP4 path failed at initialization.** Configuration evidence and actual execution are labeled separately. Production acceptance requires the target environment and business inputs; regional supply and actual invoices are not evaluated here.
+
+The two MI300X nodes also served a comparison of parallel strategies. **For Muse BF16, every strategy the vLLM recipe page offers on MI300X that fits two nodes ran with the page's generated commands, adapted for MI300X, with output limits high enough for answers to finish (2,266 of 2,286 did): TP8 × PP2 was fastest per request at every measured point; TP16 + EP was slower than TP16, as the page's AMD BF16 note says; the page's "Latency oriented" label for TP16 did not hold** ([results](#muse-selectable)). TP16 is not held back by InfiniBand bandwidth: at concurrency 1 it needs 4.4 ms more per token than TP8 × PP2, while that token's 11.4 MB of cross-node data needs 28 µs at link rate; the extra time points to about 126 cross-node synchronizations waited for one after another (count estimated from the source; see the [time budget](#muse-time-budget)). A separate **Qwen3-235B-A22B-Instruct-2507 BF16** experiment executed all five strategies in a recovery phase after Spot eviction interrupted its first phase ([initial phase](#qwen-fiveway), [recovery](#qwen-recovery)); its results are attributed separately from Muse. Quoted Spot rates are test-time references, not invoices or regional-availability assessments.
 
 ### Summary first
 
 All three models are MoE networks whose experts stay resident while each token activates only a small share of them; their BF16 weights are 1.1–1.9 TB and do not fit one GPU, so the first selection question is "which GPU, how many, at which precision". One row per model: column 2 is the publisher's own starting point; columns 3–4 are the two paths this project actually ran on Azure MI300X (192 GB, vLLM ROCm) on 2026-11-02 — original BF16, and MXFP4, the only 4-bit path available on MI300X. Original NVFP4 is NVIDIA's Blackwell format; AMD GPUs have no native kernel for it and this project did not deploy it on MI300X, while its component precision stays in the three matrices below. None of these is a minimum GPU count or a concurrency guarantee. Speeds are per-request decode tok/s at concurrency 1 (median, n=3).
 
-| Model | Published starting point and limits | This project's run: original BF16 | This project's run: MXFP4 (emulated kernels, 1 node, 8 GPUs) |
+| Model | Published starting point and limits | This project's run:<br>original BF16 | This project's run:<br>MXFP4<br>(emulated kernels,<br>1 node, 8 GPUs) |
 |---|---|---|---|
-| Muse Spark Open | BF16: Meta's card gives approximately 2 TB of VRAM [M1]. NVFP4: four Blackwell Ultra GPUs or eight H200s; the vLLM recipe defaults to eight Blackwell GPUs [M3][M4]. The two recipes do not establish one universal minimum GPU count. | **Passed**: 2 nodes, 16 GPUs, TP8 × PP2; 99.1 GiB weights per GPU; 84.6 tok/s (3rd attempt, v0.33.0 image) [T2] | **Failed**: both attempts exited before loading weights — Muse's ROCm code requires the `AITER_MXFP4_MXFP4` backend, vLLM selects `EMULATION` on MI300X, and the model code rejects it [T3] |
-| Nemotron 3 Ultra | BF16: the card summary lists 16 H100s, 8 H200s or 8 B200s [N1]. NVFP4: four B200/GB200-class GPUs and eight H100s [N2]; H100 has no native FP4 compute. | **Passed**: 1 node, 8 GPUs, TP8 + EP; 136.51 GiB weights per GPU; 60.7 tok/s (3rd attempt) [T2] | **Passed**: BF16 weights quantized to MXFP4 at load time (vLLM's official `--quantization online`), TP8 + EP8; 43.21 GiB weights per GPU; final answer correct; 7.7 tok/s [T3] |
-| Inkling | BF16: original release; the vLLM Hopper recipe requires multiple nodes [I1][I3]. NVFP4: four GB200s or eight H200s [I3]. Summed memory does not validate expert placement or communication. | **Passed**: 2 nodes, 16 GPUs, TP8 × PP2; 109.52 / 116.12 GiB weights per GPU (two pipeline stages); 68.9 tok/s (6th attempt) [T2] | **Passed**: community Quark MXFP4 checkpoint `lightseekorg/Inkling-MXFP4` (the MI300X emulation path listed in the recipe [I3]), TP8; 66.74 GiB weights per GPU; final answer correct; 6.1 tok/s [T3] |
+| Muse Spark Open | BF16: Meta's card gives approximately 2 TB of VRAM [M1].<br>NVFP4: four Blackwell Ultra GPUs or eight H200s; the vLLM recipe defaults to eight Blackwell GPUs [M3][M4].<br>The two recipes do not establish one universal minimum GPU count. | **Passed**:<br>2 nodes, 16 GPUs, TP8 × PP2;<br>99.1 GiB weights per GPU;<br>84.6 tok/s<br>(3rd attempt, v0.33.0 image) [T2] | **Failed**:<br>both attempts exited before loading weights — Muse's ROCm code requires the `AITER_MXFP4_MXFP4` backend,<br>vLLM selects `EMULATION` on MI300X, and the model code rejects it [T3] |
+| Nemotron 3 Ultra | BF16: the card summary lists 16 H100s, 8 H200s or 8 B200s [N1].<br>NVFP4: four B200/GB200-class GPUs and eight H100s [N2]; H100 has no native FP4 compute. | **Passed**:<br>1 node, 8 GPUs, TP8 + EP;<br>136.51 GiB weights per GPU;<br>60.7 tok/s<br>(3rd attempt) [T2] | **Passed**:<br>BF16 weights quantized to MXFP4 at load time (vLLM's official `--quantization online`), TP8 + EP8;<br>43.21 GiB weights per GPU;<br>final answer correct;<br>7.7 tok/s [T3] |
+| Inkling | BF16: original release; the vLLM Hopper recipe requires multiple nodes [I1][I3].<br>NVFP4: four GB200s or eight H200s [I3].<br>Summed memory does not validate expert placement or communication. | **Passed**:<br>2 nodes, 16 GPUs, TP8 × PP2;<br>109.52 / 116.12 GiB weights per GPU (two pipeline stages);<br>68.9 tok/s<br>(6th attempt) [T2] | **Passed**:<br>community Quark MXFP4 checkpoint `lightseekorg/Inkling-MXFP4` (the MI300X emulation path listed in the recipe [I3]), TP8;<br>66.74 GiB weights per GPU;<br>final answer correct;<br>6.1 tok/s [T3] |
 
 Three things to know when reading this table. ① MI300X has no FP4 matrix compute, so both MXFP4 "Passed" cells use vLLM's `EMULATION` backend: weights are stored as MXFP4 and dequantized before each matrix multiply. It saves memory (Nemotron 136.51 → 43.21 GiB per GPU; Inkling from 16 GPUs down to 8), not time: per-request decode is 6–8 tok/s, one tenth of BF16. ② This is a "does it load, how much memory, is the answer right" check, not a quality regression test; the three partner FP8 releases (AMD Quark, Red Hat AI) were checked at the configuration level only and were not loaded on any GPU [M8][N8][I8]. ③ Establish a same-model BF16 business-quality baseline first; MXFP4 and partner FP8 are candidates, not automatic replacements, and a configuration that fails required quality, modalities, tool calling or kernel compatibility is rejected. AMD's Muse FP8 card still says `Todo` under Deployment: it documents a recipe and hardware claims, not an end-to-end deployment verified here [M8]. The kernels, cache precisions, memory and speed figures behind each column are in [MI300X run](#mi300x-run) and [MXFP4 low-precision path](#mxfp4-low-precision-path).
 
@@ -237,14 +239,14 @@ Only tensors reported by public metadata are included. Headers, other files, cac
 
 **How much weight each GPU holds.** Observed tensor bytes divided across the publisher-listed GPU count, minus that GPU's nominal HBM. "Remaining" is the ceiling available to KV cache, Mamba/short-convolution state, activations, workspace and communication buffers before any of them is allocated; it is not a measured allocation. Entry point `node tools/budget.mjs --table`, input [deployment-budget.json](data/deployment-budget.json):
 
-| Model | GPU × count | Weights per GPU<br>GB | HBM per GPU<br>GB | Remaining per GPU<br>GB | Source |
+| Model | GPU × count | Weights<br>per GPU<br>GB | HBM<br>per GPU<br>GB | Remaining<br>per GPU<br>GB | Source |
 |---|---|---:|---:|---:|---|
-| Nemotron 3 Ultra BF16 | 16 × H100 80GB | 70.1 | 80 | 9.9 | N1 |
-| Nemotron 3 Ultra BF16 | 8 × H200 141GB | 140.1 | 141 | 0.9 | N1 |
-| Nemotron 3 Ultra BF16 | 8 × B200 180GB | 140.1 | 180 | 39.9 | N1 |
-| Nemotron 3 Ultra BF16 | 8 × MI300X 192GB | 140.1 | 192 | 51.9 | This repository's run [T2]: 146.67 GiB consumed per GPU after load (136.51 GiB weights + non-torch), 23.07 GiB available for KV cache |
-| Inkling BF16 | 16 × H200 141GB | 119.0 | 141 | 22.0 | I3 (2 nodes × 8) |
-| Inkling BF16 | 16 × MI300X 192GB | 119.0 | 192 | 73.0 | This repository's run [T2]: TP16 rejected by the model (`sconv SWA cache supports tp_size <= num_kv_heads (8)`); TP8 × PP2 loaded 109.5 / 116.1 GiB (two pipeline stages) with 57.4 / 51.0 GiB available for KV; TP8 × DP2 + EP16 loaded 114.9 GiB per GPU (budget 116.0 + 6.2 = 122.1 GB) |
+| Nemotron 3 Ultra<br>BF16 | 16 × H100<br>80GB | 70.1 | 80 | 9.9 | N1 |
+| Nemotron 3 Ultra<br>BF16 | 8 × H200<br>141GB | 140.1 | 141 | 0.9 | N1 |
+| Nemotron 3 Ultra<br>BF16 | 8 × B200<br>180GB | 140.1 | 180 | 39.9 | N1 |
+| Nemotron 3 Ultra<br>BF16 | 8 × MI300X<br>192GB | 140.1 | 192 | 51.9 | This repository's run [T2]:<br>146.67 GiB consumed per GPU after load (136.51 GiB weights + non-torch),<br>23.07 GiB available for KV cache |
+| Inkling<br>BF16 | 16 × H200<br>141GB | 119.0 | 141 | 22.0 | I3 (2 nodes × 8) |
+| Inkling<br>BF16 | 16 × MI300X<br>192GB | 119.0 | 192 | 73.0 | This repository's run [T2]:<br>TP16 rejected by the model (`sconv SWA cache supports tp_size <= num_kv_heads (8)`);<br>TP8 × PP2 loaded 109.5 / 116.1 GiB (two pipeline stages) with 57.4 / 51.0 GiB available for KV;<br>TP8 × DP2 + EP16 loaded 114.9 GiB per GPU (budget 116.0 + 6.2 = 122.1 GB) |
 
 Dividing Nemotron BF16 across 8 × H200 leaves 0.9 GB per GPU before caches and runtime overhead; the budget alone cannot establish a usable context length or concurrency. Inkling also shows why total capacity does not establish TP16 compatibility. PP2 uses about 109–116 GiB per GPU and DP2+EP16 about 115 GiB, while the average budget is 119 GB. These figures use different units and different tensor placements, so their numeric magnitudes must not be compared directly.
 
@@ -288,7 +290,7 @@ Original test-topology figure: Nemotron used node 0 only; Inkling and Muse used 
 
 Original parallel-layout figure, drawn by [`tools/build_layout_figure.py`](tools/build_layout_figure.py) from [summary.json](data/mi300x-run/summary.json): **TP** (tensor parallel) splits every layer across the 8 GPUs of one node, **EP** (expert parallel) splits the routed experts across those same 8 GPUs, **PP** (pipeline parallel) puts the first half of the layers on node 0 and the second half on node 1. Nemotron ran `--tensor-parallel-size 8 --enable-expert-parallel` on node 0 alone (136.51 GiB weights per GPU). Inkling and Muse ran `--tensor-parallel-size 8 --pipeline-parallel-size 2` over Ray, stage 0 on node 0 and stage 1 on node 1; neither used EP. The per-GPU weights and free KV memory in the figure are the values vLLM logged after loading, the same numbers as in the tables below. The Azure VM icon is from Azure Architecture Icons V24; MI300X GPUs and vLLM processes are plain labelled boxes because no official icon exists for them. The figure shows layouts, not speed or quality.
 
-| Model · layout | Load result | Selected kernels and backends | Memory per GPU | Cache precision | Smoke generation |
+| Model · layout | Load result | Selected kernels<br>and backends | Memory<br>per GPU | Cache<br>precision | Smoke<br>generation |
 |---|---|---|---|---|---|
 | Nemotron 3 Ultra BF16 · 1 node TP8+EP | **Passed** (3rd attempt) | MoE `TritonExperts`; attention `ROCM_ATTN`; Mamba SSU `triton`; all-reduce `AITER_CUSTOM`+`PYNCCL` | 136.51 GiB weights, 146.67 GiB consumed after load, 23.07 GiB free for KV, KV capacity 3,490,022 tokens | K/V BF16 (default); Mamba state FP16 (launch flag); attention block 1056 tokens aligned to Mamba page | zh 31→94 tokens 1.61 s; en 42→209 tokens 5.42 s; content correct |
 | Inkling BF16 · 2 nodes TP8×PP2 | **Passed** (6th attempt) | MoE `AiterExperts` (ROCm AITER fused kernel, 2stage, Silu); all-reduce `AITER_CUSTOM`+`PYNCCL` (TP group), `PYNCCL` (PP group) | Stage 0: 109.52 GiB weights, 112.54 GiB consumed after load, 57.39 GiB free for KV; stage 1: 116.12 / 118.9 / 51.02 GiB; KV capacity 398,239 tokens | K/V BF16 (default); short-convolution cache BF16, shards at most 8 ways | zh 27→200 tokens 2.97 s and en 39→256 tokens 4.06 s (both stopped inside the reasoning segment, `max_tokens` too small); zh with `max_tokens=1024` 27→441 tokens 6.52 s, **final answer correct** |
@@ -306,7 +308,7 @@ Four facts you only meet on MI300X and no document states: ① the AITER fused-M
 
 The three metrics are defined in the probe's own JSON and quoted here unchanged: **time to first token (TTFT)** = request send to the first streamed chunk carrying text (for a reasoning model the first visible token is reasoning text); **decode speed per request** = (completion_tokens − 1) ÷ (time of last chunk − time of first chunk); **aggregate throughput** = sum of completion_tokens over all streams of one round ÷ the span from the first send to the last finish in that round. `completion_tokens` comes from the server's `usage` object (`stream_options.include_usage`), not from counting chunks.
 
-| Model · layout | Load result (run 2) | Concurrency 1: TTFT median / decode tok/s per request / aggregate tok/s | Concurrency 8: TTFT median / decode tok/s per request / aggregate tok/s | GPU memory in use during the probe (`rocm-smi`, GiB per GPU) |
+| Model · layout | Load result (run 2) | Concurrency 1:<br>TTFT median /<br>decode tok/s per request /<br>aggregate tok/s | Concurrency 8:<br>TTFT median /<br>decode tok/s per request /<br>aggregate tok/s | GPU memory in use<br>during the probe<br>(`rocm-smi`, GiB per GPU) |
 |---|---|---|---|---|
 | Inkling BF16 · 2 nodes TP8×PP2 | **Passed**: cold load 249.6 / 243.7 s (the two pipeline stages); after `/health` 200 all three smoke requests returned and the `max_tokens=1024` one gave a correct final answer | **45 ms** / **68.9** / 68.3 (n=3) | **97 ms** / **42.5** / **335.8** (n=24) | node 0: 170.6–171.2; node 1: 177.2–177.9 (includes the KV pre-allocation) |
 | Nemotron 3 Ultra BF16 · 1 node TP8+EP | **Passed**: cold load 744.5 s, `init engine` 117.78 s; all three smoke requests `finish_reason=stop`, the Chinese BF16/FP16 answer correct and identical to run 1 | **170 ms** / **60.7** / 58.6 (n=3) | **358 ms** (max 1.17 s) / **42.0** / **317.4** (n=24) | 174.9–175.5 (weights 136.51 + KV 23.07 + runtime) |
@@ -322,7 +324,7 @@ At concurrency 8, Inkling's per-request decode drops from 68.9 to 42.5 tok/s whi
 
 **Question.** MI300X has no FP4 matrix compute, so can the three models' 4-bit weights run on this GPU at all? Run 3 tried **MXFP4** (the OCP open standard: FP4 values with one shared scale per block of 32, natively supported by AMD's MI350 series) on node 0's 8 GPUs with the same `vllm-muse-ray:0.33.0` image (vLLM 0.33.0, image ID `1bf04962…`). On MI300X vLLM selects the `EMULATION` backend for MXFP4 (`OCP_MXQuantizationEmulationTritonExperts`): weights sit in memory as 4-bit and a Triton kernel dequantizes them to 16-bit before every matrix multiply. This is not native FP4 arithmetic; it answers "how much memory is saved, is the answer right, how slow is the emulated path". Each model takes its own MXFP4 entry point: Inkling uses the community Quark checkpoint `lightseekorg/Inkling-MXFP4` listed in the vLLM recipe (both weights and activations MXFP4, `w_mxfp4_a_mxfp4` [I3]); Nemotron has no ready MXFP4 checkpoint, so it uses vLLM's official online quantization — the BF16 weights are quantized to MXFP4 while loading (`--quantization online --quantization-config '{"moe":"mxfp4"}' --moe-backend emulation`; expert activations are also dynamically quantized to MXFP4); Muse's ROCm code has its own entry (`VLLM_ROCM_MUSE_MOE_ONLINE_QUANT=mxfp4` + `--moe-backend auto`). All runs used `--enforce-eager` and `max_model_len 32768`. Each passing deployment first answered the same Chinese question as the BF16 smoke test (`max_tokens 4096`, so that a final answer is reached), then ran the unchanged run-2 [`09_perf_probe.py`](scripts/mi300x/09_perf_probe.py) (same English prompt, `max_tokens 256`, concurrency 1 and 8, three rounds each).
 
-| Model · MXFP4 entry | Load result | MoE kernel | Memory per GPU | First answer (Chinese question, `max_tokens 4096`) | Concurrency 1: TTFT median / decode tok/s per request | Concurrency 8: TTFT median / decode tok/s per request / aggregate tok/s |
+| Model · MXFP4 entry | Load result | MoE<br>kernel | Memory<br>per GPU | First answer<br>(Chinese question,<br>`max_tokens 4096`) | Concurrency 1:<br>TTFT median /<br>decode tok/s per request | Concurrency 8:<br>TTFT median /<br>decode tok/s per request /<br>aggregate tok/s |
 |---|---|---|---|---|---|---|
 | Inkling · `lightseekorg/Inkling-MXFP4` · TP8 | **Passed**, weights loaded in 348 s | `EMULATION` | 66.74 GiB weights (BF16: 109.52 / 116.12 on 16 GPUs); 94.79 GiB free for KV, 305,150 tokens | `finish_reason=stop`, 413 tokens (354 reasoning), wall 78.56 s; answer correct (BF16 8-bit exponent / 7-bit mantissa, FP16 5 + 10) | **358 ms** / **6.1** (n=3) | **726 ms** (max 3.53 s) / **5.7** / **44.6** (n=24) |
 | Nemotron 3 Ultra · BF16 weights quantized online · TP8 + EP8 | **Passed**, weights loaded in 397 s (online quantization 1.2–1.8 s of that) | `EMULATION` (same) | 43.21 GiB weights (BF16: 136.51); 111.86 GiB free for KV, 13,758,836 tokens | `finish_reason=stop`, 110 tokens (21 reasoning), wall 22.64 s; answer correct | **178 ms** / **7.7** (n=3) | **484 ms** (max 1.33 s) / **6.9** / **54.9** (n=24) |
@@ -334,9 +336,530 @@ Four things to read off this table. ① **The saving is memory, not time**: Nemo
 
 The original NVFP4 releases were not deployed on MI300X: NVFP4 is NVIDIA's native Blackwell format, AMD GPUs have no kernel for it, and it is not the question this project asks on AMD hardware. Their component precision remains in the three matrices above; the only action taken on MI300X against an NVFP4 checkpoint was a single-expert kernel probe, recorded in [Validation](VALIDATION.md#run-3) and not used as a conclusion on this page.
 
+### Five parallel strategies: recipe expectations versus MI300X measurements
+
+**Question.** The vLLM recipe labels multi-node strategies as latency-oriented, balanced, throughput-oriented or production deployment. What do those labels mean on the same two MI300X nodes? Two Muse BF16 runs on the same 16 GPUs answer it. The [2026-11-04 run](#muse-selectable) used the page's own commands with output limits high enough for answers to finish; it is the answer. The [2026-11-03 run](#muse-fiveway-20261103) capped every output during reasoning and is kept as an earlier record. **The findings apply to this hardware, software and workload, not a universal ranking of five architectures.**
+
+#### Start with the recipe's trade-offs
+
+Sources: the [Muse vLLM recipe](https://recipes.vllm.ai/meta-models/Muse-Spark-Open-816B-A42B) and its [pinned model configuration](https://github.com/vllm-project/vllm/blob/bb197a852fbc3bf0a2b15bd57189dde616bf12c5/recipes/models/meta-models/Muse-Spark-Open-816B-A42B.yaml). Expectations below are hypotheses to test, not performance already established by this project.
+
+| Recipe strategy | Benefit and expectation | Cost and prerequisite | Question for this run |
+|---|---|---|---|
+| Multi-node TP: tensor parallelism | GPUs cooperate on each layer; labeled latency-oriented | TP collectives cross nodes and depend on the interconnect; low latency is not guaranteed | Does TP16 beat TP8 x PP2 in first-text latency and decode speed on the same 16 GPUs? |
+| Multi-node TP + PP: tensor and pipeline parallelism | TP stays within a node while layers are staged across nodes; labeled throughput-oriented | Pipeline fill/drain and stage imbalance still matter; theoretical communication volume is insufficient | How do aggregate throughput and per-request speed change at matched concurrency and input? |
+| Multi-node TP + EP: tensor and expert parallelism | Combines tensor sharding and expert distribution; generic label is balanced | Expert communication, load distribution and kernels matter; **the Muse/AMD BF16 section specifically warns that EP can be slower** | Does the effect of enabling EP at TP16 change with concurrency and input? |
+| Multi-node DP + EP: data and expert parallelism | Different workers process different requests; labeled throughput-oriented | The model must support that DP/EP combination; the generic selector is not sufficient | Does the installed Muse ROCm implementation accept DP16 before performance is considered? |
+| Prefill/decode disaggregation | Input processing and token generation have independently configured pools | Both pools need model residency, KV transfer, routing and resource allocation | Can two BF16 pools fit the same 16-GPU budget before performance is measured? |
+
+The recipe's validated AMD hardware is MI350X/MI355X. Its MXFP4, high-concurrency and DSpark guidance cannot be copied directly to MI300X BF16; the configuration marks AMD DP + EP unsupported. There is also a selector caveat: its generic multi-node DP + EP text describes local TP and cross-node DP, but the inspected NVIDIA two-node command used DP16, eight local DP ranks per node, and no TP8 argument. This project records actual argv and rank groups rather than treating a button label as a configuration.
+
+#### Website-selectable strategies: measured on two MI300X nodes (2026-11-04)
+
+<a id="muse-selectable"></a>
+
+**What was tested.** On the [Muse recipe page](https://recipes.vllm.ai/meta-models/Muse-Spark-Open-816B-A42B?variant=bf16&hardware=mi300x&nodes=2&strategy=multi_node_tep) (recipe [`ba9a98b`](https://github.com/vllm-project/vllm/blob/ba9a98b881218d30ba6335befcb720a8f68c0442/recipes/models/meta-models/Muse-Spark-Open-816B-A42B.yaml), read 2026-11-04), the selection BF16 · MI300X · 2 nodes / 16 GPUs · KV offload off offers four strategies and greys out a fifth. This run used the command the page generates for each offered strategy that fits two nodes, set output limits high enough for answers to finish, and checked each statement the page makes about these strategies.
+
+**What the page says and what was measured.** Statements are quoted from the page. A "point" is one of the 14 combinations of 2 inputs × 7 concurrency levels; "per-request decode" is the generation speed inside one answer, in token/s.
+
+| Recipe page statement (quoted) | What it predicts for these 16 GPUs | Measured on 2 × 8 MI300X | Holds here? |
+|---|---|---|---|
+| Multi-Node TP + Pipeline Parallel, label **Throughput oriented**: "TP stays inside the high-bandwidth intra-node NVLink/IB domain; PP is what crosses the slower cross-node link. Good fit for very large models … where pure TP across nodes would bottleneck on inter-node bandwidth." | TP8 × PP2 is faster than TP16 | TP8 × PP2 had the fastest per-request decode at all 14 points, 15–41% above TP16, and the highest aggregate throughput at 12 of 14. Inter-node receive per node: TP16 up to 6,689 MB/s, TP8 × PP2 at most 35 MB/s | **Yes** for the ranking. On average the links were far from full: TP16's busiest level average used 1.7% of the 400 GB/s per node |
+| Multi-Node Tensor Parallel, label **Latency oriented** | TP16 has the lowest per-request latency | TP16 was slower per request than TP8 × PP2 at all 14 points, and its first-text latency was lower at only 1 point. At concurrency 1 one short answer took 22.9 s on TP16 and 15.9 s on TP8 × PP2 (medians; similar lengths of 1,382 and 1,318 tokens) | **No** ([why](#muse-time-budget)) |
+| Multi-Node Tensor + Expert Parallel, label **Balanced** | The label sets no measurable target | TP16 + EP was slower per request than TP16 at all 14 points: by 11.6–11.7% at concurrency 1 and by 0.8–4.6% from concurrency 2 up. Its aggregate throughput was lower at 11 of 14 points and its first-text latency lower at 11 of 14 | **No throughput advantage** on this hardware |
+| AMD ROCm section: "Keep TP for BF16: its Triton experts are slower with expert parallelism." | TP16 + EP is slower than TP16 | Same observation as the row above | **Yes**. The page states it for gfx950 (MI350X/MI355X); MI300X agrees |
+| NVIDIA section: "AMD supports only TP and TP + expert parallel." | TP + PP is outside AMD support | The page's own builder generated the TP8 × PP2 command for this MI300X selection. It ran 762 requests with 0 failures and was the fastest layout | **Inconsistent with the page's own builder**. Read it as a support statement, not as "TP + PP does not run" |
+| Multi-Node Data + Expert Parallel, label **Throughput oriented** | — | Greyed out for this selection. The page also says "data-parallel strategies are not available on AMD" | Not run |
+| Prefill/Decode Disaggregation, label **Production deployment** | — | At `nodes=2` the builder generates Prefill 2 × 8 GPUs plus Decode 2 × 8 GPUs: 4 nodes and 32 GPUs, twice the two available nodes | Not run |
+
+**Where it ran.** Two Azure `Standard_ND96isr_MI300X_v5` Spot VMs in West US, each with eight MI300X 192 GB GPUs and eight InfiniBand ports at 400 Gb/s (`ibstat`: Active). Both ran kernel `6.8.0-1067-azure` and amdgpu `6.12.12` with the same image ID: `vllm/vllm-openai-rocm:v0.33.0` pinned as `sha256:4fcd39b758b6…` (vLLM `0.33.0+rocm100`, PyTorch `2.13.0+rocm10.0.0`, gfx942). Each node held the pinned Muse revision `0fb02478` (65 safetensors shards) on local NVMe. vLLM's multiprocess executor (`mp`, no Ray) spanned both nodes with `--nnodes 2`; node 1 ran headless ranks (`--headless`). The streaming client ran on node 0 against `127.0.0.1:8000`, so client timings include the cross-node work inside the engine but no client network hop.
+
+<img src="images/mi300x-muse-selectable-topology-en.svg" width="980" alt="Three measured layouts (TP16, TP8 × PP2, TP16 + EP) on two MI300X nodes, and the greyed-out DP + EP and four-node P/D boundaries">
+
+Original test topology generated by the [figure tool](tools/build_layout_figure.py) from the [run summary](data/mi300x-fiveway/muse-selectable_20261104/summary.json), with the unmodified official Azure VM icon. Check whether the TP group crosses nodes, where PP splits the layers, whether EP is on, and why DP + EP and P/D have no run. The drawing does not replace the logs.
+
+**The page's command and the command that ran.** For each layout, every flag the page generates appears in the recorded argv ([`launch.txt`](data/mi300x-fiveway/muse-selectable_20261104/pp/launch.txt)); a test checks this against the page flags stored in the summary. The differences:
+
+| Item | Recipe page (BF16 · MI300X · 2 nodes, head node) | This run | Reason |
+|---|---|---|---|
+| Image | `vllm/vllm-openai-rocm:muse-spark-open` | `vllm/vllm-openai-rocm:v0.33.0` pinned by digest | The page's image is compiled for gfx950 only; on gfx942 it segfaulted in a fused kernel on 2026-11-02 |
+| Front end | Rust (`VLLM_USE_RUST_FRONTEND=1`) | Python (`VLLM_USE_RUST_FRONTEND=0`) | The page offers Python as the alternative; the v0.33.0 image ships no Rust front-end binary |
+| Container | `--privileged --security-opt seccomp=unconfined --group-add video` | Not privileged: `--cap-add SYS_PTRACE`, `/dev/kfd`, `/dev/dri`, `/dev/infiniband`, host network and IPC | The project's launcher keeps this narrower set; every layout ran with it |
+| Added flags | — | `--kernel-config '{"enable_jit_warmup": false}'`, `--distributed-timeout-seconds 3600`, plus `--revision`, `--host`, `--port`, `--served-model-name` | FA4 warm-up imports a CUDA-only extension on ROCm (2026-11-02); longer start-up across two nodes; pinned revision and API name |
+| Cross-node RCCL | Not set | `NCCL_NET_GDR_LEVEL=0`, `NCCL_IB_HCA=^mlx5_8:1,mlx5_an0:1` | The default GPU Direct RDMA path hung in the 2026-11-01 probe; transfers are staged through host memory |
+
+**Inputs and procedure.** The two prompts have the same text as in the 2026-11-03 run. The short engineering prompt:
+
+> Explain in about 150 words why mixture-of-experts models keep the router in higher precision than the experts.
+
+The deployment-analysis prompt begins as follows; the [complete input](data/mi300x-fiveway/muse-selectable_20261104/guide_prompt.txt) adds paraphrased strategy notes and model restrictions:
+
+> Compare the advantages, disadvantages, and deployment prerequisites of these five inference layouts for one mixture-of-experts model.
+
+The server recorded 166 and 713 input tokens, including the chat template; this is not a long-context test. Output limits were 8,192 and 16,384 tokens so that answers could finish. Requests streamed at `temperature 0`; `reasoning_effort` was omitted, so the model default applied. Each layout ran one warm-up per input, then 3 rounds at concurrency 1, 2, 4, 8, 16, 32 and 64: 381 requests per input, 762 per layout, **2,286 in total**. The layouts ran once each in the fixed order TP8 × PP2, TP16, TP16 + EP, without randomization. Before measuring, each layout answered a separate check, "Explain the difference between BF16 and FP16 in one sentence, including exponent and fraction bit counts." (limit 4,096 tokens); all three finished naturally and gave 8 exponent and 7 fraction bits for BF16, 5 and 10 for FP16.
+
+**Reading the metrics.** First-text latency (TTFT) runs from send to the first streamed reasoning or answer text; E2E runs from send to the end of the stream. Per-request decode is (completion tokens − 1) divided by the time between the first and last text chunk. Aggregate throughput is the output tokens of all complete streams in a round divided by the round's length; the tables show the median of the 3 rounds. `--max-num-seqs 32` means that at concurrency 64 at most 32 requests generate at the same time and the rest wait for a free slot, so their TTFT includes the wait. Aggregate throughput at 64 therefore comes from the same 32-request batch as at 32. It can still be higher, because queued requests take over the slots that finished answers release, while a concurrency-32 round ends by waiting for its longest answer. A complete answer is a natural finish with answer text, not a correctness grade.
+
+**Counts.** All 2,286 requests completed their streams; none failed. 2,266 ended naturally with an answer; 20 reached the 16,384-token limit, all on the deployment-analysis prompt: 13 on TP8 × PP2, 6 on TP16 + EP and 1 on TP16.
+
+**Complete result matrix.** Generated by the [evidence tool](tools/mi300x_evidence.py) from the individual requests; DP + EP and P/D have no measured rows. Steady-state compute uses the same West US Spot reference, **29.515768 USD/hour for both VMs** (queried 2026-11-03), and excludes start-up, idle time, disks and billing adjustments.
+
+<!-- BEGIN MUSE SELECTABLE RESULTS -->
+Latency quantiles include complete streams only; aggregate throughput retains failed-request waiting time. Unavailable latency and unit cost are shown as `-`.
+
+**Short engineering prompt**
+
+Server-recorded input: 166 tokens, including the chat template; output limit: 8192 tokens.
+
+| Layout | Concurrent requests | Median first-text latency (ms) | P95 first-text latency (ms) | Median E2E (s) | P95 E2E (s) | Per-request decode estimate (token/s) | Aggregate throughput (token/s) | Complete streams/requests sent | Complete answers/complete streams | Steady-state compute (USD/million output tokens) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| TP16 | 1 | 214 | 218 | 22.86 | 22.86 | 61.1 | 60.5 | 3/3 | 3/3 | 135.59 |
+| TP16 | 2 | 387 | 998 | 22.91 | 26.00 | 52.5 | 94.6 | 6/6 | 6/6 | 86.69 |
+| TP16 | 4 | 429 | 435 | 31.12 | 32.91 | 46.6 | 171.9 | 12/12 | 12/12 | 47.68 |
+| TP16 | 8 | 514 | 1,205 | 37.57 | 41.87 | 37.6 | 262.0 | 24/24 | 24/24 | 31.29 |
+| TP16 | 16 | 737 | 858 | 41.65 | 46.22 | 31.7 | 432.5 | 48/48 | 48/48 | 18.96 |
+| TP16 | 32 | 1,202 | 1,357 | 52.01 | 59.30 | 25.8 | 694.8 | 96/96 | 96/96 | 11.80 |
+| TP16 | 64 | 21,108 | 65,648 | 87.32 | 115.83 | 24.5 | 692.9 | 192/192 | 192/192 | 11.83 |
+| TP8 × PP2 | 1 | 196 | 197 | 15.93 | 15.93 | 83.8 | 82.7 | 3/3 | 3/3 | 99.09 |
+| TP8 × PP2 | 2 | 275 | 1,463 | 18.32 | 18.81 | 73.0 | 143.9 | 6/6 | 6/6 | 56.98 |
+| TP8 × PP2 | 4 | 460 | 473 | 22.73 | 23.17 | 57.6 | 222.1 | 12/12 | 12/12 | 36.92 |
+| TP8 × PP2 | 8 | 476 | 493 | 29.21 | 34.07 | 44.9 | 305.6 | 24/24 | 24/24 | 26.83 |
+| TP8 × PP2 | 16 | 548 | 918 | 34.45 | 41.32 | 38.7 | 505.7 | 48/48 | 48/48 | 16.21 |
+| TP8 × PP2 | 32 | 690 | 2,364 | 38.06 | 44.39 | 36.4 | 926.1 | 96/96 | 96/96 | 8.85 |
+| TP8 × PP2 | 64 | 14,009 | 48,693 | 60.11 | 89.94 | 32.6 | 900.3 | 192/192 | 192/192 | 9.11 |
+| TP16 + EP | 1 | 222 | 222 | 25.37 | 25.38 | 54.0 | 53.5 | 3/3 | 3/3 | 153.30 |
+| TP16 + EP | 2 | 380 | 1,001 | 27.85 | 29.29 | 50.3 | 95.3 | 6/6 | 6/6 | 86.06 |
+| TP16 + EP | 4 | 407 | 542 | 31.21 | 32.48 | 45.3 | 172.1 | 12/12 | 12/12 | 47.65 |
+| TP16 + EP | 8 | 429 | 1,112 | 37.15 | 41.24 | 36.9 | 257.0 | 24/24 | 24/24 | 31.90 |
+| TP16 + EP | 16 | 589 | 1,238 | 44.94 | 64.13 | 30.5 | 333.6 | 48/48 | 48/48 | 24.57 |
+| TP16 + EP | 32 | 918 | 1,767 | 51.91 | 65.33 | 25.5 | 641.8 | 96/96 | 96/96 | 12.78 |
+| TP16 + EP | 64 | 22,090 | 60,176 | 87.19 | 114.08 | 24.3 | 676.3 | 192/192 | 192/192 | 12.12 |
+| DP + EP | Greyed out on the website; not run | - | - | - | - | - | - | - | - | - |
+| Prefill/Decode | Website configuration needs 4 nodes; not run | - | - | - | - | - | - | - | - | - |
+
+**Deployment-guide analysis prompt**
+
+Server-recorded input: 713 tokens, including the chat template; output limit: 16384 tokens.
+
+| Layout | Concurrent requests | Median first-text latency (ms) | P95 first-text latency (ms) | Median E2E (s) | P95 E2E (s) | Per-request decode estimate (token/s) | Aggregate throughput (token/s) | Complete streams/requests sent | Complete answers/complete streams | Steady-state compute (USD/million output tokens) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| TP16 | 1 | 241 | 244 | 78.71 | 78.78 | 60.9 | 60.7 | 3/3 | 3/3 | 135.00 |
+| TP16 | 2 | 442 | 463 | 93.80 | 100.28 | 52.3 | 97.4 | 6/6 | 6/6 | 84.14 |
+| TP16 | 4 | 681 | 684 | 84.24 | 99.81 | 46.6 | 163.9 | 12/12 | 12/12 | 50.01 |
+| TP16 | 8 | 1,190 | 1,216 | 118.66 | 131.99 | 37.7 | 266.3 | 24/24 | 24/24 | 30.79 |
+| TP16 | 16 | 2,189 | 2,242 | 140.64 | 164.01 | 30.9 | 432.3 | 48/48 | 47/48 | 18.96 |
+| TP16 | 32 | 4,094 | 4,188 | 171.32 | 249.37 | 25.3 | 560.4 | 96/96 | 96/96 | 14.63 |
+| TP16 | 64 | 69,211 | 231,545 | 305.02 | 398.30 | 24.7 | 689.4 | 192/192 | 192/192 | 11.89 |
+| TP8 × PP2 | 1 | 221 | 222 | 53.16 | 53.16 | 83.4 | 83.1 | 3/3 | 3/3 | 98.67 |
+| TP8 × PP2 | 2 | 313 | 403 | 61.08 | 72.30 | 72.7 | 144.6 | 6/6 | 6/6 | 56.69 |
+| TP8 × PP2 | 4 | 507 | 523 | 75.14 | 82.31 | 58.6 | 215.2 | 12/12 | 12/12 | 38.10 |
+| TP8 × PP2 | 8 | 705 | 798 | 102.60 | 225.33 | 44.5 | 193.4 | 24/24 | 22/24 | 42.40 |
+| TP8 × PP2 | 16 | 1,051 | 1,074 | 122.91 | 143.25 | 35.4 | 486.3 | 48/48 | 48/48 | 16.86 |
+| TP8 × PP2 | 32 | 1,611 | 1,700 | 146.60 | 209.64 | 31.2 | 523.7 | 96/96 | 91/96 | 15.65 |
+| TP8 × PP2 | 64 | 55,985 | 195,672 | 259.71 | 341.49 | 30.2 | 744.5 | 192/192 | 186/192 | 11.01 |
+| TP16 + EP | 1 | 223 | 224 | 83.96 | 84.00 | 53.8 | 53.6 | 3/3 | 3/3 | 152.90 |
+| TP16 + EP | 2 | 386 | 407 | 104.64 | 114.72 | 50.2 | 91.3 | 6/6 | 6/6 | 89.84 |
+| TP16 + EP | 4 | 529 | 531 | 100.16 | 103.33 | 44.8 | 171.5 | 12/12 | 12/12 | 47.82 |
+| TP16 + EP | 8 | 888 | 911 | 112.27 | 144.90 | 36.4 | 236.6 | 24/24 | 24/24 | 34.65 |
+| TP16 + EP | 16 | 1,506 | 1,533 | 148.16 | 166.70 | 29.5 | 415.1 | 48/48 | 48/48 | 19.75 |
+| TP16 + EP | 32 | 2,760 | 2,852 | 173.20 | 203.21 | 24.9 | 365.0 | 96/96 | 93/96 | 22.46 |
+| TP16 + EP | 64 | 76,238 | 210,394 | 313.35 | 391.48 | 24.5 | 551.3 | 192/192 | 189/192 | 14.87 |
+| DP + EP | Greyed out on the website; not run | - | - | - | - | - | - | - | - | - |
+| Prefill/Decode | Website configuration needs 4 nodes; not run | - | - | - | - | - | - | - | - | - |
+
+**Inter-node traffic inside the measured rounds**
+
+Each cell holds two numbers, node 0 then node 1: the receive rate summed over that node's eight InfiniBand ports (`mlx5_ib*`, RDMA verbs traffic), averaged over the one-second samples inside the three measured rounds, in MB/s (10^6 bytes per second), rounded to whole numbers, or to one decimal below 10 MB/s. The second table lists, per layout, the highest of these averages on either node, also for the IPoIB (`ib*` network interfaces) and `eth0` interfaces.
+
+| Layout · input (cells: node 0 / node 1 InfiniBand receive, MB/s) | Concurrent requests: 1 | Concurrent requests: 2 | Concurrent requests: 4 | Concurrent requests: 8 | Concurrent requests: 16 | Concurrent requests: 32 | Concurrent requests: 64 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| TP16 · Short prompt | 688 / 688 | 1,751 / 1,760 | 1,999 / 1,947 | 5,644 / 5,671 | 3,496 / 3,398 | 6,640 / 6,458 | 6,480 / 6,390 |
+| TP16 · Guide prompt | 688 / 697 | 1,799 / 1,802 | 1,894 / 1,835 | 5,503 / 5,650 | 2,702 / 2,741 | 5,581 / 5,580 | 6,689 / 6,664 |
+| TP8 × PP2 · Short prompt | 0.2 / 3.0 | 0.3 / 5.0 | 0.3 / 9.8 | 0.3 / 14 | 0.4 / 20 | 0.6 / 33 | 0.5 / 35 |
+| TP8 × PP2 · Guide prompt | 0.2 / 3.0 | 0.3 / 4.8 | 0.3 / 8.6 | 0.3 / 11 | 0.4 / 23 | 0.4 / 23 | 0.5 / 33 |
+| TP16 + EP · Short prompt | 216 / 216 | 399 / 394 | 639 / 627 | 1,495 / 1,484 | 1,579 / 1,607 | 3,648 / 3,619 | 3,820 / 3,828 |
+| TP16 + EP · Guide prompt | 216 / 216 | 369 / 369 | 634 / 634 | 1,301 / 1,292 | 2,019 / 2,016 | 2,058 / 2,047 | 3,136 / 3,144 |
+
+| Layout | InfiniBand receive, highest level average (MB/s) | IPoIB receive, highest level average (MB/s) | eth0 receive, highest level average (MB/s) |
+|---|---:|---:|---:|
+| TP16 | 6,689 | 0 | 0.5 |
+| TP8 × PP2 | 35 | 0 | 1.8 |
+| TP16 + EP | 3,828 | 0 | 0.5 |
+<!-- END MUSE SELECTABLE RESULTS -->
+
+<img src="images/mi300x-muse-selectable-performance-en.svg" width="980" alt="Per-request decode, aggregate throughput, TTFT and E2E of three layouts at seven concurrency levels for both inputs">
+
+Original measurement chart from the same summary. Throughput whiskers span the three rounds' minimum and maximum; the TTFT axis is logarithmic because concurrency 64 adds queueing time. Concurrency levels are discrete; the lines only connect observations.
+
+<img src="images/mi300x-muse-selectable-resources-en.svg" width="980" alt="GPU use, peak VRAM per card, GPU power and host CPU on both nodes inside the measured rounds">
+
+Original resource chart from each layout's two-node one-second samples, filtered to the measured rounds (each node recorded 17,252 samples over the whole batch). GPU power is the sum over 16 GPUs, not whole-system energy; host CPU includes the operating system and the sampler.
+
+**What the results show.**
+
+- **TP8 × PP2 is the layout to start from on these two nodes.** It decoded fastest at every point (83.8 against 61.1 and 54.0 token/s at concurrency 1 on the short prompt) and had the highest aggregate throughput at 12 of 14 points. The two exceptions, the deployment-analysis prompt at concurrency 8 and 32, are rounds stretched by answers that ran to the 16,384-token limit: at concurrency 8, round 1 took 109 s while rounds 2 and 3, each with one such answer, took about 246 s. Aggregate throughput counts finished tokens over the whole round, so one long answer lowers it without slower decoding.
+- **TP16's cross-node traffic stayed far below the link capacity.** InfiniBand receive per node reached 6,689 MB/s for TP16 and 3,828 MB/s for TP16 + EP, against at most 35 MB/s for TP8 × PP2, while IPoIB and `eth0` stayed near zero: the collectives used InfiniBand RDMA verbs. Even TP16's busiest level average was 1.7% of the 400 GB/s that eight 400 Gb/s ports provide. These are averages of one-second samples over each level's rounds; the busiest single second and shorter bursts can be higher and are not shown. The server logs ([TP16](data/mi300x-fiveway/muse-selectable_20261104/tp/server-keylines.log), [TP8 × PP2](data/mi300x-fiveway/muse-selectable_20261104/pp/server-keylines.log)) record a structural difference instead: with the TP group spanning nodes, the AITER custom all-reduce and the quick all-reduce were disabled and the TP group used `PYNCCL` only, while TP8 × PP2 kept its TP groups inside each node and dispatched `AITER_CUSTOM` ahead of `PYNCCL`. Every TP16 decode step therefore waits on collectives that cross nodes. These waits were not traced one by one; the [time budget of one token](#muse-time-budget) estimates their size from the measured time and data per token.
+- **Expert parallelism costs per-request speed here, most at concurrency 1.** TP16 + EP trailed TP16 by 11.6–11.7% at concurrency 1 and by 0.8–4.6% above it. Its first-text latency was lower than TP16's at 11 of 14 points, but its aggregate throughput was lower at 11 of 14. The largest aggregate gaps (−22.9% on the short prompt at concurrency 16, −34.9% and −20.0% on the deployment-analysis prompt at concurrency 32 and 64) come from long answers that set the round length: at short-prompt concurrency 16, one answer of 2,486 tokens in each round made the rounds last 68.1–68.8 s, while TP16's longest answer at that level was 1,750 tokens.
+- **KV-cache size did not decide the ranking.** TP16 reserved 9,940,421 KV tokens and TP8 × PP2 8,780,862, with 103.22 and 99.1 GiB of weights per GPU. At most 32 sequences of at most 32,768 tokens are far from filling either pool.
+- **Single-request decode reproduces across the two runs.** Concurrency-1 decode agrees with the [2026-11-03 run](#muse-fiveway-20261103) within 1 token/s (83.8 against 84.3, 61.1 against 61.8, 54.0 against 54.5), although that run capped its outputs and used a 0.92 memory budget.
+
+<a id="muse-time-budget"></a>
+
+**Why TP16 is slow across nodes although InfiniBand has spare bandwidth: the time budget of one token.** The traffic tables above show links far from full. Where the time goes follows from the same run: take the short prompt at concurrency 1 (one request generating at a time, so no queueing or batching) and put the time per output token next to that token's cross-node data. The [evidence tool](tools/mi300x_evidence.py) generates the table from `time_budget` in the [run summary](data/mi300x-fiveway/muse-selectable_20261104/summary.json); the counts in the last column come from the model card's 62 layers and the ROCm Muse code in vLLM v0.33.0, not from a runtime trace.
+
+<!-- BEGIN MUSE SELECTABLE TIME BUDGET -->
+| Layout (short prompt, concurrency 1) | Time per output token (ms, measured) | Extra time per token vs TP8 × PP2 (ms) | InfiniBand receive per output token, busier node (measured, prompt share included) | Time to move it at 400 GB/s per node (µs) | Collectives and cross-node hand-offs per token (estimated from the vLLM source) |
+|---|---:|---:|---:|---:|---|
+| TP8 × PP2 | 11.9 | 0 (reference) | 36 KB | 0.09 | 126 collectives, all inside a node; 1 hand-off between the pipeline stages |
+| TP16 | 16.4 | 4.4 | 11.4 MB | 28 | ≈126 collectives, all across nodes (62 layers × 2 all-reduces, plus 2) |
+| TP16 + EP | 18.5 | 6.6 | 4.0 MB | 10 | ≈126 collectives, all across nodes (62 layers × 2 all-reduces, plus 2); the page notes that the Triton expert kernels are slower with expert parallelism |
+<!-- END MUSE SELECTABLE TIME BUDGET -->
+
+<img src="images/mi300x-muse-selectable-time-budget-en.svg" width="980" alt="Time budget of one output token: panel A shows the measured time per token of three layouts; panel B enlarges the extra time of TP16 and TP16 + EP and draws, to the same scale, the time their cross-node data needs on the wire">
+
+Original calculation figure generated by the [figure tool](tools/build_layout_figure.py) from the same summary. Panel A is the measured time per token. Panel B enlarges the extra time; the yellow sliver is the time that data needs at 400 GB/s, drawn to the same scale, and the 126 stripes in the TP16 bar are the estimated cross-node collectives, not a measured trace.
+
+- **Bandwidth accounts for under 1% of the extra time.** TP16 takes 4.4 ms more per token than TP8 × PP2, while its 11.4 MB of cross-node data per token needs 28 µs at 400 GB/s, 0.6%. Even squeezed through a single 400 Gb/s port (50 GB/s) it would need 228 µs, 5.1%. TP16 + EP moves less data (4.0 MB): in the vLLM source, TP16's all-reduce in each expert layer carries the separate outputs of the 8 selected experts, while expert parallelism all-reduces one combined output. Yet its extra time is even longer (6.6 ms). The extra time is not spent moving data.
+- **The data point to cross-node synchronizations waited for one after another (count estimated from the source).** vLLM's ROCm Muse code all-reduces twice per layer under TP: after the attention output projection and after the feed-forward or expert output. That is 124 over 62 layers, plus 2 collectives for the embedding and output layers: about 126 per token, each waiting for all 16 GPUs before work can continue. TP8 × PP2 performs as many, inside a node (the server log shows its TP groups dispatching `AITER_CUSTOM` first).
+- **Each cross-node synchronization costs at least 35 µs more on average (lower-bound estimate).** At concurrency 1 a token passes through all 62 layers in both layouts: TP8 × PP2 runs its two stages one after the other and splits each layer's sharded work over 8 GPUs; TP16 splits it over 16, and the layer count and the unsharded parts (such as the router) are the same in both. As long as a smaller shard is not slower (kernel times were not measured separately), TP16's computation outside synchronization is no longer than TP8 × PP2's, and 4.4 ms ÷ 126 ≈ 35 µs is a lower bound on how much more a cross-node collective costs on average than an intra-node one; TP8 × PP2's stage hand-off counts against its own time and only makes the bound more conservative. The ≈90 KB of data per collective needs 0.23 µs on the wire; the rest is per-synchronization latency that hardly depends on the data size, possibly from cross-node coordination, the host-memory staging under `NCCL_NET_GDR_LEVEL=0`, and the intra-node fast all-reduce paths that are unavailable once a group spans nodes. Their shares were not separated in this run.
+- **The measurement checks itself.** TP8 × PP2 hands one FP32 residual stream per token from node 0 to node 1: 8,192 values × 4 bytes = 32,768 bytes. Node 1 measured 31,792 bytes per processed token (prompt plus output), 97% of that. So the InfiniBand port counters record the GPU-to-GPU traffic, and the sampler's conversion of their 4-byte units (multiplied by 4) is right; a wrong conversion would be off by a factor of 4.
+- **The rule to take away.** On these two nodes (GPU Direct RDMA off), per-request speed across nodes depends mainly on how many all-GPU synchronizations each token needs, not on link bandwidth. Keeping TP inside a node and letting only PP cross it leaves one hand-off per token. This agrees with the page's TP + PP recommendation, for a different reason: the page names inter-node bandwidth as the bottleneck; this run's data point to the number of synchronizations. GPU Direct RDMA or RCCL tuning might lower the cost per synchronization (not tested), but the structure of about 126 cross-node synchronizations per token stays.
+
+Across all 14 points, InfiniBand receive per output token on the busier node was 8.2–21.7 MB for TP16, 3.7–5.8 MB for TP16 + EP and 35–49 KB for TP8 × PP2.
+
+**Limits.** One deployment per layout in a fixed order; two prompts repeated, not a business dataset; `temperature 0`; inputs of 166 and 713 tokens. Long context, production request mixes, answer quality and multimodal input were not measured. GPU Direct RDMA was off; with it, TP16's cross-node collectives might cost less (not tested). The collective count and per-call cost in the time budget are estimates, not a trace. The image and front end differ from the page's command as listed above, and MI300X is not the hardware the recipe validates (gfx950). DP + EP and P/D were not run. [Validation](VALIDATION.md#muse-selectable-validation) lists the checks and the replay commands; [re-run steps](#muse-selectable-reproduce) start a new measurement.
+
+#### 2026-11-03 run: method and actual placement
+
+<a id="muse-fiveway-20261103"></a>
+
+**Earlier record.** Every output in this run reached its cap during reasoning, and only three concurrency levels were measured. It is kept as a record; the 2026-11-04 run above is the answer.
+
+On 2026-11-03, the run reused two West US Spot `Standard_ND96isr_MI300X_v5` VMs, eight GPUs per node. All three executed layouts used the same Muse BF16 revision, vLLM `0.33.0+rocm100`, PyTorch `2.13.0+rocm10.0.0`, and the `mp` multiprocessing executor. The base-image digest, actual commands and per-node image identities are retained with the evidence. TP16, TP8 x PP2 and TP16 + EP each used 16 GPUs in total.
+
+Common settings: `--gpu-memory-utilization 0.92`, `--max-model-len 32768`, `--max-num-seqs 32`, `--max-num-batched-tokens 4096`, BF16 KV, Triton MoE and `ROCM_AITER_FA`. Prefix caching is disabled and chunked prefill enabled, following the AMD recipe. Speculative decoding is not used. Cross-node traffic retains the previously working `NCCL_NET_GDR_LEVEL=0` setting: host-staged InfiniBand, not a GPUDirect RDMA measurement.
+
+<img src="images/mi300x-fiveway-topology-en.png" width="980" alt="Three measured layouts and the DP and PD support boundaries in this run">
+
+Original test topology, generated by the [figure tool](tools/build_layout_figure.py) from the [run summary](data/mi300x-fiveway/fiveway_20261103-160700/summary.json), with unmodified official Azure VM icons. Inspect whether TP crosses nodes, where PP splits layers, whether EP is enabled, and why two strategies have no performance run. The drawing does not replace logs.
+
+**Actual inputs.** The first workload reuses the earlier engineering prompt verbatim:
+
+> Explain in about 150 words why mixture-of-experts models keep the router in higher precision than the experts.
+
+The second follows the requested analysis of the supplied deployment guide and begins:
+
+> Compare the advantages, disadvantages, and deployment prerequisites of these five inference layouts for one mixture-of-experts model.
+
+It then supplies paraphrased strategy notes and model restrictions; the [complete input](data/mi300x-fiveway/fiveway_20261103-160700/guide_prompt.txt) contains no repeated padding. The server reported 166 and 713 input tokens respectively, including the chat template, not a 32K-context test. Requests stream at `temperature 0`; reasoning effort is omitted and retains the model default. Output caps are 256 and 1024 tokens.
+
+For each layout and input, one warm-up request precedes three rounds at concurrency 1, 8 and 32: 123 measured requests per input, **738 measured requests** across the three layouts. These are repetitions of two prompts, not 738 independent business samples. Layout order was TP, PP, then TP + EP, without randomization or repeated complete deployments. Startup and JIT time are excluded from the serving-rate tables.
+
+**Metrics and output boundary.** First-text latency runs from client send to the first reasoning or answer-text chunk. Per-request decode speed is an estimate from token counts and first/last text chunks, not a distribution of per-token events. Aggregate throughput is complete-stream output tokens divided by the whole round duration, including failed-request waits, followed by the median of three rounds. Protocol completion and complete answers are counted separately.
+
+**All 738 measured requests completed their streams, but all reached the output cap during reasoning: zero complete answers.** These results compare capped reasoning generation, not completion of the deployment-analysis task or answer quality. Each layout also ran a separate [complete-answer check](data/mi300x-fiveway/fiveway_20261103-160700/smoke_request.json) with a 4096-token cap; all three ended naturally and correctly stated the BF16/FP16 bit widths. One basic answer does not prove quality equivalence.
+
+#### 2026-11-03 run: complete result matrix
+
+The [evidence tool](tools/mi300x_evidence.py) recomputes the tables from individual requests. Unmeasured entries are not zero. Steady-state compute uses the queried West US Linux Spot reference rate of **29.515768 USD/hour for both VMs**, calculated as `two-VM hourly rate x 1,000,000 / aggregate throughput / 3600`. It includes reasoning tokens, is not a price per million final-answer tokens, and excludes startup, idle time, disks and invoice settlement.
+
+<!-- BEGIN FIVEWAY RESULTS -->
+**Short engineering prompt**
+
+Server-recorded input: 166 tokens, including the chat template; output limit: 256 tokens.
+
+| Layout | Concurrent requests | First-text latency (ms) | Per-request decode estimate (token/s) | Aggregate throughput (token/s) | Complete streams/requests sent | Complete answers/complete streams | Steady-state compute (USD/million output tokens) |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| TP16 | 1 | 209 | 61.8 | 59.1 | 3/3 | 0/3 | 138.81 |
+| TP16 | 8 | 513 | 38.4 | 286.1 | 24/24 | 0/24 | 28.65 |
+| TP16 | 32 | 1,194 | 27.7 | 785.5 | 96/96 | 0/96 | 10.44 |
+| TP8 x PP2 | 1 | 194 | 84.3 | 79.6 | 3/3 | 0/3 | 103.04 |
+| TP8 x PP2 | 8 | 475 | 47.3 | 348.9 | 24/24 | 0/24 | 23.50 |
+| TP8 x PP2 | 32 | 689 | 41.8 | 1,200.8 | 96/96 | 0/96 | 6.83 |
+| TP16 + EP | 1 | 216 | 54.5 | 52.3 | 3/3 | 0/3 | 156.76 |
+| TP16 + EP | 8 | 427 | 38.9 | 293.2 | 24/24 | 0/24 | 27.96 |
+| TP16 + EP | 32 | 909 | 28.1 | 816.9 | 96/96 | 0/96 | 10.04 |
+| DP + EP | Not measured | - | - | - | - | - | - |
+| Prefill/Decode | Not measured | - | - | - | - | - | - |
+
+**Deployment-guide analysis prompt**
+
+Server-recorded input: 713 tokens, including the chat template; output limit: 1024 tokens.
+
+| Layout | Concurrent requests | First-text latency (ms) | Per-request decode estimate (token/s) | Aggregate throughput (token/s) | Complete streams/requests sent | Complete answers/complete streams | Steady-state compute (USD/million output tokens) |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| TP16 | 1 | 236 | 61.3 | 60.5 | 3/3 | 0/3 | 135.47 |
+| TP16 | 8 | 1,179 | 37.7 | 288.9 | 24/24 | 0/24 | 28.38 |
+| TP16 | 32 | 4,084 | 26.2 | 758.7 | 96/96 | 0/96 | 10.81 |
+| TP8 x PP2 | 1 | 218 | 83.4 | 82.0 | 3/3 | 0/3 | 99.98 |
+| TP8 x PP2 | 8 | 800 | 45.5 | 351.5 | 24/24 | 0/24 | 23.33 |
+| TP8 x PP2 | 32 | 1,607 | 32.1 | 977.6 | 96/96 | 0/96 | 8.39 |
+| TP16 + EP | 1 | 218 | 53.8 | 53.3 | 3/3 | 0/3 | 153.86 |
+| TP16 + EP | 8 | 880 | 37.0 | 287.1 | 24/24 | 0/24 | 28.56 |
+| TP16 + EP | 32 | 2,755 | 26.1 | 780.3 | 96/96 | 0/96 | 10.51 |
+| DP + EP | Not measured | - | - | - | - | - | - |
+| Prefill/Decode | Not measured | - | - | - | - | - | - |
+<!-- END FIVEWAY RESULTS -->
+
+<img src="images/mi300x-fiveway-performance-en.png" width="980" alt="First-text latency and aggregate throughput for three layouts using the same 16 GPUs">
+
+Original measurement chart from the [individual request records and summary](data/mi300x-fiveway/fiveway_20261103-160700/). Concurrency levels are discrete; connecting observations does not establish a continuous scaling law. Every round remains in the JSON.
+
+#### 2026-11-03 run: which expectations held?
+
+- **TP8 x PP2 was the better fit here.** For both inputs at all three concurrency levels, it had higher per-request decode and aggregate throughput, and lower first-text latency, than the other layouts. The recipe's latency-oriented TP label therefore did not produce an advantage under these conditions; it is not a promise.
+- **EP depends on the condition.** TP16 + EP was slower than TP16 at concurrency 1, consistent with the BF16 caution. At concurrency 32, however, its aggregate-throughput median was slightly higher for both inputs, so not every metric worsened. Some rounds varied materially; differences of a few percent do not establish a general benefit.
+- **Communication logs explain a configuration difference, not the entire cause.** Cross-node TP16 disabled custom quick all-reduce and selected `PYNCCL`; PP kept TP groups within nodes and retained intra-node backends. This is consistent with the recipe's communication-cost explanation, but the run did not separately control the backend or measure communication's share of time. The entire speed difference cannot be assigned to the network.
+- **DP + EP had no full-model performance run.** The installed, unmodified `validate_bf16_deployment` accepted DP1 and rejected DP16 with `requires DP1 and PCP1`. The [validator invocation record](data/mi300x-fiveway/fiveway_20261103-160700/runtime-contract.log) includes its source hash. The guard was not removed to force a run.
+- **PD was blocked by capacity preflight and was not deployed.** Each pool would have eight GPUs; the configured 0.92 memory budget cannot hold a full BF16 model plus runtime and cache headroom. More VMs, a different precision or CPU offload would change the experiment, so none was silently substituted. This does not refute PD guidance on appropriate hardware.
+
+Production request distributions, multimodal input, cache reuse, speculative decoding, Spot-eviction recovery, real 32K inputs and higher concurrency were not measured. Re-run the target workload before making a deployment decision.
+
+#### Qwen initial phase: Spot-interrupted run
+
+<a id="qwen-fiveway"></a>
+
+**Historical phase.** This section retains the eviction-time projection, not current task status. Azure Activity Log recorded Spot eviction on 2026-11-03; both test VMs subsequently became `deallocated`. Both inputs for TP, DP+EP and P/D had been returned, PP's full dataset was incomplete, and TP+EP had not started. All five layouts were subsequently executed in the separate [recovery phase](#qwen-recovery). Phases are not pooled and a better retry does not replace an earlier result.
+
+**Why a different model?** The preceding Muse run has a ROCm DP restriction and cannot fit two full BF16 pools in the same GPU budget. This run uses a [pinned Qwen revision](https://huggingface.co/Qwen/Qwen3-235B-A22B-Instruct-2507/tree/ac9c66cc9b46af7306746a9250f23d47083d689e) to execute the strategy questions, not to attribute Qwen results to Muse. The recipe trade-offs above remain hypotheses to test.
+
+**Common conditions and actual differences.** Two `Standard_ND96isr_MI300X_v5` VMs, eight MI300X GPUs each; the same BF16 revision, vLLM `0.33.0+rocm100`, PyTorch `2.13.0+rocm10.0.0`, `mp` executor, Triton MoE and `TRITON_ATTN`. Flags are `--gpu-memory-utilization 0.80`, `--max-model-len 32768`, `--max-num-seqs 64`, and `--max-num-batched-tokens 4096`, with prefix caching and chunked prefill enabled, without speculative decoding. Repeated prompts can hit cache; these TTFT values are not all cold-request latency.
+
+| Layout | Node 0 | Node 1 | Material difference |
+|---|---|---|---|
+| TP16 | Half of the cross-node TP group | The other half of the same group | TP collectives cross nodes |
+| TP8 x PP2 | TP8, pipeline stage 0 | TP8, pipeline stage 1 | TP stays local; activations cross nodes; this run's dataset is incomplete |
+| TP16 + EP | Planned TP and EP execution | Planned use of the same GPU group | Not executed; no scores borrowed from another layout |
+| DP16 + EP16 | TP1, DP ranks 0-7 | TP1, DP ranks 8-15 | Global request distribution; `max-num-seqs` is per DP rank, while client concurrency is capped separately |
+| P/D | Prefill TP8 and official proxy entry | Decode TP8 | Two resident model pools; native TCP KV transfer, not an RDMA performance result |
+
+P/D uses the unmodified [official Mooncake proxy](scripts/mi300x/mooncake_connector_proxy.py) and `kv_load_failure_policy=fail`, without decode-side recomputation on transfer failure. The installed automatic RDMA path selected host-local HIP IPC across hosts; adding `transport_hint` did not change the legacy engine's routing. Both failed attempts are retained. The final path uses the package's existing `MC_FORCE_TCP=1` and `mooncake_protocol=tcp`, without changing vLLM source, weights or VM identity. Native host staging and proxy overhead are included; this is not a result for optimized RDMA disaggregation.
+
+<img src="images/mi300x-qwen-fiveway-topology-en.png" width="980" alt="Five Qwen candidate layouts, three complete sweeps with errors, and the Spot interruption boundary">
+
+Original topology generated from the [run summary](data/mi300x-fiveway/qwen-fiveway_20261103-172600/summary.json). Dashed boxes mean no complete measurement, not unsupported hardware. The client is on node 0; P/D client timings include the official proxy, both pools and KV transfer.
+
+**Actual inputs and counts.** The short input is the same engineering question below, with a 512-token output cap:
+
+> Explain in about 150 words why mixture-of-experts models keep the router in higher precision than the experts.
+
+The deployment-analysis input begins verbatim as follows, then includes paraphrased recipe notes and Muse-specific restrictions, with a 2048-token cap. Its [complete text](data/mi300x-fiveway/qwen-fiveway_20261103-172600/guide_prompt.txt) and [raw request records](data/mi300x-fiveway/qwen-fiveway_20261103-172600/) are retained.
+
+> Compare the advantages, disadvantages, and deployment prerequisites of these five inference layouts for one mixture-of-experts model. Explain which objectives favor each layout and why a latency or throughput label is not a universal guarantee. Distinguish model sharding, request parallelism, and prefill/decode separation. Do not invent benchmark numbers. Use the supplied notes and state any unverified condition explicitly.
+
+Each input has a warm-up followed by three rounds at concurrency **1, 2, 4, 8, 16, 32 and 64**: 381 formal requests per input. Requests stream at `temperature=0`. This is neither a real 32K-input test nor an independent business dataset. Execution order was P/D, DP+EP, TP and PP; eviction prevented TP+EP from starting. Order was not randomized and complete machine deployments were not repeated.
+
+**Reading the metrics.** TTFT measures client send to first text; E2E measures client send to stream completion. Their quantiles include complete streams only. Aggregate throughput sums complete-stream output tokens over the full round duration, retaining failed-request waits, then takes the median of three rounds. P95 uses inclusive interpolation and is not a production SLA. A table's "complete answer" means natural completion with nonempty content, not correctness. A separate [BF16/FP16 smoke](data/mi300x-fiveway/qwen-fiveway_20261103-172600/smoke_request.json) checks basic semantics. Steady-state cost uses the same two-VM Spot reference, excluding startup, idle time, disks and billing adjustments.
+
+<!-- BEGIN QWEN FIVEWAY RESULTS -->
+Latency quantiles include complete streams only; aggregate throughput retains failed-request waiting time. Unavailable latency and unit cost are shown as `-`.
+
+**Short engineering prompt**
+
+Server-recorded input: 33 tokens, including the chat template; output limit: 512 tokens.
+
+| Layout | Concurrent requests | Median first-text latency (ms) | P95 first-text latency (ms) | Median E2E (s) | P95 E2E (s) | Per-request decode estimate (token/s) | Aggregate throughput (token/s) | Complete streams/requests sent | Complete answers/complete streams | Steady-state compute (USD/million output tokens) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| TP16 | 1 | 36 | 37 | 3.28 | 3.29 | 59.8 | 59.2 | 3/3 | 3/3 | 138.55 |
+| TP16 | 2 | 38 | 38 | 3.40 | 3.42 | 57.4 | 112.9 | 6/6 | 6/6 | 72.64 |
+| TP16 | 4 | 38 | 39 | 3.49 | 3.51 | 56.0 | 220.6 | 12/12 | 12/12 | 37.17 |
+| TP16 | 8 | 40 | 42 | 3.89 | 4.06 | 49.5 | 379.4 | 24/24 | 24/24 | 21.61 |
+| TP16 | 16 | 80 | 82 | 5.59 | 5.89 | 35.8 | 532.7 | 48/48 | 48/48 | 15.39 |
+| TP16 | 32 | 105 | 111 | 6.04 | 6.37 | 32.4 | 972.7 | 96/96 | 96/96 | 8.43 |
+| TP16 | 64 | 140 | 198 | 7.45 | 7.77 | 26.9 | 1,593.2 | 192/192 | 192/192 | 5.15 |
+| TP8 x PP2 | Interrupted; incomplete data | - | - | - | - | - | - | - | - | - |
+| TP16 + EP | Not run | - | - | - | - | - | - | - | - | - |
+| DP + EP | 1 | 178 | 180 | 6.50 | 6.53 | 31.0 | 30.1 | 3/3 | 3/3 | 272.08 |
+| DP + EP | 2 | 177 | 178 | 6.73 | 6.89 | 30.8 | 59.2 | 6/6 | 6/6 | 138.60 |
+| DP + EP | 4 | 178 | 179 | 6.63 | 6.87 | 30.5 | 116.3 | 12/12 | 12/12 | 70.50 |
+| DP + EP | 8 | 176 | 179 | 7.64 | 8.10 | 25.9 | 193.7 | 24/24 | 24/24 | 42.34 |
+| DP + EP | 16 | 98 | 103 | 7.81 | 8.11 | 25.4 | 378.2 | 48/48 | 48/48 | 21.68 |
+| DP + EP | 32 | 97 | 110 | 8.04 | 9.18 | 24.9 | 737.3 | 96/96 | 96/96 | 11.12 |
+| DP + EP | 64 | 100 | 169 | 9.16 | 9.59 | 21.7 | 1,292.8 | 192/192 | 192/192 | 6.34 |
+| Prefill/Decode | 1 | 51 | 53 | 1.99 | 1.99 | 104.2 | 101.5 | 3/3 | 3/3 | 80.80 |
+| Prefill/Decode | 2 | 62 | 76 | 2.12 | 2.14 | 98.2 | 189.7 | 6/6 | 6/6 | 43.21 |
+| Prefill/Decode | 4 | 101 | 106 | 2.28 | 2.31 | 91.6 | 349.3 | 12/12 | 12/12 | 23.48 |
+| Prefill/Decode | 8 | 122 | 141 | 2.63 | 2.71 | 79.5 | 587.5 | 24/24 | 24/24 | 13.96 |
+| Prefill/Decode | 16 | 154 | 195 | 2.96 | 3.06 | 72.1 | 1,056.2 | 48/48 | 48/48 | 7.76 |
+| Prefill/Decode | 32 | 222 | 313 | 3.30 | 3.44 | 63.4 | 1,835.5 | 96/96 | 96/96 | 4.47 |
+| Prefill/Decode | 64 | 415 | 633 | 4.59 | 5.16 | 46.0 | 2,379.3 | 167/192 | 167/167 | 3.45 |
+
+**Deployment-guide analysis prompt**
+
+Server-recorded input: 617 tokens, including the chat template; output limit: 2048 tokens.
+
+| Layout | Concurrent requests | Median first-text latency (ms) | P95 first-text latency (ms) | Median E2E (s) | P95 E2E (s) | Per-request decode estimate (token/s) | Aggregate throughput (token/s) | Complete streams/requests sent | Complete answers/complete streams | Steady-state compute (USD/million output tokens) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| TP16 | 1 | 69 | 70 | 24.65 | 24.65 | 58.3 | 58.1 | 3/3 | 3/3 | 141.14 |
+| TP16 | 2 | 73 | 497 | 29.66 | 31.59 | 55.9 | 105.1 | 6/6 | 6/6 | 78.03 |
+| TP16 | 4 | 78 | 79 | 27.51 | 28.36 | 53.9 | 202.0 | 12/12 | 12/12 | 40.60 |
+| TP16 | 8 | 81 | 174 | 30.63 | 33.49 | 46.8 | 343.7 | 24/24 | 24/24 | 23.85 |
+| TP16 | 16 | - | - | - | - | - | 0.0 | 0/48 | 0/0 | - |
+| TP16 | 32 | - | - | - | - | - | 0.0 | 0/96 | 0/0 | - |
+| TP16 | 64 | - | - | - | - | - | 0.0 | 0/192 | 0/0 | - |
+| TP8 x PP2 | Interrupted; incomplete data | - | - | - | - | - | - | - | - | - |
+| TP16 + EP | Not run | - | - | - | - | - | - | - | - | - |
+| DP + EP | 1 | - | - | - | - | - | 0.0 | 0/3 | 0/0 | - |
+| DP + EP | 2 | - | - | - | - | - | 0.0 | 0/6 | 0/0 | - |
+| DP + EP | 4 | - | - | - | - | - | 0.0 | 0/12 | 0/0 | - |
+| DP + EP | 8 | - | - | - | - | - | 0.0 | 0/24 | 0/0 | - |
+| DP + EP | 16 | - | - | - | - | - | 0.0 | 0/48 | 0/0 | - |
+| DP + EP | 32 | - | - | - | - | - | 0.0 | 0/96 | 0/0 | - |
+| DP + EP | 64 | - | - | - | - | - | 0.0 | 0/192 | 0/0 | - |
+| Prefill/Decode | 1 | - | - | - | - | - | 0.0 | 0/3 | 0/0 | - |
+| Prefill/Decode | 2 | - | - | - | - | - | 0.0 | 0/6 | 0/0 | - |
+| Prefill/Decode | 4 | - | - | - | - | - | 0.0 | 0/12 | 0/0 | - |
+| Prefill/Decode | 8 | - | - | - | - | - | 0.0 | 0/24 | 0/0 | - |
+| Prefill/Decode | 16 | - | - | - | - | - | 0.0 | 0/48 | 0/0 | - |
+| Prefill/Decode | 32 | - | - | - | - | - | 0.0 | 0/96 | 0/0 | - |
+| Prefill/Decode | 64 | - | - | - | - | - | 0.0 | 0/192 | 0/0 | - |
+<!-- END QWEN FIVEWAY RESULTS -->
+
+<img src="images/mi300x-qwen-fiveway-performance-en.png" width="980" alt="Returned Qwen throughput, TTFT and E2E results with medians, round ranges and failure markers">
+
+Original measurement chart from the same summary. Hollow points include request failures; throughput whiskers show round minima and maxima, not confidence intervals. Missing latency is not zero. Requests failing after service exit are not new independent latency samples.
+
+**Observed findings and limits.** TP passed every short request but encountered timeouts and API exit from guide concurrency 16 onward. DP+EP passed every short request, then its remote worker response timed out during the guide's first prefill. P/D encountered KV transfer errors at short concurrency 64, and the subsequent guide did not succeed. All three runtime failures predate the later Spot eviction and cannot all be attributed to eviction. Logs identify failure stages, not the isolated underlying cause of the TP/DP worker stall or a general lack of support for Qwen or these architectures.
+
+**Initial projection's resource boundary.** Both nodes started one-second sampling of per-GPU utilization, VRAM and power, host CPU/RAM, and per-interface Ethernet/InfiniBand byte counters. This eviction-time projection contains node 1 only. Its [TP samples](data/mi300x-fiveway/qwen-fiveway_20261103-172600/tp/resources-node1.jsonl), [DP samples](data/mi300x-fiveway/qwen-fiveway_20261103-172600/dp/resources-node1.jsonl), and [P/D samples](data/mi300x-fiveway/qwen-fiveway_20261103-172600/pd/resources-node1.jsonl) cover formal rounds and do not support an all-16-GPU chart. Recovery charts below use that phase's own two-node samples, not backfilled initial measurements. Host metrics include the OS and sampler, not exclusive model accounting.
+
+The initial phase is a reproducible interim record, **not a complete five-option selection conclusion**. Recovery measurements do not patch these two historical tables. See [New Qwen measurement](#qwen-reproduce) and [Validation](VALIDATION.md#qwen-fiveway-validation).
+
+#### Qwen recovery phase: all layouts executed, PP completed every request
+
+<a id="qwen-recovery"></a>
+
+**Question and actual inputs.** With the same two MI300X nodes, Qwen BF16 weights and one image, can each layout complete the same requests, and how do latency, throughput and resource use change? The short engineering input remains:
+
+> Explain in about 150 words why mixture-of-experts models keep the router in higher precision than the experts.
+
+The deployment-analysis input still begins:
+
+> Compare the advantages, disadvantages, and deployment prerequisites of these five inference layouts for one mixture-of-experts model. Explain which objectives favor each layout and why a latency or throughput label is not a universal guarantee. Distinguish model sharding, request parallelism, and prefill/decode separation. Do not invent benchmark numbers. Use the supplied notes and state any unverified condition explicitly.
+
+The [complete input](data/mi300x-fiveway/qwen-fiveway-recovery_20261103/guide_prompt.txt) and [individual request records](data/mi300x-fiveway/qwen-fiveway-recovery_20261103/) are retained together. Inputs have 33 and 617 tokens, with output caps of 512 and 2048 tokens respectively. This is not a long-context or business-quality evaluation.
+
+**Controlled conditions.** Qwen revision `ac9c66cc9b46af7306746a9250f23d47083d689e`, BF16, two nodes with eight MI300X GPUs each, vLLM `0.33.0+rocm100`, PyTorch `2.13.0+rocm10.0.0`, `mp`, Triton MoE, `TRITON_ATTN`, the 0.80 memory budget and the scheduling limits above are fixed. The image was built once and imported on the peer; all layouts on both nodes used `sha256:3464a056f1359bfd0d567d1de85dfe9ee4a185056042032f6a2632834e76004e`. Layout is the comparison variable; KV allocation, per-rank scheduling and communication also change with it. PP ran in an earlier recovery stage, followed by TP+EP, TP, DP+EP and P/D sequentially, without randomization or interleaving. Initial-phase results are not pooled into this phase.
+
+<img src="images/mi300x-qwen-fiveway-recovery-topology-en.svg" width="980" alt="All five executed Qwen recovery layouts, client entry points and cross-node communication">
+
+Original test topology from the [generator](tools/build_layout_figure.py) and [recovery summary](data/mi300x-fiveway/qwen-fiveway-recovery_20261103/summary.json). Inspect which TP groups cross nodes, where PP splits layers and the two P/D model pools; Azure VM icons remain unmodified official assets. Placement does not prove that communication explains every performance difference.
+
+**Measurement and calculation.** Each layout warms up each input once, then runs three rounds at concurrency 1, 2, 4, 8, 16, 32 and 64: 381 formal requests per input and 3810 overall. Prefix caching and chunked prefill remain enabled, `temperature=0`, with no speculative decoding; repeated prompts can hit cache. TTFT is send-to-first-text and E2E is send-to-stream-completion. Quantiles use complete streams only. Throughput divides complete-stream output tokens by the entire round duration, retaining failed waits, then takes the median of three rounds. Cost uses the 2026-11-03 two-VM Spot reference of USD 29.515768/hour to calculate cost per million successful output tokens. It excludes startup, idle time and disks and is not an invoice.
+
+**Outcome.** All 3810 requests are recorded: 2423 ended naturally with content and 1387 failed, with no truncated output counted as a complete answer. Complete answers are not correctness scores. Only PP completed both inputs in full. Subsequent unavailable requests remain in failure denominators, not as new independent latency samples.
+
+| Recovery layout | Short input: complete answers/formal requests | Guide input: complete answers/formal requests | Native log and boundary |
+|---|---:|---:|---|
+| TP8 x PP2 | 381/381 | 381/381 | All ended naturally; not a production-stability commitment |
+| TP16 + EP | 381/381 | 61/381 | `RPC call to sample_tokens timed out`, followed by engine exit |
+| TP16 | 381/381 | 77/381 | Also records a `sample_tokens` RPC timeout; matching messages do not establish an identical cause |
+| DP16 + EP16 | 381/381 | 0/381 | Both nodes record `sample_tokens` or `execute_dummy_batch` RPC timeouts |
+| P/D, native TCP | 380/381 | 0/381 | Real KV transfers succeeded before transfer failures; the later input inherited the preceding fault |
+
+P/D uses the unmodified Mooncake connector and official proxy with `MC_FORCE_TCP=1`, `mooncake_protocol=tcp` and `kv_load_failure_policy=fail`, without decode-side recomputation. [Transfer logs](data/mi300x-fiveway/qwen-fiveway-recovery_20261103/pd/server-keylines.log) establish actual cross-node KV transfer, not ordinary decode serving labeled as P/D. The underlying worker-stall cause is not isolated and does not establish a general lack of support for Qwen or these architectures.
+
+<!-- BEGIN QWEN RECOVERY FIVEWAY RESULTS -->
+Latency quantiles include complete streams only; aggregate throughput retains failed-request waiting time. Unavailable latency and unit cost are shown as `-`.
+
+**Short engineering prompt**
+
+Server-recorded input: 33 tokens, including the chat template; output limit: 512 tokens.
+
+| Layout | Concurrent requests | Median first-text latency (ms) | P95 first-text latency (ms) | Median E2E (s) | P95 E2E (s) | Per-request decode estimate (token/s) | Aggregate throughput (token/s) | Complete streams/requests sent | Complete answers/complete streams | Steady-state compute (USD/million output tokens) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| TP16 | 1 | 31 | 31 | 2.90 | 2.91 | 60.6 | 59.9 | 3/3 | 3/3 | 136.80 |
+| TP16 | 2 | 32 | 54 | 3.17 | 3.39 | 58.5 | 109.4 | 6/6 | 6/6 | 74.95 |
+| TP16 | 4 | 32 | 62 | 3.27 | 3.47 | 57.1 | 213.0 | 12/12 | 12/12 | 38.49 |
+| TP16 | 8 | 67 | 69 | 3.99 | 4.19 | 50.3 | 376.7 | 24/24 | 24/24 | 21.76 |
+| TP16 | 16 | 79 | 82 | 5.43 | 5.64 | 36.5 | 550.7 | 48/48 | 48/48 | 14.89 |
+| TP16 | 32 | 105 | 111 | 5.93 | 6.21 | 33.0 | 976.4 | 96/96 | 96/96 | 8.40 |
+| TP16 | 64 | 139 | 184 | 7.11 | 7.42 | 28.1 | 1,677.0 | 192/192 | 192/192 | 4.89 |
+| TP8 x PP2 | 1 | 19 | 19 | 1.97 | 1.97 | 101.5 | 100.6 | 3/3 | 3/3 | 81.51 |
+| TP8 x PP2 | 2 | 25 | 28 | 3.92 | 3.93 | 50.8 | 100.8 | 6/6 | 6/6 | 81.32 |
+| TP8 x PP2 | 4 | 27 | 31 | 2.19 | 2.20 | 91.5 | 360.7 | 12/12 | 12/12 | 22.73 |
+| TP8 x PP2 | 8 | 36 | 45 | 4.47 | 4.61 | 45.9 | 360.1 | 24/24 | 24/24 | 22.77 |
+| TP8 x PP2 | 16 | 51 | 63 | 4.65 | 4.65 | 43.1 | 680.0 | 48/48 | 48/48 | 12.06 |
+| TP8 x PP2 | 32 | 80 | 92 | 5.34 | 5.38 | 37.8 | 1,181.9 | 96/96 | 96/96 | 6.94 |
+| TP8 x PP2 | 64 | 114 | 148 | 6.41 | 6.54 | 31.5 | 1,936.1 | 192/192 | 192/192 | 4.23 |
+| TP16 + EP | 1 | 32 | 33 | 3.49 | 3.50 | 56.3 | 55.8 | 3/3 | 3/3 | 146.92 |
+| TP16 + EP | 2 | 35 | 57 | 3.70 | 3.75 | 53.7 | 105.4 | 6/6 | 6/6 | 77.80 |
+| TP16 + EP | 4 | 51 | 67 | 3.83 | 3.89 | 51.8 | 202.1 | 12/12 | 12/12 | 40.56 |
+| TP16 + EP | 8 | 71 | 73 | 4.19 | 4.32 | 47.0 | 360.3 | 24/24 | 24/24 | 22.76 |
+| TP16 + EP | 16 | 84 | 86 | 5.73 | 5.95 | 34.7 | 521.2 | 48/48 | 48/48 | 15.73 |
+| TP16 + EP | 32 | 108 | 114 | 6.28 | 6.41 | 31.7 | 955.9 | 96/96 | 96/96 | 8.58 |
+| TP16 + EP | 64 | 144 | 175 | 7.52 | 7.79 | 26.5 | 1,557.0 | 192/192 | 192/192 | 5.27 |
+| DP + EP | 1 | 161 | 164 | 6.54 | 6.61 | 32.1 | 31.3 | 3/3 | 3/3 | 261.74 |
+| DP + EP | 2 | 162 | 164 | 6.18 | 6.45 | 31.9 | 61.2 | 6/6 | 6/6 | 133.98 |
+| DP + EP | 4 | 161 | 165 | 6.61 | 7.03 | 29.8 | 112.4 | 12/12 | 12/12 | 72.91 |
+| DP + EP | 8 | 154 | 162 | 6.95 | 7.74 | 29.5 | 218.7 | 24/24 | 24/24 | 37.49 |
+| DP + EP | 16 | 85 | 94 | 6.93 | 7.96 | 29.2 | 438.8 | 48/48 | 48/48 | 18.68 |
+| DP + EP | 32 | 84 | 142 | 7.88 | 9.11 | 25.5 | 766.0 | 96/96 | 96/96 | 10.70 |
+| DP + EP | 64 | 131 | 179 | 8.88 | 9.32 | 22.3 | 1,320.4 | 192/192 | 192/192 | 6.21 |
+| Prefill/Decode | 1 | 51 | 52 | 1.94 | 1.94 | 104.5 | 101.7 | 3/3 | 3/3 | 80.64 |
+| Prefill/Decode | 2 | 66 | 85 | 2.07 | 2.09 | 98.1 | 189.1 | 6/6 | 6/6 | 43.37 |
+| Prefill/Decode | 4 | 86 | 109 | 2.28 | 2.30 | 90.0 | 343.3 | 12/12 | 12/12 | 23.89 |
+| Prefill/Decode | 8 | 123 | 147 | 2.50 | 2.58 | 79.6 | 590.4 | 24/24 | 24/24 | 13.89 |
+| Prefill/Decode | 16 | 141 | 189 | 2.85 | 2.96 | 73.7 | 1,101.4 | 48/48 | 48/48 | 7.44 |
+| Prefill/Decode | 32 | 228 | 294 | 3.43 | 3.52 | 64.0 | 1,827.1 | 96/96 | 96/96 | 4.49 |
+| Prefill/Decode | 64 | 431 | 640 | 4.79 | 5.16 | 44.5 | 2,402.4 | 191/192 | 191/191 | 3.41 |
+
+**Deployment-guide analysis prompt**
+
+Server-recorded input: 617 tokens, including the chat template; output limit: 2048 tokens.
+
+| Layout | Concurrent requests | Median first-text latency (ms) | P95 first-text latency (ms) | Median E2E (s) | P95 E2E (s) | Per-request decode estimate (token/s) | Aggregate throughput (token/s) | Complete streams/requests sent | Complete answers/complete streams | Steady-state compute (USD/million output tokens) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| TP16 | 1 | 59 | 63 | 23.05 | 23.07 | 59.3 | 59.2 | 3/3 | 3/3 | 138.57 |
+| TP16 | 2 | 63 | 391 | 26.62 | 30.44 | 57.0 | 106.7 | 6/6 | 6/6 | 76.85 |
+| TP16 | 4 | 126 | 128 | 24.90 | 26.97 | 55.0 | 206.1 | 12/12 | 12/12 | 39.77 |
+| TP16 | 8 | 150 | 166 | 29.87 | 32.60 | 47.9 | 353.7 | 24/24 | 24/24 | 23.18 |
+| TP16 | 16 | 192 | 229 | 41.34 | 45.85 | 34.9 | 466.5 | 32/48 | 32/32 | 17.58 |
+| TP16 | 32 | - | - | - | - | - | 0.0 | 0/96 | 0/0 | - |
+| TP16 | 64 | - | - | - | - | - | 0.0 | 0/192 | 0/0 | - |
+| TP8 x PP2 | 1 | 53 | 55 | 16.34 | 16.34 | 96.5 | 96.2 | 3/3 | 3/3 | 85.21 |
+| TP8 x PP2 | 2 | 76 | 951 | 32.66 | 32.67 | 48.2 | 96.2 | 6/6 | 6/6 | 85.19 |
+| TP8 x PP2 | 4 | 77 | 105 | 34.52 | 34.87 | 46.2 | 183.0 | 12/12 | 12/12 | 44.80 |
+| TP8 x PP2 | 8 | 103 | 125 | 31.96 | 35.98 | 43.7 | 318.3 | 24/24 | 24/24 | 25.76 |
+| TP8 x PP2 | 16 | 110 | 132 | 34.24 | 36.37 | 40.5 | 608.7 | 48/48 | 48/48 | 13.47 |
+| TP8 x PP2 | 32 | 234 | 1,302 | 37.09 | 41.80 | 38.7 | 1,125.5 | 96/96 | 96/96 | 7.28 |
+| TP8 x PP2 | 64 | 381 | 1,427 | 53.97 | 60.53 | 28.4 | 1,582.9 | 192/192 | 192/192 | 5.18 |
+| TP16 + EP | 1 | 64 | 66 | 26.50 | 26.52 | 55.1 | 54.9 | 3/3 | 3/3 | 149.22 |
+| TP16 + EP | 2 | 68 | 430 | 29.80 | 33.80 | 52.1 | 101.3 | 6/6 | 6/6 | 80.96 |
+| TP16 + EP | 4 | 91 | 157 | 29.46 | 32.32 | 49.9 | 183.7 | 12/12 | 12/12 | 44.63 |
+| TP16 + EP | 8 | 140 | 171 | 32.76 | 36.25 | 44.6 | 331.4 | 24/24 | 24/24 | 24.74 |
+| TP16 + EP | 16 | 195 | 198 | 44.94 | 49.17 | 33.1 | 0.0 | 16/48 | 16/16 | - |
+| TP16 + EP | 32 | - | - | - | - | - | 0.0 | 0/96 | 0/0 | - |
+| TP16 + EP | 64 | - | - | - | - | - | 0.0 | 0/192 | 0/0 | - |
+| DP + EP | 1 | - | - | - | - | - | 0.0 | 0/3 | 0/0 | - |
+| DP + EP | 2 | - | - | - | - | - | 0.0 | 0/6 | 0/0 | - |
+| DP + EP | 4 | - | - | - | - | - | 0.0 | 0/12 | 0/0 | - |
+| DP + EP | 8 | - | - | - | - | - | 0.0 | 0/24 | 0/0 | - |
+| DP + EP | 16 | - | - | - | - | - | 0.0 | 0/48 | 0/0 | - |
+| DP + EP | 32 | - | - | - | - | - | 0.0 | 0/96 | 0/0 | - |
+| DP + EP | 64 | - | - | - | - | - | 0.0 | 0/192 | 0/0 | - |
+| Prefill/Decode | 1 | - | - | - | - | - | 0.0 | 0/3 | 0/0 | - |
+| Prefill/Decode | 2 | - | - | - | - | - | 0.0 | 0/6 | 0/0 | - |
+| Prefill/Decode | 4 | - | - | - | - | - | 0.0 | 0/12 | 0/0 | - |
+| Prefill/Decode | 8 | - | - | - | - | - | 0.0 | 0/24 | 0/0 | - |
+| Prefill/Decode | 16 | - | - | - | - | - | 0.0 | 0/48 | 0/0 | - |
+| Prefill/Decode | 32 | - | - | - | - | - | 0.0 | 0/96 | 0/0 | - |
+| Prefill/Decode | 64 | - | - | - | - | - | 0.0 | 0/192 | 0/0 | - |
+<!-- END QWEN RECOVERY FIVEWAY RESULTS -->
+
+<img src="images/mi300x-qwen-fiveway-recovery-performance-en.svg" width="980" alt="Recovery throughput, TTFT and E2E for all layouts, including failure markers">
+
+Original measurement chart from the [recovery request summary](data/mi300x-fiveway/qwen-fiveway-recovery_20261103/summary.json). Hollow points include failures; whiskers span three-round minima and maxima, not confidence intervals. Missing successful-request latency is not zero. Faster low-concurrency P/D does not offset later unavailability or represent an optimized RDMA implementation.
+
+<img src="images/mi300x-qwen-fiveway-recovery-resources-en.svg" width="980" alt="Two-node GPU utilization, per-card VRAM, GPU power and host CPU inside formal request windows">
+
+Original resource chart from the same summary and each layout's two-node resource JSONL. One-second samples are filtered to formal rounds, excluding loading, warm-up and between-stage idle time. The chart aggregates two nodes and 16 GPUs without filling missing values with zero. Host RAM and per-interface Ethernet/InfiniBand rates remain in the records. Host CPU includes the OS and sampler; GPU power is not whole-system energy or electricity cost. Systems reported synchronized clocks, but cross-host clock skew was not measured precisely.
+
+**Conclusion for this run.** PP was the only layout to complete every request for these two repeated inputs on the recorded stack, making it a reproduction starting point for the same scenario, not proof that it is fastest for all workloads. Recipe labels describe architectural trade-offs, not substitutes for completion and failure checks. Business quality, actual 32K inputs, sustained stability, automatic Spot recovery and optimized RDMA remain unverified. See [new measurements](#qwen-reproduce) and [validation](VALIDATION.md#qwen-fiveway-validation).
+
 ### Evidence boundaries
 
-Checked on 2026-11-01 (documents and configuration) and 2026-11-02 (MI300X run and tensor census). Five deployments were actually loaded on MI300X in this project and produced correct answers: the three BF16 originals — Nemotron 3 Ultra (1 node, 8 GPUs), Inkling (2 nodes, 16 GPUs, TP8 × PP2) and Muse Spark Open (2 nodes, 16 GPUs, TP8 × PP2, on the v0.33.0 image after two failed attempts) — and two MXFP4 emulation paths — Inkling (community Quark checkpoint, 8 GPUs) and Nemotron (BF16 quantized online, 8 GPUs); Muse's MXFP4 path was rejected by the model code in both attempts. Serving speed is covered only by order-of-magnitude probes (one short prompt, concurrency 1 and 8), while throughput distributions, quality regression, long-context stability and recovery remain **NOT_RUN** for every release. The three original NVFP4 releases (NVIDIA's Blackwell format, no AMD kernel) were not loaded as full models on any GPU, and the three partner FP8 releases were not loaded on any GPU. Source-reported benchmark scores from different projects are not combined into a comparison.
+The precision study checked documents/configuration on 2026-11-01 and MI300X loading/tensor headers on 2026-11-02. Five deployments then produced basic correct answers: the three original BF16 checkpoints and the Inkling/Nemotron MXFP4 emulation paths; Muse MXFP4 was rejected by its implementation. The 2026-11-03 and 2026-11-04 Muse layout measurements and the separate Qwen runs above have their own scope and are not described by the older concurrency-1/8 probes. None establishes business quality, real long-context behavior, production stability or fault recovery. Original NVFP4 full models and the three partner FP8 releases were not loaded on a GPU in this project; configuration evidence, component probes and full-model execution remain distinct.
 
 Nemotron's card discusses training recipes, weight exports and engine examples separately. Its prose mentions "NVFP4 KV caching" while concrete examples select FP8 cache; this guide follows the explicit parameters rather than treating the prose as a verified cache capability.
 
@@ -355,6 +878,7 @@ License applicability, precise per-tensor gaps, device-specific peak memory and 
 | Know how much weight each GPU holds and what is left for caches | The per-GPU budget table in [Resource accounting](#resource-accounting), data in [deployment-budget.json](data/deployment-budget.json) |
 | See what actually ran on MI300X | [MI300X run](#mi300x-run) on this page; error text and log excerpts per attempt in [Validation](VALIDATION.md#mi300x-run); raw requests, responses and log key lines in [data/mi300x-run/](data/mi300x-run/) |
 | Know whether 4-bit weights run on MI300X, how much memory they save and how slow they are | [MXFP4 low-precision path](#mxfp4-low-precision-path) on this page; actual argv, first answers, probe JSON and Muse's error text in [data/mi300x-mxfp4/](data/mi300x-mxfp4/) |
+| Compare parallel layouts and failure boundaries | [Muse: recipe page statements versus measurements](#muse-selectable), [why cross-node TP is slow despite InfiniBand](#muse-time-budget) and its [re-run steps](#muse-selectable-reproduce); the [earlier capped Muse run](#muse-fiveway-20261103); [Qwen initial phase](#qwen-fiveway), [complete recovery matrix](#qwen-recovery) and [new measurement steps](#qwen-reproduce) |
 | Reproduce it on MI300X yourself | The step table in [Reproduce the BF16 load and smoke test on MI300X](#reproduce-the-bf16-load-and-smoke-test-on-mi300x) and [scripts/mi300x/](scripts/mi300x/) |
 | Check how the repository's numbers were computed | The commands in [Recompute metadata without downloading weights](#recompute-metadata-without-downloading-weights); test semantics and unexecuted items in [Validation](VALIDATION.md) |
 | Know which conclusions have evidence and which do not | [Evidence boundaries](#evidence-boundaries) and the [current status table in Validation](VALIDATION.md#current-status) |
@@ -370,11 +894,12 @@ License applicability, precise per-tensor gaps, device-specific peak memory and 
 | `data/deployment-budget.json` | Input for the per-GPU budget table (GPU counts, HBM, sources) |
 | `data/mi300x-run/` | Public projection of the MI300X runs (run 1: Nemotron, Inkling PP2, Inkling DP2; run 2: Inkling PP2, Nemotron and Muse PP2, each with `08_perf.json` from the serving probe): raw requests/responses, memory JSON, log key lines, `summary.json`, SHA-256 of the private large files; `rccl_probe/` holds the key lines of the two cross-node RCCL probe variants (step 7) |
 | `data/mi300x-mxfp4/` | Public projection of run 3 (MXFP4): the Inkling and Nemotron MXFP4 deployments (`launch.json` actual argv, `first_response.json`, `08_perf.json`, log key lines), the error lines of Muse's two failed attempts, `summary.json`, SHA-256 of the private large files; also one NVFP4 single-expert kernel probe's `gpu_probe.json`, referenced only from the validation page |
+| `data/mi300x-fiveway/` | One directory per run, each with its own requests, launch settings, statistics, errors and resources: the 2026-11-04 Muse website-selectable run (`muse-selectable_20261104`, with two-node resource samples and inter-node rates), the 2026-11-03 capped Muse run, and the initial and recovery Qwen phases (all recovery layouts executed, failures kept) |
 | `data/visual-evidence.json` | Source, dimensions, hash and proof boundary of every figure |
-| `images/` | The NVIDIA official NVFP4 two-level-scaling figure; the original test-topology and parallel-layout figures generated by `tools/build_layout_figure.py`; `icons/` holds the unmodified Azure official icon. The old execution-path diagrams remain historical assets and are no longer used in the README |
-| `scripts/mi300x/` | MI300X reproduction scripts: node preparation, image pull, download, the three model launchers (`04_` Nemotron, `05_` Inkling, `08_` Muse), evidence collection, RCCL probe, serving-speed probe (`09_perf_probe.py`), `Dockerfile.muse-ray` |
-| `tools/` | `inspect.mjs` (metadata recomputation), `census.mjs` (census summary), `budget.mjs` (per-GPU budget), `tensor_census.py` (header read on a machine holding the weights), `mi300x_evidence.py` and `mxfp4_evidence.py` (public projection and summary of the BF16 and MXFP4 evidence), `build_layout_figure.py` (parallel-layout figure), `preview.ps1` (local render and diagram export) |
-| `tests/` | `inspect.test.mjs`, `census.test.mjs`, `mi300x.test.mjs`, `mxfp4.test.mjs`: 21 tests, run by [CI](https://github.com/david-xinyuwei/david-share/actions/workflows/large-moe-precision-guide-ci.yml) on every push |
+| `images/` | The NVIDIA official NVFP4 two-level-scaling figure; the original test-topology, parallel-layout and five-way topology, performance, resource and time-budget charts generated by `tools/build_layout_figure.py` (`mi300x-muse-selectable-*` for the 2026-11-04 run); `icons/` holds the unmodified Azure official icon. The old execution-path diagrams remain historical assets and are no longer used in the README |
+| `scripts/mi300x/` | MI300X reproduction scripts: node preparation, image pull, download, the three model launchers (`04_` Nemotron, `05_` Inkling, `08_` Muse), evidence collection, RCCL probe, serving-speed probe (`09_perf_probe.py`), `Dockerfile.muse-ray`; for the layout comparisons, the measurement driver (`10_measure_layout.sh`), the Qwen launcher (`11_`), the resource sampler (`12_resource_monitor.py`), the Mooncake probe and proxy (`13_`, `mooncake_connector_proxy.py`) and the two-node batch runner (`14_run_remaining_layouts.sh`) |
+| `tools/` | `inspect.mjs` (metadata recomputation), `census.mjs` (census summary), `budget.mjs` (per-GPU budget), `tensor_census.py` (header read on a machine holding the weights), `mi300x_evidence.py` and `mxfp4_evidence.py` (public projection and summary of the BF16 and MXFP4 evidence), `build_layout_figure.py` (parallel-layout, test-topology and five-way charts), `preview.ps1` (local render and diagram export) |
+| `tests/` | `inspect.test.mjs`, `census.test.mjs`, `mi300x.test.mjs`, `mxfp4.test.mjs`: 24 local tests pass; [CI](https://github.com/david-xinyuwei/david-share/actions/workflows/large-moe-precision-guide-ci.yml) is configured on push, but this update is not published |
 
 ## Steps
 
@@ -397,7 +922,7 @@ These are the scripts this project ran on 2026-11-02, in [scripts/mi300x/](scrip
 
 **Execution boundary.** These scripts were finalized while the two days of runs were in progress; the committed versions have not been replayed end to end, steps 1 through 10, on a fresh VM. The evidence kept in this repository comes from the individual runs made during that work. Two known pitfalls are recorded in the script comments: after a VM restart the NVMe RAID0 is gone and `01_preflight.sh` must run again, and containerd can start before its new store exists so that `docker pull` fails with a `metadata.db` error until `systemctl restart containerd docker`.
 
-| Order | Where | What | Script (exact commands in the block below) | Pass condition |
+| Order | Where | What | Script<br>(exact commands in the block below) | Pass condition |
 |---|---|---|---|---|
 | 1 | each node | Build the NVMe RAID0, move the Docker/containerd stores onto it, record ROCm/GPU/IB facts | `01_preflight.sh` | Log ends with `GPU_COUNT=8`, `NVME_FREE_GB` > 3000, Docker root on NVMe |
 | 2 | each node | Pull the vLLM ROCm image (about 30 GB) | `02_pull_image.sh` | `02_pull.log` ends with `PULL_EXIT=0` and `IMAGEID=sha256:e0ea9a10…` |
@@ -446,6 +971,165 @@ Hand a collected directory to `python3 tools/mi300x_evidence.py project <evidenc
 
 The two departures from the model cards that only appear on this ROCm image are written into the script comments: Nemotron disables AITER MoE and drops Mamba stochastic rounding; Inkling uses PP2 instead of the card's DP2 + EP16 and disables the FA4 warm-up. The exact error text, attempt order and reasoning for each are in [Validation](VALIDATION.md#mi300x-run).
 
+### Re-run the website-selectable Muse measurement
+
+<a id="muse-selectable-reproduce"></a>
+
+**Execution boundary.** These steps reuse the entry points that produced the 2026-11-04 run. That run was started through a private wrapper that set the same variables; the published sequence has not been replayed end to end on a fresh VM. Start from two MI300X nodes prepared with step 1 above (`01_preflight.sh`: NVMe RAID0, Docker and containerd on NVMe), a clone of this project on both, private networking between them, an SSH key and a verified host key from node 0 to node 1, and passwordless `sudo` on both. Shell is Bash; the working directory is this project's source root. None of these commands creates, stops or deallocates a VM.
+
+| Order | Where | What | Pass condition |
+|---|---|---|---|
+| 1 | Both nodes | Pull the pinned image by digest; download the Muse revision (gated repository: `HF_TOKEN` with the accepted licence) | Same image ID on both nodes; 65 shards present |
+| 2 | Both nodes | `init-fiveway` a new run directory from the published summary, with the same `RUN_ROOT` on both | `run.json` status `NOT_RUN`, its own table marker and figure names, no copied results |
+| 3 | Both nodes | Start `12_resource_monitor.py` for this run | `resources-node0.jsonl` / `resources-node1.jsonl` grow |
+| 4 | Node 0 | `14_run_remaining_layouts.sh` with `MODEL_FAMILY=muse` and `LAYOUTS=pp,tp,tep` | `batch-status.json` reaches `PASS`, or `COMPLETE_WITH_ERRORS` with every request recorded; one sealed archive per layout |
+| 5 | Both nodes | Stop the samplers, hash both JSONL files, copy node 1's resource files into node 0's run directory, then copy the directory to the control machine | Hashes match after copying |
+| 6 | Control machine | `project-fiveway` → tests → add a README region for the new run's marker → `render-fiveway` → figures | Only the new directory is analysed; this run's files stay unchanged |
+
+```bash
+# step 1, both nodes: pinned image and weights (gated repository: HF_TOKEN with the accepted Muse licence)
+export IMAGE=vllm/vllm-openai-rocm@sha256:4fcd39b758b660c4e9c345c021e2ea8f0ccdb31e3c32507d676cc3005ae83fba
+sudo docker pull "$IMAGE"
+. scripts/mi300x/00_env.sh
+bash scripts/mi300x/03_download.sh "$MUSE_ID" "$MUSE_REV"
+# step 2, both nodes, the same new ID
+export RUN_ID=muse-selectable-new
+export RUN_ROOT="$HOME/moe-run/evidence/$RUN_ID"
+python3 tools/mi300x_evidence.py init-fiveway "$RUN_ROOT" \
+  data/mi300x-fiveway/muse-selectable_20261104/summary.json
+# step 3, each node: NODE_ROLE=node0 on node 0, node1 on node 1
+export NODE_ROLE=node0
+sudo systemd-run --unit="muse-resources-$NODE_ROLE-$RUN_ID" \
+  --property="StandardOutput=append:$RUN_ROOT/resource-monitor.log" \
+  --property="StandardError=append:$RUN_ROOT/resource-monitor.log" \
+  /usr/bin/python3 "$RUN_ROOT/source/12_resource_monitor.py" "$RUN_ROOT/resources-$NODE_ROLE.jsonl" --interval 1
+# step 4, node 0; the runner reaches node 1 over SSH. Its default SSH_PORT is 33901, the test VMs' port; set your own
+sudo systemd-run --unit="muse-batch-$RUN_ID" --uid="$USER" --working-directory="$RUN_ROOT" \
+  --property="StandardOutput=append:$RUN_ROOT/batch.log" --property="StandardError=append:$RUN_ROOT/batch.log" \
+  --setenv=HOME="$HOME" --setenv=RUN_ROOT="$RUN_ROOT" \
+  --setenv=HEAD_IP=YOUR_NODE0_PRIVATE_IP --setenv=WORKER_IP=YOUR_NODE1_PRIVATE_IP \
+  --setenv=SSH_USER="$USER" --setenv=SSH_PORT=22 --setenv=KNOWN_HOSTS="$HOME/.ssh/known_hosts" \
+  --setenv=MODEL_FAMILY=muse --setenv=LAYOUTS=pp,tp,tep --setenv=IMAGE="$IMAGE" --setenv=GPU_UTIL=0.95 \
+  --setenv=CONCURRENCIES=1,2,4,8,16,32,64 --setenv=ROUNDS=3 \
+  --setenv=SHORT_MAX_TOKENS=8192 --setenv=GUIDE_MAX_TOKENS=16384 \
+  --setenv=MODEL_SNAPSHOT="$HF_CACHE/hub/models--meta-models--Muse-Spark-Open-816B-A42B/snapshots/$MUSE_REV" \
+  /bin/bash "$RUN_ROOT/source/14_run_remaining_layouts.sh"
+cat "$RUN_ROOT/batch-status.json"
+# step 5, each node after BATCH_COMPLETE appears in batch.log
+sudo systemctl stop "muse-resources-$NODE_ROLE-$RUN_ID"
+sha256sum "$RUN_ROOT/resources-$NODE_ROLE.jsonl" > "$RUN_ROOT/resources-$NODE_ROLE.sha256"
+# step 6, control machine, with node 1's resources-node1.* in the same RUN_ROOT
+python3 tools/mi300x_evidence.py project-fiveway "$RUN_ROOT"
+node --test tests/mi300x.test.mjs
+```
+
+`init-fiveway` copies the scripts and both inputs and gives the new run the table marker `FIVEWAY RESULTS <RUN_ID>` and figure names `mi300x-<RUN_ID>-*`. `render-fiveway` fails until a README region with that marker exists, so a new run cannot overwrite the 2026-11-04 tables or figures. `COMPLETE_WITH_ERRORS` means the sweep finished with request or collection errors; inspect the layout's `status.json` and logs before reading its numbers.
+
+Two node-level problems came up before this run started. After a Spot eviction and restart, one node's amdgpu driver stayed in initialization (`/sys/module/amdgpu/initstate` reported `coming` and the kernel log repeated `invalid pf2vf message size`); a guest restart of that VM cleared it. Check for `live` and eight gfx942 GPUs in `rocm-smi` before loading the model. After a guest restart (not a deallocation), the NVMe RAID array reassembles with its data but is not mounted: mount the existing XFS file system on `/mnt/nvme` and restart containerd and Docker; do not create or format the array again.
+
+### Start a new Qwen five-layout measurement
+
+<a id="qwen-reproduce"></a>
+
+**Execution boundary.** Start with two MI300X nodes whose drivers, Docker, private networking and NVMe model cache are already configured. Use Bash from this project's source root. These steps reuse the actual launch/measurement entry points; they do not create VMs, change permissions or power them off. Both nodes need the same `RUN_ID`, absolute `RUN_ROOT`, image and checkpoint revision. Never point a new run at published or historical evidence. All five layouts executed in recovery, but a fresh-VM end-to-end replay and automatic Spot recovery remain unverified.
+
+| Order | Where | Operation and entry point | Acceptance |
+|---|---|---|---|
+| 1 | Both nodes | Verify GPUs/drivers, networking, disk space and the pinned image; reuse a compatible existing environment | Record actual GPU count, versions and image IDs |
+| 2 | Both nodes | Download the pinned Qwen snapshot; initialize matching new run directories with current scripts and original inputs | Matching inputs/revision, `NOT_RUN`, no copied scores |
+| 3 | Both nodes | Start this run's `12_resource_monitor.py` | JSONL grows and contains eight cards, not estimated values |
+| 4 | Both nodes | Run `11_serve_qwen_fiveway.sh head/worker` sequentially for `tp`, `pp`, `tep`, `dp`, `pd` | Actual rank groups, loading, health and smoke; P/D also needs the official proxy |
+| 5 | Node 0 | Run `10_measure_layout.sh` for two inputs and seven concurrency levels | `PASS` or `COMPLETE_WITH_ERRORS` with complete request records; investigate the phase of `FAILED` |
+| 6 | Both nodes and control machine | Seal logs, stop this run's sampler, hash and return the same directory | Byte-verified originals; both nodes required for all-GPU resource statistics |
+| 7 | Control machine | `project-fiveway` -> tests -> `render-fiveway` -> figures | Analyze the new directory, preserve older runs, retain failures and gaps |
+
+**Pinned image and download.** Run on both nodes with Hugging Face CLI installed. Reuse an existing identical snapshot. The existing Dockerfile includes Ray, but this run explicitly uses `mp`.
+
+```bash
+export IMAGE=vllm-fiveway:0.33.0
+export HF_HOME=/mnt/nvme/hf
+docker image inspect --format '{{.Id}}' "$IMAGE" || docker build --network host \
+  --build-arg BASE=vllm/vllm-openai-rocm@sha256:4fcd39b758b660c4e9c345c021e2ea8f0ccdb31e3c32507d676cc3005ae83fba \
+  -t "$IMAGE" -f scripts/mi300x/Dockerfile.muse-ray scripts/mi300x
+hf download Qwen/Qwen3-235B-A22B-Instruct-2507 \
+  --revision ac9c66cc9b46af7306746a9250f23d47083d689e --cache-dir "$HF_HOME/hub"
+```
+
+**Initialize on each node using the same new ID.** Set your own private `HEAD_IP` and `WORKER_IP`. On node 1, set its own `NODE_IP` and `NODE_ROLE=node1`; these variables are not automatically discovered.
+
+```bash
+export RUN_ID=qwen-new-run
+export RUN_ROOT="$HOME/moe-run/evidence/$RUN_ID"
+export HEAD_IP=YOUR_NODE0_PRIVATE_IP
+export WORKER_IP=YOUR_NODE1_PRIVATE_IP
+export NODE_IP="$HEAD_IP"
+export NODE_ROLE=node0
+python3 tools/mi300x_evidence.py init-fiveway "$RUN_ROOT" \
+  data/mi300x-fiveway/qwen-fiveway_20261103-172600/summary.json
+sudo systemd-run --unit="qwen-resources-$NODE_ROLE-$RUN_ID" \
+  --property="StandardOutput=append:$RUN_ROOT/resource-monitor.log" \
+  --property="StandardError=append:$RUN_ROOT/resource-monitor.log" \
+  /usr/bin/python3 "$RUN_ROOT/source/12_resource_monitor.py" \
+  "$RUN_ROOT/resources-$NODE_ROLE.jsonl" --interval 1
+```
+
+**One layout at a time.** Set the same `LAYOUT` on both nodes. Node 0 passes `head`, node 1 passes `worker`. The launcher refuses to overwrite a same-name container; retain the current evidence before the operator stops this run's previous containers.
+
+```bash
+export LAYOUT=tp
+sudo env RUN_ROOT="$RUN_ROOT" LAYOUT="$LAYOUT" HEAD_IP="$HEAD_IP" \
+  NODE_IP="$NODE_IP" IMAGE="$IMAGE" \
+  bash "$RUN_ROOT/source/11_serve_qwen_fiveway.sh" head
+```
+
+For `LAYOUT=pd`, also start the official proxy on node 0. It waits for the pools; it does not expose its own `/health` endpoint.
+
+```bash
+sudo docker run -d --name qwen_fiveway_pd_proxy --network host \
+  -v "$RUN_ROOT:/run-evidence" -e PYTHONUNBUFFERED=1 \
+  --entrypoint /usr/bin/python3 "$IMAGE" /run-evidence/source/mooncake_connector_proxy.py \
+  --host 0.0.0.0 --port 8000 --prefill "http://$HEAD_IP:8001" 8998 \
+  --decode "http://$WORKER_IP:8002"
+```
+
+**Measure from node 0.** The branch selects the correct endpoint; it never turns a P/D failure into decode-side recomputation.
+
+```bash
+MEASURE_ENV=(--setenv="CONTAINER_NAME=qwen_fiveway_$LAYOUT")
+if [ "$LAYOUT" = pd ]; then
+  MEASURE_ENV=(--setenv=CONTAINER_NAME=qwen_fiveway_pd_proxy \
+    --setenv=MODEL_CONTAINER_NAME=qwen_fiveway_pd \
+    --setenv="HEALTH_URL=http://$WORKER_IP:8002/health" \
+    --setenv="METRICS_URL=http://$WORKER_IP:8002/metrics" \
+    --setenv="PREFILL_METRICS_URL=http://$HEAD_IP:8001/metrics" \
+    --setenv="READY_PATTERN=All prefiller instances are ready.")
+fi
+sudo systemd-run --unit="qwen-measure-$LAYOUT-$RUN_ID" \
+  --property="StandardOutput=append:$RUN_ROOT/$LAYOUT/measure.log" \
+  --property="StandardError=append:$RUN_ROOT/$LAYOUT/measure.log" \
+  --setenv="RUN_ROOT=$RUN_ROOT" --setenv="LAYOUT=$LAYOUT" \
+  --setenv=SERVED_MODEL=qwen-fiveway-bf16 --setenv=BASE_URL=http://127.0.0.1:8000 \
+  --setenv=CONCURRENCIES=1,2,4,8,16,32,64 --setenv=ROUNDS=3 \
+  --setenv=SHORT_MAX_TOKENS=512 --setenv=GUIDE_MAX_TOKENS=2048 \
+  "${MEASURE_ENV[@]}" /bin/bash "$RUN_ROOT/source/10_measure_layout.sh"
+cat "$RUN_ROOT/$LAYOUT/status.json"
+```
+
+`COMPLETE_WITH_ERRORS` means the sweep finished with request or collection errors, not deployment acceptance. The current collector atomically saves `IN_PROGRESS` checkpoints between rounds. Local process-termination behavior was tested, but this repair was added after Spot interruption: **it does not reconstruct this run's lost data and has not passed real Spot recovery acceptance**. Preserve partial files and use a new ID for further measurements. `RESUME=1` only continues complete saved inputs on the same container; `RESUME=evidence` only seals two already-complete reports without inference.
+
+**Seal and analyze.** Save `docker logs` and actual `docker inspect` commands on both nodes. Store node 1's log as the layout's `worker.log` and its command as `worker-launch.txt`. Stop the sampler, then hash its JSONL. Preserve relative paths when returning both nodes to one control-machine directory, verify original hashes first, and never overwrite differing evidence.
+
+```bash
+sudo systemctl stop "qwen-resources-$NODE_ROLE-$RUN_ID"
+sha256sum "$RUN_ROOT/resources-$NODE_ROLE.jsonl" > "$RUN_ROOT/resources-$NODE_ROLE.sha256"
+python3 tools/mi300x_evidence.py project-fiveway "$RUN_ROOT"
+node --test tests/mi300x.test.mjs
+python3 tools/mi300x_evidence.py render-fiveway "data/mi300x-fiveway/$RUN_ID/summary.json"
+python3 tools/build_layout_figure.py --fiveway "data/mi300x-fiveway/$RUN_ID/summary.json" --png
+```
+
+Run the final PNG command on a Windows control machine with Microsoft Edge; omit `--png` to produce SVG on Linux. Repository tests also check published fixtures. A fresh run is validated by `project-fiveway` against its own hashes, counts and records; a green old fixture does not validate new execution. VM start, release or rebuilding is a separate operator decision; none of these commands changes VM power.
+
 ### Recompute metadata without downloading weights
 
 Requires Node.js 20 or later. From a shell at this directory:
@@ -457,7 +1141,7 @@ node tools/budget.mjs --table
 node --test tests/inspect.test.mjs tests/census.test.mjs tests/mi300x.test.mjs tests/mxfp4.test.mjs
 ```
 
-The first command calculates tensor payload bytes from the six saved per-dtype inventories; the second summarizes the per-tensor header census of the two BF16 snapshots and cross-checks it against the API metadata; the third divides observed weight bytes across the publisher-listed GPU counts. The tests check matrix coverage, packed-byte accounting, explicit configuration gaps, failure handling, census-to-API byte parity, and that every MI300X number quoted on this page equals [data/mi300x-run/summary.json](data/mi300x-run/summary.json) (including the cross-node RCCL probe's 2.4 ms / 52.4 GB/s and the default-RDMA timeout, read from the probe's own result line), and that the parallel-layout figure draws exactly the TP/PP/EP sizes and per-GPU memory in that summary with the ledgered Azure icon, plus one layout guard: in both READMEs the per-GPU budget, MI300X result, serving-probe and reproduction-step tables keep their full column sets, and no table cell contains a code identifier split by `<br>` or an empty `<code>` tag; `mxfp4.test.mjs` then checks every run-3 MXFP4 number (weights per GPU, KV, first-answer token counts, TTFT, tok/s) against [data/mi300x-mxfp4/summary.json](data/mi300x-mxfp4/summary.json), that Muse's two rejection messages are present in the log key lines, and that neither README calls Muse MXFP4 passed (22 tests in total). None of these commands invokes a model or validates GPU requirements.
+The first command calculates tensor payload bytes from the six saved per-dtype inventories; the second summarizes the per-tensor header census of the two BF16 snapshots and cross-checks it against the API metadata; the third divides observed weight bytes across the publisher-listed GPU counts. The tests check matrix coverage, packed-byte accounting, explicit configuration gaps, failure handling, census-to-API byte parity, and that every MI300X number quoted on this page equals [data/mi300x-run/summary.json](data/mi300x-run/summary.json) (including the cross-node RCCL probe's 2.4 ms / 52.4 GB/s and the default-RDMA timeout, read from the probe's own result line), and that the parallel-layout figure draws exactly the TP/PP/EP sizes and per-GPU memory in that summary with the ledgered Azure icon, plus one layout guard: in both READMEs the per-GPU budget, MI300X result, serving-probe and reproduction-step tables keep their full column sets, and no table cell contains a code identifier split by `<br>` or an empty `<code>` tag; `mxfp4.test.mjs` then checks every run-3 MXFP4 number (weights per GPU, KV, first-answer token counts, TTFT, tok/s) against [data/mi300x-mxfp4/summary.json](data/mi300x-mxfp4/summary.json), that Muse's two rejection messages are present in the log key lines, and that neither README calls Muse MXFP4 passed (24 tests in total, including the five-way request, resource and comparison checks in `mi300x.test.mjs`). None of these commands invokes a model or validates GPU requirements.
 
 For current public metadata rather than replay:
 

@@ -52,17 +52,30 @@ MUSE_SERVE_IMAGE="${MUSE_SERVE_IMAGE:-vllm-muse-ray:0.33.0}"
 RANK=0; [ "$ROLE" = "worker" ] && RANK=1
 if [ "$LAYOUT" = "pp" ]; then
   PAR="--tensor-parallel-size 8 --pipeline-parallel-size 2 --distributed-executor-backend ray"
-  GPU_UTIL=0.92; EXTRA=""; ENV_LAYOUT=""
-else
+  GPU_UTIL="${GPU_UTIL:-0.92}"; EXTRA=""; ENV_LAYOUT=""
+  if [ "${PP_EXECUTOR:-ray}" = "mp" ]; then
+    PAR="--tensor-parallel-size 8 --pipeline-parallel-size 2 --distributed-executor-backend mp --nnodes 2 --node-rank $RANK --master-addr $HEAD_IP"
+    [ "$RANK" = 1 ] && PAR="$PAR --headless"
+    EXTRA="--enable-auto-tool-choice --tool-call-parser muse"
+    ENV_LAYOUT="-e NCCL_SOCKET_IFNAME=eth0 -e VLLM_USE_RUST_FRONTEND=0"
+  fi
+elif [ "$LAYOUT" = "tp" ] || [ "$LAYOUT" = "tep" ]; then
   # Recipe tab verbatim: TP16 + EP over the mp backend; rank 1 is headless (no API server, joins rank 0's process group).
-  PAR="--tensor-parallel-size 16 --enable-expert-parallel --distributed-executor-backend mp --nnodes 2 --node-rank $RANK --master-addr $HEAD_IP"
+  PAR="--tensor-parallel-size 16 --distributed-executor-backend mp --nnodes 2 --node-rank $RANK --master-addr $HEAD_IP"
+  [ "$LAYOUT" = "tep" ] && PAR="$PAR --enable-expert-parallel"
   [ "$RANK" = 1 ] && PAR="$PAR --headless"
-  GPU_UTIL=0.95; EXTRA="--enable-auto-tool-choice --tool-call-parser muse"
+  GPU_UTIL="${GPU_UTIL:-0.95}"; EXTRA="--enable-auto-tool-choice --tool-call-parser muse"
   ENV_LAYOUT="-e NCCL_SOCKET_IFNAME=eth0 -e VLLM_USE_RUST_FRONTEND=0"
+elif [ "$LAYOUT" = "dp" ]; then
+  PAR="--tensor-parallel-size 1 --enable-expert-parallel --data-parallel-size 16 --data-parallel-size-local 8 --data-parallel-start-rank $((RANK * 8)) --data-parallel-address $HEAD_IP --data-parallel-backend mp --data-parallel-hybrid-lb"
+  GPU_UTIL="${GPU_UTIL:-0.95}"; EXTRA="--enable-auto-tool-choice --tool-call-parser muse"
+  ENV_LAYOUT="-e NCCL_SOCKET_IFNAME=eth0 -e VLLM_USE_RUST_FRONTEND=0"
+else
+  echo "unsupported LAYOUT=$LAYOUT (expected tp, pp, tep, or dp)" >&2
+  exit 2
 fi
-LOG="$MOE_ROOT/logs/08_serve_muse_${ROLE}.log"
-docker rm -f vllm_muse >/dev/null 2>&1
-echo "SERVE_START=$(date -u +%FT%TZ) role=$ROLE rank=$RANK head=$HEAD_IP IMG=$MUSE_SERVE_IMAGE (base $MUSE_IMAGE) MID=$MUSE_ID REV=$MUSE_REV MAXLEN=$MAXLEN LAYOUT=$LAYOUT PAR=$PAR GPU_UTIL=$GPU_UTIL" | tee "$LOG"
+LOG="${LOG:-$MOE_ROOT/logs/08_serve_muse_${ROLE}.log}"
+CONTAINER_NAME="${CONTAINER_NAME:-vllm_muse}"
 ENV2="$DOCKER_COMMON --device /dev/infiniband --cap-add SYS_PTRACE \
   -e VLLM_ROCM_USE_AITER=1 -e VLLM_ROCM_MUSE_MOE_REDUCE_DTYPE=bf16 -e VLLM_USE_BREAKABLE_CUDAGRAPH=1 \
   -e NCCL_IB_HCA=^mlx5_8:1,mlx5_an0:1 -e NCCL_IB_PCI_RELAXED_ORDERING=1 -e NCCL_NET_GDR_LEVEL=${GDR_LEVEL:-0} -e GLOO_SOCKET_IFNAME=eth0 \
@@ -77,17 +90,23 @@ SERVE="vllm serve $MUSE_ID --revision $MUSE_REV --host 0.0.0.0 --port 8000 --ser
       --compilation-config '{\"cudagraph_mode\":\"FULL_AND_PIECEWISE\"}' \
       --kernel-config '{\"enable_jit_warmup\": false}' \
       --reasoning-parser muse $EXTRA --distributed-timeout-seconds 3600"
+if [ "${DRY_RUN:-0}" = "1" ]; then
+  printf 'LAYOUT=%s ROLE=%s CONTAINER=%s\n%s\n' "$LAYOUT" "$ROLE" "$CONTAINER_NAME" "$SERVE"
+  exit 0
+fi
+docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1
+echo "SERVE_START=$(date -u +%FT%TZ) role=$ROLE rank=$RANK head=$HEAD_IP IMG=$MUSE_SERVE_IMAGE (base $MUSE_IMAGE) MID=$MUSE_ID REV=$MUSE_REV MAXLEN=$MAXLEN LAYOUT=$LAYOUT PAR=$PAR GPU_UTIL=$GPU_UTIL" | tee "$LOG"
 # This image's ENTRYPOINT is /bin/bash (rocm/vllm's is an entry script), so the command is passed with -c.
-if [ "$LAYOUT" != "pp" ]; then
-  docker run -d --name vllm_muse $ENV2 --entrypoint /bin/bash "$MUSE_SERVE_IMAGE" -lc "$SERVE" >> "$LOG" 2>&1
+if [ "$LAYOUT" != "pp" ] || [ "${PP_EXECUTOR:-ray}" = "mp" ]; then
+  docker run -d --name "$CONTAINER_NAME" $ENV2 --entrypoint /bin/bash "$MUSE_SERVE_IMAGE" -lc "$SERVE" >> "$LOG" 2>&1
 elif [ "$ROLE" = "worker" ]; then
-  docker run -d --name vllm_muse $ENV2 --entrypoint /bin/bash "$MUSE_SERVE_IMAGE" -lc "ray start --address=$HEAD_IP:6379 --num-gpus=8 --block" >> "$LOG" 2>&1
+  docker run -d --name "$CONTAINER_NAME" $ENV2 --entrypoint /bin/bash "$MUSE_SERVE_IMAGE" -lc "ray start --address=$HEAD_IP:6379 --num-gpus=8 --block" >> "$LOG" 2>&1
 else
-  docker run -d --name vllm_muse $ENV2 --entrypoint /bin/bash "$MUSE_SERVE_IMAGE" -lc "
+  docker run -d --name "$CONTAINER_NAME" $ENV2 --entrypoint /bin/bash "$MUSE_SERVE_IMAGE" -lc "
     ray start --head --node-ip-address=$HEAD_IP --port=6379 --num-gpus=8 --dashboard-host=0.0.0.0 &&
     for i in \$(seq 1 60); do n=\$(ray status 2>/dev/null | grep -c 'node_'); [ \"\$n\" -ge 2 ] && break; sleep 5; done; ray status;
     $SERVE" >> "$LOG" 2>&1
 fi
-echo "CONTAINER=$(docker ps -q -f name=vllm_muse)" | tee -a "$LOG"
-nohup docker logs -f vllm_muse >> "$LOG" 2>&1 &
+  echo "CONTAINER=$(docker ps -q -f name="$CONTAINER_NAME")" | tee -a "$LOG"
+  nohup docker logs -f "$CONTAINER_NAME" >> "$LOG" 2>&1 &
 echo "FOLLOW_PID=$!" | tee -a "$LOG"

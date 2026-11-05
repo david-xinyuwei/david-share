@@ -1,0 +1,13 @@
+(Worker pid=655) INFO 11-04 06:45:43 [parallel_state.py:2385] rank 8 in world size 16 is assigned as DP rank 0, PP rank 1, PCP rank 0, TP rank 0, ETP rank 0, EP rank 0, EPLB rank N/A
+(Worker_PP1_TP0 pid=655) INFO 11-04 06:45:47 [rocm.py:803] Using ROCM_AITER_FA backend (selected via --attention-backend).
+(Worker_PP1_TP0 pid=655) INFO 11-04 06:45:47 [rocm.py:944] Using AITER Flash Attention backend for ViT model.
+(Worker_PP1_TP0 pid=655) INFO 11-04 06:46:08 [unquantized.py:530] Using MuseSparkTritonExperts MoE backend
+(Worker_PP1_TP1 pid=656) INFO 11-04 06:46:10 [model_runner.py:428] Model loading took 99.1 GiB memory and 23.580851 seconds
+(Worker_PP1_TP0 pid=655) INFO 11-04 06:46:10 [model_runner.py:428] Model loading took 99.1 GiB memory and 23.646062 seconds
+(Worker_PP1_TP2 pid=657) INFO 11-04 06:46:11 [model_runner.py:428] Model loading took 99.1 GiB memory and 24.669615 seconds
+(Worker_PP1_TP3 pid=659) INFO 11-04 06:46:11 [model_runner.py:428] Model loading took 99.1 GiB memory and 24.730369 seconds
+(Worker_PP1_TP7 pid=663) INFO 11-04 06:46:12 [model_runner.py:428] Model loading took 99.1 GiB memory and 24.898791 seconds
+(Worker_PP1_TP6 pid=662) INFO 11-04 06:46:13 [model_runner.py:428] Model loading took 99.1 GiB memory and 25.590223 seconds
+(Worker_PP1_TP4 pid=660) INFO 11-04 06:46:13 [model_runner.py:428] Model loading took 99.1 GiB memory and 25.774028 seconds
+(Worker_PP1_TP5 pid=661) INFO 11-04 06:46:13 [model_runner.py:428] Model loading took 99.1 GiB memory and 25.769920 seconds
+(Worker_PP1_TP0 pid=655) INFO 11-04 06:52:28 [gpu_worker.py:772] Available KV cache memory: 77.73 GiB

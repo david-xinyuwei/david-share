@@ -1,0 +1,18 @@
+(Worker pid=880) INFO 11-03 15:42:38 [cuda_communicator.py:353] Using ['CUSTOM', 'PYNCCL'] all-reduce backends (in dispatch order) for group 'tp:0' out of potential backends: ['FLASHINFER_PCIE_IPC', 'FLASHINFER', 'NCCL_SYMM_MEM', 'QUICK_REDUCE', 'AITER_CUSTOM', 'CUSTOM', 'SYMM_MEM', 'PYNCCL'].
+(Worker pid=880) INFO 11-03 15:42:39 [cuda_communicator.py:353] Using ['PYNCCL'] all-reduce backends (in dispatch order) for group 'pp:0' out of potential backends: ['FLASHINFER_PCIE_IPC', 'FLASHINFER', 'NCCL_SYMM_MEM', 'QUICK_REDUCE', 'AITER_CUSTOM', 'CUSTOM', 'SYMM_MEM', 'PYNCCL'].
+(Worker pid=880) INFO 11-03 15:42:40 [cuda_communicator.py:353] Using ['PYNCCL'] all-reduce backends (in dispatch order) for group 'ep:0' out of potential backends: ['FLASHINFER_PCIE_IPC', 'FLASHINFER', 'NCCL_SYMM_MEM', 'QUICK_REDUCE', 'AITER_CUSTOM', 'CUSTOM', 'SYMM_MEM', 'PYNCCL'].
+(Worker pid=880) INFO 11-03 15:42:40 [parallel_state.py:2385] rank 0 in world size 16 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, ETP rank 0, EP rank 0, EPLB rank N/A
+(Worker_PP0_TP0 pid=880) INFO 11-03 15:42:44 [rocm.py:803] Using TRITON_ATTN backend (selected via --attention-backend).
+(Worker_PP0_TP0 pid=880) INFO 11-03 15:42:44 [unquantized.py:294] Using TRITON Unquantized MoE backend out of potential backends: ['ROCm AITER', 'TRITON', 'BATCHED_TRITON'].
+(Worker_PP0_TP6 pid=888) INFO 11-03 15:42:59 [model_runner.py:428] Model loading took 27.67 GiB memory and 16.116152 seconds
+(Worker_PP0_TP4 pid=885) INFO 11-03 15:43:01 [model_runner.py:428] Model loading took 27.67 GiB memory and 17.465963 seconds
+(Worker_PP0_TP5 pid=889) INFO 11-03 15:43:01 [model_runner.py:428] Model loading took 27.67 GiB memory and 17.803979 seconds
+(Worker_PP0_TP7 pid=890) INFO 11-03 15:43:01 [model_runner.py:428] Model loading took 27.67 GiB memory and 18.459099 seconds
+(Worker_PP0_TP0 pid=880) INFO 11-03 15:43:04 [unquantized.py:530] Using TritonExperts MoE backend
+(Worker_PP0_TP2 pid=886) INFO 11-03 15:43:05 [model_runner.py:428] Model loading took 27.67 GiB memory and 21.575438 seconds
+(Worker_PP0_TP3 pid=887) INFO 11-03 15:43:05 [model_runner.py:428] Model loading took 27.67 GiB memory and 21.936707 seconds
+(Worker_PP0_TP0 pid=880) INFO 11-03 15:43:05 [model_runner.py:428] Model loading took 27.67 GiB memory and 22.231570 seconds
+(Worker_PP0_TP1 pid=882) INFO 11-03 15:43:06 [model_runner.py:428] Model loading took 27.67 GiB memory and 23.085417 seconds
+(Worker_PP0_TP0 pid=880) INFO 11-03 15:43:51 [gpu_worker.py:772] Available KV cache memory: 122.09 GiB
+(EngineCore pid=632) INFO 11-03 15:43:55 [kv_cache_utils.py:1147] GPU KV cache size: 5,347,936 tokens, Maximum concurrency for 32,768 tokens per request: 163.21x
+INFO:     Application startup complete.

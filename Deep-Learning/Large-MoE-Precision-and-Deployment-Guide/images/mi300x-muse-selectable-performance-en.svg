@@ -1,0 +1,619 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1960" height="1130" viewBox="0 0 1960 1130">
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#8764B8"/></marker></defs>
+<rect width="1960" height="1130" fill="#FFFFFF"/>
+<text x="28" y="48.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="32" fill="#201F1E" font-weight="600" text-anchor="start">Muse-Spark-Open-816B-A42B · 16 MI300X</text>
+<text x="28" y="90.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="22" fill="#605E5C" font-weight="normal" text-anchor="start">Throughput: median and min-max across 3 rounds; decode, TTFT and E2E: median of pooled successful requests</text>
+<line x1="36" y1="143" x2="101" y2="143" stroke="#0078D4" stroke-width="4"/>
+<text x="116" y="151.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="23" fill="#0078D4" font-weight="600" text-anchor="start">TP16</text>
+<line x1="406" y1="143" x2="471" y2="143" stroke="#107C10" stroke-width="4"/>
+<text x="486" y="151.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="23" fill="#107C10" font-weight="600" text-anchor="start">TP8 × PP2</text>
+<line x1="776" y1="143" x2="841" y2="143" stroke="#ED1C24" stroke-width="4"/>
+<text x="856" y="151.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="23" fill="#ED1C24" font-weight="600" text-anchor="start">TP16 + EP</text>
+<line x1="1146" y1="143" x2="1211" y2="143" stroke="#8764B8" stroke-width="4"/>
+<text x="1226" y="151.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="23" fill="#8764B8" font-weight="600" text-anchor="start">DP + EP · not run</text>
+<line x1="1516" y1="143" x2="1581" y2="143" stroke="#A05A00" stroke-width="4"/>
+<text x="1596" y="151.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="23" fill="#A05A00" font-weight="600" text-anchor="start">Prefill / Decode · not run</text>
+<text x="40.0" y="203.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="19" fill="#201F1E" font-weight="600" text-anchor="start">Short input · Decode per request (token/s)</text>
+<line x1="90.0" y1="523.0" x2="420.0" y2="523.0" stroke="#E1DFDD" stroke-width="1"/>
+<text x="76.0" y="530.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">0</text>
+<line x1="90.0" y1="456.75" x2="420.0" y2="456.75" stroke="#E1DFDD" stroke-width="1"/>
+<text x="76.0" y="463.8" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">24</text>
+<line x1="90.0" y1="390.5" x2="420.0" y2="390.5" stroke="#E1DFDD" stroke-width="1"/>
+<text x="76.0" y="397.5" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">48</text>
+<line x1="90.0" y1="324.25" x2="420.0" y2="324.25" stroke="#E1DFDD" stroke-width="1"/>
+<text x="76.0" y="331.2" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">72</text>
+<line x1="90.0" y1="258.0" x2="420.0" y2="258.0" stroke="#E1DFDD" stroke-width="1"/>
+<text x="76.0" y="265.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">96</text>
+<line x1="90.0" y1="258" x2="90.0" y2="523" stroke="#201F1E" stroke-width="1.5"/>
+<line x1="90.0" y1="523" x2="420.0" y2="523" stroke="#201F1E" stroke-width="1.5"/>
+<text x="125.0" y="558.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">1</text>
+<text x="168.33333333333334" y="558.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">2</text>
+<text x="211.66666666666669" y="558.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">4</text>
+<text x="255.0" y="558.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">8</text>
+<text x="298.33333333333337" y="558.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">16</text>
+<text x="341.66666666666663" y="558.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">32</text>
+<text x="385.0" y="558.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">64</text>
+<text x="255.0" y="595.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#201F1E" font-weight="normal" text-anchor="middle">Concurrent requests</text>
+<circle cx="125.00" cy="355.06" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="125.0" y1="355.0596353181288" x2="168.33333333333334" y2="378.46256854662374" stroke="#0078D4" stroke-width="3"/>
+<circle cx="168.33" cy="378.46" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="168.33333333333334" y1="378.46256854662374" x2="211.66666666666669" y2="394.8414522944725" stroke="#0078D4" stroke-width="3"/>
+<circle cx="211.67" cy="394.84" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="211.66666666666669" y1="394.8414522944725" x2="255.0" y2="419.5956213084346" stroke="#0078D4" stroke-width="3"/>
+<circle cx="255.00" cy="419.60" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="255.0" y1="419.5956213084346" x2="298.33333333333337" y2="435.6902345126712" stroke="#0078D4" stroke-width="3"/>
+<circle cx="298.33" cy="435.69" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="298.33333333333337" y1="435.6902345126712" x2="341.66666666666663" y2="452.0924834007053" stroke="#0078D4" stroke-width="3"/>
+<circle cx="341.67" cy="452.09" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="341.66666666666663" y1="452.0924834007053" x2="385.0" y2="455.56969459823955" stroke="#0078D4" stroke-width="3"/>
+<circle cx="385.00" cy="455.57" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<circle cx="125.00" cy="292.57" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="125.0" y1="292.5652173913043" x2="168.33333333333334" y2="322.0626802128167" stroke="#107C10" stroke-width="3"/>
+<circle cx="168.33" cy="322.06" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="168.33333333333334" y1="322.0626802128167" x2="211.66666666666669" y2="364.49980945756204" stroke="#107C10" stroke-width="3"/>
+<circle cx="211.67" cy="364.50" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="211.66666666666669" y1="364.49980945756204" x2="255.0" y2="399.39743898953543" stroke="#107C10" stroke-width="3"/>
+<circle cx="255.00" cy="399.40" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="255.0" y1="399.39743898953543" x2="298.33333333333337" y2="416.63644843375357" stroke="#107C10" stroke-width="3"/>
+<circle cx="298.33" cy="416.64" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="298.33333333333337" y1="416.63644843375357" x2="341.66666666666663" y2="422.86914830148953" stroke="#107C10" stroke-width="3"/>
+<circle cx="341.67" cy="422.87" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="341.66666666666663" y1="422.86914830148953" x2="385.0" y2="433.30060153000795" stroke="#107C10" stroke-width="3"/>
+<circle cx="385.00" cy="433.30" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<circle cx="125.00" cy="374.58" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="125.0" y1="374.58269922275747" x2="168.33333333333334" y2="384.6877008117265" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="168.33" cy="384.69" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="168.33333333333334" y1="384.6877008117265" x2="211.66666666666669" y2="398.42975744296587" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="211.67" cy="398.43" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="211.66666666666669" y1="398.42975744296587" x2="255.0" y2="421.5056219473929" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="255.00" cy="421.51" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="255.0" y1="421.5056219473929" x2="298.33333333333337" y2="439.14943505992017" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="298.33" cy="439.15" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="298.33333333333337" y1="439.14943505992017" x2="341.66666666666663" y2="452.90299317643803" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="341.67" cy="452.90" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="341.66666666666663" y1="452.90299317643803" x2="385.0" y2="456.2872500337653" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="385.00" cy="456.29" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<text x="520.0" y="203.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="19" fill="#201F1E" font-weight="600" text-anchor="start">Short input · Throughput (token/s)</text>
+<line x1="570.0" y1="523.0" x2="900.0" y2="523.0" stroke="#E1DFDD" stroke-width="1"/>
+<text x="556.0" y="530.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">0</text>
+<line x1="570.0" y1="456.75" x2="900.0" y2="456.75" stroke="#E1DFDD" stroke-width="1"/>
+<text x="556.0" y="463.8" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">266</text>
+<line x1="570.0" y1="390.5" x2="900.0" y2="390.5" stroke="#E1DFDD" stroke-width="1"/>
+<text x="556.0" y="397.5" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">533</text>
+<line x1="570.0" y1="324.25" x2="900.0" y2="324.25" stroke="#E1DFDD" stroke-width="1"/>
+<text x="556.0" y="331.2" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">799</text>
+<line x1="570.0" y1="258.0" x2="900.0" y2="258.0" stroke="#E1DFDD" stroke-width="1"/>
+<text x="556.0" y="265.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">1,066</text>
+<line x1="570.0" y1="258" x2="570.0" y2="523" stroke="#201F1E" stroke-width="1.5"/>
+<line x1="570.0" y1="523" x2="900.0" y2="523" stroke="#201F1E" stroke-width="1.5"/>
+<text x="605.0" y="558.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">1</text>
+<text x="648.3333333333334" y="558.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">2</text>
+<text x="691.6666666666666" y="558.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">4</text>
+<text x="735.0" y="558.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">8</text>
+<text x="778.3333333333334" y="558.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">16</text>
+<text x="821.6666666666666" y="558.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">32</text>
+<text x="865.0" y="558.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">64</text>
+<text x="735.0" y="595.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#201F1E" font-weight="normal" text-anchor="middle">Concurrent requests</text>
+<line x1="605.0" y1="507.9627649132234" x2="605.0" y2="507.9600458371881" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="600.0" y1="507.9627649132234" x2="610.0" y2="507.9627649132234" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="600.0" y1="507.9600458371881" x2="610.0" y2="507.9600458371881" stroke="#0078D4" stroke-width="1.5"/>
+<circle cx="605.00" cy="507.96" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="648.3333333333334" y1="500.11314465329053" x2="648.3333333333334" y2="499.095950568282" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="643.3333333333334" y1="500.11314465329053" x2="653.3333333333334" y2="500.11314465329053" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="643.3333333333334" y1="499.095950568282" x2="653.3333333333334" y2="499.095950568282" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="605.0" y1="507.96275578192024" x2="648.3333333333334" y2="499.47887529695015" stroke="#0078D4" stroke-width="3"/>
+<circle cx="648.33" cy="499.48" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="691.6666666666666" y1="480.24611080826685" x2="691.6666666666666" y2="480.2198083912955" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="686.6666666666666" y1="480.24611080826685" x2="696.6666666666666" y2="480.24611080826685" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="686.6666666666666" y1="480.2198083912955" x2="696.6666666666666" y2="480.2198083912955" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="648.3333333333334" y1="499.47887529695015" x2="691.6666666666666" y2="480.2411573664434" stroke="#0078D4" stroke-width="3"/>
+<circle cx="691.67" cy="480.24" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="735.0" y1="458.8456017499851" x2="735.0" y2="457.7892655063516" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="730.0" y1="458.8456017499851" x2="740.0" y2="458.8456017499851" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="730.0" y1="457.7892655063516" x2="740.0" y2="457.7892655063516" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="691.6666666666666" y1="480.2411573664434" x2="735.0" y2="457.8342613583962" stroke="#0078D4" stroke-width="3"/>
+<circle cx="735.00" cy="457.83" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="778.3333333333334" y1="419.07100729047863" x2="778.3333333333334" y2="415.38099110163876" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="773.3333333333334" y1="419.07100729047863" x2="783.3333333333334" y2="419.07100729047863" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="773.3333333333334" y1="415.38099110163876" x2="783.3333333333334" y2="415.38099110163876" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="735.0" y1="457.8342613583962" x2="778.3333333333334" y2="415.4333092240249" stroke="#0078D4" stroke-width="3"/>
+<circle cx="778.33" cy="415.43" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="821.6666666666666" y1="350.767618619045" x2="821.6666666666666" y2="350.20153796702425" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="816.6666666666666" y1="350.767618619045" x2="826.6666666666666" y2="350.767618619045" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="816.6666666666666" y1="350.20153796702425" x2="826.6666666666666" y2="350.20153796702425" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="778.3333333333334" y1="415.4333092240249" x2="821.6666666666666" y2="350.2227272661599" stroke="#0078D4" stroke-width="3"/>
+<circle cx="821.67" cy="350.22" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="865.0" y1="350.6893109838359" x2="865.0" y2="350.647319312421" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="860.0" y1="350.6893109838359" x2="870.0" y2="350.6893109838359" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="860.0" y1="350.647319312421" x2="870.0" y2="350.647319312421" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="821.6666666666666" y1="350.2227272661599" x2="865.0" y2="350.6827378701761" stroke="#0078D4" stroke-width="3"/>
+<circle cx="865.00" cy="350.68" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="605.0" y1="502.42497622621937" x2="605.0" y2="502.4199454463886" stroke="#107C10" stroke-width="1.5"/>
+<line x1="600.0" y1="502.42497622621937" x2="610.0" y2="502.42497622621937" stroke="#107C10" stroke-width="1.5"/>
+<line x1="600.0" y1="502.4199454463886" x2="610.0" y2="502.4199454463886" stroke="#107C10" stroke-width="1.5"/>
+<circle cx="605.00" cy="502.42" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="648.3333333333334" y1="491.2348875040717" x2="648.3333333333334" y2="487.21204312512396" stroke="#107C10" stroke-width="1.5"/>
+<line x1="643.3333333333334" y1="491.2348875040717" x2="653.3333333333334" y2="491.2348875040717" stroke="#107C10" stroke-width="1.5"/>
+<line x1="643.3333333333334" y1="487.21204312512396" x2="653.3333333333334" y2="487.21204312512396" stroke="#107C10" stroke-width="1.5"/>
+<line x1="605.0" y1="502.42389761326297" x2="648.3333333333334" y2="487.2187254071305" stroke="#107C10" stroke-width="3"/>
+<circle cx="648.33" cy="487.22" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="691.6666666666666" y1="467.8014212839346" x2="691.6666666666666" y2="467.705490044807" stroke="#107C10" stroke-width="1.5"/>
+<line x1="686.6666666666666" y1="467.8014212839346" x2="696.6666666666666" y2="467.8014212839346" stroke="#107C10" stroke-width="1.5"/>
+<line x1="686.6666666666666" y1="467.705490044807" x2="696.6666666666666" y2="467.705490044807" stroke="#107C10" stroke-width="1.5"/>
+<line x1="648.3333333333334" y1="487.2187254071305" x2="691.6666666666666" y2="467.7693987907692" stroke="#107C10" stroke-width="3"/>
+<circle cx="691.67" cy="467.77" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="735.0" y1="447.1063070983098" x2="735.0" y2="442.6399649837339" stroke="#107C10" stroke-width="1.5"/>
+<line x1="730.0" y1="447.1063070983098" x2="740.0" y2="447.1063070983098" stroke="#107C10" stroke-width="1.5"/>
+<line x1="730.0" y1="442.6399649837339" x2="740.0" y2="442.6399649837339" stroke="#107C10" stroke-width="1.5"/>
+<line x1="691.6666666666666" y1="467.7693987907692" x2="735.0" y2="447.01080140795807" stroke="#107C10" stroke-width="3"/>
+<circle cx="735.00" cy="447.01" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="778.3333333333334" y1="397.30988207113194" x2="778.3333333333334" y2="394.5780243187529" stroke="#107C10" stroke-width="1.5"/>
+<line x1="773.3333333333334" y1="397.30988207113194" x2="783.3333333333334" y2="397.30988207113194" stroke="#107C10" stroke-width="1.5"/>
+<line x1="773.3333333333334" y1="394.5780243187529" x2="783.3333333333334" y2="394.5780243187529" stroke="#107C10" stroke-width="1.5"/>
+<line x1="735.0" y1="447.01080140795807" x2="778.3333333333334" y2="397.2480862872541" stroke="#107C10" stroke-width="3"/>
+<circle cx="778.33" cy="397.25" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="821.6666666666666" y1="300.4833727633123" x2="821.6666666666666" y2="292.5652173913044" stroke="#107C10" stroke-width="1.5"/>
+<line x1="816.6666666666666" y1="300.4833727633123" x2="826.6666666666666" y2="300.4833727633123" stroke="#107C10" stroke-width="1.5"/>
+<line x1="816.6666666666666" y1="292.5652173913044" x2="826.6666666666666" y2="292.5652173913044" stroke="#107C10" stroke-width="1.5"/>
+<line x1="778.3333333333334" y1="397.2480862872541" x2="821.6666666666666" y2="292.6797138422986" stroke="#107C10" stroke-width="3"/>
+<circle cx="821.67" cy="292.68" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="865.0" y1="313.5156331532726" x2="865.0" y2="298.1457673340354" stroke="#107C10" stroke-width="1.5"/>
+<line x1="860.0" y1="313.5156331532726" x2="870.0" y2="313.5156331532726" stroke="#107C10" stroke-width="1.5"/>
+<line x1="860.0" y1="298.1457673340354" x2="870.0" y2="298.1457673340354" stroke="#107C10" stroke-width="1.5"/>
+<line x1="821.6666666666666" y1="292.6797138422986" x2="865.0" y2="299.10042144865787" stroke="#107C10" stroke-width="3"/>
+<circle cx="865.00" cy="299.10" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="605.0" y1="509.7032072228657" x2="605.0" y2="509.68304435871573" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="600.0" y1="509.7032072228657" x2="610.0" y2="509.7032072228657" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="600.0" y1="509.68304435871573" x2="610.0" y2="509.68304435871573" stroke="#ED1C24" stroke-width="1.5"/>
+<circle cx="605.00" cy="509.70" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="648.3333333333334" y1="499.43243146838995" x2="648.3333333333334" y2="498.7574367678069" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="643.3333333333334" y1="499.43243146838995" x2="653.3333333333334" y2="499.43243146838995" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="643.3333333333334" y1="498.7574367678069" x2="653.3333333333334" y2="498.7574367678069" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="605.0" y1="509.69958542071527" x2="648.3333333333334" y2="499.30849127675197" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="648.33" cy="499.31" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="691.6666666666666" y1="482.23437403747266" x2="691.6666666666666" y2="480.19899235470587" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="686.6666666666666" y1="482.23437403747266" x2="696.6666666666666" y2="482.23437403747266" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="686.6666666666666" y1="480.19899235470587" x2="696.6666666666666" y2="480.19899235470587" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="648.3333333333334" y1="499.30849127675197" x2="691.6666666666666" y2="480.20745238673726" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="691.67" cy="480.21" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="735.0" y1="460.17550540397417" x2="735.0" y2="459.0672548735463" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="730.0" y1="460.17550540397417" x2="740.0" y2="460.17550540397417" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="730.0" y1="459.0672548735463" x2="740.0" y2="459.0672548735463" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="691.6666666666666" y1="480.20745238673726" x2="735.0" y2="459.08579472872054" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="735.00" cy="459.09" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="778.3333333333334" y1="440.8754675890156" x2="778.3333333333334" y2="440.0196755661523" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="773.3333333333334" y1="440.8754675890156" x2="783.3333333333334" y2="440.8754675890156" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="773.3333333333334" y1="440.0196755661523" x2="783.3333333333334" y2="440.0196755661523" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="735.0" y1="459.08579472872054" x2="778.3333333333334" y2="440.0277988905889" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="778.33" cy="440.03" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="821.6666666666666" y1="365.53996312500084" x2="821.6666666666666" y2="363.13987450922457" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="816.6666666666666" y1="365.53996312500084" x2="826.6666666666666" y2="365.53996312500084" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="816.6666666666666" y1="363.13987450922457" x2="826.6666666666666" y2="363.13987450922457" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="778.3333333333334" y1="440.0277988905889" x2="821.6666666666666" y2="363.4047486075868" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="821.67" cy="363.40" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="865.0" y1="354.86320667807814" x2="865.0" y2="354.8048041941794" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="860.0" y1="354.86320667807814" x2="870.0" y2="354.86320667807814" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="860.0" y1="354.8048041941794" x2="870.0" y2="354.8048041941794" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="821.6666666666666" y1="363.4047486075868" x2="865.0" y2="354.81835397381167" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="865.00" cy="354.82" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<text x="1000.0" y="203.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="19" fill="#201F1E" font-weight="600" text-anchor="start">Short input · Median TTFT (ms, log scale)</text>
+<line x1="1050.0" y1="523.0" x2="1380.0" y2="523.0" stroke="#E1DFDD" stroke-width="1"/>
+<text x="1036.0" y="530.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">100</text>
+<line x1="1050.0" y1="434.6666666666667" x2="1380.0" y2="434.6666666666667" stroke="#E1DFDD" stroke-width="1"/>
+<text x="1036.0" y="441.7" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">1,000</text>
+<line x1="1050.0" y1="346.33333333333337" x2="1380.0" y2="346.33333333333337" stroke="#E1DFDD" stroke-width="1"/>
+<text x="1036.0" y="353.3" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">10,000</text>
+<line x1="1050.0" y1="258.0" x2="1380.0" y2="258.0" stroke="#E1DFDD" stroke-width="1"/>
+<text x="1036.0" y="265.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">100,000</text>
+<line x1="1050.0" y1="258" x2="1050.0" y2="523" stroke="#201F1E" stroke-width="1.5"/>
+<line x1="1050.0" y1="523" x2="1380.0" y2="523" stroke="#201F1E" stroke-width="1.5"/>
+<text x="1085.0" y="558.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">1</text>
+<text x="1128.3333333333333" y="558.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">2</text>
+<text x="1171.6666666666667" y="558.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">4</text>
+<text x="1215.0" y="558.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">8</text>
+<text x="1258.3333333333333" y="558.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">16</text>
+<text x="1301.6666666666667" y="558.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">32</text>
+<text x="1345.0" y="558.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">64</text>
+<text x="1215.0" y="595.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#201F1E" font-weight="normal" text-anchor="middle">Concurrent requests</text>
+<circle cx="1085.00" cy="493.74" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="1085.0" y1="493.7351401696758" x2="1128.3333333333333" y2="471.04348617639016" stroke="#0078D4" stroke-width="3"/>
+<circle cx="1128.33" cy="471.04" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="1128.3333333333333" y1="471.04348617639016" x2="1171.6666666666667" y2="467.1522535350937" stroke="#0078D4" stroke-width="3"/>
+<circle cx="1171.67" cy="467.15" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="1171.6666666666667" y1="467.1522535350937" x2="1215.0" y2="460.1757764170816" stroke="#0078D4" stroke-width="3"/>
+<circle cx="1215.00" cy="460.18" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="1215.0" y1="460.1757764170816" x2="1258.3333333333333" y2="446.3717651099928" stroke="#0078D4" stroke-width="3"/>
+<circle cx="1258.33" cy="446.37" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="1258.3333333333333" y1="446.3717651099928" x2="1301.6666666666667" y2="427.6240098041303" stroke="#0078D4" stroke-width="3"/>
+<circle cx="1301.67" cy="427.62" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="1301.6666666666667" y1="427.6240098041303" x2="1345.0" y2="317.6740684745022" stroke="#0078D4" stroke-width="3"/>
+<circle cx="1345.00" cy="317.67" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<circle cx="1085.00" cy="497.20" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="1085.0" y1="497.19639514520344" x2="1128.3333333333333" y2="484.19623347996315" stroke="#107C10" stroke-width="3"/>
+<circle cx="1128.33" cy="484.20" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="1128.3333333333333" y1="484.19623347996315" x2="1171.6666666666667" y2="464.46042433151814" stroke="#107C10" stroke-width="3"/>
+<circle cx="1171.67" cy="464.46" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="1171.6666666666667" y1="464.46042433151814" x2="1215.0" y2="463.11937699054545" stroke="#107C10" stroke-width="3"/>
+<circle cx="1215.00" cy="463.12" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="1215.0" y1="463.11937699054545" x2="1258.3333333333333" y2="457.71195713433724" stroke="#107C10" stroke-width="3"/>
+<circle cx="1258.33" cy="457.71" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="1258.3333333333333" y1="457.71195713433724" x2="1301.6666666666667" y2="448.9073647692776" stroke="#107C10" stroke-width="3"/>
+<circle cx="1301.67" cy="448.91" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="1301.6666666666667" y1="448.9073647692776" x2="1345.0" y2="333.39997570463134" stroke="#107C10" stroke-width="3"/>
+<circle cx="1345.00" cy="333.40" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<circle cx="1085.00" cy="492.45" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="1085.0" y1="492.4549330041641" x2="1128.3333333333333" y2="471.8230777906393" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="1128.33" cy="471.82" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="1128.3333333333333" y1="471.8230777906393" x2="1171.6666666666667" y2="469.17103250016106" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="1171.67" cy="469.17" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="1171.6666666666667" y1="469.17103250016106" x2="1215.0" y2="467.15938161809584" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="1215.00" cy="467.16" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="1215.0" y1="467.15938161809584" x2="1258.3333333333333" y2="455.004815274814" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="1258.33" cy="455.00" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="1258.3333333333333" y1="455.004815274814" x2="1301.6666666666667" y2="437.9408584532856" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="1301.67" cy="437.94" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="1301.6666666666667" y1="437.9408584532856" x2="1345.0" y2="315.92951582435103" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="1345.00" cy="315.93" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<text x="1480.0" y="203.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="19" fill="#201F1E" font-weight="600" text-anchor="start">Short input · Median E2E (s)</text>
+<line x1="1530.0" y1="523.0" x2="1860.0" y2="523.0" stroke="#E1DFDD" stroke-width="1"/>
+<text x="1516.0" y="530.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">0</text>
+<line x1="1530.0" y1="456.75" x2="1860.0" y2="456.75" stroke="#E1DFDD" stroke-width="1"/>
+<text x="1516.0" y="463.8" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">25</text>
+<line x1="1530.0" y1="390.5" x2="1860.0" y2="390.5" stroke="#E1DFDD" stroke-width="1"/>
+<text x="1516.0" y="397.5" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">50</text>
+<line x1="1530.0" y1="324.25" x2="1860.0" y2="324.25" stroke="#E1DFDD" stroke-width="1"/>
+<text x="1516.0" y="331.2" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">75</text>
+<line x1="1530.0" y1="258.0" x2="1860.0" y2="258.0" stroke="#E1DFDD" stroke-width="1"/>
+<text x="1516.0" y="265.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">100</text>
+<line x1="1530.0" y1="258" x2="1530.0" y2="523" stroke="#201F1E" stroke-width="1.5"/>
+<line x1="1530.0" y1="523" x2="1860.0" y2="523" stroke="#201F1E" stroke-width="1.5"/>
+<text x="1565.0" y="558.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">1</text>
+<text x="1608.3333333333333" y="558.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">2</text>
+<text x="1651.6666666666667" y="558.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">4</text>
+<text x="1695.0" y="558.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">8</text>
+<text x="1738.3333333333333" y="558.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">16</text>
+<text x="1781.6666666666667" y="558.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">32</text>
+<text x="1825.0" y="558.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">64</text>
+<text x="1695.0" y="595.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#201F1E" font-weight="normal" text-anchor="middle">Concurrent requests</text>
+<circle cx="1565.00" cy="462.69" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="1565.0" y1="462.6852809368834" x2="1608.3333333333333" y2="462.542880660372" stroke="#0078D4" stroke-width="3"/>
+<circle cx="1608.33" cy="462.54" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="1608.3333333333333" y1="462.542880660372" x2="1651.6666666666667" y2="440.8653073406489" stroke="#0078D4" stroke-width="3"/>
+<circle cx="1651.67" cy="440.87" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="1651.6666666666667" y1="440.8653073406489" x2="1695.0" y2="423.8539432681093" stroke="#0078D4" stroke-width="3"/>
+<circle cx="1695.00" cy="423.85" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="1695.0" y1="423.8539432681093" x2="1738.3333333333333" y2="413.0858808620702" stroke="#0078D4" stroke-width="3"/>
+<circle cx="1738.33" cy="413.09" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="1738.3333333333333" y1="413.0858808620702" x2="1781.6666666666667" y2="385.7562220941621" stroke="#0078D4" stroke-width="3"/>
+<circle cx="1781.67" cy="385.76" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="1781.6666666666667" y1="385.7562220941621" x2="1825.0" y2="292.5652173913043" stroke="#0078D4" stroke-width="3"/>
+<circle cx="1825.00" cy="292.57" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<circle cx="1565.00" cy="480.96" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="1565.0" y1="480.962602893836" x2="1608.3333333333333" y2="474.6659298033368" stroke="#107C10" stroke-width="3"/>
+<circle cx="1608.33" cy="474.67" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="1608.3333333333333" y1="474.6659298033368" x2="1651.6666666666667" y2="463.01370581410504" stroke="#107C10" stroke-width="3"/>
+<circle cx="1651.67" cy="463.01" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="1651.6666666666667" y1="463.01370581410504" x2="1695.0" y2="445.92516806307344" stroke="#107C10" stroke-width="3"/>
+<circle cx="1695.00" cy="445.93" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="1695.0" y1="445.92516806307344" x2="1738.3333333333333" y2="432.0923429063048" stroke="#107C10" stroke-width="3"/>
+<circle cx="1738.33" cy="432.09" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="1738.3333333333333" y1="432.0923429063048" x2="1781.6666666666667" y2="422.55753585906984" stroke="#107C10" stroke-width="3"/>
+<circle cx="1781.67" cy="422.56" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="1781.6666666666667" y1="422.55753585906984" x2="1825.0" y2="364.3611104394581" stroke="#107C10" stroke-width="3"/>
+<circle cx="1825.00" cy="364.36" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<circle cx="1565.00" cy="456.04" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="1565.0" y1="456.04266053978813" x2="1608.3333333333333" y2="449.5157944998135" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="1608.33" cy="449.52" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="1608.3333333333333" y1="449.5157944998135" x2="1651.6666666666667" y2="440.64716926716426" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="1651.67" cy="440.65" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="1651.6666666666667" y1="440.64716926716426" x2="1695.0" y2="424.953065500983" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="1695.00" cy="424.95" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="1695.0" y1="424.953065500983" x2="1738.3333333333333" y2="404.412111992982" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="1738.33" cy="404.41" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="1738.3333333333333" y1="404.412111992982" x2="1781.6666666666667" y2="386.0256015112767" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="1781.67" cy="386.03" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="1781.6666666666667" y1="386.0256015112767" x2="1825.0" y2="292.90553335987454" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="1825.00" cy="292.91" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<text x="40.0" y="635.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="19" fill="#201F1E" font-weight="600" text-anchor="start">Guide input · Decode per request (token/s)</text>
+<line x1="90.0" y1="955.0" x2="420.0" y2="955.0" stroke="#E1DFDD" stroke-width="1"/>
+<text x="76.0" y="962.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">0</text>
+<line x1="90.0" y1="888.75" x2="420.0" y2="888.75" stroke="#E1DFDD" stroke-width="1"/>
+<text x="76.0" y="895.8" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">24</text>
+<line x1="90.0" y1="822.5" x2="420.0" y2="822.5" stroke="#E1DFDD" stroke-width="1"/>
+<text x="76.0" y="829.5" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">48</text>
+<line x1="90.0" y1="756.25" x2="420.0" y2="756.25" stroke="#E1DFDD" stroke-width="1"/>
+<text x="76.0" y="763.2" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">72</text>
+<line x1="90.0" y1="690.0" x2="420.0" y2="690.0" stroke="#E1DFDD" stroke-width="1"/>
+<text x="76.0" y="697.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">96</text>
+<line x1="90.0" y1="690" x2="90.0" y2="955" stroke="#201F1E" stroke-width="1.5"/>
+<line x1="90.0" y1="955" x2="420.0" y2="955" stroke="#201F1E" stroke-width="1.5"/>
+<text x="125.0" y="990.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">1</text>
+<text x="168.33333333333334" y="990.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">2</text>
+<text x="211.66666666666669" y="990.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">4</text>
+<text x="255.0" y="990.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">8</text>
+<text x="298.33333333333337" y="990.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">16</text>
+<text x="341.66666666666663" y="990.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">32</text>
+<text x="385.0" y="990.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">64</text>
+<text x="255.0" y="1027.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#201F1E" font-weight="normal" text-anchor="middle">Concurrent requests</text>
+<circle cx="125.00" cy="786.76" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="125.0" y1="786.7644210384567" x2="168.33333333333334" y2="810.608421397495" stroke="#0078D4" stroke-width="3"/>
+<circle cx="168.33" cy="810.61" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="168.33333333333334" y1="810.608421397495" x2="211.66666666666669" y2="826.3436050205082" stroke="#0078D4" stroke-width="3"/>
+<circle cx="211.67" cy="826.34" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="211.66666666666669" y1="826.3436050205082" x2="255.0" y2="850.7962641269671" stroke="#0078D4" stroke-width="3"/>
+<circle cx="255.00" cy="850.80" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="255.0" y1="850.7962641269671" x2="298.33333333333337" y2="869.5499923970751" stroke="#0078D4" stroke-width="3"/>
+<circle cx="298.33" cy="869.55" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="298.33333333333337" y1="869.5499923970751" x2="341.66666666666663" y2="885.1816194082753" stroke="#0078D4" stroke-width="3"/>
+<circle cx="341.67" cy="885.18" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="341.66666666666663" y1="885.1816194082753" x2="385.0" y2="886.8852510701837" stroke="#0078D4" stroke-width="3"/>
+<circle cx="385.00" cy="886.89" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<circle cx="125.00" cy="724.57" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="125.0" y1="724.5652173913044" x2="168.33333333333334" y2="754.2696379245933" stroke="#107C10" stroke-width="3"/>
+<circle cx="168.33" cy="754.27" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="168.33333333333334" y1="754.2696379245933" x2="211.66666666666669" y2="793.1760507407807" stroke="#107C10" stroke-width="3"/>
+<circle cx="211.67" cy="793.18" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="211.66666666666669" y1="793.1760507407807" x2="255.0" y2="832.0852484034947" stroke="#107C10" stroke-width="3"/>
+<circle cx="255.00" cy="832.09" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="255.0" y1="832.0852484034947" x2="298.33333333333337" y2="857.1335499889583" stroke="#107C10" stroke-width="3"/>
+<circle cx="298.33" cy="857.13" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="298.33333333333337" y1="857.1335499889583" x2="341.66666666666663" y2="868.698093914534" stroke="#107C10" stroke-width="3"/>
+<circle cx="341.67" cy="868.70" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="341.66666666666663" y1="868.698093914534" x2="385.0" y2="871.5642590973061" stroke="#107C10" stroke-width="3"/>
+<circle cx="385.00" cy="871.56" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<circle cx="125.00" cy="806.52" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="125.0" y1="806.5170603739717" x2="168.33333333333334" y2="816.4420298124247" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="168.33" cy="816.44" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="168.33333333333334" y1="816.4420298124247" x2="211.66666666666669" y2="831.368695609481" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="211.67" cy="831.37" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="211.66666666666669" y1="831.368695609481" x2="255.0" y2="854.4821518299598" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="255.00" cy="854.48" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="255.0" y1="854.4821518299598" x2="298.33333333333337" y2="873.4972730621516" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="298.33" cy="873.50" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="298.33333333333337" y1="873.4972730621516" x2="341.66666666666663" y2="886.1234056785461" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="341.67" cy="886.12" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="341.66666666666663" y1="886.1234056785461" x2="385.0" y2="887.4076120647061" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="385.00" cy="887.41" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<text x="520.0" y="635.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="19" fill="#201F1E" font-weight="600" text-anchor="start">Guide input · Throughput (token/s)</text>
+<line x1="570.0" y1="955.0" x2="900.0" y2="955.0" stroke="#E1DFDD" stroke-width="1"/>
+<text x="556.0" y="962.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">0</text>
+<line x1="570.0" y1="888.75" x2="900.0" y2="888.75" stroke="#E1DFDD" stroke-width="1"/>
+<text x="556.0" y="895.8" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">214</text>
+<line x1="570.0" y1="822.5" x2="900.0" y2="822.5" stroke="#E1DFDD" stroke-width="1"/>
+<text x="556.0" y="829.5" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">428</text>
+<line x1="570.0" y1="756.25" x2="900.0" y2="756.25" stroke="#E1DFDD" stroke-width="1"/>
+<text x="556.0" y="763.2" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">642</text>
+<line x1="570.0" y1="690.0" x2="900.0" y2="690.0" stroke="#E1DFDD" stroke-width="1"/>
+<text x="556.0" y="697.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">856</text>
+<line x1="570.0" y1="690" x2="570.0" y2="955" stroke="#201F1E" stroke-width="1.5"/>
+<line x1="570.0" y1="955" x2="900.0" y2="955" stroke="#201F1E" stroke-width="1.5"/>
+<text x="605.0" y="990.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">1</text>
+<text x="648.3333333333334" y="990.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">2</text>
+<text x="691.6666666666666" y="990.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">4</text>
+<text x="735.0" y="990.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">8</text>
+<text x="778.3333333333334" y="990.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">16</text>
+<text x="821.6666666666666" y="990.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">32</text>
+<text x="865.0" y="990.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">64</text>
+<text x="735.0" y="1027.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#201F1E" font-weight="normal" text-anchor="middle">Concurrent requests</text>
+<line x1="605.0" y1="936.2245548956329" x2="605.0" y2="936.1892742468523" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="600.0" y1="936.2245548956329" x2="610.0" y2="936.2245548956329" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="600.0" y1="936.1892742468523" x2="610.0" y2="936.1892742468523" stroke="#0078D4" stroke-width="1.5"/>
+<circle cx="605.00" cy="936.20" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="648.3333333333334" y1="924.8504315459049" x2="648.3333333333334" y2="924.839823100077" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="643.3333333333334" y1="924.8504315459049" x2="653.3333333333334" y2="924.8504315459049" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="643.3333333333334" y1="924.839823100077" x2="653.3333333333334" y2="924.839823100077" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="605.0" y1="936.2042500549654" x2="648.3333333333334" y2="924.8439356456322" stroke="#0078D4" stroke-width="3"/>
+<circle cx="648.33" cy="924.84" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="691.6666666666666" y1="904.2968345529174" x2="691.6666666666666" y2="904.2555653447355" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="686.6666666666666" y1="904.2968345529174" x2="696.6666666666666" y2="904.2968345529174" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="686.6666666666666" y1="904.2555653447355" x2="696.6666666666666" y2="904.2555653447355" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="648.3333333333334" y1="924.8439356456322" x2="691.6666666666666" y2="904.2605170251659" stroke="#0078D4" stroke-width="3"/>
+<circle cx="691.67" cy="904.26" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="735.0" y1="872.5992979214827" x2="735.0" y2="872.5102888860974" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="730.0" y1="872.5992979214827" x2="740.0" y2="872.5992979214827" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="730.0" y1="872.5102888860974" x2="740.0" y2="872.5102888860974" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="691.6666666666666" y1="904.2605170251659" x2="735.0" y2="872.5817896402792" stroke="#0078D4" stroke-width="3"/>
+<circle cx="735.00" cy="872.58" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="778.3333333333334" y1="880.6738849248471" x2="778.3333333333334" y2="821.1740250213272" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="773.3333333333334" y1="880.6738849248471" x2="783.3333333333334" y2="880.6738849248471" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="773.3333333333334" y1="821.1740250213272" x2="783.3333333333334" y2="821.1740250213272" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="735.0" y1="872.5817896402792" x2="778.3333333333334" y2="821.1969476110962" stroke="#0078D4" stroke-width="3"/>
+<circle cx="778.33" cy="821.20" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="821.6666666666666" y1="781.6123904261344" x2="821.6666666666666" y2="781.274770271236" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="816.6666666666666" y1="781.6123904261344" x2="826.6666666666666" y2="781.6123904261344" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="816.6666666666666" y1="781.274770271236" x2="826.6666666666666" y2="781.274770271236" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="778.3333333333334" y1="821.1969476110962" x2="821.6666666666666" y2="781.5478687564707" stroke="#0078D4" stroke-width="3"/>
+<circle cx="821.67" cy="781.55" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="865.0" y1="741.7195931268889" x2="865.0" y2="741.6022734881988" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="860.0" y1="741.7195931268889" x2="870.0" y2="741.7195931268889" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="860.0" y1="741.6022734881988" x2="870.0" y2="741.6022734881988" stroke="#0078D4" stroke-width="1.5"/>
+<line x1="821.6666666666666" y1="781.5478687564707" x2="865.0" y2="741.6415364369896" stroke="#0078D4" stroke-width="3"/>
+<circle cx="865.00" cy="741.64" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="605.0" y1="929.2864401564715" x2="605.0" y2="929.2823299151848" stroke="#107C10" stroke-width="1.5"/>
+<line x1="600.0" y1="929.2864401564715" x2="610.0" y2="929.2864401564715" stroke="#107C10" stroke-width="1.5"/>
+<line x1="600.0" y1="929.2823299151848" x2="610.0" y2="929.2823299151848" stroke="#107C10" stroke-width="1.5"/>
+<circle cx="605.00" cy="929.28" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="648.3333333333334" y1="916.4652319848298" x2="648.3333333333334" y2="910.2408679590528" stroke="#107C10" stroke-width="1.5"/>
+<line x1="643.3333333333334" y1="916.4652319848298" x2="653.3333333333334" y2="916.4652319848298" stroke="#107C10" stroke-width="1.5"/>
+<line x1="643.3333333333334" y1="910.2408679590528" x2="653.3333333333334" y2="910.2408679590528" stroke="#107C10" stroke-width="1.5"/>
+<line x1="605.0" y1="929.2840422488466" x2="648.3333333333334" y2="910.2430514255667" stroke="#107C10" stroke-width="3"/>
+<circle cx="648.33" cy="910.24" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="691.6666666666666" y1="888.4417716354009" x2="691.6666666666666" y2="887.9857741737483" stroke="#107C10" stroke-width="1.5"/>
+<line x1="686.6666666666666" y1="888.4417716354009" x2="696.6666666666666" y2="888.4417716354009" stroke="#107C10" stroke-width="1.5"/>
+<line x1="686.6666666666666" y1="887.9857741737483" x2="696.6666666666666" y2="887.9857741737483" stroke="#107C10" stroke-width="1.5"/>
+<line x1="648.3333333333334" y1="910.2430514255667" x2="691.6666666666666" y2="888.400559055623" stroke="#107C10" stroke-width="3"/>
+<circle cx="691.67" cy="888.40" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="735.0" y1="895.9278173521836" x2="735.0" y2="852.2108836297393" stroke="#107C10" stroke-width="1.5"/>
+<line x1="730.0" y1="895.9278173521836" x2="740.0" y2="895.9278173521836" stroke="#107C10" stroke-width="1.5"/>
+<line x1="730.0" y1="852.2108836297393" x2="740.0" y2="852.2108836297393" stroke="#107C10" stroke-width="1.5"/>
+<line x1="691.6666666666666" y1="888.400559055623" x2="735.0" y2="895.1514118578707" stroke="#107C10" stroke-width="3"/>
+<circle cx="735.00" cy="895.15" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="778.3333333333334" y1="808.1793035128876" x2="778.3333333333334" y2="769.2178769816326" stroke="#107C10" stroke-width="1.5"/>
+<line x1="773.3333333333334" y1="808.1793035128876" x2="783.3333333333334" y2="808.1793035128876" stroke="#107C10" stroke-width="1.5"/>
+<line x1="773.3333333333334" y1="769.2178769816326" x2="783.3333333333334" y2="769.2178769816326" stroke="#107C10" stroke-width="1.5"/>
+<line x1="735.0" y1="895.1514118578707" x2="778.3333333333334" y2="804.4842049070581" stroke="#107C10" stroke-width="3"/>
+<circle cx="778.33" cy="804.48" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="821.6666666666666" y1="793.0025014255687" x2="821.6666666666666" y2="790.2959424011613" stroke="#107C10" stroke-width="1.5"/>
+<line x1="816.6666666666666" y1="793.0025014255687" x2="826.6666666666666" y2="793.0025014255687" stroke="#107C10" stroke-width="1.5"/>
+<line x1="816.6666666666666" y1="790.2959424011613" x2="826.6666666666666" y2="790.2959424011613" stroke="#107C10" stroke-width="1.5"/>
+<line x1="778.3333333333334" y1="804.4842049070581" x2="821.6666666666666" y2="792.9063501839579" stroke="#107C10" stroke-width="3"/>
+<circle cx="821.67" cy="792.91" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="865.0" y1="724.598219354963" x2="865.0" y2="724.5652173913044" stroke="#107C10" stroke-width="1.5"/>
+<line x1="860.0" y1="724.598219354963" x2="870.0" y2="724.598219354963" stroke="#107C10" stroke-width="1.5"/>
+<line x1="860.0" y1="724.5652173913044" x2="870.0" y2="724.5652173913044" stroke="#107C10" stroke-width="1.5"/>
+<line x1="821.6666666666666" y1="792.9063501839579" x2="865.0" y2="724.5731714031024" stroke="#107C10" stroke-width="3"/>
+<circle cx="865.00" cy="724.57" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="605.0" y1="938.4135793607724" x2="605.0" y2="938.4046678597468" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="600.0" y1="938.4135793607724" x2="610.0" y2="938.4135793607724" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="600.0" y1="938.4046678597468" x2="610.0" y2="938.4046678597468" stroke="#ED1C24" stroke-width="1.5"/>
+<circle cx="605.00" cy="938.40" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="648.3333333333334" y1="926.7642685305851" x2="648.3333333333334" y2="926.7272112956648" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="643.3333333333334" y1="926.7642685305851" x2="653.3333333333334" y2="926.7642685305851" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="643.3333333333334" y1="926.7272112956648" x2="653.3333333333334" y2="926.7272112956648" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="605.0" y1="938.4048737604288" x2="648.3333333333334" y2="926.7552768696103" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="648.33" cy="926.76" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="691.6666666666666" y1="901.9385445340372" x2="691.6666666666666" y2="901.8602782060284" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="686.6666666666666" y1="901.9385445340372" x2="696.6666666666666" y2="901.9385445340372" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="686.6666666666666" y1="901.8602782060284" x2="696.6666666666666" y2="901.8602782060284" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="648.3333333333334" y1="926.7552768696103" x2="691.6666666666666" y2="901.9327669899842" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="691.67" cy="901.93" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="735.0" y1="881.7772191916217" x2="735.0" y2="881.723937594486" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="730.0" y1="881.7772191916217" x2="740.0" y2="881.7772191916217" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="730.0" y1="881.723937594486" x2="740.0" y2="881.723937594486" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="691.6666666666666" y1="901.9327669899842" x2="735.0" y2="881.7607244391827" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="735.00" cy="881.76" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="778.3333333333334" y1="826.568284007813" x2="778.3333333333334" y2="826.4858174654468" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="773.3333333333334" y1="826.568284007813" x2="783.3333333333334" y2="826.568284007813" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="773.3333333333334" y1="826.4858174654468" x2="783.3333333333334" y2="826.4858174654468" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="735.0" y1="881.7607244391827" x2="778.3333333333334" y2="826.5448300751816" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="778.33" cy="826.54" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="821.6666666666666" y1="842.1474193959948" x2="821.6666666666666" y2="841.9380907901605" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="816.6666666666666" y1="842.1474193959948" x2="826.6666666666666" y2="842.1474193959948" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="816.6666666666666" y1="841.9380907901605" x2="826.6666666666666" y2="841.9380907901605" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="778.3333333333334" y1="826.5448300751816" x2="821.6666666666666" y2="842.0462271940432" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="821.67" cy="842.05" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="865.0" y1="784.5253534129383" x2="865.0" y2="784.383241764475" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="860.0" y1="784.5253534129383" x2="870.0" y2="784.5253534129383" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="860.0" y1="784.383241764475" x2="870.0" y2="784.383241764475" stroke="#ED1C24" stroke-width="1.5"/>
+<line x1="821.6666666666666" y1="842.0462271940432" x2="865.0" y2="784.3910516125969" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="865.00" cy="784.39" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<text x="1000.0" y="635.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="19" fill="#201F1E" font-weight="600" text-anchor="start">Guide input · Median TTFT (ms, log scale)</text>
+<line x1="1050.0" y1="955.0" x2="1380.0" y2="955.0" stroke="#E1DFDD" stroke-width="1"/>
+<text x="1036.0" y="962.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">100</text>
+<line x1="1050.0" y1="866.6666666666667" x2="1380.0" y2="866.6666666666667" stroke="#E1DFDD" stroke-width="1"/>
+<text x="1036.0" y="873.7" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">1,000</text>
+<line x1="1050.0" y1="778.3333333333334" x2="1380.0" y2="778.3333333333334" stroke="#E1DFDD" stroke-width="1"/>
+<text x="1036.0" y="785.3" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">10,000</text>
+<line x1="1050.0" y1="690.0" x2="1380.0" y2="690.0" stroke="#E1DFDD" stroke-width="1"/>
+<text x="1036.0" y="697.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">100,000</text>
+<line x1="1050.0" y1="690" x2="1050.0" y2="955" stroke="#201F1E" stroke-width="1.5"/>
+<line x1="1050.0" y1="955" x2="1380.0" y2="955" stroke="#201F1E" stroke-width="1.5"/>
+<text x="1085.0" y="990.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">1</text>
+<text x="1128.3333333333333" y="990.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">2</text>
+<text x="1171.6666666666667" y="990.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">4</text>
+<text x="1215.0" y="990.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">8</text>
+<text x="1258.3333333333333" y="990.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">16</text>
+<text x="1301.6666666666667" y="990.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">32</text>
+<text x="1345.0" y="990.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">64</text>
+<text x="1215.0" y="1027.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#201F1E" font-weight="normal" text-anchor="middle">Concurrent requests</text>
+<circle cx="1085.00" cy="921.27" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="1085.0" y1="921.2697102980269" x2="1128.3333333333333" y2="898.0121407497714" stroke="#0078D4" stroke-width="3"/>
+<circle cx="1128.33" cy="898.01" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="1128.3333333333333" y1="898.0121407497714" x2="1171.6666666666667" y2="881.3837606655719" stroke="#0078D4" stroke-width="3"/>
+<circle cx="1171.67" cy="881.38" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="1171.6666666666667" y1="881.3837606655719" x2="1215.0" y2="859.9979485450449" stroke="#0078D4" stroke-width="3"/>
+<circle cx="1215.00" cy="860.00" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="1215.0" y1="859.9979485450449" x2="1258.3333333333333" y2="836.6167307213996" stroke="#0078D4" stroke-width="3"/>
+<circle cx="1258.33" cy="836.62" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="1258.3333333333333" y1="836.6167307213996" x2="1301.6666666666667" y2="812.589273138982" stroke="#0078D4" stroke-width="3"/>
+<circle cx="1301.67" cy="812.59" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="1301.6666666666667" y1="812.589273138982" x2="1345.0" y2="704.1177938058895" stroke="#0078D4" stroke-width="3"/>
+<circle cx="1345.00" cy="704.12" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<circle cx="1085.00" cy="924.58" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="1085.0" y1="924.5785257426023" x2="1128.3333333333333" y2="911.166691232165" stroke="#107C10" stroke-width="3"/>
+<circle cx="1128.33" cy="911.17" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="1128.3333333333333" y1="911.166691232165" x2="1171.6666666666667" y2="892.6891742321146" stroke="#107C10" stroke-width="3"/>
+<circle cx="1171.67" cy="892.69" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="1171.6666666666667" y1="892.6891742321146" x2="1215.0" y2="880.0586530379006" stroke="#107C10" stroke-width="3"/>
+<circle cx="1215.00" cy="880.06" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="1215.0" y1="880.0586530379006" x2="1258.3333333333333" y2="864.7543019442955" stroke="#107C10" stroke-width="3"/>
+<circle cx="1258.33" cy="864.75" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="1258.3333333333333" y1="864.7543019442955" x2="1301.6666666666667" y2="848.3773820994433" stroke="#107C10" stroke-width="3"/>
+<circle cx="1301.67" cy="848.38" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="1301.6666666666667" y1="848.3773820994433" x2="1345.0" y2="712.2537755630738" stroke="#107C10" stroke-width="3"/>
+<circle cx="1345.00" cy="712.25" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<circle cx="1085.00" cy="924.15" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="1085.0" y1="924.1521409295722" x2="1128.3333333333333" y2="903.1739278184929" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="1128.33" cy="903.17" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="1128.3333333333333" y1="903.1739278184929" x2="1171.6666666666667" y2="891.0745565522482" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="1171.67" cy="891.07" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="1171.6666666666667" y1="891.0745565522482" x2="1215.0" y2="871.2397545148705" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="1215.00" cy="871.24" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="1215.0" y1="871.2397545148705" x2="1258.3333333333333" y2="850.9621454923333" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="1258.33" cy="850.96" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="1258.3333333333333" y1="850.9621454923333" x2="1301.6666666666667" y2="827.7136765546238" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="1301.67" cy="827.71" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="1301.6666666666667" y1="827.7136765546238" x2="1345.0" y2="700.4080100732754" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="1345.00" cy="700.41" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<text x="1480.0" y="635.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="19" fill="#201F1E" font-weight="600" text-anchor="start">Guide input · Median E2E (s)</text>
+<line x1="1530.0" y1="955.0" x2="1860.0" y2="955.0" stroke="#E1DFDD" stroke-width="1"/>
+<text x="1516.0" y="962.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">0</text>
+<line x1="1530.0" y1="888.75" x2="1860.0" y2="888.75" stroke="#E1DFDD" stroke-width="1"/>
+<text x="1516.0" y="895.8" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">90</text>
+<line x1="1530.0" y1="822.5" x2="1860.0" y2="822.5" stroke="#E1DFDD" stroke-width="1"/>
+<text x="1516.0" y="829.5" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">180</text>
+<line x1="1530.0" y1="756.25" x2="1860.0" y2="756.25" stroke="#E1DFDD" stroke-width="1"/>
+<text x="1516.0" y="763.2" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">270</text>
+<line x1="1530.0" y1="690.0" x2="1860.0" y2="690.0" stroke="#E1DFDD" stroke-width="1"/>
+<text x="1516.0" y="697.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="18" fill="#605E5C" font-weight="normal" text-anchor="end">360</text>
+<line x1="1530.0" y1="690" x2="1530.0" y2="955" stroke="#201F1E" stroke-width="1.5"/>
+<line x1="1530.0" y1="955" x2="1860.0" y2="955" stroke="#201F1E" stroke-width="1.5"/>
+<text x="1565.0" y="990.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">1</text>
+<text x="1608.3333333333333" y="990.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">2</text>
+<text x="1651.6666666666667" y="990.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">4</text>
+<text x="1695.0" y="990.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">8</text>
+<text x="1738.3333333333333" y="990.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">16</text>
+<text x="1781.6666666666667" y="990.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">32</text>
+<text x="1825.0" y="990.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#201F1E" font-weight="normal" text-anchor="middle">64</text>
+<text x="1695.0" y="1027.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#201F1E" font-weight="normal" text-anchor="middle">Concurrent requests</text>
+<circle cx="1565.00" cy="897.12" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="1565.0" y1="897.119467308841" x2="1608.3333333333333" y2="886.0216145486645" stroke="#0078D4" stroke-width="3"/>
+<circle cx="1608.33" cy="886.02" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="1608.3333333333333" y1="886.0216145486645" x2="1651.6666666666667" y2="893.0494963283477" stroke="#0078D4" stroke-width="3"/>
+<circle cx="1651.67" cy="893.05" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="1651.6666666666667" y1="893.0494963283477" x2="1695.0" y2="867.7420092271146" stroke="#0078D4" stroke-width="3"/>
+<circle cx="1695.00" cy="867.74" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="1695.0" y1="867.7420092271146" x2="1738.3333333333333" y2="851.5751159345511" stroke="#0078D4" stroke-width="3"/>
+<circle cx="1738.33" cy="851.58" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="1738.3333333333333" y1="851.5751159345511" x2="1781.6666666666667" y2="829.010960935561" stroke="#0078D4" stroke-width="3"/>
+<circle cx="1781.67" cy="829.01" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<line x1="1781.6666666666667" y1="829.010960935561" x2="1825.0" y2="730.6939744241324" stroke="#0078D4" stroke-width="3"/>
+<circle cx="1825.00" cy="730.69" r="6" fill="#0078D4" stroke="#0078D4" stroke-width="2"/>
+<circle cx="1565.00" cy="915.91" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="1565.0" y1="915.9079021574598" x2="1608.3333333333333" y2="910.0813138683166" stroke="#107C10" stroke-width="3"/>
+<circle cx="1608.33" cy="910.08" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="1608.3333333333333" y1="910.0813138683166" x2="1651.6666666666667" y2="899.7424677127476" stroke="#107C10" stroke-width="3"/>
+<circle cx="1651.67" cy="899.74" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="1651.6666666666667" y1="899.7424677127476" x2="1695.0" y2="879.5528327838449" stroke="#107C10" stroke-width="3"/>
+<circle cx="1695.00" cy="879.55" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="1695.0" y1="879.5528327838449" x2="1738.3333333333333" y2="864.6171862242428" stroke="#107C10" stroke-width="3"/>
+<circle cx="1738.33" cy="864.62" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="1738.3333333333333" y1="864.6171862242428" x2="1781.6666666666667" y2="847.1944933212803" stroke="#107C10" stroke-width="3"/>
+<circle cx="1781.67" cy="847.19" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<line x1="1781.6666666666667" y1="847.1944933212803" x2="1825.0" y2="764.0153148162059" stroke="#107C10" stroke-width="3"/>
+<circle cx="1825.00" cy="764.02" r="6" fill="#107C10" stroke="#107C10" stroke-width="2"/>
+<circle cx="1565.00" cy="893.26" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="1565.0" y1="893.2567889859471" x2="1608.3333333333333" y2="878.0497533821073" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="1608.33" cy="878.05" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="1608.3333333333333" y1="878.0497533821073" x2="1651.6666666666667" y2="881.3408484075392" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="1651.67" cy="881.34" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="1651.6666666666667" y1="881.3408484075392" x2="1695.0" y2="872.4365302939965" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="1695.00" cy="872.44" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="1695.0" y1="872.4365302939965" x2="1738.3333333333333" y2="846.0463556687064" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="1738.33" cy="846.05" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="1738.3333333333333" y1="846.0463556687064" x2="1781.6666666666667" y2="827.6324949471118" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="1781.67" cy="827.63" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<line x1="1781.6666666666667" y1="827.6324949471118" x2="1825.0" y2="724.5652173913044" stroke="#ED1C24" stroke-width="3"/>
+<circle cx="1825.00" cy="724.57" r="6" fill="#ED1C24" stroke="#ED1C24" stroke-width="2"/>
+<text x="28" y="1097.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#605E5C" font-weight="normal" text-anchor="start">Hollow points include failures. Missing successful-request latency is not zero; zero throughput means no successful output. See tables for counts and P95.</text>
+</svg>

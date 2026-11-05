@@ -17,9 +17,12 @@ import argparse
 import base64
 import hashlib
 import json
+import math
+import statistics
 import struct
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from xml.sax.saxutils import escape
 
@@ -467,15 +470,19 @@ def render_png(svg_path: Path, png_path: Path, scale: int = PNG_SCALE) -> None:
                     f'img{{display:block;width:{W}px;height:{H}px}}</style></head><body><img src="{svg_path.name}"></body></html>',
                     encoding="utf-8")
     try:
-        cmd = [edge_path(), "--headless=new", "--disable-gpu", "--hide-scrollbars", "--no-first-run", "--no-default-browser-check",
-               f"--force-device-scale-factor={scale}", f"--window-size={W},{H}", f"--screenshot={png_path}",
-               "--virtual-time-budget=4000", html.as_uri()]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
-        if result.returncode or not png_path.exists():
-            raise RuntimeError(f"Edge screenshot failed ({result.returncode}): {(result.stderr or result.stdout).strip()[:400]}")
-        size = png_size(png_path)
-        if size != (W * scale, H * scale):
-            raise RuntimeError(f"unexpected PNG size {size} for {png_path.name}")
+        with tempfile.TemporaryDirectory(prefix="moe-figure-edge-") as temporary:
+            candidate = Path(temporary) / "render.png"
+            cmd = [edge_path(), "--headless=new", "--disable-gpu", "--hide-scrollbars", "--no-first-run", "--no-default-browser-check",
+                   f"--user-data-dir={Path(temporary) / 'profile'}",
+                   f"--force-device-scale-factor={scale}", f"--window-size={W},{H}", f"--screenshot={candidate}",
+                   "--virtual-time-budget=4000", html.as_uri()]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            if result.returncode or not candidate.exists():
+                raise RuntimeError(f"Edge screenshot failed ({result.returncode}): {(result.stderr or result.stdout).strip()[:400]}")
+            size = png_size(candidate)
+            if size != (W * scale, H * scale):
+                raise RuntimeError(f"unexpected PNG size {size} for {png_path.name}")
+            png_path.write_bytes(candidate.read_bytes())
     finally:
         html.unlink(missing_ok=True)
 
@@ -519,12 +526,437 @@ def figure_entries(svgs: dict[str, str], png: bool) -> list[dict]:
     return entries
 
 
+def draw_fiveway_topology(lang: str, summary: dict, icon: str) -> Svg:
+    chinese = lang == "zh"
+    figure = Svg(icon, arrow_color=AZURE_BLUE)
+    figure.text(28, 52, "五种并行策略：同一双节点 GPU 预算" if chinese else "Five parallel strategies: the same two-node GPU budget", 32, weight="600")
+    scope = summary["scope"]
+    subtitle = f"{scope['model'].split('/')[-1]} · BF16 · {scope['nodes']} nodes × {scope['gpus_per_node']} MI300X · vLLM {summary['conditions']['vllm_version']}"
+    figure.text(28, 94, subtitle, 23, color=SUBTEXT)
+    note = summary.get("publication", {}).get("topology_note", {}).get(lang)
+    figure.text(28, 133, note or ("客户端在节点 0；P/D 通过官方代理，其余使用 vLLM API" if chinese else "Client on node 0; P/D uses the official proxy, other layouts use the vLLM API"), 22)
+    definitions = {
+        "tp": ("TP16", "全模型的每层跨 16 卡切分" if chinese else "Each model layer is sharded across 16 GPUs", "跨节点 TP 集合通信" if chinese else "Cross-node TP collectives"),
+        "pp": ("TP8 × PP2", "节点内切张量，节点间切层" if chinese else "Tensor sharding within nodes, layer stages across nodes", "流水级之间传递激活" if chinese else "Activations cross the pipeline boundary"),
+        "tep": ("TP16 + EP", "张量切分与专家分布相结合" if chinese else "Tensor sharding plus distributed experts", "跨节点 TP 与专家通信" if chinese else "Cross-node TP and expert communication"),
+        "dp": ("DP16 + EP16", "全局分配请求，专家分布在 16 卡" if chinese else "Global request distribution; experts span 16 GPUs", "全局 DP 调度与 EP 通信" if chinese else "Global DP scheduling and EP communication"),
+        "pd": ("Prefill / Decode", "两端各一份模型，各用 TP8" if chinese else "Two model pools, each using TP8", "KV 传输与代理开销" if chinese else "KV transfer and proxy overhead"),
+    }
+    colors = {"tp": AZURE_BLUE, "pp": "#107C10", "tep": AMD_RED, "dp": "#8764B8", "pd": "#A05A00"}
+    for row_index, strategy in enumerate(summary["strategies"]):
+        row_y = 170 + row_index * 176
+        label, description, communication = definitions[strategy["id"]]
+        custom = strategy.get("figure")
+        if custom:
+            label, description, communication = custom["label"], custom["description"][lang], custom["communication"][lang]
+        color = colors[strategy["id"]]
+        figure.text(28, row_y + 34, label, 28, color=color, weight="600")
+        figure.text(28, row_y + 70, description, 20, max_w=450, line_h=26)
+        status = strategy["status"]
+        statuses = {"PASS": "测量完成", "COMPLETE_WITH_ERRORS": "测量完成，存在请求错误", "NOT_RUN": "未测", "IN_PROGRESS": "进行中",
+                "BLOCKED_PLATFORM_INTERRUPTION": "Spot 中断，数据未齐", "EXCLUDED": "网站置灰，未测",
+                "BLOCKED_RESOURCE_SCOPE": "需要 4 个节点，未测"}
+        english = {"EXCLUDED": "Greyed out on the website; not run", "BLOCKED_RESOURCE_SCOPE": "Needs 4 nodes; not run"}
+        status_text = statuses.get(status, status) if chinese else english.get(status, status.replace("_", " "))
+        figure.text(28, row_y + 125, status_text, 18, color=SUBTEXT, max_w=450, line_h=23)
+        for node_index, node_x in enumerate((520, 1250)):
+            measured = status in ("PASS", "COMPLETE_WITH_ERRORS")
+            figure.rect(node_x, row_y, 660, 140, fill=NODE_FILL if measured else "#FFFFFF", stroke=color, sw=2, dash=None if measured else "6 4")
+            figure.icon(node_x + 18, row_y + 16, 32)
+            figure.text(node_x + 66, row_y + 40, f"Azure VM · {'节点' if chinese else 'Node'} {node_index}", 24, color=color, weight="600")
+            figure.text(node_x + 22, row_y + 78, f"{scope['gpus_per_node']} × MI300X · {'多进程执行器' if chinese else 'multiprocess executor'}", 21)
+            placement = (f"PP {'流水级' if chinese else 'stage'} {node_index} · TP8" if strategy["id"] == "pp"
+                         else ("同一 TP16 组" if chinese else "Same TP16 group"))
+            if strategy["id"] == "tep":
+                placement += " · EP enabled"
+            if strategy["id"] == "dp":
+                placement = f"TP1 · DP ranks {node_index * 8}-{node_index * 8 + 7} · EP16"
+            if strategy["id"] == "pd":
+                placement = ("Prefill TP8 · :8001" if node_index == 0 else "Decode TP8 · :8002")
+            if custom:
+                placement = custom["placement"][lang][node_index]
+            figure.text(node_x + 22, row_y + 117, placement, 23, weight="600")
+        figure.line(1186, row_y + 72, 1244, row_y + 72, color=color, sw=3, marker=True)
+        transport = summary["conditions"].get("pd_transport", {}).get("protocol", "not deployed") if strategy["id"] == "pd" else "RCCL / host-staged InfiniBand"
+        figure.text(528, row_y + 165, communication if custom else communication + " · " + transport, 19, color=color)
+    figure.text(28, 1095, "虚线表示未完成测量的候选布局；状态来自运行记录。示意图不替代性能证据。" if chinese else "Dashed boxes are candidate layouts without completed measurements. Status comes from run records; diagrams do not prove performance.", 21, color=SUBTEXT)
+    return figure
+
+
+def resource_value(level: dict, metric: str, nodes: int, gpus: int) -> float | None:
+    resources = level.get("resources", {})
+    if len(resources) != nodes:
+        return None
+    if metric == "host_cpu_percent":
+        values = [resource[metric]["mean"] for resource in resources.values()]
+        return statistics.mean(values) if all(value is not None for value in values) else None
+    statistic = "max" if metric == "vram_used_bytes" else "mean"
+    values = [card[metric][statistic] for resource in resources.values() for card in resource.get("gpus", {}).values()]
+    if len(values) != gpus or any(value is None for value in values):
+        return None
+    if metric == "vram_used_bytes":
+        return max(values) / 2**30
+    if metric == "power_watts":
+        return sum(values) / 1000
+    return statistics.mean(values)
+
+
+PERFORMANCE_CAPTIONS = {  # metric -> (Chinese caption, English caption, unit); used only when a summary lists its own metrics
+    "decode_tok_s_median": ("单请求解码中位数", "Decode per request", "token/s"),
+    "aggregate_tok_s_median": ("总吞吐", "Throughput", "token/s"),
+    "ttft_s_median": ("TTFT 中位数", "Median TTFT", "ms"),
+    "wall_s_median": ("E2E 中位数", "Median E2E", "s"),
+}
+
+
+def draw_fiveway_performance(lang: str, summary: dict, icon: str, resources: bool = False) -> Svg:
+    chinese = lang == "zh"
+    figure = Svg(icon)
+    total_gpus = summary["scope"]["nodes"] * summary["scope"]["gpus_per_node"]
+    measured = [strategy for strategy in summary["strategies"] if strategy["status"] in ("PASS", "COMPLETE_WITH_ERRORS")]
+    repeat_counts = {workload["rounds"] for strategy in measured for workload in strategy["workloads"]}
+    if len(repeat_counts) != 1:
+        raise ValueError("The plotted workloads must have one common repeat count")
+    repeats = repeat_counts.pop()
+    model = summary["scope"]["model"].split("/")[-1]
+    figure.text(28, 48, f"{model} · {total_gpus} MI300X", 32, weight="600")
+    published_metrics = summary.get("publication", {}).get("performance_metrics")
+    subtitle = ("资源每秒采样，只取正式请求轮次；GPU 指标覆盖全部 16 卡，CPU 指标覆盖两个节点" if chinese else "Resources sampled each second inside measured rounds; GPU metrics cover all 16 cards, CPU metrics cover both nodes") if resources else (f"吞吐：{repeats} 轮中位数，竖线为各轮范围；延迟：合并 {repeats} 轮成功请求的中位数" if chinese else f"Throughput: median and min-max across {repeats} rounds; latency: median of pooled successful requests")
+    if published_metrics and not resources:
+        subtitle = (f"总吞吐：{repeats} 轮中位数，竖线为各轮范围；单请求解码、TTFT、E2E：合并 {repeats} 轮成功请求的中位数" if chinese
+                    else f"Throughput: median and min-max across {repeats} rounds; decode, TTFT and E2E: median of pooled successful requests")
+    figure.text(28, 90, subtitle, 22, color=SUBTEXT)
+    styles = {"tp": ("TP16", AZURE_BLUE), "pp": ("TP8 × PP2", "#107C10"), "tep": ("TP16 + EP", AMD_RED),
+              "dp": ("DP16 + EP16", "#8764B8"), "pd": ("P/D · TCP" if "pd_transport" in summary["conditions"] else "P/D", "#A05A00")}
+    custom_labels = {strategy["id"]: strategy["figure"]["label"] for strategy in summary["strategies"] if strategy.get("figure")}
+    measured_ids = {strategy["id"] for strategy in measured}
+    for legend_index, (strategy_id, (label, color)) in enumerate(styles.items()):
+        if strategy_id in custom_labels:
+            label = custom_labels[strategy_id] + (" · 未测" if chinese else " · not run")
+        elif strategy_id not in measured_ids:
+            label += " · 未完成" if chinese else " · no data"
+        position = 36 + legend_index * 370
+        figure.line(position, 143, position + 65, 143, color=color, sw=4)
+        figure.text(position + 80, 151, label, 23, color=color, weight="600")
+    for workload_index, workload_file in enumerate(("perf-short.json", "perf-guide.json")):
+        published_layout = bool(summary.get("publication"))
+        plot_top = (258 + workload_index * 432) if published_layout else (246 + workload_index * 418)
+        metrics = (("use_percent", "%"), ("vram_used_bytes", "GiB"), ("power_watts", "kW"), ("host_cpu_percent", "%")) if resources else (("aggregate_tok_s_median", "token/s"), ("ttft_s_median", "ms"), ("wall_s_median", "s"))
+        if published_metrics and not resources:
+            metrics = tuple((metric, PERFORMANCE_CAPTIONS[metric][2]) for metric in published_metrics)
+        log_axis = set(summary.get("publication", {}).get("log_axis_metrics", [])) if not resources else set()
+        for metric_index, (metric, unit) in enumerate(metrics):
+            spacing = 1920 / len(metrics)
+            plot_left = 90 + metric_index * spacing
+            plot_width, plot_height = spacing - 150, 265
+            series = []
+            ranges = {}
+            for strategy in measured:
+                workload = next(item for item in strategy["workloads"] if item["file"] == workload_file)
+                values = []
+                for level in workload["levels"]:
+                    value = resource_value(level, metric, summary["scope"]["nodes"], total_gpus) if resources else level[metric]
+                    values.append((level["concurrency"], None if value is None else value * (1000 if unit == "ms" else 1), level["n_failed"]))
+                    if not resources and metric == "aggregate_tok_s_median":
+                        rates = level["aggregate_tok_s_rounds"]
+                        ranges[(strategy["id"], level["concurrency"])] = (min(rates), max(rates))
+                series.append((strategy["id"], values))
+            upper_values = [value for _, values in series for _, value, _ in values if value is not None]
+            upper_values.extend(upper for _, upper in ranges.values())
+            maximum = max(1.0, max(upper_values, default=1) * 1.15)
+            logarithmic = metric in log_axis and upper_values and min(upper_values) > 0
+            if logarithmic:
+                low_exponent = math.floor(math.log10(min(upper_values)))
+                high_exponent = math.ceil(math.log10(max(upper_values) * 1.05))
+                def scale(value):
+                    return (math.log10(value) - low_exponent) / (high_exponent - low_exponent)
+            else:
+                def scale(value):
+                    return value / maximum
+            title = ("短问题" if workload_index == 0 else "部署分析") if chinese else ("Short input" if workload_index == 0 else "Guide input")
+            captions = (("GPU 均值", "每卡显存峰值", "GPU 平均总功耗", "CPU 均值") if chinese else ("Mean GPU use", "Peak VRAM/card", "Mean GPU power sum", "Mean CPU use")) if resources else (("总吞吐", "TTFT 中位数", "E2E 中位数") if chinese else ("Throughput", "Median TTFT", "Median E2E"))
+            if published_metrics and not resources:
+                captions = tuple(PERFORMANCE_CAPTIONS[metric][0 if chinese else 1] for metric in published_metrics)
+            metric_title = captions[metric_index]
+            axis_note = ("，对数轴" if chinese else ", log scale") if logarithmic else ""
+            title_size, title_width = (19, spacing - 20) if published_layout else (21, spacing - 45)
+            figure.text(plot_left - 50, plot_top - 55, f"{title} · {metric_title} ({unit}{axis_note})", title_size, weight="600", max_w=title_width, line_h=26)
+            ticks = ([(10 ** exponent, (exponent - low_exponent) / (high_exponent - low_exponent))
+                      for exponent in range(low_exponent, high_exponent + 1)] if logarithmic
+                     else [(maximum * tick / 4, tick / 4) for tick in range(5)])
+            for tick_value, fraction in ticks:
+                tick_y = plot_top + plot_height * (1 - fraction)
+                figure.line(plot_left, tick_y, plot_left + plot_width, tick_y, color="#E1DFDD", sw=1)
+                label = (f"{tick_value:,.0f}" if tick_value >= 1 else f"{tick_value:g}") if logarithmic else (f"{tick_value:,.1f}" if maximum < 10 else f"{tick_value:,.0f}")
+                figure.text(plot_left - 14, tick_y + 7, label, 18, color=SUBTEXT, anchor="end")
+            figure.line(plot_left, plot_top, plot_left, plot_top + plot_height, color=TEXT)
+            figure.line(plot_left, plot_top + plot_height, plot_left + plot_width, plot_top + plot_height, color=TEXT)
+            unavailable = [styles[strategy_id][0] for strategy_id, values in series if all(value is None for _, value, _ in values)]
+            if unavailable and not resources:
+                message = ("无成功请求：" if chinese else "No successful requests: ") + ", ".join(unavailable)
+                figure.text(plot_left + plot_width / 2, plot_top + 22, message, 17, color=SUBTEXT, anchor="middle", max_w=plot_width)
+            concurrency = summary["conditions"]["planned_concurrency"]
+            x_positions = {value: plot_left + 35 + index * (plot_width - 70) / max(1, len(concurrency) - 1) for index, value in enumerate(concurrency)}
+            for count, tick_x in x_positions.items():
+                figure.text(tick_x, plot_top + plot_height + 35, str(count), 21, anchor="middle")
+            figure.text(plot_left + plot_width / 2, plot_top + plot_height + 72, "并发请求数" if chinese else "Concurrent requests", 20, anchor="middle")
+            for strategy_id, values in series:
+                color = styles[strategy_id][1]
+                previous = None
+                for count, value, failures in values:
+                    if value is None:
+                        previous = None
+                        continue
+                    point_x = x_positions[count]
+                    point_y = plot_top + plot_height * (1 - scale(value))
+                    if (strategy_id, count) in ranges:
+                        lower, upper = ranges[(strategy_id, count)]
+                        lower_y = plot_top + plot_height * (1 - scale(lower))
+                        upper_y = plot_top + plot_height * (1 - scale(upper))
+                        figure.line(point_x, lower_y, point_x, upper_y, color=color, sw=1.5)
+                        figure.line(point_x - 5, lower_y, point_x + 5, lower_y, color=color, sw=1.5)
+                        figure.line(point_x - 5, upper_y, point_x + 5, upper_y, color=color, sw=1.5)
+                    if previous:
+                        figure.line(previous[0], previous[1], point_x, point_y, color=color, sw=3)
+                    fill = "#FFFFFF" if failures else color
+                    figure.parts.append(f'<circle cx="{point_x:.2f}" cy="{point_y:.2f}" r="6" fill="{fill}" stroke="{color}" stroke-width="2"/>')
+                    previous = (point_x, point_y)
+    footer = ("空心点：该轮次包含请求失败。缺失采样不补零；主机内存与各网卡速率保留在同一资源数据中。" if chinese else "Hollow points include failed requests. Missing samples are not zero. Host RAM and per-interface network rates remain in the same resource data.") if resources else ("空心点：包含请求失败。没有成功请求时，延迟不画成零；吞吐为零代表没有成功输出。完整分母与 P95 见表。" if chinese else "Hollow points include failures. Missing successful-request latency is not zero; zero throughput means no successful output. See tables for counts and P95.")
+    figure.text(28, 1097, footer, 20, color=SUBTEXT)
+    return figure
+
+
+def draw_fiveway_resources(lang: str, summary: dict, icon: str) -> Svg:
+    return draw_fiveway_performance(lang, summary, icon, resources=True)
+
+
+TIME_BUDGET_NAMES = {"tp": "TP16", "pp": "TP8 × PP2", "tep": "TP16 + EP"}
+TIME_BUDGET_COLORS = {"tp": (AZURE_BLUE, "#C7E0F4"), "pp": ("#107C10", "#107C10"), "tep": (AMD_RED, "#F8C8CA")}
+TIME_BUDGET_WIRE = "#FFB900"
+TIME_BUDGET_INPUTS = {"perf-short.json": ("短问题", "short prompt"), "perf-guide.json": ("部署分析问题", "deployment-analysis prompt")}
+
+
+def budget_bytes(value: float) -> str:
+    return f"{value / 1e6:.1f} MB" if value >= 1e6 else f"{value / 1e3:.0f} KB"
+
+
+def budget_us(value: float) -> str:
+    return f"{value:.0f}" if value >= 10 else f"{value:.2f}"
+
+
+def draw_time_budget(lang: str, summary: dict, icon: str) -> Svg:
+    """Panel A: measured time per output token of each layout. Panel B: the extra time of the cross-node layouts,
+    drawn to scale with the time their measured InfiniBand bytes need at the nominal rate; the lower-bound layout's
+    bar is divided into the estimated number of cross-node all-reduces. Every number comes from summary["time_budget"]."""
+    chinese = lang == "zh"
+    budget, spec = summary["time_budget"], summary["publication"]["time_budget"]
+    layouts, estimate = budget["layouts"], budget["estimate"]
+    scope, network = summary["scope"], summary["conditions"]["network"]
+    nominal_gb = budget["nominal_infiniband_mb_s_per_node"] / 1000
+    reference = budget["reference_layout"]
+    reference_ms = layouts[reference]["ms_per_output_token"]
+    collectives = estimate["cross_node_collectives_per_token"]
+    figure = Svg(icon, arrow_color=TEXT)
+    workload = TIME_BUDGET_INPUTS[budget["workload"]][0 if chinese else 1]
+    figure.text(28, 52, (f"一个输出 token 的时间花在哪里 · {workload}，并发 {budget['concurrency']}" if chinese
+                         else f"Where one output token's time goes · {workload}, concurrency {budget['concurrency']}"), 32, weight="600")
+    gdr_off = network.get("nccl_net_gdr_level") == 0
+    model = scope["model"].split("/")[-1]
+    if chinese:
+        subtitle = (f"{model} · BF16 · {scope['nodes']} 节点 × {scope['gpus_per_node']} 张 MI300X · 每节点 "
+                    f"{network['infiniband_ports_per_node']} × {network['infiniband_port_rate_gbit_s']} Gb/s InfiniBand，"
+                    f"合计 {nominal_gb:.0f} GB/s" + (" · GPU Direct RDMA 关闭" if gdr_off else ""))
+    else:
+        subtitle = (f"{model} · BF16 · {scope['nodes']} nodes × {scope['gpus_per_node']} MI300X · "
+                    f"{network['infiniband_ports_per_node']} × {network['infiniband_port_rate_gbit_s']} Gb/s InfiniBand "
+                    f"per node = {nominal_gb:.0f} GB/s" + (" · GPU Direct RDMA off" if gdr_off else ""))
+    figure.text(28, 94, subtitle, 22, color=SUBTEXT)
+
+    # Panel A: measured time per output token
+    order = [reference] + [layout for layout in spec["layouts"] if layout != reference]
+    left, right, top_row, pitch, bar = 360, 1500, 200, 90, 46
+    top_ms = math.ceil(max(layouts[layout]["ms_per_output_token"] for layout in order) / 5) * 5
+    scale = (right - left) / top_ms
+    figure.text(28, 150, ("A · 实测每个输出 token 的时间（ms）= 1000 ÷ 单请求解码速度中位数" if chinese
+                          else "A · Measured time per output token (ms) = 1000 ÷ median per-request decode speed"), 24, weight="600")
+    bottom = top_row + (len(order) - 1) * pitch + bar
+    for tick in range(0, top_ms + 1, 5):
+        tick_x = left + tick * scale
+        figure.line(tick_x, top_row - 8, tick_x, bottom + 8, color="#EDEBE9", sw=1)
+        figure.line(tick_x, bottom + 16, tick_x, bottom + 24, color=TEXT, sw=1)
+        figure.text(tick_x, bottom + 46, f"{tick}" + (" ms" if tick == top_ms else ""), 18, color=SUBTEXT, anchor="middle")
+    figure.line(left, bottom + 16, right, bottom + 16, color=TEXT, sw=1.2)
+    for index, layout in enumerate(order):
+        row = top_row + index * pitch
+        dark, light = TIME_BUDGET_COLORS[layout]
+        entry = layouts[layout]
+        milliseconds = entry["ms_per_output_token"]
+        figure.text(28, row + 28, TIME_BUDGET_NAMES[layout], 26, color=dark, weight="600")
+        if layout == reference:
+            description = ((f"{collectives} 次同步在节点内", "跨节点交接 1 次") if chinese
+                           else (f"{collectives} collectives inside a node,", "1 cross-node hand-off"))
+            figure.rect(left, row, milliseconds * scale, bar, fill=dark, stroke=dark, sw=1, rx=3)
+        else:
+            description = ((f"约 {collectives} 次同步全部跨节点（估算）",) if chinese
+                           else (f"≈{collectives} collectives across", "nodes (estimate)"))
+            extra = entry["extra_ms_per_output_token_vs_reference"]
+            figure.rect(left, row, reference_ms * scale, bar, fill=light, stroke=light, sw=1, rx=3)
+            figure.rect(left + reference_ms * scale, row, extra * scale, bar, fill=dark, stroke=dark, sw=1, rx=3)
+            figure.text(left + (reference_ms + extra / 2) * scale, row + 31, f"+{extra:.1f} ms", 20, color="#FFFFFF",
+                        weight="600", anchor="middle")
+        for line_index, line in enumerate(description):
+            figure.text(28, row + 56 + line_index * 22, line, 18, color=SUBTEXT)
+        figure.text(left + milliseconds * scale + 14, row + 31, f"{milliseconds:.1f} ms · {entry['decode_tok_s_median']:.1f} token/s",
+                    22, weight="600")
+    reference_x = left + reference_ms * scale
+    figure.line(reference_x, top_row - 14, reference_x, bottom + 10, color=TIME_BUDGET_COLORS[reference][0], sw=2, dash="6 4")
+    figure.text(reference_x, top_row - 20, f"{TIME_BUDGET_NAMES[reference]}: {reference_ms:.1f} ms", 17,
+                color=TIME_BUDGET_COLORS[reference][0], anchor="middle")
+    figure.text(left, bottom + 76, (f"浅色段：到 {TIME_BUDGET_NAMES[reference]} 的 {reference_ms:.1f} ms 为止；深色段：每个 token 多出的时间，在 B 图放大"
+                                    if chinese else
+                                    f"Light segment: up to {TIME_BUDGET_NAMES[reference]}'s {reference_ms:.1f} ms; dark segment: the extra time per token, enlarged in panel B"),
+                17, color=SUBTEXT)
+
+    # Panel B: the extra time, to scale with the time the measured bytes need on the wire
+    zoom = order[1:]
+    zoom_left, zoom_right, zoom_top, zoom_pitch, zoom_bar = 360, 1780, 612, 190, 54
+    figure.text(28, 548, (f"B · 放大每个 token 多出的时间，与这些 InfiniBand 数据以 {nominal_gb:.0f} GB/s 传输所需的时间按同一比例画出"
+                          if chinese else
+                          f"B · The extra time per token, enlarged and drawn to scale with the time its InfiniBand data needs at {nominal_gb:.0f} GB/s"),
+                24, weight="600", max_w=1900)
+    top_extra = max(layouts[layout]["extra_ms_per_output_token_vs_reference"] for layout in zoom)
+    zoom_scale = (zoom_right - zoom_left) / top_extra
+    bound = layouts[estimate["layout"]]
+    for index, layout in enumerate(zoom):
+        row = zoom_top + index * zoom_pitch
+        dark, _ = TIME_BUDGET_COLORS[layout]
+        entry = layouts[layout]
+        extra = entry["extra_ms_per_output_token_vs_reference"]
+        width = extra * zoom_scale
+        figure.text(28, row + 30, TIME_BUDGET_NAMES[layout], 26, color=dark, weight="600")
+        figure.text(28, row + 56, (f"每个 token 多 {extra:.1f} ms" if chinese else f"+{extra:.1f} ms per token"), 17, color=SUBTEXT)
+        figure.rect(zoom_left, row, width, zoom_bar, fill=dark, stroke=dark, sw=1, rx=2)
+        if layout == estimate["layout"]:
+            step = width / collectives
+            for stripe in range(1, collectives):
+                figure.line(zoom_left + stripe * step, row + 3, zoom_left + stripe * step, row + zoom_bar - 3, color="#FFFFFF", sw=1)
+        sliver = max(entry["transfer_us_per_output_token_at_nominal"] / 1000 * zoom_scale, 2)
+        figure.rect(zoom_left, row - 8, sliver, zoom_bar + 16, fill=TIME_BUDGET_WIRE, stroke=TEXT, sw=1, rx=0)
+        moved = budget_bytes(entry["busier_node_infiniband_rx_bytes_per_output_token"])
+        wire = budget_us(entry["transfer_us_per_output_token_at_nominal"])
+        share = entry["transfer_share_of_extra_ratio"] * 100
+        figure.text(zoom_left + 46, row - 18, (f"黄色细条：它每个 token 的 {moved} 以 {nominal_gb:.0f} GB/s 传输需 {wire} µs，占多出时间的 {share:.1f}%"
+                                               if chinese else
+                                               f"Yellow sliver: moving its {moved} per token at {nominal_gb:.0f} GB/s takes {wire} µs, {share:.1f}% of the extra time"),
+                    20, weight="600")
+        figure.line(zoom_left + 40, row - 24, zoom_left + sliver + 3, row - 4, color=TEXT, sw=1.5, marker=True)
+        if layout == estimate["layout"]:
+            note = (f"{collectives} 条 = 每个 token 约 {collectives} 次跨节点集合通信（估算：{spec['language_layers']} 层 × "
+                    f"{spec['cross_node_collectives_per_layer']} 次 all-reduce，再加嵌入层和输出层共 {spec['collectives_per_step_outside_layers']} 次）。"
+                    f"{TIME_BUDGET_NAMES[reference]} 做同样多次，但都在节点内；平均每次跨节点至少多花 "
+                    f"{estimate['extra_us_per_cross_node_collective_lower_bound']:.0f} µs，而每次平均约 "
+                    f"{budget_bytes(estimate['infiniband_rx_bytes_per_collective_mean'])} 的数据在链路上只需 "
+                    f"{estimate['transfer_us_per_collective_at_nominal']:.2f} µs"
+                    if chinese else
+                    f"{collectives} stripes = about {collectives} cross-node collectives per token (estimate: {spec['language_layers']} layers × "
+                    f"{spec['cross_node_collectives_per_layer']} all-reduces, plus {spec['collectives_per_step_outside_layers']} for the embedding and "
+                    f"output layers). {TIME_BUDGET_NAMES[reference]} performs as many, inside a node; a cross-node one costs at least "
+                    f"{estimate['extra_us_per_cross_node_collective_lower_bound']:.0f} µs more on average, while its "
+                    f"≈{budget_bytes(estimate['infiniband_rx_bytes_per_collective_mean'])} of data needs "
+                    f"{estimate['transfer_us_per_collective_at_nominal']:.2f} µs on the wire")
+        else:
+            if not (entry["busier_node_infiniband_rx_bytes_per_output_token"] < bound["busier_node_infiniband_rx_bytes_per_output_token"]
+                    and extra > bound["extra_ms_per_output_token_vs_reference"]):
+                raise ValueError(f"{layout}: the 'less data, more time' note does not hold for this summary")
+            note = (f"数据比 {TIME_BUDGET_NAMES[estimate['layout']]} 少，多出的时间却更长。这里不按 all-reduce 拆分，因为页面的 AMD 说明指出 Triton 专家内核在专家并行下更慢"
+                    if chinese else
+                    f"Less data than {TIME_BUDGET_NAMES[estimate['layout']]}, yet more extra time. Not divided into all-reduces: the page's AMD note says the Triton expert kernels are slower with expert parallelism")
+        figure.text(zoom_left, row + zoom_bar + 30, note, 20, max_w=1560, line_h=26)
+    axis_y = zoom_top + len(zoom) * zoom_pitch - 30
+    figure.line(zoom_left, axis_y, zoom_right, axis_y, color=TEXT, sw=1.2)
+    for tick in range(0, math.floor(top_extra) + 1):
+        tick_x = zoom_left + tick * zoom_scale
+        figure.line(tick_x, axis_y, tick_x, axis_y + 8, color=TEXT, sw=1)
+        figure.text(tick_x, axis_y + 32, f"{tick}" + (" ms" if tick == math.floor(top_extra) else ""), 18, color=SUBTEXT, anchor="middle")
+    footer = ("实测：每 token 时间来自单请求解码速度中位数；InfiniBand 接收量取正式轮次内的每秒采样，按较忙的节点计，含输入部分的分摊。"
+              f"估算而非实测：集合通信次数来自 vLLM 源码（{spec['language_layers']} 层 × {spec['cross_node_collectives_per_layer']} 次 all-reduce，"
+              f"再加 {spec['collectives_per_step_outside_layers']} 次）；每次多花的时间是下限，前提是 {TIME_BUDGET_NAMES[estimate['layout']]} "
+              f"除同步以外的计算不长于 {TIME_BUDGET_NAMES[reference]}（并发 1 时一个 token 在两种布局中都依次经过全部 "
+              f"{spec['language_layers']} 层，{TIME_BUDGET_NAMES[estimate['layout']]} 每层的分片计算只有 TP8 的一半）。"
+              if chinese else
+              "Measured: time per token from the median per-request decode speed; InfiniBand receive from one-second samples inside "
+              "the measured rounds, busier node, prompt share included. Estimated, not measured: the collective count, read from the "
+              f"vLLM source ({spec['language_layers']} layers × {spec['cross_node_collectives_per_layer']} all-reduces, plus "
+              f"{spec['collectives_per_step_outside_layers']}), and the extra cost per call, a lower bound assuming "
+              f"{TIME_BUDGET_NAMES[estimate['layout']]}'s computation outside synchronization is no longer than "
+              f"{TIME_BUDGET_NAMES[reference]}'s (at concurrency 1 a token passes through all {spec['language_layers']} layers in both, "
+              f"and {TIME_BUDGET_NAMES[estimate['layout']]} halves each layer's sharded work).")
+    figure.text(28, 1036, footer, 18, color=SUBTEXT, max_w=1900, line_h=24)
+    return figure
+
+
+def write_fiveway_figures(summary_path: Path, png: bool, check: bool) -> int:
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    basename = "mi300x-qwen-fiveway" if summary["scope"]["model"].startswith("Qwen/") else "mi300x-fiveway"
+    if summary.get("parent_run_id"):
+        basename += "-recovery"
+    basename = summary.get("publication", {}).get("figure_basename", basename)
+    relative_summary = summary_path.resolve().relative_to(ROOT).as_posix()
+    href = icon_href()
+    ledger = json.loads(LEDGER.read_text(encoding="utf-8"))
+    entries = []
+    figures = [("topology", draw_fiveway_topology), ("performance", draw_fiveway_performance)]
+    if any(len(strategy.get("resource_files", {})) == summary["scope"]["nodes"] for strategy in summary["strategies"]):
+        figures.append(("resources", draw_fiveway_resources))
+    if summary.get("time_budget"):
+        figures.append(("time-budget", draw_time_budget))
+    for kind, draw_function in figures:
+        for language in ("en", "zh"):
+            svg = draw_function(language, summary, href).render()
+            path = IMAGES / f"{basename}-{kind}-{language}.svg"
+            relative = path.relative_to(ROOT).as_posix()
+            if check:
+                if path.read_text(encoding="utf-8") != svg:
+                    raise ValueError(f"Fiveway figure differs from its data: {relative}")
+                continue
+            path.write_text(svg, encoding="utf-8", newline="\n")
+            entry = {"asset": relative, "source_class": "original_test_topology" if kind == "topology" else "original_measurement_chart",
+                     "decision": "USE", "language": language, "generator": "tools/build_layout_figure.py --fiveway " + relative_summary,
+                     "sha256": sha(svg.encode("utf-8")), "width": W, "height": H, "bound_to": [relative_summary],
+                     "icons": [ICON_ENTRY] if kind == "topology" else [],
+                     "incremental_value": "Connects the five website strategies to this exact MI300X run and plots its own per-request measurements, not vendor benchmark numbers.",
+                     "does_not_prove": "No unmeasured DP/PD performance, production tail latency, business quality, or universal strategy ranking."}
+            if kind == "time-budget":
+                entry["incremental_value"] = ("Turns this run's measured time per token and InfiniBand bytes per token into a time "
+                                              "budget: at the nominal rate the bytes need a sliver of the extra time, so link bandwidth "
+                                              "cannot account for it.")
+                entry["does_not_prove"] = ("The collective count and the per-call cost are estimates, not a trace; no GPU Direct RDMA, "
+                                           "RCCL small-message or long-context result; no ranking beyond this hardware and input.")
+            if png:
+                png_path = path.with_suffix(".png")
+                render_png(path, png_path)
+                width, height = png_size(png_path)
+                entry["rendered_png"] = {"asset": png_path.relative_to(ROOT).as_posix(), "sha256": sha(png_path.read_bytes()),
+                                         "width": width, "height": height, "rendered_from_svg_sha256": entry["sha256"]}
+            entries.append(entry)
+    if not check:
+        owned_assets = {f"images/{basename}-{kind}-{language}.svg"
+                        for kind in ("topology", "performance", "resources", "time-budget") for language in ("en", "zh")}
+        ledger["visuals"] = [entry for entry in ledger["visuals"] if entry.get("asset") not in owned_assets] + entries
+        LEDGER.write_text(json.dumps(ledger, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
+    print("FIVEWAY FIGURES CHECK OK" if check else "FIVEWAY FIGURES WRITTEN")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--png", action="store_true")
     ap.add_argument("--check", action="store_true")
     ap.add_argument("--topology-only", action="store_true")
+    ap.add_argument("--fiveway", type=Path)
     args = ap.parse_args(argv)
+    if args.fiveway:
+        return write_fiveway_figures(args.fiveway, args.png, args.check)
     href = icon_href()
     runs = load_runs()
     basename = "mi300x-test-topology" if args.topology_only else "mi300x-parallel-layout"

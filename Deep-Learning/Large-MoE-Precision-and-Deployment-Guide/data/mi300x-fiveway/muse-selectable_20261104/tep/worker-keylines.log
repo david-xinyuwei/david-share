@@ -1,0 +1,29 @@
+(Worker pid=663) WARNING 11-04 09:47:57 [quick_all_reduce.py:116] Custom quick allreduce is disabled because this process group spans across nodes.
+(Worker pid=661) WARNING 11-04 09:47:57 [quick_all_reduce.py:116] Custom quick allreduce is disabled because this process group spans across nodes.
+(Worker pid=662) WARNING 11-04 09:47:57 [quick_all_reduce.py:116] Custom quick allreduce is disabled because this process group spans across nodes.
+(Worker pid=664) WARNING 11-04 09:47:57 [quick_all_reduce.py:116] Custom quick allreduce is disabled because this process group spans across nodes.
+(Worker pid=659) WARNING 11-04 09:47:57 [quick_all_reduce.py:116] Custom quick allreduce is disabled because this process group spans across nodes.
+(Worker pid=658) WARNING 11-04 09:47:57 [quick_all_reduce.py:116] Custom quick allreduce is disabled because this process group spans across nodes.
+(Worker pid=655) WARNING 11-04 09:47:57 [quick_all_reduce.py:116] Custom quick allreduce is disabled because this process group spans across nodes.
+(Worker pid=656) WARNING 11-04 09:47:57 [quick_all_reduce.py:116] Custom quick allreduce is disabled because this process group spans across nodes.
+(Worker pid=656) INFO 11-04 09:48:00 [parallel_state.py:2385] rank 8 in world size 16 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 8, ETP rank 8, EP rank 8, EPLB rank N/A
+(Worker_TP8_EP8 pid=656) INFO 11-04 09:48:04 [rocm.py:803] Using ROCM_AITER_FA backend (selected via --attention-backend).
+(Worker_TP8_EP8 pid=656) INFO 11-04 09:48:04 [rocm.py:944] Using AITER Flash Attention backend for ViT model.
+(Worker_TP8_EP8 pid=656) INFO 11-04 09:48:22 [unquantized.py:530] Using MuseSparkTritonExperts MoE backend
+(Worker_TP9_EP9 pid=655) INFO 11-04 09:48:23 [model_runner.py:428] Model loading took 103.22 GiB memory and 20.299169 seconds
+(Worker_TP11_EP11 pid=659) INFO 11-04 09:48:23 [model_runner.py:428] Model loading took 103.22 GiB memory and 20.321266 seconds
+(Worker_TP10_EP10 pid=658) INFO 11-04 09:48:23 [model_runner.py:428] Model loading took 103.22 GiB memory and 20.699740 seconds
+(Worker_TP8_EP8 pid=656) INFO 11-04 09:48:24 [model_runner.py:428] Model loading took 103.22 GiB memory and 20.912614 seconds
+(Worker_TP14_EP14 pid=661) INFO 11-04 09:48:25 [model_runner.py:428] Model loading took 103.22 GiB memory and 21.605827 seconds
+(Worker_TP15_EP15 pid=663) INFO 11-04 09:48:25 [model_runner.py:428] Model loading took 103.22 GiB memory and 21.666458 seconds
+(Worker_TP12_EP12 pid=664) INFO 11-04 09:48:25 [model_runner.py:428] Model loading took 103.22 GiB memory and 22.013143 seconds
+(Worker_TP13_EP13 pid=662) INFO 11-04 09:48:26 [model_runner.py:428] Model loading took 103.22 GiB memory and 22.165215 seconds
+[aiter] Custom allreduce is disabled because this process group spans across nodes.
+[aiter] Custom allreduce is disabled because this process group spans across nodes.
+[aiter] Custom allreduce is disabled because this process group spans across nodes.
+[aiter] Custom allreduce is disabled because this process group spans across nodes.
+[aiter] Custom allreduce is disabled because this process group spans across nodes.
+[aiter] Custom allreduce is disabled because this process group spans across nodes.
+[aiter] Custom allreduce is disabled because this process group spans across nodes.
+[aiter] Custom allreduce is disabled because this process group spans across nodes.
+(Worker_TP8_EP8 pid=656) INFO 11-04 09:49:58 [gpu_worker.py:772] Available KV cache memory: 73.27 GiB

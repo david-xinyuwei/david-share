@@ -4,7 +4,7 @@
 
 ## Scope
 
-The executable tool reads public metadata or replays a saved snapshot and calculates tensor payload bytes. It does not run models, provision GPUs, determine production GPU counts, or generate throughput/quality scores.
+The metadata tools read public data or replay snapshots to calculate tensor payload bytes; they do not invoke models. Separately, `scripts/mi300x/` contains real model launchers, streaming measurements and resource collection. Saved-evidence tests do not provision GPUs, rerun inference, determine production GPU counts or establish answer quality. Spot eviction interrupted the initial Qwen run; the separate recovery phase executed all five layouts and retains both successes and runtime failures. The 2026-11-04 Muse run measured the three website-selectable layouts that fit two nodes.
 
 Capture times are `2026-11-01T12:49:24.528Z` for model metadata and `2026-11-01T12:51:18.489Z` for original NVFP4 configuration summaries, both UTC. The data retains model IDs, pinned revisions, observed read status and scope. A checkpoint publisher and an original model developer are different identities.
 
@@ -14,12 +14,14 @@ Requires Node.js 20+ with no npm dependencies. Use PowerShell or Bash from this 
 
 ```bash
 node tools/inspect.mjs
-node --test tests/inspect.test.mjs tests/census.test.mjs tests/mi300x.test.mjs
+node --test tests/inspect.test.mjs tests/census.test.mjs tests/mi300x.test.mjs tests/mxfp4.test.mjs
 ```
 
 Successful replay emits JSON with `result_type=CALCULATED_FROM_PUBLIC_METADATA` and inference status `NOT_RUN`. `tensor_payload_bytes` sums per-dtype element counts times storage bytes. GB is decimal and GiB binary. Headers, non-tensor files, KV/state caches, runtime workspaces and communication buffers are excluded.
 
-The twenty-two tests: `inspect.test.mjs` (nine) covers three complete component tables with bilingual references/local links, independent repository prose, a layout guard (the five comparison tables in both READMEs — per-GPU budget, MI300X results, serving probe, reproduction steps and summary-first — keep their full column sets, and no code identifier is split by `<br>`, no empty `<code>` tag and no two-column stacked table appears; added after the 2026-11-02 layout regression), packed U8 accounting, the six observed payloads, retained Muse HTTP 401, Nemotron router exclusions, unknown dtypes, fresh revisions invalidating old configuration evidence, and HTTP failure without silently replaying old data. `census.test.mjs` (four) checks census-to-API byte parity, key component dtypes and tensor counts for both models, and rejection of unclassified components or a tampered total. `mi300x.test.mjs` (seven) checks that every number in `data/mi300x-run/summary.json` traces back to its raw request/response/log file, that the public projection contains no private identifiers, that the Nemotron and Inkling numbers quoted in all four documents equal the summary, that the run-2 serving-probe medians (TTFT, decode and aggregate tok/s at concurrency 1 and 8) quoted for each probed model appear on a table row with their unit exactly as recomputed from `08_perf.json`, that the documents claim no throughput/quality acceptance and describe the Muse pass only with the load/KV/token figures of the run in the summary, and that the parallel-layout figure (`images/mi300x-parallel-layout-{en,zh}.svg`) draws exactly the TP/PP/EP sizes and per-GPU weights/KV memory of the three run-2 layouts in the summary, embeds only the ledgered, unmodified Azure Virtual Machine icon, matches the SHA-256 in `data/visual-evidence.json`, and is embedded and captioned as original in both READMEs, and that the cross-node RCCL probe numbers quoted in all four documents (`nogdr` variant: 16 ranks, 64 MiB all_reduce 2.4 ms, 52.4 GB/s, exit 0; default-RDMA variant: watchdog timeout, exit 124) equal the `rccl_probe` entries of `summary.json`, which are read from the probe's own `RCCL_PROBE_OK` / `PROBE_EXIT` lines in `data/mi300x-run/rccl_probe/`. `mxfp4.test.mjs` (two) checks that every number in `data/mi300x-mxfp4/summary.json` traces back to its `launch.json`, `first_response.json`, `08_perf.json` and log key lines, that both passing deployments selected the `EMULATION` backend and the projection carries no private identifiers, that both READMEs quote the per-GPU weights, KV, first-answer token counts, TTFT and tok/s exactly and the text of Muse's two rejections, that the Muse MXFP4 cell in the summary-first table and the run-3 table says failed rather than passed, and that neither README has an NVFP4 result column or names the probe kernel (the probe is recorded only on this page). HTTP objects in tests are unit-test stubs, not live model evidence.
+The twenty-four tests: `inspect.test.mjs` (nine) covers three complete component tables with bilingual references/local links, independent repository prose, a layout guard (the five comparison tables in both READMEs — per-GPU budget, MI300X results, serving probe, reproduction steps and summary-first — keep their full column sets, and no code identifier is split by `<br>`, no empty `<code>` tag and no two-column stacked table appears; added after the 2026-11-02 layout regression), packed U8 accounting, the six observed payloads, retained Muse HTTP 401, Nemotron router exclusions, unknown dtypes, fresh revisions invalidating old configuration evidence, and HTTP failure without silently replaying old data. `census.test.mjs` (four) checks census-to-API byte parity, key component dtypes and tensor counts for both models, and rejection of unclassified components or a tampered total. `mi300x.test.mjs` (nine, including the Qwen request/resource test and the 2026-11-04 Muse five-way test) checks that every number in `data/mi300x-run/summary.json` traces back to its raw request/response/log file, that the public projection contains no private identifiers, that the Nemotron and Inkling numbers quoted in all four documents equal the summary, that the run-2 serving-probe medians (TTFT, decode and aggregate tok/s at concurrency 1 and 8) quoted for each probed model appear on a table row with their unit exactly as recomputed from `08_perf.json`, that the documents claim no throughput/quality acceptance and describe the Muse pass only with the load/KV/token figures of the run in the summary, and that the parallel-layout figure (`images/mi300x-parallel-layout-{en,zh}.svg`) draws exactly the TP/PP/EP sizes and per-GPU weights/KV memory of the three run-2 layouts in the summary, embeds only the ledgered, unmodified Azure Virtual Machine icon, matches the SHA-256 in `data/visual-evidence.json`, and is embedded and captioned as original in both READMEs, and that the cross-node RCCL probe numbers quoted in all four documents (`nogdr` variant: 16 ranks, 64 MiB all_reduce 2.4 ms, 52.4 GB/s, exit 0; default-RDMA variant: watchdog timeout, exit 124) equal the `rccl_probe` entries of `summary.json`, which are read from the probe's own `RCCL_PROBE_OK` / `PROBE_EXIT` lines in `data/mi300x-run/rccl_probe/`. `mxfp4.test.mjs` (two) checks that every number in `data/mi300x-mxfp4/summary.json` traces back to its `launch.json`, `first_response.json`, `08_perf.json` and log key lines, that both passing deployments selected the `EMULATION` backend and the projection carries no private identifiers, that both READMEs quote the per-GPU weights, KV, first-answer token counts, TTFT and tok/s exactly and the text of Muse's two rejections, that the Muse MXFP4 cell in the summary-first table and the run-3 table says failed rather than passed, and that neither README has an NVFP4 result column or names the probe kernel (the probe is recorded only on this page). HTTP objects in tests are unit-test stubs, not live model evidence.
+
+The Muse five-way test (2026-11-04) reads `data/mi300x-fiveway/muse-selectable_20261104/`. It checks that every flag the recipe page generated is in each layout's recorded argv and that every other flag is a listed addition; that head and worker used the pinned image; that the six scripts in `SOURCE_SHA256SUMS` have the same text as the published `scripts/mi300x/` files, compared with line endings normalized and the deployment-analysis input is the 2026-11-03 text; that E2E/TTFT P95, completion-token sets, round lengths and unit costs follow from the individual requests; that the layout comparisons and their counts, the per-node InfiniBand rates and their peaks follow from the stored levels and the one-second resource samples; that the TP-group all-reduce backends quoted in the README (`PYNCCL` only for TP16 and TP16 + EP, whose server logs record the custom all-reduce as disabled across nodes; `AITER_CUSTOM` then `PYNCCL` for TP8 × PP2) are the ones the server logs record, and that both READMEs link those logs; that the README tables and quoted figures equal the summary; and that the three charts in both languages match their ledger hashes.
 
 ## Fresh metadata
 
@@ -49,9 +51,9 @@ Cover required modalities, structured output, tool calls, quality, long context,
 | Original NVFP4 configuration | Nemotron and Inkling parsed; Muse returned 401 and was not parsed |
 | Per-tensor dtype census | PASS for the two BF16 releases: 51,023 + 1,552 tensors read from safetensors headers; header byte totals equal the API metadata; no unclassified name pattern (see "Per-tensor dtype census") |
 | File diagnostics | Editor checks executed; not evidence that Node tests passed |
-| Node tests and CLI | PASS: twenty-one tests, zero failures (`node --test tests/inspect.test.mjs tests/census.test.mjs tests/mi300x.test.mjs tests/mxfp4.test.mjs`, re-run on every push by GitHub Actions `large-moe-precision-guide-ci.yml` on Ubuntu and Windows); three four-column tables with 25 items each, all nine releases, bilingual references/local links, six payload calculations, census-to-API byte parity, key component dtypes, every MI300X BF16 number quoted in the documents equal to `data/mi300x-run/summary.json`, and every run-3 MXFP4 number equal to `data/mi300x-mxfp4/summary.json` with the Muse failure recorded as failed in both READMEs |
-| Table layout | PASS (2026-11-02/03, live GitHub pages): both READMEs show no page-level horizontal overflow at 1280 and 390 px; wide tables use GitHub's own in-table horizontal scrolling; the comparison tables keep their full column sets and no code identifier is split by `<br>` (the layout guard in `inspect.test.mjs` keeps checking this) |
-| Full local preview | PASS: `tools/preview.ps1 -GitHubMarkdown` renders the four pages through the GitHub Markdown API with every image loaded; the live pages are authoritative |
+| Node tests and CLI | PASS: twenty-four local tests, zero failures (`node --test tests/inspect.test.mjs tests/census.test.mjs tests/mi300x.test.mjs tests/mxfp4.test.mjs`, re-run on every push by GitHub Actions `large-moe-precision-guide-ci.yml` on Ubuntu and Windows); three four-column tables with 25 items each, all nine releases, bilingual references/local links, six payload calculations, census-to-API byte parity, key component dtypes, every MI300X BF16 number quoted in the documents equal to `data/mi300x-run/summary.json`, and every run-3 MXFP4 number equal to `data/mi300x-mxfp4/summary.json` with the Muse failure recorded as failed in both READMEs, and the 2026-11-04 Muse five-way tables, comparisons and inter-node rates recomputed from the projected requests and resource samples |
+| Table layout | Historical live-page checks passed on 2026-11-02/03. Current unpublished changes require fresh local 1280/390 px checks; old screenshots do not validate the new surface. The comparison-table structure guard remains active |
+| Full local preview | Current preview uses `tools/preview.ps1` and PowerShell `ConvertFrom-Markdown`, recording source and HTML hashes for all four pages. It is not the historical GitHub Markdown API result or current online publication acceptance |
 | Cross-node RCCL probe, 2 × 8 MI300X (step 7) | PASS with `NCCL_NET_GDR_LEVEL=0`: 16-rank 64 MiB all_reduce 2.4 ms average, 52.4 GB/s bus bandwidth, `PROBE_EXIT=0` (2026-11-01 17:59Z); the default GPU Direct RDMA variant hit the 240 s collective watchdog and the 300 s script timeout (`PROBE_EXIT=124`); one message size, one run — a connectivity check, not a bandwidth benchmark; key lines in `data/mi300x-run/rccl_probe/` |
 | MI300X BF16 load and smoke, Nemotron 3 Ultra | PASS on 8 × MI300X (attempt 3): engine ready, two requests answered correctly; kernels, cache precision and memory recorded in "MI300X run" |
 | MI300X BF16 load and smoke, Inkling | PASS on 2 × 8 MI300X (attempt 6, TP8 × PP2): engine ready, three requests answered, the `max_tokens=1024` request gave a correct final answer; the TP8 × DP2 + EP16 layout (attempt 5) became ready and then hung on its second request, recorded as not passing in this image |
@@ -60,15 +62,101 @@ Cover required modalities, structured output, tool calls, quality, long context,
 | MXFP4 emulation path on MI300X, Inkling | PASS on 8 × MI300X (run 3, TP8, `lightseekorg/Inkling-MXFP4` Quark checkpoint, `EMULATION` backend): 66.74 GiB weights per GPU, correct final answer, probe 6.1 tok/s per request at concurrency 1; recorded in "Run 3" |
 | MXFP4 emulation path on MI300X, Nemotron 3 Ultra | PASS on 8 × MI300X (run 3, TP8 + EP8, BF16 checkpoint quantized online with vLLM's official `--quantization online` flags, `EMULATION` backend): 43.21 GiB weights per GPU, correct final answer, probe 7.7 tok/s per request at concurrency 1; recorded in "Run 3" |
 | MXFP4 emulation path on MI300X, Muse Spark Open | FAIL (run 3, two attempts): the generic online entry is refused (`got quantization 'online'`), and Muse's own entry enters MXFP4 but the model code refuses the `EMULATION` backend (`requires the AITER_MXFP4_MXFP4 backend`); no weights loaded; recorded in "Run 3" |
+| Muse website-selectable layouts, 2 × 8 MI300X (2026-11-04) | PASS for TP8 × PP2, TP16 and TP16 + EP with the recipe page's commands and the adaptations listed in the README: 2,286 requests, 0 failed, 2,266 natural complete answers, 20 at the 16,384-token limit; DP + EP (greyed out) and P/D (needs 4 nodes) were not run; see "Muse website-selectable measurement" |
 | Throughput distribution, long prompts, business-task quality, MXFP4-versus-BF16 quality regression, long context, production stability | NOT_RUN for all three models |
 | NVFP4 releases: full-model load on MI300X | NOT_RUN; only the single-expert kernel probe was run for Nemotron and Inkling (relative L2 error 0 and 3.74×10⁻⁹ against the PyTorch reference, 1 GPU, `Nvfp4QuantizationEmulationTritonExperts`); Muse's NVFP4 config returns 401 |
 | FP8 releases on any GPU | NOT_RUN; outside this round's measurement scope |
-| Independent Chinese and bilingual semantic review | PASS for this revision: five wording, condition and source-link findings were repaired and independently rechecked; not a visual or inference test |
+| Independent Chinese and bilingual semantic review | The 2026-11-01 revision had an independent review. Later MI300X, MXFP4, Qwen and 2026-11-04 Muse five-way additions have author review and deterministic checks only: **NOT_VERIFIED** for independent semantic review of the current revision |
 | GitHub publication and live pages | Refer to this project's public commit and check results; local preview does not establish live-page acceptance |
 
 An unexecuted check cannot be labeled PASS. Public-source analysis, mechanism explanation and executable tools have separate acceptance boundaries.
 
-Independent text review covers the four bilingual documents and component tables; a focused second pass rechecked all five findings against the repaired text. `AI_NATIVE_CHINESE_AUDIT=PASS` and `AI_BILINGUAL_SEMANTIC_AUDIT=PASS`. It does not execute models, rerun performance tests or replace component-level runtime verification. Deterministic source-cell parity and local-link checks passed separately.
+The earlier independent review is historical evidence for that text, not for subsequent additions. Current-revision `AI_NATIVE_CHINESE_AUDIT=NOT_VERIFIED` and `AI_BILINGUAL_SEMANTIC_AUDIT=NOT_VERIFIED`; author review and deterministic checks are reported separately and do not replace independent review or runtime validation.
+
+## Muse website-selectable measurement (2026-11-04)
+
+<a id="muse-selectable-validation"></a>
+
+The [results](README.md#muse-selectable) contain the page statements, inputs, matrix, charts and limits. Evidence is in [muse-selectable_20261104](data/mi300x-fiveway/muse-selectable_20261104/). The run is attributed to Muse BF16 only and is not pooled with the 2026-11-03 Muse run or the Qwen runs.
+
+| Check | Observed result and boundary |
+|---|---|
+| Coverage | The three offered layouts that fit two nodes ran both inputs at seven concurrency levels with 3 rounds each: 2,286 requests, 0 failed, 2,266 natural complete answers, 20 at the output limit. DP + EP is recorded as greyed out and P/D as needing 4 nodes; neither has measured values |
+| Website command | Every flag the page generated for each layout is in the recorded argv; the only added flags are the ones listed in the README, and the image, front end, container privileges and RCCL settings differ as listed there |
+| Image identity | The head (`launch.txt`) and worker (`worker-launch.txt`) image IDs equal the pinned digest for all three layouts |
+| Scripts | The six scripts that ran (`00_env.sh`, `08_serve_muse_2node.sh`, `09_perf_probe.py`, `10_measure_layout.sh`, `12_resource_monitor.py`, `14_run_remaining_layouts.sh`) match the run's `SOURCE_SHA256SUMS` and have the same text as the files of the same name in `scripts/mi300x/`, compared with line endings normalized because Git stores LF (`12_resource_monitor.py` ran with Windows line endings) |
+| Evidence integrity | Each layout's sealed archive and both nodes' final archives were returned and SHA-256 checked. The projection re-verifies every original file hash before writing and produces identical bytes when repeated |
+| Resources | Both nodes recorded 17,252 one-second samples over the batch. Each layout's projection keeps only the samples inside its measured rounds and does not fill gaps |
+| Statistics replay | The shared Node test recomputes request counts, finish reasons, TTFT medians, decode medians and per-round throughput from the projected requests. A dedicated test recomputes E2E/TTFT P95, round lengths, unit costs, the layout comparisons, the inter-node rates, the TP-group all-reduce backends from the server logs, website-flag parity, image identity, the per-token time budget and the README tables |
+| Time budget | Short prompt at concurrency 1: time per token is the inverse of the median per-request decode speed; cross-node bytes per token = receive rate inside the measured rounds × their duration ÷ output tokens; the test recomputes both from the requests and the one-second samples. About 126 cross-node collectives per token (62 layers × 2 all-reduces, plus 2 for the embedding and output layers) come from the model card and the vLLM v0.33.0 source, not from a runtime trace; at least 35 µs more per collective on average than intra-node is a lower-bound estimate whose assumption the README states. Node 1 of TP8 × PP2 received 31,792 bytes per processed token, 97% of one FP32 residual stream (32,768 bytes), which checks the counter scale |
+| Platform events | Before the batch, Spot evicted each VM once and node 0 needed a guest restart to clear a driver-initialization hang; no model request had started. The batch then ran 06:44–11:29 UTC without interruption. These records stay private |
+| Unverified | Answer quality, long context, GPU Direct RDMA, randomized or repeated deployments, DP + EP, P/D, the page's own image and Rust front end, a fresh-VM replay of the published steps, a per-collective timing trace, and independent bilingual review |
+
+Replay from the project directory without GPUs:
+
+```bash
+node --test --test-name-pattern="fiveway results|muse selectable" tests/mi300x.test.mjs
+python3 tools/build_layout_figure.py --fiveway data/mi300x-fiveway/muse-selectable_20261104/summary.json --check
+```
+
+Regenerating the projection needs the private evidence directory; `render-fiveway` and the figure tool rebuild only this run's marked tables and `mi300x-muse-selectable-*` charts from the public summary. `init-fiveway` from this summary gives a new run its own table marker and figure names, so rendering a new run cannot overwrite this run's tables or charts (checked offline on 2026-11-04).
+
+## Qwen Five-Layout Measurement and Interruption
+
+<a id="qwen-fiveway-validation"></a>
+
+The [initial result section](README.md#qwen-fiveway) contains the inputs, placement, returned tables and interpretation. The [new-run steps](README.md#qwen-reproduce) distinguish deployment from offline replay. The following table specifically describes the eviction-time projection in [qwen-fiveway_20261103-172600](data/mi300x-fiveway/qwen-fiveway_20261103-172600/), not current task status; it must not be attributed to Muse.
+
+| Check | Observed result and boundary |
+|---|---|
+| Full requested five-layout comparison | **BLOCKED.** TP, DP+EP and P/D have both full sweeps; PP is interrupted with incomplete returned request data; TP+EP was not started |
+| Exact runtime | Qwen revision `ac9c66cc9b46af7306746a9250f23d47083d689e`, BF16, two MI300X nodes, `mp`, Triton MoE and `TRITON_ATTN`; actual command/image identity in each `launch.txt` and `worker-launch.txt` |
+| Request and timing integrity | All completed sweeps retain every success and failure, actual output/finish reason, TTFT, E2E, timestamps and rounds. Warm-up is separate; latency statistics use complete streams, throughput retains failed waits |
+| TP16 | Short: 381 successful requests. Guide: 45 successful and 336 failed; failure starts at concurrency 16, then the API exits. The underlying stall is not isolated |
+| DP16 + EP16 | Short: 381 successful requests. Guide warm-up times out waiting for remote DP15's worker, then 381 formal requests fail. Final metrics are explicitly `MISSING`, curl exit 7; both-node logs are retained |
+| P/D | Native TCP transfer and semantic smoke succeeded. Short: 356 successful and 25 failed; guide: 381 failed after the transport problem. No decode recomputation fallback. Not a result for an optimized RDMA implementation |
+| Platform interruption | VMSS Activity Log records `evictSpotVM` at `2026-11-03T13:22:03Z`, policy `Deallocate`; both VMs were read back as deallocated. These events postdate the three runtime-error sweeps |
+| Resource collection | Node 1's complete native JSONL returned with SHA256 verification. Formal-round samples and per-card statistics are projected. Node 0 remains missing; no complete 16-GPU resource chart is claimed |
+| Projection and tests | Original hashes are checked before projection. The shared test recomputes request counts, rates, E2E/P95, missing-metrics states, resource windows and per-card statistics from the public records |
+| Interrupted collector repair | Original runs wrote a workload report only on completion. The current collector atomically checkpoints between rounds; a local HTTP fixture and process-termination test preserved one completed round as `IN_PROGRESS`. This is not a real Spot recovery test or reconstructed PP evidence |
+| Fresh VM, recovery and release | Fresh-VM end-to-end replay and automatic Spot recovery remain **NOT_VERIFIED**. Execution after operator-assisted recovery is recorded separately below; historical live-page checks do not validate this revision |
+
+Replay one returned run without GPUs:
+
+```bash
+node --test --test-name-pattern="fiveway results" tests/mi300x.test.mjs
+python3 tools/build_layout_figure.py --fiveway data/mi300x-fiveway/qwen-fiveway_20261103-172600/summary.json --check
+```
+
+To analyze new private results, run `python3 tools/mi300x_evidence.py project-fiveway <new-run-dir>` first. It verifies that run's original hashes and complete request counts; it never fills unrun strategies with saved scores. `render-fiveway` selects separate Muse, initial-Qwen and recovery-Qwen regions in the same two READMEs. Regeneration must preserve other regions and produce identical bytes for identical input. It replaces tables only, not titles, narrative or source links; publishing a new run requires updating those together.
+
+A partial `IN_PROGRESS` report is not a finished sweep. Keep pre-eviction originals and record recovered execution as a separate phase. Restoring a VM or finding a file is not acceptance of the remaining workloads.
+
+### Recovery-phase validation
+
+<a id="qwen-recovery-validation"></a>
+
+The [recovery results](README.md#qwen-recovery) contain inputs, the full matrix, charts and limits. Evidence is in [qwen-fiveway-recovery_20261103](data/mi300x-fiveway/qwen-fiveway-recovery_20261103/). Its `parent_run_id` identifies the initial phase, but statistics use only recovery requests and resource windows.
+
+| Acceptance check | Observed result and boundary |
+|---|---|
+| Five-layout coverage | All layouts executed with two inputs, seven concurrency levels and three rounds each; 3810 formal requests, 2423 complete answers and 1387 failures, not five passing layouts |
+| Two-node image identity | The actual image IDs in `launch.txt` and `worker-launch.txt` match for all five layouts, not merely their tags |
+| Data and resources | Both nodes' raw files were sealed, returned and SHA-256 checked; every layout projects two-node formal measurement windows without filling missing values with zero |
+| Failure evidence | TP, TP+EP and DP retain native RPC timeout logs; P/D retains actual KV success/failure counters. HTTP 200 alone is not answer completion |
+| Statistical replay | The existing Node test covers recovery request counts, finish reasons, TTFT/E2E/P95, round throughput, resource windows, two-node image identity and phase attribution |
+| Phase isolation | The initial summary is unchanged; recovery has distinct table markers and image names, with idempotent regeneration that preserves old phases |
+| Unverified scope | Business correctness, sustained stability, actual long context, automatic Spot recovery, optimized RDMA, independent bilingual semantic review and a fresh-VM end-to-end replay remain incomplete |
+
+Replay from the project directory without GPUs:
+
+```bash
+node --test --test-name-pattern="fiveway results" tests/mi300x.test.mjs
+python3 tools/mi300x_evidence.py render-fiveway data/mi300x-fiveway/qwen-fiveway-recovery_20261103/summary.json
+python3 tools/build_layout_figure.py --fiveway data/mi300x-fiveway/qwen-fiveway-recovery_20261103/summary.json --check
+```
+
+Tables are generated from projected raw requests; SVGs are the delivered charts. PNG export is optional, and the Windows headless Edge export did not pass this phase's recheck, so it is not evidence of visual acceptance. Actual HTML readability still needs inspection; SVG string and hash checks do not replace it.
 
 ## Rebuild the document preview
 
@@ -78,7 +166,7 @@ Use PowerShell 7's built-in `ConvertFrom-Markdown`; no npm packages are installe
 ./tools/preview.ps1 -OutputDirectory "$env:TEMP/large-moe-guide-preview"
 ```
 
-One entry generates all four pages and records source/HTML SHA-256 values. Each model uses a four-column table retaining every component and release, with no horizontal table scrolling required. Compare each table's `scrollWidth` and `clientWidth` and inspect actual screenshots. Official figure provenance, dimensions and SHA-256 are in [visual-evidence.json](data/visual-evidence.json). Local preview is not GitHub publication acceptance or independent bilingual semantic review.
+One entry generates all four pages and records source/HTML SHA-256 values. Component matrices retain every column; wider measurement tables scroll inside their own containers. Require no page-level horizontal overflow at desktop and narrow-screen widths, and inspect actual text and images rather than relying on dimensions alone. Official figure provenance, dimensions and hashes are in [visual-evidence.json](data/visual-evidence.json). Local preview is not GitHub publication acceptance or independent semantic review.
 
 ## Per-tensor dtype census
 
@@ -220,7 +308,7 @@ Attempt 6 smoke requests (`temperature=0`; originals in `evidence/inkling_bf16_1
 
 Inkling is a reasoning model and its reasoning segment usually exceeds 200 tokens; the first two requests reused Nemotron's `max_tokens`, so they returned only reasoning. Raising the limit to 1024 produced the complete answer.
 
-Weights per GPU: in the PP layout PP0 holds 109.52 GiB and PP1 116.12 GiB (each pipeline stage holds half the layers, TP8 within a stage, experts not sharded by EP); in the DP+EP layout each GPU holds 114.88 GiB. The [budget table](README.md#resource-estimate) gives 122 GB for EP16+TP8 (experts 1855.4 GB ÷ 16 + non-expert 49.3 GB ÷ 8); the difference comes from vLLM sharding some non-expert tensors over the EP group. The magnitude matches.
+Weights per GPU: in the PP layout PP0 holds 109.52 GiB and PP1 116.12 GiB (each pipeline stage holds half the layers, TP8 within a stage, experts not sharded by EP); in the DP+EP layout each GPU holds 114.88 GiB. The [budget table](README.md#resource-accounting) gives 122 GB for EP16+TP8 (experts 1855.4 GB ÷ 16 + non-expert 49.3 GB ÷ 8); the difference comes from vLLM sharding some non-expert tensors over the EP group. The magnitude matches.
 
 These results establish that the BF16 release loads on 16 × MI300X, is served by the AITER fused MoE kernel and answers correctly (TP8 × PP2 layout); the cross-node DP/EP layout did not complete the second request in this image, which this project records as the current state, not as a verdict on the model or the hardware. Evidence: [data/mi300x-run/inkling_bf16_16xMI300X_pp2/](data/mi300x-run/inkling_bf16_16xMI300X_pp2/) (attempt 6: three requests and responses, `rocm-smi` JSON, server-log key lines) and [data/mi300x-run/inkling_bf16_16xMI300X/](data/mi300x-run/inkling_bf16_16xMI300X/) (attempt 5: the first response, the timed-out second request, key lines). Full container logs, Ray worker logs from both nodes and the attempt 1–4 logs are in the author's private evidence directory with SHA-256 values in each directory's `SHA256SUMS.private.txt`; host names, private IPs and the login user are replaced by role labels in the public projection. The two RCCL probe runs (`07_rccl_probe.sh`, 2026-11-01 17:54Z default GPU Direct RDMA → watchdog timeout after 240 s, `PROBE_EXIT=124`; 17:59Z `NCCL_NET_GDR_LEVEL=0` → `RCCL_PROBE_OK=True world=16`, 64 MiB all_reduce 2.4 ms, 52.4 GB/s, `PROBE_EXIT=0`) are projected as key lines in [data/mi300x-run/rccl_probe/](data/mi300x-run/rccl_probe/), with the full logs hashed in that directory's `SHA256SUMS.private.txt`; `summary.json` carries their numbers under `rccl_probe`. The run scripts are in [scripts/mi300x/](scripts/mi300x/).
 

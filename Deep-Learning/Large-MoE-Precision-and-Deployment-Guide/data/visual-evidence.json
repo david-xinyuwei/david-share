@@ -138,13 +138,365 @@
       "height": 327
     },
     {
+      "asset": "images/mi300x-fiveway-topology-en.svg",
+      "source_class": "original_test_topology",
+      "decision": "USE",
+      "language": "en",
+      "generator": "tools/build_layout_figure.py --fiveway data/mi300x-fiveway/fiveway_20261103-160700/summary.json",
+      "sha256": "ec367aee9a09af6dd35f35fcfe8a05aadb57c2acd873f474243e73ca11faee9e",
+      "width": 1960,
+      "height": 1130,
+      "bound_to": [
+        "data/mi300x-fiveway/fiveway_20261103-160700/summary.json"
+      ],
+      "icons": [
+        {
+          "file": "images/icons/10021-icon-service-Virtual-Machine.svg",
+          "sha256": "092d18ffadec9ec0e5af129186dc7bc2a80544011e55f965604ed4b13873e0fc",
+          "bytes": 1330,
+          "packageEntry": "Azure_Public_Service_Icons/Icons/compute/10021-icon-service-Virtual-Machine.svg",
+          "packageUrl": "https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V24.zip",
+          "packageSha256": "921594ccd1bf3d9c0a1bd7b6d924e050551a59342f2b353bb74bdcf761c35141",
+          "termsUrl": "https://learn.microsoft.com/azure/architecture/icons/",
+          "terms": "Microsoft permits the use of these icons in architectural diagrams, training materials, or documentation. Don't crop, flip, rotate, distort or change icon shape.",
+          "modified": false
+        }
+      ],
+      "incremental_value": "Connects the five website strategies to this exact MI300X run and plots its own per-request measurements, not vendor benchmark numbers.",
+      "does_not_prove": "No unmeasured DP/PD performance, production tail latency, business quality, or universal strategy ranking.",
+      "rendered_png": {
+        "asset": "images/mi300x-fiveway-topology-en.png",
+        "sha256": "700d630ddc1f9282dd596454a5ec60686e70e8de427099b77b8da95f665e2336",
+        "width": 3920,
+        "height": 2260,
+        "rendered_from_svg_sha256": "ec367aee9a09af6dd35f35fcfe8a05aadb57c2acd873f474243e73ca11faee9e"
+      }
+    },
+    {
+      "asset": "images/mi300x-fiveway-topology-zh.svg",
+      "source_class": "original_test_topology",
+      "decision": "USE",
+      "language": "zh",
+      "generator": "tools/build_layout_figure.py --fiveway data/mi300x-fiveway/fiveway_20261103-160700/summary.json",
+      "sha256": "7fd6ce3fc7fc04890b567345e54553707e6b88c5f720c52ec4ec2b703f0b0383",
+      "width": 1960,
+      "height": 1130,
+      "bound_to": [
+        "data/mi300x-fiveway/fiveway_20261103-160700/summary.json"
+      ],
+      "icons": [
+        {
+          "file": "images/icons/10021-icon-service-Virtual-Machine.svg",
+          "sha256": "092d18ffadec9ec0e5af129186dc7bc2a80544011e55f965604ed4b13873e0fc",
+          "bytes": 1330,
+          "packageEntry": "Azure_Public_Service_Icons/Icons/compute/10021-icon-service-Virtual-Machine.svg",
+          "packageUrl": "https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V24.zip",
+          "packageSha256": "921594ccd1bf3d9c0a1bd7b6d924e050551a59342f2b353bb74bdcf761c35141",
+          "termsUrl": "https://learn.microsoft.com/azure/architecture/icons/",
+          "terms": "Microsoft permits the use of these icons in architectural diagrams, training materials, or documentation. Don't crop, flip, rotate, distort or change icon shape.",
+          "modified": false
+        }
+      ],
+      "incremental_value": "Connects the five website strategies to this exact MI300X run and plots its own per-request measurements, not vendor benchmark numbers.",
+      "does_not_prove": "No unmeasured DP/PD performance, production tail latency, business quality, or universal strategy ranking.",
+      "rendered_png": {
+        "asset": "images/mi300x-fiveway-topology-zh.png",
+        "sha256": "c84d350d5edb617ce8b800eae31c052d27a89004d6f12331d3f77cbdcc5bd890",
+        "width": 3920,
+        "height": 2260,
+        "rendered_from_svg_sha256": "7fd6ce3fc7fc04890b567345e54553707e6b88c5f720c52ec4ec2b703f0b0383"
+      }
+    },
+    {
+      "asset": "images/mi300x-fiveway-performance-en.svg",
+      "source_class": "original_measurement_chart",
+      "decision": "USE",
+      "language": "en",
+      "generator": "tools/build_layout_figure.py --fiveway data/mi300x-fiveway/fiveway_20261103-160700/summary.json",
+      "sha256": "ca49c4856ccaa56597d390b92fa2b3fd32c16ebe391003ff99c2733a32d3e5d0",
+      "width": 1960,
+      "height": 1130,
+      "bound_to": [
+        "data/mi300x-fiveway/fiveway_20261103-160700/summary.json"
+      ],
+      "icons": [],
+      "incremental_value": "Connects the five website strategies to this exact MI300X run and plots its own per-request measurements, not vendor benchmark numbers.",
+      "does_not_prove": "No unmeasured DP/PD performance, production tail latency, business quality, or universal strategy ranking.",
+      "rendered_png": {
+        "asset": "images/mi300x-fiveway-performance-en.png",
+        "sha256": "6da3b22c685dd6e466a639434c193cf50aa9118c7258910d6be66a31a63b5a11",
+        "width": 3920,
+        "height": 2260,
+        "rendered_from_svg_sha256": "ca49c4856ccaa56597d390b92fa2b3fd32c16ebe391003ff99c2733a32d3e5d0"
+      }
+    },
+    {
+      "asset": "images/mi300x-fiveway-performance-zh.svg",
+      "source_class": "original_measurement_chart",
+      "decision": "USE",
+      "language": "zh",
+      "generator": "tools/build_layout_figure.py --fiveway data/mi300x-fiveway/fiveway_20261103-160700/summary.json",
+      "sha256": "f194bbaf03f44db2a8923109b078f03e57f9f2f0a1dfd3ba4896691d8f21573a",
+      "width": 1960,
+      "height": 1130,
+      "bound_to": [
+        "data/mi300x-fiveway/fiveway_20261103-160700/summary.json"
+      ],
+      "icons": [],
+      "incremental_value": "Connects the five website strategies to this exact MI300X run and plots its own per-request measurements, not vendor benchmark numbers.",
+      "does_not_prove": "No unmeasured DP/PD performance, production tail latency, business quality, or universal strategy ranking.",
+      "rendered_png": {
+        "asset": "images/mi300x-fiveway-performance-zh.png",
+        "sha256": "5dd0ab8ddfa36114a26c64519dbf138418b566e105a153242d140f07f6782d07",
+        "width": 3920,
+        "height": 2260,
+        "rendered_from_svg_sha256": "f194bbaf03f44db2a8923109b078f03e57f9f2f0a1dfd3ba4896691d8f21573a"
+      }
+    },
+    {
+      "asset": "images/mi300x-qwen-fiveway-topology-en.svg",
+      "source_class": "original_test_topology",
+      "decision": "USE",
+      "language": "en",
+      "generator": "tools/build_layout_figure.py --fiveway data/mi300x-fiveway/qwen-fiveway_20261103-172600/summary.json",
+      "sha256": "5b7258af19195c5a65bed96cd99557dac3e5a58466d50f0c1c5dbdf19664207b",
+      "width": 1960,
+      "height": 1130,
+      "bound_to": [
+        "data/mi300x-fiveway/qwen-fiveway_20261103-172600/summary.json"
+      ],
+      "icons": [
+        {
+          "file": "images/icons/10021-icon-service-Virtual-Machine.svg",
+          "sha256": "092d18ffadec9ec0e5af129186dc7bc2a80544011e55f965604ed4b13873e0fc",
+          "bytes": 1330,
+          "packageEntry": "Azure_Public_Service_Icons/Icons/compute/10021-icon-service-Virtual-Machine.svg",
+          "packageUrl": "https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V24.zip",
+          "packageSha256": "921594ccd1bf3d9c0a1bd7b6d924e050551a59342f2b353bb74bdcf761c35141",
+          "termsUrl": "https://learn.microsoft.com/azure/architecture/icons/",
+          "terms": "Microsoft permits the use of these icons in architectural diagrams, training materials, or documentation. Don't crop, flip, rotate, distort or change icon shape.",
+          "modified": false
+        }
+      ],
+      "incremental_value": "Connects the five website strategies to this exact MI300X run and plots its own per-request measurements, not vendor benchmark numbers.",
+      "does_not_prove": "No unmeasured DP/PD performance, production tail latency, business quality, or universal strategy ranking.",
+      "rendered_png": {
+        "asset": "images/mi300x-qwen-fiveway-topology-en.png",
+        "sha256": "4a9adc1e44386dee8bf303e77a858df9f0bb4c055ea18a858bb7664d21c5b9b0",
+        "width": 3920,
+        "height": 2260,
+        "rendered_from_svg_sha256": "5b7258af19195c5a65bed96cd99557dac3e5a58466d50f0c1c5dbdf19664207b"
+      }
+    },
+    {
+      "asset": "images/mi300x-qwen-fiveway-topology-zh.svg",
+      "source_class": "original_test_topology",
+      "decision": "USE",
+      "language": "zh",
+      "generator": "tools/build_layout_figure.py --fiveway data/mi300x-fiveway/qwen-fiveway_20261103-172600/summary.json",
+      "sha256": "82dd6d288e5c54797dc9ef00b8846533a2cdb5f76e62ad61c58740d9726a35f8",
+      "width": 1960,
+      "height": 1130,
+      "bound_to": [
+        "data/mi300x-fiveway/qwen-fiveway_20261103-172600/summary.json"
+      ],
+      "icons": [
+        {
+          "file": "images/icons/10021-icon-service-Virtual-Machine.svg",
+          "sha256": "092d18ffadec9ec0e5af129186dc7bc2a80544011e55f965604ed4b13873e0fc",
+          "bytes": 1330,
+          "packageEntry": "Azure_Public_Service_Icons/Icons/compute/10021-icon-service-Virtual-Machine.svg",
+          "packageUrl": "https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V24.zip",
+          "packageSha256": "921594ccd1bf3d9c0a1bd7b6d924e050551a59342f2b353bb74bdcf761c35141",
+          "termsUrl": "https://learn.microsoft.com/azure/architecture/icons/",
+          "terms": "Microsoft permits the use of these icons in architectural diagrams, training materials, or documentation. Don't crop, flip, rotate, distort or change icon shape.",
+          "modified": false
+        }
+      ],
+      "incremental_value": "Connects the five website strategies to this exact MI300X run and plots its own per-request measurements, not vendor benchmark numbers.",
+      "does_not_prove": "No unmeasured DP/PD performance, production tail latency, business quality, or universal strategy ranking.",
+      "rendered_png": {
+        "asset": "images/mi300x-qwen-fiveway-topology-zh.png",
+        "sha256": "98cf6832fef4fbb3666a24b74886eb65a86d40f9e5682a6fcc10cbcca5d29b50",
+        "width": 3920,
+        "height": 2260,
+        "rendered_from_svg_sha256": "82dd6d288e5c54797dc9ef00b8846533a2cdb5f76e62ad61c58740d9726a35f8"
+      }
+    },
+    {
+      "asset": "images/mi300x-qwen-fiveway-performance-en.svg",
+      "source_class": "original_measurement_chart",
+      "decision": "USE",
+      "language": "en",
+      "generator": "tools/build_layout_figure.py --fiveway data/mi300x-fiveway/qwen-fiveway_20261103-172600/summary.json",
+      "sha256": "38d1ae0c946d8de3b30977e4f052327be63877fd085fdc777cf5da5455bcdf2e",
+      "width": 1960,
+      "height": 1130,
+      "bound_to": [
+        "data/mi300x-fiveway/qwen-fiveway_20261103-172600/summary.json"
+      ],
+      "icons": [],
+      "incremental_value": "Connects the five website strategies to this exact MI300X run and plots its own per-request measurements, not vendor benchmark numbers.",
+      "does_not_prove": "No unmeasured DP/PD performance, production tail latency, business quality, or universal strategy ranking.",
+      "rendered_png": {
+        "asset": "images/mi300x-qwen-fiveway-performance-en.png",
+        "sha256": "8c994f68ffc1c7032ae1e7fcbfe6fc97f2310cabeb30928b53a28fc9f38e5a4e",
+        "width": 3920,
+        "height": 2260,
+        "rendered_from_svg_sha256": "38d1ae0c946d8de3b30977e4f052327be63877fd085fdc777cf5da5455bcdf2e"
+      }
+    },
+    {
+      "asset": "images/mi300x-qwen-fiveway-performance-zh.svg",
+      "source_class": "original_measurement_chart",
+      "decision": "USE",
+      "language": "zh",
+      "generator": "tools/build_layout_figure.py --fiveway data/mi300x-fiveway/qwen-fiveway_20261103-172600/summary.json",
+      "sha256": "bb67cbbef3e113cc22947754a5576db721986899d5ee3c7969c852ae6099c6f6",
+      "width": 1960,
+      "height": 1130,
+      "bound_to": [
+        "data/mi300x-fiveway/qwen-fiveway_20261103-172600/summary.json"
+      ],
+      "icons": [],
+      "incremental_value": "Connects the five website strategies to this exact MI300X run and plots its own per-request measurements, not vendor benchmark numbers.",
+      "does_not_prove": "No unmeasured DP/PD performance, production tail latency, business quality, or universal strategy ranking.",
+      "rendered_png": {
+        "asset": "images/mi300x-qwen-fiveway-performance-zh.png",
+        "sha256": "17007caa19078ff7918891f302b9f7ae79e7e6a1009b1e1561774ea5505a43a9",
+        "width": 3920,
+        "height": 2260,
+        "rendered_from_svg_sha256": "bb67cbbef3e113cc22947754a5576db721986899d5ee3c7969c852ae6099c6f6"
+      }
+    },
+    {
+      "asset": "images/mi300x-qwen-fiveway-recovery-topology-en.svg",
+      "source_class": "original_test_topology",
+      "decision": "USE",
+      "language": "en",
+      "generator": "tools/build_layout_figure.py --fiveway data/mi300x-fiveway/qwen-fiveway-recovery_20261103/summary.json",
+      "sha256": "4e370a5f28f9aac007d673f358955db3d23fc5df351e37b550f54fffc3ae0f33",
+      "width": 1960,
+      "height": 1130,
+      "bound_to": [
+        "data/mi300x-fiveway/qwen-fiveway-recovery_20261103/summary.json"
+      ],
+      "icons": [
+        {
+          "file": "images/icons/10021-icon-service-Virtual-Machine.svg",
+          "sha256": "092d18ffadec9ec0e5af129186dc7bc2a80544011e55f965604ed4b13873e0fc",
+          "bytes": 1330,
+          "packageEntry": "Azure_Public_Service_Icons/Icons/compute/10021-icon-service-Virtual-Machine.svg",
+          "packageUrl": "https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V24.zip",
+          "packageSha256": "921594ccd1bf3d9c0a1bd7b6d924e050551a59342f2b353bb74bdcf761c35141",
+          "termsUrl": "https://learn.microsoft.com/azure/architecture/icons/",
+          "terms": "Microsoft permits the use of these icons in architectural diagrams, training materials, or documentation. Don't crop, flip, rotate, distort or change icon shape.",
+          "modified": false
+        }
+      ],
+      "incremental_value": "Connects the five website strategies to this exact MI300X run and plots its own per-request measurements, not vendor benchmark numbers.",
+      "does_not_prove": "No unmeasured DP/PD performance, production tail latency, business quality, or universal strategy ranking."
+    },
+    {
+      "asset": "images/mi300x-qwen-fiveway-recovery-topology-zh.svg",
+      "source_class": "original_test_topology",
+      "decision": "USE",
+      "language": "zh",
+      "generator": "tools/build_layout_figure.py --fiveway data/mi300x-fiveway/qwen-fiveway-recovery_20261103/summary.json",
+      "sha256": "d18e58fc9f8d750bd60fcee31b78d2da8ca72c59b420922198479097a3d38347",
+      "width": 1960,
+      "height": 1130,
+      "bound_to": [
+        "data/mi300x-fiveway/qwen-fiveway-recovery_20261103/summary.json"
+      ],
+      "icons": [
+        {
+          "file": "images/icons/10021-icon-service-Virtual-Machine.svg",
+          "sha256": "092d18ffadec9ec0e5af129186dc7bc2a80544011e55f965604ed4b13873e0fc",
+          "bytes": 1330,
+          "packageEntry": "Azure_Public_Service_Icons/Icons/compute/10021-icon-service-Virtual-Machine.svg",
+          "packageUrl": "https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V24.zip",
+          "packageSha256": "921594ccd1bf3d9c0a1bd7b6d924e050551a59342f2b353bb74bdcf761c35141",
+          "termsUrl": "https://learn.microsoft.com/azure/architecture/icons/",
+          "terms": "Microsoft permits the use of these icons in architectural diagrams, training materials, or documentation. Don't crop, flip, rotate, distort or change icon shape.",
+          "modified": false
+        }
+      ],
+      "incremental_value": "Connects the five website strategies to this exact MI300X run and plots its own per-request measurements, not vendor benchmark numbers.",
+      "does_not_prove": "No unmeasured DP/PD performance, production tail latency, business quality, or universal strategy ranking."
+    },
+    {
+      "asset": "images/mi300x-qwen-fiveway-recovery-performance-en.svg",
+      "source_class": "original_measurement_chart",
+      "decision": "USE",
+      "language": "en",
+      "generator": "tools/build_layout_figure.py --fiveway data/mi300x-fiveway/qwen-fiveway-recovery_20261103/summary.json",
+      "sha256": "25994276c8ee5a927a8011f7a26962baefa4d6be886eafec2e5ba3e2fdf9133f",
+      "width": 1960,
+      "height": 1130,
+      "bound_to": [
+        "data/mi300x-fiveway/qwen-fiveway-recovery_20261103/summary.json"
+      ],
+      "icons": [],
+      "incremental_value": "Connects the five website strategies to this exact MI300X run and plots its own per-request measurements, not vendor benchmark numbers.",
+      "does_not_prove": "No unmeasured DP/PD performance, production tail latency, business quality, or universal strategy ranking."
+    },
+    {
+      "asset": "images/mi300x-qwen-fiveway-recovery-performance-zh.svg",
+      "source_class": "original_measurement_chart",
+      "decision": "USE",
+      "language": "zh",
+      "generator": "tools/build_layout_figure.py --fiveway data/mi300x-fiveway/qwen-fiveway-recovery_20261103/summary.json",
+      "sha256": "865f6f66defe5a66b7becdf3b10d24087193610ce6378f4b56ed360eb8ef1de4",
+      "width": 1960,
+      "height": 1130,
+      "bound_to": [
+        "data/mi300x-fiveway/qwen-fiveway-recovery_20261103/summary.json"
+      ],
+      "icons": [],
+      "incremental_value": "Connects the five website strategies to this exact MI300X run and plots its own per-request measurements, not vendor benchmark numbers.",
+      "does_not_prove": "No unmeasured DP/PD performance, production tail latency, business quality, or universal strategy ranking."
+    },
+    {
+      "asset": "images/mi300x-qwen-fiveway-recovery-resources-en.svg",
+      "source_class": "original_measurement_chart",
+      "decision": "USE",
+      "language": "en",
+      "generator": "tools/build_layout_figure.py --fiveway data/mi300x-fiveway/qwen-fiveway-recovery_20261103/summary.json",
+      "sha256": "9ea0578963e36b00ba07f8d230a3c05ecdd9ae43f0bfa62b05fc4b8990dd58e7",
+      "width": 1960,
+      "height": 1130,
+      "bound_to": [
+        "data/mi300x-fiveway/qwen-fiveway-recovery_20261103/summary.json"
+      ],
+      "icons": [],
+      "incremental_value": "Connects the five website strategies to this exact MI300X run and plots its own per-request measurements, not vendor benchmark numbers.",
+      "does_not_prove": "No unmeasured DP/PD performance, production tail latency, business quality, or universal strategy ranking."
+    },
+    {
+      "asset": "images/mi300x-qwen-fiveway-recovery-resources-zh.svg",
+      "source_class": "original_measurement_chart",
+      "decision": "USE",
+      "language": "zh",
+      "generator": "tools/build_layout_figure.py --fiveway data/mi300x-fiveway/qwen-fiveway-recovery_20261103/summary.json",
+      "sha256": "eaed959af440402f0866c134bba0e963e4f0e767ea651a371a676a18d8eccd70",
+      "width": 1960,
+      "height": 1130,
+      "bound_to": [
+        "data/mi300x-fiveway/qwen-fiveway-recovery_20261103/summary.json"
+      ],
+      "icons": [],
+      "incremental_value": "Connects the five website strategies to this exact MI300X run and plots its own per-request measurements, not vendor benchmark numbers.",
+      "does_not_prove": "No unmeasured DP/PD performance, production tail latency, business quality, or universal strategy ranking."
+    },
+    {
       "asset": "images/mi300x-test-topology-en.svg",
       "source_class": "original_test_topology",
       "decision": "USE",
       "language": "en",
       "generator": "tools/build_layout_figure.py --topology-only",
       "source_asset": "tools/build_layout_figure.py",
-      "source_sha256": "2b55fe5e0fb8c793ea4aadda619f58ee01503c0daa0946b3ac47cc89dc7b3274",
+      "source_sha256": "ad0016a607af23f79d41882a6a6e5482cd72c7282f483907cb464078a6ea4d2f",
       "sha256": "6f0854d02d24afc2ff7f862d4296bea9b05e45c84cd613cf5e68c579c83d2ba7",
       "width": 1720,
       "height": 760,
@@ -180,7 +532,7 @@
       "language": "zh",
       "generator": "tools/build_layout_figure.py --topology-only",
       "source_asset": "tools/build_layout_figure.py",
-      "source_sha256": "2b55fe5e0fb8c793ea4aadda619f58ee01503c0daa0946b3ac47cc89dc7b3274",
+      "source_sha256": "ad0016a607af23f79d41882a6a6e5482cd72c7282f483907cb464078a6ea4d2f",
       "sha256": "92272aef3c812f506845387a4072fda5a1ca3a27c5dc22049d221e872997bab9",
       "width": 1720,
       "height": 760,
@@ -208,6 +560,158 @@
       "depicts": "The 2026-11-02 client and execution topology: a Windows control VM issues commands over SSH; curl and the streaming probe run on node 0. Nemotron uses a local multiprocess executor with TP8+EP8. Inkling and Muse use Ray, TP8 within each of two PP stages. Each node has a local NVMe model cache. RCCL traffic is host-staged with NCCL_NET_GDR_LEVEL=0.",
       "incremental_value": "Combines the recorded client placement, per-model executor and two-node communication path; the official Azure VM icon identifies the hosting resource, not the custom scripts.",
       "does_not_prove": "The drawing is not runtime evidence; correctness and performance require the bound logs and requests."
+    },
+    {
+      "asset": "images/mi300x-muse-selectable-topology-en.svg",
+      "source_class": "original_test_topology",
+      "decision": "USE",
+      "language": "en",
+      "generator": "tools/build_layout_figure.py --fiveway data/mi300x-fiveway/muse-selectable_20261104/summary.json",
+      "sha256": "0c1fa867dcaa0c9399edacf27b4c7b487daf85d93704ff660987ed64a08b9b3e",
+      "width": 1960,
+      "height": 1130,
+      "bound_to": [
+        "data/mi300x-fiveway/muse-selectable_20261104/summary.json"
+      ],
+      "icons": [
+        {
+          "file": "images/icons/10021-icon-service-Virtual-Machine.svg",
+          "sha256": "092d18ffadec9ec0e5af129186dc7bc2a80544011e55f965604ed4b13873e0fc",
+          "bytes": 1330,
+          "packageEntry": "Azure_Public_Service_Icons/Icons/compute/10021-icon-service-Virtual-Machine.svg",
+          "packageUrl": "https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V24.zip",
+          "packageSha256": "921594ccd1bf3d9c0a1bd7b6d924e050551a59342f2b353bb74bdcf761c35141",
+          "termsUrl": "https://learn.microsoft.com/azure/architecture/icons/",
+          "terms": "Microsoft permits the use of these icons in architectural diagrams, training materials, or documentation. Don't crop, flip, rotate, distort or change icon shape.",
+          "modified": false
+        }
+      ],
+      "incremental_value": "Connects the five website strategies to this exact MI300X run and plots its own per-request measurements, not vendor benchmark numbers.",
+      "does_not_prove": "No unmeasured DP/PD performance, production tail latency, business quality, or universal strategy ranking."
+    },
+    {
+      "asset": "images/mi300x-muse-selectable-topology-zh.svg",
+      "source_class": "original_test_topology",
+      "decision": "USE",
+      "language": "zh",
+      "generator": "tools/build_layout_figure.py --fiveway data/mi300x-fiveway/muse-selectable_20261104/summary.json",
+      "sha256": "11c9a1f10496663375baa766417375563c21c15f3f163c3789ce43d0db396b46",
+      "width": 1960,
+      "height": 1130,
+      "bound_to": [
+        "data/mi300x-fiveway/muse-selectable_20261104/summary.json"
+      ],
+      "icons": [
+        {
+          "file": "images/icons/10021-icon-service-Virtual-Machine.svg",
+          "sha256": "092d18ffadec9ec0e5af129186dc7bc2a80544011e55f965604ed4b13873e0fc",
+          "bytes": 1330,
+          "packageEntry": "Azure_Public_Service_Icons/Icons/compute/10021-icon-service-Virtual-Machine.svg",
+          "packageUrl": "https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V24.zip",
+          "packageSha256": "921594ccd1bf3d9c0a1bd7b6d924e050551a59342f2b353bb74bdcf761c35141",
+          "termsUrl": "https://learn.microsoft.com/azure/architecture/icons/",
+          "terms": "Microsoft permits the use of these icons in architectural diagrams, training materials, or documentation. Don't crop, flip, rotate, distort or change icon shape.",
+          "modified": false
+        }
+      ],
+      "incremental_value": "Connects the five website strategies to this exact MI300X run and plots its own per-request measurements, not vendor benchmark numbers.",
+      "does_not_prove": "No unmeasured DP/PD performance, production tail latency, business quality, or universal strategy ranking."
+    },
+    {
+      "asset": "images/mi300x-muse-selectable-performance-en.svg",
+      "source_class": "original_measurement_chart",
+      "decision": "USE",
+      "language": "en",
+      "generator": "tools/build_layout_figure.py --fiveway data/mi300x-fiveway/muse-selectable_20261104/summary.json",
+      "sha256": "7ee1dc249656a9a6fcf47b69c67a9accfceb3ed99b0b16ed8f953d5e5dfb0019",
+      "width": 1960,
+      "height": 1130,
+      "bound_to": [
+        "data/mi300x-fiveway/muse-selectable_20261104/summary.json"
+      ],
+      "icons": [],
+      "incremental_value": "Connects the five website strategies to this exact MI300X run and plots its own per-request measurements, not vendor benchmark numbers.",
+      "does_not_prove": "No unmeasured DP/PD performance, production tail latency, business quality, or universal strategy ranking."
+    },
+    {
+      "asset": "images/mi300x-muse-selectable-performance-zh.svg",
+      "source_class": "original_measurement_chart",
+      "decision": "USE",
+      "language": "zh",
+      "generator": "tools/build_layout_figure.py --fiveway data/mi300x-fiveway/muse-selectable_20261104/summary.json",
+      "sha256": "ced1f5746aad548b596ec4786298ebc1398a337e5d9e3ec3376cb5071e5e4f92",
+      "width": 1960,
+      "height": 1130,
+      "bound_to": [
+        "data/mi300x-fiveway/muse-selectable_20261104/summary.json"
+      ],
+      "icons": [],
+      "incremental_value": "Connects the five website strategies to this exact MI300X run and plots its own per-request measurements, not vendor benchmark numbers.",
+      "does_not_prove": "No unmeasured DP/PD performance, production tail latency, business quality, or universal strategy ranking."
+    },
+    {
+      "asset": "images/mi300x-muse-selectable-resources-en.svg",
+      "source_class": "original_measurement_chart",
+      "decision": "USE",
+      "language": "en",
+      "generator": "tools/build_layout_figure.py --fiveway data/mi300x-fiveway/muse-selectable_20261104/summary.json",
+      "sha256": "ace41bff1a2863c94d9c7df4c6b23dcea6aa557ad47334e525a774793c34e993",
+      "width": 1960,
+      "height": 1130,
+      "bound_to": [
+        "data/mi300x-fiveway/muse-selectable_20261104/summary.json"
+      ],
+      "icons": [],
+      "incremental_value": "Connects the five website strategies to this exact MI300X run and plots its own per-request measurements, not vendor benchmark numbers.",
+      "does_not_prove": "No unmeasured DP/PD performance, production tail latency, business quality, or universal strategy ranking."
+    },
+    {
+      "asset": "images/mi300x-muse-selectable-resources-zh.svg",
+      "source_class": "original_measurement_chart",
+      "decision": "USE",
+      "language": "zh",
+      "generator": "tools/build_layout_figure.py --fiveway data/mi300x-fiveway/muse-selectable_20261104/summary.json",
+      "sha256": "e333171d98401e1642c5fbd1895c3eab5d1883458848930f6444c46568efdf2d",
+      "width": 1960,
+      "height": 1130,
+      "bound_to": [
+        "data/mi300x-fiveway/muse-selectable_20261104/summary.json"
+      ],
+      "icons": [],
+      "incremental_value": "Connects the five website strategies to this exact MI300X run and plots its own per-request measurements, not vendor benchmark numbers.",
+      "does_not_prove": "No unmeasured DP/PD performance, production tail latency, business quality, or universal strategy ranking."
+    },
+    {
+      "asset": "images/mi300x-muse-selectable-time-budget-en.svg",
+      "source_class": "original_measurement_chart",
+      "decision": "USE",
+      "language": "en",
+      "generator": "tools/build_layout_figure.py --fiveway data/mi300x-fiveway/muse-selectable_20261104/summary.json",
+      "sha256": "b79e45a4803d4bc6f9e61d46d4787c4915250106a681bd914a09fb2f0dd0754a",
+      "width": 1960,
+      "height": 1130,
+      "bound_to": [
+        "data/mi300x-fiveway/muse-selectable_20261104/summary.json"
+      ],
+      "icons": [],
+      "incremental_value": "Turns this run's measured time per token and InfiniBand bytes per token into a time budget: at the nominal rate the bytes need a sliver of the extra time, so link bandwidth cannot account for it.",
+      "does_not_prove": "The collective count and the per-call cost are estimates, not a trace; no GPU Direct RDMA, RCCL small-message or long-context result; no ranking beyond this hardware and input."
+    },
+    {
+      "asset": "images/mi300x-muse-selectable-time-budget-zh.svg",
+      "source_class": "original_measurement_chart",
+      "decision": "USE",
+      "language": "zh",
+      "generator": "tools/build_layout_figure.py --fiveway data/mi300x-fiveway/muse-selectable_20261104/summary.json",
+      "sha256": "619fcb2cf33c0769bb10d5a5e2cb0faacb6d6d038ba0fcc7995685220067e149",
+      "width": 1960,
+      "height": 1130,
+      "bound_to": [
+        "data/mi300x-fiveway/muse-selectable_20261104/summary.json"
+      ],
+      "icons": [],
+      "incremental_value": "Turns this run's measured time per token and InfiniBand bytes per token into a time budget: at the nominal rate the bytes need a sliver of the extra time, so link bandwidth cannot account for it.",
+      "does_not_prove": "The collective count and the per-call cost are estimates, not a trace; no GPU Direct RDMA, RCCL small-message or long-context result; no ranking beyond this hardware and input."
     }
   ],
   "source_class_decisions": [

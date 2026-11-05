@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1960" height="1130" viewBox="0 0 1960 1130">
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#8764B8"/></marker></defs>
+<rect width="1960" height="1130" fill="#FFFFFF"/>
+<text x="28" y="52.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="34" fill="#201F1E" font-weight="600" text-anchor="start">Same 16 MI300X GPUs: latency and aggregate throughput</text>
+<text x="28" y="95.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="23" fill="#605E5C" font-weight="normal" text-anchor="start">Each point is a 3-round median; TTFT is first reasoning/content text, not final-answer latency</text>
+<line x1="36" y1="143" x2="101" y2="143" stroke="#0078D4" stroke-width="4"/>
+<text x="116" y="151.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="25" fill="#0078D4" font-weight="600" text-anchor="start">TP16</text>
+<line x1="436" y1="143" x2="501" y2="143" stroke="#107C10" stroke-width="4"/>
+<text x="516" y="151.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="25" fill="#107C10" font-weight="600" text-anchor="start">TP8 × PP2</text>
+<line x1="836" y1="143" x2="901" y2="143" stroke="#ED1C24" stroke-width="4"/>
+<text x="916" y="151.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="25" fill="#ED1C24" font-weight="600" text-anchor="start">TP16 + EP</text>
+<text x="75" y="204.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="26" fill="#201F1E" font-weight="600" text-anchor="start">Short engineering prompt · Aggregate throughput (token/s)</text>
+<line x1="130" y1="516.0" x2="860" y2="516.0" stroke="#E1DFDD" stroke-width="1"/>
+<text x="112" y="523.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#605E5C" font-weight="normal" text-anchor="end">0</text>
+<line x1="130" y1="448.5" x2="860" y2="448.5" stroke="#E1DFDD" stroke-width="1"/>
+<text x="112" y="455.5" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#605E5C" font-weight="normal" text-anchor="end">345</text>
+<line x1="130" y1="381.0" x2="860" y2="381.0" stroke="#E1DFDD" stroke-width="1"/>
+<text x="112" y="388.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#605E5C" font-weight="normal" text-anchor="end">690</text>
+<line x1="130" y1="313.5" x2="860" y2="313.5" stroke="#E1DFDD" stroke-width="1"/>
+<text x="112" y="320.5" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#605E5C" font-weight="normal" text-anchor="end">1,036</text>
+<line x1="130" y1="246.0" x2="860" y2="246.0" stroke="#E1DFDD" stroke-width="1"/>
+<text x="112" y="253.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#605E5C" font-weight="normal" text-anchor="end">1,381</text>
+<line x1="130" y1="246" x2="130" y2="516" stroke="#201F1E" stroke-width="1.5"/>
+<line x1="130" y1="516" x2="860" y2="516" stroke="#201F1E" stroke-width="1.5"/>
+<text x="165.0" y="551.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="23" fill="#201F1E" font-weight="normal" text-anchor="middle">1</text>
+<text x="495.0" y="551.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="23" fill="#201F1E" font-weight="normal" text-anchor="middle">8</text>
+<text x="825.0" y="551.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="23" fill="#201F1E" font-weight="normal" text-anchor="middle">32</text>
+<text x="495.0" y="592.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="22" fill="#201F1E" font-weight="normal" text-anchor="middle">Concurrent requests (discrete levels)</text>
+<circle cx="165.00" cy="504.45" r="6" fill="#0078D4"/>
+<line x1="165.0" y1="504.4512905032735" x2="495.0" y2="460.0546453750593" stroke="#0078D4" stroke-width="3"/>
+<circle cx="495.00" cy="460.05" r="6" fill="#0078D4"/>
+<line x1="495.0" y1="460.0546453750593" x2="825.0" y2="362.4159012274857" stroke="#0078D4" stroke-width="3"/>
+<circle cx="825.00" cy="362.42" r="6" fill="#0078D4"/>
+<circle cx="165.00" cy="500.44" r="6" fill="#107C10"/>
+<line x1="165.0" y1="500.4427035337892" x2="495.0" y2="447.7811338341296" stroke="#107C10" stroke-width="3"/>
+<circle cx="495.00" cy="447.78" r="6" fill="#107C10"/>
+<line x1="495.0" y1="447.7811338341296" x2="825.0" y2="281.2173913043478" stroke="#107C10" stroke-width="3"/>
+<circle cx="825.00" cy="281.22" r="6" fill="#107C10"/>
+<text x="1033" y="204.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="26" fill="#201F1E" font-weight="600" text-anchor="start">Short engineering prompt · Time to first text (ms)</text>
+<line x1="1088" y1="516.0" x2="1818" y2="516.0" stroke="#E1DFDD" stroke-width="1"/>
+<text x="1070" y="523.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#605E5C" font-weight="normal" text-anchor="end">0</text>
+<line x1="1088" y1="448.5" x2="1818" y2="448.5" stroke="#E1DFDD" stroke-width="1"/>
+<text x="1070" y="455.5" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#605E5C" font-weight="normal" text-anchor="end">343</text>
+<line x1="1088" y1="381.0" x2="1818" y2="381.0" stroke="#E1DFDD" stroke-width="1"/>
+<text x="1070" y="388.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#605E5C" font-weight="normal" text-anchor="end">686</text>
+<line x1="1088" y1="313.5" x2="1818" y2="313.5" stroke="#E1DFDD" stroke-width="1"/>
+<text x="1070" y="320.5" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#605E5C" font-weight="normal" text-anchor="end">1,029</text>
+<line x1="1088" y1="246.0" x2="1818" y2="246.0" stroke="#E1DFDD" stroke-width="1"/>
+<text x="1070" y="253.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#605E5C" font-weight="normal" text-anchor="end">1,373</text>
+<line x1="1088" y1="246" x2="1088" y2="516" stroke="#201F1E" stroke-width="1.5"/>
+<line x1="1088" y1="516" x2="1818" y2="516" stroke="#201F1E" stroke-width="1.5"/>
+<text x="1123.0" y="551.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="23" fill="#201F1E" font-weight="normal" text-anchor="middle">1</text>
+<text x="1453.0" y="551.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="23" fill="#201F1E" font-weight="normal" text-anchor="middle">8</text>
+<text x="1783.0" y="551.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="23" fill="#201F1E" font-weight="normal" text-anchor="middle">32</text>
+<text x="1453.0" y="592.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="22" fill="#201F1E" font-weight="normal" text-anchor="middle">Concurrent requests (discrete levels)</text>
+<circle cx="1123.00" cy="474.85" r="6" fill="#0078D4"/>
+<line x1="1123.0" y1="474.8511059568383" x2="1453.0" y2="415.1030442889007" stroke="#0078D4" stroke-width="3"/>
+<circle cx="1453.00" cy="415.10" r="6" fill="#0078D4"/>
+<line x1="1453.0" y1="415.1030442889007" x2="1783.0" y2="281.2173913043478" stroke="#0078D4" stroke-width="3"/>
+<circle cx="1783.00" cy="281.22" r="6" fill="#0078D4"/>
+<circle cx="1123.00" cy="477.83" r="6" fill="#107C10"/>
+<line x1="1123.0" y1="477.82947819141657" x2="1453.0" y2="422.51374055862783" stroke="#107C10" stroke-width="3"/>
+<circle cx="1453.00" cy="422.51" r="6" fill="#107C10"/>
+<line x1="1453.0" y1="422.51374055862783" x2="1783.0" y2="380.4894062586727" stroke="#107C10" stroke-width="3"/>
+<circle cx="1783.00" cy="380.49" r="6" fill="#107C10"/>
+<text x="75" y="622.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="26" fill="#201F1E" font-weight="600" text-anchor="start">Deployment-guide prompt · Aggregate throughput (token/s)</text>
+<line x1="130" y1="934.0" x2="860" y2="934.0" stroke="#E1DFDD" stroke-width="1"/>
+<text x="112" y="941.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#605E5C" font-weight="normal" text-anchor="end">0</text>
+<line x1="130" y1="866.5" x2="860" y2="866.5" stroke="#E1DFDD" stroke-width="1"/>
+<text x="112" y="873.5" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#605E5C" font-weight="normal" text-anchor="end">281</text>
+<line x1="130" y1="799.0" x2="860" y2="799.0" stroke="#E1DFDD" stroke-width="1"/>
+<text x="112" y="806.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#605E5C" font-weight="normal" text-anchor="end">562</text>
+<line x1="130" y1="731.5" x2="860" y2="731.5" stroke="#E1DFDD" stroke-width="1"/>
+<text x="112" y="738.5" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#605E5C" font-weight="normal" text-anchor="end">843</text>
+<line x1="130" y1="664.0" x2="860" y2="664.0" stroke="#E1DFDD" stroke-width="1"/>
+<text x="112" y="671.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#605E5C" font-weight="normal" text-anchor="end">1,124</text>
+<line x1="130" y1="664" x2="130" y2="934" stroke="#201F1E" stroke-width="1.5"/>
+<line x1="130" y1="934" x2="860" y2="934" stroke="#201F1E" stroke-width="1.5"/>
+<text x="165.0" y="969.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="23" fill="#201F1E" font-weight="normal" text-anchor="middle">1</text>
+<text x="495.0" y="969.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="23" fill="#201F1E" font-weight="normal" text-anchor="middle">8</text>
+<text x="825.0" y="969.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="23" fill="#201F1E" font-weight="normal" text-anchor="middle">32</text>
+<text x="495.0" y="1010.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="22" fill="#201F1E" font-weight="normal" text-anchor="middle">Concurrent requests (discrete levels)</text>
+<circle cx="165.00" cy="919.47" r="6" fill="#0078D4"/>
+<line x1="165.0" y1="919.465776844404" x2="495.0" y2="864.6273627618659" stroke="#0078D4" stroke-width="3"/>
+<circle cx="495.00" cy="864.63" r="6" fill="#0078D4"/>
+<line x1="495.0" y1="864.6273627618659" x2="825.0" y2="751.7891077268345" stroke="#0078D4" stroke-width="3"/>
+<circle cx="825.00" cy="751.79" r="6" fill="#0078D4"/>
+<circle cx="165.00" cy="914.31" r="6" fill="#107C10"/>
+<line x1="165.0" y1="914.3056940039435" x2="495.0" y2="849.591971819003" stroke="#107C10" stroke-width="3"/>
+<circle cx="495.00" cy="849.59" r="6" fill="#107C10"/>
+<line x1="495.0" y1="849.591971819003" x2="825.0" y2="699.2173913043479" stroke="#107C10" stroke-width="3"/>
+<circle cx="825.00" cy="699.22" r="6" fill="#107C10"/>
+<text x="1033" y="622.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="26" fill="#201F1E" font-weight="600" text-anchor="start">Deployment-guide prompt · Time to first text (ms)</text>
+<line x1="1088" y1="934.0" x2="1818" y2="934.0" stroke="#E1DFDD" stroke-width="1"/>
+<text x="1070" y="941.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#605E5C" font-weight="normal" text-anchor="end">0</text>
+<line x1="1088" y1="866.5" x2="1818" y2="866.5" stroke="#E1DFDD" stroke-width="1"/>
+<text x="1070" y="873.5" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#605E5C" font-weight="normal" text-anchor="end">1,174</text>
+<line x1="1088" y1="799.0" x2="1818" y2="799.0" stroke="#E1DFDD" stroke-width="1"/>
+<text x="1070" y="806.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#605E5C" font-weight="normal" text-anchor="end">2,349</text>
+<line x1="1088" y1="731.5" x2="1818" y2="731.5" stroke="#E1DFDD" stroke-width="1"/>
+<text x="1070" y="738.5" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#605E5C" font-weight="normal" text-anchor="end">3,523</text>
+<line x1="1088" y1="664.0" x2="1818" y2="664.0" stroke="#E1DFDD" stroke-width="1"/>
+<text x="1070" y="671.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="20" fill="#605E5C" font-weight="normal" text-anchor="end">4,697</text>
+<line x1="1088" y1="664" x2="1088" y2="934" stroke="#201F1E" stroke-width="1.5"/>
+<line x1="1088" y1="934" x2="1818" y2="934" stroke="#201F1E" stroke-width="1.5"/>
+<text x="1123.0" y="969.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="23" fill="#201F1E" font-weight="normal" text-anchor="middle">1</text>
+<text x="1453.0" y="969.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="23" fill="#201F1E" font-weight="normal" text-anchor="middle">8</text>
+<text x="1783.0" y="969.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="23" fill="#201F1E" font-weight="normal" text-anchor="middle">32</text>
+<text x="1453.0" y="1010.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="22" fill="#201F1E" font-weight="normal" text-anchor="middle">Concurrent requests (discrete levels)</text>
+<circle cx="1123.00" cy="920.41" r="6" fill="#0078D4"/>
+<line x1="1123.0" y1="920.4095851688819" x2="1453.0" y2="866.2304350803881" stroke="#0078D4" stroke-width="3"/>
+<circle cx="1453.00" cy="866.23" r="6" fill="#0078D4"/>
+<line x1="1453.0" y1="866.2304350803881" x2="1783.0" y2="699.2173913043479" stroke="#0078D4" stroke-width="3"/>
+<circle cx="1783.00" cy="699.22" r="6" fill="#0078D4"/>
+<circle cx="1123.00" cy="921.50" r="6" fill="#107C10"/>
+<line x1="1123.0" y1="921.4955192887443" x2="1453.0" y2="888.0342825708417" stroke="#107C10" stroke-width="3"/>
+<circle cx="1453.00" cy="888.03" r="6" fill="#107C10"/>
+<line x1="1453.0" y1="888.0342825708417" x2="1783.0" y2="841.6441361150991" stroke="#107C10" stroke-width="3"/>
+<circle cx="1783.00" cy="841.64" r="6" fill="#107C10"/>
+<text x="28" y="1097.0" font-family="'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif" font-size="21" fill="#605E5C" font-weight="normal" text-anchor="start">Original measurement chart from per-request JSON. DP and PD are unmeasured, not zero. Output limits can truncate reasoning.</text>
+</svg>

@@ -4,7 +4,7 @@
 
 ## 验证什么
 
-本项目的可执行工具只读取公开元数据或重放已经保存的元数据，计算张量数据负载。它不运行模型、不申请 GPU、不决定生产卡数，不输出吞吐或质量分数。
+元数据工具读取公开数据或重放快照，计算张量负载，不调用模型。另有 `scripts/mi300x/` 中的真实模型启动、流式测量和资源采集脚本。离线证据测试不会申请 GPU、重跑推理、决定生产卡数或证明答案质量。Qwen 初轮因 Spot 驱逐中断；后续恢复轮已执行五布局，运行失败与成功均保留。2026-11-04 的 Muse 实测覆盖网站可选、能放进两节点的三种布局。
 
 两个采集时间分别为：模型 API 元数据 `2026-11-01T12:49:24.528Z`；原厂 NVFP4 配置摘要 `2026-11-01T12:51:18.489Z`。时间使用 UTC。数据文件保留了模型 ID、固定 revision、实际读取状态和范围；来源发布者与原始模型开发者是不同维度。
 
@@ -14,12 +14,14 @@
 
 ```bash
 node tools/inspect.mjs
-node --test tests/inspect.test.mjs tests/census.test.mjs tests/mi300x.test.mjs
+node --test tests/inspect.test.mjs tests/census.test.mjs tests/mi300x.test.mjs tests/mxfp4.test.mjs
 ```
 
 第一条成功时输出 JSON，`result_type` 为 `CALCULATED_FROM_PUBLIC_METADATA`，模型推理状态始终为 `NOT_RUN`。`tensor_payload_bytes` 是各 dtype 元素数乘以其存储字节数后求和；GB 用十进制，GiB 用二进制。它不包括 safetensors 文件头、其他文件、KV/状态缓存、运行工作区和通信缓冲。
 
-第二条运行二十二项测试。`inspect.test.mjs`（九项）：三个完整组件表及双语引用/本地链接一致性、独立仓库开篇、版式守卫（两版 README 的每卡预算、MI300X 结果、速度探针、复现步骤和先看结论五张对比表保持完整列数，没有被 `<br>` 切断的代码标识、空 `<code>` 标签或两列堆叠表；针对 2026-11-02 的版式回退）、U8 打包字节而非逻辑参数量、六行负载复算、Muse 401 保留、Nemotron router 排除、未知 dtype 拒绝、新 revision 不继承旧配置结论、联网失败不回退成旧数据成功。`census.test.mjs`（四项）：普查字节与 API 元数据逐字节一致、两个模型关键组件的 dtype 与张量数、未分类组件与篡改总数被拒绝。`mi300x.test.mjs`（七项）：`data/mi300x-run/summary.json` 的每个数字能回到对应的原始请求/响应/日志文件，公开投影中没有私有标识，四份文档引用的 Nemotron 与 Inkling 实测数字与 summary 一致，第 2 轮服务速度探针的中位数（并发 1 和 8 的 TTFT、解码与总吞吐 tok/s）在每份文档中都以带单位的表格行出现且与 `08_perf.json` 重算值逐字一致，文档没有宣称未执行的吞吐/质量验收，对 Muse 通过的描述只用 summary 中那次运行的加载/KV/token 数字，以及并行布局图（`images/mi300x-parallel-layout-{en,zh}.svg`）画的正是 summary 里三个第 2 轮布局的 TP/PP/EP 大小和每卡权重/KV 显存、只嵌入台账登记的未改动 Azure 虚拟机图标、哈希与 `data/visual-evidence.json` 一致，且在两份 README 中都以“原创”图说嵌入；四份文档引用的跨机 RCCL 探针数字（`nogdr` 设置：16 进程、64 MiB all_reduce 2.4 ms、52.4 GB/s、退出码 0；默认 RDMA 设置：看门狗超时、退出码 124）与 `summary.json` 的 `rccl_probe` 条目一致，而这些条目是从 `data/mi300x-run/rccl_probe/` 里探针自己打印的 `RCCL_PROBE_OK` / `PROBE_EXIT` 行读出的。`mxfp4.test.mjs`（两项）：`data/mi300x-mxfp4/summary.json` 的每个数字能回到对应的 `launch.json`、`first_response.json`、`08_perf.json` 和日志关键行，两个通过的部署都选中 `EMULATION` 后端且公开投影没有私有标识；两版 README 逐字引用每卡权重、KV、首条回答 token 数、TTFT 和 tok/s，引用 Muse 两次拒绝的原文，先看结论表和第 3 轮表里 Muse 的 MXFP4 格都写“失败”而不是“通过”，README 不出现 NVFP4 结果列或探针内核名（探针只记在本页）。测试中的 HTTP 返回对象是单元测试桩，不是在线模型证据。
+第二条运行二十四项测试。`inspect.test.mjs`（九项）：三个完整组件表及双语引用/本地链接一致性、独立仓库开篇、版式守卫（两版 README 的每卡预算、MI300X 结果、速度探针、复现步骤和先看结论五张对比表保持完整列数，没有被 `<br>` 切断的代码标识、空 `<code>` 标签或两列堆叠表；针对 2026-11-02 的版式回退）、U8 打包字节而非逻辑参数量、六行负载复算、Muse 401 保留、Nemotron router 排除、未知 dtype 拒绝、新 revision 不继承旧配置结论、联网失败不回退成旧数据成功。`census.test.mjs`（四项）：普查字节与 API 元数据逐字节一致、两个模型关键组件的 dtype 与张量数、未分类组件与篡改总数被拒绝。`mi300x.test.mjs`（九项，包含 Qwen 逐请求与资源验证，以及 2026-11-04 的 Muse 五布局测试）：`data/mi300x-run/summary.json` 的每个数字能回到对应的原始请求/响应/日志文件，公开投影中没有私有标识，四份文档引用的 Nemotron 与 Inkling 实测数字与 summary 一致，第 2 轮服务速度探针的中位数（并发 1 和 8 的 TTFT、解码与总吞吐 tok/s）在每份文档中都以带单位的表格行出现且与 `08_perf.json` 重算值逐字一致，文档没有宣称未执行的吞吐/质量验收，对 Muse 通过的描述只用 summary 中那次运行的加载/KV/token 数字，以及并行布局图（`images/mi300x-parallel-layout-{en,zh}.svg`）画的正是 summary 里三个第 2 轮布局的 TP/PP/EP 大小和每卡权重/KV 显存、只嵌入台账登记的未改动 Azure 虚拟机图标、哈希与 `data/visual-evidence.json` 一致，且在两份 README 中都以“原创”图说嵌入；四份文档引用的跨机 RCCL 探针数字（`nogdr` 设置：16 进程、64 MiB all_reduce 2.4 ms、52.4 GB/s、退出码 0；默认 RDMA 设置：看门狗超时、退出码 124）与 `summary.json` 的 `rccl_probe` 条目一致，而这些条目是从 `data/mi300x-run/rccl_probe/` 里探针自己打印的 `RCCL_PROBE_OK` / `PROBE_EXIT` 行读出的。`mxfp4.test.mjs`（两项）：`data/mi300x-mxfp4/summary.json` 的每个数字能回到对应的 `launch.json`、`first_response.json`、`08_perf.json` 和日志关键行，两个通过的部署都选中 `EMULATION` 后端且公开投影没有私有标识；两版 README 逐字引用每卡权重、KV、首条回答 token 数、TTFT 和 tok/s，引用 Muse 两次拒绝的原文，先看结论表和第 3 轮表里 Muse 的 MXFP4 格都写“失败”而不是“通过”，README 不出现 NVFP4 结果列或探针内核名（探针只记在本页）。测试中的 HTTP 返回对象是单元测试桩，不是在线模型证据。
+
+2026-11-04 的 Muse 五布局测试读取 `data/mi300x-fiveway/muse-selectable_20261104/`，检查：页面为每个布局生成的参数都在实际 argv 中，其余参数都是登记过的新增项；头节点和 worker 使用固定镜像；`SOURCE_SHA256SUMS` 中的六个脚本与公开的 `scripts/mi300x/` 文件内容相同（统一换行符后比较），部署分析输入与 2026-11-03 的文字相同；E2E/TTFT P95、输出 token 集合、每轮时长和单位成本可由逐条请求重算；布局对比及其计数、每节点 InfiniBand 速率及峰值可由已存的分档统计和每秒资源样本重算；README 引用的 TP 组 all-reduce 后端与服务日志记录一致（TP16 与 TP16 + EP 只有 `PYNCCL`，其服务日志记录了自定义 all-reduce 因跨节点而关闭；TP8 × PP2 依次为 `AITER_CUSTOM`、`PYNCCL`），且两版 README 都链接了这些日志；README 表格和引用的数字与汇总一致；两种语言的三张图与台账哈希一致。
 
 ## 新数据而非旧快照
 
@@ -49,9 +51,9 @@ Nemotron BF16 的 API `safetensors.total` 与逐 dtype 元素数之和并不一�
 | 原厂 NVFP4 配置 | Nemotron 与 Inkling 已解析；Muse 返回 401，未解析 |
 | 逐张量 dtype 普查 | 两个 BF16 版本通过：从 safetensors 文件头读出 51,023 + 1,552 个张量，文件头字节合计与 API 元数据一致，无未分类名字模式（见「逐张量 dtype 普查」） |
 | 文件诊断 | 已执行编辑器检查；不等于 Node 测试通过 |
-| Node 测试与 CLI | 通过：二十一项测试，零失败（`node --test tests/inspect.test.mjs tests/census.test.mjs tests/mi300x.test.mjs tests/mxfp4.test.mjs`，每次推送由 GitHub Actions `large-moe-precision-guide-ci.yml` 在 Ubuntu 和 Windows 上复跑）；覆盖三个四列表、每表 25 项、全部九个版本、双语来源/链接、六行字节复算、普查与 API 字节一致性、关键组件 dtype、文档引用的 MI300X BF16 实测数字与 `data/mi300x-run/summary.json` 一致，以及第 3 轮 MXFP4 的每个数字与 `data/mi300x-mxfp4/summary.json` 一致且两版 README 把 Muse 记为失败 |
-| 表格布局 | 通过（2026-11-02/03，GitHub 线上页）：两版 README 在 1280 和 390 像素宽度下页面无横向溢出，宽表由 GitHub 自带的表内横向滚动承接；对比表保持完整列数，没有被 `<br>` 切断的代码标识（`inspect.test.mjs` 的版式守卫持续检查） |
-| 本地完整预览 | 通过：`tools/preview.ps1 -GitHubMarkdown` 用 GitHub Markdown API 渲染四页，图像全部加载；最终以线上页面为准 |
+| Node 测试与 CLI | 通过：二十四项本地测试，零失败（`node --test tests/inspect.test.mjs tests/census.test.mjs tests/mi300x.test.mjs tests/mxfp4.test.mjs`，每次推送由 GitHub Actions `large-moe-precision-guide-ci.yml` 在 Ubuntu 和 Windows 上复跑）；覆盖三个四列表、每表 25 项、全部九个版本、双语来源/链接、六行字节复算、普查与 API 字节一致性、关键组件 dtype、文档引用的 MI300X BF16 实测数字与 `data/mi300x-run/summary.json` 一致，以及第 3 轮 MXFP4 的每个数字与 `data/mi300x-mxfp4/summary.json` 一致且两版 README 把 Muse 记为失败；2026-11-04 Muse 五布局的表格、对比和跨机速率从公开的逐条请求与资源样本重算 |
+| 表格布局 | 2026-11-02/03 历史线上版本检查通过；本轮未发布修改需重新检查本地 1280/390 像素预览，旧截图不覆盖新内容。完整比较表的结构守卫继续执行 |
+| 本地完整预览 | 当前采用 `tools/preview.ps1` 与 PowerShell `ConvertFrom-Markdown`，为四页保存源文件和 HTML 哈希；不冒充旧的 GitHub Markdown API 结果或当前线上发布验收 |
 | 跨机 RCCL 探针，2 × 8 MI300X（步骤 7） | `NCCL_NET_GDR_LEVEL=0` 下通过：16 进程 64 MiB all_reduce 平均 2.4 ms，总线带宽 52.4 GB/s，`PROBE_EXIT=0`（2026-11-01 17:59Z）；默认 GPU Direct RDMA 设置撞上 240 s 集合通信看门狗和脚本 300 s 超时（`PROBE_EXIT=124`）；单一消息大小、单次运行——连通性检查，不是带宽 benchmark；关键行在 `data/mi300x-run/rccl_probe/` |
 | MI300X BF16 加载与 smoke，Nemotron 3 Ultra | 8 × MI300X 通过（尝试 3）：引擎就绪，两条请求回答正确；内核、缓存精度与显存记录在「MI300X 实测」 |
 | MI300X BF16 加载与 smoke，Inkling | 2 × 8 MI300X 通过（尝试 6，TP8 × PP2）：引擎就绪，三条请求返回，`max_tokens=1024` 的一条给出正确最终答案；TP8 × DP2 + EP16 布局（尝试 5）就绪后第二条请求挂起，记为该布局在本镜像上未通过 |
@@ -60,15 +62,101 @@ Nemotron BF16 的 API `safetensors.total` 与逐 dtype 元素数之和并不一�
 | MI300X MXFP4 模拟路径，Inkling | 8 × MI300X 通过（第 3 轮，TP8，`lightseekorg/Inkling-MXFP4` Quark checkpoint，`EMULATION` 后端）：每卡权重 66.74 GiB，最终答案正确，探针并发 1 单请求 6.1 tok/s；记在「第 3 轮」 |
 | MI300X MXFP4 模拟路径，Nemotron 3 Ultra | 8 × MI300X 通过（第 3 轮，TP8 + EP8，BF16 checkpoint 用 vLLM 官方 `--quantization online` 在线量化，`EMULATION` 后端）：每卡权重 43.21 GiB，最终答案正确，探针并发 1 单请求 7.7 tok/s；记在「第 3 轮」 |
 | MI300X MXFP4 模拟路径，Muse Spark Open | 失败（第 3 轮，两次尝试）：通用在线入口被拒（`got quantization 'online'`），Muse 自己的入口进入 MXFP4 但模型代码拒绝 `EMULATION` 后端（`requires the AITER_MXFP4_MXFP4 backend`）；未加载权重；记在「第 3 轮」 |
+| Muse 网站可选布局，2 × 8 MI300X（2026-11-04） | TP8 × PP2、TP16、TP16 + EP 在页面命令加 README 所列适配下通过：2,286 条请求，0 失败，2,266 条自然完成的答案，20 条写满 16,384 token 上限；置灰的 DP + EP 与需要 4 节点的 P/D 未运行；见「Muse 网站可选策略实测」 |
 | 吞吐分布、长提示、业务任务质量、MXFP4 对 BF16 的质量回归、长上下文、生产稳定性 | 三个模型均 NOT_RUN |
 | NVFP4 版本在 MI300X 上的全模型加载 | NOT_RUN；只对 Nemotron、Inkling 做了单专家内核探针（与 PyTorch 参考的相对 L2 误差 0 和 3.74×10⁻⁹，1 卡，`Nvfp4QuantizationEmulationTritonExperts`）；Muse 的 NVFP4 配置返回 401 |
 | FP8 版本在任何 GPU 上 | NOT_RUN；不在本轮实测范围内 |
-| 独立中文与双语语义审查 | 2026-11-01 的文档版本通过过一次独立审查；2026-11-02/03 新增的 MI300X 实测、MXFP4 和先看结论内容只做了作者自审和确定性对齐检查（标题数、表列数、数字、链接、锚点中英一致），未做独立语义审查：**NOT_VERIFIED** |
+| 独立中文与双语语义审查 | 2026-11-01 的文档版本通过过一次独立审查；2026-11-02/03/04 新增的 MI300X 实测、MXFP4、先看结论和 Muse 五布局内容只做了作者自审和确定性对齐检查（标题数、表列数、数字、链接、锚点中英一致），未做独立语义审查：**NOT_VERIFIED** |
 | GitHub 发布与线上页面 | 以本专题的公开提交及检查结果为准；本地预览不替代线上验收 |
 
 未执行的检查不能标为通过。公开来源、原理分析与可执行工具分别有自己的验收边界。
 
-独立文本复核覆盖四份双语文档及组件表，第二轮逐项复验修正后的五个问题。`AI_NATIVE_CHINESE_AUDIT=PASS`，`AI_BILINGUAL_SEMANTIC_AUDIT=PASS`。它不执行模型、不复跑性能测试，也不代替实际组件精度验证。来源单元格对应与本地链接的确定性检查另行通过。
+早期独立复核只适用于当时文本，不覆盖后续新增内容。当前版本的 `AI_NATIVE_CHINESE_AUDIT=NOT_VERIFIED`、`AI_BILINGUAL_SEMANTIC_AUDIT=NOT_VERIFIED`；作者自审和确定性检查单独记录，不能替代独立语义审查或运行时验收。
+
+## Muse 网站可选策略实测（2026-11-04）
+
+<a id="muse-selectable-validation"></a>
+
+[结果](README_CN.md#muse-selectable)包含页面原文、输入、矩阵、图和边界，证据在 [muse-selectable_20261104](data/mi300x-fiveway/muse-selectable_20261104/)。本轮只归属于 Muse BF16，不与 2026-11-03 的 Muse 轮次或 Qwen 轮次合并统计。
+
+| 核对项 | 观测结果与边界 |
+|---|---|
+| 覆盖范围 | 网站提供、能放进两节点的三种布局都跑完两组输入、七档并发、每档 3 轮：2,286 条请求，0 失败，2,266 条自然完成的答案，20 条写满输出上限。DP + EP 记为网站置灰，P/D 记为需要 4 节点，二者都没有测量值 |
+| 页面命令 | 每个布局的实际 argv 都包含页面生成的全部参数；新增参数只有 README 列出的几项，镜像、前端、容器权限和 RCCL 设置的差别也按 README 记录 |
+| 镜像身份 | 三个布局的头节点（`launch.txt`）与 worker（`worker-launch.txt`）镜像 ID 都等于固定摘要 |
+| 脚本 | 实际运行的六个脚本（`00_env.sh`、`08_serve_muse_2node.sh`、`09_perf_probe.py`、`10_measure_layout.sh`、`12_resource_monitor.py`、`14_run_remaining_layouts.sh`）与本轮 `SOURCE_SHA256SUMS` 一致，并与 `scripts/mi300x/` 中的同名文件内容相同；因为 Git 以 LF 存储文本，比较前统一换行符（`12_resource_monitor.py` 运行时为 Windows 换行符） |
+| 证据完整性 | 每个布局的封存包和两节点的最终归档都已回传并做 SHA-256 校验。投影写出前会重新核对每个原始文件的哈希，重复运行得到逐字节相同的输出 |
+| 资源采样 | 两节点在整批运行中各记录 17,252 个每秒样本。每个布局的投影只保留其正式测量轮次内的样本，缺失不补零 |
+| 统计复算 | 共用的 Node 测试从公开的逐条请求重算请求数、结束原因、TTFT 中位数、解码中位数和逐轮吞吐。专门的测试再重算 E2E/TTFT P95、每轮时长、单位成本、布局对比、跨机速率、服务日志中的 TP 组 all-reduce 后端、页面参数一致性、镜像身份、每 token 时间账和 README 表格 |
+| 时间账 | 短问题、并发 1：每 token 时间是单请求解码中位数的倒数；每 token 跨节点字节等于测量轮内的接收速率 × 轮次时长 ÷ 输出 token；测试从逐条请求和逐秒采样重算两者。每个 token 约 126 次跨节点集合通信（62 层 × 2 次 all-reduce，再加嵌入层和输出层共 2 次）来自模型卡与 vLLM v0.33.0 源码，不是运行时跟踪；平均每次比节点内至少多 35 µs 是下限估算，前提写在 README。TP8 × PP2 的节点 1 每个处理过的 token 接收 31,792 字节，是一份 FP32 残差流（32,768 字节）的 97%，用来核对计数器口径 |
+| 平台事件 | 正式批次开始前，Spot 先后驱逐了两台 VM 各一次，节点 0 还需要一次客户机重启才清除驱动初始化挂起；当时还没有任何模型请求。之后批次在 06:44–11:29 UTC 之间没有中断。这些记录保留在私有证据中 |
+| 未验证 | 答案质量、长上下文、GPU Direct RDMA、随机化或重复部署、DP + EP、P/D、页面自己的镜像与 Rust 前端、公开步骤在全新 VM 上的回放、逐次集合通信耗时的跟踪，以及独立双语审查 |
+
+在本专题目录下离线复算，不需要 GPU：
+
+```bash
+node --test --test-name-pattern="fiveway results|muse selectable" tests/mi300x.test.mjs
+python3 tools/build_layout_figure.py --fiveway data/mi300x-fiveway/muse-selectable_20261104/summary.json --check
+```
+
+重新生成投影需要私有证据目录；`render-fiveway` 和图形工具只根据公开汇总重建本轮标记区域内的表格和 `mi300x-muse-selectable-*` 图。用本轮汇总运行 `init-fiveway` 时，新运行会拿到自己的表格标记和图片文件名，因此渲染新运行不会覆盖本轮的表格和图（2026-11-04 离线核对）。
+
+## Qwen 五布局测量与中断
+
+<a id="qwen-fiveway-validation"></a>
+
+[初轮结果章节](README_CN.md#qwen-fiveway)保留实际输入、部署位置、全部已回流表格与解释，[新建测量步骤](README_CN.md#qwen-reproduce)区分部署与离线重放。以下表格专门描述驱逐时保存的 [qwen-fiveway_20261103-172600](data/mi300x-fiveway/qwen-fiveway_20261103-172600/) 投影，不是当前任务进度，不能归因给 Muse。
+
+| 检查项 | 实际结果与边界 |
+|---|---|
+| 完整五布局比较 | **受阻。** TP、DP+EP、P/D 各有两份完整扫测；PP 中断且请求数据未齐；TP+EP 尚未启动 |
+| 实际运行配置 | Qwen revision `ac9c66cc9b46af7306746a9250f23d47083d689e`、BF16、两节点 MI300X、`mp`、Triton MoE、`TRITON_ATTN`；每个 `launch.txt` 与 `worker-launch.txt` 保存真实命令和镜像身份 |
+| 请求与计时完整性 | 完整扫测保留所有成功/失败、实际输出与结束原因、TTFT、E2E、时间戳和轮次。Warm-up 单独记录；延迟只统计完整流，吞吐保留失败等待 |
+| TP16 | 短输入 381 条成功；部署分析 45 条成功、336 条失败，并发 16 起出现故障并退出 API；底层停滞原因未隔离 |
+| DP16 + EP16 | 短输入 381 条成功；部署分析 warm-up 等待远端 DP15 worker 超时，随后 381 条正式请求失败。末尾 metrics 明确记为 `MISSING`、curl 退出码 7；两端日志保留 |
+| P/D | 原生 TCP 传输与语义 smoke 通过；短输入 356 条成功、25 条失败，传输出错后的部署分析 381 条失败。未采用 D 端重算，不代表优化过的 RDMA 实现 |
+| 平台中断 | VMSS 活动日志在 `2026-11-03T13:22:03Z` 记录 `evictSpotVM`，策略为 `Deallocate`；随后读回两台均已释放。事件晚于三种运行错误扫测 |
+| 资源采集 | 节点 1 完整原生 JSONL 已回流并验证 SHA256；正式轮次样本及每卡统计已投影。节点 0 缺失，不宣称完成 16 卡资源曲线 |
+| 投影与测试 | 投影前核对原始哈希；同一测试从公开记录重算请求数、速率、E2E/P95、指标缺失状态、资源时间窗口及每卡统计 |
+| 中断后的采集器修正 | 原执行版本仅在整组结束时写报告；当前版本在轮次间原子落盘。本地 HTTP 测试桩与进程终止测试确认一轮结果保留为 `IN_PROGRESS`，不是真实 Spot 恢复测试，也没有重建 PP 原始证据 |
+| 全新环境、恢复与发布 | 全新 VM 端到端回放和自动 Spot 恢复 **NOT_VERIFIED**；人工恢复后的执行见下方独立记录，不用旧线上检查代替当前版本验收 |
+
+不使用 GPU 重放已保存结果：
+
+```bash
+node --test --test-name-pattern="fiveway results" tests/mi300x.test.mjs
+python3 tools/build_layout_figure.py --fiveway data/mi300x-fiveway/qwen-fiveway_20261103-172600/summary.json --check
+```
+
+分析新的私有结果时，先执行 `python3 tools/mi300x_evidence.py project-fiveway <new-run-dir>`。它检查这个新目录的原始哈希和完整请求数量，不借旧成绩填未测项。`render-fiveway` 在同一两份 README 中分别选择 Muse、Qwen 初轮、Qwen 恢复轮标记区；相同输入应生成相同字节，并保留其他实验的内容。它只替换表格，不自动更新标题、叙述和来源链接；发布一个新 run 时必须同时对齐这些内容。
+
+`IN_PROGRESS` 部分文件不是完整扫测；旧证据保持不变，恢复执行单独标记。虚拟机恢复或找到文件，不等于剩余负载已通过。
+
+### 恢复轮验收
+
+<a id="qwen-recovery-validation"></a>
+
+[恢复轮主结果](README_CN.md#qwen-recovery)包含输入、完整矩阵、图表和结论边界。证据为 [qwen-fiveway-recovery_20261103](data/mi300x-fiveway/qwen-fiveway-recovery_20261103/)，其 `parent_run_id` 指向初轮，但统计只读取恢复轮自己的请求和资源窗口。
+
+| 验收项 | 实际结果与边界 |
+|---|---|
+| 五布局覆盖 | 全部执行并保存两组输入、七档并发、每档三轮；3810 条正式请求，2423 条完整答案、1387 条失败，不是五布局全部通过 |
+| 两端镜像 | 五布局两端实际 image ID 相同，保存在 `launch.txt` 与 `worker-launch.txt`；不是仅凭 tag 相同判断 |
+| 数据与资源 | 两端原始文件封存后回流并校验 SHA-256；每个布局投影两节点正式测量窗口，缺失值不补零 |
+| 失败真实性 | TP、TP+EP、DP 保留原生 RPC 超时日志，P/D 保留实际 KV 成功及失败计数；HTTP 200 本身不算回答成功 |
+| 统计重算 | 现有 Node 测试覆盖恢复轮请求数、结束原因、TTFT/E2E/P95、逐轮吞吐和资源窗口，并核对两端镜像与阶段归属 |
+| 阶段隔离 | 初轮摘要未被修改；恢复轮使用独立表格标记与图名，重复生成不覆盖旧轮 |
+| 未验证范围 | 业务正确性、长期稳定性、真实长上下文、自动 Spot 恢复、优化 RDMA、独立双语语义复审和全新 VM 端到端复放仍未完成 |
+
+从本专题目录离线复核，不使用 GPU：
+
+```bash
+node --test --test-name-pattern="fiveway results" tests/mi300x.test.mjs
+python3 tools/mi300x_evidence.py render-fiveway data/mi300x-fiveway/qwen-fiveway-recovery_20261103/summary.json
+python3 tools/build_layout_figure.py --fiveway data/mi300x-fiveway/qwen-fiveway-recovery_20261103/summary.json --check
+```
+
+表格从原始请求投影生成，SVG 是正式图表。PNG 是可选导出，当前 Windows headless Edge 导出入口未通过本轮复验，不作为图表已验证的依据。网页实际可读性仍需检查 HTML 渲染，SVG 字符串与哈希校验不能替代视觉验收。
 
 ## 重建文档预览
 
@@ -78,7 +166,7 @@ Nemotron BF16 的 API `safetensors.total` 与逐 dtype 元素数之和并不一�
 ./tools/preview.ps1 -OutputDirectory "$env:TEMP/large-moe-guide-preview"
 ```
 
-同一个入口生成四页并记录源文件与 HTML 的 SHA-256。三个模型各用四列表，保留全部组件与版本，要求表格自身无需横向滚动。测试应分别比较每张表的 `scrollWidth` 与 `clientWidth`，并查看实际截图。官方图的来源、尺寸与 SHA-256 见 [visual-evidence.json](data/visual-evidence.json)。预览不替代 GitHub 线上页面或独立双语语义复审。
+同一个入口生成四页并记录源文件与 HTML 的 SHA-256。组件矩阵保留全部列，宽测量表在自身容器内滚动；桌面与窄屏均要求页面无横向溢出，并人工检查文字与图像，不能只看尺寸。官方图来源、尺寸与哈希见 [visual-evidence.json](data/visual-evidence.json)。本地预览不替代 GitHub 发布验收或独立语义复审。
 
 ## 逐张量 dtype 普查
 

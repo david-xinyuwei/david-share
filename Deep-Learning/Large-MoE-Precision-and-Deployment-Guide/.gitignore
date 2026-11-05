@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+*.bak
+*.bak-*
+*.bak.*
+*.orig
+*.rej
+*~
+*.render.html
+# Projected public server logs: README links them and the tests read them; the repository root ignores *.log
+!data/mi300x-fiveway/**/*.log

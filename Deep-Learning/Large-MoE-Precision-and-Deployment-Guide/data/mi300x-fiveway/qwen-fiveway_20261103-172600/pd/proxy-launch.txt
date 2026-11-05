@@ -1,0 +1,1 @@
+2eb32e9a2f7370c97aed9b9402537a197af3fcd72774784f7f624e7b4c6cb239 sha256:c962b4806244ff1d12d08726782e58732996baa4cc939e63ebdcb0894425282c ["/run-evidence/source/mooncake_connector_proxy.py","--host","0.0.0.0","--port","8000","--prefill","http://<node0-private-ip>:8001","8998","--decode","http://<node1-private-ip>:8002"]

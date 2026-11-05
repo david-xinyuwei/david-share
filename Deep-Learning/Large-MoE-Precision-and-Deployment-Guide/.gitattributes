@@ -13,3 +13,5 @@ images/icons/*.svg text eol=lf
 tools/build_layout_figure.py text eol=lf
 data/mi300x-run/summary.json !filter !diff !merge text eol=lf
 data/mi300x-run/rccl_probe/PROJECTION.json !filter !diff !merge text eol=lf
+images/mi300x-muse-selectable-*.svg text eol=lf
+data/mi300x-fiveway/muse-selectable_20261104/*/*.log text eol=lf

@@ -43,9 +43,9 @@ img { max-width: 100%; height: auto; }
 pre { padding: 16px; background: #f6f8fa; overflow-x: auto; border-radius: 4px; }
 code { font: 0.9em/1.6 Consolas, monospace; background: #eff1f3; }
 pre code { background: transparent; }
-.table-wrap { overflow-x: auto; margin: 18px 0; }
-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 14px; line-height: 1.5; }
-th, td { padding: 7px 10px; border: 1px solid #d1d9e0; vertical-align: top; overflow-wrap: anywhere; word-break: normal; }
+.table-wrap { max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; margin: 18px 0; }
+table { width: 100%; table-layout: auto; border-collapse: collapse; font-size: 14px; line-height: 1.5; }
+th, td { padding: 7px 10px; border: 1px solid #d1d9e0; vertical-align: top; overflow-wrap: normal; word-break: normal; }
 td code, th code { font-size: 0.9em; white-space: normal; overflow-wrap: anywhere; }
 th { background: #eef3f6; text-align: left; }
 tr:nth-child(even) td { background: #f6f8fa; }
@@ -54,25 +54,26 @@ tr:nth-child(even) td { background: #f6f8fa; }
 .budget th:nth-child(2) { width: 16%; }
 .budget th:nth-child(3), .budget th:nth-child(4), .budget th:nth-child(5) { width: 10%; }
 .budget th:nth-child(6) { width: 34%; }
-.performance table { min-width: 1000px; }
+.performance th { min-width: 6em; }
 .performance th:nth-child(1) { width: 19%; }
 .performance th:nth-child(2) { width: 9%; }
 .performance th:nth-child(3) { width: 14%; }
 .performance th:nth-child(4) { width: 16%; }
 .performance th:nth-child(5) { width: 22%; }
 .performance th:nth-child(6), .performance th:nth-child(7) { width: 10%; }
+.wide-comparison th { min-width: 6em; }
 .reading-map th:first-child { width: 34%; }
-@media (max-width: 700px) { .table-wrap table { min-width: 700px; } .performance table { min-width: 1000px; } }
 .diagram-wrap { overflow-x: auto; margin: 18px 0; border: 1px solid #d1d9e0; }
 .mermaid { min-width: 960px; padding: 12px; }
 .katex-display { position: relative; overflow-x: auto; overflow-y: hidden; padding: 8px 0; } /* relative: keep KaTeX's absolutely positioned MathML copy inside the scroll box, otherwise it widens the page at 390 px */
 .render-error { color: #a40e26; padding: 12px; border: 1px solid #a40e26; }
-@media (max-width: 600px) { main { padding: 16px 32px 48px; } h1 { font-size: 25px; } h2 { font-size: 22px; } }
+@media (max-width: 600px) { main { padding: 16px 16px 48px; } h1 { font-size: 25px; } h2 { font-size: 22px; } }
 </style>
 </head>
 <body><main>__BODY__</main>
 <script id="diagram-export" type="application/json">[]</script>
 <script type="module">
+const sourceUri = __SOURCE_URI__;
 for (const heading of document.querySelectorAll('h1,h2,h3,h4')) {
   const slug = heading.textContent.toLowerCase().replace(/[^\p{L}\p{N}_\- ]/gu, '').trim().replace(/ /g, '-');
   if (slug && !document.getElementById(slug)) {
@@ -81,7 +82,11 @@ for (const heading of document.querySelectorAll('h1,h2,h3,h4')) {
 }
 for (const link of document.querySelectorAll('a[href]')) {
   const href = link.getAttribute('href');
-  if (/^(README(?:_CN)?|VALIDATION(?:_CN)?)\.md(?:#.*)?$/.test(href)) link.setAttribute('href', href.replace('.md', '.html'));
+  if (/^(README(?:_CN)?|VALIDATION(?:_CN)?)\.md(?:#.*)?$/.test(href)) {
+    link.setAttribute('href', href.replace('.md', '.html'));
+  } else if (href && !href.startsWith('#') && !/^[a-z][a-z0-9+.-]*:/i.test(href)) {
+    link.setAttribute('href', new URL(href, sourceUri).href);
+  }
 }
 for (const table of document.querySelectorAll('table')) {
   const wrapper = document.createElement('div');
@@ -90,6 +95,7 @@ for (const table of document.querySelectorAll('table')) {
   wrapper.className = 'table-wrap';
   if (/^(组件|Part)$/.test(firstHeader)) wrapper.classList.add('precision');
   if (/MXFP4/.test(firstHeader)) wrapper.classList.add('performance');
+  if (table.rows[0].cells.length >= 8) wrapper.classList.add('wide-comparison');
   if (/HBM/.test(headers) && table.rows[0].cells.length === 6) wrapper.classList.add('budget');
   if (/^(想要|You want|阅读目的|Reader task)/.test(firstHeader)) wrapper.classList.add('reading-map');
   table.replaceWith(wrapper); wrapper.append(table);
@@ -150,7 +156,8 @@ $records = foreach ($name in @('README.md', 'README_CN.md', 'VALIDATION.md', 'VA
     $body = (ConvertFrom-Markdown -InputObject $markdown).Html
   }
     $language = if ($name.Contains('_CN')) { 'zh-CN' } else { 'en' }
-    $html = $template.Replace('__LANG__', $language).Replace('__TITLE__', $name).Replace('__BODY__', $body)
+    $sourceUriJson = ([Uri]$source).AbsoluteUri | ConvertTo-Json -Compress
+    $html = $template.Replace('__LANG__', $language).Replace('__TITLE__', $name).Replace('__BODY__', $body).Replace('__SOURCE_URI__', $sourceUriJson)
     $destination = Join-Path $outputRoot ($name.Replace('.md', '.html'))
     [System.IO.File]::WriteAllText($destination, $html, [System.Text.UTF8Encoding]::new($false))
     [ordered]@{

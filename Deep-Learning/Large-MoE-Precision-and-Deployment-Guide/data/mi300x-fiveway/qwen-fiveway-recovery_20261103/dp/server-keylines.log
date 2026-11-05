@@ -1,0 +1,81 @@
+(Worker pid=6433) INFO 11-04 00:34:28 [cuda_communicator.py:353] Using ['PYNCCL'] all-reduce backends (in dispatch order) for group 'dp:0' out of potential backends: ['FLASHINFER_PCIE_IPC', 'FLASHINFER', 'NCCL_SYMM_MEM', 'QUICK_REDUCE', 'AITER_CUSTOM', 'CUSTOM', 'SYMM_MEM', 'PYNCCL'].
+(Worker pid=6433) INFO 11-04 00:34:30 [cuda_communicator.py:353] Using ['PYNCCL'] all-reduce backends (in dispatch order) for group 'ep:0' out of potential backends: ['FLASHINFER_PCIE_IPC', 'FLASHINFER', 'NCCL_SYMM_MEM', 'QUICK_REDUCE', 'AITER_CUSTOM', 'CUSTOM', 'SYMM_MEM', 'PYNCCL'].
+(Worker pid=6433) INFO 11-04 00:34:30 [parallel_state.py:2385] rank 0 in world size 16 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, ETP rank 0, EP rank 0, EPLB rank N/A
+(Worker_DP0_EP0 pid=6433) INFO 11-04 00:34:33 [rocm.py:803] Using TRITON_ATTN backend (selected via --attention-backend).
+(Worker_DP0_EP0 pid=6433) INFO 11-04 00:34:33 [unquantized.py:294] Using TRITON Unquantized MoE backend out of potential backends: ['ROCm AITER', 'TRITON', 'BATCHED_TRITON'].
+(Worker_DP0_EP0 pid=6433) INFO 11-04 00:34:42 [unquantized.py:530] Using TritonExperts MoE backend
+(Worker_DP1_EP1 pid=6400) INFO 11-04 00:34:43 [model_runner.py:428] Model loading took 41.4 GiB memory and 10.264506 seconds
+(Worker_DP6_EP6 pid=6509) INFO 11-04 00:34:43 [model_runner.py:428] Model loading took 41.4 GiB memory and 10.366595 seconds
+(Worker_DP5_EP5 pid=6401) INFO 11-04 00:34:43 [model_runner.py:428] Model loading took 41.4 GiB memory and 10.372573 seconds
+(Worker_DP0_EP0 pid=6433) INFO 11-04 00:34:43 [model_runner.py:428] Model loading took 41.4 GiB memory and 10.602309 seconds
+(Worker_DP2_EP2 pid=6537) INFO 11-04 00:34:44 [model_runner.py:428] Model loading took 41.4 GiB memory and 10.741293 seconds
+(Worker_DP7_EP7 pid=6523) INFO 11-04 00:34:44 [model_runner.py:428] Model loading took 41.4 GiB memory and 10.895166 seconds
+(Worker_DP3_EP3 pid=6434) INFO 11-04 00:34:44 [model_runner.py:428] Model loading took 41.4 GiB memory and 11.114600 seconds
+(Worker_DP4_EP4 pid=6562) INFO 11-04 00:34:44 [model_runner.py:428] Model loading took 41.4 GiB memory and 11.141278 seconds
+(EngineCore_DP1 pid=859) INFO 11-04 00:36:16 [kv_cache_utils.py:1147] GPU KV cache size: 548,976 tokens, Maximum concurrency for 32,768 tokens per request: 16.75x
+(EngineCore_DP5 pid=863) INFO 11-04 00:36:16 [kv_cache_utils.py:1147] GPU KV cache size: 548,976 tokens, Maximum concurrency for 32,768 tokens per request: 16.75x
+(Worker_DP0_EP0 pid=6433) INFO 11-04 00:36:16 [gpu_worker.py:772] Available KV cache memory: 98.43 GiB
+(EngineCore_DP0 pid=858) INFO 11-04 00:36:16 [kv_cache_utils.py:1147] GPU KV cache size: 548,976 tokens, Maximum concurrency for 32,768 tokens per request: 16.75x
+(EngineCore_DP6 pid=864) INFO 11-04 00:36:16 [kv_cache_utils.py:1147] GPU KV cache size: 548,976 tokens, Maximum concurrency for 32,768 tokens per request: 16.75x
+(EngineCore_DP2 pid=860) INFO 11-04 00:36:16 [kv_cache_utils.py:1147] GPU KV cache size: 548,976 tokens, Maximum concurrency for 32,768 tokens per request: 16.75x
+(EngineCore_DP7 pid=865) INFO 11-04 00:36:16 [kv_cache_utils.py:1147] GPU KV cache size: 548,976 tokens, Maximum concurrency for 32,768 tokens per request: 16.75x
+(EngineCore_DP3 pid=861) INFO 11-04 00:36:16 [kv_cache_utils.py:1147] GPU KV cache size: 548,976 tokens, Maximum concurrency for 32,768 tokens per request: 16.75x
+(EngineCore_DP4 pid=862) INFO 11-04 00:36:17 [kv_cache_utils.py:1147] GPU KV cache size: 548,976 tokens, Maximum concurrency for 32,768 tokens per request: 16.75x
+INFO:     Application startup complete.
+INFO:     Application startup complete.
+INFO:     Application startup complete.
+INFO:     Application startup complete.
+INFO:     Application startup complete.
+INFO:     Application startup complete.
+INFO:     Application startup complete.
+INFO:     Application startup complete.
+INFO:     Application startup complete.
+INFO:     Application startup complete.
+INFO:     Application startup complete.
+INFO:     Application startup complete.
+INFO:     Application startup complete.
+INFO:     Application startup complete.
+INFO:     Application startup complete.
+INFO:     Application startup complete.
+(EngineCore_DP3 pid=861) ERROR 11-04 00:45:58 [core.py:1586] EngineCore encountered a fatal error.
+(EngineCore_DP3 pid=861) ERROR 11-04 00:45:58 [core.py:1586]     raise TimeoutError
+(EngineCore_DP3 pid=861) ERROR 11-04 00:45:58 [core.py:1586] TimeoutError
+(EngineCore_DP3 pid=861) ERROR 11-04 00:45:58 [core.py:1586]     raise TimeoutError(f"RPC call to {method} timed out.") from e
+(EngineCore_DP3 pid=861) ERROR 11-04 00:45:58 [core.py:1586] TimeoutError: RPC call to sample_tokens timed out.
+(EngineCore_DP1 pid=859) ERROR 11-04 00:45:58 [core.py:1586] EngineCore encountered a fatal error.
+(EngineCore_DP1 pid=859) ERROR 11-04 00:45:58 [core.py:1586]     raise TimeoutError
+(EngineCore_DP1 pid=859) ERROR 11-04 00:45:58 [core.py:1586] TimeoutError
+(EngineCore_DP1 pid=859) ERROR 11-04 00:45:58 [core.py:1586]     raise TimeoutError(f"RPC call to {method} timed out.") from e
+(EngineCore_DP1 pid=859) ERROR 11-04 00:45:58 [core.py:1586] TimeoutError: RPC call to execute_dummy_batch timed out.
+(EngineCore_DP2 pid=860) ERROR 11-04 00:45:58 [core.py:1586] EngineCore encountered a fatal error.
+(EngineCore_DP2 pid=860) ERROR 11-04 00:45:58 [core.py:1586]     raise TimeoutError
+(EngineCore_DP2 pid=860) ERROR 11-04 00:45:58 [core.py:1586] TimeoutError
+(EngineCore_DP2 pid=860) ERROR 11-04 00:45:58 [core.py:1586]     raise TimeoutError(f"RPC call to {method} timed out.") from e
+(EngineCore_DP2 pid=860) ERROR 11-04 00:45:58 [core.py:1586] TimeoutError: RPC call to execute_dummy_batch timed out.
+(EngineCore_DP0 pid=858) ERROR 11-04 00:45:58 [core.py:1586] EngineCore encountered a fatal error.
+(EngineCore_DP0 pid=858) ERROR 11-04 00:45:58 [core.py:1586]     raise TimeoutError
+(EngineCore_DP0 pid=858) ERROR 11-04 00:45:58 [core.py:1586] TimeoutError
+(EngineCore_DP0 pid=858) ERROR 11-04 00:45:58 [core.py:1586]     raise TimeoutError(f"RPC call to {method} timed out.") from e
+(EngineCore_DP0 pid=858) ERROR 11-04 00:45:58 [core.py:1586] TimeoutError: RPC call to execute_dummy_batch timed out.
+(EngineCore_DP5 pid=863) ERROR 11-04 00:45:58 [core.py:1586] EngineCore encountered a fatal error.
+(EngineCore_DP5 pid=863) ERROR 11-04 00:45:58 [core.py:1586]     raise TimeoutError
+(EngineCore_DP5 pid=863) ERROR 11-04 00:45:58 [core.py:1586] TimeoutError
+(EngineCore_DP5 pid=863) ERROR 11-04 00:45:58 [core.py:1586]     raise TimeoutError(f"RPC call to {method} timed out.") from e
+(EngineCore_DP5 pid=863) ERROR 11-04 00:45:58 [core.py:1586] TimeoutError: RPC call to execute_dummy_batch timed out.
+(EngineCore_DP4 pid=862) ERROR 11-04 00:45:58 [core.py:1586] EngineCore encountered a fatal error.
+(EngineCore_DP4 pid=862) ERROR 11-04 00:45:58 [core.py:1586]     raise TimeoutError
+(EngineCore_DP4 pid=862) ERROR 11-04 00:45:58 [core.py:1586] TimeoutError
+(EngineCore_DP4 pid=862) ERROR 11-04 00:45:58 [core.py:1586]     raise TimeoutError(f"RPC call to {method} timed out.") from e
+(EngineCore_DP4 pid=862) ERROR 11-04 00:45:58 [core.py:1586] TimeoutError: RPC call to execute_dummy_batch timed out.
+(EngineCore_DP6 pid=864) ERROR 11-04 00:45:58 [core.py:1586] EngineCore encountered a fatal error.
+(EngineCore_DP6 pid=864) ERROR 11-04 00:45:58 [core.py:1586]     raise TimeoutError
+(EngineCore_DP6 pid=864) ERROR 11-04 00:45:58 [core.py:1586] TimeoutError
+(EngineCore_DP6 pid=864) ERROR 11-04 00:45:58 [core.py:1586]     raise TimeoutError(f"RPC call to {method} timed out.") from e
+(EngineCore_DP6 pid=864) ERROR 11-04 00:45:58 [core.py:1586] TimeoutError: RPC call to execute_dummy_batch timed out.
+(EngineCore_DP7 pid=865) ERROR 11-04 00:45:58 [core.py:1586] EngineCore encountered a fatal error.
+(EngineCore_DP7 pid=865) ERROR 11-04 00:45:58 [core.py:1586]     raise TimeoutError
+(EngineCore_DP7 pid=865) ERROR 11-04 00:45:58 [core.py:1586] TimeoutError
+(EngineCore_DP7 pid=865) ERROR 11-04 00:45:58 [core.py:1586]     raise TimeoutError(f"RPC call to {method} timed out.") from e
+(EngineCore_DP7 pid=865) ERROR 11-04 00:45:58 [core.py:1586] TimeoutError: RPC call to execute_dummy_batch timed out.
+(MainProcess pid=1) ERROR 11-04 00:45:58 [utils.py:599] RuntimeError: Process ApiServer_14 (PID: 880) died with exit code None
+RuntimeError: Process ApiServer_14 (PID: 880) died with exit code None

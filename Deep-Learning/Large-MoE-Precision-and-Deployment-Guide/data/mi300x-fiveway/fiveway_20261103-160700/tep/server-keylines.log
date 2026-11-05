@@ -1,0 +1,33 @@
+[aiter] Custom allreduce is disabled because this process group spans across nodes.
+[aiter] Custom allreduce is disabled because this process group spans across nodes.
+[aiter] Custom allreduce is disabled because this process group spans across nodes.
+[aiter] Custom allreduce is disabled because this process group spans across nodes.
+[aiter] Custom allreduce is disabled because this process group spans across nodes.
+[aiter] Custom allreduce is disabled because this process group spans across nodes.
+[aiter] Custom allreduce is disabled because this process group spans across nodes.
+[aiter] Custom allreduce is disabled because this process group spans across nodes.
+(Worker pid=905) WARNING 11-03 09:02:32 [quick_all_reduce.py:116] Custom quick allreduce is disabled because this process group spans across nodes.
+(Worker pid=900) WARNING 11-03 09:02:32 [quick_all_reduce.py:116] Custom quick allreduce is disabled because this process group spans across nodes.
+(Worker pid=901) WARNING 11-03 09:02:32 [quick_all_reduce.py:116] Custom quick allreduce is disabled because this process group spans across nodes.
+(Worker pid=898) WARNING 11-03 09:02:32 [quick_all_reduce.py:116] Custom quick allreduce is disabled because this process group spans across nodes.
+(Worker pid=903) WARNING 11-03 09:02:32 [quick_all_reduce.py:116] Custom quick allreduce is disabled because this process group spans across nodes.
+(Worker pid=898) INFO 11-03 09:02:32 [cuda_communicator.py:353] Using ['PYNCCL'] all-reduce backends (in dispatch order) for group 'tp:0' out of potential backends: ['FLASHINFER_PCIE_IPC', 'FLASHINFER', 'NCCL_SYMM_MEM', 'QUICK_REDUCE', 'AITER_CUSTOM', 'CUSTOM', 'SYMM_MEM', 'PYNCCL'].
+(Worker pid=906) WARNING 11-03 09:02:32 [quick_all_reduce.py:116] Custom quick allreduce is disabled because this process group spans across nodes.
+(Worker pid=907) WARNING 11-03 09:02:32 [quick_all_reduce.py:116] Custom quick allreduce is disabled because this process group spans across nodes.
+(Worker pid=904) WARNING 11-03 09:02:32 [quick_all_reduce.py:116] Custom quick allreduce is disabled because this process group spans across nodes.
+(Worker pid=898) INFO 11-03 09:02:34 [cuda_communicator.py:353] Using ['PYNCCL'] all-reduce backends (in dispatch order) for group 'ep:0' out of potential backends: ['FLASHINFER_PCIE_IPC', 'FLASHINFER', 'NCCL_SYMM_MEM', 'QUICK_REDUCE', 'AITER_CUSTOM', 'CUSTOM', 'SYMM_MEM', 'PYNCCL'].
+(Worker pid=898) INFO 11-03 09:02:34 [parallel_state.py:2385] rank 0 in world size 16 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, ETP rank 0, EP rank 0, EPLB rank N/A
+(Worker_TP0_EP0 pid=898) INFO 11-03 09:02:37 [rocm.py:803] Using ROCM_AITER_FA backend (selected via --attention-backend).
+(Worker_TP0_EP0 pid=898) INFO 11-03 09:02:38 [rocm.py:944] Using AITER Flash Attention backend for ViT model.
+(Worker_TP0_EP0 pid=898) INFO 11-03 09:03:02 [unquantized.py:530] Using MuseSparkTritonExperts MoE backend
+(Worker_TP3_EP3 pid=901) INFO 11-03 09:03:03 [model_runner.py:428] Model loading took 103.22 GiB memory and 26.441399 seconds
+(Worker_TP6_EP6 pid=907) INFO 11-03 09:03:03 [model_runner.py:428] Model loading took 103.22 GiB memory and 26.641804 seconds
+(Worker_TP0_EP0 pid=898) INFO 11-03 09:03:03 [model_runner.py:428] Model loading took 103.22 GiB memory and 26.432864 seconds
+(Worker_TP4_EP4 pid=903) INFO 11-03 09:03:03 [model_runner.py:428] Model loading took 103.22 GiB memory and 26.721362 seconds
+(Worker_TP1_EP1 pid=905) INFO 11-03 09:03:04 [model_runner.py:428] Model loading took 103.22 GiB memory and 27.333974 seconds
+(Worker_TP2_EP2 pid=900) INFO 11-03 09:03:04 [model_runner.py:428] Model loading took 103.22 GiB memory and 27.419001 seconds
+(Worker_TP5_EP5 pid=906) INFO 11-03 09:03:05 [model_runner.py:428] Model loading took 103.22 GiB memory and 27.743341 seconds
+(Worker_TP7_EP7 pid=904) INFO 11-03 09:03:05 [model_runner.py:428] Model loading took 103.22 GiB memory and 27.764221 seconds
+(Worker_TP0_EP0 pid=898) INFO 11-03 09:04:34 [gpu_worker.py:772] Available KV cache memory: 67.53 GiB
+(EngineCore pid=649) INFO 11-03 09:04:34 [kv_cache_utils.py:1147] GPU KV cache size: 9,127,724 tokens, Maximum concurrency for 32,768 tokens per request: 278.56x
+INFO:     Application startup complete.

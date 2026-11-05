@@ -1,0 +1,18 @@
+Compare the advantages, disadvantages, and deployment prerequisites of these five inference layouts for one mixture-of-experts model. Explain which objectives favor each layout and why a latency or throughput label is not a universal guarantee. Distinguish model sharding, request parallelism, and prefill/decode separation. Do not invent benchmark numbers. Use the supplied notes and state any unverified condition explicitly.
+
+Source: https://recipes.vllm.ai/meta-models/Muse-Spark-Open-816B-A42B
+The following are paraphrased notes from the supplied deployment guide, not experimental findings.
+
+1. Multi-node tensor parallelism distributes one model's tensor computation across the GPUs of several nodes. The page labels it latency-oriented and calls for an InfiniBand interconnect. The head node exposes the service while workers participate in execution.
+
+2. Tensor parallelism combined with pipeline parallelism keeps the tensor-parallel group inside each node and splits model layers into pipeline stages across nodes. The guide presents it as a way to avoid making each tensor-parallel collective traverse a slower inter-node connection. It labels this layout throughput-oriented.
+
+3. Tensor plus expert parallelism combines tensor-parallel execution with distribution of the MoE experts. The multi-node example uses GPUs across nodes for these groups and requires suitable interconnects. The strategy selector labels it balanced.
+
+4. Data plus expert parallelism distributes requests among data-parallel workers while using expert parallelism for the MoE layers. The page labels this throughput-oriented. Its descriptive text mentions local tensor parallelism, but the inspected two-node NVIDIA command instead uses 16 data-parallel ranks, 8 local ranks per node, and no tensor-parallel-size 8 argument. An operator must verify the generated command and actual rank groups rather than assuming that the label specifies them.
+
+5. Prefill/decode disaggregation uses separate workers for processing input tokens and generating subsequent tokens. Each pool can choose its own parallelism and size. A router directs requests, and a connector transfers the request's KV cache between the pools. The page presents this as a production serving arrangement for high concurrency and low latency. The resources of both pools count toward the deployment.
+
+Model-specific limits matter. This guide describes Muse Spark Open, an 816B-total/42B-active MoE model. Its AMD recipes were validated on MI350X/MI355X, not on MI300X. It recommends plain tensor parallelism for the BF16 Triton expert path because expert parallelism can be slower there. Its favorable high-concurrency discussion of expert parallelism concerns MXFP4 variants and must not be silently applied to BF16. Data-parallel strategies are marked unsupported for the AMD Muse path. NVIDIA NVFP4 examples and their speculative decoding settings are not the same experiment as AMD BF16 without speculative decoding.
+
+Please give a compact comparison table followed by the checks you would perform before recommending any of the five layouts for a specific cluster.
