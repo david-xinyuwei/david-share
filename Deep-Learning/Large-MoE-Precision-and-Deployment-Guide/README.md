@@ -513,6 +513,8 @@ Original resource chart from each layout's two-node one-second samples, filtered
 | TP8 × PP2 | 11.9 | 0 (reference) | 36 KB | 0.09 | 126 collectives, all inside a node; 1 hand-off between the pipeline stages |
 | TP16 | 16.4 | 4.4 | 11.4 MB | 28 | ≈126 collectives, all across nodes (62 layers × 2 all-reduces, plus 2) |
 | TP16 + EP | 18.5 | 6.6 | 4.0 MB | 10 | ≈126 collectives, all across nodes (62 layers × 2 all-reduces, plus 2); the page notes that the Triton expert kernels are slower with expert parallelism |
+
+Per-token times and differences are calculated from unrounded values, then rounded separately; subtracting the displayed times can differ from the difference column by one last-place digit.
 <!-- END MUSE SELECTABLE TIME BUDGET -->
 
 <img src="images/mi300x-muse-selectable-time-budget-en.svg" width="980" alt="Time budget of one output token: panel A shows the measured time per token of three layouts; panel B enlarges the extra time of TP16 and TP16 + EP and draws, to the same scale, the time their cross-node data needs on the wire">

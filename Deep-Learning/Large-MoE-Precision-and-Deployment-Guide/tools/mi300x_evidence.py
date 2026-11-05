@@ -850,7 +850,7 @@ def fiveway_tables(summary: dict, language: str) -> str:
             lines.append((f"没有成功请求返回输入 token 计数；请求的输出上限为 {limits[0]} token。" if chinese
                           else f"No successful request returned an input-token count; requested output limit: {limits[0]} tokens."))
         lines.append("")
-        lines.append("| 布局 | 并发请求数 | 首文本延迟中位数（ms） | 首文本延迟 P95（ms） | E2E 中位数（s） | E2E P95（s） | 单请求解码估计（token/s） | 总吞吐（token/s） | 传输完整/发出请求 | 完整答案/传输完整 | 稳态计算费（美元/百万输出 token） |" if chinese else
+        lines.append("| 布局 | 并发数（concurrency） | 首文本延迟中位数（ms） | 首文本延迟 P95（ms） | E2E 中位数（s） | E2E P95（s） | 单请求解码估计（token/s） | 总吞吐（token/s） | 传输完整/发出请求 | 完整答案/传输完整 | 稳态计算费（美元/百万输出 token） |" if chinese else
                  "| Layout | Concurrent requests | Median first-text latency (ms) | P95 first-text latency (ms) | Median E2E (s) | P95 E2E (s) | Per-request decode estimate (token/s) | Aggregate throughput (token/s) | Complete streams/requests sent | Complete answers/complete streams | Steady-state compute (USD/million output tokens) |")
         lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
         for strategy in summary["strategies"]:
@@ -974,6 +974,11 @@ def time_budget_table(summary: dict, chinese: bool) -> str:
         lines.append(f"| {names[layout]} | {entry['ms_per_output_token']:.1f} | {extra} | "
                      f"{size(entry['busier_node_infiniband_rx_bytes_per_output_token'])} | "
                      f"{micro(entry['transfer_us_per_output_token_at_nominal'])} | {sync} |")
+    lines.extend(["", (
+        "每个 token 的时间与差值都先用未舍入的原值计算，再分别四舍五入；直接相减表中的显示值，末位数字可能与差值列不同。"
+        if chinese else
+        "Per-token times and differences are calculated from unrounded values, then rounded separately; subtracting the displayed times can differ from the difference column by one last-place digit."
+    )])
     return "\n".join(lines)
 
 

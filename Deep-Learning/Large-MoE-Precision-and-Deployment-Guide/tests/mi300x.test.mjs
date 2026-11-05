@@ -635,6 +635,9 @@ test('muse selectable run (2026-11-04): website flags, image, scripts, compariso
     const text = docs[filename];
     const regions = text.match(/<!-- BEGIN MUSE SELECTABLE RESULTS -->[\s\S]*?<!-- END MUSE SELECTABLE RESULTS -->/g) ?? [];
     assert.equal(regions.length, 1, `${filename} has one generated region`);
+    if (filename === 'README_CN.md') {
+      assert.ok(regions[0].includes('| 布局 | 并发数（concurrency） |'), 'the concurrency header keeps a readable unbroken field name');
+    }
     const rows = regions[0].split(/\r?\n/).filter(line => line.startsWith('| '))
       .map(line => line.split('|').slice(1, -1).map(cell => cell.trim()))
       .filter(cells => cells.length === 11 && /^\d+$/.test(cells[1]));
@@ -672,7 +675,14 @@ test('muse selectable run (2026-11-04): website flags, image, scripts, compariso
       assert.equal(cells.length, 6, `${filename}: time-budget rows keep six columns`);
       const layout = Object.keys(names).find(id => names[id] === cells[0]);
       assert.equal(cells[1], timeBudget.layouts[layout].ms_per_output_token.toFixed(1), `${filename} ${cells[0]}: time per token`);
+      if (layout !== budgetSpec.reference_layout) {
+        assert.equal(cells[2], timeBudget.layouts[layout].extra_ms_per_output_token_vs_reference.toFixed(1), `${filename} ${cells[0]}: difference uses unrounded values`);
+      }
     }
+    const roundingNote = filename === 'README_CN.md'
+      ? '每个 token 的时间与差值都先用未舍入的原值计算，再分别四舍五入'
+      : 'Per-token times and differences are calculated from unrounded values, then rounded separately';
+    assert.ok(regions[0].includes(roundingNote), `${filename} explains rounding beside the generated table`);
     assert.ok(text.includes('<a id="muse-time-budget"></a>') && text.includes('(#muse-time-budget)'), `${filename} anchors and links the time budget`);
     for (const quoted of [`${Math.round(timeBudget.estimate.extra_us_per_cross_node_collective_lower_bound)} µs`,
       `${timeBudget.estimate.cross_node_collectives_per_token}`,
@@ -688,6 +698,9 @@ test('muse selectable run (2026-11-04): website flags, image, scripts, compariso
       assert.ok(text.includes(quoted), `${filename} quotes ${quoted}`);
     }
   }
+  assert.doesNotMatch(docs['README_CN.md'], /^\| 布局 \| 并发请求数 \|/m);
+  assert.equal([...docs['README_CN.md'].matchAll(/^\| 步骤（Step） \|/gm)].length, 4);
+  assert.equal([...docs['README_CN.md'].matchAll(/^\| 步骤（Step） \| 机器（Host） \|/gm)].length, 3);
   for (const filename of ['VALIDATION.md', 'VALIDATION_CN.md']) {
     assert.ok(docs[filename].includes(result.counts.formal_requests.toLocaleString('en-US')), `${filename} quotes the request count`);
     assert.ok(docs[filename].includes('muse-selectable-validation'), `${filename} has the validation anchor`);
