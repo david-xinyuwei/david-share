@@ -87,35 +87,25 @@ Complete implementations and examples from the acclaimed book series on large la
 
 ## �📚 Published Works
 
-### Latest Book: Edge-Side AI (Pre-order)
-**《边缘侧AI小模型训练、优化与部署》**  
-*Edge-Side AI: Training, Optimizing and Deploying Small Models*
+### 📘 Latest Publication (Pre-order)
+**"Edge-Side AI: Training, Optimizing and Deploying Small Models"**
 
 <div align="center">
-<a href="https://item.m.jd.com/product/10238645405080.html">
-<img src="./IMAGES/edge-ai-book-cover.jpg" alt="边缘侧AI小模型训练、优化与部署 book cover" width="350">
-</a>
+<img src="./IMAGES/edge-ai-book-cover.jpg" width="400">
 </div>
 
-**Authors**: 魏新宇 (Xinyu Wei), 白雪冰  
-**Publisher**: China Machine Press (机械工业出版社)
+- 🔗 **Repository**: [Code Examples](https://github.com/david-xinyuwei/david-share/tree/master/Code-of-Book-Edge-AI)
+- 🛒 **Purchase**: [JD Mall](https://item.m.jd.com/product/10238645405080.html)
 
-*Cover image from [JD Mall](https://item.m.jd.com/product/10238645405080.html).*
+### 📗 Previous Publications
 
-- **Repository**: [Companion Code](https://github.com/david-xinyuwei/david-share/tree/master/Code-of-Book-Edge-AI)
-- **Pre-order**: [JD Mall](https://item.m.jd.com/product/10238645405080.html)
-
-### 📘 Publication (September 2024)
-**"Principles, Training, and Applications of Large Language Models"**
-
+#### 🤖 Principles, Training, and Applications of Large Language Models (2024)
 <div align="center">
-<img src="https://raw.githubusercontent.com/xinyuwei-david/david-share/master/IMAGES/5.png" width="300" height="400">
+<img src="https://raw.githubusercontent.com/xinyuwei-david/david-share/master/IMAGES/5.png" width="250" height="350">
 </div>
 
 - 🔗 **Repository**: [Code Examples](https://github.com/xinyuwei-david/david-share/tree/master/Code-of-Book)
 - 🛒 **Purchase**: [JD Mall](https://item.jd.com/14776306.html)
-
-### 📗 Previous Publications
 
 #### 🏦 Financial Services IT Construction (2022)
 <div align="center">
