@@ -87,7 +87,7 @@ Complete implementations and examples from the acclaimed book series on large la
 
 ## �📚 Published Works
 
-### 📘 Latest Publication (Pre-order)
+### 📘 Latest Publication (Pre-order, December 3, 2026)
 **"Edge-Side AI: Training, Optimizing and Deploying Small Models"**
 
 <div align="center">
