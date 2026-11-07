@@ -87,7 +87,25 @@ Complete implementations and examples from the acclaimed book series on large la
 
 ## �📚 Published Works
 
-### 📘 Latest Publication (September 2024)
+### Latest Book: Edge-Side AI (Pre-order)
+**《边缘侧AI小模型训练、优化与部署》**  
+*Edge-Side AI: Training, Optimizing and Deploying Small Models*
+
+<div align="center">
+<a href="https://item.m.jd.com/product/10238645405080.html">
+<img src="./IMAGES/edge-ai-book-cover.jpg" alt="边缘侧AI小模型训练、优化与部署 book cover" width="350">
+</a>
+</div>
+
+**Authors**: 魏新宇 (Xinyu Wei), 白雪冰  
+**Publisher**: China Machine Press (机械工业出版社)
+
+*Cover image from [JD Mall](https://item.m.jd.com/product/10238645405080.html).*
+
+- **Repository**: [Companion Code](https://github.com/david-xinyuwei/david-share/tree/master/Code-of-Book-Edge-AI)
+- **Pre-order**: [JD Mall](https://item.m.jd.com/product/10238645405080.html)
+
+### 📘 Publication (September 2024)
 **"Principles, Training, and Applications of Large Language Models"**
 
 <div align="center">
