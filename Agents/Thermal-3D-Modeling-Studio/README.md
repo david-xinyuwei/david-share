@@ -4,7 +4,7 @@
 [![Deploy](https://img.shields.io/badge/deploy-Bicep%20%2B%20one%20script-0078D4)](#steps)
 [![CAD kernel](https://img.shields.io/badge/CAD-CadQuery%202.8%20%C2%B7%20OpenCascade-0078D4)](#terms-used-on-this-page)
 [![Scenarios](https://img.shields.io/badge/scenarios-15%20%C2%B7%20English%20%2B%20Chinese-0078D4)](#results)
-[![Offline tests](https://img.shields.io/badge/offline%20tests-Python%20%2B%20Node%20%2B%20repo-0078D4)](docs/TESTING.md)
+[![Offline tests](https://img.shields.io/badge/offline%20tests-Python%20%2B%20Node-0078D4)](docs/TESTING.md)
 
 Author: Xinyu Wei · [中文](README_CN.md)
 
@@ -23,15 +23,15 @@ The repository deploys the studio for you. One script, `infra/up.ps1`, creates t
 | Prompts and output contracts | `studio/scenarios.py`, `CAD_PROMPT` in `studio/app.py` | see exactly what GPT-6 is told: four marked blocks for the three.js page, `PARTS` / `MATERIALS` for the CadQuery script |
 | CAD runner | `studio/cad_runner.py` | run model-written CadQuery safely: allow-list check, separate process, STEP / STL / GLB export, automatic edge break |
 | 15 reference CadQuery scripts | `studio/cad_examples/`, `studio/cad_examples_en/` | build 15 STEP solids with no model call; `coldplate.py` is also the worked example inside GPT-6's prompt |
-| 30 recorded GPT-6 responses | `studio/cache/` | open every scenario instantly without calling Azure; the Track A numbers in the [Appendix](#appendix) come from these files |
+| 30 recorded GPT-6 responses | `studio/cache/` | open every scenario instantly without calling Azure |
 | VM setup scripts | `studio/deploy/` | the host setup and install scripts, nginx and systemd files that `infra/vm-install.sh` runs on the VM; `deploy.ps1` pushes a local working copy to an existing VM over SSH |
-| Tests and the recorded runs | `studio/tests/`, `tests/`, `evidence/`, `data/` | check your copy offline and compare it with the runs recorded here ([Appendix](#appendix)) |
+| Tests | `studio/tests/` | check your copy offline; [docs/TESTING.md](docs/TESTING.md) says what each test checks |
 
 What the studio is not:
 
 - The metrics GPT-6 prints next to a Track A model are its own estimates. Track B computes volume, mass, bounding box and surface area exactly, but of a solid that GPT-6 (or a reference script) built from a description: a concept part with no tolerances or drawings, not a checked design.
 - gpt-image pictures are illustrations; the model may change proportions and details. The engineering render of Track C is the picture that lines up with the STEP.
-- A live call takes minutes and costs tokens (see the [Appendix](#how-the-numbers-were-produced)). Browsing the 15 recorded examples calls no model.
+- A live call takes minutes and costs tokens. Browsing the 15 recorded examples calls no model.
 
 | Responsibility | Microsoft Foundry | This repository | You |
 |---|---|---|---|
@@ -41,7 +41,7 @@ What the studio is not:
 
 <img src="images/architecture-en.png" width="900" alt="Architecture: four tracks across browser, Azure VM and Microsoft Foundry. Track A: the browser runs the three.js page GPT-6 wrote; the backend builds the prompt and streams GPT-6 Astra's answer. Track B: the CAD runner checks and runs GPT-6's CadQuery script with OpenCascade and returns STEP. Track C: gpt-image-2.5 redraws a snapshot, while the engineering renderer draws the STEP mesh with no model. Track D: concept images from gpt-image-2.5 or MAI-Image-2.6. Model calls use the VM's managed identity.">
 
-What the figure shows: the four tracks, which code is ours, and which model each track calls; `infra/up.ps1` creates the VM and the Foundry side of it. It is an original explanatory diagram; where each measured number was produced is in the [Appendix](#how-the-numbers-were-produced).
+What the figure shows: the four tracks, which code is ours, and which model each track calls; `infra/up.ps1` creates the VM and the Foundry side of it. It is an original explanatory diagram.
 
 ### How a request moves
 
@@ -63,7 +63,7 @@ What the figure shows: the four tracks, which code is ours, and which model each
 | STEP (`.step`, ISO 10303) | the exchange format CAD programs read; it carries the exact B-rep and the part names into SolidWorks, NX or Creo |
 | STL, GLB (glTF) | triangle meshes. STL for 3D printing and previews; GLB for the web, with materials and a part tree. The studio shows the STEP through its GLB |
 | Engineering render | a picture of the STEP's mesh drawn by three.js with no image model; it lines up with the STEP |
-| Reasoning effort | how long GPT-6 thinks before it answers (`none` to `xhigh`; the model deployment decides which of these it accepts). `.env.example` sets `low` as the server default; the selector next to the send button changes it per request |
+| Reasoning effort | how long GPT-6 thinks before it answers: `low`, `medium`, `high` or `xhigh` for gpt-6-astra. `.env.example` sets `low` as the server default; the selector next to the send button changes it per request |
 | SSE (server-sent events) | the stream that carries tokens, progress and heartbeats from the backend to the browser |
 | Bicep | Azure's language for declaring resources; `infra/main.bicep` lists every resource the studio needs |
 | Managed identity | an identity Azure gives the VM. The studio exchanges it for Microsoft Entra tokens to call the models, so no key is stored anywhere |
@@ -203,7 +203,7 @@ The checks go through the public HTTPS address: health, the redirect from HTTP, 
 
 1. Open the address from `outputs.json` and sign in with the user `studio` and the password from `portal-password.txt`.
 2. Pick a scenario card. The badge says **Pre-generated example**, then **Pre-generated B-rep solid (matches STEP)** once the reference solid is on screen, and the source bar says "Current model: saved example (no GPT-6 call this time)": a recorded GPT-6 answer and the reference STEP solid open with no model call.
-3. Click **Call GPT-6 live**. The source bar switches to the live request ID once the answer arrives. The wait depends on the reasoning effort chosen in the page: `low` (the default, from `.env.example`), `medium`, `high` or `xhigh`, the values gpt-6-astra accepts; it does not support `none`. If a deployment refuses the chosen value, the studio sends the next higher value it accepts, and the source bar shows the value applied. The [Appendix](#how-the-numbers-were-produced) shows how long live pages took.
+3. Click **Call GPT-6 live**. The source bar switches to the live request ID once the answer arrives. The wait depends on the reasoning effort chosen in the page: `low` (the default, from `.env.example`), `medium`, `high` or `xhigh`, the values gpt-6-astra accepts; it does not support `none`. If a deployment refuses the chosen value, the studio sends the next higher value it accepts, and the source bar shows the value applied. A live page takes a few minutes.
 4. Click **Generate STEP**. The **CAD solid** tab shows the attempts, the OCCT time and the B-rep metrics, with downloads for STEP, STL and the CadQuery script.
 
 The VM bills while it runs. `az vm deallocate -g <resource group> -n thermal-vm` stops the billing for its compute and `az vm start` brings it back with the same address; the studio starts by itself. The model deployments bill per token, so an idle studio costs nothing on the model side.
@@ -228,7 +228,7 @@ receipt: ~/.thermal-3d-studio/rg-thermal-studio/down-20261114-152717.json (PASS)
 
 For development against the models deployed in step 2. Run `up.ps1` once with `-GrantDeployerAccess` first: it gives your own account the **Cognitive Services OpenAI User** role on the AI resource.
 
-You need Python 3.11 or 3.12 and about 1.4 GB of disk for the virtual environment (1,324 MiB measured, with the optional tools). CadQuery's kernel package `cadquery-ocp` 7.9.3.1.1 has wheels for Windows x64, macOS (Intel and Apple silicon) and Linux (x64 and Arm64); on Windows on Arm, use the x64 Python, which runs under emulation. Tested with x64 Python 3.11.9 on Windows 11 on Arm; the VM uses the Python 3.12 of Ubuntu 24.04.
+You need Python 3.11 or 3.12 and about 1.4 GB of disk for the virtual environment. CadQuery's kernel package `cadquery-ocp` 7.9.3.1.1 has wheels for Windows x64, macOS (Intel and Apple silicon) and Linux (x64 and Arm64); on Windows on Arm, use the x64 Python, which runs under emulation. Tested with x64 Python 3.11.9 on Windows 11 on Arm; the VM uses the Python 3.12 of Ubuntu 24.04.
 
 ```powershell
 cd studio
@@ -246,7 +246,7 @@ $o = Get-Content ~/.thermal-3d-studio/rg-thermal-studio/outputs.json | ConvertFr
 python -m uvicorn app:app --host 127.0.0.1 --port 3005 --env-file .env
 ```
 
-Expected: pip ends with `Successfully installed ... cadquery-2.8.0 ... fastapi-0.141.1 ...`; `three.js 0.160.0: 15/15 files verified in ...`; one `[<id>] OK` line per scenario and `done. failed: none` from each build; then `Uvicorn running on http://127.0.0.1:3005`. On Linux the first build meets the crash of step 2 for `nb_thermal`; build that one with the edge break off (`CAD_EDGE_FINISH=0 python pregen_cad.py nb_thermal`) before the English build. Open `http://127.0.0.1:3005` and use it as in step 4. Without `AZURE_CLIENT_ID` the backend takes its Entra token from your `az login`. `.env` stays out of Git; the browser never receives it.
+Expected: pip ends with `Successfully installed ... cadquery-2.8.0 ... fastapi-0.141.1 ...`; `three.js 0.160.0: 15/15 files verified in ...`; one `[<id>] OK` line per scenario and `done. failed: none` from each build; then `Uvicorn running on http://127.0.0.1:3005`. On Linux the first build meets the crash of step 2 for `nb_thermal`; build that one with the edge break off (`CAD_EDGE_FINISH=0 python pregen_cad.py nb_thermal`) before the English build. Open `http://127.0.0.1:3005` and use it as in step 4. Without `AZURE_CLIENT_ID` the backend takes its Entra token from your `az login`. `.env` stays out of Git; the browser never receives it. The tests, and what each of them checks, are in [docs/TESTING.md](docs/TESTING.md).
 
 ## Results
 
@@ -256,11 +256,11 @@ Expected: pip ends with `Successfully installed ... cadquery-2.8.0 ... fastapi-0
 
 https://github.com/user-attachments/assets/66148365-f3aa-44a7-a129-cef898e68cb3
 
-*Live generation.* One request sent live to the studio on its Azure VM: the EV battery cold plate with eight channels instead of six. GPT-6 Astra streams the three.js page, **Generate STEP** has it write the CadQuery script that OpenCascade builds, and **Photoreal render** calls gpt-image-2.5. The waits are shown in real time, uncut. It is a demonstration, not one of the measured runs in the [Appendix](#how-the-numbers-were-produced).
+*Live generation.* One request sent live to the studio on its Azure VM: the EV battery cold plate with eight channels instead of six. GPT-6 Astra streams the three.js page, **Generate STEP** has it write the CadQuery script that OpenCascade builds, and **Photoreal render** calls gpt-image-2.5. The waits are shown in real time, uncut. It is a demonstration, not a measurement.
 
 https://github.com/user-attachments/assets/7ee81aaa-a5f8-46e3-aae7-0410739226ed
 
-The integrated thermal-management module, one of the 15 scenarios, as the studio shows it. The screenshots and the engineering render come from this repository's recorded run (2026-11-14) with no model call; the gpt-image picture comes from one call through the studio page on 2026-11-10. None of them is retouched.
+The integrated thermal-management module, one of the 15 scenarios, as the studio shows it. The screenshots and the engineering render were taken from the pre-generated example with no model call; the gpt-image picture comes from one call through the studio page. None of them is retouched.
 
 | Track A: the three.js page GPT-6 wrote (recorded answer) | Track B: the OCCT solid of the same part, quad view |
 |---|---|
@@ -274,7 +274,7 @@ The integrated thermal-management module, one of the 15 scenarios, as the studio
 
 ### More scenarios
 
-Six of the other scenarios, from the same recorded run. On the left is the page GPT-6 wrote for the scenario card, shown as written: the scene, the panel of figures and the buttons are the model's own. On the right is the OCCT solid of the reference script in the studio's viewport. All 15 scenarios, each with its gpt-image picture, are in [docs/RESULTS.md](docs/RESULTS.md#every-scenario-at-a-glance).
+Six of the other scenarios. On the left is the page GPT-6 wrote for the scenario card, shown as written: the scene, the panel of figures and the buttons are the model's own. On the right is the OCCT solid of the reference script in the studio's viewport. All 15 open in the studio once it is deployed.
 
 | Scenario | Track A: the page GPT-6 wrote (recorded answer) | Track B: the OCCT solid of the reference script |
 |---|---|---|
@@ -297,76 +297,13 @@ With **Section** set to Y, a horizontal plane cuts the EV battery cold plate, an
 
 | You want to | Read |
 |---|---|
-| see every scenario's numbers, the inputs and the limits | [docs/RESULTS.md](docs/RESULTS.md) |
 | know what each test layer checks and what it does not | [docs/TESTING.md](docs/TESTING.md) |
-| inspect the recorded deployment: what each step printed and how long it took | [evidence/deploy-20261114/](evidence/deploy-20261114/) |
-| inspect the recorded offline run: logs, per-solid metadata, render checks, machine | [evidence/run-20261113/](evidence/run-20261113/) |
-| reuse the numbers | [data/results.json](data/results.json), built by `tools/build_results.py` |
-| check where a picture or icon comes from | [images/SOURCES.json](images/SOURCES.json), [NOTICE.md](NOTICE.md) |
+| check the licenses of third-party parts and where the pictures come from | [NOTICE.md](NOTICE.md) |
 
 | Directory | What it holds |
 |---|---|
 | `infra/` | the deployment: `main.bicep` (every Azure resource), `up.ps1` (create and install), `vm-install.sh` (what runs on the VM), `verify.ps1` (check from outside), `down.ps1` (remove) |
 | `studio/` | the app: FastAPI backend (`app.py`), front end (`static/`), CAD runner, prompts (`scenarios.py`), recorded GPT-6 responses (`cache/`), reference CadQuery scripts, VM setup scripts (`deploy/`) and its own tests (`tests/`) |
-| `tools/` | three.js download with pinned hashes, the figure renderer and its HTML sources, the screenshot tool, the results builder, the segmentation check for engineering renders |
-| `tests/` | repository checks: page layout in both languages, links, images, numbers, figures, private data |
-| `data/` | `results.json`: every number quoted in the Appendix and docs/RESULTS |
-| `evidence/` | `deploy-20261114/`: the recorded deployment; `run-20261113/`: the recorded clean offline run (logs, `pip freeze`, OCCT metadata per solid, render checks, browser check, machine facts) |
-| `images/` | screenshots, renders, the two figures and the Azure icons, each listed in `images/SOURCES.json` |
-| `docs/` | results per scenario and the test guide, English and Chinese |
-
-## Appendix
-
-The author's own validation. Nothing here is needed to deploy or use the studio.
-
-### Recorded deployment
-
-On 2026-11-14 the three scripts ran from a Windows 11 laptop into a new resource group in East US 2, with nothing prepared beforehand but `az login`. The receipts and the output of each script are in [`evidence/deploy-20261114/`](evidence/deploy-20261114/); [docs/TESTING.md](docs/TESTING.md#recorded-deployment) has every step and the defects that the earlier passes of that day found and that the scripts now fix.
-
-| Script | Result | Time (min) |
-|---|---|---|
-| `up.ps1`: create every resource, install the studio, check HTTPS | PASS: `Standard_D4as_v6`, gpt-6-astra as Data Zone Standard (the subscription's Global Standard quota was used up) | 14.0 |
-| of which the install on the VM (`vm-install.sh`) | 15 reference solids with Chinese and 15 with English part names; the notebook dual-fan module without the edge break | 10.3 |
-| `verify.ps1 -Full` | 10 of 10 checks passed | 2.1 |
-| `down.ps1 -Yes` | PASS: nothing left | 4.4 |
-
-The VM installed `studio/` from `master` at `d32e1e6e`, before the reasoning-effort change described in step 4; its `studio/` differs from this revision's in that change and in `studio/deploy/deploy.ps1`, which this path does not run. The live **Generate STEP** of `verify.ps1 -Full` took 1 attempt and 91.5 s, of which 6.7 s in OpenCascade, and returned 4 solids, 315 faces, 1.580 kg and a 1.1 MB STEP file; it is one request that shows the path works, not a measurement. It asked for reasoning effort `none`, which this deployment did not take; the code of that commit then sent the request without the parameter, so GPT-6 reasoned at the deployment's default. The current `verify.ps1` asks for `low`. Between `verify.ps1` and `down.ps1`, headless Microsoft Edge also went through the start of step 4 on the deployed address: the page's own sign-in form, then the cold plate in English and in Chinese and the notebook dual-fan module as pre-generated examples, with no model call and no page error ([details](docs/TESTING.md#recorded-deployment)).
-
-### How the numbers were produced
-
-<img src="images/test-topology-en.png" width="900" alt="Test topology. Track A: pregen.py on a client machine that was not recorded calls run_generation, the function behind /api/generate, which streams from the GPT-6 Astra deployment (Global Standard, resource in East US 2); the clock runs in the client from request sent to first visible token and to the parsed response. Track B: on the test laptop (Windows 11 on Arm, x64 Python under emulation) pregen_cad.py runs each reference script through cad_runner.run_script in a separate process with CadQuery and OpenCascade; the clock runs from process start to STEP, STL and GLB written. Track C: on the same laptop, headless Edge renders each model.glb with engineering-render.mjs and compares it with the STEP silhouette; the clock covers loading and 256 frames.">
-
-What the figure shows: where each measured interval ran, what it called and what its clock includes. It is an original explanatory diagram; the machine facts come from [`evidence/run-20261113/machine.json`](evidence/run-20261113/machine.json), the Track A facts from the recorded responses in `studio/cache/`.
-
-- **Inputs.** Track A: each scenario card's prompt in `studio/scenarios.py`, sent once per scenario and language, 30 requests from 2026-09-09 to 2026-09-12; the module prompt is quoted [verbatim](docs/RESULTS.md#track-a-gpt-6-writes-the-threejs-page). Track B: the 15 hand-written reference scripts in `studio/cad_examples/`, not GPT-6 output. Track C: the `model.glb` of each solid from that build.
-- **One run per cell.** Each scenario ran once (Track A once per language), so the median and range below are across scenarios, not repeats of one request. A repeat gives a different page and a different time.
-- **Not measured here:** a live Track B request, where GPT-6 writes the CadQuery script and OCCT then runs it. **Generate STEP** shows its attempts and OCCT time in the CAD tab; the [recorded deployment](#recorded-deployment) made one such request as a check, not as a measurement.
-
-| Track | Measured (unit) | Runs | Median | Range (min–max) |
-|---|---|---|---|---|
-| A · GPT-6 writes the page | Total time per page (s) | 30 | 149.8 | 76.1–356.2 |
-| A · GPT-6 writes the page | First visible token (s) | 30 | 13.8 | 4.8–182.8 |
-| A · GPT-6 writes the page | Output tokens per page | 30 | 4,900 | 3,347–8,463 |
-| A · GPT-6 writes the page | Output speed after the first token (tokens/s) | 30 | 34.1 | 24.0–71.6 |
-| B · OCCT builds the solid | OCCT time per scenario (s) | 15 | 59.1 | 12.0–199.2 |
-| B · OCCT builds the solid | Parts per solid | 15 | 11 | 4–32 |
-| C · engineering render vs STEP | Silhouette IoU with the STEP (%) | 15 | 94.1 | 15.1–97.7 |
-| C · engineering render vs STEP | Render time (s) | 15 | 4.5 | 2.1–30.0 |
-
-- **A live 3D page takes minutes.** The median page took 149.8 s and 4,900 output tokens. The recorded examples open without that wait and call no model; a live call pays off when you change the request.
-- **The STEP is built locally, with no model and no network.** On this laptop one solid took 12.0–199.2 s; in the slowest, the notebook dual-fan module, the edge break took 131.6 s of it ([details](docs/RESULTS.md#track-b-opencascade-builds-the-reference-solids)).
-- **The engineering render lines up with the STEP by construction, and IoU confirms it for twelve of the 15 renders (90.2–97.7 %).** The cold plate, the cold plate of the simulation estimate and the assembly line score lower because the check's segmentation misses large smooth surfaces or takes in area between thin frames; their STEP outlines still lie on the part ([details](docs/RESULTS.md#track-c-the-engineering-render-against-the-step)).
-
-### Tests
-
-With the virtual environment of step 6:
-
-```powershell
-$env:AOAI_ENDPOINT = 'https://example.invalid'; $env:PORTAL_PASSWORD = 'x'; $env:AOAI_REASONING_EFFORT = 'low'
-python -m unittest discover -s tests -p "test_*.py"                    # in studio/
-node --test tests/test_connection.cjs tests/test_viewer_bridge.cjs    # in studio/; Node.js 18 or later
-cd ..; python -m unittest discover -s tests -v; cd studio              # repository checks
-python ../tools/build_results.py --compare-local                       # your 15 solids against the recorded run
-```
-
-Expected: `OK` from both Python runs, `fail 0` from Node, and `parts, solids, bounding boxes and densities match run-20261113`. Model calls and OCCT runs inside the unit tests are mocks; [docs/TESTING.md](docs/TESTING.md) lists what each layer checks and what it does not, and records the [offline run](docs/TESTING.md#recorded-run) of 2026-11-13 and 2026-11-14.
+| `tools/` | `vendor_three.py`: downloads three.js and checks it against pinned hashes (step 6) |
+| `images/` | the screenshots, renders and the architecture figure on this page |
+| `docs/` | the test guide, English and Chinese |

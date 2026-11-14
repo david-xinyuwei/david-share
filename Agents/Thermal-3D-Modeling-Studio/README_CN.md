@@ -4,7 +4,7 @@
 [![Deploy](https://img.shields.io/badge/deploy-Bicep%20%2B%20one%20script-0078D4)](#操作步骤)
 [![CAD kernel](https://img.shields.io/badge/CAD-CadQuery%202.8%20%C2%B7%20OpenCascade-0078D4)](#本页用到的术语)
 [![Scenarios](https://img.shields.io/badge/scenarios-15%20%C2%B7%20English%20%2B%20Chinese-0078D4)](#实现效果)
-[![Offline tests](https://img.shields.io/badge/offline%20tests-Python%20%2B%20Node%20%2B%20repo-0078D4)](docs/TESTING_CN.md)
+[![Offline tests](https://img.shields.io/badge/offline%20tests-Python%20%2B%20Node-0078D4)](docs/TESTING_CN.md)
 
 作者：Xinyu Wei · [English](README.md)
 
@@ -23,15 +23,15 @@
 | 提示词与输出契约 | `studio/scenarios.py`、`studio/app.py` 里的 `CAD_PROMPT` | 看清 GPT-6 收到的规则：three.js 网页分四个标记区块输出，CadQuery 脚本要定义 `PARTS` / `MATERIALS` |
 | CAD 执行器 | `studio/cad_runner.py` | 安全执行模型写的 CadQuery：白名单检查、单独进程、导出 STEP / STL / GLB、自动锐边倒钝 |
 | 15 个 CadQuery 参考脚本 | `studio/cad_examples/`、`studio/cad_examples_en/` | 不调用模型就能建出 15 个 STEP 实体；`coldplate.py` 同时是 GPT-6 提示词里的示例 |
-| 30 份已记录的 GPT-6 回答 | `studio/cache/` | 不调用 Azure 也能秒开每个场景；[附录](#附录)里轨 A 的数字就来自这些文件 |
+| 30 份已记录的 GPT-6 回答 | `studio/cache/` | 不调用 Azure 也能秒开每个场景 |
 | 虚拟机安装脚本 | `studio/deploy/` | `infra/vm-install.sh` 在虚拟机上调用的主机初始化和安装脚本，以及 nginx 和 systemd 配置；`deploy.ps1` 通过 SSH 把本地工作副本推到已有的虚拟机 |
-| 测试与已记录的运行 | `studio/tests/`、`tests/`、`evidence/`、`data/` | 离线检查你的副本，并和这里记录的运行逐项对比（见[附录](#附录)） |
+| 测试 | `studio/tests/` | 离线检查你的副本；每个测试查什么，见 [docs/TESTING_CN.md](docs/TESTING_CN.md) |
 
 这个工坊不是什么：
 
 - 轨 A 模型旁边的工程量是 GPT-6 自己估的。轨 B 的体积、质量、包络和表面积是精确计算的，但算的是 GPT-6（或参考脚本）按描述重建的实体：没有公差和图纸的概念件，不是经过校核的设计。
 - gpt-image 出的图是示意图，模型可能改动比例和细节。轨 C 里和 STEP 对得上的是工程渲染图。
-- 一次实时调用要等几分钟，并消耗 token（见[附录](#这些数字是怎么测的)）。浏览 15 个已记录的示例不调用任何模型。
+- 一次实时调用要等几分钟，并消耗 token。浏览 15 个已记录的示例不调用任何模型。
 
 | 职责 | Microsoft Foundry | 本仓库 | 你 |
 |---|---|---|---|
@@ -41,7 +41,7 @@
 
 <img src="images/architecture-zh.png" width="900" alt="系统架构：四条轨经过浏览器、Azure 虚拟机和 Microsoft Foundry。轨 A：浏览器运行 GPT-6 写的 three.js 网页，后端组装提示词并流式转发 GPT-6 Astra 的回答。轨 B：CAD 执行器检查并执行 GPT-6 写的 CadQuery 脚本，由 OpenCascade 导出 STEP。轨 C：gpt-image-2.5 重画截图，工程渲染器直接渲染 STEP 网格、不调模型。轨 D：gpt-image-2.5 或 MAI-Image-2.6 出概念图。模型调用使用虚拟机的托管身份。">
 
-图上画的是：四条轨各经过哪些组件、哪些代码是我们写的、各调用哪个模型；图中的虚拟机和 Foundry 一侧都由 `infra/up.ps1` 创建。这是原创解释图；每个实测数字在哪台机器上测得，见[附录](#这些数字是怎么测的)。
+图上画的是：四条轨各经过哪些组件、哪些代码是我们写的、各调用哪个模型；图中的虚拟机和 Foundry 一侧都由 `infra/up.ps1` 创建。这是原创解释图。
 
 ### 一次请求怎么走
 
@@ -63,7 +63,7 @@
 | STEP（`.step`，ISO 10303） | CAD 软件之间交换模型的标准格式；把精确的 B-rep 和部件名带进 SolidWorks、NX、Creo |
 | STL、GLB（glTF） | 三角网格格式。STL 用于 3D 打印和预览；GLB 用于网页，带材质和部件树。工坊通过 STEP 导出的 GLB 来显示 STEP |
 | 工程渲染图 | 用 three.js 直接画出的 STEP 网格图片，不经过图像模型，和 STEP 对得上 |
-| 推理强度（reasoning effort） | GPT-6 回答前思考多久（`none` 到 `xhigh`，具体接受哪些由模型部署决定）。`.env.example` 把服务器默认值设为 `low`；发送按钮旁的下拉框可以按次修改 |
+| 推理强度（reasoning effort） | GPT-6 回答前思考多久：gpt-6-astra 接受 `low`、`medium`、`high`、`xhigh`。`.env.example` 把服务器默认值设为 `low`；发送按钮旁的下拉框可以按次修改 |
 | SSE（服务器推送事件） | 后端把 token、进度和心跳持续推给浏览器的通道 |
 | Bicep | Azure 用来声明资源的语言；`infra/main.bicep` 列出工坊需要的全部资源 |
 | 托管身份（managed identity） | Azure 分配给虚拟机的身份。工坊用它换取 Microsoft Entra 令牌来调用模型，所以任何地方都不存密钥 |
@@ -203,7 +203,7 @@ PASS  concept image (gpt-image)          {"png_bytes":1408063,"latency_s":13.6,"
 
 1. 打开 `outputs.json` 里的地址，用户名 `studio`，密码在 `portal-password.txt` 里。
 2. 点一张场景卡片。徽标先显示 **预生成示例**，参考实体出现后变成 **预生成 B-rep 实体（与 STEP 一致）**；来源栏写着「当前模型：预生成示例（本次未调用 GPT-6）」：已记录的 GPT-6 回答和参考 STEP 实体直接打开，不调用模型。
-3. 点 **实时调用 GPT-6**。回答返回后，来源栏换成本次实时请求的 ID。要等多久取决于页面上选的推理强度：`low`（默认，来自 `.env.example`）、`medium`、`high` 或 `xhigh`，这是 gpt-6-astra 接受的取值，它不支持 `none`。如果部署拒绝所选取值，工坊改发部署接受的下一档，来源栏显示实际使用的取值。实时生成一页要多久，见[附录](#这些数字是怎么测的)。
+3. 点 **实时调用 GPT-6**。回答返回后，来源栏换成本次实时请求的 ID。要等多久取决于页面上选的推理强度：`low`（默认，来自 `.env.example`）、`medium`、`high` 或 `xhigh`，这是 gpt-6-astra 接受的取值，它不支持 `none`。如果部署拒绝所选取值，工坊改发部署接受的下一档，来源栏显示实际使用的取值。实时生成一页要几分钟。
 4. 点 **生成 STEP**。「CAD 实体」页显示尝试次数、OCCT 耗时和 B-rep 数据，可以下载 STEP、STL 和 CadQuery 脚本。
 
 虚拟机开着就计费。`az vm deallocate -g <资源组> -n thermal-vm` 停止计算资源的计费，`az vm start` 再启动，地址不变，工坊自动启动。模型部署按 token 计费，工坊空闲时模型侧不产生费用。
@@ -228,7 +228,7 @@ receipt: ~/.thermal-3d-studio/rg-thermal-studio/down-20261114-152717.json (PASS)
 
 用于开发，调用第 2 步部署的模型。先用 `-GrantDeployerAccess` 跑一次 `up.ps1`：它给你自己的账号在 AI 资源上分配 **Cognitive Services OpenAI User** 角色。
 
-需要 Python 3.11 或 3.12，虚拟环境约占 1.4 GB 磁盘（实测 1,324 MiB，含可选工具）。CadQuery 的内核包 `cadquery-ocp` 7.9.3.1.1 提供 Windows x64、macOS（Intel 和 Apple 芯片）、Linux（x64 和 Arm64）的 wheel；Windows on Arm 上请用 x64 版 Python，它以仿真方式运行。已在 Windows 11 Arm 版上用 x64 Python 3.11.9 测试；虚拟机上用的是 Ubuntu 24.04 自带的 Python 3.12。
+需要 Python 3.11 或 3.12，虚拟环境约占 1.4 GB 磁盘。CadQuery 的内核包 `cadquery-ocp` 7.9.3.1.1 提供 Windows x64、macOS（Intel 和 Apple 芯片）、Linux（x64 和 Arm64）的 wheel；Windows on Arm 上请用 x64 版 Python，它以仿真方式运行。已在 Windows 11 Arm 版上用 x64 Python 3.11.9 测试；虚拟机上用的是 Ubuntu 24.04 自带的 Python 3.12。
 
 ```powershell
 cd studio
@@ -246,7 +246,7 @@ $o = Get-Content ~/.thermal-3d-studio/rg-thermal-studio/outputs.json | ConvertFr
 python -m uvicorn app:app --host 127.0.0.1 --port 3005 --env-file .env
 ```
 
-预期：pip 最后输出 `Successfully installed ... cadquery-2.8.0 ... fastapi-0.141.1 ...`；three.js 输出 `three.js 0.160.0: 15/15 files verified in ...`；两次构建每个场景各输出一行 `[<id>] OK`，并以 `done. failed: none` 结束；最后输出 `Uvicorn running on http://127.0.0.1:3005`。在 Linux 上，第一次构建会遇到第 2 步说的 `nb_thermal` 崩溃；在构建英文部件名之前，先关掉锐边倒钝单独建它（`CAD_EDGE_FINISH=0 python pregen_cad.py nb_thermal`）。打开 `http://127.0.0.1:3005`，用法同第 4 步。不设 `AZURE_CLIENT_ID` 时，后端从你的 `az login` 取 Entra 令牌。`.env` 不进 Git，浏览器也拿不到它。
+预期：pip 最后输出 `Successfully installed ... cadquery-2.8.0 ... fastapi-0.141.1 ...`；three.js 输出 `three.js 0.160.0: 15/15 files verified in ...`；两次构建每个场景各输出一行 `[<id>] OK`，并以 `done. failed: none` 结束；最后输出 `Uvicorn running on http://127.0.0.1:3005`。在 Linux 上，第一次构建会遇到第 2 步说的 `nb_thermal` 崩溃；在构建英文部件名之前，先关掉锐边倒钝单独建它（`CAD_EDGE_FINISH=0 python pregen_cad.py nb_thermal`）。打开 `http://127.0.0.1:3005`，用法同第 4 步。不设 `AZURE_CLIENT_ID` 时，后端从你的 `az login` 取 Entra 令牌。`.env` 不进 Git，浏览器也拿不到它。测试和每个测试查什么，见 [docs/TESTING_CN.md](docs/TESTING_CN.md)。
 
 ## 实现效果
 
@@ -256,11 +256,11 @@ python -m uvicorn app:app --host 127.0.0.1 --port 3005 --env-file .env
 
 https://github.com/user-attachments/assets/66148365-f3aa-44a7-a129-cef898e68cb3
 
-*实时生成。* 向部署在 Azure 虚拟机上的工坊实时发出一个请求：电池水冷板，流道从 6 道改成 8 道。GPT-6 Astra 流式写出 three.js 网页，**生成 STEP** 让它写 CadQuery 脚本、由 OpenCascade 建出实体，**生成渲染图** 调用 gpt-image-2.5。所有等待都按真实时间播放，没有剪掉。这是演示，不属于[附录](#这些数字是怎么测的)里的实测数据。
+*实时生成。* 向部署在 Azure 虚拟机上的工坊实时发出一个请求：电池水冷板，流道从 6 道改成 8 道。GPT-6 Astra 流式写出 three.js 网页，**生成 STEP** 让它写 CadQuery 脚本、由 OpenCascade 建出实体，**生成渲染图** 调用 gpt-image-2.5。所有等待都按真实时间播放，没有剪掉。这是演示，不是测量。
 
 https://github.com/user-attachments/assets/7ee81aaa-a5f8-46e3-aae7-0410739226ed
 
-下面是 15 个场景之一「热管理集成模块」在工坊里的样子。截图和工程渲染图来自本仓库已记录的运行（2026-11-14），没有调用模型；gpt-image 效果图是 2026-11-10 通过工坊页面调用一次生成的。所有图片都没有修过。
+下面是 15 个场景之一「热管理集成模块」在工坊里的样子。截图和工程渲染图拍自预生成示例，没有调用模型；gpt-image 效果图是通过工坊页面调用一次生成的。所有图片都没有修过。
 
 | 轨 A：GPT-6 写的 three.js 网页（已记录的回答） | 轨 B：同一个零件的 OCCT 实体，四视图 |
 |---|---|
@@ -274,7 +274,7 @@ https://github.com/user-attachments/assets/7ee81aaa-a5f8-46e3-aae7-0410739226ed
 
 ### 更多场景
 
-另外六个场景，同样来自这次已记录的运行。左边是 GPT-6 为场景卡片写的网页，按原样显示：场景、数据面板和按钮都是模型自己写的；右边是参考脚本建出的 OCCT 实体，显示在工坊的视口里。全部 15 个场景及各自的 gpt-image 效果图见 [docs/RESULTS_CN.md](docs/RESULTS_CN.md#15-个场景一览)。
+另外六个场景。左边是 GPT-6 为场景卡片写的网页，按原样显示：场景、数据面板和按钮都是模型自己写的；右边是参考脚本建出的 OCCT 实体，显示在工坊的视口里。部署好之后，全部 15 个场景都能在工坊里打开。
 
 | 场景 | 轨 A：GPT-6 写的网页（已记录的回答） | 轨 B：参考脚本建出的 OCCT 实体 |
 |---|---|---|
@@ -297,76 +297,13 @@ https://github.com/user-attachments/assets/7ee81aaa-a5f8-46e3-aae7-0410739226ed
 
 | 你想 | 去看 |
 |---|---|
-| 看每个场景的数字、输入和局限 | [docs/RESULTS_CN.md](docs/RESULTS_CN.md) |
 | 了解每层测试查什么、不查什么 | [docs/TESTING_CN.md](docs/TESTING_CN.md) |
-| 查看部署记录：每一步输出了什么、用了多久 | [evidence/deploy-20261114/](evidence/deploy-20261114/) |
-| 查看已记录的离线运行：日志、每个实体的元数据、渲染检查、机器信息 | [evidence/run-20261113/](evidence/run-20261113/) |
-| 复用这些数字 | [data/results.json](data/results.json)，由 `tools/build_results.py` 生成 |
-| 查图片或图标的来源 | [images/SOURCES.json](images/SOURCES.json)、[NOTICE.md](NOTICE.md) |
+| 查第三方组件的许可和图片来源 | [NOTICE.md](NOTICE.md) |
 
 | 目录 | 内容 |
 |---|---|
 | `infra/` | 部署：`main.bicep`（全部 Azure 资源）、`up.ps1`（创建并安装）、`vm-install.sh`（在虚拟机上执行的安装）、`verify.ps1`（从外部检查）、`down.ps1`（删除） |
 | `studio/` | 应用本体：FastAPI 后端（`app.py`）、前端（`static/`）、CAD 执行器、提示词（`scenarios.py`）、已记录的 GPT-6 回答（`cache/`）、CadQuery 参考脚本、虚拟机安装脚本（`deploy/`）和应用自己的测试（`tests/`） |
-| `tools/` | 按固定哈希下载 three.js、两张图的渲染脚本及其 HTML 源文件、截图脚本、结果汇总脚本、工程渲染图的分割检查脚本 |
-| `tests/` | 仓库检查：中英文页面结构、链接、图片、数字、两张图、私有信息 |
-| `data/` | `results.json`：附录和 docs/RESULTS 里引用的每个数字 |
-| `evidence/` | `deploy-20261114/`：部署记录；`run-20261113/`：已记录的干净离线运行（日志、`pip freeze`、每个实体的 OCCT 元数据、渲染检查、浏览器检查、机器信息） |
-| `images/` | 截图、渲染图、两张图和 Azure 图标，每个都登记在 `images/SOURCES.json` |
-| `docs/` | 逐场景结果和测试说明，中英文各一份 |
-
-## 附录
-
-作者自己做的验证。部署和使用工坊都用不到这里的内容。
-
-### 部署记录
-
-2026-11-14，这三个脚本在一台 Windows 11 笔记本上运行，部署到 East US 2 的一个新资源组；事先只做了 `az login`。回执和各脚本的输出在 [`evidence/deploy-20261114/`](evidence/deploy-20261114/)；[docs/TESTING_CN.md](docs/TESTING_CN.md#部署记录) 列出了每一步，以及当天更早几次运行发现、现已在脚本里修复的缺陷。
-
-| 脚本 | 结果 | 耗时（min） |
-|---|---|---|
-| `up.ps1`：创建全部资源、安装工坊、检查 HTTPS | 通过：`Standard_D4as_v6`，gpt-6-astra 用 Data Zone Standard（订阅的 Global Standard 配额已用完） | 14.0 |
-| 其中虚拟机上的安装（`vm-install.sh`） | 中文部件名和英文部件名的参考实体各 15 个；其中笔记本双风扇散热模组没有锐边倒钝 | 10.3 |
-| `verify.ps1 -Full` | 10 项检查全部通过 | 2.1 |
-| `down.ps1 -Yes` | 通过：没有残留 | 4.4 |
-
-虚拟机安装的 `studio/` 取自 `master` 的 `d32e1e6e`，在第 4 步所说的推理强度改动之前；它的 `studio/` 与本版本差在这项改动和 `studio/deploy/deploy.ps1`，而这条路径不执行后者。`verify.ps1 -Full` 里的实时 **生成 STEP** 用了 1 次尝试、91.5 s，其中 OpenCascade 6.7 s，得到 4 个实体、315 个面、1.580 kg，STEP 文件 1.1 MB；这只是一个请求，用来说明路径走得通，不是测量。它要求推理强度 `none`，这个部署没有接受；那个提交的代码于是去掉这个参数重发，GPT-6 按部署的默认推理强度运行。现在的 `verify.ps1` 请求 `low`。在 `verify.ps1` 和 `down.ps1` 之间，还用无头 Microsoft Edge 在部署好的地址上走了一遍第 4 步的开头：页面自带的登录表单，然后以预生成示例打开中英文界面的冷板和笔记本双风扇散热模组；没有调用模型，页面也没有报错（[详情](docs/TESTING_CN.md#部署记录)）。
-
-### 这些数字是怎么测的
-
-<img src="images/test-topology-zh.png" width="900" alt="测试拓扑。轨 A：在没有记录的客户端机器上，pregen.py 调用 run_generation（线上 /api/generate 背后的函数），从 GPT-6 Astra 部署（Global Standard，资源在 East US 2）流式取回答；计时在客户端里，从发出请求到首个可见 token、再到回答解析完毕。轨 B：在测试笔记本（Windows 11 Arm 版，x64 Python 仿真运行）上，pregen_cad.py 让每个参考脚本经 cad_runner.run_script 在单独进程里用 CadQuery 和 OpenCascade 执行；计时从进程启动到 STEP、STL、GLB 写完。轨 C：同一台笔记本上，无头 Edge 用 engineering-render.mjs 渲染每个 model.glb，并与 STEP 外形对比；计时包含加载和 256 帧。">
-
-图上画的是：每段计时在哪里运行、调用了什么、计时包含哪些环节。这是原创解释图；机器信息来自 [`evidence/run-20261113/machine.json`](evidence/run-20261113/machine.json)，轨 A 的信息来自 `studio/cache/` 里已记录的回答。
-
-- **输入。** 轨 A：`studio/scenarios.py` 里每张场景卡片的提示词，每个场景、每种语言各发一次，2026-09-09 至 2026-09-12 共 30 次请求；集成模块的提示词[原文](docs/RESULTS_CN.md#轨-agpt-6-写-threejs-网页)。轨 B：`studio/cad_examples/` 里 15 个手写参考脚本，不是 GPT-6 写的。轨 C：上一步每个实体的 `model.glb`。
-- **每格只有一次运行。** 每个场景只跑一次（轨 A 每种语言一次），所以下表的中位数和范围是跨场景统计的，不是同一请求的重复。再请求一次，网页和耗时都会不同。
-- **这里没有测：** 实时轨 B 请求，也就是 GPT-6 写 CadQuery 脚本、再由 OCCT 执行。点 **生成 STEP** 后，「CAD 实体」页会显示那次的尝试次数和 OCCT 耗时；[部署记录](#部署记录)里做过一次这样的请求，那是检查，不是测量。
-
-| 轨 | 测的是什么（单位） | 次数 | 中位数 | 范围（最小–最大） |
-|---|---|---|---|---|
-| A · GPT-6 写网页 | 每页总耗时（s） | 30 | 149.8 | 76.1–356.2 |
-| A · GPT-6 写网页 | 首个可见 token（s） | 30 | 13.8 | 4.8–182.8 |
-| A · GPT-6 写网页 | 每页输出 token | 30 | 4,900 | 3,347–8,463 |
-| A · GPT-6 写网页 | 首 token 之后的输出速度（token/s） | 30 | 34.1 | 24.0–71.6 |
-| B · OCCT 建实体 | 每个场景的 OCCT 耗时（s） | 15 | 59.1 | 12.0–199.2 |
-| B · OCCT 建实体 | 每个实体的部件数 | 15 | 11 | 4–32 |
-| C · 工程渲染图对 STEP | 与 STEP 的外形重合度 IoU（%） | 15 | 94.1 | 15.1–97.7 |
-| C · 工程渲染图对 STEP | 渲染耗时（s） | 15 | 4.5 | 2.1–30.0 |
-
-- **实时生成一页 3D 网页要几分钟。** 中位数是每页 149.8 s、4,900 个输出 token。已记录的示例打开时不用等，也不调用模型；要改需求时，实时调用才值得。
-- **STEP 在本地建，不调模型，也不走网络。** 在这台笔记本上，一个实体用时 12.0–199.2 s；最慢的笔记本双风扇散热模组里，倒钝占了 131.6 s（[详情](docs/RESULTS_CN.md#轨-bopencascade-建出参考实体)）。
-- **工程渲染图天然与 STEP 对齐，15 张里有十二张的 IoU 在 90.2–97.7 %，印证了这一点。** 电池水冷板、仿真估算的冷板和总装线读数偏低，是因为检查用的分割算法会漏掉大面积光滑表面，或把细框架之间的区域也算进去；它们的 STEP 轮廓同样落在零件上（[详情](docs/RESULTS_CN.md#轨-c工程渲染图与-step-的对照)）。
-
-### 测试
-
-在第 6 步建好的虚拟环境里：
-
-```powershell
-$env:AOAI_ENDPOINT = 'https://example.invalid'; $env:PORTAL_PASSWORD = 'x'; $env:AOAI_REASONING_EFFORT = 'low'
-python -m unittest discover -s tests -p "test_*.py"                    # 在 studio/ 里执行
-node --test tests/test_connection.cjs tests/test_viewer_bridge.cjs    # 在 studio/ 里执行；需要 Node.js 18 及以上
-cd ..; python -m unittest discover -s tests -v; cd studio              # 仓库检查
-python ../tools/build_results.py --compare-local                       # 你建的 15 个实体与已记录的运行对比
-```
-
-预期：两次 Python 测试都输出 `OK`，Node 测试 `fail 0`，对比命令输出 `parts, solids, bounding boxes and densities match run-20261113`。单元测试里的模型调用和 OCCT 执行都是模拟的；每一层测什么、不测什么，见 [docs/TESTING_CN.md](docs/TESTING_CN.md)，那里也记录了 2026-11-13 和 2026-11-14 的[离线运行](docs/TESTING_CN.md#运行记录)。
+| `tools/` | `vendor_three.py`：下载 three.js 并按固定哈希校验（第 6 步） |
+| `images/` | 本页用到的截图、渲染图和架构图 |
+| `docs/` | 测试说明，中英文各一份 |

@@ -1,5 +1,0 @@
-deleting resource group rg-thermal-studio (several minutes)
-[15:30:38] resource group deleted: rg-thermal-studio
-[15:31:26] AI resource purged: thermal-ai-<hash> (eastus2)
-[15:31:40] nothing left: group rg-thermal-studio gone, no soft-deleted AI resource of it
-receipt: ~/.thermal-3d-studio/rg-thermal-studio/down-20261114-152717.json (PASS)
