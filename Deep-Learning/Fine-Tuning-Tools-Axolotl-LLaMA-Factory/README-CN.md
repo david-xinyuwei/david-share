@@ -21,8 +21,7 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 | Item | Details |
 |---|---|
 | **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
-| **GPU** | NVIDIA H100 80GB |
-| **Frameworks** | vLLM, DeepSpeed, LoRA/PEFT, Unsloth, Axolotl, torch.compile |
+| **GPU** | NVIDIA H100 NVL 94GB |
 
 
 ## Part I: Fine-Tuning with Axolotl and Inference with vLLM/Transformers

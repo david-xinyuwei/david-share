@@ -7,16 +7,6 @@
 随着大语言模型（Large Language Models，简称 LLM）持续快速发展，推理引擎逐渐成为模型生产部署的关键基石。在诸多开源推理引擎中，SGLang 和 vLLM 无疑是近期社区瞩目的焦点。本文旨在从底层架构与核心技术角度，对二者进行全面、准确的对比和解析。
 
 
-## 在 Azure 上运行
-
-All experiments in this project were conducted on an **Azure GPU VM**.
-
-| Item | Details |
-|---|---|
-| **Azure VM** | [Standard_NC24ads_A100_v4](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-a100-v4-series) |
-| **GPU** | NVIDIA A100 80GB PCIe |
-| **Frameworks** | vLLM, SGLang, torch.compile |
-
 
 ## 一、核心架构差异解析
 

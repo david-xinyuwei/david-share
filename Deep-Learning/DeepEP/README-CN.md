@@ -4,16 +4,6 @@
 
 > **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
 
-## 在 Azure 上运行
-
-All experiments in this project were conducted on an **Azure GPU VM**.
-
-| Item | Details |
-|---|---|
-| **Azure VM** | [Standard_ND96isr_MI300X_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nd-mi300x-v5-series) |
-| **GPU** | AMD MI300X 192GB |
-| **Frameworks** | vLLM, DeepSpeed, LoRA/PEFT |
-
 
 ## 浅析DeepSeek-R1的强化学习思路
 

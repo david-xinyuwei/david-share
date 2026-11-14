@@ -5,16 +5,6 @@
 
 > **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
 
-## 在 Azure 上运行
-
-All experiments in this project were conducted on an **Azure GPU VM**.
-
-| Item | Details |
-|---|---|
-| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
-| **GPU** | NVIDIA H100 80GB |
-| **Frameworks** | vLLM, LoRA/PEFT |
-
 
 ## Phi-4 Quantization, Fine-Tuning and Inference Speedup
 
