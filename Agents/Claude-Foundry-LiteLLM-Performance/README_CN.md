@@ -4,7 +4,7 @@
 [![Measured](https://img.shields.io/badge/measured-2026--10--26%20to%2010--27-0078D4)](#实现效果)
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/claude-foundry-performance-ci.yml/badge.svg)](https://github.com/david-xinyuwei/david-share/actions/workflows/claude-foundry-performance-ci.yml)
 
-作者：魏新宇 · [English](README.md)
+作者：魏新宇 — Microsoft AI Lead Senior System Engineer · [English](README.md)
 
 ## 目的
 

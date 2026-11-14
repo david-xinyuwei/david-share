@@ -14,7 +14,7 @@ When you deploy an open-source model, deciding whether to enable speculative dec
 
 This repository answers all three on one H100 NVL with offline replay: inference comparison, target fine-tuning, continued training of the draft model and selector, checkpoint reload, held-out evaluation and vLLM serving checks.
 
-> Author: Xinyu Wei (魏新宇)
+> Author: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 [English](README.md) | [中文](README_CN.md)
 

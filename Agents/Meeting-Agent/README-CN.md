@@ -7,7 +7,7 @@
 
 同一个Meeting Agent产品，两种实现路径：Classic路径由应用自己负责Prompt编排；Managed路径把模型循环和版本化Skill交给Microsoft Foundry管理。两条路径都生成结构化纪要、思维导图、可编辑PowerPoint和未发送的New Outlook草稿。
 
-> 作者：魏新宇
+> 作者：魏新宇 — Microsoft AI Lead Senior System Engineer
 
 **中文** | [English](README.md) | [源码](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Meeting-Agent)
 

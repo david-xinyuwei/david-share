@@ -4,7 +4,7 @@
 [![Measured](https://img.shields.io/badge/measured-East%20US%202%2C%202026--09--22%20to%2010--18-0078D4)](#实现效果)
 [![Docs CI](https://github.com/david-xinyuwei/david-share/actions/workflows/agent-sandbox-hosting-ci.yml/badge.svg)](https://github.com/david-xinyuwei/david-share/actions/workflows/agent-sandbox-hosting-ci.yml)
 
-作者：魏新宇 · [English](README.md)
+作者：魏新宇 — Microsoft AI Lead Senior System Engineer · [English](README.md)
 
 ## 目的
 

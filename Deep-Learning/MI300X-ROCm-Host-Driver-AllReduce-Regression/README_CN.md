@@ -1,10 +1,13 @@
 # Azure MI300X：宿主机驱动升级后的 AllReduce 性能回归
 
+[![Hardware](https://img.shields.io/badge/Azure-ND%20MI300X%20v5-0078D4)](#目的)
+[![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/mi300x-host-driver-regression-ci.yml/badge.svg)](https://github.com/david-xinyuwei/david-share/actions/workflows/mi300x-host-driver-regression-ci.yml)
+
 在一台 Azure ND MI300X v5 VM 上，**原生升级 VM 操作系统的 AMDGPU 内核驱动以及 ROCm/RCCL** 后，8 卡 AllReduce 带宽从约 315 GB/s 降到约 42 GB/s，数据校验仍全部通过。仅在旧驱动上升级容器用户态，并没有复现这个问题。
 
 本目录用于复现和定位问题，**不是生产升级建议，也不是厂商已确认的代码根因**。“宿主机”指运行容器的 VM 操作系统，不是 Azure 底层物理宿主机或其 GIM 驱动。
 
-作者：Xinyu Wei · [English](README.md) · [统一数据](data/native-summary.json) · [脱敏原始证据](evidence/) · [无需 GPU 的验证](#无需-gpu-的验证)
+作者：魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer · [English](README.md) · [统一数据](data/native-summary.json) · [脱敏原始证据](evidence/) · [无需 GPU 的验证](#无需-gpu-的验证)
 
 ## 目的
 

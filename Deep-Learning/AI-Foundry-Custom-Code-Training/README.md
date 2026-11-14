@@ -13,7 +13,7 @@ outputs. This repo validates that product path in three stages: Hello World, LoR
 `Qwen/Qwen3-14B`, and a completed VERL GRPO run — 14 optimizer steps in 5 h 41 m on one
 4×A100 node — then documents the compute plan, compatibility choices and measured runtime.
 
-> Author: 魏新宇 (Xinyu Wei)
+> Author: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
 
 [English](README.md) | [中文](README-CN.md)
 

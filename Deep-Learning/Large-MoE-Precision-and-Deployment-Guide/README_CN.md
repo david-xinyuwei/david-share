@@ -6,7 +6,7 @@
 [![Tested](https://img.shields.io/badge/tested-2026--11--02%20to%2011--04%20%C2%B7%2016%C3%97MI300X-ED1C24)](#mi300x-实测)
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/large-moe-precision-guide-ci.yml/badge.svg)](https://github.com/david-xinyuwei/david-share/actions/workflows/large-moe-precision-guide-ci.yml)
 
-作者：魏新宇（Xinyu Wei） · [English](README.md)
+作者：魏新宇（Xinyu Wei） — Microsoft AI Lead Senior System Engineer · [English](README.md)
 
 ## 目的
 

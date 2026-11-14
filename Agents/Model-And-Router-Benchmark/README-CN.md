@@ -14,7 +14,7 @@ Model Router 模式对比各自的直连基线，再补上试点通常要到生�
 **0.367 s 到 15.47 s** 之间，每 1,000 个请求的成本从 0.094 到 4.564 USD——时延相差
 42×、成本相差 49×，差距来自配置而不是模型名字。
 
-> Author: **Xinyu Wei (魏新宇)**
+> Author: **Xinyu Wei (魏新宇)** — Microsoft AI Lead Senior System Engineer
 
 [English](README.md) | [中文](README-CN.md)
 

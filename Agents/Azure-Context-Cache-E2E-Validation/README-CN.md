@@ -6,6 +6,8 @@
 [![Upstream pin](https://img.shields.io/badge/AzureContextCache-7d1029a5-247A45)](https://github.com/Azure/AzureContextCache/commit/7d1029a5e8b59b1805e70992c85ffe6798d2f47a)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../../LICENSE)
 
+> **作者**: 魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
+
 [英文版](README.md) | [源码](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Azure-Context-Cache-E2E-Validation) | [官方源码](https://github.com/Azure/AzureContextCache)
 
 本仓库用于评估 Azure OpenAI 的显式上下文缓存能力，面向需要重复使用系统指令、工具定义、示例或参考资料的应用。

@@ -25,8 +25,8 @@ def main() -> int:
     chinese_first = chinese.splitlines()[:15]
     assert english_first[2].startswith("[![Python 3.11+")
     assert chinese_first[2].startswith("[![Python 3.11+")
-    assert english_first[9] == "> Author: Xinyu Wei"
-    assert chinese_first[9] == "> 作者：魏新宇"
+    assert english_first[9] == "> Author: Xinyu Wei — Microsoft AI Lead Senior System Engineer"
+    assert chinese_first[9] == "> 作者：魏新宇 — Microsoft AI Lead Senior System Engineer"
     source_url = "https://github.com/david-xinyuwei/david-share/tree/master/Agents/Meeting-Agent"
     assert f"[Source]({source_url})" in english_first[11]
     assert f"[源码]({source_url})" in chinese_first[11]

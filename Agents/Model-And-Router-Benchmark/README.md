@@ -18,7 +18,7 @@ the median first token arrived between **0.367 s and 15.47 s** and cost ranged f
 0.094 to 4.564 USD per 1,000 requests — a 42× latency and 49× cost spread driven by
 configuration rather than by model name.
 
-> Author: **Xinyu Wei (魏新宇)**
+> Author: **Xinyu Wei (魏新宇)** — Microsoft AI Lead Senior System Engineer
 
 [English](README.md) | [中文](README-CN.md)
 

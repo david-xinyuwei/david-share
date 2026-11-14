@@ -7,7 +7,7 @@
 
 One Meeting Agent product, implemented two ways: classic application-owned prompt orchestration and a Microsoft Foundry Agent whose model loop and versioned Skill are managed by the platform. Both paths produce the same structured notes, mind map, editable PowerPoint, and unsent New Outlook draft.
 
-> Author: Xinyu Wei
+> Author: Xinyu Wei — Microsoft AI Lead Senior System Engineer
 
 [Chinese](README-CN.md) | **English** | [Source](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Meeting-Agent)
 

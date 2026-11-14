@@ -144,6 +144,13 @@ def render(run_dir):
     w = out.append
     w("# MAI-Image-2.6 vs GPT-Image-2 vs GPT-Image-2.5 — US-region deployments, one client, one session")
     w("")
+    w("[![Area: Multimodal Models](https://img.shields.io/badge/Area-Multimodal%20Models-0078D4)](../README.MD) "
+      "![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) "
+      "![Language: English](https://img.shields.io/badge/Language-English-8250DF) "
+      "[![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)")
+    w("")
+    w("> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer")
+    w("")
     w(f"{len(present)} configurations · {n_prompts} prompts · {rounds} rounds · {len(raw)} images · "
       f"resources: East US (MAI) / East US 2 (GPT) · client: {cfg.get('client_location', 'unspecified')}")
     w("")

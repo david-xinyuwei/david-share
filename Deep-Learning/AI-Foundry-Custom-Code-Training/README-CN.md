@@ -8,7 +8,7 @@
 
 Custom Code Training 面向标准托管 fine-tuning 默认能力之外的代码驱动训练：训练脚本、数据集和容器镜像由你提供，托管 GPU compute、作业编排、可观测性和版本化模型产出由平台提供。这个 repo 按三个层次验证了这条产品路径：Hello World、`Qwen/Qwen3-14B` LoRA SFT，以及完整跑通的 VERL GRPO——单个 4×A100 节点上 14 个优化器 step、5 小时 41 分钟——并给出算力规划、兼容性配置和实测运行数据。
 
-> Author: 魏新宇 (Xinyu Wei)
+> 作者：魏新宇 (Xinyu Wei) — Microsoft AI Lead Senior System Engineer
 
 [English](README.md) | [中文](README-CN.md)
 

@@ -394,12 +394,12 @@ def pages(result):
             title = "Microsoft Foundry 上的 Claude 5.5：思考模式、推理档位、提示缓存、延迟与编码正确率"
             headings = ("目的", "实现效果", "操作步骤")
             anchors = ("#目的", "#实现效果")
-            author = "作者：魏新宇 · [English](README.md)"
+            author = "作者：魏新宇 — Microsoft AI Lead Senior System Engineer · [English](README.md)"
         else:
             title = "Claude 5.5 on Microsoft Foundry: Thinking, Effort, Prompt Caching, Latency and Coding Accuracy"
             headings = ("Purpose", "Results", "Steps")
             anchors = ("#purpose", "#results")
-            author = "Author: Xinyu Wei · [中文](README_CN.md)"
+            author = "Author: Xinyu Wei — Microsoft AI Lead Senior System Engineer · [中文](README_CN.md)"
         badges = "\n".join([
             f"[![Models](https://img.shields.io/badge/models-Opus%20%C2%B7%20Sonnet%20%C2%B7%20Haiku%205.5-0078D4)]({anchors[0]})",
             f"[![Measured](https://img.shields.io/badge/measured-2026--10--26%20to%2010--27-0078D4)]({anchors[1]})",

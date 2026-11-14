@@ -4,7 +4,7 @@
 [![Measured](https://img.shields.io/badge/measured-2026--10--26%20to%2010--27-0078D4)](#results)
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/claude-foundry-performance-ci.yml/badge.svg)](https://github.com/david-xinyuwei/david-share/actions/workflows/claude-foundry-performance-ci.yml)
 
-Author: Xinyu Wei · [中文](README_CN.md)
+Author: Xinyu Wei — Microsoft AI Lead Senior System Engineer · [中文](README_CN.md)
 
 ## Purpose
 

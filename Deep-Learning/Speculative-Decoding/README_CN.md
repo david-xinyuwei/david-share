@@ -14,7 +14,7 @@
 
 本仓库在一张 H100 NVL 上把这三个问题跑成可离线复算的实测：推理对比、目标模型微调、draft model 与 selector 继续训练、checkpoint 重载、留出集评估和 vLLM 服务验证。
 
-> 作者：魏新宇（Xinyu Wei）
+> 作者：魏新宇（Xinyu Wei） — Microsoft AI Lead Senior System Engineer
 
 [English](README.md) | [中文](README_CN.md)
 

@@ -72,8 +72,8 @@ class EvidenceTests(unittest.TestCase):
 
     def test_readme_sections_and_opening(self):
         for filename, expected, author in (
-                ("README.md", ["Purpose", "Results", "Steps"], "Author: Xinyu Wei · [中文](README_CN.md)"),
-                ("README_CN.md", ["目的", "实现效果", "操作步骤"], "作者：魏新宇 · [English](README.md)")):
+                ("README.md", ["Purpose", "Results", "Steps"], "Author: Xinyu Wei — Microsoft AI Lead Senior System Engineer · [中文](README_CN.md)"),
+                ("README_CN.md", ["目的", "实现效果", "操作步骤"], "作者：魏新宇 — Microsoft AI Lead Senior System Engineer · [English](README.md)")):
             text = (ROOT / filename).read_text(encoding="utf-8")
             self.assertEqual(re.findall(r"^## (.+)$", text, re.MULTILINE), expected)
             self.assertNotIn("<details", text)

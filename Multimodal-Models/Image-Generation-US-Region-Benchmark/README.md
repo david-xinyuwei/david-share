@@ -1,5 +1,9 @@
 # MAI-Image-2.6 vs GPT-Image-2 vs GPT-Image-2.5 — US-region deployments, one client, one session
 
+[![Area: Multimodal Models](https://img.shields.io/badge/Area-Multimodal%20Models-0078D4)](../README.MD) ![Type: Code](https://img.shields.io/badge/Type-Code-2E7D32) ![Language: English](https://img.shields.io/badge/Language-English-8250DF) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](../../LICENSE)
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI Lead Senior System Engineer
+
 9 configurations · 17 prompts · 2 rounds · 306 images · resources: East US (MAI) / East US 2 (GPT) · client: Xinyu SURFACE-2 laptop; resources East US (MAI) / East US 2 (GPT); Entra bearer auth
 
 Every configuration received the same prompts verbatim, from the same client, in one session, interleaved so no model got a warmer or quieter minute than another. Timings are wall-clock seconds from HTTP request to full response body — what a user waits, not model-only inference.

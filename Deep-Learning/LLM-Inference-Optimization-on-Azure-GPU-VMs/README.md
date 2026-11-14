@@ -4,7 +4,7 @@
 [![Runtime](https://img.shields.io/badge/SGLang-pinned%20public%20source-0078D4)](upstream/SOURCES.lock.json)
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/llm-inference-optimization-ci.yml/badge.svg)](https://github.com/david-xinyuwei/david-share/actions/workflows/llm-inference-optimization-ci.yml)
 
-Author: Xinyu Wei · [中文](README_CN.md) · [Start operating](#steps) · [How the optimizations work](docs/optimizations.md) · [Measured results](docs/results.md)
+Author: Xinyu Wei — Microsoft AI Lead Senior System Engineer · [中文](README_CN.md) · [Start operating](#steps) · [How the optimizations work](docs/optimizations.md) · [Measured results](docs/results.md)
 
 ## Purpose
 

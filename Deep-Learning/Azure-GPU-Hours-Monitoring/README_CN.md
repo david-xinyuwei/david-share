@@ -4,7 +4,7 @@
 [![实测环境](https://img.shields.io/badge/tested-NC40ads%20H100%20v5-0078D4)](#实现效果)
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/azure-gpu-hours-monitoring-ci.yml/badge.svg)](https://github.com/david-xinyuwei/david-share/actions/workflows/azure-gpu-hours-monitoring-ci.yml)
 
-作者：魏新宇 · [English](README.md)
+作者：魏新宇 — Microsoft AI Lead Senior System Engineer · [English](README.md)
 
 ## 目的
 

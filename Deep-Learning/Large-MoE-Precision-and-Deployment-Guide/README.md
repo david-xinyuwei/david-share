@@ -6,7 +6,7 @@
 [![Tested](https://img.shields.io/badge/tested-2026--11--02%20to%2011--04%20%C2%B7%2016%C3%97MI300X-ED1C24)](#mi300x-run)
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/large-moe-precision-guide-ci.yml/badge.svg)](https://github.com/david-xinyuwei/david-share/actions/workflows/large-moe-precision-guide-ci.yml)
 
-Author: Xinyu Wei · [中文](README_CN.md)
+Author: Xinyu Wei — Microsoft AI Lead Senior System Engineer · [中文](README_CN.md)
 
 ## Purpose
 

@@ -4,7 +4,7 @@
 [![Tested on](https://img.shields.io/badge/tested-NC40ads%20H100%20v5-0078D4)](#results)
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/azure-gpu-hours-monitoring-ci.yml/badge.svg)](https://github.com/david-xinyuwei/david-share/actions/workflows/azure-gpu-hours-monitoring-ci.yml)
 
-Author: Xinyu Wei · [中文](README_CN.md)
+Author: Xinyu Wei — Microsoft AI Lead Senior System Engineer · [中文](README_CN.md)
 
 ## Purpose
 

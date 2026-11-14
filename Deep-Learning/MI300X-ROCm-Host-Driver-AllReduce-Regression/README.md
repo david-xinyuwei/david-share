@@ -1,10 +1,13 @@
 # Azure MI300X: AllReduce regression after a native host-driver upgrade
 
+[![Hardware](https://img.shields.io/badge/Azure-ND%20MI300X%20v5-0078D4)](#purpose)
+[![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/mi300x-host-driver-regression-ci.yml/badge.svg)](https://github.com/david-xinyuwei/david-share/actions/workflows/mi300x-host-driver-regression-ci.yml)
+
 On one Azure ND MI300X v5 VM, upgrading the **VM operating system's AMDGPU kernel driver together with ROCm/RCCL** reduced eight-GPU AllReduce bandwidth from approximately 315 GB/s to 42 GB/s. The data checks still passed. Updating only the userspace libraries in containers on the old driver did **not** reproduce this regression.
 
 This directory is a reproducible investigation case, **not a production upgrade recommendation or a vendor-confirmed root cause**. “Host” means the VM OS used as the container host, not the underlying Azure physical host or its GIM driver.
 
-Author: Xinyu Wei · [中文](README_CN.md) · [Canonical data](data/native-summary.json) · [Original redacted evidence](evidence/) · [Offline verification](#verify-without-a-gpu)
+Author: Xinyu Wei — Microsoft AI Lead Senior System Engineer · [中文](README_CN.md) · [Canonical data](data/native-summary.json) · [Original redacted evidence](evidence/) · [Offline verification](#verify-without-a-gpu)
 
 ## Purpose
 

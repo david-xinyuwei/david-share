@@ -4,7 +4,7 @@
 [![Measured](https://img.shields.io/badge/measured-East%20US%202%2C%202026--09--22%20to%2010--18-0078D4)](#results)
 [![Docs CI](https://github.com/david-xinyuwei/david-share/actions/workflows/agent-sandbox-hosting-ci.yml/badge.svg)](https://github.com/david-xinyuwei/david-share/actions/workflows/agent-sandbox-hosting-ci.yml)
 
-Author: Xinyu Wei · [中文](README_CN.md)
+Author: Xinyu Wei — Microsoft AI Lead Senior System Engineer · [中文](README_CN.md)
 
 ## Purpose
 
