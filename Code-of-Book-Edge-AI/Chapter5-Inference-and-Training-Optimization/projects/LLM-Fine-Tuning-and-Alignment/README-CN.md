@@ -19,16 +19,6 @@
 - [Part 7: DPO 微调代码与训练结果分析](#part-7-dpo-微调代码与训练结果分析)
 - [Part 8: 大模型 DPO 分布式训练 (DeepSpeed & FSDP)](#part-8-大模型-dpo-分布式训练-deepspeed--fsdp)
 
-## Running on Azure
-
-All experiments in this project were conducted on **Azure GPU VMs**.
-
-| Item | Details |
-|---|---|
-| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
-| **GPU** | NVIDIA H100 80GB |
-| **Frameworks** | DeepSpeed, FSDP, LoRA/PEFT |
-
 ---
 
 

@@ -21,16 +21,6 @@ This article is a comprehensive technical guide to LLM fine-tuning and alignment
 - [Part 7: DPO Fine-Tuning Code and Training Results Analysis](#part-7-dpo-fine-tuning-code-and-training-results-analysis)
 - [Part 8: Large Model DPO Distributed Training (DeepSpeed & FSDP)](#part-8-large-model-dpo-distributed-training-deepspeed--fsdp)
 
-## Running on Azure
-
-All experiments in this project were conducted on **Azure GPU VMs**.
-
-| Item | Details |
-|---|---|
-| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
-| **GPU** | NVIDIA H100 80GB |
-| **Frameworks** | DeepSpeed, FSDP, LoRA/PEFT |
-
 ---
 ## Part 1: SFT hyperparameter tuning best practices
 

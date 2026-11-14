@@ -18,8 +18,7 @@ This benchmark was conducted across multiple **Azure GPU VM** SKUs.
 | Item | Details |
 |---|---|
 | **Azure VMs** | [NC H100 v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series), [NC A100 v4](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-a100-v4-series), [NC RTX Pro 6000V6 BSE](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
-| **GPUs** | NVIDIA H100, A100, RTX 6000 Ada, GB200 |
-| **Frameworks** | vLLM, SGLang, torch.compile, Diffusers |
+| **GPUs** | NVIDIA H100 NVL 94GB, A100 80GB PCIe, RTX PRO 6000 Blackwell Server Edition 96GB |
 
 
 ## 📖 Table of Contents

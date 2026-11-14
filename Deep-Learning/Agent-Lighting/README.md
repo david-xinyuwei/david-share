@@ -15,7 +15,6 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 |---|---|
 | **Azure VM** | [Standard_NC24ads_A100_v4](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-a100-v4-series) |
 | **GPU** | NVIDIA A100 80GB |
-| **Frameworks** | vLLM, SGLang, LoRA/PEFT, Unsloth |
 
 
 ## 🎯 Project Overview

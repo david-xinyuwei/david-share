@@ -16,8 +16,7 @@ All experiments in this project were conducted on **Azure GPU VMs**.
 | Item | Details |
 |---|---|
 | **Azure VMs** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series), [NC A100 v4](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-a100-v4-series), [NC RTX Pro 6000V6 BSE](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
-| **GPUs** | NVIDIA H100 NVL 94GB, A100 80GB, RTX 6000 Ada 48GB |
-| **Frameworks** | vLLM, LoRA/PEFT, torch.compile |
+| **GPUs** | NVIDIA H100 NVL 94GB, A100 80GB PCIe, RTX PRO 6000 Blackwell Server Edition 96GB |
 
 
 ## 🎯 Key Findings

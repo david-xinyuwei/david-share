@@ -33,7 +33,6 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 |---|---|
 | **Azure VM** | [Standard_ND96isr_MI300X_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nd-mi300x-v5-series) |
 | **GPU** | AMD MI300X 192GB |
-| **Frameworks** | SGLang |
 
 
 ## Deployment steps

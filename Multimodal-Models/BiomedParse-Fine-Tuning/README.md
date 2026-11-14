@@ -23,7 +23,6 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 |---|---|
 | **Azure VM** | [Standard_NV36ads_A10_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nva10v5-series) |
 | **GPU** | NVIDIA A10 24GB |
-| **Frameworks** | PyTorch |
 
 
 ## 🌟 Microsoft Biomedical AI: The Three Pillars

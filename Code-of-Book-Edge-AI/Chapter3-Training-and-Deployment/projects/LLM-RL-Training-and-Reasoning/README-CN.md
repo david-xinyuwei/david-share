@@ -3217,16 +3217,6 @@ https://github.com/xinyuwei-david/david-share/tree/master/Deep-Learning/LLM-Hall
   - **计算成本增加**：需要多次生成答案，增加了计算开销。
   - **多样性可能不足**：如果生成的答案过于多样，可能没有明确的多数答案。
 
-## Running on Azure
-
-All experiments in this project were conducted on an **Azure GPU VM**.
-
-| Item | Details |
-|---|---|
-| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
-| **GPU** | NVIDIA H100 80GB |
-| **Frameworks** | vLLM, LoRA/PEFT, Unsloth |
-
 ## 它们之间的区别与联系
 
  

@@ -33,16 +33,6 @@ This article is a comprehensive technical guide to LLM reinforcement learning tr
 - [Part 12: SLM Fine-tuning Experiments](#part-12-slm-fine-tuning-experiments)
 - [Part 13: Three RL Training Methods Compared](#part-13-three-rl-training-methods-compared)
 
-## Running on Azure
-
-All experiments in this project were conducted on an **Azure GPU VM**.
-
-| Item | Details |
-|---|---|
-| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
-| **GPU** | NVIDIA H100 80GB |
-| **Frameworks** | vLLM, LoRA/PEFT, Unsloth, PyTorch |
-
 ---
 
 # I. RL Foundation
@@ -3209,16 +3199,6 @@ Building on the previous article, I add a comparison of DVTS (Diverse verifier t
   - **No guarantee of correctness**: if the model is biased toward a wrong answer, majority voting will also be wrong.
   - **Higher compute**: multiple generations increase cost.
   - **Potentially insufficient diversity**: if outputs are too diverse, there may be no clear majority.
-
-## Running on Azure
-
-All experiments in this project were conducted on an **Azure GPU VM**.
-
-| Item | Details |
-|---|---|
-| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
-| **GPU** | NVIDIA H100 80GB |
-| **Frameworks** | vLLM, LoRA/PEFT, Unsloth |
 
 ## Differences and connections among them
 

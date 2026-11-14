@@ -17,7 +17,6 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 |---|---|
 | **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
 | **GPU** | NVIDIA H100 NVL 94GB |
-| **Frameworks** | LoRA/PEFT, Unsloth |
 
 
 **一、从 LoRA/QLoRA 到 Full Fine-tuning：Unsloth 的进化历程**

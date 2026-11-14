@@ -16,7 +16,6 @@ All benchmarks were conducted on an **Azure GPU VM** with A100.
 | **Azure VM** | [Standard_NC24ads_A100_v4](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-a100-v4-series) |
 | **GPU** | NVIDIA A100 80GB PCIe |
 | **Model** | microsoft/Phi-3-mini-4k-instruct |
-| **Frameworks** | PyTorch, vLLM |
 
 For the tests, I used an Azure A100 VM as the experimental environment. The generated test reports are stored in the local file system of the Azure GPU VM.
 ```
