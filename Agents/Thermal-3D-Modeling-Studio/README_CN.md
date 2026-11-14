@@ -1,4 +1,4 @@
-# 热管理 3D 建模工坊：GPT-6 写建模代码，OpenCascade 出 STEP
+# 热管理 3D 建模工坊：Azure OpenAI GPT-6 Astra 写建模代码，OpenCascade 出 STEP
 
 [![Model](https://img.shields.io/badge/model-GPT--6%20Astra%202026--09--03-0078D4)](#目的)
 [![Deploy](https://img.shields.io/badge/deploy-Bicep%20%2B%20one%20script-0078D4)](#操作步骤)
@@ -68,6 +68,66 @@
 | Bicep | Azure 用来声明资源的语言；`infra/main.bicep` 列出工坊需要的全部资源 |
 | 托管身份（managed identity） | Azure 分配给虚拟机的身份。工坊用它换取 Microsoft Entra 令牌来调用模型，所以任何地方都不存密钥 |
 | Run Command | 通过 Azure 控制面在虚拟机里执行脚本；`up.ps1` 用它安装工坊，不需要 SSH 连接 |
+
+## 实现效果
+
+**视频。** 两段英文讲解，长度分别为 7:22 和 6:21。两段都是工坊的录屏，经过剪辑，配了旁白和字幕。
+
+*预生成示例。* 先讲架构，再打开保存好的 GPT-6 网页和预生成的 STEP 实体，全程不调用模型：电子膨胀阀的 three.js 网页和 GPT-6 写的代码、剖切开的 OCCT 实体、叠上 STEP 轮廓的 gpt-image 效果图与工程渲染图、四通阀的减铜方案对比，以及从图纸重建 3D。视频讲的是热管理组的卡片；架构图是剪进录屏之间的。
+
+https://github.com/user-attachments/assets/66148365-f3aa-44a7-a129-cef898e68cb3
+
+*实时生成。* 向部署在 Azure 虚拟机上的工坊实时发出一个请求：电池水冷板，流道从 6 道改成 8 道。GPT-6 Astra 流式写出 three.js 网页，**生成 STEP** 让它写 CadQuery 脚本、由 OpenCascade 建出实体，**生成渲染图** 调用 gpt-image-2.5。所有等待都按真实时间播放，没有剪掉。这是演示，不是测量。
+
+https://github.com/user-attachments/assets/7ee81aaa-a5f8-46e3-aae7-0410739226ed
+
+下面是 15 个场景之一「热管理集成模块」在工坊里的样子。截图和工程渲染图拍自预生成示例，没有调用模型；gpt-image 效果图是通过工坊页面调用一次生成的。所有图片都没有修过。
+
+| 轨 A：GPT-6 写的 three.js 网页（已记录的回答） | 轨 B：同一个零件的 OCCT 实体，四视图 |
+|---|---|
+| <img src="images/track-a-concept-zh.jpg" width="440" alt="中文界面里的热管理集成模块，打开的是已记录的 GPT-6 回答。来源栏写着「当前模型：预生成示例（本次未调用 GPT-6）」；主视口显示 GPT-6 写的 three.js 概念模型，右侧大纲列出它的部件。"> | <img src="images/track-b-brep-quad-zh.jpg" width="440" alt="同一场景的 OCCT B-rep 实体，四视图显示顶视、透视、前视和右视。徽标说明这是与 STEP 一致的预生成 B-rep 实体，大纲列出歧管、阀、泵、换热器和快插接头等部件。"> |
+
+| 轨 C：gpt-image-2.5 重画的 3D 截图（示意） | 轨 C：STEP 网格的工程渲染图，青色线是 STEP 的轮廓和棱线 |
+|---|---|
+| <img src="images/module-gpt-image-render.jpg" width="440" alt="gpt-image-2.5 生成的集成模块图片：影棚产品照风格，黑色带筋的歧管上装着铝制阀和水泵、不锈钢板式换热器和快插接头。这是图像模型根据 3D 截图重画的示意图，不是几何。"> | <img src="images/module-engineering-render-step-lines.jpg" width="440" alt="按 STEP 网格渲染的集成模块工程渲染图，浅色影棚背景，青色的 STEP 轮廓和棱线落在零件上。"> |
+
+**怎么看这几张图。** 上面一行是同一个零件的两种形态：左边是 GPT-6 写的网页，形状和它给出的工程量都是模型自己的；右边是参考脚本建出的精确实体，由 OCCT 计量。下面一行，gpt-image-2.5 把 3D 视图的截图变成照片一样的图片，但零件是模型重画的，细节可能和 STEP 不一样；工程渲染图直接画 STEP 自己的网格，所以青色的 STEP 轮廓正好落在零件上。
+
+### 更多场景
+
+另外六个场景。左边是 GPT-6 为场景卡片写的网页，按原样显示：场景、数据面板和按钮都是模型自己写的；右边是参考脚本建出的 OCCT 实体，显示在工坊的视口里。部署好之后，全部 15 个场景都能在工坊里打开。
+
+| 场景 | 轨 A：GPT-6 写的网页（已记录的回答） | 轨 B：参考脚本建出的 OCCT 实体 |
+|---|---|---|
+| 电池水冷板 | <img src="images/gallery-coldplate-gpt6-zh.jpg" width="360" alt="电池水冷板：GPT-6 为这张场景卡片写的 three.js 网页，按原样显示（已记录的回答）"> | <img src="images/gallery-coldplate-brep-zh.jpg" width="360" alt="电池水冷板：参考脚本建出的 OCCT B-rep 实体，显示在工坊的 3D 视口里"> |
+| 电子膨胀阀阀体 | <img src="images/gallery-exv-gpt6-zh.jpg" width="360" alt="电子膨胀阀阀体：GPT-6 为这张场景卡片写的 three.js 网页，按原样显示（已记录的回答）"> | <img src="images/gallery-exv-brep-zh.jpg" width="360" alt="电子膨胀阀阀体：参考脚本建出的 OCCT B-rep 实体，显示在工坊的 3D 视口里"> |
+| 微通道换热器 | <img src="images/gallery-mchx-gpt6-zh.jpg" width="360" alt="微通道换热器：GPT-6 为这张场景卡片写的 three.js 网页，按原样显示（已记录的回答）"> | <img src="images/gallery-mchx-brep-zh.jpg" width="360" alt="微通道换热器：参考脚本建出的 OCCT B-rep 实体，显示在工坊的 3D 视口里"> |
+| AIDC CDU 液冷分配单元 | <img src="images/gallery-cdu-gpt6-zh.jpg" width="360" alt="AIDC CDU 液冷分配单元：GPT-6 为这张场景卡片写的 three.js 网页，按原样显示（已记录的回答）"> | <img src="images/gallery-cdu-brep-zh.jpg" width="360" alt="AIDC CDU 液冷分配单元：参考脚本建出的 OCCT B-rep 实体，显示在工坊的 3D 视口里"> |
+| 整车热管理系统回路 | <img src="images/gallery-vehicle_tms-gpt6-zh.jpg" width="360" alt="整车热管理系统回路：GPT-6 为这张场景卡片写的 three.js 网页，按原样显示（已记录的回答）"> | <img src="images/gallery-vehicle_tms-brep-zh.jpg" width="360" alt="整车热管理系统回路：参考脚本建出的 OCCT B-rep 实体，显示在工坊的 3D 视口里"> |
+| 笔记本双风扇散热模组 | <img src="images/gallery-nb_thermal-gpt6-zh.jpg" width="360" alt="笔记本双风扇散热模组：GPT-6 为这张场景卡片写的 three.js 网页，按原样显示（已记录的回答）"> | <img src="images/gallery-nb_thermal-brep-zh.jpg" width="360" alt="笔记本双风扇散热模组：参考脚本建出的 OCCT B-rep 实体，显示在工坊的 3D 视口里"> |
+
+### 实体可以怎么看
+
+视口通过和 STEP 一起导出的网格显示 B-rep 实体，所以查看器的工具作用在真实的零件几何上，而不是 GPT-6 写的场景上。
+
+| 剖切：法向为 Y 的平面，四视图 | 独显选中：只显示实体的一个部件 |
+|---|---|
+| <img src="images/feature-section-zh.jpg" width="440" alt="电池水冷板 B-rep 的四视图，剖切选 Y：一个水平面切开水冷板，顶视图和透视图能看进板内的蛇形流道，前视图和右视图里是侧面看过去的薄板。大纲列出流道基板、上盖板、进口接头和出口接头。"> | <img src="images/feature-isolate-zh.jpg" width="440" alt="电池水冷板 B-rep 在透视图里执行独显选中之后：只显示带橙色轮廓的流道基板，能看到蛇形流道槽和安装耳；大纲里只有流道基板仍然勾选。"> |
+
+**剖切** 选 Y 时，一个水平面切开电池水冷板，顶视图和透视图能看进板内的蛇形流道。**独显选中** 时，只剩在大纲里选中的部件，这里是流道基板，基板上的流道槽一目了然。
+
+| 你想 | 去看 |
+|---|---|
+| 了解每层测试查什么、不查什么 | [docs/TESTING_CN.md](docs/TESTING_CN.md) |
+| 查第三方组件的许可和图片来源 | [NOTICE.md](NOTICE.md) |
+
+| 目录 | 内容 |
+|---|---|
+| `infra/` | 部署：`main.bicep`（全部 Azure 资源）、`up.ps1`（创建并安装）、`vm-install.sh`（在虚拟机上执行的安装）、`verify.ps1`（从外部检查）、`down.ps1`（删除） |
+| `studio/` | 应用本体：FastAPI 后端（`app.py`）、前端（`static/`）、CAD 执行器、提示词（`scenarios.py`）、已记录的 GPT-6 回答（`cache/`）、CadQuery 参考脚本、虚拟机安装脚本（`deploy/`）和应用自己的测试（`tests/`） |
+| `tools/` | `vendor_three.py`：下载 three.js 并按固定哈希校验（第 6 步） |
+| `images/` | 本页用到的截图、渲染图和架构图 |
+| `docs/` | 测试说明，中英文各一份 |
 
 ## 操作步骤
 
@@ -247,63 +307,3 @@ python -m uvicorn app:app --host 127.0.0.1 --port 3005 --env-file .env
 ```
 
 预期：pip 最后输出 `Successfully installed ... cadquery-2.8.0 ... fastapi-0.141.1 ...`；three.js 输出 `three.js 0.160.0: 15/15 files verified in ...`；两次构建每个场景各输出一行 `[<id>] OK`，并以 `done. failed: none` 结束；最后输出 `Uvicorn running on http://127.0.0.1:3005`。在 Linux 上，第一次构建会遇到第 2 步说的 `nb_thermal` 崩溃；在构建英文部件名之前，先关掉锐边倒钝单独建它（`CAD_EDGE_FINISH=0 python pregen_cad.py nb_thermal`）。打开 `http://127.0.0.1:3005`，用法同第 4 步。不设 `AZURE_CLIENT_ID` 时，后端从你的 `az login` 取 Entra 令牌。`.env` 不进 Git，浏览器也拿不到它。测试和每个测试查什么，见 [docs/TESTING_CN.md](docs/TESTING_CN.md)。
-
-## 实现效果
-
-**视频。** 两段英文讲解，长度分别为 7:22 和 6:21。两段都是工坊的录屏，经过剪辑，配了旁白和字幕。
-
-*预生成示例。* 先讲架构，再打开保存好的 GPT-6 网页和预生成的 STEP 实体，全程不调用模型：电子膨胀阀的 three.js 网页和 GPT-6 写的代码、剖切开的 OCCT 实体、叠上 STEP 轮廓的 gpt-image 效果图与工程渲染图、四通阀的减铜方案对比，以及从图纸重建 3D。视频讲的是热管理组的卡片；架构图是剪进录屏之间的。
-
-https://github.com/user-attachments/assets/66148365-f3aa-44a7-a129-cef898e68cb3
-
-*实时生成。* 向部署在 Azure 虚拟机上的工坊实时发出一个请求：电池水冷板，流道从 6 道改成 8 道。GPT-6 Astra 流式写出 three.js 网页，**生成 STEP** 让它写 CadQuery 脚本、由 OpenCascade 建出实体，**生成渲染图** 调用 gpt-image-2.5。所有等待都按真实时间播放，没有剪掉。这是演示，不是测量。
-
-https://github.com/user-attachments/assets/7ee81aaa-a5f8-46e3-aae7-0410739226ed
-
-下面是 15 个场景之一「热管理集成模块」在工坊里的样子。截图和工程渲染图拍自预生成示例，没有调用模型；gpt-image 效果图是通过工坊页面调用一次生成的。所有图片都没有修过。
-
-| 轨 A：GPT-6 写的 three.js 网页（已记录的回答） | 轨 B：同一个零件的 OCCT 实体，四视图 |
-|---|---|
-| <img src="images/track-a-concept-zh.jpg" width="440" alt="中文界面里的热管理集成模块，打开的是已记录的 GPT-6 回答。来源栏写着「当前模型：预生成示例（本次未调用 GPT-6）」；主视口显示 GPT-6 写的 three.js 概念模型，右侧大纲列出它的部件。"> | <img src="images/track-b-brep-quad-zh.jpg" width="440" alt="同一场景的 OCCT B-rep 实体，四视图显示顶视、透视、前视和右视。徽标说明这是与 STEP 一致的预生成 B-rep 实体，大纲列出歧管、阀、泵、换热器和快插接头等部件。"> |
-
-| 轨 C：gpt-image-2.5 重画的 3D 截图（示意） | 轨 C：STEP 网格的工程渲染图，青色线是 STEP 的轮廓和棱线 |
-|---|---|
-| <img src="images/module-gpt-image-render.jpg" width="440" alt="gpt-image-2.5 生成的集成模块图片：影棚产品照风格，黑色带筋的歧管上装着铝制阀和水泵、不锈钢板式换热器和快插接头。这是图像模型根据 3D 截图重画的示意图，不是几何。"> | <img src="images/module-engineering-render-step-lines.jpg" width="440" alt="按 STEP 网格渲染的集成模块工程渲染图，浅色影棚背景，青色的 STEP 轮廓和棱线落在零件上。"> |
-
-**怎么看这几张图。** 上面一行是同一个零件的两种形态：左边是 GPT-6 写的网页，形状和它给出的工程量都是模型自己的；右边是参考脚本建出的精确实体，由 OCCT 计量。下面一行，gpt-image-2.5 把 3D 视图的截图变成照片一样的图片，但零件是模型重画的，细节可能和 STEP 不一样；工程渲染图直接画 STEP 自己的网格，所以青色的 STEP 轮廓正好落在零件上。
-
-### 更多场景
-
-另外六个场景。左边是 GPT-6 为场景卡片写的网页，按原样显示：场景、数据面板和按钮都是模型自己写的；右边是参考脚本建出的 OCCT 实体，显示在工坊的视口里。部署好之后，全部 15 个场景都能在工坊里打开。
-
-| 场景 | 轨 A：GPT-6 写的网页（已记录的回答） | 轨 B：参考脚本建出的 OCCT 实体 |
-|---|---|---|
-| 电池水冷板 | <img src="images/gallery-coldplate-gpt6-zh.jpg" width="360" alt="电池水冷板：GPT-6 为这张场景卡片写的 three.js 网页，按原样显示（已记录的回答）"> | <img src="images/gallery-coldplate-brep-zh.jpg" width="360" alt="电池水冷板：参考脚本建出的 OCCT B-rep 实体，显示在工坊的 3D 视口里"> |
-| 电子膨胀阀阀体 | <img src="images/gallery-exv-gpt6-zh.jpg" width="360" alt="电子膨胀阀阀体：GPT-6 为这张场景卡片写的 three.js 网页，按原样显示（已记录的回答）"> | <img src="images/gallery-exv-brep-zh.jpg" width="360" alt="电子膨胀阀阀体：参考脚本建出的 OCCT B-rep 实体，显示在工坊的 3D 视口里"> |
-| 微通道换热器 | <img src="images/gallery-mchx-gpt6-zh.jpg" width="360" alt="微通道换热器：GPT-6 为这张场景卡片写的 three.js 网页，按原样显示（已记录的回答）"> | <img src="images/gallery-mchx-brep-zh.jpg" width="360" alt="微通道换热器：参考脚本建出的 OCCT B-rep 实体，显示在工坊的 3D 视口里"> |
-| AIDC CDU 液冷分配单元 | <img src="images/gallery-cdu-gpt6-zh.jpg" width="360" alt="AIDC CDU 液冷分配单元：GPT-6 为这张场景卡片写的 three.js 网页，按原样显示（已记录的回答）"> | <img src="images/gallery-cdu-brep-zh.jpg" width="360" alt="AIDC CDU 液冷分配单元：参考脚本建出的 OCCT B-rep 实体，显示在工坊的 3D 视口里"> |
-| 整车热管理系统回路 | <img src="images/gallery-vehicle_tms-gpt6-zh.jpg" width="360" alt="整车热管理系统回路：GPT-6 为这张场景卡片写的 three.js 网页，按原样显示（已记录的回答）"> | <img src="images/gallery-vehicle_tms-brep-zh.jpg" width="360" alt="整车热管理系统回路：参考脚本建出的 OCCT B-rep 实体，显示在工坊的 3D 视口里"> |
-| 笔记本双风扇散热模组 | <img src="images/gallery-nb_thermal-gpt6-zh.jpg" width="360" alt="笔记本双风扇散热模组：GPT-6 为这张场景卡片写的 three.js 网页，按原样显示（已记录的回答）"> | <img src="images/gallery-nb_thermal-brep-zh.jpg" width="360" alt="笔记本双风扇散热模组：参考脚本建出的 OCCT B-rep 实体，显示在工坊的 3D 视口里"> |
-
-### 实体可以怎么看
-
-视口通过和 STEP 一起导出的网格显示 B-rep 实体，所以查看器的工具作用在真实的零件几何上，而不是 GPT-6 写的场景上。
-
-| 剖切：法向为 Y 的平面，四视图 | 独显选中：只显示实体的一个部件 |
-|---|---|
-| <img src="images/feature-section-zh.jpg" width="440" alt="电池水冷板 B-rep 的四视图，剖切选 Y：一个水平面切开水冷板，顶视图和透视图能看进板内的蛇形流道，前视图和右视图里是侧面看过去的薄板。大纲列出流道基板、上盖板、进口接头和出口接头。"> | <img src="images/feature-isolate-zh.jpg" width="440" alt="电池水冷板 B-rep 在透视图里执行独显选中之后：只显示带橙色轮廓的流道基板，能看到蛇形流道槽和安装耳；大纲里只有流道基板仍然勾选。"> |
-
-**剖切** 选 Y 时，一个水平面切开电池水冷板，顶视图和透视图能看进板内的蛇形流道。**独显选中** 时，只剩在大纲里选中的部件，这里是流道基板，基板上的流道槽一目了然。
-
-| 你想 | 去看 |
-|---|---|
-| 了解每层测试查什么、不查什么 | [docs/TESTING_CN.md](docs/TESTING_CN.md) |
-| 查第三方组件的许可和图片来源 | [NOTICE.md](NOTICE.md) |
-
-| 目录 | 内容 |
-|---|---|
-| `infra/` | 部署：`main.bicep`（全部 Azure 资源）、`up.ps1`（创建并安装）、`vm-install.sh`（在虚拟机上执行的安装）、`verify.ps1`（从外部检查）、`down.ps1`（删除） |
-| `studio/` | 应用本体：FastAPI 后端（`app.py`）、前端（`static/`）、CAD 执行器、提示词（`scenarios.py`）、已记录的 GPT-6 回答（`cache/`）、CadQuery 参考脚本、虚拟机安装脚本（`deploy/`）和应用自己的测试（`tests/`） |
-| `tools/` | `vendor_three.py`：下载 three.js 并按固定哈希校验（第 6 步） |
-| `images/` | 本页用到的截图、渲染图和架构图 |
-| `docs/` | 测试说明，中英文各一份 |

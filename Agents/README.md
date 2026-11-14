@@ -32,7 +32,7 @@ Projects on building, hosting and operating AI agents, and on the models, APIs a
 
 | Project | What it covers |
 |---|---|
-| [Thermal-3D-Modeling-Studio](Thermal-3D-Modeling-Studio/) | GPT-6 writes a three.js concept model or a CadQuery script, and OpenCascade turns the script into a STEP solid; includes scripted Azure deployment, tests and a recorded run |
+| [Thermal-3D-Modeling-Studio](Thermal-3D-Modeling-Studio/) | Azure OpenAI GPT-6 Astra writes a three.js concept model or a CadQuery script, and OpenCascade turns the script into a STEP solid; includes scripted Azure deployment and tests |
 | [Meeting-Agent](Meeting-Agent/) | Provider-neutral meeting pipeline with Azure OpenAI structured analysis, traceable artifacts and human-controlled New Outlook drafts |
 | [M365-Morning-Sweep](M365-Morning-Sweep/) | Executive-assistant agent: Microsoft Graph and Azure OpenAI briefings of M365 email, calendar and chat with a live dashboard |
 | [Microsoft-Agent-Framework](Microsoft-Agent-Framework/) | Microsoft Agent Framework workflows: a human-in-the-loop pipeline and MagenticBuilder orchestration |

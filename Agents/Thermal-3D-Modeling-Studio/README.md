@@ -1,4 +1,4 @@
-# Thermal 3D Modeling Studio: GPT-6 Writes the Model Code, OpenCascade Builds the STEP
+# Thermal 3D Modeling Studio: Azure OpenAI GPT-6 Astra Writes the Model Code, OpenCascade Builds the STEP
 
 [![Model](https://img.shields.io/badge/model-GPT--6%20Astra%202026--09--03-0078D4)](#purpose)
 [![Deploy](https://img.shields.io/badge/deploy-Bicep%20%2B%20one%20script-0078D4)](#steps)
@@ -68,6 +68,66 @@ What the figure shows: the four tracks, which code is ours, and which model each
 | Bicep | Azure's language for declaring resources; `infra/main.bicep` lists every resource the studio needs |
 | Managed identity | an identity Azure gives the VM. The studio exchanges it for Microsoft Entra tokens to call the models, so no key is stored anywhere |
 | Run Command | runs a script inside a VM through Azure's control plane; `up.ps1` installs the studio with it, so no SSH connection is needed |
+
+## Results
+
+**Videos.** Two narrated walkthroughs in English, 7:22 and 6:21 long. Both are edited screen recordings of the studio with narration and captions added.
+
+*Recorded examples.* The architecture, then saved GPT-6 pages and pre-generated STEP solids opened with no model call: the electronic expansion valve as the three.js page and the code GPT-6 wrote, its OCCT solid cut by a section, the gpt-image render with the STEP outline laid over it next to the engineering render, the cost comparison for the four-way valve, and a drawing rebuilt in 3D. The video covers the thermal-management cards; the architecture figure is cut in between the recordings.
+
+https://github.com/user-attachments/assets/66148365-f3aa-44a7-a129-cef898e68cb3
+
+*Live generation.* One request sent live to the studio on its Azure VM: the EV battery cold plate with eight channels instead of six. GPT-6 Astra streams the three.js page, **Generate STEP** has it write the CadQuery script that OpenCascade builds, and **Photoreal render** calls gpt-image-2.5. The waits are shown in real time, uncut. It is a demonstration, not a measurement.
+
+https://github.com/user-attachments/assets/7ee81aaa-a5f8-46e3-aae7-0410739226ed
+
+The integrated thermal-management module, one of the 15 scenarios, as the studio shows it. The screenshots and the engineering render were taken from the pre-generated example with no model call; the gpt-image picture comes from one call through the studio page. None of them is retouched.
+
+| Track A: the three.js page GPT-6 wrote (recorded answer) | Track B: the OCCT solid of the same part, quad view |
+|---|---|
+| <img src="images/track-a-concept-en.jpg" width="440" alt="Studio in English with the integrated thermal-management module opened from its recorded GPT-6 answer. The source bar reads 'Current model: saved example (no GPT-6 call this time)'; the main viewport shows GPT-6's three.js concept model of the manifold with pump, valve and chiller on a grid, and the outliner lists its parts."> | <img src="images/track-b-brep-quad-en.jpg" width="440" alt="The same scenario with the OCCT B-rep solid in the quad view: top, perspective, front and right. The badge reads 'Pre-generated B-rep solid (matches STEP)'; the outliner lists the manifold body, five-way e-valve, e-pump, plate heat exchanger shell, 20 heat-exchanger plates and two quick connectors."> |
+
+| Track C: gpt-image-2.5 redraws a 3D snapshot (illustration) | Track C: engineering render of the STEP mesh, STEP outline and edges in cyan |
+|---|---|
+| <img src="images/module-gpt-image-render.jpg" width="440" alt="gpt-image-2.5 picture of the integrated module: a photo-style studio shot of a black ribbed manifold carrying an aluminium valve and pump, a stainless plate heat exchanger and quick connectors. The image model redrew it from a 3D snapshot; an illustration, not geometry."> | <img src="images/module-engineering-render-step-lines.jpg" width="440" alt="Engineering render of the integrated module drawn from its STEP mesh on a light studio backdrop, with the STEP outline and edges in cyan lying on the part."> |
+
+**What to look at.** The top row shows one part twice. On the left is the page GPT-6 wrote: its shapes and the metrics it prints are the model's own. On the right is the exact solid of the reference script, measured by OCCT. In the bottom row, gpt-image-2.5 turns a snapshot of the 3D view into a photograph-like picture, but the model redraws the part, so details can differ from the STEP. The engineering render is drawn from the STEP's own mesh, which is why the cyan STEP outline lies on it.
+
+### More scenarios
+
+Six of the other scenarios. On the left is the page GPT-6 wrote for the scenario card, shown as written: the scene, the panel of figures and the buttons are the model's own. On the right is the OCCT solid of the reference script in the studio's viewport. All 15 open in the studio once it is deployed.
+
+| Scenario | Track A: the page GPT-6 wrote (recorded answer) | Track B: the OCCT solid of the reference script |
+|---|---|---|
+| EV Battery Cold Plate | <img src="images/gallery-coldplate-gpt6-en.jpg" width="360" alt="EV Battery Cold Plate: the three.js page GPT-6 wrote for this scenario card, shown as written (recorded answer)"> | <img src="images/gallery-coldplate-brep-en.jpg" width="360" alt="EV Battery Cold Plate: the OCCT B-rep solid of the reference script in the studio's 3D viewport"> |
+| Electronic Expansion Valve Body | <img src="images/gallery-exv-gpt6-en.jpg" width="360" alt="Electronic Expansion Valve Body: the three.js page GPT-6 wrote for this scenario card, shown as written (recorded answer)"> | <img src="images/gallery-exv-brep-en.jpg" width="360" alt="Electronic Expansion Valve Body: the OCCT B-rep solid of the reference script in the studio's 3D viewport"> |
+| Micro-channel Heat Exchanger | <img src="images/gallery-mchx-gpt6-en.jpg" width="360" alt="Micro-channel Heat Exchanger: the three.js page GPT-6 wrote for this scenario card, shown as written (recorded answer)"> | <img src="images/gallery-mchx-brep-en.jpg" width="360" alt="Micro-channel Heat Exchanger: the OCCT B-rep solid of the reference script in the studio's 3D viewport"> |
+| AIDC Coolant Distribution Unit | <img src="images/gallery-cdu-gpt6-en.jpg" width="360" alt="AIDC Coolant Distribution Unit: the three.js page GPT-6 wrote for this scenario card, shown as written (recorded answer)"> | <img src="images/gallery-cdu-brep-en.jpg" width="360" alt="AIDC Coolant Distribution Unit: the OCCT B-rep solid of the reference script in the studio's 3D viewport"> |
+| Vehicle Thermal Management System | <img src="images/gallery-vehicle_tms-gpt6-en.jpg" width="360" alt="Vehicle Thermal Management System: the three.js page GPT-6 wrote for this scenario card, shown as written (recorded answer)"> | <img src="images/gallery-vehicle_tms-brep-en.jpg" width="360" alt="Vehicle Thermal Management System: the OCCT B-rep solid of the reference script in the studio's 3D viewport"> |
+| Notebook Dual-Fan Thermal Module | <img src="images/gallery-nb_thermal-gpt6-en.jpg" width="360" alt="Notebook Dual-Fan Thermal Module: the three.js page GPT-6 wrote for this scenario card, shown as written (recorded answer)"> | <img src="images/gallery-nb_thermal-brep-en.jpg" width="360" alt="Notebook Dual-Fan Thermal Module: the OCCT B-rep solid of the reference script in the studio's 3D viewport"> |
+
+### Working with the solid
+
+The viewport shows the B-rep solid through the mesh exported with its STEP, so the viewer's tools act on the real part geometry, not on GPT-6's scene.
+
+| Section: a plane normal to Y, quad view | Isolate selection: one part of the solid alone |
+|---|---|
+| <img src="images/feature-section-en.jpg" width="440" alt="Quad view of the EV battery cold plate B-rep with Section set to Y: a horizontal plane cuts the plate, and the top and perspective views look into its serpentine coolant channel; the front and right views show the thin plate edge-on. The outliner lists the channel base plate, top cover, inlet fitting and outlet fitting."> | <img src="images/feature-isolate-en.jpg" width="440" alt="The EV battery cold plate B-rep in the perspective view after Isolate selection: only the channel base plate is shown, outlined in orange, with the grooves of the serpentine coolant channel and the mounting lugs; in the outliner only the channel base plate is still checked."> |
+
+With **Section** set to Y, a horizontal plane cuts the EV battery cold plate, and the top and perspective views look into its serpentine coolant channel. With **Isolate selection**, the part selected in the outliner, here the channel base plate, is the only one left, so the channel grooves in it are in plain view.
+
+| You want to | Read |
+|---|---|
+| know what each test layer checks and what it does not | [docs/TESTING.md](docs/TESTING.md) |
+| check the licenses of third-party parts and where the pictures come from | [NOTICE.md](NOTICE.md) |
+
+| Directory | What it holds |
+|---|---|
+| `infra/` | the deployment: `main.bicep` (every Azure resource), `up.ps1` (create and install), `vm-install.sh` (what runs on the VM), `verify.ps1` (check from outside), `down.ps1` (remove) |
+| `studio/` | the app: FastAPI backend (`app.py`), front end (`static/`), CAD runner, prompts (`scenarios.py`), recorded GPT-6 responses (`cache/`), reference CadQuery scripts, VM setup scripts (`deploy/`) and its own tests (`tests/`) |
+| `tools/` | `vendor_three.py`: downloads three.js and checks it against pinned hashes (step 6) |
+| `images/` | the screenshots, renders and the architecture figure on this page |
+| `docs/` | the test guide, English and Chinese |
 
 ## Steps
 
@@ -247,63 +307,3 @@ python -m uvicorn app:app --host 127.0.0.1 --port 3005 --env-file .env
 ```
 
 Expected: pip ends with `Successfully installed ... cadquery-2.8.0 ... fastapi-0.141.1 ...`; `three.js 0.160.0: 15/15 files verified in ...`; one `[<id>] OK` line per scenario and `done. failed: none` from each build; then `Uvicorn running on http://127.0.0.1:3005`. On Linux the first build meets the crash of step 2 for `nb_thermal`; build that one with the edge break off (`CAD_EDGE_FINISH=0 python pregen_cad.py nb_thermal`) before the English build. Open `http://127.0.0.1:3005` and use it as in step 4. Without `AZURE_CLIENT_ID` the backend takes its Entra token from your `az login`. `.env` stays out of Git; the browser never receives it. The tests, and what each of them checks, are in [docs/TESTING.md](docs/TESTING.md).
-
-## Results
-
-**Videos.** Two narrated walkthroughs in English, 7:22 and 6:21 long. Both are edited screen recordings of the studio with narration and captions added.
-
-*Recorded examples.* The architecture, then saved GPT-6 pages and pre-generated STEP solids opened with no model call: the electronic expansion valve as the three.js page and the code GPT-6 wrote, its OCCT solid cut by a section, the gpt-image render with the STEP outline laid over it next to the engineering render, the cost comparison for the four-way valve, and a drawing rebuilt in 3D. The video covers the thermal-management cards; the architecture figure is cut in between the recordings.
-
-https://github.com/user-attachments/assets/66148365-f3aa-44a7-a129-cef898e68cb3
-
-*Live generation.* One request sent live to the studio on its Azure VM: the EV battery cold plate with eight channels instead of six. GPT-6 Astra streams the three.js page, **Generate STEP** has it write the CadQuery script that OpenCascade builds, and **Photoreal render** calls gpt-image-2.5. The waits are shown in real time, uncut. It is a demonstration, not a measurement.
-
-https://github.com/user-attachments/assets/7ee81aaa-a5f8-46e3-aae7-0410739226ed
-
-The integrated thermal-management module, one of the 15 scenarios, as the studio shows it. The screenshots and the engineering render were taken from the pre-generated example with no model call; the gpt-image picture comes from one call through the studio page. None of them is retouched.
-
-| Track A: the three.js page GPT-6 wrote (recorded answer) | Track B: the OCCT solid of the same part, quad view |
-|---|---|
-| <img src="images/track-a-concept-en.jpg" width="440" alt="Studio in English with the integrated thermal-management module opened from its recorded GPT-6 answer. The source bar reads 'Current model: saved example (no GPT-6 call this time)'; the main viewport shows GPT-6's three.js concept model of the manifold with pump, valve and chiller on a grid, and the outliner lists its parts."> | <img src="images/track-b-brep-quad-en.jpg" width="440" alt="The same scenario with the OCCT B-rep solid in the quad view: top, perspective, front and right. The badge reads 'Pre-generated B-rep solid (matches STEP)'; the outliner lists the manifold body, five-way e-valve, e-pump, plate heat exchanger shell, 20 heat-exchanger plates and two quick connectors."> |
-
-| Track C: gpt-image-2.5 redraws a 3D snapshot (illustration) | Track C: engineering render of the STEP mesh, STEP outline and edges in cyan |
-|---|---|
-| <img src="images/module-gpt-image-render.jpg" width="440" alt="gpt-image-2.5 picture of the integrated module: a photo-style studio shot of a black ribbed manifold carrying an aluminium valve and pump, a stainless plate heat exchanger and quick connectors. The image model redrew it from a 3D snapshot; an illustration, not geometry."> | <img src="images/module-engineering-render-step-lines.jpg" width="440" alt="Engineering render of the integrated module drawn from its STEP mesh on a light studio backdrop, with the STEP outline and edges in cyan lying on the part."> |
-
-**What to look at.** The top row shows one part twice. On the left is the page GPT-6 wrote: its shapes and the metrics it prints are the model's own. On the right is the exact solid of the reference script, measured by OCCT. In the bottom row, gpt-image-2.5 turns a snapshot of the 3D view into a photograph-like picture, but the model redraws the part, so details can differ from the STEP. The engineering render is drawn from the STEP's own mesh, which is why the cyan STEP outline lies on it.
-
-### More scenarios
-
-Six of the other scenarios. On the left is the page GPT-6 wrote for the scenario card, shown as written: the scene, the panel of figures and the buttons are the model's own. On the right is the OCCT solid of the reference script in the studio's viewport. All 15 open in the studio once it is deployed.
-
-| Scenario | Track A: the page GPT-6 wrote (recorded answer) | Track B: the OCCT solid of the reference script |
-|---|---|---|
-| EV Battery Cold Plate | <img src="images/gallery-coldplate-gpt6-en.jpg" width="360" alt="EV Battery Cold Plate: the three.js page GPT-6 wrote for this scenario card, shown as written (recorded answer)"> | <img src="images/gallery-coldplate-brep-en.jpg" width="360" alt="EV Battery Cold Plate: the OCCT B-rep solid of the reference script in the studio's 3D viewport"> |
-| Electronic Expansion Valve Body | <img src="images/gallery-exv-gpt6-en.jpg" width="360" alt="Electronic Expansion Valve Body: the three.js page GPT-6 wrote for this scenario card, shown as written (recorded answer)"> | <img src="images/gallery-exv-brep-en.jpg" width="360" alt="Electronic Expansion Valve Body: the OCCT B-rep solid of the reference script in the studio's 3D viewport"> |
-| Micro-channel Heat Exchanger | <img src="images/gallery-mchx-gpt6-en.jpg" width="360" alt="Micro-channel Heat Exchanger: the three.js page GPT-6 wrote for this scenario card, shown as written (recorded answer)"> | <img src="images/gallery-mchx-brep-en.jpg" width="360" alt="Micro-channel Heat Exchanger: the OCCT B-rep solid of the reference script in the studio's 3D viewport"> |
-| AIDC Coolant Distribution Unit | <img src="images/gallery-cdu-gpt6-en.jpg" width="360" alt="AIDC Coolant Distribution Unit: the three.js page GPT-6 wrote for this scenario card, shown as written (recorded answer)"> | <img src="images/gallery-cdu-brep-en.jpg" width="360" alt="AIDC Coolant Distribution Unit: the OCCT B-rep solid of the reference script in the studio's 3D viewport"> |
-| Vehicle Thermal Management System | <img src="images/gallery-vehicle_tms-gpt6-en.jpg" width="360" alt="Vehicle Thermal Management System: the three.js page GPT-6 wrote for this scenario card, shown as written (recorded answer)"> | <img src="images/gallery-vehicle_tms-brep-en.jpg" width="360" alt="Vehicle Thermal Management System: the OCCT B-rep solid of the reference script in the studio's 3D viewport"> |
-| Notebook Dual-Fan Thermal Module | <img src="images/gallery-nb_thermal-gpt6-en.jpg" width="360" alt="Notebook Dual-Fan Thermal Module: the three.js page GPT-6 wrote for this scenario card, shown as written (recorded answer)"> | <img src="images/gallery-nb_thermal-brep-en.jpg" width="360" alt="Notebook Dual-Fan Thermal Module: the OCCT B-rep solid of the reference script in the studio's 3D viewport"> |
-
-### Working with the solid
-
-The viewport shows the B-rep solid through the mesh exported with its STEP, so the viewer's tools act on the real part geometry, not on GPT-6's scene.
-
-| Section: a plane normal to Y, quad view | Isolate selection: one part of the solid alone |
-|---|---|
-| <img src="images/feature-section-en.jpg" width="440" alt="Quad view of the EV battery cold plate B-rep with Section set to Y: a horizontal plane cuts the plate, and the top and perspective views look into its serpentine coolant channel; the front and right views show the thin plate edge-on. The outliner lists the channel base plate, top cover, inlet fitting and outlet fitting."> | <img src="images/feature-isolate-en.jpg" width="440" alt="The EV battery cold plate B-rep in the perspective view after Isolate selection: only the channel base plate is shown, outlined in orange, with the grooves of the serpentine coolant channel and the mounting lugs; in the outliner only the channel base plate is still checked."> |
-
-With **Section** set to Y, a horizontal plane cuts the EV battery cold plate, and the top and perspective views look into its serpentine coolant channel. With **Isolate selection**, the part selected in the outliner, here the channel base plate, is the only one left, so the channel grooves in it are in plain view.
-
-| You want to | Read |
-|---|---|
-| know what each test layer checks and what it does not | [docs/TESTING.md](docs/TESTING.md) |
-| check the licenses of third-party parts and where the pictures come from | [NOTICE.md](NOTICE.md) |
-
-| Directory | What it holds |
-|---|---|
-| `infra/` | the deployment: `main.bicep` (every Azure resource), `up.ps1` (create and install), `vm-install.sh` (what runs on the VM), `verify.ps1` (check from outside), `down.ps1` (remove) |
-| `studio/` | the app: FastAPI backend (`app.py`), front end (`static/`), CAD runner, prompts (`scenarios.py`), recorded GPT-6 responses (`cache/`), reference CadQuery scripts, VM setup scripts (`deploy/`) and its own tests (`tests/`) |
-| `tools/` | `vendor_three.py`: downloads three.js and checks it against pinned hashes (step 6) |
-| `images/` | the screenshots, renders and the architecture figure on this page |
-| `docs/` | the test guide, English and Chinese |
