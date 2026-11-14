@@ -71,22 +71,22 @@ What the figure shows: the four tracks, which code is ours, and which model each
 
 ## Steps
 
-| Order | Where | What | Command | Time in the recorded run |
+| Order | Where | What | Command | Takes about |
 |---|---|---|---|---|
 | 1 | Your machine | Get the code, sign in to Azure | `git clone ...`, `az login` | — |
-| 2 | Your machine → Azure | Create every resource, install the studio on a new VM | `./infra/up.ps1 -ResourceGroup <name> -Location <region>` | 14.0 min |
-| 3 | Your machine | Check the deployment through its HTTPS address | `./infra/verify.ps1 -ResourceGroup <name> -Full` | 2.1 min |
+| 2 | Your machine → Azure | Create every resource, install the studio on a new VM | `./infra/up.ps1 -ResourceGroup <name> -Location <region>` | 14 min |
+| 3 | Your machine | Check the deployment through its HTTPS address | `./infra/verify.ps1 -ResourceGroup <name> -Full` | 2 min |
 | 4 | Browser | Sign in, open the recorded examples, make a live call | `https://thermal-<hash>.<region>.cloudapp.azure.com/` | — |
-| 5 | Your machine | Remove everything | `./infra/down.ps1 -ResourceGroup <name>` | 4.4 min |
+| 5 | Your machine | Remove everything | `./infra/down.ps1 -ResourceGroup <name>` | 4 min |
 | 6 | Your machine, optional | Run the studio locally against the deployed models, for development | `python -m uvicorn app:app --env-file .env` | — |
 
-Steps 2, 3 and 5 ran end to end on 2026-11-14, into a new resource group in East US 2; the outputs below are from that run, and its receipts are in [`evidence/deploy-20261114/`](evidence/deploy-20261114/) ([recorded deployment](#recorded-deployment)). Step 6 was not run against that deployment; its install and build commands were replayed on the test laptop on 2026-11-13 and 2026-11-14 ([offline run](docs/TESTING.md#recorded-run)).
+Times vary with the region and the VM size; most of step 2 is the VM building the 15 reference STEP solids (`-SkipReferenceSolids` skips them).
 
 **Prerequisites.**
 
 - An Azure subscription in which you can create resource groups and assign roles: Owner, or Contributor plus Role Based Access Control Administrator. The template gives the VM's identity a role on the model resource.
 - Quota in the region: `gpt-6-astra` 100K tokens per minute (Global Standard or Data Zone Standard; `up.ps1` takes the one with free quota), `gpt-image-2.5-sunburst` 2 units (or pass `-SkipImageModel`, which turns Tracks C and D off), and 4 vCPUs for the VM. `up.ps1` checks all three before it creates anything.
-- The Azure CLI (tested with 2.92.0; Bicep is installed on first use), PowerShell 7.3 or later (tested with 7.7.0) and `ssh-keygen` from the OpenSSH client for the VM's key pair. The recorded run used Windows 11; the scripts use no Windows-only command, but macOS and Linux were not tested.
+- The Azure CLI (tested with 2.92.0; Bicep is installed on first use), PowerShell 7.3 or later (tested with 7.7.0) and `ssh-keygen` from the OpenSSH client for the VM's key pair. Tested on Windows 11; the scripts use no Windows-only command, but macOS and Linux were not tested.
 - Nothing else on your machine: the VM downloads the studio from this repository and builds everything itself.
 
 ### 1. Get the code and sign in
@@ -108,7 +108,7 @@ Expected: `az account show -o table` shows the subscription you want to deploy i
 ./infra/up.ps1 -ResourceGroup rg-thermal-studio -Location eastus2
 ```
 
-Expected output (the recorded run; the subscription line is left out; `up.ps1` prints this machine's time, the indented lines from the VM are in UTC):
+Example output (region, quota, VM size, names, times and commit differ in your deployment; the subscription line is left out; `up.ps1` prints your machine's time, the indented lines from the VM are in UTC):
 
 ```text
 [15:08:49] 1/5 preflight: Azure CLI, sign-in, model quota
@@ -126,7 +126,7 @@ Expected output (the recorded run; the subscription line is left out; `up.ps1` p
    [07:12:43] install log: /var/log/thermal-install.log
    [07:12:43] 1/7 waiting for the first-boot package jobs
    [07:12:44] 2/7 fetching Agents/Thermal-3D-Modeling-Studio/studio from https://github.com/david-xinyuwei/david-share.git at master
-   [07:12:45]    commit d32e1e6ea9193dff81180a8105e5081b4d8da4da
+   [07:12:45]    commit <commit>
    [07:12:45] 3/7 host setup: packages, Python venv with pinned packages, nginx, certificate for thermal-<hash>.eastus2.cloudapp.azure.com
    [07:14:23]    Python 3.12.3, cadquery 2.8.0
    [07:14:23] 4/7 settings: /opt/thermal-3d-studio/.env
@@ -136,7 +136,7 @@ Expected output (the recorded run; the subscription line is left out; `up.ps1` p
    [07:21:32]    Chinese part names: done in 425 s
    [07:22:45]    English part names: done in 73 s
    [07:22:45] 7/7 restart and health checks
-   [07:22:47] THERMAL_INSTALL=PASS commit=d32e1e6ea9193dff81180a8105e5081b4d8da4da solids_zh=15 solids_en=15 no_edge_break=nb_thermal https_from_vm=200 seconds=604
+   [07:22:47] THERMAL_INSTALL=PASS commit=<commit> solids_zh=15 solids_en=15 no_edge_break=nb_thermal https_from_vm=200 seconds=604
 [15:22:50] 5/5 HTTPS check from this machine: https://thermal-<hash>.eastus2.cloudapp.azure.com/healthz
    {"ok":true,"deployment":"gpt-6-astra","uptime_s":3}
 
@@ -180,7 +180,7 @@ On the VM, Run Command runs [`infra/vm-install.sh`](infra/vm-install.sh) as root
 ./infra/verify.ps1 -ResourceGroup rg-thermal-studio -Full    # plus a live Generate STEP and one concept image
 ```
 
-Expected output of `-Full` (the recorded run):
+Example output of `-Full` (times, sizes and token counts differ on every run):
 
 ```text
 PASS  healthz over HTTPS                 {"deployment":"gpt-6-astra","uptime_s":4}
@@ -191,7 +191,7 @@ PASS  15 scenarios                       {"scenarios":15}
 PASS  pre-generated STEP solids (zh)     {"solids":15}
 PASS  pre-generated STEP solids (en)     {"solids":15}
 PASS  GPT-6 round trip (managed identity) {"deployment":"gpt-6-astra","actual_model":"gpt-6-astra-2026-09-03","latency_s":2.1}
-PASS  Generate STEP live (GPT-6 + OCCT)  {"attempts":1,"latency_s":91.5,"occt_s":6.7,"solids":4,"faces":315,"mass_kg":"1.580","step_bytes":1106781,"reasoning_effort":null,"prompt_tokens":4583,"completion_tokens":4248,"reasoning_tokens":1472,"saved":"~/.thermal-3d-studio/rg-thermal-studio/verify-live.step"}
+PASS  Generate STEP live (GPT-6 + OCCT)  {"attempts":<n>,"latency_s":<s>,"occt_s":<s>,"solids":<n>,"faces":<n>,"mass_kg":"<kg>","step_bytes":<bytes>,"reasoning_effort":"low","prompt_tokens":<n>,"completion_tokens":<n>,"reasoning_tokens":<n>,"saved":"~/.thermal-3d-studio/rg-thermal-studio/verify-live.step"}
 PASS  concept image (gpt-image)          {"png_bytes":1408063,"latency_s":13.6,"model":"gpt-image-2.5-sunburst","saved":"~/.thermal-3d-studio/rg-thermal-studio/verify-concept.png"}
 
 10 of 10 checks passed; report: ~/.thermal-3d-studio/rg-thermal-studio/verify-20261114-152251.json
@@ -203,7 +203,7 @@ The checks go through the public HTTPS address: health, the redirect from HTTP, 
 
 1. Open the address from `outputs.json` and sign in with the user `studio` and the password from `portal-password.txt`.
 2. Pick a scenario card. The badge says **Pre-generated example**, then **Pre-generated B-rep solid (matches STEP)** once the reference solid is on screen, and the source bar says "Current model: saved example (no GPT-6 call this time)": a recorded GPT-6 answer and the reference STEP solid open with no model call.
-3. Click **Call GPT-6 live**. The source bar switches to the live request ID once the answer arrives. The wait depends on the reasoning effort chosen in the page (the default is `low`, from `.env.example`). The model deployment decides which values it accepts: on 2026-11-14 gpt-6-astra refused `none`. When the deployment refuses the chosen value, the studio sends the next higher value it accepts (`low` for `none`), the source bar shows the value applied, and the selector stops offering the refused one. The [Appendix](#how-the-numbers-were-produced) shows how long the recorded runs took.
+3. Click **Call GPT-6 live**. The source bar switches to the live request ID once the answer arrives. The wait depends on the reasoning effort chosen in the page: `low` (the default, from `.env.example`), `medium`, `high` or `xhigh`, the values gpt-6-astra accepts; it does not support `none`. If a deployment refuses the chosen value, the studio sends the next higher value it accepts, and the source bar shows the value applied. The [Appendix](#how-the-numbers-were-produced) shows how long live pages took.
 4. Click **Generate STEP**. The **CAD solid** tab shows the attempts, the OCCT time and the B-rep metrics, with downloads for STEP, STL and the CadQuery script.
 
 The VM bills while it runs. `az vm deallocate -g <resource group> -n thermal-vm` stops the billing for its compute and `az vm start` brings it back with the same address; the studio starts by itself. The model deployments bill per token, so an idle studio costs nothing on the model side.
@@ -214,7 +214,7 @@ The VM bills while it runs. `az vm deallocate -g <resource group> -n thermal-vm`
 ./infra/down.ps1 -ResourceGroup rg-thermal-studio
 ```
 
-It asks you to type the resource group name (`-Yes` skips the question), deletes the group, purges the soft-deleted AI resource so that its name and quota are free again, checks that nothing is left, and deletes the password and the key pair from the state directory. Expected output (the recorded run, with `-Yes`):
+It asks you to type the resource group name (`-Yes` skips the question), deletes the group, purges the soft-deleted AI resource so that its name and quota are free again, checks that nothing is left, and deletes the password and the key pair from the state directory. Example output (with `-Yes`):
 
 ```text
 deleting resource group rg-thermal-studio (several minutes)
@@ -228,7 +228,7 @@ receipt: ~/.thermal-3d-studio/rg-thermal-studio/down-20261114-152717.json (PASS)
 
 For development against the models deployed in step 2. Run `up.ps1` once with `-GrantDeployerAccess` first: it gives your own account the **Cognitive Services OpenAI User** role on the AI resource.
 
-You need Python 3.11 or 3.12 and about 1.4 GB of disk for the virtual environment (1,324 MiB in the recorded offline run, with the optional tools). CadQuery's kernel package `cadquery-ocp` 7.9.3.1.1 has wheels for Windows x64, macOS (Intel and Apple silicon) and Linux (x64 and Arm64); on Windows on Arm, use the x64 Python, which runs under emulation. The recorded offline run used x64 Python 3.11.9 on Windows 11 on Arm; the VM uses the Python 3.12 of Ubuntu 24.04.
+You need Python 3.11 or 3.12 and about 1.4 GB of disk for the virtual environment (1,324 MiB measured, with the optional tools). CadQuery's kernel package `cadquery-ocp` 7.9.3.1.1 has wheels for Windows x64, macOS (Intel and Apple silicon) and Linux (x64 and Arm64); on Windows on Arm, use the x64 Python, which runs under emulation. Tested with x64 Python 3.11.9 on Windows 11 on Arm; the VM uses the Python 3.12 of Ubuntu 24.04.
 
 ```powershell
 cd studio
@@ -330,7 +330,7 @@ On 2026-11-14 the three scripts ran from a Windows 11 laptop into a new resource
 | `verify.ps1 -Full` | 10 of 10 checks passed | 2.1 |
 | `down.ps1 -Yes` | PASS: nothing left | 4.4 |
 
-The VM installed `studio/` from `master` at `d32e1e6e`, before the reasoning-effort change described in step 4; its `studio/` differs from this revision's in that change and in `studio/deploy/deploy.ps1`, which this path does not run. The live **Generate STEP** of `verify.ps1 -Full` took 1 attempt and 91.5 s, of which 6.7 s in OpenCascade, and returned 4 solids, 315 faces, 1.580 kg and a 1.1 MB STEP file; it is one request that shows the path works, not a measurement. It asked for reasoning effort `none`, which this deployment did not take; the code of that commit then sent the request without the parameter, so GPT-6 reasoned at the deployment's default. Between `verify.ps1` and `down.ps1`, headless Microsoft Edge also went through the start of step 4 on the deployed address: the page's own sign-in form, then the cold plate in English and in Chinese and the notebook dual-fan module as pre-generated examples, with no model call and no page error ([details](docs/TESTING.md#recorded-deployment)).
+The VM installed `studio/` from `master` at `d32e1e6e`, before the reasoning-effort change described in step 4; its `studio/` differs from this revision's in that change and in `studio/deploy/deploy.ps1`, which this path does not run. The live **Generate STEP** of `verify.ps1 -Full` took 1 attempt and 91.5 s, of which 6.7 s in OpenCascade, and returned 4 solids, 315 faces, 1.580 kg and a 1.1 MB STEP file; it is one request that shows the path works, not a measurement. It asked for reasoning effort `none`, which this deployment did not take; the code of that commit then sent the request without the parameter, so GPT-6 reasoned at the deployment's default. The current `verify.ps1` asks for `low`. Between `verify.ps1` and `down.ps1`, headless Microsoft Edge also went through the start of step 4 on the deployed address: the page's own sign-in form, then the cold plate in English and in Chinese and the notebook dual-fan module as pre-generated examples, with no model call and no page error ([details](docs/TESTING.md#recorded-deployment)).
 
 ### How the numbers were produced
 
@@ -362,7 +362,7 @@ What the figure shows: where each measured interval ran, what it called and what
 With the virtual environment of step 6:
 
 ```powershell
-$env:AOAI_ENDPOINT = 'https://example.invalid'; $env:PORTAL_PASSWORD = 'x'; $env:AOAI_REASONING_EFFORT = 'none'
+$env:AOAI_ENDPOINT = 'https://example.invalid'; $env:PORTAL_PASSWORD = 'x'; $env:AOAI_REASONING_EFFORT = 'low'
 python -m unittest discover -s tests -p "test_*.py"                    # in studio/
 node --test tests/test_connection.cjs tests/test_viewer_bridge.cjs    # in studio/; Node.js 18 or later
 cd ..; python -m unittest discover -s tests -v; cd studio              # repository checks

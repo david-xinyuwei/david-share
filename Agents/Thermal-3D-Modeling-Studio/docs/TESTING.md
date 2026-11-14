@@ -8,7 +8,7 @@ Seven layers, from cheapest to most expensive. The first four need no Azure acco
 
 | Layer | Command (in `studio/` unless noted) | Needs | Checks | Does not check |
 |---|---|---|---|---|
-| Python unit and contract tests, 68 | `python -m unittest discover -s tests -p "test_*.py"` | the venv; the 15 reference solids from `pregen_cad.py` | output contracts and parsing, SSE events and heartbeats, sign-in and sessions, input limits, the server-managed connection (no key reaches the browser), the CAD allow-list, the retry loop that feeds errors back, cancel and kill of the OCCT child, cached results served like live ones, the proposal `.docx` | a real model answer (mocked) and a real OCCT run (mocked), except that every reference script must pass the same allow-list as model output and have a fresh build |
+| Python unit and contract tests, 72 | `python -m unittest discover -s tests -p "test_*.py"` | the venv; the 15 reference solids from `pregen_cad.py` | output contracts and parsing, SSE events and heartbeats, sign-in and sessions, input limits, the server-managed connection (no key reaches the browser), the CAD allow-list, the retry loop that feeds errors back, cancel and kill of the OCCT child, cached results served like live ones, the proposal `.docx`, a reasoning effort the deployment refuses (the 400 of 2026-11-14) sent as the next higher accepted value | a real model answer (mocked) and a real OCCT run (mocked), except that every reference script must pass the same allow-list as model output and have a fresh build |
 | Node front-end tests, 38 | `node --test tests/test_connection.cjs tests/test_viewer_bridge.cjs` | Node.js 18+, three.js from `tools/vendor_three.py` | connection dialog in server-managed mode, render-ready detection from real WebGL draw calls, failure reporting, PNG and GLB export rules, quad-view layout and framing | real WebGL pixels (the canvas is simulated) |
 | Real OCCT build, 15 solids | `python pregen_cad.py`, then `python pregen_cad.py --lang en` | the venv | every reference script runs through `cad_runner.run_script` and writes STEP, STL, GLB and `parts.json`; the English build has the same solids under English names | CadQuery scripts written by GPT-6 (those only run live) |
 | Repository checks | `python -m unittest discover -s tests -v` in the repository root | Python only | README and docs layout in both languages, links and anchors, images against `images/SOURCES.json`, every result number against `data/results.json`, the two figures against their HTML sources, no private hosts, paths or keys | whether the prose is right; a reader still has to read it |
@@ -21,7 +21,7 @@ Seven layers, from cheapest to most expensive. The first four need no Azure acco
 
 ```powershell
 $env:PORTAL_USERNAME = 'preview'; $env:PORTAL_PASSWORD = 'local-ui-test-only'
-$env:AOAI_ENDPOINT = 'https://example.invalid'; $env:AOAI_REASONING_EFFORT = 'none'
+$env:AOAI_ENDPOINT = 'https://example.invalid'; $env:AOAI_REASONING_EFFORT = 'low'
 Start-Process python -ArgumentList '-m','uvicorn','app:app','--host','127.0.0.1','--port','8015'
 python tests/check_workspace_browser.py --headless --output ../evidence/my-browser-check
 ```
@@ -49,7 +49,7 @@ Expected: one JSON line per scenario with `"ok": true` and an `iou_pct`. Without
 
 ## Recorded run
 
-[`evidence/run-20261113/`](../evidence/run-20261113/) holds one replay of the local path (the install and build of README step 6 and the tests of the README appendix) plus the browser check, the screenshots and the engineering renders, in a new virtual environment on the test laptop: Windows 11 Enterprise on Arm (build 10.0.26300), Snapdragon X X1E80100 with 12 cores, 63.5 GB RAM, x64 Python 3.11.9 under emulation, Node.js v24.18.0 and Microsoft Edge 157.0.4341.57 ([`machine.json`](../evidence/run-20261113/machine.json), [`capture.json`](../evidence/run-20261113/browser/capture.json), [`capture-gallery.json`](../evidence/run-20261113/browser/capture-gallery.json)). The steps up to the first Node test ran on 2026-11-13 from 17:11 (UTC+8); the fix described below, the reruns, the browser check, the screenshots and the renders ran on 2026-11-14. No model was called. Times include pip downloads and the x64 emulation.
+[`evidence/run-20261113/`](../evidence/run-20261113/) holds one replay of the local path (the install and build of README step 6 and the tests of the README appendix) plus the browser check, the screenshots and the engineering renders, in a new virtual environment on the test laptop: Windows 11 Enterprise on Arm (build 10.0.26300), Snapdragon X X1E80100 with 12 cores, 63.5 GB RAM, x64 Python 3.11.9 under emulation, Node.js v24.18.0 and Microsoft Edge 157.0.4341.57 ([`machine.json`](../evidence/run-20261113/machine.json), [`capture.json`](../evidence/run-20261113/browser/capture.json), [`capture-gallery.json`](../evidence/run-20261113/browser/capture-gallery.json)). The steps up to the first Node test ran on 2026-11-13 from 17:11 (UTC+8); the fix described below, the reruns, the browser check, the screenshots and the renders ran on 2026-11-14. No model was called. Times include pip downloads and the x64 emulation. The studio had 68 Python tests then; the four reasoning-effort tests of 2026-11-14 bring it to 72.
 
 | Step | Command (in `studio/` unless noted) | Result | Time (s) |
 |---|---|---|---|
@@ -84,7 +84,7 @@ Both notebook batches were then taken again with the final tool, which also clic
 
 ## Recorded deployment
 
-[`evidence/deploy-20261114/`](../evidence/deploy-20261114/) holds one pass of README steps 2, 3 and 5 on 2026-11-14: `up.ps1`, `verify.ps1 -Full` and `down.ps1 -Yes`, run on the test laptop (Windows 11 on Arm, Azure CLI 2.92.0, PowerShell 7.7.0) into a new resource group in East US 2, with nothing prepared beforehand but `az login`. `up.json`, `verify.json` and `down.json` record the status and duration of every step and check; `up-output.txt`, `verify-output.txt` and `down-output.txt` hold what each script printed, without the line that names the subscription; `infra-sha256.json` holds the SHA-256 of the five `infra/` files that ran, which are the files of this revision. In all of them the deployment's unique name suffix is replaced by `<hash>`.
+[`evidence/deploy-20261114/`](../evidence/deploy-20261114/) holds one pass of README steps 2, 3 and 5 on 2026-11-14: `up.ps1`, `verify.ps1 -Full` and `down.ps1 -Yes`, run on the test laptop (Windows 11 on Arm, Azure CLI 2.92.0, PowerShell 7.7.0) into a new resource group in East US 2, with nothing prepared beforehand but `az login`. `up.json`, `verify.json` and `down.json` record the status and duration of every step and check; `up-output.txt`, `verify-output.txt` and `down-output.txt` hold what each script printed, without the line that names the subscription; `infra-sha256.json` holds the SHA-256 of the five `infra/` files that ran; four are unchanged in this revision, and `verify.ps1` has since changed only the reasoning effort its live Generate STEP asks for (`low` instead of `none`). In all of them the deployment's unique name suffix is replaced by `<hash>`.
 
 | Step | Command | Result | Time (min) |
 |---|---|---|---|

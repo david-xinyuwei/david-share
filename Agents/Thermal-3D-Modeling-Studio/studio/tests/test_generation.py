@@ -482,9 +482,16 @@ class GenerationTests(unittest.IsolatedAsyncioTestCase):
             app.GenerateBody(messages=[app.Message(role="user", content="x")], reasoning_effort=good)
             app.CadBody(reasoning_effort=good)
         self.assertEqual(app.effective_effort("xhigh"), "xhigh")
-        with patch.object(app, "AOAI_REASONING_EFFORT", "none"):
-            self.assertEqual(app.effective_effort(None), "none")
-            self.assertEqual(app.effective_effort(""), "none")
+        with patch.object(app, "AOAI_REASONING_EFFORT", "none"):          # gpt-6-astra does not support 'none': sent as 'low'
+            self.assertEqual(app.effective_effort(None), "low")
+            self.assertEqual(app.effective_effort(""), "low")
+
+    async def test_default_efforts_are_the_ones_gpt6_astra_accepts(self):
+        request = SimpleNamespace(cookies={app.COOKIE: app.make_session("test-user")})
+        self.assertEqual(app.supported_efforts, ("low", "medium", "high", "xhigh"))
+        me = await app.me(request)
+        self.assertEqual(me["reasoning_efforts"], ["low", "medium", "high", "xhigh"])
+        self.assertEqual(app.effective_effort("none"), "low")             # no 400 round trip first
 
     async def test_me_lists_the_selectable_efforts(self):
         request = SimpleNamespace(cookies={app.COOKIE: app.make_session("test-user")})

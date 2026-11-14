@@ -8,7 +8,7 @@
 
 | 层 | 命令（未注明的都在 `studio/` 下执行） | 需要 | 检查内容 | 不检查 |
 |---|---|---|---|---|
-| Python 单元与契约测试，68 个 | `python -m unittest discover -s tests -p "test_*.py"` | 虚拟环境；`pregen_cad.py` 建好的 15 个参考实体 | 输出契约与解析、SSE 事件与心跳、登录与会话、输入上限、服务器托管连接（浏览器拿不到密钥）、CAD 白名单、把报错回传重试的循环、取消时终止 OCCT 子进程、预生成结果与实时结果同一格式返回、方案书 `.docx` | 真实的模型回答（模拟）和真实的 OCCT 执行（模拟）；例外是每个参考脚本都必须通过和模型输出相同的白名单，并且有最新的构建结果 |
+| Python 单元与契约测试，72 个 | `python -m unittest discover -s tests -p "test_*.py"` | 虚拟环境；`pregen_cad.py` 建好的 15 个参考实体 | 输出契约与解析、SSE 事件与心跳、登录与会话、输入上限、服务器托管连接（浏览器拿不到密钥）、CAD 白名单、把报错回传重试的循环、取消时终止 OCCT 子进程、预生成结果与实时结果同一格式返回、方案书 `.docx`、部署拒绝所选推理强度时（2026-11-14 的 400）改发接受的下一档 | 真实的模型回答（模拟）和真实的 OCCT 执行（模拟）；例外是每个参考脚本都必须通过和模型输出相同的白名单，并且有最新的构建结果 |
 | Node 前端测试，38 个 | `node --test tests/test_connection.cjs tests/test_viewer_bridge.cjs` | Node.js 18 及以上；`tools/vendor_three.py` 下载的 three.js | 服务器托管模式下的连接对话框、按真实 WebGL 绘制调用判断「渲染就绪」、失败上报、PNG 与 GLB 导出规则、四视图布局与取景 | 真实的 WebGL 像素（画布是模拟的） |
 | 真实 OCCT 构建，15 个实体 | `python pregen_cad.py`，再 `python pregen_cad.py --lang en` | 虚拟环境 | 每个参考脚本都经 `cad_runner.run_script` 执行并写出 STEP、STL、GLB 和 `parts.json`；英文构建与中文构建是同一批实体，只换部件名 | GPT-6 写的 CadQuery 脚本（只在实时调用时执行） |
 | 仓库检查 | 在仓库根目录执行 `python -m unittest discover -s tests -v` | 只要 Python | 中英文 README 和文档的结构、链接与锚点、图片与 `images/SOURCES.json` 一致、每个结果数字都能在 `data/results.json` 里找到、架构图和测试拓扑图与各自的 HTML 源文件一致、没有私有主机名、路径或密钥 | 文字写得对不对，仍要有人读 |
@@ -21,7 +21,7 @@
 
 ```powershell
 $env:PORTAL_USERNAME = 'preview'; $env:PORTAL_PASSWORD = 'local-ui-test-only'
-$env:AOAI_ENDPOINT = 'https://example.invalid'; $env:AOAI_REASONING_EFFORT = 'none'
+$env:AOAI_ENDPOINT = 'https://example.invalid'; $env:AOAI_REASONING_EFFORT = 'low'
 Start-Process python -ArgumentList '-m','uvicorn','app:app','--host','127.0.0.1','--port','8015'
 python tests/check_workspace_browser.py --headless --output ../evidence/my-browser-check
 ```
@@ -49,7 +49,7 @@ python pregen_engineering.py aidc aps cdu coldplate drawing2d exv fourway mchx m
 
 ## 运行记录
 
-[`evidence/run-20261113/`](../evidence/run-20261113/) 记录了一次本机路径的完整重跑（README 第 6 步的安装和构建、README 附录里的测试），加上浏览器检查、截图和工程渲染图，在测试笔记本上的一个新建虚拟环境里执行。机器：Windows 11 Enterprise（Arm，版本 10.0.26300），Snapdragon X X1E80100 12 核，内存 63.5 GB，x64 Python 3.11.9 仿真运行，Node.js v24.18.0，Microsoft Edge 157.0.4341.57（[`machine.json`](../evidence/run-20261113/machine.json)、[`capture.json`](../evidence/run-20261113/browser/capture.json)、[`capture-gallery.json`](../evidence/run-20261113/browser/capture-gallery.json)）。第一次 Node 测试及之前的步骤在 2026-11-13 17:11（UTC+8）开始执行；下文的修复、各项重跑、浏览器检查、截图和渲染图在 2026-11-14 执行。全程没有调用模型。耗时包括 pip 下载和 x64 仿真的开销。
+[`evidence/run-20261113/`](../evidence/run-20261113/) 记录了一次本机路径的完整重跑（README 第 6 步的安装和构建、README 附录里的测试），加上浏览器检查、截图和工程渲染图，在测试笔记本上的一个新建虚拟环境里执行。机器：Windows 11 Enterprise（Arm，版本 10.0.26300），Snapdragon X X1E80100 12 核，内存 63.5 GB，x64 Python 3.11.9 仿真运行，Node.js v24.18.0，Microsoft Edge 157.0.4341.57（[`machine.json`](../evidence/run-20261113/machine.json)、[`capture.json`](../evidence/run-20261113/browser/capture.json)、[`capture-gallery.json`](../evidence/run-20261113/browser/capture-gallery.json)）。第一次 Node 测试及之前的步骤在 2026-11-13 17:11（UTC+8）开始执行；下文的修复、各项重跑、浏览器检查、截图和渲染图在 2026-11-14 执行。全程没有调用模型。耗时包括 pip 下载和 x64 仿真的开销。当时工坊有 68 个 Python 测试；2026-11-14 加了 4 个推理强度测试，现在是 72 个。
 
 | 步骤 | 命令（除注明外在 `studio/` 里执行） | 结果 | 耗时（s） |
 |---|---|---|---|
@@ -84,7 +84,7 @@ python pregen_engineering.py aidc aps cdu coldplate drawing2d exv fourway mchx m
 
 ## 部署记录
 
-[`evidence/deploy-20261114/`](../evidence/deploy-20261114/) 记录了 README 第 2、3、5 步在 2026-11-14 的一次完整运行：`up.ps1`、`verify.ps1 -Full` 和 `down.ps1 -Yes`，在测试笔记本（Windows 11 Arm 版，Azure CLI 2.92.0，PowerShell 7.7.0）上执行，部署到 East US 2 的一个新资源组；事先只做了 `az login`。`up.json`、`verify.json`、`down.json` 记录每一步、每一项检查的状态和耗时；`up-output.txt`、`verify-output.txt`、`down-output.txt` 是各脚本的输出，去掉了显示订阅的那一行；`infra-sha256.json` 是这次运行用的五个 `infra/` 文件的 SHA-256，也就是本版本里的这些文件。所有文件里，部署名称中唯一的那段后缀都换成了 `<hash>`。
+[`evidence/deploy-20261114/`](../evidence/deploy-20261114/) 记录了 README 第 2、3、5 步在 2026-11-14 的一次完整运行：`up.ps1`、`verify.ps1 -Full` 和 `down.ps1 -Yes`，在测试笔记本（Windows 11 Arm 版，Azure CLI 2.92.0，PowerShell 7.7.0）上执行，部署到 East US 2 的一个新资源组；事先只做了 `az login`。`up.json`、`verify.json`、`down.json` 记录每一步、每一项检查的状态和耗时；`up-output.txt`、`verify-output.txt`、`down-output.txt` 是各脚本的输出，去掉了显示订阅的那一行；`infra-sha256.json` 是这次运行用的五个 `infra/` 文件的 SHA-256；其中四个在本版本里没有变，`verify.ps1` 之后只改了实时生成 STEP 时请求的推理强度（`none` 改成 `low`）。所有文件里，部署名称中唯一的那段后缀都换成了 `<hash>`。
 
 | 步骤 | 命令 | 结果 | 耗时（min） |
 |---|---|---|---|

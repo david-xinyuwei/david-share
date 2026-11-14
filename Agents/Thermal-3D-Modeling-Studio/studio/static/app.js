@@ -99,9 +99,9 @@
       hero_sub2: '第二批场景：AI 辅助仿真估算（冷板 3D 温度云图 + 出口温度 / 壁温 / 压降）与 APS 智能排程推理（GPT-6 编写排程算法、3D 甘特图对比老师傅经验排法）。',
       theme: '切换主题', logout: '退出', remove_image: '移除', upload_title: '上传图纸 / 照片',
       cache_fallback_en: '该场景暂无当前界面语言的已保存示例，显示的是另一语言的示例；点击“实时调用 GPT-6”可生成当前语言的结果。',
-      effort_label: '推理强度', effort_none: '无 · 最快', effort_low: '低', effort_medium: '中', effort_high: '高', effort_xhigh: '极高',
-      effort_title: 'GPT-6 的 reasoning_effort，只列出模型部署接受的取值。无：不做推理，首字约 10–20 s、整段 1.5–2.5 分钟；低：比“无”多 40–60 s 推理，演示默认；中：约 6 分钟；高 / 极高：几何更严谨但可能 10 分钟以上，仅在离线预生成时使用。选择随每次实时调用与 STEP 生成一起发送；部署不接受的取值会换成最接近的可用值，结果来源栏会显示实际生效值。',
-      effort_eta: { none: '约 2 分钟', low: '约 2.5–3 分钟', medium: '约 6 分钟', high: '8–15 分钟', xhigh: '15 分钟以上' },
+      effort_label: '推理强度', effort_low: '低', effort_medium: '中', effort_high: '高', effort_xhigh: '极高',
+      effort_title: 'GPT-6 的 reasoning_effort，只列出模型部署接受的取值。低：最快，演示默认，整段约 2.5–3 分钟；中：约 6 分钟；高 / 极高：几何更严谨但可能 10 分钟以上，仅在离线预生成时使用。选择随每次实时调用与 STEP 生成一起发送；部署不接受的取值会换成最接近的可用值，结果来源栏会显示实际生效值。',
+      effort_eta: { low: '约 2.5–3 分钟', medium: '约 6 分钟', high: '8–15 分钟', xhigh: '15 分钟以上' },
       effort_tag: (e) => `推理强度 ${e}`, effort_default: '（服务器默认）',
       sys_stages: '运行阶段', sys_parts: '部件索引 · 点击定位', sys_overview: '全局视角', sys_collapse: '收起', sys_expand: '展开',
       conn_title: '模型连接：登录后自动使用服务器固定连接', conn_heading: '模型连接',
@@ -229,9 +229,9 @@
       hero_sub2: 'Second batch: AI-assisted simulation estimate (3D temperature map, outlet / wall temperature, Δp) and APS scheduling reasoning (GPT-6 writes the scheduler; 3D Gantt vs. the veteran planner).',
       theme: 'Toggle theme', logout: 'Sign out', remove_image: 'Remove', upload_title: 'Upload a drawing / photo',
       cache_fallback_en: 'No English example saved for this scenario yet — showing the Chinese example. Click “Call GPT-6 live” for an English result.',
-      effort_label: 'Reasoning', effort_none: 'None · fastest', effort_low: 'Low', effort_medium: 'Medium', effort_high: 'High', effort_xhigh: 'Extra high',
-      effort_title: 'GPT-6 reasoning_effort; only the values the model deployment accepts are listed. None: no reasoning, first token in ~10–20 s, 1.5–2.5 min total; Low: +40–60 s of reasoning over None (demo default); Medium: ~6 min; High / Extra high: more rigorous geometry but possibly 10+ min — meant for offline pre-generation. The choice is sent with every live call and STEP job; a value the deployment refuses is replaced by the nearest one it accepts, and the source bar shows the value actually applied.',
-      effort_eta: { none: '2 min', low: '2.5–3 min', medium: '6 min', high: '8–15 min', xhigh: '15+ min' },
+      effort_label: 'Reasoning', effort_low: 'Low', effort_medium: 'Medium', effort_high: 'High', effort_xhigh: 'Extra high',
+      effort_title: 'GPT-6 reasoning_effort; only the values the model deployment accepts are listed. Low: fastest (demo default), about 2.5–3 min in total; Medium: ~6 min; High / Extra high: more rigorous geometry but possibly 10+ min — meant for offline pre-generation. The choice is sent with every live call and STEP job; a value the deployment refuses is replaced by the nearest one it accepts, and the source bar shows the value actually applied.',
+      effort_eta: { low: '2.5–3 min', medium: '6 min', high: '8–15 min', xhigh: '15+ min' },
       effort_tag: (e) => `reasoning ${e}`, effort_default: '(server default)',
       sys_stages: 'Operating stages', sys_parts: 'Component index · click to locate', sys_overview: 'Overview', sys_collapse: 'Collapse', sys_expand: 'Expand',
       conn_title: 'Model connection: automatic server-managed connection after sign-in', conn_heading: 'Model connection',
@@ -937,7 +937,7 @@
     state.cadAvailable = !!me.cad_available;
     updateStepBtn();
     // Reasoning-effort selector: options come from the server; the remembered choice wins, else the server default.
-    state.efforts = Array.isArray(me.reasoning_efforts) && me.reasoning_efforts.length ? me.reasoning_efforts : ['none', 'low', 'medium', 'high', 'xhigh'];
+    state.efforts = Array.isArray(me.reasoning_efforts) && me.reasoning_efforts.length ? me.reasoning_efforts : ['low', 'medium', 'high', 'xhigh'];
     [...$('effort').options].forEach((o) => { o.hidden = !state.efforts.includes(o.value); });
     const remembered = localStorage.getItem(EFFORT_KEY);
     setEffort(state.efforts.includes(remembered) ? remembered : (state.efforts.includes(me.reasoning_effort) ? me.reasoning_effort : state.efforts[0]), false);

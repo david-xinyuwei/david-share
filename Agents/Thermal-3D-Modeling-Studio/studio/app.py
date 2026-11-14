@@ -69,11 +69,11 @@ AOAI_ENDPOINT = os.getenv("AOAI_ENDPOINT", "").rstrip("/")  # no default: a fres
 AOAI_DEPLOYMENT = os.getenv("AOAI_DEPLOYMENT", "gpt-6-astra")
 AOAI_REASONING_EFFORT = os.getenv("AOAI_REASONING_EFFORT", "medium").strip()
 # Values a request may name, cheapest first; AOAI_REASONING_EFFORT is the default when a request does not choose ("off"/"default"
-# = send nothing). What the deployment accepts changes: on 2026-09-10 gpt-6-astra-2026-09-03 took all five ('minimal' was refused),
-# on 2026-11-14 it refused 'none' ("Supported values are: 'low', 'medium', 'high', and 'xhigh'."). The first such 400 narrows
-# supported_efforts; from then on the UI offers only those and a refused choice is sent as the nearest supported value.
+# = send nothing). GPT-6 Astra does not support 'none' (OpenAI reasoning guide; on 2026-11-14 its Chat Completions endpoint answered
+# "Supported values are: 'low', 'medium', 'high', and 'xhigh'."), so the UI offers those four and a request for 'none' is sent as
+# 'low'. A deployment that refuses more narrows supported_efforts with its first such 400, and the UI follows.
 REASONING_EFFORTS = ("none", "low", "medium", "high", "xhigh")
-supported_efforts: tuple[str, ...] = REASONING_EFFORTS
+supported_efforts: tuple[str, ...] = ("low", "medium", "high", "xhigh")
 AOAI_MAX_TOKENS = int(os.getenv("AOAI_MAX_TOKENS", "24000"))
 # Photoreal render step (轨 C): an image-edit model turns the WebGL snapshot into a studio product shot. Empty → step hidden.
 # Probed 2026-09-11 on gpt-image-2.5-sunburst: images.edit accepts size/quality/n/output_format, rejects input_fidelity.

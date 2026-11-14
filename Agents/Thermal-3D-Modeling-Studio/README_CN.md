@@ -71,22 +71,22 @@
 
 ## 操作步骤
 
-| 顺序 | 在哪里 | 做什么 | 命令 | 本次记录的耗时 |
+| 顺序 | 在哪里 | 做什么 | 命令 | 大约耗时 |
 |---|---|---|---|---|
 | 1 | 你的电脑 | 获取代码，登录 Azure | `git clone ...`、`az login` | — |
-| 2 | 你的电脑 → Azure | 创建全部资源，把工坊装到一台新虚拟机上 | `./infra/up.ps1 -ResourceGroup <名称> -Location <区域>` | 14.0 min |
-| 3 | 你的电脑 | 通过 HTTPS 地址检查部署结果 | `./infra/verify.ps1 -ResourceGroup <名称> -Full` | 2.1 min |
+| 2 | 你的电脑 → Azure | 创建全部资源，把工坊装到一台新虚拟机上 | `./infra/up.ps1 -ResourceGroup <名称> -Location <区域>` | 14 min |
+| 3 | 你的电脑 | 通过 HTTPS 地址检查部署结果 | `./infra/verify.ps1 -ResourceGroup <名称> -Full` | 2 min |
 | 4 | 浏览器 | 登录，打开已记录的示例，做一次实时调用 | `https://thermal-<hash>.<区域>.cloudapp.azure.com/` | — |
-| 5 | 你的电脑 | 删除全部资源 | `./infra/down.ps1 -ResourceGroup <名称>` | 4.4 min |
+| 5 | 你的电脑 | 删除全部资源 | `./infra/down.ps1 -ResourceGroup <名称>` | 4 min |
 | 6 | 你的电脑（可选） | 在本机运行工坊，调用已部署的模型，用于开发 | `python -m uvicorn app:app --env-file .env` | — |
 
-第 2、3、5 步在 2026-11-14 完整跑过一遍，部署到 East US 2 的一个新资源组；下面的输出都来自这次运行，回执见 [`evidence/deploy-20261114/`](evidence/deploy-20261114/)（[部署记录](#部署记录)）。第 6 步没有连这次部署运行；其中的安装和构建命令在 2026-11-13 和 2026-11-14 于测试笔记本上重跑过（[离线运行](docs/TESTING_CN.md#运行记录)）。
+耗时随区域和虚拟机规格变化；第 2 步的大部分时间是虚拟机在建 15 个参考 STEP 实体（加 `-SkipReferenceSolids` 可跳过）。
 
 **准备条件。**
 
 - 一个能创建资源组、能分配角色的 Azure 订阅：所有者（Owner），或参与者（Contributor）加基于角色的访问控制管理员（Role Based Access Control Administrator）。模板要给虚拟机的身份在模型资源上分配一个角色。
 - 该区域的配额：`gpt-6-astra` 每分钟 100K token（Global Standard 或 Data Zone Standard，`up.ps1` 选有空余配额的那种），`gpt-image-2.5-sunburst` 2 个单位（或者加 `-SkipImageModel`，这样轨 C、轨 D 不可用），以及虚拟机要用的 4 个 vCPU。`up.ps1` 在创建任何资源之前先检查这三项。
-- Azure CLI（测试用的是 2.92.0；Bicep 第一次用时自动安装）、PowerShell 7.3 及以上（测试用的是 7.7.0），以及 OpenSSH 客户端里的 `ssh-keygen`，用来生成虚拟机的密钥对。本次记录的运行用的是 Windows 11；脚本里没有只能在 Windows 上用的命令，但没有在 macOS 和 Linux 上测试过。
+- Azure CLI（已用 2.92.0 测试；Bicep 第一次用时自动安装）、PowerShell 7.3 及以上（已用 7.7.0 测试），以及 OpenSSH 客户端里的 `ssh-keygen`，用来生成虚拟机的密钥对。已在 Windows 11 上测试；脚本里没有只能在 Windows 上用的命令，但没有在 macOS 和 Linux 上测试过。
 - 本机不需要别的：虚拟机自己从本仓库下载工坊，所有构建都在虚拟机上完成。
 
 ### 1. 获取代码并登录
@@ -108,7 +108,7 @@ az account set --subscription <订阅名称或 ID>
 ./infra/up.ps1 -ResourceGroup rg-thermal-studio -Location eastus2
 ```
 
-预期输出（本次记录的运行，省略了订阅那一行；`up.ps1` 打印的是本机时间，来自虚拟机的缩进行是 UTC 时间）：
+输出示例（区域、配额、虚拟机规格、名称、时间和提交号以你的部署为准；省略了订阅那一行；`up.ps1` 打印的是本机时间，来自虚拟机的缩进行是 UTC 时间）：
 
 ```text
 [15:08:49] 1/5 preflight: Azure CLI, sign-in, model quota
@@ -126,7 +126,7 @@ az account set --subscription <订阅名称或 ID>
    [07:12:43] install log: /var/log/thermal-install.log
    [07:12:43] 1/7 waiting for the first-boot package jobs
    [07:12:44] 2/7 fetching Agents/Thermal-3D-Modeling-Studio/studio from https://github.com/david-xinyuwei/david-share.git at master
-   [07:12:45]    commit d32e1e6ea9193dff81180a8105e5081b4d8da4da
+   [07:12:45]    commit <commit>
    [07:12:45] 3/7 host setup: packages, Python venv with pinned packages, nginx, certificate for thermal-<hash>.eastus2.cloudapp.azure.com
    [07:14:23]    Python 3.12.3, cadquery 2.8.0
    [07:14:23] 4/7 settings: /opt/thermal-3d-studio/.env
@@ -136,7 +136,7 @@ az account set --subscription <订阅名称或 ID>
    [07:21:32]    Chinese part names: done in 425 s
    [07:22:45]    English part names: done in 73 s
    [07:22:45] 7/7 restart and health checks
-   [07:22:47] THERMAL_INSTALL=PASS commit=d32e1e6ea9193dff81180a8105e5081b4d8da4da solids_zh=15 solids_en=15 no_edge_break=nb_thermal https_from_vm=200 seconds=604
+   [07:22:47] THERMAL_INSTALL=PASS commit=<commit> solids_zh=15 solids_en=15 no_edge_break=nb_thermal https_from_vm=200 seconds=604
 [15:22:50] 5/5 HTTPS check from this machine: https://thermal-<hash>.eastus2.cloudapp.azure.com/healthz
    {"ok":true,"deployment":"gpt-6-astra","uptime_s":3}
 
@@ -180,7 +180,7 @@ receipt: ~/.thermal-3d-studio/rg-thermal-studio/up-20261114-150849.json (PASS)
 ./infra/verify.ps1 -ResourceGroup rg-thermal-studio -Full    # 另外实时生成一次 STEP、生成一张概念图
 ```
 
-`-Full` 的预期输出（本次记录的运行）：
+`-Full` 的输出示例（耗时、文件大小和 token 数每次都不同）：
 
 ```text
 PASS  healthz over HTTPS                 {"deployment":"gpt-6-astra","uptime_s":4}
@@ -191,7 +191,7 @@ PASS  15 scenarios                       {"scenarios":15}
 PASS  pre-generated STEP solids (zh)     {"solids":15}
 PASS  pre-generated STEP solids (en)     {"solids":15}
 PASS  GPT-6 round trip (managed identity) {"deployment":"gpt-6-astra","actual_model":"gpt-6-astra-2026-09-03","latency_s":2.1}
-PASS  Generate STEP live (GPT-6 + OCCT)  {"attempts":1,"latency_s":91.5,"occt_s":6.7,"solids":4,"faces":315,"mass_kg":"1.580","step_bytes":1106781,"reasoning_effort":null,"prompt_tokens":4583,"completion_tokens":4248,"reasoning_tokens":1472,"saved":"~/.thermal-3d-studio/rg-thermal-studio/verify-live.step"}
+PASS  Generate STEP live (GPT-6 + OCCT)  {"attempts":<n>,"latency_s":<s>,"occt_s":<s>,"solids":<n>,"faces":<n>,"mass_kg":"<kg>","step_bytes":<bytes>,"reasoning_effort":"low","prompt_tokens":<n>,"completion_tokens":<n>,"reasoning_tokens":<n>,"saved":"~/.thermal-3d-studio/rg-thermal-studio/verify-live.step"}
 PASS  concept image (gpt-image)          {"png_bytes":1408063,"latency_s":13.6,"model":"gpt-image-2.5-sunburst","saved":"~/.thermal-3d-studio/rg-thermal-studio/verify-concept.png"}
 
 10 of 10 checks passed; report: ~/.thermal-3d-studio/rg-thermal-studio/verify-20261114-152251.json
@@ -203,7 +203,7 @@ PASS  concept image (gpt-image)          {"png_bytes":1408063,"latency_s":13.6,"
 
 1. 打开 `outputs.json` 里的地址，用户名 `studio`，密码在 `portal-password.txt` 里。
 2. 点一张场景卡片。徽标先显示 **预生成示例**，参考实体出现后变成 **预生成 B-rep 实体（与 STEP 一致）**；来源栏写着「当前模型：预生成示例（本次未调用 GPT-6）」：已记录的 GPT-6 回答和参考 STEP 实体直接打开，不调用模型。
-3. 点 **实时调用 GPT-6**。回答返回后，来源栏换成本次实时请求的 ID。要等多久取决于页面上选的推理强度（默认 `low`，来自 `.env.example`）。接受哪些取值由模型部署决定：2026-11-14 gpt-6-astra 不接受 `none`。部署拒绝所选取值时，工坊改发部署接受的下一档（`none` 改成 `low`），来源栏显示实际使用的取值，下拉框不再提供被拒的那一档。已记录的运行等了多久，见[附录](#这些数字是怎么测的)。
+3. 点 **实时调用 GPT-6**。回答返回后，来源栏换成本次实时请求的 ID。要等多久取决于页面上选的推理强度：`low`（默认，来自 `.env.example`）、`medium`、`high` 或 `xhigh`，这是 gpt-6-astra 接受的取值，它不支持 `none`。如果部署拒绝所选取值，工坊改发部署接受的下一档，来源栏显示实际使用的取值。实时生成一页要多久，见[附录](#这些数字是怎么测的)。
 4. 点 **生成 STEP**。「CAD 实体」页显示尝试次数、OCCT 耗时和 B-rep 数据，可以下载 STEP、STL 和 CadQuery 脚本。
 
 虚拟机开着就计费。`az vm deallocate -g <资源组> -n thermal-vm` 停止计算资源的计费，`az vm start` 再启动，地址不变，工坊自动启动。模型部署按 token 计费，工坊空闲时模型侧不产生费用。
@@ -214,7 +214,7 @@ PASS  concept image (gpt-image)          {"png_bytes":1408063,"latency_s":13.6,"
 ./infra/down.ps1 -ResourceGroup rg-thermal-studio
 ```
 
-它先让你输入资源组名称确认（加 `-Yes` 跳过），然后删除资源组，清除处于软删除状态的 AI 资源，使它的名称和配额重新可用，检查确实没有残留，最后删掉状态目录里的密码和密钥对。预期输出（本次记录的运行，加了 `-Yes`）：
+它先让你输入资源组名称确认（加 `-Yes` 跳过），然后删除资源组，清除处于软删除状态的 AI 资源，使它的名称和配额重新可用，检查确实没有残留，最后删掉状态目录里的密码和密钥对。输出示例（加了 `-Yes`）：
 
 ```text
 deleting resource group rg-thermal-studio (several minutes)
@@ -228,7 +228,7 @@ receipt: ~/.thermal-3d-studio/rg-thermal-studio/down-20261114-152717.json (PASS)
 
 用于开发，调用第 2 步部署的模型。先用 `-GrantDeployerAccess` 跑一次 `up.ps1`：它给你自己的账号在 AI 资源上分配 **Cognitive Services OpenAI User** 角色。
 
-需要 Python 3.11 或 3.12，虚拟环境约占 1.4 GB 磁盘（离线运行记录里为 1,324 MiB，含可选工具）。CadQuery 的内核包 `cadquery-ocp` 7.9.3.1.1 提供 Windows x64、macOS（Intel 和 Apple 芯片）、Linux（x64 和 Arm64）的 wheel；Windows on Arm 上请用 x64 版 Python，它以仿真方式运行。离线运行记录用的是 Windows 11 Arm 版上的 x64 Python 3.11.9；虚拟机上用的是 Ubuntu 24.04 自带的 Python 3.12。
+需要 Python 3.11 或 3.12，虚拟环境约占 1.4 GB 磁盘（实测 1,324 MiB，含可选工具）。CadQuery 的内核包 `cadquery-ocp` 7.9.3.1.1 提供 Windows x64、macOS（Intel 和 Apple 芯片）、Linux（x64 和 Arm64）的 wheel；Windows on Arm 上请用 x64 版 Python，它以仿真方式运行。已在 Windows 11 Arm 版上用 x64 Python 3.11.9 测试；虚拟机上用的是 Ubuntu 24.04 自带的 Python 3.12。
 
 ```powershell
 cd studio
@@ -330,7 +330,7 @@ https://github.com/user-attachments/assets/7ee81aaa-a5f8-46e3-aae7-0410739226ed
 | `verify.ps1 -Full` | 10 项检查全部通过 | 2.1 |
 | `down.ps1 -Yes` | 通过：没有残留 | 4.4 |
 
-虚拟机安装的 `studio/` 取自 `master` 的 `d32e1e6e`，在第 4 步所说的推理强度改动之前；它的 `studio/` 与本版本差在这项改动和 `studio/deploy/deploy.ps1`，而这条路径不执行后者。`verify.ps1 -Full` 里的实时 **生成 STEP** 用了 1 次尝试、91.5 s，其中 OpenCascade 6.7 s，得到 4 个实体、315 个面、1.580 kg，STEP 文件 1.1 MB；这只是一个请求，用来说明路径走得通，不是测量。它要求推理强度 `none`，这个部署没有接受；那个提交的代码于是去掉这个参数重发，GPT-6 按部署的默认推理强度运行。在 `verify.ps1` 和 `down.ps1` 之间，还用无头 Microsoft Edge 在部署好的地址上走了一遍第 4 步的开头：页面自带的登录表单，然后以预生成示例打开中英文界面的冷板和笔记本双风扇散热模组；没有调用模型，页面也没有报错（[详情](docs/TESTING_CN.md#部署记录)）。
+虚拟机安装的 `studio/` 取自 `master` 的 `d32e1e6e`，在第 4 步所说的推理强度改动之前；它的 `studio/` 与本版本差在这项改动和 `studio/deploy/deploy.ps1`，而这条路径不执行后者。`verify.ps1 -Full` 里的实时 **生成 STEP** 用了 1 次尝试、91.5 s，其中 OpenCascade 6.7 s，得到 4 个实体、315 个面、1.580 kg，STEP 文件 1.1 MB；这只是一个请求，用来说明路径走得通，不是测量。它要求推理强度 `none`，这个部署没有接受；那个提交的代码于是去掉这个参数重发，GPT-6 按部署的默认推理强度运行。现在的 `verify.ps1` 请求 `low`。在 `verify.ps1` 和 `down.ps1` 之间，还用无头 Microsoft Edge 在部署好的地址上走了一遍第 4 步的开头：页面自带的登录表单，然后以预生成示例打开中英文界面的冷板和笔记本双风扇散热模组；没有调用模型，页面也没有报错（[详情](docs/TESTING_CN.md#部署记录)）。
 
 ### 这些数字是怎么测的
 
@@ -362,7 +362,7 @@ https://github.com/user-attachments/assets/7ee81aaa-a5f8-46e3-aae7-0410739226ed
 在第 6 步建好的虚拟环境里：
 
 ```powershell
-$env:AOAI_ENDPOINT = 'https://example.invalid'; $env:PORTAL_PASSWORD = 'x'; $env:AOAI_REASONING_EFFORT = 'none'
+$env:AOAI_ENDPOINT = 'https://example.invalid'; $env:PORTAL_PASSWORD = 'x'; $env:AOAI_REASONING_EFFORT = 'low'
 python -m unittest discover -s tests -p "test_*.py"                    # 在 studio/ 里执行
 node --test tests/test_connection.cjs tests/test_viewer_bridge.cjs    # 在 studio/ 里执行；需要 Node.js 18 及以上
 cd ..; python -m unittest discover -s tests -v; cd studio              # 仓库检查

@@ -131,7 +131,7 @@ Check 'GPT-6 round trip (managed identity)' {
 
 if ($Full) {
   Check 'Generate STEP live (GPT-6 + OCCT)' {
-    $body = @{ scenario_id = 'coldplate'; lang = 'en'; reasoning_effort = 'none'
+    $body = @{ scenario_id = 'coldplate'; lang = 'en'; reasoning_effort = 'low'
                prompt = 'An aluminium battery cold plate, 320 x 180 x 12 mm, with six S-shaped coolant channels and two fittings.' } | ConvertTo-Json
     $r = Invoke-WebRequest -Uri "$base/api/cad" -Method Post -ContentType 'application/json' -Body $body -WebSession $session -TimeoutSec 1200
     $d = Read-Sse $r
