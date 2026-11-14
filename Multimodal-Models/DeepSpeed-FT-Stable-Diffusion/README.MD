@@ -1,4 +1,8 @@
 # DeepSpeed FT StableDiffusion
+
+> [!NOTE]
+> **Archived.** This project predates June 2026 and uses models or APIs that have since been superseded (Stable Diffusion). It stays here so existing links keep working; check current documentation before reusing the steps.
+
 > **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
 
 Refer to： 
@@ -122,22 +126,3 @@ Next show the comparison, each set of pictures are  first show the raw effect of
 ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nWnicoxGopS7cyhd9Ems2icMb4NgEFPKXqwbxcgjfFhxv5ibDctRTQtEjniafQHukkzyAV6R730BHBPFw/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
 
 ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nWnicoxGopS7cyhd9Ems2icMbS2aDyPlZibKFNg14NGx7SSlPvqyrjiaP6r7KoZpHlbrYxqIic9HOr7FeA/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
-
-
-
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

@@ -1,24 +1,9 @@
-# 🚚 This Project Has Moved
+# 已迁移：Phi3-vLLM
 
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+<!-- moved-to: ../Phi-Model-Family/ -->
 
-> **This project has been merged into a unified project.**
+内容已并入 Phi 模型家族项目。
 
-<table>
-<tr>
-<td>📍 <b>Old Location</b></td>
-<td><code>Deep-Learning/Phi3-vLLM</code></td>
-</tr>
-<tr>
-<td>📍 <b>New Location</b></td>
-<td><a href="../Phi-Model-Family/"><b>Deep-Learning/Phi-Model-Family</b></a></td>
-</tr>
-</table>
+**前往 [Phi-Model-Family](../Phi-Model-Family/)**
 
-### 👉 [Click here to go to the new location](../Phi-Model-Family/)
-
-The Phi3 vLLM content has been consolidated into the unified Phi Model Family project.
-
----
-
-*This redirect was created to preserve backward compatibility with existing links.*
+保留本页是为了让已有链接继续可用。

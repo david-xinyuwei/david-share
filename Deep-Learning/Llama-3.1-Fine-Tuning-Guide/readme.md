@@ -1,4 +1,8 @@
 # Llama3.1-8B Fine Tuning
+
+> [!NOTE]
+> **Archived.** This project predates June 2026 and uses models or APIs that have since been superseded (Llama 3.1). It stays here so existing links keep working; check current documentation before reusing the steps. Newer related work: [LLM-Fine-Tuning-and-Alignment](../LLM-Fine-Tuning-and-Alignment/).
+
 > **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
 
 Llama 3.1 and Llama 3 do not differ significantly in terms of fine-tuning implementation. In this article, I will first introduce the differences between the two models and then present the code for QLoRA and LoRA
@@ -456,18 +460,3 @@ Run training command:
 ```
 Observe the GPU memory usage:
 <!-- Image not found: ./images/2.png -->
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

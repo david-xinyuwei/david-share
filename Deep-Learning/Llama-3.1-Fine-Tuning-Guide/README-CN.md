@@ -1,4 +1,8 @@
 # Llama3.1-8B Fine Tuning
+
+> [!NOTE]
+> **已归档。** 本项目写于 2026 年 6 月之前，所用模型或 API 已有更新版本（Llama 3.1）。保留在这里是为了让已有链接继续可用；复用其中步骤前请先核对最新文档。新的相关项目：[LLM-Fine-Tuning-and-Alignment](../LLM-Fine-Tuning-and-Alignment/)。
+
 > **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
 
 Llama 3.1 and Llama 3 do not differ significantly in terms of fine-tuning implementation. In this article, I will first introduce the differences between the two models and then present the code for QLoRA and LoRA

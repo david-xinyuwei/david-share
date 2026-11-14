@@ -1,5 +1,8 @@
 # Phi-RAG: RAG with Phi Models
 
+> [!NOTE]
+> **Archived.** This project predates June 2026 and uses models or APIs that have since been superseded (Phi-2 and Phi-3). It stays here so existing links keep working; check current documentation before reusing the steps. Newer related work: [Foundry-IQ](../Foundry-IQ/).
+
 > **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
 
 ## Overview
@@ -21,26 +24,6 @@ Implementation of Retrieval-Augmented Generation (RAG) using Microsoft Phi model
 | `v3-chromadb/keyword_generator.py` | Keyword Generator |
 | `v3-chromadb/llm.py` | Llm |
 | `v3-chromadb/main.py` | Main |
-
-## Getting Started
-
-### Prerequisites
-
-- Python 3.10+
-- Azure subscription (for cloud resources)
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd Phi-RAG
-pip install -r requirements.txt
-```
-
-## Running on Azure
-
-This project is designed to run on Azure GPU VMs. Refer to the scripts and notebooks for specific configuration details.
 
 ## License
 

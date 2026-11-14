@@ -429,19 +429,3 @@ GPU = NVIDIA H100 NVL. Max memory = 93.115 GB.
 
 **Summary:**
 Padding-free training leverages advanced GPU capabilities, significantly reducing computation overhead from padding. When batch size > 1 and captures variable-length textual inputs, padding-free is highly recommended for efficiency and resource-saving.
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

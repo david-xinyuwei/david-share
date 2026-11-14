@@ -849,26 +849,3 @@ flowchart TB
 4. [flash-linear-attention (fla)](https://github.com/fla-org/flash-linear-attention) — Triton implementation of Gated DeltaNet and other linear attention variants.
 
 5. [Qwen3.5 Official Blog](https://qwenlm.github.io/blog/) — Model architecture details and performance benchmarks.
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-pip install -r requirements.txt
-```
-
-### Scripts
-
-| Script | Description |
-|--------|-------------|
-| `scripts/gdn_kernel_benchmark.py` | Gdn Kernel Benchmark |

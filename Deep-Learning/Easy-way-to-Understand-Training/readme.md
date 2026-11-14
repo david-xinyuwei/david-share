@@ -1060,18 +1060,3 @@ As an example  of what's left to explore, this last method Pipeline + FSDP is of
 
 ## Refer to
 *https://github.com/srush/Transformer-Puzzles.git*
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

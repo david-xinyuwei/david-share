@@ -459,27 +459,3 @@ This project code is under MIT License. Fara-7B model is also under MIT License.
 ---
 
 *Validation Date: 2025-11-27 | HITL Validation: 2025-12-12 | Validated by: Microsoft GBB AI Architect*
-
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-pip install -r requirements.txt
-```
-
-### Scripts
-
-| Script | Description |
-|--------|-------------|
-| `streamlit_app/app.py` | App |

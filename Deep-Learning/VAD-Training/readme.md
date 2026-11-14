@@ -530,18 +530,3 @@ def lyft2nusc(box_lyft):
 ### Refer to：
 
 *https://arxiv.org/pdf/2303.12077*
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

@@ -1,5 +1,8 @@
 # Magentic-One Test
 
+> [!NOTE]
+> **Archived.** This project predates June 2026 and uses models or APIs that have since been superseded (AutoGen). It stays here so existing links keep working; check current documentation before reusing the steps. Newer related work: [Microsoft-Agent-Framework](../Microsoft-Agent-Framework/).
+
 > **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
 
 In recent years, the field of generative artificial intelligence has been experiencing a surge in "multi-agent" systems, including Microsoft's AutoGen and the latest Magentic-One, OpenAI's Swarm, LangChain's LangGraph, CrewAI, and others. This repository mainly introduces the architecture and implementation effects of Magentic-One.
@@ -76,21 +79,4 @@ When Magentic-One is performing tasks, its operating environment is Docker.
 (python) (base) root@YOUR-VM:~/autogen/python/packages/autogen-magentic-one# docker ps
 CONTAINER ID   IMAGE           COMMAND     CREATED         STATUS         PORTS     NAMES
 40404f16de35   python:3-slim   "/bin/sh"   7 seconds ago   Up 7 seconds             autogen-code-exec-<resource-id>
-```
-
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
 ```

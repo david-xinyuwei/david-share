@@ -694,19 +694,3 @@ Combining these strategies usually requires significant customization and adjust
 
 For an example of FSDP with `accelerate`, refer to:
 *https://github.com/xinyuwei-david/david-share/tree/master/Deep-Learning/Llama-3.1-Fine-Tuning-Guide*
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

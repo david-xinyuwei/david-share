@@ -1,3 +1,6 @@
+> [!NOTE]
+> **Archived.** This project predates June 2026 and uses models or APIs that have since been superseded (GPT-4). It stays here so existing links keep working; check current documentation before reusing the steps.
+
 ## 在 Azure 上运行
 
 本项目使用 **Azure OpenAI 服务** 的 GPT-4 进行机器翻译测试。
@@ -100,18 +103,3 @@ GPT4-1106使用Prompt：
 如果是段落，那么GPT4+Prompt的方式优势更加明显。
 
 此外，在处理一些词的翻译时，最好也加上上下文。
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

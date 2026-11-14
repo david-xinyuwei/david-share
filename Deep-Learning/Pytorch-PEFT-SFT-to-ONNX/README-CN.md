@@ -1,5 +1,8 @@
 # Pytorch PEFT SFT and convert to ONNX
 
+> [!NOTE]
+> **已归档。** 本项目写于 2026 年 6 月之前，所用模型或 API 已有更新版本（Phi-3）。保留在这里是为了让已有链接继续可用；复用其中步骤前请先核对最新文档。
+
 > **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
 
 ONNX (Open Neural Network Exchange) is an open format used to represent machine learning and deep learning models. It was introduced by Microsoft and Facebook in 2017, aiming to facilitate model interoperability between different deep learning frameworks. With ONNX, you can seamlessly convert models between different deep learning frameworks such as PyTorch and TensorFlow.

@@ -1,5 +1,8 @@
 # Dify work with Microsoft AI Search
 
+> [!NOTE]
+> **Archived.** This project predates June 2026 and uses models or APIs that have since been superseded (GPT-4o). It stays here so existing links keep working; check current documentation before reusing the steps.
+
 > **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
 
 
@@ -187,19 +190,3 @@ Then Access dify portal via the URL of your dify container.
 <img src="https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/11.png" alt="images" style="width:80%;">  
 
 At this point, we can clearly see that Dify can seamlessly integrate and work together with Microsoft's AI Search and Azure OpenAI GPT-4o, achieving an end-to-end Dify RAG workflow. 
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

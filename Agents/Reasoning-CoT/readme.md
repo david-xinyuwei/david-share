@@ -1,5 +1,8 @@
 # Reasoning-CoT
 
+> [!NOTE]
+> **Archived.** This project predates June 2026 and uses models or APIs that have since been superseded (GPT-4o and o1-style prompting). It stays here so existing links keep working; check current documentation before reusing the steps. Newer related work: [LLM-RL-Training-and-Reasoning](../../Deep-Learning/LLM-RL-Training-and-Reasoning/).
+
 
 ## Overview
 
@@ -218,20 +221,3 @@ streamlit run ui.py
 ```
 
 ​	
-
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

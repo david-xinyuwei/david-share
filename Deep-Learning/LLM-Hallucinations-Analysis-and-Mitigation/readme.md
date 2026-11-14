@@ -1263,18 +1263,3 @@ The S2A method makes the AI think like human "System 2," focusing on important i
 ![img](https://miro.medium.com/v2/resize:fit:1050/1*TTepBsVL6Pvk1cSOMAaViA.png)
 
 ![img](https://miro.medium.com/v2/resize:fit:1050/1*lVBlwVOdfzm6bopnNoOD3w.png)
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

@@ -404,18 +404,3 @@ Chunk ID: e89cc - Summary: This chunk contains information about the principle o
 
 
 Refer to ：https://github.com/FullStackRetrieval-com/RetrievalTutorials.git
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

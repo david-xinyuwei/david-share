@@ -1,0 +1,28 @@
+name: Repository Index Check
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  index-check:
+    name: Area index pages, links and moved notices
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          filter: blob:none
+          # The check reads only Markdown files; the folder list comes from git ls-files.
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /.github/
+            *.[mM][dD]
+      - name: Check index pages, links and moved notices
+        run: python3 .github/scripts/check_repo_index.py

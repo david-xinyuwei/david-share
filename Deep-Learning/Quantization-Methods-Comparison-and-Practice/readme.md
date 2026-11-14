@@ -588,19 +588,3 @@ tokenizer.save_pretrained(quant_path)
 AWQ inference:
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Quantization-Methods-Comparison-and-Practice/images/dataset_quant_awq_inference.png)
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

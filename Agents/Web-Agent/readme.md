@@ -424,19 +424,3 @@ and finally
 `data: {"type":"function_stream_end","status":"success"}`.
 
 With that, the entire MCP path—WebServer routing → mcp_handler dispatch → GenerateAnswer RAG → schema.org Answer → MCP wrap (streaming or not)—is fully traced across the files you just inspected.
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

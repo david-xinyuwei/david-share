@@ -1515,18 +1515,3 @@ Part of training process log:
 To verify the image inference capability of the code, you can achieve it by using the same inference code from the Audio training above. 
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/SFT-Phi-4-mm/images/4.png)
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

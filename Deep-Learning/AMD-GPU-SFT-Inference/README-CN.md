@@ -1,24 +1,9 @@
-# 🚚 This Project Has Moved
+# 已迁移：AMD-GPU-SFT-Inference
 
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+<!-- moved-to: ../Azure-AMD-MI300X-Guide/ -->
 
-> **This project has been merged into a unified project.**
+内容已并入 Azure AMD MI300X 指南。
 
-<table>
-<tr>
-<td>📍 <b>Old Location</b></td>
-<td><code>Deep-Learning/AMD-GPU-SFT-Inference</code></td>
-</tr>
-<tr>
-<td>📍 <b>New Location</b></td>
-<td><a href="../Azure-AMD-MI300X-Guide/"><b>Deep-Learning/Azure-AMD-MI300X-Guide</b></a></td>
-</tr>
-</table>
+**前往 [Azure-AMD-MI300X-Guide](../Azure-AMD-MI300X-Guide/)**
 
-### 👉 [Click here to go to the new location](../Azure-AMD-MI300X-Guide/)
-
-The AMD GPU inference content has been merged into the unified Azure AMD MI300X guide.
-
----
-
-*This redirect was created to preserve backward compatibility with existing links.*
+保留本页是为了让已有链接继续可用。

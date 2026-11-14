@@ -468,18 +468,3 @@ The following diagram explains how ModernBERT improves the attention mechanism, 
 - **Meets Practical Needs:** ModernBERT is an ideal choice for tasks requiring efficient processing of long texts and code.
 
 - **Promotes Model Diversity:** Emphasizes the importance of encoder models in the entire LLM ecosystem.
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

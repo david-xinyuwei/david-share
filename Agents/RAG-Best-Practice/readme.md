@@ -1,5 +1,8 @@
 # RAG Best Practice With AI Search
 
+> [!NOTE]
+> **Archived.** This project predates June 2026 and uses models or APIs that have since been superseded (GPT-3.5, GPT-4 and text-embedding-ada-002). It stays here so existing links keep working; check current documentation before reusing the steps. Newer related work: [Foundry-IQ](../Foundry-IQ/).
+
 > **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
 
 Although models like GPT-4 and GPT-3.5 are powerful, their knowledge cannot be the most up-to-date. Previously, we often introduced engineering techniques in the use of LLMs by treating prompt engineering, RAG, and fine-tuning as parallel methods. In fact, these three technologies can be combined.
@@ -806,18 +809,3 @@ if __name__ == "__main__":
 ```
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/RAG-Best-Practice/images/12.png)
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

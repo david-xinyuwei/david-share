@@ -1,4 +1,8 @@
 # OLM-benchmark-evaluation
+
+> [!NOTE]
+> **Archived.** This project predates June 2026 and uses models or APIs that have since been superseded (Phi-3). It stays here so existing links keep working; check current documentation before reusing the steps.
+
 > **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
 
 This repo draws inspiration and references the ideas and code from https://github.com/huggingface/optimum-benchmark, with practical adjustments made for user convenience, allowing for direct and easy use within VS Code. Using microsoft/Phi-3-mini-4k-instruct as a case study, this repo independently verifies the performance of PyTorch inference and vLLM inference. 
@@ -208,25 +212,3 @@ flowchart LR
     C --> D["GPU Inference"]
     D --> E["Response"]
 ```
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-pip install -r requirements.txt
-```
-
-### Scripts
-
-| Script | Description |
-|--------|-------------|
-| `Benchmarking_LLMs_with_Optimum_benchmark-davidwei.ipynb` | Benchmarking Llms With Optimum Benchmark-Davidwei.Ipynb |

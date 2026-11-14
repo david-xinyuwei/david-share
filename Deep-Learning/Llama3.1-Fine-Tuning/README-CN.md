@@ -1,24 +1,9 @@
-# 🚚 This Project Has Moved
+# 已迁移：Llama3.1-Fine-Tuning
 
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+<!-- moved-to: ../Llama-3.1-Fine-Tuning-Guide/ -->
 
-> **This project has been merged into a unified project.**
+内容已并入 Llama 3.1 微调指南。
 
-<table>
-<tr>
-<td>📍 <b>Old Location</b></td>
-<td><code>Deep-Learning/Llama3.1-Fine-Tuning</code></td>
-</tr>
-<tr>
-<td>📍 <b>New Location</b></td>
-<td><a href="../Llama-3.1-Fine-Tuning-Guide/"><b>Deep-Learning/Llama-3.1-Fine-Tuning-Guide</b></a></td>
-</tr>
-</table>
+**前往 [Llama-3.1-Fine-Tuning-Guide](../Llama-3.1-Fine-Tuning-Guide/)**
 
-### 👉 [Click here to go to the new location](../Llama-3.1-Fine-Tuning-Guide/)
-
-The Llama 3.1 fine-tuning content has been merged into the unified fine-tuning guide.
-
----
-
-*This redirect was created to preserve backward compatibility with existing links.*
+保留本页是为了让已有链接继续可用。

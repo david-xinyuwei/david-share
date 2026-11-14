@@ -700,20 +700,3 @@ Some training data:
 Do test:
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Content-Safety/images/8.png)
-
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

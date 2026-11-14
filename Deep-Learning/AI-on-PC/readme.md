@@ -2,6 +2,9 @@
 
 # AI Model on PC的验证
 
+> [!NOTE]
+> **Archived.** This project predates June 2026 and uses models or APIs that have since been superseded (Phi-3, Llama 3 and Qwen2). It stays here so existing links keep working; check current documentation before reusing the steps. Newer related work: [AIPC-Decision-Model-Finetune](../AIPC-Decision-Model-Finetune/).
+
 
 > **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
 
@@ -225,20 +228,3 @@ python run_llm.py
 | OOM内存溢出  | 模型加载超出RAM    | 更换小模型 / 提升内存 / 使用交换分区 |
 | 推理质量下降 | 量化等级过低       | 改用8-bit或FP16                      |
 | 无法加载模型 | 格式不支持         | 确认下载GGUF版本                     |
-
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

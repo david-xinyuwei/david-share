@@ -439,36 +439,3 @@ Anthropic's MCP and Google's A2A are both designed to support interactions betwe
 | Interaction Pattern     | Top-down approach: LLM to external resource integration      | Peer-to-peer cooperative model among equal agents            |
 | Security Approach       | Securing interactions between single AI model and external data/tools pipelines | Facilitating secure interactions between multiple agents across trust boundaries |
 | Workflow Handling       | Optimized for straightforward request-response workflows     | Designed for complex tasks with workflow lifecycle and progress tracking |
-
-
-
-
-
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-pip install -r requirements.txt
-```
-
-### Scripts
-
-| Script | Description |
-|--------|-------------|
-| `demo-code/__main__.py` |   Main   |
-| `demo-code/foundry_agent.py` | Foundry Agent |
-| `demo-code/foundry_agent_executor.py` | Foundry Agent Executor |
-| `demo-code/orch_llm_router.py` | Orch Llm Router |
-| `demo-code/test_client-xinyudavid.py` | Test Client-Xinyudavid |
-| `demo-code/writer_agent_service.py` | Writer Agent Service |

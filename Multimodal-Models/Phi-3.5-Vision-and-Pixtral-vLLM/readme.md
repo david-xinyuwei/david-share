@@ -1,5 +1,8 @@
 # Phi-3.5-Vision-and-Pixtral-vLLM
 
+> [!NOTE]
+> **Archived.** This project predates June 2026 and uses models or APIs that have since been superseded (Phi-3.5 Vision). It stays here so existing links keep working; check current documentation before reusing the steps. Newer related work: [Qwen3-VL-Product-Tagging-on-Azure](../../Deep-Learning/Qwen3-VL-Product-Tagging-on-Azure/).
+
 
 
 
@@ -165,18 +168,3 @@ A densely packed urban street scene at twilight with brightly lit billboards and
 ```
 
 We could see that Phi-3.5-Vision is faster, Pixtral has more detailed inference result.
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

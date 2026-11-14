@@ -97,27 +97,3 @@ After model generation:
 Allocated GPU memory: 5.32 GB
 Reserved GPU memory: 55.99 GB
 ![image](https://github.com/davidsajare/KV-Cache-Quantization/blob/main/images/3%20None.png)
-
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-pip install -r requirements.txt
-```
-
-### Scripts
-
-| Script | Description |
-|--------|-------------|
-| `Quantize_the_KV_Cache.ipynb` | Quantize The Kv Cache.Ipynb |

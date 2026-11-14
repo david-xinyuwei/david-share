@@ -142,26 +142,3 @@ In code.ipynb
 *https://medium.com/@mahendra0203/fine-tuning-an-ai-speech-to-text-model-for-medical-transcription-b05397e0e1e1*
 
 *https://github.com/mahendra0203/whisper-finetuning/tree/main*
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-pip install -r requirements.txt
-```
-
-### Scripts
-
-| Script | Description |
-|--------|-------------|
-| `code.ipynb` | Code.Ipynb |

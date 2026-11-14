@@ -473,20 +473,3 @@ Run programme
 ```
 python call_muse_iterative_debug.py --steps 50
 ```
-
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

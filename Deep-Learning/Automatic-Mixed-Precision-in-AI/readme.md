@@ -1702,20 +1702,3 @@ Accuracy of  ship : 77 %
 Accuracy of truck : 40 %
 [2024-09-23 10:23:27,151] [INFO] [launch.py:347:main] Process 69712 exits successfully.
 ```
-
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

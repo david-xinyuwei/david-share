@@ -1,3 +1,6 @@
+> [!NOTE]
+> **Archived.** This project predates June 2026 and uses models or APIs that have since been superseded (GPT-4). It stays here so existing links keep working; check current documentation before reusing the steps.
+
 ## 在 Azure 上运行
 
 > **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
@@ -98,18 +101,3 @@ Please show the output results - in a table, the table is divided into four colu
 输出的结果就是表格形式：
 
 ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nWf6Iogb0ScBpSFibiavMUk2TohHj9WylLC68Q6yDGOS8hG6PHWqiavicIVNbFbVCWYeKEBMDQ1eg3hRA/640?wx_fmt=png&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

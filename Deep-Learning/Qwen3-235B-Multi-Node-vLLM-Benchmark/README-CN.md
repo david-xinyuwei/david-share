@@ -1,24 +1,9 @@
-# 🚚 This Project Has Moved
+# 已迁移：Qwen3-235B-Multi-Node-vLLM-Benchmark
 
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+<!-- moved-to: ../Qwen3-Inference-Benchmark/ -->
 
-> **This project has been merged into a unified benchmark project.**
+该基准已并入 Qwen3 推理基准项目。
 
-<table>
-<tr>
-<td>📍 <b>Old Location</b></td>
-<td><code>Deep-Learning/Qwen3-235B-Multi-Node-vLLM-Benchmark</code></td>
-</tr>
-<tr>
-<td>📍 <b>New Location</b></td>
-<td><a href="../Qwen3-Inference-Benchmark/"><b>Deep-Learning/Qwen3-Inference-Benchmark</b></a></td>
-</tr>
-</table>
+**前往 [Qwen3-Inference-Benchmark](../Qwen3-Inference-Benchmark/)**
 
-### 👉 [Click here to go to the new location](../Qwen3-Inference-Benchmark/)
-
-The Qwen3-235B multi-node vLLM benchmark content is now part of the unified Qwen3 Inference Benchmark project, which covers both Qwen3-32B and Qwen3-235B benchmarks.
-
----
-
-*This redirect was created to preserve backward compatibility with existing links.*
+保留本页是为了让已有链接继续可用。

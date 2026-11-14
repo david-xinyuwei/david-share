@@ -1,5 +1,8 @@
 # Scripts for DeepSeek 671B
 
+> [!NOTE]
+> **已归档。** 本项目写于 2026 年 6 月之前，所用模型或 API 已有更新版本（DeepSeek 671B）。保留在这里是为了让已有链接继续可用；复用其中步骤前请先核对最新文档。新的相关项目：[DeepSeek-R1-on-Azure](../DeepSeek-R1-on-Azure/)。
+
 > **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
 
 ## 概述
@@ -18,26 +21,6 @@ Utility scripts for running and benchmarking DeepSeek 671B model inference on Az
 |------|------|
 | `callapi.py` | Callapi |
 | `gpuvm.py` | Gpuvm |
-
-## 快速开始
-
-### 前提条件
-
-- Python 3.10+
-- Azure 订阅（用于云资源）
-- CUDA 兼容 GPU（推荐）
-
-### 环境搭建
-
-```bash
-git clone <this-repo-url>
-cd Script-For-DS671B
-pip install -r requirements.txt
-```
-
-## 在 Azure 上运行
-
-本项目设计在 Azure GPU VM 上运行。详细配置请参考脚本和 Notebook。
 
 ## 许可证
 

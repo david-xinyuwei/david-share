@@ -32,7 +32,7 @@
 |:---|:---|:---|
 | Tiled Rendering | FlashAttention Tiled Computation | FlashInfer 9-15% faster than FA at 32K ([link](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/FlashInfer-vs-FlashAttention-Benchmark)) |
 | Z-Buffer Per-Pixel Memory Management | PagedAttention Per-Block KV Cache | KV Cache Six-Level Deep Dive ([link](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive)) |
-| Mipmap Multi-Resolution LOD | Speculative Decoding Draft Verification | EAGLE3 2.67x Speedup ([link](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/Speculative-Decoding-EAGLE3)) |
+| Mipmap Multi-Resolution LOD | Speculative Decoding Draft Verification | EAGLE3 2.67x Speedup (measurement not published in this repository) |
 | Z-fighting Precision Flickering | BF16 Precision Accumulation Error | fuse_lora SSIM diff 2-18% ([link](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/LoRA-Merge-Quality-Impact)) |
 | Frame Buffer Reuse from Previous Frame | KV Cache Key/Value Caching | GQA/MLA Four-Architecture Comparison ([link](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive)) |
 | Ray Tracing Monte Carlo Denoising | Diffusion DDPM Denoising | Distillation 40→8 steps ([link](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/Diffusion-Distillation)) |
@@ -775,7 +775,7 @@ The following two screenshots are from the NVIDIA GTC 2026 Keynote demo, showing
 
 **AI**: Speculative Decoding uses a small model (draft model) to quickly generate multiple candidate tokens, then the large model verifies/rejects them in one pass.
 
-**Author's benchmark**: EAGLE3 achieves 2.67x speedup on Qwen models (official weights). Source: [Speculative-Decoding-EAGLE3](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/Speculative-Decoding-EAGLE3)
+**Author's benchmark**: EAGLE3 achieves 2.67x speedup on Qwen models (official weights). This EAGLE3 measurement is not published in this repository; for published speculative-decoding measurements, see [Speculative-Decoding](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/Speculative-Decoding).
 
 **Common principle**: **Use cheap approximation first, then expensive precise verification.** In most cases the approximation suffices; high precision is invoked only when needed.
 
@@ -870,7 +870,7 @@ Jensen Huang summarized this closed loop in one sentence at GTC 2026:
 |:---|:---|:---|
 | FlashInfer-vs-FA | A100 80GB | [link](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/FlashInfer-vs-FlashAttention-Benchmark) |
 | KV-Cache-Deep-Dive | Theoretical analysis | [link](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive) |
-| EAGLE3 | H100 | [link](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/Speculative-Decoding-EAGLE3) |
+| EAGLE3 | H100 | Not published in this repository |
 | LoRA-Merge-Quality | H100 | [link](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/LoRA-Merge-Quality-Impact) |
 | Diffusion-Distillation | H100 | [link](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/Diffusion-Distillation) |
 | Qwen3.5-122B | H100 | [link](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/Qwen3.5-122B-Azure-vs-AWS-Benchmark) |

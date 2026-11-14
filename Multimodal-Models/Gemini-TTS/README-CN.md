@@ -1,24 +1,9 @@
-# 🚚 This Project Has Moved
+# 已迁移：Gemini-TTS
 
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+<!-- moved-to: ../VibeVoice-TTS/ -->
 
-> **This project has been removed during repository restructuring.**
+原 Gemini-TTS 页面只是占位，已移除。语音合成相关内容见 VibeVoice 项目。
 
-<table>
-<tr>
-<td>📍 <b>Old Location</b></td>
-<td><code>Multimodal-Models/Gemini-TTS</code></td>
-</tr>
-<tr>
-<td>📍 <b>Related Project</b></td>
-<td><a href="../VibeVoice-TTS/"><b>Multimodal-Models/VibeVoice-TTS</b></a></td>
-</tr>
-</table>
+**前往 [VibeVoice-TTS](../VibeVoice-TTS/)**
 
-### 👉 [Click here to go to the related TTS project](../VibeVoice-TTS/)
-
-The original Gemini-TTS content was a minimal stub. For TTS-related content, please see the VibeVoice-TTS project.
-
----
-
-*This redirect was created to preserve backward compatibility with existing links.*
+保留本页是为了让已有链接继续可用。

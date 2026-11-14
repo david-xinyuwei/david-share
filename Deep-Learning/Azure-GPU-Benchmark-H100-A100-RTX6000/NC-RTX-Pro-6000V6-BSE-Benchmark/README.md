@@ -1,22 +1,9 @@
-# 🚚 This Project Has Moved
+# Moved: NC-RTX-Pro-6000V6-BSE-Benchmark
 
-> **This project has been merged into a unified project.**
+<!-- moved-to: ../../NC-RTX-Pro-6000V6-BSE-Benchmark/ -->
 
-<table>
-<tr>
-<td>📍 <b>Old Location</b></td>
-<td><code>Deep-Learning/Azure-GPU-Benchmark-H100-A100-RTX6000/NC-RTX-Pro-6000V6-BSE-Benchmark</code></td>
-</tr>
-<tr>
-<td>📍 <b>New Location</b></td>
-<td><a href="../../NC-RTX-Pro-6000V6-BSE-Benchmark/"><b>Deep-Learning/NC-RTX-Pro-6000V6-BSE-Benchmark</b></a></td>
-</tr>
-</table>
+This content lives in the Azure GPU VM selection guide and benchmark.
 
-### 👉 [Click here to go to the new location](../../NC-RTX-Pro-6000V6-BSE-Benchmark/)
+**Go to [NC-RTX-Pro-6000V6-BSE-Benchmark](../../NC-RTX-Pro-6000V6-BSE-Benchmark/)**
 
-This subdirectory has been promoted to a top-level project under Deep-Learning.
-
----
-
-*This redirect was created to preserve backward compatibility with existing links.*
+This page stays so that existing links keep working.

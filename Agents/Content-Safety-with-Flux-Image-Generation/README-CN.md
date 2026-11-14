@@ -1,22 +1,9 @@
-# 🚚 This Project Has Moved
+# 已迁移：Content-Safety-with-Flux-Image-Generation
 
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+<!-- moved-to: ../../Multimodal-Models/Content-Safety-with-Flux-Image-Generation/ -->
 
-> **This project has been relocated during repository restructuring.**
+该项目已移到 Multimodal Models 分类。
 
-<table>
-<tr>
-<td>📍 <b>Old Location</b></td>
-<td><code>Agents/Content-Safety-with-Flux-Image-Generation</code></td>
-</tr>
-<tr>
-<td>📍 <b>New Location</b></td>
-<td><a href="../../Multimodal-Models/Content-Safety-with-Flux-Image-Generation/"><b>Multimodal-Models/Content-Safety-with-Flux-Image-Generation</b></a></td>
-</tr>
-</table>
+**前往 [Content-Safety-with-Flux-Image-Generation](../../Multimodal-Models/Content-Safety-with-Flux-Image-Generation/)**
 
-### 👉 [Click here to go to the new location](../../Multimodal-Models/Content-Safety-with-Flux-Image-Generation/)
-
----
-
-*This redirect was created to preserve backward compatibility with existing links.*
+保留本页是为了让已有链接继续可用。

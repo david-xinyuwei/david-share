@@ -1,3 +1,6 @@
+> [!NOTE]
+> **Archived.** This project predates June 2026 and its models, APIs or tool versions may have changed since. It stays here so existing links keep working; check current documentation before reusing the steps.
+
 ```
 pip install git+https://github.com/sberbank-ai/Real-ESRGAN.git
 ```
@@ -36,25 +39,4 @@ image = Image.open(path_to_image).convert('RGB')
 sr_image = model.predict(image)
 
 sr_image.save('./sr_image-4.png')
-```
-
-
-
-
-
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
 ```

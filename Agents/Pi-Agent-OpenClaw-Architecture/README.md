@@ -682,19 +682,3 @@ graph TB
 ---
 
 *This analysis is based on Pi mono-repo source code, OpenClaw documentation, deployment experience, and Armin Ronacher's independent analysis. Pi and OpenClaw are open-source projects created by Mario Zechner and Peter Steinberger respectively.*
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

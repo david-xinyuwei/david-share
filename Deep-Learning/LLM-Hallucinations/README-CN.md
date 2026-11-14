@@ -1,24 +1,9 @@
-# 🚚 This Project Has Moved
+# 已迁移：LLM-Hallucinations
 
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+<!-- moved-to: ../LLM-Hallucinations-Analysis-and-Mitigation/ -->
 
-> **This project has been merged into a unified project.**
+内容已并入 LLM 幻觉分析与缓解项目。
 
-<table>
-<tr>
-<td>📍 <b>Old Location</b></td>
-<td><code>Deep-Learning/LLM-Hallucinations</code></td>
-</tr>
-<tr>
-<td>📍 <b>New Location</b></td>
-<td><a href="../LLM-Hallucinations-Analysis-and-Mitigation/"><b>Deep-Learning/LLM-Hallucinations-Analysis-and-Mitigation</b></a></td>
-</tr>
-</table>
+**前往 [LLM-Hallucinations-Analysis-and-Mitigation](../LLM-Hallucinations-Analysis-and-Mitigation/)**
 
-### 👉 [Click here to go to the new location](../LLM-Hallucinations-Analysis-and-Mitigation/)
-
-This project has been merged with Reducing-LLM-Hallucinations into a comprehensive hallucination analysis project.
-
----
-
-*This redirect was created to preserve backward compatibility with existing links.*
+保留本页是为了让已有链接继续可用。

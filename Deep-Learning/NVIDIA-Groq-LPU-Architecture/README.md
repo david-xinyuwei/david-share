@@ -469,19 +469,3 @@ Groq's proprietary numeric format:
 | 9 | [github.com/ai-dynamo/dynamo](https://github.com/ai-dynamo/dynamo) (NVIDIA Dynamo 1.0) | Open Source Repo | ☠️2 |
 
 ---
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

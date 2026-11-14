@@ -160,18 +160,3 @@ https://github.com/xinyuwei-david/david-share/tree/master/Deep-Learning/Estimate
 ## End-to-end Stable Diffusion test on Azure NC A100/H100 MIG
 
 https://techcommunity.microsoft.com/blog/machinelearningblog/end-to-end-stable-diffusion-test-on-azure-nc-a100h100-mig/4227803
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

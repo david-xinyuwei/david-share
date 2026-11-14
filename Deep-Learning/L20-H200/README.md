@@ -1,45 +1,9 @@
-# 🚚 This Project Has Moved
+# Moved: L20-H200
 
-> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+<!-- moved-to: ../NC-RTX-Pro-6000V6-BSE-Benchmark/ -->
 
+The L20 and H200 comparison is no longer published in this repository. For current Azure GPU VM selection and benchmarks, see the project below.
 
-## Overview
+**Go to [NC-RTX-Pro-6000V6-BSE-Benchmark](../NC-RTX-Pro-6000V6-BSE-Benchmark/)**
 
-This repository contains implementation and documentation for 🚚 This Project Has Moved.
-
-> **This project has been merged into a unified GPU benchmark project.**
-
-<table>
-<tr>
-<td>📍 <b>Old Location</b></td>
-<td><code>Deep-Learning/L20-H200</code></td>
-</tr>
-<tr>
-<td>📍 <b>New Location</b></td>
-<td><a href="../Azure-GPU-Benchmark-H100-A100-RTX6000/"><b>Deep-Learning/Azure-GPU-Benchmark-H100-A100-RTX6000</b></a></td>
-</tr>
-</table>
-
-### 👉 [Click here to go to the new location](../Azure-GPU-Benchmark-H100-A100-RTX6000/)
-
-The original L20 and H200 comparison content has been consolidated into the unified Azure GPU Benchmark project.
-
----
-
-*This redirect was created to preserve backward compatibility with existing links.*
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```
+This page stays so that existing links keep working.

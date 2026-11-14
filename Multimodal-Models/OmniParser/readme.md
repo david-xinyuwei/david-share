@@ -382,20 +382,3 @@ with gr.Blocks() as demo:
 # 启动 Gradio 应用
 demo.launch(share=True, server_port=7861, server_name='0.0.0.0')
 ```
-
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

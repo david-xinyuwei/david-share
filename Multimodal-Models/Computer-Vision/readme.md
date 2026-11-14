@@ -1,5 +1,8 @@
 # Microsoft Computer Vision Test
 
+> [!NOTE]
+> **Archived.** This project predates June 2026 and its models, APIs or tool versions may have changed since. It stays here so existing links keep working; check current documentation before reusing the steps.
+
 > **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
 
 I have developed 2 Python programs that runs on Windows and utilizes Azure Computer Vision (Azure CV) .
@@ -453,19 +456,3 @@ upload_button.observe(on_file_upload, names='value')
 ![imgaes](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Computer-Vision/images/2.png)
 
 ![imgaes](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Computer-Vision/images/1.png)
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

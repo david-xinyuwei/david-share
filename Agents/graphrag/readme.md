@@ -1,5 +1,9 @@
 
 # graphrag configure and validation
+
+> [!NOTE]
+> **Archived.** This project predates June 2026 and uses models or APIs that have since been superseded (text-embedding-ada-002). It stays here so existing links keep working; check current documentation before reusing the steps. Newer related work: [Foundry-IQ](../Foundry-IQ/).
+
 > **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
 
 **Notice:**
@@ -867,68 +871,3 @@ output_df = pd.DataFrame([{to: graphml_string}]): Stores the generated GraphML s
 ### GraphML file generation logicSummary
 
 In this code, the create_graph function generates a GraphML file using the NetworkX library. The specific steps include creating a graph object, adding nodes and edges, generating a GraphML string, and storing it in a DataFrame. The final GraphML file can be used for further graph analysis and visualization.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

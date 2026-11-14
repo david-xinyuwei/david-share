@@ -1,5 +1,8 @@
 # Best Practices for MaaS and SLM
 
+> [!NOTE]
+> **已归档。** 本项目写于 2026 年 6 月之前，所用模型或 API 已有更新版本（Phi-3）。保留在这里是为了让已有链接继续可用；复用其中步骤前请先核对最新文档。
+
 > **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
 
 ## 概述
@@ -12,25 +15,6 @@ Best practices and guidelines for deploying Models-as-a-Service (MaaS) and Small
 - SLM selection and optimization
 - Cost-performance trade-offs
 - Azure AI model catalog usage
-
-## 快速开始
-
-### 前提条件
-
-- Python 3.10+
-- Azure 订阅（用于云资源）
-- CUDA 兼容 GPU（推荐）
-
-### 环境搭建
-
-```bash
-git clone <this-repo-url>
-cd Best-practices-for-MaaS-and-SLM
-```
-
-## 在 Azure 上运行
-
-本项目设计在 Azure GPU VM 上运行。详细配置请参考脚本和 Notebook。
 
 ## 许可证
 

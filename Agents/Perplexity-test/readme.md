@@ -1,5 +1,8 @@
 # Perplexity-test
 
+> [!NOTE]
+> **Archived.** This project predates June 2026 and uses models or APIs that have since been superseded (Llama 3). It stays here so existing links keep working; check current documentation before reusing the steps.
+
 > **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
 
 ## Running on Azure
@@ -88,21 +91,4 @@ def get_ppl(model_name, example):
 ```
 example = "The loss is calculated using CrossEntropyLoss which averages over valid labels."
 get_ppl("meta-llama/Meta-Llama-3.1-8B", example)
-```
-
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
 ```

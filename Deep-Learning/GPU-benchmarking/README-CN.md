@@ -1,24 +1,9 @@
-# 🚚 This Project Has Moved
+# 已迁移：GPU-benchmarking
 
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+<!-- moved-to: ../NC-RTX-Pro-6000V6-BSE-Benchmark/ -->
 
-> **This project has been merged into a unified GPU benchmark project.**
+GPU 基准内容已并入 Azure GPU VM 选型指南与基准。
 
-<table>
-<tr>
-<td>📍 <b>Old Location</b></td>
-<td><code>Deep-Learning/GPU-benchmarking</code></td>
-</tr>
-<tr>
-<td>📍 <b>New Location</b></td>
-<td><a href="../Azure-GPU-Benchmark-H100-A100-RTX6000/"><b>Deep-Learning/Azure-GPU-Benchmark-H100-A100-RTX6000</b></a></td>
-</tr>
-</table>
+**前往 [NC-RTX-Pro-6000V6-BSE-Benchmark](../NC-RTX-Pro-6000V6-BSE-Benchmark/)**
 
-### 👉 [Click here to go to the new location](../Azure-GPU-Benchmark-H100-A100-RTX6000/)
-
-The original GPU benchmarking content has been consolidated into the unified Azure GPU Benchmark project covering H100, A100, and RTX6000.
-
----
-
-*This redirect was created to preserve backward compatibility with existing links.*
+保留本页是为了让已有链接继续可用。

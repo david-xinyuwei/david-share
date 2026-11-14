@@ -1,5 +1,8 @@
 # LoRA-Training-Different-LM-Modules
 
+> [!NOTE]
+> **Archived.** This project predates June 2026 and uses models or APIs that have since been superseded (Phi-3). It stays here so existing links keep working; check current documentation before reusing the steps. Newer related work: [LLM-Fine-Tuning-and-Alignment](../LLM-Fine-Tuning-and-Alignment/).
+
 > **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
 
 
@@ -286,26 +289,3 @@ Modules trained：
 
 The results of the training are as follows:
 ![image](https://github.com/davidsajare/LoRA-Training-Different-LM-Modules/blob/main/images/6.png)
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-pip install -r requirements.txt
-```
-
-### Scripts
-
-| Script | Description |
-|--------|-------------|
-| `source code.ipynb` | Source Code.Ipynb |

@@ -1,5 +1,8 @@
 # End-to-end Stable Diffusion test on Azure NC A100/H100 MIG
 
+> [!NOTE]
+> **已归档。** 本项目写于 2026 年 6 月之前，所用模型或 API 已有更新版本（Stable Diffusion、SDXL）。保留在这里是为了让已有链接继续可用；复用其中步骤前请先核对最新文档。
+
 > **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
 
 A100/H100 are High end Training GPU, which could also work as Inference. In order to save compute power and GPU memory, We could use NVIDIA Multi-Instance GPU (MIG), then we could run Stable Diffusion on MIG.

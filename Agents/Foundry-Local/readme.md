@@ -319,22 +319,3 @@ AI Dev Gallery WinUI App
 | Latency | Slightly higher (serialization + IPC) | Lowest (direct in-process call) |
 | Use Case | Backend, multi-process sharing, remote calls | Windows desktop GUI apps (chat windows, etc.) |
 | Model Storage | Managed by Foundry service | Managed by the app itself |
-
-
-
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

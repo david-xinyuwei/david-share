@@ -1,3 +1,6 @@
+> [!NOTE]
+> **Archived.** This project predates June 2026 and uses models or APIs that have since been superseded (Llama 2, Phi-2 and Phi-3). It stays here so existing links keep working; check current documentation before reusing the steps. Newer related work: [vLLM-Architecture-and-Inference-Engines](../vLLM-Architecture-and-Inference-Engines/).
+
 我们如何在本地安全地运行私有的LLMs呢？开源模型为此提供了可能的解决方案。本文将介绍七种方法。
 
 1. **Hugging Face的transformers**
@@ -131,18 +134,3 @@ TGI (Text Generation Inference)：如果你的任务需要在多种硬件环境�
 Transformer：如果你的任务需要处理复杂的自然语言处理任务，如机器翻译、文本生成等，那么使用基于Transformer的模型可能是一个好选择。Transformer模型具有强大的表示能力，可以捕获文本中的长距离依赖关系。
 
 vLLM：如果你的任务需要处理大规模的自然语言处理任务，如文本分类、情感分析等，那么使用vLLM可能是一个好选择。vLLM是一个大规模的预训练模型，可以在各种自然语言处理任务上实现优秀的性能
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

@@ -1,5 +1,8 @@
 # SDXL and LoRA test
 
+> [!NOTE]
+> **Archived.** This project predates June 2026 and uses models or APIs that have since been superseded (SDXL). It stays here so existing links keep working; check current documentation before reusing the steps.
+
 
 
 > **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
@@ -211,23 +214,3 @@ The effect of juggernautXL_juggXRundiffusion.safetensors + MoXinV1.safetensors (
 
 ## Some fine-tuned models
 In practical use, for personal use, you can use the fine-tuned models available on Civitai or the open-source models released by other companies on HF. In most cases, there is no need to load the Refiner separately. The following website allows you to download both XL models and LoRA: https://civitai.com/models  
-  
-
-
-
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

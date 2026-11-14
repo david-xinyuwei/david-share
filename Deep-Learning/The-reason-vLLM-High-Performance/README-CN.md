@@ -1,24 +1,9 @@
-# 🚚 This Project Has Moved
+# 已迁移：The-reason-vLLM-High-Performance
 
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+<!-- moved-to: ../vLLM-Architecture-and-Inference-Engines/ -->
 
-> **This project has been merged into a unified project.**
+内容已并入 vLLM 架构与推理引擎项目。
 
-<table>
-<tr>
-<td>📍 <b>Old Location</b></td>
-<td><code>Deep-Learning/The-reason-vLLM-High-Performance</code></td>
-</tr>
-<tr>
-<td>📍 <b>New Location</b></td>
-<td><a href="../vLLM-Architecture-and-Inference-Engines/"><b>Deep-Learning/vLLM-Architecture-and-Inference-Engines</b></a></td>
-</tr>
-</table>
+**前往 [vLLM-Architecture-and-Inference-Engines](../vLLM-Architecture-and-Inference-Engines/)**
 
-### 👉 [Click here to go to the new location](../vLLM-Architecture-and-Inference-Engines/)
-
-The vLLM performance analysis content has been merged into the unified vLLM architecture project.
-
----
-
-*This redirect was created to preserve backward compatibility with existing links.*
+保留本页是为了让已有链接继续可用。

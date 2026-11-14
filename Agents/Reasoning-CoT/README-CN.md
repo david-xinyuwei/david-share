@@ -1,5 +1,8 @@
 # Reasoning-CoT
 
+> [!NOTE]
+> **已归档。** 本项目写于 2026 年 6 月之前，所用模型或 API 已有更新版本（GPT-4o 与 o1 风格提示）。保留在这里是为了让已有链接继续可用；复用其中步骤前请先核对最新文档。新的相关项目：[LLM-RL-Training-and-Reasoning](../../Deep-Learning/LLM-RL-Training-and-Reasoning/)。
+
 After the release of OpenAI o1, its training methods and reasoning approaches have garnered a lot of attention. I utilized the Prompt method to simulate Reasoning CoT based on 4o. Although its generalization ability and accuracy are certainly not as good as o1, it can still provide some help for everyone to understand reasoning.
 
 ## 在 Azure 上运行

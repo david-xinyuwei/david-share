@@ -302,18 +302,3 @@ SGLang 在并行维度的支持现状：
 | 专注 DeepSeek或特定巨型模型推理，以 FP8 精度运行<br>(对 TP 要求较高，无需频繁DP伸缩） |  **SGLang**  | - 特定模型 kernel 深度优化 (FP8 GEMM、NextN Speculative 等)<br>- 和 DeepSeek 官方协作紧密<br>- TP 支持已较好 |
 | 通用大型模型快速切换与广泛兼容性<br>（TP、PP、DP 全面支持）  |   **vLLM**   | - torch.compile 覆盖广泛模型，生态建设更完善<br>- TP/PP/DP 并行方案成熟好用<br>- 文档和社区生态活跃，各种新模型快速适配 |
 | 大企业级、高QPS服务、大规模集群 GPU 并行管理<br>（DP、PP、TP 并行需求全面） |   **vLLM**   | - C++ Execution Engine 更成熟稳定<br>- 支持 Kubernetes、Ray 等生产级调度与运维工具<br>- PP、DP 组合极佳，更便于企业生产场景 |
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

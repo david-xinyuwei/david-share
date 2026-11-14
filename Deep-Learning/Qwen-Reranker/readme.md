@@ -385,26 +385,3 @@ CSV file：
 | 32          | 320            | 320                 | 0               | 100          | 760.84       | 25761.95       | 2054.32   | 2316.28   | 29.68        | 34           |
 | 64          | 640            | 627                 | 13              | 97.97        | 749.91       | 22887.34       | 3486.57   | 3999.48   | 29.86        | 35           |
 | 128         | 1280           | 1174                | 106             | 91.72        | 698.38       | 21677.83       | 5648.19   | 17776.8   | 29.97        | 36           |
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-pip install -r requirements.txt
-```
-
-### Scripts
-
-| Script | Description |
-|--------|-------------|
-| `client.py` | Client |
-| `server.py` | Server |

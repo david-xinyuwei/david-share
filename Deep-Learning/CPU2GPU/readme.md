@@ -906,18 +906,3 @@ metrics:
 Migrating C++-dominant applications from CPU to GPU is a systematic process requiring comprehensive consideration of hardware conditions, software tools, and code architecture. This article provides step-by-step guidelines covering analysis, tool selection, code restructuring, and performance tuning.
 
 Practical migration success demonstrates that thorough preliminary analysis, proper CUDA usage, and patient tuning yield significant GPU acceleration. Understand that GPU acceleration is not universal — advantages manifest in cases of high algorithm parallelism and large data scales.
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

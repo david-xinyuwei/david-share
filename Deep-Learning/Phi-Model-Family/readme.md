@@ -1684,19 +1684,3 @@ Step	Training Loss	Validation Loss
 300	1.165900	1.263883
 400	1.162900	1.262569
 ```
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

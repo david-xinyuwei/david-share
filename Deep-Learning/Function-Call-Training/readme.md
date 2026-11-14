@@ -1,5 +1,8 @@
 # Function-Call-Training
 
+> [!NOTE]
+> **Archived.** This project predates June 2026 and uses models or APIs that have since been superseded (Phi-3). It stays here so existing links keep working; check current documentation before reusing the steps.
+
 > **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
 
 Some models inherently have function call capabilities, such as OpenAI and Phi3. Some do not. We can enhance a model's function call capabilities through fine-tuning, which means enabling the model to natively possess more functions. 
@@ -243,18 +246,3 @@ Could see that when asked for detailed information on the quote for Microsoft, t
 **Refer to:**
 
 https://kaitchup.substack.com/p/function-calling-fine-tuning-llama
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

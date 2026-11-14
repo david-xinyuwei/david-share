@@ -19,26 +19,6 @@ Examples and utilities for using video generation models through Azure OpenAI, i
 | `azure-api/demo.py` | Demo |
 | `azure-api/sora_client.py` | Sora Client |
 
-## Getting Started
-
-### Prerequisites
-
-- Python 3.10+
-- Azure subscription (for cloud resources)
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd Sora
-pip install -r requirements.txt
-```
-
-## Running on Azure
-
-This project is designed to run on Azure GPU VMs. Refer to the scripts and notebooks for specific configuration details.
-
 ## License
 
 MIT

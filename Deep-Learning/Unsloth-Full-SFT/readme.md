@@ -304,20 +304,3 @@ trainer = SFTTrainer(
 trainer_ = trainer.train()
 
 ```
-
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

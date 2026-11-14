@@ -450,19 +450,3 @@ rejected_prediction_tokens : 7
 ***https://medium.com/@peakji/context-engineering-for-ai-agents-lessons-from-building-manus-71883f0a67f2***
 
 ***https://platform.openai.com/docs/guides/predicted-outputs***
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

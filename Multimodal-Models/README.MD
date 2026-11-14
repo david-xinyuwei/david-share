@@ -1,36 +1,72 @@
 # Multimodal Models
 
-A collection of 28 projects covering vision language models, image generation, speech processing, video generation, and multimodal fine-tuning.
+Projects on image and video generation, speech and voice, vision and vision-language models, and medical imaging. Each folder is a self-contained project with its own README.
 
----
+[Back to the main page](../README.md)
 
-| Project | Description |
-|---------|-------------|
-| [BiomedParse-Fine-Tuning](BiomedParse-Fine-Tuning/) | Fine-tuning Microsoft's BiomedParse medical image segmentation model |
-| [Chinese-PII-With-Azure-Speech-Service](Chinese-PII-With-Azure-Speech-Service/) | Chinese PII detection and anonymization using Microsoft Presidio with Azure Language Service |
-| [Computer-Vision](Computer-Vision/) | Azure Computer Vision programs for Windows image analysis |
-| [Computer-Vision-Workshop](Computer-Vision-Workshop/) | Hands-on workshop covering Text-to-Image, GPT-4o, Phi3-vision, VLM fine-tuning |
-| [Content-Safety-with-Flux-Image-Generation](Content-Safety-with-Flux-Image-Generation/) | Integrating Azure Content Safety API with FLUX image generation models |
-| [DeepSpeed-FT-Stable-Diffusion](DeepSpeed-FT-Stable-Diffusion/) | Fine-tuning Stable Diffusion with DeepSpeed for distributed training |
-| [E2E-Stable-Diffussion-on-A100-MIG](E2E-Stable-Diffussion-on-A100-MIG/) | End-to-end Stable Diffusion on A100/H100 with MIG partitioning |
-| [Evolution-of-Computer-Vision](Evolution-of-Computer-Vision/) | History and evolution of computer vision from CNNs to multimodal models |
-| [Florence-2](Florence-2/) | Microsoft Florence-2 vision foundation model evaluation and usage |
-| [Flux](Flux/) | FLUX.1 image generation model verification with dev version |
-| [GPT-Image-1](GPT-Image-1/) | Azure OpenAI GPT-Image-1 API for image generation |
-| [Image_super_Resolution](Image_super_Resolution/) | Image super-resolution using Real-ESRGAN with 2x/4x/8x upscaling |
-| [MedImageParse](MedImageParse/) | AI agent for medical image segmentation with natural language prompts |
-| [Meeting-Transcription-AMI-English](Meeting-Transcription-AMI-English/) | Six Azure speech paths on four far-field AMI meeting clips: WER, streaming latency, the clips and human transcripts (CC BY 4.0) |
-| [Muse-WHAM](Muse-WHAM/) | Microsoft Research WHAM world model for game intelligence |
-| [OmniParser](OmniParser/) | Microsoft OmniParser for screen parsing and UI understanding |
-| [Phi-3.5-Vision-and-Pixtral-vLLM](Phi-3.5-Vision-and-Pixtral-vLLM/) | Comparing Phi-3.5 Vision and Pixtral visual language models on vLLM |
-| [Phi3-vision-Fine-tuning](Phi3-vision-Fine-tuning/) | Comprehensive fine-tuning of Phi-3.5-Vision with custom datasets |
+- [Image and video generation](#image-and-video-generation)
+- [Speech and voice](#speech-and-voice)
+- [Vision and vision-language models](#vision-and-vision-language-models)
+- [Medical imaging](#medical-imaging)
+- [Archive](#archive)
+
+## Image and video generation
+
+| Project | What it covers |
+|---|---|
+| [MAI-Image-2-vs-GPT-Image-Benchmark](MAI-Image-2-vs-GPT-Image-Benchmark/) | MAI-Image-2.6 vs GPT-Image-2 and GPT-Image-2.5 across all quality tiers, measured in one session from one client, account and region |
+| [Image-Generation-US-Region-Benchmark](Image-Generation-US-Region-Benchmark/) | The same comparison on US-region deployments: 9 configurations, 17 prompts, 2 rounds, 306 images |
+| [GPT-Image-2-Token-Bucket-Benchmark](GPT-Image-2-Token-Bucket-Benchmark/) | GPT-Image-2 on Azure OpenAI: how the quality and size settings drive token usage, latency and image quality |
+| [Flux](Flux/) | FLUX.1 image generation verification with the dev version |
+| [Content-Safety-with-Flux-Image-Generation](Content-Safety-with-Flux-Image-Generation/) | Azure AI Content Safety screening for FLUX image generation |
+| [Sora](Sora/) | Sora 2 video generation and remix API on Azure, with an architecture deep dive |
+
+## Speech and voice
+
+| Project | What it covers |
+|---|---|
+| [Meeting-Transcription-AMI-English](Meeting-Transcription-AMI-English/) | Six Azure speech paths on four far-field AMI meeting clips: word error rate, streaming latency, the clips and human transcripts (CC BY 4.0) |
+| [Azure-Voice-Live](Azure-Voice-Live/) | Every component you can plug into Azure Voice Live, for speech recognition, models and voices, with the exact API values |
+| [VibeVoice-TTS](VibeVoice-TTS/) | Microsoft VibeVoice: long-form multi-speaker speech generation |
+| [STT-SFT](STT-SFT/) | Fine-tuning Whisper speech-to-text for the medical domain |
+| [voice-wake-word](voice-wake-word/) | Wake-word detection with hard negative mining |
+| [Chinese-PII-With-Azure-Speech-Service](Chinese-PII-With-Azure-Speech-Service/) | Chinese PII detection and anonymization with Microsoft Presidio and Azure Language |
+
+For voice agents built on Voice Live, see [AI Agents: voice agents](../Agents/README.md#voice-agents).
+
+## Vision and vision-language models
+
+| Project | What it covers |
+|---|---|
+| [Florence-2](Florence-2/) | Florence-2 vision foundation model: evaluation and usage |
+| [Phi3-vision-Fine-tuning](Phi3-vision-Fine-tuning/) | Fine-tuning Phi-3.5-Vision on custom datasets |
 | [Phi3-vision-Inference-on-Edge](Phi3-vision-Inference-on-Edge/) | Phi-3 Vision inference on edge devices |
-| [SDXL-LoRA-Test](SDXL-LoRA-Test/) | Stable Diffusion XL LoRA training and testing |
-| [SFT-Phi-4-mm](SFT-Phi-4-mm/) | Supervised fine-tuning of Phi-4 multimodal instruct model |
-| [Sora](Sora/) | Azure Sora-2 video generation and remix API with architecture deep dive |
-| [STT-SFT](STT-SFT/) | Fine-tuning OpenAI Whisper speech-to-text model for medical domain |
-| [Training-VIT-Run-Qianwen-VL](Training-VIT-Run-Qianwen-VL/) | Training Vision Transformer and running Qwen-VL for visual understanding |
-| [Use-Unsloth-to-fine-tune-VLM](Use-Unsloth-to-fine-tune-VLM/) | Using Unsloth to efficiently fine-tune vision language models |
-| [VLM-vs-LLM](VLM-vs-LLM/) | Comparison between Vision Language Models and Large Language Models |
-| [VibeVoice-TTS](VibeVoice-TTS/) | Microsoft VibeVoice long-form multi-speaker conversational speech generation |
-| [voice-wake-word](voice-wake-word/) | Wake word detection using hard negative mining |
+| [SFT-Phi-4-mm](SFT-Phi-4-mm/) | Supervised fine-tuning of the Phi-4 multimodal audio and vision encoders |
+| [Use-Unsloth-to-fine-tune-VLM](Use-Unsloth-to-fine-tune-VLM/) | Fine-tuning vision-language models with Unsloth |
+| [OmniParser](OmniParser/) | OmniParser for screen parsing and UI understanding |
+| [Blueprint-Region-Detector](Blueprint-Region-Detector/) | Entity detection on architectural floor plans of different styles with SAM 2.1 and an auto-tuned connected-components branch |
+| [Muse-WHAM](Muse-WHAM/) | Microsoft Muse / WHAM world model for games |
+| [Computer-Vision-Workshop](Computer-Vision-Workshop/) | Hands-on workshop: text-to-image, GPT-4o, Phi-3 Vision and VLM fine-tuning |
+| [Evolution-of-Computer-Vision](Evolution-of-Computer-Vision/) | How computer vision evolved from CNNs to vision-language models |
+
+## Medical imaging
+
+| Project | What it covers |
+|---|---|
+| [BiomedParse-Fine-Tuning](BiomedParse-Fine-Tuning/) | Fine-tuning BiomedParse for medical image segmentation |
+| [MedImageParse](MedImageParse/) | Medical image segmentation agent driven by natural-language prompts |
+
+## Archive
+
+These projects stay in place so existing links keep working. The models, APIs or tool versions they use have since been superseded; check current documentation before reusing the steps.
+
+| Project | What it covered |
+|---|---|
+| [Computer-Vision](Computer-Vision/) | Azure Computer Vision programs for Windows image analysis |
+| [DeepSpeed-FT-Stable-Diffusion](DeepSpeed-FT-Stable-Diffusion/) | Fine-tuning Stable Diffusion with DeepSpeed |
+| [E2E-Stable-Diffussion-on-A100-MIG](E2E-Stable-Diffussion-on-A100-MIG/) | Stable Diffusion on A100/H100 with MIG partitioning |
+| [GPT-Image-1](GPT-Image-1/) | One GPT-Image-1 generation call on Azure OpenAI; see [GPT-Image-2-Token-Bucket-Benchmark](GPT-Image-2-Token-Bucket-Benchmark/) |
+| [Image_super_Resolution](Image_super_Resolution/) | Image super-resolution with Real-ESRGAN at 2x, 4x and 8x |
+| [Phi-3.5-Vision-and-Pixtral-vLLM](Phi-3.5-Vision-and-Pixtral-vLLM/) | Phi-3.5 Vision and Pixtral on vLLM |
+| [SDXL-LoRA-Test](SDXL-LoRA-Test/) | SDXL LoRA training and testing |
+| [Training-VIT-Run-Qianwen-VL](Training-VIT-Run-Qianwen-VL/) | Training a ViT and running Qwen-VL |

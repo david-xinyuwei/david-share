@@ -439,19 +439,3 @@ Based on the above analysis, the consistency between the second model and the tr
 #### Summary
 
 The consistency score between the second model and the training set is approximately 95%. It is highly consistent with the training set in terms of structure, content, and language style, with only some additional details in the "Processing Power" section, but these details are reasonable and relevant.
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

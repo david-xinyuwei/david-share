@@ -1,24 +1,9 @@
-# 🚚 This Project Has Moved
+# 已迁移：Embedded-Code-SFT-RL
 
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+<!-- moved-to: ../LLM-RL-Training-and-Reasoning/ -->
 
-> **This project has been merged into a unified project.**
+嵌入式代码的 SFT 与 RL 内容已整合进一个未在本仓库公开的 SFT + GRPO 流水线。最接近的公开项目是 LLM 强化学习训练指南，其中包含 SFT + GRPO 代码和训练日志。
 
-<table>
-<tr>
-<td>📍 <b>Old Location</b></td>
-<td><code>Deep-Learning/Embedded-Code-SFT-RL</code></td>
-</tr>
-<tr>
-<td>📍 <b>New Location</b></td>
-<td><a href="../GRPO-RL-Training-Pipeline/"><b>Deep-Learning/GRPO-RL-Training-Pipeline</b></a></td>
-</tr>
-</table>
+**前往 [LLM-RL-Training-and-Reasoning](../LLM-RL-Training-and-Reasoning/)**
 
-### 👉 [Click here to go to the new location](../GRPO-RL-Training-Pipeline/)
-
-The embedded code SFT/RL content has been merged into the unified GRPO RL training pipeline project.
-
----
-
-*This redirect was created to preserve backward compatibility with existing links.*
+保留本页是为了让已有链接继续可用。

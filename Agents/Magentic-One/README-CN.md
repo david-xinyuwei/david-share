@@ -1,5 +1,8 @@
 # Magentic-One Test
 
+> [!NOTE]
+> **已归档。** 本项目写于 2026 年 6 月之前，所用模型或 API 已有更新版本（AutoGen）。保留在这里是为了让已有链接继续可用；复用其中步骤前请先核对最新文档。新的相关项目：[Microsoft-Agent-Framework](../Microsoft-Agent-Framework/)。
+
 > **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
 
 In recent years, the field of generative artificial intelligence has been experiencing a surge in "multi-agent" systems, including Microsoft's AutoGen and the latest Magentic-One, OpenAI's Swarm, LangChain's LangGraph, CrewAI, and others. This repository mainly introduces the architecture and implementation effects of Magentic-One.

@@ -310,20 +310,3 @@ MInference 本质上并不是一个独立的底层推理引擎本身，而是建
 我测试的数据，与MInference官网的数据也是基本一致的。
 
 ![Image](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nVbh5eMicZRkJWU3eUeQNIhBy3Yzzee1lILlLicRHNFPlVVzCaEJ8nQ2BzHbRaCl8TrVu1OVGGwMj2A/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1)
-
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

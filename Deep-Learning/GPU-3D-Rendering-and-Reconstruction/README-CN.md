@@ -31,7 +31,7 @@
 |:---|:---|:---|
 | 分块渲染（Tiled Rendering） | FlashAttention 分块计算 | FlashInfer 在 32K 时比 FA 快 9-15% ([链接](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/FlashInfer-vs-FlashAttention-Benchmark)) |
 | Z-Buffer 逐像素内存管理 | PagedAttention 逐块 KV Cache | KV Cache 六级深潜 ([链接](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive)) |
-| Mipmap 多精度 LOD | Speculative Decoding 草稿验证 | EAGLE3 加速 2.67x ([链接](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/Speculative-Decoding-EAGLE3)) |
+| Mipmap 多精度 LOD | Speculative Decoding 草稿验证 | EAGLE3 加速 2.67x（该实测未在本仓库发布） |
 | Z-fighting 精度闪烁 | BF16 精度累积误差 | fuse_lora SSIM 差 2-18% ([链接](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/LoRA-Merge-Quality-Impact)) |
 | 帧缓冲复用上一帧 | KV Cache 缓存 Key/Value | GQA/MLA 四架构对比 ([链接](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive)) |
 | 光追 Monte Carlo 降噪 | Diffusion DDPM 去噪 | 蒸馏 40步→8步 ([链接](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/Diffusion-Distillation)) |
@@ -772,7 +772,7 @@ DLSS（Deep Learning Super Sampling，深度学习超级采样）— 名字直�
 
 **AI**: Speculative Decoding 用小模型（draft model）快速生成多个候选 token，再用大模型一次性验证/拒绝。
 
-**作者实测**: EAGLE3 在 Qwen 模型上实现 2.67x 加速（官方权重）。来源：[Speculative-Decoding-EAGLE3](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/Speculative-Decoding-EAGLE3)
+**作者实测**: EAGLE3 在 Qwen 模型上实现 2.67x 加速（官方权重）。这项 EAGLE3 实测未在本仓库发布；已发布的投机解码实测见 [Speculative-Decoding](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/Speculative-Decoding)。
 
 **共同原理**: **先用便宜的近似，再用昂贵的精确验证。** 大多数情况下近似就够了，只在需要时才调用高精度。
 
@@ -867,7 +867,7 @@ Jensen Huang 在 GTC 2026 用一句话总结了这个闭环：
 |:---|:---|:---|
 | FlashInfer-vs-FA | A100 80GB | [链接](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/FlashInfer-vs-FlashAttention-Benchmark) |
 | KV-Cache-Deep-Dive | 原理分析 | [链接](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive) |
-| EAGLE3 | H100 | [链接](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/Speculative-Decoding-EAGLE3) |
+| EAGLE3 | H100 | 未在本仓库发布 |
 | LoRA-Merge-Quality | H100 | [链接](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/LoRA-Merge-Quality-Impact) |
 | Diffusion-Distillation | H100 | [链接](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/Diffusion-Distillation) |
 | Qwen3.5-122B | H100 | [链接](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/Qwen3.5-122B-Azure-vs-AWS-Benchmark) |

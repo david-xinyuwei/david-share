@@ -1,24 +1,9 @@
-# 🚚 This Project Has Moved
+# 已迁移：L20-H200
 
-> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+<!-- moved-to: ../NC-RTX-Pro-6000V6-BSE-Benchmark/ -->
 
-> **This project has been merged into a unified GPU benchmark project.**
+L20 与 H200 的对比已不在本仓库发布。当前的 Azure GPU VM 选型与基准见下面的项目。
 
-<table>
-<tr>
-<td>📍 <b>Old Location</b></td>
-<td><code>Deep-Learning/L20-H200</code></td>
-</tr>
-<tr>
-<td>📍 <b>New Location</b></td>
-<td><a href="../Azure-GPU-Benchmark-H100-A100-RTX6000/"><b>Deep-Learning/Azure-GPU-Benchmark-H100-A100-RTX6000</b></a></td>
-</tr>
-</table>
+**前往 [NC-RTX-Pro-6000V6-BSE-Benchmark](../NC-RTX-Pro-6000V6-BSE-Benchmark/)**
 
-### 👉 [Click here to go to the new location](../Azure-GPU-Benchmark-H100-A100-RTX6000/)
-
-The original L20 and H200 comparison content has been consolidated into the unified Azure GPU Benchmark project.
-
----
-
-*This redirect was created to preserve backward compatibility with existing links.*
+保留本页是为了让已有链接继续可用。

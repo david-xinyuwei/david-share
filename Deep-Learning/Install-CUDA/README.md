@@ -128,18 +128,3 @@ export LD_LIBRARY_PATH=/usr/local/cuda-12.2/lib64${LD_LIBRARY_PATH:+:${LD_LIBRAR
 nvcc -V command output — showing Cuda Toolkit is successfully installed
 
 > *In case Cuda is still not installed, run command* `*sudo apt install nvidia-cuda-toolkit*`*, and confirm the installation by* `*nvcc --version*`*.*
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

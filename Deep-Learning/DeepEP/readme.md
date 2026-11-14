@@ -1860,18 +1860,3 @@ GPU Idle: **39 % → 4 %**
 **Refer to：**
 
 https://github.com/naklecha/llama3-from-scratch?tab=readme-ov-file
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

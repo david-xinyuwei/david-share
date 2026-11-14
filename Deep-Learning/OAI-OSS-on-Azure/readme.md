@@ -3260,26 +3260,3 @@ root@a100vm:~/gpt-oss-function#
 *https://techcommunity.microsoft.com/blog/machinelearningblog/deploying-openai%E2%80%99s-first-open-source-model-on-azure-aks-with-kaito/4444234*
 
 *https://lmsys.org/blog/2025-08-28-gpt-oss-qat/*
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-pip install -r requirements.txt
-```
-
-### Scripts
-
-| Script | Description |
-|--------|-------------|
-| `fine-tune-transfomers.ipynb` | Fine-Tune-Transfomers.Ipynb |
